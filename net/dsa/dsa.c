@@ -266,6 +266,41 @@ const struct dsa_device_ops *dsa_resolve_tag_protocol(int tag_protocol)
 	return ops;
 }
 
+int dsa_cpu_port_ethtool_setup(struct dsa_switch *ds)
+{
+	struct net_device *master;
+	struct ethtool_ops *cpu_ops;
+
+	master = ds->dst->master_netdev;
+	if (ds->master_netdev)
+		master = ds->master_netdev;
+
+	cpu_ops = devm_kzalloc(ds->dev, sizeof(*cpu_ops), GFP_KERNEL);
+	if (!cpu_ops)
+		return -ENOMEM;
+
+	memcpy(&ds->dst->master_ethtool_ops, master->ethtool_ops,
+	       sizeof(struct ethtool_ops));
+	ds->dst->master_orig_ethtool_ops = master->ethtool_ops;
+	memcpy(cpu_ops, &ds->dst->master_ethtool_ops,
+	       sizeof(struct ethtool_ops));
+	dsa_cpu_port_ethtool_init(cpu_ops);
+	master->ethtool_ops = cpu_ops;
+
+	return 0;
+}
+
+void dsa_cpu_port_ethtool_restore(struct dsa_switch *ds)
+{
+	struct net_device *master;
+
+	master = ds->dst->master_netdev;
+	if (ds->master_netdev)
+		master = ds->master_netdev;
+
+	master->ethtool_ops = ds->dst->master_orig_ethtool_ops;
+}
+
 static int dsa_switch_setup_one(struct dsa_switch *ds, struct device *parent)
 {
 	struct dsa_switch_driver *drv = ds->drv;
@@ -378,6 +413,10 @@ static int dsa_switch_setup_one(struct dsa_switch *ds, struct device *parent)
 			   index);
 		ret = 0;
 	}
+
+	ret = dsa_cpu_port_ethtool_setup(ds);
+	if (ret)
+		return ret;
 
 #ifdef CONFIG_NET_DSA_HWMON
 	/* If the switch provides a temperature sensor,
@@ -962,6 +1001,8 @@ static void dsa_remove_dst(struct dsa_switch_tree *dst)
 		if (ds)
 			dsa_switch_destroy(ds);
 	}
+
+	dsa_cpu_port_ethtool_restore(dst->ds[0]);
 
 	dev_put(dst->master_netdev);
 }

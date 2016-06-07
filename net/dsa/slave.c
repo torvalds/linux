@@ -892,8 +892,6 @@ static const struct ethtool_ops dsa_slave_ethtool_ops = {
 	.get_eee		= dsa_slave_get_eee,
 };
 
-static struct ethtool_ops dsa_cpu_port_ethtool_ops;
-
 static const struct net_device_ops dsa_slave_netdev_ops = {
 	.ndo_open	 	= dsa_slave_open,
 	.ndo_stop		= dsa_slave_close,
@@ -1126,14 +1124,6 @@ int dsa_slave_create(struct dsa_switch *ds, struct device *parent,
 
 	slave_dev->features = master->vlan_features;
 	slave_dev->ethtool_ops = &dsa_slave_ethtool_ops;
-	if (master->ethtool_ops != &dsa_cpu_port_ethtool_ops) {
-		memcpy(&dst->master_ethtool_ops, master->ethtool_ops,
-		       sizeof(struct ethtool_ops));
-		memcpy(&dsa_cpu_port_ethtool_ops, &dst->master_ethtool_ops,
-		       sizeof(struct ethtool_ops));
-		dsa_cpu_port_ethtool_init(&dsa_cpu_port_ethtool_ops);
-		master->ethtool_ops = &dsa_cpu_port_ethtool_ops;
-	}
 	eth_hw_addr_inherit(slave_dev, master);
 	slave_dev->priv_flags |= IFF_NO_QUEUE;
 	slave_dev->netdev_ops = &dsa_slave_netdev_ops;

@@ -116,6 +116,7 @@ struct dsa_switch_tree {
 	 * Original copy of the master netdev ethtool_ops
 	 */
 	struct ethtool_ops	master_ethtool_ops;
+	const struct ethtool_ops *master_orig_ethtool_ops;
 
 	/*
 	 * The switch and port to which the CPU is attached.

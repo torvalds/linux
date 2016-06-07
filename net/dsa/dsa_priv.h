@@ -54,6 +54,8 @@ int dsa_cpu_dsa_setup(struct dsa_switch *ds, struct device *dev,
 		      struct device_node *port_dn, int port);
 void dsa_cpu_dsa_destroy(struct device_node *port_dn);
 const struct dsa_device_ops *dsa_resolve_tag_protocol(int tag_protocol);
+int dsa_cpu_port_ethtool_setup(struct dsa_switch *ds);
+void dsa_cpu_port_ethtool_restore(struct dsa_switch *ds);
 
 /* slave.c */
 extern const struct dsa_device_ops notag_netdev_ops;
