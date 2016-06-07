@@ -109,7 +109,7 @@ int ptep_set_access_flags(struct vm_area_struct *vma,
 	 * PTE_RDONLY is cleared by default in the asm below, so set it in
 	 * back if necessary (read-only or clean PTE).
 	 */
-	if (!pte_write(entry) || !dirty)
+	if (!pte_write(entry) || !pte_sw_dirty(entry))
 		pte_val(entry) |= PTE_RDONLY;
 
 	/*
