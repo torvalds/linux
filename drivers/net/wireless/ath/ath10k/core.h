@@ -726,6 +726,12 @@ struct ath10k {
 		 */
 		bool continuous_frag_desc;
 
+		/* CCK hardware rate table mapping for the newer chipsets
+		 * like QCA99X0, QCA4019 got revised. The CCK h/w rate values
+		 * are in a proper order with respect to the rate/preamble
+		 */
+		bool cck_rate_map_rev2;
+
 		u32 channel_counters_freq_hz;
 
 		/* Mgmt tx descriptors threshold for limiting probe response
