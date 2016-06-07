@@ -20,6 +20,9 @@
 /* for brcmu_d11inf */
 #include <brcmu_d11.h>
 
+#include "fwil_types.h"
+#include "p2p.h"
+
 #define WL_NUM_SCAN_MAX			10
 #define WL_TLV_INFO_MAX			1024
 #define WL_BSS_INFO_MAX			2048
