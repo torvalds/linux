@@ -6054,6 +6054,7 @@ enum skl_disp_power_wells {
 #define CHICKEN_PIPESL_1(pipe) _MMIO_PIPE(pipe, _CHICKEN_PIPESL_1_A, _CHICKEN_PIPESL_1_B)
 
 #define DISP_ARB_CTL	_MMIO(0x45000)
+#define  DISP_FBC_MEMORY_WAKE		(1<<31)
 #define  DISP_TILE_SURFACE_SWIZZLING	(1<<13)
 #define  DISP_FBC_WM_DIS		(1<<15)
 #define DISP_ARB_CTL2	_MMIO(0x45004)
