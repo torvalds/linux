@@ -1126,17 +1126,17 @@ static const struct dev_pm_ops sirfsoc_dma_pm_ops = {
 	SET_SYSTEM_SLEEP_PM_OPS(sirfsoc_dma_pm_suspend, sirfsoc_dma_pm_resume)
 };
 
-struct sirfsoc_dmadata sirfsoc_dmadata_a6 = {
+static struct sirfsoc_dmadata sirfsoc_dmadata_a6 = {
 	.exec = sirfsoc_dma_execute_hw_a6,
 	.type = SIRFSOC_DMA_VER_A6,
 };
 
-struct sirfsoc_dmadata sirfsoc_dmadata_a7v1 = {
+static struct sirfsoc_dmadata sirfsoc_dmadata_a7v1 = {
 	.exec = sirfsoc_dma_execute_hw_a7v1,
 	.type = SIRFSOC_DMA_VER_A7V1,
 };
 
-struct sirfsoc_dmadata sirfsoc_dmadata_a7v2 = {
+static struct sirfsoc_dmadata sirfsoc_dmadata_a7v2 = {
 	.exec = sirfsoc_dma_execute_hw_a7v2,
 	.type = SIRFSOC_DMA_VER_A7V2,
 };
