@@ -1199,6 +1199,11 @@ static int kbl_init_workarounds(struct intel_engine_cs *engine)
 	I915_WRITE(GEN8_GARBCNTL, (I915_READ(GEN8_GARBCNTL) |
 				   GEN9_GAPS_TSV_CREDIT_DISABLE));
 
+	/* WaDisableFenceDestinationToSLM:kbl (pre-prod) */
+	if (IS_KBL_REVID(dev_priv, KBL_REVID_A0, KBL_REVID_A0))
+		WA_SET_BIT_MASKED(HDC_CHICKEN0,
+				  HDC_FENCE_DEST_SLM_DISABLE);
+
 	return 0;
 }
 
