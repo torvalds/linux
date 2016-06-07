@@ -23,6 +23,7 @@
 #include <drm/drm_crtc_helper.h>
 #include <drm/drm_gem_cma_helper.h>
 #include <drm/drm_fb_cma_helper.h>
+#include <linux/dma-mapping.h>
 #include <linux/module.h>
 
 #define DEFAULT_FBDEFIO_DELAY_MS 50
@@ -302,6 +303,12 @@ int drm_fb_cma_debugfs_show(struct seq_file *m, void *arg)
 EXPORT_SYMBOL_GPL(drm_fb_cma_debugfs_show);
 #endif
 
+static int drm_fb_cma_mmap(struct fb_info *info, struct vm_area_struct *vma)
+{
+	return dma_mmap_writecombine(info->device, vma, info->screen_base,
+				     info->fix.smem_start, info->fix.smem_len);
+}
+
 static struct fb_ops drm_fbdev_cma_ops = {
 	.owner		= THIS_MODULE,
 	.fb_fillrect	= drm_fb_helper_sys_fillrect,
@@ -312,6 +319,7 @@ static struct fb_ops drm_fbdev_cma_ops = {
 	.fb_blank	= drm_fb_helper_blank,
 	.fb_pan_display	= drm_fb_helper_pan_display,
 	.fb_setcmap	= drm_fb_helper_setcmap,
+	.fb_mmap	= drm_fb_cma_mmap,
 };
 
 static int drm_fbdev_cma_deferred_io_mmap(struct fb_info *info,
