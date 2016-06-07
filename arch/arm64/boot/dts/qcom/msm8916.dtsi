@@ -42,13 +42,48 @@
 		#size-cells = <2>;
 		ranges;
 
-		reserve_aligned@86000000 {
-			reg = <0x0 0x86000000 0x0 0x0300000>;
+		tz-apps@86000000 {
+			reg = <0x0 0x86000000 0x0 0x300000>;
 			no-map;
 		};
 
 		smem_mem: smem_region@86300000 {
-			reg = <0x0 0x86300000 0x0 0x0100000>;
+			reg = <0x0 0x86300000 0x0 0x100000>;
+			no-map;
+		};
+
+		hypervisor@86400000 {
+			reg = <0x0 0x86400000 0x0 0x100000>;
+			no-map;
+		};
+
+		tz@86500000 {
+			reg = <0x0 0x86500000 0x0 0x180000>;
+			no-map;
+		};
+
+		reserved@8668000 {
+			reg = <0x0 0x86680000 0x0 0x80000>;
+			no-map;
+		};
+
+		rmtfs@86700000 {
+			reg = <0x0 0x86700000 0x0 0xe0000>;
+			no-map;
+		};
+
+		rfsa@867e00000 {
+			reg = <0x0 0x867e0000 0x0 0x20000>;
+			no-map;
+		};
+
+		mpss@86800000 {
+			reg = <0x0 0x86800000 0x0 0x2b00000>;
+			no-map;
+		};
+
+		wcnss@89300000 {
+			reg = <0x0 0x89300000 0x0 0x600000>;
 			no-map;
 		};
 	};
