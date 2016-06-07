@@ -143,8 +143,6 @@ enum {
 	VERSION = 0,
 	MW_SZ_HIGH,
 	MW_SZ_LOW,
-	SPAD_MSG,
-	SPAD_ACK,
 	MAX_SPAD
 };
 
@@ -695,6 +693,12 @@ static int perf_probe(struct ntb_client *client, struct ntb_dev *ntb)
 	struct perf_ctx *perf;
 	int node;
 	int rc = 0;
+
+	if (ntb_spad_count(ntb) < MAX_SPAD) {
+		dev_err(&ntb->dev, "Not enough scratch pad registers for %s",
+			DRIVER_NAME);
+		return -EIO;
+	}
 
 	node = dev_to_node(&pdev->dev);
 
