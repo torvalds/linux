@@ -1186,6 +1186,11 @@ static int bxt_init_workarounds(struct intel_engine_cs *engine)
 			return ret;
 	}
 
+	/* WaInsertDummyPushConstPs:bxt */
+	if (IS_BXT_REVID(dev_priv, 0, BXT_REVID_B0))
+		WA_SET_BIT_MASKED(COMMON_SLICE_CHICKEN2,
+				  GEN8_SBE_DISABLE_REPLAY_BUF_OPTIMIZATION);
+
 	return 0;
 }
 
@@ -1219,6 +1224,11 @@ static int kbl_init_workarounds(struct intel_engine_cs *engine)
 		/* WaDisableLSQCROPERFforOCL:kbl */
 		I915_WRITE(GEN8_L3SQCREG4, I915_READ(GEN8_L3SQCREG4) |
 			   GEN8_LQSC_RO_PERF_DIS);
+
+	/* WaInsertDummyPushConstPs:kbl */
+	if (IS_KBL_REVID(dev_priv, 0, KBL_REVID_B0))
+		WA_SET_BIT_MASKED(COMMON_SLICE_CHICKEN2,
+				  GEN8_SBE_DISABLE_REPLAY_BUF_OPTIMIZATION);
 
 	/* WaDisableLSQCROPERFforOCL:kbl */
 	ret = wa_ring_whitelist_reg(engine, GEN8_L3SQCREG4);
