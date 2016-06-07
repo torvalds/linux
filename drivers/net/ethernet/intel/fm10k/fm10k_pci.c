@@ -372,6 +372,10 @@ void fm10k_update_stats(struct fm10k_intfc *interface)
 	u64 bytes, pkts;
 	int i;
 
+	/* ensure only one thread updates stats at a time */
+	if (test_and_set_bit(__FM10K_UPDATING_STATS, &interface->state))
+		return;
+
 	/* do not allow stats update via service task for next second */
 	interface->next_stats_update = jiffies + HZ;
 
@@ -449,6 +453,8 @@ void fm10k_update_stats(struct fm10k_intfc *interface)
 	/* Fill out the OS statistics structure */
 	net_stats->rx_errors = rx_errors;
 	net_stats->rx_dropped = interface->stats.nodesc_drop.count;
+
+	clear_bit(__FM10K_UPDATING_STATS, &interface->state);
 }
 
 /**
@@ -1572,6 +1578,9 @@ void fm10k_up(struct fm10k_intfc *interface)
 	/* configure interrupts */
 	hw->mac.ops.update_int_moderator(hw);
 
+	/* enable statistics capture again */
+	clear_bit(__FM10K_UPDATING_STATS, &interface->state);
+
 	/* clear down bit to indicate we are ready to go */
 	clear_bit(__FM10K_DOWN, &interface->state);
 
@@ -1628,6 +1637,10 @@ void fm10k_down(struct fm10k_intfc *interface)
 
 	/* capture stats one last time before stopping interface */
 	fm10k_update_stats(interface);
+
+	/* prevent updating statistics while we're down */
+	while (test_and_set_bit(__FM10K_UPDATING_STATS, &interface->state))
+		usleep_range(1000, 2000);
 
 	/* Disable DMA engine for Tx/Rx */
 	err = hw->mac.ops.stop_hw(hw);
@@ -1757,6 +1770,7 @@ static int fm10k_sw_init(struct fm10k_intfc *interface,
 
 	/* Start off interface as being down */
 	set_bit(__FM10K_DOWN, &interface->state);
+	set_bit(__FM10K_UPDATING_STATS, &interface->state);
 
 	return 0;
 }

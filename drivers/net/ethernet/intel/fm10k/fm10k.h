@@ -362,6 +362,7 @@ enum fm10k_state_t {
 	__FM10K_SERVICE_DISABLE,
 	__FM10K_MBX_LOCK,
 	__FM10K_LINK_DOWN,
+	__FM10K_UPDATING_STATS,
 };
 
 static inline void fm10k_mbx_lock(struct fm10k_intfc *interface)
