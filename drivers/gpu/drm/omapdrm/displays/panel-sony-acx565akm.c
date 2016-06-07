@@ -33,8 +33,9 @@
 #include <linux/of.h>
 #include <linux/of_gpio.h>
 
-#include <video/omapdss.h>
 #include <video/omap-panel-data.h>
+
+#include "../dss/omapdss.h"
 
 #define MIPID_CMD_READ_DISP_ID		0x04
 #define MIPID_CMD_READ_RED		0x06

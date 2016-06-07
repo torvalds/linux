@@ -17,9 +17,10 @@
 #include <linux/of_gpio.h>
 #include <linux/regulator/consumer.h>
 
-#include <video/omapdss.h>
 #include <video/omap-panel-data.h>
 #include <video/of_display_timing.h>
+
+#include "../dss/omapdss.h"
 
 struct panel_drv_data {
 	struct omap_dss_device dssdev;

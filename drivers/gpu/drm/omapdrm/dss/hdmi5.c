@@ -39,9 +39,9 @@
 #include <linux/regulator/consumer.h>
 #include <linux/component.h>
 #include <linux/of.h>
-#include <video/omapdss.h>
 #include <sound/omap-hdmi-audio.h>
 
+#include "omapdss.h"
 #include "hdmi5_core.h"
 #include "dss.h"
 #include "dss_features.h"

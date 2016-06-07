@@ -19,8 +19,7 @@
 #include <linux/seq_file.h>
 #include <linux/pm_runtime.h>
 
-#include <video/omapdss.h>
-
+#include "omapdss.h"
 #include "dss.h"
 #include "hdmi.h"
 

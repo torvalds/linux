@@ -23,8 +23,9 @@
 #include <linux/io.h>
 #include <linux/platform_device.h>
 #include <linux/hdmi.h>
-#include <video/omapdss.h>
+#include <sound/omap-hdmi-audio.h>
 
+#include "omapdss.h"
 #include "dss.h"
 
 /* HDMI Wrapper */
