@@ -6998,6 +6998,10 @@ static void kabylake_init_clock_gating(struct drm_device *dev)
 	if (IS_KBL_REVID(dev_priv, 0, KBL_REVID_B0))
 		I915_WRITE(GEN6_UCGCTL1, I915_READ(GEN6_UCGCTL1) |
 			   GEN6_GAMUNIT_CLOCK_GATE_DISABLE);
+
+	/* WaFbcNukeOnHostModify:kbl */
+	I915_WRITE(ILK_DPFC_CHICKEN, I915_READ(ILK_DPFC_CHICKEN) |
+		   ILK_DPFC_NUKE_ON_ANY_MODIFICATION);
 }
 
 static void skylake_init_clock_gating(struct drm_device *dev)
@@ -7009,6 +7013,10 @@ static void skylake_init_clock_gating(struct drm_device *dev)
 	/* WAC6entrylatency:skl */
 	I915_WRITE(FBC_LLC_READ_CTRL, I915_READ(FBC_LLC_READ_CTRL) |
 		   FBC_LLC_FULLY_OPEN);
+
+	/* WaFbcNukeOnHostModify:skl */
+	I915_WRITE(ILK_DPFC_CHICKEN, I915_READ(ILK_DPFC_CHICKEN) |
+		   ILK_DPFC_NUKE_ON_ANY_MODIFICATION);
 }
 
 static void broadwell_init_clock_gating(struct drm_device *dev)

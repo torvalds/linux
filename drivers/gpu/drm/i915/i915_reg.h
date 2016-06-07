@@ -2209,6 +2209,7 @@ enum skl_disp_power_wells {
 #define ILK_DPFC_STATUS		_MMIO(0x43210)
 #define ILK_DPFC_FENCE_YOFF	_MMIO(0x43218)
 #define ILK_DPFC_CHICKEN	_MMIO(0x43224)
+#define   ILK_DPFC_NUKE_ON_ANY_MODIFICATION	(1<<23)
 #define ILK_FBC_RT_BASE		_MMIO(0x2128)
 #define   ILK_FBC_RT_VALID	(1<<0)
 #define   SNB_FBC_FRONT_BUFFER	(1<<1)
