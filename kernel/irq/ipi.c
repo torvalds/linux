@@ -125,7 +125,7 @@ int irq_destroy_ipi(unsigned int irq, const struct cpumask *dest)
 
 	domain = data->domain;
 	if (WARN_ON(domain == NULL))
-		return;
+		return -EINVAL;
 
 	if (!irq_domain_is_ipi(domain)) {
 		pr_warn("Trying to destroy a non IPI domain!\n");
