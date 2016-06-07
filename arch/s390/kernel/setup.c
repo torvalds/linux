@@ -289,7 +289,7 @@ static int __init parse_vmalloc(char *arg)
 }
 early_param("vmalloc", parse_vmalloc);
 
-void *restart_stack __attribute__((__section__(".data")));
+void *restart_stack __section(.data);
 
 static void __init setup_lowcore(void)
 {

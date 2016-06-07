@@ -121,9 +121,9 @@ static char *dump_type_str(enum dump_type type)
  * Must be in data section since the bss section
  * is not cleared when these are accessed.
  */
-static u8 ipl_ssid __attribute__((__section__(".data"))) = 0;
-static u16 ipl_devno __attribute__((__section__(".data"))) = 0;
-u32 ipl_flags __attribute__((__section__(".data"))) = 0;
+static u8 ipl_ssid __section(.data) = 0;
+static u16 ipl_devno __section(.data) = 0;
+u32 ipl_flags __section(.data) = 0;
 
 enum ipl_method {
 	REIPL_METHOD_CCW_CIO,
