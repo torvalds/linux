@@ -77,6 +77,10 @@ static s32 fm10k_reset_hw_pf(struct fm10k_hw *hw)
 	if (!(reg & FM10K_IP_NOTINRESET))
 		err = FM10K_ERR_RESET_FAILED;
 
+	/* Reset mailbox global interrupts */
+	reg = FM10K_MBX_GLOBAL_REQ_INTERRUPT | FM10K_MBX_GLOBAL_ACK_INTERRUPT;
+	fm10k_write_reg(hw, FM10K_GMBX, reg);
+
 out:
 	return err;
 }
