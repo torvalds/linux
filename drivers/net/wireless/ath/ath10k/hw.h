@@ -360,6 +360,15 @@ enum ath10k_hw_cc_wraparound_type {
 	 * by 2 so they never wraparound themselves.
 	 */
 	ATH10K_HW_CC_WRAP_SHIFTED_ALL = 1,
+
+	/* Each hw counter wrapsaround independently. When the
+	 * counter overflows the repestive counter is right shifted
+	 * by 1, i.e reset to 0x7fffffff, and other counters will be
+	 * running unaffected. In this type of wraparound, it should
+	 * be possible to report accurate Rx busy time unlike the
+	 * first type.
+	 */
+	ATH10K_HW_CC_WRAP_SHIFTED_EACH = 2,
 };
 
 /* Target specific defines for MAIN firmware */
