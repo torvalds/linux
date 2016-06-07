@@ -208,9 +208,6 @@ static int hdmi_power_on_full(struct omap_dss_device *dssdev)
 
 	hdmi4_configure(&hdmi.core, &hdmi.wp, &hdmi.cfg);
 
-	/* bypass TV gamma table */
-	dispc_enable_gamma_table(0);
-
 	/* tv size */
 	dss_mgr_set_timings(channel, p);
 

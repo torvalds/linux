@@ -24,6 +24,7 @@
 #include <linux/interrupt.h>
 #include <video/videomode.h>
 #include <linux/platform_data/omapdss.h>
+#include <uapi/drm/drm_mode.h>
 
 #define DISPC_IRQ_FRAMEDONE		(1 << 0)
 #define DISPC_IRQ_VSYNC			(1 << 1)
@@ -908,6 +909,10 @@ void dispc_mgr_set_timings(enum omap_channel channel,
 		const struct omap_video_timings *timings);
 void dispc_mgr_setup(enum omap_channel channel,
 		const struct omap_overlay_manager_info *info);
+u32 dispc_mgr_gamma_size(enum omap_channel channel);
+void dispc_mgr_set_gamma(enum omap_channel channel,
+			 const struct drm_color_lut *lut,
+			 unsigned int length);
 
 int dispc_ovl_enable(enum omap_plane plane, bool enable);
 bool dispc_ovl_enabled(enum omap_plane plane);
