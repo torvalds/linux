@@ -1588,6 +1588,7 @@ static int bgmac_probe(struct bcma_device *core)
 	bgmac->net_dev = net_dev;
 	bgmac->core = core;
 	bcma_set_drvdata(core, bgmac);
+	SET_NETDEV_DEV(net_dev, &core->dev);
 
 	/* Defaults */
 	memcpy(bgmac->net_dev->dev_addr, mac, ETH_ALEN);
