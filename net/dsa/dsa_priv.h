@@ -58,6 +58,7 @@ const struct dsa_device_ops *dsa_resolve_tag_protocol(int tag_protocol);
 /* slave.c */
 extern const struct dsa_device_ops notag_netdev_ops;
 void dsa_slave_mii_bus_init(struct dsa_switch *ds);
+void dsa_cpu_port_ethtool_init(struct ethtool_ops *ops);
 int dsa_slave_create(struct dsa_switch *ds, struct device *parent,
 		     int port, const char *name);
 void dsa_slave_destroy(struct net_device *slave_dev);

@@ -865,6 +865,13 @@ static void dsa_slave_poll_controller(struct net_device *dev)
 }
 #endif
 
+void dsa_cpu_port_ethtool_init(struct ethtool_ops *ops)
+{
+	ops->get_sset_count = dsa_cpu_port_get_sset_count;
+	ops->get_ethtool_stats = dsa_cpu_port_get_ethtool_stats;
+	ops->get_strings = dsa_cpu_port_get_strings;
+}
+
 static const struct ethtool_ops dsa_slave_ethtool_ops = {
 	.get_settings		= dsa_slave_get_settings,
 	.set_settings		= dsa_slave_set_settings,
@@ -1124,12 +1131,7 @@ int dsa_slave_create(struct dsa_switch *ds, struct device *parent,
 		       sizeof(struct ethtool_ops));
 		memcpy(&dsa_cpu_port_ethtool_ops, &dst->master_ethtool_ops,
 		       sizeof(struct ethtool_ops));
-		dsa_cpu_port_ethtool_ops.get_sset_count =
-					dsa_cpu_port_get_sset_count;
-		dsa_cpu_port_ethtool_ops.get_ethtool_stats =
-					dsa_cpu_port_get_ethtool_stats;
-		dsa_cpu_port_ethtool_ops.get_strings =
-					dsa_cpu_port_get_strings;
+		dsa_cpu_port_ethtool_init(&dsa_cpu_port_ethtool_ops);
 		master->ethtool_ops = &dsa_cpu_port_ethtool_ops;
 	}
 	eth_hw_addr_inherit(slave_dev, master);
