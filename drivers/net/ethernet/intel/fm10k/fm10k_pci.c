@@ -2373,10 +2373,43 @@ static void fm10k_io_resume(struct pci_dev *pdev)
 		netif_device_attach(netdev);
 }
 
+/**
+ * fm10k_io_reset_notify - called when PCI function is reset
+ * @pdev: Pointer to PCI device
+ *
+ * This callback is called when the PCI function is reset such as from
+ * /sys/class/net/<enpX>/device/reset or similar. When prepare is true, it
+ * means we should prepare for a function reset. If prepare is false, it means
+ * the function reset just occurred.
+ */
+static void fm10k_io_reset_notify(struct pci_dev *pdev, bool prepare)
+{
+	struct fm10k_intfc *interface = pci_get_drvdata(pdev);
+	int err = 0;
+
+	if (prepare) {
+		/* warn incase we have any active VF devices */
+		if (pci_num_vf(pdev))
+			dev_warn(&pdev->dev,
+				 "PCIe FLR may cause issues for any active VF devices\n");
+
+		fm10k_prepare_suspend(interface);
+	} else {
+		err = fm10k_handle_resume(interface);
+	}
+
+	if (err) {
+		dev_warn(&pdev->dev,
+			 "fm10k_io_reset_notify failed: %d\n", err);
+		netif_device_detach(interface->netdev);
+	}
+}
+
 static const struct pci_error_handlers fm10k_err_handler = {
 	.error_detected = fm10k_io_error_detected,
 	.slot_reset = fm10k_io_slot_reset,
 	.resume = fm10k_io_resume,
+	.reset_notify = fm10k_io_reset_notify,
 };
 
 static struct pci_driver fm10k_driver = {
