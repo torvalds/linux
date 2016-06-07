@@ -359,8 +359,10 @@ rpcauth_key_timeout_notify(struct rpc_auth *auth, struct rpc_cred *cred)
 EXPORT_SYMBOL_GPL(rpcauth_key_timeout_notify);
 
 bool
-rpcauth_cred_key_to_expire(struct rpc_cred *cred)
+rpcauth_cred_key_to_expire(struct rpc_auth *auth, struct rpc_cred *cred)
 {
+	if (auth->au_flags & RPCAUTH_AUTH_NO_CRKEY_TIMEOUT)
+		return false;
 	if (!cred->cr_ops->crkey_to_expire)
 		return false;
 	return cred->cr_ops->crkey_to_expire(cred);

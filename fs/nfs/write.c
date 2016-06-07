@@ -1195,9 +1195,11 @@ nfs_key_timeout_notify(struct file *filp, struct inode *inode)
 /*
  * Test if the open context credential key is marked to expire soon.
  */
-bool nfs_ctx_key_to_expire(struct nfs_open_context *ctx)
+bool nfs_ctx_key_to_expire(struct nfs_open_context *ctx, struct inode *inode)
 {
-	return rpcauth_cred_key_to_expire(ctx->cred);
+	struct rpc_auth *auth = NFS_SERVER(inode)->client->cl_auth;
+
+	return rpcauth_cred_key_to_expire(auth, ctx->cred);
 }
 
 /*

@@ -497,7 +497,7 @@ void nfs_init_cinfo(struct nfs_commit_info *cinfo,
 		    struct inode *inode,
 		    struct nfs_direct_req *dreq);
 int nfs_key_timeout_notify(struct file *filp, struct inode *inode);
-bool nfs_ctx_key_to_expire(struct nfs_open_context *ctx);
+bool nfs_ctx_key_to_expire(struct nfs_open_context *ctx, struct inode *inode);
 void nfs_pageio_stop_mirroring(struct nfs_pageio_descriptor *pgio);
 
 #ifdef CONFIG_MIGRATION
