@@ -103,7 +103,8 @@ static void ila_csum_adjust_transport(struct sk_buff *skb,
 	iaddr->loc = p->locator;
 }
 
-void ila_update_ipv6_locator(struct sk_buff *skb, struct ila_params *p)
+void ila_update_ipv6_locator(struct sk_buff *skb, struct ila_params *p,
+			     bool set_csum_neutral)
 {
 	struct ipv6hdr *ip6h = ipv6_hdr(skb);
 	struct ila_addr *iaddr = ila_a2i(&ip6h->daddr);
@@ -114,7 +115,8 @@ void ila_update_ipv6_locator(struct sk_buff *skb, struct ila_params *p)
 		 * is a locator being translated to a SIR address.
 		 * Perform (receiver) checksum-neutral translation.
 		 */
-		ila_csum_do_neutral(iaddr, p);
+		if (!set_csum_neutral)
+			ila_csum_do_neutral(iaddr, p);
 	} else {
 		switch (p->csum_mode) {
 		case ILA_CSUM_ADJUST_TRANSPORT:
