@@ -29,6 +29,7 @@
 
 #if defined(CONFIG_OF)
 #include <linux/of.h>
+#include <linux/of_device.h>
 #endif
 
 #if defined(CONFIG_DEBUG_FS)
@@ -55,10 +56,13 @@ static int rk32_edp_clk_enable(struct rk32_edp *edp)
 			clk_prepare_enable(edp->pd);
 		clk_prepare_enable(edp->pclk);
 		clk_prepare_enable(edp->clk_edp);
-		ret = clk_set_rate(edp->clk_24m, 24000000);
-		if (ret < 0)
-			dev_err(edp->dev, "cannot set edp clk_24m %d\n", ret);
-		clk_prepare_enable(edp->clk_24m);
+
+		if (edp->soctype != SOC_RK3399) {
+			ret = clk_set_rate(edp->clk_24m, 24000000);
+			if (ret < 0)
+				pr_err("cannot set edp clk_24m %d\n", ret);
+			clk_prepare_enable(edp->clk_24m);
+		}
 		edp->clk_on = true;
 	}
 
@@ -70,7 +74,10 @@ static int rk32_edp_clk_disable(struct rk32_edp *edp)
 	if (edp->clk_on) {
 		clk_disable_unprepare(edp->pclk);
 		clk_disable_unprepare(edp->clk_edp);
-		clk_disable_unprepare(edp->clk_24m);
+
+		if (edp->soctype != SOC_RK3399)
+			clk_disable_unprepare(edp->clk_24m);
+
 		if (edp->pd)
 			clk_disable_unprepare(edp->pd);
 		edp->clk_on = false;
@@ -100,12 +107,14 @@ static int rk32_edp_pre_init(struct rk32_edp *edp)
 		/* The rk3368 reset the edp 24M clock and apb bus
 		 * according to the CRU_SOFTRST6_CON and CRU_SOFTRST7_CON.
 		 */
-		val = 0x01 | (0x01 << 16);
-		regmap_write(edp->grf, RK3368_GRF_SOC_CON4, val);
+		if (edp->soctype != SOC_RK3399) {
+			val = 0x01 | (0x01 << 16);
+			regmap_write(edp->grf, RK3368_GRF_SOC_CON4, val);
 
-		reset_control_assert(edp->rst_24m);
-		usleep_range(10, 20);
-		reset_control_deassert(edp->rst_24m);
+			reset_control_assert(edp->rst_24m);
+			usleep_range(10, 20);
+			reset_control_deassert(edp->rst_24m);
+		}
 
 		reset_control_assert(edp->rst_apb);
 		usleep_range(10, 20);
@@ -1739,6 +1748,9 @@ static int rk32_edp_probe(struct platform_device *pdev)
 		dev_err(&pdev->dev, "screen is not edp!\n");
 		return -EINVAL;
 	}
+
+	edp->soctype = (unsigned long)of_device_get_match_data(&pdev->dev);
+
 	platform_set_drvdata(pdev, edp);
 	dev_set_name(edp->dev, "rk32-edp");
 
@@ -1767,10 +1779,12 @@ static int rk32_edp_probe(struct platform_device *pdev)
 		return PTR_ERR(edp->clk_edp);
 	}
 
-	edp->clk_24m = devm_clk_get(&pdev->dev, "clk_edp_24m");
-	if (IS_ERR(edp->clk_24m)) {
-		dev_err(&pdev->dev, "cannot get clk_edp_24m\n");
-		return PTR_ERR(edp->clk_24m);
+	if (edp->soctype != SOC_RK3399) {
+		edp->clk_24m = devm_clk_get(&pdev->dev, "clk_edp_24m");
+		if (IS_ERR(edp->clk_24m)) {
+			dev_err(&pdev->dev, "cannot get clk_edp_24m\n");
+			return PTR_ERR(edp->clk_24m);
+		}
 	}
 
 	edp->pclk = devm_clk_get(&pdev->dev, "pclk_edp");
@@ -1783,10 +1797,13 @@ static int rk32_edp_probe(struct platform_device *pdev)
 	 * and later, and we reserve the code that setting the cru regs directly
 	 * in the rk3288.
 	 */
-	/*edp 24m need sorft reset*/
-	edp->rst_24m = devm_reset_control_get(&pdev->dev, "edp_24m");
-	if (IS_ERR(edp->rst_24m))
-		dev_err(&pdev->dev, "failed to get reset\n");
+	if (edp->soctype != SOC_RK3399) {
+		/*edp 24m need sorft reset*/
+		edp->rst_24m = devm_reset_control_get(&pdev->dev, "edp_24m");
+		if (IS_ERR(edp->rst_24m))
+			dev_err(&pdev->dev, "failed to get reset\n");
+	}
+
 	/* edp ctrl apb bus need sorft reset */
 	edp->rst_apb = devm_reset_control_get(&pdev->dev, "edp_apb");
 	if (IS_ERR(edp->rst_apb))
@@ -1837,7 +1854,8 @@ static void rk32_edp_shutdown(struct platform_device *pdev)
 
 #if defined(CONFIG_OF)
 static const struct of_device_id rk32_edp_dt_ids[] = {
-	{.compatible = "rockchip,rk32-edp",},
+	{.compatible = "rockchip,rk32-edp", .data = (void *)SOC_COMMON},
+	{.compatible = "rockchip,rk3399-edp-fb", .data = (void *)SOC_RK3399},
 	{}
 };
 

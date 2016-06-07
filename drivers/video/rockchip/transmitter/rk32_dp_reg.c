@@ -67,7 +67,10 @@ void rk32_edp_init_refclk(struct rk32_edp *edp)
 	val = SEL_24M;
 	writel(val, edp->regs + ANALOG_CTL_2);
 
-	val = REF_CLK_24M;
+	if (edp->soctype == SOC_RK3399)
+		val = 0x1 << 0;
+	else
+		val = REF_CLK_24M;
 	writel(val, edp->regs + PLL_REG_1);
 
 	val = 0x95;

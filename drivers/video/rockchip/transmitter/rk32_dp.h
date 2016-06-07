@@ -546,7 +546,10 @@ struct link_train {
 	enum link_training_state lt_state;
 };
 
-
+enum {
+	SOC_COMMON = 0,
+	SOC_RK3399
+};
 
 struct rk32_edp {
 	struct device		*dev;
@@ -565,6 +568,7 @@ struct rk32_edp {
 	struct fb_monspecs      specs;
 	bool clk_on;
 	bool edp_en;
+	int soctype;
 	struct dentry *debugfs_dir;
 };
 
