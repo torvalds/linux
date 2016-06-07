@@ -220,7 +220,7 @@ struct nfc_digital_dev {
 	struct list_head cmd_queue;
 	struct mutex cmd_lock;
 
-	struct work_struct poll_work;
+	struct delayed_work poll_work;
 
 	u8 curr_protocol;
 	u8 curr_rf_tech;
