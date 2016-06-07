@@ -53,7 +53,7 @@ static unsigned long meson_clk_pll_recalc_rate(struct clk_hw *hw,
 	struct parm *p;
 	unsigned long parent_rate_mhz = parent_rate / 1000000;
 	unsigned long rate_mhz;
-	u16 n, m, od;
+	u16 n, m, frac = 0, od, od2 = 0;
 	u32 reg;
 
 	p = &pll->n;
@@ -68,7 +68,21 @@ static unsigned long meson_clk_pll_recalc_rate(struct clk_hw *hw,
 	reg = readl(pll->base + p->reg_off);
 	od = PARM_GET(p->width, p->shift, reg);
 
-	rate_mhz = (parent_rate_mhz * m / n) >> od;
+	p = &pll->od2;
+	if (p->width) {
+		reg = readl(pll->base + p->reg_off);
+		od2 = PARM_GET(p->width, p->shift, reg);
+	}
+
+	p = &pll->frac;
+	if (p->width) {
+		reg = readl(pll->base + p->reg_off);
+		frac = PARM_GET(p->width, p->shift, reg);
+		rate_mhz = (parent_rate_mhz * m + \
+				(parent_rate_mhz * frac >> 12)) * 2 / n;
+		rate_mhz = rate_mhz >> od >> od2;
+	} else
+		rate_mhz = (parent_rate_mhz * m / n) >> od >> od2;
 
 	return rate_mhz * 1000000;
 }
@@ -154,6 +168,20 @@ static int meson_clk_pll_set_rate(struct clk_hw *hw, unsigned long rate,
 	reg = readl(pll->base + p->reg_off);
 	reg = PARM_SET(p->width, p->shift, reg, rate_set->od);
 	writel(reg, pll->base + p->reg_off);
+
+	p = &pll->od2;
+	if (p->width) {
+		reg = readl(pll->base + p->reg_off);
+		reg = PARM_SET(p->width, p->shift, reg, rate_set->od2);
+		writel(reg, pll->base + p->reg_off);
+	}
+
+	p = &pll->frac;
+	if (p->width) {
+		reg = readl(pll->base + p->reg_off);
+		reg = PARM_SET(p->width, p->shift, reg, rate_set->frac);
+		writel(reg, pll->base + p->reg_off);
+	}
 
 	p = &pll->n;
 	ret = meson_clk_pll_wait_lock(pll, p);
