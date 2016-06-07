@@ -259,15 +259,6 @@ static int virtio_gpu_conn_mode_valid(struct drm_connector *connector,
 	return MODE_BAD;
 }
 
-static struct drm_encoder*
-virtio_gpu_best_encoder(struct drm_connector *connector)
-{
-	struct virtio_gpu_output *virtio_gpu_output =
-		drm_connector_to_virtio_gpu_output(connector);
-
-	return &virtio_gpu_output->enc;
-}
-
 static const struct drm_encoder_helper_funcs virtio_gpu_enc_helper_funcs = {
 	.mode_set   = virtio_gpu_enc_mode_set,
 	.enable     = virtio_gpu_enc_enable,
@@ -277,7 +268,6 @@ static const struct drm_encoder_helper_funcs virtio_gpu_enc_helper_funcs = {
 static const struct drm_connector_helper_funcs virtio_gpu_conn_helper_funcs = {
 	.get_modes    = virtio_gpu_conn_get_modes,
 	.mode_valid   = virtio_gpu_conn_mode_valid,
-	.best_encoder = virtio_gpu_best_encoder,
 };
 
 static enum drm_connector_status virtio_gpu_conn_detect(
