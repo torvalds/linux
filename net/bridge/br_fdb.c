@@ -279,6 +279,8 @@ void br_fdb_change_mac_address(struct net_bridge *br, const u8 *newaddr)
 	 * change from under us.
 	 */
 	list_for_each_entry(v, &vg->vlan_list, vlist) {
+		if (!br_vlan_should_use(v))
+			continue;
 		f = __br_fdb_get(br, br->dev->dev_addr, v->vid);
 		if (f && f->is_local && !f->dst)
 			fdb_delete_local(br, NULL, f);
