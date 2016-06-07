@@ -1622,25 +1622,15 @@ static s32 fm10k_request_lport_map_pf(struct fm10k_hw *hw)
  **/
 static s32 fm10k_get_host_state_pf(struct fm10k_hw *hw, bool *switch_ready)
 {
-	s32 ret_val = 0;
 	u32 dma_ctrl2;
 
 	/* verify the switch is ready for interaction */
 	dma_ctrl2 = fm10k_read_reg(hw, FM10K_DMA_CTRL2);
 	if (!(dma_ctrl2 & FM10K_DMA_CTRL2_SWITCH_READY))
-		goto out;
+		return 0;
 
 	/* retrieve generic host state info */
-	ret_val = fm10k_get_host_state_generic(hw, switch_ready);
-	if (ret_val)
-		goto out;
-
-	/* interface cannot receive traffic without logical ports */
-	if (hw->mac.dglort_map == FM10K_DGLORTMAP_NONE)
-		ret_val = fm10k_request_lport_map_pf(hw);
-
-out:
-	return ret_val;
+	return fm10k_get_host_state_generic(hw, switch_ready);
 }
 
 /* This structure defines the attibutes to be parsed below */
@@ -1816,6 +1806,7 @@ static const struct fm10k_mac_ops mac_ops_pf = {
 	.set_dma_mask		= fm10k_set_dma_mask_pf,
 	.get_fault		= fm10k_get_fault_pf,
 	.get_host_state		= fm10k_get_host_state_pf,
+	.request_lport_map	= fm10k_request_lport_map_pf,
 };
 
 static const struct fm10k_iov_ops iov_ops_pf = {
