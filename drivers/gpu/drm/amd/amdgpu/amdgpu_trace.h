@@ -55,13 +55,24 @@ TRACE_EVENT(amdgpu_bo_create,
 	    TP_STRUCT__entry(
 			     __field(struct amdgpu_bo *, bo)
 			     __field(u32, pages)
+			     __field(u32, type)
+			     __field(u32, prefer)
+			     __field(u32, allow)
+			     __field(u32, visible)
 			     ),
 
 	    TP_fast_assign(
 			   __entry->bo = bo;
 			   __entry->pages = bo->tbo.num_pages;
+			   __entry->type = bo->tbo.mem.mem_type;
+			   __entry->prefer = bo->prefered_domains;
+			   __entry->allow = bo->allowed_domains;
+			   __entry->visible = bo->flags;
 			   ),
-	    TP_printk("bo=%p, pages=%u", __entry->bo, __entry->pages)
+
+	    TP_printk("bo=%p,pages=%u,type=%d,prefered=%d,allowed=%d,visible=%d",
+		       __entry->bo, __entry->pages, __entry->type,
+		       __entry->prefer, __entry->allow, __entry->visible)
 );
 
 TRACE_EVENT(amdgpu_cs,
@@ -282,13 +293,18 @@ TRACE_EVENT(amdgpu_bo_list_set,
 	    TP_STRUCT__entry(
 			     __field(struct amdgpu_bo_list *, list)
 			     __field(struct amdgpu_bo *, bo)
+			     __field(u64, bo_size)
 			     ),
 
 	    TP_fast_assign(
 			   __entry->list = list;
 			   __entry->bo = bo;
+			   __entry->bo_size = amdgpu_bo_size(bo);
 			   ),
-	    TP_printk("list=%p, bo=%p", __entry->list, __entry->bo)
+	    TP_printk("list=%p, bo=%p, bo_size = %Ld",
+		      __entry->list,
+		      __entry->bo,
+		      __entry->bo_size)
 );
 
 #endif
