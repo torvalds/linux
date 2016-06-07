@@ -646,13 +646,58 @@ out_free:
 	return -1;
 }
 
+static int perf_config_set__init(struct perf_config_set *set)
+{
+	int ret = -1;
+	const char *home = NULL;
+
+	/* Setting $PERF_CONFIG makes perf read _only_ the given config file. */
+	if (config_exclusive_filename)
+		return perf_config_from_file(collect_config, config_exclusive_filename, set);
+	if (perf_config_system() && !access(perf_etc_perfconfig(), R_OK)) {
+		if (perf_config_from_file(collect_config, perf_etc_perfconfig(), set) < 0)
+			goto out;
+	}
+
+	home = getenv("HOME");
+	if (perf_config_global() && home) {
+		char *user_config = strdup(mkpath("%s/.perfconfig", home));
+		struct stat st;
+
+		if (user_config == NULL) {
+			warning("Not enough memory to process %s/.perfconfig, "
+				"ignoring it.", home);
+			goto out;
+		}
+
+		if (stat(user_config, &st) < 0)
+			goto out_free;
+
+		if (st.st_uid && (st.st_uid != geteuid())) {
+			warning("File %s not owned by current user or root, "
+				"ignoring it.", user_config);
+			goto out_free;
+		}
+
+		if (!st.st_size)
+			goto out_free;
+
+		ret = perf_config_from_file(collect_config, user_config, set);
+
+out_free:
+		free(user_config);
+	}
+out:
+	return ret;
+}
+
 struct perf_config_set *perf_config_set__new(void)
 {
 	struct perf_config_set *set = zalloc(sizeof(*set));
 
 	if (set) {
 		INIT_LIST_HEAD(&set->sections);
-		if (perf_config(collect_config, set) < 0) {
+		if (perf_config_set__init(set) < 0) {
 			perf_config_set__delete(set);
 			set = NULL;
 		}
