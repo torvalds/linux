@@ -63,11 +63,6 @@ static s32 fm10k_reset_hw_pf(struct fm10k_hw *hw)
 	if (reg & (FM10K_DMA_CTRL_TX_ACTIVE | FM10K_DMA_CTRL_RX_ACTIVE))
 		return FM10K_ERR_DMA_PENDING;
 
-	/* verify the switch is ready for reset */
-	reg = fm10k_read_reg(hw, FM10K_DMA_CTRL2);
-	if (!(reg & FM10K_DMA_CTRL2_SWITCH_READY))
-		return FM10K_ERR_DMA_PENDING;
-
 force_reset:
 	/* Inititate data path reset */
 	reg = FM10K_DMA_CTRL_DATAPATH_RESET;
