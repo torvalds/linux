@@ -76,33 +76,45 @@ static int dwc3_pci_quirks(struct pci_dev *pdev, struct platform_device *dwc3)
 		return platform_device_add_properties(dwc3, properties);
 	}
 
-	if (pdev->vendor == PCI_VENDOR_ID_INTEL &&
-	    pdev->device == PCI_DEVICE_ID_INTEL_BYT) {
-		struct gpio_desc *gpio;
+	if (pdev->vendor == PCI_VENDOR_ID_INTEL) {
+		int ret;
 
-		acpi_dev_add_driver_gpios(ACPI_COMPANION(&pdev->dev),
-					  acpi_dwc3_byt_gpios);
+		struct property_entry properties[] = {
+			PROPERTY_ENTRY_STRING("dr-mode", "peripheral"),
+			{ }
+		};
 
-		/*
-		 * These GPIOs will turn on the USB2 PHY. Note that we have to
-		 * put the gpio descriptors again here because the phy driver
-		 * might want to grab them, too.
-		 */
-		gpio = gpiod_get_optional(&pdev->dev, "cs", GPIOD_OUT_LOW);
-		if (IS_ERR(gpio))
-			return PTR_ERR(gpio);
+		ret = platform_device_add_properties(dwc3, properties);
+		if (ret < 0)
+			return ret;
 
-		gpiod_set_value_cansleep(gpio, 1);
-		gpiod_put(gpio);
+		if (pdev->device == PCI_DEVICE_ID_INTEL_BYT) {
+			struct gpio_desc *gpio;
 
-		gpio = gpiod_get_optional(&pdev->dev, "reset", GPIOD_OUT_LOW);
-		if (IS_ERR(gpio))
-			return PTR_ERR(gpio);
+			acpi_dev_add_driver_gpios(ACPI_COMPANION(&pdev->dev),
+					acpi_dwc3_byt_gpios);
 
-		if (gpio) {
+			/*
+			 * These GPIOs will turn on the USB2 PHY. Note that we have to
+			 * put the gpio descriptors again here because the phy driver
+			 * might want to grab them, too.
+			 */
+			gpio = gpiod_get_optional(&pdev->dev, "cs", GPIOD_OUT_LOW);
+			if (IS_ERR(gpio))
+				return PTR_ERR(gpio);
+
 			gpiod_set_value_cansleep(gpio, 1);
 			gpiod_put(gpio);
-			usleep_range(10000, 11000);
+
+			gpio = gpiod_get_optional(&pdev->dev, "reset", GPIOD_OUT_LOW);
+			if (IS_ERR(gpio))
+				return PTR_ERR(gpio);
+
+			if (gpio) {
+				gpiod_set_value_cansleep(gpio, 1);
+				gpiod_put(gpio);
+				usleep_range(10000, 11000);
+			}
 		}
 	}
 
