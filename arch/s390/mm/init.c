@@ -111,9 +111,10 @@ void __init paging_init(void)
 
 void mark_rodata_ro(void)
 {
-	/* Text and rodata are already protected. Nothing to do here. */
-	pr_info("Write protecting the kernel read-only data: %luk\n",
-		((unsigned long)&_eshared - (unsigned long)&_stext) >> 10);
+	unsigned long size = __end_ro_after_init - __start_ro_after_init;
+
+	set_memory_ro((unsigned long)__start_ro_after_init, size >> PAGE_SHIFT);
+	pr_info("Write protected read-only-after-init data: %luk\n", size >> 10);
 }
 
 void __init mem_init(void)

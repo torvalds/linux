@@ -373,14 +373,13 @@ out:
  */
 void __init vmem_map_init(void)
 {
-	unsigned long ro_start, ro_end;
+	unsigned long size = _eshared - _stext;
 	struct memblock_region *reg;
 
 	for_each_memblock(memory, reg)
 		vmem_add_mem(reg->base, reg->size);
-	ro_start = PFN_ALIGN((unsigned long)&_stext);
-	ro_end = (unsigned long)&_eshared & PAGE_MASK;
-	set_memory_ro(ro_start, (ro_end - ro_start) >> PAGE_SHIFT);
+	set_memory_ro((unsigned long)_stext, size >> PAGE_SHIFT);
+	pr_info("Write protected kernel read-only data: %luk\n", size >> 10);
 }
 
 /*

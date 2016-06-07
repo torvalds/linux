@@ -11,6 +11,9 @@
  */
 #define BSS_FIRST_SECTIONS *(.bss..swapper_pg_dir)
 
+/* Handle ro_after_init data on our own. */
+#define RO_AFTER_INIT_DATA
+
 #include <asm-generic/vmlinux.lds.h>
 
 OUTPUT_FORMAT("elf64-s390", "elf64-s390", "elf64-s390")
@@ -56,7 +59,14 @@ SECTIONS
 	_eshared = .;		/* End of shareable data */
 	_sdata = .;		/* Start of data section */
 
-	EXCEPTION_TABLE(16) :data
+	. = ALIGN(PAGE_SIZE);
+	__start_ro_after_init = .;
+	.data..ro_after_init : {
+		 *(.data..ro_after_init)
+	}
+	EXCEPTION_TABLE(16)
+	. = ALIGN(PAGE_SIZE);
+	__end_ro_after_init = .;
 
 	RW_DATA_SECTION(0x100, PAGE_SIZE, THREAD_SIZE)
 
