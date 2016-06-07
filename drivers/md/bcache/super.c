@@ -1520,7 +1520,8 @@ struct cache_set *bch_cache_set_alloc(struct cache_sb *sb)
 	    !(c->fill_iter = mempool_create_kmalloc_pool(1, iter_size)) ||
 	    !(c->bio_split = bioset_create(4, offsetof(struct bbio, bio))) ||
 	    !(c->uuids = alloc_bucket_pages(GFP_KERNEL, c)) ||
-	    !(c->moving_gc_wq = create_workqueue("bcache_gc")) ||
+	    !(c->moving_gc_wq = alloc_workqueue("bcache_gc",
+						WQ_MEM_RECLAIM, 0)) ||
 	    bch_journal_alloc(c) ||
 	    bch_btree_cache_alloc(c) ||
 	    bch_open_buckets_alloc(c) ||
@@ -2099,7 +2100,7 @@ static int __init bcache_init(void)
 		return bcache_major;
 	}
 
-	if (!(bcache_wq = create_workqueue("bcache")) ||
+	if (!(bcache_wq = alloc_workqueue("bcache", WQ_MEM_RECLAIM, 0)) ||
 	    !(bcache_kobj = kobject_create_and_add("bcache", fs_kobj)) ||
 	    sysfs_create_files(bcache_kobj, files) ||
 	    bch_request_init() ||
