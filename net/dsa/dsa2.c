@@ -283,6 +283,7 @@ static void dsa_user_port_unapply(struct device_node *port, u32 index,
 	if (ds->ports[index].netdev) {
 		dsa_slave_destroy(ds->ports[index].netdev);
 		ds->ports[index].netdev = NULL;
+		ds->enabled_port_mask &= ~(1 << index);
 	}
 }
 
@@ -291,6 +292,13 @@ static int dsa_ds_apply(struct dsa_switch_tree *dst, struct dsa_switch *ds)
 	struct device_node *port;
 	u32 index;
 	int err;
+
+	/* Initialize ds->phys_mii_mask before registering the slave MDIO bus
+	 * driver and before drv->setup() has run, since the switch drivers and
+	 * the slave MDIO bus driver rely on these values for probing PHY
+	 * devices or not
+	 */
+	ds->phys_mii_mask = ds->enabled_port_mask;
 
 	err = ds->drv->setup(ds);
 	if (err < 0)
@@ -511,6 +519,13 @@ static int dsa_parse_ports_dn(struct device_node *ports, struct dsa_switch *ds)
 			return -EINVAL;
 
 		ds->ports[reg].dn = port;
+
+		/* Initialize enabled_port_mask now for drv->setup()
+		 * to have access to a correct value, just like what
+		 * net/dsa/dsa.c::dsa_switch_setup_one does.
+		 */
+		if (!dsa_port_is_cpu(port))
+			ds->enabled_port_mask |= 1 << reg;
 	}
 
 	return 0;
