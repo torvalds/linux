@@ -185,6 +185,7 @@
 			cache-level = <2>;
 			arm,tag-latency = <4 2 3>;
 			arm,data-latency = <4 2 3>;
+			arm,shared-override;
 		};
 
 		pcie: pcie@0x01000000 {
