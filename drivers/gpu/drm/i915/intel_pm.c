@@ -6992,7 +6992,13 @@ static void kabylake_init_clock_gating(struct drm_device *dev)
 
 static void skylake_init_clock_gating(struct drm_device *dev)
 {
+	struct drm_i915_private *dev_priv = dev->dev_private;
+
 	gen9_init_clock_gating(dev);
+
+	/* WAC6entrylatency:skl */
+	I915_WRITE(FBC_LLC_READ_CTRL, I915_READ(FBC_LLC_READ_CTRL) |
+		   FBC_LLC_FULLY_OPEN);
 }
 
 static void broadwell_init_clock_gating(struct drm_device *dev)

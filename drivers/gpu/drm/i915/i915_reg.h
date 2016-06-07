@@ -2167,6 +2167,9 @@ enum skl_disp_power_wells {
 
 #define FBC_LL_SIZE		(1536)
 
+#define FBC_LLC_READ_CTRL	_MMIO(0x9044)
+#define   FBC_LLC_FULLY_OPEN	(1<<30)
+
 /* Framebuffer compression for GM45+ */
 #define DPFC_CB_BASE		_MMIO(0x3200)
 #define DPFC_CONTROL		_MMIO(0x3208)
