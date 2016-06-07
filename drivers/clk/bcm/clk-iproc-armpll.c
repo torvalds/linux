@@ -20,6 +20,8 @@
 #include <linux/clkdev.h>
 #include <linux/of_address.h>
 
+#include "clk-iproc.h"
+
 #define IPROC_CLK_MAX_FREQ_POLICY                    0x3
 #define IPROC_CLK_POLICY_FREQ_OFFSET                 0x008
 #define IPROC_CLK_POLICY_FREQ_POLICY_FREQ_SHIFT      8
