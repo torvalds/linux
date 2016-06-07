@@ -890,20 +890,10 @@ static int sti_hdmi_connector_mode_valid(struct drm_connector *connector,
 	return MODE_OK;
 }
 
-struct drm_encoder *sti_hdmi_best_encoder(struct drm_connector *connector)
-{
-	struct sti_hdmi_connector *hdmi_connector
-		= to_sti_hdmi_connector(connector);
-
-	/* Best encoder is the one associated during connector creation */
-	return hdmi_connector->encoder;
-}
-
 static const
 struct drm_connector_helper_funcs sti_hdmi_connector_helper_funcs = {
 	.get_modes = sti_hdmi_connector_get_modes,
 	.mode_valid = sti_hdmi_connector_mode_valid,
-	.best_encoder = sti_hdmi_best_encoder,
 };
 
 /* get detection status of display device */
