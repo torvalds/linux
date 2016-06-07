@@ -6067,6 +6067,9 @@ enum skl_disp_power_wells {
 #define HSW_NDE_RSTWRN_OPT	_MMIO(0x46408)
 #define  RESET_PCH_HANDSHAKE_ENABLE	(1<<4)
 
+#define GEN8_CHICKEN_DCPR_1		_MMIO(0x46430)
+#define   MASK_WAKEMEM			(1<<13)
+
 #define SKL_DFSM			_MMIO(0x51000)
 #define SKL_DFSM_CDCLK_LIMIT_MASK	(3 << 23)
 #define SKL_DFSM_CDCLK_LIMIT_675	(0 << 23)
