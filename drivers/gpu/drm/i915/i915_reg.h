@@ -1672,6 +1672,9 @@ enum skl_disp_power_wells {
 
 #define GEN7_TLB_RD_ADDR	_MMIO(0x4700)
 
+#define GAMT_CHKN_BIT_REG	_MMIO(0x4ab8)
+#define   GAMT_CHKN_DISABLE_DYNAMIC_CREDIT_SHARING	(1<<28)
+
 #if 0
 #define PRB0_TAIL	_MMIO(0x2030)
 #define PRB0_HEAD	_MMIO(0x2034)
