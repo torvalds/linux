@@ -154,6 +154,21 @@ static inline int arch_within_stack_frames(const void * const stack,
 }
 #endif
 
+#ifdef CONFIG_HARDENED_USERCOPY
+extern void __check_object_size(const void *ptr, unsigned long n,
+					bool to_user);
+
+static inline void check_object_size(const void *ptr, unsigned long n,
+				     bool to_user)
+{
+	__check_object_size(ptr, n, to_user);
+}
+#else
+static inline void check_object_size(const void *ptr, unsigned long n,
+				     bool to_user)
+{ }
+#endif /* CONFIG_HARDENED_USERCOPY */
+
 #endif	/* __KERNEL__ */
 
 #endif /* _LINUX_THREAD_INFO_H */
