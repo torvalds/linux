@@ -351,6 +351,17 @@ enum ath10k_hw_4addr_pad {
 	ATH10K_HW_4ADDR_PAD_BEFORE,
 };
 
+enum ath10k_hw_cc_wraparound_type {
+	ATH10K_HW_CC_WRAP_DISABLED = 0,
+
+	/* This type is when the HW chip has a quirky Cycle Counter
+	 * wraparound which resets to 0x7fffffff instead of 0. All
+	 * other CC related counters (e.g. Rx Clear Count) are divided
+	 * by 2 so they never wraparound themselves.
+	 */
+	ATH10K_HW_CC_WRAP_SHIFTED_ALL = 1,
+};
+
 /* Target specific defines for MAIN firmware */
 #define TARGET_NUM_VDEVS			8
 #define TARGET_NUM_PEER_AST			2

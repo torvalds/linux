@@ -179,11 +179,13 @@ void ath10k_hw_fill_survey_time(struct ath10k *ar, struct survey_info *survey,
 				u32 cc, u32 rcc, u32 cc_prev, u32 rcc_prev)
 {
 	u32 cc_fix = 0;
+	enum ath10k_hw_cc_wraparound_type wraparound_type;
 
 	survey->filled |= SURVEY_INFO_TIME |
 			  SURVEY_INFO_TIME_BUSY;
 
-	if (ar->hw_params.has_shifted_cc_wraparound && cc < cc_prev) {
+	wraparound_type = ar->hw_params.cc_wraparound_type;
+	if (wraparound_type == ATH10K_HW_CC_WRAP_SHIFTED_ALL && cc < cc_prev) {
 		cc_fix = 0x7fffffff;
 		survey->filled &= ~SURVEY_INFO_TIME_BUSY;
 	}
