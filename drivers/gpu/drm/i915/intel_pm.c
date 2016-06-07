@@ -75,6 +75,10 @@ static void gen9_init_clock_gating(struct drm_device *dev)
 	I915_WRITE(DISP_ARB_CTL, I915_READ(DISP_ARB_CTL) |
 		   DISP_FBC_WM_DIS |
 		   DISP_FBC_MEMORY_WAKE);
+
+	/* WaFbcHighMemBwCorruptionAvoidance:skl,bxt,kbl */
+	I915_WRITE(ILK_DPFC_CHICKEN, I915_READ(ILK_DPFC_CHICKEN) |
+		   ILK_DPFC_DISABLE_DUMMY0);
 }
 
 static void bxt_init_clock_gating(struct drm_device *dev)
