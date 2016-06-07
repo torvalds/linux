@@ -831,6 +831,9 @@ static int amdgpu_cgs_query_system_info(struct cgs_device *cgs_device,
 	case CGS_SYSTEM_INFO_GFX_CU_INFO:
 		sys_info->value = adev->gfx.cu_info.number;
 		break;
+	case CGS_SYSTEM_INFO_GFX_SE_INFO:
+		sys_info->value = adev->gfx.config.max_shader_engines;
+		break;
 	default:
 		return -ENODEV;
 	}
