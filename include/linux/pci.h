@@ -1402,6 +1402,34 @@ typedef int (*arch_set_vga_state_t)(struct pci_dev *pdev, bool decode,
 		      unsigned int command_bits, u32 flags);
 void pci_register_set_vga_state(arch_set_vga_state_t func);
 
+static inline int
+pci_request_io_regions(struct pci_dev *pdev, const char *name)
+{
+	return pci_request_selected_regions(pdev,
+			    pci_select_bars(pdev, IORESOURCE_IO), name);
+}
+
+static inline void
+pci_release_io_regions(struct pci_dev *pdev)
+{
+	return pci_release_selected_regions(pdev,
+			    pci_select_bars(pdev, IORESOURCE_IO));
+}
+
+static inline int
+pci_request_mem_regions(struct pci_dev *pdev, const char *name)
+{
+	return pci_request_selected_regions(pdev,
+			    pci_select_bars(pdev, IORESOURCE_MEM), name);
+}
+
+static inline void
+pci_release_mem_regions(struct pci_dev *pdev)
+{
+	return pci_release_selected_regions(pdev,
+			    pci_select_bars(pdev, IORESOURCE_MEM));
+}
+
 #else /* CONFIG_PCI is not enabled */
 
 static inline void pci_set_flags(int flags) { }
