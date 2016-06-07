@@ -22,9 +22,11 @@
 #include <linux/edac.h>
 #include <linux/genalloc.h>
 #include <linux/interrupt.h>
+#include <linux/irqchip/chained_irq.h>
 #include <linux/kernel.h>
 #include <linux/mfd/syscon.h>
 #include <linux/of_address.h>
+#include <linux/of_irq.h>
 #include <linux/of_platform.h>
 #include <linux/platform_device.h>
 #include <linux/regmap.h>
@@ -882,22 +884,29 @@ static void ocram_free_mem(void *p, size_t size, void *other)
 	gen_pool_free((struct gen_pool *)other, (u32)p, size);
 }
 
-static irqreturn_t altr_edac_a10_ecc_irq(struct altr_edac_device_dev *dci,
-					 bool sberr)
+static irqreturn_t altr_edac_a10_ecc_irq(int irq, void *dev_id)
 {
+	struct altr_edac_device_dev *dci = dev_id;
 	void __iomem  *base = dci->base;
 
-	if (sberr) {
+	if (irq == dci->sb_irq) {
 		writel(ALTR_A10_ECC_SERRPENA,
 		       base + ALTR_A10_ECC_INTSTAT_OFST);
 		edac_device_handle_ce(dci->edac_dev, 0, 0, dci->edac_dev_name);
-	} else {
+
+		return IRQ_HANDLED;
+	} else if (irq == dci->db_irq) {
 		writel(ALTR_A10_ECC_DERRPENA,
 		       base + ALTR_A10_ECC_INTSTAT_OFST);
 		edac_device_handle_ue(dci->edac_dev, 0, 0, dci->edac_dev_name);
 		panic("\nEDAC:ECC_DEVICE[Uncorrectable errors]\n");
+
+		return IRQ_HANDLED;
 	}
-	return IRQ_HANDLED;
+
+	WARN_ON(1);
+
+	return IRQ_NONE;
 }
 
 const struct edac_device_prv_data ocramecc_data = {
@@ -988,22 +997,30 @@ static int altr_l2_check_deps(struct altr_edac_device_dev *device)
 	return -ENODEV;
 }
 
-static irqreturn_t altr_edac_a10_l2_irq(struct altr_edac_device_dev *dci,
-					bool sberr)
+static irqreturn_t altr_edac_a10_l2_irq(int irq, void *dev_id)
 {
-	if (sberr) {
+	struct altr_edac_device_dev *dci = dev_id;
+
+	if (irq == dci->sb_irq) {
 		regmap_write(dci->edac->ecc_mgr_map,
 			     A10_SYSGMR_MPU_CLEAR_L2_ECC_OFST,
 			     A10_SYSGMR_MPU_CLEAR_L2_ECC_SB);
 		edac_device_handle_ce(dci->edac_dev, 0, 0, dci->edac_dev_name);
-	} else {
+
+		return IRQ_HANDLED;
+	} else if (irq == dci->db_irq) {
 		regmap_write(dci->edac->ecc_mgr_map,
 			     A10_SYSGMR_MPU_CLEAR_L2_ECC_OFST,
 			     A10_SYSGMR_MPU_CLEAR_L2_ECC_MB);
 		edac_device_handle_ue(dci->edac_dev, 0, 0, dci->edac_dev_name);
 		panic("\nEDAC:ECC_DEVICE[Uncorrectable errors]\n");
+
+		return IRQ_HANDLED;
 	}
-	return IRQ_HANDLED;
+
+	WARN_ON(1);
+
+	return IRQ_NONE;
 }
 
 const struct edac_device_prv_data l2ecc_data = {
@@ -1075,28 +1092,28 @@ static ssize_t altr_edac_a10_device_trig(struct file *file,
 	return count;
 }
 
-static irqreturn_t altr_edac_a10_irq_handler(int irq, void *dev_id)
+static void altr_edac_a10_irq_handler(struct irq_desc *desc)
 {
-	irqreturn_t rc = IRQ_NONE;
-	struct altr_arria10_edac *edac = dev_id;
-	struct altr_edac_device_dev *dci;
-	int irq_status;
-	bool sberr = (irq == edac->sb_irq) ? 1 : 0;
-	int sm_offset = sberr ? A10_SYSMGR_ECC_INTSTAT_SERR_OFST :
-				A10_SYSMGR_ECC_INTSTAT_DERR_OFST;
+	int dberr, bit, sm_offset, irq_status;
+	struct altr_arria10_edac *edac = irq_desc_get_handler_data(desc);
+	struct irq_chip *chip = irq_desc_get_chip(desc);
+	int irq = irq_desc_get_irq(desc);
+
+	dberr = (irq == edac->db_irq) ? 1 : 0;
+	sm_offset = dberr ? A10_SYSMGR_ECC_INTSTAT_DERR_OFST :
+			    A10_SYSMGR_ECC_INTSTAT_SERR_OFST;
+
+	chained_irq_enter(chip, desc);
 
 	regmap_read(edac->ecc_mgr_map, sm_offset, &irq_status);
 
-	if ((irq != edac->sb_irq) && (irq != edac->db_irq)) {
-		WARN_ON(1);
-	} else {
-		list_for_each_entry(dci, &edac->a10_ecc_devices, next) {
-			if (irq_status & dci->data->irq_status_mask)
-				rc = dci->data->ecc_irq_handler(dci, sberr);
-		}
+	for_each_set_bit(bit, (unsigned long *)&irq_status, 32) {
+		irq = irq_linear_revmap(edac->domain, dberr * 32 + bit);
+		if (irq)
+			generic_handle_irq(irq);
 	}
 
-	return rc;
+	chained_irq_exit(chip, desc);
 }
 
 static int altr_edac_a10_device_add(struct altr_arria10_edac *edac,
@@ -1168,6 +1185,34 @@ static int altr_edac_a10_device_add(struct altr_arria10_edac *edac,
 			goto err_release_group1;
 	}
 
+	altdev->sb_irq = irq_of_parse_and_map(np, 0);
+	if (!altdev->sb_irq) {
+		edac_printk(KERN_ERR, EDAC_DEVICE, "Error allocating SBIRQ\n");
+		rc = -ENODEV;
+		goto err_release_group1;
+	}
+	rc = devm_request_irq(edac->dev, altdev->sb_irq,
+			      prv->ecc_irq_handler,
+			      IRQF_SHARED, ecc_name, altdev);
+	if (rc) {
+		edac_printk(KERN_ERR, EDAC_DEVICE, "No DBERR IRQ resource\n");
+		goto err_release_group1;
+	}
+
+	altdev->db_irq = irq_of_parse_and_map(np, 1);
+	if (!altdev->db_irq) {
+		edac_printk(KERN_ERR, EDAC_DEVICE, "Error allocating DBIRQ\n");
+		rc = -ENODEV;
+		goto err_release_group1;
+	}
+	rc = devm_request_irq(edac->dev, altdev->db_irq,
+			      prv->ecc_irq_handler,
+			      IRQF_SHARED, ecc_name, altdev);
+	if (rc) {
+		edac_printk(KERN_ERR, EDAC_DEVICE, "No DBERR IRQ resource\n");
+		goto err_release_group1;
+	}
+
 	rc = edac_device_add_device(dci);
 	if (rc) {
 		dev_err(edac->dev, "edac_device_add_device failed\n");
@@ -1186,7 +1231,6 @@ static int altr_edac_a10_device_add(struct altr_arria10_edac *edac,
 err_release_group1:
 	edac_device_free_ctl_info(dci);
 err_release_group:
-	edac_printk(KERN_ALERT, EDAC_DEVICE, "%s: %d\n", __func__, __LINE__);
 	devres_release_group(edac->dev, NULL);
 	edac_printk(KERN_ERR, EDAC_DEVICE,
 		    "%s:Error setting up EDAC device: %d\n", ecc_name, rc);
@@ -1194,11 +1238,43 @@ err_release_group:
 	return rc;
 }
 
+static void a10_eccmgr_irq_mask(struct irq_data *d)
+{
+	struct altr_arria10_edac *edac = irq_data_get_irq_chip_data(d);
+
+	regmap_write(edac->ecc_mgr_map,	A10_SYSMGR_ECC_INTMASK_SET_OFST,
+		     BIT(d->hwirq));
+}
+
+static void a10_eccmgr_irq_unmask(struct irq_data *d)
+{
+	struct altr_arria10_edac *edac = irq_data_get_irq_chip_data(d);
+
+	regmap_write(edac->ecc_mgr_map,	A10_SYSMGR_ECC_INTMASK_CLR_OFST,
+		     BIT(d->hwirq));
+}
+
+static int a10_eccmgr_irqdomain_map(struct irq_domain *d, unsigned int irq,
+				    irq_hw_number_t hwirq)
+{
+	struct altr_arria10_edac *edac = d->host_data;
+
+	irq_set_chip_and_handler(irq, &edac->irq_chip, handle_simple_irq);
+	irq_set_chip_data(irq, edac);
+	irq_set_noprobe(irq);
+
+	return 0;
+}
+
+struct irq_domain_ops a10_eccmgr_ic_ops = {
+	.map = a10_eccmgr_irqdomain_map,
+	.xlate = irq_domain_xlate_twocell,
+};
+
 static int altr_edac_a10_probe(struct platform_device *pdev)
 {
 	struct altr_arria10_edac *edac;
 	struct device_node *child;
-	int rc;
 
 	edac = devm_kzalloc(&pdev->dev, sizeof(*edac), GFP_KERNEL);
 	if (!edac)
@@ -1216,23 +1292,34 @@ static int altr_edac_a10_probe(struct platform_device *pdev)
 		return PTR_ERR(edac->ecc_mgr_map);
 	}
 
-	edac->sb_irq = platform_get_irq(pdev, 0);
-	rc = devm_request_irq(&pdev->dev, edac->sb_irq,
-			      altr_edac_a10_irq_handler,
-			      IRQF_SHARED, dev_name(&pdev->dev), edac);
-	if (rc) {
-		edac_printk(KERN_ERR, EDAC_DEVICE, "No SBERR IRQ resource\n");
-		return rc;
+	edac->irq_chip.name = pdev->dev.of_node->name;
+	edac->irq_chip.irq_mask = a10_eccmgr_irq_mask;
+	edac->irq_chip.irq_unmask = a10_eccmgr_irq_unmask;
+	edac->domain = irq_domain_add_linear(pdev->dev.of_node, 64,
+					     &a10_eccmgr_ic_ops, edac);
+	if (!edac->domain) {
+		dev_err(&pdev->dev, "Error adding IRQ domain\n");
+		return -ENOMEM;
 	}
 
-	edac->db_irq = platform_get_irq(pdev, 1);
-	rc = devm_request_irq(&pdev->dev, edac->db_irq,
-			      altr_edac_a10_irq_handler,
-			      IRQF_SHARED, dev_name(&pdev->dev), edac);
-	if (rc) {
-		edac_printk(KERN_ERR, EDAC_DEVICE, "No DBERR IRQ resource\n");
-		return rc;
+	edac->sb_irq = platform_get_irq(pdev, 0);
+	if (edac->sb_irq < 0) {
+		dev_err(&pdev->dev, "No SBERR IRQ resource\n");
+		return edac->sb_irq;
 	}
+
+	irq_set_chained_handler_and_data(edac->sb_irq,
+					 altr_edac_a10_irq_handler,
+					 edac);
+
+	edac->db_irq = platform_get_irq(pdev, 1);
+	if (edac->db_irq < 0) {
+		dev_err(&pdev->dev, "No DBERR IRQ resource\n");
+		return edac->db_irq;
+	}
+	irq_set_chained_handler_and_data(edac->db_irq,
+					 altr_edac_a10_irq_handler,
+					 edac);
 
 	for_each_child_of_node(pdev->dev.of_node, child) {
 		if (!of_device_is_available(child))

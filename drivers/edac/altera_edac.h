@@ -295,8 +295,7 @@ struct edac_device_prv_data {
 	int ce_set_mask;
 	int ue_set_mask;
 	int set_err_ofst;
-	irqreturn_t (*ecc_irq_handler)(struct altr_edac_device_dev *dci,
-				       bool sb);
+	irqreturn_t (*ecc_irq_handler)(int irq, void *dev_id);
 	int trig_alloc_sz;
 	const struct file_operations *inject_fops;
 };
@@ -320,6 +319,8 @@ struct altr_arria10_edac {
 	struct regmap		*ecc_mgr_map;
 	int sb_irq;
 	int db_irq;
+	struct irq_domain	*domain;
+	struct irq_chip		irq_chip;
 	struct list_head	a10_ecc_devices;
 };
 
