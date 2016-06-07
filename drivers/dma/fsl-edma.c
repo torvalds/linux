@@ -963,14 +963,16 @@ static int fsl_edma_probe(struct platform_device *pdev)
 
 	ret = dma_async_device_register(&fsl_edma->dma_dev);
 	if (ret) {
-		dev_err(&pdev->dev, "Can't register Freescale eDMA engine.\n");
+		dev_err(&pdev->dev,
+			"Can't register Freescale eDMA engine. (%d)\n", ret);
 		fsl_disable_clocks(fsl_edma);
 		return ret;
 	}
 
 	ret = of_dma_controller_register(np, fsl_edma_xlate, fsl_edma);
 	if (ret) {
-		dev_err(&pdev->dev, "Can't register Freescale eDMA of_dma.\n");
+		dev_err(&pdev->dev,
+			"Can't register Freescale eDMA of_dma. (%d)\n", ret);
 		dma_async_device_unregister(&fsl_edma->dma_dev);
 		fsl_disable_clocks(fsl_edma);
 		return ret;
