@@ -14,7 +14,7 @@
 #define S5P_MFC_IOMMU_DMA_BASE	0x20000000lu
 #define S5P_MFC_IOMMU_DMA_SIZE	SZ_256M
 
-#ifdef CONFIG_EXYNOS_IOMMU
+#if defined(CONFIG_EXYNOS_IOMMU) && defined(CONFIG_ARM_DMA_USE_IOMMU)
 
 #include <asm/dma-iommu.h>
 
