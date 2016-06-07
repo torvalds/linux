@@ -174,6 +174,8 @@ static int fm10k_handle_reset(struct fm10k_intfc *interface)
 
 	rtnl_lock();
 
+	pci_set_master(interface->pdev);
+
 	/* reset and initialize the hardware so it is in a known state */
 	err = hw->mac.ops.reset_hw(hw);
 	if (err) {
