@@ -388,7 +388,6 @@ static int wm8650_find_pll_bits(unsigned long rate, unsigned long parent_rate,
 {
 	u32 mul, div1;
 	int div2;
-	u32 best_mul, best_div1, best_div2;
 	unsigned long tclk, rate_err, best_err;
 
 	best_err = (unsigned long)-1;
@@ -411,9 +410,9 @@ static int wm8650_find_pll_bits(unsigned long rate, unsigned long parent_rate,
 
 				if (rate_err < best_err) {
 					best_err = rate_err;
-					best_mul = mul;
-					best_div1 = div1;
-					best_div2 = div2;
+					*multiplier = mul;
+					*divisor1 = div1;
+					*divisor2 = div2;
 				}
 			}
 
@@ -425,10 +424,6 @@ static int wm8650_find_pll_bits(unsigned long rate, unsigned long parent_rate,
 	/* if we got here, it wasn't an exact match */
 	pr_warn("%s: requested rate %lu, found rate %lu\n", __func__, rate,
 							rate - best_err);
-	*multiplier = best_mul;
-	*divisor1 = best_div1;
-	*divisor2 = best_div2;
-
 	return 0;
 }
 
@@ -464,7 +459,6 @@ static int wm8750_find_pll_bits(unsigned long rate, unsigned long parent_rate,
 {
 	u32 mul;
 	int div1, div2;
-	u32 best_mul, best_div1, best_div2;
 	unsigned long tclk, rate_err, best_err;
 
 	best_err = (unsigned long)-1;
@@ -488,9 +482,9 @@ static int wm8750_find_pll_bits(unsigned long rate, unsigned long parent_rate,
 
 				if (rate_err < best_err) {
 					best_err = rate_err;
-					best_mul = mul;
-					best_div1 = div1;
-					best_div2 = div2;
+					*multiplier = mul;
+					*divisor1 = div1;
+					*divisor2 = div2;
 				}
 			}
 
@@ -503,10 +497,7 @@ static int wm8750_find_pll_bits(unsigned long rate, unsigned long parent_rate,
 	pr_warn("%s: requested rate %lu, found rate %lu\n", __func__, rate,
 							rate - best_err);
 
-	*filter = wm8750_get_filter(parent_rate, best_div1);
-	*multiplier = best_mul;
-	*divisor1 = best_div1;
-	*divisor2 = best_div2;
+	*filter = wm8750_get_filter(parent_rate, *divisor1);
 
 	return 0;
 }
@@ -516,7 +507,6 @@ static int wm8850_find_pll_bits(unsigned long rate, unsigned long parent_rate,
 {
 	u32 mul;
 	int div1, div2;
-	u32 best_mul, best_div1, best_div2;
 	unsigned long tclk, rate_err, best_err;
 
 	best_err = (unsigned long)-1;
@@ -540,9 +530,9 @@ static int wm8850_find_pll_bits(unsigned long rate, unsigned long parent_rate,
 
 				if (rate_err < best_err) {
 					best_err = rate_err;
-					best_mul = mul;
-					best_div1 = div1;
-					best_div2 = div2;
+					*multiplier = mul;
+					*divisor1 = div1;
+					*divisor2 = div2;
 				}
 			}
 
@@ -554,10 +544,6 @@ static int wm8850_find_pll_bits(unsigned long rate, unsigned long parent_rate,
 	/* if we got here, it wasn't an exact match */
 	pr_warn("%s: requested rate %lu, found rate %lu\n", __func__, rate,
 							rate - best_err);
-
-	*multiplier = best_mul;
-	*divisor1 = best_div1;
-	*divisor2 = best_div2;
 
 	return 0;
 }
