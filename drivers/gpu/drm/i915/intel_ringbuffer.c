@@ -908,7 +908,6 @@ static int chv_init_workarounds(struct intel_engine_cs *engine)
 static int gen9_init_workarounds(struct intel_engine_cs *engine)
 {
 	struct drm_i915_private *dev_priv = engine->i915;
-	uint32_t tmp;
 	int ret;
 
 	/* WaEnableLbsSlaRetryTimerDecrement:skl,bxt,kbl */
@@ -968,12 +967,10 @@ static int gen9_init_workarounds(struct intel_engine_cs *engine)
 		WA_SET_BIT_MASKED(SLICE_ECO_CHICKEN0,
 				  PIXEL_MASK_CAMMING_DISABLE);
 
-	/* WaForceContextSaveRestoreNonCoherent:skl,bxt */
-	tmp = HDC_FORCE_CONTEXT_SAVE_RESTORE_NON_COHERENT;
-	if (IS_SKL_REVID(dev_priv, SKL_REVID_F0, REVID_FOREVER) ||
-	    IS_BXT_REVID(dev_priv, BXT_REVID_B0, REVID_FOREVER))
-		tmp |= HDC_FORCE_CSR_NON_COHERENT_OVR_DISABLE;
-	WA_SET_BIT_MASKED(HDC_CHICKEN0, tmp);
+	/* WaForceContextSaveRestoreNonCoherent:skl,bxt,kbl */
+	WA_SET_BIT_MASKED(HDC_CHICKEN0,
+			  HDC_FORCE_CONTEXT_SAVE_RESTORE_NON_COHERENT |
+			  HDC_FORCE_CSR_NON_COHERENT_OVR_DISABLE);
 
 	/* WaDisableSamplerPowerBypassForSOPingPong:skl,bxt,kbl */
 	if (IS_SKYLAKE(dev_priv) ||
