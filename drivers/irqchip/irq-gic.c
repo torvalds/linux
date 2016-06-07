@@ -1032,14 +1032,11 @@ static const struct irq_domain_ops gic_irq_domain_ops = {
 	.unmap = gic_irq_domain_unmap,
 };
 
-static int __init __gic_init_bases(struct gic_chip_data *gic, int irq_start,
-				   struct fwnode_handle *handle)
+static int gic_init_bases(struct gic_chip_data *gic, int irq_start,
+			  struct fwnode_handle *handle)
 {
 	irq_hw_number_t hwirq_base;
-	int gic_irqs, irq_base, i, ret;
-
-	if (WARN_ON(!gic || gic->domain))
-		return -EINVAL;
+	int gic_irqs, irq_base, ret;
 
 	/* Initialize irq_chip */
 	gic->chip = gic_chip;
@@ -1138,23 +1135,6 @@ static int __init __gic_init_bases(struct gic_chip_data *gic, int irq_start,
 		goto error;
 	}
 
-	if (gic == &gic_data[0]) {
-		/*
-		 * Initialize the CPU interface map to all CPUs.
-		 * It will be refined as each CPU probes its ID.
-		 * This is only necessary for the primary GIC.
-		 */
-		for (i = 0; i < NR_GIC_CPU_IF; i++)
-			gic_cpu_map[i] = 0xff;
-#ifdef CONFIG_SMP
-		set_smp_cross_call(gic_raise_softirq);
-		register_cpu_notifier(&gic_cpu_notifier);
-#endif
-		set_handle_irq(gic_handle_irq);
-		if (static_key_true(&supports_deactivate))
-			pr_info("GIC: Using split EOI/Deactivate mode\n");
-	}
-
 	gic_dist_init(gic);
 	ret = gic_cpu_init(gic);
 	if (ret)
@@ -1175,6 +1155,35 @@ error:
 	kfree(gic->chip.name);
 
 	return ret;
+}
+
+static int __init __gic_init_bases(struct gic_chip_data *gic,
+				   int irq_start,
+				   struct fwnode_handle *handle)
+{
+	int i;
+
+	if (WARN_ON(!gic || gic->domain))
+		return -EINVAL;
+
+	if (gic == &gic_data[0]) {
+		/*
+		 * Initialize the CPU interface map to all CPUs.
+		 * It will be refined as each CPU probes its ID.
+		 * This is only necessary for the primary GIC.
+		 */
+		for (i = 0; i < NR_GIC_CPU_IF; i++)
+			gic_cpu_map[i] = 0xff;
+#ifdef CONFIG_SMP
+		set_smp_cross_call(gic_raise_softirq);
+		register_cpu_notifier(&gic_cpu_notifier);
+#endif
+		set_handle_irq(gic_handle_irq);
+		if (static_key_true(&supports_deactivate))
+			pr_info("GIC: Using split EOI/Deactivate mode\n");
+	}
+
+	return gic_init_bases(gic, irq_start, handle);
 }
 
 void __init gic_init(unsigned int gic_nr, int irq_start,
