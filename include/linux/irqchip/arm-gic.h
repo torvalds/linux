@@ -117,6 +117,12 @@ void gic_dist_restore(struct gic_chip_data *gic);
 int gic_of_init(struct device_node *node, struct device_node *parent);
 
 /*
+ * Initialises and registers a non-root or child GIC chip. Memory for
+ * the gic_chip_data structure is dynamically allocated.
+ */
+int gic_of_init_child(struct device *dev, struct gic_chip_data **gic, int irq);
+
+/*
  * Legacy platforms not converted to DT yet must use this to init
  * their GIC
  */

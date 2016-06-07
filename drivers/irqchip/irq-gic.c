@@ -75,7 +75,7 @@ struct gic_chip_data {
 	void __iomem *raw_dist_base;
 	void __iomem *raw_cpu_base;
 	u32 percpu_offset;
-#ifdef CONFIG_CPU_PM
+#if defined(CONFIG_CPU_PM) || defined(CONFIG_ARM_GIC_PM)
 	u32 saved_spi_enable[DIV_ROUND_UP(1020, 32)];
 	u32 saved_spi_active[DIV_ROUND_UP(1020, 32)];
 	u32 saved_spi_conf[DIV_ROUND_UP(1020, 16)];
@@ -528,7 +528,7 @@ int gic_cpu_if_down(unsigned int gic_nr)
 	return 0;
 }
 
-#ifdef CONFIG_CPU_PM
+#if defined(CONFIG_CPU_PM) || defined(CONFIG_ARM_GIC_PM)
 /*
  * Saves the GIC distributor registers during suspend or idle.  Must be called
  * with interrupts disabled but before powering down the GIC.  After calling
@@ -1272,7 +1272,7 @@ static bool gic_check_eoimode(struct device_node *node, void __iomem **base)
 	return true;
 }
 
-static int __init gic_of_setup(struct gic_chip_data *gic, struct device_node *node)
+static int gic_of_setup(struct gic_chip_data *gic, struct device_node *node)
 {
 	if (!gic || !node)
 		return -EINVAL;
@@ -1294,6 +1294,34 @@ error:
 	gic_teardown(gic);
 
 	return -ENOMEM;
+}
+
+int gic_of_init_child(struct device *dev, struct gic_chip_data **gic, int irq)
+{
+	int ret;
+
+	if (!dev || !dev->of_node || !gic || !irq)
+		return -EINVAL;
+
+	*gic = devm_kzalloc(dev, sizeof(**gic), GFP_KERNEL);
+	if (!*gic)
+		return -ENOMEM;
+
+	gic_init_chip(*gic, dev, dev->of_node->name, false);
+
+	ret = gic_of_setup(*gic, dev->of_node);
+	if (ret)
+		return ret;
+
+	ret = gic_init_bases(*gic, -1, &dev->of_node->fwnode);
+	if (ret) {
+		gic_teardown(*gic);
+		return ret;
+	}
+
+	irq_set_chained_handler_and_data(irq, gic_handle_cascade_irq, *gic);
+
+	return 0;
 }
 
 static void __init gic_of_setup_kvm_info(struct device_node *node)
@@ -1375,7 +1403,11 @@ IRQCHIP_DECLARE(cortex_a7_gic, "arm,cortex-a7-gic", gic_of_init);
 IRQCHIP_DECLARE(msm_8660_qgic, "qcom,msm-8660-qgic", gic_of_init);
 IRQCHIP_DECLARE(msm_qgic2, "qcom,msm-qgic2", gic_of_init);
 IRQCHIP_DECLARE(pl390, "arm,pl390", gic_of_init);
-
+#else
+int gic_of_init_child(struct device *dev, struct gic_chip_data **gic, int irq)
+{
+	return -ENOTSUPP;
+}
 #endif
 
 #ifdef CONFIG_ACPI

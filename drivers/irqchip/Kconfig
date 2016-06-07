@@ -8,6 +8,12 @@ config ARM_GIC
 	select IRQ_DOMAIN_HIERARCHY
 	select MULTI_IRQ_HANDLER
 
+config ARM_GIC_PM
+	bool
+	depends on PM
+	select ARM_GIC
+	select PM_CLK
+
 config ARM_GIC_MAX_NR
 	int
 	default 2 if ARCH_REALVIEW
