@@ -557,10 +557,6 @@ static void msm_complete_rx_dma(void *args)
 	val &= ~dma->enable_bit;
 	msm_write(port, val, UARTDM_DMEN);
 
-	/* Restore interrupts */
-	msm_port->imr |= UART_IMR_RXLEV | UART_IMR_RXSTALE;
-	msm_write(port, msm_port->imr, UART_IMR);
-
 	if (msm_read(port, UART_SR) & UART_SR_OVERRUN) {
 		port->icount.overrun++;
 		tty_insert_flip_char(tport, 0, TTY_OVERRUN);
