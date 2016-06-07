@@ -76,6 +76,8 @@ static const struct fm10k_stats fm10k_gstrings_global_stats[] = {
 	FM10K_STAT("mac_rules_used", hw.swapi.mac.used),
 	FM10K_STAT("mac_rules_avail", hw.swapi.mac.avail),
 
+	FM10K_STAT("reset_while_pending", hw.mac.reset_while_pending),
+
 	FM10K_STAT("tx_hang_count", tx_timeout_count),
 };
 

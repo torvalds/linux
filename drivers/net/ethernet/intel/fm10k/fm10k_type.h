@@ -562,6 +562,7 @@ struct fm10k_mac_info {
 	bool tx_ready;
 	u32 dglort_map;
 	u8 itr_scale;
+	u64 reset_while_pending;
 };
 
 struct fm10k_swapi_table_info {
