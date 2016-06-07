@@ -889,9 +889,9 @@ static struct attribute *alloc_hsa_lifespan(char *name, u8 port_num)
 static void setup_hw_stats(struct ib_device *device, struct ib_port *port,
 			   u8 port_num)
 {
-	struct attribute_group *hsag = NULL;
+	struct attribute_group *hsag;
 	struct rdma_hw_stats *stats;
-	int i = 0, ret;
+	int i, ret;
 
 	stats = device->alloc_hw_stats(device, port_num);
 
@@ -914,7 +914,7 @@ static void setup_hw_stats(struct ib_device *device, struct ib_port *port,
 	ret = device->get_hw_stats(device, stats, port_num,
 				   stats->num_counters);
 	if (ret != stats->num_counters)
-		goto err;
+		goto err_free_hsag;
 
 	stats->timestamp = jiffies;
 
@@ -951,6 +951,7 @@ static void setup_hw_stats(struct ib_device *device, struct ib_port *port,
 err:
 	for (; i >= 0; i--)
 		kfree(hsag->attrs[i]);
+err_free_hsag:
 	kfree(hsag);
 err_free_stats:
 	kfree(stats);
