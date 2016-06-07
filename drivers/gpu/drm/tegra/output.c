@@ -42,14 +42,6 @@ int tegra_output_connector_get_modes(struct drm_connector *connector)
 	return err;
 }
 
-struct drm_encoder *
-tegra_output_connector_best_encoder(struct drm_connector *connector)
-{
-	struct tegra_output *output = connector_to_output(connector);
-
-	return &output->encoder;
-}
-
 enum drm_connector_status
 tegra_output_connector_detect(struct drm_connector *connector, bool force)
 {
