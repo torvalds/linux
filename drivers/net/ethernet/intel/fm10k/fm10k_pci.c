@@ -2112,6 +2112,44 @@ static void fm10k_remove(struct pci_dev *pdev)
 	pci_disable_device(pdev);
 }
 
+static void fm10k_prepare_suspend(struct fm10k_intfc *interface)
+{
+	/* the watchdog task reads from registers, which might appear like
+	 * a surprise remove if the PCIe device is disabled while we're
+	 * stopped. We stop the watchdog task until after we resume software
+	 * activity.
+	 */
+	set_bit(__FM10K_SERVICE_DISABLE, &interface->state);
+	cancel_work_sync(&interface->service_task);
+
+	fm10k_prepare_for_reset(interface);
+}
+
+static int fm10k_handle_resume(struct fm10k_intfc *interface)
+{
+	struct fm10k_hw *hw = &interface->hw;
+	int err;
+
+	/* reset statistics starting values */
+	hw->mac.ops.rebind_hw_stats(hw, &interface->stats);
+
+	err = fm10k_handle_reset(interface);
+	if (err)
+		return err;
+
+	/* assume host is not ready, to prevent race with watchdog in case we
+	 * actually don't have connection to the switch
+	 */
+	interface->host_ready = false;
+	fm10k_watchdog_host_not_ready(interface);
+
+	/* clear the service task disable bit to allow service task to start */
+	clear_bit(__FM10K_SERVICE_DISABLE, &interface->state);
+	fm10k_service_event_schedule(interface);
+
+	return err;
+}
+
 #ifdef CONFIG_PM
 /**
  * fm10k_resume - Restore device to pre-sleep state
