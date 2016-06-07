@@ -1736,7 +1736,7 @@ static int __init mlxsw_core_module_init(void)
 {
 	int err;
 
-	mlxsw_wq = create_workqueue(mlxsw_core_driver_name);
+	mlxsw_wq = alloc_workqueue(mlxsw_core_driver_name, WQ_MEM_RECLAIM, 0);
 	if (!mlxsw_wq)
 		return -ENOMEM;
 	mlxsw_core_dbg_root = debugfs_create_dir(mlxsw_core_driver_name, NULL);
