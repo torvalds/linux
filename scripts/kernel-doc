@@ -61,10 +61,10 @@ Output format selection (mutually exclusive):
 Output selection (mutually exclusive):
   -export		Only output documentation for symbols that have been
 			exported using EXPORT_SYMBOL() or EXPORT_SYMBOL_GPL()
-                        in the same FILE or any -export-file FILE.
+                        in any input FILE or -export-file FILE.
   -internal		Only output documentation for symbols that have NOT been
 			exported using EXPORT_SYMBOL() or EXPORT_SYMBOL_GPL()
-                        in the same FILE or any -export-file FILE.
+                        in any input FILE or -export-file FILE.
   -function NAME	Only output documentation for the given function(s)
 			or DOC: section title(s). All other functions and DOC:
 			sections are ignored. May be specified multiple times.
@@ -2792,17 +2792,6 @@ sub process_file($) {
 	return;
     }
 
-    # two passes for -export and -internal
-    if ($output_selection == OUTPUT_EXPORTED ||
-	$output_selection == OUTPUT_INTERNAL) {
-	while (<IN>) {
-	    if (/$export_symbol/o) {
-		$function_table{$2} = 1;
-	    }
-	}
-	seek(IN, 0, 0);
-    }
-
     $. = 1;
 
     $section_counter = 0;
@@ -3110,6 +3099,9 @@ if (open(SOURCE_MAP, "<.tmp_filelist.txt")) {
 
 if ($output_selection == OUTPUT_EXPORTED ||
     $output_selection == OUTPUT_INTERNAL) {
+
+    push(@export_file_list, @ARGV);
+
     foreach (@export_file_list) {
 	chomp;
 	process_export_file($_);
