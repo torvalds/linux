@@ -1396,6 +1396,7 @@ struct batadv_forw_packet {
 /**
  * struct batadv_algo_iface_ops - mesh algorithm callbacks (interface specific)
  * @activate: start routing mechanisms when hard-interface is brought up
+ *  (optional)
  * @enable: init routing info when hard-interface is enabled
  * @disable: de-init routing info when hard-interface is disabled
  * @update_mac: (re-)init mac addresses of the protocol information
@@ -1413,6 +1414,7 @@ struct batadv_algo_iface_ops {
 /**
  * struct batadv_algo_neigh_ops - mesh algorithm callbacks (neighbour specific)
  * @hardif_init: called on creation of single hop entry
+ *  (optional)
  * @cmp: compare the metrics of two neighbors for their respective outgoing
  *  interfaces
  * @is_similar_or_better: check if neigh1 is equally similar or better than
@@ -1435,11 +1437,11 @@ struct batadv_algo_neigh_ops {
 /**
  * struct batadv_algo_orig_ops - mesh algorithm callbacks (originator specific)
  * @free: free the resources allocated by the routing algorithm for an orig_node
- *  object
+ *  object (optional)
  * @add_if: ask the routing algorithm to apply the needed changes to the
- *  orig_node due to a new hard-interface being added into the mesh
+ *  orig_node due to a new hard-interface being added into the mesh (optional)
  * @del_if: ask the routing algorithm to apply the needed changes to the
- *  orig_node due to an hard-interface being removed from the mesh
+ *  orig_node due to an hard-interface being removed from the mesh (optional)
  * @print: print the originator table (optional)
  */
 struct batadv_algo_orig_ops {
