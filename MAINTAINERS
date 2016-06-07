@@ -3086,6 +3086,7 @@ M:	Stephen Boyd <sboyd@codeaurora.org>
 L:	linux-clk@vger.kernel.org
 T:	git git://git.kernel.org/pub/scm/linux/kernel/git/clk/linux.git
 S:	Maintained
+F:	Documentation/devicetree/bindings/clock/
 F:	drivers/clk/
 X:	drivers/clk/clkdev.c
 F:	include/linux/clk-pr*
