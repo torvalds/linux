@@ -450,9 +450,6 @@ struct page *init_inode_metadata(struct inode *inode, struct inode *dir,
 	return page;
 
 put_error:
-	/* truncate empty dir pages */
-	truncate_inode_pages(&inode->i_data, 0);
-
 	clear_nlink(inode);
 	update_inode(inode, page);
 	f2fs_put_page(page, 1);
