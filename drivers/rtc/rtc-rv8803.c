@@ -68,7 +68,7 @@ static irqreturn_t rv8803_handle_irq(int irq, void *dev_id)
 	do {
 		flags = i2c_smbus_read_byte_data(client, RV8803_FLAG);
 		try++;
-	} while ((flags == -ENXIO) && (try < 3));
+	} while (((flags == -ENXIO) || (flags == -EIO)) && (try < 4));
 	if (flags <= 0) {
 		mutex_unlock(&rv8803->flags_lock);
 		return IRQ_NONE;
@@ -452,7 +452,7 @@ static int rv8803_probe(struct i2c_client *client,
 	do {
 		flags = i2c_smbus_read_byte_data(client, RV8803_FLAG);
 		try++;
-	} while ((flags == -ENXIO) && (try < 3));
+	} while (((flags == -ENXIO) || (flags == -EIO)) && (try < 4));
 
 	if (flags < 0)
 		return flags;
@@ -493,7 +493,7 @@ static int rv8803_probe(struct i2c_client *client,
 		err = i2c_smbus_write_byte_data(rv8803->client, RV8803_EXT,
 						RV8803_EXT_WADA);
 		try++;
-	} while ((err == -ENXIO) && (try < 3));
+	} while (((err == -ENXIO) || (flags == -EIO)) && (try < 4));
 	if (err)
 		return err;
 
