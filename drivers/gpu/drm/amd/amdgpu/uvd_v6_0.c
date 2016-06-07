@@ -858,7 +858,8 @@ static int uvd_v6_0_set_clockgating_state(void *handle,
 	bool enable = (state == AMD_CG_STATE_GATE) ? true : false;
 	static int curstate = -1;
 
-	if (adev->asic_type == CHIP_FIJI)
+	if (adev->asic_type == CHIP_FIJI ||
+			adev->asic_type == CHIP_POLARIS10)
 		uvd_v6_set_bypass_mode(adev, enable);
 
 	if (!(adev->cg_flags & AMD_CG_SUPPORT_UVD_MGCG))
