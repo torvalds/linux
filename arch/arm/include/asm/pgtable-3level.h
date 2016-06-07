@@ -211,6 +211,7 @@ static inline pmd_t *pmd_offset(pud_t *pud, unsigned long addr)
 						: !!(pmd_val(pmd) & (val)))
 #define pmd_isclear(pmd, val)	(!(pmd_val(pmd) & (val)))
 
+#define pmd_present(pmd)	(pmd_isset((pmd), L_PMD_SECT_VALID))
 #define pmd_young(pmd)		(pmd_isset((pmd), PMD_SECT_AF))
 #define pte_special(pte)	(pte_isset((pte), L_PTE_SPECIAL))
 static inline pte_t pte_mkspecial(pte_t pte)
