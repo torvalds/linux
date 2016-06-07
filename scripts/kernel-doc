@@ -2730,6 +2730,23 @@ sub local_unescape($) {
 	return $text;
 }
 
+sub map_filename($) {
+    my $file;
+    my ($orig_file) = @_;
+
+    if (defined($ENV{'SRCTREE'})) {
+	$file = "$ENV{'SRCTREE'}" . "/" . $orig_file;
+    } else {
+	$file = $orig_file;
+    }
+
+    if (defined($source_map{$file})) {
+	$file = $source_map{$file};
+    }
+
+    return $file;
+}
+
 sub process_file($) {
     my $file;
     my $identifier;
@@ -2740,15 +2757,7 @@ sub process_file($) {
     my ($orig_file) = @_;
     my $leading_space;
 
-    if (defined($ENV{'SRCTREE'})) {
-	$file = "$ENV{'SRCTREE'}" . "/" . $orig_file;
-    }
-    else {
-	$file = $orig_file;
-    }
-    if (defined($source_map{$file})) {
-	$file = $source_map{$file};
-    }
+    $file = map_filename($orig_file);
 
     if (!open(IN,"<$file")) {
 	print STDERR "Error: Cannot open file $file\n";
