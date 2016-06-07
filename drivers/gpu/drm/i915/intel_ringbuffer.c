@@ -972,6 +972,27 @@ static int gen9_init_workarounds(struct intel_engine_cs *engine)
 			  HDC_FORCE_CONTEXT_SAVE_RESTORE_NON_COHERENT |
 			  HDC_FORCE_CSR_NON_COHERENT_OVR_DISABLE);
 
+	/* WaForceEnableNonCoherent and WaDisableHDCInvalidation are
+	 * both tied to WaForceContextSaveRestoreNonCoherent
+	 * in some hsds for skl. We keep the tie for all gen9. The
+	 * documentation is a bit hazy and so we want to get common behaviour,
+	 * even though there is no clear evidence we would need both on kbl/bxt.
+	 * This area has been source of system hangs so we play it safe
+	 * and mimic the skl regardless of what bspec says.
+	 *
+	 * Use Force Non-Coherent whenever executing a 3D context. This
+	 * is a workaround for a possible hang in the unlikely event
+	 * a TLB invalidation occurs during a PSD flush.
+	 */
+
+	/* WaForceEnableNonCoherent:skl,bxt,kbl */
+	WA_SET_BIT_MASKED(HDC_CHICKEN0,
+			  HDC_FORCE_NON_COHERENT);
+
+	/* WaDisableHDCInvalidation:skl,bxt,kbl */
+	I915_WRITE(GAM_ECOCHK, I915_READ(GAM_ECOCHK) |
+		   BDW_DISABLE_HDC_INVALIDATION);
+
 	/* WaDisableSamplerPowerBypassForSOPingPong:skl,bxt,kbl */
 	if (IS_SKYLAKE(dev_priv) ||
 	    IS_KABYLAKE(dev_priv) ||
@@ -1088,22 +1109,6 @@ static int skl_init_workarounds(struct intel_engine_cs *engine)
 	if (IS_SKL_REVID(dev_priv, SKL_REVID_B0, SKL_REVID_B0))
 		WA_SET_BIT_MASKED(HIZ_CHICKEN,
 				  BDW_HIZ_POWER_COMPILER_CLOCK_GATING_DISABLE);
-
-	/* This is tied to WaForceContextSaveRestoreNonCoherent */
-	if (IS_SKL_REVID(dev_priv, 0, REVID_FOREVER)) {
-		/*
-		 *Use Force Non-Coherent whenever executing a 3D context. This
-		 * is a workaround for a possible hang in the unlikely event
-		 * a TLB invalidation occurs during a PSD flush.
-		 */
-		/* WaForceEnableNonCoherent:skl */
-		WA_SET_BIT_MASKED(HDC_CHICKEN0,
-				  HDC_FORCE_NON_COHERENT);
-
-		/* WaDisableHDCInvalidation:skl */
-		I915_WRITE(GAM_ECOCHK, I915_READ(GAM_ECOCHK) |
-			   BDW_DISABLE_HDC_INVALIDATION);
-	}
 
 	/* WaBarrierPerformanceFixDisable:skl */
 	if (IS_SKL_REVID(dev_priv, SKL_REVID_C0, SKL_REVID_D0))
