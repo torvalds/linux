@@ -854,10 +854,9 @@ static int sirfsoc_dma_probe(struct platform_device *op)
 	int ret, i;
 
 	sdma = devm_kzalloc(dev, sizeof(*sdma), GFP_KERNEL);
-	if (!sdma) {
-		dev_err(dev, "Memory exhausted!\n");
+	if (!sdma)
 		return -ENOMEM;
-	}
+
 	data = (struct sirfsoc_dmadata *)
 		(of_match_device(op->dev.driver->of_match_table,
 				 &op->dev)->data);

@@ -1069,10 +1069,8 @@ static struct dma_async_tx_descriptor *edma_prep_slave_sg(
 
 	edesc = kzalloc(sizeof(*edesc) + sg_len * sizeof(edesc->pset[0]),
 			GFP_ATOMIC);
-	if (!edesc) {
-		dev_err(dev, "%s: Failed to allocate a descriptor\n", __func__);
+	if (!edesc)
 		return NULL;
-	}
 
 	edesc->pset_nr = sg_len;
 	edesc->residue = 0;
@@ -1173,10 +1171,8 @@ static struct dma_async_tx_descriptor *edma_prep_dma_memcpy(
 
 	edesc = kzalloc(sizeof(*edesc) + nslots * sizeof(edesc->pset[0]),
 			GFP_ATOMIC);
-	if (!edesc) {
-		dev_dbg(dev, "Failed to allocate a descriptor\n");
+	if (!edesc)
 		return NULL;
-	}
 
 	edesc->pset_nr = nslots;
 	edesc->residue = edesc->residue_stat = len;
@@ -1298,10 +1294,8 @@ static struct dma_async_tx_descriptor *edma_prep_dma_cyclic(
 
 	edesc = kzalloc(sizeof(*edesc) + nslots * sizeof(edesc->pset[0]),
 			GFP_ATOMIC);
-	if (!edesc) {
-		dev_err(dev, "%s: Failed to allocate a descriptor\n", __func__);
+	if (!edesc)
 		return NULL;
-	}
 
 	edesc->cyclic = 1;
 	edesc->pset_nr = nslots;
@@ -2207,10 +2201,8 @@ static int edma_probe(struct platform_device *pdev)
 		return ret;
 
 	ecc = devm_kzalloc(dev, sizeof(*ecc), GFP_KERNEL);
-	if (!ecc) {
-		dev_err(dev, "Can't allocate controller\n");
+	if (!ecc)
 		return -ENOMEM;
-	}
 
 	ecc->dev = dev;
 	ecc->id = pdev->id;

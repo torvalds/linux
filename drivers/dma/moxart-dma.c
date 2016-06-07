@@ -574,10 +574,8 @@ static int moxart_probe(struct platform_device *pdev)
 	struct moxart_dmadev *mdc;
 
 	mdc = devm_kzalloc(dev, sizeof(*mdc), GFP_KERNEL);
-	if (!mdc) {
-		dev_err(dev, "can't allocate DMA container\n");
+	if (!mdc)
 		return -ENOMEM;
-	}
 
 	irq = irq_of_parse_and_map(node, 0);
 	if (irq == NO_IRQ) {

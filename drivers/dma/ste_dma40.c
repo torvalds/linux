@@ -3237,10 +3237,8 @@ static struct d40_base * __init d40_hw_detect_init(struct platform_device *pdev)
 		       (num_phy_chans + num_log_chans + num_memcpy_chans) *
 		       sizeof(struct d40_chan), GFP_KERNEL);
 
-	if (base == NULL) {
-		d40_err(&pdev->dev, "Out of memory\n");
+	if (base == NULL)
 		goto failure;
-	}
 
 	base->rev = rev;
 	base->clk = clk;

@@ -2828,10 +2828,8 @@ pl330_probe(struct amba_device *adev, const struct amba_id *id)
 
 	/* Allocate a new DMAC and its Channels */
 	pl330 = devm_kzalloc(&adev->dev, sizeof(*pl330), GFP_KERNEL);
-	if (!pl330) {
-		dev_err(&adev->dev, "unable to allocate mem\n");
+	if (!pl330)
 		return -ENOMEM;
-	}
 
 	pd = &pl330->ddma;
 	pd->dev = &adev->dev;
@@ -2890,7 +2888,6 @@ pl330_probe(struct amba_device *adev, const struct amba_id *id)
 	pl330->peripherals = kzalloc(num_chan * sizeof(*pch), GFP_KERNEL);
 	if (!pl330->peripherals) {
 		ret = -ENOMEM;
-		dev_err(&adev->dev, "unable to allocate pl330->peripherals\n");
 		goto probe_err2;
 	}
 

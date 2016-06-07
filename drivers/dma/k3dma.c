@@ -425,10 +425,9 @@ static struct dma_async_tx_descriptor *k3_dma_prep_memcpy(
 
 	num = DIV_ROUND_UP(len, DMA_MAX_SIZE);
 	ds = kzalloc(sizeof(*ds) + num * sizeof(ds->desc_hw[0]), GFP_ATOMIC);
-	if (!ds) {
-		dev_dbg(chan->device->dev, "vchan %p: kzalloc fail\n", &c->vc);
+	if (!ds)
 		return NULL;
-	}
+
 	ds->desc_hw_lli = __virt_to_phys((unsigned long)&ds->desc_hw[0]);
 	ds->size = len;
 	ds->desc_num = num;
@@ -481,10 +480,9 @@ static struct dma_async_tx_descriptor *k3_dma_prep_slave_sg(
 	}
 
 	ds = kzalloc(sizeof(*ds) + num * sizeof(ds->desc_hw[0]), GFP_ATOMIC);
-	if (!ds) {
-		dev_dbg(chan->device->dev, "vchan %p: kzalloc fail\n", &c->vc);
+	if (!ds)
 		return NULL;
-	}
+
 	ds->desc_hw_lli = __virt_to_phys((unsigned long)&ds->desc_hw[0]);
 	ds->desc_num = num;
 	num = 0;

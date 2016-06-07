@@ -551,10 +551,9 @@ static int mmp_tdma_chan_init(struct mmp_tdma_device *tdev,
 
 	/* alloc channel */
 	tdmac = devm_kzalloc(tdev->dev, sizeof(*tdmac), GFP_KERNEL);
-	if (!tdmac) {
-		dev_err(tdev->dev, "no free memory for DMA channels!\n");
+	if (!tdmac)
 		return -ENOMEM;
-	}
+
 	if (irq)
 		tdmac->irq = irq;
 	tdmac->dev	   = tdev->dev;

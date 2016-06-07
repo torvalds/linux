@@ -1300,10 +1300,9 @@ static int nbpf_probe(struct platform_device *pdev)
 
 	nbpf = devm_kzalloc(dev, sizeof(*nbpf) + num_channels *
 			    sizeof(nbpf->chan[0]), GFP_KERNEL);
-	if (!nbpf) {
-		dev_err(dev, "Memory allocation failed\n");
+	if (!nbpf)
 		return -ENOMEM;
-	}
+
 	dma_dev = &nbpf->dma_dev;
 	dma_dev->dev = dev;
 
