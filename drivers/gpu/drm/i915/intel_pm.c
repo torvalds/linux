@@ -69,6 +69,10 @@ static void gen9_init_clock_gating(struct drm_device *dev)
 	/* WaEnableChickenDCPR:skl,bxt,kbl */
 	I915_WRITE(GEN8_CHICKEN_DCPR_1,
 		   I915_READ(GEN8_CHICKEN_DCPR_1) | MASK_WAKEMEM);
+
+	/* WaFbcTurnOffFbcWatermark:skl,bxt,kbl */
+	I915_WRITE(DISP_ARB_CTL,
+		   I915_READ(DISP_ARB_CTL) | DISP_FBC_WM_DIS);
 }
 
 static void bxt_init_clock_gating(struct drm_device *dev)
