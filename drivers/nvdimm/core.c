@@ -20,6 +20,7 @@
 #include <linux/ndctl.h>
 #include <linux/mutex.h>
 #include <linux/slab.h>
+#include <linux/io.h>
 #include "nd-core.h"
 #include "nd.h"
 
@@ -56,6 +57,127 @@ bool is_nvdimm_bus_locked(struct device *dev)
 	return mutex_is_locked(&nvdimm_bus->reconfig_mutex);
 }
 EXPORT_SYMBOL(is_nvdimm_bus_locked);
+
+struct nvdimm_map {
+	struct nvdimm_bus *nvdimm_bus;
+	struct list_head list;
+	resource_size_t offset;
+	unsigned long flags;
+	size_t size;
+	union {
+		void *mem;
+		void __iomem *iomem;
+	};
+	struct kref kref;
+};
+
+static struct nvdimm_map *find_nvdimm_map(struct device *dev,
+		resource_size_t offset)
+{
+	struct nvdimm_bus *nvdimm_bus = walk_to_nvdimm_bus(dev);
+	struct nvdimm_map *nvdimm_map;
+
+	list_for_each_entry(nvdimm_map, &nvdimm_bus->mapping_list, list)
+		if (nvdimm_map->offset == offset)
+			return nvdimm_map;
+	return NULL;
+}
+
+static struct nvdimm_map *alloc_nvdimm_map(struct device *dev,
+		resource_size_t offset, size_t size, unsigned long flags)
+{
+	struct nvdimm_bus *nvdimm_bus = walk_to_nvdimm_bus(dev);
+	struct nvdimm_map *nvdimm_map;
+
+	nvdimm_map = kzalloc(sizeof(*nvdimm_map), GFP_KERNEL);
+	if (!nvdimm_map)
+		return NULL;
+
+	INIT_LIST_HEAD(&nvdimm_map->list);
+	nvdimm_map->nvdimm_bus = nvdimm_bus;
+	nvdimm_map->offset = offset;
+	nvdimm_map->flags = flags;
+	nvdimm_map->size = size;
+	kref_init(&nvdimm_map->kref);
+
+	if (!request_mem_region(offset, size, dev_name(&nvdimm_bus->dev)))
+		goto err_request_region;
+
+	if (flags)
+		nvdimm_map->mem = memremap(offset, size, flags);
+	else
+		nvdimm_map->iomem = ioremap(offset, size);
+
+	if (!nvdimm_map->mem)
+		goto err_map;
+
+	dev_WARN_ONCE(dev, !is_nvdimm_bus_locked(dev), "%s: bus unlocked!",
+			__func__);
+	list_add(&nvdimm_map->list, &nvdimm_bus->mapping_list);
+
+	return nvdimm_map;
+
+ err_map:
+	release_mem_region(offset, size);
+ err_request_region:
+	kfree(nvdimm_map);
+	return NULL;
+}
+
+static void nvdimm_map_release(struct kref *kref)
+{
+	struct nvdimm_bus *nvdimm_bus;
+	struct nvdimm_map *nvdimm_map;
+
+	nvdimm_map = container_of(kref, struct nvdimm_map, kref);
+	nvdimm_bus = nvdimm_map->nvdimm_bus;
+
+	dev_dbg(&nvdimm_bus->dev, "%s: %pa\n", __func__, &nvdimm_map->offset);
+	list_del(&nvdimm_map->list);
+	if (nvdimm_map->flags)
+		memunmap(nvdimm_map->mem);
+	else
+		iounmap(nvdimm_map->iomem);
+	release_mem_region(nvdimm_map->offset, nvdimm_map->size);
+	kfree(nvdimm_map);
+}
+
+static void nvdimm_map_put(void *data)
+{
+	struct nvdimm_map *nvdimm_map = data;
+	struct nvdimm_bus *nvdimm_bus = nvdimm_map->nvdimm_bus;
+
+	nvdimm_bus_lock(&nvdimm_bus->dev);
+	kref_put(&nvdimm_map->kref, nvdimm_map_release);
+	nvdimm_bus_unlock(&nvdimm_bus->dev);
+}
+
+/**
+ * devm_nvdimm_memremap - map a resource that is shared across regions
+ * @dev: device that will own a reference to the shared mapping
+ * @offset: physical base address of the mapping
+ * @size: mapping size
+ * @flags: memremap flags, or, if zero, perform an ioremap instead
+ */
+void *devm_nvdimm_memremap(struct device *dev, resource_size_t offset,
+		size_t size, unsigned long flags)
+{
+	struct nvdimm_map *nvdimm_map;
+
+	nvdimm_bus_lock(dev);
+	nvdimm_map = find_nvdimm_map(dev, offset);
+	if (!nvdimm_map)
+		nvdimm_map = alloc_nvdimm_map(dev, offset, size, flags);
+	else
+		kref_get(&nvdimm_map->kref);
+	nvdimm_bus_unlock(dev);
+
+	if (devm_add_action_or_reset(dev, nvdimm_map_put, nvdimm_map))
+		return NULL;
+
+	return nvdimm_map->mem;
+}
+EXPORT_SYMBOL_GPL(devm_nvdimm_memremap);
 
 u64 nd_fletcher64(void *addr, size_t len, bool le)
 {
@@ -335,6 +457,7 @@ struct nvdimm_bus *__nvdimm_bus_register(struct device *parent,
 	if (!nvdimm_bus)
 		return NULL;
 	INIT_LIST_HEAD(&nvdimm_bus->list);
+	INIT_LIST_HEAD(&nvdimm_bus->mapping_list);
 	INIT_LIST_HEAD(&nvdimm_bus->poison_list);
 	init_waitqueue_head(&nvdimm_bus->probe_wait);
 	nvdimm_bus->id = ida_simple_get(&nd_ida, 0, 0, GFP_KERNEL);

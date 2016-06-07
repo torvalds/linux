@@ -1616,7 +1616,8 @@ static void __iomem *__nfit_spa_map(struct acpi_nfit_desc *acpi_desc,
  * when all region devices referencing the same mapping are disabled /
  * unbound.
  */
-static void __iomem *nfit_spa_map(struct acpi_nfit_desc *acpi_desc,
+static __maybe_unused void __iomem *nfit_spa_map(
+		struct acpi_nfit_desc *acpi_desc,
 		struct acpi_nfit_system_address *spa, enum spa_map_type type)
 {
 	void __iomem *iomem;
@@ -1669,7 +1670,6 @@ static int acpi_nfit_blk_region_enable(struct nvdimm_bus *nvdimm_bus,
 		struct device *dev)
 {
 	struct nvdimm_bus_descriptor *nd_desc = to_nd_desc(nvdimm_bus);
-	struct acpi_nfit_desc *acpi_desc = to_acpi_desc(nd_desc);
 	struct nd_blk_region *ndbr = to_nd_blk_region(dev);
 	struct nfit_flush *nfit_flush;
 	struct nfit_blk_mmio *mmio;
@@ -1697,8 +1697,8 @@ static int acpi_nfit_blk_region_enable(struct nvdimm_bus *nvdimm_bus,
 	/* map block aperture memory */
 	nfit_blk->bdw_offset = nfit_mem->bdw->offset;
 	mmio = &nfit_blk->mmio[BDW];
-	mmio->addr.base = nfit_spa_map(acpi_desc, nfit_mem->spa_bdw,
-			SPA_MAP_APERTURE);
+	mmio->addr.base = devm_nvdimm_memremap(dev, nfit_mem->spa_bdw->address,
+                        nfit_mem->spa_bdw->length, ARCH_MEMREMAP_PMEM);
 	if (!mmio->addr.base) {
 		dev_dbg(dev, "%s: %s failed to map bdw\n", __func__,
 				nvdimm_name(nvdimm));
@@ -1720,8 +1720,8 @@ static int acpi_nfit_blk_region_enable(struct nvdimm_bus *nvdimm_bus,
 	nfit_blk->cmd_offset = nfit_mem->dcr->command_offset;
 	nfit_blk->stat_offset = nfit_mem->dcr->status_offset;
 	mmio = &nfit_blk->mmio[DCR];
-	mmio->addr.base = nfit_spa_map(acpi_desc, nfit_mem->spa_dcr,
-			SPA_MAP_CONTROL);
+	mmio->addr.base = devm_nvdimm_ioremap(dev, nfit_mem->spa_dcr->address,
+			nfit_mem->spa_dcr->length);
 	if (!mmio->addr.base) {
 		dev_dbg(dev, "%s: %s failed to map dcr\n", __func__,
 				nvdimm_name(nvdimm));
@@ -1748,7 +1748,7 @@ static int acpi_nfit_blk_region_enable(struct nvdimm_bus *nvdimm_bus,
 
 	nfit_flush = nfit_mem->nfit_flush;
 	if (nfit_flush && nfit_flush->flush->hint_count != 0) {
-		nfit_blk->nvdimm_flush = devm_ioremap_nocache(dev,
+		nfit_blk->nvdimm_flush = devm_nvdimm_ioremap(dev,
 				nfit_flush->flush->hint_address[0], 8);
 		if (!nfit_blk->nvdimm_flush)
 			return -ENOMEM;

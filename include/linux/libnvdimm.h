@@ -99,6 +99,15 @@ struct nd_region_desc {
 	unsigned long flags;
 };
 
+struct device;
+void *devm_nvdimm_memremap(struct device *dev, resource_size_t offset,
+		size_t size, unsigned long flags);
+static inline void __iomem *devm_nvdimm_ioremap(struct device *dev,
+		resource_size_t offset, size_t size)
+{
+	return (void __iomem *) devm_nvdimm_memremap(dev, offset, size, 0);
+}
+
 struct nvdimm_bus;
 struct module;
 struct device;
