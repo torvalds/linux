@@ -516,10 +516,6 @@
 	status = "okay";
 };
 
-&mfc {
-	memory-region = <&mfc_left>, <&mfc_right>;
-};
-
 &mmc_0 {
 	status = "okay";
 	num-slots = <1>;

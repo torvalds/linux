@@ -406,10 +406,6 @@
 	};
 };
 
-&mfc {
-	memory-region = <&mfc_left>, <&mfc_right>;
-};
-
 &mmc_0 {
 	status = "okay";
 	mmc-pwrseq = <&emmc_pwrseq>;

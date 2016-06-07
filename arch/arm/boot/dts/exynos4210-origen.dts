@@ -289,7 +289,6 @@
 };
 
 &mfc {
-	memory-region = <&mfc_left>, <&mfc_right>;
 	status = "okay";
 };
 
