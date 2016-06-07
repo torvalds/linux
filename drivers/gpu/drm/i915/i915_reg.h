@@ -6938,6 +6938,7 @@ enum skl_disp_power_wells {
 #define    EDRAM_SETS_IDX(cap)			(((cap) >> 8) & 0x3)
 
 #define GEN6_UCGCTL1				_MMIO(0x9400)
+# define GEN6_GAMUNIT_CLOCK_GATE_DISABLE		(1 << 22)
 # define GEN6_EU_TCUNIT_CLOCK_GATE_DISABLE		(1 << 16)
 # define GEN6_BLBUNIT_CLOCK_GATE_DISABLE		(1 << 5)
 # define GEN6_CSUNIT_CLOCK_GATE_DISABLE			(1 << 7)
