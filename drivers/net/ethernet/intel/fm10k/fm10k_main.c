@@ -1130,9 +1130,11 @@ static u64 fm10k_get_tx_completed(struct fm10k_ring *ring)
 
 static u64 fm10k_get_tx_pending(struct fm10k_ring *ring)
 {
-	/* use SW head and tail until we have real hardware */
-	u32 head = ring->next_to_clean;
-	u32 tail = ring->next_to_use;
+	struct fm10k_intfc *interface = ring->q_vector->interface;
+	struct fm10k_hw *hw = &interface->hw;
+
+	u32 head = fm10k_read_reg(hw, FM10K_TDH(ring->reg_idx));
+	u32 tail = fm10k_read_reg(hw, FM10K_TDT(ring->reg_idx));
 
 	return ((head <= tail) ? tail : tail + ring->count) - head;
 }
