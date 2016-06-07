@@ -429,8 +429,10 @@ static const struct das16_board das16_boards[] = {
 	},
 };
 
-/* Period for timer interrupt in jiffies.  It's a function
- * to deal with possibility of dynamic HZ patches  */
+/*
+ * Period for timer interrupt in jiffies.  It's a function
+ * to deal with possibility of dynamic HZ patches
+ */
 static inline int timer_period(void)
 {
 	return HZ / 20;
