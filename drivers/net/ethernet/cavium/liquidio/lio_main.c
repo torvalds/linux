@@ -2036,7 +2036,8 @@ static inline void setup_tx_poll_fn(struct net_device *netdev)
 	struct lio *lio = GET_LIO(netdev);
 	struct octeon_device *oct = lio->oct_dev;
 
-	lio->txq_status_wq.wq = create_workqueue("txq-status");
+	lio->txq_status_wq.wq = alloc_workqueue("txq-status",
+						WQ_MEM_RECLAIM, 0);
 	if (!lio->txq_status_wq.wq) {
 		dev_err(&oct->pci_dev->dev, "unable to create cavium txq status wq\n");
 		return;
@@ -2103,7 +2104,6 @@ static int liquidio_stop(struct net_device *netdev)
 	send_rx_ctrl_cmd(lio, 0);
 
 	cancel_delayed_work_sync(&lio->txq_status_wq.wk.work);
-	flush_workqueue(lio->txq_status_wq.wq);
 	destroy_workqueue(lio->txq_status_wq.wq);
 
 	if (lio->ptp_clock) {
