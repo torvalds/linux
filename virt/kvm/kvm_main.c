@@ -1442,6 +1442,16 @@ static bool vma_is_valid(struct vm_area_struct *vma, bool write_fault)
 	return true;
 }
 
+static int hva_to_pfn_remapped(struct vm_area_struct *vma,
+			       unsigned long addr, bool *async,
+			       bool write_fault, kvm_pfn_t *p_pfn)
+{
+	*p_pfn = ((addr - vma->vm_start) >> PAGE_SHIFT) +
+		vma->vm_pgoff;
+	BUG_ON(!kvm_is_reserved_pfn(*p_pfn));
+	return 0;
+}
+
 /*
  * Pin guest page in memory and return its pfn.
  * @addr: host virtual address which maps memory to the guest
@@ -1461,7 +1471,7 @@ static kvm_pfn_t hva_to_pfn(unsigned long addr, bool atomic, bool *async,
 {
 	struct vm_area_struct *vma;
 	kvm_pfn_t pfn = 0;
-	int npages;
+	int npages, r;
 
 	/* we can do it either atomically or asynchronously, not both */
 	BUG_ON(atomic && async);
@@ -1487,10 +1497,10 @@ static kvm_pfn_t hva_to_pfn(unsigned long addr, bool atomic, bool *async,
 
 	if (vma == NULL)
 		pfn = KVM_PFN_ERR_FAULT;
-	else if ((vma->vm_flags & VM_PFNMAP)) {
-		pfn = ((addr - vma->vm_start) >> PAGE_SHIFT) +
-			vma->vm_pgoff;
-		BUG_ON(!kvm_is_reserved_pfn(pfn));
+	else if (vma->vm_flags & (VM_IO | VM_PFNMAP)) {
+		r = hva_to_pfn_remapped(vma, addr, async, write_fault, &pfn);
+		if (r < 0)
+			pfn = KVM_PFN_ERR_FAULT;
 	} else {
 		if (async && vma_is_valid(vma, write_fault))
 			*async = true;
