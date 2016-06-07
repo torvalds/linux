@@ -276,7 +276,7 @@ int test_stat(char *str, int len)
 	return TEST_FAILURE;
 }
 
-static union lkl_disk disk;
+static struct lkl_disk disk;
 static int disk_id = -1;
 
 int test_disk_add(char *str, int len)
@@ -291,7 +291,7 @@ int test_disk_add(char *str, int len)
 #endif
 		goto out_unlink;
 
-	disk_id = lkl_disk_add(disk);
+	disk_id = lkl_disk_add(&disk);
 	if (disk_id < 0)
 		goto out_close;
 
@@ -821,6 +821,7 @@ int main(int argc, char **argv)
 
 	lkl_sys_halt();
 
+	lkl_disk_remove(disk);
 	close(disk.fd);
 
 	return g_test_pass;

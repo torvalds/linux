@@ -237,7 +237,7 @@ struct lkl_host_operations lkl_host_ops = {
 	.gettid = gettid,
 };
 
-int handle_get_capacity(union lkl_disk disk, unsigned long long *res)
+int handle_get_capacity(struct lkl_disk disk, unsigned long long *res)
 {
 	LARGE_INTEGER tmp;
 
@@ -248,7 +248,7 @@ int handle_get_capacity(union lkl_disk disk, unsigned long long *res)
 	return 0;
 }
 
-static int blk_request(union lkl_disk disk, struct lkl_blk_req *req)
+static int blk_request(struct lkl_disk disk, struct lkl_blk_req *req)
 {
 	unsigned long long offset = req->sector * 512;
 	OVERLAPPED ov = { 0, };

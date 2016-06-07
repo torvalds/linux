@@ -326,7 +326,7 @@ struct lkl_host_operations lkl_host_ops = {
 	.gettid = _gettid,
 };
 
-static int fd_get_capacity(union lkl_disk disk, unsigned long long *res)
+static int fd_get_capacity(struct lkl_disk disk, unsigned long long *res)
 {
 	off_t off;
 
@@ -338,7 +338,7 @@ static int fd_get_capacity(union lkl_disk disk, unsigned long long *res)
 	return 0;
 }
 
-static int do_rw(ssize_t (*fn)(), union lkl_disk disk, struct lkl_blk_req *req)
+static int do_rw(ssize_t (*fn)(), struct lkl_disk disk, struct lkl_blk_req *req)
 {
 	off_t off = req->sector * 512;
 	void *addr;
@@ -370,7 +370,7 @@ out:
 	return ret;
 }
 
-static int blk_request(union lkl_disk disk, struct lkl_blk_req *req)
+static int blk_request(struct lkl_disk disk, struct lkl_blk_req *req)
 {
 	int err = 0;
 

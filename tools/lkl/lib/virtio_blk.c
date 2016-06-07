@@ -6,7 +6,7 @@ struct virtio_blk_dev {
 	struct virtio_dev dev;
 	struct lkl_virtio_blk_config config;
 	struct lkl_dev_blk_ops *ops;
-	union lkl_disk disk;
+	struct lkl_disk disk;
 };
 
 struct virtio_blk_req_trailer {
@@ -67,7 +67,8 @@ static struct virtio_dev_ops blk_ops = {
 	.enqueue = blk_enqueue,
 };
 
-int lkl_disk_add(union lkl_disk disk)
+
+int lkl_disk_add(struct lkl_disk *disk)
 {
 	struct virtio_blk_dev *dev;
 	unsigned long long capacity;
@@ -78,6 +79,8 @@ int lkl_disk_add(union lkl_disk disk)
 	if (!dev)
 		return -LKL_ENOMEM;
 
+	disk->dev = dev;
+
 	dev->dev.device_id = LKL_VIRTIO_ID_BLOCK;
 	dev->dev.vendor_id = 0;
 	dev->dev.device_features = 0;
@@ -86,9 +89,9 @@ int lkl_disk_add(union lkl_disk disk)
 	dev->dev.config_len = sizeof(dev->config);
 	dev->dev.ops = &blk_ops;
 	dev->ops = &lkl_dev_blk_ops;
-	dev->disk = disk;
+	dev->disk = *disk;
 
-	ret = dev->ops->get_capacity(disk, &capacity);
+	ret = dev->ops->get_capacity(*disk, &capacity);
 	if (ret) {
 		ret = -LKL_ENOMEM;
 		goto out_free;
@@ -105,4 +108,16 @@ out_free:
 	lkl_host_ops.mem_free(dev);
 
 	return ret;
+}
+
+void lkl_disk_remove(struct lkl_disk disk)
+{
+	struct virtio_blk_dev *dev;
+
+	dev = (struct virtio_blk_dev *)disk.dev;
+	if (!dev)
+		return;
+
+	virtio_dev_cleanup(&dev->dev);
+	lkl_host_ops.mem_free(dev);
 }
