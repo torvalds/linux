@@ -2678,19 +2678,21 @@ static void dce_v11_0_cursor_reset(struct drm_crtc *crtc)
 	}
 }
 
-static void dce_v11_0_crtc_gamma_set(struct drm_crtc *crtc, u16 *red, u16 *green,
-				    u16 *blue, uint32_t start, uint32_t size)
+static int dce_v11_0_crtc_gamma_set(struct drm_crtc *crtc, u16 *red, u16 *green,
+				    u16 *blue, uint32_t size)
 {
 	struct amdgpu_crtc *amdgpu_crtc = to_amdgpu_crtc(crtc);
-	int end = (start + size > 256) ? 256 : start + size, i;
+	int i;
 
 	/* userspace palettes are always correct as is */
-	for (i = start; i < end; i++) {
+	for (i = 0; i < size; i++) {
 		amdgpu_crtc->lut_r[i] = red[i] >> 6;
 		amdgpu_crtc->lut_g[i] = green[i] >> 6;
 		amdgpu_crtc->lut_b[i] = blue[i] >> 6;
 	}
 	dce_v11_0_crtc_load_lut(crtc);
+
+	return 0;
 }
 
 static void dce_v11_0_crtc_destroy(struct drm_crtc *crtc)

@@ -175,20 +175,22 @@ vc4_crtc_lut_load(struct drm_crtc *crtc)
 		HVS_WRITE(SCALER_GAMDATA, vc4_crtc->lut_b[i]);
 }
 
-static void
+static int
 vc4_crtc_gamma_set(struct drm_crtc *crtc, u16 *r, u16 *g, u16 *b,
-		   uint32_t start, uint32_t size)
+		   uint32_t size)
 {
 	struct vc4_crtc *vc4_crtc = to_vc4_crtc(crtc);
 	u32 i;
 
-	for (i = start; i < start + size; i++) {
+	for (i = 0; i < size; i++) {
 		vc4_crtc->lut_r[i] = r[i] >> 8;
 		vc4_crtc->lut_g[i] = g[i] >> 8;
 		vc4_crtc->lut_b[i] = b[i] >> 8;
 	}
 
 	vc4_crtc_lut_load(crtc);
+
+	return 0;
 }
 
 static u32 vc4_get_fifo_full_level(u32 format)

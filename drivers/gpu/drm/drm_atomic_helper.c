@@ -2920,16 +2920,15 @@ EXPORT_SYMBOL(drm_atomic_helper_connector_destroy_state);
  * @red: red correction table
  * @green: green correction table
  * @blue: green correction table
- * @start: first entry, must always be 0
  * @size: size of the tables
  *
  * Implements support for legacy gamma correction table for drivers
  * that support color management through the DEGAMMA_LUT/GAMMA_LUT
  * properties.
  */
-void drm_atomic_helper_legacy_gamma_set(struct drm_crtc *crtc,
-					u16 *red, u16 *green, u16 *blue,
-					uint32_t start, uint32_t size)
+int drm_atomic_helper_legacy_gamma_set(struct drm_crtc *crtc,
+				       u16 *red, u16 *green, u16 *blue,
+				       uint32_t size)
 {
 	struct drm_device *dev = crtc->dev;
 	struct drm_mode_config *config = &dev->mode_config;
@@ -2941,7 +2940,7 @@ void drm_atomic_helper_legacy_gamma_set(struct drm_crtc *crtc,
 
 	state = drm_atomic_state_alloc(crtc->dev);
 	if (!state)
-		return;
+		return -ENOMEM;
 
 	blob = drm_property_create_blob(dev,
 					sizeof(struct drm_color_lut) * size,
@@ -2992,7 +2991,7 @@ retry:
 
 	drm_property_unreference_blob(blob);
 
-	return;
+	return 0;
 fail:
 	if (ret == -EDEADLK)
 		goto backoff;
@@ -3000,7 +2999,7 @@ fail:
 	drm_atomic_state_free(state);
 	drm_property_unreference_blob(blob);
 
-	return;
+	return ret;
 backoff:
 	drm_atomic_state_clear(state);
 	drm_atomic_legacy_backoff(state);

@@ -5172,7 +5172,7 @@ int drm_mode_gamma_set_ioctl(struct drm_device *dev,
 		goto out;
 	}
 
-	crtc->funcs->gamma_set(crtc, r_base, g_base, b_base, 0, crtc->gamma_size);
+	ret = crtc->funcs->gamma_set(crtc, r_base, g_base, b_base, crtc->gamma_size);
 
 out:
 	drm_modeset_unlock_all(dev);

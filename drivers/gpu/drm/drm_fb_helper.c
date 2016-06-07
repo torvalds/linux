@@ -227,7 +227,7 @@ static void drm_fb_helper_restore_lut_atomic(struct drm_crtc *crtc)
 	g_base = r_base + crtc->gamma_size;
 	b_base = g_base + crtc->gamma_size;
 
-	crtc->funcs->gamma_set(crtc, r_base, g_base, b_base, 0, crtc->gamma_size);
+	crtc->funcs->gamma_set(crtc, r_base, g_base, b_base, crtc->gamma_size);
 }
 
 /**

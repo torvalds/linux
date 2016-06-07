@@ -231,19 +231,21 @@ void radeon_crtc_fb_gamma_get(struct drm_crtc *crtc, u16 *red, u16 *green,
 	*blue = radeon_crtc->lut_b[regno] << 6;
 }
 
-static void radeon_crtc_gamma_set(struct drm_crtc *crtc, u16 *red, u16 *green,
-				  u16 *blue, uint32_t start, uint32_t size)
+static int radeon_crtc_gamma_set(struct drm_crtc *crtc, u16 *red, u16 *green,
+				 u16 *blue, uint32_t size)
 {
 	struct radeon_crtc *radeon_crtc = to_radeon_crtc(crtc);
-	int end = (start + size > 256) ? 256 : start + size, i;
+	int i;
 
 	/* userspace palettes are always correct as is */
-	for (i = start; i < end; i++) {
+	for (i = 0; i < size; i++) {
 		radeon_crtc->lut_r[i] = red[i] >> 6;
 		radeon_crtc->lut_g[i] = green[i] >> 6;
 		radeon_crtc->lut_b[i] = blue[i] >> 6;
 	}
 	radeon_crtc_load_lut(crtc);
+
+	return 0;
 }
 
 static void radeon_crtc_destroy(struct drm_crtc *crtc)
@@ -688,6 +690,7 @@ radeon_crtc_set_config(struct drm_mode_set *set)
 	pm_runtime_put_autosuspend(dev->dev);
 	return ret;
 }
+
 static const struct drm_crtc_funcs radeon_crtc_funcs = {
 	.cursor_set2 = radeon_crtc_cursor_set2,
 	.cursor_move = radeon_crtc_cursor_move,

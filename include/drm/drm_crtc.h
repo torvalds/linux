@@ -479,8 +479,8 @@ struct drm_crtc_funcs {
 	 * going on, which should eventually be unified to just one set of
 	 * hooks.
 	 */
-	void (*gamma_set)(struct drm_crtc *crtc, u16 *r, u16 *g, u16 *b,
-			  uint32_t start, uint32_t size);
+	int (*gamma_set)(struct drm_crtc *crtc, u16 *r, u16 *g, u16 *b,
+			 uint32_t size);
 
 	/**
 	 * @destroy:
