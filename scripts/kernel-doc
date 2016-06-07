@@ -61,10 +61,10 @@ Output format selection (mutually exclusive):
 Output selection (mutually exclusive):
   -export		Only output documentation for symbols that have been
 			exported using EXPORT_SYMBOL() or EXPORT_SYMBOL_GPL()
-			in the same FILE.
+                        in the same FILE or any -export-file FILE.
   -internal		Only output documentation for symbols that have NOT been
 			exported using EXPORT_SYMBOL() or EXPORT_SYMBOL_GPL()
-			in the same FILE.
+                        in the same FILE or any -export-file FILE.
   -function NAME	Only output documentation for the given function(s)
 			or DOC: section title(s). All other functions and DOC:
 			sections are ignored. May be specified multiple times.
@@ -76,6 +76,9 @@ Output selection modifiers:
   -no-doc-sections	Do not output DOC: sections.
   -enable-lineno        Enable output of #define LINENO lines. Only works with
                         reStructuredText format.
+  -export-file FILE     Specify an additional FILE in which to look for
+                        EXPORT_SYMBOL() and EXPORT_SYMBOL_GPL(). To be used with
+                        -export or -internal. May be specified multiple times.
 
 Other parameters:
   -v			Verbose output, more warnings and other information.
@@ -336,6 +339,8 @@ use constant {
 my $output_selection = OUTPUT_ALL;
 my $show_not_found = 0;
 
+my @export_file_list;
+
 my @build_time;
 if (defined($ENV{'KBUILD_BUILD_TIMESTAMP'}) &&
     (my $seconds = `date -d"${ENV{'KBUILD_BUILD_TIMESTAMP'}}" +%s`) ne '') {
@@ -488,6 +493,9 @@ while ($ARGV[0] =~ m/^-(.*)/) {
     } elsif ($cmd eq "-internal") { # only non-exported symbols
 	$output_selection = OUTPUT_INTERNAL;
 	%function_table = ();
+    } elsif ($cmd eq "-export-file") {
+	my $file = shift @ARGV;
+	push(@export_file_list, $file);
     } elsif ($cmd eq "-v") {
 	$verbose = 1;
     } elsif (($cmd eq "-h") || ($cmd eq "--help")) {
@@ -2747,6 +2755,25 @@ sub map_filename($) {
     return $file;
 }
 
+sub process_export_file($) {
+    my ($orig_file) = @_;
+    my $file = map_filename($orig_file);
+
+    if (!open(IN,"<$file")) {
+	print STDERR "Error: Cannot open file $file\n";
+	++$errors;
+	return;
+    }
+
+    while (<IN>) {
+	if (/$export_symbol/) {
+	    $function_table{$2} = 1;
+	}
+    }
+
+    close(IN);
+}
+
 sub process_file($) {
     my $file;
     my $identifier;
@@ -3079,6 +3106,14 @@ if (open(SOURCE_MAP, "<.tmp_filelist.txt")) {
 		$source_map{$relname} = $absname;
 	}
 	close(SOURCE_MAP);
+}
+
+if ($output_selection == OUTPUT_EXPORTED ||
+    $output_selection == OUTPUT_INTERNAL) {
+    foreach (@export_file_list) {
+	chomp;
+	process_export_file($_);
+    }
 }
 
 foreach (@ARGV) {
