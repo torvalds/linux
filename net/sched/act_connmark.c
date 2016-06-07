@@ -44,7 +44,7 @@ static int tcf_connmark(struct sk_buff *skb, const struct tc_action *a,
 	int proto;
 
 	spin_lock(&ca->tcf_lock);
-	ca->tcf_tm.lastuse = jiffies;
+	tcf_lastuse_update(&ca->tcf_tm);
 	bstats_update(&ca->tcf_bstats, skb);
 
 	if (skb->protocol == htons(ETH_P_IP)) {
@@ -160,9 +160,7 @@ static inline int tcf_connmark_dump(struct sk_buff *skb, struct tc_action *a,
 	if (nla_put(skb, TCA_CONNMARK_PARMS, sizeof(opt), &opt))
 		goto nla_put_failure;
 
-	t.install = jiffies_to_clock_t(jiffies - ci->tcf_tm.install);
-	t.lastuse = jiffies_to_clock_t(jiffies - ci->tcf_tm.lastuse);
-	t.expires = jiffies_to_clock_t(ci->tcf_tm.expires);
+	tcf_tm_dump(&t, &ci->tcf_tm);
 	if (nla_put_64bit(skb, TCA_CONNMARK_TM, sizeof(t), &t,
 			  TCA_CONNMARK_PAD))
 		goto nla_put_failure;

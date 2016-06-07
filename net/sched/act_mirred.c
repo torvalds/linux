@@ -157,7 +157,6 @@ static int tcf_mirred(struct sk_buff *skb, const struct tc_action *a,
 	u32 at;
 
 	tcf_lastuse_update(&m->tcf_tm);
-
 	bstats_cpu_update(this_cpu_ptr(m->common.cpu_bstats), skb);
 
 	rcu_read_lock();
@@ -219,9 +218,8 @@ static int tcf_mirred_dump(struct sk_buff *skb, struct tc_action *a, int bind, i
 
 	if (nla_put(skb, TCA_MIRRED_PARMS, sizeof(opt), &opt))
 		goto nla_put_failure;
-	t.install = jiffies_to_clock_t(jiffies - m->tcf_tm.install);
-	t.lastuse = jiffies_to_clock_t(jiffies - m->tcf_tm.lastuse);
-	t.expires = jiffies_to_clock_t(m->tcf_tm.expires);
+
+	tcf_tm_dump(&t, &m->tcf_tm);
 	if (nla_put_64bit(skb, TCA_MIRRED_TM, sizeof(t), &t, TCA_MIRRED_PAD))
 		goto nla_put_failure;
 	return skb->len;

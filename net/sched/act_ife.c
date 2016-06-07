@@ -553,9 +553,7 @@ static int tcf_ife_dump(struct sk_buff *skb, struct tc_action *a, int bind,
 	if (nla_put(skb, TCA_IFE_PARMS, sizeof(opt), &opt))
 		goto nla_put_failure;
 
-	t.install = jiffies_to_clock_t(jiffies - ife->tcf_tm.install);
-	t.lastuse = jiffies_to_clock_t(jiffies - ife->tcf_tm.lastuse);
-	t.expires = jiffies_to_clock_t(ife->tcf_tm.expires);
+	tcf_tm_dump(&t, &ife->tcf_tm);
 	if (nla_put_64bit(skb, TCA_IFE_TM, sizeof(t), &t, TCA_IFE_PAD))
 		goto nla_put_failure;
 
@@ -623,7 +621,7 @@ static int tcf_ife_decode(struct sk_buff *skb, const struct tc_action *a,
 
 	spin_lock(&ife->tcf_lock);
 	bstats_update(&ife->tcf_bstats, skb);
-	ife->tcf_tm.lastuse = jiffies;
+	tcf_lastuse_update(&ife->tcf_tm);
 	spin_unlock(&ife->tcf_lock);
 
 	ifehdrln = ntohs(ifehdrln);
@@ -711,7 +709,7 @@ static int tcf_ife_encode(struct sk_buff *skb, const struct tc_action *a,
 
 	spin_lock(&ife->tcf_lock);
 	bstats_update(&ife->tcf_bstats, skb);
-	ife->tcf_tm.lastuse = jiffies;
+	tcf_lastuse_update(&ife->tcf_tm);
 
 	if (!metalen) {		/* no metadata to send */
 		/* abuse overlimits to count when we allow packet
@@ -802,7 +800,7 @@ static int tcf_ife_act(struct sk_buff *skb, const struct tc_action *a,
 	pr_info_ratelimited("unknown failure(policy neither de/encode\n");
 	spin_lock(&ife->tcf_lock);
 	bstats_update(&ife->tcf_bstats, skb);
-	ife->tcf_tm.lastuse = jiffies;
+	tcf_lastuse_update(&ife->tcf_tm);
 	ife->tcf_qstats.drops++;
 	spin_unlock(&ife->tcf_lock);
 

@@ -76,6 +76,16 @@ static inline void tcf_lastuse_update(struct tcf_t *tm)
 
 	if (tm->lastuse != now)
 		tm->lastuse = now;
+	if (unlikely(!tm->firstuse))
+		tm->firstuse = now;
+}
+
+static inline void tcf_tm_dump(struct tcf_t *dtm, const struct tcf_t *stm)
+{
+	dtm->install = jiffies_to_clock_t(jiffies - stm->install);
+	dtm->lastuse = jiffies_to_clock_t(jiffies - stm->lastuse);
+	dtm->firstuse = jiffies_to_clock_t(jiffies - stm->firstuse);
+	dtm->expires = jiffies_to_clock_t(stm->expires);
 }
 
 struct tc_action {

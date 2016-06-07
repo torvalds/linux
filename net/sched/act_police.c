@@ -241,6 +241,7 @@ override:
 		tcf_hash_new_index(tn);
 	police->tcf_tm.install = jiffies;
 	police->tcf_tm.lastuse = jiffies;
+	police->tcf_tm.firstuse = 0;
 	h = tcf_hash(police->tcf_index, POL_TAB_MASK);
 	spin_lock_bh(&hinfo->lock);
 	hlist_add_head(&police->tcf_head, &hinfo->htab[h]);
@@ -347,6 +348,7 @@ tcf_act_police_dump(struct sk_buff *skb, struct tc_action *a, int bind, int ref)
 
 	t.install = jiffies_to_clock_t(jiffies - police->tcf_tm.install);
 	t.lastuse = jiffies_to_clock_t(jiffies - police->tcf_tm.lastuse);
+	t.firstuse = jiffies_to_clock_t(jiffies - police->tcf_tm.firstuse);
 	t.expires = jiffies_to_clock_t(police->tcf_tm.expires);
 	if (nla_put_64bit(skb, TCA_POLICE_TM, sizeof(t), &t, TCA_POLICE_PAD))
 		goto nla_put_failure;
