@@ -31,6 +31,7 @@ import os
 import subprocess
 import sys
 import re
+import glob
 
 from docutils import nodes, statemachine
 from docutils.statemachine import ViewList
@@ -44,8 +45,8 @@ class KernelDocDirective(Directive):
     option_spec = {
         'doc': directives.unchanged_required,
         'functions': directives.unchanged_required,
-        'export': directives.flag,
-        'internal': directives.flag,
+        'export': directives.unchanged,
+        'internal': directives.unchanged,
     }
     has_content = False
 
@@ -54,6 +55,7 @@ class KernelDocDirective(Directive):
         cmd = [env.config.kerneldoc_bin, '-rst', '-enable-lineno']
 
         filename = env.config.kerneldoc_srctree + '/' + self.arguments[0]
+        export_file_patterns = []
 
         # Tell sphinx of the dependency
         env.note_dependency(os.path.abspath(filename))
@@ -63,13 +65,20 @@ class KernelDocDirective(Directive):
         # FIXME: make this nicer and more robust against errors
         if 'export' in self.options:
             cmd += ['-export']
+            export_file_patterns = str(self.options.get('export')).split()
         elif 'internal' in self.options:
             cmd += ['-internal']
+            export_file_patterns = str(self.options.get('internal')).split()
         elif 'doc' in self.options:
             cmd += ['-function', str(self.options.get('doc'))]
         elif 'functions' in self.options:
             for f in str(self.options.get('functions')).split():
                 cmd += ['-function', f]
+
+        for pattern in export_file_patterns:
+            for f in glob.glob(env.config.kerneldoc_srctree + '/' + pattern):
+                env.note_dependency(os.path.abspath(f))
+                cmd += ['-export-file', f]
 
         cmd += [filename]
 
