@@ -1255,6 +1255,22 @@ static int gen9_init_indirectctx_bb(struct intel_engine_cs *engine,
 		return ret;
 	index = ret;
 
+	/* WaClearSlmSpaceAtContextSwitch:kbl */
+	/* Actual scratch location is at 128 bytes offset */
+	if (IS_KBL_REVID(engine->i915, 0, KBL_REVID_A0)) {
+		uint32_t scratch_addr
+			= engine->scratch.gtt_offset + 2*CACHELINE_BYTES;
+
+		wa_ctx_emit(batch, index, GFX_OP_PIPE_CONTROL(6));
+		wa_ctx_emit(batch, index, (PIPE_CONTROL_FLUSH_L3 |
+					   PIPE_CONTROL_GLOBAL_GTT_IVB |
+					   PIPE_CONTROL_CS_STALL |
+					   PIPE_CONTROL_QW_WRITE));
+		wa_ctx_emit(batch, index, scratch_addr);
+		wa_ctx_emit(batch, index, 0);
+		wa_ctx_emit(batch, index, 0);
+		wa_ctx_emit(batch, index, 0);
+	}
 	/* Pad to end of cacheline */
 	while (index % CACHELINE_DWORDS)
 		wa_ctx_emit(batch, index, MI_NOOP);
