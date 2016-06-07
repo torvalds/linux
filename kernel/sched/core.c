@@ -2253,9 +2253,11 @@ int sysctl_numa_balancing(struct ctl_table *table, int write,
 #endif
 #endif
 
-DEFINE_STATIC_KEY_FALSE(sched_schedstats);
-
 #ifdef CONFIG_SCHEDSTATS
+
+DEFINE_STATIC_KEY_FALSE(sched_schedstats);
+static bool __initdata __sched_schedstats = false;
+
 static void set_schedstats(bool enabled)
 {
 	if (enabled)
@@ -2278,11 +2280,16 @@ static int __init setup_schedstats(char *str)
 	if (!str)
 		goto out;
 
+	/*
+	 * This code is called before jump labels have been set up, so we can't
+	 * change the static branch directly just yet.  Instead set a temporary
+	 * variable so init_schedstats() can do it later.
+	 */
 	if (!strcmp(str, "enable")) {
-		set_schedstats(true);
+		__sched_schedstats = true;
 		ret = 1;
 	} else if (!strcmp(str, "disable")) {
-		set_schedstats(false);
+		__sched_schedstats = false;
 		ret = 1;
 	}
 out:
@@ -2292,6 +2299,11 @@ out:
 	return ret;
 }
 __setup("schedstats=", setup_schedstats);
+
+static void __init init_schedstats(void)
+{
+	set_schedstats(__sched_schedstats);
+}
 
 #ifdef CONFIG_PROC_SYSCTL
 int sysctl_schedstats(struct ctl_table *table, int write,
@@ -2313,8 +2325,10 @@ int sysctl_schedstats(struct ctl_table *table, int write,
 		set_schedstats(state);
 	return err;
 }
-#endif
-#endif
+#endif /* CONFIG_PROC_SYSCTL */
+#else  /* !CONFIG_SCHEDSTATS */
+static inline void init_schedstats(void) {}
+#endif /* CONFIG_SCHEDSTATS */
 
 /*
  * fork()/clone()-time setup:
@@ -7486,6 +7500,8 @@ void __init sched_init(void)
 	set_cpu_rq_start_time(smp_processor_id());
 #endif
 	init_sched_fair_class();
+
+	init_schedstats();
 
 	scheduler_running = 1;
 }
