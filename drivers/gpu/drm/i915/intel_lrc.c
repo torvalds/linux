@@ -1652,9 +1652,10 @@ static int gen8_emit_flush_render(struct drm_i915_gem_request *request,
 	struct intel_ringbuffer *ringbuf = request->ringbuf;
 	struct intel_engine_cs *engine = ringbuf->engine;
 	u32 scratch_addr = engine->scratch.gtt_offset + 2 * CACHELINE_BYTES;
-	bool vf_flush_wa = false;
+	bool vf_flush_wa = false, dc_flush_wa = false;
 	u32 flags = 0;
 	int ret;
+	int len;
 
 	flags |= PIPE_CONTROL_CS_STALL;
 
@@ -1681,9 +1682,21 @@ static int gen8_emit_flush_render(struct drm_i915_gem_request *request,
 		 */
 		if (IS_GEN9(request->i915))
 			vf_flush_wa = true;
+
+		/* WaForGAMHang:kbl */
+		if (IS_KBL_REVID(request->i915, 0, KBL_REVID_B0))
+			dc_flush_wa = true;
 	}
 
-	ret = intel_ring_begin(request, vf_flush_wa ? 12 : 6);
+	len = 6;
+
+	if (vf_flush_wa)
+		len += 6;
+
+	if (dc_flush_wa)
+		len += 12;
+
+	ret = intel_ring_begin(request, len);
 	if (ret)
 		return ret;
 
@@ -1696,12 +1709,31 @@ static int gen8_emit_flush_render(struct drm_i915_gem_request *request,
 		intel_logical_ring_emit(ringbuf, 0);
 	}
 
+	if (dc_flush_wa) {
+		intel_logical_ring_emit(ringbuf, GFX_OP_PIPE_CONTROL(6));
+		intel_logical_ring_emit(ringbuf, PIPE_CONTROL_DC_FLUSH_ENABLE);
+		intel_logical_ring_emit(ringbuf, 0);
+		intel_logical_ring_emit(ringbuf, 0);
+		intel_logical_ring_emit(ringbuf, 0);
+		intel_logical_ring_emit(ringbuf, 0);
+	}
+
 	intel_logical_ring_emit(ringbuf, GFX_OP_PIPE_CONTROL(6));
 	intel_logical_ring_emit(ringbuf, flags);
 	intel_logical_ring_emit(ringbuf, scratch_addr);
 	intel_logical_ring_emit(ringbuf, 0);
 	intel_logical_ring_emit(ringbuf, 0);
 	intel_logical_ring_emit(ringbuf, 0);
+
+	if (dc_flush_wa) {
+		intel_logical_ring_emit(ringbuf, GFX_OP_PIPE_CONTROL(6));
+		intel_logical_ring_emit(ringbuf, PIPE_CONTROL_CS_STALL);
+		intel_logical_ring_emit(ringbuf, 0);
+		intel_logical_ring_emit(ringbuf, 0);
+		intel_logical_ring_emit(ringbuf, 0);
+		intel_logical_ring_emit(ringbuf, 0);
+	}
+
 	intel_logical_ring_advance(ringbuf);
 
 	return 0;
