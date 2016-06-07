@@ -2485,10 +2485,23 @@ static void blkback_changed(struct xenbus_device *dev,
 		break;
 
 	case XenbusStateConnected:
-		if (dev->state != XenbusStateInitialised) {
+		/*
+		 * talk_to_blkback sets state to XenbusStateInitialised
+		 * and blkfront_connect sets it to XenbusStateConnected
+		 * (if connection went OK).
+		 *
+		 * If the backend (or toolstack) decides to poke at backend
+		 * state (and re-trigger the watch by setting the state repeatedly
+		 * to XenbusStateConnected (4)) we need to deal with this.
+		 * This is allowed as this is used to communicate to the guest
+		 * that the size of disk has changed!
+		 */
+		if ((dev->state != XenbusStateInitialised) &&
+		    (dev->state != XenbusStateConnected)) {
 			if (talk_to_blkback(dev, info))
 				break;
 		}
+
 		blkfront_connect(info);
 		break;
 
