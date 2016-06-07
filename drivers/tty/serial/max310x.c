@@ -1234,6 +1234,9 @@ static int max310x_probe(struct device *dev, struct max310x_devtype *devtype,
 
 	dev_err(dev, "Unable to reguest IRQ %i\n", irq);
 
+	for (i = 0; i < devtype->nr; i++)
+		uart_remove_one_port(&max310x_uart, &s->p[i].port);
+
 	mutex_destroy(&s->mutex);
 
 out_clk:
