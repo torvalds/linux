@@ -850,7 +850,7 @@ static int qed_cxt_src_t2_alloc(struct qed_hwfn *p_hwfn)
 			val = 0;
 		entries[j].next = cpu_to_be64(val);
 
-		conn_num -= ent_per_page;
+		conn_num -= ent_num;
 	}
 
 	return 0;
