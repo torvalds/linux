@@ -4930,11 +4930,9 @@ i915_gem_init_hw(struct drm_device *dev)
 	intel_mocs_init_l3cc_table(dev);
 
 	/* We can't enable contexts until all firmware is loaded */
-	if (HAS_GUC(dev)) {
-		ret = intel_guc_setup(dev);
-		if (ret)
-			goto out;
-	}
+	ret = intel_guc_setup(dev);
+	if (ret)
+		goto out;
 
 	/*
 	 * Increment the next seqno by 0x100 so we have a visible break

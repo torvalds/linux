@@ -425,9 +425,13 @@ int intel_guc_setup(struct drm_device *dev)
 	if (!i915.enable_guc_loading) {
 		err = 0;
 		goto fail;
-	} else if (fw_path == NULL || *fw_path == '\0') {
-		if (*fw_path == '\0')
-			DRM_INFO("No GuC firmware known for this platform\n");
+	} else if (fw_path == NULL) {
+		/* Device is known to have no uCode (e.g. no GuC) */
+		err = -ENXIO;
+		goto fail;
+	} else if (*fw_path == '\0') {
+		/* Device has a GuC but we don't know what f/w to load? */
+		DRM_INFO("No GuC firmware known for this platform\n");
 		err = -ENODEV;
 		goto fail;
 	}
@@ -535,7 +539,7 @@ fail:
 		if (fw_path == NULL)
 			DRM_INFO("GuC submission without firmware not supported\n");
 		if (ret == 0)
-			DRM_INFO("Falling back to execlist mode\n");
+			DRM_INFO("Falling back from GuC submission to execlist mode\n");
 		else
 			DRM_ERROR("GuC init failed: %d\n", ret);
 	}
