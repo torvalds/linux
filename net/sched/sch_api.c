@@ -982,7 +982,7 @@ qdisc_create(struct net_device *dev, struct netdev_queue *dev_queue,
 			rcu_assign_pointer(sch->stab, stab);
 		}
 		if (tca[TCA_RATE]) {
-			spinlock_t *root_lock;
+			seqcount_t *running;
 
 			err = -EOPNOTSUPP;
 			if (sch->flags & TCQ_F_MQROOT)
@@ -991,14 +991,15 @@ qdisc_create(struct net_device *dev, struct netdev_queue *dev_queue,
 			if ((sch->parent != TC_H_ROOT) &&
 			    !(sch->flags & TCQ_F_INGRESS) &&
 			    (!p || !(p->flags & TCQ_F_MQROOT)))
-				root_lock = qdisc_root_sleeping_lock(sch);
+				running = qdisc_root_sleeping_running(sch);
 			else
-				root_lock = qdisc_lock(sch);
+				running = &sch->running;
 
 			err = gen_new_estimator(&sch->bstats,
 						sch->cpu_bstats,
 						&sch->rate_est,
-						root_lock,
+						NULL,
+						running,
 						tca[TCA_RATE]);
 			if (err)
 				goto err_out4;
@@ -1061,7 +1062,8 @@ static int qdisc_change(struct Qdisc *sch, struct nlattr **tca)
 		gen_replace_estimator(&sch->bstats,
 				      sch->cpu_bstats,
 				      &sch->rate_est,
-				      qdisc_root_sleeping_lock(sch),
+				      NULL,
+				      qdisc_root_sleeping_running(sch),
 				      tca[TCA_RATE]);
 	}
 out:
@@ -1369,8 +1371,7 @@ static int tc_fill_qdisc(struct sk_buff *skb, struct Qdisc *q, u32 clid,
 		goto nla_put_failure;
 
 	if (gnet_stats_start_copy_compat(skb, TCA_STATS2, TCA_STATS, TCA_XSTATS,
-					 qdisc_root_sleeping_lock(q), &d,
-					 TCA_PAD) < 0)
+					 NULL, &d, TCA_PAD) < 0)
 		goto nla_put_failure;
 
 	if (q->ops->dump_stats && q->ops->dump_stats(q, &d) < 0)
@@ -1381,7 +1382,8 @@ static int tc_fill_qdisc(struct sk_buff *skb, struct Qdisc *q, u32 clid,
 		cpu_qstats = q->cpu_qstats;
 	}
 
-	if (gnet_stats_copy_basic(&d, cpu_bstats, &q->bstats) < 0 ||
+	if (gnet_stats_copy_basic(qdisc_root_sleeping_running(q),
+				  &d, cpu_bstats, &q->bstats) < 0 ||
 	    gnet_stats_copy_rate_est(&d, &q->bstats, &q->rate_est) < 0 ||
 	    gnet_stats_copy_queue(&d, cpu_qstats, &q->qstats, qlen) < 0)
 		goto nla_put_failure;
@@ -1684,8 +1686,7 @@ static int tc_fill_tclass(struct sk_buff *skb, struct Qdisc *q,
 		goto nla_put_failure;
 
 	if (gnet_stats_start_copy_compat(skb, TCA_STATS2, TCA_STATS, TCA_XSTATS,
-					 qdisc_root_sleeping_lock(q), &d,
-					 TCA_PAD) < 0)
+					 NULL, &d, TCA_PAD) < 0)
 		goto nla_put_failure;
 
 	if (cl_ops->dump_stats && cl_ops->dump_stats(q, cl, &d) < 0)

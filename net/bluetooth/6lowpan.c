@@ -629,6 +629,7 @@ static netdev_tx_t bt_xmit(struct sk_buff *skb, struct net_device *netdev)
 
 static struct lock_class_key bt_tx_busylock;
 static struct lock_class_key bt_netdev_xmit_lock_key;
+static struct lock_class_key bt_qdisc_running_key;
 
 static void bt_set_lockdep_class_one(struct net_device *dev,
 				     struct netdev_queue *txq,
@@ -641,6 +642,7 @@ static int bt_dev_init(struct net_device *dev)
 {
 	netdev_for_each_tx_queue(dev, bt_set_lockdep_class_one, NULL);
 	dev->qdisc_tx_busylock = &bt_tx_busylock;
+	dev->qdisc_running_key = &bt_qdisc_running_key;
 
 	return 0;
 }
