@@ -114,6 +114,8 @@ struct dispc_features {
 	bool reverse_ilace_field_order:1;
 
 	bool has_gamma_table:1;
+
+	bool has_gamma_i734_bug:1;
 };
 
 #define DISPC_MAX_NR_FIFOS 5
@@ -4074,6 +4076,7 @@ static const struct dispc_features omap44xx_dispc_feats = {
 	.supports_double_pixel	=	true,
 	.reverse_ilace_field_order =	true,
 	.has_gamma_table	=	true,
+	.has_gamma_i734_bug	=	true,
 };
 
 static const struct dispc_features omap54xx_dispc_feats = {
@@ -4100,6 +4103,7 @@ static const struct dispc_features omap54xx_dispc_feats = {
 	.supports_double_pixel	=	true,
 	.reverse_ilace_field_order =	true,
 	.has_gamma_table	=	true,
+	.has_gamma_i734_bug	=	true,
 };
 
 static int dispc_init_features(struct platform_device *pdev)
@@ -4191,6 +4195,168 @@ void dispc_free_irq(void *dev_id)
 }
 EXPORT_SYMBOL(dispc_free_irq);
 
+/*
+ * Workaround for errata i734 in DSS dispc
+ *  - LCD1 Gamma Correction Is Not Working When GFX Pipe Is Disabled
+ *
+ * For gamma tables to work on LCD1 the GFX plane has to be used at
+ * least once after DSS HW has come out of reset. The workaround
+ * sets up a minimal LCD setup with GFX plane and waits for one
+ * vertical sync irq before disabling the setup and continuing with
+ * the context restore. The physical outputs are gated during the
+ * operation. This workaround requires that gamma table's LOADMODE
+ * is set to 0x2 in DISPC_CONTROL1 register.
+ *
+ * For details see:
+ * OMAP543x Multimedia Device Silicon Revision 2.0 Silicon Errata
+ * Literature Number: SWPZ037E
+ * Or some other relevant errata document for the DSS IP version.
+ */
+
+static const struct dispc_errata_i734_data {
+	struct omap_video_timings timings;
+	struct omap_overlay_info ovli;
+	struct omap_overlay_manager_info mgri;
+	struct dss_lcd_mgr_config lcd_conf;
+} i734 = {
+	.timings = {
+		.x_res = 8, .y_res = 1,
+		.pixelclock = 16000000,
+		.hsw = 8, .hfp = 4, .hbp = 4,
+		.vsw = 1, .vfp = 1, .vbp = 1,
+		.vsync_level = OMAPDSS_SIG_ACTIVE_LOW,
+		.hsync_level = OMAPDSS_SIG_ACTIVE_LOW,
+		.interlace = false,
+		.data_pclk_edge = OMAPDSS_DRIVE_SIG_RISING_EDGE,
+		.de_level = OMAPDSS_SIG_ACTIVE_HIGH,
+		.sync_pclk_edge = OMAPDSS_DRIVE_SIG_RISING_EDGE,
+		.double_pixel = false,
+	},
+	.ovli = {
+		.screen_width = 1,
+		.width = 1, .height = 1,
+		.color_mode = OMAP_DSS_COLOR_RGB24U,
+		.rotation = OMAP_DSS_ROT_0,
+		.rotation_type = OMAP_DSS_ROT_DMA,
+		.mirror = 0,
+		.pos_x = 0, .pos_y = 0,
+		.out_width = 0, .out_height = 0,
+		.global_alpha = 0xff,
+		.pre_mult_alpha = 0,
+		.zorder = 0,
+	},
+	.mgri = {
+		.default_color = 0,
+		.trans_enabled = false,
+		.partial_alpha_enabled = false,
+		.cpr_enable = false,
+	},
+	.lcd_conf = {
+		.io_pad_mode = DSS_IO_PAD_MODE_BYPASS,
+		.stallmode = false,
+		.fifohandcheck = false,
+		.clock_info = {
+			.lck_div = 1,
+			.pck_div = 2,
+		},
+		.video_port_width = 24,
+		.lcden_sig_polarity = 0,
+	},
+};
+
+static struct i734_buf {
+	size_t size;
+	dma_addr_t paddr;
+	void *vaddr;
+} i734_buf;
+
+static int dispc_errata_i734_wa_init(void)
+{
+	if (!dispc.feat->has_gamma_i734_bug)
+		return 0;
+
+	i734_buf.size = i734.ovli.width * i734.ovli.height *
+		color_mode_to_bpp(i734.ovli.color_mode) / 8;
+
+	i734_buf.vaddr = dma_alloc_writecombine(&dispc.pdev->dev, i734_buf.size,
+						&i734_buf.paddr, GFP_KERNEL);
+	if (!i734_buf.vaddr) {
+		dev_err(&dispc.pdev->dev, "%s: dma_alloc_writecombine failed",
+			__func__);
+		return -ENOMEM;
+	}
+
+	return 0;
+}
+
+static void dispc_errata_i734_wa_fini(void)
+{
+	if (!dispc.feat->has_gamma_i734_bug)
+		return;
+
+	dma_free_writecombine(&dispc.pdev->dev, i734_buf.size, i734_buf.vaddr,
+			      i734_buf.paddr);
+}
+
+static void dispc_errata_i734_wa(void)
+{
+	u32 framedone_irq = dispc_mgr_get_framedone_irq(OMAP_DSS_CHANNEL_LCD);
+	struct omap_overlay_info ovli;
+	struct dss_lcd_mgr_config lcd_conf;
+	u32 gatestate;
+	unsigned int count;
+
+	if (!dispc.feat->has_gamma_i734_bug)
+		return;
+
+	gatestate = REG_GET(DISPC_CONFIG, 8, 4);
+
+	ovli = i734.ovli;
+	ovli.paddr = i734_buf.paddr;
+	lcd_conf = i734.lcd_conf;
+
+	/* Gate all LCD1 outputs */
+	REG_FLD_MOD(DISPC_CONFIG, 0x1f, 8, 4);
+
+	/* Setup and enable GFX plane */
+	dispc_ovl_set_channel_out(OMAP_DSS_GFX, OMAP_DSS_CHANNEL_LCD);
+	dispc_ovl_setup(OMAP_DSS_GFX, &ovli, false, &i734.timings, false);
+	dispc_ovl_enable(OMAP_DSS_GFX, true);
+
+	/* Set up and enable display manager for LCD1 */
+	dispc_mgr_setup(OMAP_DSS_CHANNEL_LCD, &i734.mgri);
+	dispc_calc_clock_rates(dss_get_dispc_clk_rate(),
+			       &lcd_conf.clock_info);
+	dispc_mgr_set_lcd_config(OMAP_DSS_CHANNEL_LCD, &lcd_conf);
+	dispc_mgr_set_timings(OMAP_DSS_CHANNEL_LCD, &i734.timings);
+
+	dispc_clear_irqstatus(framedone_irq);
+
+	/* Enable and shut the channel to produce just one frame */
+	dispc_mgr_enable(OMAP_DSS_CHANNEL_LCD, true);
+	dispc_mgr_enable(OMAP_DSS_CHANNEL_LCD, false);
+
+	/* Busy wait for framedone. We can't fiddle with irq handlers
+	 * in PM resume. Typically the loop runs less than 5 times and
+	 * waits less than a micro second.
+	 */
+	count = 0;
+	while (!(dispc_read_irqstatus() & framedone_irq)) {
+		if (count++ > 10000) {
+			dev_err(&dispc.pdev->dev, "%s: framedone timeout\n",
+				__func__);
+			break;
+		}
+	}
+	dispc_ovl_enable(OMAP_DSS_GFX, false);
+
+	/* Clear all irq bits before continuing */
+	dispc_clear_irqstatus(0xffffffff);
+
+	/* Restore the original state to LCD1 output gates */
+	REG_FLD_MOD(DISPC_CONFIG, gatestate, 8, 4);
+}
+
 /* DISPC HW IP initialisation */
 static int dispc_bind(struct device *dev, struct device *master, void *data)
 {
@@ -4205,6 +4371,10 @@ static int dispc_bind(struct device *dev, struct device *master, void *data)
 	spin_lock_init(&dispc.control_lock);
 
 	r = dispc_init_features(dispc.pdev);
+	if (r)
+		return r;
+
+	r = dispc_errata_i734_wa_init();
 	if (r)
 		return r;
 
@@ -4272,6 +4442,8 @@ static void dispc_unbind(struct device *dev, struct device *master,
 			       void *data)
 {
 	pm_runtime_disable(dev);
+
+	dispc_errata_i734_wa_fini();
 }
 
 static const struct component_ops dispc_component_ops = {
@@ -4313,6 +4485,8 @@ static int dispc_runtime_resume(struct device *dev)
 	 */
 	if (REG_GET(DISPC_CONFIG, 2, 1) != OMAP_DSS_LOAD_FRAME_ONLY) {
 		_omap_dispc_initial_config();
+
+		dispc_errata_i734_wa();
 
 		dispc_restore_context();
 
