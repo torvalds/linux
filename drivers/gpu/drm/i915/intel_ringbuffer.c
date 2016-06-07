@@ -1085,7 +1085,7 @@ static int skl_init_workarounds(struct intel_engine_cs *engine)
 			   _MASKED_BIT_ENABLE(GEN9_FFSC_PERCTX_PREEMPT_CTRL));
 	}
 
-	if (IS_SKL_REVID(dev_priv, 0, SKL_REVID_D0)) {
+	if (IS_SKL_REVID(dev_priv, 0, SKL_REVID_E0)) {
 		/* WaDisableChickenBitTSGBarrierAckForFFSliceCS:skl */
 		I915_WRITE(FF_SLICE_CS_CHICKEN2,
 			   _MASKED_BIT_ENABLE(GEN9_TSG_BARRIER_ACK_DISABLE));
