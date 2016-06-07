@@ -119,6 +119,9 @@ static netdev_tx_t vrf_process_v6_outbound(struct sk_buff *skb,
 	skb_dst_drop(skb);
 	skb_dst_set(skb, dst);
 
+	/* strip the ethernet header added for pass through VRF device */
+	__skb_pull(skb, skb_network_offset(skb));
+
 	ret = ip6_local_out(net, skb->sk, skb);
 	if (unlikely(net_xmit_eval(ret)))
 		dev->stats.tx_errors++;
@@ -139,29 +142,6 @@ static netdev_tx_t vrf_process_v6_outbound(struct sk_buff *skb,
 }
 #endif
 
-static int vrf_send_v4_prep(struct sk_buff *skb, struct flowi4 *fl4,
-			    struct net_device *vrf_dev)
-{
-	struct rtable *rt;
-	int err = 1;
-
-	rt = ip_route_output_flow(dev_net(vrf_dev), fl4, NULL);
-	if (IS_ERR(rt))
-		goto out;
-
-	/* TO-DO: what about broadcast ? */
-	if (rt->rt_type != RTN_UNICAST && rt->rt_type != RTN_LOCAL) {
-		ip_rt_put(rt);
-		goto out;
-	}
-
-	skb_dst_drop(skb);
-	skb_dst_set(skb, &rt->dst);
-	err = 0;
-out:
-	return err;
-}
-
 static netdev_tx_t vrf_process_v4_outbound(struct sk_buff *skb,
 					   struct net_device *vrf_dev)
 {
@@ -176,9 +156,23 @@ static netdev_tx_t vrf_process_v4_outbound(struct sk_buff *skb,
 				FLOWI_FLAG_SKIP_NH_OIF,
 		.daddr = ip4h->daddr,
 	};
+	struct net *net = dev_net(vrf_dev);
+	struct rtable *rt;
 
-	if (vrf_send_v4_prep(skb, &fl4, vrf_dev))
+	rt = ip_route_output_flow(net, &fl4, NULL);
+	if (IS_ERR(rt))
 		goto err;
+
+	if (rt->rt_type != RTN_UNICAST && rt->rt_type != RTN_LOCAL) {
+		ip_rt_put(rt);
+		goto err;
+	}
+
+	skb_dst_drop(skb);
+	skb_dst_set(skb, &rt->dst);
+
+	/* strip the ethernet header added for pass through VRF device */
+	__skb_pull(skb, skb_network_offset(skb));
 
 	if (!ip4h->saddr) {
 		ip4h->saddr = inet_select_addr(skb_dst(skb)->dev, 0,
@@ -200,9 +194,6 @@ err:
 
 static netdev_tx_t is_ip_tx_frame(struct sk_buff *skb, struct net_device *dev)
 {
-	/* strip the ethernet header added for pass through VRF device */
-	__skb_pull(skb, skb_network_offset(skb));
-
 	switch (skb->protocol) {
 	case htons(ETH_P_IP):
 		return vrf_process_v4_outbound(skb, dev);
