@@ -2158,6 +2158,10 @@ static int fm10k_handle_resume(struct fm10k_intfc *interface)
 	interface->host_ready = false;
 	fm10k_watchdog_host_not_ready(interface);
 
+	/* force link to stay down for a second to prevent link flutter */
+	interface->link_down_event = jiffies + (HZ);
+	set_bit(__FM10K_LINK_DOWN, &interface->state);
+
 	/* clear the service task disable bit to allow service task to start */
 	clear_bit(__FM10K_SERVICE_DISABLE, &interface->state);
 	fm10k_service_event_schedule(interface);
