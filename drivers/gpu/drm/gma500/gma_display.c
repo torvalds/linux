@@ -282,7 +282,7 @@ void gma_crtc_dpms(struct drm_crtc *crtc, int mode)
 		REG_WRITE(VGACNTRL, VGA_DISP_DISABLE);
 
 		/* Turn off vblank interrupts */
-		drm_vblank_off(dev, pipe);
+		drm_crtc_vblank_off(crtc);
 
 		/* Wait for vblank for the disable to take effect */
 		gma_wait_for_vblank(dev);
