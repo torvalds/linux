@@ -11,8 +11,8 @@
  * option) any later version
  */
 
-#ifndef CONFIG_QE_TDM_H
-#define CONFIG_QE_TDM_H
+#ifndef _QE_TDM_H_
+#define _QE_TDM_H_
 
 #include <linux/kernel.h>
 #include <linux/list.h>
