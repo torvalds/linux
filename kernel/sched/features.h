@@ -73,4 +73,4 @@ SCHED_FEAT(ATTACH_AGE_LOAD, true)
  * Energy aware scheduling. Use platform energy model to guide scheduling
  * decisions optimizing for energy efficiency.
  */
-SCHED_FEAT(ENERGY_AWARE, false)
+SCHED_FEAT(ENERGY_AWARE, true)
