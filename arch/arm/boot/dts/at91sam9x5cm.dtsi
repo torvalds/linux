@@ -24,6 +24,18 @@
 
 	ahb {
 		apb {
+			tcb0: timer@f8008000 {
+				timer@0 {
+					compatible = "atmel,tcb-timer";
+					reg = <0>;
+				};
+
+				timer@1 {
+					compatible = "atmel,tcb-timer";
+					reg = <1>;
+				};
+			};
+
 			pinctrl@fffff400 {
 				1wire_cm {
 					pinctrl_1wire_cm: 1wire_cm-0 {
