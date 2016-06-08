@@ -71,6 +71,7 @@ void virtio_req_complete(struct virtio_req *req, uint32_t len)
 	struct virtio_dev *dev = req->dev;
 	uint16_t idx = le16toh(q->used->idx) & (q->num - 1);
 	uint16_t new = le16toh(q->used->idx) + 1;
+	int send_irq = 0;
 
 	q->used->ring[idx].id = htole16(req->idx);
 	q->used->ring[idx].len = htole16(len);
@@ -82,6 +83,13 @@ void virtio_req_complete(struct virtio_req *req, uint32_t len)
 	 */
 	__sync_synchronize();
 	q->used->idx = htole16(new);
+
+	/* Triggers the irq whenever there is no available buffer.
+	 * q->last_avail_idx is incremented after calling virtio_req_complete(),
+	 * so here we need to add one to it.
+	 */
+	if (q->last_avail_idx + 1 == q->avail->idx)
+		send_irq = 1;
 
 	/* There are two rings: q->avail and q->used for each of the rx and tx
 	 * queues that are used to pass buffers between kernel driver and the
@@ -105,16 +113,16 @@ void virtio_req_complete(struct virtio_req *req, uint32_t len)
 	 * increased to a larger one. So we need to trigger the irq when
 	 * virtio_get_used_event(q) < q->used->idx.
 	 *
-	 * To avoid unnessary irqs for each packet after 
+	 * To avoid unnessary irqs for each packet after
 	 * virtio_get_used_event(q) < q->used->idx, last_used_idx_signaled is
-	 * stored and irq is only triggered if 
+	 * stored and irq is only triggered if
 	 * last_used_idx_signaled <= virtio_get_used_event(q) < q->used->idx
 	 *
 	 * This is what lkl_vring_need_event() checks and it evens covers the
-	 * case when those numbers round up.
+	 * case when those numbers wrap up.
 	 */
-	if (lkl_vring_need_event(le16toh(virtio_get_used_event(q)), new,
-					q->last_used_idx_signaled)) {
+	if (send_irq || lkl_vring_need_event(le16toh(virtio_get_used_event(q)),
+					     new, q->last_used_idx_signaled)) {
 		q->last_used_idx_signaled = new;
 		virtio_deliver_irq(dev);
 	}
