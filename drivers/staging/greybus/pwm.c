@@ -132,7 +132,7 @@ static void gb_pwm_free(struct pwm_chip *chip, struct pwm_device *pwm)
 {
 	struct gb_pwm_chip *pwmc = pwm_chip_to_gb_pwm_chip(chip);
 
-	if (test_bit(PWMF_ENABLED, &pwm->flags))
+	if (pwm_is_enabled(pwm))
 		dev_warn(chip->dev, "freeing PWM device without disabling\n");
 
 	gb_pwm_deactivate_operation(pwmc, pwm->hwpwm);

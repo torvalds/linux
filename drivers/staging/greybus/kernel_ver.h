@@ -328,4 +328,11 @@ static inline void reinit_completion(struct completion *x)
 }
 #endif
 
+#ifdef PWMF_ENABLED
+static inline bool pwm_is_enabled(const struct pwm_device *pwm)
+{
+	return test_bit(PWMF_ENABLED, &pwm->flags);
+}
+#endif
+
 #endif	/* __GREYBUS_KERNEL_VER_H */
