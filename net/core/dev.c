@@ -139,6 +139,7 @@
 #include <linux/hrtimer.h>
 #include <linux/netfilter_ingress.h>
 #include <linux/sctp.h>
+#include <linux/crash_dump.h>
 
 #include "net-sysfs.h"
 
@@ -2249,7 +2250,8 @@ EXPORT_SYMBOL(netif_set_real_num_rx_queues);
  */
 int netif_get_num_default_rss_queues(void)
 {
-	return min_t(int, DEFAULT_MAX_NUM_RSS_QUEUES, num_online_cpus());
+	return is_kdump_kernel() ?
+		1 : min_t(int, DEFAULT_MAX_NUM_RSS_QUEUES, num_online_cpus());
 }
 EXPORT_SYMBOL(netif_get_num_default_rss_queues);
 
