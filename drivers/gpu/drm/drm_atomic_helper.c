@@ -1157,6 +1157,10 @@ int drm_atomic_helper_commit(struct drm_device *dev,
 	if (nonblock)
 		return -EBUSY;
 
+	ret = drm_atomic_helper_setup_commit(state, nonblock);
+	if (ret)
+		return ret;
+
 	ret = drm_atomic_helper_prepare_planes(dev, state);
 	if (ret)
 		return ret;
@@ -1187,15 +1191,21 @@ int drm_atomic_helper_commit(struct drm_device *dev,
 
 	drm_atomic_helper_wait_for_fences(dev, state);
 
+	drm_atomic_helper_wait_for_dependencies(state);
+
 	drm_atomic_helper_commit_modeset_disables(dev, state);
 
 	drm_atomic_helper_commit_planes(dev, state, false);
 
 	drm_atomic_helper_commit_modeset_enables(dev, state);
 
+	drm_atomic_helper_commit_hw_done(state);
+
 	drm_atomic_helper_wait_for_vblanks(dev, state);
 
 	drm_atomic_helper_cleanup_planes(dev, state);
+
+	drm_atomic_helper_commit_cleanup_done(state);
 
 	drm_atomic_state_free(state);
 
@@ -1240,6 +1250,306 @@ EXPORT_SYMBOL(drm_atomic_helper_commit);
  * then cleaning up the framebuffers after the old framebuffer is no longer
  * being displayed.
  */
+
+static int stall_checks(struct drm_crtc *crtc, bool nonblock)
+{
+	struct drm_crtc_commit *commit, *stall_commit = NULL;
+	bool completed = true;
+	int i;
+	long ret = 0;
+
+	spin_lock(&crtc->commit_lock);
+	i = 0;
+	list_for_each_entry(commit, &crtc->commit_list, commit_entry) {
+		if (i == 0) {
+			completed = try_wait_for_completion(&commit->flip_done);
+			/* Userspace is not allowed to get ahead of the previous
+			 * commit with nonblocking ones. */
+			if (!completed && nonblock) {
+				spin_unlock(&crtc->commit_lock);
+				return -EBUSY;
+			}
+		} else if (i == 1) {
+			stall_commit = commit;
+			drm_crtc_commit_get(stall_commit);
+		} else
+			break;
+
+		i++;
+	}
+	spin_unlock(&crtc->commit_lock);
+
+	if (!stall_commit)
+		return 0;
+
+	/* We don't want to let commits get ahead of cleanup work too much,
+	 * stalling on 2nd previous commit means triple-buffer won't ever stall.
+	 */
+	ret = wait_for_completion_interruptible_timeout(&commit->cleanup_done,
+							10*HZ);
+	if (ret == 0)
+		DRM_ERROR("[CRTC:%d:%s] cleanup_done timed out\n",
+			  crtc->base.id, crtc->name);
+
+	drm_crtc_commit_put(stall_commit);
+
+	return ret < 0 ? ret : 0;
+}
+
+/**
+ * drm_atomic_helper_setup_commit - setup possibly nonblocking commit
+ * @state: new modeset state to be committed
+ * @nonblock: whether nonblocking behavior is requested.
+ *
+ * This function prepares @state to be used by the atomic helper's support for
+ * nonblocking commits. Drivers using the nonblocking commit infrastructure
+ * should always call this function from their ->atomic_commit hook.
+ *
+ * To be able to use this support drivers need to use a few more helper
+ * functions. drm_atomic_helper_wait_for_dependencies() must be called before
+ * actually committing the hardware state, and for nonblocking commits this call
+ * must be placed in the async worker. See also drm_atomic_helper_swap_state()
+ * and it's stall parameter, for when a driver's commit hooks look at the
+ * ->state pointers of struct &drm_crtc, &drm_plane or &drm_connector directly.
+ *
+ * Completion of the hardware commit step must be signalled using
+ * drm_atomic_helper_commit_hw_done(). After this step the driver is not allowed
+ * to read or change any permanent software or hardware modeset state. The only
+ * exception is state protected by other means than &drm_modeset_lock locks.
+ * Only the free standing @state with pointers to the old state structures can
+ * be inspected, e.g. to clean up old buffers using
+ * drm_atomic_helper_cleanup_planes().
+ *
+ * At the very end, before cleaning up @state drivers must call
+ * drm_atomic_helper_commit_cleanup_done().
+ *
+ * This is all implemented by in drm_atomic_helper_commit(), giving drivers a
+ * complete and esay-to-use default implementation of the atomic_commit() hook.
+ *
+ * The tracking of asynchronously executed and still pending commits is done
+ * using the core structure &drm_crtc_commit.
+ *
+ * By default there's no need to clean up resources allocated by this function
+ * explicitly: drm_atomic_state_default_clear() will take care of that
+ * automatically.
+ *
+ * Returns:
+ *
+ * 0 on success. -EBUSY when userspace schedules nonblocking commits too fast,
+ * -ENOMEM on allocation failures and -EINTR when a signal is pending.
+ */
+int drm_atomic_helper_setup_commit(struct drm_atomic_state *state,
+				   bool nonblock)
+{
+	struct drm_crtc *crtc;
+	struct drm_crtc_state *crtc_state;
+	struct drm_crtc_commit *commit;
+	int i, ret;
+
+	for_each_crtc_in_state(state, crtc, crtc_state, i) {
+		commit = kzalloc(sizeof(*commit), GFP_KERNEL);
+		if (!commit)
+			return -ENOMEM;
+
+		init_completion(&commit->flip_done);
+		init_completion(&commit->hw_done);
+		init_completion(&commit->cleanup_done);
+		INIT_LIST_HEAD(&commit->commit_entry);
+		kref_init(&commit->ref);
+		commit->crtc = crtc;
+
+		state->crtcs[i].commit = commit;
+
+		ret = stall_checks(crtc, nonblock);
+		if (ret)
+			return ret;
+
+		/* Drivers only send out events when at least either current or
+		 * new CRTC state is active. Complete right away if everything
+		 * stays off. */
+		if (!crtc->state->active && !crtc_state->active) {
+			complete_all(&commit->flip_done);
+			continue;
+		}
+
+		/* Legacy cursor updates are fully unsynced. */
+		if (state->legacy_cursor_update) {
+			complete_all(&commit->flip_done);
+			continue;
+		}
+
+		if (!crtc_state->event) {
+			commit->event = kzalloc(sizeof(*commit->event),
+						GFP_KERNEL);
+			if (!commit->event)
+				return -ENOMEM;
+
+			crtc_state->event = commit->event;
+		}
+
+		crtc_state->event->base.completion = &commit->flip_done;
+	}
+
+	return 0;
+}
+EXPORT_SYMBOL(drm_atomic_helper_setup_commit);
+
+
+static struct drm_crtc_commit *preceeding_commit(struct drm_crtc *crtc)
+{
+	struct drm_crtc_commit *commit;
+	int i = 0;
+
+	list_for_each_entry(commit, &crtc->commit_list, commit_entry) {
+		/* skip the first entry, that's the current commit */
+		if (i == 1)
+			return commit;
+		i++;
+	}
+
+	return NULL;
+}
+
+/**
+ * drm_atomic_helper_wait_for_dependencies - wait for required preceeding commits
+ * @state: new modeset state to be committed
+ *
+ * This function waits for all preceeding commits that touch the same CRTC as
+ * @state to both be committed to the hardware (as signalled by
+ * drm_atomic_helper_commit_hw_done) and executed by the hardware (as signalled
+ * by calling drm_crtc_vblank_send_event on the event member of
+ * &drm_crtc_state).
+ *
+ * This is part of the atomic helper support for nonblocking commits, see
+ * drm_atomic_helper_setup_commit() for an overview.
+ */
+void drm_atomic_helper_wait_for_dependencies(struct drm_atomic_state *state)
+{
+	struct drm_crtc *crtc;
+	struct drm_crtc_state *crtc_state;
+	struct drm_crtc_commit *commit;
+	int i;
+	long ret;
+
+	for_each_crtc_in_state(state, crtc, crtc_state, i) {
+		spin_lock(&crtc->commit_lock);
+		commit = preceeding_commit(crtc);
+		if (commit)
+			drm_crtc_commit_get(commit);
+		spin_unlock(&crtc->commit_lock);
+
+		if (!commit)
+			continue;
+
+		ret = wait_for_completion_timeout(&commit->hw_done,
+						  10*HZ);
+		if (ret == 0)
+			DRM_ERROR("[CRTC:%d:%s] hw_done timed out\n",
+				  crtc->base.id, crtc->name);
+
+		/* Currently no support for overwriting flips, hence
+		 * stall for previous one to execute completely. */
+		ret = wait_for_completion_timeout(&commit->flip_done,
+						  10*HZ);
+		if (ret == 0)
+			DRM_ERROR("[CRTC:%d:%s] flip_done timed out\n",
+				  crtc->base.id, crtc->name);
+
+		drm_crtc_commit_put(commit);
+	}
+}
+EXPORT_SYMBOL(drm_atomic_helper_wait_for_dependencies);
+
+/**
+ * drm_atomic_helper_commit_hw_done - setup possible nonblocking commit
+ * @state: new modeset state to be committed
+ *
+ * This function is used to signal completion of the hardware commit step. After
+ * this step the driver is not allowed to read or change any permanent software
+ * or hardware modeset state. The only exception is state protected by other
+ * means than &drm_modeset_lock locks.
+ *
+ * Drivers should try to postpone any expensive or delayed cleanup work after
+ * this function is called.
+ *
+ * This is part of the atomic helper support for nonblocking commits, see
+ * drm_atomic_helper_setup_commit() for an overview.
+ */
+void drm_atomic_helper_commit_hw_done(struct drm_atomic_state *state)
+{
+	struct drm_crtc *crtc;
+	struct drm_crtc_state *crtc_state;
+	struct drm_crtc_commit *commit;
+	int i;
+
+	for_each_crtc_in_state(state, crtc, crtc_state, i) {
+		commit = state->crtcs[i].commit;
+		if (!commit)
+			continue;
+
+		/* backend must have consumed any event by now */
+		WARN_ON(crtc->state->event);
+		spin_lock(&crtc->commit_lock);
+		complete_all(&commit->hw_done);
+		spin_unlock(&crtc->commit_lock);
+	}
+}
+EXPORT_SYMBOL(drm_atomic_helper_commit_hw_done);
+
+/**
+ * drm_atomic_helper_commit_cleanup_done - signal completion of commit
+ * @state: new modeset state to be committed
+ *
+ * This signals completion of the atomic update @state, including any cleanup
+ * work. If used, it must be called right before calling
+ * drm_atomic_state_free().
+ *
+ * This is part of the atomic helper support for nonblocking commits, see
+ * drm_atomic_helper_setup_commit() for an overview.
+ */
+void drm_atomic_helper_commit_cleanup_done(struct drm_atomic_state *state)
+{
+	struct drm_crtc *crtc;
+	struct drm_crtc_state *crtc_state;
+	struct drm_crtc_commit *commit;
+	int i;
+	long ret;
+
+	for_each_crtc_in_state(state, crtc, crtc_state, i) {
+		commit = state->crtcs[i].commit;
+		if (WARN_ON(!commit))
+			continue;
+
+		spin_lock(&crtc->commit_lock);
+		complete_all(&commit->cleanup_done);
+		WARN_ON(!try_wait_for_completion(&commit->hw_done));
+
+		/* commit_list borrows our reference, need to remove before we
+		 * clean up our drm_atomic_state. But only after it actually
+		 * completed, otherwise subsequent commits won't stall properly. */
+		if (try_wait_for_completion(&commit->flip_done)) {
+			list_del(&commit->commit_entry);
+			spin_unlock(&crtc->commit_lock);
+			continue;
+		}
+
+		spin_unlock(&crtc->commit_lock);
+
+		/* We must wait for the vblank event to signal our completion
+		 * before releasing our reference, since the vblank work does
+		 * not hold a reference of its own. */
+		ret = wait_for_completion_timeout(&commit->flip_done,
+						  10*HZ);
+		if (ret == 0)
+			DRM_ERROR("[CRTC:%d:%s] flip_done timed out\n",
+				  crtc->base.id, crtc->name);
+
+		spin_lock(&crtc->commit_lock);
+		list_del(&commit->commit_entry);
+		spin_unlock(&crtc->commit_lock);
+	}
+}
+EXPORT_SYMBOL(drm_atomic_helper_commit_cleanup_done);
 
 /**
  * drm_atomic_helper_prepare_planes - prepare plane resources before commit
@@ -1560,17 +1870,45 @@ EXPORT_SYMBOL(drm_atomic_helper_cleanup_planes);
  *
  * 5. Call drm_atomic_helper_cleanup_planes() with @state, which since step 3
  * contains the old state. Also do any other cleanup required with that state.
+ *
+ * @stall must be set when nonblocking commits for this driver directly access
+ * the ->state pointer of &drm_plane, &drm_crtc or &drm_connector. With the
+ * current atomic helpers this is almost always the case, since the helpers
+ * don't pass the right state structures to the callbacks.
  */
 void drm_atomic_helper_swap_state(struct drm_atomic_state *state,
 				  bool stall)
 {
 	int i;
+	long ret;
 	struct drm_connector *connector;
 	struct drm_connector_state *conn_state;
 	struct drm_crtc *crtc;
 	struct drm_crtc_state *crtc_state;
 	struct drm_plane *plane;
 	struct drm_plane_state *plane_state;
+	struct drm_crtc_commit *commit;
+
+	if (stall) {
+		for_each_crtc_in_state(state, crtc, crtc_state, i) {
+			spin_lock(&crtc->commit_lock);
+			commit = list_first_entry_or_null(&crtc->commit_list,
+					struct drm_crtc_commit, commit_entry);
+			if (commit)
+				drm_crtc_commit_get(commit);
+			spin_unlock(&crtc->commit_lock);
+
+			if (!commit)
+				continue;
+
+			ret = wait_for_completion_timeout(&commit->hw_done,
+							  10*HZ);
+			if (ret == 0)
+				DRM_ERROR("[CRTC:%d:%s] hw_done timed out\n",
+					  crtc->base.id, crtc->name);
+			drm_crtc_commit_put(commit);
+		}
+	}
 
 	for_each_connector_in_state(state, connector, conn_state, i) {
 		connector->state->state = state;
@@ -1582,6 +1920,15 @@ void drm_atomic_helper_swap_state(struct drm_atomic_state *state,
 		crtc->state->state = state;
 		swap(state->crtcs[i].state, crtc->state);
 		crtc->state->state = NULL;
+
+		if (state->crtcs[i].commit) {
+			spin_lock(&crtc->commit_lock);
+			list_add(&state->crtcs[i].commit->commit_entry,
+				 &crtc->commit_list);
+			spin_unlock(&crtc->commit_lock);
+
+			state->crtcs[i].commit->event = NULL;
+		}
 	}
 
 	for_each_plane_in_state(state, plane, plane_state, i) {
