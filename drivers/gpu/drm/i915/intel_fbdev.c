@@ -724,8 +724,6 @@ int intel_fbdev_init(struct drm_device *dev)
 		return ret;
 	}
 
-	ifbdev->helper.atomic = true;
-
 	dev_priv->fbdev = ifbdev;
 	INIT_WORK(&dev_priv->fbdev_suspend_work, intel_fbdev_suspend_worker);
 
