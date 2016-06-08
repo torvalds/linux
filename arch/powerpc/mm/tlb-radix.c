@@ -128,6 +128,21 @@ void radix__local_flush_tlb_mm(struct mm_struct *mm)
 }
 EXPORT_SYMBOL(radix__local_flush_tlb_mm);
 
+void radix__local_flush_tlb_pwc(struct mmu_gather *tlb, unsigned long addr)
+{
+	unsigned long pid;
+	struct mm_struct *mm = tlb->mm;
+
+	preempt_disable();
+
+	pid = mm->context.id;
+	if (pid != MMU_NO_CONTEXT)
+		_tlbiel_pid(pid, RIC_FLUSH_PWC);
+
+	preempt_enable();
+}
+EXPORT_SYMBOL(radix__local_flush_tlb_pwc);
+
 void radix___local_flush_tlb_page(struct mm_struct *mm, unsigned long vmaddr,
 			    unsigned long ap, int nid)
 {
@@ -182,6 +197,32 @@ no_context:
 	preempt_enable();
 }
 EXPORT_SYMBOL(radix__flush_tlb_mm);
+
+void radix__flush_tlb_pwc(struct mmu_gather *tlb, unsigned long addr)
+{
+	unsigned long pid;
+	struct mm_struct *mm = tlb->mm;
+
+	preempt_disable();
+
+	pid = mm->context.id;
+	if (unlikely(pid == MMU_NO_CONTEXT))
+		goto no_context;
+
+	if (!mm_is_core_local(mm)) {
+		int lock_tlbie = !mmu_has_feature(MMU_FTR_LOCKLESS_TLBIE);
+
+		if (lock_tlbie)
+			raw_spin_lock(&native_tlbie_lock);
+		_tlbie_pid(pid, RIC_FLUSH_PWC);
+		if (lock_tlbie)
+			raw_spin_unlock(&native_tlbie_lock);
+	} else
+		_tlbiel_pid(pid, RIC_FLUSH_PWC);
+no_context:
+	preempt_enable();
+}
+EXPORT_SYMBOL(radix__flush_tlb_pwc);
 
 void radix___flush_tlb_page(struct mm_struct *mm, unsigned long vmaddr,
 		       unsigned long ap, int nid)
