@@ -589,8 +589,6 @@ void drm_framebuffer_remove(struct drm_framebuffer *fb)
 	struct drm_device *dev;
 	struct drm_crtc *crtc;
 	struct drm_plane *plane;
-	struct drm_mode_set set;
-	int ret;
 
 	if (!fb)
 		return;
@@ -620,11 +618,7 @@ void drm_framebuffer_remove(struct drm_framebuffer *fb)
 		drm_for_each_crtc(crtc, dev) {
 			if (crtc->primary->fb == fb) {
 				/* should turn off the crtc */
-				memset(&set, 0, sizeof(struct drm_mode_set));
-				set.crtc = crtc;
-				set.fb = NULL;
-				ret = drm_mode_set_config_internal(&set);
-				if (ret)
+				if (drm_crtc_force_disable(crtc))
 					DRM_ERROR("failed to reset crtc %p when fb was deleted\n", crtc);
 			}
 		}
