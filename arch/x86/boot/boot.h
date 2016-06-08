@@ -24,6 +24,7 @@
 #include <linux/types.h>
 #include <linux/edd.h>
 #include <asm/setup.h>
+#include <asm/asm.h>
 #include "bitops.h"
 #include "ctype.h"
 #include "cpuflags.h"
@@ -179,15 +180,15 @@ static inline void wrgs32(u32 v, addr_t addr)
 static inline bool memcmp_fs(const void *s1, addr_t s2, size_t len)
 {
 	bool diff;
-	asm volatile("fs; repe; cmpsb; setnz %0"
-		     : "=qm" (diff), "+D" (s1), "+S" (s2), "+c" (len));
+	asm volatile("fs; repe; cmpsb" CC_SET(nz)
+		     : CC_OUT(nz) (diff), "+D" (s1), "+S" (s2), "+c" (len));
 	return diff;
 }
 static inline bool memcmp_gs(const void *s1, addr_t s2, size_t len)
 {
 	bool diff;
-	asm volatile("gs; repe; cmpsb; setnz %0"
-		     : "=qm" (diff), "+D" (s1), "+S" (s2), "+c" (len));
+	asm volatile("gs; repe; cmpsb" CC_SET(nz)
+		     : CC_OUT(nz) (diff), "+D" (s1), "+S" (s2), "+c" (len));
 	return diff;
 }
 
