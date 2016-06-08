@@ -508,27 +508,28 @@ static int u32_replace_hw_knode(struct tcf_proto *tp,
 	offload.type = TC_SETUP_CLSU32;
 	offload.cls_u32 = &u32_offload;
 
-	if (tc_should_offload(dev, tp, flags)) {
-		offload.cls_u32->command = TC_CLSU32_REPLACE_KNODE;
-		offload.cls_u32->knode.handle = n->handle;
-		offload.cls_u32->knode.fshift = n->fshift;
-#ifdef CONFIG_CLS_U32_MARK
-		offload.cls_u32->knode.val = n->val;
-		offload.cls_u32->knode.mask = n->mask;
-#else
-		offload.cls_u32->knode.val = 0;
-		offload.cls_u32->knode.mask = 0;
-#endif
-		offload.cls_u32->knode.sel = &n->sel;
-		offload.cls_u32->knode.exts = &n->exts;
-		if (n->ht_down)
-			offload.cls_u32->knode.link_handle = n->ht_down->handle;
+	if (!tc_should_offload(dev, tp, flags))
+		return tc_skip_sw(flags) ? -EINVAL : 0;
 
-		err = dev->netdev_ops->ndo_setup_tc(dev, tp->q->handle,
-						    tp->protocol, &offload);
-		if (tc_skip_sw(flags))
-			return err;
-	}
+	offload.cls_u32->command = TC_CLSU32_REPLACE_KNODE;
+	offload.cls_u32->knode.handle = n->handle;
+	offload.cls_u32->knode.fshift = n->fshift;
+#ifdef CONFIG_CLS_U32_MARK
+	offload.cls_u32->knode.val = n->val;
+	offload.cls_u32->knode.mask = n->mask;
+#else
+	offload.cls_u32->knode.val = 0;
+	offload.cls_u32->knode.mask = 0;
+#endif
+	offload.cls_u32->knode.sel = &n->sel;
+	offload.cls_u32->knode.exts = &n->exts;
+	if (n->ht_down)
+		offload.cls_u32->knode.link_handle = n->ht_down->handle;
+
+	err = dev->netdev_ops->ndo_setup_tc(dev, tp->q->handle,
+					    tp->protocol, &offload);
+	if (tc_skip_sw(flags))
+		return err;
 
 	return 0;
 }
