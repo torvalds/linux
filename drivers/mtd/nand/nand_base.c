@@ -4272,6 +4272,9 @@ static int nand_dt_init(struct nand_chip *chip)
 	if (ecc_step > 0)
 		chip->ecc.size = ecc_step;
 
+	if (of_property_read_bool(dn, "nand-ecc-maximize"))
+		chip->ecc.options |= NAND_ECC_MAXIMIZE;
+
 	return 0;
 }
 
