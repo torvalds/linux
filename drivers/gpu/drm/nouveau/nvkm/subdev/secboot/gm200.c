@@ -860,6 +860,8 @@ gm200_secboot_prepare_ls_blob(struct gm200_secboot *gsb)
 
 	/* Write LS blob */
 	ret = ls_ucode_mgr_write_wpr(gsb, &mgr, gsb->ls_blob);
+	if (ret)
+		nvkm_gpuobj_del(&gsb->ls_blob);
 
 cleanup:
 	ls_ucode_mgr_cleanup(&mgr);
@@ -1023,21 +1025,27 @@ gm20x_secboot_prepare_blobs(struct gm200_secboot *gsb)
 	int ret;
 
 	/* Load and prepare the managed falcon's firmwares */
-	ret = gm200_secboot_prepare_ls_blob(gsb);
-	if (ret)
-		return ret;
+	if (!gsb->ls_blob) {
+		ret = gm200_secboot_prepare_ls_blob(gsb);
+		if (ret)
+			return ret;
+	}
 
 	/* Load the HS firmware that will load the LS firmwares */
-	ret = gm200_secboot_prepare_hs_blob(gsb, "acr/ucode_load",
-					    &gsb->acr_load_blob,
-					    &gsb->acr_load_bl_desc, true);
-	if (ret)
-		return ret;
+	if (!gsb->acr_load_blob) {
+		ret = gm200_secboot_prepare_hs_blob(gsb, "acr/ucode_load",
+						&gsb->acr_load_blob,
+						&gsb->acr_load_bl_desc, true);
+		if (ret)
+			return ret;
+	}
 
 	/* Load the HS firmware bootloader */
-	ret = gm200_secboot_prepare_hsbl_blob(gsb);
-	if (ret)
-		return ret;
+	if (!gsb->hsbl_blob) {
+		ret = gm200_secboot_prepare_hsbl_blob(gsb);
+		if (ret)
+			return ret;
+	}
 
 	return 0;
 }
@@ -1053,11 +1061,13 @@ gm200_secboot_prepare_blobs(struct nvkm_secboot *sb)
 		return ret;
 
 	/* dGPU only: load the HS firmware that unprotects the WPR region */
-	ret = gm200_secboot_prepare_hs_blob(gsb, "acr/ucode_unload",
-					    &gsb->acr_unload_blob,
-					    &gsb->acr_unload_bl_desc, false);
-	if (ret)
-		return ret;
+	if (!gsb->acr_unload_blob) {
+		ret = gm200_secboot_prepare_hs_blob(gsb, "acr/ucode_unload",
+					       &gsb->acr_unload_blob,
+					       &gsb->acr_unload_bl_desc, false);
+		if (ret)
+			return ret;
+	}
 
 	return 0;
 }
