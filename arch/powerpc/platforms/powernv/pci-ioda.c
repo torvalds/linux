@@ -2793,7 +2793,9 @@ int pnv_phb_to_cxl_mode(struct pci_dev *dev, uint64_t mode)
 	pe_info(pe, "Switching PHB to CXL\n");
 
 	rc = opal_pci_set_phb_cxl_mode(phb->opal_id, mode, pe->pe_number);
-	if (rc)
+	if (rc == OPAL_UNSUPPORTED)
+		dev_err(&dev->dev, "Required cxl mode not supported by firmware - update skiboot\n");
+	else if (rc)
 		dev_err(&dev->dev, "opal_pci_set_phb_cxl_mode failed: %i\n", rc);
 
 	return rc;

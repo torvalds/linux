@@ -543,6 +543,7 @@ struct cxl_service_layer_ops {
 	void (*debugfs_stop_trace)(struct cxl *adapter);
 	void (*write_timebase_ctrl)(struct cxl *adapter);
 	u64 (*timebase_read)(struct cxl *adapter);
+	int capi_mode;
 };
 
 struct cxl_native {
