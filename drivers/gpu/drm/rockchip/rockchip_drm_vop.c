@@ -431,9 +431,6 @@ static void vop_enable(struct drm_crtc *crtc)
 	struct vop *vop = to_vop(crtc);
 	int ret;
 
-	if (vop->is_enabled)
-		return;
-
 	ret = pm_runtime_get_sync(vop->dev);
 	if (ret < 0) {
 		dev_err(vop->dev, "failed to get pm runtime: %d\n", ret);
@@ -500,9 +497,6 @@ static void vop_crtc_disable(struct drm_crtc *crtc)
 {
 	struct vop *vop = to_vop(crtc);
 	int i;
-
-	if (!vop->is_enabled)
-		return;
 
 	/*
 	 * We need to make sure that all windows are disabled before we
