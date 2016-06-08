@@ -66,6 +66,26 @@ static void samsung_nand_decode_id(struct nand_chip *chip)
 		extid >>= 2;
 		mtd->erasesize = (128 * 1024) <<
 				 (((extid >> 1) & 0x04) | (extid & 0x03));
+
+		/* Extract ECC requirements from 5th id byte*/
+		extid = (chip->id.data[4] >> 4) & 0x07;
+		if (extid < 5) {
+			chip->ecc_step_ds = 512;
+			chip->ecc_strength_ds = 1 << extid;
+		} else {
+			chip->ecc_step_ds = 1024;
+			switch (extid) {
+			case 5:
+				chip->ecc_strength_ds = 24;
+				break;
+			case 6:
+				chip->ecc_strength_ds = 40;
+				break;
+			case 7:
+				chip->ecc_strength_ds = 60;
+				break;
+			}
+		}
 	} else {
 		nand_decode_ext_id(chip);
 	}
