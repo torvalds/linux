@@ -60,7 +60,9 @@ int amdgpu_driver_unload_kms(struct drm_device *dev)
 	if (adev->rmmio == NULL)
 		goto done_free;
 
-	pm_runtime_get_sync(dev->dev);
+	if (amdgpu_device_is_px(dev)) {
+		pm_runtime_get_sync(dev->dev);
+	}
 
 	amdgpu_amdkfd_device_fini(adev);
 
