@@ -60,8 +60,6 @@ int _rtw_init_xmit_priv23a(struct xmit_priv *pxmitpriv,
 
 	spin_lock_init(&pxmitpriv->lock);
 	spin_lock_init(&pxmitpriv->lock_sctx);
-	sema_init(&pxmitpriv->xmit_sema, 0);
-	sema_init(&pxmitpriv->terminate_xmitthread_sema, 0);
 
 	pxmitpriv->adapter = padapter;
 
@@ -176,8 +174,6 @@ int _rtw_init_xmit_priv23a(struct xmit_priv *pxmitpriv,
 
 	for (i = 0; i < 4; i ++)
 		pxmitpriv->wmm_para_seq[i] = i;
-
-	sema_init(&pxmitpriv->tx_retevt, 0);
 
 	pxmitpriv->ack_tx = false;
 	mutex_init(&pxmitpriv->ack_tx_mutex);

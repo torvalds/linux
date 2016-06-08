@@ -20,7 +20,6 @@
 #include <osdep_intf.h>
 
 #include <asm/byteorder.h>
-#include <linux/semaphore.h>
 #include <linux/list.h>
 /* include <linux/smp_lock.h> */
 #include <linux/spinlock.h>
@@ -105,7 +104,6 @@ struct io_req {
 	u32	command;
 	u32	status;
 	u8	*pbuf;
-	struct semaphore	sema;
 
 	void (*_async_io_callback)(struct rtw_adapter *padater, struct io_req *pio_req, u8 *cnxt);
 	u8 *cnxt;

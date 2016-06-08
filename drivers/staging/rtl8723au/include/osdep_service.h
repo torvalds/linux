@@ -33,7 +33,6 @@
 #include <asm/byteorder.h>
 #include <linux/atomic.h>
 #include <linux/io.h>
-#include <linux/semaphore.h>
 #include <linux/sem.h>
 #include <linux/sched.h>
 #include <linux/etherdevice.h>

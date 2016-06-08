@@ -275,9 +275,6 @@ struct agg_pkt_info {
 struct	xmit_priv {
 	spinlock_t	lock;
 
-	struct semaphore	xmit_sema;
-	struct semaphore	terminate_xmitthread_sema;
-
 	struct rtw_queue	be_pending;
 	struct rtw_queue	bk_pending;
 	struct rtw_queue	vi_pending;
@@ -309,8 +306,6 @@ struct	xmit_priv {
 				 * large to small. it's value is 0->vo, 1->vi,
 				 * 2->be, 3->bk.
 				 */
-
-	struct semaphore	tx_retevt;/* all tx return event; */
 
 	struct tasklet_struct xmit_tasklet;
 
