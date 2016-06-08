@@ -209,11 +209,11 @@ static const struct  bmi160_scale_item bmi160_scale_table[] = {
 };
 
 static const struct bmi160_odr bmi160_accel_odr[] = {
-	{0x01, 0, 78125},
-	{0x02, 1, 5625},
-	{0x03, 3, 125},
-	{0x04, 6, 25},
-	{0x05, 12, 5},
+	{0x01, 0, 781250},
+	{0x02, 1, 562500},
+	{0x03, 3, 125000},
+	{0x04, 6, 250000},
+	{0x05, 12, 500000},
 	{0x06, 25, 0},
 	{0x07, 50, 0},
 	{0x08, 100, 0},
@@ -229,7 +229,7 @@ static const struct bmi160_odr bmi160_gyro_odr[] = {
 	{0x08, 100, 0},
 	{0x09, 200, 0},
 	{0x0A, 400, 0},
-	{0x0B, 8000, 0},
+	{0x0B, 800, 0},
 	{0x0C, 1600, 0},
 	{0x0D, 3200, 0},
 };
@@ -364,8 +364,8 @@ int bmi160_set_odr(struct bmi160_data *data, enum bmi160_sensor_type t,
 
 	return regmap_update_bits(data->regmap,
 				  bmi160_regs[t].config,
-				  bmi160_odr_table[t].tbl[i].bits,
-				  bmi160_regs[t].config_odr_mask);
+				  bmi160_regs[t].config_odr_mask,
+				  bmi160_odr_table[t].tbl[i].bits);
 }
 
 static int bmi160_get_odr(struct bmi160_data *data, enum bmi160_sensor_type t,
