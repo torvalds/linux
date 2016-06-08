@@ -366,26 +366,6 @@ struct onfi_ext_param_page {
 	 */
 } __packed;
 
-struct nand_onfi_vendor_micron {
-	u8 two_plane_read;
-	u8 read_cache;
-	u8 read_unique_id;
-	u8 dq_imped;
-	u8 dq_imped_num_settings;
-	u8 dq_imped_feat_addr;
-	u8 rb_pulldown_strength;
-	u8 rb_pulldown_strength_feat_addr;
-	u8 rb_pulldown_strength_num_settings;
-	u8 otp_mode;
-	u8 otp_page_start;
-	u8 otp_data_prot_addr;
-	u8 otp_num_pages;
-	u8 otp_feat_addr;
-	u8 read_retry_options;
-	u8 reserved[72];
-	u8 param_revision;
-} __packed;
-
 struct jedec_ecc_info {
 	u8 ecc_bits;
 	u8 codeword_size;
@@ -1117,6 +1097,7 @@ extern struct nand_flash_dev nand_flash_ids[];
 extern const struct nand_manufacturer_ops toshiba_nand_manuf_ops;
 extern const struct nand_manufacturer_ops samsung_nand_manuf_ops;
 extern const struct nand_manufacturer_ops hynix_nand_manuf_ops;
+extern const struct nand_manufacturer_ops micron_nand_manuf_ops;
 
 int nand_default_bbt(struct mtd_info *mtd);
 int nand_markbad_bbt(struct mtd_info *mtd, loff_t offs);
