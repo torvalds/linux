@@ -59,10 +59,13 @@
 #include "util/thread.h"
 #include "util/thread_map.h"
 #include "util/counts.h"
+#include "util/group.h"
 #include "util/session.h"
 #include "util/tool.h"
+#include "util/group.h"
 #include "asm/bug.h"
 
+#include <api/fs/fs.h>
 #include <stdlib.h>
 #include <sys/prctl.h>
 #include <locale.h>
@@ -98,6 +101,15 @@ static const char * transaction_limited_attrs = {
 	"}"
 };
 
+static const char * topdown_attrs[] = {
+	"topdown-total-slots",
+	"topdown-slots-retired",
+	"topdown-recovery-bubbles",
+	"topdown-fetch-bubbles",
+	"topdown-slots-issued",
+	NULL,
+};
+
 static struct perf_evlist	*evsel_list;
 
 static struct target target = {
@@ -112,6 +124,7 @@ static volatile pid_t		child_pid			= -1;
 static bool			null_run			=  false;
 static int			detailed_run			=  0;
 static bool			transaction_run;
+static bool			topdown_run			= false;
 static bool			big_num				=  true;
 static int			big_num_opt			=  -1;
 static const char		*csv_sep			= NULL;
@@ -124,6 +137,7 @@ static unsigned int		initial_delay			= 0;
 static unsigned int		unit_width			= 4; /* strlen("unit") */
 static bool			forever				= false;
 static bool			metric_only			= false;
+static bool			force_metric_only		= false;
 static struct timespec		ref_time;
 static struct cpu_map		*aggr_map;
 static aggr_get_id_t		aggr_get_id;
@@ -1302,7 +1316,15 @@ static int aggr_header_lens[] = {
 	[AGGR_GLOBAL] = 0,
 };
 
-static void print_metric_headers(char *prefix)
+static const char *aggr_header_csv[] = {
+	[AGGR_CORE] 	= 	"core,cpus,",
+	[AGGR_SOCKET] 	= 	"socket,cpus",
+	[AGGR_NONE] 	= 	"cpu,",
+	[AGGR_THREAD] 	= 	"comm-pid,",
+	[AGGR_GLOBAL] 	=	""
+};
+
+static void print_metric_headers(const char *prefix, bool no_indent)
 {
 	struct perf_stat_output_ctx out;
 	struct perf_evsel *counter;
@@ -1313,9 +1335,15 @@ static void print_metric_headers(char *prefix)
 	if (prefix)
 		fprintf(stat_config.output, "%s", prefix);
 
-	if (!csv_output)
+	if (!csv_output && !no_indent)
 		fprintf(stat_config.output, "%*s",
 			aggr_header_lens[stat_config.aggr_mode], "");
+	if (csv_output) {
+		if (stat_config.interval)
+			fputs("time,", stat_config.output);
+		fputs(aggr_header_csv[stat_config.aggr_mode],
+			stat_config.output);
+	}
 
 	/* Print metrics headers only */
 	evlist__for_each(evsel_list, counter) {
@@ -1338,28 +1366,40 @@ static void print_interval(char *prefix, struct timespec *ts)
 
 	sprintf(prefix, "%6lu.%09lu%s", ts->tv_sec, ts->tv_nsec, csv_sep);
 
-	if (num_print_interval == 0 && !csv_output && !metric_only) {
+	if (num_print_interval == 0 && !csv_output) {
 		switch (stat_config.aggr_mode) {
 		case AGGR_SOCKET:
-			fprintf(output, "#           time socket cpus             counts %*s events\n", unit_width, "unit");
+			fprintf(output, "#           time socket cpus");
+			if (!metric_only)
+				fprintf(output, "             counts %*s events\n", unit_width, "unit");
 			break;
 		case AGGR_CORE:
-			fprintf(output, "#           time core         cpus             counts %*s events\n", unit_width, "unit");
+			fprintf(output, "#           time core         cpus");
+			if (!metric_only)
+				fprintf(output, "             counts %*s events\n", unit_width, "unit");
 			break;
 		case AGGR_NONE:
-			fprintf(output, "#           time CPU                counts %*s events\n", unit_width, "unit");
+			fprintf(output, "#           time CPU");
+			if (!metric_only)
+				fprintf(output, "                counts %*s events\n", unit_width, "unit");
 			break;
 		case AGGR_THREAD:
-			fprintf(output, "#           time             comm-pid                  counts %*s events\n", unit_width, "unit");
+			fprintf(output, "#           time             comm-pid");
+			if (!metric_only)
+				fprintf(output, "                  counts %*s events\n", unit_width, "unit");
 			break;
 		case AGGR_GLOBAL:
 		default:
-			fprintf(output, "#           time             counts %*s events\n", unit_width, "unit");
+			fprintf(output, "#           time");
+			if (!metric_only)
+				fprintf(output, "             counts %*s events\n", unit_width, "unit");
 		case AGGR_UNSET:
 			break;
 		}
 	}
 
+	if (num_print_interval == 0 && metric_only)
+		print_metric_headers(" ", true);
 	if (++num_print_interval == 25)
 		num_print_interval = 0;
 }
@@ -1428,8 +1468,8 @@ static void print_counters(struct timespec *ts, int argc, const char **argv)
 	if (metric_only) {
 		static int num_print_iv;
 
-		if (num_print_iv == 0)
-			print_metric_headers(prefix);
+		if (num_print_iv == 0 && !interval)
+			print_metric_headers(prefix, false);
 		if (num_print_iv++ == 25)
 			num_print_iv = 0;
 		if (stat_config.aggr_mode == AGGR_GLOBAL && prefix)
@@ -1520,6 +1560,14 @@ static int stat__set_big_num(const struct option *opt __maybe_unused,
 	return 0;
 }
 
+static int enable_metric_only(const struct option *opt __maybe_unused,
+			      const char *s __maybe_unused, int unset)
+{
+	force_metric_only = true;
+	metric_only = !unset;
+	return 0;
+}
+
 static const struct option stat_options[] = {
 	OPT_BOOLEAN('T', "transaction", &transaction_run,
 		    "hardware transaction statistics"),
@@ -1578,8 +1626,10 @@ static const struct option stat_options[] = {
 		     "aggregate counts per thread", AGGR_THREAD),
 	OPT_UINTEGER('D', "delay", &initial_delay,
 		     "ms to wait before starting measurement after program start"),
-	OPT_BOOLEAN(0, "metric-only", &metric_only,
-			"Only print computed metrics. No raw values"),
+	OPT_CALLBACK_NOOPT(0, "metric-only", &metric_only, NULL,
+			"Only print computed metrics. No raw values", enable_metric_only),
+	OPT_BOOLEAN(0, "topdown", &topdown_run,
+			"measure topdown level 1 statistics"),
 	OPT_END()
 };
 
@@ -1772,12 +1822,62 @@ static int perf_stat_init_aggr_mode_file(struct perf_stat *st)
 	return 0;
 }
 
+static int topdown_filter_events(const char **attr, char **str, bool use_group)
+{
+	int off = 0;
+	int i;
+	int len = 0;
+	char *s;
+
+	for (i = 0; attr[i]; i++) {
+		if (pmu_have_event("cpu", attr[i])) {
+			len += strlen(attr[i]) + 1;
+			attr[i - off] = attr[i];
+		} else
+			off++;
+	}
+	attr[i - off] = NULL;
+
+	*str = malloc(len + 1 + 2);
+	if (!*str)
+		return -1;
+	s = *str;
+	if (i - off == 0) {
+		*s = 0;
+		return 0;
+	}
+	if (use_group)
+		*s++ = '{';
+	for (i = 0; attr[i]; i++) {
+		strcpy(s, attr[i]);
+		s += strlen(s);
+		*s++ = ',';
+	}
+	if (use_group) {
+		s[-1] = '}';
+		*s = 0;
+	} else
+		s[-1] = 0;
+	return 0;
+}
+
+__weak bool arch_topdown_check_group(bool *warn)
+{
+	*warn = false;
+	return false;
+}
+
+__weak void arch_topdown_group_warn(void)
+{
+}
+
 /*
  * Add default attributes, if there were no attributes specified or
  * if -d/--detailed, -d -d or -d -d -d is used:
  */
 static int add_default_attributes(void)
 {
+	int err;
 	struct perf_event_attr default_attrs0[] = {
 
   { .type = PERF_TYPE_SOFTWARE, .config = PERF_COUNT_SW_TASK_CLOCK		},
@@ -1896,7 +1996,6 @@ static int add_default_attributes(void)
 		return 0;
 
 	if (transaction_run) {
-		int err;
 		if (pmu_have_event("cpu", "cycles-ct") &&
 		    pmu_have_event("cpu", "el-start"))
 			err = parse_events(evsel_list, transaction_attrs, NULL);
@@ -1907,6 +2006,46 @@ static int add_default_attributes(void)
 			return -1;
 		}
 		return 0;
+	}
+
+	if (topdown_run) {
+		char *str = NULL;
+		bool warn = false;
+
+		if (stat_config.aggr_mode != AGGR_GLOBAL &&
+		    stat_config.aggr_mode != AGGR_CORE) {
+			pr_err("top down event configuration requires --per-core mode\n");
+			return -1;
+		}
+		stat_config.aggr_mode = AGGR_CORE;
+		if (nr_cgroups || !target__has_cpu(&target)) {
+			pr_err("top down event configuration requires system-wide mode (-a)\n");
+			return -1;
+		}
+
+		if (!force_metric_only)
+			metric_only = true;
+		if (topdown_filter_events(topdown_attrs, &str,
+				arch_topdown_check_group(&warn)) < 0) {
+			pr_err("Out of memory\n");
+			return -1;
+		}
+		if (topdown_attrs[0] && str) {
+			if (warn)
+				arch_topdown_group_warn();
+			err = parse_events(evsel_list, str, NULL);
+			if (err) {
+				fprintf(stderr,
+					"Cannot set up top down events %s: %d\n",
+					str, err);
+				free(str);
+				return -1;
+			}
+		} else {
+			fprintf(stderr, "System does not support topdown\n");
+			return -1;
+		}
+		free(str);
 	}
 
 	if (!evsel_list->nr_entries) {

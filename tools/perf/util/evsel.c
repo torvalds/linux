@@ -2251,17 +2251,11 @@ void *perf_evsel__rawptr(struct perf_evsel *evsel, struct perf_sample *sample,
 	return sample->raw_data + offset;
 }
 
-u64 perf_evsel__intval(struct perf_evsel *evsel, struct perf_sample *sample,
-		       const char *name)
+u64 format_field__intval(struct format_field *field, struct perf_sample *sample,
+			 bool needs_swap)
 {
-	struct format_field *field = perf_evsel__field(evsel, name);
-	void *ptr;
 	u64 value;
-
-	if (!field)
-		return 0;
-
-	ptr = sample->raw_data + field->offset;
+	void *ptr = sample->raw_data + field->offset;
 
 	switch (field->size) {
 	case 1:
@@ -2279,7 +2273,7 @@ u64 perf_evsel__intval(struct perf_evsel *evsel, struct perf_sample *sample,
 		return 0;
 	}
 
-	if (!evsel->needs_swap)
+	if (!needs_swap)
 		return value;
 
 	switch (field->size) {
@@ -2294,6 +2288,17 @@ u64 perf_evsel__intval(struct perf_evsel *evsel, struct perf_sample *sample,
 	}
 
 	return 0;
+}
+
+u64 perf_evsel__intval(struct perf_evsel *evsel, struct perf_sample *sample,
+		       const char *name)
+{
+	struct format_field *field = perf_evsel__field(evsel, name);
+
+	if (!field)
+		return 0;
+
+	return field ? format_field__intval(field, sample, evsel->needs_swap) : 0;
 }
 
 bool perf_evsel__fallback(struct perf_evsel *evsel, int err,

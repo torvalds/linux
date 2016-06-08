@@ -275,7 +275,8 @@ static int perf_parse_file(config_fn_t fn, void *data)
 			break;
 		}
 	}
-	die("bad config file line %d in %s", config_linenr, config_file_name);
+	pr_err("bad config file line %d in %s\n", config_linenr, config_file_name);
+	return -1;
 }
 
 static int parse_unit_factor(const char *end, unsigned long *val)
@@ -479,16 +480,15 @@ static int perf_config_global(void)
 
 int perf_config(config_fn_t fn, void *data)
 {
-	int ret = 0, found = 0;
+	int ret = -1;
 	const char *home = NULL;
 
 	/* Setting $PERF_CONFIG makes perf read _only_ the given config file. */
 	if (config_exclusive_filename)
 		return perf_config_from_file(fn, config_exclusive_filename, data);
 	if (perf_config_system() && !access(perf_etc_perfconfig(), R_OK)) {
-		ret += perf_config_from_file(fn, perf_etc_perfconfig(),
-					    data);
-		found += 1;
+		if (perf_config_from_file(fn, perf_etc_perfconfig(), data) < 0)
+			goto out;
 	}
 
 	home = getenv("HOME");
@@ -514,14 +514,12 @@ int perf_config(config_fn_t fn, void *data)
 		if (!st.st_size)
 			goto out_free;
 
-		ret += perf_config_from_file(fn, user_config, data);
-		found += 1;
+		ret = perf_config_from_file(fn, user_config, data);
+
 out_free:
 		free(user_config);
 	}
 out:
-	if (found == 0)
-		return -1;
 	return ret;
 }
 
@@ -609,8 +607,12 @@ static int collect_config(const char *var, const char *value,
 	struct perf_config_section *section = NULL;
 	struct perf_config_item *item = NULL;
 	struct perf_config_set *set = perf_config_set;
-	struct list_head *sections = &set->sections;
+	struct list_head *sections;
 
+	if (set == NULL)
+		return -1;
+
+	sections = &set->sections;
 	key = ptr = strdup(var);
 	if (!key) {
 		pr_debug("%s: strdup failed\n", __func__);
