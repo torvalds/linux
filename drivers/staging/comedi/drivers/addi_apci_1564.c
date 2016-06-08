@@ -144,14 +144,7 @@
 #define APCI1564_DO_INT_STATUS_VCC		BIT(0)
 #define APCI1564_DO_IRQ_REG			0x20
 #define APCI1564_DO_IRQ_INTR			BIT(0)
-#define APCI1564_WDOG_REG			0x24
-#define APCI1564_WDOG_RELOAD_REG		0x28
-#define APCI1564_WDOG_TIMEBASE_REG		0x2c
-#define APCI1564_WDOG_CTRL_REG			0x30
-#define APCI1564_WDOG_STATUS_REG		0x34
-#define APCI1564_WDOG_IRQ_REG			0x38
-#define APCI1564_WDOG_WARN_TIMEVAL_REG		0x3c
-#define APCI1564_WDOG_WARN_TIMEBASE_REG		0x40
+#define APCI1564_WDOG_IOBASE			0x24
 
 /*
  * devpriv->timer Register Map (see addi_tcw.h for register/bit defines)
@@ -198,7 +191,7 @@ static int apci1564_reset(struct comedi_device *dev)
 	outl(0x0, dev->iobase + APCI1564_DO_INT_CTRL_REG);
 
 	/* Reset the watchdog registers */
-	addi_watchdog_reset(dev->iobase + APCI1564_WDOG_REG);
+	addi_watchdog_reset(dev->iobase + APCI1564_WDOG_IOBASE);
 
 	/* Reset the timer registers */
 	outl(0x0, devpriv->timer + ADDI_TCW_CTRL_REG);
@@ -773,7 +766,7 @@ static int apci1564_auto_attach(struct comedi_device *dev,
 
 	/* Initialize the watchdog subdevice */
 	s = &dev->subdevices[5];
-	ret = addi_watchdog_init(s, dev->iobase + APCI1564_WDOG_REG);
+	ret = addi_watchdog_init(s, dev->iobase + APCI1564_WDOG_IOBASE);
 	if (ret)
 		return ret;
 
