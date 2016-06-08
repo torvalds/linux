@@ -599,8 +599,14 @@ static int cs53l30_set_dai_fmt(struct snd_soc_dai *dai, unsigned int fmt)
 	}
 
 	/* Check to see if the SCLK is inverted */
-	if (fmt & (SND_SOC_DAIFMT_IB_NF | SND_SOC_DAIFMT_IB_IF))
+	switch (fmt & SND_SOC_DAIFMT_INV_MASK) {
+	case SND_SOC_DAIFMT_IB_NF:
+	case SND_SOC_DAIFMT_IB_IF:
 		aspcfg ^= CS53L30_ASP_SCLK_INV;
+		break;
+	default:
+		break;
+	}
 
 	regmap_update_bits(priv->regmap, CS53L30_ASPCFG_CTL,
 			   CS53L30_ASP_MS | CS53L30_ASP_SCLK_INV, aspcfg);
