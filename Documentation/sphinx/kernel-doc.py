@@ -59,7 +59,6 @@ class KernelDocDirective(Directive):
         env.note_dependency(os.path.abspath(filename))
 
         tab_width = self.options.get('tab-width', self.state.document.settings.tab_width)
-        source = filename
 
         # FIXME: make this nicer and more robust against errors
         if 'export' in self.options:
@@ -105,7 +104,7 @@ class KernelDocDirective(Directive):
                     lineoffset = int(match.group(1)) - 1
                     # we must eat our comments since the upset the markup
                 else:
-                    result.append(line, source, lineoffset)
+                    result.append(line, filename, lineoffset)
                     lineoffset += 1
 
             node = nodes.section()
