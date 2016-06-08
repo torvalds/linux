@@ -31,6 +31,8 @@
 
 #include <asm/cacheflush.h>
 
+#include "spc.h"
+
 #define SPCLOG "vexpress-spc: "
 
 #define PERF_LVL_A15		0x00
