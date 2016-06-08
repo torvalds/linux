@@ -35,12 +35,16 @@
 #include <net/route.h>
 #include <net/addrconf.h>
 #include <net/l3mdev.h>
+#include <net/fib_rules.h>
 
 #define RT_FL_TOS(oldflp4) \
 	((oldflp4)->flowi4_tos & (IPTOS_RT_MASK | RTO_ONLINK))
 
 #define DRV_NAME	"vrf"
 #define DRV_VERSION	"1.0"
+
+#define FIB_RULE_PREF  1000       /* default preference for FIB rules */
+static bool add_fib_rules = true;
 
 struct net_vrf {
 	struct rtable __rcu	*rth;
@@ -897,6 +901,91 @@ static const struct ethtool_ops vrf_ethtool_ops = {
 	.get_drvinfo	= vrf_get_drvinfo,
 };
 
+static inline size_t vrf_fib_rule_nl_size(void)
+{
+	size_t sz;
+
+	sz  = NLMSG_ALIGN(sizeof(struct fib_rule_hdr));
+	sz += nla_total_size(sizeof(u8));	/* FRA_L3MDEV */
+	sz += nla_total_size(sizeof(u32));	/* FRA_PRIORITY */
+
+	return sz;
+}
+
+static int vrf_fib_rule(const struct net_device *dev, __u8 family, bool add_it)
+{
+	struct fib_rule_hdr *frh;
+	struct nlmsghdr *nlh;
+	struct sk_buff *skb;
+	int err;
+
+	skb = nlmsg_new(vrf_fib_rule_nl_size(), GFP_KERNEL);
+	if (!skb)
+		return -ENOMEM;
+
+	nlh = nlmsg_put(skb, 0, 0, 0, sizeof(*frh), 0);
+	if (!nlh)
+		goto nla_put_failure;
+
+	/* rule only needs to appear once */
+	nlh->nlmsg_flags &= NLM_F_EXCL;
+
+	frh = nlmsg_data(nlh);
+	memset(frh, 0, sizeof(*frh));
+	frh->family = family;
+	frh->action = FR_ACT_TO_TBL;
+
+	if (nla_put_u32(skb, FRA_L3MDEV, 1))
+		goto nla_put_failure;
+
+	if (nla_put_u32(skb, FRA_PRIORITY, FIB_RULE_PREF))
+		goto nla_put_failure;
+
+	nlmsg_end(skb, nlh);
+
+	/* fib_nl_{new,del}rule handling looks for net from skb->sk */
+	skb->sk = dev_net(dev)->rtnl;
+	if (add_it) {
+		err = fib_nl_newrule(skb, nlh);
+		if (err == -EEXIST)
+			err = 0;
+	} else {
+		err = fib_nl_delrule(skb, nlh);
+		if (err == -ENOENT)
+			err = 0;
+	}
+	nlmsg_free(skb);
+
+	return err;
+
+nla_put_failure:
+	nlmsg_free(skb);
+
+	return -EMSGSIZE;
+}
+
+static int vrf_add_fib_rules(const struct net_device *dev)
+{
+	int err;
+
+	err = vrf_fib_rule(dev, AF_INET,  true);
+	if (err < 0)
+		goto out_err;
+
+	err = vrf_fib_rule(dev, AF_INET6, true);
+	if (err < 0)
+		goto ipv6_err;
+
+	return 0;
+
+ipv6_err:
+	vrf_fib_rule(dev, AF_INET,  false);
+
+out_err:
+	netdev_err(dev, "Failed to add FIB rules.\n");
+	return err;
+}
+
 static void vrf_setup(struct net_device *dev)
 {
 	ether_setup(dev);
@@ -937,6 +1026,7 @@ static int vrf_newlink(struct net *src_net, struct net_device *dev,
 		       struct nlattr *tb[], struct nlattr *data[])
 {
 	struct net_vrf *vrf = netdev_priv(dev);
+	int err;
 
 	if (!data || !data[IFLA_VRF_TABLE])
 		return -EINVAL;
@@ -945,7 +1035,21 @@ static int vrf_newlink(struct net *src_net, struct net_device *dev,
 
 	dev->priv_flags |= IFF_L3MDEV_MASTER;
 
-	return register_netdevice(dev);
+	err = register_netdevice(dev);
+	if (err)
+		goto out;
+
+	if (add_fib_rules) {
+		err = vrf_add_fib_rules(dev);
+		if (err) {
+			unregister_netdevice(dev);
+			goto out;
+		}
+		add_fib_rules = false;
+	}
+
+out:
+	return err;
 }
 
 static size_t vrf_nl_getsize(const struct net_device *dev)
