@@ -728,7 +728,7 @@ static void tipc_node_fsm_evt(struct tipc_node *n, int evt)
 			state = SELF_UP_PEER_UP;
 			break;
 		case SELF_LOST_CONTACT_EVT:
-			state = SELF_DOWN_PEER_LEAVING;
+			state = SELF_DOWN_PEER_DOWN;
 			break;
 		case SELF_ESTABL_CONTACT_EVT:
 		case PEER_LOST_CONTACT_EVT:
@@ -747,7 +747,7 @@ static void tipc_node_fsm_evt(struct tipc_node *n, int evt)
 			state = SELF_UP_PEER_UP;
 			break;
 		case PEER_LOST_CONTACT_EVT:
-			state = SELF_LEAVING_PEER_DOWN;
+			state = SELF_DOWN_PEER_DOWN;
 			break;
 		case SELF_LOST_CONTACT_EVT:
 		case PEER_ESTABL_CONTACT_EVT:
