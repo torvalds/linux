@@ -8,8 +8,8 @@
  * option) any later version.
  */
 
-#ifndef CONFIG_UCC_HDLC_H
-#define CONFIG_UCC_HDLC_H
+#ifndef _UCC_HDLC_H_
+#define _UCC_HDLC_H_
 
 #include <linux/kernel.h>
 #include <linux/list.h>
