@@ -511,8 +511,9 @@ do {									\
 #define x86_test_and_clear_bit_percpu(bit, var)				\
 ({									\
 	bool old__;							\
-	asm volatile("btr %2,"__percpu_arg(1)"\n\tsetc %0"		\
-		     : "=qm" (old__), "+m" (var)			\
+	asm volatile("btr %2,"__percpu_arg(1)"\n\t"			\
+		     CC_SET(c)						\
+		     : CC_OUT(c) (old__), "+m" (var)			\
 		     : "dIr" (bit));					\
 	old__;								\
 })
@@ -535,8 +536,8 @@ static inline bool x86_this_cpu_variable_test_bit(int nr,
 	bool oldbit;
 
 	asm volatile("bt "__percpu_arg(2)",%1\n\t"
-			"setc %0"
-			: "=qm" (oldbit)
+			CC_SET(c)
+			: CC_OUT(c) (oldbit)
 			: "m" (*(unsigned long *)addr), "Ir" (nr));
 
 	return oldbit;
