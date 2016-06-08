@@ -150,6 +150,7 @@ EXPORT_SYMBOL(__gnet_stats_copy_basic);
 
 /**
  * gnet_stats_copy_basic - copy basic statistics into statistic TLV
+ * @running: seqcount_t pointer
  * @d: dumping handle
  * @cpu: copy statistic per cpu
  * @b: basic statistics
