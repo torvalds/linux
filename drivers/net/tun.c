@@ -1254,15 +1254,6 @@ static ssize_t tun_get_user(struct tun_struct *tun, struct tun_file *tfile,
 		return -EFAULT;
 	}
 
-	if (gso.flags & VIRTIO_NET_HDR_F_NEEDS_CSUM) {
-		if (!skb_partial_csum_set(skb, tun16_to_cpu(tun, gso.csum_start),
-					  tun16_to_cpu(tun, gso.csum_offset))) {
-			this_cpu_inc(tun->pcpu_stats->rx_frame_errors);
-			kfree_skb(skb);
-			return -EINVAL;
-		}
-	}
-
 	switch (tun->flags & TUN_TYPE_MASK) {
 	case IFF_TUN:
 		if (tun->flags & IFF_NO_PI) {
@@ -1289,37 +1280,11 @@ static ssize_t tun_get_user(struct tun_struct *tun, struct tun_file *tfile,
 		break;
 	}
 
-	if (gso.gso_type != VIRTIO_NET_HDR_GSO_NONE) {
-		pr_debug("GSO!\n");
-		switch (gso.gso_type & ~VIRTIO_NET_HDR_GSO_ECN) {
-		case VIRTIO_NET_HDR_GSO_TCPV4:
-			skb_shinfo(skb)->gso_type = SKB_GSO_TCPV4;
-			break;
-		case VIRTIO_NET_HDR_GSO_TCPV6:
-			skb_shinfo(skb)->gso_type = SKB_GSO_TCPV6;
-			break;
-		case VIRTIO_NET_HDR_GSO_UDP:
-			skb_shinfo(skb)->gso_type = SKB_GSO_UDP;
-			break;
-		default:
-			this_cpu_inc(tun->pcpu_stats->rx_frame_errors);
-			kfree_skb(skb);
-			return -EINVAL;
-		}
-
-		if (gso.gso_type & VIRTIO_NET_HDR_GSO_ECN)
-			skb_shinfo(skb)->gso_type |= SKB_GSO_TCP_ECN;
-
-		skb_shinfo(skb)->gso_size = tun16_to_cpu(tun, gso.gso_size);
-		if (skb_shinfo(skb)->gso_size == 0) {
-			this_cpu_inc(tun->pcpu_stats->rx_frame_errors);
-			kfree_skb(skb);
-			return -EINVAL;
-		}
-
-		/* Header must be checked, and gso_segs computed. */
-		skb_shinfo(skb)->gso_type |= SKB_GSO_DODGY;
-		skb_shinfo(skb)->gso_segs = 0;
+	err = virtio_net_hdr_to_skb(skb, &gso, tun_is_little_endian(tun));
+	if (err) {
+		this_cpu_inc(tun->pcpu_stats->rx_frame_errors);
+		kfree_skb(skb);
+		return -EINVAL;
 	}
 
 	/* copy skb_ubuf_info for callback when skb has no error */
@@ -1399,46 +1364,26 @@ static ssize_t tun_put_user(struct tun_struct *tun,
 
 	if (vnet_hdr_sz) {
 		struct virtio_net_hdr gso = { 0 }; /* no info leak */
+		int ret;
+
 		if (iov_iter_count(iter) < vnet_hdr_sz)
 			return -EINVAL;
 
-		if (skb_is_gso(skb)) {
+		ret = virtio_net_hdr_from_skb(skb, &gso,
+					      tun_is_little_endian(tun));
+		if (ret) {
 			struct skb_shared_info *sinfo = skb_shinfo(skb);
-
-			/* This is a hint as to how much should be linear. */
-			gso.hdr_len = cpu_to_tun16(tun, skb_headlen(skb));
-			gso.gso_size = cpu_to_tun16(tun, sinfo->gso_size);
-			if (sinfo->gso_type & SKB_GSO_TCPV4)
-				gso.gso_type = VIRTIO_NET_HDR_GSO_TCPV4;
-			else if (sinfo->gso_type & SKB_GSO_TCPV6)
-				gso.gso_type = VIRTIO_NET_HDR_GSO_TCPV6;
-			else if (sinfo->gso_type & SKB_GSO_UDP)
-				gso.gso_type = VIRTIO_NET_HDR_GSO_UDP;
-			else {
-				pr_err("unexpected GSO type: "
-				       "0x%x, gso_size %d, hdr_len %d\n",
-				       sinfo->gso_type, tun16_to_cpu(tun, gso.gso_size),
-				       tun16_to_cpu(tun, gso.hdr_len));
-				print_hex_dump(KERN_ERR, "tun: ",
-					       DUMP_PREFIX_NONE,
-					       16, 1, skb->head,
-					       min((int)tun16_to_cpu(tun, gso.hdr_len), 64), true);
-				WARN_ON_ONCE(1);
-				return -EINVAL;
-			}
-			if (sinfo->gso_type & SKB_GSO_TCP_ECN)
-				gso.gso_type |= VIRTIO_NET_HDR_GSO_ECN;
-		} else
-			gso.gso_type = VIRTIO_NET_HDR_GSO_NONE;
-
-		if (skb->ip_summed == CHECKSUM_PARTIAL) {
-			gso.flags = VIRTIO_NET_HDR_F_NEEDS_CSUM;
-			gso.csum_start = cpu_to_tun16(tun, skb_checksum_start_offset(skb) +
-						      vlan_hlen);
-			gso.csum_offset = cpu_to_tun16(tun, skb->csum_offset);
-		} else if (skb->ip_summed == CHECKSUM_UNNECESSARY) {
-			gso.flags = VIRTIO_NET_HDR_F_DATA_VALID;
-		} /* else everything is zero */
+			pr_err("unexpected GSO type: "
+			       "0x%x, gso_size %d, hdr_len %d\n",
+			       sinfo->gso_type, tun16_to_cpu(tun, gso.gso_size),
+			       tun16_to_cpu(tun, gso.hdr_len));
+			print_hex_dump(KERN_ERR, "tun: ",
+				       DUMP_PREFIX_NONE,
+				       16, 1, skb->head,
+				       min((int)tun16_to_cpu(tun, gso.hdr_len), 64), true);
+			WARN_ON_ONCE(1);
+			return -EINVAL;
+		}
 
 		if (copy_to_iter(&gso, sizeof(gso), iter) != sizeof(gso))
 			return -EFAULT;
