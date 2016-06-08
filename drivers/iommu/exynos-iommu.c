@@ -54,6 +54,10 @@ typedef u32 sysmmu_pte_t;
 #define lv2ent_small(pent) ((*(pent) & 2) == 2)
 #define lv2ent_large(pent) ((*(pent) & 3) == 1)
 
+#ifdef CONFIG_BIG_ENDIAN
+#warning "revisit driver if we can enable big-endian ptes"
+#endif
+
 /*
  * v1.x - v3.x SYSMMU supports 32bit physical and 32bit virtual address spaces
  * v5.0 introduced support for 36bit physical address space by shifting
@@ -710,7 +714,7 @@ static inline void update_pte(sysmmu_pte_t *ent, sysmmu_pte_t val)
 {
 	dma_sync_single_for_cpu(dma_dev, virt_to_phys(ent), sizeof(*ent),
 				DMA_TO_DEVICE);
-	*ent = val;
+	*ent = cpu_to_le32(val);
 	dma_sync_single_for_device(dma_dev, virt_to_phys(ent), sizeof(*ent),
 				   DMA_TO_DEVICE);
 }
