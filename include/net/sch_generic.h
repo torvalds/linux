@@ -68,10 +68,6 @@ struct Qdisc {
 
 	void			*u32_node;
 
-	/* This field is deprecated, but it is still used by CBQ
-	 * and it will live until better solution will be invented.
-	 */
-	struct Qdisc		*__parent;
 	struct netdev_queue	*dev_queue;
 
 	struct gnet_stats_rate_est64	rate_est;

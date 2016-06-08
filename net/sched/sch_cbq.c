@@ -80,9 +80,6 @@ struct cbq_class {
 	unsigned char		priority;	/* class priority */
 	unsigned char		priority2;	/* priority to be used after overlimit */
 	unsigned char		ewma_log;	/* time constant for idle time calculation */
-#ifdef CONFIG_NET_CLS_ACT
-	unsigned char		police;
-#endif
 
 	u32			defmap;
 
@@ -377,9 +374,6 @@ cbq_enqueue(struct sk_buff *skb, struct Qdisc *sch)
 		return ret;
 	}
 
-#ifdef CONFIG_NET_CLS_ACT
-	cl->q->__parent = sch;
-#endif
 	ret = qdisc_enqueue(skb, cl->q);
 	if (ret == NET_XMIT_SUCCESS) {
 		sch->q.qlen++;
@@ -523,40 +517,6 @@ static enum hrtimer_restart cbq_undelay(struct hrtimer *timer)
 	__netif_schedule(qdisc_root(sch));
 	return HRTIMER_NORESTART;
 }
-
-#ifdef CONFIG_NET_CLS_ACT
-static int cbq_reshape_fail(struct sk_buff *skb, struct Qdisc *child)
-{
-	struct Qdisc *sch = child->__parent;
-	struct cbq_sched_data *q = qdisc_priv(sch);
-	struct cbq_class *cl = q->rx_class;
-
-	q->rx_class = NULL;
-
-	if (cl && (cl = cbq_reclassify(skb, cl)) != NULL) {
-		int ret;
-
-		cbq_mark_toplevel(q, cl);
-
-		q->rx_class = cl;
-		cl->q->__parent = sch;
-
-		ret = qdisc_enqueue(skb, cl->q);
-		if (ret == NET_XMIT_SUCCESS) {
-			sch->q.qlen++;
-			if (!cl->next_alive)
-				cbq_activate_class(cl);
-			return 0;
-		}
-		if (net_xmit_drop_count(ret))
-			qdisc_qstats_drop(sch);
-		return 0;
-	}
-
-	qdisc_qstats_drop(sch);
-	return -1;
-}
-#endif
 
 /*
  * It is mission critical procedure.
@@ -1179,21 +1139,6 @@ static int cbq_set_wrr(struct cbq_class *cl, struct tc_cbq_wrropt *wrr)
 	return 0;
 }
 
-#ifdef CONFIG_NET_CLS_ACT
-static int cbq_set_police(struct cbq_class *cl, struct tc_cbq_police *p)
-{
-	cl->police = p->police;
-
-	if (cl->q->handle) {
-		if (p->police == TC_POLICE_RECLASSIFY)
-			cl->q->reshape_fail = cbq_reshape_fail;
-		else
-			cl->q->reshape_fail = NULL;
-	}
-	return 0;
-}
-#endif
-
 static int cbq_set_fopt(struct cbq_class *cl, struct tc_cbq_fopt *fopt)
 {
 	cbq_change_defmap(cl, fopt->split, fopt->defmap, fopt->defchange);
@@ -1350,35 +1295,11 @@ nla_put_failure:
 	return -1;
 }
 
-#ifdef CONFIG_NET_CLS_ACT
-static int cbq_dump_police(struct sk_buff *skb, struct cbq_class *cl)
-{
-	unsigned char *b = skb_tail_pointer(skb);
-	struct tc_cbq_police opt;
-
-	if (cl->police) {
-		opt.police = cl->police;
-		opt.__res1 = 0;
-		opt.__res2 = 0;
-		if (nla_put(skb, TCA_CBQ_POLICE, sizeof(opt), &opt))
-			goto nla_put_failure;
-	}
-	return skb->len;
-
-nla_put_failure:
-	nlmsg_trim(skb, b);
-	return -1;
-}
-#endif
-
 static int cbq_dump_attr(struct sk_buff *skb, struct cbq_class *cl)
 {
 	if (cbq_dump_lss(skb, cl) < 0 ||
 	    cbq_dump_rate(skb, cl) < 0 ||
 	    cbq_dump_wrr(skb, cl) < 0 ||
-#ifdef CONFIG_NET_CLS_ACT
-	    cbq_dump_police(skb, cl) < 0 ||
-#endif
 	    cbq_dump_fopt(skb, cl) < 0)
 		return -1;
 	return 0;
@@ -1468,11 +1389,6 @@ static int cbq_graft(struct Qdisc *sch, unsigned long arg, struct Qdisc *new,
 					&pfifo_qdisc_ops, cl->common.classid);
 		if (new == NULL)
 			return -ENOBUFS;
-	} else {
-#ifdef CONFIG_NET_CLS_ACT
-		if (cl->police == TC_POLICE_RECLASSIFY)
-			new->reshape_fail = cbq_reshape_fail;
-#endif
 	}
 
 	*old = qdisc_replace(sch, new, &cl->q);
@@ -1585,7 +1501,7 @@ cbq_change_class(struct Qdisc *sch, u32 classid, u32 parentid, struct nlattr **t
 	if (err < 0)
 		return err;
 
-	if (tb[TCA_CBQ_OVL_STRATEGY])
+	if (tb[TCA_CBQ_OVL_STRATEGY] || tb[TCA_CBQ_POLICE])
 		return -EOPNOTSUPP;
 
 	if (cl) {
@@ -1635,11 +1551,6 @@ cbq_change_class(struct Qdisc *sch, u32 classid, u32 parentid, struct nlattr **t
 			cbq_rmprio(q, cl);
 			cbq_set_wrr(cl, nla_data(tb[TCA_CBQ_WRROPT]));
 		}
-
-#ifdef CONFIG_NET_CLS_ACT
-		if (tb[TCA_CBQ_POLICE])
-			cbq_set_police(cl, nla_data(tb[TCA_CBQ_POLICE]));
-#endif
 
 		if (tb[TCA_CBQ_FOPT])
 			cbq_set_fopt(cl, nla_data(tb[TCA_CBQ_FOPT]));
@@ -1736,10 +1647,6 @@ cbq_change_class(struct Qdisc *sch, u32 classid, u32 parentid, struct nlattr **t
 		cl->maxidle = q->link.maxidle;
 	if (cl->avpkt == 0)
 		cl->avpkt = q->link.avpkt;
-#ifdef CONFIG_NET_CLS_ACT
-	if (tb[TCA_CBQ_POLICE])
-		cbq_set_police(cl, nla_data(tb[TCA_CBQ_POLICE]));
-#endif
 	if (tb[TCA_CBQ_FOPT])
 		cbq_set_fopt(cl, nla_data(tb[TCA_CBQ_FOPT]));
 	sch_tree_unlock(sch);
