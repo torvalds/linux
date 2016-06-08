@@ -236,8 +236,8 @@ static int ehci_platform_probe(struct platform_device *dev)
 	}
 
 	for (rst = 0; rst < EHCI_MAX_RSTS; rst++) {
-		priv->rsts[rst] = of_reset_control_get_by_index(
-					dev->dev.of_node, rst);
+		priv->rsts[rst] = devm_reset_control_get_shared_by_index(
+					&dev->dev, rst);
 		if (IS_ERR(priv->rsts[rst])) {
 			err = PTR_ERR(priv->rsts[rst]);
 			if (err == -EPROBE_DEFER)
@@ -247,10 +247,8 @@ static int ehci_platform_probe(struct platform_device *dev)
 		}
 
 		err = reset_control_deassert(priv->rsts[rst]);
-		if (err) {
-			reset_control_put(priv->rsts[rst]);
+		if (err)
 			goto err_reset;
-		}
 	}
 
 	if (pdata->big_endian_desc)
@@ -307,10 +305,8 @@ err_power:
 	if (pdata->power_off)
 		pdata->power_off(dev);
 err_reset:
-	while (--rst >= 0) {
+	while (--rst >= 0)
 		reset_control_assert(priv->rsts[rst]);
-		reset_control_put(priv->rsts[rst]);
-	}
 err_put_clks:
 	while (--clk >= 0)
 		clk_put(priv->clks[clk]);
@@ -335,10 +331,8 @@ static int ehci_platform_remove(struct platform_device *dev)
 	if (pdata->power_off)
 		pdata->power_off(dev);
 
-	for (rst = 0; rst < EHCI_MAX_RSTS && priv->rsts[rst]; rst++) {
+	for (rst = 0; rst < EHCI_MAX_RSTS && priv->rsts[rst]; rst++)
 		reset_control_assert(priv->rsts[rst]);
-		reset_control_put(priv->rsts[rst]);
-	}
 
 	for (clk = 0; clk < EHCI_MAX_CLKS && priv->clks[clk]; clk++)
 		clk_put(priv->clks[clk]);
