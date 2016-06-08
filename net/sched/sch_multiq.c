@@ -151,27 +151,6 @@ static struct sk_buff *multiq_peek(struct Qdisc *sch)
 
 }
 
-static unsigned int multiq_drop(struct Qdisc *sch)
-{
-	struct multiq_sched_data *q = qdisc_priv(sch);
-	int band;
-	unsigned int len;
-	struct Qdisc *qdisc;
-
-	for (band = q->bands - 1; band >= 0; band--) {
-		qdisc = q->queues[band];
-		if (qdisc->ops->drop) {
-			len = qdisc->ops->drop(qdisc);
-			if (len != 0) {
-				sch->q.qlen--;
-				return len;
-			}
-		}
-	}
-	return 0;
-}
-
-
 static void
 multiq_reset(struct Qdisc *sch)
 {
@@ -416,7 +395,6 @@ static struct Qdisc_ops multiq_qdisc_ops __read_mostly = {
 	.enqueue	=	multiq_enqueue,
 	.dequeue	=	multiq_dequeue,
 	.peek		=	multiq_peek,
-	.drop		=	multiq_drop,
 	.init		=	multiq_init,
 	.reset		=	multiq_reset,
 	.destroy	=	multiq_destroy,

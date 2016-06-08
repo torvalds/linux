@@ -576,35 +576,6 @@ finish_segs:
 	return NET_XMIT_SUCCESS;
 }
 
-static unsigned int netem_drop(struct Qdisc *sch)
-{
-	struct netem_sched_data *q = qdisc_priv(sch);
-	unsigned int len;
-
-	len = qdisc_queue_drop(sch);
-
-	if (!len) {
-		struct rb_node *p = rb_first(&q->t_root);
-
-		if (p) {
-			struct sk_buff *skb = netem_rb_to_skb(p);
-
-			rb_erase(p, &q->t_root);
-			sch->q.qlen--;
-			skb->next = NULL;
-			skb->prev = NULL;
-			qdisc_qstats_backlog_dec(sch, skb);
-			kfree_skb(skb);
-		}
-	}
-	if (!len && q->qdisc && q->qdisc->ops->drop)
-	    len = q->qdisc->ops->drop(q->qdisc);
-	if (len)
-		qdisc_qstats_drop(sch);
-
-	return len;
-}
-
 static struct sk_buff *netem_dequeue(struct Qdisc *sch)
 {
 	struct netem_sched_data *q = qdisc_priv(sch);
@@ -1143,7 +1114,6 @@ static struct Qdisc_ops netem_qdisc_ops __read_mostly = {
 	.enqueue	=	netem_enqueue,
 	.dequeue	=	netem_dequeue,
 	.peek		=	qdisc_peek_dequeued,
-	.drop		=	netem_drop,
 	.init		=	netem_init,
 	.reset		=	netem_reset,
 	.destroy	=	netem_destroy,

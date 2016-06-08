@@ -368,15 +368,6 @@ static unsigned int hhf_drop(struct Qdisc *sch)
 	return bucket - q->buckets;
 }
 
-static unsigned int hhf_qdisc_drop(struct Qdisc *sch)
-{
-	unsigned int prev_backlog;
-
-	prev_backlog = sch->qstats.backlog;
-	hhf_drop(sch);
-	return prev_backlog - sch->qstats.backlog;
-}
-
 static int hhf_enqueue(struct sk_buff *skb, struct Qdisc *sch)
 {
 	struct hhf_sched_data *q = qdisc_priv(sch);
@@ -709,7 +700,6 @@ static struct Qdisc_ops hhf_qdisc_ops __read_mostly = {
 	.enqueue	=	hhf_enqueue,
 	.dequeue	=	hhf_dequeue,
 	.peek		=	qdisc_peek_dequeued,
-	.drop		=	hhf_qdisc_drop,
 	.init		=	hhf_init,
 	.reset		=	hhf_reset,
 	.destroy	=	hhf_destroy,

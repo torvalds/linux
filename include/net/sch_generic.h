@@ -174,7 +174,6 @@ struct Qdisc_ops {
 	int 			(*enqueue)(struct sk_buff *, struct Qdisc *);
 	struct sk_buff *	(*dequeue)(struct Qdisc *);
 	struct sk_buff *	(*peek)(struct Qdisc *);
-	unsigned int		(*drop)(struct Qdisc *);
 
 	int			(*init)(struct Qdisc *, struct nlattr *arg);
 	void			(*reset)(struct Qdisc *);
@@ -658,22 +657,6 @@ static inline unsigned int qdisc_queue_drop_head(struct Qdisc *sch)
 	return __qdisc_queue_drop_head(sch, &sch->q);
 }
 
-static inline struct sk_buff *__qdisc_dequeue_tail(struct Qdisc *sch,
-						   struct sk_buff_head *list)
-{
-	struct sk_buff *skb = __skb_dequeue_tail(list);
-
-	if (likely(skb != NULL))
-		qdisc_qstats_backlog_dec(sch, skb);
-
-	return skb;
-}
-
-static inline struct sk_buff *qdisc_dequeue_tail(struct Qdisc *sch)
-{
-	return __qdisc_dequeue_tail(sch, &sch->q);
-}
-
 static inline struct sk_buff *qdisc_peek_head(struct Qdisc *sch)
 {
 	return skb_peek(&sch->q);
@@ -739,25 +722,6 @@ static inline struct Qdisc *qdisc_replace(struct Qdisc *sch, struct Qdisc *new,
 	sch_tree_unlock(sch);
 
 	return old;
-}
-
-static inline unsigned int __qdisc_queue_drop(struct Qdisc *sch,
-					      struct sk_buff_head *list)
-{
-	struct sk_buff *skb = __qdisc_dequeue_tail(sch, list);
-
-	if (likely(skb != NULL)) {
-		unsigned int len = qdisc_pkt_len(skb);
-		kfree_skb(skb);
-		return len;
-	}
-
-	return 0;
-}
-
-static inline unsigned int qdisc_queue_drop(struct Qdisc *sch)
-{
-	return __qdisc_queue_drop(sch, &sch->q);
 }
 
 static inline int qdisc_drop(struct sk_buff *skb, struct Qdisc *sch)

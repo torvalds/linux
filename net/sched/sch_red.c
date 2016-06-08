@@ -134,25 +134,6 @@ static struct sk_buff *red_peek(struct Qdisc *sch)
 	return child->ops->peek(child);
 }
 
-static unsigned int red_drop(struct Qdisc *sch)
-{
-	struct red_sched_data *q = qdisc_priv(sch);
-	struct Qdisc *child = q->qdisc;
-	unsigned int len;
-
-	if (child->ops->drop && (len = child->ops->drop(child)) > 0) {
-		q->stats.other++;
-		qdisc_qstats_drop(sch);
-		sch->q.qlen--;
-		return len;
-	}
-
-	if (!red_is_idling(&q->vars))
-		red_start_of_idle_period(&q->vars);
-
-	return 0;
-}
-
 static void red_reset(struct Qdisc *sch)
 {
 	struct red_sched_data *q = qdisc_priv(sch);
@@ -361,7 +342,6 @@ static struct Qdisc_ops red_qdisc_ops __read_mostly = {
 	.enqueue	=	red_enqueue,
 	.dequeue	=	red_dequeue,
 	.peek		=	red_peek,
-	.drop		=	red_drop,
 	.init		=	red_init,
 	.reset		=	red_reset,
 	.destroy	=	red_destroy,

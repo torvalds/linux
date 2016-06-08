@@ -421,26 +421,6 @@ out:
 	return NULL;
 }
 
-static unsigned int drr_drop(struct Qdisc *sch)
-{
-	struct drr_sched *q = qdisc_priv(sch);
-	struct drr_class *cl;
-	unsigned int len;
-
-	list_for_each_entry(cl, &q->active, alist) {
-		if (cl->qdisc->ops->drop) {
-			len = cl->qdisc->ops->drop(cl->qdisc);
-			if (len > 0) {
-				sch->q.qlen--;
-				if (cl->qdisc->q.qlen == 0)
-					list_del(&cl->alist);
-				return len;
-			}
-		}
-	}
-	return 0;
-}
-
 static int drr_init_qdisc(struct Qdisc *sch, struct nlattr *opt)
 {
 	struct drr_sched *q = qdisc_priv(sch);
@@ -509,7 +489,6 @@ static struct Qdisc_ops drr_qdisc_ops __read_mostly = {
 	.enqueue	= drr_enqueue,
 	.dequeue	= drr_dequeue,
 	.peek		= qdisc_peek_dequeued,
-	.drop		= drr_drop,
 	.init		= drr_init_qdisc,
 	.reset		= drr_reset_qdisc,
 	.destroy	= drr_destroy_qdisc,

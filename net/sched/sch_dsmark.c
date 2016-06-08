@@ -320,23 +320,6 @@ static struct sk_buff *dsmark_peek(struct Qdisc *sch)
 	return p->q->ops->peek(p->q);
 }
 
-static unsigned int dsmark_drop(struct Qdisc *sch)
-{
-	struct dsmark_qdisc_data *p = qdisc_priv(sch);
-	unsigned int len;
-
-	pr_debug("%s(sch %p,[qdisc %p])\n", __func__, sch, p);
-
-	if (p->q->ops->drop == NULL)
-		return 0;
-
-	len = p->q->ops->drop(p->q);
-	if (len)
-		sch->q.qlen--;
-
-	return len;
-}
-
 static int dsmark_init(struct Qdisc *sch, struct nlattr *opt)
 {
 	struct dsmark_qdisc_data *p = qdisc_priv(sch);
@@ -489,7 +472,6 @@ static struct Qdisc_ops dsmark_qdisc_ops __read_mostly = {
 	.enqueue	=	dsmark_enqueue,
 	.dequeue	=	dsmark_dequeue,
 	.peek		=	dsmark_peek,
-	.drop		=	dsmark_drop,
 	.init		=	dsmark_init,
 	.reset		=	dsmark_reset,
 	.destroy	=	dsmark_destroy,

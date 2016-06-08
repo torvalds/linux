@@ -1025,31 +1025,6 @@ static void cbq_link_class(struct cbq_class *this)
 	}
 }
 
-static unsigned int cbq_drop(struct Qdisc *sch)
-{
-	struct cbq_sched_data *q = qdisc_priv(sch);
-	struct cbq_class *cl, *cl_head;
-	int prio;
-	unsigned int len;
-
-	for (prio = TC_CBQ_MAXPRIO; prio >= 0; prio--) {
-		cl_head = q->active[prio];
-		if (!cl_head)
-			continue;
-
-		cl = cl_head;
-		do {
-			if (cl->q->ops->drop && (len = cl->q->ops->drop(cl->q))) {
-				sch->q.qlen--;
-				if (!cl->q->q.qlen)
-					cbq_deactivate_class(cl);
-				return len;
-			}
-		} while ((cl = cl->next_alive) != cl_head);
-	}
-	return 0;
-}
-
 static void
 cbq_reset(struct Qdisc *sch)
 {
@@ -1791,7 +1766,6 @@ static struct Qdisc_ops cbq_qdisc_ops __read_mostly = {
 	.enqueue	=	cbq_enqueue,
 	.dequeue	=	cbq_dequeue,
 	.peek		=	qdisc_peek_dequeued,
-	.drop		=	cbq_drop,
 	.init		=	cbq_init,
 	.reset		=	cbq_reset,
 	.destroy	=	cbq_destroy,

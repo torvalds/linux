@@ -1423,52 +1423,6 @@ static void qfq_qlen_notify(struct Qdisc *sch, unsigned long arg)
 		qfq_deactivate_class(q, cl);
 }
 
-static unsigned int qfq_drop_from_slot(struct qfq_sched *q,
-				       struct hlist_head *slot)
-{
-	struct qfq_aggregate *agg;
-	struct qfq_class *cl;
-	unsigned int len;
-
-	hlist_for_each_entry(agg, slot, next) {
-		list_for_each_entry(cl, &agg->active, alist) {
-
-			if (!cl->qdisc->ops->drop)
-				continue;
-
-			len = cl->qdisc->ops->drop(cl->qdisc);
-			if (len > 0) {
-				if (cl->qdisc->q.qlen == 0)
-					qfq_deactivate_class(q, cl);
-
-				return len;
-			}
-		}
-	}
-	return 0;
-}
-
-static unsigned int qfq_drop(struct Qdisc *sch)
-{
-	struct qfq_sched *q = qdisc_priv(sch);
-	struct qfq_group *grp;
-	unsigned int i, j, len;
-
-	for (i = 0; i <= QFQ_MAX_INDEX; i++) {
-		grp = &q->groups[i];
-		for (j = 0; j < QFQ_MAX_SLOTS; j++) {
-			len = qfq_drop_from_slot(q, &grp->slots[j]);
-			if (len > 0) {
-				sch->q.qlen--;
-				return len;
-			}
-		}
-
-	}
-
-	return 0;
-}
-
 static int qfq_init_qdisc(struct Qdisc *sch, struct nlattr *opt)
 {
 	struct qfq_sched *q = qdisc_priv(sch);
@@ -1563,7 +1517,6 @@ static struct Qdisc_ops qfq_qdisc_ops __read_mostly = {
 	.enqueue	= qfq_enqueue,
 	.dequeue	= qfq_dequeue,
 	.peek		= qdisc_peek_dequeued,
-	.drop		= qfq_drop,
 	.init		= qfq_init_qdisc,
 	.reset		= qfq_reset_qdisc,
 	.destroy	= qfq_destroy_qdisc,

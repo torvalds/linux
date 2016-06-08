@@ -1677,31 +1677,6 @@ hfsc_dequeue(struct Qdisc *sch)
 	return skb;
 }
 
-static unsigned int
-hfsc_drop(struct Qdisc *sch)
-{
-	struct hfsc_sched *q = qdisc_priv(sch);
-	struct hfsc_class *cl;
-	unsigned int len;
-
-	list_for_each_entry(cl, &q->droplist, dlist) {
-		if (cl->qdisc->ops->drop != NULL &&
-		    (len = cl->qdisc->ops->drop(cl->qdisc)) > 0) {
-			if (cl->qdisc->q.qlen == 0) {
-				update_vf(cl, 0, 0);
-				set_passive(cl);
-			} else {
-				list_move_tail(&cl->dlist, &q->droplist);
-			}
-			cl->qstats.drops++;
-			qdisc_qstats_drop(sch);
-			sch->q.qlen--;
-			return len;
-		}
-	}
-	return 0;
-}
-
 static const struct Qdisc_class_ops hfsc_class_ops = {
 	.change		= hfsc_change_class,
 	.delete		= hfsc_delete_class,
@@ -1728,7 +1703,6 @@ static struct Qdisc_ops hfsc_qdisc_ops __read_mostly = {
 	.enqueue	= hfsc_enqueue,
 	.dequeue	= hfsc_dequeue,
 	.peek		= qdisc_peek_dequeued,
-	.drop		= hfsc_drop,
 	.cl_ops		= &hfsc_class_ops,
 	.priv_size	= sizeof(struct hfsc_sched),
 	.owner		= THIS_MODULE
