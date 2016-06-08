@@ -30,6 +30,12 @@
 
 #include <drm/drm_crtc.h>
 
+void drm_crtc_commit_put(struct drm_crtc_commit *commit);
+static inline void drm_crtc_commit_get(struct drm_crtc_commit *commit)
+{
+	kref_get(&commit->ref);
+}
+
 struct drm_atomic_state * __must_check
 drm_atomic_state_alloc(struct drm_device *dev);
 void drm_atomic_state_clear(struct drm_atomic_state *state);

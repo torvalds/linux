@@ -31,6 +31,20 @@
 #include <drm/drm_mode.h>
 #include <drm/drm_plane_helper.h>
 
+static void crtc_commit_free(struct kref *kref)
+{
+	struct drm_crtc_commit *commit =
+		container_of(kref, struct drm_crtc_commit, ref);
+
+	kfree(commit);
+}
+
+void drm_crtc_commit_put(struct drm_crtc_commit *commit)
+{
+	kref_put(&commit->ref, crtc_commit_free);
+}
+EXPORT_SYMBOL(drm_crtc_commit_put);
+
 /**
  * drm_atomic_state_default_release -
  * release memory initialized by drm_atomic_state_init
@@ -176,6 +190,14 @@ void drm_atomic_state_default_clear(struct drm_atomic_state *state)
 
 		crtc->funcs->atomic_destroy_state(crtc,
 						  state->crtc_states[i]);
+
+		if (state->crtcs[i].commit) {
+			kfree(state->crtcs[i].commit->event);
+			state->crtcs[i].commit->event = NULL;
+			drm_crtc_commit_put(state->crtcs[i].commit);
+		}
+
+		state->crtcs[i].commit = NULL;
 		state->crtcs[i] = NULL;
 		state->crtc_states[i] = NULL;
 	}
