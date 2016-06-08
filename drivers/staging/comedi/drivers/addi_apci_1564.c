@@ -77,6 +77,7 @@
 #define APCI1564_DI_REG				0x00
 #define APCI1564_DI_INT_MODE1_REG		0x04
 #define APCI1564_DI_INT_MODE2_REG		0x08
+#define APCI1564_DI_INT_MODE_MASK		0x000ffff0 /* chans [19:4] */
 #define APCI1564_DI_INT_STATUS_REG		0x0c
 #define APCI1564_DI_IRQ_REG			0x10
 #define APCI1564_DI_IRQ_ENA			BIT(2)
@@ -111,11 +112,18 @@
  */
 #define APCI1564_COUNTER(x)			((x) * 0x20)
 
+/*
+ * The dev->read_subdev is used to return the interrupt events along with
+ * the state of the interrupt capable inputs.
+ */
+#define APCI1564_EVENT_COS			BIT(31)
+#define APCI1564_EVENT_MASK			0xfff0000f /* all but [19:4] */
+
 struct apci1564_private {
 	unsigned long eeprom;	/* base address of EEPROM register */
 	unsigned long timer;	/* base address of 12-bit timer */
 	unsigned long counters;	/* base address of 32-bit counters */
-	unsigned int mode1;	/* riding-edge/high level channels */
+	unsigned int mode1;	/* rising-edge/high level channels */
 	unsigned int mode2;	/* falling-edge/low level channels */
 	unsigned int ctrl;	/* interrupt mode OR (edge) . AND (level) */
 	struct task_struct *tsk_current;
@@ -165,18 +173,18 @@ static irqreturn_t apci1564_interrupt(int irq, void *d)
 	unsigned int ctrl;
 	unsigned int chan;
 
+	s->state &= ~APCI1564_EVENT_MASK;
+
 	status = inl(dev->iobase + APCI1564_DI_IRQ_REG);
 	if (status & APCI1564_DI_IRQ_ENA) {
-		/* disable the interrupt */
+		/* get the COS interrupt state and set the event flag */
+		s->state = inl(dev->iobase + APCI1564_DI_INT_STATUS_REG);
+		s->state &= APCI1564_DI_INT_MODE_MASK;
+		s->state |= APCI1564_EVENT_COS;
+
+		/* clear the interrupt */
 		outl(status & ~APCI1564_DI_IRQ_ENA,
 		     dev->iobase + APCI1564_DI_IRQ_REG);
-
-		s->state = inl(dev->iobase + APCI1564_DI_INT_STATUS_REG) &
-			   0xffff;
-		comedi_buf_write_samples(s, &s->state, 1);
-		comedi_handle_events(dev, s);
-
-		/* enable the interrupt */
 		outl(status, dev->iobase + APCI1564_DI_IRQ_REG);
 	}
 
@@ -212,6 +220,11 @@ static irqreturn_t apci1564_interrupt(int irq, void *d)
 				outl(ctrl, iobase + ADDI_TCW_CTRL_REG);
 			}
 		}
+	}
+
+	if (s->state & APCI1564_EVENT_MASK) {
+		comedi_buf_write_samples(s, &s->state, 1);
+		comedi_handle_events(dev, s);
 	}
 
 	return IRQ_HANDLED;
@@ -255,7 +268,7 @@ static int apci1564_diag_insn_bits(struct comedi_device *dev,
 /*
  * Change-Of-State (COS) interrupt configuration
  *
- * Channels 0 to 15 are interruptible. These channels can be configured
+ * Channels 4 to 19 are interruptible. These channels can be configured
  * to generate interrupts based on AND/OR logic for the desired channels.
  *
  *	OR logic
@@ -343,6 +356,10 @@ static int apci1564_cos_insn_config(struct comedi_device *dev,
 		default:
 			return -EINVAL;
 		}
+
+		/* ensure the mode bits are in-range for channels [19:4] */
+		devpriv->mode1 &= APCI1564_DI_INT_MODE_MASK;
+		devpriv->mode2 &= APCI1564_DI_INT_MODE_MASK;
 		break;
 	default:
 		return -EINVAL;
@@ -409,7 +426,7 @@ static int apci1564_cos_cmd(struct comedi_device *dev,
 {
 	struct apci1564_private *devpriv = dev->private;
 
-	if (!devpriv->ctrl) {
+	if (!devpriv->ctrl && !(devpriv->mode1 || devpriv->mode2)) {
 		dev_warn(dev->class_dev,
 			 "Interrupts disabled due to mode configuration!\n");
 		return -EINVAL;
@@ -501,7 +518,7 @@ static int apci1564_auto_attach(struct comedi_device *dev,
 	if (dev->irq) {
 		dev->read_subdev = s;
 		s->type		= COMEDI_SUBD_DI;
-		s->subdev_flags	= SDF_READABLE | SDF_CMD_READ;
+		s->subdev_flags	= SDF_READABLE | SDF_CMD_READ | SDF_LSAMPL;
 		s->n_chan	= 1;
 		s->maxdata	= 1;
 		s->range_table	= &range_digital;
