@@ -719,7 +719,7 @@ static void sti_gdp_atomic_update(struct drm_plane *drm_plane,
 	u32 dma_updated_top;
 	u32 dma_updated_btm;
 	int format;
-	unsigned int depth, bpp;
+	unsigned int bpp;
 	u32 ydo, xdo, yds, xds;
 
 	if (!crtc || !fb)
@@ -758,9 +758,9 @@ static void sti_gdp_atomic_update(struct drm_plane *drm_plane,
 			 (unsigned long)cma_obj->paddr);
 
 	/* pixel memory location */
-	drm_fb_get_bpp_depth(fb->pixel_format, &depth, &bpp);
+	bpp = drm_format_plane_cpp(fb->pixel_format, 0);
 	top_field->gam_gdp_pml = (u32)cma_obj->paddr + fb->offsets[0];
-	top_field->gam_gdp_pml += src_x * (bpp >> 3);
+	top_field->gam_gdp_pml += src_x * bpp;
 	top_field->gam_gdp_pml += src_y * fb->pitches[0];
 
 	/* output parameters (clamped / cropped) */
