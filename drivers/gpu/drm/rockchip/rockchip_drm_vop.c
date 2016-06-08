@@ -502,6 +502,8 @@ static void vop_crtc_disable(struct drm_crtc *crtc)
 	struct vop *vop = to_vop(crtc);
 	int i;
 
+	WARN_ON(vop->event);
+
 	/*
 	 * We need to make sure that all windows are disabled before we
 	 * disable that crtc. Otherwise we might try to scan from a destroyed
@@ -551,6 +553,14 @@ static void vop_crtc_disable(struct drm_crtc *crtc)
 	clk_disable(vop->aclk);
 	clk_disable(vop->hclk);
 	pm_runtime_put(vop->dev);
+
+	if (crtc->state->event && !crtc->state->active) {
+		spin_lock_irq(&crtc->dev->event_lock);
+		drm_crtc_send_vblank_event(crtc, crtc->state->event);
+		spin_unlock_irq(&crtc->dev->event_lock);
+
+		crtc->state->event = NULL;
+	}
 }
 
 static void vop_plane_destroy(struct drm_plane *plane)
@@ -939,6 +949,8 @@ static void vop_crtc_enable(struct drm_crtc *crtc)
 	u16 vact_end = vact_st + vdisplay;
 	uint32_t val;
 
+	WARN_ON(vop->event);
+
 	vop_enable(crtc);
 	/*
 	 * If dclk rate is zero, mean that scanout is stop,
@@ -1035,12 +1047,15 @@ static void vop_crtc_atomic_begin(struct drm_crtc *crtc,
 {
 	struct vop *vop = to_vop(crtc);
 
+	spin_lock_irq(&crtc->dev->event_lock);
 	if (crtc->state->event) {
 		WARN_ON(drm_crtc_vblank_get(crtc) != 0);
+		WARN_ON(vop->event);
 
 		vop->event = crtc->state->event;
 		crtc->state->event = NULL;
 	}
+	spin_unlock_irq(&crtc->dev->event_lock);
 }
 
 static const struct drm_crtc_helper_funcs vop_crtc_helper_funcs = {
@@ -1110,15 +1125,16 @@ static void vop_handle_vblank(struct vop *vop)
 			return;
 	}
 
+	spin_lock_irqsave(&drm->event_lock, flags);
 	if (vop->event) {
-		spin_lock_irqsave(&drm->event_lock, flags);
 
 		drm_crtc_send_vblank_event(crtc, vop->event);
 		drm_crtc_vblank_put(crtc);
 		vop->event = NULL;
 
-		spin_unlock_irqrestore(&drm->event_lock, flags);
 	}
+	spin_unlock_irqrestore(&drm->event_lock, flags);
+
 	if (!completion_done(&vop->wait_update_complete))
 		complete(&vop->wait_update_complete);
 }
