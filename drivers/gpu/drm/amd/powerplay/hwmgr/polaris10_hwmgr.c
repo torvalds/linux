@@ -2252,6 +2252,9 @@ static int polaris10_enable_deep_sleep_master_switch(struct pp_hwmgr *hwmgr)
 static int polaris10_enable_sclk_mclk_dpm(struct pp_hwmgr *hwmgr)
 {
 	struct polaris10_hwmgr *data = (struct polaris10_hwmgr *)(hwmgr->backend);
+	uint32_t soft_register_value = 0;
+	uint32_t handshake_disables_offset = data->soft_regs_start
+				+ offsetof(SMU74_SoftRegisters, HandshakeDisables);
 
 	/* enable SCLK dpm */
 	if (!data->sclk_dpm_key_disabled)
@@ -2262,6 +2265,12 @@ static int polaris10_enable_sclk_mclk_dpm(struct pp_hwmgr *hwmgr)
 
 	/* enable MCLK dpm */
 	if (0 == data->mclk_dpm_key_disabled) {
+/* Disable UVD - SMU handshake for MCLK. */
+		soft_register_value = cgs_read_ind_register(hwmgr->device,
+					CGS_IND_REG__SMC, handshake_disables_offset);
+		soft_register_value |= SMU7_UVD_MCLK_HANDSHAKE_DISABLE;
+		cgs_write_ind_register(hwmgr->device, CGS_IND_REG__SMC,
+				handshake_disables_offset, soft_register_value);
 
 		PP_ASSERT_WITH_CODE(
 				(0 == smum_send_msg_to_smc(hwmgr->smumgr,
