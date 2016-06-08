@@ -117,6 +117,7 @@
  * the state of the interrupt capable inputs.
  */
 #define APCI1564_EVENT_COS			BIT(31)
+#define APCI1564_EVENT_TIMER			BIT(30)
 #define APCI1564_EVENT_MASK			0xfff0000f /* all but [19:4] */
 
 struct apci1564_private {
@@ -189,15 +190,12 @@ static irqreturn_t apci1564_interrupt(int irq, void *d)
 	}
 
 	status = inl(devpriv->timer + ADDI_TCW_IRQ_REG);
-	if (status & 0x01) {
-		/*  Disable Timer Interrupt */
+	if (status & ADDI_TCW_IRQ) {
+		s->state |= APCI1564_EVENT_TIMER;
+
+		/* clear the interrupt */
 		ctrl = inl(devpriv->timer + ADDI_TCW_CTRL_REG);
 		outl(0x0, devpriv->timer + ADDI_TCW_CTRL_REG);
-
-		/* Send a signal to from kernel to user space */
-		send_sig(SIGIO, devpriv->tsk_current, 0);
-
-		/*  Enable Timer Interrupt */
 		outl(ctrl, devpriv->timer + ADDI_TCW_CTRL_REG);
 	}
 
