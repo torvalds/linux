@@ -10,6 +10,7 @@
  */
 
 #include <linux/netdevice.h>
+#include <net/fib_rules.h>
 #include <net/l3mdev.h>
 
 /**
@@ -160,3 +161,40 @@ int l3mdev_get_saddr(struct net *net, int ifindex, struct flowi4 *fl4)
 	return rc;
 }
 EXPORT_SYMBOL_GPL(l3mdev_get_saddr);
+
+/**
+ *	l3mdev_fib_rule_match - Determine if flowi references an
+ *				L3 master device
+ *	@net: network namespace for device index lookup
+ *	@fl:  flow struct
+ */
+
+int l3mdev_fib_rule_match(struct net *net, struct flowi *fl,
+			  struct fib_lookup_arg *arg)
+{
+	struct net_device *dev;
+	int rc = 0;
+
+	rcu_read_lock();
+
+	dev = dev_get_by_index_rcu(net, fl->flowi_oif);
+	if (dev && netif_is_l3_master(dev) &&
+	    dev->l3mdev_ops->l3mdev_fib_table) {
+		arg->table = dev->l3mdev_ops->l3mdev_fib_table(dev);
+		rc = 1;
+		goto out;
+	}
+
+	dev = dev_get_by_index_rcu(net, fl->flowi_iif);
+	if (dev && netif_is_l3_master(dev) &&
+	    dev->l3mdev_ops->l3mdev_fib_table) {
+		arg->table = dev->l3mdev_ops->l3mdev_fib_table(dev);
+		rc = 1;
+		goto out;
+	}
+
+out:
+	rcu_read_unlock();
+
+	return rc;
+}
