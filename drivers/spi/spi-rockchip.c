@@ -578,7 +578,7 @@ static int rockchip_spi_transfer_one(
 		struct spi_device *spi,
 		struct spi_transfer *xfer)
 {
-	int ret = 1;
+	int ret = 0;
 	struct rockchip_spi *rs = spi_master_get_devdata(master);
 
 	WARN_ON(readl_relaxed(rs->regs + ROCKCHIP_SPI_SSIENR) &&
@@ -627,6 +627,8 @@ static int rockchip_spi_transfer_one(
 			spi_enable_chip(rs, 1);
 			ret = rockchip_spi_prepare_dma(rs);
 		}
+		/* successful DMA prepare means the transfer is in progress */
+		ret = ret ? ret : 1;
 	} else {
 		spi_enable_chip(rs, 1);
 		ret = rockchip_spi_pio_transfer(rs);
