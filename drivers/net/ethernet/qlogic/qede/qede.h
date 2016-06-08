@@ -304,6 +304,9 @@ union qede_reload_args {
 	u16 mtu;
 };
 
+#ifdef CONFIG_DCB
+void qede_set_dcbnl_ops(struct net_device *ndev);
+#endif
 void qede_config_debug(uint debug, u32 *p_dp_module, u8 *p_dp_level);
 void qede_set_ethtool_ops(struct net_device *netdev);
 void qede_reload(struct qede_dev *edev,

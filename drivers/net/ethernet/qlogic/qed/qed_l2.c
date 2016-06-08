@@ -2166,10 +2166,17 @@ static int qed_fp_cqe_completion(struct qed_dev *dev,
 extern const struct qed_iov_hv_ops qed_iov_ops_pass;
 #endif
 
+#ifdef CONFIG_DCB
+extern const struct qed_eth_dcbnl_ops qed_dcbnl_ops_pass;
+#endif
+
 static const struct qed_eth_ops qed_eth_ops_pass = {
 	.common = &qed_common_ops_pass,
 #ifdef CONFIG_QED_SRIOV
 	.iov = &qed_iov_ops_pass,
+#endif
+#ifdef CONFIG_DCB
+	.dcb = &qed_dcbnl_ops_pass,
 #endif
 	.fill_dev_info = &qed_fill_eth_dev_info,
 	.register_ops = &qed_register_eth_ops,

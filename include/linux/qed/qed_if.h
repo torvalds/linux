@@ -34,6 +34,96 @@ enum dcbx_protocol_type {
 	DCBX_MAX_PROTOCOL_TYPE
 };
 
+#ifdef CONFIG_DCB
+#define QED_LLDP_CHASSIS_ID_STAT_LEN 4
+#define QED_LLDP_PORT_ID_STAT_LEN 4
+#define QED_DCBX_MAX_APP_PROTOCOL 32
+#define QED_MAX_PFC_PRIORITIES 8
+#define QED_DCBX_DSCP_SIZE 64
+
+struct qed_dcbx_lldp_remote {
+	u32 peer_chassis_id[QED_LLDP_CHASSIS_ID_STAT_LEN];
+	u32 peer_port_id[QED_LLDP_PORT_ID_STAT_LEN];
+	bool enable_rx;
+	bool enable_tx;
+	u32 tx_interval;
+	u32 max_credit;
+};
+
+struct qed_dcbx_lldp_local {
+	u32 local_chassis_id[QED_LLDP_CHASSIS_ID_STAT_LEN];
+	u32 local_port_id[QED_LLDP_PORT_ID_STAT_LEN];
+};
+
+struct qed_dcbx_app_prio {
+	u8 roce;
+	u8 roce_v2;
+	u8 fcoe;
+	u8 iscsi;
+	u8 eth;
+};
+
+struct qed_dbcx_pfc_params {
+	bool willing;
+	bool enabled;
+	u8 prio[QED_MAX_PFC_PRIORITIES];
+	u8 max_tc;
+};
+
+struct qed_app_entry {
+	bool ethtype;
+	bool enabled;
+	u8 prio;
+	u16 proto_id;
+	enum dcbx_protocol_type proto_type;
+};
+
+struct qed_dcbx_params {
+	struct qed_app_entry app_entry[QED_DCBX_MAX_APP_PROTOCOL];
+	u16 num_app_entries;
+	bool app_willing;
+	bool app_valid;
+	bool app_error;
+	bool ets_willing;
+	bool ets_enabled;
+	bool ets_cbs;
+	bool valid;
+	u8 ets_pri_tc_tbl[QED_MAX_PFC_PRIORITIES];
+	u8 ets_tc_bw_tbl[QED_MAX_PFC_PRIORITIES];
+	u8 ets_tc_tsa_tbl[QED_MAX_PFC_PRIORITIES];
+	struct qed_dbcx_pfc_params pfc;
+	u8 max_ets_tc;
+};
+
+struct qed_dcbx_admin_params {
+	struct qed_dcbx_params params;
+	bool valid;
+};
+
+struct qed_dcbx_remote_params {
+	struct qed_dcbx_params params;
+	bool valid;
+};
+
+struct qed_dcbx_operational_params {
+	struct qed_dcbx_app_prio app_prio;
+	struct qed_dcbx_params params;
+	bool valid;
+	bool enabled;
+	bool ieee;
+	bool cee;
+	u32 err;
+};
+
+struct qed_dcbx_get {
+	struct qed_dcbx_operational_params operational;
+	struct qed_dcbx_lldp_remote lldp_remote;
+	struct qed_dcbx_lldp_local lldp_local;
+	struct qed_dcbx_remote_params remote;
+	struct qed_dcbx_admin_params local;
+};
+#endif
+
 enum qed_led_mode {
 	QED_LED_MODE_OFF,
 	QED_LED_MODE_ON,
