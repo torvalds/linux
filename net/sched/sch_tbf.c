@@ -166,7 +166,7 @@ static int tbf_segment(struct sk_buff *skb, struct Qdisc *sch)
 	segs = skb_gso_segment(skb, features & ~NETIF_F_GSO_MASK);
 
 	if (IS_ERR_OR_NULL(segs))
-		return qdisc_reshape_fail(skb, sch);
+		return qdisc_drop(skb, sch);
 
 	nb = 0;
 	while (segs) {
@@ -198,7 +198,7 @@ static int tbf_enqueue(struct sk_buff *skb, struct Qdisc *sch)
 	if (qdisc_pkt_len(skb) > q->max_size) {
 		if (skb_is_gso(skb) && skb_gso_mac_seglen(skb) <= q->max_size)
 			return tbf_segment(skb, sch);
-		return qdisc_reshape_fail(skb, sch);
+		return qdisc_drop(skb, sch);
 	}
 	ret = qdisc_enqueue(skb, q->qdisc);
 	if (ret != NET_XMIT_SUCCESS) {

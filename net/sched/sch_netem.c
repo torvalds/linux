@@ -407,7 +407,7 @@ static struct sk_buff *netem_segment(struct sk_buff *skb, struct Qdisc *sch)
 	segs = skb_gso_segment(skb, features & ~NETIF_F_GSO_MASK);
 
 	if (IS_ERR_OR_NULL(segs)) {
-		qdisc_reshape_fail(skb, sch);
+		qdisc_drop(skb, sch);
 		return NULL;
 	}
 	consume_skb(skb);
@@ -499,7 +499,7 @@ static int netem_enqueue(struct sk_buff *skb, struct Qdisc *sch)
 	}
 
 	if (unlikely(skb_queue_len(&sch->q) >= sch->limit))
-		return qdisc_reshape_fail(skb, sch);
+		return qdisc_drop(skb, sch);
 
 	qdisc_qstats_backlog_inc(sch, skb);
 

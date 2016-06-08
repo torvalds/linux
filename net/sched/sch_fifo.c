@@ -24,7 +24,7 @@ static int bfifo_enqueue(struct sk_buff *skb, struct Qdisc *sch)
 	if (likely(sch->qstats.backlog + qdisc_pkt_len(skb) <= sch->limit))
 		return qdisc_enqueue_tail(skb, sch);
 
-	return qdisc_reshape_fail(skb, sch);
+	return qdisc_drop(skb, sch);
 }
 
 static int pfifo_enqueue(struct sk_buff *skb, struct Qdisc *sch)
@@ -32,7 +32,7 @@ static int pfifo_enqueue(struct sk_buff *skb, struct Qdisc *sch)
 	if (likely(skb_queue_len(&sch->q) < sch->limit))
 		return qdisc_enqueue_tail(skb, sch);
 
-	return qdisc_reshape_fail(skb, sch);
+	return qdisc_drop(skb, sch);
 }
 
 static int pfifo_tail_enqueue(struct sk_buff *skb, struct Qdisc *sch)

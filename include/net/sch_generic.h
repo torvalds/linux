@@ -63,9 +63,6 @@ struct Qdisc {
 	struct list_head	list;
 	u32			handle;
 	u32			parent;
-	int			(*reshape_fail)(struct sk_buff *skb,
-					struct Qdisc *q);
-
 	void			*u32_node;
 
 	struct netdev_queue	*dev_queue;
@@ -768,22 +765,6 @@ static inline int qdisc_drop(struct sk_buff *skb, struct Qdisc *sch)
 	kfree_skb(skb);
 	qdisc_qstats_drop(sch);
 
-	return NET_XMIT_DROP;
-}
-
-static inline int qdisc_reshape_fail(struct sk_buff *skb, struct Qdisc *sch)
-{
-	qdisc_qstats_drop(sch);
-
-#ifdef CONFIG_NET_CLS_ACT
-	if (sch->reshape_fail == NULL || sch->reshape_fail(skb, sch))
-		goto drop;
-
-	return NET_XMIT_SUCCESS;
-
-drop:
-#endif
-	kfree_skb(skb);
 	return NET_XMIT_DROP;
 }
 

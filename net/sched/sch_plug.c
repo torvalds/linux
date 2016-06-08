@@ -96,7 +96,7 @@ static int plug_enqueue(struct sk_buff *skb, struct Qdisc *sch)
 		return qdisc_enqueue_tail(skb, sch);
 	}
 
-	return qdisc_reshape_fail(skb, sch);
+	return qdisc_drop(skb, sch);
 }
 
 static struct sk_buff *plug_dequeue(struct Qdisc *sch)
