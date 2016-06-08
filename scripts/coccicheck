@@ -98,7 +98,7 @@ run_cmd() {
 }
 
 kill_running() {
-	for i in $(seq $(( NPROC - 1 )) ); do
+	for i in $(seq 0 $(( NPROC - 1 )) ); do
 		if [ $VERBOSE -eq 2 ] ; then
 			echo "Killing ${SPATCH_PID[$i]}"
 		fi

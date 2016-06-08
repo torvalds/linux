@@ -212,7 +212,7 @@ extern int udf_get_filename(struct super_block *, const uint8_t *, int,
 			    uint8_t *, int);
 extern int udf_put_filename(struct super_block *, const uint8_t *, int,
 			    uint8_t *, int);
-extern int udf_CS0toUTF8(uint8_t *, int, const uint8_t *, int);
+extern int udf_dstrCS0toUTF8(uint8_t *, int, const uint8_t *, int);
 
 /* ialloc.c */
 extern void udf_free_inode(struct inode *);

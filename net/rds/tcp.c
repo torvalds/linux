@@ -127,7 +127,7 @@ void rds_tcp_restore_callbacks(struct socket *sock,
 
 /*
  * This is the only path that sets tc->t_sock.  Send and receive trust that
- * it is set.  The RDS_CONN_CONNECTED bit protects those paths from being
+ * it is set.  The RDS_CONN_UP bit protects those paths from being
  * called while it isn't set.
  */
 void rds_tcp_set_callbacks(struct socket *sock, struct rds_connection *conn)
@@ -216,6 +216,7 @@ static int rds_tcp_conn_alloc(struct rds_connection *conn, gfp_t gfp)
 	if (!tc)
 		return -ENOMEM;
 
+	mutex_init(&tc->t_conn_lock);
 	tc->t_sock = NULL;
 	tc->t_tinc = NULL;
 	tc->t_tinc_hdr_rem = sizeof(struct rds_header);

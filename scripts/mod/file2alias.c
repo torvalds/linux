@@ -371,6 +371,49 @@ static void do_usb_table(void *symval, unsigned long size,
 		do_usb_entry_multi(symval + i, mod);
 }
 
+static void do_of_entry_multi(void *symval, struct module *mod)
+{
+	char alias[500];
+	int len;
+	char *tmp;
+
+	DEF_FIELD_ADDR(symval, of_device_id, name);
+	DEF_FIELD_ADDR(symval, of_device_id, type);
+	DEF_FIELD_ADDR(symval, of_device_id, compatible);
+
+	len = sprintf(alias, "of:N%sT%s", (*name)[0] ? *name : "*",
+		      (*type)[0] ? *type : "*");
+
+	if (compatible[0])
+		sprintf(&alias[len], "%sC%s", (*type)[0] ? "*" : "",
+			*compatible);
+
+	/* Replace all whitespace with underscores */
+	for (tmp = alias; tmp && *tmp; tmp++)
+		if (isspace(*tmp))
+			*tmp = '_';
+
+	buf_printf(&mod->dev_table_buf, "MODULE_ALIAS(\"%s\");\n", alias);
+	strcat(alias, "C");
+	add_wildcard(alias);
+	buf_printf(&mod->dev_table_buf, "MODULE_ALIAS(\"%s\");\n", alias);
+}
+
+static void do_of_table(void *symval, unsigned long size,
+			struct module *mod)
+{
+	unsigned int i;
+	const unsigned long id_size = SIZE_of_device_id;
+
+	device_id_check(mod->name, "of", size, id_size, symval);
+
+	/* Leave last one: it's the terminator. */
+	size -= id_size;
+
+	for (i = 0; i < size; i += id_size)
+		do_of_entry_multi(symval + i, mod);
+}
+
 /* Looks like: hid:bNvNpN */
 static int do_hid_entry(const char *filename,
 			     void *symval, char *alias)
@@ -683,30 +726,6 @@ static int do_pcmcia_entry(const char *filename,
 	return 1;
 }
 ADD_TO_DEVTABLE("pcmcia", pcmcia_device_id, do_pcmcia_entry);
-
-static int do_of_entry (const char *filename, void *symval, char *alias)
-{
-	int len;
-	char *tmp;
-	DEF_FIELD_ADDR(symval, of_device_id, name);
-	DEF_FIELD_ADDR(symval, of_device_id, type);
-	DEF_FIELD_ADDR(symval, of_device_id, compatible);
-
-	len = sprintf(alias, "of:N%sT%s", (*name)[0] ? *name : "*",
-		      (*type)[0] ? *type : "*");
-
-	if (compatible[0])
-		sprintf(&alias[len], "%sC%s", (*type)[0] ? "*" : "",
-			*compatible);
-
-	/* Replace all whitespace with underscores */
-	for (tmp = alias; tmp && *tmp; tmp++)
-		if (isspace (*tmp))
-			*tmp = '_';
-
-	return 1;
-}
-ADD_TO_DEVTABLE("of", of_device_id, do_of_entry);
 
 static int do_vio_entry(const char *filename, void *symval,
 		char *alias)
@@ -1348,6 +1367,8 @@ void handle_moddevtable(struct module *mod, struct elf_info *info,
 	/* First handle the "special" cases */
 	if (sym_is(name, namelen, "usb"))
 		do_usb_table(symval, sym->st_size, mod);
+	if (sym_is(name, namelen, "of"))
+		do_of_table(symval, sym->st_size, mod);
 	else if (sym_is(name, namelen, "pnp"))
 		do_pnp_device_entry(symval, sym->st_size, mod);
 	else if (sym_is(name, namelen, "pnp_card"))

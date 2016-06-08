@@ -120,9 +120,14 @@ static int ext4_ext_truncate_extend_restart(handle_t *handle,
 
 	if (!ext4_handle_valid(handle))
 		return 0;
-	if (handle->h_buffer_credits > needed)
+	if (handle->h_buffer_credits >= needed)
 		return 0;
-	err = ext4_journal_extend(handle, needed);
+	/*
+	 * If we need to extend the journal get a few extra blocks
+	 * while we're at it for efficiency's sake.
+	 */
+	needed += 3;
+	err = ext4_journal_extend(handle, needed - handle->h_buffer_credits);
 	if (err <= 0)
 		return err;
 	err = ext4_truncate_restart_trans(handle, inode, needed);
@@ -907,13 +912,6 @@ ext4_find_extent(struct inode *inode, ext4_lblk_t block,
 
 		eh = ext_block_hdr(bh);
 		ppos++;
-		if (unlikely(ppos > depth)) {
-			put_bh(bh);
-			EXT4_ERROR_INODE(inode,
-					 "ppos %d > depth %d", ppos, depth);
-			ret = -EFSCORRUPTED;
-			goto err;
-		}
 		path[ppos].p_bh = bh;
 		path[ppos].p_hdr = eh;
 	}
@@ -2583,7 +2581,7 @@ static int ext4_remove_blocks(handle_t *handle, struct inode *inode,
 		}
 	} else
 		ext4_error(sbi->s_sb, "strange request: removal(2) "
-			   "%u-%u from %u:%u\n",
+			   "%u-%u from %u:%u",
 			   from, to, le32_to_cpu(ex->ee_block), ee_len);
 	return 0;
 }
@@ -3738,7 +3736,7 @@ static int ext4_convert_unwritten_extents_endio(handle_t *handle,
 	if (ee_block != map->m_lblk || ee_len > map->m_len) {
 #ifdef EXT4_DEBUG
 		ext4_warning("Inode (%ld) finished: extent logical block %llu,"
-			     " len %u; IO logical block %llu, len %u\n",
+			     " len %u; IO logical block %llu, len %u",
 			     inode->i_ino, (unsigned long long)ee_block, ee_len,
 			     (unsigned long long)map->m_lblk, map->m_len);
 #endif

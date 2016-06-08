@@ -217,7 +217,8 @@ static u32 initiate_file_draining(struct nfs_client *clp,
 	}
 
 	if (pnfs_mark_matching_lsegs_return(lo, &free_me_list,
-					&args->cbl_range)) {
+				&args->cbl_range,
+				be32_to_cpu(args->cbl_stateid.seqid))) {
 		rv = NFS4_OK;
 		goto unlock;
 	}
@@ -500,8 +501,10 @@ __be32 nfs4_callback_sequence(struct cb_sequenceargs *args,
 	cps->slot = slot;
 
 	/* The ca_maxresponsesize_cached is 0 with no DRC */
-	if (args->csa_cachethis != 0)
-		return htonl(NFS4ERR_REP_TOO_BIG_TO_CACHE);
+	if (args->csa_cachethis != 0) {
+		status = htonl(NFS4ERR_REP_TOO_BIG_TO_CACHE);
+		goto out_unlock;
+	}
 
 	/*
 	 * Check for pending referring calls.  If a match is found, a

@@ -23,6 +23,8 @@
 #include <linux/regmap.h>
 #include <linux/slab.h>
 
+#include "internal.h"
+
 struct regmap_mmio_context {
 	void __iomem *regs;
 	unsigned val_bytes;
@@ -212,6 +214,7 @@ static const struct regmap_bus regmap_mmio = {
 	.reg_write = regmap_mmio_write,
 	.reg_read = regmap_mmio_read,
 	.free_context = regmap_mmio_free_context,
+	.val_format_endian_default = REGMAP_ENDIAN_LITTLE,
 };
 
 static struct regmap_mmio_context *regmap_mmio_gen_context(struct device *dev,
@@ -245,7 +248,7 @@ static struct regmap_mmio_context *regmap_mmio_gen_context(struct device *dev,
 	ctx->val_bytes = config->val_bits / 8;
 	ctx->clk = ERR_PTR(-ENODEV);
 
-	switch (config->reg_format_endian) {
+	switch (regmap_get_val_endian(dev, &regmap_mmio, config)) {
 	case REGMAP_ENDIAN_DEFAULT:
 	case REGMAP_ENDIAN_LITTLE:
 #ifdef __LITTLE_ENDIAN

@@ -1,6 +1,9 @@
 /*
  * Copyright (C) 2011 matt mooney <mfm@muteddisk.com>
  *               2005-2007 Takahiro Hirofuchi
+ * Copyright (C) 2015-2016 Samsung Electronics
+ *               Igor Kotrasinski <i.kotrasinsk@samsung.com>
+ *               Krzysztof Opasiak <k.opasiak@samsung.com>
  *
  * This program is free software: you can redistribute it and/or modify
  * it under the terms of the GNU General Public License as published by
@@ -22,28 +25,8 @@
 #include <stdint.h>
 #include "usbip_common.h"
 #include "list.h"
+#include "usbip_host_common.h"
 
-struct usbip_host_driver {
-	int ndevs;
-	/* list of exported device */
-	struct list_head edev_list;
-};
-
-struct usbip_exported_device {
-	struct udev_device *sudev;
-	int32_t status;
-	struct usbip_usb_device udev;
-	struct list_head node;
-	struct usbip_usb_interface uinf[];
-};
-
-extern struct usbip_host_driver *host_driver;
-
-int usbip_host_driver_open(void);
-void usbip_host_driver_close(void);
-
-int usbip_host_refresh_device_list(void);
-int usbip_host_export_device(struct usbip_exported_device *edev, int sockfd);
-struct usbip_exported_device *usbip_host_get_device(int num);
+extern struct usbip_host_driver host_driver;
 
 #endif /* __USBIP_HOST_DRIVER_H */

@@ -212,7 +212,14 @@ struct hist_entry;
 int record_parse_callchain_opt(const struct option *opt, const char *arg, int unset);
 int record_callchain_opt(const struct option *opt, const char *arg, int unset);
 
-int sample__resolve_callchain(struct perf_sample *sample, struct symbol **parent,
+struct record_opts;
+
+int record_opts__parse_callchain(struct record_opts *record,
+				 struct callchain_param *callchain,
+				 const char *arg, bool unset);
+
+int sample__resolve_callchain(struct perf_sample *sample,
+			      struct callchain_cursor *cursor, struct symbol **parent,
 			      struct perf_evsel *evsel, struct addr_location *al,
 			      int max_stack);
 int hist_entry__append_callchain(struct hist_entry *he, struct perf_sample *sample);

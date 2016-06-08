@@ -423,8 +423,10 @@
 #define __NR_setsockopt		355
 #define __NR_mlock2		356
 #define __NR_copy_file_range	357
+#define __NR_preadv2		358
+#define __NR_pwritev2		359
 
-#define NR_syscalls		358
+#define NR_syscalls		360
 
 /* Bitmask values returned from kern_features system call.  */
 #define KERN_FEATURE_MIXED_MODE_STACK	0x00000001

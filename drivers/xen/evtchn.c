@@ -316,7 +316,6 @@ static int evtchn_resize_ring(struct per_user_data *u)
 {
 	unsigned int new_size;
 	evtchn_port_t *new_ring, *old_ring;
-	unsigned int p, c;
 
 	/*
 	 * Ensure the ring is large enough to capture all possible
@@ -346,20 +345,17 @@ static int evtchn_resize_ring(struct per_user_data *u)
 	/*
 	 * Copy the old ring contents to the new ring.
 	 *
-	 * If the ring contents crosses the end of the current ring,
-	 * it needs to be copied in two chunks.
+	 * To take care of wrapping, a full ring, and the new index
+	 * pointing into the second half, simply copy the old contents
+	 * twice.
 	 *
 	 * +---------+    +------------------+
-	 * |34567  12| -> |       1234567    |
-	 * +-----p-c-+    +------------------+
+	 * |34567  12| -> |34567  1234567  12|
+	 * +-----p-c-+    +-------c------p---+
 	 */
-	p = evtchn_ring_offset(u, u->ring_prod);
-	c = evtchn_ring_offset(u, u->ring_cons);
-	if (p < c) {
-		memcpy(new_ring + c, u->ring + c, (u->ring_size - c) * sizeof(*u->ring));
-		memcpy(new_ring + u->ring_size, u->ring, p * sizeof(*u->ring));
-	} else
-		memcpy(new_ring + c, u->ring + c, (p - c) * sizeof(*u->ring));
+	memcpy(new_ring, old_ring, u->ring_size * sizeof(*u->ring));
+	memcpy(new_ring + u->ring_size, old_ring,
+	       u->ring_size * sizeof(*u->ring));
 
 	u->ring = new_ring;
 	u->ring_size = new_size;

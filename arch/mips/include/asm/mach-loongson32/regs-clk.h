@@ -19,18 +19,18 @@
 #define LS1X_CLK_PLL_DIV		LS1X_CLK_REG(0x4)
 
 /* Clock PLL Divisor Register Bits */
-#define DIV_DC_EN			(0x1 << 31)
-#define DIV_DC_RST			(0x1 << 30)
-#define DIV_CPU_EN			(0x1 << 25)
-#define DIV_CPU_RST			(0x1 << 24)
-#define DIV_DDR_EN			(0x1 << 19)
-#define DIV_DDR_RST			(0x1 << 18)
-#define RST_DC_EN			(0x1 << 5)
-#define RST_DC				(0x1 << 4)
-#define RST_DDR_EN			(0x1 << 3)
-#define RST_DDR				(0x1 << 2)
-#define RST_CPU_EN			(0x1 << 1)
-#define RST_CPU				0x1
+#define DIV_DC_EN			BIT(31)
+#define DIV_DC_RST			BIT(30)
+#define DIV_CPU_EN			BIT(25)
+#define DIV_CPU_RST			BIT(24)
+#define DIV_DDR_EN			BIT(19)
+#define DIV_DDR_RST			BIT(18)
+#define RST_DC_EN			BIT(5)
+#define RST_DC				BIT(4)
+#define RST_DDR_EN			BIT(3)
+#define RST_DDR				BIT(2)
+#define RST_CPU_EN			BIT(1)
+#define RST_CPU				BIT(0)
 
 #define DIV_DC_SHIFT			26
 #define DIV_CPU_SHIFT			20

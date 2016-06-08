@@ -49,6 +49,8 @@
 #include <linux/prefetch.h>
 #include <net/pkt_sched.h>
 #include <net/codel.h>
+#include <net/codel_impl.h>
+#include <net/codel_qdisc.h>
 
 
 #define DEFAULT_CODEL_LIMIT 1000
@@ -64,12 +66,23 @@ struct codel_sched_data {
  * to dequeue a packet from queue. Note: backlog is handled in
  * codel, we dont need to reduce it here.
  */
-static struct sk_buff *dequeue(struct codel_vars *vars, struct Qdisc *sch)
+static struct sk_buff *dequeue_func(struct codel_vars *vars, void *ctx)
 {
+	struct Qdisc *sch = ctx;
 	struct sk_buff *skb = __skb_dequeue(&sch->q);
+
+	if (skb)
+		sch->qstats.backlog -= qdisc_pkt_len(skb);
 
 	prefetch(&skb->end); /* we'll need skb_shinfo() */
 	return skb;
+}
+
+static void drop_func(struct sk_buff *skb, void *ctx)
+{
+	struct Qdisc *sch = ctx;
+
+	qdisc_drop(skb, sch);
 }
 
 static struct sk_buff *codel_qdisc_dequeue(struct Qdisc *sch)
@@ -77,7 +90,9 @@ static struct sk_buff *codel_qdisc_dequeue(struct Qdisc *sch)
 	struct codel_sched_data *q = qdisc_priv(sch);
 	struct sk_buff *skb;
 
-	skb = codel_dequeue(sch, &q->params, &q->vars, &q->stats, dequeue);
+	skb = codel_dequeue(sch, &sch->qstats.backlog, &q->params, &q->vars,
+			    &q->stats, qdisc_pkt_len, codel_get_enqueue_time,
+			    drop_func, dequeue_func);
 
 	/* We cant call qdisc_tree_reduce_backlog() if our qlen is 0,
 	 * or HTB crashes. Defer it for next round.
@@ -173,9 +188,10 @@ static int codel_init(struct Qdisc *sch, struct nlattr *opt)
 
 	sch->limit = DEFAULT_CODEL_LIMIT;
 
-	codel_params_init(&q->params, sch);
+	codel_params_init(&q->params);
 	codel_vars_init(&q->vars);
 	codel_stats_init(&q->stats);
+	q->params.mtu = psched_mtu(qdisc_dev(sch));
 
 	if (opt) {
 		int err = codel_change(sch, opt);

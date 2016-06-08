@@ -109,29 +109,6 @@ static void adf_vf_void_noop(struct adf_accel_dev *accel_dev)
 {
 }
 
-static int adf_vf2pf_init(struct adf_accel_dev *accel_dev)
-{
-	u32 msg = (ADF_VF2PF_MSGORIGIN_SYSTEM |
-		(ADF_VF2PF_MSGTYPE_INIT << ADF_VF2PF_MSGTYPE_SHIFT));
-
-	if (adf_iov_putmsg(accel_dev, msg, 0)) {
-		dev_err(&GET_DEV(accel_dev),
-			"Failed to send Init event to PF\n");
-		return -EFAULT;
-	}
-	return 0;
-}
-
-static void adf_vf2pf_shutdown(struct adf_accel_dev *accel_dev)
-{
-	u32 msg = (ADF_VF2PF_MSGORIGIN_SYSTEM |
-	    (ADF_VF2PF_MSGTYPE_SHUTDOWN << ADF_VF2PF_MSGTYPE_SHIFT));
-
-	if (adf_iov_putmsg(accel_dev, msg, 0))
-		dev_err(&GET_DEV(accel_dev),
-			"Failed to send Shutdown event to PF\n");
-}
-
 void adf_init_hw_data_dh895xcciov(struct adf_hw_device_data *hw_data)
 {
 	hw_data->dev_class = &dh895xcciov_class;

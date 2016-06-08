@@ -6,6 +6,8 @@ extern void mcount(void);
 
 #define MCOUNT_INSN_SIZE 4
 
+extern unsigned long sys_call_table[];
+
 extern unsigned long return_address(unsigned int);
 
 #define ftrace_return_address(n) return_address(n)

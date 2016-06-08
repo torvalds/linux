@@ -493,7 +493,8 @@ static void wacom_retrieve_hid_descriptor(struct hid_device *hdev,
 	features->x_fuzz = 4;
 	features->y_fuzz = 4;
 	features->pressure_fuzz = 0;
-	features->distance_fuzz = 0;
+	features->distance_fuzz = 1;
+	features->tilt_fuzz = 1;
 
 	/*
 	 * The wireless device HID is basic and layout conflicts with

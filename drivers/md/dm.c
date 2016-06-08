@@ -674,7 +674,7 @@ static void free_io(struct mapped_device *md, struct dm_io *io)
 	mempool_free(io, md->io_pool);
 }
 
-static void free_tio(struct mapped_device *md, struct dm_target_io *tio)
+static void free_tio(struct dm_target_io *tio)
 {
 	bio_put(&tio->clone);
 }
@@ -1055,7 +1055,7 @@ static void clone_endio(struct bio *bio)
 		     !bdev_get_queue(bio->bi_bdev)->limits.max_write_same_sectors))
 		disable_write_same(md);
 
-	free_tio(md, tio);
+	free_tio(tio);
 	dec_pending(io, error);
 }
 
@@ -1517,7 +1517,6 @@ static void __map_bio(struct dm_target_io *tio)
 {
 	int r;
 	sector_t sector;
-	struct mapped_device *md;
 	struct bio *clone = &tio->clone;
 	struct dm_target *ti = tio->ti;
 
@@ -1540,9 +1539,8 @@ static void __map_bio(struct dm_target_io *tio)
 		generic_make_request(clone);
 	} else if (r < 0 || r == DM_MAPIO_REQUEUE) {
 		/* error the io and bail out, or requeue it if needed */
-		md = tio->io->md;
 		dec_pending(tio->io, r);
-		free_tio(md, tio);
+		free_tio(tio);
 	} else if (r != DM_MAPIO_SUBMITTED) {
 		DMWARN("unimplemented target map return value: %d", r);
 		BUG();
@@ -1663,7 +1661,7 @@ static int __clone_and_map_data_bio(struct clone_info *ci, struct dm_target *ti,
 		tio->len_ptr = len;
 		r = clone_bio(tio, bio, sector, *len);
 		if (r < 0) {
-			free_tio(ci->md, tio);
+			free_tio(tio);
 			break;
 		}
 		__map_bio(tio);

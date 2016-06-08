@@ -861,7 +861,7 @@ rqbiocnt(struct request *r)
  * discussion.
  *
  * We cannot use get_page in the workaround, because it insists on a
- * positive page count as a precondition.  So we use _count directly.
+ * positive page count as a precondition.  So we use _refcount directly.
  */
 static void
 bio_pageinc(struct bio *bio)

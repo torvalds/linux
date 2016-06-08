@@ -701,7 +701,7 @@ void b43_phy_lcn_tables_init(struct b43_wldev *dev)
 
 	b43_phy_lcn_upload_static_tables(dev);
 
-	if (b43_current_band(dev->wl) == IEEE80211_BAND_2GHZ) {
+	if (b43_current_band(dev->wl) == NL80211_BAND_2GHZ) {
 		if (sprom->boardflags_lo & B43_BFL_FEM)
 			b43_phy_lcn_load_tx_gain_tab(dev,
 				b43_lcntab_tx_gain_tbl_2ghz_ext_pa_rev0);

@@ -92,8 +92,9 @@ int pasemi_device_ready(struct mtd_info *mtd)
 
 static int pasemi_nand_probe(struct platform_device *ofdev)
 {
+	struct device *dev = &ofdev->dev;
 	struct pci_dev *pdev;
-	struct device_node *np = ofdev->dev.of_node;
+	struct device_node *np = dev->of_node;
 	struct resource res;
 	struct nand_chip *chip;
 	int err = 0;
@@ -107,13 +108,11 @@ static int pasemi_nand_probe(struct platform_device *ofdev)
 	if (pasemi_nand_mtd)
 		return -ENODEV;
 
-	pr_debug("pasemi_nand at %pR\n", &res);
+	dev_dbg(dev, "pasemi_nand at %pR\n", &res);
 
 	/* Allocate memory for MTD device structure and private data */
 	chip = kzalloc(sizeof(struct nand_chip), GFP_KERNEL);
 	if (!chip) {
-		printk(KERN_WARNING
-		       "Unable to allocate PASEMI NAND MTD device structure\n");
 		err = -ENOMEM;
 		goto out;
 	}
@@ -121,7 +120,7 @@ static int pasemi_nand_probe(struct platform_device *ofdev)
 	pasemi_nand_mtd = nand_to_mtd(chip);
 
 	/* Link the private data with the MTD structure */
-	pasemi_nand_mtd->dev.parent = &ofdev->dev;
+	pasemi_nand_mtd->dev.parent = dev;
 
 	chip->IO_ADDR_R = of_iomap(np, 0);
 	chip->IO_ADDR_W = chip->IO_ADDR_R;
@@ -151,6 +150,7 @@ static int pasemi_nand_probe(struct platform_device *ofdev)
 	chip->write_buf = pasemi_write_buf;
 	chip->chip_delay = 0;
 	chip->ecc.mode = NAND_ECC_SOFT;
+	chip->ecc.algo = NAND_ECC_HAMMING;
 
 	/* Enable the following for a flash based bad block table */
 	chip->bbt_options = NAND_BBT_USE_FLASH;
@@ -162,13 +162,13 @@ static int pasemi_nand_probe(struct platform_device *ofdev)
 	}
 
 	if (mtd_device_register(pasemi_nand_mtd, NULL, 0)) {
-		printk(KERN_ERR "pasemi_nand: Unable to register MTD device\n");
+		dev_err(dev, "Unable to register MTD device\n");
 		err = -ENODEV;
 		goto out_lpc;
 	}
 
-	printk(KERN_INFO "PA Semi NAND flash at %08llx, control at I/O %x\n",
-	       res.start, lpcctl);
+	dev_info(dev, "PA Semi NAND flash at %pR, control at I/O %x\n", &res,
+		 lpcctl);
 
 	return 0;
 

@@ -1256,7 +1256,7 @@ solution for a couple of reasons:
 7. SocketCAN resources
 -----------------------
 
-  The Linux CAN / SocketCAN project ressources (project site / mailing list)
+  The Linux CAN / SocketCAN project resources (project site / mailing list)
   are referenced in the MAINTAINERS file in the Linux source tree.
   Search for CAN NETWORK [LAYERS|DRIVERS].
 

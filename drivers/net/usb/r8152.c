@@ -3366,7 +3366,7 @@ static void r8153_init(struct r8152 *tp)
 	ocp_write_word(tp, MCU_TYPE_PLA, PLA_LED_FEATURE, ocp_data);
 
 	ocp_data = FIFO_EMPTY_1FB | ROK_EXIT_LPM;
-	if (tp->version == RTL_VER_04 && tp->udev->speed != USB_SPEED_SUPER)
+	if (tp->version == RTL_VER_04 && tp->udev->speed < USB_SPEED_SUPER)
 		ocp_data |= LPM_TIMER_500MS;
 	else
 		ocp_data |= LPM_TIMER_500US;
@@ -4211,6 +4211,7 @@ static int rtl8152_probe(struct usb_interface *intf,
 
 	switch (udev->speed) {
 	case USB_SPEED_SUPER:
+	case USB_SPEED_SUPER_PLUS:
 		tp->coalesce = COALESCE_SUPER;
 		break;
 	case USB_SPEED_HIGH:

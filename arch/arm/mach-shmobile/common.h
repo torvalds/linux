@@ -25,16 +25,9 @@ static inline int shmobile_suspend_init(void) { return 0; }
 static inline void shmobile_smp_apmu_suspend_init(void) { }
 #endif
 
-#ifdef CONFIG_CPU_FREQ
-int shmobile_cpufreq_init(void);
-#else
-static inline int shmobile_cpufreq_init(void) { return 0; }
-#endif
-
 static inline void __init shmobile_init_late(void)
 {
 	shmobile_suspend_init();
-	shmobile_cpufreq_init();
 }
 
 #endif /* __ARCH_MACH_COMMON_H */

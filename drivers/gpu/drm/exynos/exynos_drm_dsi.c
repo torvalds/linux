@@ -280,7 +280,7 @@ struct exynos_dsi {
 	spinlock_t transfer_lock; /* protects transfer_list */
 	struct list_head transfer_list;
 
-	struct exynos_dsi_driver_data *driver_data;
+	const struct exynos_dsi_driver_data *driver_data;
 	struct device_node *bridge_node;
 };
 
@@ -532,15 +532,6 @@ static const struct of_device_id exynos_dsi_of_match[] = {
 	{ }
 };
 
-static inline struct exynos_dsi_driver_data *exynos_dsi_get_driver_data(
-						struct platform_device *pdev)
-{
-	const struct of_device_id *of_id =
-			of_match_device(exynos_dsi_of_match, &pdev->dev);
-
-	return (struct exynos_dsi_driver_data *)of_id->data;
-}
-
 static void exynos_dsi_wait_for_reset(struct exynos_dsi *dsi)
 {
 	if (wait_for_completion_timeout(&dsi->completed, msecs_to_jiffies(300)))
@@ -564,7 +555,7 @@ static void exynos_dsi_reset(struct exynos_dsi *dsi)
 static unsigned long exynos_dsi_pll_find_pms(struct exynos_dsi *dsi,
 		unsigned long fin, unsigned long fout, u8 *p, u16 *m, u8 *s)
 {
-	struct exynos_dsi_driver_data *driver_data = dsi->driver_data;
+	const struct exynos_dsi_driver_data *driver_data = dsi->driver_data;
 	unsigned long best_freq = 0;
 	u32 min_delta = 0xffffffff;
 	u8 p_min, p_max;
@@ -618,7 +609,7 @@ static unsigned long exynos_dsi_pll_find_pms(struct exynos_dsi *dsi,
 static unsigned long exynos_dsi_set_pll(struct exynos_dsi *dsi,
 					unsigned long freq)
 {
-	struct exynos_dsi_driver_data *driver_data = dsi->driver_data;
+	const struct exynos_dsi_driver_data *driver_data = dsi->driver_data;
 	unsigned long fin, fout;
 	int timeout;
 	u8 p, s;
@@ -712,7 +703,7 @@ static int exynos_dsi_enable_clock(struct exynos_dsi *dsi)
 
 static void exynos_dsi_set_phy_ctrl(struct exynos_dsi *dsi)
 {
-	struct exynos_dsi_driver_data *driver_data = dsi->driver_data;
+	const struct exynos_dsi_driver_data *driver_data = dsi->driver_data;
 	const unsigned int *reg_values = driver_data->reg_values;
 	u32 reg;
 
@@ -790,7 +781,7 @@ static void exynos_dsi_enable_lane(struct exynos_dsi *dsi, u32 lane)
 
 static int exynos_dsi_init_link(struct exynos_dsi *dsi)
 {
-	struct exynos_dsi_driver_data *driver_data = dsi->driver_data;
+	const struct exynos_dsi_driver_data *driver_data = dsi->driver_data;
 	int timeout;
 	u32 reg;
 	u32 lanes_mask;
@@ -1334,7 +1325,7 @@ static void exynos_dsi_disable_irq(struct exynos_dsi *dsi)
 
 static int exynos_dsi_init(struct exynos_dsi *dsi)
 {
-	struct exynos_dsi_driver_data *driver_data = dsi->driver_data;
+	const struct exynos_dsi_driver_data *driver_data = dsi->driver_data;
 
 	exynos_dsi_reset(dsi);
 	exynos_dsi_enable_irq(dsi);
@@ -1641,50 +1632,6 @@ static const struct drm_encoder_funcs exynos_dsi_encoder_funcs = {
 
 MODULE_DEVICE_TABLE(of, exynos_dsi_of_match);
 
-/* of_* functions will be removed after merge of of_graph patches */
-static struct device_node *
-of_get_child_by_name_reg(struct device_node *parent, const char *name, u32 reg)
-{
-	struct device_node *np;
-
-	for_each_child_of_node(parent, np) {
-		u32 r;
-
-		if (!np->name || of_node_cmp(np->name, name))
-			continue;
-
-		if (of_property_read_u32(np, "reg", &r) < 0)
-			r = 0;
-
-		if (reg == r)
-			break;
-	}
-
-	return np;
-}
-
-static struct device_node *of_graph_get_port_by_reg(struct device_node *parent,
-						    u32 reg)
-{
-	struct device_node *ports, *port;
-
-	ports = of_get_child_by_name(parent, "ports");
-	if (ports)
-		parent = ports;
-
-	port = of_get_child_by_name_reg(parent, "port", reg);
-
-	of_node_put(ports);
-
-	return port;
-}
-
-static struct device_node *
-of_graph_get_endpoint_by_reg(struct device_node *port, u32 reg)
-{
-	return of_get_child_by_name_reg(port, "endpoint", reg);
-}
-
 static int exynos_dsi_of_read_u32(const struct device_node *np,
 				  const char *propname, u32 *out_value)
 {
@@ -1706,7 +1653,7 @@ static int exynos_dsi_parse_dt(struct exynos_dsi *dsi)
 {
 	struct device *dev = dsi->dev;
 	struct device_node *node = dev->of_node;
-	struct device_node *port, *ep;
+	struct device_node *ep;
 	int ret;
 
 	ret = exynos_dsi_of_read_u32(node, "samsung,pll-clock-frequency",
@@ -1714,16 +1661,9 @@ static int exynos_dsi_parse_dt(struct exynos_dsi *dsi)
 	if (ret < 0)
 		return ret;
 
-	port = of_graph_get_port_by_reg(node, DSI_PORT_OUT);
-	if (!port) {
-		dev_err(dev, "no output port specified\n");
-		return -EINVAL;
-	}
-
-	ep = of_graph_get_endpoint_by_reg(port, 0);
-	of_node_put(port);
+	ep = of_graph_get_endpoint_by_regs(node, DSI_PORT_OUT, 0);
 	if (!ep) {
-		dev_err(dev, "no endpoint specified in output port\n");
+		dev_err(dev, "no output port with endpoint specified\n");
 		return -EINVAL;
 	}
 
@@ -1833,7 +1773,7 @@ static int exynos_dsi_probe(struct platform_device *pdev)
 	dsi->dsi_host.dev = dev;
 
 	dsi->dev = dev;
-	dsi->driver_data = exynos_dsi_get_driver_data(pdev);
+	dsi->driver_data = of_device_get_match_data(dev);
 
 	ret = exynos_dsi_parse_dt(dsi);
 	if (ret)
@@ -1917,7 +1857,7 @@ static int __maybe_unused exynos_dsi_suspend(struct device *dev)
 {
 	struct drm_encoder *encoder = dev_get_drvdata(dev);
 	struct exynos_dsi *dsi = encoder_to_dsi(encoder);
-	struct exynos_dsi_driver_data *driver_data = dsi->driver_data;
+	const struct exynos_dsi_driver_data *driver_data = dsi->driver_data;
 	int ret, i;
 
 	usleep_range(10000, 20000);
@@ -1948,7 +1888,7 @@ static int __maybe_unused exynos_dsi_resume(struct device *dev)
 {
 	struct drm_encoder *encoder = dev_get_drvdata(dev);
 	struct exynos_dsi *dsi = encoder_to_dsi(encoder);
-	struct exynos_dsi_driver_data *driver_data = dsi->driver_data;
+	const struct exynos_dsi_driver_data *driver_data = dsi->driver_data;
 	int ret, i;
 
 	ret = regulator_bulk_enable(ARRAY_SIZE(dsi->supplies), dsi->supplies);

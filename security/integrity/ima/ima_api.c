@@ -313,7 +313,7 @@ void ima_audit_measurement(struct integrity_iint_cache *iint,
 	iint->flags |= IMA_AUDITED;
 }
 
-const char *ima_d_path(struct path *path, char **pathbuf)
+const char *ima_d_path(const struct path *path, char **pathbuf)
 {
 	char *pathname = NULL;
 

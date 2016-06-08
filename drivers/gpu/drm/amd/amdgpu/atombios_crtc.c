@@ -461,13 +461,14 @@ union set_pixel_clock {
 	PIXEL_CLOCK_PARAMETERS_V3 v3;
 	PIXEL_CLOCK_PARAMETERS_V5 v5;
 	PIXEL_CLOCK_PARAMETERS_V6 v6;
+	PIXEL_CLOCK_PARAMETERS_V7 v7;
 };
 
 /* on DCE5, make sure the voltage is high enough to support the
  * required disp clk.
  */
 void amdgpu_atombios_crtc_set_disp_eng_pll(struct amdgpu_device *adev,
-				    u32 dispclk)
+					   u32 dispclk)
 {
 	u8 frev, crev;
 	int index;
@@ -510,6 +511,49 @@ void amdgpu_atombios_crtc_set_disp_eng_pll(struct amdgpu_device *adev,
 	amdgpu_atom_execute_table(adev->mode_info.atom_context, index, (uint32_t *)&args);
 }
 
+union set_dce_clock {
+	SET_DCE_CLOCK_PS_ALLOCATION_V1_1 v1_1;
+	SET_DCE_CLOCK_PS_ALLOCATION_V2_1 v2_1;
+};
+
+u32 amdgpu_atombios_crtc_set_dce_clock(struct amdgpu_device *adev,
+				       u32 freq, u8 clk_type, u8 clk_src)
+{
+	u8 frev, crev;
+	int index;
+	union set_dce_clock args;
+	u32 ret_freq = 0;
+
+	memset(&args, 0, sizeof(args));
+
+	index = GetIndexIntoMasterTable(COMMAND, SetDCEClock);
+	if (!amdgpu_atom_parse_cmd_header(adev->mode_info.atom_context, index, &frev,
+				   &crev))
+		return 0;
+
+	switch (frev) {
+	case 2:
+		switch (crev) {
+		case 1:
+			args.v2_1.asParam.ulDCEClkFreq = cpu_to_le32(freq); /* 10kHz units */
+			args.v2_1.asParam.ucDCEClkType = clk_type;
+			args.v2_1.asParam.ucDCEClkSrc = clk_src;
+			amdgpu_atom_execute_table(adev->mode_info.atom_context, index, (uint32_t *)&args);
+			ret_freq = le32_to_cpu(args.v2_1.asParam.ulDCEClkFreq) * 10;
+			break;
+		default:
+			DRM_ERROR("Unknown table version %d %d\n", frev, crev);
+			return 0;
+		}
+		break;
+	default:
+		DRM_ERROR("Unknown table version %d %d\n", frev, crev);
+		return 0;
+	}
+
+	return ret_freq;
+}
+
 static bool is_pixel_clock_source_from_pll(u32 encoder_mode, int pll_id)
 {
 	if (ENCODER_MODE_IS_DP(encoder_mode)) {
@@ -523,18 +567,18 @@ static bool is_pixel_clock_source_from_pll(u32 encoder_mode, int pll_id)
 }
 
 void amdgpu_atombios_crtc_program_pll(struct drm_crtc *crtc,
-			       u32 crtc_id,
-			       int pll_id,
-			       u32 encoder_mode,
-			       u32 encoder_id,
-			       u32 clock,
-			       u32 ref_div,
-			       u32 fb_div,
-			       u32 frac_fb_div,
-			       u32 post_div,
-			       int bpc,
-			       bool ss_enabled,
-			       struct amdgpu_atom_ss *ss)
+				      u32 crtc_id,
+				      int pll_id,
+				      u32 encoder_mode,
+				      u32 encoder_id,
+				      u32 clock,
+				      u32 ref_div,
+				      u32 fb_div,
+				      u32 frac_fb_div,
+				      u32 post_div,
+				      int bpc,
+				      bool ss_enabled,
+				      struct amdgpu_atom_ss *ss)
 {
 	struct drm_device *dev = crtc->dev;
 	struct amdgpu_device *adev = dev->dev_private;
@@ -651,6 +695,34 @@ void amdgpu_atombios_crtc_program_pll(struct drm_crtc *crtc,
 			args.v6.ucTransmitterID = encoder_id;
 			args.v6.ucEncoderMode = encoder_mode;
 			args.v6.ucPpll = pll_id;
+			break;
+		case 7:
+			args.v7.ulPixelClock = cpu_to_le32(clock * 10); /* 100 hz units */
+			args.v7.ucMiscInfo = 0;
+			if ((encoder_mode == ATOM_ENCODER_MODE_DVI) &&
+			    (clock > 165000))
+				args.v7.ucMiscInfo |= PIXEL_CLOCK_V7_MISC_DVI_DUALLINK_EN;
+			args.v7.ucCRTC = crtc_id;
+			if (encoder_mode == ATOM_ENCODER_MODE_HDMI) {
+				switch (bpc) {
+				case 8:
+				default:
+					args.v7.ucDeepColorRatio = PIXEL_CLOCK_V7_DEEPCOLOR_RATIO_DIS;
+					break;
+				case 10:
+					args.v7.ucDeepColorRatio = PIXEL_CLOCK_V7_DEEPCOLOR_RATIO_5_4;
+					break;
+				case 12:
+					args.v7.ucDeepColorRatio = PIXEL_CLOCK_V7_DEEPCOLOR_RATIO_3_2;
+					break;
+				case 16:
+					args.v7.ucDeepColorRatio = PIXEL_CLOCK_V7_DEEPCOLOR_RATIO_2_1;
+					break;
+				}
+			}
+			args.v7.ucTransmitterID = encoder_id;
+			args.v7.ucEncoderMode = encoder_mode;
+			args.v7.ucPpll = pll_id;
 			break;
 		default:
 			DRM_ERROR("Unknown table version %d %d\n", frev, crev);

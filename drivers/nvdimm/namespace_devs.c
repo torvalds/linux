@@ -1288,6 +1288,8 @@ static ssize_t mode_show(struct device *dev,
 		mode = "safe";
 	else if (claim && is_nd_pfn(claim))
 		mode = "memory";
+	else if (claim && is_nd_dax(claim))
+		mode = "dax";
 	else if (!claim && pmem_should_map_pages(dev))
 		mode = "memory";
 	else
@@ -1379,21 +1381,19 @@ struct nd_namespace_common *nvdimm_namespace_common_probe(struct device *dev)
 {
 	struct nd_btt *nd_btt = is_nd_btt(dev) ? to_nd_btt(dev) : NULL;
 	struct nd_pfn *nd_pfn = is_nd_pfn(dev) ? to_nd_pfn(dev) : NULL;
-	struct nd_namespace_common *ndns;
+	struct nd_dax *nd_dax = is_nd_dax(dev) ? to_nd_dax(dev) : NULL;
+	struct nd_namespace_common *ndns = NULL;
 	resource_size_t size;
 
-	if (nd_btt || nd_pfn) {
-		struct device *host = NULL;
-
-		if (nd_btt) {
-			host = &nd_btt->dev;
+	if (nd_btt || nd_pfn || nd_dax) {
+		if (nd_btt)
 			ndns = nd_btt->ndns;
-		} else if (nd_pfn) {
-			host = &nd_pfn->dev;
+		else if (nd_pfn)
 			ndns = nd_pfn->ndns;
-		}
+		else if (nd_dax)
+			ndns = nd_dax->nd_pfn.ndns;
 
-		if (!ndns || !host)
+		if (!ndns)
 			return ERR_PTR(-ENODEV);
 
 		/*
@@ -1404,12 +1404,12 @@ struct nd_namespace_common *nvdimm_namespace_common_probe(struct device *dev)
 		device_unlock(&ndns->dev);
 		if (ndns->dev.driver) {
 			dev_dbg(&ndns->dev, "is active, can't bind %s\n",
-					dev_name(host));
+					dev_name(dev));
 			return ERR_PTR(-EBUSY);
 		}
-		if (dev_WARN_ONCE(&ndns->dev, ndns->claim != host,
+		if (dev_WARN_ONCE(&ndns->dev, ndns->claim != dev,
 					"host (%s) vs claim (%s) mismatch\n",
-					dev_name(host),
+					dev_name(dev),
 					dev_name(ndns->claim)))
 			return ERR_PTR(-ENXIO);
 	} else {
@@ -1782,6 +1782,18 @@ void nd_region_create_blk_seed(struct nd_region *nd_region)
 		dev_err(&nd_region->dev, "failed to create blk namespace\n");
 	else
 		nd_device_register(nd_region->ns_seed);
+}
+
+void nd_region_create_dax_seed(struct nd_region *nd_region)
+{
+	WARN_ON(!is_nvdimm_bus_locked(&nd_region->dev));
+	nd_region->dax_seed = nd_dax_create(nd_region);
+	/*
+	 * Seed creation failures are not fatal, provisioning is simply
+	 * disabled until memory becomes available
+	 */
+	if (!nd_region->dax_seed)
+		dev_err(&nd_region->dev, "failed to create dax namespace\n");
 }
 
 void nd_region_create_pfn_seed(struct nd_region *nd_region)

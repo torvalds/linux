@@ -24,7 +24,7 @@
 #define BATADV_DRIVER_DEVICE "batman-adv"
 
 #ifndef BATADV_SOURCE_VERSION
-#define BATADV_SOURCE_VERSION "2016.1"
+#define BATADV_SOURCE_VERSION "2016.2"
 #endif
 
 /* B.A.T.M.A.N. parameters */
@@ -120,6 +120,8 @@
 #define BATADV_BLA_BACKBONE_TIMEOUT	(BATADV_BLA_PERIOD_LENGTH * 6)
 #define BATADV_BLA_CLAIM_TIMEOUT	(BATADV_BLA_PERIOD_LENGTH * 10)
 #define BATADV_BLA_WAIT_PERIODS		3
+#define BATADV_BLA_LOOPDETECT_PERIODS	6
+#define BATADV_BLA_LOOPDETECT_TIMEOUT	3000	/* 3 seconds */
 
 #define BATADV_DUPLIST_SIZE		16
 #define BATADV_DUPLIST_TIMEOUT		500	/* 500 ms */
@@ -142,10 +144,12 @@ enum batadv_uev_action {
 	BATADV_UEV_ADD = 0,
 	BATADV_UEV_DEL,
 	BATADV_UEV_CHANGE,
+	BATADV_UEV_LOOPDETECT,
 };
 
 enum batadv_uev_type {
 	BATADV_UEV_GW = 0,
+	BATADV_UEV_BLA,
 };
 
 #define BATADV_GW_THRESHOLD	50
@@ -288,7 +292,7 @@ static inline void _batadv_dbg(int type __always_unused,
  *
  * note: can't use ether_addr_equal() as it requires aligned memory
  *
- * Return: 1 if they are the same ethernet addr
+ * Return: true if they are the same ethernet addr
  */
 static inline bool batadv_compare_eth(const void *data1, const void *data2)
 {
@@ -296,7 +300,8 @@ static inline bool batadv_compare_eth(const void *data1, const void *data2)
 }
 
 /**
- * has_timed_out - compares current time (jiffies) and timestamp + timeout
+ * batadv_has_timed_out - compares current time (jiffies) and timestamp +
+ *  timeout
  * @timestamp:		base value to compare with (in jiffies)
  * @timeout:		added to base value before comparing (in milliseconds)
  *

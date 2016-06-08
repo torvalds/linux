@@ -7,7 +7,7 @@
  *
  * Copyright (C) 2008-2011 Gabor Juhos <juhosg@openwrt.org>
  * Copyright (C) 2008 Imre Kaloz <kaloz@openwrt.org>
- * Copyright (C) 2013 John Crispin <blogic@openwrt.org>
+ * Copyright (C) 2013 John Crispin <john@phrozen.org>
  */
 
 #ifndef _MT7620_REGS_H_
@@ -72,6 +72,7 @@
 #define SYSCFG0_DRAM_TYPE_SDRAM		0
 #define SYSCFG0_DRAM_TYPE_DDR1		1
 #define SYSCFG0_DRAM_TYPE_DDR2		2
+#define SYSCFG0_DRAM_TYPE_UNKNOWN	3
 
 #define SYSCFG0_DRAM_TYPE_DDR2_MT7628	0
 #define SYSCFG0_DRAM_TYPE_DDR1_MT7628	1

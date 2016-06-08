@@ -398,11 +398,19 @@ static void __init reserve_initrd(void)
 
 	memblock_free(ramdisk_image, ramdisk_end - ramdisk_image);
 }
+
+static void __init early_initrd_acpi_init(void)
+{
+	early_acpi_table_init((void *)initrd_start, initrd_end - initrd_start);
+}
 #else
 static void __init early_reserve_initrd(void)
 {
 }
 static void __init reserve_initrd(void)
+{
+}
+static void __init early_initrd_acpi_init(void)
 {
 }
 #endif /* CONFIG_BLK_DEV_INITRD */
@@ -1138,9 +1146,7 @@ void __init setup_arch(char **cmdline_p)
 
 	reserve_initrd();
 
-#if defined(CONFIG_ACPI) && defined(CONFIG_BLK_DEV_INITRD)
-	acpi_initrd_override((void *)initrd_start, initrd_end - initrd_start);
-#endif
+	early_initrd_acpi_init();
 
 	vsmp_init();
 

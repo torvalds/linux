@@ -77,7 +77,7 @@ int __init oprofile_arch_init(struct oprofile_operations *ops)
 	struct op_mips_model *lmodel = NULL;
 	int res;
 
-	switch (current_cpu_type()) {
+	switch (boot_cpu_type()) {
 	case CPU_5KC:
 	case CPU_M14KC:
 	case CPU_M14KEC:

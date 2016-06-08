@@ -700,7 +700,7 @@ int __init op_nmi_init(struct oprofile_operations *ops)
 	char *cpu_type = NULL;
 	int ret = 0;
 
-	if (!cpu_has_apic)
+	if (!boot_cpu_has(X86_FEATURE_APIC))
 		return -ENODEV;
 
 	if (force_cpu_type == timer)

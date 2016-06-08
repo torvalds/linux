@@ -645,7 +645,7 @@ int ttm_bo_move_accel_cleanup(struct ttm_buffer_object *bo,
 
 	reservation_object_add_excl_fence(bo->resv, fence);
 	if (evict) {
-		ret = ttm_bo_wait(bo, false, false, false);
+		ret = ttm_bo_wait(bo, false, false);
 		if (ret)
 			return ret;
 

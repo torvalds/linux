@@ -499,7 +499,7 @@ static void smc911x_hardware_send_pkt(struct net_device *dev)
 	/* DMA complete IRQ will free buffer and set jiffies */
 #else
 	SMC_PUSH_DATA(lp, buf, len);
-	dev->trans_start = jiffies;
+	netif_trans_update(dev);
 	dev_kfree_skb_irq(skb);
 #endif
 	if (!lp->tx_throttle) {
@@ -1189,7 +1189,7 @@ smc911x_tx_dma_irq(void *data)
 	DBG(SMC_DEBUG_TX | SMC_DEBUG_DMA, dev, "TX DMA irq handler\n");
 	BUG_ON(skb == NULL);
 	dma_unmap_single(NULL, tx_dmabuf, tx_dmalen, DMA_TO_DEVICE);
-	dev->trans_start = jiffies;
+	netif_trans_update(dev);
 	dev_kfree_skb_irq(skb);
 	lp->current_tx_skb = NULL;
 	if (lp->pending_tx_skb != NULL)
@@ -1283,7 +1283,7 @@ static void smc911x_timeout(struct net_device *dev)
 		schedule_work(&lp->phy_configure);
 
 	/* We can accept TX packets again */
-	dev->trans_start = jiffies; /* prevent tx timeout */
+	netif_trans_update(dev); /* prevent tx timeout */
 	netif_wake_queue(dev);
 }
 

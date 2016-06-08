@@ -231,6 +231,48 @@ xfs_iformat_fork(
 	return error;
 }
 
+void
+xfs_init_local_fork(
+	struct xfs_inode	*ip,
+	int			whichfork,
+	const void		*data,
+	int			size)
+{
+	struct xfs_ifork	*ifp = XFS_IFORK_PTR(ip, whichfork);
+	int			mem_size = size, real_size = 0;
+	bool			zero_terminate;
+
+	/*
+	 * If we are using the local fork to store a symlink body we need to
+	 * zero-terminate it so that we can pass it back to the VFS directly.
+	 * Overallocate the in-memory fork by one for that and add a zero
+	 * to terminate it below.
+	 */
+	zero_terminate = S_ISLNK(VFS_I(ip)->i_mode);
+	if (zero_terminate)
+		mem_size++;
+
+	if (size == 0)
+		ifp->if_u1.if_data = NULL;
+	else if (mem_size <= sizeof(ifp->if_u2.if_inline_data))
+		ifp->if_u1.if_data = ifp->if_u2.if_inline_data;
+	else {
+		real_size = roundup(mem_size, 4);
+		ifp->if_u1.if_data = kmem_alloc(real_size, KM_SLEEP | KM_NOFS);
+	}
+
+	if (size) {
+		memcpy(ifp->if_u1.if_data, data, size);
+		if (zero_terminate)
+			ifp->if_u1.if_data[size] = '\0';
+	}
+
+	ifp->if_bytes = size;
+	ifp->if_real_bytes = real_size;
+	ifp->if_flags &= ~(XFS_IFEXTENTS | XFS_IFBROOT);
+	ifp->if_flags |= XFS_IFINLINE;
+}
+
 /*
  * The file is in-lined in the on-disk inode.
  * If it fits into if_inline_data, then copy
@@ -248,8 +290,6 @@ xfs_iformat_local(
 	int		whichfork,
 	int		size)
 {
-	xfs_ifork_t	*ifp;
-	int		real_size;
 
 	/*
 	 * If the size is unreasonable, then something
@@ -265,22 +305,8 @@ xfs_iformat_local(
 				     ip->i_mount, dip);
 		return -EFSCORRUPTED;
 	}
-	ifp = XFS_IFORK_PTR(ip, whichfork);
-	real_size = 0;
-	if (size == 0)
-		ifp->if_u1.if_data = NULL;
-	else if (size <= sizeof(ifp->if_u2.if_inline_data))
-		ifp->if_u1.if_data = ifp->if_u2.if_inline_data;
-	else {
-		real_size = roundup(size, 4);
-		ifp->if_u1.if_data = kmem_alloc(real_size, KM_SLEEP | KM_NOFS);
-	}
-	ifp->if_bytes = size;
-	ifp->if_real_bytes = real_size;
-	if (size)
-		memcpy(ifp->if_u1.if_data, XFS_DFORK_PTR(dip, whichfork), size);
-	ifp->if_flags &= ~XFS_IFEXTENTS;
-	ifp->if_flags |= XFS_IFINLINE;
+
+	xfs_init_local_fork(ip, whichfork, XFS_DFORK_PTR(dip, whichfork), size);
 	return 0;
 }
 
@@ -516,7 +542,6 @@ xfs_iroot_realloc(
 		new_max = cur_max + rec_diff;
 		new_size = XFS_BMAP_BROOT_SPACE_CALC(mp, new_max);
 		ifp->if_broot = kmem_realloc(ifp->if_broot, new_size,
-				XFS_BMAP_BROOT_SPACE_CALC(mp, cur_max),
 				KM_SLEEP | KM_NOFS);
 		op = (char *)XFS_BMAP_BROOT_PTR_ADDR(mp, ifp->if_broot, 1,
 						     ifp->if_broot_bytes);
@@ -660,7 +685,6 @@ xfs_idata_realloc(
 				ifp->if_u1.if_data =
 					kmem_realloc(ifp->if_u1.if_data,
 							real_size,
-							ifp->if_real_bytes,
 							KM_SLEEP | KM_NOFS);
 			}
 		} else {
@@ -1376,8 +1400,7 @@ xfs_iext_realloc_direct(
 		if (rnew_size != ifp->if_real_bytes) {
 			ifp->if_u1.if_extents =
 				kmem_realloc(ifp->if_u1.if_extents,
-						rnew_size,
-						ifp->if_real_bytes, KM_NOFS);
+						rnew_size, KM_NOFS);
 		}
 		if (rnew_size > ifp->if_real_bytes) {
 			memset(&ifp->if_u1.if_extents[ifp->if_bytes /
@@ -1461,9 +1484,8 @@ xfs_iext_realloc_indirect(
 	if (new_size == 0) {
 		xfs_iext_destroy(ifp);
 	} else {
-		ifp->if_u1.if_ext_irec = (xfs_ext_irec_t *)
-			kmem_realloc(ifp->if_u1.if_ext_irec,
-				new_size, size, KM_NOFS);
+		ifp->if_u1.if_ext_irec =
+			kmem_realloc(ifp->if_u1.if_ext_irec, new_size, KM_NOFS);
 	}
 }
 
@@ -1497,6 +1519,24 @@ xfs_iext_indirect_to_direct(
 }
 
 /*
+ * Remove all records from the indirection array.
+ */
+STATIC void
+xfs_iext_irec_remove_all(
+	struct xfs_ifork *ifp)
+{
+	int		nlists;
+	int		i;
+
+	ASSERT(ifp->if_flags & XFS_IFEXTIREC);
+	nlists = ifp->if_real_bytes / XFS_IEXT_BUFSZ;
+	for (i = 0; i < nlists; i++)
+		kmem_free(ifp->if_u1.if_ext_irec[i].er_extbuf);
+	kmem_free(ifp->if_u1.if_ext_irec);
+	ifp->if_flags &= ~XFS_IFEXTIREC;
+}
+
+/*
  * Free incore file extents.
  */
 void
@@ -1504,14 +1544,7 @@ xfs_iext_destroy(
 	xfs_ifork_t	*ifp)		/* inode fork pointer */
 {
 	if (ifp->if_flags & XFS_IFEXTIREC) {
-		int	erp_idx;
-		int	nlists;
-
-		nlists = ifp->if_real_bytes / XFS_IEXT_BUFSZ;
-		for (erp_idx = nlists - 1; erp_idx >= 0 ; erp_idx--) {
-			xfs_iext_irec_remove(ifp, erp_idx);
-		}
-		ifp->if_flags &= ~XFS_IFEXTIREC;
+		xfs_iext_irec_remove_all(ifp);
 	} else if (ifp->if_real_bytes) {
 		kmem_free(ifp->if_u1.if_extents);
 	} else if (ifp->if_bytes) {

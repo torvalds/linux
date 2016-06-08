@@ -461,9 +461,7 @@ void Update23aTblForSoftAP(u8 *bssrateset, u32 bssratelen);
 
 u8 rtw_get_oper_ch23a(struct rtw_adapter *adapter);
 void rtw_set_oper_ch23a(struct rtw_adapter *adapter, u8 ch);
-u8 rtw_get_oper_bw23a(struct rtw_adapter *adapter);
 void rtw_set_oper_bw23a(struct rtw_adapter *adapter, u8 bw);
-u8 rtw_get_oper_ch23aoffset(struct rtw_adapter *adapter);
 void rtw_set_oper_ch23aoffset23a(struct rtw_adapter *adapter, u8 offset);
 
 void set_channel_bwmode23a(struct rtw_adapter *padapter, unsigned char channel,

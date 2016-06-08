@@ -57,13 +57,11 @@ futex_wake(u_int32_t *uaddr, int nr_wake, int opflags)
 
 /**
  * futex_lock_pi() - block on uaddr as a PI mutex
- * @detect:	whether (1) or not (0) to perform deadlock detection
  */
 static inline int
-futex_lock_pi(u_int32_t *uaddr, struct timespec *timeout, int detect,
-	      int opflags)
+futex_lock_pi(u_int32_t *uaddr, struct timespec *timeout, int opflags)
 {
-	return futex(uaddr, FUTEX_LOCK_PI, detect, timeout, NULL, 0, opflags);
+	return futex(uaddr, FUTEX_LOCK_PI, 0, timeout, NULL, 0, opflags);
 }
 
 /**

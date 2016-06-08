@@ -565,7 +565,7 @@ int __cpu_up(unsigned int cpu, struct task_struct *tidle)
 		smp_ops->give_timebase();
 
 	/* Wait until cpu puts itself in the online & active maps */
-	while (!cpu_online(cpu) || !cpu_active(cpu))
+	while (!cpu_online(cpu))
 		cpu_relax();
 
 	return 0;

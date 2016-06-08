@@ -11,10 +11,33 @@
 /dts-v1/;
 
 #include "omap3-n950-n9.dtsi"
+#include <dt-bindings/input/input.h>
 
 / {
 	model = "Nokia N950";
 	compatible = "nokia,omap3-n950", "ti,omap36xx", "ti,omap3";
+
+	keys {
+		compatible = "gpio-keys";
+
+		keypad_slide {
+			label = "Keypad Slide";
+			gpios = <&gpio4 13 GPIO_ACTIVE_LOW>; /* 109 */
+			linux,input-type = <EV_SW>;
+			linux,code = <SW_KEYPAD_SLIDE>;
+			wakeup-source;
+			pinctrl-names = "default";
+			pinctrl-0 = <&keypad_slide_pins>;
+		};
+	};
+};
+
+&omap3_pmx_core {
+	keypad_slide_pins: pinmux_debug_led_pins {
+		pinctrl-single,pins = <
+			OMAP3_CORE1_IOPAD(0x212a, PIN_INPUT | MUX_MODE4)       /* cam_d10.gpio_109 */
+		>;
+	};
 };
 
 &omap3_pmx_core {
@@ -85,4 +108,80 @@
 
 &modem {
 	compatible = "nokia,n950-modem";
+};
+
+&twl {
+	twl_audio: audio {
+		compatible = "ti,twl4030-audio";
+		ti,enable-vibra = <1>;
+	};
+};
+
+&twl_keypad {
+	linux,keymap = < MATRIX_KEY(0x00, 0x00, KEY_BACKSLASH)
+			 MATRIX_KEY(0x01, 0x00, KEY_LEFTSHIFT)
+			 MATRIX_KEY(0x02, 0x00, KEY_COMPOSE)
+			 MATRIX_KEY(0x03, 0x00, KEY_LEFTMETA)
+			 MATRIX_KEY(0x04, 0x00, KEY_RIGHTCTRL)
+			 MATRIX_KEY(0x05, 0x00, KEY_BACKSPACE)
+			 MATRIX_KEY(0x06, 0x00, KEY_VOLUMEDOWN)
+			 MATRIX_KEY(0x07, 0x00, KEY_VOLUMEUP)
+
+			 MATRIX_KEY(0x03, 0x01, KEY_Z)
+			 MATRIX_KEY(0x04, 0x01, KEY_A)
+			 MATRIX_KEY(0x05, 0x01, KEY_Q)
+			 MATRIX_KEY(0x06, 0x01, KEY_W)
+			 MATRIX_KEY(0x07, 0x01, KEY_E)
+
+			 MATRIX_KEY(0x03, 0x02, KEY_X)
+			 MATRIX_KEY(0x04, 0x02, KEY_S)
+			 MATRIX_KEY(0x05, 0x02, KEY_D)
+			 MATRIX_KEY(0x06, 0x02, KEY_C)
+			 MATRIX_KEY(0x07, 0x02, KEY_V)
+
+			 MATRIX_KEY(0x03, 0x03, KEY_O)
+			 MATRIX_KEY(0x04, 0x03, KEY_I)
+			 MATRIX_KEY(0x05, 0x03, KEY_U)
+			 MATRIX_KEY(0x06, 0x03, KEY_L)
+			 MATRIX_KEY(0x07, 0x03, KEY_APOSTROPHE)
+
+			 MATRIX_KEY(0x03, 0x04, KEY_Y)
+			 MATRIX_KEY(0x04, 0x04, KEY_K)
+			 MATRIX_KEY(0x05, 0x04, KEY_J)
+			 MATRIX_KEY(0x06, 0x04, KEY_H)
+			 MATRIX_KEY(0x07, 0x04, KEY_G)
+
+			 MATRIX_KEY(0x03, 0x05, KEY_B)
+			 MATRIX_KEY(0x04, 0x05, KEY_COMMA)
+			 MATRIX_KEY(0x05, 0x05, KEY_M)
+			 MATRIX_KEY(0x06, 0x05, KEY_N)
+			 MATRIX_KEY(0x07, 0x05, KEY_DOT)
+
+			 MATRIX_KEY(0x00, 0x06, KEY_SPACE)
+			 MATRIX_KEY(0x03, 0x06, KEY_T)
+			 MATRIX_KEY(0x04, 0x06, KEY_UP)
+			 MATRIX_KEY(0x05, 0x06, KEY_LEFT)
+			 MATRIX_KEY(0x06, 0x06, KEY_RIGHT)
+			 MATRIX_KEY(0x07, 0x06, KEY_DOWN)
+
+			 MATRIX_KEY(0x03, 0x07, KEY_P)
+			 MATRIX_KEY(0x04, 0x07, KEY_ENTER)
+			 MATRIX_KEY(0x05, 0x07, KEY_SLASH)
+			 MATRIX_KEY(0x06, 0x07, KEY_F)
+			 MATRIX_KEY(0x07, 0x07, KEY_R)
+			 >;
+};
+
+&lis302 {
+	st,axis-x = <(-2)>; /* LIS3_INV_DEV_Y */
+	st,axis-y = <(-1)>; /* LIS3_INV_DEV_X */
+	st,axis-z = <(-3)>; /* LIS3_INV_DEV_Z */
+
+	st,min-limit-x = <(-32)>;
+	st,min-limit-y = <3>;
+	st,min-limit-z = <3>;
+
+	st,max-limit-x = <(-3)>;
+	st,max-limit-y = <32>;
+	st,max-limit-z = <32>;
 };

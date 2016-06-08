@@ -16,15 +16,11 @@
 #include <linux/iio/iio.h>
 #include <linux/mutex.h>
 
+struct regulator;
+
 #define MS5611_RESET			0x1e
 #define MS5611_READ_ADC			0x00
 #define MS5611_READ_PROM_WORD		0xA0
-#define MS5611_START_TEMP_CONV		0x58
-#define MS5611_START_PRESSURE_CONV	0x48
-
-#define MS5611_CONV_TIME_MIN		9040
-#define MS5611_CONV_TIME_MAX		10000
-
 #define MS5611_PROM_WORDS_NB		8
 
 enum {
@@ -39,9 +35,23 @@ struct ms5611_chip_info {
 					    s32 *temp, s32 *pressure);
 };
 
+/*
+ * OverSampling Rate descriptor.
+ * Warning: cmd MUST be kept aligned on a word boundary (see
+ * m5611_spi_read_adc_temp_and_pressure in ms5611_spi.c).
+ */
+struct ms5611_osr {
+	unsigned long conv_usec;
+	u8 cmd;
+	unsigned short rate;
+};
+
 struct ms5611_state {
 	void *client;
 	struct mutex lock;
+
+	const struct ms5611_osr *pressure_osr;
+	const struct ms5611_osr *temp_osr;
 
 	int (*reset)(struct device *dev);
 	int (*read_prom_word)(struct device *dev, int index, u16 *word);
@@ -49,6 +59,7 @@ struct ms5611_state {
 					  s32 *temp, s32 *pressure);
 
 	struct ms5611_chip_info *chip_info;
+	struct regulator *vdd;
 };
 
 int ms5611_probe(struct iio_dev *indio_dev, struct device *dev,

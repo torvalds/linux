@@ -105,7 +105,7 @@ acpi_os_create_cache(char *cache_name,
  *
  ******************************************************************************/
 
-acpi_status acpi_os_purge_cache(struct acpi_memory_list * cache)
+acpi_status acpi_os_purge_cache(struct acpi_memory_list *cache)
 {
 	void *next;
 	acpi_status status;
@@ -151,7 +151,7 @@ acpi_status acpi_os_purge_cache(struct acpi_memory_list * cache)
  *
  ******************************************************************************/
 
-acpi_status acpi_os_delete_cache(struct acpi_memory_list * cache)
+acpi_status acpi_os_delete_cache(struct acpi_memory_list *cache)
 {
 	acpi_status status;
 
@@ -184,8 +184,7 @@ acpi_status acpi_os_delete_cache(struct acpi_memory_list * cache)
  *
  ******************************************************************************/
 
-acpi_status
-acpi_os_release_object(struct acpi_memory_list * cache, void *object)
+acpi_status acpi_os_release_object(struct acpi_memory_list *cache, void *object)
 {
 	acpi_status status;
 

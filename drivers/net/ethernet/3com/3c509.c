@@ -699,7 +699,7 @@ el3_tx_timeout (struct net_device *dev)
 		dev->name, inb(ioaddr + TX_STATUS), inw(ioaddr + EL3_STATUS),
 		inw(ioaddr + TX_FREE));
 	dev->stats.tx_errors++;
-	dev->trans_start = jiffies; /* prevent tx timeout */
+	netif_trans_update(dev); /* prevent tx timeout */
 	/* Issue TX_RESET and TX_START commands. */
 	outw(TxReset, ioaddr + EL3_CMD);
 	outw(TxEnable, ioaddr + EL3_CMD);

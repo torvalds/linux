@@ -521,7 +521,7 @@ static void ems_usb_write_bulk_callback(struct urb *urb)
 	if (urb->status)
 		netdev_info(netdev, "Tx URB aborted (%d)\n", urb->status);
 
-	netdev->trans_start = jiffies;
+	netif_trans_update(netdev);
 
 	/* transmission complete interrupt */
 	netdev->stats.tx_packets++;
@@ -835,7 +835,7 @@ static netdev_tx_t ems_usb_start_xmit(struct sk_buff *skb, struct net_device *ne
 			stats->tx_dropped++;
 		}
 	} else {
-		netdev->trans_start = jiffies;
+		netif_trans_update(netdev);
 
 		/* Slow down tx path */
 		if (atomic_read(&dev->active_tx_urbs) >= MAX_TX_URBS ||

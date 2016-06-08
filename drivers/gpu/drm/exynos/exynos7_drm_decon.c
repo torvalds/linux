@@ -593,7 +593,6 @@ static const struct exynos_drm_crtc_ops decon_crtc_ops = {
 	.commit = decon_commit,
 	.enable_vblank = decon_enable_vblank,
 	.disable_vblank = decon_disable_vblank,
-	.wait_for_vblank = decon_wait_for_vblank,
 	.atomic_begin = decon_atomic_begin,
 	.update_plane = decon_update_plane,
 	.disable_plane = decon_disable_plane,

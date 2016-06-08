@@ -219,6 +219,9 @@
 #define KNL_CHA_MSR_PMON_BOX_FILTER_TID		0x1ff
 #define KNL_CHA_MSR_PMON_BOX_FILTER_STATE	(7 << 18)
 #define KNL_CHA_MSR_PMON_BOX_FILTER_OP		(0xfffffe2aULL << 32)
+#define KNL_CHA_MSR_PMON_BOX_FILTER_REMOTE_NODE	(0x1ULL << 32)
+#define KNL_CHA_MSR_PMON_BOX_FILTER_LOCAL_NODE	(0x1ULL << 33)
+#define KNL_CHA_MSR_PMON_BOX_FILTER_NNC		(0x1ULL << 37)
 
 /* KNL EDC/MC UCLK */
 #define KNL_UCLK_MSR_PMON_CTR0_LOW		0x400
@@ -1902,6 +1905,10 @@ static int knl_cha_hw_config(struct intel_uncore_box *box,
 		reg1->reg = HSWEP_C0_MSR_PMON_BOX_FILTER0 +
 			    KNL_CHA_MSR_OFFSET * box->pmu->pmu_idx;
 		reg1->config = event->attr.config1 & knl_cha_filter_mask(idx);
+
+		reg1->config |= KNL_CHA_MSR_PMON_BOX_FILTER_REMOTE_NODE;
+		reg1->config |= KNL_CHA_MSR_PMON_BOX_FILTER_LOCAL_NODE;
+		reg1->config |= KNL_CHA_MSR_PMON_BOX_FILTER_NNC;
 		reg1->idx = idx;
 	}
 	return 0;

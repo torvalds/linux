@@ -130,8 +130,7 @@ struct wilc_priv {
 	struct wilc_wfi_key *wilc_ptk[MAX_NUM_STA];
 	u8 wilc_groupkey;
 	/* semaphores */
-	struct semaphore SemHandleUpdateStats;
-	struct semaphore hSemScanReq;
+	struct mutex scan_req_lock;
 	/*  */
 	bool gbAutoRateAdjusted;
 
@@ -139,18 +138,17 @@ struct wilc_priv {
 
 };
 
-typedef struct {
-	u16 frame_type;
+struct frame_reg {
+	u16 type;
 	bool reg;
-
-} struct_frame_reg;
+};
 
 struct wilc_vif {
 	u8 idx;
 	u8 iftype;
 	int monitor_flag;
 	int mac_opened;
-	struct_frame_reg g_struct_frame_reg[num_reg_frame];
+	struct frame_reg frame_reg[num_reg_frame];
 	struct net_device_stats netstats;
 	struct wilc *wilc;
 	u8 src_addr[ETH_ALEN];
@@ -181,8 +179,7 @@ struct wilc {
 	struct semaphore cfg_event;
 	struct semaphore sync_event;
 	struct semaphore txq_event;
-
-	struct semaphore txq_thread_started;
+	struct completion txq_thread_started;
 
 	struct task_struct *txq_thread;
 

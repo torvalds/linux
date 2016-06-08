@@ -2575,6 +2575,22 @@ SMB2_rename(const unsigned int xid, struct cifs_tcon *tcon,
 }
 
 int
+SMB2_rmdir(const unsigned int xid, struct cifs_tcon *tcon,
+		  u64 persistent_fid, u64 volatile_fid)
+{
+	__u8 delete_pending = 1;
+	void *data;
+	unsigned int size;
+
+	data = &delete_pending;
+	size = 1; /* sizeof __u8 */
+
+	return send_set_info(xid, tcon, persistent_fid, volatile_fid,
+			current->tgid, FILE_DISPOSITION_INFORMATION, 1, &data,
+			&size);
+}
+
+int
 SMB2_set_hardlink(const unsigned int xid, struct cifs_tcon *tcon,
 		  u64 persistent_fid, u64 volatile_fid, __le16 *target_file)
 {

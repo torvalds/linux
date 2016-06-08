@@ -465,7 +465,7 @@ static int phy_RF6052_Config_ParaFile(struct rtw_adapter *Adapter)
 			break;
 		}
 
-		/*----Restore RFENV control type----*/;
+		/*----Restore RFENV control type----*/
 		switch (eRFPath) {
 		case RF_PATH_A:
 			PHY_SetBBReg(Adapter, pPhyReg->rfintfs,

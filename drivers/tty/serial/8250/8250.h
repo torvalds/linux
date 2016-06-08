@@ -17,7 +17,7 @@
 
 struct uart_8250_dma {
 	int (*tx_dma)(struct uart_8250_port *p);
-	int (*rx_dma)(struct uart_8250_port *p, unsigned int iir);
+	int (*rx_dma)(struct uart_8250_port *p);
 
 	/* Filter function */
 	dma_filter_fn		fn;
@@ -84,7 +84,6 @@ struct serial8250_config {
 #define UART_BUG_THRE	(1 << 3)	/* UART has buggy THRE reassertion */
 #define UART_BUG_PARITY	(1 << 4)	/* UART mishandles parity if FIFO enabled */
 
-#define HIGH_BITS_OFFSET ((sizeof(long)-sizeof(int))*8)
 
 #ifdef CONFIG_SERIAL_8250_SHARE_IRQ
 #define SERIAL8250_SHARE_IRQS 1
@@ -151,6 +150,12 @@ static inline int serial8250_pnp_init(void) { return 0; }
 static inline void serial8250_pnp_exit(void) { }
 #endif
 
+#ifdef CONFIG_SERIAL_8250_FINTEK
+int fintek_8250_probe(struct uart_8250_port *uart);
+#else
+static inline int fintek_8250_probe(struct uart_8250_port *uart) { return 0; }
+#endif
+
 #ifdef CONFIG_ARCH_OMAP1
 static inline int is_omap1_8250(struct uart_8250_port *pt)
 {
@@ -190,7 +195,8 @@ static inline int is_omap1510_8250(struct uart_8250_port *pt)
 
 #ifdef CONFIG_SERIAL_8250_DMA
 extern int serial8250_tx_dma(struct uart_8250_port *);
-extern int serial8250_rx_dma(struct uart_8250_port *, unsigned int iir);
+extern int serial8250_rx_dma(struct uart_8250_port *);
+extern void serial8250_rx_dma_flush(struct uart_8250_port *);
 extern int serial8250_request_dma(struct uart_8250_port *);
 extern void serial8250_release_dma(struct uart_8250_port *);
 #else
@@ -198,10 +204,11 @@ static inline int serial8250_tx_dma(struct uart_8250_port *p)
 {
 	return -1;
 }
-static inline int serial8250_rx_dma(struct uart_8250_port *p, unsigned int iir)
+static inline int serial8250_rx_dma(struct uart_8250_port *p)
 {
 	return -1;
 }
+static inline void serial8250_rx_dma_flush(struct uart_8250_port *p) { }
 static inline int serial8250_request_dma(struct uart_8250_port *p)
 {
 	return -1;

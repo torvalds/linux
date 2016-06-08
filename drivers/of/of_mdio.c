@@ -41,8 +41,8 @@ static int of_get_phy_id(struct device_node *device, u32 *phy_id)
 	return -EINVAL;
 }
 
-static int of_mdiobus_register_phy(struct mii_bus *mdio, struct device_node *child,
-				   u32 addr)
+static void of_mdiobus_register_phy(struct mii_bus *mdio,
+				    struct device_node *child, u32 addr)
 {
 	struct phy_device *phy;
 	bool is_c45;
@@ -56,8 +56,8 @@ static int of_mdiobus_register_phy(struct mii_bus *mdio, struct device_node *chi
 		phy = phy_device_create(mdio, addr, phy_id, 0, NULL);
 	else
 		phy = get_phy_device(mdio, addr, is_c45);
-	if (IS_ERR_OR_NULL(phy))
-		return 1;
+	if (IS_ERR(phy))
+		return;
 
 	rc = irq_of_parse_and_map(child, 0);
 	if (rc > 0) {
@@ -81,25 +81,22 @@ static int of_mdiobus_register_phy(struct mii_bus *mdio, struct device_node *chi
 	if (rc) {
 		phy_device_free(phy);
 		of_node_put(child);
-		return 1;
+		return;
 	}
 
 	dev_dbg(&mdio->dev, "registered phy %s at address %i\n",
 		child->name, addr);
-
-	return 0;
 }
 
-static int of_mdiobus_register_device(struct mii_bus *mdio,
-				      struct device_node *child,
-				      u32 addr)
+static void of_mdiobus_register_device(struct mii_bus *mdio,
+				       struct device_node *child, u32 addr)
 {
 	struct mdio_device *mdiodev;
 	int rc;
 
 	mdiodev = mdio_device_create(mdio, addr);
 	if (IS_ERR(mdiodev))
-		return 1;
+		return;
 
 	/* Associate the OF node with the device structure so it
 	 * can be looked up later.
@@ -112,13 +109,11 @@ static int of_mdiobus_register_device(struct mii_bus *mdio,
 	if (rc) {
 		mdio_device_free(mdiodev);
 		of_node_put(child);
-		return 1;
+		return;
 	}
 
 	dev_dbg(&mdio->dev, "registered mdio device %s at address %i\n",
 		child->name, addr);
-
-	return 0;
 }
 
 int of_mdio_parse_addr(struct device *dev, const struct device_node *np)
@@ -213,6 +208,10 @@ int of_mdiobus_register(struct mii_bus *mdio, struct device_node *np)
 	struct device_node *child;
 	bool scanphys = false;
 	int addr, rc;
+
+	/* Do not continue if the node is disabled */
+	if (!of_device_is_available(np))
+		return -ENODEV;
 
 	/* Mask out all PHYs from auto probing.  Instead the PHYs listed in
 	 * the device tree are populated after the bus has been registered */

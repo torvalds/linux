@@ -161,8 +161,7 @@ int	  xfs_log_reserve(struct xfs_mount *mp,
 			  int		   count,
 			  struct xlog_ticket **ticket,
 			  __uint8_t	   clientid,
-			  bool		   permanent,
-			  uint		   t_type);
+			  bool		   permanent);
 int	  xfs_log_regrant(struct xfs_mount *mp, struct xlog_ticket *tic);
 int	  xfs_log_unmount_write(struct xfs_mount *mp);
 void      xfs_log_unmount(struct xfs_mount *mp);

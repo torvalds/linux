@@ -630,7 +630,8 @@ typedef u64 acpi_integer;
 #define ACPI_NOTIFY_SHUTDOWN_REQUEST    (u8) 0x0C
 #define ACPI_NOTIFY_AFFINITY_UPDATE     (u8) 0x0D
 
-#define ACPI_NOTIFY_MAX                 0x0D
+#define ACPI_GENERIC_NOTIFY_MAX         0x0D
+#define ACPI_SPECIFIC_NOTIFY_MAX        0x84
 
 /*
  * Types associated with ACPI names and objects. The first group of
@@ -892,7 +893,7 @@ typedef u8 acpi_adr_space_type;
 
 /* Sleep function dispatch */
 
-typedef acpi_status(*acpi_sleep_function) (u8 sleep_state);
+typedef acpi_status (*acpi_sleep_function) (u8 sleep_state);
 
 struct acpi_sleep_functions {
 	acpi_sleep_function legacy_function;
@@ -994,7 +995,7 @@ struct acpi_buffer {
  * Predefined Namespace items
  */
 struct acpi_predefined_names {
-	char *name;
+	const char *name;
 	u8 type;
 	char *val;
 };
@@ -1071,20 +1072,21 @@ void (*acpi_notify_handler) (acpi_handle device, u32 value, void *context);
 typedef
 void (*acpi_object_handler) (acpi_handle object, void *data);
 
-typedef acpi_status(*acpi_init_handler) (acpi_handle object, u32 function);
+typedef
+acpi_status (*acpi_init_handler) (acpi_handle object, u32 function);
 
 #define ACPI_INIT_DEVICE_INI        1
 
 typedef
-acpi_status(*acpi_exception_handler) (acpi_status aml_status,
-				      acpi_name name,
-				      u16 opcode,
-				      u32 aml_offset, void *context);
+acpi_status (*acpi_exception_handler) (acpi_status aml_status,
+				       acpi_name name,
+				       u16 opcode,
+				       u32 aml_offset, void *context);
 
 /* Table Event handler (Load, load_table, etc.) and types */
 
 typedef
-acpi_status(*acpi_table_handler) (u32 event, void *table, void *context);
+acpi_status (*acpi_table_handler) (u32 event, void *table, void *context);
 
 #define ACPI_TABLE_LOAD             0x0
 #define ACPI_TABLE_UNLOAD           0x1
@@ -1093,12 +1095,12 @@ acpi_status(*acpi_table_handler) (u32 event, void *table, void *context);
 /* Address Spaces (For Operation Regions) */
 
 typedef
-acpi_status(*acpi_adr_space_handler) (u32 function,
-				      acpi_physical_address address,
-				      u32 bit_width,
-				      u64 *value,
-				      void *handler_context,
-				      void *region_context);
+acpi_status (*acpi_adr_space_handler) (u32 function,
+				       acpi_physical_address address,
+				       u32 bit_width,
+				       u64 *value,
+				       void *handler_context,
+				       void *region_context);
 
 #define ACPI_DEFAULT_HANDLER            NULL
 
@@ -1111,18 +1113,18 @@ struct acpi_connection_info {
 };
 
 typedef
-acpi_status(*acpi_adr_space_setup) (acpi_handle region_handle,
-				    u32 function,
-				    void *handler_context,
-				    void **region_context);
+acpi_status (*acpi_adr_space_setup) (acpi_handle region_handle,
+				     u32 function,
+				     void *handler_context,
+				     void **region_context);
 
 #define ACPI_REGION_ACTIVATE    0
 #define ACPI_REGION_DEACTIVATE  1
 
 typedef
-acpi_status(*acpi_walk_callback) (acpi_handle object,
-				  u32 nesting_level,
-				  void *context, void **return_value);
+acpi_status (*acpi_walk_callback) (acpi_handle object,
+				   u32 nesting_level,
+				   void *context, void **return_value);
 
 typedef
 u32 (*acpi_interface_handler) (acpi_string interface_name, u32 supported);
@@ -1227,7 +1229,7 @@ struct acpi_mem_space_context {
  * struct acpi_memory_list is used only if the ACPICA local cache is enabled
  */
 struct acpi_memory_list {
-	char *list_name;
+	const char *list_name;
 	void *list_head;
 	u16 object_size;
 	u16 max_depth;

@@ -87,7 +87,7 @@ acpi_ps_get_next_package_length(struct acpi_parse_state *parser_state)
 	 * used to encode the package length, either 0,1,2, or 3
 	 */
 	byte_count = (aml[0] >> 6);
-	parser_state->aml += ((acpi_size) byte_count + 1);
+	parser_state->aml += ((acpi_size)byte_count + 1);
 
 	/* Get bytes 3, 2, 1 as needed */
 

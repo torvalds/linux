@@ -260,19 +260,12 @@ int __die(const char *str, struct pt_regs *regs, long err)
 	unsigned long sp;
 #endif
 	printk(KERN_DEFAULT
-	       "%s: %04lx [#%d] ", str, err & 0xffff, ++die_counter);
-#ifdef CONFIG_PREEMPT
-	printk("PREEMPT ");
-#endif
-#ifdef CONFIG_SMP
-	printk("SMP ");
-#endif
-	if (debug_pagealloc_enabled())
-		printk("DEBUG_PAGEALLOC ");
-#ifdef CONFIG_KASAN
-	printk("KASAN");
-#endif
-	printk("\n");
+	       "%s: %04lx [#%d]%s%s%s%s\n", str, err & 0xffff, ++die_counter,
+	       IS_ENABLED(CONFIG_PREEMPT) ? " PREEMPT"         : "",
+	       IS_ENABLED(CONFIG_SMP)     ? " SMP"             : "",
+	       debug_pagealloc_enabled()  ? " DEBUG_PAGEALLOC" : "",
+	       IS_ENABLED(CONFIG_KASAN)   ? " KASAN"           : "");
+
 	if (notify_die(DIE_OOPS, str, regs, err,
 			current->thread.trap_nr, SIGSEGV) == NOTIFY_STOP)
 		return 1;

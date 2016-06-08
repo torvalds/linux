@@ -25,6 +25,41 @@
 #include <asm/apic.h>
 #endif
 
+/*
+ * Just in case our CPU detection goes bad, or you have a weird system,
+ * allow a way to override the automatic disabling of MPX.
+ */
+static int forcempx;
+
+static int __init forcempx_setup(char *__unused)
+{
+	forcempx = 1;
+
+	return 1;
+}
+__setup("intel-skd-046-workaround=disable", forcempx_setup);
+
+void check_mpx_erratum(struct cpuinfo_x86 *c)
+{
+	if (forcempx)
+		return;
+	/*
+	 * Turn off the MPX feature on CPUs where SMEP is not
+	 * available or disabled.
+	 *
+	 * Works around Intel Erratum SKD046: "Branch Instructions
+	 * May Initialize MPX Bound Registers Incorrectly".
+	 *
+	 * This might falsely disable MPX on systems without
+	 * SMEP, like Atom processors without SMEP.  But there
+	 * is no such hardware known at the moment.
+	 */
+	if (cpu_has(c, X86_FEATURE_MPX) && !cpu_has(c, X86_FEATURE_SMEP)) {
+		setup_clear_cpu_cap(X86_FEATURE_MPX);
+		pr_warn("x86/mpx: Disabling MPX since SMEP not present\n");
+	}
+}
+
 static void early_init_intel(struct cpuinfo_x86 *c)
 {
 	u64 misc_enable;
@@ -173,6 +208,8 @@ static void early_init_intel(struct cpuinfo_x86 *c)
 		if (edx & (1U << 28))
 			c->x86_coreid_bits = get_count_order((ebx >> 16) & 0xff);
 	}
+
+	check_mpx_erratum(c);
 }
 
 #ifdef CONFIG_X86_32
@@ -233,7 +270,7 @@ static void intel_workarounds(struct cpuinfo_x86 *c)
 	 * The Quark is also family 5, but does not have the same bug.
 	 */
 	clear_cpu_bug(c, X86_BUG_F00F);
-	if (!paravirt_enabled() && c->x86 == 5 && c->x86_model < 9) {
+	if (c->x86 == 5 && c->x86_model < 9) {
 		static int f00f_workaround_enabled;
 
 		set_cpu_bug(c, X86_BUG_F00F);
@@ -280,7 +317,7 @@ static void intel_workarounds(struct cpuinfo_x86 *c)
 	 * integrated APIC (see 11AP erratum in "Pentium Processor
 	 * Specification Update").
 	 */
-	if (cpu_has_apic && (c->x86<<8 | c->x86_model<<4) == 0x520 &&
+	if (boot_cpu_has(X86_FEATURE_APIC) && (c->x86<<8 | c->x86_model<<4) == 0x520 &&
 	    (c->x86_mask < 0x6 || c->x86_mask == 0xb))
 		set_cpu_bug(c, X86_BUG_11AP);
 
@@ -335,7 +372,7 @@ static int intel_num_cpu_cores(struct cpuinfo_x86 *c)
 {
 	unsigned int eax, ebx, ecx, edx;
 
-	if (c->cpuid_level < 4)
+	if (!IS_ENABLED(CONFIG_SMP) || c->cpuid_level < 4)
 		return 1;
 
 	/* Intel has a non-standard dependency on %ecx for this CPUID level. */

@@ -268,3 +268,8 @@ among NILFS2 files can be depicted as follows:
                                     ( regular file, directory, or symlink )
 
 For detail on the format of each file, please see include/linux/nilfs2_fs.h.
+
+There are no patents or other intellectual property that we protect
+with regard to the design of NILFS2.  It is allowed to replicate the
+design in hopes that other operating systems could share (mount, read,
+write, etc.) data stored in this format.

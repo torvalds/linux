@@ -43,7 +43,7 @@ void wl18xx_get_last_tx_rate(struct wl1271 *wl, struct ieee80211_vif *vif,
 
 	if (fw_rate <= CONF_HW_RATE_INDEX_54MBPS) {
 		rate->idx = fw_rate;
-		if (band == IEEE80211_BAND_5GHZ)
+		if (band == NL80211_BAND_5GHZ)
 			rate->idx -= CONF_HW_RATE_INDEX_6MBPS;
 		rate->flags = 0;
 	} else {

@@ -23,8 +23,10 @@
 #include <linux/platform_device.h>
 #include <linux/dma-mapping.h>
 #include <linux/pm_runtime.h>
+#include <linux/delay.h>
 
-#include <linux/of_gpio.h>
+#include <linux/gpio/consumer.h>
+#include <linux/pinctrl/consumer.h>
 #include <linux/debugfs.h>
 
 #include "omap_ssi_regs.h"
@@ -43,7 +45,7 @@ static inline int hsi_dummy_cl(struct hsi_client *cl __maybe_unused)
 static inline unsigned int ssi_wakein(struct hsi_port *port)
 {
 	struct omap_ssi_port *omap_port = hsi_port_drvdata(port);
-	return gpio_get_value(omap_port->wake_gpio);
+	return gpiod_get_value(omap_port->wake_gpio);
 }
 
 #ifdef CONFIG_DEBUG_FS
@@ -171,7 +173,7 @@ static int ssi_div_set(void *data, u64 val)
 
 DEFINE_SIMPLE_ATTRIBUTE(ssi_sst_div_fops, ssi_div_get, ssi_div_set, "%llu\n");
 
-static int __init ssi_debug_add_port(struct omap_ssi_port *omap_port,
+static int ssi_debug_add_port(struct omap_ssi_port *omap_port,
 				     struct dentry *dir)
 {
 	struct hsi_port *port = to_hsi_port(omap_port->dev);
@@ -514,6 +516,11 @@ static int ssi_flush(struct hsi_client *cl)
 
 	pm_runtime_get_sync(omap_port->pdev);
 	spin_lock_bh(&omap_port->lock);
+
+	/* stop all ssi communication */
+	pinctrl_pm_select_idle_state(omap_port->pdev);
+	udelay(1); /* wait for racing frames */
+
 	/* Stop all DMA transfers */
 	for (i = 0; i < SSI_MAX_GDD_LCH; i++) {
 		msg = omap_ssi->gdd_trn[i].msg;
@@ -550,6 +557,10 @@ static int ssi_flush(struct hsi_client *cl)
 		ssi_flush_queue(&omap_port->rxqueue[i], NULL);
 	}
 	ssi_flush_queue(&omap_port->brkqueue, NULL);
+
+	/* Resume SSI communication */
+	pinctrl_pm_select_default_state(omap_port->pdev);
+
 	spin_unlock_bh(&omap_port->lock);
 	pm_runtime_put_sync(omap_port->pdev);
 
@@ -1007,7 +1018,7 @@ static irqreturn_t ssi_wake_isr(int irq __maybe_unused, void *ssi_port)
 	return IRQ_HANDLED;
 }
 
-static int __init ssi_port_irq(struct hsi_port *port,
+static int ssi_port_irq(struct hsi_port *port,
 						struct platform_device *pd)
 {
 	struct omap_ssi_port *omap_port = hsi_port_drvdata(port);
@@ -1029,19 +1040,19 @@ static int __init ssi_port_irq(struct hsi_port *port,
 	return err;
 }
 
-static int __init ssi_wake_irq(struct hsi_port *port,
+static int ssi_wake_irq(struct hsi_port *port,
 						struct platform_device *pd)
 {
 	struct omap_ssi_port *omap_port = hsi_port_drvdata(port);
 	int cawake_irq;
 	int err;
 
-	if (omap_port->wake_gpio == -1) {
+	if (!omap_port->wake_gpio) {
 		omap_port->wake_irq = -1;
 		return 0;
 	}
 
-	cawake_irq = gpio_to_irq(omap_port->wake_gpio);
+	cawake_irq = gpiod_to_irq(omap_port->wake_gpio);
 
 	omap_port->wake_irq = cawake_irq;
 	tasklet_init(&omap_port->wake_tasklet, ssi_wake_tasklet,
@@ -1060,7 +1071,7 @@ static int __init ssi_wake_irq(struct hsi_port *port,
 	return err;
 }
 
-static void __init ssi_queues_init(struct omap_ssi_port *omap_port)
+static void ssi_queues_init(struct omap_ssi_port *omap_port)
 {
 	unsigned int ch;
 
@@ -1071,7 +1082,7 @@ static void __init ssi_queues_init(struct omap_ssi_port *omap_port)
 	INIT_LIST_HEAD(&omap_port->brkqueue);
 }
 
-static int __init ssi_port_get_iomem(struct platform_device *pd,
+static int ssi_port_get_iomem(struct platform_device *pd,
 		const char *name, void __iomem **pbase, dma_addr_t *phy)
 {
 	struct hsi_port *port = platform_get_drvdata(pd);
@@ -1104,23 +1115,18 @@ static int __init ssi_port_get_iomem(struct platform_device *pd,
 	return 0;
 }
 
-static int __init ssi_port_probe(struct platform_device *pd)
+static int ssi_port_probe(struct platform_device *pd)
 {
 	struct device_node *np = pd->dev.of_node;
 	struct hsi_port *port;
 	struct omap_ssi_port *omap_port;
 	struct hsi_controller *ssi = dev_get_drvdata(pd->dev.parent);
 	struct omap_ssi_controller *omap_ssi = hsi_controller_drvdata(ssi);
-	int cawake_gpio = 0;
+	struct gpio_desc *cawake_gpio = NULL;
 	u32 port_id;
 	int err;
 
 	dev_dbg(&pd->dev, "init ssi port...\n");
-
-	if (!try_module_get(ssi->owner)) {
-		dev_err(&pd->dev, "could not increment parent module refcount\n");
-		return -ENODEV;
-	}
 
 	if (!ssi->port || !omap_ssi->port) {
 		dev_err(&pd->dev, "ssi controller not initialized!\n");
@@ -1147,20 +1153,10 @@ static int __init ssi_port_probe(struct platform_device *pd)
 		goto error;
 	}
 
-	err = of_get_named_gpio(np, "ti,ssi-cawake-gpio", 0);
-	if (err < 0) {
-		dev_err(&pd->dev, "DT data is missing cawake gpio (err=%d)\n",
-			err);
-		goto error;
-	}
-	cawake_gpio = err;
-
-	err = devm_gpio_request_one(&port->device, cawake_gpio, GPIOF_DIR_IN,
-		"cawake");
-	if (err) {
-		dev_err(&pd->dev, "could not request cawake gpio (err=%d)!\n",
-			err);
-		err = -ENXIO;
+	cawake_gpio = devm_gpiod_get(&pd->dev, "ti,ssi-cawake", GPIOD_IN);
+	if (IS_ERR(cawake_gpio)) {
+		err = PTR_ERR(cawake_gpio);
+		dev_err(&pd->dev, "couldn't get cawake gpio (err=%d)!\n", err);
 		goto error;
 	}
 
@@ -1219,8 +1215,7 @@ static int __init ssi_port_probe(struct platform_device *pd)
 
 	hsi_add_clients_from_dt(port, np);
 
-	dev_info(&pd->dev, "ssi port %u successfully initialized (cawake=%d)\n",
-		port_id, cawake_gpio);
+	dev_info(&pd->dev, "ssi port %u successfully initialized\n", port_id);
 
 	return 0;
 
@@ -1228,7 +1223,7 @@ error:
 	return err;
 }
 
-static int __exit ssi_port_remove(struct platform_device *pd)
+static int ssi_port_remove(struct platform_device *pd)
 {
 	struct hsi_port *port = platform_get_drvdata(pd);
 	struct omap_ssi_port *omap_port = hsi_port_drvdata(port);
@@ -1253,10 +1248,26 @@ static int __exit ssi_port_remove(struct platform_device *pd)
 
 	omap_ssi->port[omap_port->port_id] = NULL;
 	platform_set_drvdata(pd, NULL);
-	module_put(ssi->owner);
 	pm_runtime_disable(&pd->dev);
 
 	return 0;
+}
+
+static int ssi_restore_divisor(struct omap_ssi_port *omap_port)
+{
+	writel_relaxed(omap_port->sst.divisor,
+				omap_port->sst_base + SSI_SST_DIVISOR_REG);
+
+	return 0;
+}
+
+void omap_ssi_port_update_fclk(struct hsi_controller *ssi,
+			       struct omap_ssi_port *omap_port)
+{
+	/* update divisor */
+	u32 div = ssi_calculate_div(ssi);
+	omap_port->sst.divisor = div;
+	ssi_restore_divisor(omap_port);
 }
 
 #ifdef CONFIG_PM
@@ -1307,14 +1318,6 @@ static int ssi_restore_port_mode(struct omap_ssi_port *omap_port)
 				omap_port->ssr_base + SSI_SSR_MODE_REG);
 	/* OCP barrier */
 	mode = readl(omap_port->ssr_base + SSI_SSR_MODE_REG);
-
-	return 0;
-}
-
-static int ssi_restore_divisor(struct omap_ssi_port *omap_port)
-{
-	writel_relaxed(omap_port->sst.divisor,
-				omap_port->sst_base + SSI_SST_DIVISOR_REG);
 
 	return 0;
 }
@@ -1380,19 +1383,12 @@ MODULE_DEVICE_TABLE(of, omap_ssi_port_of_match);
 #define omap_ssi_port_of_match NULL
 #endif
 
-static struct platform_driver ssi_port_pdriver = {
-	.remove	= __exit_p(ssi_port_remove),
+struct platform_driver ssi_port_pdriver = {
+	.probe = ssi_port_probe,
+	.remove	= ssi_port_remove,
 	.driver	= {
 		.name	= "omap_ssi_port",
 		.of_match_table = omap_ssi_port_of_match,
 		.pm	= DEV_PM_OPS,
 	},
 };
-
-module_platform_driver_probe(ssi_port_pdriver, ssi_port_probe);
-
-MODULE_ALIAS("platform:omap_ssi_port");
-MODULE_AUTHOR("Carlos Chinea <carlos.chinea@nokia.com>");
-MODULE_AUTHOR("Sebastian Reichel <sre@kernel.org>");
-MODULE_DESCRIPTION("Synchronous Serial Interface Port Driver");
-MODULE_LICENSE("GPL v2");

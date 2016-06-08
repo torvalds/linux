@@ -124,10 +124,10 @@ void ldlm_handle_bl_callback(struct ldlm_namespace *ns,
 	LDLM_DEBUG(lock, "client blocking AST callback handler");
 
 	lock_res_and_lock(lock);
-	lock->l_flags |= LDLM_FL_CBPENDING;
+	ldlm_set_cbpending(lock);
 
-	if (lock->l_flags & LDLM_FL_CANCEL_ON_BLOCK)
-		lock->l_flags |= LDLM_FL_CANCEL;
+	if (ldlm_is_cancel_on_block(lock))
+		ldlm_set_cancel(lock);
 
 	do_ast = !lock->l_readers && !lock->l_writers;
 	unlock_res_and_lock(lock);
@@ -172,7 +172,7 @@ static void ldlm_handle_cp_callback(struct ptlrpc_request *req,
 			set_current_state(TASK_INTERRUPTIBLE);
 			schedule_timeout(to);
 			if (lock->l_granted_mode == lock->l_req_mode ||
-			    lock->l_flags & LDLM_FL_DESTROYED)
+			    ldlm_is_destroyed(lock))
 				break;
 		}
 	}
@@ -215,7 +215,7 @@ static void ldlm_handle_cp_callback(struct ptlrpc_request *req,
 	}
 
 	lock_res_and_lock(lock);
-	if ((lock->l_flags & LDLM_FL_DESTROYED) ||
+	if (ldlm_is_destroyed(lock) ||
 	    lock->l_granted_mode == lock->l_req_mode) {
 		/* bug 11300: the lock has already been granted */
 		unlock_res_and_lock(lock);
@@ -291,7 +291,7 @@ static void ldlm_handle_cp_callback(struct ptlrpc_request *req,
 out:
 	if (rc < 0) {
 		lock_res_and_lock(lock);
-		lock->l_flags |= LDLM_FL_FAILED;
+		ldlm_set_failed(lock);
 		unlock_res_and_lock(lock);
 		wake_up(&lock->l_waitq);
 	}
@@ -360,8 +360,7 @@ static int __ldlm_bl_to_thread(struct ldlm_bl_work_item *blwi,
 	struct ldlm_bl_pool *blp = ldlm_state->ldlm_bl_pool;
 
 	spin_lock(&blp->blp_lock);
-	if (blwi->blwi_lock &&
-	    blwi->blwi_lock->l_flags & LDLM_FL_DISCARD_DATA) {
+	if (blwi->blwi_lock && ldlm_is_discard_data(blwi->blwi_lock)) {
 		/* add LDLM_FL_DISCARD_DATA requests to the priority list */
 		list_add_tail(&blwi->blwi_entry, &blp->blp_prio_list);
 	} else {
@@ -626,23 +625,22 @@ static int ldlm_callback_handler(struct ptlrpc_request *req)
 		return 0;
 	}
 
-	if ((lock->l_flags & LDLM_FL_FAIL_LOC) &&
+	if (ldlm_is_fail_loc(lock) &&
 	    lustre_msg_get_opc(req->rq_reqmsg) == LDLM_BL_CALLBACK)
 		OBD_RACE(OBD_FAIL_LDLM_CP_BL_RACE);
 
 	/* Copy hints/flags (e.g. LDLM_FL_DISCARD_DATA) from AST. */
 	lock_res_and_lock(lock);
 	lock->l_flags |= ldlm_flags_from_wire(dlm_req->lock_flags &
-					      LDLM_AST_FLAGS);
+					      LDLM_FL_AST_MASK);
 	if (lustre_msg_get_opc(req->rq_reqmsg) == LDLM_BL_CALLBACK) {
 		/* If somebody cancels lock and cache is already dropped,
 		 * or lock is failed before cp_ast received on client,
 		 * we can tell the server we have no lock. Otherwise, we
 		 * should send cancel after dropping the cache.
 		 */
-		if (((lock->l_flags & LDLM_FL_CANCELING) &&
-		    (lock->l_flags & LDLM_FL_BL_DONE)) ||
-		    (lock->l_flags & LDLM_FL_FAILED)) {
+		if ((ldlm_is_canceling(lock) && ldlm_is_bl_done(lock)) ||
+		    ldlm_is_failed(lock)) {
 			LDLM_DEBUG(lock, "callback on lock %#llx - lock disappeared\n",
 				   dlm_req->lock_handle[0].cookie);
 			unlock_res_and_lock(lock);
@@ -656,7 +654,7 @@ static int ldlm_callback_handler(struct ptlrpc_request *req)
 		 * Let ldlm_cancel_lru() be fast.
 		 */
 		ldlm_lock_remove_from_lru(lock);
-		lock->l_flags |= LDLM_FL_BL_AST;
+		ldlm_set_bl_ast(lock);
 	}
 	unlock_res_and_lock(lock);
 
@@ -674,7 +672,7 @@ static int ldlm_callback_handler(struct ptlrpc_request *req)
 	case LDLM_BL_CALLBACK:
 		CDEBUG(D_INODE, "blocking ast\n");
 		req_capsule_extend(&req->rq_pill, &RQF_LDLM_BL_CALLBACK);
-		if (!(lock->l_flags & LDLM_FL_CANCEL_ON_BLOCK)) {
+		if (!ldlm_is_cancel_on_block(lock)) {
 			rc = ldlm_callback_reply(req, 0);
 			if (req->rq_no_reply || rc)
 				ldlm_callback_errmsg(req, "Normal process", rc,

@@ -94,7 +94,7 @@ static void inet_twsk_add_bind_node(struct inet_timewait_sock *tw,
 }
 
 /*
- * Enter the time wait state. This is called with locally disabled BH.
+ * Enter the time wait state.
  * Essentially we whip up a timewait bucket, copy the relevant info into it
  * from the SK, and mess with hash chains and list linkage.
  */
@@ -112,7 +112,7 @@ void __inet_twsk_hashdance(struct inet_timewait_sock *tw, struct sock *sk,
 	 */
 	bhead = &hashinfo->bhash[inet_bhashfn(twsk_net(tw), inet->inet_num,
 			hashinfo->bhash_size)];
-	spin_lock(&bhead->lock);
+	spin_lock_bh(&bhead->lock);
 	tw->tw_tb = icsk->icsk_bind_hash;
 	WARN_ON(!icsk->icsk_bind_hash);
 	inet_twsk_add_bind_node(tw, &tw->tw_tb->owners);
@@ -138,7 +138,7 @@ void __inet_twsk_hashdance(struct inet_timewait_sock *tw, struct sock *sk,
 	if (__sk_nulls_del_node_init_rcu(sk))
 		sock_prot_inuse_add(sock_net(sk), sk->sk_prot, -1);
 
-	spin_unlock(lock);
+	spin_unlock_bh(lock);
 }
 EXPORT_SYMBOL_GPL(__inet_twsk_hashdance);
 
@@ -147,9 +147,9 @@ static void tw_timer_handler(unsigned long data)
 	struct inet_timewait_sock *tw = (struct inet_timewait_sock *)data;
 
 	if (tw->tw_kill)
-		NET_INC_STATS_BH(twsk_net(tw), LINUX_MIB_TIMEWAITKILLED);
+		__NET_INC_STATS(twsk_net(tw), LINUX_MIB_TIMEWAITKILLED);
 	else
-		NET_INC_STATS_BH(twsk_net(tw), LINUX_MIB_TIMEWAITED);
+		__NET_INC_STATS(twsk_net(tw), LINUX_MIB_TIMEWAITED);
 	inet_twsk_kill(tw);
 }
 

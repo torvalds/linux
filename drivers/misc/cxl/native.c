@@ -186,15 +186,24 @@ static int spa_max_procs(int spa_size)
 
 int cxl_alloc_spa(struct cxl_afu *afu)
 {
+	unsigned spa_size;
+
 	/* Work out how many pages to allocate */
 	afu->native->spa_order = 0;
 	do {
 		afu->native->spa_order++;
-		afu->native->spa_size = (1 << afu->native->spa_order) * PAGE_SIZE;
+		spa_size = (1 << afu->native->spa_order) * PAGE_SIZE;
+
+		if (spa_size > 0x100000) {
+			dev_warn(&afu->dev, "num_of_processes too large for the SPA, limiting to %i (0x%x)\n",
+					afu->native->spa_max_procs, afu->native->spa_size);
+			afu->num_procs = afu->native->spa_max_procs;
+			break;
+		}
+
+		afu->native->spa_size = spa_size;
 		afu->native->spa_max_procs = spa_max_procs(afu->native->spa_size);
 	} while (afu->native->spa_max_procs < afu->num_procs);
-
-	WARN_ON(afu->native->spa_size > 0x100000); /* Max size supported by the hardware */
 
 	if (!(afu->native->spa = (struct cxl_process_element *)
 	      __get_free_pages(GFP_KERNEL | __GFP_ZERO, afu->native->spa_order))) {
@@ -486,8 +495,9 @@ static u64 calculate_sr(struct cxl_context *ctx)
 	if (mfspr(SPRN_LPCR) & LPCR_TC)
 		sr |= CXL_PSL_SR_An_TC;
 	if (ctx->kernel) {
-		sr |= CXL_PSL_SR_An_R | (mfmsr() & MSR_SF);
-		sr |= CXL_PSL_SR_An_HV;
+		if (!ctx->real_mode)
+			sr |= CXL_PSL_SR_An_R;
+		sr |= (mfmsr() & MSR_SF) | CXL_PSL_SR_An_HV;
 	} else {
 		sr |= CXL_PSL_SR_An_PR | CXL_PSL_SR_An_R;
 		sr &= ~(CXL_PSL_SR_An_HV);
@@ -525,6 +535,15 @@ static int attach_afu_directed(struct cxl_context *ctx, u64 wed, u64 amr)
 
 	ctx->elem->common.sstp0 = cpu_to_be64(ctx->sstp0);
 	ctx->elem->common.sstp1 = cpu_to_be64(ctx->sstp1);
+
+	/*
+	 * Ensure we have the multiplexed PSL interrupt set up to take faults
+	 * for kernel contexts that may not have allocated any AFU IRQs at all:
+	 */
+	if (ctx->irqs.range[0] == 0) {
+		ctx->irqs.offset[0] = ctx->afu->native->psl_hwirq;
+		ctx->irqs.range[0] = 1;
+	}
 
 	for (r = 0; r < CXL_IRQ_RANGES; r++) {
 		ctx->elem->ivte_offsets[r] = cpu_to_be16(ctx->irqs.offset[r]);
