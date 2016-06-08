@@ -149,10 +149,10 @@ static inline bool __down_write_trylock(struct rw_semaphore *sem)
 		     LOCK_PREFIX "  cmpxchg  %2,%0\n\t"
 		     "  jnz	     1b\n\t"
 		     "2:\n\t"
-		     "  sete         %3\n\t"
+		     CC_SET(e)
 		     "# ending __down_write_trylock\n\t"
 		     : "+m" (sem->count), "=&a" (tmp0), "=&r" (tmp1),
-		       "=qm" (result)
+		       CC_OUT(e) (result)
 		     : "er" (RWSEM_ACTIVE_WRITE_BIAS)
 		     : "memory", "cc");
 	return result;
