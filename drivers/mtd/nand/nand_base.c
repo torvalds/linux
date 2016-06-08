@@ -3842,23 +3842,12 @@ static void nand_decode_id(struct nand_chip *chip, struct nand_flash_dev *type)
 static void nand_decode_bbm_options(struct nand_chip *chip)
 {
 	struct mtd_info *mtd = nand_to_mtd(chip);
-	u8 *id_data = chip->id.data;
-	int maf_id = id_data[0];
 
 	/* Set the bad block position */
 	if (mtd->writesize > 512 || (chip->options & NAND_BUSWIDTH_16))
 		chip->badblockpos = NAND_LARGE_BADBLOCK_POS;
 	else
 		chip->badblockpos = NAND_SMALL_BADBLOCK_POS;
-
-	/*
-	 * Bad block marker is stored in the last page of each block on Samsung
-	 * and Hynix MLC devices; stored in first two pages of each block on
-	 * Micron devices with 2KiB pages and on SLC Samsung, Hynix, Toshiba,
-	 * AMD/Spansion, and Macronix.  All others scan only the first page.
-	 */
-	if (nand_is_slc(chip) && maf_id == NAND_MFR_MACRONIX)
-		chip->bbt_options |= NAND_BBT_SCAN2NDPAGE;
 }
 
 static inline bool is_full_id_nand(struct nand_flash_dev *type)
