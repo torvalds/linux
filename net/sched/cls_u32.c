@@ -922,11 +922,17 @@ static int u32_change(struct net *net, struct sk_buff *in_skb,
 		ht->divisor = divisor;
 		ht->handle = handle;
 		ht->prio = tp->prio;
+
+		err = u32_replace_hw_hnode(tp, ht, flags);
+		if (err) {
+			kfree(ht);
+			return err;
+		}
+
 		RCU_INIT_POINTER(ht->next, tp_c->hlist);
 		rcu_assign_pointer(tp_c->hlist, ht);
 		*arg = (unsigned long)ht;
 
-		u32_replace_hw_hnode(tp, ht, flags);
 		return 0;
 	}
 
