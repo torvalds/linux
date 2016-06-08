@@ -8797,6 +8797,7 @@ EXPORT_SYMBOL(md_reload_sb);
  * at boot time.
  */
 
+static DEFINE_MUTEX(detected_devices_mutex);
 static LIST_HEAD(all_detected_devices);
 struct detected_devices_node {
 	struct list_head list;
@@ -8810,7 +8811,9 @@ void md_autodetect_dev(dev_t dev)
 	node_detected_dev = kzalloc(sizeof(*node_detected_dev), GFP_KERNEL);
 	if (node_detected_dev) {
 		node_detected_dev->dev = dev;
+		mutex_lock(&detected_devices_mutex);
 		list_add_tail(&node_detected_dev->list, &all_detected_devices);
+		mutex_unlock(&detected_devices_mutex);
 	} else {
 		printk(KERN_CRIT "md: md_autodetect_dev: kzalloc failed"
 			", skipping dev(%d,%d)\n", MAJOR(dev), MINOR(dev));
@@ -8829,6 +8832,7 @@ static void autostart_arrays(int part)
 
 	printk(KERN_INFO "md: Autodetecting RAID arrays.\n");
 
+	mutex_lock(&detected_devices_mutex);
 	while (!list_empty(&all_detected_devices) && i_scanned < INT_MAX) {
 		i_scanned++;
 		node_detected_dev = list_entry(all_detected_devices.next,
@@ -8847,6 +8851,7 @@ static void autostart_arrays(int part)
 		list_add(&rdev->same_set, &pending_raid_disks);
 		i_passed++;
 	}
+	mutex_unlock(&detected_devices_mutex);
 
 	printk(KERN_INFO "md: Scanned %d and added %d devices.\n",
 						i_scanned, i_passed);
