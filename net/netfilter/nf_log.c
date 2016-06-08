@@ -159,6 +159,20 @@ int nf_logger_find_get(int pf, enum nf_log_type type)
 	struct nf_logger *logger;
 	int ret = -ENOENT;
 
+	if (pf == NFPROTO_INET) {
+		ret = nf_logger_find_get(NFPROTO_IPV4, type);
+		if (ret < 0)
+			return ret;
+
+		ret = nf_logger_find_get(NFPROTO_IPV6, type);
+		if (ret < 0) {
+			nf_logger_put(NFPROTO_IPV4, type);
+			return ret;
+		}
+
+		return 0;
+	}
+
 	if (rcu_access_pointer(loggers[pf][type]) == NULL)
 		request_module("nf-logger-%u-%u", pf, type);
 
@@ -178,6 +192,12 @@ EXPORT_SYMBOL_GPL(nf_logger_find_get);
 void nf_logger_put(int pf, enum nf_log_type type)
 {
 	struct nf_logger *logger;
+
+	if (pf == NFPROTO_INET) {
+		nf_logger_put(NFPROTO_IPV4, type);
+		nf_logger_put(NFPROTO_IPV6, type);
+		return;
+	}
 
 	BUG_ON(loggers[pf][type] == NULL);
 
