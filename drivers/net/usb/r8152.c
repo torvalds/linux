@@ -1742,7 +1742,7 @@ static int rx_bottom(struct r8152 *tp, int budget)
 			pkt_len -= CRC_SIZE;
 			rx_data += sizeof(struct rx_desc);
 
-			skb = netdev_alloc_skb_ip_align(netdev, pkt_len);
+			skb = napi_alloc_skb(&tp->napi, pkt_len);
 			if (!skb) {
 				stats->rx_dropped++;
 				goto find_next_rx;
