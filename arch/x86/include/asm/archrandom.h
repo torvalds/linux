@@ -43,7 +43,7 @@
 #ifdef CONFIG_ARCH_RANDOM
 
 /* Instead of arch_get_random_long() when alternatives haven't run. */
-static inline int rdrand_long(unsigned long *v)
+static inline bool rdrand_long(unsigned long *v)
 {
 	int ok;
 	asm volatile("1: " RDRAND_LONG "\n\t"
@@ -53,13 +53,13 @@ static inline int rdrand_long(unsigned long *v)
 		     "2:"
 		     : "=r" (ok), "=a" (*v)
 		     : "0" (RDRAND_RETRY_LOOPS));
-	return ok;
+	return !!ok;
 }
 
 /* A single attempt at RDSEED */
 static inline bool rdseed_long(unsigned long *v)
 {
-	unsigned char ok;
+	bool ok;
 	asm volatile(RDSEED_LONG "\n\t"
 		     "setc %0"
 		     : "=qm" (ok), "=a" (*v));
@@ -67,7 +67,7 @@ static inline bool rdseed_long(unsigned long *v)
 }
 
 #define GET_RANDOM(name, type, rdrand, nop)			\
-static inline int name(type *v)					\
+static inline bool name(type *v)				\
 {								\
 	int ok;							\
 	alternative_io("movl $0, %0\n\t"			\
@@ -80,13 +80,13 @@ static inline int name(type *v)					\
 		       X86_FEATURE_RDRAND,                      \
 		       ASM_OUTPUT2("=r" (ok), "=a" (*v)),       \
 		       "0" (RDRAND_RETRY_LOOPS));		\
-	return ok;						\
+	return !!ok;						\
 }
 
 #define GET_SEED(name, type, rdseed, nop)			\
-static inline int name(type *v)					\
+static inline bool name(type *v)				\
 {								\
-	unsigned char ok;					\
+	bool ok;						\
 	alternative_io("movb $0, %0\n\t"			\
 		       nop,					\
 		       rdseed "\n\t"				\
@@ -119,7 +119,7 @@ GET_SEED(arch_get_random_seed_int, unsigned int, RDSEED_INT, ASM_NOP4);
 
 #else
 
-static inline int rdrand_long(unsigned long *v)
+static inline bool rdrand_long(unsigned long *v)
 {
 	return 0;
 }

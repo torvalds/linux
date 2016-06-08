@@ -23,11 +23,11 @@ cc_label:								\
 
 #define __GEN_RMWcc(fullop, var, cc, ...)				\
 do {									\
-	char c;								\
+	bool c;								\
 	asm volatile (fullop "; set" cc " %1"				\
 			: "+m" (var), "=qm" (c)				\
 			: __VA_ARGS__ : "memory");			\
-	return c != 0;							\
+	return c;							\
 } while (0)
 
 #define GEN_UNARY_RMWcc(op, var, arg0, cc)				\

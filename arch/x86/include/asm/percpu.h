@@ -510,14 +510,14 @@ do {									\
 /* This is not atomic against other CPUs -- CPU preemption needs to be off */
 #define x86_test_and_clear_bit_percpu(bit, var)				\
 ({									\
-	unsigned char old__;						\
+	bool old__;							\
 	asm volatile("btr %2,"__percpu_arg(1)"\n\tsetc %0"		\
 		     : "=qm" (old__), "+m" (var)			\
 		     : "dIr" (bit));					\
 	old__;								\
 })
 
-static __always_inline int x86_this_cpu_constant_test_bit(unsigned int nr,
+static __always_inline bool x86_this_cpu_constant_test_bit(unsigned int nr,
                         const unsigned long __percpu *addr)
 {
 	unsigned long __percpu *a = (unsigned long *)addr + nr / BITS_PER_LONG;
@@ -529,10 +529,10 @@ static __always_inline int x86_this_cpu_constant_test_bit(unsigned int nr,
 #endif
 }
 
-static inline int x86_this_cpu_variable_test_bit(int nr,
+static inline bool x86_this_cpu_variable_test_bit(int nr,
                         const unsigned long __percpu *addr)
 {
-	unsigned char oldbit;
+	bool oldbit;
 
 	asm volatile("bt "__percpu_arg(2)",%1\n\t"
 			"setc %0"
