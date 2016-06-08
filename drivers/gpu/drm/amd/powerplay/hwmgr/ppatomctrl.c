@@ -1302,3 +1302,46 @@ int atomctrl_get_smc_sclk_range_table(struct pp_hwmgr *hwmgr, struct pp_atom_ctr
 
 	return 0;
 }
+
+int atomctrl_get_avfs_information(struct pp_hwmgr *hwmgr, struct pp_atom_ctrl__avfs_parameters *param)
+{
+	ATOM_ASIC_PROFILING_INFO_V3_6 *profile = NULL;
+
+	if (param == NULL)
+		return -EINVAL;
+
+	profile = (ATOM_ASIC_PROFILING_INFO_V3_6 *)
+			cgs_atom_get_data_table(hwmgr->device,
+					GetIndexIntoMasterTable(DATA, ASIC_ProfilingInfo),
+					NULL, NULL, NULL);
+	if (!profile)
+		return -1;
+
+	param->ulAVFS_meanNsigma_Acontant0 = profile->ulAVFS_meanNsigma_Acontant0;
+	param->ulAVFS_meanNsigma_Acontant1 = profile->ulAVFS_meanNsigma_Acontant1;
+	param->ulAVFS_meanNsigma_Acontant2 = profile->ulAVFS_meanNsigma_Acontant2;
+	param->usAVFS_meanNsigma_DC_tol_sigma = profile->usAVFS_meanNsigma_DC_tol_sigma;
+	param->usAVFS_meanNsigma_Platform_mean = profile->usAVFS_meanNsigma_Platform_mean;
+	param->usAVFS_meanNsigma_Platform_sigma = profile->usAVFS_meanNsigma_Platform_sigma;
+	param->ulGB_VDROOP_TABLE_CKSOFF_a0 = profile->ulGB_VDROOP_TABLE_CKSOFF_a0;
+	param->ulGB_VDROOP_TABLE_CKSOFF_a1 = profile->ulGB_VDROOP_TABLE_CKSOFF_a1;
+	param->ulGB_VDROOP_TABLE_CKSOFF_a2 = profile->ulGB_VDROOP_TABLE_CKSOFF_a2;
+	param->ulGB_VDROOP_TABLE_CKSON_a0 = profile->ulGB_VDROOP_TABLE_CKSON_a0;
+	param->ulGB_VDROOP_TABLE_CKSON_a1 = profile->ulGB_VDROOP_TABLE_CKSON_a1;
+	param->ulGB_VDROOP_TABLE_CKSON_a2 = profile->ulGB_VDROOP_TABLE_CKSON_a2;
+	param->ulAVFSGB_FUSE_TABLE_CKSOFF_m1 = profile->ulAVFSGB_FUSE_TABLE_CKSOFF_m1;
+	param->usAVFSGB_FUSE_TABLE_CKSOFF_m2 = profile->usAVFSGB_FUSE_TABLE_CKSOFF_m2;
+	param->ulAVFSGB_FUSE_TABLE_CKSOFF_b = profile->ulAVFSGB_FUSE_TABLE_CKSOFF_b;
+	param->ulAVFSGB_FUSE_TABLE_CKSON_m1 = profile->ulAVFSGB_FUSE_TABLE_CKSON_m1;
+	param->usAVFSGB_FUSE_TABLE_CKSON_m2 = profile->usAVFSGB_FUSE_TABLE_CKSON_m2;
+	param->ulAVFSGB_FUSE_TABLE_CKSON_b = profile->ulAVFSGB_FUSE_TABLE_CKSON_b;
+	param->usMaxVoltage_0_25mv = profile->usMaxVoltage_0_25mv;
+	param->ucEnableGB_VDROOP_TABLE_CKSOFF = profile->ucEnableGB_VDROOP_TABLE_CKSOFF;
+	param->ucEnableGB_VDROOP_TABLE_CKSON = profile->ucEnableGB_VDROOP_TABLE_CKSON;
+	param->ucEnableGB_FUSE_TABLE_CKSOFF = profile->ucEnableGB_FUSE_TABLE_CKSOFF;
+	param->ucEnableGB_FUSE_TABLE_CKSON = profile->ucEnableGB_FUSE_TABLE_CKSON;
+	param->usPSM_Age_ComFactor = profile->usPSM_Age_ComFactor;
+	param->ucEnableApplyAVFS_CKS_OFF_Voltage = profile->ucEnableApplyAVFS_CKS_OFF_Voltage;
+
+	return 0;
+}

@@ -625,9 +625,13 @@ static int tf_polaris10_thermal_avfs_enable(struct pp_hwmgr *hwmgr,
 	int ret;
 	struct pp_smumgr *smumgr = (struct pp_smumgr *)(hwmgr->smumgr);
 	struct polaris10_smumgr *smu_data = (struct polaris10_smumgr *)(smumgr->backend);
+	struct polaris10_hwmgr *data = (struct polaris10_hwmgr *)(hwmgr->backend);
 
-	if (smu_data->avfs.avfs_btc_status != AVFS_BTC_ENABLEAVFS)
+	if (smu_data->avfs.avfs_btc_status == AVFS_BTC_NOTSUPPORTED)
 		return 0;
+
+	ret = smum_send_msg_to_smc_with_parameter(hwmgr->smumgr,
+			PPSMC_MSG_SetGBDroopSettings, data->avfs_vdroop_override_setting);
 
 	ret = (smum_send_msg_to_smc(smumgr, PPSMC_MSG_EnableAvfs) == 0) ?
 			0 : -1;

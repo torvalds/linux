@@ -27,6 +27,7 @@
 
 #pragma pack(push, 1)
 
+#define PPSMC_MSG_SetGBDroopSettings          ((uint16_t) 0x305)
 
 #define PPSMC_SWSTATE_FLAG_DC                           0x01
 #define PPSMC_SWSTATE_FLAG_UVD                          0x02
