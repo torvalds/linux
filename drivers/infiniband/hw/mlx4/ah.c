@@ -65,6 +65,7 @@ static struct ib_ah *create_ib_ah(struct ib_pd *pd, struct ib_ah_attr *ah_attr,
 
 	ah->av.ib.port_pd = cpu_to_be32(to_mpd(pd)->pdn | (ah_attr->port_num << 24));
 	ah->av.ib.g_slid  = ah_attr->src_path_bits;
+	ah->av.ib.sl_tclass_flowlabel = cpu_to_be32(ah_attr->sl << 28);
 	if (ah_attr->ah_flags & IB_AH_GRH) {
 		ah->av.ib.g_slid   |= 0x80;
 		ah->av.ib.gid_index = ah_attr->grh.sgid_index;
@@ -82,7 +83,6 @@ static struct ib_ah *create_ib_ah(struct ib_pd *pd, struct ib_ah_attr *ah_attr,
 		       !(1 << ah->av.ib.stat_rate & dev->caps.stat_rate_support))
 			--ah->av.ib.stat_rate;
 	}
-	ah->av.ib.sl_tclass_flowlabel = cpu_to_be32(ah_attr->sl << 28);
 
 	return &ah->ibah;
 }
