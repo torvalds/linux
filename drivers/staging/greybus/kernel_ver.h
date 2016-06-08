@@ -328,7 +328,13 @@ static inline void reinit_completion(struct completion *x)
 }
 #endif
 
-#ifdef PWMF_ENABLED
+#if LINUX_VERSION_CODE < KERNEL_VERSION(4, 2, 0)
+#include <linux/pwm.h>
+/*
+ * pwm_is_enabled() was first defined in 4.2-rc1 (first commit!).
+ * PWMF_ENABLED was first defined in 3.5-rc2, but our code is
+ * always newer than that.
+*/
 static inline bool pwm_is_enabled(const struct pwm_device *pwm)
 {
 	return test_bit(PWMF_ENABLED, &pwm->flags);
