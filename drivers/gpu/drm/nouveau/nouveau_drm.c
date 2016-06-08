@@ -492,6 +492,7 @@ nouveau_drm_unload(struct drm_device *dev)
 
 	if (nouveau_runtime_pm != 0) {
 		pm_runtime_get_sync(dev->dev);
+		pm_runtime_forbid(dev->dev);
 	}
 
 	nouveau_fbcon_fini(dev);
