@@ -1186,20 +1186,14 @@ bpf_object__next(struct bpf_object *prev)
 	return next;
 }
 
-const char *
-bpf_object__get_name(struct bpf_object *obj)
+const char *bpf_object__name(struct bpf_object *obj)
 {
-	if (!obj)
-		return ERR_PTR(-EINVAL);
-	return obj->path;
+	return obj ? obj->path : ERR_PTR(-EINVAL);
 }
 
-unsigned int
-bpf_object__get_kversion(struct bpf_object *obj)
+unsigned int bpf_object__kversion(struct bpf_object *obj)
 {
-	if (!obj)
-		return 0;
-	return obj->kern_version;
+	return obj ? obj->kern_version : 0;
 }
 
 struct bpf_program *
@@ -1224,9 +1218,8 @@ bpf_program__next(struct bpf_program *prev, struct bpf_object *obj)
 	return &obj->programs[idx];
 }
 
-int bpf_program__set_private(struct bpf_program *prog,
-			     void *priv,
-			     bpf_program_clear_priv_t clear_priv)
+int bpf_program__set_priv(struct bpf_program *prog, void *priv,
+			  bpf_program_clear_priv_t clear_priv)
 {
 	if (prog->priv && prog->clear_priv)
 		prog->clear_priv(prog, prog->priv);
@@ -1236,10 +1229,9 @@ int bpf_program__set_private(struct bpf_program *prog,
 	return 0;
 }
 
-int bpf_program__get_private(struct bpf_program *prog, void **ppriv)
+void *bpf_program__priv(struct bpf_program *prog)
 {
-	*ppriv = prog->priv;
-	return 0;
+	return prog ? prog->priv : ERR_PTR(-EINVAL);
 }
 
 const char *bpf_program__title(struct bpf_program *prog, bool needs_copy)
@@ -1311,32 +1303,23 @@ int bpf_program__nth_fd(struct bpf_program *prog, int n)
 	return fd;
 }
 
-int bpf_map__get_fd(struct bpf_map *map)
+int bpf_map__fd(struct bpf_map *map)
 {
-	if (!map)
-		return -EINVAL;
-
-	return map->fd;
+	return map ? map->fd : -EINVAL;
 }
 
-int bpf_map__get_def(struct bpf_map *map, struct bpf_map_def *pdef)
+const struct bpf_map_def *bpf_map__def(struct bpf_map *map)
 {
-	if (!map || !pdef)
-		return -EINVAL;
-
-	*pdef = map->def;
-	return 0;
+	return map ? &map->def : ERR_PTR(-EINVAL);
 }
 
-const char *bpf_map__get_name(struct bpf_map *map)
+const char *bpf_map__name(struct bpf_map *map)
 {
-	if (!map)
-		return NULL;
-	return map->name;
+	return map ? map->name : NULL;
 }
 
-int bpf_map__set_private(struct bpf_map *map, void *priv,
-			 bpf_map_clear_priv_t clear_priv)
+int bpf_map__set_priv(struct bpf_map *map, void *priv,
+		     bpf_map_clear_priv_t clear_priv)
 {
 	if (!map)
 		return -EINVAL;
@@ -1351,14 +1334,9 @@ int bpf_map__set_private(struct bpf_map *map, void *priv,
 	return 0;
 }
 
-int bpf_map__get_private(struct bpf_map *map, void **ppriv)
+void *bpf_map__priv(struct bpf_map *map)
 {
-	if (!map)
-		return -EINVAL;
-
-	if (ppriv)
-		*ppriv = map->priv;
-	return 0;
+	return map ? map->priv : ERR_PTR(-EINVAL);
 }
 
 struct bpf_map *
@@ -1389,7 +1367,7 @@ bpf_map__next(struct bpf_map *prev, struct bpf_object *obj)
 }
 
 struct bpf_map *
-bpf_object__get_map_by_name(struct bpf_object *obj, const char *name)
+bpf_object__find_map_by_name(struct bpf_object *obj, const char *name)
 {
 	struct bpf_map *pos;
 

@@ -55,8 +55,8 @@ void bpf_object__close(struct bpf_object *object);
 /* Load/unload object into/from kernel */
 int bpf_object__load(struct bpf_object *obj);
 int bpf_object__unload(struct bpf_object *obj);
-const char *bpf_object__get_name(struct bpf_object *obj);
-unsigned int bpf_object__get_kversion(struct bpf_object *obj);
+const char *bpf_object__name(struct bpf_object *obj);
+unsigned int bpf_object__kversion(struct bpf_object *obj);
 
 struct bpf_object *bpf_object__next(struct bpf_object *prev);
 #define bpf_object__for_each_safe(pos, tmp)			\
@@ -78,11 +78,10 @@ struct bpf_program *bpf_program__next(struct bpf_program *prog,
 typedef void (*bpf_program_clear_priv_t)(struct bpf_program *,
 					 void *);
 
-int bpf_program__set_private(struct bpf_program *prog, void *priv,
-			     bpf_program_clear_priv_t clear_priv);
+int bpf_program__set_priv(struct bpf_program *prog, void *priv,
+			  bpf_program_clear_priv_t clear_priv);
 
-int bpf_program__get_private(struct bpf_program *prog,
-			     void **ppriv);
+void *bpf_program__priv(struct bpf_program *prog);
 
 const char *bpf_program__title(struct bpf_program *prog, bool needs_copy);
 
@@ -171,7 +170,7 @@ struct bpf_map_def {
  */
 struct bpf_map;
 struct bpf_map *
-bpf_object__get_map_by_name(struct bpf_object *obj, const char *name);
+bpf_object__find_map_by_name(struct bpf_object *obj, const char *name);
 
 struct bpf_map *
 bpf_map__next(struct bpf_map *map, struct bpf_object *obj);
@@ -180,13 +179,13 @@ bpf_map__next(struct bpf_map *map, struct bpf_object *obj);
 	     (pos) != NULL;				\
 	     (pos) = bpf_map__next((pos), (obj)))
 
-int bpf_map__get_fd(struct bpf_map *map);
-int bpf_map__get_def(struct bpf_map *map, struct bpf_map_def *pdef);
-const char *bpf_map__get_name(struct bpf_map *map);
+int bpf_map__fd(struct bpf_map *map);
+const struct bpf_map_def *bpf_map__def(struct bpf_map *map);
+const char *bpf_map__name(struct bpf_map *map);
 
 typedef void (*bpf_map_clear_priv_t)(struct bpf_map *, void *);
-int bpf_map__set_private(struct bpf_map *map, void *priv,
-			 bpf_map_clear_priv_t clear_priv);
-int bpf_map__get_private(struct bpf_map *map, void **ppriv);
+int bpf_map__set_priv(struct bpf_map *map, void *priv,
+		      bpf_map_clear_priv_t clear_priv);
+void *bpf_map__priv(struct bpf_map *map);
 
 #endif

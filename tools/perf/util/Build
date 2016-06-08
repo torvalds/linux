@@ -99,7 +99,10 @@ libperf-$(CONFIG_DWARF) += probe-finder.o
 libperf-$(CONFIG_DWARF) += dwarf-aux.o
 
 libperf-$(CONFIG_LIBDW_DWARF_UNWIND) += unwind-libdw.o
+libperf-$(CONFIG_LOCAL_LIBUNWIND)    += unwind-libunwind-local.o
 libperf-$(CONFIG_LIBUNWIND)          += unwind-libunwind.o
+libperf-$(CONFIG_LIBUNWIND_X86)      += libunwind/x86_32.o
+libperf-$(CONFIG_LIBUNWIND_AARCH64)  += libunwind/arm64.o
 
 libperf-$(CONFIG_LIBBABELTRACE) += data-convert-bt.o
 

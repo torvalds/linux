@@ -339,7 +339,7 @@ config_bpf_program(struct bpf_program *prog)
 	}
 	pr_debug("bpf: config '%s' is ok\n", config_str);
 
-	err = bpf_program__set_private(prog, priv, clear_prog_priv);
+	err = bpf_program__set_priv(prog, priv, clear_prog_priv);
 	if (err) {
 		pr_debug("Failed to set priv for program '%s'\n", config_str);
 		goto errout;
@@ -380,15 +380,14 @@ preproc_gen_prologue(struct bpf_program *prog, int n,
 		     struct bpf_insn *orig_insns, int orig_insns_cnt,
 		     struct bpf_prog_prep_result *res)
 {
+	struct bpf_prog_priv *priv = bpf_program__priv(prog);
 	struct probe_trace_event *tev;
 	struct perf_probe_event *pev;
-	struct bpf_prog_priv *priv;
 	struct bpf_insn *buf;
 	size_t prologue_cnt = 0;
 	int i, err;
 
-	err = bpf_program__get_private(prog, (void **)&priv);
-	if (err || !priv)
+	if (IS_ERR(priv) || !priv)
 		goto errout;
 
 	pev = &priv->pev;
@@ -535,13 +534,12 @@ static int map_prologue(struct perf_probe_event *pev, int *mapping,
 
 static int hook_load_preprocessor(struct bpf_program *prog)
 {
+	struct bpf_prog_priv *priv = bpf_program__priv(prog);
 	struct perf_probe_event *pev;
-	struct bpf_prog_priv *priv;
 	bool need_prologue = false;
 	int err, i;
 
-	err = bpf_program__get_private(prog, (void **)&priv);
-	if (err || !priv) {
+	if (IS_ERR(priv) || !priv) {
 		pr_debug("Internal error when hook preprocessor\n");
 		return -BPF_LOADER_ERRNO__INTERNAL;
 	}
@@ -607,9 +605,11 @@ int bpf__probe(struct bpf_object *obj)
 		if (err)
 			goto out;
 
-		err = bpf_program__get_private(prog, (void **)&priv);
-		if (err || !priv)
+		priv = bpf_program__priv(prog);
+		if (IS_ERR(priv) || !priv) {
+			err = PTR_ERR(priv);
 			goto out;
+		}
 		pev = &priv->pev;
 
 		err = convert_perf_probe_events(pev, 1);
@@ -645,13 +645,12 @@ int bpf__unprobe(struct bpf_object *obj)
 {
 	int err, ret = 0;
 	struct bpf_program *prog;
-	struct bpf_prog_priv *priv;
 
 	bpf_object__for_each_program(prog, obj) {
+		struct bpf_prog_priv *priv = bpf_program__priv(prog);
 		int i;
 
-		err = bpf_program__get_private(prog, (void **)&priv);
-		if (err || !priv)
+		if (IS_ERR(priv) || !priv)
 			continue;
 
 		for (i = 0; i < priv->pev.ntevs; i++) {
@@ -702,14 +701,12 @@ int bpf__foreach_tev(struct bpf_object *obj,
 	int err;
 
 	bpf_object__for_each_program(prog, obj) {
+		struct bpf_prog_priv *priv = bpf_program__priv(prog);
 		struct probe_trace_event *tev;
 		struct perf_probe_event *pev;
-		struct bpf_prog_priv *priv;
 		int i, fd;
 
-		err = bpf_program__get_private(prog,
-				(void **)&priv);
-		if (err || !priv) {
+		if (IS_ERR(priv) || !priv) {
 			pr_debug("bpf: failed to get private field\n");
 			return -BPF_LOADER_ERRNO__INTERNAL;
 		}
@@ -897,15 +894,12 @@ bpf_map_priv__clone(struct bpf_map_priv *priv)
 static int
 bpf_map__add_op(struct bpf_map *map, struct bpf_map_op *op)
 {
-	struct bpf_map_priv *priv;
-	const char *map_name;
-	int err;
+	const char *map_name = bpf_map__name(map);
+	struct bpf_map_priv *priv = bpf_map__priv(map);
 
-	map_name = bpf_map__get_name(map);
-	err = bpf_map__get_private(map, (void **)&priv);
-	if (err) {
+	if (IS_ERR(priv)) {
 		pr_debug("Failed to get private from map %s\n", map_name);
-		return err;
+		return PTR_ERR(priv);
 	}
 
 	if (!priv) {
@@ -916,7 +910,7 @@ bpf_map__add_op(struct bpf_map *map, struct bpf_map_op *op)
 		}
 		INIT_LIST_HEAD(&priv->ops_list);
 
-		if (bpf_map__set_private(map, priv, bpf_map_priv__clear)) {
+		if (bpf_map__set_priv(map, priv, bpf_map_priv__clear)) {
 			free(priv);
 			return -BPF_LOADER_ERRNO__INTERNAL;
 		}
@@ -948,30 +942,26 @@ static int
 __bpf_map__config_value(struct bpf_map *map,
 			struct parse_events_term *term)
 {
-	struct bpf_map_def def;
 	struct bpf_map_op *op;
-	const char *map_name;
-	int err;
+	const char *map_name = bpf_map__name(map);
+	const struct bpf_map_def *def = bpf_map__def(map);
 
-	map_name = bpf_map__get_name(map);
-
-	err = bpf_map__get_def(map, &def);
-	if (err) {
+	if (IS_ERR(def)) {
 		pr_debug("Unable to get map definition from '%s'\n",
 			 map_name);
 		return -BPF_LOADER_ERRNO__INTERNAL;
 	}
 
-	if (def.type != BPF_MAP_TYPE_ARRAY) {
+	if (def->type != BPF_MAP_TYPE_ARRAY) {
 		pr_debug("Map %s type is not BPF_MAP_TYPE_ARRAY\n",
 			 map_name);
 		return -BPF_LOADER_ERRNO__OBJCONF_MAP_TYPE;
 	}
-	if (def.key_size < sizeof(unsigned int)) {
+	if (def->key_size < sizeof(unsigned int)) {
 		pr_debug("Map %s has incorrect key size\n", map_name);
 		return -BPF_LOADER_ERRNO__OBJCONF_MAP_KEYSIZE;
 	}
-	switch (def.value_size) {
+	switch (def->value_size) {
 	case 1:
 	case 2:
 	case 4:
@@ -1014,12 +1004,10 @@ __bpf_map__config_event(struct bpf_map *map,
 			struct perf_evlist *evlist)
 {
 	struct perf_evsel *evsel;
-	struct bpf_map_def def;
+	const struct bpf_map_def *def;
 	struct bpf_map_op *op;
-	const char *map_name;
-	int err;
+	const char *map_name = bpf_map__name(map);
 
-	map_name = bpf_map__get_name(map);
 	evsel = perf_evlist__find_evsel_by_str(evlist, term->val.str);
 	if (!evsel) {
 		pr_debug("Event (for '%s') '%s' doesn't exist\n",
@@ -1027,18 +1015,18 @@ __bpf_map__config_event(struct bpf_map *map,
 		return -BPF_LOADER_ERRNO__OBJCONF_MAP_NOEVT;
 	}
 
-	err = bpf_map__get_def(map, &def);
-	if (err) {
+	def = bpf_map__def(map);
+	if (IS_ERR(def)) {
 		pr_debug("Unable to get map definition from '%s'\n",
 			 map_name);
-		return err;
+		return PTR_ERR(def);
 	}
 
 	/*
 	 * No need to check key_size and value_size:
 	 * kernel has already checked them.
 	 */
-	if (def.type != BPF_MAP_TYPE_PERF_EVENT_ARRAY) {
+	if (def->type != BPF_MAP_TYPE_PERF_EVENT_ARRAY) {
 		pr_debug("Map %s type is not BPF_MAP_TYPE_PERF_EVENT_ARRAY\n",
 			 map_name);
 		return -BPF_LOADER_ERRNO__OBJCONF_MAP_TYPE;
@@ -1087,9 +1075,8 @@ config_map_indices_range_check(struct parse_events_term *term,
 			       const char *map_name)
 {
 	struct parse_events_array *array = &term->array;
-	struct bpf_map_def def;
+	const struct bpf_map_def *def;
 	unsigned int i;
-	int err;
 
 	if (!array->nr_ranges)
 		return 0;
@@ -1099,8 +1086,8 @@ config_map_indices_range_check(struct parse_events_term *term,
 		return -BPF_LOADER_ERRNO__INTERNAL;
 	}
 
-	err = bpf_map__get_def(map, &def);
-	if (err) {
+	def = bpf_map__def(map);
+	if (IS_ERR(def)) {
 		pr_debug("ERROR: Unable to get map definition from '%s'\n",
 			 map_name);
 		return -BPF_LOADER_ERRNO__INTERNAL;
@@ -1111,7 +1098,7 @@ config_map_indices_range_check(struct parse_events_term *term,
 		size_t length = array->ranges[i].length;
 		unsigned int idx = start + length - 1;
 
-		if (idx >= def.max_entries) {
+		if (idx >= def->max_entries) {
 			pr_debug("ERROR: index %d too large\n", idx);
 			return -BPF_LOADER_ERRNO__OBJCONF_MAP_IDX2BIG;
 		}
@@ -1147,7 +1134,7 @@ bpf__obj_config_map(struct bpf_object *obj,
 		goto out;
 	}
 
-	map = bpf_object__get_map_by_name(obj, map_name);
+	map = bpf_object__find_map_by_name(obj, map_name);
 	if (!map) {
 		pr_debug("ERROR: Map %s doesn't exist\n", map_name);
 		err = -BPF_LOADER_ERRNO__OBJCONF_MAP_NOTEXIST;
@@ -1204,14 +1191,14 @@ out:
 }
 
 typedef int (*map_config_func_t)(const char *name, int map_fd,
-				 struct bpf_map_def *pdef,
+				 const struct bpf_map_def *pdef,
 				 struct bpf_map_op *op,
 				 void *pkey, void *arg);
 
 static int
 foreach_key_array_all(map_config_func_t func,
 		      void *arg, const char *name,
-		      int map_fd, struct bpf_map_def *pdef,
+		      int map_fd, const struct bpf_map_def *pdef,
 		      struct bpf_map_op *op)
 {
 	unsigned int i;
@@ -1231,7 +1218,7 @@ foreach_key_array_all(map_config_func_t func,
 static int
 foreach_key_array_ranges(map_config_func_t func, void *arg,
 			 const char *name, int map_fd,
-			 struct bpf_map_def *pdef,
+			 const struct bpf_map_def *pdef,
 			 struct bpf_map_op *op)
 {
 	unsigned int i, j;
@@ -1261,15 +1248,12 @@ bpf_map_config_foreach_key(struct bpf_map *map,
 			   void *arg)
 {
 	int err, map_fd;
-	const char *name;
 	struct bpf_map_op *op;
-	struct bpf_map_def def;
-	struct bpf_map_priv *priv;
+	const struct bpf_map_def *def;
+	const char *name = bpf_map__name(map);
+	struct bpf_map_priv *priv = bpf_map__priv(map);
 
-	name = bpf_map__get_name(map);
-
-	err = bpf_map__get_private(map, (void **)&priv);
-	if (err) {
+	if (IS_ERR(priv)) {
 		pr_debug("ERROR: failed to get private from map %s\n", name);
 		return -BPF_LOADER_ERRNO__INTERNAL;
 	}
@@ -1278,29 +1262,29 @@ bpf_map_config_foreach_key(struct bpf_map *map,
 		return 0;
 	}
 
-	err = bpf_map__get_def(map, &def);
-	if (err) {
+	def = bpf_map__def(map);
+	if (IS_ERR(def)) {
 		pr_debug("ERROR: failed to get definition from map %s\n", name);
 		return -BPF_LOADER_ERRNO__INTERNAL;
 	}
-	map_fd = bpf_map__get_fd(map);
+	map_fd = bpf_map__fd(map);
 	if (map_fd < 0) {
 		pr_debug("ERROR: failed to get fd from map %s\n", name);
 		return map_fd;
 	}
 
 	list_for_each_entry(op, &priv->ops_list, list) {
-		switch (def.type) {
+		switch (def->type) {
 		case BPF_MAP_TYPE_ARRAY:
 		case BPF_MAP_TYPE_PERF_EVENT_ARRAY:
 			switch (op->key_type) {
 			case BPF_MAP_KEY_ALL:
 				err = foreach_key_array_all(func, arg, name,
-							    map_fd, &def, op);
+							    map_fd, def, op);
 				break;
 			case BPF_MAP_KEY_RANGES:
 				err = foreach_key_array_ranges(func, arg, name,
-							       map_fd, &def,
+							       map_fd, def,
 							       op);
 				break;
 			default:
@@ -1410,7 +1394,7 @@ apply_config_evsel_for_key(const char *name, int map_fd, void *pkey,
 
 static int
 apply_obj_config_map_for_key(const char *name, int map_fd,
-			     struct bpf_map_def *pdef __maybe_unused,
+			     const struct bpf_map_def *pdef,
 			     struct bpf_map_op *op,
 			     void *pkey, void *arg __maybe_unused)
 {
@@ -1475,9 +1459,9 @@ int bpf__apply_obj_config(void)
 
 #define bpf__for_each_stdout_map(pos, obj, objtmp)	\
 	bpf__for_each_map(pos, obj, objtmp) 		\
-		if (bpf_map__get_name(pos) && 		\
+		if (bpf_map__name(pos) && 		\
 			(strcmp("__bpf_stdout__", 	\
-				bpf_map__get_name(pos)) == 0))
+				bpf_map__name(pos)) == 0))
 
 int bpf__setup_stdout(struct perf_evlist *evlist __maybe_unused)
 {
@@ -1489,10 +1473,9 @@ int bpf__setup_stdout(struct perf_evlist *evlist __maybe_unused)
 	bool need_init = false;
 
 	bpf__for_each_stdout_map(map, obj, tmp) {
-		struct bpf_map_priv *priv;
+		struct bpf_map_priv *priv = bpf_map__priv(map);
 
-		err = bpf_map__get_private(map, (void **)&priv);
-		if (err)
+		if (IS_ERR(priv))
 			return -BPF_LOADER_ERRNO__INTERNAL;
 
 		/*
@@ -1520,10 +1503,9 @@ int bpf__setup_stdout(struct perf_evlist *evlist __maybe_unused)
 	}
 
 	bpf__for_each_stdout_map(map, obj, tmp) {
-		struct bpf_map_priv *priv;
+		struct bpf_map_priv *priv = bpf_map__priv(map);
 
-		err = bpf_map__get_private(map, (void **)&priv);
-		if (err)
+		if (IS_ERR(priv))
 			return -BPF_LOADER_ERRNO__INTERNAL;
 		if (priv)
 			continue;
@@ -1533,7 +1515,7 @@ int bpf__setup_stdout(struct perf_evlist *evlist __maybe_unused)
 			if (!priv)
 				return -ENOMEM;
 
-			err = bpf_map__set_private(map, priv, bpf_map_priv__clear);
+			err = bpf_map__set_priv(map, priv, bpf_map_priv__clear);
 			if (err) {
 				bpf_map_priv__clear(map, priv);
 				return err;
@@ -1677,7 +1659,7 @@ int bpf__strerror_load(struct bpf_object *obj,
 {
 	bpf__strerror_head(err, buf, size);
 	case LIBBPF_ERRNO__KVER: {
-		unsigned int obj_kver = bpf_object__get_kversion(obj);
+		unsigned int obj_kver = bpf_object__kversion(obj);
 		unsigned int real_kver;
 
 		if (fetch_kernel_version(&real_kver, NULL, 0)) {

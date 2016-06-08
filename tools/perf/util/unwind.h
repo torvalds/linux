@@ -14,18 +14,31 @@ struct unwind_entry {
 
 typedef int (*unwind_entry_cb_t)(struct unwind_entry *entry, void *arg);
 
+struct unwind_libunwind_ops {
+	int (*prepare_access)(struct thread *thread);
+	void (*flush_access)(struct thread *thread);
+	void (*finish_access)(struct thread *thread);
+	int (*get_entries)(unwind_entry_cb_t cb, void *arg,
+			   struct thread *thread,
+			   struct perf_sample *data, int max_stack);
+};
+
 #ifdef HAVE_DWARF_UNWIND_SUPPORT
 int unwind__get_entries(unwind_entry_cb_t cb, void *arg,
 			struct thread *thread,
 			struct perf_sample *data, int max_stack);
 /* libunwind specific */
 #ifdef HAVE_LIBUNWIND_SUPPORT
-int libunwind__arch_reg_id(int regnum);
-int unwind__prepare_access(struct thread *thread);
+#ifndef LIBUNWIND__ARCH_REG_ID
+#define LIBUNWIND__ARCH_REG_ID(regnum) libunwind__arch_reg_id(regnum)
+#endif
+int LIBUNWIND__ARCH_REG_ID(int regnum);
+int unwind__prepare_access(struct thread *thread, struct map *map);
 void unwind__flush_access(struct thread *thread);
 void unwind__finish_access(struct thread *thread);
 #else
-static inline int unwind__prepare_access(struct thread *thread __maybe_unused)
+static inline int unwind__prepare_access(struct thread *thread __maybe_unused,
+					 struct map *map __maybe_unused)
 {
 	return 0;
 }
@@ -44,7 +57,8 @@ unwind__get_entries(unwind_entry_cb_t cb __maybe_unused,
 	return 0;
 }
 
-static inline int unwind__prepare_access(struct thread *thread __maybe_unused)
+static inline int unwind__prepare_access(struct thread *thread __maybe_unused,
+					 struct map *map __maybe_unused)
 {
 	return 0;
 }
