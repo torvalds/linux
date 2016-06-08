@@ -2995,9 +2995,13 @@ static int atomic_open(struct nameidata *nd, struct dentry *dentry,
 			}
 			if (*opened & FILE_CREATED)
 				fsnotify_create(dir, dentry);
-			path->dentry = dentry;
-			path->mnt = nd->path.mnt;
-			return 1;
+			if (unlikely(d_is_negative(dentry))) {
+				error = -ENOENT;
+			} else {
+				path->dentry = dentry;
+				path->mnt = nd->path.mnt;
+				return 1;
+			}
 		}
 	}
 	dput(dentry);
