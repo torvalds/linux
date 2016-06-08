@@ -1,5 +1,5 @@
 /*
- * Copyright (C) 2010-2015 Freescale Semiconductor, Inc.
+ * Copyright (C) 2010-2016 Freescale Semiconductor, Inc.
  *
  * This program is free software; you can redistribute it and/or modify
  * it under the terms of the GNU General Public License as published by
@@ -1991,8 +1991,12 @@ static void pxp_data_path_config_v3p(struct pxps *pxp)
 		BF_PXP_DATA_PATH_CTRL0_MUX0_SEL(0),
 		pxp->base + HW_PXP_DATA_PATH_CTRL0);
 
+	/*
+	 * MUX17: HIST_B as histogram: 0: output buffer, 1: wfe_store
+	 * MUX16: HIST_A as collision: 0: output buffer, 1: wfe_store
+	 */
 	__raw_writel(BF_PXP_DATA_PATH_CTRL1_MUX17_SEL(1)|
-		BF_PXP_DATA_PATH_CTRL1_MUX16_SEL(0),
+		BF_PXP_DATA_PATH_CTRL1_MUX16_SEL(1),
 		pxp->base + HW_PXP_DATA_PATH_CTRL1);
 }
 
@@ -4052,7 +4056,7 @@ static void pxp_histogram_enable(struct pxps *pxp,
 	__raw_writel(
 			BF_PXP_HIST_B_MASK_MASK_EN(1)|
 			BF_PXP_HIST_B_MASK_MASK_MODE(0)|
-			BF_PXP_HIST_B_MASK_MASK_OFFSET(64)|
+			BF_PXP_HIST_B_MASK_MASK_OFFSET(64+4)|
 			BF_PXP_HIST_B_MASK_MASK_WIDTH(0)|
 			BF_PXP_HIST_B_MASK_MASK_VALUE0(1) |
 			BF_PXP_HIST_B_MASK_MASK_VALUE1(0),
@@ -4101,7 +4105,7 @@ static void pxp_collision_detection_enable(struct pxps *pxp,
 	__raw_writel(
 			BF_PXP_HIST_A_MASK_MASK_EN(1)|
 			BF_PXP_HIST_A_MASK_MASK_MODE(0)|
-			BF_PXP_HIST_A_MASK_MASK_OFFSET(65)|
+			BF_PXP_HIST_A_MASK_MASK_OFFSET(65+4)|
 			BF_PXP_HIST_A_MASK_MASK_WIDTH(0)|
 			BF_PXP_HIST_A_MASK_MASK_VALUE0(1) |
 			BF_PXP_HIST_A_MASK_MASK_VALUE1(0),
