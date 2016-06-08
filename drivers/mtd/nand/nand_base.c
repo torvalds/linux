@@ -4396,6 +4396,7 @@ static int nand_set_ecc_soft_ops(struct mtd_info *mtd)
 		ecc->write_page_raw = nand_write_page_raw;
 		ecc->read_oob = nand_read_oob_std;
 		ecc->write_oob = nand_write_oob_std;
+
 		/*
 		* Board driver should supply ecc.size and ecc.strength
 		* values to select how many bits are correctable.
@@ -4418,6 +4419,25 @@ static int nand_set_ecc_soft_ops(struct mtd_info *mtd)
 			}
 
 			mtd_set_ooblayout(mtd, &nand_ooblayout_lp_ops);
+
+		}
+
+		/*
+		 * We can only maximize ECC config when the default layout is
+		 * used, otherwise we don't know how many bytes can really be
+		 * used.
+		 */
+		if (mtd->ooblayout == &nand_ooblayout_lp_ops &&
+		    ecc->options & NAND_ECC_MAXIMIZE) {
+			int steps, bytes;
+
+			/* Always prefer 1k blocks over 512bytes ones */
+			ecc->size = 1024;
+			steps = mtd->writesize / ecc->size;
+
+			/* Reserve 2 bytes for the BBM */
+			bytes = (mtd->oobsize - 2) / steps;
+			ecc->strength = bytes * 8 / fls(8 * ecc->size);
 		}
 
 		/* See nand_bch_init() for details. */
