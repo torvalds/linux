@@ -135,6 +135,13 @@ static int gb_svc_pwrmon_rail_names_get(struct gb_svc *svc,
 		return ret;
 	}
 
+	if (response->status != GB_SVC_OP_SUCCESS) {
+		dev_err(&svc->dev,
+			"SVC error while getting rail names: %u\n",
+			response->status);
+		return -EREMOTEIO;
+	}
+
 	return 0;
 }
 
@@ -778,7 +785,8 @@ static void gb_svc_pwrmon_debugfs_init(struct gb_svc *svc)
 	if (!rail_count || rail_count > GB_SVC_PWRMON_MAX_RAIL_COUNT)
 		goto err_pwrmon_debugfs;
 
-	bufsize = GB_SVC_PWRMON_RAIL_NAME_BUFSIZE * rail_count;
+	bufsize = sizeof(*rail_names) +
+		GB_SVC_PWRMON_RAIL_NAME_BUFSIZE * rail_count;
 
 	rail_names = kzalloc(bufsize, GFP_KERNEL);
 	if (!rail_names)

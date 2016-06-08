@@ -1145,6 +1145,7 @@ struct gb_svc_pwrmon_rail_count_get_response {
 #define GB_SVC_PWRMON_RAIL_NAME_BUFSIZE		32
 
 struct gb_svc_pwrmon_rail_names_get_response {
+	__u8	status;
 	__u8	name[0][GB_SVC_PWRMON_RAIL_NAME_BUFSIZE];
 } __packed;
 
