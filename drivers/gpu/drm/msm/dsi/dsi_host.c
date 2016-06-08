@@ -1543,7 +1543,7 @@ static int dsi_host_parse_lane_data(struct msm_dsi_host *msm_host,
 	u32 lane_map[4];
 	int ret, i, len, num_lanes;
 
-	prop = of_find_property(ep, "qcom,data-lane-map", &len);
+	prop = of_find_property(ep, "data-lanes", &len);
 	if (!prop) {
 		dev_dbg(dev, "failed to find data lane mapping\n");
 		return -EINVAL;
@@ -1558,7 +1558,7 @@ static int dsi_host_parse_lane_data(struct msm_dsi_host *msm_host,
 
 	msm_host->num_data_lanes = num_lanes;
 
-	ret = of_property_read_u32_array(ep, "qcom,data-lane-map", lane_map,
+	ret = of_property_read_u32_array(ep, "data-lanes", lane_map,
 					 num_lanes);
 	if (ret) {
 		dev_err(dev, "failed to read lane data\n");
@@ -1573,8 +1573,19 @@ static int dsi_host_parse_lane_data(struct msm_dsi_host *msm_host,
 		const int *swap = supported_data_lane_swaps[i];
 		int j;
 
+		/*
+		 * the data-lanes array we get from DT has a logical->physical
+		 * mapping. The "data lane swap" register field represents
+		 * supported configurations in a physical->logical mapping.
+		 * Translate the DT mapping to what we understand and find a
+		 * configuration that works.
+		 */
 		for (j = 0; j < num_lanes; j++) {
-			if (swap[j] != lane_map[j])
+			if (lane_map[j] < 0 || lane_map[j] > 3)
+				dev_err(dev, "bad physical lane entry %u\n",
+					lane_map[j]);
+
+			if (swap[lane_map[j]] != j)
 				break;
 		}
 
