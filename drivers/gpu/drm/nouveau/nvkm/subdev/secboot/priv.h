@@ -147,10 +147,7 @@ struct hsflcn_acr_desc {
  * @inst:		instance block for HS falcon
  * @pgd:		page directory for the HS falcon
  * @vm:			address space used by the HS falcon
- * @bl_desc_size:	size of the BL descriptor used by this chip.
- * @fixup_bl_desc:	hook that generates the proper BL descriptor format from
- *			the generic GM200 format into a data array of size
- *			bl_desc_size
+ * @falcon_state:	current state of the managed falcons
  */
 struct gm200_secboot {
 	struct nvkm_secboot base;
@@ -199,6 +196,14 @@ struct gm200_secboot {
 };
 #define gm200_secboot(sb) container_of(sb, struct gm200_secboot, base)
 
+/**
+ * Contains functions we wish to abstract between GM200-like implementations
+ * @bl_desc_size:	size of the BL descriptor used by this chip.
+ * @fixup_bl_desc:	hook that generates the proper BL descriptor format from
+ *			the generic GM200 format into a data array of size
+ *			bl_desc_size
+ * @fixup_hs_desc:	hook that twiddles the HS descriptor before it is used
+ */
 struct gm200_secboot_func {
 	/*
 	 * Size of the bootloader descriptor for this chip. A block of this
