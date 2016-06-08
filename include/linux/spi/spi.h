@@ -1143,6 +1143,8 @@ static inline ssize_t spi_w8r16be(struct spi_device *spi, u8 cmd)
  * @opcode_nbits: number of lines to send opcode
  * @addr_nbits: number of lines to send address
  * @data_nbits: number of lines for data
+ * @rx_sg: Scatterlist for receive data read from flash
+ * @cur_msg_mapped: message has been mapped for DMA
  */
 struct spi_flash_read_message {
 	void *buf;
@@ -1155,6 +1157,8 @@ struct spi_flash_read_message {
 	u8 opcode_nbits;
 	u8 addr_nbits;
 	u8 data_nbits;
+	struct sg_table rx_sg;
+	bool cur_msg_mapped;
 };
 
 /* SPI core interface for flash read support */
