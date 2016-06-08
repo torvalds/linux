@@ -6,8 +6,6 @@ static int apci1564_timer_insn_config(struct comedi_device *dev,
 	struct apci1564_private *devpriv = dev->private;
 	unsigned int ctrl;
 
-	devpriv->tsk_current = current;
-
 	/* Stop the timer */
 	ctrl = inl(devpriv->timer + ADDI_TCW_CTRL_REG);
 	ctrl &= ~(ADDI_TCW_CTRL_GATE | ADDI_TCW_CTRL_TRIG |
@@ -100,8 +98,6 @@ static int apci1564_counter_insn_config(struct comedi_device *dev,
 	unsigned int chan = CR_CHAN(insn->chanspec);
 	unsigned long iobase = devpriv->counters + APCI1564_COUNTER(chan);
 	unsigned int ctrl;
-
-	devpriv->tsk_current = current;
 
 	/* Stop The Timer */
 	ctrl = inl(iobase + ADDI_TCW_CTRL_REG);

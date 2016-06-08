@@ -23,7 +23,6 @@
 
 #include <linux/module.h>
 #include <linux/interrupt.h>
-#include <linux/sched.h>
 
 #include "../comedi_pci.h"
 #include "addi_tcw.h"
@@ -118,6 +117,7 @@
  */
 #define APCI1564_EVENT_COS			BIT(31)
 #define APCI1564_EVENT_TIMER			BIT(30)
+#define APCI1564_EVENT_COUNTER(x)		BIT(27 + (x)) /* counter 0-2 */
 #define APCI1564_EVENT_MASK			0xfff0000f /* all but [19:4] */
 
 struct apci1564_private {
@@ -127,7 +127,6 @@ struct apci1564_private {
 	unsigned int mode1;	/* rising-edge/high level channels */
 	unsigned int mode2;	/* falling-edge/low level channels */
 	unsigned int ctrl;	/* interrupt mode OR (edge) . AND (level) */
-	struct task_struct *tsk_current;
 };
 
 #include "addi-data/hwdrv_apci1564.c"
@@ -200,21 +199,18 @@ static irqreturn_t apci1564_interrupt(int irq, void *d)
 	}
 
 	if (devpriv->counters) {
-		for (chan = 0; chan < 4; chan++) {
+		for (chan = 0; chan < 3; chan++) {
 			unsigned long iobase;
 
 			iobase = devpriv->counters + APCI1564_COUNTER(chan);
 
 			status = inl(iobase + ADDI_TCW_IRQ_REG);
-			if (status & 0x01) {
-				/*  Disable Counter Interrupt */
+			if (status & ADDI_TCW_IRQ) {
+				s->state |= APCI1564_EVENT_COUNTER(chan);
+
+				/* clear the interrupt */
 				ctrl = inl(iobase + ADDI_TCW_CTRL_REG);
 				outl(0x0, iobase + ADDI_TCW_CTRL_REG);
-
-				/* Send a signal to from kernel to user space */
-				send_sig(SIGIO, devpriv->tsk_current, 0);
-
-				/*  Enable Counter Interrupt */
 				outl(ctrl, iobase + ADDI_TCW_CTRL_REG);
 			}
 		}
