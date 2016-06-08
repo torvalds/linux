@@ -1460,6 +1460,9 @@ static int intel_pstate_set_policy(struct cpufreq_policy *policy)
 
 	intel_pstate_clear_update_util_hook(policy->cpu);
 
+	pr_debug("set_policy cpuinfo.max %u policy->max %u\n",
+		 policy->cpuinfo.max_freq, policy->max);
+
 	cpu = all_cpu_data[0];
 	if (cpu->pstate.max_pstate_physical > cpu->pstate.max_pstate &&
 	    policy->max < policy->cpuinfo.max_freq &&
@@ -1495,13 +1498,13 @@ static int intel_pstate_set_policy(struct cpufreq_policy *policy)
 				   limits->max_sysfs_pct);
 	limits->max_perf_pct = max(limits->min_policy_pct,
 				   limits->max_perf_pct);
-	limits->max_perf = round_up(limits->max_perf, FRAC_BITS);
 
 	/* Make sure min_perf_pct <= max_perf_pct */
 	limits->min_perf_pct = min(limits->max_perf_pct, limits->min_perf_pct);
 
 	limits->min_perf = div_fp(limits->min_perf_pct, 100);
 	limits->max_perf = div_fp(limits->max_perf_pct, 100);
+	limits->max_perf = round_up(limits->max_perf, FRAC_BITS);
 
  out:
 	intel_pstate_set_update_util_hook(policy->cpu);
