@@ -5,7 +5,9 @@
 #include <linux/mutex.h>
 #include <linux/of.h>
 
+struct pwm_capture;
 struct seq_file;
+
 struct pwm_chip;
 
 /**
@@ -153,6 +155,7 @@ static inline void pwm_get_args(const struct pwm_device *pwm,
  * @free: optional hook for freeing a PWM
  * @config: configure duty cycles and period length for this PWM
  * @set_polarity: configure the polarity of this PWM
+ * @capture: capture and report PWM signal
  * @enable: enable PWM output toggling
  * @disable: disable PWM output toggling
  * @apply: atomically apply a new PWM config. The state argument
@@ -172,6 +175,8 @@ struct pwm_ops {
 		      int duty_ns, int period_ns);
 	int (*set_polarity)(struct pwm_chip *chip, struct pwm_device *pwm,
 			    enum pwm_polarity polarity);
+	int (*capture)(struct pwm_chip *chip, struct pwm_device *pwm,
+		       struct pwm_capture *result, unsigned long timeout);
 	int (*enable)(struct pwm_chip *chip, struct pwm_device *pwm);
 	void (*disable)(struct pwm_chip *chip, struct pwm_device *pwm);
 	int (*apply)(struct pwm_chip *chip, struct pwm_device *pwm,
@@ -210,6 +215,16 @@ struct pwm_chip {
 					const struct of_phandle_args *args);
 	unsigned int of_pwm_n_cells;
 	bool can_sleep;
+};
+
+/**
+ * struct pwm_capture - PWM capture data
+ * @period: period of the PWM signal (in nanoseconds)
+ * @duty_cycle: duty cycle of the PWM signal (in nanoseconds)
+ */
+struct pwm_capture {
+	unsigned int period;
+	unsigned int duty_cycle;
 };
 
 #if IS_ENABLED(CONFIG_PWM)
@@ -322,6 +337,8 @@ static inline void pwm_disable(struct pwm_device *pwm)
 
 
 /* PWM provider APIs */
+int pwm_capture(struct pwm_device *pwm, struct pwm_capture *result,
+		unsigned long timeout);
 int pwm_set_chip_data(struct pwm_device *pwm, void *data);
 void *pwm_get_chip_data(struct pwm_device *pwm);
 
@@ -369,6 +386,13 @@ static inline int pwm_adjust_config(struct pwm_device *pwm)
 
 static inline int pwm_config(struct pwm_device *pwm, int duty_ns,
 			     int period_ns)
+{
+	return -EINVAL;
+}
+
+static inline int pwm_capture(struct pwm_device *pwm,
+			      struct pwm_capture *result,
+			      unsigned long timeout)
 {
 	return -EINVAL;
 }
