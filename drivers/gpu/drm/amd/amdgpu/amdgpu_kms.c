@@ -62,6 +62,7 @@ int amdgpu_driver_unload_kms(struct drm_device *dev)
 
 	if (amdgpu_device_is_px(dev)) {
 		pm_runtime_get_sync(dev->dev);
+		pm_runtime_forbid(dev->dev);
 	}
 
 	amdgpu_amdkfd_device_fini(adev);
