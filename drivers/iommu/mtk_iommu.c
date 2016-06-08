@@ -455,7 +455,6 @@ static int mtk_iommu_of_xlate(struct device *dev, struct of_phandle_args *args)
 	if (!dev->archdata.iommu) {
 		/* Get the m4u device */
 		m4updev = of_find_device_by_node(args->np);
-		of_node_put(args->np);
 		if (WARN_ON(!m4updev))
 			return -EINVAL;
 
