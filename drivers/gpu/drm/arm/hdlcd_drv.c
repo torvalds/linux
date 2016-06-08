@@ -106,17 +106,11 @@ static void hdlcd_fb_output_poll_changed(struct drm_device *drm)
 		drm_fbdev_cma_hotplug_event(hdlcd->fbdev);
 }
 
-static int hdlcd_atomic_commit(struct drm_device *dev,
-			       struct drm_atomic_state *state, bool nonblock)
-{
-	return drm_atomic_helper_commit(dev, state, false);
-}
-
 static const struct drm_mode_config_funcs hdlcd_mode_config_funcs = {
 	.fb_create = drm_fb_cma_create,
 	.output_poll_changed = hdlcd_fb_output_poll_changed,
 	.atomic_check = drm_atomic_helper_check,
-	.atomic_commit = hdlcd_atomic_commit,
+	.atomic_commit = drm_atomic_helper_commit,
 };
 
 static void hdlcd_setup_mode_config(struct drm_device *drm)
