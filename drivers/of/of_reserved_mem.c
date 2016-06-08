@@ -327,7 +327,7 @@ int of_reserved_mem_device_init_by_idx(struct device *dev,
 
 	target = of_parse_phandle(np, "memory-region", idx);
 	if (!target)
-		return -EINVAL;
+		return -ENODEV;
 
 	rmem = __find_rmem(target);
 	of_node_put(target);
