@@ -3191,7 +3191,12 @@ static void fec_reset_phy(struct platform_device *pdev)
 		dev_err(&pdev->dev, "failed to get phy-reset-gpios: %d\n", err);
 		return;
 	}
-	msleep(msec);
+
+	if (msec > 20)
+		msleep(msec);
+	else
+		usleep_range(msec * 1000, msec * 1000 + 1000);
+
 	gpio_set_value_cansleep(phy_reset, !active_high);
 }
 #else /* CONFIG_OF */
