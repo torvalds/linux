@@ -11,11 +11,13 @@
 #include <asm/sigcontext.h>
 
 struct fpu {
-	__u32 fpc;			/* Floating-point control */
+	__u32 fpc;		/* Floating-point control */
+	void *regs;		/* Pointer to the current save area */
 	union {
-		void *regs;
-		freg_t *fprs;		/* Floating-point register save area */
-		__vector128 *vxrs;	/* Vector register save area */
+		/* Floating-point register save area */
+		freg_t fprs[__NUM_FPRS];
+		/* Vector register save area */
+		__vector128 vxrs[__NUM_VXRS];
 	};
 };
 

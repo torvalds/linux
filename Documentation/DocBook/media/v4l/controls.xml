@@ -2841,7 +2841,7 @@ for a GOP and keep it below or equal the set bitrate target. Otherwise the rate 
 overall average bitrate for the stream and keeps it below or equal to the set bitrate. In the first case
 the average bitrate for the whole stream will be smaller then the set bitrate. This is caused because the
 average is calculated for smaller number of frames, on the other hand enabling this setting will ensure that
-the stream will meet tight bandwidth contraints. Applicable to encoders.
+the stream will meet tight bandwidth constraints. Applicable to encoders.
 </entry>
 	      </row>
 	      <row><entry></entry></row>
@@ -4272,13 +4272,6 @@ manually or automatically if set to zero. Unit, range and step are driver-specif
     <section id="flash-controls">
       <title>Flash Control Reference</title>
 
-      <note>
-	<title>Experimental</title>
-
-	<para>This is an <link linkend="experimental">experimental</link>
-interface and may change in the future.</para>
-      </note>
-
       <para>
 	The V4L2 flash controls are intended to provide generic access
 	to flash controller devices. Flash controller devices are
@@ -4743,14 +4736,6 @@ interface and may change in the future.</para>
     <section id="image-source-controls">
       <title>Image Source Control Reference</title>
 
-      <note>
-	<title>Experimental</title>
-
-	<para>This is an <link
-	linkend="experimental">experimental</link> interface and may
-	change in the future.</para>
-      </note>
-
       <para>
 	The Image Source control class is intended for low-level
 	control of image source devices such as image sensors. The
@@ -4862,14 +4847,6 @@ interface and may change in the future.</para>
     <section id="image-process-controls">
       <title>Image Process Control Reference</title>
 
-      <note>
-	<title>Experimental</title>
-
-	<para>This is an <link
-	linkend="experimental">experimental</link> interface and may
-	change in the future.</para>
-      </note>
-
       <para>
 	The Image Process control class is intended for low-level control of
 	image processing functions. Unlike
@@ -4954,14 +4931,6 @@ interface and may change in the future.</para>
 
     <section id="dv-controls">
       <title>Digital Video Control Reference</title>
-
-      <note>
-	<title>Experimental</title>
-
-	<para>This is an <link
-	linkend="experimental">experimental</link> interface and may
-	change in the future.</para>
-      </note>
 
       <para>
 	The Digital Video control class is intended to control receivers

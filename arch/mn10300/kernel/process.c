@@ -103,9 +103,9 @@ void show_regs(struct pt_regs *regs)
 /*
  * free current thread data structures etc..
  */
-void exit_thread(void)
+void exit_thread(struct task_struct *tsk)
 {
-	exit_fpu();
+	exit_fpu(tsk);
 }
 
 void flush_thread(void)

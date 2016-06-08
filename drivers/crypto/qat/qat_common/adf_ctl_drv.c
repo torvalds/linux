@@ -270,26 +270,33 @@ static int adf_ctl_is_device_in_use(int id)
 	return 0;
 }
 
-static int adf_ctl_stop_devices(uint32_t id)
+static void adf_ctl_stop_devices(uint32_t id)
 {
 	struct adf_accel_dev *accel_dev;
-	int ret = 0;
 
-	list_for_each_entry_reverse(accel_dev, adf_devmgr_get_head(), list) {
+	list_for_each_entry(accel_dev, adf_devmgr_get_head(), list) {
 		if (id == accel_dev->accel_id || id == ADF_CFG_ALL_DEVICES) {
 			if (!adf_dev_started(accel_dev))
 				continue;
 
-			if (adf_dev_stop(accel_dev)) {
-				dev_err(&GET_DEV(accel_dev),
-					"Failed to stop qat_dev%d\n", id);
-				ret = -EFAULT;
-			} else {
-				adf_dev_shutdown(accel_dev);
-			}
+			/* First stop all VFs */
+			if (!accel_dev->is_vf)
+				continue;
+
+			adf_dev_stop(accel_dev);
+			adf_dev_shutdown(accel_dev);
 		}
 	}
-	return ret;
+
+	list_for_each_entry(accel_dev, adf_devmgr_get_head(), list) {
+		if (id == accel_dev->accel_id || id == ADF_CFG_ALL_DEVICES) {
+			if (!adf_dev_started(accel_dev))
+				continue;
+
+			adf_dev_stop(accel_dev);
+			adf_dev_shutdown(accel_dev);
+		}
+	}
 }
 
 static int adf_ctl_ioctl_dev_stop(struct file *fp, unsigned int cmd,
@@ -318,9 +325,8 @@ static int adf_ctl_ioctl_dev_stop(struct file *fp, unsigned int cmd,
 		pr_info("QAT: Stopping acceleration device qat_dev%d.\n",
 			ctl_data->device_id);
 
-	ret = adf_ctl_stop_devices(ctl_data->device_id);
-	if (ret)
-		pr_err("QAT: failed to stop device.\n");
+	adf_ctl_stop_devices(ctl_data->device_id);
+
 out:
 	kfree(ctl_data);
 	return ret;
@@ -465,12 +471,17 @@ static int __init adf_register_ctl_device_driver(void)
 	if (adf_init_pf_wq())
 		goto err_pf_wq;
 
+	if (adf_init_vf_wq())
+		goto err_vf_wq;
+
 	if (qat_crypto_register())
 		goto err_crypto_register;
 
 	return 0;
 
 err_crypto_register:
+	adf_exit_vf_wq();
+err_vf_wq:
 	adf_exit_pf_wq();
 err_pf_wq:
 	adf_exit_aer();
@@ -485,6 +496,7 @@ static void __exit adf_unregister_ctl_device_driver(void)
 {
 	adf_chr_drv_destroy();
 	adf_exit_aer();
+	adf_exit_vf_wq();
 	adf_exit_pf_wq();
 	qat_crypto_unregister();
 	adf_clean_vf_map(false);

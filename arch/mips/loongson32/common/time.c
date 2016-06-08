@@ -9,6 +9,7 @@
 
 #include <linux/clk.h>
 #include <linux/interrupt.h>
+#include <linux/sizes.h>
 #include <asm/time.h>
 
 #include <loongson1.h>
@@ -35,25 +36,25 @@
 
 DEFINE_RAW_SPINLOCK(ls1x_timer_lock);
 
-static void __iomem *timer_base;
+static void __iomem *timer_reg_base;
 static uint32_t ls1x_jiffies_per_tick;
 
 static inline void ls1x_pwmtimer_set_period(uint32_t period)
 {
-	__raw_writel(period, timer_base + PWM_HRC);
-	__raw_writel(period, timer_base + PWM_LRC);
+	__raw_writel(period, timer_reg_base + PWM_HRC);
+	__raw_writel(period, timer_reg_base + PWM_LRC);
 }
 
 static inline void ls1x_pwmtimer_restart(void)
 {
-	__raw_writel(0x0, timer_base + PWM_CNT);
-	__raw_writel(INT_EN | CNT_EN, timer_base + PWM_CTRL);
+	__raw_writel(0x0, timer_reg_base + PWM_CNT);
+	__raw_writel(INT_EN | CNT_EN, timer_reg_base + PWM_CTRL);
 }
 
 void __init ls1x_pwmtimer_init(void)
 {
-	timer_base = ioremap(LS1X_TIMER_BASE, 0xf);
-	if (!timer_base)
+	timer_reg_base = ioremap_nocache(LS1X_TIMER_BASE, SZ_16);
+	if (!timer_reg_base)
 		panic("Failed to remap timer registers");
 
 	ls1x_jiffies_per_tick = DIV_ROUND_CLOSEST(mips_hpt_frequency, HZ);
@@ -86,7 +87,7 @@ static cycle_t ls1x_clocksource_read(struct clocksource *cs)
 	 */
 	jifs = jiffies;
 	/* read the count */
-	count = __raw_readl(timer_base + PWM_CNT);
+	count = __raw_readl(timer_reg_base + PWM_CNT);
 
 	/*
 	 * It's possible for count to appear to go the wrong way for this
@@ -131,7 +132,7 @@ static int ls1x_clockevent_set_state_periodic(struct clock_event_device *cd)
 	raw_spin_lock(&ls1x_timer_lock);
 	ls1x_pwmtimer_set_period(ls1x_jiffies_per_tick);
 	ls1x_pwmtimer_restart();
-	__raw_writel(INT_EN | CNT_EN, timer_base + PWM_CTRL);
+	__raw_writel(INT_EN | CNT_EN, timer_reg_base + PWM_CTRL);
 	raw_spin_unlock(&ls1x_timer_lock);
 
 	return 0;
@@ -140,7 +141,7 @@ static int ls1x_clockevent_set_state_periodic(struct clock_event_device *cd)
 static int ls1x_clockevent_tick_resume(struct clock_event_device *cd)
 {
 	raw_spin_lock(&ls1x_timer_lock);
-	__raw_writel(INT_EN | CNT_EN, timer_base + PWM_CTRL);
+	__raw_writel(INT_EN | CNT_EN, timer_reg_base + PWM_CTRL);
 	raw_spin_unlock(&ls1x_timer_lock);
 
 	return 0;
@@ -149,8 +150,8 @@ static int ls1x_clockevent_tick_resume(struct clock_event_device *cd)
 static int ls1x_clockevent_set_state_shutdown(struct clock_event_device *cd)
 {
 	raw_spin_lock(&ls1x_timer_lock);
-	__raw_writel(__raw_readl(timer_base + PWM_CTRL) & ~CNT_EN,
-		     timer_base + PWM_CTRL);
+	__raw_writel(__raw_readl(timer_reg_base + PWM_CTRL) & ~CNT_EN,
+		     timer_reg_base + PWM_CTRL);
 	raw_spin_unlock(&ls1x_timer_lock);
 
 	return 0;
@@ -220,7 +221,7 @@ void __init plat_time_init(void)
 
 #ifdef CONFIG_CEVT_CSRC_LS1X
 	/* setup LS1X PWM timer */
-	clk = clk_get(NULL, "ls1x_pwmtimer");
+	clk = clk_get(NULL, "ls1x-pwmtimer");
 	if (IS_ERR(clk))
 		panic("unable to get timer clock, err=%ld", PTR_ERR(clk));
 

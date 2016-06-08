@@ -917,7 +917,7 @@ ACPI_EXPORT_SYMBOL(acpi_remove_gpe_block)
  *              the FADT-defined gpe blocks. Otherwise, the GPE block device.
  *
  ******************************************************************************/
-acpi_status acpi_get_gpe_device(u32 index, acpi_handle * gpe_device)
+acpi_status acpi_get_gpe_device(u32 index, acpi_handle *gpe_device)
 {
 	struct acpi_gpe_device_info info;
 	acpi_status status;

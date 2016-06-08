@@ -1483,7 +1483,7 @@ static ssize_t kcm_splice_read(struct socket *sock, loff_t *ppos,
 	long timeo;
 	struct kcm_rx_msg *rxm;
 	int err = 0;
-	size_t copied;
+	ssize_t copied;
 	struct sk_buff *skb;
 
 	/* Only support splice for SOCKSEQPACKET */

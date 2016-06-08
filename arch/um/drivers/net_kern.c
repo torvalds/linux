@@ -223,7 +223,7 @@ static int uml_net_start_xmit(struct sk_buff *skb, struct net_device *dev)
 	if (len == skb->len) {
 		dev->stats.tx_packets++;
 		dev->stats.tx_bytes += skb->len;
-		dev->trans_start = jiffies;
+		netif_trans_update(dev);
 		netif_start_queue(dev);
 
 		/* this is normally done in the interrupt when tx finishes */
@@ -252,7 +252,7 @@ static void uml_net_set_multicast_list(struct net_device *dev)
 
 static void uml_net_tx_timeout(struct net_device *dev)
 {
-	dev->trans_start = jiffies;
+	netif_trans_update(dev);
 	netif_wake_queue(dev);
 }
 

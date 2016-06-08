@@ -435,6 +435,7 @@ enum {
 	IPVS_STATS_ATTR_OUTPPS,		/* current out packet rate */
 	IPVS_STATS_ATTR_INBPS,		/* current in byte rate */
 	IPVS_STATS_ATTR_OUTBPS,		/* current out byte rate */
+	IPVS_STATS_ATTR_PAD,
 	__IPVS_STATS_ATTR_MAX,
 };
 

@@ -1741,7 +1741,7 @@ static inline void net_timestamp_set(struct sk_buff *skb)
 			__net_timestamp(SKB);		\
 	}						\
 
-bool is_skb_forwardable(struct net_device *dev, struct sk_buff *skb)
+bool is_skb_forwardable(const struct net_device *dev, const struct sk_buff *skb)
 {
 	unsigned int len;
 
@@ -1850,7 +1850,7 @@ static inline bool skb_loop_sk(struct packet_type *ptype, struct sk_buff *skb)
  *	taps currently in use.
  */
 
-static void dev_queue_xmit_nit(struct sk_buff *skb, struct net_device *dev)
+void dev_queue_xmit_nit(struct sk_buff *skb, struct net_device *dev)
 {
 	struct packet_type *ptype;
 	struct sk_buff *skb2 = NULL;
@@ -1907,6 +1907,7 @@ out_unlock:
 		pt_prev->func(skb2, skb->dev, pt_prev, skb->dev);
 	rcu_read_unlock();
 }
+EXPORT_SYMBOL_GPL(dev_queue_xmit_nit);
 
 /**
  * netif_setup_tc - Handle tc mappings on real_num_tx_queues change
@@ -2711,6 +2712,19 @@ struct sk_buff *__skb_gso_segment(struct sk_buff *skb,
 			return ERR_PTR(err);
 	}
 
+	/* Only report GSO partial support if it will enable us to
+	 * support segmentation on this frame without needing additional
+	 * work.
+	 */
+	if (features & NETIF_F_GSO_PARTIAL) {
+		netdev_features_t partial_features = NETIF_F_GSO_ROBUST;
+		struct net_device *dev = skb->dev;
+
+		partial_features |= dev->features & dev->gso_partial_features;
+		if (!skb_gso_ok(skb, features | partial_features))
+			features &= ~NETIF_F_GSO_PARTIAL;
+	}
+
 	BUILD_BUG_ON(SKB_SGO_CB_OFFSET +
 		     sizeof(*SKB_GSO_CB(skb)) > sizeof(skb->cb));
 
@@ -2825,14 +2839,45 @@ static netdev_features_t dflt_features_check(const struct sk_buff *skb,
 	return vlan_features_check(skb, features);
 }
 
+static netdev_features_t gso_features_check(const struct sk_buff *skb,
+					    struct net_device *dev,
+					    netdev_features_t features)
+{
+	u16 gso_segs = skb_shinfo(skb)->gso_segs;
+
+	if (gso_segs > dev->gso_max_segs)
+		return features & ~NETIF_F_GSO_MASK;
+
+	/* Support for GSO partial features requires software
+	 * intervention before we can actually process the packets
+	 * so we need to strip support for any partial features now
+	 * and we can pull them back in after we have partially
+	 * segmented the frame.
+	 */
+	if (!(skb_shinfo(skb)->gso_type & SKB_GSO_PARTIAL))
+		features &= ~dev->gso_partial_features;
+
+	/* Make sure to clear the IPv4 ID mangling feature if the
+	 * IPv4 header has the potential to be fragmented.
+	 */
+	if (skb_shinfo(skb)->gso_type & SKB_GSO_TCPV4) {
+		struct iphdr *iph = skb->encapsulation ?
+				    inner_ip_hdr(skb) : ip_hdr(skb);
+
+		if (!(iph->frag_off & htons(IP_DF)))
+			features &= ~NETIF_F_TSO_MANGLEID;
+	}
+
+	return features;
+}
+
 netdev_features_t netif_skb_features(struct sk_buff *skb)
 {
 	struct net_device *dev = skb->dev;
 	netdev_features_t features = dev->features;
-	u16 gso_segs = skb_shinfo(skb)->gso_segs;
 
-	if (gso_segs > dev->gso_max_segs || gso_segs < dev->gso_min_segs)
-		features &= ~NETIF_F_GSO_MASK;
+	if (skb_is_gso(skb))
+		features = gso_features_check(skb, dev, features);
 
 	/* If encapsulation offload request, verify we are testing
 	 * hardware encapsulation features instead of standard
@@ -2915,9 +2960,6 @@ static struct sk_buff *validate_xmit_skb(struct sk_buff *skb, struct net_device 
 {
 	netdev_features_t features;
 
-	if (skb->next)
-		return skb;
-
 	features = netif_skb_features(skb);
 	skb = validate_xmit_vlan(skb, features);
 	if (unlikely(!skb))
@@ -2960,6 +3002,7 @@ static struct sk_buff *validate_xmit_skb(struct sk_buff *skb, struct net_device 
 out_kfree_skb:
 	kfree_skb(skb);
 out_null:
+	atomic_long_inc(&dev->tx_dropped);
 	return NULL;
 }
 
@@ -3143,12 +3186,12 @@ sch_handle_egress(struct sk_buff *skb, int *ret, struct net_device *dev)
 	case TC_ACT_SHOT:
 		qdisc_qstats_cpu_drop(cl->q);
 		*ret = NET_XMIT_DROP;
-		goto drop;
+		kfree_skb(skb);
+		return NULL;
 	case TC_ACT_STOLEN:
 	case TC_ACT_QUEUED:
 		*ret = NET_XMIT_SUCCESS;
-drop:
-		kfree_skb(skb);
+		consume_skb(skb);
 		return NULL;
 	case TC_ACT_REDIRECT:
 		/* No need to push/pop skb's mac_header here on egress! */
@@ -3349,7 +3392,7 @@ static int __dev_queue_xmit(struct sk_buff *skb, void *accel_priv)
 
 			skb = validate_xmit_skb(skb, dev);
 			if (!skb)
-				goto drop;
+				goto out;
 
 			HARD_TX_LOCK(dev, txq, cpu);
 
@@ -3376,7 +3419,6 @@ recursion_alert:
 	}
 
 	rc = -ENETDOWN;
-drop:
 	rcu_read_unlock_bh();
 
 	atomic_long_inc(&dev->tx_dropped);
@@ -3428,6 +3470,7 @@ u32 rps_cpu_mask __read_mostly;
 EXPORT_SYMBOL(rps_cpu_mask);
 
 struct static_key rps_needed __read_mostly;
+EXPORT_SYMBOL(rps_needed);
 
 static struct rps_dev_flow *
 set_rps_cpu(struct net_device *dev, struct sk_buff *skb,
@@ -3914,9 +3957,11 @@ sch_handle_ingress(struct sk_buff *skb, struct packet_type **pt_prev, int *ret,
 		break;
 	case TC_ACT_SHOT:
 		qdisc_qstats_cpu_drop(cl->q);
+		kfree_skb(skb);
+		return NULL;
 	case TC_ACT_STOLEN:
 	case TC_ACT_QUEUED:
-		kfree_skb(skb);
+		consume_skb(skb);
 		return NULL;
 	case TC_ACT_REDIRECT:
 		/* skb_mac_header check was done by cls/act_bpf, so
@@ -4440,6 +4485,7 @@ static enum gro_result dev_gro_receive(struct napi_struct *napi, struct sk_buff 
 		NAPI_GRO_CB(skb)->free = 0;
 		NAPI_GRO_CB(skb)->encap_mark = 0;
 		NAPI_GRO_CB(skb)->is_fou = 0;
+		NAPI_GRO_CB(skb)->is_atomic = 1;
 		NAPI_GRO_CB(skb)->gro_remcsum_start = 0;
 
 		/* Setup for GRO checksum validation */
@@ -4664,6 +4710,8 @@ static struct sk_buff *napi_frags_skb(struct napi_struct *napi)
 	if (unlikely(skb_gro_header_hard(skb, hlen))) {
 		eth = skb_gro_header_slow(skb, hlen, 0);
 		if (unlikely(!eth)) {
+			net_warn_ratelimited("%s: dropping impossible skb from %s\n",
+					     __func__, napi->dev->name);
 			napi_reuse_skb(napi, skb);
 			return NULL;
 		}
@@ -4938,8 +4986,8 @@ bool sk_busy_loop(struct sock *sk, int nonblock)
 			netpoll_poll_unlock(have);
 		}
 		if (rc > 0)
-			NET_ADD_STATS_BH(sock_net(sk),
-					 LINUX_MIB_BUSYPOLLRXPACKETS, rc);
+			__NET_ADD_STATS(sock_net(sk),
+					LINUX_MIB_BUSYPOLLRXPACKETS, rc);
 		local_bh_enable();
 
 		if (rc == LL_FLUSH_FAILED)
@@ -6676,6 +6724,10 @@ static netdev_features_t netdev_fix_features(struct net_device *dev,
 		features &= ~NETIF_F_TSO6;
 	}
 
+	/* TSO with IPv4 ID mangling requires IPv4 TSO be enabled */
+	if ((features & NETIF_F_TSO_MANGLEID) && !(features & NETIF_F_TSO))
+		features &= ~NETIF_F_TSO_MANGLEID;
+
 	/* TSO ECN requires that TSO is present as well. */
 	if ((features & NETIF_F_ALL_TSO) == NETIF_F_TSO_ECN)
 		features &= ~NETIF_F_TSO_ECN;
@@ -6702,6 +6754,14 @@ static netdev_features_t netdev_fix_features(struct net_device *dev,
 				"Dropping NETIF_F_UFO since no NETIF_F_SG feature.\n");
 			features &= ~NETIF_F_UFO;
 		}
+	}
+
+	/* GSO partial features require GSO partial be set */
+	if ((features & dev->gso_partial_features) &&
+	    !(features & NETIF_F_GSO_PARTIAL)) {
+		netdev_dbg(dev,
+			   "Dropping partially supported GSO features since no GSO partial.\n");
+		features &= ~dev->gso_partial_features;
 	}
 
 #ifdef CONFIG_NET_RX_BUSY_POLL
@@ -6974,9 +7034,22 @@ int register_netdevice(struct net_device *dev)
 	dev->features |= NETIF_F_SOFT_FEATURES;
 	dev->wanted_features = dev->features & dev->hw_features;
 
-	if (!(dev->flags & IFF_LOOPBACK)) {
+	if (!(dev->flags & IFF_LOOPBACK))
 		dev->hw_features |= NETIF_F_NOCACHE_COPY;
-	}
+
+	/* If IPv4 TCP segmentation offload is supported we should also
+	 * allow the device to enable segmenting the frame with the option
+	 * of ignoring a static IP ID value.  This doesn't enable the
+	 * feature itself but allows the user to enable it later.
+	 */
+	if (dev->hw_features & NETIF_F_TSO)
+		dev->hw_features |= NETIF_F_TSO_MANGLEID;
+	if (dev->vlan_features & NETIF_F_TSO)
+		dev->vlan_features |= NETIF_F_TSO_MANGLEID;
+	if (dev->mpls_features & NETIF_F_TSO)
+		dev->mpls_features |= NETIF_F_TSO_MANGLEID;
+	if (dev->hw_enc_features & NETIF_F_TSO)
+		dev->hw_enc_features |= NETIF_F_TSO_MANGLEID;
 
 	/* Make NETIF_F_HIGHDMA inheritable to VLAN devices.
 	 */
@@ -6984,7 +7057,7 @@ int register_netdevice(struct net_device *dev)
 
 	/* Make NETIF_F_SG inheritable to tunnel devices.
 	 */
-	dev->hw_enc_features |= NETIF_F_SG;
+	dev->hw_enc_features |= NETIF_F_SG | NETIF_F_GSO_PARTIAL;
 
 	/* Make NETIF_F_SG inheritable to MPLS.
 	 */
@@ -7427,7 +7500,6 @@ struct net_device *alloc_netdev_mqs(int sizeof_priv, const char *name,
 
 	dev->gso_max_size = GSO_MAX_SIZE;
 	dev->gso_max_segs = GSO_MAX_SEGS;
-	dev->gso_min_segs = 0;
 
 	INIT_LIST_HEAD(&dev->napi_list);
 	INIT_LIST_HEAD(&dev->unreg_list);

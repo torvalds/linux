@@ -27,7 +27,6 @@
 
 static const struct nvkm_xtensa_func
 g84_bsp = {
-	.pmc_enable = 0x04008000,
 	.fifo_val = 0x1111,
 	.unkd28 = 0x90044,
 	.sclass = {

@@ -50,9 +50,11 @@
  * KMS wrapper.
  * - 3.0.0 - initial driver
  * - 3.1.0 - allow reading more status registers (GRBM, SRBM, SDMA, CP)
+ * - 3.2.0 - GFX8: Uses EOP_TC_WB_ACTION_EN, so UMDs don't have to do the same
+ *           at the end of IBs.
  */
 #define KMS_DRIVER_MAJOR	3
-#define KMS_DRIVER_MINOR	1
+#define KMS_DRIVER_MINOR	2
 #define KMS_DRIVER_PATCHLEVEL	0
 
 int amdgpu_vram_limit = 0;
@@ -166,7 +168,7 @@ module_param_named(pcie_gen_cap, amdgpu_pcie_gen_cap, uint, 0444);
 MODULE_PARM_DESC(pcie_lane_cap, "PCIE Lane Caps (0: autodetect (default))");
 module_param_named(pcie_lane_cap, amdgpu_pcie_lane_cap, uint, 0444);
 
-static struct pci_device_id pciidlist[] = {
+static const struct pci_device_id pciidlist[] = {
 #ifdef CONFIG_DRM_AMDGPU_CIK
 	/* Kaveri */
 	{0x1002, 0x1304, PCI_ANY_ID, PCI_ANY_ID, 0, 0, CHIP_KAVERI|AMD_IS_MOBILITY|AMD_IS_APU},
@@ -277,6 +279,28 @@ static struct pci_device_id pciidlist[] = {
 	{0x1002, 0x9877, PCI_ANY_ID, PCI_ANY_ID, 0, 0, CHIP_CARRIZO|AMD_IS_APU},
 	/* stoney */
 	{0x1002, 0x98E4, PCI_ANY_ID, PCI_ANY_ID, 0, 0, CHIP_STONEY|AMD_IS_APU},
+	/* Polaris11 */
+	{0x1002, 0x67E0, PCI_ANY_ID, PCI_ANY_ID, 0, 0, CHIP_POLARIS11},
+	{0x1002, 0x67E3, PCI_ANY_ID, PCI_ANY_ID, 0, 0, CHIP_POLARIS11},
+	{0x1002, 0x67E8, PCI_ANY_ID, PCI_ANY_ID, 0, 0, CHIP_POLARIS11},
+	{0x1002, 0x67EB, PCI_ANY_ID, PCI_ANY_ID, 0, 0, CHIP_POLARIS11},
+	{0x1002, 0x67EF, PCI_ANY_ID, PCI_ANY_ID, 0, 0, CHIP_POLARIS11},
+	{0x1002, 0x67FF, PCI_ANY_ID, PCI_ANY_ID, 0, 0, CHIP_POLARIS11},
+	{0x1002, 0x67E1, PCI_ANY_ID, PCI_ANY_ID, 0, 0, CHIP_POLARIS11},
+	{0x1002, 0x67E7, PCI_ANY_ID, PCI_ANY_ID, 0, 0, CHIP_POLARIS11},
+	{0x1002, 0x67E9, PCI_ANY_ID, PCI_ANY_ID, 0, 0, CHIP_POLARIS11},
+	/* Polaris10 */
+	{0x1002, 0x67C0, PCI_ANY_ID, PCI_ANY_ID, 0, 0, CHIP_POLARIS10},
+	{0x1002, 0x67C1, PCI_ANY_ID, PCI_ANY_ID, 0, 0, CHIP_POLARIS10},
+	{0x1002, 0x67C2, PCI_ANY_ID, PCI_ANY_ID, 0, 0, CHIP_POLARIS10},
+	{0x1002, 0x67C4, PCI_ANY_ID, PCI_ANY_ID, 0, 0, CHIP_POLARIS10},
+	{0x1002, 0x67C7, PCI_ANY_ID, PCI_ANY_ID, 0, 0, CHIP_POLARIS10},
+	{0x1002, 0x67DF, PCI_ANY_ID, PCI_ANY_ID, 0, 0, CHIP_POLARIS10},
+	{0x1002, 0x67C8, PCI_ANY_ID, PCI_ANY_ID, 0, 0, CHIP_POLARIS10},
+	{0x1002, 0x67C9, PCI_ANY_ID, PCI_ANY_ID, 0, 0, CHIP_POLARIS10},
+	{0x1002, 0x67CA, PCI_ANY_ID, PCI_ANY_ID, 0, 0, CHIP_POLARIS10},
+	{0x1002, 0x67CC, PCI_ANY_ID, PCI_ANY_ID, 0, 0, CHIP_POLARIS10},
+	{0x1002, 0x67CF, PCI_ANY_ID, PCI_ANY_ID, 0, 0, CHIP_POLARIS10},
 
 	{0, 0, 0}
 };
@@ -514,7 +538,7 @@ static struct drm_driver kms_driver = {
 	.irq_uninstall = amdgpu_irq_uninstall,
 	.irq_handler = amdgpu_irq_handler,
 	.ioctls = amdgpu_ioctls_kms,
-	.gem_free_object = amdgpu_gem_object_free,
+	.gem_free_object_unlocked = amdgpu_gem_object_free,
 	.gem_open_object = amdgpu_gem_object_open,
 	.gem_close_object = amdgpu_gem_object_close,
 	.dumb_create = amdgpu_mode_dumb_create,
@@ -553,22 +577,22 @@ static struct pci_driver amdgpu_kms_pci_driver = {
 	.driver.pm = &amdgpu_pm_ops,
 };
 
+
+
 static int __init amdgpu_init(void)
 {
 	amdgpu_sync_init();
-#ifdef CONFIG_VGA_CONSOLE
+	amdgpu_fence_slab_init();
 	if (vgacon_text_force()) {
 		DRM_ERROR("VGACON disables amdgpu kernel modesetting.\n");
 		return -EINVAL;
 	}
-#endif
 	DRM_INFO("amdgpu kernel modesetting enabled.\n");
 	driver = &kms_driver;
 	pdriver = &amdgpu_kms_pci_driver;
 	driver->driver_features |= DRIVER_MODESET;
 	driver->num_ioctls = amdgpu_max_kms_ioctl;
 	amdgpu_register_atpx_handler();
-
 	/* let modprobe override vga console setting */
 	return drm_pci_init(driver, pdriver);
 }
@@ -579,6 +603,7 @@ static void __exit amdgpu_exit(void)
 	drm_pci_exit(driver, pdriver);
 	amdgpu_unregister_atpx_handler();
 	amdgpu_sync_fini();
+	amdgpu_fence_slab_fini();
 }
 
 module_init(amdgpu_init);

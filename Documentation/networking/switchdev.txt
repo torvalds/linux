@@ -89,6 +89,18 @@ Typically, the management port is not participating in offloaded data plane and
 is loaded with a different driver, such as a NIC driver, on the management port
 device.
 
+Switch ID
+^^^^^^^^^
+
+The switchdev driver must implement the switchdev op switchdev_port_attr_get
+for SWITCHDEV_ATTR_ID_PORT_PARENT_ID for each port netdev, returning the same
+physical ID for each port of a switch.  The ID must be unique between switches
+on the same system.  The ID does not need to be unique between switches on
+different systems.
+
+The switch ID is used to locate ports on a switch and to know if aggregated
+ports belong to the same switch.
+
 Port Netdev Naming
 ^^^^^^^^^^^^^^^^^^
 
@@ -104,24 +116,12 @@ external configuration.  For example, if a physical 40G port is split logically
 into 4 10G ports, resulting in 4 port netdevs, the device can give a unique
 name for each port using port PHYS name.  The udev rule would be:
 
-SUBSYSTEM=="net", ACTION=="add", DRIVER="<driver>", ATTR{phys_port_name}!="", \
-	NAME="$attr{phys_port_name}"
+SUBSYSTEM=="net", ACTION=="add", ATTR{phys_switch_id}=="<phys_switch_id>", \
+	ATTR{phys_port_name}!="", NAME="swX$attr{phys_port_name}"
 
 Suggested naming convention is "swXpYsZ", where X is the switch name or ID, Y
 is the port name or ID, and Z is the sub-port name or ID.  For example, sw1p1s0
 would be sub-port 0 on port 1 on switch 1.
-
-Switch ID
-^^^^^^^^^
-
-The switchdev driver must implement the switchdev op switchdev_port_attr_get
-for SWITCHDEV_ATTR_ID_PORT_PARENT_ID for each port netdev, returning the same
-physical ID for each port of a switch.  The ID must be unique between switches
-on the same system.  The ID does not need to be unique between switches on
-different systems.
-
-The switch ID is used to locate ports on a switch and to know if aggregated
-ports belong to the same switch.
 
 Port Features
 ^^^^^^^^^^^^^

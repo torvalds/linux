@@ -288,6 +288,16 @@ static inline void ieee802154_le16_to_be16(void *be16_dst, const void *le16_src)
 }
 
 /**
+ * ieee802154_be16_to_le16 - copies and convert be16 to le16
+ * @le16_dst: le16 destination pointer
+ * @be16_src: be16 source pointer
+ */
+static inline void ieee802154_be16_to_le16(void *le16_dst, const void *be16_src)
+{
+	put_unaligned_le16(get_unaligned_be16(be16_src), le16_dst);
+}
+
+/**
  * ieee802154_alloc_hw - Allocate a new hardware device
  *
  * This must be called once for each hardware device. The returned pointer

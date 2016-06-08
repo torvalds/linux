@@ -303,18 +303,6 @@ static void ft_sess_delete_all(struct ft_tport *tport)
  */
 
 /*
- * Determine whether session is allowed to be shutdown in the current context.
- * Returns non-zero if the session should be shutdown.
- */
-int ft_sess_shutdown(struct se_session *se_sess)
-{
-	struct ft_sess *sess = se_sess->fabric_sess_ptr;
-
-	pr_debug("port_id %x\n", sess->port_id);
-	return 1;
-}
-
-/*
  * Remove session and send PRLO.
  * This is called when the ACL is being deleted or queue depth is changing.
  */

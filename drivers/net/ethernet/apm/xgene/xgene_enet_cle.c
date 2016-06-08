@@ -730,6 +730,6 @@ static int xgene_enet_cle_init(struct xgene_enet_pdata *pdata)
 	return xgene_cle_setup_ptree(pdata, enet_cle);
 }
 
-struct xgene_cle_ops xgene_cle3in_ops = {
+const struct xgene_cle_ops xgene_cle3in_ops = {
 	.cle_init = xgene_enet_cle_init,
 };

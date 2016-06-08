@@ -22,6 +22,7 @@
 #include <linux/interrupt.h>
 #include <linux/dmapool.h>
 #include <linux/hashtable.h>
+#include <linux/kfifo.h>
 #include <net/mac80211.h>
 
 #include "htc.h"
@@ -1461,15 +1462,23 @@ struct htt_tx_mode_switch_ind {
 	struct htt_tx_mode_switch_record records[0];
 } __packed;
 
+struct htt_channel_change {
+	u8 pad[3];
+	__le32 freq;
+	__le32 center_freq1;
+	__le32 center_freq2;
+	__le32 phymode;
+} __packed;
+
 union htt_rx_pn_t {
 	/* WEP: 24-bit PN */
 	u32 pn24;
 
 	/* TKIP or CCMP: 48-bit PN */
-	u_int64_t pn48;
+	u64 pn48;
 
 	/* WAPI: 128-bit PN */
-	u_int64_t pn128[2];
+	u64 pn128[2];
 };
 
 struct htt_cmd {
@@ -1511,16 +1520,22 @@ struct htt_resp {
 		struct htt_tx_fetch_ind tx_fetch_ind;
 		struct htt_tx_fetch_confirm tx_fetch_confirm;
 		struct htt_tx_mode_switch_ind tx_mode_switch_ind;
+		struct htt_channel_change chan_change;
 	};
 } __packed;
 
 /*** host side structures follow ***/
 
 struct htt_tx_done {
-	u32 msdu_id;
-	bool discard;
-	bool no_ack;
-	bool success;
+	u16 msdu_id;
+	u16 status;
+};
+
+enum htt_tx_compl_state {
+	HTT_TX_COMPL_STATE_NONE,
+	HTT_TX_COMPL_STATE_ACK,
+	HTT_TX_COMPL_STATE_NOACK,
+	HTT_TX_COMPL_STATE_DISCARD,
 };
 
 struct htt_peer_map_event {
@@ -1547,7 +1562,6 @@ struct ath10k_htt {
 	u8 target_version_major;
 	u8 target_version_minor;
 	struct completion target_version_received;
-	enum ath10k_fw_htt_op_version op_version;
 	u8 max_num_amsdu;
 	u8 max_num_ampdu;
 
@@ -1641,17 +1655,20 @@ struct ath10k_htt {
 	struct idr pending_tx;
 	wait_queue_head_t empty_tx_wq;
 
+	/* FIFO for storing tx done status {ack, no-ack, discard} and msdu id */
+	DECLARE_KFIFO_PTR(txdone_fifo, struct htt_tx_done);
+
 	/* set if host-fw communication goes haywire
 	 * used to avoid further failures */
 	bool rx_confused;
-	struct tasklet_struct rx_replenish_task;
+	atomic_t num_mpdus_ready;
 
 	/* This is used to group tx/rx completions separately and process them
 	 * in batches to reduce cache stalls */
 	struct tasklet_struct txrx_compl_task;
-	struct sk_buff_head tx_compl_q;
 	struct sk_buff_head rx_compl_q;
 	struct sk_buff_head rx_in_ord_compl_q;
+	struct sk_buff_head tx_fetch_ind_q;
 
 	/* rx_status template */
 	struct ieee80211_rx_status rx_status;
@@ -1667,10 +1684,13 @@ struct ath10k_htt {
 	} txbuf;
 
 	struct {
+		bool enabled;
 		struct htt_q_state *vaddr;
 		dma_addr_t paddr;
+		u16 num_push_allowed;
 		u16 num_peers;
 		u16 num_tids;
+		enum htt_tx_mode_switch_mode mode;
 		enum htt_q_depth_type type;
 	} tx_q_state;
 };
@@ -1715,7 +1735,7 @@ struct htt_rx_desc {
 
 /* Refill a bunch of RX buffers for each refill round so that FW/HW can handle
  * aggregated traffic more nicely. */
-#define ATH10K_HTT_MAX_NUM_REFILL 16
+#define ATH10K_HTT_MAX_NUM_REFILL 100
 
 /*
  * DMA_MAP expects the buffer to be an integral number of cache lines.
@@ -1743,7 +1763,8 @@ int ath10k_htt_rx_ring_refill(struct ath10k *ar);
 void ath10k_htt_rx_free(struct ath10k_htt *htt);
 
 void ath10k_htt_htc_tx_complete(struct ath10k *ar, struct sk_buff *skb);
-void ath10k_htt_t2h_msg_handler(struct ath10k *ar, struct sk_buff *skb);
+void ath10k_htt_htc_t2h_msg_handler(struct ath10k *ar, struct sk_buff *skb);
+bool ath10k_htt_t2h_msg_handler(struct ath10k *ar, struct sk_buff *skb);
 int ath10k_htt_h2t_ver_req_msg(struct ath10k_htt *htt);
 int ath10k_htt_h2t_stats_req(struct ath10k_htt *htt, u8 mask, u64 cookie);
 int ath10k_htt_send_frag_desc_bank_cfg(struct ath10k_htt *htt);
@@ -1752,8 +1773,23 @@ int ath10k_htt_h2t_aggr_cfg_msg(struct ath10k_htt *htt,
 				u8 max_subfrms_ampdu,
 				u8 max_subfrms_amsdu);
 void ath10k_htt_hif_tx_complete(struct ath10k *ar, struct sk_buff *skb);
+int ath10k_htt_tx_fetch_resp(struct ath10k *ar,
+			     __le32 token,
+			     __le16 fetch_seq_num,
+			     struct htt_tx_fetch_record *records,
+			     size_t num_records);
 
-void __ath10k_htt_tx_dec_pending(struct ath10k_htt *htt, bool limit_mgmt_desc);
+void ath10k_htt_tx_txq_update(struct ieee80211_hw *hw,
+			      struct ieee80211_txq *txq);
+void ath10k_htt_tx_txq_recalc(struct ieee80211_hw *hw,
+			      struct ieee80211_txq *txq);
+void ath10k_htt_tx_txq_sync(struct ath10k *ar);
+void ath10k_htt_tx_dec_pending(struct ath10k_htt *htt);
+int ath10k_htt_tx_inc_pending(struct ath10k_htt *htt);
+void ath10k_htt_tx_mgmt_dec_pending(struct ath10k_htt *htt);
+int ath10k_htt_tx_mgmt_inc_pending(struct ath10k_htt *htt, bool is_mgmt,
+				   bool is_presp);
+
 int ath10k_htt_tx_alloc_msdu_id(struct ath10k_htt *htt, struct sk_buff *skb);
 void ath10k_htt_tx_free_msdu_id(struct ath10k_htt *htt, u16 msdu_id);
 int ath10k_htt_mgmt_tx(struct ath10k_htt *htt, struct sk_buff *);

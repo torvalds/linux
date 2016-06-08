@@ -121,7 +121,7 @@ struct drm_gem_cma_object *drm_gem_cma_create(struct drm_device *drm,
 	return cma_obj;
 
 error:
-	drm->driver->gem_free_object(&cma_obj->base);
+	drm_gem_object_unreference_unlocked(&cma_obj->base);
 	return ERR_PTR(ret);
 }
 EXPORT_SYMBOL_GPL(drm_gem_cma_create);
@@ -162,18 +162,12 @@ drm_gem_cma_create_with_handle(struct drm_file *file_priv,
 	 * and handle has the id what user can see.
 	 */
 	ret = drm_gem_handle_create(file_priv, gem_obj, handle);
-	if (ret)
-		goto err_handle_create;
-
 	/* drop reference from allocate - handle holds it now. */
 	drm_gem_object_unreference_unlocked(gem_obj);
+	if (ret)
+		return ERR_PTR(ret);
 
 	return cma_obj;
-
-err_handle_create:
-	drm->driver->gem_free_object(gem_obj);
-
-	return ERR_PTR(ret);
 }
 
 /**
@@ -291,7 +285,7 @@ int drm_gem_cma_dumb_map_offset(struct drm_file *file_priv,
 {
 	struct drm_gem_object *gem_obj;
 
-	gem_obj = drm_gem_object_lookup(drm, file_priv, handle);
+	gem_obj = drm_gem_object_lookup(file_priv, handle);
 	if (!gem_obj) {
 		dev_err(drm->dev, "failed to lookup GEM object\n");
 		return -EINVAL;

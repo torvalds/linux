@@ -1,6 +1,7 @@
 #ifndef _ENTRY_H
 #define _ENTRY_H
 
+#include <linux/percpu.h>
 #include <linux/types.h>
 #include <linux/signal.h>
 #include <asm/ptrace.h>
@@ -75,4 +76,7 @@ long sys_s390_personality(unsigned int personality);
 long sys_s390_runtime_instr(int command, int signum);
 long sys_s390_pci_mmio_write(unsigned long, const void __user *, size_t);
 long sys_s390_pci_mmio_read(unsigned long, void __user *, size_t);
+
+DECLARE_PER_CPU(u64, mt_cycles[8]);
+
 #endif /* _ENTRY_H */

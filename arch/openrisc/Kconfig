@@ -25,6 +25,7 @@ config OPENRISC
 	select MODULES_USE_ELF_RELA
 	select HAVE_DEBUG_STACKOVERFLOW
 	select OR1K_PIC
+	select CPU_NO_EFFICIENT_FFS if !OPENRISC_HAVE_INST_FF1
 
 config MMU
 	def_bool y

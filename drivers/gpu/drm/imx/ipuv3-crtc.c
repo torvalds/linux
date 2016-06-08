@@ -66,6 +66,7 @@ struct ipu_crtc {
 	struct ipu_flip_work	*flip_work;
 	int			irq;
 	u32			bus_format;
+	u32			bus_flags;
 	int			di_hsync_pin;
 	int			di_vsync_pin;
 };
@@ -271,8 +272,10 @@ static int ipu_crtc_mode_set(struct drm_crtc *crtc,
 	else
 		sig_cfg.clkflags = 0;
 
-	sig_cfg.enable_pol = 1;
-	sig_cfg.clk_pol = 0;
+	sig_cfg.enable_pol = !(ipu_crtc->bus_flags & DRM_BUS_FLAG_DE_LOW);
+	/* Default to driving pixel data on negative clock edges */
+	sig_cfg.clk_pol = !!(ipu_crtc->bus_flags &
+			     DRM_BUS_FLAG_PIXDATA_POSEDGE);
 	sig_cfg.bus_format = ipu_crtc->bus_format;
 	sig_cfg.v_to_h_sync = 0;
 	sig_cfg.hsync_pin = ipu_crtc->di_hsync_pin;
@@ -396,11 +399,12 @@ static void ipu_disable_vblank(struct drm_crtc *crtc)
 }
 
 static int ipu_set_interface_pix_fmt(struct drm_crtc *crtc,
-		u32 bus_format, int hsync_pin, int vsync_pin)
+		u32 bus_format, int hsync_pin, int vsync_pin, u32 bus_flags)
 {
 	struct ipu_crtc *ipu_crtc = to_ipu_crtc(crtc);
 
 	ipu_crtc->bus_format = bus_format;
+	ipu_crtc->bus_flags = bus_flags;
 	ipu_crtc->di_hsync_pin = hsync_pin;
 	ipu_crtc->di_vsync_pin = vsync_pin;
 
@@ -473,7 +477,7 @@ static int ipu_crtc_init(struct ipu_crtc *ipu_crtc,
 
 	ret = imx_drm_add_crtc(drm, &ipu_crtc->base, &ipu_crtc->imx_crtc,
 			&ipu_crtc->plane[0]->base, &ipu_crtc_helper_funcs,
-			ipu_crtc->dev->of_node);
+			pdata->of_node);
 	if (ret) {
 		dev_err(ipu_crtc->dev, "adding crtc failed with %d.\n", ret);
 		goto err_put_resources;

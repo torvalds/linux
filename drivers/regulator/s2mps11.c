@@ -267,6 +267,7 @@ static struct regulator_ops s2mps11_buck_ops = {
 	.ops		= &s2mps11_ldo_ops,		\
 	.type		= REGULATOR_VOLTAGE,		\
 	.owner		= THIS_MODULE,			\
+	.ramp_delay	= RAMP_DELAY_12_MVUS,		\
 	.min_uV		= MIN_800_MV,			\
 	.uV_step	= step,				\
 	.n_voltages	= S2MPS11_LDO_N_VOLTAGES,	\
@@ -1237,17 +1238,7 @@ static struct platform_driver s2mps11_pmic_driver = {
 	.id_table = s2mps11_pmic_id,
 };
 
-static int __init s2mps11_pmic_init(void)
-{
-	return platform_driver_register(&s2mps11_pmic_driver);
-}
-subsys_initcall(s2mps11_pmic_init);
-
-static void __exit s2mps11_pmic_exit(void)
-{
-	platform_driver_unregister(&s2mps11_pmic_driver);
-}
-module_exit(s2mps11_pmic_exit);
+module_platform_driver(s2mps11_pmic_driver);
 
 /* Module information */
 MODULE_AUTHOR("Sangbeom Kim <sbkim73@samsung.com>");

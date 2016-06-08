@@ -371,5 +371,5 @@ bool efi_reboot_required(void)
 
 bool efi_poweroff_required(void)
 {
-	return !!acpi_gbl_reduced_hardware;
+	return acpi_gbl_reduced_hardware || acpi_no_s5;
 }

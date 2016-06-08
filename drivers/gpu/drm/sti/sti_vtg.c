@@ -437,7 +437,7 @@ static int vtg_probe(struct platform_device *pdev)
 			return -EPROBE_DEFER;
 	} else {
 		vtg->irq = platform_get_irq(pdev, 0);
-		if (IS_ERR_VALUE(vtg->irq)) {
+		if (vtg->irq < 0) {
 			DRM_ERROR("Failed to get VTG interrupt\n");
 			return vtg->irq;
 		}
@@ -447,7 +447,7 @@ static int vtg_probe(struct platform_device *pdev)
 		ret = devm_request_threaded_irq(dev, vtg->irq, vtg_irq,
 				vtg_irq_thread, IRQF_ONESHOT,
 				dev_name(dev), vtg);
-		if (IS_ERR_VALUE(ret)) {
+		if (ret < 0) {
 			DRM_ERROR("Failed to register VTG interrupt\n");
 			return ret;
 		}

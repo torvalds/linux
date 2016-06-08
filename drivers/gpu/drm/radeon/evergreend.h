@@ -1689,6 +1689,36 @@
 #define	PACKET3_SET_CONTEXT_REG_INDIRECT		0x73
 #define	PACKET3_SET_RESOURCE_INDIRECT			0x74
 #define	PACKET3_SET_APPEND_CNT			        0x75
+/* SET_APPEND_CNT - documentation
+ * 1. header
+ * 2. COMMAND
+ *  1:0 - SOURCE SEL
+ *  15:2 - Reserved
+ *  31:16 - WR_REG_OFFSET - context register to write source data to.
+ *          (one of R_02872C_GDS_APPEND_COUNT_0-11)
+ * 3. CONTROL
+ *  (for source == mem)
+ *  31:2 SRC_ADDRESS_LO
+ *  0:1 SWAP
+ *  (for source == GDS)
+ *  31:0 GDS offset
+ *  (for source == DATA)
+ *  31:0 DATA
+ *  (for source == REG)
+ *  31:0 REG
+ * 4. SRC_ADDRESS_HI[7:0]
+ * kernel driver 2.44 only supports SRC == MEM.
+ */
+#define PACKET3_SET_APPEND_CNT_SRC_SELECT(x) ((x) << 0)
+#define G_PACKET3_SET_APPEND_CNT_SRC_SELECT(x) ((x & 0x3) >> 0)
+/* source is from the data in CONTROL */
+#define PACKET3_SAC_SRC_SEL_DATA 0x0
+/* source is from register */
+#define PACKET3_SAC_SRC_SEL_REG  0x1
+/* source is from GDS offset in CONTROL */
+#define PACKET3_SAC_SRC_SEL_GDS  0x2
+/* source is from memory address */
+#define PACKET3_SAC_SRC_SEL_MEM  0x3
 
 #define	SQ_RESOURCE_CONSTANT_WORD7_0				0x3001c
 #define		S__SQ_CONSTANT_TYPE(x)			(((x) & 3) << 30)
@@ -2004,6 +2034,19 @@
 #define CB_SHADER_MASK					0x2823c
 
 #define GDS_ADDR_BASE					0x28720
+
+#define GDS_APPEND_COUNT_0				0x2872C
+#define GDS_APPEND_COUNT_1				0x28730
+#define GDS_APPEND_COUNT_2				0x28734
+#define GDS_APPEND_COUNT_3				0x28738
+#define GDS_APPEND_COUNT_4				0x2873C
+#define GDS_APPEND_COUNT_5				0x28740
+#define GDS_APPEND_COUNT_6				0x28744
+#define GDS_APPEND_COUNT_7				0x28748
+#define GDS_APPEND_COUNT_8				0x2874c
+#define GDS_APPEND_COUNT_9				0x28750
+#define GDS_APPEND_COUNT_10				0x28754
+#define GDS_APPEND_COUNT_11				0x28758
 
 #define	CB_IMMED0_BASE					0x28b9c
 #define	CB_IMMED1_BASE					0x28ba0

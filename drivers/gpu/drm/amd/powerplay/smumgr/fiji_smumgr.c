@@ -44,7 +44,7 @@
 
 #define FIJI_SMC_SIZE 0x20000
 
-struct SMU73_Discrete_GraphicsLevel avfs_graphics_level[8] = {
+static const struct SMU73_Discrete_GraphicsLevel avfs_graphics_level[8] = {
 		/*  Min        Sclk       pcie     DeepSleep Activity  CgSpll      CgSpll    spllSpread  SpllSpread   CcPwr  CcPwr  Sclk   Display     Enabled     Enabled                       Voltage    Power */
 		/* Voltage,  Frequency,  DpmLevel,  DivId,    Level,  FuncCntl3,  FuncCntl4,  Spectrum,   Spectrum2,  DynRm, DynRm1  Did, Watermark, ForActivity, ForThrottle, UpHyst, DownHyst, DownHyst, Throttle */
 		{ 0x3c0fd047, 0x30750000,   0x00,     0x03,   0x1e00, 0x00200410, 0x87020000, 0x21680000, 0x0c000000,   0,      0,   0x16,   0x00,       0x01,        0x01,      0x00,   0x00,      0x00,     0x00 },
@@ -189,7 +189,7 @@ int fiji_copy_bytes_to_smc(struct pp_smumgr *smumgr,
 
 int fiji_program_jump_on_start(struct pp_smumgr *smumgr)
 {
-	static unsigned char data[] = { 0xE0, 0x00, 0x80, 0x40 };
+	static const unsigned char data[] = { 0xE0, 0x00, 0x80, 0x40 };
 
 	fiji_copy_bytes_to_smc(smumgr, 0x0, data, 4, sizeof(data) + 1);
 
@@ -665,7 +665,7 @@ int fiji_setup_pwr_virus(struct pp_smumgr *smumgr)
 {
 	int i, result = -1;
 	uint32_t reg, data;
-	PWR_Command_Table *virus = PwrVirusTable;
+	const PWR_Command_Table *virus = PwrVirusTable;
 	struct fiji_smumgr *priv = (struct fiji_smumgr *)(smumgr->backend);
 
 	priv->avfs.AvfsBtcStatus = AVFS_LOAD_VIRUS;

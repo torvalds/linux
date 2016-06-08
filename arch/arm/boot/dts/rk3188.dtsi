@@ -154,7 +154,7 @@
 		clocks = <&cru PCLK_EFUSE>;
 		clock-names = "pclk_efuse";
 
-		cpu_leakage: cpu_leakage {
+		cpu_leakage: cpu_leakage@17 {
 			reg = <0x17 0x1>;
 		};
 	};
@@ -166,7 +166,7 @@
 		#size-cells = <0>;
 		status = "disabled";
 
-		usbphy0: usb-phy0 {
+		usbphy0: usb-phy@10c {
 			#phy-cells = <0>;
 			reg = <0x10c>;
 			clocks = <&cru SCLK_OTGPHY0>;
@@ -174,7 +174,7 @@
 			#clock-cells = <0>;
 		};
 
-		usbphy1: usb-phy1 {
+		usbphy1: usb-phy@11c {
 			#phy-cells = <0>;
 			reg = <0x11c>;
 			clocks = <&cru SCLK_OTGPHY1>;

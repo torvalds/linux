@@ -19,6 +19,7 @@
 #include <asm/octeon/cvmx-ipd-defs.h>
 #include <asm/octeon/cvmx-mio-defs.h>
 #include <asm/octeon/cvmx-rst-defs.h>
+#include <asm/octeon/cvmx-fpa-defs.h>
 
 static u64 f;
 static u64 rdiv;
@@ -65,8 +66,12 @@ void __init octeon_setup_delays(void)
  */
 void octeon_init_cvmcount(void)
 {
+	u64 clk_reg;
 	unsigned long flags;
 	unsigned loops = 2;
+
+	clk_reg = octeon_has_feature(OCTEON_FEATURE_FPA3) ?
+		CVMX_FPA_CLK_COUNT : CVMX_IPD_CLK_COUNT;
 
 	/* Clobber loops so GCC will not unroll the following while loop. */
 	asm("" : "+r" (loops));
@@ -77,18 +82,18 @@ void octeon_init_cvmcount(void)
 	 * which should give more deterministic timing.
 	 */
 	while (loops--) {
-		u64 ipd_clk_count = cvmx_read_csr(CVMX_IPD_CLK_COUNT);
+		u64 clk_count = cvmx_read_csr(clk_reg);
 		if (rdiv != 0) {
-			ipd_clk_count *= rdiv;
+			clk_count *= rdiv;
 			if (f != 0) {
 				asm("dmultu\t%[cnt],%[f]\n\t"
 				    "mfhi\t%[cnt]"
-				    : [cnt] "+r" (ipd_clk_count)
+				    : [cnt] "+r" (clk_count)
 				    : [f] "r" (f)
 				    : "hi", "lo");
 			}
 		}
-		write_c0_cvmcount(ipd_clk_count);
+		write_c0_cvmcount(clk_count);
 	}
 	local_irq_restore(flags);
 }

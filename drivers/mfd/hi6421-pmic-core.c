@@ -76,19 +76,12 @@ static int hi6421_pmic_probe(struct platform_device *pdev)
 
 	platform_set_drvdata(pdev, pmic);
 
-	ret = mfd_add_devices(&pdev->dev, 0, hi6421_devs,
-			ARRAY_SIZE(hi6421_devs), NULL, 0, NULL);
+	ret = devm_mfd_add_devices(&pdev->dev, 0, hi6421_devs,
+				   ARRAY_SIZE(hi6421_devs), NULL, 0, NULL);
 	if (ret) {
 		dev_err(&pdev->dev, "add mfd devices failed: %d\n", ret);
 		return ret;
 	}
-
-	return 0;
-}
-
-static int hi6421_pmic_remove(struct platform_device *pdev)
-{
-	mfd_remove_devices(&pdev->dev);
 
 	return 0;
 }
@@ -105,7 +98,6 @@ static struct platform_driver hi6421_pmic_driver = {
 		.of_match_table = of_hi6421_pmic_match_tbl,
 	},
 	.probe	= hi6421_pmic_probe,
-	.remove	= hi6421_pmic_remove,
 };
 module_platform_driver(hi6421_pmic_driver);
 

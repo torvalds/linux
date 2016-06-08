@@ -367,7 +367,7 @@ static void arp_failure_discard(struct t3cdev *dev, struct sk_buff *skb)
  */
 static void act_open_req_arp_failure(struct t3cdev *dev, struct sk_buff *skb)
 {
-	printk(KERN_ERR MOD "ARP failure duing connect\n");
+	printk(KERN_ERR MOD "ARP failure during connect\n");
 	kfree_skb(skb);
 }
 

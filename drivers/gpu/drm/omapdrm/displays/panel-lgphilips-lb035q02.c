@@ -15,6 +15,7 @@
 #include <linux/spi/spi.h>
 #include <linux/mutex.h>
 #include <linux/gpio.h>
+#include <linux/gpio/consumer.h>
 
 #include <video/omapdss.h>
 #include <video/omap-panel-data.h>

@@ -7,8 +7,8 @@ codec/DSP interfaces.
 
 Required properties:
 
-  - compatible		: Compatible list, contains "fsl,vf610-sai" or
-			  "fsl,imx6sx-sai".
+  - compatible		: Compatible list, contains "fsl,vf610-sai",
+			  "fsl,imx6sx-sai" or "fsl,imx6ul-sai"
 
   - reg			: Offset and length of the register set for the device.
 
@@ -47,6 +47,11 @@ Required properties:
 			  means both transimitter and receiver will send and
 			  receive data by following their own bit clocks and
 			  frame sync clocks separately.
+
+Optional properties (for mx6ul):
+
+  - fsl,sai-mclk-direction-output: This is a boolean property. If present,
+			 indicates that SAI will output the SAI MCLK clock.
 
 Note:
 - If both fsl,sai-asynchronous and fsl,sai-synchronous-rx are absent, the

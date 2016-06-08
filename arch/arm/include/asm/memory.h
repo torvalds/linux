@@ -288,19 +288,43 @@ static inline void *phys_to_virt(phys_addr_t x)
 #define __va(x)			((void *)__phys_to_virt((phys_addr_t)(x)))
 #define pfn_to_kaddr(pfn)	__va((phys_addr_t)(pfn) << PAGE_SHIFT)
 
-extern unsigned long (*arch_virt_to_idmap)(unsigned long x);
+extern long long arch_phys_to_idmap_offset;
 
 /*
- * These are for systems that have a hardware interconnect supported alias of
- * physical memory for idmap purposes.  Most cases should leave these
+ * These are for systems that have a hardware interconnect supported alias
+ * of physical memory for idmap purposes.  Most cases should leave these
  * untouched.  Note: this can only return addresses less than 4GiB.
  */
+static inline bool arm_has_idmap_alias(void)
+{
+	return IS_ENABLED(CONFIG_MMU) && arch_phys_to_idmap_offset != 0;
+}
+
+#define IDMAP_INVALID_ADDR ((u32)~0)
+
+static inline unsigned long phys_to_idmap(phys_addr_t addr)
+{
+	if (IS_ENABLED(CONFIG_MMU) && arch_phys_to_idmap_offset) {
+		addr += arch_phys_to_idmap_offset;
+		if (addr > (u32)~0)
+			addr = IDMAP_INVALID_ADDR;
+	}
+	return addr;
+}
+
+static inline phys_addr_t idmap_to_phys(unsigned long idmap)
+{
+	phys_addr_t addr = idmap;
+
+	if (IS_ENABLED(CONFIG_MMU) && arch_phys_to_idmap_offset)
+		addr -= arch_phys_to_idmap_offset;
+
+	return addr;
+}
+
 static inline unsigned long __virt_to_idmap(unsigned long x)
 {
-	if (IS_ENABLED(CONFIG_MMU) && arch_virt_to_idmap)
-		return arch_virt_to_idmap(x);
-	else
-		return __virt_to_phys(x);
+	return phys_to_idmap(__virt_to_phys(x));
 }
 
 #define virt_to_idmap(x)	__virt_to_idmap((unsigned long)(x))

@@ -244,13 +244,13 @@ static int fat_write_end(struct file *file, struct address_space *mapping,
 	return err;
 }
 
-static ssize_t fat_direct_IO(struct kiocb *iocb, struct iov_iter *iter,
-			     loff_t offset)
+static ssize_t fat_direct_IO(struct kiocb *iocb, struct iov_iter *iter)
 {
 	struct file *file = iocb->ki_filp;
 	struct address_space *mapping = file->f_mapping;
 	struct inode *inode = mapping->host;
 	size_t count = iov_iter_count(iter);
+	loff_t offset = iocb->ki_pos;
 	ssize_t ret;
 
 	if (iov_iter_rw(iter) == WRITE) {
@@ -272,7 +272,7 @@ static ssize_t fat_direct_IO(struct kiocb *iocb, struct iov_iter *iter,
 	 * FAT need to use the DIO_LOCKING for avoiding the race
 	 * condition of fat_get_block() and ->truncate().
 	 */
-	ret = blockdev_direct_IO(iocb, inode, iter, offset, fat_get_block);
+	ret = blockdev_direct_IO(iocb, inode, iter, fat_get_block);
 	if (ret < 0 && iov_iter_rw(iter) == WRITE)
 		fat_write_failed(mapping, offset + count);
 

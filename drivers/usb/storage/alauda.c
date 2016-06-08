@@ -829,8 +829,10 @@ static int alauda_write_lba(struct us_data *us, u16 lba,
 
 	pba = MEDIA_INFO(us).lba_to_pba[zone][lba_offset];
 	if (pba == 1) {
-		/* Maybe it is impossible to write to PBA 1.
-		   Fake success, but don't do anything. */
+		/*
+		 * Maybe it is impossible to write to PBA 1.
+		 * Fake success, but don't do anything.
+		 */
 		printk(KERN_WARNING
 		       "alauda_write_lba: avoid writing to pba 1\n");
 		return USB_STOR_TRANSPORT_GOOD;
@@ -977,10 +979,12 @@ static int alauda_read_data(struct us_data *us, unsigned long address,
 			usb_stor_dbg(us, "Read %d zero pages (LBA %d) page %d\n",
 				     pages, lba, page);
 
-			/* This is not really an error. It just means
-			   that the block has never been written.
-			   Instead of returning USB_STOR_TRANSPORT_ERROR
-			   it is better to return all zero data. */
+			/*
+			 * This is not really an error. It just means
+			 * that the block has never been written.
+			 * Instead of returning USB_STOR_TRANSPORT_ERROR
+			 * it is better to return all zero data.
+			 */
 
 			memset(buffer, 0, len);
 		} else {
@@ -1222,8 +1226,10 @@ static int alauda_transport(struct scsi_cmnd *srb, struct us_data *us)
 	}
 
 	if (srb->cmnd[0] == ALLOW_MEDIUM_REMOVAL) {
-		/* sure.  whatever.  not like we can stop the user from popping
-		   the media out of the device (no locking doors, etc) */
+		/*
+		 * sure.  whatever.  not like we can stop the user from popping
+		 * the media out of the device (no locking doors, etc)
+		 */
 		return USB_STOR_TRANSPORT_GOOD;
 	}
 

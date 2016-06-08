@@ -452,6 +452,6 @@ const struct inode_operations omfs_dir_inops = {
 
 const struct file_operations omfs_dir_operations = {
 	.read = generic_read_dir,
-	.iterate = omfs_readdir,
+	.iterate_shared = omfs_readdir,
 	.llseek = generic_file_llseek,
 };

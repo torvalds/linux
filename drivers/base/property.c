@@ -19,6 +19,11 @@
 #include <linux/etherdevice.h>
 #include <linux/phy.h>
 
+struct property_set {
+	struct fwnode_handle fwnode;
+	struct property_entry *properties;
+};
+
 static inline bool is_pset_node(struct fwnode_handle *fwnode)
 {
 	return !IS_ERR_OR_NULL(fwnode) && fwnode->type == FWNODE_PDATA;
@@ -801,14 +806,14 @@ static struct property_set *pset_copy_set(const struct property_set *pset)
 }
 
 /**
- * device_remove_property_set - Remove properties from a device object.
+ * device_remove_properties - Remove properties from a device object.
  * @dev: Device whose properties to remove.
  *
  * The function removes properties previously associated to the device
- * secondary firmware node with device_add_property_set(). Memory allocated
+ * secondary firmware node with device_add_properties(). Memory allocated
  * to the properties will also be released.
  */
-void device_remove_property_set(struct device *dev)
+void device_remove_properties(struct device *dev)
 {
 	struct fwnode_handle *fwnode;
 
@@ -831,24 +836,27 @@ void device_remove_property_set(struct device *dev)
 		}
 	}
 }
-EXPORT_SYMBOL_GPL(device_remove_property_set);
+EXPORT_SYMBOL_GPL(device_remove_properties);
 
 /**
- * device_add_property_set - Add a collection of properties to a device object.
+ * device_add_properties - Add a collection of properties to a device object.
  * @dev: Device to add properties to.
- * @pset: Collection of properties to add.
+ * @properties: Collection of properties to add.
  *
- * Associate a collection of device properties represented by @pset with @dev
- * as its secondary firmware node. The function takes a copy of @pset.
+ * Associate a collection of device properties represented by @properties with
+ * @dev as its secondary firmware node. The function takes a copy of
+ * @properties.
  */
-int device_add_property_set(struct device *dev, const struct property_set *pset)
+int device_add_properties(struct device *dev, struct property_entry *properties)
 {
-	struct property_set *p;
+	struct property_set *p, pset;
 
-	if (!pset)
+	if (!properties)
 		return -EINVAL;
 
-	p = pset_copy_set(pset);
+	pset.properties = properties;
+
+	p = pset_copy_set(&pset);
 	if (IS_ERR(p))
 		return PTR_ERR(p);
 
@@ -856,7 +864,7 @@ int device_add_property_set(struct device *dev, const struct property_set *pset)
 	set_secondary_fwnode(dev, &p->fwnode);
 	return 0;
 }
-EXPORT_SYMBOL_GPL(device_add_property_set);
+EXPORT_SYMBOL_GPL(device_add_properties);
 
 /**
  * device_get_next_child_node - Return the next child node handle for a device

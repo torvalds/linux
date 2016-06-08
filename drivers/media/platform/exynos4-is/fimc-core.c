@@ -1154,26 +1154,6 @@ static const struct fimc_pix_limit s5p_pix_limit[4] = {
 	},
 };
 
-static const struct fimc_variant fimc0_variant_s5p = {
-	.has_inp_rot	 = 1,
-	.has_out_rot	 = 1,
-	.has_cam_if	 = 1,
-	.min_inp_pixsize = 16,
-	.min_out_pixsize = 16,
-	.hor_offs_align	 = 8,
-	.min_vsize_align = 16,
-	.pix_limit	 = &s5p_pix_limit[0],
-};
-
-static const struct fimc_variant fimc2_variant_s5p = {
-	.has_cam_if	 = 1,
-	.min_inp_pixsize = 16,
-	.min_out_pixsize = 16,
-	.hor_offs_align	 = 8,
-	.min_vsize_align = 16,
-	.pix_limit	 = &s5p_pix_limit[1],
-};
-
 static const struct fimc_variant fimc0_variant_s5pv210 = {
 	.has_inp_rot	 = 1,
 	.has_out_rot	 = 1,
@@ -1204,18 +1184,6 @@ static const struct fimc_variant fimc2_variant_s5pv210 = {
 	.hor_offs_align	 = 8,
 	.min_vsize_align = 16,
 	.pix_limit	 = &s5p_pix_limit[2],
-};
-
-/* S5PC100 */
-static const struct fimc_drvdata fimc_drvdata_s5p = {
-	.variant = {
-		[0] = &fimc0_variant_s5p,
-		[1] = &fimc0_variant_s5p,
-		[2] = &fimc2_variant_s5p,
-	},
-	.num_entities	= 3,
-	.lclk_frequency = 133000000UL,
-	.out_buf_count	= 4,
 };
 
 /* S5PV210, S5PC110 */
@@ -1251,23 +1219,6 @@ static const struct fimc_drvdata fimc_drvdata_exynos4x12 = {
 	.out_buf_count	= 32,
 };
 
-static const struct platform_device_id fimc_driver_ids[] = {
-	{
-		.name		= "s5p-fimc",
-		.driver_data	= (unsigned long)&fimc_drvdata_s5p,
-	}, {
-		.name		= "s5pv210-fimc",
-		.driver_data	= (unsigned long)&fimc_drvdata_s5pv210,
-	}, {
-		.name		= "exynos4-fimc",
-		.driver_data	= (unsigned long)&fimc_drvdata_exynos4210,
-	}, {
-		.name		= "exynos4x12-fimc",
-		.driver_data	= (unsigned long)&fimc_drvdata_exynos4x12,
-	},
-	{ },
-};
-
 static const struct of_device_id fimc_of_match[] = {
 	{
 		.compatible = "samsung,s5pv210-fimc",
@@ -1290,7 +1241,6 @@ static const struct dev_pm_ops fimc_pm_ops = {
 static struct platform_driver fimc_driver = {
 	.probe		= fimc_probe,
 	.remove		= fimc_remove,
-	.id_table	= fimc_driver_ids,
 	.driver = {
 		.of_match_table = fimc_of_match,
 		.name		= FIMC_DRIVER_NAME,

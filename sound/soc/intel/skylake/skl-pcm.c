@@ -51,7 +51,7 @@ static struct snd_pcm_hardware azx_pcm_hw = {
 	.rate_min =		8000,
 	.rate_max =		48000,
 	.channels_min =		1,
-	.channels_max =		HDA_QUAD,
+	.channels_max =		8,
 	.buffer_bytes_max =	AZX_MAX_BUF_SIZE,
 	.period_bytes_min =	128,
 	.period_bytes_max =	AZX_MAX_BUF_SIZE / 2,
@@ -213,7 +213,7 @@ static int skl_be_prepare(struct snd_pcm_substream *substream,
 	struct skl_sst *ctx = skl->skl_sst;
 	struct skl_module_cfg *mconfig;
 
-	if ((dai->playback_active > 1) || (dai->capture_active > 1))
+	if (dai->playback_widget->power || dai->capture_widget->power)
 		return 0;
 
 	mconfig = skl_tplg_be_get_cpr_module(dai, substream->stream);
@@ -402,23 +402,33 @@ static int skl_pcm_trigger(struct snd_pcm_substream *substream, int cmd,
 	struct skl_module_cfg *mconfig;
 	struct hdac_ext_bus *ebus = get_bus_ctx(substream);
 	struct hdac_ext_stream *stream = get_hdac_ext_stream(substream);
+	struct snd_soc_dapm_widget *w;
 	int ret;
 
 	mconfig = skl_tplg_fe_get_cpr_module(dai, substream->stream);
 	if (!mconfig)
 		return -EIO;
 
+	if (substream->stream == SNDRV_PCM_STREAM_PLAYBACK)
+		w = dai->playback_widget;
+	else
+		w = dai->capture_widget;
+
 	switch (cmd) {
 	case SNDRV_PCM_TRIGGER_RESUME:
-		skl_pcm_prepare(substream, dai);
-		/*
-		 * enable DMA Resume enable bit for the stream, set the dpib
-		 * & lpib position to resune before starting the DMA
-		 */
-		snd_hdac_ext_stream_drsm_enable(ebus, true,
-					hdac_stream(stream)->index);
-		snd_hdac_ext_stream_set_dpibr(ebus, stream, stream->dpib);
-		snd_hdac_ext_stream_set_lpib(stream, stream->lpib);
+		if (!w->ignore_suspend) {
+			skl_pcm_prepare(substream, dai);
+			/*
+			 * enable DMA Resume enable bit for the stream, set the
+			 * dpib & lpib position to resume before starting the
+			 * DMA
+			 */
+			snd_hdac_ext_stream_drsm_enable(ebus, true,
+						hdac_stream(stream)->index);
+			snd_hdac_ext_stream_set_dpibr(ebus, stream,
+							stream->dpib);
+			snd_hdac_ext_stream_set_lpib(stream, stream->lpib);
+		}
 
 	case SNDRV_PCM_TRIGGER_START:
 	case SNDRV_PCM_TRIGGER_PAUSE_RELEASE:
@@ -448,7 +458,7 @@ static int skl_pcm_trigger(struct snd_pcm_substream *substream, int cmd,
 			return ret;
 
 		ret = skl_decoupled_trigger(substream, cmd);
-		if (cmd == SNDRV_PCM_TRIGGER_SUSPEND) {
+		if ((cmd == SNDRV_PCM_TRIGGER_SUSPEND) && !w->ignore_suspend) {
 			/* save the dpib and lpib positions */
 			stream->dpib = readl(ebus->bus.remap_addr +
 					AZX_REG_VS_SDXDPIB_XBASE +
@@ -523,7 +533,6 @@ static int skl_link_pcm_prepare(struct snd_pcm_substream *substream,
 	if (!link)
 		return -EINVAL;
 
-	snd_hdac_ext_bus_link_power_up(link);
 	snd_hdac_ext_link_stream_reset(link_dev);
 
 	snd_hdac_ext_link_stream_setup(link_dev, format_val);
@@ -682,7 +691,7 @@ static struct snd_soc_dai_driver skl_platform_dai[] = {
 	.playback = {
 		.stream_name = "HDMI1 Playback",
 		.channels_min = HDA_STEREO,
-		.channels_max = HDA_STEREO,
+		.channels_max = 8,
 		.rates = SNDRV_PCM_RATE_32000 |	SNDRV_PCM_RATE_44100 |
 			SNDRV_PCM_RATE_48000 | SNDRV_PCM_RATE_88200 |
 			SNDRV_PCM_RATE_96000 | SNDRV_PCM_RATE_176400 |
@@ -697,7 +706,7 @@ static struct snd_soc_dai_driver skl_platform_dai[] = {
 	.playback = {
 		.stream_name = "HDMI2 Playback",
 		.channels_min = HDA_STEREO,
-		.channels_max = HDA_STEREO,
+		.channels_max = 8,
 		.rates = SNDRV_PCM_RATE_32000 |	SNDRV_PCM_RATE_44100 |
 			SNDRV_PCM_RATE_48000 | SNDRV_PCM_RATE_88200 |
 			SNDRV_PCM_RATE_96000 | SNDRV_PCM_RATE_176400 |
@@ -712,7 +721,7 @@ static struct snd_soc_dai_driver skl_platform_dai[] = {
 	.playback = {
 		.stream_name = "HDMI3 Playback",
 		.channels_min = HDA_STEREO,
-		.channels_max = HDA_STEREO,
+		.channels_max = 8,
 		.rates = SNDRV_PCM_RATE_32000 |	SNDRV_PCM_RATE_44100 |
 			SNDRV_PCM_RATE_48000 | SNDRV_PCM_RATE_88200 |
 			SNDRV_PCM_RATE_96000 | SNDRV_PCM_RATE_176400 |
@@ -760,12 +769,84 @@ static struct snd_soc_dai_driver skl_platform_dai[] = {
 	},
 },
 {
+	.name = "SSP2 Pin",
+	.ops = &skl_be_ssp_dai_ops,
+	.playback = {
+		.stream_name = "ssp2 Tx",
+		.channels_min = HDA_STEREO,
+		.channels_max = HDA_STEREO,
+		.rates = SNDRV_PCM_RATE_48000,
+		.formats = SNDRV_PCM_FMTBIT_S16_LE,
+	},
+	.capture = {
+		.stream_name = "ssp2 Rx",
+		.channels_min = HDA_STEREO,
+		.channels_max = HDA_STEREO,
+		.rates = SNDRV_PCM_RATE_48000,
+		.formats = SNDRV_PCM_FMTBIT_S16_LE,
+	},
+},
+{
+	.name = "SSP3 Pin",
+	.ops = &skl_be_ssp_dai_ops,
+	.playback = {
+		.stream_name = "ssp3 Tx",
+		.channels_min = HDA_STEREO,
+		.channels_max = HDA_STEREO,
+		.rates = SNDRV_PCM_RATE_48000,
+		.formats = SNDRV_PCM_FMTBIT_S16_LE,
+	},
+	.capture = {
+		.stream_name = "ssp3 Rx",
+		.channels_min = HDA_STEREO,
+		.channels_max = HDA_STEREO,
+		.rates = SNDRV_PCM_RATE_48000,
+		.formats = SNDRV_PCM_FMTBIT_S16_LE,
+	},
+},
+{
+	.name = "SSP4 Pin",
+	.ops = &skl_be_ssp_dai_ops,
+	.playback = {
+		.stream_name = "ssp4 Tx",
+		.channels_min = HDA_STEREO,
+		.channels_max = HDA_STEREO,
+		.rates = SNDRV_PCM_RATE_48000,
+		.formats = SNDRV_PCM_FMTBIT_S16_LE,
+	},
+	.capture = {
+		.stream_name = "ssp4 Rx",
+		.channels_min = HDA_STEREO,
+		.channels_max = HDA_STEREO,
+		.rates = SNDRV_PCM_RATE_48000,
+		.formats = SNDRV_PCM_FMTBIT_S16_LE,
+	},
+},
+{
+	.name = "SSP5 Pin",
+	.ops = &skl_be_ssp_dai_ops,
+	.playback = {
+		.stream_name = "ssp5 Tx",
+		.channels_min = HDA_STEREO,
+		.channels_max = HDA_STEREO,
+		.rates = SNDRV_PCM_RATE_48000,
+		.formats = SNDRV_PCM_FMTBIT_S16_LE,
+	},
+	.capture = {
+		.stream_name = "ssp5 Rx",
+		.channels_min = HDA_STEREO,
+		.channels_max = HDA_STEREO,
+		.rates = SNDRV_PCM_RATE_48000,
+		.formats = SNDRV_PCM_FMTBIT_S16_LE,
+	},
+},
+{
 	.name = "iDisp1 Pin",
 	.ops = &skl_link_dai_ops,
 	.playback = {
 		.stream_name = "iDisp1 Tx",
 		.channels_min = HDA_STEREO,
-		.channels_max = HDA_STEREO,
+		.channels_max = 8,
 		.rates = SNDRV_PCM_RATE_8000|SNDRV_PCM_RATE_16000|SNDRV_PCM_RATE_48000,
 		.formats = SNDRV_PCM_FMTBIT_S16_LE | SNDRV_PCM_FMTBIT_S32_LE |
 			SNDRV_PCM_FMTBIT_S24_LE,
@@ -777,7 +858,7 @@ static struct snd_soc_dai_driver skl_platform_dai[] = {
 	.playback = {
 		.stream_name = "iDisp2 Tx",
 		.channels_min = HDA_STEREO,
-		.channels_max = HDA_STEREO,
+		.channels_max = 8,
 		.rates = SNDRV_PCM_RATE_8000|SNDRV_PCM_RATE_16000|
 			SNDRV_PCM_RATE_48000,
 		.formats = SNDRV_PCM_FMTBIT_S16_LE | SNDRV_PCM_FMTBIT_S32_LE |
@@ -790,7 +871,7 @@ static struct snd_soc_dai_driver skl_platform_dai[] = {
 	.playback = {
 		.stream_name = "iDisp3 Tx",
 		.channels_min = HDA_STEREO,
-		.channels_max = HDA_STEREO,
+		.channels_max = 8,
 		.rates = SNDRV_PCM_RATE_8000|SNDRV_PCM_RATE_16000|
 			SNDRV_PCM_RATE_48000,
 		.formats = SNDRV_PCM_FMTBIT_S16_LE | SNDRV_PCM_FMTBIT_S32_LE |

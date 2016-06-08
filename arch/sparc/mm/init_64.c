@@ -324,18 +324,6 @@ static void __update_mmu_tsb_insert(struct mm_struct *mm, unsigned long tsb_inde
 	tsb_insert(tsb, tag, tte);
 }
 
-#if defined(CONFIG_HUGETLB_PAGE) || defined(CONFIG_TRANSPARENT_HUGEPAGE)
-static inline bool is_hugetlb_pte(pte_t pte)
-{
-	if ((tlb_type == hypervisor &&
-	     (pte_val(pte) & _PAGE_SZALL_4V) == _PAGE_SZHUGE_4V) ||
-	    (tlb_type != hypervisor &&
-	     (pte_val(pte) & _PAGE_SZALL_4U) == _PAGE_SZHUGE_4U))
-		return true;
-	return false;
-}
-#endif
-
 void update_mmu_cache(struct vm_area_struct *vma, unsigned long address, pte_t *ptep)
 {
 	struct mm_struct *mm;
@@ -2836,9 +2824,10 @@ void hugetlb_setup(struct pt_regs *regs)
 	 * the Data-TLB for huge pages.
 	 */
 	if (tlb_type == cheetah_plus) {
+		bool need_context_reload = false;
 		unsigned long ctx;
 
-		spin_lock(&ctx_alloc_lock);
+		spin_lock_irq(&ctx_alloc_lock);
 		ctx = mm->context.sparc64_ctx_val;
 		ctx &= ~CTX_PGSZ_MASK;
 		ctx |= CTX_PGSZ_BASE << CTX_PGSZ0_SHIFT;
@@ -2857,9 +2846,12 @@ void hugetlb_setup(struct pt_regs *regs)
 			 * also executing in this address space.
 			 */
 			mm->context.sparc64_ctx_val = ctx;
-			on_each_cpu(context_reload, mm, 0);
+			need_context_reload = true;
 		}
-		spin_unlock(&ctx_alloc_lock);
+		spin_unlock_irq(&ctx_alloc_lock);
+
+		if (need_context_reload)
+			on_each_cpu(context_reload, mm, 0);
 	}
 }
 #endif

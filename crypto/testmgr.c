@@ -35,6 +35,10 @@
 
 #include "internal.h"
 
+static bool notests;
+module_param(notests, bool, 0644);
+MODULE_PARM_DESC(notests, "disable crypto self-tests");
+
 #ifdef CONFIG_CRYPTO_MANAGER_DISABLE_TESTS
 
 /* a perfect nop */
@@ -3884,6 +3888,11 @@ int alg_test(const char *driver, const char *alg, u32 type, u32 mask)
 	int i;
 	int j;
 	int rc;
+
+	if (!fips_enabled && notests) {
+		printk_once(KERN_INFO "alg: self-tests disabled\n");
+		return 0;
+	}
 
 	alg_test_descs_check_order();
 

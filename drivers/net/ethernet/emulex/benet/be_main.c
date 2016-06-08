@@ -4890,11 +4890,13 @@ static int be_resume(struct be_adapter *adapter)
 	if (status)
 		return status;
 
-	if (netif_running(netdev)) {
+	rtnl_lock();
+	if (netif_running(netdev))
 		status = be_open(netdev);
-		if (status)
-			return status;
-	}
+	rtnl_unlock();
+
+	if (status)
+		return status;
 
 	netif_device_attach(netdev);
 

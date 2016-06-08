@@ -2104,7 +2104,7 @@ static int __ipmr_fill_mroute(struct mr_table *mrt, struct sk_buff *skb,
 	mfcs.mfcs_packets = c->mfc_un.res.pkt;
 	mfcs.mfcs_bytes = c->mfc_un.res.bytes;
 	mfcs.mfcs_wrong_if = c->mfc_un.res.wrong_if;
-	if (nla_put(skb, RTA_MFC_STATS, sizeof(mfcs), &mfcs) < 0)
+	if (nla_put_64bit(skb, RTA_MFC_STATS, sizeof(mfcs), &mfcs, RTA_PAD) < 0)
 		return -EMSGSIZE;
 
 	rtm->rtm_type = RTN_MULTICAST;
@@ -2237,7 +2237,7 @@ static size_t mroute_msgsize(bool unresolved, int maxvif)
 		      + nla_total_size(0)	/* RTA_MULTIPATH */
 		      + maxvif * NLA_ALIGN(sizeof(struct rtnexthop))
 						/* RTA_MFC_STATS */
-		      + nla_total_size(sizeof(struct rta_mfc_stats))
+		      + nla_total_size_64bit(sizeof(struct rta_mfc_stats))
 		;
 
 	return len;

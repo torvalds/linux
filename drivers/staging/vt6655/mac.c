@@ -47,7 +47,8 @@
  *
  * Revision History:
  *      08-22-2003 Kyle Hsu     :  Porting MAC functions from sim53
- *      09-03-2003 Bryan YC Fan :  Add MACvClearBusSusInd()& MACvEnableBusSusEn()
+ *      09-03-2003 Bryan YC Fan :  Add MACvClearBusSusInd()&
+ *				   MACvEnableBusSusEn()
  *      09-18-2003 Jerry Chen   :  Add MACvSetKeyEntry & MACvDisableKeyEntry
  *
  */
@@ -138,7 +139,8 @@ bool MACbIsIntDisable(struct vnt_private *priv)
  * Return Value: none
  *
  */
-void MACvSetShortRetryLimit(struct vnt_private *priv, unsigned char byRetryLimit)
+void MACvSetShortRetryLimit(struct vnt_private *priv,
+			    unsigned char byRetryLimit)
 {
 	void __iomem *io_base = priv->PortOffset;
 	/* set SRT */
@@ -160,7 +162,8 @@ void MACvSetShortRetryLimit(struct vnt_private *priv, unsigned char byRetryLimit
  * Return Value: none
  *
  */
-void MACvSetLongRetryLimit(struct vnt_private *priv, unsigned char byRetryLimit)
+void MACvSetLongRetryLimit(struct vnt_private *priv,
+			   unsigned char byRetryLimit)
 {
 	void __iomem *io_base = priv->PortOffset;
 	/* set LRT */
@@ -304,7 +307,8 @@ bool MACbSoftwareReset(struct vnt_private *priv)
 
 /*
  * Description:
- *      save some important register's value, then do reset, then restore register's value
+ *      save some important register's value, then do reset, then restore
+ *	register's value
  *
  * Parameters:
  *  In:
@@ -738,7 +742,8 @@ void MACvTimer0MicroSDelay(struct vnt_private *priv, unsigned int uDelay)
  * Return Value: none
  *
  */
-void MACvOneShotTimer1MicroSec(struct vnt_private *priv, unsigned int uDelayTime)
+void MACvOneShotTimer1MicroSec(struct vnt_private *priv,
+			       unsigned int uDelayTime)
 {
 	void __iomem *io_base = priv->PortOffset;
 

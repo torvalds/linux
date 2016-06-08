@@ -179,11 +179,7 @@ static int rionet_start_xmit(struct sk_buff *skb, struct net_device *ndev)
 	unsigned long flags;
 	int add_num = 1;
 
-	local_irq_save(flags);
-	if (!spin_trylock(&rnet->tx_lock)) {
-		local_irq_restore(flags);
-		return NETDEV_TX_LOCKED;
-	}
+	spin_lock_irqsave(&rnet->tx_lock, flags);
 
 	if (is_multicast_ether_addr(eth->h_dest))
 		add_num = nets[rnet->mport->id].nact;

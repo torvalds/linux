@@ -216,23 +216,10 @@ static int xgene_gpio_sb_domain_alloc(struct irq_domain *domain,
 			&parent_fwspec);
 }
 
-static void xgene_gpio_sb_domain_free(struct irq_domain *domain,
-		unsigned int virq,
-		unsigned int nr_irqs)
-{
-	struct irq_data *d;
-	unsigned int i;
-
-	for (i = 0; i < nr_irqs; i++) {
-		d = irq_domain_get_irq_data(domain, virq + i);
-		irq_domain_reset_irq_data(d);
-	}
-}
-
 static const struct irq_domain_ops xgene_gpio_sb_domain_ops = {
 	.translate      = xgene_gpio_sb_domain_translate,
 	.alloc          = xgene_gpio_sb_domain_alloc,
-	.free           = xgene_gpio_sb_domain_free,
+	.free           = irq_domain_free_irqs_common,
 	.activate	= xgene_gpio_sb_domain_activate,
 	.deactivate	= xgene_gpio_sb_domain_deactivate,
 };

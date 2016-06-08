@@ -13,7 +13,7 @@ Required properties:
 - compatible : Should be "mti,cpu-interrupt-controller"
 
 Example devicetree:
-	cpu-irq: cpu-irq@0 {
+	cpu-irq: cpu-irq {
 		#address-cells = <0>;
 
 		interrupt-controller;

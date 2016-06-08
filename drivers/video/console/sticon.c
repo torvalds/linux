@@ -79,7 +79,7 @@ static const char *sticon_startup(void)
     return "STI console";
 }
 
-static int sticon_set_palette(struct vc_data *c, unsigned char *table)
+static int sticon_set_palette(struct vc_data *c, const unsigned char *table)
 {
     return -EINVAL;
 }

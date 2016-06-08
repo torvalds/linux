@@ -50,20 +50,6 @@ Description:	This field is used to tell s-Par which type of recovery tool
 		commission the guest.
 Users:		sparmaintainer@unisys.com
 
-What:		guest/chipsetready
-Date:		7/18/2014
-KernelVersion: 	TBD
-Contact:	sparmaintainer@unisys.com
-Description:	This entry is used by Unisys application software on the guest
-		to acknowledge completion of specific events for integration
-		purposes, but these acknowledgements are not required for the
-		guest to operate correctly. The interface accepts one of two
-		strings: MODULES_LOADED to indicate that the s-Par driver
-		modules have been loaded successfully, or CALLHOMEDISK_MOUNTED,
-		which indicates that the disk used to support call home services
-		has been successfully mounted.
-Users:		sparmaintainer@unisys.com
-
 What:		parahotplug/deviceenabled
 Date:		7/18/2014
 KernelVersion: 	TBD

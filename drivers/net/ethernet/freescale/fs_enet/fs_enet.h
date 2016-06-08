@@ -149,7 +149,6 @@ struct fs_enet_private {
 	unsigned int last_mii_status;
 	int interrupt;
 
-	struct phy_device *phydev;
 	int oldduplex, oldspeed, oldlink;	/* current settings */
 
 	/* event masks */

@@ -26,6 +26,7 @@
 #include <linux/if.h>
 #include <linux/jiffies.h>
 #include <linux/kernel.h>
+#include <linux/kref.h>
 #include <linux/list.h>
 #include <linux/netdevice.h>
 #include <linux/printk.h>
@@ -552,7 +553,7 @@ static void batadv_send_outstanding_bcast_packet(struct work_struct *work)
 	struct net_device *soft_iface;
 	struct batadv_priv *bat_priv;
 
-	delayed_work = container_of(work, struct delayed_work, work);
+	delayed_work = to_delayed_work(work);
 	forw_packet = container_of(delayed_work, struct batadv_forw_packet,
 				   delayed_work);
 	soft_iface = forw_packet->if_incoming->soft_iface;
@@ -577,10 +578,15 @@ static void batadv_send_outstanding_bcast_packet(struct work_struct *work)
 		if (forw_packet->num_packets >= hard_iface->num_bcasts)
 			continue;
 
+		if (!kref_get_unless_zero(&hard_iface->refcount))
+			continue;
+
 		/* send a copy of the saved skb */
 		skb1 = skb_clone(forw_packet->skb, GFP_ATOMIC);
 		if (skb1)
 			batadv_send_broadcast_skb(skb1, hard_iface);
+
+		batadv_hardif_put(hard_iface);
 	}
 	rcu_read_unlock();
 
@@ -604,7 +610,7 @@ void batadv_send_outstanding_bat_ogm_packet(struct work_struct *work)
 	struct batadv_forw_packet *forw_packet;
 	struct batadv_priv *bat_priv;
 
-	delayed_work = container_of(work, struct delayed_work, work);
+	delayed_work = to_delayed_work(work);
 	forw_packet = container_of(delayed_work, struct batadv_forw_packet,
 				   delayed_work);
 	bat_priv = netdev_priv(forw_packet->if_incoming->soft_iface);
