@@ -993,7 +993,7 @@ static int urb_enqueue(struct usb_hcd *hcd,
 	}
 #endif
 
-	if (unlikely(atomic_read(&urb->use_count) > 1)) {
+	if (unlikely(atomic_read(&urb->use_count) > 1) && urb->hcpriv) {
 		retval = -EPERM;
 		printk("%s urb %p already in queue, qtd %p, use_count %d\n",
 		       __func__, urb, urb->hcpriv,
