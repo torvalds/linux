@@ -98,7 +98,9 @@ struct vop_win {
 	const struct vop_win_data *data;
 	struct vop *vop;
 
-	struct vop_plane_state state;
+	/* protected by dev->event_lock */
+	bool enable;
+	dma_addr_t yrgb_mst;
 };
 
 struct vop {
@@ -112,6 +114,8 @@ struct vop {
 	bool vsync_work_pending;
 	struct completion dsp_hold_completion;
 	struct completion wait_update_complete;
+
+	/* protected by dev->event_lock */
 	struct drm_pending_vblank_event *event;
 
 	const struct vop_data *data;
@@ -652,6 +656,11 @@ static void vop_plane_atomic_disable(struct drm_plane *plane,
 	if (!old_state->crtc)
 		return;
 
+	spin_lock_irq(&plane->dev->event_lock);
+	vop_win->enable = false;
+	vop_win->yrgb_mst = 0;
+	spin_unlock_irq(&plane->dev->event_lock);
+
 	spin_lock(&vop->reg_lock);
 
 	VOP_WIN_SET(vop, win, enable, 0);
@@ -686,7 +695,7 @@ static void vop_plane_atomic_update(struct drm_plane *plane,
 	/*
 	 * can't update plane when vop is disabled.
 	 */
-	if (!crtc)
+	if (WARN_ON(!crtc))
 		return;
 
 	if (WARN_ON(!vop->is_enabled))
@@ -714,6 +723,11 @@ static void vop_plane_atomic_update(struct drm_plane *plane,
 	offset = (src->x1 >> 16) * drm_format_plane_cpp(fb->pixel_format, 0);
 	offset += (src->y1 >> 16) * fb->pitches[0];
 	vop_plane_state->yrgb_mst = rk_obj->dma_addr + offset + fb->offsets[0];
+
+	spin_lock_irq(&plane->dev->event_lock);
+	vop_win->enable = true;
+	vop_win->yrgb_mst = vop_plane_state->yrgb_mst;
+	spin_unlock_irq(&plane->dev->event_lock);
 
 	spin_lock(&vop->reg_lock);
 
@@ -1074,16 +1088,14 @@ static const struct drm_crtc_funcs vop_crtc_funcs = {
 
 static bool vop_win_pending_is_complete(struct vop_win *vop_win)
 {
-	struct drm_plane *plane = &vop_win->base;
-	struct vop_plane_state *state = to_vop_plane_state(plane->state);
 	dma_addr_t yrgb_mst;
 
-	if (!state->enable)
+	if (!vop_win->enable)
 		return VOP_WIN_GET(vop_win->vop, vop_win->data, enable) == 0;
 
 	yrgb_mst = VOP_WIN_GET_YRGBADDR(vop_win->vop, vop_win->data);
 
-	return yrgb_mst == state->yrgb_mst;
+	return yrgb_mst == vop_win->yrgb_mst;
 }
 
 static void vop_handle_vblank(struct vop *vop)
