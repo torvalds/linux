@@ -801,6 +801,8 @@ static int iwl_pcie_load_cpu_sections_8000(struct iwl_trans *trans,
 
 	*first_ucode_section = last_read_idx;
 
+	iwl_enable_interrupts(trans);
+
 	if (cpu == 1)
 		iwl_write_direct32(trans, FH_UCODE_LOAD_STATUS, 0xFFFF);
 	else
@@ -979,6 +981,8 @@ static int iwl_pcie_load_given_ucode(struct iwl_trans *trans,
 	} else if (trans->dbg_dest_tlv) {
 		iwl_pcie_apply_destination(trans);
 	}
+
+	iwl_enable_interrupts(trans);
 
 	/* release CPU reset */
 	iwl_write32(trans, CSR_RESET, 0);
@@ -1215,7 +1219,6 @@ static int iwl_trans_pcie_start_fw(struct iwl_trans *trans,
 		ret = iwl_pcie_load_given_ucode_8000(trans, fw);
 	else
 		ret = iwl_pcie_load_given_ucode(trans, fw);
-	iwl_enable_interrupts(trans);
 
 	/* re-check RF-Kill state since we may have missed the interrupt */
 	hw_rfkill = iwl_is_rfkill_set(trans);
