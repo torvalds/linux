@@ -980,7 +980,7 @@ flush_fifo:
 void inv_mpu_unconfigure_ring(struct iio_dev *indio_dev)
 {
 	struct inv_mpu_iio_s *st = iio_priv(indio_dev);
-	free_irq(st->client->irq, st);
+	free_irq(st->irq, st);
 	iio_kfifo_free(indio_dev->buffer);
 };
 
@@ -1138,11 +1138,11 @@ int inv_mpu_configure_ring(struct iio_dev *indio_dev)
 	/*scan count double count timestamp. should subtract 1. but
 	number of channels still includes timestamp*/
 	if (INV_MPU3050 == st->chip_type)
-		ret = request_threaded_irq(st->client->irq, inv_irq_handler,
+		ret = request_threaded_irq(st->irq, inv_irq_handler,
 			inv_read_fifo_mpu3050,
 			IRQF_TRIGGER_RISING | IRQF_SHARED, "inv_irq", st);
 	else
-		ret = request_threaded_irq(st->client->irq, inv_irq_handler,
+		ret = request_threaded_irq(st->irq, inv_irq_handler,
 			inv_read_fifo,
 			IRQF_TRIGGER_RISING | IRQF_SHARED, "inv_irq", st);
 	if (ret)

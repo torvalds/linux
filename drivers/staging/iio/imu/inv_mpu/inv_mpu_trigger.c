@@ -81,7 +81,7 @@ int inv_mpu_probe_trigger(struct iio_dev *indio_dev)
 					indio_dev->id);
 	if (st->trig == NULL)
 		return -ENOMEM;
-	st->trig->dev.parent = &st->client->dev;
+	st->trig->dev.parent = st->dev;
 #ifdef INV_KERNEL_3_10
 	iio_trigger_set_drvdata(st->trig, indio_dev);
 #else

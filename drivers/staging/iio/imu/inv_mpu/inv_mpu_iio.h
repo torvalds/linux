@@ -320,6 +320,7 @@ struct inv_mpu_slave;
  */
 struct inv_mpu_iio_s {
 #define TIMESTAMP_FIFO_SIZE 16
+	struct device *dev;
 	struct inv_chip_config_s chip_config;
 	struct inv_chip_info_s chip_info;
 	struct iio_trigger  *trig;
@@ -347,6 +348,16 @@ struct inv_mpu_iio_s {
 				struct iio_buffer *ring, bool on);
 	int (*init_config)(struct iio_dev *indio_dev);
 	void (*setup_reg)(struct inv_reg_map_s *reg);
+
+	int (*plat_read)(struct inv_mpu_iio_s *st, u8 reg, int len, u8 *data);
+	int (*plat_single_write)(struct inv_mpu_iio_s *st, u8 reg, u8 data);
+	int (*secondary_read)(struct inv_mpu_iio_s *st, u8 reg, int len, u8 *data);
+	int (*secondary_write)(struct inv_mpu_iio_s *st, u8 reg, u8 data);
+	int (*memory_write)(struct inv_mpu_iio_s *st, u8 mpu_addr, u16 mem_addr,
+				 u32 len, u8 const *data);
+	int (*memory_read)(struct inv_mpu_iio_s *st, u8 mpu_addr, u16 mem_addr,
+				u32 len, u8 *data);
+
 	DECLARE_KFIFO(timestamps, u64, TIMESTAMP_FIFO_SIZE);
 	const short *compass_st_upper;
 	const short *compass_st_lower;
@@ -372,6 +383,7 @@ struct inv_mpu_iio_s {
 	u32 irq_dur_ns;
 	u64 last_isr_time;
 	u64 mpu6500_last_motion_time;
+	u8 i2c_dis;
 	u8 name[20];
 	u8 secondary_name[20];
 };
@@ -541,6 +553,7 @@ struct inv_mpu_slave {
 #define BIT_I2C_MST_EN                  0x20
 #define BIT_FIFO_EN                     0x40
 #define BIT_DMP_EN                      0x80
+#define BIT_I2C_IF_DIS                  0x10
 
 #define REG_PWR_MGMT_1          0x6B
 #define BIT_H_RESET                     0x80
@@ -868,10 +881,6 @@ int inv_set_tap_threshold_dmp(struct inv_mpu_iio_s *st,
 int inv_set_min_taps_dmp(struct inv_mpu_iio_s *st, u16 min_taps);
 int  inv_set_tap_time_dmp(struct inv_mpu_iio_s *st, u16 time);
 int inv_enable_tap_dmp(struct inv_mpu_iio_s *st, bool on);
-int inv_plat_read(struct inv_mpu_iio_s *st, u8 reg, int len, u8 *data);
-int inv_plat_single_write(struct inv_mpu_iio_s *st, u8 reg, u8 data);
-int inv_secondary_read(struct inv_mpu_iio_s *st, u8 reg, int len, u8 *data);
-int inv_secondary_write(struct inv_mpu_iio_s *st, u8 reg, u8 data);
 int inv_check_chip_type(struct inv_mpu_iio_s *st, const char *name);
 int inv_create_dmp_sysfs(struct iio_dev *ind);
 void inv_set_iio_info(struct inv_mpu_iio_s *st, struct iio_dev *indio_dev);
@@ -886,18 +895,26 @@ int write_be32_key_to_mem(struct inv_mpu_iio_s *st,
 int inv_set_accel_bias_dmp(struct inv_mpu_iio_s *st);
 int inv_send_sensor_data(struct inv_mpu_iio_s *st, u16 elements);
 int inv_send_interrupt_word(struct inv_mpu_iio_s *st, bool on);
-int mpu_memory_write(struct inv_mpu_iio_s *st, u8 mpu_addr, u16 mem_addr,
-		     u32 len, u8 const *data);
-int mpu_memory_read(struct inv_mpu_iio_s *st, u8 mpu_addr, u16 mem_addr,
-		    u32 len, u8 *data);
 int mpu_memory_write_unaligned(struct inv_mpu_iio_s *st, u16 key, int len,
 							u8 const *d);
 /* used to print i2c data using pr_debug */
 char *wr_pr_debug_begin(u8 const *data, u32 len, char *string);
 char *wr_pr_debug_end(char *string);
 
+#define inv_plat_read(st, reg, len, data) \
+       st->plat_read(st, reg, len, data)
+#define inv_plat_single_write(st, reg, data) \
+	st->plat_single_write(st, reg, data)
+#define inv_secondary_read(st, reg, len, data) \
+	st->secondary_read(st, reg, len, data)
+#define inv_secondary_write(st, reg, data) \
+	st->secondary_write(st, reg, data)
+#define mpu_memory_write(st, mpu_addr, mem_addr, len, data) \
+	st->memory_write(st, mpu_addr, mem_addr, len, data)
+#define mpu_memory_read(st, mpu_addr, mem_addr, len, data) \
+	st->memory_read(st, mpu_addr, mem_addr, len, data)
 #define mem_w(a, b, c) \
-	mpu_memory_write(st, st->i2c_addr, a, b, c)
+	st->memory_write(st, st->i2c_addr, a, b, c)
 #define mem_w_key(key, b, c) mpu_memory_write_unaligned(st, key, b, c)
 #endif  /* #ifndef _INV_MPU_IIO_H_ */
 

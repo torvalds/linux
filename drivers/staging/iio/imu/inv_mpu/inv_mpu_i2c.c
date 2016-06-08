@@ -12,16 +12,6 @@
 *
 */
 
-/**
- *  @addtogroup  DRIVERS
- *  @brief       Hardware drivers.
- *
- *  @{
- *      @file    inv_mpu_core.c
- *      @brief   A sysfs device driver for Invensense devices
- *      @details This driver currently works for the
- *               MPU3050/MPU6050/MPU9150/MPU6500/MPU9250 devices.
- */
 #define pr_fmt(fmt) KBUILD_MODNAME ": " fmt
 
 #include <linux/module.h>
@@ -57,7 +47,7 @@
  *       address could be specified in this case. We could have two different
  *       i2c address due to secondary i2c interface.
  */
-int inv_i2c_read_base(struct inv_mpu_iio_s *st, u16 i2c_addr,
+static int inv_i2c_read_base(struct inv_mpu_iio_s *st, u16 i2c_addr,
 	u8 reg, u16 length, u8 *data)
 {
 	struct i2c_msg msgs[2];
@@ -107,7 +97,7 @@ int inv_i2c_read_base(struct inv_mpu_iio_s *st, u16 i2c_addr,
  *       address could be specified in this case. We could have two different
  *       i2c address due to secondary i2c interface.
  */
-int inv_i2c_single_write_base(struct inv_mpu_iio_s *st,
+static int inv_i2c_single_write_base(struct inv_mpu_iio_s *st,
 	u16 i2c_addr, u8 reg, u8 data)
 {
 	u8 tmp[2];
@@ -134,27 +124,27 @@ int inv_i2c_single_write_base(struct inv_mpu_iio_s *st,
 		return 0;
 }
 
-int inv_plat_single_write(struct inv_mpu_iio_s *st, u8 reg, u8 data)
+static int inv_i2c_single_write(struct inv_mpu_iio_s *st, u8 reg, u8 data)
 {
 	return inv_i2c_single_write_base(st, st->i2c_addr, reg, data);
 }
 
-int inv_plat_read(struct inv_mpu_iio_s *st, u8 reg, int len, u8 *data)
+static int inv_i2c_read(struct inv_mpu_iio_s *st, u8 reg, int len, u8 *data)
 {
 	return inv_i2c_read_base(st, st->i2c_addr, reg, len, data);
 }
 
-int inv_secondary_read(struct inv_mpu_iio_s *st, u8 reg, int len, u8 *data)
+static int inv_i2c_secondary_read(struct inv_mpu_iio_s *st, u8 reg, int len, u8 *data)
 {
 	return inv_i2c_read_base(st, st->plat_data.secondary_i2c_addr, reg, len, data);
 }
 
-int inv_secondary_write(struct inv_mpu_iio_s *st, u8 reg, u8 data)
+static int inv_i2c_secondary_write(struct inv_mpu_iio_s *st, u8 reg, u8 data)
 {
 	return inv_i2c_single_write_base(st, st->plat_data.secondary_i2c_addr, reg, data);
 }
 
-int mpu_memory_write(struct inv_mpu_iio_s *st, u8 mpu_addr, u16 mem_addr,
+static int mpu_i2c_memory_write(struct inv_mpu_iio_s *st, u8 mpu_addr, u16 mem_addr,
 		     u32 len, u8 const *data)
 {
 	u8 bank[2];
@@ -230,7 +220,7 @@ int mpu_memory_write(struct inv_mpu_iio_s *st, u8 mpu_addr, u16 mem_addr,
 	return 0;
 }
 
-int mpu_memory_read(struct inv_mpu_iio_s *st, u8 mpu_addr, u16 mem_addr,
+static int mpu_i2c_memory_read(struct inv_mpu_iio_s *st, u8 mpu_addr, u16 mem_addr,
 		    u32 len, u8 *data)
 {
 	u8 bank[2];
@@ -391,6 +381,14 @@ static int inv_mpu_probe(struct i2c_client *client,
 	} else
 		st->plat_data =
 			*(struct mpu_platform_data *)dev_get_platdata(&client->dev);
+
+	st->plat_read = inv_i2c_read;
+	st->plat_single_write = inv_i2c_single_write;
+	st->secondary_read = inv_i2c_secondary_read;
+	st->secondary_write = inv_i2c_secondary_write;
+	st->memory_read = mpu_i2c_memory_read;
+	st->memory_write = mpu_i2c_memory_write;
+
 	/* power is turned on inside check chip type*/
 	result = inv_check_chip_type(st, id->name);
 	if (result)
@@ -425,6 +423,7 @@ static int inv_mpu_probe(struct i2c_client *client,
 		goto out_free;
 	}
 	st->irq = client->irq;
+	st->dev = &client->dev;
 	result = inv_mpu_probe_trigger(indio_dev);
 	if (result) {
 		pr_err("trigger probe fail\n");
