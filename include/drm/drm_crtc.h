@@ -2248,6 +2248,7 @@ struct drm_mode_config_funcs {
  * @async_page_flip: does this device support async flips on the primary plane?
  * @cursor_width: hint to userspace for max cursor width
  * @cursor_height: hint to userspace for max cursor height
+ * @helper_private: mid-layer private data
  *
  * Core mode resource tracking structure.  All CRTC, encoders, and connectors
  * enumerated by the driver are added here, as are global properties.  Some
@@ -2391,6 +2392,8 @@ struct drm_mode_config {
 
 	/* cursor size */
 	uint32_t cursor_width, cursor_height;
+
+	struct drm_mode_config_helper_funcs *helper_private;
 };
 
 /**
