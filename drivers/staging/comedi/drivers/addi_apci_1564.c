@@ -21,6 +21,54 @@
  * details.
  */
 
+/*
+ * Driver: addi_apci_1564
+ * Description: ADDI-DATA APCI-1564 Digital I/O board
+ * Devices: [ADDI-DATA] APCI-1564 (addi_apci_1564)
+ * Author: H Hartley Sweeten <hsweeten@visionengravers.com>
+ * Updated: Thu, 02 Jun 2016 13:12:46 -0700
+ * Status: untested
+ *
+ * Configuration Options: not applicable, uses comedi PCI auto config
+ *
+ * This board has the following features:
+ *   - 32 optically isolated digital inputs (24V), 16 of which can
+ *     generate change-of-state (COS) interrupts (channels 4 to 19)
+ *   - 32 optically isolated digital outputs (10V to 36V)
+ *   - 1 8-bit watchdog for resetting the outputs
+ *   - 1 12-bit timer
+ *   - 3 32-bit counters
+ *   - 2 diagnostic inputs
+ *
+ * The COS, timer, and counter subdevices all use the dev->read_subdev to
+ * return the interrupt status. The sample data is updated and returned when
+ * any of these subdevices generate an interrupt. The sample data format is:
+ *
+ *    Bit   Description
+ *   -----  ------------------------------------------
+ *    31    COS interrupt
+ *    30    timer interrupt
+ *    29    counter 2 interrupt
+ *    28    counter 1 interrupt
+ *    27    counter 0 interrupt
+ *   26:20  not used
+ *   19:4   COS digital input state (channels 19 to 4)
+ *    3:0   not used
+ *
+ * The COS interrupts must be configured using an INSN_CONFIG_DIGITAL_TRIG
+ * instruction before they can be enabled by an async command. The COS
+ * interrupts will stay active until canceled.
+ *
+ * The timer subdevice does not use an async command. All control is handled
+ * by the (*insn_config).
+ *
+ * FIXME: The format of the ADDI_TCW_TIMEBASE_REG is not descibed in the
+ * datasheet I have. The INSN_CONFIG_SET_CLOCK_SRC currently just writes
+ * the raw data[1] to this register along with the raw data[2] value to the
+ * ADDI_TCW_RELOAD_REG. If anyone tests this and can determine the actual
+ * timebase/reload operation please let me know.
+ */
+
 #include <linux/module.h>
 #include <linux/interrupt.h>
 
@@ -442,6 +490,87 @@ static int apci1564_cos_cancel(struct comedi_device *dev,
 	outl(0x0, dev->iobase + APCI1564_DI_INT_MODE2_REG);
 
 	return 0;
+}
+
+static int apci1564_timer_insn_config(struct comedi_device *dev,
+				      struct comedi_subdevice *s,
+				      struct comedi_insn *insn,
+				      unsigned int *data)
+{
+	struct apci1564_private *devpriv = dev->private;
+	unsigned int val;
+
+	switch (data[0]) {
+	case INSN_CONFIG_ARM:
+		if (data[1] > s->maxdata)
+			return -EINVAL;
+		outl(data[1], devpriv->timer + ADDI_TCW_RELOAD_REG);
+		outl(ADDI_TCW_CTRL_IRQ_ENA | ADDI_TCW_CTRL_TIMER_ENA,
+		     devpriv->timer + ADDI_TCW_CTRL_REG);
+		break;
+	case INSN_CONFIG_DISARM:
+		outl(0x0, devpriv->timer + ADDI_TCW_CTRL_REG);
+		break;
+	case INSN_CONFIG_GET_COUNTER_STATUS:
+		data[1] = 0;
+		val = inl(devpriv->timer + ADDI_TCW_CTRL_REG);
+		if (val & ADDI_TCW_CTRL_IRQ_ENA)
+			data[1] |= COMEDI_COUNTER_ARMED;
+		if (val & ADDI_TCW_CTRL_TIMER_ENA)
+			data[1] |= COMEDI_COUNTER_COUNTING;
+		val = inl(devpriv->timer + ADDI_TCW_STATUS_REG);
+		if (val & ADDI_TCW_STATUS_OVERFLOW)
+			data[1] |= COMEDI_COUNTER_TERMINAL_COUNT;
+		data[2] = COMEDI_COUNTER_ARMED | COMEDI_COUNTER_COUNTING |
+			  COMEDI_COUNTER_TERMINAL_COUNT;
+		break;
+	case INSN_CONFIG_SET_CLOCK_SRC:
+		if (data[2] > s->maxdata)
+			return -EINVAL;
+		outl(data[1], devpriv->timer + ADDI_TCW_TIMEBASE_REG);
+		outl(data[2], devpriv->timer + ADDI_TCW_RELOAD_REG);
+		break;
+	case INSN_CONFIG_GET_CLOCK_SRC:
+		data[1] = inl(devpriv->timer + ADDI_TCW_TIMEBASE_REG);
+		data[2] = inl(devpriv->timer + ADDI_TCW_RELOAD_REG);
+		break;
+	default:
+		return -EINVAL;
+	}
+
+	return insn->n;
+}
+
+static int apci1564_timer_insn_write(struct comedi_device *dev,
+				     struct comedi_subdevice *s,
+				     struct comedi_insn *insn,
+				     unsigned int *data)
+{
+	struct apci1564_private *devpriv = dev->private;
+
+	/* just write the last last to the reload register */
+	if (insn->n) {
+		unsigned int val = data[insn->n - 1];
+
+		outl(val, devpriv->timer + ADDI_TCW_RELOAD_REG);
+	}
+
+	return insn->n;
+}
+
+static int apci1564_timer_insn_read(struct comedi_device *dev,
+				    struct comedi_subdevice *s,
+				    struct comedi_insn *insn,
+				    unsigned int *data)
+{
+	struct apci1564_private *devpriv = dev->private;
+	int i;
+
+	/* return the actual value of the timer */
+	for (i = 0; i < insn->n; i++)
+		data[i] = inl(devpriv->timer + ADDI_TCW_VAL_REG);
+
+	return insn->n;
 }
 
 static int apci1564_auto_attach(struct comedi_device *dev,
