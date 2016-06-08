@@ -710,6 +710,7 @@
 			#dma-cells = <1>;
 			clocks = <&cru ACLK_DMAC_PERI>;
 			clock-names = "apb_pclk";
+			peripherals-req-type-burst;
 		};
 
 		dmac_bus: dma-controller@ff600000 {
@@ -720,6 +721,7 @@
 			#dma-cells = <1>;
 			clocks = <&cru ACLK_DMAC_BUS>;
 			clock-names = "apb_pclk";
+			peripherals-req-type-burst;
 		};
 	};
 
