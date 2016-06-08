@@ -77,3 +77,12 @@ Description:
 		Enable/disable the PWM signal.
 		0 is disabled
 		1 is enabled
+
+What:		/sys/class/pwm/pwmchipN/pwmX/capture
+Date:		June 2016
+KernelVersion:	4.8
+Contact:	Lee Jones <lee.jones@linaro.org>
+Description:
+		Capture information about a PWM signal. The output format is a
+		pair unsigned integers (period and duty cycle), separated by a
+		single space.
