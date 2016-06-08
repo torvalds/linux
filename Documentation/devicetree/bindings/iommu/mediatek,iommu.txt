@@ -1,7 +1,9 @@
 * Mediatek IOMMU Architecture Implementation
 
-  Some Mediatek SOCs contain a Multimedia Memory Management Unit (M4U) which
-uses the ARM Short-Descriptor translation table format for address translation.
+  Some Mediatek SOCs contain a Multimedia Memory Management Unit (M4U), and
+this M4U have two generations of HW architecture. Generation one uses flat
+pagetable, and only supports 4K size page mapping. Generation two uses the
+ARM Short-Descriptor translation table format for address translation.
 
   About the M4U Hardware Block Diagram, please check below:
 
@@ -36,7 +38,9 @@ in each larb. Take a example, There are many ports like MC, PP, VLD in the
 video decode local arbiter, all these ports are according to the video HW.
 
 Required properties:
-- compatible : must be "mediatek,mt8173-m4u".
+- compatible : must be one of the following string:
+	"mediatek,mt2701-m4u" for mt2701 which uses generation one m4u HW.
+	"mediatek,mt8173-m4u" for mt8173 which uses generation two m4u HW.
 - reg : m4u register base and size.
 - interrupts : the interrupt of m4u.
 - clocks : must contain one entry for each clock-names.
@@ -46,7 +50,8 @@ Required properties:
 	according to the local arbiter index, like larb0, larb1, larb2...
 - iommu-cells : must be 1. This is the mtk_m4u_id according to the HW.
 	Specifies the mtk_m4u_id as defined in
-	dt-binding/memory/mt8173-larb-port.h.
+	dt-binding/memory/mt2701-larb-port.h for mt2701 and
+	dt-binding/memory/mt8173-larb-port.h for mt8173
 
 Example:
 	iommu: iommu@10205000 {
