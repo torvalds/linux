@@ -21,8 +21,11 @@
 #include <linux/io.h>
 #include <linux/kernel.h>
 #include <linux/module.h>
+#include <linux/mfd/syscon.h>
+#include <linux/regmap.h>
 #include <linux/usb.h>
 #include <linux/usb/hcd.h>
+#include <soc/at91/at91_sfr.h>
 
 #include "ohci.h"
 
@@ -45,12 +48,18 @@ struct at91_usbh_data {
 	u8 overcurrent_changed[AT91_MAX_USBH_PORTS];
 };
 
+struct ohci_at91_caps {
+	bool suspend_ctrl;
+};
+
 struct ohci_at91_priv {
 	struct clk *iclk;
 	struct clk *fclk;
 	struct clk *hclk;
 	bool clocked;
 	bool wakeup;		/* Saved wake-up state for resume */
+	const struct ohci_at91_caps *caps;
+	struct regmap *sfr_regmap;
 };
 /* interface and function clocks; sometimes also an AHB clock */
 
@@ -132,6 +141,17 @@ static void at91_stop_hc(struct platform_device *pdev)
 
 /*-------------------------------------------------------------------------*/
 
+struct regmap *at91_dt_syscon_sfr(void)
+{
+	struct regmap *regmap;
+
+	regmap = syscon_regmap_lookup_by_compatible("atmel,sama5d2-sfr");
+	if (IS_ERR(regmap))
+		regmap = NULL;
+
+	return regmap;
+}
+
 static void usb_hcd_at91_remove (struct usb_hcd *, struct platform_device *);
 
 /* configure so an HC device and id are always provided */
@@ -195,6 +215,17 @@ static int usb_hcd_at91_probe(const struct hc_driver *driver,
 		dev_err(dev, "failed to get hclk\n");
 		retval = PTR_ERR(ohci_at91->hclk);
 		goto err;
+	}
+
+	ohci_at91->caps = (const struct ohci_at91_caps *)
+			  of_device_get_match_data(&pdev->dev);
+	if (!ohci_at91->caps)
+		return -ENODEV;
+
+	if (ohci_at91->caps->suspend_ctrl) {
+		ohci_at91->sfr_regmap = at91_dt_syscon_sfr();
+		if (!ohci_at91->sfr_regmap)
+			dev_warn(dev, "failed to find sfr node\n");
 	}
 
 	board = hcd->self.controller->platform_data;
@@ -440,8 +471,17 @@ static irqreturn_t ohci_hcd_at91_overcurrent_irq(int irq, void *data)
 	return IRQ_HANDLED;
 }
 
+static const struct ohci_at91_caps at91rm9200_caps = {
+	.suspend_ctrl = false,
+};
+
+static const struct ohci_at91_caps sama5d2_caps = {
+	.suspend_ctrl = true,
+};
+
 static const struct of_device_id at91_ohci_dt_ids[] = {
-	{ .compatible = "atmel,at91rm9200-ohci" },
+	{ .compatible = "atmel,at91rm9200-ohci", .data = &at91rm9200_caps },
+	{ .compatible = "atmel,sama5d2-ohci", .data = &sama5d2_caps },
 	{ /* sentinel */ }
 };
 
@@ -581,6 +621,38 @@ static int ohci_hcd_at91_drv_remove(struct platform_device *pdev)
 	return 0;
 }
 
+static int ohci_at91_port_ctrl(struct regmap *regmap, bool enable)
+{
+	u32 regval;
+	int ret;
+
+	if (!regmap)
+		return -EINVAL;
+
+	ret = regmap_read(regmap, SFR_OHCIICR, &regval);
+	if (ret)
+		return ret;
+
+	if (enable)
+		regval &= ~SFR_OHCIICR_USB_SUSPEND;
+	else
+		regval |= SFR_OHCIICR_USB_SUSPEND;
+
+	regmap_write(regmap, SFR_OHCIICR, regval);
+
+	return 0;
+}
+
+static int ohci_at91_port_suspend(struct regmap *regmap)
+{
+	return ohci_at91_port_ctrl(regmap, false);
+}
+
+static int ohci_at91_port_resume(struct regmap *regmap)
+{
+	return ohci_at91_port_ctrl(regmap, true);
+}
+
 static int __maybe_unused
 ohci_hcd_at91_drv_suspend(struct device *dev)
 {
@@ -618,6 +690,9 @@ ohci_hcd_at91_drv_suspend(struct device *dev)
 		ohci_writel(ohci, ohci->hc_control, &ohci->regs->control);
 		ohci->rh_state = OHCI_RH_HALTED;
 
+		if (ohci_at91->caps->suspend_ctrl)
+			ohci_at91_port_suspend(ohci_at91->sfr_regmap);
+
 		/* flush the writes */
 		(void) ohci_readl (ohci, &ohci->regs->control);
 		at91_stop_clock(ohci_at91);
@@ -636,6 +711,9 @@ ohci_hcd_at91_drv_resume(struct device *dev)
 		disable_irq_wake(hcd->irq);
 
 	at91_start_clock(ohci_at91);
+
+	if (ohci_at91->caps->suspend_ctrl)
+		ohci_at91_port_resume(ohci_at91->sfr_regmap);
 
 	ohci_resume(hcd, false);
 	return 0;

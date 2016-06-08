@@ -3,8 +3,10 @@ Atmel SOC USB controllers
 OHCI
 
 Required properties:
- - compatible: Should be "atmel,at91rm9200-ohci" for USB controllers
-   used in host mode.
+ - compatible: Should be one of the following
+	       "atmel,at91rm9200-ohci" for USB controllers used in host mode.
+	       "atmel,sama5d2-ohci" for USB controllers used in host mode
+	       on SAMA5D2 which can force to suspend.
  - reg: Address and length of the register set for the device
  - interrupts: Should contain ehci interrupt
  - clocks: Should reference the peripheral, host and system clocks
