@@ -228,7 +228,7 @@ void rockchip_vpu_try_context(struct rockchip_vpu_dev *dev,
  * Control registration.
  */
 
-#define IS_VPU_PRIV(x) ((V4L2_CTRL_ID2CLASS(x) == V4L2_CTRL_CLASS_MPEG) && \
+#define IS_VPU_PRIV(x) ((V4L2_CTRL_ID2WHICH(x) == V4L2_CTRL_CLASS_MPEG) && \
 			  V4L2_CTRL_DRIVER_PRIV(x))
 
 int rockchip_vpu_ctrls_setup(struct rockchip_vpu_ctx *ctx,
