@@ -21,6 +21,9 @@ static inline int do_sys_settimeofday(const struct timespec *tv,
 	struct timespec64 ts64;
 
 	if (!tv)
+		return do_sys_settimeofday64(NULL, tz);
+
+	if (!timespec_valid(tv))
 		return -EINVAL;
 
 	ts64 = timespec_to_timespec64(*tv);
