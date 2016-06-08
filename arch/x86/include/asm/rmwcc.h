@@ -5,7 +5,7 @@
 
 #define __GEN_RMWcc(fullop, var, cc, ...)				\
 do {									\
-	asm_volatile_goto (fullop "; j" cc " %l[cc_label]"		\
+	asm_volatile_goto (fullop "; j" #cc " %l[cc_label]"		\
 			: : "m" (var), ## __VA_ARGS__ 			\
 			: "memory" : cc_label);				\
 	return 0;							\
@@ -24,7 +24,7 @@ cc_label:								\
 #define __GEN_RMWcc(fullop, var, cc, ...)				\
 do {									\
 	bool c;								\
-	asm volatile (fullop "; set" cc " %1"				\
+	asm volatile (fullop "; set" #cc " %1"				\
 			: "+m" (var), "=qm" (c)				\
 			: __VA_ARGS__ : "memory");			\
 	return c;							\
