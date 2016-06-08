@@ -127,6 +127,7 @@ struct nfit_mem {
 	struct list_head list;
 	struct acpi_device *adev;
 	struct acpi_nfit_desc *acpi_desc;
+	struct resource *flush_wpq;
 	unsigned long dsm_mask;
 	int family;
 };

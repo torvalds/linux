@@ -714,9 +714,24 @@ static int nfit_mem_dcr_init(struct acpi_nfit_desc *acpi_desc,
 		}
 
 		list_for_each_entry(nfit_flush, &acpi_desc->flushes, list) {
+			struct acpi_nfit_flush_address *flush;
+			u16 i;
+
 			if (nfit_flush->flush->device_handle != device_handle)
 				continue;
 			nfit_mem->nfit_flush = nfit_flush;
+			flush = nfit_flush->flush;
+			nfit_mem->flush_wpq = devm_kzalloc(acpi_desc->dev,
+					flush->hint_count
+					* sizeof(struct resource), GFP_KERNEL);
+			if (!nfit_mem->flush_wpq)
+				return -ENOMEM;
+			for (i = 0; i < flush->hint_count; i++) {
+				struct resource *res = &nfit_mem->flush_wpq[i];
+
+				res->start = flush->hint_address[i];
+				res->end = res->start + 8 - 1;
+			}
 			break;
 		}
 
@@ -1171,6 +1186,7 @@ static int acpi_nfit_register_dimms(struct acpi_nfit_desc *acpi_desc)
 	int dimm_count = 0;
 
 	list_for_each_entry(nfit_mem, &acpi_desc->dimms, list) {
+		struct acpi_nfit_flush_address *flush;
 		unsigned long flags = 0, cmd_mask;
 		struct nvdimm *nvdimm;
 		u32 device_handle;
@@ -1204,9 +1220,12 @@ static int acpi_nfit_register_dimms(struct acpi_nfit_desc *acpi_desc)
 		if (nfit_mem->family == NVDIMM_FAMILY_INTEL)
 			cmd_mask |= nfit_mem->dsm_mask;
 
+		flush = nfit_mem->nfit_flush ? nfit_mem->nfit_flush->flush
+			: NULL;
 		nvdimm = nvdimm_create(acpi_desc->nvdimm_bus, nfit_mem,
 				acpi_nfit_dimm_attribute_groups,
-				flags, cmd_mask);
+				flags, cmd_mask, flush ? flush->hint_count : 0,
+				nfit_mem->flush_wpq);
 		if (!nvdimm)
 			return -ENOMEM;
 

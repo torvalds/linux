@@ -49,9 +49,10 @@ struct nvdimm_drvdata {
 	struct kref kref;
 };
 
-struct nd_region_namespaces {
-	int count;
-	int active;
+struct nd_region_data {
+	int ns_count;
+	int ns_active;
+	void __iomem *flush_wpq[0][0];
 };
 
 static inline struct nd_namespace_index *to_namespace_index(
@@ -324,6 +325,7 @@ static inline void devm_nsio_disable(struct device *dev,
 }
 #endif
 int nd_blk_region_init(struct nd_region *nd_region);
+int nd_region_activate(struct nd_region *nd_region);
 void __nd_iostat_start(struct bio *bio, unsigned long *start);
 static inline bool nd_iostat_start(struct bio *bio, unsigned long *start)
 {

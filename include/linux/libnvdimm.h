@@ -52,6 +52,7 @@ typedef int (*ndctl_fn)(struct nvdimm_bus_descriptor *nd_desc,
 
 struct nd_namespace_label;
 struct nvdimm_drvdata;
+
 struct nd_mapping {
 	struct nvdimm *nvdimm;
 	struct nd_namespace_label **labels;
@@ -142,7 +143,8 @@ unsigned long nvdimm_cmd_mask(struct nvdimm *nvdimm);
 void *nvdimm_provider_data(struct nvdimm *nvdimm);
 struct nvdimm *nvdimm_create(struct nvdimm_bus *nvdimm_bus, void *provider_data,
 		const struct attribute_group **groups, unsigned long flags,
-		unsigned long cmd_mask);
+		unsigned long cmd_mask, int num_flush,
+		struct resource *flush_wpq);
 const struct nd_cmd_desc *nd_cmd_dimm_desc(int cmd);
 const struct nd_cmd_desc *nd_cmd_bus_desc(int cmd);
 u32 nd_cmd_in_size(struct nvdimm *nvdimm, int cmd,

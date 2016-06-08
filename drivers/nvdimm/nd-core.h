@@ -41,7 +41,8 @@ struct nvdimm {
 	unsigned long cmd_mask;
 	struct device dev;
 	atomic_t busy;
-	int id;
+	int id, num_flush;
+	struct resource *flush_wpq;
 };
 
 bool is_nvdimm(struct device *dev);

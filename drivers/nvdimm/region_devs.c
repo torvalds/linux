@@ -22,6 +22,79 @@
 
 static DEFINE_IDA(region_ida);
 
+static int nvdimm_map_flush(struct device *dev, struct nvdimm *nvdimm, int dimm,
+		struct nd_region_data *ndrd)
+{
+	int i, j;
+
+	dev_dbg(dev, "%s: map %d flush address%s\n", nvdimm_name(nvdimm),
+			nvdimm->num_flush, nvdimm->num_flush == 1 ? "" : "es");
+	for (i = 0; i < nvdimm->num_flush; i++) {
+		struct resource *res = &nvdimm->flush_wpq[i];
+		unsigned long pfn = PHYS_PFN(res->start);
+		void __iomem *flush_page;
+
+		/* check if flush hints share a page */
+		for (j = 0; j < i; j++) {
+			struct resource *res_j = &nvdimm->flush_wpq[j];
+			unsigned long pfn_j = PHYS_PFN(res_j->start);
+
+			if (pfn == pfn_j)
+				break;
+		}
+
+		if (j < i)
+			flush_page = (void __iomem *) ((unsigned long)
+					ndrd->flush_wpq[dimm][j] & PAGE_MASK);
+		else
+			flush_page = devm_nvdimm_ioremap(dev,
+					PHYS_PFN(pfn), PAGE_SIZE);
+		if (!flush_page)
+			return -ENXIO;
+		ndrd->flush_wpq[dimm][i] = flush_page
+			+ (res->start & ~PAGE_MASK);
+	}
+
+	return 0;
+}
+
+int nd_region_activate(struct nd_region *nd_region)
+{
+	int i;
+	struct nd_region_data *ndrd;
+	struct device *dev = &nd_region->dev;
+	size_t flush_data_size = sizeof(void *);
+
+	nvdimm_bus_lock(&nd_region->dev);
+	for (i = 0; i < nd_region->ndr_mappings; i++) {
+		struct nd_mapping *nd_mapping = &nd_region->mapping[i];
+		struct nvdimm *nvdimm = nd_mapping->nvdimm;
+
+		/* at least one null hint slot per-dimm for the "no-hint" case */
+		flush_data_size += sizeof(void *);
+		if (!nvdimm->num_flush)
+			continue;
+		flush_data_size += nvdimm->num_flush * sizeof(void *);
+	}
+	nvdimm_bus_unlock(&nd_region->dev);
+
+	ndrd = devm_kzalloc(dev, sizeof(*ndrd) + flush_data_size, GFP_KERNEL);
+	if (!ndrd)
+		return -ENOMEM;
+	dev_set_drvdata(dev, ndrd);
+
+	for (i = 0; i < nd_region->ndr_mappings; i++) {
+		struct nd_mapping *nd_mapping = &nd_region->mapping[i];
+		struct nvdimm *nvdimm = nd_mapping->nvdimm;
+		int rc = nvdimm_map_flush(&nd_region->dev, nvdimm, i, ndrd);
+
+		if (rc)
+			return rc;
+	}
+
+	return 0;
+}
+
 static void nd_region_release(struct device *dev)
 {
 	struct nd_region *nd_region = to_nd_region(dev);
@@ -242,12 +315,12 @@ static DEVICE_ATTR_RO(available_size);
 static ssize_t init_namespaces_show(struct device *dev,
 		struct device_attribute *attr, char *buf)
 {
-	struct nd_region_namespaces *num_ns = dev_get_drvdata(dev);
+	struct nd_region_data *ndrd = dev_get_drvdata(dev);
 	ssize_t rc;
 
 	nvdimm_bus_lock(dev);
-	if (num_ns)
-		rc = sprintf(buf, "%d/%d\n", num_ns->active, num_ns->count);
+	if (ndrd)
+		rc = sprintf(buf, "%d/%d\n", ndrd->ns_active, ndrd->ns_count);
 	else
 		rc = -ENXIO;
 	nvdimm_bus_unlock(dev);
