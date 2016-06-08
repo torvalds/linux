@@ -1,0 +1,360 @@
+===========================================================
+Energy cost bindings for Energy Aware Scheduling
+===========================================================
+
+===========================================================
+1 - Introduction
+===========================================================
+
+This note specifies bindings required for energy-aware scheduling
+(EAS)[1]. Historically, the scheduler's primary objective has been
+performance.  EAS aims to provide an alternative objective - energy
+efficiency. EAS relies on a simple platform energy cost model to
+guide scheduling decisions.  The model only considers the CPU
+subsystem.
+
+This note is aligned with the definition of the layout of physical
+CPUs in the system as described in the ARM topology binding
+description [2]. The concept is applicable to any system so long as
+the cost model data is provided for those processing elements in
+that system's topology that EAS is required to service.
+
+Processing elements refer to hardware threads, CPUs and clusters of
+related CPUs in increasing order of hierarchy.
+
+EAS requires two key cost metrics - busy costs and idle costs. Busy
+costs comprise of a list of compute capacities for the processing
+element in question and the corresponding power consumption at that
+capacity.  Idle costs comprise of a list of power consumption values
+for each idle state [C-state] that the processing element supports.
+For a detailed description of these metrics, their derivation and
+their use see [3].
+
+These cost metrics are required for processing elements in all
+scheduling domain levels that EAS is required to service.
+
+===========================================================
+2 - energy-costs node
+===========================================================
+
+Energy costs for the processing elements in scheduling domains that
+EAS is required to service are defined in the energy-costs node
+which acts as a container for the actual per processing element cost
+nodes. A single energy-costs node is required for a given system.
+
+- energy-costs node
+
+	Usage: Required
+
+	Description: The energy-costs node is a container node and
+	it's sub-nodes describe costs for each processing element at
+	all scheduling domain levels that EAS is required to
+	service.
+
+	Node name must be "energy-costs".
+
+	The energy-costs node's parent node must be the cpus node.
+
+	The energy-costs node's child nodes can be:
+
+	- one or more cost nodes.
+
+	Any other configuration is considered invalid.
+
+The energy-costs node can only contain a single type of child node
+whose bindings are described in paragraph 4.
+
+===========================================================
+3 - energy-costs node child nodes naming convention
+===========================================================
+
+energy-costs child nodes must follow a naming convention where the
+node name must be "thread-costN", "core-costN", "cluster-costN"
+depending on whether the costs in the node are for a thread, core or
+cluster.  N (where N = {0, 1, ...}) is the node number and has no
+bearing to the OS' logical thread, core or cluster index.
+
+===========================================================
+4 - cost node bindings
+===========================================================
+
+Bindings for cost nodes are defined as follows:
+
+- cluster-cost node
+
+	Description: must be declared within an energy-costs node. A
+	system can contain multiple clusters and each cluster
+	serviced by EAS	must have a corresponding cluster-costs
+	node.
+
+	The cluster-cost node name must be "cluster-costN" as
+	described in 3 above.
+
+	A cluster-cost node must be a leaf node with no children.
+
+	Properties for cluster-cost nodes are described in paragraph
+	5 below.
+
+	Any other configuration is considered invalid.
+
+- core-cost node
+
+	Description: must be declared within an energy-costs node. A
+	system can contain multiple cores and each core serviced by
+	EAS must have a corresponding core-cost node.
+
+	The core-cost node name must be "core-costN" as described in
+	3 above.
+
+	A core-cost node must be a leaf node with no children.
+
+	Properties for core-cost nodes are described in paragraph
+	5 below.
+
+	Any other configuration is considered invalid.
+
+- thread-cost node
+
+	Description: must be declared within an energy-costs node. A
+	system can contain cores with multiple hardware threads and
+	each thread serviced by EAS must have a corresponding
+	thread-cost node.
+
+	The core-cost node name must be "core-costN" as described in
+	3 above.
+
+	A core-cost node must be a leaf node with no children.
+
+	Properties for thread-cost nodes are described in paragraph
+	5 below.
+
+	Any other configuration is considered invalid.
+
+===========================================================
+5 - Cost node properties
+==========================================================
+
+All cost node types must have only the following properties:
+
+- busy-cost-data
+
+	Usage: required
+	Value type: An array of 2-item tuples. Each item is of type
+	u32.
+	Definition: The first item in the tuple is the capacity
+	value as described in [3]. The second item in the tuple is
+	the energy cost value as described in [3].
+
+- idle-cost-data
+
+	Usage: required
+	Value type: An array of 1-item tuples. The item is of type
+	u32.
+	Definition: The item in the tuple is the energy cost value
+	as described in [3].
+
+===========================================================
+4 - Extensions to the cpu node
+===========================================================
+
+The cpu node is extended with a property that establishes the
+connection between the processing element represented by the cpu
+node and the cost-nodes associated with this processing element.
+
+The connection is expressed in line with the topological hierarchy
+that this processing element belongs to starting with the level in
+the hierarchy that this processing element itself belongs to through
+to the highest level that EAS is required to service.  The
+connection cannot be sparse and must be contiguous from the
+processing element's level through to the highest desired level. The
+highest desired level must be the same for all processing elements.
+
+Example: Given that a cpu node may represent a thread that is a part
+of a core, this property may contain multiple elements which
+associate the thread with cost nodes describing the costs for the
+thread itself, the core the thread belongs to, the cluster the core
+belongs to and so on. The elements must be ordered from the lowest
+level nodes to the highest desired level that EAS must service. The
+highest desired level must be the same for all cpu nodes. The
+elements must not be sparse: there must be elements for the current
+thread, the next level of hierarchy (core) and so on without any
+'holes'.
+
+Example: Given that a cpu node may represent a core that is a part
+of a cluster of related cpus this property may contain multiple
+elements which associate the core with cost nodes describing the
+costs for the core itself, the cluster the core belongs to and so
+on. The elements must be ordered from the lowest level nodes to the
+highest desired level that EAS must service. The highest desired
+level must be the same for all cpu nodes. The elements must not be
+sparse: there must be elements for the current thread, the next
+level of hierarchy (core) and so on without any 'holes'.
+
+If the system comprises of hierarchical clusters of clusters, this
+property will contain multiple associations with the relevant number
+of cluster elements in hierarchical order.
+
+Property added to the cpu node:
+
+- sched-energy-costs
+
+	Usage: required
+	Value type: List of phandles
+	Definition: a list of phandles to specific cost nodes in the
+	energy-costs parent node that correspond to the processing
+	element represented by this cpu node in hierarchical order
+	of topology.
+
+	The order of phandles in the list is significant. The first
+	phandle is to the current processing element's own cost
+	node.  Subsequent phandles are to higher hierarchical level
+	cost nodes up until the maximum level that EAS is to
+	service.
+
+	All cpu nodes must have the same highest level cost node.
+
+	The phandle list must not be sparsely populated with handles
+	to non-contiguous hierarchical levels. See commentary above
+	for clarity.
+
+	Any other configuration is invalid.
+
+===========================================================
+5 - Example dts
+===========================================================
+
+Example 1 (ARM 64-bit, 6-cpu system, two clusters of cpus, one
+cluster of 2 Cortex-A57 cpus, one cluster of 4 Cortex-A53 cpus):
+
+cpus {
+	#address-cells = <2>;
+	#size-cells = <0>;
+	.
+	.
+	.
+	A57_0: cpu@0 {
+		compatible = "arm,cortex-a57","arm,armv8";
+		reg = <0x0 0x0>;
+		device_type = "cpu";
+		enable-method = "psci";
+		next-level-cache = <&A57_L2>;
+		clocks = <&scpi_dvfs 0>;
+		cpu-idle-states = <&CPU_SLEEP_0 &CLUSTER_SLEEP_0>;
+		sched-energy-costs = <&CPU_COST_0 &CLUSTER_COST_0>;
+	};
+
+	A57_1: cpu@1 {
+		compatible = "arm,cortex-a57","arm,armv8";
+		reg = <0x0 0x1>;
+		device_type = "cpu";
+		enable-method = "psci";
+		next-level-cache = <&A57_L2>;
+		clocks = <&scpi_dvfs 0>;
+		cpu-idle-states = <&CPU_SLEEP_0 &CLUSTER_SLEEP_0>;
+		sched-energy-costs = <&CPU_COST_0 &CLUSTER_COST_0>;
+	};
+
+	A53_0: cpu@100 {
+		compatible = "arm,cortex-a53","arm,armv8";
+		reg = <0x0 0x100>;
+		device_type = "cpu";
+		enable-method = "psci";
+		next-level-cache = <&A53_L2>;
+		clocks = <&scpi_dvfs 1>;
+		cpu-idle-states = <&CPU_SLEEP_0 &CLUSTER_SLEEP_0>;
+		sched-energy-costs = <&CPU_COST_1 &CLUSTER_COST_1>;
+	};
+
+	A53_1: cpu@101 {
+		compatible = "arm,cortex-a53","arm,armv8";
+		reg = <0x0 0x101>;
+		device_type = "cpu";
+		enable-method = "psci";
+		next-level-cache = <&A53_L2>;
+		clocks = <&scpi_dvfs 1>;
+		cpu-idle-states = <&CPU_SLEEP_0 &CLUSTER_SLEEP_0>;
+		sched-energy-costs = <&CPU_COST_1 &CLUSTER_COST_1>;
+	};
+
+	A53_2: cpu@102 {
+		compatible = "arm,cortex-a53","arm,armv8";
+		reg = <0x0 0x102>;
+		device_type = "cpu";
+		enable-method = "psci";
+		next-level-cache = <&A53_L2>;
+		clocks = <&scpi_dvfs 1>;
+		cpu-idle-states = <&CPU_SLEEP_0 &CLUSTER_SLEEP_0>;
+		sched-energy-costs = <&CPU_COST_1 &CLUSTER_COST_1>;
+	};
+
+	A53_3: cpu@103 {
+		compatible = "arm,cortex-a53","arm,armv8";
+		reg = <0x0 0x103>;
+		device_type = "cpu";
+		enable-method = "psci";
+		next-level-cache = <&A53_L2>;
+		clocks = <&scpi_dvfs 1>;
+		cpu-idle-states = <&CPU_SLEEP_0 &CLUSTER_SLEEP_0>;
+		sched-energy-costs = <&CPU_COST_1 &CLUSTER_COST_1>;
+	};
+
+	energy-costs {
+		CPU_COST_0: core-cost0 {
+			busy-cost-data = <
+				417   168
+				579   251
+				744   359
+				883   479
+				1024  616
+			>;
+			idle-cost-data = <
+				15
+				0
+			>;
+		};
+		CPU_COST_1: core-cost1 {
+			busy-cost-data = <
+				235 33
+				302 46
+				368 61
+				406 76
+				447 93
+			>;
+			idle-cost-data = <
+				6
+				0
+			>;
+		};
+		CLUSTER_COST_0: cluster-cost0 {
+			busy-cost-data = <
+				417   24
+				579   32
+				744   43
+				883   49
+				1024  64
+			>;
+			idle-cost-data = <
+				65
+				24
+			>;
+		};
+		CLUSTER_COST_1: cluster-cost1 {
+			busy-cost-data = <
+				235 26
+				303 30
+				368 39
+				406 47
+				447 57
+			>;
+			idle-cost-data = <
+				56
+				17
+			>;
+		};
+	};
+};
+
+===============================================================================
+[1] https://lkml.org/lkml/2015/5/12/728
+[2] Documentation/devicetree/bindings/topology.txt
+[3] Documentation/scheduler/sched-energy.txt
