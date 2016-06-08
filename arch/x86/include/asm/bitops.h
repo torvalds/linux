@@ -233,8 +233,8 @@ static __always_inline bool __test_and_set_bit(long nr, volatile unsigned long *
 	bool oldbit;
 
 	asm("bts %2,%1\n\t"
-	    "setc %0"
-	    : "=qm" (oldbit), ADDR
+	    CC_SET(c)
+	    : CC_OUT(c) (oldbit), ADDR
 	    : "Ir" (nr));
 	return oldbit;
 }
@@ -273,8 +273,8 @@ static __always_inline bool __test_and_clear_bit(long nr, volatile unsigned long
 	bool oldbit;
 
 	asm volatile("btr %2,%1\n\t"
-		     "setc %0"
-		     : "=qm" (oldbit), ADDR
+		     CC_SET(c)
+		     : CC_OUT(c) (oldbit), ADDR
 		     : "Ir" (nr));
 	return oldbit;
 }
@@ -285,8 +285,8 @@ static __always_inline bool __test_and_change_bit(long nr, volatile unsigned lon
 	bool oldbit;
 
 	asm volatile("btc %2,%1\n\t"
-		     "setc %0"
-		     : "=qm" (oldbit), ADDR
+		     CC_SET(c)
+		     : CC_OUT(c) (oldbit), ADDR
 		     : "Ir" (nr) : "memory");
 
 	return oldbit;
@@ -316,8 +316,8 @@ static __always_inline bool variable_test_bit(long nr, volatile const unsigned l
 	bool oldbit;
 
 	asm volatile("bt %2,%1\n\t"
-		     "setc %0"
-		     : "=qm" (oldbit)
+		     CC_SET(c)
+		     : CC_OUT(c) (oldbit)
 		     : "m" (*(unsigned long *)addr), "Ir" (nr));
 
 	return oldbit;
