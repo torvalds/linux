@@ -32,17 +32,11 @@ static void arcpgu_fb_output_poll_changed(struct drm_device *dev)
 		drm_fbdev_cma_hotplug_event(arcpgu->fbdev);
 }
 
-static int arcpgu_atomic_commit(struct drm_device *dev,
-				    struct drm_atomic_state *state, bool async)
-{
-	return drm_atomic_helper_commit(dev, state, false);
-}
-
 static struct drm_mode_config_funcs arcpgu_drm_modecfg_funcs = {
 	.fb_create  = drm_fb_cma_create,
 	.output_poll_changed = arcpgu_fb_output_poll_changed,
 	.atomic_check = drm_atomic_helper_check,
-	.atomic_commit = arcpgu_atomic_commit,
+	.atomic_commit = drm_atomic_helper_commit,
 };
 
 static void arcpgu_setup_mode_config(struct drm_device *drm)
