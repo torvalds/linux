@@ -182,8 +182,7 @@ static	int ti_tscadc_probe(struct platform_device *pdev)
 	}
 
 	/* Allocate memory for device */
-	tscadc = devm_kzalloc(&pdev->dev,
-			sizeof(struct ti_tscadc_dev), GFP_KERNEL);
+	tscadc = devm_kzalloc(&pdev->dev, sizeof(*tscadc), GFP_KERNEL);
 	if (!tscadc) {
 		dev_err(&pdev->dev, "failed to allocate memory.\n");
 		return -ENOMEM;
