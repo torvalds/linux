@@ -67,6 +67,12 @@
  * the raw data[1] to this register along with the raw data[2] value to the
  * ADDI_TCW_RELOAD_REG. If anyone tests this and can determine the actual
  * timebase/reload operation please let me know.
+ *
+ * The counter subdevice also does not use an async command. All control is
+ * handled by the (*insn_config).
+ *
+ * FIXME: The operation of the counters is not really described in the
+ * datasheet I have. The (*insn_config) needs more work.
  */
 
 #include <linux/module.h>
@@ -176,8 +182,6 @@ struct apci1564_private {
 	unsigned int mode2;	/* falling-edge/low level channels */
 	unsigned int ctrl;	/* interrupt mode OR (edge) . AND (level) */
 };
-
-#include "addi-data/hwdrv_apci1564.c"
 
 static int apci1564_reset(struct comedi_device *dev)
 {
@@ -569,6 +573,92 @@ static int apci1564_timer_insn_read(struct comedi_device *dev,
 	/* return the actual value of the timer */
 	for (i = 0; i < insn->n; i++)
 		data[i] = inl(devpriv->timer + ADDI_TCW_VAL_REG);
+
+	return insn->n;
+}
+
+static int apci1564_counter_insn_config(struct comedi_device *dev,
+					struct comedi_subdevice *s,
+					struct comedi_insn *insn,
+					unsigned int *data)
+{
+	struct apci1564_private *devpriv = dev->private;
+	unsigned int chan = CR_CHAN(insn->chanspec);
+	unsigned long iobase = devpriv->counters + APCI1564_COUNTER(chan);
+	unsigned int val;
+
+	switch (data[0]) {
+	case INSN_CONFIG_ARM:
+		val = inl(iobase + ADDI_TCW_CTRL_REG);
+		val |= ADDI_TCW_CTRL_IRQ_ENA | ADDI_TCW_CTRL_CNTR_ENA;
+		outl(data[1], iobase + ADDI_TCW_RELOAD_REG);
+		outl(val, iobase + ADDI_TCW_CTRL_REG);
+		break;
+	case INSN_CONFIG_DISARM:
+		val = inl(iobase + ADDI_TCW_CTRL_REG);
+		val &= ~(ADDI_TCW_CTRL_IRQ_ENA | ADDI_TCW_CTRL_CNTR_ENA);
+		outl(val, iobase + ADDI_TCW_CTRL_REG);
+		break;
+	case INSN_CONFIG_SET_COUNTER_MODE:
+		/*
+		 * FIXME: The counter operation is not described in the
+		 * datasheet. For now just write the raw data[1] value to
+		 * the control register.
+		 */
+		outl(data[1], iobase + ADDI_TCW_CTRL_REG);
+		break;
+	case INSN_CONFIG_GET_COUNTER_STATUS:
+		data[1] = 0;
+		val = inl(iobase + ADDI_TCW_CTRL_REG);
+		if (val & ADDI_TCW_CTRL_IRQ_ENA)
+			data[1] |= COMEDI_COUNTER_ARMED;
+		if (val & ADDI_TCW_CTRL_CNTR_ENA)
+			data[1] |= COMEDI_COUNTER_COUNTING;
+		val = inl(iobase + ADDI_TCW_STATUS_REG);
+		if (val & ADDI_TCW_STATUS_OVERFLOW)
+			data[1] |= COMEDI_COUNTER_TERMINAL_COUNT;
+		data[2] = COMEDI_COUNTER_ARMED | COMEDI_COUNTER_COUNTING |
+			  COMEDI_COUNTER_TERMINAL_COUNT;
+		break;
+	default:
+		return -EINVAL;
+	}
+
+	return insn->n;
+}
+
+static int apci1564_counter_insn_write(struct comedi_device *dev,
+				       struct comedi_subdevice *s,
+				       struct comedi_insn *insn,
+				       unsigned int *data)
+{
+	struct apci1564_private *devpriv = dev->private;
+	unsigned int chan = CR_CHAN(insn->chanspec);
+	unsigned long iobase = devpriv->counters + APCI1564_COUNTER(chan);
+
+	/* just write the last last to the reload register */
+	if (insn->n) {
+		unsigned int val = data[insn->n - 1];
+
+		outl(val, iobase + ADDI_TCW_RELOAD_REG);
+	}
+
+	return insn->n;
+}
+
+static int apci1564_counter_insn_read(struct comedi_device *dev,
+				      struct comedi_subdevice *s,
+				      struct comedi_insn *insn,
+				      unsigned int *data)
+{
+	struct apci1564_private *devpriv = dev->private;
+	unsigned int chan = CR_CHAN(insn->chanspec);
+	unsigned long iobase = devpriv->counters + APCI1564_COUNTER(chan);
+	int i;
+
+	/* return the actual value of the counter */
+	for (i = 0; i < insn->n; i++)
+		data[i] = inl(iobase + ADDI_TCW_VAL_REG);
 
 	return insn->n;
 }
