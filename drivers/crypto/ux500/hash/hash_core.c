@@ -797,7 +797,7 @@ static int hash_process_data(struct hash_device_data *device_data,
 						&device_data->state);
 				memmove(req_ctx->state.buffer,
 					device_data->state.buffer,
-					HASH_BLOCK_SIZE / sizeof(u32));
+					HASH_BLOCK_SIZE);
 				if (ret) {
 					dev_err(device_data->dev,
 						"%s: hash_resume_state() failed!\n",
@@ -848,7 +848,7 @@ static int hash_process_data(struct hash_device_data *device_data,
 
 			memmove(device_data->state.buffer,
 				req_ctx->state.buffer,
-				HASH_BLOCK_SIZE / sizeof(u32));
+				HASH_BLOCK_SIZE);
 			if (ret) {
 				dev_err(device_data->dev, "%s: hash_save_state() failed!\n",
 					__func__);
