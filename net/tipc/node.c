@@ -378,14 +378,13 @@ static void tipc_node_calculate_timer(struct tipc_node *n, struct tipc_link *l)
 {
 	unsigned long tol = tipc_link_tolerance(l);
 	unsigned long intv = ((tol / 4) > 500) ? 500 : tol / 4;
-	unsigned long keepalive_intv = msecs_to_jiffies(intv);
 
 	/* Link with lowest tolerance determines timer interval */
-	if (keepalive_intv < n->keepalive_intv)
-		n->keepalive_intv = keepalive_intv;
+	if (intv < n->keepalive_intv)
+		n->keepalive_intv = intv;
 
-	/* Ensure link's abort limit corresponds to current interval */
-	tipc_link_set_abort_limit(l, tol / jiffies_to_msecs(n->keepalive_intv));
+	/* Ensure link's abort limit corresponds to current tolerance */
+	tipc_link_set_abort_limit(l, tol / n->keepalive_intv);
 }
 
 static void tipc_node_delete(struct tipc_node *node)
@@ -526,7 +525,7 @@ static void tipc_node_timeout(unsigned long data)
 		if (rc & TIPC_LINK_DOWN_EVT)
 			tipc_node_link_down(n, bearer_id, false);
 	}
-	mod_timer(&n->timer, jiffies + n->keepalive_intv);
+	mod_timer(&n->timer, jiffies + msecs_to_jiffies(n->keepalive_intv));
 }
 
 /**
@@ -735,6 +734,7 @@ void tipc_node_check_dest(struct net *net, u32 onode,
 	bool accept_addr = false;
 	bool reset = true;
 	char *if_name;
+	unsigned long intv;
 
 	*dupl_addr = false;
 	*respond = false;
@@ -840,9 +840,11 @@ void tipc_node_check_dest(struct net *net, u32 onode,
 		le->link = l;
 		n->link_cnt++;
 		tipc_node_calculate_timer(n, l);
-		if (n->link_cnt == 1)
-			if (!mod_timer(&n->timer, jiffies + n->keepalive_intv))
+		if (n->link_cnt == 1) {
+			intv = jiffies + msecs_to_jiffies(n->keepalive_intv);
+			if (!mod_timer(&n->timer, intv))
 				tipc_node_get(n);
+		}
 	}
 	memcpy(&le->maddr, maddr, sizeof(*maddr));
 exit:
@@ -950,7 +952,7 @@ static void tipc_node_fsm_evt(struct tipc_node *n, int evt)
 			state = SELF_UP_PEER_UP;
 			break;
 		case SELF_LOST_CONTACT_EVT:
-			state = SELF_DOWN_PEER_LEAVING;
+			state = SELF_DOWN_PEER_DOWN;
 			break;
 		case SELF_ESTABL_CONTACT_EVT:
 		case PEER_LOST_CONTACT_EVT:
@@ -969,7 +971,7 @@ static void tipc_node_fsm_evt(struct tipc_node *n, int evt)
 			state = SELF_UP_PEER_UP;
 			break;
 		case PEER_LOST_CONTACT_EVT:
-			state = SELF_LEAVING_PEER_DOWN;
+			state = SELF_DOWN_PEER_DOWN;
 			break;
 		case SELF_LOST_CONTACT_EVT:
 		case PEER_ESTABL_CONTACT_EVT:

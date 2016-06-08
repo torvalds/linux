@@ -87,7 +87,6 @@ struct tipc_stats {
  * @peer_bearer_id: bearer id used by link's peer endpoint
  * @bearer_id: local bearer id used by link
  * @tolerance: minimum link continuity loss needed to reset link [in ms]
- * @keepalive_intv: link keepalive timer interval
  * @abort_limit: # of unacknowledged continuity probes needed to reset link
  * @state: current state of link FSM
  * @peer_caps: bitmap describing capabilities of peer node
@@ -131,7 +130,6 @@ struct tipc_link {
 	u32 peer_bearer_id;
 	u32 bearer_id;
 	u32 tolerance;
-	unsigned long keepalive_intv;
 	u32 abort_limit;
 	u32 state;
 	u16 peer_caps;
