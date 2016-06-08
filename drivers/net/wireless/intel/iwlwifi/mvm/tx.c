@@ -138,28 +138,19 @@ static void iwl_mvm_tx_csum(struct iwl_mvm *mvm, struct sk_buff *skb,
 
 		protocol = ipv6h->nexthdr;
 		while (protocol != NEXTHDR_NONE && ipv6_ext_hdr(protocol)) {
+			struct ipv6_opt_hdr *hp;
+
 			/* only supported extension headers */
 			if (protocol != NEXTHDR_ROUTING &&
 			    protocol != NEXTHDR_HOP &&
-			    protocol != NEXTHDR_DEST &&
-			    protocol != NEXTHDR_FRAGMENT) {
+			    protocol != NEXTHDR_DEST) {
 				skb_checksum_help(skb);
 				return;
 			}
 
-			if (protocol == NEXTHDR_FRAGMENT) {
-				struct frag_hdr *hp =
-					OPT_HDR(struct frag_hdr, skb, off);
-
-				protocol = hp->nexthdr;
-				off += sizeof(struct frag_hdr);
-			} else {
-				struct ipv6_opt_hdr *hp =
-					OPT_HDR(struct ipv6_opt_hdr, skb, off);
-
-				protocol = hp->nexthdr;
-				off += ipv6_optlen(hp);
-			}
+			hp = OPT_HDR(struct ipv6_opt_hdr, skb, off);
+			protocol = hp->nexthdr;
+			off += ipv6_optlen(hp);
 		}
 		/* if we get here - protocol now should be TCP/UDP */
 #endif
