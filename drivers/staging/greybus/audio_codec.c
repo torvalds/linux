@@ -92,7 +92,7 @@ static int gbaudio_module_disable(struct gbaudio_codec_info *codec,
 			ret = -EINVAL;
 		}
 		if (ret) {
-			dev_err(codec->dev, "deactivate for %s failed:%d\n",
+			dev_err_ratelimited(codec->dev, "deactivate for %s failed:%d\n",
 				module->name, ret);
 			goto func_exit;
 		}
@@ -118,7 +118,7 @@ static int gbaudio_module_disable(struct gbaudio_codec_info *codec,
 			ret = -EINVAL;
 		}
 		if (ret) {
-			dev_err(codec->dev, "unregister_cport for %s failed:%d\n",
+			dev_err_ratelimited(codec->dev, "unregister_cport for %s failed:%d\n",
 				module->name, ret);
 			goto func_exit;
 		}
@@ -195,7 +195,7 @@ static int gbaudio_module_enable(struct gbaudio_codec_info *codec,
 				ret = -EINVAL;
 		}
 		if (ret) {
-			dev_err(codec->dev, "reg_cport for %s\n", module->name);
+			dev_err_ratelimited(codec->dev, "reg_cport for %s\n", module->name);
 			goto func_exit;
 		}
 		module_state = GBAUDIO_CODEC_STARTUP;
@@ -209,7 +209,7 @@ static int gbaudio_module_enable(struct gbaudio_codec_info *codec,
 		ret = gb_audio_gb_set_pcm(module->mgmt_connection, data_cport,
 					  format, rate, channels, sig_bits);
 		if (ret) {
-			dev_err(codec->dev, "set_pcm for %s\n", module->name);
+			dev_err_ratelimited(codec->dev, "set_pcm for %s\n", module->name);
 			goto func_exit;
 		}
 		module_state = GBAUDIO_CODEC_HWPARAMS;
@@ -226,7 +226,7 @@ static int gbaudio_module_enable(struct gbaudio_codec_info *codec,
 						module->mgmt_connection,
 						data_cport, 192);
 			if (ret) {
-				dev_err(codec->dev,
+				dev_err_ratelimited(codec->dev,
 					"set_rx_data_size for %s\n",
 					module->name);
 				goto func_exit;
@@ -234,7 +234,7 @@ static int gbaudio_module_enable(struct gbaudio_codec_info *codec,
 			ret = gb_audio_gb_activate_rx(module->mgmt_connection,
 						      data_cport);
 			if (ret) {
-				dev_err(codec->dev, "activate_rx for %s\n",
+				dev_err_ratelimited(codec->dev, "activate_rx for %s\n",
 					module->name);
 				goto func_exit;
 			}
@@ -244,7 +244,7 @@ static int gbaudio_module_enable(struct gbaudio_codec_info *codec,
 						module->mgmt_connection,
 						data_cport, 192);
 			if (ret) {
-				dev_err(codec->dev,
+				dev_err_ratelimited(codec->dev,
 					"set_tx_data_size for %s\n",
 					module->name);
 				goto func_exit;
@@ -252,7 +252,7 @@ static int gbaudio_module_enable(struct gbaudio_codec_info *codec,
 			ret = gb_audio_gb_activate_tx(module->mgmt_connection,
 						      data_cport);
 			if (ret) {
-				dev_err(codec->dev, "activate_tx for %s\n",
+				dev_err_ratelimited(codec->dev, "activate_tx for %s\n",
 					module->name);
 				goto func_exit;
 			}
@@ -579,7 +579,7 @@ static int gbcodec_hw_params(struct snd_pcm_substream *substream,
 		ret = gb_audio_gb_set_pcm(module->mgmt_connection, data_cport,
 					  format, rate, channels, sig_bits);
 		if (ret) {
-			dev_err(dai->dev, "%d: Error during set_pcm\n", ret);
+			dev_err_ratelimited(dai->dev, "%d: Error during set_pcm\n", ret);
 			goto func_exit;
 		}
 		if (state < GBAUDIO_CODEC_HWPARAMS) {
@@ -588,7 +588,7 @@ static int gbcodec_hw_params(struct snd_pcm_substream *substream,
 						AUDIO_APBRIDGEA_PCM_RATE_48000,
 						6144000);
 			if (ret) {
-				dev_err(dai->dev,
+				dev_err_ratelimited(dai->dev,
 					"%d: Error during set_config\n", ret);
 				goto func_exit;
 			}
@@ -619,7 +619,7 @@ static int gbmodule_prepare_tx(struct gbaudio_module_info *module,
 	ret = gb_audio_gb_set_tx_data_size(module->mgmt_connection, data_cport,
 					   192);
 	if (ret) {
-		dev_err(dev, "%d:Error during set_tx_data_size, cport:%d\n",
+		dev_err_ratelimited(dev, "%d:Error during set_tx_data_size, cport:%d\n",
 			ret, data_cport);
 		return ret;
 	}
@@ -627,7 +627,7 @@ static int gbmodule_prepare_tx(struct gbaudio_module_info *module,
 		ret = gb_audio_apbridgea_set_tx_data_size(data->connection, 0,
 							  192);
 		if (ret) {
-			dev_err(dev,
+			dev_err_ratelimited(dev,
 				"%d:Error during apbridgea set_tx_data_size, cport\n",
 				ret);
 			return ret;
@@ -636,7 +636,7 @@ static int gbmodule_prepare_tx(struct gbaudio_module_info *module,
 	ret = gb_audio_gb_activate_tx(module->mgmt_connection,
 				      data_cport);
 	if (ret)
-		dev_err(dev, "%s:Error during activate stream,%d\n",
+		dev_err_ratelimited(dev, "%s:Error during activate stream,%d\n",
 			module->name, ret);
 
 	return ret;
@@ -654,7 +654,7 @@ static int gbmodule_prepare_rx(struct gbaudio_module_info *module,
 	ret = gb_audio_gb_set_rx_data_size(module->mgmt_connection, data_cport,
 					   192);
 	if (ret) {
-		dev_err(dev, "%d:Error during set_rx_data_size, cport:%d\n",
+		dev_err_ratelimited(dev, "%d:Error during set_rx_data_size, cport:%d\n",
 			ret, data_cport);
 		return ret;
 	}
@@ -662,7 +662,7 @@ static int gbmodule_prepare_rx(struct gbaudio_module_info *module,
 		ret = gb_audio_apbridgea_set_rx_data_size(data->connection, 0,
 							  192);
 		if (ret) {
-			dev_err(dev,
+			dev_err_ratelimited(dev,
 				"%d:Error during apbridgea_set_rx_data_size\n",
 				ret);
 			return ret;
@@ -671,7 +671,7 @@ static int gbmodule_prepare_rx(struct gbaudio_module_info *module,
 	ret = gb_audio_gb_activate_rx(module->mgmt_connection,
 				      data_cport);
 	if (ret)
-		dev_err(dev, "%s:Error during activate stream,%d\n",
+		dev_err_ratelimited(dev, "%s:Error during activate stream,%d\n",
 			module->name, ret);
 
 	return ret;
@@ -820,7 +820,7 @@ static int gbcodec_trigger(struct snd_pcm_substream *substream, int cmd,
 	} else
 		ret = -EINVAL;
 	if (ret)
-		dev_err(dai->dev, "%s:Error during %s stream:%d\n",
+		dev_err_ratelimited(dai->dev, "%s:Error during %s stream:%d\n",
 			module->name, start ? "Start" : "Stop", ret);
 
 func_exit:
