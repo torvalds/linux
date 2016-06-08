@@ -1159,7 +1159,10 @@ static int s5p_mfc_probe(struct platform_device *pdev)
 	dev->variant = mfc_get_drv_data(pdev);
 
 	res = platform_get_resource(pdev, IORESOURCE_MEM, 0);
-
+	if (res == NULL) {
+		dev_err(&pdev->dev, "failed to get io resource\n");
+		return -ENOENT;
+	}
 	dev->regs_base = devm_ioremap_resource(&pdev->dev, res);
 	if (IS_ERR(dev->regs_base))
 		return PTR_ERR(dev->regs_base);
@@ -1167,15 +1170,14 @@ static int s5p_mfc_probe(struct platform_device *pdev)
 	res = platform_get_resource(pdev, IORESOURCE_IRQ, 0);
 	if (res == NULL) {
 		dev_err(&pdev->dev, "failed to get irq resource\n");
-		ret = -ENOENT;
-		goto err_res;
+		return -ENOENT;
 	}
 	dev->irq = res->start;
 	ret = devm_request_irq(&pdev->dev, dev->irq, s5p_mfc_irq,
 					0, pdev->name, dev);
 	if (ret) {
 		dev_err(&pdev->dev, "Failed to install irq (%d)\n", ret);
-		goto err_res;
+		return ret;
 	}
 
 	ret = s5p_mfc_configure_dma_memory(dev);
@@ -1187,7 +1189,7 @@ static int s5p_mfc_probe(struct platform_device *pdev)
 	ret = s5p_mfc_init_pm(dev);
 	if (ret < 0) {
 		dev_err(&pdev->dev, "failed to get mfc clock source\n");
-		return ret;
+		goto err_dma;
 	}
 
 	vb2_dma_contig_set_max_seg_size(dev->mem_dev_l, DMA_BIT_MASK(32));
@@ -1299,6 +1301,8 @@ err_mem_init_ctx_1:
 	vb2_dma_contig_cleanup_ctx(dev->alloc_ctx[0]);
 err_res:
 	s5p_mfc_final_pm(dev);
+err_dma:
+	s5p_mfc_unconfigure_dma_memory(dev);
 
 	pr_debug("%s-- with error\n", __func__);
 	return ret;
