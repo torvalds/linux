@@ -16,7 +16,8 @@ config CAN_ESD_USB2
 config CAN_GS_USB
 	tristate "Geschwister Schneider UG interfaces"
 	---help---
-	  This driver supports the Geschwister Schneider USB/CAN devices.
+	  This driver supports the Geschwister Schneider and bytewerk.org
+	  candleLight USB CAN interfaces USB/CAN devices
 	  If unsure choose N,
 	  choose Y for built in support,
 	  M to compile as module (module will be named: gs_usb).
