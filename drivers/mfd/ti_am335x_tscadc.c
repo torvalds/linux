@@ -295,8 +295,7 @@ static int ti_tscadc_remove(struct platform_device *pdev)
 	return 0;
 }
 
-#ifdef CONFIG_PM
-static int tscadc_suspend(struct device *dev)
+static int __maybe_unused tscadc_suspend(struct device *dev)
 {
 	struct ti_tscadc_dev	*tscadc_dev = dev_get_drvdata(dev);
 
@@ -306,7 +305,7 @@ static int tscadc_suspend(struct device *dev)
 	return 0;
 }
 
-static int tscadc_resume(struct device *dev)
+static int __maybe_unused tscadc_resume(struct device *dev)
 {
 	struct ti_tscadc_dev	*tscadc_dev = dev_get_drvdata(dev);
 	u32 ctrl;
@@ -332,14 +331,7 @@ static int tscadc_resume(struct device *dev)
 	return 0;
 }
 
-static const struct dev_pm_ops tscadc_pm_ops = {
-	.suspend = tscadc_suspend,
-	.resume = tscadc_resume,
-};
-#define TSCADC_PM_OPS (&tscadc_pm_ops)
-#else
-#define TSCADC_PM_OPS NULL
-#endif
+static SIMPLE_DEV_PM_OPS(tscadc_pm_ops, tscadc_suspend, tscadc_resume);
 
 static const struct of_device_id ti_tscadc_dt_ids[] = {
 	{ .compatible = "ti,am3359-tscadc", },
@@ -350,7 +342,7 @@ MODULE_DEVICE_TABLE(of, ti_tscadc_dt_ids);
 static struct platform_driver ti_tscadc_driver = {
 	.driver = {
 		.name   = "ti_am3359-tscadc",
-		.pm	= TSCADC_PM_OPS,
+		.pm	= &tscadc_pm_ops,
 		.of_match_table = ti_tscadc_dt_ids,
 	},
 	.probe	= ti_tscadc_probe,
