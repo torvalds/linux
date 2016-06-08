@@ -49,7 +49,8 @@ void dsa_slave_mii_bus_init(struct dsa_switch *ds)
 	ds->slave_mii_bus->name = "dsa slave smi";
 	ds->slave_mii_bus->read = dsa_slave_phy_read;
 	ds->slave_mii_bus->write = dsa_slave_phy_write;
-	snprintf(ds->slave_mii_bus->id, MII_BUS_ID_SIZE, "dsa-%d", ds->index);
+	snprintf(ds->slave_mii_bus->id, MII_BUS_ID_SIZE, "dsa-%d.%d",
+		 ds->dst->tree, ds->index);
 	ds->slave_mii_bus->parent = ds->dev;
 	ds->slave_mii_bus->phy_mask = ~ds->phys_mii_mask;
 }
@@ -864,6 +865,13 @@ static void dsa_slave_poll_controller(struct net_device *dev)
 }
 #endif
 
+void dsa_cpu_port_ethtool_init(struct ethtool_ops *ops)
+{
+	ops->get_sset_count = dsa_cpu_port_get_sset_count;
+	ops->get_ethtool_stats = dsa_cpu_port_get_ethtool_stats;
+	ops->get_strings = dsa_cpu_port_get_strings;
+}
+
 static const struct ethtool_ops dsa_slave_ethtool_ops = {
 	.get_settings		= dsa_slave_get_settings,
 	.set_settings		= dsa_slave_set_settings,
@@ -883,8 +891,6 @@ static const struct ethtool_ops dsa_slave_ethtool_ops = {
 	.set_eee		= dsa_slave_set_eee,
 	.get_eee		= dsa_slave_get_eee,
 };
-
-static struct ethtool_ops dsa_cpu_port_ethtool_ops;
 
 static const struct net_device_ops dsa_slave_netdev_ops = {
 	.ndo_open	 	= dsa_slave_open,
@@ -1118,19 +1124,6 @@ int dsa_slave_create(struct dsa_switch *ds, struct device *parent,
 
 	slave_dev->features = master->vlan_features;
 	slave_dev->ethtool_ops = &dsa_slave_ethtool_ops;
-	if (master->ethtool_ops != &dsa_cpu_port_ethtool_ops) {
-		memcpy(&dst->master_ethtool_ops, master->ethtool_ops,
-		       sizeof(struct ethtool_ops));
-		memcpy(&dsa_cpu_port_ethtool_ops, &dst->master_ethtool_ops,
-		       sizeof(struct ethtool_ops));
-		dsa_cpu_port_ethtool_ops.get_sset_count =
-					dsa_cpu_port_get_sset_count;
-		dsa_cpu_port_ethtool_ops.get_ethtool_stats =
-					dsa_cpu_port_get_ethtool_stats;
-		dsa_cpu_port_ethtool_ops.get_strings =
-					dsa_cpu_port_get_strings;
-		master->ethtool_ops = &dsa_cpu_port_ethtool_ops;
-	}
 	eth_hw_addr_inherit(slave_dev, master);
 	slave_dev->priv_flags |= IFF_NO_QUEUE;
 	slave_dev->netdev_ops = &dsa_slave_netdev_ops;

@@ -142,6 +142,12 @@ struct bcm_sf2_priv {
 
 	/* Bitmask of ports having an integrated PHY */
 	unsigned int			int_phy_mask;
+
+	/* Master and slave MDIO bus controller */
+	unsigned int			indir_phy_mask;
+	struct device_node		*master_mii_dn;
+	struct mii_bus			*slave_mii_bus;
+	struct mii_bus			*master_mii_bus;
 };
 
 struct bcm_sf2_hw_stats {

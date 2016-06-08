@@ -283,6 +283,7 @@ static void dsa_user_port_unapply(struct device_node *port, u32 index,
 	if (ds->ports[index].netdev) {
 		dsa_slave_destroy(ds->ports[index].netdev);
 		ds->ports[index].netdev = NULL;
+		ds->enabled_port_mask &= ~(1 << index);
 	}
 }
 
@@ -291,6 +292,13 @@ static int dsa_ds_apply(struct dsa_switch_tree *dst, struct dsa_switch *ds)
 	struct device_node *port;
 	u32 index;
 	int err;
+
+	/* Initialize ds->phys_mii_mask before registering the slave MDIO bus
+	 * driver and before drv->setup() has run, since the switch drivers and
+	 * the slave MDIO bus driver rely on these values for probing PHY
+	 * devices or not
+	 */
+	ds->phys_mii_mask = ds->enabled_port_mask;
 
 	err = ds->drv->setup(ds);
 	if (err < 0)
@@ -303,6 +311,18 @@ static int dsa_ds_apply(struct dsa_switch_tree *dst, struct dsa_switch *ds)
 	err = ds->drv->set_addr(ds, dst->master_netdev->dev_addr);
 	if (err < 0)
 		return err;
+
+	if (!ds->slave_mii_bus && ds->drv->phy_read) {
+		ds->slave_mii_bus = devm_mdiobus_alloc(ds->dev);
+		if (!ds->slave_mii_bus)
+			return -ENOMEM;
+
+		dsa_slave_mii_bus_init(ds);
+
+		err = mdiobus_register(ds->slave_mii_bus);
+		if (err < 0)
+			return err;
+	}
 
 	for (index = 0; index < DSA_MAX_PORTS; index++) {
 		port = ds->ports[index].dn;
@@ -353,6 +373,9 @@ static void dsa_ds_unapply(struct dsa_switch_tree *dst, struct dsa_switch *ds)
 
 		dsa_user_port_unapply(port, index, ds);
 	}
+
+	if (ds->slave_mii_bus && ds->drv->phy_read)
+		mdiobus_unregister(ds->slave_mii_bus);
 }
 
 static int dsa_dst_apply(struct dsa_switch_tree *dst)
@@ -370,6 +393,10 @@ static int dsa_dst_apply(struct dsa_switch_tree *dst)
 		if (err)
 			return err;
 	}
+
+	err = dsa_cpu_port_ethtool_setup(dst->ds[0]);
+	if (err)
+		return err;
 
 	/* If we use a tagging format that doesn't have an ethertype
 	 * field, make sure that all packets from this point on get
@@ -405,6 +432,8 @@ static void dsa_dst_unapply(struct dsa_switch_tree *dst)
 
 		dsa_ds_unapply(dst, ds);
 	}
+
+	dsa_cpu_port_ethtool_restore(dst->ds[0]);
 
 	pr_info("DSA: tree %d unapplied\n", dst->tree);
 	dst->applied = false;
@@ -511,6 +540,13 @@ static int dsa_parse_ports_dn(struct device_node *ports, struct dsa_switch *ds)
 			return -EINVAL;
 
 		ds->ports[reg].dn = port;
+
+		/* Initialize enabled_port_mask now for drv->setup()
+		 * to have access to a correct value, just like what
+		 * net/dsa/dsa.c::dsa_switch_setup_one does.
+		 */
+		if (!dsa_port_is_cpu(port))
+			ds->enabled_port_mask |= 1 << reg;
 	}
 
 	return 0;
