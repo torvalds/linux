@@ -14,6 +14,7 @@
  ******************************************************************************/
 #define _HCI_INTF_C_
 
+#include <linux/mutex.h>
 #include <osdep_service.h>
 #include <drv_types.h>
 #include <recv_osdep.h>
@@ -291,7 +292,7 @@ static int rtw_suspend(struct usb_interface *pusb_intf, pm_message_t message)
 	rtw_cancel_all_timer23a(padapter);
 	LeaveAllPowerSaveMode23a(padapter);
 
-	down(&pwrpriv->lock);
+	mutex_lock(&pwrpriv->mutex_lock);
 	/* padapter->net_closed = true; */
 	/* s1. */
 	if (pnetdev) {
@@ -321,7 +322,7 @@ static int rtw_suspend(struct usb_interface *pusb_intf, pm_message_t message)
 	rtw_free_network_queue23a(padapter);
 
 	rtw_dev_unload(padapter);
-	up(&pwrpriv->lock);
+	mutex_unlock(&pwrpriv->mutex_lock);
 
 	if (check_fwstate(pmlmepriv, _FW_UNDER_SURVEY))
 		rtw_cfg80211_indicate_scan_done(
@@ -353,20 +354,20 @@ static int rtw_resume(struct usb_interface *pusb_intf)
 	pnetdev = padapter->pnetdev;
 	pwrpriv = &padapter->pwrctrlpriv;
 
-	down(&pwrpriv->lock);
+	mutex_lock(&pwrpriv->mutex_lock);
 	rtw_reset_drv_sw23a(padapter);
 	pwrpriv->bkeepfwalive = false;
 
 	DBG_8723A("bkeepfwalive(%x)\n", pwrpriv->bkeepfwalive);
 	if (pm_netdev_open23a(pnetdev, true) != 0) {
-		up(&pwrpriv->lock);
+		mutex_unlock(&pwrpriv->mutex_lock);
 		goto exit;
 	}
 
 	netif_device_attach(pnetdev);
 	netif_carrier_on(pnetdev);
 
-	up(&pwrpriv->lock);
+	mutex_unlock(&pwrpriv->mutex_lock);
 
 	if (padapter->pid[1] != 0) {
 		DBG_8723A("pid[1]:%d\n", padapter->pid[1]);

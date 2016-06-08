@@ -14,6 +14,7 @@
  ******************************************************************************/
 #define _RTW_PWRCTRL_C_
 
+#include <linux/mutex.h>
 #include <osdep_service.h>
 #include <drv_types.h>
 #include <osdep_intf.h>
@@ -27,7 +28,7 @@ void ips_enter23a(struct rtw_adapter *padapter)
 {
 	struct pwrctrl_priv *pwrpriv = &padapter->pwrctrlpriv;
 
-	down(&pwrpriv->lock);
+	mutex_lock(&pwrpriv->mutex_lock);
 
 	pwrpriv->bips_processing = true;
 
@@ -50,7 +51,7 @@ void ips_enter23a(struct rtw_adapter *padapter)
 	}
 	pwrpriv->bips_processing = false;
 
-	up(&pwrpriv->lock);
+	mutex_unlock(&pwrpriv->mutex_lock);
 }
 
 int ips_leave23a(struct rtw_adapter *padapter)
@@ -61,7 +62,7 @@ int ips_leave23a(struct rtw_adapter *padapter)
 	int result = _SUCCESS;
 	int keyid;
 
-	down(&pwrpriv->lock);
+	mutex_lock(&pwrpriv->mutex_lock);
 
 	if (pwrpriv->rf_pwrstate == rf_off && !pwrpriv->bips_processing) {
 		pwrpriv->bips_processing = true;
@@ -106,7 +107,7 @@ int ips_leave23a(struct rtw_adapter *padapter)
 		pwrpriv->bpower_saving = false;
 	}
 
-	up(&pwrpriv->lock);
+	mutex_unlock(&pwrpriv->mutex_lock);
 
 	return result;
 }
@@ -423,7 +424,7 @@ void rtw_init_pwrctrl_priv23a(struct rtw_adapter *padapter)
 {
 	struct pwrctrl_priv *pwrctrlpriv = &padapter->pwrctrlpriv;
 
-	sema_init(&pwrctrlpriv->lock, 1);
+	mutex_init(&pwrctrlpriv->mutex_lock);
 	pwrctrlpriv->rf_pwrstate = rf_on;
 	pwrctrlpriv->ips_enter23a_cnts = 0;
 	pwrctrlpriv->ips_leave23a_cnts = 0;

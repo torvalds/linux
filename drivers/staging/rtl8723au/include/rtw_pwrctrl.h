@@ -15,6 +15,7 @@
 #ifndef __RTW_PWRCTRL_H_
 #define __RTW_PWRCTRL_H_
 
+#include <linux/mutex.h>
 #include <osdep_service.h>
 #include <drv_types.h>
 
@@ -149,7 +150,7 @@ enum { /*  for ips_mode */
 };
 
 struct pwrctrl_priv {
-	struct semaphore lock;
+	struct mutex mutex_lock;
 	volatile u8 rpwm; /* requested power state for fw */
 	volatile u8 cpwm; /* fw current power state. updated when 1.
 			   * read from HCPWM 2. driver lowers power level
