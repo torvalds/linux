@@ -554,6 +554,7 @@ nouveau_display_destroy(struct drm_device *dev)
 	nouveau_display_vblank_fini(dev);
 
 	drm_kms_helper_poll_fini(dev);
+	drm_crtc_force_disable_all(dev);
 	drm_mode_config_cleanup(dev);
 
 	if (disp->dtor)
