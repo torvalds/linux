@@ -1051,9 +1051,8 @@ gm20x_secboot_prepare_blobs(struct gm200_secboot *gsb)
 }
 
 static int
-gm200_secboot_prepare_blobs(struct nvkm_secboot *sb)
+gm200_secboot_prepare_blobs(struct gm200_secboot *gsb)
 {
-	struct gm200_secboot *gsb = gm200_secboot(sb);
 	int ret;
 
 	ret = gm20x_secboot_prepare_blobs(gsb);
@@ -1072,6 +1071,26 @@ gm200_secboot_prepare_blobs(struct nvkm_secboot *sb)
 	return 0;
 }
 
+static int
+gm200_secboot_blobs_ready(struct gm200_secboot *gsb)
+{
+	struct nvkm_subdev *subdev = &gsb->base.subdev;
+	int ret;
+
+	/* firmware already loaded, nothing to do... */
+	if (gsb->firmware_ok)
+		return 0;
+
+	ret = gsb->func->prepare_blobs(gsb);
+	if (ret) {
+		nvkm_error(subdev, "failed to load secure firmware\n");
+		return ret;
+	}
+
+	gsb->firmware_ok = true;
+
+	return 0;
+}
 
 
 /*
@@ -1244,6 +1263,11 @@ gm200_secboot_reset(struct nvkm_secboot *sb, enum nvkm_secboot_falcon falcon)
 	struct gm200_secboot *gsb = gm200_secboot(sb);
 	int ret;
 
+	/* Make sure all blobs are ready */
+	ret = gm200_secboot_blobs_ready(gsb);
+	if (ret)
+		return ret;
+
 	/*
 	 * Dummy GM200 implementation: perform secure boot each time we are
 	 * called on FECS. Since only FECS and GPCCS are managed and started
@@ -1383,7 +1407,6 @@ gm200_secboot = {
 	.dtor = gm200_secboot_dtor,
 	.init = gm200_secboot_init,
 	.fini = gm200_secboot_fini,
-	.prepare_blobs = gm200_secboot_prepare_blobs,
 	.reset = gm200_secboot_reset,
 	.start = gm200_secboot_start,
 	.managed_falcons = BIT(NVKM_SECBOOT_FALCON_FECS) |
@@ -1425,6 +1448,7 @@ gm200_secboot_func = {
 	.bl_desc_size = sizeof(struct gm200_flcn_bl_desc),
 	.fixup_bl_desc = gm200_secboot_fixup_bl_desc,
 	.fixup_hs_desc = gm200_secboot_fixup_hs_desc,
+	.prepare_blobs = gm200_secboot_prepare_blobs,
 };
 
 int

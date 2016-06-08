@@ -214,14 +214,7 @@ nvkm_secboot_oneinit(struct nvkm_subdev *subdev)
 		return ret;
 	}
 
-	/*
-	 * Build all blobs - the same blobs can be used to perform secure boot
-	 * multiple times
-	 */
-	if (sb->func->prepare_blobs)
-		ret = sb->func->prepare_blobs(sb);
-
-	return ret;
+	return 0;
 }
 
 static int
