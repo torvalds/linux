@@ -1296,7 +1296,6 @@ static int polaris10_populate_single_memory_level(struct pp_hwmgr *hwmgr,
 	}
 
 	mem_level->MclkFrequency = clock;
-	mem_level->StutterEnable = 0;
 	mem_level->EnabledForThrottle = 1;
 	mem_level->EnabledForActivity = 0;
 	mem_level->UpHyst = 0;
@@ -1363,7 +1362,7 @@ static int polaris10_populate_all_memory_levels(struct pp_hwmgr *hwmgr)
 	 * a higher state by default such that we are not effected by
 	 * up threshold or and MCLK DPM latency.
 	 */
-	levels[0].ActivityLevel = (uint16_t)data->mclk_dpm0_activity_target;
+	levels[0].ActivityLevel = 0x1f;
 	CONVERT_FROM_HOST_TO_SMC_US(levels[0].ActivityLevel);
 
 	data->smc_state_table.MemoryDpmLevelCount =
@@ -2951,6 +2950,7 @@ int polaris10_hwmgr_backend_init(struct pp_hwmgr *hwmgr)
 	data->enable_tdc_limit_feature = true;
 	data->enable_pkg_pwr_tracking_feature = true;
 	data->force_pcie_gen = PP_PCIEGenInvalid;
+	data->mclk_stutter_mode_threshold = 40000;
 
 	if (atomctrl_is_voltage_controled_by_gpio_v3(hwmgr,
 			VOLTAGE_TYPE_VDDC, VOLTAGE_OBJ_SVID2))
