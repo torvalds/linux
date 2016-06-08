@@ -1115,6 +1115,7 @@ nand_manufacturer_name(const struct nand_manufacturer *manufacturer)
 extern struct nand_flash_dev nand_flash_ids[];
 
 extern const struct nand_manufacturer_ops samsung_nand_manuf_ops;
+extern const struct nand_manufacturer_ops hynix_nand_manuf_ops;
 
 int nand_default_bbt(struct mtd_info *mtd);
 int nand_markbad_bbt(struct mtd_info *mtd, loff_t offs);
