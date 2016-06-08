@@ -104,6 +104,8 @@
 			num-lanes = <2>;
 			bus-range = <0x00 0xff>;
 
+			/* error interrupt */
+			interrupts = <GIC_SPI 385 IRQ_TYPE_EDGE_RISING>;
 			#interrupt-cells = <1>;
 			interrupt-map-mask = <0 0 0 7>;
 			interrupt-map = <0 0 0 1 &pcie_intc1 0>, /* INT A */
