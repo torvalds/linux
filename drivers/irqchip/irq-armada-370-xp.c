@@ -541,7 +541,7 @@ static void armada_370_xp_mpic_resume(void)
 		writel(1, per_cpu_int_base + ARMADA_370_XP_INT_CLEAR_MASK_OFFS);
 }
 
-struct syscore_ops armada_370_xp_mpic_syscore_ops = {
+static struct syscore_ops armada_370_xp_mpic_syscore_ops = {
 	.suspend	= armada_370_xp_mpic_suspend,
 	.resume		= armada_370_xp_mpic_resume,
 };
