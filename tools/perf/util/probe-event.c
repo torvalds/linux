@@ -1603,6 +1603,10 @@ int parse_probe_trace_command(const char *cmd, struct probe_trace_event *tev)
 	p = strchr(argv[1], ':');
 	if (p) {
 		tp->module = strndup(argv[1], p - argv[1]);
+		if (!tp->module) {
+			ret = -ENOMEM;
+			goto out;
+		}
 		p++;
 	} else
 		p = argv[1];
