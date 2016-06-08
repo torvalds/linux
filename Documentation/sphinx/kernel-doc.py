@@ -68,7 +68,7 @@ class KernelDocDirective(Directive):
         elif 'doc' in self.options:
             cmd += ['-function', str(self.options.get('doc'))]
         elif 'functions' in self.options:
-            for f in str(self.options.get('functions')).split(' '):
+            for f in str(self.options.get('functions')).split():
                 cmd += ['-function', f]
 
         cmd += [filename]
