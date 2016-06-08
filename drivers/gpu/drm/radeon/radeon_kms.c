@@ -65,6 +65,7 @@ int radeon_driver_unload_kms(struct drm_device *dev)
 
 	if (radeon_is_px(dev)) {
 		pm_runtime_get_sync(dev->dev);
+		pm_runtime_forbid(dev->dev);
 	}
 
 	radeon_kfd_device_fini(rdev);
