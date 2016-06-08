@@ -831,7 +831,7 @@ static DEVICE_ATTR(ce_count, S_IRUGO, mci_ce_count_show, NULL);
 static DEVICE_ATTR(max_location, S_IRUGO, mci_max_location_show, NULL);
 
 /* memory scrubber attribute file */
-DEVICE_ATTR(sdram_scrub_rate, 0, mci_sdram_scrub_rate_show,
+static DEVICE_ATTR(sdram_scrub_rate, 0, mci_sdram_scrub_rate_show,
 	    mci_sdram_scrub_rate_store); /* umode set later in is_visible */
 
 static struct attribute *mci_attrs[] = {
