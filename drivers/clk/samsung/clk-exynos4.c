@@ -1375,12 +1375,12 @@ static void __init exynos4x12_core_down_clock(void)
 	if (num_possible_cpus() == 4)
 		tmp |= PWR_CTRL1_USE_CORE3_WFE | PWR_CTRL1_USE_CORE2_WFE |
 		       PWR_CTRL1_USE_CORE3_WFI | PWR_CTRL1_USE_CORE2_WFI;
-	__raw_writel(tmp, reg_base + PWR_CTRL1);
+	writel_relaxed(tmp, reg_base + PWR_CTRL1);
 
 	/*
 	 * Disable the clock up feature in case it was enabled by bootloader.
 	 */
-	__raw_writel(0x0, reg_base + E4X12_PWR_CTRL2);
+	writel_relaxed(0x0, reg_base + E4X12_PWR_CTRL2);
 }
 
 #define E4210_CPU_DIV0(apll, pclk_dbg, atb, periph, corem1, corem0)	\
