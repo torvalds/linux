@@ -81,22 +81,6 @@ static const struct file_operations arcpgu_drm_ops = {
 	.mmap = arcpgu_gem_mmap,
 };
 
-static void arcpgu_preclose(struct drm_device *drm, struct drm_file *file)
-{
-	struct arcpgu_drm_private *arcpgu = drm->dev_private;
-	struct drm_pending_vblank_event *e, *t;
-	unsigned long flags;
-
-	spin_lock_irqsave(&drm->event_lock, flags);
-	list_for_each_entry_safe(e, t, &arcpgu->event_list, base.link) {
-		if (e->base.file_priv != file)
-			continue;
-		list_del(&e->base.link);
-		kfree(&e->base);
-	}
-	spin_unlock_irqrestore(&drm->event_lock, flags);
-}
-
 static void arcpgu_lastclose(struct drm_device *drm)
 {
 	struct arcpgu_drm_private *arcpgu = drm->dev_private;
@@ -121,8 +105,6 @@ static int arcpgu_load(struct drm_device *drm)
 	arcpgu->clk = devm_clk_get(drm->dev, "pxlclk");
 	if (IS_ERR(arcpgu->clk))
 		return PTR_ERR(arcpgu->clk);
-
-	INIT_LIST_HEAD(&arcpgu->event_list);
 
 	arcpgu_setup_mode_config(drm);
 
@@ -192,7 +174,6 @@ int arcpgu_unload(struct drm_device *drm)
 static struct drm_driver arcpgu_drm_driver = {
 	.driver_features = DRIVER_MODESET | DRIVER_GEM | DRIVER_PRIME |
 			   DRIVER_ATOMIC,
-	.preclose = arcpgu_preclose,
 	.lastclose = arcpgu_lastclose,
 	.name = "drm-arcpgu",
 	.desc = "ARC PGU Controller",

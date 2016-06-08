@@ -155,10 +155,6 @@ static void arc_pgu_crtc_atomic_begin(struct drm_crtc *crtc,
 		event->pipe = drm_crtc_index(crtc);
 
 		WARN_ON(drm_crtc_vblank_get(crtc) != 0);
-
-		spin_lock_irqsave(&crtc->dev->event_lock, flags);
-		list_add_tail(&event->base.link, &arcpgu->event_list);
-		spin_unlock_irqrestore(&crtc->dev->event_lock, flags);
 	}
 }
 
