@@ -1,7 +1,9 @@
 #ifndef _ASM_X86_RMWcc
 #define _ASM_X86_RMWcc
 
-#ifdef CC_HAVE_ASM_GOTO
+#if !defined(__GCC_ASM_FLAG_OUTPUTS__) && defined(CC_HAVE_ASM_GOTO)
+
+/* Use asm goto */
 
 #define __GEN_RMWcc(fullop, var, cc, ...)				\
 do {									\
@@ -19,13 +21,15 @@ cc_label:								\
 #define GEN_BINARY_RMWcc(op, var, vcon, val, arg0, cc)			\
 	__GEN_RMWcc(op " %1, " arg0, var, cc, vcon (val))
 
-#else /* !CC_HAVE_ASM_GOTO */
+#else /* defined(__GCC_ASM_FLAG_OUTPUTS__) || !defined(CC_HAVE_ASM_GOTO) */
+
+/* Use flags output or a set instruction */
 
 #define __GEN_RMWcc(fullop, var, cc, ...)				\
 do {									\
 	bool c;								\
-	asm volatile (fullop "; set" #cc " %1"				\
-			: "+m" (var), "=qm" (c)				\
+	asm volatile (fullop ";" CC_SET(cc)				\
+			: "+m" (var), CC_OUT(cc) (c)			\
 			: __VA_ARGS__ : "memory");			\
 	return c;							\
 } while (0)
@@ -36,6 +40,6 @@ do {									\
 #define GEN_BINARY_RMWcc(op, var, vcon, val, arg0, cc)			\
 	__GEN_RMWcc(op " %2, " arg0, var, cc, vcon (val))
 
-#endif /* CC_HAVE_ASM_GOTO */
+#endif /* defined(__GCC_ASM_FLAG_OUTPUTS__) || !defined(CC_HAVE_ASM_GOTO) */
 
 #endif /* _ASM_X86_RMWcc */
