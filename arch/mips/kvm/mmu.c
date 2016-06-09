@@ -327,17 +327,18 @@ u32 kvm_get_inst(u32 *opc, struct kvm_vcpu *vcpu)
 {
 	struct mips_coproc *cop0 = vcpu->arch.cop0;
 	unsigned long paddr, flags, vpn2, asid;
+	unsigned long va = (unsigned long)opc;
 	u32 inst;
 	int index;
 
-	if (KVM_GUEST_KSEGX((unsigned long) opc) < KVM_GUEST_KSEG0 ||
-	    KVM_GUEST_KSEGX((unsigned long) opc) == KVM_GUEST_KSEG23) {
+	if (KVM_GUEST_KSEGX(va) < KVM_GUEST_KSEG0 ||
+	    KVM_GUEST_KSEGX(va) == KVM_GUEST_KSEG23) {
 		local_irq_save(flags);
-		index = kvm_mips_host_tlb_lookup(vcpu, (unsigned long) opc);
+		index = kvm_mips_host_tlb_lookup(vcpu, va);
 		if (index >= 0) {
 			inst = *(opc);
 		} else {
-			vpn2 = (unsigned long) opc & VPN2_MASK;
+			vpn2 = va & VPN2_MASK;
 			asid = kvm_read_c0_guest_entryhi(cop0) &
 						KVM_ENTRYHI_ASID;
 			index = kvm_mips_guest_tlb_lookup(vcpu, vpn2 | asid);
@@ -354,10 +355,8 @@ u32 kvm_get_inst(u32 *opc, struct kvm_vcpu *vcpu)
 			inst = *(opc);
 		}
 		local_irq_restore(flags);
-	} else if (KVM_GUEST_KSEGX(opc) == KVM_GUEST_KSEG0) {
-		paddr =
-		    kvm_mips_translate_guest_kseg0_to_hpa(vcpu,
-							  (unsigned long) opc);
+	} else if (KVM_GUEST_KSEGX(va) == KVM_GUEST_KSEG0) {
+		paddr = kvm_mips_translate_guest_kseg0_to_hpa(vcpu, va);
 		inst = *(u32 *) CKSEG0ADDR(paddr);
 	} else {
 		kvm_err("%s: illegal address: %p\n", __func__, opc);
