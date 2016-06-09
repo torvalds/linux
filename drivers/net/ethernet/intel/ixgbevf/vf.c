@@ -256,7 +256,7 @@ static s32 ixgbevf_get_mac_addr_vf(struct ixgbe_hw *hw, u8 *mac_addr)
 static s32 ixgbevf_set_uc_addr_vf(struct ixgbe_hw *hw, u32 index, u8 *addr)
 {
 	struct ixgbe_mbx_info *mbx = &hw->mbx;
-	u32 msgbuf[3];
+	u32 msgbuf[3], msgbuf_chk;
 	u8 *msg_addr = (u8 *)(&msgbuf[1]);
 	s32 ret_val;
 
@@ -268,6 +268,8 @@ static s32 ixgbevf_set_uc_addr_vf(struct ixgbe_hw *hw, u32 index, u8 *addr)
 	 */
 	msgbuf[0] |= index << IXGBE_VT_MSGINFO_SHIFT;
 	msgbuf[0] |= IXGBE_VF_SET_MACVLAN;
+	msgbuf_chk = msgbuf[0];
+
 	if (addr)
 		ether_addr_copy(msg_addr, addr);
 	ret_val = mbx->ops.write_posted(hw, msgbuf, 3);
@@ -275,12 +277,12 @@ static s32 ixgbevf_set_uc_addr_vf(struct ixgbe_hw *hw, u32 index, u8 *addr)
 	if (!ret_val)
 		ret_val = mbx->ops.read_posted(hw, msgbuf, 3);
 
-	msgbuf[0] &= ~IXGBE_VT_MSGTYPE_CTS;
+	if (!ret_val) {
+		msgbuf[0] &= ~IXGBE_VT_MSGTYPE_CTS;
 
-	if (!ret_val)
-		if (msgbuf[0] ==
-		    (IXGBE_VF_SET_MACVLAN | IXGBE_VT_MSGTYPE_NACK))
-			ret_val = -ENOMEM;
+		if (msgbuf[0] == (msgbuf_chk | IXGBE_VT_MSGTYPE_NACK))
+			return -ENOMEM;
+	}
 
 	return ret_val;
 }
