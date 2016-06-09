@@ -33,10 +33,6 @@ PDF_METHOD	= $(prefer-db2x)
 PS_METHOD	= $(prefer-db2x)
 
 
-###
-# The targets that may be used.
-PHONY += xmldocs sgmldocs psdocs pdfdocs htmldocs mandocs installmandocs cleandocs
-
 targets += $(DOCBOOKS)
 BOOKS := $(addprefix $(obj)/,$(DOCBOOKS))
 xmldocs: $(BOOKS)
@@ -62,6 +58,9 @@ installmandocs: mandocs
 	find $(obj)/man -name '*.9.gz' -printf '%h %f\n' | \
 		sort -k 2 -k 1 | uniq -f 1 | sed -e 's: :/:' | \
 		xargs install -m 644 -t /usr/local/man/man9/
+
+# no-op for the DocBook toolchain
+epubdocs:
 
 ###
 #External programs used
