@@ -2045,7 +2045,7 @@ int generic_processor_info(int apicid, int version)
 		int thiscpu = max + disabled_cpus - 1;
 
 		pr_warning(
-			"ACPI: NR_CPUS/possible_cpus limit of %i almost"
+			"APIC: NR_CPUS/possible_cpus limit of %i almost"
 			" reached. Keeping one slot for boot cpu."
 			"  Processor %d/0x%x ignored.\n", max, thiscpu, apicid);
 
@@ -2057,7 +2057,7 @@ int generic_processor_info(int apicid, int version)
 		int thiscpu = max + disabled_cpus;
 
 		pr_warning(
-			"ACPI: NR_CPUS/possible_cpus limit of %i reached."
+			"APIC: NR_CPUS/possible_cpus limit of %i reached."
 			"  Processor %d/0x%x ignored.\n", max, thiscpu, apicid);
 
 		disabled_cpus++;
@@ -2085,7 +2085,7 @@ int generic_processor_info(int apicid, int version)
 	if (topology_update_package_map(apicid, cpu) < 0) {
 		int thiscpu = max + disabled_cpus;
 
-		pr_warning("ACPI: Package limit reached. Processor %d/0x%x ignored.\n",
+		pr_warning("APIC: Package limit reached. Processor %d/0x%x ignored.\n",
 			   thiscpu, apicid);
 		disabled_cpus++;
 		return -ENOSPC;
