@@ -4897,7 +4897,7 @@ static ssize_t pci_resource_alignment_store(struct bus_type *bus,
 	return pci_set_resource_alignment_param(buf, count);
 }
 
-BUS_ATTR(resource_alignment, 0644, pci_resource_alignment_show,
+static BUS_ATTR(resource_alignment, 0644, pci_resource_alignment_show,
 					pci_resource_alignment_store);
 
 static int __init pci_resource_alignment_sysfs_init(void)
