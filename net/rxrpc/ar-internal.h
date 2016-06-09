@@ -39,9 +39,9 @@ struct rxrpc_crypt {
  * sk_state for RxRPC sockets
  */
 enum {
-	RXRPC_UNCONNECTED = 0,
+	RXRPC_UNBOUND = 0,
+	RXRPC_CLIENT_UNBOUND,		/* Unbound socket used as client */
 	RXRPC_CLIENT_BOUND,		/* client local address bound */
-	RXRPC_CLIENT_CONNECTED,		/* client is connected */
 	RXRPC_SERVER_BOUND,		/* server local address bound */
 	RXRPC_SERVER_LISTENING,		/* server listening for connections */
 	RXRPC_CLOSE,			/* socket is being closed */
@@ -55,8 +55,6 @@ struct rxrpc_sock {
 	struct sock		sk;
 	rxrpc_interceptor_t	interceptor;	/* kernel service Rx interceptor function */
 	struct rxrpc_local	*local;		/* local endpoint */
-	struct rxrpc_transport	*trans;		/* transport handler */
-	struct rxrpc_conn_bundle *bundle;	/* virtual connection bundle */
 	struct rxrpc_connection	*conn;		/* exclusive virtual connection */
 	struct list_head	listen_link;	/* link in the local endpoint's listen list */
 	struct list_head	secureq;	/* calls awaiting connection security clearance */
@@ -65,11 +63,13 @@ struct rxrpc_sock {
 	struct key		*securities;	/* list of server security descriptors */
 	struct rb_root		calls;		/* outstanding calls on this socket */
 	unsigned long		flags;
+#define RXRPC_SOCK_CONNECTED		0	/* connect_srx is set */
 #define RXRPC_SOCK_EXCLUSIVE_CONN	1	/* exclusive connection for a client socket */
 	rwlock_t		call_lock;	/* lock for calls */
 	u32			min_sec_level;	/* minimum security level */
 #define RXRPC_SECURITY_MAX	RXRPC_SECURITY_ENCRYPT
 	struct sockaddr_rxrpc	srx;		/* local address */
+	struct sockaddr_rxrpc	connect_srx;	/* Default client address from connect() */
 	sa_family_t		proto;		/* protocol created with */
 };
 
@@ -477,6 +477,10 @@ extern u32 rxrpc_epoch;
 extern atomic_t rxrpc_debug_id;
 extern struct workqueue_struct *rxrpc_workqueue;
 
+extern struct rxrpc_transport *rxrpc_name_to_transport(struct rxrpc_sock *,
+						       struct sockaddr *,
+						       int, int, gfp_t);
+
 /*
  * ar-accept.c
  */
@@ -502,14 +506,14 @@ extern rwlock_t rxrpc_call_lock;
 
 struct rxrpc_call *rxrpc_find_call_hash(struct rxrpc_host_header *,
 					void *, sa_family_t, const void *);
-struct rxrpc_call *rxrpc_get_client_call(struct rxrpc_sock *,
+struct rxrpc_call *rxrpc_find_call_by_user_ID(struct rxrpc_sock *, unsigned long);
+struct rxrpc_call *rxrpc_new_client_call(struct rxrpc_sock *,
 					 struct rxrpc_transport *,
 					 struct rxrpc_conn_bundle *,
-					 unsigned long, int, gfp_t);
+					 unsigned long, gfp_t);
 struct rxrpc_call *rxrpc_incoming_call(struct rxrpc_sock *,
 				       struct rxrpc_connection *,
 				       struct rxrpc_host_header *);
-struct rxrpc_call *rxrpc_find_server_call(struct rxrpc_sock *, unsigned long);
 void rxrpc_release_call(struct rxrpc_call *);
 void rxrpc_release_calls_on_socket(struct rxrpc_sock *);
 void __rxrpc_put_call(struct rxrpc_call *);
@@ -581,9 +585,7 @@ int rxrpc_get_server_data_key(struct rxrpc_connection *, const void *, time_t,
 extern unsigned int rxrpc_resend_timeout;
 
 int rxrpc_send_packet(struct rxrpc_transport *, struct sk_buff *);
-int rxrpc_client_sendmsg(struct rxrpc_sock *, struct rxrpc_transport *,
-			 struct msghdr *, size_t);
-int rxrpc_server_sendmsg(struct rxrpc_sock *, struct msghdr *, size_t);
+int rxrpc_do_sendmsg(struct rxrpc_sock *, struct msghdr *, size_t);
 
 /*
  * ar-peer.c

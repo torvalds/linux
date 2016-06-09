@@ -196,6 +196,43 @@ struct rxrpc_call *rxrpc_find_call_hash(
 }
 
 /*
+ * find an extant server call
+ * - called in process context with IRQs enabled
+ */
+struct rxrpc_call *rxrpc_find_call_by_user_ID(struct rxrpc_sock *rx,
+					      unsigned long user_call_ID)
+{
+	struct rxrpc_call *call;
+	struct rb_node *p;
+
+	_enter("%p,%lx", rx, user_call_ID);
+
+	read_lock(&rx->call_lock);
+
+	p = rx->calls.rb_node;
+	while (p) {
+		call = rb_entry(p, struct rxrpc_call, sock_node);
+
+		if (user_call_ID < call->user_call_ID)
+			p = p->rb_left;
+		else if (user_call_ID > call->user_call_ID)
+			p = p->rb_right;
+		else
+			goto found_extant_call;
+	}
+
+	read_unlock(&rx->call_lock);
+	_leave(" = NULL");
+	return NULL;
+
+found_extant_call:
+	rxrpc_get_call(call);
+	read_unlock(&rx->call_lock);
+	_leave(" = %p [%d]", call, atomic_read(&call->usage));
+	return call;
+}
+
+/*
  * allocate a new call
  */
 static struct rxrpc_call *rxrpc_alloc_call(gfp_t gfp)
@@ -311,51 +348,27 @@ static struct rxrpc_call *rxrpc_alloc_client_call(
  * set up a call for the given data
  * - called in process context with IRQs enabled
  */
-struct rxrpc_call *rxrpc_get_client_call(struct rxrpc_sock *rx,
+struct rxrpc_call *rxrpc_new_client_call(struct rxrpc_sock *rx,
 					 struct rxrpc_transport *trans,
 					 struct rxrpc_conn_bundle *bundle,
 					 unsigned long user_call_ID,
-					 int create,
 					 gfp_t gfp)
 {
-	struct rxrpc_call *call, *candidate;
-	struct rb_node *p, *parent, **pp;
+	struct rxrpc_call *call, *xcall;
+	struct rb_node *parent, **pp;
 
-	_enter("%p,%d,%d,%lx,%d",
-	       rx, trans ? trans->debug_id : -1, bundle ? bundle->debug_id : -1,
-	       user_call_ID, create);
+	_enter("%p,%d,%d,%lx",
+	       rx, trans->debug_id, bundle ? bundle->debug_id : -1,
+	       user_call_ID);
 
-	/* search the extant calls first for one that matches the specified
-	 * user ID */
-	read_lock(&rx->call_lock);
-
-	p = rx->calls.rb_node;
-	while (p) {
-		call = rb_entry(p, struct rxrpc_call, sock_node);
-
-		if (user_call_ID < call->user_call_ID)
-			p = p->rb_left;
-		else if (user_call_ID > call->user_call_ID)
-			p = p->rb_right;
-		else
-			goto found_extant_call;
+	call = rxrpc_alloc_client_call(rx, trans, bundle, gfp);
+	if (IS_ERR(call)) {
+		_leave(" = %ld", PTR_ERR(call));
+		return call;
 	}
 
-	read_unlock(&rx->call_lock);
-
-	if (!create || !trans)
-		return ERR_PTR(-EBADSLT);
-
-	/* not yet present - create a candidate for a new record and then
-	 * redo the search */
-	candidate = rxrpc_alloc_client_call(rx, trans, bundle, gfp);
-	if (IS_ERR(candidate)) {
-		_leave(" = %ld", PTR_ERR(candidate));
-		return candidate;
-	}
-
-	candidate->user_call_ID = user_call_ID;
-	__set_bit(RXRPC_CALL_HAS_USERID, &candidate->flags);
+	call->user_call_ID = user_call_ID;
+	__set_bit(RXRPC_CALL_HAS_USERID, &call->flags);
 
 	write_lock(&rx->call_lock);
 
@@ -363,19 +376,16 @@ struct rxrpc_call *rxrpc_get_client_call(struct rxrpc_sock *rx,
 	parent = NULL;
 	while (*pp) {
 		parent = *pp;
-		call = rb_entry(parent, struct rxrpc_call, sock_node);
+		xcall = rb_entry(parent, struct rxrpc_call, sock_node);
 
-		if (user_call_ID < call->user_call_ID)
+		if (user_call_ID < xcall->user_call_ID)
 			pp = &(*pp)->rb_left;
-		else if (user_call_ID > call->user_call_ID)
+		else if (user_call_ID > xcall->user_call_ID)
 			pp = &(*pp)->rb_right;
 		else
-			goto found_extant_second;
+			goto found_user_ID_now_present;
 	}
 
-	/* second search also failed; add the new call */
-	call = candidate;
-	candidate = NULL;
 	rxrpc_get_call(call);
 
 	rb_link_node(&call->sock_node, parent, pp);
@@ -391,20 +401,16 @@ struct rxrpc_call *rxrpc_get_client_call(struct rxrpc_sock *rx,
 	_leave(" = %p [new]", call);
 	return call;
 
-	/* we found the call in the list immediately */
-found_extant_call:
-	rxrpc_get_call(call);
-	read_unlock(&rx->call_lock);
-	_leave(" = %p [extant %d]", call, atomic_read(&call->usage));
-	return call;
-
-	/* we found the call on the second time through the list */
-found_extant_second:
-	rxrpc_get_call(call);
+	/* We unexpectedly found the user ID in the list after taking
+	 * the call_lock.  This shouldn't happen unless the user races
+	 * with itself and tries to add the same user ID twice at the
+	 * same time in different threads.
+	 */
+found_user_ID_now_present:
 	write_unlock(&rx->call_lock);
-	rxrpc_put_call(candidate);
-	_leave(" = %p [second %d]", call, atomic_read(&call->usage));
-	return call;
+	rxrpc_put_call(call);
+	_leave(" = -EEXIST [%p]", call);
+	return ERR_PTR(-EEXIST);
 }
 
 /*
@@ -563,46 +569,6 @@ old_call:
 	kmem_cache_free(rxrpc_call_jar, candidate);
 	_leave(" = -ECONNRESET [old]");
 	return ERR_PTR(-ECONNRESET);
-}
-
-/*
- * find an extant server call
- * - called in process context with IRQs enabled
- */
-struct rxrpc_call *rxrpc_find_server_call(struct rxrpc_sock *rx,
-					  unsigned long user_call_ID)
-{
-	struct rxrpc_call *call;
-	struct rb_node *p;
-
-	_enter("%p,%lx", rx, user_call_ID);
-
-	/* search the extant calls for one that matches the specified user
-	 * ID */
-	read_lock(&rx->call_lock);
-
-	p = rx->calls.rb_node;
-	while (p) {
-		call = rb_entry(p, struct rxrpc_call, sock_node);
-
-		if (user_call_ID < call->user_call_ID)
-			p = p->rb_left;
-		else if (user_call_ID > call->user_call_ID)
-			p = p->rb_right;
-		else
-			goto found_extant_call;
-	}
-
-	read_unlock(&rx->call_lock);
-	_leave(" = NULL");
-	return NULL;
-
-	/* we found the call in the list immediately */
-found_extant_call:
-	rxrpc_get_call(call);
-	read_unlock(&rx->call_lock);
-	_leave(" = %p [%d]", call, atomic_read(&call->usage));
-	return call;
 }
 
 /*

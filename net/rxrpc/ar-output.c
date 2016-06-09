@@ -32,13 +32,13 @@ static int rxrpc_send_data(struct rxrpc_sock *rx,
 /*
  * extract control messages from the sendmsg() control buffer
  */
-static int rxrpc_sendmsg_cmsg(struct rxrpc_sock *rx, struct msghdr *msg,
+static int rxrpc_sendmsg_cmsg(struct msghdr *msg,
 			      unsigned long *user_call_ID,
 			      enum rxrpc_command *command,
-			      u32 *abort_code,
-			      bool server)
+			      u32 *abort_code)
 {
 	struct cmsghdr *cmsg;
+	bool got_user_ID = false;
 	int len;
 
 	*command = RXRPC_CMD_SEND_DATA;
@@ -70,6 +70,7 @@ static int rxrpc_sendmsg_cmsg(struct rxrpc_sock *rx, struct msghdr *msg,
 					CMSG_DATA(cmsg);
 			}
 			_debug("User Call ID %lx", *user_call_ID);
+			got_user_ID = true;
 			break;
 
 		case RXRPC_ABORT:
@@ -90,8 +91,6 @@ static int rxrpc_sendmsg_cmsg(struct rxrpc_sock *rx, struct msghdr *msg,
 			*command = RXRPC_CMD_ACCEPT;
 			if (len != 0)
 				return -EINVAL;
-			if (!server)
-				return -EISCONN;
 			break;
 
 		default:
@@ -99,6 +98,8 @@ static int rxrpc_sendmsg_cmsg(struct rxrpc_sock *rx, struct msghdr *msg,
 		}
 	}
 
+	if (!got_user_ID)
+		return -EINVAL;
 	_leave(" = 0");
 	return 0;
 }
@@ -126,55 +127,96 @@ static void rxrpc_send_abort(struct rxrpc_call *call, u32 abort_code)
 }
 
 /*
+ * Create a new client call for sendmsg().
+ */
+static struct rxrpc_call *
+rxrpc_new_client_call_for_sendmsg(struct rxrpc_sock *rx, struct msghdr *msg,
+				  unsigned long user_call_ID)
+{
+	struct rxrpc_conn_bundle *bundle;
+	struct rxrpc_transport *trans;
+	struct rxrpc_call *call;
+	struct key *key;
+	long ret;
+
+	DECLARE_SOCKADDR(struct sockaddr_rxrpc *, srx, msg->msg_name);
+
+	_enter("");
+
+	if (!msg->msg_name)
+		return ERR_PTR(-EDESTADDRREQ);
+
+	trans = rxrpc_name_to_transport(rx, msg->msg_name, msg->msg_namelen, 0,
+					GFP_KERNEL);
+	if (IS_ERR(trans)) {
+		ret = PTR_ERR(trans);
+		goto out;
+	}
+
+	key = rx->key;
+	if (key && !rx->key->payload.data[0])
+		key = NULL;
+	bundle = rxrpc_get_bundle(rx, trans, key, srx->srx_service, GFP_KERNEL);
+	if (IS_ERR(bundle)) {
+		ret = PTR_ERR(bundle);
+		goto out_trans;
+	}
+
+	call = rxrpc_new_client_call(rx, trans, bundle, user_call_ID,
+				     GFP_KERNEL);
+	rxrpc_put_bundle(trans, bundle);
+	rxrpc_put_transport(trans);
+	if (IS_ERR(call)) {
+		ret = PTR_ERR(call);
+		goto out_trans;
+	}
+
+	_leave(" = %p\n", call);
+	return call;
+
+out_trans:
+	rxrpc_put_transport(trans);
+out:
+	_leave(" = %ld", ret);
+	return ERR_PTR(ret);
+}
+
+/*
  * send a message forming part of a client call through an RxRPC socket
  * - caller holds the socket locked
  * - the socket may be either a client socket or a server socket
  */
-int rxrpc_client_sendmsg(struct rxrpc_sock *rx, struct rxrpc_transport *trans,
-			 struct msghdr *msg, size_t len)
+int rxrpc_do_sendmsg(struct rxrpc_sock *rx, struct msghdr *msg, size_t len)
 {
-	struct rxrpc_conn_bundle *bundle;
 	enum rxrpc_command cmd;
 	struct rxrpc_call *call;
 	unsigned long user_call_ID = 0;
-	struct key *key;
-	u16 service_id;
 	u32 abort_code = 0;
 	int ret;
 
 	_enter("");
 
-	ASSERT(trans != NULL);
-
-	ret = rxrpc_sendmsg_cmsg(rx, msg, &user_call_ID, &cmd, &abort_code,
-				 false);
+	ret = rxrpc_sendmsg_cmsg(msg, &user_call_ID, &cmd, &abort_code);
 	if (ret < 0)
 		return ret;
 
-	bundle = NULL;
-	if (trans) {
-		service_id = rx->srx.srx_service;
-		if (msg->msg_name) {
-			DECLARE_SOCKADDR(struct sockaddr_rxrpc *, srx,
-					 msg->msg_name);
-			service_id = srx->srx_service;
-		}
-		key = rx->key;
-		if (key && !rx->key->payload.data[0])
-			key = NULL;
-		bundle = rxrpc_get_bundle(rx, trans, key, service_id,
-					  GFP_KERNEL);
-		if (IS_ERR(bundle))
-			return PTR_ERR(bundle);
+	if (cmd == RXRPC_CMD_ACCEPT) {
+		if (rx->sk.sk_state != RXRPC_SERVER_LISTENING)
+			return -EINVAL;
+		call = rxrpc_accept_call(rx, user_call_ID);
+		if (IS_ERR(call))
+			return PTR_ERR(call);
+		rxrpc_put_call(call);
+		return 0;
 	}
 
-	call = rxrpc_get_client_call(rx, trans, bundle, user_call_ID,
-				     abort_code == 0, GFP_KERNEL);
-	if (trans)
-		rxrpc_put_bundle(trans, bundle);
-	if (IS_ERR(call)) {
-		_leave(" = %ld", PTR_ERR(call));
-		return PTR_ERR(call);
+	call = rxrpc_find_call_by_user_ID(rx, user_call_ID);
+	if (!call) {
+		if (cmd != RXRPC_CMD_SEND_DATA)
+			return -EBADSLT;
+		call = rxrpc_new_client_call_for_sendmsg(rx, msg, user_call_ID);
+		if (IS_ERR(call))
+			return PTR_ERR(call);
 	}
 
 	_debug("CALL %d USR %lx ST %d on CONN %p",
@@ -182,13 +224,20 @@ int rxrpc_client_sendmsg(struct rxrpc_sock *rx, struct rxrpc_transport *trans,
 
 	if (call->state >= RXRPC_CALL_COMPLETE) {
 		/* it's too late for this call */
-		ret = -ESHUTDOWN;
+		ret = -ECONNRESET;
 	} else if (cmd == RXRPC_CMD_SEND_ABORT) {
 		rxrpc_send_abort(call, abort_code);
+		ret = 0;
 	} else if (cmd != RXRPC_CMD_SEND_DATA) {
 		ret = -EINVAL;
-	} else if (call->state != RXRPC_CALL_CLIENT_SEND_REQUEST) {
+	} else if (!call->in_clientflag &&
+		   call->state != RXRPC_CALL_CLIENT_SEND_REQUEST) {
 		/* request phase complete for this client call */
+		ret = -EPROTO;
+	} else if (call->in_clientflag &&
+		   call->state != RXRPC_CALL_SERVER_ACK_REQUEST &&
+		   call->state != RXRPC_CALL_SERVER_SEND_REPLY) {
+		/* Reply phase not begun or not complete for service call. */
 		ret = -EPROTO;
 	} else {
 		ret = rxrpc_send_data(rx, call, msg, len);
@@ -266,67 +315,6 @@ void rxrpc_kernel_abort_call(struct rxrpc_call *call, u32 abort_code)
 }
 
 EXPORT_SYMBOL(rxrpc_kernel_abort_call);
-
-/*
- * send a message through a server socket
- * - caller holds the socket locked
- */
-int rxrpc_server_sendmsg(struct rxrpc_sock *rx, struct msghdr *msg, size_t len)
-{
-	enum rxrpc_command cmd;
-	struct rxrpc_call *call;
-	unsigned long user_call_ID = 0;
-	u32 abort_code = 0;
-	int ret;
-
-	_enter("");
-
-	ret = rxrpc_sendmsg_cmsg(rx, msg, &user_call_ID, &cmd, &abort_code,
-				 true);
-	if (ret < 0)
-		return ret;
-
-	if (cmd == RXRPC_CMD_ACCEPT) {
-		call = rxrpc_accept_call(rx, user_call_ID);
-		if (IS_ERR(call))
-			return PTR_ERR(call);
-		rxrpc_put_call(call);
-		return 0;
-	}
-
-	call = rxrpc_find_server_call(rx, user_call_ID);
-	if (!call)
-		return -EBADSLT;
-	if (call->state >= RXRPC_CALL_COMPLETE) {
-		ret = -ESHUTDOWN;
-		goto out;
-	}
-
-	switch (cmd) {
-	case RXRPC_CMD_SEND_DATA:
-		if (call->state != RXRPC_CALL_CLIENT_SEND_REQUEST &&
-		    call->state != RXRPC_CALL_SERVER_ACK_REQUEST &&
-		    call->state != RXRPC_CALL_SERVER_SEND_REPLY) {
-			/* Tx phase not yet begun for this call */
-			ret = -EPROTO;
-			break;
-		}
-
-		ret = rxrpc_send_data(rx, call, msg, len);
-		break;
-
-	case RXRPC_CMD_SEND_ABORT:
-		rxrpc_send_abort(call, abort_code);
-		break;
-	default:
-		BUG();
-	}
-
-	out:
-	rxrpc_put_call(call);
-	_leave(" = %d", ret);
-	return ret;
-}
 
 /*
  * send a packet through the transport endpoint
