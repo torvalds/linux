@@ -104,14 +104,6 @@ static inline void set_fs(mm_segment_t fs)
 
 #define segment_eq(a, b)	((a) == (b))
 
-#define __addr_ok(addr) ({ \
-	unsigned long flag; \
-	__asm__("cmp %2, %0; movlo %0, #0" \
-		: "=&r" (flag) \
-		: "0" (current_thread_info()->addr_limit), "r" (addr) \
-		: "cc"); \
-	(flag == 0); })
-
 /* We use 33-bit arithmetic here... */
 #define __range_ok(addr, size) ({ \
 	unsigned long flag, roksum; \
