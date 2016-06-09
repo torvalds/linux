@@ -288,8 +288,7 @@ static int gb_connection_hd_cport_enable(struct gb_connection *connection)
 
 	ret = hd->driver->cport_enable(hd, connection->hd_cport_id);
 	if (ret) {
-		dev_err(&hd->dev,
-				"%s: failed to enable host cport: %d\n",
+		dev_err(&hd->dev, "%s: failed to enable host cport: %d\n",
 				connection->name, ret);
 		return ret;
 	}
@@ -307,8 +306,7 @@ static void gb_connection_hd_cport_disable(struct gb_connection *connection)
 
 	ret = hd->driver->cport_disable(hd, connection->hd_cport_id);
 	if (ret) {
-		dev_err(&hd->dev,
-				"%s: failed to disable host cport: %d\n",
+		dev_err(&hd->dev, "%s: failed to disable host cport: %d\n",
 				connection->name, ret);
 	}
 }
