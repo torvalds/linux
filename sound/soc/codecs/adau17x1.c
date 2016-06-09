@@ -23,6 +23,7 @@
 
 #include "sigmadsp.h"
 #include "adau17x1.h"
+#include "adau-utils.h"
 
 static const char * const adau17x1_capture_mixer_boost_text[] = {
 	"Normal operation", "Boost Level 1", "Boost Level 2", "Boost Level 3",
@@ -391,45 +392,14 @@ static int adau17x1_set_dai_pll(struct snd_soc_dai *dai, int pll_id,
 {
 	struct snd_soc_codec *codec = dai->codec;
 	struct adau *adau = snd_soc_codec_get_drvdata(codec);
-	unsigned int r, n, m, i, j;
-	unsigned int div;
 	int ret;
 
 	if (freq_in < 8000000 || freq_in > 27000000)
 		return -EINVAL;
 
-	if (!freq_out) {
-		r = 0;
-		n = 0;
-		m = 0;
-		div = 0;
-	} else {
-		if (freq_out % freq_in != 0) {
-			div = DIV_ROUND_UP(freq_in, 13500000);
-			freq_in /= div;
-			r = freq_out / freq_in;
-			i = freq_out % freq_in;
-			j = gcd(i, freq_in);
-			n = i / j;
-			m = freq_in / j;
-			div--;
-		} else {
-			r = freq_out / freq_in;
-			n = 0;
-			m = 0;
-			div = 0;
-		}
-		if (n > 0xffff || m > 0xffff || div > 3 || r > 8 || r < 2)
-			return -EINVAL;
-	}
-
-	adau->pll_regs[0] = m >> 8;
-	adau->pll_regs[1] = m & 0xff;
-	adau->pll_regs[2] = n >> 8;
-	adau->pll_regs[3] = n & 0xff;
-	adau->pll_regs[4] = (r << 3) | (div << 1);
-	if (m != 0)
-		adau->pll_regs[4] |= 1; /* Fractional mode */
+	ret = adau_calc_pll_cfg(freq_in, freq_out, adau->pll_regs);
+	if (ret < 0)
+		return ret;
 
 	/* The PLL register is 6 bytes long and can only be written at once. */
 	ret = regmap_raw_write(adau->regmap, ADAU17X1_PLL_CONTROL,
