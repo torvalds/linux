@@ -369,8 +369,8 @@ static int alloc_qpn(struct rvt_dev_info *rdi, struct rvt_qpn_table *qpt,
 			/* wrap to first map page, invert bit 0 */
 			offset = qpt->incr | ((offset & 1) ^ 1);
 		}
-		/* there can be no bits at shift and below */
-		WARN_ON(offset & (rdi->dparms.qos_shift - 1));
+		/* there can be no set bits in low-order QoS bits */
+		WARN_ON(offset & (BIT(rdi->dparms.qos_shift) - 1));
 		qpn = mk_qpn(qpt, map, offset);
 	}
 
