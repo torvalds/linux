@@ -366,8 +366,6 @@ void output_kvm_defines(void)
 	OFFSET(VCPU_HOST_EPC, kvm_vcpu_arch, host_cp0_epc);
 	OFFSET(VCPU_HOST_ENTRYHI, kvm_vcpu_arch, host_cp0_entryhi);
 
-	OFFSET(VCPU_GUEST_INST, kvm_vcpu_arch, guest_inst);
-
 	OFFSET(VCPU_R0, kvm_vcpu_arch, gprs[0]);
 	OFFSET(VCPU_R1, kvm_vcpu_arch, gprs[1]);
 	OFFSET(VCPU_R2, kvm_vcpu_arch, gprs[2]);
