@@ -165,6 +165,7 @@ static int rcar_fcp_remove(struct platform_device *pdev)
 }
 
 static const struct of_device_id rcar_fcp_of_match[] = {
+	{ .compatible = "renesas,fcpf" },
 	{ .compatible = "renesas,fcpv" },
 	{ },
 };
