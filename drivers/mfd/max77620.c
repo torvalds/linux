@@ -111,15 +111,6 @@ static const struct mfd_cell max20024_children[] = {
 	},
 };
 
-static struct regmap_irq_chip max77620_top_irq_chip = {
-	.name = "max77620-top",
-	.irqs = max77620_top_irqs,
-	.num_irqs = ARRAY_SIZE(max77620_top_irqs),
-	.num_regs = 2,
-	.status_base = MAX77620_REG_IRQTOP,
-	.mask_base = MAX77620_REG_IRQTOPM,
-};
-
 static const struct regmap_range max77620_readable_ranges[] = {
 	regmap_reg_range(MAX77620_REG_CNFGGLBL1, MAX77620_REG_DVSSD4),
 };
@@ -178,6 +169,51 @@ static const struct regmap_config max20024_regmap_config = {
 	.rd_table = &max20024_readable_table,
 	.wr_table = &max77620_writable_table,
 	.volatile_table = &max77620_volatile_table,
+};
+
+/*
+ * MAX77620 and MAX20024 has the following steps of the interrupt handling
+ * for TOP interrupts:
+ * 1. When interrupt occurs from PMIC, mask the PMIC interrupt by setting GLBLM.
+ * 2. Read IRQTOP and service the interrupt.
+ * 3. Once all interrupts has been checked and serviced, the interrupt service
+ *    routine un-masks the hardware interrupt line by clearing GLBLM.
+ */
+static int max77620_irq_global_mask(void *irq_drv_data)
+{
+	struct max77620_chip *chip = irq_drv_data;
+	int ret;
+
+	ret = regmap_update_bits(chip->rmap, MAX77620_REG_INTENLBT,
+				 MAX77620_GLBLM_MASK, MAX77620_GLBLM_MASK);
+	if (ret < 0)
+		dev_err(chip->dev, "Failed to set GLBLM: %d\n", ret);
+
+	return ret;
+}
+
+static int max77620_irq_global_unmask(void *irq_drv_data)
+{
+	struct max77620_chip *chip = irq_drv_data;
+	int ret;
+
+	ret = regmap_update_bits(chip->rmap, MAX77620_REG_INTENLBT,
+				 MAX77620_GLBLM_MASK, 0);
+	if (ret < 0)
+		dev_err(chip->dev, "Failed to reset GLBLM: %d\n", ret);
+
+	return ret;
+}
+
+static struct regmap_irq_chip max77620_top_irq_chip = {
+	.name = "max77620-top",
+	.irqs = max77620_top_irqs,
+	.num_irqs = ARRAY_SIZE(max77620_top_irqs),
+	.num_regs = 2,
+	.status_base = MAX77620_REG_IRQTOP,
+	.mask_base = MAX77620_REG_IRQTOPM,
+	.handle_pre_irq = max77620_irq_global_mask,
+	.handle_post_irq = max77620_irq_global_unmask,
 };
 
 /* max77620_get_fps_period_reg_value:  Get FPS bit field value from
@@ -431,6 +467,7 @@ static int max77620_probe(struct i2c_client *client,
 	if (ret < 0)
 		return ret;
 
+	max77620_top_irq_chip.irq_drv_data = chip;
 	ret = devm_regmap_add_irq_chip(chip->dev, chip->rmap, client->irq,
 				       IRQF_ONESHOT | IRQF_SHARED,
 				       chip->irq_base, &max77620_top_irq_chip,
