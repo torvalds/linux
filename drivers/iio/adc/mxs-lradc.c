@@ -373,13 +373,6 @@ static u32 mxs_lradc_plate_mask(struct mxs_lradc *lradc)
 	return LRADC_CTRL0_MX28_PLATE_MASK;
 }
 
-static u32 mxs_lradc_irq_en_mask(struct mxs_lradc *lradc)
-{
-	if (lradc->soc == IMX23_LRADC)
-		return LRADC_CTRL1_MX23_LRADC_IRQ_EN_MASK;
-	return LRADC_CTRL1_MX28_LRADC_IRQ_EN_MASK;
-}
-
 static u32 mxs_lradc_irq_mask(struct mxs_lradc *lradc)
 {
 	if (lradc->soc == IMX23_LRADC)
@@ -1120,18 +1113,16 @@ static int mxs_lradc_ts_register(struct mxs_lradc *lradc)
 {
 	struct input_dev *input;
 	struct device *dev = lradc->dev;
-	int ret;
 
 	if (!lradc->use_touchscreen)
 		return 0;
 
-	input = input_allocate_device();
+	input = devm_input_allocate_device(dev);
 	if (!input)
 		return -ENOMEM;
 
 	input->name = DRIVER_NAME;
 	input->id.bustype = BUS_HOST;
-	input->dev.parent = dev;
 	input->open = mxs_lradc_ts_open;
 	input->close = mxs_lradc_ts_close;
 
@@ -1146,20 +1137,8 @@ static int mxs_lradc_ts_register(struct mxs_lradc *lradc)
 
 	lradc->ts_input = input;
 	input_set_drvdata(input, lradc);
-	ret = input_register_device(input);
-	if (ret)
-		input_free_device(lradc->ts_input);
 
-	return ret;
-}
-
-static void mxs_lradc_ts_unregister(struct mxs_lradc *lradc)
-{
-	if (!lradc->use_touchscreen)
-		return;
-
-	mxs_lradc_disable_ts(lradc);
-	input_unregister_device(lradc->ts_input);
+	return input_register_device(input);
 }
 
 /*
@@ -1510,7 +1489,9 @@ static void mxs_lradc_hw_stop(struct mxs_lradc *lradc)
 {
 	int i;
 
-	mxs_lradc_reg_clear(lradc, mxs_lradc_irq_en_mask(lradc), LRADC_CTRL1);
+	mxs_lradc_reg_clear(lradc,
+		lradc->buffer_vchans << LRADC_CTRL1_LRADC_IRQ_EN_OFFSET,
+		LRADC_CTRL1);
 
 	for (i = 0; i < LRADC_MAX_DELAY_CHANS; i++)
 		mxs_lradc_reg_wrt(lradc, 0, LRADC_DELAY(i));
@@ -1721,13 +1702,11 @@ static int mxs_lradc_probe(struct platform_device *pdev)
 	ret = iio_device_register(iio);
 	if (ret) {
 		dev_err(dev, "Failed to register IIO device\n");
-		goto err_ts;
+		return ret;
 	}
 
 	return 0;
 
-err_ts:
-	mxs_lradc_ts_unregister(lradc);
 err_ts_register:
 	mxs_lradc_hw_stop(lradc);
 err_dev:
@@ -1745,7 +1724,6 @@ static int mxs_lradc_remove(struct platform_device *pdev)
 	struct mxs_lradc *lradc = iio_priv(iio);
 
 	iio_device_unregister(iio);
-	mxs_lradc_ts_unregister(lradc);
 	mxs_lradc_hw_stop(lradc);
 	mxs_lradc_trigger_remove(iio);
 	iio_triggered_buffer_cleanup(iio);

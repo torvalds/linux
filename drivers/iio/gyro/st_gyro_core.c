@@ -425,13 +425,15 @@ int st_gyro_common_probe(struct iio_dev *indio_dev)
 	indio_dev->info = &gyro_info;
 	mutex_init(&gdata->tb.buf_lock);
 
-	st_sensors_power_enable(indio_dev);
+	err = st_sensors_power_enable(indio_dev);
+	if (err)
+		return err;
 
 	err = st_sensors_check_device_support(indio_dev,
 					ARRAY_SIZE(st_gyro_sensors_settings),
 					st_gyro_sensors_settings);
 	if (err < 0)
-		return err;
+		goto st_gyro_power_off;
 
 	gdata->num_data_channels = ST_GYRO_NUMBER_DATA_CHANNELS;
 	gdata->multiread_bit = gdata->sensor_settings->multi_read_bit;
@@ -445,11 +447,11 @@ int st_gyro_common_probe(struct iio_dev *indio_dev)
 	err = st_sensors_init_sensor(indio_dev,
 				(struct st_sensors_platform_data *)&gyro_pdata);
 	if (err < 0)
-		return err;
+		goto st_gyro_power_off;
 
 	err = st_gyro_allocate_ring(indio_dev);
 	if (err < 0)
-		return err;
+		goto st_gyro_power_off;
 
 	if (irq > 0) {
 		err = st_sensors_allocate_trigger(indio_dev,
@@ -472,6 +474,8 @@ st_gyro_device_register_error:
 		st_sensors_deallocate_trigger(indio_dev);
 st_gyro_probe_trigger_error:
 	st_gyro_deallocate_ring(indio_dev);
+st_gyro_power_off:
+	st_sensors_power_disable(indio_dev);
 
 	return err;
 }

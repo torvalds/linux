@@ -757,13 +757,15 @@ int st_accel_common_probe(struct iio_dev *indio_dev)
 	indio_dev->info = &accel_info;
 	mutex_init(&adata->tb.buf_lock);
 
-	st_sensors_power_enable(indio_dev);
+	err = st_sensors_power_enable(indio_dev);
+	if (err)
+		return err;
 
 	err = st_sensors_check_device_support(indio_dev,
 					ARRAY_SIZE(st_accel_sensors_settings),
 					st_accel_sensors_settings);
 	if (err < 0)
-		return err;
+		goto st_accel_power_off;
 
 	adata->num_data_channels = ST_ACCEL_NUMBER_DATA_CHANNELS;
 	adata->multiread_bit = adata->sensor_settings->multi_read_bit;
@@ -780,11 +782,11 @@ int st_accel_common_probe(struct iio_dev *indio_dev)
 
 	err = st_sensors_init_sensor(indio_dev, adata->dev->platform_data);
 	if (err < 0)
-		return err;
+		goto st_accel_power_off;
 
 	err = st_accel_allocate_ring(indio_dev);
 	if (err < 0)
-		return err;
+		goto st_accel_power_off;
 
 	if (irq > 0) {
 		err = st_sensors_allocate_trigger(indio_dev,
@@ -807,6 +809,8 @@ st_accel_device_register_error:
 		st_sensors_deallocate_trigger(indio_dev);
 st_accel_probe_trigger_error:
 	st_accel_deallocate_ring(indio_dev);
+st_accel_power_off:
+	st_sensors_power_disable(indio_dev);
 
 	return err;
 }

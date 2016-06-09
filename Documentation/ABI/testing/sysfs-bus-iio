@@ -1565,3 +1565,10 @@ Description:
 		* X is in the plane of the propellers, perpendicular to Y axis,
 		  and positive towards the starboard side of the UAV ;
 		* Z is perpendicular to propellers plane and positive upwards.
+
+What:		/sys/bus/iio/devices/iio:deviceX/in_electricalconductivity_raw
+KernelVersion:	4.8
+Contact:	linux-iio@vger.kernel.org
+Description:
+		Raw (unscaled no offset etc.) electric conductivity reading that
+		can be processed to siemens per meter.

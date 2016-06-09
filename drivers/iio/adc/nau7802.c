@@ -79,10 +79,29 @@ static const struct iio_chan_spec nau7802_chan_array[] = {
 static const u16 nau7802_sample_freq_avail[] = {10, 20, 40, 80,
 						10, 10, 10, 320};
 
+static ssize_t nau7802_show_scales(struct device *dev,
+				   struct device_attribute *attr, char *buf)
+{
+	struct nau7802_state *st = iio_priv(dev_to_iio_dev(dev));
+	int i, len = 0;
+
+	for (i = 0; i < ARRAY_SIZE(st->scale_avail); i++)
+		len += scnprintf(buf + len, PAGE_SIZE - len, "0.%09d ",
+				 st->scale_avail[i]);
+
+	buf[len-1] = '\n';
+
+	return len;
+}
+
 static IIO_CONST_ATTR_SAMP_FREQ_AVAIL("10 40 80 320");
+
+static IIO_DEVICE_ATTR(in_voltage_scale_available, S_IRUGO, nau7802_show_scales,
+		       NULL, 0);
 
 static struct attribute *nau7802_attributes[] = {
 	&iio_const_attr_sampling_frequency_available.dev_attr.attr,
+	&iio_dev_attr_in_voltage_scale_available.dev_attr.attr,
 	NULL
 };
 

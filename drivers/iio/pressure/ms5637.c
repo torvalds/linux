@@ -173,6 +173,7 @@ static const struct i2c_device_id ms5637_id[] = {
 	{"ms8607-temppressure", 1},
 	{}
 };
+MODULE_DEVICE_TABLE(i2c, ms5637_id);
 
 static struct i2c_driver ms5637_driver = {
 	.probe = ms5637_probe,
