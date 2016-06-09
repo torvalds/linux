@@ -128,7 +128,7 @@ static int kvm_trap_emul_handle_tlb_mod(struct kvm_vcpu *vcpu)
 	return ret;
 }
 
-static int kvm_trap_emul_handle_tlb_st_miss(struct kvm_vcpu *vcpu)
+static int kvm_trap_emul_handle_tlb_miss(struct kvm_vcpu *vcpu, bool store)
 {
 	struct kvm_run *run = vcpu->run;
 	u32 __user *opc = (u32 __user *) vcpu->arch.pc;
@@ -145,55 +145,8 @@ static int kvm_trap_emul_handle_tlb_st_miss(struct kvm_vcpu *vcpu)
 		}
 	} else if (KVM_GUEST_KSEGX(badvaddr) < KVM_GUEST_KSEG0
 		   || KVM_GUEST_KSEGX(badvaddr) == KVM_GUEST_KSEG23) {
-		kvm_debug("USER ADDR TLB LD fault: cause %#x, PC: %p, BadVaddr: %#lx\n",
-			  cause, opc, badvaddr);
-		er = kvm_mips_handle_tlbmiss(cause, opc, run, vcpu);
-		if (er == EMULATE_DONE)
-			ret = RESUME_GUEST;
-		else {
-			run->exit_reason = KVM_EXIT_INTERNAL_ERROR;
-			ret = RESUME_HOST;
-		}
-	} else if (KVM_GUEST_KSEGX(badvaddr) == KVM_GUEST_KSEG0) {
-		/*
-		 * All KSEG0 faults are handled by KVM, as the guest kernel does
-		 * not expect to ever get them
-		 */
-		if (kvm_mips_handle_kseg0_tlb_fault
-		    (vcpu->arch.host_cp0_badvaddr, vcpu) < 0) {
-			run->exit_reason = KVM_EXIT_INTERNAL_ERROR;
-			ret = RESUME_HOST;
-		}
-	} else {
-		kvm_err("Illegal TLB LD fault address , cause %#x, PC: %p, BadVaddr: %#lx\n",
-			cause, opc, badvaddr);
-		kvm_mips_dump_host_tlbs();
-		kvm_arch_vcpu_dump_regs(vcpu);
-		run->exit_reason = KVM_EXIT_INTERNAL_ERROR;
-		ret = RESUME_HOST;
-	}
-	return ret;
-}
-
-static int kvm_trap_emul_handle_tlb_ld_miss(struct kvm_vcpu *vcpu)
-{
-	struct kvm_run *run = vcpu->run;
-	u32 __user *opc = (u32 __user *) vcpu->arch.pc;
-	unsigned long badvaddr = vcpu->arch.host_cp0_badvaddr;
-	u32 cause = vcpu->arch.host_cp0_cause;
-	enum emulation_result er = EMULATE_DONE;
-	int ret = RESUME_GUEST;
-
-	if (((badvaddr & PAGE_MASK) == KVM_GUEST_COMMPAGE_ADDR)
-	    && KVM_GUEST_KERNEL_MODE(vcpu)) {
-		if (kvm_mips_handle_commpage_tlb_fault(badvaddr, vcpu) < 0) {
-			run->exit_reason = KVM_EXIT_INTERNAL_ERROR;
-			ret = RESUME_HOST;
-		}
-	} else if (KVM_GUEST_KSEGX(badvaddr) < KVM_GUEST_KSEG0
-		   || KVM_GUEST_KSEGX(badvaddr) == KVM_GUEST_KSEG23) {
-		kvm_debug("USER ADDR TLB ST fault: PC: %#lx, BadVaddr: %#lx\n",
-			  vcpu->arch.pc, badvaddr);
+		kvm_debug("USER ADDR TLB %s fault: cause %#x, PC: %p, BadVaddr: %#lx\n",
+			  store ? "ST" : "LD", cause, opc, badvaddr);
 
 		/*
 		 * User Address (UA) fault, this could happen if
@@ -213,20 +166,34 @@ static int kvm_trap_emul_handle_tlb_ld_miss(struct kvm_vcpu *vcpu)
 			ret = RESUME_HOST;
 		}
 	} else if (KVM_GUEST_KSEGX(badvaddr) == KVM_GUEST_KSEG0) {
+		/*
+		 * All KSEG0 faults are handled by KVM, as the guest kernel does
+		 * not expect to ever get them
+		 */
 		if (kvm_mips_handle_kseg0_tlb_fault
 		    (vcpu->arch.host_cp0_badvaddr, vcpu) < 0) {
 			run->exit_reason = KVM_EXIT_INTERNAL_ERROR;
 			ret = RESUME_HOST;
 		}
 	} else {
-		kvm_err("Illegal TLB ST fault address , cause %#x, PC: %p, BadVaddr: %#lx\n",
-			cause, opc, badvaddr);
+		kvm_err("Illegal TLB %s fault address , cause %#x, PC: %p, BadVaddr: %#lx\n",
+			store ? "ST" : "LD", cause, opc, badvaddr);
 		kvm_mips_dump_host_tlbs();
 		kvm_arch_vcpu_dump_regs(vcpu);
 		run->exit_reason = KVM_EXIT_INTERNAL_ERROR;
 		ret = RESUME_HOST;
 	}
 	return ret;
+}
+
+static int kvm_trap_emul_handle_tlb_st_miss(struct kvm_vcpu *vcpu)
+{
+	return kvm_trap_emul_handle_tlb_miss(vcpu, true);
+}
+
+static int kvm_trap_emul_handle_tlb_ld_miss(struct kvm_vcpu *vcpu)
+{
+	return kvm_trap_emul_handle_tlb_miss(vcpu, false);
 }
 
 static int kvm_trap_emul_handle_addr_err_st(struct kvm_vcpu *vcpu)
