@@ -86,18 +86,19 @@ void kvm_mips_dump_guest_tlbs(struct kvm_vcpu *vcpu)
 	for (i = 0; i < KVM_MIPS_GUEST_TLB_SIZE; i++) {
 		tlb = vcpu->arch.guest_tlb[i];
 		kvm_info("TLB%c%3d Hi 0x%08lx ",
-			 (tlb.tlb_lo0 | tlb.tlb_lo1) & MIPS3_PG_V ? ' ' : '*',
+			 (tlb.tlb_lo[0] | tlb.tlb_lo[1]) & MIPS3_PG_V
+							? ' ' : '*',
 			 i, tlb.tlb_hi);
 		kvm_info("Lo0=0x%09llx %c%c attr %lx ",
-			 (u64) mips3_tlbpfn_to_paddr(tlb.tlb_lo0),
-			 (tlb.tlb_lo0 & MIPS3_PG_D) ? 'D' : ' ',
-			 (tlb.tlb_lo0 & MIPS3_PG_G) ? 'G' : ' ',
-			 (tlb.tlb_lo0 >> 3) & 7);
+			 (u64) mips3_tlbpfn_to_paddr(tlb.tlb_lo[0]),
+			 (tlb.tlb_lo[0] & MIPS3_PG_D) ? 'D' : ' ',
+			 (tlb.tlb_lo[0] & MIPS3_PG_G) ? 'G' : ' ',
+			 (tlb.tlb_lo[0] >> 3) & 7);
 		kvm_info("Lo1=0x%09llx %c%c attr %lx sz=%lx\n",
-			 (u64) mips3_tlbpfn_to_paddr(tlb.tlb_lo1),
-			 (tlb.tlb_lo1 & MIPS3_PG_D) ? 'D' : ' ',
-			 (tlb.tlb_lo1 & MIPS3_PG_G) ? 'G' : ' ',
-			 (tlb.tlb_lo1 >> 3) & 7, tlb.tlb_mask);
+			 (u64) mips3_tlbpfn_to_paddr(tlb.tlb_lo[1]),
+			 (tlb.tlb_lo[1] & MIPS3_PG_D) ? 'D' : ' ',
+			 (tlb.tlb_lo[1] & MIPS3_PG_G) ? 'G' : ' ',
+			 (tlb.tlb_lo[1] >> 3) & 7, tlb.tlb_mask);
 	}
 }
 EXPORT_SYMBOL_GPL(kvm_mips_dump_guest_tlbs);
@@ -219,7 +220,7 @@ int kvm_mips_guest_tlb_lookup(struct kvm_vcpu *vcpu, unsigned long entryhi)
 	}
 
 	kvm_debug("%s: entryhi: %#lx, index: %d lo0: %#lx, lo1: %#lx\n",
-		  __func__, entryhi, index, tlb[i].tlb_lo0, tlb[i].tlb_lo1);
+		  __func__, entryhi, index, tlb[i].tlb_lo[0], tlb[i].tlb_lo[1]);
 
 	return index;
 }

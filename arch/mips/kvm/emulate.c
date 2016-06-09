@@ -833,8 +833,8 @@ enum emulation_result kvm_mips_emul_tlbwi(struct kvm_vcpu *vcpu)
 
 	tlb->tlb_mask = kvm_read_c0_guest_pagemask(cop0);
 	tlb->tlb_hi = kvm_read_c0_guest_entryhi(cop0);
-	tlb->tlb_lo0 = kvm_read_c0_guest_entrylo0(cop0);
-	tlb->tlb_lo1 = kvm_read_c0_guest_entrylo1(cop0);
+	tlb->tlb_lo[0] = kvm_read_c0_guest_entrylo0(cop0);
+	tlb->tlb_lo[1] = kvm_read_c0_guest_entrylo1(cop0);
 
 	kvm_debug("[%#lx] COP0_TLBWI [%d] (entryhi: %#lx, entrylo0: %#lx entrylo1: %#lx, mask: %#lx)\n",
 		  pc, index, kvm_read_c0_guest_entryhi(cop0),
@@ -866,8 +866,8 @@ enum emulation_result kvm_mips_emul_tlbwr(struct kvm_vcpu *vcpu)
 
 	tlb->tlb_mask = kvm_read_c0_guest_pagemask(cop0);
 	tlb->tlb_hi = kvm_read_c0_guest_entryhi(cop0);
-	tlb->tlb_lo0 = kvm_read_c0_guest_entrylo0(cop0);
-	tlb->tlb_lo1 = kvm_read_c0_guest_entrylo1(cop0);
+	tlb->tlb_lo[0] = kvm_read_c0_guest_entrylo0(cop0);
+	tlb->tlb_lo[1] = kvm_read_c0_guest_entrylo1(cop0);
 
 	kvm_debug("[%#lx] COP0_TLBWR[%d] (entryhi: %#lx, entrylo0: %#lx entrylo1: %#lx)\n",
 		  pc, index, kvm_read_c0_guest_entryhi(cop0),
@@ -2592,7 +2592,7 @@ enum emulation_result kvm_mips_handle_tlbmiss(u32 cause,
 			}
 		} else {
 			kvm_debug("Injecting hi: %#lx, lo0: %#lx, lo1: %#lx into shadow host TLB\n",
-				  tlb->tlb_hi, tlb->tlb_lo0, tlb->tlb_lo1);
+				  tlb->tlb_hi, tlb->tlb_lo[0], tlb->tlb_lo[1]);
 			/*
 			 * OK we have a Guest TLB entry, now inject it into the
 			 * shadow host TLB

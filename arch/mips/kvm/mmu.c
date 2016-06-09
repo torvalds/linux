@@ -141,28 +141,30 @@ int kvm_mips_handle_mapped_seg_tlb_fault(struct kvm_vcpu *vcpu,
 		pfn0 = 0;
 		pfn1 = 0;
 	} else {
-		if (kvm_mips_map_page(kvm, mips3_tlbpfn_to_paddr(tlb->tlb_lo0)
+		if (kvm_mips_map_page(kvm, mips3_tlbpfn_to_paddr(tlb->tlb_lo[0])
 					   >> PAGE_SHIFT) < 0)
 			return -1;
 
-		if (kvm_mips_map_page(kvm, mips3_tlbpfn_to_paddr(tlb->tlb_lo1)
+		if (kvm_mips_map_page(kvm, mips3_tlbpfn_to_paddr(tlb->tlb_lo[1])
 					   >> PAGE_SHIFT) < 0)
 			return -1;
 
-		pfn0 = kvm->arch.guest_pmap[mips3_tlbpfn_to_paddr(tlb->tlb_lo0)
-					    >> PAGE_SHIFT];
-		pfn1 = kvm->arch.guest_pmap[mips3_tlbpfn_to_paddr(tlb->tlb_lo1)
-					    >> PAGE_SHIFT];
+		pfn0 = kvm->arch.guest_pmap[
+			mips3_tlbpfn_to_paddr(tlb->tlb_lo[0]) >> PAGE_SHIFT];
+		pfn1 = kvm->arch.guest_pmap[
+			mips3_tlbpfn_to_paddr(tlb->tlb_lo[1]) >> PAGE_SHIFT];
 	}
 
 	/* Get attributes from the Guest TLB */
 	entrylo0 = mips3_paddr_to_tlbpfn(pfn0 << PAGE_SHIFT) | (0x3 << 3) |
-		   (tlb->tlb_lo0 & MIPS3_PG_D) | (tlb->tlb_lo0 & MIPS3_PG_V);
+		   (tlb->tlb_lo[0] & MIPS3_PG_D) |
+		   (tlb->tlb_lo[0] & MIPS3_PG_V);
 	entrylo1 = mips3_paddr_to_tlbpfn(pfn1 << PAGE_SHIFT) | (0x3 << 3) |
-		   (tlb->tlb_lo1 & MIPS3_PG_D) | (tlb->tlb_lo1 & MIPS3_PG_V);
+		   (tlb->tlb_lo[1] & MIPS3_PG_D) |
+		   (tlb->tlb_lo[1] & MIPS3_PG_V);
 
 	kvm_debug("@ %#lx tlb_lo0: 0x%08lx tlb_lo1: 0x%08lx\n", vcpu->arch.pc,
-		  tlb->tlb_lo0, tlb->tlb_lo1);
+		  tlb->tlb_lo[0], tlb->tlb_lo[1]);
 
 	preempt_disable();
 	entryhi = (tlb->tlb_hi & VPN2_MASK) | (KVM_GUEST_KERNEL_MODE(vcpu) ?
