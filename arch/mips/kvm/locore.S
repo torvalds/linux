@@ -306,7 +306,7 @@ NESTED (MIPSX(GuestException), CALLFRAME_SIZ, ra)
 	LONG_S	k0, VCPU_HOST_CP0_BADVADDR(k1)
 
 	mfc0	k0, CP0_CAUSE
-	LONG_S	k0, VCPU_HOST_CP0_CAUSE(k1)
+	sw	k0, VCPU_HOST_CP0_CAUSE(k1)
 
 	/* Now restore the host state just enough to run the handlers */
 
