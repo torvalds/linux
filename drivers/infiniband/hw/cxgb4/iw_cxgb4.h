@@ -789,10 +789,29 @@ enum c4iw_ep_history {
 	CM_ID_DEREFED		= 28,
 };
 
+enum conn_pre_alloc_buffers {
+	CN_ABORT_REQ_BUF,
+	CN_ABORT_RPL_BUF,
+	CN_CLOSE_CON_REQ_BUF,
+	CN_DESTROY_BUF,
+	CN_FLOWC_BUF,
+	CN_MAX_CON_BUF
+};
+
+#define FLOWC_LEN 80
+union cpl_wr_size {
+	struct cpl_abort_req abrt_req;
+	struct cpl_abort_rpl abrt_rpl;
+	struct fw_ri_wr ri_req;
+	struct cpl_close_con_req close_req;
+	char flowc_buf[FLOWC_LEN];
+};
+
 struct c4iw_ep_common {
 	struct iw_cm_id *cm_id;
 	struct c4iw_qp *qp;
 	struct c4iw_dev *dev;
+	struct sk_buff_head ep_skb_list;
 	enum c4iw_ep_state state;
 	struct kref kref;
 	struct mutex mutex;
