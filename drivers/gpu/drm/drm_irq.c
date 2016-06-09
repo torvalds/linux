@@ -89,11 +89,7 @@ static void store_vblank(struct drm_device *dev, unsigned int pipe,
 	write_sequnlock(&vblank->seqlock);
 }
 
-/**
- * drm_reset_vblank_timestamp - reset the last timestamp to the last vblank
- * @dev: DRM device
- * @pipe: index of CRTC for which to reset the timestamp
- *
+/*
  * Reset the stored timestamp for the current vblank count to correspond
  * to the last vblank occurred.
  *
@@ -137,11 +133,7 @@ static void drm_reset_vblank_timestamp(struct drm_device *dev, unsigned int pipe
 	spin_unlock(&dev->vblank_time_lock);
 }
 
-/**
- * drm_update_vblank_count - update the master vblank counter
- * @dev: DRM device
- * @pipe: counter to update
- *
+/*
  * Call back into the driver to update the appropriate vblank counter
  * (specified by @pipe).  Deal with wraparound, if it occurred, and
  * update the last read value so we can deal with wraparound on the next

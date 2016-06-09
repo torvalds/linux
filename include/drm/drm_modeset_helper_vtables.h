@@ -736,6 +736,11 @@ struct drm_connector_helper_funcs {
 	 * inspect dynamic configuration state should instead use
 	 * @atomic_best_encoder.
 	 *
+	 * You can leave this function to NULL if the connector is only
+	 * attached to a single encoder and you are using the atomic helpers.
+	 * In this case, the core will call drm_atomic_helper_best_encoder()
+	 * for you.
+	 *
 	 * RETURNS:
 	 *
 	 * Encoder that should be used for the given connector and connector
@@ -752,8 +757,9 @@ struct drm_connector_helper_funcs {
 	 * need to select the best encoder depending upon the desired
 	 * configuration and can't select it statically.
 	 *
-	 * This function is used by drm_atomic_helper_check_modeset() and either
-	 * this or @best_encoder is required.
+	 * This function is used by drm_atomic_helper_check_modeset().
+	 * If it is not implemented, the core will fallback to @best_encoder
+	 * (or drm_atomic_helper_best_encoder() if @best_encoder is NULL).
 	 *
 	 * NOTE:
 	 *

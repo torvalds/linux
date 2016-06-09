@@ -156,7 +156,7 @@ static int virtio_gpu_page_flip(struct drm_crtc *crtc,
 
 	if (event) {
 		spin_lock_irqsave(&crtc->dev->event_lock, irqflags);
-		drm_send_vblank_event(crtc->dev, -1, event);
+		drm_crtc_send_vblank_event(crtc, event);
 		spin_unlock_irqrestore(&crtc->dev->event_lock, irqflags);
 	}
 

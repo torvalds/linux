@@ -142,8 +142,9 @@ static int omap_atomic_commit(struct drm_device *dev,
 {
 	struct omap_drm_private *priv = dev->dev_private;
 	struct omap_atomic_state_commit *commit;
-	unsigned int i;
-	int ret;
+	struct drm_crtc *crtc;
+	struct drm_crtc_state *crtc_state;
+	int i, ret;
 
 	ret = drm_atomic_helper_prepare_planes(dev, state);
 	if (ret)
@@ -163,10 +164,8 @@ static int omap_atomic_commit(struct drm_device *dev,
 	/* Wait until all affected CRTCs have completed previous commits and
 	 * mark them as pending.
 	 */
-	for (i = 0; i < dev->mode_config.num_crtc; ++i) {
-		if (state->crtcs[i])
-			commit->crtcs |= 1 << drm_crtc_index(state->crtcs[i]);
-	}
+	for_each_crtc_in_state(state, crtc, crtc_state, i)
+		commit->crtcs |= drm_crtc_mask(crtc);
 
 	wait_event(priv->commit.wait, !omap_atomic_is_pending(priv, commit));
 

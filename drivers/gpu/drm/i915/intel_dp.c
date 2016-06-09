@@ -5214,14 +5214,14 @@ void intel_edp_drrs_flush(struct drm_device *dev,
  *
  * DRRS saves power by switching to low RR based on usage scenarios.
  *
- * eDP DRRS:-
- *        The implementation is based on frontbuffer tracking implementation.
- * When there is a disturbance on the screen triggered by user activity or a
- * periodic system activity, DRRS is disabled (RR is changed to high RR).
- * When there is no movement on screen, after a timeout of 1 second, a switch
- * to low RR is made.
- *        For integration with frontbuffer tracking code,
- * intel_edp_drrs_invalidate() and intel_edp_drrs_flush() are called.
+ * The implementation is based on frontbuffer tracking implementation.  When
+ * there is a disturbance on the screen triggered by user activity or a periodic
+ * system activity, DRRS is disabled (RR is changed to high RR).  When there is
+ * no movement on screen, after a timeout of 1 second, a switch to low RR is
+ * made.
+ *
+ * For integration with frontbuffer tracking code, intel_edp_drrs_invalidate()
+ * and intel_edp_drrs_flush() are called.
  *
  * DRRS can be further extended to support other internal panels and also
  * the scenario of video playback wherein RR is set based on the rate

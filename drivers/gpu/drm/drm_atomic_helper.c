@@ -110,8 +110,10 @@ static int handle_conflicting_encoders(struct drm_atomic_state *state,
 
 		if (funcs->atomic_best_encoder)
 			new_encoder = funcs->atomic_best_encoder(connector, conn_state);
-		else
+		else if (funcs->best_encoder)
 			new_encoder = funcs->best_encoder(connector);
+		else
+			new_encoder = drm_atomic_helper_best_encoder(connector);
 
 		if (new_encoder) {
 			if (encoder_mask & (1 << drm_encoder_index(new_encoder))) {
@@ -298,8 +300,10 @@ update_connector_routing(struct drm_atomic_state *state,
 	if (funcs->atomic_best_encoder)
 		new_encoder = funcs->atomic_best_encoder(connector,
 							 connector_state);
-	else
+	else if (funcs->best_encoder)
 		new_encoder = funcs->best_encoder(connector);
+	else
+		new_encoder = drm_atomic_helper_best_encoder(connector);
 
 	if (!new_encoder) {
 		DRM_DEBUG_ATOMIC("No suitable encoder found for [CONNECTOR:%d:%s]\n",
@@ -614,7 +618,7 @@ drm_atomic_helper_check_planes(struct drm_device *dev,
 		if (!funcs || !funcs->atomic_check)
 			continue;
 
-		ret = funcs->atomic_check(crtc, state->crtc_states[i]);
+		ret = funcs->atomic_check(crtc, crtc_state);
 		if (ret) {
 			DRM_DEBUG_ATOMIC("[CRTC:%d:%s] atomic driver check failed\n",
 					 crtc->base.id, crtc->name);
@@ -1252,16 +1256,12 @@ EXPORT_SYMBOL(drm_atomic_helper_commit);
 int drm_atomic_helper_prepare_planes(struct drm_device *dev,
 				     struct drm_atomic_state *state)
 {
-	int nplanes = dev->mode_config.num_total_plane;
-	int ret, i;
+	struct drm_plane *plane;
+	struct drm_plane_state *plane_state;
+	int ret, i, j;
 
-	for (i = 0; i < nplanes; i++) {
+	for_each_plane_in_state(state, plane, plane_state, i) {
 		const struct drm_plane_helper_funcs *funcs;
-		struct drm_plane *plane = state->planes[i];
-		struct drm_plane_state *plane_state = state->plane_states[i];
-
-		if (!plane)
-			continue;
 
 		funcs = plane->helper_private;
 
@@ -1275,12 +1275,10 @@ int drm_atomic_helper_prepare_planes(struct drm_device *dev,
 	return 0;
 
 fail:
-	for (i--; i >= 0; i--) {
+	for_each_plane_in_state(state, plane, plane_state, j) {
 		const struct drm_plane_helper_funcs *funcs;
-		struct drm_plane *plane = state->planes[i];
-		struct drm_plane_state *plane_state = state->plane_states[i];
 
-		if (!plane)
+		if (j >= i)
 			continue;
 
 		funcs = plane->helper_private;
@@ -1567,37 +1565,28 @@ void drm_atomic_helper_swap_state(struct drm_device *dev,
 				  struct drm_atomic_state *state)
 {
 	int i;
+	struct drm_connector *connector;
+	struct drm_connector_state *conn_state;
+	struct drm_crtc *crtc;
+	struct drm_crtc_state *crtc_state;
+	struct drm_plane *plane;
+	struct drm_plane_state *plane_state;
 
-	for (i = 0; i < state->num_connector; i++) {
-		struct drm_connector *connector = state->connectors[i];
-
-		if (!connector)
-			continue;
-
+	for_each_connector_in_state(state, connector, conn_state, i) {
 		connector->state->state = state;
-		swap(state->connector_states[i], connector->state);
+		swap(state->connectors[i].state, connector->state);
 		connector->state->state = NULL;
 	}
 
-	for (i = 0; i < dev->mode_config.num_crtc; i++) {
-		struct drm_crtc *crtc = state->crtcs[i];
-
-		if (!crtc)
-			continue;
-
+	for_each_crtc_in_state(state, crtc, crtc_state, i) {
 		crtc->state->state = state;
-		swap(state->crtc_states[i], crtc->state);
+		swap(state->crtcs[i].state, crtc->state);
 		crtc->state->state = NULL;
 	}
 
-	for (i = 0; i < dev->mode_config.num_total_plane; i++) {
-		struct drm_plane *plane = state->planes[i];
-
-		if (!plane)
-			continue;
-
+	for_each_plane_in_state(state, plane, plane_state, i) {
 		plane->state->state = state;
-		swap(state->plane_states[i], plane->state);
+		swap(state->planes[i].state, plane->state);
 		plane->state->state = NULL;
 	}
 }
@@ -2412,7 +2401,7 @@ EXPORT_SYMBOL(drm_atomic_helper_page_flip);
  * This is the main helper function provided by the atomic helper framework for
  * implementing the legacy DPMS connector interface. It computes the new desired
  * ->active state for the corresponding CRTC (if the connector is enabled) and
- *  updates it.
+ * updates it.
  *
  * Returns:
  * Returns 0 on success, negative errno numbers on failure.
@@ -2933,16 +2922,15 @@ EXPORT_SYMBOL(drm_atomic_helper_connector_destroy_state);
  * @red: red correction table
  * @green: green correction table
  * @blue: green correction table
- * @start:
  * @size: size of the tables
  *
  * Implements support for legacy gamma correction table for drivers
  * that support color management through the DEGAMMA_LUT/GAMMA_LUT
  * properties.
  */
-void drm_atomic_helper_legacy_gamma_set(struct drm_crtc *crtc,
-					u16 *red, u16 *green, u16 *blue,
-					uint32_t start, uint32_t size)
+int drm_atomic_helper_legacy_gamma_set(struct drm_crtc *crtc,
+				       u16 *red, u16 *green, u16 *blue,
+				       uint32_t size)
 {
 	struct drm_device *dev = crtc->dev;
 	struct drm_mode_config *config = &dev->mode_config;
@@ -2954,7 +2942,7 @@ void drm_atomic_helper_legacy_gamma_set(struct drm_crtc *crtc,
 
 	state = drm_atomic_state_alloc(crtc->dev);
 	if (!state)
-		return;
+		return -ENOMEM;
 
 	blob = drm_property_create_blob(dev,
 					sizeof(struct drm_color_lut) * size,
@@ -3005,7 +2993,7 @@ retry:
 
 	drm_property_unreference_blob(blob);
 
-	return;
+	return 0;
 fail:
 	if (ret == -EDEADLK)
 		goto backoff;
@@ -3013,7 +3001,7 @@ fail:
 	drm_atomic_state_free(state);
 	drm_property_unreference_blob(blob);
 
-	return;
+	return ret;
 backoff:
 	drm_atomic_state_clear(state);
 	drm_atomic_legacy_backoff(state);

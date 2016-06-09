@@ -219,10 +219,12 @@ EXPORT_SYMBOL(drm_plane_helper_check_update);
  *
  * Note that we make some assumptions about hardware limitations that may not be
  * true for all hardware --
- *   1) Primary plane cannot be repositioned.
- *   2) Primary plane cannot be scaled.
- *   3) Primary plane must cover the entire CRTC.
- *   4) Subpixel positioning is not supported.
+ *
+ * 1. Primary plane cannot be repositioned.
+ * 2. Primary plane cannot be scaled.
+ * 3. Primary plane must cover the entire CRTC.
+ * 4. Subpixel positioning is not supported.
+ *
  * Drivers for hardware that don't have these restrictions can provide their
  * own implementation rather than using this helper.
  *

@@ -227,7 +227,7 @@ static void drm_fb_helper_restore_lut_atomic(struct drm_crtc *crtc)
 	g_base = r_base + crtc->gamma_size;
 	b_base = g_base + crtc->gamma_size;
 
-	crtc->funcs->gamma_set(crtc, r_base, g_base, b_base, 0, crtc->gamma_size);
+	crtc->funcs->gamma_set(crtc, r_base, g_base, b_base, crtc->gamma_size);
 }
 
 /**
@@ -1971,7 +1971,18 @@ static int drm_pick_crtcs(struct drm_fb_helper *fb_helper,
 		my_score++;
 
 	connector_funcs = connector->helper_private;
-	encoder = connector_funcs->best_encoder(connector);
+
+	/*
+	 * If the DRM device implements atomic hooks and ->best_encoder() is
+	 * NULL we fallback to the default drm_atomic_helper_best_encoder()
+	 * helper.
+	 */
+	if (fb_helper->dev->mode_config.funcs->atomic_commit &&
+	    !connector_funcs->best_encoder)
+		encoder = drm_atomic_helper_best_encoder(connector);
+	else
+		encoder = connector_funcs->best_encoder(connector);
+
 	if (!encoder)
 		goto out;
 

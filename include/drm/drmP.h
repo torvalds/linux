@@ -57,6 +57,7 @@
 #include <linux/types.h>
 #include <linux/vmalloc.h>
 #include <linux/workqueue.h>
+#include <linux/fence.h>
 
 #include <asm/mman.h>
 #include <asm/pgalloc.h>
@@ -283,12 +284,12 @@ struct drm_ioctl_desc {
 /* Event queued up for userspace to read */
 struct drm_pending_event {
 	struct drm_event *event;
+	struct fence *fence;
 	struct list_head link;
 	struct list_head pending_link;
 	struct drm_file *file_priv;
 	pid_t pid; /* pid of requester, no guarantee it's valid by the time
 		      we deliver the event, for tracing only */
-	void (*destroy)(struct drm_pending_event *event);
 };
 
 /* initial implementaton using a linked list - todo hashtab */
@@ -430,7 +431,7 @@ struct drm_driver {
 	 *
 	 * Driver callback for fetching a raw hardware vblank counter for @crtc.
 	 * If a device doesn't have a hardware counter, the driver can simply
-	 * return the value of drm_vblank_count. The DRM core will account for
+	 * use drm_vblank_no_hw_counter() function. The DRM core will account for
 	 * missed vblank events while interrupts where disabled based on system
 	 * timestamps.
 	 *
@@ -448,8 +449,8 @@ struct drm_driver {
 	 * @pipe: which irq to enable
 	 *
 	 * Enable vblank interrupts for @crtc.  If the device doesn't have
-	 * a hardware vblank counter, this routine should be a no-op, since
-	 * interrupts will have to stay on to keep the count accurate.
+	 * a hardware vblank counter, the driver should use the
+	 * drm_vblank_no_hw_counter() function that keeps a virtual counter.
 	 *
 	 * RETURNS
 	 * Zero on success, appropriate errno if the given @crtc's vblank
@@ -463,8 +464,8 @@ struct drm_driver {
 	 * @pipe: which irq to enable
 	 *
 	 * Disable vblank interrupts for @crtc.  If the device doesn't have
-	 * a hardware vblank counter, this routine should be a no-op, since
-	 * interrupts will have to stay on to keep the count accurate.
+	 * a hardware vblank counter, the driver should use the
+	 * drm_vblank_no_hw_counter() function that keeps a virtual counter.
 	 */
 	void (*disable_vblank) (struct drm_device *dev, unsigned int pipe);
 

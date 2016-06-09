@@ -374,8 +374,9 @@ static void intel_fbc_hw_deactivate(struct drm_i915_private *dev_priv)
  * @dev_priv: i915 device instance
  *
  * This function is used to verify the current state of FBC.
+ *
  * FIXME: This should be tracked in the plane config eventually
- *        instead of queried at runtime for most callers.
+ * instead of queried at runtime for most callers.
  */
 bool intel_fbc_is_active(struct drm_i915_private *dev_priv)
 {

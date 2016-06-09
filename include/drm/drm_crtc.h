@@ -314,6 +314,7 @@ struct drm_plane_helper_funcs;
  * 	update to ensure framebuffer cleanup isn't done too early
  * @adjusted_mode: for use by helpers and drivers to compute adjusted mode timings
  * @mode: current mode timings
+ * @mode_blob: &drm_property_blob for @mode
  * @degamma_lut: Lookup table for converting framebuffer pixel data
  *	before apply the conversion matrix
  * @ctm: Transformation matrix
@@ -478,8 +479,8 @@ struct drm_crtc_funcs {
 	 * going on, which should eventually be unified to just one set of
 	 * hooks.
 	 */
-	void (*gamma_set)(struct drm_crtc *crtc, u16 *r, u16 *g, u16 *b,
-			  uint32_t start, uint32_t size);
+	int (*gamma_set)(struct drm_crtc *crtc, u16 *r, u16 *g, u16 *b,
+			 uint32_t size);
 
 	/**
 	 * @destroy:
@@ -708,6 +709,7 @@ struct drm_crtc_funcs {
  * @dev: parent DRM device
  * @port: OF node used by drm_of_find_possible_crtcs()
  * @head: list management
+ * @name: human readable name, can be overwritten by the driver
  * @mutex: per-CRTC locking
  * @base: base KMS object for ID tracking etc.
  * @primary: primary plane for this CRTC
@@ -738,12 +740,13 @@ struct drm_crtc {
 
 	char *name;
 
-	/*
-	 * crtc mutex
+	/**
+	 * @mutex:
 	 *
 	 * This provides a read lock for the overall crtc state (mode, dpms
 	 * state, ...) and a write lock for everything which can be update
-	 * without a full modeset (fb, cursor data, ...)
+	 * without a full modeset (fb, cursor data, crtc properties ...). Full
+	 * modeset also need to grab dev->mode_config.connection_mutex.
 	 */
 	struct drm_modeset_lock mutex;
 
@@ -752,6 +755,9 @@ struct drm_crtc {
 	/* primary and cursor planes for CRTC */
 	struct drm_plane *primary;
 	struct drm_plane *cursor;
+
+	/* position inside the mode_config.list, can be used as a [] idx */
+	unsigned index;
 
 	/* position of cursor plane on crtc */
 	int cursor_x;
@@ -1078,7 +1084,7 @@ struct drm_encoder_funcs {
  * @dev: parent DRM device
  * @head: list management
  * @base: base KMS object
- * @name: encoder name
+ * @name: human readable name, can be overwritten by the driver
  * @encoder_type: one of the %DRM_MODE_ENCODER_<foo> types in drm_mode.h
  * @possible_crtcs: bitmask of potential CRTC bindings
  * @possible_clones: bitmask of potential sibling encoders for cloning
@@ -1097,6 +1103,10 @@ struct drm_encoder {
 	struct drm_mode_object base;
 	char *name;
 	int encoder_type;
+
+	/* position inside the mode_config.list, can be used as a [] idx */
+	unsigned index;
+
 	uint32_t possible_crtcs;
 	uint32_t possible_clones;
 
@@ -1124,7 +1134,8 @@ struct drm_encoder {
  * @attr: sysfs attributes
  * @head: list management
  * @base: base KMS object
- * @name: connector name
+ * @name: human readable name, can be overwritten by the driver
+ * @connector_id: compacted connector id useful indexing arrays
  * @connector_type: one of the %DRM_MODE_CONNECTOR_<foo> types from drm_mode.h
  * @connector_type_id: index into connector type enum
  * @interlace_allowed: can this connector handle interlaced modes?
@@ -1137,7 +1148,6 @@ struct drm_encoder {
  * @funcs: connector control functions
  * @edid_blob_ptr: DRM property containing EDID if present
  * @properties: property tracking for this connector
- * @path_blob_ptr: DRM blob property data for the DP MST path property
  * @polled: a %DRM_CONNECTOR_POLL_<foo> value for core driven polling
  * @dpms: current dpms state
  * @helper_private: mid-layer private data
@@ -1200,8 +1210,23 @@ struct drm_connector {
 	struct drm_property_blob *edid_blob_ptr;
 	struct drm_object_properties properties;
 
+	/**
+	 * @path_blob_ptr:
+	 *
+	 * DRM blob property data for the DP MST path property.
+	 */
 	struct drm_property_blob *path_blob_ptr;
 
+	/**
+	 * @tile_blob_ptr:
+	 *
+	 * DRM blob property data for the tile property (used mostly by DP MST).
+	 * This is meant for screens which are driven through separate display
+	 * pipelines represented by &drm_crtc, which might not be running with
+	 * genlocked clocks. For tiled panels which are genlocked, like
+	 * dual-link LVDS or dual-link DSI, the driver should try to not expose
+	 * the tiling and virtualize both &drm_crtc and &drm_plane if needed.
+	 */
 	struct drm_property_blob *tile_blob_ptr;
 
 	uint8_t polled; /* DRM_CONNECTOR_POLL_* */
@@ -1263,6 +1288,7 @@ struct drm_connector {
  *	plane (in 16.16)
  * @src_w: width of visible portion of plane (in 16.16)
  * @src_h: height of visible portion of plane (in 16.16)
+ * @rotation: rotation of the plane
  * @state: backpointer to global drm_atomic_state
  */
 struct drm_plane_state {
@@ -1503,6 +1529,7 @@ enum drm_plane_type {
  * struct drm_plane - central DRM plane control structure
  * @dev: DRM device this plane belongs to
  * @head: for list management
+ * @name: human readable name, can be overwritten by the driver
  * @base: base mode object
  * @possible_crtcs: pipes this plane can be bound to
  * @format_types: array of formats supported by this plane
@@ -1516,6 +1543,7 @@ enum drm_plane_type {
  * @properties: property tracking for this plane
  * @type: type of plane (overlay, primary, cursor)
  * @state: current atomic state for this plane
+ * @helper_private: mid-layer private data
  */
 struct drm_plane {
 	struct drm_device *dev;
@@ -1523,6 +1551,13 @@ struct drm_plane {
 
 	char *name;
 
+	/**
+	 * @mutex:
+	 *
+	 * Protects modeset plane state, together with the mutex of &drm_crtc
+	 * this plane is linked to (when active, getting actived or getting
+	 * disabled).
+	 */
 	struct drm_modeset_lock mutex;
 
 	struct drm_mode_object base;
@@ -1542,6 +1577,9 @@ struct drm_plane {
 	struct drm_object_properties properties;
 
 	enum drm_plane_type type;
+
+	/* position inside the mode_config.list, can be used as a [] idx */
+	unsigned index;
 
 	const struct drm_plane_helper_funcs *helper_private;
 
@@ -1693,19 +1731,31 @@ struct drm_bridge {
 	void *driver_private;
 };
 
+struct __drm_planes_state {
+	struct drm_plane *ptr;
+	struct drm_plane_state *state;
+};
+
+struct __drm_crtcs_state {
+	struct drm_crtc *ptr;
+	struct drm_crtc_state *state;
+};
+
+struct __drm_connnectors_state {
+	struct drm_connector *ptr;
+	struct drm_connector_state *state;
+};
+
 /**
  * struct drm_atomic_state - the global state object for atomic updates
  * @dev: parent DRM device
  * @allow_modeset: allow full modeset
  * @legacy_cursor_update: hint to enforce legacy cursor IOCTL semantics
  * @legacy_set_config: Disable conflicting encoders instead of failing with -EINVAL.
- * @planes: pointer to array of plane pointers
- * @plane_states: pointer to array of plane states pointers
+ * @planes: pointer to array of structures with per-plane data
  * @crtcs: pointer to array of CRTC pointers
- * @crtc_states: pointer to array of CRTC states pointers
  * @num_connector: size of the @connectors and @connector_states arrays
- * @connectors: pointer to array of connector pointers
- * @connector_states: pointer to array of connector states pointers
+ * @connectors: pointer to array of structures with per-connector data
  * @acquire_ctx: acquire context for this atomic modeset state update
  */
 struct drm_atomic_state {
@@ -1713,13 +1763,10 @@ struct drm_atomic_state {
 	bool allow_modeset : 1;
 	bool legacy_cursor_update : 1;
 	bool legacy_set_config : 1;
-	struct drm_plane **planes;
-	struct drm_plane_state **plane_states;
-	struct drm_crtc **crtcs;
-	struct drm_crtc_state **crtc_states;
+	struct __drm_planes_state *planes;
+	struct __drm_crtcs_state *crtcs;
 	int num_connector;
-	struct drm_connector **connectors;
-	struct drm_connector_state **connector_states;
+	struct __drm_connnectors_state *connectors;
 
 	struct drm_modeset_acquire_ctx *acquire_ctx;
 };
@@ -2022,8 +2069,6 @@ struct drm_mode_config_funcs {
  * @connection_mutex: ww mutex protecting connector state and routing
  * @acquire_ctx: global implicit acquire context used by atomic drivers for
  * 	legacy IOCTLs
- * @idr_mutex: mutex for KMS ID allocation and management
- * @crtc_idr: main KMS ID tracking object
  * @fb_lock: mutex to protect fb state and lists
  * @num_fb: number of fbs available
  * @fb_list: list of framebuffers available
@@ -2045,6 +2090,7 @@ struct drm_mode_config_funcs {
  * @fb_base: base address of the framebuffer
  * @poll_enabled: track polling support for this device
  * @poll_running: track polling status for this device
+ * @delayed_event: track delayed poll uevent deliver for this device
  * @output_poll_work: delayed work for polling in process context
  * @property_blob_list: list of all the blob property objects
  * @blob_lock: mutex for blob property allocation and management
@@ -2072,10 +2118,30 @@ struct drm_mode_config {
 	struct mutex mutex; /* protects configuration (mode lists etc.) */
 	struct drm_modeset_lock connection_mutex; /* protects connector->encoder and encoder->crtc links */
 	struct drm_modeset_acquire_ctx *acquire_ctx; /* for legacy _lock_all() / _unlock_all() */
-	struct mutex idr_mutex; /* for IDR management */
-	struct idr crtc_idr; /* use this idr for all IDs, fb, crtc, connector, modes - just makes life easier */
-	struct idr tile_idr; /* use this idr for all IDs, fb, crtc, connector, modes - just makes life easier */
-	/* this is limited to one for now */
+
+	/**
+	 * @idr_mutex:
+	 *
+	 * Mutex for KMS ID allocation and management. Protects both @crtc_idr
+	 * and @tile_idr.
+	 */
+	struct mutex idr_mutex;
+
+	/**
+	 * @crtc_idr:
+	 *
+	 * Main KMS ID tracking object. Use this idr for all IDs, fb, crtc,
+	 * connector, modes - just makes life easier to have only one.
+	 */
+	struct idr crtc_idr;
+
+	/**
+	 * @tile_idr:
+	 *
+	 * Use this idr for allocating new IDs for tiled sinks like use in some
+	 * high-res DP MST screens.
+	 */
+	struct idr tile_idr;
 
 	struct mutex fb_lock; /* proctects global and per-file fb lists */
 	int num_fb;
@@ -2177,7 +2243,11 @@ struct drm_mode_config {
 	/* whether async page flip is supported or not */
 	bool async_page_flip;
 
-	/* whether the driver supports fb modifiers */
+	/**
+	 * @allow_fb_modifiers:
+	 *
+	 * Whether the driver supports fb modifiers in the ADDFB2.1 ioctl call.
+	 */
 	bool allow_fb_modifiers;
 
 	/* cursor size */
@@ -2230,7 +2300,18 @@ int drm_crtc_init_with_planes(struct drm_device *dev,
 			      const struct drm_crtc_funcs *funcs,
 			      const char *name, ...);
 extern void drm_crtc_cleanup(struct drm_crtc *crtc);
-extern unsigned int drm_crtc_index(struct drm_crtc *crtc);
+
+/**
+ * drm_crtc_index - find the index of a registered CRTC
+ * @crtc: CRTC to find index for
+ *
+ * Given a registered CRTC, return the index of that CRTC within a DRM
+ * device's list of CRTCs.
+ */
+static inline unsigned int drm_crtc_index(struct drm_crtc *crtc)
+{
+	return crtc->index;
+}
 
 /**
  * drm_crtc_mask - find the mask of a registered CRTC
@@ -2284,7 +2365,18 @@ int drm_encoder_init(struct drm_device *dev,
 		     struct drm_encoder *encoder,
 		     const struct drm_encoder_funcs *funcs,
 		     int encoder_type, const char *name, ...);
-extern unsigned int drm_encoder_index(struct drm_encoder *encoder);
+
+/**
+ * drm_encoder_index - find the index of a registered encoder
+ * @encoder: encoder to find index for
+ *
+ * Given a registered encoder, return the index of that encoder within a DRM
+ * device's list of encoders.
+ */
+static inline unsigned int drm_encoder_index(struct drm_encoder *encoder)
+{
+	return encoder->index;
+}
 
 /**
  * drm_encoder_crtc_ok - can a given crtc drive a given encoder?
@@ -2315,7 +2407,18 @@ extern int drm_plane_init(struct drm_device *dev,
 			  const uint32_t *formats, unsigned int format_count,
 			  bool is_primary);
 extern void drm_plane_cleanup(struct drm_plane *plane);
-extern unsigned int drm_plane_index(struct drm_plane *plane);
+
+/**
+ * drm_plane_index - find the index of a registered plane
+ * @plane: plane to find index for
+ *
+ * Given a registered plane, return the index of that plane within a DRM
+ * device's list of planes.
+ */
+static inline unsigned int drm_plane_index(struct drm_plane *plane)
+{
+	return plane->index;
+}
 extern struct drm_plane * drm_plane_from_index(struct drm_device *dev, int idx);
 extern void drm_plane_force_disable(struct drm_plane *plane);
 extern int drm_plane_check_pixel_format(const struct drm_plane *plane,
