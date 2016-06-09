@@ -1167,7 +1167,7 @@ int drm_atomic_helper_commit(struct drm_device *dev,
 	 * the software side now.
 	 */
 
-	drm_atomic_helper_swap_state(dev, state);
+	drm_atomic_helper_swap_state(state, true);
 
 	/*
 	 * Everything below can be run asynchronously without the need to grab
@@ -1538,8 +1538,8 @@ EXPORT_SYMBOL(drm_atomic_helper_cleanup_planes);
 
 /**
  * drm_atomic_helper_swap_state - store atomic state into current sw state
- * @dev: DRM device
  * @state: atomic state
+ * @stall: stall for proceeding commits
  *
  * This function stores the atomic state into the current state pointers in all
  * driver objects. It should be called after all failing steps have been done
@@ -1561,8 +1561,8 @@ EXPORT_SYMBOL(drm_atomic_helper_cleanup_planes);
  * 5. Call drm_atomic_helper_cleanup_planes() with @state, which since step 3
  * contains the old state. Also do any other cleanup required with that state.
  */
-void drm_atomic_helper_swap_state(struct drm_device *dev,
-				  struct drm_atomic_state *state)
+void drm_atomic_helper_swap_state(struct drm_atomic_state *state,
+				  bool stall)
 {
 	int i;
 	struct drm_connector *connector;

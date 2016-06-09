@@ -395,7 +395,7 @@ static int vgdev_atomic_commit(struct drm_device *dev,
 	if (nonblock)
 		return -EBUSY;
 
-	drm_atomic_helper_swap_state(dev, state);
+	drm_atomic_helper_swap_state(state, true);
 	drm_atomic_helper_wait_for_fences(dev, state);
 
 	drm_atomic_helper_commit_modeset_disables(dev, state);

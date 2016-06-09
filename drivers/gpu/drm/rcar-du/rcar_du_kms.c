@@ -327,7 +327,7 @@ static int rcar_du_atomic_commit(struct drm_device *dev,
 	}
 
 	/* Swap the state, this is the point of no return. */
-	drm_atomic_helper_swap_state(dev, state);
+	drm_atomic_helper_swap_state(state, true);
 
 	if (nonblock)
 		schedule_work(&commit->work);

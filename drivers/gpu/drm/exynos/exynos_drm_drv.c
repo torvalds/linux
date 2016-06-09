@@ -299,7 +299,7 @@ int exynos_atomic_commit(struct drm_device *dev, struct drm_atomic_state *state,
 	priv->pending |= commit->crtcs;
 	spin_unlock(&priv->lock);
 
-	drm_atomic_helper_swap_state(dev, state);
+	drm_atomic_helper_swap_state(state, true);
 
 	if (nonblock)
 		schedule_work(&commit->work);
