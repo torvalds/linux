@@ -936,31 +936,6 @@ fin:
 	return skb;
 }
 
-/* try to drop from each class (by prio) until one succeed */
-static unsigned int htb_drop(struct Qdisc *sch)
-{
-	struct htb_sched *q = qdisc_priv(sch);
-	int prio;
-
-	for (prio = TC_HTB_NUMPRIO - 1; prio >= 0; prio--) {
-		struct list_head *p;
-		list_for_each(p, q->drops + prio) {
-			struct htb_class *cl = list_entry(p, struct htb_class,
-							  un.leaf.drop_list);
-			unsigned int len;
-			if (cl->un.leaf.q->ops->drop &&
-			    (len = cl->un.leaf.q->ops->drop(cl->un.leaf.q))) {
-				sch->qstats.backlog -= len;
-				sch->q.qlen--;
-				if (!cl->un.leaf.q->q.qlen)
-					htb_deactivate(q, cl);
-				return len;
-			}
-		}
-	}
-	return 0;
-}
-
 /* reset all classes */
 /* always caled under BH & queue lock */
 static void htb_reset(struct Qdisc *sch)
@@ -1600,7 +1575,6 @@ static struct Qdisc_ops htb_qdisc_ops __read_mostly = {
 	.enqueue	=	htb_enqueue,
 	.dequeue	=	htb_dequeue,
 	.peek		=	qdisc_peek_dequeued,
-	.drop		=	htb_drop,
 	.init		=	htb_init,
 	.reset		=	htb_reset,
 	.destroy	=	htb_destroy,

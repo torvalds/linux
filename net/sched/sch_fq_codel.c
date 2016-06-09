@@ -184,15 +184,6 @@ static unsigned int fq_codel_drop(struct Qdisc *sch, unsigned int max_packets)
 	return idx;
 }
 
-static unsigned int fq_codel_qdisc_drop(struct Qdisc *sch)
-{
-	unsigned int prev_backlog;
-
-	prev_backlog = sch->qstats.backlog;
-	fq_codel_drop(sch, 1U);
-	return prev_backlog - sch->qstats.backlog;
-}
-
 static int fq_codel_enqueue(struct sk_buff *skb, struct Qdisc *sch)
 {
 	struct fq_codel_sched_data *q = qdisc_priv(sch);
@@ -704,7 +695,6 @@ static struct Qdisc_ops fq_codel_qdisc_ops __read_mostly = {
 	.enqueue	=	fq_codel_enqueue,
 	.dequeue	=	fq_codel_dequeue,
 	.peek		=	qdisc_peek_dequeued,
-	.drop		=	fq_codel_qdisc_drop,
 	.init		=	fq_codel_init,
 	.reset		=	fq_codel_reset,
 	.destroy	=	fq_codel_destroy,

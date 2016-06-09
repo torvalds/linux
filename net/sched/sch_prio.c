@@ -125,24 +125,6 @@ static struct sk_buff *prio_dequeue(struct Qdisc *sch)
 
 }
 
-static unsigned int prio_drop(struct Qdisc *sch)
-{
-	struct prio_sched_data *q = qdisc_priv(sch);
-	int prio;
-	unsigned int len;
-	struct Qdisc *qdisc;
-
-	for (prio = q->bands-1; prio >= 0; prio--) {
-		qdisc = q->queues[prio];
-		if (qdisc->ops->drop && (len = qdisc->ops->drop(qdisc)) != 0) {
-			sch->q.qlen--;
-			return len;
-		}
-	}
-	return 0;
-}
-
-
 static void
 prio_reset(struct Qdisc *sch)
 {
@@ -379,7 +361,6 @@ static struct Qdisc_ops prio_qdisc_ops __read_mostly = {
 	.enqueue	=	prio_enqueue,
 	.dequeue	=	prio_dequeue,
 	.peek		=	prio_peek,
-	.drop		=	prio_drop,
 	.init		=	prio_init,
 	.reset		=	prio_reset,
 	.destroy	=	prio_destroy,

@@ -63,26 +63,19 @@ struct Qdisc {
 	struct list_head	list;
 	u32			handle;
 	u32			parent;
-	int			(*reshape_fail)(struct sk_buff *skb,
-					struct Qdisc *q);
-
 	void			*u32_node;
 
-	/* This field is deprecated, but it is still used by CBQ
-	 * and it will live until better solution will be invented.
-	 */
-	struct Qdisc		*__parent;
 	struct netdev_queue	*dev_queue;
 
 	struct gnet_stats_rate_est64	rate_est;
 	struct gnet_stats_basic_cpu __percpu *cpu_bstats;
 	struct gnet_stats_queue	__percpu *cpu_qstats;
 
-	struct Qdisc		*next_sched;
-	struct sk_buff		*gso_skb;
 	/*
 	 * For performance sake on SMP, we put highly modified fields at the end
 	 */
+	struct Qdisc		*next_sched ____cacheline_aligned_in_smp;
+	struct sk_buff		*gso_skb;
 	unsigned long		state;
 	struct sk_buff_head	q;
 	struct gnet_stats_basic_packed bstats;
@@ -181,7 +174,6 @@ struct Qdisc_ops {
 	int 			(*enqueue)(struct sk_buff *, struct Qdisc *);
 	struct sk_buff *	(*dequeue)(struct Qdisc *);
 	struct sk_buff *	(*peek)(struct Qdisc *);
-	unsigned int		(*drop)(struct Qdisc *);
 
 	int			(*init)(struct Qdisc *, struct nlattr *arg);
 	void			(*reset)(struct Qdisc *);
@@ -665,22 +657,6 @@ static inline unsigned int qdisc_queue_drop_head(struct Qdisc *sch)
 	return __qdisc_queue_drop_head(sch, &sch->q);
 }
 
-static inline struct sk_buff *__qdisc_dequeue_tail(struct Qdisc *sch,
-						   struct sk_buff_head *list)
-{
-	struct sk_buff *skb = __skb_dequeue_tail(list);
-
-	if (likely(skb != NULL))
-		qdisc_qstats_backlog_dec(sch, skb);
-
-	return skb;
-}
-
-static inline struct sk_buff *qdisc_dequeue_tail(struct Qdisc *sch)
-{
-	return __qdisc_dequeue_tail(sch, &sch->q);
-}
-
 static inline struct sk_buff *qdisc_peek_head(struct Qdisc *sch)
 {
 	return skb_peek(&sch->q);
@@ -748,46 +724,11 @@ static inline struct Qdisc *qdisc_replace(struct Qdisc *sch, struct Qdisc *new,
 	return old;
 }
 
-static inline unsigned int __qdisc_queue_drop(struct Qdisc *sch,
-					      struct sk_buff_head *list)
-{
-	struct sk_buff *skb = __qdisc_dequeue_tail(sch, list);
-
-	if (likely(skb != NULL)) {
-		unsigned int len = qdisc_pkt_len(skb);
-		kfree_skb(skb);
-		return len;
-	}
-
-	return 0;
-}
-
-static inline unsigned int qdisc_queue_drop(struct Qdisc *sch)
-{
-	return __qdisc_queue_drop(sch, &sch->q);
-}
-
 static inline int qdisc_drop(struct sk_buff *skb, struct Qdisc *sch)
 {
 	kfree_skb(skb);
 	qdisc_qstats_drop(sch);
 
-	return NET_XMIT_DROP;
-}
-
-static inline int qdisc_reshape_fail(struct sk_buff *skb, struct Qdisc *sch)
-{
-	qdisc_qstats_drop(sch);
-
-#ifdef CONFIG_NET_CLS_ACT
-	if (sch->reshape_fail == NULL || sch->reshape_fail(skb, sch))
-		goto drop;
-
-	return NET_XMIT_SUCCESS;
-
-drop:
-#endif
-	kfree_skb(skb);
 	return NET_XMIT_DROP;
 }
 
