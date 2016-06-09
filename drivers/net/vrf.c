@@ -407,6 +407,10 @@ static int vrf_rt6_create(struct net_device *dev)
 	struct rt6_info *rt6, *rt6_local;
 	int rc = -ENOMEM;
 
+	/* IPv6 can be CONFIG enabled and then disabled runtime */
+	if (!ipv6_mod_enabled())
+		return 0;
+
 	rt6i_table = fib6_new_table(net, vrf->tb_id);
 	if (!rt6i_table)
 		goto out;
@@ -918,6 +922,9 @@ static int vrf_fib_rule(const struct net_device *dev, __u8 family, bool add_it)
 	struct nlmsghdr *nlh;
 	struct sk_buff *skb;
 	int err;
+
+	if (family == AF_INET6 && !ipv6_mod_enabled())
+		return 0;
 
 	skb = nlmsg_new(vrf_fib_rule_nl_size(), GFP_KERNEL);
 	if (!skb)
