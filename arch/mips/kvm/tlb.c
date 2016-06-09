@@ -24,6 +24,7 @@
 #include <asm/pgtable.h>
 #include <asm/cacheflush.h>
 #include <asm/tlb.h>
+#include <asm/tlbdebug.h>
 
 #undef CONFIG_MIPS_MT
 #include <asm/r4kcache.h>
@@ -60,50 +61,15 @@ inline u32 kvm_mips_get_commpage_asid(struct kvm_vcpu *vcpu)
 
 void kvm_mips_dump_host_tlbs(void)
 {
-	unsigned long old_entryhi;
-	unsigned long old_pagemask;
-	struct kvm_mips_tlb tlb;
 	unsigned long flags;
-	int i;
 
 	local_irq_save(flags);
 
-	old_entryhi = read_c0_entryhi();
-	old_pagemask = read_c0_pagemask();
-
 	kvm_info("HOST TLBs:\n");
-	kvm_info("ASID: %#lx\n", read_c0_entryhi() &
-		 cpu_asid_mask(&current_cpu_data));
+	dump_tlb_regs();
+	pr_info("\n");
+	dump_tlb_all();
 
-	for (i = 0; i < current_cpu_data.tlbsize; i++) {
-		write_c0_index(i);
-		mtc0_tlbw_hazard();
-
-		tlb_read();
-		tlbw_use_hazard();
-
-		tlb.tlb_hi = read_c0_entryhi();
-		tlb.tlb_lo0 = read_c0_entrylo0();
-		tlb.tlb_lo1 = read_c0_entrylo1();
-		tlb.tlb_mask = read_c0_pagemask();
-
-		kvm_info("TLB%c%3d Hi 0x%08lx ",
-			 (tlb.tlb_lo0 | tlb.tlb_lo1) & MIPS3_PG_V ? ' ' : '*',
-			 i, tlb.tlb_hi);
-		kvm_info("Lo0=0x%09llx %c%c attr %lx ",
-			 (u64) mips3_tlbpfn_to_paddr(tlb.tlb_lo0),
-			 (tlb.tlb_lo0 & MIPS3_PG_D) ? 'D' : ' ',
-			 (tlb.tlb_lo0 & MIPS3_PG_G) ? 'G' : ' ',
-			 (tlb.tlb_lo0 >> 3) & 7);
-		kvm_info("Lo1=0x%09llx %c%c attr %lx sz=%lx\n",
-			 (u64) mips3_tlbpfn_to_paddr(tlb.tlb_lo1),
-			 (tlb.tlb_lo1 & MIPS3_PG_D) ? 'D' : ' ',
-			 (tlb.tlb_lo1 & MIPS3_PG_G) ? 'G' : ' ',
-			 (tlb.tlb_lo1 >> 3) & 7, tlb.tlb_mask);
-	}
-	write_c0_entryhi(old_entryhi);
-	write_c0_pagemask(old_pagemask);
-	mtc0_tlbw_hazard();
 	local_irq_restore(flags);
 }
 EXPORT_SYMBOL_GPL(kvm_mips_dump_host_tlbs);
