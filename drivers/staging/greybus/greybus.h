@@ -62,9 +62,6 @@ struct greybus_driver {
 		     const struct greybus_bundle_id *id);
 	void (*disconnect)(struct gb_bundle *bundle);
 
-	int (*suspend)(struct gb_bundle *bundle, pm_message_t message);
-	int (*resume)(struct gb_bundle *bundle);
-
 	const struct greybus_bundle_id *id_table;
 
 	struct device_driver driver;
