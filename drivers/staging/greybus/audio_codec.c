@@ -396,12 +396,6 @@ static int gbmodule_shutdown_tx(struct gbaudio_module_info *module,
 		return 0;
 	}
 
-	if (codec_state == GBAUDIO_CODEC_STOP) {
-		ret = gb_audio_apbridgea_shutdown_tx(data->connection, 0);
-		if (ret)
-			return ret;
-	}
-
 	/* deactivate */
 	cportid = data->connection->intf_cport_id;
 	if (module_state >= GBAUDIO_CODEC_PREPARE) {
@@ -433,12 +427,6 @@ static int gbmodule_shutdown_rx(struct gbaudio_module_info *module,
 		dev_dbg(dev, "%s: module already configured\n",
 			module->name);
 		return 0;
-	}
-
-	if (codec_state == GBAUDIO_CODEC_STOP) {
-		ret = gb_audio_apbridgea_shutdown_rx(data->connection, 0);
-		if (ret)
-			return ret;
 	}
 
 	/* deactivate */
