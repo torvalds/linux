@@ -98,7 +98,11 @@ static const struct gb_camera_fmt_map mbus_to_gbus_format[] = {
 	{
 		.mbus_code = V4L2_MBUS_FMT_ARA_METADATA_1X8,
 		.gb_format = 0x41,
-	}
+	},
+	{
+		.mbus_code = V4L2_MBUS_FMT_ARA_DEBUG_DATA_1X8,
+		.gb_format = 0x42,
+	},
 };
 
 #define ES2_APB_CDSI0_CPORT		16
