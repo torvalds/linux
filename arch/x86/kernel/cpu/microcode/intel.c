@@ -843,6 +843,7 @@ void reload_ucode_intel(void)
 
 static int collect_cpu_info(int cpu_num, struct cpu_signature *csig)
 {
+	static struct cpu_signature prev;
 	struct cpuinfo_x86 *c = &cpu_data(cpu_num);
 	unsigned int val[2];
 
@@ -857,8 +858,13 @@ static int collect_cpu_info(int cpu_num, struct cpu_signature *csig)
 	}
 
 	csig->rev = c->microcode;
-	pr_info("CPU%d sig=0x%x, pf=0x%x, revision=0x%x\n",
-		cpu_num, csig->sig, csig->pf, csig->rev);
+
+	/* No extra locking on prev, races are harmless. */
+	if (csig->sig != prev.sig || csig->pf != prev.pf || csig->rev != prev.rev) {
+		pr_info("sig=0x%x, pf=0x%x, revision=0x%x\n",
+			csig->sig, csig->pf, csig->rev);
+		prev = *csig;
+	}
 
 	return 0;
 }
@@ -887,6 +893,7 @@ static int apply_microcode_intel(int cpu)
 	struct ucode_cpu_info *uci;
 	struct cpuinfo_x86 *c;
 	unsigned int val[2];
+	static int prev_rev;
 
 	/* We should bind the task to the CPU */
 	if (WARN_ON(raw_smp_processor_id() != cpu))
@@ -921,11 +928,14 @@ static int apply_microcode_intel(int cpu)
 		return -1;
 	}
 
-	pr_info("CPU%d updated to revision 0x%x, date = %04x-%02x-%02x\n",
-		cpu, val[1],
-		mc->hdr.date & 0xffff,
-		mc->hdr.date >> 24,
-		(mc->hdr.date >> 16) & 0xff);
+	if (val[1] != prev_rev) {
+		pr_info("updated to revision 0x%x, date = %04x-%02x-%02x\n",
+			val[1],
+			mc->hdr.date & 0xffff,
+			mc->hdr.date >> 24,
+			(mc->hdr.date >> 16) & 0xff);
+		prev_rev = val[1];
+	}
 
 	c = &cpu_data(cpu);
 
