@@ -1529,32 +1529,6 @@ enum emulation_result kvm_mips_emulate_load(uint32_t inst, uint32_t cause,
 	return er;
 }
 
-int kvm_mips_sync_icache(unsigned long va, struct kvm_vcpu *vcpu)
-{
-	unsigned long offset = (va & ~PAGE_MASK);
-	struct kvm *kvm = vcpu->kvm;
-	unsigned long pa;
-	gfn_t gfn;
-	kvm_pfn_t pfn;
-
-	gfn = va >> PAGE_SHIFT;
-
-	if (gfn >= kvm->arch.guest_pmap_npages) {
-		kvm_err("%s: Invalid gfn: %#llx\n", __func__, gfn);
-		kvm_mips_dump_host_tlbs();
-		kvm_arch_vcpu_dump_regs(vcpu);
-		return -1;
-	}
-	pfn = kvm->arch.guest_pmap[gfn];
-	pa = (pfn << PAGE_SHIFT) | offset;
-
-	kvm_debug("%s: va: %#lx, unmapped: %#x\n", __func__, va,
-		  CKSEG0ADDR(pa));
-
-	local_flush_icache_range(CKSEG0ADDR(pa), 32);
-	return 0;
-}
-
 enum emulation_result kvm_mips_emulate_cache(uint32_t inst, uint32_t *opc,
 					     uint32_t cause,
 					     struct kvm_run *run,
