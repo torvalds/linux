@@ -1581,10 +1581,10 @@ static int dwc3_gadget_run_stop(struct dwc3 *dwc, int is_on, int suspend)
 			if (reg & DWC3_DSTS_DEVCTRLHLT)
 				break;
 		}
-		timeout--;
-		if (!timeout)
-			return -ETIMEDOUT;
-	} while (1);
+	} while (--timeout);
+
+	if (!timeout)
+		return -ETIMEDOUT;
 
 	dwc3_trace(trace_dwc3_gadget, "gadget %s data soft-%s",
 			dwc->gadget_driver
