@@ -822,7 +822,11 @@ int main(int argc, char **argv)
 	lkl_sys_halt();
 
 	lkl_disk_remove(disk);
+#ifdef __MINGW32__
+	CloseHandle(disk.handle);
+#else
 	close(disk.fd);
+#endif
 
 	return g_test_pass;
 }
