@@ -7068,6 +7068,7 @@ static void add_full_mgmt_pkey(struct hfi1_pportdata *ppd)
 			    __func__, ppd->pkeys[2], FULL_MGMT_P_KEY);
 	ppd->pkeys[2] = FULL_MGMT_P_KEY;
 	(void)hfi1_set_ib_cfg(ppd, HFI1_IB_CFG_PKEYS, 0);
+	hfi1_event_pkey_change(ppd->dd, ppd->port);
 }
 
 static void clear_full_mgmt_pkey(struct hfi1_pportdata *ppd)
@@ -7075,6 +7076,7 @@ static void clear_full_mgmt_pkey(struct hfi1_pportdata *ppd)
 	if (ppd->pkeys[2] != 0) {
 		ppd->pkeys[2] = 0;
 		(void)hfi1_set_ib_cfg(ppd, HFI1_IB_CFG_PKEYS, 0);
+		hfi1_event_pkey_change(ppd->dd, ppd->port);
 	}
 }
 

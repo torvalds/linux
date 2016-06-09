@@ -434,4 +434,6 @@ struct sc2vlnt {
 		    COUNTER_MASK(1, 3) | \
 		    COUNTER_MASK(1, 4))
 
+void hfi1_event_pkey_change(struct hfi1_devdata *dd, u8 port);
+
 #endif				/* _HFI1_MAD_H */
