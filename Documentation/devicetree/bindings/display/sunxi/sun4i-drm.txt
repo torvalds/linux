@@ -53,6 +53,30 @@ Required properties:
 On the A13, there is one more clock required:
    - 'tcon-ch1': The clock driving the TCON channel 1
 
+DRC
+---
+
+The DRC (Dynamic Range Controller), found in the latest Allwinner SoCs
+(A31, A23, A33), allows to dynamically adjust pixel
+brightness/contrast based on histogram measurements for LCD content
+adaptive backlight control.
+
+
+Required properties:
+  - compatible: value must be one of:
+    * allwinner,sun8i-a33-drc
+  - reg: base address and size of the memory-mapped region.
+  - interrupts: interrupt associated to this IP
+  - clocks: phandles to the clocks feeding the DRC
+    * ahb: the DRC interface clock
+    * mod: the DRC module clock
+    * ram: the DRC DRAM clock
+  - clock-names: the clock names mentioned above
+  - resets: phandles to the reset line driving the DRC
+
+- ports: A ports node with endpoint definitions as defined in
+  Documentation/devicetree/bindings/media/video-interfaces.txt. The
+  first port should be the input endpoints, the second one the outputs
 
 Display Engine Backend
 ----------------------
