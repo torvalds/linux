@@ -310,13 +310,11 @@ enum emulation_result {
 
 #define VPN2_MASK		0xffffe000
 #define KVM_ENTRYHI_ASID	MIPS_ENTRYHI_ASID
-#define TLB_IS_GLOBAL(x)	(((x).tlb_lo[0] & MIPS3_PG_G) &&	\
-				 ((x).tlb_lo[1] & MIPS3_PG_G))
+#define TLB_IS_GLOBAL(x)	((x).tlb_lo[0] & (x).tlb_lo[1] & MIPS3_PG_G)
 #define TLB_VPN2(x)		((x).tlb_hi & VPN2_MASK)
 #define TLB_ASID(x)		((x).tlb_hi & KVM_ENTRYHI_ASID)
-#define TLB_IS_VALID(x, va)	(((va) & (1 << PAGE_SHIFT))		\
-				 ? ((x).tlb_lo[1] & MIPS3_PG_V)		\
-				 : ((x).tlb_lo[0] & MIPS3_PG_V))
+#define TLB_LO_IDX(x, va)	(((va) >> PAGE_SHIFT) & 1)
+#define TLB_IS_VALID(x, va)	((x).tlb_lo[TLB_LO_IDX(x, va)] & MIPS3_PG_V)
 #define TLB_HI_VPN2_HIT(x, y)	((TLB_VPN2(x) & ~(x).tlb_mask) ==	\
 				 ((y) & VPN2_MASK & ~(x).tlb_mask))
 #define TLB_HI_ASID_HIT(x, y)	(TLB_IS_GLOBAL(x) ||			\
