@@ -37,9 +37,9 @@ static int kvm_mips_map_page(struct kvm *kvm, gfn_t gfn)
 		return 0;
 
 	srcu_idx = srcu_read_lock(&kvm->srcu);
-	pfn = kvm_mips_gfn_to_pfn(kvm, gfn);
+	pfn = gfn_to_pfn(kvm, gfn);
 
-	if (kvm_mips_is_error_pfn(pfn)) {
+	if (is_error_pfn(pfn)) {
 		kvm_err("Couldn't get pfn for gfn %#llx!\n", gfn);
 		err = -EFAULT;
 		goto out;

@@ -35,16 +35,6 @@
 atomic_t kvm_mips_instance;
 EXPORT_SYMBOL_GPL(kvm_mips_instance);
 
-/* These function pointers are initialized once the KVM module is loaded */
-kvm_pfn_t (*kvm_mips_gfn_to_pfn)(struct kvm *kvm, gfn_t gfn);
-EXPORT_SYMBOL_GPL(kvm_mips_gfn_to_pfn);
-
-void (*kvm_mips_release_pfn_clean)(kvm_pfn_t pfn);
-EXPORT_SYMBOL_GPL(kvm_mips_release_pfn_clean);
-
-bool (*kvm_mips_is_error_pfn)(kvm_pfn_t pfn);
-EXPORT_SYMBOL_GPL(kvm_mips_is_error_pfn);
-
 static u32 kvm_mips_get_kernel_asid(struct kvm_vcpu *vcpu)
 {
 	int cpu = smp_processor_id();

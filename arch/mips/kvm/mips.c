@@ -147,7 +147,7 @@ void kvm_mips_free_vcpus(struct kvm *kvm)
 	/* Put the pages we reserved for the guest pmap */
 	for (i = 0; i < kvm->arch.guest_pmap_npages; i++) {
 		if (kvm->arch.guest_pmap[i] != KVM_INVALID_PAGE)
-			kvm_mips_release_pfn_clean(kvm->arch.guest_pmap[i]);
+			kvm_release_pfn_clean(kvm->arch.guest_pmap[i]);
 	}
 	kfree(kvm->arch.guest_pmap);
 
@@ -1645,28 +1645,12 @@ static int __init kvm_mips_init(void)
 
 	register_die_notifier(&kvm_mips_csr_die_notifier);
 
-	/*
-	 * On MIPS, kernel modules are executed from "mapped space", which
-	 * requires TLBs. The TLB handling code is statically linked with
-	 * the rest of the kernel (tlb.c) to avoid the possibility of
-	 * double faulting. The issue is that the TLB code references
-	 * routines that are part of the the KVM module, which are only
-	 * available once the module is loaded.
-	 */
-	kvm_mips_gfn_to_pfn = gfn_to_pfn;
-	kvm_mips_release_pfn_clean = kvm_release_pfn_clean;
-	kvm_mips_is_error_pfn = is_error_pfn;
-
 	return 0;
 }
 
 static void __exit kvm_mips_exit(void)
 {
 	kvm_exit();
-
-	kvm_mips_gfn_to_pfn = NULL;
-	kvm_mips_release_pfn_clean = NULL;
-	kvm_mips_is_error_pfn = NULL;
 
 	unregister_die_notifier(&kvm_mips_csr_die_notifier);
 }
