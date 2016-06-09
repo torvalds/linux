@@ -87,7 +87,6 @@ int kvm_mips_handle_kseg0_tlb_fault(unsigned long badvaddr,
 	kvm_pfn_t pfn0, pfn1;
 	unsigned long vaddr = 0;
 	unsigned long entryhi = 0, entrylo0 = 0, entrylo1 = 0;
-	int even;
 	struct kvm *kvm = vcpu->kvm;
 	const int flush_dcache_mask = 0;
 	int ret;
@@ -105,7 +104,6 @@ int kvm_mips_handle_kseg0_tlb_fault(unsigned long badvaddr,
 		kvm_mips_dump_host_tlbs();
 		return -1;
 	}
-	even = !(gfn & 0x1);
 	vaddr = badvaddr & (PAGE_MASK << 1);
 
 	if (kvm_mips_map_page(vcpu->kvm, gfn) < 0)
@@ -114,13 +112,8 @@ int kvm_mips_handle_kseg0_tlb_fault(unsigned long badvaddr,
 	if (kvm_mips_map_page(vcpu->kvm, gfn ^ 0x1) < 0)
 		return -1;
 
-	if (even) {
-		pfn0 = kvm->arch.guest_pmap[gfn];
-		pfn1 = kvm->arch.guest_pmap[gfn ^ 0x1];
-	} else {
-		pfn0 = kvm->arch.guest_pmap[gfn ^ 0x1];
-		pfn1 = kvm->arch.guest_pmap[gfn];
-	}
+	pfn0 = kvm->arch.guest_pmap[gfn & ~0x1];
+	pfn1 = kvm->arch.guest_pmap[gfn | 0x1];
 
 	entrylo0 = mips3_paddr_to_tlbpfn(pfn0 << PAGE_SHIFT) | (0x3 << 3) |
 		   (1 << 2) | (0x1 << 1);
