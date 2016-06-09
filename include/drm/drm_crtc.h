@@ -253,6 +253,8 @@ struct drm_framebuffer {
 	int bits_per_pixel;
 	int flags;
 	uint32_t pixel_format; /* fourcc format */
+	int hot_x;
+	int hot_y;
 	struct list_head filp_head;
 };
 

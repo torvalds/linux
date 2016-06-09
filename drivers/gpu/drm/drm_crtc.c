@@ -2919,6 +2919,8 @@ static int drm_mode_cursor_universal(struct drm_crtc *crtc,
 				DRM_DEBUG_KMS("failed to wrap cursor buffer in drm framebuffer\n");
 				return PTR_ERR(fb);
 			}
+			fb->hot_x = req->hot_x;
+			fb->hot_y = req->hot_y;
 		} else {
 			fb = NULL;
 		}
