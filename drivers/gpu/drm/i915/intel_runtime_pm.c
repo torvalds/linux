@@ -806,15 +806,27 @@ static bool gen9_dc_off_power_well_enabled(struct drm_i915_private *dev_priv,
 	return (I915_READ(DC_STATE_EN) & DC_STATE_EN_UPTO_DC5_DC6_MASK) == 0;
 }
 
+static void gen9_assert_dbuf_enabled(struct drm_i915_private *dev_priv)
+{
+	u32 tmp = I915_READ(DBUF_CTL);
+
+	WARN((tmp & (DBUF_POWER_STATE | DBUF_POWER_REQUEST)) !=
+	     (DBUF_POWER_STATE | DBUF_POWER_REQUEST),
+	     "Unexpected DBuf power power state (0x%08x)\n", tmp);
+}
+
 static void gen9_dc_off_power_well_enable(struct drm_i915_private *dev_priv,
 					  struct i915_power_well *power_well)
 {
 	gen9_set_dc_state(dev_priv, DC_STATE_DISABLE);
 
-	if (IS_BROXTON(dev_priv)) {
-		broxton_cdclk_verify_state(dev_priv);
+	WARN_ON(dev_priv->cdclk_freq !=
+		dev_priv->display.get_display_clock_speed(dev_priv->dev));
+
+	gen9_assert_dbuf_enabled(dev_priv);
+
+	if (IS_BROXTON(dev_priv))
 		broxton_ddi_phy_verify_state(dev_priv);
-	}
 }
 
 static void gen9_dc_off_power_well_disable(struct drm_i915_private *dev_priv,
@@ -2176,6 +2188,28 @@ static void intel_power_domains_sync_hw(struct drm_i915_private *dev_priv)
 	mutex_unlock(&power_domains->lock);
 }
 
+static void gen9_dbuf_enable(struct drm_i915_private *dev_priv)
+{
+	I915_WRITE(DBUF_CTL, I915_READ(DBUF_CTL) | DBUF_POWER_REQUEST);
+	POSTING_READ(DBUF_CTL);
+
+	udelay(10);
+
+	if (!(I915_READ(DBUF_CTL) & DBUF_POWER_STATE))
+		DRM_ERROR("DBuf power enable timeout\n");
+}
+
+static void gen9_dbuf_disable(struct drm_i915_private *dev_priv)
+{
+	I915_WRITE(DBUF_CTL, I915_READ(DBUF_CTL) & ~DBUF_POWER_REQUEST);
+	POSTING_READ(DBUF_CTL);
+
+	udelay(10);
+
+	if (I915_READ(DBUF_CTL) & DBUF_POWER_STATE)
+		DRM_ERROR("DBuf power disable timeout!\n");
+}
+
 static void skl_display_core_init(struct drm_i915_private *dev_priv,
 				   bool resume)
 {
@@ -2200,12 +2234,11 @@ static void skl_display_core_init(struct drm_i915_private *dev_priv,
 
 	mutex_unlock(&power_domains->lock);
 
-	if (!resume)
-		return;
-
 	skl_init_cdclk(dev_priv);
 
-	if (dev_priv->csr.dmc_payload)
+	gen9_dbuf_enable(dev_priv);
+
+	if (resume && dev_priv->csr.dmc_payload)
 		intel_csr_load_program(dev_priv);
 }
 
@@ -2215,6 +2248,8 @@ static void skl_display_core_uninit(struct drm_i915_private *dev_priv)
 	struct i915_power_well *well;
 
 	gen9_set_dc_state(dev_priv, DC_STATE_DISABLE);
+
+	gen9_dbuf_disable(dev_priv);
 
 	skl_uninit_cdclk(dev_priv);
 
@@ -2260,9 +2295,11 @@ void bxt_display_core_init(struct drm_i915_private *dev_priv,
 	mutex_unlock(&power_domains->lock);
 
 	broxton_init_cdclk(dev_priv);
+
+	gen9_dbuf_enable(dev_priv);
+
 	broxton_ddi_phy_init(dev_priv);
 
-	broxton_cdclk_verify_state(dev_priv);
 	broxton_ddi_phy_verify_state(dev_priv);
 
 	if (resume && dev_priv->csr.dmc_payload)
@@ -2277,6 +2314,9 @@ void bxt_display_core_uninit(struct drm_i915_private *dev_priv)
 	gen9_set_dc_state(dev_priv, DC_STATE_DISABLE);
 
 	broxton_ddi_phy_uninit(dev_priv);
+
+	gen9_dbuf_disable(dev_priv);
+
 	broxton_uninit_cdclk(dev_priv);
 
 	/* The spec doesn't call for removing the reset handshake flag */

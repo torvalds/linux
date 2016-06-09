@@ -714,7 +714,7 @@ eb_vma_misplaced(struct i915_vma *vma)
 static int
 i915_gem_execbuffer_reserve(struct intel_engine_cs *engine,
 			    struct list_head *vmas,
-			    struct intel_context *ctx,
+			    struct i915_gem_context *ctx,
 			    bool *need_relocs)
 {
 	struct drm_i915_gem_object *obj;
@@ -826,7 +826,7 @@ i915_gem_execbuffer_relocate_slow(struct drm_device *dev,
 				  struct intel_engine_cs *engine,
 				  struct eb_vmas *eb,
 				  struct drm_i915_gem_exec_object2 *exec,
-				  struct intel_context *ctx)
+				  struct i915_gem_context *ctx)
 {
 	struct drm_i915_gem_relocation_entry *reloc;
 	struct i915_address_space *vm;
@@ -1063,17 +1063,17 @@ validate_exec_list(struct drm_device *dev,
 	return 0;
 }
 
-static struct intel_context *
+static struct i915_gem_context *
 i915_gem_validate_context(struct drm_device *dev, struct drm_file *file,
 			  struct intel_engine_cs *engine, const u32 ctx_id)
 {
-	struct intel_context *ctx = NULL;
+	struct i915_gem_context *ctx = NULL;
 	struct i915_ctx_hang_stats *hs;
 
 	if (engine->id != RCS && ctx_id != DEFAULT_CONTEXT_HANDLE)
 		return ERR_PTR(-EINVAL);
 
-	ctx = i915_gem_context_get(file->driver_priv, ctx_id);
+	ctx = i915_gem_context_lookup(file->driver_priv, ctx_id);
 	if (IS_ERR(ctx))
 		return ctx;
 
@@ -1428,7 +1428,7 @@ i915_gem_do_execbuffer(struct drm_device *dev, void *data,
 	struct drm_i915_gem_object *batch_obj;
 	struct drm_i915_gem_exec_object2 shadow_exec_entry;
 	struct intel_engine_cs *engine;
-	struct intel_context *ctx;
+	struct i915_gem_context *ctx;
 	struct i915_address_space *vm;
 	struct i915_execbuffer_params params_master; /* XXX: will be removed later */
 	struct i915_execbuffer_params *params = &params_master;

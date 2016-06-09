@@ -208,8 +208,8 @@ intel_find_shared_dpll(struct intel_crtc *crtc,
 		if (memcmp(&crtc_state->dpll_hw_state,
 			   &shared_dpll[i].hw_state,
 			   sizeof(crtc_state->dpll_hw_state)) == 0) {
-			DRM_DEBUG_KMS("CRTC:%d sharing existing %s (crtc mask 0x%08x, active %x)\n",
-				      crtc->base.base.id, pll->name,
+			DRM_DEBUG_KMS("[CRTC:%d:%s] sharing existing %s (crtc mask 0x%08x, active %x)\n",
+				      crtc->base.base.id, crtc->base.name, pll->name,
 				      shared_dpll[i].crtc_mask,
 				      pll->active_mask);
 			return pll;
@@ -220,8 +220,8 @@ intel_find_shared_dpll(struct intel_crtc *crtc,
 	for (i = range_min; i <= range_max; i++) {
 		pll = &dev_priv->shared_dplls[i];
 		if (shared_dpll[i].crtc_mask == 0) {
-			DRM_DEBUG_KMS("CRTC:%d allocated %s\n",
-				      crtc->base.base.id, pll->name);
+			DRM_DEBUG_KMS("[CRTC:%d:%s] allocated %s\n",
+				      crtc->base.base.id, crtc->base.name, pll->name);
 			return pll;
 		}
 	}
@@ -358,13 +358,16 @@ ibx_get_dpll(struct intel_crtc *crtc, struct intel_crtc_state *crtc_state,
 		i = (enum intel_dpll_id) crtc->pipe;
 		pll = &dev_priv->shared_dplls[i];
 
-		DRM_DEBUG_KMS("CRTC:%d using pre-allocated %s\n",
-			      crtc->base.base.id, pll->name);
+		DRM_DEBUG_KMS("[CRTC:%d:%s] using pre-allocated %s\n",
+			      crtc->base.base.id, crtc->base.name, pll->name);
 	} else {
 		pll = intel_find_shared_dpll(crtc, crtc_state,
 					     DPLL_ID_PCH_PLL_A,
 					     DPLL_ID_PCH_PLL_B);
 	}
+
+	if (!pll)
+		return NULL;
 
 	/* reference the pll */
 	intel_reference_shared_dpll(pll, crtc_state);
@@ -1236,9 +1239,6 @@ skl_get_dpll(struct intel_crtc *crtc, struct intel_crtc_state *crtc_state,
 		case 162000:
 			ctrl1 |= DPLL_CTRL1_LINK_RATE(DPLL_CTRL1_LINK_RATE_1620, 0);
 			break;
-		/* TBD: For DP link rates 2.16 GHz and 4.32 GHz, VCO is 8640 which
-		results in CDCLK change. Need to handle the change of CDCLK by
-		disabling pipes and re-enabling them */
 		case 108000:
 			ctrl1 |= DPLL_CTRL1_LINK_RATE(DPLL_CTRL1_LINK_RATE_1080, 0);
 			break;
@@ -1613,8 +1613,8 @@ bxt_get_dpll(struct intel_crtc *crtc, struct intel_crtc_state *crtc_state,
 	i = (enum intel_dpll_id) intel_dig_port->port;
 	pll = intel_get_shared_dpll_by_id(dev_priv, i);
 
-	DRM_DEBUG_KMS("CRTC:%d using pre-allocated %s\n",
-		crtc->base.base.id, pll->name);
+	DRM_DEBUG_KMS("[CRTC:%d:%s] using pre-allocated %s\n",
+		      crtc->base.base.id, crtc->base.name, pll->name);
 
 	intel_reference_shared_dpll(pll, crtc_state);
 
@@ -1633,18 +1633,10 @@ static const struct intel_shared_dpll_funcs bxt_ddi_pll_funcs = {
 static void intel_ddi_pll_init(struct drm_device *dev)
 {
 	struct drm_i915_private *dev_priv = dev->dev_private;
-	uint32_t val = I915_READ(LCPLL_CTL);
 
-	if (IS_SKYLAKE(dev) || IS_KABYLAKE(dev)) {
-		int cdclk_freq;
+	if (INTEL_GEN(dev_priv) < 9) {
+		uint32_t val = I915_READ(LCPLL_CTL);
 
-		cdclk_freq = dev_priv->display.get_display_clock_speed(dev);
-		dev_priv->skl_boot_cdclk = cdclk_freq;
-		if (skl_sanitize_cdclk(dev_priv))
-			DRM_DEBUG_KMS("Sanitized cdclk programmed by pre-os\n");
-		if (!(I915_READ(LCPLL1_CTL) & LCPLL_PLL_ENABLE))
-			DRM_ERROR("LCPLL1 is disabled\n");
-	} else if (!IS_BROXTON(dev_priv)) {
 		/*
 		 * The LCPLL register should be turned on by the BIOS. For now
 		 * let's just check its state and print errors in case

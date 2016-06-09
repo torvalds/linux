@@ -360,10 +360,9 @@ static void guc_init_ctx_desc(struct intel_guc *guc,
 	struct drm_i915_gem_object *client_obj = client->client_obj;
 	struct drm_i915_private *dev_priv = guc_to_i915(guc);
 	struct intel_engine_cs *engine;
-	struct intel_context *ctx = client->owner;
+	struct i915_gem_context *ctx = client->owner;
 	struct guc_context_desc desc;
 	struct sg_table *sg;
-	enum intel_engine_id id;
 	u32 gfx_addr;
 
 	memset(&desc, 0, sizeof(desc));
@@ -373,10 +372,10 @@ static void guc_init_ctx_desc(struct intel_guc *guc,
 	desc.priority = client->priority;
 	desc.db_id = client->doorbell_id;
 
-	for_each_engine_id(engine, dev_priv, id) {
+	for_each_engine(engine, dev_priv) {
+		struct intel_context *ce = &ctx->engine[engine->id];
 		struct guc_execlist_context *lrc = &desc.lrc[engine->guc_id];
 		struct drm_i915_gem_object *obj;
-		uint64_t ctx_desc;
 
 		/* TODO: We have a design issue to be solved here. Only when we
 		 * receive the first batch, we know which engine is used by the
@@ -385,20 +384,18 @@ static void guc_init_ctx_desc(struct intel_guc *guc,
 		 * for now who owns a GuC client. But for future owner of GuC
 		 * client, need to make sure lrc is pinned prior to enter here.
 		 */
-		obj = ctx->engine[id].state;
-		if (!obj)
+		if (!ce->state)
 			break;	/* XXX: continue? */
 
-		ctx_desc = intel_lr_context_descriptor(ctx, engine);
-		lrc->context_desc = (u32)ctx_desc;
+		lrc->context_desc = lower_32_bits(ce->lrc_desc);
 
 		/* The state page is after PPHWSP */
-		gfx_addr = i915_gem_obj_ggtt_offset(obj);
+		gfx_addr = i915_gem_obj_ggtt_offset(ce->state);
 		lrc->ring_lcra = gfx_addr + LRC_STATE_PN * PAGE_SIZE;
 		lrc->context_id = (client->ctx_index << GUC_ELC_CTXID_OFFSET) |
 				(engine->guc_id << GUC_ELC_ENGINE_OFFSET);
 
-		obj = ctx->engine[id].ringbuf->obj;
+		obj = ce->ringbuf->obj;
 		gfx_addr = i915_gem_obj_ggtt_offset(obj);
 
 		lrc->ring_begin = gfx_addr;
@@ -426,7 +423,7 @@ static void guc_init_ctx_desc(struct intel_guc *guc,
 	desc.wq_size = client->wq_size;
 
 	/*
-	 * XXX: Take LRCs from an existing intel_context if this is not an
+	 * XXX: Take LRCs from an existing context if this is not an
 	 * IsKMDCreatedContext client
 	 */
 	desc.desc_private = (uintptr_t)client;
@@ -450,47 +447,64 @@ static void guc_fini_ctx_desc(struct intel_guc *guc,
 			     sizeof(desc) * client->ctx_index);
 }
 
-int i915_guc_wq_check_space(struct i915_guc_client *gc)
+/**
+ * i915_guc_wq_check_space() - check that the GuC can accept a request
+ * @request:	request associated with the commands
+ *
+ * Return:	0 if space is available
+ *		-EAGAIN if space is not currently available
+ *
+ * This function must be called (and must return 0) before a request
+ * is submitted to the GuC via i915_guc_submit() below. Once a result
+ * of 0 has been returned, it remains valid until (but only until)
+ * the next call to submit().
+ *
+ * This precheck allows the caller to determine in advance that space
+ * will be available for the next submission before committing resources
+ * to it, and helps avoid late failures with complicated recovery paths.
+ */
+int i915_guc_wq_check_space(struct drm_i915_gem_request *request)
 {
+	const size_t wqi_size = sizeof(struct guc_wq_item);
+	struct i915_guc_client *gc = request->i915->guc.execbuf_client;
 	struct guc_process_desc *desc;
-	u32 size = sizeof(struct guc_wq_item);
-	int ret = -ETIMEDOUT, timeout_counter = 200;
+	u32 freespace;
 
-	if (!gc)
-		return 0;
+	GEM_BUG_ON(gc == NULL);
 
 	desc = gc->client_base + gc->proc_desc_offset;
 
-	while (timeout_counter-- > 0) {
-		if (CIRC_SPACE(gc->wq_tail, desc->head, gc->wq_size) >= size) {
-			ret = 0;
-			break;
-		}
+	freespace = CIRC_SPACE(gc->wq_tail, desc->head, gc->wq_size);
+	if (likely(freespace >= wqi_size))
+		return 0;
 
-		if (timeout_counter)
-			usleep_range(1000, 2000);
-	};
+	gc->no_wq_space += 1;
 
-	return ret;
+	return -EAGAIN;
 }
 
-static int guc_add_workqueue_item(struct i915_guc_client *gc,
-				  struct drm_i915_gem_request *rq)
+static void guc_add_workqueue_item(struct i915_guc_client *gc,
+				   struct drm_i915_gem_request *rq)
 {
+	/* wqi_len is in DWords, and does not include the one-word header */
+	const size_t wqi_size = sizeof(struct guc_wq_item);
+	const u32 wqi_len = wqi_size/sizeof(u32) - 1;
 	struct guc_process_desc *desc;
 	struct guc_wq_item *wqi;
 	void *base;
-	u32 tail, wq_len, wq_off, space;
+	u32 freespace, tail, wq_off, wq_page;
 
 	desc = gc->client_base + gc->proc_desc_offset;
-	space = CIRC_SPACE(gc->wq_tail, desc->head, gc->wq_size);
-	if (WARN_ON(space < sizeof(struct guc_wq_item)))
-		return -ENOSPC; /* shouldn't happen */
 
-	/* postincrement WQ tail for next time */
-	wq_off = gc->wq_tail;
-	gc->wq_tail += sizeof(struct guc_wq_item);
-	gc->wq_tail &= gc->wq_size - 1;
+	/* Free space is guaranteed, see i915_guc_wq_check_space() above */
+	freespace = CIRC_SPACE(gc->wq_tail, desc->head, gc->wq_size);
+	GEM_BUG_ON(freespace < wqi_size);
+
+	/* The GuC firmware wants the tail index in QWords, not bytes */
+	tail = rq->tail;
+	GEM_BUG_ON(tail & 7);
+	tail >>= 3;
+	GEM_BUG_ON(tail > WQ_RING_TAIL_MAX);
 
 	/* For now workqueue item is 4 DWs; workqueue buffer is 2 pages. So we
 	 * should not have the case where structure wqi is across page, neither
@@ -499,19 +513,23 @@ static int guc_add_workqueue_item(struct i915_guc_client *gc,
 	 * XXX: if not the case, we need save data to a temp wqi and copy it to
 	 * workqueue buffer dw by dw.
 	 */
-	WARN_ON(sizeof(struct guc_wq_item) != 16);
-	WARN_ON(wq_off & 3);
+	BUILD_BUG_ON(wqi_size != 16);
 
-	/* wq starts from the page after doorbell / process_desc */
-	base = kmap_atomic(i915_gem_object_get_page(gc->client_obj,
-			(wq_off + GUC_DB_SIZE) >> PAGE_SHIFT));
+	/* postincrement WQ tail for next time */
+	wq_off = gc->wq_tail;
+	gc->wq_tail += wqi_size;
+	gc->wq_tail &= gc->wq_size - 1;
+	GEM_BUG_ON(wq_off & (wqi_size - 1));
+
+	/* WQ starts from the page after doorbell / process_desc */
+	wq_page = (wq_off + GUC_DB_SIZE) >> PAGE_SHIFT;
 	wq_off &= PAGE_SIZE - 1;
+	base = kmap_atomic(i915_gem_object_get_page(gc->client_obj, wq_page));
 	wqi = (struct guc_wq_item *)((char *)base + wq_off);
 
-	/* len does not include the header */
-	wq_len = sizeof(struct guc_wq_item) / sizeof(u32) - 1;
+	/* Now fill in the 4-word work queue item */
 	wqi->header = WQ_TYPE_INORDER |
-			(wq_len << WQ_LEN_SHIFT) |
+			(wqi_len << WQ_LEN_SHIFT) |
 			(rq->engine->guc_id << WQ_TARGET_SHIFT) |
 			WQ_NO_WCFLUSH_WAIT;
 
@@ -519,48 +537,50 @@ static int guc_add_workqueue_item(struct i915_guc_client *gc,
 	wqi->context_desc = (u32)intel_lr_context_descriptor(rq->ctx,
 							     rq->engine);
 
-	/* The GuC firmware wants the tail index in QWords, not bytes */
-	tail = rq->ringbuf->tail >> 3;
 	wqi->ring_tail = tail << WQ_RING_TAIL_SHIFT;
-	wqi->fence_id = 0; /*XXX: what fence to be here */
+	wqi->fence_id = rq->seqno;
 
 	kunmap_atomic(base);
-
-	return 0;
 }
 
 /**
  * i915_guc_submit() - Submit commands through GuC
- * @client:	the guc client where commands will go through
  * @rq:		request associated with the commands
  *
- * Return:	0 if succeed
+ * Return:	0 on success, otherwise an errno.
+ * 		(Note: nonzero really shouldn't happen!)
+ *
+ * The caller must have already called i915_guc_wq_check_space() above
+ * with a result of 0 (success) since the last request submission. This
+ * guarantees that there is space in the work queue for the new request,
+ * so enqueuing the item cannot fail.
+ *
+ * Bad Things Will Happen if the caller violates this protocol e.g. calls
+ * submit() when check() says there's no space, or calls submit() multiple
+ * times with no intervening check().
+ *
+ * The only error here arises if the doorbell hardware isn't functioning
+ * as expected, which really shouln't happen.
  */
-int i915_guc_submit(struct i915_guc_client *client,
-		    struct drm_i915_gem_request *rq)
+int i915_guc_submit(struct drm_i915_gem_request *rq)
 {
-	struct intel_guc *guc = client->guc;
 	unsigned int engine_id = rq->engine->guc_id;
-	int q_ret, b_ret;
+	struct intel_guc *guc = &rq->i915->guc;
+	struct i915_guc_client *client = guc->execbuf_client;
+	int b_ret;
 
-	q_ret = guc_add_workqueue_item(client, rq);
-	if (q_ret == 0)
-		b_ret = guc_ring_doorbell(client);
+	guc_add_workqueue_item(client, rq);
+	b_ret = guc_ring_doorbell(client);
 
 	client->submissions[engine_id] += 1;
-	if (q_ret) {
-		client->q_fail += 1;
-		client->retcode = q_ret;
-	} else if (b_ret) {
+	client->retcode = b_ret;
+	if (b_ret)
 		client->b_fail += 1;
-		client->retcode = q_ret = b_ret;
-	} else {
-		client->retcode = 0;
-	}
+
 	guc->submissions[engine_id] += 1;
 	guc->last_seqno[engine_id] = rq->seqno;
 
-	return q_ret;
+	return b_ret;
 }
 
 /*
@@ -677,7 +697,7 @@ static void guc_client_free(struct drm_device *dev,
  */
 static struct i915_guc_client *guc_client_alloc(struct drm_device *dev,
 						uint32_t priority,
-						struct intel_context *ctx)
+						struct i915_gem_context *ctx)
 {
 	struct i915_guc_client *client;
 	struct drm_i915_private *dev_priv = dev->dev_private;
@@ -915,11 +935,12 @@ int i915_guc_submission_enable(struct drm_device *dev)
 {
 	struct drm_i915_private *dev_priv = dev->dev_private;
 	struct intel_guc *guc = &dev_priv->guc;
-	struct intel_context *ctx = dev_priv->kernel_context;
 	struct i915_guc_client *client;
 
 	/* client for execbuf submission */
-	client = guc_client_alloc(dev, GUC_CTX_PRIORITY_KMD_NORMAL, ctx);
+	client = guc_client_alloc(dev,
+				  GUC_CTX_PRIORITY_KMD_NORMAL,
+				  dev_priv->kernel_context);
 	if (!client) {
 		DRM_ERROR("Failed to create execbuf guc_client\n");
 		return -ENOMEM;
@@ -966,10 +987,10 @@ int intel_guc_suspend(struct drm_device *dev)
 {
 	struct drm_i915_private *dev_priv = dev->dev_private;
 	struct intel_guc *guc = &dev_priv->guc;
-	struct intel_context *ctx;
+	struct i915_gem_context *ctx;
 	u32 data[3];
 
-	if (!i915.enable_guc_submission)
+	if (guc->guc_fw.guc_fw_load_status != GUC_FIRMWARE_SUCCESS)
 		return 0;
 
 	ctx = dev_priv->kernel_context;
@@ -992,10 +1013,10 @@ int intel_guc_resume(struct drm_device *dev)
 {
 	struct drm_i915_private *dev_priv = dev->dev_private;
 	struct intel_guc *guc = &dev_priv->guc;
-	struct intel_context *ctx;
+	struct i915_gem_context *ctx;
 	u32 data[3];
 
-	if (!i915.enable_guc_submission)
+	if (guc->guc_fw.guc_fw_load_status != GUC_FIRMWARE_SUCCESS)
 		return 0;
 
 	ctx = dev_priv->kernel_context;

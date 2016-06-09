@@ -119,7 +119,7 @@ struct intel_ringbuffer {
 	u32 last_retired_head;
 };
 
-struct	intel_context;
+struct i915_gem_context;
 struct drm_i915_reg_table;
 
 /*
@@ -310,7 +310,7 @@ struct intel_engine_cs {
 
 	wait_queue_head_t irq_queue;
 
-	struct intel_context *last_context;
+	struct i915_gem_context *last_context;
 
 	struct intel_ring_hangcheck hangcheck;
 

@@ -139,6 +139,11 @@ fill_detail_timing_data(struct drm_display_mode *panel_fixed_mode,
 	else
 		panel_fixed_mode->flags |= DRM_MODE_FLAG_NVSYNC;
 
+	panel_fixed_mode->width_mm = (dvo_timing->himage_hi << 8) |
+		dvo_timing->himage_lo;
+	panel_fixed_mode->height_mm = (dvo_timing->vimage_hi << 8) |
+		dvo_timing->vimage_lo;
+
 	/* Some VBTs have bogus h/vtotal values */
 	if (panel_fixed_mode->hsync_end > panel_fixed_mode->htotal)
 		panel_fixed_mode->htotal = panel_fixed_mode->hsync_end + 1;
@@ -213,7 +218,7 @@ parse_lfp_panel_data(struct drm_i915_private *dev_priv,
 
 	dev_priv->vbt.lvds_dither = lvds_options->pixel_dither;
 
-	ret = intel_opregion_get_panel_type(dev_priv->dev);
+	ret = intel_opregion_get_panel_type(dev_priv);
 	if (ret >= 0) {
 		WARN_ON(ret > 0xf);
 		panel_type = ret;
@@ -1206,7 +1211,7 @@ parse_device_mapping(struct drm_i915_private *dev_priv,
 	}
 	if (bdb->version < 106) {
 		expected_size = 22;
-	} else if (bdb->version < 109) {
+	} else if (bdb->version < 111) {
 		expected_size = 27;
 	} else if (bdb->version < 195) {
 		BUILD_BUG_ON(sizeof(struct old_child_dev_config) != 33);

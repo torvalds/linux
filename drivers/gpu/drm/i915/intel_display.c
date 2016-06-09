@@ -123,6 +123,7 @@ static void ironlake_pfit_enable(struct intel_crtc *crtc);
 static void intel_modeset_setup_hw_state(struct drm_device *dev);
 static void intel_pre_disable_primary_noatomic(struct drm_crtc *crtc);
 static int ilk_max_pixel_rate(struct drm_atomic_state *state);
+static int broxton_calc_cdclk(int max_pixclk);
 
 struct intel_limit {
 	struct {
@@ -4277,8 +4278,9 @@ int skl_update_scaler_crtc(struct intel_crtc_state *state)
 	struct intel_crtc *intel_crtc = to_intel_crtc(state->base.crtc);
 	const struct drm_display_mode *adjusted_mode = &state->base.adjusted_mode;
 
-	DRM_DEBUG_KMS("Updating scaler for [CRTC:%i] scaler_user index %u.%u\n",
-		      intel_crtc->base.base.id, intel_crtc->pipe, SKL_CRTC_INDEX);
+	DRM_DEBUG_KMS("Updating scaler for [CRTC:%d:%s] scaler_user index %u.%u\n",
+		      intel_crtc->base.base.id, intel_crtc->base.name,
+		      intel_crtc->pipe, SKL_CRTC_INDEX);
 
 	return skl_update_scaler(state, !state->base.active, SKL_CRTC_INDEX,
 		&state->scaler_state.scaler_id, BIT(DRM_ROTATE_0),
@@ -4308,9 +4310,9 @@ static int skl_update_scaler_plane(struct intel_crtc_state *crtc_state,
 
 	bool force_detach = !fb || !plane_state->visible;
 
-	DRM_DEBUG_KMS("Updating scaler for [PLANE:%d] scaler_user index %u.%u\n",
-		      intel_plane->base.base.id, intel_crtc->pipe,
-		      drm_plane_index(&intel_plane->base));
+	DRM_DEBUG_KMS("Updating scaler for [PLANE:%d:%s] scaler_user index %u.%u\n",
+		      intel_plane->base.base.id, intel_plane->base.name,
+		      intel_crtc->pipe, drm_plane_index(&intel_plane->base));
 
 	ret = skl_update_scaler(crtc_state, force_detach,
 				drm_plane_index(&intel_plane->base),
@@ -4326,8 +4328,9 @@ static int skl_update_scaler_plane(struct intel_crtc_state *crtc_state,
 
 	/* check colorkey */
 	if (plane_state->ckey.flags != I915_SET_COLORKEY_NONE) {
-		DRM_DEBUG_KMS("[PLANE:%d] scaling with color key not allowed",
-			      intel_plane->base.base.id);
+		DRM_DEBUG_KMS("[PLANE:%d:%s] scaling with color key not allowed",
+			      intel_plane->base.base.id,
+			      intel_plane->base.name);
 		return -EINVAL;
 	}
 
@@ -4346,8 +4349,9 @@ static int skl_update_scaler_plane(struct intel_crtc_state *crtc_state,
 	case DRM_FORMAT_VYUY:
 		break;
 	default:
-		DRM_DEBUG_KMS("[PLANE:%d] FB:%d unsupported scaling format 0x%x\n",
-			intel_plane->base.base.id, fb->base.id, fb->pixel_format);
+		DRM_DEBUG_KMS("[PLANE:%d:%s] FB:%d unsupported scaling format 0x%x\n",
+			      intel_plane->base.base.id, intel_plane->base.name,
+			      fb->base.id, fb->pixel_format);
 		return -EINVAL;
 	}
 
@@ -5265,21 +5269,34 @@ static int intel_compute_max_dotclk(struct drm_i915_private *dev_priv)
 		return max_cdclk_freq*90/100;
 }
 
+static int skl_calc_cdclk(int max_pixclk, int vco);
+
 static void intel_update_max_cdclk(struct drm_device *dev)
 {
 	struct drm_i915_private *dev_priv = dev->dev_private;
 
 	if (IS_SKYLAKE(dev) || IS_KABYLAKE(dev)) {
 		u32 limit = I915_READ(SKL_DFSM) & SKL_DFSM_CDCLK_LIMIT_MASK;
+		int max_cdclk, vco;
 
+		vco = dev_priv->skl_preferred_vco_freq;
+		WARN_ON(vco != 8100000 && vco != 8640000);
+
+		/*
+		 * Use the lower (vco 8640) cdclk values as a
+		 * first guess. skl_calc_cdclk() will correct it
+		 * if the preferred vco is 8100 instead.
+		 */
 		if (limit == SKL_DFSM_CDCLK_LIMIT_675)
-			dev_priv->max_cdclk_freq = 675000;
+			max_cdclk = 617143;
 		else if (limit == SKL_DFSM_CDCLK_LIMIT_540)
-			dev_priv->max_cdclk_freq = 540000;
+			max_cdclk = 540000;
 		else if (limit == SKL_DFSM_CDCLK_LIMIT_450)
-			dev_priv->max_cdclk_freq = 450000;
+			max_cdclk = 432000;
 		else
-			dev_priv->max_cdclk_freq = 337500;
+			max_cdclk = 308571;
+
+		dev_priv->max_cdclk_freq = skl_calc_cdclk(max_cdclk, vco);
 	} else if (IS_BROXTON(dev)) {
 		dev_priv->max_cdclk_freq = 624000;
 	} else if (IS_BROADWELL(dev))  {
@@ -5320,8 +5337,14 @@ static void intel_update_cdclk(struct drm_device *dev)
 	struct drm_i915_private *dev_priv = dev->dev_private;
 
 	dev_priv->cdclk_freq = dev_priv->display.get_display_clock_speed(dev);
-	DRM_DEBUG_DRIVER("Current CD clock rate: %d kHz\n",
-			 dev_priv->cdclk_freq);
+
+	if (INTEL_GEN(dev_priv) >= 9)
+		DRM_DEBUG_DRIVER("Current CD clock rate: %d kHz, VCO: %d kHz, ref: %d kHz\n",
+				 dev_priv->cdclk_freq, dev_priv->cdclk_pll.vco,
+				 dev_priv->cdclk_pll.ref);
+	else
+		DRM_DEBUG_DRIVER("Current CD clock rate: %d kHz\n",
+				 dev_priv->cdclk_freq);
 
 	/*
 	 * 9:0 CMBUS [sic] CDCLK frequency (cdfreq):
@@ -5331,9 +5354,6 @@ static void intel_update_cdclk(struct drm_device *dev)
 	 */
 	if (IS_VALLEYVIEW(dev_priv) || IS_CHERRYVIEW(dev_priv))
 		I915_WRITE(GMBUSFREQ_VLV, DIV_ROUND_UP(dev_priv->cdclk_freq, 1000));
-
-	if (dev_priv->max_cdclk_freq == 0)
-		intel_update_max_cdclk(dev);
 }
 
 /* convert from kHz to .1 fixpoint MHz with -1MHz offset */
@@ -5342,51 +5362,93 @@ static int skl_cdclk_decimal(int cdclk)
 	return DIV_ROUND_CLOSEST(cdclk - 1000, 500);
 }
 
-static void broxton_set_cdclk(struct drm_i915_private *dev_priv, int cdclk)
+static int bxt_de_pll_vco(struct drm_i915_private *dev_priv, int cdclk)
 {
-	uint32_t divider;
-	uint32_t ratio;
-	uint32_t current_cdclk;
-	int ret;
+	int ratio;
 
-	/* frequency = 19.2MHz * ratio / 2 / div{1,1.5,2,4} */
+	if (cdclk == dev_priv->cdclk_pll.ref)
+		return 0;
+
 	switch (cdclk) {
+	default:
+		MISSING_CASE(cdclk);
 	case 144000:
-		divider = BXT_CDCLK_CD2X_DIV_SEL_4;
-		ratio = BXT_DE_PLL_RATIO(60);
-		break;
 	case 288000:
-		divider = BXT_CDCLK_CD2X_DIV_SEL_2;
-		ratio = BXT_DE_PLL_RATIO(60);
-		break;
 	case 384000:
-		divider = BXT_CDCLK_CD2X_DIV_SEL_1_5;
-		ratio = BXT_DE_PLL_RATIO(60);
-		break;
 	case 576000:
-		divider = BXT_CDCLK_CD2X_DIV_SEL_1;
-		ratio = BXT_DE_PLL_RATIO(60);
+		ratio = 60;
 		break;
 	case 624000:
-		divider = BXT_CDCLK_CD2X_DIV_SEL_1;
-		ratio = BXT_DE_PLL_RATIO(65);
+		ratio = 65;
 		break;
-	case 19200:
-		/*
-		 * Bypass frequency with DE PLL disabled. Init ratio, divider
-		 * to suppress GCC warning.
-		 */
-		ratio = 0;
-		divider = 0;
-		break;
-	default:
-		DRM_ERROR("unsupported CDCLK freq %d", cdclk);
-
-		return;
 	}
 
-	mutex_lock(&dev_priv->rps.hw_lock);
+	return dev_priv->cdclk_pll.ref * ratio;
+}
+
+static void bxt_de_pll_disable(struct drm_i915_private *dev_priv)
+{
+	I915_WRITE(BXT_DE_PLL_ENABLE, 0);
+
+	/* Timeout 200us */
+	if (wait_for((I915_READ(BXT_DE_PLL_ENABLE) & BXT_DE_PLL_LOCK) == 0, 1))
+		DRM_ERROR("timeout waiting for DE PLL unlock\n");
+
+	dev_priv->cdclk_pll.vco = 0;
+}
+
+static void bxt_de_pll_enable(struct drm_i915_private *dev_priv, int vco)
+{
+	int ratio = DIV_ROUND_CLOSEST(vco, dev_priv->cdclk_pll.ref);
+	u32 val;
+
+	val = I915_READ(BXT_DE_PLL_CTL);
+	val &= ~BXT_DE_PLL_RATIO_MASK;
+	val |= BXT_DE_PLL_RATIO(ratio);
+	I915_WRITE(BXT_DE_PLL_CTL, val);
+
+	I915_WRITE(BXT_DE_PLL_ENABLE, BXT_DE_PLL_PLL_ENABLE);
+
+	/* Timeout 200us */
+	if (wait_for((I915_READ(BXT_DE_PLL_ENABLE) & BXT_DE_PLL_LOCK) != 0, 1))
+		DRM_ERROR("timeout waiting for DE PLL lock\n");
+
+	dev_priv->cdclk_pll.vco = vco;
+}
+
+static void broxton_set_cdclk(struct drm_i915_private *dev_priv, int cdclk)
+{
+	u32 val, divider;
+	int vco, ret;
+
+	vco = bxt_de_pll_vco(dev_priv, cdclk);
+
+	DRM_DEBUG_DRIVER("Changing CDCLK to %d kHz (VCO %d kHz)\n", cdclk, vco);
+
+	/* cdclk = vco / 2 / div{1,1.5,2,4} */
+	switch (DIV_ROUND_CLOSEST(vco, cdclk)) {
+	case 8:
+		divider = BXT_CDCLK_CD2X_DIV_SEL_4;
+		break;
+	case 4:
+		divider = BXT_CDCLK_CD2X_DIV_SEL_2;
+		break;
+	case 3:
+		divider = BXT_CDCLK_CD2X_DIV_SEL_1_5;
+		break;
+	case 2:
+		divider = BXT_CDCLK_CD2X_DIV_SEL_1;
+		break;
+	default:
+		WARN_ON(cdclk != dev_priv->cdclk_pll.ref);
+		WARN_ON(vco != 0);
+
+		divider = BXT_CDCLK_CD2X_DIV_SEL_1;
+		break;
+	}
+
 	/* Inform power controller of upcoming frequency change */
+	mutex_lock(&dev_priv->rps.hw_lock);
 	ret = sandybridge_pcode_write(dev_priv, HSW_PCODE_DE_WRITE_FREQ_REQ,
 				      0x80000000);
 	mutex_unlock(&dev_priv->rps.hw_lock);
@@ -5397,52 +5459,26 @@ static void broxton_set_cdclk(struct drm_i915_private *dev_priv, int cdclk)
 		return;
 	}
 
-	current_cdclk = I915_READ(CDCLK_CTL) & CDCLK_FREQ_DECIMAL_MASK;
-	/* convert from .1 fixpoint MHz with -1MHz offset to kHz */
-	current_cdclk = current_cdclk * 500 + 1000;
+	if (dev_priv->cdclk_pll.vco != 0 &&
+	    dev_priv->cdclk_pll.vco != vco)
+		bxt_de_pll_disable(dev_priv);
 
+	if (dev_priv->cdclk_pll.vco != vco)
+		bxt_de_pll_enable(dev_priv, vco);
+
+	val = divider | skl_cdclk_decimal(cdclk);
 	/*
-	 * DE PLL has to be disabled when
-	 * - setting to 19.2MHz (bypass, PLL isn't used)
-	 * - before setting to 624MHz (PLL needs toggling)
-	 * - before setting to any frequency from 624MHz (PLL needs toggling)
+	 * FIXME if only the cd2x divider needs changing, it could be done
+	 * without shutting off the pipe (if only one pipe is active).
 	 */
-	if (cdclk == 19200 || cdclk == 624000 ||
-	    current_cdclk == 624000) {
-		I915_WRITE(BXT_DE_PLL_ENABLE, ~BXT_DE_PLL_PLL_ENABLE);
-		/* Timeout 200us */
-		if (wait_for(!(I915_READ(BXT_DE_PLL_ENABLE) & BXT_DE_PLL_LOCK),
-			     1))
-			DRM_ERROR("timout waiting for DE PLL unlock\n");
-	}
-
-	if (cdclk != 19200) {
-		uint32_t val;
-
-		val = I915_READ(BXT_DE_PLL_CTL);
-		val &= ~BXT_DE_PLL_RATIO_MASK;
-		val |= ratio;
-		I915_WRITE(BXT_DE_PLL_CTL, val);
-
-		I915_WRITE(BXT_DE_PLL_ENABLE, BXT_DE_PLL_PLL_ENABLE);
-		/* Timeout 200us */
-		if (wait_for(I915_READ(BXT_DE_PLL_ENABLE) & BXT_DE_PLL_LOCK, 1))
-			DRM_ERROR("timeout waiting for DE PLL lock\n");
-
-		val = divider | skl_cdclk_decimal(cdclk);
-		/*
-		 * FIXME if only the cd2x divider needs changing, it could be done
-		 * without shutting off the pipe (if only one pipe is active).
-		 */
-		val |= BXT_CDCLK_CD2X_PIPE_NONE;
-		/*
-		 * Disable SSA Precharge when CD clock frequency < 500 MHz,
-		 * enable otherwise.
-		 */
-		if (cdclk >= 500000)
-			val |= BXT_CDCLK_SSA_PRECHARGE_ENABLE;
-		I915_WRITE(CDCLK_CTL, val);
-	}
+	val |= BXT_CDCLK_CD2X_PIPE_NONE;
+	/*
+	 * Disable SSA Precharge when CD clock frequency < 500 MHz,
+	 * enable otherwise.
+	 */
+	if (cdclk >= 500000)
+		val |= BXT_CDCLK_SSA_PRECHARGE_ENABLE;
+	I915_WRITE(CDCLK_CTL, val);
 
 	mutex_lock(&dev_priv->rps.hw_lock);
 	ret = sandybridge_pcode_write(dev_priv, HSW_PCODE_DE_WRITE_FREQ_REQ,
@@ -5458,114 +5494,155 @@ static void broxton_set_cdclk(struct drm_i915_private *dev_priv, int cdclk)
 	intel_update_cdclk(dev_priv->dev);
 }
 
-static bool broxton_cdclk_is_enabled(struct drm_i915_private *dev_priv)
+static void bxt_sanitize_cdclk(struct drm_i915_private *dev_priv)
 {
-	if (!(I915_READ(BXT_DE_PLL_ENABLE) & BXT_DE_PLL_PLL_ENABLE))
-		return false;
+	u32 cdctl, expected;
 
-	/* TODO: Check for a valid CDCLK rate */
+	intel_update_cdclk(dev_priv->dev);
 
-	if (!(I915_READ(DBUF_CTL) & DBUF_POWER_REQUEST)) {
-		DRM_DEBUG_DRIVER("CDCLK enabled, but DBUF power not requested\n");
+	if (dev_priv->cdclk_pll.vco == 0 ||
+	    dev_priv->cdclk_freq == dev_priv->cdclk_pll.ref)
+		goto sanitize;
 
-		return false;
-	}
+	/* DPLL okay; verify the cdclock
+	 *
+	 * Some BIOS versions leave an incorrect decimal frequency value and
+	 * set reserved MBZ bits in CDCLK_CTL at least during exiting from S4,
+	 * so sanitize this register.
+	 */
+	cdctl = I915_READ(CDCLK_CTL);
+	/*
+	 * Let's ignore the pipe field, since BIOS could have configured the
+	 * dividers both synching to an active pipe, or asynchronously
+	 * (PIPE_NONE).
+	 */
+	cdctl &= ~BXT_CDCLK_CD2X_PIPE_NONE;
 
-	if (!(I915_READ(DBUF_CTL) & DBUF_POWER_STATE)) {
-		DRM_DEBUG_DRIVER("CDCLK enabled, but DBUF power hasn't settled\n");
+	expected = (cdctl & BXT_CDCLK_CD2X_DIV_SEL_MASK) |
+		   skl_cdclk_decimal(dev_priv->cdclk_freq);
+	/*
+	 * Disable SSA Precharge when CD clock frequency < 500 MHz,
+	 * enable otherwise.
+	 */
+	if (dev_priv->cdclk_freq >= 500000)
+		expected |= BXT_CDCLK_SSA_PRECHARGE_ENABLE;
 
-		return false;
-	}
+	if (cdctl == expected)
+		/* All well; nothing to sanitize */
+		return;
 
-	return true;
-}
+sanitize:
+	DRM_DEBUG_KMS("Sanitizing cdclk programmed by pre-os\n");
 
-bool broxton_cdclk_verify_state(struct drm_i915_private *dev_priv)
-{
-	return broxton_cdclk_is_enabled(dev_priv);
+	/* force cdclk programming */
+	dev_priv->cdclk_freq = 0;
+
+	/* force full PLL disable + enable */
+	dev_priv->cdclk_pll.vco = -1;
 }
 
 void broxton_init_cdclk(struct drm_i915_private *dev_priv)
 {
-	/* check if cd clock is enabled */
-	if (broxton_cdclk_is_enabled(dev_priv)) {
-		DRM_DEBUG_KMS("CDCLK already enabled, won't reprogram it\n");
-		return;
-	}
+	bxt_sanitize_cdclk(dev_priv);
 
-	DRM_DEBUG_KMS("CDCLK not enabled, enabling it\n");
+	if (dev_priv->cdclk_freq != 0 && dev_priv->cdclk_pll.vco != 0)
+		return;
 
 	/*
 	 * FIXME:
 	 * - The initial CDCLK needs to be read from VBT.
 	 *   Need to make this change after VBT has changes for BXT.
-	 * - check if setting the max (or any) cdclk freq is really necessary
-	 *   here, it belongs to modeset time
 	 */
-	broxton_set_cdclk(dev_priv, 624000);
-
-	I915_WRITE(DBUF_CTL, I915_READ(DBUF_CTL) | DBUF_POWER_REQUEST);
-	POSTING_READ(DBUF_CTL);
-
-	udelay(10);
-
-	if (!(I915_READ(DBUF_CTL) & DBUF_POWER_STATE))
-		DRM_ERROR("DBuf power enable timeout!\n");
+	broxton_set_cdclk(dev_priv, broxton_calc_cdclk(0));
 }
 
 void broxton_uninit_cdclk(struct drm_i915_private *dev_priv)
 {
-	I915_WRITE(DBUF_CTL, I915_READ(DBUF_CTL) & ~DBUF_POWER_REQUEST);
-	POSTING_READ(DBUF_CTL);
-
-	udelay(10);
-
-	if (I915_READ(DBUF_CTL) & DBUF_POWER_STATE)
-		DRM_ERROR("DBuf power disable timeout!\n");
-
-	/* Set minimum (bypass) frequency, in effect turning off the DE PLL */
-	broxton_set_cdclk(dev_priv, 19200);
+	broxton_set_cdclk(dev_priv, dev_priv->cdclk_pll.ref);
 }
 
-static const struct skl_cdclk_entry {
-	unsigned int freq;
-	unsigned int vco;
-} skl_cdclk_frequencies[] = {
-	{ .freq = 308570, .vco = 8640 },
-	{ .freq = 337500, .vco = 8100 },
-	{ .freq = 432000, .vco = 8640 },
-	{ .freq = 450000, .vco = 8100 },
-	{ .freq = 540000, .vco = 8100 },
-	{ .freq = 617140, .vco = 8640 },
-	{ .freq = 675000, .vco = 8100 },
-};
-
-static unsigned int skl_cdclk_get_vco(unsigned int freq)
+static int skl_calc_cdclk(int max_pixclk, int vco)
 {
-	unsigned int i;
-
-	for (i = 0; i < ARRAY_SIZE(skl_cdclk_frequencies); i++) {
-		const struct skl_cdclk_entry *e = &skl_cdclk_frequencies[i];
-
-		if (e->freq == freq)
-			return e->vco;
+	if (vco == 8640000) {
+		if (max_pixclk > 540000)
+			return 617143;
+		else if (max_pixclk > 432000)
+			return 540000;
+		else if (max_pixclk > 308571)
+			return 432000;
+		else
+			return 308571;
+	} else {
+		if (max_pixclk > 540000)
+			return 675000;
+		else if (max_pixclk > 450000)
+			return 540000;
+		else if (max_pixclk > 337500)
+			return 450000;
+		else
+			return 337500;
 	}
+}
 
-	return 8100;
+static void
+skl_dpll0_update(struct drm_i915_private *dev_priv)
+{
+	u32 val;
+
+	dev_priv->cdclk_pll.ref = 24000;
+	dev_priv->cdclk_pll.vco = 0;
+
+	val = I915_READ(LCPLL1_CTL);
+	if ((val & LCPLL_PLL_ENABLE) == 0)
+		return;
+
+	if (WARN_ON((val & LCPLL_PLL_LOCK) == 0))
+		return;
+
+	val = I915_READ(DPLL_CTRL1);
+
+	if (WARN_ON((val & (DPLL_CTRL1_HDMI_MODE(SKL_DPLL0) |
+			    DPLL_CTRL1_SSC(SKL_DPLL0) |
+			    DPLL_CTRL1_OVERRIDE(SKL_DPLL0))) !=
+		    DPLL_CTRL1_OVERRIDE(SKL_DPLL0)))
+		return;
+
+	switch (val & DPLL_CTRL1_LINK_RATE_MASK(SKL_DPLL0)) {
+	case DPLL_CTRL1_LINK_RATE(DPLL_CTRL1_LINK_RATE_810, SKL_DPLL0):
+	case DPLL_CTRL1_LINK_RATE(DPLL_CTRL1_LINK_RATE_1350, SKL_DPLL0):
+	case DPLL_CTRL1_LINK_RATE(DPLL_CTRL1_LINK_RATE_1620, SKL_DPLL0):
+	case DPLL_CTRL1_LINK_RATE(DPLL_CTRL1_LINK_RATE_2700, SKL_DPLL0):
+		dev_priv->cdclk_pll.vco = 8100000;
+		break;
+	case DPLL_CTRL1_LINK_RATE(DPLL_CTRL1_LINK_RATE_1080, SKL_DPLL0):
+	case DPLL_CTRL1_LINK_RATE(DPLL_CTRL1_LINK_RATE_2160, SKL_DPLL0):
+		dev_priv->cdclk_pll.vco = 8640000;
+		break;
+	default:
+		MISSING_CASE(val & DPLL_CTRL1_LINK_RATE_MASK(SKL_DPLL0));
+		break;
+	}
+}
+
+void skl_set_preferred_cdclk_vco(struct drm_i915_private *dev_priv, int vco)
+{
+	bool changed = dev_priv->skl_preferred_vco_freq != vco;
+
+	dev_priv->skl_preferred_vco_freq = vco;
+
+	if (changed)
+		intel_update_max_cdclk(dev_priv->dev);
 }
 
 static void
 skl_dpll0_enable(struct drm_i915_private *dev_priv, int vco)
 {
-	int min_cdclk;
+	int min_cdclk = skl_calc_cdclk(0, vco);
 	u32 val;
 
-	/* select the minimum CDCLK before enabling DPLL 0 */
-	if (vco == 8640)
-		min_cdclk = 308570;
-	else
-		min_cdclk = 337500;
+	WARN_ON(vco != 8100000 && vco != 8640000);
 
+	/* select the minimum CDCLK before enabling DPLL 0 */
 	val = CDCLK_FREQ_337_308 | skl_cdclk_decimal(min_cdclk);
 	I915_WRITE(CDCLK_CTL, val);
 	POSTING_READ(CDCLK_CTL);
@@ -5577,14 +5654,14 @@ skl_dpll0_enable(struct drm_i915_private *dev_priv, int vco)
 	 * 8100 while the eDP 1.4 alternate link rates need a VCO of 8640.
 	 * The modeset code is responsible for the selection of the exact link
 	 * rate later on, with the constraint of choosing a frequency that
-	 * works with required_vco.
+	 * works with vco.
 	 */
 	val = I915_READ(DPLL_CTRL1);
 
 	val &= ~(DPLL_CTRL1_HDMI_MODE(SKL_DPLL0) | DPLL_CTRL1_SSC(SKL_DPLL0) |
 		 DPLL_CTRL1_LINK_RATE_MASK(SKL_DPLL0));
 	val |= DPLL_CTRL1_OVERRIDE(SKL_DPLL0);
-	if (vco == 8640)
+	if (vco == 8640000)
 		val |= DPLL_CTRL1_LINK_RATE(DPLL_CTRL1_LINK_RATE_1080,
 					    SKL_DPLL0);
 	else
@@ -5598,6 +5675,11 @@ skl_dpll0_enable(struct drm_i915_private *dev_priv, int vco)
 
 	if (wait_for(I915_READ(LCPLL1_CTL) & LCPLL_PLL_LOCK, 5))
 		DRM_ERROR("DPLL0 not locked\n");
+
+	dev_priv->cdclk_pll.vco = vco;
+
+	/* We'll want to keep using the current vco from now on. */
+	skl_set_preferred_cdclk_vco(dev_priv, vco);
 }
 
 static void
@@ -5606,6 +5688,8 @@ skl_dpll0_disable(struct drm_i915_private *dev_priv)
 	I915_WRITE(LCPLL1_CTL, I915_READ(LCPLL1_CTL) & ~LCPLL_PLL_ENABLE);
 	if (wait_for(!(I915_READ(LCPLL1_CTL) & LCPLL_PLL_LOCK), 1))
 		DRM_ERROR("Couldn't disable DPLL0\n");
+
+	dev_priv->cdclk_pll.vco = 0;
 }
 
 static bool skl_cdclk_pcu_ready(struct drm_i915_private *dev_priv)
@@ -5635,12 +5719,14 @@ static bool skl_cdclk_wait_for_pcu_ready(struct drm_i915_private *dev_priv)
 	return false;
 }
 
-static void skl_set_cdclk(struct drm_i915_private *dev_priv, int cdclk)
+static void skl_set_cdclk(struct drm_i915_private *dev_priv, int cdclk, int vco)
 {
 	struct drm_device *dev = dev_priv->dev;
 	u32 freq_select, pcu_ack;
 
-	DRM_DEBUG_DRIVER("Changing CDCLK to %dKHz\n", cdclk);
+	WARN_ON((cdclk == 24000) != (vco == 0));
+
+	DRM_DEBUG_DRIVER("Changing CDCLK to %d kHz (VCO %d kHz)\n", cdclk, vco);
 
 	if (!skl_cdclk_wait_for_pcu_ready(dev_priv)) {
 		DRM_ERROR("failed to inform PCU about cdclk change\n");
@@ -5658,18 +5744,25 @@ static void skl_set_cdclk(struct drm_i915_private *dev_priv, int cdclk)
 		freq_select = CDCLK_FREQ_540;
 		pcu_ack = 2;
 		break;
-	case 308570:
+	case 308571:
 	case 337500:
 	default:
 		freq_select = CDCLK_FREQ_337_308;
 		pcu_ack = 0;
 		break;
-	case 617140:
+	case 617143:
 	case 675000:
 		freq_select = CDCLK_FREQ_675_617;
 		pcu_ack = 3;
 		break;
 	}
+
+	if (dev_priv->cdclk_pll.vco != 0 &&
+	    dev_priv->cdclk_pll.vco != vco)
+		skl_dpll0_disable(dev_priv);
+
+	if (dev_priv->cdclk_pll.vco != vco)
+		skl_dpll0_enable(dev_priv, vco);
 
 	I915_WRITE(CDCLK_CTL, freq_select | skl_cdclk_decimal(cdclk));
 	POSTING_READ(CDCLK_CTL);
@@ -5682,49 +5775,41 @@ static void skl_set_cdclk(struct drm_i915_private *dev_priv, int cdclk)
 	intel_update_cdclk(dev);
 }
 
+static void skl_sanitize_cdclk(struct drm_i915_private *dev_priv);
+
 void skl_uninit_cdclk(struct drm_i915_private *dev_priv)
 {
-	/* disable DBUF power */
-	I915_WRITE(DBUF_CTL, I915_READ(DBUF_CTL) & ~DBUF_POWER_REQUEST);
-	POSTING_READ(DBUF_CTL);
-
-	udelay(10);
-
-	if (I915_READ(DBUF_CTL) & DBUF_POWER_STATE)
-		DRM_ERROR("DBuf power disable timeout\n");
-
-	skl_dpll0_disable(dev_priv);
+	skl_set_cdclk(dev_priv, dev_priv->cdclk_pll.ref, 0);
 }
 
 void skl_init_cdclk(struct drm_i915_private *dev_priv)
 {
-	unsigned int vco;
+	int cdclk, vco;
 
-	/* DPLL0 not enabled (happens on early BIOS versions) */
-	if (!(I915_READ(LCPLL1_CTL) & LCPLL_PLL_ENABLE)) {
-		/* enable DPLL0 */
-		vco = skl_cdclk_get_vco(dev_priv->skl_boot_cdclk);
-		skl_dpll0_enable(dev_priv, vco);
+	skl_sanitize_cdclk(dev_priv);
+
+	if (dev_priv->cdclk_freq != 0 && dev_priv->cdclk_pll.vco != 0) {
+		/*
+		 * Use the current vco as our initial
+		 * guess as to what the preferred vco is.
+		 */
+		if (dev_priv->skl_preferred_vco_freq == 0)
+			skl_set_preferred_cdclk_vco(dev_priv,
+						    dev_priv->cdclk_pll.vco);
+		return;
 	}
 
-	/* set CDCLK to the frequency the BIOS chose */
-	skl_set_cdclk(dev_priv, dev_priv->skl_boot_cdclk);
+	vco = dev_priv->skl_preferred_vco_freq;
+	if (vco == 0)
+		vco = 8100000;
+	cdclk = skl_calc_cdclk(0, vco);
 
-	/* enable DBUF power */
-	I915_WRITE(DBUF_CTL, I915_READ(DBUF_CTL) | DBUF_POWER_REQUEST);
-	POSTING_READ(DBUF_CTL);
-
-	udelay(10);
-
-	if (!(I915_READ(DBUF_CTL) & DBUF_POWER_STATE))
-		DRM_ERROR("DBuf power enable timeout\n");
+	skl_set_cdclk(dev_priv, cdclk, vco);
 }
 
-int skl_sanitize_cdclk(struct drm_i915_private *dev_priv)
+static void skl_sanitize_cdclk(struct drm_i915_private *dev_priv)
 {
-	uint32_t lcpll1 = I915_READ(LCPLL1_CTL);
-	uint32_t cdctl = I915_READ(CDCLK_CTL);
-	int freq = dev_priv->skl_boot_cdclk;
+	uint32_t cdctl, expected;
 
 	/*
 	 * check if the pre-os intialized the display
@@ -5734,8 +5819,10 @@ int skl_sanitize_cdclk(struct drm_i915_private *dev_priv)
 	if ((I915_READ(SWF_ILK(0x18)) & 0x00FFFFFF) == 0)
 		goto sanitize;
 
+	intel_update_cdclk(dev_priv->dev);
 	/* Is PLL enabled and locked ? */
-	if (!((lcpll1 & LCPLL_PLL_ENABLE) && (lcpll1 & LCPLL_PLL_LOCK)))
+	if (dev_priv->cdclk_pll.vco == 0 ||
+	    dev_priv->cdclk_freq == dev_priv->cdclk_pll.ref)
 		goto sanitize;
 
 	/* DPLL okay; verify the cdclock
@@ -5744,19 +5831,20 @@ int skl_sanitize_cdclk(struct drm_i915_private *dev_priv)
 	 * decimal part is programmed wrong from BIOS where pre-os does not
 	 * enable display. Verify the same as well.
 	 */
-	if (cdctl == ((cdctl & CDCLK_FREQ_SEL_MASK) | skl_cdclk_decimal(freq)))
+	cdctl = I915_READ(CDCLK_CTL);
+	expected = (cdctl & CDCLK_FREQ_SEL_MASK) |
+		skl_cdclk_decimal(dev_priv->cdclk_freq);
+	if (cdctl == expected)
 		/* All well; nothing to sanitize */
-		return false;
-sanitize:
-	/*
-	 * As of now initialize with max cdclk till
-	 * we get dynamic cdclk support
-	 * */
-	dev_priv->skl_boot_cdclk = dev_priv->max_cdclk_freq;
-	skl_init_cdclk(dev_priv);
+		return;
 
-	/* we did have to sanitize */
-	return true;
+sanitize:
+	DRM_DEBUG_KMS("Sanitizing cdclk programmed by pre-os\n");
+
+	/* force cdclk programming */
+	dev_priv->cdclk_freq = 0;
+	/* force full PLL disable + enable */
+	dev_priv->cdclk_pll.vco = -1;
 }
 
 /* Adjust CDclk dividers to allow high res or save power if possible */
@@ -5898,10 +5986,6 @@ static int valleyview_calc_cdclk(struct drm_i915_private *dev_priv,
 
 static int broxton_calc_cdclk(int max_pixclk)
 {
-	/*
-	 * FIXME:
-	 * - set 19.2MHz bypass frequency if there are no active pipes
-	 */
 	if (max_pixclk > 576000)
 		return 624000;
 	else if (max_pixclk > 384000)
@@ -6242,8 +6326,8 @@ static void intel_crtc_disable_noatomic(struct drm_crtc *crtc)
 
 	dev_priv->display.crtc_disable(crtc);
 
-	DRM_DEBUG_KMS("[CRTC:%d] hw state adjusted, was enabled, now disabled\n",
-		      crtc->base.id);
+	DRM_DEBUG_KMS("[CRTC:%d:%s] hw state adjusted, was enabled, now disabled\n",
+		      crtc->base.id, crtc->name);
 
 	WARN_ON(drm_atomic_set_mode_for_crtc(crtc->state, NULL) < 0);
 	crtc->state->active = false;
@@ -6543,10 +6627,10 @@ static int intel_crtc_compute_config(struct intel_crtc *crtc,
 	struct drm_device *dev = crtc->base.dev;
 	struct drm_i915_private *dev_priv = dev->dev_private;
 	const struct drm_display_mode *adjusted_mode = &pipe_config->base.adjusted_mode;
+	int clock_limit = dev_priv->max_dotclk_freq;
 
-	/* FIXME should check pixel clock limits on all platforms */
 	if (INTEL_INFO(dev)->gen < 4) {
-		int clock_limit = dev_priv->max_cdclk_freq * 9 / 10;
+		clock_limit = dev_priv->max_cdclk_freq * 9 / 10;
 
 		/*
 		 * Enable double wide mode when the dot clock
@@ -6554,16 +6638,16 @@ static int intel_crtc_compute_config(struct intel_crtc *crtc,
 		 */
 		if (intel_crtc_supports_double_wide(crtc) &&
 		    adjusted_mode->crtc_clock > clock_limit) {
-			clock_limit *= 2;
+			clock_limit = dev_priv->max_dotclk_freq;
 			pipe_config->double_wide = true;
 		}
+	}
 
-		if (adjusted_mode->crtc_clock > clock_limit) {
-			DRM_DEBUG_KMS("requested pixel clock (%d kHz) too high (max: %d kHz, double wide: %s)\n",
-				      adjusted_mode->crtc_clock, clock_limit,
-				      yesno(pipe_config->double_wide));
-			return -EINVAL;
-		}
+	if (adjusted_mode->crtc_clock > clock_limit) {
+		DRM_DEBUG_KMS("requested pixel clock (%d kHz) too high (max: %d kHz, double wide: %s)\n",
+			      adjusted_mode->crtc_clock, clock_limit,
+			      yesno(pipe_config->double_wide));
+		return -EINVAL;
 	}
 
 	/*
@@ -6595,76 +6679,98 @@ static int intel_crtc_compute_config(struct intel_crtc *crtc,
 static int skylake_get_display_clock_speed(struct drm_device *dev)
 {
 	struct drm_i915_private *dev_priv = to_i915(dev);
-	uint32_t lcpll1 = I915_READ(LCPLL1_CTL);
-	uint32_t cdctl = I915_READ(CDCLK_CTL);
-	uint32_t linkrate;
+	uint32_t cdctl;
 
-	if (!(lcpll1 & LCPLL_PLL_ENABLE))
-		return 24000; /* 24MHz is the cd freq with NSSC ref */
+	skl_dpll0_update(dev_priv);
 
-	if ((cdctl & CDCLK_FREQ_SEL_MASK) == CDCLK_FREQ_540)
-		return 540000;
+	if (dev_priv->cdclk_pll.vco == 0)
+		return dev_priv->cdclk_pll.ref;
 
-	linkrate = (I915_READ(DPLL_CTRL1) &
-		    DPLL_CTRL1_LINK_RATE_MASK(SKL_DPLL0)) >> 1;
+	cdctl = I915_READ(CDCLK_CTL);
 
-	if (linkrate == DPLL_CTRL1_LINK_RATE_2160 ||
-	    linkrate == DPLL_CTRL1_LINK_RATE_1080) {
-		/* vco 8640 */
+	if (dev_priv->cdclk_pll.vco == 8640000) {
 		switch (cdctl & CDCLK_FREQ_SEL_MASK) {
 		case CDCLK_FREQ_450_432:
 			return 432000;
 		case CDCLK_FREQ_337_308:
-			return 308570;
+			return 308571;
+		case CDCLK_FREQ_540:
+			return 540000;
 		case CDCLK_FREQ_675_617:
-			return 617140;
+			return 617143;
 		default:
-			WARN(1, "Unknown cd freq selection\n");
+			MISSING_CASE(cdctl & CDCLK_FREQ_SEL_MASK);
 		}
 	} else {
-		/* vco 8100 */
 		switch (cdctl & CDCLK_FREQ_SEL_MASK) {
 		case CDCLK_FREQ_450_432:
 			return 450000;
 		case CDCLK_FREQ_337_308:
 			return 337500;
+		case CDCLK_FREQ_540:
+			return 540000;
 		case CDCLK_FREQ_675_617:
 			return 675000;
 		default:
-			WARN(1, "Unknown cd freq selection\n");
+			MISSING_CASE(cdctl & CDCLK_FREQ_SEL_MASK);
 		}
 	}
 
-	/* error case, do as if DPLL0 isn't enabled */
-	return 24000;
+	return dev_priv->cdclk_pll.ref;
+}
+
+static void bxt_de_pll_update(struct drm_i915_private *dev_priv)
+{
+	u32 val;
+
+	dev_priv->cdclk_pll.ref = 19200;
+	dev_priv->cdclk_pll.vco = 0;
+
+	val = I915_READ(BXT_DE_PLL_ENABLE);
+	if ((val & BXT_DE_PLL_PLL_ENABLE) == 0)
+		return;
+
+	if (WARN_ON((val & BXT_DE_PLL_LOCK) == 0))
+		return;
+
+	val = I915_READ(BXT_DE_PLL_CTL);
+	dev_priv->cdclk_pll.vco = (val & BXT_DE_PLL_RATIO_MASK) *
+		dev_priv->cdclk_pll.ref;
 }
 
 static int broxton_get_display_clock_speed(struct drm_device *dev)
 {
 	struct drm_i915_private *dev_priv = to_i915(dev);
-	uint32_t cdctl = I915_READ(CDCLK_CTL);
-	uint32_t pll_ratio = I915_READ(BXT_DE_PLL_CTL) & BXT_DE_PLL_RATIO_MASK;
-	uint32_t pll_enab = I915_READ(BXT_DE_PLL_ENABLE);
-	int cdclk;
+	u32 divider;
+	int div, vco;
 
-	if (!(pll_enab & BXT_DE_PLL_PLL_ENABLE))
-		return 19200;
+	bxt_de_pll_update(dev_priv);
 
-	cdclk = 19200 * pll_ratio / 2;
+	vco = dev_priv->cdclk_pll.vco;
+	if (vco == 0)
+		return dev_priv->cdclk_pll.ref;
 
-	switch (cdctl & BXT_CDCLK_CD2X_DIV_SEL_MASK) {
+	divider = I915_READ(CDCLK_CTL) & BXT_CDCLK_CD2X_DIV_SEL_MASK;
+
+	switch (divider) {
 	case BXT_CDCLK_CD2X_DIV_SEL_1:
-		return cdclk;  /* 576MHz or 624MHz */
+		div = 2;
+		break;
 	case BXT_CDCLK_CD2X_DIV_SEL_1_5:
-		return cdclk * 2 / 3; /* 384MHz */
+		div = 3;
+		break;
 	case BXT_CDCLK_CD2X_DIV_SEL_2:
-		return cdclk / 2; /* 288MHz */
+		div = 4;
+		break;
 	case BXT_CDCLK_CD2X_DIV_SEL_4:
-		return cdclk / 4; /* 144MHz */
+		div = 8;
+		break;
+	default:
+		MISSING_CASE(divider);
+		return dev_priv->cdclk_pll.ref;
 	}
 
-	/* error case, do as if DE PLL isn't enabled */
-	return 19200;
+	return DIV_ROUND_CLOSEST(vco, div);
 }
 
 static int broadwell_get_display_clock_speed(struct drm_device *dev)
@@ -8255,12 +8361,14 @@ static void ironlake_init_pch_refclk(struct drm_device *dev)
 {
 	struct drm_i915_private *dev_priv = dev->dev_private;
 	struct intel_encoder *encoder;
+	int i;
 	u32 val, final;
 	bool has_lvds = false;
 	bool has_cpu_edp = false;
 	bool has_panel = false;
 	bool has_ck505 = false;
 	bool can_ssc = false;
+	bool using_ssc_source = false;
 
 	/* We need to take the global config into account */
 	for_each_intel_encoder(dev, encoder) {
@@ -8287,8 +8395,22 @@ static void ironlake_init_pch_refclk(struct drm_device *dev)
 		can_ssc = true;
 	}
 
-	DRM_DEBUG_KMS("has_panel %d has_lvds %d has_ck505 %d\n",
-		      has_panel, has_lvds, has_ck505);
+	/* Check if any DPLLs are using the SSC source */
+	for (i = 0; i < dev_priv->num_shared_dpll; i++) {
+		u32 temp = I915_READ(PCH_DPLL(i));
+
+		if (!(temp & DPLL_VCO_ENABLE))
+			continue;
+
+		if ((temp & PLL_REF_INPUT_MASK) ==
+		    PLLB_REF_INPUT_SPREADSPECTRUMIN) {
+			using_ssc_source = true;
+			break;
+		}
+	}
+
+	DRM_DEBUG_KMS("has_panel %d has_lvds %d has_ck505 %d using_ssc_source %d\n",
+		      has_panel, has_lvds, has_ck505, using_ssc_source);
 
 	/* Ironlake: try to setup display ref clock before DPLL
 	 * enabling. This is only under driver's control after
@@ -8308,9 +8430,12 @@ static void ironlake_init_pch_refclk(struct drm_device *dev)
 	else
 		final |= DREF_NONSPREAD_SOURCE_ENABLE;
 
-	final &= ~DREF_SSC_SOURCE_MASK;
 	final &= ~DREF_CPU_SOURCE_OUTPUT_MASK;
-	final &= ~DREF_SSC1_ENABLE;
+
+	if (!using_ssc_source) {
+		final &= ~DREF_SSC_SOURCE_MASK;
+		final &= ~DREF_SSC1_ENABLE;
+	}
 
 	if (has_panel) {
 		final |= DREF_SSC_SOURCE_ENABLE;
@@ -8373,7 +8498,7 @@ static void ironlake_init_pch_refclk(struct drm_device *dev)
 		POSTING_READ(PCH_DREF_CONTROL);
 		udelay(200);
 	} else {
-		DRM_DEBUG_KMS("Disabling SSC entirely\n");
+		DRM_DEBUG_KMS("Disabling CPU source output\n");
 
 		val &= ~DREF_CPU_SOURCE_OUTPUT_MASK;
 
@@ -8384,16 +8509,20 @@ static void ironlake_init_pch_refclk(struct drm_device *dev)
 		POSTING_READ(PCH_DREF_CONTROL);
 		udelay(200);
 
-		/* Turn off the SSC source */
-		val &= ~DREF_SSC_SOURCE_MASK;
-		val |= DREF_SSC_SOURCE_DISABLE;
+		if (!using_ssc_source) {
+			DRM_DEBUG_KMS("Disabling SSC source\n");
 
-		/* Turn off SSC1 */
-		val &= ~DREF_SSC1_ENABLE;
+			/* Turn off the SSC source */
+			val &= ~DREF_SSC_SOURCE_MASK;
+			val |= DREF_SSC_SOURCE_DISABLE;
 
-		I915_WRITE(PCH_DREF_CONTROL, val);
-		POSTING_READ(PCH_DREF_CONTROL);
-		udelay(200);
+			/* Turn off SSC1 */
+			val &= ~DREF_SSC1_ENABLE;
+
+			I915_WRITE(PCH_DREF_CONTROL, val);
+			POSTING_READ(PCH_DREF_CONTROL);
+			udelay(200);
+		}
 	}
 
 	BUG_ON(val != final);
@@ -9717,6 +9846,47 @@ static void broadwell_modeset_commit_cdclk(struct drm_atomic_state *old_state)
 	unsigned req_cdclk = old_intel_state->dev_cdclk;
 
 	broadwell_set_cdclk(dev, req_cdclk);
+}
+
+static int skl_modeset_calc_cdclk(struct drm_atomic_state *state)
+{
+	struct intel_atomic_state *intel_state = to_intel_atomic_state(state);
+	struct drm_i915_private *dev_priv = to_i915(state->dev);
+	const int max_pixclk = ilk_max_pixel_rate(state);
+	int vco = intel_state->cdclk_pll_vco;
+	int cdclk;
+
+	/*
+	 * FIXME should also account for plane ratio
+	 * once 64bpp pixel formats are supported.
+	 */
+	cdclk = skl_calc_cdclk(max_pixclk, vco);
+
+	/*
+	 * FIXME move the cdclk caclulation to
+	 * compute_config() so we can fail gracegully.
+	 */
+	if (cdclk > dev_priv->max_cdclk_freq) {
+		DRM_ERROR("requested cdclk (%d kHz) exceeds max (%d kHz)\n",
+			  cdclk, dev_priv->max_cdclk_freq);
+		cdclk = dev_priv->max_cdclk_freq;
+	}
+
+	intel_state->cdclk = intel_state->dev_cdclk = cdclk;
+	if (!intel_state->active_crtcs)
+		intel_state->dev_cdclk = skl_calc_cdclk(0, vco);
+
+	return 0;
+}
+
+static void skl_modeset_commit_cdclk(struct drm_atomic_state *old_state)
+{
+	struct drm_i915_private *dev_priv = to_i915(old_state->dev);
+	struct intel_atomic_state *intel_state = to_intel_atomic_state(old_state);
+	unsigned int req_cdclk = intel_state->dev_cdclk;
+	unsigned int req_vco = intel_state->cdclk_pll_vco;
+
+	skl_set_cdclk(dev_priv, req_cdclk, req_vco);
 }
 
 static int haswell_crtc_compute_clock(struct intel_crtc *crtc,
@@ -11765,12 +11935,12 @@ int intel_plane_atomic_calc_changes(struct drm_crtc_state *crtc_state,
 	struct drm_i915_private *dev_priv = to_i915(dev);
 	struct intel_plane_state *old_plane_state =
 		to_intel_plane_state(plane->state);
-	int idx = intel_crtc->base.base.id, ret;
 	bool mode_changed = needs_modeset(crtc_state);
 	bool was_crtc_enabled = crtc->state->active;
 	bool is_crtc_enabled = crtc_state->active;
 	bool turn_off, turn_on, visible, was_visible;
 	struct drm_framebuffer *fb = plane_state->fb;
+	int ret;
 
 	if (crtc_state && INTEL_INFO(dev)->gen >= 9 &&
 	    plane->type != DRM_PLANE_TYPE_CURSOR) {
@@ -11809,11 +11979,15 @@ int intel_plane_atomic_calc_changes(struct drm_crtc_state *crtc_state,
 	turn_off = was_visible && (!visible || mode_changed);
 	turn_on = visible && (!was_visible || mode_changed);
 
-	DRM_DEBUG_ATOMIC("[CRTC:%i] has [PLANE:%i] with fb %i\n", idx,
-			 plane->base.id, fb ? fb->base.id : -1);
+	DRM_DEBUG_ATOMIC("[CRTC:%d:%s] has [PLANE:%d:%s] with fb %i\n",
+			 intel_crtc->base.base.id,
+			 intel_crtc->base.name,
+			 plane->base.id, plane->name,
+			 fb ? fb->base.id : -1);
 
-	DRM_DEBUG_ATOMIC("[PLANE:%i] visible %i -> %i, off %i, on %i, ms %i\n",
-			 plane->base.id, was_visible, visible,
+	DRM_DEBUG_ATOMIC("[PLANE:%d:%s] visible %i -> %i, off %i, on %i, ms %i\n",
+			 plane->base.id, plane->name,
+			 was_visible, visible,
 			 turn_off, turn_on, mode_changed);
 
 	if (turn_on) {
@@ -12104,7 +12278,8 @@ static void intel_dump_pipe_config(struct intel_crtc *crtc,
 	struct intel_plane_state *state;
 	struct drm_framebuffer *fb;
 
-	DRM_DEBUG_KMS("[CRTC:%d]%s config %p for pipe %c\n", crtc->base.base.id,
+	DRM_DEBUG_KMS("[CRTC:%d:%s]%s config %p for pipe %c\n",
+		      crtc->base.base.id, crtc->base.name,
 		      context, pipe_config, pipe_name(crtc->pipe));
 
 	DRM_DEBUG_KMS("cpu_transcoder: %s\n", transcoder_name(pipe_config->cpu_transcoder));
@@ -12205,29 +12380,24 @@ static void intel_dump_pipe_config(struct intel_crtc *crtc,
 		state = to_intel_plane_state(plane->state);
 		fb = state->base.fb;
 		if (!fb) {
-			DRM_DEBUG_KMS("%s PLANE:%d plane: %u.%u idx: %d "
-				"disabled, scaler_id = %d\n",
-				plane->type == DRM_PLANE_TYPE_CURSOR ? "CURSOR" : "STANDARD",
-				plane->base.id, intel_plane->pipe,
-				(crtc->base.primary == plane) ? 0 : intel_plane->plane + 1,
-				drm_plane_index(plane), state->scaler_id);
+			DRM_DEBUG_KMS("[PLANE:%d:%s] disabled, scaler_id = %d\n",
+				      plane->base.id, plane->name, state->scaler_id);
 			continue;
 		}
 
-		DRM_DEBUG_KMS("%s PLANE:%d plane: %u.%u idx: %d enabled",
-			plane->type == DRM_PLANE_TYPE_CURSOR ? "CURSOR" : "STANDARD",
-			plane->base.id, intel_plane->pipe,
-			crtc->base.primary == plane ? 0 : intel_plane->plane + 1,
-			drm_plane_index(plane));
-		DRM_DEBUG_KMS("\tFB:%d, fb = %ux%u format = 0x%x",
-			fb->base.id, fb->width, fb->height, fb->pixel_format);
-		DRM_DEBUG_KMS("\tscaler:%d src (%u, %u) %ux%u dst (%u, %u) %ux%u\n",
-			state->scaler_id,
-			state->src.x1 >> 16, state->src.y1 >> 16,
-			drm_rect_width(&state->src) >> 16,
-			drm_rect_height(&state->src) >> 16,
-			state->dst.x1, state->dst.y1,
-			drm_rect_width(&state->dst), drm_rect_height(&state->dst));
+		DRM_DEBUG_KMS("[PLANE:%d:%s] enabled",
+			      plane->base.id, plane->name);
+		DRM_DEBUG_KMS("\tFB:%d, fb = %ux%u format = %s",
+			      fb->base.id, fb->width, fb->height,
+			      drm_get_format_name(fb->pixel_format));
+		DRM_DEBUG_KMS("\tscaler:%d src %dx%d+%d+%d dst %dx%d+%d+%d\n",
+			      state->scaler_id,
+			      state->src.x1 >> 16, state->src.y1 >> 16,
+			      drm_rect_width(&state->src) >> 16,
+			      drm_rect_height(&state->src) >> 16,
+			      state->dst.x1, state->dst.y1,
+			      drm_rect_width(&state->dst),
+			      drm_rect_height(&state->dst));
 	}
 }
 
@@ -12894,7 +13064,7 @@ verify_crtc_state(struct drm_crtc *crtc,
 	pipe_config->base.crtc = crtc;
 	pipe_config->base.state = old_state;
 
-	DRM_DEBUG_KMS("[CRTC:%d]\n", crtc->base.id);
+	DRM_DEBUG_KMS("[CRTC:%d:%s]\n", crtc->base.id, crtc->name);
 
 	active = dev_priv->display.get_pipe_config(intel_crtc, pipe_config);
 
@@ -13255,9 +13425,17 @@ static int intel_modeset_checks(struct drm_atomic_state *state)
 	 * adjusted_mode bits in the crtc directly.
 	 */
 	if (dev_priv->display.modeset_calc_cdclk) {
-		ret = dev_priv->display.modeset_calc_cdclk(state);
+		if (!intel_state->cdclk_pll_vco)
+			intel_state->cdclk_pll_vco = dev_priv->cdclk_pll.vco;
+		if (!intel_state->cdclk_pll_vco)
+			intel_state->cdclk_pll_vco = dev_priv->skl_preferred_vco_freq;
 
-		if (!ret && intel_state->dev_cdclk != dev_priv->cdclk_freq)
+		ret = dev_priv->display.modeset_calc_cdclk(state);
+		if (ret < 0)
+			return ret;
+
+		if (intel_state->dev_cdclk != dev_priv->cdclk_freq ||
+		    intel_state->cdclk_pll_vco != dev_priv->cdclk_pll.vco)
 			ret = intel_modeset_all_pipes(state);
 
 		if (ret < 0)
@@ -13606,7 +13784,8 @@ static int intel_atomic_commit(struct drm_device *dev,
 		drm_atomic_helper_update_legacy_modeset_state(state->dev, state);
 
 		if (dev_priv->display.modeset_commit_cdclk &&
-		    intel_state->dev_cdclk != dev_priv->cdclk_freq)
+		    (intel_state->dev_cdclk != dev_priv->cdclk_freq ||
+		     intel_state->cdclk_pll_vco != dev_priv->cdclk_pll.vco))
 			dev_priv->display.modeset_commit_cdclk(state);
 
 		intel_modeset_verify_disabled(dev);
@@ -13702,8 +13881,8 @@ void intel_crtc_restore_mode(struct drm_crtc *crtc)
 
 	state = drm_atomic_state_alloc(dev);
 	if (!state) {
-		DRM_DEBUG_KMS("[CRTC:%d] crtc restore failed, out of memory",
-			      crtc->base.id);
+		DRM_DEBUG_KMS("[CRTC:%d:%s] crtc restore failed, out of memory",
+			      crtc->base.id, crtc->name);
 		return;
 	}
 
@@ -13971,9 +14150,11 @@ static void intel_finish_crtc_commit(struct drm_crtc *crtc,
  */
 void intel_plane_destroy(struct drm_plane *plane)
 {
-	struct intel_plane *intel_plane = to_intel_plane(plane);
+	if (!plane)
+		return;
+
 	drm_plane_cleanup(plane);
-	kfree(intel_plane);
+	kfree(to_intel_plane(plane));
 }
 
 const struct drm_plane_funcs intel_plane_funcs = {
@@ -14045,10 +14226,24 @@ static struct drm_plane *intel_primary_plane_create(struct drm_device *dev,
 		primary->disable_plane = i9xx_disable_primary_plane;
 	}
 
-	ret = drm_universal_plane_init(dev, &primary->base, 0,
-				       &intel_plane_funcs,
-				       intel_primary_formats, num_formats,
-				       DRM_PLANE_TYPE_PRIMARY, NULL);
+	if (INTEL_INFO(dev)->gen >= 9)
+		ret = drm_universal_plane_init(dev, &primary->base, 0,
+					       &intel_plane_funcs,
+					       intel_primary_formats, num_formats,
+					       DRM_PLANE_TYPE_PRIMARY,
+					       "plane 1%c", pipe_name(pipe));
+	else if (INTEL_INFO(dev)->gen >= 5 || IS_G4X(dev))
+		ret = drm_universal_plane_init(dev, &primary->base, 0,
+					       &intel_plane_funcs,
+					       intel_primary_formats, num_formats,
+					       DRM_PLANE_TYPE_PRIMARY,
+					       "primary %c", pipe_name(pipe));
+	else
+		ret = drm_universal_plane_init(dev, &primary->base, 0,
+					       &intel_plane_funcs,
+					       intel_primary_formats, num_formats,
+					       DRM_PLANE_TYPE_PRIMARY,
+					       "plane %c", plane_name(primary->plane));
 	if (ret)
 		goto fail;
 
@@ -14206,7 +14401,8 @@ static struct drm_plane *intel_cursor_plane_create(struct drm_device *dev,
 				       &intel_plane_funcs,
 				       intel_cursor_formats,
 				       ARRAY_SIZE(intel_cursor_formats),
-				       DRM_PLANE_TYPE_CURSOR, NULL);
+				       DRM_PLANE_TYPE_CURSOR,
+				       "cursor %c", pipe_name(pipe));
 	if (ret)
 		goto fail;
 
@@ -14291,7 +14487,8 @@ static void intel_crtc_init(struct drm_device *dev, int pipe)
 		goto fail;
 
 	ret = drm_crtc_init_with_planes(dev, &intel_crtc->base, primary,
-					cursor, &intel_crtc_funcs, NULL);
+					cursor, &intel_crtc_funcs,
+					"pipe %c", pipe_name(pipe));
 	if (ret)
 		goto fail;
 
@@ -14325,10 +14522,8 @@ static void intel_crtc_init(struct drm_device *dev, int pipe)
 	return;
 
 fail:
-	if (primary)
-		drm_plane_cleanup(primary);
-	if (cursor)
-		drm_plane_cleanup(cursor);
+	intel_plane_destroy(primary);
+	intel_plane_destroy(cursor);
 	kfree(crtc_state);
 	kfree(intel_crtc);
 }
@@ -14507,6 +14702,8 @@ static void intel_setup_outputs(struct drm_device *dev)
 		if (I915_READ(PCH_DP_D) & DP_DETECTED)
 			intel_dp_init(dev, PCH_DP_D, PORT_D);
 	} else if (IS_VALLEYVIEW(dev) || IS_CHERRYVIEW(dev)) {
+		bool has_edp;
+
 		/*
 		 * The DP_DETECTED bit is the latched state of the DDC
 		 * SDA pin at boot. However since eDP doesn't require DDC
@@ -14516,19 +14713,17 @@ static void intel_setup_outputs(struct drm_device *dev)
 		 * eDP ports. Consult the VBT as well as DP_DETECTED to
 		 * detect eDP ports.
 		 */
-		if (I915_READ(VLV_HDMIB) & SDVO_DETECTED &&
-		    !intel_dp_is_edp(dev, PORT_B))
+		has_edp = intel_dp_is_edp(dev, PORT_B);
+		if (I915_READ(VLV_DP_B) & DP_DETECTED || has_edp)
+			has_edp &= intel_dp_init(dev, VLV_DP_B, PORT_B);
+		if (I915_READ(VLV_HDMIB) & SDVO_DETECTED && !has_edp)
 			intel_hdmi_init(dev, VLV_HDMIB, PORT_B);
-		if (I915_READ(VLV_DP_B) & DP_DETECTED ||
-		    intel_dp_is_edp(dev, PORT_B))
-			intel_dp_init(dev, VLV_DP_B, PORT_B);
 
-		if (I915_READ(VLV_HDMIC) & SDVO_DETECTED &&
-		    !intel_dp_is_edp(dev, PORT_C))
+		has_edp = intel_dp_is_edp(dev, PORT_C);
+		if (I915_READ(VLV_DP_C) & DP_DETECTED || has_edp)
+			has_edp &= intel_dp_init(dev, VLV_DP_C, PORT_C);
+		if (I915_READ(VLV_HDMIC) & SDVO_DETECTED && !has_edp)
 			intel_hdmi_init(dev, VLV_HDMIC, PORT_C);
-		if (I915_READ(VLV_DP_C) & DP_DETECTED ||
-		    intel_dp_is_edp(dev, PORT_C))
-			intel_dp_init(dev, VLV_DP_C, PORT_C);
 
 		if (IS_CHERRYVIEW(dev)) {
 			/* eDP not supported on port D, so don't check VBT */
@@ -15020,6 +15215,11 @@ void intel_init_display_hooks(struct drm_i915_private *dev_priv)
 			broxton_modeset_commit_cdclk;
 		dev_priv->display.modeset_calc_cdclk =
 			broxton_modeset_calc_cdclk;
+	} else if (IS_SKYLAKE(dev_priv) || IS_KABYLAKE(dev_priv)) {
+		dev_priv->display.modeset_commit_cdclk =
+			skl_modeset_commit_cdclk;
+		dev_priv->display.modeset_calc_cdclk =
+			skl_modeset_calc_cdclk;
 	}
 
 	switch (INTEL_INFO(dev_priv)->gen) {
@@ -15418,6 +15618,9 @@ void intel_modeset_init(struct drm_device *dev)
 
 	intel_shared_dpll_init(dev);
 
+	if (dev_priv->max_cdclk_freq == 0)
+		intel_update_max_cdclk(dev);
+
 	/* Just disable it once at startup */
 	i915_disable_vga(dev);
 	intel_setup_outputs(dev);
@@ -15558,8 +15761,8 @@ static void intel_sanitize_crtc(struct intel_crtc *crtc)
 	if (INTEL_INFO(dev)->gen < 4 && !intel_check_plane_mapping(crtc)) {
 		bool plane;
 
-		DRM_DEBUG_KMS("[CRTC:%d] wrong plane connection detected!\n",
-			      crtc->base.base.id);
+		DRM_DEBUG_KMS("[CRTC:%d:%s] wrong plane connection detected!\n",
+			      crtc->base.base.id, crtc->base.name);
 
 		/* Pipe has the wrong plane attached and the plane is active.
 		 * Temporarily change the plane mapping and disable everything
@@ -15727,26 +15930,24 @@ static void intel_modeset_readout_hw_state(struct drm_device *dev)
 		if (crtc_state->base.active) {
 			dev_priv->active_crtcs |= 1 << crtc->pipe;
 
-			if (IS_BROADWELL(dev_priv)) {
+			if (INTEL_GEN(dev_priv) >= 9 || IS_BROADWELL(dev_priv))
 				pixclk = ilk_pipe_pixel_rate(crtc_state);
-
-				/* pixel rate mustn't exceed 95% of cdclk with IPS on BDW */
-				if (crtc_state->ips_enabled)
-					pixclk = DIV_ROUND_UP(pixclk * 100, 95);
-			} else if (IS_VALLEYVIEW(dev_priv) ||
-				   IS_CHERRYVIEW(dev_priv) ||
-				   IS_BROXTON(dev_priv))
+			else if (IS_VALLEYVIEW(dev_priv) || IS_CHERRYVIEW(dev_priv))
 				pixclk = crtc_state->base.adjusted_mode.crtc_clock;
 			else
 				WARN_ON(dev_priv->display.modeset_calc_cdclk);
+
+			/* pixel rate mustn't exceed 95% of cdclk with IPS on BDW */
+			if (IS_BROADWELL(dev_priv) && crtc_state->ips_enabled)
+				pixclk = DIV_ROUND_UP(pixclk * 100, 95);
 		}
 
 		dev_priv->min_pixclk[crtc->pipe] = pixclk;
 
 		readout_plane_state(crtc);
 
-		DRM_DEBUG_KMS("[CRTC:%d] hw state readout: %s\n",
-			      crtc->base.base.id,
+		DRM_DEBUG_KMS("[CRTC:%d:%s] hw state readout: %s\n",
+			      crtc->base.base.id, crtc->base.name,
 			      crtc->active ? "enabled" : "disabled");
 	}
 

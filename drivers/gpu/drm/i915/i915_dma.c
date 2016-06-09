@@ -507,7 +507,7 @@ static int i915_load_modeset_init(struct drm_device *dev)
 	 * working irqs for e.g. gmbus and dp aux transfers. */
 	intel_modeset_init(dev);
 
-	intel_guc_ucode_init(dev);
+	intel_guc_init(dev);
 
 	ret = i915_gem_init(dev);
 	if (ret)
@@ -544,7 +544,7 @@ static int i915_load_modeset_init(struct drm_device *dev)
 cleanup_gem:
 	i915_gem_fini(dev);
 cleanup_irq:
-	intel_guc_ucode_fini(dev);
+	intel_guc_fini(dev);
 	drm_irq_uninstall(dev);
 	intel_teardown_gmbus(dev);
 cleanup_csr:
@@ -1307,7 +1307,7 @@ static int i915_driver_init_hw(struct drm_i915_private *dev_priv)
 
 	intel_uncore_sanitize(dev_priv);
 
-	intel_opregion_setup(dev);
+	intel_opregion_setup(dev_priv);
 
 	i915_gem_load_init_fences(dev_priv);
 
@@ -1376,7 +1376,7 @@ static void i915_driver_register(struct drm_i915_private *dev_priv)
 
 	if (INTEL_INFO(dev_priv)->num_pipes) {
 		/* Must be done after probing outputs */
-		intel_opregion_init(dev);
+		intel_opregion_register(dev_priv);
 		acpi_video_register();
 	}
 
@@ -1395,7 +1395,7 @@ static void i915_driver_unregister(struct drm_i915_private *dev_priv)
 	i915_audio_component_cleanup(dev_priv);
 	intel_gpu_ips_teardown();
 	acpi_video_unregister();
-	intel_opregion_fini(dev_priv->dev);
+	intel_opregion_unregister(dev_priv);
 	i915_teardown_sysfs(dev_priv->dev);
 	i915_gem_shrinker_cleanup(dev_priv);
 }
@@ -1527,7 +1527,7 @@ int i915_driver_unload(struct drm_device *dev)
 	/* Flush any outstanding unpin_work. */
 	flush_workqueue(dev_priv->wq);
 
-	intel_guc_ucode_fini(dev);
+	intel_guc_fini(dev);
 	i915_gem_fini(dev);
 	intel_fbc_cleanup_cfb(dev_priv);
 

@@ -26,6 +26,7 @@
  */
 
 #include <linux/cpufreq.h>
+#include <drm/drm_plane_helper.h>
 #include "i915_drv.h"
 #include "intel_drv.h"
 #include "../../../platform/x86/intel_ips.h"
@@ -2949,6 +2950,46 @@ void skl_ddb_get_hw_state(struct drm_i915_private *dev_priv,
 	}
 }
 
+/*
+ * Determines the downscale amount of a plane for the purposes of watermark calculations.
+ * The bspec defines downscale amount as:
+ *
+ * """
+ * Horizontal down scale amount = maximum[1, Horizontal source size /
+ *                                           Horizontal destination size]
+ * Vertical down scale amount = maximum[1, Vertical source size /
+ *                                         Vertical destination size]
+ * Total down scale amount = Horizontal down scale amount *
+ *                           Vertical down scale amount
+ * """
+ *
+ * Return value is provided in 16.16 fixed point form to retain fractional part.
+ * Caller should take care of dividing & rounding off the value.
+ */
+static uint32_t
+skl_plane_downscale_amount(const struct intel_plane_state *pstate)
+{
+	uint32_t downscale_h, downscale_w;
+	uint32_t src_w, src_h, dst_w, dst_h;
+
+	if (WARN_ON(!pstate->visible))
+		return DRM_PLANE_HELPER_NO_SCALING;
+
+	/* n.b., src is 16.16 fixed point, dst is whole integer */
+	src_w = drm_rect_width(&pstate->src);
+	src_h = drm_rect_height(&pstate->src);
+	dst_w = drm_rect_width(&pstate->dst);
+	dst_h = drm_rect_height(&pstate->dst);
+	if (intel_rotation_90_or_270(pstate->base.rotation))
+		swap(dst_w, dst_h);
+
+	downscale_h = max(src_h / dst_h, (uint32_t)DRM_PLANE_HELPER_NO_SCALING);
+	downscale_w = max(src_w / dst_w, (uint32_t)DRM_PLANE_HELPER_NO_SCALING);
+
+	/* Provide result in 16.16 fixed point */
+	return (uint64_t)downscale_w * downscale_h >> 16;
+}
+
 static unsigned int
 skl_plane_relative_data_rate(const struct intel_crtc_state *cstate,
 			     const struct drm_plane_state *pstate,
@@ -2956,6 +2997,7 @@ skl_plane_relative_data_rate(const struct intel_crtc_state *cstate,
 {
 	struct intel_plane_state *intel_pstate = to_intel_plane_state(pstate);
 	struct drm_framebuffer *fb = pstate->fb;
+	uint32_t down_scale_amount, data_rate;
 	uint32_t width = 0, height = 0;
 	unsigned format = fb ? fb->pixel_format : DRM_FORMAT_XRGB8888;
 
@@ -2975,15 +3017,19 @@ skl_plane_relative_data_rate(const struct intel_crtc_state *cstate,
 	/* for planar format */
 	if (format == DRM_FORMAT_NV12) {
 		if (y)  /* y-plane data rate */
-			return width * height *
+			data_rate = width * height *
 				drm_format_plane_cpp(format, 0);
 		else    /* uv-plane data rate */
-			return (width / 2) * (height / 2) *
+			data_rate = (width / 2) * (height / 2) *
 				drm_format_plane_cpp(format, 1);
+	} else {
+		/* for packed formats */
+		data_rate = width * height * drm_format_plane_cpp(format, 0);
 	}
 
-	/* for packed formats */
-	return width * height * drm_format_plane_cpp(format, 0);
+	down_scale_amount = skl_plane_downscale_amount(intel_pstate);
+
+	return (uint64_t)data_rate * down_scale_amount >> 16;
 }
 
 /*
@@ -3040,6 +3086,69 @@ skl_get_total_relative_data_rate(struct intel_crtc_state *intel_cstate)
 	WARN_ON(cstate->plane_mask && total_data_rate == 0);
 
 	return total_data_rate;
+}
+
+static uint16_t
+skl_ddb_min_alloc(const struct drm_plane_state *pstate,
+		  const int y)
+{
+	struct drm_framebuffer *fb = pstate->fb;
+	struct intel_plane_state *intel_pstate = to_intel_plane_state(pstate);
+	uint32_t src_w, src_h;
+	uint32_t min_scanlines = 8;
+	uint8_t plane_bpp;
+
+	if (WARN_ON(!fb))
+		return 0;
+
+	/* For packed formats, no y-plane, return 0 */
+	if (y && fb->pixel_format != DRM_FORMAT_NV12)
+		return 0;
+
+	/* For Non Y-tile return 8-blocks */
+	if (fb->modifier[0] != I915_FORMAT_MOD_Y_TILED &&
+	    fb->modifier[0] != I915_FORMAT_MOD_Yf_TILED)
+		return 8;
+
+	src_w = drm_rect_width(&intel_pstate->src) >> 16;
+	src_h = drm_rect_height(&intel_pstate->src) >> 16;
+
+	if (intel_rotation_90_or_270(pstate->rotation))
+		swap(src_w, src_h);
+
+	/* Halve UV plane width and height for NV12 */
+	if (fb->pixel_format == DRM_FORMAT_NV12 && !y) {
+		src_w /= 2;
+		src_h /= 2;
+	}
+
+	if (fb->pixel_format == DRM_FORMAT_NV12 && !y)
+		plane_bpp = drm_format_plane_cpp(fb->pixel_format, 1);
+	else
+		plane_bpp = drm_format_plane_cpp(fb->pixel_format, 0);
+
+	if (intel_rotation_90_or_270(pstate->rotation)) {
+		switch (plane_bpp) {
+		case 1:
+			min_scanlines = 32;
+			break;
+		case 2:
+			min_scanlines = 16;
+			break;
+		case 4:
+			min_scanlines = 8;
+			break;
+		case 8:
+			min_scanlines = 4;
+			break;
+		default:
+			WARN(1, "Unsupported pixel depth %u for rotation",
+			     plane_bpp);
+			min_scanlines = 32;
+		}
+	}
+
+	return DIV_ROUND_UP((4 * src_w * plane_bpp), 512) * min_scanlines/4 + 3;
 }
 
 static int
@@ -3104,11 +3213,8 @@ skl_allocate_pipe_ddb(struct intel_crtc_state *cstate,
 			continue;
 		}
 
-		minimum[id] = 8;
-		if (pstate->fb->pixel_format == DRM_FORMAT_NV12)
-			y_minimum[id] = 8;
-		else
-			y_minimum[id] = 0;
+		minimum[id] = skl_ddb_min_alloc(pstate, 0);
+		y_minimum[id] = skl_ddb_min_alloc(pstate, 1);
 	}
 
 	for (i = 0; i < PLANE_CURSOR; i++) {
@@ -3225,6 +3331,30 @@ static uint32_t skl_wm_method2(uint32_t pixel_rate, uint32_t pipe_htotal,
 	return ret;
 }
 
+static uint32_t skl_adjusted_plane_pixel_rate(const struct intel_crtc_state *cstate,
+					      struct intel_plane_state *pstate)
+{
+	uint64_t adjusted_pixel_rate;
+	uint64_t downscale_amount;
+	uint64_t pixel_rate;
+
+	/* Shouldn't reach here on disabled planes... */
+	if (WARN_ON(!pstate->visible))
+		return 0;
+
+	/*
+	 * Adjusted plane pixel rate is just the pipe's adjusted pixel rate
+	 * with additional adjustments for plane-specific scaling.
+	 */
+	adjusted_pixel_rate = skl_pipe_pixel_rate(cstate);
+	downscale_amount = skl_plane_downscale_amount(pstate);
+
+	pixel_rate = adjusted_pixel_rate * downscale_amount >> 16;
+	WARN_ON(pixel_rate != clamp_t(uint32_t, pixel_rate, 0, ~0));
+
+	return pixel_rate;
+}
+
 static int skl_compute_plane_wm(const struct drm_i915_private *dev_priv,
 				struct intel_crtc_state *cstate,
 				struct intel_plane_state *intel_pstate,
@@ -3243,6 +3373,7 @@ static int skl_compute_plane_wm(const struct drm_i915_private *dev_priv,
 	uint32_t selected_result;
 	uint8_t cpp;
 	uint32_t width = 0, height = 0;
+	uint32_t plane_pixel_rate;
 
 	if (latency == 0 || !cstate->base.active || !intel_pstate->visible) {
 		*enabled = false;
@@ -3256,9 +3387,10 @@ static int skl_compute_plane_wm(const struct drm_i915_private *dev_priv,
 		swap(width, height);
 
 	cpp = drm_format_plane_cpp(fb->pixel_format, 0);
-	method1 = skl_wm_method1(skl_pipe_pixel_rate(cstate),
-				 cpp, latency);
-	method2 = skl_wm_method2(skl_pipe_pixel_rate(cstate),
+	plane_pixel_rate = skl_adjusted_plane_pixel_rate(cstate, intel_pstate);
+
+	method1 = skl_wm_method1(plane_pixel_rate, cpp, latency);
+	method2 = skl_wm_method2(plane_pixel_rate,
 				 cstate->base.adjusted_mode.crtc_htotal,
 				 width,
 				 cpp,
@@ -4046,7 +4178,6 @@ void skl_wm_get_hw_state(struct drm_device *dev)
 	struct drm_i915_private *dev_priv = dev->dev_private;
 	struct skl_ddb_allocation *ddb = &dev_priv->wm.skl_hw.ddb;
 	struct drm_crtc *crtc;
-	struct intel_crtc *intel_crtc;
 
 	skl_ddb_get_hw_state(dev_priv, ddb);
 	list_for_each_entry(crtc, &dev->mode_config.crtc_list, head)
@@ -4058,23 +4189,6 @@ void skl_wm_get_hw_state(struct drm_device *dev)
 	} else {
 		/* Easy/common case; just sanitize DDB now if everything off */
 		memset(ddb, 0, sizeof(*ddb));
-	}
-
-	/* Calculate plane data rates */
-	for_each_intel_crtc(dev, intel_crtc) {
-		struct intel_crtc_state *cstate = intel_crtc->config;
-		struct intel_plane *intel_plane;
-
-		for_each_intel_plane_on_crtc(dev, intel_crtc, intel_plane) {
-			const struct drm_plane_state *pstate =
-				intel_plane->base.state;
-			int id = skl_wm_plane_id(intel_plane);
-
-			cstate->wm.skl.plane_data_rate[id] =
-				skl_plane_relative_data_rate(cstate, pstate, 0);
-			cstate->wm.skl.plane_y_data_rate[id] =
-				skl_plane_relative_data_rate(cstate, pstate, 1);
-		}
 	}
 }
 
@@ -5039,7 +5153,7 @@ static void gen9_enable_rc6(struct drm_i915_private *dev_priv)
 	for_each_engine(engine, dev_priv)
 		I915_WRITE(RING_MAX_IDLE(engine->mmio_base), 10);
 
-	if (HAS_GUC_UCODE(dev_priv))
+	if (HAS_GUC(dev_priv))
 		I915_WRITE(GUC_MAX_IDLE_COUNT, 0xA);
 
 	I915_WRITE(GEN6_RC_SLEEP, 0);

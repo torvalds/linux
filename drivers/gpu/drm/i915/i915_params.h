@@ -45,6 +45,8 @@ struct i915_params {
 	int enable_ips;
 	int invert_brightness;
 	int enable_cmd_parser;
+	int enable_guc_loading;
+	int enable_guc_submission;
 	int guc_log_level;
 	int use_mmio_flip;
 	int mmio_debug;
@@ -57,7 +59,6 @@ struct i915_params {
 	bool load_detect_test;
 	bool reset;
 	bool disable_display;
-	bool enable_guc_submission;
 	bool verbose_state_checks;
 	bool nuclear_pageflip;
 	bool enable_dp_mst;

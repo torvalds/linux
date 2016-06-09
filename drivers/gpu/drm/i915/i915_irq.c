@@ -364,19 +364,7 @@ void gen6_enable_rps_interrupts(struct drm_i915_private *dev_priv)
 
 u32 gen6_sanitize_rps_pm_mask(struct drm_i915_private *dev_priv, u32 mask)
 {
-	/*
-	 * SNB,IVB can while VLV,CHV may hard hang on looping batchbuffer
-	 * if GEN6_PM_UP_EI_EXPIRED is masked.
-	 *
-	 * TODO: verify if this can be reproduced on VLV,CHV.
-	 */
-	if (INTEL_INFO(dev_priv)->gen <= 7 && !IS_HASWELL(dev_priv))
-		mask &= ~GEN6_PM_RP_UP_EI_EXPIRED;
-
-	if (INTEL_INFO(dev_priv)->gen >= 8)
-		mask &= ~GEN8_PMINTR_REDIRECT_TO_NON_DISP;
-
-	return mask;
+	return (mask & ~dev_priv->rps.pm_intr_keep);
 }
 
 void gen6_disable_rps_interrupts(struct drm_i915_private *dev_priv)
@@ -3797,6 +3785,7 @@ static void gen8_de_irq_postinstall(struct drm_i915_private *dev_priv)
 	uint32_t de_pipe_enables;
 	u32 de_port_masked = GEN8_AUX_CHANNEL_A;
 	u32 de_port_enables;
+	u32 de_misc_masked = GEN8_DE_MISC_GSE;
 	enum pipe pipe;
 
 	if (INTEL_INFO(dev_priv)->gen >= 9) {
@@ -3832,6 +3821,7 @@ static void gen8_de_irq_postinstall(struct drm_i915_private *dev_priv)
 					  de_pipe_enables);
 
 	GEN5_IRQ_INIT(GEN8_DE_PORT_, ~de_port_masked, de_port_enables);
+	GEN5_IRQ_INIT(GEN8_DE_MISC_, ~de_misc_masked, de_misc_masked);
 }
 
 static int gen8_irq_postinstall(struct drm_device *dev)
@@ -4575,6 +4565,20 @@ void intel_irq_init(struct drm_i915_private *dev_priv)
 		dev_priv->pm_rps_events = GEN6_PM_RP_DOWN_EI_EXPIRED | GEN6_PM_RP_UP_EI_EXPIRED;
 	else
 		dev_priv->pm_rps_events = GEN6_PM_RPS_EVENTS;
+
+	dev_priv->rps.pm_intr_keep = 0;
+
+	/*
+	 * SNB,IVB can while VLV,CHV may hard hang on looping batchbuffer
+	 * if GEN6_PM_UP_EI_EXPIRED is masked.
+	 *
+	 * TODO: verify if this can be reproduced on VLV,CHV.
+	 */
+	if (INTEL_INFO(dev_priv)->gen <= 7 && !IS_HASWELL(dev_priv))
+		dev_priv->rps.pm_intr_keep |= GEN6_PM_RP_UP_EI_EXPIRED;
+
+	if (INTEL_INFO(dev_priv)->gen >= 8)
+		dev_priv->rps.pm_intr_keep |= GEN8_PMINTR_REDIRECT_TO_NON_DISP;
 
 	INIT_DELAYED_WORK(&dev_priv->gpu_error.hangcheck_work,
 			  i915_hangcheck_elapsed);

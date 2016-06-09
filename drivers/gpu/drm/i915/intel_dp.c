@@ -1578,6 +1578,27 @@ found:
 				&pipe_config->dp_m2_n2);
 	}
 
+	/*
+	 * DPLL0 VCO may need to be adjusted to get the correct
+	 * clock for eDP. This will affect cdclk as well.
+	 */
+	if (is_edp(intel_dp) &&
+	    (IS_SKYLAKE(dev_priv) || IS_KABYLAKE(dev_priv))) {
+		int vco;
+
+		switch (pipe_config->port_clock / 2) {
+		case 108000:
+		case 216000:
+			vco = 8640000;
+			break;
+		default:
+			vco = 8100000;
+			break;
+		}
+
+		to_intel_atomic_state(pipe_config->base.state)->cdclk_pll_vco = vco;
+	}
+
 	if (!HAS_DDI(dev))
 		intel_dp_set_clock(encoder, pipe_config);
 
@@ -5349,8 +5370,11 @@ static bool intel_edp_init_connector(struct intel_dp *intel_dp,
 	if (!fixed_mode && dev_priv->vbt.lfp_lvds_vbt_mode) {
 		fixed_mode = drm_mode_duplicate(dev,
 					dev_priv->vbt.lfp_lvds_vbt_mode);
-		if (fixed_mode)
+		if (fixed_mode) {
 			fixed_mode->type |= DRM_MODE_TYPE_PREFERRED;
+			connector->display_info.width_mm = fixed_mode->width_mm;
+			connector->display_info.height_mm = fixed_mode->height_mm;
+		}
 	}
 	mutex_unlock(&dev->mode_config.mutex);
 
@@ -5547,9 +5571,9 @@ fail:
 	return false;
 }
 
-void
-intel_dp_init(struct drm_device *dev,
-	      i915_reg_t output_reg, enum port port)
+bool intel_dp_init(struct drm_device *dev,
+		   i915_reg_t output_reg,
+		   enum port port)
 {
 	struct drm_i915_private *dev_priv = dev->dev_private;
 	struct intel_digital_port *intel_dig_port;
@@ -5559,7 +5583,7 @@ intel_dp_init(struct drm_device *dev,
 
 	intel_dig_port = kzalloc(sizeof(*intel_dig_port), GFP_KERNEL);
 	if (!intel_dig_port)
-		return;
+		return false;
 
 	intel_connector = intel_connector_alloc();
 	if (!intel_connector)
@@ -5569,7 +5593,7 @@ intel_dp_init(struct drm_device *dev,
 	encoder = &intel_encoder->base;
 
 	if (drm_encoder_init(dev, &intel_encoder->base, &intel_dp_enc_funcs,
-			     DRM_MODE_ENCODER_TMDS, NULL))
+			     DRM_MODE_ENCODER_TMDS, "DP %c", port_name(port)))
 		goto err_encoder_init;
 
 	intel_encoder->compute_config = intel_dp_compute_config;
@@ -5616,7 +5640,7 @@ intel_dp_init(struct drm_device *dev,
 	if (!intel_dp_init_connector(intel_dig_port, intel_connector))
 		goto err_init_connector;
 
-	return;
+	return true;
 
 err_init_connector:
 	drm_encoder_cleanup(encoder);
@@ -5624,8 +5648,7 @@ err_encoder_init:
 	kfree(intel_connector);
 err_connector_alloc:
 	kfree(intel_dig_port);
-
-	return;
+	return false;
 }
 
 void intel_dp_mst_suspend(struct drm_device *dev)

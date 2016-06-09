@@ -203,7 +203,7 @@ i915_l3_write(struct file *filp, struct kobject *kobj,
 	struct drm_minor *dminor = dev_to_drm_minor(dev);
 	struct drm_device *drm_dev = dminor->dev;
 	struct drm_i915_private *dev_priv = drm_dev->dev_private;
-	struct intel_context *ctx;
+	struct i915_gem_context *ctx;
 	u32 *temp = NULL; /* Just here to make handling failures easy */
 	int slice = (int)(uintptr_t)attr->private;
 	int ret;

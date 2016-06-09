@@ -734,12 +734,12 @@ DEFINE_EVENT(i915_ppgtt, i915_ppgtt_release,
  * the context.
  */
 DECLARE_EVENT_CLASS(i915_context,
-	TP_PROTO(struct intel_context *ctx),
+	TP_PROTO(struct i915_gem_context *ctx),
 	TP_ARGS(ctx),
 
 	TP_STRUCT__entry(
 			__field(u32, dev)
-			__field(struct intel_context *, ctx)
+			__field(struct i915_gem_context *, ctx)
 			__field(struct i915_address_space *, vm)
 	),
 
@@ -754,12 +754,12 @@ DECLARE_EVENT_CLASS(i915_context,
 )
 
 DEFINE_EVENT(i915_context, i915_context_create,
-	TP_PROTO(struct intel_context *ctx),
+	TP_PROTO(struct i915_gem_context *ctx),
 	TP_ARGS(ctx)
 );
 
 DEFINE_EVENT(i915_context, i915_context_free,
-	TP_PROTO(struct intel_context *ctx),
+	TP_PROTO(struct i915_gem_context *ctx),
 	TP_ARGS(ctx)
 );
 
@@ -771,13 +771,13 @@ DEFINE_EVENT(i915_context, i915_context_free,
  * called only if full ppgtt is enabled.
  */
 TRACE_EVENT(switch_mm,
-	TP_PROTO(struct intel_engine_cs *engine, struct intel_context *to),
+	TP_PROTO(struct intel_engine_cs *engine, struct i915_gem_context *to),
 
 	TP_ARGS(engine, to),
 
 	TP_STRUCT__entry(
 			__field(u32, ring)
-			__field(struct intel_context *, to)
+			__field(struct i915_gem_context *, to)
 			__field(struct i915_address_space *, vm)
 			__field(u32, dev)
 	),

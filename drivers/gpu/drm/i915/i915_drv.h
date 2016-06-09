@@ -66,7 +66,7 @@
 
 #define DRIVER_NAME		"i915"
 #define DRIVER_DESC		"Intel Graphics"
-#define DRIVER_DATE		"20160522"
+#define DRIVER_DATE		"20160606"
 
 #undef WARN_ON
 /* Many gcc seem to no see through this and fall over :( */
@@ -834,9 +834,8 @@ struct i915_ctx_hang_stats {
 /* This must match up with the value previously used for execbuf2.rsvd1. */
 #define DEFAULT_CONTEXT_HANDLE 0
 
-#define CONTEXT_NO_ZEROMAP (1<<0)
 /**
- * struct intel_context - as the name implies, represents a context.
+ * struct i915_gem_context - as the name implies, represents a context.
  * @ref: reference count.
  * @user_handle: userspace tracking identity for this context.
  * @remap_slice: l3 row remapping information.
@@ -854,37 +853,33 @@ struct i915_ctx_hang_stats {
  * Contexts are memory images used by the hardware to store copies of their
  * internal state.
  */
-struct intel_context {
+struct i915_gem_context {
 	struct kref ref;
-	int user_handle;
-	uint8_t remap_slice;
 	struct drm_i915_private *i915;
-	int flags;
 	struct drm_i915_file_private *file_priv;
-	struct i915_ctx_hang_stats hang_stats;
 	struct i915_hw_ppgtt *ppgtt;
 
+	struct i915_ctx_hang_stats hang_stats;
+
 	/* Unique identifier for this context, used by the hw for tracking */
+	unsigned long flags;
 	unsigned hw_id;
+	u32 user_handle;
+#define CONTEXT_NO_ZEROMAP		(1<<0)
 
-	/* Legacy ring buffer submission */
-	struct {
-		struct drm_i915_gem_object *rcs_state;
-		bool initialized;
-	} legacy_hw_ctx;
-
-	/* Execlists */
-	struct {
+	struct intel_context {
 		struct drm_i915_gem_object *state;
 		struct intel_ringbuffer *ringbuf;
-		int pin_count;
 		struct i915_vma *lrc_vma;
-		u64 lrc_desc;
 		uint32_t *lrc_reg_state;
+		u64 lrc_desc;
+		int pin_count;
 		bool initialised;
 	} engine[I915_NUM_ENGINES];
 
 	struct list_head link;
+
+	u8 remap_slice;
 };
 
 enum fb_op_origin {
@@ -1131,6 +1126,8 @@ struct intel_gen6_power_mgmt {
 	struct work_struct work;
 	bool interrupts_enabled;
 	u32 pm_iir;
+
+	u32 pm_intr_keep;
 
 	/* Frequencies are stored in potentially platform dependent multiples.
 	 * In other words, *_freq needs to be multiplied by X to be interesting.
@@ -1715,7 +1712,7 @@ struct i915_execbuffer_params {
 	uint64_t                        batch_obj_vm_offset;
 	struct intel_engine_cs *engine;
 	struct drm_i915_gem_object      *batch_obj;
-	struct intel_context            *ctx;
+	struct i915_gem_context            *ctx;
 	struct drm_i915_gem_request     *request;
 };
 
@@ -1765,6 +1762,7 @@ struct drm_i915_private {
 	wait_queue_head_t gmbus_wait_queue;
 
 	struct pci_dev *bridge_dev;
+	struct i915_gem_context *kernel_context;
 	struct intel_engine_cs engine[I915_NUM_ENGINES];
 	struct drm_i915_gem_object *semaphore_obj;
 	uint32_t last_seqno, next_seqno;
@@ -1820,12 +1818,16 @@ struct drm_i915_private {
 	int num_fence_regs; /* 8 on pre-965, 16 otherwise */
 
 	unsigned int fsb_freq, mem_freq, is_ddr3;
-	unsigned int skl_boot_cdclk;
+	unsigned int skl_preferred_vco_freq;
 	unsigned int cdclk_freq, max_cdclk_freq, atomic_cdclk_freq;
 	unsigned int max_dotclk_freq;
 	unsigned int rawclk_freq;
 	unsigned int hpll_freq;
 	unsigned int czclk_freq;
+
+	struct {
+		unsigned int vco, ref;
+	} cdclk_pll;
 
 	/**
 	 * wq - Driver workqueue for GEM.
@@ -2017,8 +2019,6 @@ struct drm_i915_private {
 		void (*cleanup_engine)(struct intel_engine_cs *engine);
 		void (*stop_engine)(struct intel_engine_cs *engine);
 	} gt;
-
-	struct intel_context *kernel_context;
 
 	/* perform PHY state sanity checks? */
 	bool chv_phy_assert[2];
@@ -2386,7 +2386,7 @@ struct drm_i915_gem_request {
 	 * i915_gem_request_free() will then decrement the refcount on the
 	 * context.
 	 */
-	struct intel_context *ctx;
+	struct i915_gem_context *ctx;
 	struct intel_ringbuffer *ringbuf;
 
 	/**
@@ -2398,7 +2398,7 @@ struct drm_i915_gem_request {
 	 * we keep the previous context pinned until the following (this)
 	 * request is retired.
 	 */
-	struct intel_context *previous_context;
+	struct i915_gem_context *previous_context;
 
 	/** Batch buffer related to this request if any (used for
 	    error state dump only) */
@@ -2442,7 +2442,7 @@ struct drm_i915_gem_request {
 
 struct drm_i915_gem_request * __must_check
 i915_gem_request_alloc(struct intel_engine_cs *engine,
-		       struct intel_context *ctx);
+		       struct i915_gem_context *ctx);
 void i915_gem_request_free(struct kref *req_ref);
 int i915_gem_request_add_to_client(struct drm_i915_gem_request *req,
 				   struct drm_file *file);
@@ -2807,8 +2807,14 @@ struct drm_i915_cmd_table {
 
 #define HAS_CSR(dev)	(IS_GEN9(dev))
 
-#define HAS_GUC_UCODE(dev)	(IS_GEN9(dev) && !IS_KABYLAKE(dev))
-#define HAS_GUC_SCHED(dev)	(IS_GEN9(dev) && !IS_KABYLAKE(dev))
+/*
+ * For now, anything with a GuC requires uCode loading, and then supports
+ * command submission once loaded. But these are logically independent
+ * properties, so we have separate macros to test them.
+ */
+#define HAS_GUC(dev)		(IS_GEN9(dev) && !IS_KABYLAKE(dev))
+#define HAS_GUC_UCODE(dev)	(HAS_GUC(dev))
+#define HAS_GUC_SCHED(dev)	(HAS_GUC(dev))
 
 #define HAS_RESOURCE_STREAMER(dev) (IS_HASWELL(dev) || \
 				    INTEL_INFO(dev)->gen >= 8)
@@ -3422,22 +3428,36 @@ void i915_gem_context_reset(struct drm_device *dev);
 int i915_gem_context_open(struct drm_device *dev, struct drm_file *file);
 void i915_gem_context_close(struct drm_device *dev, struct drm_file *file);
 int i915_switch_context(struct drm_i915_gem_request *req);
-struct intel_context *
-i915_gem_context_get(struct drm_i915_file_private *file_priv, u32 id);
 void i915_gem_context_free(struct kref *ctx_ref);
 struct drm_i915_gem_object *
 i915_gem_alloc_context_obj(struct drm_device *dev, size_t size);
-static inline void i915_gem_context_reference(struct intel_context *ctx)
+
+static inline struct i915_gem_context *
+i915_gem_context_lookup(struct drm_i915_file_private *file_priv, u32 id)
+{
+	struct i915_gem_context *ctx;
+
+	lockdep_assert_held(&file_priv->dev_priv->dev->struct_mutex);
+
+	ctx = idr_find(&file_priv->context_idr, id);
+	if (!ctx)
+		return ERR_PTR(-ENOENT);
+
+	return ctx;
+}
+
+static inline void i915_gem_context_reference(struct i915_gem_context *ctx)
 {
 	kref_get(&ctx->ref);
 }
 
-static inline void i915_gem_context_unreference(struct intel_context *ctx)
+static inline void i915_gem_context_unreference(struct i915_gem_context *ctx)
 {
+	lockdep_assert_held(&ctx->i915->dev->struct_mutex);
 	kref_put(&ctx->ref, i915_gem_context_free);
 }
 
-static inline bool i915_gem_context_is_default(const struct intel_context *c)
+static inline bool i915_gem_context_is_default(const struct i915_gem_context *c)
 {
 	return c->user_handle == DEFAULT_CONTEXT_HANDLE;
 }
@@ -3607,19 +3627,19 @@ bool intel_bios_is_port_hpd_inverted(struct drm_i915_private *dev_priv,
 
 /* intel_opregion.c */
 #ifdef CONFIG_ACPI
-extern int intel_opregion_setup(struct drm_device *dev);
-extern void intel_opregion_init(struct drm_device *dev);
-extern void intel_opregion_fini(struct drm_device *dev);
+extern int intel_opregion_setup(struct drm_i915_private *dev_priv);
+extern void intel_opregion_register(struct drm_i915_private *dev_priv);
+extern void intel_opregion_unregister(struct drm_i915_private *dev_priv);
 extern void intel_opregion_asle_intr(struct drm_i915_private *dev_priv);
 extern int intel_opregion_notify_encoder(struct intel_encoder *intel_encoder,
 					 bool enable);
-extern int intel_opregion_notify_adapter(struct drm_device *dev,
+extern int intel_opregion_notify_adapter(struct drm_i915_private *dev_priv,
 					 pci_power_t state);
-extern int intel_opregion_get_panel_type(struct drm_device *dev);
+extern int intel_opregion_get_panel_type(struct drm_i915_private *dev_priv);
 #else
-static inline int intel_opregion_setup(struct drm_device *dev) { return 0; }
-static inline void intel_opregion_init(struct drm_device *dev) { return; }
-static inline void intel_opregion_fini(struct drm_device *dev) { return; }
+static inline int intel_opregion_setup(struct drm_i915_private *dev) { return 0; }
+static inline void intel_opregion_init(struct drm_i915_private *dev) { }
+static inline void intel_opregion_fini(struct drm_i915_private *dev) { }
 static inline void intel_opregion_asle_intr(struct drm_i915_private *dev_priv)
 {
 }
@@ -3629,11 +3649,11 @@ intel_opregion_notify_encoder(struct intel_encoder *intel_encoder, bool enable)
 	return 0;
 }
 static inline int
-intel_opregion_notify_adapter(struct drm_device *dev, pci_power_t state)
+intel_opregion_notify_adapter(struct drm_i915_private *dev, pci_power_t state)
 {
 	return 0;
 }
-static inline int intel_opregion_get_panel_type(struct drm_device *dev)
+static inline int intel_opregion_get_panel_type(struct drm_i915_private *dev)
 {
 	return -ENODEV;
 }

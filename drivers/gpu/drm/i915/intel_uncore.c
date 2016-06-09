@@ -1715,7 +1715,7 @@ int intel_guc_reset(struct drm_i915_private *dev_priv)
 	int ret;
 	unsigned long irqflags;
 
-	if (!i915.enable_guc_submission)
+	if (!HAS_GUC(dev_priv))
 		return -EINVAL;
 
 	intel_uncore_forcewake_get(dev_priv, FORCEWAKE_ALL);

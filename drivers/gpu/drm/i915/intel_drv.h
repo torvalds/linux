@@ -304,6 +304,9 @@ struct intel_atomic_state {
 	unsigned int active_crtcs;
 	unsigned int min_pixclk[I915_MAX_PIPES];
 
+	/* SKL/KBL Only */
+	unsigned int cdclk_pll_vco;
+
 	struct intel_shared_dpll_config shared_dpll[I915_NUM_PLLS];
 
 	/*
@@ -1133,6 +1136,7 @@ void i915_audio_component_init(struct drm_i915_private *dev_priv);
 void i915_audio_component_cleanup(struct drm_i915_private *dev_priv);
 
 /* intel_display.c */
+void skl_set_preferred_cdclk_vco(struct drm_i915_private *dev_priv, int vco);
 void intel_update_rawclk(struct drm_i915_private *dev_priv);
 int vlv_get_cck_clock(struct drm_i915_private *dev_priv,
 		      const char *name, u32 reg, int ref_freq);
@@ -1259,7 +1263,6 @@ void hsw_enable_pc8(struct drm_i915_private *dev_priv);
 void hsw_disable_pc8(struct drm_i915_private *dev_priv);
 void broxton_init_cdclk(struct drm_i915_private *dev_priv);
 void broxton_uninit_cdclk(struct drm_i915_private *dev_priv);
-bool broxton_cdclk_verify_state(struct drm_i915_private *dev_priv);
 void broxton_ddi_phy_init(struct drm_i915_private *dev_priv);
 void broxton_ddi_phy_uninit(struct drm_i915_private *dev_priv);
 void broxton_ddi_phy_verify_state(struct drm_i915_private *dev_priv);
@@ -1268,8 +1271,8 @@ void bxt_enable_dc9(struct drm_i915_private *dev_priv);
 void bxt_disable_dc9(struct drm_i915_private *dev_priv);
 void gen9_enable_dc5(struct drm_i915_private *dev_priv);
 void skl_init_cdclk(struct drm_i915_private *dev_priv);
-int skl_sanitize_cdclk(struct drm_i915_private *dev_priv);
 void skl_uninit_cdclk(struct drm_i915_private *dev_priv);
+unsigned int skl_cdclk_get_vco(unsigned int freq);
 void skl_enable_dc6(struct drm_i915_private *dev_priv);
 void skl_disable_dc6(struct drm_i915_private *dev_priv);
 void intel_dp_get_m_n(struct intel_crtc *crtc,
@@ -1309,7 +1312,7 @@ void intel_csr_ucode_suspend(struct drm_i915_private *);
 void intel_csr_ucode_resume(struct drm_i915_private *);
 
 /* intel_dp.c */
-void intel_dp_init(struct drm_device *dev, i915_reg_t output_reg, enum port port);
+bool intel_dp_init(struct drm_device *dev, i915_reg_t output_reg, enum port port);
 bool intel_dp_init_connector(struct intel_digital_port *intel_dig_port,
 			     struct intel_connector *intel_connector);
 void intel_dp_set_link_params(struct intel_dp *intel_dp,
