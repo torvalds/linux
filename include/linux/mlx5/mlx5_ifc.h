@@ -205,7 +205,8 @@ enum {
 	MLX5_CMD_OP_ALLOC_FLOW_COUNTER            = 0x939,
 	MLX5_CMD_OP_DEALLOC_FLOW_COUNTER          = 0x93a,
 	MLX5_CMD_OP_QUERY_FLOW_COUNTER            = 0x93b,
-	MLX5_CMD_OP_MODIFY_FLOW_TABLE             = 0x93c
+	MLX5_CMD_OP_MODIFY_FLOW_TABLE             = 0x93c,
+	MLX5_CMD_OP_MAX
 };
 
 struct mlx5_ifc_flow_table_fields_supported_bits {

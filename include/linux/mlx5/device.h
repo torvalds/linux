@@ -1240,8 +1240,6 @@ struct mlx5_destroy_psv_out {
 	u8                      rsvd[8];
 };
 
-#define MLX5_CMD_OP_MAX 0x920
-
 enum {
 	VPORT_STATE_DOWN		= 0x0,
 	VPORT_STATE_UP			= 0x1,
