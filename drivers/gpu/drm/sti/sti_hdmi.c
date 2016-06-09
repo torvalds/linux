@@ -628,12 +628,6 @@ static int hdmi_dbg_show(struct seq_file *s, void *data)
 {
 	struct drm_info_node *node = s->private;
 	struct sti_hdmi *hdmi = (struct sti_hdmi *)node->info_ent->data;
-	struct drm_device *dev = node->minor->dev;
-	int ret;
-
-	ret = mutex_lock_interruptible(&dev->struct_mutex);
-	if (ret)
-		return ret;
 
 	seq_printf(s, "HDMI: (vaddr = 0x%p)", hdmi->regs);
 	DBGFS_DUMP("\n", HDMI_CFG);
@@ -690,7 +684,6 @@ static int hdmi_dbg_show(struct seq_file *s, void *data)
 	DBGFS_DUMP_DI(HDMI_SW_DI_N_PKT_WORD6, HDMI_IFRAME_SLOT_VENDOR);
 	seq_puts(s, "\n");
 
-	mutex_unlock(&dev->struct_mutex);
 	return 0;
 }
 

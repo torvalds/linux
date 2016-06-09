@@ -208,14 +208,8 @@ static int gdp_dbg_show(struct seq_file *s, void *data)
 {
 	struct drm_info_node *node = s->private;
 	struct sti_gdp *gdp = (struct sti_gdp *)node->info_ent->data;
-	struct drm_device *dev = node->minor->dev;
 	struct drm_plane *drm_plane = &gdp->plane.drm_plane;
 	struct drm_crtc *crtc = drm_plane->crtc;
-	int ret;
-
-	ret = mutex_lock_interruptible(&dev->struct_mutex);
-	if (ret)
-		return ret;
 
 	seq_printf(s, "%s: (vaddr = 0x%p)",
 		   sti_plane_to_str(&gdp->plane), gdp->regs);
@@ -248,7 +242,6 @@ static int gdp_dbg_show(struct seq_file *s, void *data)
 		seq_printf(s, "  Connected to DRM CRTC #%d (%s)\n",
 			   crtc->base.id, sti_mixer_to_str(to_sti_mixer(crtc)));
 
-	mutex_unlock(&dev->struct_mutex);
 	return 0;
 }
 
@@ -279,13 +272,7 @@ static int gdp_node_dbg_show(struct seq_file *s, void *arg)
 {
 	struct drm_info_node *node = s->private;
 	struct sti_gdp *gdp = (struct sti_gdp *)node->info_ent->data;
-	struct drm_device *dev = node->minor->dev;
 	unsigned int b;
-	int ret;
-
-	ret = mutex_lock_interruptible(&dev->struct_mutex);
-	if (ret)
-		return ret;
 
 	for (b = 0; b < GDP_NODE_NB_BANK; b++) {
 		seq_printf(s, "\n%s[%d].top", sti_plane_to_str(&gdp->plane), b);
@@ -294,7 +281,6 @@ static int gdp_node_dbg_show(struct seq_file *s, void *arg)
 		gdp_node_dump_node(s, gdp->node_list[b].btm_field);
 	}
 
-	mutex_unlock(&dev->struct_mutex);
 	return 0;
 }
 

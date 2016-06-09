@@ -376,12 +376,6 @@ static int hda_dbg_show(struct seq_file *s, void *data)
 {
 	struct drm_info_node *node = s->private;
 	struct sti_hda *hda = (struct sti_hda *)node->info_ent->data;
-	struct drm_device *dev = node->minor->dev;
-	int ret;
-
-	ret = mutex_lock_interruptible(&dev->struct_mutex);
-	if (ret)
-		return ret;
 
 	seq_printf(s, "HD Analog: (vaddr = 0x%p)", hda->regs);
 	DBGFS_DUMP(HDA_ANA_CFG);
@@ -397,7 +391,6 @@ static int hda_dbg_show(struct seq_file *s, void *data)
 		hda_dbg_video_dacs_ctrl(s, hda->video_dacs_ctrl);
 	seq_puts(s, "\n");
 
-	mutex_unlock(&dev->struct_mutex);
 	return 0;
 }
 
