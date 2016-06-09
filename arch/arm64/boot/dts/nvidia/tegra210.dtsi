@@ -186,10 +186,11 @@
 			reg = <0x0 0x54580000 0x0 0x00040000>;
 			interrupts = <GIC_SPI 75 IRQ_TYPE_LEVEL_HIGH>;
 			clocks = <&tegra_car TEGRA210_CLK_SOR1>,
+				 <&tegra_car TEGRA210_CLK_SOR1_SRC>,
 				 <&tegra_car TEGRA210_CLK_PLL_D2_OUT0>,
 				 <&tegra_car TEGRA210_CLK_PLL_DP>,
 				 <&tegra_car TEGRA210_CLK_SOR_SAFE>;
-			clock-names = "sor", "parent", "dp", "safe";
+			clock-names = "sor", "source", "parent", "dp", "safe";
 			resets = <&tegra_car 183>;
 			reset-names = "sor";
 			pinctrl-0 = <&state_dpaux1_aux>;
