@@ -414,6 +414,7 @@ static inline struct c4iw_mw *to_c4iw_mw(struct ib_mw *ibmw)
 struct c4iw_cq {
 	struct ib_cq ibcq;
 	struct c4iw_dev *rhp;
+	struct sk_buff *destroy_skb;
 	struct t4_cq cq;
 	spinlock_t lock;
 	spinlock_t comp_handler_lock;
