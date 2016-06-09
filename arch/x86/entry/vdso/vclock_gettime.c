@@ -96,9 +96,8 @@ static notrace cycle_t vread_pvclock(int *mode)
 {
 	const struct pvclock_vcpu_time_info *pvti = &get_pvti0()->pvti;
 	cycle_t ret;
-	u64 tsc, pvti_tsc;
-	u64 last, delta, pvti_system_time;
-	u32 version, pvti_tsc_to_system_mul, pvti_tsc_shift;
+	u64 last;
+	u32 version;
 
 	/*
 	 * Note: The kernel and hypervisor must guarantee that cpu ID
@@ -130,17 +129,8 @@ static notrace cycle_t vread_pvclock(int *mode)
 			return 0;
 		}
 
-		tsc = rdtsc_ordered();
-		pvti_tsc_to_system_mul = pvti->tsc_to_system_mul;
-		pvti_tsc_shift = pvti->tsc_shift;
-		pvti_system_time = pvti->system_time;
-		pvti_tsc = pvti->tsc_timestamp;
+		ret = __pvclock_read_cycles(pvti);
 	} while (pvclock_read_retry(pvti, version));
-
-	delta = tsc - pvti_tsc;
-	ret = pvti_system_time +
-		pvclock_scale_delta(delta, pvti_tsc_to_system_mul,
-				    pvti_tsc_shift);
 
 	/* refer to vread_tsc() comment for rationale */
 	last = gtod->cycle_last;
