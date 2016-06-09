@@ -176,6 +176,16 @@
 			interrupt-controller;
 			#interrupt-cells = <1>;
 		};
+
+		can@1a000 {
+			compatible = "technologic,sja1000";
+			reg = <0x1a000 0x100>;
+			interrupt-parent = <&fpga_irqc>;
+			interrupts = <1>;
+			reg-io-width = <2>;
+			nxp,tx-output-config = <0x06>;
+			nxp,external-clock-frequency = <24000000>;
+		};
 	};
 };
 
