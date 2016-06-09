@@ -501,9 +501,7 @@ static noinline int check_support(struct rvt_dev_info *rdi, int verb)
 			    !rdi->driver_f.quiesce_qp ||
 			    !rdi->driver_f.notify_error_qp ||
 			    !rdi->driver_f.mtu_from_qp ||
-			    !rdi->driver_f.mtu_to_path_mtu ||
-			    !rdi->driver_f.shut_down_port ||
-			    !rdi->driver_f.cap_mask_chg)
+			    !rdi->driver_f.mtu_to_path_mtu)
 				return -EINVAL;
 		break;
 
