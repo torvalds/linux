@@ -2204,7 +2204,7 @@ static int run_delayed_data_ref(struct btrfs_trans_handle *trans,
 	ins.type = BTRFS_EXTENT_ITEM_KEY;
 
 	ref = btrfs_delayed_node_to_data_ref(node);
-	trace_run_delayed_data_ref(node, ref, node->action);
+	trace_run_delayed_data_ref(root->fs_info, node, ref, node->action);
 
 	if (node->type == BTRFS_SHARED_DATA_REF_KEY)
 		parent = ref->parent;
@@ -2359,7 +2359,7 @@ static int run_delayed_tree_ref(struct btrfs_trans_handle *trans,
 						 SKINNY_METADATA);
 
 	ref = btrfs_delayed_node_to_tree_ref(node);
-	trace_run_delayed_tree_ref(node, ref, node->action);
+	trace_run_delayed_tree_ref(root->fs_info, node, ref, node->action);
 
 	if (node->type == BTRFS_SHARED_BLOCK_REF_KEY)
 		parent = ref->parent;
@@ -2423,7 +2423,8 @@ static int run_one_delayed_ref(struct btrfs_trans_handle *trans,
 		 */
 		BUG_ON(extent_op);
 		head = btrfs_delayed_node_to_head(node);
-		trace_run_delayed_ref_head(node, head, node->action);
+		trace_run_delayed_ref_head(root->fs_info, node, head,
+					   node->action);
 
 		if (insert_reserved) {
 			btrfs_pin_extent(root, node->bytenr,
@@ -8542,7 +8543,8 @@ static int record_one_subtree_extent(struct btrfs_trans_handle *trans,
 
 	delayed_refs = &trans->transaction->delayed_refs;
 	spin_lock(&delayed_refs->lock);
-	if (btrfs_qgroup_insert_dirty_extent(delayed_refs, qrecord))
+	if (btrfs_qgroup_insert_dirty_extent(trans->root->fs_info,
+					     delayed_refs, qrecord))
 		kfree(qrecord);
 	spin_unlock(&delayed_refs->lock);
 
