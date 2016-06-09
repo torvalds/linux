@@ -1292,8 +1292,8 @@ static int update_root_ft_destroy(struct mlx5_flow_table *ft)
 				       ft->id);
 			return err;
 		}
-		root->root_ft = new_root_ft;
 	}
+	root->root_ft = new_root_ft;
 	return 0;
 }
 
