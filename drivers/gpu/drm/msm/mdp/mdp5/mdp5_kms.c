@@ -629,9 +629,6 @@ struct msm_kms *mdp5_kms_init(struct drm_device *dev)
 	ret = get_clk(pdev, &mdp5_kms->ahb_clk, "iface_clk", true);
 	if (ret)
 		goto fail;
-	ret = get_clk(pdev, &mdp5_kms->src_clk, "core_clk_src", true);
-	if (ret)
-		goto fail;
 	ret = get_clk(pdev, &mdp5_kms->core_clk, "core_clk", true);
 	if (ret)
 		goto fail;
@@ -646,7 +643,7 @@ struct msm_kms *mdp5_kms_init(struct drm_device *dev)
 	 * rate first, then figure out hw revision, and then set a
 	 * more optimal rate:
 	 */
-	clk_set_rate(mdp5_kms->src_clk, 200000000);
+	clk_set_rate(mdp5_kms->core_clk, 200000000);
 
 	read_hw_revision(mdp5_kms, &major, &minor);
 
@@ -661,7 +658,7 @@ struct msm_kms *mdp5_kms_init(struct drm_device *dev)
 	mdp5_kms->caps = config->hw->mdp.caps;
 
 	/* TODO: compute core clock rate at runtime */
-	clk_set_rate(mdp5_kms->src_clk, config->hw->max_clk);
+	clk_set_rate(mdp5_kms->core_clk, config->hw->max_clk);
 
 	/*
 	 * Some chipsets have a Shared Memory Pool (SMP), while others
