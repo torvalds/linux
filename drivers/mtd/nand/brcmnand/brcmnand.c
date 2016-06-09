@@ -1602,6 +1602,56 @@ static int brcmnand_read_by_pio(struct mtd_info *mtd, struct nand_chip *chip,
 	return ret;
 }
 
+/*
+ * Check a page to see if it is erased (w/ bitflips) after an uncorrectable ECC
+ * error
+ *
+ * Because the HW ECC signals an ECC error if an erase paged has even a single
+ * bitflip, we must check each ECC error to see if it is actually an erased
+ * page with bitflips, not a truly corrupted page.
+ *
+ * On a real error, return a negative error code (-EBADMSG for ECC error), and
+ * buf will contain raw data.
+ * Otherwise, buf gets filled with 0xffs and return the maximum number of
+ * bitflips-per-ECC-sector to the caller.
+ *
+ */
+static int brcmstb_nand_verify_erased_page(struct mtd_info *mtd,
+		  struct nand_chip *chip, void *buf, u64 addr)
+{
+	int i, sas;
+	void *oob = chip->oob_poi;
+	int bitflips = 0;
+	int page = addr >> chip->page_shift;
+	int ret;
+
+	if (!buf) {
+		buf = chip->buffers->databuf;
+		/* Invalidate page cache */
+		chip->pagebuf = -1;
+	}
+
+	sas = mtd->oobsize / chip->ecc.steps;
+
+	/* read without ecc for verification */
+	chip->cmdfunc(mtd, NAND_CMD_READ0, 0x00, page);
+	ret = chip->ecc.read_page_raw(mtd, chip, buf, true, page);
+	if (ret)
+		return ret;
+
+	for (i = 0; i < chip->ecc.steps; i++, oob += sas) {
+		ret = nand_check_erased_ecc_chunk(buf, chip->ecc.size,
+						  oob, sas, NULL, 0,
+						  chip->ecc.strength);
+		if (ret < 0)
+			return ret;
+
+		bitflips = max(bitflips, ret);
+	}
+
+	return bitflips;
+}
+
 static int brcmnand_read(struct mtd_info *mtd, struct nand_chip *chip,
 			 u64 addr, unsigned int trans, u32 *buf, u8 *oob)
 {
@@ -1632,6 +1682,18 @@ static int brcmnand_read(struct mtd_info *mtd, struct nand_chip *chip,
 	}
 
 	if (mtd_is_eccerr(err)) {
+		/*
+		 * Controller version 7.2 has hw encoder to detect erased page
+		 * bitflips, apply sw verification for older controllers only
+		 */
+		if (ctrl->nand_version < 0x0702) {
+			err = brcmstb_nand_verify_erased_page(mtd, chip, buf,
+							      addr);
+			/* erased page bitflips corrected */
+			if (err > 0)
+				return err;
+		}
+
 		dev_dbg(ctrl->dev, "uncorrectable error at 0x%llx\n",
 			(unsigned long long)err_addr);
 		mtd->ecc_stats.failed++;
