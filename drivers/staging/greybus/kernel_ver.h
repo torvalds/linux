@@ -328,10 +328,10 @@ static inline void reinit_completion(struct completion *x)
 }
 #endif
 
-#if LINUX_VERSION_CODE < KERNEL_VERSION(4, 2, 0)
+#if LINUX_VERSION_CODE < KERNEL_VERSION(4, 3, 0)
 #include <linux/pwm.h>
 /*
- * pwm_is_enabled() was first defined in 4.2-rc1 (first commit!).
+ * pwm_is_enabled() was first defined in 4.3.
  * PWMF_ENABLED was first defined in 3.5-rc2, but our code is
  * always newer than that.
 */
