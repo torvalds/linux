@@ -15,7 +15,6 @@
 
 / {
 	compatible = "snps,arc";
-	clock-frequency = <750000000>;	/* 750 MHZ */
 	#address-cells = <1>;
 	#size-cells = <1>;
 
