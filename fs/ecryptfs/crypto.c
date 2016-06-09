@@ -953,7 +953,7 @@ struct ecryptfs_cipher_code_str_map_elem {
 };
 
 /* Add support for additional ciphers by adding elements here. The
- * cipher_code is whatever OpenPGP applicatoins use to identify the
+ * cipher_code is whatever OpenPGP applications use to identify the
  * ciphers. List in order of probability. */
 static struct ecryptfs_cipher_code_str_map_elem
 ecryptfs_cipher_code_str_map[] = {
@@ -1410,7 +1410,7 @@ int ecryptfs_read_and_validate_xattr_region(struct dentry *dentry,
  *
  * Common entry point for reading file metadata. From here, we could
  * retrieve the header information from the header region of the file,
- * the xattr region of the file, or some other repostory that is
+ * the xattr region of the file, or some other repository that is
  * stored separately from the file itself. The current implementation
  * supports retrieving the metadata information from the file contents
  * and from the xattr region.

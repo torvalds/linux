@@ -171,7 +171,7 @@ out:
 
 /**
  * ecryptfs_open
- * @inode: inode speciying file to open
+ * @inode: inode specifying file to open
  * @file: Structure to return filled in
  *
  * Opens the file specified by inode.
@@ -240,7 +240,7 @@ out:
 
 /**
  * ecryptfs_dir_open
- * @inode: inode speciying file to open
+ * @inode: inode specifying file to open
  * @file: Structure to return filled in
  *
  * Opens the file specified by inode.
