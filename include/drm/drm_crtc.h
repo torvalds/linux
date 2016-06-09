@@ -2658,7 +2658,10 @@ extern struct drm_property *drm_mode_create_rotation_property(struct drm_device 
 							      unsigned int supported_rotations);
 extern unsigned int drm_rotation_simplify(unsigned int rotation,
 					  unsigned int supported_rotations);
-
+extern void drm_crtc_enable_color_mgmt(struct drm_crtc *crtc,
+				       uint degamma_lut_size,
+				       bool has_ctm,
+				       uint gamma_lut_size);
 /* Helpers */
 
 static inline struct drm_plane *drm_plane_find(struct drm_device *dev,

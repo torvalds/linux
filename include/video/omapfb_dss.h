@@ -1,27 +1,20 @@
 /*
- * Copyright (C) 2008 Nokia Corporation
- * Author: Tomi Valkeinen <tomi.valkeinen@nokia.com>
+ * Copyright (C) 2016 Texas Instruments, Inc.
  *
- * This program is free software; you can redistribute it and/or modify it
- * under the terms of the GNU General Public License version 2 as published by
- * the Free Software Foundation.
- *
- * This program is distributed in the hope that it will be useful, but WITHOUT
- * ANY WARRANTY; without even the implied warranty of MERCHANTABILITY or
- * FITNESS FOR A PARTICULAR PURPOSE.  See the GNU General Public License for
- * more details.
- *
- * You should have received a copy of the GNU General Public License along with
- * this program.  If not, see <http://www.gnu.org/licenses/>.
+ * This program is free software; you can redistribute it and/or modify
+ * it under the terms of the GNU General Public License as published by
+ * the Free Software Foundation; either version 2 of the License, or
+ * (at your option) any later version.
  */
 
-#ifndef __OMAP_OMAPDSS_H
-#define __OMAP_OMAPDSS_H
+#ifndef __OMAPFB_DSS_H
+#define __OMAPFB_DSS_H
 
 #include <linux/list.h>
 #include <linux/kobject.h>
 #include <linux/device.h>
 #include <linux/interrupt.h>
+#include <linux/platform_data/omapdss.h>
 
 #include <video/videomode.h>
 
@@ -167,11 +160,6 @@ enum omap_dss_display_state {
 	OMAP_DSS_DISPLAY_ACTIVE,
 };
 
-struct omap_dss_audio {
-	struct snd_aes_iec958 *iec;
-	struct snd_cea_861_aud_if *cea;
-};
-
 enum omap_dss_rotation_type {
 	OMAP_DSS_ROT_DMA	= 1 << 0,
 	OMAP_DSS_ROT_VRFB	= 1 << 1,
@@ -193,25 +181,6 @@ enum omap_overlay_caps {
 	OMAP_DSS_OVL_CAP_ZORDER = 1 << 3,
 	OMAP_DSS_OVL_CAP_POS = 1 << 4,
 	OMAP_DSS_OVL_CAP_REPLICATION = 1 << 5,
-};
-
-enum omap_overlay_manager_caps {
-	OMAP_DSS_DUMMY_VALUE, /* add a dummy value to prevent compiler error */
-};
-
-enum omap_dss_clk_source {
-	OMAP_DSS_CLK_SRC_FCK = 0,		/* OMAP2/3: DSS1_ALWON_FCLK
-						 * OMAP4: DSS_FCLK */
-	OMAP_DSS_CLK_SRC_DSI_PLL_HSDIV_DISPC,	/* OMAP3: DSI1_PLL_FCLK
-						 * OMAP4: PLL1_CLK1 */
-	OMAP_DSS_CLK_SRC_DSI_PLL_HSDIV_DSI,	/* OMAP3: DSI2_PLL_FCLK
-						 * OMAP4: PLL1_CLK2 */
-	OMAP_DSS_CLK_SRC_DSI2_PLL_HSDIV_DISPC,	/* OMAP4: PLL2_CLK1 */
-	OMAP_DSS_CLK_SRC_DSI2_PLL_HSDIV_DSI,	/* OMAP4: PLL2_CLK2 */
-};
-
-enum omap_hdmi_flags {
-	OMAP_HDMI_SDA_SCL_EXTERNAL_PULLUP = 1 << 0,
 };
 
 enum omap_dss_output_id {
@@ -302,36 +271,6 @@ struct omap_dss_dsi_config {
 	bool ddr_clk_always_on;
 	enum omap_dss_dsi_trans_mode trans_mode;
 };
-
-enum omapdss_version {
-	OMAPDSS_VER_UNKNOWN = 0,
-	OMAPDSS_VER_OMAP24xx,
-	OMAPDSS_VER_OMAP34xx_ES1,	/* OMAP3430 ES1.0, 2.0 */
-	OMAPDSS_VER_OMAP34xx_ES3,	/* OMAP3430 ES3.0+ */
-	OMAPDSS_VER_OMAP3630,
-	OMAPDSS_VER_AM35xx,
-	OMAPDSS_VER_OMAP4430_ES1,	/* OMAP4430 ES1.0 */
-	OMAPDSS_VER_OMAP4430_ES2,	/* OMAP4430 ES2.0, 2.1, 2.2 */
-	OMAPDSS_VER_OMAP4,		/* All other OMAP4s */
-	OMAPDSS_VER_OMAP5,
-	OMAPDSS_VER_AM43xx,
-	OMAPDSS_VER_DRA7xx,
-};
-
-/* Board specific data */
-struct omap_dss_board_info {
-	int num_devices;
-	struct omap_dss_device **devices;
-	struct omap_dss_device *default_device;
-	const char *default_display_name;
-	int (*dsi_enable_pads)(int dsi_id, unsigned lane_mask);
-	void (*dsi_disable_pads)(int dsi_id, unsigned lane_mask);
-	int (*set_min_bus_tput)(struct device *dev, unsigned long r);
-	enum omapdss_version version;
-};
-
-/* Init with the board info */
-extern int omap_display_init(struct omap_dss_board_info *board_data);
 
 struct omap_video_timings {
 	/* Unit: pixels */
@@ -463,7 +402,6 @@ struct omap_overlay_manager {
 	/* static fields */
 	const char *name;
 	enum omap_channel id;
-	enum omap_overlay_manager_caps caps;
 	struct list_head overlays;
 	enum omap_display_type supported_displays;
 	enum omap_dss_output_id supported_outputs;
@@ -919,4 +857,4 @@ omapdss_of_get_first_endpoint(const struct device_node *parent);
 struct omap_dss_device *
 omapdss_of_find_source_for_first_ep(struct device_node *node);
 
-#endif
+#endif /* __OMAPFB_DSS_H */

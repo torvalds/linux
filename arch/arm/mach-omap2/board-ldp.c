@@ -39,7 +39,7 @@
 #include "gpmc.h"
 #include "gpmc-smsc911x.h"
 
-#include <video/omapdss.h>
+#include <linux/platform_data/omapdss.h>
 #include <video/omap-panel-data.h>
 
 #include "board-flash.h"
@@ -47,6 +47,7 @@
 #include "hsmmc.h"
 #include "control.h"
 #include "common-board-devices.h"
+#include "display.h"
 
 #define LDP_SMSC911X_CS		1
 #define LDP_SMSC911X_GPIO	152

@@ -547,7 +547,8 @@ void intel_color_init(struct drm_crtc *crtc)
 	/* Enable color management support when we have degamma & gamma LUTs. */
 	if (INTEL_INFO(dev)->color.degamma_lut_size != 0 &&
 	    INTEL_INFO(dev)->color.gamma_lut_size != 0)
-		drm_helper_crtc_enable_color_mgmt(crtc,
+		drm_crtc_enable_color_mgmt(crtc,
 					INTEL_INFO(dev)->color.degamma_lut_size,
+					true,
 					INTEL_INFO(dev)->color.gamma_lut_size);
 }

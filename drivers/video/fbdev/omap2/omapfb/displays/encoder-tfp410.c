@@ -15,8 +15,7 @@
 #include <linux/slab.h>
 #include <linux/of_gpio.h>
 
-#include <video/omapdss.h>
-#include <video/omap-panel-data.h>
+#include <video/omapfb_dss.h>
 
 struct panel_drv_data {
 	struct omap_dss_device dssdev;
@@ -166,32 +165,6 @@ static const struct omapdss_dvi_ops tfp410_dvi_ops = {
 	.get_timings	= tfp410_get_timings,
 };
 
-static int tfp410_probe_pdata(struct platform_device *pdev)
-{
-	struct panel_drv_data *ddata = platform_get_drvdata(pdev);
-	struct encoder_tfp410_platform_data *pdata;
-	struct omap_dss_device *dssdev, *in;
-
-	pdata = dev_get_platdata(&pdev->dev);
-
-	ddata->pd_gpio = pdata->power_down_gpio;
-
-	ddata->data_lines = pdata->data_lines;
-
-	in = omap_dss_find_output(pdata->source);
-	if (in == NULL) {
-		dev_err(&pdev->dev, "Failed to find video source\n");
-		return -ENODEV;
-	}
-
-	ddata->in = in;
-
-	dssdev = &ddata->dssdev;
-	dssdev->name = pdata->name;
-
-	return 0;
-}
-
 static int tfp410_probe_of(struct platform_device *pdev)
 {
 	struct panel_drv_data *ddata = platform_get_drvdata(pdev);
@@ -225,23 +198,18 @@ static int tfp410_probe(struct platform_device *pdev)
 	struct omap_dss_device *dssdev;
 	int r;
 
+	if (!pdev->dev.of_node)
+		return -ENODEV;
+
 	ddata = devm_kzalloc(&pdev->dev, sizeof(*ddata), GFP_KERNEL);
 	if (!ddata)
 		return -ENOMEM;
 
 	platform_set_drvdata(pdev, ddata);
 
-	if (dev_get_platdata(&pdev->dev)) {
-		r = tfp410_probe_pdata(pdev);
-		if (r)
-			return r;
-	} else if (pdev->dev.of_node) {
-		r = tfp410_probe_of(pdev);
-		if (r)
-			return r;
-	} else {
-		return -ENODEV;
-	}
+	r = tfp410_probe_of(pdev);
+	if (r)
+		return r;
 
 	if (gpio_is_valid(ddata->pd_gpio)) {
 		r = devm_gpio_request_one(&pdev->dev, ddata->pd_gpio,

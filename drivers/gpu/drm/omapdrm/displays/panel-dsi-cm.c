@@ -25,9 +25,9 @@
 #include <linux/of_device.h>
 #include <linux/of_gpio.h>
 
-#include <video/omapdss.h>
-#include <video/omap-panel-data.h>
 #include <video/mipi_display.h>
+
+#include "../dss/omapdss.h"
 
 /* DSI Virtual channel. Hardcoded for now. */
 #define TCH 0

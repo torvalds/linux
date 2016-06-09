@@ -6023,3 +6023,48 @@ struct drm_tile_group *drm_mode_create_tile_group(struct drm_device *dev,
 	return tg;
 }
 EXPORT_SYMBOL(drm_mode_create_tile_group);
+
+/**
+ * drm_crtc_enable_color_mgmt - enable color management properties
+ * @crtc: DRM CRTC
+ * @degamma_lut_size: the size of the degamma lut (before CSC)
+ * @has_ctm: whether to attach ctm_property for CSC matrix
+ * @gamma_lut_size: the size of the gamma lut (after CSC)
+ *
+ * This function lets the driver enable the color correction
+ * properties on a CRTC. This includes 3 degamma, csc and gamma
+ * properties that userspace can set and 2 size properties to inform
+ * the userspace of the lut sizes. Each of the properties are
+ * optional. The gamma and degamma properties are only attached if
+ * their size is not 0 and ctm_property is only attached if has_ctm is
+ * true.
+ */
+void drm_crtc_enable_color_mgmt(struct drm_crtc *crtc,
+				uint degamma_lut_size,
+				bool has_ctm,
+				uint gamma_lut_size)
+{
+	struct drm_device *dev = crtc->dev;
+	struct drm_mode_config *config = &dev->mode_config;
+
+	if (degamma_lut_size) {
+		drm_object_attach_property(&crtc->base,
+					   config->degamma_lut_property, 0);
+		drm_object_attach_property(&crtc->base,
+					   config->degamma_lut_size_property,
+					   degamma_lut_size);
+	}
+
+	if (has_ctm)
+		drm_object_attach_property(&crtc->base,
+					   config->ctm_property, 0);
+
+	if (gamma_lut_size) {
+		drm_object_attach_property(&crtc->base,
+					   config->gamma_lut_property, 0);
+		drm_object_attach_property(&crtc->base,
+					   config->gamma_lut_size_property,
+					   gamma_lut_size);
+	}
+}
+EXPORT_SYMBOL(drm_crtc_enable_color_mgmt);

@@ -312,14 +312,6 @@ void omap_framebuffer_unpin(struct drm_framebuffer *fb)
 	mutex_unlock(&omap_fb->lock);
 }
 
-struct drm_gem_object *omap_framebuffer_bo(struct drm_framebuffer *fb, int p)
-{
-	struct omap_framebuffer *omap_fb = to_omap_framebuffer(fb);
-	if (p >= drm_format_num_planes(fb->pixel_format))
-		return NULL;
-	return omap_fb->planes[p].bo;
-}
-
 /* iterate thru all the connectors, returning ones that are attached
  * to the same fb..
  */

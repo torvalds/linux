@@ -4104,6 +4104,21 @@ F:	drivers/gpu/drm/vc4/
 F:	include/uapi/drm/vc4_drm.h
 F:	Documentation/devicetree/bindings/display/brcm,bcm-vc4.txt
 
+DRM DRIVERS FOR TI OMAP
+M:	Tomi Valkeinen <tomi.valkeinen@ti.com>
+L:	dri-devel@lists.freedesktop.org
+S:	Maintained
+F:	drivers/gpu/drm/omapdrm/
+F:	Documentation/devicetree/bindings/display/ti/
+
+DRM DRIVERS FOR TI LCDC
+M:	Jyri Sarha <jsarha@ti.com>
+R:	Tomi Valkeinen <tomi.valkeinen@ti.com>
+L:	dri-devel@lists.freedesktop.org
+S:	Maintained
+F:	drivers/gpu/drm/tilcdc/
+F:	Documentation/devicetree/bindings/display/tilcdc/
+
 DSBR100 USB FM RADIO DRIVER
 M:	Alexey Klimov <klimov.linux@gmail.com>
 L:	linux-media@vger.kernel.org

@@ -11,7 +11,7 @@
 #ifndef OMAP_VOUTDEF_H
 #define OMAP_VOUTDEF_H
 
-#include <video/omapdss.h>
+#include <video/omapfb_dss.h>
 #include <video/omapvrfb.h>
 
 #define YUYV_BPP        2
