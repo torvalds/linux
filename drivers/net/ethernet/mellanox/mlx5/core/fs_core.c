@@ -1767,6 +1767,9 @@ static void cleanup_root_ns(struct mlx5_core_dev *dev)
 
 void mlx5_cleanup_fs(struct mlx5_core_dev *dev)
 {
+	if (MLX5_CAP_GEN(dev, port_type) != MLX5_CAP_PORT_TYPE_ETH)
+		return;
+
 	cleanup_root_ns(dev);
 	cleanup_single_prio_root_ns(dev, dev->priv.fdb_root_ns);
 	cleanup_single_prio_root_ns(dev, dev->priv.esw_egress_root_ns);
@@ -1828,15 +1831,20 @@ int mlx5_init_fs(struct mlx5_core_dev *dev)
 {
 	int err = 0;
 
+	if (MLX5_CAP_GEN(dev, port_type) != MLX5_CAP_PORT_TYPE_ETH)
+		return 0;
+
 	err = mlx5_init_fc_stats(dev);
 	if (err)
 		return err;
 
-	if (MLX5_CAP_GEN(dev, nic_flow_table)) {
+	if (MLX5_CAP_GEN(dev, nic_flow_table) &&
+	    MLX5_CAP_FLOWTABLE_NIC_RX(dev, ft_support)) {
 		err = init_root_ns(dev);
 		if (err)
 			goto err;
 	}
+
 	if (MLX5_CAP_GEN(dev, eswitch_flow_table)) {
 		err = init_fdb_root_ns(dev);
 		if (err)
