@@ -32,8 +32,6 @@
 #define KVM_GUEST_PC_TLB    0
 #define KVM_GUEST_SP_TLB    1
 
-#define PRIx64 "llx"
-
 atomic_t kvm_mips_instance;
 EXPORT_SYMBOL_GPL(kvm_mips_instance);
 
@@ -102,13 +100,13 @@ void kvm_mips_dump_host_tlbs(void)
 		kvm_info("TLB%c%3d Hi 0x%08lx ",
 			 (tlb.tlb_lo0 | tlb.tlb_lo1) & MIPS3_PG_V ? ' ' : '*',
 			 i, tlb.tlb_hi);
-		kvm_info("Lo0=0x%09" PRIx64 " %c%c attr %lx ",
-			 (uint64_t) mips3_tlbpfn_to_paddr(tlb.tlb_lo0),
+		kvm_info("Lo0=0x%09llx %c%c attr %lx ",
+			 (u64) mips3_tlbpfn_to_paddr(tlb.tlb_lo0),
 			 (tlb.tlb_lo0 & MIPS3_PG_D) ? 'D' : ' ',
 			 (tlb.tlb_lo0 & MIPS3_PG_G) ? 'G' : ' ',
 			 (tlb.tlb_lo0 >> 3) & 7);
-		kvm_info("Lo1=0x%09" PRIx64 " %c%c attr %lx sz=%lx\n",
-			 (uint64_t) mips3_tlbpfn_to_paddr(tlb.tlb_lo1),
+		kvm_info("Lo1=0x%09llx %c%c attr %lx sz=%lx\n",
+			 (u64) mips3_tlbpfn_to_paddr(tlb.tlb_lo1),
 			 (tlb.tlb_lo1 & MIPS3_PG_D) ? 'D' : ' ',
 			 (tlb.tlb_lo1 & MIPS3_PG_G) ? 'G' : ' ',
 			 (tlb.tlb_lo1 >> 3) & 7, tlb.tlb_mask);
@@ -134,13 +132,13 @@ void kvm_mips_dump_guest_tlbs(struct kvm_vcpu *vcpu)
 		kvm_info("TLB%c%3d Hi 0x%08lx ",
 			 (tlb.tlb_lo0 | tlb.tlb_lo1) & MIPS3_PG_V ? ' ' : '*',
 			 i, tlb.tlb_hi);
-		kvm_info("Lo0=0x%09" PRIx64 " %c%c attr %lx ",
-			 (uint64_t) mips3_tlbpfn_to_paddr(tlb.tlb_lo0),
+		kvm_info("Lo0=0x%09llx %c%c attr %lx ",
+			 (u64) mips3_tlbpfn_to_paddr(tlb.tlb_lo0),
 			 (tlb.tlb_lo0 & MIPS3_PG_D) ? 'D' : ' ',
 			 (tlb.tlb_lo0 & MIPS3_PG_G) ? 'G' : ' ',
 			 (tlb.tlb_lo0 >> 3) & 7);
-		kvm_info("Lo1=0x%09" PRIx64 " %c%c attr %lx sz=%lx\n",
-			 (uint64_t) mips3_tlbpfn_to_paddr(tlb.tlb_lo1),
+		kvm_info("Lo1=0x%09llx %c%c attr %lx sz=%lx\n",
+			 (u64) mips3_tlbpfn_to_paddr(tlb.tlb_lo1),
 			 (tlb.tlb_lo1 & MIPS3_PG_D) ? 'D' : ' ',
 			 (tlb.tlb_lo1 & MIPS3_PG_G) ? 'G' : ' ',
 			 (tlb.tlb_lo1 >> 3) & 7, tlb.tlb_mask);
@@ -160,7 +158,7 @@ static int kvm_mips_map_page(struct kvm *kvm, gfn_t gfn)
 	pfn = kvm_mips_gfn_to_pfn(kvm, gfn);
 
 	if (kvm_mips_is_error_pfn(pfn)) {
-		kvm_err("Couldn't get pfn for gfn %#" PRIx64 "!\n", gfn);
+		kvm_err("Couldn't get pfn for gfn %#llx!\n", gfn);
 		err = -EFAULT;
 		goto out;
 	}
@@ -176,7 +174,7 @@ unsigned long kvm_mips_translate_guest_kseg0_to_hpa(struct kvm_vcpu *vcpu,
 						    unsigned long gva)
 {
 	gfn_t gfn;
-	uint32_t offset = gva & ~PAGE_MASK;
+	unsigned long offset = gva & ~PAGE_MASK;
 	struct kvm *kvm = vcpu->kvm;
 
 	if (KVM_GUEST_KSEGX(gva) != KVM_GUEST_KSEG0) {
@@ -726,7 +724,7 @@ EXPORT_SYMBOL_GPL(kvm_arch_vcpu_load);
 void kvm_arch_vcpu_put(struct kvm_vcpu *vcpu)
 {
 	unsigned long flags;
-	uint32_t cpu;
+	int cpu;
 
 	local_irq_save(flags);
 
@@ -755,7 +753,7 @@ u32 kvm_get_inst(u32 *opc, struct kvm_vcpu *vcpu)
 {
 	struct mips_coproc *cop0 = vcpu->arch.cop0;
 	unsigned long paddr, flags, vpn2, asid;
-	uint32_t inst;
+	u32 inst;
 	int index;
 
 	if (KVM_GUEST_KSEGX((unsigned long) opc) < KVM_GUEST_KSEG0 ||
@@ -787,7 +785,7 @@ u32 kvm_get_inst(u32 *opc, struct kvm_vcpu *vcpu)
 		paddr =
 		    kvm_mips_translate_guest_kseg0_to_hpa(vcpu,
 							  (unsigned long) opc);
-		inst = *(uint32_t *) CKSEG0ADDR(paddr);
+		inst = *(u32 *) CKSEG0ADDR(paddr);
 	} else {
 		kvm_err("%s: illegal address: %p\n", __func__, opc);
 		return KVM_INVALID_INST;

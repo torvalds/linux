@@ -1222,7 +1222,7 @@ int kvm_arch_vcpu_setup(struct kvm_vcpu *vcpu)
 
 static void kvm_mips_set_c0_status(void)
 {
-	uint32_t status = read_c0_status();
+	u32 status = read_c0_status();
 
 	if (cpu_has_dsp)
 		status |= (ST0_MX);
@@ -1236,9 +1236,9 @@ static void kvm_mips_set_c0_status(void)
  */
 int kvm_mips_handle_exit(struct kvm_run *run, struct kvm_vcpu *vcpu)
 {
-	uint32_t cause = vcpu->arch.host_cp0_cause;
-	uint32_t exccode = (cause >> CAUSEB_EXCCODE) & 0x1f;
-	uint32_t __user *opc = (uint32_t __user *) vcpu->arch.pc;
+	u32 cause = vcpu->arch.host_cp0_cause;
+	u32 exccode = (cause >> CAUSEB_EXCCODE) & 0x1f;
+	u32 __user *opc = (u32 __user *) vcpu->arch.pc;
 	unsigned long badvaddr = vcpu->arch.host_cp0_badvaddr;
 	enum emulation_result er = EMULATE_DONE;
 	int ret = RESUME_GUEST;
