@@ -123,9 +123,7 @@ static notrace cycle_t vread_pvclock(int *mode)
 	 */
 
 	do {
-		version = pvti->version;
-
-		smp_rmb();
+		version = pvclock_read_begin(pvti);
 
 		if (unlikely(!(pvti->flags & PVCLOCK_TSC_STABLE_BIT))) {
 			*mode = VCLOCK_NONE;
@@ -137,10 +135,7 @@ static notrace cycle_t vread_pvclock(int *mode)
 		pvti_tsc_shift = pvti->tsc_shift;
 		pvti_system_time = pvti->system_time;
 		pvti_tsc = pvti->tsc_timestamp;
-
-		/* Make sure that the version double-check is last. */
-		smp_rmb();
-	} while (unlikely((version & 1) || version != pvti->version));
+	} while (pvclock_read_retry(pvti, version));
 
 	delta = tsc - pvti_tsc;
 	ret = pvti_system_time +
