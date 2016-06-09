@@ -462,6 +462,7 @@ int proc_fill_super(struct super_block *s)
 	struct inode *root_inode;
 	int ret;
 
+	s->s_iflags |= SB_I_USERNS_VISIBLE;
 	s->s_flags |= MS_NODIRATIME | MS_NOSUID | MS_NOEXEC;
 	s->s_blocksize = 1024;
 	s->s_blocksize_bits = 10;
