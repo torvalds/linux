@@ -26,7 +26,7 @@ static int __initdata gpio0_irqs[4] = {
 	IRQ_ORION5X_GPIO_24_31,
 };
 
-asmlinkage void
+static asmlinkage void
 __exception_irq_entry orion5x_legacy_handle_irq(struct pt_regs *regs)
 {
 	u32 stat;
