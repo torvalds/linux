@@ -1036,7 +1036,7 @@ struct gb_svc_intf_vsys_request {
 struct gb_svc_intf_vsys_response {
 	__u8	result_code;
 #define GB_SVC_INTF_VSYS_OK				0x00
-#define GB_SVC_INTF_VSYS_BUSY				0x01
+	/* 0x01 is reserved */
 #define GB_SVC_INTF_VSYS_FAIL				0x02
 } __packed;
 
@@ -1048,7 +1048,7 @@ struct gb_svc_intf_refclk_request {
 struct gb_svc_intf_refclk_response {
 	__u8	result_code;
 #define GB_SVC_INTF_REFCLK_OK				0x00
-#define GB_SVC_INTF_REFCLK_BUSY				0x01
+	/* 0x01 is reserved */
 #define GB_SVC_INTF_REFCLK_FAIL				0x02
 } __packed;
 
@@ -1060,7 +1060,7 @@ struct gb_svc_intf_unipro_request {
 struct gb_svc_intf_unipro_response {
 	__u8	result_code;
 #define GB_SVC_INTF_UNIPRO_OK				0x00
-#define GB_SVC_INTF_UNIPRO_BUSY				0x01
+	/* 0x01 is reserved */
 #define GB_SVC_INTF_UNIPRO_FAIL				0x02
 #define GB_SVC_INTF_UNIPRO_NOT_OFF			0x03
 } __packed;
