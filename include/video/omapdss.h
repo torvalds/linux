@@ -22,6 +22,7 @@
 #include <linux/kobject.h>
 #include <linux/device.h>
 #include <linux/interrupt.h>
+#include <linux/platform_data/omapdss.h>
 
 #include <video/videomode.h>
 
@@ -302,36 +303,6 @@ struct omap_dss_dsi_config {
 	bool ddr_clk_always_on;
 	enum omap_dss_dsi_trans_mode trans_mode;
 };
-
-enum omapdss_version {
-	OMAPDSS_VER_UNKNOWN = 0,
-	OMAPDSS_VER_OMAP24xx,
-	OMAPDSS_VER_OMAP34xx_ES1,	/* OMAP3430 ES1.0, 2.0 */
-	OMAPDSS_VER_OMAP34xx_ES3,	/* OMAP3430 ES3.0+ */
-	OMAPDSS_VER_OMAP3630,
-	OMAPDSS_VER_AM35xx,
-	OMAPDSS_VER_OMAP4430_ES1,	/* OMAP4430 ES1.0 */
-	OMAPDSS_VER_OMAP4430_ES2,	/* OMAP4430 ES2.0, 2.1, 2.2 */
-	OMAPDSS_VER_OMAP4,		/* All other OMAP4s */
-	OMAPDSS_VER_OMAP5,
-	OMAPDSS_VER_AM43xx,
-	OMAPDSS_VER_DRA7xx,
-};
-
-/* Board specific data */
-struct omap_dss_board_info {
-	int num_devices;
-	struct omap_dss_device **devices;
-	struct omap_dss_device *default_device;
-	const char *default_display_name;
-	int (*dsi_enable_pads)(int dsi_id, unsigned lane_mask);
-	void (*dsi_disable_pads)(int dsi_id, unsigned lane_mask);
-	int (*set_min_bus_tput)(struct device *dev, unsigned long r);
-	enum omapdss_version version;
-};
-
-/* Init with the board info */
-extern int omap_display_init(struct omap_dss_board_info *board_data);
 
 struct omap_video_timings {
 	/* Unit: pixels */
