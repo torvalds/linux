@@ -1659,9 +1659,11 @@ static int brcmnand_read(struct mtd_info *mtd, struct nand_chip *chip,
 	struct brcmnand_controller *ctrl = host->ctrl;
 	u64 err_addr = 0;
 	int err;
+	bool retry = true;
 
 	dev_dbg(ctrl->dev, "read %llx -> %p\n", (unsigned long long)addr, buf);
 
+try_dmaread:
 	brcmnand_write_reg(ctrl, BRCMNAND_UNCORR_COUNT, 0);
 
 	if (has_flash_dma(ctrl) && !oob && flash_dma_buf_ok(buf)) {
@@ -1682,6 +1684,22 @@ static int brcmnand_read(struct mtd_info *mtd, struct nand_chip *chip,
 	}
 
 	if (mtd_is_eccerr(err)) {
+		/*
+		 * On controller version and 7.0, 7.1 , DMA read after a
+		 * prior PIO read that reported uncorrectable error,
+		 * the DMA engine captures this error following DMA read
+		 * cleared only on subsequent DMA read, so just retry once
+		 * to clear a possible false error reported for current DMA
+		 * read
+		 */
+		if ((ctrl->nand_version == 0x0700) ||
+		    (ctrl->nand_version == 0x0701)) {
+			if (retry) {
+				retry = false;
+				goto try_dmaread;
+			}
+		}
+
 		/*
 		 * Controller version 7.2 has hw encoder to detect erased page
 		 * bitflips, apply sw verification for older controllers only
