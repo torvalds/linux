@@ -9777,7 +9777,7 @@ static void set_send_length(struct hfi1_pportdata *ppd)
 	u64 len1 = 0, len2 = (((dd->vld[15].mtu + max_hb) >> 2)
 			      & SEND_LEN_CHECK1_LEN_VL15_MASK) <<
 		SEND_LEN_CHECK1_LEN_VL15_SHIFT;
-	int i;
+	int i, j;
 	u32 thres;
 
 	for (i = 0; i < ppd->vls_supported; i++) {
@@ -9801,7 +9801,10 @@ static void set_send_length(struct hfi1_pportdata *ppd)
 			    sc_mtu_to_threshold(dd->vld[i].sc,
 						dd->vld[i].mtu,
 						dd->rcd[0]->rcvhdrqentsize));
-		sc_set_cr_threshold(dd->vld[i].sc, thres);
+		for (j = 0; j < INIT_SC_PER_VL; j++)
+			sc_set_cr_threshold(
+					pio_select_send_context_vl(dd, j, i),
+					    thres);
 	}
 	thres = min(sc_percent_to_threshold(dd->vld[15].sc, 50),
 		    sc_mtu_to_threshold(dd->vld[15].sc,
