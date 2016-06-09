@@ -113,26 +113,35 @@ struct raid_dev {
 				  CTR_FLAG_DELTA_DISKS | \
 				  CTR_FLAG_DATA_OFFSET)
 
-/* All ctr optional arguments */
-#define ALL_CTR_FLAGS		(CTR_FLAG_OPTIONS_NO_ARGS | \
-				 CTR_FLAG_OPTIONS_ONE_ARG)
+/* Valid options definitions per raid level... */
 
-/* Invalid options definitions per raid level... */
+/* "raid0" does only accept data offset */
+#define RAID0_VALID_FLAGS	(CTR_FLAG_DATA_OFFSET)
 
-/* "raid0" does not accept any options */
-#define RAID0_INVALID_FLAGS ALL_CTR_FLAGS
-
-/* "raid1" does not accept stripe cache or any raid10 options */
-#define RAID1_INVALID_FLAGS	(CTR_FLAG_STRIPE_CACHE | \
-				 CTR_FLAG_RAID10_COPIES | \
-				 CTR_FLAG_RAID10_FORMAT | \
-				 CTR_FLAG_DELTA_DISKS | \
+/* "raid1" does not accept stripe cache, data offset, delta_disks or any raid10 options */
+#define RAID1_VALID_FLAGS	(CTR_FLAGS_ANY_SYNC | \
+				 CTR_FLAG_REBUILD | \
+				 CTR_FLAG_WRITE_MOSTLY | \
+				 CTR_FLAG_DAEMON_SLEEP | \
+				 CTR_FLAG_MIN_RECOVERY_RATE | \
+				 CTR_FLAG_MAX_RECOVERY_RATE | \
+				 CTR_FLAG_MAX_WRITE_BEHIND | \
+				 CTR_FLAG_REGION_SIZE | \
 				 CTR_FLAG_DATA_OFFSET)
 
 /* "raid10" does not accept any raid1 or stripe cache options */
-#define RAID10_INVALID_FLAGS	(CTR_FLAG_WRITE_MOSTLY | \
-				 CTR_FLAG_MAX_WRITE_BEHIND | \
-				 CTR_FLAG_STRIPE_CACHE)
+#define RAID10_VALID_FLAGS	(CTR_FLAGS_ANY_SYNC | \
+				 CTR_FLAG_REBUILD | \
+				 CTR_FLAG_DAEMON_SLEEP | \
+				 CTR_FLAG_MIN_RECOVERY_RATE | \
+				 CTR_FLAG_MAX_RECOVERY_RATE | \
+				 CTR_FLAG_REGION_SIZE | \
+				 CTR_FLAG_RAID10_COPIES | \
+				 CTR_FLAG_RAID10_FORMAT | \
+				 CTR_FLAG_DELTA_DISKS | \
+				 CTR_FLAG_DATA_OFFSET | \
+				 CTR_FLAG_RAID10_USE_NEAR_SETS)
+
 /*
  * "raid4/5/6" do not accept any raid1 or raid10 specific options
  *
@@ -140,13 +149,28 @@ struct raid_dev {
  * that both parity and q-syndrome are being written properly with
  * any writes
  */
-#define RAID45_INVALID_FLAGS	(CTR_FLAG_WRITE_MOSTLY | \
+#define RAID45_VALID_FLAGS	(CTR_FLAGS_ANY_SYNC | \
+				 CTR_FLAG_REBUILD | \
+				 CTR_FLAG_DAEMON_SLEEP | \
+				 CTR_FLAG_MIN_RECOVERY_RATE | \
+				 CTR_FLAG_MAX_RECOVERY_RATE | \
 				 CTR_FLAG_MAX_WRITE_BEHIND | \
-				 CTR_FLAG_RAID10_FORMAT | \
-				 CTR_FLAG_RAID10_COPIES | \
-				 CTR_FLAG_RAID10_USE_NEAR_SETS)
-#define RAID6_INVALID_FLAGS	(CTR_FLAG_NOSYNC | RAID45_INVALID_FLAGS)
-/* ...invalid options definitions per raid level */
+				 CTR_FLAG_STRIPE_CACHE | \
+				 CTR_FLAG_REGION_SIZE | \
+				 CTR_FLAG_DELTA_DISKS | \
+				 CTR_FLAG_DATA_OFFSET)
+
+#define RAID6_VALID_FLAGS	(CTR_FLAG_SYNC | \
+				 CTR_FLAG_REBUILD | \
+				 CTR_FLAG_DAEMON_SLEEP | \
+				 CTR_FLAG_MIN_RECOVERY_RATE | \
+				 CTR_FLAG_MAX_RECOVERY_RATE | \
+				 CTR_FLAG_MAX_WRITE_BEHIND | \
+				 CTR_FLAG_STRIPE_CACHE | \
+				 CTR_FLAG_REGION_SIZE | \
+				 CTR_FLAG_DELTA_DISKS | \
+				 CTR_FLAG_DATA_OFFSET)
+/* ...valid options definitions per raid level */
 
 /*
  * Flags for rs->runtime_flags field
@@ -354,31 +378,31 @@ static bool rt_is_raid456(struct raid_type *rt)
 }
 /* END: raid level bools */
 
-/* Return invalid ctr flags for the raid level of @rs */
-static uint32_t __invalid_flags(struct raid_set *rs)
+/* Return valid ctr flags for the raid level of @rs */
+static unsigned long __valid_flags(struct raid_set *rs)
 {
 	if (rt_is_raid0(rs->raid_type))
-		return RAID0_INVALID_FLAGS;
+		return RAID0_VALID_FLAGS;
 	else if (rt_is_raid1(rs->raid_type))
-		return RAID1_INVALID_FLAGS;
+		return RAID1_VALID_FLAGS;
 	else if (rt_is_raid10(rs->raid_type))
-		return RAID10_INVALID_FLAGS;
+		return RAID10_VALID_FLAGS;
 	else if (rt_is_raid45(rs->raid_type))
-		return RAID45_INVALID_FLAGS;
+		return RAID45_VALID_FLAGS;
 	else if (rt_is_raid6(rs->raid_type))
-		return RAID6_INVALID_FLAGS;
+		return RAID6_VALID_FLAGS;
 
 	return ~0;
 }
 
 /*
- * Check for any invalid flags set on @rs defined by bitset @invalid_flags
+ * Check for valid flags set on @rs
  *
  * Has to be called after parsing of the ctr flags!
  */
-static int rs_check_for_invalid_flags(struct raid_set *rs)
+static int rs_check_for_valid_flags(struct raid_set *rs)
 {
-	if (rs->ctr_flags & __invalid_flags(rs)) {
+	if (rs->ctr_flags & ~__valid_flags(rs)) {
 		rs->ti->error = "Invalid flags combination";
 		return -EINVAL;
 	}
@@ -1282,7 +1306,7 @@ static int parse_raid_params(struct raid_set *rs, struct dm_arg_set *as,
 	rs->md.external = 1;
 
 	/* Check, if any invalid ctr arguments have been passed in for the raid level */
-	return rs_check_for_invalid_flags(rs);
+	return rs_check_for_valid_flags(rs);
 }
 
 /* Return # of data stripes as kept in mddev as of @rs (i.e. as of superblock) */
