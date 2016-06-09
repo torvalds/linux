@@ -2535,10 +2535,9 @@ void wake_up_new_task(struct task_struct *p)
 	 */
 	set_task_cpu(p, select_task_rq(p, task_cpu(p), SD_BALANCE_FORK, 0));
 #endif
-	/* Post initialize new task's util average when its cfs_rq is set */
+	rq = __task_rq_lock(p, &rf);
 	post_init_entity_util_avg(&p->se);
 
-	rq = __task_rq_lock(p, &rf);
 	activate_task(rq, p, 0);
 	p->on_rq = TASK_ON_RQ_QUEUED;
 	trace_sched_wakeup_new(p);
