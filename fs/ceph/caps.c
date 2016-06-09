@@ -2393,6 +2393,9 @@ again:
 				snap_rwsem_locked = true;
 			}
 			*got = need | (have & want);
+			if ((need & CEPH_CAP_FILE_RD) &&
+			    !(*got & CEPH_CAP_FILE_CACHE))
+				ceph_disable_fscache_readpage(ci);
 			__take_cap_refs(ci, *got, true);
 			ret = 1;
 		}
@@ -2553,6 +2556,9 @@ int ceph_get_caps(struct ceph_inode_info *ci, int need, int want,
 		}
 		break;
 	}
+
+	if ((_got & CEPH_CAP_FILE_RD) && (_got & CEPH_CAP_FILE_CACHE))
+		ceph_fscache_revalidate_cookie(ci);
 
 	*got = _got;
 	return 0;
@@ -2795,7 +2801,6 @@ static void handle_cap_grant(struct ceph_mds_client *mdsc,
 	bool writeback = false;
 	bool queue_trunc = false;
 	bool queue_invalidate = false;
-	bool queue_revalidate = false;
 	bool deleted_inode = false;
 	bool fill_inline = false;
 
@@ -2837,8 +2842,6 @@ static void handle_cap_grant(struct ceph_mds_client *mdsc,
 				ci->i_rdcache_revoking = ci->i_rdcache_gen;
 			}
 		}
-
-		ceph_fscache_invalidate(inode);
 	}
 
 	/* side effects now are allowed */
@@ -2879,11 +2882,6 @@ static void handle_cap_grant(struct ceph_mds_client *mdsc,
 			ceph_forget_all_cached_acls(inode);
 		}
 	}
-
-	/* Do we need to revalidate our fscache cookie. Don't bother on the
-	 * first cache cap as we already validate at cookie creation time. */
-	if ((issued & CEPH_CAP_FILE_CACHE) && ci->i_rdcache_gen > 1)
-		queue_revalidate = true;
 
 	if (newcaps & CEPH_CAP_ANY_RD) {
 		/* ctime/mtime/atime? */
@@ -2993,11 +2991,8 @@ static void handle_cap_grant(struct ceph_mds_client *mdsc,
 	if (fill_inline)
 		ceph_fill_inline_data(inode, NULL, inline_data, inline_len);
 
-	if (queue_trunc) {
+	if (queue_trunc)
 		ceph_queue_vmtruncate(inode);
-		ceph_queue_revalidate(inode);
-	} else if (queue_revalidate)
-		ceph_queue_revalidate(inode);
 
 	if (writeback)
 		/*
@@ -3199,10 +3194,8 @@ static void handle_cap_trunc(struct inode *inode,
 					  truncate_seq, truncate_size, size);
 	spin_unlock(&ci->i_ceph_lock);
 
-	if (queue_trunc) {
+	if (queue_trunc)
 		ceph_queue_vmtruncate(inode);
-		ceph_fscache_invalidate(inode);
-	}
 }
 
 /*

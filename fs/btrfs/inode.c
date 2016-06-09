@@ -6979,7 +6979,18 @@ insert:
 		 * existing will always be non-NULL, since there must be
 		 * extent causing the -EEXIST.
 		 */
-		if (start >= extent_map_end(existing) ||
+		if (existing->start == em->start &&
+		    extent_map_end(existing) == extent_map_end(em) &&
+		    em->block_start == existing->block_start) {
+			/*
+			 * these two extents are the same, it happens
+			 * with inlines especially
+			 */
+			free_extent_map(em);
+			em = existing;
+			err = 0;
+
+		} else if (start >= extent_map_end(existing) ||
 		    start <= existing->start) {
 			/*
 			 * The existing extent map is the one nearest to

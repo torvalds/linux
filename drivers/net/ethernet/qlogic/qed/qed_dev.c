@@ -155,12 +155,14 @@ void qed_resc_free(struct qed_dev *cdev)
 	}
 }
 
-static int qed_init_qm_info(struct qed_hwfn *p_hwfn)
+static int qed_init_qm_info(struct qed_hwfn *p_hwfn, bool b_sleepable)
 {
 	u8 num_vports, vf_offset = 0, i, vport_id, num_ports, curr_queue = 0;
 	struct qed_qm_info *qm_info = &p_hwfn->qm_info;
 	struct init_qm_port_params *p_qm_port;
 	u16 num_pqs, multi_cos_tcs = 1;
+	u8 pf_wfq = qm_info->pf_wfq;
+	u32 pf_rl = qm_info->pf_rl;
 	u16 num_vfs = 0;
 
 #ifdef CONFIG_QED_SRIOV
@@ -182,23 +184,28 @@ static int qed_init_qm_info(struct qed_hwfn *p_hwfn)
 
 	/* PQs will be arranged as follows: First per-TC PQ then pure-LB quete.
 	 */
-	qm_info->qm_pq_params = kzalloc(sizeof(*qm_info->qm_pq_params) *
-					num_pqs, GFP_KERNEL);
+	qm_info->qm_pq_params = kcalloc(num_pqs,
+					sizeof(struct init_qm_pq_params),
+					b_sleepable ? GFP_KERNEL : GFP_ATOMIC);
 	if (!qm_info->qm_pq_params)
 		goto alloc_err;
 
-	qm_info->qm_vport_params = kzalloc(sizeof(*qm_info->qm_vport_params) *
-					   num_vports, GFP_KERNEL);
+	qm_info->qm_vport_params = kcalloc(num_vports,
+					   sizeof(struct init_qm_vport_params),
+					   b_sleepable ? GFP_KERNEL
+						       : GFP_ATOMIC);
 	if (!qm_info->qm_vport_params)
 		goto alloc_err;
 
-	qm_info->qm_port_params = kzalloc(sizeof(*qm_info->qm_port_params) *
-					  MAX_NUM_PORTS, GFP_KERNEL);
+	qm_info->qm_port_params = kcalloc(MAX_NUM_PORTS,
+					  sizeof(struct init_qm_port_params),
+					  b_sleepable ? GFP_KERNEL
+						      : GFP_ATOMIC);
 	if (!qm_info->qm_port_params)
 		goto alloc_err;
 
-	qm_info->wfq_data = kcalloc(num_vports, sizeof(*qm_info->wfq_data),
-				    GFP_KERNEL);
+	qm_info->wfq_data = kcalloc(num_vports, sizeof(struct qed_wfq_data),
+				    b_sleepable ? GFP_KERNEL : GFP_ATOMIC);
 	if (!qm_info->wfq_data)
 		goto alloc_err;
 
@@ -264,10 +271,10 @@ static int qed_init_qm_info(struct qed_hwfn *p_hwfn)
 	for (i = 0; i < qm_info->num_vports; i++)
 		qm_info->qm_vport_params[i].vport_wfq = 1;
 
-	qm_info->pf_wfq = 0;
-	qm_info->pf_rl = 0;
 	qm_info->vport_rl_en = 1;
 	qm_info->vport_wfq_en = 1;
+	qm_info->pf_rl = pf_rl;
+	qm_info->pf_wfq = pf_wfq;
 
 	return 0;
 
@@ -299,7 +306,7 @@ int qed_qm_reconf(struct qed_hwfn *p_hwfn, struct qed_ptt *p_ptt)
 	qed_qm_info_free(p_hwfn);
 
 	/* initialize qed's qm data structure */
-	rc = qed_init_qm_info(p_hwfn);
+	rc = qed_init_qm_info(p_hwfn, false);
 	if (rc)
 		return rc;
 
@@ -388,7 +395,7 @@ int qed_resc_alloc(struct qed_dev *cdev)
 			goto alloc_err;
 
 		/* Prepare and process QM requirements */
-		rc = qed_init_qm_info(p_hwfn);
+		rc = qed_init_qm_info(p_hwfn, true);
 		if (rc)
 			goto alloc_err;
 
@@ -581,7 +588,14 @@ static void qed_calc_hw_mode(struct qed_hwfn *p_hwfn)
 
 	hw_mode |= 1 << MODE_ASIC;
 
+	if (p_hwfn->cdev->num_hwfns > 1)
+		hw_mode |= 1 << MODE_100G;
+
 	p_hwfn->hw_info.hw_mode = hw_mode;
+
+	DP_VERBOSE(p_hwfn, (NETIF_MSG_PROBE | NETIF_MSG_IFUP),
+		   "Configuring function for hw_mode: 0x%08x\n",
+		   p_hwfn->hw_info.hw_mode);
 }
 
 /* Init run time data for all PFs on an engine. */
@@ -820,6 +834,11 @@ int qed_hw_init(struct qed_dev *cdev,
 {
 	u32 load_code, param;
 	int rc, mfw_rc, i;
+
+	if ((int_mode == QED_INT_MODE_MSI) && (cdev->num_hwfns > 1)) {
+		DP_NOTICE(cdev, "MSI mode is not supported for CMT devices\n");
+		return -EINVAL;
+	}
 
 	if (IS_PF(cdev)) {
 		rc = qed_init_fw_data(cdev, bin_fw_data);
@@ -2085,6 +2104,13 @@ int qed_configure_vport_wfq(struct qed_dev *cdev, u16 vp_id, u32 rate)
 void qed_configure_vp_wfq_on_link_change(struct qed_dev *cdev, u32 min_pf_rate)
 {
 	int i;
+
+	if (cdev->num_hwfns > 1) {
+		DP_VERBOSE(cdev,
+			   NETIF_MSG_LINK,
+			   "WFQ configuration is not supported for this device\n");
+		return;
+	}
 
 	for_each_hwfn(cdev, i) {
 		struct qed_hwfn *p_hwfn = &cdev->hwfns[i];
