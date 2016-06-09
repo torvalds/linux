@@ -4,6 +4,24 @@
 	model = "NVIDIA Tegra210 P2597 I/O board";
 	compatible = "nvidia,p2597", "nvidia,tegra210";
 
+	host1x@50000000 {
+		dpaux@54040000 {
+			status = "okay";
+		};
+
+		sor@54580000 {
+			status = "okay";
+
+			avdd-io-supply = <&avdd_1v05>;
+			vdd-pll-supply = <&vdd_1v8>;
+			hdmi-supply = <&vdd_hdmi>;
+
+			nvidia,ddc-i2c-bus = <&hdmi_ddc>;
+			nvidia,hpd-gpio = <&gpio TEGRA_GPIO(CC, 1)
+					   GPIO_ACTIVE_LOW>;
+		};
+	};
+
 	pinmux: pinmux@700008d4 {
 		pinctrl-names = "boot";
 		pinctrl-0 = <&state_boot>;
@@ -1278,6 +1296,12 @@
 		};
 	};
 
+	/* HDMI DDC */
+	hdmi_ddc: i2c@7000c700 {
+		status = "okay";
+		clock-frequency = <100000>;
+	};
+
 	usb@70090000 {
 		phys = <&{/padctl@7009f000/pads/usb2/lanes/usb2-0}>,
 		       <&{/padctl@7009f000/pads/usb2/lanes/usb2-1}>,
@@ -1549,6 +1573,17 @@
 			regulator-min-microvolt = <5000000>;
 			regulator-max-microvolt = <5000000>;
 			gpio = <&gpio TEGRA_GPIO(CC, 5) GPIO_ACTIVE_HIGH>;
+			enable-active-high;
+			vin-supply = <&vdd_5v0_sys>;
+		};
+
+		vdd_hdmi: regulator@10 {
+			compatible = "regulator-fixed";
+			reg = <10>;
+			regulator-name = "VDD_HDMI_5V0";
+			regulator-min-microvolt = <5000000>;
+			regulator-max-microvolt = <5000000>;
+			gpio = <&exp1 12 GPIO_ACTIVE_LOW>;
 			enable-active-high;
 			vin-supply = <&vdd_5v0_sys>;
 		};
