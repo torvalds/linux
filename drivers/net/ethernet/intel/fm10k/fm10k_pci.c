@@ -1699,7 +1699,7 @@ void fm10k_down(struct fm10k_intfc *interface)
 
 		/* start checking at the last ring to have pending Tx */
 		for (; i < interface->num_tx_queues; i++)
-			if (fm10k_get_tx_pending(interface->tx_ring[i]))
+			if (fm10k_get_tx_pending(interface->tx_ring[i], false))
 				break;
 
 		/* if all the queues are drained, we can break now */

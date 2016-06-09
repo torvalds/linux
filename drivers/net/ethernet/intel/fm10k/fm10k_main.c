@@ -1128,13 +1128,24 @@ static u64 fm10k_get_tx_completed(struct fm10k_ring *ring)
 	return ring->stats.packets;
 }
 
-u64 fm10k_get_tx_pending(struct fm10k_ring *ring)
+/**
+ * fm10k_get_tx_pending - how many Tx descriptors not processed
+ * @ring: the ring structure
+ * @in_sw: is tx_pending being checked in SW or in HW?
+ */
+u64 fm10k_get_tx_pending(struct fm10k_ring *ring, bool in_sw)
 {
 	struct fm10k_intfc *interface = ring->q_vector->interface;
 	struct fm10k_hw *hw = &interface->hw;
+	u32 head, tail;
 
-	u32 head = fm10k_read_reg(hw, FM10K_TDH(ring->reg_idx));
-	u32 tail = fm10k_read_reg(hw, FM10K_TDT(ring->reg_idx));
+	if (likely(in_sw)) {
+		head = ring->next_to_clean;
+		tail = ring->next_to_use;
+	} else {
+		head = fm10k_read_reg(hw, FM10K_TDH(ring->reg_idx));
+		tail = fm10k_read_reg(hw, FM10K_TDT(ring->reg_idx));
+	}
 
 	return ((head <= tail) ? tail : tail + ring->count) - head;
 }
@@ -1143,7 +1154,7 @@ bool fm10k_check_tx_hang(struct fm10k_ring *tx_ring)
 {
 	u32 tx_done = fm10k_get_tx_completed(tx_ring);
 	u32 tx_done_old = tx_ring->tx_stats.tx_done_old;
-	u32 tx_pending = fm10k_get_tx_pending(tx_ring);
+	u32 tx_pending = fm10k_get_tx_pending(tx_ring, true);
 
 	clear_check_for_tx_hang(tx_ring);
 
