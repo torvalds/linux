@@ -128,6 +128,7 @@ i2c_smbus_read_i2c_block_data_or_emulated(const struct i2c_client *client,
 
 enum i2c_alert_protocol {
 	I2C_PROTOCOL_SMBUS_ALERT,
+	I2C_PROTOCOL_SMBUS_HOST_NOTIFY,
 };
 
 /**
@@ -184,6 +185,8 @@ struct i2c_driver {
 	 * The format and meaning of the data value depends on the protocol.
 	 * For the SMBus alert protocol, there is a single bit of data passed
 	 * as the alert response's low bit ("event flag").
+	 * For the SMBus Host Notify protocol, the data corresponds to the
+	 * 16-bit payload data reported by the slave device acting as master.
 	 */
 	void (*alert)(struct i2c_client *, enum i2c_alert_protocol protocol,
 		      unsigned int data);

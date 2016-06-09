@@ -199,6 +199,12 @@ alerting device's address.
 
 [S] [HostAddr] [Wr] A [DevAddr] A [DataLow] A [DataHigh] A [P]
 
+This is implemented in the following way in the Linux kernel:
+* I2C bus drivers which support SMBus Host Notify should call
+  i2c_setup_smbus_host_notify() to setup SMBus Host Notify support.
+* I2C drivers for devices which can trigger SMBus Host Notify should implement
+  the optional alert() callback.
+
 
 Packet Error Checking (PEC)
 ===========================
