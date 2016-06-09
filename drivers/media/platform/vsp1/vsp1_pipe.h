@@ -25,11 +25,12 @@ struct vsp1_rwpf;
 
 /*
  * struct vsp1_format_info - VSP1 video format description
- * @mbus: media bus format code
  * @fourcc: V4L2 pixel format FCC identifier
+ * @mbus: media bus format code
+ * @hwfmt: VSP1 hardware format
+ * @swap: swap register control
  * @planes: number of planes
  * @bpp: bits per pixel
- * @hwfmt: VSP1 hardware format
  * @swap_yc: the Y and C components are swapped (Y comes before C)
  * @swap_uv: the U and V components are swapped (V comes before U)
  * @hsub: horizontal subsampling factor
