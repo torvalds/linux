@@ -1977,16 +1977,21 @@ generic_make_request_checks(struct bio *bio)
 		}
 	}
 
-	if ((bio_op(bio) == REQ_OP_DISCARD) &&
-	    (!blk_queue_discard(q) ||
-	     ((bio->bi_rw & REQ_SECURE) && !blk_queue_secdiscard(q)))) {
-		err = -EOPNOTSUPP;
-		goto end_io;
-	}
-
-	if (bio_op(bio) == REQ_OP_WRITE_SAME && !bdev_write_same(bio->bi_bdev)) {
-		err = -EOPNOTSUPP;
-		goto end_io;
+	switch (bio_op(bio)) {
+	case REQ_OP_DISCARD:
+		if (!blk_queue_discard(q))
+			goto not_supported;
+		break;
+	case REQ_OP_SECURE_ERASE:
+		if (!blk_queue_secure_erase(q))
+			goto not_supported;
+		break;
+	case REQ_OP_WRITE_SAME:
+		if (!bdev_write_same(bio->bi_bdev))
+			goto not_supported;
+		break;
+	default:
+		break;
 	}
 
 	/*
@@ -2003,6 +2008,8 @@ generic_make_request_checks(struct bio *bio)
 	trace_block_bio_queue(q, bio);
 	return true;
 
+not_supported:
+	err = -EOPNOTSUPP;
 end_io:
 	bio->bi_error = err;
 	bio_endio(bio);

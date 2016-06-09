@@ -1791,6 +1791,10 @@ void blk_fill_rwbs(char *rwbs, int op, u32 rw, int bytes)
 	case REQ_OP_DISCARD:
 		rwbs[i++] = 'D';
 		break;
+	case REQ_OP_SECURE_ERASE:
+		rwbs[i++] = 'D';
+		rwbs[i++] = 'E';
+		break;
 	case REQ_OP_FLUSH:
 		rwbs[i++] = 'F';
 		break;
@@ -1809,8 +1813,6 @@ void blk_fill_rwbs(char *rwbs, int op, u32 rw, int bytes)
 		rwbs[i++] = 'S';
 	if (rw & REQ_META)
 		rwbs[i++] = 'M';
-	if (rw & REQ_SECURE)
-		rwbs[i++] = 'E';
 
 	rwbs[i] = '\0';
 }

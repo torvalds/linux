@@ -545,7 +545,7 @@ static int blkif_queue_discard_req(struct request *req, struct blkfront_ring_inf
 	ring_req->u.discard.nr_sectors = blk_rq_sectors(req);
 	ring_req->u.discard.id = id;
 	ring_req->u.discard.sector_number = (blkif_sector_t)blk_rq_pos(req);
-	if ((req->cmd_flags & REQ_SECURE) && info->feature_secdiscard)
+	if (req_op(req) == REQ_OP_SECURE_ERASE && info->feature_secdiscard)
 		ring_req->u.discard.flag = BLKIF_DISCARD_SECURE;
 	else
 		ring_req->u.discard.flag = 0;
@@ -841,7 +841,7 @@ static int blkif_queue_request(struct request *req, struct blkfront_ring_info *r
 		return 1;
 
 	if (unlikely(req_op(req) == REQ_OP_DISCARD ||
-		     req->cmd_flags & REQ_SECURE))
+		     req_op(req) == REQ_OP_SECURE_ERASE))
 		return blkif_queue_discard_req(req, rinfo);
 	else
 		return blkif_queue_rw_req(req, rinfo);
@@ -955,7 +955,7 @@ static int xlvbd_init_blk_queue(struct gendisk *gd, u16 sector_size,
 		rq->limits.discard_granularity = info->discard_granularity;
 		rq->limits.discard_alignment = info->discard_alignment;
 		if (info->feature_secdiscard)
-			queue_flag_set_unlocked(QUEUE_FLAG_SECDISCARD, rq);
+			queue_flag_set_unlocked(QUEUE_FLAG_SECERASE, rq);
 	}
 
 	/* Hard sector size and max sectors impersonate the equiv. hardware. */
@@ -1595,7 +1595,7 @@ static irqreturn_t blkif_interrupt(int irq, void *dev_id)
 				info->feature_discard = 0;
 				info->feature_secdiscard = 0;
 				queue_flag_clear(QUEUE_FLAG_DISCARD, rq);
-				queue_flag_clear(QUEUE_FLAG_SECDISCARD, rq);
+				queue_flag_clear(QUEUE_FLAG_SECERASE, rq);
 			}
 			blk_mq_complete_request(req, error);
 			break;
@@ -2052,10 +2052,14 @@ static int blkif_recover(struct blkfront_info *info)
 			 */
 			if (req_op(copy[i].request) == REQ_OP_FLUSH ||
 			    req_op(copy[i].request) == REQ_OP_DISCARD ||
-			    copy[i].request->cmd_flags & (REQ_FUA | REQ_SECURE)) {
+			    req_op(copy[i].request) == REQ_OP_SECURE_ERASE ||
+			    copy[i].request->cmd_flags & REQ_FUA) {
 				/*
 				 * Flush operations don't contain bios, so
 				 * we need to requeue the whole request
+				 *
+				 * XXX: but this doesn't make any sense for a
+				 * write with the FUA flag set..
 				 */
 				list_add(&copy[i].request->queuelist, &requests);
 				continue;
