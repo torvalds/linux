@@ -115,10 +115,10 @@ int kvm_mips_handle_kseg0_tlb_fault(unsigned long badvaddr,
 	pfn0 = kvm->arch.guest_pmap[gfn & ~0x1];
 	pfn1 = kvm->arch.guest_pmap[gfn | 0x1];
 
-	entrylo0 = mips3_paddr_to_tlbpfn(pfn0 << PAGE_SHIFT) | (0x3 << 3) |
-		   (1 << 2) | (0x1 << 1);
-	entrylo1 = mips3_paddr_to_tlbpfn(pfn1 << PAGE_SHIFT) | (0x3 << 3) |
-		   (1 << 2) | (0x1 << 1);
+	entrylo0 = mips3_paddr_to_tlbpfn(pfn0 << PAGE_SHIFT) |
+		   (0x3 << ENTRYLO_C_SHIFT) | ENTRYLO_D | ENTRYLO_V;
+	entrylo1 = mips3_paddr_to_tlbpfn(pfn1 << PAGE_SHIFT) |
+		   (0x3 << ENTRYLO_C_SHIFT) | ENTRYLO_D | ENTRYLO_V;
 
 	preempt_disable();
 	entryhi = (vaddr | kvm_mips_get_kernel_asid(vcpu));
@@ -156,12 +156,14 @@ int kvm_mips_handle_mapped_seg_tlb_fault(struct kvm_vcpu *vcpu,
 	}
 
 	/* Get attributes from the Guest TLB */
-	entrylo0 = mips3_paddr_to_tlbpfn(pfn0 << PAGE_SHIFT) | (0x3 << 3) |
-		   (tlb->tlb_lo[0] & MIPS3_PG_D) |
-		   (tlb->tlb_lo[0] & MIPS3_PG_V);
-	entrylo1 = mips3_paddr_to_tlbpfn(pfn1 << PAGE_SHIFT) | (0x3 << 3) |
-		   (tlb->tlb_lo[1] & MIPS3_PG_D) |
-		   (tlb->tlb_lo[1] & MIPS3_PG_V);
+	entrylo0 = mips3_paddr_to_tlbpfn(pfn0 << PAGE_SHIFT) |
+		   (0x3 << ENTRYLO_C_SHIFT) |
+		   (tlb->tlb_lo[0] & ENTRYLO_D) |
+		   (tlb->tlb_lo[0] & ENTRYLO_V);
+	entrylo1 = mips3_paddr_to_tlbpfn(pfn1 << PAGE_SHIFT) |
+		   (0x3 << ENTRYLO_C_SHIFT) |
+		   (tlb->tlb_lo[1] & ENTRYLO_D) |
+		   (tlb->tlb_lo[1] & ENTRYLO_V);
 
 	kvm_debug("@ %#lx tlb_lo0: 0x%08lx tlb_lo1: 0x%08lx\n", vcpu->arch.pc,
 		  tlb->tlb_lo[0], tlb->tlb_lo[1]);

@@ -86,19 +86,20 @@ void kvm_mips_dump_guest_tlbs(struct kvm_vcpu *vcpu)
 	for (i = 0; i < KVM_MIPS_GUEST_TLB_SIZE; i++) {
 		tlb = vcpu->arch.guest_tlb[i];
 		kvm_info("TLB%c%3d Hi 0x%08lx ",
-			 (tlb.tlb_lo[0] | tlb.tlb_lo[1]) & MIPS3_PG_V
+			 (tlb.tlb_lo[0] | tlb.tlb_lo[1]) & ENTRYLO_V
 							? ' ' : '*',
 			 i, tlb.tlb_hi);
 		kvm_info("Lo0=0x%09llx %c%c attr %lx ",
 			 (u64) mips3_tlbpfn_to_paddr(tlb.tlb_lo[0]),
-			 (tlb.tlb_lo[0] & MIPS3_PG_D) ? 'D' : ' ',
-			 (tlb.tlb_lo[0] & MIPS3_PG_G) ? 'G' : ' ',
-			 (tlb.tlb_lo[0] >> 3) & 7);
+			 (tlb.tlb_lo[0] & ENTRYLO_D) ? 'D' : ' ',
+			 (tlb.tlb_lo[0] & ENTRYLO_G) ? 'G' : ' ',
+			 (tlb.tlb_lo[0] & ENTRYLO_C) >> ENTRYLO_C_SHIFT);
 		kvm_info("Lo1=0x%09llx %c%c attr %lx sz=%lx\n",
 			 (u64) mips3_tlbpfn_to_paddr(tlb.tlb_lo[1]),
-			 (tlb.tlb_lo[1] & MIPS3_PG_D) ? 'D' : ' ',
-			 (tlb.tlb_lo[1] & MIPS3_PG_G) ? 'G' : ' ',
-			 (tlb.tlb_lo[1] >> 3) & 7, tlb.tlb_mask);
+			 (tlb.tlb_lo[1] & ENTRYLO_D) ? 'D' : ' ',
+			 (tlb.tlb_lo[1] & ENTRYLO_G) ? 'G' : ' ',
+			 (tlb.tlb_lo[1] & ENTRYLO_C) >> ENTRYLO_C_SHIFT,
+			 tlb.tlb_mask);
 	}
 }
 EXPORT_SYMBOL_GPL(kvm_mips_dump_guest_tlbs);
@@ -146,12 +147,12 @@ int kvm_mips_host_tlb_write(struct kvm_vcpu *vcpu, unsigned long entryhi,
 
 	/* Flush D-cache */
 	if (flush_dcache_mask) {
-		if (entrylo0 & MIPS3_PG_V) {
+		if (entrylo0 & ENTRYLO_V) {
 			++vcpu->stat.flush_dcache_exits;
 			flush_data_cache_page((entryhi & VPN2_MASK) &
 					      ~flush_dcache_mask);
 		}
-		if (entrylo1 & MIPS3_PG_V) {
+		if (entrylo1 & ENTRYLO_V) {
 			++vcpu->stat.flush_dcache_exits;
 			flush_data_cache_page(((entryhi & VPN2_MASK) &
 					       ~flush_dcache_mask) |
@@ -176,8 +177,8 @@ int kvm_mips_handle_commpage_tlb_fault(unsigned long badvaddr,
 
 	pfn0 = CPHYSADDR(vcpu->arch.kseg0_commpage) >> PAGE_SHIFT;
 	pfn1 = 0;
-	entrylo0 = mips3_paddr_to_tlbpfn(pfn0 << PAGE_SHIFT) | (0x3 << 3) |
-		   (1 << 2) | (0x1 << 1);
+	entrylo0 = mips3_paddr_to_tlbpfn(pfn0 << PAGE_SHIFT) |
+		   (0x3 << ENTRYLO_C_SHIFT) | ENTRYLO_D | ENTRYLO_V;
 	entrylo1 = 0;
 
 	local_irq_save(flags);
