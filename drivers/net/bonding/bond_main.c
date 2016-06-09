@@ -4607,28 +4607,6 @@ static int bond_check_params(struct bond_params *params)
 	return 0;
 }
 
-static struct lock_class_key bonding_netdev_xmit_lock_key;
-static struct lock_class_key bonding_netdev_addr_lock_key;
-static struct lock_class_key bonding_tx_busylock_key;
-static struct lock_class_key bonding_qdisc_running_key;
-
-static void bond_set_lockdep_class_one(struct net_device *dev,
-				       struct netdev_queue *txq,
-				       void *_unused)
-{
-	lockdep_set_class(&txq->_xmit_lock,
-			  &bonding_netdev_xmit_lock_key);
-}
-
-static void bond_set_lockdep_class(struct net_device *dev)
-{
-	lockdep_set_class(&dev->addr_list_lock,
-			  &bonding_netdev_addr_lock_key);
-	netdev_for_each_tx_queue(dev, bond_set_lockdep_class_one, NULL);
-	dev->qdisc_tx_busylock = &bonding_tx_busylock_key;
-	dev->qdisc_running_key = &bonding_qdisc_running_key;
-}
-
 /* Called from registration process */
 static int bond_init(struct net_device *bond_dev)
 {
@@ -4641,7 +4619,7 @@ static int bond_init(struct net_device *bond_dev)
 	if (!bond->wq)
 		return -ENOMEM;
 
-	bond_set_lockdep_class(bond_dev);
+	netdev_lockdep_set_classes(bond_dev);
 
 	list_add_tail(&bond->bond_list, &bn->dev_list);
 
