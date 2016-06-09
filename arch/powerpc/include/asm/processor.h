@@ -347,6 +347,7 @@ struct thread_struct {
 	.fs = KERNEL_DS, \
 	.fpexc_mode = 0, \
 	.ppr = INIT_PPR, \
+	.fscr = FSCR_TAR | FSCR_EBB \
 }
 #endif
 

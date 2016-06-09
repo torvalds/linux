@@ -1419,7 +1419,8 @@ void facility_unavailable_exception(struct pt_regs *regs)
 			rd = (instword >> 21) & 0x1f;
 			current->thread.dscr = regs->gpr[rd];
 			current->thread.dscr_inherit = 1;
-			mtspr(SPRN_FSCR, value | FSCR_DSCR);
+			current->thread.fscr |= FSCR_DSCR;
+			mtspr(SPRN_FSCR, current->thread.fscr);
 		}
 
 		/* Read from DSCR (mfspr RT, 0x03) */
