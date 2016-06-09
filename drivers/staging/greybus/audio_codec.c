@@ -731,52 +731,22 @@ func_exit:
 	return ret;
 }
 
-static int gbcodec_trigger(struct snd_pcm_substream *substream, int cmd,
-		struct snd_soc_dai *dai)
+static int gbcodec_mute_stream(struct snd_soc_dai *dai, int mute, int stream)
 {
 	int ret;
-	int tx, rx, start, stop;
 	struct gbaudio_data_connection *data;
 	struct gbaudio_module_info *module;
 	struct gbaudio_codec_info *codec = dev_get_drvdata(dai->dev);
+
+
+	dev_dbg(dai->dev, "Mute:%d, Direction:%s\n", mute,
+		stream ? "CAPTURE":"PLAYBACK");
 
 	mutex_lock(&codec->lock);
 	if (list_empty(&codec->module_list)) {
 		dev_err(codec->dev, "No codec module available\n");
 		mutex_unlock(&codec->lock);
-		if (cmd == SNDRV_PCM_TRIGGER_STOP)
-			return 0;
 		return -ENODEV;
-	}
-
-	tx = rx = start = stop = 0;
-	switch (cmd) {
-	case SNDRV_PCM_TRIGGER_START:
-	case SNDRV_PCM_TRIGGER_PAUSE_RELEASE:
-		start = 1;
-		break;
-	case SNDRV_PCM_TRIGGER_STOP:
-	case SNDRV_PCM_TRIGGER_PAUSE_PUSH:
-		stop = 1;
-		break;
-	default:
-		dev_err(dai->dev, "Invalid tigger cmd:%d\n", cmd);
-		ret = -EINVAL;
-		goto func_exit;
-	}
-
-	switch (substream->stream) {
-	case SNDRV_PCM_STREAM_CAPTURE:
-		rx = 1;
-		break;
-	case SNDRV_PCM_STREAM_PLAYBACK:
-		tx = 1;
-		break;
-	default:
-		dev_err(dai->dev, "Invalid stream type:%d\n",
-			substream->stream);
-		ret = -EINVAL;
-		goto func_exit;
 	}
 
 	list_for_each_entry(module, &codec->module_list, list) {
@@ -791,50 +761,43 @@ static int gbcodec_trigger(struct snd_pcm_substream *substream, int cmd,
 		ret = -ENODEV;
 		goto func_exit;
 	}
-	if (start && tx) {
+
+	if (!mute && !stream) {/* start playback */
 		ret = gb_audio_apbridgea_prepare_tx(data->connection,
 						    0);
 		if (!ret)
 			ret = gb_audio_apbridgea_start_tx(data->connection,
 							  0, 0);
-		codec->stream[substream->stream].state = GBAUDIO_CODEC_START;
-	} else if (start && rx) {
+		codec->stream[stream].state = GBAUDIO_CODEC_START;
+	} else if (!mute && stream) {/* start capture */
 		ret = gb_audio_apbridgea_prepare_rx(data->connection,
 						    0);
 		if (!ret)
 			ret = gb_audio_apbridgea_start_rx(data->connection,
 							  0);
-		codec->stream[substream->stream].state = GBAUDIO_CODEC_START;
-	} else if (stop && tx) {
+		codec->stream[stream].state = GBAUDIO_CODEC_START;
+	} else if (mute && !stream) {/* stop playback */
 		ret = gb_audio_apbridgea_stop_tx(data->connection, 0);
 		if (!ret)
 			ret = gb_audio_apbridgea_shutdown_tx(data->connection,
 							     0);
-		codec->stream[substream->stream].state = GBAUDIO_CODEC_STOP;
-	} else if (stop && rx) {
+		codec->stream[stream].state = GBAUDIO_CODEC_STOP;
+	} else if (mute && stream) {/* stop capture */
 		ret = gb_audio_apbridgea_stop_rx(data->connection, 0);
 		if (!ret)
 			ret = gb_audio_apbridgea_shutdown_rx(data->connection,
 							     0);
-		codec->stream[substream->stream].state = GBAUDIO_CODEC_STOP;
+		codec->stream[stream].state = GBAUDIO_CODEC_STOP;
 	} else
 		ret = -EINVAL;
 	if (ret)
-		dev_err_ratelimited(dai->dev, "%s:Error during %s stream:%d\n",
-			module->name, start ? "Start" : "Stop", ret);
+		dev_err_ratelimited(dai->dev,
+				    "%s:Error during %s %s stream:%d\n",
+				    module->name, mute ? "Mute" : "Unmute",
+				    stream ? "Capture" : "Playback", ret);
 
 func_exit:
 	mutex_unlock(&codec->lock);
-	return ret;
-}
-
-static int gbcodec_set_dai_fmt(struct snd_soc_dai *dai, unsigned int fmt)
-{
-	return 0;
-}
-
-static int gbcodec_digital_mute(struct snd_soc_dai *dai, int mute)
-{
 	return 0;
 }
 
@@ -842,10 +805,8 @@ static struct snd_soc_dai_ops gbcodec_dai_ops = {
 	.startup = gbcodec_startup,
 	.shutdown = gbcodec_shutdown,
 	.hw_params = gbcodec_hw_params,
-	.trigger = gbcodec_trigger,
 	.prepare = gbcodec_prepare,
-	.set_fmt = gbcodec_set_dai_fmt,
-	.digital_mute = gbcodec_digital_mute,
+	.mute_stream = gbcodec_mute_stream,
 };
 
 static int gbaudio_init_jack(struct gbaudio_module_info *module,
