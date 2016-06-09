@@ -384,6 +384,7 @@ struct c4iw_mr {
 	struct ib_mr ibmr;
 	struct ib_umem *umem;
 	struct c4iw_dev *rhp;
+	struct sk_buff *dereg_skb;
 	u64 kva;
 	struct tpt_attributes attr;
 	u64 *mpl;
@@ -400,6 +401,7 @@ static inline struct c4iw_mr *to_c4iw_mr(struct ib_mr *ibmr)
 struct c4iw_mw {
 	struct ib_mw ibmw;
 	struct c4iw_dev *rhp;
+	struct sk_buff *dereg_skb;
 	u64 kva;
 	struct tpt_attributes attr;
 };
