@@ -992,9 +992,19 @@ static int send_mpa_req(struct c4iw_ep *ep, struct sk_buff *skb,
 
 	mpa = (struct mpa_message *)(req + 1);
 	memcpy(mpa->key, MPA_KEY_REQ, sizeof(mpa->key));
-	mpa->flags = (crc_enabled ? MPA_CRC : 0) |
-		     (markers_enabled ? MPA_MARKERS : 0) |
-		     (mpa_rev_to_use == 2 ? MPA_ENHANCED_RDMA_CONN : 0);
+
+	mpa->flags = 0;
+	if (crc_enabled)
+		mpa->flags |= MPA_CRC;
+	if (markers_enabled) {
+		mpa->flags |= MPA_MARKERS;
+		ep->mpa_attr.recv_marker_enabled = 1;
+	} else {
+		ep->mpa_attr.recv_marker_enabled = 0;
+	}
+	if (mpa_rev_to_use == 2)
+		mpa->flags |= MPA_ENHANCED_RDMA_CONN;
+
 	mpa->private_data_size = htons(ep->plen);
 	mpa->revision = mpa_rev_to_use;
 	if (mpa_rev_to_use == 1) {
@@ -1169,8 +1179,11 @@ static int send_mpa_reply(struct c4iw_ep *ep, const void *pdata, u8 plen)
 	mpa = (struct mpa_message *)(req + 1);
 	memset(mpa, 0, sizeof(*mpa));
 	memcpy(mpa->key, MPA_KEY_REP, sizeof(mpa->key));
-	mpa->flags = (ep->mpa_attr.crc_enabled ? MPA_CRC : 0) |
-		     (markers_enabled ? MPA_MARKERS : 0);
+	mpa->flags = 0;
+	if (ep->mpa_attr.crc_enabled)
+		mpa->flags |= MPA_CRC;
+	if (ep->mpa_attr.recv_marker_enabled)
+		mpa->flags |= MPA_MARKERS;
 	mpa->revision = ep->mpa_attr.version;
 	mpa->private_data_size = htons(plen);
 
@@ -1555,7 +1568,6 @@ static int process_mpa_reply(struct c4iw_ep *ep, struct sk_buff *skb)
 	 */
 	__state_set(&ep->com, FPDU_MODE);
 	ep->mpa_attr.crc_enabled = (mpa->flags & MPA_CRC) | crc_enabled ? 1 : 0;
-	ep->mpa_attr.recv_marker_enabled = markers_enabled;
 	ep->mpa_attr.xmit_marker_enabled = mpa->flags & MPA_MARKERS ? 1 : 0;
 	ep->mpa_attr.version = mpa->revision;
 	ep->mpa_attr.p2p_type = FW_RI_INIT_P2PTYPE_DISABLED;
