@@ -820,6 +820,8 @@ struct fb_info *fbtft_framebuffer_alloc(struct fbtft_display *display,
 	/* Transmit buffer */
 	if (txbuflen == -1)
 		txbuflen = vmem_size + 2; /* add in case startbyte is used */
+	if (txbuflen >= vmem_size + 2)
+		txbuflen = 0;
 
 #ifdef __LITTLE_ENDIAN
 	if ((!txbuflen) && (bpp > 8))
