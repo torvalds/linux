@@ -26,8 +26,14 @@ Required properties:
 - vdd-supply: phandle to vdd regulator device node
 - vddio-supply: phandle to vdd-io regulator device node
 - vdda-supply: phandle to vdda regulator device node
-- qcom,dsi-phy: phandle to DSI PHY device node
+- phys: phandle to DSI PHY device node
+- phy-names: the name of the corresponding PHY device
 - syscon-sfpb: A phandle to mmss_sfpb syscon node (only for DSIv2)
+- ports: Contains 2 DSI controller ports as child nodes. Each port contains
+  an endpoint subnode as defined in these documents:
+
+  Documentation/devicetree/bindings/graph.txt
+  Documentation/devicetree/bindings/media/video-interfaces.txt
 
 Optional properties:
 - panel@0: Node of panel connected to this DSI controller.
@@ -44,11 +50,14 @@ Optional properties:
 - pinctrl-names: the pin control state names; should contain "default"
 - pinctrl-0: the default pinctrl state (active)
 - pinctrl-n: the "sleep" pinctrl state
-- port: DSI controller output port, containing one endpoint subnode.
+- ports: contains DSI controller input and output ports as children, each
+  containing one endpoint subnode.
 
   DSI Endpoint properties:
-  - remote-endpoint: set to phandle of the connected panel's endpoint.
+  - remote-endpoint: For port@0, set to phandle of the connected panel/bridge's
+    input endpoint. For port@1, set to the MDP interface output.
     See Documentation/devicetree/bindings/graph.txt for device graph info.
+
   - data-lanes: this describes how the physical DSI data lanes are mapped
     to the logical lanes on the given platform. The value contained in
     index n describes what physical lane is mapped to the logical lane n
@@ -129,7 +138,8 @@ Example:
 		vdd-supply = <&pma8084_l22>;
 		vddio-supply = <&pma8084_l12>;
 
-		qcom,dsi-phy = <&mdss_dsi_phy0>;
+		phys = <&mdss_dsi_phy0>;
+		phy-names ="dsi-phy";
 
 		qcom,dual-dsi-mode;
 		qcom,master-dsi;
@@ -138,6 +148,26 @@ Example:
 		pinctrl-names = "default", "sleep";
 		pinctrl-0 = <&mdss_dsi_active>;
 		pinctrl-1 = <&mdss_dsi_suspend>;
+
+		ports {
+			#address-cells = <1>;
+			#size-cells = <0>;
+
+			port@0 {
+				reg = <0>;
+				dsi0_in: endpoint {
+					remote-endpoint = <&mdp_intf1_out>;
+				};
+			};
+
+			port@1 {
+				reg = <1>;
+				dsi0_out: endpoint {
+					remote-endpoint = <&panel_in>;
+					data-lanes = <0 1 2 3>;
+				};
+			};
+		};
 
 		panel: panel@0 {
 			compatible = "sharp,lq101r1sx01";
@@ -151,13 +181,6 @@ Example:
 				panel_in: endpoint {
 					remote-endpoint = <&dsi0_out>;
 				};
-			};
-		};
-
-		port {
-			dsi0_out: endpoint {
-				remote-endpoint = <&panel_in>;
-				data-lanes = <0 1 2 3>;
 			};
 		};
 	};
