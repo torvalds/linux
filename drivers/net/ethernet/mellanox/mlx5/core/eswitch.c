@@ -1491,14 +1491,11 @@ static void esw_enable_vport(struct mlx5_eswitch *esw, int vport_num,
 
 	/* Sync with current vport context */
 	vport->enabled_events = enable_events;
-	esw_vport_change_handle_locked(vport);
-
 	vport->enabled = true;
 
 	/* only PF is trusted by default */
 	vport->trusted = (vport_num) ? false : true;
-
-	arm_vport_context_events_cmd(esw->dev, vport_num, enable_events);
+	esw_vport_change_handle_locked(vport);
 
 	esw->enabled_vports++;
 	esw_debug(esw->dev, "Enabled VPORT(%d)\n", vport_num);
