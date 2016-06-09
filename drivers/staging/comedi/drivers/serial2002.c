@@ -95,7 +95,7 @@ struct serial_data {
 #define S2002_CFG_SIGN(x)		(((x) >> 13) & 0x1)
 #define S2002_CFG_BASE(x)		(((x) >> 14) & 0xfffff)
 
-static long serial2002_tty_ioctl(struct file *f, unsigned op,
+static long serial2002_tty_ioctl(struct file *f, unsigned int op,
 				 unsigned long param)
 {
 	if (f->f_op->unlocked_ioctl)
