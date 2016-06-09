@@ -232,15 +232,16 @@ struct iwl_queue {
 #define TFD_CMD_SLOTS 32
 
 /*
- * The FH will write back to the first TB only, so we need
- * to copy some data into the buffer regardless of whether
- * it should be mapped or not. This indicates how big the
- * first TB must be to include the scratch buffer. Since
- * the scratch is 4 bytes at offset 12, it's 16 now. If we
- * make it bigger then allocations will be bigger and copy
- * slower, so that's probably not useful.
+ * The FH will write back to the first TB only, so we need to copy some data
+ * into the buffer regardless of whether it should be mapped or not.
+ * This indicates how big the first TB must be to include the scratch buffer
+ * and the assigned PN.
+ * Since PN location is 16 bytes at offset 24, it's 40 now.
+ * If we make it bigger then allocations will be bigger and copy slower, so
+ * that's probably not useful.
  */
-#define IWL_HCMD_SCRATCHBUF_SIZE	16
+#define IWL_FIRST_TB_SIZE	40
+#define IWL_FIRST_TB_SIZE_ALIGN ALIGN(IWL_FIRST_TB_SIZE, 64)
 
 struct iwl_pcie_txq_entry {
 	struct iwl_device_cmd *cmd;
@@ -250,20 +251,18 @@ struct iwl_pcie_txq_entry {
 	struct iwl_cmd_meta meta;
 };
 
-struct iwl_pcie_txq_scratch_buf {
-	struct iwl_cmd_header hdr;
-	u8 buf[8];
-	__le32 scratch;
+struct iwl_pcie_first_tb_buf {
+	u8 buf[IWL_FIRST_TB_SIZE_ALIGN];
 };
 
 /**
  * struct iwl_txq - Tx Queue for DMA
  * @q: generic Rx/Tx queue descriptor
  * @tfds: transmit frame descriptors (DMA memory)
- * @scratchbufs: start of command headers, including scratch buffers, for
+ * @first_tb_bufs: start of command headers, including scratch buffers, for
  *	the writeback -- this is DMA memory and an array holding one buffer
  *	for each command on the queue
- * @scratchbufs_dma: DMA address for the scratchbufs start
+ * @first_tb_dma: DMA address for the first_tb_bufs start
  * @entries: transmit entries (driver state)
  * @lock: queue lock
  * @stuck_timer: timer that fires if queue gets stuck
@@ -281,8 +280,8 @@ struct iwl_pcie_txq_scratch_buf {
 struct iwl_txq {
 	struct iwl_queue q;
 	struct iwl_tfd *tfds;
-	struct iwl_pcie_txq_scratch_buf *scratchbufs;
-	dma_addr_t scratchbufs_dma;
+	struct iwl_pcie_first_tb_buf *first_tb_bufs;
+	dma_addr_t first_tb_dma;
 	struct iwl_pcie_txq_entry *entries;
 	spinlock_t lock;
 	unsigned long frozen_expiry_remainder;
@@ -298,10 +297,10 @@ struct iwl_txq {
 };
 
 static inline dma_addr_t
-iwl_pcie_get_scratchbuf_dma(struct iwl_txq *txq, int idx)
+iwl_pcie_get_first_tb_dma(struct iwl_txq *txq, int idx)
 {
-	return txq->scratchbufs_dma +
-	       sizeof(struct iwl_pcie_txq_scratch_buf) * idx;
+	return txq->first_tb_dma +
+	       sizeof(struct iwl_pcie_first_tb_buf) * idx;
 }
 
 struct iwl_tso_hdr_page {
