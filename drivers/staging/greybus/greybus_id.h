@@ -21,6 +21,6 @@ struct greybus_bundle_id {
 /* Used to match the greybus_bundle_id */
 #define GREYBUS_ID_MATCH_VENDOR		BIT(0)
 #define GREYBUS_ID_MATCH_PRODUCT	BIT(1)
-#define GREYBUS_ID_MATCH_CLASS		BIT(3)
+#define GREYBUS_ID_MATCH_CLASS		BIT(2)
 
 #endif /* __LINUX_GREYBUS_ID_H */
