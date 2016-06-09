@@ -662,10 +662,11 @@ static int f2fs_rename(struct inode *old_dir, struct dentry *old_dentry,
 		goto out;
 
 	if (S_ISDIR(old_inode->i_mode)) {
-		err = -EIO;
 		old_dir_entry = f2fs_parent_dir(old_inode, &old_dir_page);
-		if (!old_dir_entry)
+		if (!old_dir_entry) {
+			err = PTR_ERR(old_dir_page);
 			goto out_old;
+		}
 	}
 
 	if (flags & RENAME_WHITEOUT) {
@@ -838,19 +839,21 @@ static int f2fs_cross_rename(struct inode *old_dir, struct dentry *old_dentry,
 	/* prepare for updating ".." directory entry info later */
 	if (old_dir != new_dir) {
 		if (S_ISDIR(old_inode->i_mode)) {
-			err = -EIO;
 			old_dir_entry = f2fs_parent_dir(old_inode,
 							&old_dir_page);
-			if (!old_dir_entry)
+			if (!old_dir_entry) {
+				err = PTR_ERR(old_dir_page);
 				goto out_new;
+			}
 		}
 
 		if (S_ISDIR(new_inode->i_mode)) {
-			err = -EIO;
 			new_dir_entry = f2fs_parent_dir(new_inode,
 							&new_dir_page);
-			if (!new_dir_entry)
+			if (!new_dir_entry) {
+				err = PTR_ERR(new_dir_page);
 				goto out_old_dir;
+			}
 		}
 	}
 
