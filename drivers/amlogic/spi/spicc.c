@@ -105,6 +105,19 @@ static void spicc_set_mode(struct spicc *spicc, u8 mode)
     spicc->regs->conreg.clk_pol = (mode & SPI_CPOL) ? 1:0;
     spicc->regs->conreg.drctl = 0; //data ready, 0-ignore, 1-falling edge, 2-rising edge
     spicc->cur_mode = mode;
+
+	// spi_mosi(GPIOX_10) pull-down
+	aml_set_reg32_bits(P_PAD_PULL_UP_EN_REG4, 1, 10, 1);
+	aml_set_reg32_bits(P_PAD_PULL_UP_REG4, 0, 10, 1);
+
+	aml_set_reg32_bits(P_PAD_PULL_UP_EN_REG4, 1, 8, 1);
+	if(mode & SPI_CPOL) { // spi_mode 2,3 : spi_sclk(GPIOX_8) pull-up
+		aml_set_reg32_bits(P_PAD_PULL_UP_REG4, 1, 8, 1);
+	}
+	else { // spi_mode 0,1 : spi_sclk(GPIOX_8) pull-down
+		aml_set_reg32_bits(P_PAD_PULL_UP_REG4, 0, 8, 1);
+	}
+
     spicc_dbg("mode = 0x%x\n", mode);
 }
 
