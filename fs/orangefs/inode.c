@@ -124,19 +124,16 @@ static int orangefs_releasepage(struct page *page, gfp_t foo)
  * will need to be able to use O_DIRECT on open in order to support
  * AIO. Modeled after NFS, they do this too.
  */
-/*
- * static ssize_t orangefs_direct_IO(int rw,
- *			struct kiocb *iocb,
- *			struct iov_iter *iter,
- *			loff_t offset)
- *{
- *	gossip_debug(GOSSIP_INODE_DEBUG,
- *		     "orangefs_direct_IO: %s\n",
- *		     iocb->ki_filp->f_path.dentry->d_name.name);
- *
- *	return -EINVAL;
- *}
- */
+
+static ssize_t orangefs_direct_IO(struct kiocb *iocb,
+				  struct iov_iter *iter)
+{
+	gossip_debug(GOSSIP_INODE_DEBUG,
+		     "orangefs_direct_IO: %s\n",
+		     iocb->ki_filp->f_path.dentry->d_name.name);
+
+	return -EINVAL;
+}
 
 struct backing_dev_info orangefs_backing_dev_info = {
 	.name = "orangefs",
@@ -150,7 +147,7 @@ const struct address_space_operations orangefs_address_operations = {
 	.readpages = orangefs_readpages,
 	.invalidatepage = orangefs_invalidatepage,
 	.releasepage = orangefs_releasepage,
-/*	.direct_IO = orangefs_direct_IO */
+	.direct_IO = orangefs_direct_IO,
 };
 
 static int orangefs_setattr_size(struct inode *inode, struct iattr *iattr)
