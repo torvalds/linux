@@ -144,7 +144,7 @@ void root_func(){
     deinterlace{
                 compatible = "amlogic,deinterlace";
                 dev_name = "deinterlace";
-                status = "ok";
+                status = "okay";
                 reserve-memory = <0x02100000>; //10x1920x1088x3/2=33M
         };
 
@@ -284,7 +284,7 @@ void root_func(){
     ion_dev{
         compatible = "amlogic,ion_dev";
         dev_name = "ion_dev";
-        status = "ok";
+        status = "okay";
         share-memory-name = "ppmgr0";
         share-memory-offset = <0>;
         share-memory-size = <0x01000000>; //16M
