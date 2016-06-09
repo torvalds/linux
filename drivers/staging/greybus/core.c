@@ -189,7 +189,15 @@ static int greybus_remove(struct device *dev)
 	struct gb_bundle *bundle = to_gb_bundle(dev);
 	struct gb_connection *connection;
 
+	/*
+	 * Disable (non-offloaded) connections early in case the interface is
+	 * already gone to avoid unceccessary operation timeouts during
+	 * driver disconnect. Otherwise, only disable incoming requests.
+	 */
 	list_for_each_entry(connection, &bundle->connections, bundle_links) {
+		if (gb_connection_is_offloaded(connection))
+			continue;
+
 		if (bundle->intf->disconnected)
 			gb_connection_disable_forced(connection);
 		else
