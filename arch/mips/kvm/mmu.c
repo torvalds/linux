@@ -130,9 +130,7 @@ int kvm_mips_handle_kseg0_tlb_fault(unsigned long badvaddr,
 }
 
 int kvm_mips_handle_mapped_seg_tlb_fault(struct kvm_vcpu *vcpu,
-					 struct kvm_mips_tlb *tlb,
-					 unsigned long *hpa0,
-					 unsigned long *hpa1)
+					 struct kvm_mips_tlb *tlb)
 {
 	unsigned long entryhi = 0, entrylo0 = 0, entrylo1 = 0;
 	struct kvm *kvm = vcpu->kvm;
@@ -156,12 +154,6 @@ int kvm_mips_handle_mapped_seg_tlb_fault(struct kvm_vcpu *vcpu,
 		pfn1 = kvm->arch.guest_pmap[mips3_tlbpfn_to_paddr(tlb->tlb_lo1)
 					    >> PAGE_SHIFT];
 	}
-
-	if (hpa0)
-		*hpa0 = pfn0 << PAGE_SHIFT;
-
-	if (hpa1)
-		*hpa1 = pfn1 << PAGE_SHIFT;
 
 	/* Get attributes from the Guest TLB */
 	entrylo0 = mips3_paddr_to_tlbpfn(pfn0 << PAGE_SHIFT) | (0x3 << 3) |
@@ -354,8 +346,7 @@ u32 kvm_get_inst(u32 *opc, struct kvm_vcpu *vcpu)
 			}
 			kvm_mips_handle_mapped_seg_tlb_fault(vcpu,
 							     &vcpu->arch.
-							     guest_tlb[index],
-							     NULL, NULL);
+							     guest_tlb[index]);
 			inst = *(opc);
 		}
 		local_irq_restore(flags);
