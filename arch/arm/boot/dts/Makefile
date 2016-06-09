@@ -417,6 +417,7 @@ dtb-$(CONFIG_ARCH_MXS) += \
 	imx23-evk.dtb \
 	imx23-olinuxino.dtb \
 	imx23-stmp378x_devb.dtb \
+	imx23-xfi3.dtb \
 	imx28-apf28.dtb \
 	imx28-apf28dev.dtb \
 	imx28-apx4devkit.dtb \
