@@ -319,7 +319,7 @@ NESTED (MIPSX(GuestException), CALLFRAME_SIZ, ra)
 	mtc0	k0, CP0_STATUS
 	ehb
 
-	LONG_L	k0, VCPU_HOST_EBASE(k1)
+	LONG_L	k0, ebase
 	mtc0	k0,CP0_EBASE
 
 	/*

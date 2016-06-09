@@ -355,7 +355,6 @@ void output_kvm_defines(void)
 	OFFSET(VCPU_RUN, kvm_vcpu, run);
 	OFFSET(VCPU_HOST_ARCH, kvm_vcpu, arch);
 
-	OFFSET(VCPU_HOST_EBASE, kvm_vcpu_arch, host_ebase);
 	OFFSET(VCPU_GUEST_EBASE, kvm_vcpu_arch, guest_ebase);
 
 	OFFSET(VCPU_HOST_STACK, kvm_vcpu_arch, host_stack);

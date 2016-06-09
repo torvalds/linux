@@ -1859,6 +1859,7 @@ void __noreturn nmi_exception_handler(struct pt_regs *regs)
 #define VECTORSPACING 0x100	/* for EI/VI mode */
 
 unsigned long ebase;
+EXPORT_SYMBOL_GPL(ebase);
 unsigned long exception_handlers[32];
 unsigned long vi_handlers[64];
 

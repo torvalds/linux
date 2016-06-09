@@ -273,9 +273,6 @@ struct kvm_vcpu *kvm_arch_vcpu_create(struct kvm *kvm, unsigned int id)
 	else
 		size = 0x4000;
 
-	/* Save Linux EBASE */
-	vcpu->arch.host_ebase = (void *)read_c0_ebase();
-
 	gebase = kzalloc(ALIGN(size, PAGE_SIZE), GFP_KERNEL);
 
 	if (!gebase) {
