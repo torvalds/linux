@@ -13,8 +13,12 @@
 #include "greybus.h"
 #include "greybus_trace.h"
 
-EXPORT_TRACEPOINT_SYMBOL_GPL(gb_message_submit);
+EXPORT_TRACEPOINT_SYMBOL_GPL(gb_hd_create);
+EXPORT_TRACEPOINT_SYMBOL_GPL(gb_hd_release);
+EXPORT_TRACEPOINT_SYMBOL_GPL(gb_hd_add);
+EXPORT_TRACEPOINT_SYMBOL_GPL(gb_hd_del);
 EXPORT_TRACEPOINT_SYMBOL_GPL(gb_hd_in);
+EXPORT_TRACEPOINT_SYMBOL_GPL(gb_message_submit);
 
 static struct ida gb_hd_bus_id_map;
 
