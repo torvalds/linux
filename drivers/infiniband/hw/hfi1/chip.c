@@ -1037,7 +1037,7 @@ static void dc_shutdown(struct hfi1_devdata *);
 static void dc_start(struct hfi1_devdata *);
 static int qos_rmt_entries(struct hfi1_devdata *dd, unsigned int *mp,
 			   unsigned int *np);
-static void remove_full_mgmt_pkey(struct hfi1_pportdata *ppd);
+static void clear_full_mgmt_pkey(struct hfi1_pportdata *ppd);
 
 /*
  * Error interrupt table entry.  This is used as input to the interrupt
@@ -6962,8 +6962,6 @@ void handle_link_down(struct work_struct *work)
 	}
 
 	reset_neighbor_info(ppd);
-	if (ppd->mgmt_allowed)
-		remove_full_mgmt_pkey(ppd);
 
 	/* disable the port */
 	clear_rcvctrl(ppd->dd, RCV_CTRL_RCV_PORT_ENABLE_SMASK);
@@ -7072,10 +7070,12 @@ static void add_full_mgmt_pkey(struct hfi1_pportdata *ppd)
 	(void)hfi1_set_ib_cfg(ppd, HFI1_IB_CFG_PKEYS, 0);
 }
 
-static void remove_full_mgmt_pkey(struct hfi1_pportdata *ppd)
+static void clear_full_mgmt_pkey(struct hfi1_pportdata *ppd)
 {
-	ppd->pkeys[2] = 0;
-	(void)hfi1_set_ib_cfg(ppd, HFI1_IB_CFG_PKEYS, 0);
+	if (ppd->pkeys[2] != 0) {
+		ppd->pkeys[2] = 0;
+		(void)hfi1_set_ib_cfg(ppd, HFI1_IB_CFG_PKEYS, 0);
+	}
 }
 
 /*
@@ -9167,6 +9167,13 @@ int start_link(struct hfi1_pportdata *ppd)
 			    __func__);
 		return 0;
 	}
+
+	/*
+	 * FULL_MGMT_P_KEY is cleared from the pkey table, so that the
+	 * pkey table can be configured properly if the HFI unit is connected
+	 * to switch port with MgmtAllowed=NO
+	 */
+	clear_full_mgmt_pkey(ppd);
 
 	return set_link_state(ppd, HLS_DN_POLL);
 }
