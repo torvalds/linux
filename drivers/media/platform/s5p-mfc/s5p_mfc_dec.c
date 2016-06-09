@@ -564,7 +564,7 @@ out:
 	return ret;
 }
 
-/* Reqeust buffers */
+/* Request buffers */
 static int vidioc_reqbufs(struct file *file, void *priv,
 					  struct v4l2_requestbuffers *reqbufs)
 {
