@@ -368,11 +368,11 @@ struct kvm_vcpu_arch {
 
 	struct hrtimer comparecount_timer;
 	/* Count timer control KVM register */
-	uint32_t count_ctl;
+	u32 count_ctl;
 	/* Count bias from the raw time */
-	uint32_t count_bias;
+	u32 count_bias;
 	/* Frequency of timer in Hz */
-	uint32_t count_hz;
+	u32 count_hz;
 	/* Dynamic nanosecond bias (multiple of count_period) to avoid overflow */
 	s64 count_dyn_bias;
 	/* Resume time */
@@ -395,8 +395,8 @@ struct kvm_vcpu_arch {
 	struct kvm_mips_tlb guest_tlb[KVM_MIPS_GUEST_TLB_SIZE];
 
 	/* Cached guest kernel/user ASIDs */
-	uint32_t guest_user_asid[NR_CPUS];
-	uint32_t guest_kernel_asid[NR_CPUS];
+	u32 guest_user_asid[NR_CPUS];
+	u32 guest_kernel_asid[NR_CPUS];
 	struct mm_struct guest_kernel_mm, guest_user_mm;
 
 	int last_sched_cpu;
@@ -587,9 +587,9 @@ struct kvm_mips_callbacks {
 	void (*dequeue_io_int)(struct kvm_vcpu *vcpu,
 			       struct kvm_mips_interrupt *irq);
 	int (*irq_deliver)(struct kvm_vcpu *vcpu, unsigned int priority,
-			   uint32_t cause);
+			   u32 cause);
 	int (*irq_clear)(struct kvm_vcpu *vcpu, unsigned int priority,
-			 uint32_t cause);
+			 u32 cause);
 	int (*get_one_reg)(struct kvm_vcpu *vcpu,
 			   const struct kvm_one_reg *reg, s64 *v);
 	int (*set_one_reg)(struct kvm_vcpu *vcpu,
@@ -620,11 +620,11 @@ void kvm_drop_fpu(struct kvm_vcpu *vcpu);
 void kvm_lose_fpu(struct kvm_vcpu *vcpu);
 
 /* TLB handling */
-uint32_t kvm_get_kernel_asid(struct kvm_vcpu *vcpu);
+u32 kvm_get_kernel_asid(struct kvm_vcpu *vcpu);
 
-uint32_t kvm_get_user_asid(struct kvm_vcpu *vcpu);
+u32 kvm_get_user_asid(struct kvm_vcpu *vcpu);
 
-uint32_t kvm_get_commpage_asid (struct kvm_vcpu *vcpu);
+u32 kvm_get_commpage_asid (struct kvm_vcpu *vcpu);
 
 extern int kvm_mips_handle_kseg0_tlb_fault(unsigned long badbaddr,
 					   struct kvm_vcpu *vcpu);
@@ -638,12 +638,12 @@ extern int kvm_mips_handle_mapped_seg_tlb_fault(struct kvm_vcpu *vcpu,
 						unsigned long *hpa1);
 
 extern enum emulation_result kvm_mips_handle_tlbmiss(unsigned long cause,
-						     uint32_t *opc,
+						     u32 *opc,
 						     struct kvm_run *run,
 						     struct kvm_vcpu *vcpu);
 
 extern enum emulation_result kvm_mips_handle_tlbmod(unsigned long cause,
-						    uint32_t *opc,
+						    u32 *opc,
 						    struct kvm_run *run,
 						    struct kvm_vcpu *vcpu);
 
@@ -665,90 +665,90 @@ extern void kvm_mips_vcpu_load(struct kvm_vcpu *vcpu, int cpu);
 extern void kvm_mips_vcpu_put(struct kvm_vcpu *vcpu);
 
 /* Emulation */
-uint32_t kvm_get_inst(uint32_t *opc, struct kvm_vcpu *vcpu);
-enum emulation_result update_pc(struct kvm_vcpu *vcpu, uint32_t cause);
+u32 kvm_get_inst(u32 *opc, struct kvm_vcpu *vcpu);
+enum emulation_result update_pc(struct kvm_vcpu *vcpu, u32 cause);
 
 extern enum emulation_result kvm_mips_emulate_inst(unsigned long cause,
-						   uint32_t *opc,
+						   u32 *opc,
 						   struct kvm_run *run,
 						   struct kvm_vcpu *vcpu);
 
 extern enum emulation_result kvm_mips_emulate_syscall(unsigned long cause,
-						      uint32_t *opc,
+						      u32 *opc,
 						      struct kvm_run *run,
 						      struct kvm_vcpu *vcpu);
 
 extern enum emulation_result kvm_mips_emulate_tlbmiss_ld(unsigned long cause,
-							 uint32_t *opc,
+							 u32 *opc,
 							 struct kvm_run *run,
 							 struct kvm_vcpu *vcpu);
 
 extern enum emulation_result kvm_mips_emulate_tlbinv_ld(unsigned long cause,
-							uint32_t *opc,
+							u32 *opc,
 							struct kvm_run *run,
 							struct kvm_vcpu *vcpu);
 
 extern enum emulation_result kvm_mips_emulate_tlbmiss_st(unsigned long cause,
-							 uint32_t *opc,
+							 u32 *opc,
 							 struct kvm_run *run,
 							 struct kvm_vcpu *vcpu);
 
 extern enum emulation_result kvm_mips_emulate_tlbinv_st(unsigned long cause,
-							uint32_t *opc,
+							u32 *opc,
 							struct kvm_run *run,
 							struct kvm_vcpu *vcpu);
 
 extern enum emulation_result kvm_mips_emulate_tlbmod(unsigned long cause,
-						     uint32_t *opc,
+						     u32 *opc,
 						     struct kvm_run *run,
 						     struct kvm_vcpu *vcpu);
 
 extern enum emulation_result kvm_mips_emulate_fpu_exc(unsigned long cause,
-						      uint32_t *opc,
+						      u32 *opc,
 						      struct kvm_run *run,
 						      struct kvm_vcpu *vcpu);
 
 extern enum emulation_result kvm_mips_handle_ri(unsigned long cause,
-						uint32_t *opc,
+						u32 *opc,
 						struct kvm_run *run,
 						struct kvm_vcpu *vcpu);
 
 extern enum emulation_result kvm_mips_emulate_ri_exc(unsigned long cause,
-						     uint32_t *opc,
+						     u32 *opc,
 						     struct kvm_run *run,
 						     struct kvm_vcpu *vcpu);
 
 extern enum emulation_result kvm_mips_emulate_bp_exc(unsigned long cause,
-						     uint32_t *opc,
+						     u32 *opc,
 						     struct kvm_run *run,
 						     struct kvm_vcpu *vcpu);
 
 extern enum emulation_result kvm_mips_emulate_trap_exc(unsigned long cause,
-						       uint32_t *opc,
+						       u32 *opc,
 						       struct kvm_run *run,
 						       struct kvm_vcpu *vcpu);
 
 extern enum emulation_result kvm_mips_emulate_msafpe_exc(unsigned long cause,
-							 uint32_t *opc,
+							 u32 *opc,
 							 struct kvm_run *run,
 							 struct kvm_vcpu *vcpu);
 
 extern enum emulation_result kvm_mips_emulate_fpe_exc(unsigned long cause,
-						      uint32_t *opc,
+						      u32 *opc,
 						      struct kvm_run *run,
 						      struct kvm_vcpu *vcpu);
 
 extern enum emulation_result kvm_mips_emulate_msadis_exc(unsigned long cause,
-							 uint32_t *opc,
+							 u32 *opc,
 							 struct kvm_run *run,
 							 struct kvm_vcpu *vcpu);
 
 extern enum emulation_result kvm_mips_complete_mmio_load(struct kvm_vcpu *vcpu,
 							 struct kvm_run *run);
 
-uint32_t kvm_mips_read_count(struct kvm_vcpu *vcpu);
-void kvm_mips_write_count(struct kvm_vcpu *vcpu, uint32_t count);
-void kvm_mips_write_compare(struct kvm_vcpu *vcpu, uint32_t compare, bool ack);
+u32 kvm_mips_read_count(struct kvm_vcpu *vcpu);
+void kvm_mips_write_count(struct kvm_vcpu *vcpu, u32 count);
+void kvm_mips_write_compare(struct kvm_vcpu *vcpu, u32 compare, bool ack);
 void kvm_mips_init_count(struct kvm_vcpu *vcpu);
 int kvm_mips_set_count_ctl(struct kvm_vcpu *vcpu, s64 count_ctl);
 int kvm_mips_set_count_resume(struct kvm_vcpu *vcpu, s64 count_resume);
@@ -758,26 +758,26 @@ void kvm_mips_count_disable_cause(struct kvm_vcpu *vcpu);
 enum hrtimer_restart kvm_mips_count_timeout(struct kvm_vcpu *vcpu);
 
 enum emulation_result kvm_mips_check_privilege(unsigned long cause,
-					       uint32_t *opc,
+					       u32 *opc,
 					       struct kvm_run *run,
 					       struct kvm_vcpu *vcpu);
 
-enum emulation_result kvm_mips_emulate_cache(uint32_t inst,
-					     uint32_t *opc,
-					     uint32_t cause,
+enum emulation_result kvm_mips_emulate_cache(u32 inst,
+					     u32 *opc,
+					     u32 cause,
 					     struct kvm_run *run,
 					     struct kvm_vcpu *vcpu);
-enum emulation_result kvm_mips_emulate_CP0(uint32_t inst,
-					   uint32_t *opc,
-					   uint32_t cause,
+enum emulation_result kvm_mips_emulate_CP0(u32 inst,
+					   u32 *opc,
+					   u32 cause,
 					   struct kvm_run *run,
 					   struct kvm_vcpu *vcpu);
-enum emulation_result kvm_mips_emulate_store(uint32_t inst,
-					     uint32_t cause,
+enum emulation_result kvm_mips_emulate_store(u32 inst,
+					     u32 cause,
 					     struct kvm_run *run,
 					     struct kvm_vcpu *vcpu);
-enum emulation_result kvm_mips_emulate_load(uint32_t inst,
-					    uint32_t cause,
+enum emulation_result kvm_mips_emulate_load(u32 inst,
+					    u32 cause,
 					    struct kvm_run *run,
 					    struct kvm_vcpu *vcpu);
 
@@ -787,14 +787,11 @@ unsigned int kvm_mips_config4_wrmask(struct kvm_vcpu *vcpu);
 unsigned int kvm_mips_config5_wrmask(struct kvm_vcpu *vcpu);
 
 /* Dynamic binary translation */
-extern int kvm_mips_trans_cache_index(uint32_t inst, uint32_t *opc,
+extern int kvm_mips_trans_cache_index(u32 inst, u32 *opc,
 				      struct kvm_vcpu *vcpu);
-extern int kvm_mips_trans_cache_va(uint32_t inst, uint32_t *opc,
-				   struct kvm_vcpu *vcpu);
-extern int kvm_mips_trans_mfc0(uint32_t inst, uint32_t *opc,
-			       struct kvm_vcpu *vcpu);
-extern int kvm_mips_trans_mtc0(uint32_t inst, uint32_t *opc,
-			       struct kvm_vcpu *vcpu);
+extern int kvm_mips_trans_cache_va(u32 inst, u32 *opc, struct kvm_vcpu *vcpu);
+extern int kvm_mips_trans_mfc0(u32 inst, u32 *opc, struct kvm_vcpu *vcpu);
+extern int kvm_mips_trans_mtc0(u32 inst, u32 *opc, struct kvm_vcpu *vcpu);
 
 /* Misc */
 extern void kvm_mips_dump_stats(struct kvm_vcpu *vcpu);

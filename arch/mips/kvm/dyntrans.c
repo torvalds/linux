@@ -28,7 +28,7 @@
 #define CLEAR_TEMPLATE  0x00000020
 #define SW_TEMPLATE     0xac000000
 
-int kvm_mips_trans_cache_index(uint32_t inst, uint32_t *opc,
+int kvm_mips_trans_cache_index(u32 inst, u32 *opc,
 			       struct kvm_vcpu *vcpu)
 {
 	int result = 0;
@@ -49,7 +49,7 @@ int kvm_mips_trans_cache_index(uint32_t inst, uint32_t *opc,
  * Address based CACHE instructions are transformed into synci(s). A little
  * heavy for just D-cache invalidates, but avoids an expensive trap
  */
-int kvm_mips_trans_cache_va(uint32_t inst, uint32_t *opc,
+int kvm_mips_trans_cache_va(u32 inst, u32 *opc,
 			    struct kvm_vcpu *vcpu)
 {
 	int result = 0;
@@ -70,7 +70,7 @@ int kvm_mips_trans_cache_va(uint32_t inst, uint32_t *opc,
 	return result;
 }
 
-int kvm_mips_trans_mfc0(uint32_t inst, uint32_t *opc, struct kvm_vcpu *vcpu)
+int kvm_mips_trans_mfc0(u32 inst, u32 *opc, struct kvm_vcpu *vcpu)
 {
 	int32_t rt, rd, sel;
 	uint32_t mfc0_inst;
@@ -110,7 +110,7 @@ int kvm_mips_trans_mfc0(uint32_t inst, uint32_t *opc, struct kvm_vcpu *vcpu)
 	return 0;
 }
 
-int kvm_mips_trans_mtc0(uint32_t inst, uint32_t *opc, struct kvm_vcpu *vcpu)
+int kvm_mips_trans_mtc0(u32 inst, u32 *opc, struct kvm_vcpu *vcpu)
 {
 	int32_t rt, rd, sel;
 	uint32_t mtc0_inst = SW_TEMPLATE;

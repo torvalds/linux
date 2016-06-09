@@ -47,7 +47,7 @@ EXPORT_SYMBOL_GPL(kvm_mips_release_pfn_clean);
 bool (*kvm_mips_is_error_pfn)(kvm_pfn_t pfn);
 EXPORT_SYMBOL_GPL(kvm_mips_is_error_pfn);
 
-uint32_t kvm_mips_get_kernel_asid(struct kvm_vcpu *vcpu)
+u32 kvm_mips_get_kernel_asid(struct kvm_vcpu *vcpu)
 {
 	int cpu = smp_processor_id();
 
@@ -55,7 +55,7 @@ uint32_t kvm_mips_get_kernel_asid(struct kvm_vcpu *vcpu)
 			cpu_asid_mask(&cpu_data[cpu]);
 }
 
-uint32_t kvm_mips_get_user_asid(struct kvm_vcpu *vcpu)
+u32 kvm_mips_get_user_asid(struct kvm_vcpu *vcpu)
 {
 	int cpu = smp_processor_id();
 
@@ -63,7 +63,7 @@ uint32_t kvm_mips_get_user_asid(struct kvm_vcpu *vcpu)
 			cpu_asid_mask(&cpu_data[cpu]);
 }
 
-inline uint32_t kvm_mips_get_commpage_asid(struct kvm_vcpu *vcpu)
+inline u32 kvm_mips_get_commpage_asid(struct kvm_vcpu *vcpu)
 {
 	return vcpu->kvm->arch.commpage_tlb;
 }
@@ -751,7 +751,7 @@ void kvm_arch_vcpu_put(struct kvm_vcpu *vcpu)
 }
 EXPORT_SYMBOL_GPL(kvm_arch_vcpu_put);
 
-uint32_t kvm_get_inst(uint32_t *opc, struct kvm_vcpu *vcpu)
+u32 kvm_get_inst(u32 *opc, struct kvm_vcpu *vcpu)
 {
 	struct mips_coproc *cop0 = vcpu->arch.cop0;
 	unsigned long paddr, flags, vpn2, asid;
