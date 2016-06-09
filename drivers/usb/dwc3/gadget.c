@@ -1584,7 +1584,6 @@ static int dwc3_gadget_run_stop(struct dwc3 *dwc, int is_on, int suspend)
 		timeout--;
 		if (!timeout)
 			return -ETIMEDOUT;
-		udelay(1);
 	} while (1);
 
 	dwc3_trace(trace_dwc3_gadget, "gadget %s data soft-%s",
