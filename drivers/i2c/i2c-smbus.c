@@ -56,7 +56,8 @@ static int smbus_do_alert(struct device *dev, void *addrp)
 	if (client->dev.driver) {
 		driver = to_i2c_driver(client->dev.driver);
 		if (driver->alert)
-			driver->alert(client, data->flag);
+			driver->alert(client, I2C_PROTOCOL_SMBUS_ALERT,
+				      data->flag);
 		else
 			dev_warn(&client->dev, "no driver alert()!\n");
 	} else

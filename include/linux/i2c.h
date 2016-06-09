@@ -126,6 +126,10 @@ i2c_smbus_read_i2c_block_data_or_emulated(const struct i2c_client *client,
 					  u8 command, u8 length, u8 *values);
 #endif /* I2C */
 
+enum i2c_alert_protocol {
+	I2C_PROTOCOL_SMBUS_ALERT,
+};
+
 /**
  * struct i2c_driver - represent an I2C device driver
  * @class: What kind of i2c device we instantiate (for detect)
@@ -181,7 +185,8 @@ struct i2c_driver {
 	 * For the SMBus alert protocol, there is a single bit of data passed
 	 * as the alert response's low bit ("event flag").
 	 */
-	void (*alert)(struct i2c_client *, unsigned int data);
+	void (*alert)(struct i2c_client *, enum i2c_alert_protocol protocol,
+		      unsigned int data);
 
 	/* a ioctl like command that can be used to perform specific functions
 	 * with the device.
