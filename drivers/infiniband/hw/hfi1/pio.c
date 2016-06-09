@@ -995,7 +995,7 @@ static void sc_wait_for_packet_egress(struct send_context *sc, int pause)
 		/* counter is reset if occupancy count changes */
 		if (reg != reg_prev)
 			loop = 0;
-		if (loop > 500) {
+		if (loop > 50000) {
 			/* timed out - bounce the link */
 			dd_dev_err(dd,
 				   "%s: context %u(%u) timeout waiting for packets to egress, remaining count %u, bouncing link\n",
