@@ -651,6 +651,7 @@ static void update_allmulti_vports(struct mlx5_eswitch *esw,
 					esw_fdb_set_vport_rule(esw,
 							       mac,
 							       vport_idx);
+			iter_vaddr->mc_promisc = true;
 			break;
 		case MLX5_ACTION_DEL:
 			if (!iter_vaddr)
