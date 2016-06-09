@@ -3037,9 +3037,9 @@ out:
 
 int c4iw_reject_cr(struct iw_cm_id *cm_id, const void *pdata, u8 pdata_len)
 {
-	int err = 0;
-	int disconnect = 0;
+	int abort;
 	struct c4iw_ep *ep = to_ep(cm_id);
+
 	PDBG("%s ep %p tid %u\n", __func__, ep, ep->hwtid);
 
 	mutex_lock(&ep->com.mutex);
@@ -3050,16 +3050,13 @@ int c4iw_reject_cr(struct iw_cm_id *cm_id, const void *pdata, u8 pdata_len)
 	}
 	set_bit(ULP_REJECT, &ep->com.history);
 	if (mpa_rev == 0)
-		disconnect = 2;
-	else {
-		err = send_mpa_reject(ep, pdata, pdata_len);
-		disconnect = 1;
-	}
+		abort = 1;
+	else
+		abort = send_mpa_reject(ep, pdata, pdata_len);
 	mutex_unlock(&ep->com.mutex);
-	if (disconnect) {
-		stop_ep_timer(ep);
-		err = c4iw_ep_disconnect(ep, disconnect == 2, GFP_KERNEL);
-	}
+
+	stop_ep_timer(ep);
+	c4iw_ep_disconnect(ep, abort != 0, GFP_KERNEL);
 	c4iw_put_ep(&ep->com);
 	return 0;
 }
