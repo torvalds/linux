@@ -2016,12 +2016,17 @@ static int send_fw_act_open_req(struct c4iw_ep *ep, unsigned int atid)
 }
 
 /*
- * Return whether a failed active open has allocated a TID
+ * Some of the error codes above implicitly indicate that there is no TID
+ * allocated with the result of an ACT_OPEN.  We use this predicate to make
+ * that explicit.
  */
 static inline int act_open_has_tid(int status)
 {
-	return status != CPL_ERR_TCAM_FULL && status != CPL_ERR_CONN_EXIST &&
-	       status != CPL_ERR_ARP_MISS;
+	return (status != CPL_ERR_TCAM_PARITY &&
+		status != CPL_ERR_TCAM_MISS &&
+		status != CPL_ERR_TCAM_FULL &&
+		status != CPL_ERR_CONN_EXIST_SYNRECV &&
+		status != CPL_ERR_CONN_EXIST);
 }
 
 /* Returns whether a CPL status conveys negative advice.
