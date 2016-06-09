@@ -108,7 +108,7 @@ static int rockchip_drm_fbdev_create(struct drm_fb_helper *helper,
 	fbi->screen_size = rk_obj->base.size;
 	fbi->fix.smem_len = rk_obj->base.size;
 
-	DRM_DEBUG_KMS("FB [%dx%d]-%d kvaddr=%p offset=%ld size=%d\n",
+	DRM_DEBUG_KMS("FB [%dx%d]-%d kvaddr=%p offset=%ld size=%zu\n",
 		      fb->width, fb->height, fb->depth, rk_obj->kvaddr,
 		      offset, size);
 
