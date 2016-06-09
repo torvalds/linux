@@ -125,7 +125,7 @@ static int ltq_eiu_settype(struct irq_data *d, unsigned int type)
 {
 	int i;
 
-	for (i = 0; i < MAX_EIU; i++) {
+	for (i = 0; i < exin_avail; i++) {
 		if (d->hwirq == ltq_eiu_irq[i]) {
 			int val = 0;
 			int edge = 0;
@@ -173,7 +173,7 @@ static unsigned int ltq_startup_eiu_irq(struct irq_data *d)
 	int i;
 
 	ltq_enable_irq(d);
-	for (i = 0; i < MAX_EIU; i++) {
+	for (i = 0; i < exin_avail; i++) {
 		if (d->hwirq == ltq_eiu_irq[i]) {
 			/* by default we are low level triggered */
 			ltq_eiu_settype(d, IRQF_TRIGGER_LOW);
@@ -195,7 +195,7 @@ static void ltq_shutdown_eiu_irq(struct irq_data *d)
 	int i;
 
 	ltq_disable_irq(d);
-	for (i = 0; i < MAX_EIU; i++) {
+	for (i = 0; i < exin_avail; i++) {
 		if (d->hwirq == ltq_eiu_irq[i]) {
 			/* disable */
 			ltq_eiu_w32(ltq_eiu_r32(LTQ_EIU_EXIN_INEN) & ~BIT(i),
