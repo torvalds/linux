@@ -14,7 +14,7 @@
 		compatible = "rockchip,rockchip-audio-max98090";
 		pinctrl-names = "default";
 		pinctrl-0 = <&mic_det>, <&hp_det>;
-		rockchip,model = "ROCKCHIP-I2S";
+		rockchip,model = "VEYRON-I2S";
 		rockchip,i2s-controller = <&i2s>;
 		rockchip,audio-codec = <&max98090>;
 		rockchip,hp-det-gpios = <&gpio6 5 GPIO_ACTIVE_HIGH>;
