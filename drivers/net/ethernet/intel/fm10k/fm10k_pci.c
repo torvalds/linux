@@ -2275,7 +2275,7 @@ static pci_ers_result_t fm10k_io_slot_reset(struct pci_dev *pdev)
 {
 	pci_ers_result_t result;
 
-	if (pci_enable_device_mem(pdev)) {
+	if (pci_reenable_device(pdev)) {
 		dev_err(&pdev->dev,
 			"Cannot re-enable PCI device after reset.\n");
 		result = PCI_ERS_RESULT_DISCONNECT;
