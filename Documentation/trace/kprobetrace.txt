@@ -40,6 +40,7 @@ Synopsis of kprobe_events
   $stackN	: Fetch Nth entry of stack (N >= 0)
   $stack	: Fetch stack address.
   $retval	: Fetch return value.(*)
+  $comm		: Fetch current task comm.
   +|-offs(FETCHARG) : Fetch memory at FETCHARG +|- offs address.(**)
   NAME=FETCHARG : Set NAME as the argument name of FETCHARG.
   FETCHARG:TYPE : Set TYPE as the type of FETCHARG. Currently, basic types
@@ -61,6 +62,8 @@ Bitfield is another special type, which takes 3 parameters, bit-width, bit-
 offset, and container-size (usually 32). The syntax is;
 
  b<bit-width>@<bit-offset>/<container-size>
+
+For $comm, the default type is "string"; any other type is invalid.
 
 
 Per-Probe Event Filtering
