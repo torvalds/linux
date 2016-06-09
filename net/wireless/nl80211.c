@@ -5836,10 +5836,8 @@ static int nl80211_set_reg(struct sk_buff *skb, struct genl_info *info)
 		}
 	}
 
-	r = set_regdom(rd, REGD_SOURCE_CRDA);
-	/* set_regdom took ownership */
-	rd = NULL;
-
+	/* set_regdom takes ownership of rd */
+	return set_regdom(rd, REGD_SOURCE_CRDA);
  bad_reg:
 	kfree(rd);
 	return r;
