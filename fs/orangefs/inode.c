@@ -262,7 +262,7 @@ int orangefs_getattr(struct vfsmount *mnt,
 		     "orangefs_getattr: called on %s\n",
 		     dentry->d_name.name);
 
-	ret = orangefs_inode_getattr(inode, 0, 1);
+	ret = orangefs_inode_getattr(inode, 0, 0);
 	if (ret == 0) {
 		generic_fillattr(inode, kstat);
 
@@ -384,7 +384,7 @@ struct inode *orangefs_iget(struct super_block *sb, struct orangefs_object_kref 
 	if (!inode || !(inode->i_state & I_NEW))
 		return inode;
 
-	error = orangefs_inode_getattr(inode, 1, 0);
+	error = orangefs_inode_getattr(inode, 1, 1);
 	if (error) {
 		iget_failed(inode);
 		return ERR_PTR(error);
@@ -429,7 +429,7 @@ struct inode *orangefs_new_inode(struct super_block *sb, struct inode *dir,
 	orangefs_set_inode(inode, ref);
 	inode->i_ino = hash;	/* needed for stat etc */
 
-	error = orangefs_inode_getattr(inode, 1, 0);
+	error = orangefs_inode_getattr(inode, 1, 1);
 	if (error)
 		goto out_iput;
 

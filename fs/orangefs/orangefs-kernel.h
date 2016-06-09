@@ -246,6 +246,8 @@ struct orangefs_inode_s {
 	 * with this object
 	 */
 	unsigned long pinode_flags;
+
+	unsigned long getattr_time;
 };
 
 #define P_ATIME_FLAG 0
@@ -527,7 +529,7 @@ int orangefs_inode_setxattr(struct inode *inode,
 			 size_t size,
 			 int flags);
 
-int orangefs_inode_getattr(struct inode *inode, int new, int size);
+int orangefs_inode_getattr(struct inode *inode, int new, int bypass);
 
 int orangefs_inode_check_changed(struct inode *inode);
 
