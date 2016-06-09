@@ -62,6 +62,35 @@ int parse_mac_str(char *mac_str, __lkl__u8 mac[LKL_ETH_ALEN])
 	return 1;
 }
 
+/* Add permanent arp entries in the form of "ip|mac;ip|mac;..." */
+static void add_arp(int ifindex, char* entries) {
+	char *saveptr = NULL, *token = NULL;
+	char *ip = NULL, *mac_str = NULL;
+	int ret = 0;
+	__lkl__u8 mac[LKL_ETH_ALEN];
+	unsigned int ip_addr;
+
+	for (token = strtok_r(entries, ";", &saveptr); token;
+	     token = strtok_r(NULL, ";", &saveptr)) {
+		ip = strtok(token, "|");
+		mac_str = strtok(NULL, "|");
+		if (ip == NULL || mac_str == NULL || strtok(NULL, "|") != NULL) {
+			return;
+		}
+		ip_addr = inet_addr(ip);
+		ret = parse_mac_str(mac_str, mac);
+		if (ret != 1) {
+			fprintf(stderr, "Failed to parse mac: %s\n", mac_str);
+			return;
+		}
+		ret = lkl_add_arp_entry(ifindex, ip_addr, mac);
+		if (ret) {
+			fprintf(stderr, "Failed to add arp entry: %s\n", lkl_strerror(ret));
+			return;
+		}
+	}
+	return;
+}
 
 /* We don't have an easy way to make FILE*s out of our fds, so we
  * can't use e.g. fgets */
@@ -165,6 +194,7 @@ hijack_init(void)
 	char *debug = getenv("LKL_HIJACK_DEBUG");
 	char *mount = getenv("LKL_HIJACK_MOUNT");
 	struct lkl_netdev *nd = NULL;
+	char *arp_entries = getenv("LKL_HIJACK_NET_ARP");
 
 	/* Must be run before lkl_netdev_tap_create */
 	fixup_netdev_tap_ops();
@@ -272,6 +302,9 @@ hijack_init(void)
 
 	if (mount)
 		mount_cmds_exec(mount, mount_fs);
+
+	if (nd_ifindex >=0 && arp_entries)
+		add_arp(nd_ifindex, arp_entries);
 }
 
 void __attribute__((destructor))

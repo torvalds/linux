@@ -301,6 +301,14 @@ struct lkl_netdev *lkl_netdev_dpdk_create(const char *ifname);
  */
 struct lkl_netdev *lkl_netdev_vde_create(const char *switch_path);
 
+/**
+ * lkl_add_arp_entry - add a permanent arp entry
+ * @ifindex - the ifindex of the interface
+ * @ip - ip address of the entry in network byte order
+ * @mac - mac address of the entry
+ */
+int lkl_add_arp_entry(int ifindex, unsigned int ip, void* mac);
+
 #ifdef __cplusplus
 }
 #endif

@@ -94,6 +94,13 @@ sudo arp -d 192.168.13.2
 sudo ping -i 0.01 -c 65 192.168.13.2 &
 ${hijack_script} sleep 3
 
+# add arp entries
+ans=$(LKL_HIJACK_NET_ARP="192.168.13.100|12:34:56:78:9a:bc;192.168.13.101|12:34:56:78:9a:be"\
+  ${hijack_script} ip neighbor show) || true
+echo "$ans" | tail -n 15 | grep "12:34:56:78:9a:bc"
+echo "$ans" | tail -n 15 | grep "12:34:56:78:9a:be"
+
+
 sh ${script_dir}/run_netperf.sh 192.168.13.1 1 0 TCP_STREAM
 sh ${script_dir}/run_netperf.sh 192.168.13.1 1 0 TCP_RR
 
