@@ -141,7 +141,7 @@ struct cfq_queue {
 
 	/* io prio of this group */
 	unsigned short ioprio, org_ioprio;
-	unsigned short ioprio_class;
+	unsigned short ioprio_class, org_ioprio_class;
 
 	pid_t pid;
 
@@ -3700,6 +3700,7 @@ static void cfq_init_prio_data(struct cfq_queue *cfqq, struct cfq_io_cq *cic)
 	 * elevate the priority of this queue
 	 */
 	cfqq->org_ioprio = cfqq->ioprio;
+	cfqq->org_ioprio_class = cfqq->ioprio_class;
 	cfq_clear_cfqq_prio_changed(cfqq);
 }
 
@@ -4295,6 +4296,24 @@ static void cfq_completed_request(struct request_queue *q, struct request *rq)
 		cfq_schedule_dispatch(cfqd);
 }
 
+static void cfqq_boost_on_prio(struct cfq_queue *cfqq, int op_flags)
+{
+	/*
+	 * If REQ_PRIO is set, boost class and prio level, if it's below
+	 * BE/NORM. If prio is not set, restore the potentially boosted
+	 * class/prio level.
+	 */
+	if (!(op_flags & REQ_PRIO)) {
+		cfqq->ioprio_class = cfqq->org_ioprio_class;
+		cfqq->ioprio = cfqq->org_ioprio;
+	} else {
+		if (cfq_class_idle(cfqq))
+			cfqq->ioprio_class = IOPRIO_CLASS_BE;
+		if (cfqq->ioprio > IOPRIO_NORM)
+			cfqq->ioprio = IOPRIO_NORM;
+	}
+}
+
 static inline int __cfq_may_queue(struct cfq_queue *cfqq)
 {
 	if (cfq_cfqq_wait_request(cfqq) && !cfq_cfqq_must_alloc_slice(cfqq)) {
@@ -4325,6 +4344,7 @@ static int cfq_may_queue(struct request_queue *q, int op, int op_flags)
 	cfqq = cic_to_cfqq(cic, rw_is_sync(op, op_flags));
 	if (cfqq) {
 		cfq_init_prio_data(cfqq, cic);
+		cfqq_boost_on_prio(cfqq, op_flags);
 
 		return __cfq_may_queue(cfqq);
 	}

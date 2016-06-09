@@ -1781,6 +1781,11 @@ get_rq:
 		rw_flags |= REQ_SYNC;
 
 	/*
+	 * Add in META/PRIO flags, if set, before we get to the IO scheduler
+	 */
+	rw_flags |= (bio->bi_rw & (REQ_META | REQ_PRIO));
+
+	/*
 	 * Grab a free request. This is might sleep but can not fail.
 	 * Returns with the queue unlocked.
 	 */
