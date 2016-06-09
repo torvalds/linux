@@ -195,7 +195,6 @@ int kvm_mips_host_tlb_write(struct kvm_vcpu *vcpu, unsigned long entryhi,
 	/* Restore old ASID */
 	write_c0_entryhi(old_entryhi);
 	mtc0_tlbw_hazard();
-	tlbw_use_hazard();
 	local_irq_restore(flags);
 	return 0;
 }
@@ -219,15 +218,11 @@ int kvm_mips_handle_commpage_tlb_fault(unsigned long badvaddr,
 	old_entryhi = read_c0_entryhi();
 	vaddr = badvaddr & (PAGE_MASK << 1);
 	write_c0_entryhi(vaddr | kvm_mips_get_kernel_asid(vcpu));
-	mtc0_tlbw_hazard();
 	write_c0_entrylo0(entrylo0);
-	mtc0_tlbw_hazard();
 	write_c0_entrylo1(entrylo1);
-	mtc0_tlbw_hazard();
 	write_c0_index(kvm_mips_get_commpage_asid(vcpu));
 	mtc0_tlbw_hazard();
 	tlb_write_indexed();
-	mtc0_tlbw_hazard();
 	tlbw_use_hazard();
 
 	kvm_debug("@ %#lx idx: %2d [entryhi(R): %#lx] entrylo0 (R): 0x%08lx, entrylo1(R): 0x%08lx\n",
@@ -237,7 +232,6 @@ int kvm_mips_handle_commpage_tlb_fault(unsigned long badvaddr,
 	/* Restore old ASID */
 	write_c0_entryhi(old_entryhi);
 	mtc0_tlbw_hazard();
-	tlbw_use_hazard();
 	local_irq_restore(flags);
 
 	return 0;
@@ -291,7 +285,6 @@ int kvm_mips_host_tlb_lookup(struct kvm_vcpu *vcpu, unsigned long vaddr)
 	/* Restore old ASID */
 	write_c0_entryhi(old_entryhi);
 	mtc0_tlbw_hazard();
-	tlbw_use_hazard();
 
 	local_irq_restore(flags);
 
@@ -322,21 +315,16 @@ int kvm_mips_host_tlb_inv(struct kvm_vcpu *vcpu, unsigned long va)
 
 	if (idx > 0) {
 		write_c0_entryhi(UNIQUE_ENTRYHI(idx));
-		mtc0_tlbw_hazard();
-
 		write_c0_entrylo0(0);
-		mtc0_tlbw_hazard();
-
 		write_c0_entrylo1(0);
 		mtc0_tlbw_hazard();
 
 		tlb_write_indexed();
-		mtc0_tlbw_hazard();
+		tlbw_use_hazard();
 	}
 
 	write_c0_entryhi(old_entryhi);
 	mtc0_tlbw_hazard();
-	tlbw_use_hazard();
 
 	local_irq_restore(flags);
 
@@ -364,11 +352,11 @@ void kvm_mips_flush_host_tlb(int skip_kseg0)
 	/* Blast 'em all away. */
 	for (entry = 0; entry < maxentry; entry++) {
 		write_c0_index(entry);
-		mtc0_tlbw_hazard();
 
 		if (skip_kseg0) {
+			mtc0_tlbr_hazard();
 			tlb_read();
-			tlbw_use_hazard();
+			tlb_read_hazard();
 
 			entryhi = read_c0_entryhi();
 
@@ -379,22 +367,17 @@ void kvm_mips_flush_host_tlb(int skip_kseg0)
 
 		/* Make sure all entries differ. */
 		write_c0_entryhi(UNIQUE_ENTRYHI(entry));
-		mtc0_tlbw_hazard();
 		write_c0_entrylo0(0);
-		mtc0_tlbw_hazard();
 		write_c0_entrylo1(0);
 		mtc0_tlbw_hazard();
 
 		tlb_write_indexed();
-		mtc0_tlbw_hazard();
+		tlbw_use_hazard();
 	}
-
-	tlbw_use_hazard();
 
 	write_c0_entryhi(old_entryhi);
 	write_c0_pagemask(old_pagemask);
 	mtc0_tlbw_hazard();
-	tlbw_use_hazard();
 
 	local_irq_restore(flags);
 }
@@ -419,9 +402,9 @@ void kvm_local_flush_tlb_all(void)
 		write_c0_index(entry);
 		mtc0_tlbw_hazard();
 		tlb_write_indexed();
+		tlbw_use_hazard();
 		entry++;
 	}
-	tlbw_use_hazard();
 	write_c0_entryhi(old_ctx);
 	mtc0_tlbw_hazard();
 
