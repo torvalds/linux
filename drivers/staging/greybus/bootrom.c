@@ -12,7 +12,6 @@
 #include <linux/mutex.h>
 #include <linux/workqueue.h>
 
-#include "bootrom.h"
 #include "greybus.h"
 
 /* Timeout, in jiffies, within which the next request must be received */
@@ -455,12 +454,6 @@ static struct greybus_driver gb_bootrom_driver = {
 	.id_table	= gb_bootrom_id_table,
 };
 
-int gb_bootrom_init(void)
-{
-	return greybus_register(&gb_bootrom_driver);
-}
+module_greybus_driver(gb_bootrom_driver);
 
-void gb_bootrom_exit(void)
-{
-	greybus_deregister(&gb_bootrom_driver);
-}
+MODULE_LICENSE("GPL v2");

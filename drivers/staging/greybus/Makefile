@@ -9,7 +9,6 @@ greybus-y :=	core.o		\
 		control.o	\
 		svc.o		\
 		svc_watchdog.o	\
-		bootrom.o	\
 		operation.o	\
 		timesync.o	\
 		timesync_platform.o
@@ -31,6 +30,7 @@ gb-audio-gb-y := audio_gb.o
 gb-audio-apbridgea-y := audio_apbridgea.o
 gb-audio-manager-y += audio_manager.o
 gb-audio-manager-y += audio_manager_module.o
+gb-bootrom-y := bootrom.o
 gb-camera-y := camera.o
 gb-firmware-y := fw-core.o fw-download.o fw-management.o
 gb-spilib-y := spilib.o
@@ -62,6 +62,7 @@ endif
 obj-m += gb-audio-gb.o
 obj-m += gb-audio-apbridgea.o
 obj-m += gb-audio-manager.o
+obj-m += gb-bootrom.o
 obj-m += gb-firmware.o
 obj-m += gb-spilib.o
 obj-m += gb-sdio.o
