@@ -308,9 +308,6 @@ NESTED (MIPSX(GuestException), CALLFRAME_SIZ, ra)
 	mfc0	k0, CP0_CAUSE
 	LONG_S	k0, VCPU_HOST_CP0_CAUSE(k1)
 
-	mfc0	k0, CP0_ENTRYHI
-	LONG_S	k0, VCPU_HOST_ENTRYHI(k1)
-
 	/* Now restore the host state just enough to run the handlers */
 
 	/* Switch EBASE to the one used by Linux */

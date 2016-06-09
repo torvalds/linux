@@ -346,7 +346,6 @@ struct kvm_vcpu_arch {
 	unsigned long host_cp0_badvaddr;
 	unsigned long host_cp0_cause;
 	unsigned long host_cp0_epc;
-	unsigned long host_cp0_entryhi;
 
 	/* GPRS */
 	unsigned long gprs[32];

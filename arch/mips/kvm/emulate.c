@@ -1634,7 +1634,6 @@ enum emulation_result kvm_mips_emulate_cache(uint32_t inst, uint32_t *opc,
 						   (cop0) & KVM_ENTRYHI_ASID));
 
 		if (index < 0) {
-			vcpu->arch.host_cp0_entryhi = (va & VPN2_MASK);
 			vcpu->arch.host_cp0_badvaddr = va;
 			vcpu->arch.pc = curr_pc;
 			er = kvm_mips_emulate_tlbmiss_ld(cause, NULL, run,
@@ -2576,8 +2575,8 @@ enum emulation_result kvm_mips_handle_tlbmiss(unsigned long cause,
 	unsigned long va = vcpu->arch.host_cp0_badvaddr;
 	int index;
 
-	kvm_debug("kvm_mips_handle_tlbmiss: badvaddr: %#lx, entryhi: %#lx\n",
-		  vcpu->arch.host_cp0_badvaddr, vcpu->arch.host_cp0_entryhi);
+	kvm_debug("kvm_mips_handle_tlbmiss: badvaddr: %#lx\n",
+		  vcpu->arch.host_cp0_badvaddr);
 
 	/*
 	 * KVM would not have got the exception if this entry was valid in the

@@ -364,7 +364,6 @@ void output_kvm_defines(void)
 	OFFSET(VCPU_HOST_CP0_BADVADDR, kvm_vcpu_arch, host_cp0_badvaddr);
 	OFFSET(VCPU_HOST_CP0_CAUSE, kvm_vcpu_arch, host_cp0_cause);
 	OFFSET(VCPU_HOST_EPC, kvm_vcpu_arch, host_cp0_epc);
-	OFFSET(VCPU_HOST_ENTRYHI, kvm_vcpu_arch, host_cp0_entryhi);
 
 	OFFSET(VCPU_R0, kvm_vcpu_arch, gprs[0]);
 	OFFSET(VCPU_R1, kvm_vcpu_arch, gprs[1]);
