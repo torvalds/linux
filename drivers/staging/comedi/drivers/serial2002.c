@@ -379,7 +379,10 @@ static int serial2002_setup_subdevice(struct comedi_subdevice *s,
 				range_table_list[chan] =
 				    (const struct comedi_lrange *)&range[j];
 			}
-			maxdata_list[chan] = ((long long)1 << cfg[j].bits) - 1;
+			if (cfg[j].bits < 32)
+				maxdata_list[chan] = (1u << cfg[j].bits) - 1;
+			else
+				maxdata_list[chan] = 0xffffffff;
 			chan++;
 		}
 	}
