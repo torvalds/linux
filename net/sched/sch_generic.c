@@ -137,10 +137,10 @@ int sch_direct_xmit(struct sk_buff *skb, struct Qdisc *q,
 
 		HARD_TX_UNLOCK(dev, txq);
 	} else {
-		spin_lock_nested(root_lock, SINGLE_DEPTH_NESTING);
+		spin_lock(root_lock);
 		return qdisc_qlen(q);
 	}
-	spin_lock_nested(root_lock, SINGLE_DEPTH_NESTING);
+	spin_lock(root_lock);
 
 	if (dev_xmit_complete(ret)) {
 		/* Driver sent out skb successfully or skb was consumed */
