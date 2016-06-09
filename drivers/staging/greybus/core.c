@@ -31,22 +31,22 @@ int greybus_disabled(void)
 }
 EXPORT_SYMBOL_GPL(greybus_disabled);
 
-static int greybus_match_one_id(struct gb_bundle *bundle,
+static bool greybus_match_one_id(struct gb_bundle *bundle,
 				     const struct greybus_bundle_id *id)
 {
 	if ((id->match_flags & GREYBUS_ID_MATCH_VENDOR) &&
 	    (id->vendor != bundle->intf->vendor_id))
-		return 0;
+		return false;
 
 	if ((id->match_flags & GREYBUS_ID_MATCH_PRODUCT) &&
 	    (id->product != bundle->intf->product_id))
-		return 0;
+		return false;
 
 	if ((id->match_flags & GREYBUS_ID_MATCH_CLASS) &&
 	    (id->class != bundle->class))
-		return 0;
+		return false;
 
-	return 1;
+	return true;
 }
 
 static const struct greybus_bundle_id *
