@@ -609,20 +609,19 @@ int netlbl_catmap_getlong(struct netlbl_lsm_catmap *catmap,
 		off = catmap->startbit;
 		*offset = off;
 	}
-	iter = _netlbl_catmap_getnode(&catmap, off, _CM_F_NONE, 0);
+	iter = _netlbl_catmap_getnode(&catmap, off, _CM_F_WALK, 0);
 	if (iter == NULL) {
 		*offset = (u32)-1;
 		return 0;
 	}
 
 	if (off < iter->startbit) {
-		off = iter->startbit;
-		*offset = off;
+		*offset = iter->startbit;
+		off = 0;
 	} else
 		off -= iter->startbit;
-
 	idx = off / NETLBL_CATMAP_MAPSIZE;
-	*bitmap = iter->bitmap[idx] >> (off % NETLBL_CATMAP_SIZE);
+	*bitmap = iter->bitmap[idx] >> (off % NETLBL_CATMAP_MAPSIZE);
 
 	return 0;
 }
