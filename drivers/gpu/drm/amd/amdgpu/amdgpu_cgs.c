@@ -696,6 +696,17 @@ static uint32_t fw_type_convert(struct cgs_device *cgs_device, uint32_t fw_type)
 	return result;
 }
 
+static int amdgpu_cgs_rel_firmware(struct cgs_device *cgs_device, enum cgs_ucode_id type)
+{
+	CGS_FUNC_ADEV;
+	if ((CGS_UCODE_ID_SMU == type) || (CGS_UCODE_ID_SMU_SK == type)) {
+		release_firmware(adev->pm.fw);
+		return 0;
+	}
+	/* cannot release other firmware because they are not created by cgs */
+	return -EINVAL;
+}
+
 static int amdgpu_cgs_get_firmware_info(struct cgs_device *cgs_device,
 					enum cgs_ucode_id type,
 					struct cgs_firmware_info *info)
@@ -1125,6 +1136,7 @@ static const struct cgs_ops amdgpu_cgs_ops = {
 	amdgpu_cgs_pm_query_clock_limits,
 	amdgpu_cgs_set_camera_voltages,
 	amdgpu_cgs_get_firmware_info,
+	amdgpu_cgs_rel_firmware,
 	amdgpu_cgs_set_powergating_state,
 	amdgpu_cgs_set_clockgating_state,
 	amdgpu_cgs_get_active_displays_info,
