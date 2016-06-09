@@ -529,7 +529,7 @@ out:
 		}
 	}
 
-	kfree(flow_group_in);
+	kvfree(flow_group_in);
 	return err;
 }
 
@@ -1097,7 +1097,7 @@ static void esw_vport_enable_egress_acl(struct mlx5_eswitch *esw,
 	vport->egress.drop_grp = drop_grp;
 	vport->egress.allowed_vlans_grp = vlan_grp;
 out:
-	kfree(flow_group_in);
+	kvfree(flow_group_in);
 	if (err && !IS_ERR_OR_NULL(vlan_grp))
 		mlx5_destroy_flow_group(vlan_grp);
 	if (err && !IS_ERR_OR_NULL(acl))
@@ -1259,7 +1259,7 @@ out:
 			mlx5_destroy_flow_table(vport->ingress.acl);
 	}
 
-	kfree(flow_group_in);
+	kvfree(flow_group_in);
 }
 
 static void esw_vport_cleanup_ingress_rules(struct mlx5_eswitch *esw,
