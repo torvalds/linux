@@ -825,9 +825,6 @@ static netdev_tx_t ipip6_tunnel_xmit(struct sk_buff *skb,
 	u8 protocol = IPPROTO_IPV6;
 	int t_hlen = tunnel->hlen + sizeof(struct iphdr);
 
-	if (skb->protocol != htons(ETH_P_IPV6))
-		goto tx_error;
-
 	if (tos == 1)
 		tos = ipv6_get_dsfield(iph6);
 
