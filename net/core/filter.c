@@ -1603,9 +1603,36 @@ static const struct bpf_func_proto bpf_csum_diff_proto = {
 	.arg5_type	= ARG_ANYTHING,
 };
 
+static inline int __bpf_rx_skb(struct net_device *dev, struct sk_buff *skb)
+{
+	if (skb_at_tc_ingress(skb))
+		skb_postpush_rcsum(skb, skb_mac_header(skb), skb->mac_len);
+
+	return dev_forward_skb(dev, skb);
+}
+
+static inline int __bpf_tx_skb(struct net_device *dev, struct sk_buff *skb)
+{
+	int ret;
+
+	if (unlikely(__this_cpu_read(xmit_recursion) > XMIT_RECURSION_LIMIT)) {
+		net_crit_ratelimited("bpf: recursion limit reached on datapath, buggy bpf program?\n");
+		kfree_skb(skb);
+		return -ENETDOWN;
+	}
+
+	skb->dev = dev;
+
+	__this_cpu_inc(xmit_recursion);
+	ret = dev_queue_xmit(skb);
+	__this_cpu_dec(xmit_recursion);
+
+	return ret;
+}
+
 static u64 bpf_clone_redirect(u64 r1, u64 ifindex, u64 flags, u64 r4, u64 r5)
 {
-	struct sk_buff *skb = (struct sk_buff *) (long) r1, *skb2;
+	struct sk_buff *skb = (struct sk_buff *) (long) r1;
 	struct net_device *dev;
 
 	if (unlikely(flags & ~(BPF_F_INGRESS)))
@@ -1615,19 +1642,12 @@ static u64 bpf_clone_redirect(u64 r1, u64 ifindex, u64 flags, u64 r4, u64 r5)
 	if (unlikely(!dev))
 		return -EINVAL;
 
-	skb2 = skb_clone(skb, GFP_ATOMIC);
-	if (unlikely(!skb2))
+	skb = skb_clone(skb, GFP_ATOMIC);
+	if (unlikely(!skb))
 		return -ENOMEM;
 
-	if (flags & BPF_F_INGRESS) {
-		if (skb_at_tc_ingress(skb2))
-			skb_postpush_rcsum(skb2, skb_mac_header(skb2),
-					   skb2->mac_len);
-		return dev_forward_skb(dev, skb2);
-	}
-
-	skb2->dev = dev;
-	return dev_queue_xmit(skb2);
+	return flags & BPF_F_INGRESS ?
+	       __bpf_rx_skb(dev, skb) : __bpf_tx_skb(dev, skb);
 }
 
 static const struct bpf_func_proto bpf_clone_redirect_proto = {
@@ -1671,15 +1691,8 @@ int skb_do_redirect(struct sk_buff *skb)
 		return -EINVAL;
 	}
 
-	if (ri->flags & BPF_F_INGRESS) {
-		if (skb_at_tc_ingress(skb))
-			skb_postpush_rcsum(skb, skb_mac_header(skb),
-					   skb->mac_len);
-		return dev_forward_skb(dev, skb);
-	}
-
-	skb->dev = dev;
-	return dev_queue_xmit(skb);
+	return ri->flags & BPF_F_INGRESS ?
+	       __bpf_rx_skb(dev, skb) : __bpf_tx_skb(dev, skb);
 }
 
 static const struct bpf_func_proto bpf_redirect_proto = {
