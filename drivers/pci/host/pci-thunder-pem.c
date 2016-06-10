@@ -284,8 +284,9 @@ static int thunder_pem_config_write(struct pci_bus *bus, unsigned int devfn,
 	return pci_generic_config_write(bus, devfn, where, size, val);
 }
 
-static int thunder_pem_init(struct device *dev, struct pci_config_window *cfg)
+static int thunder_pem_init(struct pci_config_window *cfg)
 {
+	struct device *dev = cfg->parent;
 	resource_size_t bar4_start;
 	struct resource *res_pem;
 	struct thunder_pem_pci *pem_pci;

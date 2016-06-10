@@ -51,6 +51,7 @@ struct pci_config_window *pci_ecam_create(struct device *dev,
 	if (!cfg)
 		return ERR_PTR(-ENOMEM);
 
+	cfg->parent = dev;
 	cfg->ops = ops;
 	cfg->busr.start = busr->start;
 	cfg->busr.end = busr->end;
@@ -94,7 +95,7 @@ struct pci_config_window *pci_ecam_create(struct device *dev,
 	}
 
 	if (ops->init) {
-		err = ops->init(dev, cfg);
+		err = ops->init(cfg);
 		if (err)
 			goto err_exit;
 	}
