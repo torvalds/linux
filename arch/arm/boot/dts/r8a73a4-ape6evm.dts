@@ -188,7 +188,7 @@
 };
 
 &pfc {
-	scifa0_pins: serial0 {
+	scifa0_pins: scifa0 {
 		groups = "scifa0_data";
 		function = "scifa0";
 	};
