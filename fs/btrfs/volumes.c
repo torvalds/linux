@@ -3944,7 +3944,7 @@ int btrfs_resume_balance_async(struct btrfs_fs_info *fs_info)
 	}
 	spin_unlock(&fs_info->balance_lock);
 
-	if (btrfs_test_opt(fs_info->tree_root, SKIP_BALANCE)) {
+	if (btrfs_test_opt(fs_info, SKIP_BALANCE)) {
 		btrfs_info(fs_info, "force skipping balance");
 		return 0;
 	}
@@ -6455,7 +6455,8 @@ static int read_one_chunk(struct btrfs_root *root, struct btrfs_key *key,
 				   BTRFS_UUID_SIZE);
 		map->stripes[i].dev = btrfs_find_device(root->fs_info, devid,
 							uuid, NULL);
-		if (!map->stripes[i].dev && !btrfs_test_opt(root, DEGRADED)) {
+		if (!map->stripes[i].dev &&
+		    !btrfs_test_opt(root->fs_info, DEGRADED)) {
 			free_extent_map(em);
 			return -EIO;
 		}
@@ -6523,7 +6524,7 @@ static struct btrfs_fs_devices *open_seed_devices(struct btrfs_root *root,
 
 	fs_devices = find_fsid(fsid);
 	if (!fs_devices) {
-		if (!btrfs_test_opt(root, DEGRADED))
+		if (!btrfs_test_opt(root->fs_info, DEGRADED))
 			return ERR_PTR(-ENOENT);
 
 		fs_devices = alloc_fs_devices(fsid);
@@ -6585,7 +6586,7 @@ static int read_one_dev(struct btrfs_root *root,
 
 	device = btrfs_find_device(root->fs_info, devid, dev_uuid, fs_uuid);
 	if (!device) {
-		if (!btrfs_test_opt(root, DEGRADED))
+		if (!btrfs_test_opt(root->fs_info, DEGRADED))
 			return -EIO;
 
 		device = add_missing_dev(root, fs_devices, devid, dev_uuid);
@@ -6594,7 +6595,7 @@ static int read_one_dev(struct btrfs_root *root,
 		btrfs_warn(root->fs_info, "devid %llu uuid %pU missing",
 				devid, dev_uuid);
 	} else {
-		if (!device->bdev && !btrfs_test_opt(root, DEGRADED))
+		if (!device->bdev && !btrfs_test_opt(root->fs_info, DEGRADED))
 			return -EIO;
 
 		if(!device->bdev && !device->missing) {

@@ -2757,7 +2757,7 @@ int btrfs_sync_log(struct btrfs_trans_handle *trans,
 	while (1) {
 		int batch = atomic_read(&root->log_batch);
 		/* when we're on an ssd, just kick the log commit out */
-		if (!btrfs_test_opt(root, SSD) &&
+		if (!btrfs_test_opt(root->fs_info, SSD) &&
 		    test_bit(BTRFS_ROOT_MULTI_LOG_TASKS, &root->state)) {
 			mutex_unlock(&root->log_mutex);
 			schedule_timeout_uninterruptible(1);
@@ -5305,7 +5305,7 @@ static int btrfs_log_inode_parent(struct btrfs_trans_handle *trans,
 
 	sb = inode->i_sb;
 
-	if (btrfs_test_opt(root, NOTREELOG)) {
+	if (btrfs_test_opt(root->fs_info, NOTREELOG)) {
 		ret = 1;
 		goto end_no_trans;
 	}

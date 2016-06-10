@@ -1301,21 +1301,21 @@ struct btrfs_root {
 #define btrfs_clear_opt(o, opt)		((o) &= ~BTRFS_MOUNT_##opt)
 #define btrfs_set_opt(o, opt)		((o) |= BTRFS_MOUNT_##opt)
 #define btrfs_raw_test_opt(o, opt)	((o) & BTRFS_MOUNT_##opt)
-#define btrfs_test_opt(root, opt)	((root)->fs_info->mount_opt & \
+#define btrfs_test_opt(fs_info, opt)	((fs_info)->mount_opt & \
 					 BTRFS_MOUNT_##opt)
 
-#define btrfs_set_and_info(root, opt, fmt, args...)			\
+#define btrfs_set_and_info(fs_info, opt, fmt, args...)			\
 {									\
-	if (!btrfs_test_opt(root, opt))					\
-		btrfs_info(root->fs_info, fmt, ##args);			\
-	btrfs_set_opt(root->fs_info->mount_opt, opt);			\
+	if (!btrfs_test_opt(fs_info, opt))				\
+		btrfs_info(fs_info, fmt, ##args);			\
+	btrfs_set_opt(fs_info->mount_opt, opt);				\
 }
 
-#define btrfs_clear_and_info(root, opt, fmt, args...)			\
+#define btrfs_clear_and_info(fs_info, opt, fmt, args...)		\
 {									\
-	if (btrfs_test_opt(root, opt))					\
-		btrfs_info(root->fs_info, fmt, ##args);			\
-	btrfs_clear_opt(root->fs_info->mount_opt, opt);			\
+	if (btrfs_test_opt(fs_info, opt))				\
+		btrfs_info(fs_info, fmt, ##args);			\
+	btrfs_clear_opt(fs_info->mount_opt, opt);			\
 }
 
 #ifdef CONFIG_BTRFS_DEBUG
@@ -1323,9 +1323,9 @@ static inline int
 btrfs_should_fragment_free_space(struct btrfs_root *root,
 				 struct btrfs_block_group_cache *block_group)
 {
-	return (btrfs_test_opt(root, FRAGMENT_METADATA) &&
+	return (btrfs_test_opt(root->fs_info, FRAGMENT_METADATA) &&
 		block_group->flags & BTRFS_BLOCK_GROUP_METADATA) ||
-	       (btrfs_test_opt(root, FRAGMENT_DATA) &&
+	       (btrfs_test_opt(root->fs_info, FRAGMENT_DATA) &&
 		block_group->flags &  BTRFS_BLOCK_GROUP_DATA);
 }
 #endif

@@ -142,7 +142,7 @@ no_valid_dev_replace_entry_found:
 		 * missing
 		 */
 		if (!dev_replace->srcdev &&
-		    !btrfs_test_opt(dev_root, DEGRADED)) {
+		    !btrfs_test_opt(dev_root->fs_info, DEGRADED)) {
 			ret = -EIO;
 			btrfs_warn(fs_info,
 			   "cannot mount because device replace operation is ongoing and");
@@ -151,7 +151,7 @@ no_valid_dev_replace_entry_found:
 			   src_devid);
 		}
 		if (!dev_replace->tgtdev &&
-		    !btrfs_test_opt(dev_root, DEGRADED)) {
+		    !btrfs_test_opt(dev_root->fs_info, DEGRADED)) {
 			ret = -EIO;
 			btrfs_warn(fs_info,
 			   "cannot mount because device replace operation is ongoing and");

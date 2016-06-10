@@ -3448,7 +3448,7 @@ again:
 
 	spin_lock(&block_group->lock);
 	if (block_group->cached != BTRFS_CACHE_FINISHED ||
-	    !btrfs_test_opt(root, SPACE_CACHE)) {
+	    !btrfs_test_opt(root->fs_info, SPACE_CACHE)) {
 		/*
 		 * don't bother trying to write stuff out _if_
 		 * a) we're not cached,
@@ -3525,7 +3525,7 @@ int btrfs_setup_space_cache(struct btrfs_trans_handle *trans,
 	struct btrfs_path *path;
 
 	if (list_empty(&cur_trans->dirty_bgs) ||
-	    !btrfs_test_opt(root, SPACE_CACHE))
+	    !btrfs_test_opt(root->fs_info, SPACE_CACHE))
 		return 0;
 
 	path = btrfs_alloc_path();
@@ -4444,7 +4444,7 @@ void check_system_chunk(struct btrfs_trans_handle *trans,
 	thresh = btrfs_calc_trunc_metadata_size(root, num_devs) +
 		btrfs_calc_trans_metadata_size(root, 1);
 
-	if (left < thresh && btrfs_test_opt(root, ENOSPC_DEBUG)) {
+	if (left < thresh && btrfs_test_opt(root->fs_info, ENOSPC_DEBUG)) {
 		btrfs_info(root->fs_info, "left=%llu, need=%llu, flags=%llu",
 			left, thresh, type);
 		dump_space_info(info, 0, 0);
@@ -6216,7 +6216,7 @@ static int update_block_group(struct btrfs_trans_handle *trans,
 		spin_lock(&cache->space_info->lock);
 		spin_lock(&cache->lock);
 
-		if (btrfs_test_opt(root, SPACE_CACHE) &&
+		if (btrfs_test_opt(root->fs_info, SPACE_CACHE) &&
 		    cache->disk_cache_state < BTRFS_DC_CLEAR)
 			cache->disk_cache_state = BTRFS_DC_CLEAR;
 
@@ -6598,7 +6598,7 @@ fetch_cluster_info(struct btrfs_root *root, struct btrfs_space_info *space_info,
 		   u64 *empty_cluster)
 {
 	struct btrfs_free_cluster *ret = NULL;
-	bool ssd = btrfs_test_opt(root, SSD);
+	bool ssd = btrfs_test_opt(root->fs_info, SSD);
 
 	*empty_cluster = 0;
 	if (btrfs_mixed_space_info(space_info))
@@ -6743,7 +6743,7 @@ int btrfs_finish_extent_commit(struct btrfs_trans_handle *trans,
 			break;
 		}
 
-		if (btrfs_test_opt(root, DISCARD))
+		if (btrfs_test_opt(root->fs_info, DISCARD))
 			ret = btrfs_discard_extent(root, start,
 						   end + 1 - start, NULL);
 
@@ -7962,7 +7962,7 @@ again:
 			if (num_bytes == min_alloc_size)
 				final_tried = true;
 			goto again;
-		} else if (btrfs_test_opt(root, ENOSPC_DEBUG)) {
+		} else if (btrfs_test_opt(root->fs_info, ENOSPC_DEBUG)) {
 			struct btrfs_space_info *sinfo;
 
 			sinfo = __find_space_info(root->fs_info, flags);
@@ -7993,7 +7993,7 @@ static int __btrfs_free_reserved_extent(struct btrfs_root *root,
 	if (pin)
 		pin_down_extent(root, cache, start, len, 1);
 	else {
-		if (btrfs_test_opt(root, DISCARD))
+		if (btrfs_test_opt(root->fs_info, DISCARD))
 			ret = btrfs_discard_extent(root, start, len, NULL);
 		btrfs_add_free_space(cache, start, len);
 		btrfs_update_reserved_bytes(cache, len, RESERVE_FREE, delalloc);
@@ -8301,7 +8301,7 @@ again:
 		goto again;
 	}
 
-	if (btrfs_test_opt(root, ENOSPC_DEBUG)) {
+	if (btrfs_test_opt(root->fs_info, ENOSPC_DEBUG)) {
 		static DEFINE_RATELIMIT_STATE(_rs,
 				DEFAULT_RATELIMIT_INTERVAL * 10,
 				/*DEFAULT_RATELIMIT_BURST*/ 1);
@@ -9735,7 +9735,7 @@ int btrfs_can_relocate(struct btrfs_root *root, u64 bytenr)
 	int full = 0;
 	int ret = 0;
 
-	debug = btrfs_test_opt(root, ENOSPC_DEBUG);
+	debug = btrfs_test_opt(root->fs_info, ENOSPC_DEBUG);
 
 	block_group = btrfs_lookup_block_group(root->fs_info, bytenr);
 
@@ -10148,10 +10148,10 @@ int btrfs_read_block_groups(struct btrfs_root *root)
 	path->reada = READA_FORWARD;
 
 	cache_gen = btrfs_super_cache_generation(root->fs_info->super_copy);
-	if (btrfs_test_opt(root, SPACE_CACHE) &&
+	if (btrfs_test_opt(root->fs_info, SPACE_CACHE) &&
 	    btrfs_super_generation(root->fs_info->super_copy) != cache_gen)
 		need_clear = 1;
-	if (btrfs_test_opt(root, CLEAR_CACHE))
+	if (btrfs_test_opt(root->fs_info, CLEAR_CACHE))
 		need_clear = 1;
 
 	while (1) {
@@ -10182,7 +10182,7 @@ int btrfs_read_block_groups(struct btrfs_root *root)
 			 * b) Setting 'dirty flag' makes sure that we flush
 			 *    the new space cache info onto disk.
 			 */
-			if (btrfs_test_opt(root, SPACE_CACHE))
+			if (btrfs_test_opt(root->fs_info, SPACE_CACHE))
 				cache->disk_cache_state = BTRFS_DC_CLEAR;
 		}
 
@@ -10641,7 +10641,7 @@ int btrfs_remove_block_group(struct btrfs_trans_handle *trans,
 	spin_lock(&block_group->space_info->lock);
 	list_del_init(&block_group->ro_list);
 
-	if (btrfs_test_opt(root, ENOSPC_DEBUG)) {
+	if (btrfs_test_opt(root->fs_info, ENOSPC_DEBUG)) {
 		WARN_ON(block_group->space_info->total_bytes
 			< block_group->key.offset);
 		WARN_ON(block_group->space_info->bytes_readonly
@@ -10909,7 +10909,7 @@ void btrfs_delete_unused_bgs(struct btrfs_fs_info *fs_info)
 		spin_unlock(&space_info->lock);
 
 		/* DISCARD can flip during remount */
-		trimming = btrfs_test_opt(root, DISCARD);
+		trimming = btrfs_test_opt(root->fs_info, DISCARD);
 
 		/* Implicit trim during transaction commit. */
 		if (trimming)

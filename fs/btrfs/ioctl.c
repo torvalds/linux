@@ -2406,7 +2406,7 @@ static noinline int btrfs_ioctl_snap_destroy(struct file *file,
 		 * rmdir(2).
 		 */
 		err = -EPERM;
-		if (!btrfs_test_opt(root, USER_SUBVOL_RM_ALLOWED))
+		if (!btrfs_test_opt(root->fs_info, USER_SUBVOL_RM_ALLOWED))
 			goto out_dput;
 
 		/*

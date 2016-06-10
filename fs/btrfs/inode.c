@@ -376,12 +376,12 @@ static inline int inode_need_compress(struct inode *inode)
 	struct btrfs_root *root = BTRFS_I(inode)->root;
 
 	/* force compress */
-	if (btrfs_test_opt(root, FORCE_COMPRESS))
+	if (btrfs_test_opt(root->fs_info, FORCE_COMPRESS))
 		return 1;
 	/* bad compression ratios */
 	if (BTRFS_I(inode)->flags & BTRFS_INODE_NOCOMPRESS)
 		return 0;
-	if (btrfs_test_opt(root, COMPRESS) ||
+	if (btrfs_test_opt(root->fs_info, COMPRESS) ||
 	    BTRFS_I(inode)->flags & BTRFS_INODE_COMPRESS ||
 	    BTRFS_I(inode)->force_compress)
 		return 1;
@@ -622,7 +622,7 @@ cont:
 		nr_pages_ret = 0;
 
 		/* flag the file so we don't compress in the future */
-		if (!btrfs_test_opt(root, FORCE_COMPRESS) &&
+		if (!btrfs_test_opt(root->fs_info, FORCE_COMPRESS) &&
 		    !(BTRFS_I(inode)->force_compress)) {
 			BTRFS_I(inode)->flags |= BTRFS_INODE_NOCOMPRESS;
 		}
@@ -1159,7 +1159,7 @@ static int cow_file_range_async(struct inode *inode, struct page *locked_page,
 		async_cow->start = start;
 
 		if (BTRFS_I(inode)->flags & BTRFS_INODE_NOCOMPRESS &&
-		    !btrfs_test_opt(root, FORCE_COMPRESS))
+		    !btrfs_test_opt(root->fs_info, FORCE_COMPRESS))
 			cur_end = end;
 		else
 			cur_end = min(end, start + SZ_512K - 1);
@@ -6255,9 +6255,9 @@ static struct inode *btrfs_new_inode(struct btrfs_trans_handle *trans,
 	btrfs_inherit_iflags(inode, dir);
 
 	if (S_ISREG(mode)) {
-		if (btrfs_test_opt(root, NODATASUM))
+		if (btrfs_test_opt(root->fs_info, NODATASUM))
 			BTRFS_I(inode)->flags |= BTRFS_INODE_NODATASUM;
-		if (btrfs_test_opt(root, NODATACOW))
+		if (btrfs_test_opt(root->fs_info, NODATACOW))
 			BTRFS_I(inode)->flags |= BTRFS_INODE_NODATACOW |
 				BTRFS_INODE_NODATASUM;
 	}

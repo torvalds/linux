@@ -1709,7 +1709,7 @@ static void update_super_roots(struct btrfs_root *root)
 	super->root = root_item->bytenr;
 	super->generation = root_item->generation;
 	super->root_level = root_item->level;
-	if (btrfs_test_opt(root, SPACE_CACHE))
+	if (btrfs_test_opt(root->fs_info, SPACE_CACHE))
 		super->cache_generation = root_item->generation;
 	if (root->fs_info->update_uuid_tree_gen)
 		super->uuid_tree_generation = root_item->generation;
@@ -1895,14 +1895,14 @@ static void cleanup_transaction(struct btrfs_trans_handle *trans,
 
 static inline int btrfs_start_delalloc_flush(struct btrfs_fs_info *fs_info)
 {
-	if (btrfs_test_opt(fs_info->tree_root, FLUSHONCOMMIT))
+	if (btrfs_test_opt(fs_info, FLUSHONCOMMIT))
 		return btrfs_start_delalloc_roots(fs_info, 1, -1);
 	return 0;
 }
 
 static inline void btrfs_wait_delalloc_flush(struct btrfs_fs_info *fs_info)
 {
-	if (btrfs_test_opt(fs_info->tree_root, FLUSHONCOMMIT))
+	if (btrfs_test_opt(fs_info, FLUSHONCOMMIT))
 		btrfs_wait_ordered_roots(fs_info, -1, 0, (u64)-1);
 }
 
