@@ -43,10 +43,15 @@ new interfaces to verify the compatibility. There is no  need  to
 reload the module if you plug your USB wifi adapter into your ma-
 chine after batman advanced was initially loaded.
 
-To activate a  given  interface  simply  write  "bat0"  into  its
-"mesh_iface" file inside the batman_adv subfolder:
+The batman-adv soft-interface can be created using  the  iproute2
+tool "ip"
 
-# echo bat0 > /sys/class/net/eth0/batman_adv/mesh_iface
+# ip link add name bat0 type batadv
+
+To  activate a  given  interface  simply  attach it to the "bat0"
+interface
+
+# ip link set dev eth0 master bat0
 
 Repeat  this step for all interfaces you wish to add.  Now batman
 starts using/broadcasting on this/these interface(s).
@@ -56,10 +61,10 @@ By reading the "iface_status" file you can check its status:
 # cat /sys/class/net/eth0/batman_adv/iface_status
 # active
 
-To deactivate an interface you have  to  write  "none"  into  its
-"mesh_iface" file:
+To  deactivate  an  interface  you  have   to  detach it from the
+"bat0" interface:
 
-# echo none > /sys/class/net/eth0/batman_adv/mesh_iface
+# ip link set dev eth0 nomaster
 
 
 All  mesh  wide  settings  can be found in batman's own interface
