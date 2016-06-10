@@ -49,7 +49,7 @@ static inline void diag10_range(unsigned long start_pfn, unsigned long num_pfn)
 	diag_stat_inc(DIAG_STAT_X010);
 	asm volatile(
 		"0:	diag	%0,%1,0x10\n"
-		"1:\n"
+		"1:	nopr	%%r7\n"
 		EX_TABLE(0b, 1b)
 		EX_TABLE(1b, 1b)
 		: : "a" (start_addr), "a" (end_addr));

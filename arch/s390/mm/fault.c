@@ -624,7 +624,7 @@ void pfault_fini(void)
 	diag_stat_inc(DIAG_STAT_X258);
 	asm volatile(
 		"	diag	%0,0,0x258\n"
-		"0:\n"
+		"0:	nopr	%%r7\n"
 		EX_TABLE(0b,0b)
 		: : "a" (&refbk), "m" (refbk) : "cc");
 }

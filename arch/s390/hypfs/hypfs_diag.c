@@ -344,7 +344,7 @@ static inline int __diag204(unsigned long subcode, unsigned long size, void *add
 
 	asm volatile(
 		"	diag	%2,%0,0x204\n"
-		"0:\n"
+		"0:	nopr	%%r7\n"
 		EX_TABLE(0b,0b)
 		: "+d" (_subcode), "+d" (_size) : "d" (addr) : "memory");
 	if (_subcode)

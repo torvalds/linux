@@ -174,7 +174,7 @@ static inline int __diag308(unsigned long subcode, void *addr)
 
 	asm volatile(
 		"	diag	%0,%2,0x308\n"
-		"0:\n"
+		"0:	nopr	%%r7\n"
 		EX_TABLE(0b,0b)
 		: "+d" (_addr), "+d" (_rc)
 		: "d" (subcode) : "cc", "memory");
