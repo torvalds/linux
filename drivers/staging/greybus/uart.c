@@ -969,6 +969,7 @@ static void gb_uart_remove(struct gbphy_device *gbphy_dev)
 	gb_connection_disable(connection);
 	tty_port_destroy(&gb_tty->port);
 	gb_connection_destroy(connection);
+	release_minor(gb_tty);
 	kfifo_free(&gb_tty->write_fifo);
 	kfree(gb_tty->buffer);
 	kfree(gb_tty);
