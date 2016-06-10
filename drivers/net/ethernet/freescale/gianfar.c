@@ -2440,7 +2440,8 @@ static int gfar_start_xmit(struct sk_buff *skb, struct net_device *dev)
 						 tx_queue->tx_ring_size);
 
 	if (likely(!nr_frags)) {
-		lstatus |= BD_LFLAG(TXBD_LAST | TXBD_INTERRUPT);
+		if (likely(!do_tstamp))
+			lstatus |= BD_LFLAG(TXBD_LAST | TXBD_INTERRUPT);
 	} else {
 		u32 lstatus_start = lstatus;
 

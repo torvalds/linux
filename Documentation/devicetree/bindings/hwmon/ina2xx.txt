@@ -7,6 +7,7 @@ Required properties:
 	- "ti,ina220" for ina220
 	- "ti,ina226" for ina226
 	- "ti,ina230" for ina230
+	- "ti,ina231" for ina231
 - reg: I2C address
 
 Optional properties:
