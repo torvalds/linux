@@ -889,7 +889,6 @@ static struct sk_buff *htb_dequeue(struct Qdisc *sch)
 	if (skb != NULL) {
 ok:
 		qdisc_bstats_update(sch, skb);
-		qdisc_unthrottled(sch);
 		qdisc_qstats_backlog_dec(sch, skb);
 		sch->q.qlen--;
 		return skb;
@@ -929,7 +928,7 @@ ok:
 	}
 	qdisc_qstats_overlimit(sch);
 	if (likely(next_event > q->now))
-		qdisc_watchdog_schedule_ns(&q->watchdog, next_event, true);
+		qdisc_watchdog_schedule_ns(&q->watchdog, next_event);
 	else
 		schedule_work(&q->work);
 fin:

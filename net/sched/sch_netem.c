@@ -587,7 +587,6 @@ tfifo_dequeue:
 	if (skb) {
 		qdisc_qstats_backlog_dec(sch, skb);
 deliver:
-		qdisc_unthrottled(sch);
 		qdisc_bstats_update(sch, skb);
 		return skb;
 	}
