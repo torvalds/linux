@@ -704,6 +704,20 @@ static inline int mtk_cal_txd_req(struct sk_buff *skb)
 	return nfrags;
 }
 
+static int mtk_queue_stopped(struct mtk_eth *eth)
+{
+	int i;
+
+	for (i = 0; i < MTK_MAC_COUNT; i++) {
+		if (!eth->netdev[i])
+			continue;
+		if (netif_queue_stopped(eth->netdev[i]))
+			return 1;
+	}
+
+	return 0;
+}
+
 static void mtk_wake_queue(struct mtk_eth *eth)
 {
 	int i;
@@ -950,7 +964,8 @@ static int mtk_poll_tx(struct mtk_eth *eth, int budget, bool *tx_again)
 	if (!total)
 		return 0;
 
-	if (atomic_read(&ring->free_count) > ring->thresh)
+	if (mtk_queue_stopped(eth) &&
+	    (atomic_read(&ring->free_count) > ring->thresh))
 		mtk_wake_queue(eth);
 
 	return total;
