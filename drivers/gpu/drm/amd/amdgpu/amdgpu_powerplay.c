@@ -218,9 +218,9 @@ static int amdgpu_pp_hw_fini(void *handle)
 
 static void amdgpu_pp_late_fini(void *handle)
 {
+#ifdef CONFIG_DRM_AMD_POWERPLAY
 	struct amdgpu_device *adev = (struct amdgpu_device *)handle;
 
-#ifdef CONFIG_DRM_AMD_POWERPLAY
 	if (adev->pp_enabled) {
 		amdgpu_pm_sysfs_fini(adev);
 		amd_powerplay_fini(adev->powerplay.pp_handle);
