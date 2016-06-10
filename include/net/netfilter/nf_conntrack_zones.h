@@ -68,22 +68,34 @@ static inline bool nf_ct_zone_matches_dir(const struct nf_conntrack_zone *zone,
 static inline u16 nf_ct_zone_id(const struct nf_conntrack_zone *zone,
 				enum ip_conntrack_dir dir)
 {
+#ifdef CONFIG_NF_CONNTRACK_ZONES
 	return nf_ct_zone_matches_dir(zone, dir) ?
 	       zone->id : NF_CT_DEFAULT_ZONE_ID;
+#else
+	return NF_CT_DEFAULT_ZONE_ID;
+#endif
 }
 
 static inline bool nf_ct_zone_equal(const struct nf_conn *a,
 				    const struct nf_conntrack_zone *b,
 				    enum ip_conntrack_dir dir)
 {
+#ifdef CONFIG_NF_CONNTRACK_ZONES
 	return nf_ct_zone_id(nf_ct_zone(a), dir) ==
 	       nf_ct_zone_id(b, dir);
+#else
+	return true;
+#endif
 }
 
 static inline bool nf_ct_zone_equal_any(const struct nf_conn *a,
 					const struct nf_conntrack_zone *b)
 {
+#ifdef CONFIG_NF_CONNTRACK_ZONES
 	return nf_ct_zone(a)->id == b->id;
+#else
+	return true;
+#endif
 }
 #endif /* IS_ENABLED(CONFIG_NF_CONNTRACK) */
 #endif /* _NF_CONNTRACK_ZONES_H */
