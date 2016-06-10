@@ -69,6 +69,12 @@ struct b53_port {
 	struct net_device *bridge_dev;
 };
 
+struct b53_vlan {
+	u16 members;
+	u16 untag;
+	bool valid;
+};
+
 struct b53_device {
 	struct dsa_switch *ds;
 	struct b53_platform_data *pdata;
@@ -99,14 +105,13 @@ struct b53_device {
 	/* Master MDIO bus we got probed from */
 	struct mii_bus *bus;
 
-	/* Slave MDIO bus we created */
-	struct mii_bus *slave_bus;
 	void *priv;
 
 	/* run time configuration */
-	unsigned enable_jumbo:1;
-	unsigned allow_vid_4095:1;
+	bool enable_jumbo;
+
 	unsigned int num_vlans;
+	struct b53_vlan *vlans;
 	unsigned int num_ports;
 	struct b53_port *ports;
 };
