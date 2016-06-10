@@ -18,9 +18,8 @@
 #include <linux/module.h>
 #include <linux/of_address.h>
 #include <linux/of_pci.h>
+#include <linux/pci-ecam.h>
 #include <linux/platform_device.h>
-
-#include "../ecam.h"
 
 #define PEM_CFG_WR 0x28
 #define PEM_CFG_RD 0x30

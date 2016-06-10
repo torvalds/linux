@@ -11,9 +11,8 @@
 #include <linux/ioport.h>
 #include <linux/of_pci.h>
 #include <linux/of.h>
+#include <linux/pci-ecam.h>
 #include <linux/platform_device.h>
-
-#include "../ecam.h"
 
 static void set_val(u32 v, int where, int size, u32 *val)
 {

@@ -19,9 +19,8 @@
 #include <linux/kernel.h>
 #include <linux/module.h>
 #include <linux/pci.h>
+#include <linux/pci-ecam.h>
 #include <linux/slab.h>
-
-#include "ecam.h"
 
 /*
  * On 64-bit systems, we do a single ioremap for the whole config space
