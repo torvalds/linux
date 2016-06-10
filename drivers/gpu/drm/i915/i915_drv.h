@@ -3118,6 +3118,23 @@ static inline int __sg_page_count(struct scatterlist *sg)
 struct page *
 i915_gem_object_get_dirty_page(struct drm_i915_gem_object *obj, int n);
 
+static inline dma_addr_t
+i915_gem_object_get_dma_address(struct drm_i915_gem_object *obj, int n)
+{
+	if (n < obj->get_page.last) {
+		obj->get_page.sg = obj->pages->sgl;
+		obj->get_page.last = 0;
+	}
+
+	while (obj->get_page.last + __sg_page_count(obj->get_page.sg) <= n) {
+		obj->get_page.last += __sg_page_count(obj->get_page.sg++);
+		if (unlikely(sg_is_chain(obj->get_page.sg)))
+			obj->get_page.sg = sg_chain_ptr(obj->get_page.sg);
+	}
+
+	return sg_dma_address(obj->get_page.sg) + ((n - obj->get_page.last) << PAGE_SHIFT);
+}
+
 static inline struct page *
 i915_gem_object_get_page(struct drm_i915_gem_object *obj, int n)
 {
