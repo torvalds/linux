@@ -1120,7 +1120,8 @@ static void osc_lock_set_writer(const struct lu_env *env,
 		}
 	} else {
 		LASSERT(cl_io_is_mkwrite(io));
-		io_start = io_end = io->u.ci_fault.ft_index;
+		io_start = io->u.ci_fault.ft_index;
+		io_end = io->u.ci_fault.ft_index;
 	}
 
 	if (descr->cld_mode >= CLM_WRITE &&

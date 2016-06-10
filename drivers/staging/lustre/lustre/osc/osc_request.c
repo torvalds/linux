@@ -474,7 +474,8 @@ static int osc_real_create(struct obd_export *exp, struct obdo *oa,
 		DEBUG_REQ(D_HA, req,
 			  "delorphan from OST integration");
 		/* Don't resend the delorphan req */
-		req->rq_no_resend = req->rq_no_delay = 1;
+		req->rq_no_resend = 1;
+		req->rq_no_delay = 1;
 	}
 
 	rc = ptlrpc_queue_wait(req);
@@ -2775,7 +2776,8 @@ static int osc_get_info(const struct lu_env *env, struct obd_export *exp,
 		tmp = req_capsule_client_get(&req->rq_pill, &RMF_SETINFO_KEY);
 		memcpy(tmp, key, keylen);
 
-		req->rq_no_delay = req->rq_no_resend = 1;
+		req->rq_no_delay = 1;
+		req->rq_no_resend = 1;
 		ptlrpc_request_set_replen(req);
 		rc = ptlrpc_queue_wait(req);
 		if (rc)
