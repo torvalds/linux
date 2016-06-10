@@ -1011,9 +1011,11 @@ static int ldlm_setup(void)
 		blp->blp_min_threads = LDLM_NTHRS_INIT;
 		blp->blp_max_threads = LDLM_NTHRS_MAX;
 	} else {
-		blp->blp_min_threads = blp->blp_max_threads =
-			min_t(int, LDLM_NTHRS_MAX, max_t(int, LDLM_NTHRS_INIT,
-							 ldlm_num_threads));
+		blp->blp_min_threads = min_t(int, LDLM_NTHRS_MAX,
+					     max_t(int, LDLM_NTHRS_INIT,
+						   ldlm_num_threads));
+
+		blp->blp_max_threads = blp->blp_min_threads;
 	}
 
 	for (i = 0; i < blp->blp_min_threads; i++) {
