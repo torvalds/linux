@@ -1033,8 +1033,7 @@ static int mtk_tx_alloc(struct mtk_eth *eth)
 	atomic_set(&ring->free_count, MTK_DMA_SIZE - 2);
 	ring->next_free = &ring->dma[0];
 	ring->last_free = &ring->dma[MTK_DMA_SIZE - 2];
-	ring->thresh = max((unsigned long)MTK_DMA_SIZE >> 2,
-			      MAX_SKB_FRAGS);
+	ring->thresh = MAX_SKB_FRAGS;
 
 	/* make sure that all changes to the dma ring are flushed before we
 	 * continue
