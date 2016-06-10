@@ -164,6 +164,9 @@ static int omap_plane_atomic_check(struct drm_plane *plane,
 	if (IS_ERR(crtc_state))
 		return PTR_ERR(crtc_state);
 
+	if (!crtc_state->enable)
+		return 0;
+
 	if (state->crtc_x < 0 || state->crtc_y < 0)
 		return -EINVAL;
 
