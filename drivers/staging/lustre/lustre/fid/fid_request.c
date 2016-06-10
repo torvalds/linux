@@ -98,8 +98,10 @@ static int seq_client_rpc(struct lu_client_seq *seq,
 		 * request here, otherwise if MDT0 is failed(umounted),
 		 * it can not release the export of MDT0
 		 */
-		if (seq->lcs_type == LUSTRE_SEQ_DATA)
-			req->rq_no_delay = req->rq_no_resend = 1;
+		if (seq->lcs_type == LUSTRE_SEQ_DATA) {
+			req->rq_no_delay = 1;
+			req->rq_no_resend = 1;
+		}
 		debug_mask = D_CONSOLE;
 	} else {
 		if (seq->lcs_type == LUSTRE_SEQ_METADATA) {
