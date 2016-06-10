@@ -1357,6 +1357,9 @@ extern bool vmbus_prep_negotiate_resp(struct icmsg_hdr *,
 					struct icmsg_negotiate *, u8 *, int,
 					int);
 
+void hv_event_tasklet_disable(struct vmbus_channel *channel);
+void hv_event_tasklet_enable(struct vmbus_channel *channel);
+
 void hv_process_channel_removal(struct vmbus_channel *channel, u32 relid);
 
 /*
