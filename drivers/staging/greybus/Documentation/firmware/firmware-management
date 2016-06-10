@@ -185,6 +185,6 @@ mtd0    mtd0ro
 Sample Application
 ------------------
 
-The current directly also provides a firmware.c test application, which can be
+The current directory also provides a firmware.c test application, which can be
 referenced while developing userspace application to talk to firmware-management
 protocol.
