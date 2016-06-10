@@ -965,14 +965,17 @@ static int dwc3_probe(struct platform_device *pdev)
 	pm_runtime_use_autosuspend(dev);
 	pm_runtime_set_autosuspend_delay(dev, DWC3_DEFAULT_AUTOSUSPEND_DELAY);
 	pm_runtime_enable(dev);
-	pm_runtime_get_sync(dev);
+	ret = pm_runtime_get_sync(dev);
+	if (ret < 0)
+		goto err1;
+
 	pm_runtime_forbid(dev);
 
 	ret = dwc3_alloc_event_buffers(dwc, DWC3_EVENT_BUFFERS_SIZE);
 	if (ret) {
 		dev_err(dwc->dev, "failed to allocate event buffers\n");
 		ret = -ENOMEM;
-		goto err0;
+		goto err2;
 	}
 
 	if (IS_ENABLED(CONFIG_USB_DWC3_HOST) &&
@@ -989,12 +992,12 @@ static int dwc3_probe(struct platform_device *pdev)
 
 	ret = dwc3_alloc_scratch_buffers(dwc);
 	if (ret)
-		goto err1;
+		goto err3;
 
 	ret = dwc3_core_init(dwc);
 	if (ret) {
 		dev_err(dev, "failed to initialize core\n");
-		goto err2;
+		goto err4;
 	}
 
 	/* Check the maximum_speed parameter */
@@ -1026,22 +1029,29 @@ static int dwc3_probe(struct platform_device *pdev)
 
 	ret = dwc3_core_init_mode(dwc);
 	if (ret)
-		goto err3;
+		goto err5;
 
 	dwc3_debugfs_init(dwc);
 	pm_runtime_put(dev);
 
 	return 0;
 
-err3:
+err5:
 	dwc3_event_buffers_cleanup(dwc);
 
-err2:
+err4:
 	dwc3_free_scratch_buffers(dwc);
 
-err1:
+err3:
 	dwc3_free_event_buffers(dwc);
 	dwc3_ulpi_exit(dwc);
+
+err2:
+	pm_runtime_allow(&pdev->dev);
+
+err1:
+	pm_runtime_put_sync(&pdev->dev);
+	pm_runtime_disable(&pdev->dev);
 
 err0:
 	/*
