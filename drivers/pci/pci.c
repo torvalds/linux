@@ -4941,7 +4941,7 @@ int pci_get_new_domain_nr(void)
 }
 
 #ifdef CONFIG_PCI_DOMAINS_GENERIC
-int pci_bus_find_domain_nr(struct pci_bus *bus, struct device *parent)
+static int of_pci_bus_find_domain_nr(struct device *parent)
 {
 	static int use_dt_domains = -1;
 	int domain = -1;
@@ -4986,6 +4986,11 @@ int pci_bus_find_domain_nr(struct pci_bus *bus, struct device *parent)
 	}
 
 	return domain;
+}
+
+int pci_bus_find_domain_nr(struct pci_bus *bus, struct device *parent)
+{
+	return of_pci_bus_find_domain_nr(parent);
 }
 #endif
 #endif
