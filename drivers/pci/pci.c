@@ -7,6 +7,7 @@
  *	Copyright 1997 -- 2000 Martin Mares <mj@ucw.cz>
  */
 
+#include <linux/acpi.h>
 #include <linux/kernel.h>
 #include <linux/delay.h>
 #include <linux/init.h>
@@ -4990,7 +4991,8 @@ static int of_pci_bus_find_domain_nr(struct device *parent)
 
 int pci_bus_find_domain_nr(struct pci_bus *bus, struct device *parent)
 {
-	return of_pci_bus_find_domain_nr(parent);
+	return acpi_disabled ? of_pci_bus_find_domain_nr(parent) :
+			       acpi_pci_bus_find_domain_nr(bus);
 }
 #endif
 #endif
