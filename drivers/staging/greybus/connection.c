@@ -21,8 +21,7 @@ static DEFINE_MUTEX(gb_connection_mutex);
 
 
 /* Caller holds gb_connection_mutex. */
-static struct gb_connection *
-gb_connection_intf_find(struct gb_interface *intf, u16 cport_id)
+static bool gb_connection_cport_in_use(struct gb_interface *intf, u16 cport_id)
 {
 	struct gb_host_device *hd = intf->hd;
 	struct gb_connection *connection;
@@ -30,10 +29,10 @@ gb_connection_intf_find(struct gb_interface *intf, u16 cport_id)
 	list_for_each_entry(connection, &hd->connections, hd_links) {
 		if (connection->intf == intf &&
 				connection->intf_cport_id == cport_id)
-			return connection;
+			return true;
 	}
 
-	return NULL;
+	return false;
 }
 
 static void gb_connection_get(struct gb_connection *connection)
@@ -155,7 +154,7 @@ _gb_connection_create(struct gb_host_device *hd, int hd_cport_id,
 
 	mutex_lock(&gb_connection_mutex);
 
-	if (intf && gb_connection_intf_find(intf, cport_id)) {
+	if (intf && gb_connection_cport_in_use(intf, cport_id)) {
 		dev_err(&intf->dev, "cport %u already in use\n", cport_id);
 		ret = -EBUSY;
 		goto err_unlock;
