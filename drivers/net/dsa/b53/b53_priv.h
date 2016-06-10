@@ -24,6 +24,8 @@
 #include <linux/phy.h>
 #include <net/dsa.h>
 
+#include "b53_regs.h"
+
 struct b53_device;
 
 struct b53_io_ops {
@@ -81,6 +83,7 @@ struct b53_device {
 	u8 jumbo_pm_reg;
 	u8 jumbo_size_reg;
 	int reset_gpio;
+	u8 num_arl_entries;
 
 	/* used ports mask */
 	u16 enabled_ports;
@@ -294,6 +297,60 @@ static inline int b53_write64(struct b53_device *dev, u8 page, u8 reg,
 	mutex_unlock(&dev->reg_mutex);
 
 	return ret;
+}
+
+struct b53_arl_entry {
+	u8 port;
+	u8 mac[ETH_ALEN];
+	u16 vid;
+	u8 is_valid:1;
+	u8 is_age:1;
+	u8 is_static:1;
+};
+
+static inline void b53_mac_from_u64(u64 src, u8 *dst)
+{
+	unsigned int i;
+
+	for (i = 0; i < ETH_ALEN; i++)
+		dst[ETH_ALEN - 1 - i] = (src >> (8 * i)) & 0xff;
+}
+
+static inline u64 b53_mac_to_u64(const u8 *src)
+{
+	unsigned int i;
+	u64 dst = 0;
+
+	for (i = 0; i < ETH_ALEN; i++)
+		dst |= (u64)src[ETH_ALEN - 1 - i] << (8 * i);
+
+	return dst;
+}
+
+static inline void b53_arl_to_entry(struct b53_arl_entry *ent,
+				    u64 mac_vid, u32 fwd_entry)
+{
+	memset(ent, 0, sizeof(*ent));
+	ent->port = fwd_entry & ARLTBL_DATA_PORT_ID_MASK;
+	ent->is_valid = !!(fwd_entry & ARLTBL_VALID);
+	ent->is_age = !!(fwd_entry & ARLTBL_AGE);
+	ent->is_static = !!(fwd_entry & ARLTBL_STATIC);
+	b53_mac_from_u64(mac_vid, ent->mac);
+	ent->vid = mac_vid >> ARLTBL_VID_S;
+}
+
+static inline void b53_arl_from_entry(u64 *mac_vid, u32 *fwd_entry,
+				      const struct b53_arl_entry *ent)
+{
+	*mac_vid = b53_mac_to_u64(ent->mac);
+	*mac_vid |= (u64)(ent->vid & ARLTBL_VID_MASK) << ARLTBL_VID_S;
+	*fwd_entry = ent->port & ARLTBL_DATA_PORT_ID_MASK;
+	if (ent->is_valid)
+		*fwd_entry |= ARLTBL_VALID;
+	if (ent->is_static)
+		*fwd_entry |= ARLTBL_STATIC;
+	if (ent->is_age)
+		*fwd_entry |= ARLTBL_AGE;
 }
 
 #ifdef CONFIG_BCM47XX
