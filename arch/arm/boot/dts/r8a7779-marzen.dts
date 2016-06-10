@@ -195,12 +195,12 @@
 		};
 	};
 
-	scif2_pins: serial2 {
+	scif2_pins: scif2 {
 		groups = "scif2_data_c";
 		function = "scif2";
 	};
 
-	scif4_pins: serial4 {
+	scif4_pins: scif4 {
 		groups = "scif4_data";
 		function = "scif4";
 	};
