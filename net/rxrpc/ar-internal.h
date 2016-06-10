@@ -641,6 +641,7 @@ extern const struct rxrpc_security rxrpc_no_security;
 /*
  * misc.c
  */
+extern unsigned int rxrpc_max_backlog __read_mostly;
 extern unsigned int rxrpc_requested_ack_delay;
 extern unsigned int rxrpc_soft_ack_delay;
 extern unsigned int rxrpc_idle_ack_delay;

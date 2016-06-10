@@ -33,8 +33,6 @@ unsigned int rxrpc_debug; // = RXRPC_DEBUG_KPROTO;
 module_param_named(debug, rxrpc_debug, uint, S_IWUSR | S_IRUGO);
 MODULE_PARM_DESC(debug, "RxRPC debugging mask");
 
-static int sysctl_rxrpc_max_qlen __read_mostly = 10;
-
 static struct proto rxrpc_proto;
 static const struct proto_ops rxrpc_rpc_ops;
 
@@ -191,6 +189,7 @@ static int rxrpc_listen(struct socket *sock, int backlog)
 {
 	struct sock *sk = sock->sk;
 	struct rxrpc_sock *rx = rxrpc_sk(sk);
+	unsigned int max;
 	int ret;
 
 	_enter("%p,%d", rx, backlog);
@@ -201,16 +200,20 @@ static int rxrpc_listen(struct socket *sock, int backlog)
 	case RXRPC_UNBOUND:
 		ret = -EADDRNOTAVAIL;
 		break;
-	case RXRPC_CLIENT_UNBOUND:
-	case RXRPC_CLIENT_BOUND:
-	default:
-		ret = -EBUSY;
-		break;
 	case RXRPC_SERVER_BOUND:
 		ASSERT(rx->local != NULL);
+		max = READ_ONCE(rxrpc_max_backlog);
+		ret = -EINVAL;
+		if (backlog == INT_MAX)
+			backlog = max;
+		else if (backlog < 0 || backlog > max)
+			break;
 		sk->sk_max_ack_backlog = backlog;
 		rx->sk.sk_state = RXRPC_SERVER_LISTENING;
 		ret = 0;
+		break;
+	default:
+		ret = -EBUSY;
 		break;
 	}
 
@@ -591,7 +594,7 @@ static int rxrpc_create(struct net *net, struct socket *sock, int protocol,
 	sock_init_data(sock, sk);
 	sk->sk_state		= RXRPC_UNBOUND;
 	sk->sk_write_space	= rxrpc_write_space;
-	sk->sk_max_ack_backlog	= sysctl_rxrpc_max_qlen;
+	sk->sk_max_ack_backlog	= 0;
 	sk->sk_destruct		= rxrpc_sock_destructor;
 
 	rx = rxrpc_sk(sk);
