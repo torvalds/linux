@@ -350,6 +350,7 @@ int btrfs_subvol_inherit_props(struct btrfs_trans_handle *trans,
 			       struct btrfs_root *root,
 			       struct btrfs_root *parent_root)
 {
+	struct super_block *sb = root->fs_info->sb;
 	struct btrfs_key key;
 	struct inode *parent_inode, *child_inode;
 	int ret;
@@ -358,12 +359,11 @@ int btrfs_subvol_inherit_props(struct btrfs_trans_handle *trans,
 	key.type = BTRFS_INODE_ITEM_KEY;
 	key.offset = 0;
 
-	parent_inode = btrfs_iget(parent_root->fs_info->sb, &key,
-				  parent_root, NULL);
+	parent_inode = btrfs_iget(sb, &key, parent_root, NULL);
 	if (IS_ERR(parent_inode))
 		return PTR_ERR(parent_inode);
 
-	child_inode = btrfs_iget(root->fs_info->sb, &key, root, NULL);
+	child_inode = btrfs_iget(sb, &key, root, NULL);
 	if (IS_ERR(child_inode)) {
 		iput(parent_inode);
 		return PTR_ERR(child_inode);
