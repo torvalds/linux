@@ -28,4 +28,6 @@ config NET_DSA_BCM_SF2
 	  This enables support for the Broadcom Starfighter 2 Ethernet
 	  switch chips.
 
+source "drivers/net/dsa/b53/Kconfig"
+
 endmenu
