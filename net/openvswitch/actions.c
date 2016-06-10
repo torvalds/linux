@@ -750,6 +750,14 @@ static void do_output(struct datapath *dp, struct sk_buff *skb, int out_port,
 
 	if (likely(vport)) {
 		u16 mru = OVS_CB(skb)->mru;
+		u32 cutlen = OVS_CB(skb)->cutlen;
+
+		if (unlikely(cutlen > 0)) {
+			if (skb->len - cutlen > ETH_HLEN)
+				pskb_trim(skb, skb->len - cutlen);
+			else
+				pskb_trim(skb, ETH_HLEN);
+		}
 
 		if (likely(!mru || (skb->len <= mru + ETH_HLEN))) {
 			ovs_vport_send(vport, skb);
@@ -775,7 +783,8 @@ static void do_output(struct datapath *dp, struct sk_buff *skb, int out_port,
 
 static int output_userspace(struct datapath *dp, struct sk_buff *skb,
 			    struct sw_flow_key *key, const struct nlattr *attr,
-			    const struct nlattr *actions, int actions_len)
+			    const struct nlattr *actions, int actions_len,
+			    uint32_t cutlen)
 {
 	struct dp_upcall_info upcall;
 	const struct nlattr *a;
@@ -822,7 +831,7 @@ static int output_userspace(struct datapath *dp, struct sk_buff *skb,
 		} /* End of switch. */
 	}
 
-	return ovs_dp_upcall(dp, skb, key, &upcall);
+	return ovs_dp_upcall(dp, skb, key, &upcall, cutlen);
 }
 
 static int sample(struct datapath *dp, struct sk_buff *skb,
@@ -832,6 +841,7 @@ static int sample(struct datapath *dp, struct sk_buff *skb,
 	const struct nlattr *acts_list = NULL;
 	const struct nlattr *a;
 	int rem;
+	u32 cutlen = 0;
 
 	for (a = nla_data(attr), rem = nla_len(attr); rem > 0;
 		 a = nla_next(a, &rem)) {
@@ -858,13 +868,24 @@ static int sample(struct datapath *dp, struct sk_buff *skb,
 		return 0;
 
 	/* The only known usage of sample action is having a single user-space
+	 * action, or having a truncate action followed by a single user-space
 	 * action. Treat this usage as a special case.
 	 * The output_userspace() should clone the skb to be sent to the
 	 * user space. This skb will be consumed by its caller.
 	 */
+	if (unlikely(nla_type(a) == OVS_ACTION_ATTR_TRUNC)) {
+		struct ovs_action_trunc *trunc = nla_data(a);
+
+		if (skb->len > trunc->max_len)
+			cutlen = skb->len - trunc->max_len;
+
+		a = nla_next(a, &rem);
+	}
+
 	if (likely(nla_type(a) == OVS_ACTION_ATTR_USERSPACE &&
 		   nla_is_last(a, rem)))
-		return output_userspace(dp, skb, key, a, actions, actions_len);
+		return output_userspace(dp, skb, key, a, actions,
+					actions_len, cutlen);
 
 	skb = skb_clone(skb, GFP_ATOMIC);
 	if (!skb)
@@ -1051,6 +1072,7 @@ static int do_execute_actions(struct datapath *dp, struct sk_buff *skb,
 			if (out_skb)
 				do_output(dp, out_skb, prev_port, key);
 
+			OVS_CB(skb)->cutlen = 0;
 			prev_port = -1;
 		}
 
@@ -1059,8 +1081,18 @@ static int do_execute_actions(struct datapath *dp, struct sk_buff *skb,
 			prev_port = nla_get_u32(a);
 			break;
 
+		case OVS_ACTION_ATTR_TRUNC: {
+			struct ovs_action_trunc *trunc = nla_data(a);
+
+			if (skb->len > trunc->max_len)
+				OVS_CB(skb)->cutlen = skb->len - trunc->max_len;
+			break;
+		}
+
 		case OVS_ACTION_ATTR_USERSPACE:
-			output_userspace(dp, skb, key, a, attr, len);
+			output_userspace(dp, skb, key, a, attr,
+						     len, OVS_CB(skb)->cutlen);
+			OVS_CB(skb)->cutlen = 0;
 			break;
 
 		case OVS_ACTION_ATTR_HASH:
