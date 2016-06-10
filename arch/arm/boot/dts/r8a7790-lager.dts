@@ -371,12 +371,12 @@
 		function = "mmc1";
 	};
 
-	qspi_pins: spi0 {
+	qspi_pins: qspi {
 		groups = "qspi_ctrl", "qspi_data4";
 		function = "qspi";
 	};
 
-	msiof1_pins: spi2 {
+	msiof1_pins: msiof1 {
 		groups = "msiof1_clk", "msiof1_sync", "msiof1_rx",
 				 "msiof1_tx";
 		function = "msiof1";
