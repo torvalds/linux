@@ -345,7 +345,7 @@ cbq_mark_toplevel(struct cbq_sched_data *q, struct cbq_class *cl)
 {
 	int toplevel = q->toplevel;
 
-	if (toplevel > cl->level && !(qdisc_is_throttled(cl->q))) {
+	if (toplevel > cl->level) {
 		psched_time_t now = psched_get_time();
 
 		do {
