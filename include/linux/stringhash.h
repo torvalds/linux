@@ -3,6 +3,7 @@
 
 #include <linux/compiler.h>	/* For __pure */
 #include <linux/types.h>	/* For u32, u64 */
+#include <linux/hash.h>
 
 /*
  * Routines for hashing strings of bytes to a 32-bit hash value.
@@ -45,11 +46,12 @@ partial_name_hash(unsigned long c, unsigned long prevhash)
 
 /*
  * Finally: cut down the number of bits to a int value (and try to avoid
- * losing bits)
+ * losing bits).  This also has the property (wanted by the dcache)
+ * that the msbits make a good hash table index.
  */
 static inline unsigned long end_name_hash(unsigned long hash)
 {
-	return (unsigned int)hash;
+	return __hash_32((unsigned int)hash);
 }
 
 /*
