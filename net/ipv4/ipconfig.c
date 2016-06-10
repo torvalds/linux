@@ -127,7 +127,7 @@ __be32 ic_myaddr = NONE;		/* My IP address */
 static __be32 ic_netmask = NONE;	/* Netmask for local subnet */
 __be32 ic_gateway = NONE;	/* Gateway IP address */
 
-__be32 ic_addrservaddr = NONE;	/* IP Address of the IP addresses'server */
+static __be32 ic_addrservaddr = NONE;	/* IP Address of the IP addresses'server */
 
 __be32 ic_servaddr = NONE;	/* Boot server IP address */
 
