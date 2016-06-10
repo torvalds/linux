@@ -461,16 +461,10 @@ static int bcm_sf2_sw_set_eee(struct dsa_switch *ds, int port,
 	return 0;
 }
 
-/* Fast-ageing of ARL entries for a given port, equivalent to an ARL
- * flush for that port.
- */
-static int bcm_sf2_sw_fast_age_port(struct dsa_switch  *ds, int port)
+static int bcm_sf2_fast_age_op(struct bcm_sf2_priv *priv)
 {
-	struct bcm_sf2_priv *priv = ds_to_priv(ds);
 	unsigned int timeout = 1000;
 	u32 reg;
-
-	core_writel(priv, port, CORE_FAST_AGE_PORT);
 
 	reg = core_readl(priv, CORE_FAST_AGE_CTRL);
 	reg |= EN_AGE_PORT | EN_AGE_DYNAMIC | FAST_AGE_STR_DONE;
@@ -490,6 +484,18 @@ static int bcm_sf2_sw_fast_age_port(struct dsa_switch  *ds, int port)
 	core_writel(priv, 0, CORE_FAST_AGE_CTRL);
 
 	return 0;
+}
+
+/* Fast-ageing of ARL entries for a given port, equivalent to an ARL
+ * flush for that port.
+ */
+static int bcm_sf2_sw_fast_age_port(struct dsa_switch *ds, int port)
+{
+	struct bcm_sf2_priv *priv = ds_to_priv(ds);
+
+	core_writel(priv, port, CORE_FAST_AGE_PORT);
+
+	return bcm_sf2_fast_age_op(priv);
 }
 
 static int bcm_sf2_sw_br_join(struct dsa_switch *ds, int port,
