@@ -502,8 +502,7 @@ static int gb_timesync_to_timespec(struct gb_timesync_svc *timesync_svc,
 				   u64 frame_time, struct timespec *ts)
 {
 	unsigned long flags;
-	u64 delta_fs, counts;
-	u32 sec, nsec;
+	u64 delta_fs, counts, sec, nsec;
 	bool add;
 	int ret = 0;
 
@@ -532,8 +531,15 @@ static int gb_timesync_to_timespec(struct gb_timesync_svc *timesync_svc,
 
 	/* Determine the time difference in femtoseconds */
 	delta_fs = counts * gb_timesync_fs_per_clock;
-	sec = delta_fs / FSEC_PER_SEC;
-	nsec = (delta_fs % FSEC_PER_SEC) / 1000000UL;
+
+	/* Convert to seconds */
+	sec = delta_fs;
+	do_div(sec, NSEC_PER_SEC);
+	do_div(sec, 1000000UL);
+
+	/* Get the nanosecond remainder */
+	nsec = do_div(delta_fs, sec);
+	do_div(nsec, 1000000UL);
 
 	if (add) {
 		/* Add the calculated offset - overflow nanoseconds upwards */
@@ -548,7 +554,7 @@ static int gb_timesync_to_timespec(struct gb_timesync_svc *timesync_svc,
 		if (nsec > timesync_svc->ktime_data.ts.tv_nsec) {
 			sec++;
 			nsec = nsec + timesync_svc->ktime_data.ts.tv_nsec;
-			nsec %= NSEC_PER_SEC;
+			nsec = do_div(nsec, NSEC_PER_SEC);
 		} else {
 			nsec = timesync_svc->ktime_data.ts.tv_nsec - nsec;
 		}
@@ -1318,8 +1324,10 @@ int __init gb_timesync_init(void)
 	gb_timesync_clock_rate = gb_timesync_platform_get_clock_rate();
 
 	/* Calculate nanoseconds and femtoseconds per clock */
-	gb_timesync_fs_per_clock = FSEC_PER_SEC / gb_timesync_clock_rate;
-	gb_timesync_ns_per_clock = NSEC_PER_SEC / gb_timesync_clock_rate;
+	gb_timesync_fs_per_clock = FSEC_PER_SEC;
+	do_div(gb_timesync_fs_per_clock, gb_timesync_clock_rate);
+	gb_timesync_ns_per_clock = NSEC_PER_SEC;
+	do_div(gb_timesync_ns_per_clock, gb_timesync_clock_rate);
 
 	/* Calculate the maximum number of clocks we will convert to ktime */
 	gb_timesync_max_ktime_diff =
