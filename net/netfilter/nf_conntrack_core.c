@@ -1731,7 +1731,7 @@ int nf_conntrack_init_start(void)
 
 	nf_conntrack_cachep = kmem_cache_create("nf_conntrack",
 						sizeof(struct nf_conn), 0,
-						SLAB_DESTROY_BY_RCU, NULL);
+						SLAB_DESTROY_BY_RCU | SLAB_HWCACHE_ALIGN, NULL);
 	if (!nf_conntrack_cachep)
 		goto err_cachep;
 
