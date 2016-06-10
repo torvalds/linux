@@ -325,10 +325,10 @@ static inline void *led_get_trigger_data(struct led_classdev *led_cdev)
 #endif /* CONFIG_LEDS_TRIGGERS */
 
 /* Trigger specific functions */
-#ifdef CONFIG_LEDS_TRIGGER_IDE_DISK
-extern void ledtrig_ide_activity(void);
+#ifdef CONFIG_LEDS_TRIGGER_DISK
+extern void ledtrig_disk_activity(void);
 #else
-static inline void ledtrig_ide_activity(void) {}
+static inline void ledtrig_disk_activity(void) {}
 #endif
 
 #ifdef CONFIG_LEDS_TRIGGER_MTD
