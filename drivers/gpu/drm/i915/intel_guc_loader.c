@@ -525,12 +525,14 @@ fail:
 		ret = 0;
 	}
 
-	if (err == 0)
+	if (err == 0 && !HAS_GUC_UCODE(dev))
+		;	/* Don't mention the GuC! */
+	else if (err == 0)
 		DRM_INFO("GuC firmware load skipped\n");
-	else if (ret == -EIO)
-		DRM_ERROR("GuC firmware load failed: %d\n", err);
-	else
+	else if (ret != -EIO)
 		DRM_INFO("GuC firmware load failed: %d\n", err);
+	else
+		DRM_ERROR("GuC firmware load failed: %d\n", err);
 
 	if (i915.enable_guc_submission) {
 		if (fw_path == NULL)
