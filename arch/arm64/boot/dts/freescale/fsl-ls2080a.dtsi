@@ -672,6 +672,7 @@
 			interrupts = <0 80 0x4>; /* Level high type */
 			dr_mode = "host";
 			snps,quirk-frame-length-adjustment = <0x20>;
+			snps,dis_rxdet_inp3_quirk;
 		};
 
 		usb1: usb3@3110000 {
@@ -681,6 +682,7 @@
 			interrupts = <0 81 0x4>; /* Level high type */
 			dr_mode = "host";
 			snps,quirk-frame-length-adjustment = <0x20>;
+			snps,dis_rxdet_inp3_quirk;
 		};
 
 		ccn@4000000 {
