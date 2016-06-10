@@ -641,7 +641,7 @@ static const struct samsung_gate_clock top_gate_clks[] __initconst = {
 
 	/* ENABLE_SCLK_TOP_FSYS */
 	GATE(CLK_SCLK_PCIE_100_FSYS, "sclk_pcie_100_fsys", "div_sclk_pcie_100",
-			ENABLE_SCLK_TOP_FSYS, 7, 0, 0),
+			ENABLE_SCLK_TOP_FSYS, 7, CLK_IGNORE_UNUSED, 0),
 	GATE(CLK_SCLK_MMC2_FSYS, "sclk_mmc2_fsys", "div_sclk_mmc2_b",
 			ENABLE_SCLK_TOP_FSYS, 6, CLK_SET_RATE_PARENT, 0),
 	GATE(CLK_SCLK_MMC1_FSYS, "sclk_mmc1_fsys", "div_sclk_mmc1_b",
@@ -2148,7 +2148,7 @@ static const struct samsung_gate_clock fsys_gate_clks[] __initconst = {
 	GATE(CLK_ACLK_SMMU_PDMA1, "aclk_smmu_pdma1", "mout_aclk_fsys_200_user",
 			ENABLE_ACLK_FSYS1, 25, CLK_IGNORE_UNUSED, 0),
 	GATE(CLK_ACLK_BTS_PCIE, "aclk_bts_pcie", "mout_aclk_fsys_200_user",
-			ENABLE_ACLK_FSYS1, 24, 0, 0),
+			ENABLE_ACLK_FSYS1, 24, CLK_IGNORE_UNUSED, 0),
 	GATE(CLK_ACLK_AXIUS_PDMA1, "aclk_axius_pdma1",
 			"mout_aclk_fsys_200_user", ENABLE_ACLK_FSYS1,
 			22, CLK_IGNORE_UNUSED, 0),
@@ -2195,13 +2195,13 @@ static const struct samsung_gate_clock fsys_gate_clks[] __initconst = {
 
 	/* ENABLE_PCLK_FSYS */
 	GATE(CLK_PCLK_PCIE_CTRL, "pclk_pcie_ctrl", "mout_aclk_fsys_200_user",
-			ENABLE_PCLK_FSYS, 17, 0, 0),
+			ENABLE_PCLK_FSYS, 17, CLK_IGNORE_UNUSED, 0),
 	GATE(CLK_PCLK_SMMU_PDMA1, "pclk_smmu_pdma1", "mout_aclk_fsys_200_user",
 			ENABLE_PCLK_FSYS, 16, CLK_IGNORE_UNUSED, 0),
 	GATE(CLK_PCLK_PCIE_PHY, "pclk_pcie_phy", "mout_aclk_fsys_200_user",
-			ENABLE_PCLK_FSYS, 14, 0, 0),
+			ENABLE_PCLK_FSYS, 14, CLK_IGNORE_UNUSED, 0),
 	GATE(CLK_PCLK_BTS_PCIE, "pclk_bts_pcie", "mout_aclk_fsys_200_user",
-			ENABLE_PCLK_FSYS, 13, 0, 0),
+			ENABLE_PCLK_FSYS, 13, CLK_IGNORE_UNUSED, 0),
 	GATE(CLK_PCLK_SMMU_PDMA0, "pclk_smmu_pdma0", "mout_aclk_fsys_200_user",
 			ENABLE_PCLK_FSYS, 8, CLK_IGNORE_UNUSED, 0),
 	GATE(CLK_PCLK_BTS_UFS, "pclk_bts_ufs", "mout_aclk_fsys_200_user",
@@ -2280,6 +2280,7 @@ static const struct samsung_gate_clock fsys_gate_clks[] __initconst = {
 			ENABLE_SCLK_FSYS, 0, 0, 0),
 
 	/* ENABLE_IP_FSYS0 */
+	GATE(CLK_PCIE, "pcie", "sclk_pcie_100", ENABLE_IP_FSYS0, 17, 0, 0),
 	GATE(CLK_PDMA1, "pdma1", "aclk_pdma1", ENABLE_IP_FSYS0, 15, 0, 0),
 	GATE(CLK_PDMA0, "pdma0", "aclk_pdma0", ENABLE_IP_FSYS0, 0, 0, 0),
 };
