@@ -1772,7 +1772,8 @@ static int lov_fiemap(struct lov_obd *lov, __u32 keylen, void *key,
 	fm_start = fiemap->fm_start;
 	fm_length = fiemap->fm_length;
 	/* Calculate start stripe, last stripe and length of mapping */
-	actual_start_stripe = start_stripe = lov_stripe_number(lsm, fm_start);
+	start_stripe = lov_stripe_number(lsm, fm_start);
+	actual_start_stripe = start_stripe;
 	fm_end = (fm_length == ~0ULL ? fm_key->oa.o_size :
 						fm_start + fm_length - 1);
 	/* If fm_length != ~0ULL but fm_start+fm_length-1 exceeds file size */
@@ -2095,11 +2096,9 @@ static int lov_set_info_async(const struct lu_env *env, struct obd_export *exp,
 	u32 count;
 	int i, rc = 0, err;
 	struct lov_tgt_desc *tgt;
-	unsigned incr, check_uuid,
-		 do_inactive, no_set;
-	unsigned next_id = 0,  mds_con = 0;
+	unsigned int incr = 0, check_uuid = 0, do_inactive = 0, no_set = 0;
+	unsigned int next_id = 0, mds_con = 0;
 
-	incr = check_uuid = do_inactive = no_set = 0;
 	if (!set) {
 		no_set = 1;
 		set = ptlrpc_prep_set();
