@@ -77,10 +77,10 @@ struct gs_device_config {
 } __packed;
 
 #define GS_CAN_MODE_NORMAL               0
-#define GS_CAN_MODE_LISTEN_ONLY          (1<<0)
-#define GS_CAN_MODE_LOOP_BACK            (1<<1)
-#define GS_CAN_MODE_TRIPLE_SAMPLE        (1<<2)
-#define GS_CAN_MODE_ONE_SHOT             (1<<3)
+#define GS_CAN_MODE_LISTEN_ONLY          BIT(0)
+#define GS_CAN_MODE_LOOP_BACK            BIT(1)
+#define GS_CAN_MODE_TRIPLE_SAMPLE        BIT(2)
+#define GS_CAN_MODE_ONE_SHOT             BIT(3)
 
 struct gs_device_mode {
 	u32 mode;
@@ -101,10 +101,10 @@ struct gs_device_bittiming {
 	u32 brp;
 } __packed;
 
-#define GS_CAN_FEATURE_LISTEN_ONLY      (1<<0)
-#define GS_CAN_FEATURE_LOOP_BACK        (1<<1)
-#define GS_CAN_FEATURE_TRIPLE_SAMPLE    (1<<2)
-#define GS_CAN_FEATURE_ONE_SHOT         (1<<3)
+#define GS_CAN_FEATURE_LISTEN_ONLY      BIT(0)
+#define GS_CAN_FEATURE_LOOP_BACK        BIT(1)
+#define GS_CAN_FEATURE_TRIPLE_SAMPLE    BIT(2)
+#define GS_CAN_FEATURE_ONE_SHOT         BIT(3)
 
 struct gs_device_bt_const {
 	u32 feature;
@@ -209,7 +209,8 @@ static void gs_free_tx_context(struct gs_tx_context *txc)
 
 /* Get a tx context by id.
  */
-static struct gs_tx_context *gs_get_tx_context(struct gs_can *dev, unsigned int id)
+static struct gs_tx_context *gs_get_tx_context(struct gs_can *dev,
+					       unsigned int id)
 {
 	unsigned long flags;
 
@@ -452,7 +453,8 @@ static void gs_usb_xmit_callback(struct urb *urb)
 		netif_wake_queue(netdev);
 }
 
-static netdev_tx_t gs_can_start_xmit(struct sk_buff *skb, struct net_device *netdev)
+static netdev_tx_t gs_can_start_xmit(struct sk_buff *skb,
+				     struct net_device *netdev)
 {
 	struct gs_can *dev = netdev_priv(netdev);
 	struct net_device_stats *stats = &dev->netdev->stats;
@@ -658,7 +660,8 @@ static int gs_can_open(struct net_device *netdev)
 	rc = usb_control_msg(interface_to_usbdev(dev->iface),
 			     usb_sndctrlpipe(interface_to_usbdev(dev->iface), 0),
 			     GS_USB_BREQ_MODE,
-			     USB_DIR_OUT|USB_TYPE_VENDOR|USB_RECIP_INTERFACE,
+			     USB_DIR_OUT | USB_TYPE_VENDOR |
+			     USB_RECIP_INTERFACE,
 			     dev->channel,
 			     0,
 			     dm,
