@@ -207,9 +207,6 @@ struct sh_pfc {
 	unsigned int nr_gpio_pins;
 
 	struct sh_pfc_chip *gpio;
-#ifdef CONFIG_SUPERH
-	struct sh_pfc_chip *func;
-#endif
 };
 
 struct sh_pfc_soc_operations {

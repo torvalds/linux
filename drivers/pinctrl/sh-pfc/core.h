@@ -20,7 +20,6 @@ struct sh_pfc_pin_range {
 };
 
 int sh_pfc_register_gpiochip(struct sh_pfc *pfc);
-int sh_pfc_unregister_gpiochip(struct sh_pfc *pfc);
 
 int sh_pfc_register_pinctrl(struct sh_pfc *pfc);
 
