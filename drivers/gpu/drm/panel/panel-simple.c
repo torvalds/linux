@@ -964,8 +964,8 @@ static const struct panel_desc innolux_zj070na_01p = {
 	.num_modes = 1,
 	.bpc = 6,
 	.size = {
-		.width = 1024,
-		.height = 600,
+		.width = 154,
+		.height = 90,
 	},
 };
 
@@ -1242,8 +1242,8 @@ static const struct panel_desc samsung_ltn101nt05 = {
 	.num_modes = 1,
 	.bpc = 6,
 	.size = {
-		.width = 1024,
-		.height = 600,
+		.width = 223,
+		.height = 125,
 	},
 };
 
