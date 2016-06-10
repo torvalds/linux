@@ -657,7 +657,7 @@ static int kvm_s390_set_processor(struct kvm *kvm, struct kvm_device_attr *attr)
 		kvm->arch.model.cpuid = proc->cpuid;
 		lowest_ibc = sclp.ibc >> 16 & 0xfff;
 		unblocked_ibc = sclp.ibc & 0xfff;
-		if (lowest_ibc) {
+		if (lowest_ibc && proc->ibc) {
 			if (proc->ibc > unblocked_ibc)
 				kvm->arch.model.ibc = unblocked_ibc;
 			else if (proc->ibc < lowest_ibc)
