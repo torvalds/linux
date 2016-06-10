@@ -23,8 +23,9 @@ static int gbaudio_request_jack(struct gbaudio_module_info *module,
 {
 	int report, button_status;
 
-	dev_warn(module->dev, "Jack Event received: type: %u, event: %u\n",
-		 req->jack_attribute, req->event);
+	dev_warn_ratelimited(module->dev,
+			     "Jack Event received: type: %u, event: %u\n",
+			     req->jack_attribute, req->event);
 
 	if (req->event == GB_AUDIO_JACK_EVENT_REMOVAL) {
 		module->jack_type = 0;
@@ -42,8 +43,9 @@ static int gbaudio_request_jack(struct gbaudio_module_info *module,
 	report &= ~GBCODEC_JACK_MASK;
 	report |= req->jack_attribute & GBCODEC_JACK_MASK;
 	if (module->jack_type)
-		dev_warn(module->dev, "Modifying jack from %d to %d\n",
-			 module->jack_type, report);
+		dev_warn_ratelimited(module->dev,
+				     "Modifying jack from %d to %d\n",
+				     module->jack_type, report);
 
 	module->jack_type = report;
 	snd_soc_jack_report(&module->headset_jack, report, GBCODEC_JACK_MASK);
@@ -56,12 +58,14 @@ static int gbaudio_request_button(struct gbaudio_module_info *module,
 {
 	int soc_button_id, report;
 
-	dev_warn(module->dev, "Button Event received: id: %u, event: %u\n",
-		 req->button_id, req->event);
+	dev_warn_ratelimited(module->dev,
+			     "Button Event received: id: %u, event: %u\n",
+			     req->button_id, req->event);
 
 	/* currently supports 4 buttons only */
 	if (!module->jack_type) {
-		dev_err(module->dev, "Jack not present. Bogus event!!\n");
+		dev_err_ratelimited(module->dev,
+				    "Jack not present. Bogus event!!\n");
 		return -EINVAL;
 	}
 
@@ -84,7 +88,8 @@ static int gbaudio_request_button(struct gbaudio_module_info *module,
 		soc_button_id = SND_JACK_BTN_3;
 		break;
 	default:
-		dev_err(module->dev, "Invalid button request received\n");
+		dev_err_ratelimited(module->dev,
+				    "Invalid button request received\n");
 		return -EINVAL;
 	}
 
@@ -138,8 +143,8 @@ static int gbaudio_codec_request_handler(struct gb_operation *op)
 		break;
 
 	default:
-		dev_err(&connection->bundle->dev,
-			"Invalid Audio Event received\n");
+		dev_err_ratelimited(&connection->bundle->dev,
+				    "Invalid Audio Event received\n");
 		return -EINVAL;
 	}
 

@@ -173,8 +173,8 @@ static int gbcodec_mixer_ctl_get(struct snd_kcontrol *kcontrol,
 	ret = gb_audio_gb_get_control(module->mgmt_connection, data->ctl_id,
 				      GB_AUDIO_INVALID_INDEX, &gbvalue);
 	if (ret) {
-		dev_err(codec->dev, "%d:Error in %s for %s\n", ret, __func__,
-			kcontrol->id.name);
+		dev_err_ratelimited(codec->dev, "%d:Error in %s for %s\n", ret,
+				    __func__, kcontrol->id.name);
 		return ret;
 	}
 
@@ -253,8 +253,8 @@ static int gbcodec_mixer_ctl_put(struct snd_kcontrol *kcontrol,
 	ret = gb_audio_gb_set_control(module->mgmt_connection, data->ctl_id,
 				      GB_AUDIO_INVALID_INDEX, &gbvalue);
 	if (ret) {
-		dev_err(codec->dev, "%d:Error in %s for %s\n", ret, __func__,
-			kcontrol->id.name);
+		dev_err_ratelimited(codec->dev, "%d:Error in %s for %s\n", ret,
+				    __func__, kcontrol->id.name);
 	}
 
 	return ret;
@@ -335,8 +335,8 @@ static int gbcodec_mixer_dapm_ctl_get(struct snd_kcontrol *kcontrol,
 	ret = gb_audio_gb_get_control(module->mgmt_connection, data->ctl_id,
 				      GB_AUDIO_INVALID_INDEX, &gbvalue);
 	if (ret) {
-		dev_err(codec->dev, "%d:Error in %s for %s\n", ret, __func__,
-			kcontrol->id.name);
+		dev_err_ratelimited(codec->dev, "%d:Error in %s for %s\n", ret,
+				    __func__, kcontrol->id.name);
 		return ret;
 	}
 	/* update ucontrol */
@@ -393,9 +393,9 @@ static int gbcodec_mixer_dapm_ctl_put(struct snd_kcontrol *kcontrol,
 					      data->ctl_id,
 					      GB_AUDIO_INVALID_INDEX, &gbvalue);
 		if (ret) {
-			dev_err(codec->dev,
-				"%d:Error in %s for %s\n", ret, __func__,
-				kcontrol->id.name);
+			dev_err_ratelimited(codec->dev,
+					    "%d:Error in %s for %s\n", ret,
+					    __func__, kcontrol->id.name);
 		}
 	}
 
@@ -600,8 +600,9 @@ static int gbaudio_widget_event(struct snd_soc_dapm_widget *w,
 		break;
 	}
 	if (ret)
-		dev_err(codec->dev, "%d: widget, event:%d failed:%d\n", wid,
-			event, ret);
+		dev_err_ratelimited(codec->dev,
+				    "%d: widget, event:%d failed:%d\n", wid,
+				    event, ret);
 	return ret;
 }
 
