@@ -60,6 +60,24 @@ static bool cpu_write_needs_clflush(struct drm_i915_gem_object *obj)
 	return obj->pin_display;
 }
 
+static int
+insert_mappable_node(struct drm_i915_private *i915,
+                     struct drm_mm_node *node, u32 size)
+{
+	memset(node, 0, sizeof(*node));
+	return drm_mm_insert_node_in_range_generic(&i915->ggtt.base.mm, node,
+						   size, 0, 0, 0,
+						   i915->ggtt.mappable_end,
+						   DRM_MM_SEARCH_DEFAULT,
+						   DRM_MM_CREATE_DEFAULT);
+}
+
+static void
+remove_mappable_node(struct drm_mm_node *node)
+{
+	drm_mm_remove_node(node);
+}
+
 /* some bookkeeping */
 static void i915_gem_info_add_obj(struct drm_i915_private *dev_priv,
 				  size_t size)
@@ -765,21 +783,34 @@ fast_user_write(struct io_mapping *mapping,
  * @file: drm file pointer
  */
 static int
-i915_gem_gtt_pwrite_fast(struct drm_device *dev,
+i915_gem_gtt_pwrite_fast(struct drm_i915_private *i915,
 			 struct drm_i915_gem_object *obj,
 			 struct drm_i915_gem_pwrite *args,
 			 struct drm_file *file)
 {
-	struct drm_i915_private *dev_priv = to_i915(dev);
-	struct i915_ggtt *ggtt = &dev_priv->ggtt;
-	ssize_t remain;
-	loff_t offset, page_base;
+	struct i915_ggtt *ggtt = &i915->ggtt;
+	struct drm_mm_node node;
+	uint64_t remain, offset;
 	char __user *user_data;
-	int page_offset, page_length, ret;
+	int ret;
 
 	ret = i915_gem_obj_ggtt_pin(obj, 0, PIN_MAPPABLE | PIN_NONBLOCK);
-	if (ret)
-		goto out;
+	if (ret) {
+		ret = insert_mappable_node(i915, &node, PAGE_SIZE);
+		if (ret)
+			goto out;
+
+		ret = i915_gem_object_get_pages(obj);
+		if (ret) {
+			remove_mappable_node(&node);
+			goto out;
+		}
+
+		i915_gem_object_pin_pages(obj);
+	} else {
+		node.start = i915_gem_obj_ggtt_offset(obj);
+		node.allocated = false;
+	}
 
 	ret = i915_gem_object_set_to_gtt_domain(obj, true);
 	if (ret)
@@ -789,26 +820,32 @@ i915_gem_gtt_pwrite_fast(struct drm_device *dev,
 	if (ret)
 		goto out_unpin;
 
-	user_data = u64_to_user_ptr(args->data_ptr);
-	remain = args->size;
-
-	offset = i915_gem_obj_ggtt_offset(obj) + args->offset;
-
 	intel_fb_obj_invalidate(obj, ORIGIN_GTT);
+	obj->dirty = true;
 
-	while (remain > 0) {
+	user_data = u64_to_user_ptr(args->data_ptr);
+	offset = args->offset;
+	remain = args->size;
+	while (remain) {
 		/* Operation in this page
 		 *
 		 * page_base = page offset within aperture
 		 * page_offset = offset within page
 		 * page_length = bytes to copy for this page
 		 */
-		page_base = offset & PAGE_MASK;
-		page_offset = offset_in_page(offset);
-		page_length = remain;
-		if ((page_offset + remain) > PAGE_SIZE)
-			page_length = PAGE_SIZE - page_offset;
-
+		u32 page_base = node.start;
+		unsigned page_offset = offset_in_page(offset);
+		unsigned page_length = PAGE_SIZE - page_offset;
+		page_length = remain < page_length ? remain : page_length;
+		if (node.allocated) {
+			wmb(); /* flush the write before we modify the GGTT */
+			ggtt->base.insert_page(&ggtt->base,
+					       i915_gem_object_get_dma_address(obj, offset >> PAGE_SHIFT),
+					       node.start, I915_CACHE_NONE, 0);
+			wmb(); /* flush modifications to the GGTT (insert_page) */
+		} else {
+			page_base += offset & PAGE_MASK;
+		}
 		/* If we get a fault while copying data, then (presumably) our
 		 * source page isn't available.  Return the error and we'll
 		 * retry in the slow path.
@@ -827,7 +864,16 @@ i915_gem_gtt_pwrite_fast(struct drm_device *dev,
 out_flush:
 	intel_fb_obj_flush(obj, false, ORIGIN_GTT);
 out_unpin:
-	i915_gem_object_ggtt_unpin(obj);
+	if (node.allocated) {
+		wmb();
+		ggtt->base.clear_range(&ggtt->base,
+				       node.start, node.size,
+				       true);
+		i915_gem_object_unpin_pages(obj);
+		remove_mappable_node(&node);
+	} else {
+		i915_gem_object_ggtt_unpin(obj);
+	}
 out:
 	return ret;
 }
@@ -1095,7 +1141,7 @@ i915_gem_pwrite_ioctl(struct drm_device *dev, void *data,
 	if (obj->tiling_mode == I915_TILING_NONE &&
 	    obj->base.write_domain != I915_GEM_DOMAIN_CPU &&
 	    cpu_write_needs_clflush(obj)) {
-		ret = i915_gem_gtt_pwrite_fast(dev, obj, args, file);
+		ret = i915_gem_gtt_pwrite_fast(dev_priv, obj, args, file);
 		/* Note that the gtt paths might fail with non-page-backed user
 		 * pointers (e.g. gtt mappings when moving data between
 		 * textures). Fallback to the shmem path in that case. */
