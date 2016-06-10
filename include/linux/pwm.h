@@ -426,7 +426,6 @@ static inline void pwm_disable(struct pwm_device *pwm)
 	pwm_apply_state(pwm, &state);
 }
 
-
 /* PWM provider APIs */
 int pwm_capture(struct pwm_device *pwm, struct pwm_capture *result,
 		unsigned long timeout);
