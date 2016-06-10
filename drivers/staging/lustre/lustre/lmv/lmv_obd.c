@@ -2686,7 +2686,7 @@ static int lmv_quotactl(struct obd_device *unused, struct obd_export *exp,
 	struct lmv_obd      *lmv = &obd->u.lmv;
 	struct lmv_tgt_desc *tgt = lmv->tgts[0];
 	int		  rc = 0, i;
-	__u64		curspace, curinodes;
+	__u64 curspace = 0, curinodes = 0;
 
 	if (!tgt || !tgt->ltd_exp || !tgt->ltd_active ||
 	    !lmv->desc.ld_tgt_count) {
@@ -2699,7 +2699,6 @@ static int lmv_quotactl(struct obd_device *unused, struct obd_export *exp,
 		return rc;
 	}
 
-	curspace = curinodes = 0;
 	for (i = 0; i < lmv->desc.ld_tgt_count; i++) {
 		int err;
 
