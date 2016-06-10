@@ -542,8 +542,11 @@ sub dump_section {
         $new_start_line = 0;
     } else {
 	if (defined($sections{$name}) && ($sections{$name} ne "")) {
-	    print STDERR "${file}:$.: warning: duplicate section name '$name'\n";
-	    ++$warnings;
+	    # Only warn on user specified duplicate section names.
+	    if ($name ne $section_default) {
+		print STDERR "${file}:$.: warning: duplicate section name '$name'\n";
+		++$warnings;
+	    }
 	    $sections{$name} .= $contents;
 	} else {
 	    $sections{$name} = $contents;
