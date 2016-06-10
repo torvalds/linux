@@ -265,7 +265,8 @@ int null_enlarge_reqbuf(struct ptlrpc_sec *sec,
 		memcpy(newbuf, req->rq_reqbuf, req->rq_reqlen);
 
 		kvfree(req->rq_reqbuf);
-		req->rq_reqbuf = req->rq_reqmsg = newbuf;
+		req->rq_reqbuf = newbuf;
+		req->rq_reqmsg = newbuf;
 		req->rq_reqbuf_len = alloc_size;
 
 		if (req->rq_import)

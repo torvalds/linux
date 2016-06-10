@@ -3024,8 +3024,10 @@ void *ptlrpcd_alloc_work(struct obd_import *imp,
 	req->rq_interpret_reply = work_interpreter;
 	/* don't want reply */
 	req->rq_receiving_reply = 0;
-	req->rq_req_unlink = req->rq_reply_unlink = 0;
-	req->rq_no_delay = req->rq_no_resend = 1;
+	req->rq_req_unlink = 0;
+	req->rq_reply_unlink = 0;
+	req->rq_no_delay = 1;
+	req->rq_no_resend = 1;
 	req->rq_pill.rc_fmt = (void *)&worker_format;
 
 	spin_lock_init(&req->rq_lock);

@@ -872,7 +872,8 @@ ptlrpc_lprocfs_svc_req_history_next(struct seq_file *s,
 
 		if (i > srhi->srhi_idx) { /* reset iterator for a new CPT */
 			srhi->srhi_req = NULL;
-			seq = srhi->srhi_seq = 0;
+			seq = 0;
+			srhi->srhi_seq = 0;
 		} else { /* the next sequence */
 			seq = srhi->srhi_seq + (1 << svc->srv_cpt_bits);
 		}

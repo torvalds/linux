@@ -698,7 +698,8 @@ int ptlrpc_connect_import(struct obd_import *imp)
 
 	lustre_msg_add_op_flags(request->rq_reqmsg, MSG_CONNECT_NEXT_VER);
 
-	request->rq_no_resend = request->rq_no_delay = 1;
+	request->rq_no_resend = 1;
+	request->rq_no_delay = 1;
 	request->rq_send_state = LUSTRE_IMP_CONNECTING;
 	/* Allow a slightly larger reply for future growth compatibility */
 	req_capsule_set_size(&request->rq_pill, &RMF_CONNECT_DATA, RCL_SERVER,

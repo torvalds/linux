@@ -57,7 +57,8 @@ ptlrpc_prep_ping(struct obd_import *imp)
 					LUSTRE_OBD_VERSION, OBD_PING);
 	if (req) {
 		ptlrpc_request_set_replen(req);
-		req->rq_no_resend = req->rq_no_delay = 1;
+		req->rq_no_resend = 1;
+		req->rq_no_delay = 1;
 	}
 	return req;
 }
