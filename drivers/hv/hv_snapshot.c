@@ -95,6 +95,12 @@ static void vss_timeout_func(struct work_struct *dummy)
 	hv_poll_channel(vss_transaction.recv_channel, vss_poll_wrapper);
 }
 
+static void vss_register_done(void)
+{
+	hv_poll_channel(vss_transaction.recv_channel, vss_poll_wrapper);
+	pr_debug("VSS: userspace daemon registered\n");
+}
+
 static int vss_handle_handshake(struct hv_vss_msg *vss_msg)
 {
 	u32 our_ver = VSS_OP_REGISTER1;
@@ -105,16 +111,16 @@ static int vss_handle_handshake(struct hv_vss_msg *vss_msg)
 		dm_reg_value = VSS_OP_REGISTER;
 		break;
 	case VSS_OP_REGISTER1:
-		/* Daemon expects us to reply with our own version*/
-		if (hvutil_transport_send(hvt, &our_ver, sizeof(our_ver)))
+		/* Daemon expects us to reply with our own version */
+		if (hvutil_transport_send(hvt, &our_ver, sizeof(our_ver),
+					  vss_register_done))
 			return -EFAULT;
 		dm_reg_value = VSS_OP_REGISTER1;
 		break;
 	default:
 		return -EINVAL;
 	}
-	hv_poll_channel(vss_transaction.recv_channel, vss_poll_wrapper);
-	pr_debug("VSS: userspace daemon ver. %d registered\n", dm_reg_value);
+	pr_debug("VSS: userspace daemon ver. %d connected\n", dm_reg_value);
 	return 0;
 }
 
@@ -168,7 +174,7 @@ static void vss_send_op(struct work_struct *dummy)
 	vss_msg->vss_hdr.operation = op;
 
 	vss_transaction.state = HVUTIL_USERSPACE_REQ;
-	rc = hvutil_transport_send(hvt, vss_msg, sizeof(*vss_msg));
+	rc = hvutil_transport_send(hvt, vss_msg, sizeof(*vss_msg), NULL);
 	if (rc) {
 		pr_warn("VSS: failed to communicate to the daemon: %d\n", rc);
 		if (cancel_delayed_work_sync(&vss_timeout_work)) {
