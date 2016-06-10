@@ -246,6 +246,8 @@ err_dma_head:
 
 err_drop:
 	dev_kfree_skb(skb);
+	net_dev->stats.tx_dropped++;
+	net_dev->stats.tx_errors++;
 	return NETDEV_TX_OK;
 }
 
@@ -284,6 +286,8 @@ static void bgmac_dma_tx_free(struct bgmac *bgmac, struct bgmac_dma_ring *ring)
 				       DMA_TO_DEVICE);
 
 		if (slot->skb) {
+			bgmac->net_dev->stats.tx_bytes += slot->skb->len;
+			bgmac->net_dev->stats.tx_packets++;
 			bytes_compl += slot->skb->len;
 			pkts_compl++;
 
@@ -464,6 +468,7 @@ static int bgmac_dma_rx_read(struct bgmac *bgmac, struct bgmac_dma_ring *ring,
 				bgmac_err(bgmac, "Found poisoned packet at slot %d, DMA issue!\n",
 					  ring->start);
 				put_page(virt_to_head_page(buf));
+				bgmac->net_dev->stats.rx_errors++;
 				break;
 			}
 
@@ -471,6 +476,8 @@ static int bgmac_dma_rx_read(struct bgmac *bgmac, struct bgmac_dma_ring *ring,
 				bgmac_err(bgmac, "Found oversized packet at slot %d, DMA issue!\n",
 					  ring->start);
 				put_page(virt_to_head_page(buf));
+				bgmac->net_dev->stats.rx_length_errors++;
+				bgmac->net_dev->stats.rx_errors++;
 				break;
 			}
 
@@ -481,6 +488,7 @@ static int bgmac_dma_rx_read(struct bgmac *bgmac, struct bgmac_dma_ring *ring,
 			if (unlikely(!skb)) {
 				bgmac_err(bgmac, "build_skb failed\n");
 				put_page(virt_to_head_page(buf));
+				bgmac->net_dev->stats.rx_errors++;
 				break;
 			}
 			skb_put(skb, BGMAC_RX_FRAME_OFFSET +
@@ -490,6 +498,8 @@ static int bgmac_dma_rx_read(struct bgmac *bgmac, struct bgmac_dma_ring *ring,
 
 			skb_checksum_none_assert(skb);
 			skb->protocol = eth_type_trans(skb, bgmac->net_dev);
+			bgmac->net_dev->stats.rx_bytes += len;
+			bgmac->net_dev->stats.rx_packets++;
 			napi_gro_receive(&bgmac->napi, skb);
 			handled++;
 		} while (0);
@@ -1382,6 +1392,127 @@ static const struct net_device_ops bgmac_netdev_ops = {
  * ethtool_ops
  **************************************************/
 
+struct bgmac_stat {
+	u8 size;
+	u32 offset;
+	const char *name;
+};
+
+static struct bgmac_stat bgmac_get_strings_stats[] = {
+	{ 8, BGMAC_TX_GOOD_OCTETS, "tx_good_octets" },
+	{ 4, BGMAC_TX_GOOD_PKTS, "tx_good" },
+	{ 8, BGMAC_TX_OCTETS, "tx_octets" },
+	{ 4, BGMAC_TX_PKTS, "tx_pkts" },
+	{ 4, BGMAC_TX_BROADCAST_PKTS, "tx_broadcast" },
+	{ 4, BGMAC_TX_MULTICAST_PKTS, "tx_multicast" },
+	{ 4, BGMAC_TX_LEN_64, "tx_64" },
+	{ 4, BGMAC_TX_LEN_65_TO_127, "tx_65_127" },
+	{ 4, BGMAC_TX_LEN_128_TO_255, "tx_128_255" },
+	{ 4, BGMAC_TX_LEN_256_TO_511, "tx_256_511" },
+	{ 4, BGMAC_TX_LEN_512_TO_1023, "tx_512_1023" },
+	{ 4, BGMAC_TX_LEN_1024_TO_1522, "tx_1024_1522" },
+	{ 4, BGMAC_TX_LEN_1523_TO_2047, "tx_1523_2047" },
+	{ 4, BGMAC_TX_LEN_2048_TO_4095, "tx_2048_4095" },
+	{ 4, BGMAC_TX_LEN_4096_TO_8191, "tx_4096_8191" },
+	{ 4, BGMAC_TX_LEN_8192_TO_MAX, "tx_8192_max" },
+	{ 4, BGMAC_TX_JABBER_PKTS, "tx_jabber" },
+	{ 4, BGMAC_TX_OVERSIZE_PKTS, "tx_oversize" },
+	{ 4, BGMAC_TX_FRAGMENT_PKTS, "tx_fragment" },
+	{ 4, BGMAC_TX_UNDERRUNS, "tx_underruns" },
+	{ 4, BGMAC_TX_TOTAL_COLS, "tx_total_cols" },
+	{ 4, BGMAC_TX_SINGLE_COLS, "tx_single_cols" },
+	{ 4, BGMAC_TX_MULTIPLE_COLS, "tx_multiple_cols" },
+	{ 4, BGMAC_TX_EXCESSIVE_COLS, "tx_excessive_cols" },
+	{ 4, BGMAC_TX_LATE_COLS, "tx_late_cols" },
+	{ 4, BGMAC_TX_DEFERED, "tx_defered" },
+	{ 4, BGMAC_TX_CARRIER_LOST, "tx_carrier_lost" },
+	{ 4, BGMAC_TX_PAUSE_PKTS, "tx_pause" },
+	{ 4, BGMAC_TX_UNI_PKTS, "tx_unicast" },
+	{ 4, BGMAC_TX_Q0_PKTS, "tx_q0" },
+	{ 8, BGMAC_TX_Q0_OCTETS, "tx_q0_octets" },
+	{ 4, BGMAC_TX_Q1_PKTS, "tx_q1" },
+	{ 8, BGMAC_TX_Q1_OCTETS, "tx_q1_octets" },
+	{ 4, BGMAC_TX_Q2_PKTS, "tx_q2" },
+	{ 8, BGMAC_TX_Q2_OCTETS, "tx_q2_octets" },
+	{ 4, BGMAC_TX_Q3_PKTS, "tx_q3" },
+	{ 8, BGMAC_TX_Q3_OCTETS, "tx_q3_octets" },
+	{ 8, BGMAC_RX_GOOD_OCTETS, "rx_good_octets" },
+	{ 4, BGMAC_RX_GOOD_PKTS, "rx_good" },
+	{ 8, BGMAC_RX_OCTETS, "rx_octets" },
+	{ 4, BGMAC_RX_PKTS, "rx_pkts" },
+	{ 4, BGMAC_RX_BROADCAST_PKTS, "rx_broadcast" },
+	{ 4, BGMAC_RX_MULTICAST_PKTS, "rx_multicast" },
+	{ 4, BGMAC_RX_LEN_64, "rx_64" },
+	{ 4, BGMAC_RX_LEN_65_TO_127, "rx_65_127" },
+	{ 4, BGMAC_RX_LEN_128_TO_255, "rx_128_255" },
+	{ 4, BGMAC_RX_LEN_256_TO_511, "rx_256_511" },
+	{ 4, BGMAC_RX_LEN_512_TO_1023, "rx_512_1023" },
+	{ 4, BGMAC_RX_LEN_1024_TO_1522, "rx_1024_1522" },
+	{ 4, BGMAC_RX_LEN_1523_TO_2047, "rx_1523_2047" },
+	{ 4, BGMAC_RX_LEN_2048_TO_4095, "rx_2048_4095" },
+	{ 4, BGMAC_RX_LEN_4096_TO_8191, "rx_4096_8191" },
+	{ 4, BGMAC_RX_LEN_8192_TO_MAX, "rx_8192_max" },
+	{ 4, BGMAC_RX_JABBER_PKTS, "rx_jabber" },
+	{ 4, BGMAC_RX_OVERSIZE_PKTS, "rx_oversize" },
+	{ 4, BGMAC_RX_FRAGMENT_PKTS, "rx_fragment" },
+	{ 4, BGMAC_RX_MISSED_PKTS, "rx_missed" },
+	{ 4, BGMAC_RX_CRC_ALIGN_ERRS, "rx_crc_align" },
+	{ 4, BGMAC_RX_UNDERSIZE, "rx_undersize" },
+	{ 4, BGMAC_RX_CRC_ERRS, "rx_crc" },
+	{ 4, BGMAC_RX_ALIGN_ERRS, "rx_align" },
+	{ 4, BGMAC_RX_SYMBOL_ERRS, "rx_symbol" },
+	{ 4, BGMAC_RX_PAUSE_PKTS, "rx_pause" },
+	{ 4, BGMAC_RX_NONPAUSE_PKTS, "rx_nonpause" },
+	{ 4, BGMAC_RX_SACHANGES, "rx_sa_changes" },
+	{ 4, BGMAC_RX_UNI_PKTS, "rx_unicast" },
+};
+
+#define BGMAC_STATS_LEN	ARRAY_SIZE(bgmac_get_strings_stats)
+
+static int bgmac_get_sset_count(struct net_device *dev, int string_set)
+{
+	switch (string_set) {
+	case ETH_SS_STATS:
+		return BGMAC_STATS_LEN;
+	}
+
+	return -EOPNOTSUPP;
+}
+
+static void bgmac_get_strings(struct net_device *dev, u32 stringset,
+			      u8 *data)
+{
+	int i;
+
+	if (stringset != ETH_SS_STATS)
+		return;
+
+	for (i = 0; i < BGMAC_STATS_LEN; i++)
+		strlcpy(data + i * ETH_GSTRING_LEN,
+			bgmac_get_strings_stats[i].name, ETH_GSTRING_LEN);
+}
+
+static void bgmac_get_ethtool_stats(struct net_device *dev,
+				    struct ethtool_stats *ss, uint64_t *data)
+{
+	struct bgmac *bgmac = netdev_priv(dev);
+	const struct bgmac_stat *s;
+	unsigned int i;
+	u64 val;
+
+	if (!netif_running(dev))
+		return;
+
+	for (i = 0; i < BGMAC_STATS_LEN; i++) {
+		s = &bgmac_get_strings_stats[i];
+		val = 0;
+		if (s->size == 8)
+			val = (u64)bgmac_read(bgmac, s->offset + 4) << 32;
+		val |= bgmac_read(bgmac, s->offset);
+		data[i] = val;
+	}
+}
+
 static int bgmac_get_settings(struct net_device *net_dev,
 			      struct ethtool_cmd *cmd)
 {
@@ -1406,6 +1537,9 @@ static void bgmac_get_drvinfo(struct net_device *net_dev,
 }
 
 static const struct ethtool_ops bgmac_ethtool_ops = {
+	.get_strings		= bgmac_get_strings,
+	.get_sset_count		= bgmac_get_sset_count,
+	.get_ethtool_stats	= bgmac_get_ethtool_stats,
 	.get_settings		= bgmac_get_settings,
 	.set_settings		= bgmac_set_settings,
 	.get_drvinfo		= bgmac_get_drvinfo,
@@ -1588,6 +1722,7 @@ static int bgmac_probe(struct bcma_device *core)
 	bgmac->net_dev = net_dev;
 	bgmac->core = core;
 	bcma_set_drvdata(core, bgmac);
+	SET_NETDEV_DEV(net_dev, &core->dev);
 
 	/* Defaults */
 	memcpy(bgmac->net_dev->dev_addr, mac, ETH_ALEN);
