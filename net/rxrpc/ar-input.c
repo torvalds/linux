@@ -734,7 +734,7 @@ void rxrpc_data_ready(struct sock *sk)
 		rxrpc_post_packet_to_local(local, skb);
 		goto out;
 	}
-	
+
 	if (sp->hdr.type == RXRPC_PACKET_TYPE_DATA &&
 	    (sp->hdr.callNumber == 0 || sp->hdr.seq == 0))
 		goto bad_message;

@@ -388,7 +388,7 @@ static void rxrpc_process_local_events(struct work_struct *work)
 	_enter("");
 
 	atomic_inc(&local->usage);
-	
+
 	while ((skb = skb_dequeue(&local->event_queue))) {
 		struct rxrpc_skb_priv *sp = rxrpc_skb(skb);
 
