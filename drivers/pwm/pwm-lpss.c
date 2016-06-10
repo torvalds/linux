@@ -91,7 +91,7 @@ static int pwm_lpss_config(struct pwm_chip *chip, struct pwm_device *pwm,
 			   int duty_ns, int period_ns)
 {
 	struct pwm_lpss_chip *lpwm = to_lpwm(chip);
-	u8 on_time_div;
+	unsigned long long on_time_div;
 	unsigned long c, base_unit_range;
 	unsigned long long base_unit, freq = NSEC_PER_SEC;
 	u32 ctrl;
@@ -113,7 +113,9 @@ static int pwm_lpss_config(struct pwm_chip *chip, struct pwm_device *pwm,
 
 	if (duty_ns <= 0)
 		duty_ns = 1;
-	on_time_div = 255 - (255 * duty_ns / period_ns);
+	on_time_div = 255ULL * duty_ns;
+	do_div(on_time_div, period_ns);
+	on_time_div = 255ULL - on_time_div;
 
 	pm_runtime_get_sync(chip->dev);
 
