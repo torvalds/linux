@@ -344,10 +344,11 @@ static int qcom_smp2p_outbound_entry(struct qcom_smp2p *smp2p,
 	/* Allocate an entry from the smem item */
 	strlcpy(buf, entry->name, SMP2P_MAX_ENTRY_NAME);
 	memcpy_toio(out->entries[out->valid_entries].name, buf, SMP2P_MAX_ENTRY_NAME);
-	out->valid_entries++;
 
 	/* Make the logical entry reference the physical value */
 	entry->value = &out->entries[out->valid_entries].value;
+
+	out->valid_entries++;
 
 	entry->state = qcom_smem_state_register(node, &smp2p_state_ops, entry);
 	if (IS_ERR(entry->state)) {
