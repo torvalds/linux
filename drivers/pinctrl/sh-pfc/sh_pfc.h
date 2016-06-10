@@ -13,6 +13,7 @@
 
 #include <linux/bug.h>
 #include <linux/pinctrl/pinconf-generic.h>
+#include <linux/spinlock.h>
 #include <linux/stringify.h>
 
 enum {
@@ -182,7 +183,34 @@ struct pinmux_range {
 	u16 force;
 };
 
-struct sh_pfc;
+struct sh_pfc_window {
+	phys_addr_t phys;
+	void __iomem *virt;
+	unsigned long size;
+};
+
+struct sh_pfc_pin_range;
+
+struct sh_pfc {
+	struct device *dev;
+	const struct sh_pfc_soc_info *info;
+	spinlock_t lock;
+
+	unsigned int num_windows;
+	struct sh_pfc_window *windows;
+	unsigned int num_irqs;
+	unsigned int *irqs;
+
+	struct sh_pfc_pin_range *ranges;
+	unsigned int nr_ranges;
+
+	unsigned int nr_gpio_pins;
+
+	struct sh_pfc_chip *gpio;
+#ifdef CONFIG_SUPERH
+	struct sh_pfc_chip *func;
+#endif
+};
 
 struct sh_pfc_soc_operations {
 	int (*init)(struct sh_pfc *pfc);
