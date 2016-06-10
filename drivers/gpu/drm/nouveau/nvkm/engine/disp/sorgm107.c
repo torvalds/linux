@@ -1,5 +1,5 @@
 /*
- * Copyright 2015 Red Hat Inc.
+ * Copyright 2016 Red Hat Inc.
  *
  * Permission is hereby granted, free of charge, to any person obtaining a
  * copy of this software and associated documentation files (the "Software"),
@@ -21,43 +21,33 @@
  *
  * Authors: Ben Skeggs <bskeggs@redhat.com>
  */
-#include "priv.h"
+#include "nv50.h"
+#include "outpdp.h"
 
-#include <subdev/fb.h>
-#include <subdev/timer.h>
-
-static int
-gm200_ltc_oneinit(struct nvkm_ltc *ltc)
+int
+gm107_sor_dp_pattern(struct nvkm_output_dp *outp, int pattern)
 {
-	struct nvkm_device *device = ltc->subdev.device;
-
-	ltc->ltc_nr = nvkm_rd32(device, 0x12006c);
-	ltc->lts_nr = nvkm_rd32(device, 0x17e280) >> 28;
-
-	return gf100_ltc_oneinit_tag_ram(ltc);
-}
-static void
-gm200_ltc_init(struct nvkm_ltc *ltc)
-{
-	nvkm_wr32(ltc->subdev.device, 0x17e278, ltc->tag_base);
+	struct nvkm_device *device = outp->base.disp->engine.subdev.device;
+	const u32 soff = outp->base.or * 0x800;
+	const u32 data = 0x01010101 * pattern;
+	if (outp->base.info.sorconf.link & 1)
+		nvkm_mask(device, 0x61c110 + soff, 0x0f0f0f0f, data);
+	else
+		nvkm_mask(device, 0x61c12c + soff, 0x0f0f0f0f, data);
+	return 0;
 }
 
-static const struct nvkm_ltc_func
-gm200_ltc = {
-	.oneinit = gm200_ltc_oneinit,
-	.init = gm200_ltc_init,
-	.intr = gm107_ltc_intr,
-	.cbc_clear = gm107_ltc_cbc_clear,
-	.cbc_wait = gm107_ltc_cbc_wait,
-	.zbc = 16,
-	.zbc_clear_color = gm107_ltc_zbc_clear_color,
-	.zbc_clear_depth = gm107_ltc_zbc_clear_depth,
-	.invalidate = gf100_ltc_invalidate,
-	.flush = gf100_ltc_flush,
+static const struct nvkm_output_dp_func
+gm107_sor_dp_func = {
+	.pattern = gm107_sor_dp_pattern,
+	.lnk_pwr = g94_sor_dp_lnk_pwr,
+	.lnk_ctl = gf119_sor_dp_lnk_ctl,
+	.drv_ctl = gf119_sor_dp_drv_ctl,
 };
 
 int
-gm200_ltc_new(struct nvkm_device *device, int index, struct nvkm_ltc **pltc)
+gm107_sor_dp_new(struct nvkm_disp *disp, int index,
+		 struct dcb_output *dcbE, struct nvkm_output **poutp)
 {
-	return nvkm_ltc_new_(&gm200_ltc, device, index, pltc);
+	return nvkm_output_dp_new_(&gm107_sor_dp_func, disp, index, dcbE, poutp);
 }
