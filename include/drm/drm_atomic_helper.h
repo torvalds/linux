@@ -167,7 +167,7 @@ int drm_atomic_helper_legacy_gamma_set(struct drm_crtc *crtc,
  * This iterates over the current state, useful (for example) when applying
  * atomic state after it has been checked and swapped.  To iterate over the
  * planes which *will* be attached (for ->atomic_check()) see
- * drm_crtc_for_each_pending_plane().
+ * drm_atomic_crtc_state_for_each_plane().
  */
 #define drm_atomic_crtc_for_each_plane(plane, crtc) \
 	drm_for_each_plane_mask(plane, (crtc)->dev, (crtc)->state->plane_mask)
