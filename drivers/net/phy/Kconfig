@@ -254,6 +254,17 @@ config MDIO_BUS_MUX_MMIOREG
 
 	  Currently, only 8-bit registers are supported.
 
+config MDIO_BUS_MUX_BCM_IPROC
+	tristate "Support for iProc based MDIO bus multiplexers"
+	depends on OF && OF_MDIO && (ARCH_BCM_IPROC || COMPILE_TEST)
+	select MDIO_BUS_MUX
+	default ARCH_BCM_IPROC
+	help
+	  This module provides a driver for MDIO bus multiplexers found in
+	  iProc based Broadcom SoCs. This multiplexer connects one of several
+	  child MDIO bus to a parent bus. Buses could be internal as well as
+	  external and selection logic lies inside the same multiplexer.
+
 config MDIO_BCM_UNIMAC
 	tristate "Broadcom UniMAC MDIO bus controller"
 	depends on HAS_IOMEM
