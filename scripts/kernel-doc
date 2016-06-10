@@ -529,21 +529,18 @@ sub dump_section {
     my $contents = join "\n", @_;
 
     if ($name =~ m/$type_param/) {
-#	print STDERR "parameter def '$1' = '$contents'\n";
 	$name = $1;
 	$parameterdescs{$name} = $contents;
 	$sectcheck = $sectcheck . $name . " ";
         $parameterdesc_start_lines{$name} = $new_start_line;
         $new_start_line = 0;
     } elsif ($name eq "@\.\.\.") {
-#	print STDERR "parameter def '...' = '$contents'\n";
 	$name = "...";
 	$parameterdescs{$name} = $contents;
 	$sectcheck = $sectcheck . $name . " ";
         $parameterdesc_start_lines{$name} = $new_start_line;
         $new_start_line = 0;
     } else {
-#	print STDERR "other section '$name' = '$contents'\n";
 	if (defined($sections{$name}) && ($sections{$name} ne "")) {
 	    print STDERR "${file}:$.: warning: duplicate section name '$name'\n";
 	    ++$warnings;
