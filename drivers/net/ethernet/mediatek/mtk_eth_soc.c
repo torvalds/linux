@@ -495,6 +495,9 @@ static int mtk_init_fq_dma(struct mtk_eth *eth)
 
 	eth->scratch_head = kcalloc(cnt, MTK_QDMA_PAGE_SIZE,
 				    GFP_KERNEL);
+	if (unlikely(!eth->scratch_head))
+		return -ENOMEM;
+
 	dma_addr = dma_map_single(eth->dev,
 				  eth->scratch_head, cnt * MTK_QDMA_PAGE_SIZE,
 				  DMA_FROM_DEVICE);
