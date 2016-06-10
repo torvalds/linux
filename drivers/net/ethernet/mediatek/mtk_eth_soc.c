@@ -674,7 +674,7 @@ static int mtk_tx_map(struct sk_buff *skb, struct net_device *dev,
 
 err_dma:
 	do {
-		tx_buf = mtk_desc_to_tx_buf(ring, txd);
+		tx_buf = mtk_desc_to_tx_buf(ring, itxd);
 
 		/* unmap dma */
 		mtk_tx_unmap(&dev->dev, tx_buf);
