@@ -13,14 +13,13 @@ Required properties:
   For MDP4:
    * "core_clk"
    * "iface_clk"
+   * "bus_clk"
    * "lut_clk"
-   * "src_clk"
    * "hdmi_clk"
-   * "mdp_clk"
+   * "tv_clk"
   For MDP5:
    * "bus_clk"
    * "iface_clk"
-   * "core_clk_src"
    * "core_clk"
    * "lut_clk" (some MDP5 versions may not need this)
    * "vsync_clk"
@@ -45,14 +44,13 @@ Example:
 		    "core_clk",
 		    "iface_clk",
 		    "lut_clk",
-		    "src_clk",
 		    "hdmi_clk",
-		    "mdp_clk";
+		    "tv_clk";
 		clocks =
-		    <&mmcc MDP_SRC>,
+		    <&mmcc MDP_CLK>,
 		    <&mmcc MDP_AHB_CLK>,
+		    <&mmcc MDP_AXI_CLK>,
 		    <&mmcc MDP_LUT_CLK>,
-		    <&mmcc TV_SRC>,
 		    <&mmcc HDMI_TV_CLK>,
 		    <&mmcc MDP_TV_CLK>;
 	};
