@@ -310,6 +310,14 @@ nfsd4_decode_fattr(struct nfsd4_compoundargs *argp, u32 *bmval,
 	if ((status = nfsd4_decode_bitmap(argp, bmval)))
 		return status;
 
+	if (bmval[0] & ~NFSD_WRITEABLE_ATTRS_WORD0
+	    || bmval[1] & ~NFSD_WRITEABLE_ATTRS_WORD1
+	    || bmval[2] & ~NFSD_WRITEABLE_ATTRS_WORD2) {
+		if (nfsd_attrs_supported(argp->minorversion, bmval))
+			return nfserr_inval;
+		return nfserr_attrnotsupp;
+	}
+
 	READ_BUF(4);
 	expected_len = be32_to_cpup(p++);
 
@@ -449,12 +457,7 @@ nfsd4_decode_fattr(struct nfsd4_compoundargs *argp, u32 *bmval,
 			return nfserr_jukebox;
 	}
 #endif
-
-	if (bmval[0] & ~NFSD_WRITEABLE_ATTRS_WORD0
-	    || bmval[1] & ~NFSD_WRITEABLE_ATTRS_WORD1
-	    || bmval[2] & ~NFSD_WRITEABLE_ATTRS_WORD2)
-		READ_BUF(expected_len - len);
-	else if (len != expected_len)
+	if (len != expected_len)
 		goto xdr_error;
 
 	DECODE_TAIL;
