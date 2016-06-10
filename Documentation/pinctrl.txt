@@ -286,13 +286,13 @@ see the section named "pin control requests from drivers" and
 "drivers needing both pin control and GPIOs" below for details. But in some
 situations a cross-subsystem mapping between pins and GPIOs is needed.
 
-Since the pin controller subsystem has its pinspace local to the pin
-controller we need a mapping so that the pin control subsystem can figure out
-which pin controller handles control of a certain GPIO pin. Since a single
-pin controller may be muxing several GPIO ranges (typically SoCs that have
-one set of pins, but internally several GPIO silicon blocks, each modelled as
-a struct gpio_chip) any number of GPIO ranges can be added to a pin controller
-instance like this:
+Since the pin controller subsystem has its pinspace local to the pin controller
+we need a mapping so that the pin control subsystem can figure out which pin
+controller handles control of a certain GPIO pin. Since a single pin controller
+may be muxing several GPIO ranges (typically SoCs that have one set of pins,
+but internally several GPIO silicon blocks, each modelled as a struct
+gpio_chip) any number of GPIO ranges can be added to a pin controller instance
+like this:
 
 struct gpio_chip chip_a;
 struct gpio_chip chip_b;
