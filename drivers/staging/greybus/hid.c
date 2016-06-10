@@ -116,7 +116,6 @@ static int gb_hid_request_handler(struct gb_operation *op)
 	return 0;
 }
 
-
 static int gb_hid_report_len(struct hid_report *report)
 {
 	return ((report->size - 1) >> 3) + 1 +

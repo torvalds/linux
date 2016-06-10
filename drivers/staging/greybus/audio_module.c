@@ -221,7 +221,6 @@ static int gb_audio_probe(struct gb_bundle *bundle,
 	int ret, i;
 	struct gb_audio_topology *topology;
 
-
 	/* There should be at least one Management and one Data cport */
 	if (bundle->num_cports < 2)
 		return -ENODEV;
@@ -366,7 +365,6 @@ static void gb_audio_disconnect(struct gb_bundle *bundle)
 {
 	struct gbaudio_module_info *gbmodule = greybus_get_drvdata(bundle);
 	struct gbaudio_data_connection *dai, *_dai;
-
 
 	/* cleanup module related resources first */
 	gbaudio_unregister_module(gbmodule);

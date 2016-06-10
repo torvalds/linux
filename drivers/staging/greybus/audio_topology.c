@@ -872,7 +872,6 @@ static int gbaudio_tplg_process_routes(struct gbaudio_module_info *module,
 	if (!dapm_routes)
 		return -ENOMEM;
 
-
 	module->dapm_routes = dapm_routes;
 	curr = routes;
 

@@ -56,7 +56,6 @@ static ssize_t state_store(struct device *dev, struct device_attribute *attr,
 }
 static DEVICE_ATTR_RW(state);
 
-
 static struct attribute *bundle_attrs[] = {
 	&dev_attr_bundle_class.attr,
 	&dev_attr_bundle_id.attr,

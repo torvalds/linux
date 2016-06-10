@@ -44,7 +44,6 @@ static ssize_t ap_intf_id_show(struct device *dev,
 }
 static DEVICE_ATTR_RO(ap_intf_id);
 
-
 // FIXME
 // This is a hack, we need to do this "right" and clean the interface up
 // properly, not just forcibly yank the thing out of the system and hope for the

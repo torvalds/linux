@@ -513,7 +513,6 @@ gb_connection_control_disconnected(struct gb_connection *connection)
 		return;
 	}
 
-
 	ret = gb_control_disconnected_operation(control, cport_id);
 	if (ret) {
 		dev_warn(&connection->bundle->dev,

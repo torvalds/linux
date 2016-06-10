@@ -80,7 +80,6 @@ static int gb_pwm_config_operation(struct gb_pwm_chip *pwmc,
 				 &request, sizeof(request), NULL, 0);
 }
 
-
 static int gb_pwm_set_polarity_operation(struct gb_pwm_chip *pwmc,
 					 u8 which, u8 polarity)
 {

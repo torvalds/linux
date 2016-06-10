@@ -383,7 +383,6 @@ static void gb_spi_cleanup(struct spi_device *spi)
 	/* Nothing to do for now */
 }
 
-
 /* Routines to get controller information */
 
 /*

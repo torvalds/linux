@@ -597,7 +597,6 @@ static void gb_tty_throttle(struct tty_struct *tty)
 		gb_tty->ctrlout &= ~GB_UART_CTRL_RTS;
 		retval = send_control(gb_tty, gb_tty->ctrlout);
 	}
-
 }
 
 static void gb_tty_unthrottle(struct tty_struct *tty)
@@ -710,7 +709,6 @@ static int wait_serial_change(struct gb_tty *gb_tty, unsigned long arg)
 	} while (!retval);
 
 	return retval;
-
 }
 
 static int get_serial_usage(struct gb_tty *gb_tty,
@@ -923,7 +921,6 @@ static int gb_uart_probe(struct gbphy_device *gbphy_dev,
 		retval = PTR_ERR(tty_dev);
 		goto exit_connection_disable;
 	}
-
 
 	return 0;
 

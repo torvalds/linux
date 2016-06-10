@@ -1164,7 +1164,6 @@ static struct snd_soc_codec_driver soc_codec_dev_gbaudio = {
 	.ignore_pmdown_time = 1,
 };
 
-
 #ifdef CONFIG_PM
 static int gbaudio_codec_suspend(struct device *dev)
 {

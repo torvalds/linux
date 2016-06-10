@@ -556,7 +556,6 @@ static void gb_gpio_irqchip_remove(struct gb_gpio_controller *ggc)
 	}
 }
 
-
 /**
  * gb_gpio_irqchip_add() - adds an irqchip to a gpio chip
  * @chip: the gpio chip to add the irqchip to

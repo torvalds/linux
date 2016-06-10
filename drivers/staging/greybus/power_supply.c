@@ -290,7 +290,6 @@ static int gb_power_supply_prop_descriptors_get(struct gb_power_supply *gbpsy)
 		goto out_put_operation;
 	}
 
-
 	/* Store available properties */
 	for (i = 0; i < gbpsy->properties_count; i++) {
 		gbpsy->props[i].prop = resp->props[i].property;
@@ -512,7 +511,6 @@ static int property_is_writeable(struct power_supply *b,
 	return is_psy_prop_writeable(gbpsy, psp);
 }
 
-
 #ifndef CORE_OWNS_PSY_STRUCT
 static int gb_power_supply_register(struct gb_power_supply *gbpsy)
 {
@@ -562,7 +560,6 @@ static void _gb_power_supply_free(struct gb_power_supply *gbpsy)
 
 static void _gb_power_supply_release(struct gb_power_supply *gbpsy)
 {
-
 	gbpsy->update_interval = 0;
 
 	cancel_delayed_work_sync(&gbpsy->work);
