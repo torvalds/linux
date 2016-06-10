@@ -160,7 +160,6 @@ struct chv_pin_context {
  * @pctldev: Pointer to the pin controller device
  * @chip: GPIO chip in this pin controller
  * @regs: MMIO registers
- * @lock: Lock to serialize register accesses
  * @intr_lines: Stores mapping between 16 HW interrupt wires and GPIO
  *		offset (in GPIO number space)
  * @community: Community this pinctrl instance represents
@@ -174,7 +173,6 @@ struct chv_pinctrl {
 	struct pinctrl_dev *pctldev;
 	struct gpio_chip chip;
 	void __iomem *regs;
-	raw_spinlock_t lock;
 	unsigned intr_lines[16];
 	const struct chv_community *community;
 	u32 saved_intmask;
@@ -657,6 +655,17 @@ static const struct chv_community *chv_communities[] = {
 	&southeast_community,
 };
 
+/*
+ * Lock to serialize register accesses
+ *
+ * Due to a silicon issue, a shared lock must be used to prevent
+ * concurrent accesses across the 4 GPIO controllers.
+ *
+ * See Intel Atom Z8000 Processor Series Specification Update (Rev. 005),
+ * errata #CHT34, for further information.
+ */
+static DEFINE_RAW_SPINLOCK(chv_lock);
+
 static void __iomem *chv_padreg(struct chv_pinctrl *pctrl, unsigned offset,
 				unsigned reg)
 {
@@ -718,13 +727,13 @@ static void chv_pin_dbg_show(struct pinctrl_dev *pctldev, struct seq_file *s,
 	u32 ctrl0, ctrl1;
 	bool locked;
 
-	raw_spin_lock_irqsave(&pctrl->lock, flags);
+	raw_spin_lock_irqsave(&chv_lock, flags);
 
 	ctrl0 = readl(chv_padreg(pctrl, offset, CHV_PADCTRL0));
 	ctrl1 = readl(chv_padreg(pctrl, offset, CHV_PADCTRL1));
 	locked = chv_pad_locked(pctrl, offset);
 
-	raw_spin_unlock_irqrestore(&pctrl->lock, flags);
+	raw_spin_unlock_irqrestore(&chv_lock, flags);
 
 	if (ctrl0 & CHV_PADCTRL0_GPIOEN) {
 		seq_puts(s, "GPIO ");
@@ -787,14 +796,14 @@ static int chv_pinmux_set_mux(struct pinctrl_dev *pctldev, unsigned function,
 
 	grp = &pctrl->community->groups[group];
 
-	raw_spin_lock_irqsave(&pctrl->lock, flags);
+	raw_spin_lock_irqsave(&chv_lock, flags);
 
 	/* Check first that the pad is not locked */
 	for (i = 0; i < grp->npins; i++) {
 		if (chv_pad_locked(pctrl, grp->pins[i])) {
 			dev_warn(pctrl->dev, "unable to set mode for locked pin %u\n",
 				 grp->pins[i]);
-			raw_spin_unlock_irqrestore(&pctrl->lock, flags);
+			raw_spin_unlock_irqrestore(&chv_lock, flags);
 			return -EBUSY;
 		}
 	}
@@ -837,7 +846,7 @@ static int chv_pinmux_set_mux(struct pinctrl_dev *pctldev, unsigned function,
 			pin, altfunc->mode, altfunc->invert_oe ? "" : "not ");
 	}
 
-	raw_spin_unlock_irqrestore(&pctrl->lock, flags);
+	raw_spin_unlock_irqrestore(&chv_lock, flags);
 
 	return 0;
 }
@@ -851,13 +860,13 @@ static int chv_gpio_request_enable(struct pinctrl_dev *pctldev,
 	void __iomem *reg;
 	u32 value;
 
-	raw_spin_lock_irqsave(&pctrl->lock, flags);
+	raw_spin_lock_irqsave(&chv_lock, flags);
 
 	if (chv_pad_locked(pctrl, offset)) {
 		value = readl(chv_padreg(pctrl, offset, CHV_PADCTRL0));
 		if (!(value & CHV_PADCTRL0_GPIOEN)) {
 			/* Locked so cannot enable */
-			raw_spin_unlock_irqrestore(&pctrl->lock, flags);
+			raw_spin_unlock_irqrestore(&chv_lock, flags);
 			return -EBUSY;
 		}
 	} else {
@@ -897,7 +906,7 @@ static int chv_gpio_request_enable(struct pinctrl_dev *pctldev,
 		chv_writel(value, reg);
 	}
 
-	raw_spin_unlock_irqrestore(&pctrl->lock, flags);
+	raw_spin_unlock_irqrestore(&chv_lock, flags);
 
 	return 0;
 }
@@ -911,13 +920,13 @@ static void chv_gpio_disable_free(struct pinctrl_dev *pctldev,
 	void __iomem *reg;
 	u32 value;
 
-	raw_spin_lock_irqsave(&pctrl->lock, flags);
+	raw_spin_lock_irqsave(&chv_lock, flags);
 
 	reg = chv_padreg(pctrl, offset, CHV_PADCTRL0);
 	value = readl(reg) & ~CHV_PADCTRL0_GPIOEN;
 	chv_writel(value, reg);
 
-	raw_spin_unlock_irqrestore(&pctrl->lock, flags);
+	raw_spin_unlock_irqrestore(&chv_lock, flags);
 }
 
 static int chv_gpio_set_direction(struct pinctrl_dev *pctldev,
@@ -929,7 +938,7 @@ static int chv_gpio_set_direction(struct pinctrl_dev *pctldev,
 	unsigned long flags;
 	u32 ctrl0;
 
-	raw_spin_lock_irqsave(&pctrl->lock, flags);
+	raw_spin_lock_irqsave(&chv_lock, flags);
 
 	ctrl0 = readl(reg) & ~CHV_PADCTRL0_GPIOCFG_MASK;
 	if (input)
@@ -938,7 +947,7 @@ static int chv_gpio_set_direction(struct pinctrl_dev *pctldev,
 		ctrl0 |= CHV_PADCTRL0_GPIOCFG_GPO << CHV_PADCTRL0_GPIOCFG_SHIFT;
 	chv_writel(ctrl0, reg);
 
-	raw_spin_unlock_irqrestore(&pctrl->lock, flags);
+	raw_spin_unlock_irqrestore(&chv_lock, flags);
 
 	return 0;
 }
@@ -963,10 +972,10 @@ static int chv_config_get(struct pinctrl_dev *pctldev, unsigned pin,
 	u16 arg = 0;
 	u32 term;
 
-	raw_spin_lock_irqsave(&pctrl->lock, flags);
+	raw_spin_lock_irqsave(&chv_lock, flags);
 	ctrl0 = readl(chv_padreg(pctrl, pin, CHV_PADCTRL0));
 	ctrl1 = readl(chv_padreg(pctrl, pin, CHV_PADCTRL1));
-	raw_spin_unlock_irqrestore(&pctrl->lock, flags);
+	raw_spin_unlock_irqrestore(&chv_lock, flags);
 
 	term = (ctrl0 & CHV_PADCTRL0_TERM_MASK) >> CHV_PADCTRL0_TERM_SHIFT;
 
@@ -1040,7 +1049,7 @@ static int chv_config_set_pull(struct chv_pinctrl *pctrl, unsigned pin,
 	unsigned long flags;
 	u32 ctrl0, pull;
 
-	raw_spin_lock_irqsave(&pctrl->lock, flags);
+	raw_spin_lock_irqsave(&chv_lock, flags);
 	ctrl0 = readl(reg);
 
 	switch (param) {
@@ -1063,7 +1072,7 @@ static int chv_config_set_pull(struct chv_pinctrl *pctrl, unsigned pin,
 			pull = CHV_PADCTRL0_TERM_20K << CHV_PADCTRL0_TERM_SHIFT;
 			break;
 		default:
-			raw_spin_unlock_irqrestore(&pctrl->lock, flags);
+			raw_spin_unlock_irqrestore(&chv_lock, flags);
 			return -EINVAL;
 		}
 
@@ -1081,7 +1090,7 @@ static int chv_config_set_pull(struct chv_pinctrl *pctrl, unsigned pin,
 			pull = CHV_PADCTRL0_TERM_20K << CHV_PADCTRL0_TERM_SHIFT;
 			break;
 		default:
-			raw_spin_unlock_irqrestore(&pctrl->lock, flags);
+			raw_spin_unlock_irqrestore(&chv_lock, flags);
 			return -EINVAL;
 		}
 
@@ -1089,12 +1098,12 @@ static int chv_config_set_pull(struct chv_pinctrl *pctrl, unsigned pin,
 		break;
 
 	default:
-		raw_spin_unlock_irqrestore(&pctrl->lock, flags);
+		raw_spin_unlock_irqrestore(&chv_lock, flags);
 		return -EINVAL;
 	}
 
 	chv_writel(ctrl0, reg);
-	raw_spin_unlock_irqrestore(&pctrl->lock, flags);
+	raw_spin_unlock_irqrestore(&chv_lock, flags);
 
 	return 0;
 }
@@ -1160,9 +1169,9 @@ static int chv_gpio_get(struct gpio_chip *chip, unsigned offset)
 	unsigned long flags;
 	u32 ctrl0, cfg;
 
-	raw_spin_lock_irqsave(&pctrl->lock, flags);
+	raw_spin_lock_irqsave(&chv_lock, flags);
 	ctrl0 = readl(chv_padreg(pctrl, pin, CHV_PADCTRL0));
-	raw_spin_unlock_irqrestore(&pctrl->lock, flags);
+	raw_spin_unlock_irqrestore(&chv_lock, flags);
 
 	cfg = ctrl0 & CHV_PADCTRL0_GPIOCFG_MASK;
 	cfg >>= CHV_PADCTRL0_GPIOCFG_SHIFT;
@@ -1180,7 +1189,7 @@ static void chv_gpio_set(struct gpio_chip *chip, unsigned offset, int value)
 	void __iomem *reg;
 	u32 ctrl0;
 
-	raw_spin_lock_irqsave(&pctrl->lock, flags);
+	raw_spin_lock_irqsave(&chv_lock, flags);
 
 	reg = chv_padreg(pctrl, pin, CHV_PADCTRL0);
 	ctrl0 = readl(reg);
@@ -1192,7 +1201,7 @@ static void chv_gpio_set(struct gpio_chip *chip, unsigned offset, int value)
 
 	chv_writel(ctrl0, reg);
 
-	raw_spin_unlock_irqrestore(&pctrl->lock, flags);
+	raw_spin_unlock_irqrestore(&chv_lock, flags);
 }
 
 static int chv_gpio_get_direction(struct gpio_chip *chip, unsigned offset)
@@ -1202,9 +1211,9 @@ static int chv_gpio_get_direction(struct gpio_chip *chip, unsigned offset)
 	u32 ctrl0, direction;
 	unsigned long flags;
 
-	raw_spin_lock_irqsave(&pctrl->lock, flags);
+	raw_spin_lock_irqsave(&chv_lock, flags);
 	ctrl0 = readl(chv_padreg(pctrl, pin, CHV_PADCTRL0));
-	raw_spin_unlock_irqrestore(&pctrl->lock, flags);
+	raw_spin_unlock_irqrestore(&chv_lock, flags);
 
 	direction = ctrl0 & CHV_PADCTRL0_GPIOCFG_MASK;
 	direction >>= CHV_PADCTRL0_GPIOCFG_SHIFT;
@@ -1242,14 +1251,14 @@ static void chv_gpio_irq_ack(struct irq_data *d)
 	int pin = chv_gpio_offset_to_pin(pctrl, irqd_to_hwirq(d));
 	u32 intr_line;
 
-	raw_spin_lock(&pctrl->lock);
+	raw_spin_lock(&chv_lock);
 
 	intr_line = readl(chv_padreg(pctrl, pin, CHV_PADCTRL0));
 	intr_line &= CHV_PADCTRL0_INTSEL_MASK;
 	intr_line >>= CHV_PADCTRL0_INTSEL_SHIFT;
 	chv_writel(BIT(intr_line), pctrl->regs + CHV_INTSTAT);
 
-	raw_spin_unlock(&pctrl->lock);
+	raw_spin_unlock(&chv_lock);
 }
 
 static void chv_gpio_irq_mask_unmask(struct irq_data *d, bool mask)
@@ -1260,7 +1269,7 @@ static void chv_gpio_irq_mask_unmask(struct irq_data *d, bool mask)
 	u32 value, intr_line;
 	unsigned long flags;
 
-	raw_spin_lock_irqsave(&pctrl->lock, flags);
+	raw_spin_lock_irqsave(&chv_lock, flags);
 
 	intr_line = readl(chv_padreg(pctrl, pin, CHV_PADCTRL0));
 	intr_line &= CHV_PADCTRL0_INTSEL_MASK;
@@ -1273,7 +1282,7 @@ static void chv_gpio_irq_mask_unmask(struct irq_data *d, bool mask)
 		value |= BIT(intr_line);
 	chv_writel(value, pctrl->regs + CHV_INTMASK);
 
-	raw_spin_unlock_irqrestore(&pctrl->lock, flags);
+	raw_spin_unlock_irqrestore(&chv_lock, flags);
 }
 
 static void chv_gpio_irq_mask(struct irq_data *d)
@@ -1307,7 +1316,7 @@ static unsigned chv_gpio_irq_startup(struct irq_data *d)
 		unsigned long flags;
 		u32 intsel, value;
 
-		raw_spin_lock_irqsave(&pctrl->lock, flags);
+		raw_spin_lock_irqsave(&chv_lock, flags);
 		intsel = readl(chv_padreg(pctrl, pin, CHV_PADCTRL0));
 		intsel &= CHV_PADCTRL0_INTSEL_MASK;
 		intsel >>= CHV_PADCTRL0_INTSEL_SHIFT;
@@ -1322,7 +1331,7 @@ static unsigned chv_gpio_irq_startup(struct irq_data *d)
 			irq_set_handler_locked(d, handler);
 			pctrl->intr_lines[intsel] = offset;
 		}
-		raw_spin_unlock_irqrestore(&pctrl->lock, flags);
+		raw_spin_unlock_irqrestore(&chv_lock, flags);
 	}
 
 	chv_gpio_irq_unmask(d);
@@ -1338,7 +1347,7 @@ static int chv_gpio_irq_type(struct irq_data *d, unsigned type)
 	unsigned long flags;
 	u32 value;
 
-	raw_spin_lock_irqsave(&pctrl->lock, flags);
+	raw_spin_lock_irqsave(&chv_lock, flags);
 
 	/*
 	 * Pins which can be used as shared interrupt are configured in
@@ -1387,7 +1396,7 @@ static int chv_gpio_irq_type(struct irq_data *d, unsigned type)
 	else if (type & IRQ_TYPE_LEVEL_MASK)
 		irq_set_handler_locked(d, handle_level_irq);
 
-	raw_spin_unlock_irqrestore(&pctrl->lock, flags);
+	raw_spin_unlock_irqrestore(&chv_lock, flags);
 
 	return 0;
 }
@@ -1499,7 +1508,6 @@ static int chv_pinctrl_probe(struct platform_device *pdev)
 	if (i == ARRAY_SIZE(chv_communities))
 		return -ENODEV;
 
-	raw_spin_lock_init(&pctrl->lock);
 	pctrl->dev = &pdev->dev;
 
 #ifdef CONFIG_PM_SLEEP
