@@ -493,12 +493,12 @@ Definitions:
 - The combination of a FUNCTION and a PIN GROUP determine a certain function
   for a certain set of pins. The knowledge of the functions and pin groups
   and their machine-specific particulars are kept inside the pinmux driver,
-  from the outside only the enumerators are known, and the driver core can:
+  from the outside only the enumerators are known, and the driver core can
+  request:
 
-  - Request the name of a function with a certain selector (>= 0)
+  - The name of a function with a certain selector (>= 0)
   - A list of groups associated with a certain function
-  - Request that a certain group in that list to be activated for a certain
-    function
+  - That a certain group in that list to be activated for a certain function
 
   As already described above, pin groups are in turn self-descriptive, so
   the core will retrieve the actual pin range in a certain group from the
