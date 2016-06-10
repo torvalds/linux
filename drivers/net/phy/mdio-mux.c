@@ -89,7 +89,8 @@ static int parent_count;
 int mdio_mux_init(struct device *dev,
 		  int (*switch_fn)(int cur, int desired, void *data),
 		  void **mux_handle,
-		  void *data)
+		  void *data,
+		  struct mii_bus *mux_bus)
 {
 	struct device_node *parent_bus_node;
 	struct device_node *child_bus_node;
@@ -101,10 +102,21 @@ int mdio_mux_init(struct device *dev,
 	if (!dev->of_node)
 		return -ENODEV;
 
-	parent_bus_node = of_parse_phandle(dev->of_node, "mdio-parent-bus", 0);
+	if (!mux_bus) {
+		parent_bus_node = of_parse_phandle(dev->of_node,
+						   "mdio-parent-bus", 0);
 
-	if (!parent_bus_node)
-		return -ENODEV;
+		if (!parent_bus_node)
+			return -ENODEV;
+
+		parent_bus = of_mdio_find_bus(parent_bus_node);
+		if (!parent_bus) {
+			ret_val = -EPROBE_DEFER;
+			goto err_parent_bus;
+		}
+	} else {
+		parent_bus = mux_bus;
+	}
 
 	pb = devm_kzalloc(dev, sizeof(*pb), GFP_KERNEL);
 	if (pb == NULL) {
@@ -112,11 +124,6 @@ int mdio_mux_init(struct device *dev,
 		goto err_parent_bus;
 	}
 
-	parent_bus = of_mdio_find_bus(parent_bus_node);
-	if (parent_bus == NULL) {
-		ret_val = -EPROBE_DEFER;
-		goto err_parent_bus;
-	}
 
 	pb->switch_data = data;
 	pb->switch_fn = switch_fn;
@@ -177,7 +184,8 @@ int mdio_mux_init(struct device *dev,
 	put_device(&pb->mii_bus->dev);
 
 err_parent_bus:
-	of_node_put(parent_bus_node);
+	if (!mux_bus)
+		of_node_put(parent_bus_node);
 	return ret_val;
 }
 EXPORT_SYMBOL_GPL(mdio_mux_init);
