@@ -1153,14 +1153,14 @@ static noinline int __btrfs_cow_block(struct btrfs_trans_handle *trans,
 
 	ret = update_ref_for_cow(trans, root, buf, cow, &last_ref);
 	if (ret) {
-		btrfs_abort_transaction(trans, root, ret);
+		btrfs_abort_transaction(trans, ret);
 		return ret;
 	}
 
 	if (test_bit(BTRFS_ROOT_REF_COWS, &root->state)) {
 		ret = btrfs_reloc_cow_block(trans, root, buf, cow);
 		if (ret) {
-			btrfs_abort_transaction(trans, root, ret);
+			btrfs_abort_transaction(trans, ret);
 			return ret;
 		}
 	}
@@ -1198,7 +1198,7 @@ static noinline int __btrfs_cow_block(struct btrfs_trans_handle *trans,
 		if (last_ref) {
 			ret = tree_mod_log_free_eb(root->fs_info, buf);
 			if (ret) {
-				btrfs_abort_transaction(trans, root, ret);
+				btrfs_abort_transaction(trans, ret);
 				return ret;
 			}
 		}
@@ -3255,7 +3255,7 @@ static int push_node_left(struct btrfs_trans_handle *trans,
 	ret = tree_mod_log_eb_copy(root->fs_info, dst, src, dst_nritems, 0,
 				   push_items);
 	if (ret) {
-		btrfs_abort_transaction(trans, root, ret);
+		btrfs_abort_transaction(trans, ret);
 		return ret;
 	}
 	copy_extent_buffer(dst, src,
@@ -3330,7 +3330,7 @@ static int balance_node_right(struct btrfs_trans_handle *trans,
 	ret = tree_mod_log_eb_copy(root->fs_info, dst, src, 0,
 				   src_nritems - push_items, push_items);
 	if (ret) {
-		btrfs_abort_transaction(trans, root, ret);
+		btrfs_abort_transaction(trans, ret);
 		return ret;
 	}
 	copy_extent_buffer(dst, src,
@@ -3534,7 +3534,7 @@ static noinline int split_node(struct btrfs_trans_handle *trans,
 	ret = tree_mod_log_eb_copy(root->fs_info, split, c, 0,
 				   mid, c_nritems - mid);
 	if (ret) {
-		btrfs_abort_transaction(trans, root, ret);
+		btrfs_abort_transaction(trans, ret);
 		return ret;
 	}
 	copy_extent_buffer(split, c,

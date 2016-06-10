@@ -3379,23 +3379,23 @@ const char *btrfs_decode_error(int errno);
 
 __cold
 void __btrfs_abort_transaction(struct btrfs_trans_handle *trans,
-			       struct btrfs_root *root, const char *function,
+			       const char *function,
 			       unsigned int line, int errno);
 
 /*
  * Call btrfs_abort_transaction as early as possible when an error condition is
  * detected, that way the exact line number is reported.
  */
-#define btrfs_abort_transaction(trans, root, errno)		\
+#define btrfs_abort_transaction(trans, errno)		\
 do {								\
 	/* Report first abort since mount */			\
 	if (!test_and_set_bit(BTRFS_FS_STATE_TRANS_ABORTED,	\
-			&((root)->fs_info->fs_state))) {	\
+			&((trans)->fs_info->fs_state))) {	\
 		WARN(1, KERN_DEBUG				\
 		"BTRFS: Transaction aborted (error %d)\n",	\
 		(errno));					\
 	}							\
-	__btrfs_abort_transaction((trans), (root), __func__,	\
+	__btrfs_abort_transaction((trans), __func__,		\
 				  __LINE__, (errno));		\
 } while (0)
 

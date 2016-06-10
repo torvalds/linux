@@ -2438,14 +2438,14 @@ int btrfs_init_new_device(struct btrfs_root *root, char *device_path)
 		ret = init_first_rw_device(trans, root, device);
 		unlock_chunks(root);
 		if (ret) {
-			btrfs_abort_transaction(trans, root, ret);
+			btrfs_abort_transaction(trans, ret);
 			goto error_trans;
 		}
 	}
 
 	ret = btrfs_add_device(trans, root, device);
 	if (ret) {
-		btrfs_abort_transaction(trans, root, ret);
+		btrfs_abort_transaction(trans, ret);
 		goto error_trans;
 	}
 
@@ -2454,7 +2454,7 @@ int btrfs_init_new_device(struct btrfs_root *root, char *device_path)
 
 		ret = btrfs_finish_sprout(trans, root);
 		if (ret) {
-			btrfs_abort_transaction(trans, root, ret);
+			btrfs_abort_transaction(trans, ret);
 			goto error_trans;
 		}
 
@@ -2840,7 +2840,7 @@ int btrfs_remove_chunk(struct btrfs_trans_handle *trans,
 					    &dev_extent_len);
 		if (ret) {
 			mutex_unlock(&fs_devices->device_list_mutex);
-			btrfs_abort_transaction(trans, root, ret);
+			btrfs_abort_transaction(trans, ret);
 			goto out;
 		}
 
@@ -2859,7 +2859,7 @@ int btrfs_remove_chunk(struct btrfs_trans_handle *trans,
 			ret = btrfs_update_device(trans, map->stripes[i].dev);
 			if (ret) {
 				mutex_unlock(&fs_devices->device_list_mutex);
-				btrfs_abort_transaction(trans, root, ret);
+				btrfs_abort_transaction(trans, ret);
 				goto out;
 			}
 		}
@@ -2868,7 +2868,7 @@ int btrfs_remove_chunk(struct btrfs_trans_handle *trans,
 
 	ret = btrfs_free_chunk(trans, root, chunk_objectid, chunk_offset);
 	if (ret) {
-		btrfs_abort_transaction(trans, root, ret);
+		btrfs_abort_transaction(trans, ret);
 		goto out;
 	}
 
@@ -2877,14 +2877,14 @@ int btrfs_remove_chunk(struct btrfs_trans_handle *trans,
 	if (map->type & BTRFS_BLOCK_GROUP_SYSTEM) {
 		ret = btrfs_del_sys_chunk(root, chunk_objectid, chunk_offset);
 		if (ret) {
-			btrfs_abort_transaction(trans, root, ret);
+			btrfs_abort_transaction(trans, ret);
 			goto out;
 		}
 	}
 
 	ret = btrfs_remove_block_group(trans, extent_root, chunk_offset, em);
 	if (ret) {
-		btrfs_abort_transaction(trans, extent_root, ret);
+		btrfs_abort_transaction(trans, ret);
 		goto out;
 	}
 
@@ -4299,7 +4299,7 @@ int btrfs_create_uuid_tree(struct btrfs_fs_info *fs_info)
 				      BTRFS_UUID_TREE_OBJECTID);
 	if (IS_ERR(uuid_root)) {
 		ret = PTR_ERR(uuid_root);
-		btrfs_abort_transaction(trans, tree_root, ret);
+		btrfs_abort_transaction(trans, ret);
 		btrfs_end_transaction(trans, tree_root);
 		return ret;
 	}

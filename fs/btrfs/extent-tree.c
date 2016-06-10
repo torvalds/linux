@@ -2180,7 +2180,7 @@ static int __btrfs_inc_extent_ref(struct btrfs_trans_handle *trans,
 				    path, bytenr, parent, root_objectid,
 				    owner, offset, refs_to_add);
 	if (ret)
-		btrfs_abort_transaction(trans, root, ret);
+		btrfs_abort_transaction(trans, ret);
 out:
 	btrfs_free_path(path);
 	return ret;
@@ -2971,7 +2971,7 @@ again:
 	trans->can_flush_pending_bgs = false;
 	ret = __btrfs_run_delayed_refs(trans, root, count);
 	if (ret < 0) {
-		btrfs_abort_transaction(trans, root, ret);
+		btrfs_abort_transaction(trans, ret);
 		return ret;
 	}
 
@@ -3430,7 +3430,7 @@ again:
 		 * transaction, this only happens in really bad situations
 		 * anyway.
 		 */
-		btrfs_abort_transaction(trans, root, ret);
+		btrfs_abort_transaction(trans, ret);
 		goto out_put;
 	}
 	WARN_ON(ret);
@@ -3670,7 +3670,7 @@ again:
 				}
 				spin_unlock(&cur_trans->dirty_bgs_lock);
 			} else if (ret) {
-				btrfs_abort_transaction(trans, root, ret);
+				btrfs_abort_transaction(trans, ret);
 			}
 		}
 
@@ -3816,7 +3816,7 @@ int btrfs_write_dirty_block_groups(struct btrfs_trans_handle *trans,
 							    cache);
 			}
 			if (ret)
-				btrfs_abort_transaction(trans, root, ret);
+				btrfs_abort_transaction(trans, ret);
 		}
 
 		/* if its not on the io list, we need to put the block group */
@@ -6881,7 +6881,7 @@ static int __btrfs_free_extent(struct btrfs_trans_handle *trans,
 						    NULL, refs_to_drop,
 						    is_data, &last_ref);
 			if (ret) {
-				btrfs_abort_transaction(trans, extent_root, ret);
+				btrfs_abort_transaction(trans, ret);
 				goto out;
 			}
 			btrfs_release_path(path);
@@ -6930,7 +6930,7 @@ static int __btrfs_free_extent(struct btrfs_trans_handle *trans,
 							 path->nodes[0]);
 			}
 			if (ret < 0) {
-				btrfs_abort_transaction(trans, extent_root, ret);
+				btrfs_abort_transaction(trans, ret);
 				goto out;
 			}
 			extent_slot = path->slots[0];
@@ -6941,10 +6941,10 @@ static int __btrfs_free_extent(struct btrfs_trans_handle *trans,
 			"unable to find ref byte nr %llu parent %llu root %llu  owner %llu offset %llu",
 			bytenr, parent, root_objectid, owner_objectid,
 			owner_offset);
-		btrfs_abort_transaction(trans, extent_root, ret);
+		btrfs_abort_transaction(trans, ret);
 		goto out;
 	} else {
-		btrfs_abort_transaction(trans, extent_root, ret);
+		btrfs_abort_transaction(trans, ret);
 		goto out;
 	}
 
@@ -6956,7 +6956,7 @@ static int __btrfs_free_extent(struct btrfs_trans_handle *trans,
 		ret = convert_extent_item_v0(trans, extent_root, path,
 					     owner_objectid, 0);
 		if (ret < 0) {
-			btrfs_abort_transaction(trans, extent_root, ret);
+			btrfs_abort_transaction(trans, ret);
 			goto out;
 		}
 
@@ -6975,7 +6975,7 @@ static int __btrfs_free_extent(struct btrfs_trans_handle *trans,
 			btrfs_print_leaf(extent_root, path->nodes[0]);
 		}
 		if (ret < 0) {
-			btrfs_abort_transaction(trans, extent_root, ret);
+			btrfs_abort_transaction(trans, ret);
 			goto out;
 		}
 
@@ -7000,7 +7000,7 @@ static int __btrfs_free_extent(struct btrfs_trans_handle *trans,
 		btrfs_err(info, "trying to drop %d refs but we only have %Lu "
 			  "for bytenr %Lu", refs_to_drop, refs, bytenr);
 		ret = -EINVAL;
-		btrfs_abort_transaction(trans, extent_root, ret);
+		btrfs_abort_transaction(trans, ret);
 		goto out;
 	}
 	refs -= refs_to_drop;
@@ -7023,7 +7023,7 @@ static int __btrfs_free_extent(struct btrfs_trans_handle *trans,
 						    iref, refs_to_drop,
 						    is_data, &last_ref);
 			if (ret) {
-				btrfs_abort_transaction(trans, extent_root, ret);
+				btrfs_abort_transaction(trans, ret);
 				goto out;
 			}
 		}
@@ -7046,7 +7046,7 @@ static int __btrfs_free_extent(struct btrfs_trans_handle *trans,
 		ret = btrfs_del_items(trans, extent_root, path, path->slots[0],
 				      num_to_del);
 		if (ret) {
-			btrfs_abort_transaction(trans, extent_root, ret);
+			btrfs_abort_transaction(trans, ret);
 			goto out;
 		}
 		btrfs_release_path(path);
@@ -7054,7 +7054,7 @@ static int __btrfs_free_extent(struct btrfs_trans_handle *trans,
 		if (is_data) {
 			ret = btrfs_del_csums(trans, root, bytenr, num_bytes);
 			if (ret) {
-				btrfs_abort_transaction(trans, extent_root, ret);
+				btrfs_abort_transaction(trans, ret);
 				goto out;
 			}
 		}
@@ -7062,13 +7062,13 @@ static int __btrfs_free_extent(struct btrfs_trans_handle *trans,
 		ret = add_to_free_space_tree(trans, root->fs_info, bytenr,
 					     num_bytes);
 		if (ret) {
-			btrfs_abort_transaction(trans, extent_root, ret);
+			btrfs_abort_transaction(trans, ret);
 			goto out;
 		}
 
 		ret = update_block_group(trans, root, bytenr, num_bytes, 0);
 		if (ret) {
-			btrfs_abort_transaction(trans, extent_root, ret);
+			btrfs_abort_transaction(trans, ret);
 			goto out;
 		}
 	}
@@ -7852,8 +7852,7 @@ loop:
 			 * can do more things.
 			 */
 			if (ret < 0 && ret != -ENOSPC)
-				btrfs_abort_transaction(trans,
-							root, ret);
+				btrfs_abort_transaction(trans, ret);
 			else
 				ret = 0;
 			if (!exist)
@@ -9329,7 +9328,7 @@ int btrfs_drop_snapshot(struct btrfs_root *root,
 						&root->root_key,
 						root_item);
 			if (ret) {
-				btrfs_abort_transaction(trans, tree_root, ret);
+				btrfs_abort_transaction(trans, ret);
 				err = ret;
 				goto out_end_trans;
 			}
@@ -9356,7 +9355,7 @@ int btrfs_drop_snapshot(struct btrfs_root *root,
 
 	ret = btrfs_del_root(trans, tree_root, &root->root_key);
 	if (ret) {
-		btrfs_abort_transaction(trans, tree_root, ret);
+		btrfs_abort_transaction(trans, ret);
 		goto out_end_trans;
 	}
 
@@ -9364,7 +9363,7 @@ int btrfs_drop_snapshot(struct btrfs_root *root,
 		ret = btrfs_find_root(tree_root, &root->root_key, path,
 				      NULL, NULL);
 		if (ret < 0) {
-			btrfs_abort_transaction(trans, tree_root, ret);
+			btrfs_abort_transaction(trans, ret);
 			err = ret;
 			goto out_end_trans;
 		} else if (ret > 0) {
@@ -10324,11 +10323,11 @@ void btrfs_create_pending_block_groups(struct btrfs_trans_handle *trans,
 		ret = btrfs_insert_item(trans, extent_root, &key, &item,
 					sizeof(item));
 		if (ret)
-			btrfs_abort_transaction(trans, extent_root, ret);
+			btrfs_abort_transaction(trans, ret);
 		ret = btrfs_finish_chunk_alloc(trans, extent_root,
 					       key.objectid, key.offset);
 		if (ret)
-			btrfs_abort_transaction(trans, extent_root, ret);
+			btrfs_abort_transaction(trans, ret);
 		add_block_group_free_space(trans, root->fs_info, block_group);
 		/* already aborted the transaction if it failed. */
 next:

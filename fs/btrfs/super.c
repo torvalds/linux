@@ -251,9 +251,11 @@ void btrfs_printk(const struct btrfs_fs_info *fs_info, const char *fmt, ...)
  */
 __cold
 void __btrfs_abort_transaction(struct btrfs_trans_handle *trans,
-			       struct btrfs_root *root, const char *function,
+			       const char *function,
 			       unsigned int line, int errno)
 {
+	struct btrfs_fs_info *fs_info = trans->fs_info;
+
 	trans->aborted = errno;
 	/* Nothing used. The other threads that have joined this
 	 * transaction may be able to continue. */
@@ -261,16 +263,16 @@ void __btrfs_abort_transaction(struct btrfs_trans_handle *trans,
 		const char *errstr;
 
 		errstr = btrfs_decode_error(errno);
-		btrfs_warn(root->fs_info,
+		btrfs_warn(fs_info,
 		           "%s:%d: Aborting unused transaction(%s).",
 		           function, line, errstr);
 		return;
 	}
 	ACCESS_ONCE(trans->transaction->aborted) = errno;
 	/* Wake up anybody who may be waiting on this transaction */
-	wake_up(&root->fs_info->transaction_wait);
-	wake_up(&root->fs_info->transaction_blocked_wait);
-	__btrfs_handle_fs_error(root->fs_info, function, line, errno, NULL);
+	wake_up(&fs_info->transaction_wait);
+	wake_up(&fs_info->transaction_blocked_wait);
+	__btrfs_handle_fs_error(fs_info, function, line, errno, NULL);
 }
 /*
  * __btrfs_panic decodes unexpected, fatal errors from the caller,
