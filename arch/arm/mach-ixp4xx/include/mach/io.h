@@ -534,8 +534,15 @@ static inline void iowrite32_rep(void __iomem *addr, const void *vaddr,
 #endif
 }
 
-#define	ioport_map(port, nr)		((void __iomem*)(port + PIO_OFFSET))
-#define	ioport_unmap(addr)
+#define ioport_map(port, nr) ioport_map(port, nr)
+static inline void __iomem *ioport_map(unsigned long port, unsigned int nr)
+{
+	return ((void __iomem*)((port) + PIO_OFFSET));
+}
+#define	ioport_unmap(addr) ioport_unmap(addr)
+static inline void ioport_unmap(void __iomem *addr)
+{
+}
 #endif /* CONFIG_PCI */
 
 #endif /* __ASM_ARM_ARCH_IO_H */
