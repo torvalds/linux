@@ -427,7 +427,7 @@
 		function = "usb2";
 	};
 
-	vin1_pins: vin {
+	vin1_pins: vin1 {
 		groups = "vin1_data8", "vin1_clk";
 		function = "vin1";
 	};
