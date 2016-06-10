@@ -950,17 +950,14 @@ static int of_pmu_irq_cfg(struct arm_pmu *pmu)
 
 		/* For SPIs, we need to track the affinity per IRQ */
 		if (using_spi) {
-			if (i >= pdev->num_resources) {
-				of_node_put(dn);
+			if (i >= pdev->num_resources)
 				break;
-			}
 
 			irqs[i] = cpu;
 		}
 
 		/* Keep track of the CPUs containing this PMU type */
 		cpumask_set_cpu(cpu, &pmu->supported_cpus);
-		of_node_put(dn);
 		i++;
 	} while (1);
 
@@ -994,9 +991,6 @@ int arm_pmu_device_probe(struct platform_device *pdev,
 	}
 
 	armpmu_init(pmu);
-
-	if (!__oprofile_cpu_pmu)
-		__oprofile_cpu_pmu = pmu;
 
 	pmu->plat_device = pdev;
 
@@ -1033,6 +1027,9 @@ int arm_pmu_device_probe(struct platform_device *pdev,
 	if (ret)
 		goto out_destroy;
 
+	if (!__oprofile_cpu_pmu)
+		__oprofile_cpu_pmu = pmu;
+
 	pr_info("enabled with %s PMU driver, %d counters available\n",
 			pmu->name, pmu->num_events);
 
@@ -1043,6 +1040,7 @@ out_destroy:
 out_free:
 	pr_info("%s: failed to register PMU devices!\n",
 		of_node_full_name(node));
+	kfree(pmu->irq_affinity);
 	kfree(pmu);
 	return ret;
 }

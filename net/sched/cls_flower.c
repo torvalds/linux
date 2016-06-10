@@ -175,7 +175,7 @@ static void fl_hw_destroy_filter(struct tcf_proto *tp, unsigned long cookie)
 	struct tc_cls_flower_offload offload = {0};
 	struct tc_to_netdev tc;
 
-	if (!tc_should_offload(dev, 0))
+	if (!tc_should_offload(dev, tp, 0))
 		return;
 
 	offload.command = TC_CLSFLOWER_DESTROY;
@@ -198,7 +198,7 @@ static void fl_hw_replace_filter(struct tcf_proto *tp,
 	struct tc_cls_flower_offload offload = {0};
 	struct tc_to_netdev tc;
 
-	if (!tc_should_offload(dev, flags))
+	if (!tc_should_offload(dev, tp, flags))
 		return;
 
 	offload.command = TC_CLSFLOWER_REPLACE;
@@ -220,7 +220,7 @@ static void fl_hw_update_stats(struct tcf_proto *tp, struct cls_fl_filter *f)
 	struct tc_cls_flower_offload offload = {0};
 	struct tc_to_netdev tc;
 
-	if (!tc_should_offload(dev, 0))
+	if (!tc_should_offload(dev, tp, 0))
 		return;
 
 	offload.command = TC_CLSFLOWER_STATS;
