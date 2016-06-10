@@ -316,6 +316,17 @@ static int b53_mdio_probe(struct mdio_device *mdiodev)
 		return -ENODEV;
 	}
 
+	/* First probe will come from SWITCH_MDIO controller on the 7445D0
+	 * switch, which will conflict with the 7445 integrated switch
+	 * pseudo-phy (we end-up programming both). In that case, we return
+	 * -EPROBE_DEFER for the first time we get here, and wait until we come
+	 * back with the slave MDIO bus which has the correct indirection
+	 * layer setup
+	 */
+	if (of_machine_is_compatible("brcm,bcm7445d0") &&
+	    strcmp(mdiodev->bus->name, "sf2 slave mii"))
+		return -EPROBE_DEFER;
+
 	dev = b53_switch_alloc(&mdiodev->dev, &b53_mdio_ops, mdiodev->bus);
 	if (!dev)
 		return -ENOMEM;
