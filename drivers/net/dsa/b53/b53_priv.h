@@ -27,6 +27,7 @@
 #include "b53_regs.h"
 
 struct b53_device;
+struct net_device;
 
 struct b53_io_ops {
 	int (*read8)(struct b53_device *dev, u8 page, u8 reg, u8 *value);
@@ -64,6 +65,8 @@ enum {
 #define B53_N_PORTS_25	6
 
 struct b53_port {
+	u16		vlan_ctl_mask;
+	struct net_device *bridge_dev;
 };
 
 struct b53_device {
