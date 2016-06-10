@@ -954,7 +954,8 @@ static int vvp_io_write_start(const struct lu_env *env,
 		 * out-of-order writes.
 		 */
 		ll_merge_attr(env, inode);
-		pos = io->u.ci_wr.wr.crw_pos = i_size_read(inode);
+		pos = i_size_read(inode);
+		io->u.ci_wr.wr.crw_pos = pos;
 		vio->vui_iocb->ki_pos = pos;
 	} else {
 		LASSERT(vio->vui_iocb->ki_pos == pos);

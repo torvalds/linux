@@ -318,7 +318,8 @@ static struct dentry *ll_find_alias(struct inode *inode, struct dentry *dentry)
 	if (hlist_empty(&inode->i_dentry))
 		return NULL;
 
-	discon_alias = invalid_alias = NULL;
+	discon_alias = NULL;
+	invalid_alias = NULL;
 
 	ll_lock_dcache(inode);
 	hlist_for_each_entry(alias, &inode->i_dentry, d_u.d_alias) {
