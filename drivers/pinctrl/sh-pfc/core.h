@@ -67,28 +67,4 @@ void sh_pfc_write_reg(struct sh_pfc *pfc, u32 reg, unsigned int width,
 int sh_pfc_get_pin_index(struct sh_pfc *pfc, unsigned int pin);
 int sh_pfc_config_mux(struct sh_pfc *pfc, unsigned mark, int pinmux_type);
 
-extern const struct sh_pfc_soc_info emev2_pinmux_info;
-extern const struct sh_pfc_soc_info r8a73a4_pinmux_info;
-extern const struct sh_pfc_soc_info r8a7740_pinmux_info;
-extern const struct sh_pfc_soc_info r8a7778_pinmux_info;
-extern const struct sh_pfc_soc_info r8a7779_pinmux_info;
-extern const struct sh_pfc_soc_info r8a7790_pinmux_info;
-extern const struct sh_pfc_soc_info r8a7791_pinmux_info;
-extern const struct sh_pfc_soc_info r8a7793_pinmux_info;
-extern const struct sh_pfc_soc_info r8a7794_pinmux_info;
-extern const struct sh_pfc_soc_info r8a7795_pinmux_info;
-extern const struct sh_pfc_soc_info sh7203_pinmux_info;
-extern const struct sh_pfc_soc_info sh7264_pinmux_info;
-extern const struct sh_pfc_soc_info sh7269_pinmux_info;
-extern const struct sh_pfc_soc_info sh73a0_pinmux_info;
-extern const struct sh_pfc_soc_info sh7720_pinmux_info;
-extern const struct sh_pfc_soc_info sh7722_pinmux_info;
-extern const struct sh_pfc_soc_info sh7723_pinmux_info;
-extern const struct sh_pfc_soc_info sh7724_pinmux_info;
-extern const struct sh_pfc_soc_info sh7734_pinmux_info;
-extern const struct sh_pfc_soc_info sh7757_pinmux_info;
-extern const struct sh_pfc_soc_info sh7785_pinmux_info;
-extern const struct sh_pfc_soc_info sh7786_pinmux_info;
-extern const struct sh_pfc_soc_info shx3_pinmux_info;
-
 #endif /* __SH_PFC_CORE_H__ */
