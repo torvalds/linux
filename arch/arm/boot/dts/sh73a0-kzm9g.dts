@@ -352,7 +352,7 @@
 		};
 	};
 
-	scifa4_pins: serial4 {
+	scifa4_pins: scifa4 {
 		groups = "scifa4_data", "scifa4_ctrl";
 		function = "scifa4";
 	};
