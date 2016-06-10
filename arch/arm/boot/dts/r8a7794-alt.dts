@@ -111,7 +111,7 @@
 		function = "du";
 	};
 
-	scif2_pins: serial2 {
+	scif2_pins: scif2 {
 		groups = "scif2_data";
 		function = "scif2";
 	};
