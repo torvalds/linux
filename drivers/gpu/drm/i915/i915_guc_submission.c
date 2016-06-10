@@ -906,9 +906,8 @@ static void guc_create_ads(struct intel_guc *guc)
  * Set up the memory resources to be shared with the GuC.  At this point,
  * we require just one object that can be mapped through the GGTT.
  */
-int i915_guc_submission_init(struct drm_device *dev)
+int i915_guc_submission_init(struct drm_i915_private *dev_priv)
 {
-	struct drm_i915_private *dev_priv = dev->dev_private;
 	const size_t ctxsize = sizeof(struct guc_context_desc);
 	const size_t poolsize = GUC_MAX_GPU_CONTEXTS * ctxsize;
 	const size_t gemsize = round_up(poolsize, PAGE_SIZE);
@@ -916,7 +915,7 @@ int i915_guc_submission_init(struct drm_device *dev)
 
 	/* Wipe bitmap & delete client in case of reinitialisation */
 	bitmap_clear(guc->doorbell_bitmap, 0, GUC_MAX_DOORBELLS);
-	i915_guc_submission_disable(dev);
+	i915_guc_submission_disable(dev_priv);
 
 	if (!i915.enable_guc_submission)
 		return 0; /* not enabled  */
@@ -935,9 +934,8 @@ int i915_guc_submission_init(struct drm_device *dev)
 	return 0;
 }
 
-int i915_guc_submission_enable(struct drm_device *dev)
+int i915_guc_submission_enable(struct drm_i915_private *dev_priv)
 {
-	struct drm_i915_private *dev_priv = dev->dev_private;
 	struct intel_guc *guc = &dev_priv->guc;
 	struct i915_guc_client *client;
 
@@ -957,18 +955,16 @@ int i915_guc_submission_enable(struct drm_device *dev)
 	return 0;
 }
 
-void i915_guc_submission_disable(struct drm_device *dev)
+void i915_guc_submission_disable(struct drm_i915_private *dev_priv)
 {
-	struct drm_i915_private *dev_priv = dev->dev_private;
 	struct intel_guc *guc = &dev_priv->guc;
 
 	guc_client_free(dev_priv, guc->execbuf_client);
 	guc->execbuf_client = NULL;
 }
 
-void i915_guc_submission_fini(struct drm_device *dev)
+void i915_guc_submission_fini(struct drm_i915_private *dev_priv)
 {
-	struct drm_i915_private *dev_priv = dev->dev_private;
 	struct intel_guc *guc = &dev_priv->guc;
 
 	gem_release_guc_obj(dev_priv->guc.ads_obj);
