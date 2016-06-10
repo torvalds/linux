@@ -13,6 +13,9 @@ void intel_gmch_remove(void);
 bool intel_enable_gtt(void);
 
 void intel_gtt_chipset_flush(void);
+void intel_gtt_insert_page(dma_addr_t addr,
+			   unsigned int pg,
+			   unsigned int flags);
 void intel_gtt_insert_sg_entries(struct sg_table *st,
 				 unsigned int pg_start,
 				 unsigned int flags);

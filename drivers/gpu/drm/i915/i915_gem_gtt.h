@@ -319,6 +319,11 @@ struct i915_address_space {
 			    uint64_t start,
 			    uint64_t length,
 			    bool use_scratch);
+	void (*insert_page)(struct i915_address_space *vm,
+			    dma_addr_t addr,
+			    uint64_t offset,
+			    enum i915_cache_level cache_level,
+			    u32 flags);
 	void (*insert_entries)(struct i915_address_space *vm,
 			       struct sg_table *st,
 			       uint64_t start,
