@@ -27,6 +27,26 @@
 		};
 	};
 
+	sdcc3_pins: sdcc3-pin-active {
+		clk {
+			pins = "sdc3_clk";
+			drive-strengh = <8>;
+			bias-disable;
+		};
+
+		cmd {
+			pins = "sdc3_cmd";
+			drive-strengh = <8>;
+			bias-pull-up;
+		};
+
+		data {
+			pins = "sdc3_data";
+			drive-strengh = <8>;
+			bias-pull-up;
+		};
+	};
+
 	ps_hold: ps_hold {
 		mux {
 			pins = "gpio78";

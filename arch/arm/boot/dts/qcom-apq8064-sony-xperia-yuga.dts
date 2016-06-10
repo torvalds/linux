@@ -71,26 +71,6 @@
 			};
 
 
-			sdcc3_pin_a: sdcc3-pin-active {
-				clk {
-					pins = "sdc3_clk";
-					drive-strengh = <8>;
-					bias-disable;
-				};
-
-				cmd {
-					pins = "sdc3_cmd";
-					drive-strengh = <8>;
-					bias-pull-up;
-				};
-
-				data {
-					pins = "sdc3_data";
-					drive-strengh = <8>;
-					bias-pull-up;
-				};
-			};
-
 			sdcc3_cd_pin_a: sdcc3-cd-pin-active {
 				pins = "gpio26";
 				function = "gpio";
@@ -407,7 +387,7 @@
 				cd-gpios = <&tlmm_pinmux 26 GPIO_ACTIVE_LOW>;
 
 				pinctrl-names = "default";
-				pinctrl-0 = <&sdcc3_pin_a>, <&sdcc3_cd_pin_a>;
+				pinctrl-0 = <&sdcc3_pins>, <&sdcc3_cd_pin_a>;
 			};
 		};
 	};
