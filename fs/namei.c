@@ -1890,9 +1890,9 @@ static inline unsigned int fold_hash(unsigned long x, unsigned long y)
  * payload bytes, to match the way that hash_name() iterates until it
  * finds the delimiter after the name.
  */
-unsigned int full_name_hash(const char *name, unsigned int len)
+unsigned int full_name_hash(const void *salt, const char *name, unsigned int len)
 {
-	unsigned long a, x = 0, y = 0;
+	unsigned long a, x = 0, y = (unsigned long)salt;
 
 	for (;;) {
 		if (!len)
@@ -1911,15 +1911,19 @@ done:
 EXPORT_SYMBOL(full_name_hash);
 
 /* Return the "hash_len" (hash and length) of a null-terminated string */
-u64 hashlen_string(const char *name)
+u64 hashlen_string(const void *salt, const char *name)
 {
-	unsigned long a = 0, x = 0, y = 0, adata, mask, len;
+	unsigned long a = 0, x = 0, y = (unsigned long)salt;
+	unsigned long adata, mask, len;
 	const struct word_at_a_time constants = WORD_AT_A_TIME_CONSTANTS;
 
-	len = -sizeof(unsigned long);
+	len = 0;
+	goto inside;
+
 	do {
 		HASH_MIX(x, y, a);
 		len += sizeof(unsigned long);
+inside:
 		a = load_unaligned_zeropad(name+len);
 	} while (!has_zero(a, &adata, &constants));
 
@@ -1935,15 +1939,19 @@ EXPORT_SYMBOL(hashlen_string);
  * Calculate the length and hash of the path component, and
  * return the "hash_len" as the result.
  */
-static inline u64 hash_name(const char *name)
+static inline u64 hash_name(const void *salt, const char *name)
 {
-	unsigned long a = 0, b, x = 0, y = 0, adata, bdata, mask, len;
+	unsigned long a = 0, b, x = 0, y = (unsigned long)salt;
+	unsigned long adata, bdata, mask, len;
 	const struct word_at_a_time constants = WORD_AT_A_TIME_CONSTANTS;
 
-	len = -sizeof(unsigned long);
+	len = 0;
+	goto inside;
+
 	do {
 		HASH_MIX(x, y, a);
 		len += sizeof(unsigned long);
+inside:
 		a = load_unaligned_zeropad(name+len);
 		b = a ^ REPEAT_BYTE('/');
 	} while (!(has_zero(a, &adata, &constants) | has_zero(b, &bdata, &constants)));
@@ -1959,9 +1967,9 @@ static inline u64 hash_name(const char *name)
 #else	/* !CONFIG_DCACHE_WORD_ACCESS: Slow, byte-at-a-time version */
 
 /* Return the hash of a string of known length */
-unsigned int full_name_hash(const char *name, unsigned int len)
+unsigned int full_name_hash(const void *salt, const char *name, unsigned int len)
 {
-	unsigned long hash = init_name_hash();
+	unsigned long hash = init_name_hash(salt);
 	while (len--)
 		hash = partial_name_hash((unsigned char)*name++, hash);
 	return end_name_hash(hash);
@@ -1969,9 +1977,9 @@ unsigned int full_name_hash(const char *name, unsigned int len)
 EXPORT_SYMBOL(full_name_hash);
 
 /* Return the "hash_len" (hash and length) of a null-terminated string */
-u64 hashlen_string(const char *name)
+u64 hashlen_string(const void *salt, const char *name)
 {
-	unsigned long hash = init_name_hash();
+	unsigned long hash = init_name_hash(salt);
 	unsigned long len = 0, c;
 
 	c = (unsigned char)*name;
@@ -1988,9 +1996,9 @@ EXPORT_SYMBOL(hashlen_string);
  * We know there's a real path component here of at least
  * one character.
  */
-static inline u64 hash_name(const char *name)
+static inline u64 hash_name(const void *salt, const char *name)
 {
-	unsigned long hash = init_name_hash();
+	unsigned long hash = init_name_hash(salt);
 	unsigned long len = 0, c;
 
 	c = (unsigned char)*name;
@@ -2030,7 +2038,7 @@ static int link_path_walk(const char *name, struct nameidata *nd)
 		if (err)
 			return err;
 
-		hash_len = hash_name(name);
+		hash_len = hash_name(nd->path.dentry, name);
 
 		type = LAST_NORM;
 		if (name[0] == '.') switch (hashlen_len(hash_len)) {
@@ -2436,7 +2444,7 @@ struct dentry *lookup_one_len(const char *name, struct dentry *base, int len)
 
 	this.name = name;
 	this.len = len;
-	this.hash = full_name_hash(name, len);
+	this.hash = full_name_hash(base, name, len);
 	if (!len)
 		return ERR_PTR(-EACCES);
 
@@ -2489,7 +2497,7 @@ struct dentry *lookup_one_len_unlocked(const char *name,
 
 	this.name = name;
 	this.len = len;
-	this.hash = full_name_hash(name, len);
+	this.hash = full_name_hash(base, name, len);
 	if (!len)
 		return ERR_PTR(-EACCES);
 

@@ -856,7 +856,7 @@ static int cifs_ci_hash(const struct dentry *dentry, struct qstr *q)
 	wchar_t c;
 	int i, charlen;
 
-	hash = init_name_hash();
+	hash = init_name_hash(dentry);
 	for (i = 0; i < q->len; i += charlen) {
 		charlen = codepage->char2uni(&q->name[i], q->len - i, &c);
 		/* error out if we can't convert the character */

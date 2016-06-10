@@ -81,6 +81,7 @@ static struct dentry *jffs2_lookup(struct inode *dir_i, struct dentry *target,
 	struct jffs2_full_dirent *fd = NULL, *fd_list;
 	uint32_t ino = 0;
 	struct inode *inode = NULL;
+	unsigned int nhash;
 
 	jffs2_dbg(1, "jffs2_lookup()\n");
 
@@ -89,11 +90,14 @@ static struct dentry *jffs2_lookup(struct inode *dir_i, struct dentry *target,
 
 	dir_f = JFFS2_INODE_INFO(dir_i);
 
+	/* The 'nhash' on the fd_list is not the same as the dentry hash */
+	nhash = full_name_hash(NULL, target->d_name.name, target->d_name.len);
+
 	mutex_lock(&dir_f->sem);
 
 	/* NB: The 2.2 backport will need to explicitly check for '.' and '..' here */
-	for (fd_list = dir_f->dents; fd_list && fd_list->nhash <= target->d_name.hash; fd_list = fd_list->next) {
-		if (fd_list->nhash == target->d_name.hash &&
+	for (fd_list = dir_f->dents; fd_list && fd_list->nhash <= nhash; fd_list = fd_list->next) {
+		if (fd_list->nhash == nhash &&
 		    (!fd || fd_list->version > fd->version) &&
 		    strlen(fd_list->name) == target->d_name.len &&
 		    !strncmp(fd_list->name, target->d_name.name, target->d_name.len)) {

@@ -623,7 +623,7 @@ static bool proc_sys_fill_cache(struct file *file,
 
 	qname.name = table->procname;
 	qname.len  = strlen(table->procname);
-	qname.hash = full_name_hash(qname.name, qname.len);
+	qname.hash = full_name_hash(dir, qname.name, qname.len);
 
 	child = d_lookup(dir, &qname);
 	if (!child) {

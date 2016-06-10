@@ -253,7 +253,7 @@ handle_name:
 		err = (signed)nls_name.len;
 		goto err_out;
 	}
-	nls_name.hash = full_name_hash(nls_name.name, nls_name.len);
+	nls_name.hash = full_name_hash(dent, nls_name.name, nls_name.len);
 
 	dent = d_add_ci(dent, dent_inode, &nls_name);
 	kfree(nls_name.name);
