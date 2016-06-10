@@ -481,14 +481,14 @@ static inline void mtk_rx_get_desc(struct mtk_rx_dma *rxd,
 /* the qdma core needs scratch memory to be setup */
 static int mtk_init_fq_dma(struct mtk_eth *eth)
 {
-	dma_addr_t phy_ring_head, phy_ring_tail;
+	dma_addr_t phy_ring_tail;
 	int cnt = MTK_DMA_SIZE;
 	dma_addr_t dma_addr;
 	int i;
 
 	eth->scratch_ring = dma_alloc_coherent(eth->dev,
 					       cnt * sizeof(struct mtk_tx_dma),
-					       &phy_ring_head,
+					       &eth->phy_scratch_ring,
 					       GFP_ATOMIC | __GFP_ZERO);
 	if (unlikely(!eth->scratch_ring))
 		return -ENOMEM;
@@ -505,19 +505,19 @@ static int mtk_init_fq_dma(struct mtk_eth *eth)
 		return -ENOMEM;
 
 	memset(eth->scratch_ring, 0x0, sizeof(struct mtk_tx_dma) * cnt);
-	phy_ring_tail = phy_ring_head +
+	phy_ring_tail = eth->phy_scratch_ring +
 			(sizeof(struct mtk_tx_dma) * (cnt - 1));
 
 	for (i = 0; i < cnt; i++) {
 		eth->scratch_ring[i].txd1 =
 					(dma_addr + (i * MTK_QDMA_PAGE_SIZE));
 		if (i < cnt - 1)
-			eth->scratch_ring[i].txd2 = (phy_ring_head +
+			eth->scratch_ring[i].txd2 = (eth->phy_scratch_ring +
 				((i + 1) * sizeof(struct mtk_tx_dma)));
 		eth->scratch_ring[i].txd3 = TX_DMA_SDL(MTK_QDMA_PAGE_SIZE);
 	}
 
-	mtk_w32(eth, phy_ring_head, MTK_QDMA_FQ_HEAD);
+	mtk_w32(eth, eth->phy_scratch_ring, MTK_QDMA_FQ_HEAD);
 	mtk_w32(eth, phy_ring_tail, MTK_QDMA_FQ_TAIL);
 	mtk_w32(eth, (cnt << 16) | cnt, MTK_QDMA_FQ_CNT);
 	mtk_w32(eth, MTK_QDMA_PAGE_SIZE << 16, MTK_QDMA_FQ_BLEN);
@@ -1210,6 +1210,14 @@ static void mtk_dma_free(struct mtk_eth *eth)
 	for (i = 0; i < MTK_MAC_COUNT; i++)
 		if (eth->netdev[i])
 			netdev_reset_queue(eth->netdev[i]);
+	if (eth->scratch_ring) {
+		dma_free_coherent(eth->dev,
+				  MTK_DMA_SIZE * sizeof(struct mtk_tx_dma),
+				  eth->scratch_ring,
+				  eth->phy_scratch_ring);
+		eth->scratch_ring = NULL;
+		eth->phy_scratch_ring = 0;
+	}
 	mtk_tx_clean(eth);
 	mtk_rx_clean(eth);
 	kfree(eth->scratch_head);

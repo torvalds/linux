@@ -357,6 +357,7 @@ struct mtk_rx_ring {
  * @rx_ring:		Pointer to the memore holding info about the RX ring
  * @rx_napi:		The NAPI struct
  * @scratch_ring:	Newer SoCs need memory for a second HW managed TX ring
+ * @phy_scratch_ring:	physical address of scratch_ring
  * @scratch_head:	The scratch memory that scratch_ring points to.
  * @clk_ethif:		The ethif clock
  * @clk_esw:		The switch clock
@@ -384,6 +385,7 @@ struct mtk_eth {
 	struct mtk_rx_ring		rx_ring;
 	struct napi_struct		rx_napi;
 	struct mtk_tx_dma		*scratch_ring;
+	dma_addr_t			phy_scratch_ring;
 	void				*scratch_head;
 	struct clk			*clk_ethif;
 	struct clk			*clk_esw;
