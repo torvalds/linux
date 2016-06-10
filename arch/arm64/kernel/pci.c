@@ -18,6 +18,8 @@
 #include <linux/of_pci.h>
 #include <linux/of_platform.h>
 #include <linux/pci.h>
+#include <linux/pci-acpi.h>
+#include <linux/pci-ecam.h>
 #include <linux/slab.h>
 
 /*
@@ -100,15 +102,123 @@ EXPORT_SYMBOL(pcibus_to_node);
 
 #ifdef CONFIG_ACPI
 
+struct acpi_pci_generic_root_info {
+	struct acpi_pci_root_info	common;
+	struct pci_config_window	*cfg;	/* config space mapping */
+};
+
 int acpi_pci_bus_find_domain_nr(struct pci_bus *bus)
 {
+	struct pci_config_window *cfg = bus->sysdata;
+	struct acpi_device *adev = to_acpi_device(cfg->parent);
+	struct acpi_pci_root *root = acpi_driver_data(adev);
+
+	return root->segment;
+}
+
+int pcibios_root_bridge_prepare(struct pci_host_bridge *bridge)
+{
+	if (!acpi_disabled) {
+		struct pci_config_window *cfg = bridge->bus->sysdata;
+		struct acpi_device *adev = to_acpi_device(cfg->parent);
+		ACPI_COMPANION_SET(&bridge->dev, adev);
+	}
+
 	return 0;
 }
 
-/* Root bridge scanning */
+/*
+ * Lookup the bus range for the domain in MCFG, and set up config space
+ * mapping.
+ */
+static struct pci_config_window *
+pci_acpi_setup_ecam_mapping(struct acpi_pci_root *root)
+{
+	struct resource *bus_res = &root->secondary;
+	u16 seg = root->segment;
+	struct pci_config_window *cfg;
+	struct resource cfgres;
+	unsigned int bsz;
+
+	/* Use address from _CBA if present, otherwise lookup MCFG */
+	if (!root->mcfg_addr)
+		root->mcfg_addr = pci_mcfg_lookup(seg, bus_res);
+
+	if (!root->mcfg_addr) {
+		dev_err(&root->device->dev, "%04x:%pR ECAM region not found\n",
+			seg, bus_res);
+		return NULL;
+	}
+
+	bsz = 1 << pci_generic_ecam_ops.bus_shift;
+	cfgres.start = root->mcfg_addr + bus_res->start * bsz;
+	cfgres.end = cfgres.start + resource_size(bus_res) * bsz - 1;
+	cfgres.flags = IORESOURCE_MEM;
+	cfg = pci_ecam_create(&root->device->dev, &cfgres, bus_res,
+			      &pci_generic_ecam_ops);
+	if (IS_ERR(cfg)) {
+		dev_err(&root->device->dev, "%04x:%pR error %ld mapping ECAM\n",
+			seg, bus_res, PTR_ERR(cfg));
+		return NULL;
+	}
+
+	return cfg;
+}
+
+/* release_info: free resources allocated by init_info */
+static void pci_acpi_generic_release_info(struct acpi_pci_root_info *ci)
+{
+	struct acpi_pci_generic_root_info *ri;
+
+	ri = container_of(ci, struct acpi_pci_generic_root_info, common);
+	pci_ecam_free(ri->cfg);
+	kfree(ri);
+}
+
+static struct acpi_pci_root_ops acpi_pci_root_ops = {
+	.release_info = pci_acpi_generic_release_info,
+};
+
+/* Interface called from ACPI code to setup PCI host controller */
 struct pci_bus *pci_acpi_scan_root(struct acpi_pci_root *root)
 {
-	/* TODO: Should be revisited when implementing PCI on ACPI */
-	return NULL;
+	int node = acpi_get_node(root->device->handle);
+	struct acpi_pci_generic_root_info *ri;
+	struct pci_bus *bus, *child;
+
+	ri = kzalloc_node(sizeof(*ri), GFP_KERNEL, node);
+	if (!ri)
+		return NULL;
+
+	ri->cfg = pci_acpi_setup_ecam_mapping(root);
+	if (!ri->cfg) {
+		kfree(ri);
+		return NULL;
+	}
+
+	acpi_pci_root_ops.pci_ops = &ri->cfg->ops->pci_ops;
+	bus = acpi_pci_root_create(root, &acpi_pci_root_ops, &ri->common,
+				   ri->cfg);
+	if (!bus)
+		return NULL;
+
+	pci_bus_size_bridges(bus);
+	pci_bus_assign_resources(bus);
+
+	list_for_each_entry(child, &bus->children, node)
+		pcie_bus_configure_settings(child);
+
+	return bus;
 }
+
+void pcibios_add_bus(struct pci_bus *bus)
+{
+	acpi_pci_add_bus(bus);
+}
+
+void pcibios_remove_bus(struct pci_bus *bus)
+{
+	acpi_pci_remove_bus(bus);
+}
+
 #endif
