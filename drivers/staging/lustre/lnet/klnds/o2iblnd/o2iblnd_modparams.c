@@ -145,7 +145,7 @@ static int use_privileged_port = 1;
 module_param(use_privileged_port, int, 0644);
 MODULE_PARM_DESC(use_privileged_port, "use privileged port when initiating connection");
 
-kib_tunables_t kiblnd_tunables = {
+struct kib_tunables kiblnd_tunables = {
 	.kib_dev_failover      = &dev_failover,
 	.kib_service           = &service,
 	.kib_cksum             = &cksum,
