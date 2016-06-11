@@ -244,7 +244,7 @@ static const struct v4l2_subdev_ops uds_ops = {
 
 static void uds_configure(struct vsp1_entity *entity,
 			  struct vsp1_pipeline *pipe,
-			  struct vsp1_dl_list *dl)
+			  struct vsp1_dl_list *dl, bool full)
 {
 	struct vsp1_uds *uds = to_uds(&entity->subdev);
 	const struct v4l2_mbus_framefmt *output;
@@ -252,6 +252,9 @@ static void uds_configure(struct vsp1_entity *entity,
 	unsigned int hscale;
 	unsigned int vscale;
 	bool multitap;
+
+	if (!full)
+		return;
 
 	input = vsp1_entity_get_pad_format(&uds->entity, uds->entity.config,
 					   UDS_PAD_SINK);

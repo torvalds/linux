@@ -491,8 +491,10 @@ void vsp1_du_atomic_flush(struct device *dev)
 
 		vsp1_entity_route_setup(entity, pipe->dl);
 
-		if (entity->ops->configure)
-			entity->ops->configure(entity, pipe, pipe->dl);
+		if (entity->ops->configure) {
+			entity->ops->configure(entity, pipe, pipe->dl, true);
+			entity->ops->configure(entity, pipe, pipe->dl, false);
+		}
 
 		/* The memory buffer address must be applied after configuring
 		 * the RPF to make sure the crop offset are computed.

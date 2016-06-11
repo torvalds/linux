@@ -181,9 +181,12 @@ static const struct v4l2_subdev_ops lut_ops = {
 
 static void lut_configure(struct vsp1_entity *entity,
 			  struct vsp1_pipeline *pipe,
-			  struct vsp1_dl_list *dl)
+			  struct vsp1_dl_list *dl, bool full)
 {
 	struct vsp1_lut *lut = to_lut(&entity->subdev);
+
+	if (!full)
+		return;
 
 	vsp1_lut_write(lut, dl, VI6_LUT_CTRL, VI6_LUT_CTRL_EN);
 

@@ -205,11 +205,14 @@ static const struct v4l2_subdev_ops clu_ops = {
 
 static void clu_configure(struct vsp1_entity *entity,
 			  struct vsp1_pipeline *pipe,
-			  struct vsp1_dl_list *dl)
+			  struct vsp1_dl_list *dl, bool full)
 {
 	struct vsp1_clu *clu = to_clu(&entity->subdev);
 	struct v4l2_mbus_framefmt *format;
 	u32 ctrl = VI6_CLU_CTRL_AAI | VI6_CLU_CTRL_MVS | VI6_CLU_CTRL_EN;
+
+	if (!full)
+		return;
 
 	format = vsp1_entity_get_pad_format(&clu->entity, clu->entity.config,
 					    CLU_PAD_SINK);

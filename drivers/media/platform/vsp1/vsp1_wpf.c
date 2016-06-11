@@ -93,7 +93,7 @@ static void wpf_set_memory(struct vsp1_entity *entity, struct vsp1_dl_list *dl)
 
 static void wpf_configure(struct vsp1_entity *entity,
 			  struct vsp1_pipeline *pipe,
-			  struct vsp1_dl_list *dl)
+			  struct vsp1_dl_list *dl, bool full)
 {
 	struct vsp1_rwpf *wpf = to_rwpf(&entity->subdev);
 	struct vsp1_device *vsp1 = wpf->entity.vsp1;
@@ -103,6 +103,9 @@ static void wpf_configure(struct vsp1_entity *entity,
 	unsigned int i;
 	u32 outfmt = 0;
 	u32 srcrpf = 0;
+
+	if (!full)
+		return;
 
 	/* Cropping */
 	crop = vsp1_rwpf_get_crop(wpf, wpf->entity.config);
