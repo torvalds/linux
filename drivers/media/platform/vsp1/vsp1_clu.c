@@ -55,7 +55,9 @@ static int clu_set_table(struct vsp1_clu *clu, struct v4l2_ctrl *ctrl)
 	for (i = 0; i < 17 * 17 * 17; ++i)
 		vsp1_dl_fragment_write(dlb, VI6_CLU_DATA, ctrl->p_new.p_u32[i]);
 
+	spin_lock_irq(&clu->lock);
 	swap(clu->clu, dlb);
+	spin_unlock_irq(&clu->lock);
 
 	vsp1_dl_fragment_free(dlb);
 	return 0;
@@ -208,32 +210,39 @@ static void clu_configure(struct vsp1_entity *entity,
 			  struct vsp1_dl_list *dl, bool full)
 {
 	struct vsp1_clu *clu = to_clu(&entity->subdev);
-	struct v4l2_mbus_framefmt *format;
+	struct vsp1_dl_body *dlb;
+	unsigned long flags;
 	u32 ctrl = VI6_CLU_CTRL_AAI | VI6_CLU_CTRL_MVS | VI6_CLU_CTRL_EN;
 
-	if (!full)
+	/* The format can't be changed during streaming, only verify it at
+	 * stream start and store the information internally for future partial
+	 * reconfiguration calls.
+	 */
+	if (full) {
+		struct v4l2_mbus_framefmt *format;
+
+		format = vsp1_entity_get_pad_format(&clu->entity,
+						    clu->entity.config,
+						    CLU_PAD_SINK);
+		clu->yuv_mode = format->code == MEDIA_BUS_FMT_AYUV8_1X32;
 		return;
-
-	format = vsp1_entity_get_pad_format(&clu->entity, clu->entity.config,
-					    CLU_PAD_SINK);
-
-	mutex_lock(clu->ctrls.lock);
+	}
 
 	/* 2D mode can only be used with the YCbCr pixel encoding. */
-	if (clu->mode == V4L2_CID_VSP1_CLU_MODE_2D &&
-	    format->code == MEDIA_BUS_FMT_AYUV8_1X32)
+	if (clu->mode == V4L2_CID_VSP1_CLU_MODE_2D && clu->yuv_mode)
 		ctrl |= VI6_CLU_CTRL_AX1I_2D | VI6_CLU_CTRL_AX2I_2D
 		     |  VI6_CLU_CTRL_OS0_2D | VI6_CLU_CTRL_OS1_2D
 		     |  VI6_CLU_CTRL_OS2_2D | VI6_CLU_CTRL_M2D;
 
-	if (clu->clu) {
-		vsp1_dl_list_add_fragment(dl, clu->clu);
-		clu->clu = NULL;
-	}
-
-	mutex_unlock(clu->ctrls.lock);
-
 	vsp1_clu_write(clu, dl, VI6_CLU_CTRL, ctrl);
+
+	spin_lock_irqsave(&clu->lock, flags);
+	dlb = clu->clu;
+	clu->clu = NULL;
+	spin_unlock_irqrestore(&clu->lock, flags);
+
+	if (dlb)
+		vsp1_dl_list_add_fragment(dl, dlb);
 }
 
 static const struct vsp1_entity_operations clu_entity_ops = {
@@ -252,6 +261,8 @@ struct vsp1_clu *vsp1_clu_create(struct vsp1_device *vsp1)
 	clu = devm_kzalloc(vsp1->dev, sizeof(*clu), GFP_KERNEL);
 	if (clu == NULL)
 		return ERR_PTR(-ENOMEM);
+
+	spin_lock_init(&clu->lock);
 
 	clu->entity.ops = &clu_entity_ops;
 	clu->entity.type = VSP1_ENTITY_CLU;

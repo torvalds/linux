@@ -13,6 +13,8 @@
 #ifndef __VSP1_CLU_H__
 #define __VSP1_CLU_H__
 
+#include <linux/spinlock.h>
+
 #include <media/media-entity.h>
 #include <media/v4l2-ctrls.h>
 #include <media/v4l2-subdev.h>
@@ -30,6 +32,8 @@ struct vsp1_clu {
 
 	struct v4l2_ctrl_handler ctrls;
 
+	bool yuv_mode;
+	spinlock_t lock;
 	unsigned int mode;
 	struct vsp1_dl_body *clu;
 };
