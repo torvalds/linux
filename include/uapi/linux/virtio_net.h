@@ -1,5 +1,5 @@
-#ifndef _LINUX_VIRTIO_NET_H
-#define _LINUX_VIRTIO_NET_H
+#ifndef _UAPI_LINUX_VIRTIO_NET_H
+#define _UAPI_LINUX_VIRTIO_NET_H
 /* This header is BSD licensed so anyone can use the definitions to implement
  * compatible drivers/servers.
  *
@@ -245,4 +245,4 @@ struct virtio_net_ctrl_mq {
 #define VIRTIO_NET_CTRL_GUEST_OFFLOADS   5
 #define VIRTIO_NET_CTRL_GUEST_OFFLOADS_SET        0
 
-#endif /* _LINUX_VIRTIO_NET_H */
+#endif /* _UAPI_LINUX_VIRTIO_NET_H */
