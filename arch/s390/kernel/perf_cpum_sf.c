@@ -601,17 +601,12 @@ static void release_pmc_hardware(void)
 
 	irq_subclass_unregister(IRQ_SUBCLASS_MEASUREMENT_ALERT);
 	on_each_cpu(setup_pmc_cpu, &flags, 1);
-	perf_release_sampling();
 }
 
 static int reserve_pmc_hardware(void)
 {
 	int flags = PMC_INIT;
-	int err;
 
-	err = perf_reserve_sampling();
-	if (err)
-		return err;
 	on_each_cpu(setup_pmc_cpu, &flags, 1);
 	if (flags & PMC_FAILURE) {
 		release_pmc_hardware();
