@@ -481,20 +481,23 @@ static inline void mtk_rx_get_desc(struct mtk_rx_dma *rxd,
 /* the qdma core needs scratch memory to be setup */
 static int mtk_init_fq_dma(struct mtk_eth *eth)
 {
-	dma_addr_t phy_ring_head, phy_ring_tail;
+	dma_addr_t phy_ring_tail;
 	int cnt = MTK_DMA_SIZE;
 	dma_addr_t dma_addr;
 	int i;
 
 	eth->scratch_ring = dma_alloc_coherent(eth->dev,
 					       cnt * sizeof(struct mtk_tx_dma),
-					       &phy_ring_head,
+					       &eth->phy_scratch_ring,
 					       GFP_ATOMIC | __GFP_ZERO);
 	if (unlikely(!eth->scratch_ring))
 		return -ENOMEM;
 
 	eth->scratch_head = kcalloc(cnt, MTK_QDMA_PAGE_SIZE,
 				    GFP_KERNEL);
+	if (unlikely(!eth->scratch_head))
+		return -ENOMEM;
+
 	dma_addr = dma_map_single(eth->dev,
 				  eth->scratch_head, cnt * MTK_QDMA_PAGE_SIZE,
 				  DMA_FROM_DEVICE);
@@ -502,19 +505,19 @@ static int mtk_init_fq_dma(struct mtk_eth *eth)
 		return -ENOMEM;
 
 	memset(eth->scratch_ring, 0x0, sizeof(struct mtk_tx_dma) * cnt);
-	phy_ring_tail = phy_ring_head +
+	phy_ring_tail = eth->phy_scratch_ring +
 			(sizeof(struct mtk_tx_dma) * (cnt - 1));
 
 	for (i = 0; i < cnt; i++) {
 		eth->scratch_ring[i].txd1 =
 					(dma_addr + (i * MTK_QDMA_PAGE_SIZE));
 		if (i < cnt - 1)
-			eth->scratch_ring[i].txd2 = (phy_ring_head +
+			eth->scratch_ring[i].txd2 = (eth->phy_scratch_ring +
 				((i + 1) * sizeof(struct mtk_tx_dma)));
 		eth->scratch_ring[i].txd3 = TX_DMA_SDL(MTK_QDMA_PAGE_SIZE);
 	}
 
-	mtk_w32(eth, phy_ring_head, MTK_QDMA_FQ_HEAD);
+	mtk_w32(eth, eth->phy_scratch_ring, MTK_QDMA_FQ_HEAD);
 	mtk_w32(eth, phy_ring_tail, MTK_QDMA_FQ_TAIL);
 	mtk_w32(eth, (cnt << 16) | cnt, MTK_QDMA_FQ_CNT);
 	mtk_w32(eth, MTK_QDMA_PAGE_SIZE << 16, MTK_QDMA_FQ_BLEN);
@@ -671,7 +674,7 @@ static int mtk_tx_map(struct sk_buff *skb, struct net_device *dev,
 
 err_dma:
 	do {
-		tx_buf = mtk_desc_to_tx_buf(ring, txd);
+		tx_buf = mtk_desc_to_tx_buf(ring, itxd);
 
 		/* unmap dma */
 		mtk_tx_unmap(&dev->dev, tx_buf);
@@ -699,6 +702,20 @@ static inline int mtk_cal_txd_req(struct sk_buff *skb)
 	}
 
 	return nfrags;
+}
+
+static int mtk_queue_stopped(struct mtk_eth *eth)
+{
+	int i;
+
+	for (i = 0; i < MTK_MAC_COUNT; i++) {
+		if (!eth->netdev[i])
+			continue;
+		if (netif_queue_stopped(eth->netdev[i]))
+			return 1;
+	}
+
+	return 0;
 }
 
 static void mtk_wake_queue(struct mtk_eth *eth)
@@ -766,12 +783,9 @@ static int mtk_start_xmit(struct sk_buff *skb, struct net_device *dev)
 	if (mtk_tx_map(skb, dev, tx_num, ring, gso) < 0)
 		goto drop;
 
-	if (unlikely(atomic_read(&ring->free_count) <= ring->thresh)) {
+	if (unlikely(atomic_read(&ring->free_count) <= ring->thresh))
 		mtk_stop_queue(eth);
-		if (unlikely(atomic_read(&ring->free_count) >
-			     ring->thresh))
-			mtk_wake_queue(eth);
-	}
+
 	spin_unlock_irqrestore(&eth->page_lock, flags);
 
 	return NETDEV_TX_OK;
@@ -826,6 +840,7 @@ static int mtk_poll_rx(struct napi_struct *napi, int budget,
 					  DMA_FROM_DEVICE);
 		if (unlikely(dma_mapping_error(&netdev->dev, dma_addr))) {
 			skb_free_frag(new_data);
+			netdev->stats.rx_dropped++;
 			goto release_desc;
 		}
 
@@ -833,6 +848,7 @@ static int mtk_poll_rx(struct napi_struct *napi, int budget,
 		skb = build_skb(data, ring->frag_size);
 		if (unlikely(!skb)) {
 			put_page(virt_to_head_page(new_data));
+			netdev->stats.rx_dropped++;
 			goto release_desc;
 		}
 		skb_reserve(skb, NET_SKB_PAD + NET_IP_ALIGN);
@@ -921,7 +937,6 @@ static int mtk_poll_tx(struct mtk_eth *eth, int budget, bool *tx_again)
 		}
 		mtk_tx_unmap(eth->dev, tx_buf);
 
-		ring->last_free->txd2 = next_cpu;
 		ring->last_free = desc;
 		atomic_inc(&ring->free_count);
 
@@ -946,7 +961,8 @@ static int mtk_poll_tx(struct mtk_eth *eth, int budget, bool *tx_again)
 	if (!total)
 		return 0;
 
-	if (atomic_read(&ring->free_count) > ring->thresh)
+	if (mtk_queue_stopped(eth) &&
+	    (atomic_read(&ring->free_count) > ring->thresh))
 		mtk_wake_queue(eth);
 
 	return total;
@@ -1027,9 +1043,8 @@ static int mtk_tx_alloc(struct mtk_eth *eth)
 
 	atomic_set(&ring->free_count, MTK_DMA_SIZE - 2);
 	ring->next_free = &ring->dma[0];
-	ring->last_free = &ring->dma[MTK_DMA_SIZE - 2];
-	ring->thresh = max((unsigned long)MTK_DMA_SIZE >> 2,
-			      MAX_SKB_FRAGS);
+	ring->last_free = &ring->dma[MTK_DMA_SIZE - 1];
+	ring->thresh = MAX_SKB_FRAGS;
 
 	/* make sure that all changes to the dma ring are flushed before we
 	 * continue
@@ -1207,6 +1222,14 @@ static void mtk_dma_free(struct mtk_eth *eth)
 	for (i = 0; i < MTK_MAC_COUNT; i++)
 		if (eth->netdev[i])
 			netdev_reset_queue(eth->netdev[i]);
+	if (eth->scratch_ring) {
+		dma_free_coherent(eth->dev,
+				  MTK_DMA_SIZE * sizeof(struct mtk_tx_dma),
+				  eth->scratch_ring,
+				  eth->phy_scratch_ring);
+		eth->scratch_ring = NULL;
+		eth->phy_scratch_ring = 0;
+	}
 	mtk_tx_clean(eth);
 	mtk_rx_clean(eth);
 	kfree(eth->scratch_head);
@@ -1269,7 +1292,7 @@ static int mtk_start_dma(struct mtk_eth *eth)
 	mtk_w32(eth,
 		MTK_TX_WB_DDONE | MTK_RX_DMA_EN | MTK_TX_DMA_EN |
 		MTK_RX_2B_OFFSET | MTK_DMA_SIZE_16DWORDS |
-		MTK_RX_BT_32DWORDS,
+		MTK_RX_BT_32DWORDS | MTK_NDP_CO_PRO,
 		MTK_QDMA_GLO_CFG);
 
 	return 0;
@@ -1383,7 +1406,7 @@ static int __init mtk_hw_init(struct mtk_eth *eth)
 
 	/* disable delay and normal interrupt */
 	mtk_w32(eth, 0, MTK_QDMA_DELAY_INT);
-	mtk_irq_disable(eth, MTK_TX_DONE_INT | MTK_RX_DONE_INT);
+	mtk_irq_disable(eth, ~0);
 	mtk_w32(eth, RST_GL_PSE, MTK_RST_GL);
 	mtk_w32(eth, 0, MTK_RST_GL);
 
@@ -1697,7 +1720,7 @@ static int mtk_add_mac(struct mtk_eth *eth, struct device_node *np)
 	mac->hw_stats->reg_offset = id * MTK_STAT_OFFSET;
 
 	SET_NETDEV_DEV(eth->netdev[id], eth->dev);
-	eth->netdev[id]->watchdog_timeo = HZ;
+	eth->netdev[id]->watchdog_timeo = 5 * HZ;
 	eth->netdev[id]->netdev_ops = &mtk_netdev_ops;
 	eth->netdev[id]->base_addr = (unsigned long)eth->base;
 	eth->netdev[id]->vlan_features = MTK_HW_FEATURES &
