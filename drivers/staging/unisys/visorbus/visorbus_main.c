@@ -574,7 +574,7 @@ visordriver_probe_device(struct device *xdev)
 	if (!drv->probe)
 		return -ENODEV;
 
-	down(&dev->visordriver_callback_lock);
+	mutex_lock(&dev->visordriver_callback_lock);
 	dev->being_removed = false;
 
 	res = drv->probe(dev);
@@ -584,7 +584,7 @@ visordriver_probe_device(struct device *xdev)
 		fix_vbus_dev_info(dev);
 	}
 
-	up(&dev->visordriver_callback_lock);
+	mutex_unlock(&dev->visordriver_callback_lock);
 	return res;
 }
 
@@ -600,11 +600,11 @@ visordriver_remove_device(struct device *xdev)
 
 	dev = to_visor_device(xdev);
 	drv = to_visor_driver(xdev->driver);
-	down(&dev->visordriver_callback_lock);
+	mutex_lock(&dev->visordriver_callback_lock);
 	dev->being_removed = true;
 	if (drv->remove)
 		drv->remove(dev);
-	up(&dev->visordriver_callback_lock);
+	mutex_unlock(&dev->visordriver_callback_lock);
 	dev_stop_periodic_work(dev);
 
 	put_device(&dev->device);
@@ -764,7 +764,7 @@ create_visor_device(struct visor_device *dev)
 	POSTCODE_LINUX_4(DEVICE_CREATE_ENTRY_PC, chipset_dev_no, chipset_bus_no,
 			 POSTCODE_SEVERITY_INFO);
 
-	sema_init(&dev->visordriver_callback_lock, 1);	/* unlocked */
+	mutex_init(&dev->visordriver_callback_lock);
 	dev->device.bus = &visorbus_type;
 	dev->device.groups = visorbus_channel_groups;
 	device_initialize(&dev->device);
