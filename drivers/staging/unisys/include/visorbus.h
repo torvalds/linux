@@ -176,7 +176,6 @@ struct visor_device {
 
 #define to_visor_device(x) container_of(x, struct visor_device, device)
 
-#ifndef STANDALONE_CLIENT
 int visorbus_register_visor_driver(struct visor_driver *);
 void visorbus_unregister_visor_driver(struct visor_driver *);
 int visorbus_read_channel(struct visor_device *dev,
@@ -187,7 +186,6 @@ int visorbus_write_channel(struct visor_device *dev,
 			   unsigned long nbytes);
 void visorbus_enable_channel_interrupts(struct visor_device *dev);
 void visorbus_disable_channel_interrupts(struct visor_device *dev);
-#endif
 
 /* Note that for visorchannel_create()
  * <channel_bytes> and <guid> arguments may be 0 if we are a channel CLIENT.
