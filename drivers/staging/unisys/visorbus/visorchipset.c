@@ -78,10 +78,11 @@ visorchipset_release(struct inode *inode, struct file *file)
 	return 0;
 }
 
-/* When the controlvm channel is idle for at least MIN_IDLE_SECONDS,
-* we switch to slow polling mode.  As soon as we get a controlvm
-* message, we switch back to fast polling mode.
-*/
+/*
+ * When the controlvm channel is idle for at least MIN_IDLE_SECONDS,
+ * we switch to slow polling mode. As soon as we get a controlvm
+ * message, we switch back to fast polling mode.
+ */
 #define MIN_IDLE_SECONDS 10
 static unsigned long poll_jiffies = POLLJIFFIES_CONTROLVMCHANNEL_FAST;
 /* when we got our last controlvm message */
@@ -112,7 +113,8 @@ static struct visorchannel *controlvm_channel;
 /* Manages the request payload in the controlvm channel */
 struct visor_controlvm_payload_info {
 	u8 *ptr;		/* pointer to base address of payload pool */
-	u64 offset;		/* offset from beginning of controlvm
+	u64 offset;		/*
+				 * offset from beginning of controlvm
 				 * channel to beginning of payload * pool
 				 */
 	u32 bytes;		/* number of bytes in payload pool */
@@ -120,15 +122,17 @@ struct visor_controlvm_payload_info {
 
 static struct visor_controlvm_payload_info controlvm_payload_info;
 
-/* The following globals are used to handle the scenario where we are unable to
- * offload the payload from a controlvm message due to memory requirements.  In
+/*
+ * The following globals are used to handle the scenario where we are unable to
+ * offload the payload from a controlvm message due to memory requirements. In
  * this scenario, we simply stash the controlvm message, then attempt to
  * process it again the next time controlvm_periodic_work() runs.
  */
 static struct controlvm_message controlvm_pending_msg;
 static bool controlvm_pending_msg_valid;
 
-/* This identifies a data buffer that has been received via a controlvm messages
+/*
+ * This identifies a data buffer that has been received via a controlvm messages
  * in a remote --> local CONTROLVM_TRANSMIT_FILE conversation.
  */
 struct putfile_buffer_entry {
@@ -136,13 +140,15 @@ struct putfile_buffer_entry {
 	struct parser_context *parser_ctx; /* points to input data buffer */
 };
 
-/* List of struct putfile_request *, via next_putfile_request member.
+/*
+ * List of struct putfile_request *, via next_putfile_request member.
  * Each entry in this list identifies an outstanding TRANSMIT_FILE
  * conversation.
  */
 static LIST_HEAD(putfile_request_list);
 
-/* This describes a buffer and its current state of transfer (e.g., how many
+/*
+ * This describes a buffer and its current state of transfer (e.g., how many
  * bytes have already been supplied as putfile data, and how many bytes are
  * remaining) for a putfile_request.
  */
@@ -154,8 +160,9 @@ struct putfile_active_buffer {
 };
 
 #define PUTFILE_REQUEST_SIG 0x0906101302281211
-/* This identifies a single remote --> local CONTROLVM_TRANSMIT_FILE
- * conversation.  Structs of this type are dynamically linked into
+/*
+ * This identifies a single remote --> local CONTROLVM_TRANSMIT_FILE
+ * conversation. Structs of this type are dynamically linked into
  * <Putfile_request_list>.
  */
 struct putfile_request {
@@ -167,7 +174,8 @@ struct putfile_request {
 	/* link to next struct putfile_request */
 	struct list_head next_putfile_request;
 
-	/* head of putfile_buffer_entry list, which describes the data to be
+	/*
+	 * head of putfile_buffer_entry list, which describes the data to be
 	 * supplied as putfile data;
 	 * - this list is added to when controlvm messages come in that supply
 	 * file data
@@ -183,11 +191,13 @@ struct putfile_request {
 	/* data not yet read within current putfile_buffer_entry */
 	struct putfile_active_buffer active_buf;
 
-	/* <0 = failed, 0 = in-progress, >0 = successful; */
-	/* note that this must be set with req_list_lock, and if you set <0, */
-	/* it is your responsibility to also free up all of the other objects */
-	/* in this struct (like input_buffer_list, active_buf.parser_ctx) */
-	/* before releasing the lock */
+	/*
+	 * <0 = failed, 0 = in-progress, >0 = successful;
+	 * note that this must be set with req_list_lock, and if you set <0,
+	 * it is your responsibility to also free up all of the other objects
+	 * in this struct (like input_buffer_list, active_buf.parser_ctx)
+	 * before releasing the lock
+	 */
 	int completion_status;
 };
 
@@ -202,9 +212,6 @@ static LIST_HEAD(parahotplug_request_list);
 static DEFINE_SPINLOCK(parahotplug_request_list_lock);	/* lock for above */
 static void parahotplug_process_list(void);
 
-/* Manages the info for a CONTROLVM_DUMP_CAPTURESTATE /
- * CONTROLVM_REPORTEVENT.
- */
 static struct visorchipset_busdev_notifiers busdev_notifiers;
 
 static void bus_create_response(struct visor_device *p, int response);
@@ -226,7 +233,7 @@ static struct visorchipset_busdev_responders busdev_responders = {
 };
 
 /* info for /dev/visorchipset */
-static dev_t major_dev = -1; /**< indicates major num for device */
+static dev_t major_dev = -1; /*< indicates major num for device */
 
 /* prototypes for attributes */
 static ssize_t toolaction_show(struct device *dev,
@@ -396,8 +403,9 @@ parser_id_get(struct parser_context *ctx)
 	return phdr->id;
 }
 
-/** Describes the state from the perspective of which controlvm messages have
- *  been received for a bus or device.
+/*
+ * Describes the state from the perspective of which controlvm messages have
+ * been received for a bus or device.
  */
 
 enum PARSER_WHICH_STRING {
@@ -722,14 +730,16 @@ chipset_init(struct controlvm_message *inmsg)
 	chipset_inited = 1;
 	POSTCODE_LINUX_2(CHIPSET_INIT_EXIT_PC, POSTCODE_SEVERITY_INFO);
 
-	/* Set features to indicate we support parahotplug (if Command
+	/*
+	 * Set features to indicate we support parahotplug (if Command
 	 * also supports it).
 	 */
 	features =
 	    inmsg->cmd.init_chipset.
 	    features & ULTRA_CHIPSET_FEATURE_PARA_HOTPLUG;
 
-	/* Set the "reply" bit so Command knows this is a
+	/*
+	 * Set the "reply" bit so Command knows this is a
 	 * features-aware driver.
 	 */
 	features |= ULTRA_CHIPSET_FEATURE_REPLY;
@@ -920,8 +930,10 @@ bus_epilog(struct visor_device *bus_info,
 	down(&notifier_lock);
 
 	if (!bus_info) {
-		/* relying on a valid passed in response code */
-		/* be lazy and re-use msg_hdr for this failure, is this ok?? */
+		/*
+		 * relying on a valid passed in response code
+		 * be lazy and re-use msg_hdr for this failure, is this ok??
+		 */
 		pmsg_hdr = msg_hdr;
 		goto out_respond_and_unlock;
 	}
@@ -984,8 +996,10 @@ device_epilog(struct visor_device *dev_info,
 
 	down(&notifier_lock);
 	if (!dev_info) {
-		/* relying on a valid passed in response code */
-		/* be lazy and re-use msg_hdr for this failure, is this ok?? */
+		/*
+		 * relying on a valid passed in response code
+		 * be lazy and re-use msg_hdr for this failure, is this ok??
+		 */
 		pmsg_hdr = msg_hdr;
 		goto out_respond_and_unlock;
 	}
@@ -1031,7 +1045,8 @@ device_epilog(struct visor_device *dev_info,
 			else if (state.alive == segment_state_standby.alive &&
 				 state.operating ==
 				 segment_state_standby.operating) {
-				/* technically this is standby case
+				/*
+				 * technically this is standby case
 				 * where server is lost
 				 */
 				if (notifiers->device_pause) {
@@ -1300,11 +1315,19 @@ my_device_destroy(struct controlvm_message *inmsg)
 			      inmsg->hdr.flags.response_expected == 1, 1);
 }
 
-/* When provided with the physical address of the controlvm channel
+/**
+ * initialize_controlvm_payload_info() - init controlvm_payload_info struct
+ * @phys_addr: the physical address of controlvm channel
+ * @offset:    the offset to payload
+ * @bytes:     the size of the payload in bytes
+ * @info:      the returning valid struct
+ *
+ * When provided with the physical address of the controlvm channel
  * (phys_addr), the offset to the payload area we need to manage
  * (offset), and the size of this payload area (bytes), fills in the
- * controlvm_payload_info struct.  Returns true for success or false
- * for failure.
+ * controlvm_payload_info struct.
+ *
+ * Return: CONTROLVM_RESP_SUCCESS for success or a negative for failure
  */
 static int
 initialize_controlvm_payload_info(u64 phys_addr, u64 offset, u32 bytes,
@@ -1368,8 +1391,12 @@ initialize_controlvm_payload(void)
 					  &controlvm_payload_info);
 }
 
-/*  Send ACTION=online for DEVPATH=/sys/devices/platform/visorchipset.
- *  Returns CONTROLVM_RESP_xxx code.
+/**
+ * visorchipset_chipset_ready() - sends chipset_ready action
+ *
+ * Send ACTION=online for DEVPATH=/sys/devices/platform/visorchipset.
+ *
+ * Return: CONTROLVM_RESP_SUCCESS
  */
 static int
 visorchipset_chipset_ready(void)
@@ -1390,8 +1417,12 @@ visorchipset_chipset_selftest(void)
 	return CONTROLVM_RESP_SUCCESS;
 }
 
-/*  Send ACTION=offline for DEVPATH=/sys/devices/platform/visorchipset.
- *  Returns CONTROLVM_RESP_xxx code.
+/**
+ * visorchipset_chipset_notready() - sends chipset_notready action
+ *
+ * Send ACTION=offline for DEVPATH=/sys/devices/platform/visorchipset.
+ *
+ * Return: CONTROLVM_RESP_SUCCESS
  */
 static int
 visorchipset_chipset_notready(void)
@@ -1433,8 +1464,13 @@ chipset_notready(struct controlvm_message_header *msg_hdr)
 		controlvm_respond(msg_hdr, rc);
 }
 
-/* This is your "one-stop" shop for grabbing the next message from the
- * CONTROLVM_QUEUE_EVENT queue in the controlvm channel.
+/**
+ * read_controlvm_event() - retreives the next message from the
+ *                          CONTROLVM_QUEUE_EVENT queue in the controlvm
+ *                          channel
+ * @msg: pointer to the retrieved message
+ *
+ * Return: true if a valid message was retrieved or false otherwise
  */
 static bool
 read_controlvm_event(struct controlvm_message *msg)
@@ -1450,13 +1486,13 @@ read_controlvm_event(struct controlvm_message *msg)
 }
 
 /*
- * The general parahotplug flow works as follows.  The visorchipset
+ * The general parahotplug flow works as follows. The visorchipset
  * driver receives a DEVICE_CHANGESTATE message from Command
- * specifying a physical device to enable or disable.  The CONTROLVM
+ * specifying a physical device to enable or disable. The CONTROLVM
  * message handler calls parahotplug_process_message, which then adds
  * the message to a global list and kicks off a udev event which
  * causes a user level script to enable or disable the specified
- * device.  The udev script then writes to
+ * device. The udev script then writes to
  * /proc/visorchipset/parahotplug, which causes parahotplug_proc_write
  * to get called, at which point the appropriate CONTROLVM message is
  * retrieved from the list and responded to.
@@ -1464,9 +1500,11 @@ read_controlvm_event(struct controlvm_message *msg)
 
 #define PARAHOTPLUG_TIMEOUT_MS 2000
 
-/*
- * Generate unique int to match an outstanding CONTROLVM message with a
- * udev script /proc response
+/**
+ * parahotplug_next_id() - generate unique int to match an outstanding CONTROLVM
+ *                         message with a udev script /proc response
+ *
+ * Return: a unique integer value
  */
 static int
 parahotplug_next_id(void)
@@ -1476,9 +1514,12 @@ parahotplug_next_id(void)
 	return atomic_inc_return(&id);
 }
 
-/*
- * Returns the time (in jiffies) when a CONTROLVM message on the list
- * should expire -- PARAHOTPLUG_TIMEOUT_MS in the future
+/**
+ * parahotplug_next_expiration() - returns the time (in jiffies) when a
+ *                                 CONTROLVM message on the list should expire
+ *                                 -- PARAHOTPLUG_TIMEOUT_MS in the future
+ *
+ * Return: expected expiration time (in jiffies)
  */
 static unsigned long
 parahotplug_next_expiration(void)
@@ -1486,9 +1527,13 @@ parahotplug_next_expiration(void)
 	return jiffies + msecs_to_jiffies(PARAHOTPLUG_TIMEOUT_MS);
 }
 
-/*
- * Create a parahotplug_request, which is basically a wrapper for a
- * CONTROLVM_MESSAGE that we can stick on a list
+/**
+ * parahotplug_request_create() - create a parahotplug_request, which is
+ *                                basically a wrapper for a CONTROLVM_MESSAGE
+ *                                that we can stick on a list
+ * @msg: the message to insert in the request
+ *
+ * Return: the request containing the provided message
  */
 static struct parahotplug_request *
 parahotplug_request_create(struct controlvm_message *msg)
@@ -1506,8 +1551,9 @@ parahotplug_request_create(struct controlvm_message *msg)
 	return req;
 }
 
-/*
- * Free a parahotplug_request.
+/**
+ * parahotplug_request_destroy() - free a parahotplug_request
+ * @req: the request to deallocate
  */
 static void
 parahotplug_request_destroy(struct parahotplug_request *req)
@@ -1515,10 +1561,12 @@ parahotplug_request_destroy(struct parahotplug_request *req)
 	kfree(req);
 }
 
-/*
- * Cause uevent to run the user level script to do the disable/enable
- * specified in (the CONTROLVM message in) the specified
- * parahotplug_request
+/**
+ * parahotplug_request_kickoff() - initiate parahotplug request
+ * @req: the request to initiate
+ *
+ * Cause uevent to run the user level script to do the disable/enable specified
+ * in the parahotplug_request.
  */
 static void
 parahotplug_request_kickoff(struct parahotplug_request *req)
@@ -1545,9 +1593,9 @@ parahotplug_request_kickoff(struct parahotplug_request *req)
 			   envp);
 }
 
-/*
- * Remove any request from the list that's been on there too long and
- * respond with an error.
+/**
+ * parahotplug_process_list() - remove any request from the list that's been on
+ *                              there too long and respond with an error
  */
 static void
 parahotplug_process_list(void)
@@ -1576,10 +1624,16 @@ parahotplug_process_list(void)
 	spin_unlock(&parahotplug_request_list_lock);
 }
 
-/*
+/**
+ * parahotplug_request_complete() - mark request as complete
+ * @id:     the id of the request
+ * @active: indicates whether the request is assigned to active partition
+ *
  * Called from the /proc handler, which means the user script has
- * finished the enable/disable.  Find the matching identifier, and
+ * finished the enable/disable. Find the matching identifier, and
  * respond to the CONTROLVM message with success.
+ *
+ * Return: 0 on success or -EINVAL on failure
  */
 static int
 parahotplug_request_complete(int id, u16 active)
@@ -1594,7 +1648,8 @@ parahotplug_request_complete(int id, u16 active)
 		struct parahotplug_request *req =
 		    list_entry(pos, struct parahotplug_request, list);
 		if (req->id == id) {
-			/* Found a match.  Remove it from the list and
+			/*
+			 * Found a match. Remove it from the list and
 			 * respond.
 			 */
 			list_del(pos);
@@ -1613,8 +1668,10 @@ parahotplug_request_complete(int id, u16 active)
 	return -EINVAL;
 }
 
-/*
- * Enables or disables a PCI device by kicking off a udev script
+/**
+ * parahotplug_process_message() - enables or disables a PCI device by kicking
+ *                                 off a udev script
+ * @inmsg: the message indicating whether to enable or disable
  */
 static void
 parahotplug_process_message(struct controlvm_message *inmsg)
@@ -1627,14 +1684,16 @@ parahotplug_process_message(struct controlvm_message *inmsg)
 		return;
 
 	if (inmsg->cmd.device_change_state.state.active) {
-		/* For enable messages, just respond with success
-		* right away.  This is a bit of a hack, but there are
-		* issues with the early enable messages we get (with
-		* either the udev script not detecting that the device
-		* is up, or not getting called at all).  Fortunately
-		* the messages that get lost don't matter anyway, as
-		* devices are automatically enabled at
-		* initialization.
+		/*
+		 * For enable messages, just respond with success
+		 * right away. This is a bit of a hack, but there are
+		 * issues with the early enable messages we get (with
+		 * either the udev script not detecting that the device
+		 * is up, or not getting called at all). Fortunately
+		 * the messages that get lost don't matter anyway, as
+		 *
+		 * devices are automatically enabled at
+		 * initialization.
 		*/
 		parahotplug_request_kickoff(req);
 		controlvm_respond_physdev_changestate
@@ -1643,11 +1702,12 @@ parahotplug_process_message(struct controlvm_message *inmsg)
 			 inmsg->cmd.device_change_state.state);
 		parahotplug_request_destroy(req);
 	} else {
-		/* For disable messages, add the request to the
-		* request list before kicking off the udev script.  It
-		* won't get responded to until the script has
-		* indicated it's done.
-		*/
+		/*
+		 * For disable messages, add the request to the
+		 * request list before kicking off the udev script. It
+		 * won't get responded to until the script has
+		 * indicated it's done.
+		 */
 		spin_lock(&parahotplug_request_list_lock);
 		list_add_tail(&req->list, &parahotplug_request_list);
 		spin_unlock(&parahotplug_request_list_lock);
@@ -1656,8 +1716,12 @@ parahotplug_process_message(struct controlvm_message *inmsg)
 	}
 }
 
-/* Process a controlvm message.
- * Return result:
+/**
+ * handle_command() - process a controlvm message
+ * @inmsg:        the message to process
+ * @channel_addr: address of the controlvm channel
+ *
+ * Return:
  *    false - this function will return false only in the case where the
  *            controlvm message was NOT processed, but processing must be
  *            retried before reading the next controlvm message; a
@@ -1665,7 +1729,7 @@ parahotplug_process_message(struct controlvm_message *inmsg)
  *            the allocation of memory in which to copy out controlvm
  *            payload data
  *    true  - processing of the controlvm message completed,
- *            either successfully or with an error.
+ *            either successfully or with an error
  */
 static bool
 handle_command(struct controlvm_message inmsg, u64 channel_addr)
@@ -1684,8 +1748,9 @@ handle_command(struct controlvm_message inmsg, u64 channel_addr)
 	parm_addr = channel_addr + inmsg.hdr.payload_vm_offset;
 	parm_bytes = inmsg.hdr.payload_bytes;
 
-	/* Parameter and channel addresses within test messages actually lie
-	 * within our OS-controlled memory.  We need to know that, because it
+	/*
+	 * Parameter and channel addresses within test messages actually lie
+	 * within our OS-controlled memory. We need to know that, because it
 	 * makes a difference in how we compute the virtual address.
 	 */
 	if (parm_addr && parm_bytes) {
@@ -1726,8 +1791,10 @@ handle_command(struct controlvm_message inmsg, u64 channel_addr)
 		if (cmd->device_change_state.flags.phys_device) {
 			parahotplug_process_message(&inmsg);
 		} else {
-			/* save the hdr and cmd structures for later use */
-			/* when sending back the response to Command */
+			/*
+			 * save the hdr and cmd structures for later use
+			 * when sending back the response to Command
+			 */
 			my_device_changestate(&inmsg);
 			g_devicechangestate_packet = inmsg.cmd;
 			break;
@@ -1809,10 +1876,11 @@ controlvm_periodic_work(struct work_struct *work)
 		;
 	if (!got_command) {
 		if (controlvm_pending_msg_valid) {
-			/* we throttled processing of a prior
-			* msg, so try to process it again
-			* rather than reading a new one
-			*/
+			/*
+			 * we throttled processing of a prior
+			 * msg, so try to process it again
+			 * rather than reading a new one
+			 */
 			inmsg = controlvm_pending_msg;
 			controlvm_pending_msg_valid = false;
 			got_command = true;
@@ -1829,12 +1897,13 @@ controlvm_periodic_work(struct work_struct *work)
 				   (controlvm_channel)))
 			got_command = read_controlvm_event(&inmsg);
 		else {
-			/* this is a scenario where throttling
-			* is required, but probably NOT an
-			* error...; we stash the current
-			* controlvm msg so we will attempt to
-			* reprocess it on our next loop
-			*/
+			/*
+			 * this is a scenario where throttling
+			 * is required, but probably NOT an
+			 * error...; we stash the current
+			 * controlvm msg so we will attempt to
+			 * reprocess it on our next loop
+			 */
 			handle_command_failed = true;
 			controlvm_pending_msg = inmsg;
 			controlvm_pending_msg_valid = true;
@@ -1848,10 +1917,11 @@ cleanup:
 
 	if (time_after(jiffies,
 		       most_recent_message_jiffies + (HZ * MIN_IDLE_SECONDS))) {
-		/* it's been longer than MIN_IDLE_SECONDS since we
-		* processed our last controlvm message; slow down the
-		* polling
-		*/
+		/*
+		 * it's been longer than MIN_IDLE_SECONDS since we
+		 * processed our last controlvm message; slow down the
+		 * polling
+		 */
 		if (poll_jiffies != POLLJIFFIES_CONTROLVMCHANNEL_SLOW)
 			poll_jiffies = POLLJIFFIES_CONTROLVMCHANNEL_SLOW;
 	} else {
@@ -2024,9 +2094,18 @@ device_resume_response(struct visor_device *dev_info, int response)
 	dev_info->pending_msg_hdr = NULL;
 }
 
-/* The parahotplug/devicedisabled interface gets called by our support script
+/**
+ * devicedisabled_store() - disables the hotplug device
+ * @dev:   sysfs interface variable not utilized in this function
+ * @attr:  sysfs interface variable not utilized in this function
+ * @buf:   buffer containing the device id
+ * @count: the size of the buffer
+ *
+ * The parahotplug/devicedisabled interface gets called by our support script
  * when an SR-IOV device has been shut down. The ID is passed to the script
  * and then passed back when the device has been removed.
+ *
+ * Return: the size of the buffer for success or negative for error
  */
 static ssize_t devicedisabled_store(struct device *dev,
 				    struct device_attribute *attr,
@@ -2044,9 +2123,18 @@ static ssize_t devicedisabled_store(struct device *dev,
 	return count;
 }
 
-/* The parahotplug/deviceenabled interface gets called by our support script
+/**
+ * deviceenabled_store() - enables the hotplug device
+ * @dev:   sysfs interface variable not utilized in this function
+ * @attr:  sysfs interface variable not utilized in this function
+ * @buf:   buffer containing the device id
+ * @count: the size of the buffer
+ *
+ * The parahotplug/deviceenabled interface gets called by our support script
  * when an SR-IOV device has been recovered. The ID is passed to the script
  * and then passed back when the device has been brought back up.
+ *
+ * Return: the size of the buffer for success or negative for error
  */
 static ssize_t deviceenabled_store(struct device *dev,
 				   struct device_attribute *attr,
