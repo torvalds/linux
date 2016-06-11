@@ -66,6 +66,7 @@ struct visorinput_devdata {
 	struct rw_semaphore lock_visor_dev; /* lock for dev */
 	struct input_dev *visorinput_dev;
 	bool paused;
+	bool interrupts_enabled;
 	unsigned int keycode_table_bytes; /* size of following array */
 	/* for keyboard devices: visorkbd_keycode[] + visorkbd_ext_keycode[] */
 	unsigned char keycode_table[0];
@@ -228,7 +229,21 @@ static int visorinput_open(struct input_dev *visorinput_dev)
 		return -EINVAL;
 	}
 	dev_dbg(&visorinput_dev->dev, "%s opened\n", __func__);
+
+	/*
+	 * If we're not paused, really enable interrupts.
+	 * Regardless of whether we are paused, set a flag indicating
+	 * interrupts should be enabled so when we resume, interrupts
+	 * will really be enabled.
+	 */
+	down_write(&devdata->lock_visor_dev);
+	devdata->interrupts_enabled = true;
+	if (devdata->paused)
+		goto out_unlock;
 	visorbus_enable_channel_interrupts(devdata->dev);
+
+out_unlock:
+	up_write(&devdata->lock_visor_dev);
 	return 0;
 }
 
@@ -243,7 +258,22 @@ static void visorinput_close(struct input_dev *visorinput_dev)
 		return;
 	}
 	dev_dbg(&visorinput_dev->dev, "%s closed\n", __func__);
+
+	/*
+	 * If we're not paused, really disable interrupts.
+	 * Regardless of whether we are paused, set a flag indicating
+	 * interrupts should be disabled so when we resume we will
+	 * not re-enable them.
+	 */
+
+	down_write(&devdata->lock_visor_dev);
+	devdata->interrupts_enabled = false;
+	if (devdata->paused)
+		goto out_unlock;
 	visorbus_disable_channel_interrupts(devdata->dev);
+
+out_unlock:
+	up_write(&devdata->lock_visor_dev);
 }
 
 /*
@@ -438,10 +468,8 @@ visorinput_remove(struct visor_device *dev)
 	 * in visorinput_channel_interrupt()
 	 */
 
-	down_write(&devdata->lock_visor_dev);
 	dev_set_drvdata(&dev->device, NULL);
 	unregister_client_input(devdata->visorinput_dev);
-	up_write(&devdata->lock_visor_dev);
 	kfree(devdata);
 }
 
@@ -529,13 +557,7 @@ visorinput_channel_interrupt(struct visor_device *dev)
 	if (!devdata)
 		return;
 
-	down_write(&devdata->lock_visor_dev);
-	if (devdata->paused) /* don't touch device/channel when paused */
-		goto out_locked;
-
 	visorinput_dev = devdata->visorinput_dev;
-	if (!visorinput_dev)
-		goto out_locked;
 
 	while (visorchannel_signalremove(dev->visorchannel, 0, &r)) {
 		scancode = r.activity.arg1;
@@ -611,8 +633,6 @@ visorinput_channel_interrupt(struct visor_device *dev)
 			break;
 		}
 	}
-out_locked:
-	up_write(&devdata->lock_visor_dev);
 }
 
 static int
@@ -632,6 +652,14 @@ visorinput_pause(struct visor_device *dev,
 		rc = -EBUSY;
 		goto out_locked;
 	}
+	if (devdata->interrupts_enabled)
+		visorbus_disable_channel_interrupts(dev);
+
+	/*
+	 * due to above, at this time no thread of execution will be
+	 * in visorinput_channel_interrupt()
+	 */
+
 	devdata->paused = true;
 	complete_func(dev, 0);
 	rc = 0;
@@ -659,6 +687,15 @@ visorinput_resume(struct visor_device *dev,
 	}
 	devdata->paused = false;
 	complete_func(dev, 0);
+
+	/*
+	 * Re-establish calls to visorinput_channel_interrupt() if that is
+	 * the desired state that we've kept track of in interrupts_enabled
+	 * while the device was paused.
+	 */
+	if (devdata->interrupts_enabled)
+		visorbus_enable_channel_interrupts(dev);
+
 	rc = 0;
 out_locked:
 	up_write(&devdata->lock_visor_dev);
