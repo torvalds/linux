@@ -2958,13 +2958,8 @@ int nf_tables_bind_set(const struct nft_ctx *ctx, struct nft_set *set,
 		iter.fn		= nf_tables_bind_check_setelem;
 
 		set->ops->walk(ctx, set, &iter);
-		if (iter.err < 0) {
-			/* Destroy anonymous sets if binding fails */
-			if (set->flags & NFT_SET_ANONYMOUS)
-				nf_tables_set_destroy(ctx, set);
-
+		if (iter.err < 0)
 			return iter.err;
-		}
 	}
 bind:
 	binding->chain = ctx->chain;
