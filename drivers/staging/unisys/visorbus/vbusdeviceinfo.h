@@ -19,7 +19,8 @@
 
 #pragma pack(push, 1)		/* both GCC and VC now allow this pragma */
 
-/* An array of this struct is present in the channel area for each vbus.
+/*
+ * An array of this struct is present in the channel area for each vbus.
  * (See vbuschannel.h.)
  * It is filled in by the client side to provide info about the device
  * and driver from the client's perspective.
@@ -34,19 +35,28 @@ struct ultra_vbus_deviceinfo {
 
 #pragma pack(pop)
 
-/* Reads chars from the buffer at <src> for <srcmax> bytes, and writes to
- * the buffer at <p>, which is <remain> bytes long, ensuring never to
- * overflow the buffer at <p>, using the following rules:
- * - printable characters are simply copied from the buffer at <src> to the
- *   buffer at <p>
- * - intervening streaks of non-printable characters in the buffer at <src>
- *   are replaced with a single space in the buffer at <p>
- * Note that we pay no attention to '\0'-termination.
- * Returns the number of bytes written to <p>.
+/**
+ * vbuschannel_sanitize_buffer() - remove non-printable chars from buffer
+ * @p: destination buffer where chars are written to
+ * @remain: number of bytes that can be written starting at #p
+ * @src: pointer to source buffer
+ * @srcmax: number of valid characters at #src
  *
- * Pass <p> == NULL and <remain> == 0 for this special behavior.  In this
+ * Reads chars from the buffer at @src for @srcmax bytes, and writes to
+ * the buffer at @p, which is @remain bytes long, ensuring never to
+ * overflow the buffer at @p, using the following rules:
+ * - printable characters are simply copied from the buffer at @src to the
+ *   buffer at @p
+ * - intervening streaks of non-printable characters in the buffer at @src
+ *   are replaced with a single space in the buffer at @p
+ * Note that we pay no attention to '\0'-termination.
+ *
+ * Pass @p == NULL and @remain == 0 for this special behavior -- In this
  * case, we simply return the number of bytes that WOULD HAVE been written
- * to a buffer at <p>, had it been infinitely big.
+ * to a buffer at @p, had it been infinitely big.
+ *
+ * Return: the number of bytes written to @p (or WOULD HAVE been written to
+ *         @p, as described in the previous paragraph)
  */
 static inline int
 vbuschannel_sanitize_buffer(char *p, int remain, char *src, int srcmax)
@@ -92,14 +102,18 @@ vbuschannel_sanitize_buffer(char *p, int remain, char *src, int srcmax)
 		p++;  chars++;  remain--;	   \
 	} while (0)
 
-/* Converts the non-negative value at <num> to an ascii decimal string
- * at <p>, writing at most <remain> bytes.  Note there is NO '\0' termination
- * written to <p>.
+/**
+ * vbuschannel_itoa() - convert non-negative int to string
+ * @p: destination string
+ * @remain: max number of bytes that can be written to @p
+ * @num: input int to convert
  *
- * Returns the number of bytes written to <p>.
+ * Converts the non-negative value at @num to an ascii decimal string
+ * at @p, writing at most @remain bytes.  Note there is NO '\0' termination
+ * written to @p.
  *
- * Note that we create this function because we need to do this operation in
- * an environment-independent way (since we are in a common header file).
+ * Return: number of bytes written to @p
+ *
  */
 static inline int
 vbuschannel_itoa(char *p, int remain, int num)
@@ -141,13 +155,20 @@ vbuschannel_itoa(char *p, int remain, int num)
 	return digits;
 }
 
-/* Reads <devInfo>, and converts its contents to a printable string at <p>,
- * writing at most <remain> bytes.  Note there is NO '\0' termination
- * written to <p>.
+/**
+ * vbuschannel_devinfo_to_string() - format a struct ultra_vbus_deviceinfo
+ *                                   to a printable string
+ * @devinfo: the struct ultra_vbus_deviceinfo to format
+ * @p: destination string area
+ * @remain: size of destination string area in bytes
+ * @devix: the device index to be included in the output data, or -1 if no
+ *         device index is to be included
  *
- * Pass <devix> >= 0 if you want a device index presented.
+ * Reads @devInfo, and converts its contents to a printable string at @p,
+ * writing at most @remain bytes. Note there is NO '\0' termination
+ * written to @p.
  *
- * Returns the number of bytes written to <p>.
+ * Return: number of bytes written to @p
  */
 static inline int
 vbuschannel_devinfo_to_string(struct ultra_vbus_deviceinfo *devinfo,
