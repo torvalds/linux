@@ -56,7 +56,7 @@ enum driver_pc {		/* POSTCODE driver identifier tuples */
 	UISLIB_PC = 0xD0,
 	UISLIB_PC_uislib_c = 0xD1,
 	UISLIB_PC_uisqueue_c = 0xD2,
-	UISLIB_PC_uisthread_c = 0xD3,
+	/* 0xD3 RESERVED */
 	UISLIB_PC_uisutils_c = 0xD4,
 };
 
@@ -91,7 +91,7 @@ enum event_pc {			/* POSTCODE event identifier tuples */
 	DRIVER_EXIT_PC = 0x0AC,
 	MALLOC_FAILURE_PC = 0x0AD,
 	QUEUE_DELAYED_WORK_PC = 0x0AE,
-	UISLIB_THREAD_FAILURE_PC = 0x0B7,
+	/* 0x0B7 RESERVED */
 	VBUS_CHANNEL_ENTRY_PC = 0x0B8,
 	VBUS_CHANNEL_FAILURE_PC = 0x0B9,
 	VBUS_CHANNEL_EXIT_PC = 0x0BA,
