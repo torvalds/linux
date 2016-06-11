@@ -15,7 +15,7 @@
  */
 
 /*
- *  This provides Supervisor channel communication primitives, which are
+ *  This provides s-Par channel communication primitives, which are
  *  independent of the mechanism used to access the channel data.
  */
 
@@ -55,8 +55,28 @@ struct visorchannel {
 	uuid_le inst;
 };
 
-/* Creates the struct visorchannel abstraction for a data area in memory,
- * but does NOT modify this data area.
+/**
+ * visorchannel_create_guts() - creates the struct visorchannel abstraction
+ *                              for a data area in memory, but does NOT modify
+ *                              this data area
+ * @physaddr:      physical address of start of channel
+ * @channel_bytes: size of the channel in bytes; this may 0 if the channel has
+ *                 already been initialized in memory (which is true for all
+ *                 channels provided to guest environments by the s-Par
+ *                 back-end), in which case the actual channel size will be
+ *                 read from the channel header in memory
+ * @gfp:           gfp_t to use when allocating memory for the data struct
+ * @guid:          uuid that identifies channel type; this may 0 if the channel
+ *                 has already been initialized in memory (which is true for all
+ *                 channels provided to guest environments by the s-Par
+ *                 back-end), in which case the actual channel guid will be
+ *                 read from the channel header in memory
+ * @needs_lock:    must specify true if you have multiple threads of execution
+ *                 that will be calling visorchannel methods of this
+ *                 visorchannel at the same time
+ *
+ * Return: pointer to visorchannel that was created if successful,
+ *         otherwise NULL
  */
 static struct visorchannel *
 visorchannel_create_guts(u64 physaddr, unsigned long channel_bytes,
@@ -77,7 +97,8 @@ visorchannel_create_guts(u64 physaddr, unsigned long channel_bytes,
 	spin_lock_init(&channel->insert_lock);
 	spin_lock_init(&channel->remove_lock);
 
-	/* Video driver constains the efi framebuffer so it will get a
+	/*
+	 * Video driver constains the efi framebuffer so it will get a
 	 * conflict resource when requesting its full mem region. Since
 	 * we are only using the efi framebuffer for video we can ignore
 	 * this. Remember that we haven't requested it so we don't try to
@@ -214,6 +235,12 @@ visorchannel_set_clientpartition(struct visorchannel *channel,
 	return 0;
 }
 
+/**
+ * visorchannel_get_uuid() - queries the UUID of the designated channel
+ * @channel: the channel to query
+ *
+ * Return: the UUID of the provided channel
+ */
 uuid_le
 visorchannel_get_uuid(struct visorchannel *channel)
 {
@@ -260,22 +287,25 @@ visorchannel_get_header(struct visorchannel *channel)
 	return (void __iomem *)&channel->chan_hdr;
 }
 
-/** Return offset of a specific SIGNAL_QUEUE_HEADER from the beginning of a
- *  channel header
+/*
+ * Return offset of a specific SIGNAL_QUEUE_HEADER from the beginning of a
+ * channel header
  */
 #define SIG_QUEUE_OFFSET(chan_hdr, q) \
 	((chan_hdr)->ch_space_offset + \
 	 ((q) * sizeof(struct signal_queue_header)))
 
-/** Return offset of a specific queue entry (data) from the beginning of a
- *  channel header
+/*
+ * Return offset of a specific queue entry (data) from the beginning of a
+ * channel header
  */
 #define SIG_DATA_OFFSET(chan_hdr, q, sig_hdr, slot) \
 	(SIG_QUEUE_OFFSET(chan_hdr, q) + (sig_hdr)->sig_base_offset + \
 	    ((slot) * (sig_hdr)->signal_size))
 
-/** Write the contents of a specific field within a SIGNAL_QUEUE_HEADER back
- *  into host memory
+/*
+ * Write the contents of a specific field within a SIGNAL_QUEUE_HEADER back
+ * into host memory
  */
 #define SIG_WRITE_FIELD(channel, queue, sig_hdr, FIELD)			 \
 	(visorchannel_write(channel,					 \
@@ -350,7 +380,8 @@ signalremove_inner(struct visorchannel *channel, u32 queue, void *msg)
 		return false;
 	sig_hdr.num_received++;
 
-	/* For each data field in SIGNAL_QUEUE_HEADER that was modified,
+	/*
+	 * For each data field in SIGNAL_QUEUE_HEADER that was modified,
 	 * update host memory.
 	 */
 	mb(); /* required for channel synch */
@@ -361,6 +392,15 @@ signalremove_inner(struct visorchannel *channel, u32 queue, void *msg)
 	return true;
 }
 
+/**
+ * visorchannel_signalremove() - removes a message from the designated
+ *                               channel/queue
+ * @channel: the channel the message will be removed from
+ * @queue:   the queue the message will be removed from
+ * @msg:     the message to remove
+ *
+ * Return: boolean indicating whether the removal succeeded or failed
+ */
 bool
 visorchannel_signalremove(struct visorchannel *channel, u32 queue, void *msg)
 {
@@ -379,6 +419,15 @@ visorchannel_signalremove(struct visorchannel *channel, u32 queue, void *msg)
 }
 EXPORT_SYMBOL_GPL(visorchannel_signalremove);
 
+/**
+ * visorchannel_signalempty() - checks if the designated channel/queue
+ *                              contains any messages
+ * @channel: the channel to query
+ * @queue:   the queue in the channel to query
+ *
+ * Return: boolean indicating whether any messages in the designated
+ *         channel/queue are present
+ */
 bool
 visorchannel_signalempty(struct visorchannel *channel, u32 queue)
 {
@@ -425,7 +474,8 @@ signalinsert_inner(struct visorchannel *channel, u32 queue, void *msg)
 
 	sig_hdr.num_sent++;
 
-	/* For each data field in SIGNAL_QUEUE_HEADER that was modified,
+	/*
+	 * For each data field in SIGNAL_QUEUE_HEADER that was modified,
 	 * update host memory.
 	 */
 	mb(); /* required for channel synch */
@@ -437,6 +487,15 @@ signalinsert_inner(struct visorchannel *channel, u32 queue, void *msg)
 	return true;
 }
 
+/**
+ * visorchannel_signalinsert() - inserts a message into the designated
+ *                               channel/queue
+ * @channel: the channel the message will be added to
+ * @queue:   the queue the message will be added to
+ * @msg:     the message to insert
+ *
+ * Return: boolean indicating whether the insertion succeeded or failed
+ */
 bool
 visorchannel_signalinsert(struct visorchannel *channel, u32 queue, void *msg)
 {
