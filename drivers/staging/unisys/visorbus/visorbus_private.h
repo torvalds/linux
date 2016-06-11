@@ -37,16 +37,11 @@ void device_destroy_response(struct visor_device *p, int response);
 void device_resume_response(struct visor_device *p, int response);
 void device_pause_response(struct visor_device *p, int response);
 
-/* visorbus init and exit functions */
 int visorbus_init(void);
 void visorbus_exit(void);
 
-/* Visorchannel access functions */
+/* visorchannel access functions */
 
-/* Note that for visorchannel_create()
- * <channel_bytes> and <guid> arguments may be 0 if we are a channel CLIENT.
- * In this case, the values can simply be read from the channel header.
- */
 struct visorchannel *visorchannel_create(u64 physaddr,
 					 unsigned long channel_bytes,
 					 gfp_t gfp, uuid_le guid);
