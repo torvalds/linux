@@ -407,15 +407,7 @@ static int m88e1121_config_aneg(struct phy_device *phydev)
 	if (err < 0)
 		return err;
 
-	oldpage = phy_read(phydev, MII_MARVELL_PHY_PAGE);
-
-	phy_write(phydev, MII_MARVELL_PHY_PAGE, MII_88E1121_PHY_LED_PAGE);
-	phy_write(phydev, MII_88E1121_PHY_LED_CTRL, MII_88E1121_PHY_LED_DEF);
-	phy_write(phydev, MII_MARVELL_PHY_PAGE, oldpage);
-
-	err = genphy_config_aneg(phydev);
-
-	return err;
+	return genphy_config_aneg(phydev);
 }
 
 static int m88e1318_config_aneg(struct phy_device *phydev)
@@ -636,6 +628,28 @@ static int m88e1111_config_init(struct phy_device *phydev)
 	return phy_write(phydev, MII_BMCR, BMCR_RESET);
 }
 
+static int m88e1121_config_init(struct phy_device *phydev)
+{
+	int err, oldpage;
+
+	oldpage = phy_read(phydev, MII_MARVELL_PHY_PAGE);
+
+	err = phy_write(phydev, MII_MARVELL_PHY_PAGE, MII_88E1121_PHY_LED_PAGE);
+	if (err < 0)
+		return err;
+
+	/* Default PHY LED config: LED[0] .. Link, LED[1] .. Activity */
+	err = phy_write(phydev, MII_88E1121_PHY_LED_CTRL,
+			MII_88E1121_PHY_LED_DEF);
+	if (err < 0)
+		return err;
+
+	phy_write(phydev, MII_MARVELL_PHY_PAGE, oldpage);
+
+	/* Set marvell,reg-init configuration from device tree */
+	return marvell_config_init(phydev);
+}
+
 static int m88e1510_config_init(struct phy_device *phydev)
 {
 	int err;
@@ -668,7 +682,7 @@ static int m88e1510_config_init(struct phy_device *phydev)
 			return err;
 	}
 
-	return marvell_config_init(phydev);
+	return m88e1121_config_init(phydev);
 }
 
 static int m88e1118_config_aneg(struct phy_device *phydev)
@@ -1196,7 +1210,7 @@ static struct phy_driver marvell_drivers[] = {
 		.features = PHY_GBIT_FEATURES,
 		.flags = PHY_HAS_INTERRUPT,
 		.probe = marvell_probe,
-		.config_init = &marvell_config_init,
+		.config_init = &m88e1121_config_init,
 		.config_aneg = &m88e1121_config_aneg,
 		.read_status = &marvell_read_status,
 		.ack_interrupt = &marvell_ack_interrupt,
@@ -1215,7 +1229,7 @@ static struct phy_driver marvell_drivers[] = {
 		.features = PHY_GBIT_FEATURES,
 		.flags = PHY_HAS_INTERRUPT,
 		.probe = marvell_probe,
-		.config_init = &marvell_config_init,
+		.config_init = &m88e1121_config_init,
 		.config_aneg = &m88e1318_config_aneg,
 		.read_status = &marvell_read_status,
 		.ack_interrupt = &marvell_ack_interrupt,
