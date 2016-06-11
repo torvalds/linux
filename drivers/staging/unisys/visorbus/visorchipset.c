@@ -1983,8 +1983,8 @@ device_destroy_response(struct visor_device *dev_info, int response)
 }
 
 void
-visorchipset_device_pause_response(struct visor_device *dev_info,
-				   int response)
+device_pause_response(struct visor_device *dev_info,
+		      int response)
 {
 	device_changestate_responder(CONTROLVM_DEVICE_CHANGESTATE,
 				     dev_info, response,
