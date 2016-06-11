@@ -121,33 +121,33 @@ struct visor_driver {
 /**
  * struct visor_device - A device type for things "plugged" into the visorbus
  * bus
- * visorchannel:		Points to the channel that the device is
+ * @visorchannel:		Points to the channel that the device is
  *				associated with.
- * channel_type_guid:		Identifies the channel type to the bus driver.
- * device:			Device struct meant for use by the bus driver
+ * @channel_type_guid:		Identifies the channel type to the bus driver.
+ * @device:			Device struct meant for use by the bus driver
  *				only.
- * list_all:			Used by the bus driver to enumerate devices.
- * timer:		        Timer fired periodically to do interrupt-type
+ * @list_all:			Used by the bus driver to enumerate devices.
+ * @timer:		        Timer fired periodically to do interrupt-type
  *				activity.
- * being_removed:		Indicates that the device is being removed from
+ * @being_removed:		Indicates that the device is being removed from
  *				the bus. Private bus driver use only.
- * visordriver_callback_lock:	Used by the bus driver to lock when handling
+ * @visordriver_callback_lock:	Used by the bus driver to lock when handling
  *				channel events.
- * pausing:			Indicates that a change towards a paused state.
+ * @pausing:			Indicates that a change towards a paused state.
  *				is in progress. Only modified by the bus driver.
- * resuming:			Indicates that a change towards a running state
+ * @resuming:			Indicates that a change towards a running state
  *				is in progress. Only modified by the bus driver.
- * chipset_bus_no:		Private field used by the bus driver.
- * chipset_dev_no:		Private field used the bus driver.
- * state:			Used to indicate the current state of the
+ * @chipset_bus_no:		Private field used by the bus driver.
+ * @chipset_dev_no:		Private field used the bus driver.
+ * @state:			Used to indicate the current state of the
  *				device.
- * inst:			Unique GUID for this instance of the device.
- * name:			Name of the device.
- * pending_msg_hdr:		For private use by bus driver to respond to
+ * @inst:			Unique GUID for this instance of the device.
+ * @name:			Name of the device.
+ * @pending_msg_hdr:		For private use by bus driver to respond to
  *				hypervisor requests.
- * vbus_hdr_info:		A pointer to header info. Private use by bus
+ * @vbus_hdr_info:		A pointer to header info. Private use by bus
  *				driver.
- * partition_uuid:		Indicates client partion id. This should be the
+ * @partition_uuid:		Indicates client partion id. This should be the
  *				same across all visor_devices in the current
  *				guest. Private use by bus driver only.
  */
