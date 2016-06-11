@@ -19,7 +19,6 @@
 #include "visorbus.h"
 #include "visorbus_private.h"
 #include "version.h"
-#include "periodic_work.h"
 #include "vbuschannel.h"
 #include "guestlinuxdebug.h"
 #include "vmcallinterface.h"
@@ -116,7 +115,6 @@ struct bus_type visorbus_type = {
 	.bus_groups = visorbus_bus_groups,
 };
 
-static struct workqueue_struct *periodic_dev_workqueue;
 static long long bus_count;	/** number of bus instances */
 					/** ever-increasing */
 
@@ -222,10 +220,6 @@ visorbus_release_device(struct device *xdev)
 {
 	struct visor_device *dev = to_visor_device(xdev);
 
-	if (dev->periodic_work) {
-		visor_periodic_work_destroy(dev->periodic_work);
-		dev->periodic_work = NULL;
-	}
 	if (dev->visorchannel) {
 		visorchannel_destroy(dev->visorchannel);
 		dev->visorchannel = NULL;
@@ -530,35 +524,36 @@ unregister_driver_attributes(struct visor_driver *drv)
 }
 
 static void
-dev_periodic_work(void *xdev)
+dev_periodic_work(unsigned long __opaque)
 {
-	struct visor_device *dev = xdev;
+	struct visor_device *dev = (struct visor_device *)__opaque;
 	struct visor_driver *drv = to_visor_driver(dev->device.driver);
 
-	down(&dev->visordriver_callback_lock);
 	if (drv->channel_interrupt)
 		drv->channel_interrupt(dev);
-	up(&dev->visordriver_callback_lock);
-	if (!visor_periodic_work_nextperiod(dev->periodic_work))
-		put_device(&dev->device);
+	mod_timer(&dev->timer, jiffies + POLLJIFFIES_NORMALCHANNEL);
 }
 
 static void
 dev_start_periodic_work(struct visor_device *dev)
 {
-	if (dev->being_removed)
+	if (dev->being_removed || dev->timer_active)
 		return;
 	/* now up by at least 2 */
 	get_device(&dev->device);
-	if (!visor_periodic_work_start(dev->periodic_work))
-		put_device(&dev->device);
+	dev->timer.expires = jiffies + POLLJIFFIES_NORMALCHANNEL;
+	add_timer(&dev->timer);
+	dev->timer_active = true;
 }
 
 static void
 dev_stop_periodic_work(struct visor_device *dev)
 {
-	if (visor_periodic_work_stop(dev->periodic_work))
-		put_device(&dev->device);
+	if (!dev->timer_active)
+		return;
+	del_timer_sync(&dev->timer);
+	dev->timer_active = false;
+	put_device(&dev->device);
 }
 
 /** This is called automatically upon adding a visor_device (device_add), or
@@ -776,17 +771,9 @@ create_visor_device(struct visor_device *dev)
 	dev->device.release = visorbus_release_device;
 	/* keep a reference just for us (now 2) */
 	get_device(&dev->device);
-	dev->periodic_work =
-		visor_periodic_work_create(POLLJIFFIES_NORMALCHANNEL,
-					   periodic_dev_workqueue,
-					   dev_periodic_work,
-					   dev, dev_name(&dev->device));
-	if (!dev->periodic_work) {
-		POSTCODE_LINUX_3(DEVICE_CREATE_FAILURE_PC, chipset_dev_no,
-				 DIAG_SEVERITY_ERR);
-		err = -EINVAL;
-		goto err_put;
-	}
+	init_timer(&dev->timer);
+	dev->timer.data = (unsigned long)(dev);
+	dev->timer.function = dev_periodic_work;
 
 	/* bus_id must be a unique name with respect to this bus TYPE
 	 * (NOT bus instance).  That's why we need to include the bus
@@ -1268,13 +1255,6 @@ visorbus_init(void)
 		goto error;
 	}
 
-	periodic_dev_workqueue = create_singlethread_workqueue("visorbus_dev");
-	if (!periodic_dev_workqueue) {
-		POSTCODE_LINUX_2(CREATE_WORKQUEUE_PC, DIAG_SEVERITY_ERR);
-		err = -ENOMEM;
-		goto error;
-	}
-
 	/* This enables us to receive notifications when devices appear for
 	 * which this service partition is to be a server for.
 	 */
@@ -1296,10 +1276,6 @@ visorbus_exit(void)
 
 	visorchipset_register_busdev(NULL, NULL, NULL);
 	remove_all_visor_devices();
-
-	flush_workqueue(periodic_dev_workqueue); /* better not be any work! */
-	destroy_workqueue(periodic_dev_workqueue);
-	periodic_dev_workqueue = NULL;
 
 	list_for_each_safe(listentry, listtmp, &list_all_bus_instances) {
 		struct visor_device *dev = list_entry(listentry,

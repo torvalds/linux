@@ -34,8 +34,9 @@
 #include <linux/poll.h>
 #include <linux/kernel.h>
 #include <linux/uuid.h>
+#include <linux/seq_file.h>
+#include <linux/slab.h>
 
-#include "periodic_work.h"
 #include "channel.h"
 
 struct visor_driver;
@@ -126,8 +127,8 @@ struct visor_driver {
  * device:			Device struct meant for use by the bus driver
  *				only.
  * list_all:			Used by the bus driver to enumerate devices.
- * periodic_work:		Device work queue. Private use by bus driver
- *				only.
+ * timer:		        Timer fired periodically to do interrupt-type
+ *				activity.
  * being_removed:		Indicates that the device is being removed from
  *				the bus. Private bus driver use only.
  * visordriver_callback_lock:	Used by the bus driver to lock when handling
@@ -157,7 +158,8 @@ struct visor_device {
 	/* These fields are for private use by the bus driver only. */
 	struct device device;
 	struct list_head list_all;
-	struct periodic_work *periodic_work;
+	struct timer_list timer;
+	bool timer_active;
 	bool being_removed;
 	struct semaphore visordriver_callback_lock;
 	bool pausing;
