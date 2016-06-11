@@ -47,7 +47,8 @@
 #include "usbpipe.h"
 
 /* const u16 cwRXBCNTSFOff[MAX_RATE] =
-   {17, 34, 96, 192, 34, 23, 17, 11, 8, 5, 4, 3}; */
+ *   {17, 34, 96, 192, 34, 23, 17, 11, 8, 5, 4, 3};
+ */
 
 static const u16 cwRXBCNTSFOff[MAX_RATE] = {
 	192, 96, 34, 17, 34, 23, 17, 11, 8, 5, 4, 3
