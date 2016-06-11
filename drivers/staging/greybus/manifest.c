@@ -250,6 +250,13 @@ static u32 gb_manifest_parse_cports(struct gb_bundle *bundle)
 		if (cport_id > CPORT_ID_MAX)
 			goto exit;
 
+		/* Nothing else should have its cport_id as control cport id */
+		if (cport_id == GB_CONTROL_CPORT_ID) {
+			dev_err(&bundle->dev, "invalid cport id found (%02u)\n",
+				cport_id);
+			goto exit;
+		}
+
 		/*
 		 * Found one, move it to our temporary list after checking for
 		 * duplicates.
