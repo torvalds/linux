@@ -614,7 +614,7 @@ static inline struct device_node *of_parse_phandle(const struct device_node *np,
 	return NULL;
 }
 
-static inline int of_parse_phandle_with_args(struct device_node *np,
+static inline int of_parse_phandle_with_args(const struct device_node *np,
 					     const char *list_name,
 					     const char *cells_name,
 					     int index,

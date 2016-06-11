@@ -8407,10 +8407,9 @@ F:	drivers/i2c/busses/i2c-ocores.c
 OPEN FIRMWARE AND FLATTENED DEVICE TREE
 M:	Rob Herring <robh+dt@kernel.org>
 M:	Frank Rowand <frowand.list@gmail.com>
-M:	Grant Likely <grant.likely@linaro.org>
 L:	devicetree@vger.kernel.org
 W:	http://www.devicetree.org/
-T:	git git://git.kernel.org/pub/scm/linux/kernel/git/glikely/linux.git
+T:	git git://git.kernel.org/pub/scm/linux/kernel/git/robh/linux.git
 S:	Maintained
 F:	drivers/of/
 F:	include/linux/of*.h
@@ -8418,12 +8417,10 @@ F:	scripts/dtc/
 
 OPEN FIRMWARE AND FLATTENED DEVICE TREE BINDINGS
 M:	Rob Herring <robh+dt@kernel.org>
-M:	Pawel Moll <pawel.moll@arm.com>
 M:	Mark Rutland <mark.rutland@arm.com>
-M:	Ian Campbell <ijc+devicetree@hellion.org.uk>
-M:	Kumar Gala <galak@codeaurora.org>
 L:	devicetree@vger.kernel.org
 T:	git git://git.kernel.org/pub/scm/linux/kernel/git/robh/linux.git
+Q:	http://patchwork.ozlabs.org/project/devicetree-bindings/list/
 S:	Maintained
 F:	Documentation/devicetree/
 F:	arch/*/boot/dts/
