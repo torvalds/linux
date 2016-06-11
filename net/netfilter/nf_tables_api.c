@@ -2946,7 +2946,7 @@ int nf_tables_bind_set(const struct nft_ctx *ctx, struct nft_set *set,
 		 * jumps are already validated for that chain.
 		 */
 		list_for_each_entry(i, &set->bindings, list) {
-			if (binding->flags & NFT_SET_MAP &&
+			if (i->flags & NFT_SET_MAP &&
 			    i->chain == binding->chain)
 				goto bind;
 		}
