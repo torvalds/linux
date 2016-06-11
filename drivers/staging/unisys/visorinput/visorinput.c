@@ -277,16 +277,16 @@ out_unlock:
 }
 
 /*
- * register_client_keyboard() initializes and returns a Linux input node that
+ * setup_client_keyboard() initializes and returns a Linux input node that
  * we can use to deliver keyboard inputs to Linux.  We of course do this when
  * we see keyboard inputs coming in on a keyboard channel.
  */
 static struct input_dev *
-register_client_keyboard(void *devdata,  /* opaque on purpose */
-			 unsigned char *keycode_table)
+setup_client_keyboard(void *devdata,  /* opaque on purpose */
+		      unsigned char *keycode_table)
 
 {
-	int i, error;
+	int i;
 	struct input_dev *visorinput_dev;
 
 	visorinput_dev = input_allocate_device();
@@ -320,18 +320,12 @@ register_client_keyboard(void *devdata,  /* opaque on purpose */
 	visorinput_dev->close = visorinput_close;
 	input_set_drvdata(visorinput_dev, devdata); /* pre input_register! */
 
-	error = input_register_device(visorinput_dev);
-	if (error) {
-		input_free_device(visorinput_dev);
-		return NULL;
-	}
 	return visorinput_dev;
 }
 
 static struct input_dev *
-register_client_mouse(void *devdata /* opaque on purpose */)
+setup_client_mouse(void *devdata /* opaque on purpose */)
 {
-	int error;
 	struct input_dev *visorinput_dev = NULL;
 	int xres, yres;
 	struct fb_info *fb0;
@@ -366,13 +360,6 @@ register_client_mouse(void *devdata /* opaque on purpose */)
 	visorinput_dev->open = visorinput_open;
 	visorinput_dev->close = visorinput_close;
 	input_set_drvdata(visorinput_dev, devdata); /* pre input_register! */
-
-	error = input_register_device(visorinput_dev);
-	if (error) {
-		input_free_device(visorinput_dev);
-		return NULL;
-	}
-
 	input_set_capability(visorinput_dev, EV_REL, REL_WHEEL);
 
 	return visorinput_dev;
@@ -390,7 +377,17 @@ devdata_create(struct visor_device *dev, enum visorinput_device_type devtype)
 	devdata = kzalloc(sizeof(*devdata) + extra_bytes, GFP_KERNEL);
 	if (!devdata)
 		return NULL;
+	init_rwsem(&devdata->lock_visor_dev);
+	down_write(&devdata->lock_visor_dev);
 	devdata->dev = dev;
+
+	/*
+	 * visorinput_open() can be called as soon as input_register_device()
+	 * happens, and that will enable channel interrupts.  Setting paused
+	 * prevents us from getting into visorinput_channel_interrupt() prior
+	 * to the device structure being totally initialized.
+	 */
+	devdata->paused = true;
 
 	/*
 	 * This is an input device in a client guest partition,
@@ -404,23 +401,49 @@ devdata_create(struct visor_device *dev, enum visorinput_device_type devtype)
 		       KEYCODE_TABLE_BYTES);
 		memcpy(devdata->keycode_table + KEYCODE_TABLE_BYTES,
 		       visorkbd_ext_keycode, KEYCODE_TABLE_BYTES);
-		devdata->visorinput_dev = register_client_keyboard
+		devdata->visorinput_dev = setup_client_keyboard
 			(devdata, devdata->keycode_table);
 		if (!devdata->visorinput_dev)
 			goto cleanups_register;
 		break;
 	case visorinput_mouse:
-		devdata->visorinput_dev = register_client_mouse(devdata);
+		devdata->visorinput_dev = setup_client_mouse(devdata);
 		if (!devdata->visorinput_dev)
 			goto cleanups_register;
 		break;
 	}
 
-	init_rwsem(&devdata->lock_visor_dev);
+	dev_set_drvdata(&dev->device, devdata);
+	up_write(&devdata->lock_visor_dev);
+
+	/*
+	 * Device struct is completely set up now, with the exception of
+	 * visorinput_dev being registered.
+	 * We need to unlock before we register the device, because this
+	 * can cause an on-stack call of visorinput_open(), which would
+	 * deadlock if we had the lock.
+	 */
+	if (input_register_device(devdata->visorinput_dev)) {
+		input_free_device(devdata->visorinput_dev);
+		goto err_kfree_devdata;
+	}
+
+	down_write(&devdata->lock_visor_dev);
+	/*
+	 * Establish calls to visorinput_channel_interrupt() if that is
+	 * the desired state that we've kept track of in interrupts_enabled
+	 * while the device was being created.
+	 */
+	devdata->paused = false;
+	if (devdata->interrupts_enabled)
+		visorbus_enable_channel_interrupts(dev);
+	up_write(&devdata->lock_visor_dev);
 
 	return devdata;
 
 cleanups_register:
+	up_write(&devdata->lock_visor_dev);
+err_kfree_devdata:
 	kfree(devdata);
 	return NULL;
 }
@@ -428,7 +451,6 @@ cleanups_register:
 static int
 visorinput_probe(struct visor_device *dev)
 {
-	struct visorinput_devdata *devdata = NULL;
 	uuid_le guid;
 	enum visorinput_device_type devtype;
 
@@ -439,10 +461,9 @@ visorinput_probe(struct visor_device *dev)
 		devtype = visorinput_keyboard;
 	else
 		return -ENODEV;
-	devdata = devdata_create(dev, devtype);
-	if (!devdata)
+	visorbus_disable_channel_interrupts(dev);
+	if (!devdata_create(dev, devtype))
 		return -ENOMEM;
-	dev_set_drvdata(&dev->device, devdata);
 	return 0;
 }
 
@@ -461,6 +482,7 @@ visorinput_remove(struct visor_device *dev)
 	if (!devdata)
 		return;
 
+	down_write(&devdata->lock_visor_dev);
 	visorbus_disable_channel_interrupts(dev);
 
 	/*
@@ -469,6 +491,8 @@ visorinput_remove(struct visor_device *dev)
 	 */
 
 	dev_set_drvdata(&dev->device, NULL);
+	up_write(&devdata->lock_visor_dev);
+
 	unregister_client_input(devdata->visorinput_dev);
 	kfree(devdata);
 }
