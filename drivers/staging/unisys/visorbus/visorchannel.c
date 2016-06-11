@@ -60,8 +60,7 @@ struct visorchannel {
  */
 static struct visorchannel *
 visorchannel_create_guts(u64 physaddr, unsigned long channel_bytes,
-			 gfp_t gfp, unsigned long off,
-			 uuid_le guid, bool needs_lock)
+			 gfp_t gfp, uuid_le guid, bool needs_lock)
 {
 	struct visorchannel *channel;
 	int err;
@@ -145,7 +144,7 @@ struct visorchannel *
 visorchannel_create(u64 physaddr, unsigned long channel_bytes,
 		    gfp_t gfp, uuid_le guid)
 {
-	return visorchannel_create_guts(physaddr, channel_bytes, gfp, 0, guid,
+	return visorchannel_create_guts(physaddr, channel_bytes, gfp, guid,
 					false);
 }
 
@@ -153,7 +152,7 @@ struct visorchannel *
 visorchannel_create_with_lock(u64 physaddr, unsigned long channel_bytes,
 			      gfp_t gfp, uuid_le guid)
 {
-	return visorchannel_create_guts(physaddr, channel_bytes, gfp, 0, guid,
+	return visorchannel_create_guts(physaddr, channel_bytes, gfp, guid,
 					true);
 }
 
