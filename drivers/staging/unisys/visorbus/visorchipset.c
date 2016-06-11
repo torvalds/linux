@@ -682,7 +682,6 @@ struct visor_device *visorbus_get_device_by_id(u32 bus_no, u32 dev_no,
 		vdev = to_visor_device(dev);
 	return vdev;
 }
-EXPORT_SYMBOL(visorbus_get_device_by_id);
 
 void
 visorchipset_register_busdev(
@@ -707,7 +706,6 @@ visorchipset_register_busdev(
 
 	up(&notifier_lock);
 }
-EXPORT_SYMBOL_GPL(visorchipset_register_busdev);
 
 static void
 chipset_init(struct controlvm_message *inmsg)

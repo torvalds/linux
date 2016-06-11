@@ -148,7 +148,6 @@ visorchannel_create(u64 physaddr, unsigned long channel_bytes,
 	return visorchannel_create_guts(physaddr, channel_bytes, gfp, 0, guid,
 					false);
 }
-EXPORT_SYMBOL_GPL(visorchannel_create);
 
 struct visorchannel *
 visorchannel_create_with_lock(u64 physaddr, unsigned long channel_bytes,
@@ -157,7 +156,6 @@ visorchannel_create_with_lock(u64 physaddr, unsigned long channel_bytes,
 	return visorchannel_create_guts(physaddr, channel_bytes, gfp, 0, guid,
 					true);
 }
-EXPORT_SYMBOL_GPL(visorchannel_create_with_lock);
 
 void
 visorchannel_destroy(struct visorchannel *channel)
@@ -171,21 +169,18 @@ visorchannel_destroy(struct visorchannel *channel)
 	}
 	kfree(channel);
 }
-EXPORT_SYMBOL_GPL(visorchannel_destroy);
 
 u64
 visorchannel_get_physaddr(struct visorchannel *channel)
 {
 	return channel->physaddr;
 }
-EXPORT_SYMBOL_GPL(visorchannel_get_physaddr);
 
 ulong
 visorchannel_get_nbytes(struct visorchannel *channel)
 {
 	return channel->nbytes;
 }
-EXPORT_SYMBOL_GPL(visorchannel_get_nbytes);
 
 char *
 visorchannel_uuid_id(uuid_le *guid, char *s)
@@ -193,28 +188,24 @@ visorchannel_uuid_id(uuid_le *guid, char *s)
 	sprintf(s, "%pUL", guid);
 	return s;
 }
-EXPORT_SYMBOL_GPL(visorchannel_uuid_id);
 
 char *
 visorchannel_id(struct visorchannel *channel, char *s)
 {
 	return visorchannel_uuid_id(&channel->guid, s);
 }
-EXPORT_SYMBOL_GPL(visorchannel_id);
 
 char *
 visorchannel_zoneid(struct visorchannel *channel, char *s)
 {
 	return visorchannel_uuid_id(&channel->chan_hdr.zone_uuid, s);
 }
-EXPORT_SYMBOL_GPL(visorchannel_zoneid);
 
 u64
 visorchannel_get_clientpartition(struct visorchannel *channel)
 {
 	return channel->chan_hdr.partition_handle;
 }
-EXPORT_SYMBOL_GPL(visorchannel_get_clientpartition);
 
 int
 visorchannel_set_clientpartition(struct visorchannel *channel,
@@ -223,7 +214,6 @@ visorchannel_set_clientpartition(struct visorchannel *channel,
 	channel->chan_hdr.partition_handle = partition_handle;
 	return 0;
 }
-EXPORT_SYMBOL_GPL(visorchannel_set_clientpartition);
 
 uuid_le
 visorchannel_get_uuid(struct visorchannel *channel)
@@ -243,7 +233,6 @@ visorchannel_read(struct visorchannel *channel, ulong offset,
 
 	return 0;
 }
-EXPORT_SYMBOL_GPL(visorchannel_read);
 
 int
 visorchannel_write(struct visorchannel *channel, ulong offset,
@@ -265,7 +254,6 @@ visorchannel_write(struct visorchannel *channel, ulong offset,
 
 	return 0;
 }
-EXPORT_SYMBOL_GPL(visorchannel_write);
 
 int
 visorchannel_clear(struct visorchannel *channel, ulong offset, u8 ch,
@@ -301,14 +289,12 @@ out_free_page:
 	free_page((unsigned long)buf);
 	return err;
 }
-EXPORT_SYMBOL_GPL(visorchannel_clear);
 
 void __iomem  *
 visorchannel_get_header(struct visorchannel *channel)
 {
 	return (void __iomem *)&channel->chan_hdr;
 }
-EXPORT_SYMBOL_GPL(visorchannel_get_header);
 
 /** Return offset of a specific SIGNAL_QUEUE_HEADER from the beginning of a
  *  channel header
@@ -522,7 +508,6 @@ visorchannel_signalqueue_slots_avail(struct visorchannel *channel, u32 queue)
 	slots_avail = sig_hdr.max_signals - slots_used;
 	return (int)slots_avail;
 }
-EXPORT_SYMBOL_GPL(visorchannel_signalqueue_slots_avail);
 
 int
 visorchannel_signalqueue_max_slots(struct visorchannel *channel, u32 queue)
@@ -533,7 +518,6 @@ visorchannel_signalqueue_max_slots(struct visorchannel *channel, u32 queue)
 		return 0;
 	return (int)sig_hdr.max_signals;
 }
-EXPORT_SYMBOL_GPL(visorchannel_signalqueue_max_slots);
 
 static void
 sigqueue_debug(struct signal_queue_header *q, int which, struct seq_file *seq)
@@ -632,4 +616,3 @@ visorchannel_debug(struct visorchannel *channel, int num_queues,
 	seq_printf(seq, "--- End   channel @0x%-16.16Lx for 0x%lx bytes ---\n",
 		   addr + off, nbytes);
 }
-EXPORT_SYMBOL_GPL(visorchannel_debug);

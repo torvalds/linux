@@ -721,7 +721,6 @@ visorbus_clear_channel(struct visor_device *dev, unsigned long offset, u8 ch,
 {
 	return visorchannel_clear(dev->visorchannel, offset, ch, nbytes);
 }
-EXPORT_SYMBOL_GPL(visorbus_clear_channel);
 
 /** We don't really have a real interrupt, so for now we just call the
  *  interrupt function periodically...
