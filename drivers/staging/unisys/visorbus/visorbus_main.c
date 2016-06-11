@@ -866,9 +866,12 @@ get_vbus_header_info(struct visorchannel *chan,
 
 /* Write the contents of <info> to the struct
  * spar_vbus_channel_protocol.chp_info.
+ *
+ * Returns void since this is debug information and not needed for
+ * device functionality.
  */
 
-static int
+static void
 write_vbus_chp_info(struct visorchannel *chan,
 		    struct spar_vbus_headerinfo *hdr_info,
 		    struct ultra_vbus_deviceinfo *info)
@@ -876,18 +879,19 @@ write_vbus_chp_info(struct visorchannel *chan,
 	int off = sizeof(struct channel_header) + hdr_info->chp_info_offset;
 
 	if (hdr_info->chp_info_offset == 0)
-		return -EFAULT;
+		return;
 
-	if (visorchannel_write(chan, off, info, sizeof(*info)) < 0)
-		return -EFAULT;
-	return 0;
+	visorchannel_write(chan, off, info, sizeof(*info));
 }
 
 /* Write the contents of <info> to the struct
  * spar_vbus_channel_protocol.bus_info.
+ *
+ * Returns void since this is debug information and not needed for
+ * device functionality.
  */
 
-static int
+static void
 write_vbus_bus_info(struct visorchannel *chan,
 		    struct spar_vbus_headerinfo *hdr_info,
 		    struct ultra_vbus_deviceinfo *info)
@@ -895,17 +899,18 @@ write_vbus_bus_info(struct visorchannel *chan,
 	int off = sizeof(struct channel_header) + hdr_info->bus_info_offset;
 
 	if (hdr_info->bus_info_offset == 0)
-		return -EFAULT;
+		return;
 
-	if (visorchannel_write(chan, off, info, sizeof(*info)) < 0)
-		return -EFAULT;
-	return 0;
+	visorchannel_write(chan, off, info, sizeof(*info));
 }
 
 /* Write the contents of <info> to the
  * struct spar_vbus_channel_protocol.dev_info[<devix>].
+ *
+ * Returns void since this is debug information and not needed for
+ * device functionality.
  */
-static int
+static void
 write_vbus_dev_info(struct visorchannel *chan,
 		    struct spar_vbus_headerinfo *hdr_info,
 		    struct ultra_vbus_deviceinfo *info, int devix)
@@ -915,11 +920,9 @@ write_vbus_dev_info(struct visorchannel *chan,
 	    (hdr_info->device_info_struct_bytes * devix);
 
 	if (hdr_info->dev_info_offset == 0)
-		return -EFAULT;
+		return;
 
-	if (visorchannel_write(chan, off, info, sizeof(*info)) < 0)
-		return -EFAULT;
-	return 0;
+	visorchannel_write(chan, off, info, sizeof(*info));
 }
 
 /* For a child device just created on a client bus, fill in
