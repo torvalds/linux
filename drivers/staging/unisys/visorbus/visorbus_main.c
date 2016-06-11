@@ -1260,12 +1260,6 @@ chipset_device_resume(struct visor_device *dev_info)
 	initiate_chipset_device_pause_resume(dev_info, false);
 }
 
-struct channel_size_info {
-	uuid_le guid;
-	unsigned long min_size;
-	unsigned long max_size;
-};
-
 int
 visorbus_init(void)
 {
