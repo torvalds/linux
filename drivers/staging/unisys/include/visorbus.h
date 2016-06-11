@@ -185,8 +185,6 @@ int visorbus_read_channel(struct visor_device *dev,
 int visorbus_write_channel(struct visor_device *dev,
 			   unsigned long offset, void *src,
 			   unsigned long nbytes);
-int visorbus_clear_channel(struct visor_device *dev,
-			   unsigned long offset, u8 ch, unsigned long nbytes);
 void visorbus_enable_channel_interrupts(struct visor_device *dev);
 void visorbus_disable_channel_interrupts(struct visor_device *dev);
 #endif
@@ -206,17 +204,12 @@ int visorchannel_read(struct visorchannel *channel, ulong offset,
 		      void *local, ulong nbytes);
 int visorchannel_write(struct visorchannel *channel, ulong offset,
 		       void *local, ulong nbytes);
-int visorchannel_clear(struct visorchannel *channel, ulong offset,
-		       u8 ch, ulong nbytes);
 bool visorchannel_signalremove(struct visorchannel *channel, u32 queue,
 			       void *msg);
 bool visorchannel_signalinsert(struct visorchannel *channel, u32 queue,
 			       void *msg);
 bool visorchannel_signalempty(struct visorchannel *channel, u32 queue);
 
-int visorchannel_signalqueue_slots_avail(struct visorchannel *channel,
-					 u32 queue);
-int visorchannel_signalqueue_max_slots(struct visorchannel *channel, u32 queue);
 u64 visorchannel_get_physaddr(struct visorchannel *channel);
 ulong visorchannel_get_nbytes(struct visorchannel *channel);
 char *visorchannel_id(struct visorchannel *channel, char *s);
@@ -226,8 +219,6 @@ int visorchannel_set_clientpartition(struct visorchannel *channel,
 				     u64 partition_handle);
 uuid_le visorchannel_get_uuid(struct visorchannel *channel);
 char *visorchannel_uuid_id(uuid_le *guid, char *s);
-void visorchannel_debug(struct visorchannel *channel, int num_queues,
-			struct seq_file *seq, u32 off);
 void __iomem *visorchannel_get_header(struct visorchannel *channel);
 
 #define BUS_ROOT_DEVICE		UINT_MAX
