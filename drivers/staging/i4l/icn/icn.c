@@ -1245,7 +1245,7 @@ icn_command(isdn_ctrl *c, icn_card *card)
 				dev.firstload = 0;
 			}
 			icn_stopcard(card);
-			return (icn_loadboot(arg, card));
+			return icn_loadboot(arg, card);
 		case ICN_IOCTL_LOADPROTO:
 			icn_stopcard(card);
 			if ((i = (icn_loadproto(arg, card))))
@@ -1261,7 +1261,7 @@ icn_command(isdn_ctrl *c, icn_card *card)
 					   arg,
 					   sizeof(cdef)))
 				return -EFAULT;
-			return (icn_addcard(cdef.port, cdef.id1, cdef.id2));
+			return icn_addcard(cdef.port, cdef.id1, cdef.id2);
 			break;
 		case ICN_IOCTL_LEASEDCFG:
 			if (a) {
@@ -1457,7 +1457,7 @@ if_command(isdn_ctrl *c)
 	icn_card *card = icn_findcard(c->driver);
 
 	if (card)
-		return (icn_command(c, card));
+		return icn_command(c, card);
 	printk(KERN_ERR
 	       "icn: if_command %d called with invalid driverId %d!\n",
 	       c->command, c->driver);
@@ -1472,7 +1472,7 @@ if_writecmd(const u_char __user *buf, int len, int id, int channel)
 	if (card) {
 		if (!(card->flags & ICN_FLAGS_RUNNING))
 			return -ENODEV;
-		return (icn_writecmd(buf, len, 1, card));
+		return icn_writecmd(buf, len, 1, card);
 	}
 	printk(KERN_ERR
 	       "icn: if_writecmd called with invalid driverId!\n");
@@ -1487,7 +1487,7 @@ if_readstatus(u_char __user *buf, int len, int id, int channel)
 	if (card) {
 		if (!(card->flags & ICN_FLAGS_RUNNING))
 			return -ENODEV;
-		return (icn_readstatus(buf, len, card));
+		return icn_readstatus(buf, len, card);
 	}
 	printk(KERN_ERR
 	       "icn: if_readstatus called with invalid driverId!\n");
@@ -1502,7 +1502,7 @@ if_sendbuf(int id, int channel, int ack, struct sk_buff *skb)
 	if (card) {
 		if (!(card->flags & ICN_FLAGS_RUNNING))
 			return -ENODEV;
-		return (icn_sendbuf(channel, ack, skb, card));
+		return icn_sendbuf(channel, ack, skb, card);
 	}
 	printk(KERN_ERR
 	       "icn: if_sendbuf called with invalid driverId!\n");
@@ -1616,7 +1616,7 @@ icn_setup(char *line)
 			icn_id2 = sid2;
 		}
 	}
-	return (1);
+	return 1;
 }
 __setup("icn=", icn_setup);
 #endif /* MODULE */
@@ -1643,7 +1643,7 @@ static int __init icn_init(void)
 		strcpy(rev, " ??? ");
 	printk(KERN_NOTICE "ICN-ISDN-driver Rev%smem=0x%08lx\n", rev,
 	       dev.memaddr);
-	return (icn_addcard(portbase, icn_id, icn_id2));
+	return icn_addcard(portbase, icn_id, icn_id2);
 }
 
 static void __exit icn_exit(void)
