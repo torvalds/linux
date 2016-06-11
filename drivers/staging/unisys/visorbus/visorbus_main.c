@@ -116,14 +116,6 @@ struct bus_type visorbus_type = {
 	.bus_groups = visorbus_bus_groups,
 };
 
-static struct delayed_work periodic_work;
-
-/* YES, we need 2 workqueues.
- * The reason is, workitems on the test queue may need to cancel
- * workitems on the other queue.  You will be in for trouble if you try to
- * do this with workitems queued on the same workqueue.
- */
-static struct workqueue_struct *periodic_test_workqueue;
 static struct workqueue_struct *periodic_dev_workqueue;
 static long long bus_count;	/** number of bus instances */
 					/** ever-increasing */
@@ -1308,13 +1300,6 @@ visorbus_exit(void)
 	flush_workqueue(periodic_dev_workqueue); /* better not be any work! */
 	destroy_workqueue(periodic_dev_workqueue);
 	periodic_dev_workqueue = NULL;
-
-	if (periodic_test_workqueue) {
-		cancel_delayed_work(&periodic_work);
-		flush_workqueue(periodic_test_workqueue);
-		destroy_workqueue(periodic_test_workqueue);
-		periodic_test_workqueue = NULL;
-	}
 
 	list_for_each_safe(listentry, listtmp, &list_all_bus_instances) {
 		struct visor_device *dev = list_entry(listentry,
