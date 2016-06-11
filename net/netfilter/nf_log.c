@@ -181,7 +181,7 @@ int nf_logger_find_get(int pf, enum nf_log_type type)
 	if (logger == NULL)
 		goto out;
 
-	if (logger && try_module_get(logger->me))
+	if (try_module_get(logger->me))
 		ret = 0;
 out:
 	rcu_read_unlock();
