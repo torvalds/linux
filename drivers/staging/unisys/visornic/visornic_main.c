@@ -1586,7 +1586,7 @@ drain_resp_queue(struct uiscmdrsp *cmdrsp, struct visornic_devdata *devdata)
  *
  *	Drain the respones queue of any responses from the IO partition.
  *	Process the responses as we get them.
- *	Returns when response queue is empty or when the threadd stops.
+ *	Returns when response queue is empty or when the thread stops.
  */
 static void
 service_resp_queue(struct uiscmdrsp *cmdrsp, struct visornic_devdata *devdata,
