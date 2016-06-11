@@ -106,10 +106,10 @@ for emphasis of the device type, similar to use of 'br' in bridge names.
        $ ip link add dev NAME type vrf table ID
 
    Remember to add the ip rules as well:
-       $ ip ru add oif NAME table 10
-       $ ip ru add iif NAME table 10
-       $ ip -6 ru add oif NAME table 10
-       $ ip -6 ru add iif NAME table 10
+       $ ip ru add oif NAME table ID
+       $ ip ru add iif NAME table ID
+       $ ip -6 ru add oif NAME table ID
+       $ ip -6 ru add iif NAME table ID
 
    Without the rules route lookups are not directed to the table.
 
