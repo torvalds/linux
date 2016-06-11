@@ -653,7 +653,7 @@ static int batadv_route_unicast_packet(struct sk_buff *skb,
 				   len + ETH_HLEN);
 
 		ret = NET_RX_SUCCESS;
-	} else if (res == NET_XMIT_POLICED) {
+	} else if (res == -EINPROGRESS) {
 		/* skb was buffered and consumed */
 		ret = NET_RX_SUCCESS;
 	}

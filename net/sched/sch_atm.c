@@ -363,7 +363,7 @@ static int atm_tc_enqueue(struct sk_buff *skb, struct Qdisc *sch)
 	struct atm_flow_data *flow;
 	struct tcf_result res;
 	int result;
-	int ret = NET_XMIT_POLICED;
+	int ret = NET_XMIT_SUCCESS | __NET_XMIT_BYPASS;
 
 	pr_debug("atm_tc_enqueue(skb %p,sch %p,[qdisc %p])\n", skb, sch, p);
 	result = TC_POLICE_OK;	/* be nice to gcc */

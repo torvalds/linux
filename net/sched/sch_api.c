@@ -95,8 +95,6 @@ static int tclass_notify(struct net *net, struct sk_buff *oskb,
      Expected action: do not backoff, but wait until queue will clear.
    NET_XMIT_CN	 	- probably this packet enqueued, but another one dropped.
      Expected action: backoff or ignore
-   NET_XMIT_POLICED	- dropped by police.
-     Expected action: backoff or error to real-time apps.
 
    Auxiliary routines:
 

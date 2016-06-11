@@ -90,7 +90,6 @@ void netdev_set_default_ethtool_ops(struct net_device *dev,
 #define NET_XMIT_SUCCESS	0x00
 #define NET_XMIT_DROP		0x01	/* skb dropped			*/
 #define NET_XMIT_CN		0x02	/* congestion notification	*/
-#define NET_XMIT_POLICED	0x03	/* skb is shot by police	*/
 #define NET_XMIT_MASK		0x0f	/* qdisc flags in net/sch_generic.h */
 
 /* NET_XMIT_CN is special. It does not guarantee that this packet is lost. It
