@@ -27,10 +27,9 @@
 #define MYDRVNAME "visorbus"
 
 /* module parameters */
-static int visorbus_debug;
 static int visorbus_forcematch;
 static int visorbus_forcenomatch;
-static int visorbus_debugref;
+
 #define SERIALLOOPBACKCHANADDR (100 * 1024 * 1024)
 
 /* Display string that is guaranteed to be no longer the 99 characters*/
@@ -1332,9 +1331,6 @@ visorbus_exit(void)
 	remove_bus_type();
 }
 
-module_param_named(debug, visorbus_debug, int, S_IRUGO);
-MODULE_PARM_DESC(visorbus_debug, "1 to debug");
-
 module_param_named(forcematch, visorbus_forcematch, int, S_IRUGO);
 MODULE_PARM_DESC(visorbus_forcematch,
 		 "1 to force a successful dev <--> drv match");
@@ -1342,6 +1338,3 @@ MODULE_PARM_DESC(visorbus_forcematch,
 module_param_named(forcenomatch, visorbus_forcenomatch, int, S_IRUGO);
 MODULE_PARM_DESC(visorbus_forcenomatch,
 		 "1 to force an UNsuccessful dev <--> drv match");
-
-module_param_named(debugref, visorbus_debugref, int, S_IRUGO);
-MODULE_PARM_DESC(visorbus_debugref, "1 to debug reference counting");
