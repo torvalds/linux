@@ -178,6 +178,7 @@ static int write_gid(struct ib_device *ib_dev, u8 port,
 {
 	int ret = 0;
 	struct net_device *old_net_dev;
+	enum ib_gid_type old_gid_type;
 
 	/* in rdma_cap_roce_gid_table, this funciton should be protected by a
 	 * sleep-able lock.
@@ -199,6 +200,7 @@ static int write_gid(struct ib_device *ib_dev, u8 port,
 	}
 
 	old_net_dev = table->data_vec[ix].attr.ndev;
+	old_gid_type = table->data_vec[ix].attr.gid_type;
 	if (old_net_dev && old_net_dev != attr->ndev)
 		dev_put(old_net_dev);
 	/* if modify_gid failed, just delete the old gid */
@@ -207,10 +209,14 @@ static int write_gid(struct ib_device *ib_dev, u8 port,
 		attr = &zattr;
 		table->data_vec[ix].context = NULL;
 	}
-	if (default_gid)
-		table->data_vec[ix].props |= GID_TABLE_ENTRY_DEFAULT;
+
 	memcpy(&table->data_vec[ix].gid, gid, sizeof(*gid));
 	memcpy(&table->data_vec[ix].attr, attr, sizeof(*attr));
+	if (default_gid) {
+		table->data_vec[ix].props |= GID_TABLE_ENTRY_DEFAULT;
+		if (action == GID_TABLE_WRITE_ACTION_DEL)
+			table->data_vec[ix].attr.gid_type = old_gid_type;
+	}
 	if (table->data_vec[ix].attr.ndev &&
 	    table->data_vec[ix].attr.ndev != old_net_dev)
 		dev_hold(table->data_vec[ix].attr.ndev);

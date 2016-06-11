@@ -343,6 +343,7 @@ void amdgpu_ring_fini(struct amdgpu_ring *ring)
 	ring->ring = NULL;
 	ring->ring_obj = NULL;
 
+	amdgpu_wb_free(ring->adev, ring->cond_exe_offs);
 	amdgpu_wb_free(ring->adev, ring->fence_offs);
 	amdgpu_wb_free(ring->adev, ring->rptr_offs);
 	amdgpu_wb_free(ring->adev, ring->wptr_offs);

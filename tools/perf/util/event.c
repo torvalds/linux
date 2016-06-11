@@ -673,6 +673,8 @@ int perf_event__synthesize_kernel_mmap(struct perf_tool *tool,
 	int err;
 	union perf_event *event;
 
+	if (symbol_conf.kptr_restrict)
+		return -1;
 	if (map == NULL)
 		return -1;
 
