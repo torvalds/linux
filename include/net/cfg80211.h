@@ -2367,19 +2367,23 @@ struct cfg80211_qos_map {
  *	(invoked with the wireless_dev mutex held)
  *
  * @connect: Connect to the ESS with the specified parameters. When connected,
- *	call cfg80211_connect_result() with status code %WLAN_STATUS_SUCCESS.
- *	If the connection fails for some reason, call cfg80211_connect_result()
- *	with the status from the AP. The driver is allowed to roam to other
- *	BSSes within the ESS when the other BSS matches the connect parameters.
- *	When such roaming is initiated by the driver, the driver is expected to
- *	verify that the target matches the configured security parameters and
- *	to use Reassociation Request frame instead of Association Request frame.
- *	The connect function can also be used to request the driver to perform
- *	a specific roam when connected to an ESS. In that case, the prev_bssid
+ *	call cfg80211_connect_result()/cfg80211_connect_bss() with status code
+ *	%WLAN_STATUS_SUCCESS. If the connection fails for some reason, call
+ *	cfg80211_connect_result()/cfg80211_connect_bss() with the status code
+ *	from the AP or cfg80211_connect_timeout() if no frame with status code
+ *	was received.
+ *	The driver is allowed to roam to other BSSes within the ESS when the
+ *	other BSS matches the connect parameters. When such roaming is initiated
+ *	by the driver, the driver is expected to verify that the target matches
+ *	the configured security parameters and to use Reassociation Request
+ *	frame instead of Association Request frame.
+ *	The connect function can also be used to request the driver to perform a
+ *	specific roam when connected to an ESS. In that case, the prev_bssid
  *	parameter is set to the BSSID of the currently associated BSS as an
- *	indication of requesting reassociation. In both the driver-initiated and
- *	new connect() call initiated roaming cases, the result of roaming is
- *	indicated with a call to cfg80211_roamed() or cfg80211_roamed_bss().
+ *	indication of requesting reassociation.
+ *	In both the driver-initiated and new connect() call initiated roaming
+ *	cases, the result of roaming is indicated with a call to
+ *	cfg80211_roamed() or cfg80211_roamed_bss().
  *	(invoked with the wireless_dev mutex held)
  * @disconnect: Disconnect from the BSS/ESS.
  *	(invoked with the wireless_dev mutex held)
@@ -3080,6 +3084,24 @@ struct wiphy_vendor_command {
 };
 
 /**
+ * struct wiphy_iftype_ext_capab - extended capabilities per interface type
+ * @iftype: interface type
+ * @extended_capabilities: extended capabilities supported by the driver,
+ *	additional capabilities might be supported by userspace; these are the
+ *	802.11 extended capabilities ("Extended Capabilities element") and are
+ *	in the same format as in the information element. See IEEE Std
+ *	802.11-2012 8.4.2.29 for the defined fields.
+ * @extended_capabilities_mask: mask of the valid values
+ * @extended_capabilities_len: length of the extended capabilities
+ */
+struct wiphy_iftype_ext_capab {
+	enum nl80211_iftype iftype;
+	const u8 *extended_capabilities;
+	const u8 *extended_capabilities_mask;
+	u8 extended_capabilities_len;
+};
+
+/**
  * struct wiphy - wireless hardware description
  * @reg_notifier: the driver's regulatory notification callback,
  *	note that if your driver uses wiphy_apply_custom_regulatory()
@@ -3199,9 +3221,14 @@ struct wiphy_vendor_command {
  *	additional capabilities might be supported by userspace; these are
  *	the 802.11 extended capabilities ("Extended Capabilities element")
  *	and are in the same format as in the information element. See
- *	802.11-2012 8.4.2.29 for the defined fields.
+ *	802.11-2012 8.4.2.29 for the defined fields. These are the default
+ *	extended capabilities to be used if the capabilities are not specified
+ *	for a specific interface type in iftype_ext_capab.
  * @extended_capabilities_mask: mask of the valid values
  * @extended_capabilities_len: length of the extended capabilities
+ * @iftype_ext_capab: array of extended capabilities per interface type
+ * @num_iftype_ext_capab: number of interface types for which extended
+ *	capabilities are specified separately.
  * @coalesce: packet coalescing support information
  *
  * @vendor_commands: array of vendor commands supported by the hardware
@@ -3300,6 +3327,9 @@ struct wiphy {
 
 	const u8 *extended_capabilities, *extended_capabilities_mask;
 	u8 extended_capabilities_len;
+
+	const struct wiphy_iftype_ext_capab *iftype_ext_capab;
+	unsigned int num_iftype_ext_capab;
 
 	/* If multiple wiphys are registered and you're handed e.g.
 	 * a regular netdev with assigned ieee80211_ptr, you won't
@@ -4680,7 +4710,7 @@ static inline void cfg80211_testmode_event(struct sk_buff *skb, gfp_t gfp)
 void cfg80211_connect_bss(struct net_device *dev, const u8 *bssid,
 			  struct cfg80211_bss *bss, const u8 *req_ie,
 			  size_t req_ie_len, const u8 *resp_ie,
-			  size_t resp_ie_len, u16 status, gfp_t gfp);
+			  size_t resp_ie_len, int status, gfp_t gfp);
 
 /**
  * cfg80211_connect_result - notify cfg80211 of connection result
@@ -4707,6 +4737,29 @@ cfg80211_connect_result(struct net_device *dev, const u8 *bssid,
 {
 	cfg80211_connect_bss(dev, bssid, NULL, req_ie, req_ie_len, resp_ie,
 			     resp_ie_len, status, gfp);
+}
+
+/**
+ * cfg80211_connect_timeout - notify cfg80211 of connection timeout
+ *
+ * @dev: network device
+ * @bssid: the BSSID of the AP
+ * @req_ie: association request IEs (maybe be %NULL)
+ * @req_ie_len: association request IEs length
+ * @gfp: allocation flags
+ *
+ * It should be called by the underlying driver whenever connect() has failed
+ * in a sequence where no explicit authentication/association rejection was
+ * received from the AP. This could happen, e.g., due to not being able to send
+ * out the Authentication or Association Request frame or timing out while
+ * waiting for the response.
+ */
+static inline void
+cfg80211_connect_timeout(struct net_device *dev, const u8 *bssid,
+			 const u8 *req_ie, size_t req_ie_len, gfp_t gfp)
+{
+	cfg80211_connect_bss(dev, bssid, NULL, req_ie, req_ie_len, NULL, 0, -1,
+			     gfp);
 }
 
 /**
