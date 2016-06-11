@@ -85,6 +85,9 @@ struct nf_conn {
 	spinlock_t	lock;
 	u16		cpu;
 
+#ifdef CONFIG_NF_CONNTRACK_ZONES
+	struct nf_conntrack_zone zone;
+#endif
 	/* XXX should I move this to the tail ? - Y.K */
 	/* These are my tuples; original and reply */
 	struct nf_conntrack_tuple_hash tuplehash[IP_CT_DIR_MAX];
