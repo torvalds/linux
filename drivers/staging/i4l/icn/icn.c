@@ -883,9 +883,8 @@ icn_loadboot(u_char __user *buffer, icn_card *card)
 	SLEEP(1);
 	OUTB_P(0xff, ICN_RUN);  /* Start Boot-Code */
 	ret = icn_check_loader(card->doubleS0 ? 2 : 1);
-	if (ret) {
+	if (ret)
 		goto out_kfree;
-	}
 	if (!card->doubleS0) {
 		ret = 0;
 		goto out_kfree;
@@ -1273,9 +1272,8 @@ icn_command(isdn_ctrl *c, icn_card *card)
 			if (a) {
 				if (!card->leased) {
 					card->leased = 1;
-					while (card->ptype == ISDN_PTYPE_UNKNOWN) {
+					while (card->ptype == ISDN_PTYPE_UNKNOWN)
 						msleep_interruptible(ICN_BOOT_TIMEOUT1);
-					}
 					msleep_interruptible(ICN_BOOT_TIMEOUT1);
 					sprintf(cbuf, "00;FV2ON\n01;EAZ%c\n02;EAZ%c\n",
 						(a & 1) ? '1' : 'C', (a & 2) ? '2' : 'C');
@@ -1575,9 +1573,8 @@ icn_addcard(int port, char *id1, char *id2)
 	icn_card *card2;
 
 	card = icn_initcard(port, id1);
-	if (!card) {
+	if (!card)
 		return -EIO;
-	}
 	if (!strlen(id2)) {
 		printk(KERN_INFO
 		       "icn: (%s) ICN-2B, port 0x%x added\n",
