@@ -52,7 +52,9 @@ static int lut_set_table(struct vsp1_lut *lut, struct v4l2_ctrl *ctrl)
 		vsp1_dl_fragment_write(dlb, VI6_LUT_TABLE + 4 * i,
 				       ctrl->p_new.p_u32[i]);
 
+	spin_lock_irq(&lut->lock);
 	swap(lut->lut, dlb);
+	spin_unlock_irq(&lut->lock);
 
 	vsp1_dl_fragment_free(dlb);
 	return 0;
@@ -184,20 +186,21 @@ static void lut_configure(struct vsp1_entity *entity,
 			  struct vsp1_dl_list *dl, bool full)
 {
 	struct vsp1_lut *lut = to_lut(&entity->subdev);
+	struct vsp1_dl_body *dlb;
+	unsigned long flags;
 
-	if (!full)
+	if (full) {
+		vsp1_lut_write(lut, dl, VI6_LUT_CTRL, VI6_LUT_CTRL_EN);
 		return;
-
-	vsp1_lut_write(lut, dl, VI6_LUT_CTRL, VI6_LUT_CTRL_EN);
-
-	mutex_lock(lut->ctrls.lock);
-
-	if (lut->lut) {
-		vsp1_dl_list_add_fragment(dl, lut->lut);
-		lut->lut = NULL;
 	}
 
-	mutex_unlock(lut->ctrls.lock);
+	spin_lock_irqsave(&lut->lock, flags);
+	dlb = lut->lut;
+	lut->lut = NULL;
+	spin_unlock_irqrestore(&lut->lock, flags);
+
+	if (dlb)
+		vsp1_dl_list_add_fragment(dl, dlb);
 }
 
 static const struct vsp1_entity_operations lut_entity_ops = {
@@ -216,6 +219,8 @@ struct vsp1_lut *vsp1_lut_create(struct vsp1_device *vsp1)
 	lut = devm_kzalloc(vsp1->dev, sizeof(*lut), GFP_KERNEL);
 	if (lut == NULL)
 		return ERR_PTR(-ENOMEM);
+
+	spin_lock_init(&lut->lock);
 
 	lut->entity.ops = &lut_entity_ops;
 	lut->entity.type = VSP1_ENTITY_LUT;
