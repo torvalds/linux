@@ -445,8 +445,7 @@ begin:
 		if (!head->first) {
 			if (q->time_next_delayed_flow != ~0ULL)
 				qdisc_watchdog_schedule_ns(&q->watchdog,
-							   q->time_next_delayed_flow,
-							   false);
+							   q->time_next_delayed_flow);
 			return NULL;
 		}
 	}

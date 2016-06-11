@@ -26,7 +26,6 @@ struct qdisc_rate_table {
 enum qdisc_state_t {
 	__QDISC_STATE_SCHED,
 	__QDISC_STATE_DEACTIVATED,
-	__QDISC_STATE_THROTTLED,
 };
 
 struct qdisc_size_table {
@@ -123,21 +122,6 @@ static inline int qdisc_avail_bulklimit(const struct netdev_queue *txq)
 #else
 	return 0;
 #endif
-}
-
-static inline bool qdisc_is_throttled(const struct Qdisc *qdisc)
-{
-	return test_bit(__QDISC_STATE_THROTTLED, &qdisc->state) ? true : false;
-}
-
-static inline void qdisc_throttled(struct Qdisc *qdisc)
-{
-	set_bit(__QDISC_STATE_THROTTLED, &qdisc->state);
-}
-
-static inline void qdisc_unthrottled(struct Qdisc *qdisc)
-{
-	clear_bit(__QDISC_STATE_THROTTLED, &qdisc->state);
 }
 
 struct Qdisc_class_ops {

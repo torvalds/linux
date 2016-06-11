@@ -254,14 +254,12 @@ static struct sk_buff *tbf_dequeue(struct Qdisc *sch)
 			q->ptokens = ptoks;
 			qdisc_qstats_backlog_dec(sch, skb);
 			sch->q.qlen--;
-			qdisc_unthrottled(sch);
 			qdisc_bstats_update(sch, skb);
 			return skb;
 		}
 
 		qdisc_watchdog_schedule_ns(&q->watchdog,
-					   now + max_t(long, -toks, -ptoks),
-					   true);
+					   now + max_t(long, -toks, -ptoks));
 
 		/* Maybe we have a shorter packet in the queue,
 		   which can be sent now. It sounds cool,

@@ -582,15 +582,11 @@ static struct sk_buff *netem_dequeue(struct Qdisc *sch)
 	struct sk_buff *skb;
 	struct rb_node *p;
 
-	if (qdisc_is_throttled(sch))
-		return NULL;
-
 tfifo_dequeue:
 	skb = __skb_dequeue(&sch->q);
 	if (skb) {
 		qdisc_qstats_backlog_dec(sch, skb);
 deliver:
-		qdisc_unthrottled(sch);
 		qdisc_bstats_update(sch, skb);
 		return skb;
 	}
