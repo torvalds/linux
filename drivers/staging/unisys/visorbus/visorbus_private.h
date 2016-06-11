@@ -65,4 +65,31 @@ visorchipset_register_busdev(
 /* visorbus init and exit functions */
 int visorbus_init(void);
 void visorbus_exit(void);
+
+/* Visorchannel access functions */
+
+/* Note that for visorchannel_create()
+ * <channel_bytes> and <guid> arguments may be 0 if we are a channel CLIENT.
+ * In this case, the values can simply be read from the channel header.
+ */
+struct visorchannel *visorchannel_create(u64 physaddr,
+					 unsigned long channel_bytes,
+					 gfp_t gfp, uuid_le guid);
+struct visorchannel *visorchannel_create_with_lock(u64 physaddr,
+						   unsigned long channel_bytes,
+						   gfp_t gfp, uuid_le guid);
+void visorchannel_destroy(struct visorchannel *channel);
+int visorchannel_read(struct visorchannel *channel, ulong offset,
+		      void *local, ulong nbytes);
+int visorchannel_write(struct visorchannel *channel, ulong offset,
+		       void *local, ulong nbytes);
+u64 visorchannel_get_physaddr(struct visorchannel *channel);
+ulong visorchannel_get_nbytes(struct visorchannel *channel);
+char *visorchannel_id(struct visorchannel *channel, char *s);
+char *visorchannel_zoneid(struct visorchannel *channel, char *s);
+u64 visorchannel_get_clientpartition(struct visorchannel *channel);
+int visorchannel_set_clientpartition(struct visorchannel *channel,
+				     u64 partition_handle);
+char *visorchannel_uuid_id(uuid_le *guid, char *s);
+void __iomem *visorchannel_get_header(struct visorchannel *channel);
 #endif

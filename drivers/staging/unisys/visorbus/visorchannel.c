@@ -25,6 +25,7 @@
 #include "version.h"
 #include "visorbus.h"
 #include "controlvmchannel.h"
+#include "visorbus_private.h"
 
 #define MYDRVNAME "visorchannel"
 
