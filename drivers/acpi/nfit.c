@@ -2422,10 +2422,9 @@ int acpi_nfit_init(struct acpi_nfit_desc *acpi_desc, acpi_size sz)
 	if (rc)
 		goto out_unlock;
 
-	if (nfit_mem_init(acpi_desc) != 0) {
-		rc = -ENOMEM;
+	rc = nfit_mem_init(acpi_desc);
+	if (rc)
 		goto out_unlock;
-	}
 
 	acpi_nfit_init_dsms(acpi_desc);
 
