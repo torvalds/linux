@@ -367,6 +367,11 @@ struct pci_dev {
 	int rom_attr_enabled;		/* has display of the rom attribute been enabled? */
 	struct bin_attribute *res_attr[DEVICE_COUNT_RESOURCE]; /* sysfs file for resources */
 	struct bin_attribute *res_attr_wc[DEVICE_COUNT_RESOURCE]; /* sysfs file for WC mapping of resources */
+
+#ifdef CONFIG_PCIE_PTM
+	unsigned int	ptm_root:1;
+	unsigned int	ptm_enabled:1;
+#endif
 #ifdef CONFIG_PCI_MSI
 	const struct attribute_group **msi_irq_groups;
 #endif

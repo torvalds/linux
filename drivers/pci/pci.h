@@ -332,6 +332,12 @@ static inline resource_size_t pci_resource_alignment(struct pci_dev *dev,
 
 void pci_enable_acs(struct pci_dev *dev);
 
+#ifdef CONFIG_PCIE_PTM
+void pci_ptm_init(struct pci_dev *dev);
+#else
+static inline void pci_ptm_init(struct pci_dev *dev) { }
+#endif
+
 struct pci_dev_reset_methods {
 	u16 vendor;
 	u16 device;
