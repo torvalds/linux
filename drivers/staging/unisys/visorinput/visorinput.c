@@ -63,7 +63,7 @@ enum visorinput_device_type {
  */
 struct visorinput_devdata {
 	struct visor_device *dev;
-	struct rw_semaphore lock_visor_dev; /* lock for dev */
+	struct mutex lock_visor_dev; /* lock for dev */
 	struct input_dev *visorinput_dev;
 	bool paused;
 	bool interrupts_enabled;
@@ -236,14 +236,14 @@ static int visorinput_open(struct input_dev *visorinput_dev)
 	 * interrupts should be enabled so when we resume, interrupts
 	 * will really be enabled.
 	 */
-	down_write(&devdata->lock_visor_dev);
+	mutex_lock(&devdata->lock_visor_dev);
 	devdata->interrupts_enabled = true;
 	if (devdata->paused)
 		goto out_unlock;
 	visorbus_enable_channel_interrupts(devdata->dev);
 
 out_unlock:
-	up_write(&devdata->lock_visor_dev);
+	mutex_unlock(&devdata->lock_visor_dev);
 	return 0;
 }
 
@@ -266,14 +266,14 @@ static void visorinput_close(struct input_dev *visorinput_dev)
 	 * not re-enable them.
 	 */
 
-	down_write(&devdata->lock_visor_dev);
+	mutex_lock(&devdata->lock_visor_dev);
 	devdata->interrupts_enabled = false;
 	if (devdata->paused)
 		goto out_unlock;
 	visorbus_disable_channel_interrupts(devdata->dev);
 
 out_unlock:
-	up_write(&devdata->lock_visor_dev);
+	mutex_unlock(&devdata->lock_visor_dev);
 }
 
 /*
@@ -377,8 +377,8 @@ devdata_create(struct visor_device *dev, enum visorinput_device_type devtype)
 	devdata = kzalloc(sizeof(*devdata) + extra_bytes, GFP_KERNEL);
 	if (!devdata)
 		return NULL;
-	init_rwsem(&devdata->lock_visor_dev);
-	down_write(&devdata->lock_visor_dev);
+	mutex_init(&devdata->lock_visor_dev);
+	mutex_lock(&devdata->lock_visor_dev);
 	devdata->dev = dev;
 
 	/*
@@ -414,7 +414,7 @@ devdata_create(struct visor_device *dev, enum visorinput_device_type devtype)
 	}
 
 	dev_set_drvdata(&dev->device, devdata);
-	up_write(&devdata->lock_visor_dev);
+	mutex_unlock(&devdata->lock_visor_dev);
 
 	/*
 	 * Device struct is completely set up now, with the exception of
@@ -428,7 +428,7 @@ devdata_create(struct visor_device *dev, enum visorinput_device_type devtype)
 		goto err_kfree_devdata;
 	}
 
-	down_write(&devdata->lock_visor_dev);
+	mutex_lock(&devdata->lock_visor_dev);
 	/*
 	 * Establish calls to visorinput_channel_interrupt() if that is
 	 * the desired state that we've kept track of in interrupts_enabled
@@ -437,12 +437,12 @@ devdata_create(struct visor_device *dev, enum visorinput_device_type devtype)
 	devdata->paused = false;
 	if (devdata->interrupts_enabled)
 		visorbus_enable_channel_interrupts(dev);
-	up_write(&devdata->lock_visor_dev);
+	mutex_unlock(&devdata->lock_visor_dev);
 
 	return devdata;
 
 cleanups_register:
-	up_write(&devdata->lock_visor_dev);
+	mutex_unlock(&devdata->lock_visor_dev);
 err_kfree_devdata:
 	kfree(devdata);
 	return NULL;
@@ -482,7 +482,7 @@ visorinput_remove(struct visor_device *dev)
 	if (!devdata)
 		return;
 
-	down_write(&devdata->lock_visor_dev);
+	mutex_lock(&devdata->lock_visor_dev);
 	visorbus_disable_channel_interrupts(dev);
 
 	/*
@@ -491,7 +491,7 @@ visorinput_remove(struct visor_device *dev)
 	 */
 
 	dev_set_drvdata(&dev->device, NULL);
-	up_write(&devdata->lock_visor_dev);
+	mutex_unlock(&devdata->lock_visor_dev);
 
 	unregister_client_input(devdata->visorinput_dev);
 	kfree(devdata);
@@ -671,7 +671,7 @@ visorinput_pause(struct visor_device *dev,
 		goto out;
 	}
 
-	down_write(&devdata->lock_visor_dev);
+	mutex_lock(&devdata->lock_visor_dev);
 	if (devdata->paused) {
 		rc = -EBUSY;
 		goto out_locked;
@@ -688,7 +688,7 @@ visorinput_pause(struct visor_device *dev,
 	complete_func(dev, 0);
 	rc = 0;
 out_locked:
-	up_write(&devdata->lock_visor_dev);
+	mutex_unlock(&devdata->lock_visor_dev);
 out:
 	return rc;
 }
@@ -704,7 +704,7 @@ visorinput_resume(struct visor_device *dev,
 		rc = -ENODEV;
 		goto out;
 	}
-	down_write(&devdata->lock_visor_dev);
+	mutex_lock(&devdata->lock_visor_dev);
 	if (!devdata->paused) {
 		rc = -EBUSY;
 		goto out_locked;
@@ -722,7 +722,7 @@ visorinput_resume(struct visor_device *dev,
 
 	rc = 0;
 out_locked:
-	up_write(&devdata->lock_visor_dev);
+	mutex_unlock(&devdata->lock_visor_dev);
 out:
 	return rc;
 }
