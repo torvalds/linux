@@ -2036,11 +2036,14 @@ static ssize_t devicedisabled_store(struct device *dev,
 				    const char *buf, size_t count)
 {
 	unsigned int id;
+	int err;
 
 	if (kstrtouint(buf, 10, &id))
 		return -EINVAL;
 
-	parahotplug_request_complete(id, 0);
+	err = parahotplug_request_complete(id, 0);
+	if (err < 0)
+		return err;
 	return count;
 }
 
