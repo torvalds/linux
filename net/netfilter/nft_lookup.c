@@ -54,6 +54,7 @@ static int nft_lookup_init(const struct nft_ctx *ctx,
 			   const struct nlattr * const tb[])
 {
 	struct nft_lookup *priv = nft_expr_priv(expr);
+	u8 genmask = nft_genmask_next(ctx->net);
 	struct nft_set *set;
 	int err;
 
@@ -61,11 +62,12 @@ static int nft_lookup_init(const struct nft_ctx *ctx,
 	    tb[NFTA_LOOKUP_SREG] == NULL)
 		return -EINVAL;
 
-	set = nf_tables_set_lookup(ctx->table, tb[NFTA_LOOKUP_SET]);
+	set = nf_tables_set_lookup(ctx->table, tb[NFTA_LOOKUP_SET], genmask);
 	if (IS_ERR(set)) {
 		if (tb[NFTA_LOOKUP_SET_ID]) {
 			set = nf_tables_set_lookup_byid(ctx->net,
-							tb[NFTA_LOOKUP_SET_ID]);
+							tb[NFTA_LOOKUP_SET_ID],
+							genmask);
 		}
 		if (IS_ERR(set))
 			return PTR_ERR(set);

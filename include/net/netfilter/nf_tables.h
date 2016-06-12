@@ -296,6 +296,7 @@ void nft_unregister_set(struct nft_set_ops *ops);
  * 	@ops: set ops
  * 	@pnet: network namespace
  * 	@flags: set flags
+ *	@genmask: generation mask
  * 	@klen: key length
  * 	@dlen: data length
  * 	@data: private set data
@@ -317,7 +318,8 @@ struct nft_set {
 	/* runtime data below here */
 	const struct nft_set_ops	*ops ____cacheline_aligned;
 	possible_net_t			pnet;
-	u16				flags;
+	u16				flags:14,
+					genmask:2;
 	u8				klen;
 	u8				dlen;
 	unsigned char			data[]
@@ -335,9 +337,9 @@ static inline struct nft_set *nft_set_container_of(const void *priv)
 }
 
 struct nft_set *nf_tables_set_lookup(const struct nft_table *table,
-				     const struct nlattr *nla);
+				     const struct nlattr *nla, u8 genmask);
 struct nft_set *nf_tables_set_lookup_byid(const struct net *net,
-					  const struct nlattr *nla);
+					  const struct nlattr *nla, u8 genmask);
 
 static inline unsigned long nft_set_gc_interval(const struct nft_set *set)
 {
