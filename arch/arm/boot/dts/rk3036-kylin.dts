@@ -149,6 +149,11 @@
 	status = "okay";
 };
 
+&gpu {
+	status = "okay";
+	mali-supply = <&vdd_gpu>;
+};
+
 &hdmi {
 	status = "okay";
 };

@@ -150,6 +150,36 @@
 		};
 	};
 
+	gpu: gpu@10090000 {
+		compatible = "arm,mali400";
+
+		reg = <0x10091000 0x200>,
+		      <0x10090000 0x100>,
+		      <0x10093000 0x100>,
+		      <0x10098000 0x1100>,
+		      <0x10094000 0x100>;
+
+		reg-names = "Mali_L2",
+			    "Mali_GP",
+			    "Mali_GP_MMU",
+			    "Mali_PP0",
+			    "Mali_PP0_MMU";
+
+		interrupts = <GIC_SPI 3 IRQ_TYPE_LEVEL_HIGH>,
+			     <GIC_SPI 4 IRQ_TYPE_LEVEL_HIGH>,
+			     <GIC_SPI 5 IRQ_TYPE_LEVEL_HIGH>,
+			     <GIC_SPI 4 IRQ_TYPE_LEVEL_HIGH>;
+		interrupt-names = "Mali_GP_IRQ",
+				  "Mali_GP_MMU_IRQ",
+				  "Mali_PP0_IRQ",
+				  "Mali_PP0_MMU_IRQ";
+
+		clocks = <&cru  SCLK_GPU>;
+		clock-names = "clk_mali";
+
+		status = "disabled";
+	};
+
 	vpu: video-codec@10108000 {
 		compatible = "rockchip,rk3036-vpu", "rockchip,rk3288-vpu";
 		reg = <0x10108000 0x800>;
