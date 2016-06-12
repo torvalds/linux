@@ -4186,7 +4186,8 @@ size_store(struct mddev *mddev, const char *buf, size_t len)
 		return err;
 	if (mddev->pers) {
 		err = update_size(mddev, sectors);
-		md_update_sb(mddev, 1);
+		if (err == 0)
+			md_update_sb(mddev, 1);
 	} else {
 		if (mddev->dev_sectors == 0 ||
 		    mddev->dev_sectors > sectors)
