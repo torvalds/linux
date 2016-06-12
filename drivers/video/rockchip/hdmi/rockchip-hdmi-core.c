@@ -381,7 +381,7 @@ static void hdmi_work_queue(struct work_struct *work)
 		if (rk_fb_get_display_policy() == DISPLAY_POLICY_BOX)
 			msleep(2000);
 		else
-			msleep(1000);
+			msleep(1100);
 		hdmi_wq_set_video(hdmi);
 		hdmi_send_uevent(hdmi, KOBJ_CHANGE);
 		hdmi_wq_set_audio(hdmi);
