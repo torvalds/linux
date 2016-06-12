@@ -88,6 +88,10 @@
 	status = "okay";
 };
 
+&mipi0_rk_fb {
+	status = "okay";
+};
+
 &hdmi_rk_fb {
 	status = "okay";
 	rockchip,hdmi_video_source = <DISPLAY_SOURCE_LCDC1>;
