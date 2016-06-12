@@ -1147,21 +1147,25 @@ int ubi_detach_mtd_dev(int ubi_num, int anyway)
  */
 static struct mtd_info * __init open_mtd_by_chdev(const char *mtd_dev)
 {
-	int err, major, minor, mode;
+	int err, minor;
 	struct path path;
+	struct kstat stat;
 
 	/* Probably this is an MTD character device node path */
 	err = kern_path(mtd_dev, LOOKUP_FOLLOW, &path);
 	if (err)
 		return ERR_PTR(err);
 
-	/* MTD device number is defined by the major / minor numbers */
-	major = imajor(d_backing_inode(path.dentry));
-	minor = iminor(d_backing_inode(path.dentry));
-	mode = d_backing_inode(path.dentry)->i_mode;
+	err = vfs_getattr(&path, &stat);
 	path_put(&path);
-	if (major != MTD_CHAR_MAJOR || !S_ISCHR(mode))
+	if (err)
+		return ERR_PTR(err);
+
+	/* MTD device number is defined by the major / minor numbers */
+	if (MAJOR(stat.rdev) != MTD_CHAR_MAJOR || !S_ISCHR(stat.mode))
 		return ERR_PTR(-EINVAL);
+
+	minor = MINOR(stat.rdev);
 
 	if (minor & 1)
 		/*
