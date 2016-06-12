@@ -732,7 +732,6 @@ static inline struct nft_userdata *nft_userdata(const struct nft_rule *rule)
 
 enum nft_chain_flags {
 	NFT_BASE_CHAIN			= 0x1,
-	NFT_CHAIN_INACTIVE		= 0x2,
 };
 
 /**
@@ -754,7 +753,8 @@ struct nft_chain {
 	u64				handle;
 	u32				use;
 	u16				level;
-	u8				flags;
+	u8				flags:6,
+					genmask:2;
 	char				name[NFT_CHAIN_MAXNAMELEN];
 };
 
