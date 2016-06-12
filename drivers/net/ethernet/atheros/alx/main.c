@@ -70,35 +70,6 @@ static void alx_free_txbuf(struct alx_priv *alx, int entry)
 	}
 }
 
-static struct sk_buff *alx_alloc_skb(struct alx_priv *alx, gfp_t gfp)
-{
-	struct sk_buff *skb;
-	struct page *page;
-
-	if (alx->rx_frag_size > PAGE_SIZE)
-		return __netdev_alloc_skb(alx->dev, alx->rxbuf_size, gfp);
-
-	page = alx->rx_page;
-	if (!page) {
-		alx->rx_page = page = alloc_page(gfp);
-		if (unlikely(!page))
-			return NULL;
-		alx->rx_page_offset = 0;
-	}
-
-	skb = build_skb(page_address(page) + alx->rx_page_offset,
-			alx->rx_frag_size);
-	if (likely(skb)) {
-		alx->rx_page_offset += alx->rx_frag_size;
-		if (alx->rx_page_offset >= PAGE_SIZE)
-			alx->rx_page = NULL;
-		else
-			get_page(page);
-	}
-	return skb;
-}
-
-
 static int alx_refill_rx_ring(struct alx_priv *alx, gfp_t gfp)
 {
 	struct alx_rx_queue *rxq = &alx->rxq;
@@ -115,9 +86,22 @@ static int alx_refill_rx_ring(struct alx_priv *alx, gfp_t gfp)
 	while (!cur_buf->skb && next != rxq->read_idx) {
 		struct alx_rfd *rfd = &rxq->rfd[cur];
 
-		skb = alx_alloc_skb(alx, gfp);
+		/*
+		 * When DMA RX address is set to something like
+		 * 0x....fc0, it will be very likely to cause DMA
+		 * RFD overflow issue.
+		 *
+		 * To work around it, we apply rx skb with 64 bytes
+		 * longer space, and offset the address whenever
+		 * 0x....fc0 is detected.
+		 */
+		skb = __netdev_alloc_skb(alx->dev, alx->rxbuf_size + 64, gfp);
 		if (!skb)
 			break;
+
+		if (((unsigned long)skb->data & 0xfff) == 0xfc0)
+			skb_reserve(skb, 64);
+
 		dma = dma_map_single(&alx->hw.pdev->dev,
 				     skb->data, alx->rxbuf_size,
 				     DMA_FROM_DEVICE);
@@ -152,7 +136,6 @@ static int alx_refill_rx_ring(struct alx_priv *alx, gfp_t gfp)
 		rxq->write_idx = cur;
 		alx_write_mem16(&alx->hw, ALX_RFD_PIDX, cur);
 	}
-
 
 	return count;
 }
@@ -622,11 +605,6 @@ static void alx_free_rings(struct alx_priv *alx)
 	kfree(alx->txq.bufs);
 	kfree(alx->rxq.bufs);
 
-	if (alx->rx_page) {
-		put_page(alx->rx_page);
-		alx->rx_page = NULL;
-	}
-
 	dma_free_coherent(&alx->hw.pdev->dev,
 			  alx->descmem.size,
 			  alx->descmem.virt,
@@ -681,7 +659,6 @@ static int alx_request_irq(struct alx_priv *alx)
 				  alx->dev->name, alx);
 		if (!err)
 			goto out;
-
 		/* fall back to legacy interrupt */
 		pci_disable_msi(alx->hw.pdev);
 	}
@@ -725,7 +702,6 @@ static int alx_init_sw(struct alx_priv *alx)
 	struct pci_dev *pdev = alx->hw.pdev;
 	struct alx_hw *hw = &alx->hw;
 	int err;
-	unsigned int head_size;
 
 	err = alx_identify_hw(alx);
 	if (err) {
@@ -741,12 +717,7 @@ static int alx_init_sw(struct alx_priv *alx)
 
 	hw->smb_timer = 400;
 	hw->mtu = alx->dev->mtu;
-
 	alx->rxbuf_size = ALX_MAX_FRAME_LEN(hw->mtu);
-	head_size = SKB_DATA_ALIGN(alx->rxbuf_size + NET_SKB_PAD) +
-		    SKB_DATA_ALIGN(sizeof(struct skb_shared_info));
-	alx->rx_frag_size = roundup_pow_of_two(head_size);
-
 	alx->tx_ringsz = 256;
 	alx->rx_ringsz = 512;
 	hw->imt = 200;
@@ -848,7 +819,6 @@ static int alx_change_mtu(struct net_device *netdev, int mtu)
 {
 	struct alx_priv *alx = netdev_priv(netdev);
 	int max_frame = ALX_MAX_FRAME_LEN(mtu);
-	unsigned int head_size;
 
 	if ((max_frame < ALX_MIN_FRAME_SIZE) ||
 	    (max_frame > ALX_MAX_FRAME_SIZE))
@@ -860,9 +830,6 @@ static int alx_change_mtu(struct net_device *netdev, int mtu)
 	netdev->mtu = mtu;
 	alx->hw.mtu = mtu;
 	alx->rxbuf_size = max(max_frame, ALX_DEF_RXBUF_SIZE);
-	head_size = SKB_DATA_ALIGN(alx->rxbuf_size + NET_SKB_PAD) +
-		    SKB_DATA_ALIGN(sizeof(struct skb_shared_info));
-	alx->rx_frag_size = roundup_pow_of_two(head_size);
 	netdev_update_features(netdev);
 	if (netif_running(netdev))
 		alx_reinit(alx);
