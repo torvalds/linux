@@ -427,12 +427,14 @@ static void handle_cfg_param(struct wilc_vif *vif,
 	mutex_lock(&hif_drv->cfg_values_lock);
 
 	if (cfg_param_attr->flag & BSS_TYPE) {
-		if (cfg_param_attr->bss_type < 6) {
+		u8 bss_type = cfg_param_attr->bss_type;
+
+		if (bss_type < 6) {
 			wid_list[i].id = WID_BSS_TYPE;
-			wid_list[i].val = (s8 *)&cfg_param_attr->bss_type;
+			wid_list[i].val = (s8 *)&bss_type;
 			wid_list[i].type = WID_CHAR;
 			wid_list[i].size = sizeof(char);
-			hif_drv->cfg_values.bss_type = (u8)cfg_param_attr->bss_type;
+			hif_drv->cfg_values.bss_type = (u8)bss_type;
 		} else {
 			netdev_err(vif->ndev, "check value 6 over\n");
 			goto unlock;
