@@ -127,6 +127,7 @@ static struct inode *vxfs_alloc_inode(struct super_block *sb)
 	vi = kmem_cache_alloc(vxfs_inode_cachep, GFP_KERNEL);
 	if (!vi)
 		return NULL;
+	inode_init_once(&vi->vfs_inode);
 	return &vi->vfs_inode;
 }
 
