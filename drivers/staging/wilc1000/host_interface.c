@@ -434,7 +434,7 @@ static void handle_cfg_param(struct wilc_vif *vif,
 			wid_list[i].val = (s8 *)&bss_type;
 			wid_list[i].type = WID_CHAR;
 			wid_list[i].size = sizeof(char);
-			hif_drv->cfg_values.bss_type = (u8)bss_type;
+			hif_drv->cfg_values.bss_type = bss_type;
 		} else {
 			netdev_err(vif->ndev, "check value 6 over\n");
 			goto unlock;
