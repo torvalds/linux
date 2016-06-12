@@ -177,7 +177,7 @@
 
 		apps_smsm: apps@0 {
 			reg = <0>;
-			#qcom,state-cells = <1>;
+			#qcom,smem-state-cells = <1>;
 		};
 
 		modem_smsm: modem@1 {
