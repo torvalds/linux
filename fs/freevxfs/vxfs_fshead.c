@@ -172,6 +172,8 @@ vxfs_read_fshead(struct super_block *sbp)
 		goto out_iput_ilist;
 	}
 
+	kfree(pfp);
+	kfree(sfp);
 	return 0;
 
  out_iput_ilist:
