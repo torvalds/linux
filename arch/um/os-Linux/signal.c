@@ -15,6 +15,7 @@
 #include <kern_util.h>
 #include <os.h>
 #include <sysdep/mcontext.h>
+#include <um_malloc.h>
 
 void (*sig_info[NSIG])(int, struct siginfo *, struct uml_pt_regs *) = {
 	[SIGTRAP]	= relay_signal,
@@ -32,7 +33,7 @@ static void sig_handler_common(int sig, struct siginfo *si, mcontext_t *mc)
 	struct uml_pt_regs *r;
 	int save_errno = errno;
 
-	r = malloc(sizeof(struct uml_pt_regs));
+	r = uml_kmalloc(sizeof(struct uml_pt_regs), UM_GFP_ATOMIC);
 	if (!r)
 		panic("out of memory");
 
@@ -91,7 +92,7 @@ static void timer_real_alarm_handler(mcontext_t *mc)
 {
 	struct uml_pt_regs *regs;
 
-	regs = malloc(sizeof(struct uml_pt_regs));
+	regs = uml_kmalloc(sizeof(struct uml_pt_regs), UM_GFP_ATOMIC);
 	if (!regs)
 		panic("out of memory");
 
