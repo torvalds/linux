@@ -420,7 +420,7 @@ static void handle_get_mac_address(struct wilc_vif *vif,
 static void handle_cfg_param(struct wilc_vif *vif,
 			     struct cfg_param_attr *cfg_param_attr)
 {
-	int result = 0;
+	int ret = 0;
 	struct wid wid_list[32];
 	struct host_if_drv *hif_drv = vif->hif_drv;
 	int i = 0;
@@ -682,10 +682,10 @@ static void handle_cfg_param(struct wilc_vif *vif,
 		i++;
 	}
 
-	result = wilc_send_config_pkt(vif, SET_CFG, wid_list,
-				      i, wilc_get_vif_idx(vif));
+	ret = wilc_send_config_pkt(vif, SET_CFG, wid_list,
+				   i, wilc_get_vif_idx(vif));
 
-	if (result)
+	if (ret)
 		netdev_err(vif->ndev, "Error in setting CFG params\n");
 
 unlock:
