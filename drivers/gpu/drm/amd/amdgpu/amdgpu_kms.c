@@ -768,3 +768,130 @@ const struct drm_ioctl_desc amdgpu_ioctls_kms[] = {
 	DRM_IOCTL_DEF_DRV(AMDGPU_GEM_USERPTR, amdgpu_gem_userptr_ioctl, DRM_AUTH|DRM_RENDER_ALLOW),
 };
 const int amdgpu_max_kms_ioctl = ARRAY_SIZE(amdgpu_ioctls_kms);
+
+/*
+ * Debugfs info
+ */
+#if defined(CONFIG_DEBUG_FS)
+
+static int amdgpu_debugfs_firmware_info(struct seq_file *m, void *data)
+{
+	struct drm_info_node *node = (struct drm_info_node *) m->private;
+	struct drm_device *dev = node->minor->dev;
+	struct amdgpu_device *adev = dev->dev_private;
+	struct drm_amdgpu_info_firmware fw_info;
+	struct drm_amdgpu_query_fw query_fw;
+	int ret, i;
+
+	/* VCE */
+	query_fw.fw_type = AMDGPU_INFO_FW_VCE;
+	ret = amdgpu_firmware_info(&fw_info, &query_fw, adev);
+	if (ret)
+		return ret;
+	seq_printf(m, "VCE feature version: %u, firmware version: 0x%08x\n",
+		   fw_info.feature, fw_info.ver);
+
+	/* UVD */
+	query_fw.fw_type = AMDGPU_INFO_FW_UVD;
+	ret = amdgpu_firmware_info(&fw_info, &query_fw, adev);
+	if (ret)
+		return ret;
+	seq_printf(m, "UVD feature version: %u, firmware version: 0x%08x\n",
+		   fw_info.feature, fw_info.ver);
+
+	/* GMC */
+	query_fw.fw_type = AMDGPU_INFO_FW_GMC;
+	ret = amdgpu_firmware_info(&fw_info, &query_fw, adev);
+	if (ret)
+		return ret;
+	seq_printf(m, "MC feature version: %u, firmware version: 0x%08x\n",
+		   fw_info.feature, fw_info.ver);
+
+	/* ME */
+	query_fw.fw_type = AMDGPU_INFO_FW_GFX_ME;
+	ret = amdgpu_firmware_info(&fw_info, &query_fw, adev);
+	if (ret)
+		return ret;
+	seq_printf(m, "ME feature version: %u, firmware version: 0x%08x\n",
+		   fw_info.feature, fw_info.ver);
+
+	/* PFP */
+	query_fw.fw_type = AMDGPU_INFO_FW_GFX_PFP;
+	ret = amdgpu_firmware_info(&fw_info, &query_fw, adev);
+	if (ret)
+		return ret;
+	seq_printf(m, "PFP feature version: %u, firmware version: 0x%08x\n",
+		   fw_info.feature, fw_info.ver);
+
+	/* CE */
+	query_fw.fw_type = AMDGPU_INFO_FW_GFX_CE;
+	ret = amdgpu_firmware_info(&fw_info, &query_fw, adev);
+	if (ret)
+		return ret;
+	seq_printf(m, "CE feature version: %u, firmware version: 0x%08x\n",
+		   fw_info.feature, fw_info.ver);
+
+	/* RLC */
+	query_fw.fw_type = AMDGPU_INFO_FW_GFX_RLC;
+	ret = amdgpu_firmware_info(&fw_info, &query_fw, adev);
+	if (ret)
+		return ret;
+	seq_printf(m, "RLC feature version: %u, firmware version: 0x%08x\n",
+		   fw_info.feature, fw_info.ver);
+
+	/* MEC */
+	query_fw.fw_type = AMDGPU_INFO_FW_GFX_MEC;
+	query_fw.index = 0;
+	ret = amdgpu_firmware_info(&fw_info, &query_fw, adev);
+	if (ret)
+		return ret;
+	seq_printf(m, "MEC feature version: %u, firmware version: 0x%08x\n",
+		   fw_info.feature, fw_info.ver);
+
+	/* MEC2 */
+	if (adev->asic_type == CHIP_KAVERI ||
+	    (adev->asic_type > CHIP_TOPAZ && adev->asic_type != CHIP_STONEY)) {
+		query_fw.index = 1;
+		ret = amdgpu_firmware_info(&fw_info, &query_fw, adev);
+		if (ret)
+			return ret;
+		seq_printf(m, "MEC2 feature version: %u, firmware version: 0x%08x\n",
+			   fw_info.feature, fw_info.ver);
+	}
+
+	/* SMC */
+	query_fw.fw_type = AMDGPU_INFO_FW_SMC;
+	ret = amdgpu_firmware_info(&fw_info, &query_fw, adev);
+	if (ret)
+		return ret;
+	seq_printf(m, "SMC feature version: %u, firmware version: 0x%08x\n",
+		   fw_info.feature, fw_info.ver);
+
+	/* SDMA */
+	query_fw.fw_type = AMDGPU_INFO_FW_SDMA;
+	for (i = 0; i < adev->sdma.num_instances; i++) {
+		query_fw.index = i;
+		ret = amdgpu_firmware_info(&fw_info, &query_fw, adev);
+		if (ret)
+			return ret;
+		seq_printf(m, "SDMA%d feature version: %u, firmware version: 0x%08x\n",
+			   i, fw_info.feature, fw_info.ver);
+	}
+
+	return 0;
+}
+
+static const struct drm_info_list amdgpu_firmware_info_list[] = {
+	{"amdgpu_firmware_info", amdgpu_debugfs_firmware_info, 0, NULL},
+};
+#endif
+
+int amdgpu_debugfs_firmware_init(struct amdgpu_device *adev)
+{
+#if defined(CONFIG_DEBUG_FS)
+	return amdgpu_debugfs_add_files(adev, amdgpu_firmware_info_list,
+					ARRAY_SIZE(amdgpu_firmware_info_list));
+#else
+	return 0;
+#endif
+}

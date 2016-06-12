@@ -1778,6 +1778,8 @@ int amdgpu_debugfs_init(struct drm_minor *minor);
 void amdgpu_debugfs_cleanup(struct drm_minor *minor);
 #endif
 
+int amdgpu_debugfs_firmware_init(struct amdgpu_device *adev);
+
 /*
  * amdgpu smumgr functions
  */
