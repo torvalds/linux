@@ -92,3 +92,15 @@
 	status = "okay";
 	rockchip,hdmi_video_source = <DISPLAY_SOURCE_LCDC1>;
 };
+
+&i2s2 {
+	status = "okay";
+};
+
+&dw_hdmi_audio {
+	status = "okay";
+};
+
+&hdmi_sound {
+	status = "okay";
+};

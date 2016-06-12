@@ -338,7 +338,8 @@
 		status = "disabled";
 	};
 
-	hdmi-sound {
+	hdmi_sound: hdmi-sound {
+		status = "disabled";
 		compatible = "simple-audio-card";
 		simple-audio-card,format = "i2s";
 		simple-audio-card,mclk-fs = <256>;
@@ -352,13 +353,13 @@
 	};
 
 	dw_hdmi_audio: dw-hdmi-audio {
+		status = "disabled";
 		compatible = "rockchip,dw-hdmi-audio";
 		#sound-dai-cells = <0>;
 	};
 };
 
 &i2s2 {
-	status = "okay";
 	#sound-dai-cells = <0>;
 };
 
