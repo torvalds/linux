@@ -816,11 +816,11 @@ int inv_do_test(struct inv_mpu_iio_s *st, int self_test_flag,
 	if (result)
 		return result;
 	/* disable fifo reading */
-	result = inv_plat_single_write(st, reg->user_ctrl, 0);
+	result = inv_plat_single_write(st, reg->user_ctrl, st->i2c_dis);
 	if (result)
 		return result;
 	/* clear FIFO */
-	result = inv_plat_single_write(st, reg->user_ctrl, BIT_FIFO_RST);
+	result = inv_plat_single_write(st, reg->user_ctrl, BIT_FIFO_RST | st->i2c_dis);
 	if (result)
 		return result;
 	/* setup parameters */
@@ -866,7 +866,7 @@ int inv_do_test(struct inv_mpu_iio_s *st, int self_test_flag,
 	}
 
 	/* enable FIFO reading */
-	result = inv_plat_single_write(st, reg->user_ctrl, BIT_FIFO_EN);
+	result = inv_plat_single_write(st, reg->user_ctrl, BIT_FIFO_EN | st->i2c_dis);
 	if (result)
 		return result;
 	/* enable sensor output to FIFO */

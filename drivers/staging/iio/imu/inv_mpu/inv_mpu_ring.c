@@ -80,7 +80,7 @@ static int reset_fifo_mpu3050(struct iio_dev *indio_dev)
 	st->chip_config.has_footer = 0;
 	/* reset fifo */
 	val = (BIT_3050_FIFO_RST | user_ctrl);
-	result = inv_plat_single_write(st, reg->user_ctrl, val);
+	result = inv_plat_single_write(st, reg->user_ctrl, val | st->i2c_dis);
 	if (result)
 		goto reset_fifo_fail;
 	st->last_isr_time = get_time_ns();
@@ -92,7 +92,7 @@ static int reset_fifo_mpu3050(struct iio_dev *indio_dev)
 			return result;
 
 		result = inv_plat_single_write(st, reg->user_ctrl,
-			BIT_FIFO_EN|user_ctrl);
+			BIT_FIFO_EN | user_ctrl | st->i2c_dis);
 		if (result)
 			return result;
 	} else {
@@ -106,7 +106,7 @@ static int reset_fifo_mpu3050(struct iio_dev *indio_dev)
 		}
 		/* enable FIFO reading and I2C master interface*/
 		result = inv_plat_single_write(st, reg->user_ctrl,
-			BIT_FIFO_EN | user_ctrl);
+			BIT_FIFO_EN | user_ctrl | st->i2c_dis);
 		if (result)
 			return result;
 		/* enable sensor output to FIFO and FIFO footer*/
@@ -256,7 +256,7 @@ static int reset_fifo_itg(struct iio_dev *indio_dev)
 	if (result)
 		goto reset_fifo_fail;
 	/* disable fifo reading */
-	result = inv_plat_single_write(st, reg->user_ctrl, 0);
+	result = inv_plat_single_write(st, reg->user_ctrl, st->i2c_dis);
 	if (result)
 		goto reset_fifo_fail;
 	int_word = 0;
@@ -267,7 +267,7 @@ static int reset_fifo_itg(struct iio_dev *indio_dev)
 
 	if (st->chip_config.dmp_on) {
 		val = (BIT_FIFO_RST | BIT_DMP_RST);
-		result = inv_plat_single_write(st, reg->user_ctrl, val);
+		result = inv_plat_single_write(st, reg->user_ctrl, val | st->i2c_dis);
 		if (result)
 			goto reset_fifo_fail;
 		st->last_isr_time = get_time_ns();
@@ -282,7 +282,7 @@ static int reset_fifo_itg(struct iio_dev *indio_dev)
 		if (st->chip_config.compass_enable &
 			(!st->chip_config.dmp_event_int_on))
 			val |= BIT_I2C_MST_EN;
-		result = inv_plat_single_write(st, reg->user_ctrl, val);
+		result = inv_plat_single_write(st, reg->user_ctrl, val | st->i2c_dis);
 		if (result)
 			goto reset_fifo_fail;
 
@@ -315,7 +315,7 @@ static int reset_fifo_itg(struct iio_dev *indio_dev)
 	} else {
 		/* reset FIFO and possibly reset I2C*/
 		val = BIT_FIFO_RST;
-		result = inv_plat_single_write(st, reg->user_ctrl, val);
+		result = inv_plat_single_write(st, reg->user_ctrl, val | st->i2c_dis);
 		if (result)
 			goto reset_fifo_fail;
 		st->last_isr_time = get_time_ns();
@@ -332,7 +332,7 @@ static int reset_fifo_itg(struct iio_dev *indio_dev)
 		val = BIT_FIFO_EN;
 		if (st->chip_config.compass_enable)
 			val |= BIT_I2C_MST_EN;
-		result = inv_plat_single_write(st, reg->user_ctrl, val);
+		result = inv_plat_single_write(st, reg->user_ctrl, val | st->i2c_dis);
 		if (result)
 			goto reset_fifo_fail;
 		if (st->chip_config.compass_enable) {
@@ -473,7 +473,7 @@ static int set_inv_enable(struct iio_dev *indio_dev,
 			result = inv_plat_single_write(st, reg->int_enable, 0);
 			if (result)
 				return result;
-			result = inv_plat_single_write(st, reg->user_ctrl, 0);
+			result = inv_plat_single_write(st, reg->user_ctrl, st->i2c_dis);
 		} else {
 			result = inv_plat_single_write(st, reg->int_enable,
 				st->plat_data.int_config);

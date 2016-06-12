@@ -1744,7 +1744,7 @@ int inv_check_chip_type(struct inv_mpu_iio_s *st, const char *name)
 		return result;
 
 	/* add by lyx@rock-chips.com  */
-	result = inv_plat_single_write(st, REG_USER_CTRL, st->i2c_dis);
+	result = inv_plat_single_write(st, reg->user_ctrl, st->i2c_dis);
 	if (result)
 		return result;
 

@@ -65,7 +65,7 @@ int set_3050_bypass(struct inv_mpu_iio_s *st, bool enable)
 	b &= ~BIT_3050_AUX_IF_EN;
 	if (!enable) {
 		b |= BIT_3050_AUX_IF_EN;
-		result = inv_plat_single_write(st, reg->user_ctrl, b);
+		result = inv_plat_single_write(st, reg->user_ctrl, b | st->i2c_dis);
 		return result;
 	} else {
 		/* Coming out of I2C is tricky due to several erratta.  Do not
@@ -87,7 +87,7 @@ int set_3050_bypass(struct inv_mpu_iio_s *st, bool enable)
 		*    bypass mode:
 		*/
 		usleep_range(MPU3050_NACK_MIN_TIME, MPU3050_NACK_MAX_TIME);
-		result = inv_plat_single_write(st, reg->user_ctrl, b);
+		result = inv_plat_single_write(st, reg->user_ctrl, b | st->i2c_dis);
 		if (result)
 			return result;
 		/*
@@ -102,7 +102,7 @@ int set_3050_bypass(struct inv_mpu_iio_s *st, bool enable)
 			return result;
 
 		result = inv_plat_single_write(st, reg->user_ctrl,
-				(b | BIT_3050_AUX_IF_RST));
+				(b | BIT_3050_AUX_IF_RST | st->i2c_dis));
 		if (result)
 			return result;
 		usleep_range(MPU3050_NACK_MIN_TIME, MPU3050_NACK_MAX_TIME);
