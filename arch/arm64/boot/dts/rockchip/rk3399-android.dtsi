@@ -313,6 +313,7 @@
 		clocks = <&cru SCLK_MIPIDPHY_REF>, <&cru PCLK_MIPI_DSI0>, <&cru SCLK_MIPIDPHY_CFG>;
 		clock-names = "clk_mipi_24m", "pclk_mipi_dsi", "mipi_dphy_cfg";
 		power-domains = <&power RK3399_PD_VIO>;
+		status = "disabled";
 	};
 
 	mipi1_rk_fb: mipi-rk-fb@ff968000 {
@@ -324,6 +325,7 @@
 		clocks = <&cru SCLK_MIPIDPHY_REF>, <&cru PCLK_MIPI_DSI1>, <&cru SCLK_MIPIDPHY_CFG>;
 		clock-names = "clk_mipi_24m", "pclk_mipi_dsi", "mipi_dphy_cfg";
 		power-domains = <&power RK3399_PD_VIO>;
+		status = "disabled";
 	};
 
 	edp_rk_fb: edp-rk-fb@ff970000 {
