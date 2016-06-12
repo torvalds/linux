@@ -79,9 +79,13 @@ struct autofs_info {
 };
 
 #define AUTOFS_INF_EXPIRING	(1<<0) /* dentry is in the process of expiring */
-#define AUTOFS_INF_NO_RCU	(1<<1) /* the dentry is being considered
+#define AUTOFS_INF_WANT_EXPIRE	(1<<1) /* the dentry is being considered
 					* for expiry, so RCU_walk is
-					* not permitted
+					* not permitted.  If it progresses to
+					* actual expiry attempt, the flag is
+					* not cleared when EXPIRING is set -
+					* in that case it gets cleared only
+					* when it comes to clearing EXPIRING.
 					*/
 #define AUTOFS_INF_PENDING	(1<<2) /* dentry pending mount */
 
