@@ -213,11 +213,11 @@ struct tpm_chip *tpmm_chip_alloc(struct device *pdev,
 	if (IS_ERR(chip))
 		return chip;
 
-	rc = devm_add_action(pdev, (void (*)(void *)) put_device, &chip->dev);
-	if (rc) {
-		put_device(&chip->dev);
+	rc = devm_add_action_or_reset(pdev,
+				      (void (*)(void *)) put_device,
+				      &chip->dev);
+	if (rc)
 		return ERR_PTR(rc);
-	}
 
 	dev_set_drvdata(pdev, chip);
 
