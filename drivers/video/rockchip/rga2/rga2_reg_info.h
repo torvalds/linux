@@ -86,6 +86,10 @@
 #define m_RGA2_SRC_INFO_SW_SW_SRC_DITHER_UP_E     (   0x1<<23  )
 #define m_RGA2_SRC_INFO_SW_SW_SRC_SCL_FILTER      (   0x3<<24  )
 #define m_RGA2_SRC_INFO_SW_SW_VSP_MODE_SEL        (   0x1<<26  )
+#define m_RGA2_SRC_INFO_SW_SW_YUV10_E             (   0x1<<27  )
+#define m_RGA2_SRC_INFO_SW_SW_YUV10_ROUND_E       (   0x1<<28  )
+
+
 
 
 
@@ -105,7 +109,8 @@
 #define s_RGA2_SRC_INFO_SW_SW_SRC_DITHER_UP_E(x)     (   (x&0x1)<<23  )
 #define s_RGA2_SRC_INFO_SW_SW_SRC_SCL_FILTER(x)      (   (x&0x3)<<24  )
 #define s_RGA2_SRC_INFO_SW_SW_VSP_MODE_SEL(x)        (   (x&0x1)<<26  )
-
+#define s_RGA2_SRC_INFO_SW_SW_YUV10_E(x)             (   (x&0x1)<<27  )
+#define s_RGA2_SRC_INFO_SW_SW_YUV10_ROUND_E(x)       (   (x&0x1)<<28  )
 
 /* RGA_SRC_VIR_INFO */
 #define m_RGA2_SRC_VIR_INFO_SW_SRC_VIR_STRIDE        (  0x7fff<<0  )         //modify

@@ -112,6 +112,8 @@ enum
     RK_FORMAT_BPP2         = 0x11,
     RK_FORMAT_BPP4         = 0x12,
     RK_FORMAT_BPP8         = 0x13,
+    RK_FORMAT_YCbCr_420_SP_10B = 0x20,
+    RK_FORMAT_YCrCb_420_SP_10B = 0x21,
 };
 
 

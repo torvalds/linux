@@ -95,6 +95,10 @@ enum
     RGA2_FORMAT_YCrCb_422_P  = 0x15,
     RGA2_FORMAT_YCrCb_420_SP = 0x16,
     RGA2_FORMAT_YCrCb_420_P  = 0x17,
+    RGA2_FORMAT_YCbCr_420_SP_10B = 0x20,
+    RGA2_FORMAT_YCrCb_420_SP_10B = 0x21,
+    RGA2_FORMAT_YCbCr_422_SP_10B = 0x22,
+    RGA2_FORMAT_YCrCb_422_SP_10B = 0x23,
 };
 
 typedef struct mdp_img
