@@ -487,7 +487,6 @@ ssize_t tpm_transmit_cmd(struct tpm_chip *chip, const void *cmd, int len,
 ssize_t tpm_getcap(struct tpm_chip *chip, __be32 subcap_id, cap_t *cap,
 		   const char *desc);
 int tpm_get_timeouts(struct tpm_chip *);
-void tpm_gen_interrupt(struct tpm_chip *);
 int tpm1_auto_startup(struct tpm_chip *chip);
 int tpm_do_selftest(struct tpm_chip *chip);
 unsigned long tpm_calc_ordinal_duration(struct tpm_chip *chip, u32 ordinal);
@@ -534,6 +533,5 @@ ssize_t tpm2_get_tpm_pt(struct tpm_chip *chip, u32 property_id,
 int tpm2_auto_startup(struct tpm_chip *chip);
 void tpm2_shutdown(struct tpm_chip *chip, u16 shutdown_type);
 unsigned long tpm2_calc_ordinal_duration(struct tpm_chip *chip, u32 ordinal);
-int tpm2_gen_interrupt(struct tpm_chip *chip);
 int tpm2_probe(struct tpm_chip *chip);
 #endif
