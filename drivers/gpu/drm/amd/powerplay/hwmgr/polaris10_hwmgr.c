@@ -4196,12 +4196,9 @@ int polaris10_update_samu_dpm(struct pp_hwmgr *hwmgr, bool bgate)
 {
 	struct polaris10_hwmgr *data = (struct polaris10_hwmgr *)(hwmgr->backend);
 	uint32_t mm_boot_level_offset, mm_boot_level_value;
-	struct phm_ppt_v1_information *table_info =
-			(struct phm_ppt_v1_information *)(hwmgr->pptable);
 
 	if (!bgate) {
-		data->smc_state_table.SamuBootLevel =
-				(uint8_t) (table_info->mm_dep_table->count - 1);
+		data->smc_state_table.SamuBootLevel = 0;
 		mm_boot_level_offset = data->dpm_table_start +
 				offsetof(SMU74_Discrete_DpmTable, SamuBootLevel);
 		mm_boot_level_offset /= 4;
