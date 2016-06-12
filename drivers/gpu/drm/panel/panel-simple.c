@@ -1316,6 +1316,29 @@ static const struct panel_desc samsung_ltn140at29_301 = {
 	},
 };
 
+static const struct drm_display_mode sharp_lq123p1jx31_mode = {
+	.clock = 252750,
+	.hdisplay = 2400,
+	.hsync_start = 2400 + 48,
+	.hsync_end = 2400 + 48 + 32,
+	.htotal = 2400 + 48 + 32 + 80,
+	.vdisplay = 1600,
+	.vsync_start = 1600 + 3,
+	.vsync_end = 1600 + 3 + 10,
+	.vtotal = 1600 + 3 + 10 + 33,
+	.vrefresh = 60,
+	.flags = DRM_MODE_FLAG_NVSYNC | DRM_MODE_FLAG_NHSYNC,
+};
+
+static const struct panel_desc sharp_lq123p1jx31 = {
+	.modes = &sharp_lq123p1jx31_mode,
+	.num_modes = 1,
+	.size = {
+		.width = 259,
+		.height = 173,
+	},
+};
+
 static const struct drm_display_mode shelly_sca07010_bfn_lnn_mode = {
 	.clock = 33300,
 	.hdisplay = 800,
@@ -1538,6 +1561,9 @@ static const struct of_device_id platform_of_match[] = {
 	}, {
 		.compatible = "samsung,ltn140at29-301",
 		.data = &samsung_ltn140at29_301,
+	}, {
+		.compatible = "sharp,lq123p1jx31",
+		.data = &sharp_lq123p1jx31,
 	}, {
 		.compatible = "shelly,sca07010-bfn-lnn",
 		.data = &shelly_sca07010_bfn_lnn,
