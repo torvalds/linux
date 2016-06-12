@@ -970,6 +970,30 @@ static inline u8 nft_genmask_cur(const struct net *net)
 #define NFT_GENMASK_ANY		((1 << 0) | (1 << 1))
 
 /*
+ * Generic transaction helpers
+ */
+
+/* Check if this object is currently active. */
+#define nft_is_active(__net, __obj)				\
+	(((__obj)->genmask & nft_genmask_cur(__net)) == 0)
+
+/* Check if this object is active in the next generation. */
+#define nft_is_active_next(__net, __obj)			\
+	(((__obj)->genmask & nft_genmask_next(__net)) == 0)
+
+/* This object becomes active in the next generation. */
+#define nft_activate_next(__net, __obj)				\
+	(__obj)->genmask = nft_genmask_cur(__net)
+
+/* This object becomes inactive in the next generation. */
+#define nft_deactivate_next(__net, __obj)			\
+        (__obj)->genmask = nft_genmask_next(__net)
+
+/* After committing the ruleset, clear the stale generation bit. */
+#define nft_clear(__net, __obj)					\
+	(__obj)->genmask &= ~nft_genmask_next(__net)
+
+/*
  * Set element transaction helpers
  */
 
