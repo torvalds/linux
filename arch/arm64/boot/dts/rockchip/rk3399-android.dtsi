@@ -282,6 +282,7 @@
 	};
 
 	hdmi_rk_fb: hdmi-rk-fb@ff940000 {
+		status = "disabled";
 		compatible = "rockchip,rk3399-hdmi";
 		reg = <0x0 0xff940000 0x0 0x20000>;
 		interrupts = <GIC_SPI 23 IRQ_TYPE_LEVEL_HIGH>,
