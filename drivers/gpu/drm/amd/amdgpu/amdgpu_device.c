@@ -25,6 +25,7 @@
  *          Alex Deucher
  *          Jerome Glisse
  */
+#include <linux/kthread.h>
 #include <linux/console.h>
 #include <linux/slab.h>
 #include <linux/debugfs.h>
@@ -1895,6 +1896,14 @@ int amdgpu_gpu_reset(struct amdgpu_device *adev)
 
 	atomic_inc(&adev->gpu_reset_counter);
 
+	/* block scheduler */
+	for (i = 0; i < AMDGPU_MAX_RINGS; ++i) {
+		struct amdgpu_ring *ring = adev->rings[i];
+
+		if (!ring)
+			continue;
+		kthread_park(ring->sched.thread);
+	}
 	/* block TTM */
 	resched = ttm_bo_lock_delayed_workqueue(&adev->mman.bdev);
 
@@ -1928,7 +1937,7 @@ retry:
 			struct amdgpu_ring *ring = adev->rings[i];
 			if (!ring)
 				continue;
-
+			kthread_unpark(ring->sched.thread);
 			amdgpu_ring_restore(ring, ring_sizes[i], ring_data[i]);
 			ring_sizes[i] = 0;
 			ring_data[i] = NULL;
@@ -1946,8 +1955,10 @@ retry:
 	} else {
 		amdgpu_fence_driver_force_completion(adev);
 		for (i = 0; i < AMDGPU_MAX_RINGS; ++i) {
-			if (adev->rings[i])
+			if (adev->rings[i]) {
+				kthread_unpark(adev->rings[i]->sched.thread);
 				kfree(ring_data[i]);
+			}
 		}
 	}
 

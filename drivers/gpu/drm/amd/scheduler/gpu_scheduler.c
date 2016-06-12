@@ -476,6 +476,16 @@ static void amd_sched_process_job(struct fence *f, struct fence_cb *cb)
 	wake_up_interruptible(&sched->wake_up_worker);
 }
 
+static bool amd_sched_blocked(struct amd_gpu_scheduler *sched)
+{
+	if (kthread_should_park()) {
+		kthread_parkme();
+		return true;
+	}
+
+	return false;
+}
+
 static int amd_sched_main(void *param)
 {
 	struct sched_param sparam = {.sched_priority = 1};
@@ -485,14 +495,15 @@ static int amd_sched_main(void *param)
 	sched_setscheduler(current, SCHED_FIFO, &sparam);
 
 	while (!kthread_should_stop()) {
-		struct amd_sched_entity *entity;
+		struct amd_sched_entity *entity = NULL;
 		struct amd_sched_fence *s_fence;
 		struct amd_sched_job *sched_job;
 		struct fence *fence;
 
 		wait_event_interruptible(sched->wake_up_worker,
-			(entity = amd_sched_select_entity(sched)) ||
-			kthread_should_stop());
+					 (!amd_sched_blocked(sched) &&
+					  (entity = amd_sched_select_entity(sched))) ||
+					 kthread_should_stop());
 
 		if (!entity)
 			continue;
