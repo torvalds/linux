@@ -924,6 +924,7 @@ static void bnxt_tpa_start(struct bnxt *bp, struct bnxt_rx_ring_info *rxr,
 	}
 	tpa_info->flags2 = le32_to_cpu(tpa_start1->rx_tpa_start_cmp_flags2);
 	tpa_info->metadata = le32_to_cpu(tpa_start1->rx_tpa_start_cmp_metadata);
+	tpa_info->hdr_info = le32_to_cpu(tpa_start1->rx_tpa_start_cmp_hdr_info);
 
 	rxr->rx_prod = NEXT_RX(prod);
 	cons = NEXT_RX(cons);
@@ -940,6 +941,90 @@ static void bnxt_abort_tpa(struct bnxt *bp, struct bnxt_napi *bnapi,
 {
 	if (agg_bufs)
 		bnxt_reuse_rx_agg_bufs(bnapi, cp_cons, agg_bufs);
+}
+
+static struct sk_buff *bnxt_gro_func_5731x(struct bnxt_tpa_info *tpa_info,
+					   int payload_off, int tcp_ts,
+					   struct sk_buff *skb)
+{
+#ifdef CONFIG_INET
+	struct tcphdr *th;
+	int len, nw_off;
+	u16 outer_ip_off, inner_ip_off, inner_mac_off;
+	u32 hdr_info = tpa_info->hdr_info;
+	bool loopback = false;
+
+	inner_ip_off = BNXT_TPA_INNER_L3_OFF(hdr_info);
+	inner_mac_off = BNXT_TPA_INNER_L2_OFF(hdr_info);
+	outer_ip_off = BNXT_TPA_OUTER_L3_OFF(hdr_info);
+
+	/* If the packet is an internal loopback packet, the offsets will
+	 * have an extra 4 bytes.
+	 */
+	if (inner_mac_off == 4) {
+		loopback = true;
+	} else if (inner_mac_off > 4) {
+		__be16 proto = *((__be16 *)(skb->data + inner_ip_off -
+					    ETH_HLEN - 2));
+
+		/* We only support inner iPv4/ipv6.  If we don't see the
+		 * correct protocol ID, it must be a loopback packet where
+		 * the offsets are off by 4.
+		 */
+		if (proto != htons(ETH_P_IP) && proto && htons(ETH_P_IPV6))
+			loopback = true;
+	}
+	if (loopback) {
+		/* internal loopback packet, subtract all offsets by 4 */
+		inner_ip_off -= 4;
+		inner_mac_off -= 4;
+		outer_ip_off -= 4;
+	}
+
+	nw_off = inner_ip_off - ETH_HLEN;
+	skb_set_network_header(skb, nw_off);
+	if (tpa_info->flags2 & RX_TPA_START_CMP_FLAGS2_IP_TYPE) {
+		struct ipv6hdr *iph = ipv6_hdr(skb);
+
+		skb_set_transport_header(skb, nw_off + sizeof(struct ipv6hdr));
+		len = skb->len - skb_transport_offset(skb);
+		th = tcp_hdr(skb);
+		th->check = ~tcp_v6_check(len, &iph->saddr, &iph->daddr, 0);
+	} else {
+		struct iphdr *iph = ip_hdr(skb);
+
+		skb_set_transport_header(skb, nw_off + sizeof(struct iphdr));
+		len = skb->len - skb_transport_offset(skb);
+		th = tcp_hdr(skb);
+		th->check = ~tcp_v4_check(len, iph->saddr, iph->daddr, 0);
+	}
+
+	if (inner_mac_off) { /* tunnel */
+		struct udphdr *uh = NULL;
+		__be16 proto = *((__be16 *)(skb->data + outer_ip_off -
+					    ETH_HLEN - 2));
+
+		if (proto == htons(ETH_P_IP)) {
+			struct iphdr *iph = (struct iphdr *)skb->data;
+
+			if (iph->protocol == IPPROTO_UDP)
+				uh = (struct udphdr *)(iph + 1);
+		} else {
+			struct ipv6hdr *iph = (struct ipv6hdr *)skb->data;
+
+			if (iph->nexthdr == IPPROTO_UDP)
+				uh = (struct udphdr *)(iph + 1);
+		}
+		if (uh) {
+			if (uh->check)
+				skb_shinfo(skb)->gso_type |=
+					SKB_GSO_UDP_TUNNEL_CSUM;
+			else
+				skb_shinfo(skb)->gso_type |= SKB_GSO_UDP_TUNNEL;
+		}
+	}
+#endif
+	return skb;
 }
 
 #define BNXT_IPV4_HDR_SIZE	(sizeof(struct iphdr) + sizeof(struct tcphdr))
@@ -2283,7 +2368,7 @@ static void bnxt_set_tpa_flags(struct bnxt *bp)
 	bp->flags &= ~BNXT_FLAG_TPA;
 	if (bp->dev->features & NETIF_F_LRO)
 		bp->flags |= BNXT_FLAG_LRO;
-	if ((bp->dev->features & NETIF_F_GRO) && (bp->pdev->revision > 0))
+	if (bp->dev->features & NETIF_F_GRO)
 		bp->flags |= BNXT_FLAG_GRO;
 }
 
@@ -6433,6 +6518,8 @@ static int bnxt_init_one(struct pci_dev *pdev, const struct pci_device_id *ent)
 		goto init_err;
 
 	bp->gro_func = bnxt_gro_func_5730x;
+	if (BNXT_CHIP_NUM_57X1X(bp->chip_num))
+		bp->gro_func = bnxt_gro_func_5731x;
 
 	rc = bnxt_hwrm_func_drv_rgtr(bp);
 	if (rc)

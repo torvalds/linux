@@ -298,13 +298,14 @@ struct rx_tpa_start_cmp_ext {
 	#define RX_TPA_START_CMP_FLAGS2_L4_CS_CALC		(0x1 << 1)
 	#define RX_TPA_START_CMP_FLAGS2_T_IP_CS_CALC		(0x1 << 2)
 	#define RX_TPA_START_CMP_FLAGS2_T_L4_CS_CALC		(0x1 << 3)
+	#define RX_TPA_START_CMP_FLAGS2_IP_TYPE			(0x1 << 8)
 
 	__le32 rx_tpa_start_cmp_metadata;
 	__le32 rx_tpa_start_cmp_cfa_code_v2;
 	#define RX_TPA_START_CMP_V2				(0x1 << 0)
 	#define RX_TPA_START_CMP_CFA_CODE			(0xffff << 16)
 	 #define RX_TPA_START_CMPL_CFA_CODE_SHIFT		 16
-	__le32 rx_tpa_start_cmp_unused5;
+	__le32 rx_tpa_start_cmp_hdr_info;
 };
 
 struct rx_tpa_end_cmp {
@@ -584,6 +585,19 @@ struct bnxt_tpa_info {
 	u32			metadata;
 	enum pkt_hash_types	hash_type;
 	u32			rss_hash;
+	u32			hdr_info;
+
+#define BNXT_TPA_L4_SIZE(hdr_info)	\
+	(((hdr_info) & 0xf8000000) ? ((hdr_info) >> 27) : 32)
+
+#define BNXT_TPA_INNER_L3_OFF(hdr_info)	\
+	(((hdr_info) >> 18) & 0x1ff)
+
+#define BNXT_TPA_INNER_L2_OFF(hdr_info)	\
+	(((hdr_info) >> 9) & 0x1ff)
+
+#define BNXT_TPA_OUTER_L3_OFF(hdr_info)	\
+	((hdr_info) & 0x1ff)
 };
 
 struct bnxt_rx_ring_info {
