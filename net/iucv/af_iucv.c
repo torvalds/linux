@@ -1231,44 +1231,6 @@ out:
 	return err;
 }
 
-/* iucv_fragment_skb() - Fragment a single IUCV message into multiple skb's
- *
- * Locking: must be called with message_q.lock held
- */
-static int iucv_fragment_skb(struct sock *sk, struct sk_buff *skb, int len)
-{
-	int dataleft, size, copied = 0;
-	struct sk_buff *nskb;
-
-	dataleft = len;
-	while (dataleft) {
-		if (dataleft >= sk->sk_rcvbuf / 4)
-			size = sk->sk_rcvbuf / 4;
-		else
-			size = dataleft;
-
-		nskb = alloc_skb(size, GFP_ATOMIC | GFP_DMA);
-		if (!nskb)
-			return -ENOMEM;
-
-		/* copy target class to control buffer of new skb */
-		IUCV_SKB_CB(nskb)->class = IUCV_SKB_CB(skb)->class;
-
-		/* copy data fragment */
-		memcpy(nskb->data, skb->data + copied, size);
-		copied += size;
-		dataleft -= size;
-
-		skb_reset_transport_header(nskb);
-		skb_reset_network_header(nskb);
-		nskb->len = size;
-
-		skb_queue_tail(&iucv_sk(sk)->backlog_skb_q, nskb);
-	}
-
-	return 0;
-}
-
 /* iucv_process_message() - Receive a single outstanding IUCV message
  *
  * Locking: must be called with message_q.lock held
@@ -1300,24 +1262,9 @@ static void iucv_process_message(struct sock *sk, struct sk_buff *skb,
 			kfree_skb(skb);
 			return;
 		}
-		/* we need to fragment iucv messages for SOCK_STREAM only;
-		 * for SOCK_SEQPACKET, it is only relevant if we support
-		 * record segmentation using MSG_EOR (see also recvmsg()) */
-		if (sk->sk_type == SOCK_STREAM &&
-		    skb->truesize >= sk->sk_rcvbuf / 4) {
-			rc = iucv_fragment_skb(sk, skb, len);
-			kfree_skb(skb);
-			skb = NULL;
-			if (rc) {
-				pr_iucv->path_sever(path, NULL);
-				return;
-			}
-			skb = skb_dequeue(&iucv_sk(sk)->backlog_skb_q);
-		} else {
-			skb_reset_transport_header(skb);
-			skb_reset_network_header(skb);
-			skb->len = len;
-		}
+		skb_reset_transport_header(skb);
+		skb_reset_network_header(skb);
+		skb->len = len;
 	}
 
 	IUCV_SKB_CB(skb)->offset = 0;
