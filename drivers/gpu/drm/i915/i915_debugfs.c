@@ -2574,6 +2574,10 @@ static int i915_guc_info(struct seq_file *m, void *data)
 
 	mutex_unlock(&dev->struct_mutex);
 
+	seq_printf(m, "Doorbell map:\n");
+	seq_printf(m, "\t%*pb\n", GUC_MAX_DOORBELLS, guc.doorbell_bitmap);
+	seq_printf(m, "Doorbell next cacheline: 0x%x\n\n", guc.db_cacheline);
+
 	seq_printf(m, "GuC total action count: %llu\n", guc.action_count);
 	seq_printf(m, "GuC action failure count: %u\n", guc.action_fail);
 	seq_printf(m, "GuC last action command: 0x%x\n", guc.action_cmd);
