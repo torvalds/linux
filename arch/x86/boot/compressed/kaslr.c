@@ -471,17 +471,10 @@ unsigned char *choose_random_location(unsigned long input,
 	unsigned long choice = output;
 	unsigned long random_addr;
 
-#ifdef CONFIG_HIBERNATION
-	if (!cmdline_find_option_bool("kaslr")) {
-		warn("KASLR disabled: 'kaslr' not on cmdline (hibernation selected).");
-		goto out;
-	}
-#else
 	if (cmdline_find_option_bool("nokaslr")) {
 		warn("KASLR disabled: 'nokaslr' on cmdline.");
 		goto out;
 	}
-#endif
 
 	boot_params->hdr.loadflags |= KASLR_FLAG;
 
