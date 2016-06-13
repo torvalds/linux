@@ -945,29 +945,15 @@ static void bnxt_abort_tpa(struct bnxt *bp, struct bnxt_napi *bnapi,
 #define BNXT_IPV4_HDR_SIZE	(sizeof(struct iphdr) + sizeof(struct tcphdr))
 #define BNXT_IPV6_HDR_SIZE	(sizeof(struct ipv6hdr) + sizeof(struct tcphdr))
 
-static inline struct sk_buff *bnxt_gro_skb(struct bnxt_tpa_info *tpa_info,
-					   struct rx_tpa_end_cmp *tpa_end,
-					   struct rx_tpa_end_cmp_ext *tpa_end1,
+static struct sk_buff *bnxt_gro_func_5730x(struct bnxt_tpa_info *tpa_info,
+					   int payload_off, int tcp_ts,
 					   struct sk_buff *skb)
 {
 #ifdef CONFIG_INET
 	struct tcphdr *th;
-	int payload_off, tcp_opt_len = 0;
-	int len, nw_off;
-	u16 segs;
+	int len, nw_off, tcp_opt_len;
 
-	segs = TPA_END_TPA_SEGS(tpa_end);
-	if (segs == 1)
-		return skb;
-
-	NAPI_GRO_CB(skb)->count = segs;
-	skb_shinfo(skb)->gso_size =
-		le32_to_cpu(tpa_end1->rx_tpa_end_cmp_seg_len);
-	skb_shinfo(skb)->gso_type = tpa_info->gso_type;
-	payload_off = (le32_to_cpu(tpa_end->rx_tpa_end_cmp_misc_v1) &
-		       RX_TPA_END_CMP_PAYLOAD_OFFSET) >>
-		      RX_TPA_END_CMP_PAYLOAD_OFFSET_SHIFT;
-	if (TPA_END_GRO_TS(tpa_end))
+	if (tcp_ts)
 		tcp_opt_len = 12;
 
 	if (tpa_info->gso_type == SKB_GSO_TCPV4) {
@@ -1020,6 +1006,32 @@ static inline struct sk_buff *bnxt_gro_skb(struct bnxt_tpa_info *tpa_info,
 				skb_shinfo(skb)->gso_type |= SKB_GSO_UDP_TUNNEL;
 		}
 	}
+#endif
+	return skb;
+}
+
+static inline struct sk_buff *bnxt_gro_skb(struct bnxt *bp,
+					   struct bnxt_tpa_info *tpa_info,
+					   struct rx_tpa_end_cmp *tpa_end,
+					   struct rx_tpa_end_cmp_ext *tpa_end1,
+					   struct sk_buff *skb)
+{
+#ifdef CONFIG_INET
+	int payload_off;
+	u16 segs;
+
+	segs = TPA_END_TPA_SEGS(tpa_end);
+	if (segs == 1)
+		return skb;
+
+	NAPI_GRO_CB(skb)->count = segs;
+	skb_shinfo(skb)->gso_size =
+		le32_to_cpu(tpa_end1->rx_tpa_end_cmp_seg_len);
+	skb_shinfo(skb)->gso_type = tpa_info->gso_type;
+	payload_off = (le32_to_cpu(tpa_end->rx_tpa_end_cmp_misc_v1) &
+		       RX_TPA_END_CMP_PAYLOAD_OFFSET) >>
+		      RX_TPA_END_CMP_PAYLOAD_OFFSET_SHIFT;
+	skb = bp->gro_func(tpa_info, payload_off, TPA_END_GRO_TS(tpa_end), skb);
 #endif
 	return skb;
 }
@@ -1134,7 +1146,7 @@ static inline struct sk_buff *bnxt_tpa_end(struct bnxt *bp,
 	}
 
 	if (TPA_END_GRO(tpa_end))
-		skb = bnxt_gro_skb(tpa_info, tpa_end, tpa_end1, skb);
+		skb = bnxt_gro_skb(bp, tpa_info, tpa_end, tpa_end1, skb);
 
 	return skb;
 }
@@ -6419,6 +6431,8 @@ static int bnxt_init_one(struct pci_dev *pdev, const struct pci_device_id *ent)
 	rc = bnxt_hwrm_ver_get(bp);
 	if (rc)
 		goto init_err;
+
+	bp->gro_func = bnxt_gro_func_5730x;
 
 	rc = bnxt_hwrm_func_drv_rgtr(bp);
 	if (rc)

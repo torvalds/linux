@@ -953,6 +953,9 @@ struct bnxt {
 	struct bnxt_rx_ring_info	*rx_ring;
 	struct bnxt_tx_ring_info	*tx_ring;
 
+	struct sk_buff *	(*gro_func)(struct bnxt_tpa_info *, int, int,
+					    struct sk_buff *);
+
 	u32			rx_buf_size;
 	u32			rx_buf_use_size;	/* useable size */
 	u32			rx_ring_size;
