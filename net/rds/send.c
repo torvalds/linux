@@ -1088,16 +1088,15 @@ int rds_sendmsg(struct socket *sock, struct msghdr *msg, size_t payload_len)
 		goto out;
 	}
 
-	rds_conn_connect_if_down(conn);
+	cpath = &conn->c_path[0];
+
+	rds_conn_path_connect_if_down(cpath);
 
 	ret = rds_cong_wait(conn->c_fcong, dport, nonblock, rs);
 	if (ret) {
 		rs->rs_seen_congestion = 1;
 		goto out;
 	}
-
-	cpath = &conn->c_path[0];
-
 	while (!rds_send_queue_rm(rs, conn, cpath, rm, rs->rs_bound_port,
 				  dport, &queued)) {
 		rds_stats_inc(s_send_queue_full);
@@ -1167,7 +1166,7 @@ rds_send_pong(struct rds_conn_path *cp, __be16 dport)
 	rm->m_daddr = cp->cp_conn->c_faddr;
 	rm->data.op_active = 1;
 
-	rds_conn_connect_if_down(cp->cp_conn);
+	rds_conn_path_connect_if_down(cp);
 
 	ret = rds_cong_wait(cp->cp_conn->c_fcong, dport, 1, NULL);
 	if (ret)
