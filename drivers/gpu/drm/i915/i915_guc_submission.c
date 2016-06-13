@@ -252,13 +252,8 @@ static void guc_disable_doorbell(struct intel_guc *guc,
 
 	doorbell->db_status = GUC_DOORBELL_DISABLED;
 
-	I915_WRITE(drbreg, I915_READ(drbreg) & ~GEN8_DRB_VALID);
-
 	value = I915_READ(drbreg);
 	WARN_ON((value & GEN8_DRB_VALID) != 0);
-
-	I915_WRITE(GEN8_DRBREGU(client->doorbell_id), 0);
-	I915_WRITE(drbreg, 0);
 
 	/* XXX: wait for any interrupts */
 	/* XXX: wait for workqueue to drain */
