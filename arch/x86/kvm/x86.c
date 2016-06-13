@@ -114,7 +114,8 @@ u8   __read_mostly kvm_tsc_scaling_ratio_frac_bits;
 EXPORT_SYMBOL_GPL(kvm_tsc_scaling_ratio_frac_bits);
 u64  __read_mostly kvm_max_tsc_scaling_ratio;
 EXPORT_SYMBOL_GPL(kvm_max_tsc_scaling_ratio);
-static u64 __read_mostly kvm_default_tsc_scaling_ratio;
+u64 __read_mostly kvm_default_tsc_scaling_ratio;
+EXPORT_SYMBOL_GPL(kvm_default_tsc_scaling_ratio);
 
 /* tsc tolerance in parts per million - default to 1/2 of the NTP threshold */
 static u32 __read_mostly tsc_tolerance_ppm = 250;

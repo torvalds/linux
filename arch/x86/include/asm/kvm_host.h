@@ -1079,6 +1079,8 @@ extern u32  kvm_max_guest_tsc_khz;
 extern u8   kvm_tsc_scaling_ratio_frac_bits;
 /* maximum allowed value of TSC scaling ratio */
 extern u64  kvm_max_tsc_scaling_ratio;
+/* 1ull << kvm_tsc_scaling_ratio_frac_bits */
+extern u64  kvm_default_tsc_scaling_ratio;
 
 enum emulation_result {
 	EMULATE_DONE,         /* no further processing */
