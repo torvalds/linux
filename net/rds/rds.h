@@ -764,6 +764,8 @@ void rds_page_exit(void);
 /* recv.c */
 void rds_inc_init(struct rds_incoming *inc, struct rds_connection *conn,
 		  __be32 saddr);
+void rds_inc_path_init(struct rds_incoming *inc, struct rds_conn_path *conn,
+		       __be32 saddr);
 void rds_inc_put(struct rds_incoming *inc);
 void rds_recv_incoming(struct rds_connection *conn, __be32 saddr, __be32 daddr,
 		       struct rds_incoming *inc, gfp_t gfp);

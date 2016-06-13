@@ -53,6 +53,20 @@ void rds_inc_init(struct rds_incoming *inc, struct rds_connection *conn,
 }
 EXPORT_SYMBOL_GPL(rds_inc_init);
 
+void rds_inc_path_init(struct rds_incoming *inc, struct rds_conn_path *cp,
+		       __be32 saddr)
+{
+	atomic_set(&inc->i_refcount, 1);
+	INIT_LIST_HEAD(&inc->i_item);
+	inc->i_conn = cp->cp_conn;
+	inc->i_conn_path = cp;
+	inc->i_saddr = saddr;
+	inc->i_rdma_cookie = 0;
+	inc->i_rx_tstamp.tv_sec = 0;
+	inc->i_rx_tstamp.tv_usec = 0;
+}
+EXPORT_SYMBOL_GPL(rds_inc_path_init);
+
 static void rds_inc_addref(struct rds_incoming *inc)
 {
 	rdsdebug("addref inc %p ref %d\n", inc, atomic_read(&inc->i_refcount));
