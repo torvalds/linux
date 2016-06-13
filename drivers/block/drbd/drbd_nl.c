@@ -1161,13 +1161,17 @@ static void drbd_setup_queue_param(struct drbd_device *device, struct drbd_backi
 	unsigned int max_hw_sectors = max_bio_size >> 9;
 	unsigned int max_segments = 0;
 	struct request_queue *b = NULL;
+	struct disk_conf *dc;
+	bool discard_zeroes_if_aligned = true;
 
 	if (bdev) {
 		b = bdev->backing_bdev->bd_disk->queue;
 
 		max_hw_sectors = min(queue_max_hw_sectors(b), max_bio_size >> 9);
 		rcu_read_lock();
-		max_segments = rcu_dereference(device->ldev->disk_conf)->max_bio_bvecs;
+		dc = rcu_dereference(device->ldev->disk_conf);
+		max_segments = dc->max_bio_bvecs;
+		discard_zeroes_if_aligned = dc->discard_zeroes_if_aligned;
 		rcu_read_unlock();
 
 		blk_set_stacking_limits(&q->limits);
@@ -1185,7 +1189,7 @@ static void drbd_setup_queue_param(struct drbd_device *device, struct drbd_backi
 
 		blk_queue_max_discard_sectors(q, DRBD_MAX_DISCARD_SECTORS);
 
-		if (blk_queue_discard(b) &&
+		if (blk_queue_discard(b) && (b->limits.discard_zeroes_data || discard_zeroes_if_aligned) &&
 		    (connection->cstate < C_CONNECTED || connection->agreed_features & FF_TRIM)) {
 			/* We don't care, stacking below should fix it for the local device.
 			 * Whether or not it is a suitable granularity on the remote device
@@ -1216,7 +1220,7 @@ static void drbd_setup_queue_param(struct drbd_device *device, struct drbd_backi
 	}
 }
 
-void drbd_reconsider_max_bio_size(struct drbd_device *device, struct drbd_backing_dev *bdev)
+void drbd_reconsider_queue_parameters(struct drbd_device *device, struct drbd_backing_dev *bdev)
 {
 	unsigned int now, new, local, peer;
 
@@ -1487,6 +1491,9 @@ int drbd_adm_disk_opts(struct sk_buff *skb, struct genl_info *info)
 
 	if (write_ordering_changed(old_disk_conf, new_disk_conf))
 		drbd_bump_write_ordering(device->resource, NULL, WO_BDEV_FLUSH);
+
+	if (old_disk_conf->discard_zeroes_if_aligned != new_disk_conf->discard_zeroes_if_aligned)
+		drbd_reconsider_queue_parameters(device, device->ldev);
 
 	drbd_md_sync(device);
 
@@ -1866,7 +1873,7 @@ int drbd_adm_attach(struct sk_buff *skb, struct genl_info *info)
 	device->read_cnt = 0;
 	device->writ_cnt = 0;
 
-	drbd_reconsider_max_bio_size(device, device->ldev);
+	drbd_reconsider_queue_parameters(device, device->ldev);
 
 	/* If I am currently not R_PRIMARY,
 	 * but meta data primary indicator is set,
