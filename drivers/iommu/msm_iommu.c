@@ -48,6 +48,7 @@ __asm__ __volatile__ (							\
 static int msm_iommu_tex_class[4];
 
 DEFINE_SPINLOCK(msm_iommu_lock);
+static LIST_HEAD(qcom_iommu_devices);
 
 struct msm_priv {
 	unsigned long *pgtable;
@@ -60,35 +61,37 @@ static struct msm_priv *to_msm_priv(struct iommu_domain *dom)
 	return container_of(dom, struct msm_priv, domain);
 }
 
-static int __enable_clocks(struct msm_iommu_drvdata *drvdata)
+static int __enable_clocks(struct msm_iommu_dev *iommu)
 {
 	int ret;
 
-	ret = clk_enable(drvdata->pclk);
+	ret = clk_enable(iommu->pclk);
 	if (ret)
 		goto fail;
 
-	if (drvdata->clk) {
-		ret = clk_enable(drvdata->clk);
+	if (iommu->clk) {
+		ret = clk_enable(iommu->clk);
 		if (ret)
-			clk_disable(drvdata->pclk);
+			clk_disable(iommu->pclk);
 	}
 fail:
 	return ret;
 }
 
-static void __disable_clocks(struct msm_iommu_drvdata *drvdata)
+static void __disable_clocks(struct msm_iommu_dev *iommu)
 {
-	clk_disable(drvdata->clk);
-	clk_disable(drvdata->pclk);
+	if (iommu->clk)
+		clk_disable(iommu->clk);
+	clk_disable(iommu->pclk);
 }
 
 static int __flush_iotlb(struct iommu_domain *domain)
 {
 	struct msm_priv *priv = to_msm_priv(domain);
-	struct msm_iommu_drvdata *iommu_drvdata;
-	struct msm_iommu_ctx_drvdata *ctx_drvdata;
+	struct msm_iommu_dev *iommu = NULL;
+	struct msm_iommu_ctx_dev *master;
 	int ret = 0;
+
 #ifndef CONFIG_IOMMU_PGTABLES_L2
 	unsigned long *fl_table = priv->pgtable;
 	int i;
@@ -105,22 +108,65 @@ static int __flush_iotlb(struct iommu_domain *domain)
 	}
 #endif
 
-	list_for_each_entry(ctx_drvdata, &priv->list_attached, attached_elm) {
-
-		BUG_ON(!ctx_drvdata->pdev || !ctx_drvdata->pdev->dev.parent);
-
-		iommu_drvdata = dev_get_drvdata(ctx_drvdata->pdev->dev.parent);
-		BUG_ON(!iommu_drvdata);
-
-		ret = __enable_clocks(iommu_drvdata);
+	list_for_each_entry(iommu, &priv->list_attached, dom_node) {
+		ret = __enable_clocks(iommu);
 		if (ret)
 			goto fail;
 
-		SET_CTX_TLBIALL(iommu_drvdata->base, ctx_drvdata->num, 0);
-		__disable_clocks(iommu_drvdata);
+		list_for_each_entry(master, &iommu->ctx_list, list)
+			SET_CTX_TLBIALL(iommu->base, master->num, 0);
+
+		__disable_clocks(iommu);
 	}
 fail:
 	return ret;
+}
+
+static int msm_iommu_alloc_ctx(unsigned long *map, int start, int end)
+{
+	int idx;
+
+	do {
+		idx = find_next_zero_bit(map, end, start);
+		if (idx == end)
+			return -ENOSPC;
+	} while (test_and_set_bit(idx, map));
+
+	return idx;
+}
+
+static void msm_iommu_free_ctx(unsigned long *map, int idx)
+{
+	clear_bit(idx, map);
+}
+
+static void config_mids(struct msm_iommu_dev *iommu,
+			struct msm_iommu_ctx_dev *master)
+{
+	int mid, ctx, i;
+
+	for (i = 0; i < master->num_mids; i++) {
+		mid = master->mids[i];
+		ctx = master->num;
+
+		SET_M2VCBR_N(iommu->base, mid, 0);
+		SET_CBACR_N(iommu->base, ctx, 0);
+
+		/* Set VMID = 0 */
+		SET_VMID(iommu->base, mid, 0);
+
+		/* Set the context number for that MID to this context */
+		SET_CBNDX(iommu->base, mid, ctx);
+
+		/* Set MID associated with this context bank to 0*/
+		SET_CBVMID(iommu->base, ctx, 0);
+
+		/* Set the ASID for TLB tagging for this context */
+		SET_CONTEXTIDR_ASID(iommu->base, ctx, ctx);
+
+		/* Set security bit override to be Non-secure */
+		SET_NSCFG(iommu->base, mid, 3);
+	}
 }
 
 static void __reset_context(void __iomem *base, int ctx)
@@ -272,94 +318,76 @@ static void msm_iommu_domain_free(struct iommu_domain *domain)
 
 static int msm_iommu_attach_dev(struct iommu_domain *domain, struct device *dev)
 {
-	struct msm_priv *priv;
-	struct msm_iommu_ctx_dev *ctx_dev;
-	struct msm_iommu_drvdata *iommu_drvdata;
-	struct msm_iommu_ctx_drvdata *ctx_drvdata;
-	struct msm_iommu_ctx_drvdata *tmp_drvdata;
 	int ret = 0;
 	unsigned long flags;
+	struct msm_iommu_dev *iommu;
+	struct msm_priv *priv = to_msm_priv(domain);
+	struct msm_iommu_ctx_dev *master;
 
 	spin_lock_irqsave(&msm_iommu_lock, flags);
+	list_for_each_entry(iommu, &qcom_iommu_devices, dev_node) {
+		master = list_first_entry(&iommu->ctx_list,
+					  struct msm_iommu_ctx_dev,
+					  list);
+		if (master->of_node == dev->of_node) {
+			ret = __enable_clocks(iommu);
+			if (ret)
+				goto fail;
 
-	priv = to_msm_priv(domain);
-
-	if (!dev) {
-		ret = -EINVAL;
-		goto fail;
-	}
-
-	iommu_drvdata = dev_get_drvdata(dev->parent);
-	ctx_drvdata = dev_get_drvdata(dev);
-	ctx_dev = dev->platform_data;
-
-	if (!iommu_drvdata || !ctx_drvdata || !ctx_dev) {
-		ret = -EINVAL;
-		goto fail;
-	}
-
-	if (!list_empty(&ctx_drvdata->attached_elm)) {
-		ret = -EBUSY;
-		goto fail;
-	}
-
-	list_for_each_entry(tmp_drvdata, &priv->list_attached, attached_elm)
-		if (tmp_drvdata == ctx_drvdata) {
-			ret = -EBUSY;
-			goto fail;
+			list_for_each_entry(master, &iommu->ctx_list, list) {
+				if (master->num) {
+					dev_err(dev, "domain already attached");
+					ret = -EEXIST;
+					goto fail;
+				}
+				master->num =
+					msm_iommu_alloc_ctx(iommu->context_map,
+							    0, iommu->ncb);
+					if (IS_ERR_VALUE(master->num)) {
+						ret = -ENODEV;
+						goto fail;
+					}
+				config_mids(iommu, master);
+				__program_context(iommu->base, master->num,
+						  __pa(priv->pgtable));
+			}
+			__disable_clocks(iommu);
+			list_add(&iommu->dom_node, &priv->list_attached);
 		}
+	}
 
-	ret = __enable_clocks(iommu_drvdata);
-	if (ret)
-		goto fail;
-
-	__program_context(iommu_drvdata->base, ctx_dev->num,
-			  __pa(priv->pgtable));
-
-	__disable_clocks(iommu_drvdata);
-	list_add(&(ctx_drvdata->attached_elm), &priv->list_attached);
 	ret = __flush_iotlb(domain);
-
 fail:
 	spin_unlock_irqrestore(&msm_iommu_lock, flags);
+
 	return ret;
 }
 
 static void msm_iommu_detach_dev(struct iommu_domain *domain,
 				 struct device *dev)
 {
-	struct msm_priv *priv;
-	struct msm_iommu_ctx_dev *ctx_dev;
-	struct msm_iommu_drvdata *iommu_drvdata;
-	struct msm_iommu_ctx_drvdata *ctx_drvdata;
+	struct msm_priv *priv = to_msm_priv(domain);
 	unsigned long flags;
+	struct msm_iommu_dev *iommu;
+	struct msm_iommu_ctx_dev *master;
 	int ret;
 
 	spin_lock_irqsave(&msm_iommu_lock, flags);
-	priv = to_msm_priv(domain);
-
-	if (!dev)
-		goto fail;
-
-	iommu_drvdata = dev_get_drvdata(dev->parent);
-	ctx_drvdata = dev_get_drvdata(dev);
-	ctx_dev = dev->platform_data;
-
-	if (!iommu_drvdata || !ctx_drvdata || !ctx_dev)
-		goto fail;
-
 	ret = __flush_iotlb(domain);
 	if (ret)
 		goto fail;
 
-	ret = __enable_clocks(iommu_drvdata);
-	if (ret)
-		goto fail;
+	list_for_each_entry(iommu, &priv->list_attached, dom_node) {
+		ret = __enable_clocks(iommu);
+		if (ret)
+			goto fail;
 
-	__reset_context(iommu_drvdata->base, ctx_dev->num);
-	__disable_clocks(iommu_drvdata);
-	list_del_init(&ctx_drvdata->attached_elm);
-
+		list_for_each_entry(master, &iommu->ctx_list, list) {
+			msm_iommu_free_ctx(iommu->context_map, master->num);
+			__reset_context(iommu->base, master->num);
+		}
+		__disable_clocks(iommu);
+	}
 fail:
 	spin_unlock_irqrestore(&msm_iommu_lock, flags);
 }
@@ -555,47 +583,46 @@ static phys_addr_t msm_iommu_iova_to_phys(struct iommu_domain *domain,
 					  dma_addr_t va)
 {
 	struct msm_priv *priv;
-	struct msm_iommu_drvdata *iommu_drvdata;
-	struct msm_iommu_ctx_drvdata *ctx_drvdata;
+	struct msm_iommu_dev *iommu;
+	struct msm_iommu_ctx_dev *master;
 	unsigned int par;
 	unsigned long flags;
-	void __iomem *base;
 	phys_addr_t ret = 0;
-	int ctx;
 
 	spin_lock_irqsave(&msm_iommu_lock, flags);
 
 	priv = to_msm_priv(domain);
-	if (list_empty(&priv->list_attached))
+	iommu = list_first_entry(&priv->list_attached,
+				 struct msm_iommu_dev, dom_node);
+
+	if (list_empty(&iommu->ctx_list))
 		goto fail;
 
-	ctx_drvdata = list_entry(priv->list_attached.next,
-				 struct msm_iommu_ctx_drvdata, attached_elm);
-	iommu_drvdata = dev_get_drvdata(ctx_drvdata->pdev->dev.parent);
+	master = list_first_entry(&iommu->ctx_list,
+				  struct msm_iommu_ctx_dev, list);
+	if (!master)
+		goto fail;
 
-	base = iommu_drvdata->base;
-	ctx = ctx_drvdata->num;
-
-	ret = __enable_clocks(iommu_drvdata);
+	ret = __enable_clocks(iommu);
 	if (ret)
 		goto fail;
 
 	/* Invalidate context TLB */
-	SET_CTX_TLBIALL(base, ctx, 0);
-	SET_V2PPR(base, ctx, va & V2Pxx_VA);
+	SET_CTX_TLBIALL(iommu->base, master->num, 0);
+	SET_V2PPR(iommu->base, master->num, va & V2Pxx_VA);
 
-	par = GET_PAR(base, ctx);
+	par = GET_PAR(iommu->base, master->num);
 
 	/* We are dealing with a supersection */
-	if (GET_NOFAULT_SS(base, ctx))
+	if (GET_NOFAULT_SS(iommu->base, master->num))
 		ret = (par & 0xFF000000) | (va & 0x00FFFFFF);
 	else	/* Upper 20 bits from PAR, lower 12 from VA */
 		ret = (par & 0xFFFFF000) | (va & 0x00000FFF);
 
-	if (GET_FAULT(base, ctx))
+	if (GET_FAULT(iommu->base, master->num))
 		ret = 0;
 
-	__disable_clocks(iommu_drvdata);
+	__disable_clocks(iommu);
 fail:
 	spin_unlock_irqrestore(&msm_iommu_lock, flags);
 	return ret;
@@ -635,37 +662,34 @@ static void print_ctx_regs(void __iomem *base, int ctx)
 
 irqreturn_t msm_iommu_fault_handler(int irq, void *dev_id)
 {
-	struct msm_iommu_drvdata *drvdata = dev_id;
-	void __iomem *base;
+	struct msm_iommu_dev *iommu = dev_id;
 	unsigned int fsr;
 	int i, ret;
 
 	spin_lock(&msm_iommu_lock);
 
-	if (!drvdata) {
+	if (!iommu) {
 		pr_err("Invalid device ID in context interrupt handler\n");
 		goto fail;
 	}
 
-	base = drvdata->base;
-
 	pr_err("Unexpected IOMMU page fault!\n");
-	pr_err("base = %08x\n", (unsigned int) base);
+	pr_err("base = %08x\n", (unsigned int)iommu->base);
 
-	ret = __enable_clocks(drvdata);
+	ret = __enable_clocks(iommu);
 	if (ret)
 		goto fail;
 
-	for (i = 0; i < drvdata->ncb; i++) {
-		fsr = GET_FSR(base, i);
+	for (i = 0; i < iommu->ncb; i++) {
+		fsr = GET_FSR(iommu->base, i);
 		if (fsr) {
 			pr_err("Fault occurred in context %d.\n", i);
 			pr_err("Interesting registers:\n");
-			print_ctx_regs(base, i);
-			SET_FSR(base, i, 0x4000000F);
+			print_ctx_regs(iommu->base, i);
+			SET_FSR(iommu->base, i, 0x4000000F);
 		}
 	}
-	__disable_clocks(drvdata);
+	__disable_clocks(iommu);
 fail:
 	spin_unlock(&msm_iommu_lock);
 	return 0;
