@@ -8034,7 +8034,7 @@ wl_cfg80211_start_ap(
 	/* Set GC/STA SCB expiry timings. */
 	if ((err = wl_cfg80211_set_scb_timings(cfg, dev))) {
 		WL_ERR(("scb setting failed \n"));
-		goto fail;
+		/*goto fail;*/
 	}
 
 	WL_DBG(("** AP/GO Created **\n"));
@@ -8169,6 +8169,13 @@ wl_cfg80211_stop_ap(
 				}
 			}
 		} else if (is_rsdb_supported == 0) {
+			/* terence 20160426: fix softap issue */
+			err = wldev_ioctl(dev, WLC_SET_AP, &ap, sizeof(s32), true);
+			if (err < 0) {
+				WL_ERR(("setting AP mode failed %d \n", err));
+				err = -ENOTSUPP;
+				goto exit;
+			}
 			err = wldev_ioctl(dev, WLC_SET_INFRA, &infra, sizeof(s32), true);
 			if (err < 0) {
 				WL_ERR(("SET INFRA error %d\n", err));
