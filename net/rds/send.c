@@ -566,42 +566,6 @@ __rds_send_complete(struct rds_sock *rs, struct rds_message *rm, int status)
 }
 
 /*
- * This is called from the IB send completion when we detect
- * a RDMA operation that failed with remote access error.
- * So speed is not an issue here.
- */
-struct rds_message *rds_send_get_message(struct rds_connection *conn,
-					 struct rm_rdma_op *op)
-{
-	struct rds_message *rm, *tmp, *found = NULL;
-	unsigned long flags;
-
-	spin_lock_irqsave(&conn->c_lock, flags);
-
-	list_for_each_entry_safe(rm, tmp, &conn->c_retrans, m_conn_item) {
-		if (&rm->rdma == op) {
-			atomic_inc(&rm->m_refcount);
-			found = rm;
-			goto out;
-		}
-	}
-
-	list_for_each_entry_safe(rm, tmp, &conn->c_send_queue, m_conn_item) {
-		if (&rm->rdma == op) {
-			atomic_inc(&rm->m_refcount);
-			found = rm;
-			break;
-		}
-	}
-
-out:
-	spin_unlock_irqrestore(&conn->c_lock, flags);
-
-	return found;
-}
-EXPORT_SYMBOL_GPL(rds_send_get_message);
-
-/*
  * This removes messages from the socket's list if they're on it.  The list
  * argument must be private to the caller, we must be able to modify it
  * without locks.  The messages must have a reference held for their
