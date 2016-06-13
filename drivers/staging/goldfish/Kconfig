@@ -4,6 +4,12 @@ config GOLDFISH_AUDIO
 	---help---
 	  Emulated audio channel for the Goldfish Android Virtual Device
 
+config GOLDFISH_SYNC
+    tristate "Goldfish AVD Sync Driver"
+    depends on GOLDFISH
+	---help---
+	  Emulated sync fences for the Goldfish Android Virtual Device
+
 config MTD_GOLDFISH_NAND
 	tristate "Goldfish NAND device"
 	depends on GOLDFISH
