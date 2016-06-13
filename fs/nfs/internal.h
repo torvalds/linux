@@ -186,7 +186,7 @@ extern struct nfs_server *nfs_clone_server(struct nfs_server *,
 					   rpc_authflavor_t);
 extern int nfs_wait_client_init_complete(const struct nfs_client *clp);
 extern void nfs_mark_client_ready(struct nfs_client *clp, int state);
-extern struct nfs_client *nfs4_set_ds_client(struct nfs_client* mds_clp,
+extern struct nfs_client *nfs4_set_ds_client(struct nfs_server *mds_srv,
 					     const struct sockaddr *ds_addr,
 					     int ds_addrlen, int ds_proto,
 					     unsigned int ds_timeo,
