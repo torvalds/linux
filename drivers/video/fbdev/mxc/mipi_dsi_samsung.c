@@ -548,14 +548,6 @@ static int mipi_dsi_enable(struct mxc_dispdrv_handle *disp,
 				return ret;
 			}
 		}
-
-		ret = device_reset(&mipi_dsi->pdev->dev);
-		if (ret) {
-			dev_err(&mipi_dsi->pdev->dev,
-				"failed to reset device: %d\n", ret);
-			return -EINVAL;
-		}
-		msleep(120);
 	}
 
 	if (!mipi_dsi->dsi_power_on)
@@ -578,6 +570,14 @@ static int mipi_dsi_enable(struct mxc_dispdrv_handle *disp,
 		 * in the dsi command mode.
 		 */
 		mipi_dsi_set_mode(mipi_dsi, DSI_COMMAND_MODE);
+		msleep(20);
+		ret = device_reset(&mipi_dsi->pdev->dev);
+		if (ret) {
+			dev_err(&mipi_dsi->pdev->dev, "failed to reset device: %d\n", ret);
+			return -EINVAL;
+		}
+		msleep(120);
+
 		ret = mipi_dsi->lcd_callback->mipi_lcd_setup(mipi_dsi);
 		if (ret < 0) {
 			dev_err(&mipi_dsi->pdev->dev,
@@ -781,12 +781,6 @@ static int mipi_dsi_probe(struct platform_device *pdev)
 		}
 	}
 
-	ret = device_reset(&pdev->dev);
-	if (ret) {
-		dev_err(&pdev->dev, "failed to reset device: %d\n", ret);
-		goto dev_reset_fail;
-	}
-
 	mipi_dsi->lcd_panel = kstrdup(lcd_panel, GFP_KERNEL);
 	if (!mipi_dsi->lcd_panel) {
 		dev_err(&pdev->dev, "failed to allocate lcd panel name\n");
@@ -816,7 +810,6 @@ static int mipi_dsi_probe(struct platform_device *pdev)
 dispdrv_reg_fail:
 	kfree(mipi_dsi->lcd_panel);
 kstrdup_fail:
-dev_reset_fail:
 	if (mipi_dsi->disp_power_on)
 		regulator_disable(mipi_dsi->disp_power_on);
 
