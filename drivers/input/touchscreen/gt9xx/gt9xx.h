@@ -398,6 +398,7 @@ u8 gtp_dat_gt11[] = {
 
 bool m89or101 = TRUE;
 bool bgt911 = FALSE;
+bool bgt970 = FALSE;
 bool mGtpChange_X2Y = TRUE;  //GTP_CHANGE_X2Y        1
 bool mGtp_X_Reverse = FALSE;  //GTP_X_REVERSE_ENABLE
 bool mGtp_Y_Reverse = TRUE;  //GTP_Y_REVERSE_ENABLE
@@ -420,6 +421,10 @@ u8 gtp_dat_8_9[] =
 #include "WGJ10162B_GT9271_1060_Config_20140821_1341110X42.cfg"
 };
 
+u8 gtp_dat_9_7[] = {
+	/* <1536, 2048> 9.7 */
+	#include "GT9110P_Config_20160217_1526_2048_97.cfg"
+};
 
 u8 gtp_dat_10_1[] = 
 {

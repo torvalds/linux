@@ -415,7 +415,7 @@ static void gtp_touch_down(struct goodix_ts_data* ts,s32 id,s32 x,s32 y,s32 w)
         GTP_SWAP(x, y);
     }
 
-	if (!bgt911) {
+	if (!bgt911 && !bgt970) {
 	    if(mGtp_X_Reverse){
 	        x = ts->abs_x_max - x;
 	    }
@@ -1429,6 +1429,11 @@ static s32 gtp_init_panel(struct goodix_ts_data *ts)
     	send_cfg_buf[0] = gtp_dat_gt11;
 		cfg_info_len[0] =  CFG_GROUP_LEN(gtp_dat_gt11);
     }
+
+	if (bgt970) {
+		send_cfg_buf[0] = gtp_dat_9_7;
+		cfg_info_len[0] = CFG_GROUP_LEN(gtp_dat_9_7);
+	}
 
     GTP_DEBUG_FUNC();
     GTP_DEBUG("Config Groups\' Lengths: %d, %d, %d, %d, %d, %d", 
@@ -2605,7 +2610,14 @@ static int goodix_ts_probe(struct i2c_client *client, const struct i2c_device_id
     	mGtpChange_X2Y = TRUE;
         mGtp_X_Reverse = FALSE;
         mGtp_Y_Reverse = TRUE;
-    }
+	} else if (val == 970) {
+		m89or101 = FALSE;
+		bgt911 = FALSE;
+		bgt970 = TRUE;
+		mGtpChange_X2Y = FALSE;
+		mGtp_X_Reverse = FALSE;
+		mGtp_Y_Reverse = TRUE;
+	}
 
 	ts->tp_regulator = devm_regulator_get(&client->dev, "tp");
 	if (IS_ERR(ts->tp_regulator)) {
