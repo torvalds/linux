@@ -58,13 +58,19 @@ static int sst_bxt_prepare_fw(struct sst_dsp *ctx,
 	ctx->dsp_ops.stream_tag = stream_tag;
 	memcpy(ctx->dmab.area, fwdata, fwsize);
 
-	/* Purge FW request */
-	sst_dsp_shim_write(ctx, SKL_ADSP_REG_HIPCI, SKL_ADSP_REG_HIPCI_BUSY |
-					 BXT_IPC_PURGE_FW | (stream_tag - 1));
-
-	ret = skl_dsp_enable_core(ctx);
+	ret = skl_dsp_core_power_up(ctx);
 	if (ret < 0) {
 		dev_err(ctx->dev, "Boot dsp core failed ret: %d\n", ret);
+		goto base_fw_load_failed;
+	}
+
+	/* Purge FW request */
+	sst_dsp_shim_write(ctx, SKL_ADSP_REG_HIPCI, SKL_ADSP_REG_HIPCI_BUSY |
+				(BXT_IPC_PURGE_FW | ((stream_tag - 1) << 9)));
+
+	ret = skl_dsp_start_core(ctx);
+	if (ret < 0) {
+		dev_err(ctx->dev, "Start dsp core failed ret: %d\n", ret);
 		ret = -EIO;
 		goto base_fw_load_failed;
 	}
@@ -161,6 +167,10 @@ static int bxt_load_base_firmware(struct sst_dsp *ctx)
 	if (ret < 0) {
 		ret = sst_bxt_prepare_fw(ctx, stripped_fw.data, stripped_fw.size);
 		if (ret < 0) {
+			dev_err(ctx->dev, "Error code=0x%x: FW status=0x%x\n",
+			sst_dsp_shim_read(ctx, BXT_ADSP_ERROR_CODE),
+			sst_dsp_shim_read(ctx, BXT_ADSP_FW_STATUS));
+
 			dev_err(ctx->dev, "Core En/ROM load fail:%d\n", ret);
 			goto sst_load_base_firmware_failed;
 		}

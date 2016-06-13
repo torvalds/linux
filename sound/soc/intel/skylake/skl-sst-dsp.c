@@ -114,7 +114,7 @@ static int skl_dsp_reset_core(struct sst_dsp *ctx)
 	return skl_dsp_core_set_reset_state(ctx);
 }
 
-static int skl_dsp_start_core(struct sst_dsp *ctx)
+int skl_dsp_start_core(struct sst_dsp *ctx)
 {
 	int ret;
 
@@ -140,7 +140,7 @@ static int skl_dsp_start_core(struct sst_dsp *ctx)
 	return ret;
 }
 
-static int skl_dsp_core_power_up(struct sst_dsp *ctx)
+int skl_dsp_core_power_up(struct sst_dsp *ctx)
 {
 	int ret;
 
