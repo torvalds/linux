@@ -26,8 +26,6 @@
 #include <asm/intel-family.h>
 #include <asm/iosf_mbi.h>
 
-/* Power gate status reg */
-#define PWRGT_STATUS		0x61
 /* Subsystem config/status Video processor */
 #define VED_SS_PM0		0x32
 /* Subsystem config/status ISP (Image Signal Processor) */
@@ -36,12 +34,16 @@
 #define MIO_SS_PM		0x3B
 /* Shift bits for getting status for video, isp and i/o */
 #define SSS_SHIFT		24
+
+/* Power gate status reg */
+#define PWRGT_STATUS		0x61
 /* Shift bits for getting status for graphics rendering */
 #define RENDER_POS		0
 /* Shift bits for getting status for media control */
 #define MEDIA_POS		2
 /* Shift bits for getting status for Valley View/Baytrail display */
 #define VLV_DISPLAY_POS		6
+
 /* Subsystem config/status display for Cherry Trail SOC */
 #define CHT_DSP_SSS		0x36
 /* Shift bits for getting status for display */
@@ -51,6 +53,14 @@ struct punit_device {
 	char *name;
 	int reg;
 	int sss_pos;
+};
+
+static const struct punit_device punit_device_tng[] = {
+	{ "DISPLAY",	CHT_DSP_SSS,	SSS_SHIFT },
+	{ "VED",	VED_SS_PM0,	SSS_SHIFT },
+	{ "ISP",	ISP_SS_PM0,	SSS_SHIFT },
+	{ "MIO",	MIO_SS_PM,	SSS_SHIFT },
+	{ NULL }
 };
 
 static const struct punit_device punit_device_byt[] = {
@@ -145,6 +155,7 @@ static void punit_dbgfs_unregister(void)
 
 static const struct x86_cpu_id intel_punit_cpu_ids[] = {
 	ICPU(INTEL_FAM6_ATOM_SILVERMONT1, punit_device_byt),
+	ICPU(INTEL_FAM6_ATOM_MERRIFIELD1, punit_device_tng),
 	ICPU(INTEL_FAM6_ATOM_AIRMONT,	  punit_device_cht),
 	{}
 };
