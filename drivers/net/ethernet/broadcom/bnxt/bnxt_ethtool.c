@@ -659,6 +659,17 @@ static u32 bnxt_fw_to_ethtool_support_spds(struct bnxt_link_info *link_info)
 	return supported | SUPPORTED_Pause | SUPPORTED_Asym_Pause;
 }
 
+static u32 bnxt_fw_to_ethtool_support_adv_spds(struct bnxt_link_info *link_info)
+{
+	u16 fw_speeds = link_info->support_auto_speeds;
+	u32 supported;
+
+	supported = _bnxt_fw_to_ethtool_adv_spds(fw_speeds, 0);
+	if (supported)
+		supported |= SUPPORTED_Pause | SUPPORTED_Asym_Pause;
+	return supported;
+}
+
 u32 bnxt_fw_to_ethtool_speed(u16 fw_link_speed)
 {
 	switch (fw_link_speed) {
@@ -691,7 +702,7 @@ static int bnxt_get_settings(struct net_device *dev, struct ethtool_cmd *cmd)
 
 	cmd->supported = bnxt_fw_to_ethtool_support_spds(link_info);
 
-	if (link_info->auto_link_speeds)
+	if (link_info->support_auto_speeds)
 		cmd->supported |= SUPPORTED_Autoneg;
 
 	if (link_info->autoneg) {
@@ -827,8 +838,14 @@ static int bnxt_set_settings(struct net_device *dev, struct ethtool_cmd *cmd)
 		return rc;
 
 	if (cmd->autoneg == AUTONEG_ENABLE) {
-		u32 supported_spds = bnxt_fw_to_ethtool_support_spds(link_info);
+		u32 supported_spds =
+			bnxt_fw_to_ethtool_support_adv_spds(link_info);
 
+		if (!supported_spds) {
+			netdev_err(dev, "Autoneg not supported\n");
+			rc = -EINVAL;
+			goto set_setting_exit;
+		}
 		if (cmd->advertising & ~(supported_spds | ADVERTISED_Autoneg |
 					 ADVERTISED_TP | ADVERTISED_FIBRE)) {
 			netdev_err(dev, "Unsupported advertising mask (adv: 0x%x)\n",
@@ -837,15 +854,9 @@ static int bnxt_set_settings(struct net_device *dev, struct ethtool_cmd *cmd)
 			goto set_setting_exit;
 		}
 		fw_advertising = bnxt_get_fw_auto_link_speeds(cmd->advertising);
-		if (fw_advertising & ~link_info->support_speeds) {
-			netdev_err(dev, "Advertising parameters are not supported! (adv: 0x%x)\n",
-				   cmd->advertising);
-			rc = -EINVAL;
-			goto set_setting_exit;
-		}
 		link_info->autoneg |= BNXT_AUTONEG_SPEED;
 		if (!fw_advertising)
-			link_info->advertising = link_info->support_speeds;
+			link_info->advertising = link_info->support_auto_speeds;
 		else
 			link_info->advertising = fw_advertising;
 		/* any change to autoneg will cause link change, therefore the

@@ -4823,6 +4823,7 @@ static int bnxt_hwrm_phy_qcaps(struct bnxt *bp)
 	int rc = 0;
 	struct hwrm_port_phy_qcaps_input req = {0};
 	struct hwrm_port_phy_qcaps_output *resp = bp->hwrm_cmd_resp_addr;
+	struct bnxt_link_info *link_info = &bp->link_info;
 
 	if (bp->hwrm_spec_code < 0x10201)
 		return 0;
@@ -4845,6 +4846,8 @@ static int bnxt_hwrm_phy_qcaps(struct bnxt *bp)
 		bp->lpi_tmr_hi = le32_to_cpu(resp->valid_tx_lpi_timer_high) &
 				 PORT_PHY_QCAPS_RESP_TX_LPI_TIMER_HIGH_MASK;
 	}
+	link_info->support_auto_speeds =
+		le16_to_cpu(resp->supported_speeds_auto_mode);
 
 hwrm_phy_qcaps_exit:
 	mutex_unlock(&bp->hwrm_cmd_lock);
@@ -6367,6 +6370,12 @@ static int bnxt_probe_phy(struct bnxt *bp)
 			   rc);
 		return rc;
 	}
+
+	/* Older firmware does not have supported_auto_speeds, so assume
+	 * that all supported speeds can be autonegotiated.
+	 */
+	if (link_info->auto_link_speeds && !link_info->support_auto_speeds)
+		link_info->support_auto_speeds = link_info->support_speeds;
 
 	/*initialize the ethool setting copy with NVM settings */
 	if (BNXT_AUTO_MODE(link_info->auto_mode)) {
