@@ -3850,6 +3850,7 @@ static int bnxt_hwrm_stat_ctx_alloc(struct bnxt *bp)
 static int bnxt_hwrm_func_qcfg(struct bnxt *bp)
 {
 	struct hwrm_func_qcfg_input req = {0};
+	struct hwrm_func_qcfg_output *resp = bp->hwrm_cmd_resp_addr;
 	int rc;
 
 	bnxt_hwrm_cmd_hdr_init(bp, &req, HWRM_FUNC_QCFG, -1, -1);
@@ -3861,12 +3862,18 @@ static int bnxt_hwrm_func_qcfg(struct bnxt *bp)
 
 #ifdef CONFIG_BNXT_SRIOV
 	if (BNXT_VF(bp)) {
-		struct hwrm_func_qcfg_output *resp = bp->hwrm_cmd_resp_addr;
 		struct bnxt_vf_info *vf = &bp->vf;
 
 		vf->vlan = le16_to_cpu(resp->vlan) & VLAN_VID_MASK;
 	}
 #endif
+	switch (resp->port_partition_type) {
+	case FUNC_QCFG_RESP_PORT_PARTITION_TYPE_NPAR1_0:
+	case FUNC_QCFG_RESP_PORT_PARTITION_TYPE_NPAR1_5:
+	case FUNC_QCFG_RESP_PORT_PARTITION_TYPE_NPAR2_0:
+		bp->port_partition_type = resp->port_partition_type;
+		break;
+	}
 
 func_qcfg_exit:
 	mutex_unlock(&bp->hwrm_cmd_lock);
@@ -4965,7 +4972,7 @@ static int bnxt_hwrm_shutdown_link(struct bnxt *bp)
 {
 	struct hwrm_port_phy_cfg_input req = {0};
 
-	if (BNXT_VF(bp))
+	if (!BNXT_SINGLE_PF(bp))
 		return 0;
 
 	if (pci_num_vf(bp->pdev))
@@ -6426,6 +6433,8 @@ static int bnxt_init_one(struct pci_dev *pdev, const struct pci_device_id *ent)
 		rc = -1;
 		goto init_err;
 	}
+
+	bnxt_hwrm_func_qcfg(bp);
 
 	bnxt_set_tpa_flags(bp);
 	bnxt_set_ring_params(bp);

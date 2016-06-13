@@ -907,6 +907,8 @@ struct bnxt {
 
 #define BNXT_PF(bp)		(!((bp)->flags & BNXT_FLAG_VF))
 #define BNXT_VF(bp)		((bp)->flags & BNXT_FLAG_VF)
+#define BNXT_NPAR(bp)		((bp)->port_partition_type)
+#define BNXT_SINGLE_PF(bp)	(BNXT_PF(bp) && !BNXT_NPAR(bp))
 
 	struct bnxt_napi	**bnapi;
 
@@ -993,6 +995,7 @@ struct bnxt {
 	__le16			vxlan_fw_dst_port_id;
 	u8			nge_port_cnt;
 	__le16			nge_fw_dst_port_id;
+	u8			port_partition_type;
 
 	u16			rx_coal_ticks;
 	u16			rx_coal_ticks_irq;
