@@ -2096,8 +2096,10 @@ static int __init arm_smmu_init(void)
 #endif
 
 #ifdef CONFIG_PCI
-	if (!iommu_present(&pci_bus_type))
+	if (!iommu_present(&pci_bus_type)) {
+		pci_request_acs();
 		bus_set_iommu(&pci_bus_type, &arm_smmu_ops);
+	}
 #endif
 
 	return 0;
