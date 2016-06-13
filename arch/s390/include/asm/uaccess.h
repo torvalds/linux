@@ -191,7 +191,7 @@ static inline int __get_user_fn(void *x, const void __user *ptr, unsigned long s
 		__put_user_bad();				\
 		break;						\
 	 }							\
-	__pu_err;						\
+	__builtin_expect(__pu_err, 0);				\
 })
 
 #define put_user(x, ptr)					\
@@ -240,7 +240,7 @@ int __put_user_bad(void) __attribute__((noreturn));
 		__get_user_bad();				\
 		break;						\
 	}							\
-	__gu_err;						\
+	__builtin_expect(__gu_err, 0);				\
 })
 
 #define get_user(x, ptr)					\
