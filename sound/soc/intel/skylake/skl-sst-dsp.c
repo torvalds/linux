@@ -106,9 +106,9 @@ static bool is_skl_dsp_core_enable(struct sst_dsp *ctx)
 static int skl_dsp_reset_core(struct sst_dsp *ctx)
 {
 	/* stall core */
-	sst_dsp_shim_write_unlocked(ctx, SKL_ADSP_REG_ADSPCS,
-			 sst_dsp_shim_read_unlocked(ctx, SKL_ADSP_REG_ADSPCS) &
-				SKL_ADSPCS_CSTALL(SKL_DSP_CORES_MASK));
+	sst_dsp_shim_update_bits_unlocked(ctx, SKL_ADSP_REG_ADSPCS,
+			SKL_ADSPCS_CSTALL_MASK,
+			SKL_ADSPCS_CSTALL(SKL_DSP_CORES_MASK));
 
 	/* set reset state */
 	return skl_dsp_core_set_reset_state(ctx);
@@ -127,9 +127,8 @@ int skl_dsp_start_core(struct sst_dsp *ctx)
 
 	/* run core */
 	dev_dbg(ctx->dev, "run core...\n");
-	sst_dsp_shim_write_unlocked(ctx, SKL_ADSP_REG_ADSPCS,
-			 sst_dsp_shim_read_unlocked(ctx, SKL_ADSP_REG_ADSPCS) &
-				~SKL_ADSPCS_CSTALL(SKL_DSP_CORES_MASK));
+	sst_dsp_shim_update_bits_unlocked(ctx, SKL_ADSP_REG_ADSPCS,
+			SKL_ADSPCS_CSTALL_MASK, 0);
 
 	if (!is_skl_dsp_core_enable(ctx)) {
 		skl_dsp_reset_core(ctx);
