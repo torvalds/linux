@@ -2912,6 +2912,13 @@ static sector_t raid10_sync_request(struct mddev *mddev, sector_t sector_nr,
 	    max_sector > (sector_nr | chunk_mask))
 		max_sector = (sector_nr | chunk_mask) + 1;
 
+	/*
+	 * If there is non-resync activity waiting for a turn, then let it
+	 * though before starting on this new sync request.
+	 */
+	if (conf->nr_waiting)
+		schedule_timeout_uninterruptible(1);
+
 	/* Again, very different code for resync and recovery.
 	 * Both must result in an r10bio with a list of bios that
 	 * have bi_end_io, bi_sector, bi_bdev set,
