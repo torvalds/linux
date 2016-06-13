@@ -50,11 +50,6 @@ struct max77620_pin_function {
 	int mux_option;
 };
 
-struct max77620_cfg_param {
-	const char *property;
-	enum max77620_pinconf_param param;
-};
-
 static const struct pinconf_generic_params max77620_cfg_params[] = {
 	{
 		.property = "maxim,active-fps-source",
