@@ -349,8 +349,9 @@
 	mfc_pd: power-domain@10044060 {
 		compatible = "samsung,exynos4210-pd";
 		reg = <0x10044060 0x20>;
-		clocks = <&clock CLK_FIN_PLL>, <&clock CLK_MOUT_USER_ACLK333>;
-		clock-names = "oscclk", "clk0";
+		clocks = <&clock CLK_FIN_PLL>, <&clock CLK_MOUT_USER_ACLK333>,
+			 <&clock CLK_ACLK333>;
+		clock-names = "oscclk", "clk0","asb0";
 		#power-domain-cells = <0>;
 	};
 
