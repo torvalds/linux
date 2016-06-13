@@ -1342,6 +1342,14 @@ bool intel_ddi_get_hw_state(struct intel_encoder *encoder,
 	DRM_DEBUG_KMS("No pipe for ddi port %c found\n", port_name(port));
 
 out:
+	if (ret && IS_BROXTON(dev_priv)) {
+		tmp = I915_READ(BXT_PHY_CTL(port));
+		if ((tmp & (BXT_PHY_LANE_POWERDOWN_ACK |
+			    BXT_PHY_LANE_ENABLED)) != BXT_PHY_LANE_ENABLED)
+			DRM_ERROR("Port %c enabled but PHY powered down? "
+				  "(PHY_CTL %08x)\n", port_name(port), tmp);
+	}
+
 	intel_display_power_put(dev_priv, power_domain);
 
 	return ret;
@@ -1745,6 +1753,8 @@ static void intel_disable_ddi(struct intel_encoder *intel_encoder)
 bool bxt_ddi_phy_is_enabled(struct drm_i915_private *dev_priv,
 			    enum dpio_phy phy)
 {
+	enum port port;
+
 	if (!(I915_READ(BXT_P_CR_GT_DISP_PWRON) & GT_DISPLAY_POWER_ON(phy)))
 		return false;
 
@@ -1768,6 +1778,21 @@ bool bxt_ddi_phy_is_enabled(struct drm_i915_private *dev_priv,
 				 phy);
 
 		return false;
+	}
+
+	for_each_port_masked(port,
+			     phy == DPIO_PHY0 ? BIT(PORT_B) | BIT(PORT_C) :
+						BIT(PORT_A)) {
+		u32 tmp = I915_READ(BXT_PHY_CTL(port));
+
+		if (tmp & BXT_PHY_CMNLANE_POWERDOWN_ACK) {
+			DRM_DEBUG_DRIVER("DDI PHY %d powered, but common lane "
+					 "for port %c powered down "
+					 "(PHY_CTL %08x)\n",
+					 phy, port_name(port), tmp);
+
+			return false;
+		}
 	}
 
 	return true;

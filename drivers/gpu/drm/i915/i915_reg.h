@@ -1279,6 +1279,15 @@ enum skl_disp_power_wells {
 #define BXT_P_CR_GT_DISP_PWRON		_MMIO(0x138090)
 #define   GT_DISPLAY_POWER_ON(phy)	(1 << (phy))
 
+#define _BXT_PHY_CTL_DDI_A		0x64C00
+#define _BXT_PHY_CTL_DDI_B		0x64C10
+#define _BXT_PHY_CTL_DDI_C		0x64C20
+#define   BXT_PHY_CMNLANE_POWERDOWN_ACK	(1 << 10)
+#define   BXT_PHY_LANE_POWERDOWN_ACK	(1 << 9)
+#define   BXT_PHY_LANE_ENABLED		(1 << 8)
+#define BXT_PHY_CTL(port)		_MMIO_PORT(port, _BXT_PHY_CTL_DDI_A, \
+							 _BXT_PHY_CTL_DDI_B)
+
 #define _PHY_CTL_FAMILY_EDP		0x64C80
 #define _PHY_CTL_FAMILY_DDI		0x64C90
 #define   COMMON_RESET_DIS		(1 << 31)
