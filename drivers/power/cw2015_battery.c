@@ -338,29 +338,6 @@ static int cw_get_capacity(struct cw_battery *cw_bat)
 		return ret;
 	cw_capacity = reg_val;
 
-	if (cw_capacity == 0 && if_quickstart == 0) {
-		dev_info(&cw_bat->client->dev,
-			 "the cw201x capacity is 0 !!!!!!!, funciton: %s, line: %d\n",
-			 __func__, __LINE__);
-
-		reset_val = MODE_SLEEP;
-		ret = cw_write(cw_bat->client, REG_MODE, &reset_val);
-		if (ret < 0)
-			return ret;
-		reset_val = MODE_NORMAL;
-		msleep(10);
-		ret = cw_write(cw_bat->client, REG_MODE, &reset_val);
-		if (ret < 0)
-			return ret;
-		dev_info(&cw_bat->client->dev,
-			 "report battery capacity error1");
-		if_quickstart = 1;
-		msleep(200);
-	} else
-		dev_dbg(&cw_bat->client->dev,
-			"the cw201x capacity is %d, funciton: %s\n",
-			cw_capacity, __func__);
-
 	if (cw_capacity < 0 || cw_capacity > 100) {
 		dev_err(&cw_bat->client->dev,
 			"get cw_capacity error; cw_capacity = %d\n",
@@ -1302,7 +1279,7 @@ static int cw_bat_probe(struct i2c_client *client,
 	cw_bat->dc_online = 0;
 	cw_bat->usb_online = 0;
 	cw_bat->charger_mode = 0;
-	cw_bat->capacity = 2;
+	cw_bat->capacity = 1;
 	cw_bat->voltage = 0;
 	cw_bat->status = 0;
 	cw_bat->time_to_empty = 0;
