@@ -3051,6 +3051,10 @@ static void rtl_hw_phy_work_func_t(struct work_struct *work)
 
 	tp->rtl_ops.hw_phy_cfg(tp);
 
+	rtl8152_set_speed(tp, AUTONEG_ENABLE,
+			  tp->mii.supports_gmii ? SPEED_1000 : SPEED_100,
+			  DUPLEX_FULL);
+
 	mutex_unlock(&tp->control);
 
 	usb_autopm_put_interface(tp->intf);
@@ -3104,9 +3108,6 @@ static int rtl8152_open(struct net_device *netdev)
 
 	tp->rtl_ops.up(tp);
 
-	rtl8152_set_speed(tp, AUTONEG_ENABLE,
-			  tp->mii.supports_gmii ? SPEED_1000 : SPEED_100,
-			  DUPLEX_FULL);
 	netif_carrier_off(netdev);
 	netif_start_queue(netdev);
 	set_bit(WORK_ENABLE, &tp->flags);
@@ -3549,10 +3550,6 @@ static int rtl8152_resume(struct usb_interface *intf)
 			napi_enable(&tp->napi);
 		} else {
 			tp->rtl_ops.up(tp);
-			rtl8152_set_speed(tp, AUTONEG_ENABLE,
-					  tp->mii.supports_gmii ?
-					  SPEED_1000 : SPEED_100,
-					  DUPLEX_FULL);
 			netif_carrier_off(tp->netdev);
 			set_bit(WORK_ENABLE, &tp->flags);
 		}
