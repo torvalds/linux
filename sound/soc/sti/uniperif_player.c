@@ -1029,9 +1029,9 @@ static int uni_player_parse_dt_audio_glue(struct platform_device *pdev,
 
 	regmap = syscon_regmap_lookup_by_phandle(node, "st,syscfg");
 
-	if (!regmap) {
+	if (IS_ERR(regmap)) {
 		dev_err(&pdev->dev, "sti-audio-clk-glue syscf not found\n");
-		return -EINVAL;
+		return PTR_ERR(regmap);
 	}
 
 	player->clk_sel = regmap_field_alloc(regmap, regfield[0]);
