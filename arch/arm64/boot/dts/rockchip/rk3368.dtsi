@@ -285,6 +285,7 @@
 			clocks = <&cru ACLK_DMAC_PERI>;
 			clock-names = "apb_pclk";
 			arm,pl330-broken-no-flushp;
+			peripherals-req-type-burst;
 		};
 
 		dmac_bus: dma-controller@ff600000 {
@@ -296,6 +297,7 @@
 			clocks = <&cru ACLK_DMAC_BUS>;
 			clock-names = "apb_pclk";
 			arm,pl330-broken-no-flushp;
+			peripherals-req-type-burst;
 		};
 	};
 
