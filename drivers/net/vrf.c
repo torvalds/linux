@@ -785,9 +785,63 @@ out:
 	return rc;
 }
 
+static struct rt6_info *vrf_ip6_route_lookup(struct net *net,
+					     const struct net_device *dev,
+					     struct flowi6 *fl6,
+					     int ifindex,
+					     int flags)
+{
+	struct net_vrf *vrf = netdev_priv(dev);
+	struct fib6_table *table = NULL;
+	struct rt6_info *rt6;
+
+	rcu_read_lock();
+
+	/* fib6_table does not have a refcnt and can not be freed */
+	rt6 = rcu_dereference(vrf->rt6);
+	if (likely(rt6))
+		table = rt6->rt6i_table;
+
+	rcu_read_unlock();
+
+	if (!table)
+		return NULL;
+
+	return ip6_pol_route(net, table, ifindex, fl6, flags);
+}
+
+static void vrf_ip6_input_dst(struct sk_buff *skb, struct net_device *vrf_dev,
+			      int ifindex)
+{
+	const struct ipv6hdr *iph = ipv6_hdr(skb);
+	struct flowi6 fl6 = {
+		.daddr          = iph->daddr,
+		.saddr          = iph->saddr,
+		.flowlabel      = ip6_flowinfo(iph),
+		.flowi6_mark    = skb->mark,
+		.flowi6_proto   = iph->nexthdr,
+		.flowi6_iif     = ifindex,
+	};
+	struct net *net = dev_net(vrf_dev);
+	struct rt6_info *rt6;
+
+	rt6 = vrf_ip6_route_lookup(net, vrf_dev, &fl6, ifindex,
+				   RT6_LOOKUP_F_HAS_SADDR | RT6_LOOKUP_F_IFACE);
+	if (unlikely(!rt6))
+		return;
+
+	if (unlikely(&rt6->dst == &net->ipv6.ip6_null_entry->dst))
+		return;
+
+	skb_dst_set(skb, &rt6->dst);
+}
+
 static struct sk_buff *vrf_ip6_rcv(struct net_device *vrf_dev,
 				   struct sk_buff *skb)
 {
+	int orig_iif = skb->skb_iif;
+	bool need_strict;
+
 	/* loopback traffic; do not push through packet taps again.
 	 * Reset pkt_type for upper layers to process skb
 	 */
@@ -798,8 +852,11 @@ static struct sk_buff *vrf_ip6_rcv(struct net_device *vrf_dev,
 		goto out;
 	}
 
-	/* if packet is NDISC keep the ingress interface */
-	if (!ipv6_ndisc_frame(skb)) {
+	/* if packet is NDISC or addressed to multicast or link-local
+	 * then keep the ingress interface
+	 */
+	need_strict = rt6_need_strict(&ipv6_hdr(skb)->daddr);
+	if (!ipv6_ndisc_frame(skb) && !need_strict) {
 		skb->dev = vrf_dev;
 		skb->skb_iif = vrf_dev->ifindex;
 
@@ -809,6 +866,9 @@ static struct sk_buff *vrf_ip6_rcv(struct net_device *vrf_dev,
 
 		IP6CB(skb)->flags |= IP6SKB_L3SLAVE;
 	}
+
+	if (need_strict)
+		vrf_ip6_input_dst(skb, vrf_dev, orig_iif);
 
 out:
 	return skb;
@@ -863,11 +923,35 @@ static struct sk_buff *vrf_l3_rcv(struct net_device *vrf_dev,
 static struct dst_entry *vrf_get_rt6_dst(const struct net_device *dev,
 					 struct flowi6 *fl6)
 {
+	bool need_strict = rt6_need_strict(&fl6->daddr);
+	struct net_vrf *vrf = netdev_priv(dev);
+	struct net *net = dev_net(dev);
 	struct dst_entry *dst = NULL;
+	struct rt6_info *rt;
 
-	if (!(fl6->flowi6_flags & FLOWI_FLAG_L3MDEV_SRC)) {
-		struct net_vrf *vrf = netdev_priv(dev);
-		struct rt6_info *rt;
+	/* send to link-local or multicast address */
+	if (need_strict) {
+		int flags = RT6_LOOKUP_F_IFACE;
+
+		/* VRF device does not have a link-local address and
+		 * sending packets to link-local or mcast addresses over
+		 * a VRF device does not make sense
+		 */
+		if (fl6->flowi6_oif == dev->ifindex) {
+			struct dst_entry *dst = &net->ipv6.ip6_null_entry->dst;
+
+			dst_hold(dst);
+			return dst;
+		}
+
+		if (!ipv6_addr_any(&fl6->saddr))
+			flags |= RT6_LOOKUP_F_HAS_SADDR;
+
+		rt = vrf_ip6_route_lookup(net, dev, fl6, fl6->flowi6_oif, flags);
+		if (rt)
+			dst = &rt->dst;
+
+	} else if (!(fl6->flowi6_flags & FLOWI_FLAG_L3MDEV_SRC)) {
 
 		rcu_read_lock();
 
@@ -879,6 +963,10 @@ static struct dst_entry *vrf_get_rt6_dst(const struct net_device *dev,
 
 		rcu_read_unlock();
 	}
+
+	/* make sure oif is set to VRF device for lookup */
+	if (!need_strict)
+		fl6->flowi6_oif = dev->ifindex;
 
 	return dst;
 }
