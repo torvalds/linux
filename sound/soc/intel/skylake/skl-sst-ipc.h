@@ -63,6 +63,9 @@ struct skl_sst {
 
 	/* Populate module information */
 	struct list_head uuid_list;
+
+	/* Is firmware loaded */
+	bool fw_loaded;
 };
 
 struct skl_ipc_init_instance_msg {

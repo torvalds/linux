@@ -248,6 +248,7 @@ static int skl_suspend(struct device *dev)
 		ret = _skl_suspend(ebus);
 		if (ret < 0)
 			return ret;
+		skl->skl_sst->fw_loaded = false;
 	}
 
 	if (IS_ENABLED(CONFIG_SND_SOC_HDAC_HDMI)) {

@@ -153,6 +153,7 @@ static int skl_load_base_firmware(struct sst_dsp *ctx)
 
 		dev_dbg(ctx->dev, "Download firmware successful%d\n", ret);
 		skl_dsp_set_state_locked(ctx, SKL_DSP_RUNNING);
+		skl->fw_loaded = true;
 	}
 	return 0;
 transfer_firmware_failed:

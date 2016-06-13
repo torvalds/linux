@@ -185,6 +185,7 @@ static int bxt_load_base_firmware(struct sst_dsp *ctx)
 		} else {
 			skl_dsp_set_state_locked(ctx, SKL_DSP_RUNNING);
 			ret = 0;
+			skl->fw_loaded = true;
 		}
 	}
 
@@ -199,6 +200,14 @@ static int bxt_set_dsp_D0(struct sst_dsp *ctx)
 	int ret;
 
 	skl->boot_complete = false;
+
+	if (skl->fw_loaded == false) {
+		dev_dbg(ctx->dev, "Re-loading fw\n");
+		ret = bxt_load_base_firmware(ctx);
+		if (ret < 0)
+			dev_err(ctx->dev, "reload fw failed: %d\n", ret);
+		return ret;
+	}
 
 	ret = skl_dsp_enable_core(ctx);
 	if (ret < 0) {
