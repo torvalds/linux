@@ -210,6 +210,7 @@ config PINCTRL_COH901
 config PINCTRL_MAX77620
 	tristate "MAX77620/MAX20024 Pincontrol support"
 	depends on MFD_MAX77620
+	select PINMUX
 	select GENERIC_PINCONF
 	help
 	  Say Yes here to enable Pin control support for Maxim PMIC MAX77620.
