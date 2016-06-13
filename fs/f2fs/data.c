@@ -102,7 +102,8 @@ static inline void __submit_bio(struct f2fs_sb_info *sbi, int rw,
 {
 	if (!is_read_io(rw)) {
 		atomic_inc(&sbi->nr_wb_bios);
-		if (current->plug && (type == DATA || type == NODE))
+		if (f2fs_sb_mounted_hmsmr(sbi->sb) &&
+			current->plug && (type == DATA || type == NODE))
 			blk_finish_plug(current->plug);
 	}
 	submit_bio(rw, bio);

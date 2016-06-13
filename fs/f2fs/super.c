@@ -515,12 +515,10 @@ static int parse_options(struct super_block *sb, char *options)
 				return -ENOMEM;
 			if (strlen(name) == 8 &&
 					!strncmp(name, "adaptive", 8)) {
-				set_opt(sbi, ADAPTIVE);
-				clear_opt(sbi, LFS);
+				set_opt_mode(sbi, F2FS_MOUNT_ADAPTIVE);
 			} else if (strlen(name) == 3 &&
 					!strncmp(name, "lfs", 3)) {
-				clear_opt(sbi, ADAPTIVE);
-				set_opt(sbi, LFS);
+				set_opt_mode(sbi, F2FS_MOUNT_LFS);
 			} else {
 				kfree(name);
 				return -EINVAL;
@@ -966,7 +964,12 @@ static void default_options(struct f2fs_sb_info *sbi)
 	set_opt(sbi, EXTENT_CACHE);
 	sbi->sb->s_flags |= MS_LAZYTIME;
 	set_opt(sbi, FLUSH_MERGE);
-	set_opt(sbi, ADAPTIVE);
+	if (f2fs_sb_mounted_hmsmr(sbi->sb)) {
+		set_opt_mode(sbi, F2FS_MOUNT_LFS);
+		set_opt(sbi, DISCARD);
+	} else {
+		set_opt_mode(sbi, F2FS_MOUNT_ADAPTIVE);
+	}
 
 #ifdef CONFIG_F2FS_FS_XATTR
 	set_opt(sbi, XATTR_USER);
@@ -1615,6 +1618,8 @@ try_onemore:
 		goto free_sbi;
 
 	sb->s_fs_info = sbi;
+	sbi->raw_super = raw_super;
+
 	default_options(sbi);
 	/* parse mount options */
 	options = kstrdup((const char *)data, GFP_KERNEL);
@@ -1644,7 +1649,6 @@ try_onemore:
 	memcpy(sb->s_uuid, raw_super->uuid, sizeof(raw_super->uuid));
 
 	/* init f2fs-specific super block info */
-	sbi->raw_super = raw_super;
 	sbi->valid_super_block = valid_super_block;
 	mutex_init(&sbi->gc_mutex);
 	mutex_init(&sbi->cp_mutex);
