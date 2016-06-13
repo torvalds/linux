@@ -53,6 +53,8 @@
 #include <linux/errno.h>
 #include <linux/netdevice.h>
 #include <linux/etherdevice.h>
+#include <linux/of.h>
+#include <linux/of_device.h>
 #include <linux/platform_device.h>
 #include <linux/kernel.h>
 #include <linux/types.h>
@@ -1895,9 +1897,17 @@ static int cs89x0_platform_remove(struct platform_device *pdev)
 	return 0;
 }
 
+static const struct __maybe_unused of_device_id cs89x0_match[] = {
+	{ .compatible = "cirrus,cs8900", },
+	{ .compatible = "cirrus,cs8920", },
+	{ },
+};
+MODULE_DEVICE_TABLE(of, cs89x0_match);
+
 static struct platform_driver cs89x0_driver = {
 	.driver	= {
-		.name	= DRV_NAME,
+		.name		= DRV_NAME,
+		.of_match_table	= of_match_ptr(cs89x0_match),
 	},
 	.remove	= cs89x0_platform_remove,
 };
