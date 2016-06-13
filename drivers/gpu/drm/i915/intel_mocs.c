@@ -162,7 +162,7 @@ static bool get_mocs_settings(struct drm_i915_private *dev_priv,
 
 		for (i = 0; i < table->size; i++)
 			if (WARN_ON(table->table[i].l3cc_value &
-				    (L3_ESC(1) || L3_SCC(0x7))))
+				    (L3_ESC(1) | L3_SCC(0x7))))
 				return false;
 	}
 
