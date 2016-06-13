@@ -339,7 +339,9 @@ static void amd_sched_job_finish(struct work_struct *work)
 	if (sched->timeout != MAX_SCHEDULE_TIMEOUT) {
 		struct amd_sched_job *next;
 
+		spin_unlock_irqrestore(&sched->job_list_lock, flags);
 		cancel_delayed_work_sync(&s_job->work_tdr);
+		spin_lock_irqsave(&sched->job_list_lock, flags);
 
 		/* queue TDR for next job */
 		next = list_first_entry_or_null(&sched->ring_mirror_list,
