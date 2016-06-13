@@ -454,10 +454,33 @@ static int broxton_audio_probe(struct platform_device *pdev)
 	return devm_snd_soc_register_card(&pdev->dev, &broxton_rt298);
 }
 
+/*
+ * we want the card to be suspend first and then platform driver. This
+ * allows the DAPM to tear down pipelines on suspend and then platform shuts
+ * down the DSP. For this use .prepare for suspending card
+ *
+ * Similarly, use complete to let DSP download firmware first and then sync
+ * DAPM and restore pipelines to DSP
+ */
+static void broxton_rt298_complete(struct device *dev)
+{
+	snd_soc_resume(dev);
+}
+
+static const struct dev_pm_ops broxton_pm_ops = {
+	.prepare = snd_soc_suspend,
+	.complete = broxton_rt298_complete,
+	.freeze = snd_soc_suspend,
+	.thaw = snd_soc_resume,
+	.poweroff = snd_soc_poweroff,
+	.restore = snd_soc_resume,
+};
+
 static struct platform_driver broxton_audio = {
 	.probe = broxton_audio_probe,
 	.driver = {
 		.name = "bxt_alc298s_i2s",
+		.pm = &broxton_pm_ops,
 	},
 };
 module_platform_driver(broxton_audio)
