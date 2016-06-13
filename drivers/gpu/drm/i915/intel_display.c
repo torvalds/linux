@@ -11643,6 +11643,7 @@ void intel_check_page_flip(struct drm_i915_private *dev_priv, int pipe)
 	spin_unlock(&dev->event_lock);
 }
 
+__maybe_unused
 static int intel_crtc_page_flip(struct drm_crtc *crtc,
 				struct drm_framebuffer *fb,
 				struct drm_pending_vblank_event *event,
@@ -14004,7 +14005,7 @@ static const struct drm_crtc_funcs intel_crtc_funcs = {
 	.set_config = drm_atomic_helper_set_config,
 	.set_property = drm_atomic_helper_crtc_set_property,
 	.destroy = intel_crtc_destroy,
-	.page_flip = intel_crtc_page_flip,
+	.page_flip = drm_atomic_helper_page_flip,
 	.atomic_duplicate_state = intel_crtc_duplicate_state,
 	.atomic_destroy_state = intel_crtc_destroy_state,
 };
