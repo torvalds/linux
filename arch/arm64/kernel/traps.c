@@ -52,15 +52,14 @@ static const char *handler[]= {
 int show_unhandled_signals = 1;
 
 /*
- * Dump out the contents of some memory nicely...
+ * Dump out the contents of some kernel memory nicely...
  */
 static void dump_mem(const char *lvl, const char *str, unsigned long bottom,
-		     unsigned long top, bool compat)
+		     unsigned long top)
 {
 	unsigned long first;
 	mm_segment_t fs;
 	int i;
-	unsigned int width = compat ? 4 : 8;
 
 	/*
 	 * We need to switch to kernel mode so that we can use __get_user
@@ -78,22 +77,15 @@ static void dump_mem(const char *lvl, const char *str, unsigned long bottom,
 		memset(str, ' ', sizeof(str));
 		str[sizeof(str) - 1] = '\0';
 
-		for (p = first, i = 0; i < (32 / width)
-					&& p < top; i++, p += width) {
+		for (p = first, i = 0; i < (32 / 8)
+					&& p < top; i++, p += 8) {
 			if (p >= bottom && p < top) {
 				unsigned long val;
 
-				if (width == 8) {
-					if (__get_user(val, (unsigned long *)p) == 0)
-						sprintf(str + i * 17, " %016lx", val);
-					else
-						sprintf(str + i * 17, " ????????????????");
-				} else {
-					if (__get_user(val, (unsigned int *)p) == 0)
-						sprintf(str + i * 9, " %08lx", val);
-					else
-						sprintf(str + i * 9, " ????????");
-				}
+				if (__get_user(val, (unsigned long *)p) == 0)
+					sprintf(str + i * 17, " %016lx", val);
+				else
+					sprintf(str + i * 17, " ????????????????");
 			}
 		}
 		printk("%s%04lx:%s\n", lvl, first & 0xffff, str);
@@ -216,7 +208,7 @@ static void dump_backtrace(struct pt_regs *regs, struct task_struct *tsk)
 				stack = IRQ_STACK_TO_TASK_STACK(irq_stack_ptr);
 
 			dump_mem("", "Exception stack", stack,
-				 stack + sizeof(struct pt_regs), false);
+				 stack + sizeof(struct pt_regs));
 		}
 	}
 }
@@ -254,10 +246,9 @@ static int __die(const char *str, int err, struct thread_info *thread,
 	pr_emerg("Process %.*s (pid: %d, stack limit = 0x%p)\n",
 		 TASK_COMM_LEN, tsk->comm, task_pid_nr(tsk), thread + 1);
 
-	if (!user_mode(regs) || in_interrupt()) {
+	if (!user_mode(regs)) {
 		dump_mem(KERN_EMERG, "Stack: ", regs->sp,
-			 THREAD_SIZE + (unsigned long)task_stack_page(tsk),
-			 compat_user_mode(regs));
+			 THREAD_SIZE + (unsigned long)task_stack_page(tsk));
 		dump_backtrace(regs, tsk);
 		dump_instr(KERN_EMERG, regs);
 	}
