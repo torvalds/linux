@@ -335,8 +335,6 @@ struct pp_hwmgr_func {
 	int (*get_clock_by_type)(struct pp_hwmgr *hwmgr, enum amd_pp_clock_type type, struct amd_pp_clocks *clocks);
 	int (*get_max_high_clocks)(struct pp_hwmgr *hwmgr, struct amd_pp_simple_clock_info *clocks);
 	int (*power_off_asic)(struct pp_hwmgr *hwmgr);
-	int (*get_pp_table)(struct pp_hwmgr *hwmgr, char **table);
-	int (*set_pp_table)(struct pp_hwmgr *hwmgr, const char *buf, size_t size);
 	int (*force_clock_level)(struct pp_hwmgr *hwmgr, enum pp_clock_type type, uint32_t mask);
 	int (*print_clock_levels)(struct pp_hwmgr *hwmgr, enum pp_clock_type type, char *buf);
 	int (*enable_per_cu_power_gating)(struct pp_hwmgr *hwmgr, bool enable);

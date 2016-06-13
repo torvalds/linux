@@ -6037,42 +6037,6 @@ static int tonga_get_fan_control_mode(struct pp_hwmgr *hwmgr)
 				CG_FDO_CTRL2, FDO_PWM_MODE);
 }
 
-static int tonga_get_pp_table(struct pp_hwmgr *hwmgr, char **table)
-{
-	struct tonga_hwmgr *data = (struct tonga_hwmgr *)(hwmgr->backend);
-
-	if (!data->soft_pp_table) {
-		data->soft_pp_table = kmemdup(hwmgr->soft_pp_table,
-					      hwmgr->soft_pp_table_size,
-					      GFP_KERNEL);
-		if (!data->soft_pp_table)
-			return -ENOMEM;
-	}
-
-	*table = (char *)&data->soft_pp_table;
-
-	return hwmgr->soft_pp_table_size;
-}
-
-static int tonga_set_pp_table(struct pp_hwmgr *hwmgr, const char *buf, size_t size)
-{
-	struct tonga_hwmgr *data = (struct tonga_hwmgr *)(hwmgr->backend);
-
-	if (!data->soft_pp_table) {
-		data->soft_pp_table = kzalloc(hwmgr->soft_pp_table_size, GFP_KERNEL);
-		if (!data->soft_pp_table)
-			return -ENOMEM;
-	}
-
-	memcpy(data->soft_pp_table, buf, size);
-
-	hwmgr->soft_pp_table = data->soft_pp_table;
-
-	/* TODO: re-init powerplay to implement modified pptable */
-
-	return 0;
-}
-
 static int tonga_force_clock_level(struct pp_hwmgr *hwmgr,
 		enum pp_clock_type type, uint32_t mask)
 {
@@ -6303,8 +6267,6 @@ static const struct pp_hwmgr_func tonga_hwmgr_funcs = {
 	.check_states_equal = tonga_check_states_equal,
 	.set_fan_control_mode = tonga_set_fan_control_mode,
 	.get_fan_control_mode = tonga_get_fan_control_mode,
-	.get_pp_table = tonga_get_pp_table,
-	.set_pp_table = tonga_set_pp_table,
 	.force_clock_level = tonga_force_clock_level,
 	.print_clock_levels = tonga_print_clock_levels,
 	.get_sclk_od = tonga_get_sclk_od,

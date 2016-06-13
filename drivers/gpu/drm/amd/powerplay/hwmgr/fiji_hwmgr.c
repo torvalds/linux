@@ -5296,42 +5296,6 @@ static int fiji_get_fan_control_mode(struct pp_hwmgr *hwmgr)
 				CG_FDO_CTRL2, FDO_PWM_MODE);
 }
 
-static int fiji_get_pp_table(struct pp_hwmgr *hwmgr, char **table)
-{
-	struct fiji_hwmgr *data = (struct fiji_hwmgr *)(hwmgr->backend);
-
-	if (!data->soft_pp_table) {
-		data->soft_pp_table = kmemdup(hwmgr->soft_pp_table,
-					      hwmgr->soft_pp_table_size,
-					      GFP_KERNEL);
-		if (!data->soft_pp_table)
-			return -ENOMEM;
-	}
-
-	*table = (char *)&data->soft_pp_table;
-
-	return hwmgr->soft_pp_table_size;
-}
-
-static int fiji_set_pp_table(struct pp_hwmgr *hwmgr, const char *buf, size_t size)
-{
-	struct fiji_hwmgr *data = (struct fiji_hwmgr *)(hwmgr->backend);
-
-	if (!data->soft_pp_table) {
-		data->soft_pp_table = kzalloc(hwmgr->soft_pp_table_size, GFP_KERNEL);
-		if (!data->soft_pp_table)
-			return -ENOMEM;
-	}
-
-	memcpy(data->soft_pp_table, buf, size);
-
-	hwmgr->soft_pp_table = data->soft_pp_table;
-
-	/* TODO: re-init powerplay to implement modified pptable */
-
-	return 0;
-}
-
 static int fiji_force_clock_level(struct pp_hwmgr *hwmgr,
 		enum pp_clock_type type, uint32_t mask)
 {
@@ -5623,8 +5587,6 @@ static const struct pp_hwmgr_func fiji_hwmgr_funcs = {
 	.get_fan_control_mode = fiji_get_fan_control_mode,
 	.check_states_equal = fiji_check_states_equal,
 	.check_smc_update_required_for_display_configuration = fiji_check_smc_update_required_for_display_configuration,
-	.get_pp_table = fiji_get_pp_table,
-	.set_pp_table = fiji_set_pp_table,
 	.force_clock_level = fiji_force_clock_level,
 	.print_clock_levels = fiji_print_clock_levels,
 	.get_sclk_od = fiji_get_sclk_od,

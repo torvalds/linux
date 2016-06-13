@@ -4959,42 +4959,6 @@ int polaris10_setup_asic_task(struct pp_hwmgr *hwmgr)
 	return result;
 }
 
-static int polaris10_get_pp_table(struct pp_hwmgr *hwmgr, char **table)
-{
-	struct polaris10_hwmgr *data = (struct polaris10_hwmgr *)(hwmgr->backend);
-
-	if (!data->soft_pp_table) {
-		data->soft_pp_table = kmemdup(hwmgr->soft_pp_table,
-					      hwmgr->soft_pp_table_size,
-					      GFP_KERNEL);
-		if (!data->soft_pp_table)
-			return -ENOMEM;
-	}
-
-	*table = (char *)&data->soft_pp_table;
-
-	return hwmgr->soft_pp_table_size;
-}
-
-static int polaris10_set_pp_table(struct pp_hwmgr *hwmgr, const char *buf, size_t size)
-{
-	struct polaris10_hwmgr *data = (struct polaris10_hwmgr *)(hwmgr->backend);
-
-	if (!data->soft_pp_table) {
-		data->soft_pp_table = kzalloc(hwmgr->soft_pp_table_size, GFP_KERNEL);
-		if (!data->soft_pp_table)
-			return -ENOMEM;
-	}
-
-	memcpy(data->soft_pp_table, buf, size);
-
-	hwmgr->soft_pp_table = data->soft_pp_table;
-
-	/* TODO: re-init powerplay to implement modified pptable */
-
-	return 0;
-}
-
 static int polaris10_force_clock_level(struct pp_hwmgr *hwmgr,
 		enum pp_clock_type type, uint32_t mask)
 {
@@ -5258,8 +5222,6 @@ static const struct pp_hwmgr_func polaris10_hwmgr_funcs = {
 	.check_states_equal = polaris10_check_states_equal,
 	.set_fan_control_mode = polaris10_set_fan_control_mode,
 	.get_fan_control_mode = polaris10_get_fan_control_mode,
-	.get_pp_table = polaris10_get_pp_table,
-	.set_pp_table = polaris10_set_pp_table,
 	.force_clock_level = polaris10_force_clock_level,
 	.print_clock_levels = polaris10_print_clock_levels,
 	.enable_per_cu_power_gating = polaris10_phm_enable_per_cu_power_gating,
