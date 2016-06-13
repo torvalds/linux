@@ -999,6 +999,7 @@ static int gb_camera_probe(struct gb_bundle *bundle,
 		return -ENOMEM;
 
 	gcam->bundle = bundle;
+	mutex_init(&gcam->mutex);
 
 	conn = gb_connection_create(bundle, mgmt_cport_id,
 				    gb_camera_request_handler);
@@ -1013,8 +1014,6 @@ static int gb_camera_probe(struct gb_bundle *bundle,
 	ret = gb_connection_enable(conn);
 	if (ret)
 		goto error;
-
-	mutex_init(&gcam->mutex);
 
 	/*
 	 * Create the data connection between the camera module data CPort and
