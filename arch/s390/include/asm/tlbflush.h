@@ -60,18 +60,25 @@ static inline void __tlb_flush_full(struct mm_struct *mm)
 	preempt_enable();
 }
 
-/*
- * Flush TLB entries for a specific ASCE on all CPUs. Should never be used
- * when more than one asce (e.g. gmap) ran on this mm.
- */
-static inline void __tlb_flush_asce(struct mm_struct *mm, unsigned long asce)
+static inline void __tlb_flush_mm(struct mm_struct *mm)
 {
+	unsigned long gmap_asce;
+
+	/*
+	 * If the machine has IDTE we prefer to do a per mm flush
+	 * on all cpus instead of doing a local flush if the mm
+	 * only ran on the local cpu.
+	 */
 	preempt_disable();
 	atomic_inc(&mm->context.flush_count);
-	if (MACHINE_HAS_IDTE)
-		__tlb_flush_idte(asce);
-	else
-		__tlb_flush_global();
+	gmap_asce = READ_ONCE(mm->context.gmap_asce);
+	if (MACHINE_HAS_IDTE && gmap_asce != -1UL) {
+		if (gmap_asce)
+			__tlb_flush_idte(gmap_asce);
+		__tlb_flush_idte(mm->context.asce);
+	} else {
+		__tlb_flush_full(mm);
+	}
 	/* Reset TLB flush mask */
 	cpumask_copy(mm_cpumask(mm), &mm->context.cpu_attach_mask);
 	atomic_dec(&mm->context.flush_count);
@@ -92,7 +99,7 @@ static inline void __tlb_flush_kernel(void)
 /*
  * Flush TLB entries for a specific ASCE on all CPUs.
  */
-static inline void __tlb_flush_asce(struct mm_struct *mm, unsigned long asce)
+static inline void __tlb_flush_mm(struct mm_struct *mm)
 {
 	__tlb_flush_local();
 }
@@ -102,19 +109,6 @@ static inline void __tlb_flush_kernel(void)
 	__tlb_flush_local();
 }
 #endif
-
-static inline void __tlb_flush_mm(struct mm_struct * mm)
-{
-	/*
-	 * If the machine has IDTE we prefer to do a per mm flush
-	 * on all cpus instead of doing a local flush if the mm
-	 * only ran on the local cpu.
-	 */
-	if (MACHINE_HAS_IDTE && list_empty(&mm->context.gmap_list))
-		__tlb_flush_asce(mm, mm->context.asce);
-	else
-		__tlb_flush_full(mm);
-}
 
 static inline void __tlb_flush_mm_lazy(struct mm_struct * mm)
 {

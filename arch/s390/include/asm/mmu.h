@@ -12,6 +12,7 @@ typedef struct {
 	struct list_head pgtable_list;
 	spinlock_t gmap_lock;
 	struct list_head gmap_list;
+	unsigned long gmap_asce;
 	unsigned long asce;
 	unsigned long asce_limit;
 	unsigned long vdso_base;
