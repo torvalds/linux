@@ -2346,9 +2346,20 @@ static int kvm_vm_ioctl_create_vcpu(struct kvm *kvm, u32 id)
 	if (id >= KVM_MAX_VCPU_ID)
 		return -EINVAL;
 
+	mutex_lock(&kvm->lock);
+	if (kvm->created_vcpus == KVM_MAX_VCPUS) {
+		mutex_unlock(&kvm->lock);
+		return -EINVAL;
+	}
+
+	kvm->created_vcpus++;
+	mutex_unlock(&kvm->lock);
+
 	vcpu = kvm_arch_vcpu_create(kvm, id);
-	if (IS_ERR(vcpu))
-		return PTR_ERR(vcpu);
+	if (IS_ERR(vcpu)) {
+		r = PTR_ERR(vcpu);
+		goto vcpu_decrement;
+	}
 
 	preempt_notifier_init(&vcpu->preempt_notifier, &kvm_preempt_ops);
 
@@ -2358,10 +2369,6 @@ static int kvm_vm_ioctl_create_vcpu(struct kvm *kvm, u32 id)
 
 	mutex_lock(&kvm->lock);
 	if (!kvm_vcpu_compatible(vcpu)) {
-		r = -EINVAL;
-		goto unlock_vcpu_destroy;
-	}
-	if (atomic_read(&kvm->online_vcpus) == KVM_MAX_VCPUS) {
 		r = -EINVAL;
 		goto unlock_vcpu_destroy;
 	}
@@ -2397,6 +2404,10 @@ unlock_vcpu_destroy:
 	mutex_unlock(&kvm->lock);
 vcpu_destroy:
 	kvm_arch_vcpu_destroy(vcpu);
+vcpu_decrement:
+	mutex_lock(&kvm->lock);
+	kvm->created_vcpus--;
+	mutex_unlock(&kvm->lock);
 	return r;
 }
 
