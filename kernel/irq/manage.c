@@ -1117,6 +1117,13 @@ __setup_irq(unsigned int irq, struct irq_desc *desc, struct irqaction *new)
 	new->irq = irq;
 
 	/*
+	 * If the trigger type is not specified by the caller,
+	 * then use the default for this interrupt.
+	 */
+	if (!(new->flags & IRQF_TRIGGER_MASK))
+		new->flags |= irqd_get_trigger_type(&desc->irq_data);
+
+	/*
 	 * Check whether the interrupt nests into another interrupt
 	 * thread.
 	 */
@@ -1409,9 +1416,17 @@ int setup_irq(unsigned int irq, struct irqaction *act)
 
 	if (!desc || WARN_ON(irq_settings_is_per_cpu_devid(desc)))
 		return -EINVAL;
+
+	retval = irq_chip_pm_get(&desc->irq_data);
+	if (retval < 0)
+		return retval;
+
 	chip_bus_lock(desc);
 	retval = __setup_irq(irq, desc, act);
 	chip_bus_sync_unlock(desc);
+
+	if (retval)
+		irq_chip_pm_put(&desc->irq_data);
 
 	return retval;
 }
@@ -1506,6 +1521,7 @@ static struct irqaction *__free_irq(unsigned int irq, void *dev_id)
 		}
 	}
 
+	irq_chip_pm_put(&desc->irq_data);
 	module_put(desc->owner);
 	kfree(action->secondary);
 	return action;
@@ -1648,11 +1664,16 @@ int request_threaded_irq(unsigned int irq, irq_handler_t handler,
 	action->name = devname;
 	action->dev_id = dev_id;
 
+	retval = irq_chip_pm_get(&desc->irq_data);
+	if (retval < 0)
+		return retval;
+
 	chip_bus_lock(desc);
 	retval = __setup_irq(irq, desc, action);
 	chip_bus_sync_unlock(desc);
 
 	if (retval) {
+		irq_chip_pm_put(&desc->irq_data);
 		kfree(action->secondary);
 		kfree(action);
 	}
@@ -1730,7 +1751,14 @@ void enable_percpu_irq(unsigned int irq, unsigned int type)
 	if (!desc)
 		return;
 
+	/*
+	 * If the trigger type is not specified by the caller, then
+	 * use the default for this interrupt.
+	 */
 	type &= IRQ_TYPE_SENSE_MASK;
+	if (type == IRQ_TYPE_NONE)
+		type = irqd_get_trigger_type(&desc->irq_data);
+
 	if (type != IRQ_TYPE_NONE) {
 		int ret;
 
@@ -1822,6 +1850,7 @@ static struct irqaction *__free_percpu_irq(unsigned int irq, void __percpu *dev_
 
 	unregister_handler_proc(irq, action);
 
+	irq_chip_pm_put(&desc->irq_data);
 	module_put(desc->owner);
 	return action;
 
@@ -1884,9 +1913,17 @@ int setup_percpu_irq(unsigned int irq, struct irqaction *act)
 
 	if (!desc || !irq_settings_is_per_cpu_devid(desc))
 		return -EINVAL;
+
+	retval = irq_chip_pm_get(&desc->irq_data);
+	if (retval < 0)
+		return retval;
+
 	chip_bus_lock(desc);
 	retval = __setup_irq(irq, desc, act);
 	chip_bus_sync_unlock(desc);
+
+	if (retval)
+		irq_chip_pm_put(&desc->irq_data);
 
 	return retval;
 }
@@ -1931,12 +1968,18 @@ int request_percpu_irq(unsigned int irq, irq_handler_t handler,
 	action->name = devname;
 	action->percpu_dev_id = dev_id;
 
+	retval = irq_chip_pm_get(&desc->irq_data);
+	if (retval < 0)
+		return retval;
+
 	chip_bus_lock(desc);
 	retval = __setup_irq(irq, desc, action);
 	chip_bus_sync_unlock(desc);
 
-	if (retval)
+	if (retval) {
+		irq_chip_pm_put(&desc->irq_data);
 		kfree(action);
+	}
 
 	return retval;
 }

@@ -21,6 +21,7 @@ Main node required properties:
 	"arm,pl390"
 	"arm,tc11mp-gic"
 	"brcm,brahma-b15-gic"
+	"nvidia,tegra210-agic"
 	"qcom,msm-8660-qgic"
 	"qcom,msm-qgic2"
 - interrupt-controller : Identifies the node as an interrupt controller
@@ -68,7 +69,7 @@ Optional
 	"ic_clk" (for "arm,arm11mp-gic")
 	"PERIPHCLKEN" (for "arm,cortex-a15-gic")
 	"PERIPHCLK", "PERIPHCLKEN" (for "arm,cortex-a9-gic")
-	"clk" (for "arm,gic-400")
+	"clk" (for "arm,gic-400" and "nvidia,tegra210")
 	"gclk" (for "arm,pl390")
 
 - power-domains : A phandle and PM domain specifier as defined by bindings of

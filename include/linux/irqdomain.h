@@ -452,6 +452,9 @@ static inline int irq_domain_alloc_irqs(struct irq_domain *domain,
 	return -1;
 }
 
+static inline void irq_domain_free_irqs(unsigned int virq,
+					unsigned int nr_irqs) { }
+
 static inline bool irq_domain_is_hierarchy(struct irq_domain *domain)
 {
 	return false;
