@@ -3037,12 +3037,7 @@ int wm_adsp_compr_pointer(struct snd_compr_stream *stream,
 
 	buf = compr->buf;
 
-	if (!compr->buf) {
-		ret = -ENXIO;
-		goto out;
-	}
-
-	if (compr->buf->error) {
+	if (!compr->buf || compr->buf->error) {
 		snd_compr_stop_error(stream, SNDRV_PCM_STATE_XRUN);
 		ret = -EIO;
 		goto out;
@@ -3161,10 +3156,7 @@ static int wm_adsp_compr_read(struct wm_adsp_compr *compr,
 
 	adsp_dbg(dsp, "Requested read of %zu bytes\n", count);
 
-	if (!compr->buf)
-		return -ENXIO;
-
-	if (compr->buf->error) {
+	if (!compr->buf || compr->buf->error) {
 		snd_compr_stop_error(compr->stream, SNDRV_PCM_STATE_XRUN);
 		return -EIO;
 	}
