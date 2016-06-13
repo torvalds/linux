@@ -1347,10 +1347,10 @@ struct bm_extent {
 #define DRBD_MAX_SIZE_H80_PACKET (1U << 15) /* Header 80 only allows packets up to 32KiB data */
 #define DRBD_MAX_BIO_SIZE_P95    (1U << 17) /* Protocol 95 to 99 allows bios up to 128KiB */
 
-/* For now, don't allow more than one activity log extent worth of data
- * to be discarded in one go. We may need to rework drbd_al_begin_io()
- * to allow for even larger discard ranges */
-#define DRBD_MAX_DISCARD_SIZE	AL_EXTENT_SIZE
+/* For now, don't allow more than half of what we can "activate" in one
+ * activity log transaction to be discarded in one go. We may need to rework
+ * drbd_al_begin_io() to allow for even larger discard ranges */
+#define DRBD_MAX_DISCARD_SIZE	(AL_UPDATES_PER_TRANSACTION/2*AL_EXTENT_SIZE)
 #define DRBD_MAX_DISCARD_SECTORS (DRBD_MAX_DISCARD_SIZE >> 9)
 
 extern int  drbd_bm_init(struct drbd_device *device);
