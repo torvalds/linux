@@ -151,6 +151,23 @@ static void intel_power_well_disable(struct drm_i915_private *dev_priv,
 	power_well->ops->disable(dev_priv, power_well);
 }
 
+static void intel_power_well_get(struct drm_i915_private *dev_priv,
+				 struct i915_power_well *power_well)
+{
+	if (!power_well->count++)
+		intel_power_well_enable(dev_priv, power_well);
+}
+
+static void intel_power_well_put(struct drm_i915_private *dev_priv,
+				 struct i915_power_well *power_well)
+{
+	WARN(!power_well->count, "Use count on power well %s is already zero",
+	     power_well->name);
+
+	if (!--power_well->count)
+		intel_power_well_disable(dev_priv, power_well);
+}
+
 /*
  * We should only use the power well if we explicitly asked the hardware to
  * enable it, so check if it's enabled and also check if we've requested it to
@@ -1518,10 +1535,8 @@ __intel_display_power_get_domain(struct drm_i915_private *dev_priv,
 	struct i915_power_well *power_well;
 	int i;
 
-	for_each_power_well(i, power_well, BIT(domain), power_domains) {
-		if (!power_well->count++)
-			intel_power_well_enable(dev_priv, power_well);
-	}
+	for_each_power_well(i, power_well, BIT(domain), power_domains)
+		intel_power_well_get(dev_priv, power_well);
 
 	power_domains->domain_use_count[domain]++;
 }
@@ -1615,14 +1630,8 @@ void intel_display_power_put(struct drm_i915_private *dev_priv,
 	     intel_display_power_domain_str(domain));
 	power_domains->domain_use_count[domain]--;
 
-	for_each_power_well_rev(i, power_well, BIT(domain), power_domains) {
-		WARN(!power_well->count,
-		     "Use count on power well %s is already zero",
-		     power_well->name);
-
-		if (!--power_well->count)
-			intel_power_well_disable(dev_priv, power_well);
-	}
+	for_each_power_well_rev(i, power_well, BIT(domain), power_domains)
+		intel_power_well_put(dev_priv, power_well);
 
 	mutex_unlock(&power_domains->lock);
 
