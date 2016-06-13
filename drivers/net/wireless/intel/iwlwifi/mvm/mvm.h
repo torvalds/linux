@@ -932,11 +932,6 @@ struct iwl_mvm {
 	wait_queue_head_t d0i3_exit_waitq;
 
 	/* BT-Coex */
-	u8 bt_ack_kill_msk[NUM_PHY_CTX];
-	u8 bt_cts_kill_msk[NUM_PHY_CTX];
-
-	struct iwl_bt_coex_profile_notif_old last_bt_notif_old;
-	struct iwl_bt_coex_ci_cmd_old last_bt_ci_cmd_old;
 	struct iwl_bt_coex_profile_notif last_bt_notif;
 	struct iwl_bt_coex_ci_cmd last_bt_ci_cmd;
 
