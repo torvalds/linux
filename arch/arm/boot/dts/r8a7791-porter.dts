@@ -46,7 +46,7 @@
 		reg = <2 0x00000000 0 0x40000000>;
 	};
 
-	vcc_sdhi0: regulator@0 {
+	vcc_sdhi0: regulator-vcc-sdhi0 {
 		compatible = "regulator-fixed";
 
 		regulator-name = "SDHI0 Vcc";
@@ -55,7 +55,7 @@
 		regulator-always-on;
 	};
 
-	vccq_sdhi0: regulator@1 {
+	vccq_sdhi0: regulator-vccq-sdhi0 {
 		compatible = "regulator-gpio";
 
 		regulator-name = "SDHI0 VccQ";
@@ -68,7 +68,7 @@
 			  1800000 0>;
 	};
 
-	vcc_sdhi2: regulator@2 {
+	vcc_sdhi2: regulator-vcc-sdhi2 {
 		compatible = "regulator-fixed";
 
 		regulator-name = "SDHI2 Vcc";
@@ -77,7 +77,7 @@
 		regulator-always-on;
 	};
 
-	vccq_sdhi2: regulator@3 {
+	vccq_sdhi2: regulator-vccq-sdhi2 {
 		compatible = "regulator-gpio";
 
 		regulator-name = "SDHI2 VccQ";
