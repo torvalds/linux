@@ -37,6 +37,7 @@
 #include <linux/stddef.h>
 #include <linux/string.h>
 #include <linux/stringify.h>
+#include <linux/workqueue.h>
 
 #include "bridge_loop_avoidance.h"
 #include "distributed-arp-table.h"
@@ -828,31 +829,31 @@ static ssize_t batadv_show_mesh_iface(struct kobject *kobj,
 	return length;
 }
 
-static ssize_t batadv_store_mesh_iface(struct kobject *kobj,
-				       struct attribute *attr, char *buff,
-				       size_t count)
+/**
+ * batadv_store_mesh_iface_finish - store new hardif mesh_iface state
+ * @net_dev: netdevice to add/remove to/from batman-adv soft-interface
+ * @ifname: name of soft-interface to modify
+ *
+ * Changes the parts of the hard+soft interface which can not be modified under
+ * sysfs lock (to prevent deadlock situations).
+ *
+ * Return: 0 on success, 0 < on failure
+ */
+static int batadv_store_mesh_iface_finish(struct net_device *net_dev,
+					  char ifname[IFNAMSIZ])
 {
-	struct net_device *net_dev = batadv_kobj_to_netdev(kobj);
 	struct net *net = dev_net(net_dev);
 	struct batadv_hard_iface *hard_iface;
-	int status_tmp = -1;
-	int ret = count;
+	int status_tmp;
+	int ret = 0;
+
+	ASSERT_RTNL();
 
 	hard_iface = batadv_hardif_get_by_netdev(net_dev);
 	if (!hard_iface)
-		return count;
+		return 0;
 
-	if (buff[count - 1] == '\n')
-		buff[count - 1] = '\0';
-
-	if (strlen(buff) >= IFNAMSIZ) {
-		pr_err("Invalid parameter for 'mesh_iface' setting received: interface name too long '%s'\n",
-		       buff);
-		batadv_hardif_put(hard_iface);
-		return -EINVAL;
-	}
-
-	if (strncmp(buff, "none", 4) == 0)
+	if (strncmp(ifname, "none", 4) == 0)
 		status_tmp = BATADV_IF_NOT_IN_USE;
 	else
 		status_tmp = BATADV_IF_I_WANT_YOU;
@@ -861,15 +862,13 @@ static ssize_t batadv_store_mesh_iface(struct kobject *kobj,
 		goto out;
 
 	if ((hard_iface->soft_iface) &&
-	    (strncmp(hard_iface->soft_iface->name, buff, IFNAMSIZ) == 0))
+	    (strncmp(hard_iface->soft_iface->name, ifname, IFNAMSIZ) == 0))
 		goto out;
-
-	rtnl_lock();
 
 	if (status_tmp == BATADV_IF_NOT_IN_USE) {
 		batadv_hardif_disable_interface(hard_iface,
 						BATADV_IF_CLEANUP_AUTO);
-		goto unlock;
+		goto out;
 	}
 
 	/* if the interface already is in use */
@@ -877,13 +876,69 @@ static ssize_t batadv_store_mesh_iface(struct kobject *kobj,
 		batadv_hardif_disable_interface(hard_iface,
 						BATADV_IF_CLEANUP_AUTO);
 
-	ret = batadv_hardif_enable_interface(hard_iface, net, buff);
-
-unlock:
-	rtnl_unlock();
+	ret = batadv_hardif_enable_interface(hard_iface, net, ifname);
 out:
 	batadv_hardif_put(hard_iface);
 	return ret;
+}
+
+/**
+ * batadv_store_mesh_iface_work - store new hardif mesh_iface state
+ * @work: work queue item
+ *
+ * Changes the parts of the hard+soft interface which can not be modified under
+ * sysfs lock (to prevent deadlock situations).
+ */
+static void batadv_store_mesh_iface_work(struct work_struct *work)
+{
+	struct batadv_store_mesh_work *store_work;
+	int ret;
+
+	store_work = container_of(work, struct batadv_store_mesh_work, work);
+
+	rtnl_lock();
+	ret = batadv_store_mesh_iface_finish(store_work->net_dev,
+					     store_work->soft_iface_name);
+	rtnl_unlock();
+
+	if (ret < 0)
+		pr_err("Failed to store new mesh_iface state %s for %s: %d\n",
+		       store_work->soft_iface_name, store_work->net_dev->name,
+		       ret);
+
+	dev_put(store_work->net_dev);
+	kfree(store_work);
+}
+
+static ssize_t batadv_store_mesh_iface(struct kobject *kobj,
+				       struct attribute *attr, char *buff,
+				       size_t count)
+{
+	struct net_device *net_dev = batadv_kobj_to_netdev(kobj);
+	struct batadv_store_mesh_work *store_work;
+
+	if (buff[count - 1] == '\n')
+		buff[count - 1] = '\0';
+
+	if (strlen(buff) >= IFNAMSIZ) {
+		pr_err("Invalid parameter for 'mesh_iface' setting received: interface name too long '%s'\n",
+		       buff);
+		return -EINVAL;
+	}
+
+	store_work = kmalloc(sizeof(*store_work), GFP_KERNEL);
+	if (!store_work)
+		return -ENOMEM;
+
+	dev_hold(net_dev);
+	INIT_WORK(&store_work->work, batadv_store_mesh_iface_work);
+	store_work->net_dev = net_dev;
+	strlcpy(store_work->soft_iface_name, buff,
+		sizeof(store_work->soft_iface_name));
+
+	queue_work(batadv_event_workqueue, &store_work->work);
+
+	return count;
 }
 
 static ssize_t batadv_show_iface_status(struct kobject *kobj,

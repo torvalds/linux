@@ -1566,4 +1566,17 @@ enum batadv_tvlv_handler_flags {
 	BATADV_TVLV_HANDLER_OGM_CALLED = BIT(2),
 };
 
+/**
+ * struct batadv_store_mesh_work - Work queue item to detach add/del interface
+ *  from sysfs locks
+ * @net_dev: netdevice to add/remove to/from batman-adv soft-interface
+ * @soft_iface_name: name of soft-interface to modify
+ * @work: work queue item
+ */
+struct batadv_store_mesh_work {
+	struct net_device *net_dev;
+	char soft_iface_name[IFNAMSIZ];
+	struct work_struct work;
+};
+
 #endif /* _NET_BATMAN_ADV_TYPES_H_ */
