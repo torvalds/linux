@@ -370,6 +370,14 @@ enum drbd_notification_type {
 	NOTIFY_FLAGS = NOTIFY_CONTINUES,
 };
 
+enum drbd_peer_state {
+	P_INCONSISTENT = 3,
+	P_OUTDATED = 4,
+	P_DOWN = 5,
+	P_PRIMARY = 6,
+	P_FENCING = 7,
+};
+
 #define UUID_JUST_CREATED ((__u64)4)
 
 enum write_ordering_e {

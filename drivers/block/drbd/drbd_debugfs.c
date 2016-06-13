@@ -903,7 +903,7 @@ static int drbd_version_open(struct inode *inode, struct file *file)
 	return single_open(file, drbd_version_show, NULL);
 }
 
-static struct file_operations drbd_version_fops = {
+static const struct file_operations drbd_version_fops = {
 	.owner = THIS_MODULE,
 	.open = drbd_version_open,
 	.llseek = seq_lseek,

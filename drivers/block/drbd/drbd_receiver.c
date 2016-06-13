@@ -25,7 +25,7 @@
 
 #include <linux/module.h>
 
-#include <asm/uaccess.h>
+#include <linux/uaccess.h>
 #include <net/sock.h>
 
 #include <linux/drbd.h>
@@ -2289,13 +2289,13 @@ static inline int overlaps(sector_t s1, int l1, sector_t s2, int l2)
 static bool overlapping_resync_write(struct drbd_device *device, struct drbd_peer_request *peer_req)
 {
 	struct drbd_peer_request *rs_req;
-	bool rv = 0;
+	bool rv = false;
 
 	spin_lock_irq(&device->resource->req_lock);
 	list_for_each_entry(rs_req, &device->sync_ee, w.list) {
 		if (overlaps(peer_req->i.sector, peer_req->i.size,
 			     rs_req->i.sector, rs_req->i.size)) {
-			rv = 1;
+			rv = true;
 			break;
 		}
 	}
@@ -2678,7 +2678,7 @@ static int receive_Data(struct drbd_connection *connection, struct packet_info *
 	}
 
 out_interrupted:
-	drbd_may_finish_epoch(connection, peer_req->epoch, EV_PUT + EV_CLEANUP);
+	drbd_may_finish_epoch(connection, peer_req->epoch, EV_PUT | EV_CLEANUP);
 	put_ldev(device);
 	drbd_free_peer_req(device, peer_req);
 	return err;

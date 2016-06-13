@@ -1000,7 +1000,7 @@ static void complete_conflicting_writes(struct drbd_request *req)
 	finish_wait(&device->misc_wait, &wait);
 }
 
-/* called within req_lock and rcu_read_lock() */
+/* called within req_lock */
 static void maybe_pull_ahead(struct drbd_device *device)
 {
 	struct drbd_connection *connection = first_peer_device(device)->connection;

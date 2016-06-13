@@ -2196,9 +2196,7 @@ conn_set_state(struct drbd_connection *connection, union drbd_state mask, union 
 			ns.disk = os.disk;
 
 		rv = _drbd_set_state(device, ns, flags, NULL);
-		if (rv < SS_SUCCESS)
-			BUG();
-
+		BUG_ON(rv < SS_SUCCESS);
 		ns.i = device->state.i;
 		ns_max.role = max_role(ns.role, ns_max.role);
 		ns_max.peer = max_role(ns.peer, ns_max.peer);

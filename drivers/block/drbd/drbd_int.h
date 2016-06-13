@@ -1499,7 +1499,7 @@ extern enum drbd_state_rv drbd_set_role(struct drbd_device *device,
 					int force);
 extern bool conn_try_outdate_peer(struct drbd_connection *connection);
 extern void conn_try_outdate_peer_async(struct drbd_connection *connection);
-extern int conn_khelper(struct drbd_connection *connection, char *cmd);
+extern enum drbd_peer_state conn_khelper(struct drbd_connection *connection, char *cmd);
 extern int drbd_khelper(struct drbd_device *device, char *cmd);
 
 /* drbd_worker.c */
@@ -1648,8 +1648,6 @@ void drbd_bump_write_ordering(struct drbd_resource *resource, struct drbd_backin
 /* drbd_proc.c */
 extern struct proc_dir_entry *drbd_proc;
 extern const struct file_operations drbd_proc_fops;
-extern const char *drbd_conn_str(enum drbd_conns s);
-extern const char *drbd_role_str(enum drbd_role s);
 
 /* drbd_actlog.c */
 extern bool drbd_al_begin_io_prepare(struct drbd_device *device, struct drbd_interval *i);

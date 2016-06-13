@@ -387,7 +387,7 @@ int drbd_khelper(struct drbd_device *device, char *cmd)
 	return ret;
 }
 
-int conn_khelper(struct drbd_connection *connection, char *cmd)
+enum drbd_peer_state conn_khelper(struct drbd_connection *connection, char *cmd)
 {
 	char *envp[] = { "HOME=/",
 			"TERM=linux",
@@ -503,17 +503,17 @@ bool conn_try_outdate_peer(struct drbd_connection *connection)
 	r = conn_khelper(connection, "fence-peer");
 
 	switch ((r>>8) & 0xff) {
-	case 3: /* peer is inconsistent */
+	case P_INCONSISTENT: /* peer is inconsistent */
 		ex_to_string = "peer is inconsistent or worse";
 		mask.pdsk = D_MASK;
 		val.pdsk = D_INCONSISTENT;
 		break;
-	case 4: /* peer got outdated, or was already outdated */
+	case P_OUTDATED: /* peer got outdated, or was already outdated */
 		ex_to_string = "peer was fenced";
 		mask.pdsk = D_MASK;
 		val.pdsk = D_OUTDATED;
 		break;
-	case 5: /* peer was down */
+	case P_DOWN: /* peer was down */
 		if (conn_highest_disk(connection) == D_UP_TO_DATE) {
 			/* we will(have) create(d) a new UUID anyways... */
 			ex_to_string = "peer is unreachable, assumed to be dead";
@@ -523,7 +523,7 @@ bool conn_try_outdate_peer(struct drbd_connection *connection)
 			ex_to_string = "peer unreachable, doing nothing since disk != UpToDate";
 		}
 		break;
-	case 6: /* Peer is primary, voluntarily outdate myself.
+	case P_PRIMARY: /* Peer is primary, voluntarily outdate myself.
 		 * This is useful when an unconnected R_SECONDARY is asked to
 		 * become R_PRIMARY, but finds the other peer being active. */
 		ex_to_string = "peer is active";
@@ -531,7 +531,9 @@ bool conn_try_outdate_peer(struct drbd_connection *connection)
 		mask.disk = D_MASK;
 		val.disk = D_OUTDATED;
 		break;
-	case 7:
+	case P_FENCING:
+		/* THINK: do we need to handle this
+		 * like case 4, or more like case 5? */
 		if (fp != FP_STONITH)
 			drbd_err(connection, "fence-peer() = 7 && fencing != Stonith !!!\n");
 		ex_to_string = "peer was stonithed";

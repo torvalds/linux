@@ -427,8 +427,7 @@ static struct page **bm_realloc_pages(struct drbd_bitmap *b, unsigned long want)
 }
 
 /*
- * called on driver init only. TODO call when a device is created.
- * allocates the drbd_bitmap, and stores it in device->bitmap.
+ * allocates the drbd_bitmap and stores it in device->bitmap.
  */
 int drbd_bm_init(struct drbd_device *device)
 {
@@ -633,7 +632,8 @@ int drbd_bm_resize(struct drbd_device *device, sector_t capacity, int set_new_bi
 	unsigned long bits, words, owords, obits;
 	unsigned long want, have, onpages; /* number of pages */
 	struct page **npages, **opages = NULL;
-	int err = 0, growing;
+	int err = 0;
+	bool growing;
 
 	if (!expect(b))
 		return -ENOMEM;
