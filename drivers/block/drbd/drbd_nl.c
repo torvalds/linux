@@ -343,7 +343,7 @@ int drbd_khelper(struct drbd_device *device, char *cmd)
 			 (char[20]) { }, /* address family */
 			 (char[60]) { }, /* address */
 			NULL };
-	char mb[12];
+	char mb[14];
 	char *argv[] = {usermode_helper, cmd, mb, NULL };
 	struct drbd_connection *connection = first_peer_device(device)->connection;
 	struct sib_info sib;
@@ -352,7 +352,7 @@ int drbd_khelper(struct drbd_device *device, char *cmd)
 	if (current == connection->worker.task)
 		set_bit(CALLBACK_PENDING, &connection->flags);
 
-	snprintf(mb, 12, "minor-%d", device_to_minor(device));
+	snprintf(mb, 14, "minor-%d", device_to_minor(device));
 	setup_khelper_env(connection, envp);
 
 	/* The helper may take some time.
