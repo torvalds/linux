@@ -645,11 +645,11 @@ static int sun4i_usb_phy_probe(struct platform_device *pdev)
 
 	data->id_det_irq = gpiod_to_irq(data->id_det_gpio);
 	data->vbus_det_irq = gpiod_to_irq(data->vbus_det_gpio);
-	if ((data->id_det_gpio && data->id_det_irq < 0) ||
-	    (data->vbus_det_gpio && data->vbus_det_irq < 0))
+	if ((data->id_det_gpio && data->id_det_irq <= 0) ||
+	    (data->vbus_det_gpio && data->vbus_det_irq <= 0))
 		data->phy0_poll = true;
 
-	if (data->id_det_irq >= 0) {
+	if (data->id_det_irq > 0) {
 		ret = devm_request_irq(dev, data->id_det_irq,
 				sun4i_usb_phy0_id_vbus_det_irq,
 				IRQF_TRIGGER_RISING | IRQF_TRIGGER_FALLING,
@@ -660,7 +660,7 @@ static int sun4i_usb_phy_probe(struct platform_device *pdev)
 		}
 	}
 
-	if (data->vbus_det_irq >= 0) {
+	if (data->vbus_det_irq > 0) {
 		ret = devm_request_irq(dev, data->vbus_det_irq,
 				sun4i_usb_phy0_id_vbus_det_irq,
 				IRQF_TRIGGER_RISING | IRQF_TRIGGER_FALLING,
