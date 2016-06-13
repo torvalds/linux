@@ -227,7 +227,7 @@ void rds_recv_incoming(struct rds_connection *conn, __be32 saddr, __be32 daddr,
 
 	if (rds_sysctl_ping_enable && inc->i_hdr.h_dport == 0) {
 		rds_stats_inc(s_recv_ping);
-		rds_send_pong(conn, inc->i_hdr.h_sport);
+		rds_send_pong(cp, inc->i_hdr.h_sport);
 		goto out;
 	}
 
