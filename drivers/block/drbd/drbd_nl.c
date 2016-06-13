@@ -387,7 +387,7 @@ int drbd_khelper(struct drbd_device *device, char *cmd)
 	return ret;
 }
 
-static int conn_khelper(struct drbd_connection *connection, char *cmd)
+int conn_khelper(struct drbd_connection *connection, char *cmd)
 {
 	char *envp[] = { "HOME=/",
 			"TERM=linux",

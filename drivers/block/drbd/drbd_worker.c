@@ -840,6 +840,7 @@ static void ping_peer(struct drbd_device *device)
 
 int drbd_resync_finished(struct drbd_device *device)
 {
+	struct drbd_connection *connection = first_peer_device(device)->connection;
 	unsigned long db, dt, dbdt;
 	unsigned long n_oos;
 	union drbd_state os, ns;
@@ -861,8 +862,7 @@ int drbd_resync_finished(struct drbd_device *device)
 		if (dw) {
 			dw->w.cb = w_resync_finished;
 			dw->device = device;
-			drbd_queue_work(&first_peer_device(device)->connection->sender_work,
-					&dw->w);
+			drbd_queue_work(&connection->sender_work, &dw->w);
 			return 1;
 		}
 		drbd_err(device, "Warn failed to drbd_rs_del_all() and to kmalloc(dw).\n");
@@ -975,6 +975,30 @@ int drbd_resync_finished(struct drbd_device *device)
 	_drbd_set_state(device, ns, CS_VERBOSE, NULL);
 out_unlock:
 	spin_unlock_irq(&device->resource->req_lock);
+
+	/* If we have been sync source, and have an effective fencing-policy,
+	 * once *all* volumes are back in sync, call "unfence". */
+	if (os.conn == C_SYNC_SOURCE) {
+		enum drbd_disk_state disk_state = D_MASK;
+		enum drbd_disk_state pdsk_state = D_MASK;
+		enum drbd_fencing_p fp = FP_DONT_CARE;
+
+		rcu_read_lock();
+		fp = rcu_dereference(device->ldev->disk_conf)->fencing;
+		if (fp != FP_DONT_CARE) {
+			struct drbd_peer_device *peer_device;
+			int vnr;
+			idr_for_each_entry(&connection->peer_devices, peer_device, vnr) {
+				struct drbd_device *device = peer_device->device;
+				disk_state = min_t(enum drbd_disk_state, disk_state, device->state.disk);
+				pdsk_state = min_t(enum drbd_disk_state, pdsk_state, device->state.pdsk);
+			}
+		}
+		rcu_read_unlock();
+		if (disk_state == D_UP_TO_DATE && pdsk_state == D_UP_TO_DATE)
+			conn_khelper(connection, "unfence-peer");
+	}
+
 	put_ldev(device);
 out:
 	device->rs_total  = 0;
