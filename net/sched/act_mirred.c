@@ -62,7 +62,8 @@ static int tcf_mirred_init(struct net *net, struct nlattr *nla,
 	struct tc_mirred *parm;
 	struct tcf_mirred *m;
 	struct net_device *dev;
-	int ret, ok_push = 0, exists = 0;
+	int ret, ok_push = 0;
+	bool exists = false;
 
 	if (nla == NULL)
 		return -EINVAL;

@@ -155,8 +155,8 @@ int tcf_generic_walker(struct tc_action_net *tn, struct sk_buff *skb,
 		       struct tc_action *a);
 int tcf_hash_search(struct tc_action_net *tn, struct tc_action *a, u32 index);
 u32 tcf_hash_new_index(struct tc_action_net *tn);
-int tcf_hash_check(struct tc_action_net *tn, u32 index, struct tc_action *a,
-		   int bind);
+bool tcf_hash_check(struct tc_action_net *tn, u32 index, struct tc_action *a,
+		    int bind);
 int tcf_hash_create(struct tc_action_net *tn, u32 index, struct nlattr *est,
 		    struct tc_action *a, int size, int bind, bool cpustats);
 void tcf_hash_cleanup(struct tc_action *a, struct nlattr *est);

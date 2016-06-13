@@ -86,8 +86,9 @@ static int tcf_simp_init(struct net *net, struct nlattr *nla,
 	struct nlattr *tb[TCA_DEF_MAX + 1];
 	struct tc_defact *parm;
 	struct tcf_defact *d;
+	bool exists = false;
+	int ret = 0, err;
 	char *defdata;
-	int ret = 0, err, exists = 0;
 
 	if (nla == NULL)
 		return -EINVAL;

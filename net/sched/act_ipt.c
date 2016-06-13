@@ -97,7 +97,8 @@ static int __tcf_ipt_init(struct tc_action_net *tn, struct nlattr *nla,
 	struct tcf_ipt *ipt;
 	struct xt_entry_target *td, *t;
 	char *tname;
-	int ret = 0, err, exists = 0;
+	bool exists = false;
+	int ret = 0, err;
 	u32 hook = 0;
 	u32 index = 0;
 

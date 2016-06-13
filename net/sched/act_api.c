@@ -224,8 +224,8 @@ int tcf_hash_search(struct tc_action_net *tn, struct tc_action *a, u32 index)
 }
 EXPORT_SYMBOL(tcf_hash_search);
 
-int tcf_hash_check(struct tc_action_net *tn, u32 index, struct tc_action *a,
-		   int bind)
+bool tcf_hash_check(struct tc_action_net *tn, u32 index, struct tc_action *a,
+		    int bind)
 {
 	struct tcf_hashinfo *hinfo = tn->hinfo;
 	struct tcf_common *p = NULL;
@@ -235,9 +235,9 @@ int tcf_hash_check(struct tc_action_net *tn, u32 index, struct tc_action *a,
 		p->tcfc_refcnt++;
 		a->priv = p;
 		a->hinfo = hinfo;
-		return 1;
+		return true;
 	}
-	return 0;
+	return false;
 }
 EXPORT_SYMBOL(tcf_hash_check);
 

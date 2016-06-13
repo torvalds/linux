@@ -69,7 +69,8 @@ static int tcf_skbedit_init(struct net *net, struct nlattr *nla,
 	struct tcf_skbedit *d;
 	u32 flags = 0, *priority = NULL, *mark = NULL;
 	u16 *queue_mapping = NULL;
-	int ret = 0, err, exists = 0;
+	bool exists = false;
+	int ret = 0, err;
 
 	if (nla == NULL)
 		return -EINVAL;

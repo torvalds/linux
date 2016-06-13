@@ -423,7 +423,8 @@ static int tcf_ife_init(struct net *net, struct nlattr *nla,
 	u16 ife_type = 0;
 	u8 *daddr = NULL;
 	u8 *saddr = NULL;
-	int ret = 0, exists = 0;
+	bool exists = false;
+	int ret = 0;
 	int err;
 
 	err = nla_parse_nested(tb, TCA_IFE_MAX, nla, ife_policy);
