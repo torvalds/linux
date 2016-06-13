@@ -231,6 +231,7 @@ struct rds_incoming {
 	atomic_t		i_refcount;
 	struct list_head	i_item;
 	struct rds_connection	*i_conn;
+	struct rds_conn_path	*i_conn_path;
 	struct rds_header	i_hdr;
 	unsigned long		i_rx_jiffies;
 	__be32			i_saddr;
