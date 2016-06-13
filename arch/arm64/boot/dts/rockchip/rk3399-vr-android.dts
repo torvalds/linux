@@ -522,16 +522,48 @@
 };
 
 &i2c4 {
-	status = "okay";
+	status = "disabled";
 	i2c-scl-rising-time-ns = <600>;
 	i2c-scl-falling-time-ns = <20>;
 
 	mpu6500@68 {
+		status = "disabled";
 		compatible = "invensense,mpu6500";
 		pinctrl-names = "default";
 		pinctrl-0 = <&mpu6500_irq_gpio>;
 		reg = <0x68>;
 		irq-gpio = <&gpio1 4 IRQ_TYPE_EDGE_RISING>;
+		mpu-int_config = <0x10>;
+		mpu-level_shifter = <0>;
+		mpu-orientation = <0 1 0 1 0 0 0 0 1>;
+		orientation-x= <1>;
+		orientation-y= <1>;
+		orientation-z= <1>;
+		mpu-debug = <1>;
+	};
+};
+
+&spi1 {
+	status = "okay";
+	max-freq = <50000000>;
+	dma-names = "tx", "rx";
+	mpu6500@0 {
+		status = "okay";
+		compatible = "inv-spi,mpu6500";
+		pinctrl-names = "default";
+		pinctrl-0 = <&mpu6500_irq_gpio>;
+		irq-gpio = <&gpio1 4 IRQ_TYPE_EDGE_RISING>;
+		reg = <0>;
+		spi-max-frequency = <1000000>;
+		spi-cpha;
+		spi-cpol;
+		mpu-int_config = <0x10>;
+		mpu-level_shifter = <0>;
+		mpu-orientation = <0 1 0 1 0 0 0 0 1>;
+		orientation-x= <1>;
+		orientation-y= <1>;
+		orientation-z= <1>;
+		mpu-debug = <1>;
 	};
 };
 
