@@ -4037,6 +4037,8 @@ static int bnxt_hwrm_ver_get(struct bnxt *bp)
 	if (resp->hwrm_intf_maj >= 1)
 		bp->hwrm_max_req_len = le16_to_cpu(resp->max_req_win_len);
 
+	bp->chip_num = le16_to_cpu(resp->chip_num);
+
 hwrm_ver_get_exit:
 	mutex_unlock(&bp->hwrm_cmd_lock);
 	return rc;
@@ -6414,7 +6416,9 @@ static int bnxt_init_one(struct pci_dev *pdev, const struct pci_device_id *ent)
 		goto init_err;
 
 	mutex_init(&bp->hwrm_cmd_lock);
-	bnxt_hwrm_ver_get(bp);
+	rc = bnxt_hwrm_ver_get(bp);
+	if (rc)
+		goto init_err;
 
 	rc = bnxt_hwrm_func_drv_rgtr(bp);
 	if (rc)

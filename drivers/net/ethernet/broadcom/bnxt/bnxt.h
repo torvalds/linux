@@ -873,6 +873,44 @@ struct bnxt {
 	void __iomem		*bar2;
 
 	u32			reg_base;
+	u16			chip_num;
+#define CHIP_NUM_57301		0x16c8
+#define CHIP_NUM_57302		0x16c9
+#define CHIP_NUM_57304		0x16ca
+#define CHIP_NUM_57402		0x16d0
+#define CHIP_NUM_57404		0x16d1
+#define CHIP_NUM_57406		0x16d2
+
+#define CHIP_NUM_57311		0x16ce
+#define CHIP_NUM_57312		0x16cf
+#define CHIP_NUM_57314		0x16df
+#define CHIP_NUM_57412		0x16d6
+#define CHIP_NUM_57414		0x16d7
+#define CHIP_NUM_57416		0x16d8
+#define CHIP_NUM_57417		0x16d9
+
+#define BNXT_CHIP_NUM_5730X(chip_num)		\
+	((chip_num) >= CHIP_NUM_57301 &&	\
+	 (chip_num) <= CHIP_NUM_57304)
+
+#define BNXT_CHIP_NUM_5740X(chip_num)		\
+	((chip_num) >= CHIP_NUM_57402 &&	\
+	 (chip_num) <= CHIP_NUM_57406)
+
+#define BNXT_CHIP_NUM_5731X(chip_num)		\
+	((chip_num) == CHIP_NUM_57311 ||	\
+	 (chip_num) == CHIP_NUM_57312 ||	\
+	 (chip_num) == CHIP_NUM_57314)
+
+#define BNXT_CHIP_NUM_5741X(chip_num)		\
+	((chip_num) >= CHIP_NUM_57412 &&	\
+	 (chip_num) <= CHIP_NUM_57417)
+
+#define BNXT_CHIP_NUM_57X0X(chip_num)		\
+	(BNXT_CHIP_NUM_5730X(chip_num) || BNXT_CHIP_NUM_5740X(chip_num))
+
+#define BNXT_CHIP_NUM_57X1X(chip_num)		\
+	(BNXT_CHIP_NUM_5731X(chip_num) || BNXT_CHIP_NUM_5741X(chip_num))
 
 	struct net_device	*dev;
 	struct pci_dev		*pdev;
