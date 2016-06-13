@@ -1121,10 +1121,14 @@ static int bm_rw(struct drbd_device *device, const unsigned int flags, unsigned 
 		kref_put(&ctx->kref, &drbd_bm_aio_ctx_destroy);
 
 	/* summary for global bitmap IO */
-	if (flags == 0)
-		drbd_info(device, "bitmap %s of %u pages took %lu jiffies\n",
-			 (flags & BM_AIO_READ) ? "READ" : "WRITE",
-			 count, jiffies - now);
+	if (flags == 0) {
+		unsigned int ms = jiffies_to_msecs(jiffies - now);
+		if (ms > 5) {
+			drbd_info(device, "bitmap %s of %u pages took %u ms\n",
+				 (flags & BM_AIO_READ) ? "READ" : "WRITE",
+				 count, ms);
+		}
+	}
 
 	if (ctx->error) {
 		drbd_alert(device, "we had at least one MD IO ERROR during bitmap IO\n");
