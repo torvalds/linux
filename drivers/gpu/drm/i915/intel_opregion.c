@@ -674,6 +674,36 @@ static void set_did(struct intel_opregion *opregion, int i, u32 val)
 	}
 }
 
+static u32 acpi_display_type(struct drm_connector *connector)
+{
+	u32 display_type = ACPI_DISPLAY_TYPE_OTHER;
+
+	switch (connector->connector_type) {
+	case DRM_MODE_CONNECTOR_VGA:
+	case DRM_MODE_CONNECTOR_DVIA:
+		display_type = ACPI_DISPLAY_TYPE_VGA;
+		break;
+	case DRM_MODE_CONNECTOR_Composite:
+	case DRM_MODE_CONNECTOR_SVIDEO:
+	case DRM_MODE_CONNECTOR_Component:
+	case DRM_MODE_CONNECTOR_9PinDIN:
+		display_type = ACPI_DISPLAY_TYPE_TV;
+		break;
+	case DRM_MODE_CONNECTOR_DVII:
+	case DRM_MODE_CONNECTOR_DVID:
+	case DRM_MODE_CONNECTOR_DisplayPort:
+	case DRM_MODE_CONNECTOR_HDMIA:
+	case DRM_MODE_CONNECTOR_HDMIB:
+		display_type = ACPI_DISPLAY_TYPE_EXTERNAL_DIGITAL;
+		break;
+	case DRM_MODE_CONNECTOR_LVDS:
+		display_type = ACPI_DISPLAY_TYPE_INTERNAL_DIGITAL;
+		break;
+	}
+
+	return display_type;
+}
+
 static void intel_didl_outputs(struct drm_i915_private *dev_priv)
 {
 	struct intel_opregion *opregion = &dev_priv->opregion;
@@ -742,36 +772,16 @@ end:
 blind_set:
 	i = 0;
 	list_for_each_entry(connector, &dev_priv->dev->mode_config.connector_list, head) {
-		int output_type = ACPI_DISPLAY_TYPE_OTHER;
+		int display_type = acpi_display_type(connector);
+
 		if (i >= max_outputs) {
 			DRM_DEBUG_KMS("More than %u outputs in connector list\n",
 				      max_outputs);
 			return;
 		}
-		switch (connector->connector_type) {
-		case DRM_MODE_CONNECTOR_VGA:
-		case DRM_MODE_CONNECTOR_DVIA:
-			output_type = ACPI_DISPLAY_TYPE_VGA;
-			break;
-		case DRM_MODE_CONNECTOR_Composite:
-		case DRM_MODE_CONNECTOR_SVIDEO:
-		case DRM_MODE_CONNECTOR_Component:
-		case DRM_MODE_CONNECTOR_9PinDIN:
-			output_type = ACPI_DISPLAY_TYPE_TV;
-			break;
-		case DRM_MODE_CONNECTOR_DVII:
-		case DRM_MODE_CONNECTOR_DVID:
-		case DRM_MODE_CONNECTOR_DisplayPort:
-		case DRM_MODE_CONNECTOR_HDMIA:
-		case DRM_MODE_CONNECTOR_HDMIB:
-			output_type = ACPI_DISPLAY_TYPE_EXTERNAL_DIGITAL;
-			break;
-		case DRM_MODE_CONNECTOR_LVDS:
-			output_type = ACPI_DISPLAY_TYPE_INTERNAL_DIGITAL;
-			break;
-		}
+
 		temp = get_did(opregion, i);
-		set_did(opregion, i, temp | (1 << 31) | output_type | i);
+		set_did(opregion, i, temp | (1 << 31) | display_type | i);
 		i++;
 	}
 	goto end;
