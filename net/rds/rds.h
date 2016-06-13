@@ -446,7 +446,8 @@ struct rds_transport {
 	char			t_name[TRANSNAMSIZ];
 	struct list_head	t_item;
 	struct module		*t_owner;
-	unsigned int		t_prefer_loopback:1;
+	unsigned int		t_prefer_loopback:1,
+				t_mp_capable:1;
 	unsigned int		t_type;
 
 	int (*laddr_check)(struct net *net, __be32 addr);
@@ -673,6 +674,7 @@ rds_conn_path_transition(struct rds_conn_path *cp, int old, int new)
 static inline int
 rds_conn_transition(struct rds_connection *conn, int old, int new)
 {
+	WARN_ON(conn->c_trans->t_mp_capable);
 	return rds_conn_path_transition(&conn->c_path[0], old, new);
 }
 
@@ -685,6 +687,7 @@ rds_conn_path_state(struct rds_conn_path *cp)
 static inline int
 rds_conn_state(struct rds_connection *conn)
 {
+	WARN_ON(conn->c_trans->t_mp_capable);
 	return rds_conn_path_state(&conn->c_path[0]);
 }
 
@@ -697,6 +700,7 @@ rds_conn_path_up(struct rds_conn_path *cp)
 static inline int
 rds_conn_up(struct rds_connection *conn)
 {
+	WARN_ON(conn->c_trans->t_mp_capable);
 	return rds_conn_path_up(&conn->c_path[0]);
 }
 
@@ -709,6 +713,7 @@ rds_conn_path_connecting(struct rds_conn_path *cp)
 static inline int
 rds_conn_connecting(struct rds_connection *conn)
 {
+	WARN_ON(conn->c_trans->t_mp_capable);
 	return rds_conn_path_connecting(&conn->c_path[0]);
 }
 
