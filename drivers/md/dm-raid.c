@@ -217,6 +217,7 @@ struct raid_set {
 	int delta_disks;
 	int data_offset;
 	int raid10_copies;
+	int requested_bitmap_chunk_sectors;
 
 	struct mddev md;
 	struct raid_type *raid_type;
@@ -1277,6 +1278,7 @@ static int parse_raid_params(struct raid_set *rs, struct dm_arg_set *as,
 			}
 
 			region_size = value;
+			rs->requested_bitmap_chunk_sectors = value;
 		} else if (!strcasecmp(key, dm_raid_arg_name_by_flag(CTR_FLAG_RAID10_COPIES))) {
 			if (test_and_set_bit(__CTR_FLAG_RAID10_COPIES, &rs->ctr_flags)) {
 				rs->ti->error = "Only one raid10_copies argument pair allowed";
@@ -3400,6 +3402,15 @@ static int raid_preresume(struct dm_target *ti)
 	r = __load_dirty_region_bitmap(rs);
 	if (r)
 		return r;
+
+	/* Resize bitmap to adjust to changed region size (aka MD bitmap chunksize) */
+	if (test_bit(RT_FLAG_RS_BITMAP_LOADED, &rs->runtime_flags) &&
+	    mddev->bitmap_info.chunksize != to_bytes(rs->requested_bitmap_chunk_sectors)) {
+		r = bitmap_resize(mddev->bitmap, mddev->dev_sectors,
+				  to_bytes(rs->requested_bitmap_chunk_sectors), 0);
+		if (r)
+			DMERR("Failed to resize bitmap");
+	}
 
 	/* Check for any resize/reshape on @rs and adjust/initiate */
 	/* Be prepared for mddev_resume() in raid_resume() */
