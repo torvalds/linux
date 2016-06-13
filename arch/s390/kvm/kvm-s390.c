@@ -422,7 +422,7 @@ static int kvm_vm_ioctl_enable_cap(struct kvm *kvm, struct kvm_enable_cap *cap)
 		break;
 	case KVM_CAP_S390_VECTOR_REGISTERS:
 		mutex_lock(&kvm->lock);
-		if (atomic_read(&kvm->online_vcpus)) {
+		if (kvm->created_vcpus) {
 			r = -EBUSY;
 		} else if (MACHINE_HAS_VX) {
 			set_kvm_facility(kvm->arch.model.fac_mask, 129);
@@ -437,7 +437,7 @@ static int kvm_vm_ioctl_enable_cap(struct kvm *kvm, struct kvm_enable_cap *cap)
 	case KVM_CAP_S390_RI:
 		r = -EINVAL;
 		mutex_lock(&kvm->lock);
-		if (atomic_read(&kvm->online_vcpus)) {
+		if (kvm->created_vcpus) {
 			r = -EBUSY;
 		} else if (test_facility(64)) {
 			set_kvm_facility(kvm->arch.model.fac_mask, 64);
@@ -492,7 +492,7 @@ static int kvm_s390_set_mem_control(struct kvm *kvm, struct kvm_device_attr *att
 		ret = -EBUSY;
 		VM_EVENT(kvm, 3, "%s", "ENABLE: CMMA support");
 		mutex_lock(&kvm->lock);
-		if (atomic_read(&kvm->online_vcpus) == 0) {
+		if (!kvm->created_vcpus) {
 			kvm->arch.use_cmma = 1;
 			ret = 0;
 		}
@@ -536,7 +536,7 @@ static int kvm_s390_set_mem_control(struct kvm *kvm, struct kvm_device_attr *att
 
 		ret = -EBUSY;
 		mutex_lock(&kvm->lock);
-		if (atomic_read(&kvm->online_vcpus) == 0) {
+		if (!kvm->created_vcpus) {
 			/* gmap_alloc will round the limit up */
 			struct gmap *new = gmap_alloc(current->mm, new_limit);
 
@@ -713,7 +713,7 @@ static int kvm_s390_set_processor(struct kvm *kvm, struct kvm_device_attr *attr)
 	int ret = 0;
 
 	mutex_lock(&kvm->lock);
-	if (atomic_read(&kvm->online_vcpus)) {
+	if (kvm->created_vcpus) {
 		ret = -EBUSY;
 		goto out;
 	}
