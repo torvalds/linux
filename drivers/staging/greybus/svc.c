@@ -1456,7 +1456,7 @@ static void gb_svc_remove_modules(struct gb_svc *svc)
 
 void gb_svc_del(struct gb_svc *svc)
 {
-	gb_connection_disable(svc->connection);
+	gb_connection_disable_rx(svc->connection);
 
 	/*
 	 * The SVC device and input device may have been registered
@@ -1473,6 +1473,8 @@ void gb_svc_del(struct gb_svc *svc)
 	flush_workqueue(svc->wq);
 
 	gb_svc_remove_modules(svc);
+
+	gb_connection_disable(svc->connection);
 }
 
 void gb_svc_put(struct gb_svc *svc)
