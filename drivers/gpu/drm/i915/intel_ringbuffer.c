@@ -910,6 +910,9 @@ static int gen9_init_workarounds(struct intel_engine_cs *engine)
 	struct drm_i915_private *dev_priv = engine->i915;
 	int ret;
 
+	/* WaConextSwitchWithConcurrentTLBInvalidate:skl,bxt,kbl */
+	I915_WRITE(GEN9_CSFE_CHICKEN1_RCS, _MASKED_BIT_ENABLE(GEN9_PREEMPT_GPGPU_SYNC_SWITCH_DISABLE));
+
 	/* WaEnableLbsSlaRetryTimerDecrement:skl,bxt,kbl */
 	I915_WRITE(BDW_SCRATCH1, I915_READ(BDW_SCRATCH1) |
 		   GEN9_LBS_SLA_RETRY_TIMER_DECREMENT_ENABLE);

@@ -1810,6 +1810,10 @@ enum skl_disp_power_wells {
 #define   GEN9_IZ_HASHING_MASK(slice)			(0x3 << ((slice) * 2))
 #define   GEN9_IZ_HASHING(slice, val)			((val) << ((slice) * 2))
 
+/* chicken reg for WaConextSwitchWithConcurrentTLBInvalidate */
+#define GEN9_CSFE_CHICKEN1_RCS _MMIO(0x20D4)
+#define   GEN9_PREEMPT_GPGPU_SYNC_SWITCH_DISABLE (1 << 2)
+
 /* WaClearTdlStateAckDirtyBits */
 #define GEN8_STATE_ACK		_MMIO(0x20F0)
 #define GEN9_STATE_ACK_SLICE1	_MMIO(0x20F8)
