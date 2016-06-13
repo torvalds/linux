@@ -44,7 +44,7 @@ struct imx_pinctrl {
 	const struct imx_pinctrl_soc_info *info;
 };
 
-static const inline struct imx_pin_group *imx_pinctrl_find_group_by_name(
+static inline const struct imx_pin_group *imx_pinctrl_find_group_by_name(
 				const struct imx_pinctrl_soc_info *info,
 				const char *name)
 {
