@@ -517,8 +517,10 @@ void intel_detect_pch(struct drm_device *dev)
 			} else if ((id == INTEL_PCH_P2X_DEVICE_ID_TYPE) ||
 				   (id == INTEL_PCH_P3X_DEVICE_ID_TYPE) ||
 				   ((id == INTEL_PCH_QEMU_DEVICE_ID_TYPE) &&
-				    pch->subsystem_vendor == 0x1af4 &&
-				    pch->subsystem_device == 0x1100)) {
+				    pch->subsystem_vendor ==
+					    PCI_SUBVENDOR_ID_REDHAT_QUMRANET &&
+				    pch->subsystem_device ==
+					    PCI_SUBDEVICE_ID_QEMU)) {
 				dev_priv->pch_type = intel_virt_detect_pch(dev);
 			} else
 				continue;
