@@ -177,7 +177,7 @@ void rds_send_worker(struct work_struct *work)
 
 	if (rds_conn_path_state(cp) == RDS_CONN_UP) {
 		clear_bit(RDS_LL_SEND_FULL, &cp->cp_flags);
-		ret = rds_send_xmit(cp->cp_conn);
+		ret = rds_send_xmit(cp);
 		cond_resched();
 		rdsdebug("conn %p ret %d\n", cp->cp_conn, ret);
 		switch (ret) {
