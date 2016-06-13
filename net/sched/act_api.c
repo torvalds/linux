@@ -1118,7 +1118,7 @@ tc_dump_action(struct sk_buff *skb, struct netlink_callback *cb)
 		nla_nest_end(skb, nest);
 		ret = skb->len;
 	} else
-		nla_nest_cancel(skb, nest);
+		nlmsg_trim(skb, b);
 
 	nlh->nlmsg_len = skb_tail_pointer(skb) - b;
 	if (NETLINK_CB(cb->skb).portid && ret)
