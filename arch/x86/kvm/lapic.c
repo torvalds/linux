@@ -1313,6 +1313,36 @@ void wait_lapic_expire(struct kvm_vcpu *vcpu)
 		__delay(tsc_deadline - guest_tsc);
 }
 
+static void start_sw_tscdeadline(struct kvm_lapic *apic)
+{
+	u64 guest_tsc, tscdeadline = apic->lapic_timer.tscdeadline;
+	u64 ns = 0;
+	ktime_t expire;
+	struct kvm_vcpu *vcpu = apic->vcpu;
+	unsigned long this_tsc_khz = vcpu->arch.virtual_tsc_khz;
+	unsigned long flags;
+	ktime_t now;
+
+	if (unlikely(!tscdeadline || !this_tsc_khz))
+		return;
+
+	local_irq_save(flags);
+
+	now = apic->lapic_timer.timer.base->get_time();
+	guest_tsc = kvm_read_l1_tsc(vcpu, rdtsc());
+	if (likely(tscdeadline > guest_tsc)) {
+		ns = (tscdeadline - guest_tsc) * 1000000ULL;
+		do_div(ns, this_tsc_khz);
+		expire = ktime_add_ns(now, ns);
+		expire = ktime_sub_ns(expire, lapic_timer_advance_ns);
+		hrtimer_start(&apic->lapic_timer.timer,
+				expire, HRTIMER_MODE_ABS_PINNED);
+	} else
+		apic_timer_expired(apic);
+
+	local_irq_restore(flags);
+}
+
 static void start_apic_timer(struct kvm_lapic *apic)
 {
 	ktime_t now;
@@ -1359,32 +1389,7 @@ static void start_apic_timer(struct kvm_lapic *apic)
 			   ktime_to_ns(ktime_add_ns(now,
 					apic->lapic_timer.period)));
 	} else if (apic_lvtt_tscdeadline(apic)) {
-		/* lapic timer in tsc deadline mode */
-		u64 guest_tsc, tscdeadline = apic->lapic_timer.tscdeadline;
-		u64 ns = 0;
-		ktime_t expire;
-		struct kvm_vcpu *vcpu = apic->vcpu;
-		unsigned long this_tsc_khz = vcpu->arch.virtual_tsc_khz;
-		unsigned long flags;
-
-		if (unlikely(!tscdeadline || !this_tsc_khz))
-			return;
-
-		local_irq_save(flags);
-
-		now = apic->lapic_timer.timer.base->get_time();
-		guest_tsc = kvm_read_l1_tsc(vcpu, rdtsc());
-		if (likely(tscdeadline > guest_tsc)) {
-			ns = (tscdeadline - guest_tsc) * 1000000ULL;
-			do_div(ns, this_tsc_khz);
-			expire = ktime_add_ns(now, ns);
-			expire = ktime_sub_ns(expire, lapic_timer_advance_ns);
-			hrtimer_start(&apic->lapic_timer.timer,
-				      expire, HRTIMER_MODE_ABS_PINNED);
-		} else
-			apic_timer_expired(apic);
-
-		local_irq_restore(flags);
+		start_sw_tscdeadline(apic);
 	}
 }
 
