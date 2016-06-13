@@ -861,7 +861,7 @@ static struct sk_buff *vrf_l3_rcv(struct net_device *vrf_dev,
 
 #if IS_ENABLED(CONFIG_IPV6)
 static struct dst_entry *vrf_get_rt6_dst(const struct net_device *dev,
-					 const struct flowi6 *fl6)
+					 struct flowi6 *fl6)
 {
 	struct dst_entry *dst = NULL;
 
