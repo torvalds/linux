@@ -676,7 +676,7 @@ static void set_did(struct intel_opregion *opregion, int i, u32 val)
 
 static u32 acpi_display_type(struct drm_connector *connector)
 {
-	u32 display_type = ACPI_DISPLAY_TYPE_OTHER;
+	u32 display_type;
 
 	switch (connector->connector_type) {
 	case DRM_MODE_CONNECTOR_VGA:
@@ -687,6 +687,7 @@ static u32 acpi_display_type(struct drm_connector *connector)
 	case DRM_MODE_CONNECTOR_SVIDEO:
 	case DRM_MODE_CONNECTOR_Component:
 	case DRM_MODE_CONNECTOR_9PinDIN:
+	case DRM_MODE_CONNECTOR_TV:
 		display_type = ACPI_DISPLAY_TYPE_TV;
 		break;
 	case DRM_MODE_CONNECTOR_DVII:
@@ -697,7 +698,17 @@ static u32 acpi_display_type(struct drm_connector *connector)
 		display_type = ACPI_DISPLAY_TYPE_EXTERNAL_DIGITAL;
 		break;
 	case DRM_MODE_CONNECTOR_LVDS:
+	case DRM_MODE_CONNECTOR_eDP:
+	case DRM_MODE_CONNECTOR_DSI:
 		display_type = ACPI_DISPLAY_TYPE_INTERNAL_DIGITAL;
+		break;
+	case DRM_MODE_CONNECTOR_Unknown:
+	case DRM_MODE_CONNECTOR_VIRTUAL:
+		display_type = ACPI_DISPLAY_TYPE_OTHER;
+		break;
+	default:
+		MISSING_CASE(connector->connector_type);
+		display_type = ACPI_DISPLAY_TYPE_OTHER;
 		break;
 	}
 
