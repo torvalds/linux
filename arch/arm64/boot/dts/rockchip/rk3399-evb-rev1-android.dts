@@ -113,3 +113,15 @@
 &hdmi_sound {
 	status = "okay";
 };
+
+&spdif {
+	status = "okay";
+};
+
+&spdif_out {
+	status = "okay";
+};
+
+&spdif_sound {
+	status = "okay";
+};
