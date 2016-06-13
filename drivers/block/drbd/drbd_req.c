@@ -1258,6 +1258,22 @@ drbd_request_prepare(struct drbd_device *device, struct bio *bio, unsigned long 
 	return NULL;
 }
 
+/* Require at least one path to current data.
+ * We don't want to allow writes on C_STANDALONE D_INCONSISTENT:
+ * We would not allow to read what was written,
+ * we would not have bumped the data generation uuids,
+ * we would cause data divergence for all the wrong reasons.
+ *
+ * If we don't see at least one D_UP_TO_DATE, we will fail this request,
+ * which either returns EIO, or, if OND_SUSPEND_IO is set, suspends IO,
+ * and queues for retry later.
+ */
+static bool may_do_writes(struct drbd_device *device)
+{
+	const union drbd_dev_state s = device->state;
+	return s.disk == D_UP_TO_DATE || s.pdsk == D_UP_TO_DATE;
+}
+
 static void drbd_send_and_submit(struct drbd_device *device, struct drbd_request *req)
 {
 	struct drbd_resource *resource = device->resource;
@@ -1312,6 +1328,12 @@ static void drbd_send_and_submit(struct drbd_device *device, struct drbd_request
 	}
 
 	if (rw == WRITE) {
+		if (req->private_bio && !may_do_writes(device)) {
+			bio_put(req->private_bio);
+			req->private_bio = NULL;
+			put_ldev(device);
+			goto nodata;
+		}
 		if (!drbd_process_write_request(req))
 			no_remote = true;
 	} else {
