@@ -1479,7 +1479,8 @@ static __init int sctp_init(void)
 		INIT_HLIST_HEAD(&sctp_port_hashtable[i].chain);
 	}
 
-	if (sctp_transport_hashtable_init())
+	status = sctp_transport_hashtable_init();
+	if (status)
 		goto err_thash_alloc;
 
 	pr_info("Hash tables configured (bind %d/%d)\n", sctp_port_hashsize,
