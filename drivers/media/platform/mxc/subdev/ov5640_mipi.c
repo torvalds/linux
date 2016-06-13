@@ -1106,12 +1106,9 @@ static int ov5640_init_mode(enum ov5640_frame_rate frame_rate,
 		/* dump the first two frames: 1/7.5*2
 		 * the frame rate of QSXGA is 7.5fps */
 		msec_wait4stable = 267;
-	} else if (frame_rate == ov5640_15_fps) {
-		/* dump the first nine frames: 1/15*9 */
+	} else {
+		/* dump the first eighteen frames: 1/30*18 */
 		msec_wait4stable = 600;
-	} else if (frame_rate == ov5640_30_fps) {
-		/* dump the first nine frames: 1/30*9 */
-		msec_wait4stable = 300;
 	}
 	msleep(msec_wait4stable);
 
