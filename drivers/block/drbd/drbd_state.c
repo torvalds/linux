@@ -1637,6 +1637,26 @@ static void broadcast_state_change(struct drbd_state_change *state_change)
 #undef REMEMBER_STATE_CHANGE
 }
 
+/* takes old and new peer disk state */
+static bool lost_contact_to_peer_data(enum drbd_disk_state os, enum drbd_disk_state ns)
+{
+	if ((os >= D_INCONSISTENT && os != D_UNKNOWN && os != D_OUTDATED)
+	&&  (ns < D_INCONSISTENT || ns == D_UNKNOWN || ns == D_OUTDATED))
+		return true;
+
+	/* Scenario, starting with normal operation
+	 * Connected Primary/Secondary UpToDate/UpToDate
+	 * NetworkFailure Primary/Unknown UpToDate/DUnknown (frozen)
+	 * ...
+	 * Connected Primary/Secondary UpToDate/Diskless (resumed; needs to bump uuid!)
+	 */
+	if (os == D_UNKNOWN
+	&&  (ns == D_DISKLESS || ns == D_FAILED || ns == D_OUTDATED))
+		return true;
+
+	return false;
+}
+
 /**
  * after_state_ch() - Perform after state change actions that may sleep
  * @device:	DRBD device.
@@ -1708,6 +1728,13 @@ static void after_state_ch(struct drbd_device *device, union drbd_state os,
 			idr_for_each_entry(&connection->peer_devices, peer_device, vnr)
 				clear_bit(NEW_CUR_UUID, &peer_device->device->flags);
 			rcu_read_unlock();
+
+			/* We should actively create a new uuid, _before_
+			 * we resume/resent, if the peer is diskless
+			 * (recovery from a multiple error scenario).
+			 * Currently, this happens with a slight delay
+			 * below when checking lost_contact_to_peer_data() ...
+			 */
 			_tl_restart(connection, RESEND);
 			_conn_request_state(connection,
 					    (union drbd_state) { { .susp_fen = 1 } },
@@ -1751,12 +1778,7 @@ static void after_state_ch(struct drbd_device *device, union drbd_state os,
 				BM_LOCKED_TEST_ALLOWED);
 
 	/* Lost contact to peer's copy of the data */
-	if ((os.pdsk >= D_INCONSISTENT &&
-	     os.pdsk != D_UNKNOWN &&
-	     os.pdsk != D_OUTDATED)
-	&&  (ns.pdsk < D_INCONSISTENT ||
-	     ns.pdsk == D_UNKNOWN ||
-	     ns.pdsk == D_OUTDATED)) {
+	if (lost_contact_to_peer_data(os.pdsk, ns.pdsk)) {
 		if (get_ldev(device)) {
 			if ((ns.role == R_PRIMARY || ns.peer == R_PRIMARY) &&
 			    device->ldev->md.uuid[UI_BITMAP] == 0 && ns.disk >= D_UP_TO_DATE) {
