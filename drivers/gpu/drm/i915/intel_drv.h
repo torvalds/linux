@@ -579,6 +579,12 @@ struct intel_crtc_state {
 
 	uint8_t lane_count;
 
+	/*
+	 * Used by platforms having DP/HDMI PHY with programmable lane
+	 * latency optimization.
+	 */
+	uint8_t lane_lat_optim_mask;
+
 	/* Panel fitter controls for gen2-gen4 + VLV */
 	struct {
 		u32 control;
