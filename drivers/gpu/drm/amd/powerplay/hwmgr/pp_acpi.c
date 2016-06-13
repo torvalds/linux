@@ -77,7 +77,7 @@ int acpi_pcie_perf_request(void *device, uint8_t perf_req, bool advertise)
 						ATCS_FUNCTION_PCIE_PERFORMANCE_REQUEST,
 						&atcs_input,
 						&atcs_output,
-						0,
+						1,
 						sizeof(atcs_input),
 						sizeof(atcs_output));
 		if (result != 0)
