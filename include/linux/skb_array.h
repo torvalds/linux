@@ -63,9 +63,9 @@ static inline int skb_array_produce_any(struct skb_array *a, struct sk_buff *skb
 	return ptr_ring_produce_any(&a->ring, skb);
 }
 
-/* Might be slightly faster than skb_array_empty below, but callers invoking
- * this in a loop must take care to use a compiler barrier, for example
- * cpu_relax().
+/* Might be slightly faster than skb_array_empty below, but only safe if the
+ * array is never resized. Also, callers invoking this in a loop must take care
+ * to use a compiler barrier, for example cpu_relax().
  */
 static inline bool __skb_array_empty(struct skb_array *a)
 {
@@ -75,6 +75,21 @@ static inline bool __skb_array_empty(struct skb_array *a)
 static inline bool skb_array_empty(struct skb_array *a)
 {
 	return ptr_ring_empty(&a->ring);
+}
+
+static inline bool skb_array_empty_bh(struct skb_array *a)
+{
+	return ptr_ring_empty_bh(&a->ring);
+}
+
+static inline bool skb_array_empty_irq(struct skb_array *a)
+{
+	return ptr_ring_empty_irq(&a->ring);
+}
+
+static inline bool skb_array_empty_any(struct skb_array *a)
+{
+	return ptr_ring_empty_any(&a->ring);
 }
 
 static inline struct sk_buff *skb_array_consume(struct skb_array *a)
@@ -136,9 +151,19 @@ static inline int skb_array_init(struct skb_array *a, int size, gfp_t gfp)
 	return ptr_ring_init(&a->ring, size, gfp);
 }
 
+void __skb_array_destroy_skb(void *ptr)
+{
+	kfree_skb(ptr);
+}
+
+int skb_array_resize(struct skb_array *a, int size, gfp_t gfp)
+{
+	return ptr_ring_resize(&a->ring, size, gfp, __skb_array_destroy_skb);
+}
+
 static inline void skb_array_cleanup(struct skb_array *a)
 {
-	ptr_ring_cleanup(&a->ring);
+	ptr_ring_cleanup(&a->ring, __skb_array_destroy_skb);
 }
 
 #endif /* _LINUX_SKB_ARRAY_H  */
