@@ -30,6 +30,7 @@
 #include <asm/unaligned.h>
 
 #include "nvme.h"
+#include "fabrics.h"
 
 #define NVME_MINORS		(1U << MINORBITS)
 
@@ -462,6 +463,74 @@ int nvme_submit_user_cmd(struct request_queue *q, struct nvme_command *cmd,
 	return __nvme_submit_user_cmd(q, cmd, ubuffer, bufflen, NULL, 0, 0,
 			result, timeout);
 }
+
+static void nvme_keep_alive_end_io(struct request *rq, int error)
+{
+	struct nvme_ctrl *ctrl = rq->end_io_data;
+
+	blk_mq_free_request(rq);
+
+	if (error) {
+		dev_err(ctrl->device,
+			"failed nvme_keep_alive_end_io error=%d\n", error);
+		return;
+	}
+
+	schedule_delayed_work(&ctrl->ka_work, ctrl->kato * HZ);
+}
+
+static int nvme_keep_alive(struct nvme_ctrl *ctrl)
+{
+	struct nvme_command c;
+	struct request *rq;
+
+	memset(&c, 0, sizeof(c));
+	c.common.opcode = nvme_admin_keep_alive;
+
+	rq = nvme_alloc_request(ctrl->admin_q, &c, BLK_MQ_REQ_RESERVED,
+			NVME_QID_ANY);
+	if (IS_ERR(rq))
+		return PTR_ERR(rq);
+
+	rq->timeout = ctrl->kato * HZ;
+	rq->end_io_data = ctrl;
+
+	blk_execute_rq_nowait(rq->q, NULL, rq, 0, nvme_keep_alive_end_io);
+
+	return 0;
+}
+
+static void nvme_keep_alive_work(struct work_struct *work)
+{
+	struct nvme_ctrl *ctrl = container_of(to_delayed_work(work),
+			struct nvme_ctrl, ka_work);
+
+	if (nvme_keep_alive(ctrl)) {
+		/* allocation failure, reset the controller */
+		dev_err(ctrl->device, "keep-alive failed\n");
+		ctrl->ops->reset_ctrl(ctrl);
+		return;
+	}
+}
+
+void nvme_start_keep_alive(struct nvme_ctrl *ctrl)
+{
+	if (unlikely(ctrl->kato == 0))
+		return;
+
+	INIT_DELAYED_WORK(&ctrl->ka_work, nvme_keep_alive_work);
+	schedule_delayed_work(&ctrl->ka_work, ctrl->kato * HZ);
+}
+EXPORT_SYMBOL_GPL(nvme_start_keep_alive);
+
+void nvme_stop_keep_alive(struct nvme_ctrl *ctrl)
+{
+	if (unlikely(ctrl->kato == 0))
+		return;
+
+	cancel_delayed_work_sync(&ctrl->ka_work);
+}
+EXPORT_SYMBOL_GPL(nvme_stop_keep_alive);
 
 int nvme_identify_ctrl(struct nvme_ctrl *dev, struct nvme_id_ctrl **id)
 {
@@ -1179,6 +1248,7 @@ int nvme_init_identify(struct nvme_ctrl *ctrl)
 
 	nvme_set_queue_limits(ctrl, ctrl->admin_q);
 	ctrl->sgls = le32_to_cpu(id->sgls);
+	ctrl->kas = le16_to_cpu(id->kas);
 
 	if (ctrl->ops->is_fabrics) {
 		ctrl->icdoff = le16_to_cpu(id->icdoff);
@@ -1192,6 +1262,12 @@ int nvme_init_identify(struct nvme_ctrl *ctrl)
 		 */
 		if (ctrl->cntlid != le16_to_cpu(id->cntlid))
 			ret = -EINVAL;
+
+		if (!ctrl->opts->discovery_nqn && !ctrl->kas) {
+			dev_err(ctrl->dev,
+				"keep-alive support is mandatory for fabrics\n");
+			ret = -EINVAL;
+		}
 	} else {
 		ctrl->cntlid = le16_to_cpu(id->cntlid);
 	}

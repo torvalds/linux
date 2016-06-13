@@ -38,6 +38,9 @@ extern unsigned char admin_timeout;
 extern unsigned char shutdown_timeout;
 #define SHUTDOWN_TIMEOUT	(shutdown_timeout * HZ)
 
+#define NVME_DEFAULT_KATO	5
+#define NVME_KATO_GRACE		10
+
 enum {
 	NVME_NS_LBA		= 0,
 	NVME_NS_LIGHTNVM	= 1,
@@ -109,10 +112,13 @@ struct nvme_ctrl {
 	u8 vwc;
 	u32 vs;
 	u32 sgls;
+	u16 kas;
+	unsigned int kato;
 	bool subsystem;
 	unsigned long quirks;
 	struct work_struct scan_work;
 	struct work_struct async_event_work;
+	struct delayed_work ka_work;
 
 	/* Fabrics only */
 	u16 sqsize;
@@ -273,6 +279,8 @@ int nvme_get_features(struct nvme_ctrl *dev, unsigned fid, unsigned nsid,
 int nvme_set_features(struct nvme_ctrl *dev, unsigned fid, unsigned dword11,
 			dma_addr_t dma_addr, u32 *result);
 int nvme_set_queue_count(struct nvme_ctrl *ctrl, int *count);
+void nvme_start_keep_alive(struct nvme_ctrl *ctrl);
+void nvme_stop_keep_alive(struct nvme_ctrl *ctrl);
 
 struct sg_io_hdr;
 

@@ -360,6 +360,12 @@ int nvmf_connect_admin_queue(struct nvme_ctrl *ctrl)
 	cmd.connect.fctype = nvme_fabrics_type_connect;
 	cmd.connect.qid = 0;
 	cmd.connect.sqsize = cpu_to_le16(ctrl->sqsize);
+	/*
+	 * Set keep-alive timeout in seconds granularity (ms * 1000)
+	 * and add a grace period for controller kato enforcement
+	 */
+	cmd.connect.kato = ctrl->opts->discovery_nqn ? 0 :
+		cpu_to_le32((ctrl->kato + NVME_KATO_GRACE) * 1000);
 
 	data = kzalloc(sizeof(*data), GFP_KERNEL);
 	if (!data)
@@ -499,6 +505,7 @@ static const match_table_t opt_tokens = {
 	{ NVMF_OPT_NR_IO_QUEUES,	"nr_io_queues=%d"	},
 	{ NVMF_OPT_TL_RETRY_COUNT,	"tl_retry_count=%d"	},
 	{ NVMF_OPT_RECONNECT_DELAY,	"reconnect_delay=%d"	},
+	{ NVMF_OPT_KATO,		"keep_alive_tmo=%d"	},
 	{ NVMF_OPT_HOSTNQN,		"hostnqn=%s"		},
 	{ NVMF_OPT_ERR,			NULL			}
 };
@@ -610,6 +617,28 @@ static int nvmf_parse_options(struct nvmf_ctrl_options *opts,
 			}
 			opts->tl_retry_count = token;
 			break;
+		case NVMF_OPT_KATO:
+			if (match_int(args, &token)) {
+				ret = -EINVAL;
+				goto out;
+			}
+
+			if (opts->discovery_nqn) {
+				pr_err("Discovery controllers cannot accept keep_alive_tmo != 0\n");
+				ret = -EINVAL;
+				goto out;
+			}
+
+			if (token < 0) {
+				pr_err("Invalid keep_alive_tmo %d\n", token);
+				ret = -EINVAL;
+				goto out;
+			} else if (token == 0) {
+				/* Allowed for debug */
+				pr_warn("keep_alive_tmo 0 won't execute keep alives!!!\n");
+			}
+			opts->kato = token;
+			break;
 		case NVMF_OPT_HOSTNQN:
 			if (opts->host) {
 				pr_err("hostnqn already user-assigned: %s\n",
@@ -661,6 +690,8 @@ static int nvmf_parse_options(struct nvmf_ctrl_options *opts,
 	}
 
 out:
+	if (!opts->discovery_nqn && !opts->kato)
+		opts->kato = NVME_DEFAULT_KATO;
 	kfree(options);
 	return ret;
 }
@@ -717,7 +748,7 @@ EXPORT_SYMBOL_GPL(nvmf_free_options);
 
 #define NVMF_REQUIRED_OPTS	(NVMF_OPT_TRANSPORT | NVMF_OPT_NQN)
 #define NVMF_ALLOWED_OPTS	(NVMF_OPT_QUEUE_SIZE | NVMF_OPT_NR_IO_QUEUES | \
-				 NVMF_OPT_HOSTNQN)
+				 NVMF_OPT_KATO | NVMF_OPT_HOSTNQN)
 
 static struct nvme_ctrl *
 nvmf_create_ctrl(struct device *dev, const char *buf, size_t count)

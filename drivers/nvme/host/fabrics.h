@@ -49,6 +49,7 @@ enum {
 	NVMF_OPT_QUEUE_SIZE	= 1 << 4,
 	NVMF_OPT_NR_IO_QUEUES	= 1 << 5,
 	NVMF_OPT_TL_RETRY_COUNT	= 1 << 6,
+	NVMF_OPT_KATO		= 1 << 7,
 	NVMF_OPT_HOSTNQN	= 1 << 8,
 	NVMF_OPT_RECONNECT_DELAY = 1 << 9,
 };
@@ -72,6 +73,7 @@ enum {
  *		     kicking upper layer(s) error recovery.
  * @reconnect_delay: Time between two consecutive reconnect attempts.
  * @discovery_nqn: indicates if the subsysnqn is the well-known discovery NQN.
+ * @kato:	Keep-alive timeout.
  * @host:	Virtual NVMe host, contains the NQN and Host ID.
  */
 struct nvmf_ctrl_options {
@@ -85,6 +87,7 @@ struct nvmf_ctrl_options {
 	unsigned short		tl_retry_count;
 	unsigned int		reconnect_delay;
 	bool			discovery_nqn;
+	unsigned int		kato;
 	struct nvmf_host	*host;
 };
 
