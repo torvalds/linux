@@ -10706,7 +10706,7 @@ static void vmx_enable_log_dirty_pt_masked(struct kvm *kvm,
  *   this case, return 1, otherwise, return 0.
  *
  */
-static int vmx_pre_block(struct kvm_vcpu *vcpu)
+static int pi_pre_block(struct kvm_vcpu *vcpu)
 {
 	unsigned long flags;
 	unsigned int dest;
@@ -10772,7 +10772,15 @@ static int vmx_pre_block(struct kvm_vcpu *vcpu)
 	return 0;
 }
 
-static void vmx_post_block(struct kvm_vcpu *vcpu)
+static int vmx_pre_block(struct kvm_vcpu *vcpu)
+{
+	if (pi_pre_block(vcpu))
+		return 1;
+
+	return 0;
+}
+
+static void pi_post_block(struct kvm_vcpu *vcpu)
 {
 	struct pi_desc *pi_desc = vcpu_to_pi_desc(vcpu);
 	struct pi_desc old, new;
@@ -10811,6 +10819,11 @@ static void vmx_post_block(struct kvm_vcpu *vcpu)
 			vcpu->pre_pcpu), flags);
 		vcpu->pre_pcpu = -1;
 	}
+}
+
+static void vmx_post_block(struct kvm_vcpu *vcpu)
+{
+	pi_post_block(vcpu);
 }
 
 /*
