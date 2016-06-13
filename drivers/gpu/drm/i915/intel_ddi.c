@@ -1899,8 +1899,6 @@ static void broxton_phy_init(struct drm_i915_private *dev_priv,
 		 * the corresponding calibrated value from PHY1, and disable
 		 * the automatic calibration on PHY0.
 		 */
-		broxton_phy_wait_grc_done(dev_priv, DPIO_PHY1);
-
 		val = dev_priv->bxt_phy_grc = broxton_get_grc(dev_priv,
 							      DPIO_PHY1);
 		grc_code = val << GRC_CODE_FAST_SHIFT |
@@ -1912,14 +1910,13 @@ static void broxton_phy_init(struct drm_i915_private *dev_priv,
 		val |= GRC_DIS | GRC_RDY_OVRD;
 		I915_WRITE(BXT_PORT_REF_DW8(DPIO_PHY0), val);
 	}
-	/*
-	 * During PHY1 init delay waiting for GRC calibration to finish, since
-	 * it can happen in parallel with the subsequent PHY0 init.
-	 */
 
 	val = I915_READ(BXT_PHY_CTL_FAMILY(phy));
 	val |= COMMON_RESET_DIS;
 	I915_WRITE(BXT_PHY_CTL_FAMILY(phy), val);
+
+	if (phy == DPIO_PHY1)
+		broxton_phy_wait_grc_done(dev_priv, DPIO_PHY1);
 }
 
 void broxton_ddi_phy_init(struct drm_i915_private *dev_priv)
@@ -1927,12 +1924,6 @@ void broxton_ddi_phy_init(struct drm_i915_private *dev_priv)
 	/* Enable PHY1 first since it provides Rcomp for PHY0 */
 	broxton_phy_init(dev_priv, DPIO_PHY1);
 	broxton_phy_init(dev_priv, DPIO_PHY0);
-
-	/*
-	 * If BIOS enabled only PHY0 and not PHY1, we skipped waiting for the
-	 * PHY1 GRC calibration to finish, so wait for it here.
-	 */
-	broxton_phy_wait_grc_done(dev_priv, DPIO_PHY1);
 }
 
 static void broxton_phy_uninit(struct drm_i915_private *dev_priv,
