@@ -906,6 +906,15 @@ is_valid_soft_transition(union drbd_state os, union drbd_state ns, struct drbd_c
 	      (ns.conn >= C_CONNECTED && os.conn == C_WF_REPORT_PARAMS)))
 		rv = SS_IN_TRANSIENT_STATE;
 
+	/* Do not promote during resync handshake triggered by "force primary".
+	 * This is a hack. It should really be rejected by the peer during the
+	 * cluster wide state change request. */
+	if (os.role != R_PRIMARY && ns.role == R_PRIMARY
+		&& ns.pdsk == D_UP_TO_DATE
+		&& ns.disk != D_UP_TO_DATE && ns.disk != D_DISKLESS
+		&& (ns.conn <= C_WF_SYNC_UUID || ns.conn != os.conn))
+			rv = SS_IN_TRANSIENT_STATE;
+
 	if ((ns.conn == C_VERIFY_S || ns.conn == C_VERIFY_T) && os.conn < C_CONNECTED)
 		rv = SS_NEED_CONNECTION;
 
