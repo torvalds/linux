@@ -3523,7 +3523,12 @@ static int w_bitmap_io(struct drbd_work *w, int unused)
 	struct bm_io_work *work = &device->bm_io_work;
 	int rv = -EIO;
 
-	D_ASSERT(device, atomic_read(&device->ap_bio_cnt) == 0);
+	if (work->flags != BM_LOCKED_CHANGE_ALLOWED) {
+		int cnt = atomic_read(&device->ap_bio_cnt);
+		if (cnt)
+			drbd_err(device, "FIXME: ap_bio_cnt %d, expected 0; queued for '%s'\n",
+					cnt, work->why);
+	}
 
 	if (get_ldev(device)) {
 		drbd_bm_lock(device, work->why, work->flags);
