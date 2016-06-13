@@ -1872,7 +1872,7 @@ static struct snd_soc_dai_driver wm5102_dai[] = {
 		.capture = {
 			.stream_name = "Audio Trace CPU",
 			.channels_min = 1,
-			.channels_max = 6,
+			.channels_max = 4,
 			.rates = WM5102_RATES,
 			.formats = WM5102_FORMATS,
 		},
