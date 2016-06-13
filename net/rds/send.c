@@ -710,6 +710,7 @@ void rds_send_drop_to(struct rds_sock *rs, struct sockaddr_in *dest)
 {
 	struct rds_message *rm, *tmp;
 	struct rds_connection *conn;
+	struct rds_conn_path *cp;
 	unsigned long flags;
 	LIST_HEAD(list);
 
@@ -738,22 +739,26 @@ void rds_send_drop_to(struct rds_sock *rs, struct sockaddr_in *dest)
 	list_for_each_entry(rm, &list, m_sock_item) {
 
 		conn = rm->m_inc.i_conn;
+		if (conn->c_trans->t_mp_capable)
+			cp = rm->m_inc.i_conn_path;
+		else
+			cp = &conn->c_path[0];
 
-		spin_lock_irqsave(&conn->c_lock, flags);
+		spin_lock_irqsave(&cp->cp_lock, flags);
 		/*
 		 * Maybe someone else beat us to removing rm from the conn.
 		 * If we race with their flag update we'll get the lock and
 		 * then really see that the flag has been cleared.
 		 */
 		if (!test_and_clear_bit(RDS_MSG_ON_CONN, &rm->m_flags)) {
-			spin_unlock_irqrestore(&conn->c_lock, flags);
+			spin_unlock_irqrestore(&cp->cp_lock, flags);
 			spin_lock_irqsave(&rm->m_rs_lock, flags);
 			rm->m_rs = NULL;
 			spin_unlock_irqrestore(&rm->m_rs_lock, flags);
 			continue;
 		}
 		list_del_init(&rm->m_conn_item);
-		spin_unlock_irqrestore(&conn->c_lock, flags);
+		spin_unlock_irqrestore(&cp->cp_lock, flags);
 
 		/*
 		 * Couldn't grab m_rs_lock in top loop (lock ordering),
