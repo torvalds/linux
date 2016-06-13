@@ -3587,18 +3587,20 @@ void drbd_queue_bitmap_io(struct drbd_device *device,
 int drbd_bitmap_io(struct drbd_device *device, int (*io_fn)(struct drbd_device *),
 		char *why, enum bm_flag flags)
 {
+	/* Only suspend io, if some operation is supposed to be locked out */
+	const bool do_suspend_io = flags & (BM_DONT_CLEAR|BM_DONT_SET|BM_DONT_TEST);
 	int rv;
 
 	D_ASSERT(device, current != first_peer_device(device)->connection->worker.task);
 
-	if ((flags & BM_LOCKED_SET_ALLOWED) == 0)
+	if (do_suspend_io)
 		drbd_suspend_io(device);
 
 	drbd_bm_lock(device, why, flags);
 	rv = io_fn(device);
 	drbd_bm_unlock(device);
 
-	if ((flags & BM_LOCKED_SET_ALLOWED) == 0)
+	if (do_suspend_io)
 		drbd_resume_io(device);
 
 	return rv;
