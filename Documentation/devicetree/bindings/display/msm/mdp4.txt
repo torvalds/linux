@@ -1,28 +1,25 @@
-Qualcomm adreno/snapdragon display controller
+Qualcomm adreno/snapdragon MDP4 display controller
+
+Description:
+
+This is the bindings documentation for the MDP4 display controller found in
+SoCs like MSM8960, APQ8064 and MSM8660.
 
 Required properties:
 - compatible:
   * "qcom,mdp4" - mdp4
-  * "qcom,mdp5" - mdp5
 - reg: Physical base address and length of the controller's registers.
 - interrupts: The interrupt signal from the display controller.
 - connectors: array of phandles for output device(s)
 - clocks: device clocks
   See ../clocks/clock-bindings.txt for details.
 - clock-names: the following clocks are required.
-  For MDP4:
-   * "core_clk"
-   * "iface_clk"
-   * "bus_clk"
-   * "lut_clk"
-   * "hdmi_clk"
-   * "tv_clk"
-  For MDP5:
-   * "bus_clk"
-   * "iface_clk"
-   * "core_clk"
-   * "lut_clk" (some MDP5 versions may not need this)
-   * "vsync_clk"
+  * "core_clk"
+  * "iface_clk"
+  * "bus_clk"
+  * "lut_clk"
+  * "hdmi_clk"
+  * "tv_clk"
 
 Optional properties:
 - gpus: phandle for gpu device
