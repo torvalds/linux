@@ -39,6 +39,7 @@
 #include <linux/random.h>
 #include <linux/rculist.h>
 #include <linux/rcupdate.h>
+#include <linux/rtnetlink.h>
 #include <linux/skbuff.h>
 #include <linux/slab.h>
 #include <linux/socket.h>
@@ -46,7 +47,6 @@
 #include <linux/stddef.h>
 #include <linux/string.h>
 #include <linux/types.h>
-#include <linux/workqueue.h>
 
 #include "bat_algo.h"
 #include "bridge_loop_avoidance.h"
@@ -747,34 +747,6 @@ static void batadv_set_lockdep_class(struct net_device *dev)
 }
 
 /**
- * batadv_softif_destroy_finish - cleans up the remains of a softif
- * @work: work queue item
- *
- * Free the parts of the soft interface which can not be removed under
- * rtnl lock (to prevent deadlock situations).
- */
-static void batadv_softif_destroy_finish(struct work_struct *work)
-{
-	struct batadv_softif_vlan *vlan;
-	struct batadv_priv *bat_priv;
-	struct net_device *soft_iface;
-
-	bat_priv = container_of(work, struct batadv_priv,
-				cleanup_work);
-	soft_iface = bat_priv->soft_iface;
-
-	/* destroy the "untagged" VLAN */
-	vlan = batadv_softif_vlan_get(bat_priv, BATADV_NO_FLAGS);
-	if (vlan) {
-		batadv_softif_destroy_vlan(bat_priv, vlan);
-		batadv_softif_vlan_put(vlan);
-	}
-
-	batadv_sysfs_del_meshif(soft_iface);
-	unregister_netdev(soft_iface);
-}
-
-/**
  * batadv_softif_init_late - late stage initialization of soft interface
  * @dev: registered network device to modify
  *
@@ -791,7 +763,6 @@ static int batadv_softif_init_late(struct net_device *dev)
 
 	bat_priv = netdev_priv(dev);
 	bat_priv->soft_iface = dev;
-	INIT_WORK(&bat_priv->cleanup_work, batadv_softif_destroy_finish);
 
 	/* batadv_interface_stats() needs to be available as soon as
 	 * register_netdevice() has been called
@@ -1028,8 +999,19 @@ struct net_device *batadv_softif_create(struct net *net, const char *name)
 void batadv_softif_destroy_sysfs(struct net_device *soft_iface)
 {
 	struct batadv_priv *bat_priv = netdev_priv(soft_iface);
+	struct batadv_softif_vlan *vlan;
 
-	queue_work(batadv_event_workqueue, &bat_priv->cleanup_work);
+	ASSERT_RTNL();
+
+	/* destroy the "untagged" VLAN */
+	vlan = batadv_softif_vlan_get(bat_priv, BATADV_NO_FLAGS);
+	if (vlan) {
+		batadv_softif_destroy_vlan(bat_priv, vlan);
+		batadv_softif_vlan_put(vlan);
+	}
+
+	batadv_sysfs_del_meshif(soft_iface);
+	unregister_netdevice(soft_iface);
 }
 
 /**

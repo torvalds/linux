@@ -132,7 +132,6 @@ struct batadv_hard_iface_bat_v {
  * @rcu: struct used for freeing in an RCU-safe manner
  * @bat_iv: per hard-interface B.A.T.M.A.N. IV data
  * @bat_v: per hard-interface B.A.T.M.A.N. V data
- * @cleanup_work: work queue callback item for hard-interface deinit
  * @debug_dir: dentry for nc subdir in batman-adv directory in debugfs
  * @neigh_list: list of unique single hop neighbors via this interface
  * @neigh_list_lock: lock protecting neigh_list
@@ -152,7 +151,6 @@ struct batadv_hard_iface {
 #ifdef CONFIG_BATMAN_ADV_BATMAN_V
 	struct batadv_hard_iface_bat_v bat_v;
 #endif
-	struct work_struct cleanup_work;
 	struct dentry *debug_dir;
 	struct hlist_head neigh_list;
 	/* neigh_list_lock protects: neigh_list */
@@ -1015,7 +1013,6 @@ struct batadv_priv_bat_v {
  * @forw_bcast_list_lock: lock protecting forw_bcast_list
  * @tp_list_lock: spinlock protecting @tp_list
  * @orig_work: work queue callback item for orig node purging
- * @cleanup_work: work queue callback item for soft-interface deinit
  * @primary_if: one of the hard-interfaces assigned to this mesh interface
  *  becomes the primary interface
  * @algo_ops: routing algorithm used by this mesh interface
@@ -1074,7 +1071,6 @@ struct batadv_priv {
 	spinlock_t tp_list_lock; /* protects tp_list */
 	atomic_t tp_num;
 	struct delayed_work orig_work;
-	struct work_struct cleanup_work;
 	struct batadv_hard_iface __rcu *primary_if;  /* rcu protected pointer */
 	struct batadv_algo_ops *algo_ops;
 	struct hlist_head softif_vlan_list;
