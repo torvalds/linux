@@ -713,6 +713,8 @@ rem_attr:
 	for (bat_attr = batadv_mesh_attrs; *bat_attr; ++bat_attr)
 		sysfs_remove_file(bat_priv->mesh_obj, &((*bat_attr)->attr));
 
+	kobject_uevent(bat_priv->mesh_obj, KOBJ_REMOVE);
+	kobject_del(bat_priv->mesh_obj);
 	kobject_put(bat_priv->mesh_obj);
 	bat_priv->mesh_obj = NULL;
 out:
@@ -727,6 +729,8 @@ void batadv_sysfs_del_meshif(struct net_device *dev)
 	for (bat_attr = batadv_mesh_attrs; *bat_attr; ++bat_attr)
 		sysfs_remove_file(bat_priv->mesh_obj, &((*bat_attr)->attr));
 
+	kobject_uevent(bat_priv->mesh_obj, KOBJ_REMOVE);
+	kobject_del(bat_priv->mesh_obj);
 	kobject_put(bat_priv->mesh_obj);
 	bat_priv->mesh_obj = NULL;
 }
@@ -782,6 +786,10 @@ rem_attr:
 	for (bat_attr = batadv_vlan_attrs; *bat_attr; ++bat_attr)
 		sysfs_remove_file(vlan->kobj, &((*bat_attr)->attr));
 
+	if (vlan->kobj != bat_priv->mesh_obj) {
+		kobject_uevent(vlan->kobj, KOBJ_REMOVE);
+		kobject_del(vlan->kobj);
+	}
 	kobject_put(vlan->kobj);
 	vlan->kobj = NULL;
 out:
@@ -801,6 +809,10 @@ void batadv_sysfs_del_vlan(struct batadv_priv *bat_priv,
 	for (bat_attr = batadv_vlan_attrs; *bat_attr; ++bat_attr)
 		sysfs_remove_file(vlan->kobj, &((*bat_attr)->attr));
 
+	if (vlan->kobj != bat_priv->mesh_obj) {
+		kobject_uevent(vlan->kobj, KOBJ_REMOVE);
+		kobject_del(vlan->kobj);
+	}
 	kobject_put(vlan->kobj);
 	vlan->kobj = NULL;
 }
@@ -1103,6 +1115,8 @@ out:
 
 void batadv_sysfs_del_hardif(struct kobject **hardif_obj)
 {
+	kobject_uevent(*hardif_obj, KOBJ_REMOVE);
+	kobject_del(*hardif_obj);
 	kobject_put(*hardif_obj);
 	*hardif_obj = NULL;
 }
