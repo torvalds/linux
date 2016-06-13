@@ -149,3 +149,7 @@
 &usdhc2 {
 	no-1-8-v;
 };
+
+&wdog1 {
+	status = "disabled";
+};
