@@ -225,7 +225,7 @@ void rds_shutdown_worker(struct work_struct *work)
 						struct rds_conn_path,
 						cp_down_w);
 
-	rds_conn_shutdown(cp->cp_conn);
+	rds_conn_shutdown(cp);
 }
 
 void rds_threads_exit(void)

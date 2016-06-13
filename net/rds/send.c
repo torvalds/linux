@@ -62,7 +62,7 @@ static void rds_send_remove_from_sock(struct list_head *messages, int status);
  * Reset the send state.  Callers must ensure that this doesn't race with
  * rds_send_xmit().
  */
-static void rds_send_path_reset(struct rds_conn_path *cp)
+void rds_send_path_reset(struct rds_conn_path *cp)
 {
 	struct rds_message *rm, *tmp;
 	unsigned long flags;
@@ -99,12 +99,7 @@ static void rds_send_path_reset(struct rds_conn_path *cp)
 	list_splice_init(&cp->cp_retrans, &cp->cp_send_queue);
 	spin_unlock_irqrestore(&cp->cp_lock, flags);
 }
-
-void rds_send_reset(struct rds_connection *conn)
-{
-	rds_send_path_reset(&conn->c_path[0]);
-}
-EXPORT_SYMBOL_GPL(rds_send_reset);
+EXPORT_SYMBOL_GPL(rds_send_path_reset);
 
 static int acquire_in_xmit(struct rds_conn_path *cp)
 {

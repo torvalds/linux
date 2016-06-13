@@ -456,6 +456,7 @@ struct rds_transport {
 	void (*conn_free)(void *data);
 	int (*conn_connect)(struct rds_connection *conn);
 	void (*conn_shutdown)(struct rds_connection *conn);
+	void (*conn_path_shutdown)(struct rds_conn_path *conn);
 	void (*xmit_prepare)(struct rds_connection *conn);
 	void (*xmit_path_prepare)(struct rds_conn_path *cp);
 	void (*xmit_complete)(struct rds_connection *conn);
@@ -653,7 +654,7 @@ struct rds_connection *rds_conn_create(struct net *net,
 struct rds_connection *rds_conn_create_outgoing(struct net *net,
 						__be32 laddr, __be32 faddr,
 			       struct rds_transport *trans, gfp_t gfp);
-void rds_conn_shutdown(struct rds_connection *conn);
+void rds_conn_shutdown(struct rds_conn_path *cpath);
 void rds_conn_destroy(struct rds_connection *conn);
 void rds_conn_drop(struct rds_connection *conn);
 void rds_conn_path_drop(struct rds_conn_path *cpath);
@@ -786,7 +787,7 @@ void rds_inc_info_copy(struct rds_incoming *inc,
 
 /* send.c */
 int rds_sendmsg(struct socket *sock, struct msghdr *msg, size_t payload_len);
-void rds_send_reset(struct rds_connection *conn);
+void rds_send_path_reset(struct rds_conn_path *conn);
 int rds_send_xmit(struct rds_conn_path *cp);
 struct sockaddr_in;
 void rds_send_drop_to(struct rds_sock *rs, struct sockaddr_in *dest);
