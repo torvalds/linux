@@ -828,9 +828,7 @@ static int clk_core_round_rate_nolock(struct clk_core *core,
 /**
  * __clk_determine_rate - get the closest rate actually supported by a clock
  * @hw: determine the rate of this clock
- * @rate: target rate
- * @min_rate: returned rate must be greater than this rate
- * @max_rate: returned rate must be less than this rate
+ * @req: target rate request
  *
  * Useful for clk_ops such as .set_rate and .determine_rate.
  */
