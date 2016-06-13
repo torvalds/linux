@@ -342,6 +342,9 @@ static void dim2_clear_channel(u8 ch_addr)
 
 	dim2_clear_cat(MLB_CAT, ch_addr);
 	dim2_clear_cdt(ch_addr);
+
+	/* clear channel status bit */
+	dimcb_io_write(&g.dim2->ACSR0, bit_mask(ch_addr));
 }
 
 /* -------------------------------------------------------------------------- */
