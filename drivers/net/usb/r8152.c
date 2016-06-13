@@ -628,8 +628,11 @@ struct r8152 {
 	u32 tx_qlen;
 	u32 coalesce;
 	u16 ocp_base;
+	u16 speed;
 	u8 *intr_buff;
 	u8 version;
+	u8 duplex;
+	u8 autoneg;
 };
 
 enum rtl_version {
@@ -3051,9 +3054,7 @@ static void rtl_hw_phy_work_func_t(struct work_struct *work)
 
 	tp->rtl_ops.hw_phy_cfg(tp);
 
-	rtl8152_set_speed(tp, AUTONEG_ENABLE,
-			  tp->mii.supports_gmii ? SPEED_1000 : SPEED_100,
-			  DUPLEX_FULL);
+	rtl8152_set_speed(tp, tp->autoneg, tp->speed, tp->duplex);
 
 	mutex_unlock(&tp->control);
 
@@ -3679,6 +3680,11 @@ static int rtl8152_set_settings(struct net_device *dev, struct ethtool_cmd *cmd)
 	mutex_lock(&tp->control);
 
 	ret = rtl8152_set_speed(tp, cmd->autoneg, cmd->speed, cmd->duplex);
+	if (!ret) {
+		tp->autoneg = cmd->autoneg;
+		tp->speed = cmd->speed;
+		tp->duplex = cmd->duplex;
+	}
 
 	mutex_unlock(&tp->control);
 
@@ -4238,6 +4244,10 @@ static int rtl8152_probe(struct usb_interface *intf,
 		tp->coalesce = COALESCE_SLOW;
 		break;
 	}
+
+	tp->autoneg = AUTONEG_ENABLE;
+	tp->speed = tp->mii.supports_gmii ? SPEED_1000 : SPEED_100;
+	tp->duplex = DUPLEX_FULL;
 
 	intf->needs_remote_wakeup = 1;
 
