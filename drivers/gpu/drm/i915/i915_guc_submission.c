@@ -306,7 +306,7 @@ static uint16_t assign_doorbell(struct intel_guc *guc, uint32_t priority)
 	if (id == end)
 		id = GUC_INVALID_DOORBELL_ID;
 	else
-		bitmap_set(guc->doorbell_bitmap, id, 1);
+		__set_bit(id, guc->doorbell_bitmap);
 
 	DRM_DEBUG_DRIVER("assigned %s priority doorbell id 0x%x\n",
 			hi_pri ? "high" : "normal", id);
@@ -316,7 +316,7 @@ static uint16_t assign_doorbell(struct intel_guc *guc, uint32_t priority)
 
 static void release_doorbell(struct intel_guc *guc, uint16_t id)
 {
-	bitmap_clear(guc->doorbell_bitmap, id, 1);
+	__clear_bit(id, guc->doorbell_bitmap);
 }
 
 /*
