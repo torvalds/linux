@@ -811,19 +811,22 @@ static pte_t *gmap_pte_op_walk(struct gmap *gmap, unsigned long gaddr,
  * @gmap: pointer to guest mapping meta data structure
  * @gaddr: virtual address in the guest address space
  * @vmaddr: address in the host process address space
+ * @prot: indicates access rights: PROT_NONE, PROT_READ or PROT_WRITE
  *
  * Returns 0 if the caller can retry __gmap_translate (might fail again),
  * -ENOMEM if out of memory and -EFAULT if anything goes wrong while fixing
  * up or connecting the gmap page table.
  */
 static int gmap_pte_op_fixup(struct gmap *gmap, unsigned long gaddr,
-			     unsigned long vmaddr)
+			     unsigned long vmaddr, int prot)
 {
 	struct mm_struct *mm = gmap->mm;
+	unsigned int fault_flags;
 	bool unlocked = false;
 
 	BUG_ON(gmap_is_shadow(gmap));
-	if (fixup_user_fault(current, mm, vmaddr, FAULT_FLAG_WRITE, &unlocked))
+	fault_flags = (prot == PROT_WRITE) ? FAULT_FLAG_WRITE : 0;
+	if (fixup_user_fault(current, mm, vmaddr, fault_flags, &unlocked))
 		return -EFAULT;
 	if (unlocked)
 		/* lost mmap_sem, caller has to retry __gmap_translate */
@@ -875,7 +878,7 @@ static int gmap_protect_range(struct gmap *gmap, unsigned long gaddr,
 			vmaddr = __gmap_translate(gmap, gaddr);
 			if (IS_ERR_VALUE(vmaddr))
 				return vmaddr;
-			rc = gmap_pte_op_fixup(gmap, gaddr, vmaddr);
+			rc = gmap_pte_op_fixup(gmap, gaddr, vmaddr, prot);
 			if (rc)
 				return rc;
 			continue;
@@ -957,7 +960,7 @@ int gmap_read_table(struct gmap *gmap, unsigned long gaddr, unsigned long *val)
 			rc = vmaddr;
 			break;
 		}
-		rc = gmap_pte_op_fixup(gmap, gaddr, vmaddr);
+		rc = gmap_pte_op_fixup(gmap, gaddr, vmaddr, PROT_READ);
 		if (rc)
 			break;
 	}
@@ -1041,7 +1044,7 @@ static int gmap_protect_rmap(struct gmap *sg, unsigned long raddr,
 		radix_tree_preload_end();
 		if (rc) {
 			kfree(rmap);
-			rc = gmap_pte_op_fixup(parent, paddr, vmaddr);
+			rc = gmap_pte_op_fixup(parent, paddr, vmaddr, prot);
 			if (rc)
 				return rc;
 			continue;
@@ -1910,10 +1913,12 @@ int gmap_shadow_page(struct gmap *sg, unsigned long saddr, pte_t pte)
 	unsigned long vmaddr, paddr;
 	spinlock_t *ptl;
 	pte_t *sptep, *tptep;
+	int prot;
 	int rc;
 
 	BUG_ON(!gmap_is_shadow(sg));
 	parent = sg->parent;
+	prot = (pte_val(pte) & _PAGE_PROTECT) ? PROT_READ : PROT_WRITE;
 
 	rmap = kzalloc(sizeof(*rmap), GFP_KERNEL);
 	if (!rmap)
@@ -1955,7 +1960,7 @@ int gmap_shadow_page(struct gmap *sg, unsigned long saddr, pte_t pte)
 		radix_tree_preload_end();
 		if (!rc)
 			break;
-		rc = gmap_pte_op_fixup(parent, paddr, vmaddr);
+		rc = gmap_pte_op_fixup(parent, paddr, vmaddr, prot);
 		if (rc)
 			break;
 	}
