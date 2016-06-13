@@ -45,6 +45,17 @@ module_param(clock_speed, charp, 0);
 MODULE_PARM_DESC(clock_speed, "MediaLB Clock Speed");
 
 /*
+ * The parameter representing the number of frames per sub-buffer for
+ * synchronous channels.  Valid values: [0 .. 6].
+ *
+ * The values 0, 1, 2, 3, 4, 5, 6 represent corresponding number of frames per
+ * sub-buffer 1, 2, 4, 8, 16, 32, 64.
+ */
+static u8 fcnt = 4;  /* (1 << fcnt) frames per subbuffer */
+module_param(fcnt, byte, 0);
+MODULE_PARM_DESC(fcnt, "Num of frames per sub-buffer for sync channels as a power of 2");
+
+/*
  * #############################################################################
  *
  * The define below activates an utility function used by HAL-simu
@@ -212,7 +223,8 @@ static int startup_dim(struct platform_device *pdev)
 			return ret;
 	}
 
-	hal_ret = dim_startup(dev->io_base, dev->clk_speed);
+	pr_info("sync: num of frames per sub-buffer: %u\n", fcnt);
+	hal_ret = dim_startup(dev->io_base, dev->clk_speed, fcnt);
 	if (hal_ret != DIM_NO_ERROR) {
 		pr_err("dim_startup failed: %d\n", hal_ret);
 		if (pdata && pdata->destroy)

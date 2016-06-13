@@ -20,18 +20,6 @@
 #include <linux/stddef.h>
 
 /*
- * The number of frames per sub-buffer for synchronous channels.
- * Allowed values: 1, 2, 4, 8, 16, 32, 64.
- */
-#define FRAMES_PER_SUBBUFF 16
-
-/*
- * Size factor for synchronous DBR buffer.
- * Minimal value is 4*FRAMES_PER_SUBBUFF.
- */
-#define SYNC_DBR_FACTOR (4u * (u16)FRAMES_PER_SUBBUFF)
-
-/*
  * Size factor for isochronous DBR buffer.
  * Minimal value is 3.
  */
@@ -64,9 +52,6 @@
 /* -------------------------------------------------------------------------- */
 /* generic helper functions and macros */
 
-#define MLBC0_FCNT_VAL_MACRO(n) MLBC0_FCNT_VAL_ ## n ## FPSB
-#define MLBC0_FCNT_VAL(fpsb) MLBC0_FCNT_VAL_MACRO(fpsb)
-
 static inline u32 bit_mask(u8 position)
 {
 	return (u32)1 << position;
@@ -85,6 +70,7 @@ struct lld_global_vars_t {
 	bool dim_is_initialized;
 	bool mcm_is_initialized;
 	struct dim2_regs __iomem *dim2; /* DIM2 core base address */
+	u32 fcnt;
 	u32 dbr_map[DBR_MAP_SIZE];
 };
 
@@ -398,7 +384,8 @@ static inline bool check_packet_length(u32 packet_length)
 
 static inline bool check_bytes_per_frame(u32 bytes_per_frame)
 {
-	u16 const max_size = ((u16)CDT3_BD_MASK + 1u) / SYNC_DBR_FACTOR;
+	u16 const bd_factor = g.fcnt + 2;
+	u16 const max_size = ((u16)CDT3_BD_MASK + 1u) >> bd_factor;
 
 	if (bytes_per_frame <= 0)
 		return false; /* too small */
@@ -439,7 +426,7 @@ static inline u16 norm_sync_buffer_size(u16 buf_size, u16 bytes_per_frame)
 {
 	u16 n;
 	u16 const max_size = (u16)ADT1_ISOC_SYNC_BD_MASK + 1u;
-	u32 const unit = bytes_per_frame * (u16)FRAMES_PER_SUBBUFF;
+	u32 const unit = bytes_per_frame << g.fcnt;
 
 	if (buf_size > max_size)
 		buf_size = max_size;
@@ -479,7 +466,7 @@ static void dim2_initialize(bool enable_6pin, u8 mlb_clock)
 	dimcb_io_write(&g.dim2->MLBC0,
 		       enable_6pin << MLBC0_MLBPEN_BIT |
 		       mlb_clock << MLBC0_MLBCLK_SHIFT |
-		       MLBC0_FCNT_VAL(FRAMES_PER_SUBBUFF) << MLBC0_FCNT_SHIFT |
+		       g.fcnt << MLBC0_FCNT_SHIFT |
 		       true << MLBC0_MLBEN_BIT);
 
 	/* activate all HBI channels */
@@ -650,7 +637,8 @@ static bool channel_detach_buffers(struct dim_channel *ch, u16 buffers_number)
 /* -------------------------------------------------------------------------- */
 /* API */
 
-u8 dim_startup(struct dim2_regs __iomem *dim_base_address, u32 mlb_clock)
+u8 dim_startup(struct dim2_regs __iomem *dim_base_address, u32 mlb_clock,
+	       u32 fcnt)
 {
 	g.dim_is_initialized = false;
 
@@ -662,7 +650,11 @@ u8 dim_startup(struct dim2_regs __iomem *dim_base_address, u32 mlb_clock)
 	if (mlb_clock >= 8)
 		return DIM_INIT_ERR_MLB_CLOCK;
 
+	if (fcnt > MLBC0_FCNT_MAX_VAL)
+		return DIM_INIT_ERR_MLB_CLOCK;
+
 	g.dim2 = dim_base_address;
+	g.fcnt = fcnt;
 	g.dbr_map[0] = 0;
 	g.dbr_map[1] = 0;
 
@@ -781,6 +773,8 @@ u8 dim_init_isoc(struct dim_channel *ch, u8 is_tx, u16 ch_address,
 u8 dim_init_sync(struct dim_channel *ch, u8 is_tx, u16 ch_address,
 		 u16 bytes_per_frame)
 {
+	u16 bd_factor = g.fcnt + 2;
+
 	if (!g.dim_is_initialized || !ch)
 		return DIM_ERR_DRIVER_NOT_INITIALIZED;
 
@@ -790,7 +784,7 @@ u8 dim_init_sync(struct dim_channel *ch, u8 is_tx, u16 ch_address,
 	if (!check_bytes_per_frame(bytes_per_frame))
 		return DIM_ERR_BAD_CONFIG;
 
-	ch->dbr_size = bytes_per_frame * SYNC_DBR_FACTOR;
+	ch->dbr_size = bytes_per_frame << bd_factor;
 	ch->dbr_addr = alloc_dbr(ch->dbr_size);
 	if (ch->dbr_addr >= DBR_SIZE)
 		return DIM_INIT_ERR_OUT_OF_MEMORY;
