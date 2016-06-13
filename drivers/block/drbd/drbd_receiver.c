@@ -48,7 +48,7 @@
 #include "drbd_req.h"
 #include "drbd_vli.h"
 
-#define PRO_FEATURES (FF_TRIM | FF_THIN_RESYNC)
+#define PRO_FEATURES (DRBD_FF_TRIM|DRBD_FF_THIN_RESYNC|DRBD_FF_WSAME)
 
 struct packet_info {
 	enum drbd_packet cmd;
@@ -361,14 +361,17 @@ You must not have the req_lock:
  drbd_wait_ee_list_empty()
 */
 
+/* normal: payload_size == request size (bi_size)
+ * w_same: payload_size == logical_block_size
+ * trim: payload_size == 0 */
 struct drbd_peer_request *
 drbd_alloc_peer_req(struct drbd_peer_device *peer_device, u64 id, sector_t sector,
-		    unsigned int data_size, bool has_payload, gfp_t gfp_mask) __must_hold(local)
+		    unsigned int request_size, unsigned int payload_size, gfp_t gfp_mask) __must_hold(local)
 {
 	struct drbd_device *device = peer_device->device;
 	struct drbd_peer_request *peer_req;
 	struct page *page = NULL;
-	unsigned nr_pages = (data_size + PAGE_SIZE -1) >> PAGE_SHIFT;
+	unsigned nr_pages = (payload_size + PAGE_SIZE -1) >> PAGE_SHIFT;
 
 	if (drbd_insert_fault(device, DRBD_FAULT_AL_EE))
 		return NULL;
@@ -380,7 +383,7 @@ drbd_alloc_peer_req(struct drbd_peer_device *peer_device, u64 id, sector_t secto
 		return NULL;
 	}
 
-	if (has_payload && data_size) {
+	if (nr_pages) {
 		page = drbd_alloc_pages(peer_device, nr_pages,
 					gfpflags_allow_blocking(gfp_mask));
 		if (!page)
@@ -390,7 +393,7 @@ drbd_alloc_peer_req(struct drbd_peer_device *peer_device, u64 id, sector_t secto
 	memset(peer_req, 0, sizeof(*peer_req));
 	INIT_LIST_HEAD(&peer_req->w.list);
 	drbd_clear_interval(&peer_req->i);
-	peer_req->i.size = data_size;
+	peer_req->i.size = request_size;
 	peer_req->i.sector = sector;
 	peer_req->submit_jif = jiffies;
 	peer_req->peer_device = peer_device;
@@ -1530,7 +1533,7 @@ static bool can_do_reliable_discards(struct drbd_device *device)
 	return can_do;
 }
 
-void drbd_issue_peer_discard(struct drbd_device *device, struct drbd_peer_request *peer_req)
+static void drbd_issue_peer_discard(struct drbd_device *device, struct drbd_peer_request *peer_req)
 {
 	/* If the backend cannot discard, or does not guarantee
 	 * read-back zeroes in discarded ranges, we fall back to
@@ -1544,6 +1547,18 @@ void drbd_issue_peer_discard(struct drbd_device *device, struct drbd_peer_reques
 		peer_req->flags |= EE_WAS_ERROR;
 	drbd_endio_write_sec_final(peer_req);
 }
+
+static void drbd_issue_peer_wsame(struct drbd_device *device,
+				  struct drbd_peer_request *peer_req)
+{
+	struct block_device *bdev = device->ldev->backing_bdev;
+	sector_t s = peer_req->i.sector;
+	sector_t nr = peer_req->i.size >> 9;
+	if (blkdev_issue_write_same(bdev, s, nr, GFP_NOIO, peer_req->pages))
+		peer_req->flags |= EE_WAS_ERROR;
+	drbd_endio_write_sec_final(peer_req);
+}
+
 
 /**
  * drbd_submit_peer_request()
@@ -1582,7 +1597,7 @@ int drbd_submit_peer_request(struct drbd_device *device,
 	 * Correctness first, performance later.  Next step is to code an
 	 * asynchronous variant of the same.
 	 */
-	if (peer_req->flags & EE_IS_TRIM) {
+	if (peer_req->flags & (EE_IS_TRIM|EE_WRITE_SAME)) {
 		/* wait for all pending IO completions, before we start
 		 * zeroing things out. */
 		conn_wait_active_ee_empty(peer_req->peer_device->connection);
@@ -1599,7 +1614,10 @@ int drbd_submit_peer_request(struct drbd_device *device,
 			spin_unlock_irq(&device->resource->req_lock);
 		}
 
-		drbd_issue_peer_discard(device, peer_req);
+		if (peer_req->flags & EE_IS_TRIM)
+			drbd_issue_peer_discard(device, peer_req);
+		else /* EE_WRITE_SAME */
+			drbd_issue_peer_wsame(device, peer_req);
 		return 0;
 	}
 
@@ -1772,8 +1790,26 @@ static int receive_Barrier(struct drbd_connection *connection, struct packet_inf
 	return 0;
 }
 
+/* quick wrapper in case payload size != request_size (write same) */
+static void drbd_csum_ee_size(struct crypto_ahash *h,
+			      struct drbd_peer_request *r, void *d,
+			      unsigned int payload_size)
+{
+	unsigned int tmp = r->i.size;
+	r->i.size = payload_size;
+	drbd_csum_ee(h, r, d);
+	r->i.size = tmp;
+}
+
 /* used from receive_RSDataReply (recv_resync_read)
- * and from receive_Data */
+ * and from receive_Data.
+ * data_size: actual payload ("data in")
+ * 	for normal writes that is bi_size.
+ * 	for discards, that is zero.
+ * 	for write same, it is logical_block_size.
+ * both trim and write same have the bi_size ("data len to be affected")
+ * as extra argument in the packet header.
+ */
 static struct drbd_peer_request *
 read_in_block(struct drbd_peer_device *peer_device, u64 id, sector_t sector,
 	      struct packet_info *pi) __must_hold(local)
@@ -1788,6 +1824,7 @@ read_in_block(struct drbd_peer_device *peer_device, u64 id, sector_t sector,
 	void *dig_vv = peer_device->connection->int_dig_vv;
 	unsigned long *data;
 	struct p_trim *trim = (pi->cmd == P_TRIM) ? pi->data : NULL;
+	struct p_trim *wsame = (pi->cmd == P_WSAME) ? pi->data : NULL;
 
 	digest_size = 0;
 	if (!trim && peer_device->connection->peer_integrity_tfm) {
@@ -1802,38 +1839,60 @@ read_in_block(struct drbd_peer_device *peer_device, u64 id, sector_t sector,
 		data_size -= digest_size;
 	}
 
+	/* assume request_size == data_size, but special case trim and wsame. */
+	ds = data_size;
 	if (trim) {
-		D_ASSERT(peer_device, data_size == 0);
-		data_size = be32_to_cpu(trim->size);
+		if (!expect(data_size == 0))
+			return NULL;
+		ds = be32_to_cpu(trim->size);
+	} else if (wsame) {
+		if (data_size != queue_logical_block_size(device->rq_queue)) {
+			drbd_err(peer_device, "data size (%u) != drbd logical block size (%u)\n",
+				data_size, queue_logical_block_size(device->rq_queue));
+			return NULL;
+		}
+		if (data_size != bdev_logical_block_size(device->ldev->backing_bdev)) {
+			drbd_err(peer_device, "data size (%u) != backend logical block size (%u)\n",
+				data_size, bdev_logical_block_size(device->ldev->backing_bdev));
+			return NULL;
+		}
+		ds = be32_to_cpu(wsame->size);
 	}
 
-	if (!expect(IS_ALIGNED(data_size, 512)))
+	if (!expect(IS_ALIGNED(ds, 512)))
 		return NULL;
-	/* prepare for larger trim requests. */
-	if (!trim && !expect(data_size <= DRBD_MAX_BIO_SIZE))
+	if (trim || wsame) {
+		if (!expect(ds <= (DRBD_MAX_BBIO_SECTORS << 9)))
+			return NULL;
+	} else if (!expect(ds <= DRBD_MAX_BIO_SIZE))
 		return NULL;
 
 	/* even though we trust out peer,
 	 * we sometimes have to double check. */
-	if (sector + (data_size>>9) > capacity) {
+	if (sector + (ds>>9) > capacity) {
 		drbd_err(device, "request from peer beyond end of local disk: "
 			"capacity: %llus < sector: %llus + size: %u\n",
 			(unsigned long long)capacity,
-			(unsigned long long)sector, data_size);
+			(unsigned long long)sector, ds);
 		return NULL;
 	}
 
 	/* GFP_NOIO, because we must not cause arbitrary write-out: in a DRBD
 	 * "criss-cross" setup, that might cause write-out on some other DRBD,
 	 * which in turn might block on the other node at this very place.  */
-	peer_req = drbd_alloc_peer_req(peer_device, id, sector, data_size, trim == NULL, GFP_NOIO);
+	peer_req = drbd_alloc_peer_req(peer_device, id, sector, ds, data_size, GFP_NOIO);
 	if (!peer_req)
 		return NULL;
 
 	peer_req->flags |= EE_WRITE;
-	if (trim)
+	if (trim) {
+		peer_req->flags |= EE_IS_TRIM;
 		return peer_req;
+	}
+	if (wsame)
+		peer_req->flags |= EE_WRITE_SAME;
 
+	/* receive payload size bytes into page chain */
 	ds = data_size;
 	page = peer_req->pages;
 	page_chain_for_each(page) {
@@ -1853,7 +1912,7 @@ read_in_block(struct drbd_peer_device *peer_device, u64 id, sector_t sector,
 	}
 
 	if (digest_size) {
-		drbd_csum_ee(peer_device->connection->peer_integrity_tfm, peer_req, dig_vv);
+		drbd_csum_ee_size(peer_device->connection->peer_integrity_tfm, peer_req, dig_vv, data_size);
 		if (memcmp(dig_in, dig_vv, digest_size)) {
 			drbd_err(device, "Digest integrity check FAILED: %llus +%u\n",
 				(unsigned long long)sector, data_size);
@@ -2517,7 +2576,6 @@ static int receive_Data(struct drbd_connection *connection, struct packet_info *
 	op = wire_flags_to_bio_op(dp_flags);
 	op_flags = wire_flags_to_bio_flags(dp_flags);
 	if (pi->cmd == P_TRIM) {
-		peer_req->flags |= EE_IS_TRIM;
 		D_ASSERT(peer_device, peer_req->i.size > 0);
 		D_ASSERT(peer_device, op == REQ_OP_DISCARD);
 		D_ASSERT(peer_device, peer_req->pages == NULL);
@@ -2584,11 +2642,11 @@ static int receive_Data(struct drbd_connection *connection, struct packet_info *
 		update_peer_seq(peer_device, peer_seq);
 		spin_lock_irq(&device->resource->req_lock);
 	}
-	/* if we use the zeroout fallback code, we process synchronously
-	 * and we wait for all pending requests, respectively wait for
+	/* TRIM and WRITE_SAME are processed synchronously,
+	 * we wait for all pending requests, respectively wait for
 	 * active_ee to become empty in drbd_submit_peer_request();
 	 * better not add ourselves here. */
-	if ((peer_req->flags & EE_IS_TRIM) == 0)
+	if ((peer_req->flags & (EE_IS_TRIM|EE_WRITE_SAME)) == 0)
 		list_add_tail(&peer_req->w.list, &device->active_ee);
 	spin_unlock_irq(&device->resource->req_lock);
 
@@ -2771,7 +2829,7 @@ static int receive_DataRequest(struct drbd_connection *connection, struct packet
 	 * "criss-cross" setup, that might cause write-out on some other DRBD,
 	 * which in turn might block on the other node at this very place.  */
 	peer_req = drbd_alloc_peer_req(peer_device, p->block_id, sector, size,
-			true /* has real payload */, GFP_NOIO);
+			size, GFP_NOIO);
 	if (!peer_req) {
 		put_ldev(device);
 		return -ENOMEM;
@@ -3933,6 +3991,7 @@ static int receive_sizes(struct drbd_connection *connection, struct packet_info 
 	struct drbd_peer_device *peer_device;
 	struct drbd_device *device;
 	struct p_sizes *p = pi->data;
+	struct o_qlim *o = (connection->agreed_features & DRBD_FF_WSAME) ? p->qlim : NULL;
 	enum determine_dev_size dd = DS_UNCHANGED;
 	sector_t p_size, p_usize, p_csize, my_usize;
 	int ldsc = 0; /* local disk size changed */
@@ -4016,7 +4075,7 @@ static int receive_sizes(struct drbd_connection *connection, struct packet_info 
 
 	ddsf = be16_to_cpu(p->dds_flags);
 	if (get_ldev(device)) {
-		drbd_reconsider_queue_parameters(device, device->ldev);
+		drbd_reconsider_queue_parameters(device, device->ldev, o);
 		dd = drbd_determine_dev_size(device, ddsf, NULL);
 		put_ldev(device);
 		if (dd == DS_ERROR)
@@ -4036,7 +4095,7 @@ static int receive_sizes(struct drbd_connection *connection, struct packet_info 
 		 * However, if he sends a zero current size,
 		 * take his (user-capped or) backing disk size anyways.
 		 */
-		drbd_reconsider_queue_parameters(device, NULL);
+		drbd_reconsider_queue_parameters(device, NULL, o);
 		drbd_set_my_capacity(device, p_csize ?: p_usize ?: p_size);
 	}
 
@@ -4792,7 +4851,7 @@ static int receive_rs_deallocated(struct drbd_connection *connection, struct pac
 		const int op = REQ_OP_DISCARD;
 
 		peer_req = drbd_alloc_peer_req(peer_device, ID_SYNCER, sector,
-					       size, false, GFP_NOIO);
+					       size, 0, GFP_NOIO);
 		if (!peer_req) {
 			put_ldev(device);
 			return -ENOMEM;
@@ -4837,7 +4896,7 @@ static int receive_rs_deallocated(struct drbd_connection *connection, struct pac
 
 struct data_cmd {
 	int expect_payload;
-	size_t pkt_size;
+	unsigned int pkt_size;
 	int (*fn)(struct drbd_connection *, struct packet_info *);
 };
 
@@ -4869,7 +4928,7 @@ static struct data_cmd drbd_cmd_handler[] = {
 	[P_PROTOCOL_UPDATE] = { 1, sizeof(struct p_protocol), receive_protocol },
 	[P_TRIM]	    = { 0, sizeof(struct p_trim), receive_Data },
 	[P_RS_DEALLOCATED]  = { 0, sizeof(struct p_block_desc), receive_rs_deallocated },
-
+	[P_WSAME]	    = { 1, sizeof(struct p_wsame), receive_Data },
 };
 
 static void drbdd(struct drbd_connection *connection)
@@ -4879,7 +4938,7 @@ static void drbdd(struct drbd_connection *connection)
 	int err;
 
 	while (get_t_state(&connection->receiver) == RUNNING) {
-		struct data_cmd *cmd;
+		struct data_cmd const *cmd;
 
 		drbd_thread_current_set_cpu(&connection->receiver);
 		update_receiver_timing_details(connection, drbd_recv_header);
@@ -4894,9 +4953,16 @@ static void drbdd(struct drbd_connection *connection)
 		}
 
 		shs = cmd->pkt_size;
+		if (pi.cmd == P_SIZES && connection->agreed_features & DRBD_FF_WSAME)
+			shs += sizeof(struct o_qlim);
 		if (pi.size > shs && !cmd->expect_payload) {
 			drbd_err(connection, "No payload expected %s l:%d\n",
 				 cmdname(pi.cmd), pi.size);
+			goto err_out;
+		}
+		if (pi.size < shs) {
+			drbd_err(connection, "%s: unexpected packet size, expected:%d received:%d\n",
+				 cmdname(pi.cmd), (int)shs, pi.size);
 			goto err_out;
 		}
 
@@ -5145,11 +5211,12 @@ static int drbd_do_features(struct drbd_connection *connection)
 	drbd_info(connection, "Handshake successful: "
 	     "Agreed network protocol version %d\n", connection->agreed_pro_version);
 
-	drbd_info(connection, "Agreed to%ssupport TRIM on protocol level\n",
-		  connection->agreed_features & FF_TRIM ? " " : " not ");
-
-	drbd_info(connection, "Agreed to%ssupport THIN_RESYNC on protocol level\n",
-		  connection->agreed_features & FF_THIN_RESYNC ? " " : " not ");
+	drbd_info(connection, "Feature flags enabled on protocol level: 0x%x%s%s%s.\n",
+		  connection->agreed_features,
+		  connection->agreed_features & DRBD_FF_TRIM ? " TRIM" : "",
+		  connection->agreed_features & DRBD_FF_THIN_RESYNC ? " THIN_RESYNC" : "",
+		  connection->agreed_features & DRBD_FF_WSAME ? " WRITE_SAME" :
+		  connection->agreed_features ? "" : " none");
 
 	return 1;
 

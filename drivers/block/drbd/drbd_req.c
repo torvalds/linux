@@ -47,8 +47,7 @@ static void _drbd_end_io_acct(struct drbd_device *device, struct drbd_request *r
 			    &device->vdisk->part0, req->start_jif);
 }
 
-static struct drbd_request *drbd_req_new(struct drbd_device *device,
-					       struct bio *bio_src)
+static struct drbd_request *drbd_req_new(struct drbd_device *device, struct bio *bio_src)
 {
 	struct drbd_request *req;
 
@@ -58,10 +57,12 @@ static struct drbd_request *drbd_req_new(struct drbd_device *device,
 	memset(req, 0, sizeof(*req));
 
 	drbd_req_make_private_bio(req, bio_src);
-	req->rq_state    = bio_data_dir(bio_src) == WRITE ? RQ_WRITE : 0;
-	req->device   = device;
-	req->master_bio  = bio_src;
-	req->epoch       = 0;
+	req->rq_state = (bio_data_dir(bio_src) == WRITE ? RQ_WRITE : 0)
+		      | (bio_op(bio_src) == REQ_OP_WRITE_SAME ? RQ_WSAME : 0)
+		      | (bio_op(bio_src) == REQ_OP_DISCARD ? RQ_UNMAP : 0);
+	req->device = device;
+	req->master_bio = bio_src;
+	req->epoch = 0;
 
 	drbd_clear_interval(&req->i);
 	req->i.sector     = bio_src->bi_iter.bi_sector;

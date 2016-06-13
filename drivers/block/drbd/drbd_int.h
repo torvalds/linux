@@ -468,6 +468,9 @@ enum {
 	/* this is/was a write request */
 	__EE_WRITE,
 
+	/* this is/was a write same request */
+	__EE_WRITE_SAME,
+
 	/* this originates from application on peer
 	 * (not some resync or verify or other DRBD internal request) */
 	__EE_APPLICATION,
@@ -487,6 +490,7 @@ enum {
 #define EE_IN_INTERVAL_TREE	(1<<__EE_IN_INTERVAL_TREE)
 #define EE_SUBMITTED		(1<<__EE_SUBMITTED)
 #define EE_WRITE		(1<<__EE_WRITE)
+#define EE_WRITE_SAME		(1<<__EE_WRITE_SAME)
 #define EE_APPLICATION		(1<<__EE_APPLICATION)
 #define EE_RS_THIN_REQ		(1<<__EE_RS_THIN_REQ)
 
@@ -1350,8 +1354,8 @@ struct bm_extent {
 /* For now, don't allow more than half of what we can "activate" in one
  * activity log transaction to be discarded in one go. We may need to rework
  * drbd_al_begin_io() to allow for even larger discard ranges */
-#define DRBD_MAX_DISCARD_SIZE	(AL_UPDATES_PER_TRANSACTION/2*AL_EXTENT_SIZE)
-#define DRBD_MAX_DISCARD_SECTORS (DRBD_MAX_DISCARD_SIZE >> 9)
+#define DRBD_MAX_BATCH_BIO_SIZE	 (AL_UPDATES_PER_TRANSACTION/2*AL_EXTENT_SIZE)
+#define DRBD_MAX_BBIO_SECTORS    (DRBD_MAX_BATCH_BIO_SIZE >> 9)
 
 extern int  drbd_bm_init(struct drbd_device *device);
 extern int  drbd_bm_resize(struct drbd_device *device, sector_t sectors, int set_new_bits);
@@ -1488,7 +1492,8 @@ enum determine_dev_size {
 extern enum determine_dev_size
 drbd_determine_dev_size(struct drbd_device *, enum dds_flags, struct resize_parms *) __must_hold(local);
 extern void resync_after_online_grow(struct drbd_device *);
-extern void drbd_reconsider_queue_parameters(struct drbd_device *device, struct drbd_backing_dev *bdev);
+extern void drbd_reconsider_queue_parameters(struct drbd_device *device,
+			struct drbd_backing_dev *bdev, struct o_qlim *o);
 extern enum drbd_state_rv drbd_set_role(struct drbd_device *device,
 					enum drbd_role new_role,
 					int force);
@@ -1569,7 +1574,7 @@ extern int drbd_submit_peer_request(struct drbd_device *,
 extern int drbd_free_peer_reqs(struct drbd_device *, struct list_head *);
 extern struct drbd_peer_request *drbd_alloc_peer_req(struct drbd_peer_device *, u64,
 						     sector_t, unsigned int,
-						     bool,
+						     unsigned int,
 						     gfp_t) __must_hold(local);
 extern void __drbd_free_peer_req(struct drbd_device *, struct drbd_peer_request *,
 				 int);
