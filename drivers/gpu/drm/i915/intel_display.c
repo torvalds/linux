@@ -13885,6 +13885,25 @@ static void intel_atomic_commit_work(struct work_struct *work)
 	intel_atomic_commit_tail(state);
 }
 
+static void intel_atomic_track_fbs(struct drm_atomic_state *state)
+{
+	struct drm_plane_state *old_plane_state;
+	struct drm_plane *plane;
+	struct drm_i915_gem_object *obj, *old_obj;
+	struct intel_plane *intel_plane;
+	int i;
+
+	mutex_lock(&state->dev->struct_mutex);
+	for_each_plane_in_state(state, plane, old_plane_state, i) {
+		obj = intel_fb_obj(plane->state->fb);
+		old_obj = intel_fb_obj(old_plane_state->fb);
+		intel_plane = to_intel_plane(plane);
+
+		i915_gem_track_fb(old_obj, obj, intel_plane->frontbuffer_bit);
+	}
+	mutex_unlock(&state->dev->struct_mutex);
+}
+
 /**
  * intel_atomic_commit - commit validated state object
  * @dev: DRM device
@@ -13930,6 +13949,7 @@ static int intel_atomic_commit(struct drm_device *dev,
 	dev_priv->wm.distrust_bios_wm = false;
 	dev_priv->wm.skl_results = intel_state->wm_results;
 	intel_shared_dpll_commit(state);
+	intel_atomic_track_fbs(state);
 
 	if (nonblock)
 		queue_work(system_unbound_wq, &state->commit_work);
@@ -14009,7 +14029,6 @@ intel_prepare_plane_fb(struct drm_plane *plane,
 {
 	struct drm_device *dev = plane->dev;
 	struct drm_framebuffer *fb = new_state->fb;
-	struct intel_plane *intel_plane = to_intel_plane(plane);
 	struct drm_i915_gem_object *obj = intel_fb_obj(fb);
 	struct drm_i915_gem_object *old_obj = intel_fb_obj(plane->state->fb);
 	int ret = 0;
@@ -14066,16 +14085,12 @@ intel_prepare_plane_fb(struct drm_plane *plane,
 		ret = intel_pin_and_fence_fb_obj(fb, new_state->rotation);
 	}
 
-	if (ret == 0) {
-		if (obj) {
-			struct intel_plane_state *plane_state =
-				to_intel_plane_state(new_state);
+	if (ret == 0 && obj) {
+		struct intel_plane_state *plane_state =
+			to_intel_plane_state(new_state);
 
-			i915_gem_request_assign(&plane_state->wait_req,
-						obj->last_write_req);
-		}
-
-		i915_gem_track_fb(old_obj, obj, intel_plane->frontbuffer_bit);
+		i915_gem_request_assign(&plane_state->wait_req,
+					obj->last_write_req);
 	}
 
 	return ret;
@@ -14095,7 +14110,6 @@ intel_cleanup_plane_fb(struct drm_plane *plane,
 		       const struct drm_plane_state *old_state)
 {
 	struct drm_device *dev = plane->dev;
-	struct intel_plane *intel_plane = to_intel_plane(plane);
 	struct intel_plane_state *old_intel_state;
 	struct drm_i915_gem_object *old_obj = intel_fb_obj(old_state->fb);
 	struct drm_i915_gem_object *obj = intel_fb_obj(plane->state->fb);
@@ -14108,11 +14122,6 @@ intel_cleanup_plane_fb(struct drm_plane *plane,
 	if (old_obj && (plane->type != DRM_PLANE_TYPE_CURSOR ||
 	    !INTEL_INFO(dev)->cursor_needs_physical))
 		intel_unpin_fb_obj(old_state->fb, old_state->rotation);
-
-	/* prepare_fb aborted? */
-	if ((old_obj && (old_obj->frontbuffer_bits & intel_plane->frontbuffer_bit)) ||
-	    (obj && !(obj->frontbuffer_bits & intel_plane->frontbuffer_bit)))
-		i915_gem_track_fb(old_obj, obj, intel_plane->frontbuffer_bit);
 
 	i915_gem_request_assign(&old_intel_state->wait_req, NULL);
 }
