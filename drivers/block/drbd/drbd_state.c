@@ -1675,7 +1675,7 @@ static void after_state_ch(struct drbd_device *device, union drbd_state os,
 			what = RESEND;
 
 		if ((os.disk == D_ATTACHING || os.disk == D_NEGOTIATING) &&
-		    conn_lowest_disk(connection) > D_NEGOTIATING)
+		    conn_lowest_disk(connection) == D_UP_TO_DATE)
 			what = RESTART_FROZEN_DISK_IO;
 
 		if (resource->susp_nod && what != NOTHING) {
