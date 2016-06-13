@@ -655,8 +655,8 @@ static int orion_spi_probe(struct platform_device *pdev)
 		spi->direct_access[cs].vaddr = devm_ioremap(&pdev->dev,
 							    r->start,
 							    PAGE_SIZE);
-		if (IS_ERR(spi->direct_access[cs].vaddr)) {
-			status = PTR_ERR(spi->direct_access[cs].vaddr);
+		if (!spi->direct_access[cs].vaddr) {
+			status = -ENOMEM;
 			goto out_rel_clk;
 		}
 		spi->direct_access[cs].size = PAGE_SIZE;
