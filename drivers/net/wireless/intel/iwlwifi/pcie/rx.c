@@ -1535,7 +1535,7 @@ irqreturn_t iwl_pcie_irq_handler(int irq, void *dev_id)
 		 * have anything to service
 		 */
 		if (test_bit(STATUS_INT_ENABLED, &trans->status))
-			iwl_enable_interrupts(trans);
+			_iwl_enable_interrupts(trans);
 		spin_unlock(&trans_pcie->irq_lock);
 		lock_map_release(&trans->sync_cmd_lockdep_map);
 		return IRQ_NONE;
@@ -1727,15 +1727,17 @@ irqreturn_t iwl_pcie_irq_handler(int irq, void *dev_id)
 			 inta & ~trans_pcie->inta_mask);
 	}
 
-	/* we are loading the firmware, enable FH_TX interrupt only */
-	if (handled & CSR_INT_BIT_FH_TX)
-		iwl_enable_fw_load_int(trans);
+	spin_lock(&trans_pcie->irq_lock);
 	/* only Re-enable all interrupt if disabled by irq */
-	else if (test_bit(STATUS_INT_ENABLED, &trans->status))
-		iwl_enable_interrupts(trans);
+	if (test_bit(STATUS_INT_ENABLED, &trans->status))
+		_iwl_enable_interrupts(trans);
+	/* we are loading the firmware, enable FH_TX interrupt only */
+	else if (handled & CSR_INT_BIT_FH_TX)
+		iwl_enable_fw_load_int(trans);
 	/* Re-enable RF_KILL if it occurred */
 	else if (handled & CSR_INT_BIT_RF_KILL)
 		iwl_enable_rfkill_int(trans);
+	spin_unlock(&trans_pcie->irq_lock);
 
 out:
 	lock_map_release(&trans->sync_cmd_lockdep_map);
@@ -1799,7 +1801,7 @@ void iwl_pcie_reset_ict(struct iwl_trans *trans)
 		return;
 
 	spin_lock(&trans_pcie->irq_lock);
-	iwl_disable_interrupts(trans);
+	_iwl_disable_interrupts(trans);
 
 	memset(trans_pcie->ict_tbl, 0, ICT_SIZE);
 
@@ -1815,7 +1817,7 @@ void iwl_pcie_reset_ict(struct iwl_trans *trans)
 	trans_pcie->use_ict = true;
 	trans_pcie->ict_index = 0;
 	iwl_write32(trans, CSR_INT, trans_pcie->inta_mask);
-	iwl_enable_interrupts(trans);
+	_iwl_enable_interrupts(trans);
 	spin_unlock(&trans_pcie->irq_lock);
 }
 
