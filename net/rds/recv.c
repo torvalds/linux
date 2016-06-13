@@ -38,6 +38,7 @@
 #include <linux/time.h>
 #include <linux/rds.h>
 
+#include "rds_single_path.h"
 #include "rds.h"
 
 void rds_inc_init(struct rds_incoming *inc, struct rds_connection *conn,

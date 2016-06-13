@@ -40,6 +40,7 @@
 #include <linux/export.h>
 #include <linux/sizes.h>
 
+#include "rds_single_path.h"
 #include "rds.h"
 
 /* When transmitting messages in rds_send_xmit, we need to emerge from

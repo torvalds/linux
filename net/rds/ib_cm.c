@@ -36,6 +36,7 @@
 #include <linux/vmalloc.h>
 #include <linux/ratelimit.h>
 
+#include "rds_single_path.h"
 #include "rds.h"
 #include "ib.h"
 

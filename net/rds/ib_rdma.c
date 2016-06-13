@@ -35,6 +35,7 @@
 #include <linux/rculist.h>
 #include <linux/llist.h>
 
+#include "rds_single_path.h"
 #include "ib_mr.h"
 
 struct workqueue_struct *rds_ib_mr_wq;

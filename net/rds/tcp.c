@@ -38,6 +38,7 @@
 #include <net/net_namespace.h>
 #include <net/netns/generic.h>
 
+#include "rds_single_path.h"
 #include "rds.h"
 #include "tcp.h"
 

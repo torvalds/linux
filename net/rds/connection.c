@@ -36,6 +36,7 @@
 #include <linux/export.h>
 #include <net/inet_hashtables.h>
 
+#include "rds_single_path.h"
 #include "rds.h"
 #include "loop.h"
 
@@ -155,6 +156,7 @@ static struct rds_connection *__rds_conn_create(struct net *net,
 	conn->c_faddr = faddr;
 	spin_lock_init(&conn->c_lock);
 	conn->c_next_tx_seq = 1;
+	conn->c_path[0].cp_conn = conn;
 	rds_conn_net_set(conn, net);
 
 	init_waitqueue_head(&conn->c_waitq);
@@ -197,7 +199,7 @@ static struct rds_connection *__rds_conn_create(struct net *net,
 
 	atomic_set(&conn->c_state, RDS_CONN_DOWN);
 	conn->c_send_gen = 0;
-	conn->c_outgoing = (is_outgoing ? 1 : 0);
+	conn->c_path[0].cp_outgoing = (is_outgoing ? 1 : 0);
 	conn->c_reconnect_jiffies = 0;
 	INIT_DELAYED_WORK(&conn->c_send_w, rds_send_worker);
 	INIT_DELAYED_WORK(&conn->c_recv_w, rds_recv_worker);
@@ -320,8 +322,8 @@ void rds_conn_shutdown(struct rds_connection *conn)
 	if (!hlist_unhashed(&conn->c_hash_node)) {
 		rcu_read_unlock();
 		if (conn->c_trans->t_type != RDS_TRANS_TCP ||
-		    conn->c_outgoing == 1)
-			rds_queue_reconnect(conn);
+		    conn->c_path[0].cp_outgoing == 1)
+			rds_queue_reconnect(&conn->c_path[0]);
 	} else {
 		rcu_read_unlock();
 	}
@@ -553,10 +555,16 @@ void rds_conn_exit(void)
 /*
  * Force a disconnect
  */
+void rds_conn_path_drop(struct rds_conn_path *cp)
+{
+	atomic_set(&cp->cp_state, RDS_CONN_ERROR);
+	queue_work(rds_wq, &cp->cp_down_w);
+}
+EXPORT_SYMBOL_GPL(rds_conn_path_drop);
+
 void rds_conn_drop(struct rds_connection *conn)
 {
-	atomic_set(&conn->c_state, RDS_CONN_ERROR);
-	queue_work(rds_wq, &conn->c_down_w);
+	rds_conn_path_drop(&conn->c_path[0]);
 }
 EXPORT_SYMBOL_GPL(rds_conn_drop);
 

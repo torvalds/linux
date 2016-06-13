@@ -36,6 +36,7 @@
 #include <linux/dma-mapping.h>
 #include <rdma/rdma_cm.h>
 
+#include "rds_single_path.h"
 #include "rds.h"
 #include "ib.h"
 
