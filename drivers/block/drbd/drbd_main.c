@@ -1377,6 +1377,22 @@ int drbd_send_ack_ex(struct drbd_peer_device *peer_device, enum drbd_packet cmd,
 			      cpu_to_be64(block_id));
 }
 
+int drbd_send_rs_deallocated(struct drbd_peer_device *peer_device,
+			     struct drbd_peer_request *peer_req)
+{
+	struct drbd_socket *sock;
+	struct p_block_desc *p;
+
+	sock = &peer_device->connection->data;
+	p = drbd_prepare_command(peer_device, sock);
+	if (!p)
+		return -EIO;
+	p->sector = cpu_to_be64(peer_req->i.sector);
+	p->blksize = cpu_to_be32(peer_req->i.size);
+	p->pad = 0;
+	return drbd_send_command(peer_device, sock, P_RS_DEALLOCATED, sizeof(*p), NULL, 0);
+}
+
 int drbd_send_drequest(struct drbd_peer_device *peer_device, int cmd,
 		       sector_t sector, int size, u64 block_id)
 {
@@ -3683,6 +3699,8 @@ const char *cmdname(enum drbd_packet cmd)
 		[P_CONN_ST_CHG_REPLY]	= "conn_st_chg_reply",
 		[P_RETRY_WRITE]		= "retry_write",
 		[P_PROTOCOL_UPDATE]	= "protocol_update",
+		[P_RS_THIN_REQ]         = "rs_thin_req",
+		[P_RS_DEALLOCATED]      = "rs_deallocated",
 
 		/* enum drbd_packet, but not commands - obsoleted flags:
 		 *	P_MAY_IGNORE

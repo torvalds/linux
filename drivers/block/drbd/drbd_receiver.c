@@ -1418,9 +1418,15 @@ int drbd_submit_peer_request(struct drbd_device *device,
 		 * so we can find it to present it in debugfs */
 		peer_req->submit_jif = jiffies;
 		peer_req->flags |= EE_SUBMITTED;
-		spin_lock_irq(&device->resource->req_lock);
-		list_add_tail(&peer_req->w.list, &device->active_ee);
-		spin_unlock_irq(&device->resource->req_lock);
+
+		/* If this was a resync request from receive_rs_deallocated(),
+		 * it is already on the sync_ee list */
+		if (list_empty(&peer_req->w.list)) {
+			spin_lock_irq(&device->resource->req_lock);
+			list_add_tail(&peer_req->w.list, &device->active_ee);
+			spin_unlock_irq(&device->resource->req_lock);
+		}
+
 		if (blkdev_issue_zeroout(device->ldev->backing_bdev,
 			sector, data_size >> 9, GFP_NOIO, false))
 			peer_req->flags |= EE_WAS_ERROR;
@@ -2585,6 +2591,7 @@ static int receive_DataRequest(struct drbd_connection *connection, struct packet
 		case P_DATA_REQUEST:
 			drbd_send_ack_rp(peer_device, P_NEG_DREPLY, p);
 			break;
+		case P_RS_THIN_REQ:
 		case P_RS_DATA_REQUEST:
 		case P_CSUM_RS_REQUEST:
 		case P_OV_REQUEST:
@@ -2624,6 +2631,12 @@ static int receive_DataRequest(struct drbd_connection *connection, struct packet
 		peer_req->flags |= EE_APPLICATION;
 		goto submit;
 
+	case P_RS_THIN_REQ:
+		/* If at some point in the future we have a smart way to
+		   find out if this data block is completely deallocated,
+		   then we would do something smarter here than reading
+		   the block... */
+		peer_req->flags |= EE_RS_THIN_REQ;
 	case P_RS_DATA_REQUEST:
 		peer_req->w.cb = w_e_end_rsdata_req;
 		fault_type = DRBD_FAULT_RS_RD;
@@ -4599,6 +4612,72 @@ static int receive_out_of_sync(struct drbd_connection *connection, struct packet
 	return 0;
 }
 
+static int receive_rs_deallocated(struct drbd_connection *connection, struct packet_info *pi)
+{
+	struct drbd_peer_device *peer_device;
+	struct p_block_desc *p = pi->data;
+	struct drbd_device *device;
+	sector_t sector;
+	int size, err = 0;
+
+	peer_device = conn_peer_device(connection, pi->vnr);
+	if (!peer_device)
+		return -EIO;
+	device = peer_device->device;
+
+	sector = be64_to_cpu(p->sector);
+	size = be32_to_cpu(p->blksize);
+
+	dec_rs_pending(device);
+
+	if (get_ldev(device)) {
+		struct drbd_peer_request *peer_req;
+		const int op = REQ_OP_DISCARD;
+
+		peer_req = drbd_alloc_peer_req(peer_device, ID_SYNCER, sector,
+					       size, false, GFP_NOIO);
+		if (!peer_req) {
+			put_ldev(device);
+			return -ENOMEM;
+		}
+
+		peer_req->w.cb = e_end_resync_block;
+		peer_req->submit_jif = jiffies;
+		peer_req->flags |= EE_IS_TRIM;
+
+		spin_lock_irq(&device->resource->req_lock);
+		list_add_tail(&peer_req->w.list, &device->sync_ee);
+		spin_unlock_irq(&device->resource->req_lock);
+
+		atomic_add(pi->size >> 9, &device->rs_sect_ev);
+		err = drbd_submit_peer_request(device, peer_req, op, 0, DRBD_FAULT_RS_WR);
+
+		if (err) {
+			spin_lock_irq(&device->resource->req_lock);
+			list_del(&peer_req->w.list);
+			spin_unlock_irq(&device->resource->req_lock);
+
+			drbd_free_peer_req(device, peer_req);
+			put_ldev(device);
+			err = 0;
+			goto fail;
+		}
+
+		inc_unacked(device);
+
+		/* No put_ldev() here. Gets called in drbd_endio_write_sec_final(),
+		   as well as drbd_rs_complete_io() */
+	} else {
+	fail:
+		drbd_rs_complete_io(device, sector);
+		drbd_send_ack_ex(peer_device, P_NEG_ACK, sector, size, ID_SYNCER);
+	}
+
+	atomic_add(size >> 9, &device->rs_sect_in);
+
+	return err;
+}
+
 struct data_cmd {
 	int expect_payload;
 	size_t pkt_size;
@@ -4626,11 +4705,14 @@ static struct data_cmd drbd_cmd_handler[] = {
 	[P_OV_REQUEST]      = { 0, sizeof(struct p_block_req), receive_DataRequest },
 	[P_OV_REPLY]        = { 1, sizeof(struct p_block_req), receive_DataRequest },
 	[P_CSUM_RS_REQUEST] = { 1, sizeof(struct p_block_req), receive_DataRequest },
+	[P_RS_THIN_REQ]     = { 0, sizeof(struct p_block_req), receive_DataRequest },
 	[P_DELAY_PROBE]     = { 0, sizeof(struct p_delay_probe93), receive_skip },
 	[P_OUT_OF_SYNC]     = { 0, sizeof(struct p_block_desc), receive_out_of_sync },
 	[P_CONN_ST_CHG_REQ] = { 0, sizeof(struct p_req_state), receive_req_conn_state },
 	[P_PROTOCOL_UPDATE] = { 1, sizeof(struct p_protocol), receive_protocol },
 	[P_TRIM]	    = { 0, sizeof(struct p_trim), receive_Data },
+	[P_RS_DEALLOCATED]  = { 0, sizeof(struct p_block_desc), receive_rs_deallocated },
+
 };
 
 static void drbdd(struct drbd_connection *connection)

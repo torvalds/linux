@@ -471,6 +471,9 @@ enum {
 	/* this originates from application on peer
 	 * (not some resync or verify or other DRBD internal request) */
 	__EE_APPLICATION,
+
+	/* If it contains only 0 bytes, send back P_RS_DEALLOCATED */
+	__EE_RS_THIN_REQ,
 };
 #define EE_CALL_AL_COMPLETE_IO (1<<__EE_CALL_AL_COMPLETE_IO)
 #define EE_MAY_SET_IN_SYNC     (1<<__EE_MAY_SET_IN_SYNC)
@@ -485,6 +488,7 @@ enum {
 #define EE_SUBMITTED		(1<<__EE_SUBMITTED)
 #define EE_WRITE		(1<<__EE_WRITE)
 #define EE_APPLICATION		(1<<__EE_APPLICATION)
+#define EE_RS_THIN_REQ		(1<<__EE_RS_THIN_REQ)
 
 /* flag bits per device */
 enum {
@@ -1123,6 +1127,7 @@ extern int drbd_send_ov_request(struct drbd_peer_device *, sector_t sector, int 
 extern int drbd_send_bitmap(struct drbd_device *device);
 extern void drbd_send_sr_reply(struct drbd_peer_device *, enum drbd_state_rv retcode);
 extern void conn_send_sr_reply(struct drbd_connection *connection, enum drbd_state_rv retcode);
+extern int drbd_send_rs_deallocated(struct drbd_peer_device *, struct drbd_peer_request *);
 extern void drbd_backing_dev_free(struct drbd_device *device, struct drbd_backing_dev *ldev);
 extern void drbd_device_cleanup(struct drbd_device *device);
 void drbd_print_uuids(struct drbd_device *device, const char *text);
