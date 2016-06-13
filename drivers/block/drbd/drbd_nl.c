@@ -1408,9 +1408,12 @@ static void sanitize_disk_conf(struct drbd_device *device, struct disk_conf *dis
 	if (disk_conf->al_extents > drbd_al_extents_max(nbc))
 		disk_conf->al_extents = drbd_al_extents_max(nbc);
 
-	if (!blk_queue_discard(q) || !q->limits.discard_zeroes_data) {
-		disk_conf->rs_discard_granularity = 0; /* disable feature */
-		drbd_info(device, "rs_discard_granularity feature disabled\n");
+	if (!blk_queue_discard(q)
+	    || (!q->limits.discard_zeroes_data && !disk_conf->discard_zeroes_if_aligned)) {
+		if (disk_conf->rs_discard_granularity) {
+			disk_conf->rs_discard_granularity = 0; /* disable feature */
+			drbd_info(device, "rs_discard_granularity feature disabled\n");
+		}
 	}
 
 	if (disk_conf->rs_discard_granularity) {
