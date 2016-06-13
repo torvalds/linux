@@ -2941,6 +2941,7 @@ int polaris10_hwmgr_backend_init(struct pp_hwmgr *hwmgr)
 
 	data->enable_tdc_limit_feature = true;
 	data->enable_pkg_pwr_tracking_feature = true;
+	data->force_pcie_gen = PP_PCIEGenInvalid;
 
 	if (atomctrl_is_voltage_controled_by_gpio_v3(hwmgr,
 			VOLTAGE_TYPE_VDDC, VOLTAGE_OBJ_SVID2))

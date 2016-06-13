@@ -4489,6 +4489,7 @@ int tonga_hwmgr_backend_init(struct pp_hwmgr *hwmgr)
 	data->vdd_ci_control = TONGA_VOLTAGE_CONTROL_NONE;
 	data->vdd_gfx_control = TONGA_VOLTAGE_CONTROL_NONE;
 	data->mvdd_control = TONGA_VOLTAGE_CONTROL_NONE;
+	data->force_pcie_gen = PP_PCIEGenInvalid;
 
 	if (atomctrl_is_voltage_controled_by_gpio_v3(hwmgr,
 				VOLTAGE_TYPE_VDDC, VOLTAGE_OBJ_SVID2)) {
