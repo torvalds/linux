@@ -1178,9 +1178,26 @@ int nvme_init_identify(struct nvme_ctrl *ctrl)
 	}
 
 	nvme_set_queue_limits(ctrl, ctrl->admin_q);
+	ctrl->sgls = le32_to_cpu(id->sgls);
+
+	if (ctrl->ops->is_fabrics) {
+		ctrl->icdoff = le16_to_cpu(id->icdoff);
+		ctrl->ioccsz = le32_to_cpu(id->ioccsz);
+		ctrl->iorcsz = le32_to_cpu(id->iorcsz);
+		ctrl->maxcmd = le16_to_cpu(id->maxcmd);
+
+		/*
+		 * In fabrics we need to verify the cntlid matches the
+		 * admin connect
+		 */
+		if (ctrl->cntlid != le16_to_cpu(id->cntlid))
+			ret = -EINVAL;
+	} else {
+		ctrl->cntlid = le16_to_cpu(id->cntlid);
+	}
 
 	kfree(id);
-	return 0;
+	return ret;
 }
 EXPORT_SYMBOL_GPL(nvme_init_identify);
 

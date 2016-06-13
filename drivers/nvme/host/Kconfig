@@ -24,3 +24,6 @@ config BLK_DEV_NVME_SCSI
 	  to say N here, unless you run a distro that abuses the SCSI
 	  emulation to provide stable device names for mount by id, like
 	  some OpenSuSE and SLES versions.
+
+config NVME_FABRICS
+	tristate

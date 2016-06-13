@@ -80,6 +80,7 @@ struct nvme_ctrl {
 	spinlock_t lock;
 	const struct nvme_ctrl_ops *ops;
 	struct request_queue *admin_q;
+	struct request_queue *connect_q;
 	struct device *dev;
 	struct kref kref;
 	int instance;
@@ -107,10 +108,19 @@ struct nvme_ctrl {
 	u8 event_limit;
 	u8 vwc;
 	u32 vs;
+	u32 sgls;
 	bool subsystem;
 	unsigned long quirks;
 	struct work_struct scan_work;
 	struct work_struct async_event_work;
+
+	/* Fabrics only */
+	u16 sqsize;
+	u32 ioccsz;
+	u32 iorcsz;
+	u16 icdoff;
+	u16 maxcmd;
+	struct nvmf_ctrl_options *opts;
 };
 
 /*
@@ -146,6 +156,7 @@ struct nvme_ns {
 struct nvme_ctrl_ops {
 	const char *name;
 	struct module *module;
+	bool is_fabrics;
 	int (*reg_read32)(struct nvme_ctrl *ctrl, u32 off, u32 *val);
 	int (*reg_write32)(struct nvme_ctrl *ctrl, u32 off, u32 val);
 	int (*reg_read64)(struct nvme_ctrl *ctrl, u32 off, u64 *val);
