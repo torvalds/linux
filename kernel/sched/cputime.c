@@ -257,7 +257,7 @@ void account_idle_time(cputime_t cputime)
 		cpustat[CPUTIME_IDLE] += (__force u64) cputime;
 }
 
-static __always_inline bool steal_account_process_tick(void)
+static __always_inline unsigned long steal_account_process_tick(unsigned long max_jiffies)
 {
 #ifdef CONFIG_PARAVIRT
 	if (static_key_false(&paravirt_steal_enabled)) {
@@ -272,14 +272,14 @@ static __always_inline bool steal_account_process_tick(void)
 		 * time in jiffies. Lets cast the result to jiffies
 		 * granularity and account the rest on the next rounds.
 		 */
-		steal_jiffies = nsecs_to_jiffies(steal);
+		steal_jiffies = min(nsecs_to_jiffies(steal), max_jiffies);
 		this_rq()->prev_steal_time += jiffies_to_nsecs(steal_jiffies);
 
 		account_steal_time(jiffies_to_cputime(steal_jiffies));
 		return steal_jiffies;
 	}
 #endif
-	return false;
+	return 0;
 }
 
 /*
@@ -346,7 +346,7 @@ static void irqtime_account_process_tick(struct task_struct *p, int user_tick,
 	u64 cputime = (__force u64) cputime_one_jiffy;
 	u64 *cpustat = kcpustat_this_cpu->cpustat;
 
-	if (steal_account_process_tick())
+	if (steal_account_process_tick(ULONG_MAX))
 		return;
 
 	cputime *= ticks;
@@ -477,7 +477,7 @@ void account_process_tick(struct task_struct *p, int user_tick)
 		return;
 	}
 
-	if (steal_account_process_tick())
+	if (steal_account_process_tick(ULONG_MAX))
 		return;
 
 	if (user_tick)
@@ -681,12 +681,14 @@ static cputime_t vtime_delta(struct task_struct *tsk)
 static cputime_t get_vtime_delta(struct task_struct *tsk)
 {
 	unsigned long now = READ_ONCE(jiffies);
-	unsigned long delta = now - tsk->vtime_snap;
+	unsigned long delta_jiffies, steal_jiffies;
 
+	delta_jiffies = now - tsk->vtime_snap;
+	steal_jiffies = steal_account_process_tick(delta_jiffies);
 	WARN_ON_ONCE(tsk->vtime_snap_whence == VTIME_INACTIVE);
 	tsk->vtime_snap = now;
 
-	return jiffies_to_cputime(delta);
+	return jiffies_to_cputime(delta_jiffies - steal_jiffies);
 }
 
 static void __vtime_account_system(struct task_struct *tsk)
