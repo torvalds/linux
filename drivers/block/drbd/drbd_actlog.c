@@ -341,6 +341,8 @@ static int __al_write_transaction(struct drbd_device *device, struct al_transact
 
 	i = 0;
 
+	drbd_bm_reset_al_hints(device);
+
 	/* Even though no one can start to change this list
 	 * once we set the LC_LOCKED -- from drbd_al_begin_io(),
 	 * lc_try_lock_for_transaction() --, someone may still
