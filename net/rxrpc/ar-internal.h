@@ -482,21 +482,21 @@ extern struct rxrpc_transport *rxrpc_name_to_transport(struct rxrpc_sock *,
 						       int, int, gfp_t);
 
 /*
- * ar-accept.c
+ * call_accept.c
  */
 void rxrpc_accept_incoming_calls(struct work_struct *);
 struct rxrpc_call *rxrpc_accept_call(struct rxrpc_sock *, unsigned long);
 int rxrpc_reject_call(struct rxrpc_sock *);
 
 /*
- * ar-ack.c
+ * call_event.c
  */
 void __rxrpc_propose_ACK(struct rxrpc_call *, u8, u32, bool);
 void rxrpc_propose_ACK(struct rxrpc_call *, u8, u32, bool);
 void rxrpc_process_call(struct work_struct *);
 
 /*
- * ar-call.c
+ * call_object.c
  */
 extern unsigned int rxrpc_max_call_lifetime;
 extern unsigned int rxrpc_dead_call_expiry;
@@ -520,7 +520,14 @@ void __rxrpc_put_call(struct rxrpc_call *);
 void __exit rxrpc_destroy_all_calls(void);
 
 /*
- * ar-connection.c
+ * conn_event.c
+ */
+void rxrpc_process_connection(struct work_struct *);
+void rxrpc_reject_packet(struct rxrpc_local *, struct sk_buff *);
+void rxrpc_reject_packets(struct work_struct *);
+
+/*
+ * conn_object.c
  */
 extern unsigned int rxrpc_connection_expiry;
 extern struct list_head rxrpc_connections;
@@ -540,36 +547,19 @@ extern struct rxrpc_connection *
 rxrpc_incoming_connection(struct rxrpc_transport *, struct rxrpc_host_header *);
 
 /*
- * ar-connevent.c
- */
-void rxrpc_process_connection(struct work_struct *);
-void rxrpc_reject_packet(struct rxrpc_local *, struct sk_buff *);
-void rxrpc_reject_packets(struct work_struct *);
-
-/*
- * ar-error.c
- */
-void rxrpc_UDP_error_report(struct sock *);
-void rxrpc_UDP_error_handler(struct work_struct *);
-
-/*
- * ar-input.c
+ * input.c
  */
 void rxrpc_data_ready(struct sock *);
 int rxrpc_queue_rcv_skb(struct rxrpc_call *, struct sk_buff *, bool, bool);
 void rxrpc_fast_process_packet(struct rxrpc_call *, struct sk_buff *);
 
 /*
- * ar-local.c
+ * insecure.c
  */
-extern rwlock_t rxrpc_local_lock;
-
-struct rxrpc_local *rxrpc_lookup_local(struct sockaddr_rxrpc *);
-void rxrpc_put_local(struct rxrpc_local *);
-void __exit rxrpc_destroy_all_locals(void);
+extern const struct rxrpc_security rxrpc_no_security;
 
 /*
- * ar-key.c
+ * key.c
  */
 extern struct key_type key_type_rxrpc;
 extern struct key_type key_type_rxrpc_s;
@@ -580,63 +570,13 @@ int rxrpc_get_server_data_key(struct rxrpc_connection *, const void *, time_t,
 			      u32);
 
 /*
- * ar-output.c
+ * local_object.c
  */
-extern unsigned int rxrpc_resend_timeout;
+extern rwlock_t rxrpc_local_lock;
 
-int rxrpc_send_packet(struct rxrpc_transport *, struct sk_buff *);
-int rxrpc_do_sendmsg(struct rxrpc_sock *, struct msghdr *, size_t);
-
-/*
- * ar-peer.c
- */
-struct rxrpc_peer *rxrpc_get_peer(struct sockaddr_rxrpc *, gfp_t);
-void rxrpc_put_peer(struct rxrpc_peer *);
-struct rxrpc_peer *rxrpc_find_peer(struct rxrpc_local *, __be32, __be16);
-void __exit rxrpc_destroy_all_peers(void);
-
-/*
- * ar-proc.c
- */
-extern const char *const rxrpc_call_states[];
-extern const struct file_operations rxrpc_call_seq_fops;
-extern const struct file_operations rxrpc_connection_seq_fops;
-
-/*
- * ar-recvmsg.c
- */
-void rxrpc_remove_user_ID(struct rxrpc_sock *, struct rxrpc_call *);
-int rxrpc_recvmsg(struct socket *, struct msghdr *, size_t, int);
-
-/*
- * ar-security.c
- */
-int __init rxrpc_init_security(void);
-void rxrpc_exit_security(void);
-int rxrpc_init_client_conn_security(struct rxrpc_connection *);
-int rxrpc_init_server_conn_security(struct rxrpc_connection *);
-
-/*
- * ar-skbuff.c
- */
-void rxrpc_packet_destructor(struct sk_buff *);
-
-/*
- * ar-transport.c
- */
-extern unsigned int rxrpc_transport_expiry;
-
-struct rxrpc_transport *rxrpc_get_transport(struct rxrpc_local *,
-					    struct rxrpc_peer *, gfp_t);
-void rxrpc_put_transport(struct rxrpc_transport *);
-void __exit rxrpc_destroy_all_transports(void);
-struct rxrpc_transport *rxrpc_find_transport(struct rxrpc_local *,
-					     struct rxrpc_peer *);
-
-/*
- * insecure.c
- */
-extern const struct rxrpc_security rxrpc_no_security;
+struct rxrpc_local *rxrpc_lookup_local(struct sockaddr_rxrpc *);
+void rxrpc_put_local(struct rxrpc_local *);
+void __exit rxrpc_destroy_all_locals(void);
 
 /*
  * misc.c
@@ -655,11 +595,59 @@ extern const s8 rxrpc_ack_priority[];
 extern const char *rxrpc_acks(u8 reason);
 
 /*
+ * output.c
+ */
+extern unsigned int rxrpc_resend_timeout;
+
+int rxrpc_send_packet(struct rxrpc_transport *, struct sk_buff *);
+int rxrpc_do_sendmsg(struct rxrpc_sock *, struct msghdr *, size_t);
+
+/*
+ * peer_error.c
+ */
+void rxrpc_UDP_error_report(struct sock *);
+void rxrpc_UDP_error_handler(struct work_struct *);
+
+/*
+ * peer_object.c
+ */
+struct rxrpc_peer *rxrpc_get_peer(struct sockaddr_rxrpc *, gfp_t);
+void rxrpc_put_peer(struct rxrpc_peer *);
+struct rxrpc_peer *rxrpc_find_peer(struct rxrpc_local *, __be32, __be16);
+void __exit rxrpc_destroy_all_peers(void);
+
+/*
+ * proc.c
+ */
+extern const char *const rxrpc_call_states[];
+extern const struct file_operations rxrpc_call_seq_fops;
+extern const struct file_operations rxrpc_connection_seq_fops;
+
+/*
+ * recvmsg.c
+ */
+void rxrpc_remove_user_ID(struct rxrpc_sock *, struct rxrpc_call *);
+int rxrpc_recvmsg(struct socket *, struct msghdr *, size_t, int);
+
+/*
  * rxkad.c
  */
 #ifdef CONFIG_RXKAD
 extern const struct rxrpc_security rxkad;
 #endif
+
+/*
+ * security.c
+ */
+int __init rxrpc_init_security(void);
+void rxrpc_exit_security(void);
+int rxrpc_init_client_conn_security(struct rxrpc_connection *);
+int rxrpc_init_server_conn_security(struct rxrpc_connection *);
+
+/*
+ * skbuff.c
+ */
+void rxrpc_packet_destructor(struct sk_buff *);
 
 /*
  * sysctl.c
@@ -671,6 +659,18 @@ extern void rxrpc_sysctl_exit(void);
 static inline int __init rxrpc_sysctl_init(void) { return 0; }
 static inline void rxrpc_sysctl_exit(void) {}
 #endif
+
+/*
+ * transport.c
+ */
+extern unsigned int rxrpc_transport_expiry;
+
+struct rxrpc_transport *rxrpc_get_transport(struct rxrpc_local *,
+					    struct rxrpc_peer *, gfp_t);
+void rxrpc_put_transport(struct rxrpc_transport *);
+void __exit rxrpc_destroy_all_transports(void);
+struct rxrpc_transport *rxrpc_find_transport(struct rxrpc_local *,
+					     struct rxrpc_peer *);
 
 /*
  * debug tracing
