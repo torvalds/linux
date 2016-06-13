@@ -43,9 +43,9 @@ struct ptr_ring {
 };
 
 /* Note: callers invoking this in a loop must use a compiler barrier,
- * for example cpu_relax().
- * Callers don't need to take producer lock - if they don't
- * the next call to __ptr_ring_produce may fail.
+ * for example cpu_relax().  If ring is ever resized, callers must hold
+ * producer_lock - see e.g. ptr_ring_full.  Otherwise, if callers don't hold
+ * producer_lock, the next call to __ptr_ring_produce may fail.
  */
 static inline bool __ptr_ring_full(struct ptr_ring *r)
 {
@@ -54,16 +54,55 @@ static inline bool __ptr_ring_full(struct ptr_ring *r)
 
 static inline bool ptr_ring_full(struct ptr_ring *r)
 {
-	barrier();
-	return __ptr_ring_full(r);
+	bool ret;
+
+	spin_lock(&r->producer_lock);
+	ret = __ptr_ring_full(r);
+	spin_unlock(&r->producer_lock);
+
+	return ret;
+}
+
+static inline bool ptr_ring_full_irq(struct ptr_ring *r)
+{
+	bool ret;
+
+	spin_lock_irq(&r->producer_lock);
+	ret = __ptr_ring_full(r);
+	spin_unlock_irq(&r->producer_lock);
+
+	return ret;
+}
+
+static inline bool ptr_ring_full_any(struct ptr_ring *r)
+{
+	unsigned long flags;
+	bool ret;
+
+	spin_lock_irqsave(&r->producer_lock, flags);
+	ret = __ptr_ring_full(r);
+	spin_unlock_irqrestore(&r->producer_lock, flags);
+
+	return ret;
+}
+
+static inline bool ptr_ring_full_bh(struct ptr_ring *r)
+{
+	bool ret;
+
+	spin_lock_bh(&r->producer_lock);
+	ret = __ptr_ring_full(r);
+	spin_unlock_bh(&r->producer_lock);
+
+	return ret;
 }
 
 /* Note: callers invoking this in a loop must use a compiler barrier,
- * for example cpu_relax().
+ * for example cpu_relax(). Callers must hold producer_lock.
  */
 static inline int __ptr_ring_produce(struct ptr_ring *r, void *ptr)
 {
-	if (__ptr_ring_full(r))
+	if (r->queue[r->producer])
 		return -ENOSPC;
 
 	r->queue[r->producer++] = ptr;
@@ -120,18 +159,66 @@ static inline int ptr_ring_produce_bh(struct ptr_ring *r, void *ptr)
 /* Note: callers invoking this in a loop must use a compiler barrier,
  * for example cpu_relax(). Callers must take consumer_lock
  * if they dereference the pointer - see e.g. PTR_RING_PEEK_CALL.
- * There's no need for a lock if pointer is merely tested - see e.g.
- * ptr_ring_empty.
+ * If ring is never resized, and if the pointer is merely
+ * tested, there's no need to take the lock - see e.g.  __ptr_ring_empty.
  */
 static inline void *__ptr_ring_peek(struct ptr_ring *r)
 {
 	return r->queue[r->consumer];
 }
 
+/* Note: callers invoking this in a loop must use a compiler barrier,
+ * for example cpu_relax(). Callers must take consumer_lock
+ * if the ring is ever resized - see e.g. ptr_ring_empty.
+ */
+static inline bool __ptr_ring_empty(struct ptr_ring *r)
+{
+	return !__ptr_ring_peek(r);
+}
+
 static inline bool ptr_ring_empty(struct ptr_ring *r)
 {
-	barrier();
-	return !__ptr_ring_peek(r);
+	bool ret;
+
+	spin_lock(&r->consumer_lock);
+	ret = __ptr_ring_empty(r);
+	spin_unlock(&r->consumer_lock);
+
+	return ret;
+}
+
+static inline bool ptr_ring_empty_irq(struct ptr_ring *r)
+{
+	bool ret;
+
+	spin_lock_irq(&r->consumer_lock);
+	ret = __ptr_ring_empty(r);
+	spin_unlock_irq(&r->consumer_lock);
+
+	return ret;
+}
+
+static inline bool ptr_ring_empty_any(struct ptr_ring *r)
+{
+	unsigned long flags;
+	bool ret;
+
+	spin_lock_irqsave(&r->consumer_lock, flags);
+	ret = __ptr_ring_empty(r);
+	spin_unlock_irqrestore(&r->consumer_lock, flags);
+
+	return ret;
+}
+
+static inline bool ptr_ring_empty_bh(struct ptr_ring *r)
+{
+	bool ret;
+
+	spin_lock_bh(&r->consumer_lock);
+	ret = __ptr_ring_empty(r);
+	spin_unlock_bh(&r->consumer_lock);
+
+	return ret;
 }
 
 /* Must only be called after __ptr_ring_peek returned !NULL */
@@ -241,10 +328,14 @@ static inline void *ptr_ring_consume_bh(struct ptr_ring *r)
 	__PTR_RING_PEEK_CALL_v; \
 })
 
+static inline void **__ptr_ring_init_queue_alloc(int size, gfp_t gfp)
+{
+	return kzalloc(ALIGN(size * sizeof(void *), SMP_CACHE_BYTES), gfp);
+}
+
 static inline int ptr_ring_init(struct ptr_ring *r, int size, gfp_t gfp)
 {
-	r->queue = kzalloc(ALIGN(size * sizeof *(r->queue), SMP_CACHE_BYTES),
-			   gfp);
+	r->queue = __ptr_ring_init_queue_alloc(size, gfp);
 	if (!r->queue)
 		return -ENOMEM;
 
@@ -256,8 +347,46 @@ static inline int ptr_ring_init(struct ptr_ring *r, int size, gfp_t gfp)
 	return 0;
 }
 
-static inline void ptr_ring_cleanup(struct ptr_ring *r)
+static inline int ptr_ring_resize(struct ptr_ring *r, int size, gfp_t gfp,
+				  void (*destroy)(void *))
 {
+	unsigned long flags;
+	int producer = 0;
+	void **queue = __ptr_ring_init_queue_alloc(size, gfp);
+	void **old;
+	void *ptr;
+
+	if (!queue)
+		return -ENOMEM;
+
+	spin_lock_irqsave(&(r)->producer_lock, flags);
+
+	while ((ptr = ptr_ring_consume(r)))
+		if (producer < size)
+			queue[producer++] = ptr;
+		else if (destroy)
+			destroy(ptr);
+
+	r->size = size;
+	r->producer = producer;
+	r->consumer = 0;
+	old = r->queue;
+	r->queue = queue;
+
+	spin_unlock_irqrestore(&(r)->producer_lock, flags);
+
+	kfree(old);
+
+	return 0;
+}
+
+static inline void ptr_ring_cleanup(struct ptr_ring *r, void (*destroy)(void *))
+{
+	void *ptr;
+
+	if (destroy)
+		while ((ptr = ptr_ring_consume(r)))
+			destroy(ptr);
 	kfree(r->queue);
 }
 
