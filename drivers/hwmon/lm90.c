@@ -366,7 +366,6 @@ enum lm90_temp11_reg_index {
 
 struct lm90_data {
 	struct i2c_client *client;
-	struct device *hwmon_dev;
 	const struct attribute_group *groups[6];
 	struct mutex update_lock;
 	char valid; /* zero until following fields are valid */
@@ -1527,6 +1526,7 @@ static int lm90_probe(struct i2c_client *client,
 	struct i2c_adapter *adapter = to_i2c_adapter(dev->parent);
 	struct lm90_data *data;
 	struct regulator *regulator;
+	struct device *hwmon_dev;
 	int groups = 0;
 	int err;
 
@@ -1595,10 +1595,10 @@ static int lm90_probe(struct i2c_client *client,
 		devm_add_action(dev, lm90_remove_pec, dev);
 	}
 
-	data->hwmon_dev = hwmon_device_register_with_groups(dev, client->name,
-							    data, data->groups);
-	if (IS_ERR(data->hwmon_dev))
-		return PTR_ERR(data->hwmon_dev);
+	hwmon_dev = devm_hwmon_device_register_with_groups(dev, client->name,
+							   data, data->groups);
+	if (IS_ERR(hwmon_dev))
+		return PTR_ERR(hwmon_dev);
 
 	if (client->irq) {
 		dev_dbg(dev, "IRQ: %d\n", client->irq);
@@ -1608,22 +1608,9 @@ static int lm90_probe(struct i2c_client *client,
 						"lm90", client);
 		if (err < 0) {
 			dev_err(dev, "cannot request IRQ %d\n", client->irq);
-			goto exit_unregister;
+			return err;
 		}
 	}
-
-	return 0;
-
-exit_unregister:
-	hwmon_device_unregister(data->hwmon_dev);
-	return err;
-}
-
-static int lm90_remove(struct i2c_client *client)
-{
-	struct lm90_data *data = i2c_get_clientdata(client);
-
-	hwmon_device_unregister(data->hwmon_dev);
 
 	return 0;
 }
@@ -1659,7 +1646,6 @@ static struct i2c_driver lm90_driver = {
 		.name	= "lm90",
 	},
 	.probe		= lm90_probe,
-	.remove		= lm90_remove,
 	.alert		= lm90_alert,
 	.id_table	= lm90_id,
 	.detect		= lm90_detect,
