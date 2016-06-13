@@ -13799,11 +13799,19 @@ static int intel_atomic_commit(struct drm_device *dev,
 		bool modeset = needs_modeset(crtc->state);
 		struct intel_crtc_state *pipe_config =
 			to_intel_crtc_state(crtc->state);
-		bool update_pipe = !modeset && pipe_config->update_pipe;
 
 		if (modeset && crtc->state->active) {
 			update_scanline_offset(to_intel_crtc(crtc));
 			dev_priv->display.crtc_enable(crtc);
+		}
+
+		/* Complete events for now disable pipes here. */
+		if (modeset && !crtc->state->active && crtc->state->event) {
+			spin_lock_irq(&dev->event_lock);
+			drm_crtc_send_vblank_event(crtc, crtc->state->event);
+			spin_unlock_irq(&dev->event_lock);
+
+			crtc->state->event = NULL;
 		}
 
 		if (!modeset)
@@ -13813,8 +13821,7 @@ static int intel_atomic_commit(struct drm_device *dev,
 		    drm_atomic_get_existing_plane_state(state, crtc->primary))
 			intel_fbc_enable(intel_crtc);
 
-		if (crtc->state->active &&
-		    (crtc->state->planes_changed || update_pipe))
+		if (crtc->state->active)
 			drm_atomic_helper_commit_planes_on_crtc(old_crtc_state);
 
 		if (pipe_config->base.active && needs_vblank_wait(pipe_config))
