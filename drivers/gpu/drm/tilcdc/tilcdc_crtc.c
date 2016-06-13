@@ -174,8 +174,6 @@ int tilcdc_crtc_page_flip(struct drm_crtc *crtc,
 	struct drm_device *dev = crtc->dev;
 	int r;
 	unsigned long flags;
-	s64 tdiff;
-	ktime_t next_vblank;
 
 	r = tilcdc_verify_fb(crtc, fb);
 	if (r)
@@ -194,15 +192,21 @@ int tilcdc_crtc_page_flip(struct drm_crtc *crtc,
 
 	spin_lock_irqsave(&tilcdc_crtc->irq_lock, flags);
 
-	next_vblank = ktime_add_us(tilcdc_crtc->last_vblank,
-		1000000 / crtc->hwmode.vrefresh);
+	if (crtc->hwmode.vrefresh && ktime_to_ns(tilcdc_crtc->last_vblank)) {
+		ktime_t next_vblank;
+		s64 tdiff;
 
-	tdiff = ktime_to_us(ktime_sub(next_vblank, ktime_get()));
+		next_vblank = ktime_add_us(tilcdc_crtc->last_vblank,
+			1000000 / crtc->hwmode.vrefresh);
 
-	if (tdiff >= TILCDC_VBLANK_SAFETY_THRESHOLD_US)
+		tdiff = ktime_to_us(ktime_sub(next_vblank, ktime_get()));
+
+		if (tdiff < TILCDC_VBLANK_SAFETY_THRESHOLD_US)
+			tilcdc_crtc->next_fb = fb;
+	}
+
+	if (tilcdc_crtc->next_fb != fb)
 		set_scanout(crtc, fb);
-	else
-		tilcdc_crtc->next_fb = fb;
 
 	tilcdc_crtc->event = event;
 
@@ -248,6 +252,7 @@ void tilcdc_crtc_dpms(struct drm_crtc *crtc, int mode)
 		}
 
 		drm_flip_work_commit(&tilcdc_crtc->unref_work, priv->wq);
+		tilcdc_crtc->last_vblank = ktime_set(0, 0);
 	}
 }
 
