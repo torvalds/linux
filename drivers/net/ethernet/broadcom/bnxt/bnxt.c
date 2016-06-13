@@ -5628,9 +5628,10 @@ static void bnxt_dbg_dump_states(struct bnxt *bp)
 	}
 }
 
-static void bnxt_reset_task(struct bnxt *bp)
+static void bnxt_reset_task(struct bnxt *bp, bool silent)
 {
-	bnxt_dbg_dump_states(bp);
+	if (!silent)
+		bnxt_dbg_dump_states(bp);
 	if (netif_running(bp->dev)) {
 		bnxt_close_nic(bp, false, false);
 		bnxt_open_nic(bp, false, false);
@@ -5681,6 +5682,23 @@ bnxt_restart_timer:
 	mod_timer(&bp->timer, jiffies + bp->current_interval);
 }
 
+/* Only called from bnxt_sp_task() */
+static void bnxt_reset(struct bnxt *bp, bool silent)
+{
+	/* bnxt_reset_task() calls bnxt_close_nic() which waits
+	 * for BNXT_STATE_IN_SP_TASK to clear.
+	 * If there is a parallel dev_close(), bnxt_close() may be holding
+	 * rtnl() and waiting for BNXT_STATE_IN_SP_TASK to clear.  So we
+	 * must clear BNXT_STATE_IN_SP_TASK before holding rtnl().
+	 */
+	clear_bit(BNXT_STATE_IN_SP_TASK, &bp->state);
+	rtnl_lock();
+	if (test_bit(BNXT_STATE_OPEN, &bp->state))
+		bnxt_reset_task(bp, silent);
+	set_bit(BNXT_STATE_IN_SP_TASK, &bp->state);
+	rtnl_unlock();
+}
+
 static void bnxt_cfg_ntp_filters(struct bnxt *);
 
 static void bnxt_sp_task(struct work_struct *work)
@@ -5717,16 +5735,8 @@ static void bnxt_sp_task(struct work_struct *work)
 		bnxt_hwrm_tunnel_dst_port_free(
 			bp, TUNNEL_DST_PORT_FREE_REQ_TUNNEL_TYPE_VXLAN);
 	}
-	if (test_and_clear_bit(BNXT_RESET_TASK_SP_EVENT, &bp->sp_event)) {
-		/* bnxt_reset_task() calls bnxt_close_nic() which waits
-		 * for BNXT_STATE_IN_SP_TASK to clear.
-		 */
-		clear_bit(BNXT_STATE_IN_SP_TASK, &bp->state);
-		rtnl_lock();
-		bnxt_reset_task(bp);
-		set_bit(BNXT_STATE_IN_SP_TASK, &bp->state);
-		rtnl_unlock();
-	}
+	if (test_and_clear_bit(BNXT_RESET_TASK_SP_EVENT, &bp->sp_event))
+		bnxt_reset(bp, false);
 
 	if (test_and_clear_bit(BNXT_HWRM_PORT_MODULE_SP_EVENT, &bp->sp_event))
 		bnxt_get_port_module_status(bp);
