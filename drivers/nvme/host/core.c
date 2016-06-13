@@ -192,11 +192,16 @@ void nvme_requeue_req(struct request *req)
 EXPORT_SYMBOL_GPL(nvme_requeue_req);
 
 struct request *nvme_alloc_request(struct request_queue *q,
-		struct nvme_command *cmd, unsigned int flags)
+		struct nvme_command *cmd, unsigned int flags, int qid)
 {
 	struct request *req;
 
-	req = blk_mq_alloc_request(q, nvme_is_write(cmd), flags);
+	if (qid == NVME_QID_ANY) {
+		req = blk_mq_alloc_request(q, nvme_is_write(cmd), flags);
+	} else {
+		req = blk_mq_alloc_request_hctx(q, nvme_is_write(cmd), flags,
+				qid ? qid - 1 : 0);
+	}
 	if (IS_ERR(req))
 		return req;
 
@@ -324,12 +329,12 @@ EXPORT_SYMBOL_GPL(nvme_setup_cmd);
  */
 int __nvme_submit_sync_cmd(struct request_queue *q, struct nvme_command *cmd,
 		struct nvme_completion *cqe, void *buffer, unsigned bufflen,
-		unsigned timeout)
+		unsigned timeout, int qid, int at_head, int flags)
 {
 	struct request *req;
 	int ret;
 
-	req = nvme_alloc_request(q, cmd, 0);
+	req = nvme_alloc_request(q, cmd, flags, qid);
 	if (IS_ERR(req))
 		return PTR_ERR(req);
 
@@ -342,17 +347,19 @@ int __nvme_submit_sync_cmd(struct request_queue *q, struct nvme_command *cmd,
 			goto out;
 	}
 
-	blk_execute_rq(req->q, NULL, req, 0);
+	blk_execute_rq(req->q, NULL, req, at_head);
 	ret = req->errors;
  out:
 	blk_mq_free_request(req);
 	return ret;
 }
+EXPORT_SYMBOL_GPL(__nvme_submit_sync_cmd);
 
 int nvme_submit_sync_cmd(struct request_queue *q, struct nvme_command *cmd,
 		void *buffer, unsigned bufflen)
 {
-	return __nvme_submit_sync_cmd(q, cmd, NULL, buffer, bufflen, 0);
+	return __nvme_submit_sync_cmd(q, cmd, NULL, buffer, bufflen, 0,
+			NVME_QID_ANY, 0, 0);
 }
 EXPORT_SYMBOL_GPL(nvme_submit_sync_cmd);
 
@@ -370,7 +377,7 @@ int __nvme_submit_user_cmd(struct request_queue *q, struct nvme_command *cmd,
 	void *meta = NULL;
 	int ret;
 
-	req = nvme_alloc_request(q, cmd, 0);
+	req = nvme_alloc_request(q, cmd, 0, NVME_QID_ANY);
 	if (IS_ERR(req))
 		return PTR_ERR(req);
 
@@ -520,7 +527,8 @@ int nvme_get_features(struct nvme_ctrl *dev, unsigned fid, unsigned nsid,
 	c.features.prp1 = cpu_to_le64(dma_addr);
 	c.features.fid = cpu_to_le32(fid);
 
-	ret = __nvme_submit_sync_cmd(dev->admin_q, &c, &cqe, NULL, 0, 0);
+	ret = __nvme_submit_sync_cmd(dev->admin_q, &c, &cqe, NULL, 0, 0,
+			NVME_QID_ANY, 0, 0);
 	if (ret >= 0)
 		*result = le32_to_cpu(cqe.result);
 	return ret;
@@ -539,7 +547,8 @@ int nvme_set_features(struct nvme_ctrl *dev, unsigned fid, unsigned dword11,
 	c.features.fid = cpu_to_le32(fid);
 	c.features.dword11 = cpu_to_le32(dword11);
 
-	ret = __nvme_submit_sync_cmd(dev->admin_q, &c, &cqe, NULL, 0, 0);
+	ret = __nvme_submit_sync_cmd(dev->admin_q, &c, &cqe, NULL, 0, 0,
+			NVME_QID_ANY, 0, 0);
 	if (ret >= 0)
 		*result = le32_to_cpu(cqe.result);
 	return ret;
