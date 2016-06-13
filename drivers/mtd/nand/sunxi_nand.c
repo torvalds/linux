@@ -390,8 +390,8 @@ static int sunxi_nfc_dma_op_prepare(struct mtd_info *mtd, const void *buf,
 		return -ENOMEM;
 
 	dmad = dmaengine_prep_slave_sg(nfc->dmac, sg, 1, tdir, DMA_CTRL_ACK);
-	if (IS_ERR(dmad)) {
-		ret = PTR_ERR(dmad);
+	if (!dmad) {
+		ret = -EINVAL;
 		goto err_unmap_buf;
 	}
 
