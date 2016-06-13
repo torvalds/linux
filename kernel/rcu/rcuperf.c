@@ -638,8 +638,10 @@ rcu_perf_init(void)
 		writer_durations[i] =
 			kcalloc(MAX_MEAS, sizeof(*writer_durations[i]),
 				GFP_KERNEL);
-		if (!writer_durations[i])
+		if (!writer_durations[i]) {
+			firsterr = -ENOMEM;
 			goto unwind;
+		}
 		firsterr = torture_create_kthread(rcu_perf_writer, (void *)i,
 						  writer_tasks[i]);
 		if (firsterr)
