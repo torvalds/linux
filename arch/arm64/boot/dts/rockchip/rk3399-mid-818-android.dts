@@ -552,13 +552,15 @@
 	i2c-scl-falling-time-ns = <30>;
 	clock-frequency = <400000>;
 
-	ts@14 {
-		compatible = "GT,Goodix-TS";
+	gt9xx: gt9xx@14 {
+		compatible = "goodix,gt9xx";
 		reg = <0x14>;
-		screen_max_x = <1536>;
-		screen_max_y = <2048>;
-		irq_gpio_number = <&gpio3 12 IRQ_TYPE_LEVEL_LOW>;
-		rst_gpio_number = <&gpio3 13 GPIO_ACTIVE_HIGH>;
+		touch-gpio = <&gpio3 12 IRQ_TYPE_LEVEL_LOW>;
+		reset-gpio = <&gpio3 13 GPIO_ACTIVE_HIGH>;
+		max-x = <1536>;
+		max-y = <2048>;
+		tp-size = <970>;
+		tp-supply = <&vcc3v0_tp>;
 	};
 };
 
