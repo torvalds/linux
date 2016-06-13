@@ -2102,13 +2102,22 @@ static inline void _sub_unacked(struct drbd_device *device, int n, const char *f
 	ERR_IF_CNT_IS_NEGATIVE(unacked_cnt, func, line);
 }
 
+static inline bool is_sync_target_state(enum drbd_conns connection_state)
+{
+	return	connection_state == C_SYNC_TARGET ||
+		connection_state == C_PAUSED_SYNC_T;
+}
+
+static inline bool is_sync_source_state(enum drbd_conns connection_state)
+{
+	return	connection_state == C_SYNC_SOURCE ||
+		connection_state == C_PAUSED_SYNC_S;
+}
+
 static inline bool is_sync_state(enum drbd_conns connection_state)
 {
-	return
-	   (connection_state == C_SYNC_SOURCE
-	||  connection_state == C_SYNC_TARGET
-	||  connection_state == C_PAUSED_SYNC_S
-	||  connection_state == C_PAUSED_SYNC_T);
+	return	is_sync_source_state(connection_state) ||
+		is_sync_target_state(connection_state);
 }
 
 /**
