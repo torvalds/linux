@@ -75,13 +75,22 @@ enum board_idx {
 	BCM57301,
 	BCM57302,
 	BCM57304,
+	BCM57311,
+	BCM57312,
 	BCM57402,
 	BCM57404,
 	BCM57406,
 	BCM57404_NPAR,
+	BCM57412,
+	BCM57414,
+	BCM57416,
+	BCM57417,
+	BCM57414_NPAR,
 	BCM57314,
 	BCM57304_VF,
 	BCM57404_VF,
+	BCM57414_VF,
+	BCM57314_VF,
 };
 
 /* indexed by enum above */
@@ -91,27 +100,45 @@ static const struct {
 	{ "Broadcom BCM57301 NetXtreme-C Single-port 10Gb Ethernet" },
 	{ "Broadcom BCM57302 NetXtreme-C Dual-port 10Gb/25Gb Ethernet" },
 	{ "Broadcom BCM57304 NetXtreme-C Dual-port 10Gb/25Gb/40Gb/50Gb Ethernet" },
+	{ "Broadcom BCM57311 NetXtreme-C Single-port 10Gb Ethernet" },
+	{ "Broadcom BCM57312 NetXtreme-C Dual-port 10Gb/25Gb Ethernet" },
 	{ "Broadcom BCM57402 NetXtreme-E Dual-port 10Gb Ethernet" },
 	{ "Broadcom BCM57404 NetXtreme-E Dual-port 10Gb/25Gb Ethernet" },
 	{ "Broadcom BCM57406 NetXtreme-E Dual-port 10GBase-T Ethernet" },
 	{ "Broadcom BCM57404 NetXtreme-E Ethernet Partition" },
+	{ "Broadcom BCM57412 NetXtreme-E Dual-port 10Gb Ethernet" },
+	{ "Broadcom BCM57414 NetXtreme-E Dual-port 10Gb/25Gb Ethernet" },
+	{ "Broadcom BCM57416 NetXtreme-E Dual-port 10GBase-T Ethernet" },
+	{ "Broadcom BCM57417 NetXtreme-E Dual-port 10GBase-T Ethernet" },
+	{ "Broadcom BCM57414 NetXtreme-E Ethernet Partition" },
 	{ "Broadcom BCM57314 NetXtreme-C Dual-port 10Gb/25Gb/40Gb/50Gb Ethernet" },
 	{ "Broadcom BCM57304 NetXtreme-C Ethernet Virtual Function" },
 	{ "Broadcom BCM57404 NetXtreme-E Ethernet Virtual Function" },
+	{ "Broadcom BCM57414 NetXtreme-E Ethernet Virtual Function" },
+	{ "Broadcom BCM57314 NetXtreme-E Ethernet Virtual Function" },
 };
 
 static const struct pci_device_id bnxt_pci_tbl[] = {
 	{ PCI_VDEVICE(BROADCOM, 0x16c8), .driver_data = BCM57301 },
 	{ PCI_VDEVICE(BROADCOM, 0x16c9), .driver_data = BCM57302 },
 	{ PCI_VDEVICE(BROADCOM, 0x16ca), .driver_data = BCM57304 },
+	{ PCI_VDEVICE(BROADCOM, 0x16ce), .driver_data = BCM57311 },
+	{ PCI_VDEVICE(BROADCOM, 0x16cf), .driver_data = BCM57312 },
 	{ PCI_VDEVICE(BROADCOM, 0x16d0), .driver_data = BCM57402 },
 	{ PCI_VDEVICE(BROADCOM, 0x16d1), .driver_data = BCM57404 },
 	{ PCI_VDEVICE(BROADCOM, 0x16d2), .driver_data = BCM57406 },
 	{ PCI_VDEVICE(BROADCOM, 0x16d4), .driver_data = BCM57404_NPAR },
+	{ PCI_VDEVICE(BROADCOM, 0x16d6), .driver_data = BCM57412 },
+	{ PCI_VDEVICE(BROADCOM, 0x16d7), .driver_data = BCM57414 },
+	{ PCI_VDEVICE(BROADCOM, 0x16d8), .driver_data = BCM57416 },
+	{ PCI_VDEVICE(BROADCOM, 0x16d9), .driver_data = BCM57417 },
+	{ PCI_VDEVICE(BROADCOM, 0x16de), .driver_data = BCM57414_NPAR },
 	{ PCI_VDEVICE(BROADCOM, 0x16df), .driver_data = BCM57314 },
 #ifdef CONFIG_BNXT_SRIOV
 	{ PCI_VDEVICE(BROADCOM, 0x16cb), .driver_data = BCM57304_VF },
 	{ PCI_VDEVICE(BROADCOM, 0x16d3), .driver_data = BCM57404_VF },
+	{ PCI_VDEVICE(BROADCOM, 0x16dc), .driver_data = BCM57414_VF },
+	{ PCI_VDEVICE(BROADCOM, 0x16e1), .driver_data = BCM57314_VF },
 #endif
 	{ 0 }
 };
@@ -134,7 +161,8 @@ static const u16 bnxt_async_events_arr[] = {
 
 static bool bnxt_vf_pciid(enum board_idx idx)
 {
-	return (idx == BCM57304_VF || idx == BCM57404_VF);
+	return (idx == BCM57304_VF || idx == BCM57404_VF ||
+		idx == BCM57314_VF || idx == BCM57414_VF);
 }
 
 #define DB_CP_REARM_FLAGS	(DB_KEY_CP | DB_IDX_VALID)
