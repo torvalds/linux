@@ -1773,15 +1773,15 @@ bool bxt_ddi_phy_is_enabled(struct drm_i915_private *dev_priv,
 	return true;
 }
 
-static u32 broxton_get_grc(struct drm_i915_private *dev_priv, enum dpio_phy phy)
+static u32 bxt_get_grc(struct drm_i915_private *dev_priv, enum dpio_phy phy)
 {
 	u32 val = I915_READ(BXT_PORT_REF_DW6(phy));
 
 	return (val & GRC_CODE_MASK) >> GRC_CODE_SHIFT;
 }
 
-static void broxton_phy_wait_grc_done(struct drm_i915_private *dev_priv,
-				      enum dpio_phy phy)
+static void bxt_phy_wait_grc_done(struct drm_i915_private *dev_priv,
+				  enum dpio_phy phy)
 {
 	if (wait_for(I915_READ(BXT_PORT_REF_DW3(phy)) & GRC_DONE, 10))
 		DRM_ERROR("timeout waiting for PHY%d GRC\n", phy);
@@ -1794,7 +1794,7 @@ void bxt_ddi_phy_init(struct drm_i915_private *dev_priv, enum dpio_phy phy)
 	if (bxt_ddi_phy_is_enabled(dev_priv, phy)) {
 		/* Still read out the GRC value for state verification */
 		if (phy == DPIO_PHY0)
-			dev_priv->bxt_phy_grc = broxton_get_grc(dev_priv, phy);
+			dev_priv->bxt_phy_grc = bxt_get_grc(dev_priv, phy);
 
 		if (bxt_ddi_phy_verify_state(dev_priv, phy)) {
 			DRM_DEBUG_DRIVER("DDI PHY %d already enabled, "
@@ -1870,8 +1870,7 @@ void bxt_ddi_phy_init(struct drm_i915_private *dev_priv, enum dpio_phy phy)
 		 * the corresponding calibrated value from PHY1, and disable
 		 * the automatic calibration on PHY0.
 		 */
-		val = dev_priv->bxt_phy_grc = broxton_get_grc(dev_priv,
-							      DPIO_PHY1);
+		val = dev_priv->bxt_phy_grc = bxt_get_grc(dev_priv, DPIO_PHY1);
 		grc_code = val << GRC_CODE_FAST_SHIFT |
 			   val << GRC_CODE_SLOW_SHIFT |
 			   val;
@@ -1887,7 +1886,7 @@ void bxt_ddi_phy_init(struct drm_i915_private *dev_priv, enum dpio_phy phy)
 	I915_WRITE(BXT_PHY_CTL_FAMILY(phy), val);
 
 	if (phy == DPIO_PHY1)
-		broxton_phy_wait_grc_done(dev_priv, DPIO_PHY1);
+		bxt_phy_wait_grc_done(dev_priv, DPIO_PHY1);
 }
 
 void bxt_ddi_phy_uninit(struct drm_i915_private *dev_priv, enum dpio_phy phy)

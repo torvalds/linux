@@ -2401,7 +2401,7 @@ void bxt_display_core_init(struct drm_i915_private *dev_priv,
 
 	mutex_unlock(&power_domains->lock);
 
-	broxton_init_cdclk(dev_priv);
+	bxt_init_cdclk(dev_priv);
 
 	gen9_dbuf_enable(dev_priv);
 
@@ -2418,7 +2418,7 @@ void bxt_display_core_uninit(struct drm_i915_private *dev_priv)
 
 	gen9_dbuf_disable(dev_priv);
 
-	broxton_uninit_cdclk(dev_priv);
+	bxt_uninit_cdclk(dev_priv);
 
 	/* The spec doesn't call for removing the reset handshake flag */
 
