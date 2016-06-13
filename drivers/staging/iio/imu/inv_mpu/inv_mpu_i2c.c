@@ -317,6 +317,14 @@ static struct mpu_platform_data mpu_data = {
 			0,  0, -1,
 	},
 /*
+	.sec_slave_type = SECONDARY_SLAVE_TYPE_COMPASS,
+	.sec_slave_id = COMPASS_ID_AK8963,
+	.secondary_i2c_addr = 0x0d,
+	.secondary_orientation = {
+			-1,  0,  0,
+			0,  1,  0,
+			0,  0, -1,
+	},
 	.key = {
 		221,  22, 205,   7, 217, 186, 151, 55,
 		206, 254,  35, 144, 225, 102,  47, 50,
@@ -327,18 +335,103 @@ static struct mpu_platform_data mpu_data = {
 static int of_inv_parse_platform_data(struct i2c_client *client,
 				      struct mpu_platform_data *pdata)
 {
+	int ret;
+	int length = 0, size = 0;
+	struct property *prop;
+	u32 orientation[9];
+	int orig_x, orig_y, orig_z;
+	int i;
 	struct device_node *np = client->dev.of_node;
 	unsigned long irq_flags;
 	int irq_pin;
 	int gpio_pin;
+	int debug;
 
 	gpio_pin = of_get_named_gpio_flags(np, "irq-gpio", 0, (enum of_gpio_flags *)&irq_flags);
 	gpio_request(gpio_pin, "mpu6500");
 	irq_pin = gpio_to_irq(gpio_pin);
 	client->irq = irq_pin;
+
 	i2c_set_clientdata(client, &mpu_data);
 
-	pr_info("%s: %s, %x, %x\n", __func__, client->name, client->addr, client->irq);
+	ret = of_property_read_u8(np, "mpu-int_config", &mpu_data.int_config);
+	if (ret != 0) {
+		dev_err(&client->dev, "get mpu-int_config error\n");
+		return -EIO;
+	}
+
+	ret = of_property_read_u8(np, "mpu-level_shifter", &mpu_data.level_shifter);
+	if (ret != 0) {
+		dev_err(&client->dev, "get mpu-level_shifter error\n");
+		return -EIO;
+	}
+
+	prop = of_find_property(np, "mpu-orientation", &length);
+	if (!prop) {
+		dev_err(&client->dev, "get mpu-orientation length error\n");
+		return -EINVAL;
+	}
+	size = length / sizeof(u32);
+	if ((size > 0) && (size < 10)) {
+		ret = of_property_read_u32_array(np, "mpu-orientation", orientation, size);
+		if (ret < 0) {
+			dev_err(&client->dev, "get mpu-orientation data error\n");
+			return -EINVAL;
+		}
+		for (i = 0; i < 9; i++)
+			mpu_data.orientation[i] = orientation[i];
+	} else {
+		dev_info(&client->dev, "use default orientation\n");
+	}
+
+	ret = of_property_read_u32(np, "orientation-x", &orig_x);
+	if (ret != 0) {
+		dev_err(&client->dev, "get orientation-x error\n");
+		return -EIO;
+	}
+	if (orig_x > 0) {
+		for (i = 0; i < 3; i++)
+			if (mpu_data.orientation[i])
+				mpu_data.orientation[i] = -1;
+	}
+
+	ret = of_property_read_u32(np, "orientation-y", &orig_y);
+	if (ret != 0) {
+		dev_err(&client->dev, "get orientation-y error\n");
+		return -EIO;
+	}
+	if (orig_y > 0) {
+		for (i = 3; i < 6; i++)
+			if (mpu_data.orientation[i])
+				mpu_data.orientation[i] = -1;
+	}
+
+	ret = of_property_read_u32(np, "orientation-z", &orig_z);
+	if (ret != 0) {
+		dev_err(&client->dev, "get orientation-z error\n");
+		return -EIO;
+	}
+	if (orig_z > 0) {
+		for (i = 6; i < 9; i++)
+			if (mpu_data.orientation[i])
+				mpu_data.orientation[i] = -1;
+	}
+
+	ret = of_property_read_u32(np, "mpu-debug", &debug);
+	if (ret != 0) {
+		dev_err(&client->dev, "get mpu-debug error\n");
+		return -EINVAL;
+	}
+	if (debug) {
+		dev_info(&client->dev, "int_config=%d,level_shifter=%d,client.addr=%x,client.irq=%x\n",
+							mpu_data.int_config,
+							mpu_data.level_shifter,
+							client->addr,
+							client->irq);
+		for (i = 0; i < size; i++)
+			dev_info(&client->dev, "%d ", mpu_data.orientation[i]);
+		dev_info(&client->dev, "\n");
+	}
 
 	return 0;
 }
