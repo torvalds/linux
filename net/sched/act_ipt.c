@@ -243,7 +243,7 @@ static int tcf_ipt(struct sk_buff *skb, const struct tc_action *a,
 	default:
 		net_notice_ratelimited("tc filter: Bogus netfilter code %d assume ACCEPT\n",
 				       ret);
-		result = TC_POLICE_OK;
+		result = TC_ACT_OK;
 		break;
 	}
 	spin_unlock(&ipt->tcf_lock);

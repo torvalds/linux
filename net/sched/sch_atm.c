@@ -366,7 +366,7 @@ static int atm_tc_enqueue(struct sk_buff *skb, struct Qdisc *sch)
 	int ret = NET_XMIT_SUCCESS | __NET_XMIT_BYPASS;
 
 	pr_debug("atm_tc_enqueue(skb %p,sch %p,[qdisc %p])\n", skb, sch, p);
-	result = TC_POLICE_OK;	/* be nice to gcc */
+	result = TC_ACT_OK;	/* be nice to gcc */
 	flow = NULL;
 	if (TC_H_MAJ(skb->priority) != sch->handle ||
 	    !(flow = (struct atm_flow_data *)atm_tc_get(sch, skb->priority))) {
@@ -403,7 +403,7 @@ done:
 		case TC_ACT_SHOT:
 			kfree_skb(skb);
 			goto drop;
-		case TC_POLICE_RECLASSIFY:
+		case TC_ACT_RECLASSIFY:
 			if (flow->excess)
 				flow = flow->excess;
 			else
