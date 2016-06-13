@@ -232,6 +232,32 @@ static void guc_disable_doorbell(struct intel_guc *guc,
 	/* XXX: wait for workqueue to drain */
 }
 
+static uint16_t
+select_doorbell_register(struct intel_guc *guc, uint32_t priority)
+{
+	/*
+	 * The bitmap tracks which doorbell registers are currently in use.
+	 * It is split into two halves; the first half is used for normal
+	 * priority contexts, the second half for high-priority ones.
+	 * Note that logically higher priorities are numerically less than
+	 * normal ones, so the test below means "is it high-priority?"
+	 */
+	const bool hi_pri = (priority <= GUC_CTX_PRIORITY_HIGH);
+	const uint16_t half = GUC_MAX_DOORBELLS / 2;
+	const uint16_t start = hi_pri ? half : 0;
+	const uint16_t end = start + half;
+	uint16_t id;
+
+	id = find_next_zero_bit(guc->doorbell_bitmap, end, start);
+	if (id == end)
+		id = GUC_INVALID_DOORBELL_ID;
+
+	DRM_DEBUG_DRIVER("assigned %s priority doorbell id 0x%x\n",
+			hi_pri ? "high" : "normal", id);
+
+	return id;
+}
+
 /*
  * Select, assign and relase doorbell cachelines
  *
@@ -254,32 +280,6 @@ static uint32_t select_doorbell_cacheline(struct intel_guc *guc)
 			offset, guc->db_cacheline, cacheline_size);
 
 	return offset;
-}
-
-static uint16_t assign_doorbell(struct intel_guc *guc, uint32_t priority)
-{
-	/*
-	 * The bitmap is split into two halves; the first half is used for
-	 * normal priority contexts, the second half for high-priority ones.
-	 * Note that logically higher priorities are numerically less than
-	 * normal ones, so the test below means "is it high-priority?"
-	 */
-	const bool hi_pri = (priority <= GUC_CTX_PRIORITY_HIGH);
-	const uint16_t half = GUC_MAX_DOORBELLS / 2;
-	const uint16_t start = hi_pri ? half : 0;
-	const uint16_t end = start + half;
-	uint16_t id;
-
-	id = find_next_zero_bit(guc->doorbell_bitmap, end, start);
-	if (id == end)
-		id = GUC_INVALID_DOORBELL_ID;
-	else
-		__set_bit(id, guc->doorbell_bitmap);
-
-	DRM_DEBUG_DRIVER("assigned %s priority doorbell id 0x%x\n",
-			hi_pri ? "high" : "normal", id);
-
-	return id;
 }
 
 /*
@@ -742,6 +742,11 @@ guc_client_alloc(struct drm_i915_private *dev_priv,
 	client->wq_offset = GUC_DB_SIZE;
 	client->wq_size = GUC_WQ_SIZE;
 
+	db_id = select_doorbell_register(guc, client->priority);
+	if (db_id == GUC_INVALID_DOORBELL_ID)
+		/* XXX: evict a doorbell instead? */
+		goto err;
+
 	client->doorbell_offset = select_doorbell_cacheline(guc);
 
 	/*
@@ -753,11 +758,6 @@ guc_client_alloc(struct drm_i915_private *dev_priv,
 		client->proc_desc_offset = 0;
 	else
 		client->proc_desc_offset = (GUC_DB_SIZE / 2);
-
-	db_id = assign_doorbell(guc, client->priority);
-	if (db_id == GUC_INVALID_DOORBELL_ID)
-		/* XXX: evict a doorbell instead */
-		goto err;
 
 	guc_init_proc_desc(guc, client);
 	guc_init_ctx_desc(guc, client);
