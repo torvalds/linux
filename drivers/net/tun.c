@@ -1254,6 +1254,13 @@ static ssize_t tun_get_user(struct tun_struct *tun, struct tun_file *tfile,
 		return -EFAULT;
 	}
 
+	err = virtio_net_hdr_to_skb(skb, &gso, tun_is_little_endian(tun));
+	if (err) {
+		this_cpu_inc(tun->pcpu_stats->rx_frame_errors);
+		kfree_skb(skb);
+		return -EINVAL;
+	}
+
 	switch (tun->flags & TUN_TYPE_MASK) {
 	case IFF_TUN:
 		if (tun->flags & IFF_NO_PI) {
@@ -1278,13 +1285,6 @@ static ssize_t tun_get_user(struct tun_struct *tun, struct tun_file *tfile,
 	case IFF_TAP:
 		skb->protocol = eth_type_trans(skb, tun->dev);
 		break;
-	}
-
-	err = virtio_net_hdr_to_skb(skb, &gso, tun_is_little_endian(tun));
-	if (err) {
-		this_cpu_inc(tun->pcpu_stats->rx_frame_errors);
-		kfree_skb(skb);
-		return -EINVAL;
 	}
 
 	/* copy skb_ubuf_info for callback when skb has no error */
