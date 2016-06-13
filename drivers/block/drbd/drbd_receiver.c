@@ -3194,7 +3194,8 @@ static void drbd_uuid_dump(struct drbd_device *device, char *text, u64 *uuid,
 -1091   requires proto 91
 -1096   requires proto 96
  */
-static int drbd_uuid_compare(struct drbd_device *const device, int *rule_nr) __must_hold(local)
+
+static int drbd_uuid_compare(struct drbd_device *const device, enum drbd_role const peer_role, int *rule_nr) __must_hold(local)
 {
 	struct drbd_peer_device *const peer_device = first_peer_device(device);
 	struct drbd_connection *const connection = peer_device ? peer_device->connection : NULL;
@@ -3274,8 +3275,39 @@ static int drbd_uuid_compare(struct drbd_device *const device, int *rule_nr) __m
 		 * next bit (weight 2) is set when peer was primary */
 		*rule_nr = 40;
 
+		/* Neither has the "crashed primary" flag set,
+		 * only a replication link hickup. */
+		if (rct == 0)
+			return 0;
+
+		/* Current UUID equal and no bitmap uuid; does not necessarily
+		 * mean this was a "simultaneous hard crash", maybe IO was
+		 * frozen, so no UUID-bump happened.
+		 * This is a protocol change, overload DRBD_FF_WSAME as flag
+		 * for "new-enough" peer DRBD version. */
+		if (device->state.role == R_PRIMARY || peer_role == R_PRIMARY) {
+			*rule_nr = 41;
+			if (!(connection->agreed_features & DRBD_FF_WSAME)) {
+				drbd_warn(peer_device, "Equivalent unrotated UUIDs, but current primary present.\n");
+				return -(0x10000 | PRO_VERSION_MAX | (DRBD_FF_WSAME << 8));
+			}
+			if (device->state.role == R_PRIMARY && peer_role == R_PRIMARY) {
+				/* At least one has the "crashed primary" bit set,
+				 * both are primary now, but neither has rotated its UUIDs?
+				 * "Can not happen." */
+				drbd_err(peer_device, "Equivalent unrotated UUIDs, but both are primary. Can not resolve this.\n");
+				return -100;
+			}
+			if (device->state.role == R_PRIMARY)
+				return 1;
+			return -1;
+		}
+
+		/* Both are secondary.
+		 * Really looks like recovery from simultaneous hard crash.
+		 * Check which had been primary before, and arbitrate. */
 		switch (rct) {
-		case 0: /* !self_pri && !peer_pri */ return 0;
+		case 0: /* !self_pri && !peer_pri */ return 0; /* already handled */
 		case 1: /*  self_pri && !peer_pri */ return 1;
 		case 2: /* !self_pri &&  peer_pri */ return -1;
 		case 3: /*  self_pri &&  peer_pri */
@@ -3402,13 +3434,22 @@ static enum drbd_conns drbd_sync_handshake(struct drbd_peer_device *peer_device,
 	drbd_uuid_dump(device, "peer", device->p_uuid,
 		       device->p_uuid[UI_SIZE], device->p_uuid[UI_FLAGS]);
 
-	hg = drbd_uuid_compare(device, &rule_nr);
+	hg = drbd_uuid_compare(device, peer_role, &rule_nr);
 	spin_unlock_irq(&device->ldev->md.uuid_lock);
 
 	drbd_info(device, "uuid_compare()=%d by rule %d\n", hg, rule_nr);
 
 	if (hg == -1000) {
 		drbd_alert(device, "Unrelated data, aborting!\n");
+		return C_MASK;
+	}
+	if (hg < -0x10000) {
+		int proto, fflags;
+		hg = -hg;
+		proto = hg & 0xff;
+		fflags = (hg >> 8) & 0xff;
+		drbd_alert(device, "To resolve this both sides have to support at least protocol %d and feature flags 0x%x\n",
+					proto, fflags);
 		return C_MASK;
 	}
 	if (hg < -1000) {
