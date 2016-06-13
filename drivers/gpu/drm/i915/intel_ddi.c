@@ -1742,8 +1742,8 @@ static void intel_disable_ddi(struct intel_encoder *intel_encoder)
 	}
 }
 
-static bool broxton_phy_is_enabled(struct drm_i915_private *dev_priv,
-				   enum dpio_phy phy)
+bool bxt_ddi_phy_is_enabled(struct drm_i915_private *dev_priv,
+			    enum dpio_phy phy)
 {
 	if (!(I915_READ(BXT_P_CR_GT_DISP_PWRON) & GT_DISPLAY_POWER_ON(phy)))
 		return false;
@@ -1787,21 +1787,17 @@ static void broxton_phy_wait_grc_done(struct drm_i915_private *dev_priv,
 		DRM_ERROR("timeout waiting for PHY%d GRC\n", phy);
 }
 
-static bool broxton_phy_verify_state(struct drm_i915_private *dev_priv,
-				     enum dpio_phy phy);
-
-static void broxton_phy_init(struct drm_i915_private *dev_priv,
-			     enum dpio_phy phy)
+void bxt_ddi_phy_init(struct drm_i915_private *dev_priv, enum dpio_phy phy)
 {
 	enum port port;
 	u32 ports, val;
 
-	if (broxton_phy_is_enabled(dev_priv, phy)) {
+	if (bxt_ddi_phy_is_enabled(dev_priv, phy)) {
 		/* Still read out the GRC value for state verification */
 		if (phy == DPIO_PHY0)
 			dev_priv->bxt_phy_grc = broxton_get_grc(dev_priv, phy);
 
-		if (broxton_phy_verify_state(dev_priv, phy)) {
+		if (bxt_ddi_phy_verify_state(dev_priv, phy)) {
 			DRM_DEBUG_DRIVER("DDI PHY %d already enabled, "
 					 "won't reprogram it\n", phy);
 
@@ -1810,8 +1806,6 @@ static void broxton_phy_init(struct drm_i915_private *dev_priv,
 
 		DRM_DEBUG_DRIVER("DDI PHY %d enabled with invalid state, "
 				 "force reprogramming it\n", phy);
-	} else {
-		DRM_DEBUG_DRIVER("DDI PHY %d not enabled, enabling it\n", phy);
 	}
 
 	val = I915_READ(BXT_P_CR_GT_DISP_PWRON);
@@ -1919,15 +1913,7 @@ static void broxton_phy_init(struct drm_i915_private *dev_priv,
 		broxton_phy_wait_grc_done(dev_priv, DPIO_PHY1);
 }
 
-void broxton_ddi_phy_init(struct drm_i915_private *dev_priv)
-{
-	/* Enable PHY1 first since it provides Rcomp for PHY0 */
-	broxton_phy_init(dev_priv, DPIO_PHY1);
-	broxton_phy_init(dev_priv, DPIO_PHY0);
-}
-
-static void broxton_phy_uninit(struct drm_i915_private *dev_priv,
-			       enum dpio_phy phy)
+void bxt_ddi_phy_uninit(struct drm_i915_private *dev_priv, enum dpio_phy phy)
 {
 	uint32_t val;
 
@@ -1938,12 +1924,6 @@ static void broxton_phy_uninit(struct drm_i915_private *dev_priv,
 	val = I915_READ(BXT_P_CR_GT_DISP_PWRON);
 	val &= ~GT_DISPLAY_POWER_ON(phy);
 	I915_WRITE(BXT_P_CR_GT_DISP_PWRON, val);
-}
-
-void broxton_ddi_phy_uninit(struct drm_i915_private *dev_priv)
-{
-	broxton_phy_uninit(dev_priv, DPIO_PHY1);
-	broxton_phy_uninit(dev_priv, DPIO_PHY0);
 }
 
 static bool __printf(6, 7)
@@ -1973,8 +1953,8 @@ __phy_reg_verify_state(struct drm_i915_private *dev_priv, enum dpio_phy phy,
 	return false;
 }
 
-static bool broxton_phy_verify_state(struct drm_i915_private *dev_priv,
-				     enum dpio_phy phy)
+bool bxt_ddi_phy_verify_state(struct drm_i915_private *dev_priv,
+			      enum dpio_phy phy)
 {
 	enum port port;
 	u32 ports;
@@ -1985,8 +1965,7 @@ static bool broxton_phy_verify_state(struct drm_i915_private *dev_priv,
 	__phy_reg_verify_state(dev_priv, phy, reg, mask, exp, fmt,	\
 			       ## __VA_ARGS__)
 
-	/* We expect the PHY to be always enabled */
-	if (!broxton_phy_is_enabled(dev_priv, phy))
+	if (!bxt_ddi_phy_is_enabled(dev_priv, phy))
 		return false;
 
 	ok = true;
@@ -2047,13 +2026,6 @@ static bool broxton_phy_verify_state(struct drm_i915_private *dev_priv,
 
 	return ok;
 #undef _CHK
-}
-
-void broxton_ddi_phy_verify_state(struct drm_i915_private *dev_priv)
-{
-	if (!broxton_phy_verify_state(dev_priv, DPIO_PHY0) ||
-	    !broxton_phy_verify_state(dev_priv, DPIO_PHY1))
-		i915_report_error(dev_priv, "DDI PHY state mismatch\n");
 }
 
 void intel_ddi_prepare_link_retrain(struct intel_dp *intel_dp)

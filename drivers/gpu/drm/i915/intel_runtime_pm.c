@@ -65,6 +65,9 @@
 bool intel_display_power_well_is_enabled(struct drm_i915_private *dev_priv,
 				    int power_well_id);
 
+static struct i915_power_well *
+lookup_power_well(struct drm_i915_private *dev_priv, int power_well_id);
+
 const char *
 intel_display_power_domain_str(enum intel_display_power_domain domain)
 {
@@ -435,6 +438,16 @@ static void hsw_set_power_well(struct drm_i915_private *dev_priv,
 	BXT_DISPLAY_POWERWELL_2_POWER_DOMAINS |		\
 	BIT(POWER_DOMAIN_MODESET) |			\
 	BIT(POWER_DOMAIN_AUX_A) |			\
+	BIT(POWER_DOMAIN_INIT))
+#define BXT_DPIO_CMN_A_POWER_DOMAINS (			\
+	BIT(POWER_DOMAIN_PORT_DDI_A_LANES) |		\
+	BIT(POWER_DOMAIN_AUX_A) |			\
+	BIT(POWER_DOMAIN_INIT))
+#define BXT_DPIO_CMN_BC_POWER_DOMAINS (			\
+	BIT(POWER_DOMAIN_PORT_DDI_B_LANES) |		\
+	BIT(POWER_DOMAIN_PORT_DDI_C_LANES) |		\
+	BIT(POWER_DOMAIN_AUX_B) |			\
+	BIT(POWER_DOMAIN_AUX_C) |			\
 	BIT(POWER_DOMAIN_INIT))
 
 static void assert_can_enable_dc9(struct drm_i915_private *dev_priv)
@@ -817,6 +830,72 @@ static void skl_power_well_disable(struct drm_i915_private *dev_priv,
 	skl_set_power_well(dev_priv, power_well, false);
 }
 
+static enum dpio_phy bxt_power_well_to_phy(struct i915_power_well *power_well)
+{
+	enum skl_disp_power_wells power_well_id = power_well->data;
+
+	return power_well_id == BXT_DPIO_CMN_A ? DPIO_PHY1 : DPIO_PHY0;
+}
+
+static void bxt_dpio_cmn_power_well_enable(struct drm_i915_private *dev_priv,
+					   struct i915_power_well *power_well)
+{
+	enum skl_disp_power_wells power_well_id = power_well->data;
+	struct i915_power_well *cmn_a_well;
+
+	if (power_well_id == BXT_DPIO_CMN_BC) {
+		/*
+		 * We need to copy the GRC calibration value from the eDP PHY,
+		 * so make sure it's powered up.
+		 */
+		cmn_a_well = lookup_power_well(dev_priv, BXT_DPIO_CMN_A);
+		intel_power_well_get(dev_priv, cmn_a_well);
+	}
+
+	bxt_ddi_phy_init(dev_priv, bxt_power_well_to_phy(power_well));
+
+	if (power_well_id == BXT_DPIO_CMN_BC)
+		intel_power_well_put(dev_priv, cmn_a_well);
+}
+
+static void bxt_dpio_cmn_power_well_disable(struct drm_i915_private *dev_priv,
+					    struct i915_power_well *power_well)
+{
+	bxt_ddi_phy_uninit(dev_priv, bxt_power_well_to_phy(power_well));
+}
+
+static bool bxt_dpio_cmn_power_well_enabled(struct drm_i915_private *dev_priv,
+					    struct i915_power_well *power_well)
+{
+	return bxt_ddi_phy_is_enabled(dev_priv,
+				      bxt_power_well_to_phy(power_well));
+}
+
+static void bxt_dpio_cmn_power_well_sync_hw(struct drm_i915_private *dev_priv,
+					    struct i915_power_well *power_well)
+{
+	if (power_well->count > 0)
+		bxt_dpio_cmn_power_well_enable(dev_priv, power_well);
+	else
+		bxt_dpio_cmn_power_well_disable(dev_priv, power_well);
+}
+
+
+static void bxt_verify_ddi_phy_power_wells(struct drm_i915_private *dev_priv)
+{
+	struct i915_power_well *power_well;
+
+	power_well = lookup_power_well(dev_priv, BXT_DPIO_CMN_A);
+	if (power_well->count > 0)
+		bxt_ddi_phy_verify_state(dev_priv,
+					 bxt_power_well_to_phy(power_well));
+
+	power_well = lookup_power_well(dev_priv, BXT_DPIO_CMN_BC);
+	if (power_well->count > 0)
+		bxt_ddi_phy_verify_state(dev_priv,
+					 bxt_power_well_to_phy(power_well));
+}
+
 static bool gen9_dc_off_power_well_enabled(struct drm_i915_private *dev_priv,
 					   struct i915_power_well *power_well)
 {
@@ -843,7 +922,7 @@ static void gen9_dc_off_power_well_enable(struct drm_i915_private *dev_priv,
 	gen9_assert_dbuf_enabled(dev_priv);
 
 	if (IS_BROXTON(dev_priv))
-		broxton_ddi_phy_verify_state(dev_priv);
+		bxt_verify_ddi_phy_power_wells(dev_priv);
 }
 
 static void gen9_dc_off_power_well_disable(struct drm_i915_private *dev_priv,
@@ -1802,6 +1881,13 @@ static const struct i915_power_well_ops gen9_dc_off_power_well_ops = {
 	.is_enabled = gen9_dc_off_power_well_enabled,
 };
 
+static const struct i915_power_well_ops bxt_dpio_cmn_power_well_ops = {
+	.sync_hw = bxt_dpio_cmn_power_well_sync_hw,
+	.enable = bxt_dpio_cmn_power_well_enable,
+	.disable = bxt_dpio_cmn_power_well_disable,
+	.is_enabled = bxt_dpio_cmn_power_well_enabled,
+};
+
 static struct i915_power_well hsw_power_wells[] = {
 	{
 		.name = "always-on",
@@ -2037,6 +2123,18 @@ static struct i915_power_well bxt_power_wells[] = {
 		.domains = BXT_DISPLAY_POWERWELL_2_POWER_DOMAINS,
 		.ops = &skl_power_well_ops,
 		.data = SKL_DISP_PW_2,
+	},
+	{
+		.name = "dpio-common-a",
+		.domains = BXT_DPIO_CMN_A_POWER_DOMAINS,
+		.ops = &bxt_dpio_cmn_power_well_ops,
+		.data = BXT_DPIO_CMN_A,
+	},
+	{
+		.name = "dpio-common-bc",
+		.domains = BXT_DPIO_CMN_BC_POWER_DOMAINS,
+		.ops = &bxt_dpio_cmn_power_well_ops,
+		.data = BXT_DPIO_CMN_BC,
 	},
 };
 
@@ -2307,10 +2405,6 @@ void bxt_display_core_init(struct drm_i915_private *dev_priv,
 
 	gen9_dbuf_enable(dev_priv);
 
-	broxton_ddi_phy_init(dev_priv);
-
-	broxton_ddi_phy_verify_state(dev_priv);
-
 	if (resume && dev_priv->csr.dmc_payload)
 		intel_csr_load_program(dev_priv);
 }
@@ -2321,8 +2415,6 @@ void bxt_display_core_uninit(struct drm_i915_private *dev_priv)
 	struct i915_power_well *well;
 
 	gen9_set_dc_state(dev_priv, DC_STATE_DISABLE);
-
-	broxton_ddi_phy_uninit(dev_priv);
 
 	gen9_dbuf_disable(dev_priv);
 
