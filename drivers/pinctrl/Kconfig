@@ -219,7 +219,7 @@ config PINCTRL_MAX77620
 	  open drain, FPS slots etc.
 
 config PINCTRL_PALMAS
-	bool "Pinctrl driver for the PALMAS Series MFD devices"
+	tristate "Pinctrl driver for the PALMAS Series MFD devices"
 	depends on OF && MFD_PALMAS
 	select PINMUX
 	select GENERIC_PINCONF
