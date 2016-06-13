@@ -3774,7 +3774,7 @@ static int kvm_vm_ioctl_enable_cap(struct kvm *kvm,
 		r = -EEXIST;
 		if (irqchip_in_kernel(kvm))
 			goto split_irqchip_unlock;
-		if (atomic_read(&kvm->online_vcpus))
+		if (kvm->created_vcpus)
 			goto split_irqchip_unlock;
 		r = kvm_setup_empty_irq_routing(kvm);
 		if (r)
@@ -3839,7 +3839,7 @@ long kvm_arch_vm_ioctl(struct file *filp,
 		if (kvm->arch.vpic)
 			goto create_irqchip_unlock;
 		r = -EINVAL;
-		if (atomic_read(&kvm->online_vcpus))
+		if (kvm->created_vcpus)
 			goto create_irqchip_unlock;
 		r = -ENOMEM;
 		vpic = kvm_create_pic(kvm);
@@ -3995,7 +3995,7 @@ long kvm_arch_vm_ioctl(struct file *filp,
 	case KVM_SET_BOOT_CPU_ID:
 		r = 0;
 		mutex_lock(&kvm->lock);
-		if (atomic_read(&kvm->online_vcpus) != 0)
+		if (kvm->created_vcpus)
 			r = -EBUSY;
 		else
 			kvm->arch.bsp_vcpu_id = arg;
@@ -7637,11 +7637,6 @@ EXPORT_SYMBOL_GPL(kvm_vcpu_is_reset_bsp);
 bool kvm_vcpu_is_bsp(struct kvm_vcpu *vcpu)
 {
 	return (vcpu->arch.apic_base & MSR_IA32_APICBASE_BSP) != 0;
-}
-
-bool kvm_vcpu_compatible(struct kvm_vcpu *vcpu)
-{
-	return irqchip_in_kernel(vcpu->kvm) == lapic_in_kernel(vcpu);
 }
 
 struct static_key kvm_no_apic_vcpu __read_mostly;

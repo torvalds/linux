@@ -2368,10 +2368,6 @@ static int kvm_vm_ioctl_create_vcpu(struct kvm *kvm, u32 id)
 		goto vcpu_destroy;
 
 	mutex_lock(&kvm->lock);
-	if (!kvm_vcpu_compatible(vcpu)) {
-		r = -EINVAL;
-		goto unlock_vcpu_destroy;
-	}
 	if (kvm_get_vcpu_by_id(kvm, id)) {
 		r = -EEXIST;
 		goto unlock_vcpu_destroy;
