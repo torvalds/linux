@@ -132,7 +132,7 @@
 	assigned-clocks = <&clks IMX6UL_CLK_SPDIF_SEL>,
 			  <&clks IMX6UL_CLK_SPDIF_PODF>;
 	assigned-clock-parents = <&clks IMX6UL_CLK_PLL4_AUDIO_DIV>;
-	assigned-clock-rates = <0>, <98304000>;
+	assigned-clock-rates = <0>, <49152000>;
 	status = "okay";
 };
 
