@@ -94,7 +94,8 @@ err:
 }
 
 extern struct inode *gfs2_inode_lookup(struct super_block *sb, unsigned type, 
-				       u64 no_addr, u64 no_formal_ino);
+				       u64 no_addr, u64 no_formal_ino,
+				       unsigned int blktype);
 extern struct inode *gfs2_lookup_by_inum(struct gfs2_sbd *sdp, u64 no_addr,
 					 u64 *no_formal_ino,
 					 unsigned int blktype);

@@ -39,7 +39,33 @@
 
 struct inode *gfs2_ilookup(struct super_block *sb, u64 no_addr)
 {
-	return ilookup(sb, (unsigned long)no_addr);
+	struct inode *inode;
+
+repeat:
+	inode = ilookup(sb, no_addr);
+	if (!inode)
+		return inode;
+	if (is_bad_inode(inode)) {
+		iput(inode);
+		goto repeat;
+	}
+	return inode;
+}
+
+static struct inode *gfs2_iget(struct super_block *sb, u64 no_addr)
+{
+	struct inode *inode;
+
+repeat:
+	inode = iget_locked(sb, no_addr);
+	if (!inode)
+		return inode;
+	if (is_bad_inode(inode)) {
+		iput(inode);
+		goto repeat;
+	}
+	GFS2_I(inode)->i_no_addr = no_addr;
+	return inode;
 }
 
 /**
@@ -78,26 +104,37 @@ static void gfs2_set_iop(struct inode *inode)
 /**
  * gfs2_inode_lookup - Lookup an inode
  * @sb: The super block
- * @no_addr: The inode number
  * @type: The type of the inode
+ * @no_addr: The inode number
+ * @no_formal_ino: The inode generation number
+ * @blktype: Requested block type (GFS2_BLKST_DINODE or GFS2_BLKST_UNLINKED;
+ *           GFS2_BLKST_FREE do indicate not to verify)
+ *
+ * If @type is DT_UNKNOWN, the inode type is fetched from disk.
+ *
+ * If @blktype is anything other than GFS2_BLKST_FREE (which is used as a
+ * placeholder because it doesn't otherwise make sense), the on-disk block type
+ * is verified to be @blktype.
  *
  * Returns: A VFS inode, or an error
  */
 
 struct inode *gfs2_inode_lookup(struct super_block *sb, unsigned int type,
-				u64 no_addr, u64 no_formal_ino)
+				u64 no_addr, u64 no_formal_ino,
+				unsigned int blktype)
 {
 	struct inode *inode;
 	struct gfs2_inode *ip;
 	struct gfs2_glock *io_gl = NULL;
+	struct gfs2_holder i_gh;
+	bool unlock = false;
 	int error;
 
-	inode = iget_locked(sb, (unsigned long)no_addr);
+	inode = gfs2_iget(sb, no_addr);
 	if (!inode)
 		return ERR_PTR(-ENOMEM);
 
 	ip = GFS2_I(inode);
-	ip->i_no_addr = no_addr;
 
 	if (inode->i_state & I_NEW) {
 		struct gfs2_sbd *sdp = GFS2_SB(inode);
@@ -112,10 +149,30 @@ struct inode *gfs2_inode_lookup(struct super_block *sb, unsigned int type,
 		if (unlikely(error))
 			goto fail_put;
 
+		if (type == DT_UNKNOWN || blktype != GFS2_BLKST_FREE) {
+			/*
+			 * The GL_SKIP flag indicates to skip reading the inode
+			 * block.  We read the inode with gfs2_inode_refresh
+			 * after possibly checking the block type.
+			 */
+			error = gfs2_glock_nq_init(ip->i_gl, LM_ST_EXCLUSIVE,
+						   GL_SKIP, &i_gh);
+			if (error)
+				goto fail_put;
+			unlock = true;
+
+			if (blktype != GFS2_BLKST_FREE) {
+				error = gfs2_check_blk_type(sdp, no_addr,
+							    blktype);
+				if (error)
+					goto fail_put;
+			}
+		}
+
 		set_bit(GIF_INVALID, &ip->i_flags);
 		error = gfs2_glock_nq_init(io_gl, LM_ST_SHARED, GL_EXACT, &ip->i_iopen_gh);
 		if (unlikely(error))
-			goto fail_iopen;
+			goto fail_put;
 
 		ip->i_iopen_gh.gh_gl->gl_object = ip;
 		gfs2_glock_put(io_gl);
@@ -134,6 +191,8 @@ struct inode *gfs2_inode_lookup(struct super_block *sb, unsigned int type,
 		unlock_new_inode(inode);
 	}
 
+	if (unlock)
+		gfs2_glock_dq_uninit(&i_gh);
 	return inode;
 
 fail_refresh:
@@ -141,10 +200,11 @@ fail_refresh:
 	ip->i_iopen_gh.gh_gl->gl_object = NULL;
 	gfs2_glock_dq_wait(&ip->i_iopen_gh);
 	gfs2_holder_uninit(&ip->i_iopen_gh);
-fail_iopen:
+fail_put:
 	if (io_gl)
 		gfs2_glock_put(io_gl);
-fail_put:
+	if (unlock)
+		gfs2_glock_dq_uninit(&i_gh);
 	ip->i_gl->gl_object = NULL;
 fail:
 	iget_failed(inode);
@@ -155,23 +215,12 @@ struct inode *gfs2_lookup_by_inum(struct gfs2_sbd *sdp, u64 no_addr,
 				  u64 *no_formal_ino, unsigned int blktype)
 {
 	struct super_block *sb = sdp->sd_vfs;
-	struct gfs2_holder i_gh;
-	struct inode *inode = NULL;
+	struct inode *inode;
 	int error;
 
-	/* Must not read in block until block type is verified */
-	error = gfs2_glock_nq_num(sdp, no_addr, &gfs2_inode_glops,
-				  LM_ST_EXCLUSIVE, GL_SKIP, &i_gh);
-	if (error)
-		return ERR_PTR(error);
-
-	error = gfs2_check_blk_type(sdp, no_addr, blktype);
-	if (error)
-		goto fail;
-
-	inode = gfs2_inode_lookup(sb, DT_UNKNOWN, no_addr, 0);
+	inode = gfs2_inode_lookup(sb, DT_UNKNOWN, no_addr, 0, blktype);
 	if (IS_ERR(inode))
-		goto fail;
+		return inode;
 
 	/* Two extra checks for NFS only */
 	if (no_formal_ino) {
@@ -182,16 +231,12 @@ struct inode *gfs2_lookup_by_inum(struct gfs2_sbd *sdp, u64 no_addr,
 		error = -EIO;
 		if (GFS2_I(inode)->i_diskflags & GFS2_DIF_SYSTEM)
 			goto fail_iput;
-
-		error = 0;
 	}
+	return inode;
 
-fail:
-	gfs2_glock_dq_uninit(&i_gh);
-	return error ? ERR_PTR(error) : inode;
 fail_iput:
 	iput(inode);
-	goto fail;
+	return ERR_PTR(error);
 }
 
 
