@@ -711,6 +711,8 @@ struct ubi_ainf_volume {
  * @vols_found: number of volumes found
  * @highest_vol_id: highest volume ID
  * @is_empty: flag indicating whether the MTD device is empty or not
+ * @force_full_scan: flag indicating whether we need to do a full scan and drop
+		     all existing Fastmap data structures
  * @min_ec: lowest erase counter value
  * @max_ec: highest erase counter value
  * @max_sqnum: highest sequence number value
@@ -738,6 +740,7 @@ struct ubi_attach_info {
 	int vols_found;
 	int highest_vol_id;
 	int is_empty;
+	int force_full_scan;
 	int min_ec;
 	int max_ec;
 	unsigned long long max_sqnum;

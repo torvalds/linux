@@ -856,13 +856,15 @@ static bool vol_ignored(int vol_id)
  * @ubi: UBI device description object
  * @ai: attaching information
  * @pnum: the physical eraseblock number
+ * @fast: true if we're scanning for a Fastmap
  *
  * This function reads UBI headers of PEB @pnum, checks them, and adds
  * information about this PEB to the corresponding list or RB-tree in the
  * "attaching info" structure. Returns zero if the physical eraseblock was
  * successfully handled and a negative error code in case of failure.
  */
-static int scan_peb(struct ubi_device *ubi, struct ubi_attach_info *ai, int pnum)
+static int scan_peb(struct ubi_device *ubi, struct ubi_attach_info *ai,
+		    int pnum, bool fast)
 {
 	long long ec;
 	int err, bitflips = 0, vol_id = -1, ec_err = 0;
@@ -980,6 +982,20 @@ static int scan_peb(struct ubi_device *ubi, struct ubi_attach_info *ai, int pnum
 			 */
 			ai->maybe_bad_peb_count += 1;
 	case UBI_IO_BAD_HDR:
+			/*
+			 * If we're facing a bad VID header we have to drop *all*
+			 * Fastmap data structures we find. The most recent Fastmap
+			 * could be bad and therefore there is a chance that we attach
+			 * from an old one. On a fine MTD stack a PEB must not render
+			 * bad all of a sudden, but the reality is different.
+			 * So, let's be paranoid and help finding the root cause by
+			 * falling back to scanning mode instead of attaching with a
+			 * bad EBA table and cause data corruption which is hard to
+			 * analyze.
+			 */
+			if (fast)
+				ai->force_full_scan = 1;
+
 		if (ec_err)
 			/*
 			 * Both headers are corrupted. There is a possibility
@@ -1293,7 +1309,7 @@ static int scan_all(struct ubi_device *ubi, struct ubi_attach_info *ai,
 		cond_resched();
 
 		dbg_gen("process PEB %d", pnum);
-		err = scan_peb(ubi, ai, pnum);
+		err = scan_peb(ubi, ai, pnum, false);
 		if (err < 0)
 			goto out_vidh;
 	}
@@ -1407,7 +1423,7 @@ static int scan_fast(struct ubi_device *ubi, struct ubi_attach_info **ai)
 		cond_resched();
 
 		dbg_gen("process PEB %d", pnum);
-		err = scan_peb(ubi, scan_ai, pnum);
+		err = scan_peb(ubi, scan_ai, pnum, true);
 		if (err < 0)
 			goto out_vidh;
 	}
@@ -1415,7 +1431,11 @@ static int scan_fast(struct ubi_device *ubi, struct ubi_attach_info **ai)
 	ubi_free_vid_hdr(ubi, vidh);
 	kfree(ech);
 
-	err = ubi_scan_fastmap(ubi, *ai, scan_ai);
+	if (scan_ai->force_full_scan)
+		err = UBI_NO_FASTMAP;
+	else
+		err = ubi_scan_fastmap(ubi, *ai, scan_ai);
+
 	if (err) {
 		/*
 		 * Didn't attach via fastmap, do a full scan but reuse what
