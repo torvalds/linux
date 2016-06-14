@@ -37,9 +37,6 @@ struct pwm_regulator_data {
 
 	int state;
 
-	/* Continuous voltage */
-	int volt_uV;
-
 	/* Enable GPIO */
 	struct gpio_desc *enb_gpio;
 };
@@ -148,8 +145,13 @@ static int pwm_regulator_is_enabled(struct regulator_dev *dev)
 static int pwm_regulator_get_voltage(struct regulator_dev *rdev)
 {
 	struct pwm_regulator_data *drvdata = rdev_get_drvdata(rdev);
+	int min_uV = rdev->constraints->min_uV;
+	int diff = rdev->constraints->max_uV - min_uV;
+	struct pwm_state pstate;
 
-	return drvdata->volt_uV;
+	pwm_get_state(drvdata->pwm, &pstate);
+
+	return min_uV + pwm_get_relative_duty_cycle(&pstate, diff);
 }
 
 static int pwm_regulator_set_voltage(struct regulator_dev *rdev,
@@ -175,8 +177,6 @@ static int pwm_regulator_set_voltage(struct regulator_dev *rdev,
 		dev_err(&rdev->dev, "Failed to configure PWM: %d\n", ret);
 		return ret;
 	}
-
-	drvdata->volt_uV = min_uV;
 
 	if ((ramp_delay == 0) || !pwm_regulator_is_enabled(rdev))
 		return 0;
