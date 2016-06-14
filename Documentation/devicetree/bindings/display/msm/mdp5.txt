@@ -49,11 +49,35 @@ Required properties:
 -   * "iface_clk"
 -   * "core_clk"
 -   * "vsync_clk"
+- ports: contains the list of output ports from MDP. These connect to interfaces
+  that are external to the MDP hardware, such as HDMI, DSI, EDP etc (LVDS is a
+  special case since it is a part of the MDP block itself).
+
+  Each output port contains an endpoint that describes how it is connected to an
+  external interface. These are described by the standard properties documented
+  here:
+	Documentation/devicetree/bindings/graph.txt
+	Documentation/devicetree/bindings/media/video-interfaces.txt
+
+  The availability of output ports can vary across SoC revisions:
+
+  For MSM8974 and APQ8084:
+	 Port 0 -> MDP_INTF0 (eDP)
+	 Port 1 -> MDP_INTF1 (DSI1)
+	 Port 2 -> MDP_INTF2 (DSI2)
+	 Port 3 -> MDP_INTF3 (HDMI)
+
+  For MSM8916:
+	 Port 0 -> MDP_INTF1 (DSI1)
+
+  For MSM8994 and MSM8996:
+	 Port 0 -> MDP_INTF1 (DSI1)
+	 Port 1 -> MDP_INTF2 (DSI2)
+	 Port 2 -> MDP_INTF3 (HDMI)
 
 Optional properties:
 - clock-names: the following clocks are optional:
   * "lut_clk"
-
 
 Example:
 
@@ -101,9 +125,31 @@ Example:
 				      "core_clk",
 				      "vsync_clk";
 
+			ports {
+				#address-cells = <1>;
+				#size-cells = <0>;
+
+				port@0 {
+					reg = <0>;
+					mdp5_intf1_out: endpoint {
+						remote-endpoint = <&dsi0_in>;
+					};
+				};
+			};
 		};
 
 		dsi0: dsi@1a98000 {
+			...
+			ports {
+				...
+				port@0 {
+					reg = <0>;
+					dsi0_in: endpoint {
+						remote-endpoint = <&mdp5_intf1_out>;
+					};
+				};
+				...
+			};
 			...
 		};
 

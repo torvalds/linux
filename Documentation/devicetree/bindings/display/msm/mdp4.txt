@@ -10,7 +10,6 @@ Required properties:
   * "qcom,mdp4" - mdp4
 - reg: Physical base address and length of the controller's registers.
 - interrupts: The interrupt signal from the display controller.
-- connectors: array of phandles for output device(s)
 - clocks: device clocks
   See ../clocks/clock-bindings.txt for details.
 - clock-names: the following clocks are required.
@@ -20,9 +19,23 @@ Required properties:
   * "lut_clk"
   * "hdmi_clk"
   * "tv_clk"
+- ports: contains the list of output ports from MDP. These connect to interfaces
+  that are external to the MDP hardware, such as HDMI, DSI, EDP etc (LVDS is a
+  special case since it is a part of the MDP block itself).
+
+  Each output port contains an endpoint that describes how it is connected to an
+  external interface. These are described by the standard properties documented
+  here:
+	Documentation/devicetree/bindings/graph.txt
+	Documentation/devicetree/bindings/media/video-interfaces.txt
+
+  The output port mappings are:
+	Port 0 -> LCDC/LVDS
+	Port 1 -> DSI1 Cmd/Video
+	Port 2 -> DSI2 Cmd/Video
+	Port 3 -> DTV
 
 Optional properties:
-- gpus: phandle for gpu device
 - clock-names: the following clocks are optional:
   * "lut_clk"
 
@@ -31,12 +44,27 @@ Example:
 / {
 	...
 
-	mdp: qcom,mdp@5100000 {
+	hdmi: hdmi@4a00000 {
+		...
+		ports {
+			...
+			port@0 {
+				reg = <0>;
+				hdmi_in: endpoint {
+					remote-endpoint = <&mdp_dtv_out>;
+				};
+			};
+			...
+		};
+		...
+	};
+
+	...
+
+	mdp: mdp@5100000 {
 		compatible = "qcom,mdp4";
 		reg = <0x05100000 0xf0000>;
 		interrupts = <GIC_SPI 75 0>;
-		connectors = <&hdmi>;
-		gpus = <&gpu>;
 		clock-names =
 		    "core_clk",
 		    "iface_clk",
@@ -50,5 +78,35 @@ Example:
 		    <&mmcc MDP_LUT_CLK>,
 		    <&mmcc HDMI_TV_CLK>,
 		    <&mmcc MDP_TV_CLK>;
+
+		ports {
+			#address-cells = <1>;
+			#size-cells = <0>;
+
+				port@0 {
+					reg = <0>;
+					mdp_lvds_out: endpoint {
+					};
+				};
+
+				port@1 {
+					reg = <1>;
+					mdp_dsi1_out: endpoint {
+					};
+				};
+
+				port@2 {
+					reg = <2>;
+					mdp_dsi2_out: endpoint {
+					};
+				};
+
+				port@3 {
+					reg = <3>;
+					mdp_dtv_out: endpoint {
+						remote-endpoint = <&hdmi_in>;
+					};
+				};
+		};
 	};
 };
