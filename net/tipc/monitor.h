@@ -1,8 +1,7 @@
 /*
- * net/tipc/addr.h: Include file for TIPC address utility routines
+ * net/tipc/monitor.h
  *
- * Copyright (c) 2000-2006, Ericsson AB
- * Copyright (c) 2004-2005, Wind River Systems
+ * Copyright (c) 2015, Ericsson AB
  * All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
@@ -34,44 +33,41 @@
  * POSSIBILITY OF SUCH DAMAGE.
  */
 
-#ifndef _TIPC_ADDR_H
-#define _TIPC_ADDR_H
+#ifndef _TIPC_MONITOR_H
+#define _TIPC_MONITOR_H
 
-#include <linux/types.h>
-#include <linux/tipc.h>
-#include <net/net_namespace.h>
-#include <net/netns/generic.h>
-#include "core.h"
+/* struct tipc_mon_state: link instance's cache of monitor list and domain state
+ * @list_gen: current generation of this node's monitor list
+ * @gen: current generation of this node's local domain
+ * @peer_gen: most recent domain generation received from peer
+ * @acked_gen: most recent generation of self's domain acked by peer
+ * @monitoring: this peer endpoint should continuously monitored
+ * @probing: peer endpoint should be temporarily probed for potential loss
+ * @synched: domain record's generation has been synched with peer after reset
+ */
+struct tipc_mon_state {
+	u16 list_gen;
+	u16 peer_gen;
+	u16 acked_gen;
+	bool monitoring :1;
+	bool probing    :1;
+	bool reset      :1;
+	bool synched    :1;
+};
 
-#define TIPC_ZONE_MASK		0xff000000u
-#define TIPC_CLUSTER_MASK	0xfffff000u
+int tipc_mon_create(struct net *net, int bearer_id);
+void tipc_mon_delete(struct net *net, int bearer_id);
 
-static inline u32 tipc_own_addr(struct net *net)
-{
-	struct tipc_net *tn = net_generic(net, tipc_net_id);
+void tipc_mon_peer_up(struct net *net, u32 addr, int bearer_id);
+void tipc_mon_peer_down(struct net *net, u32 addr, int bearer_id);
+void tipc_mon_prep(struct net *net, void *data, int *dlen,
+		   struct tipc_mon_state *state, int bearer_id);
+void tipc_mon_rcv(struct net *net, void *data, u16 dlen, u32 addr,
+		  struct tipc_mon_state *state, int bearer_id);
+void tipc_mon_get_state(struct net *net, u32 addr,
+			struct tipc_mon_state *state,
+			int bearer_id);
+void tipc_mon_remove_peer(struct net *net, u32 addr, int bearer_id);
 
-	return tn->own_addr;
-}
-
-static inline u32 tipc_zone_mask(u32 addr)
-{
-	return addr & TIPC_ZONE_MASK;
-}
-
-static inline u32 tipc_cluster_mask(u32 addr)
-{
-	return addr & TIPC_CLUSTER_MASK;
-}
-
-u32 tipc_own_addr(struct net *net);
-int in_own_cluster(struct net *net, u32 addr);
-int in_own_cluster_exact(struct net *net, u32 addr);
-int in_own_node(struct net *net, u32 addr);
-u32 addr_domain(struct net *net, u32 sc);
-int tipc_addr_domain_valid(u32);
-int tipc_addr_node_valid(u32 addr);
-int tipc_in_scope(u32 domain, u32 addr);
-int tipc_addr_scope(u32 domain);
-char *tipc_addr_string_fill(char *string, u32 addr);
-
+extern const int tipc_max_domain_size;
 #endif

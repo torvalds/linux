@@ -40,6 +40,7 @@
 #include "name_distr.h"
 #include "socket.h"
 #include "bcast.h"
+#include "monitor.h"
 #include "discover.h"
 #include "netlink.h"
 
@@ -205,17 +206,6 @@ u16 tipc_node_get_capabilities(struct net *net, u32 addr)
 	return caps;
 }
 
-/*
- * A trivial power-of-two bitmask technique is used for speed, since this
- * operation is done for every incoming TIPC packet. The number of hash table
- * entries has been chosen so that no hash chain exceeds 8 nodes and will
- * usually be much smaller (typically only a single node).
- */
-static unsigned int tipc_hashfn(u32 addr)
-{
-	return addr & (NODE_HTABLE_SIZE - 1);
-}
-
 static void tipc_node_kref_release(struct kref *kref)
 {
 	struct tipc_node *n = container_of(kref, struct tipc_node, kref);
@@ -279,6 +269,7 @@ static void tipc_node_write_unlock(struct tipc_node *n)
 	u32 addr = 0;
 	u32 flags = n->action_flags;
 	u32 link_id = 0;
+	u32 bearer_id;
 	struct list_head *publ_list;
 
 	if (likely(!flags)) {
@@ -288,6 +279,7 @@ static void tipc_node_write_unlock(struct tipc_node *n)
 
 	addr = n->addr;
 	link_id = n->link_id;
+	bearer_id = link_id & 0xffff;
 	publ_list = &n->publ_list;
 
 	n->action_flags &= ~(TIPC_NOTIFY_NODE_DOWN | TIPC_NOTIFY_NODE_UP |
@@ -301,13 +293,16 @@ static void tipc_node_write_unlock(struct tipc_node *n)
 	if (flags & TIPC_NOTIFY_NODE_UP)
 		tipc_named_node_up(net, addr);
 
-	if (flags & TIPC_NOTIFY_LINK_UP)
+	if (flags & TIPC_NOTIFY_LINK_UP) {
+		tipc_mon_peer_up(net, addr, bearer_id);
 		tipc_nametbl_publish(net, TIPC_LINK_STATE, addr, addr,
 				     TIPC_NODE_SCOPE, link_id, addr);
-
-	if (flags & TIPC_NOTIFY_LINK_DOWN)
+	}
+	if (flags & TIPC_NOTIFY_LINK_DOWN) {
+		tipc_mon_peer_down(net, addr, bearer_id);
 		tipc_nametbl_withdraw(net, TIPC_LINK_STATE, addr,
 				      link_id, addr);
+	}
 }
 
 struct tipc_node *tipc_node_create(struct net *net, u32 addr, u16 capabilities)
@@ -691,6 +686,7 @@ static void tipc_node_link_down(struct tipc_node *n, int bearer_id, bool delete)
 	struct tipc_link *l = le->link;
 	struct tipc_media_addr *maddr;
 	struct sk_buff_head xmitq;
+	int old_bearer_id = bearer_id;
 
 	if (!l)
 		return;
@@ -710,6 +706,8 @@ static void tipc_node_link_down(struct tipc_node *n, int bearer_id, bool delete)
 		tipc_link_fsm_evt(l, LINK_RESET_EVT);
 	}
 	tipc_node_write_unlock(n);
+	if (delete)
+		tipc_mon_remove_peer(n->net, n->addr, old_bearer_id);
 	tipc_bearer_xmit(n->net, bearer_id, &xmitq, maddr);
 	tipc_sk_rcv(n->net, &le->inputq);
 }

@@ -1,7 +1,7 @@
 /*
  * net/tipc/bearer.h: Include file for TIPC bearer code
  *
- * Copyright (c) 1996-2006, 2013-2014, Ericsson AB
+ * Copyright (c) 1996-2006, 2013-2016, Ericsson AB
  * Copyright (c) 2005, 2010-2011, Wind River Systems
  * All rights reserved.
  *

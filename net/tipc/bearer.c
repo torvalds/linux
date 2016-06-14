@@ -1,7 +1,7 @@
 /*
  * net/tipc/bearer.c: TIPC bearer code
  *
- * Copyright (c) 1996-2006, 2013-2014, Ericsson AB
+ * Copyright (c) 1996-2006, 2013-2016, Ericsson AB
  * Copyright (c) 2004-2006, 2010-2013, Wind River Systems
  * All rights reserved.
  *
@@ -39,6 +39,7 @@
 #include "bearer.h"
 #include "link.h"
 #include "discover.h"
+#include "monitor.h"
 #include "bcast.h"
 #include "netlink.h"
 
@@ -313,6 +314,10 @@ restart:
 	rcu_assign_pointer(tn->bearer_list[bearer_id], b);
 	if (skb)
 		tipc_bearer_xmit_skb(net, bearer_id, skb, &b->bcast_addr);
+
+	if (tipc_mon_create(net, bearer_id))
+		return -ENOMEM;
+
 	pr_info("Enabled bearer <%s>, discovery domain %s, priority %u\n",
 		name,
 		tipc_addr_string_fill(addr_string, disc_domain), priority);
@@ -348,6 +353,7 @@ static void bearer_disable(struct net *net, struct tipc_bearer *b)
 		tipc_disc_delete(b->link_req);
 	RCU_INIT_POINTER(tn->bearer_list[bearer_id], NULL);
 	kfree_rcu(b, rcu);
+	tipc_mon_delete(net, bearer_id);
 }
 
 int tipc_enable_l2_media(struct net *net, struct tipc_bearer *b,
