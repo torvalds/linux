@@ -336,6 +336,12 @@ begin:
 	return skb;
 }
 
+static void fq_codel_flow_purge(struct fq_codel_flow *flow)
+{
+	rtnl_kfree_skbs(flow->head, flow->tail);
+	flow->head = NULL;
+}
+
 static void fq_codel_reset(struct Qdisc *sch)
 {
 	struct fq_codel_sched_data *q = qdisc_priv(sch);
@@ -346,18 +352,13 @@ static void fq_codel_reset(struct Qdisc *sch)
 	for (i = 0; i < q->flows_cnt; i++) {
 		struct fq_codel_flow *flow = q->flows + i;
 
-		while (flow->head) {
-			struct sk_buff *skb = dequeue_head(flow);
-
-			qdisc_qstats_backlog_dec(sch, skb);
-			kfree_skb(skb);
-		}
-
+		fq_codel_flow_purge(flow);
 		INIT_LIST_HEAD(&flow->flowchain);
 		codel_vars_init(&flow->cvars);
 	}
 	memset(q->backlogs, 0, q->flows_cnt * sizeof(u32));
 	sch->q.qlen = 0;
+	sch->qstats.backlog = 0;
 	q->memory_usage = 0;
 }
 
@@ -433,7 +434,7 @@ static int fq_codel_change(struct Qdisc *sch, struct nlattr *opt)
 		struct sk_buff *skb = fq_codel_dequeue(sch);
 
 		q->cstats.drop_len += qdisc_pkt_len(skb);
-		kfree_skb(skb);
+		rtnl_kfree_skbs(skb, skb);
 		q->cstats.drop_count++;
 	}
 	qdisc_tree_reduce_backlog(sch, q->cstats.drop_count, q->cstats.drop_len);
