@@ -2216,8 +2216,7 @@ static int nau8825_set_bias_level(struct snd_soc_codec *codec,
 	return 0;
 }
 
-#ifdef CONFIG_PM
-static int nau8825_suspend(struct snd_soc_codec *codec)
+static int __maybe_unused nau8825_suspend(struct snd_soc_codec *codec)
 {
 	struct nau8825 *nau8825 = snd_soc_codec_get_drvdata(codec);
 
@@ -2229,7 +2228,7 @@ static int nau8825_suspend(struct snd_soc_codec *codec)
 	return 0;
 }
 
-static int nau8825_resume(struct snd_soc_codec *codec)
+static int __maybe_unused nau8825_resume(struct snd_soc_codec *codec)
 {
 	struct nau8825 *nau8825 = snd_soc_codec_get_drvdata(codec);
 
@@ -2253,10 +2252,6 @@ static int nau8825_resume(struct snd_soc_codec *codec)
 
 	return 0;
 }
-#else
-#define nau8825_suspend NULL
-#define nau8825_resume NULL
-#endif
 
 static struct snd_soc_codec_driver nau8825_codec_driver = {
 	.probe = nau8825_codec_probe,
