@@ -78,6 +78,7 @@ struct mali_gp_job *mali_gp_job_create(struct mali_session_data *session, _mali_
 	u32 perf_counter_flag;
 	u32 __user *memory_list = NULL;
 	struct mali_gp_allocation_node *alloc_node, *tmp_node;
+	_mali_uk_gp_start_job_s copy_of_uargs;
 
 	job = _mali_osk_calloc(1, sizeof(struct mali_gp_job));
 	if (NULL != job) {
@@ -133,7 +134,11 @@ struct mali_gp_job *mali_gp_job_create(struct mali_session_data *session, _mali_
 				goto fail1;
 			}
 
-			memory_list = (u32 __user *)(uintptr_t)uargs->varying_alloc_list;
+			if (0 != _mali_osk_copy_from_user(&copy_of_uargs, uargs, sizeof(_mali_uk_gp_start_job_s))) {
+				goto fail1;
+			}
+
+			memory_list = (u32 __user *)(uintptr_t)copy_of_uargs.varying_alloc_list;
 
 			if (0 != _mali_osk_copy_from_user(job->varying_list, memory_list, sizeof(u32) * job->uargs.varying_alloc_num)) {
 				MALI_PRINT_ERROR(("Mali GP job: Failed to copy varying list from user space!\n"));
@@ -173,7 +178,7 @@ struct mali_gp_job *mali_gp_job_create(struct mali_session_data *session, _mali_
 				}
 			}
 
-			if (uargs->varying_memsize > MALI_UK_BIG_VARYING_SIZE) {
+			if (copy_of_uargs.varying_memsize > MALI_UK_BIG_VARYING_SIZE) {
 				job->big_job = 1;
 			}
 		}
