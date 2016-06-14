@@ -1045,6 +1045,16 @@
 			};
 		};
 
+		sleep {
+			ap_pwroff: ap-pwroff {
+				rockchip,pins = <1 5 RK_FUNC_1 &pcfg_pull_none>;
+			};
+
+			ddrio_pwroff: ddrio-pwroff {
+				rockchip,pins = <0 1 RK_FUNC_1 &pcfg_pull_none>;
+			};
+		};
+
 		spdif {
 			spdif_bus: spdif-bus {
 				rockchip,pins =
