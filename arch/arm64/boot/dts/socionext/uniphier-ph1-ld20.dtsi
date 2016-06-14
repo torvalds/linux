@@ -42,6 +42,8 @@
  *     OTHER DEALINGS IN THE SOFTWARE.
  */
 
+/memreserve/ 0x80000000 0x00000008;	/* cpu-release-addr */
+
 / {
 	compatible = "socionext,ph1-ld20";
 	#address-cells = <2>;
