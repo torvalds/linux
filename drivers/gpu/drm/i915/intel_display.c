@@ -4641,7 +4641,7 @@ static void intel_pre_plane_update(struct intel_crtc_state *old_crtc_state)
 		struct intel_plane_state *old_primary_state =
 			to_intel_plane_state(old_pri_state);
 
-		intel_fbc_pre_update(crtc);
+		intel_fbc_pre_update(crtc, pipe_config, primary_state);
 
 		if (old_primary_state->visible &&
 		    (modeset || !primary_state->visible))
@@ -11728,7 +11728,9 @@ static int intel_crtc_page_flip(struct drm_crtc *crtc,
 
 	crtc->primary->fb = fb;
 	update_state_fb(crtc->primary);
-	intel_fbc_pre_update(intel_crtc);
+
+	intel_fbc_pre_update(intel_crtc, intel_crtc->config,
+			     to_intel_plane_state(primary->state));
 
 	work->pending_flip_obj = obj;
 
@@ -13825,7 +13827,7 @@ static int intel_atomic_commit(struct drm_device *dev,
 
 		if (crtc->state->active &&
 		    drm_atomic_get_existing_plane_state(state, crtc->primary))
-			intel_fbc_enable(intel_crtc);
+			intel_fbc_enable(intel_crtc, pipe_config, to_intel_plane_state(crtc->primary->state));
 
 		if (crtc->state->active)
 			drm_atomic_helper_commit_planes_on_crtc(old_crtc_state);
