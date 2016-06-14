@@ -42,6 +42,7 @@ enum gb_camera_state {
  * struct gb_camera - A Greybus Camera Device
  * @connection: the greybus connection for camera management
  * @data_connection: the greybus connection for camera data
+ * @data_cport_id: the data CPort ID on the module side
  * @mutex: protects the connection and state fields
  * @state: the current module state
  * @debugfs: debugfs entries for camera protocol operations testing
@@ -51,6 +52,7 @@ struct gb_camera {
 	struct gb_bundle *bundle;
 	struct gb_connection *connection;
 	struct gb_connection *data_connection;
+	u16 data_cport_id;
 
 	struct mutex mutex;
 	enum gb_camera_state state;
@@ -196,12 +198,30 @@ static int gb_camera_setup_data_connection(struct gb_camera *gcam,
 		struct gb_camera_csi_params *csi_params)
 {
 	struct ap_csi_config_request csi_cfg;
+	struct gb_connection *conn;
 	int ret;
+
+	/*
+	 * Create the data connection between the camera module data CPort and
+	 * APB CDSI1. The CDSI1 CPort ID is hardcoded by the ES2 bridge.
+	 */
+	conn = gb_connection_create_offloaded(gcam->bundle, gcam->data_cport_id,
+					      GB_CONNECTION_FLAG_NO_FLOWCTRL |
+					      GB_CONNECTION_FLAG_CDSI1);
+	if (IS_ERR(conn))
+		return PTR_ERR(conn);
+
+	gcam->data_connection = conn;
+	gb_connection_set_data(conn, gcam);
+
+	ret = gb_connection_enable(conn);
+	if (ret)
+		goto error_conn_destroy;
 
 	/* Set the UniPro link to high speed mode. */
 	ret = gb_camera_set_power_mode(gcam, true);
 	if (ret < 0)
-		return ret;
+		goto error_conn_disable;
 
 	/*
 	 * Configure the APB1 CSI transmitter using the lines count reported by
@@ -224,8 +244,7 @@ static int gb_camera_setup_data_connection(struct gb_camera *gcam,
 
 	if (ret < 0) {
 		gcam_err(gcam, "failed to start the CSI transmitter\n");
-		gb_camera_set_power_mode(gcam, false);
-		return ret;
+		goto error_power;
 	}
 
 	if (csi_params) {
@@ -236,6 +255,15 @@ static int gb_camera_setup_data_connection(struct gb_camera *gcam,
 	}
 
 	return 0;
+
+error_power:
+	gb_camera_set_power_mode(gcam, false);
+error_conn_disable:
+	gb_connection_disable(gcam->data_connection);
+error_conn_destroy:
+	gb_connection_destroy(gcam->data_connection);
+	gcam->data_connection = NULL;
+	return ret;
 }
 
 static void gb_camera_teardown_data_connection(struct gb_camera *gcam)
@@ -256,6 +284,11 @@ static void gb_camera_teardown_data_connection(struct gb_camera *gcam)
 
 	/* Set the UniPro link to low speed mode. */
 	gb_camera_set_power_mode(gcam, false);
+
+	/* Destroy the data connection. */
+	gb_connection_disable(gcam->data_connection);
+	gb_connection_destroy(gcam->data_connection);
+	gcam->data_connection = NULL;
 }
 
 /* -----------------------------------------------------------------------------
@@ -990,13 +1023,13 @@ static void gb_camera_cleanup(struct gb_camera *gcam)
 {
 	gb_camera_debugfs_cleanup(gcam);
 
+	mutex_lock(&gcam->mutex);
 	if (gcam->data_connection) {
 		gb_connection_disable(gcam->data_connection);
 		gb_connection_destroy(gcam->data_connection);
 		gcam->data_connection = NULL;
 	}
 
-	mutex_lock(&gcam->mutex);
 	if (gcam->connection) {
 		gb_connection_disable(gcam->connection);
 		gb_connection_destroy(gcam->connection);
@@ -1055,6 +1088,7 @@ static int gb_camera_probe(struct gb_bundle *bundle,
 
 	gcam->bundle = bundle;
 	gcam->state = GB_CAMERA_STATE_UNCONFIGURED;
+	gcam->data_cport_id = data_cport_id;
 
 	conn = gb_connection_create(bundle, mgmt_cport_id,
 				    gb_camera_request_handler);
@@ -1064,24 +1098,6 @@ static int gb_camera_probe(struct gb_bundle *bundle,
 	}
 
 	gcam->connection = conn;
-	gb_connection_set_data(conn, gcam);
-
-	ret = gb_connection_enable(conn);
-	if (ret)
-		goto error;
-
-	/*
-	 * Create the data connection between the camera module data CPort and
-	 * APB CDSI1. The CDSI1 CPort ID is hardcoded by the ES2 bridge.
-	 */
-	conn = gb_connection_create_offloaded(bundle, data_cport_id,
-					      GB_CONNECTION_FLAG_NO_FLOWCTRL |
-					      GB_CONNECTION_FLAG_CDSI1);
-	if (IS_ERR(conn)) {
-		ret = PTR_ERR(conn);
-		goto error;
-	}
-	gcam->data_connection = conn;
 	gb_connection_set_data(conn, gcam);
 
 	ret = gb_connection_enable(conn);
