@@ -50,6 +50,8 @@ static const struct pci_device_id tsi148_ids[] = {
 	{ },
 };
 
+MODULE_DEVICE_TABLE(pci, tsi148_ids);
+
 static struct pci_driver tsi148_driver = {
 	.name = driver_name,
 	.id_table = tsi148_ids,

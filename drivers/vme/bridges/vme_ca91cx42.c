@@ -47,6 +47,8 @@ static const struct pci_device_id ca91cx42_ids[] = {
 	{ },
 };
 
+MODULE_DEVICE_TABLE(pci, ca91cx42_ids);
+
 static struct pci_driver ca91cx42_driver = {
 	.name = driver_name,
 	.id_table = ca91cx42_ids,
