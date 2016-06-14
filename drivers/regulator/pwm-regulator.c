@@ -63,16 +63,14 @@ static int pwm_regulator_set_voltage_sel(struct regulator_dev *rdev,
 					 unsigned selector)
 {
 	struct pwm_regulator_data *drvdata = rdev_get_drvdata(rdev);
-	struct pwm_args pargs;
-	int dutycycle;
+	struct pwm_state pstate;
 	int ret;
 
-	pwm_get_args(drvdata->pwm, &pargs);
+	pwm_init_state(drvdata->pwm, &pstate);
+	pwm_set_relative_duty_cycle(&pstate,
+			drvdata->duty_cycle_table[selector].dutycycle, 100);
 
-	dutycycle = (pargs.period *
-		    drvdata->duty_cycle_table[selector].dutycycle) / 100;
-
-	ret = pwm_config(drvdata->pwm, dutycycle, pargs.period);
+	ret = pwm_apply_state(drvdata->pwm, &pstate);
 	if (ret) {
 		dev_err(&rdev->dev, "Failed to configure PWM: %d\n", ret);
 		return ret;
@@ -139,35 +137,19 @@ static int pwm_regulator_set_voltage(struct regulator_dev *rdev,
 {
 	struct pwm_regulator_data *drvdata = rdev_get_drvdata(rdev);
 	unsigned int ramp_delay = rdev->constraints->ramp_delay;
-	struct pwm_args pargs;
 	unsigned int req_diff = min_uV - rdev->constraints->min_uV;
+	struct pwm_state pstate;
 	unsigned int diff;
-	unsigned int duty_pulse;
-	u64 req_period;
-	u32 rem;
 	int old_uV = pwm_regulator_get_voltage(rdev);
 	int ret;
 
-	pwm_get_args(drvdata->pwm, &pargs);
+	pwm_init_state(drvdata->pwm, &pstate);
 	diff = rdev->constraints->max_uV - rdev->constraints->min_uV;
 
-	/* First try to find out if we get the iduty cycle time which is
-	 * factor of PWM period time. If (request_diff_to_min * pwm_period)
-	 * is perfect divided by voltage_range_diff then it is possible to
-	 * get duty cycle time which is factor of PWM period. This will help
-	 * to get output voltage nearer to requested value as there is no
-	 * calculation loss.
-	 */
-	req_period = req_diff * pargs.period;
-	div_u64_rem(req_period, diff, &rem);
-	if (!rem) {
-		do_div(req_period, diff);
-		duty_pulse = (unsigned int)req_period;
-	} else {
-		duty_pulse = (pargs.period / 100) * ((req_diff * 100) / diff);
-	}
+	/* We pass diff as the scale to get a uV precision. */
+	pwm_set_relative_duty_cycle(&pstate, req_diff, diff);
 
-	ret = pwm_config(drvdata->pwm, duty_pulse, pargs.period);
+	ret = pwm_apply_state(drvdata->pwm, &pstate);
 	if (ret) {
 		dev_err(&rdev->dev, "Failed to configure PWM: %d\n", ret);
 		return ret;
