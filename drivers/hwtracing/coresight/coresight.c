@@ -385,7 +385,6 @@ static int _coresight_build_path(struct coresight_device *csdev,
 	int i;
 	bool found = false;
 	struct coresight_node *node;
-	struct coresight_connection *conn;
 
 	/* An activated sink has been found.  Enqueue the element */
 	if ((csdev->type == CORESIGHT_DEV_TYPE_SINK ||
@@ -394,8 +393,9 @@ static int _coresight_build_path(struct coresight_device *csdev,
 
 	/* Not a sink - recursively explore each port found on this element */
 	for (i = 0; i < csdev->nr_outport; i++) {
-		conn = &csdev->conns[i];
-		if (_coresight_build_path(conn->child_dev, path) == 0) {
+		struct coresight_device *child_dev = csdev->conns[i].child_dev;
+
+		if (child_dev && _coresight_build_path(child_dev, path) == 0) {
 			found = true;
 			break;
 		}
