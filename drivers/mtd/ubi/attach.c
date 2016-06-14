@@ -175,6 +175,40 @@ static int add_corrupted(struct ubi_attach_info *ai, int pnum, int ec)
 }
 
 /**
+ * add_fastmap - add a Fastmap related physical eraseblock.
+ * @ai: attaching information
+ * @pnum: physical eraseblock number the VID header came from
+ * @vid_hdr: the volume identifier header
+ * @ec: erase counter of the physical eraseblock
+ *
+ * This function allocates a 'struct ubi_ainf_peb' object for a Fastamp
+ * physical eraseblock @pnum and adds it to the 'fastmap' list.
+ * Such blocks can be Fastmap super and data blocks from both the most
+ * recent Fastmap we're attaching from or from old Fastmaps which will
+ * be erased.
+ */
+static int add_fastmap(struct ubi_attach_info *ai, int pnum,
+		       struct ubi_vid_hdr *vid_hdr, int ec)
+{
+	struct ubi_ainf_peb *aeb;
+
+	aeb = kmem_cache_alloc(ai->aeb_slab_cache, GFP_KERNEL);
+	if (!aeb)
+		return -ENOMEM;
+
+	aeb->pnum = pnum;
+	aeb->vol_id = be32_to_cpu(vidh->vol_id);
+	aeb->sqnum = be64_to_cpu(vidh->sqnum);
+	aeb->ec = ec;
+	list_add(&aeb->u.list, &ai->fastmap);
+
+	dbg_bld("add to fastmap list: PEB %d, vol_id %d, sqnum: %llu", pnum,
+		aeb->vol_id, aeb->sqnum);
+
+	return 0;
+}
+
+/**
  * validate_vid_hdr - check volume identifier header.
  * @ubi: UBI device description object
  * @vid_hdr: the volume identifier header to check
@@ -822,18 +856,15 @@ static bool vol_ignored(int vol_id)
  * @ubi: UBI device description object
  * @ai: attaching information
  * @pnum: the physical eraseblock number
- * @vid: The volume ID of the found volume will be stored in this pointer
- * @sqnum: The sqnum of the found volume will be stored in this pointer
  *
  * This function reads UBI headers of PEB @pnum, checks them, and adds
  * information about this PEB to the corresponding list or RB-tree in the
  * "attaching info" structure. Returns zero if the physical eraseblock was
  * successfully handled and a negative error code in case of failure.
  */
-static int scan_peb(struct ubi_device *ubi, struct ubi_attach_info *ai,
-		    int pnum, int *vid, unsigned long long *sqnum)
+static int scan_peb(struct ubi_device *ubi, struct ubi_attach_info *ai, int pnum)
 {
-	long long uninitialized_var(ec);
+	long long ec;
 	int err, bitflips = 0, vol_id = -1, ec_err = 0;
 
 	dbg_bld("scan PEB %d", pnum);
@@ -1005,10 +1036,6 @@ static int scan_peb(struct ubi_device *ubi, struct ubi_attach_info *ai,
 	}
 
 	vol_id = be32_to_cpu(vidh->vol_id);
-	if (vid)
-		*vid = vol_id;
-	if (sqnum)
-		*sqnum = be64_to_cpu(vidh->sqnum);
 	if (vol_id > UBI_MAX_VOLUMES && !vol_ignored(vol_id)) {
 		int lnum = be32_to_cpu(vidh->lnum);
 
@@ -1049,7 +1076,12 @@ static int scan_peb(struct ubi_device *ubi, struct ubi_attach_info *ai,
 	if (ec_err)
 		ubi_warn(ubi, "valid VID header but corrupted EC header at PEB %d",
 			 pnum);
-	err = ubi_add_to_av(ubi, ai, pnum, ec, vidh, bitflips);
+
+	if (ubi_is_fm_vol(vol_id))
+		err = add_fastmap(ai, pnum, vidh, ec);
+	else
+		err = ubi_add_to_av(ubi, ai, pnum, ec, vidh, bitflips);
+
 	if (err)
 		return err;
 
@@ -1198,6 +1230,10 @@ static void destroy_ai(struct ubi_attach_info *ai)
 		list_del(&aeb->u.list);
 		kmem_cache_free(ai->aeb_slab_cache, aeb);
 	}
+	list_for_each_entry_safe(aeb, aeb_tmp, &ai->fastmap, u.list) {
+		list_del(&aeb->u.list);
+		kmem_cache_free(ai->aeb_slab_cache, aeb);
+	}
 
 	/* Destroy the volume RB-tree */
 	rb = ai->volumes.rb_node;
@@ -1257,7 +1293,7 @@ static int scan_all(struct ubi_device *ubi, struct ubi_attach_info *ai,
 		cond_resched();
 
 		dbg_gen("process PEB %d", pnum);
-		err = scan_peb(ubi, ai, pnum, NULL, NULL);
+		err = scan_peb(ubi, ai, pnum);
 		if (err < 0)
 			goto out_vidh;
 	}
@@ -1323,6 +1359,7 @@ static struct ubi_attach_info *alloc_ai(void)
 	INIT_LIST_HEAD(&ai->free);
 	INIT_LIST_HEAD(&ai->erase);
 	INIT_LIST_HEAD(&ai->alien);
+	INIT_LIST_HEAD(&ai->fastmap);
 	ai->volumes = RB_ROOT;
 	ai->aeb_slab_cache = kmem_cache_create("ubi_aeb_slab_cache",
 					       sizeof(struct ubi_ainf_peb),
@@ -1349,52 +1386,54 @@ static struct ubi_attach_info *alloc_ai(void)
  */
 static int scan_fast(struct ubi_device *ubi, struct ubi_attach_info **ai)
 {
-	int err, pnum, fm_anchor = -1;
-	unsigned long long max_sqnum = 0;
+	int err, pnum;
+	struct ubi_attach_info *scan_ai;
 
 	err = -ENOMEM;
 
+	scan_ai = alloc_ai();
+	if (!scan_ai)
+		goto out;
+
 	ech = kzalloc(ubi->ec_hdr_alsize, GFP_KERNEL);
 	if (!ech)
-		goto out;
+		goto out_ai;
 
 	vidh = ubi_zalloc_vid_hdr(ubi, GFP_KERNEL);
 	if (!vidh)
 		goto out_ech;
 
 	for (pnum = 0; pnum < UBI_FM_MAX_START; pnum++) {
-		int vol_id = -1;
-		unsigned long long sqnum = -1;
 		cond_resched();
 
 		dbg_gen("process PEB %d", pnum);
-		err = scan_peb(ubi, *ai, pnum, &vol_id, &sqnum);
+		err = scan_peb(ubi, scan_ai, pnum);
 		if (err < 0)
 			goto out_vidh;
-
-		if (vol_id == UBI_FM_SB_VOLUME_ID && sqnum > max_sqnum) {
-			max_sqnum = sqnum;
-			fm_anchor = pnum;
-		}
 	}
 
 	ubi_free_vid_hdr(ubi, vidh);
 	kfree(ech);
 
-	if (fm_anchor < 0)
-		return UBI_NO_FASTMAP;
+	err = ubi_scan_fastmap(ubi, *ai, scan_ai);
+	if (err) {
+		/*
+		 * Didn't attach via fastmap, do a full scan but reuse what
+		 * we've aready scanned.
+		 */
+		destroy_ai(*ai);
+		*ai = scan_ai;
+	} else
+		destroy_ai(scan_ai);
 
-	destroy_ai(*ai);
-	*ai = alloc_ai();
-	if (!*ai)
-		return -ENOMEM;
-
-	return ubi_scan_fastmap(ubi, *ai, fm_anchor);
+	return err;
 
 out_vidh:
 	ubi_free_vid_hdr(ubi, vidh);
 out_ech:
 	kfree(ech);
+out_ai:
+	destroy_ai(scan_ai);
 out:
 	return err;
 }
