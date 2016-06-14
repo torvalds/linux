@@ -140,7 +140,7 @@ static struct gpio_desc *of_parse_own_gpio(struct device_node *np,
 		.flags = &xlate_flags,
 	};
 	u32 tmp;
-	int i, ret;
+	int ret;
 
 	chip_np = np->parent;
 	if (!chip_np)
@@ -159,12 +159,10 @@ static struct gpio_desc *of_parse_own_gpio(struct device_node *np,
 
 	gg_data.gpiospec.args_count = tmp;
 	gg_data.gpiospec.np = chip_np;
-	for (i = 0; i < tmp; i++) {
-		ret = of_property_read_u32_index(np, "gpios", i,
-					   &gg_data.gpiospec.args[i]);
-		if (ret)
-			return ERR_PTR(ret);
-	}
+	ret = of_property_read_u32_array(np, "gpios", gg_data.gpiospec.args,
+					 tmp);
+	if (ret)
+		return ERR_PTR(ret);
 
 	gpiochip_find(&gg_data, of_gpiochip_find_and_xlate);
 	if (!gg_data.out_gpio) {
