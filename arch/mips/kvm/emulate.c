@@ -1082,11 +1082,10 @@ enum emulation_result kvm_mips_emulate_CP0(u32 inst, u32 *opc, u32 cause,
 				if ((KSEGX(vcpu->arch.gprs[rt]) != CKSEG0) &&
 				    ((kvm_read_c0_guest_entryhi(cop0) &
 				      KVM_ENTRYHI_ASID) != nasid)) {
-					kvm_debug("MTCz, change ASID from %#lx to %#lx\n",
+					trace_kvm_asid_change(vcpu,
 						kvm_read_c0_guest_entryhi(cop0)
-						& KVM_ENTRYHI_ASID,
-						vcpu->arch.gprs[rt]
-						& KVM_ENTRYHI_ASID);
+							& KVM_ENTRYHI_ASID,
+						nasid);
 
 					/* Blow away the shadow host TLBs */
 					kvm_mips_flush_host_tlb(1);

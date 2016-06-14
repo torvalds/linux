@@ -122,6 +122,28 @@ TRACE_EVENT(kvm_aux,
 		      __entry->pc)
 );
 
+TRACE_EVENT(kvm_asid_change,
+	    TP_PROTO(struct kvm_vcpu *vcpu, unsigned int old_asid,
+		     unsigned int new_asid),
+	    TP_ARGS(vcpu, old_asid, new_asid),
+	    TP_STRUCT__entry(
+			__field(unsigned long, pc)
+			__field(u8, old_asid)
+			__field(u8, new_asid)
+	    ),
+
+	    TP_fast_assign(
+			__entry->pc = vcpu->arch.pc;
+			__entry->old_asid = old_asid;
+			__entry->new_asid = new_asid;
+	    ),
+
+	    TP_printk("PC: 0x%08lx old: 0x%02x new: 0x%02x",
+		      __entry->pc,
+		      __entry->old_asid,
+		      __entry->new_asid)
+);
+
 #endif /* _TRACE_KVM_H */
 
 /* This part must be outside protection */
