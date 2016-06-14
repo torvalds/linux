@@ -2658,10 +2658,9 @@ static inline int send_nic_timestamp_pkt(struct octeon_device *oct,
 {
 	int retval;
 	struct octeon_soft_command *sc;
-	struct octeon_instr_ih *ih;
-	struct octeon_instr_rdp *rdp;
 	struct lio *lio;
 	int ring_doorbell;
+	u32 len;
 
 	lio = finfo->lio;
 
@@ -2683,12 +2682,11 @@ static inline int send_nic_timestamp_pkt(struct octeon_device *oct,
 	sc->callback_arg = finfo->skb;
 	sc->iq_no = ndata->q_no;
 
-	ih = (struct octeon_instr_ih *)&sc->cmd.ih;
-	rdp = (struct octeon_instr_rdp *)&sc->cmd.rdp;
+	len = (u32)((struct octeon_instr_ih2 *)(&sc->cmd.cmd2.ih2))->dlengsz;
 
 	ring_doorbell = !xmit_more;
 	retval = octeon_send_command(oct, sc->iq_no, ring_doorbell, &sc->cmd,
-				     sc, ih->dlengsz, ndata->reqtype);
+				     sc, len, ndata->reqtype);
 
 	if (retval == IQ_SEND_FAILED) {
 		dev_err(&oct->pci_dev->dev, "timestamp data packet failed status: %x\n",
@@ -2715,6 +2713,8 @@ static int liquidio_xmit(struct sk_buff *skb, struct net_device *netdev)
 	struct octnic_data_pkt ndata;
 	struct octeon_device *oct;
 	struct oct_iq_stats *stats;
+	struct octeon_instr_irh *irh;
+	union tx_info *tx_info;
 	int status = 0;
 	int q_idx = 0, iq_no = 0;
 	int xmit_more, j;
@@ -2800,18 +2800,18 @@ static int liquidio_xmit(struct sk_buff *skb, struct net_device *netdev)
 		cmdsetup.s.u.datasize = skb->len;
 		octnet_prepare_pci_cmd(oct, &ndata.cmd, &cmdsetup, tag);
 		/* Offload checksum calculation for TCP/UDP packets */
-		ndata.cmd.dptr = dma_map_single(&oct->pci_dev->dev,
-						skb->data,
-						skb->len,
-						DMA_TO_DEVICE);
-		if (dma_mapping_error(&oct->pci_dev->dev, ndata.cmd.dptr)) {
+		dptr = dma_map_single(&oct->pci_dev->dev,
+				      skb->data,
+				      skb->len,
+				      DMA_TO_DEVICE);
+		if (dma_mapping_error(&oct->pci_dev->dev, dptr)) {
 			dev_err(&oct->pci_dev->dev, "%s DMA mapping error 1\n",
 				__func__);
 			return NETDEV_TX_BUSY;
 		}
 
-		finfo->dptr = ndata.cmd.dptr;
-
+		ndata.cmd.cmd2.dptr = dptr;
+		finfo->dptr = dptr;
 		ndata.reqtype = REQTYPE_NORESP_NET;
 
 	} else {
@@ -2885,18 +2885,17 @@ static int liquidio_xmit(struct sk_buff *skb, struct net_device *netdev)
 					   g->sg_size, DMA_TO_DEVICE);
 		dptr = g->sg_dma_ptr;
 
-		finfo->dptr = ndata.cmd.dptr;
+		ndata.cmd.cmd2.dptr = dptr;
+		finfo->dptr = dptr;
 		finfo->g = g;
 
 		ndata.reqtype = REQTYPE_NORESP_NET_SG;
 	}
 
-	if (skb_shinfo(skb)->gso_size) {
-		struct octeon_instr_irh *irh =
-			(struct octeon_instr_irh *)&ndata.cmd.irh;
-		union tx_info *tx_info = (union tx_info *)&ndata.cmd.ossp[0];
+	irh = (struct octeon_instr_irh *)&ndata.cmd.cmd2.irh;
+	tx_info = (union tx_info *)&ndata.cmd.cmd2.ossp[0];
 
-		irh->len = 1;   /* to indicate that ossp[0] contains tx_info */
+	if (skb_shinfo(skb)->gso_size) {
 		tx_info->s.gso_size = skb_shinfo(skb)->gso_size;
 		tx_info->s.gso_segs = skb_shinfo(skb)->gso_segs;
 	}
@@ -2926,8 +2925,9 @@ lio_xmit_failed:
 	stats->tx_dropped++;
 	netif_info(lio, tx_err, lio->netdev, "IQ%d Transmit dropped:%llu\n",
 		   iq_no, stats->tx_dropped);
-	dma_unmap_single(&oct->pci_dev->dev, ndata.cmd.dptr,
-			 ndata.datasize, DMA_TO_DEVICE);
+	if (dptr)
+		dma_unmap_single(&oct->pci_dev->dev, dptr,
+				 ndata.datasize, DMA_TO_DEVICE);
 	tx_buffer_free(skb);
 	return NETDEV_TX_OK;
 }

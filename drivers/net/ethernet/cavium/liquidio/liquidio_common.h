@@ -285,8 +285,140 @@ union octnet_cmd {
 
 #define   OCTNET_CMD_SIZE     (sizeof(union octnet_cmd))
 
+/* Instruction Header (DPI - CN23xx) - for OCTEON-III models */
+struct  octeon_instr_ih3 {
+#ifdef __BIG_ENDIAN_BITFIELD
+
+	/** Reserved3 */
+	u64     reserved3:1;
+
+	/** Gather indicator 1=gather*/
+	u64     gather:1;
+
+	/** Data length OR no. of entries in gather list */
+	u64     dlengsz:14;
+
+	/** Front Data size */
+	u64     fsz:6;
+
+	/** Reserved2 */
+	u64     reserved2:4;
+
+	/** PKI port kind - PKIND */
+	u64     pkind:6;
+
+	/** Reserved1 */
+	u64     reserved1:32;
+
+#else
+	/** Reserved1 */
+	u64     reserved1:32;
+
+	/** PKI port kind - PKIND */
+	u64     pkind:6;
+
+	/** Reserved2 */
+	u64     reserved2:4;
+
+	/** Front Data size */
+	u64     fsz:6;
+
+	/** Data length OR no. of entries in gather list */
+	u64     dlengsz:14;
+
+	/** Gather indicator 1=gather*/
+	u64     gather:1;
+
+	/** Reserved3 */
+	u64     reserved3:1;
+
+#endif
+};
+
+/* Optional PKI Instruction Header(PKI IH) - for OCTEON CN23XX models */
+/** BIG ENDIAN format.   */
+struct  octeon_instr_pki_ih3 {
+#ifdef __BIG_ENDIAN_BITFIELD
+
+	/** Wider bit */
+	u64     w:1;
+
+	/** Raw mode indicator 1 = RAW */
+	u64     raw:1;
+
+	/** Use Tag */
+	u64     utag:1;
+
+	/** Use QPG */
+	u64     uqpg:1;
+
+	/** Reserved2 */
+	u64     reserved2:1;
+
+	/** Parse Mode */
+	u64     pm:3;
+
+	/** Skip Length */
+	u64     sl:8;
+
+	/** Use Tag Type */
+	u64     utt:1;
+
+	/** Tag type */
+	u64     tagtype:2;
+
+	/** Reserved1 */
+	u64     reserved1:2;
+
+	/** QPG Value */
+	u64     qpg:11;
+
+	/** Tag Value */
+	u64     tag:32;
+
+#else
+
+	/** Tag Value */
+	u64     tag:32;
+
+	/** QPG Value */
+	u64     qpg:11;
+
+	/** Reserved1 */
+	u64     reserved1:2;
+
+	/** Tag type */
+	u64     tagtype:2;
+
+	/** Use Tag Type */
+	u64     utt:1;
+
+	/** Skip Length */
+	u64     sl:8;
+
+	/** Parse Mode */
+	u64     pm:3;
+
+	/** Reserved2 */
+	u64     reserved2:1;
+
+	/** Use QPG */
+	u64     uqpg:1;
+
+	/** Use Tag */
+	u64     utag:1;
+
+	/** Raw mode indicator 1 = RAW */
+	u64     raw:1;
+
+	/** Wider bit */
+	u64     w:1;
+#endif
+
+};
+
 /** Instruction Header */
-struct octeon_instr_ih {
+struct octeon_instr_ih2 {
 #ifdef __BIG_ENDIAN_BITFIELD
 	/** Raw mode indicator 1 = RAW */
 	u64 raw:1;

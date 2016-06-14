@@ -75,6 +75,8 @@ struct oct_iq_stats {
  *  a Octeon device has one such structure to represent it.
 */
 struct octeon_instr_queue {
+	struct octeon_device *oct_dev;
+
 	/** A spinlock to protect access to the input ring.  */
 	spinlock_t lock;
 
@@ -183,12 +185,12 @@ struct octeon_instr_32B {
 /** 64-byte instruction format.
  *  Format of instruction for a 64-byte mode input queue.
  */
-struct octeon_instr_64B {
+struct octeon_instr2_64B {
 	/** Pointer where the input data is available. */
 	u64 dptr;
 
 	/** Instruction Header. */
-	u64 ih;
+	u64 ih2;
 
 	/** Input Request Header. */
 	u64 irh;
@@ -205,10 +207,40 @@ struct octeon_instr_64B {
 	u64 rptr;
 
 	u64 reserved;
+};
+
+struct octeon_instr3_64B {
+	/** Pointer where the input data is available. */
+	u64 dptr;
+
+	/** Instruction Header. */
+	u64 ih3;
+
+	/** Instruction Header. */
+	u64 pki_ih3;
+
+	/** Input Request Header. */
+	u64 irh;
+
+	/** opcode/subcode specific parameters */
+	u64 ossp[2];
+
+	/** Return Data Parameters */
+	u64 rdp;
+
+	/** Pointer where the response for a RAW mode packet will be written
+	 * by Octeon.
+	 */
+	u64 rptr;
 
 };
 
-#define OCT_64B_INSTR_SIZE     (sizeof(struct octeon_instr_64B))
+union octeon_instr_64B {
+	struct octeon_instr2_64B cmd2;
+	struct octeon_instr3_64B cmd3;
+};
+
+#define OCT_64B_INSTR_SIZE     (sizeof(union octeon_instr_64B))
 
 /** The size of each buffer in soft command buffer pool
  */
@@ -221,7 +253,8 @@ struct octeon_soft_command {
 	u32 size;
 
 	/** Command and return status */
-	struct octeon_instr_64B cmd;
+	union octeon_instr_64B cmd;
+
 #define COMPLETION_WORD_INIT    0xffffffffffffffffULL
 	u64 *status_word;
 

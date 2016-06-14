@@ -85,6 +85,7 @@ int lio_process_ordered_list(struct octeon_device *octeon_dev,
 	u32 status;
 	u64 status64;
 	struct octeon_instr_rdp *rdp;
+	u64 rptr;
 
 	ordered_sc_list = &octeon_dev->response_list[OCTEON_ORDERED_SC_LIST];
 
@@ -102,7 +103,8 @@ int lio_process_ordered_list(struct octeon_device *octeon_dev,
 
 		sc = (struct octeon_soft_command *)ordered_sc_list->
 		    head.next;
-		rdp = (struct octeon_instr_rdp *)&sc->cmd.rdp;
+		rdp = (struct octeon_instr_rdp *)&sc->cmd.cmd2.rdp;
+		rptr = sc->cmd.cmd2.rptr;
 
 		status = OCTEON_REQUEST_PENDING;
 
@@ -110,7 +112,7 @@ int lio_process_ordered_list(struct octeon_device *octeon_dev,
 		 * to where rptr is pointing to
 		 */
 		dma_sync_single_for_cpu(&octeon_dev->pci_dev->dev,
-					sc->cmd.rptr, rdp->rlen,
+					rptr, rdp->rlen,
 					DMA_FROM_DEVICE);
 		status64 = *sc->status_word;
 

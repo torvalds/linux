@@ -99,6 +99,7 @@ int octeon_init_instr_queue(struct octeon_device *oct,
 	q_size = (u32)conf->instr_type * num_descs;
 
 	iq = oct->instr_queue[iq_no];
+	iq->oct_dev = oct;
 
 	set_dev_node(&oct->pci_dev->dev, numa_node);
 	iq->base_addr = lio_dma_alloc(oct, q_size,
@@ -420,7 +421,7 @@ lio_process_iq_request_list(struct octeon_device *oct,
 		case REQTYPE_SOFT_COMMAND:
 			sc = buf;
 
-			irh = (struct octeon_instr_irh *)&sc->cmd.irh;
+			irh = (struct octeon_instr_irh *)&sc->cmd.cmd2.irh;
 			if (irh->rflag) {
 				/* We're expecting a response from Octeon.
 				 * It's up to lio_process_ordered_list() to
@@ -583,7 +584,7 @@ octeon_prepare_soft_command(struct octeon_device *oct,
 			    u64 ossp1)
 {
 	struct octeon_config *oct_cfg;
-	struct octeon_instr_ih *ih;
+	struct octeon_instr_ih2 *ih2;
 	struct octeon_instr_irh *irh;
 	struct octeon_instr_rdp *rdp;
 
@@ -592,73 +593,69 @@ octeon_prepare_soft_command(struct octeon_device *oct,
 
 	oct_cfg = octeon_get_conf(oct);
 
-	ih          = (struct octeon_instr_ih *)&sc->cmd.ih;
-	ih->tagtype = ATOMIC_TAG;
-	ih->tag     = LIO_CONTROL;
-	ih->raw     = 1;
-	ih->grp     = CFG_GET_CTRL_Q_GRP(oct_cfg);
+	ih2          = (struct octeon_instr_ih2 *)&sc->cmd.cmd2.ih2;
+	ih2->tagtype = ATOMIC_TAG;
+	ih2->tag     = LIO_CONTROL;
+	ih2->raw     = 1;
+	ih2->grp     = CFG_GET_CTRL_Q_GRP(oct_cfg);
 
 	if (sc->datasize) {
-		ih->dlengsz = sc->datasize;
-		ih->rs = 1;
+		ih2->dlengsz = sc->datasize;
+		ih2->rs = 1;
 	}
 
-	irh            = (struct octeon_instr_irh *)&sc->cmd.irh;
+	irh            = (struct octeon_instr_irh *)&sc->cmd.cmd2.irh;
 	irh->opcode    = opcode;
 	irh->subcode   = subcode;
 
 	/* opcode/subcode specific parameters (ossp) */
 	irh->ossp       = irh_ossp;
-	sc->cmd.ossp[0] = ossp0;
-	sc->cmd.ossp[1] = ossp1;
+	sc->cmd.cmd2.ossp[0] = ossp0;
+	sc->cmd.cmd2.ossp[1] = ossp1;
 
 	if (sc->rdatasize) {
-		rdp            = (struct octeon_instr_rdp *)&sc->cmd.rdp;
+		rdp = (struct octeon_instr_rdp *)&sc->cmd.cmd2.rdp;
 		rdp->pcie_port = oct->pcie_port;
 		rdp->rlen      = sc->rdatasize;
 
 		irh->rflag =  1;
-		irh->len   =  4;
-		ih->fsz    = 40; /* irh+ossp[0]+ossp[1]+rdp+rptr = 40 bytes */
+		ih2->fsz   = 40; /* irh+ossp[0]+ossp[1]+rdp+rptr = 40 bytes */
 	} else {
 		irh->rflag =  0;
-		irh->len   =  2;
-		ih->fsz    = 24; /* irh + ossp[0] + ossp[1] = 24 bytes */
+		ih2->fsz   = 24; /* irh + ossp[0] + ossp[1] = 24 bytes */
 	}
-
-	while (!(oct->io_qmask.iq & (1 << sc->iq_no)))
-		sc->iq_no++;
 }
 
 int octeon_send_soft_command(struct octeon_device *oct,
 			     struct octeon_soft_command *sc)
 {
-	struct octeon_instr_ih *ih;
+	struct octeon_instr_ih2 *ih2;
 	struct octeon_instr_irh *irh;
 	struct octeon_instr_rdp *rdp;
+	u32 len;
 
-	ih = (struct octeon_instr_ih *)&sc->cmd.ih;
-	if (ih->dlengsz) {
-		BUG_ON(!sc->dmadptr);
-		sc->cmd.dptr = sc->dmadptr;
+	ih2 = (struct octeon_instr_ih2 *)&sc->cmd.cmd2.ih2;
+	if (ih2->dlengsz) {
+		WARN_ON(!sc->dmadptr);
+		sc->cmd.cmd2.dptr = sc->dmadptr;
 	}
-
-	irh = (struct octeon_instr_irh *)&sc->cmd.irh;
+	irh = (struct octeon_instr_irh *)&sc->cmd.cmd2.irh;
 	if (irh->rflag) {
 		BUG_ON(!sc->dmarptr);
 		BUG_ON(!sc->status_word);
 		*sc->status_word = COMPLETION_WORD_INIT;
 
-		rdp = (struct octeon_instr_rdp *)&sc->cmd.rdp;
+		rdp = (struct octeon_instr_rdp *)&sc->cmd.cmd2.rdp;
 
-		sc->cmd.rptr = sc->dmarptr;
+		sc->cmd.cmd2.rptr = sc->dmarptr;
 	}
+	len = (u32)ih2->dlengsz;
 
 	if (sc->wait_time)
 		sc->timeout = jiffies + sc->wait_time;
 
-	return octeon_send_command(oct, sc->iq_no, 1, &sc->cmd, sc,
-				   (u32)ih->dlengsz, REQTYPE_SOFT_COMMAND);
+	return (octeon_send_command(oct, sc->iq_no, 1, &sc->cmd, sc,
+				    len, REQTYPE_SOFT_COMMAND));
 }
 
 int octeon_setup_sc_buffer_pool(struct octeon_device *oct)
