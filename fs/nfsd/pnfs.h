@@ -45,6 +45,9 @@ extern const struct nfsd4_layout_ops bl_layout_ops;
 #ifdef CONFIG_NFSD_SCSILAYOUT
 extern const struct nfsd4_layout_ops scsi_layout_ops;
 #endif
+#ifdef CONFIG_NFSD_FLEXFILELAYOUT
+extern const struct nfsd4_layout_ops ff_layout_ops;
+#endif
 
 __be32 nfsd4_preprocess_layout_stateid(struct svc_rqst *rqstp,
 		struct nfsd4_compound_state *cstate, stateid_t *stateid,
