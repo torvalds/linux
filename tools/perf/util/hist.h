@@ -215,7 +215,7 @@ struct perf_hpp {
 struct perf_hpp_fmt {
 	const char *name;
 	int (*header)(struct perf_hpp_fmt *fmt, struct perf_hpp *hpp,
-		      struct perf_evsel *evsel);
+		      struct hists *hists);
 	int (*width)(struct perf_hpp_fmt *fmt, struct perf_hpp *hpp,
 		     struct perf_evsel *evsel);
 	int (*color)(struct perf_hpp_fmt *fmt, struct perf_hpp *hpp,

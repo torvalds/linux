@@ -1488,7 +1488,7 @@ void perf_hpp__reset_sort_width(struct perf_hpp_fmt *fmt, struct hists *hists)
 }
 
 static int __sort__hpp_header(struct perf_hpp_fmt *fmt, struct perf_hpp *hpp,
-			      struct perf_evsel *evsel)
+			      struct hists *hists)
 {
 	struct hpp_sort_entry *hse;
 	size_t len = fmt->user_len;
@@ -1496,7 +1496,7 @@ static int __sort__hpp_header(struct perf_hpp_fmt *fmt, struct perf_hpp *hpp,
 	hse = container_of(fmt, struct hpp_sort_entry, hpp);
 
 	if (!len)
-		len = hists__col_len(evsel__hists(evsel), hse->se->se_width_idx);
+		len = hists__col_len(hists, hse->se->se_width_idx);
 
 	return scnprintf(hpp->buf, hpp->size, "%-*.*s", len, len, fmt->name);
 }
@@ -1793,7 +1793,7 @@ static void update_dynamic_len(struct hpp_dynamic_entry *hde,
 }
 
 static int __sort__hde_header(struct perf_hpp_fmt *fmt, struct perf_hpp *hpp,
-			      struct perf_evsel *evsel __maybe_unused)
+			      struct hists *hists __maybe_unused)
 {
 	struct hpp_dynamic_entry *hde;
 	size_t len = fmt->user_len;

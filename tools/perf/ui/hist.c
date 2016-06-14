@@ -229,9 +229,9 @@ static int hpp__width_fn(struct perf_hpp_fmt *fmt,
 }
 
 static int hpp__header_fn(struct perf_hpp_fmt *fmt, struct perf_hpp *hpp,
-			  struct perf_evsel *evsel)
+			  struct hists *hists)
 {
-	int len = hpp__width_fn(fmt, hpp, evsel);
+	int len = hpp__width_fn(fmt, hpp, hists_to_evsel(hists));
 	return scnprintf(hpp->buf, hpp->size, "%*s", len, fmt->name);
 }
 
