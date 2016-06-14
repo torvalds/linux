@@ -867,19 +867,27 @@
 
 			pd_vdu {
 				reg = <RK3399_PD_VDU>;
+				clocks = <&cru ACLK_VDU>,
+					 <&cru HCLK_VDU>;
 				pm_qos = <&qos_video_m1_r>,
 					 <&qos_video_m1_w>;
 			};
 			pd_vcodec {
 				reg = <RK3399_PD_VCODEC>;
+				clocks = <&cru ACLK_VCODEC>,
+					 <&cru HCLK_VCODEC>;
 				pm_qos = <&qos_video_m0>;
 			};
 			pd_iep {
 				reg = <RK3399_PD_IEP>;
+				clocks = <&cru ACLK_IEP>,
+					 <&cru HCLK_IEP>;
 				pm_qos = <&qos_iep>;
 			};
 			pd_rga {
 				reg = <RK3399_PD_RGA>;
+				clocks = <&cru ACLK_RGA>,
+					 <&cru HCLK_RGA>;
 				pm_qos = <&qos_rga_r>,
 					 <&qos_rga_w>;
 			};
@@ -890,16 +898,23 @@
 
 				pd_isp0 {
 					reg = <RK3399_PD_ISP0>;
+					clocks = <&cru ACLK_ISP0>,
+						 <&cru HCLK_ISP0>;
 					pm_qos = <&qos_isp0_m0>,
 						 <&qos_isp0_m1>;
 				};
 				pd_isp1 {
 					reg = <RK3399_PD_ISP1>;
+					clocks = <&cru ACLK_ISP1>,
+						 <&cru HCLK_ISP1>;
 					pm_qos = <&qos_isp1_m0>,
 						 <&qos_isp1_m1>;
 				};
 				pd_hdcp {
 					reg = <RK3399_PD_HDCP>;
+					clocks = <&cru ACLK_HDCP>,
+						 <&cru HCLK_HDCP>,
+						 <&cru PCLK_HDCP>;
 					pm_qos = <&qos_hdcp>;
 				};
 				pd_vo {
@@ -909,17 +924,22 @@
 
 					pd_vopb {
 						reg = <RK3399_PD_VOPB>;
+						clocks = <&cru ACLK_VOP0>,
+							 <&cru HCLK_VOP0>;
 						pm_qos = <&qos_vop_big_r>,
 							 <&qos_vop_big_w>;
 					};
 					pd_vopl {
 						reg = <RK3399_PD_VOPL>;
+						clocks = <&cru ACLK_VOP1>,
+							 <&cru HCLK_VOP1>;
 						pm_qos = <&qos_vop_little>;
 					};
 				};
 			};
 			pd_gpu {
 				reg = <RK3399_PD_GPU>;
+				clocks = <&cru ACLK_GPU>;
 				pm_qos = <&qos_gpu>;
 			};
 		};
