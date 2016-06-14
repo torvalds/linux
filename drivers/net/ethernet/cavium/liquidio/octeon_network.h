@@ -48,11 +48,11 @@ struct lio {
 	 */
 	int rxq;
 
-	/** Guards the glist */
-	spinlock_t lock;
+	/** Guards each glist */
+	spinlock_t *glist_lock;
 
-	/** Linked list of gather components */
-	struct list_head glist;
+	/** Array of gather component linked lists */
+	struct list_head *glist;
 
 	/** Pointer to the NIC properties for the Octeon device this network
 	 *  interface is associated with.
