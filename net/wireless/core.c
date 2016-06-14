@@ -363,8 +363,6 @@ struct wiphy *wiphy_new_nm(const struct cfg80211_ops *ops, int sizeof_priv,
 	WARN_ON(ops->remain_on_channel && !ops->cancel_remain_on_channel);
 	WARN_ON(ops->tdls_channel_switch && !ops->tdls_cancel_channel_switch);
 	WARN_ON(ops->add_tx_ts && !ops->del_tx_ts);
-	WARN_ON(ops->set_tx_power && !ops->get_tx_power);
-	WARN_ON(ops->set_antenna && !ops->get_antenna);
 
 	alloc_size = sizeof(*rdev) + sizeof_priv;
 

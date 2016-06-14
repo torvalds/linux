@@ -432,11 +432,6 @@ static int mtk_dpi_set_display_mode(struct mtk_dpi *dpi,
 	unsigned long pll_rate;
 	unsigned int factor;
 
-	if (!dpi) {
-		dev_err(dpi->dev, "invalid argument\n");
-		return -EINVAL;
-	}
-
 	pix_rate = 1000UL * mode->clock;
 	if (mode->clock <= 74000)
 		factor = 8 * 3;

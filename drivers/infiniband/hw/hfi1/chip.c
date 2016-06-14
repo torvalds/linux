@@ -7832,8 +7832,8 @@ static void handle_dcc_err(struct hfi1_devdata *dd, u32 unused, u64 reg)
 			 * save first 2 flits in the packet that caused
 			 * the error
 			 */
-			 dd->err_info_rcvport.packet_flit1 = hdr0;
-			 dd->err_info_rcvport.packet_flit2 = hdr1;
+			dd->err_info_rcvport.packet_flit1 = hdr0;
+			dd->err_info_rcvport.packet_flit2 = hdr1;
 		}
 		switch (info) {
 		case 1:
@@ -11906,7 +11906,7 @@ static void update_synth_timer(unsigned long opaque)
 		hfi1_cdbg(CNTR, "[%d] No update necessary", dd->unit);
 	}
 
-mod_timer(&dd->synth_stats_timer, jiffies + HZ * SYNTH_CNT_TIME);
+	mod_timer(&dd->synth_stats_timer, jiffies + HZ * SYNTH_CNT_TIME);
 }
 
 #define C_MAX_NAME 13 /* 12 chars + one for /0 */
