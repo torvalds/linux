@@ -323,8 +323,8 @@ struct kvm_mips_tlb {
 	long tlb_lo[2];
 };
 
-#define KVM_MIPS_FPU_FPU	0x1
-#define KVM_MIPS_FPU_MSA	0x2
+#define KVM_MIPS_AUX_FPU	0x1
+#define KVM_MIPS_AUX_MSA	0x2
 
 #define KVM_MIPS_GUEST_TLB_SIZE	64
 struct kvm_vcpu_arch {
@@ -346,8 +346,8 @@ struct kvm_vcpu_arch {
 
 	/* FPU State */
 	struct mips_fpu_struct fpu;
-	/* Which FPU state is loaded (KVM_MIPS_FPU_*) */
-	unsigned int fpu_inuse;
+	/* Which auxiliary state is loaded (KVM_MIPS_AUX_*) */
+	unsigned int aux_inuse;
 
 	/* COP0 State */
 	struct mips_coproc *cop0;

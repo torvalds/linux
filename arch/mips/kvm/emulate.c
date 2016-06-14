@@ -1154,7 +1154,7 @@ enum emulation_result kvm_mips_emulate_CP0(u32 inst, u32 *opc, u32 cause,
 				 * it first.
 				 */
 				if (change & ST0_CU1 && !(val & ST0_FR) &&
-				    vcpu->arch.fpu_inuse & KVM_MIPS_FPU_MSA)
+				    vcpu->arch.aux_inuse & KVM_MIPS_AUX_MSA)
 					kvm_lose_fpu(vcpu);
 
 				/*
@@ -1165,7 +1165,7 @@ enum emulation_result kvm_mips_emulate_CP0(u32 inst, u32 *opc, u32 cause,
 				 * the near future.
 				 */
 				if (change & ST0_CU1 &&
-				    vcpu->arch.fpu_inuse & KVM_MIPS_FPU_FPU)
+				    vcpu->arch.aux_inuse & KVM_MIPS_AUX_FPU)
 					change_c0_status(ST0_CU1, val);
 
 				preempt_enable();
@@ -1200,7 +1200,7 @@ enum emulation_result kvm_mips_emulate_CP0(u32 inst, u32 *opc, u32 cause,
 				 * context is already loaded.
 				 */
 				if (change & MIPS_CONF5_FRE &&
-				    vcpu->arch.fpu_inuse & KVM_MIPS_FPU_FPU)
+				    vcpu->arch.aux_inuse & KVM_MIPS_AUX_FPU)
 					change_c0_config5(MIPS_CONF5_FRE, val);
 
 				/*
@@ -1210,7 +1210,7 @@ enum emulation_result kvm_mips_emulate_CP0(u32 inst, u32 *opc, u32 cause,
 				 * quickly enabled again in the near future.
 				 */
 				if (change & MIPS_CONF5_MSAEN &&
-				    vcpu->arch.fpu_inuse & KVM_MIPS_FPU_MSA)
+				    vcpu->arch.aux_inuse & KVM_MIPS_AUX_MSA)
 					change_c0_config5(MIPS_CONF5_MSAEN,
 							  val);
 

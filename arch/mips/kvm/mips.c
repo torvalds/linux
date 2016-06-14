@@ -1447,7 +1447,7 @@ void kvm_own_fpu(struct kvm_vcpu *vcpu)
 	 * not to clobber the status register directly via the commpage.
 	 */
 	if (cpu_has_msa && sr & ST0_CU1 && !(sr & ST0_FR) &&
-	    vcpu->arch.fpu_inuse & KVM_MIPS_FPU_MSA)
+	    vcpu->arch.aux_inuse & KVM_MIPS_AUX_MSA)
 		kvm_lose_fpu(vcpu);
 
 	/*
@@ -1462,9 +1462,9 @@ void kvm_own_fpu(struct kvm_vcpu *vcpu)
 	enable_fpu_hazard();
 
 	/* If guest FPU state not active, restore it now */
-	if (!(vcpu->arch.fpu_inuse & KVM_MIPS_FPU_FPU)) {
+	if (!(vcpu->arch.aux_inuse & KVM_MIPS_AUX_FPU)) {
 		__kvm_restore_fpu(&vcpu->arch);
-		vcpu->arch.fpu_inuse |= KVM_MIPS_FPU_FPU;
+		vcpu->arch.aux_inuse |= KVM_MIPS_AUX_FPU;
 	}
 
 	preempt_enable();
@@ -1491,8 +1491,8 @@ void kvm_own_msa(struct kvm_vcpu *vcpu)
 		 * interacts with MSA state, so play it safe and save it first.
 		 */
 		if (!(sr & ST0_FR) &&
-		    (vcpu->arch.fpu_inuse & (KVM_MIPS_FPU_FPU |
-				KVM_MIPS_FPU_MSA)) == KVM_MIPS_FPU_FPU)
+		    (vcpu->arch.aux_inuse & (KVM_MIPS_AUX_FPU |
+				KVM_MIPS_AUX_MSA)) == KVM_MIPS_AUX_FPU)
 			kvm_lose_fpu(vcpu);
 
 		change_c0_status(ST0_CU1 | ST0_FR, sr);
@@ -1506,20 +1506,20 @@ void kvm_own_msa(struct kvm_vcpu *vcpu)
 	set_c0_config5(MIPS_CONF5_MSAEN);
 	enable_fpu_hazard();
 
-	switch (vcpu->arch.fpu_inuse & (KVM_MIPS_FPU_FPU | KVM_MIPS_FPU_MSA)) {
-	case KVM_MIPS_FPU_FPU:
+	switch (vcpu->arch.aux_inuse & (KVM_MIPS_AUX_FPU | KVM_MIPS_AUX_MSA)) {
+	case KVM_MIPS_AUX_FPU:
 		/*
 		 * Guest FPU state already loaded, only restore upper MSA state
 		 */
 		__kvm_restore_msa_upper(&vcpu->arch);
-		vcpu->arch.fpu_inuse |= KVM_MIPS_FPU_MSA;
+		vcpu->arch.aux_inuse |= KVM_MIPS_AUX_MSA;
 		break;
 	case 0:
 		/* Neither FPU or MSA already active, restore full MSA state */
 		__kvm_restore_msa(&vcpu->arch);
-		vcpu->arch.fpu_inuse |= KVM_MIPS_FPU_MSA;
+		vcpu->arch.aux_inuse |= KVM_MIPS_AUX_MSA;
 		if (kvm_mips_guest_has_fpu(&vcpu->arch))
-			vcpu->arch.fpu_inuse |= KVM_MIPS_FPU_FPU;
+			vcpu->arch.aux_inuse |= KVM_MIPS_AUX_FPU;
 		break;
 	default:
 		break;
@@ -1533,13 +1533,13 @@ void kvm_own_msa(struct kvm_vcpu *vcpu)
 void kvm_drop_fpu(struct kvm_vcpu *vcpu)
 {
 	preempt_disable();
-	if (cpu_has_msa && vcpu->arch.fpu_inuse & KVM_MIPS_FPU_MSA) {
+	if (cpu_has_msa && vcpu->arch.aux_inuse & KVM_MIPS_AUX_MSA) {
 		disable_msa();
-		vcpu->arch.fpu_inuse &= ~KVM_MIPS_FPU_MSA;
+		vcpu->arch.aux_inuse &= ~KVM_MIPS_AUX_MSA;
 	}
-	if (vcpu->arch.fpu_inuse & KVM_MIPS_FPU_FPU) {
+	if (vcpu->arch.aux_inuse & KVM_MIPS_AUX_FPU) {
 		clear_c0_status(ST0_CU1 | ST0_FR);
-		vcpu->arch.fpu_inuse &= ~KVM_MIPS_FPU_FPU;
+		vcpu->arch.aux_inuse &= ~KVM_MIPS_AUX_FPU;
 	}
 	preempt_enable();
 }
@@ -1555,7 +1555,7 @@ void kvm_lose_fpu(struct kvm_vcpu *vcpu)
 	 */
 
 	preempt_disable();
-	if (cpu_has_msa && vcpu->arch.fpu_inuse & KVM_MIPS_FPU_MSA) {
+	if (cpu_has_msa && vcpu->arch.aux_inuse & KVM_MIPS_AUX_MSA) {
 		set_c0_config5(MIPS_CONF5_MSAEN);
 		enable_fpu_hazard();
 
@@ -1563,17 +1563,17 @@ void kvm_lose_fpu(struct kvm_vcpu *vcpu)
 
 		/* Disable MSA & FPU */
 		disable_msa();
-		if (vcpu->arch.fpu_inuse & KVM_MIPS_FPU_FPU) {
+		if (vcpu->arch.aux_inuse & KVM_MIPS_AUX_FPU) {
 			clear_c0_status(ST0_CU1 | ST0_FR);
 			disable_fpu_hazard();
 		}
-		vcpu->arch.fpu_inuse &= ~(KVM_MIPS_FPU_FPU | KVM_MIPS_FPU_MSA);
-	} else if (vcpu->arch.fpu_inuse & KVM_MIPS_FPU_FPU) {
+		vcpu->arch.aux_inuse &= ~(KVM_MIPS_AUX_FPU | KVM_MIPS_AUX_MSA);
+	} else if (vcpu->arch.aux_inuse & KVM_MIPS_AUX_FPU) {
 		set_c0_status(ST0_CU1);
 		enable_fpu_hazard();
 
 		__kvm_save_fpu(&vcpu->arch);
-		vcpu->arch.fpu_inuse &= ~KVM_MIPS_FPU_FPU;
+		vcpu->arch.aux_inuse &= ~KVM_MIPS_AUX_FPU;
 
 		/* Disable FPU */
 		clear_c0_status(ST0_CU1 | ST0_FR);
