@@ -1326,7 +1326,7 @@ static struct ubi_attach_info *alloc_ai(void)
 #ifdef CONFIG_MTD_UBI_FASTMAP
 
 /**
- * scan_fastmap - try to find a fastmap and attach from it.
+ * scan_fast - try to find a fastmap and attach from it.
  * @ubi: UBI device description object
  * @ai: attach info object
  *
