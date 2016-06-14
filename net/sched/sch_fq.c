@@ -514,17 +514,25 @@ out:
 	return skb;
 }
 
+static void fq_flow_purge(struct fq_flow *flow)
+{
+	rtnl_kfree_skbs(flow->head, flow->tail);
+	flow->head = NULL;
+	flow->qlen = 0;
+}
+
 static void fq_reset(struct Qdisc *sch)
 {
 	struct fq_sched_data *q = qdisc_priv(sch);
 	struct rb_root *root;
-	struct sk_buff *skb;
 	struct rb_node *p;
 	struct fq_flow *f;
 	unsigned int idx;
 
-	while ((skb = fq_dequeue_head(sch, &q->internal)) != NULL)
-		kfree_skb(skb);
+	sch->q.qlen = 0;
+	sch->qstats.backlog = 0;
+
+	fq_flow_purge(&q->internal);
 
 	if (!q->fq_root)
 		return;
@@ -535,8 +543,7 @@ static void fq_reset(struct Qdisc *sch)
 			f = container_of(p, struct fq_flow, fq_node);
 			rb_erase(p, root);
 
-			while ((skb = fq_dequeue_head(sch, f)) != NULL)
-				kfree_skb(skb);
+			fq_flow_purge(f);
 
 			kmem_cache_free(fq_flow_cachep, f);
 		}
@@ -737,7 +744,7 @@ static int fq_change(struct Qdisc *sch, struct nlattr *opt)
 		if (!skb)
 			break;
 		drop_len += qdisc_pkt_len(skb);
-		kfree_skb(skb);
+		rtnl_kfree_skbs(skb, skb);
 		drop_count++;
 	}
 	qdisc_tree_reduce_backlog(sch, drop_count, drop_len);
