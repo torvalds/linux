@@ -114,12 +114,11 @@ static int rockchip_pwm_config(struct pwm_chip *chip, struct pwm_device *pwm,
 	 * default prescaler value for all practical clock rate values.
 	 */
 	div = clk_rate * period_ns;
-	do_div(div, pc->data->prescaler * NSEC_PER_SEC);
-	period = div;
+	period = DIV_ROUND_CLOSEST_ULL(div,
+				       pc->data->prescaler * NSEC_PER_SEC);
 
 	div = clk_rate * duty_ns;
-	do_div(div, pc->data->prescaler * NSEC_PER_SEC);
-	duty = div;
+	duty = DIV_ROUND_CLOSEST_ULL(div, pc->data->prescaler * NSEC_PER_SEC);
 
 	ret = clk_enable(pc->clk);
 	if (ret)
