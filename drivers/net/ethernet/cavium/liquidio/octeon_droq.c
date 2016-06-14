@@ -242,6 +242,8 @@ int octeon_init_droq(struct octeon_device *oct,
 	struct octeon_droq *droq;
 	u32 desc_ring_size = 0, c_num_descs = 0, c_buf_size = 0;
 	u32 c_pkts_per_intr = 0, c_refill_threshold = 0;
+	int orig_node = dev_to_node(&oct->pci_dev->dev);
+	int numa_node = cpu_to_node(q_no % num_online_cpus());
 
 	dev_dbg(&oct->pci_dev->dev, "%s[%d]\n", __func__, q_no);
 
@@ -261,14 +263,22 @@ int octeon_init_droq(struct octeon_device *oct,
 		struct octeon_config *conf6x = CHIP_FIELD(oct, cn6xxx, conf);
 
 		c_pkts_per_intr = (u32)CFG_GET_OQ_PKTS_PER_INTR(conf6x);
-		c_refill_threshold = (u32)CFG_GET_OQ_REFILL_THRESHOLD(conf6x);
+		c_refill_threshold =
+			(u32)CFG_GET_OQ_REFILL_THRESHOLD(conf6x);
+	} else {
+		return 1;
 	}
 
 	droq->max_count = c_num_descs;
 	droq->buffer_size = c_buf_size;
 
 	desc_ring_size = droq->max_count * OCT_DROQ_DESC_SIZE;
+	set_dev_node(&oct->pci_dev->dev, numa_node);
 	droq->desc_ring = lio_dma_alloc(oct, desc_ring_size,
+					(dma_addr_t *)&droq->desc_ring_dma);
+	set_dev_node(&oct->pci_dev->dev, orig_node);
+	if (!droq->desc_ring)
+		droq->desc_ring = lio_dma_alloc(oct, desc_ring_size,
 					(dma_addr_t *)&droq->desc_ring_dma);
 
 	if (!droq->desc_ring) {
@@ -283,12 +293,11 @@ int octeon_init_droq(struct octeon_device *oct,
 		droq->max_count);
 
 	droq->info_list =
-		cnnic_alloc_aligned_dma(oct->pci_dev,
-					(droq->max_count * OCT_DROQ_INFO_SIZE),
-					&droq->info_alloc_size,
-					&droq->info_base_addr,
-					&droq->info_list_dma);
-
+		cnnic_numa_alloc_aligned_dma((droq->max_count *
+					      OCT_DROQ_INFO_SIZE),
+					     &droq->info_alloc_size,
+					     &droq->info_base_addr,
+					     numa_node);
 	if (!droq->info_list) {
 		dev_err(&oct->pci_dev->dev, "Cannot allocate memory for info list.\n");
 		lio_dma_free(oct, (droq->max_count * OCT_DROQ_DESC_SIZE),
@@ -297,7 +306,12 @@ int octeon_init_droq(struct octeon_device *oct,
 	}
 
 	droq->recv_buf_list = (struct octeon_recv_buffer *)
-			      vmalloc(droq->max_count *
+			      vmalloc_node(droq->max_count *
+						OCT_DROQ_RECVBUF_SIZE,
+						numa_node);
+	if (!droq->recv_buf_list)
+		droq->recv_buf_list = (struct octeon_recv_buffer *)
+				      vmalloc(droq->max_count *
 						OCT_DROQ_RECVBUF_SIZE);
 	if (!droq->recv_buf_list) {
 		dev_err(&oct->pci_dev->dev, "Output queue recv buf list alloc failed\n");
@@ -949,6 +963,7 @@ int octeon_create_droq(struct octeon_device *oct,
 		       u32 desc_size, void *app_ctx)
 {
 	struct octeon_droq *droq;
+	int numa_node = cpu_to_node(q_no % num_online_cpus());
 
 	if (oct->droq[q_no]) {
 		dev_dbg(&oct->pci_dev->dev, "Droq already in use. Cannot create droq %d again\n",
@@ -957,7 +972,9 @@ int octeon_create_droq(struct octeon_device *oct,
 	}
 
 	/* Allocate the DS for the new droq. */
-	droq = vmalloc(sizeof(*droq));
+	droq = vmalloc_node(sizeof(*droq), numa_node);
+	if (!droq)
+		droq = vmalloc(sizeof(*droq));
 	if (!droq)
 		goto create_droq_fail;
 	memset(droq, 0, sizeof(struct octeon_droq));

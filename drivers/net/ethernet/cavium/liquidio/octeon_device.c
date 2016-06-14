@@ -783,14 +783,15 @@ int octeon_setup_instr_queues(struct octeon_device *oct)
 
 int octeon_setup_output_queues(struct octeon_device *oct)
 {
-	u32 i, num_oqs = 0;
+	u32 num_oqs = 0;
 	u32 num_descs = 0;
 	u32 desc_size = 0;
+	u32 oq_no = 0;
+	int numa_node = cpu_to_node(oq_no % num_online_cpus());
 
+	num_oqs = 1;
 	/* this causes queue 0 to be default queue */
 	if (OCTEON_CN6XXX(oct)) {
-		/* CFG_GET_OQ_MAX_BASE_Q(CHIP_FIELD(oct, cn6xxx, conf)); */
-		num_oqs = 1;
 		num_descs =
 			CFG_GET_NUM_DEF_RX_DESCS(CHIP_FIELD(oct, cn6xxx, conf));
 		desc_size =
@@ -798,19 +799,15 @@ int octeon_setup_output_queues(struct octeon_device *oct)
 	}
 
 	oct->num_oqs = 0;
+	oct->droq[0] = vmalloc_node(sizeof(*oct->droq[0]), numa_node);
+	if (!oct->droq[0])
+		oct->droq[0] = vmalloc(sizeof(*oct->droq[0]));
+	if (!oct->droq[0])
+		return 1;
 
-	for (i = 0; i < num_oqs; i++) {
-		oct->droq[i] = vmalloc(sizeof(*oct->droq[i]));
-		if (!oct->droq[i])
-			return 1;
-
-		memset(oct->droq[i], 0, sizeof(struct octeon_droq));
-
-		if (octeon_init_droq(oct, i, num_descs, desc_size, NULL))
-			return 1;
-
-		oct->num_oqs++;
-	}
+	if (octeon_init_droq(oct, oq_no, num_descs, desc_size, NULL))
+		return 1;
+	oct->num_oqs++;
 
 	return 0;
 }
