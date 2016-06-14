@@ -464,7 +464,7 @@ static void hhf_reset(struct Qdisc *sch)
 	struct sk_buff *skb;
 
 	while ((skb = hhf_dequeue(sch)) != NULL)
-		kfree_skb(skb);
+		rtnl_kfree_skbs(skb, skb);
 }
 
 static void *hhf_zalloc(size_t sz)
@@ -574,7 +574,7 @@ static int hhf_change(struct Qdisc *sch, struct nlattr *opt)
 	while (sch->q.qlen > sch->limit) {
 		struct sk_buff *skb = hhf_dequeue(sch);
 
-		kfree_skb(skb);
+		rtnl_kfree_skbs(skb, skb);
 	}
 	qdisc_tree_reduce_backlog(sch, qlen - sch->q.qlen,
 				  prev_backlog - sch->qstats.backlog);
