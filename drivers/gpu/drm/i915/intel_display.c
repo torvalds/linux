@@ -13571,11 +13571,6 @@ static int intel_atomic_prepare_commit(struct drm_device *dev,
 	struct drm_crtc *crtc;
 	int i, ret;
 
-	if (nonblock) {
-		DRM_DEBUG_KMS("i915 does not yet support nonblocking commit\n");
-		return -EINVAL;
-	}
-
 	for_each_crtc_in_state(state, crtc, crtc_state, i) {
 		if (state->legacy_cursor_update)
 			continue;
@@ -13694,50 +13689,34 @@ static bool needs_vblank_wait(struct intel_crtc_state *crtc_state)
 	return false;
 }
 
-/**
- * intel_atomic_commit - commit validated state object
- * @dev: DRM device
- * @state: the top-level driver state object
- * @nonblock: nonblocking commit
- *
- * This function commits a top-level state object that has been validated
- * with drm_atomic_helper_check().
- *
- * FIXME:  Atomic modeset support for i915 is not yet complete.  At the moment
- * we can only handle plane-related operations and do not yet support
- * nonblocking commit.
- *
- * RETURNS
- * Zero for success or -errno.
- */
-static int intel_atomic_commit(struct drm_device *dev,
-			       struct drm_atomic_state *state,
-			       bool nonblock)
+static void intel_atomic_commit_tail(struct drm_atomic_state *state)
 {
+	struct drm_device *dev = state->dev;
 	struct intel_atomic_state *intel_state = to_intel_atomic_state(state);
 	struct drm_i915_private *dev_priv = dev->dev_private;
 	struct drm_crtc_state *old_crtc_state;
 	struct drm_crtc *crtc;
 	struct intel_crtc_state *intel_cstate;
-	int ret = 0, i;
+	struct drm_plane *plane;
+	struct drm_plane_state *plane_state;
 	bool hw_check = intel_state->modeset;
 	unsigned long put_domains[I915_MAX_PIPES] = {};
 	unsigned crtc_vblank_mask = 0;
+	int i, ret;
 
-	ret = drm_atomic_helper_setup_commit(state, nonblock);
-	if (ret)
-		return ret;
+	for_each_plane_in_state(state, plane, plane_state, i) {
+		struct intel_plane_state *intel_plane_state =
+			to_intel_plane_state(plane_state);
 
-	ret = intel_atomic_prepare_commit(dev, state, nonblock);
-	if (ret) {
-		DRM_DEBUG_ATOMIC("Preparing state failed with %i\n", ret);
-		return ret;
+		if (!intel_plane_state->wait_req)
+			continue;
+
+		ret = __i915_wait_request(intel_plane_state->wait_req,
+					  true, NULL, NULL);
+		/* EIO should be eaten, and we can't get interrupted in the
+		 * worker, and blocking commits have waited already. */
+		WARN_ON(ret);
 	}
-
-	drm_atomic_helper_swap_state(state, true);
-	dev_priv->wm.distrust_bios_wm = false;
-	dev_priv->wm.skl_results = intel_state->wm_results;
-	intel_shared_dpll_commit(state);
 
 	drm_atomic_helper_wait_for_dependencies(state);
 
@@ -13836,8 +13815,15 @@ static int intel_atomic_commit(struct drm_device *dev,
 			crtc_vblank_mask |= 1 << i;
 	}
 
-	drm_atomic_helper_commit_hw_done(state);
-
+	/* FIXME: We should call drm_atomic_helper_commit_hw_done() here
+	 * already, but still need the state for the delayed optimization. To
+	 * fix this:
+	 * - wrap the optimization/post_plane_update stuff into a per-crtc work.
+	 * - schedule that vblank worker _before_ calling hw_done
+	 * - at the start of commit_tail, cancel it _synchrously
+	 * - switch over to the vblank wait helper in the core after that since
+	 *   we don't need out special handling any more.
+	 */
 	if (!state->legacy_cursor_update)
 		intel_atomic_wait_for_vblanks(dev, dev_priv, crtc_vblank_mask);
 
@@ -13864,6 +13850,8 @@ static int intel_atomic_commit(struct drm_device *dev,
 		intel_modeset_verify_crtc(crtc, old_crtc_state, crtc->state);
 	}
 
+	drm_atomic_helper_commit_hw_done(state);
+
 	if (intel_state->modeset)
 		intel_display_power_put(dev_priv, POWER_DOMAIN_MODESET);
 
@@ -13887,6 +13875,66 @@ static int intel_atomic_commit(struct drm_device *dev,
 	 * can happen also when the device is completely off.
 	 */
 	intel_uncore_arm_unclaimed_mmio_detection(dev_priv);
+}
+
+static void intel_atomic_commit_work(struct work_struct *work)
+{
+	struct drm_atomic_state *state = container_of(work,
+						      struct drm_atomic_state,
+						      commit_work);
+	intel_atomic_commit_tail(state);
+}
+
+/**
+ * intel_atomic_commit - commit validated state object
+ * @dev: DRM device
+ * @state: the top-level driver state object
+ * @nonblock: nonblocking commit
+ *
+ * This function commits a top-level state object that has been validated
+ * with drm_atomic_helper_check().
+ *
+ * FIXME:  Atomic modeset support for i915 is not yet complete.  At the moment
+ * nonblocking commits are only safe for pure plane updates. Everything else
+ * should work though.
+ *
+ * RETURNS
+ * Zero for success or -errno.
+ */
+static int intel_atomic_commit(struct drm_device *dev,
+			       struct drm_atomic_state *state,
+			       bool nonblock)
+{
+	struct intel_atomic_state *intel_state = to_intel_atomic_state(state);
+	struct drm_i915_private *dev_priv = dev->dev_private;
+	int ret = 0;
+
+	if (intel_state->modeset && nonblock) {
+		DRM_DEBUG_KMS("nonblocking commit for modeset not yet implemented.\n");
+		return -EINVAL;
+	}
+
+	ret = drm_atomic_helper_setup_commit(state, nonblock);
+	if (ret)
+		return ret;
+
+	INIT_WORK(&state->commit_work, intel_atomic_commit_work);
+
+	ret = intel_atomic_prepare_commit(dev, state, nonblock);
+	if (ret) {
+		DRM_DEBUG_ATOMIC("Preparing state failed with %i\n", ret);
+		return ret;
+	}
+
+	drm_atomic_helper_swap_state(state, true);
+	dev_priv->wm.distrust_bios_wm = false;
+	dev_priv->wm.skl_results = intel_state->wm_results;
+	intel_shared_dpll_commit(state);
+
+	if (nonblock)
+		queue_work(system_unbound_wq, &state->commit_work);
+	else
+		intel_atomic_commit_tail(state);
 
 	return 0;
 }
