@@ -2040,7 +2040,7 @@ bool exist_written_data(struct f2fs_sb_info *, nid_t, int);
 int f2fs_sync_inode_meta(struct f2fs_sb_info *);
 int acquire_orphan_inode(struct f2fs_sb_info *);
 void release_orphan_inode(struct f2fs_sb_info *);
-void add_orphan_inode(struct f2fs_sb_info *, nid_t);
+void add_orphan_inode(struct inode *);
 void remove_orphan_inode(struct f2fs_sb_info *, nid_t);
 int recover_orphan_inodes(struct f2fs_sb_info *);
 int get_valid_checkpoint(struct f2fs_sb_info *);

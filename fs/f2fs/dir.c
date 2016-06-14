@@ -666,7 +666,7 @@ void f2fs_drop_nlink(struct inode *dir, struct inode *inode)
 	up_write(&F2FS_I(inode)->i_sem);
 
 	if (inode->i_nlink == 0)
-		add_orphan_inode(sbi, inode->i_ino);
+		add_orphan_inode(inode);
 	else
 		release_orphan_inode(sbi);
 }

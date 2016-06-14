@@ -598,7 +598,7 @@ static int __f2fs_tmpfile(struct inode *dir, struct dentry *dentry,
 	 * add this non-linked tmpfile to orphan list, in this way we could
 	 * remove all unused data of tmpfile after abnormal power-off.
 	 */
-	add_orphan_inode(sbi, inode->i_ino);
+	add_orphan_inode(inode);
 	alloc_nid_done(sbi, inode->i_ino);
 
 	if (whiteout) {
@@ -712,7 +712,7 @@ static int f2fs_rename(struct inode *old_dir, struct dentry *old_dentry,
 		up_write(&F2FS_I(new_inode)->i_sem);
 
 		if (!new_inode->i_nlink)
-			add_orphan_inode(sbi, new_inode->i_ino);
+			add_orphan_inode(new_inode);
 		else
 			release_orphan_inode(sbi);
 	} else {
