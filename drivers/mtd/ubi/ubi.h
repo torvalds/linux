@@ -703,6 +703,8 @@ struct ubi_ainf_volume {
  * @erase: list of physical eraseblocks which have to be erased
  * @alien: list of physical eraseblocks which should not be used by UBI (e.g.,
  *         those belonging to "preserve"-compatible internal volumes)
+ * @fastmap: list of physical eraseblocks which relate to fastmap (e.g.,
+ *           eraseblocks of the current and not yet erased old fastmap blocks)
  * @corr_peb_count: count of PEBs in the @corr list
  * @empty_peb_count: count of PEBs which are presumably empty (contain only
  *                   0xFF bytes)
@@ -731,6 +733,7 @@ struct ubi_attach_info {
 	struct list_head free;
 	struct list_head erase;
 	struct list_head alien;
+	struct list_head fastmap;
 	int corr_peb_count;
 	int empty_peb_count;
 	int alien_peb_count;
@@ -911,7 +914,7 @@ int ubi_compare_lebs(struct ubi_device *ubi, const struct ubi_ainf_peb *aeb,
 size_t ubi_calc_fm_size(struct ubi_device *ubi);
 int ubi_update_fastmap(struct ubi_device *ubi);
 int ubi_scan_fastmap(struct ubi_device *ubi, struct ubi_attach_info *ai,
-		     int fm_anchor);
+		     struct ubi_attach_info *scan_ai);
 #else
 static inline int ubi_update_fastmap(struct ubi_device *ubi) { return 0; }
 #endif
@@ -1118,6 +1121,29 @@ static inline bool ubi_is_fm_vol(int vol_id)
 	}
 
 	return false;
+}
+
+/**
+ * ubi_find_fm_block - check whether a PEB is part of the current Fastmap.
+ * @ubi: UBI device description object
+ * @pnum: physical eraseblock to look for
+ *
+ * This function returns a wear leveling object if @pnum relates to the current
+ * fastmap, @NULL otherwise.
+ */
+static inline struct ubi_wl_entry *ubi_find_fm_block(const struct ubi_device *ubi,
+						     int pnum)
+{
+	int i;
+
+	if (ubi->fm) {
+		for (i = 0; i < ubi->fm->used_blocks; i++) {
+			if (ubi->fm->e[i]->pnum == pnum)
+				return ubi->fm->e[i];
+		}
+	}
+
+	return NULL;
 }
 
 #endif /* !__UBI_UBI_H__ */
