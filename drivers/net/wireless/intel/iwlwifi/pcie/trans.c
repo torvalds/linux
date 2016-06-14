@@ -1396,8 +1396,12 @@ static void iwl_pcie_init_msix(struct iwl_trans_pcie *trans_pcie)
 
 	max_rx_vector = trans_pcie->allocated_vector - 1;
 
-	if (!trans_pcie->msix_enabled)
+	if (!trans_pcie->msix_enabled) {
+		if (trans->cfg->mq_rx_supported)
+			iwl_write_prph(trans, UREG_CHICK,
+				       UREG_CHICK_MSI_ENABLE);
 		return;
+	}
 
 	iwl_write_prph(trans, UREG_CHICK, UREG_CHICK_MSIX_ENABLE);
 
