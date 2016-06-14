@@ -92,7 +92,7 @@ int drm_setmaster_ioctl(struct drm_device *dev, void *data,
 			struct drm_file *file_priv);
 int drm_dropmaster_ioctl(struct drm_device *dev, void *data,
 			 struct drm_file *file_priv);
-struct drm_master *drm_master_create(struct drm_minor *minor);
+struct drm_master *drm_master_create(struct drm_device *dev);
 
 /* drm_debugfs.c */
 #if defined(CONFIG_DEBUG_FS)

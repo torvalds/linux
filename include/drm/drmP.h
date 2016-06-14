@@ -379,16 +379,19 @@ struct drm_lock_data {
  * struct drm_master - drm master structure
  *
  * @refcount: Refcount for this master object.
- * @minor: Link back to minor char device we are master for. Immutable.
+ * @dev: Link back to the DRM device
  * @unique: Unique identifier: e.g. busid. Protected by drm_global_mutex.
  * @unique_len: Length of unique field. Protected by drm_global_mutex.
  * @magic_map: Map of used authentication tokens. Protected by struct_mutex.
  * @lock: DRI lock information.
  * @driver_priv: Pointer to driver-private information.
+ *
+ * Note that master structures are only relevant for the legacy/primary device
+ * nodes, hence there can only be one per device, not one per drm_minor.
  */
 struct drm_master {
 	struct kref refcount;
-	struct drm_minor *minor;
+	struct drm_device *dev;
 	char *unique;
 	int unique_len;
 	struct idr magic_map;

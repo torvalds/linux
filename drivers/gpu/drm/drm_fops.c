@@ -185,7 +185,7 @@ int drm_new_set_master(struct drm_device *dev, struct drm_file *fpriv)
 	lockdep_assert_held_once(&dev->master_mutex);
 
 	/* create a new master */
-	fpriv->minor->master = drm_master_create(fpriv->minor);
+	fpriv->minor->master = drm_master_create(fpriv->minor->dev);
 	if (!fpriv->minor->master)
 		return -ENOMEM;
 

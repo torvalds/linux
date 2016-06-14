@@ -93,7 +93,7 @@ void drm_ut_debug_printk(const char *function_name, const char *format, ...)
 }
 EXPORT_SYMBOL(drm_ut_debug_printk);
 
-struct drm_master *drm_master_create(struct drm_minor *minor)
+struct drm_master *drm_master_create(struct drm_device *dev)
 {
 	struct drm_master *master;
 
@@ -105,7 +105,7 @@ struct drm_master *drm_master_create(struct drm_minor *minor)
 	spin_lock_init(&master->lock.spinlock);
 	init_waitqueue_head(&master->lock.lock_queue);
 	idr_init(&master->magic_map);
-	master->minor = minor;
+	master->dev = dev;
 
 	return master;
 }
@@ -120,7 +120,7 @@ EXPORT_SYMBOL(drm_master_get);
 static void drm_master_destroy(struct kref *kref)
 {
 	struct drm_master *master = container_of(kref, struct drm_master, refcount);
-	struct drm_device *dev = master->minor->dev;
+	struct drm_device *dev = master->dev;
 
 	if (dev->driver->master_destroy)
 		dev->driver->master_destroy(dev, master);
