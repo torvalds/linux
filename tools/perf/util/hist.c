@@ -531,13 +531,13 @@ out:
 	return he;
 }
 
-struct hist_entry *__hists__add_entry(struct hists *hists,
-				      struct addr_location *al,
-				      struct symbol *sym_parent,
-				      struct branch_info *bi,
-				      struct mem_info *mi,
-				      struct perf_sample *sample,
-				      bool sample_self)
+struct hist_entry *hists__add_entry(struct hists *hists,
+				    struct addr_location *al,
+				    struct symbol *sym_parent,
+				    struct branch_info *bi,
+				    struct mem_info *mi,
+				    struct perf_sample *sample,
+				    bool sample_self)
 {
 	struct hist_entry entry = {
 		.thread	= al->thread,
@@ -622,8 +622,8 @@ iter_add_single_mem_entry(struct hist_entry_iter *iter, struct addr_location *al
 	 */
 	sample->period = cost;
 
-	he = __hists__add_entry(hists, al, iter->parent, NULL, mi,
-				sample, true);
+	he = hists__add_entry(hists, al, iter->parent, NULL, mi,
+			      sample, true);
 	if (!he)
 		return -ENOMEM;
 
@@ -727,8 +727,8 @@ iter_add_next_branch_entry(struct hist_entry_iter *iter, struct addr_location *a
 	sample->period = 1;
 	sample->weight = bi->flags.cycles ? bi->flags.cycles : 1;
 
-	he = __hists__add_entry(hists, al, iter->parent, &bi[i], NULL,
-				sample, true);
+	he = hists__add_entry(hists, al, iter->parent, &bi[i], NULL,
+			      sample, true);
 	if (he == NULL)
 		return -ENOMEM;
 
@@ -764,8 +764,8 @@ iter_add_single_normal_entry(struct hist_entry_iter *iter, struct addr_location 
 	struct perf_sample *sample = iter->sample;
 	struct hist_entry *he;
 
-	he = __hists__add_entry(evsel__hists(evsel), al, iter->parent, NULL, NULL,
-				sample, true);
+	he = hists__add_entry(evsel__hists(evsel), al, iter->parent, NULL, NULL,
+			      sample, true);
 	if (he == NULL)
 		return -ENOMEM;
 
@@ -825,8 +825,8 @@ iter_add_single_cumulative_entry(struct hist_entry_iter *iter,
 	struct hist_entry *he;
 	int err = 0;
 
-	he = __hists__add_entry(hists, al, iter->parent, NULL, NULL,
-				sample, true);
+	he = hists__add_entry(hists, al, iter->parent, NULL, NULL,
+			      sample, true);
 	if (he == NULL)
 		return -ENOMEM;
 
@@ -900,8 +900,8 @@ iter_add_next_cumulative_entry(struct hist_entry_iter *iter,
 		}
 	}
 
-	he = __hists__add_entry(evsel__hists(evsel), al, iter->parent, NULL, NULL,
-				sample, false);
+	he = hists__add_entry(evsel__hists(evsel), al, iter->parent, NULL, NULL,
+			      sample, false);
 	if (he == NULL)
 		return -ENOMEM;
 
