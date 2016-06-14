@@ -775,7 +775,7 @@ enum emulation_result kvm_mips_emul_wait(struct kvm_vcpu *vcpu)
 		  vcpu->arch.pending_exceptions);
 
 	++vcpu->stat.wait_exits;
-	trace_kvm_exit(vcpu, WAIT_EXITS);
+	trace_kvm_exit(vcpu, KVM_TRACE_EXIT_WAIT);
 	if (!vcpu->arch.pending_exceptions) {
 		vcpu->arch.wait = 1;
 		kvm_vcpu_block(vcpu);
@@ -1718,7 +1718,7 @@ enum emulation_result kvm_mips_emulate_inst(u32 cause, u32 *opc,
 
 	case cache_op:
 		++vcpu->stat.cache_exits;
-		trace_kvm_exit(vcpu, CACHE_EXITS);
+		trace_kvm_exit(vcpu, KVM_TRACE_EXIT_CACHE);
 		er = kvm_mips_emulate_cache(inst, opc, cause, run, vcpu);
 		break;
 

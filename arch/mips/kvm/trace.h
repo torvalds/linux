@@ -17,8 +17,45 @@
 #define TRACE_INCLUDE_PATH .
 #define TRACE_INCLUDE_FILE trace
 
-/* Tracepoints for VM eists */
-extern char *kvm_mips_exit_types_str[MAX_KVM_MIPS_EXIT_TYPES];
+/* The first 32 exit reasons correspond to Cause.ExcCode */
+#define KVM_TRACE_EXIT_INT		 0
+#define KVM_TRACE_EXIT_TLBMOD		 1
+#define KVM_TRACE_EXIT_TLBMISS_LD	 2
+#define KVM_TRACE_EXIT_TLBMISS_ST	 3
+#define KVM_TRACE_EXIT_ADDRERR_LD	 4
+#define KVM_TRACE_EXIT_ADDRERR_ST	 5
+#define KVM_TRACE_EXIT_SYSCALL		 8
+#define KVM_TRACE_EXIT_BREAK_INST	 9
+#define KVM_TRACE_EXIT_RESVD_INST	10
+#define KVM_TRACE_EXIT_COP_UNUSABLE	11
+#define KVM_TRACE_EXIT_TRAP_INST	13
+#define KVM_TRACE_EXIT_MSA_FPE		14
+#define KVM_TRACE_EXIT_FPE		15
+#define KVM_TRACE_EXIT_MSA_DISABLED	21
+/* Further exit reasons */
+#define KVM_TRACE_EXIT_WAIT		32
+#define KVM_TRACE_EXIT_CACHE		33
+#define KVM_TRACE_EXIT_SIGNAL		34
+
+/* Tracepoints for VM exits */
+#define kvm_trace_symbol_exit_types				\
+	{ KVM_TRACE_EXIT_INT,		"Interrupt" },		\
+	{ KVM_TRACE_EXIT_TLBMOD,	"TLB Mod" },		\
+	{ KVM_TRACE_EXIT_TLBMISS_LD,	"TLB Miss (LD)" },	\
+	{ KVM_TRACE_EXIT_TLBMISS_ST,	"TLB Miss (ST)" },	\
+	{ KVM_TRACE_EXIT_ADDRERR_LD,	"Address Error (LD)" },	\
+	{ KVM_TRACE_EXIT_ADDRERR_ST,	"Address Err (ST)" },	\
+	{ KVM_TRACE_EXIT_SYSCALL,	"System Call" },	\
+	{ KVM_TRACE_EXIT_BREAK_INST,	"Break Inst" },		\
+	{ KVM_TRACE_EXIT_RESVD_INST,	"Reserved Inst" },	\
+	{ KVM_TRACE_EXIT_COP_UNUSABLE,	"COP0/1 Unusable" },	\
+	{ KVM_TRACE_EXIT_TRAP_INST,	"Trap Inst" },		\
+	{ KVM_TRACE_EXIT_MSA_FPE,	"MSA FPE" },		\
+	{ KVM_TRACE_EXIT_FPE,		"FPE" },		\
+	{ KVM_TRACE_EXIT_MSA_DISABLED,	"MSA Disabled" },	\
+	{ KVM_TRACE_EXIT_WAIT,		"WAIT" },		\
+	{ KVM_TRACE_EXIT_CACHE,		"CACHE" },		\
+	{ KVM_TRACE_EXIT_SIGNAL,	"Signal" }
 
 TRACE_EVENT(kvm_exit,
 	    TP_PROTO(struct kvm_vcpu *vcpu, unsigned int reason),
@@ -34,7 +71,8 @@ TRACE_EVENT(kvm_exit,
 	    ),
 
 	    TP_printk("[%s]PC: 0x%08lx",
-		      kvm_mips_exit_types_str[__entry->reason],
+		      __print_symbolic(__entry->reason,
+				       kvm_trace_symbol_exit_types),
 		      __entry->pc)
 );
 
