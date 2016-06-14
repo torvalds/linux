@@ -2327,13 +2327,16 @@ static int i40iw_req_notify_cq(struct ib_cq *ibcq,
 {
 	struct i40iw_cq *iwcq;
 	struct i40iw_cq_uk *ukcq;
-	enum i40iw_completion_notify cq_notify = IW_CQ_COMPL_SOLICITED;
+	unsigned long flags;
+	enum i40iw_completion_notify cq_notify = IW_CQ_COMPL_EVENT;
 
 	iwcq = (struct i40iw_cq *)ibcq;
 	ukcq = &iwcq->sc_cq.cq_uk;
-	if (notify_flags == IB_CQ_NEXT_COMP)
-		cq_notify = IW_CQ_COMPL_EVENT;
+	if (notify_flags == IB_CQ_SOLICITED)
+		cq_notify = IW_CQ_COMPL_SOLICITED;
+	spin_lock_irqsave(&iwcq->lock, flags);
 	ukcq->ops.iw_cq_request_notification(ukcq, cq_notify);
+	spin_unlock_irqrestore(&iwcq->lock, flags);
 	return 0;
 }
 
