@@ -16,7 +16,7 @@
 static const struct nand_sdr_timings onfi_sdr_timings[] = {
 	/* Mode 0 */
 	{
-		.tADL_min = 200000,
+		.tADL_min = 400000,
 		.tALH_min = 20000,
 		.tALS_min = 50000,
 		.tAR_min = 25000,
@@ -53,7 +53,7 @@ static const struct nand_sdr_timings onfi_sdr_timings[] = {
 	},
 	/* Mode 1 */
 	{
-		.tADL_min = 100000,
+		.tADL_min = 400000,
 		.tALH_min = 10000,
 		.tALS_min = 25000,
 		.tAR_min = 10000,
@@ -90,7 +90,7 @@ static const struct nand_sdr_timings onfi_sdr_timings[] = {
 	},
 	/* Mode 2 */
 	{
-		.tADL_min = 100000,
+		.tADL_min = 400000,
 		.tALH_min = 10000,
 		.tALS_min = 15000,
 		.tAR_min = 10000,
@@ -127,7 +127,7 @@ static const struct nand_sdr_timings onfi_sdr_timings[] = {
 	},
 	/* Mode 3 */
 	{
-		.tADL_min = 100000,
+		.tADL_min = 400000,
 		.tALH_min = 5000,
 		.tALS_min = 10000,
 		.tAR_min = 10000,
@@ -164,7 +164,7 @@ static const struct nand_sdr_timings onfi_sdr_timings[] = {
 	},
 	/* Mode 4 */
 	{
-		.tADL_min = 70000,
+		.tADL_min = 400000,
 		.tALH_min = 5000,
 		.tALS_min = 10000,
 		.tAR_min = 10000,
@@ -201,7 +201,7 @@ static const struct nand_sdr_timings onfi_sdr_timings[] = {
 	},
 	/* Mode 5 */
 	{
-		.tADL_min = 70000,
+		.tADL_min = 400000,
 		.tALH_min = 5000,
 		.tALS_min = 10000,
 		.tAR_min = 10000,
