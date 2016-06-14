@@ -201,6 +201,7 @@ xfs_attr3_rmt_write_verify(
 }
 
 const struct xfs_buf_ops xfs_attr3_rmt_buf_ops = {
+	.name = "xfs_attr3_rmt",
 	.verify_read = xfs_attr3_rmt_read_verify,
 	.verify_write = xfs_attr3_rmt_write_verify,
 };

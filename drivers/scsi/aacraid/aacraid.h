@@ -29,6 +29,7 @@ enum {
 #define AAC_INT_MODE_MSI		(1<<1)
 #define AAC_INT_MODE_AIF		(1<<2)
 #define AAC_INT_MODE_SYNC		(1<<3)
+#define AAC_INT_MODE_MSIX		(1<<16)
 
 #define AAC_INT_ENABLE_TYPE1_INTX	0xfffffffb
 #define AAC_INT_ENABLE_TYPE1_MSIX	0xfffffffa

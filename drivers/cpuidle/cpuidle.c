@@ -214,7 +214,7 @@ int cpuidle_enter_state(struct cpuidle_device *dev, struct cpuidle_driver *drv,
 		tick_broadcast_exit();
 	}
 
-	if (!cpuidle_state_is_coupled(drv, entered_state))
+	if (!cpuidle_state_is_coupled(drv, index))
 		local_irq_enable();
 
 	diff = ktime_to_us(ktime_sub(time_end, time_start));
@@ -433,6 +433,8 @@ static void __cpuidle_unregister_device(struct cpuidle_device *dev)
 	list_del(&dev->device_list);
 	per_cpu(cpuidle_devices, dev->cpu) = NULL;
 	module_put(drv->owner);
+
+	dev->registered = 0;
 }
 
 static void __cpuidle_device_init(struct cpuidle_device *dev)

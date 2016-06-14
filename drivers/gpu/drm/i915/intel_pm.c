@@ -3880,6 +3880,8 @@ static void ilk_pipe_wm_get_hw_state(struct drm_crtc *crtc)
 	if (IS_HASWELL(dev) || IS_BROADWELL(dev))
 		hw->wm_linetime[pipe] = I915_READ(PIPE_WM_LINETIME(pipe));
 
+	memset(active, 0, sizeof(*active));
+
 	active->pipe_enabled = intel_crtc->active;
 
 	if (active->pipe_enabled) {
