@@ -622,36 +622,18 @@ static int print_hierarchy_header(struct hists *hists, struct perf_hpp *hpp,
 	return 2;
 }
 
-size_t hists__fprintf(struct hists *hists, bool show_header, int max_rows,
-		      int max_cols, float min_pcnt, FILE *fp)
+static int hists__fprintf_headers(struct hists *hists, FILE *fp)
 {
 	struct perf_hpp_fmt *fmt;
 	struct perf_hpp_list_node *fmt_node;
-	struct rb_node *nd;
-	size_t ret = 0;
 	unsigned int width;
 	const char *sep = symbol_conf.field_sep;
-	int nr_rows = 0;
 	char bf[96];
 	struct perf_hpp dummy_hpp = {
 		.buf	= bf,
 		.size	= sizeof(bf),
 	};
 	bool first = true;
-	size_t linesz;
-	char *line = NULL;
-	unsigned indent;
-
-	init_rem_hits();
-
-	hists__for_each_format(hists, fmt)
-		perf_hpp__reset_width(fmt, hists);
-
-	if (symbol_conf.col_width_list_str)
-		perf_hpp__set_user_width(symbol_conf.col_width_list_str);
-
-	if (!show_header)
-		goto print_entries;
 
 	fprintf(fp, "# ");
 
@@ -660,8 +642,7 @@ size_t hists__fprintf(struct hists *hists, bool show_header, int max_rows,
 			perf_hpp_list__for_each_format(&fmt_node->hpp, fmt)
 				perf_hpp__reset_width(fmt, hists);
 		}
-		nr_rows += print_hierarchy_header(hists, &dummy_hpp, sep, fp);
-		goto print_entries;
+		return print_hierarchy_header(hists, &dummy_hpp, sep, fp);
 	}
 
 	hists__for_each_format(hists, fmt) {
@@ -678,11 +659,9 @@ size_t hists__fprintf(struct hists *hists, bool show_header, int max_rows,
 	}
 
 	fprintf(fp, "\n");
-	if (max_rows && ++nr_rows >= max_rows)
-		goto out;
 
 	if (sep)
-		goto print_entries;
+		return 1;
 
 	first = true;
 
@@ -705,14 +684,36 @@ size_t hists__fprintf(struct hists *hists, bool show_header, int max_rows,
 	}
 
 	fprintf(fp, "\n");
-	if (max_rows && ++nr_rows >= max_rows)
-		goto out;
-
 	fprintf(fp, "#\n");
-	if (max_rows && ++nr_rows >= max_rows)
+	return 3;
+}
+
+size_t hists__fprintf(struct hists *hists, bool show_header, int max_rows,
+		      int max_cols, float min_pcnt, FILE *fp)
+{
+	struct perf_hpp_fmt *fmt;
+	struct rb_node *nd;
+	size_t ret = 0;
+	const char *sep = symbol_conf.field_sep;
+	int nr_rows = 0;
+	size_t linesz;
+	char *line = NULL;
+	unsigned indent;
+
+	init_rem_hits();
+
+	hists__for_each_format(hists, fmt)
+		perf_hpp__reset_width(fmt, hists);
+
+	if (symbol_conf.col_width_list_str)
+		perf_hpp__set_user_width(symbol_conf.col_width_list_str);
+
+	if (show_header)
+		nr_rows += hists__fprintf_headers(hists, fp);
+
+	if (max_rows && nr_rows >= max_rows)
 		goto out;
 
-print_entries:
 	linesz = hists__sort_list_width(hists) + 3 + 1;
 	linesz += perf_hpp__color_overhead();
 	line = malloc(linesz);
