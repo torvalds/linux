@@ -66,7 +66,7 @@ int drm_setmaster_ioctl(struct drm_device *dev, void *data,
 			struct drm_file *file_priv);
 int drm_dropmaster_ioctl(struct drm_device *dev, void *data,
 			 struct drm_file *file_priv);
-int drm_new_set_master(struct drm_device *dev, struct drm_file *fpriv);
+int drm_master_open(struct drm_file *file_priv);
 
 /* drm_sysfs.c */
 extern struct class *drm_class;

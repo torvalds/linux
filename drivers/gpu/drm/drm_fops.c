@@ -229,19 +229,11 @@ static int drm_open_helper(struct file *filp, struct drm_minor *minor)
 			goto out_prime_destroy;
 	}
 
-	/* if there is no current master make this fd it, but do not create
-	 * any master object for render clients */
-	mutex_lock(&dev->master_mutex);
-	if (drm_is_primary_client(priv) && !priv->minor->master) {
-		/* create a new master */
-		ret = drm_new_set_master(dev, priv);
+	if (drm_is_primary_client(priv)) {
+		ret = drm_master_open(priv);
 		if (ret)
 			goto out_close;
-	} else if (drm_is_primary_client(priv)) {
-		/* get a reference to the master */
-		priv->master = drm_master_get(priv->minor->master);
 	}
-	mutex_unlock(&dev->master_mutex);
 
 	mutex_lock(&dev->filelist_mutex);
 	list_add(&priv->lhead, &dev->filelist);
@@ -270,7 +262,6 @@ static int drm_open_helper(struct file *filp, struct drm_minor *minor)
 	return 0;
 
 out_close:
-	mutex_unlock(&dev->master_mutex);
 	if (dev->driver->postclose)
 		dev->driver->postclose(dev, priv);
 out_prime_destroy:

@@ -120,7 +120,7 @@ static struct drm_master *drm_master_create(struct drm_device *dev)
  * This function must be called with dev::struct_mutex held.
  * Returns negative error code on failure. Zero on success.
  */
-int drm_new_set_master(struct drm_device *dev, struct drm_file *fpriv)
+static int drm_new_set_master(struct drm_device *dev, struct drm_file *fpriv)
 {
 	struct drm_master *old_master;
 	int ret;
@@ -223,6 +223,23 @@ int drm_dropmaster_ioctl(struct drm_device *dev, void *data,
 
 out_unlock:
 	mutex_unlock(&dev->master_mutex);
+	return ret;
+}
+
+int drm_master_open(struct drm_file *file_priv)
+{
+	struct drm_device *dev = file_priv->minor->dev;
+	int ret = 0;
+
+	/* if there is no current master make this fd it, but do not create
+	 * any master object for render clients */
+	mutex_lock(&dev->master_mutex);
+	if (!file_priv->minor->master)
+		ret = drm_new_set_master(dev, file_priv);
+	else
+		file_priv->master = drm_master_get(file_priv->minor->master);
+	mutex_unlock(&dev->master_mutex);
+
 	return ret;
 }
 
