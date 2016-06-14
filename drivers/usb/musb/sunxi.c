@@ -754,7 +754,7 @@ static int sunxi_musb_remove(struct platform_device *pdev)
 	struct sunxi_glue *glue = platform_get_drvdata(pdev);
 	struct platform_device *usb_phy = glue->usb_phy;
 
-	platform_device_unregister(glue->musb_pdev); /* Frees glue ! */
+	platform_device_unregister(glue->musb_pdev);
 	usb_phy_generic_unregister(usb_phy);
 
 	return 0;
