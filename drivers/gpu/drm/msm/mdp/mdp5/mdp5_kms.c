@@ -16,6 +16,7 @@
  * this program.  If not, see <http://www.gnu.org/licenses/>.
  */
 
+#include <linux/of_irq.h>
 
 #include "msm_drv.h"
 #include "msm_mmu.h"
@@ -131,6 +132,17 @@ static void mdp5_kms_destroy(struct msm_kms *kms)
 		mdp5_cfg_destroy(mdp5_kms->cfg);
 
 	kfree(mdp5_kms);
+}
+
+static void mdp5_kms_destroy2(struct msm_kms *kms)
+{
+	struct mdp5_kms *mdp5_kms = to_mdp5_kms(to_mdp_kms(kms));
+	struct msm_mmu *mmu = mdp5_kms->mmu;
+
+	if (mmu) {
+		mmu->funcs->detach(mmu, iommu_ports, ARRAY_SIZE(iommu_ports));
+		mmu->funcs->destroy(mmu);
+	}
 }
 
 static const struct mdp_kms_funcs kms_funcs = {
@@ -773,6 +785,109 @@ struct msm_kms *mdp5_kms_init(struct drm_device *dev)
 fail:
 	if (kms)
 		mdp5_kms_destroy(kms);
+	return ERR_PTR(ret);
+}
+
+struct msm_kms *mdp5_kms_init2(struct drm_device *dev)
+{
+	struct msm_drm_private *priv = dev->dev_private;
+	struct platform_device *pdev;
+	struct mdp5_kms *mdp5_kms;
+	struct mdp5_cfg *config;
+	struct msm_kms *kms;
+	struct msm_mmu *mmu;
+	int irq, i, ret;
+
+	/* priv->kms would have been populated by the MDP5 driver */
+	kms = priv->kms;
+	if (!kms)
+		return NULL;
+
+	mdp5_kms = to_mdp5_kms(to_mdp_kms(kms));
+
+	mdp_kms_init(&mdp5_kms->base, &kms_funcs);
+
+	pdev = mdp5_kms->pdev;
+
+	irq = irq_of_parse_and_map(pdev->dev.of_node, 0);
+	if (irq < 0) {
+		ret = irq;
+		dev_err(&pdev->dev, "failed to get irq: %d\n", ret);
+		goto fail;
+	}
+
+	kms->irq = irq;
+
+	config = mdp5_cfg_get_config(mdp5_kms->cfg);
+
+	/* make sure things are off before attaching iommu (bootloader could
+	 * have left things on, in which case we'll start getting faults if
+	 * we don't disable):
+	 */
+	mdp5_enable(mdp5_kms);
+	for (i = 0; i < MDP5_INTF_NUM_MAX; i++) {
+		if (mdp5_cfg_intf_is_virtual(config->hw->intf.connect[i]) ||
+		    !config->hw->intf.base[i])
+			continue;
+		mdp5_write(mdp5_kms, REG_MDP5_INTF_TIMING_ENGINE_EN(i), 0);
+
+		mdp5_write(mdp5_kms, REG_MDP5_INTF_FRAME_LINE_COUNT_EN(i), 0x3);
+	}
+	mdp5_disable(mdp5_kms);
+	mdelay(16);
+
+	if (config->platform.iommu) {
+		mmu = msm_iommu_new(&pdev->dev, config->platform.iommu);
+		if (IS_ERR(mmu)) {
+			ret = PTR_ERR(mmu);
+			dev_err(&pdev->dev, "failed to init iommu: %d\n", ret);
+			iommu_domain_free(config->platform.iommu);
+			goto fail;
+		}
+
+		ret = mmu->funcs->attach(mmu, iommu_ports,
+				ARRAY_SIZE(iommu_ports));
+		if (ret) {
+			dev_err(&pdev->dev, "failed to attach iommu: %d\n",
+				ret);
+			mmu->funcs->destroy(mmu);
+			goto fail;
+		}
+	} else {
+		dev_info(&pdev->dev,
+			 "no iommu, fallback to phys contig buffers for scanout\n");
+		mmu = NULL;
+	}
+	mdp5_kms->mmu = mmu;
+
+	mdp5_kms->id = msm_register_mmu(dev, mmu);
+	if (mdp5_kms->id < 0) {
+		ret = mdp5_kms->id;
+		dev_err(&pdev->dev, "failed to register mdp5 iommu: %d\n", ret);
+		goto fail;
+	}
+
+	ret = modeset_init(mdp5_kms);
+	if (ret) {
+		dev_err(&pdev->dev, "modeset_init failed: %d\n", ret);
+		goto fail;
+	}
+
+	dev->mode_config.min_width = 0;
+	dev->mode_config.min_height = 0;
+	dev->mode_config.max_width = config->hw->lm.max_width;
+	dev->mode_config.max_height = config->hw->lm.max_height;
+
+	dev->driver->get_vblank_timestamp = mdp5_get_vblank_timestamp;
+	dev->driver->get_scanout_position = mdp5_get_scanoutpos;
+	dev->driver->get_vblank_counter = mdp5_get_vblank_counter;
+	dev->max_vblank_count = 0xffffffff;
+	dev->vblank_disable_immediate = true;
+
+	return kms;
+fail:
+	if (kms)
+		mdp5_kms_destroy2(kms);
 	return ERR_PTR(ret);
 }
 
