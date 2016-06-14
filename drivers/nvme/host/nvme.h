@@ -68,7 +68,20 @@ enum nvme_quirks {
 	 * logical blocks.
 	 */
 	NVME_QUIRK_DISCARD_ZEROES		= (1 << 2),
+
+	/*
+	 * The controller needs a delay before starts checking the device
+	 * readiness, which is done by reading the NVME_CSTS_RDY bit.
+	 */
+	NVME_QUIRK_DELAY_BEFORE_CHK_RDY		= (1 << 3),
 };
+
+/* The below value is the specific amount of delay needed before checking
+ * readiness in case of the PCI_DEVICE(0x1c58, 0x0003), which needs the
+ * NVME_QUIRK_DELAY_BEFORE_CHK_RDY quirk enabled. The value (in ms) was
+ * found empirically.
+ */
+#define NVME_QUIRK_DELAY_AMOUNT		2000
 
 enum nvme_ctrl_state {
 	NVME_CTRL_NEW,
