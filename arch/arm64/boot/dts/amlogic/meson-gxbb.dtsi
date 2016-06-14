@@ -45,6 +45,7 @@
 #include <dt-bindings/interrupt-controller/arm-gic.h>
 #include <dt-bindings/gpio/meson-gxbb-gpio.h>
 #include <dt-bindings/reset/amlogic,meson-gxbb-reset.h>
+#include <dt-bindings/clock/gxbb-clkc.h>
 
 / {
 	compatible = "amlogic,meson-gxbb";
@@ -343,7 +344,7 @@
 			       0x0 0xc8834540 0x0 0x4>;
 			interrupts = <0 8 1>;
 			interrupt-names = "macirq";
-			clocks = <&xtal>;
+			clocks = <&clkc CLKID_ETH>;
 			clock-names = "stmmaceth";
 			phy-mode = "rgmii";
 			status = "disabled";
