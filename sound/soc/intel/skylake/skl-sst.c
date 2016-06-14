@@ -384,6 +384,9 @@ void skl_clear_module_cnt(struct sst_dsp *ctx)
 {
 	struct skl_module_table *module;
 
+	if (list_empty(&ctx->module_list))
+		return;
+
 	list_for_each_entry(module, &ctx->module_list, list) {
 		module->usage_cnt = 0;
 	}
