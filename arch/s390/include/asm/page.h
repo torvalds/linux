@@ -30,11 +30,12 @@
 #include <asm/setup.h>
 #ifndef __ASSEMBLY__
 
+void __storage_key_init_range(unsigned long start, unsigned long end);
+
 static inline void storage_key_init_range(unsigned long start, unsigned long end)
 {
-#if PAGE_DEFAULT_KEY
-	__storage_key_init_range(start, end);
-#endif
+	if (PAGE_DEFAULT_KEY)
+		__storage_key_init_range(start, end);
 }
 
 #define clear_page(page)	memset((page), 0, PAGE_SIZE)
