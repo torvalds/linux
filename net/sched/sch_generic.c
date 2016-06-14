@@ -493,7 +493,7 @@ static void pfifo_fast_reset(struct Qdisc *qdisc)
 	struct pfifo_fast_priv *priv = qdisc_priv(qdisc);
 
 	for (prio = 0; prio < PFIFO_FAST_BANDS; prio++)
-		__qdisc_reset_queue(qdisc, band2list(priv, prio));
+		__qdisc_reset_queue(band2list(priv, prio));
 
 	priv->bitmap = 0;
 	qdisc->qstats.backlog = 0;

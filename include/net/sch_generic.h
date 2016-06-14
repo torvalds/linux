@@ -683,19 +683,21 @@ static inline struct sk_buff *qdisc_dequeue_peeked(struct Qdisc *sch)
 	return skb;
 }
 
-static inline void __qdisc_reset_queue(struct Qdisc *sch,
-				       struct sk_buff_head *list)
+static inline void __qdisc_reset_queue(struct sk_buff_head *list)
 {
 	/*
 	 * We do not know the backlog in bytes of this list, it
 	 * is up to the caller to correct it
 	 */
-	__skb_queue_purge(list);
+	if (!skb_queue_empty(list)) {
+		rtnl_kfree_skbs(list->next, list->prev);
+		__skb_queue_head_init(list);
+	}
 }
 
 static inline void qdisc_reset_queue(struct Qdisc *sch)
 {
-	__qdisc_reset_queue(sch, &sch->q);
+	__qdisc_reset_queue(&sch->q);
 	sch->qstats.backlog = 0;
 }
 
@@ -714,6 +716,12 @@ static inline struct Qdisc *qdisc_replace(struct Qdisc *sch, struct Qdisc *new,
 	sch_tree_unlock(sch);
 
 	return old;
+}
+
+static inline void rtnl_qdisc_drop(struct sk_buff *skb, struct Qdisc *sch)
+{
+	rtnl_kfree_skbs(skb, skb);
+	qdisc_qstats_drop(sch);
 }
 
 static inline int qdisc_drop(struct sk_buff *skb, struct Qdisc *sch)
