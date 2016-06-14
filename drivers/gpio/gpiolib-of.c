@@ -26,38 +26,14 @@
 
 #include "gpiolib.h"
 
-/* Private data structure for of_gpiochip_find_and_xlate */
-struct gg_data {
-	enum of_gpio_flags *flags;
-	struct of_phandle_args gpiospec;
-
-	struct gpio_desc *out_gpio;
-};
-
-/* Private function for resolving node pointer to gpio_chip */
-static int of_gpiochip_find_and_xlate(struct gpio_chip *gc, void *data)
+static int of_gpiochip_match_node(struct gpio_chip *chip, void *data)
 {
-	struct gg_data *gg_data = data;
-	int ret;
+	return chip->gpiodev->dev.of_node == data;
+}
 
-	if ((gc->of_node != gg_data->gpiospec.np) ||
-	    (gc->of_gpio_n_cells != gg_data->gpiospec.args_count) ||
-	    (!gc->of_xlate))
-		return false;
-
-	ret = gc->of_xlate(gc, &gg_data->gpiospec, gg_data->flags);
-	if (ret < 0) {
-		/* We've found a gpio chip, but the translation failed.
-		 * Store translation error in out_gpio.
-		 * Return false to keep looking, as more than one gpio chip
-		 * could be registered per of-node.
-		 */
-		gg_data->out_gpio = ERR_PTR(ret);
-		return false;
-	 }
-
-	gg_data->out_gpio = gpiochip_get_desc(gc, ret);
-	return true;
+static struct gpio_chip *of_find_gpiochip_by_node(struct device_node *np)
+{
+	return gpiochip_find(np, of_gpiochip_match_node);
 }
 
 /**
@@ -74,34 +50,47 @@ static int of_gpiochip_find_and_xlate(struct gpio_chip *gc, void *data)
 struct gpio_desc *of_get_named_gpiod_flags(struct device_node *np,
 		     const char *propname, int index, enum of_gpio_flags *flags)
 {
-	/* Return -EPROBE_DEFER to support probe() functions to be called
-	 * later when the GPIO actually becomes available
-	 */
-	struct gg_data gg_data = {
-		.flags = flags,
-		.out_gpio = ERR_PTR(-EPROBE_DEFER)
-	};
+	struct of_phandle_args gpiospec;
+	struct gpio_chip *chip;
+	struct gpio_desc *desc;
 	int ret;
 
-	/* .of_xlate might decide to not fill in the flags, so clear it. */
-	if (flags)
-		*flags = 0;
-
 	ret = of_parse_phandle_with_args(np, propname, "#gpio-cells", index,
-					 &gg_data.gpiospec);
+					 &gpiospec);
 	if (ret) {
 		pr_debug("%s: can't parse '%s' property of node '%s[%d]'\n",
 			__func__, propname, np->full_name, index);
 		return ERR_PTR(ret);
 	}
 
-	gpiochip_find(&gg_data, of_gpiochip_find_and_xlate);
+	chip = of_find_gpiochip_by_node(gpiospec.np);
+	if (!chip) {
+		desc = ERR_PTR(-EPROBE_DEFER);
+		goto out;
+	}
+	if (chip->of_gpio_n_cells != gpiospec.args_count) {
+		desc = ERR_PTR(-EINVAL);
+		goto out;
+	}
 
-	of_node_put(gg_data.gpiospec.np);
+	ret = chip->of_xlate(chip, &gpiospec, flags);
+	if (ret < 0) {
+		desc = ERR_PTR(ret);
+		goto out;
+	}
+
+	desc = gpiochip_get_desc(chip, ret);
+	if (IS_ERR(desc))
+		goto out;
+
 	pr_debug("%s: parsed '%s' property of node '%s[%d]' - status (%d)\n",
 		 __func__, propname, np->full_name, index,
-		 PTR_ERR_OR_ZERO(gg_data.out_gpio));
-	return gg_data.out_gpio;
+		 PTR_ERR_OR_ZERO(desc));
+
+out:
+	of_node_put(gpiospec.np);
+
+	return desc;
 }
 
 int of_get_named_gpio_flags(struct device_node *np, const char *list_name,
