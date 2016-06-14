@@ -35,9 +35,9 @@ static inline pte_t ptep_flush_direct(struct mm_struct *mm,
 	atomic_inc(&mm->context.flush_count);
 	if (MACHINE_HAS_TLB_LC &&
 	    cpumask_equal(mm_cpumask(mm), cpumask_of(smp_processor_id())))
-		__ptep_ipte_local(addr, ptep);
+		__ptep_ipte(addr, ptep, IPTE_LOCAL);
 	else
-		__ptep_ipte(addr, ptep);
+		__ptep_ipte(addr, ptep, IPTE_GLOBAL);
 	atomic_dec(&mm->context.flush_count);
 	return old;
 }
@@ -56,7 +56,7 @@ static inline pte_t ptep_flush_lazy(struct mm_struct *mm,
 		pte_val(*ptep) |= _PAGE_INVALID;
 		mm->context.flush_mm = 1;
 	} else
-		__ptep_ipte(addr, ptep);
+		__ptep_ipte(addr, ptep, IPTE_GLOBAL);
 	atomic_dec(&mm->context.flush_count);
 	return old;
 }
@@ -620,7 +620,7 @@ bool test_and_clear_guest_dirty(struct mm_struct *mm, unsigned long addr)
 	pte = *ptep;
 	if (dirty && (pte_val(pte) & _PAGE_PRESENT)) {
 		pgste = pgste_pte_notify(mm, addr, ptep, pgste);
-		__ptep_ipte(addr, ptep);
+		__ptep_ipte(addr, ptep, IPTE_GLOBAL);
 		if (MACHINE_HAS_ESOP || !(pte_val(pte) & _PAGE_WRITE))
 			pte_val(pte) |= _PAGE_PROTECT;
 		else
