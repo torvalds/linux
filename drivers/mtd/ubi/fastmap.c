@@ -975,6 +975,13 @@ int ubi_scan_fastmap(struct ubi_device *ubi, struct ubi_attach_info *ai,
 			goto free_hdr;
 		}
 
+		if (i == 0 && pnum != fm_anchor) {
+			ubi_err(ubi, "Fastmap anchor PEB mismatch: PEB: %i vs. %i",
+				pnum, fm_anchor);
+			ret = UBI_BAD_FASTMAP;
+			goto free_hdr;
+		}
+
 		ret = ubi_io_read_ec_hdr(ubi, pnum, ech, 0);
 		if (ret && ret != UBI_IO_BITFLIPS) {
 			ubi_err(ubi, "unable to read fastmap block# %i EC (PEB: %i)",
