@@ -1324,8 +1324,8 @@ static int stall_checks(struct drm_crtc *crtc, bool nonblock)
 		} else if (i == 1) {
 			stall_commit = commit;
 			drm_crtc_commit_get(stall_commit);
-		} else
 			break;
+		}
 
 		i++;
 	}
@@ -1337,7 +1337,7 @@ static int stall_checks(struct drm_crtc *crtc, bool nonblock)
 	/* We don't want to let commits get ahead of cleanup work too much,
 	 * stalling on 2nd previous commit means triple-buffer won't ever stall.
 	 */
-	ret = wait_for_completion_interruptible_timeout(&commit->cleanup_done,
+	ret = wait_for_completion_interruptible_timeout(&stall_commit->cleanup_done,
 							10*HZ);
 	if (ret == 0)
 		DRM_ERROR("[CRTC:%d:%s] cleanup_done timed out\n",
