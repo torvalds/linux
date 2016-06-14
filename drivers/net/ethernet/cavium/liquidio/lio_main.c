@@ -1439,7 +1439,7 @@ static void free_netbuf(void *buf)
 
 	check_txq_state(lio, skb);
 
-	recv_buffer_free((struct sk_buff *)skb);
+	tx_buffer_free(skb);
 }
 
 /**
@@ -1484,7 +1484,7 @@ static void free_netsgbuf(void *buf)
 
 	check_txq_state(lio, skb);     /* mq support: sub-queue state check */
 
-	recv_buffer_free((struct sk_buff *)skb);
+	tx_buffer_free(skb);
 }
 
 /**
@@ -1862,6 +1862,32 @@ liquidio_push_packet(u32 octeon_id,
 		skb->dev = netdev;
 
 		skb_record_rx_queue(skb, droq->q_no);
+		if (likely(len > MIN_SKB_SIZE)) {
+			struct octeon_skb_page_info *pg_info;
+			unsigned char *va;
+
+			pg_info = ((struct octeon_skb_page_info *)(skb->cb));
+			if (pg_info->page) {
+				/* For Paged allocation use the frags */
+				va = page_address(pg_info->page) +
+					pg_info->page_offset;
+				memcpy(skb->data, va, MIN_SKB_SIZE);
+				skb_put(skb, MIN_SKB_SIZE);
+				skb_add_rx_frag(skb, skb_shinfo(skb)->nr_frags,
+						pg_info->page,
+						pg_info->page_offset +
+						MIN_SKB_SIZE,
+						len - MIN_SKB_SIZE,
+						LIO_RXBUFFER_SZ);
+			}
+		} else {
+			struct octeon_skb_page_info *pg_info =
+				((struct octeon_skb_page_info *)(skb->cb));
+			skb_copy_to_linear_data(skb, page_address(pg_info->page)
+						+ pg_info->page_offset, len);
+			skb_put(skb, len);
+			put_page(pg_info->page);
+		}
 
 		if (rh->r_dh.has_hwtstamp) {
 			/* timestamp is included from the hardware at the
@@ -2612,7 +2638,7 @@ static void handle_timestamp(struct octeon_device *oct,
 	}
 
 	octeon_free_soft_command(oct, sc);
-	recv_buffer_free(skb);
+	tx_buffer_free(skb);
 }
 
 /* \brief Send a data packet that will be timestamped
@@ -3001,7 +3027,7 @@ lio_xmit_failed:
 		   iq_no, stats->tx_dropped);
 	dma_unmap_single(&oct->pci_dev->dev, ndata.cmd.dptr,
 			 ndata.datasize, DMA_TO_DEVICE);
-	recv_buffer_free(skb);
+	tx_buffer_free(skb);
 	return NETDEV_TX_OK;
 }
 
