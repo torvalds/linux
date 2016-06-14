@@ -1527,7 +1527,7 @@ static struct ib_mr *i40iw_alloc_mr(struct ib_pd *pd,
 	mutex_lock(&iwdev->pbl_mutex);
 	status = i40iw_get_pble(&iwdev->sc_dev, iwdev->pble_rsrc, palloc, iwmr->page_cnt);
 	mutex_unlock(&iwdev->pbl_mutex);
-	if (!status)
+	if (status)
 		goto err1;
 
 	if (palloc->level != I40IW_LEVEL_1)
