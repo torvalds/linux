@@ -316,14 +316,44 @@ static void pci_d3delay_fixup(struct pci_dev *dev)
 }
 DECLARE_PCI_FIXUP_FINAL(PCI_VENDOR_ID_INTEL, PCI_ANY_ID, pci_d3delay_fixup);
 
-static void mrst_power_off_unused_dev(struct pci_dev *dev)
+static void mid_power_off_dev(struct pci_dev *dev)
 {
+	u16 pmcsr;
+
+	/*
+	 * Update current state first, otherwise PCI core enforces PCI_D0 in
+	 * pci_set_power_state() for devices which status was PCI_UNKNOWN.
+	 */
+	pci_read_config_word(dev, dev->pm_cap + PCI_PM_CTRL, &pmcsr);
+	dev->current_state = (pci_power_t __force)(pmcsr & PCI_PM_CTRL_STATE_MASK);
+
 	pci_set_power_state(dev, PCI_D3hot);
 }
-DECLARE_PCI_FIXUP_FINAL(PCI_VENDOR_ID_INTEL, 0x0801, mrst_power_off_unused_dev);
-DECLARE_PCI_FIXUP_FINAL(PCI_VENDOR_ID_INTEL, 0x0809, mrst_power_off_unused_dev);
-DECLARE_PCI_FIXUP_FINAL(PCI_VENDOR_ID_INTEL, 0x080C, mrst_power_off_unused_dev);
-DECLARE_PCI_FIXUP_FINAL(PCI_VENDOR_ID_INTEL, 0x0815, mrst_power_off_unused_dev);
+
+DECLARE_PCI_FIXUP_FINAL(PCI_VENDOR_ID_INTEL, 0x0801, mid_power_off_dev);
+DECLARE_PCI_FIXUP_FINAL(PCI_VENDOR_ID_INTEL, 0x0809, mid_power_off_dev);
+DECLARE_PCI_FIXUP_FINAL(PCI_VENDOR_ID_INTEL, 0x080C, mid_power_off_dev);
+DECLARE_PCI_FIXUP_FINAL(PCI_VENDOR_ID_INTEL, 0x0815, mid_power_off_dev);
+
+static void mrfld_power_off_dev(struct pci_dev *dev)
+{
+	int id;
+
+	if (!pci_soc_mode)
+		return;
+
+	id = intel_mid_pwr_get_lss_id(dev);
+	if (id < 0)
+		return;
+
+	/*
+	 * This sets only PMCSR bits. The actual power off will happen in
+	 * arch/x86/platform/intel-mid/pwr.c.
+	 */
+	mid_power_off_dev(dev);
+}
+
+DECLARE_PCI_FIXUP_FINAL(PCI_VENDOR_ID_INTEL, PCI_ANY_ID, mrfld_power_off_dev);
 
 /*
  * Langwell devices reside at fixed offsets, don't try to move them.

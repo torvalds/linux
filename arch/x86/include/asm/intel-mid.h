@@ -12,9 +12,17 @@
 #define _ASM_X86_INTEL_MID_H
 
 #include <linux/sfi.h>
+#include <linux/pci.h>
 #include <linux/platform_device.h>
 
 extern int intel_mid_pci_init(void);
+extern int intel_mid_pci_set_power_state(struct pci_dev *pdev, pci_power_t state);
+
+#define INTEL_MID_PWR_LSS_OFFSET	4
+#define INTEL_MID_PWR_LSS_TYPE		(1 << 7)
+
+extern int intel_mid_pwr_get_lss_id(struct pci_dev *pdev);
+
 extern int get_gpio_by_name(const char *name);
 extern void intel_scu_device_register(struct platform_device *pdev);
 extern int __init sfi_parse_mrtc(struct sfi_table_header *table);
