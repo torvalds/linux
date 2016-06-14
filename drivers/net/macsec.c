@@ -3361,6 +3361,7 @@ static void __exit macsec_exit(void)
 	genl_unregister_family(&macsec_fam);
 	rtnl_link_unregister(&macsec_link_ops);
 	unregister_netdevice_notifier(&macsec_notifier);
+	rcu_barrier();
 }
 
 module_init(macsec_init);
