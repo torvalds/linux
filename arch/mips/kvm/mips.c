@@ -1465,6 +1465,9 @@ void kvm_own_fpu(struct kvm_vcpu *vcpu)
 	if (!(vcpu->arch.aux_inuse & KVM_MIPS_AUX_FPU)) {
 		__kvm_restore_fpu(&vcpu->arch);
 		vcpu->arch.aux_inuse |= KVM_MIPS_AUX_FPU;
+		trace_kvm_aux(vcpu, KVM_TRACE_AUX_RESTORE, KVM_TRACE_AUX_FPU);
+	} else {
+		trace_kvm_aux(vcpu, KVM_TRACE_AUX_ENABLE, KVM_TRACE_AUX_FPU);
 	}
 
 	preempt_enable();
@@ -1513,6 +1516,7 @@ void kvm_own_msa(struct kvm_vcpu *vcpu)
 		 */
 		__kvm_restore_msa_upper(&vcpu->arch);
 		vcpu->arch.aux_inuse |= KVM_MIPS_AUX_MSA;
+		trace_kvm_aux(vcpu, KVM_TRACE_AUX_RESTORE, KVM_TRACE_AUX_MSA);
 		break;
 	case 0:
 		/* Neither FPU or MSA already active, restore full MSA state */
@@ -1520,8 +1524,11 @@ void kvm_own_msa(struct kvm_vcpu *vcpu)
 		vcpu->arch.aux_inuse |= KVM_MIPS_AUX_MSA;
 		if (kvm_mips_guest_has_fpu(&vcpu->arch))
 			vcpu->arch.aux_inuse |= KVM_MIPS_AUX_FPU;
+		trace_kvm_aux(vcpu, KVM_TRACE_AUX_RESTORE,
+			      KVM_TRACE_AUX_FPU_MSA);
 		break;
 	default:
+		trace_kvm_aux(vcpu, KVM_TRACE_AUX_ENABLE, KVM_TRACE_AUX_MSA);
 		break;
 	}
 
@@ -1535,10 +1542,12 @@ void kvm_drop_fpu(struct kvm_vcpu *vcpu)
 	preempt_disable();
 	if (cpu_has_msa && vcpu->arch.aux_inuse & KVM_MIPS_AUX_MSA) {
 		disable_msa();
+		trace_kvm_aux(vcpu, KVM_TRACE_AUX_DISCARD, KVM_TRACE_AUX_MSA);
 		vcpu->arch.aux_inuse &= ~KVM_MIPS_AUX_MSA;
 	}
 	if (vcpu->arch.aux_inuse & KVM_MIPS_AUX_FPU) {
 		clear_c0_status(ST0_CU1 | ST0_FR);
+		trace_kvm_aux(vcpu, KVM_TRACE_AUX_DISCARD, KVM_TRACE_AUX_FPU);
 		vcpu->arch.aux_inuse &= ~KVM_MIPS_AUX_FPU;
 	}
 	preempt_enable();
@@ -1560,6 +1569,7 @@ void kvm_lose_fpu(struct kvm_vcpu *vcpu)
 		enable_fpu_hazard();
 
 		__kvm_save_msa(&vcpu->arch);
+		trace_kvm_aux(vcpu, KVM_TRACE_AUX_SAVE, KVM_TRACE_AUX_FPU_MSA);
 
 		/* Disable MSA & FPU */
 		disable_msa();
@@ -1574,6 +1584,7 @@ void kvm_lose_fpu(struct kvm_vcpu *vcpu)
 
 		__kvm_save_fpu(&vcpu->arch);
 		vcpu->arch.aux_inuse &= ~KVM_MIPS_AUX_FPU;
+		trace_kvm_aux(vcpu, KVM_TRACE_AUX_SAVE, KVM_TRACE_AUX_FPU);
 
 		/* Disable FPU */
 		clear_c0_status(ST0_CU1 | ST0_FR);
