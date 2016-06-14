@@ -315,7 +315,7 @@ int tmc_read_unprepare_etr(struct tmc_drvdata *drvdata)
 		 */
 		vaddr = drvdata->vaddr;
 		paddr = drvdata->paddr;
-		drvdata->buf = NULL;
+		drvdata->buf = drvdata->vaddr = NULL;
 	}
 
 	drvdata->reading = false;
