@@ -316,11 +316,9 @@ static int pwm_regulator_probe(struct platform_device *pdev)
 		return ret;
 	}
 
-	/*
-	 * FIXME: pwm_apply_args() should be removed when switching to the
-	 * atomic PWM API.
-	 */
-	pwm_apply_args(drvdata->pwm);
+	ret = pwm_adjust_config(drvdata->pwm);
+	if (ret)
+		return ret;
 
 	regulator = devm_regulator_register(&pdev->dev,
 					    &drvdata->desc, &config);
