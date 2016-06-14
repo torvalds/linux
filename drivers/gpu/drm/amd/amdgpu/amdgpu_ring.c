@@ -49,6 +49,7 @@
  */
 static int amdgpu_debugfs_ring_init(struct amdgpu_device *adev,
 				    struct amdgpu_ring *ring);
+static void amdgpu_debugfs_ring_fini(struct amdgpu_ring *ring);
 
 /**
  * amdgpu_ring_alloc - allocate space on the ring buffer
@@ -362,6 +363,7 @@ void amdgpu_ring_fini(struct amdgpu_ring *ring)
 		}
 		amdgpu_bo_unref(&ring_obj);
 	}
+	amdgpu_debugfs_ring_fini(ring);
 }
 
 /*
@@ -445,6 +447,14 @@ static int amdgpu_debugfs_ring_init(struct amdgpu_device *adev,
 		return PTR_ERR(ent);
 
 	i_size_write(ent->d_inode, ring->ring_size + 12);
+	ring->ent = ent;
 #endif
 	return 0;
+}
+
+static void amdgpu_debugfs_ring_fini(struct amdgpu_ring *ring)
+{
+#if defined(CONFIG_DEBUG_FS)
+	debugfs_remove(ring->ent);
+#endif
 }
