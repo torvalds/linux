@@ -42,8 +42,8 @@
  * This is similar to IS_ENABLED(), but returns false when invoked from
  * built-in code when CONFIG_FOO is set to 'm'.
  */
-#define IS_REACHABLE(option) (config_enabled(option) || \
-		 (config_enabled(option##_MODULE) && __is_defined(MODULE)))
+#define IS_REACHABLE(option) (IS_BUILTIN(option) || \
+		 (IS_MODULE(option) && __is_defined(MODULE)))
 
 /*
  * IS_ENABLED(CONFIG_FOO) evaluates to 1 if CONFIG_FOO is set to 'y' or 'm',
