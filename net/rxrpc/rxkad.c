@@ -1162,9 +1162,7 @@ static int rxkad_init(void)
 	/* pin the cipher we need so that the crypto layer doesn't invoke
 	 * keventd to go get it */
 	rxkad_ci = crypto_alloc_skcipher("pcbc(fcrypt)", 0, CRYPTO_ALG_ASYNC);
-	if (IS_ERR(rxkad_ci))
-		return PTR_ERR(rxkad_ci);
-	return 0;
+	return PTR_ERR_OR_ZERO(rxkad_ci);
 }
 
 /*

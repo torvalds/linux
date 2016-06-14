@@ -93,6 +93,13 @@ int hwmgr_fini(struct pp_hwmgr *hwmgr)
 	if (hwmgr == NULL || hwmgr->ps == NULL)
 		return -EINVAL;
 
+	/* do hwmgr finish*/
+	kfree(hwmgr->backend);
+
+	kfree(hwmgr->start_thermal_controller.function_list);
+
+	kfree(hwmgr->set_temperature_range.function_list);
+
 	kfree(hwmgr->ps);
 	kfree(hwmgr);
 	return 0;
@@ -462,7 +469,7 @@ uint16_t phm_find_closest_vddci(struct pp_atomctrl_voltage_table *vddci_table, u
 
 	PP_ASSERT_WITH_CODE(false,
 			"VDDCI is larger than max VDDCI in VDDCI Voltage Table!",
-			return vddci_table->entries[i].value);
+			return vddci_table->entries[i-1].value);
 }
 
 int phm_find_boot_level(void *table,

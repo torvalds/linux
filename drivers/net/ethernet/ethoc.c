@@ -1195,7 +1195,7 @@ static int ethoc_probe(struct platform_device *pdev)
 	priv->mdio = mdiobus_alloc();
 	if (!priv->mdio) {
 		ret = -ENOMEM;
-		goto free;
+		goto free2;
 	}
 
 	priv->mdio->name = "ethoc-mdio";
@@ -1208,7 +1208,7 @@ static int ethoc_probe(struct platform_device *pdev)
 	ret = mdiobus_register(priv->mdio);
 	if (ret) {
 		dev_err(&netdev->dev, "failed to register MDIO bus\n");
-		goto free;
+		goto free2;
 	}
 
 	ret = ethoc_mdio_probe(netdev);
@@ -1241,9 +1241,10 @@ error2:
 error:
 	mdiobus_unregister(priv->mdio);
 	mdiobus_free(priv->mdio);
-free:
+free2:
 	if (priv->clk)
 		clk_disable_unprepare(priv->clk);
+free:
 	free_netdev(netdev);
 out:
 	return ret;
