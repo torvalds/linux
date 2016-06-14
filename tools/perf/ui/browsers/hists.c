@@ -1622,19 +1622,36 @@ static int hists_browser__scnprintf_hierarchy_headers(struct hist_browser *brows
 	return ret;
 }
 
-static void hist_browser__show_headers(struct hist_browser *browser)
+static void hists_browser__hierarchy_headers(struct hist_browser *browser)
 {
 	char headers[1024];
 
-	if (symbol_conf.report_hierarchy)
-		hists_browser__scnprintf_hierarchy_headers(browser, headers,
-							   sizeof(headers));
-	else
-		hists_browser__scnprintf_headers(browser, headers,
-						 sizeof(headers));
+	hists_browser__scnprintf_hierarchy_headers(browser, headers,
+						   sizeof(headers));
+
 	ui_browser__gotorc(&browser->b, 0, 0);
 	ui_browser__set_color(&browser->b, HE_COLORSET_ROOT);
 	ui_browser__write_nstring(&browser->b, headers, browser->b.width + 1);
+}
+
+static void hists_browser__headers(struct hist_browser *browser)
+{
+	char headers[1024];
+
+	hists_browser__scnprintf_headers(browser, headers,
+					 sizeof(headers));
+
+	ui_browser__gotorc(&browser->b, 0, 0);
+	ui_browser__set_color(&browser->b, HE_COLORSET_ROOT);
+	ui_browser__write_nstring(&browser->b, headers, browser->b.width + 1);
+}
+
+static void hist_browser__show_headers(struct hist_browser *browser)
+{
+	if (symbol_conf.report_hierarchy)
+		hists_browser__hierarchy_headers(browser);
+	else
+		hists_browser__headers(browser);
 }
 
 static void ui_browser__hists_init_top(struct ui_browser *browser)
