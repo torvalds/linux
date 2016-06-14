@@ -578,7 +578,7 @@ static int count_fastmap_pebs(struct ubi_attach_info *ai)
 	list_for_each_entry(aeb, &ai->free, u.list)
 		n++;
 
-	 ubi_rb_for_each_entry(rb1, av, &ai->volumes, rb)
+	ubi_rb_for_each_entry(rb1, av, &ai->volumes, rb)
 		ubi_rb_for_each_entry(rb2, aeb, &av->root, u.rb)
 			n++;
 
