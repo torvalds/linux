@@ -346,6 +346,7 @@ u32 kvm_get_inst(u32 *opc, struct kvm_vcpu *vcpu)
 				kvm_err("%s: get_user_failed for %p, vcpu: %p, ASID: %#lx\n",
 					__func__, opc, vcpu, read_c0_entryhi());
 				kvm_mips_dump_host_tlbs();
+				kvm_mips_dump_guest_tlbs(vcpu);
 				local_irq_restore(flags);
 				return KVM_INVALID_INST;
 			}
