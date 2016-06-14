@@ -338,18 +338,6 @@ out_prime_destroy:
 	return ret;
 }
 
-static void drm_master_release(struct drm_device *dev, struct file *filp)
-{
-	struct drm_file *file_priv = filp->private_data;
-
-	if (drm_legacy_i_have_hw_lock(dev, file_priv)) {
-		DRM_DEBUG("File %p released, freeing lock for context %d\n",
-			  filp, _DRM_LOCKING_CONTEXT(file_priv->master->lock.hw_lock->lock));
-		drm_legacy_lock_free(&file_priv->master->lock,
-				     _DRM_LOCKING_CONTEXT(file_priv->master->lock.hw_lock->lock));
-	}
-}
-
 static void drm_events_release(struct drm_file *file_priv)
 {
 	struct drm_device *dev = file_priv->minor->dev;
@@ -468,9 +456,8 @@ int drm_release(struct inode *inode, struct file *filp)
 		  (long)old_encode_dev(file_priv->minor->kdev->devt),
 		  dev->open_count);
 
-	/* if the master has gone away we can't do anything with the lock */
-	if (file_priv->minor->master)
-		drm_master_release(dev, filp);
+	if (!drm_core_check_feature(dev, DRIVER_MODESET))
+		drm_legacy_lock_release(dev, filp);
 
 	if (drm_core_check_feature(dev, DRIVER_HAVE_DMA))
 		drm_legacy_reclaim_buffers(dev, file_priv);
