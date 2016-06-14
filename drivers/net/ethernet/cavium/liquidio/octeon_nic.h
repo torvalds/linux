@@ -94,15 +94,15 @@ struct octnic_data_pkt {
  */
 union octnic_cmd_setup {
 	struct {
-		u32 ifidx:8;
-		u32 cksum_offset:7;
+		u32 iq_no:8;
 		u32 gather:1;
 		u32 timestamp:1;
-		u32 ipv4opts_ipv6exthdr:2;
 		u32 ip_csum:1;
+		u32 transport_csum:1;
 		u32 tnl_csum:1;
-
+		u32 ifidx:8;
 		u32 rsvd:11;
+
 		union {
 			u32 datasize;
 			u32 gatherptrs;
@@ -172,13 +172,8 @@ octnet_prepare_pci_cmd(struct octeon_instr_64B *cmd,
 
 	packet_params.u32 = 0;
 
-	if (setup->s.cksum_offset) {
-		packet_params.s.csoffset = setup->s.cksum_offset;
-		packet_params.s.ipv4opts_ipv6exthdr =
-						setup->s.ipv4opts_ipv6exthdr;
-	}
-
 	packet_params.s.ip_csum = setup->s.ip_csum;
+	packet_params.s.transport_csum = setup->s.transport_csum;
 	packet_params.s.tnl_csum = setup->s.tnl_csum;
 	packet_params.s.ifidx = setup->s.ifidx;
 	packet_params.s.tsflag = setup->s.timestamp;

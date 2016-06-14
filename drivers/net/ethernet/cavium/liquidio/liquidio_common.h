@@ -463,30 +463,27 @@ union octeon_rh {
 
 #define  OCT_RH_SIZE   (sizeof(union  octeon_rh))
 
-#define OCT_PKT_PARAM_IPV4OPTS   1
-#define OCT_PKT_PARAM_IPV6EXTHDR 2
-
 union octnic_packet_params {
 	u32 u32;
 	struct {
 #ifdef __BIG_ENDIAN_BITFIELD
-		u32 reserved:6;
+		u32 reserved:16;
+		u32 ip_csum:1;		/* Perform IP header checksum(s) */
+		/* Perform Outer transport header checksum */
+		u32 transport_csum:1;
+		/* Find tunnel, and perform transport csum. */
 		u32 tnl_csum:1;
-		u32 ip_csum:1;
-		u32 ipv4opts_ipv6exthdr:2;
-		u32 ipsec_ops:4;
-		u32 tsflag:1;
-		u32 csoffset:9;
+		u32 tsflag:1;		/* Timestamp this packet */
+		u32 ipsec_ops:4;	/* IPsec operation */
 		u32 ifidx:8;
 #else
 		u32 ifidx:8;
-		u32 csoffset:9;
-		u32 tsflag:1;
 		u32 ipsec_ops:4;
-		u32 ipv4opts_ipv6exthdr:2;
-		u32 ip_csum:1;
+		u32 tsflag:1;
 		u32 tnl_csum:1;
-		u32 reserved:6;
+		u32 transport_csum:1;
+		u32 ip_csum:1;
+		u32 reserved:16;
 #endif
 	} s;
 };
