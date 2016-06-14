@@ -1099,6 +1099,20 @@ static void vrf_setup(struct net_device *dev)
 
 	/* don't allow vrf devices to change network namespaces. */
 	dev->features |= NETIF_F_NETNS_LOCAL;
+
+	/* does not make sense for a VLAN to be added to a vrf device */
+	dev->features   |= NETIF_F_VLAN_CHALLENGED;
+
+	/* enable offload features */
+	dev->features   |= NETIF_F_GSO_SOFTWARE;
+	dev->features   |= NETIF_F_RXCSUM | NETIF_F_HW_CSUM;
+	dev->features   |= NETIF_F_SG | NETIF_F_FRAGLIST | NETIF_F_HIGHDMA;
+
+	dev->hw_features = dev->features;
+	dev->hw_enc_features = dev->features;
+
+	/* default to no qdisc; user can add if desired */
+	dev->priv_flags |= IFF_NO_QUEUE;
 }
 
 static int vrf_validate(struct nlattr *tb[], struct nlattr *data[])
