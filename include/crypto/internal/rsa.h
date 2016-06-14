@@ -12,12 +12,24 @@
  */
 #ifndef _RSA_HELPER_
 #define _RSA_HELPER_
-#include <linux/mpi.h>
+#include <linux/types.h>
 
+/**
+ * rsa_key - RSA key structure
+ * @n           : RSA modulus raw byte stream
+ * @e           : RSA public exponent raw byte stream
+ * @d           : RSA private exponent raw byte stream
+ * @n_sz        : length in bytes of RSA modulus n
+ * @e_sz        : length in bytes of RSA public exponent
+ * @d_sz        : length in bytes of RSA private exponent
+ */
 struct rsa_key {
-	MPI n;
-	MPI e;
-	MPI d;
+	const u8 *n;
+	const u8 *e;
+	const u8 *d;
+	size_t n_sz;
+	size_t e_sz;
+	size_t d_sz;
 };
 
 int rsa_parse_pub_key(struct rsa_key *rsa_key, const void *key,
@@ -25,8 +37,6 @@ int rsa_parse_pub_key(struct rsa_key *rsa_key, const void *key,
 
 int rsa_parse_priv_key(struct rsa_key *rsa_key, const void *key,
 		       unsigned int key_len);
-
-void rsa_free_key(struct rsa_key *rsa_key);
 
 extern struct crypto_template rsa_pkcs1pad_tmpl;
 #endif
