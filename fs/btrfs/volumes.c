@@ -140,7 +140,6 @@ static int btrfs_relocate_sys_chunks(struct btrfs_root *root);
 static void __btrfs_reset_dev_stats(struct btrfs_device *dev);
 static void btrfs_dev_stat_print_on_error(struct btrfs_device *dev);
 static void btrfs_dev_stat_print_on_load(struct btrfs_device *device);
-static void btrfs_close_one_device(struct btrfs_device *device);
 
 DEFINE_MUTEX(uuid_mutex);
 static LIST_HEAD(fs_uuids);
@@ -851,6 +850,41 @@ static void free_device(struct rcu_head *head)
 
 	INIT_WORK(&device->rcu_work, __free_device);
 	schedule_work(&device->rcu_work);
+}
+
+static void btrfs_close_one_device(struct btrfs_device *device)
+{
+	struct btrfs_fs_devices *fs_devices = device->fs_devices;
+	struct btrfs_device *new_device;
+	struct rcu_string *name;
+
+	if (device->bdev)
+		fs_devices->open_devices--;
+
+	if (device->writeable &&
+	    device->devid != BTRFS_DEV_REPLACE_DEVID) {
+		list_del_init(&device->dev_alloc_list);
+		fs_devices->rw_devices--;
+	}
+
+	if (device->missing)
+		fs_devices->missing_devices--;
+
+	new_device = btrfs_alloc_device(NULL, &device->devid,
+					device->uuid);
+	BUG_ON(IS_ERR(new_device)); /* -ENOMEM */
+
+	/* Safe because we are under uuid_mutex */
+	if (device->name) {
+		name = rcu_string_strdup(device->name->str, GFP_NOFS);
+		BUG_ON(!name); /* -ENOMEM */
+		rcu_assign_pointer(new_device->name, name);
+	}
+
+	list_replace_rcu(&device->dev_list, &new_device->dev_list);
+	new_device->fs_devices = device->fs_devices;
+
+	call_rcu(&device->rcu, free_device);
 }
 
 static int __btrfs_close_devices(struct btrfs_fs_devices *fs_devices)
@@ -7137,39 +7171,4 @@ void btrfs_reset_fs_info_ptr(struct btrfs_fs_info *fs_info)
 		fs_devices->fs_info = NULL;
 		fs_devices = fs_devices->seed;
 	}
-}
-
-static void btrfs_close_one_device(struct btrfs_device *device)
-{
-	struct btrfs_fs_devices *fs_devices = device->fs_devices;
-	struct btrfs_device *new_device;
-	struct rcu_string *name;
-
-	if (device->bdev)
-		fs_devices->open_devices--;
-
-	if (device->writeable &&
-	    device->devid != BTRFS_DEV_REPLACE_DEVID) {
-		list_del_init(&device->dev_alloc_list);
-		fs_devices->rw_devices--;
-	}
-
-	if (device->missing)
-		fs_devices->missing_devices--;
-
-	new_device = btrfs_alloc_device(NULL, &device->devid,
-					device->uuid);
-	BUG_ON(IS_ERR(new_device)); /* -ENOMEM */
-
-	/* Safe because we are under uuid_mutex */
-	if (device->name) {
-		name = rcu_string_strdup(device->name->str, GFP_NOFS);
-		BUG_ON(!name); /* -ENOMEM */
-		rcu_assign_pointer(new_device->name, name);
-	}
-
-	list_replace_rcu(&device->dev_list, &new_device->dev_list);
-	new_device->fs_devices = device->fs_devices;
-
-	call_rcu(&device->rcu, free_device);
 }
