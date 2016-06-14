@@ -23,15 +23,6 @@
 	};
 
 	clocks {
-		#address-cells = <1>;
-		#size-cells = <1>;
-		ranges;
-
-		main_clock: clock@0 {
-			compatible = "atmel,osc", "fixed-clock";
-			clock-frequency = <18432000>;
-		};
-
 		slow_xtal {
 			clock-frequency = <32768>;
 		};
@@ -128,7 +119,7 @@
 			};
 		};
 
-		usb0: ohci@00500000 {
+		usb0: ohci@500000 {
 			num-ports = <2>;
 			status = "okay";
 		};
