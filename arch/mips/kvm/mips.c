@@ -410,7 +410,9 @@ int kvm_arch_vcpu_ioctl_run(struct kvm_vcpu *vcpu, struct kvm_run *run)
 	/* Disable hardware page table walking while in guest */
 	htw_stop();
 
+	trace_kvm_enter(vcpu);
 	r = vcpu->arch.vcpu_run(run, vcpu);
+	trace_kvm_out(vcpu);
 
 	/* Re-enable HTW before enabling interrupts */
 	htw_start();
@@ -1389,6 +1391,8 @@ skip_emul:
 	}
 
 	if (ret == RESUME_GUEST) {
+		trace_kvm_reenter(vcpu);
+
 		/*
 		 * If FPU / MSA are enabled (i.e. the guest's FPU / MSA context
 		 * is live), restore FCR31 / MSACSR.

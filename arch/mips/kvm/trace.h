@@ -17,6 +17,54 @@
 #define TRACE_INCLUDE_PATH .
 #define TRACE_INCLUDE_FILE trace
 
+/*
+ * Tracepoints for VM enters
+ */
+TRACE_EVENT(kvm_enter,
+	    TP_PROTO(struct kvm_vcpu *vcpu),
+	    TP_ARGS(vcpu),
+	    TP_STRUCT__entry(
+			__field(unsigned long, pc)
+	    ),
+
+	    TP_fast_assign(
+			__entry->pc = vcpu->arch.pc;
+	    ),
+
+	    TP_printk("PC: 0x%08lx",
+		      __entry->pc)
+);
+
+TRACE_EVENT(kvm_reenter,
+	    TP_PROTO(struct kvm_vcpu *vcpu),
+	    TP_ARGS(vcpu),
+	    TP_STRUCT__entry(
+			__field(unsigned long, pc)
+	    ),
+
+	    TP_fast_assign(
+			__entry->pc = vcpu->arch.pc;
+	    ),
+
+	    TP_printk("PC: 0x%08lx",
+		      __entry->pc)
+);
+
+TRACE_EVENT(kvm_out,
+	    TP_PROTO(struct kvm_vcpu *vcpu),
+	    TP_ARGS(vcpu),
+	    TP_STRUCT__entry(
+			__field(unsigned long, pc)
+	    ),
+
+	    TP_fast_assign(
+			__entry->pc = vcpu->arch.pc;
+	    ),
+
+	    TP_printk("PC: 0x%08lx",
+		      __entry->pc)
+);
+
 /* The first 32 exit reasons correspond to Cause.ExcCode */
 #define KVM_TRACE_EXIT_INT		 0
 #define KVM_TRACE_EXIT_TLBMOD		 1
