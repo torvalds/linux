@@ -115,7 +115,7 @@ static const struct gb_camera_fmt_map mbus_to_gbus_format[] = {
 #define gcam_err(gcam, format...)	dev_err(&gcam->bundle->dev, format)
 
 /* -----------------------------------------------------------------------------
- * Camera Protocol Operations
+ * Hardware Configuration
  */
 
 static int gb_camera_set_intf_power_mode(struct gb_camera *gcam, u8 intf_id,
@@ -173,6 +173,87 @@ static int gb_camera_set_power_mode(struct gb_camera *gcam, bool hs)
 	return 0;
 }
 
+struct ap_csi_config_request {
+	__u8 csi_id;
+	__u8 flags;
+#define GB_CAMERA_CSI_FLAG_CLOCK_CONTINUOUS 0x01
+	__u8 num_lanes;
+	__u8 padding;
+	__le32 bus_freq;
+	__le32 lines_per_second;
+} __packed;
+
+static int gb_camera_setup_data_connection(struct gb_camera *gcam,
+		const struct gb_camera_configure_streams_response *resp,
+		struct gb_camera_csi_params *csi_params)
+{
+	struct ap_csi_config_request csi_cfg;
+	int ret;
+
+	/* Set the UniPro link to high speed mode. */
+	ret = gb_camera_set_power_mode(gcam, true);
+	if (ret < 0)
+		return ret;
+
+	/*
+	 * Configure the APB1 CSI transmitter using the lines count reported by
+	 * the  camera module, but with hard-coded bus frequency and lanes number.
+	 *
+	 * TODO: use the clocking and size informations reported by camera module
+	 * to compute the required CSI bandwidth, and configure the CSI receiver
+	 * on AP side, and the CSI transmitter on APB1 side accordingly.
+	 */
+	memset(&csi_cfg, 0, sizeof(csi_cfg));
+	csi_cfg.csi_id = 1;
+	csi_cfg.flags = 0;
+	csi_cfg.num_lanes = resp->num_lanes;
+	csi_cfg.bus_freq = cpu_to_le32(960000000);
+	csi_cfg.lines_per_second = resp->lines_per_second;
+
+	ret = gb_hd_output(gcam->connection->hd, &csi_cfg,
+			   sizeof(csi_cfg),
+			   GB_APB_REQUEST_CSI_TX_CONTROL, false);
+
+	if (ret < 0) {
+		gcam_err(gcam, "failed to start the CSI transmitter\n");
+		gb_camera_set_power_mode(gcam, false);
+		return ret;
+	}
+
+	if (csi_params) {
+		csi_params->num_lanes = csi_cfg.num_lanes;
+		/* Transmitting two bits per cycle. (DDR clock) */
+		csi_params->clk_freq = csi_cfg.bus_freq / 2;
+		csi_params->lines_per_second = csi_cfg.lines_per_second;
+	}
+
+	return 0;
+}
+
+static void gb_camera_teardown_data_connection(struct gb_camera *gcam)
+{
+	struct ap_csi_config_request csi_cfg;
+	int ret;
+
+	/* Stop the APB1 CSI transmitter. */
+	memset(&csi_cfg, 0, sizeof(csi_cfg));
+	csi_cfg.csi_id = 1;
+
+	ret = gb_hd_output(gcam->connection->hd, &csi_cfg,
+			   sizeof(csi_cfg),
+			   GB_APB_REQUEST_CSI_TX_CONTROL, false);
+
+	if (ret < 0)
+		gcam_err(gcam, "failed to stop the CSI transmitter\n");
+
+	/* Set the UniPro link to low speed mode. */
+	gb_camera_set_power_mode(gcam, false);
+}
+
+/* -----------------------------------------------------------------------------
+ * Camera Protocol Operations
+ */
+
 static int gb_camera_capabilities(struct gb_camera *gcam,
 				  u8 *capabilities, size_t *size)
 {
@@ -211,16 +292,6 @@ done:
 	return ret;
 }
 
-struct ap_csi_config_request {
-	__u8 csi_id;
-	__u8 flags;
-#define GB_CAMERA_CSI_FLAG_CLOCK_CONTINUOUS 0x01
-	__u8 num_lanes;
-	__u8 padding;
-	__le32 bus_freq;
-	__le32 lines_per_second;
-} __packed;
-
 static int gb_camera_configure_streams(struct gb_camera *gcam,
 				       unsigned int *num_streams,
 				       unsigned int *flags,
@@ -229,7 +300,6 @@ static int gb_camera_configure_streams(struct gb_camera *gcam,
 {
 	struct gb_camera_configure_streams_request *req;
 	struct gb_camera_configure_streams_response *resp;
-	struct ap_csi_config_request csi_cfg;
 
 	unsigned int nstreams = *num_streams;
 	unsigned int i;
@@ -315,50 +385,21 @@ static int gb_camera_configure_streams(struct gb_camera *gcam,
 		goto done;
 	}
 
-	/* Setup unipro link speed. */
-	ret = gb_camera_set_power_mode(gcam, nstreams != 0);
-	if (ret < 0)
-		goto done;
-
-	/*
-	 * Configure the APB1 CSI transmitter using the lines count reported by
-	 * the  camera module, but with hard-coded bus frequency and lanes number.
-	 *
-	 * TODO: use the clocking and size informations reported by camera module
-	 * to compute the required CSI bandwidth, and configure the CSI receiver
-	 * on AP side, and the CSI transmitter on APB1 side accordingly.
-	 */
-	memset(&csi_cfg, 0, sizeof(csi_cfg));
-
-	if (nstreams) {
-		csi_cfg.csi_id = 1;
-		csi_cfg.flags = 0;
-		csi_cfg.num_lanes = resp->num_lanes;
-		csi_cfg.bus_freq = cpu_to_le32(960000000);
-		csi_cfg.lines_per_second = resp->lines_per_second;
-		ret = gb_hd_output(gcam->connection->hd, &csi_cfg,
-				   sizeof(csi_cfg),
-				   GB_APB_REQUEST_CSI_TX_CONTROL, false);
-		if (csi_params) {
-			csi_params->num_lanes = csi_cfg.num_lanes;
-			/* Transmitting two bits per cycle. (DDR clock) */
-			csi_params->clk_freq = csi_cfg.bus_freq / 2;
-			csi_params->lines_per_second = csi_cfg.lines_per_second;
+	if (resp->num_streams) {
+		ret = gb_camera_setup_data_connection(gcam, resp, csi_params);
+		if (ret < 0) {
+			memset(req, 0, sizeof(*req));
+			gb_operation_sync(gcam->connection,
+					  GB_CAMERA_TYPE_CONFIGURE_STREAMS,
+					  req, req_size, resp, resp_size);
+			goto done;
 		}
 	} else {
-		csi_cfg.csi_id = 1;
-		ret = gb_hd_output(gcam->connection->hd, &csi_cfg,
-				   sizeof(csi_cfg),
-				   GB_APB_REQUEST_CSI_TX_CONTROL, false);
+		gb_camera_teardown_data_connection(gcam);
 	}
-
-	if (ret < 0)
-		gcam_err(gcam, "failed to %s the CSI transmitter\n",
-			 nstreams ? "start" : "stop");
 
 	*flags = resp->flags;
 	*num_streams = resp->num_streams;
-	ret = 0;
 
 done:
 	mutex_unlock(&gcam->mutex);
