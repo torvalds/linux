@@ -181,6 +181,61 @@ static inline void pwm_init_state(const struct pwm_device *pwm,
 }
 
 /**
+ * pwm_get_relative_duty_cycle() - Get a relative duty cycle value
+ * @state: PWM state to extract the duty cycle from
+ * @scale: target scale of the relative duty cycle
+ *
+ * This functions converts the absolute duty cycle stored in @state (expressed
+ * in nanosecond) into a value relative to the period.
+ *
+ * For example if you want to get the duty_cycle expressed in percent, call:
+ *
+ * pwm_get_state(pwm, &state);
+ * duty = pwm_get_relative_duty_cycle(&state, 100);
+ */
+static inline unsigned int
+pwm_get_relative_duty_cycle(const struct pwm_state *state, unsigned int scale)
+{
+	if (!state->period)
+		return 0;
+
+	return DIV_ROUND_CLOSEST_ULL((u64)state->duty_cycle * scale,
+				     state->period);
+}
+
+/**
+ * pwm_set_relative_duty_cycle() - Set a relative duty cycle value
+ * @state: PWM state to fill
+ * @duty_cycle: relative duty cycle value
+ * @scale: scale in which @duty_cycle is expressed
+ *
+ * This functions converts a relative into an absolute duty cycle (expressed
+ * in nanoseconds), and puts the result in state->duty_cycle.
+ *
+ * For example if you want to configure a 50% duty cycle, call:
+ *
+ * pwm_init_state(pwm, &state);
+ * pwm_set_relative_duty_cycle(&state, 50, 100);
+ * pwm_apply_state(pwm, &state);
+ *
+ * This functions returns -EINVAL if @duty_cycle and/or @scale are
+ * inconsistent (@scale == 0 or @duty_cycle > @scale).
+ */
+static inline int
+pwm_set_relative_duty_cycle(struct pwm_state *state, unsigned int duty_cycle,
+			    unsigned int scale)
+{
+	if (!scale || duty_cycle > scale)
+		return -EINVAL;
+
+	state->duty_cycle = DIV_ROUND_CLOSEST_ULL((u64)duty_cycle *
+						  state->period,
+						  scale);
+
+	return 0;
+}
+
+/**
  * struct pwm_ops - PWM controller operations
  * @request: optional hook for requesting a PWM
  * @free: optional hook for freeing a PWM
