@@ -1412,7 +1412,8 @@ enum emulation_result kvm_mips_emulate_store(u32 inst, u32 cause,
 		break;
 
 	default:
-		kvm_err("Store not yet supported");
+		kvm_err("Store not yet supported (inst=0x%08x)\n",
+			inst);
 		er = EMULATE_FAIL;
 		break;
 	}
@@ -1522,7 +1523,8 @@ enum emulation_result kvm_mips_emulate_load(u32 inst, u32 cause,
 		break;
 
 	default:
-		kvm_err("Load not yet supported");
+		kvm_err("Load not yet supported (inst=0x%08x)\n",
+			inst);
 		er = EMULATE_FAIL;
 		break;
 	}
