@@ -575,8 +575,7 @@ static void delete_work_func(struct work_struct *work)
 {
 	struct gfs2_glock *gl = container_of(work, struct gfs2_glock, gl_delete);
 	struct gfs2_sbd *sdp = gl->gl_name.ln_sbd;
-	struct gfs2_inode *ip;
-	struct inode *inode = NULL;
+	struct inode *inode;
 	u64 no_addr = gl->gl_name.ln_number;
 
 	/* If someone's using this glock to create a new dinode, the block must
@@ -585,13 +584,7 @@ static void delete_work_func(struct work_struct *work)
 	if (test_bit(GLF_INODE_CREATING, &gl->gl_flags))
 		goto out;
 
-	ip = gl->gl_object;
-	/* Note: Unsafe to dereference ip as we don't hold right refs/locks */
-
-	if (ip)
-		inode = gfs2_ilookup(sdp->sd_vfs, no_addr);
-	if (IS_ERR_OR_NULL(inode))
-		inode = gfs2_lookup_by_inum(sdp, no_addr, NULL, GFS2_BLKST_UNLINKED);
+	inode = gfs2_lookup_by_inum(sdp, no_addr, NULL, GFS2_BLKST_UNLINKED);
 	if (inode && !IS_ERR(inode)) {
 		d_prune_aliases(inode);
 		iput(inode);

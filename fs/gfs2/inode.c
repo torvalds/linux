@@ -37,21 +37,6 @@
 #include "super.h"
 #include "glops.h"
 
-struct inode *gfs2_ilookup(struct super_block *sb, u64 no_addr)
-{
-	struct inode *inode;
-
-repeat:
-	inode = ilookup(sb, no_addr);
-	if (!inode)
-		return inode;
-	if (is_bad_inode(inode)) {
-		iput(inode);
-		goto repeat;
-	}
-	return inode;
-}
-
 static struct inode *gfs2_iget(struct super_block *sb, u64 no_addr)
 {
 	struct inode *inode;
