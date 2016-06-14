@@ -106,7 +106,8 @@ extern void pfault_fini(void);
 
 void report_user_fault(struct pt_regs *regs, long signr, int is_mm_fault);
 
-extern void cmma_init(void);
+void cmma_init(void);
+void cmma_init_nodat(void);
 
 extern void (*_machine_restart)(char *command);
 extern void (*_machine_halt)(void);
