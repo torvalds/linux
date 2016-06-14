@@ -35,9 +35,6 @@ int drm_pci_set_unique(struct drm_device *dev,
 int drm_irq_by_busid(struct drm_device *dev, void *data,
 		     struct drm_file *file_priv);
 
-/* drm_vm.c */
-int drm_vma_info(struct seq_file *m, void *data);
-
 /* drm_prime.c */
 int drm_prime_handle_to_fd_ioctl(struct drm_device *dev, void *data,
 				 struct drm_file *file_priv);
@@ -51,8 +48,6 @@ void drm_prime_remove_buf_handle_locked(struct drm_prime_file_private *prime_fpr
 
 /* drm_info.c */
 int drm_name_info(struct seq_file *m, void *data);
-int drm_vm_info(struct seq_file *m, void *data);
-int drm_bufs_info(struct seq_file *m, void *data);
 int drm_clients_info(struct seq_file *m, void* data);
 int drm_gem_name_info(struct seq_file *m, void *data);
 
