@@ -115,6 +115,7 @@ int mdio_mux_init(struct device *dev,
 			goto err_parent_bus;
 		}
 	} else {
+		parent_bus_node = NULL;
 		parent_bus = mux_bus;
 	}
 
@@ -184,8 +185,7 @@ int mdio_mux_init(struct device *dev,
 	put_device(&pb->mii_bus->dev);
 
 err_parent_bus:
-	if (!mux_bus)
-		of_node_put(parent_bus_node);
+	of_node_put(parent_bus_node);
 	return ret_val;
 }
 EXPORT_SYMBOL_GPL(mdio_mux_init);
