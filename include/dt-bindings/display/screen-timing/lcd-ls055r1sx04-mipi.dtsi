@@ -157,6 +157,8 @@ disp_timings: display-timings {
 		vfront-porch = <4>;
 		hsync-len = <6>;
 		vsync-len = <1>;
+		screen-width = <68>;
+		screen-hight = <120>;
 		hsync-active = <0>;
 		vsync-active = <0>;
 		de-active = <0>;
