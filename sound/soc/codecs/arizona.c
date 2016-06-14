@@ -1711,7 +1711,7 @@ restore_aif:
 	return ret;
 }
 
-static const char * const arizona_dai_clk_str(int clk_id)
+static const char *arizona_dai_clk_str(int clk_id)
 {
 	switch (clk_id) {
 	case ARIZONA_CLK_SYSCLK:
