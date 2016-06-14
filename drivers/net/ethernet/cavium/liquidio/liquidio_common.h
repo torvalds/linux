@@ -174,9 +174,11 @@ static inline void add_sg_size(struct octeon_sg_entry *sg_entry,
 /*------------------------- End Scatter/Gather ---------------------------*/
 
 #define   OCTNET_FRM_PTP_HEADER_SIZE  8
-#define   OCTNET_FRM_HEADER_SIZE     30 /* PTP timestamp + VLAN + Ethernet */
 
-#define   OCTNET_MIN_FRM_SIZE        (64  + OCTNET_FRM_PTP_HEADER_SIZE)
+#define   OCTNET_FRM_HEADER_SIZE     22 /* VLAN + Ethernet */
+
+#define   OCTNET_MIN_FRM_SIZE        64
+
 #define   OCTNET_MAX_FRM_SIZE        (16000 + OCTNET_FRM_HEADER_SIZE)
 
 #define   OCTNET_DEFAULT_FRM_SIZE    (1500 + OCTNET_FRM_HEADER_SIZE)

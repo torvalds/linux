@@ -84,6 +84,8 @@ static int conf_type;
 module_param(conf_type, int, 0);
 MODULE_PARM_DESC(conf_type, "select octeon configuration 0 default 1 ovs");
 
+static int ptp_enable = 1;
+
 /* Bit mask values for lio->ifstate */
 #define   LIO_IFSTATE_DROQ_OPS             0x01
 #define   LIO_IFSTATE_REGISTERED           0x02
@@ -1851,6 +1853,7 @@ liquidio_push_packet(u32 octeon_id,
 	if (netdev) {
 		int packet_was_received;
 		struct lio *lio = GET_LIO(netdev);
+		struct octeon_device *oct = lio->oct_dev;
 
 		/* Do not proceed if the interface is not in RUNNING state. */
 		if (!ifstate_check(lio, LIO_IFSTATE_RUNNING)) {
@@ -1889,21 +1892,26 @@ liquidio_push_packet(u32 octeon_id,
 			put_page(pg_info->page);
 		}
 
-		if (rh->r_dh.has_hwtstamp) {
-			/* timestamp is included from the hardware at the
-			 * beginning of the packet.
-			 */
-			if (ifstate_check(lio,
-					  LIO_IFSTATE_RX_TIMESTAMP_ENABLED)) {
-				/* Nanoseconds are in the first 64-bits
-				 * of the packet.
+		if (((oct->chip_id == OCTEON_CN66XX) ||
+		     (oct->chip_id == OCTEON_CN68XX)) &&
+		    ptp_enable) {
+			if (rh->r_dh.has_hwtstamp) {
+				/* timestamp is included from the hardware at
+				 * the beginning of the packet.
 				 */
-				memcpy(&ns, (skb->data), sizeof(ns));
-				shhwtstamps = skb_hwtstamps(skb);
-				shhwtstamps->hwtstamp =
-					ns_to_ktime(ns + lio->ptp_adjust);
+				if (ifstate_check
+				    (lio, LIO_IFSTATE_RX_TIMESTAMP_ENABLED)) {
+					/* Nanoseconds are in the first 64-bits
+					 * of the packet.
+					 */
+					memcpy(&ns, (skb->data), sizeof(ns));
+					shhwtstamps = skb_hwtstamps(skb);
+					shhwtstamps->hwtstamp =
+						ns_to_ktime(ns +
+							    lio->ptp_adjust);
+				}
+				skb_pull(skb, sizeof(ns));
 			}
-			skb_pull(skb, sizeof(ns));
 		}
 
 		skb->protocol = eth_type_trans(skb, skb->dev);
