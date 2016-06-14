@@ -121,6 +121,7 @@ EXPORT_SYMBOL(of_get_named_gpio_flags);
 /**
  * of_parse_own_gpio() - Get a GPIO hog descriptor, names and flags for GPIO API
  * @np:		device node to get GPIO from
+ * @chip:	GPIO chip whose hog is parsed
  * @name:	GPIO line name
  * @lflags:	gpio_lookup_flags - returned from of_find_gpio() or
  *		of_parse_own_gpio()
@@ -130,19 +131,19 @@ EXPORT_SYMBOL(of_get_named_gpio_flags);
  * value on the error condition.
  */
 static struct gpio_desc *of_parse_own_gpio(struct device_node *np,
+					   struct gpio_chip *chip,
 					   const char **name,
 					   enum gpio_lookup_flags *lflags,
 					   enum gpiod_flags *dflags)
 {
 	struct device_node *chip_np;
 	enum of_gpio_flags xlate_flags;
-	struct gg_data gg_data = {
-		.flags = &xlate_flags,
-	};
+	struct of_phandle_args gpiospec;
+	struct gpio_desc *desc;
 	u32 tmp;
 	int ret;
 
-	chip_np = np->parent;
+	chip_np = chip->of_node;
 	if (!chip_np)
 		return ERR_PTR(-EINVAL);
 
@@ -154,23 +155,23 @@ static struct gpio_desc *of_parse_own_gpio(struct device_node *np,
 	if (ret)
 		return ERR_PTR(ret);
 
-	if (tmp > MAX_PHANDLE_ARGS)
+	if (tmp > MAX_PHANDLE_ARGS || tmp != chip->of_gpio_n_cells)
 		return ERR_PTR(-EINVAL);
 
-	gg_data.gpiospec.args_count = tmp;
-	gg_data.gpiospec.np = chip_np;
-	ret = of_property_read_u32_array(np, "gpios", gg_data.gpiospec.args,
-					 tmp);
+	gpiospec.np = chip_np;
+	gpiospec.args_count = tmp;
+
+	ret = of_property_read_u32_array(np, "gpios", gpiospec.args, tmp);
 	if (ret)
 		return ERR_PTR(ret);
 
-	gpiochip_find(&gg_data, of_gpiochip_find_and_xlate);
-	if (!gg_data.out_gpio) {
-		if (np->parent == np)
-			return ERR_PTR(-ENXIO);
-		else
-			return ERR_PTR(-EINVAL);
-	}
+	ret = chip->of_xlate(chip, &gpiospec, &xlate_flags);
+	if (ret < 0)
+		return ERR_PTR(ret);
+
+	desc = gpiochip_get_desc(chip, ret);
+	if (IS_ERR(desc))
+		return desc;
 
 	if (xlate_flags & OF_GPIO_ACTIVE_LOW)
 		*lflags |= GPIO_ACTIVE_LOW;
@@ -183,14 +184,14 @@ static struct gpio_desc *of_parse_own_gpio(struct device_node *np,
 		*dflags |= GPIOD_OUT_HIGH;
 	else {
 		pr_warn("GPIO line %d (%s): no hogging state specified, bailing out\n",
-			desc_to_gpio(gg_data.out_gpio), np->name);
+			desc_to_gpio(desc), np->name);
 		return ERR_PTR(-EINVAL);
 	}
 
 	if (name && of_property_read_string(np, "line-name", name))
 		*name = np->name;
 
-	return gg_data.out_gpio;
+	return desc;
 }
 
 /**
@@ -259,7 +260,7 @@ static int of_gpiochip_scan_gpios(struct gpio_chip *chip)
 		if (!of_property_read_bool(np, "gpio-hog"))
 			continue;
 
-		desc = of_parse_own_gpio(np, &name, &lflags, &dflags);
+		desc = of_parse_own_gpio(np, chip, &name, &lflags, &dflags);
 		if (IS_ERR(desc))
 			continue;
 
