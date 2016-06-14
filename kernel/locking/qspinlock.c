@@ -619,7 +619,7 @@ release:
 	/*
 	 * release the node
 	 */
-	this_cpu_dec(mcs_nodes[0].count);
+	__this_cpu_dec(mcs_nodes[0].count);
 }
 EXPORT_SYMBOL(queued_spin_lock_slowpath);
 
