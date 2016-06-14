@@ -838,6 +838,7 @@ unsigned int nft_do_chain(struct nft_pktinfo *pkt, void *priv);
  *	@hgenerator: handle generator state
  *	@use: number of chain references to this table
  *	@flags: table flag (see enum nft_table_flags)
+ *	@genmask: generation mask
  *	@name: name of the table
  */
 struct nft_table {
@@ -846,7 +847,8 @@ struct nft_table {
 	struct list_head		sets;
 	u64				hgenerator;
 	u32				use;
-	u16				flags;
+	u16				flags:14,
+					genmask:2;
 	char				name[NFT_TABLE_MAXNAMELEN];
 };
 
@@ -992,6 +994,8 @@ static inline u8 nft_genmask_cur(const struct net *net)
 /* After committing the ruleset, clear the stale generation bit. */
 #define nft_clear(__net, __obj)					\
 	(__obj)->genmask &= ~nft_genmask_next(__net)
+#define nft_active_genmask(__obj, __genmask)			\
+	!((__obj)->genmask & __genmask)
 
 /*
  * Set element transaction helpers
