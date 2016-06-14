@@ -354,13 +354,13 @@ static int rockchip_pwm_probe(struct platform_device *pdev)
 		return ret;
 	}
 
-	ret = clk_prepare(pc->clk);
+	ret = clk_prepare_enable(pc->clk);
 	if (ret) {
 		dev_err(&pdev->dev, "Can't prepare pwm clk: %d\n", ret);
 		return ret;
 	}
 
-	ret = clk_prepare(pc->pclk);
+	ret = clk_prepare_enable(pc->pclk);
 	if (ret) {
 		dev_err(&pdev->dev, "Can't prepare pclk: %d\n", ret);
 		goto err_clk;
@@ -386,6 +386,12 @@ static int rockchip_pwm_probe(struct platform_device *pdev)
 		goto err_pclk;
 	}
 
+	/* Keep the PWM clk enabled if the PWM appears to be up and running. */
+	if (!pwm_is_enabled(pc->chip.pwms)) {
+		clk_disable(pc->pclk);
+		clk_disable(pc->clk);
+	}
+
 	return 0;
 
 err_pclk:
@@ -399,6 +405,22 @@ err_clk:
 static int rockchip_pwm_remove(struct platform_device *pdev)
 {
 	struct rockchip_pwm_chip *pc = platform_get_drvdata(pdev);
+
+	/*
+	 * Disable the PWM clk before unpreparing it if the PWM device is still
+	 * running. This should only happen when the last PWM user left it
+	 * enabled, or when nobody requested a PWM that was previously enabled
+	 * by the bootloader.
+	 *
+	 * FIXME: Maybe the core should disable all PWM devices in
+	 * pwmchip_remove(). In this case we'd only have to call
+	 * clk_unprepare() after pwmchip_remove().
+	 *
+	 */
+	if (pwm_is_enabled(pc->chip.pwms)) {
+		clk_disable(pc->pclk);
+		clk_disable(pc->clk);
+	}
 
 	clk_unprepare(pc->pclk);
 	clk_unprepare(pc->clk);
