@@ -198,10 +198,13 @@ int dmam_declare_coherent_memory(struct device *dev, phys_addr_t phys_addr,
 
 	rc = dma_declare_coherent_memory(dev, phys_addr, device_addr, size,
 					 flags);
-	if (rc == 0)
+	if (rc) {
 		devres_add(dev, res);
-	else
+		rc = 0;
+	} else {
 		devres_free(res);
+		rc = -ENOMEM;
+	}
 
 	return rc;
 }
