@@ -37,19 +37,34 @@
 #include "super.h"
 #include "glops.h"
 
+static int iget_test(struct inode *inode, void *opaque)
+{
+	u64 no_addr = *(u64 *)opaque;
+
+	return GFS2_I(inode)->i_no_addr == no_addr;
+}
+
+static int iget_set(struct inode *inode, void *opaque)
+{
+	u64 no_addr = *(u64 *)opaque;
+
+	GFS2_I(inode)->i_no_addr = no_addr;
+	inode->i_ino = no_addr;
+	return 0;
+}
+
 static struct inode *gfs2_iget(struct super_block *sb, u64 no_addr)
 {
 	struct inode *inode;
 
 repeat:
-	inode = iget_locked(sb, no_addr);
+	inode = iget5_locked(sb, no_addr, iget_test, iget_set, &no_addr);
 	if (!inode)
 		return inode;
 	if (is_bad_inode(inode)) {
 		iput(inode);
 		goto repeat;
 	}
-	GFS2_I(inode)->i_no_addr = no_addr;
 	return inode;
 }
 
