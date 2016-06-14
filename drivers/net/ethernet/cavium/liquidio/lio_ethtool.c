@@ -317,7 +317,7 @@ octnet_mdio45_access(struct lio *lio, int op, int loc, int *value)
 
 	retval = octeon_send_soft_command(oct_dev, sc);
 
-	if (retval) {
+	if (retval == IQ_SEND_FAILED) {
 		dev_err(&oct_dev->pci_dev->dev,
 			"octnet_mdio45_access instruction failed status: %x\n",
 			retval);
@@ -722,7 +722,7 @@ static int octnet_set_intrmod_cfg(void *oct, struct oct_intrmod_cfg *intr_cfg)
 	sc->wait_time = 1000;
 
 	retval = octeon_send_soft_command(oct_dev, sc);
-	if (retval) {
+	if (retval == IQ_SEND_FAILED) {
 		octeon_free_soft_command(oct_dev, sc);
 		return -EINVAL;
 	}

@@ -2583,7 +2583,7 @@ static inline int send_nic_timestamp_pkt(struct octeon_device *oct,
 	retval = octeon_send_command(oct, sc->iq_no, ring_doorbell, &sc->cmd,
 				     sc, ih->dlengsz, ndata->reqtype);
 
-	if (retval) {
+	if (retval == IQ_SEND_FAILED) {
 		dev_err(&oct->pci_dev->dev, "timestamp data packet failed status: %x\n",
 			retval);
 		octeon_free_soft_command(oct, sc);
@@ -3192,7 +3192,7 @@ static int setup_nic_devices(struct octeon_device *octeon_dev)
 		sc->wait_time = 1000;
 
 		retval = octeon_send_soft_command(octeon_dev, sc);
-		if (retval) {
+		if (retval == IQ_SEND_FAILED) {
 			dev_err(&octeon_dev->pci_dev->dev,
 				"iq/oq config failed status: %x\n",
 				retval);

@@ -178,7 +178,7 @@ octnet_send_nic_ctrl_pkt(struct octeon_device *oct,
 	}
 
 	retval = octeon_send_soft_command(oct, sc);
-	if (retval) {
+	if (retval == IQ_SEND_FAILED) {
 		octeon_free_soft_command(oct, sc);
 		dev_err(&oct->pci_dev->dev, "%s soft command send failed status: %x\n",
 			__func__, retval);
