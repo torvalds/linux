@@ -155,7 +155,7 @@ static struct gpio_desc *of_parse_own_gpio(struct device_node *np,
 	if (ret)
 		return ERR_PTR(ret);
 
-	if (tmp > MAX_PHANDLE_ARGS || tmp != chip->of_gpio_n_cells)
+	if (tmp != chip->of_gpio_n_cells)
 		return ERR_PTR(-EINVAL);
 
 	gpiospec.np = chip_np;
@@ -485,6 +485,9 @@ int of_gpiochip_add(struct gpio_chip *chip)
 		chip->of_gpio_n_cells = 2;
 		chip->of_xlate = of_gpio_simple_xlate;
 	}
+
+	if (chip->of_gpio_n_cells > MAX_PHANDLE_ARGS)
+		return -EINVAL;
 
 	status = of_gpiochip_add_pin_range(chip);
 	if (status)
