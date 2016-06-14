@@ -108,13 +108,16 @@ struct drbg_test_data {
 struct drbg_state {
 	struct mutex drbg_mutex;	/* lock around DRBG */
 	unsigned char *V;	/* internal state 10.1.1.1 1a) */
+	unsigned char *Vbuf;
 	/* hash: static value 10.1.1.1 1b) hmac / ctr: key */
 	unsigned char *C;
+	unsigned char *Cbuf;
 	/* Number of RNG requests since last reseed -- 10.1.1.1 1c) */
 	size_t reseed_ctr;
 	size_t reseed_threshold;
 	 /* some memory the DRBG can use for its operation */
 	unsigned char *scratchpad;
+	unsigned char *scratchpadbuf;
 	void *priv_data;	/* Cipher handle */
 
 	struct crypto_skcipher *ctr_handle;	/* CTR mode cipher handle */

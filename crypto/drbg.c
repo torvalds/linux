@@ -1139,11 +1139,11 @@ static inline void drbg_dealloc_state(struct drbg_state *drbg)
 	if (!drbg)
 		return;
 	kzfree(drbg->V);
-	drbg->V = NULL;
+	drbg->Vbuf = NULL;
 	kzfree(drbg->C);
-	drbg->C = NULL;
-	kzfree(drbg->scratchpad);
-	drbg->scratchpad = NULL;
+	drbg->Cbuf = NULL;
+	kzfree(drbg->scratchpadbuf);
+	drbg->scratchpadbuf = NULL;
 	drbg->reseed_ctr = 0;
 	drbg->d_ops = NULL;
 	drbg->core = NULL;
@@ -1179,12 +1179,18 @@ static inline int drbg_alloc_state(struct drbg_state *drbg)
 		goto err;
 	}
 
-	drbg->V = kmalloc(drbg_statelen(drbg), GFP_KERNEL);
-	if (!drbg->V)
+	ret = drbg->d_ops->crypto_init(drbg);
+	if (ret < 0)
 		goto err;
-	drbg->C = kmalloc(drbg_statelen(drbg), GFP_KERNEL);
-	if (!drbg->C)
-		goto err;
+
+	drbg->Vbuf = kmalloc(drbg_statelen(drbg) + ret, GFP_KERNEL);
+	if (!drbg->Vbuf)
+		goto fini;
+	drbg->V = PTR_ALIGN(drbg->Vbuf, ret + 1);
+	drbg->Cbuf = kmalloc(drbg_statelen(drbg) + ret, GFP_KERNEL);
+	if (!drbg->Cbuf)
+		goto fini;
+	drbg->C = PTR_ALIGN(drbg->Cbuf, ret + 1);
 	/* scratchpad is only generated for CTR and Hash */
 	if (drbg->core->flags & DRBG_HMAC)
 		sb_size = 0;
@@ -1198,13 +1204,16 @@ static inline int drbg_alloc_state(struct drbg_state *drbg)
 		sb_size = drbg_statelen(drbg) + drbg_blocklen(drbg);
 
 	if (0 < sb_size) {
-		drbg->scratchpad = kzalloc(sb_size, GFP_KERNEL);
-		if (!drbg->scratchpad)
-			goto err;
+		drbg->scratchpadbuf = kzalloc(sb_size + ret, GFP_KERNEL);
+		if (!drbg->scratchpadbuf)
+			goto fini;
+		drbg->scratchpad = PTR_ALIGN(drbg->scratchpadbuf, ret + 1);
 	}
 
 	return 0;
 
+fini:
+	drbg->d_ops->crypto_fini(drbg);
 err:
 	drbg_dealloc_state(drbg);
 	return ret;
@@ -1472,10 +1481,6 @@ static int drbg_instantiate(struct drbg_state *drbg, struct drbg_string *pers,
 		if (ret)
 			goto unlock;
 
-		ret = -EFAULT;
-		if (drbg->d_ops->crypto_init(drbg))
-			goto err;
-
 		ret = drbg_prepare_hrng(drbg);
 		if (ret)
 			goto free_everything;
@@ -1499,8 +1504,6 @@ static int drbg_instantiate(struct drbg_state *drbg, struct drbg_string *pers,
 	mutex_unlock(&drbg->drbg_mutex);
 	return ret;
 
-err:
-	drbg_dealloc_state(drbg);
 unlock:
 	mutex_unlock(&drbg->drbg_mutex);
 	return ret;
@@ -1585,7 +1588,8 @@ static int drbg_init_hash_kernel(struct drbg_state *drbg)
 	sdesc->shash.tfm = tfm;
 	sdesc->shash.flags = 0;
 	drbg->priv_data = sdesc;
-	return 0;
+
+	return crypto_shash_alignmask(tfm);
 }
 
 static int drbg_fini_hash_kernel(struct drbg_state *drbg)
@@ -1705,7 +1709,7 @@ static int drbg_init_sym_kernel(struct drbg_state *drbg)
 	drbg->ctr_null_value = (u8 *)PTR_ALIGN(drbg->ctr_null_value_buf,
 					       alignmask + 1);
 
-	return 0;
+	return alignmask;
 }
 
 static void drbg_kcapi_symsetkey(struct drbg_state *drbg,
