@@ -243,6 +243,43 @@ int drm_master_open(struct drm_file *file_priv)
 	return ret;
 }
 
+void drm_master_release(struct drm_file *file_priv)
+{
+	struct drm_device *dev = file_priv->minor->dev;
+
+	mutex_lock(&dev->master_mutex);
+	if (file_priv->is_master) {
+		struct drm_master *master = file_priv->master;
+
+		/*
+		 * Since the master is disappearing, so is the
+		 * possibility to lock.
+		 */
+		mutex_lock(&dev->struct_mutex);
+		if (master->lock.hw_lock) {
+			if (dev->sigdata.lock == master->lock.hw_lock)
+				dev->sigdata.lock = NULL;
+			master->lock.hw_lock = NULL;
+			master->lock.file_priv = NULL;
+			wake_up_interruptible_all(&master->lock.lock_queue);
+		}
+		mutex_unlock(&dev->struct_mutex);
+
+		if (file_priv->minor->master == file_priv->master) {
+			/* drop the reference held my the minor */
+			if (dev->driver->master_drop)
+				dev->driver->master_drop(dev, file_priv, true);
+			drm_master_put(&file_priv->minor->master);
+		}
+	}
+
+	/* drop the master reference held by the file priv */
+	if (file_priv->master)
+		drm_master_put(&file_priv->master);
+	file_priv->is_master = 0;
+	mutex_unlock(&dev->master_mutex);
+}
+
 struct drm_master *drm_master_get(struct drm_master *master)
 {
 	kref_get(&master->refcount);

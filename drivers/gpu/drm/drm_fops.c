@@ -411,42 +411,11 @@ int drm_release(struct inode *inode, struct file *filp)
 
 	drm_legacy_ctxbitmap_flush(dev, file_priv);
 
-	mutex_lock(&dev->master_mutex);
-
-	if (file_priv->is_master) {
-		struct drm_master *master = file_priv->master;
-
-		/*
-		 * Since the master is disappearing, so is the
-		 * possibility to lock.
-		 */
-		mutex_lock(&dev->struct_mutex);
-		if (master->lock.hw_lock) {
-			if (dev->sigdata.lock == master->lock.hw_lock)
-				dev->sigdata.lock = NULL;
-			master->lock.hw_lock = NULL;
-			master->lock.file_priv = NULL;
-			wake_up_interruptible_all(&master->lock.lock_queue);
-		}
-		mutex_unlock(&dev->struct_mutex);
-
-		if (file_priv->minor->master == file_priv->master) {
-			/* drop the reference held my the minor */
-			if (dev->driver->master_drop)
-				dev->driver->master_drop(dev, file_priv, true);
-			drm_master_put(&file_priv->minor->master);
-		}
-	}
-
-	/* drop the master reference held by the file priv */
-	if (file_priv->master)
-		drm_master_put(&file_priv->master);
-	file_priv->is_master = 0;
-	mutex_unlock(&dev->master_mutex);
+	if (drm_is_primary_client(file_priv))
+		drm_master_release(file_priv);
 
 	if (dev->driver->postclose)
 		dev->driver->postclose(dev, file_priv);
-
 
 	if (drm_core_check_feature(dev, DRIVER_PRIME))
 		drm_prime_destroy_file_private(&file_priv->prime);
