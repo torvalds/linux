@@ -370,7 +370,8 @@ static int perf_evlist__tty_browse_hists(struct perf_evlist *evlist,
 			continue;
 
 		hists__fprintf_nr_sample_events(hists, rep, evname, stdout);
-		hists__fprintf(hists, true, 0, 0, rep->min_percent, stdout);
+		hists__fprintf(hists, true, 0, 0, rep->min_percent, stdout,
+			       symbol_conf.use_callchain);
 		fprintf(stdout, "\n\n");
 	}
 

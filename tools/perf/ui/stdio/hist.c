@@ -492,7 +492,8 @@ out:
 }
 
 static int hist_entry__fprintf(struct hist_entry *he, size_t size,
-			       char *bf, size_t bfsz, FILE *fp)
+			       char *bf, size_t bfsz, FILE *fp,
+			       bool use_callchain)
 {
 	int ret;
 	struct perf_hpp hpp = {
@@ -512,7 +513,7 @@ static int hist_entry__fprintf(struct hist_entry *he, size_t size,
 
 	ret = fprintf(fp, "%s\n", bf);
 
-	if (symbol_conf.use_callchain)
+	if (use_callchain)
 		ret += hist_entry_callchain__fprintf(he, total_period, 0, fp);
 
 	return ret;
@@ -709,7 +710,8 @@ static int hists__fprintf_headers(struct hists *hists, FILE *fp)
 }
 
 size_t hists__fprintf(struct hists *hists, bool show_header, int max_rows,
-		      int max_cols, float min_pcnt, FILE *fp)
+		      int max_cols, float min_pcnt, FILE *fp,
+		      bool use_callchain)
 {
 	struct perf_hpp_fmt *fmt;
 	struct rb_node *nd;
@@ -755,7 +757,7 @@ size_t hists__fprintf(struct hists *hists, bool show_header, int max_rows,
 		if (percent < min_pcnt)
 			continue;
 
-		ret += hist_entry__fprintf(h, max_cols, line, linesz, fp);
+		ret += hist_entry__fprintf(h, max_cols, line, linesz, fp, use_callchain);
 
 		if (max_rows && ++nr_rows >= max_rows)
 			break;
