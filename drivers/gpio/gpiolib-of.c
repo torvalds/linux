@@ -36,6 +36,22 @@ static struct gpio_chip *of_find_gpiochip_by_node(struct device_node *np)
 	return gpiochip_find(np, of_gpiochip_match_node);
 }
 
+static struct gpio_desc *of_xlate_and_get_gpiod_flags(struct gpio_chip *chip,
+					struct of_phandle_args *gpiospec,
+					enum of_gpio_flags *flags)
+{
+	int ret;
+
+	if (chip->of_gpio_n_cells != gpiospec->args_count)
+		return ERR_PTR(-EINVAL);
+
+	ret = chip->of_xlate(chip, gpiospec, flags);
+	if (ret < 0)
+		return ERR_PTR(ret);
+
+	return gpiochip_get_desc(chip, ret);
+}
+
 /**
  * of_get_named_gpiod_flags() - Get a GPIO descriptor and flags for GPIO API
  * @np:		device node to get GPIO from
@@ -68,18 +84,8 @@ struct gpio_desc *of_get_named_gpiod_flags(struct device_node *np,
 		desc = ERR_PTR(-EPROBE_DEFER);
 		goto out;
 	}
-	if (chip->of_gpio_n_cells != gpiospec.args_count) {
-		desc = ERR_PTR(-EINVAL);
-		goto out;
-	}
 
-	ret = chip->of_xlate(chip, &gpiospec, flags);
-	if (ret < 0) {
-		desc = ERR_PTR(ret);
-		goto out;
-	}
-
-	desc = gpiochip_get_desc(chip, ret);
+	desc = of_xlate_and_get_gpiod_flags(chip, &gpiospec, flags);
 	if (IS_ERR(desc))
 		goto out;
 
@@ -144,9 +150,6 @@ static struct gpio_desc *of_parse_own_gpio(struct device_node *np,
 	if (ret)
 		return ERR_PTR(ret);
 
-	if (tmp != chip->of_gpio_n_cells)
-		return ERR_PTR(-EINVAL);
-
 	gpiospec.np = chip_np;
 	gpiospec.args_count = tmp;
 
@@ -154,11 +157,7 @@ static struct gpio_desc *of_parse_own_gpio(struct device_node *np,
 	if (ret)
 		return ERR_PTR(ret);
 
-	ret = chip->of_xlate(chip, &gpiospec, &xlate_flags);
-	if (ret < 0)
-		return ERR_PTR(ret);
-
-	desc = gpiochip_get_desc(chip, ret);
+	desc = of_xlate_and_get_gpiod_flags(chip, &gpiospec, &xlate_flags);
 	if (IS_ERR(desc))
 		return desc;
 
