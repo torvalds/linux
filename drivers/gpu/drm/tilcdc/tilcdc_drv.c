@@ -597,6 +597,7 @@ static int tilcdc_pm_suspend(struct device *dev)
 	}
 
 	/* Disable the LCDC controller, to avoid locking up the PRCM */
+	priv->saved_dpms_state = tilcdc_crtc_current_dpms_state(priv->crtc);
 	tilcdc_crtc_dpms(priv->crtc, DRM_MODE_DPMS_OFF);
 
 	/* Save register state: */
@@ -626,6 +627,8 @@ static int tilcdc_pm_resume(struct device *dev)
 				tilcdc_write(ddev, registers[i].reg,
 					     priv->saved_register[n++]);
 	}
+
+	tilcdc_crtc_dpms(priv->crtc, priv->saved_dpms_state);
 
 	drm_kms_helper_poll_enable(ddev);
 

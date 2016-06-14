@@ -246,6 +246,13 @@ void tilcdc_crtc_dpms(struct drm_crtc *crtc, int mode)
 	}
 }
 
+int tilcdc_crtc_current_dpms_state(struct drm_crtc *crtc)
+{
+	struct tilcdc_crtc *tilcdc_crtc = to_tilcdc_crtc(crtc);
+
+	return tilcdc_crtc->dpms;
+}
+
 static bool tilcdc_crtc_mode_fixup(struct drm_crtc *crtc,
 		const struct drm_display_mode *mode,
 		struct drm_display_mode *adjusted_mode)
