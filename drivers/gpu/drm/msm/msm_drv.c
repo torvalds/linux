@@ -390,7 +390,7 @@ static int msm_drm_init(struct device *dev, struct drm_driver *drv)
 		priv->kms = kms;
 		break;
 	case 5:
-		kms = mdp5_kms_init2(ddev);
+		kms = mdp5_kms_init(ddev);
 		break;
 	default:
 		kms = ERR_PTR(-ENODEV);
