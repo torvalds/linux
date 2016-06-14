@@ -492,7 +492,6 @@ out:
 }
 
 static int hist_entry__fprintf(struct hist_entry *he, size_t size,
-			       struct hists *hists,
 			       char *bf, size_t bfsz, FILE *fp)
 {
 	int ret;
@@ -500,6 +499,7 @@ static int hist_entry__fprintf(struct hist_entry *he, size_t size,
 		.buf		= bf,
 		.size		= size,
 	};
+	struct hists *hists = he->hists;
 	u64 total_period = hists->stats.total_period;
 
 	if (size == 0 || size > bfsz)
@@ -755,7 +755,7 @@ size_t hists__fprintf(struct hists *hists, bool show_header, int max_rows,
 		if (percent < min_pcnt)
 			continue;
 
-		ret += hist_entry__fprintf(h, max_cols, hists, line, linesz, fp);
+		ret += hist_entry__fprintf(h, max_cols, line, linesz, fp);
 
 		if (max_rows && ++nr_rows >= max_rows)
 			break;
