@@ -286,7 +286,7 @@ int polaris10_populate_pm_fuses(struct pp_hwmgr *hwmgr)
 
 		if (polaris10_copy_bytes_to_smc(hwmgr->smumgr, pm_fuse_table_offset,
 				(uint8_t *)&data->power_tune_table,
-				sizeof(struct SMU74_Discrete_PmFuses), data->sram_end))
+				(sizeof(struct SMU74_Discrete_PmFuses) - 92), data->sram_end))
 			PP_ASSERT_WITH_CODE(false,
 					"Attempt to download PmFuseTable Failed!",
 					return -EINVAL);
