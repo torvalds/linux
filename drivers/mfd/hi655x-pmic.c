@@ -24,10 +24,6 @@
 #include <linux/platform_device.h>
 #include <linux/regmap.h>
 
-static const struct mfd_cell hi655x_pmic_devs[] = {
-	{ .name = "hi655x-regulator", },
-};
-
 static const struct regmap_irq hi655x_irqs[] = {
 	{ .reg_offset = 0, .mask = OTMP_D1R_INT_MASK },
 	{ .reg_offset = 0, .mask = VSYS_2P5_R_INT_MASK },
@@ -54,6 +50,34 @@ static struct regmap_config hi655x_regmap_config = {
 	.reg_stride = HI655X_STRIDE,
 	.val_bits = 8,
 	.max_register = HI655X_BUS_ADDR(0xFFF),
+};
+
+static struct resource pwrkey_resources[] = {
+	{
+		.name	= "down",
+		.start	= PWRON_D20R_INT,
+		.end	= PWRON_D20R_INT,
+		.flags	= IORESOURCE_IRQ,
+	}, {
+		.name	= "up",
+		.start	= PWRON_D20F_INT,
+		.end	= PWRON_D20F_INT,
+		.flags	= IORESOURCE_IRQ,
+	}, {
+		.name	= "hold 4s",
+		.start	= PWRON_D4SR_INT,
+		.end	= PWRON_D4SR_INT,
+		.flags	= IORESOURCE_IRQ,
+	},
+};
+
+static const struct mfd_cell hi655x_pmic_devs[] = {
+	{
+		.name		= "hi65xx-powerkey",
+		.num_resources	= ARRAY_SIZE(pwrkey_resources),
+		.resources	= &pwrkey_resources[0],
+	},
+	{	.name		= "hi655x-regulator", },
 };
 
 static void hi655x_local_irq_clear(struct regmap *map)
@@ -124,7 +148,8 @@ static int hi655x_pmic_probe(struct platform_device *pdev)
 	platform_set_drvdata(pdev, pmic);
 
 	ret = mfd_add_devices(dev, PLATFORM_DEVID_AUTO, hi655x_pmic_devs,
-			      ARRAY_SIZE(hi655x_pmic_devs), NULL, 0, NULL);
+			      ARRAY_SIZE(hi655x_pmic_devs), NULL, 0,
+			      regmap_irq_get_domain(pmic->irq_data));
 	if (ret) {
 		dev_err(dev, "Failed to register device %d\n", ret);
 		regmap_del_irq_chip(gpio_to_irq(pmic->gpio), pmic->irq_data);
