@@ -1470,7 +1470,7 @@ static int hist_browser__show_no_entry(struct hist_browser *browser,
 		    column++ < browser->b.horiz_scroll)
 			continue;
 
-		ret = fmt->width(fmt, NULL, hists_to_evsel(browser->hists));
+		ret = fmt->width(fmt, NULL, browser->hists);
 
 		if (first) {
 			/* for folded sign */

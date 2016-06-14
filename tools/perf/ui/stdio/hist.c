@@ -590,7 +590,7 @@ static int print_hierarchy_header(struct hists *hists, struct perf_hpp *hpp,
 			fprintf(fp, "%s", sep ?: "..");
 		first_col = false;
 
-		width = fmt->width(fmt, hpp, hists_to_evsel(hists));
+		width = fmt->width(fmt, hpp, hists);
 		fprintf(fp, "%.*s", width, dots);
 	}
 
@@ -607,7 +607,7 @@ static int print_hierarchy_header(struct hists *hists, struct perf_hpp *hpp,
 				width++;  /* for '+' sign between column header */
 			first_col = false;
 
-			width += fmt->width(fmt, hpp, hists_to_evsel(hists));
+			width += fmt->width(fmt, hpp, hists);
 		}
 
 		if (width > header_width)
@@ -682,7 +682,7 @@ hists__fprintf_standard_headers(struct hists *hists,
 		else
 			first = false;
 
-		width = fmt->width(fmt, hpp, hists_to_evsel(hists));
+		width = fmt->width(fmt, hpp, hists);
 		for (i = 0; i < width; i++)
 			fprintf(fp, ".");
 	}

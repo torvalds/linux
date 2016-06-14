@@ -1056,7 +1056,7 @@ static int hpp__header(struct perf_hpp_fmt *fmt, struct perf_hpp *hpp,
 
 static int hpp__width(struct perf_hpp_fmt *fmt,
 		      struct perf_hpp *hpp __maybe_unused,
-		      struct perf_evsel *evsel __maybe_unused)
+		      struct hists *hists __maybe_unused)
 {
 	struct diff_hpp_fmt *dfmt =
 		container_of(fmt, struct diff_hpp_fmt, fmt);
