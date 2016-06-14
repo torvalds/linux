@@ -979,7 +979,6 @@ enum emulation_result kvm_mips_emulate_CP0(u32 inst, u32 *opc, u32 cause,
 	struct mips_coproc *cop0 = vcpu->arch.cop0;
 	enum emulation_result er = EMULATE_DONE;
 	u32 rt, rd, copz, sel, co_bit, op;
-	unsigned long pc = vcpu->arch.pc;
 	unsigned long curr_pc;
 
 	/*
@@ -1046,20 +1045,27 @@ enum emulation_result kvm_mips_emulate_CP0(u32 inst, u32 *opc, u32 cause,
 #endif
 			}
 
-			kvm_debug
-			    ("[%#lx] MFCz[%d][%d], vcpu->arch.gprs[%d]: %#lx\n",
-			     pc, rd, sel, rt, vcpu->arch.gprs[rt]);
-
+			trace_kvm_hwr(vcpu, KVM_TRACE_MFC0,
+				      KVM_TRACE_COP0(rd, sel),
+				      vcpu->arch.gprs[rt]);
 			break;
 
 		case dmfc_op:
 			vcpu->arch.gprs[rt] = cop0->reg[rd][sel];
+
+			trace_kvm_hwr(vcpu, KVM_TRACE_DMFC0,
+				      KVM_TRACE_COP0(rd, sel),
+				      vcpu->arch.gprs[rt]);
 			break;
 
 		case mtc_op:
 #ifdef CONFIG_KVM_MIPS_DEBUG_COP0_COUNTERS
 			cop0->stat[rd][sel]++;
 #endif
+			trace_kvm_hwr(vcpu, KVM_TRACE_MTC0,
+				      KVM_TRACE_COP0(rd, sel),
+				      vcpu->arch.gprs[rt]);
+
 			if ((rd == MIPS_CP0_TLB_INDEX)
 			    && (vcpu->arch.gprs[rt] >=
 				KVM_MIPS_GUEST_TLB_SIZE)) {
@@ -1098,10 +1104,6 @@ enum emulation_result kvm_mips_emulate_CP0(u32 inst, u32 *opc, u32 cause,
 				kvm_mips_write_count(vcpu, vcpu->arch.gprs[rt]);
 				goto done;
 			} else if ((rd == MIPS_CP0_COMPARE) && (sel == 0)) {
-				kvm_debug("[%#lx] MTCz, COMPARE %#lx <- %#lx\n",
-					  pc, kvm_read_c0_guest_compare(cop0),
-					  vcpu->arch.gprs[rt]);
-
 				/* If we are writing to COMPARE */
 				/* Clear pending timer interrupt, if any */
 				kvm_mips_write_compare(vcpu,
@@ -1237,14 +1239,14 @@ enum emulation_result kvm_mips_emulate_CP0(u32 inst, u32 *opc, u32 cause,
 				kvm_mips_trans_mtc0(inst, opc, vcpu);
 #endif
 			}
-
-			kvm_debug("[%#lx] MTCz, cop0->reg[%d][%d]: %#lx\n", pc,
-				  rd, sel, cop0->reg[rd][sel]);
 			break;
 
 		case dmtc_op:
 			kvm_err("!!!!!!![%#lx]dmtc_op: rt: %d, rd: %d, sel: %d!!!!!!\n",
 				vcpu->arch.pc, rt, rd, sel);
+			trace_kvm_hwr(vcpu, KVM_TRACE_DMTC0,
+				      KVM_TRACE_COP0(rd, sel),
+				      vcpu->arch.gprs[rt]);
 			er = EMULATE_FAIL;
 			break;
 
@@ -2307,6 +2309,8 @@ enum emulation_result kvm_mips_handle_ri(u32 cause, u32 *opc,
 		int usermode = !KVM_GUEST_KERNEL_MODE(vcpu);
 		int rd = (inst & RD) >> 11;
 		int rt = (inst & RT) >> 16;
+		int sel = (inst >> 6) & 0x7;
+
 		/* If usermode, check RDHWR rd is allowed by guest HWREna */
 		if (usermode && !(kvm_read_c0_guest_hwrena(cop0) & BIT(rd))) {
 			kvm_debug("RDHWR %#x disallowed by HWREna @ %p\n",
@@ -2342,6 +2346,9 @@ enum emulation_result kvm_mips_handle_ri(u32 cause, u32 *opc,
 			kvm_debug("RDHWR %#x not supported @ %p\n", rd, opc);
 			goto emulate_ri;
 		}
+
+		trace_kvm_hwr(vcpu, KVM_TRACE_RDHWR, KVM_TRACE_HWR(rd, sel),
+			      vcpu->arch.gprs[rt]);
 	} else {
 		kvm_debug("Emulate RI not supported @ %p: %#x\n", opc, inst);
 		goto emulate_ri;

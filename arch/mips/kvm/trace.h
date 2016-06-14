@@ -124,6 +124,94 @@ TRACE_EVENT(kvm_exit,
 		      __entry->pc)
 );
 
+#define KVM_TRACE_MFC0		0
+#define KVM_TRACE_MTC0		1
+#define KVM_TRACE_DMFC0		2
+#define KVM_TRACE_DMTC0		3
+#define KVM_TRACE_RDHWR		4
+
+#define KVM_TRACE_HWR_COP0	0
+#define KVM_TRACE_HWR_HWR	1
+
+#define KVM_TRACE_COP0(REG, SEL)	((KVM_TRACE_HWR_COP0 << 8) |	\
+					 ((REG) << 3) | (SEL))
+#define KVM_TRACE_HWR(REG, SEL)		((KVM_TRACE_HWR_HWR  << 8) |	\
+					 ((REG) << 3) | (SEL))
+
+#define kvm_trace_symbol_hwr_ops				\
+	{ KVM_TRACE_MFC0,		"MFC0" },		\
+	{ KVM_TRACE_MTC0,		"MTC0" },		\
+	{ KVM_TRACE_DMFC0,		"DMFC0" },		\
+	{ KVM_TRACE_DMTC0,		"DMTC0" },		\
+	{ KVM_TRACE_RDHWR,		"RDHWR" }
+
+#define kvm_trace_symbol_hwr_cop				\
+	{ KVM_TRACE_HWR_COP0,		"COP0" },		\
+	{ KVM_TRACE_HWR_HWR,		"HWR" }
+
+#define kvm_trace_symbol_hwr_regs				\
+	{ KVM_TRACE_COP0( 0, 0),	"Index" },		\
+	{ KVM_TRACE_COP0( 2, 0),	"EntryLo0" },		\
+	{ KVM_TRACE_COP0( 3, 0),	"EntryLo1" },		\
+	{ KVM_TRACE_COP0( 4, 0),	"Context" },		\
+	{ KVM_TRACE_COP0( 4, 2),	"UserLocal" },		\
+	{ KVM_TRACE_COP0( 5, 0),	"PageMask" },		\
+	{ KVM_TRACE_COP0( 6, 0),	"Wired" },		\
+	{ KVM_TRACE_COP0( 7, 0),	"HWREna" },		\
+	{ KVM_TRACE_COP0( 8, 0),	"BadVAddr" },		\
+	{ KVM_TRACE_COP0( 9, 0),	"Count" },		\
+	{ KVM_TRACE_COP0(10, 0),	"EntryHi" },		\
+	{ KVM_TRACE_COP0(11, 0),	"Compare" },		\
+	{ KVM_TRACE_COP0(12, 0),	"Status" },		\
+	{ KVM_TRACE_COP0(12, 1),	"IntCtl" },		\
+	{ KVM_TRACE_COP0(12, 2),	"SRSCtl" },		\
+	{ KVM_TRACE_COP0(13, 0),	"Cause" },		\
+	{ KVM_TRACE_COP0(14, 0),	"EPC" },		\
+	{ KVM_TRACE_COP0(15, 0),	"PRId" },		\
+	{ KVM_TRACE_COP0(15, 1),	"EBase" },		\
+	{ KVM_TRACE_COP0(16, 0),	"Config" },		\
+	{ KVM_TRACE_COP0(16, 1),	"Config1" },		\
+	{ KVM_TRACE_COP0(16, 2),	"Config2" },		\
+	{ KVM_TRACE_COP0(16, 3),	"Config3" },		\
+	{ KVM_TRACE_COP0(16, 4),	"Config4" },		\
+	{ KVM_TRACE_COP0(16, 5),	"Config5" },		\
+	{ KVM_TRACE_COP0(16, 7),	"Config7" },		\
+	{ KVM_TRACE_COP0(26, 0),	"ECC" },		\
+	{ KVM_TRACE_COP0(30, 0),	"ErrorEPC" },		\
+	{ KVM_TRACE_HWR( 0, 0),		"CPUNum" },		\
+	{ KVM_TRACE_HWR( 1, 0),		"SYNCI_Step" },		\
+	{ KVM_TRACE_HWR( 2, 0),		"CC" },			\
+	{ KVM_TRACE_HWR( 3, 0),		"CCRes" },		\
+	{ KVM_TRACE_HWR(29, 0),		"ULR" }
+
+TRACE_EVENT(kvm_hwr,
+	    TP_PROTO(struct kvm_vcpu *vcpu, unsigned int op, unsigned int reg,
+		     unsigned long val),
+	    TP_ARGS(vcpu, op, reg, val),
+	    TP_STRUCT__entry(
+			__field(unsigned long, val)
+			__field(u16, reg)
+			__field(u8, op)
+	    ),
+
+	    TP_fast_assign(
+			__entry->val = val;
+			__entry->reg = reg;
+			__entry->op = op;
+	    ),
+
+	    TP_printk("%s %s (%s:%u:%u) 0x%08lx",
+		      __print_symbolic(__entry->op,
+				       kvm_trace_symbol_hwr_ops),
+		      __print_symbolic(__entry->reg,
+				       kvm_trace_symbol_hwr_regs),
+		      __print_symbolic(__entry->reg >> 8,
+				       kvm_trace_symbol_hwr_cop),
+		      (__entry->reg >> 3) & 0x1f,
+		      __entry->reg & 0x7,
+		      __entry->val)
+);
+
 #define KVM_TRACE_AUX_RESTORE		0
 #define KVM_TRACE_AUX_SAVE		1
 #define KVM_TRACE_AUX_ENABLE		2
