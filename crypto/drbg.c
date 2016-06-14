@@ -517,8 +517,7 @@ static int drbg_ctr_update(struct drbg_state *drbg, struct list_head *seed,
 		return ret;
 
 	/* 10.2.1.2 step 5 */
-	memcpy(drbg->C, temp, drbg_keylen(drbg));
-	ret = crypto_skcipher_setkey(drbg->ctr_handle, drbg->C,
+	ret = crypto_skcipher_setkey(drbg->ctr_handle, temp,
 				     drbg_keylen(drbg));
 	if (ret)
 		goto out;
