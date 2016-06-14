@@ -30,6 +30,7 @@
 
 #include <drm/drmP.h>
 #include "drm_internal.h"
+#include "drm_legacy.h"
 
 /**
  * drm_getmagic - Get unique magic of a client
@@ -91,3 +92,165 @@ int drm_authmagic(struct drm_device *dev, void *data,
 
 	return file ? 0 : -EINVAL;
 }
+
+static struct drm_master *drm_master_create(struct drm_device *dev)
+{
+	struct drm_master *master;
+
+	master = kzalloc(sizeof(*master), GFP_KERNEL);
+	if (!master)
+		return NULL;
+
+	kref_init(&master->refcount);
+	spin_lock_init(&master->lock.spinlock);
+	init_waitqueue_head(&master->lock.lock_queue);
+	idr_init(&master->magic_map);
+	master->dev = dev;
+
+	return master;
+}
+
+/*
+ * drm_new_set_master - Allocate a new master object and become master for the
+ * associated master realm.
+ *
+ * @dev: The associated device.
+ * @fpriv: File private identifying the client.
+ *
+ * This function must be called with dev::struct_mutex held.
+ * Returns negative error code on failure. Zero on success.
+ */
+int drm_new_set_master(struct drm_device *dev, struct drm_file *fpriv)
+{
+	struct drm_master *old_master;
+	int ret;
+
+	lockdep_assert_held_once(&dev->master_mutex);
+
+	/* create a new master */
+	fpriv->minor->master = drm_master_create(fpriv->minor->dev);
+	if (!fpriv->minor->master)
+		return -ENOMEM;
+
+	/* take another reference for the copy in the local file priv */
+	old_master = fpriv->master;
+	fpriv->master = drm_master_get(fpriv->minor->master);
+
+	if (dev->driver->master_create) {
+		ret = dev->driver->master_create(dev, fpriv->master);
+		if (ret)
+			goto out_err;
+	}
+	if (dev->driver->master_set) {
+		ret = dev->driver->master_set(dev, fpriv, true);
+		if (ret)
+			goto out_err;
+	}
+
+	fpriv->is_master = 1;
+	fpriv->allowed_master = 1;
+	fpriv->authenticated = 1;
+	if (old_master)
+		drm_master_put(&old_master);
+
+	return 0;
+
+out_err:
+	/* drop both references and restore old master on failure */
+	drm_master_put(&fpriv->minor->master);
+	drm_master_put(&fpriv->master);
+	fpriv->master = old_master;
+
+	return ret;
+}
+
+int drm_setmaster_ioctl(struct drm_device *dev, void *data,
+			struct drm_file *file_priv)
+{
+	int ret = 0;
+
+	mutex_lock(&dev->master_mutex);
+	if (file_priv->is_master)
+		goto out_unlock;
+
+	if (file_priv->minor->master) {
+		ret = -EINVAL;
+		goto out_unlock;
+	}
+
+	if (!file_priv->master) {
+		ret = -EINVAL;
+		goto out_unlock;
+	}
+
+	if (!file_priv->allowed_master) {
+		ret = drm_new_set_master(dev, file_priv);
+		goto out_unlock;
+	}
+
+	file_priv->minor->master = drm_master_get(file_priv->master);
+	file_priv->is_master = 1;
+	if (dev->driver->master_set) {
+		ret = dev->driver->master_set(dev, file_priv, false);
+		if (unlikely(ret != 0)) {
+			file_priv->is_master = 0;
+			drm_master_put(&file_priv->minor->master);
+		}
+	}
+
+out_unlock:
+	mutex_unlock(&dev->master_mutex);
+	return ret;
+}
+
+int drm_dropmaster_ioctl(struct drm_device *dev, void *data,
+			 struct drm_file *file_priv)
+{
+	int ret = -EINVAL;
+
+	mutex_lock(&dev->master_mutex);
+	if (!file_priv->is_master)
+		goto out_unlock;
+
+	if (!file_priv->minor->master)
+		goto out_unlock;
+
+	ret = 0;
+	if (dev->driver->master_drop)
+		dev->driver->master_drop(dev, file_priv, false);
+	drm_master_put(&file_priv->minor->master);
+	file_priv->is_master = 0;
+
+out_unlock:
+	mutex_unlock(&dev->master_mutex);
+	return ret;
+}
+
+struct drm_master *drm_master_get(struct drm_master *master)
+{
+	kref_get(&master->refcount);
+	return master;
+}
+EXPORT_SYMBOL(drm_master_get);
+
+static void drm_master_destroy(struct kref *kref)
+{
+	struct drm_master *master = container_of(kref, struct drm_master, refcount);
+	struct drm_device *dev = master->dev;
+
+	if (dev->driver->master_destroy)
+		dev->driver->master_destroy(dev, master);
+
+	drm_legacy_master_rmmaps(dev, master);
+
+	idr_destroy(&master->magic_map);
+	kfree(master->unique);
+	kfree(master);
+}
+
+void drm_master_put(struct drm_master **master)
+{
+	kref_put(&(*master)->refcount, drm_master_destroy);
+	*master = NULL;
+}
+EXPORT_SYMBOL(drm_master_put);

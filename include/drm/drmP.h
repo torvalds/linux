@@ -928,7 +928,6 @@ int drm_open(struct inode *inode, struct file *filp);
 ssize_t drm_read(struct file *filp, char __user *buffer,
 		 size_t count, loff_t *offset);
 int drm_release(struct inode *inode, struct file *filp);
-int drm_new_set_master(struct drm_device *dev, struct drm_file *fpriv);
 unsigned int drm_poll(struct file *filp, struct poll_table_struct *wait);
 int drm_event_reserve_init_locked(struct drm_device *dev,
 				  struct drm_file *file_priv,

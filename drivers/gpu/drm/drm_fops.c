@@ -168,60 +168,6 @@ static int drm_cpu_valid(void)
 }
 
 /*
- * drm_new_set_master - Allocate a new master object and become master for the
- * associated master realm.
- *
- * @dev: The associated device.
- * @fpriv: File private identifying the client.
- *
- * This function must be called with dev::struct_mutex held.
- * Returns negative error code on failure. Zero on success.
- */
-int drm_new_set_master(struct drm_device *dev, struct drm_file *fpriv)
-{
-	struct drm_master *old_master;
-	int ret;
-
-	lockdep_assert_held_once(&dev->master_mutex);
-
-	/* create a new master */
-	fpriv->minor->master = drm_master_create(fpriv->minor->dev);
-	if (!fpriv->minor->master)
-		return -ENOMEM;
-
-	/* take another reference for the copy in the local file priv */
-	old_master = fpriv->master;
-	fpriv->master = drm_master_get(fpriv->minor->master);
-
-	if (dev->driver->master_create) {
-		ret = dev->driver->master_create(dev, fpriv->master);
-		if (ret)
-			goto out_err;
-	}
-	if (dev->driver->master_set) {
-		ret = dev->driver->master_set(dev, fpriv, true);
-		if (ret)
-			goto out_err;
-	}
-
-	fpriv->is_master = 1;
-	fpriv->allowed_master = 1;
-	fpriv->authenticated = 1;
-	if (old_master)
-		drm_master_put(&old_master);
-
-	return 0;
-
-out_err:
-	/* drop both references and restore old master on failure */
-	drm_master_put(&fpriv->minor->master);
-	drm_master_put(&fpriv->master);
-	fpriv->master = old_master;
-
-	return ret;
-}
-
-/*
  * Called whenever a process opens /dev/drm.
  *
  * \param filp file pointer.
