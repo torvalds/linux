@@ -524,6 +524,9 @@ static int mlx5_ib_query_device(struct ib_device *ibdev,
 	    MLX5_CAP_ETH(dev->mdev, scatter_fcs))
 		props->device_cap_flags |= IB_DEVICE_RAW_SCATTER_FCS;
 
+	if (mlx5_get_flow_namespace(dev->mdev, MLX5_FLOW_NAMESPACE_BYPASS))
+		props->device_cap_flags |= IB_DEVICE_MANAGED_FLOW_STEERING;
+
 	props->vendor_part_id	   = mdev->pdev->device;
 	props->hw_ver		   = mdev->pdev->revision;
 
@@ -915,7 +918,8 @@ static struct ib_ucontext *mlx5_ib_alloc_ucontext(struct ib_device *ibdev,
 	num_uars = req.total_num_uuars / MLX5_NON_FP_BF_REGS_PER_PAGE;
 	gross_uuars = num_uars * MLX5_BF_REGS_PER_PAGE;
 	resp.qp_tab_size = 1 << MLX5_CAP_GEN(dev->mdev, log_max_qp);
-	resp.bf_reg_size = 1 << MLX5_CAP_GEN(dev->mdev, log_bf_reg_size);
+	if (mlx5_core_is_pf(dev->mdev) && MLX5_CAP_GEN(dev->mdev, bf))
+		resp.bf_reg_size = 1 << MLX5_CAP_GEN(dev->mdev, log_bf_reg_size);
 	resp.cache_line_size = L1_CACHE_BYTES;
 	resp.max_sq_desc_sz = MLX5_CAP_GEN(dev->mdev, max_wqe_sz_sq);
 	resp.max_rq_desc_sz = MLX5_CAP_GEN(dev->mdev, max_wqe_sz_rq);
@@ -988,7 +992,14 @@ static struct ib_ucontext *mlx5_ib_alloc_ucontext(struct ib_device *ibdev,
 	if (field_avail(typeof(resp), cqe_version, udata->outlen))
 		resp.response_length += sizeof(resp.cqe_version);
 
-	if (field_avail(typeof(resp), hca_core_clock_offset, udata->outlen)) {
+	/*
+	 * We don't want to expose information from the PCI bar that is located
+	 * after 4096 bytes, so if the arch only supports larger pages, let's
+	 * pretend we don't support reading the HCA's core clock. This is also
+	 * forced by mmap function.
+	 */
+	if (PAGE_SIZE <= 4096 &&
+	    field_avail(typeof(resp), hca_core_clock_offset, udata->outlen)) {
 		resp.comp_mask |=
 			MLX5_IB_ALLOC_UCONTEXT_RESP_MASK_CORE_CLOCK_OFFSET;
 		resp.hca_core_clock_offset =
@@ -1798,7 +1809,7 @@ static ssize_t show_fw_ver(struct device *device, struct device_attribute *attr,
 {
 	struct mlx5_ib_dev *dev =
 		container_of(device, struct mlx5_ib_dev, ib_dev.dev);
-	return sprintf(buf, "%d.%d.%d\n", fw_rev_maj(dev->mdev),
+	return sprintf(buf, "%d.%d.%04d\n", fw_rev_maj(dev->mdev),
 		       fw_rev_min(dev->mdev), fw_rev_sub(dev->mdev));
 }
 
@@ -1866,13 +1877,10 @@ static void mlx5_ib_event(struct mlx5_core_dev *dev, void *context,
 		break;
 
 	case MLX5_DEV_EVENT_PORT_DOWN:
+	case MLX5_DEV_EVENT_PORT_INITIALIZED:
 		ibev.event = IB_EVENT_PORT_ERR;
 		port = (u8)param;
 		break;
-
-	case MLX5_DEV_EVENT_PORT_INITIALIZED:
-		/* not used by ULPs */
-		return;
 
 	case MLX5_DEV_EVENT_LID_CHANGE:
 		ibev.event = IB_EVENT_LID_CHANGE;

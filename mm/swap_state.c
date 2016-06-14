@@ -252,7 +252,10 @@ static inline void free_swap_cache(struct page *page)
 void free_page_and_swap_cache(struct page *page)
 {
 	free_swap_cache(page);
-	put_page(page);
+	if (is_huge_zero_page(page))
+		put_huge_zero_page();
+	else
+		put_page(page);
 }
 
 /*
