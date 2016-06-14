@@ -109,82 +109,82 @@
 		      <0x0 0x780a0000 0x0 0x20000>,	/* GIC CPU */
 		      <0x0 0x780c0000 0x0 0x10000>,	/* GIC VCPU Control */
 		      <0x0 0x780e0000 0x0 0x20000>;	/* GIC VCPU */
-		v2m0: v2m@0x00000 {
+		v2m0: v2m@00000 {
 			compatible = "arm,gic-v2m-frame";
 			msi-controller;
 			reg = <0x0 0x0 0x0 0x1000>;
 		};
-		v2m1: v2m@0x10000 {
+		v2m1: v2m@10000 {
 			compatible = "arm,gic-v2m-frame";
 			msi-controller;
 			reg = <0x0 0x10000 0x0 0x1000>;
 		};
-		v2m2: v2m@0x20000 {
+		v2m2: v2m@20000 {
 			compatible = "arm,gic-v2m-frame";
 			msi-controller;
 			reg = <0x0 0x20000 0x0 0x1000>;
 		};
-		v2m3: v2m@0x30000 {
+		v2m3: v2m@30000 {
 			compatible = "arm,gic-v2m-frame";
 			msi-controller;
 			reg = <0x0 0x30000 0x0 0x1000>;
 		};
-		v2m4: v2m@0x40000 {
+		v2m4: v2m@40000 {
 			compatible = "arm,gic-v2m-frame";
 			msi-controller;
 			reg = <0x0 0x40000 0x0 0x1000>;
 		};
-		v2m5: v2m@0x50000 {
+		v2m5: v2m@50000 {
 			compatible = "arm,gic-v2m-frame";
 			msi-controller;
 			reg = <0x0 0x50000 0x0 0x1000>;
 		};
-		v2m6: v2m@0x60000 {
+		v2m6: v2m@60000 {
 			compatible = "arm,gic-v2m-frame";
 			msi-controller;
 			reg = <0x0 0x60000 0x0 0x1000>;
 		};
-		v2m7: v2m@0x70000 {
+		v2m7: v2m@70000 {
 			compatible = "arm,gic-v2m-frame";
 			msi-controller;
 			reg = <0x0 0x70000 0x0 0x1000>;
 		};
-		v2m8: v2m@0x80000 {
+		v2m8: v2m@80000 {
 			compatible = "arm,gic-v2m-frame";
 			msi-controller;
 			reg = <0x0 0x80000 0x0 0x1000>;
 		};
-		v2m9: v2m@0x90000 {
+		v2m9: v2m@90000 {
 			compatible = "arm,gic-v2m-frame";
 			msi-controller;
 			reg = <0x0 0x90000 0x0 0x1000>;
 		};
-		v2m10: v2m@0xa0000 {
+		v2m10: v2m@a0000 {
 			compatible = "arm,gic-v2m-frame";
 			msi-controller;
 			reg = <0x0 0xa0000 0x0 0x1000>;
 		};
-		v2m11: v2m@0xb0000 {
+		v2m11: v2m@b0000 {
 			compatible = "arm,gic-v2m-frame";
 			msi-controller;
 			reg = <0x0 0xb0000 0x0 0x1000>;
 		};
-		v2m12: v2m@0xc0000 {
+		v2m12: v2m@c0000 {
 			compatible = "arm,gic-v2m-frame";
 			msi-controller;
 			reg = <0x0 0xc0000 0x0 0x1000>;
 		};
-		v2m13: v2m@0xd0000 {
+		v2m13: v2m@d0000 {
 			compatible = "arm,gic-v2m-frame";
 			msi-controller;
 			reg = <0x0 0xd0000 0x0 0x1000>;
 		};
-		v2m14: v2m@0xe0000 {
+		v2m14: v2m@e0000 {
 			compatible = "arm,gic-v2m-frame";
 			msi-controller;
 			reg = <0x0 0xe0000 0x0 0x1000>;
 		};
-		v2m15: v2m@0xf0000 {
+		v2m15: v2m@f0000 {
 			compatible = "arm,gic-v2m-frame";
 			msi-controller;
 			reg = <0x0 0xf0000 0x0 0x1000>;
