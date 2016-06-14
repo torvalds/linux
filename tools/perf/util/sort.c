@@ -1218,7 +1218,7 @@ struct sort_entry sort_mem_daddr_dso = {
 	.se_header	= "Data Object",
 	.se_cmp		= sort__dso_daddr_cmp,
 	.se_snprintf	= hist_entry__dso_daddr_snprintf,
-	.se_width_idx	= HISTC_MEM_DADDR_SYMBOL,
+	.se_width_idx	= HISTC_MEM_DADDR_DSO,
 };
 
 struct sort_entry sort_mem_locked = {
