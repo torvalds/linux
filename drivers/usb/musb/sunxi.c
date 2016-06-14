@@ -80,7 +80,8 @@ static struct musb *sunxi_musb;
 
 struct sunxi_glue {
 	struct device		*dev;
-	struct platform_device	*musb;
+	struct musb		*musb;
+	struct platform_device	*musb_pdev;
 	struct clk		*clk;
 	struct reset_control	*rst;
 	struct phy		*phy;
@@ -102,7 +103,7 @@ static void sunxi_musb_work(struct work_struct *work)
 		return;
 
 	if (test_and_clear_bit(SUNXI_MUSB_FL_HOSTMODE_PEND, &glue->flags)) {
-		struct musb *musb = platform_get_drvdata(glue->musb);
+		struct musb *musb = glue->musb;
 		unsigned long flags;
 		u8 devctl;
 
@@ -336,6 +337,8 @@ static int sunxi_set_mode(struct musb *musb, u8 mode)
 static void sunxi_musb_enable(struct musb *musb)
 {
 	struct sunxi_glue *glue = dev_get_drvdata(musb->controller->parent);
+
+	glue->musb = musb;
 
 	/* musb_core does not call us in a balanced manner */
 	if (test_and_set_bit(SUNXI_MUSB_FL_ENABLED, &glue->flags))
@@ -732,9 +735,9 @@ static int sunxi_musb_probe(struct platform_device *pdev)
 	pinfo.data	= &pdata;
 	pinfo.size_data = sizeof(pdata);
 
-	glue->musb = platform_device_register_full(&pinfo);
-	if (IS_ERR(glue->musb)) {
-		ret = PTR_ERR(glue->musb);
+	glue->musb_pdev = platform_device_register_full(&pinfo);
+	if (IS_ERR(glue->musb_pdev)) {
+		ret = PTR_ERR(glue->musb_pdev);
 		dev_err(&pdev->dev, "Error registering musb dev: %d\n", ret);
 		goto err_unregister_usb_phy;
 	}
@@ -751,7 +754,7 @@ static int sunxi_musb_remove(struct platform_device *pdev)
 	struct sunxi_glue *glue = platform_get_drvdata(pdev);
 	struct platform_device *usb_phy = glue->usb_phy;
 
-	platform_device_unregister(glue->musb); /* Frees glue ! */
+	platform_device_unregister(glue->musb_pdev); /* Frees glue ! */
 	usb_phy_generic_unregister(usb_phy);
 
 	return 0;
