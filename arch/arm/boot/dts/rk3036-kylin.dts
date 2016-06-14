@@ -154,8 +154,8 @@
 			vdd_cpu: DCDC_REG1 {
 				regulator-always-on;
 				regulator-boot-on;
-				regulator-min-microvolt = <750000>;
-				regulator-max-microvolt = <1350000>;
+				regulator-min-microvolt = <1250000>;
+				regulator-max-microvolt = <1250000>;
 				regulator-name = "vdd_arm";
 				regulator-state-mem {
 					regulator-off-in-suspend;
