@@ -190,6 +190,7 @@ struct raid_dev {
 #define RT_FLAG_RS_BITMAP_LOADED	2
 #define RT_FLAG_UPDATE_SBS		3
 #define RT_FLAG_RESHAPE_RS		4
+#define RT_FLAG_KEEP_RS_FROZEN		5
 
 /* Array elements of 64 bit needed for rebuild/write_mostly bits */
 #define DISKS_ARRAY_ELEMS ((MAX_RAID_DEVICES + (sizeof(uint64_t) * 8 - 1)) / sizeof(uint64_t) / 8)
@@ -2727,6 +2728,7 @@ static int raid_ctr(struct dm_target *ti, unsigned argc, char **argv)
 			return r;
 
 		set_bit(RT_FLAG_UPDATE_SBS, &rs->runtime_flags);
+		set_bit(RT_FLAG_KEEP_RS_FROZEN, &rs->runtime_flags);
 		rs_set_new(rs);
 	} else if (rs_reshape_requested(rs)) {
 		if (rs_is_reshaping(rs)) {
@@ -2767,13 +2769,19 @@ static int raid_ctr(struct dm_target *ti, unsigned argc, char **argv)
 		 *           Would cause allocations in raid1->check_reshape
 		 *           though, thus more issues with potential failures
 		 */
-		else if (rs_is_raid1(rs))
+		else if (rs_is_raid1(rs)) {
+			set_bit(RT_FLAG_KEEP_RS_FROZEN, &rs->runtime_flags);
 			rs->md.raid_disks = rs->raid_disks;
+		}
+
+		if (test_bit(RT_FLAG_RESHAPE_RS, &rs->runtime_flags)) {
+			set_bit(RT_FLAG_UPDATE_SBS, &rs->runtime_flags);
+			set_bit(RT_FLAG_KEEP_RS_FROZEN, &rs->runtime_flags);
+		}
 
 		if (rs->md.raid_disks < rs->raid_disks)
 			set_bit(MD_ARRAY_FIRST_USE, &rs->md.flags);
 
-		set_bit(RT_FLAG_UPDATE_SBS, &rs->runtime_flags);
 		rs_set_cur(rs);
 	} else
 		rs_set_cur(rs);
@@ -3231,9 +3239,11 @@ static void raid_postsuspend(struct dm_target *ti)
 {
 	struct raid_set *rs = ti->private;
 
-	mddev_suspend(&rs->md);
-	rs->md.ro = 1;
-	clear_bit(RT_FLAG_RS_RESUMED, &rs->runtime_flags);
+	if (test_and_clear_bit(RT_FLAG_RS_RESUMED, &rs->runtime_flags)) {
+		if (!rs->md.suspended)
+			mddev_suspend(&rs->md);
+		rs->md.ro = 1;
+	}
 }
 
 static void attempt_restore_of_faulty_devices(struct raid_set *rs)
@@ -3308,6 +3318,18 @@ static int __load_dirty_region_bitmap(struct raid_set *rs)
 	return r;
 }
 
+/* Enforce updating all superblocks */
+static void rs_update_sbs(struct raid_set *rs)
+{
+	struct mddev *mddev = &rs->md;
+	int ro = mddev->ro;
+
+	set_bit(MD_CHANGE_DEVS, &mddev->flags);
+	mddev->ro = 0;
+	md_update_sb(mddev, 1);
+	mddev->ro = ro;
+}
+
 /*
  * Reshape changes raid algorithm of @rs to new one within personality
  * (e.g. raid6_zr -> raid6_nc), changes stripe size, adds/removes
@@ -3356,9 +3378,12 @@ static int rs_start_reshape(struct raid_set *rs)
 	if (!mddev->suspended)
 		mddev_suspend(mddev);
 
-	mddev->ro = 0;
-	md_update_sb(mddev, 1);
-	mddev->ro = 1;
+	/*
+	 * Now reshape got set up, update superblocks to
+	 * reflect the fact so that a table reload will
+	 * access proper superblock content in the ctr.
+	 */
+	rs_update_sbs(rs);
 
 	return 0;
 }
@@ -3375,22 +3400,12 @@ static int raid_preresume(struct dm_target *ti)
 
 	/*
 	 * The superblocks need to be updated on disk if the
-	 * array is new or __load_dirty_region_bitmap will overwrite them
-	 * in core with old data.
-	 *
-	 * In case the array got modified (takeover/reshape/resize)
-	 * or the data offsets on the component devices changed, they
-	 * have to be updated as well.
-	 *
-	 * Have to switch to readwrite and back in order to
-	 * allow for the superblock updates.
+	 * array is new or new devices got added (thus zeroed
+	 * out by userspace) or __load_dirty_region_bitmap
+	 * will overwrite them in core with old data or fail.
 	 */
-	if (test_and_clear_bit(RT_FLAG_UPDATE_SBS, &rs->runtime_flags)) {
-		set_bit(MD_CHANGE_DEVS, &mddev->flags);
-		mddev->ro = 0;
-		md_update_sb(mddev, 1);
-		mddev->ro = 1;
-	}
+	if (test_bit(RT_FLAG_UPDATE_SBS, &rs->runtime_flags))
+		rs_update_sbs(rs);
 
 	/*
 	 * Disable/enable discard support on raid set after any
@@ -3449,14 +3464,26 @@ static void raid_resume(struct dm_target *ti)
 		 * devices are reachable again.
 		 */
 		attempt_restore_of_faulty_devices(rs);
+	} else {
+		mddev->ro = 0;
+		mddev->in_sync = 0;
+
+		/*
+		 * When passing in flags to the ctr, we expect userspace
+		 * to reset them because they made it to the superblocks
+		 * and reload the mapping anyway.
+		 *
+		 * -> only unfreeze recovery in case of a table reload or
+		 *    we'll have a bogus recovery/reshape position
+		 *    retrieved from the superblock by the ctr because
+		 *    the ongoing recovery/reshape will change it after read.
+		 */
+		if (!test_bit(RT_FLAG_KEEP_RS_FROZEN, &rs->runtime_flags))
+			clear_bit(MD_RECOVERY_FROZEN, &mddev->recovery);
+
+		if (mddev->suspended)
+			mddev_resume(mddev);
 	}
-
-	mddev->ro = 0;
-	mddev->in_sync = 0;
-	clear_bit(MD_RECOVERY_FROZEN, &mddev->recovery);
-
-	if (mddev->suspended)
-		mddev_resume(mddev);
 }
 
 static struct target_type raid_target = {
