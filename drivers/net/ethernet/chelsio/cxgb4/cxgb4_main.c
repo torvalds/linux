@@ -461,11 +461,8 @@ static int set_rxmode(struct net_device *dev, int mtu, bool sleep_ok)
 	struct port_info *pi = netdev_priv(dev);
 	struct adapter *adapter = pi->adapter;
 
-	if (!(dev->flags & IFF_PROMISC)) {
-		__dev_uc_sync(dev, cxgb4_mac_sync, cxgb4_mac_unsync);
-		if (!(dev->flags & IFF_ALLMULTI))
-			__dev_mc_sync(dev, cxgb4_mac_sync, cxgb4_mac_unsync);
-	}
+	__dev_uc_sync(dev, cxgb4_mac_sync, cxgb4_mac_unsync);
+	__dev_mc_sync(dev, cxgb4_mac_sync, cxgb4_mac_unsync);
 
 	return t4_set_rxmode(adapter, adapter->mbox, pi->viid, mtu,
 			     (dev->flags & IFF_PROMISC) ? 1 : 0,

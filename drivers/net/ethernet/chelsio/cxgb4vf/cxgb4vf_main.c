@@ -937,12 +937,8 @@ static int set_rxmode(struct net_device *dev, int mtu, bool sleep_ok)
 {
 	struct port_info *pi = netdev_priv(dev);
 
-	if (!(dev->flags & IFF_PROMISC)) {
-		__dev_uc_sync(dev, cxgb4vf_mac_sync, cxgb4vf_mac_unsync);
-		if (!(dev->flags & IFF_ALLMULTI))
-			__dev_mc_sync(dev, cxgb4vf_mac_sync,
-				      cxgb4vf_mac_unsync);
-	}
+	__dev_uc_sync(dev, cxgb4vf_mac_sync, cxgb4vf_mac_unsync);
+	__dev_mc_sync(dev, cxgb4vf_mac_sync, cxgb4vf_mac_unsync);
 	return t4vf_set_rxmode(pi->adapter, pi->viid, -1,
 			       (dev->flags & IFF_PROMISC) != 0,
 			       (dev->flags & IFF_ALLMULTI) != 0,
