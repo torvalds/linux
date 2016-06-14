@@ -34,12 +34,12 @@ static void ila_csum_do_neutral(struct ila_addr *iaddr,
 	if (p->locator_match.v64) {
 		diff = p->csum_diff;
 	} else {
-		diff = compute_csum_diff8((__be32 *)iaddr,
-					  (__be32 *)&p->locator);
+		diff = compute_csum_diff8((__be32 *)&p->locator,
+					  (__be32 *)iaddr);
 	}
 
 	fval = (__force __wsum)(ila_csum_neutral_set(iaddr->ident) ?
-			~CSUM_NEUTRAL_FLAG : CSUM_NEUTRAL_FLAG);
+			CSUM_NEUTRAL_FLAG : ~CSUM_NEUTRAL_FLAG);
 
 	diff = csum_add(diff, fval);
 
@@ -140,8 +140,8 @@ void ila_init_saved_csum(struct ila_params *p)
 		return;
 
 	p->csum_diff = compute_csum_diff8(
-				(__be32 *)&p->locator_match,
-				(__be32 *)&p->locator);
+				(__be32 *)&p->locator,
+				(__be32 *)&p->locator_match);
 }
 
 static int __init ila_init(void)
