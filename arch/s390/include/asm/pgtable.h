@@ -1235,53 +1235,33 @@ static inline void __pmdp_csp(pmd_t *pmdp)
 	    pmd_val(*pmdp) | _SEGMENT_ENTRY_INVALID);
 }
 
-static inline void __pmdp_idte(unsigned long address, pmd_t *pmdp)
+#define IDTE_GLOBAL	0
+#define IDTE_LOCAL	1
+
+static inline void __pmdp_idte(unsigned long address, pmd_t *pmdp, int local)
 {
 	unsigned long sto;
 
 	sto = (unsigned long) pmdp - pmd_index(address) * sizeof(pmd_t);
 	asm volatile(
-		"	.insn	rrf,0xb98e0000,%2,%3,0,0"
-		: "=m" (*pmdp)
-		: "m" (*pmdp), "a" (sto), "a" ((address & HPAGE_MASK))
+		"	.insn	rrf,0xb98e0000,%[r1],%[r2],0,%[m4]"
+		: "+m" (*pmdp)
+		: [r1] "a" (sto), [r2] "a" ((address & HPAGE_MASK)),
+		  [m4] "i" (local)
 		: "cc" );
 }
 
-static inline void __pudp_idte(unsigned long address, pud_t *pudp)
+static inline void __pudp_idte(unsigned long address, pud_t *pudp, int local)
 {
 	unsigned long r3o;
 
 	r3o = (unsigned long) pudp - pud_index(address) * sizeof(pud_t);
 	r3o |= _ASCE_TYPE_REGION3;
 	asm volatile(
-		"	.insn	rrf,0xb98e0000,%2,%3,0,0"
-		: "=m" (*pudp)
-		: "m" (*pudp), "a" (r3o), "a" ((address & PUD_MASK))
-		: "cc");
-}
-
-static inline void __pmdp_idte_local(unsigned long address, pmd_t *pmdp)
-{
-	unsigned long sto;
-
-	sto = (unsigned long) pmdp - pmd_index(address) * sizeof(pmd_t);
-	asm volatile(
-		"	.insn	rrf,0xb98e0000,%2,%3,0,1"
-		: "=m" (*pmdp)
-		: "m" (*pmdp), "a" (sto), "a" ((address & HPAGE_MASK))
-		: "cc" );
-}
-
-static inline void __pudp_idte_local(unsigned long address, pud_t *pudp)
-{
-	unsigned long r3o;
-
-	r3o = (unsigned long) pudp - pud_index(address) * sizeof(pud_t);
-	r3o |= _ASCE_TYPE_REGION3;
-	asm volatile(
-		"	.insn	rrf,0xb98e0000,%2,%3,0,1"
-		: "=m" (*pudp)
-		: "m" (*pudp), "a" (r3o), "a" ((address & PUD_MASK))
+		"	.insn	rrf,0xb98e0000,%[r1],%[r2],0,%[m4]"
+		: "+m" (*pudp)
+		: [r1] "a" (r3o), [r2] "a" ((address & PUD_MASK)),
+		  [m4] "i" (local)
 		: "cc");
 }
 
