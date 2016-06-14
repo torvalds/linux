@@ -33,11 +33,17 @@ struct gb_camera_debugfs_buffer {
 	size_t length;
 };
 
+enum gb_camera_state {
+	GB_CAMERA_STATE_UNCONFIGURED,
+	GB_CAMERA_STATE_CONFIGURED,
+};
+
 /**
  * struct gb_camera - A Greybus Camera Device
  * @connection: the greybus connection for camera management
  * @data_connection: the greybus connection for camera data
- * @mutex: protects the connection field
+ * @mutex: protects the connection and state fields
+ * @state: the current module state
  * @debugfs: debugfs entries for camera protocol operations testing
  * @module: Greybus camera module registered to HOST processor.
  */
@@ -45,7 +51,9 @@ struct gb_camera {
 	struct gb_bundle *bundle;
 	struct gb_connection *connection;
 	struct gb_connection *data_connection;
+
 	struct mutex mutex;
+	enum gb_camera_state state;
 
 	struct {
 		struct dentry *root;
@@ -300,7 +308,6 @@ static int gb_camera_configure_streams(struct gb_camera *gcam,
 {
 	struct gb_camera_configure_streams_request *req;
 	struct gb_camera_configure_streams_response *resp;
-
 	unsigned int nstreams = *num_streams;
 	unsigned int i;
 	size_t req_size;
@@ -385,6 +392,11 @@ static int gb_camera_configure_streams(struct gb_camera *gcam,
 		goto done;
 	}
 
+	if (gcam->state == GB_CAMERA_STATE_CONFIGURED) {
+		gb_camera_teardown_data_connection(gcam);
+		gcam->state = GB_CAMERA_STATE_UNCONFIGURED;
+	}
+
 	if (resp->num_streams) {
 		ret = gb_camera_setup_data_connection(gcam, resp, csi_params);
 		if (ret < 0) {
@@ -394,8 +406,8 @@ static int gb_camera_configure_streams(struct gb_camera *gcam,
 					  req, req_size, resp, resp_size);
 			goto done;
 		}
-	} else {
-		gb_camera_teardown_data_connection(gcam);
+
+		gcam->state = GB_CAMERA_STATE_CONFIGURED;
 	}
 
 	*flags = resp->flags;
@@ -1039,8 +1051,10 @@ static int gb_camera_probe(struct gb_bundle *bundle,
 	if (!gcam)
 		return -ENOMEM;
 
-	gcam->bundle = bundle;
 	mutex_init(&gcam->mutex);
+
+	gcam->bundle = bundle;
+	gcam->state = GB_CAMERA_STATE_UNCONFIGURED;
 
 	conn = gb_connection_create(bundle, mgmt_cport_id,
 				    gb_camera_request_handler);
