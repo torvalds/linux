@@ -985,6 +985,8 @@ ceph_direct_read_write(struct kiocb *iocb, struct iov_iter *iter,
 	}
 
 	if (aio_req) {
+		LIST_HEAD(osd_reqs);
+
 		if (aio_req->num_reqs == 0) {
 			kfree(aio_req);
 			return ret;
@@ -993,8 +995,9 @@ ceph_direct_read_write(struct kiocb *iocb, struct iov_iter *iter,
 		ceph_get_cap_refs(ci, write ? CEPH_CAP_FILE_WR :
 					      CEPH_CAP_FILE_RD);
 
-		while (!list_empty(&aio_req->osd_reqs)) {
-			req = list_first_entry(&aio_req->osd_reqs,
+		list_splice(&aio_req->osd_reqs, &osd_reqs);
+		while (!list_empty(&osd_reqs)) {
+			req = list_first_entry(&osd_reqs,
 					       struct ceph_osd_request,
 					       r_unsafe_item);
 			list_del_init(&req->r_unsafe_item);
