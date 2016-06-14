@@ -264,9 +264,13 @@
 			reg = <0x59801000 0x400>;
 		};
 
-		pinctrl: pinctrl@5f801000 {
-			compatible = "socionext,ph1-ld20-pinctrl", "syscon";
-			reg = <0x5f801000 0xe00>;
+		soc-glue@5f800000 {
+			compatible = "simple-mfd", "syscon";
+			reg = <0x5f800000 0x2000>;
+
+			pinctrl: pinctrl {
+				 compatible = "socionext,uniphier-ld20-pinctrl";
+			};
 		};
 
 		gic: interrupt-controller@5fe00000 {
