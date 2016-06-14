@@ -2150,6 +2150,7 @@ static int i40iw_post_send(struct ib_qp *ibqp,
 			struct i40iw_sc_dev *dev = &iwqp->iwdev->sc_dev;
 			struct i40iw_fast_reg_stag_info info;
 
+			memset(&info, 0, sizeof(info));
 			info.access_rights = I40IW_ACCESS_FLAGS_LOCALREAD;
 			info.access_rights |= i40iw_get_user_access(flags);
 			info.stag_key = reg_wr(ib_wr)->key & 0xff;
@@ -2159,9 +2160,13 @@ static int i40iw_post_send(struct ib_qp *ibqp,
 			info.addr_type = I40IW_ADDR_TYPE_VA_BASED;
 			info.va = (void *)(uintptr_t)iwmr->ibmr.iova;
 			info.total_len = iwmr->ibmr.length;
+			info.reg_addr_pa = *(u64 *)palloc->level1.addr;
 			info.first_pm_pbl_index = palloc->level1.idx;
 			info.local_fence = ib_wr->send_flags & IB_SEND_FENCE;
 			info.signaled = ib_wr->send_flags & IB_SEND_SIGNALED;
+
+			if (iwmr->npages > I40IW_MIN_PAGES_PER_FMR)
+				info.chunk_size = 1;
 
 			if (page_shift == 21)
 				info.page_size = 1; /* 2M page */
