@@ -29,14 +29,14 @@ static const struct mfd_cell hi655x_pmic_devs[] = {
 };
 
 static const struct regmap_irq hi655x_irqs[] = {
-	{ .reg_offset = 0, .mask = OTMP_D1R_INT },
-	{ .reg_offset = 0, .mask = VSYS_2P5_R_INT },
-	{ .reg_offset = 0, .mask = VSYS_UV_D3R_INT },
-	{ .reg_offset = 0, .mask = VSYS_6P0_D200UR_INT },
-	{ .reg_offset = 0, .mask = PWRON_D4SR_INT },
-	{ .reg_offset = 0, .mask = PWRON_D20F_INT },
-	{ .reg_offset = 0, .mask = PWRON_D20R_INT },
-	{ .reg_offset = 0, .mask = RESERVE_INT },
+	{ .reg_offset = 0, .mask = OTMP_D1R_INT_MASK },
+	{ .reg_offset = 0, .mask = VSYS_2P5_R_INT_MASK },
+	{ .reg_offset = 0, .mask = VSYS_UV_D3R_INT_MASK },
+	{ .reg_offset = 0, .mask = VSYS_6P0_D200UR_INT_MASK },
+	{ .reg_offset = 0, .mask = PWRON_D4SR_INT_MASK },
+	{ .reg_offset = 0, .mask = PWRON_D20F_INT_MASK },
+	{ .reg_offset = 0, .mask = PWRON_D20R_INT_MASK },
+	{ .reg_offset = 0, .mask = RESERVE_INT_MASK },
 };
 
 static const struct regmap_irq_chip hi655x_irq_chip = {
