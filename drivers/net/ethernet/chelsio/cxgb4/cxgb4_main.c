@@ -64,6 +64,7 @@
 #include <net/bonding.h>
 #include <net/addrconf.h>
 #include <asm/uaccess.h>
+#include <linux/crash_dump.h>
 
 #include "cxgb4.h"
 #include "t4_regs.h"
@@ -3735,7 +3736,8 @@ static int adap_init0(struct adapter *adap)
 		return ret;
 
 	/* Contact FW, advertising Master capability */
-	ret = t4_fw_hello(adap, adap->mbox, adap->mbox, MASTER_MAY, &state);
+	ret = t4_fw_hello(adap, adap->mbox, adap->mbox,
+			  is_kdump_kernel() ? MASTER_MUST : MASTER_MAY, &state);
 	if (ret < 0) {
 		dev_err(adap->pdev_dev, "could not connect to FW, error %d\n",
 			ret);
@@ -4365,6 +4367,11 @@ static void cfg_queues(struct adapter *adap)
 		q10g = (MAX_ETH_QSETS - (adap->params.nports - n10g)) / n10g;
 	if (q10g > netif_get_num_default_rss_queues())
 		q10g = netif_get_num_default_rss_queues();
+
+	/* Reduce memory usage in kdump environment, disable all offload.
+	 */
+	if (is_kdump_kernel())
+		adap->params.offload = 0;
 
 	for_each_port(adap, i) {
 		struct port_info *pi = adap2pinfo(adap, i);
