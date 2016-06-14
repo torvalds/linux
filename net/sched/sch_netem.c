@@ -368,9 +368,7 @@ static void tfifo_reset(struct Qdisc *sch)
 		struct sk_buff *skb = netem_rb_to_skb(p);
 
 		rb_erase(p, &q->t_root);
-		skb->next = NULL;
-		skb->prev = NULL;
-		kfree_skb(skb);
+		rtnl_kfree_skbs(skb, skb);
 	}
 }
 
