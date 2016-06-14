@@ -26,6 +26,7 @@
 #include <linux/bio.h>
 #include <linux/workqueue.h>
 #include <linux/slab.h>
+#include "blk.h"
 
 #define BIP_INLINE_VECS	4
 
