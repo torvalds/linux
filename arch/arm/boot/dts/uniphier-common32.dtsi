@@ -105,6 +105,8 @@
 			reg = <0x58c00000 0x400>;
 			#address-cells = <2>;
 			#size-cells = <1>;
+			pinctrl-names = "default";
+			pinctrl-0 = <&pinctrl_system_bus>;
 		};
 
 		smpctrl@59800000 {
