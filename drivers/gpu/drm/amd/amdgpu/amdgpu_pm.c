@@ -365,7 +365,9 @@ static ssize_t amdgpu_set_pp_dpm_sclk(struct device *dev,
 	uint32_t i, mask = 0;
 	char sub_str[2];
 
-	for (i = 0; i < strlen(buf) - 1; i++) {
+	for (i = 0; i < strlen(buf); i++) {
+		if (*(buf + i) == '\n')
+			continue;
 		sub_str[0] = *(buf + i);
 		sub_str[1] = '\0';
 		ret = kstrtol(sub_str, 0, &level);
@@ -413,7 +415,9 @@ static ssize_t amdgpu_set_pp_dpm_mclk(struct device *dev,
 	uint32_t i, mask = 0;
 	char sub_str[2];
 
-	for (i = 0; i < strlen(buf) - 1; i++) {
+	for (i = 0; i < strlen(buf); i++) {
+		if (*(buf + i) == '\n')
+			continue;
 		sub_str[0] = *(buf + i);
 		sub_str[1] = '\0';
 		ret = kstrtol(sub_str, 0, &level);
@@ -461,7 +465,9 @@ static ssize_t amdgpu_set_pp_dpm_pcie(struct device *dev,
 	uint32_t i, mask = 0;
 	char sub_str[2];
 
-	for (i = 0; i < strlen(buf) - 1; i++) {
+	for (i = 0; i < strlen(buf); i++) {
+		if (*(buf + i) == '\n')
+			continue;
 		sub_str[0] = *(buf + i);
 		sub_str[1] = '\0';
 		ret = kstrtol(sub_str, 0, &level);
