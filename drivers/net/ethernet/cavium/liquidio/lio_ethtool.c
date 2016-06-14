@@ -653,7 +653,7 @@ static int lio_get_intr_coalesce(struct net_device *netdev,
 				intrmod_cfg->intrmod_mincnt_trigger;
 		}
 
-		iq = oct->instr_queue[lio->linfo.txpciq[0]];
+		iq = oct->instr_queue[lio->linfo.txpciq[0].s.q_no];
 		intr_coal->tx_max_coalesced_frames = iq->fill_threshold;
 		break;
 
@@ -859,7 +859,7 @@ static int lio_set_intr_coalesce(struct net_device *netdev,
 	if ((intr_coal->tx_max_coalesced_frames >= CN6XXX_DB_MIN) &&
 	    (intr_coal->tx_max_coalesced_frames <= CN6XXX_DB_MAX)) {
 		for (j = 0; j < lio->linfo.num_txpciq; j++) {
-			q_no = lio->linfo.txpciq[j];
+			q_no = lio->linfo.txpciq[j].s.q_no;
 			oct->instr_queue[q_no]->fill_threshold =
 				intr_coal->tx_max_coalesced_frames;
 		}

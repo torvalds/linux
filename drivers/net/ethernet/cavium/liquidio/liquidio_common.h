@@ -516,6 +516,46 @@ union oct_link_status {
 	} s;
 };
 
+/** The txpciq info passed to host from the firmware */
+
+union oct_txpciq {
+	u64 u64;
+
+	struct {
+#ifdef __BIG_ENDIAN_BITFIELD
+		u64 q_no:8;
+		u64 port:8;
+		u64 pkind:6;
+		u64 use_qpg:1;
+		u64 qpg:11;
+		u64 reserved:30;
+#else
+		u64 reserved:30;
+		u64 qpg:11;
+		u64 use_qpg:1;
+		u64 pkind:6;
+		u64 port:8;
+		u64 q_no:8;
+#endif
+	} s;
+};
+
+/** The rxpciq info passed to host from the firmware */
+
+union oct_rxpciq {
+	u64 u64;
+
+	struct {
+#ifdef __BIG_ENDIAN_BITFIELD
+		u64 q_no:8;
+		u64 reserved:56;
+#else
+		u64 reserved:56;
+		u64 q_no:8;
+#endif
+	} s;
+};
+
 /** Information for a OCTEON ethernet interface shared between core & host. */
 struct oct_link_info {
 	union oct_link_status link;
@@ -535,8 +575,8 @@ struct oct_link_info {
 	u16 gmxport;
 #endif
 
-	u8 txpciq[MAX_IOQS_PER_NICIF];
-	u8 rxpciq[MAX_IOQS_PER_NICIF];
+	union oct_txpciq txpciq[MAX_IOQS_PER_NICIF];
+	union oct_rxpciq rxpciq[MAX_IOQS_PER_NICIF];
 };
 
 #define OCT_LINK_INFO_SIZE   (sizeof(struct oct_link_info))

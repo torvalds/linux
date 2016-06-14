@@ -81,8 +81,8 @@ struct octeon_instr_queue {
 	/** Flag that indicates if the queue uses 64 byte commands. */
 	u32 iqcmd_64B:1;
 
-	/** Queue Number. */
-	u32 iq_no:5;
+	/** Queue info. */
+	union oct_txpciq txpciq;
 
 	u32 rsvd:17;
 
@@ -268,14 +268,15 @@ void octeon_free_soft_command(struct octeon_device *oct,
 /**
  *  octeon_init_instr_queue()
  *  @param octeon_dev      - pointer to the octeon device structure.
- *  @param iq_no           - queue to be initialized (0 <= q_no <= 3).
+ *  @param txpciq          - queue to be initialized (0 <= q_no <= 3).
  *
  *  Called at driver init time for each input queue. iq_conf has the
  *  configuration parameters for the queue.
  *
  *  @return  Success: 0   Failure: 1
  */
-int octeon_init_instr_queue(struct octeon_device *octeon_dev, u32 iq_no,
+int octeon_init_instr_queue(struct octeon_device *octeon_dev,
+			    union oct_txpciq txpciq,
 			    u32 num_descs);
 
 /**
@@ -313,7 +314,7 @@ void octeon_prepare_soft_command(struct octeon_device *oct,
 int octeon_send_soft_command(struct octeon_device *oct,
 			     struct octeon_soft_command *sc);
 
-int octeon_setup_iq(struct octeon_device *oct, u32 iq_no,
+int octeon_setup_iq(struct octeon_device *oct, union oct_txpciq,
 		    u32 num_descs, void *app_ctx);
 
 #endif				/* __OCTEON_IQ_H__ */

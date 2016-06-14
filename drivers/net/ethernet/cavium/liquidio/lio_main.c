@@ -682,7 +682,8 @@ static inline void txqs_wake(struct net_device *netdev)
 		int i;
 
 		for (i = 0; i < netdev->num_tx_queues; i++)
-			netif_wake_subqueue(netdev, i);
+			if (__netif_subqueue_stopped(netdev, i))
+				netif_wake_subqueue(netdev, i);
 	} else {
 		netif_wake_queue(netdev);
 	}
@@ -752,11 +753,14 @@ static inline int check_txq_status(struct lio *lio)
 
 		/* check each sub-queue state */
 		for (q = 0; q < numqs; q++) {
-			iq = lio->linfo.txpciq[q & (lio->linfo.num_txpciq - 1)];
+			iq = lio->linfo.txpciq[q %
+				(lio->linfo.num_txpciq)].s.q_no;
 			if (octnet_iq_is_full(lio->oct_dev, iq))
 				continue;
-			wake_q(lio->netdev, q);
-			ret_val++;
+			if (__netif_subqueue_stopped(lio->netdev, q)) {
+				wake_q(lio->netdev, q);
+				ret_val++;
+			}
 		}
 	} else {
 		if (octnet_iq_is_full(lio->oct_dev, lio->txq))
@@ -1230,7 +1234,8 @@ static int liquidio_stop_nic_module(struct octeon_device *oct)
 	for (i = 0; i < oct->ifcount; i++) {
 		lio = GET_LIO(oct->props[i].netdev);
 		for (j = 0; j < lio->linfo.num_rxpciq; j++)
-			octeon_unregister_droq_ops(oct, lio->linfo.rxpciq[j]);
+			octeon_unregister_droq_ops(oct,
+						   lio->linfo.rxpciq[j].s.q_no);
 	}
 
 	for (i = 0; i < oct->ifcount; i++)
@@ -1337,14 +1342,17 @@ static inline int check_txq_state(struct lio *lio, struct sk_buff *skb)
 
 	if (netif_is_multiqueue(lio->netdev)) {
 		q = skb->queue_mapping;
-		iq = lio->linfo.txpciq[(q & (lio->linfo.num_txpciq - 1))];
+		iq = lio->linfo.txpciq[(q % (lio->linfo.num_txpciq))].s.q_no;
 	} else {
 		iq = lio->txq;
+		q = iq;
 	}
 
 	if (octnet_iq_is_full(lio->oct_dev, iq))
 		return 0;
-	wake_q(lio->netdev, q);
+
+	if (__netif_subqueue_stopped(lio->netdev, q))
+		wake_q(lio->netdev, q);
 	return 1;
 }
 
@@ -1743,14 +1751,13 @@ static void if_cfg_callback(struct octeon_device *oct,
 static u16 select_q(struct net_device *dev, struct sk_buff *skb,
 		    void *accel_priv, select_queue_fallback_t fallback)
 {
-	int qindex;
+	u32 qindex = 0;
 	struct lio *lio;
 
 	lio = GET_LIO(dev);
-	/* select queue on chosen queue_mapping or core */
-	qindex = skb_rx_queue_recorded(skb) ?
-		 skb_get_rx_queue(skb) : smp_processor_id();
-	return (u16)(qindex & (lio->linfo.num_txpciq - 1));
+	qindex = skb_tx_hash(dev, skb);
+
+	return (u16)(qindex % (lio->linfo.num_txpciq));
 }
 
 /** Routine to push packets arriving on Octeon interface upto network layer.
@@ -1788,6 +1795,8 @@ liquidio_push_packet(u32 octeon_id,
 		}
 
 		skb->dev = netdev;
+
+		skb_record_rx_queue(skb, droq->q_no);
 
 		if (rh->r_dh.has_hwtstamp) {
 			/* timestamp is included from the hardware at the
@@ -1962,8 +1971,10 @@ static inline int setup_io_queues(struct octeon_device *octeon_dev,
 
 	/* set up DROQs. */
 	for (q = 0; q < lio->linfo.num_rxpciq; q++) {
-		q_no = lio->linfo.rxpciq[q];
-
+		q_no = lio->linfo.rxpciq[q].s.q_no;
+		dev_dbg(&octeon_dev->pci_dev->dev,
+			"setup_io_queues index:%d linfo.rxpciq.s.q_no:%d\n",
+			q, q_no);
 		retval = octeon_setup_droq(octeon_dev, q_no,
 					   CFG_GET_NUM_RX_DESCS_NIC_IF
 						   (octeon_get_conf(octeon_dev),
@@ -2341,7 +2352,7 @@ static struct net_device_stats *liquidio_get_stats(struct net_device *netdev)
 	oct = lio->oct_dev;
 
 	for (i = 0; i < lio->linfo.num_txpciq; i++) {
-		iq_no = lio->linfo.txpciq[i];
+		iq_no = lio->linfo.txpciq[i].s.q_no;
 		iq_stats = &oct->instr_queue[iq_no]->stats;
 		pkts += iq_stats->tx_done;
 		drop += iq_stats->tx_dropped;
@@ -2357,7 +2368,7 @@ static struct net_device_stats *liquidio_get_stats(struct net_device *netdev)
 	bytes = 0;
 
 	for (i = 0; i < lio->linfo.num_rxpciq; i++) {
-		oq_no = lio->linfo.rxpciq[i];
+		oq_no = lio->linfo.rxpciq[i].s.q_no;
 		oq_stats = &oct->droq[oq_no]->stats;
 		pkts += oq_stats->rx_pkts_received;
 		drop += (oq_stats->rx_dropped +
@@ -2670,7 +2681,7 @@ static int liquidio_xmit(struct sk_buff *skb, struct net_device *netdev)
 	struct octnic_data_pkt ndata;
 	struct octeon_device *oct;
 	struct oct_iq_stats *stats;
-	int cpu = 0, status = 0;
+	int status = 0;
 	int q_idx = 0, iq_no = 0;
 	int xmit_more;
 	u32 tag = 0;
@@ -2679,9 +2690,10 @@ static int liquidio_xmit(struct sk_buff *skb, struct net_device *netdev)
 	oct = lio->oct_dev;
 
 	if (netif_is_multiqueue(netdev)) {
-		cpu = skb->queue_mapping;
-		q_idx = (cpu & (lio->linfo.num_txpciq - 1));
-		iq_no = lio->linfo.txpciq[q_idx];
+		q_idx = skb->queue_mapping;
+		q_idx = (q_idx % (lio->linfo.num_txpciq));
+		tag = q_idx;
+		iq_no = lio->linfo.txpciq[q_idx].s.q_no;
 	} else {
 		iq_no = lio->txq;
 	}
@@ -3125,7 +3137,7 @@ static int setup_nic_devices(struct octeon_device *octeon_dev)
 	struct liquidio_if_cfg_context *ctx;
 	struct liquidio_if_cfg_resp *resp;
 	struct octdev_props *props;
-	int retval, num_iqueues, num_oqueues, q_no;
+	int retval, num_iqueues, num_oqueues;
 	u64 q_mask;
 	int num_cpus = num_online_cpus();
 	union oct_nic_if_cfg if_cfg;
@@ -3257,15 +3269,13 @@ static int setup_nic_devices(struct octeon_device *octeon_dev)
 		q_mask = resp->cfg_info.oqmask;
 		/* q_mask is 0-based and already verified mask is nonzero */
 		for (j = 0; j < num_oqueues; j++) {
-			q_no = __ffs64(q_mask);
-			q_mask &= (~(1UL << q_no));
-			lio->linfo.rxpciq[j] = q_no;
+			lio->linfo.rxpciq[j].u64 =
+				resp->cfg_info.linfo.rxpciq[j].u64;
 		}
 		q_mask = resp->cfg_info.iqmask;
 		for (j = 0; j < num_iqueues; j++) {
-			q_no = __ffs64(q_mask);
-			q_mask &= (~(1UL << q_no));
-			lio->linfo.txpciq[j] = q_no;
+			lio->linfo.txpciq[j].u64 =
+				resp->cfg_info.linfo.txpciq[j].u64;
 		}
 		lio->linfo.hw_addr = resp->cfg_info.linfo.hw_addr;
 		lio->linfo.gmxport = resp->cfg_info.linfo.gmxport;
@@ -3306,18 +3316,17 @@ static int setup_nic_devices(struct octeon_device *octeon_dev)
 
 		ether_addr_copy(netdev->dev_addr, mac);
 
+		/* By default all interfaces on a single Octeon uses the same
+		 * tx and rx queues
+		 */
+		lio->txq = lio->linfo.txpciq[0].s.q_no;
+		lio->rxq = lio->linfo.rxpciq[0].s.q_no;
 		if (setup_io_queues(octeon_dev, netdev)) {
 			dev_err(&octeon_dev->pci_dev->dev, "I/O queues creation failed\n");
 			goto setup_nic_dev_fail;
 		}
 
 		ifstate_set(lio, LIO_IFSTATE_DROQ_OPS);
-
-		/* By default all interfaces on a single Octeon uses the same
-		 * tx and rx queues
-		 */
-		lio->txq = lio->linfo.txpciq[0];
-		lio->rxq = lio->linfo.rxpciq[0];
 
 		lio->tx_qsize = octeon_get_tx_qsize(octeon_dev, lio->txq);
 		lio->rx_qsize = octeon_get_rx_qsize(octeon_dev, lio->rxq);
