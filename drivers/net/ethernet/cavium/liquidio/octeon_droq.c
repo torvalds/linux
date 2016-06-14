@@ -696,7 +696,8 @@ octeon_droq_fast_process_packets(struct octeon_device *oct,
 				if (droq->ops.fptr) {
 					droq->ops.fptr(oct->octeon_id,
 						       nicbuf, pkt_len,
-						       rh, &droq->napi);
+						       rh, &droq->napi,
+						       droq->ops.farg);
 				} else {
 					recv_buffer_free(nicbuf);
 				}
@@ -963,6 +964,7 @@ int octeon_unregister_droq_ops(struct octeon_device *oct, u32 q_no)
 	spin_lock_irqsave(&droq->lock, flags);
 
 	droq->ops.fptr = NULL;
+	droq->ops.farg = NULL;
 	droq->ops.drop_on_max = 0;
 
 	spin_unlock_irqrestore(&droq->lock, flags);

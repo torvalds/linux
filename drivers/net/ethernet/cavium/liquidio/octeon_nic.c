@@ -119,8 +119,7 @@ static void octnet_link_ctrl_callback(struct octeon_device *oct,
 
 static inline struct octeon_soft_command
 *octnic_alloc_ctrl_pkt_sc(struct octeon_device *oct,
-			  struct octnic_ctrl_pkt *nctrl,
-			  struct octnic_ctrl_params nparams)
+			  struct octnic_ctrl_pkt *nctrl)
 {
 	struct octeon_soft_command *sc = NULL;
 	u8 *data;
@@ -143,7 +142,7 @@ static inline struct octeon_soft_command
 
 	data = (u8 *)sc->virtdptr;
 
-	memcpy(data, &nctrl->ncmd,  OCTNET_CMD_SIZE);
+	memcpy(data, &nctrl->ncmd, OCTNET_CMD_SIZE);
 
 	octeon_swap_8B_data((u64 *)data, (OCTNET_CMD_SIZE >> 3));
 
@@ -151,6 +150,8 @@ static inline struct octeon_soft_command
 		/* Endian-Swap for UDD should have been done by caller. */
 		memcpy(data + OCTNET_CMD_SIZE, nctrl->udd, uddsize);
 	}
+
+	sc->iq_no = (u32)nctrl->iq_no;
 
 	octeon_prepare_soft_command(oct, sc, OPCODE_NIC, OPCODE_NIC_CMD,
 				    0, 0, 0);
@@ -164,13 +165,12 @@ static inline struct octeon_soft_command
 
 int
 octnet_send_nic_ctrl_pkt(struct octeon_device *oct,
-			 struct octnic_ctrl_pkt *nctrl,
-			 struct octnic_ctrl_params nparams)
+			 struct octnic_ctrl_pkt *nctrl)
 {
 	int retval;
 	struct octeon_soft_command *sc = NULL;
 
-	sc = octnic_alloc_ctrl_pkt_sc(oct, nctrl, nparams);
+	sc = octnic_alloc_ctrl_pkt_sc(oct, nctrl);
 	if (!sc) {
 		dev_err(&oct->pci_dev->dev, "%s soft command alloc failed\n",
 			__func__);

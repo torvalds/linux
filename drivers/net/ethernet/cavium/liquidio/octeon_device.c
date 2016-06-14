@@ -766,7 +766,9 @@ int octeon_setup_instr_queues(struct octeon_device *oct)
 	if (!oct->instr_queue[0])
 		return 1;
 	memset(oct->instr_queue[0], 0, sizeof(struct octeon_instr_queue));
+	oct->instr_queue[0]->q_index = 0;
 	oct->instr_queue[0]->app_ctx = (void *)(size_t)0;
+	oct->instr_queue[0]->ifidx = 0;
 	txpciq.u64 = 0;
 	txpciq.s.q_no = iq_no;
 	txpciq.s.use_qpg = 0;

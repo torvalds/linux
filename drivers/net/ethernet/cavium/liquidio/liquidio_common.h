@@ -260,19 +260,19 @@ union octnet_cmd {
 
 		u64 more:6; /* How many udd words follow the command */
 
-		u64 param1:29;
+		u64 reserved:29;
 
-		u64 param2:16;
+		u64 param1:16;
 
-		u64 param3:8;
+		u64 param2:8;
 
 #else
 
-		u64 param3:8;
+		u64 param2:8;
 
-		u64 param2:16;
+		u64 param1:16;
 
-		u64 param1:29;
+		u64 reserved:29;
 
 		u64 more:6;
 
@@ -414,10 +414,9 @@ union octeon_rh {
 		u64 opcode:4;
 		u64 subcode:8;
 		u64 len:3;       /** additional 64-bit words */
-		u64 rid:13;
-		u64 reserved:4;
+		u64 reserved:8;
 		u64 extra:25;
-		u64 ifidx:7;
+		u64 gmxport:16;
 	} r_nic_info;
 #else
 	u64 u64;
@@ -450,10 +449,9 @@ union octeon_rh {
 		u64 opcode:4;
 	} r_core_drv_init;
 	struct {
-		u64 ifidx:7;
+		u64 gmxport:16;
 		u64 extra:25;
-		u64 reserved:4;
-		u64 rid:13;
+		u64 reserved:8;
 		u64 len:3;       /** additional 64-bit words */
 		u64 subcode:8;
 		u64 opcode:4;
@@ -467,7 +465,7 @@ union octnic_packet_params {
 	u32 u32;
 	struct {
 #ifdef __BIG_ENDIAN_BITFIELD
-		u32 reserved:16;
+		u32 reserved:24;
 		u32 ip_csum:1;		/* Perform IP header checksum(s) */
 		/* Perform Outer transport header checksum */
 		u32 transport_csum:1;
@@ -475,15 +473,13 @@ union octnic_packet_params {
 		u32 tnl_csum:1;
 		u32 tsflag:1;		/* Timestamp this packet */
 		u32 ipsec_ops:4;	/* IPsec operation */
-		u32 ifidx:8;
 #else
-		u32 ifidx:8;
 		u32 ipsec_ops:4;
 		u32 tsflag:1;
 		u32 tnl_csum:1;
 		u32 transport_csum:1;
 		u32 ip_csum:1;
-		u32 reserved:16;
+		u32 reserved:24;
 #endif
 	} s;
 };
@@ -495,21 +491,21 @@ union oct_link_status {
 	struct {
 #ifdef __BIG_ENDIAN_BITFIELD
 		u64 duplex:8;
-		u64 status:8;
 		u64 mtu:16;
 		u64 speed:16;
+		u64 link_up:1;
 		u64 autoneg:1;
 		u64 interface:4;
 		u64 pause:1;
-		u64 reserved:10;
+		u64 reserved:17;
 #else
-		u64 reserved:10;
+		u64 reserved:17;
 		u64 pause:1;
 		u64 interface:4;
 		u64 autoneg:1;
+		u64 link_up:1;
 		u64 speed:16;
 		u64 mtu:16;
-		u64 status:8;
 		u64 duplex:8;
 #endif
 	} s;
@@ -561,17 +557,15 @@ struct oct_link_info {
 	u64 hw_addr;
 
 #ifdef __BIG_ENDIAN_BITFIELD
-	u16 gmxport;
-	u8 rsvd[3];
-	u8 num_txpciq;
-	u8 num_rxpciq;
-	u8 ifidx;
+	u64 gmxport:16;
+	u64 rsvd:32;
+	u64 num_txpciq:8;
+	u64 num_rxpciq:8;
 #else
-	u8 ifidx;
-	u8 num_rxpciq;
-	u8 num_txpciq;
-	u8 rsvd[3];
-	u16 gmxport;
+	u64 num_rxpciq:8;
+	u64 num_txpciq:8;
+	u64 rsvd:32;
+	u64 gmxport:16;
 #endif
 
 	union oct_txpciq txpciq[MAX_IOQS_PER_NICIF];
@@ -581,7 +575,6 @@ struct oct_link_info {
 #define OCT_LINK_INFO_SIZE   (sizeof(struct oct_link_info))
 
 struct liquidio_if_cfg_info {
-	u64 ifidx;
 	u64 iqmask; /** mask for IQs enabled for  the port */
 	u64 oqmask; /** mask for OQs enabled for the port */
 	struct oct_link_info linfo; /** initial link information */

@@ -231,7 +231,8 @@ struct octeon_droq_ops {
 	 *  data in the buffer. The receive header gives the port
 	 *  number to the caller.  Function pointer is set by caller.
 	 */
-	void (*fptr)(u32, void *, u32, union octeon_rh *, void *);
+	void (*fptr)(u32, void *, u32, union octeon_rh *, void *, void *);
+	void *farg;
 
 	/* This function will be called by the driver for all NAPI related
 	 * events. The first param is the octeon id. The second param is the

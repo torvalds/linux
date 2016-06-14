@@ -147,6 +147,13 @@ struct octeon_instr_queue {
 
 	/** Application context */
 	void *app_ctx;
+
+	/* network stack queue index */
+	int q_index;
+
+	/*os ifidx associated with this queue */
+	int ifidx;
+
 };
 
 /*----------------------  INSTRUCTION FORMAT ----------------------------*/
@@ -314,7 +321,8 @@ void octeon_prepare_soft_command(struct octeon_device *oct,
 int octeon_send_soft_command(struct octeon_device *oct,
 			     struct octeon_soft_command *sc);
 
-int octeon_setup_iq(struct octeon_device *oct, union oct_txpciq,
-		    u32 num_descs, void *app_ctx);
+int octeon_setup_iq(struct octeon_device *oct, int ifidx,
+		    int q_index, union oct_txpciq iq_no, u32 num_descs,
+		    void *app_ctx);
 
 #endif				/* __OCTEON_IQ_H__ */

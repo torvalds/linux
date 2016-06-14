@@ -52,6 +52,9 @@ struct octnic_ctrl_pkt {
 	/** Additional data that may be needed by some commands. */
 	u64 udd[MAX_NCTRL_UDD];
 
+	/** Input queue to use to send this command. */
+	u64 iq_no;
+
 	/** Time to wait for Octeon software to respond to this control command.
 	 *  If wait_time is 0, OSI assumes no response is expected.
 	 */
@@ -100,8 +103,7 @@ union octnic_cmd_setup {
 		u32 ip_csum:1;
 		u32 transport_csum:1;
 		u32 tnl_csum:1;
-		u32 ifidx:8;
-		u32 rsvd:11;
+		u32 rsvd:19;
 
 		union {
 			u32 datasize;
@@ -111,10 +113,6 @@ union octnic_cmd_setup {
 
 	u64 u64;
 
-};
-
-struct octnic_ctrl_params {
-	u32 resp_order;
 };
 
 static inline int octnet_iq_is_full(struct octeon_device *oct, u32 q_no)
@@ -131,12 +129,13 @@ static inline int octnet_iq_is_full(struct octeon_device *oct, u32 q_no)
  * Assumes the cmd instruction is pre-allocated, but no fields are filled in.
  */
 static inline void
-octnet_prepare_pci_cmd(struct octeon_instr_64B *cmd,
+octnet_prepare_pci_cmd(struct octeon_device *oct, struct octeon_instr_64B *cmd,
 		       union octnic_cmd_setup *setup, u32 tag)
 {
 	struct octeon_instr_ih *ih;
 	struct octeon_instr_irh *irh;
 	union octnic_packet_params packet_params;
+	int port;
 
 	memset(cmd, 0, sizeof(struct octeon_instr_64B));
 
@@ -150,13 +149,15 @@ octnet_prepare_pci_cmd(struct octeon_instr_64B *cmd,
 	ih->tagtype = ORDERED_TAG;
 	ih->grp = DEFAULT_POW_GRP;
 
+	port = (int)oct->instr_queue[setup->s.iq_no]->txpciq.s.port;
+
 	if (tag)
 		ih->tag = tag;
 	else
-		ih->tag = LIO_DATA(setup->s.ifidx);
+		ih->tag = LIO_DATA(port);
 
 	ih->raw = 1;
-	ih->qos = (setup->s.ifidx & 3) + 4;	/* map qos based on interface */
+	ih->qos = (port & 3) + 4;	/* map qos based on interface */
 
 	if (!setup->s.gather) {
 		ih->dlengsz = setup->s.u.datasize;
@@ -175,7 +176,6 @@ octnet_prepare_pci_cmd(struct octeon_instr_64B *cmd,
 	packet_params.s.ip_csum = setup->s.ip_csum;
 	packet_params.s.transport_csum = setup->s.transport_csum;
 	packet_params.s.tnl_csum = setup->s.tnl_csum;
-	packet_params.s.ifidx = setup->s.ifidx;
 	packet_params.s.tsflag = setup->s.timestamp;
 
 	irh->ossp = packet_params.u32;
@@ -216,7 +216,6 @@ int octnet_send_nic_data_pkt(struct octeon_device *oct,
  */
 int
 octnet_send_nic_ctrl_pkt(struct octeon_device *oct,
-			 struct octnic_ctrl_pkt *nctrl,
-			 struct octnic_ctrl_params nparams);
+			 struct octnic_ctrl_pkt *nctrl);
 
 #endif

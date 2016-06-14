@@ -202,6 +202,8 @@ int octeon_delete_instr_queue(struct octeon_device *oct, u32 iq_no)
 
 /* Return 0 on success, 1 on failure */
 int octeon_setup_iq(struct octeon_device *oct,
+		    int ifidx,
+		    int q_index,
 		    union oct_txpciq txpciq,
 		    u32 num_descs,
 		    void *app_ctx)
@@ -227,7 +229,10 @@ int octeon_setup_iq(struct octeon_device *oct,
 	memset(oct->instr_queue[iq_no], 0,
 	       sizeof(struct octeon_instr_queue));
 
+	oct->instr_queue[iq_no]->q_index = q_index;
 	oct->instr_queue[iq_no]->app_ctx = app_ctx;
+	oct->instr_queue[iq_no]->ifidx = ifidx;
+
 	if (octeon_init_instr_queue(oct, txpciq, num_descs)) {
 		vfree(oct->instr_queue[iq_no]);
 		oct->instr_queue[iq_no] = NULL;

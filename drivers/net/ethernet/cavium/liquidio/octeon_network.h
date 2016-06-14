@@ -67,6 +67,9 @@ struct lio {
 	/** Link information sent by the core application for this interface. */
 	struct oct_link_info linfo;
 
+	/** counter of link changes */
+	u64 link_changes;
+
 	/** Size of Tx queue for this octeon device. */
 	u32 tx_qsize;
 
@@ -111,8 +114,9 @@ struct lio {
  * \brief Enable or disable feature
  * @param netdev    pointer to network device
  * @param cmd       Command that just requires acknowledgment
+ * @param param1    Parameter to command
  */
-int liquidio_set_feature(struct net_device *netdev, int cmd);
+int liquidio_set_feature(struct net_device *netdev, int cmd, u16 param1);
 
 /**
  * \brief Link control command completion callback
