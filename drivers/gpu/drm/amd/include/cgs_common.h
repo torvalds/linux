@@ -189,7 +189,6 @@ typedef unsigned long cgs_handle_t;
 
 struct cgs_acpi_method_argument {
 	uint32_t type;
-	uint32_t method_length;
 	uint32_t data_length;
 	union{
 		uint32_t value;

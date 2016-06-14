@@ -973,11 +973,11 @@ static int amdgpu_cgs_acpi_eval_object(struct cgs_device *cgs_device,
 				params->integer.value = argument->value;
 				break;
 			case ACPI_TYPE_STRING:
-				params->string.length = argument->method_length;
+				params->string.length = argument->data_length;
 				params->string.pointer = argument->pointer;
 				break;
 			case ACPI_TYPE_BUFFER:
-				params->buffer.length = argument->method_length;
+				params->buffer.length = argument->data_length;
 				params->buffer.pointer = argument->pointer;
 				break;
 			default:
@@ -1080,17 +1080,14 @@ int amdgpu_cgs_call_acpi_method(struct cgs_device *cgs_device,
 	struct cgs_acpi_method_info info = {0};
 
 	acpi_input[0].type = CGS_ACPI_TYPE_INTEGER;
-	acpi_input[0].method_length = sizeof(uint32_t);
 	acpi_input[0].data_length = sizeof(uint32_t);
 	acpi_input[0].value = acpi_function;
 
 	acpi_input[1].type = CGS_ACPI_TYPE_BUFFER;
-	acpi_input[1].method_length = CGS_ACPI_MAX_BUFFER_SIZE;
 	acpi_input[1].data_length = input_size;
 	acpi_input[1].pointer = pinput;
 
 	acpi_output.type = CGS_ACPI_TYPE_BUFFER;
-	acpi_output.method_length = CGS_ACPI_MAX_BUFFER_SIZE;
 	acpi_output.data_length = output_size;
 	acpi_output.pointer = poutput;
 
