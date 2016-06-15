@@ -1025,7 +1025,7 @@ static int parse_raid_params(struct raid_set *rs, struct dm_arg_set *as,
 {
 	int value, raid10_format = ALGORITHM_RAID10_DEFAULT;
 	unsigned raid10_copies = 2;
-	unsigned i;
+	unsigned i, write_mostly = 0;
 	unsigned region_size = 0;
 	sector_t max_io_len;
 	const char *arg, *key;
@@ -1179,6 +1179,7 @@ static int parse_raid_params(struct raid_set *rs, struct dm_arg_set *as,
 				return -EINVAL;
 			}
 
+			write_mostly++;
 			set_bit(WriteMostly, &rs->dev[value].rdev.flags);
 			set_bit(__CTR_FLAG_WRITE_MOSTLY, &rs->ctr_flags);
 		} else if (!strcasecmp(key, dm_raid_arg_name_by_flag(CTR_FLAG_MAX_WRITE_BEHIND))) {
@@ -1300,6 +1301,11 @@ static int parse_raid_params(struct raid_set *rs, struct dm_arg_set *as,
 	if (test_bit(__CTR_FLAG_SYNC, &rs->ctr_flags) &&
 	    test_bit(__CTR_FLAG_NOSYNC, &rs->ctr_flags)) {
 		rs->ti->error = "sync and nosync are mutually exclusive";
+		return -EINVAL;
+	}
+
+	if (write_mostly >= rs->md.raid_disks) {
+		rs->ti->error = "Can't set all raid1 devices to write_mostly";
 		return -EINVAL;
 	}
 
