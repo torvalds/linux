@@ -79,7 +79,6 @@ static int tcon_ch1_is_enabled(struct clk_hw *hw)
 static u8 tcon_ch1_get_parent(struct clk_hw *hw)
 {
 	struct tcon_ch1_clk *tclk = hw_to_tclk(hw);
-	int num_parents = clk_hw_get_num_parents(hw);
 	u32 reg;
 
 	reg = readl(tclk->reg) >> TCON_CH1_SCLK2_MUX_SHIFT;
