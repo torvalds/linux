@@ -14,8 +14,8 @@
  * in the LICENSE file that accompanied this code).
  *
  * You should have received a copy of the GNU General Public License
- * version 2 along with this program; If not, see [sun.com URL with a
- * copy of GPLv2].
+ * version 2 along with this program; If not, see
+ * http://http://www.gnu.org/licenses/gpl-2.0.html
  *
  * GPL HEADER END
  */
