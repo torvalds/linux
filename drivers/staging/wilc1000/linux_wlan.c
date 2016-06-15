@@ -241,7 +241,7 @@ void wilc_mac_indicate(struct wilc *wilc, int flag)
 				      (unsigned char *)&status, 4);
 		if (wilc->mac_status == WILC_MAC_STATUS_INIT) {
 			wilc->mac_status = status;
-			up(&wilc->sync_event);
+			complete(&wilc->sync_event);
 		} else {
 			wilc->mac_status = status;
 		}
@@ -386,9 +386,9 @@ static int linux_wlan_start_firmware(struct net_device *dev)
 	if (ret < 0)
 		return ret;
 
-	ret = wilc_lock_timeout(wilc, &wilc->sync_event, 5000);
-	if (ret)
-		return ret;
+	if (!wait_for_completion_timeout(&wilc->sync_event,
+					msecs_to_jiffies(5000)))
+		return -ETIME;
 
 	return 0;
 }
@@ -684,7 +684,7 @@ static int wlan_init_locks(struct net_device *dev)
 	init_completion(&wl->txq_event);
 
 	init_completion(&wl->cfg_event);
-	sema_init(&wl->sync_event, 0);
+	init_completion(&wl->sync_event);
 	init_completion(&wl->txq_thread_started);
 
 	return 0;

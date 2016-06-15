@@ -179,7 +179,7 @@ struct wilc {
 	struct mutex hif_cs;
 
 	struct completion cfg_event;
-	struct semaphore sync_event;
+	struct completion sync_event;
 	struct completion txq_event;
 	struct completion txq_thread_started;
 
