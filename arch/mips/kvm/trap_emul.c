@@ -426,7 +426,7 @@ static int kvm_trap_emul_vcpu_init(struct kvm_vcpu *vcpu)
 static int kvm_trap_emul_vcpu_setup(struct kvm_vcpu *vcpu)
 {
 	struct mips_coproc *cop0 = vcpu->arch.cop0;
-	u32 config1;
+	u32 config, config1;
 	int vcpu_id = vcpu->vcpu_id;
 
 	/*
@@ -434,10 +434,20 @@ static int kvm_trap_emul_vcpu_setup(struct kvm_vcpu *vcpu)
 	 * guest will come up as expected, for now we simulate a MIPS 24kc
 	 */
 	kvm_write_c0_guest_prid(cop0, 0x00019300);
-	/* Have config1, Cacheable, noncoherent, write-back, write allocate */
-	kvm_write_c0_guest_config(cop0, MIPS_CONF_M | (0x3 << CP0C0_K0) |
-				  (0x1 << CP0C0_AR) |
-				  (MMU_TYPE_R4000 << CP0C0_MT));
+	/*
+	 * Have config1, Cacheable, noncoherent, write-back, write allocate.
+	 * Endianness, arch revision & virtually tagged icache should match
+	 * host.
+	 */
+	config = read_c0_config() & MIPS_CONF_AR;
+	config |= MIPS_CONF_M | (0x3 << CP0C0_K0) |
+		(MMU_TYPE_R4000 << CP0C0_MT);
+#ifdef CONFIG_CPU_BIG_ENDIAN
+	config |= CONF_BE;
+#endif
+	if (cpu_has_vtag_icache)
+		config |= MIPS_CONF_VI;
+	kvm_write_c0_guest_config(cop0, config);
 
 	/* Read the cache characteristics from the host Config1 Register */
 	config1 = (read_c0_config1() & ~0x7f);
