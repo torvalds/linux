@@ -1092,8 +1092,10 @@ static __always_inline int is_connected_ep(struct snd_soc_dapm_widget *widget,
 	if (list)
 		list_add_tail(&widget->work_list, list);
 
-	if (custom_stop_condition && custom_stop_condition(widget, dir))
-		return con;
+	if (custom_stop_condition && custom_stop_condition(widget, dir)) {
+		widget->endpoints[dir] = 1;
+		return widget->endpoints[dir];
+	}
 
 	if ((widget->is_ep & SND_SOC_DAPM_DIR_TO_EP(dir)) && widget->connected) {
 		widget->endpoints[dir] = snd_soc_dapm_suspend_check(widget);
