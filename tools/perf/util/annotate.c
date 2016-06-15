@@ -1134,8 +1134,10 @@ int symbol__annotate(struct symbol *sym, struct map *map, size_t privsize)
 	char symfs_filename[PATH_MAX];
 	struct kcore_extract kce;
 	bool delete_extract = false;
+	int stdout_fd[2];
 	int lineno = 0;
 	int nline;
+	pid_t pid;
 
 	if (filename)
 		symbol__join_symfs(symfs_filename, filename);
@@ -1258,9 +1260,32 @@ fallback:
 
 	pr_debug("Executing: %s\n", command);
 
-	file = popen(command, "r");
+	err = -1;
+	if (pipe(stdout_fd) < 0) {
+		pr_err("Failure creating the pipe to run %s\n", command);
+		goto out_remove_tmp;
+	}
+
+	pid = fork();
+	if (pid < 0) {
+		pr_err("Failure forking to run %s\n", command);
+		goto out_close_stdout;
+	}
+
+	if (pid == 0) {
+		close(stdout_fd[0]);
+		dup2(stdout_fd[1], 1);
+		close(stdout_fd[1]);
+		execl("/bin/sh", "sh", "-c", command, NULL);
+		perror(command);
+		exit(-1);
+	}
+
+	close(stdout_fd[1]);
+
+	file = fdopen(stdout_fd[0], "r");
 	if (!file) {
-		pr_err("Failure running %s\n", command);
+		pr_err("Failure creating FILE stream for %s\n", command);
 		/*
 		 * If we were using debug info should retry with
 		 * original binary.
@@ -1286,9 +1311,11 @@ fallback:
 	if (dso__is_kcore(dso))
 		delete_last_nop(sym);
 
-	pclose(file);
-
+	fclose(file);
+	err = 0;
 out_remove_tmp:
+	close(stdout_fd[0]);
+
 	if (dso__needs_decompress(dso))
 		unlink(symfs_filename);
 out_free_filename:
@@ -1297,6 +1324,10 @@ out_free_filename:
 	if (free_filename)
 		free(filename);
 	return err;
+
+out_close_stdout:
+	close(stdout_fd[1]);
+	goto out_remove_tmp;
 }
 
 static void insert_source_line(struct rb_root *root, struct source_line *src_line)
