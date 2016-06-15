@@ -433,6 +433,8 @@ static struct rockchip_clk_branch rk3399_clk_branches[] __initdata = {
 			RK3399_CLKGATE_CON(30), 2, GFLAGS),
 	GATE(ACLK_USB3_RKSOC_AXI_PERF, "aclk_usb3_rksoc_axi_perf", "aclk_usb3", 0,
 			RK3399_CLKGATE_CON(30), 3, GFLAGS),
+	GATE(ACLK_USB3_GRF, "aclk_usb3_grf", "aclk_usb3", 0,
+			RK3399_CLKGATE_CON(30), 4, GFLAGS),
 
 	GATE(SCLK_USB3OTG0_REF, "clk_usb3otg0_ref", "xin24m", 0,
 			RK3399_CLKGATE_CON(12), 1, GFLAGS),
@@ -675,6 +677,8 @@ static struct rockchip_clk_branch rk3399_clk_branches[] __initdata = {
 			RK3399_CLKGATE_CON(18), 12, GFLAGS),
 	GATE(PCLK_CIC, "pclk_cic", "pclk_ddr", CLK_IGNORE_UNUSED,
 			RK3399_CLKGATE_CON(18), 15, GFLAGS),
+	GATE(PCLK_DDR_SGRF, "pclk_ddr_sgrf", "pclk_ddr", CLK_IGNORE_UNUSED,
+			RK3399_CLKGATE_CON(19), 2, GFLAGS),
 
 	GATE(SCLK_PVTM_DDR, "clk_pvtm_ddr", "xin24m", CLK_IGNORE_UNUSED,
 			RK3399_CLKGATE_CON(4), 11, GFLAGS),
@@ -707,6 +711,8 @@ static struct rockchip_clk_branch rk3399_clk_branches[] __initdata = {
 			RK3399_CLKGATE_CON(15), 3, GFLAGS),
 	GATE(ACLK_CCI_NOC1, "aclk_cci_noc1", "aclk_cci_pre", CLK_IGNORE_UNUSED,
 			RK3399_CLKGATE_CON(15), 4, GFLAGS),
+	GATE(ACLK_CCI_GRF, "aclk_cci_grf", "aclk_cci_pre", CLK_IGNORE_UNUSED,
+			RK3399_CLKGATE_CON(15), 7, GFLAGS),
 
 	GATE(0, "cpll_cci_trace", "cpll", CLK_IGNORE_UNUSED,
 			RK3399_CLKGATE_CON(2), 5, GFLAGS),
@@ -825,6 +831,8 @@ static struct rockchip_clk_branch rk3399_clk_branches[] __initdata = {
 			RK3399_CLKGATE_CON(30), 8, GFLAGS),
 	GATE(ACLK_PERF_GPU, "aclk_perf_gpu", "aclk_gpu_pre", 0,
 			RK3399_CLKGATE_CON(30), 10, GFLAGS),
+	GATE(ACLK_GPU_GRF, "aclk_gpu_grf", "aclk_gpu_pre", 0,
+			RK3399_CLKGATE_CON(30), 11, GFLAGS),
 	GATE(SCLK_PVTM_GPU, "aclk_pvtm_gpu", "xin24m", 0,
 			RK3399_CLKGATE_CON(13), 1, GFLAGS),
 
@@ -865,6 +873,8 @@ static struct rockchip_clk_branch rk3399_clk_branches[] __initdata = {
 	GATE(0, "hclk_ahb1tom", "hclk_perihp", CLK_IGNORE_UNUSED,
 			RK3399_CLKGATE_CON(20), 15, GFLAGS),
 
+	GATE(PCLK_PERIHP_GRF, "pclk_perihp_grf", "pclk_perihp", CLK_IGNORE_UNUSED,
+			RK3399_CLKGATE_CON(20), 4, GFLAGS),
 	GATE(PCLK_PCIE, "pclk_pcie", "pclk_perihp", 0,
 			RK3399_CLKGATE_CON(20), 11, GFLAGS),
 	GATE(0, "pclk_perihp_noc", "pclk_perihp", CLK_IGNORE_UNUSED,
@@ -927,6 +937,8 @@ static struct rockchip_clk_branch rk3399_clk_branches[] __initdata = {
 			RK3399_CLKGATE_CON(32), 8, GFLAGS),
 	GATE(ACLK_EMMC_NOC, "aclk_emmc_noc", "aclk_emmc", CLK_IGNORE_UNUSED,
 			RK3399_CLKGATE_CON(32), 9, GFLAGS),
+	GATE(ACLK_EMMC_GRF, "aclk_emmcgrf", "aclk_emmc", CLK_IGNORE_UNUSED,
+			RK3399_CLKGATE_CON(32), 10, GFLAGS),
 
 	/* perilp0 */
 	GATE(0, "cpll_aclk_perilp0_src", "cpll", CLK_IGNORE_UNUSED,
@@ -1035,6 +1047,7 @@ static struct rockchip_clk_branch rk3399_clk_branches[] __initdata = {
 	GATE(PCLK_SPI1, "pclk_spi1", "pclk_perilp1", 0, RK3399_CLKGATE_CON(23), 11, GFLAGS),
 	GATE(PCLK_SPI2, "pclk_spi2", "pclk_perilp1", 0, RK3399_CLKGATE_CON(23), 12, GFLAGS),
 	GATE(PCLK_SPI4, "pclk_spi4", "pclk_perilp1", 0, RK3399_CLKGATE_CON(23), 13, GFLAGS),
+	GATE(PCLK_PERIHP_GRF, "pclk_perilp_sgrf", "pclk_perilp1", 0, RK3399_CLKGATE_CON(24), 13, GFLAGS),
 	GATE(0, "pclk_perilp1_noc", "pclk_perilp1", CLK_IGNORE_UNUSED, RK3399_CLKGATE_CON(25), 10, GFLAGS),
 
 	/* saradc */
@@ -1075,6 +1088,8 @@ static struct rockchip_clk_branch rk3399_clk_branches[] __initdata = {
 			RK3399_CLKGATE_CON(29), 1, GFLAGS),
 	GATE(PCLK_MIPI_DSI1, "pclk_mipi_dsi1", "pclk_vio", 0,
 			RK3399_CLKGATE_CON(29), 2, GFLAGS),
+	GATE(PCLK_VIO_GRF, "pclk_vio_grf", "pclk_vio", CLK_IGNORE_UNUSED,
+			RK3399_CLKGATE_CON(29), 12, GFLAGS),
 
 	/* hdcp */
 	COMPOSITE(ACLK_HDCP, "aclk_hdcp", mux_pll_src_cpll_gpll_ppll_p, 0,
@@ -1276,6 +1291,7 @@ static struct rockchip_clk_branch rk3399_clk_branches[] __initdata = {
 	GATE(PCLK_UPHY1_TCPHY_G, "pclk_uphy1_tcphy_g", "pclk_alive", CLK_IGNORE_UNUSED, RK3399_CLKGATE_CON(21), 8, GFLAGS),
 	GATE(PCLK_UPHY1_TCPD_G, "pclk_uphy1_tcpd_g", "pclk_alive", CLK_IGNORE_UNUSED, RK3399_CLKGATE_CON(21), 9, GFLAGS),
 
+	GATE(PCLK_GRF, "pclk_grf", "pclk_alive", CLK_IGNORE_UNUSED, RK3399_CLKGATE_CON(31), 1, GFLAGS),
 	GATE(PCLK_INTR_ARB, "pclk_intr_arb", "pclk_alive", CLK_IGNORE_UNUSED, RK3399_CLKGATE_CON(31), 2, GFLAGS),
 	GATE(PCLK_GPIO2, "pclk_gpio2", "pclk_alive", 0, RK3399_CLKGATE_CON(31), 3, GFLAGS),
 	GATE(PCLK_GPIO3, "pclk_gpio3", "pclk_alive", 0, RK3399_CLKGATE_CON(31), 4, GFLAGS),
@@ -1283,6 +1299,7 @@ static struct rockchip_clk_branch rk3399_clk_branches[] __initdata = {
 	GATE(PCLK_TIMER0, "pclk_timer0", "pclk_alive", 0, RK3399_CLKGATE_CON(31), 6, GFLAGS),
 	GATE(PCLK_TIMER1, "pclk_timer1", "pclk_alive", 0, RK3399_CLKGATE_CON(31), 7, GFLAGS),
 	GATE(PCLK_PMU_INTR_ARB, "pclk_pmu_intr_arb", "pclk_alive", CLK_IGNORE_UNUSED, RK3399_CLKGATE_CON(31), 9, GFLAGS),
+	GATE(PCLK_SGRF, "pclk_sgrf", "pclk_alive", CLK_IGNORE_UNUSED, RK3399_CLKGATE_CON(31), 10, GFLAGS),
 
 	GATE(SCLK_MIPIDPHY_REF, "clk_mipidphy_ref", "xin24m", 0, RK3399_CLKGATE_CON(11), 14, GFLAGS),
 	GATE(SCLK_DPHY_PLL, "clk_dphy_pll", "clk_mipidphy_ref", CLK_IGNORE_UNUSED, RK3399_CLKGATE_CON(21), 0, GFLAGS),
@@ -1431,9 +1448,11 @@ static struct rockchip_clk_branch rk3399_clk_pmu_branches[] __initdata = {
 	GATE(SCLK_PVTM_PMU, "clk_pvtm_pmu", "xin24m", CLK_IGNORE_UNUSED, RK3399_PMU_CLKGATE_CON(0), 7, GFLAGS),
 
 	GATE(PCLK_PMU, "pclk_pmu", "pclk_pmu_src", CLK_IGNORE_UNUSED, RK3399_PMU_CLKGATE_CON(1), 0, GFLAGS),
+	GATE(PCLK_PMUGRF_PMU, "pclk_pmugrf_pmu", "pclk_pmu_src", CLK_IGNORE_UNUSED, RK3399_PMU_CLKGATE_CON(1), 1, GFLAGS),
 	GATE(PCLK_INTMEM1_PMU, "pclk_intmem1_pmu", "pclk_pmu_src", CLK_IGNORE_UNUSED, RK3399_PMU_CLKGATE_CON(1), 2, GFLAGS),
 	GATE(PCLK_GPIO0_PMU, "pclk_gpio0_pmu", "pclk_pmu_src", 0, RK3399_PMU_CLKGATE_CON(1), 3, GFLAGS),
 	GATE(PCLK_GPIO1_PMU, "pclk_gpio1_pmu", "pclk_pmu_src", 0, RK3399_PMU_CLKGATE_CON(1), 4, GFLAGS),
+	GATE(PCLK_SGRF_PMU, "pclk_sgrf_pmu", "pclk_pmu_src", CLK_IGNORE_UNUSED, RK3399_PMU_CLKGATE_CON(1), 5, GFLAGS),
 	GATE(PCLK_NOC_PMU, "pclk_noc_pmu", "pclk_pmu_src", CLK_IGNORE_UNUSED, RK3399_PMU_CLKGATE_CON(1), 6, GFLAGS),
 	GATE(PCLK_I2C0_PMU, "pclk_i2c0_pmu", "pclk_pmu_src", 0, RK3399_PMU_CLKGATE_CON(1), 7, GFLAGS),
 	GATE(PCLK_I2C4_PMU, "pclk_i2c4_pmu", "pclk_pmu_src", 0, RK3399_PMU_CLKGATE_CON(1), 8, GFLAGS),
