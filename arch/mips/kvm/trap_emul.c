@@ -478,6 +478,17 @@ static int kvm_trap_emul_vcpu_setup(struct kvm_vcpu *vcpu)
 	return 0;
 }
 
+static unsigned long kvm_trap_emul_num_regs(struct kvm_vcpu *vcpu)
+{
+	return 0;
+}
+
+static int kvm_trap_emul_copy_reg_indices(struct kvm_vcpu *vcpu,
+					  u64 __user *indices)
+{
+	return 0;
+}
+
 static int kvm_trap_emul_get_one_reg(struct kvm_vcpu *vcpu,
 				     const struct kvm_one_reg *reg,
 				     s64 *v)
@@ -627,6 +638,8 @@ static struct kvm_mips_callbacks kvm_trap_emul_callbacks = {
 	.dequeue_io_int = kvm_mips_dequeue_io_int_cb,
 	.irq_deliver = kvm_mips_irq_deliver_cb,
 	.irq_clear = kvm_mips_irq_clear_cb,
+	.num_regs = kvm_trap_emul_num_regs,
+	.copy_reg_indices = kvm_trap_emul_copy_reg_indices,
 	.get_one_reg = kvm_trap_emul_get_one_reg,
 	.set_one_reg = kvm_trap_emul_set_one_reg,
 	.vcpu_get_regs = kvm_trap_emul_vcpu_get_regs,

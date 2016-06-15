@@ -560,6 +560,8 @@ struct kvm_mips_callbacks {
 			   u32 cause);
 	int (*irq_clear)(struct kvm_vcpu *vcpu, unsigned int priority,
 			 u32 cause);
+	unsigned long (*num_regs)(struct kvm_vcpu *vcpu);
+	int (*copy_reg_indices)(struct kvm_vcpu *vcpu, u64 __user *indices);
 	int (*get_one_reg)(struct kvm_vcpu *vcpu,
 			   const struct kvm_one_reg *reg, s64 *v);
 	int (*set_one_reg)(struct kvm_vcpu *vcpu,

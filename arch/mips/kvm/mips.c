@@ -538,6 +538,26 @@ static u64 kvm_mips_get_one_regs[] = {
 	KVM_REG_MIPS_COUNT_HZ,
 };
 
+static unsigned long kvm_mips_num_regs(struct kvm_vcpu *vcpu)
+{
+	unsigned long ret;
+
+	ret = ARRAY_SIZE(kvm_mips_get_one_regs);
+	ret += kvm_mips_callbacks->num_regs(vcpu);
+
+	return ret;
+}
+
+static int kvm_mips_copy_reg_indices(struct kvm_vcpu *vcpu, u64 __user *indices)
+{
+	if (copy_to_user(indices, kvm_mips_get_one_regs,
+			 sizeof(kvm_mips_get_one_regs)))
+		return -EFAULT;
+	indices += ARRAY_SIZE(kvm_mips_get_one_regs);
+
+	return kvm_mips_callbacks->copy_reg_indices(vcpu, indices);
+}
+
 static int kvm_mips_get_reg(struct kvm_vcpu *vcpu,
 			    const struct kvm_one_reg *reg)
 {
@@ -908,23 +928,18 @@ long kvm_arch_vcpu_ioctl(struct file *filp, unsigned int ioctl,
 	}
 	case KVM_GET_REG_LIST: {
 		struct kvm_reg_list __user *user_list = argp;
-		u64 __user *reg_dest;
 		struct kvm_reg_list reg_list;
 		unsigned n;
 
 		if (copy_from_user(&reg_list, user_list, sizeof(reg_list)))
 			return -EFAULT;
 		n = reg_list.n;
-		reg_list.n = ARRAY_SIZE(kvm_mips_get_one_regs);
+		reg_list.n = kvm_mips_num_regs(vcpu);
 		if (copy_to_user(user_list, &reg_list, sizeof(reg_list)))
 			return -EFAULT;
 		if (n < reg_list.n)
 			return -E2BIG;
-		reg_dest = user_list->reg;
-		if (copy_to_user(reg_dest, kvm_mips_get_one_regs,
-				 sizeof(kvm_mips_get_one_regs)))
-			return -EFAULT;
-		return 0;
+		return kvm_mips_copy_reg_indices(vcpu, user_list->reg);
 	}
 	case KVM_NMI:
 		/* Treat the NMI as a CPU reset */
