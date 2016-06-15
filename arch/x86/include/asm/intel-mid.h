@@ -42,11 +42,11 @@ struct devs_id {
 	void *(*get_platform_data)(void *info);
 	/* Custom handler for devices */
 	void (*device_handler)(struct sfi_device_table_entry *pentry,
-				struct devs_id *dev);
+			       struct devs_id *dev);
 };
 
-#define sfi_device(i)   \
-	static const struct devs_id *const __intel_mid_sfi_##i##_dev __used \
+#define sfi_device(i)								\
+	static const struct devs_id *const __intel_mid_sfi_##i##_dev __used	\
 	__attribute__((__section__(".x86_intel_mid_dev.init"))) = &i
 
 /*
@@ -68,7 +68,7 @@ extern enum intel_mid_cpu_type __intel_mid_cpu_chip;
 /**
  * struct intel_mid_ops - Interface between intel-mid & sub archs
  * @arch_setup: arch_setup function to re-initialize platform
- *             structures (x86_init, x86_platform_init)
+ *		structures (x86_init, x86_platform_init)
  *
  * This structure can be extended if any new interface is required
  * between intel-mid & its sub arch files.
@@ -78,20 +78,20 @@ struct intel_mid_ops {
 };
 
 /* Helper API's for INTEL_MID_OPS_INIT */
-#define DECLARE_INTEL_MID_OPS_INIT(cpuname, cpuid)	\
-				[cpuid] = get_##cpuname##_ops
+#define DECLARE_INTEL_MID_OPS_INIT(cpuname, cpuid)				\
+	[cpuid] = get_##cpuname##_ops
 
 /* Maximum number of CPU ops */
-#define MAX_CPU_OPS(a) (sizeof(a)/sizeof(void *))
+#define MAX_CPU_OPS(a)			(sizeof(a)/sizeof(void *))
 
 /*
  * For every new cpu addition, a weak get_<cpuname>_ops() function needs be
  * declared in arch/x86/platform/intel_mid/intel_mid_weak_decls.h.
  */
-#define INTEL_MID_OPS_INIT {\
-	DECLARE_INTEL_MID_OPS_INIT(penwell, INTEL_MID_CPU_CHIP_PENWELL), \
-	DECLARE_INTEL_MID_OPS_INIT(cloverview, INTEL_MID_CPU_CHIP_CLOVERVIEW), \
-	DECLARE_INTEL_MID_OPS_INIT(tangier, INTEL_MID_CPU_CHIP_TANGIER) \
+#define INTEL_MID_OPS_INIT {							\
+	DECLARE_INTEL_MID_OPS_INIT(penwell, INTEL_MID_CPU_CHIP_PENWELL),	\
+	DECLARE_INTEL_MID_OPS_INIT(cloverview, INTEL_MID_CPU_CHIP_CLOVERVIEW),	\
+	DECLARE_INTEL_MID_OPS_INIT(tangier, INTEL_MID_CPU_CHIP_TANGIER)		\
 };
 
 #ifdef CONFIG_X86_INTEL_MID
@@ -108,8 +108,8 @@ static inline bool intel_mid_has_msic(void)
 
 #else /* !CONFIG_X86_INTEL_MID */
 
-#define intel_mid_identify_cpu()    (0)
-#define intel_mid_has_msic()    (0)
+#define intel_mid_identify_cpu()	0
+#define intel_mid_has_msic()		0
 
 #endif /* !CONFIG_X86_INTEL_MID */
 
@@ -125,35 +125,38 @@ extern enum intel_mid_timer_options intel_mid_timer_options;
  * Penwell uses spread spectrum clock, so the freq number is not exactly
  * the same as reported by MSR based on SDM.
  */
-#define FSB_FREQ_83SKU	83200
-#define FSB_FREQ_100SKU	99840
-#define FSB_FREQ_133SKU	133000
+#define FSB_FREQ_83SKU			83200
+#define FSB_FREQ_100SKU			99840
+#define FSB_FREQ_133SKU			133000
 
-#define FSB_FREQ_167SKU	167000
-#define FSB_FREQ_200SKU	200000
-#define FSB_FREQ_267SKU	267000
-#define FSB_FREQ_333SKU	333000
-#define FSB_FREQ_400SKU	400000
+#define FSB_FREQ_167SKU			167000
+#define FSB_FREQ_200SKU			200000
+#define FSB_FREQ_267SKU			267000
+#define FSB_FREQ_333SKU			333000
+#define FSB_FREQ_400SKU			400000
 
 /* Bus Select SoC Fuse value */
-#define BSEL_SOC_FUSE_MASK	0x7
-#define BSEL_SOC_FUSE_001	0x1 /* FSB 133MHz */
-#define BSEL_SOC_FUSE_101	0x5 /* FSB 100MHz */
-#define BSEL_SOC_FUSE_111	0x7 /* FSB 83MHz */
+#define BSEL_SOC_FUSE_MASK		0x7
+/* FSB 133MHz */
+#define BSEL_SOC_FUSE_001		0x1
+/* FSB 100MHz */
+#define BSEL_SOC_FUSE_101		0x5
+/* FSB 83MHz */
+#define BSEL_SOC_FUSE_111		0x7
 
-#define SFI_MTMR_MAX_NUM 8
-#define SFI_MRTC_MAX	8
+#define SFI_MTMR_MAX_NUM		8
+#define SFI_MRTC_MAX			8
 
 extern void intel_scu_devices_create(void);
 extern void intel_scu_devices_destroy(void);
 
 /* VRTC timer */
-#define MRST_VRTC_MAP_SZ	(1024)
-/*#define MRST_VRTC_PGOFFSET	(0xc00) */
+#define MRST_VRTC_MAP_SZ		1024
+/* #define MRST_VRTC_PGOFFSET		0xc00 */
 
 extern void intel_mid_rtc_init(void);
 
-/* the offset for the mapping of global gpio pin to irq */
-#define INTEL_MID_IRQ_OFFSET 0x100
+/* The offset for the mapping of global gpio pin to irq */
+#define INTEL_MID_IRQ_OFFSET		0x100
 
 #endif /* _ASM_X86_INTEL_MID_H */
