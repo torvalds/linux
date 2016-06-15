@@ -3977,6 +3977,7 @@ static int efx_ef10_filter_table_probe(struct efx_nic *efx)
 	MCDI_DECLARE_BUF(inbuf, MC_CMD_GET_PARSER_DISP_INFO_IN_LEN);
 	MCDI_DECLARE_BUF(outbuf, MC_CMD_GET_PARSER_DISP_INFO_OUT_LENMAX);
 	struct efx_ef10_nic_data *nic_data = efx->nic_data;
+	struct net_device *net_dev = efx->net_dev;
 	unsigned int pd_match_pri, pd_match_count;
 	struct efx_ef10_filter_table *table;
 	struct efx_ef10_vlan *vlan;
@@ -4024,6 +4025,18 @@ static int efx_ef10_filter_table_probe(struct efx_nic *efx)
 			table->rx_match_mcdi_flags[table->rx_match_count] = mcdi_flags;
 			table->rx_match_count++;
 		}
+	}
+
+	if ((efx_supported_features(efx) & NETIF_F_HW_VLAN_CTAG_FILTER) &&
+	    !(efx_ef10_filter_match_supported(table,
+		(EFX_FILTER_MATCH_OUTER_VID | EFX_FILTER_MATCH_LOC_MAC)) &&
+	      efx_ef10_filter_match_supported(table,
+		(EFX_FILTER_MATCH_OUTER_VID | EFX_FILTER_MATCH_LOC_MAC_IG)))) {
+		netif_info(efx, probe, net_dev,
+			   "VLAN filters are not supported in this firmware variant\n");
+		net_dev->features &= ~NETIF_F_HW_VLAN_CTAG_FILTER;
+		efx->fixed_features &= ~NETIF_F_HW_VLAN_CTAG_FILTER;
+		net_dev->hw_features &= ~NETIF_F_HW_VLAN_CTAG_FILTER;
 	}
 
 	table->entry = vzalloc(HUNT_FILTER_TBL_ROWS * sizeof(*table->entry));
