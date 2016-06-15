@@ -6,7 +6,7 @@
  * Copyright (C) 2006 Texas Instruments.
  * Copyright (C) 2007 MontaVista Software Inc.
  * Copyright (C) 2009 Provigent Ltd.
- * Copyright (C) 2011, 2015 Intel Corporation.
+ * Copyright (C) 2011, 2015, 2016 Intel Corporation.
  *
  * ----------------------------------------------------------------------------
  *
@@ -23,19 +23,20 @@
  *
  */
 
-#include <linux/kernel.h>
-#include <linux/module.h>
+#include <linux/acpi.h>
 #include <linux/delay.h>
-#include <linux/i2c.h>
-#include <linux/errno.h>
-#include <linux/sched.h>
 #include <linux/err.h>
+#include <linux/errno.h>
+#include <linux/i2c.h>
 #include <linux/interrupt.h>
 #include <linux/io.h>
-#include <linux/slab.h>
+#include <linux/kernel.h>
+#include <linux/module.h>
 #include <linux/pci.h>
 #include <linux/pm_runtime.h>
-#include <linux/acpi.h>
+#include <linux/sched.h>
+#include <linux/slab.h>
+
 #include "i2c-designware-core.h"
 
 #define DRIVER_NAME "i2c-designware-pci"
@@ -206,7 +207,7 @@ static int i2c_dw_pci_probe(struct pci_dev *pdev,
 	struct dw_i2c_dev *dev;
 	struct i2c_adapter *adap;
 	int r;
-	struct  dw_pci_controller *controller;
+	struct dw_pci_controller *controller;
 	struct dw_scl_sda_cfg *cfg;
 
 	if (id->driver_data >= ARRAY_SIZE(dw_pci_controllers)) {
