@@ -1221,7 +1221,8 @@ static int parse_raid_params(struct raid_set *rs, struct dm_arg_set *as,
 				return -EINVAL;
 			}
 			/* Ensure sensible data offset */
-			if (value < 0) {
+			if (value < 0 ||
+			    (value && (value < MIN_FREE_RESHAPE_SPACE || value % to_sector(PAGE_SIZE)))) {
 				rs->ti->error = "Bogus data_offset value";
 				return -EINVAL;
 			}
