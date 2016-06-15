@@ -440,8 +440,7 @@ static int kvm_trap_emul_vcpu_setup(struct kvm_vcpu *vcpu)
 	 * host.
 	 */
 	config = read_c0_config() & MIPS_CONF_AR;
-	config |= MIPS_CONF_M | (0x3 << CP0C0_K0) |
-		(MMU_TYPE_R4000 << CP0C0_MT);
+	config |= MIPS_CONF_M | CONF_CM_CACHABLE_NONCOHERENT | MIPS_CONF_MT_TLB;
 #ifdef CONFIG_CPU_BIG_ENDIAN
 	config |= CONF_BE;
 #endif
@@ -457,9 +456,8 @@ static int kvm_trap_emul_vcpu_setup(struct kvm_vcpu *vcpu)
 	config1 |= ((KVM_MIPS_GUEST_TLB_SIZE - 1) << 25);
 
 	/* We unset some bits that we aren't emulating */
-	config1 &=
-	    ~((1 << CP0C1_C2) | (1 << CP0C1_MD) | (1 << CP0C1_PC) |
-	      (1 << CP0C1_WR) | (1 << CP0C1_CA));
+	config1 &= ~(MIPS_CONF1_C2 | MIPS_CONF1_MD | MIPS_CONF1_PC |
+		     MIPS_CONF1_WR | MIPS_CONF1_CA);
 	kvm_write_c0_guest_config1(cop0, config1);
 
 	/* Have config3, no tertiary/secondary caches implemented */
