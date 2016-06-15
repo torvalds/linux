@@ -510,7 +510,7 @@ static inline void _kvm_atomic_change_c0_guest_reg(unsigned long *reg,
 
 static inline bool kvm_mips_guest_can_have_fpu(struct kvm_vcpu_arch *vcpu)
 {
-	return (!__builtin_constant_p(cpu_has_fpu) || cpu_has_fpu) &&
+	return (!__builtin_constant_p(raw_cpu_has_fpu) || raw_cpu_has_fpu) &&
 		vcpu->fpu_enabled;
 }
 
