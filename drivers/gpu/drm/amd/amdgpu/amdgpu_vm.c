@@ -177,7 +177,6 @@ int amdgpu_vm_grab_id(struct amdgpu_vm *vm, struct amdgpu_ring *ring,
 		      struct amdgpu_sync *sync, struct fence *fence,
 		      unsigned *vm_id, uint64_t *vm_pd_addr)
 {
-	uint64_t pd_addr = amdgpu_bo_gpu_offset(vm->page_directory);
 	struct amdgpu_device *adev = ring->adev;
 	struct fence *updates = sync->last_vm_update;
 	struct amdgpu_vm_id *id, *idle;
@@ -250,7 +249,7 @@ int amdgpu_vm_grab_id(struct amdgpu_vm *vm, struct amdgpu_ring *ring,
 		if (atomic64_read(&id->owner) != vm->client_id)
 			continue;
 
-		if (pd_addr != id->pd_gpu_addr)
+		if (*vm_pd_addr != id->pd_gpu_addr)
 			continue;
 
 		if (!same_ring &&
@@ -298,14 +297,13 @@ int amdgpu_vm_grab_id(struct amdgpu_vm *vm, struct amdgpu_ring *ring,
 	fence_put(id->flushed_updates);
 	id->flushed_updates = fence_get(updates);
 
-	id->pd_gpu_addr = pd_addr;
+	id->pd_gpu_addr = *vm_pd_addr;
 
 	list_move_tail(&id->list, &adev->vm_manager.ids_lru);
 	atomic64_set(&id->owner, vm->client_id);
 	vm->ids[ring->idx] = id;
 
 	*vm_id = id - adev->vm_manager.ids;
-	*vm_pd_addr = pd_addr;
 	trace_amdgpu_vm_grab_id(vm, ring->idx, *vm_id, *vm_pd_addr);
 
 error:

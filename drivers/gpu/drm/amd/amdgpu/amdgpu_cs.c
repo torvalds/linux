@@ -660,6 +660,8 @@ static int amdgpu_cs_ib_vm_chunk(struct amdgpu_device *adev,
 		}
 	}
 
+	p->job->vm_pd_addr = amdgpu_bo_gpu_offset(vm->page_directory);
+
 	r = amdgpu_bo_vm_update_pte(p, vm);
 	if (!r)
 		amdgpu_cs_sync_rings(p);
