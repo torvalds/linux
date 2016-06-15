@@ -83,6 +83,8 @@ struct efx_ef10_filter_table {
 	u16 ucdef_id;
 	u16 bcast_id;
 	u16 mcdef_id;
+/* Whether in multicast promiscuous mode when last changed */
+	bool mc_promisc_last;
 };
 
 /* An arbitrary search limit for the software hash table */
@@ -3778,6 +3780,7 @@ static int efx_ef10_filter_table_probe(struct efx_nic *efx)
 	table->ucdef_id = EFX_EF10_FILTER_ID_INVALID;
 	table->bcast_id = EFX_EF10_FILTER_ID_INVALID;
 	table->mcdef_id = EFX_EF10_FILTER_ID_INVALID;
+	table->mc_promisc_last = false;
 
 	efx->filter_state = table;
 	init_waitqueue_head(&table->waitq);
@@ -4243,7 +4246,7 @@ static void efx_ef10_filter_sync_rx_mode(struct efx_nic *efx)
 	/* If changing promiscuous state with cascaded multicast filters, remove
 	 * old filters first, so that packets are dropped rather than duplicated
 	 */
-	if (nic_data->workaround_26807 && efx->mc_promisc != mc_promisc)
+	if (nic_data->workaround_26807 && table->mc_promisc_last != mc_promisc)
 		efx_ef10_filter_remove_old(efx);
 	if (mc_promisc) {
 		if (nic_data->workaround_26807) {
@@ -4278,7 +4281,7 @@ static void efx_ef10_filter_sync_rx_mode(struct efx_nic *efx)
 	}
 
 	efx_ef10_filter_remove_old(efx);
-	efx->mc_promisc = mc_promisc;
+	table->mc_promisc_last = mc_promisc;
 }
 
 static int efx_ef10_set_mac_address(struct efx_nic *efx)
