@@ -109,6 +109,8 @@ static void start(struct drm_crtc *crtc)
 	tilcdc_clear(dev, LCDC_DMA_CTRL_REG, LCDC_DUAL_FRAME_BUFFER_ENABLE);
 	tilcdc_set(dev, LCDC_RASTER_CTRL_REG, LCDC_PALETTE_LOAD_MODE(DATA_ONLY));
 	tilcdc_set(dev, LCDC_RASTER_CTRL_REG, LCDC_RASTER_ENABLE);
+
+	drm_crtc_vblank_on(crtc);
 }
 
 static void stop(struct drm_crtc *crtc)
@@ -132,6 +134,8 @@ static void stop(struct drm_crtc *crtc)
 			dev_err(dev->dev, "%s: timeout waiting for framedone\n",
 				__func__);
 	}
+
+	drm_crtc_vblank_off(crtc);
 }
 
 static void tilcdc_crtc_destroy(struct drm_crtc *crtc)
