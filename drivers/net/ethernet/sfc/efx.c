@@ -2322,12 +2322,44 @@ static void efx_set_rx_mode(struct net_device *net_dev)
 static int efx_set_features(struct net_device *net_dev, netdev_features_t data)
 {
 	struct efx_nic *efx = netdev_priv(net_dev);
+	int rc;
 
 	/* If disabling RX n-tuple filtering, clear existing filters */
-	if (net_dev->features & ~data & NETIF_F_NTUPLE)
-		return efx->type->filter_clear_rx(efx, EFX_FILTER_PRI_MANUAL);
+	if (net_dev->features & ~data & NETIF_F_NTUPLE) {
+		rc = efx->type->filter_clear_rx(efx, EFX_FILTER_PRI_MANUAL);
+		if (rc)
+			return rc;
+	}
+
+	/* If Rx VLAN filter is changed, update filters via mac_reconfigure */
+	if ((net_dev->features ^ data) & NETIF_F_HW_VLAN_CTAG_FILTER) {
+		/* efx_set_rx_mode() will schedule MAC work to update filters
+		 * when a new features are finally set in net_dev.
+		 */
+		efx_set_rx_mode(net_dev);
+	}
 
 	return 0;
+}
+
+static int efx_vlan_rx_add_vid(struct net_device *net_dev, __be16 proto, u16 vid)
+{
+	struct efx_nic *efx = netdev_priv(net_dev);
+
+	if (efx->type->vlan_rx_add_vid)
+		return efx->type->vlan_rx_add_vid(efx, proto, vid);
+	else
+		return -EOPNOTSUPP;
+}
+
+static int efx_vlan_rx_kill_vid(struct net_device *net_dev, __be16 proto, u16 vid)
+{
+	struct efx_nic *efx = netdev_priv(net_dev);
+
+	if (efx->type->vlan_rx_kill_vid)
+		return efx->type->vlan_rx_kill_vid(efx, proto, vid);
+	else
+		return -EOPNOTSUPP;
 }
 
 static const struct net_device_ops efx_netdev_ops = {
@@ -2342,6 +2374,8 @@ static const struct net_device_ops efx_netdev_ops = {
 	.ndo_set_mac_address	= efx_set_mac_address,
 	.ndo_set_rx_mode	= efx_set_rx_mode,
 	.ndo_set_features	= efx_set_features,
+	.ndo_vlan_rx_add_vid	= efx_vlan_rx_add_vid,
+	.ndo_vlan_rx_kill_vid	= efx_vlan_rx_kill_vid,
 #ifdef CONFIG_SFC_SRIOV
 	.ndo_set_vf_mac		= efx_sriov_set_vf_mac,
 	.ndo_set_vf_vlan	= efx_sriov_set_vf_vlan,
