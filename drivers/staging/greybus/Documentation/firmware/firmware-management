@@ -49,14 +49,14 @@ Sysfs Interfaces - Firmware Management
 
 The Firmware Management Protocol interacts with Userspace using the character
 device interface. The character device will be present in /dev/ directory
-and will be named fw-mgmt-<N>. The number <N> is assigned at runtime.
+and will be named gb-fw-mgmt-<N>. The number <N> is assigned at runtime.
 
 Identifying the Character Device
 ================================
 
-There can be multiple devices present in /dev/ directory with name fw-mgmt-N and
-user first needs to identify the character device used for firmware-management
-for a particular interface.
+There can be multiple devices present in /dev/ directory with name gb-fw-mgmt-N
+and user first needs to identify the character device used for
+firmware-management for a particular interface.
 
 The Firmware Management core creates a device of class 'gb_fw_mgmt', which shall
 be used by the user to identify the right character device for it. The class
@@ -64,17 +64,17 @@ device is created within the Bundle directory for a particular Interface.
 
 For example this is how the class-device can be present:
 
-/sys/bus/greybus/devices/1-1/1-1.1/1-1.1.1/gb_fw_mgmt/fw-mgmt-0
+/sys/bus/greybus/devices/1-1/1-1.1/1-1.1.1/gb_fw_mgmt/gb-fw-mgmt-0
 
-The last name in this path: fw-mgmt-0 is precisely the name of the char device
-and so the device in this case will be:
+The last name in this path: gb-fw-mgmt-0 is precisely the name of the char
+device and so the device in this case will be:
 
-/dev/fw-mgmt-0.
+/dev/gb-fw-mgmt-0.
 
 Operations on the Char device
 =============================
 
-The Character device (fw-mgmt-0 in example) can be opened by the userspace
+The Character device (gb-fw-mgmt-0 in example) can be opened by the userspace
 application and it can perform various 'ioctl' operations on the device. The
 device doesn't support any read/write operations.
 

@@ -599,7 +599,7 @@ int gb_fw_mgmt_connection_init(struct gb_connection *connection)
 	/* Add a soft link to the previously added char-dev within the bundle */
 	fw_mgmt->class_device = device_create(fw_mgmt_class, fw_mgmt->parent,
 					      fw_mgmt->dev_num, NULL,
-					      "fw-mgmt-%d", minor);
+					      "gb-fw-mgmt-%d", minor);
 	if (IS_ERR(fw_mgmt->class_device)) {
 		ret = PTR_ERR(fw_mgmt->class_device);
 		goto err_del_cdev;

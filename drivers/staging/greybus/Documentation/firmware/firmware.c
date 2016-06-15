@@ -74,7 +74,7 @@ int main(int argc, char *argv[])
 
 	/* Make sure arguments are correct */
 	if (argc != 2) {
-		printf("\nUsage: ./firmware <Path of the fw-mgmt-X dev>\n");
+		printf("\nUsage: ./firmware <Path of the gb-fw-mgmt-X dev>\n");
 		return 0;
 	}
 
