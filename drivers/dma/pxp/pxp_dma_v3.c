@@ -211,6 +211,8 @@ static __attribute__((aligned (1024*4))) unsigned int dither_data_8x8[64]={
 		22*2
 		};
 
+static void pxp_dithering_configure(struct pxps *pxp);
+static void pxp_dithering_configure_v3p(struct pxps *pxp);
 static void pxp_dithering_process(struct pxps *pxp);
 static void pxp_wfe_a_process(struct pxps *pxp);
 static void pxp_wfe_a_process_v3p(struct pxps *pxp);
@@ -260,6 +262,7 @@ struct pxp_devdata {
 	void (*pxp_wfe_a_configure)(struct pxps *pxp);
 	void (*pxp_wfe_a_process)(struct pxps *pxp);
 	void (*pxp_lut_status_set)(struct pxps *pxp, unsigned int lut);
+	void (*pxp_dithering_configure)(struct pxps *pxp);
 	void (*pxp_data_path_config)(struct pxps *pxp);
 	unsigned int version;
 };
@@ -269,6 +272,7 @@ static const struct pxp_devdata pxp_devdata[] = {
 		.pxp_wfe_a_configure = pxp_wfe_a_configure,
 		.pxp_wfe_a_process = pxp_wfe_a_process,
 		.pxp_lut_status_set = pxp_lut_status_set,
+		.pxp_dithering_configure = pxp_dithering_configure,
 		.pxp_data_path_config = NULL,
 		.version = 30,
 	},
@@ -276,6 +280,7 @@ static const struct pxp_devdata pxp_devdata[] = {
 		.pxp_wfe_a_configure = pxp_wfe_a_configure_v3p,
 		.pxp_wfe_a_process = pxp_wfe_a_process_v3p,
 		.pxp_lut_status_set = pxp_lut_status_set_v3p,
+		.pxp_dithering_configure = pxp_dithering_configure_v3p,
 		.pxp_data_path_config = pxp_data_path_config_v3p,
 		.version = 31,
 	},
@@ -1248,8 +1253,20 @@ static int pxp_config(struct pxps *pxp, struct pxp_channel *pxp_chan)
 	if ((proc_data->working_mode & PXP_MODE_STANDARD) == PXP_MODE_STANDARD) {
 
 		/* now only test dithering feature */
-		if ((proc_data->engine_enable & PXP_ENABLE_DITHER) == PXP_ENABLE_DITHER)
+		if ((proc_data->engine_enable & PXP_ENABLE_DITHER) == PXP_ENABLE_DITHER) {
 			pxp_dithering_process(pxp);
+			if (pxp_is_v3p(pxp)) {
+				__raw_writel(
+					BM_PXP_CTRL_ENABLE         |
+					BM_PXP_CTRL_ENABLE_DITHER  |
+					BM_PXP_CTRL_ENABLE_CSC2    |
+					BM_PXP_CTRL_ENABLE_LUT     |
+					BM_PXP_CTRL_ENABLE_ROTATE0 |
+					BM_PXP_CTRL_ENABLE_PS_AS_OUT,
+					pxp->base + HW_PXP_CTRL_SET);
+				return 0;
+			}
+}
 
 		if ((proc_data->engine_enable & PXP_ENABLE_WFE_A) == PXP_ENABLE_WFE_A)
 		{
@@ -4447,9 +4464,10 @@ static void pxp_dithering_process(struct pxps *pxp)
 {
 	struct pxp_config_data *pxp_conf = &pxp->pxp_conf_state;
 	struct pxp_proc_data *proc_data = &pxp_conf->proc_data;
+	u32 val = 0;
 
-	dither_prefetch_config(pxp);
-	dither_store_config(pxp);
+	if (pxp->devdata && pxp->devdata->pxp_dithering_configure)
+		pxp->devdata->pxp_dithering_configure(pxp);
 	pxp_sram_init(pxp, DITHER0_LUT, (u32)dither_data_8x8, 64);
 
 	__raw_writel(
@@ -4473,21 +4491,35 @@ static void pxp_dithering_process(struct pxps *pxp)
 			BF_PXP_INIT_MEM_CTRL_START(0),
 			pxp->base + HW_PXP_INIT_MEM_CTRL);
 
-	__raw_writel(
-			BF_PXP_DITHER_CTRL_ENABLE0            (1) |
-			BF_PXP_DITHER_CTRL_ENABLE1            (0) |
-			BF_PXP_DITHER_CTRL_ENABLE2            (0) |
-			BF_PXP_DITHER_CTRL_DITHER_MODE2       (0) |
-			BF_PXP_DITHER_CTRL_DITHER_MODE1       (0) |
-			BF_PXP_DITHER_CTRL_DITHER_MODE0       (proc_data->dither_mode) |
-			BF_PXP_DITHER_CTRL_LUT_MODE           (0) |
-			BF_PXP_DITHER_CTRL_IDX_MATRIX0_SIZE   (1) |
-			BF_PXP_DITHER_CTRL_IDX_MATRIX1_SIZE   (0) |
-			BF_PXP_DITHER_CTRL_IDX_MATRIX2_SIZE   (0) |
-			BF_PXP_DITHER_CTRL_BUSY2              (0) |
-			BF_PXP_DITHER_CTRL_BUSY1              (0) |
-			BF_PXP_DITHER_CTRL_BUSY0              (0),
-			pxp->base + HW_PXP_DITHER_CTRL);
+	if (pxp_is_v3(pxp))
+		val = BF_PXP_DITHER_CTRL_ENABLE0            (1) |
+		      BF_PXP_DITHER_CTRL_ENABLE1            (0) |
+		      BF_PXP_DITHER_CTRL_ENABLE2            (0) |
+		      BF_PXP_DITHER_CTRL_DITHER_MODE2       (0) |
+		      BF_PXP_DITHER_CTRL_DITHER_MODE1       (0) |
+		      BF_PXP_DITHER_CTRL_DITHER_MODE0(proc_data->dither_mode) |
+		      BF_PXP_DITHER_CTRL_LUT_MODE           (0) |
+		      BF_PXP_DITHER_CTRL_IDX_MATRIX0_SIZE   (1) |
+		      BF_PXP_DITHER_CTRL_IDX_MATRIX1_SIZE   (0) |
+		      BF_PXP_DITHER_CTRL_IDX_MATRIX2_SIZE   (0) |
+		      BF_PXP_DITHER_CTRL_BUSY2              (0) |
+		      BF_PXP_DITHER_CTRL_BUSY1              (0) |
+		      BF_PXP_DITHER_CTRL_BUSY0              (0);
+	else if (pxp_is_v3p(pxp))
+		val = BF_PXP_DITHER_CTRL_ENABLE0            (1) |
+		      BF_PXP_DITHER_CTRL_ENABLE1            (1) |
+		      BF_PXP_DITHER_CTRL_ENABLE2            (1) |
+		      BF_PXP_DITHER_CTRL_DITHER_MODE2       (3) |
+		      BF_PXP_DITHER_CTRL_DITHER_MODE1       (3) |
+		      BF_PXP_DITHER_CTRL_DITHER_MODE0(proc_data->dither_mode) |
+		      BF_PXP_DITHER_CTRL_LUT_MODE           (0) |
+		      BF_PXP_DITHER_CTRL_IDX_MATRIX0_SIZE   (1) |
+		      BF_PXP_DITHER_CTRL_IDX_MATRIX1_SIZE   (1) |
+		      BF_PXP_DITHER_CTRL_IDX_MATRIX2_SIZE   (1) |
+		      BF_PXP_DITHER_CTRL_BUSY2              (0) |
+		      BF_PXP_DITHER_CTRL_BUSY1              (0) |
+		      BF_PXP_DITHER_CTRL_BUSY0              (0);
+	__raw_writel(val, pxp->base + HW_PXP_DITHER_CTRL);
 
 	switch(proc_data->dither_mode) {
 		case PXP_DITHER_PASS_THROUGH:
@@ -4522,6 +4554,58 @@ static void pxp_dithering_process(struct pxps *pxp)
 			__raw_writel(0x0, pxp->base + HW_PXP_DITHER_CTRL);
 			return;
 	}
+}
+
+static void pxp_dithering_configure(struct pxps *pxp)
+{
+	dither_prefetch_config(pxp);
+	dither_store_config(pxp);
+}
+
+static void pxp_dithering_configure_v3p(struct pxps *pxp)
+{
+	struct pxp_config_data *config_data = &pxp->pxp_conf_state;
+	struct pxp_layer_param *fetch_ch0 = &config_data->dither_fetch_param[0];
+	struct pxp_layer_param *store_ch0 = &config_data->dither_store_param[0];
+
+	__raw_writel(BF_PXP_CTRL_BLOCK_SIZE(BV_PXP_CTRL_BLOCK_SIZE__8X8) |
+			BF_PXP_CTRL_ROTATE0(BV_PXP_CTRL_ROTATE0__ROT_0) |
+			BM_PXP_CTRL_IRQ_ENABLE,
+			pxp->base + HW_PXP_CTRL);
+
+	__raw_writel(BF_PXP_PS_CTRL_DECX(BV_PXP_PS_CTRL_DECX__DISABLE) |
+			BF_PXP_PS_CTRL_DECY(BV_PXP_PS_CTRL_DECY__DISABLE) |
+			BF_PXP_PS_CTRL_FORMAT(BV_PXP_PS_CTRL_FORMAT__Y8),
+			pxp->base + HW_PXP_PS_CTRL);
+
+	__raw_writel(BF_PXP_OUT_CTRL_FORMAT(BV_PXP_OUT_CTRL_FORMAT__Y8),
+			pxp->base + HW_PXP_OUT_CTRL);
+
+	__raw_writel(BF_PXP_PS_SCALE_YSCALE(4096) |
+			BF_PXP_PS_SCALE_XSCALE(4096),
+			pxp->base + HW_PXP_PS_SCALE);
+
+	__raw_writel(store_ch0->paddr, pxp->base + HW_PXP_OUT_BUF);
+
+	__raw_writel(store_ch0->stride, pxp->base + HW_PXP_OUT_PITCH);
+
+	__raw_writel(BF_PXP_OUT_LRC_X(store_ch0->width - 1) |
+			BF_PXP_OUT_LRC_Y(store_ch0->height - 1),
+			pxp->base + HW_PXP_OUT_LRC);
+
+	__raw_writel(BF_PXP_OUT_PS_ULC_X(0) |
+			BF_PXP_OUT_PS_ULC_Y(0),
+			pxp->base + HW_PXP_OUT_PS_ULC);
+
+	__raw_writel(BF_PXP_OUT_PS_LRC_X(fetch_ch0->width - 1) |
+			BF_PXP_OUT_PS_LRC_Y(fetch_ch0->height - 1),
+			pxp->base + HW_PXP_OUT_PS_LRC);
+
+	__raw_writel(fetch_ch0->paddr, pxp->base + HW_PXP_PS_BUF);
+
+	__raw_writel(fetch_ch0->stride, pxp->base + HW_PXP_PS_PITCH);
+
+	__raw_writel(0x40000000, pxp->base + HW_PXP_CSC1_COEF0);
 }
 
 static void pxp_start2(struct pxps *pxp)
