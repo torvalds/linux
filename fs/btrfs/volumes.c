@@ -2381,9 +2381,9 @@ int btrfs_init_new_device(struct btrfs_fs_info *fs_info, char *device_path)
 		device->can_discard = 1;
 	device->writeable = 1;
 	device->generation = trans->transid;
-	device->io_width = root->sectorsize;
-	device->io_align = root->sectorsize;
-	device->sector_size = root->sectorsize;
+	device->io_width = root->fs_info->sectorsize;
+	device->io_align = root->fs_info->sectorsize;
+	device->sector_size = root->fs_info->sectorsize;
 	device->total_bytes = i_size_read(bdev->bd_inode);
 	device->disk_total_bytes = device->total_bytes;
 	device->commit_total_bytes = device->total_bytes;
@@ -2587,9 +2587,9 @@ int btrfs_init_dev_replace_tgtdev(struct btrfs_root *root, char *device_path,
 	mutex_lock(&root->fs_info->fs_devices->device_list_mutex);
 	device->writeable = 1;
 	device->generation = 0;
-	device->io_width = root->sectorsize;
-	device->io_align = root->sectorsize;
-	device->sector_size = root->sectorsize;
+	device->io_width = root->fs_info->sectorsize;
+	device->io_align = root->fs_info->sectorsize;
+	device->sector_size = root->fs_info->sectorsize;
 	device->total_bytes = btrfs_device_get_total_bytes(srcdev);
 	device->disk_total_bytes = btrfs_device_get_disk_total_bytes(srcdev);
 	device->bytes_used = btrfs_device_get_bytes_used(srcdev);
@@ -2620,10 +2620,12 @@ error:
 void btrfs_init_dev_replace_tgtdev_for_resume(struct btrfs_fs_info *fs_info,
 					      struct btrfs_device *tgtdev)
 {
+	u32 sectorsize = fs_info->sectorsize;
+
 	WARN_ON(fs_info->fs_devices->rw_devices == 0);
-	tgtdev->io_width = fs_info->dev_root->sectorsize;
-	tgtdev->io_align = fs_info->dev_root->sectorsize;
-	tgtdev->sector_size = fs_info->dev_root->sectorsize;
+	tgtdev->io_width = sectorsize;
+	tgtdev->io_align = sectorsize;
+	tgtdev->sector_size = sectorsize;
 	tgtdev->fs_info = fs_info;
 	tgtdev->in_fs_metadata = 1;
 }
@@ -4582,7 +4584,7 @@ static void check_raid56_incompat_flag(struct btrfs_fs_info *info, u64 type)
 	btrfs_set_fs_incompat(info, RAID56);
 }
 
-#define BTRFS_MAX_DEVS(r) ((BTRFS_MAX_ITEM_SIZE(r)		\
+#define BTRFS_MAX_DEVS(r) ((BTRFS_MAX_ITEM_SIZE(r->fs_info)		\
 			- sizeof(struct btrfs_chunk))		\
 			/ sizeof(struct btrfs_stripe) + 1)
 
@@ -4761,12 +4763,12 @@ static int __btrfs_alloc_chunk(struct btrfs_trans_handle *trans,
 
 	if (type & BTRFS_BLOCK_GROUP_RAID5) {
 		raid_stripe_len = find_raid56_stripe_len(ndevs - 1,
-						extent_root->stripesize);
+							 info->stripesize);
 		data_stripes = num_stripes - 1;
 	}
 	if (type & BTRFS_BLOCK_GROUP_RAID6) {
 		raid_stripe_len = find_raid56_stripe_len(ndevs - 2,
-						extent_root->stripesize);
+							 info->stripesize);
 		data_stripes = num_stripes - 2;
 	}
 
@@ -4811,7 +4813,7 @@ static int __btrfs_alloc_chunk(struct btrfs_trans_handle *trans,
 						   j * stripe_size;
 		}
 	}
-	map->sector_size = extent_root->sectorsize;
+	map->sector_size = info->sectorsize;
 	map->stripe_len = raid_stripe_len;
 	map->io_align = raid_stripe_len;
 	map->io_width = raid_stripe_len;
@@ -4983,7 +4985,8 @@ int btrfs_finish_chunk_alloc(struct btrfs_trans_handle *trans,
 	btrfs_set_stack_chunk_num_stripes(chunk, map->num_stripes);
 	btrfs_set_stack_chunk_io_align(chunk, map->stripe_len);
 	btrfs_set_stack_chunk_io_width(chunk, map->stripe_len);
-	btrfs_set_stack_chunk_sector_size(chunk, extent_root->sectorsize);
+	btrfs_set_stack_chunk_sector_size(chunk,
+					  extent_root->fs_info->sectorsize);
 	btrfs_set_stack_chunk_sub_stripes(chunk, map->sub_stripes);
 
 	key.objectid = BTRFS_FIRST_CHUNK_TREE_OBJECTID;
@@ -5189,7 +5192,7 @@ unsigned long btrfs_full_stripe_len(struct btrfs_root *root,
 	struct extent_map *em;
 	struct map_lookup *map;
 	struct extent_map_tree *em_tree = &map_tree->map_tree;
-	unsigned long len = root->sectorsize;
+	unsigned long len = root->fs_info->sectorsize;
 
 	read_lock(&em_tree->lock);
 	em = lookup_extent_mapping(em_tree, logical, len);
@@ -6360,17 +6363,17 @@ static int btrfs_check_chunk_valid(struct btrfs_root *root,
 			  num_stripes);
 		return -EIO;
 	}
-	if (!IS_ALIGNED(logical, root->sectorsize)) {
+	if (!IS_ALIGNED(logical, root->fs_info->sectorsize)) {
 		btrfs_err(root->fs_info,
 			  "invalid chunk logical %llu", logical);
 		return -EIO;
 	}
-	if (btrfs_chunk_sector_size(leaf, chunk) != root->sectorsize) {
+	if (btrfs_chunk_sector_size(leaf, chunk) != root->fs_info->sectorsize) {
 		btrfs_err(root->fs_info, "invalid chunk sectorsize %u",
 			  btrfs_chunk_sector_size(leaf, chunk));
 		return -EIO;
 	}
-	if (!length || !IS_ALIGNED(length, root->sectorsize)) {
+	if (!length || !IS_ALIGNED(length, root->fs_info->sectorsize)) {
 		btrfs_err(root->fs_info,
 			"invalid chunk length %llu", length);
 		return -EIO;
@@ -6682,7 +6685,7 @@ int btrfs_read_sys_array(struct btrfs_fs_info *fs_info)
 	u64 type;
 	struct btrfs_key key;
 
-	ASSERT(BTRFS_SUPER_INFO_SIZE <= root->nodesize);
+	ASSERT(BTRFS_SUPER_INFO_SIZE <= root->fs_info->nodesize);
 	/*
 	 * This will create extent buffer of nodesize, superblock size is
 	 * fixed to BTRFS_SUPER_INFO_SIZE. If nodesize > sb size, this will

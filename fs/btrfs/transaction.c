@@ -497,7 +497,7 @@ start_transaction(struct btrfs_root *root, unsigned int num_items,
 	 * the appropriate flushing if need be.
 	 */
 	if (num_items > 0 && root != root->fs_info->chunk_root) {
-		qgroup_reserved = num_items * root->nodesize;
+		qgroup_reserved = num_items * root->fs_info->nodesize;
 		ret = btrfs_qgroup_reserve_meta(root, qgroup_reserved);
 		if (ret)
 			return ERR_PTR(ret);
@@ -507,7 +507,7 @@ start_transaction(struct btrfs_root *root, unsigned int num_items,
 		 * Do the reservation for the relocation root creation
 		 */
 		if (need_reserve_reloc_root(root)) {
-			num_bytes += root->nodesize;
+			num_bytes += root->fs_info->nodesize;
 			reloc_reserved = true;
 		}
 

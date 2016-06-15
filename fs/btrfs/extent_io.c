@@ -4343,7 +4343,7 @@ static struct extent_map *get_extent_skip_holes(struct inode *inode,
 						u64 last,
 						get_extent_t *get_extent)
 {
-	u64 sectorsize = BTRFS_I(inode)->root->sectorsize;
+	u64 sectorsize = btrfs_inode_sectorsize(inode);
 	struct extent_map *em;
 	u64 len;
 
@@ -4404,8 +4404,8 @@ int extent_fiemap(struct inode *inode, struct fiemap_extent_info *fieinfo,
 		return -ENOMEM;
 	path->leave_spinning = 1;
 
-	start = round_down(start, BTRFS_I(inode)->root->sectorsize);
-	len = round_up(max, BTRFS_I(inode)->root->sectorsize) - start;
+	start = round_down(start, btrfs_inode_sectorsize(inode));
+	len = round_up(max, btrfs_inode_sectorsize(inode)) - start;
 
 	/*
 	 * lookup the last file extent.  We're not using i_size here
@@ -4760,21 +4760,9 @@ err:
 }
 
 struct extent_buffer *alloc_dummy_extent_buffer(struct btrfs_fs_info *fs_info,
-						u64 start, u32 nodesize)
+						u64 start)
 {
-	unsigned long len;
-
-	if (!fs_info) {
-		/*
-		 * Called only from tests that don't always have a fs_info
-		 * available
-		 */
-		len = nodesize;
-	} else {
-		len = fs_info->tree_root->nodesize;
-	}
-
-	return __alloc_dummy_extent_buffer(fs_info, start, len);
+	return __alloc_dummy_extent_buffer(fs_info, start, fs_info->nodesize);
 }
 
 static void check_buffer_tree_ref(struct extent_buffer *eb)
@@ -4865,7 +4853,7 @@ struct extent_buffer *find_extent_buffer(struct btrfs_fs_info *fs_info,
 
 #ifdef CONFIG_BTRFS_FS_RUN_SANITY_TESTS
 struct extent_buffer *alloc_test_extent_buffer(struct btrfs_fs_info *fs_info,
-					u64 start, u32 nodesize)
+					u64 start)
 {
 	struct extent_buffer *eb, *exists = NULL;
 	int ret;
@@ -4873,7 +4861,7 @@ struct extent_buffer *alloc_test_extent_buffer(struct btrfs_fs_info *fs_info,
 	eb = find_extent_buffer(fs_info, start);
 	if (eb)
 		return eb;
-	eb = alloc_dummy_extent_buffer(fs_info, start, nodesize);
+	eb = alloc_dummy_extent_buffer(fs_info, start);
 	if (!eb)
 		return NULL;
 	eb->fs_info = fs_info;
@@ -4913,7 +4901,7 @@ free_eb:
 struct extent_buffer *alloc_extent_buffer(struct btrfs_fs_info *fs_info,
 					  u64 start)
 {
-	unsigned long len = fs_info->tree_root->nodesize;
+	unsigned long len = fs_info->nodesize;
 	unsigned long num_pages = num_extent_pages(start, len);
 	unsigned long i;
 	unsigned long index = start >> PAGE_SHIFT;
@@ -4924,7 +4912,7 @@ struct extent_buffer *alloc_extent_buffer(struct btrfs_fs_info *fs_info,
 	int uptodate = 1;
 	int ret;
 
-	if (!IS_ALIGNED(start, fs_info->tree_root->sectorsize)) {
+	if (!IS_ALIGNED(start, fs_info->sectorsize)) {
 		btrfs_err(fs_info, "bad tree block start %llu", start);
 		return ERR_PTR(-EINVAL);
 	}

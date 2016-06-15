@@ -98,7 +98,7 @@ static int do_setxattr(struct btrfs_trans_handle *trans,
 	size_t name_len = strlen(name);
 	int ret = 0;
 
-	if (name_len + size > BTRFS_MAX_XATTR_SIZE(root))
+	if (name_len + size > BTRFS_MAX_XATTR_SIZE(root->fs_info))
 		return -ENOSPC;
 
 	path = btrfs_alloc_path();

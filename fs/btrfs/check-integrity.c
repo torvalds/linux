@@ -2911,14 +2911,14 @@ int btrfsic_mount(struct btrfs_root *root,
 	struct list_head *dev_head = &fs_devices->devices;
 	struct btrfs_device *device;
 
-	if (root->nodesize & ((u64)PAGE_SIZE - 1)) {
+	if (root->fs_info->nodesize & ((u64)PAGE_SIZE - 1)) {
 		pr_info("btrfsic: cannot handle nodesize %d not being a multiple of PAGE_SIZE %ld!\n",
-		       root->nodesize, PAGE_SIZE);
+		       root->fs_info->nodesize, PAGE_SIZE);
 		return -1;
 	}
-	if (root->sectorsize & ((u64)PAGE_SIZE - 1)) {
+	if (root->fs_info->sectorsize & ((u64)PAGE_SIZE - 1)) {
 		pr_info("btrfsic: cannot handle sectorsize %d not being a multiple of PAGE_SIZE %ld!\n",
-		       root->sectorsize, PAGE_SIZE);
+		       root->fs_info->sectorsize, PAGE_SIZE);
 		return -1;
 	}
 	state = kzalloc(sizeof(*state), GFP_KERNEL | __GFP_NOWARN | __GFP_REPEAT);
@@ -2940,8 +2940,8 @@ int btrfsic_mount(struct btrfs_root *root,
 	state->print_mask = print_mask;
 	state->include_extent_data = including_extent_data;
 	state->csum_size = 0;
-	state->metablock_size = root->nodesize;
-	state->datablock_size = root->sectorsize;
+	state->metablock_size = root->fs_info->nodesize;
+	state->datablock_size = root->fs_info->sectorsize;
 	INIT_LIST_HEAD(&state->all_blocks_list);
 	btrfsic_block_hashtable_init(&state->block_hashtable);
 	btrfsic_block_link_hashtable_init(&state->block_link_hashtable);

@@ -594,7 +594,7 @@ int btrfs_parse_options(struct btrfs_root *root, char *options,
 				if (info->max_inline) {
 					info->max_inline = min_t(u64,
 						info->max_inline,
-						root->sectorsize);
+						root->fs_info->sectorsize);
 				}
 				btrfs_info(root->fs_info, "max_inline at %llu",
 					info->max_inline);

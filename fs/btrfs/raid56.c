@@ -2235,7 +2235,7 @@ raid56_parity_alloc_scrub_rbio(struct btrfs_root *root, struct bio *bio,
 	}
 
 	/* Now we just support the sectorsize equals to page size */
-	ASSERT(root->sectorsize == PAGE_SIZE);
+	ASSERT(root->fs_info->sectorsize == PAGE_SIZE);
 	ASSERT(rbio->stripe_npages == stripe_nsectors);
 	bitmap_copy(rbio->dbitmap, dbitmap, stripe_nsectors);
 

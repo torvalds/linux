@@ -489,8 +489,8 @@ struct scrub_ctx *scrub_setup_ctx(struct btrfs_device *dev, int is_dev_replace)
 			sctx->bios[i]->next_free = -1;
 	}
 	sctx->first_free = 0;
-	sctx->nodesize = dev->fs_info->dev_root->nodesize;
-	sctx->sectorsize = dev->fs_info->dev_root->sectorsize;
+	sctx->nodesize = dev->fs_info->nodesize;
+	sctx->sectorsize = dev->fs_info->sectorsize;
 	atomic_set(&sctx->bios_in_flight, 0);
 	atomic_set(&sctx->workers_pending, 0);
 	atomic_set(&sctx->cancel_req, 0);
@@ -2390,7 +2390,7 @@ static inline void __scrub_mark_bitmap(struct scrub_parity *sparity,
 {
 	u32 offset;
 	int nsectors;
-	int sectorsize = sparity->sctx->fs_info->dev_root->sectorsize;
+	int sectorsize = sparity->sctx->fs_info->sectorsize;
 
 	if (len >= sparity->stripe_len) {
 		bitmap_set(bitmap, 0, sparity->nsectors);
@@ -2866,7 +2866,7 @@ static noinline_for_stack int scrub_raid56_parity(struct scrub_ctx *sctx,
 	int extent_mirror_num;
 	int stop_loop = 0;
 
-	nsectors = div_u64(map->stripe_len, root->sectorsize);
+	nsectors = div_u64(map->stripe_len, root->fs_info->sectorsize);
 	bitmap_len = scrub_calc_parity_bitmap_len(nsectors);
 	sparity = kzalloc(sizeof(struct scrub_parity) + 2 * bitmap_len,
 			  GFP_NOFS);
@@ -2937,7 +2937,7 @@ static noinline_for_stack int scrub_raid56_parity(struct scrub_ctx *sctx,
 				goto next;
 
 			if (key.type == BTRFS_METADATA_ITEM_KEY)
-				bytes = root->nodesize;
+				bytes = root->fs_info->nodesize;
 			else
 				bytes = key.offset;
 
@@ -3290,7 +3290,7 @@ static noinline_for_stack int scrub_stripe(struct scrub_ctx *sctx,
 				goto next;
 
 			if (key.type == BTRFS_METADATA_ITEM_KEY)
-				bytes = root->nodesize;
+				bytes = root->fs_info->nodesize;
 			else
 				bytes = key.offset;
 
@@ -3848,7 +3848,7 @@ int btrfs_scrub_dev(struct btrfs_fs_info *fs_info, u64 devid, u64 start,
 	if (btrfs_fs_closing(fs_info))
 		return -EINVAL;
 
-	if (fs_info->chunk_root->nodesize > BTRFS_STRIPE_LEN) {
+	if (fs_info->nodesize > BTRFS_STRIPE_LEN) {
 		/*
 		 * in this case scrub is unable to calculate the checksum
 		 * the way scrub is implemented. Do not handle this
@@ -3856,31 +3856,31 @@ int btrfs_scrub_dev(struct btrfs_fs_info *fs_info, u64 devid, u64 start,
 		 */
 		btrfs_err(fs_info,
 			   "scrub: size assumption nodesize <= BTRFS_STRIPE_LEN (%d <= %d) fails",
-		       fs_info->chunk_root->nodesize, BTRFS_STRIPE_LEN);
+		       fs_info->nodesize,
+		       BTRFS_STRIPE_LEN);
 		return -EINVAL;
 	}
 
-	if (fs_info->chunk_root->sectorsize != PAGE_SIZE) {
+	if (fs_info->sectorsize != PAGE_SIZE) {
 		/* not supported for data w/o checksums */
 		btrfs_err_rl(fs_info,
 			   "scrub: size assumption sectorsize != PAGE_SIZE (%d != %lu) fails",
-		       fs_info->chunk_root->sectorsize, PAGE_SIZE);
+		       fs_info->sectorsize, PAGE_SIZE);
 		return -EINVAL;
 	}
 
-	if (fs_info->chunk_root->nodesize >
+	if (fs_info->nodesize >
 	    PAGE_SIZE * SCRUB_MAX_PAGES_PER_BLOCK ||
-	    fs_info->chunk_root->sectorsize >
-	    PAGE_SIZE * SCRUB_MAX_PAGES_PER_BLOCK) {
+	    fs_info->sectorsize > PAGE_SIZE * SCRUB_MAX_PAGES_PER_BLOCK) {
 		/*
 		 * would exhaust the array bounds of pagev member in
 		 * struct scrub_block
 		 */
 		btrfs_err(fs_info,
 			  "scrub: size assumption nodesize and sectorsize <= SCRUB_MAX_PAGES_PER_BLOCK (%d <= %d && %d <= %d) fails",
-		       fs_info->chunk_root->nodesize,
+		       fs_info->nodesize,
 		       SCRUB_MAX_PAGES_PER_BLOCK,
-		       fs_info->chunk_root->sectorsize,
+		       fs_info->sectorsize,
 		       SCRUB_MAX_PAGES_PER_BLOCK);
 		return -EINVAL;
 	}

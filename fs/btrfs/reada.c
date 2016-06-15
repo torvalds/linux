@@ -335,7 +335,7 @@ static struct reada_extent *reada_find_extent(struct btrfs_root *root,
 	if (!re)
 		return NULL;
 
-	blocksize = root->nodesize;
+	blocksize = root->fs_info->nodesize;
 	re->logical = logical;
 	re->top = *top;
 	INIT_LIST_HEAD(&re->extctl);
@@ -679,7 +679,7 @@ static int reada_start_machine_dev(struct btrfs_fs_info *fs_info,
 		spin_unlock(&fs_info->reada_lock);
 		return 0;
 	}
-	dev->reada_next = re->logical + fs_info->tree_root->nodesize;
+	dev->reada_next = re->logical + fs_info->nodesize;
 	re->refcnt++;
 
 	spin_unlock(&fs_info->reada_lock);
@@ -843,7 +843,7 @@ static void dump_devs(struct btrfs_fs_info *fs_info, int all)
 			if (ret == 0)
 				break;
 			pr_debug("  re: logical %llu size %u empty %d scheduled %d",
-				re->logical, fs_info->tree_root->nodesize,
+				re->logical, fs_info->nodesize,
 				list_empty(&re->extctl), re->scheduled);
 
 			for (i = 0; i < re->nzones; ++i) {
@@ -876,7 +876,7 @@ static void dump_devs(struct btrfs_fs_info *fs_info, int all)
 			continue;
 		}
 		pr_debug("re: logical %llu size %u list empty %d scheduled %d",
-			re->logical, fs_info->tree_root->nodesize,
+			re->logical, fs_info->nodesize,
 			list_empty(&re->extctl), re->scheduled);
 		for (i = 0; i < re->nzones; ++i) {
 			pr_cont(" zone %llu-%llu devs",

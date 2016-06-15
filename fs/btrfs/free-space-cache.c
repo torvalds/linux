@@ -1985,7 +1985,7 @@ static bool use_bitmap(struct btrfs_free_space_ctl *ctl,
 		 * of cache left then go ahead an dadd them, no sense in adding
 		 * the overhead of a bitmap if we don't have to.
 		 */
-		if (info->bytes <= block_group->sectorsize * 4) {
+		if (info->bytes <= block_group->fs_info->sectorsize * 4) {
 			if (ctl->free_extents * 2 <= ctl->extents_thresh)
 				return false;
 		} else {
@@ -2469,7 +2469,7 @@ void btrfs_init_free_space_ctl(struct btrfs_block_group_cache *block_group)
 	struct btrfs_free_space_ctl *ctl = block_group->free_space_ctl;
 
 	spin_lock_init(&ctl->tree_lock);
-	ctl->unit = block_group->sectorsize;
+	ctl->unit = block_group->fs_info->sectorsize;
 	ctl->start = block_group->key.objectid;
 	ctl->private = block_group;
 	ctl->op = &free_space_op;
@@ -3030,10 +3030,10 @@ int btrfs_find_space_cluster(struct btrfs_root *root,
 		cont1_bytes = min_bytes = bytes + empty_size;
 	} else if (block_group->flags & BTRFS_BLOCK_GROUP_METADATA) {
 		cont1_bytes = bytes;
-		min_bytes = block_group->sectorsize;
+		min_bytes = block_group->fs_info->sectorsize;
 	} else {
 		cont1_bytes = max(bytes, (bytes + empty_size) >> 2);
-		min_bytes = block_group->sectorsize;
+		min_bytes = block_group->fs_info->sectorsize;
 	}
 
 	spin_lock(&ctl->tree_lock);

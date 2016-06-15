@@ -253,7 +253,7 @@ static noinline int cow_file_range_inline(struct btrfs_root *root,
 	u64 isize = i_size_read(inode);
 	u64 actual_end = min(end + 1, isize);
 	u64 inline_len = actual_end - start;
-	u64 aligned_end = ALIGN(end, root->sectorsize);
+	u64 aligned_end = ALIGN(end, root->fs_info->sectorsize);
 	u64 data_len = inline_len;
 	int ret;
 	struct btrfs_path *path;
@@ -264,10 +264,10 @@ static noinline int cow_file_range_inline(struct btrfs_root *root,
 		data_len = compressed_size;
 
 	if (start > 0 ||
-	    actual_end > root->sectorsize ||
-	    data_len > BTRFS_MAX_INLINE_DATA_SIZE(root) ||
+	    actual_end > root->fs_info->sectorsize ||
+	    data_len > BTRFS_MAX_INLINE_DATA_SIZE(root->fs_info) ||
 	    (!compressed_size &&
-	    (actual_end & (root->sectorsize - 1)) == 0) ||
+	    (actual_end & (root->fs_info->sectorsize - 1)) == 0) ||
 	    end + 1 < isize ||
 	    data_len > root->fs_info->max_inline) {
 		return 1;
@@ -412,7 +412,7 @@ static noinline void compress_file_range(struct inode *inode,
 {
 	struct btrfs_root *root = BTRFS_I(inode)->root;
 	u64 num_bytes;
-	u64 blocksize = root->sectorsize;
+	u64 blocksize = root->fs_info->sectorsize;
 	u64 actual_end;
 	u64 isize = i_size_read(inode);
 	int ret = 0;
@@ -945,7 +945,7 @@ static noinline int cow_file_range(struct inode *inode,
 	unsigned long ram_size;
 	u64 disk_num_bytes;
 	u64 cur_alloc_size;
-	u64 blocksize = root->sectorsize;
+	u64 blocksize = root->fs_info->sectorsize;
 	struct btrfs_key ins;
 	struct extent_map *em;
 	struct extent_map_tree *em_tree = &BTRFS_I(inode)->extent_tree;
@@ -999,7 +999,8 @@ static noinline int cow_file_range(struct inode *inode,
 
 		cur_alloc_size = disk_num_bytes;
 		ret = btrfs_reserve_extent(root, cur_alloc_size, cur_alloc_size,
-					   root->sectorsize, 0, alloc_hint,
+					   root->fs_info->sectorsize, 0,
+					   alloc_hint,
 					   &ins, 1, 1);
 		if (ret < 0)
 			goto out_unlock;
@@ -1406,7 +1407,8 @@ next_slot:
 			extent_end = found_key.offset +
 				btrfs_file_extent_inline_len(leaf,
 						     path->slots[0], fi);
-			extent_end = ALIGN(extent_end, root->sectorsize);
+			extent_end = ALIGN(extent_end,
+					   root->fs_info->sectorsize);
 		} else {
 			BUG_ON(1);
 		}
@@ -4290,7 +4292,7 @@ static int truncate_space_check(struct btrfs_trans_handle *trans,
 	 * intend to use this reservation at all.
 	 */
 	bytes_deleted = btrfs_csum_bytes_to_leaves(root, bytes_deleted);
-	bytes_deleted *= root->nodesize;
+	bytes_deleted *= root->fs_info->nodesize;
 	ret = btrfs_block_rsv_add(root, &root->fs_info->trans_block_rsv,
 				  bytes_deleted, BTRFS_RESERVE_NO_FLUSH);
 	if (!ret) {
@@ -4408,7 +4410,8 @@ int btrfs_truncate_inode_items(struct btrfs_trans_handle *trans,
 	if (test_bit(BTRFS_ROOT_REF_COWS, &root->state) ||
 	    root == root->fs_info->tree_root)
 		btrfs_drop_extent_cache(inode, ALIGN(new_size,
-					root->sectorsize), (u64)-1, 0);
+					root->fs_info->sectorsize),
+					(u64)-1, 0);
 
 	/*
 	 * This function is also used to drop the items in the log tree before
@@ -4507,7 +4510,7 @@ search_again:
 					btrfs_file_extent_num_bytes(leaf, fi);
 				extent_num_bytes = ALIGN(new_size -
 						found_key.offset,
-						root->sectorsize);
+						root->fs_info->sectorsize);
 				btrfs_set_file_extent_num_bytes(leaf, fi,
 							 extent_num_bytes);
 				num_dec = (orig_num_bytes -
@@ -4702,7 +4705,7 @@ int btrfs_truncate_block(struct inode *inode, loff_t from, loff_t len,
 	struct btrfs_ordered_extent *ordered;
 	struct extent_state *cached_state = NULL;
 	char *kaddr;
-	u32 blocksize = root->sectorsize;
+	u32 blocksize = root->fs_info->sectorsize;
 	pgoff_t index = from >> PAGE_SHIFT;
 	unsigned offset = from & (blocksize - 1);
 	struct page *page;
@@ -4859,8 +4862,8 @@ int btrfs_cont_expand(struct inode *inode, loff_t oldsize, loff_t size)
 	struct extent_map *em = NULL;
 	struct extent_state *cached_state = NULL;
 	struct extent_map_tree *em_tree = &BTRFS_I(inode)->extent_tree;
-	u64 hole_start = ALIGN(oldsize, root->sectorsize);
-	u64 block_end = ALIGN(size, root->sectorsize);
+	u64 hole_start = ALIGN(oldsize, root->fs_info->sectorsize);
+	u64 block_end = ALIGN(size, root->fs_info->sectorsize);
 	u64 last_byte;
 	u64 cur_offset;
 	u64 hole_size;
@@ -4903,7 +4906,7 @@ int btrfs_cont_expand(struct inode *inode, loff_t oldsize, loff_t size)
 			break;
 		}
 		last_byte = min(extent_map_end(em), block_end);
-		last_byte = ALIGN(last_byte , root->sectorsize);
+		last_byte = ALIGN(last_byte, root->fs_info->sectorsize);
 		if (!test_bit(EXTENT_FLAG_PREALLOC, &em->flags)) {
 			struct extent_map *hole_em;
 			hole_size = last_byte - cur_offset;
@@ -6854,7 +6857,8 @@ again:
 	} else if (found_type == BTRFS_FILE_EXTENT_INLINE) {
 		size_t size;
 		size = btrfs_file_extent_inline_len(leaf, path->slots[0], item);
-		extent_end = ALIGN(extent_start + size, root->sectorsize);
+		extent_end = ALIGN(extent_start + size,
+				   root->fs_info->sectorsize);
 	}
 next:
 	if (start >= extent_end) {
@@ -6903,7 +6907,7 @@ next:
 		copy_size = min_t(u64, PAGE_SIZE - pg_offset,
 				  size - extent_offset);
 		em->start = extent_start + extent_offset;
-		em->len = ALIGN(copy_size, root->sectorsize);
+		em->len = ALIGN(copy_size, root->fs_info->sectorsize);
 		em->orig_block_len = em->len;
 		em->orig_start = em->start;
 		ptr = btrfs_file_extent_inline_start(item) + extent_offset;
@@ -7209,8 +7213,8 @@ static struct extent_map *btrfs_new_extent_direct(struct inode *inode,
 	int ret;
 
 	alloc_hint = get_extent_allocation_hint(inode, start, len);
-	ret = btrfs_reserve_extent(root, len, len, root->sectorsize, 0,
-				   alloc_hint, &ins, 1, 1);
+	ret = btrfs_reserve_extent(root, len, len, root->fs_info->sectorsize,
+				   0, alloc_hint, &ins, 1, 1);
 	if (ret)
 		return ERR_PTR(ret);
 
@@ -7319,7 +7323,8 @@ noinline int can_nocow_extent(struct inode *inode, u64 offset, u64 *len,
 	if (!nocow && found_type == BTRFS_FILE_EXTENT_PREALLOC) {
 		u64 range_end;
 
-		range_end = round_up(offset + num_bytes, root->sectorsize) - 1;
+		range_end = round_up(offset + num_bytes,
+				     root->fs_info->sectorsize) - 1;
 		ret = test_range_bit(io_tree, offset, range_end,
 				     EXTENT_DELALLOC, 0, NULL);
 		if (ret) {
@@ -7604,7 +7609,7 @@ static int btrfs_get_blocks_direct(struct inode *inode, sector_t iblock,
 	if (create)
 		unlock_bits |= EXTENT_DIRTY;
 	else
-		len = min_t(u64, len, root->sectorsize);
+		len = min_t(u64, len, root->fs_info->sectorsize);
 
 	lockstart = start;
 	lockend = start + len - 1;
@@ -7726,7 +7731,7 @@ static int btrfs_get_blocks_direct(struct inode *inode, sector_t iblock,
 	 * give it a chance to use preallocated space.
 	 */
 	len = min_t(u64, bh_result->b_size, em->len - (start - em->start));
-	len = ALIGN(len, root->sectorsize);
+	len = ALIGN(len, root->fs_info->sectorsize);
 	free_extent_map(em);
 	em = btrfs_new_extent_direct(inode, start, len);
 	if (IS_ERR(em)) {
@@ -7875,7 +7880,7 @@ static int dio_read_error(struct inode *inode, struct bio *failed_bio,
 
 	if ((failed_bio->bi_vcnt > 1)
 		|| (failed_bio->bi_io_vec->bv_len
-			> BTRFS_I(inode)->root->sectorsize))
+			> btrfs_inode_sectorsize(inode)))
 		read_mode = READ_SYNC | REQ_FAILFAST_DEV;
 	else
 		read_mode = READ_SYNC;
@@ -7922,7 +7927,7 @@ static void btrfs_retry_endio_nocsum(struct bio *bio)
 
 	ASSERT(bio->bi_vcnt == 1);
 	inode = bio->bi_io_vec->bv_page->mapping->host;
-	ASSERT(bio->bi_io_vec->bv_len == BTRFS_I(inode)->root->sectorsize);
+	ASSERT(bio->bi_io_vec->bv_len == btrfs_inode_sectorsize(inode));
 
 	done->uptodate = 1;
 	bio_for_each_segment_all(bvec, bio, i)
@@ -7946,7 +7951,7 @@ static int __btrfs_correct_data_nocsum(struct inode *inode,
 	int ret;
 
 	fs_info = BTRFS_I(inode)->root->fs_info;
-	sectorsize = BTRFS_I(inode)->root->sectorsize;
+	sectorsize = fs_info->sectorsize;
 
 	start = io_bio->logical;
 	done.inode = inode;
@@ -8005,7 +8010,7 @@ static void btrfs_retry_endio(struct bio *bio)
 
 	ASSERT(bio->bi_vcnt == 1);
 	inode = bio->bi_io_vec->bv_page->mapping->host;
-	ASSERT(bio->bi_io_vec->bv_len == BTRFS_I(inode)->root->sectorsize);
+	ASSERT(bio->bi_io_vec->bv_len == btrfs_inode_sectorsize(inode));
 
 	bio_for_each_segment_all(bvec, bio, i) {
 		ret = __readpage_endio_check(done->inode, io_bio, i,
@@ -8040,7 +8045,7 @@ static int __btrfs_subio_endio_read(struct inode *inode,
 	int ret;
 
 	fs_info = BTRFS_I(inode)->root->fs_info;
-	sectorsize = BTRFS_I(inode)->root->sectorsize;
+	sectorsize = fs_info->sectorsize;
 
 	err = 0;
 	start = io_bio->logical;
@@ -8339,7 +8344,7 @@ static int btrfs_submit_direct_hook(struct btrfs_dio_private *dip,
 	u64 file_offset = dip->logical_offset;
 	u64 submit_len = 0;
 	u64 map_length;
-	u32 blocksize = root->sectorsize;
+	u32 blocksize = root->fs_info->sectorsize;
 	int async_submit = 0;
 	int nr_sectors;
 	int ret;
@@ -8563,7 +8568,7 @@ static ssize_t check_direct_IO(struct btrfs_root *root, struct kiocb *iocb,
 {
 	int seg;
 	int i;
-	unsigned blocksize_mask = root->sectorsize - 1;
+	unsigned int blocksize_mask = root->fs_info->sectorsize - 1;
 	ssize_t retval = -EINVAL;
 
 	if (offset & blocksize_mask)
@@ -8644,7 +8649,8 @@ static ssize_t btrfs_direct_IO(struct kiocb *iocb, struct iov_iter *iter)
 		 * do the accounting properly if we go over the number we
 		 * originally calculated.  Abuse current->journal_info for this.
 		 */
-		dio_data.reserve = round_up(count, root->sectorsize);
+		dio_data.reserve = round_up(count,
+					    root->fs_info->sectorsize);
 		dio_data.unsubmitted_oe_range_start = (u64)offset;
 		dio_data.unsubmitted_oe_range_end = (u64)offset;
 		current->journal_info = &dio_data;
@@ -8990,7 +8996,8 @@ again:
 	}
 
 	if (page->index == ((size - 1) >> PAGE_SHIFT)) {
-		reserved_space = round_up(size - page_start, root->sectorsize);
+		reserved_space = round_up(size - page_start,
+					  root->fs_info->sectorsize);
 		if (reserved_space < PAGE_SIZE) {
 			end = page_start + reserved_space - 1;
 			spin_lock(&BTRFS_I(inode)->lock);
@@ -9065,7 +9072,7 @@ static int btrfs_truncate(struct inode *inode)
 	int ret = 0;
 	int err = 0;
 	struct btrfs_trans_handle *trans;
-	u64 mask = root->sectorsize - 1;
+	u64 mask = root->fs_info->sectorsize - 1;
 	u64 min_size = btrfs_calc_trunc_metadata_size(root, 1);
 
 	ret = btrfs_wait_ordered_range(inode, inode->i_size & (~mask),
@@ -10157,7 +10164,7 @@ static int btrfs_symlink(struct inode *dir, struct dentry *dentry,
 	struct extent_buffer *leaf;
 
 	name_len = strlen(symname);
-	if (name_len > BTRFS_MAX_INLINE_DATA_SIZE(root))
+	if (name_len > BTRFS_MAX_INLINE_DATA_SIZE(root->fs_info))
 		return -ENAMETOOLONG;
 
 	/*

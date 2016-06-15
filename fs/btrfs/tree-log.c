@@ -608,7 +608,8 @@ static noinline int replay_one_extent(struct btrfs_trans_handle *trans,
 	} else if (found_type == BTRFS_FILE_EXTENT_INLINE) {
 		size = btrfs_file_extent_inline_len(eb, slot, item);
 		nbytes = btrfs_file_extent_ram_bytes(eb, item);
-		extent_end = ALIGN(start + size, root->sectorsize);
+		extent_end = ALIGN(start + size,
+				   root->fs_info->sectorsize);
 	} else {
 		ret = 0;
 		goto out;
@@ -2432,7 +2433,7 @@ static noinline int walk_down_log_tree(struct btrfs_trans_handle *trans,
 
 		bytenr = btrfs_node_blockptr(cur, path->slots[*level]);
 		ptr_gen = btrfs_node_ptr_generation(cur, path->slots[*level]);
-		blocksize = root->nodesize;
+		blocksize = root->fs_info->nodesize;
 
 		parent = path->nodes[*level];
 		root_owner = btrfs_header_owner(parent);
@@ -3789,7 +3790,7 @@ static noinline int copy_items(struct btrfs_trans_handle *trans,
 							   src_path->slots[0],
 							   extent);
 			*last_extent = ALIGN(key.offset + len,
-					     log->sectorsize);
+					     log->fs_info->sectorsize);
 		} else {
 			len = btrfs_file_extent_num_bytes(src, extent);
 			*last_extent = key.offset + len;
@@ -3852,7 +3853,8 @@ fill_holes:
 		if (btrfs_file_extent_type(src, extent) ==
 		    BTRFS_FILE_EXTENT_INLINE) {
 			len = btrfs_file_extent_inline_len(src, i, extent);
-			extent_end = ALIGN(key.offset + len, log->sectorsize);
+			extent_end = ALIGN(key.offset + len,
+					   log->fs_info->sectorsize);
 		} else {
 			len = btrfs_file_extent_num_bytes(src, extent);
 			extent_end = key.offset + len;
@@ -4427,7 +4429,7 @@ static int btrfs_log_trailing_hole(struct btrfs_trans_handle *trans,
 	if (hole_size == 0)
 		return 0;
 
-	hole_size = ALIGN(hole_size, root->sectorsize);
+	hole_size = ALIGN(hole_size, root->fs_info->sectorsize);
 	ret = btrfs_insert_file_extent(trans, log, ino, hole_start, 0, 0,
 				       hole_size, 0, hole_size, 0, 0, 0);
 	return ret;

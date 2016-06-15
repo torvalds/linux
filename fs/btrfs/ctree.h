@@ -337,7 +337,7 @@ struct btrfs_path {
 	unsigned int need_commit_sem:1;
 	unsigned int skip_release_on_error:1;
 };
-#define BTRFS_MAX_EXTENT_ITEM_SIZE(r) ((BTRFS_LEAF_DATA_SIZE(r) >> 4) - \
+#define BTRFS_MAX_EXTENT_ITEM_SIZE(r) ((BTRFS_LEAF_DATA_SIZE(r->fs_info) >> 4) - \
 					sizeof(struct btrfs_item))
 struct btrfs_dev_replace {
 	u64 replace_state;	/* see #define above */
@@ -1084,7 +1084,17 @@ struct btrfs_fs_info {
 
 	/* Used to record internally whether fs has been frozen */
 	int fs_frozen;
+
+	/* Cached block sizes */
+	u32 nodesize;
+	u32 sectorsize;
+	u32 stripesize;
 };
+
+static inline struct btrfs_fs_info *btrfs_sb(struct super_block *sb)
+{
+	return sb->s_fs_info;
+}
 
 struct btrfs_subvolume_writers {
 	struct percpu_counter	counter;
@@ -1158,14 +1168,6 @@ struct btrfs_root {
 
 	u64 objectid;
 	u64 last_trans;
-
-	/* data allocations are done in sectorsize units */
-	u32 sectorsize;
-
-	/* node allocations are done in nodesize units */
-	u32 nodesize;
-
-	u32 stripesize;
 
 	u32 type;
 
@@ -1250,38 +1252,42 @@ struct btrfs_root {
 	/* For qgroup metadata space reserve */
 	atomic_t qgroup_meta_rsv;
 };
+static inline u32 btrfs_inode_sectorsize(const struct inode *inode)
+{
+	return btrfs_sb(inode->i_sb)->sectorsize;
+}
 
 static inline u32 __BTRFS_LEAF_DATA_SIZE(u32 blocksize)
 {
 	return blocksize - sizeof(struct btrfs_header);
 }
 
-static inline u32 BTRFS_LEAF_DATA_SIZE(const struct btrfs_root *root)
+static inline u32 BTRFS_LEAF_DATA_SIZE(const struct btrfs_fs_info *info)
 {
-	return __BTRFS_LEAF_DATA_SIZE(root->nodesize);
+	return __BTRFS_LEAF_DATA_SIZE(info->nodesize);
 }
 
-static inline u32 BTRFS_MAX_ITEM_SIZE(const struct btrfs_root *root)
+static inline u32 BTRFS_MAX_ITEM_SIZE(const struct btrfs_fs_info *info)
 {
-	return BTRFS_LEAF_DATA_SIZE(root) - sizeof(struct btrfs_item);
+	return BTRFS_LEAF_DATA_SIZE(info) - sizeof(struct btrfs_item);
 }
 
-static inline u32 BTRFS_NODEPTRS_PER_BLOCK(const struct btrfs_root *root)
+static inline u32 BTRFS_NODEPTRS_PER_BLOCK(const struct btrfs_fs_info *info)
 {
-	return BTRFS_LEAF_DATA_SIZE(root) / sizeof(struct btrfs_key_ptr);
+	return BTRFS_LEAF_DATA_SIZE(info) / sizeof(struct btrfs_key_ptr);
 }
 
 #define BTRFS_FILE_EXTENT_INLINE_DATA_START		\
 		(offsetof(struct btrfs_file_extent_item, disk_bytenr))
-static inline u32 BTRFS_MAX_INLINE_DATA_SIZE(const struct btrfs_root *root)
+static inline u32 BTRFS_MAX_INLINE_DATA_SIZE(const struct btrfs_fs_info *info)
 {
-	return BTRFS_MAX_ITEM_SIZE(root) -
+	return BTRFS_MAX_ITEM_SIZE(info) -
 	       BTRFS_FILE_EXTENT_INLINE_DATA_START;
 }
 
-static inline u32 BTRFS_MAX_XATTR_SIZE(const struct btrfs_root *root)
+static inline u32 BTRFS_MAX_XATTR_SIZE(const struct btrfs_fs_info *info)
 {
-	return BTRFS_MAX_ITEM_SIZE(root) - sizeof(struct btrfs_dir_item);
+	return BTRFS_MAX_ITEM_SIZE(info) - sizeof(struct btrfs_dir_item);
 }
 
 /*
@@ -2309,7 +2315,7 @@ static inline unsigned int leaf_data_end(struct btrfs_root *root,
 	u32 nr = btrfs_header_nritems(leaf);
 
 	if (nr == 0)
-		return BTRFS_LEAF_DATA_SIZE(root);
+		return BTRFS_LEAF_DATA_SIZE(root->fs_info);
 	return btrfs_item_offset_nr(leaf, nr - 1);
 }
 
@@ -2505,11 +2511,6 @@ BTRFS_SETGET_STACK_FUNCS(stack_dev_replace_cursor_left,
 BTRFS_SETGET_STACK_FUNCS(stack_dev_replace_cursor_right,
 			 struct btrfs_dev_replace_item, cursor_right, 64);
 
-static inline struct btrfs_fs_info *btrfs_sb(struct super_block *sb)
-{
-	return sb->s_fs_info;
-}
-
 /* helper function to cast into the data area of the leaf. */
 #define btrfs_item_ptr(leaf, slot, type) \
 	((type *)(btrfs_leaf_data(leaf) + \
@@ -2537,7 +2538,7 @@ u64 btrfs_csum_bytes_to_leaves(struct btrfs_root *root, u64 csum_bytes);
 static inline u64 btrfs_calc_trans_metadata_size(struct btrfs_root *root,
 						 unsigned num_items)
 {
-	return root->nodesize * BTRFS_MAX_LEVEL * 2 * num_items;
+	return root->fs_info->nodesize * BTRFS_MAX_LEVEL * 2 * num_items;
 }
 
 /*
@@ -2547,7 +2548,7 @@ static inline u64 btrfs_calc_trans_metadata_size(struct btrfs_root *root,
 static inline u64 btrfs_calc_trunc_metadata_size(struct btrfs_root *root,
 						 unsigned num_items)
 {
-	return root->nodesize * BTRFS_MAX_LEVEL * num_items;
+	return root->fs_info->nodesize * BTRFS_MAX_LEVEL * num_items;
 }
 
 int btrfs_should_throttle_delayed_refs(struct btrfs_trans_handle *trans,

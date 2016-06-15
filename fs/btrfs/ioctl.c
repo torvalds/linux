@@ -516,7 +516,8 @@ static noinline int create_subvol(struct inode *dir,
 	btrfs_set_stack_inode_generation(inode_item, 1);
 	btrfs_set_stack_inode_size(inode_item, 3);
 	btrfs_set_stack_inode_nlink(inode_item, 1);
-	btrfs_set_stack_inode_nbytes(inode_item, root->nodesize);
+	btrfs_set_stack_inode_nbytes(inode_item,
+				     root->fs_info->nodesize);
 	btrfs_set_stack_inode_mode(inode_item, S_IFDIR | 0755);
 
 	btrfs_set_root_flags(root_item, 0);
@@ -1595,8 +1596,8 @@ static noinline int btrfs_ioctl_resize(struct file *file,
 		goto out_free;
 	}
 
-	new_size = div_u64(new_size, root->sectorsize);
-	new_size *= root->sectorsize;
+	new_size = div_u64(new_size, root->fs_info->sectorsize);
+	new_size *= root->fs_info->sectorsize;
 
 	btrfs_info_in_rcu(root->fs_info, "new size for %s is %llu",
 		      rcu_str_deref(device->name), new_size);
@@ -3404,7 +3405,7 @@ static int clone_copy_inline_extent(struct inode *src,
 {
 	struct btrfs_root *root = BTRFS_I(dst)->root;
 	const u64 aligned_end = ALIGN(new_key->offset + datal,
-				      root->sectorsize);
+				      root->fs_info->sectorsize);
 	int ret;
 	struct btrfs_key key;
 
@@ -3538,9 +3539,10 @@ static int btrfs_clone(struct inode *src, struct inode *inode,
 	u64 last_dest_end = destoff;
 
 	ret = -ENOMEM;
-	buf = kmalloc(root->nodesize, GFP_KERNEL | __GFP_NOWARN);
+	buf = kmalloc(root->fs_info->nodesize,
+		      GFP_KERNEL | __GFP_NOWARN);
 	if (!buf) {
-		buf = vmalloc(root->nodesize);
+		buf = vmalloc(root->fs_info->nodesize);
 		if (!buf)
 			return ret;
 	}
@@ -3798,7 +3800,7 @@ process_slot:
 			btrfs_release_path(path);
 
 			last_dest_end = ALIGN(new_key.offset + datal,
-					      root->sectorsize);
+					      root->fs_info->sectorsize);
 			ret = clone_finish_inode_update(trans, inode,
 							last_dest_end,
 							destoff, olen,

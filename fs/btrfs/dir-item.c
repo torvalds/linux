@@ -79,7 +79,7 @@ int btrfs_insert_xattr_item(struct btrfs_trans_handle *trans,
 	struct extent_buffer *leaf;
 	u32 data_size;
 
-	BUG_ON(name_len + data_len > BTRFS_MAX_XATTR_SIZE(root));
+	BUG_ON(name_len + data_len > BTRFS_MAX_XATTR_SIZE(root->fs_info));
 
 	key.objectid = objectid;
 	key.type = BTRFS_XATTR_ITEM_KEY;
@@ -261,7 +261,7 @@ int btrfs_check_dir_item_collision(struct btrfs_root *root, u64 dir,
 	leaf = path->nodes[0];
 	slot = path->slots[0];
 	if (data_size + btrfs_item_size_nr(leaf, slot) +
-	    sizeof(struct btrfs_item) > BTRFS_LEAF_DATA_SIZE(root)) {
+	    sizeof(struct btrfs_item) > BTRFS_LEAF_DATA_SIZE(root->fs_info)) {
 		ret = -EOVERFLOW;
 	} else {
 		/* plenty of insertion room */
@@ -471,7 +471,7 @@ int verify_dir_item(struct btrfs_root *root,
 
 	/* BTRFS_MAX_XATTR_SIZE is the same for all dir items */
 	if ((btrfs_dir_data_len(leaf, dir_item) +
-	     btrfs_dir_name_len(leaf, dir_item)) > BTRFS_MAX_XATTR_SIZE(root)) {
+	     btrfs_dir_name_len(leaf, dir_item)) > BTRFS_MAX_XATTR_SIZE(root->fs_info)) {
 		btrfs_crit(root->fs_info,
 			   "invalid dir item name + data len: %u + %u",
 			   (unsigned)btrfs_dir_name_len(leaf, dir_item),

@@ -978,7 +978,7 @@ int btrfs_ordered_update_i_size(struct inode *inode, u64 offset,
 				     ordered->file_offset +
 				     ordered->truncated_len);
 	} else {
-		offset = ALIGN(offset, BTRFS_I(inode)->root->sectorsize);
+		offset = ALIGN(offset, btrfs_inode_sectorsize(inode));
 	}
 	disk_i_size = BTRFS_I(inode)->disk_i_size;
 
@@ -1087,7 +1087,7 @@ int btrfs_find_ordered_sum(struct inode *inode, u64 offset, u64 disk_bytenr,
 	struct btrfs_ordered_inode_tree *tree = &BTRFS_I(inode)->ordered_tree;
 	unsigned long num_sectors;
 	unsigned long i;
-	u32 sectorsize = BTRFS_I(inode)->root->sectorsize;
+	u32 sectorsize = btrfs_inode_sectorsize(inode);
 	int index = 0;
 
 	ordered = btrfs_lookup_ordered_extent(inode, offset);
