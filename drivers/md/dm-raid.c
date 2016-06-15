@@ -366,14 +366,12 @@ static bool rs_is_reshapable(struct raid_set *rs)
 /* Return true, if raid set in @rs is recovering */
 static bool rs_is_recovering(struct raid_set *rs)
 {
-	smp_rmb();
 	return rs->md.recovery_cp != MaxSector;
 }
 
 /* Return true, if raid set in @rs is reshaping */
 static bool rs_is_reshaping(struct raid_set *rs)
 {
-	smp_rmb();
 	return rs->md.reshape_position != MaxSector;
 }
 
@@ -1484,7 +1482,6 @@ static int rs_check_takeover(struct raid_set *rs)
 	struct mddev *mddev = &rs->md;
 	unsigned int near_copies;
 
-	smp_rmb();
 	if (rs->md.degraded) {
 		rs->ti->error = "Can't takeover degraded raid set";
 		return -EPERM;
@@ -1757,8 +1754,6 @@ struct dm_raid_superblock {
 static int rs_check_reshape(struct raid_set *rs)
 {
 	struct mddev *mddev = &rs->md;
-
-	smp_rmb(); /* Make sure we access recent reshape position */
 
 	if (!mddev->pers || !mddev->pers->check_reshape)
 		rs->ti->error = "Reshape not supported";
