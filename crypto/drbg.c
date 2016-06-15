@@ -1632,7 +1632,7 @@ static int drbg_fini_sym_kernel(struct drbg_state *drbg)
 	drbg->ctr_handle = NULL;
 
 	if (drbg->ctr_req)
-		skcipher_request_free(drbg->ctr_req);;
+		skcipher_request_free(drbg->ctr_req);
 	drbg->ctr_req = NULL;
 
 	kfree(drbg->ctr_null_value_buf);
