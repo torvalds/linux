@@ -103,7 +103,7 @@ enum rt_op {
 	bltzal_op, bgezal_op, bltzall_op, bgezall_op,
 	rt_op_0x14, rt_op_0x15, rt_op_0x16, rt_op_0x17,
 	rt_op_0x18, rt_op_0x19, rt_op_0x1a, rt_op_0x1b,
-	bposge32_op, rt_op_0x1d, rt_op_0x1e, rt_op_0x1f
+	bposge32_op, rt_op_0x1d, rt_op_0x1e, synci_op
 };
 
 /*
@@ -586,6 +586,36 @@ struct r_format {			/* Register format */
 	;))))))
 };
 
+struct c0r_format {			/* C0 register format */
+	__BITFIELD_FIELD(unsigned int opcode : 6,
+	__BITFIELD_FIELD(unsigned int rs : 5,
+	__BITFIELD_FIELD(unsigned int rt : 5,
+	__BITFIELD_FIELD(unsigned int rd : 5,
+	__BITFIELD_FIELD(unsigned int z: 8,
+	__BITFIELD_FIELD(unsigned int sel : 3,
+	;))))))
+};
+
+struct mfmc0_format {			/* MFMC0 register format */
+	__BITFIELD_FIELD(unsigned int opcode : 6,
+	__BITFIELD_FIELD(unsigned int rs : 5,
+	__BITFIELD_FIELD(unsigned int rt : 5,
+	__BITFIELD_FIELD(unsigned int rd : 5,
+	__BITFIELD_FIELD(unsigned int re : 5,
+	__BITFIELD_FIELD(unsigned int sc : 1,
+	__BITFIELD_FIELD(unsigned int : 2,
+	__BITFIELD_FIELD(unsigned int sel : 3,
+	;))))))))
+};
+
+struct co_format {			/* C0 CO format */
+	__BITFIELD_FIELD(unsigned int opcode : 6,
+	__BITFIELD_FIELD(unsigned int co : 1,
+	__BITFIELD_FIELD(unsigned int code : 19,
+	__BITFIELD_FIELD(unsigned int func : 6,
+	;))))
+};
+
 struct p_format {		/* Performance counter format (R10000) */
 	__BITFIELD_FIELD(unsigned int opcode : 6,
 	__BITFIELD_FIELD(unsigned int rs : 5,
@@ -937,6 +967,9 @@ union mips_instruction {
 	struct u_format u_format;
 	struct c_format c_format;
 	struct r_format r_format;
+	struct c0r_format c0r_format;
+	struct mfmc0_format mfmc0_format;
+	struct co_format co_format;
 	struct p_format p_format;
 	struct f_format f_format;
 	struct ma_format ma_format;

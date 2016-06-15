@@ -972,13 +972,14 @@ unsigned int kvm_mips_config5_wrmask(struct kvm_vcpu *vcpu)
 	return mask;
 }
 
-enum emulation_result kvm_mips_emulate_CP0(u32 inst, u32 *opc, u32 cause,
+enum emulation_result kvm_mips_emulate_CP0(union mips_instruction inst,
+					   u32 *opc, u32 cause,
 					   struct kvm_run *run,
 					   struct kvm_vcpu *vcpu)
 {
 	struct mips_coproc *cop0 = vcpu->arch.cop0;
 	enum emulation_result er = EMULATE_DONE;
-	u32 rt, rd, copz, sel, co_bit, op;
+	u32 rt, rd, sel;
 	unsigned long curr_pc;
 
 	/*
@@ -990,16 +991,8 @@ enum emulation_result kvm_mips_emulate_CP0(u32 inst, u32 *opc, u32 cause,
 	if (er == EMULATE_FAIL)
 		return er;
 
-	copz = (inst >> 21) & 0x1f;
-	rt = (inst >> 16) & 0x1f;
-	rd = (inst >> 11) & 0x1f;
-	sel = inst & 0x7;
-	co_bit = (inst >> 25) & 1;
-
-	if (co_bit) {
-		op = (inst) & 0xff;
-
-		switch (op) {
+	if (inst.co_format.co) {
+		switch (inst.co_format.func) {
 		case tlbr_op:	/*  Read indexed TLB entry  */
 			er = kvm_mips_emul_tlbr(vcpu);
 			break;
@@ -1018,13 +1011,16 @@ enum emulation_result kvm_mips_emulate_CP0(u32 inst, u32 *opc, u32 cause,
 		case eret_op:
 			er = kvm_mips_emul_eret(vcpu);
 			goto dont_update_pc;
-			break;
 		case wait_op:
 			er = kvm_mips_emul_wait(vcpu);
 			break;
 		}
 	} else {
-		switch (copz) {
+		rt = inst.c0r_format.rt;
+		rd = inst.c0r_format.rd;
+		sel = inst.c0r_format.sel;
+
+		switch (inst.c0r_format.rs) {
 		case mfc_op:
 #ifdef CONFIG_KVM_MIPS_DEBUG_COP0_COUNTERS
 			cop0->stat[rd][sel]++;
@@ -1258,7 +1254,7 @@ enum emulation_result kvm_mips_emulate_CP0(u32 inst, u32 *opc, u32 cause,
 				vcpu->arch.gprs[rt] =
 				    kvm_read_c0_guest_status(cop0);
 			/* EI */
-			if (inst & 0x20) {
+			if (inst.mfmc0_format.sc) {
 				kvm_debug("[%#lx] mfmc0_op: EI\n",
 					  vcpu->arch.pc);
 				kvm_set_c0_guest_status(cop0, ST0_IE);
@@ -1290,7 +1286,7 @@ enum emulation_result kvm_mips_emulate_CP0(u32 inst, u32 *opc, u32 cause,
 			break;
 		default:
 			kvm_err("[%#lx]MachEmulateCP0: unsupported COP0, copz: 0x%x\n",
-				vcpu->arch.pc, copz);
+				vcpu->arch.pc, inst.c0r_format.rs);
 			er = EMULATE_FAIL;
 			break;
 		}
@@ -1311,13 +1307,13 @@ dont_update_pc:
 	return er;
 }
 
-enum emulation_result kvm_mips_emulate_store(u32 inst, u32 cause,
+enum emulation_result kvm_mips_emulate_store(union mips_instruction inst,
+					     u32 cause,
 					     struct kvm_run *run,
 					     struct kvm_vcpu *vcpu)
 {
 	enum emulation_result er = EMULATE_DO_MMIO;
-	u32 op, base, rt;
-	s16 offset;
+	u32 rt;
 	u32 bytes;
 	void *data = run->mmio.data;
 	unsigned long curr_pc;
@@ -1331,12 +1327,9 @@ enum emulation_result kvm_mips_emulate_store(u32 inst, u32 cause,
 	if (er == EMULATE_FAIL)
 		return er;
 
-	rt = (inst >> 16) & 0x1f;
-	base = (inst >> 21) & 0x1f;
-	offset = (s16)inst;
-	op = (inst >> 26) & 0x3f;
+	rt = inst.i_format.rt;
 
-	switch (op) {
+	switch (inst.i_format.opcode) {
 	case sb_op:
 		bytes = 1;
 		if (bytes > sizeof(run->mmio.data)) {
@@ -1413,7 +1406,7 @@ enum emulation_result kvm_mips_emulate_store(u32 inst, u32 cause,
 
 	default:
 		kvm_err("Store not yet supported (inst=0x%08x)\n",
-			inst);
+			inst.word);
 		er = EMULATE_FAIL;
 		break;
 	}
@@ -1425,19 +1418,16 @@ enum emulation_result kvm_mips_emulate_store(u32 inst, u32 cause,
 	return er;
 }
 
-enum emulation_result kvm_mips_emulate_load(u32 inst, u32 cause,
-					    struct kvm_run *run,
+enum emulation_result kvm_mips_emulate_load(union mips_instruction inst,
+					    u32 cause, struct kvm_run *run,
 					    struct kvm_vcpu *vcpu)
 {
 	enum emulation_result er = EMULATE_DO_MMIO;
-	u32 op, base, rt;
-	s16 offset;
+	u32 op, rt;
 	u32 bytes;
 
-	rt = (inst >> 16) & 0x1f;
-	base = (inst >> 21) & 0x1f;
-	offset = (s16)inst;
-	op = (inst >> 26) & 0x3f;
+	rt = inst.i_format.rt;
+	op = inst.i_format.opcode;
 
 	vcpu->arch.pending_load_cause = cause;
 	vcpu->arch.io_gpr = rt;
@@ -1524,7 +1514,7 @@ enum emulation_result kvm_mips_emulate_load(u32 inst, u32 cause,
 
 	default:
 		kvm_err("Load not yet supported (inst=0x%08x)\n",
-			inst);
+			inst.word);
 		er = EMULATE_FAIL;
 		break;
 	}
@@ -1532,8 +1522,8 @@ enum emulation_result kvm_mips_emulate_load(u32 inst, u32 cause,
 	return er;
 }
 
-enum emulation_result kvm_mips_emulate_cache(u32 inst, u32 *opc,
-					     u32 cause,
+enum emulation_result kvm_mips_emulate_cache(union mips_instruction inst,
+					     u32 *opc, u32 cause,
 					     struct kvm_run *run,
 					     struct kvm_vcpu *vcpu)
 {
@@ -1554,9 +1544,9 @@ enum emulation_result kvm_mips_emulate_cache(u32 inst, u32 *opc,
 	if (er == EMULATE_FAIL)
 		return er;
 
-	base = (inst >> 21) & 0x1f;
-	op_inst = (inst >> 16) & 0x1f;
-	offset = (s16)inst;
+	base = inst.i_format.rs;
+	op_inst = inst.i_format.rt;
+	offset = inst.i_format.simmediate;
 	cache = op_inst & CacheOp_Cache;
 	op = op_inst & CacheOp_Op;
 
@@ -1693,16 +1683,16 @@ enum emulation_result kvm_mips_emulate_inst(u32 cause, u32 *opc,
 					    struct kvm_run *run,
 					    struct kvm_vcpu *vcpu)
 {
+	union mips_instruction inst;
 	enum emulation_result er = EMULATE_DONE;
-	u32 inst;
 
 	/* Fetch the instruction. */
 	if (cause & CAUSEF_BD)
 		opc += 1;
 
-	inst = kvm_get_inst(opc, vcpu);
+	inst.word = kvm_get_inst(opc, vcpu);
 
-	switch (((union mips_instruction)inst).r_format.opcode) {
+	switch (inst.r_format.opcode) {
 	case cop0_op:
 		er = kvm_mips_emulate_CP0(inst, opc, cause, run, vcpu);
 		break;
@@ -1727,7 +1717,7 @@ enum emulation_result kvm_mips_emulate_inst(u32 cause, u32 *opc,
 
 	default:
 		kvm_err("Instruction emulation not supported (%p/%#x)\n", opc,
-			inst);
+			inst.word);
 		kvm_arch_vcpu_dump_regs(vcpu);
 		er = EMULATE_FAIL;
 		break;
@@ -2262,21 +2252,6 @@ enum emulation_result kvm_mips_emulate_msadis_exc(u32 cause,
 	return er;
 }
 
-/* ll/sc, rdhwr, sync emulation */
-
-#define OPCODE 0xfc000000
-#define BASE   0x03e00000
-#define RT     0x001f0000
-#define OFFSET 0x0000ffff
-#define LL     0xc0000000
-#define SC     0xe0000000
-#define SPEC0  0x00000000
-#define SPEC3  0x7c000000
-#define RD     0x0000f800
-#define FUNC   0x0000003f
-#define SYNC   0x0000000f
-#define RDHWR  0x0000003b
-
 enum emulation_result kvm_mips_handle_ri(u32 cause, u32 *opc,
 					 struct kvm_run *run,
 					 struct kvm_vcpu *vcpu)
@@ -2285,7 +2260,7 @@ enum emulation_result kvm_mips_handle_ri(u32 cause, u32 *opc,
 	struct kvm_vcpu_arch *arch = &vcpu->arch;
 	enum emulation_result er = EMULATE_DONE;
 	unsigned long curr_pc;
-	u32 inst;
+	union mips_instruction inst;
 
 	/*
 	 * Update PC and hold onto current PC in case there is
@@ -2300,18 +2275,19 @@ enum emulation_result kvm_mips_handle_ri(u32 cause, u32 *opc,
 	if (cause & CAUSEF_BD)
 		opc += 1;
 
-	inst = kvm_get_inst(opc, vcpu);
+	inst.word = kvm_get_inst(opc, vcpu);
 
-	if (inst == KVM_INVALID_INST) {
+	if (inst.word == KVM_INVALID_INST) {
 		kvm_err("%s: Cannot get inst @ %p\n", __func__, opc);
 		return EMULATE_FAIL;
 	}
 
-	if ((inst & OPCODE) == SPEC3 && (inst & FUNC) == RDHWR) {
+	if (inst.r_format.opcode == spec3_op &&
+	    inst.r_format.func == rdhwr_op) {
 		int usermode = !KVM_GUEST_KERNEL_MODE(vcpu);
-		int rd = (inst & RD) >> 11;
-		int rt = (inst & RT) >> 16;
-		int sel = (inst >> 6) & 0x7;
+		int rd = inst.r_format.rd;
+		int rt = inst.r_format.rt;
+		int sel = inst.r_format.re & 0x7;
 
 		/* If usermode, check RDHWR rd is allowed by guest HWREna */
 		if (usermode && !(kvm_read_c0_guest_hwrena(cop0) & BIT(rd))) {
@@ -2352,7 +2328,8 @@ enum emulation_result kvm_mips_handle_ri(u32 cause, u32 *opc,
 		trace_kvm_hwr(vcpu, KVM_TRACE_RDHWR, KVM_TRACE_HWR(rd, sel),
 			      vcpu->arch.gprs[rt]);
 	} else {
-		kvm_debug("Emulate RI not supported @ %p: %#x\n", opc, inst);
+		kvm_debug("Emulate RI not supported @ %p: %#x\n",
+			  opc, inst.word);
 		goto emulate_ri;
 	}
 

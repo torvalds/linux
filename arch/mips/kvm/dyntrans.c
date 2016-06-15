@@ -20,21 +20,14 @@
 
 #include "commpage.h"
 
-#define SYNCI_TEMPLATE  0x041f0000
-#define SYNCI_BASE(x)   (((x) >> 21) & 0x1f)
-#define SYNCI_OFFSET    ((x) & 0xffff)
-
-#define LW_TEMPLATE     0x8c000000
-#define CLEAR_TEMPLATE  0x00000020
-#define SW_TEMPLATE     0xac000000
-
 /**
  * kvm_mips_trans_replace() - Replace trapping instruction in guest memory.
  * @vcpu:	Virtual CPU.
  * @opc:	PC of instruction to replace.
  * @replace:	Instruction to write
  */
-static int kvm_mips_trans_replace(struct kvm_vcpu *vcpu, u32 *opc, u32 replace)
+static int kvm_mips_trans_replace(struct kvm_vcpu *vcpu, u32 *opc,
+				  union mips_instruction replace)
 {
 	unsigned long kseg0_opc, flags;
 
@@ -58,63 +51,68 @@ static int kvm_mips_trans_replace(struct kvm_vcpu *vcpu, u32 *opc, u32 replace)
 	return 0;
 }
 
-int kvm_mips_trans_cache_index(u32 inst, u32 *opc,
+int kvm_mips_trans_cache_index(union mips_instruction inst, u32 *opc,
 			       struct kvm_vcpu *vcpu)
 {
+	union mips_instruction nop_inst = { 0 };
+
 	/* Replace the CACHE instruction, with a NOP */
-	return kvm_mips_trans_replace(vcpu, opc, 0x00000000);
+	return kvm_mips_trans_replace(vcpu, opc, nop_inst);
 }
 
 /*
  * Address based CACHE instructions are transformed into synci(s). A little
  * heavy for just D-cache invalidates, but avoids an expensive trap
  */
-int kvm_mips_trans_cache_va(u32 inst, u32 *opc,
+int kvm_mips_trans_cache_va(union mips_instruction inst, u32 *opc,
 			    struct kvm_vcpu *vcpu)
 {
-	u32 synci_inst = SYNCI_TEMPLATE, base, offset;
+	union mips_instruction synci_inst = { 0 };
 
-	base = (inst >> 21) & 0x1f;
-	offset = inst & 0xffff;
-	synci_inst |= (base << 21);
-	synci_inst |= offset;
+	synci_inst.i_format.opcode = bcond_op;
+	synci_inst.i_format.rs = inst.i_format.rs;
+	synci_inst.i_format.rt = synci_op;
+	synci_inst.i_format.simmediate = inst.i_format.simmediate;
 
 	return kvm_mips_trans_replace(vcpu, opc, synci_inst);
 }
 
-int kvm_mips_trans_mfc0(u32 inst, u32 *opc, struct kvm_vcpu *vcpu)
+int kvm_mips_trans_mfc0(union mips_instruction inst, u32 *opc,
+			struct kvm_vcpu *vcpu)
 {
-	u32 rt, rd, sel;
-	u32 mfc0_inst;
+	union mips_instruction mfc0_inst = { 0 };
+	u32 rd, sel;
 
-	rt = (inst >> 16) & 0x1f;
-	rd = (inst >> 11) & 0x1f;
-	sel = inst & 0x7;
+	rd = inst.c0r_format.rd;
+	sel = inst.c0r_format.sel;
 
-	if ((rd == MIPS_CP0_ERRCTL) && (sel == 0)) {
-		mfc0_inst = CLEAR_TEMPLATE;
-		mfc0_inst |= ((rt & 0x1f) << 11);
+	if (rd == MIPS_CP0_ERRCTL && sel == 0) {
+		mfc0_inst.r_format.opcode = spec_op;
+		mfc0_inst.r_format.rd = inst.c0r_format.rt;
+		mfc0_inst.r_format.func = add_op;
 	} else {
-		mfc0_inst = LW_TEMPLATE;
-		mfc0_inst |= ((rt & 0x1f) << 16);
-		mfc0_inst |= offsetof(struct kvm_mips_commpage,
-				      cop0.reg[rd][sel]);
+		mfc0_inst.i_format.opcode = lw_op;
+		mfc0_inst.i_format.rt = inst.c0r_format.rt;
+		mfc0_inst.i_format.simmediate =
+			offsetof(struct kvm_mips_commpage, cop0.reg[rd][sel]);
 	}
 
 	return kvm_mips_trans_replace(vcpu, opc, mfc0_inst);
 }
 
-int kvm_mips_trans_mtc0(u32 inst, u32 *opc, struct kvm_vcpu *vcpu)
+int kvm_mips_trans_mtc0(union mips_instruction inst, u32 *opc,
+			struct kvm_vcpu *vcpu)
 {
-	u32 rt, rd, sel;
-	u32 mtc0_inst = SW_TEMPLATE;
+	union mips_instruction mtc0_inst = { 0 };
+	u32 rd, sel;
 
-	rt = (inst >> 16) & 0x1f;
-	rd = (inst >> 11) & 0x1f;
-	sel = inst & 0x7;
+	rd = inst.c0r_format.rd;
+	sel = inst.c0r_format.sel;
 
-	mtc0_inst |= ((rt & 0x1f) << 16);
-	mtc0_inst |= offsetof(struct kvm_mips_commpage, cop0.reg[rd][sel]);
+	mtc0_inst.i_format.opcode = sw_op;
+	mtc0_inst.i_format.rt = inst.c0r_format.rt;
+	mtc0_inst.i_format.simmediate =
+		offsetof(struct kvm_mips_commpage, cop0.reg[rd][sel]);
 
 	return kvm_mips_trans_replace(vcpu, opc, mtc0_inst);
 }

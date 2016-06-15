@@ -19,6 +19,7 @@
 #include <linux/threads.h>
 #include <linux/spinlock.h>
 
+#include <asm/inst.h>
 #include <asm/mipsregs.h>
 
 /* MIPS KVM register ids */
@@ -733,21 +734,21 @@ enum emulation_result kvm_mips_check_privilege(u32 cause,
 					       struct kvm_run *run,
 					       struct kvm_vcpu *vcpu);
 
-enum emulation_result kvm_mips_emulate_cache(u32 inst,
+enum emulation_result kvm_mips_emulate_cache(union mips_instruction inst,
 					     u32 *opc,
 					     u32 cause,
 					     struct kvm_run *run,
 					     struct kvm_vcpu *vcpu);
-enum emulation_result kvm_mips_emulate_CP0(u32 inst,
+enum emulation_result kvm_mips_emulate_CP0(union mips_instruction inst,
 					   u32 *opc,
 					   u32 cause,
 					   struct kvm_run *run,
 					   struct kvm_vcpu *vcpu);
-enum emulation_result kvm_mips_emulate_store(u32 inst,
+enum emulation_result kvm_mips_emulate_store(union mips_instruction inst,
 					     u32 cause,
 					     struct kvm_run *run,
 					     struct kvm_vcpu *vcpu);
-enum emulation_result kvm_mips_emulate_load(u32 inst,
+enum emulation_result kvm_mips_emulate_load(union mips_instruction inst,
 					    u32 cause,
 					    struct kvm_run *run,
 					    struct kvm_vcpu *vcpu);
@@ -758,11 +759,14 @@ unsigned int kvm_mips_config4_wrmask(struct kvm_vcpu *vcpu);
 unsigned int kvm_mips_config5_wrmask(struct kvm_vcpu *vcpu);
 
 /* Dynamic binary translation */
-extern int kvm_mips_trans_cache_index(u32 inst, u32 *opc,
-				      struct kvm_vcpu *vcpu);
-extern int kvm_mips_trans_cache_va(u32 inst, u32 *opc, struct kvm_vcpu *vcpu);
-extern int kvm_mips_trans_mfc0(u32 inst, u32 *opc, struct kvm_vcpu *vcpu);
-extern int kvm_mips_trans_mtc0(u32 inst, u32 *opc, struct kvm_vcpu *vcpu);
+extern int kvm_mips_trans_cache_index(union mips_instruction inst,
+				      u32 *opc, struct kvm_vcpu *vcpu);
+extern int kvm_mips_trans_cache_va(union mips_instruction inst, u32 *opc,
+				   struct kvm_vcpu *vcpu);
+extern int kvm_mips_trans_mfc0(union mips_instruction inst, u32 *opc,
+			       struct kvm_vcpu *vcpu);
+extern int kvm_mips_trans_mtc0(union mips_instruction inst, u32 *opc,
+			       struct kvm_vcpu *vcpu);
 
 /* Misc */
 extern void kvm_mips_dump_stats(struct kvm_vcpu *vcpu);
