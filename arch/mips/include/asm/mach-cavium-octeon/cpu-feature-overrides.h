@@ -55,7 +55,7 @@
 #define cpu_has_mipsmt		0
 #define cpu_has_vint		0
 #define cpu_has_veic		0
-#define cpu_hwrena_impl_bits	0xc0000000
+#define cpu_hwrena_impl_bits	(MIPS_HWRENA_IMPL1 | MIPS_HWRENA_IMPL2)
 #define cpu_has_wsbh            1
 
 #define cpu_has_rixi		(cpu_data[0].cputype != CPU_CAVIUM_OCTEON)

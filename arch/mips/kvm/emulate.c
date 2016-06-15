@@ -2296,17 +2296,17 @@ enum emulation_result kvm_mips_handle_ri(u32 cause, u32 *opc,
 			goto emulate_ri;
 		}
 		switch (rd) {
-		case 0:	/* CPU number */
+		case MIPS_HWR_CPUNUM:		/* CPU number */
 			arch->gprs[rt] = 0;
 			break;
-		case 1:	/* SYNCI length */
+		case MIPS_HWR_SYNCISTEP:	/* SYNCI length */
 			arch->gprs[rt] = min(current_cpu_data.dcache.linesz,
 					     current_cpu_data.icache.linesz);
 			break;
-		case 2:	/* Read count register */
+		case MIPS_HWR_CC:		/* Read count register */
 			arch->gprs[rt] = kvm_mips_read_count(vcpu);
 			break;
-		case 3:	/* Count register resolution */
+		case MIPS_HWR_CCRES:		/* Count register resolution */
 			switch (current_cpu_data.cputype) {
 			case CPU_20KC:
 			case CPU_25KF:
@@ -2316,7 +2316,7 @@ enum emulation_result kvm_mips_handle_ri(u32 cause, u32 *opc,
 				arch->gprs[rt] = 2;
 			}
 			break;
-		case 29:
+		case MIPS_HWR_ULR:		/* Read UserLocal register */
 			arch->gprs[rt] = kvm_read_c0_guest_userlocal(cop0);
 			break;
 

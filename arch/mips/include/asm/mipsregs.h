@@ -53,7 +53,7 @@
 #define CP0_SEGCTL2 $5, 4
 #define CP0_WIRED $6
 #define CP0_INFO $7
-#define CP0_HWRENA $7, 0
+#define CP0_HWRENA $7
 #define CP0_BADVADDR $8
 #define CP0_BADINSTR $8, 1
 #define CP0_COUNT $9
@@ -852,6 +852,24 @@
 #define MIPS_CDMMBASE_EN	(_ULCAST_(1) << 10)
 #define MIPS_CDMMBASE_ADDR_SHIFT 11
 #define MIPS_CDMMBASE_ADDR_START 15
+
+/* RDHWR register numbers */
+#define MIPS_HWR_CPUNUM		0	/* CPU number */
+#define MIPS_HWR_SYNCISTEP	1	/* SYNCI step size */
+#define MIPS_HWR_CC		2	/* Cycle counter */
+#define MIPS_HWR_CCRES		3	/* Cycle counter resolution */
+#define MIPS_HWR_ULR		29	/* UserLocal */
+#define MIPS_HWR_IMPL1		30	/* Implementation dependent */
+#define MIPS_HWR_IMPL2		31	/* Implementation dependent */
+
+/* Bits in HWREna register */
+#define MIPS_HWRENA_CPUNUM	(_ULCAST_(1) << MIPS_HWR_CPUNUM)
+#define MIPS_HWRENA_SYNCISTEP	(_ULCAST_(1) << MIPS_HWR_SYNCISTEP)
+#define MIPS_HWRENA_CC		(_ULCAST_(1) << MIPS_HWR_CC)
+#define MIPS_HWRENA_CCRES	(_ULCAST_(1) << MIPS_HWR_CCRES)
+#define MIPS_HWRENA_ULR		(_ULCAST_(1) << MIPS_HWR_ULR)
+#define MIPS_HWRENA_IMPL1	(_ULCAST_(1) << MIPS_HWR_IMPL1)
+#define MIPS_HWRENA_IMPL2	(_ULCAST_(1) << MIPS_HWR_IMPL2)
 
 /*
  * Bitfields in the TX39 family CP0 Configuration Register 3

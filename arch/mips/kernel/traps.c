@@ -619,17 +619,17 @@ static int simulate_rdhwr(struct pt_regs *regs, int rd, int rt)
 	perf_sw_event(PERF_COUNT_SW_EMULATION_FAULTS,
 			1, regs, 0);
 	switch (rd) {
-	case 0:		/* CPU number */
+	case MIPS_HWR_CPUNUM:		/* CPU number */
 		regs->regs[rt] = smp_processor_id();
 		return 0;
-	case 1:		/* SYNCI length */
+	case MIPS_HWR_SYNCISTEP:	/* SYNCI length */
 		regs->regs[rt] = min(current_cpu_data.dcache.linesz,
 				     current_cpu_data.icache.linesz);
 		return 0;
-	case 2:		/* Read count register */
+	case MIPS_HWR_CC:		/* Read count register */
 		regs->regs[rt] = read_c0_count();
 		return 0;
-	case 3:		/* Count register resolution */
+	case MIPS_HWR_CCRES:		/* Count register resolution */
 		switch (current_cpu_type()) {
 		case CPU_20KC:
 		case CPU_25KF:
@@ -639,7 +639,7 @@ static int simulate_rdhwr(struct pt_regs *regs, int rd, int rt)
 			regs->regs[rt] = 2;
 		}
 		return 0;
-	case 29:
+	case MIPS_HWR_ULR:		/* Read UserLocal register */
 		regs->regs[rt] = ti->tp_value;
 		return 0;
 	default:
@@ -2070,10 +2070,13 @@ static void configure_hwrena(void)
 	unsigned int hwrena = cpu_hwrena_impl_bits;
 
 	if (cpu_has_mips_r2_r6)
-		hwrena |= 0x0000000f;
+		hwrena |= MIPS_HWRENA_CPUNUM |
+			  MIPS_HWRENA_SYNCISTEP |
+			  MIPS_HWRENA_CC |
+			  MIPS_HWRENA_CCRES;
 
 	if (!noulri && cpu_has_userlocal)
-		hwrena |= (1 << 29);
+		hwrena |= MIPS_HWRENA_ULR;
 
 	if (hwrena)
 		write_c0_hwrena(hwrena);
