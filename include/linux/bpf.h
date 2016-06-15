@@ -19,7 +19,8 @@ struct bpf_map;
 struct bpf_map_ops {
 	/* funcs callable from userspace (via syscall) */
 	struct bpf_map *(*map_alloc)(union bpf_attr *attr);
-	void (*map_free)(struct bpf_map *);
+	void (*map_release)(struct bpf_map *map, struct file *map_file);
+	void (*map_free)(struct bpf_map *map);
 	int (*map_get_next_key)(struct bpf_map *map, void *key, void *next_key);
 
 	/* funcs callable from userspace and from eBPF programs */
