@@ -34,6 +34,7 @@
 #include <linux/in.h>
 #include <net/tcp.h>
 
+#include "rds_single_path.h"
 #include "rds.h"
 #include "tcp.h"
 
@@ -60,7 +61,8 @@ void rds_tcp_state_change(struct sock *sk)
 		case TCP_SYN_RECV:
 			break;
 		case TCP_ESTABLISHED:
-			rds_connect_path_complete(conn, RDS_CONN_CONNECTING);
+			rds_connect_path_complete(&conn->c_path[0],
+						  RDS_CONN_CONNECTING);
 			break;
 		case TCP_CLOSE_WAIT:
 		case TCP_CLOSE:

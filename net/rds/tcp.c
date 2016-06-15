@@ -38,6 +38,7 @@
 #include <net/net_namespace.h>
 #include <net/netns/generic.h>
 
+#include "rds_single_path.h"
 #include "rds.h"
 #include "tcp.h"
 
@@ -185,7 +186,7 @@ void rds_tcp_reset_callbacks(struct socket *sock,
 	release_sock(osock->sk);
 	sock_release(osock);
 newsock:
-	rds_send_reset(conn);
+	rds_send_path_reset(&conn->c_path[0]);
 	lock_sock(sock->sk);
 	write_lock_bh(&sock->sk->sk_callback_lock);
 	tc->t_sock = sock;

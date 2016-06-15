@@ -34,6 +34,7 @@
 #include <linux/slab.h>
 #include <net/tcp.h>
 
+#include "rds_single_path.h"
 #include "rds.h"
 #include "tcp.h"
 

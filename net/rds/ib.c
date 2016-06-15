@@ -40,6 +40,7 @@
 #include <linux/slab.h>
 #include <linux/module.h>
 
+#include "rds_single_path.h"
 #include "rds.h"
 #include "ib.h"
 #include "ib_mr.h"

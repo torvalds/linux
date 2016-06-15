@@ -53,6 +53,20 @@ void rds_inc_init(struct rds_incoming *inc, struct rds_connection *conn,
 }
 EXPORT_SYMBOL_GPL(rds_inc_init);
 
+void rds_inc_path_init(struct rds_incoming *inc, struct rds_conn_path *cp,
+		       __be32 saddr)
+{
+	atomic_set(&inc->i_refcount, 1);
+	INIT_LIST_HEAD(&inc->i_item);
+	inc->i_conn = cp->cp_conn;
+	inc->i_conn_path = cp;
+	inc->i_saddr = saddr;
+	inc->i_rdma_cookie = 0;
+	inc->i_rx_tstamp.tv_sec = 0;
+	inc->i_rx_tstamp.tv_usec = 0;
+}
+EXPORT_SYMBOL_GPL(rds_inc_path_init);
+
 static void rds_inc_addref(struct rds_incoming *inc)
 {
 	rdsdebug("addref inc %p ref %d\n", inc, atomic_read(&inc->i_refcount));
@@ -164,13 +178,18 @@ void rds_recv_incoming(struct rds_connection *conn, __be32 saddr, __be32 daddr,
 	struct rds_sock *rs = NULL;
 	struct sock *sk;
 	unsigned long flags;
+	struct rds_conn_path *cp;
 
 	inc->i_conn = conn;
 	inc->i_rx_jiffies = jiffies;
+	if (conn->c_trans->t_mp_capable)
+		cp = inc->i_conn_path;
+	else
+		cp = &conn->c_path[0];
 
 	rdsdebug("conn %p next %llu inc %p seq %llu len %u sport %u dport %u "
 		 "flags 0x%x rx_jiffies %lu\n", conn,
-		 (unsigned long long)conn->c_next_rx_seq,
+		 (unsigned long long)cp->cp_next_rx_seq,
 		 inc,
 		 (unsigned long long)be64_to_cpu(inc->i_hdr.h_sequence),
 		 be32_to_cpu(inc->i_hdr.h_len),
@@ -199,16 +218,16 @@ void rds_recv_incoming(struct rds_connection *conn, __be32 saddr, __be32 daddr,
 	 * XXX we could spend more on the wire to get more robust failure
 	 * detection, arguably worth it to avoid data corruption.
 	 */
-	if (be64_to_cpu(inc->i_hdr.h_sequence) < conn->c_next_rx_seq &&
+	if (be64_to_cpu(inc->i_hdr.h_sequence) < cp->cp_next_rx_seq &&
 	    (inc->i_hdr.h_flags & RDS_FLAG_RETRANSMITTED)) {
 		rds_stats_inc(s_recv_drop_old_seq);
 		goto out;
 	}
-	conn->c_next_rx_seq = be64_to_cpu(inc->i_hdr.h_sequence) + 1;
+	cp->cp_next_rx_seq = be64_to_cpu(inc->i_hdr.h_sequence) + 1;
 
 	if (rds_sysctl_ping_enable && inc->i_hdr.h_dport == 0) {
 		rds_stats_inc(s_recv_ping);
-		rds_send_pong(conn, inc->i_hdr.h_sport);
+		rds_send_pong(cp, inc->i_hdr.h_sport);
 		goto out;
 	}
 

@@ -35,6 +35,7 @@
 #include <linux/in.h>
 #include <net/tcp.h>
 
+#include "rds_single_path.h"
 #include "rds.h"
 #include "tcp.h"
 
@@ -132,17 +133,19 @@ int rds_tcp_accept_one(struct socket *sock)
 		 * c_transport_data.
 		 */
 		if (ntohl(inet->inet_saddr) < ntohl(inet->inet_daddr) ||
-		    !conn->c_outgoing) {
+		    !conn->c_path[0].cp_outgoing) {
 			goto rst_nsk;
 		} else {
 			rds_tcp_reset_callbacks(new_sock, conn);
-			conn->c_outgoing = 0;
+			conn->c_path[0].cp_outgoing = 0;
 			/* rds_connect_path_complete() marks RDS_CONN_UP */
-			rds_connect_path_complete(conn, RDS_CONN_DISCONNECTING);
+			rds_connect_path_complete(&conn->c_path[0],
+						  RDS_CONN_DISCONNECTING);
 		}
 	} else {
 		rds_tcp_set_callbacks(new_sock, conn);
-		rds_connect_path_complete(conn, RDS_CONN_CONNECTING);
+		rds_connect_path_complete(&conn->c_path[0],
+					  RDS_CONN_CONNECTING);
 	}
 	new_sock = NULL;
 	ret = 0;
