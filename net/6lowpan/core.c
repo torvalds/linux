@@ -34,6 +34,8 @@ int lowpan_register_netdevice(struct net_device *dev,
 	for (i = 0; i < LOWPAN_IPHC_CTX_TABLE_SIZE; i++)
 		lowpan_dev(dev)->ctx.table[i].id = i;
 
+	dev->ndisc_ops = &lowpan_ndisc_ops;
+
 	ret = register_netdevice(dev);
 	if (ret < 0)
 		return ret;
@@ -73,7 +75,7 @@ void lowpan_unregister_netdev(struct net_device *dev)
 }
 EXPORT_SYMBOL(lowpan_unregister_netdev);
 
-static int addrconf_ifid_802154_6lowpan(u8 *eui, struct net_device *dev)
+int addrconf_ifid_802154_6lowpan(u8 *eui, struct net_device *dev)
 {
 	struct wpan_dev *wpan_dev = lowpan_802154_dev(dev)->wdev->ieee802154_ptr;
 

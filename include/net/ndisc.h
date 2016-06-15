@@ -35,6 +35,7 @@ enum {
 	ND_OPT_ROUTE_INFO = 24,		/* RFC4191 */
 	ND_OPT_RDNSS = 25,		/* RFC5006 */
 	ND_OPT_DNSSL = 31,		/* RFC6106 */
+	ND_OPT_6CO = 34,		/* RFC6775 */
 	__ND_OPT_MAX
 };
 
@@ -109,14 +110,19 @@ struct ndisc_options {
 #endif
 	struct nd_opt_hdr *nd_useropts;
 	struct nd_opt_hdr *nd_useropts_end;
+#if IS_ENABLED(CONFIG_IEEE802154_6LOWPAN)
+	struct nd_opt_hdr *nd_802154_opt_array[ND_OPT_TARGET_LL_ADDR + 1];
+#endif
 };
 
-#define nd_opts_src_lladdr	nd_opt_array[ND_OPT_SOURCE_LL_ADDR]
-#define nd_opts_tgt_lladdr	nd_opt_array[ND_OPT_TARGET_LL_ADDR]
-#define nd_opts_pi		nd_opt_array[ND_OPT_PREFIX_INFO]
-#define nd_opts_pi_end		nd_opt_array[__ND_OPT_PREFIX_INFO_END]
-#define nd_opts_rh		nd_opt_array[ND_OPT_REDIRECT_HDR]
-#define nd_opts_mtu		nd_opt_array[ND_OPT_MTU]
+#define nd_opts_src_lladdr		nd_opt_array[ND_OPT_SOURCE_LL_ADDR]
+#define nd_opts_tgt_lladdr		nd_opt_array[ND_OPT_TARGET_LL_ADDR]
+#define nd_opts_pi			nd_opt_array[ND_OPT_PREFIX_INFO]
+#define nd_opts_pi_end			nd_opt_array[__ND_OPT_PREFIX_INFO_END]
+#define nd_opts_rh			nd_opt_array[ND_OPT_REDIRECT_HDR]
+#define nd_opts_mtu			nd_opt_array[ND_OPT_MTU]
+#define nd_802154_opts_src_lladdr	nd_802154_opt_array[ND_OPT_SOURCE_LL_ADDR]
+#define nd_802154_opts_tgt_lladdr	nd_802154_opt_array[ND_OPT_TARGET_LL_ADDR]
 
 #define NDISC_OPT_SPACE(len) (((len)+2+7)&~7)
 
