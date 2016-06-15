@@ -354,6 +354,8 @@ struct vpu_service_info {
 	atomic_t enabled;
 	atomic_t power_on_cnt;
 	atomic_t power_off_cnt;
+	atomic_t service_on;
+	struct mutex shutdown_lock;
 	struct vpu_reg *reg_codec;
 	struct vpu_reg *reg_pproc;
 	struct vpu_reg *reg_resev;
@@ -666,10 +668,8 @@ static void vpu_reset(struct vpu_subdev_data *data)
 	pservice->reg_resev = NULL;
 
 	pr_info("for 3288/3368...");
-#if 0 //def CONFIG_RESET_CONTROLLER
+#ifdef CONFIG_RESET_CONTROLLER
 	if (pservice->rst_a && pservice->rst_h) {
-		if (rockchip_pmu_ops.set_idle_request)
-			rockchip_pmu_ops.set_idle_request(type, true);
 		pr_info("reset in\n");
 		if (pservice->rst_v)
 			reset_control_assert(pservice->rst_v);
@@ -680,8 +680,6 @@ static void vpu_reset(struct vpu_subdev_data *data)
 		reset_control_deassert(pservice->rst_a);
 		if (pservice->rst_v)
 			reset_control_deassert(pservice->rst_v);
-		if (rockchip_pmu_ops.set_idle_request)
-			rockchip_pmu_ops.set_idle_request(type, false);
 	}
 #endif
 
@@ -712,6 +710,24 @@ static void vpu_service_session_clear(struct vpu_subdev_data *data,
 	list_for_each_entry_safe(reg, n, &session->done, session_link) {
 		reg_deinit(data, reg);
 	}
+}
+
+static void vpu_service_clear(struct vpu_subdev_data *data)
+{
+	struct vpu_reg *reg, *n;
+	struct vpu_session *session, *s;
+	struct vpu_service_info *pservice = data->pservice;
+
+	list_for_each_entry_safe(reg, n, &pservice->waiting, status_link) {
+		reg_deinit(data, reg);
+	}
+
+	/* wake up session wait event to prevent the timeout hw reset
+	 * during reboot procedure.
+	 */
+	list_for_each_entry_safe(session, s,
+				 &pservice->session, list_session)
+		wake_up(&session->wait);
 }
 
 static void vpu_service_dump(struct vpu_service_info *pservice)
@@ -1588,6 +1604,12 @@ static void try_set_reg(struct vpu_subdev_data *data)
 	struct vpu_service_info *pservice = data->pservice;
 
 	vpu_debug_enter();
+
+	mutex_lock(&pservice->shutdown_lock);
+	if (atomic_read(&pservice->service_on) == 0) {
+		mutex_lock(&pservice->shutdown_lock);
+		return;
+	}
 	if (!list_empty(&pservice->waiting)) {
 		struct vpu_reg *reg_codec = pservice->reg_codec;
 		struct vpu_reg *reg_pproc = pservice->reg_pproc;
@@ -1652,6 +1674,8 @@ static void try_set_reg(struct vpu_subdev_data *data)
 			reg_copy_to_hw(reg->data, reg);
 		}
 	}
+
+	mutex_unlock(&pservice->shutdown_lock);
 	vpu_debug_leave();
 }
 
@@ -1746,6 +1770,7 @@ static long vpu_service_ioctl(struct file *filp, unsigned int cmd,
 			vpu_err("error: set reg copy_from_user failed\n");
 			return -EFAULT;
 		}
+
 		reg = reg_init(data, session, (void __user *)req.req, req.size);
 		if (NULL == reg) {
 			return -EFAULT;
@@ -2453,6 +2478,8 @@ static void vcodec_init_drvdata(struct vpu_service_info *pservice)
 	INIT_LIST_HEAD(&pservice->waiting);
 	INIT_LIST_HEAD(&pservice->running);
 	mutex_init(&pservice->lock);
+	mutex_init(&pservice->shutdown_lock);
+	atomic_set(&pservice->service_on, 1);
 
 	INIT_LIST_HEAD(&pservice->done);
 	INIT_LIST_HEAD(&pservice->session);
@@ -2560,6 +2587,25 @@ static int vcodec_remove(struct platform_device *pdev)
 	return 0;
 }
 
+static void vcodec_shutdown(struct platform_device *pdev)
+{
+	struct vpu_subdev_data *data = platform_get_drvdata(pdev);
+	struct vpu_service_info *pservice = data->pservice;
+
+	dev_info(&pdev->dev, "%s IN\n", __func__);
+
+	mutex_lock(&pservice->shutdown_lock);
+	atomic_set(&pservice->service_on, 0);
+	mutex_unlock(&pservice->shutdown_lock);
+
+	vcodec_exit_mode(data);
+
+	vpu_service_clear(data);
+	vcodec_subdev_remove(data);
+
+	pm_runtime_disable(&pdev->dev);
+}
+
 #if defined(CONFIG_OF)
 static const struct of_device_id vcodec_service_dt_ids[] = {
 	{.compatible = "rockchip,vpu_service",},
@@ -2573,6 +2619,7 @@ static const struct of_device_id vcodec_service_dt_ids[] = {
 static struct platform_driver vcodec_driver = {
 	.probe = vcodec_probe,
 	.remove = vcodec_remove,
+	.shutdown = vcodec_shutdown,
 	.driver = {
 		.name = "vcodec",
 		.owner = THIS_MODULE,
