@@ -88,29 +88,29 @@ static const struct dmi_system_id dell_wmi_smbios_list[] __initconst = {
 static const struct key_entry dell_wmi_legacy_keymap[] __initconst = {
 	{ KE_IGNORE, 0x003a, { KEY_CAPSLOCK } },
 
-	{ KE_KEY, 0xe009, { KEY_EJECTCD } },
-
-	/* These also contain the brightness level at offset 6 */
-	{ KE_KEY, 0xe006, { KEY_BRIGHTNESSUP } },
-	{ KE_KEY, 0xe005, { KEY_BRIGHTNESSDOWN } },
+	/* Key code is followed by brightness level */
+	{ KE_KEY,    0xe005, { KEY_BRIGHTNESSDOWN } },
+	{ KE_KEY,    0xe006, { KEY_BRIGHTNESSUP } },
 
 	/* Battery health status button */
-	{ KE_KEY, 0xe007, { KEY_BATTERY } },
+	{ KE_KEY,    0xe007, { KEY_BATTERY } },
 
-	/* Radio devices state change */
+	/* Radio devices state change, key code is followed by other values */
 	{ KE_IGNORE, 0xe008, { KEY_RFKILL } },
 
-	/* The next device is at offset 6, the active devices are at
-	   offset 8 and the attached devices at offset 10 */
-	{ KE_KEY, 0xe00b, { KEY_SWITCHVIDEOMODE } },
+	{ KE_KEY,    0xe009, { KEY_EJECTCD } },
 
+	/* Key code is followed by: next, active and attached devices */
+	{ KE_KEY,    0xe00b, { KEY_SWITCHVIDEOMODE } },
+
+	/* Key code is followed by keyboard illumination level */
 	{ KE_IGNORE, 0xe00c, { KEY_KBDILLUMTOGGLE } },
 
 	/* BIOS error detected */
 	{ KE_IGNORE, 0xe00d, { KEY_RESERVED } },
 
 	/* Wifi Catcher */
-	{ KE_KEY, 0xe011, {KEY_PROG2 } },
+	{ KE_KEY,    0xe011, { KEY_PROG2 } },
 
 	/* Ambient light sensor toggle */
 	{ KE_IGNORE, 0xe013, { KEY_RESERVED } },
@@ -118,11 +118,13 @@ static const struct key_entry dell_wmi_legacy_keymap[] __initconst = {
 	{ KE_IGNORE, 0xe020, { KEY_MUTE } },
 
 	/* Dell Instant Launch key */
-	{ KE_KEY, 0xe025, { KEY_PROG4 } },
-	{ KE_KEY, 0xe029, { KEY_PROG4 } },
+	{ KE_KEY,    0xe025, { KEY_PROG4 } },
 
 	/* Audio panel key */
 	{ KE_IGNORE, 0xe026, { KEY_RESERVED } },
+
+	/* Dell Instant Launch key */
+	{ KE_KEY,    0xe029, { KEY_PROG4 } },
 
 	{ KE_IGNORE, 0xe02e, { KEY_VOLUMEDOWN } },
 	{ KE_IGNORE, 0xe030, { KEY_VOLUMEUP } },
@@ -146,6 +148,7 @@ static const struct key_entry dell_wmi_legacy_keymap[] __initconst = {
 	{ KE_IGNORE, 0xe0f7, { KEY_MUTE } },
 	{ KE_IGNORE, 0xe0f8, { KEY_VOLUMEDOWN } },
 	{ KE_IGNORE, 0xe0f9, { KEY_VOLUMEUP } },
+
 	{ KE_END, 0 }
 };
 
