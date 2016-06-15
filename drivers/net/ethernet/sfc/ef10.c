@@ -3568,12 +3568,13 @@ static u32 efx_ef10_filter_get_unsafe_id(struct efx_nic *efx, u32 filter_id)
 	return filter_id % HUNT_FILTER_TBL_ROWS;
 }
 
-static int efx_ef10_filter_remove_unsafe(struct efx_nic *efx,
-					 enum efx_filter_priority priority,
-					 u32 filter_id)
+static void efx_ef10_filter_remove_unsafe(struct efx_nic *efx,
+					  enum efx_filter_priority priority,
+					  u32 filter_id)
 {
-	return efx_ef10_filter_remove_internal(efx, 1U << priority,
-					       filter_id, true);
+	if (filter_id == EFX_EF10_FILTER_ID_INVALID)
+		return;
+	efx_ef10_filter_remove_internal(efx, 1U << priority, filter_id, true);
 }
 
 static int efx_ef10_filter_get_safe(struct efx_nic *efx,
@@ -4229,8 +4230,6 @@ static int efx_ef10_filter_insert_addr_list(struct efx_nic *efx,
 					   rc);
 				/* Fall back to promiscuous */
 				for (j = 0; j < i; j++) {
-					if (ids[j] == EFX_EF10_FILTER_ID_INVALID)
-						continue;
 					efx_ef10_filter_remove_unsafe(
 						efx, EFX_FILTER_PRI_AUTO,
 						ids[j]);
@@ -4256,8 +4255,6 @@ static int efx_ef10_filter_insert_addr_list(struct efx_nic *efx,
 				   "Broadcast filter insert failed rc=%d\n", rc);
 			/* Fall back to promiscuous */
 			for (j = 0; j < i; j++) {
-				if (ids[j] == EFX_EF10_FILTER_ID_INVALID)
-					continue;
 				efx_ef10_filter_remove_unsafe(
 					efx, EFX_FILTER_PRI_AUTO,
 					ids[j]);
@@ -4616,25 +4613,15 @@ static void efx_ef10_filter_del_vlan_internal(struct efx_nic *efx,
 
 	list_del(&vlan->list);
 
-	for (i = 0; i < ARRAY_SIZE(vlan->uc); i++) {
-		if (vlan->uc[i] != EFX_EF10_FILTER_ID_INVALID)
-			efx_ef10_filter_remove_unsafe(efx, EFX_FILTER_PRI_AUTO,
-						      vlan->uc[i]);
-	}
-	for (i = 0; i < ARRAY_SIZE(vlan->mc); i++) {
-		if (vlan->mc[i] != EFX_EF10_FILTER_ID_INVALID)
-			efx_ef10_filter_remove_unsafe(efx, EFX_FILTER_PRI_AUTO,
-						      vlan->mc[i]);
-	}
-	if (vlan->ucdef != EFX_EF10_FILTER_ID_INVALID)
+	for (i = 0; i < ARRAY_SIZE(vlan->uc); i++)
 		efx_ef10_filter_remove_unsafe(efx, EFX_FILTER_PRI_AUTO,
-					      vlan->ucdef);
-	if (vlan->bcast != EFX_EF10_FILTER_ID_INVALID)
+					      vlan->uc[i]);
+	for (i = 0; i < ARRAY_SIZE(vlan->mc); i++)
 		efx_ef10_filter_remove_unsafe(efx, EFX_FILTER_PRI_AUTO,
-					      vlan->bcast);
-	if (vlan->mcdef != EFX_EF10_FILTER_ID_INVALID)
-		efx_ef10_filter_remove_unsafe(efx, EFX_FILTER_PRI_AUTO,
-					      vlan->mcdef);
+					      vlan->mc[i]);
+	efx_ef10_filter_remove_unsafe(efx, EFX_FILTER_PRI_AUTO, vlan->ucdef);
+	efx_ef10_filter_remove_unsafe(efx, EFX_FILTER_PRI_AUTO, vlan->bcast);
+	efx_ef10_filter_remove_unsafe(efx, EFX_FILTER_PRI_AUTO, vlan->mcdef);
 
 	kfree(vlan);
 }
