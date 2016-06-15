@@ -790,6 +790,8 @@ void gb_connection_disable(struct gb_connection *connection)
 	if (connection->state == GB_CONNECTION_STATE_DISABLED)
 		goto out_unlock;
 
+	trace_gb_connection_disable(connection);
+
 	gb_connection_control_disconnecting(connection);
 
 	spin_lock_irq(&connection->lock);
@@ -807,8 +809,6 @@ void gb_connection_disable(struct gb_connection *connection)
 	gb_connection_control_disconnected(connection);
 
 	connection->state = GB_CONNECTION_STATE_DISABLED;
-
-	trace_gb_connection_disable(connection);
 
 	/* control-connection tear down is deferred when mode switching */
 	if (!connection->mode_switch) {
@@ -829,6 +829,8 @@ void gb_connection_disable_forced(struct gb_connection *connection)
 	if (connection->state == GB_CONNECTION_STATE_DISABLED)
 		goto out_unlock;
 
+	trace_gb_connection_disable(connection);
+
 	spin_lock_irq(&connection->lock);
 	connection->state = GB_CONNECTION_STATE_DISABLED;
 	gb_connection_cancel_operations(connection, -ESHUTDOWN);
@@ -838,8 +840,6 @@ void gb_connection_disable_forced(struct gb_connection *connection)
 	gb_connection_hd_cport_features_disable(connection);
 	gb_connection_svc_connection_destroy(connection);
 	gb_connection_hd_cport_disable(connection);
-
-	trace_gb_connection_disable(connection);
 
 out_unlock:
 	mutex_unlock(&connection->mutex);
