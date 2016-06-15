@@ -1324,7 +1324,7 @@ free_avic:
 static void avic_set_running(struct kvm_vcpu *vcpu, bool is_run)
 {
 	u64 entry;
-	int h_physical_id = __default_cpu_present_to_apicid(vcpu->cpu);
+	int h_physical_id = kvm_cpu_get_apicid(vcpu->cpu);
 	struct vcpu_svm *svm = to_svm(vcpu);
 
 	if (!kvm_vcpu_apicv_active(vcpu))
@@ -1349,7 +1349,7 @@ static void avic_vcpu_load(struct kvm_vcpu *vcpu, int cpu)
 {
 	u64 entry;
 	/* ID = 0xff (broadcast), ID > 0xff (reserved) */
-	int h_physical_id = __default_cpu_present_to_apicid(cpu);
+	int h_physical_id = kvm_cpu_get_apicid(cpu);
 	struct vcpu_svm *svm = to_svm(vcpu);
 
 	if (!kvm_vcpu_apicv_active(vcpu))
@@ -4236,7 +4236,7 @@ static void svm_deliver_avic_intr(struct kvm_vcpu *vcpu, int vec)
 
 	if (avic_vcpu_is_running(vcpu))
 		wrmsrl(SVM_AVIC_DOORBELL,
-		       __default_cpu_present_to_apicid(vcpu->cpu));
+		       kvm_cpu_get_apicid(vcpu->cpu));
 	else
 		kvm_vcpu_wake_up(vcpu);
 }
