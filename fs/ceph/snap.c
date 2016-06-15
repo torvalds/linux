@@ -551,7 +551,6 @@ void ceph_queue_cap_snap(struct ceph_inode_info *ci)
 	ci->i_wrbuffer_ref_head = 0;
 	capsnap->context = old_snapc;
 	list_add_tail(&capsnap->ci_item, &ci->i_cap_snaps);
-	old_snapc = NULL;
 
 	if (used & CEPH_CAP_FILE_WR) {
 		dout("queue_cap_snap %p cap_snap %p snapc %p"
@@ -563,6 +562,7 @@ void ceph_queue_cap_snap(struct ceph_inode_info *ci)
 		__ceph_finish_cap_snap(ci, capsnap);
 	}
 	capsnap = NULL;
+	old_snapc = NULL;
 
 update_snapc:
 	if (ci->i_head_snapc) {
