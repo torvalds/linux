@@ -1,5 +1,5 @@
 #
-# Touchscreen driver configuration
+# Input remotectl driver configuration
 #
 menuconfig ROCKCHIP_REMOTECTL
 	bool "rockchip remotectl"
@@ -8,10 +8,11 @@ menuconfig ROCKCHIP_REMOTECTL
 	  Say Y here, will suport rk remotectl.
 	  This option doesn't affect the kernel.
 	  If unsure, say Y.
-	  
-if ROCKCHIP_REMOTECTL  
+
+if ROCKCHIP_REMOTECTL
 
 config ROCKCHIP_REMOTECTL_PWM
-    bool "rockchip remoctrl pwm capture"
+	bool "rockchip remoctrl pwm capture"
 	default n
+
 endif
