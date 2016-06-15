@@ -20,7 +20,7 @@
 #include <linux/module.h>
 #include <linux/kernel.h>
 #include <linux/skbuff.h>
-
+#include <linux/mutex.h>
 #include <linux/semaphore.h>
 #include <linux/completion.h>
 
@@ -679,7 +679,7 @@ static int wlan_init_locks(struct net_device *dev)
 	mutex_init(&wl->rxq_cs);
 
 	spin_lock_init(&wl->txq_spinlock);
-	sema_init(&wl->txq_add_to_head_cs, 1);
+	mutex_init(&wl->txq_add_to_head_cs);
 
 	init_completion(&wl->txq_event);
 

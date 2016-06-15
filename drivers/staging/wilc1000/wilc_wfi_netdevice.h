@@ -43,6 +43,7 @@
 #include "wilc_wlan.h"
 #include <linux/wireless.h>
 #include <linux/completion.h>
+#include <linux/mutex.h>
 
 #define FLOW_CONTROL_LOWER_THRESHOLD	128
 #define FLOW_CONTROL_UPPER_THRESHOLD	256
@@ -171,7 +172,7 @@ struct wilc {
 	struct wilc_vif *vif[NUM_CONCURRENT_IFC];
 	u8 open_ifcs;
 
-	struct semaphore txq_add_to_head_cs;
+	struct mutex txq_add_to_head_cs;
 	spinlock_t txq_spinlock;
 
 	struct mutex rxq_cs;

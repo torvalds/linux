@@ -99,9 +99,7 @@ static int wilc_wlan_txq_add_to_head(struct wilc_vif *vif,
 	unsigned long flags;
 	struct wilc *wilc = vif->wilc;
 
-	if (wilc_lock_timeout(wilc, &wilc->txq_add_to_head_cs,
-				    CFG_PKTS_TIMEOUT))
-		return -1;
+	mutex_lock(&wilc->txq_add_to_head_cs);
 
 	spin_lock_irqsave(&wilc->txq_spinlock, flags);
 
@@ -119,7 +117,7 @@ static int wilc_wlan_txq_add_to_head(struct wilc_vif *vif,
 	wilc->txq_entries += 1;
 
 	spin_unlock_irqrestore(&wilc->txq_spinlock, flags);
-	up(&wilc->txq_add_to_head_cs);
+	mutex_unlock(&wilc->txq_add_to_head_cs);
 	complete(&wilc->txq_event);
 
 	return 0;
@@ -573,8 +571,7 @@ int wilc_wlan_handle_txq(struct net_device *dev, u32 *txq_count)
 		if (wilc->quit)
 			break;
 
-		wilc_lock_timeout(wilc, &wilc->txq_add_to_head_cs,
-					CFG_PKTS_TIMEOUT);
+		mutex_lock(&wilc->txq_add_to_head_cs);
 		wilc_wlan_txq_filter_dup_tcp_ack(dev);
 		tqe = wilc_wlan_txq_get_first(wilc);
 		i = 0;
@@ -755,7 +752,7 @@ _end_:
 		if (ret != 1)
 			break;
 	} while (0);
-	up(&wilc->txq_add_to_head_cs);
+	mutex_unlock(&wilc->txq_add_to_head_cs);
 
 	wilc->txq_exit = 1;
 	*txq_count = wilc->txq_entries;
