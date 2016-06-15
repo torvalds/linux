@@ -106,6 +106,10 @@
 	status = "okay";
 };
 
+&hdmi_sound {
+	status = "okay";
+};
+
 &i2c1 {
 	clock-frequency = <400000>;
 
