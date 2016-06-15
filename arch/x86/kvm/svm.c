@@ -238,7 +238,9 @@ module_param(nested, int, S_IRUGO);
 
 /* enable / disable AVIC */
 static int avic;
+#ifdef CONFIG_X86_LOCAL_APIC
 module_param(avic, int, S_IRUGO);
+#endif
 
 static void svm_set_cr0(struct kvm_vcpu *vcpu, unsigned long cr0);
 static void svm_flush_tlb(struct kvm_vcpu *vcpu);
@@ -981,11 +983,14 @@ static __init int svm_hardware_setup(void)
 	} else
 		kvm_disable_tdp();
 
-	if (avic && (!npt_enabled || !boot_cpu_has(X86_FEATURE_AVIC)))
-		avic = false;
-
-	if (avic)
-		pr_info("AVIC enabled\n");
+	if (avic) {
+		if (!npt_enabled ||
+		    !boot_cpu_has(X86_FEATURE_AVIC) ||
+		    !IS_ENABLED(CONFIG_X86_LOCAL_APIC))
+			avic = false;
+		else
+			pr_info("AVIC enabled\n");
+	}
 
 	return 0;
 
