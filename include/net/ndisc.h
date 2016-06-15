@@ -127,10 +127,15 @@ static inline int ndisc_addr_option_pad(unsigned short type)
 	}
 }
 
+static inline int __ndisc_opt_addr_space(unsigned char addr_len, int pad)
+{
+	return NDISC_OPT_SPACE(addr_len + pad);
+}
+
 static inline int ndisc_opt_addr_space(struct net_device *dev)
 {
-	return NDISC_OPT_SPACE(dev->addr_len +
-			       ndisc_addr_option_pad(dev->type));
+	return __ndisc_opt_addr_space(dev->addr_len,
+				      ndisc_addr_option_pad(dev->type));
 }
 
 static inline u8 *ndisc_opt_addr_data(struct nd_opt_hdr *p,
