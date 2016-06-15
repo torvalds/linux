@@ -745,7 +745,10 @@ static void nand_command_lp(struct mtd_info *mtd, unsigned int command,
 				column >>= 1;
 			chip->cmd_ctrl(mtd, column, ctrl);
 			ctrl &= ~NAND_CTRL_CHANGE;
-			chip->cmd_ctrl(mtd, column >> 8, ctrl);
+
+			/* Only ouput a single addr cycle for 8bits opcodes. */
+			if (!nand_opcode_8bits(command))
+				chip->cmd_ctrl(mtd, column >> 8, ctrl);
 		}
 		if (page_addr != -1) {
 			chip->cmd_ctrl(mtd, page_addr, ctrl);
