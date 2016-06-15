@@ -583,6 +583,9 @@ static struct aa_profile *unpack_profile(struct aa_ext *e)
 			error = PTR_ERR(profile->policy.dfa);
 			profile->policy.dfa = NULL;
 			goto fail;
+		} else if (!profile->policy.dfa) {
+			error = -EPROTO;
+			goto fail;
 		}
 		if (!unpack_u32(e, &profile->policy.start[0], "start"))
 			/* default start state */
