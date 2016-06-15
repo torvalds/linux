@@ -429,7 +429,7 @@ static bool adv7511_hpd(struct adv7511 *adv7511)
 	return false;
 }
 
-static int adv7511_irq_process(struct adv7511 *adv7511)
+static int adv7511_irq_process(struct adv7511 *adv7511, bool process_hpd)
 {
 	unsigned int irq0, irq1;
 	int ret;
@@ -445,7 +445,7 @@ static int adv7511_irq_process(struct adv7511 *adv7511)
 	regmap_write(adv7511->regmap, ADV7511_REG_INT(0), irq0);
 	regmap_write(adv7511->regmap, ADV7511_REG_INT(1), irq1);
 
-	if (irq0 & ADV7511_INT0_HDP && adv7511->encoder)
+	if (process_hpd && irq0 & ADV7511_INT0_HDP && adv7511->encoder)
 		drm_helper_hpd_irq_event(adv7511->encoder->dev);
 
 	if (irq0 & ADV7511_INT0_EDID_READY || irq1 & ADV7511_INT1_DDC_ERROR) {
@@ -463,7 +463,7 @@ static irqreturn_t adv7511_irq_handler(int irq, void *devid)
 	struct adv7511 *adv7511 = devid;
 	int ret;
 
-	ret = adv7511_irq_process(adv7511);
+	ret = adv7511_irq_process(adv7511, true);
 	return ret < 0 ? IRQ_NONE : IRQ_HANDLED;
 }
 
@@ -480,7 +480,7 @@ static int adv7511_wait_for_edid(struct adv7511 *adv7511, int timeout)
 				adv7511->edid_read, msecs_to_jiffies(timeout));
 	} else {
 		for (; timeout > 0; timeout -= 25) {
-			ret = adv7511_irq_process(adv7511);
+			ret = adv7511_irq_process(adv7511, false);
 			if (ret < 0)
 				break;
 
