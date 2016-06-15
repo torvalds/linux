@@ -221,6 +221,11 @@
 			#size-cells = <2>;
 			ranges = <0x0 0x0 0x0 0xc8834000 0x0 0x2000>;
 
+			rng {
+				compatible = "amlogic,meson-rng";
+				reg = <0x0 0x0 0x0 0x4>;
+			};
+
 			pinctrl_periphs: pinctrl@4b0 {
 				compatible = "amlogic,meson-gxbb-periphs-pinctrl";
 				#address-cells = <2>;
