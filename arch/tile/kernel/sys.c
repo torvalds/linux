@@ -33,6 +33,7 @@
 #include <asm/pgtable.h>
 #include <asm/homecache.h>
 #include <asm/cachectl.h>
+#include <asm/byteorder.h>
 #include <arch/chip.h>
 
 SYSCALL_DEFINE3(cacheflush, unsigned long, addr, unsigned long, len,
@@ -59,13 +60,19 @@ SYSCALL_DEFINE3(cacheflush, unsigned long, addr, unsigned long, len,
 
 #if !defined(__tilegx__) || defined(CONFIG_COMPAT)
 
-ssize_t sys32_readahead(int fd, u32 offset_lo, u32 offset_hi, u32 count)
+#ifdef __BIG_ENDIAN
+#define SYSCALL_PAIR(name) u32 name ## _hi, u32 name ## _lo
+#else
+#define SYSCALL_PAIR(name) u32 name ## _lo, u32 name ## _hi
+#endif
+
+ssize_t sys32_readahead(int fd, SYSCALL_PAIR(offset), u32 count)
 {
 	return sys_readahead(fd, ((loff_t)offset_hi << 32) | offset_lo, count);
 }
 
-int sys32_fadvise64_64(int fd, u32 offset_lo, u32 offset_hi,
-		       u32 len_lo, u32 len_hi, int advice)
+int sys32_fadvise64_64(int fd, SYSCALL_PAIR(offset),
+		       SYSCALL_PAIR(len), int advice)
 {
 	return sys_fadvise64_64(fd, ((loff_t)offset_hi << 32) | offset_lo,
 				((loff_t)len_hi << 32) | len_lo, advice);
