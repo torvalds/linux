@@ -427,59 +427,105 @@ static int __init register_prog_array_map(void)
 }
 late_initcall(register_prog_array_map);
 
-static void perf_event_array_map_free(struct bpf_map *map)
+static struct bpf_event_entry *bpf_event_entry_gen(struct file *perf_file,
+						   struct file *map_file)
 {
-	bpf_fd_array_map_clear(map);
-	fd_array_map_free(map);
+	struct bpf_event_entry *ee;
+
+	ee = kzalloc(sizeof(*ee), GFP_KERNEL);
+	if (ee) {
+		ee->event = perf_file->private_data;
+		ee->perf_file = perf_file;
+		ee->map_file = map_file;
+	}
+
+	return ee;
+}
+
+static void __bpf_event_entry_free(struct rcu_head *rcu)
+{
+	struct bpf_event_entry *ee;
+
+	ee = container_of(rcu, struct bpf_event_entry, rcu);
+	fput(ee->perf_file);
+	kfree(ee);
+}
+
+static void bpf_event_entry_free_rcu(struct bpf_event_entry *ee)
+{
+	call_rcu(&ee->rcu, __bpf_event_entry_free);
 }
 
 static void *perf_event_fd_array_get_ptr(struct bpf_map *map,
 					 struct file *map_file, int fd)
 {
-	struct perf_event *event;
 	const struct perf_event_attr *attr;
-	struct file *file;
+	struct bpf_event_entry *ee;
+	struct perf_event *event;
+	struct file *perf_file;
 
-	file = perf_event_get(fd);
-	if (IS_ERR(file))
-		return file;
+	perf_file = perf_event_get(fd);
+	if (IS_ERR(perf_file))
+		return perf_file;
 
-	event = file->private_data;
+	event = perf_file->private_data;
+	ee = ERR_PTR(-EINVAL);
 
 	attr = perf_event_attrs(event);
-	if (IS_ERR(attr))
-		goto err;
+	if (IS_ERR(attr) || attr->inherit)
+		goto err_out;
 
-	if (attr->inherit)
-		goto err;
+	switch (attr->type) {
+	case PERF_TYPE_SOFTWARE:
+		if (attr->config != PERF_COUNT_SW_BPF_OUTPUT)
+			goto err_out;
+		/* fall-through */
+	case PERF_TYPE_RAW:
+	case PERF_TYPE_HARDWARE:
+		ee = bpf_event_entry_gen(perf_file, map_file);
+		if (ee)
+			return ee;
+		ee = ERR_PTR(-ENOMEM);
+		/* fall-through */
+	default:
+		break;
+	}
 
-	if (attr->type == PERF_TYPE_RAW)
-		return file;
-
-	if (attr->type == PERF_TYPE_HARDWARE)
-		return file;
-
-	if (attr->type == PERF_TYPE_SOFTWARE &&
-	    attr->config == PERF_COUNT_SW_BPF_OUTPUT)
-		return file;
-err:
-	fput(file);
-	return ERR_PTR(-EINVAL);
+err_out:
+	fput(perf_file);
+	return ee;
 }
 
 static void perf_event_fd_array_put_ptr(void *ptr)
 {
-	fput((struct file *)ptr);
+	bpf_event_entry_free_rcu(ptr);
+}
+
+static void perf_event_fd_array_release(struct bpf_map *map,
+					struct file *map_file)
+{
+	struct bpf_array *array = container_of(map, struct bpf_array, map);
+	struct bpf_event_entry *ee;
+	int i;
+
+	rcu_read_lock();
+	for (i = 0; i < array->map.max_entries; i++) {
+		ee = READ_ONCE(array->ptrs[i]);
+		if (ee && ee->map_file == map_file)
+			fd_array_map_delete_elem(map, &i);
+	}
+	rcu_read_unlock();
 }
 
 static const struct bpf_map_ops perf_event_array_ops = {
 	.map_alloc = fd_array_map_alloc,
-	.map_free = perf_event_array_map_free,
+	.map_free = fd_array_map_free,
 	.map_get_next_key = array_map_get_next_key,
 	.map_lookup_elem = fd_array_map_lookup_elem,
 	.map_delete_elem = fd_array_map_delete_elem,
 	.map_fd_get_ptr = perf_event_fd_array_get_ptr,
 	.map_fd_put_ptr = perf_event_fd_array_put_ptr,
+	.map_release = perf_event_fd_array_release,
 };
 
 static struct bpf_map_type_list perf_event_array_type __read_mostly = {

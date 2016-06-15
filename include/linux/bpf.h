@@ -13,6 +13,7 @@
 #include <linux/percpu.h>
 #include <linux/err.h>
 
+struct perf_event;
 struct bpf_map;
 
 /* map is generic key/value storage optionally accesible by eBPF programs */
@@ -166,7 +167,15 @@ struct bpf_array {
 		void __percpu *pptrs[0] __aligned(8);
 	};
 };
+
 #define MAX_TAIL_CALL_CNT 32
+
+struct bpf_event_entry {
+	struct perf_event *event;
+	struct file *perf_file;
+	struct file *map_file;
+	struct rcu_head rcu;
+};
 
 u64 bpf_tail_call(u64 ctx, u64 r2, u64 index, u64 r4, u64 r5);
 u64 bpf_get_stackid(u64 r1, u64 r2, u64 r3, u64 r4, u64 r5);
