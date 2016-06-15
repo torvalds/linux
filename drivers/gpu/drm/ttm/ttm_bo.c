@@ -149,6 +149,7 @@ static void ttm_bo_release_list(struct kref *list_kref)
 
 	ttm_tt_destroy(bo->ttm);
 	atomic_dec(&bo->glob->bo_count);
+	fence_put(bo->moving);
 	if (bo->resv == &bo->ttm_resv)
 		reservation_object_fini(&bo->ttm_resv);
 	mutex_destroy(&bo->wu_mutex);
@@ -1138,7 +1139,7 @@ int ttm_bo_init(struct ttm_bo_device *bdev,
 	bo->mem.page_alignment = page_alignment;
 	bo->mem.bus.io_reserved_vm = false;
 	bo->mem.bus.io_reserved_count = 0;
-	bo->priv_flags = 0;
+	bo->moving = NULL;
 	bo->mem.placement = (TTM_PL_FLAG_SYSTEM | TTM_PL_FLAG_CACHED);
 	bo->persistent_swap_storage = persistent_swap_storage;
 	bo->acc_size = acc_size;
@@ -1585,7 +1586,6 @@ int ttm_bo_wait(struct ttm_buffer_object *bo,
 		return -EBUSY;
 
 	reservation_object_add_excl_fence(resv, NULL);
-	clear_bit(TTM_BO_PRIV_FLAG_MOVING, &bo->priv_flags);
 	return 0;
 }
 EXPORT_SYMBOL(ttm_bo_wait);

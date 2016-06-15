@@ -465,6 +465,7 @@ static int ttm_buffer_object_transfer(struct ttm_buffer_object *bo,
 	INIT_LIST_HEAD(&fbo->lru);
 	INIT_LIST_HEAD(&fbo->swap);
 	INIT_LIST_HEAD(&fbo->io_reserve_lru);
+	fbo->moving = NULL;
 	drm_vma_node_reset(&fbo->vma_node);
 	atomic_set(&fbo->cpu_writers, 0);
 
@@ -665,7 +666,8 @@ int ttm_bo_move_accel_cleanup(struct ttm_buffer_object *bo,
 		 * operation has completed.
 		 */
 
-		set_bit(TTM_BO_PRIV_FLAG_MOVING, &bo->priv_flags);
+		fence_put(bo->moving);
+		bo->moving = fence_get(fence);
 
 		ret = ttm_buffer_object_transfer(bo, &ghost_obj);
 		if (ret)
