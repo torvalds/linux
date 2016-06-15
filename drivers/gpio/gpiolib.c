@@ -2056,7 +2056,14 @@ int gpiod_to_irq(const struct gpio_desc *desc)
 	struct gpio_chip *chip;
 	int offset;
 
-	VALIDATE_DESC(desc);
+	/*
+	 * Cannot VALIDATE_DESC() here as gpiod_to_irq() consumer semantics
+	 * requires this function to not return zero on an invalid descriptor
+	 * but rather a negative error number.
+	 */
+	if (!desc || !desc->gdev || !desc->gdev->chip)
+		return -EINVAL;
+
 	chip = desc->gdev->chip;
 	offset = gpio_chip_hwgpio(desc);
 	if (chip->to_irq) {
