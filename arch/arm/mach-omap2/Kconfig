@@ -218,12 +218,6 @@ config MACH_NOKIA_N8X0
 	select MACH_NOKIA_N810
 	select MACH_NOKIA_N810_WIMAX
 
-config MACH_NOKIA_RX51
-	bool "Nokia N900 (RX-51) phone"
-	depends on ARCH_OMAP3
-	default y
-	select OMAP_PACKAGE_CBB
-
 config OMAP3_SDRC_AC_TIMING
 	bool "Enable SDRC AC timing register changes"
 	depends on ARCH_OMAP3
