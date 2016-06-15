@@ -128,4 +128,25 @@ void hisi_clk_register_gate_sep(const struct hisi_gate_clock *,
 				int, struct hisi_clock_data *);
 void hi6220_clk_register_divider(const struct hi6220_divider_clock *,
 				int, struct hisi_clock_data *);
+
+#define hisi_clk_unregister(type) \
+static inline \
+void hisi_clk_unregister_##type(const struct hisi_##type##_clock *clks, \
+				int nums, struct hisi_clock_data *data) \
+{ \
+	struct clk **clocks = data->clk_data.clks; \
+	int i; \
+	for (i = 0; i < nums; i++) { \
+		int id = clks[i].id; \
+		if (clocks[id])  \
+			clk_unregister_##type(clocks[id]); \
+	} \
+}
+
+hisi_clk_unregister(fixed_rate)
+hisi_clk_unregister(fixed_factor)
+hisi_clk_unregister(mux)
+hisi_clk_unregister(divider)
+hisi_clk_unregister(gate)
+
 #endif	/* __HISI_CLK_H */
