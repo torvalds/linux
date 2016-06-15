@@ -1916,6 +1916,19 @@ static int afu_reset(struct cxlflash_cfg *cfg)
 }
 
 /**
+ * drain_ioctls() - wait until all currently executing ioctls have completed
+ * @cfg:	Internal structure associated with the host.
+ *
+ * Obtain write access to read/write semaphore that wraps ioctl
+ * handling to 'drain' ioctls currently executing.
+ */
+static void drain_ioctls(struct cxlflash_cfg *cfg)
+{
+	down_write(&cfg->ioctl_rwsem);
+	up_write(&cfg->ioctl_rwsem);
+}
+
+/**
  * cxlflash_eh_device_reset_handler() - reset a single LUN
  * @scp:	SCSI command to send.
  *
@@ -1986,6 +1999,7 @@ static int cxlflash_eh_host_reset_handler(struct scsi_cmnd *scp)
 	switch (cfg->state) {
 	case STATE_NORMAL:
 		cfg->state = STATE_RESET;
+		drain_ioctls(cfg);
 		cxlflash_mark_contexts_error(cfg);
 		rcr = afu_reset(cfg);
 		if (rcr) {
@@ -2501,19 +2515,6 @@ out:
 out_remove:
 	cxlflash_remove(pdev);
 	goto out;
-}
-
-/**
- * drain_ioctls() - wait until all currently executing ioctls have completed
- * @cfg:	Internal structure associated with the host.
- *
- * Obtain write access to read/write semaphore that wraps ioctl
- * handling to 'drain' ioctls currently executing.
- */
-static void drain_ioctls(struct cxlflash_cfg *cfg)
-{
-	down_write(&cfg->ioctl_rwsem);
-	up_write(&cfg->ioctl_rwsem);
 }
 
 /**
