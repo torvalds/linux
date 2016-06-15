@@ -11,6 +11,9 @@
  *  2 of the License, or (at your option) any later version.
  *
  */
+
+#define pr_fmt(fmt)	"OF: " fmt
+
 #include <linux/errno.h>
 #include <linux/module.h>
 #include <linux/amba/bus.h>
@@ -233,11 +236,8 @@ static struct amba_device *of_amba_device_create(struct device_node *node,
 		return NULL;
 
 	dev = amba_device_alloc(NULL, 0, 0);
-	if (!dev) {
-		pr_err("%s(): amba_device_alloc() failed for %s\n",
-		       __func__, node->full_name);
+	if (!dev)
 		goto err_clear_flag;
-	}
 
 	/* setup generic device info */
 	dev->dev.of_node = of_node_get(node);
@@ -260,15 +260,15 @@ static struct amba_device *of_amba_device_create(struct device_node *node,
 
 	ret = of_address_to_resource(node, 0, &dev->res);
 	if (ret) {
-		pr_err("%s(): of_address_to_resource() failed (%d) for %s\n",
-		       __func__, ret, node->full_name);
+		pr_err("amba: of_address_to_resource() failed (%d) for %s\n",
+		       ret, node->full_name);
 		goto err_free;
 	}
 
 	ret = amba_device_add(dev, &iomem_resource);
 	if (ret) {
-		pr_err("%s(): amba_device_add() failed (%d) for %s\n",
-		       __func__, ret, node->full_name);
+		pr_err("amba_device_add() failed (%d) for %s\n",
+		       ret, node->full_name);
 		goto err_free;
 	}
 

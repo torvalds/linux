@@ -18,6 +18,8 @@
  * driver.
  */
 
+#define pr_fmt(fmt)	"OF: " fmt
+
 #include <linux/device.h>
 #include <linux/errno.h>
 #include <linux/list.h>

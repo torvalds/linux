@@ -9,6 +9,8 @@
  * version 2 as published by the Free Software Foundation.
  */
 
+#define pr_fmt(fmt)	"OF: fdt:" fmt
+
 #include <linux/crc32.h>
 #include <linux/kernel.h>
 #include <linux/initrd.h>
@@ -182,14 +184,12 @@ static void populate_properties(const void *blob,
 
 		val = fdt_getprop_by_offset(blob, cur, &pname, &sz);
 		if (!val) {
-			pr_warn("%s: Cannot locate property at 0x%x\n",
-				__func__, cur);
+			pr_warn("Cannot locate property at 0x%x\n", cur);
 			continue;
 		}
 
 		if (!pname) {
-			pr_warn("%s: Cannot find property name at 0x%x\n",
-				__func__, cur);
+			pr_warn("Cannot find property name at 0x%x\n", cur);
 			continue;
 		}
 
@@ -439,7 +439,7 @@ static int unflatten_dt_nodes(const void *blob,
 	}
 
 	if (offset < 0 && offset != -FDT_ERR_NOTFOUND) {
-		pr_err("%s: Error %d processing FDT\n", __func__, offset);
+		pr_err("Error %d processing FDT\n", offset);
 		return -EINVAL;
 	}
 
@@ -1281,7 +1281,7 @@ static int __init of_fdt_raw_init(void)
 
 	if (of_fdt_crc32 != crc32_be(~0, initial_boot_params,
 				     fdt_totalsize(initial_boot_params))) {
-		pr_warn("fdt: not creating '/sys/firmware/fdt': CRC check failed\n");
+		pr_warn("not creating '/sys/firmware/fdt': CRC check failed\n");
 		return 0;
 	}
 	of_fdt_raw_attr.size = fdt_totalsize(initial_boot_params);

@@ -9,6 +9,8 @@
  * version 2 as published by the Free Software Foundation.
  */
 
+#define pr_fmt(fmt)	"OF: resolver: " fmt
+
 #include <linux/kernel.h>
 #include <linux/module.h>
 #include <linux/of.h>
