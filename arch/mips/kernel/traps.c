@@ -2064,10 +2064,13 @@ static void configure_status(void)
 			 status_set);
 }
 
+unsigned int hwrena;
+EXPORT_SYMBOL_GPL(hwrena);
+
 /* configure HWRENA register */
 static void configure_hwrena(void)
 {
-	unsigned int hwrena = cpu_hwrena_impl_bits;
+	hwrena = cpu_hwrena_impl_bits;
 
 	if (cpu_has_mips_r2_r6)
 		hwrena |= MIPS_HWRENA_CPUNUM |

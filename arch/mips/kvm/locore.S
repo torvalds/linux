@@ -381,7 +381,7 @@ NESTED (MIPSX(GuestException), CALLFRAME_SIZ, ra)
 	mtc0	k0, CP0_DDATA_LO
 
 	/* Restore RDHWR access */
-	PTR_LI	k0, 0x2000000F
+	INT_L	k0, hwrena
 	mtc0	k0, CP0_HWRENA
 
 	/* Jump to handler */
@@ -553,7 +553,7 @@ __kvm_mips_return_to_host:
 	mtlo	k0
 
 	/* Restore RDHWR access */
-	PTR_LI	k0, 0x2000000F
+	INT_L	k0, hwrena
 	mtc0	k0, CP0_HWRENA
 
 	/* Restore RA, which is the address we will return to */
