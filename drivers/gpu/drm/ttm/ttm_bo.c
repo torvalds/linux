@@ -788,6 +788,34 @@ void ttm_bo_mem_put(struct ttm_buffer_object *bo, struct ttm_mem_reg *mem)
 EXPORT_SYMBOL(ttm_bo_mem_put);
 
 /**
+ * Add the last move fence to the BO and reserve a new shared slot.
+ */
+static int ttm_bo_add_move_fence(struct ttm_buffer_object *bo,
+				 struct ttm_mem_type_manager *man,
+				 struct ttm_mem_reg *mem)
+{
+	struct fence *fence;
+	int ret;
+
+	spin_lock(&man->move_lock);
+	fence = fence_get(man->move);
+	spin_unlock(&man->move_lock);
+
+	if (fence) {
+		reservation_object_add_shared_fence(bo->resv, fence);
+
+		ret = reservation_object_reserve_shared(bo->resv);
+		if (unlikely(ret))
+			return ret;
+
+		fence_put(bo->moving);
+		bo->moving = fence;
+	}
+
+	return 0;
+}
+
+/**
  * Repeatedly evict memory from the LRU for @mem_type until we create enough
  * space, or we've evicted everything and there isn't enough space.
  */
@@ -813,10 +841,8 @@ static int ttm_bo_mem_force_space(struct ttm_buffer_object *bo,
 		if (unlikely(ret != 0))
 			return ret;
 	} while (1);
-	if (mem->mm_node == NULL)
-		return -ENOMEM;
 	mem->mem_type = mem_type;
-	return 0;
+	return ttm_bo_add_move_fence(bo, man, mem);
 }
 
 static uint32_t ttm_bo_select_caching(struct ttm_mem_type_manager *man,
@@ -886,6 +912,10 @@ int ttm_bo_mem_space(struct ttm_buffer_object *bo,
 	bool has_erestartsys = false;
 	int i, ret;
 
+	ret = reservation_object_reserve_shared(bo->resv);
+	if (unlikely(ret))
+		return ret;
+
 	mem->mm_node = NULL;
 	for (i = 0; i < placement->num_placement; ++i) {
 		const struct ttm_place *place = &placement->placement[i];
@@ -919,9 +949,15 @@ int ttm_bo_mem_space(struct ttm_buffer_object *bo,
 		ret = (*man->func->get_node)(man, bo, place, mem);
 		if (unlikely(ret))
 			return ret;
-		
-		if (mem->mm_node)
+
+		if (mem->mm_node) {
+			ret = ttm_bo_add_move_fence(bo, man, mem);
+			if (unlikely(ret)) {
+				(*man->func->put_node)(man, mem);
+				return ret;
+			}
 			break;
+		}
 	}
 
 	if ((type_ok && (mem_type == TTM_PL_SYSTEM)) || mem->mm_node) {
@@ -1290,6 +1326,7 @@ int ttm_bo_clean_mm(struct ttm_bo_device *bdev, unsigned mem_type)
 		       mem_type);
 		return ret;
 	}
+	fence_put(man->move);
 
 	man->use_type = false;
 	man->has_type = false;
@@ -1335,6 +1372,7 @@ int ttm_bo_init_mm(struct ttm_bo_device *bdev, unsigned type,
 	man->io_reserve_fastpath = true;
 	man->use_io_reserve_lru = false;
 	mutex_init(&man->io_reserve_mutex);
+	spin_lock_init(&man->move_lock);
 	INIT_LIST_HEAD(&man->io_reserve_lru);
 
 	ret = bdev->driver->init_mem_type(bdev, type, man);
@@ -1353,6 +1391,7 @@ int ttm_bo_init_mm(struct ttm_bo_device *bdev, unsigned type,
 	man->size = p_size;
 
 	INIT_LIST_HEAD(&man->lru);
+	man->move = NULL;
 
 	return 0;
 }

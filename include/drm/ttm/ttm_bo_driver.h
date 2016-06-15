@@ -258,8 +258,10 @@ struct ttm_mem_type_manager_func {
  * reserved by the TTM vm system.
  * @io_reserve_lru: Optional lru list for unreserving io mem regions.
  * @io_reserve_fastpath: Only use bdev::driver::io_mem_reserve to obtain
+ * @move_lock: lock for move fence
  * static information. bdev::driver::io_mem_free is never used.
  * @lru: The lru list for this memory type.
+ * @move: The fence of the last pipelined move operation.
  *
  * This structure is used to identify and manage memory types for a device.
  * It's set up by the ttm_bo_driver::init_mem_type method.
@@ -286,6 +288,7 @@ struct ttm_mem_type_manager {
 	struct mutex io_reserve_mutex;
 	bool use_io_reserve_lru;
 	bool io_reserve_fastpath;
+	spinlock_t move_lock;
 
 	/*
 	 * Protected by @io_reserve_mutex:
@@ -298,6 +301,11 @@ struct ttm_mem_type_manager {
 	 */
 
 	struct list_head lru;
+
+	/*
+	 * Protected by @move_lock.
+	 */
+	struct fence *move;
 };
 
 /**
@@ -1014,6 +1022,22 @@ extern void ttm_bo_free_old_node(struct ttm_buffer_object *bo);
 extern int ttm_bo_move_accel_cleanup(struct ttm_buffer_object *bo,
 				     struct fence *fence, bool evict,
 				     struct ttm_mem_reg *new_mem);
+
+/**
+ * ttm_bo_pipeline_move.
+ *
+ * @bo: A pointer to a struct ttm_buffer_object.
+ * @fence: A fence object that signals when moving is complete.
+ * @evict: This is an evict move. Don't return until the buffer is idle.
+ * @new_mem: struct ttm_mem_reg indicating where to move.
+ *
+ * Function for pipelining accelerated moves. Either free the memory
+ * immediately or hang it on a temporary buffer object.
+ */
+int ttm_bo_pipeline_move(struct ttm_buffer_object *bo,
+			 struct fence *fence, bool evict,
+			 struct ttm_mem_reg *new_mem);
+
 /**
  * ttm_io_prot
  *
