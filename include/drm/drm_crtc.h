@@ -1193,6 +1193,7 @@ struct drm_encoder {
  * @interlace_allowed: can this connector handle interlaced modes?
  * @doublescan_allowed: can this connector handle doublescan?
  * @stereo_allowed: can this connector handle stereo modes?
+ * @registered: is this connector exposed (registered) with userspace?
  * @modes: modes available on this connector (from fill_modes() + user)
  * @status: one of the drm_connector_status enums (connected, not, or unknown)
  * @probed_modes: list of modes derived directly from the display
@@ -1249,6 +1250,7 @@ struct drm_connector {
 	bool interlace_allowed;
 	bool doublescan_allowed;
 	bool stereo_allowed;
+	bool registered;
 	struct list_head modes; /* list of modes on this connector */
 
 	enum drm_connector_status status;
