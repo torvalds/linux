@@ -109,6 +109,10 @@ OPTIONS
 	Dry run. With this option, --add and --del doesn't execute actual
 	adding and removal operations.
 
+--cache::
+	Cache the probes (with --add option). Any events which successfully added
+	are also stored in the cache file.
+
 --max-probes=NUM::
 	Set the maximum number of probe points for an event. Default is 128.
 

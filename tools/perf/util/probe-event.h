@@ -12,6 +12,7 @@ struct probe_conf {
 	bool	show_location_range;
 	bool	force_add;
 	bool	no_inlines;
+	bool	cache;
 	int	max_probes;
 };
 extern struct probe_conf probe_conf;
