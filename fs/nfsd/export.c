@@ -954,6 +954,16 @@ __be32 check_nfsd_access(struct svc_export *exp, struct svc_rqst *rqstp)
 		    rqstp->rq_cred.cr_flavor == RPC_AUTH_UNIX)
 			return 0;
 	}
+
+	/* If the compound op contains a spo_must_allowed op,
+	 * it will be sent with integrity/protection which
+	 * will have to be expressly allowed on mounts that
+	 * don't support it
+	 */
+
+	if (nfsd4_spo_must_allow(rqstp))
+		return 0;
+
 	return nfserr_wrongsec;
 }
 

@@ -59,6 +59,7 @@ struct nfsd4_compound_state {
 	struct nfsd4_session	*session;
 	struct nfsd4_slot	*slot;
 	int			data_offset;
+	bool                    spo_must_allowed;
 	size_t			iovlen;
 	u32			minorversion;
 	__be32			status;
@@ -403,6 +404,8 @@ struct nfsd4_exchange_id {
 	clientid_t	clientid;
 	u32		seqid;
 	int		spa_how;
+	u32             spo_must_enforce[3];
+	u32             spo_must_allow[3];
 };
 
 struct nfsd4_sequence {

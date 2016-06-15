@@ -1299,16 +1299,14 @@ nfsd4_decode_exchange_id(struct nfsd4_compoundargs *argp,
 		break;
 	case SP4_MACH_CRED:
 		/* spo_must_enforce */
-		READ_BUF(4);
-		dummy = be32_to_cpup(p++);
-		READ_BUF(dummy * 4);
-		p += dummy;
-
+		status = nfsd4_decode_bitmap(argp,
+					exid->spo_must_enforce);
+		if (status)
+			goto out;
 		/* spo_must_allow */
-		READ_BUF(4);
-		dummy = be32_to_cpup(p++);
-		READ_BUF(dummy * 4);
-		p += dummy;
+		status = nfsd4_decode_bitmap(argp, exid->spo_must_allow);
+		if (status)
+			goto out;
 		break;
 	case SP4_SSV:
 		/* ssp_ops */
@@ -3867,14 +3865,6 @@ nfsd4_encode_write(struct nfsd4_compoundres *resp, __be32 nfserr, struct nfsd4_w
 	return nfserr;
 }
 
-static const u32 nfs4_minimal_spo_must_enforce[2] = {
-	[1] = 1 << (OP_BIND_CONN_TO_SESSION - 32) |
-	      1 << (OP_EXCHANGE_ID - 32) |
-	      1 << (OP_CREATE_SESSION - 32) |
-	      1 << (OP_DESTROY_SESSION - 32) |
-	      1 << (OP_DESTROY_CLIENTID - 32)
-};
-
 static __be32
 nfsd4_encode_exchange_id(struct nfsd4_compoundres *resp, __be32 nfserr,
 			 struct nfsd4_exchange_id *exid)
@@ -3885,6 +3875,7 @@ nfsd4_encode_exchange_id(struct nfsd4_compoundres *resp, __be32 nfserr,
 	char *server_scope;
 	int major_id_sz;
 	int server_scope_sz;
+	int status = 0;
 	uint64_t minor_id = 0;
 
 	if (nfserr)
@@ -3913,18 +3904,20 @@ nfsd4_encode_exchange_id(struct nfsd4_compoundres *resp, __be32 nfserr,
 	case SP4_NONE:
 		break;
 	case SP4_MACH_CRED:
-		/* spo_must_enforce, spo_must_allow */
-		p = xdr_reserve_space(xdr, 16);
-		if (!p)
-			return nfserr_resource;
-
 		/* spo_must_enforce bitmap: */
-		*p++ = cpu_to_be32(2);
-		*p++ = cpu_to_be32(nfs4_minimal_spo_must_enforce[0]);
-		*p++ = cpu_to_be32(nfs4_minimal_spo_must_enforce[1]);
-		/* empty spo_must_allow bitmap: */
-		*p++ = cpu_to_be32(0);
-
+		status = nfsd4_encode_bitmap(xdr,
+					exid->spo_must_enforce[0],
+					exid->spo_must_enforce[1],
+					exid->spo_must_enforce[2]);
+		if (status)
+			goto out;
+		/* spo_must_allow bitmap: */
+		status = nfsd4_encode_bitmap(xdr,
+					exid->spo_must_allow[0],
+					exid->spo_must_allow[1],
+					exid->spo_must_allow[2]);
+		if (status)
+			goto out;
 		break;
 	default:
 		WARN_ON_ONCE(1);
@@ -3951,6 +3944,8 @@ nfsd4_encode_exchange_id(struct nfsd4_compoundres *resp, __be32 nfserr,
 	/* Implementation id */
 	*p++ = cpu_to_be32(0);	/* zero length nfs_impl_id4 array */
 	return 0;
+out:
+	return status;
 }
 
 static __be32

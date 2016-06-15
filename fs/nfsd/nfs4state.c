@@ -2388,6 +2388,22 @@ nfsd4_exchange_id(struct svc_rqst *rqstp,
 
 	switch (exid->spa_how) {
 	case SP4_MACH_CRED:
+		exid->spo_must_enforce[0] = 0;
+		exid->spo_must_enforce[1] = (
+			1 << (OP_BIND_CONN_TO_SESSION - 32) |
+			1 << (OP_EXCHANGE_ID - 32) |
+			1 << (OP_CREATE_SESSION - 32) |
+			1 << (OP_DESTROY_SESSION - 32) |
+			1 << (OP_DESTROY_CLIENTID - 32));
+
+		exid->spo_must_allow[0] &= (1 << (OP_CLOSE) |
+					1 << (OP_OPEN_DOWNGRADE) |
+					1 << (OP_LOCKU) |
+					1 << (OP_DELEGRETURN));
+
+		exid->spo_must_allow[1] &= (
+					1 << (OP_TEST_STATEID - 32) |
+					1 << (OP_FREE_STATEID - 32));
 		if (!svc_rqst_integrity_protected(rqstp)) {
 			status = nfserr_inval;
 			goto out_nolock;
@@ -2473,6 +2489,8 @@ out_new:
 			goto out;
 	}
 	new->cl_minorversion = cstate->minorversion;
+	new->cl_spo_must_allow.u.words[0] = exid->spo_must_allow[0];
+	new->cl_spo_must_allow.u.words[1] = exid->spo_must_allow[1];
 
 	gen_clid(new, nn);
 	add_to_unconfirmed(new);
