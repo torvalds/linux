@@ -171,23 +171,23 @@ EXPORT_SYMBOL_GPL(kvm_mips_host_tlb_write);
 int kvm_mips_handle_commpage_tlb_fault(unsigned long badvaddr,
 	struct kvm_vcpu *vcpu)
 {
-	kvm_pfn_t pfn0, pfn1;
+	kvm_pfn_t pfn;
 	unsigned long flags, old_entryhi = 0, vaddr = 0;
-	unsigned long entrylo0 = 0, entrylo1 = 0;
+	unsigned long entrylo[2] = { 0, 0 };
+	unsigned int pair_idx;
 
-	pfn0 = CPHYSADDR(vcpu->arch.kseg0_commpage) >> PAGE_SHIFT;
-	pfn1 = 0;
-	entrylo0 = mips3_paddr_to_tlbpfn(pfn0 << PAGE_SHIFT) |
-		   (0x3 << ENTRYLO_C_SHIFT) | ENTRYLO_D | ENTRYLO_V;
-	entrylo1 = 0;
+	pfn = CPHYSADDR(vcpu->arch.kseg0_commpage) >> PAGE_SHIFT;
+	pair_idx = (badvaddr >> PAGE_SHIFT) & 1;
+	entrylo[pair_idx] = mips3_paddr_to_tlbpfn(pfn << PAGE_SHIFT) |
+		(0x3 << ENTRYLO_C_SHIFT) | ENTRYLO_D | ENTRYLO_V;
 
 	local_irq_save(flags);
 
 	old_entryhi = read_c0_entryhi();
 	vaddr = badvaddr & (PAGE_MASK << 1);
 	write_c0_entryhi(vaddr | kvm_mips_get_kernel_asid(vcpu));
-	write_c0_entrylo0(entrylo0);
-	write_c0_entrylo1(entrylo1);
+	write_c0_entrylo0(entrylo[0]);
+	write_c0_entrylo1(entrylo[1]);
 	write_c0_index(kvm_mips_get_commpage_asid(vcpu));
 	mtc0_tlbw_hazard();
 	tlb_write_indexed();

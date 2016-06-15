@@ -74,8 +74,14 @@
 
 
 
-/* Special address that contains the comm page, used for reducing # of traps */
-#define KVM_GUEST_COMMPAGE_ADDR		0x0
+/*
+ * Special address that contains the comm page, used for reducing # of traps
+ * This needs to be within 32Kb of 0x0 (so the zero register can be used), but
+ * preferably not at 0x0 so that most kernel NULL pointer dereferences can be
+ * caught.
+ */
+#define KVM_GUEST_COMMPAGE_ADDR		((PAGE_SIZE > 0x8000) ?	0 : \
+					 (0x8000 - PAGE_SIZE))
 
 #define KVM_GUEST_KERNEL_MODE(vcpu)	((kvm_read_c0_guest_status(vcpu->arch.cop0) & (ST0_EXL | ST0_ERL)) || \
 					((kvm_read_c0_guest_status(vcpu->arch.cop0) & KSU_USER) == 0))
