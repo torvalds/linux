@@ -1094,7 +1094,8 @@ static int sunxi_nfc_hw_ecc_read_chunks_dma(struct mtd_info *mtd, uint8_t *buf,
 
 		if (oob_required && !erased) {
 			/* TODO: use DMA to retrieve OOB */
-			nand->cmdfunc(mtd, NAND_CMD_RNDOUT, oob_off, -1);
+			nand->cmdfunc(mtd, NAND_CMD_RNDOUT,
+				      mtd->writesize + oob_off, -1);
 			nand->read_buf(mtd, oob, ecc->bytes + 4);
 
 			sunxi_nfc_hw_ecc_get_prot_oob_bytes(mtd, oob, i,
@@ -1129,7 +1130,8 @@ static int sunxi_nfc_hw_ecc_read_chunks_dma(struct mtd_info *mtd, uint8_t *buf,
 			}
 
 			/* TODO: use DMA to retrieve OOB */
-			nand->cmdfunc(mtd, NAND_CMD_RNDOUT, oob_off, -1);
+			nand->cmdfunc(mtd, NAND_CMD_RNDOUT,
+				      mtd->writesize + oob_off, -1);
 			nand->read_buf(mtd, oob, ecc->bytes + 4);
 
 			ret = nand_check_erased_ecc_chunk(data,	ecc->size,
