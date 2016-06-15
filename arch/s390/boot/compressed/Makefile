@@ -31,10 +31,10 @@ quiet_cmd_sizes = GEN $@
 $(obj)/sizes.h: vmlinux
 	$(call if_changed,sizes)
 
-AFLAGS_head.o += -I$(obj)
+AFLAGS_head.o += -I$(objtree)/$(obj)
 $(obj)/head.o: $(obj)/sizes.h
 
-CFLAGS_misc.o += -I$(obj)
+CFLAGS_misc.o += -I$(objtree)/$(obj)
 $(obj)/misc.o: $(obj)/sizes.h
 
 OBJCOPYFLAGS_vmlinux.bin :=  -R .comment -S
