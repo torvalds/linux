@@ -328,8 +328,8 @@ static void *fd_array_map_lookup_elem(struct bpf_map *map, void *key)
 }
 
 /* only called from syscall */
-static int fd_array_map_update_elem(struct bpf_map *map, void *key,
-				    void *value, u64 map_flags)
+int bpf_fd_array_map_update_elem(struct bpf_map *map, struct file *map_file,
+				 void *key, void *value, u64 map_flags)
 {
 	struct bpf_array *array = container_of(map, struct bpf_array, map);
 	void *new_ptr, *old_ptr;
@@ -342,7 +342,7 @@ static int fd_array_map_update_elem(struct bpf_map *map, void *key,
 		return -E2BIG;
 
 	ufd = *(u32 *)value;
-	new_ptr = map->ops->map_fd_get_ptr(map, ufd);
+	new_ptr = map->ops->map_fd_get_ptr(map, map_file, ufd);
 	if (IS_ERR(new_ptr))
 		return PTR_ERR(new_ptr);
 
@@ -371,10 +371,12 @@ static int fd_array_map_delete_elem(struct bpf_map *map, void *key)
 	}
 }
 
-static void *prog_fd_array_get_ptr(struct bpf_map *map, int fd)
+static void *prog_fd_array_get_ptr(struct bpf_map *map,
+				   struct file *map_file, int fd)
 {
 	struct bpf_array *array = container_of(map, struct bpf_array, map);
 	struct bpf_prog *prog = bpf_prog_get(fd);
+
 	if (IS_ERR(prog))
 		return prog;
 
@@ -382,6 +384,7 @@ static void *prog_fd_array_get_ptr(struct bpf_map *map, int fd)
 		bpf_prog_put(prog);
 		return ERR_PTR(-EINVAL);
 	}
+
 	return prog;
 }
 
@@ -407,7 +410,6 @@ static const struct bpf_map_ops prog_array_ops = {
 	.map_free = fd_array_map_free,
 	.map_get_next_key = array_map_get_next_key,
 	.map_lookup_elem = fd_array_map_lookup_elem,
-	.map_update_elem = fd_array_map_update_elem,
 	.map_delete_elem = fd_array_map_delete_elem,
 	.map_fd_get_ptr = prog_fd_array_get_ptr,
 	.map_fd_put_ptr = prog_fd_array_put_ptr,
@@ -431,7 +433,8 @@ static void perf_event_array_map_free(struct bpf_map *map)
 	fd_array_map_free(map);
 }
 
-static void *perf_event_fd_array_get_ptr(struct bpf_map *map, int fd)
+static void *perf_event_fd_array_get_ptr(struct bpf_map *map,
+					 struct file *map_file, int fd)
 {
 	struct perf_event *event;
 	const struct perf_event_attr *attr;
@@ -474,7 +477,6 @@ static const struct bpf_map_ops perf_event_array_ops = {
 	.map_free = perf_event_array_map_free,
 	.map_get_next_key = array_map_get_next_key,
 	.map_lookup_elem = fd_array_map_lookup_elem,
-	.map_update_elem = fd_array_map_update_elem,
 	.map_delete_elem = fd_array_map_delete_elem,
 	.map_fd_get_ptr = perf_event_fd_array_get_ptr,
 	.map_fd_put_ptr = perf_event_fd_array_put_ptr,
