@@ -59,6 +59,8 @@ struct mdp5_kms {
 	 */
 	spinlock_t resource_lock;
 
+	bool rpm_enabled;
+
 	struct mdp_irq error_handler;
 };
 #define to_mdp5_kms(x) container_of(x, struct mdp5_kms, base)

@@ -668,6 +668,9 @@ static void mdp5_destroy(struct platform_device *pdev)
 		mdp5_smp_destroy(mdp5_kms->smp);
 	if (mdp5_kms->cfg)
 		mdp5_cfg_destroy(mdp5_kms->cfg);
+
+	if (mdp5_kms->rpm_enabled)
+		pm_runtime_disable(&pdev->dev);
 }
 
 static int mdp5_init(struct platform_device *pdev, struct drm_device *dev)
@@ -719,6 +722,9 @@ static int mdp5_init(struct platform_device *pdev, struct drm_device *dev)
 	 * more optimal rate:
 	 */
 	clk_set_rate(mdp5_kms->core_clk, 200000000);
+
+	pm_runtime_enable(&pdev->dev);
+	mdp5_kms->rpm_enabled = true;
 
 	read_mdp_hw_revision(mdp5_kms, &major, &minor);
 

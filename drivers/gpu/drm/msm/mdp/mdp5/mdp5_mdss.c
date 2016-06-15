@@ -152,6 +152,10 @@ void msm_mdss_destroy(struct drm_device *dev)
 	mdss->irqcontroller.domain = NULL;
 
 	regulator_disable(mdss->vdd);
+
+	pm_runtime_put_sync(dev->dev);
+
+	pm_runtime_disable(dev->dev);
 }
 
 int msm_mdss_init(struct drm_device *dev)
@@ -214,6 +218,14 @@ int msm_mdss_init(struct drm_device *dev)
 	}
 
 	priv->mdss = mdss;
+
+	pm_runtime_enable(dev->dev);
+
+	/*
+	 * TODO: This is needed as the MDSS GDSC is only tied to MDSS's power
+	 * domain. Remove this once runtime PM is adapted for all the devices.
+	 */
+	pm_runtime_get_sync(dev->dev);
 
 	return 0;
 fail_irq:
