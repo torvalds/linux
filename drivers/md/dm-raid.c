@@ -1487,8 +1487,6 @@ static int raid_is_congested(struct dm_target_callbacks *cb, int bits)
  *
  * Conversions of raid sets from one MD personality to another
  * have to conform to restrictions which are enforced here.
- *
- * Degration is already checked for in rs_check_conversion() below.
  */
 static int rs_check_takeover(struct raid_set *rs)
 {
@@ -2512,10 +2510,10 @@ static int rs_setup_reshape(struct raid_set *rs)
 	 *   be available at the end of each disk
 	 *
 	 * - data_offset and new_data_offset are
-	 *   adjusted for afreentioned out of place
+	 *   adjusted for aforementioned out of place
 	 *   reshaping based on userspace passing in
 	 *   the "data_offset <sectors>" key/value
-	 *   pair via te constructor
+	 *   pair via the constructor
 	 */
 
 	/* Add disk(s) */
