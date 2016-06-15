@@ -81,11 +81,21 @@ static int lowpan_stop(struct net_device *dev)
 	return 0;
 }
 
+static int lowpan_neigh_construct(struct neighbour *n)
+{
+	struct lowpan_802154_neigh *neigh = lowpan_802154_neigh(neighbour_priv(n));
+
+	/* default no short_addr is available for a neighbour */
+	neigh->short_addr = cpu_to_le16(IEEE802154_ADDR_SHORT_UNSPEC);
+	return 0;
+}
+
 static const struct net_device_ops lowpan_netdev_ops = {
 	.ndo_init		= lowpan_dev_init,
 	.ndo_start_xmit		= lowpan_xmit,
 	.ndo_open		= lowpan_open,
 	.ndo_stop		= lowpan_stop,
+	.ndo_neigh_construct    = lowpan_neigh_construct,
 };
 
 static void lowpan_setup(struct net_device *ldev)
@@ -149,6 +159,8 @@ static int lowpan_newlink(struct net *src_net, struct net_device *ldev,
 	ldev->needed_headroom = LOWPAN_IPHC_MAX_HEADER_LEN +
 				wdev->needed_headroom;
 	ldev->needed_tailroom = wdev->needed_tailroom;
+
+	ldev->neigh_priv_len = sizeof(struct lowpan_802154_neigh);
 
 	ret = lowpan_register_netdevice(ldev, LOWPAN_LLTYPE_IEEE802154);
 	if (ret < 0) {

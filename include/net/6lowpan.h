@@ -141,6 +141,16 @@ struct lowpan_dev {
 	u8 priv[0] __aligned(sizeof(void *));
 };
 
+struct lowpan_802154_neigh {
+	__le16 short_addr;
+};
+
+static inline
+struct lowpan_802154_neigh *lowpan_802154_neigh(void *neigh_priv)
+{
+	return neigh_priv;
+}
+
 static inline
 struct lowpan_dev *lowpan_dev(const struct net_device *dev)
 {

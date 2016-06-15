@@ -1483,8 +1483,7 @@ enum netdev_priv_flags {
  * 	@perm_addr:		Permanent hw address
  * 	@addr_assign_type:	Hw address assignment type
  * 	@addr_len:		Hardware address length
- * 	@neigh_priv_len;	Used in neigh_alloc(),
- * 				initialized only in atm/clip.c
+ *	@neigh_priv_len:	Used in neigh_alloc()
  * 	@dev_id:		Used to differentiate devices that share
  * 				the same link layer address
  * 	@dev_port:		Used to differentiate devices that share
