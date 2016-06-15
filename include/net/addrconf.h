@@ -94,6 +94,9 @@ int ipv6_rcv_saddr_equal(const struct sock *sk, const struct sock *sk2,
 void addrconf_join_solict(struct net_device *dev, const struct in6_addr *addr);
 void addrconf_leave_solict(struct inet6_dev *idev, const struct in6_addr *addr);
 
+void addrconf_add_linklocal(struct inet6_dev *idev,
+			    const struct in6_addr *addr, u32 flags);
+
 static inline int addrconf_ifid_eui48(u8 *eui, struct net_device *dev)
 {
 	if (dev->addr_len != ETH_ALEN)

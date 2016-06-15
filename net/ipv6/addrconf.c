@@ -2947,8 +2947,8 @@ static void init_loopback(struct net_device *dev)
 	}
 }
 
-static void addrconf_add_linklocal(struct inet6_dev *idev,
-				   const struct in6_addr *addr, u32 flags)
+void addrconf_add_linklocal(struct inet6_dev *idev,
+			    const struct in6_addr *addr, u32 flags)
 {
 	struct inet6_ifaddr *ifp;
 	u32 addr_flags = flags | IFA_F_PERMANENT;
@@ -2967,6 +2967,7 @@ static void addrconf_add_linklocal(struct inet6_dev *idev,
 		in6_ifa_put(ifp);
 	}
 }
+EXPORT_SYMBOL_GPL(addrconf_add_linklocal);
 
 static bool ipv6_reserved_interfaceid(struct in6_addr address)
 {

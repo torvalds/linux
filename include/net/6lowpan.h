@@ -254,6 +254,12 @@ static inline bool lowpan_fetch_skb(struct sk_buff *skb, void *data,
 	return false;
 }
 
+static inline bool lowpan_802154_is_valid_src_short_addr(__le16 addr)
+{
+	/* First bit of addr is multicast, reserved or 802.15.4 specific */
+	return !(addr & cpu_to_le16(0x8000));
+}
+
 static inline void lowpan_push_hc_data(u8 **hc_ptr, const void *data,
 				       const size_t len)
 {
