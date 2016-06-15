@@ -241,7 +241,8 @@ static int usbdev_mmap(struct file *file, struct vm_area_struct *vma)
 		goto error_decrease_mem;
 	}
 
-	mem = usb_alloc_coherent(ps->dev, size, GFP_USER, &dma_handle);
+	mem = usb_alloc_coherent(ps->dev, size, GFP_USER | __GFP_NOWARN,
+			&dma_handle);
 	if (!mem) {
 		ret = -ENOMEM;
 		goto error_free_usbm;
