@@ -2779,7 +2779,7 @@ u64 btrfs_csum_bytes_to_leaves(struct btrfs_root *root, u64 csum_bytes)
 	u64 num_csums_per_leaf;
 	u64 num_csums;
 
-	csum_size = BTRFS_LEAF_DATA_SIZE(root) - sizeof(struct btrfs_item);
+	csum_size = BTRFS_MAX_ITEM_SIZE(root);
 	num_csums_per_leaf = div64_u64(csum_size,
 			(u64)btrfs_super_csum_size(root->fs_info->super_copy));
 	num_csums = div64_u64(csum_bytes, root->sectorsize);
