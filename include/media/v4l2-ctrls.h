@@ -759,9 +759,9 @@ s32 v4l2_ctrl_g_ctrl(struct v4l2_ctrl *ctrl);
  * @ctrl:	The control.
  * @val:	The new value.
  *
- * This set the control's new value safely by going through the control
- * framework. This function will lock the control's handler, so it cannot be
- * used from within the &v4l2_ctrl_ops functions.
+ * This sets the control's new value safely by going through the control
+ * framework. This function assumes the control's handler is already locked,
+ * allowing it to be used from within the &v4l2_ctrl_ops functions.
  *
  * This function is for integer type controls only.
  */
@@ -771,7 +771,7 @@ int __v4l2_ctrl_s_ctrl(struct v4l2_ctrl *ctrl, s32 val);
  * @ctrl:	The control.
  * @val:	The new value.
  *
- * This set the control's new value safely by going through the control
+ * This sets the control's new value safely by going through the control
  * framework. This function will lock the control's handler, so it cannot be
  * used from within the &v4l2_ctrl_ops functions.
  *
@@ -807,9 +807,9 @@ s64 v4l2_ctrl_g_ctrl_int64(struct v4l2_ctrl *ctrl);
  * @ctrl:	The control.
  * @val:	The new value.
  *
- * This set the control's new value safely by going through the control
- * framework. This function will lock the control's handler, so it cannot be
- * used from within the &v4l2_ctrl_ops functions.
+ * This sets the control's new value safely by going through the control
+ * framework. This function assumes the control's handler is already locked,
+ * allowing it to be used from within the &v4l2_ctrl_ops functions.
  *
  * This function is for 64-bit integer type controls only.
  */
@@ -821,7 +821,7 @@ int __v4l2_ctrl_s_ctrl_int64(struct v4l2_ctrl *ctrl, s64 val);
  * @ctrl:	The control.
  * @val:	The new value.
  *
- * This set the control's new value safely by going through the control
+ * This sets the control's new value safely by going through the control
  * framework. This function will lock the control's handler, so it cannot be
  * used from within the &v4l2_ctrl_ops functions.
  *
@@ -843,9 +843,9 @@ static inline int v4l2_ctrl_s_ctrl_int64(struct v4l2_ctrl *ctrl, s64 val)
  * @ctrl:	The control.
  * @s:		The new string.
  *
- * This set the control's new string safely by going through the control
- * framework. This function will lock the control's handler, so it cannot be
- * used from within the &v4l2_ctrl_ops functions.
+ * This sets the control's new string safely by going through the control
+ * framework. This function assumes the control's handler is already locked,
+ * allowing it to be used from within the &v4l2_ctrl_ops functions.
  *
  * This function is for string type controls only.
  */
@@ -857,7 +857,7 @@ int __v4l2_ctrl_s_ctrl_string(struct v4l2_ctrl *ctrl, const char *s);
  * @ctrl:	The control.
  * @s:		The new string.
  *
- * This set the control's new string safely by going through the control
+ * This sets the control's new string safely by going through the control
  * framework. This function will lock the control's handler, so it cannot be
  * used from within the &v4l2_ctrl_ops functions.
  *
