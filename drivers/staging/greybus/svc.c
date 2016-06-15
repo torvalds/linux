@@ -1352,7 +1352,7 @@ static struct input_dev *gb_svc_input_create(struct gb_svc *svc)
 	return input_dev;
 
 err_free_input:
-	input_free_device(svc->input);
+	input_free_device(input_dev);
 	return ERR_PTR(-ENOMEM);
 }
 
