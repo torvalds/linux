@@ -17,10 +17,6 @@
  * version 2 along with this program; If not, see
  * http://www.sun.com/software/products/lustre/docs/GPLv2.pdf
  *
- * Please contact Sun Microsystems, Inc., 4150 Network Circle, Santa Clara,
- * CA 95054 USA or visit www.sun.com if you need additional information or
- * have any questions.
- *
  * GPL HEADER END
  */
 /*

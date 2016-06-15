@@ -17,10 +17,6 @@
  * version 2 along with this program; If not, see [sun.com URL with a
  * copy of GPLv2].
  *
- * Please contact Sun Microsystems, Inc., 4150 Network Circle, Santa Clara,
- * CA 95054 USA or visit www.sun.com if you need additional information or
- * have any questions.
- *
  * GPL HEADER END
  */
 /*
