@@ -37,6 +37,35 @@
 
 static DEFINE_SPINLOCK(hisi_clk_lock);
 
+struct hisi_clock_data *hisi_clk_alloc(struct platform_device *pdev,
+						int nr_clks)
+{
+	struct hisi_clock_data *clk_data;
+	struct resource *res;
+	struct clk **clk_table;
+
+	clk_data = devm_kmalloc(&pdev->dev, sizeof(*clk_data), GFP_KERNEL);
+	if (!clk_data)
+		return NULL;
+
+	res = platform_get_resource(pdev, IORESOURCE_MEM, 0);
+	clk_data->base = devm_ioremap(&pdev->dev,
+				res->start, resource_size(res));
+	if (!clk_data->base)
+		return NULL;
+
+	clk_table = devm_kmalloc(&pdev->dev, sizeof(struct clk *) * nr_clks,
+				GFP_KERNEL);
+	if (!clk_table)
+		return NULL;
+
+	clk_data->clk_data.clks = clk_table;
+	clk_data->clk_data.clk_num = nr_clks;
+
+	return clk_data;
+}
+EXPORT_SYMBOL_GPL(hisi_clk_alloc);
+
 struct hisi_clock_data *hisi_clk_init(struct device_node *np,
 					     int nr_clks)
 {
