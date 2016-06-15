@@ -179,7 +179,8 @@ int kvm_mips_handle_commpage_tlb_fault(unsigned long badvaddr,
 	pfn = CPHYSADDR(vcpu->arch.kseg0_commpage) >> PAGE_SHIFT;
 	pair_idx = (badvaddr >> PAGE_SHIFT) & 1;
 	entrylo[pair_idx] = mips3_paddr_to_tlbpfn(pfn << PAGE_SHIFT) |
-		(0x3 << ENTRYLO_C_SHIFT) | ENTRYLO_D | ENTRYLO_V;
+		((_page_cachable_default >> _CACHE_SHIFT) << ENTRYLO_C_SHIFT) |
+		ENTRYLO_D | ENTRYLO_V;
 
 	local_irq_save(flags);
 
