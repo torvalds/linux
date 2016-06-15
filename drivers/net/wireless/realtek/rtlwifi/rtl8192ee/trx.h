@@ -650,8 +650,8 @@ struct rx_fwinfo {
 	u8 pwdb_all;
 	u8 cfosho[4];
 	u8 cfotail[4];
-	char rxevm[2];
-	char rxsnr[4];
+	s8 rxevm[2];
+	s8 rxsnr[4];
 	u8 pdsnr[2];
 	u8 csi_current[2];
 	u8 csi_target[2];

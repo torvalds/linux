@@ -886,7 +886,7 @@ static void dm_txpower_track_cb_therm(struct ieee80211_hw *hw)
 	u8 thermalvalue_avg_count = 0;
 	u32 thermalvalue_avg = 0;
 	long  ele_d, temp_cck;
-	char ofdm_index[2], cck_index = 0,
+	s8 ofdm_index[2], cck_index = 0,
 		ofdm_index_old[2] = {0, 0}, cck_index_old = 0;
 	int i = 0;
 	/*bool is2t = false;*/
@@ -898,7 +898,7 @@ static void dm_txpower_track_cb_therm(struct ieee80211_hw *hw)
 	/*0.1 the following TWO tables decide the
 	 *final index of OFDM/CCK swing table
 	 */
-	char delta_swing_table_idx[2][15]  = {
+	s8 delta_swing_table_idx[2][15]  = {
 		{0, 0, 2, 3, 4, 4, 5, 6, 7, 7, 8, 9, 10, 10, 11},
 		{0, 0, -1, -2, -3, -4, -4, -4, -4, -5, -7, -8, -9, -9, -10}
 	};

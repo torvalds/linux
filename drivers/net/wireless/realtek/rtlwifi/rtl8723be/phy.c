@@ -379,7 +379,7 @@ static void _rtl8723be_phy_store_txpower_by_rate_base(struct ieee80211_hw *hw)
 static void _phy_convert_txpower_dbm_to_relative_value(u32 *data, u8 start,
 						u8 end, u8 base_val)
 {
-	char i = 0;
+	s8 i = 0;
 	u8 temp_value = 0;
 	u32 temp_data = 0;
 
@@ -953,7 +953,7 @@ static u8 _rtl8723be_get_txpower_by_rate(struct ieee80211_hw *hw,
 	struct rtl_priv *rtlpriv = rtl_priv(hw);
 	struct rtl_phy *rtlphy = &rtlpriv->phy;
 	u8 shift = 0, rate_section, tx_num;
-	char tx_pwr_diff = 0;
+	s8 tx_pwr_diff = 0;
 
 	rate_section = _rtl8723be_phy_get_ratesection_intxpower_byrate(rfpath,
 								       rate);

@@ -547,7 +547,7 @@ static void _rtl92ee_phy_store_txpower_by_rate_base(struct ieee80211_hw *hw)
 static void _phy_convert_txpower_dbm_to_relative_value(u32 *data, u8 start,
 						       u8 end, u8 base)
 {
-	char i = 0;
+	s8 i = 0;
 	u8 tmp = 0;
 	u32 temp_data = 0;
 
@@ -1189,7 +1189,7 @@ static u8 _rtl92ee_get_txpower_by_rate(struct ieee80211_hw *hw,
 	struct rtl_priv *rtlpriv = rtl_priv(hw);
 	struct rtl_phy *rtlphy = &rtlpriv->phy;
 	u8 shift = 0, sec, tx_num;
-	char diff = 0;
+	s8 diff = 0;
 
 	sec = _rtl92ee_phy_get_ratesection_intxpower_byrate(rf, rate);
 	tx_num = RF_TX_NUM_NONIMPLEMENT;
@@ -1265,14 +1265,14 @@ static u8 _rtl92ee_get_txpower_index(struct ieee80211_hw *hw,
 			 "Illegal channel!!\n");
 	}
 
-	if (IS_CCK_RATE(rate))
+	if (IS_CCK_RATE((s8)rate))
 		tx_power = rtlefuse->txpwrlevel_cck[rfpath][index];
 	else if (DESC92C_RATE6M <= rate)
 		tx_power = rtlefuse->txpwrlevel_ht40_1s[rfpath][index];
 
 	/* OFDM-1T*/
 	if (DESC92C_RATE6M <= rate && rate <= DESC92C_RATE54M &&
-	    !IS_CCK_RATE(rate))
+	    !IS_CCK_RATE((s8)rate))
 		tx_power += rtlefuse->txpwr_legacyhtdiff[rfpath][TX_1S];
 
 	/* BW20-1S, BW20-2S */
@@ -2969,7 +2969,7 @@ void rtl92ee_phy_lc_calibrate(struct ieee80211_hw *hw)
 	rtlphy->lck_inprogress = false;
 }
 
-void rtl92ee_phy_ap_calibrate(struct ieee80211_hw *hw, char delta)
+void rtl92ee_phy_ap_calibrate(struct ieee80211_hw *hw, s8 delta)
 {
 }
 

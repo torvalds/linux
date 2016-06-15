@@ -1353,7 +1353,7 @@ static void _rtl92c_phy_iq_calibrate(struct ieee80211_hw *hw,
 }
 
 static void _rtl92c_phy_ap_calibrate(struct ieee80211_hw *hw,
-				     char delta, bool is2t)
+				     s8 delta, bool is2t)
 {
 }
 
@@ -1518,7 +1518,7 @@ void rtl92c_phy_lc_calibrate(struct ieee80211_hw *hw)
 }
 EXPORT_SYMBOL(rtl92c_phy_lc_calibrate);
 
-void rtl92c_phy_ap_calibrate(struct ieee80211_hw *hw, char delta)
+void rtl92c_phy_ap_calibrate(struct ieee80211_hw *hw, s8 delta)
 {
 	struct rtl_priv *rtlpriv = rtl_priv(hw);
 	struct rtl_phy *rtlphy = &(rtlpriv->phy);

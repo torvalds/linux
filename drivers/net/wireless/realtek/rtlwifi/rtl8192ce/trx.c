@@ -49,7 +49,7 @@ static u8 _rtl92ce_map_hwqueue_to_fwqueue(struct sk_buff *skb, u8 hw_queue)
 	return skb->priority;
 }
 
-static u8 _rtl92c_query_rxpwrpercentage(char antpower)
+static u8 _rtl92c_query_rxpwrpercentage(s8 antpower)
 {
 	if ((antpower <= -100) || (antpower >= 20))
 		return 0;
@@ -59,9 +59,9 @@ static u8 _rtl92c_query_rxpwrpercentage(char antpower)
 		return 100 + antpower;
 }
 
-static u8 _rtl92c_evm_db_to_percentage(char value)
+static u8 _rtl92c_evm_db_to_percentage(s8 value)
 {
-	char ret_val;
+	s8 ret_val;
 	ret_val = value;
 
 	if (ret_val >= 0)

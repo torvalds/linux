@@ -1355,7 +1355,7 @@ void rtl8812ae_dm_txpwr_track_set_pwr(struct ieee80211_hw *hw,
 	u32 final_swing_idx[2];
 	u8 pwr_tracking_limit = 26; /*+1.0dB*/
 	u8 tx_rate = 0xFF;
-	char final_ofdm_swing_index = 0;
+	s8 final_ofdm_swing_index = 0;
 
 	if (rtldm->tx_rate != 0xFF)
 		tx_rate =
@@ -2045,7 +2045,7 @@ void rtl8821ae_dm_txpwr_track_set_pwr(struct ieee80211_hw *hw,
 	u32 final_swing_idx[1];
 	u8 pwr_tracking_limit = 26; /*+1.0dB*/
 	u8 tx_rate = 0xFF;
-	char final_ofdm_swing_index = 0;
+	s8 final_ofdm_swing_index = 0;
 
 	if (rtldm->tx_rate != 0xFF)
 		tx_rate = rtl8821ae_hw_rate_to_mrate(hw, rtldm->tx_rate);
