@@ -2333,14 +2333,12 @@ static bool is_addr_mode_generate_stable(struct inet6_dev *idev)
 	       idev->addr_gen_mode == IN6_ADDR_GEN_MODE_RANDOM;
 }
 
-static int addrconf_prefix_rcv_add_addr(struct net *net,
-					struct net_device *dev,
-					const struct prefix_info *pinfo,
-					struct inet6_dev *in6_dev,
-					const struct in6_addr *addr,
-					int addr_type, u32 addr_flags,
-					bool sllao, bool tokenized,
-					__u32 valid_lft, u32 prefered_lft)
+int addrconf_prefix_rcv_add_addr(struct net *net, struct net_device *dev,
+				 const struct prefix_info *pinfo,
+				 struct inet6_dev *in6_dev,
+				 const struct in6_addr *addr, int addr_type,
+				 u32 addr_flags, bool sllao, bool tokenized,
+				 __u32 valid_lft, u32 prefered_lft)
 {
 	struct inet6_ifaddr *ifp = ipv6_get_ifaddr(net, addr, dev, 1);
 	int create = 0, update_lft = 0;
@@ -2430,6 +2428,7 @@ static int addrconf_prefix_rcv_add_addr(struct net *net,
 
 	return 0;
 }
+EXPORT_SYMBOL_GPL(addrconf_prefix_rcv_add_addr);
 
 void addrconf_prefix_rcv(struct net_device *dev, u8 *opt, int len, bool sllao)
 {
