@@ -441,11 +441,12 @@ static void drm_fs_inode_free(struct inode *inode)
 }
 
 /**
- * drm_dev_alloc - Allocate new DRM device
- * @driver: DRM driver to allocate device for
+ * drm_dev_init - Initialise new DRM device
+ * @dev: DRM device
+ * @driver: DRM driver
  * @parent: Parent device object
  *
- * Allocate and initialize a new DRM device. No device registration is done.
+ * Initialize a new DRM device. No device registration is done.
  * Call drm_dev_register() to advertice the device to user space and register it
  * with other core subsystems. This should be done last in the device
  * initialization sequence to make sure userspace can't access an inconsistent
@@ -456,18 +457,17 @@ static void drm_fs_inode_free(struct inode *inode)
  *
  * Note that for purely virtual devices @parent can be NULL.
  *
+ * Drivers that do not want to allocate their own device struct
+ * embedding struct &drm_device can call drm_dev_alloc() instead.
+ *
  * RETURNS:
- * Pointer to new DRM device, or NULL if out of memory.
+ * 0 on success, or error code on failure.
  */
-struct drm_device *drm_dev_alloc(struct drm_driver *driver,
-				 struct device *parent)
+int drm_dev_init(struct drm_device *dev,
+		 struct drm_driver *driver,
+		 struct device *parent)
 {
-	struct drm_device *dev;
 	int ret;
-
-	dev = kzalloc(sizeof(*dev), GFP_KERNEL);
-	if (!dev)
-		return NULL;
 
 	kref_init(&dev->ref);
 	dev->dev = parent;
@@ -509,7 +509,8 @@ struct drm_device *drm_dev_alloc(struct drm_driver *driver,
 	if (ret)
 		goto err_minors;
 
-	if (drm_ht_create(&dev->map_hash, 12))
+	ret = drm_ht_create(&dev->map_hash, 12);
+	if (ret)
 		goto err_minors;
 
 	drm_legacy_ctxbitmap_init(dev);
@@ -528,7 +529,7 @@ struct drm_device *drm_dev_alloc(struct drm_driver *driver,
 			goto err_setunique;
 	}
 
-	return dev;
+	return 0;
 
 err_setunique:
 	if (drm_core_check_feature(dev, DRIVER_GEM))
@@ -543,8 +544,49 @@ err_minors:
 	drm_fs_inode_free(dev->anon_inode);
 err_free:
 	mutex_destroy(&dev->master_mutex);
-	kfree(dev);
-	return NULL;
+	return ret;
+}
+EXPORT_SYMBOL(drm_dev_init);
+
+/**
+ * drm_dev_alloc - Allocate new DRM device
+ * @driver: DRM driver to allocate device for
+ * @parent: Parent device object
+ *
+ * Allocate and initialize a new DRM device. No device registration is done.
+ * Call drm_dev_register() to advertice the device to user space and register it
+ * with other core subsystems. This should be done last in the device
+ * initialization sequence to make sure userspace can't access an inconsistent
+ * state.
+ *
+ * The initial ref-count of the object is 1. Use drm_dev_ref() and
+ * drm_dev_unref() to take and drop further ref-counts.
+ *
+ * Note that for purely virtual devices @parent can be NULL.
+ *
+ * Drivers that wish to subclass or embed struct &drm_device into their
+ * own struct should look at using drm_dev_init() instead.
+ *
+ * RETURNS:
+ * Pointer to new DRM device, or NULL if out of memory.
+ */
+struct drm_device *drm_dev_alloc(struct drm_driver *driver,
+				 struct device *parent)
+{
+	struct drm_device *dev;
+	int ret;
+
+	dev = kzalloc(sizeof(*dev), GFP_KERNEL);
+	if (!dev)
+		return NULL;
+
+	ret = drm_dev_init(dev, driver, parent);
+	if (ret) {
+		kfree(dev);
+		return NULL;
+	}
+
+	return dev;
 }
 EXPORT_SYMBOL(drm_dev_alloc);
 
