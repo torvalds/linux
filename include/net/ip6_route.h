@@ -76,6 +76,8 @@ static inline struct dst_entry *ip6_route_output(struct net *net,
 
 struct dst_entry *ip6_route_lookup(struct net *net, struct flowi6 *fl6,
 				   int flags);
+struct rt6_info *ip6_pol_route(struct net *net, struct fib6_table *table,
+			       int ifindex, struct flowi6 *fl6, int flags);
 
 int ip6_route_init(void);
 void ip6_route_cleanup(void);

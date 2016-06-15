@@ -108,7 +108,7 @@ EXPORT_SYMBOL_GPL(l3mdev_fib_table_by_index);
  */
 
 struct dst_entry *l3mdev_get_rt6_dst(struct net *net,
-				     const struct flowi6 *fl6)
+				     struct flowi6 *fl6)
 {
 	struct dst_entry *dst = NULL;
 	struct net_device *dev;
