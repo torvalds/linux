@@ -82,7 +82,7 @@ int kvm_mips_trans_mfc0(u32 inst, u32 *opc, struct kvm_vcpu *vcpu)
 
 	if ((rd == MIPS_CP0_ERRCTL) && (sel == 0)) {
 		mfc0_inst = CLEAR_TEMPLATE;
-		mfc0_inst |= ((rt & 0x1f) << 16);
+		mfc0_inst |= ((rt & 0x1f) << 11);
 	} else {
 		mfc0_inst = LW_TEMPLATE;
 		mfc0_inst |= ((rt & 0x1f) << 16);
