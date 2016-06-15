@@ -1546,46 +1546,17 @@ EXPORT_SYMBOL(ttm_bo_unmap_virtual);
 int ttm_bo_wait(struct ttm_buffer_object *bo,
 		bool interruptible, bool no_wait)
 {
-	struct reservation_object_list *fobj;
-	struct reservation_object *resv;
-	struct fence *excl;
-	long timeout = 15 * HZ;
-	int i;
+	long timeout = no_wait ? 0 : 15 * HZ;
 
-	resv = bo->resv;
-	fobj = reservation_object_get_list(resv);
-	excl = reservation_object_get_excl(resv);
-	if (excl) {
-		if (!fence_is_signaled(excl)) {
-			if (no_wait)
-				return -EBUSY;
-
-			timeout = fence_wait_timeout(excl,
-						     interruptible, timeout);
-		}
-	}
-
-	for (i = 0; fobj && timeout > 0 && i < fobj->shared_count; ++i) {
-		struct fence *fence;
-		fence = rcu_dereference_protected(fobj->shared[i],
-						reservation_object_held(resv));
-
-		if (!fence_is_signaled(fence)) {
-			if (no_wait)
-				return -EBUSY;
-
-			timeout = fence_wait_timeout(fence,
-						     interruptible, timeout);
-		}
-	}
-
+	timeout = reservation_object_wait_timeout_rcu(bo->resv, true,
+						      interruptible, timeout);
 	if (timeout < 0)
 		return timeout;
 
 	if (timeout == 0)
 		return -EBUSY;
 
-	reservation_object_add_excl_fence(resv, NULL);
+	reservation_object_add_excl_fence(bo->resv, NULL);
 	return 0;
 }
 EXPORT_SYMBOL(ttm_bo_wait);
