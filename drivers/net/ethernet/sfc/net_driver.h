@@ -868,6 +868,7 @@ struct vfdi_status;
  *	be held to modify it.
  * @port_initialized: Port initialized?
  * @net_dev: Operating system network device. Consider holding the rtnl lock
+ * @fixed_features: Features which cannot be turned off
  * @stats_buffer: DMA buffer for statistics
  * @phy_type: PHY type
  * @phy_op: PHY interface
@@ -1006,6 +1007,8 @@ struct efx_nic {
 	bool mc_bist_for_other_fn;
 	bool port_initialized;
 	struct net_device *net_dev;
+
+	netdev_features_t fixed_features;
 
 	struct efx_buffer stats_buffer;
 	u64 rx_nodesc_drops_total;
