@@ -654,6 +654,8 @@ set_change_info(struct nfsd4_change_info *cinfo, struct svc_fh *fhp)
 
 }
 
+
+bool nfsd4_mach_creds_match(struct nfs4_client *cl, struct svc_rqst *rqstp);
 int nfs4svc_encode_voidres(struct svc_rqst *, __be32 *, void *);
 int nfs4svc_decode_compoundargs(struct svc_rqst *, __be32 *,
 		struct nfsd4_compoundargs *);
