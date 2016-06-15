@@ -533,6 +533,7 @@
 #define TX49_CONF_CWFON		(_ULCAST_(1) << 27)
 
 /* Bits specific to the MIPS32/64 PRA.	*/
+#define MIPS_CONF_VI		(_ULCAST_(1) <<  3)
 #define MIPS_CONF_MT		(_ULCAST_(7) <<	 7)
 #define MIPS_CONF_MT_TLB	(_ULCAST_(1) <<  7)
 #define MIPS_CONF_MT_FTLB	(_ULCAST_(4) <<  7)
