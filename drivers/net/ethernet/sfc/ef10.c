@@ -878,6 +878,45 @@ static int efx_ef10_probe_pf(struct efx_nic *efx)
 	return efx_ef10_probe(efx);
 }
 
+int efx_ef10_vadaptor_query(struct efx_nic *efx, unsigned int port_id,
+			    u32 *port_flags, u32 *vadaptor_flags,
+			    unsigned int *vlan_tags)
+{
+	struct efx_ef10_nic_data *nic_data = efx->nic_data;
+	MCDI_DECLARE_BUF(inbuf, MC_CMD_VADAPTOR_QUERY_IN_LEN);
+	MCDI_DECLARE_BUF(outbuf, MC_CMD_VADAPTOR_QUERY_OUT_LEN);
+	size_t outlen;
+	int rc;
+
+	if (nic_data->datapath_caps &
+	    (1 << MC_CMD_GET_CAPABILITIES_OUT_VADAPTOR_QUERY_LBN)) {
+		MCDI_SET_DWORD(inbuf, VADAPTOR_QUERY_IN_UPSTREAM_PORT_ID,
+			       port_id);
+
+		rc = efx_mcdi_rpc(efx, MC_CMD_VADAPTOR_QUERY, inbuf, sizeof(inbuf),
+				  outbuf, sizeof(outbuf), &outlen);
+		if (rc)
+			return rc;
+
+		if (outlen < sizeof(outbuf)) {
+			rc = -EIO;
+			return rc;
+		}
+	}
+
+	if (port_flags)
+		*port_flags = MCDI_DWORD(outbuf, VADAPTOR_QUERY_OUT_PORT_FLAGS);
+	if (vadaptor_flags)
+		*vadaptor_flags =
+			MCDI_DWORD(outbuf, VADAPTOR_QUERY_OUT_VADAPTOR_FLAGS);
+	if (vlan_tags)
+		*vlan_tags =
+			MCDI_DWORD(outbuf,
+				   VADAPTOR_QUERY_OUT_NUM_AVAILABLE_VLAN_TAGS);
+
+	return 0;
+}
+
 int efx_ef10_vadaptor_alloc(struct efx_nic *efx, unsigned int port_id)
 {
 	MCDI_DECLARE_BUF(inbuf, MC_CMD_VADAPTOR_ALLOC_IN_LEN);

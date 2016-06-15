@@ -232,6 +232,35 @@ fail:
 	return rc;
 }
 
+static int efx_ef10_vadaptor_alloc_set_features(struct efx_nic *efx)
+{
+	struct efx_ef10_nic_data *nic_data = efx->nic_data;
+	u32 port_flags;
+	int rc;
+
+	rc = efx_ef10_vadaptor_alloc(efx, nic_data->vport_id);
+	if (rc)
+		goto fail_vadaptor_alloc;
+
+	rc = efx_ef10_vadaptor_query(efx, nic_data->vport_id,
+				     &port_flags, NULL, NULL);
+	if (rc)
+		goto fail_vadaptor_query;
+
+	if (port_flags &
+	    (1 << MC_CMD_VPORT_ALLOC_IN_FLAG_VLAN_RESTRICT_LBN))
+		efx->fixed_features |= NETIF_F_HW_VLAN_CTAG_FILTER;
+	else
+		efx->fixed_features &= ~NETIF_F_HW_VLAN_CTAG_FILTER;
+
+	return 0;
+
+fail_vadaptor_query:
+	efx_ef10_vadaptor_free(efx, EVB_PORT_ID_ASSIGNED);
+fail_vadaptor_alloc:
+	return rc;
+}
+
 /* On top of the default firmware vswitch setup, create a VEB vswitch and
  * expansion vport for use by this function.
  */
@@ -243,7 +272,7 @@ int efx_ef10_vswitching_probe_pf(struct efx_nic *efx)
 
 	if (pci_sriov_get_totalvfs(efx->pci_dev) <= 0) {
 		/* vswitch not needed as we have no VFs */
-		efx_ef10_vadaptor_alloc(efx, nic_data->vport_id);
+		efx_ef10_vadaptor_alloc_set_features(efx);
 		return 0;
 	}
 
@@ -263,7 +292,7 @@ int efx_ef10_vswitching_probe_pf(struct efx_nic *efx)
 		goto fail3;
 	ether_addr_copy(nic_data->vport_mac, net_dev->dev_addr);
 
-	rc = efx_ef10_vadaptor_alloc(efx, nic_data->vport_id);
+	rc = efx_ef10_vadaptor_alloc_set_features(efx);
 	if (rc)
 		goto fail4;
 
@@ -282,9 +311,7 @@ fail1:
 
 int efx_ef10_vswitching_probe_vf(struct efx_nic *efx)
 {
-	struct efx_ef10_nic_data *nic_data = efx->nic_data;
-
-	return efx_ef10_vadaptor_alloc(efx, nic_data->vport_id);
+	return efx_ef10_vadaptor_alloc_set_features(efx);
 }
 
 int efx_ef10_vswitching_restore_pf(struct efx_nic *efx)
