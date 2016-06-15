@@ -240,6 +240,7 @@ enum pl330_byteswap {
 
 #define BYTE_TO_BURST(b, ccr)	((b) / BRST_SIZE(ccr) / BRST_LEN(ccr))
 #define BURST_TO_BYTE(c, ccr)	((c) * BRST_SIZE(ccr) * BRST_LEN(ccr))
+#define BYTE_MOD_BURST_LEN(b, ccr)	(((b) / BRST_SIZE(ccr)) % BRST_LEN(ccr))
 
 /*
  * With 256 bytes, we can do more than 2.5MB and 5MB xfers per req
@@ -1331,6 +1332,20 @@ static inline int _setup_xfer(struct pl330_dmac *pl330,
 	/* Setup Loop(s) */
 	off += _setup_loops(pl330, dry_run, &buf[off], pxs);
 
+	if (pl330->peripherals_req_type == BURST) {
+		unsigned int ccr = pxs->ccr;
+		unsigned long c = 0;
+
+		c = BYTE_MOD_BURST_LEN(x->bytes, pxs->ccr);
+
+		if (c) {
+			ccr &= ~(0xf << CC_SRCBRSTLEN_SHFT);
+			ccr &= ~(0xf << CC_DSTBRSTLEN_SHFT);
+			off += _emit_MOV(dry_run, &buf[off], CCR, ccr);
+			off += _loop(pl330, dry_run, &buf[off], &c, pxs);
+		}
+	}
+
 	return off;
 }
 
@@ -1353,9 +1368,11 @@ static int _setup_req(struct pl330_dmac *pl330, unsigned dry_run,
 	off += _emit_MOV(dry_run, &buf[off], CCR, pxs->ccr);
 
 	x = &pxs->desc->px;
-	/* Error if xfer length is not aligned at burst size */
-	if (x->bytes % (BRST_SIZE(pxs->ccr) * BRST_LEN(pxs->ccr)))
-		return -EINVAL;
+	if (pl330->peripherals_req_type != BURST) {
+		/* Error if xfer length is not aligned at burst size */
+		if (x->bytes % (BRST_SIZE(pxs->ccr) * BRST_LEN(pxs->ccr)))
+			return -EINVAL;
+	}
 
 	off += _setup_xfer(pl330, dry_run, &buf[off], pxs);
 
