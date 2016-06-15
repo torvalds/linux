@@ -683,7 +683,7 @@ static int wlan_init_locks(struct net_device *dev)
 
 	init_completion(&wl->txq_event);
 
-	sema_init(&wl->cfg_event, 0);
+	init_completion(&wl->cfg_event);
 	sema_init(&wl->sync_event, 0);
 	init_completion(&wl->txq_thread_started);
 

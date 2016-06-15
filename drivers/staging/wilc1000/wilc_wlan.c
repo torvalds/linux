@@ -310,7 +310,7 @@ static int wilc_wlan_txq_add_cfg_pkt(struct wilc_vif *vif, u8 *buffer,
 	netdev_dbg(vif->ndev, "Adding config packet ...\n");
 	if (wilc->quit) {
 		netdev_dbg(vif->ndev, "Return due to clear function\n");
-		up(&wilc->cfg_event);
+		complete(&wilc->cfg_event);
 		return 0;
 	}
 
@@ -769,7 +769,7 @@ static void wilc_wlan_handle_rxq(struct wilc *wilc)
 
 	do {
 		if (wilc->quit) {
-			up(&wilc->cfg_event);
+			complete(&wilc->cfg_event);
 			break;
 		}
 		rqe = wilc_wlan_rxq_remove(wilc);
@@ -820,7 +820,7 @@ static void wilc_wlan_handle_rxq(struct wilc *wilc)
 					wilc_wlan_cfg_indicate_rx(wilc, &buffer[pkt_offset + offset], pkt_len, &rsp);
 					if (rsp.type == WILC_CFG_RSP) {
 						if (wilc->cfg_seq_no == rsp.seq_no)
-							up(&wilc->cfg_event);
+							complete(&wilc->cfg_event);
 					} else if (rsp.type == WILC_CFG_RSP_STATUS) {
 						wilc_mac_indicate(wilc, WILC_MAC_INDICATE_STATUS);
 
@@ -1228,11 +1228,12 @@ int wilc_wlan_cfg_set(struct wilc_vif *vif, int start, u16 wid, u8 *buffer,
 		if (wilc_wlan_cfg_commit(vif, WILC_CFG_SET, drv_handler))
 			ret_size = 0;
 
-		if (wilc_lock_timeout(wilc, &wilc->cfg_event,
-					    CFG_PKTS_TIMEOUT)) {
+		if (!wait_for_completion_timeout(&wilc->cfg_event,
+					msecs_to_jiffies(CFG_PKTS_TIMEOUT))) {
 			netdev_dbg(vif->ndev, "Set Timed Out\n");
 			ret_size = 0;
 		}
+
 		wilc->cfg_frame_in_use = 0;
 		wilc->cfg_frame_offset = 0;
 		wilc->cfg_seq_no += 1;
@@ -1265,8 +1266,8 @@ int wilc_wlan_cfg_get(struct wilc_vif *vif, int start, u16 wid, int commit,
 		if (wilc_wlan_cfg_commit(vif, WILC_CFG_QUERY, drv_handler))
 			ret_size = 0;
 
-		if (wilc_lock_timeout(wilc, &wilc->cfg_event,
-					    CFG_PKTS_TIMEOUT)) {
+		if (!wait_for_completion_timeout(&wilc->cfg_event,
+					msecs_to_jiffies(CFG_PKTS_TIMEOUT))) {
 			netdev_dbg(vif->ndev, "Get Timed Out\n");
 			ret_size = 0;
 		}
