@@ -138,15 +138,21 @@ static inline int ndisc_opt_addr_space(struct net_device *dev)
 				      ndisc_addr_option_pad(dev->type));
 }
 
-static inline u8 *ndisc_opt_addr_data(struct nd_opt_hdr *p,
-				      struct net_device *dev)
+static inline u8 *__ndisc_opt_addr_data(struct nd_opt_hdr *p,
+					unsigned char addr_len, int prepad)
 {
 	u8 *lladdr = (u8 *)(p + 1);
 	int lladdrlen = p->nd_opt_len << 3;
-	int prepad = ndisc_addr_option_pad(dev->type);
-	if (lladdrlen != ndisc_opt_addr_space(dev))
+	if (lladdrlen != __ndisc_opt_addr_space(addr_len, prepad))
 		return NULL;
 	return lladdr + prepad;
+}
+
+static inline u8 *ndisc_opt_addr_data(struct nd_opt_hdr *p,
+				      struct net_device *dev)
+{
+	return __ndisc_opt_addr_data(p, dev->addr_len,
+				     ndisc_addr_option_pad(dev->type));
 }
 
 static inline u32 ndisc_hashfn(const void *pkey, const struct net_device *dev, __u32 *hash_rnd)
