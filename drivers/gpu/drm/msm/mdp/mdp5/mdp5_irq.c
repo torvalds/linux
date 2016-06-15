@@ -54,7 +54,9 @@ int mdp5_irq_postinstall(struct msm_kms *kms)
 			MDP5_IRQ_INTF2_UNDER_RUN |
 			MDP5_IRQ_INTF3_UNDER_RUN;
 
+	mdp5_enable(mdp5_kms);
 	mdp_irq_register(mdp_kms, error_handler);
+	mdp5_disable(mdp5_kms);
 
 	return 0;
 }
