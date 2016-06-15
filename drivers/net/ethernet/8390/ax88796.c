@@ -470,26 +470,6 @@ static void ax_get_drvinfo(struct net_device *dev,
 	strlcpy(info->bus_info, pdev->name, sizeof(info->bus_info));
 }
 
-static int ax_get_settings(struct net_device *dev, struct ethtool_cmd *cmd)
-{
-	struct phy_device *phy_dev = dev->phydev;
-
-	if (!phy_dev)
-		return -ENODEV;
-
-	return phy_ethtool_gset(phy_dev, cmd);
-}
-
-static int ax_set_settings(struct net_device *dev, struct ethtool_cmd *cmd)
-{
-	struct phy_device *phy_dev = dev->phydev;
-
-	if (!phy_dev)
-		return -ENODEV;
-
-	return phy_ethtool_sset(phy_dev, cmd);
-}
-
 static u32 ax_get_msglevel(struct net_device *dev)
 {
 	struct ei_device *ei_local = netdev_priv(dev);
@@ -506,12 +486,12 @@ static void ax_set_msglevel(struct net_device *dev, u32 v)
 
 static const struct ethtool_ops ax_ethtool_ops = {
 	.get_drvinfo		= ax_get_drvinfo,
-	.get_settings		= ax_get_settings,
-	.set_settings		= ax_set_settings,
 	.get_link		= ethtool_op_get_link,
 	.get_ts_info		= ethtool_op_get_ts_info,
 	.get_msglevel		= ax_get_msglevel,
 	.set_msglevel		= ax_set_msglevel,
+	.get_link_ksettings	= phy_ethtool_get_link_ksettings,
+	.set_link_ksettings	= phy_ethtool_set_link_ksettings,
 };
 
 #ifdef CONFIG_AX88796_93CX6
