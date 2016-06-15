@@ -1297,6 +1297,12 @@ static int parse_raid_params(struct raid_set *rs, struct dm_arg_set *as,
 		}
 	}
 
+	if (test_bit(__CTR_FLAG_SYNC, &rs->ctr_flags) &&
+	    test_bit(__CTR_FLAG_NOSYNC, &rs->ctr_flags)) {
+		rs->ti->error = "sync and nosync are mutually exclusive";
+		return -EINVAL;
+	}
+
 	if (validate_region_size(rs, region_size))
 		return -EINVAL;
 
