@@ -52,7 +52,7 @@
 
 / {
 	model = "NextThing C.H.I.P.";
-	compatible = "nextthing,chip", "allwinner,sun5i-r8";
+	compatible = "nextthing,chip", "allwinner,sun5i-r8", "allwinner,sun5i-a13";
 
 	aliases {
 		i2c0 = &i2c0;
