@@ -150,11 +150,10 @@ struct neigh_table nd_tbl = {
 };
 EXPORT_SYMBOL_GPL(nd_tbl);
 
-static void ndisc_fill_addr_option(struct sk_buff *skb, int type, void *data)
+static void __ndisc_fill_addr_option(struct sk_buff *skb, int type, void *data,
+				     int data_len, int pad)
 {
-	int pad   = ndisc_addr_option_pad(skb->dev->type);
-	int data_len = skb->dev->addr_len;
-	int space = ndisc_opt_addr_space(skb->dev);
+	int space = __ndisc_opt_addr_space(data_len, pad);
 	u8 *opt = skb_put(skb, space);
 
 	opt[0] = type;
@@ -170,6 +169,13 @@ static void ndisc_fill_addr_option(struct sk_buff *skb, int type, void *data)
 	space -= data_len;
 	if (space > 0)
 		memset(opt, 0, space);
+}
+
+static inline void ndisc_fill_addr_option(struct sk_buff *skb, int type,
+					  void *data)
+{
+	__ndisc_fill_addr_option(skb, type, data, skb->dev->addr_len,
+				 ndisc_addr_option_pad(skb->dev->type));
 }
 
 static struct nd_opt_hdr *ndisc_next_option(struct nd_opt_hdr *cur,
