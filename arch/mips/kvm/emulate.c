@@ -921,8 +921,8 @@ unsigned int kvm_mips_config1_wrmask(struct kvm_vcpu *vcpu)
  */
 unsigned int kvm_mips_config3_wrmask(struct kvm_vcpu *vcpu)
 {
-	/* Config4 is optional */
-	unsigned int mask = MIPS_CONF_M;
+	/* Config4 and ULRI are optional */
+	unsigned int mask = MIPS_CONF_M | MIPS_CONF3_ULRI;
 
 	/* Permit MSA to be present if MSA is supported */
 	if (kvm_mips_guest_can_have_msa(&vcpu->arch))
@@ -1229,6 +1229,16 @@ enum emulation_result kvm_mips_emulate_CP0(union mips_instruction inst,
 					else
 						kvm_mips_count_enable_cause(vcpu);
 				}
+			} else if ((rd == MIPS_CP0_HWRENA) && (sel == 0)) {
+				u32 mask = MIPS_HWRENA_CPUNUM |
+					   MIPS_HWRENA_SYNCISTEP |
+					   MIPS_HWRENA_CC |
+					   MIPS_HWRENA_CCRES;
+
+				if (kvm_read_c0_guest_config3(cop0) &
+				    MIPS_CONF3_ULRI)
+					mask |= MIPS_HWRENA_ULR;
+				cop0->reg[rd][sel] = vcpu->arch.gprs[rt] & mask;
 			} else {
 				cop0->reg[rd][sel] = vcpu->arch.gprs[rt];
 #ifdef CONFIG_KVM_MIPS_DYN_TRANS
