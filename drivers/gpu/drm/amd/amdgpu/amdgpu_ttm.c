@@ -287,8 +287,7 @@ static int amdgpu_move_blit(struct ttm_buffer_object *bo,
 			       new_mem->num_pages * PAGE_SIZE, /* bytes */
 			       bo->resv, &fence);
 	/* FIXME: handle copy error */
-	r = ttm_bo_move_accel_cleanup(bo, fence,
-				      evict, no_wait_gpu, new_mem);
+	r = ttm_bo_move_accel_cleanup(bo, fence, evict, new_mem);
 	fence_put(fence);
 	return r;
 }

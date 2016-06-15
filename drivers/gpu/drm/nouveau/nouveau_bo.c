@@ -1082,7 +1082,6 @@ nouveau_bo_move_m2mf(struct ttm_buffer_object *bo, int evict, bool intr,
 				ret = ttm_bo_move_accel_cleanup(bo,
 								&fence->base,
 								evict,
-								no_wait_gpu,
 								new_mem);
 				nouveau_fence_unref(&fence);
 			}

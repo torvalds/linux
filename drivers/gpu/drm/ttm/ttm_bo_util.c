@@ -637,7 +637,6 @@ EXPORT_SYMBOL(ttm_bo_kunmap);
 int ttm_bo_move_accel_cleanup(struct ttm_buffer_object *bo,
 			      struct fence *fence,
 			      bool evict,
-			      bool no_wait_gpu,
 			      struct ttm_mem_reg *new_mem)
 {
 	struct ttm_bo_device *bdev = bo->bdev;
