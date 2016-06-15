@@ -538,11 +538,29 @@ static u64 kvm_mips_get_one_regs[] = {
 	KVM_REG_MIPS_COUNT_HZ,
 };
 
+static u64 kvm_mips_get_one_regs_fpu[] = {
+	KVM_REG_MIPS_FCR_IR,
+	KVM_REG_MIPS_FCR_CSR,
+};
+
+static u64 kvm_mips_get_one_regs_msa[] = {
+	KVM_REG_MIPS_MSA_IR,
+	KVM_REG_MIPS_MSA_CSR,
+};
+
 static unsigned long kvm_mips_num_regs(struct kvm_vcpu *vcpu)
 {
 	unsigned long ret;
 
 	ret = ARRAY_SIZE(kvm_mips_get_one_regs);
+	if (kvm_mips_guest_can_have_fpu(&vcpu->arch)) {
+		ret += ARRAY_SIZE(kvm_mips_get_one_regs_fpu) + 48;
+		/* odd doubles */
+		if (boot_cpu_data.fpu_id & MIPS_FPIR_F64)
+			ret += 16;
+	}
+	if (kvm_mips_guest_can_have_msa(&vcpu->arch))
+		ret += ARRAY_SIZE(kvm_mips_get_one_regs_msa) + 32;
 	ret += kvm_mips_callbacks->num_regs(vcpu);
 
 	return ret;
@@ -550,10 +568,50 @@ static unsigned long kvm_mips_num_regs(struct kvm_vcpu *vcpu)
 
 static int kvm_mips_copy_reg_indices(struct kvm_vcpu *vcpu, u64 __user *indices)
 {
+	u64 index;
+	unsigned int i;
+
 	if (copy_to_user(indices, kvm_mips_get_one_regs,
 			 sizeof(kvm_mips_get_one_regs)))
 		return -EFAULT;
 	indices += ARRAY_SIZE(kvm_mips_get_one_regs);
+
+	if (kvm_mips_guest_can_have_fpu(&vcpu->arch)) {
+		if (copy_to_user(indices, kvm_mips_get_one_regs_fpu,
+				 sizeof(kvm_mips_get_one_regs_fpu)))
+			return -EFAULT;
+		indices += ARRAY_SIZE(kvm_mips_get_one_regs_fpu);
+
+		for (i = 0; i < 32; ++i) {
+			index = KVM_REG_MIPS_FPR_32(i);
+			if (copy_to_user(indices, &index, sizeof(index)))
+				return -EFAULT;
+			++indices;
+
+			/* skip odd doubles if no F64 */
+			if (i & 1 && !(boot_cpu_data.fpu_id & MIPS_FPIR_F64))
+				continue;
+
+			index = KVM_REG_MIPS_FPR_64(i);
+			if (copy_to_user(indices, &index, sizeof(index)))
+				return -EFAULT;
+			++indices;
+		}
+	}
+
+	if (kvm_mips_guest_can_have_msa(&vcpu->arch)) {
+		if (copy_to_user(indices, kvm_mips_get_one_regs_msa,
+				 sizeof(kvm_mips_get_one_regs_msa)))
+			return -EFAULT;
+		indices += ARRAY_SIZE(kvm_mips_get_one_regs_msa);
+
+		for (i = 0; i < 32; ++i) {
+			index = KVM_REG_MIPS_VEC_128(i);
+			if (copy_to_user(indices, &index, sizeof(index)))
+				return -EFAULT;
+			++indices;
+		}
+	}
 
 	return kvm_mips_callbacks->copy_reg_indices(vcpu, indices);
 }
