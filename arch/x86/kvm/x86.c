@@ -6709,16 +6709,9 @@ static int vcpu_enter_guest(struct kvm_vcpu *vcpu)
 
 	++vcpu->stat.exits;
 
-	/*
-	 * We must have an instruction between local_irq_enable() and
-	 * kvm_guest_exit(), so the timer interrupt isn't delayed by
-	 * the interrupt shadow.  The stat.exits increment will do nicely.
-	 * But we need to prevent reordering, hence this barrier():
-	 */
-	barrier();
+	guest_exit_irqoff();
 
-	guest_exit();
-
+	local_irq_enable();
 	preempt_enable();
 
 	vcpu->srcu_idx = srcu_read_lock(&vcpu->kvm->srcu);

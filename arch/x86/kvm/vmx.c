@@ -8574,7 +8574,6 @@ static void vmx_handle_external_intr(struct kvm_vcpu *vcpu)
 			"push %[sp]\n\t"
 #endif
 			"pushf\n\t"
-			"orl $0x200, (%%" _ASM_SP ")\n\t"
 			__ASM_SIZE(push) " $%c[cs]\n\t"
 			"call *%[entry]\n\t"
 			:
@@ -8587,8 +8586,7 @@ static void vmx_handle_external_intr(struct kvm_vcpu *vcpu)
 			[ss]"i"(__KERNEL_DS),
 			[cs]"i"(__KERNEL_CS)
 			);
-	} else
-		local_irq_enable();
+	}
 }
 
 static bool vmx_has_high_real_mode_segbase(void)
