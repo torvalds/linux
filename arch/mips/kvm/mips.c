@@ -688,16 +688,11 @@ static int kvm_mips_get_reg(struct kvm_vcpu *vcpu,
 		v = (long)kvm_read_c0_guest_errorepc(cop0);
 		break;
 	/* registers to be handled specially */
-	case KVM_REG_MIPS_CP0_COUNT:
-	case KVM_REG_MIPS_COUNT_CTL:
-	case KVM_REG_MIPS_COUNT_RESUME:
-	case KVM_REG_MIPS_COUNT_HZ:
+	default:
 		ret = kvm_mips_callbacks->get_one_reg(vcpu, reg, &v);
 		if (ret)
 			return ret;
 		break;
-	default:
-		return -EINVAL;
 	}
 	if ((reg->id & KVM_REG_SIZE_MASK) == KVM_REG_SIZE_U64) {
 		u64 __user *uaddr64 = (u64 __user *)(long)reg->addr;
@@ -859,21 +854,8 @@ static int kvm_mips_set_reg(struct kvm_vcpu *vcpu,
 		kvm_write_c0_guest_errorepc(cop0, v);
 		break;
 	/* registers to be handled specially */
-	case KVM_REG_MIPS_CP0_COUNT:
-	case KVM_REG_MIPS_CP0_COMPARE:
-	case KVM_REG_MIPS_CP0_CAUSE:
-	case KVM_REG_MIPS_CP0_CONFIG:
-	case KVM_REG_MIPS_CP0_CONFIG1:
-	case KVM_REG_MIPS_CP0_CONFIG2:
-	case KVM_REG_MIPS_CP0_CONFIG3:
-	case KVM_REG_MIPS_CP0_CONFIG4:
-	case KVM_REG_MIPS_CP0_CONFIG5:
-	case KVM_REG_MIPS_COUNT_CTL:
-	case KVM_REG_MIPS_COUNT_RESUME:
-	case KVM_REG_MIPS_COUNT_HZ:
-		return kvm_mips_callbacks->set_one_reg(vcpu, reg, v);
 	default:
-		return -EINVAL;
+		return kvm_mips_callbacks->set_one_reg(vcpu, reg, v);
 	}
 	return 0;
 }
