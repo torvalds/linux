@@ -2307,7 +2307,7 @@ enum emulation_result kvm_mips_handle_ri(u32 cause, u32 *opc,
 		}
 		switch (rd) {
 		case MIPS_HWR_CPUNUM:		/* CPU number */
-			arch->gprs[rt] = 0;
+			arch->gprs[rt] = vcpu->vcpu_id;
 			break;
 		case MIPS_HWR_SYNCISTEP:	/* SYNCI length */
 			arch->gprs[rt] = min(current_cpu_data.dcache.linesz,
