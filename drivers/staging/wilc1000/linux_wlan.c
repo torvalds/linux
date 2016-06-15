@@ -316,7 +316,7 @@ static int linux_wlan_txq_task(void *vp)
 
 	complete(&wl->txq_thread_started);
 	while (1) {
-		down(&wl->txq_event);
+		wait_for_completion(&wl->txq_event);
 
 		if (wl->close) {
 			complete(&wl->txq_thread_started);
@@ -650,7 +650,7 @@ void wilc1000_wlan_deinit(struct net_device *dev)
 			mutex_unlock(&wl->hif_cs);
 		}
 		if (&wl->txq_event)
-			up(&wl->txq_event);
+			wait_for_completion(&wl->txq_event);
 
 		wlan_deinitialize_threads(dev);
 		deinit_irq(dev);
@@ -681,7 +681,7 @@ static int wlan_init_locks(struct net_device *dev)
 	spin_lock_init(&wl->txq_spinlock);
 	sema_init(&wl->txq_add_to_head_cs, 1);
 
-	sema_init(&wl->txq_event, 0);
+	init_completion(&wl->txq_event);
 
 	sema_init(&wl->cfg_event, 0);
 	sema_init(&wl->sync_event, 0);
@@ -738,7 +738,7 @@ static void wlan_deinitialize_threads(struct net_device *dev)
 	wl->close = 1;
 
 	if (&wl->txq_event)
-		up(&wl->txq_event);
+		complete(&wl->txq_event);
 
 	if (wl->txq_thread) {
 		kthread_stop(wl->txq_thread);

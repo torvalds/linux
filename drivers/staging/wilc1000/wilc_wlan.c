@@ -1,3 +1,4 @@
+#include <linux/completion.h>
 #include "wilc_wlan_if.h"
 #include "wilc_wlan.h"
 #include "wilc_wfi_netdevice.h"
@@ -89,7 +90,7 @@ static void wilc_wlan_txq_add_to_tail(struct net_device *dev,
 
 	spin_unlock_irqrestore(&wilc->txq_spinlock, flags);
 
-	up(&wilc->txq_event);
+	complete(&wilc->txq_event);
 }
 
 static int wilc_wlan_txq_add_to_head(struct wilc_vif *vif,
@@ -119,7 +120,7 @@ static int wilc_wlan_txq_add_to_head(struct wilc_vif *vif,
 
 	spin_unlock_irqrestore(&wilc->txq_spinlock, flags);
 	up(&wilc->txq_add_to_head_cs);
-	up(&wilc->txq_event);
+	complete(&wilc->txq_event);
 
 	return 0;
 }
@@ -287,7 +288,8 @@ static int wilc_wlan_txq_filter_dup_tcp_ack(struct net_device *dev)
 	spin_unlock_irqrestore(&wilc->txq_spinlock, wilc->txq_spinlock_flags);
 
 	while (dropped > 0) {
-		wilc_lock_timeout(wilc, &wilc->txq_event, 1);
+		wait_for_completion_timeout(&wilc->txq_event,
+						msecs_to_jiffies(1));
 		dropped--;
 	}
 

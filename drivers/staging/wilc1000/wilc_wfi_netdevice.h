@@ -42,6 +42,7 @@
 #include "host_interface.h"
 #include "wilc_wlan.h"
 #include <linux/wireless.h>
+#include <linux/completion.h>
 
 #define FLOW_CONTROL_LOWER_THRESHOLD	128
 #define FLOW_CONTROL_UPPER_THRESHOLD	256
@@ -178,7 +179,7 @@ struct wilc {
 
 	struct semaphore cfg_event;
 	struct semaphore sync_event;
-	struct semaphore txq_event;
+	struct completion txq_event;
 	struct completion txq_thread_started;
 
 	struct task_struct *txq_thread;
