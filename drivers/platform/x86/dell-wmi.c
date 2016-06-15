@@ -109,6 +109,9 @@ static const struct key_entry dell_wmi_legacy_keymap[] __initconst = {
 	/* BIOS error detected */
 	{ KE_IGNORE, 0xe00d, { KEY_RESERVED } },
 
+	/* Unknown, defined in ACPI DSDT */
+	/* { KE_IGNORE, 0xe00e, { KEY_RESERVED } }, */
+
 	/* Wifi Catcher */
 	{ KE_KEY,    0xe011, { KEY_PROG2 } },
 
@@ -117,20 +120,44 @@ static const struct key_entry dell_wmi_legacy_keymap[] __initconst = {
 
 	{ KE_IGNORE, 0xe020, { KEY_MUTE } },
 
+	/* Unknown, defined in ACPI DSDT */
+	/* { KE_IGNORE, 0xe023, { KEY_RESERVED } }, */
+
+	/* Untested, Dell Instant Launch key on Inspiron 7520 */
+	/* { KE_IGNORE, 0xe024, { KEY_RESERVED } }, */
+
 	/* Dell Instant Launch key */
 	{ KE_KEY,    0xe025, { KEY_PROG4 } },
 
 	/* Audio panel key */
 	{ KE_IGNORE, 0xe026, { KEY_RESERVED } },
 
+	/* Untested, Multimedia key on Dell Vostro 3560 */
+	/* { KE_IGNORE, 0xe028, { KEY_RESERVED } }, */
+
 	/* Dell Instant Launch key */
 	{ KE_KEY,    0xe029, { KEY_PROG4 } },
+
+	/* Untested, Windows Mobility Center button on Inspiron 7520 */
+	/* { KE_IGNORE, 0xe02a, { KEY_RESERVED } }, */
+
+	/* Unknown, defined in ACPI DSDT */
+	/* { KE_IGNORE, 0xe02b, { KEY_RESERVED } }, */
+
+	/* Untested, Dell Audio With Preset Switch button on Inspiron 7520 */
+	/* { KE_IGNORE, 0xe02c, { KEY_RESERVED } }, */
 
 	{ KE_IGNORE, 0xe02e, { KEY_VOLUMEDOWN } },
 	{ KE_IGNORE, 0xe030, { KEY_VOLUMEUP } },
 	{ KE_IGNORE, 0xe033, { KEY_KBDILLUMUP } },
 	{ KE_IGNORE, 0xe034, { KEY_KBDILLUMDOWN } },
 	{ KE_IGNORE, 0xe03a, { KEY_CAPSLOCK } },
+
+	/* NIC Link is Up */
+	{ KE_IGNORE, 0xe043, { KEY_RESERVED } },
+
+	/* NIC Link is Down */
+	{ KE_IGNORE, 0xe044, { KEY_RESERVED } },
 
 	/*
 	 * This entry is very suspicious!
@@ -144,7 +171,15 @@ static const struct key_entry dell_wmi_legacy_keymap[] __initconst = {
 	 */
 	{ KE_IGNORE, 0xe045, { KEY_NUMLOCK } },
 
+	/* Scroll lock and also going to tablet mode on portable devices */
 	{ KE_IGNORE, 0xe046, { KEY_SCROLLLOCK } },
+
+	/* Untested, going from tablet mode on portable devices */
+	/* { KE_IGNORE, 0xe047, { KEY_RESERVED } }, */
+
+	/* Dell Support Center key */
+	{ KE_IGNORE, 0xe06e, { KEY_RESERVED } },
+
 	{ KE_IGNORE, 0xe0f7, { KEY_MUTE } },
 	{ KE_IGNORE, 0xe0f8, { KEY_VOLUMEDOWN } },
 	{ KE_IGNORE, 0xe0f9, { KEY_VOLUMEUP } },
