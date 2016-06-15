@@ -1579,11 +1579,8 @@ void drm_atomic_helper_commit_cleanup_done(struct drm_atomic_state *state)
 		/* commit_list borrows our reference, need to remove before we
 		 * clean up our drm_atomic_state. But only after it actually
 		 * completed, otherwise subsequent commits won't stall properly. */
-		if (try_wait_for_completion(&commit->flip_done)) {
-			list_del(&commit->commit_entry);
-			spin_unlock(&crtc->commit_lock);
-			continue;
-		}
+		if (try_wait_for_completion(&commit->flip_done))
+			goto del_commit;
 
 		spin_unlock(&crtc->commit_lock);
 
@@ -1597,6 +1594,7 @@ void drm_atomic_helper_commit_cleanup_done(struct drm_atomic_state *state)
 				  crtc->base.id, crtc->name);
 
 		spin_lock(&crtc->commit_lock);
+del_commit:
 		list_del(&commit->commit_entry);
 		spin_unlock(&crtc->commit_lock);
 	}
