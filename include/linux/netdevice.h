@@ -1456,6 +1456,8 @@ enum netdev_priv_flags {
  *	@netdev_ops:	Includes several pointers to callbacks,
  *			if one wants to override the ndo_*() functions
  *	@ethtool_ops:	Management operations
+ *	@ndisc_ops:	Includes callbacks for different IPv6 neighbour
+ *			discovery handling. Necessary for e.g. 6LoWPAN.
  *	@header_ops:	Includes callbacks for creating,parsing,caching,etc
  *			of Layer 2 headers.
  *
@@ -1671,6 +1673,9 @@ struct net_device {
 #endif
 #ifdef CONFIG_NET_L3_MASTER_DEV
 	const struct l3mdev_ops	*l3mdev_ops;
+#endif
+#if IS_ENABLED(CONFIG_IPV6)
+	const struct ndisc_ops *ndisc_ops;
 #endif
 
 	const struct header_ops *header_ops;
