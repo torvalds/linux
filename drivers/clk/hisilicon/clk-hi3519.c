@@ -86,7 +86,7 @@ static int hi3519_clk_probe(struct platform_device *pdev)
 	struct hisi_clock_data *clk_data;
 	struct hisi_reset_controller *rstc;
 
-	rstc = hisi_reset_init(np);
+	rstc = hisi_reset_init(pdev);
 	if (!rstc)
 		return -ENOMEM;
 
