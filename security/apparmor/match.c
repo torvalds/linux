@@ -75,14 +75,14 @@ static struct table_header *unpack_table(char *blob, size_t bsize)
 				     u32, be32_to_cpu);
 		else
 			goto fail;
+		/* if table was vmalloced make sure the page tables are synced
+		 * before it is used, as it goes live to all cpus.
+		 */
+		if (is_vmalloc_addr(table))
+			vm_unmap_aliases();
 	}
 
 out:
-	/* if table was vmalloced make sure the page tables are synced
-	 * before it is used, as it goes live to all cpus.
-	 */
-	if (is_vmalloc_addr(table))
-		vm_unmap_aliases();
 	return table;
 fail:
 	kvfree(table);
