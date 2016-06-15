@@ -1502,7 +1502,7 @@ int get_number_of_vce_state_table_entries(
 	const ATOM_PPLIB_VCE_State_Table *vce_table =
 				    get_vce_state_table(hwmgr, table);
 
-	if (vce_table > 0)
+	if (vce_table)
 		return vce_table->numEntries;
 
 	return 0;
