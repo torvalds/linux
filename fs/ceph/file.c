@@ -821,6 +821,54 @@ static void ceph_sync_write_unsafe(struct ceph_osd_request *req, bool unsafe)
 	}
 }
 
+/*
+ * Wait on any unsafe replies for the given inode.  First wait on the
+ * newest request, and make that the upper bound.  Then, if there are
+ * more requests, keep waiting on the oldest as long as it is still older
+ * than the original request.
+ */
+void ceph_sync_write_wait(struct inode *inode)
+{
+	struct ceph_inode_info *ci = ceph_inode(inode);
+	struct list_head *head = &ci->i_unsafe_writes;
+	struct ceph_osd_request *req;
+	u64 last_tid;
+
+	if (!S_ISREG(inode->i_mode))
+		return;
+
+	spin_lock(&ci->i_unsafe_lock);
+	if (list_empty(head))
+		goto out;
+
+	/* set upper bound as _last_ entry in chain */
+
+	req = list_last_entry(head, struct ceph_osd_request,
+			      r_unsafe_item);
+	last_tid = req->r_tid;
+
+	do {
+		ceph_osdc_get_request(req);
+		spin_unlock(&ci->i_unsafe_lock);
+
+		dout("sync_write_wait on tid %llu (until %llu)\n",
+		     req->r_tid, last_tid);
+		wait_for_completion(&req->r_safe_completion);
+		ceph_osdc_put_request(req);
+
+		spin_lock(&ci->i_unsafe_lock);
+		/*
+		 * from here on look at first entry in chain, since we
+		 * only want to wait for anything older than last_tid
+		 */
+		if (list_empty(head))
+			break;
+		req = list_first_entry(head, struct ceph_osd_request,
+				       r_unsafe_item);
+	} while (req->r_tid < last_tid);
+out:
+	spin_unlock(&ci->i_unsafe_lock);
+}
 
 static ssize_t
 ceph_direct_read_write(struct kiocb *iocb, struct iov_iter *iter,

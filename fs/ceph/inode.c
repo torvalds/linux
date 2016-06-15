@@ -585,6 +585,14 @@ int ceph_drop_inode(struct inode *inode)
 	return 1;
 }
 
+void ceph_evict_inode(struct inode *inode)
+{
+	/* wait unsafe sync writes */
+	ceph_sync_write_wait(inode);
+	truncate_inode_pages_final(&inode->i_data);
+	clear_inode(inode);
+}
+
 static inline blkcnt_t calc_inode_blocks(u64 size)
 {
 	return (size + (1<<9) - 1) >> 9;
