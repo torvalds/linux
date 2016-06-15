@@ -1610,7 +1610,7 @@ static int rs_check_takeover(struct raid_set *rs)
 		    mddev->raid_disks == 2)
 			return 0;
 
-		/* raid5 with parity N -> raid6 with parity N */
+		/* raid5_* ->  raid6_*_6 with Q-Syndrome N (e.g. raid5_ra -> raid6_ra_6 */
 		if (mddev->new_level == 6 &&
 		    ((mddev->layout == ALGORITHM_PARITY_N && mddev->new_layout == ALGORITHM_PARITY_N) ||
 		      __within_range(mddev->new_layout, ALGORITHM_LEFT_ASYMMETRIC_6, ALGORITHM_RIGHT_SYMMETRIC_6)))
@@ -1628,7 +1628,7 @@ static int rs_check_takeover(struct raid_set *rs)
 		    mddev->layout == ALGORITHM_PARITY_N)
 			return 0;
 
-		/* raid6_*_n with parity N -> raid5_* */
+		/* raid6_*_n with Q-Syndrome N -> raid5_* */
 		if (mddev->new_level == 5 &&
 		    ((mddev->layout == ALGORITHM_PARITY_N && mddev->new_layout == ALGORITHM_PARITY_N) ||
 		     __within_range(mddev->new_layout, ALGORITHM_LEFT_ASYMMETRIC, ALGORITHM_RIGHT_SYMMETRIC)))
