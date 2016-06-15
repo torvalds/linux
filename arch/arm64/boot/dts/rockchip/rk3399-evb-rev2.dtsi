@@ -55,6 +55,140 @@
 	};
 };
 
+&cluster0_opp {
+	opp00 {
+		opp-hz = /bits/ 64 <408000000>;
+		opp-microvolt = <800000>;
+		clock-latency-ns = <40000>;
+	};
+	opp01 {
+		opp-hz = /bits/ 64 <600000000>;
+		opp-microvolt = <800000>;
+	};
+	opp02 {
+		opp-hz = /bits/ 64 <816000000>;
+		opp-microvolt = <800000>;
+	};
+	opp03 {
+		opp-hz = /bits/ 64 <1008000000>;
+		opp-microvolt = <875000>;
+	};
+	opp04 {
+		opp-hz = /bits/ 64 <1200000000>;
+		opp-microvolt = <925000>;
+	};
+	opp05 {
+		opp-hz = /bits/ 64 <1416000000>;
+		opp-microvolt = <1025000>;
+	};
+	opp06 {
+		opp-hz = /bits/ 64 <1512000000>;
+		opp-microvolt = <1075000>;
+	};
+};
+
+&cluster1_opp {
+	opp00 {
+		opp-hz = /bits/ 64 <408000000>;
+		opp-microvolt = <800000>;
+		clock-latency-ns = <40000>;
+	};
+	opp01 {
+		opp-hz = /bits/ 64 <600000000>;
+		opp-microvolt = <800000>;
+	};
+	opp02 {
+		opp-hz = /bits/ 64 <816000000>;
+		opp-microvolt = <800000>;
+	};
+	opp03 {
+		opp-hz = /bits/ 64 <1008000000>;
+		opp-microvolt = <850000>;
+	};
+	opp04 {
+		opp-hz = /bits/ 64 <1200000000>;
+		opp-microvolt = <925000>;
+	};
+	opp05 {
+		opp-hz = /bits/ 64 <1416000000>;
+		opp-microvolt = <1025000>;
+	};
+	opp06 {
+		opp-hz = /bits/ 64 <1608000000>;
+		opp-microvolt = <1125000>;
+	};
+	opp07 {
+		opp-hz = /bits/ 64 <1800000000>;
+		opp-microvolt = <1200000>;
+	};
+};
+
+&CPU_COST_A72 {
+	busy-cost-data = <
+		232   349	/*  408MHz */
+		341   547	/*  600MHz */
+		464   794	/*  816MHz */
+		573   1141	/* 1008MHz */
+		683   1850	/* 1200MHz */
+		805   2499	/* 1416MHz */
+		915   2922	/* 1608MHz */
+		1024  3416	/* 1800MHz */
+	>;
+	idle-cost-data = <
+	      15
+	       0
+	>;
+};
+
+&CPU_COST_A53 {
+	busy-cost-data = <
+		121    40	/*  408M */
+		179    62	/*  600M */
+		243    90	/*  816M */
+		300    126	/* 1008M */
+		357    196	/* 1200M */
+		421    246	/* 1416M */
+		449    263	/* 1512M */
+	>;
+	idle-cost-data = <
+	      6
+	      0
+	>;
+};
+
+&CLUSTER_COST_A72 {
+	busy-cost-data = <
+		232   349	/*  408MHz */
+		341   547	/*  600MHz */
+		464   794	/*  816MHz */
+		573   1141	/* 1008MHz */
+		683   1850	/* 1200MHz */
+		805   2499	/* 1416MHz */
+		915   2922	/* 1608MHz */
+		1024  3416	/* 1800MHz */
+	>;
+	idle-cost-data = <
+		 65
+		 65
+	>;
+};
+
+&CLUSTER_COST_A53 {
+	busy-cost-data = <
+		121    40	/*  408M */
+		179    62	/*  600M */
+		243    90	/*  816M */
+		300    126	/* 1008M */
+		357    196	/* 1200M */
+		421    246	/* 1416M */
+		449    263	/* 1512M */
+	>;
+	idle-cost-data = <
+		56
+		56
+	>;
+};
+
 &i2c0 {
 	vdd_cpu_b: syr827@40 {
 		compatible = "silergy,syr827";
