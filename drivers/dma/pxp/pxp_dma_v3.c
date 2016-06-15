@@ -1989,6 +1989,8 @@ static enum dma_status pxp_tx_status(struct dma_chan *chan,
 
 static void pxp_data_path_config_v3p(struct pxps *pxp)
 {
+	u32 val = 0;
+
 	__raw_writel(
 		BF_PXP_DATA_PATH_CTRL0_MUX15_SEL(0)|
 		BF_PXP_DATA_PATH_CTRL0_MUX14_SEL(1)|
@@ -2012,9 +2014,13 @@ static void pxp_data_path_config_v3p(struct pxps *pxp)
 	 * MUX17: HIST_B as histogram: 0: output buffer, 1: wfe_store
 	 * MUX16: HIST_A as collision: 0: output buffer, 1: wfe_store
 	 */
-	__raw_writel(BF_PXP_DATA_PATH_CTRL1_MUX17_SEL(1)|
-		BF_PXP_DATA_PATH_CTRL1_MUX16_SEL(1),
-		pxp->base + HW_PXP_DATA_PATH_CTRL1);
+	if (pxp_is_v3(pxp))
+		val = BF_PXP_DATA_PATH_CTRL1_MUX17_SEL(1)|
+		      BF_PXP_DATA_PATH_CTRL1_MUX16_SEL(0);
+	else if (pxp_is_v3p(pxp))
+		val = BF_PXP_DATA_PATH_CTRL1_MUX17_SEL(1)|
+		      BF_PXP_DATA_PATH_CTRL1_MUX16_SEL(1);
+	__raw_writel(val, pxp->base + HW_PXP_DATA_PATH_CTRL1);
 }
 
 static void pxp_soft_reset(struct pxps *pxp)
@@ -4065,15 +4071,22 @@ static void pxp_histogram_enable(struct pxps *pxp,
 				 unsigned int width,
 				 unsigned int height)
 {
+	u32 val = 0;
+
 	__raw_writel(
 			BF_PXP_HIST_B_BUF_SIZE_HEIGHT(height)|
 			BF_PXP_HIST_B_BUF_SIZE_WIDTH(width),
 			pxp->base + HW_PXP_HIST_B_BUF_SIZE);
 
+	if (pxp_is_v3(pxp))
+		val = 64;
+	else if (pxp_is_v3p(pxp))
+		val = 64 + 4;
+
 	__raw_writel(
 			BF_PXP_HIST_B_MASK_MASK_EN(1)|
 			BF_PXP_HIST_B_MASK_MASK_MODE(0)|
-			BF_PXP_HIST_B_MASK_MASK_OFFSET(64+4)|
+			BF_PXP_HIST_B_MASK_MASK_OFFSET(val)|
 			BF_PXP_HIST_B_MASK_MASK_WIDTH(0)|
 			BF_PXP_HIST_B_MASK_MASK_VALUE0(1) |
 			BF_PXP_HIST_B_MASK_MASK_VALUE1(0),
@@ -4114,15 +4127,22 @@ static void pxp_collision_detection_enable(struct pxps *pxp,
 					   unsigned int width,
 					   unsigned int height)
 {
+	u32 val = 0;
+
 	__raw_writel(
 			BF_PXP_HIST_A_BUF_SIZE_HEIGHT(height)|
 			BF_PXP_HIST_A_BUF_SIZE_WIDTH(width),
 			pxp_reg_base + HW_PXP_HIST_A_BUF_SIZE);
 
+	if (pxp_is_v3(pxp))
+		val = 65;
+	else if (pxp_is_v3p(pxp))
+		val = 65 + 4;
+
 	__raw_writel(
 			BF_PXP_HIST_A_MASK_MASK_EN(1)|
 			BF_PXP_HIST_A_MASK_MASK_MODE(0)|
-			BF_PXP_HIST_A_MASK_MASK_OFFSET(65+4)|
+			BF_PXP_HIST_A_MASK_MASK_OFFSET(val)|
 			BF_PXP_HIST_A_MASK_MASK_WIDTH(0)|
 			BF_PXP_HIST_A_MASK_MASK_VALUE0(1) |
 			BF_PXP_HIST_A_MASK_MASK_VALUE1(0),
