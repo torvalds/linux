@@ -88,7 +88,6 @@ static const struct dmi_system_id dell_wmi_smbios_list[] __initconst = {
 static const struct key_entry dell_wmi_legacy_keymap[] __initconst = {
 	{ KE_IGNORE, 0x003a, { KEY_CAPSLOCK } },
 
-	{ KE_KEY, 0xe045, { KEY_PROG1 } },
 	{ KE_KEY, 0xe009, { KEY_EJECTCD } },
 
 	/* These also contain the brightness level at offset 6 */
@@ -130,7 +129,19 @@ static const struct key_entry dell_wmi_legacy_keymap[] __initconst = {
 	{ KE_IGNORE, 0xe033, { KEY_KBDILLUMUP } },
 	{ KE_IGNORE, 0xe034, { KEY_KBDILLUMDOWN } },
 	{ KE_IGNORE, 0xe03a, { KEY_CAPSLOCK } },
+
+	/*
+	 * This entry is very suspicious!
+	 * Originally Matthew Garrett created this dell-wmi driver specially for
+	 * "button with a picture of a battery" which has event code 0xe045.
+	 * Later Mario Limonciello from Dell told us that event code 0xe045 is
+	 * reported by Num Lock and should be ignored because key is send also
+	 * by keyboard controller.
+	 * So for now we will ignore this event to prevent potential double
+	 * Num Lock key press.
+	 */
 	{ KE_IGNORE, 0xe045, { KEY_NUMLOCK } },
+
 	{ KE_IGNORE, 0xe046, { KEY_SCROLLLOCK } },
 	{ KE_IGNORE, 0xe0f7, { KEY_MUTE } },
 	{ KE_IGNORE, 0xe0f8, { KEY_VOLUMEDOWN } },
