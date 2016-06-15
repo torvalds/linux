@@ -14,6 +14,7 @@
 #include <linux/regmap.h>
 
 #include <drm/drm_crtc_helper.h>
+#include <drm/drm_mipi_dsi.h>
 
 #define ADV7511_REG_CHIP_REVISION		0x00
 #define ADV7511_REG_N0				0x01
@@ -324,6 +325,11 @@ struct adv7511 {
 
 	struct gpio_desc *gpio_pd;
 
+	/* ADV7533 DSI RX related params */
+	struct device_node *host_node;
+	struct mipi_dsi_device *dsi;
+	u8 num_dsi_lanes;
+
 	enum adv7511_type type;
 };
 
@@ -333,6 +339,9 @@ void adv7533_dsi_power_off(struct adv7511 *adv);
 int adv7533_patch_registers(struct adv7511 *adv);
 void adv7533_uninit_cec(struct adv7511 *adv);
 int adv7533_init_cec(struct adv7511 *adv);
+int adv7533_attach_dsi(struct adv7511 *adv);
+void adv7533_detach_dsi(struct adv7511 *adv);
+int adv7533_parse_dt(struct device_node *np, struct adv7511 *adv);
 #else
 static inline void adv7533_dsi_power_on(struct adv7511 *adv)
 {
@@ -352,6 +361,20 @@ static inline void adv7533_uninit_cec(struct adv7511 *adv)
 }
 
 static inline int adv7533_init_cec(struct adv7511 *adv)
+{
+	return -ENODEV;
+}
+
+static inline int adv7533_attach_dsi(struct adv7511 *adv)
+{
+	return -ENODEV;
+}
+
+static inline void adv7533_detach_dsi(struct adv7511 *adv)
+{
+}
+
+static inline int adv7533_parse_dt(struct device_node *np, struct adv7511 *adv)
 {
 	return -ENODEV;
 }

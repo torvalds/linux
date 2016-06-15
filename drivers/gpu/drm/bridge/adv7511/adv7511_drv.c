@@ -817,6 +817,9 @@ static int adv7511_bridge_attach(struct drm_bridge *bridge)
 				 &adv7511_connector_helper_funcs);
 	drm_mode_connector_attach_encoder(&adv->connector, bridge->encoder);
 
+	if (adv->type == ADV7533)
+		ret = adv7533_attach_dsi(adv);
+
 	return ret;
 }
 
@@ -943,11 +946,12 @@ static int adv7511_probe(struct i2c_client *i2c, const struct i2c_device_id *id)
 
 	memset(&link_config, 0, sizeof(link_config));
 
-	if (adv7511->type == ADV7511) {
+	if (adv7511->type == ADV7511)
 		ret = adv7511_parse_dt(dev->of_node, &link_config);
-		if (ret)
-			return ret;
-	}
+	else
+		ret = adv7533_parse_dt(dev->of_node, adv7511);
+	if (ret)
+		return ret;
 
 	/*
 	 * The power down GPIO is optional. If present, toggle it from active to
@@ -1042,9 +1046,13 @@ static int adv7511_remove(struct i2c_client *i2c)
 {
 	struct adv7511 *adv7511 = i2c_get_clientdata(i2c);
 
+	if (adv7511->type == ADV7533) {
+		adv7533_detach_dsi(adv7511);
+		adv7533_uninit_cec(adv7511);
+	}
+
 	drm_bridge_remove(&adv7511->bridge);
 
-	adv7533_uninit_cec(adv7511);
 	i2c_unregister_device(adv7511->i2c_edid);
 
 	kfree(adv7511->edid);
@@ -1074,6 +1082,10 @@ static const struct of_device_id adv7511_of_ids[] = {
 };
 MODULE_DEVICE_TABLE(of, adv7511_of_ids);
 
+static struct mipi_dsi_driver adv7533_dsi_driver = {
+	.driver.name = "adv7533",
+};
+
 static struct i2c_driver adv7511_driver = {
 	.driver = {
 		.name = "adv7511",
@@ -1084,7 +1096,23 @@ static struct i2c_driver adv7511_driver = {
 	.remove = adv7511_remove,
 };
 
-module_i2c_driver(adv7511_driver);
+static int __init adv7511_init(void)
+{
+	if (IS_ENABLED(CONFIG_DRM_MIPI_DSI))
+		mipi_dsi_driver_register(&adv7533_dsi_driver);
+
+	return i2c_add_driver(&adv7511_driver);
+}
+module_init(adv7511_init);
+
+static void __exit adv7511_exit(void)
+{
+	i2c_del_driver(&adv7511_driver);
+
+	if (IS_ENABLED(CONFIG_DRM_MIPI_DSI))
+		mipi_dsi_driver_unregister(&adv7533_dsi_driver);
+}
+module_exit(adv7511_exit);
 
 MODULE_AUTHOR("Lars-Peter Clausen <lars@metafoo.de>");
 MODULE_DESCRIPTION("ADV7511 HDMI transmitter driver");

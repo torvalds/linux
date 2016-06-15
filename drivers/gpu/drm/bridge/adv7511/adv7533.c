@@ -11,6 +11,8 @@
  * GNU General Public License for more details.
  */
 
+#include <linux/of_graph.h>
+
 #include "adv7511.h"
 
 static const struct reg_sequence adv7533_fixed_registers[] = {
@@ -39,8 +41,10 @@ static const struct regmap_config adv7533_cec_regmap_config = {
 
 void adv7533_dsi_power_on(struct adv7511 *adv)
 {
-	/* set number of dsi lanes (hardcoded to 4 for now) */
-	regmap_write(adv->regmap_cec, 0x1c, 4 << 4);
+	struct mipi_dsi_device *dsi = adv->dsi;
+
+	/* set number of dsi lanes */
+	regmap_write(adv->regmap_cec, 0x1c, dsi->lanes << 4);
 	/* disable internal timing generator */
 	regmap_write(adv->regmap_cec, 0x27, 0x0b);
 	/* enable hdmi */
@@ -97,4 +101,87 @@ int adv7533_init_cec(struct adv7511 *adv)
 err:
 	adv7533_uninit_cec(adv);
 	return ret;
+}
+
+int adv7533_attach_dsi(struct adv7511 *adv)
+{
+	struct device *dev = &adv->i2c_main->dev;
+	struct mipi_dsi_host *host;
+	struct mipi_dsi_device *dsi;
+	int ret = 0;
+	const struct mipi_dsi_device_info info = { .type = "adv7533",
+						   .channel = 0,
+						   .node = NULL,
+						 };
+
+	host = of_find_mipi_dsi_host_by_node(adv->host_node);
+	if (!host) {
+		dev_err(dev, "failed to find dsi host\n");
+		return -EPROBE_DEFER;
+	}
+
+	dsi = mipi_dsi_device_register_full(host, &info);
+	if (IS_ERR(dsi)) {
+		dev_err(dev, "failed to create dsi device\n");
+		ret = PTR_ERR(dsi);
+		goto err_dsi_device;
+	}
+
+	adv->dsi = dsi;
+
+	dsi->lanes = adv->num_dsi_lanes;
+	dsi->format = MIPI_DSI_FMT_RGB888;
+	dsi->mode_flags = MIPI_DSI_MODE_VIDEO | MIPI_DSI_MODE_VIDEO_SYNC_PULSE |
+			  MIPI_DSI_MODE_EOT_PACKET | MIPI_DSI_MODE_VIDEO_HSE;
+
+	ret = mipi_dsi_attach(dsi);
+	if (ret < 0) {
+		dev_err(dev, "failed to attach dsi to host\n");
+		goto err_dsi_attach;
+	}
+
+	return 0;
+
+err_dsi_attach:
+	mipi_dsi_device_unregister(dsi);
+err_dsi_device:
+	return ret;
+}
+
+void adv7533_detach_dsi(struct adv7511 *adv)
+{
+	mipi_dsi_detach(adv->dsi);
+	mipi_dsi_device_unregister(adv->dsi);
+}
+
+int adv7533_parse_dt(struct device_node *np, struct adv7511 *adv)
+{
+	u32 num_lanes;
+	struct device_node *endpoint;
+
+	of_property_read_u32(np, "adi,dsi-lanes", &num_lanes);
+
+	if (num_lanes < 1 || num_lanes > 4)
+		return -EINVAL;
+
+	adv->num_dsi_lanes = num_lanes;
+
+	endpoint = of_graph_get_next_endpoint(np, NULL);
+	if (!endpoint)
+		return -ENODEV;
+
+	adv->host_node = of_graph_get_remote_port_parent(endpoint);
+	if (!adv->host_node) {
+		of_node_put(endpoint);
+		return -ENODEV;
+	}
+
+	of_node_put(endpoint);
+	of_node_put(adv->host_node);
+
+	/* TODO: Check if these need to be parsed by DT or not */
+	adv->rgb = true;
+	adv->embedded_sync = false;
+
+	return 0;
 }

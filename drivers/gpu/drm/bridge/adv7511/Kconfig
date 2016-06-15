@@ -9,6 +9,7 @@ config DRM_I2C_ADV7511
 config DRM_I2C_ADV7533
 	bool "ADV7533 encoder"
 	depends on DRM_I2C_ADV7511
+	select DRM_MIPI_DSI
 	default y
 	help
 	  Support for the Analog Devices ADV7533 DSI to HDMI encoder.
