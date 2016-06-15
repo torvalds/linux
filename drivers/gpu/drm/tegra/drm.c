@@ -93,7 +93,7 @@ static int tegra_atomic_commit(struct drm_device *drm,
 	 * the software side now.
 	 */
 
-	drm_atomic_helper_swap_state(drm, state);
+	drm_atomic_helper_swap_state(state, true);
 
 	if (nonblock)
 		tegra_atomic_schedule(tegra, state);

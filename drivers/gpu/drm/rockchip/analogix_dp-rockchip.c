@@ -349,20 +349,11 @@ static int rockchip_dp_remove(struct platform_device *pdev)
 	return 0;
 }
 
-#ifdef CONFIG_PM_SLEEP
-static int rockchip_dp_suspend(struct device *dev)
-{
-	return analogix_dp_suspend(dev);
-}
-
-static int rockchip_dp_resume(struct device *dev)
-{
-	return analogix_dp_resume(dev);
-}
-#endif
-
 static const struct dev_pm_ops rockchip_dp_pm_ops = {
-	SET_SYSTEM_SLEEP_PM_OPS(rockchip_dp_suspend, rockchip_dp_resume)
+#ifdef CONFIG_PM_SLEEP
+	.suspend = analogix_dp_suspend,
+	.resume_early = analogix_dp_resume,
+#endif
 };
 
 static const struct of_device_id rockchip_dp_dt_ids[] = {

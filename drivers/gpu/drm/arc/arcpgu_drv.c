@@ -32,17 +32,11 @@ static void arcpgu_fb_output_poll_changed(struct drm_device *dev)
 		drm_fbdev_cma_hotplug_event(arcpgu->fbdev);
 }
 
-static int arcpgu_atomic_commit(struct drm_device *dev,
-				    struct drm_atomic_state *state, bool async)
-{
-	return drm_atomic_helper_commit(dev, state, false);
-}
-
 static struct drm_mode_config_funcs arcpgu_drm_modecfg_funcs = {
 	.fb_create  = drm_fb_cma_create,
 	.output_poll_changed = arcpgu_fb_output_poll_changed,
 	.atomic_check = drm_atomic_helper_check,
-	.atomic_commit = arcpgu_atomic_commit,
+	.atomic_commit = drm_atomic_helper_commit,
 };
 
 static void arcpgu_setup_mode_config(struct drm_device *drm)
@@ -81,22 +75,6 @@ static const struct file_operations arcpgu_drm_ops = {
 	.mmap = arcpgu_gem_mmap,
 };
 
-static void arcpgu_preclose(struct drm_device *drm, struct drm_file *file)
-{
-	struct arcpgu_drm_private *arcpgu = drm->dev_private;
-	struct drm_pending_vblank_event *e, *t;
-	unsigned long flags;
-
-	spin_lock_irqsave(&drm->event_lock, flags);
-	list_for_each_entry_safe(e, t, &arcpgu->event_list, base.link) {
-		if (e->base.file_priv != file)
-			continue;
-		list_del(&e->base.link);
-		kfree(&e->base);
-	}
-	spin_unlock_irqrestore(&drm->event_lock, flags);
-}
-
 static void arcpgu_lastclose(struct drm_device *drm)
 {
 	struct arcpgu_drm_private *arcpgu = drm->dev_private;
@@ -121,8 +99,6 @@ static int arcpgu_load(struct drm_device *drm)
 	arcpgu->clk = devm_clk_get(drm->dev, "pxlclk");
 	if (IS_ERR(arcpgu->clk))
 		return PTR_ERR(arcpgu->clk);
-
-	INIT_LIST_HEAD(&arcpgu->event_list);
 
 	arcpgu_setup_mode_config(drm);
 
@@ -193,7 +169,6 @@ int arcpgu_unload(struct drm_device *drm)
 static struct drm_driver arcpgu_drm_driver = {
 	.driver_features = DRIVER_MODESET | DRIVER_GEM | DRIVER_PRIME |
 			   DRIVER_ATOMIC,
-	.preclose = arcpgu_preclose,
 	.lastclose = arcpgu_lastclose,
 	.name = "drm-arcpgu",
 	.desc = "ARC PGU Controller",

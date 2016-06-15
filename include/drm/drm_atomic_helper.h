@@ -38,6 +38,7 @@ int drm_atomic_helper_check_planes(struct drm_device *dev,
 			       struct drm_atomic_state *state);
 int drm_atomic_helper_check(struct drm_device *dev,
 			    struct drm_atomic_state *state);
+void drm_atomic_helper_commit_tail(struct drm_atomic_state *state);
 int drm_atomic_helper_commit(struct drm_device *dev,
 			     struct drm_atomic_state *state,
 			     bool nonblock);
@@ -71,8 +72,15 @@ void drm_atomic_helper_commit_planes_on_crtc(struct drm_crtc_state *old_crtc_sta
 void drm_atomic_helper_disable_planes_on_crtc(struct drm_crtc *crtc,
 					      bool atomic);
 
-void drm_atomic_helper_swap_state(struct drm_device *dev,
-				  struct drm_atomic_state *state);
+void drm_atomic_helper_swap_state(struct drm_atomic_state *state,
+				  bool stall);
+
+/* nonblocking commit helpers */
+int drm_atomic_helper_setup_commit(struct drm_atomic_state *state,
+				   bool nonblock);
+void drm_atomic_helper_wait_for_dependencies(struct drm_atomic_state *state);
+void drm_atomic_helper_commit_hw_done(struct drm_atomic_state *state);
+void drm_atomic_helper_commit_cleanup_done(struct drm_atomic_state *state);
 
 /* implementations for legacy interfaces */
 int drm_atomic_helper_update_plane(struct drm_plane *plane,
@@ -159,7 +167,7 @@ int drm_atomic_helper_legacy_gamma_set(struct drm_crtc *crtc,
  * This iterates over the current state, useful (for example) when applying
  * atomic state after it has been checked and swapped.  To iterate over the
  * planes which *will* be attached (for ->atomic_check()) see
- * drm_crtc_for_each_pending_plane().
+ * drm_atomic_crtc_state_for_each_plane().
  */
 #define drm_atomic_crtc_for_each_plane(plane, crtc) \
 	drm_for_each_plane_mask(plane, (crtc)->dev, (crtc)->state->plane_mask)

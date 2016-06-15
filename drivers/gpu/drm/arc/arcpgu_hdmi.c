@@ -46,23 +46,6 @@ static int arcpgu_drm_connector_get_modes(struct drm_connector *connector)
 	return sfuncs->get_modes(&slave->base, connector);
 }
 
-struct drm_encoder *
-arcpgu_drm_connector_best_encoder(struct drm_connector *connector)
-{
-	struct drm_encoder_slave *slave;
-	struct arcpgu_drm_connector *con =
-		container_of(connector, struct arcpgu_drm_connector, connector);
-
-	slave = con->encoder_slave;
-	if (slave == NULL) {
-		dev_err(connector->dev->dev,
-			"connector_best_encoder: cannot find slave encoder for connector\n");
-		return NULL;
-	}
-
-	return &slave->base;
-}
-
 static enum drm_connector_status
 arcpgu_drm_connector_detect(struct drm_connector *connector, bool force)
 {
@@ -97,7 +80,6 @@ static void arcpgu_drm_connector_destroy(struct drm_connector *connector)
 static const struct drm_connector_helper_funcs
 arcpgu_drm_connector_helper_funcs = {
 	.get_modes = arcpgu_drm_connector_get_modes,
-	.best_encoder = arcpgu_drm_connector_best_encoder,
 };
 
 static const struct drm_connector_funcs arcpgu_drm_connector_funcs = {

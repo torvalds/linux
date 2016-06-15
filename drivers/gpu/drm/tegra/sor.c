@@ -1087,7 +1087,6 @@ tegra_sor_connector_mode_valid(struct drm_connector *connector,
 static const struct drm_connector_helper_funcs tegra_sor_connector_helper_funcs = {
 	.get_modes = tegra_sor_connector_get_modes,
 	.mode_valid = tegra_sor_connector_mode_valid,
-	.best_encoder = tegra_output_connector_best_encoder,
 };
 
 static const struct drm_encoder_funcs tegra_sor_encoder_funcs = {

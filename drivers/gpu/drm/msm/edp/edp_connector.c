@@ -91,15 +91,6 @@ static int edp_connector_mode_valid(struct drm_connector *connector,
 	return MODE_OK;
 }
 
-static struct drm_encoder *
-edp_connector_best_encoder(struct drm_connector *connector)
-{
-	struct edp_connector *edp_connector = to_edp_connector(connector);
-
-	DBG("");
-	return edp_connector->edp->encoder;
-}
-
 static const struct drm_connector_funcs edp_connector_funcs = {
 	.dpms = drm_atomic_helper_connector_dpms,
 	.detect = edp_connector_detect,
@@ -113,7 +104,6 @@ static const struct drm_connector_funcs edp_connector_funcs = {
 static const struct drm_connector_helper_funcs edp_connector_helper_funcs = {
 	.get_modes = edp_connector_get_modes,
 	.mode_valid = edp_connector_mode_valid,
-	.best_encoder = edp_connector_best_encoder,
 };
 
 /* initialize connector */

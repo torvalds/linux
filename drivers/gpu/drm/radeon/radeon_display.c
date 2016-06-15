@@ -627,7 +627,7 @@ static int radeon_crtc_page_flip(struct drm_crtc *crtc,
 	return 0;
 
 vblank_cleanup:
-	drm_crtc_vblank_put(&radeon_crtc->base);
+	drm_crtc_vblank_put(crtc);
 
 pflip_cleanup:
 	if (unlikely(radeon_bo_reserve(new_rbo, false) != 0)) {

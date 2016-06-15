@@ -102,14 +102,6 @@ static const struct drm_connector_funcs fsl_dcu_drm_connector_funcs = {
 	.reset = drm_atomic_helper_connector_reset,
 };
 
-static struct drm_encoder *
-fsl_dcu_drm_connector_best_encoder(struct drm_connector *connector)
-{
-	struct fsl_dcu_drm_connector *fsl_con = to_fsl_dcu_connector(connector);
-
-	return fsl_con->encoder;
-}
-
 static int fsl_dcu_drm_connector_get_modes(struct drm_connector *connector)
 {
 	struct fsl_dcu_drm_connector *fsl_connector;
@@ -136,7 +128,6 @@ static int fsl_dcu_drm_connector_mode_valid(struct drm_connector *connector,
 }
 
 static const struct drm_connector_helper_funcs connector_helper_funcs = {
-	.best_encoder = fsl_dcu_drm_connector_best_encoder,
 	.get_modes = fsl_dcu_drm_connector_get_modes,
 	.mode_valid = fsl_dcu_drm_connector_mode_valid,
 };

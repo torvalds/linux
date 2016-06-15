@@ -346,6 +346,7 @@ static int drm_fbdev_cma_defio_init(struct fb_info *fbi,
 	fbops = kzalloc(sizeof(*fbops), GFP_KERNEL);
 	if (!fbdefio || !fbops) {
 		kfree(fbdefio);
+		kfree(fbops);
 		return -ENOMEM;
 	}
 

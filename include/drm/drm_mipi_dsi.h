@@ -180,6 +180,8 @@ struct mipi_dsi_device {
 	unsigned long mode_flags;
 };
 
+#define MIPI_DSI_MODULE_PREFIX "mipi-dsi:"
+
 static inline struct mipi_dsi_device *to_mipi_dsi_device(struct device *dev)
 {
 	return container_of(dev, struct mipi_dsi_device, dev);

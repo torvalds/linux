@@ -22,20 +22,21 @@
 #include "fsl_dcu_drm_drv.h"
 #include "fsl_dcu_drm_plane.h"
 
-static void fsl_dcu_drm_crtc_atomic_begin(struct drm_crtc *crtc,
-					  struct drm_crtc_state *old_crtc_state)
-{
-}
-
-static int fsl_dcu_drm_crtc_atomic_check(struct drm_crtc *crtc,
-					 struct drm_crtc_state *state)
-{
-	return 0;
-}
-
 static void fsl_dcu_drm_crtc_atomic_flush(struct drm_crtc *crtc,
 					  struct drm_crtc_state *old_crtc_state)
 {
+	struct drm_pending_vblank_event *event = crtc->state->event;
+
+	if (event) {
+		crtc->state->event = NULL;
+
+		spin_lock_irq(&crtc->dev->event_lock);
+		if (drm_crtc_vblank_get(crtc) == 0)
+			drm_crtc_arm_vblank_event(crtc, event);
+		else
+			drm_crtc_send_vblank_event(crtc, event);
+		spin_unlock_irq(&crtc->dev->event_lock);
+	}
 }
 
 static void fsl_dcu_drm_disable_crtc(struct drm_crtc *crtc)
@@ -117,8 +118,6 @@ static void fsl_dcu_drm_crtc_mode_set_nofb(struct drm_crtc *crtc)
 }
 
 static const struct drm_crtc_helper_funcs fsl_dcu_drm_crtc_helper_funcs = {
-	.atomic_begin = fsl_dcu_drm_crtc_atomic_begin,
-	.atomic_check = fsl_dcu_drm_crtc_atomic_check,
 	.atomic_flush = fsl_dcu_drm_crtc_atomic_flush,
 	.disable = fsl_dcu_drm_disable_crtc,
 	.enable = fsl_dcu_drm_crtc_enable,

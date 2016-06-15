@@ -30,6 +30,12 @@
 
 #include <drm/drm_crtc.h>
 
+void drm_crtc_commit_put(struct drm_crtc_commit *commit);
+static inline void drm_crtc_commit_get(struct drm_crtc_commit *commit)
+{
+	kref_get(&commit->ref);
+}
+
 struct drm_atomic_state * __must_check
 drm_atomic_state_alloc(struct drm_device *dev);
 void drm_atomic_state_clear(struct drm_atomic_state *state);
@@ -198,6 +204,16 @@ int __must_check drm_atomic_nonblocking_commit(struct drm_atomic_state *state);
 	     (plane_state) = (__state)->planes[__i].state, 1);		\
 	     (__i)++)							\
 		for_each_if (plane_state)
+
+/**
+ * drm_atomic_crtc_needs_modeset - compute combined modeset need
+ * @state: &drm_crtc_state for the CRTC
+ *
+ * To give drivers flexibility struct &drm_crtc_state has 3 booleans to track
+ * whether the state CRTC changed enough to need a full modeset cycle:
+ * connectors_changed, mode_changed and active_change. This helper simply
+ * combines these three to compute the overall need for a modeset for @state.
+ */
 static inline bool
 drm_atomic_crtc_needs_modeset(struct drm_crtc_state *state)
 {

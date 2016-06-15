@@ -669,20 +669,10 @@ static int sti_hda_connector_mode_valid(struct drm_connector *connector,
 	return MODE_OK;
 }
 
-struct drm_encoder *sti_hda_best_encoder(struct drm_connector *connector)
-{
-	struct sti_hda_connector *hda_connector
-		= to_sti_hda_connector(connector);
-
-	/* Best encoder is the one associated during connector creation */
-	return hda_connector->encoder;
-}
-
 static const
 struct drm_connector_helper_funcs sti_hda_connector_helper_funcs = {
 	.get_modes = sti_hda_connector_get_modes,
 	.mode_valid = sti_hda_connector_mode_valid,
-	.best_encoder = sti_hda_best_encoder,
 };
 
 static enum drm_connector_status
