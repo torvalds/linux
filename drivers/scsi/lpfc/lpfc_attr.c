@@ -1621,6 +1621,11 @@ lpfc_sriov_hw_max_virtfn_show(struct device *dev,
 	return snprintf(buf, PAGE_SIZE, "%d\n", max_nr_virtfn);
 }
 
+static inline bool lpfc_rangecheck(uint val, uint min, uint max)
+{
+	return val >= min && val <= max;
+}
+
 /**
  * lpfc_param_show - Return a cfg attribute value in decimal
  *
@@ -1698,7 +1703,7 @@ lpfc_##attr##_show(struct device *dev, struct device_attribute *attr, \
 static int \
 lpfc_##attr##_init(struct lpfc_hba *phba, uint val) \
 { \
-	if (val >= minval && val <= maxval) {\
+	if (lpfc_rangecheck(val, minval, maxval)) {\
 		phba->cfg_##attr = val;\
 		return 0;\
 	}\
@@ -1733,7 +1738,7 @@ lpfc_##attr##_init(struct lpfc_hba *phba, uint val) \
 static int \
 lpfc_##attr##_set(struct lpfc_hba *phba, uint val) \
 { \
-	if (val >= minval && val <= maxval) {\
+	if (lpfc_rangecheck(val, minval, maxval)) {\
 		lpfc_printf_log(phba, KERN_ERR, LOG_INIT, \
 			"3052 lpfc_" #attr " changed from %d to %d\n", \
 			phba->cfg_##attr, val); \
@@ -1857,7 +1862,7 @@ lpfc_##attr##_show(struct device *dev, struct device_attribute *attr, \
 static int \
 lpfc_##attr##_init(struct lpfc_vport *vport, uint val) \
 { \
-	if (val >= minval && val <= maxval) {\
+	if (lpfc_rangecheck(val, minval, maxval)) {\
 		vport->cfg_##attr = val;\
 		return 0;\
 	}\
@@ -1889,7 +1894,7 @@ lpfc_##attr##_init(struct lpfc_vport *vport, uint val) \
 static int \
 lpfc_##attr##_set(struct lpfc_vport *vport, uint val) \
 { \
-	if (val >= minval && val <= maxval) {\
+	if (lpfc_rangecheck(val, minval, maxval)) {\
 		lpfc_printf_vlog(vport, KERN_ERR, LOG_INIT, \
 			"3053 lpfc_" #attr \
 			" changed from %d (x%x) to %d (x%x)\n", \
