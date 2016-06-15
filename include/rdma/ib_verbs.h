@@ -1956,6 +1956,7 @@ struct ib_device {
 	 * in fast paths.
 	 */
 	int (*get_port_immutable)(struct ib_device *, u8, struct ib_port_immutable *);
+	void (*get_dev_fw_str)(struct ib_device *, char *str, size_t str_len);
 };
 
 struct ib_client {
@@ -1990,6 +1991,8 @@ struct ib_client {
 
 struct ib_device *ib_alloc_device(size_t size);
 void ib_dealloc_device(struct ib_device *device);
+
+void ib_get_device_fw_str(struct ib_device *device, char *str, size_t str_len);
 
 int ib_register_device(struct ib_device *device,
 		       int (*port_callback)(struct ib_device *,
