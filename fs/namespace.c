@@ -3232,12 +3232,8 @@ static bool mnt_already_visible(struct mnt_namespace *ns, struct vfsmount *new,
 		if (mnt->mnt.mnt_root != mnt->mnt.mnt_sb->s_root)
 			continue;
 
-		/* Read the mount flags and filter out flags that
-		 * may safely be ignored.
-		 */
+		/* A local view of the mount flags */
 		mnt_flags = mnt->mnt.mnt_flags;
-		if (mnt->mnt.mnt_sb->s_iflags & SB_I_NOEXEC)
-			mnt_flags &= ~(MNT_LOCK_NOSUID | MNT_LOCK_NOEXEC);
 
 		/* Don't miss readonly hidden in the superblock flags */
 		if (mnt->mnt.mnt_sb->s_flags & MS_RDONLY)
@@ -3248,15 +3244,6 @@ static bool mnt_already_visible(struct mnt_namespace *ns, struct vfsmount *new,
 		 */
 		if ((mnt_flags & MNT_LOCK_READONLY) &&
 		    !(new_flags & MNT_READONLY))
-			continue;
-		if ((mnt_flags & MNT_LOCK_NODEV) &&
-		    !(new_flags & MNT_NODEV))
-			continue;
-		if ((mnt_flags & MNT_LOCK_NOSUID) &&
-		    !(new_flags & MNT_NOSUID))
-			continue;
-		if ((mnt_flags & MNT_LOCK_NOEXEC) &&
-		    !(new_flags & MNT_NOEXEC))
 			continue;
 		if ((mnt_flags & MNT_LOCK_ATIME) &&
 		    ((mnt_flags & MNT_ATIME_MASK) != (new_flags & MNT_ATIME_MASK)))
@@ -3277,9 +3264,6 @@ static bool mnt_already_visible(struct mnt_namespace *ns, struct vfsmount *new,
 		}
 		/* Preserve the locked attributes */
 		*new_mnt_flags |= mnt_flags & (MNT_LOCK_READONLY | \
-					       MNT_LOCK_NODEV    | \
-					       MNT_LOCK_NOSUID   | \
-					       MNT_LOCK_NOEXEC   | \
 					       MNT_LOCK_ATIME);
 		visible = true;
 		goto found;
@@ -3292,6 +3276,7 @@ found:
 
 static bool mount_too_revealing(struct vfsmount *mnt, int *new_mnt_flags)
 {
+	const unsigned long required_iflags = SB_I_NOEXEC | SB_I_NODEV;
 	struct mnt_namespace *ns = current->nsproxy->mnt_ns;
 	unsigned long s_iflags;
 
@@ -3302,6 +3287,12 @@ static bool mount_too_revealing(struct vfsmount *mnt, int *new_mnt_flags)
 	s_iflags = mnt->mnt_sb->s_iflags;
 	if (!(s_iflags & SB_I_USERNS_VISIBLE))
 		return false;
+
+	if ((s_iflags & required_iflags) != required_iflags) {
+		WARN_ONCE(1, "Expected s_iflags to contain 0x%lx\n",
+			  required_iflags);
+		return true;
+	}
 
 	return !mnt_already_visible(ns, mnt, new_mnt_flags);
 }
