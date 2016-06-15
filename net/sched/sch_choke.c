@@ -375,11 +375,11 @@ static void choke_reset(struct Qdisc *sch)
 		q->head = (q->head + 1) & q->tab_mask;
 		if (!skb)
 			continue;
-		qdisc_qstats_backlog_dec(sch, skb);
-		--sch->q.qlen;
-		qdisc_drop(skb, sch);
+		rtnl_qdisc_drop(skb, sch);
 	}
 
+	sch->q.qlen = 0;
+	sch->qstats.backlog = 0;
 	memset(q->tab, 0, (q->tab_mask + 1) * sizeof(struct sk_buff *));
 	q->head = q->tail = 0;
 	red_restart(&q->vars);
@@ -455,7 +455,7 @@ static int choke_change(struct Qdisc *sch, struct nlattr *opt)
 				dropped += qdisc_pkt_len(skb);
 				qdisc_qstats_backlog_dec(sch, skb);
 				--sch->q.qlen;
-				qdisc_drop(skb, sch);
+				rtnl_qdisc_drop(skb, sch);
 			}
 			qdisc_tree_reduce_backlog(sch, oqlen - sch->q.qlen, dropped);
 			q->head = 0;

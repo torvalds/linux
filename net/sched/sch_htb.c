@@ -957,7 +957,7 @@ static void htb_reset(struct Qdisc *sch)
 		}
 	}
 	qdisc_watchdog_cancel(&q->watchdog);
-	__skb_queue_purge(&q->direct_queue);
+	__qdisc_reset_queue(&q->direct_queue);
 	sch->q.qlen = 0;
 	sch->qstats.backlog = 0;
 	memset(q->hlevel, 0, sizeof(q->hlevel));
@@ -1231,7 +1231,7 @@ static void htb_destroy(struct Qdisc *sch)
 			htb_destroy_class(sch, cl);
 	}
 	qdisc_class_hash_destroy(&q->clhash);
-	__skb_queue_purge(&q->direct_queue);
+	__qdisc_reset_queue(&q->direct_queue);
 }
 
 static int htb_delete(struct Qdisc *sch, unsigned long arg)
