@@ -306,6 +306,8 @@ struct adv7511 {
 	enum drm_connector_status status;
 	bool powered;
 
+	struct drm_display_mode curr_mode;
+
 	unsigned int f_tmds;
 
 	unsigned int current_edid_segment;
@@ -329,6 +331,7 @@ struct adv7511 {
 	struct device_node *host_node;
 	struct mipi_dsi_device *dsi;
 	u8 num_dsi_lanes;
+	bool use_timing_gen;
 
 	enum adv7511_type type;
 };
