@@ -96,6 +96,7 @@ static int tng_setup(struct mid8250 *mid, struct uart_port *p)
 static int dnv_handle_irq(struct uart_port *p)
 {
 	struct mid8250 *mid = p->private_data;
+	struct uart_8250_port *up = up_to_u8250p(p);
 	unsigned int fisr = serial_port_in(p, INTEL_MID_UART_DNV_FISR);
 	u32 status;
 	int ret = IRQ_NONE;
@@ -103,9 +104,10 @@ static int dnv_handle_irq(struct uart_port *p)
 
 	if (fisr & BIT(2)) {
 		err = hsu_dma_get_status(&mid->dma_chip, 1, &status);
-		if (err > 0)
+		if (err > 0) {
+			serial8250_rx_dma_flush(up);
 			ret |= IRQ_HANDLED;
-		else if (err == 0)
+		} else if (err == 0)
 			ret |= hsu_dma_do_irq(&mid->dma_chip, 1, status);
 	}
 	if (fisr & BIT(1)) {
