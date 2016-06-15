@@ -49,12 +49,6 @@
 #include <net/gre.h>
 #include <net/dst_metadata.h>
 
-#if IS_ENABLED(CONFIG_IPV6)
-#include <net/ipv6.h>
-#include <net/ip6_fib.h>
-#include <net/ip6_route.h>
-#endif
-
 /*
    Problems & solutions
    --------------------
@@ -217,12 +211,14 @@ static void gre_err(struct sk_buff *skb, u32 info)
 	 * by themselves???
 	 */
 
+	const struct iphdr *iph = (struct iphdr *)skb->data;
 	const int type = icmp_hdr(skb)->type;
 	const int code = icmp_hdr(skb)->code;
 	struct tnl_ptk_info tpi;
 	bool csum_err = false;
 
-	if (gre_parse_header(skb, &tpi, &csum_err, htons(ETH_P_IP)) < 0) {
+	if (gre_parse_header(skb, &tpi, &csum_err, htons(ETH_P_IP),
+			     iph->ihl * 4) < 0) {
 		if (!csum_err)		/* ignore csum errors. */
 			return;
 	}
@@ -338,7 +334,7 @@ static int gre_rcv(struct sk_buff *skb)
 	}
 #endif
 
-	hdr_len = gre_parse_header(skb, &tpi, &csum_err, htons(ETH_P_IP));
+	hdr_len = gre_parse_header(skb, &tpi, &csum_err, htons(ETH_P_IP), 0);
 	if (hdr_len < 0)
 		goto drop;
 
