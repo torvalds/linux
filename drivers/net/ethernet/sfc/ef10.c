@@ -3735,6 +3735,12 @@ static int efx_ef10_filter_table_probe(struct efx_nic *efx)
 	size_t outlen;
 	int rc;
 
+	if (!efx_rwsem_assert_write_locked(&efx->filter_sem))
+		return -EINVAL;
+
+	if (efx->filter_state) /* already probed */
+		return 0;
+
 	table = kzalloc(sizeof(*table), GFP_KERNEL);
 	if (!table)
 		return -ENOMEM;
@@ -3846,7 +3852,6 @@ static void efx_ef10_filter_table_restore(struct efx_nic *efx)
 		nic_data->must_restore_filters = false;
 }
 
-/* Caller must hold efx->filter_sem for write */
 static void efx_ef10_filter_table_remove(struct efx_nic *efx)
 {
 	struct efx_ef10_filter_table *table = efx->filter_state;
@@ -3856,6 +3861,15 @@ static void efx_ef10_filter_table_remove(struct efx_nic *efx)
 	int rc;
 
 	efx->filter_state = NULL;
+	/* If we were called without locking, then it's not safe to free
+	 * the table as others might be using it.  So we just WARN, leak
+	 * the memory, and potentially get an inconsistent filter table
+	 * state.
+	 * This should never actually happen.
+	 */
+	if (!efx_rwsem_assert_write_locked(&efx->filter_sem))
+		return;
+
 	if (!table)
 		return;
 
