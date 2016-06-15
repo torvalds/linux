@@ -335,6 +335,9 @@
 		rockchip,grf = <&grf>;
 		pinctrl-names = "default";
 		pinctrl-0 = <&hdmi_ctl>;
+		#address-cells = <1>;
+		#size-cells = <0>;
+		#sound-dai-cells = <0>;
 		status = "disabled";
 
 		hdmi_in: port {
@@ -343,6 +346,25 @@
 			hdmi_in_vop: endpoint@0 {
 				reg = <0>;
 				remote-endpoint = <&vop_out_hdmi>;
+			};
+		};
+	};
+
+	hdmi_sound: hdmi-sound {
+		compatible = "simple-audio-card";
+		simple-audio-card,name = "rockchip,hdmi";
+		simple-audio-card,widgets = "Headphone", "Out Jack",
+					    "Line", "In Jack";
+		status = "disabled";
+
+		simple-audio-card,dai-link {
+			format = "i2s";
+			mclk-fs = <256>;
+			cpu {
+				sound-dai = <&i2s>;
+			};
+			codec {
+				sound-dai = <&hdmi>;
 			};
 		};
 	};
