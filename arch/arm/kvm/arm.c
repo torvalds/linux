@@ -615,7 +615,7 @@ int kvm_arch_vcpu_ioctl_run(struct kvm_vcpu *vcpu, struct kvm_run *run)
 		 * Enter the guest
 		 */
 		trace_kvm_entry(*vcpu_pc(vcpu));
-		__kvm_guest_enter();
+		guest_enter_irqoff();
 		vcpu->mode = IN_GUEST_MODE;
 
 		ret = kvm_call_hyp(__kvm_vcpu_run, vcpu);
@@ -641,14 +641,14 @@ int kvm_arch_vcpu_ioctl_run(struct kvm_vcpu *vcpu, struct kvm_run *run)
 		local_irq_enable();
 
 		/*
-		 * We do local_irq_enable() before calling kvm_guest_exit() so
+		 * We do local_irq_enable() before calling guest_exit() so
 		 * that if a timer interrupt hits while running the guest we
 		 * account that tick as being spent in the guest.  We enable
-		 * preemption after calling kvm_guest_exit() so that if we get
+		 * preemption after calling guest_exit() so that if we get
 		 * preempted we make sure ticks after that is not counted as
 		 * guest time.
 		 */
-		kvm_guest_exit();
+		guest_exit();
 		trace_kvm_exit(ret, kvm_vcpu_trap_get_class(vcpu), *vcpu_pc(vcpu));
 
 		/*

@@ -765,13 +765,13 @@ static int do_vsie_run(struct kvm_vcpu *vcpu, struct vsie_page *vsie_page)
 
 	srcu_read_unlock(&vcpu->kvm->srcu, vcpu->srcu_idx);
 	local_irq_disable();
-	kvm_guest_enter();
+	guest_enter_irqoff();
 	local_irq_enable();
 
 	rc = sie64a(scb_s, vcpu->run->s.regs.gprs);
 
 	local_irq_disable();
-	kvm_guest_exit();
+	guest_exit_irqoff();
 	local_irq_enable();
 	vcpu->srcu_idx = srcu_read_lock(&vcpu->kvm->srcu);
 

@@ -119,7 +119,7 @@ int kvmppc_prepare_to_enter(struct kvm_vcpu *vcpu)
 			continue;
 		}
 
-		__kvm_guest_enter();
+		guest_enter_irqoff();
 		return 1;
 	}
 

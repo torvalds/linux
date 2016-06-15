@@ -2623,14 +2623,14 @@ static int __vcpu_run(struct kvm_vcpu *vcpu)
 		 * guest_enter and guest_exit should be no uaccess.
 		 */
 		local_irq_disable();
-		__kvm_guest_enter();
+		guest_enter_irqoff();
 		__disable_cpu_timer_accounting(vcpu);
 		local_irq_enable();
 		exit_reason = sie64a(vcpu->arch.sie_block,
 				     vcpu->run->s.regs.gprs);
 		local_irq_disable();
 		__enable_cpu_timer_accounting(vcpu);
-		__kvm_guest_exit();
+		guest_exit_irqoff();
 		local_irq_enable();
 		vcpu->srcu_idx = srcu_read_lock(&vcpu->kvm->srcu);
 

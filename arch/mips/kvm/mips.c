@@ -406,7 +406,7 @@ int kvm_arch_vcpu_ioctl_run(struct kvm_vcpu *vcpu, struct kvm_run *run)
 	kvm_mips_deliver_interrupts(vcpu,
 				    kvm_read_c0_guest_cause(vcpu->arch.cop0));
 
-	__kvm_guest_enter();
+	guest_enter_irqoff();
 
 	/* Disable hardware page table walking while in guest */
 	htw_stop();
@@ -418,7 +418,7 @@ int kvm_arch_vcpu_ioctl_run(struct kvm_vcpu *vcpu, struct kvm_run *run)
 	/* Re-enable HTW before enabling interrupts */
 	htw_start();
 
-	__kvm_guest_exit();
+	guest_exit_irqoff();
 	local_irq_enable();
 
 	if (vcpu->sigset_active)

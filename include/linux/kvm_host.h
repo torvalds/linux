@@ -875,28 +875,6 @@ static inline void kvm_iommu_unmap_pages(struct kvm *kvm,
 }
 #endif
 
-/* must be called with irqs disabled */
-static inline void __kvm_guest_enter(void)
-{
-	guest_enter_irqoff();
-}
-
-/* must be called with irqs disabled */
-static inline void __kvm_guest_exit(void)
-{
-	guest_exit_irqoff();
-}
-
-static inline void kvm_guest_enter(void)
-{
-	guest_enter();
-}
-
-static inline void kvm_guest_exit(void)
-{
-	guest_exit();
-}
-
 /*
  * search_memslots() and __gfn_to_memslot() are here because they are
  * used in non-modular code in arch/powerpc/kvm/book3s_hv_rm_mmu.c.

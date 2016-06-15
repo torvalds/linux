@@ -6658,7 +6658,7 @@ static int vcpu_enter_guest(struct kvm_vcpu *vcpu)
 
 	trace_kvm_entry(vcpu->vcpu_id);
 	wait_lapic_expire(vcpu);
-	__kvm_guest_enter();
+	guest_enter_irqoff();
 
 	if (unlikely(vcpu->arch.switch_db_regs)) {
 		set_debugreg(0, 7);
@@ -6717,7 +6717,7 @@ static int vcpu_enter_guest(struct kvm_vcpu *vcpu)
 	 */
 	barrier();
 
-	kvm_guest_exit();
+	guest_exit();
 
 	preempt_enable();
 
