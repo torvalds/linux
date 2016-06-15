@@ -122,6 +122,8 @@ struct plat_stmmacenet_data {
 	int (*init)(struct platform_device *pdev, void *priv);
 	void (*exit)(struct platform_device *pdev, void *priv);
 	void (*get_eth_addr)(void *priv, unsigned char *addr);
+	void (*suspend)(struct platform_device *pdev, void *priv);
+	void (*resume)(struct platform_device *pdev, void *priv);
 	void *bsp_priv;
 };
 #endif
