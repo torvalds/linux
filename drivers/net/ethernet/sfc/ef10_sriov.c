@@ -554,6 +554,7 @@ int efx_ef10_sriov_set_vf_vlan(struct efx_nic *efx, int vf_i, u16 vlan,
 		efx_device_detach_sync(vf->efx);
 		efx_net_stop(vf->efx->net_dev);
 
+		mutex_lock(&vf->efx->mac_lock);
 		down_write(&vf->efx->filter_sem);
 		vf->efx->type->filter_table_remove(vf->efx);
 
@@ -630,6 +631,7 @@ restore_filters:
 			goto reset_nic_up_write;
 
 		up_write(&vf->efx->filter_sem);
+		mutex_unlock(&vf->efx->mac_lock);
 
 		up_write(&vf->efx->filter_sem);
 
@@ -642,9 +644,10 @@ restore_filters:
 	return rc;
 
 reset_nic_up_write:
-	if (vf->efx)
+	if (vf->efx) {
 		up_write(&vf->efx->filter_sem);
-
+		mutex_unlock(&vf->efx->mac_lock);
+	}
 reset_nic:
 	if (vf->efx) {
 		netif_err(efx, drv, efx->net_dev,
