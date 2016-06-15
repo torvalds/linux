@@ -154,6 +154,7 @@ struct kvm_s390_sie_block {
 #define LCTL_CR14	0x0002
 	__u16   lctl;			/* 0x0044 */
 	__s16	icpua;			/* 0x0046 */
+#define ICTL_OPEREXC	0x80000000
 #define ICTL_PINT	0x20000000
 #define ICTL_LPSW	0x00400000
 #define ICTL_STCTL	0x00040000
@@ -185,7 +186,9 @@ struct kvm_s390_sie_block {
 	__u32	scaol;			/* 0x0064 */
 	__u8	reserved68[4];		/* 0x0068 */
 	__u32	todpr;			/* 0x006c */
-	__u8	reserved70[32];		/* 0x0070 */
+	__u8	reserved70[16];		/* 0x0070 */
+	__u64	mso;			/* 0x0080 */
+	__u64	msl;			/* 0x0088 */
 	psw_t	gpsw;			/* 0x0090 */
 	__u64	gg14;			/* 0x00a0 */
 	__u64	gg15;			/* 0x00a8 */
@@ -255,6 +258,7 @@ struct kvm_vcpu_stat {
 	u32 instruction_stctg;
 	u32 exit_program_interruption;
 	u32 exit_instr_and_program;
+	u32 exit_operation_exception;
 	u32 deliver_external_call;
 	u32 deliver_emergency_signal;
 	u32 deliver_service_signal;
@@ -278,6 +282,7 @@ struct kvm_vcpu_stat {
 	u32 instruction_stfl;
 	u32 instruction_tprot;
 	u32 instruction_essa;
+	u32 instruction_sthyi;
 	u32 instruction_sigp_sense;
 	u32 instruction_sigp_sense_running;
 	u32 instruction_sigp_external_call;
@@ -649,11 +654,14 @@ struct kvm_arch{
 	wait_queue_head_t ipte_wq;
 	int ipte_lock_count;
 	struct mutex ipte_mutex;
+	struct ratelimit_state sthyi_limit;
 	spinlock_t start_stop_lock;
 	struct sie_page2 *sie_page2;
 	struct kvm_s390_cpu_model model;
 	struct kvm_s390_crypto crypto;
 	u64 epoch;
+	/* subset of available cpu features enabled by user space */
+	DECLARE_BITMAP(cpu_feat, KVM_S390_VM_CPU_FEAT_NR_BITS);
 };
 
 #define KVM_HVA_ERR_BAD		(-1UL)

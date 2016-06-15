@@ -140,6 +140,7 @@
 	exit_code_ipa0(0xB2, 0x4c, "TAR"),	\
 	exit_code_ipa0(0xB2, 0x50, "CSP"),	\
 	exit_code_ipa0(0xB2, 0x54, "MVPG"),	\
+	exit_code_ipa0(0xB2, 0x56, "STHYI"),	\
 	exit_code_ipa0(0xB2, 0x58, "BSG"),	\
 	exit_code_ipa0(0xB2, 0x5a, "BSA"),	\
 	exit_code_ipa0(0xB2, 0x5f, "CHSC"),	\

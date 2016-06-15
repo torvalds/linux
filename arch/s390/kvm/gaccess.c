@@ -476,18 +476,73 @@ enum {
 	FSI_FETCH   = 2  /* Exception was due to fetch operation */
 };
 
+enum prot_type {
+	PROT_TYPE_LA   = 0,
+	PROT_TYPE_KEYC = 1,
+	PROT_TYPE_ALC  = 2,
+	PROT_TYPE_DAT  = 3,
+};
+
+static int trans_exc(struct kvm_vcpu *vcpu, int code, unsigned long gva,
+		     ar_t ar, enum gacc_mode mode, enum prot_type prot)
+{
+	struct kvm_s390_pgm_info *pgm = &vcpu->arch.pgm;
+	struct trans_exc_code_bits *tec;
+
+	memset(pgm, 0, sizeof(*pgm));
+	pgm->code = code;
+	tec = (struct trans_exc_code_bits *)&pgm->trans_exc_code;
+
+	switch (code) {
+	case PGM_ASCE_TYPE:
+	case PGM_PAGE_TRANSLATION:
+	case PGM_REGION_FIRST_TRANS:
+	case PGM_REGION_SECOND_TRANS:
+	case PGM_REGION_THIRD_TRANS:
+	case PGM_SEGMENT_TRANSLATION:
+		/*
+		 * op_access_id only applies to MOVE_PAGE -> set bit 61
+		 * exc_access_id has to be set to 0 for some instructions. Both
+		 * cases have to be handled by the caller. We can always store
+		 * exc_access_id, as it is undefined for non-ar cases.
+		 */
+		tec->addr = gva >> PAGE_SHIFT;
+		tec->fsi = mode == GACC_STORE ? FSI_STORE : FSI_FETCH;
+		tec->as = psw_bits(vcpu->arch.sie_block->gpsw).as;
+		/* FALL THROUGH */
+	case PGM_ALEN_TRANSLATION:
+	case PGM_ALE_SEQUENCE:
+	case PGM_ASTE_VALIDITY:
+	case PGM_ASTE_SEQUENCE:
+	case PGM_EXTENDED_AUTHORITY:
+		pgm->exc_access_id = ar;
+		break;
+	case PGM_PROTECTION:
+		switch (prot) {
+		case PROT_TYPE_ALC:
+			tec->b60 = 1;
+			/* FALL THROUGH */
+		case PROT_TYPE_DAT:
+			tec->b61 = 1;
+			tec->addr = gva >> PAGE_SHIFT;
+			tec->fsi = mode == GACC_STORE ? FSI_STORE : FSI_FETCH;
+			tec->as = psw_bits(vcpu->arch.sie_block->gpsw).as;
+			/* exc_access_id is undefined for most cases */
+			pgm->exc_access_id = ar;
+			break;
+		default: /* LA and KEYC set b61 to 0, other params undefined */
+			break;
+		}
+		break;
+	}
+	return code;
+}
+
 static int get_vcpu_asce(struct kvm_vcpu *vcpu, union asce *asce,
-			 ar_t ar, enum gacc_mode mode)
+			 unsigned long ga, ar_t ar, enum gacc_mode mode)
 {
 	int rc;
 	struct psw_bits psw = psw_bits(vcpu->arch.sie_block->gpsw);
-	struct kvm_s390_pgm_info *pgm = &vcpu->arch.pgm;
-	struct trans_exc_code_bits *tec_bits;
-
-	memset(pgm, 0, sizeof(*pgm));
-	tec_bits = (struct trans_exc_code_bits *)&pgm->trans_exc_code;
-	tec_bits->fsi = mode == GACC_STORE ? FSI_STORE : FSI_FETCH;
-	tec_bits->as = psw.as;
 
 	if (!psw.t) {
 		asce->val = 0;
@@ -510,21 +565,8 @@ static int get_vcpu_asce(struct kvm_vcpu *vcpu, union asce *asce,
 		return 0;
 	case PSW_AS_ACCREG:
 		rc = ar_translation(vcpu, asce, ar, mode);
-		switch (rc) {
-		case PGM_ALEN_TRANSLATION:
-		case PGM_ALE_SEQUENCE:
-		case PGM_ASTE_VALIDITY:
-		case PGM_ASTE_SEQUENCE:
-		case PGM_EXTENDED_AUTHORITY:
-			vcpu->arch.pgm.exc_access_id = ar;
-			break;
-		case PGM_PROTECTION:
-			tec_bits->b60 = 1;
-			tec_bits->b61 = 1;
-			break;
-		}
 		if (rc > 0)
-			pgm->code = rc;
+			return trans_exc(vcpu, rc, ga, ar, mode, PROT_TYPE_ALC);
 		return rc;
 	}
 	return 0;
@@ -729,40 +771,31 @@ static int low_address_protection_enabled(struct kvm_vcpu *vcpu,
 	return 1;
 }
 
-static int guest_page_range(struct kvm_vcpu *vcpu, unsigned long ga,
+static int guest_page_range(struct kvm_vcpu *vcpu, unsigned long ga, ar_t ar,
 			    unsigned long *pages, unsigned long nr_pages,
 			    const union asce asce, enum gacc_mode mode)
 {
-	struct kvm_s390_pgm_info *pgm = &vcpu->arch.pgm;
 	psw_t *psw = &vcpu->arch.sie_block->gpsw;
-	struct trans_exc_code_bits *tec_bits;
-	int lap_enabled, rc;
+	int lap_enabled, rc = 0;
 
-	tec_bits = (struct trans_exc_code_bits *)&pgm->trans_exc_code;
 	lap_enabled = low_address_protection_enabled(vcpu, asce);
 	while (nr_pages) {
 		ga = kvm_s390_logical_to_effective(vcpu, ga);
-		tec_bits->addr = ga >> PAGE_SHIFT;
-		if (mode == GACC_STORE && lap_enabled && is_low_address(ga)) {
-			pgm->code = PGM_PROTECTION;
-			return pgm->code;
-		}
+		if (mode == GACC_STORE && lap_enabled && is_low_address(ga))
+			return trans_exc(vcpu, PGM_PROTECTION, ga, ar, mode,
+					 PROT_TYPE_LA);
 		ga &= PAGE_MASK;
 		if (psw_bits(*psw).t) {
 			rc = guest_translate(vcpu, ga, pages, asce, mode);
 			if (rc < 0)
 				return rc;
-			if (rc == PGM_PROTECTION)
-				tec_bits->b61 = 1;
-			if (rc)
-				pgm->code = rc;
 		} else {
 			*pages = kvm_s390_real_to_abs(vcpu, ga);
 			if (kvm_is_error_gpa(vcpu->kvm, *pages))
-				pgm->code = PGM_ADDRESSING;
+				rc = PGM_ADDRESSING;
 		}
-		if (pgm->code)
-			return pgm->code;
+		if (rc)
+			return trans_exc(vcpu, rc, ga, ar, mode, PROT_TYPE_DAT);
 		ga += PAGE_SIZE;
 		pages++;
 		nr_pages--;
@@ -783,7 +816,8 @@ int access_guest(struct kvm_vcpu *vcpu, unsigned long ga, ar_t ar, void *data,
 
 	if (!len)
 		return 0;
-	rc = get_vcpu_asce(vcpu, &asce, ar, mode);
+	ga = kvm_s390_logical_to_effective(vcpu, ga);
+	rc = get_vcpu_asce(vcpu, &asce, ga, ar, mode);
 	if (rc)
 		return rc;
 	nr_pages = (((ga & ~PAGE_MASK) + len - 1) >> PAGE_SHIFT) + 1;
@@ -795,7 +829,7 @@ int access_guest(struct kvm_vcpu *vcpu, unsigned long ga, ar_t ar, void *data,
 	need_ipte_lock = psw_bits(*psw).t && !asce.r;
 	if (need_ipte_lock)
 		ipte_lock(vcpu);
-	rc = guest_page_range(vcpu, ga, pages, nr_pages, asce, mode);
+	rc = guest_page_range(vcpu, ga, ar, pages, nr_pages, asce, mode);
 	for (idx = 0; idx < nr_pages && !rc; idx++) {
 		gpa = *(pages + idx) + (ga & ~PAGE_MASK);
 		_len = min(PAGE_SIZE - (gpa & ~PAGE_MASK), len);
@@ -846,37 +880,28 @@ int access_guest_real(struct kvm_vcpu *vcpu, unsigned long gra,
 int guest_translate_address(struct kvm_vcpu *vcpu, unsigned long gva, ar_t ar,
 			    unsigned long *gpa, enum gacc_mode mode)
 {
-	struct kvm_s390_pgm_info *pgm = &vcpu->arch.pgm;
 	psw_t *psw = &vcpu->arch.sie_block->gpsw;
-	struct trans_exc_code_bits *tec;
 	union asce asce;
 	int rc;
 
 	gva = kvm_s390_logical_to_effective(vcpu, gva);
-	tec = (struct trans_exc_code_bits *)&pgm->trans_exc_code;
-	rc = get_vcpu_asce(vcpu, &asce, ar, mode);
-	tec->addr = gva >> PAGE_SHIFT;
+	rc = get_vcpu_asce(vcpu, &asce, gva, ar, mode);
 	if (rc)
 		return rc;
 	if (is_low_address(gva) && low_address_protection_enabled(vcpu, asce)) {
-		if (mode == GACC_STORE) {
-			rc = pgm->code = PGM_PROTECTION;
-			return rc;
-		}
+		if (mode == GACC_STORE)
+			return trans_exc(vcpu, PGM_PROTECTION, gva, 0,
+					 mode, PROT_TYPE_LA);
 	}
 
 	if (psw_bits(*psw).t && !asce.r) {	/* Use DAT? */
 		rc = guest_translate(vcpu, gva, gpa, asce, mode);
-		if (rc > 0) {
-			if (rc == PGM_PROTECTION)
-				tec->b61 = 1;
-			pgm->code = rc;
-		}
+		if (rc > 0)
+			return trans_exc(vcpu, rc, gva, 0, mode, PROT_TYPE_DAT);
 	} else {
-		rc = 0;
 		*gpa = kvm_s390_real_to_abs(vcpu, gva);
 		if (kvm_is_error_gpa(vcpu->kvm, *gpa))
-			rc = pgm->code = PGM_ADDRESSING;
+			return trans_exc(vcpu, rc, gva, PGM_ADDRESSING, mode, 0);
 	}
 
 	return rc;
@@ -915,20 +940,9 @@ int check_gva_range(struct kvm_vcpu *vcpu, unsigned long gva, ar_t ar,
  */
 int kvm_s390_check_low_addr_prot_real(struct kvm_vcpu *vcpu, unsigned long gra)
 {
-	struct kvm_s390_pgm_info *pgm = &vcpu->arch.pgm;
-	psw_t *psw = &vcpu->arch.sie_block->gpsw;
-	struct trans_exc_code_bits *tec_bits;
 	union ctlreg0 ctlreg0 = {.val = vcpu->arch.sie_block->gcr[0]};
 
 	if (!ctlreg0.lap || !is_low_address(gra))
 		return 0;
-
-	memset(pgm, 0, sizeof(*pgm));
-	tec_bits = (struct trans_exc_code_bits *)&pgm->trans_exc_code;
-	tec_bits->fsi = FSI_STORE;
-	tec_bits->as = psw_bits(*psw).as;
-	tec_bits->addr = gra >> PAGE_SHIFT;
-	pgm->code = PGM_PROTECTION;
-
-	return pgm->code;
+	return trans_exc(vcpu, PGM_PROTECTION, gra, 0, GACC_STORE, PROT_TYPE_LA);
 }

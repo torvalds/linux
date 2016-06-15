@@ -2520,6 +2520,7 @@ Parameters: struct kvm_device_attr
 Returns: 0 on success, -1 on error
 Errors:
   ENXIO:  The group or attribute is unknown/unsupported for this device
+          or hardware support is missing.
   EPERM:  The attribute cannot (currently) be accessed this way
           (e.g. read-only attribute, or attribute that only makes
           sense when the device is in a different state)
@@ -2547,6 +2548,7 @@ Parameters: struct kvm_device_attr
 Returns: 0 on success, -1 on error
 Errors:
   ENXIO:  The group or attribute is unknown/unsupported for this device
+          or hardware support is missing.
 
 Tests whether a device supports a particular attribute.  A successful
 return indicates the attribute is implemented.  It does not necessarily

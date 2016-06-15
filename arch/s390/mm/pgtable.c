@@ -506,12 +506,9 @@ int set_guest_storage_key(struct mm_struct *mm, unsigned long addr,
 	pgste_t old, new;
 	pte_t *ptep;
 
-	down_read(&mm->mmap_sem);
 	ptep = get_locked_pte(mm, addr, &ptl);
-	if (unlikely(!ptep)) {
-		up_read(&mm->mmap_sem);
+	if (unlikely(!ptep))
 		return -EFAULT;
-	}
 
 	new = old = pgste_get_lock(ptep);
 	pgste_val(new) &= ~(PGSTE_GR_BIT | PGSTE_GC_BIT |
@@ -538,45 +535,100 @@ int set_guest_storage_key(struct mm_struct *mm, unsigned long addr,
 
 	pgste_set_unlock(ptep, new);
 	pte_unmap_unlock(ptep, ptl);
-	up_read(&mm->mmap_sem);
 	return 0;
 }
 EXPORT_SYMBOL(set_guest_storage_key);
 
-unsigned char get_guest_storage_key(struct mm_struct *mm, unsigned long addr)
+/**
+ * Conditionally set a guest storage key (handling csske).
+ * oldkey will be updated when either mr or mc is set and a pointer is given.
+ *
+ * Returns 0 if a guests storage key update wasn't necessary, 1 if the guest
+ * storage key was updated and -EFAULT on access errors.
+ */
+int cond_set_guest_storage_key(struct mm_struct *mm, unsigned long addr,
+			       unsigned char key, unsigned char *oldkey,
+			       bool nq, bool mr, bool mc)
 {
-	unsigned char key;
+	unsigned char tmp, mask = _PAGE_ACC_BITS | _PAGE_FP_BIT;
+	int rc;
+
+	/* we can drop the pgste lock between getting and setting the key */
+	if (mr | mc) {
+		rc = get_guest_storage_key(current->mm, addr, &tmp);
+		if (rc)
+			return rc;
+		if (oldkey)
+			*oldkey = tmp;
+		if (!mr)
+			mask |= _PAGE_REFERENCED;
+		if (!mc)
+			mask |= _PAGE_CHANGED;
+		if (!((tmp ^ key) & mask))
+			return 0;
+	}
+	rc = set_guest_storage_key(current->mm, addr, key, nq);
+	return rc < 0 ? rc : 1;
+}
+EXPORT_SYMBOL(cond_set_guest_storage_key);
+
+/**
+ * Reset a guest reference bit (rrbe), returning the reference and changed bit.
+ *
+ * Returns < 0 in case of error, otherwise the cc to be reported to the guest.
+ */
+int reset_guest_reference_bit(struct mm_struct *mm, unsigned long addr)
+{
+	spinlock_t *ptl;
+	pgste_t old, new;
+	pte_t *ptep;
+	int cc = 0;
+
+	ptep = get_locked_pte(mm, addr, &ptl);
+	if (unlikely(!ptep))
+		return -EFAULT;
+
+	new = old = pgste_get_lock(ptep);
+	/* Reset guest reference bit only */
+	pgste_val(new) &= ~PGSTE_GR_BIT;
+
+	if (!(pte_val(*ptep) & _PAGE_INVALID)) {
+		cc = page_reset_referenced(pte_val(*ptep) & PAGE_MASK);
+		/* Merge real referenced bit into host-set */
+		pgste_val(new) |= ((unsigned long) cc << 53) & PGSTE_HR_BIT;
+	}
+	/* Reflect guest's logical view, not physical */
+	cc |= (pgste_val(old) & (PGSTE_GR_BIT | PGSTE_GC_BIT)) >> 49;
+	/* Changing the guest storage key is considered a change of the page */
+	if ((pgste_val(new) ^ pgste_val(old)) & PGSTE_GR_BIT)
+		pgste_val(new) |= PGSTE_UC_BIT;
+
+	pgste_set_unlock(ptep, new);
+	pte_unmap_unlock(ptep, ptl);
+	return 0;
+}
+EXPORT_SYMBOL(reset_guest_reference_bit);
+
+int get_guest_storage_key(struct mm_struct *mm, unsigned long addr,
+			  unsigned char *key)
+{
 	spinlock_t *ptl;
 	pgste_t pgste;
 	pte_t *ptep;
 
-	down_read(&mm->mmap_sem);
 	ptep = get_locked_pte(mm, addr, &ptl);
-	if (unlikely(!ptep)) {
-		up_read(&mm->mmap_sem);
+	if (unlikely(!ptep))
 		return -EFAULT;
-	}
+
 	pgste = pgste_get_lock(ptep);
-
-	if (pte_val(*ptep) & _PAGE_INVALID) {
-		key  = (pgste_val(pgste) & PGSTE_ACC_BITS) >> 56;
-		key |= (pgste_val(pgste) & PGSTE_FP_BIT) >> 56;
-		key |= (pgste_val(pgste) & PGSTE_GR_BIT) >> 48;
-		key |= (pgste_val(pgste) & PGSTE_GC_BIT) >> 48;
-	} else {
-		key = page_get_storage_key(pte_val(*ptep) & PAGE_MASK);
-
-		/* Reflect guest's logical view, not physical */
-		if (pgste_val(pgste) & PGSTE_GR_BIT)
-			key |= _PAGE_REFERENCED;
-		if (pgste_val(pgste) & PGSTE_GC_BIT)
-			key |= _PAGE_CHANGED;
-	}
-
+	*key = (pgste_val(pgste) & (PGSTE_ACC_BITS | PGSTE_FP_BIT)) >> 56;
+	if (!(pte_val(*ptep) & _PAGE_INVALID))
+		*key = page_get_storage_key(pte_val(*ptep) & PAGE_MASK);
+	/* Reflect guest's logical view, not physical */
+	*key |= (pgste_val(pgste) & (PGSTE_GR_BIT | PGSTE_GC_BIT)) >> 48;
 	pgste_set_unlock(ptep, pgste);
 	pte_unmap_unlock(ptep, ptl);
-	up_read(&mm->mmap_sem);
-	return key;
+	return 0;
 }
 EXPORT_SYMBOL(get_guest_storage_key);
 #endif

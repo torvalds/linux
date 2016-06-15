@@ -93,6 +93,35 @@ struct kvm_s390_vm_cpu_machine {
 	__u64 fac_list[256];
 };
 
+#define KVM_S390_VM_CPU_PROCESSOR_FEAT	2
+#define KVM_S390_VM_CPU_MACHINE_FEAT	3
+
+#define KVM_S390_VM_CPU_FEAT_NR_BITS	1024
+#define KVM_S390_VM_CPU_FEAT_ESOP	0
+struct kvm_s390_vm_cpu_feat {
+	__u64 feat[16];
+};
+
+#define KVM_S390_VM_CPU_PROCESSOR_SUBFUNC	4
+#define KVM_S390_VM_CPU_MACHINE_SUBFUNC		5
+/* for "test bit" instructions MSB 0 bit ordering, for "query" raw blocks */
+struct kvm_s390_vm_cpu_subfunc {
+	__u8 plo[32];		/* always */
+	__u8 ptff[16];		/* with TOD-clock steering */
+	__u8 kmac[16];		/* with MSA */
+	__u8 kmc[16];		/* with MSA */
+	__u8 km[16];		/* with MSA */
+	__u8 kimd[16];		/* with MSA */
+	__u8 klmd[16];		/* with MSA */
+	__u8 pckmo[16];		/* with MSA3 */
+	__u8 kmctr[16];		/* with MSA4 */
+	__u8 kmf[16];		/* with MSA4 */
+	__u8 kmo[16];		/* with MSA4 */
+	__u8 pcc[16];		/* with MSA4 */
+	__u8 ppno[16];		/* with MSA5 */
+	__u8 reserved[1824];
+};
+
 /* kvm attributes for crypto */
 #define KVM_S390_VM_CRYPTO_ENABLE_AES_KW	0
 #define KVM_S390_VM_CRYPTO_ENABLE_DEA_KW	1

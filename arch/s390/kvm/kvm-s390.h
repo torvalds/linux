@@ -175,6 +175,12 @@ static inline int set_kvm_facility(u64 *fac_list, unsigned long nr)
 	return 0;
 }
 
+static inline int test_kvm_cpu_feat(struct kvm *kvm, unsigned long nr)
+{
+	WARN_ON_ONCE(nr >= KVM_S390_VM_CPU_FEAT_NR_BITS);
+	return test_bit_inv(nr, kvm->arch.cpu_feat);
+}
+
 /* are cpu states controlled by user space */
 static inline int kvm_s390_user_cpu_state_ctrl(struct kvm *kvm)
 {
@@ -249,6 +255,9 @@ int kvm_s390_handle_eb(struct kvm_vcpu *vcpu);
 /* implemented in sigp.c */
 int kvm_s390_handle_sigp(struct kvm_vcpu *vcpu);
 int kvm_s390_handle_sigp_pei(struct kvm_vcpu *vcpu);
+
+/* implemented in sthyi.c */
+int handle_sthyi(struct kvm_vcpu *vcpu);
 
 /* implemented in kvm-s390.c */
 void kvm_s390_set_tod_clock(struct kvm *kvm, u64 tod);
