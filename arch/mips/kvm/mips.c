@@ -9,6 +9,7 @@
  * Authors: Sanjay Lal <sanjayl@kymasys.com>
  */
 
+#include <linux/bitops.h>
 #include <linux/errno.h>
 #include <linux/err.h>
 #include <linux/kdebug.h>
@@ -548,6 +549,15 @@ static u64 kvm_mips_get_one_regs_msa[] = {
 	KVM_REG_MIPS_MSA_CSR,
 };
 
+static u64 kvm_mips_get_one_regs_kscratch[] = {
+	KVM_REG_MIPS_CP0_KSCRATCH1,
+	KVM_REG_MIPS_CP0_KSCRATCH2,
+	KVM_REG_MIPS_CP0_KSCRATCH3,
+	KVM_REG_MIPS_CP0_KSCRATCH4,
+	KVM_REG_MIPS_CP0_KSCRATCH5,
+	KVM_REG_MIPS_CP0_KSCRATCH6,
+};
+
 static unsigned long kvm_mips_num_regs(struct kvm_vcpu *vcpu)
 {
 	unsigned long ret;
@@ -561,6 +571,7 @@ static unsigned long kvm_mips_num_regs(struct kvm_vcpu *vcpu)
 	}
 	if (kvm_mips_guest_can_have_msa(&vcpu->arch))
 		ret += ARRAY_SIZE(kvm_mips_get_one_regs_msa) + 32;
+	ret += __arch_hweight8(vcpu->arch.kscratch_enabled);
 	ret += kvm_mips_callbacks->num_regs(vcpu);
 
 	return ret;
@@ -611,6 +622,16 @@ static int kvm_mips_copy_reg_indices(struct kvm_vcpu *vcpu, u64 __user *indices)
 				return -EFAULT;
 			++indices;
 		}
+	}
+
+	for (i = 0; i < 6; ++i) {
+		if (!(vcpu->arch.kscratch_enabled & BIT(i + 2)))
+			continue;
+
+		if (copy_to_user(indices, &kvm_mips_get_one_regs_kscratch[i],
+				 sizeof(kvm_mips_get_one_regs_kscratch[i])))
+			return -EFAULT;
+		++indices;
 	}
 
 	return kvm_mips_callbacks->copy_reg_indices(vcpu, indices);
@@ -764,6 +785,31 @@ static int kvm_mips_get_reg(struct kvm_vcpu *vcpu,
 		break;
 	case KVM_REG_MIPS_CP0_ERROREPC:
 		v = (long)kvm_read_c0_guest_errorepc(cop0);
+		break;
+	case KVM_REG_MIPS_CP0_KSCRATCH1 ... KVM_REG_MIPS_CP0_KSCRATCH6:
+		idx = reg->id - KVM_REG_MIPS_CP0_KSCRATCH1 + 2;
+		if (!(vcpu->arch.kscratch_enabled & BIT(idx)))
+			return -EINVAL;
+		switch (idx) {
+		case 2:
+			v = (long)kvm_read_c0_guest_kscratch1(cop0);
+			break;
+		case 3:
+			v = (long)kvm_read_c0_guest_kscratch2(cop0);
+			break;
+		case 4:
+			v = (long)kvm_read_c0_guest_kscratch3(cop0);
+			break;
+		case 5:
+			v = (long)kvm_read_c0_guest_kscratch4(cop0);
+			break;
+		case 6:
+			v = (long)kvm_read_c0_guest_kscratch5(cop0);
+			break;
+		case 7:
+			v = (long)kvm_read_c0_guest_kscratch6(cop0);
+			break;
+		}
 		break;
 	/* registers to be handled specially */
 	default:
@@ -930,6 +976,31 @@ static int kvm_mips_set_reg(struct kvm_vcpu *vcpu,
 		break;
 	case KVM_REG_MIPS_CP0_ERROREPC:
 		kvm_write_c0_guest_errorepc(cop0, v);
+		break;
+	case KVM_REG_MIPS_CP0_KSCRATCH1 ... KVM_REG_MIPS_CP0_KSCRATCH6:
+		idx = reg->id - KVM_REG_MIPS_CP0_KSCRATCH1 + 2;
+		if (!(vcpu->arch.kscratch_enabled & BIT(idx)))
+			return -EINVAL;
+		switch (idx) {
+		case 2:
+			kvm_write_c0_guest_kscratch1(cop0, v);
+			break;
+		case 3:
+			kvm_write_c0_guest_kscratch2(cop0, v);
+			break;
+		case 4:
+			kvm_write_c0_guest_kscratch3(cop0, v);
+			break;
+		case 5:
+			kvm_write_c0_guest_kscratch4(cop0, v);
+			break;
+		case 6:
+			kvm_write_c0_guest_kscratch5(cop0, v);
+			break;
+		case 7:
+			kvm_write_c0_guest_kscratch6(cop0, v);
+			break;
+		}
 		break;
 	/* registers to be handled specially */
 	default:

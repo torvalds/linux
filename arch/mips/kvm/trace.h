@@ -178,6 +178,12 @@ TRACE_EVENT(kvm_exit,
 	{ KVM_TRACE_COP0(16, 7),	"Config7" },		\
 	{ KVM_TRACE_COP0(26, 0),	"ECC" },		\
 	{ KVM_TRACE_COP0(30, 0),	"ErrorEPC" },		\
+	{ KVM_TRACE_COP0(31, 2),	"KScratch1" },		\
+	{ KVM_TRACE_COP0(31, 3),	"KScratch2" },		\
+	{ KVM_TRACE_COP0(31, 4),	"KScratch3" },		\
+	{ KVM_TRACE_COP0(31, 5),	"KScratch4" },		\
+	{ KVM_TRACE_COP0(31, 6),	"KScratch5" },		\
+	{ KVM_TRACE_COP0(31, 7),	"KScratch6" },		\
 	{ KVM_TRACE_HWR( 0, 0),		"CPUNum" },		\
 	{ KVM_TRACE_HWR( 1, 0),		"SYNCI_Step" },		\
 	{ KVM_TRACE_HWR( 2, 0),		"CC" },			\

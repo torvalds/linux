@@ -418,6 +418,8 @@ static int kvm_trap_emul_vm_init(struct kvm *kvm)
 
 static int kvm_trap_emul_vcpu_init(struct kvm_vcpu *vcpu)
 {
+	vcpu->arch.kscratch_enabled = 0xfc;
+
 	return 0;
 }
 

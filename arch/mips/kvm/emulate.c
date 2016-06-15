@@ -941,7 +941,12 @@ unsigned int kvm_mips_config3_wrmask(struct kvm_vcpu *vcpu)
 unsigned int kvm_mips_config4_wrmask(struct kvm_vcpu *vcpu)
 {
 	/* Config5 is optional */
-	return MIPS_CONF_M;
+	unsigned int mask = MIPS_CONF_M;
+
+	/* KScrExist */
+	mask |= (unsigned int)vcpu->arch.kscratch_enabled << 16;
+
+	return mask;
 }
 
 /**

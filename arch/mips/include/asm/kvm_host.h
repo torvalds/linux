@@ -56,6 +56,12 @@
 #define KVM_REG_MIPS_CP0_CONFIG7	MIPS_CP0_32(16, 7)
 #define KVM_REG_MIPS_CP0_XCONTEXT	MIPS_CP0_64(20, 0)
 #define KVM_REG_MIPS_CP0_ERROREPC	MIPS_CP0_64(30, 0)
+#define KVM_REG_MIPS_CP0_KSCRATCH1	MIPS_CP0_64(31, 2)
+#define KVM_REG_MIPS_CP0_KSCRATCH2	MIPS_CP0_64(31, 3)
+#define KVM_REG_MIPS_CP0_KSCRATCH3	MIPS_CP0_64(31, 4)
+#define KVM_REG_MIPS_CP0_KSCRATCH4	MIPS_CP0_64(31, 5)
+#define KVM_REG_MIPS_CP0_KSCRATCH5	MIPS_CP0_64(31, 6)
+#define KVM_REG_MIPS_CP0_KSCRATCH6	MIPS_CP0_64(31, 7)
 
 
 #define KVM_MAX_VCPUS		1
@@ -376,6 +382,7 @@ struct kvm_vcpu_arch {
 
 	u8 fpu_enabled;
 	u8 msa_enabled;
+	u8 kscratch_enabled;
 };
 
 
@@ -429,6 +436,18 @@ struct kvm_vcpu_arch {
 #define kvm_write_c0_guest_config7(cop0, val)	(cop0->reg[MIPS_CP0_CONFIG][7] = (val))
 #define kvm_read_c0_guest_errorepc(cop0)	(cop0->reg[MIPS_CP0_ERROR_PC][0])
 #define kvm_write_c0_guest_errorepc(cop0, val)	(cop0->reg[MIPS_CP0_ERROR_PC][0] = (val))
+#define kvm_read_c0_guest_kscratch1(cop0)	(cop0->reg[MIPS_CP0_DESAVE][2])
+#define kvm_read_c0_guest_kscratch2(cop0)	(cop0->reg[MIPS_CP0_DESAVE][3])
+#define kvm_read_c0_guest_kscratch3(cop0)	(cop0->reg[MIPS_CP0_DESAVE][4])
+#define kvm_read_c0_guest_kscratch4(cop0)	(cop0->reg[MIPS_CP0_DESAVE][5])
+#define kvm_read_c0_guest_kscratch5(cop0)	(cop0->reg[MIPS_CP0_DESAVE][6])
+#define kvm_read_c0_guest_kscratch6(cop0)	(cop0->reg[MIPS_CP0_DESAVE][7])
+#define kvm_write_c0_guest_kscratch1(cop0, val)	(cop0->reg[MIPS_CP0_DESAVE][2] = (val))
+#define kvm_write_c0_guest_kscratch2(cop0, val)	(cop0->reg[MIPS_CP0_DESAVE][3] = (val))
+#define kvm_write_c0_guest_kscratch3(cop0, val)	(cop0->reg[MIPS_CP0_DESAVE][4] = (val))
+#define kvm_write_c0_guest_kscratch4(cop0, val)	(cop0->reg[MIPS_CP0_DESAVE][5] = (val))
+#define kvm_write_c0_guest_kscratch5(cop0, val)	(cop0->reg[MIPS_CP0_DESAVE][6] = (val))
+#define kvm_write_c0_guest_kscratch6(cop0, val)	(cop0->reg[MIPS_CP0_DESAVE][7] = (val))
 
 /*
  * Some of the guest registers may be modified asynchronously (e.g. from a
