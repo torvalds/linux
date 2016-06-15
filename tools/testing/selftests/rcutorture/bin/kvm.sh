@@ -48,7 +48,7 @@ resdir=""
 configs=""
 cpus=0
 ds=`date +%Y.%m.%d-%H:%M:%S`
-jitter=0
+jitter="-1"
 
 . functions.sh
 
