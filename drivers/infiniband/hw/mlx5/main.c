@@ -1804,15 +1804,6 @@ static ssize_t show_hca(struct device *device, struct device_attribute *attr,
 	return sprintf(buf, "MT%d\n", dev->mdev->pdev->device);
 }
 
-static ssize_t show_fw_ver(struct device *device, struct device_attribute *attr,
-			   char *buf)
-{
-	struct mlx5_ib_dev *dev =
-		container_of(device, struct mlx5_ib_dev, ib_dev.dev);
-	return sprintf(buf, "%d.%d.%04d\n", fw_rev_maj(dev->mdev),
-		       fw_rev_min(dev->mdev), fw_rev_sub(dev->mdev));
-}
-
 static ssize_t show_rev(struct device *device, struct device_attribute *attr,
 			char *buf)
 {
@@ -1831,7 +1822,6 @@ static ssize_t show_board(struct device *device, struct device_attribute *attr,
 }
 
 static DEVICE_ATTR(hw_rev,   S_IRUGO, show_rev,    NULL);
-static DEVICE_ATTR(fw_ver,   S_IRUGO, show_fw_ver, NULL);
 static DEVICE_ATTR(hca_type, S_IRUGO, show_hca,    NULL);
 static DEVICE_ATTR(board_id, S_IRUGO, show_board,  NULL);
 static DEVICE_ATTR(fw_pages, S_IRUGO, show_fw_pages, NULL);
@@ -1839,7 +1829,6 @@ static DEVICE_ATTR(reg_pages, S_IRUGO, show_reg_pages, NULL);
 
 static struct device_attribute *mlx5_class_attributes[] = {
 	&dev_attr_hw_rev,
-	&dev_attr_fw_ver,
 	&dev_attr_hca_type,
 	&dev_attr_board_id,
 	&dev_attr_fw_pages,
@@ -2275,6 +2264,15 @@ static int mlx5_port_immutable(struct ib_device *ibdev, u8 port_num,
 	return 0;
 }
 
+static void get_dev_fw_str(struct ib_device *ibdev, char *str,
+			   size_t str_len)
+{
+	struct mlx5_ib_dev *dev =
+		container_of(ibdev, struct mlx5_ib_dev, ib_dev);
+	snprintf(str, str_len, "%d.%d.%04d", fw_rev_maj(dev->mdev),
+		       fw_rev_min(dev->mdev), fw_rev_sub(dev->mdev));
+}
+
 static int mlx5_enable_roce(struct mlx5_ib_dev *dev)
 {
 	int err;
@@ -2421,6 +2419,7 @@ static void *mlx5_ib_add(struct mlx5_core_dev *mdev)
 	dev->ib_dev.map_mr_sg		= mlx5_ib_map_mr_sg;
 	dev->ib_dev.check_mr_status	= mlx5_ib_check_mr_status;
 	dev->ib_dev.get_port_immutable  = mlx5_port_immutable;
+	dev->ib_dev.get_dev_fw_str      = get_dev_fw_str;
 	if (mlx5_core_is_pf(mdev)) {
 		dev->ib_dev.get_vf_config	= mlx5_ib_get_vf_config;
 		dev->ib_dev.set_vf_link_state	= mlx5_ib_set_vf_link_state;
