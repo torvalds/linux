@@ -88,6 +88,7 @@ enum undo_level {
 
 struct dev_dependent_vals {
 	u64 max_sectors;
+	u64 flags;
 };
 
 struct asyc_intr_info {
