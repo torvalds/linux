@@ -121,14 +121,22 @@
         };
 
     ion_dev{
-        compatible = "amlogic,ion_dev";
-        dev_name = "ion_dev";
-        status = "ok";
-        share-memory-name = "ppmgr0";
-        share-memory-offset = <0>;
-        share-memory-size = <0x01000000>; //16M
+                compatible = "amlogic,ion_dev";
+                dev_name = "ion_dev";
+                status = "okay";
+                share-memory-name = "ppmgr0";
+                share-memory-offset = <0>;
+                share-memory-size = <0x01000000>; //16M
     };
-        mesonvout{
+
+    deinterlace{
+                compatible = "amlogic,deinterlace";
+                dev_name = "deinterlace";
+                status = "okay";
+                reserve-memory = <0x02100000>; //10x1920x1088x3/2=33M
+        };
+
+    mesonvout{
                 compatible = "amlogic,mesonvout";
                 dev_name = "mesonvout";
                 status = "okay";
