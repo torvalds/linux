@@ -270,6 +270,21 @@ static int rockchip_hdmiv2_clk_enable(struct hdmi_dev *hdmi_dev)
 		clk_prepare_enable(hdmi_dev->cec_clk);
 		hdmi_dev->clk_on |= HDMI_CECCLK_ON;
 	}
+
+	if ((hdmi_dev->clk_on & HDMI_SFRCLK_ON) == 0) {
+		if (!hdmi_dev->sfr_clk) {
+			hdmi_dev->sfr_clk =
+				devm_clk_get(hdmi_dev->dev, "sclk_hdmi_sfr");
+			if (IS_ERR(hdmi_dev->sfr_clk)) {
+				dev_err(hdmi_dev->dev,
+					"Unable to get hdmi sfr_clk\n");
+				return -1;
+			}
+		}
+		clk_prepare_enable(hdmi_dev->sfr_clk);
+		hdmi_dev->clk_on |= HDMI_SFRCLK_ON;
+	}
+
 	return 0;
 }
 
@@ -300,6 +315,14 @@ static int rockchip_hdmiv2_clk_disable(struct hdmi_dev *hdmi_dev)
 		clk_disable_unprepare(hdmi_dev->pclk_phy);
 		hdmi_dev->clk_on &= ~HDMI_EXT_PHY_CLK_ON;
 	}
+
+	if ((hdmi_dev->clk_on & HDMI_SFRCLK_ON) &&
+	    (hdmi_dev->sfr_clk)) {
+		clk_disable_unprepare(hdmi_dev->sfr_clk);
+		hdmi_dev->clk_on &= ~HDMI_SFRCLK_ON;
+	}
+
+
 	return 0;
 }
 
@@ -540,7 +563,7 @@ static int rockchip_hdmiv2_probe(struct platform_device *pdev)
 		goto failed;
 	}
 	pm_runtime_enable(hdmi_dev->dev);
-	/*enable pd and pclk and hdcp_clk*/
+	/*enable pd and clk*/
 	if (rockchip_hdmiv2_clk_enable(hdmi_dev) < 0) {
 		dev_err(&pdev->dev, "failed to enable hdmi clk\n");
 		ret = -ENXIO;

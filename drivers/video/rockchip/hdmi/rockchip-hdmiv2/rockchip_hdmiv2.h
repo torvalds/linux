@@ -20,6 +20,7 @@
 #define HDMI_HDCPCLK_ON		BIT(2)
 #define HDMI_CECCLK_ON		BIT(3)
 #define HDMI_EXT_PHY_CLK_ON	BIT(4)
+#define HDMI_SFRCLK_ON		BIT(5)
 
 struct hdmi_dev_phy_para {
 	u32 maxfreq;
@@ -43,6 +44,7 @@ struct hdmi_dev {
 	struct clk		*hdcp_clk;
 	struct clk		*cec_clk;
 	struct clk		*pclk_phy;
+	struct clk		*sfr_clk;
 	struct hdmi		*hdmi;
 	struct device		*dev;
 	struct dentry		*debugfs_dir;
