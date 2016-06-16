@@ -472,6 +472,7 @@ struct port100 {
 	struct port100_cmd *cmd;
 
 	bool cmd_cancel;
+	struct completion cmd_cancel_done;
 };
 
 struct port100_cmd {
@@ -728,6 +729,8 @@ static int port100_send_ack(struct port100 *dev)
 
 	mutex_lock(&dev->out_urb_lock);
 
+	init_completion(&dev->cmd_cancel_done);
+
 	usb_kill_urb(dev->out_urb);
 
 	dev->out_urb->transfer_buffer = ack_frame;
@@ -741,6 +744,9 @@ static int port100_send_ack(struct port100 *dev)
 	dev->cmd_cancel = !rc;
 
 	mutex_unlock(&dev->out_urb_lock);
+
+	if (!rc)
+		wait_for_completion(&dev->cmd_cancel_done);
 
 	return rc;
 }
@@ -921,7 +927,10 @@ static void port100_send_complete(struct urb *urb)
 {
 	struct port100 *dev = urb->context;
 
-	dev->cmd_cancel = false;
+	if (dev->cmd_cancel) {
+		dev->cmd_cancel = false;
+		complete(&dev->cmd_cancel_done);
+	}
 
 	switch (urb->status) {
 	case 0:
