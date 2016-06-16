@@ -161,6 +161,7 @@ void mei_hbm_cl_hdr(struct mei_cl *cl, u8 hbm_cmd, void *buf, size_t len)
  * @dev: the device structure
  * @cl: client
  * @hbm_cmd: host bus message command
+ * @buf: message buffer
  * @len: buffer length
  *
  * Return: 0 on success, <0 on failure.
