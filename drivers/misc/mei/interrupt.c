@@ -113,6 +113,7 @@ int mei_cl_irq_read_msg(struct mei_cl *cl,
 
 	if (!mei_cl_is_connected(cl)) {
 		cl_dbg(dev, cl, "not connected\n");
+		list_move_tail(&cb->list, &complete_list->list);
 		cb->status = -ENODEV;
 		goto out;
 	}
