@@ -2794,11 +2794,9 @@ static int i915_gem_setup_global_gtt(struct drm_device *dev,
 	i915_address_space_init(&ggtt->base, dev_priv);
 	ggtt->base.total += PAGE_SIZE;
 
-	if (intel_vgpu_active(dev_priv)) {
-		ret = intel_vgt_balloon(dev);
-		if (ret)
-			return ret;
-	}
+	ret = intel_vgt_balloon(dev_priv);
+	if (ret)
+		return ret;
 
 	if (!HAS_LLC(dev))
 		ggtt->base.mm.color_adjust = i915_gtt_color_adjust;
@@ -2898,8 +2896,7 @@ void i915_ggtt_cleanup_hw(struct drm_device *dev)
 	i915_gem_cleanup_stolen(dev);
 
 	if (drm_mm_initialized(&ggtt->base.mm)) {
-		if (intel_vgpu_active(dev_priv))
-			intel_vgt_deballoon();
+		intel_vgt_deballoon(dev_priv);
 
 		drm_mm_takedown(&ggtt->base.mm);
 		list_del(&ggtt->base.global_link);
