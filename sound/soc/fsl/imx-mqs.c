@@ -1,5 +1,5 @@
 /*
- * Copyright 2012, 2014-2015 Freescale Semiconductor, Inc.
+ * Copyright 2012, 2014-2016 Freescale Semiconductor, Inc.
  * Copyright 2012 Linaro Ltd.
  *
  * The code contained herein is licensed under the GNU General Public
@@ -119,7 +119,7 @@ static struct snd_soc_dai_link imx_mqs_dai[] = {
 		.dynamic = 1,
 		.ignore_pmdown_time = 1,
 		.dpcm_playback = 1,
-		.dpcm_capture = 1,
+		.dpcm_capture = 0,
 	},
 	{
 		.name = "HiFi-ASRC-BE",
@@ -131,7 +131,7 @@ static struct snd_soc_dai_link imx_mqs_dai[] = {
 		.no_pcm = 1,
 		.ignore_pmdown_time = 1,
 		.dpcm_playback = 1,
-		.dpcm_capture = 1,
+		.dpcm_capture = 0,
 		.ops = &imx_mqs_ops_be,
 		.be_hw_params_fixup = be_hw_params_fixup,
 	},
