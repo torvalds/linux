@@ -1050,6 +1050,10 @@ static int port100_switch_rf(struct nfc_digital_dev *ddev, bool on)
 
 	*skb_put(skb, 1) = on ? 1 : 0;
 
+	/* Cancel the last command if the device is being switched off */
+	if (!on)
+		port100_abort_cmd(ddev);
+
 	resp = port100_send_cmd_sync(dev, PORT100_CMD_SWITCH_RF, skb);
 
 	if (IS_ERR(resp))
