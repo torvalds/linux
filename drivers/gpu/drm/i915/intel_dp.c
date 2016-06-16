@@ -4772,20 +4772,11 @@ static void intel_dp_init_panel_power_timestamps(struct intel_dp *intel_dp)
 }
 
 static void
-intel_dp_init_panel_power_sequencer(struct drm_device *dev,
-				    struct intel_dp *intel_dp)
+intel_pps_readout_hw_state(struct drm_i915_private *dev_priv,
+			   struct intel_dp *intel_dp, struct edp_power_seq *seq)
 {
-	struct drm_i915_private *dev_priv = dev->dev_private;
-	struct edp_power_seq cur, vbt, spec,
-		*final = &intel_dp->pps_delays;
 	u32 pp_on, pp_off, pp_div = 0, pp_ctl = 0;
 	struct pps_registers regs;
-
-	lockdep_assert_held(&dev_priv->pps_mutex);
-
-	/* already initialized? */
-	if (final->t11_t12 != 0)
-		return;
 
 	intel_pps_get_registers(dev_priv, intel_dp, &regs);
 
@@ -4795,35 +4786,52 @@ intel_dp_init_panel_power_sequencer(struct drm_device *dev,
 
 	pp_on = I915_READ(regs.pp_on);
 	pp_off = I915_READ(regs.pp_off);
-	if (!IS_BROXTON(dev)) {
+	if (!IS_BROXTON(dev_priv)) {
 		I915_WRITE(regs.pp_ctrl, pp_ctl);
 		pp_div = I915_READ(regs.pp_div);
 	}
 
 	/* Pull timing values out of registers */
-	cur.t1_t3 = (pp_on & PANEL_POWER_UP_DELAY_MASK) >>
-		PANEL_POWER_UP_DELAY_SHIFT;
+	seq->t1_t3 = (pp_on & PANEL_POWER_UP_DELAY_MASK) >>
+		     PANEL_POWER_UP_DELAY_SHIFT;
 
-	cur.t8 = (pp_on & PANEL_LIGHT_ON_DELAY_MASK) >>
-		PANEL_LIGHT_ON_DELAY_SHIFT;
+	seq->t8 = (pp_on & PANEL_LIGHT_ON_DELAY_MASK) >>
+		  PANEL_LIGHT_ON_DELAY_SHIFT;
 
-	cur.t9 = (pp_off & PANEL_LIGHT_OFF_DELAY_MASK) >>
-		PANEL_LIGHT_OFF_DELAY_SHIFT;
+	seq->t9 = (pp_off & PANEL_LIGHT_OFF_DELAY_MASK) >>
+		  PANEL_LIGHT_OFF_DELAY_SHIFT;
 
-	cur.t10 = (pp_off & PANEL_POWER_DOWN_DELAY_MASK) >>
-		PANEL_POWER_DOWN_DELAY_SHIFT;
+	seq->t10 = (pp_off & PANEL_POWER_DOWN_DELAY_MASK) >>
+		   PANEL_POWER_DOWN_DELAY_SHIFT;
 
-	if (IS_BROXTON(dev)) {
+	if (IS_BROXTON(dev_priv)) {
 		u16 tmp = (pp_ctl & BXT_POWER_CYCLE_DELAY_MASK) >>
 			BXT_POWER_CYCLE_DELAY_SHIFT;
 		if (tmp > 0)
-			cur.t11_t12 = (tmp - 1) * 1000;
+			seq->t11_t12 = (tmp - 1) * 1000;
 		else
-			cur.t11_t12 = 0;
+			seq->t11_t12 = 0;
 	} else {
-		cur.t11_t12 = ((pp_div & PANEL_POWER_CYCLE_DELAY_MASK) >>
+		seq->t11_t12 = ((pp_div & PANEL_POWER_CYCLE_DELAY_MASK) >>
 		       PANEL_POWER_CYCLE_DELAY_SHIFT) * 1000;
 	}
+}
+
+static void
+intel_dp_init_panel_power_sequencer(struct drm_device *dev,
+				    struct intel_dp *intel_dp)
+{
+	struct drm_i915_private *dev_priv = dev->dev_private;
+	struct edp_power_seq cur, vbt, spec,
+		*final = &intel_dp->pps_delays;
+
+	lockdep_assert_held(&dev_priv->pps_mutex);
+
+	/* already initialized? */
+	if (final->t11_t12 != 0)
+		return;
+
+	intel_pps_readout_hw_state(dev_priv, intel_dp, &cur);
 
 	DRM_DEBUG_KMS("cur t1_t3 %d t8 %d t9 %d t10 %d t11_t12 %d\n",
 		      cur.t1_t3, cur.t8, cur.t9, cur.t10, cur.t11_t12);
