@@ -741,49 +741,59 @@ struct octeon_device *octeon_allocate_device(u32 pci_id,
 	return oct;
 }
 
+/* this function is only for setting up the first queue */
 int octeon_setup_instr_queues(struct octeon_device *oct)
 {
-	u32 i, num_iqs = 0;
+	u32 num_iqs = 0;
 	u32 num_descs = 0;
+	u32 iq_no = 0;
+	union oct_txpciq txpciq;
+	int numa_node = cpu_to_node(iq_no % num_online_cpus());
 
+	num_iqs = 1;
 	/* this causes queue 0 to be default queue */
-	if (OCTEON_CN6XXX(oct)) {
-		num_iqs = 1;
+	if (OCTEON_CN6XXX(oct))
 		num_descs =
 			CFG_GET_NUM_DEF_TX_DESCS(CHIP_FIELD(oct, cn6xxx, conf));
-	}
 
 	oct->num_iqs = 0;
 
-	for (i = 0; i < num_iqs; i++) {
-		oct->instr_queue[i] =
+	oct->instr_queue[0] = vmalloc_node(sizeof(*oct->instr_queue[0]),
+				numa_node);
+	if (!oct->instr_queue[0])
+		oct->instr_queue[0] =
 			vmalloc(sizeof(struct octeon_instr_queue));
-		if (!oct->instr_queue[i])
-			return 1;
-
-		memset(oct->instr_queue[i], 0,
-		       sizeof(struct octeon_instr_queue));
-
-		oct->instr_queue[i]->app_ctx = (void *)(size_t)i;
-		if (octeon_init_instr_queue(oct, i, num_descs))
-			return 1;
-
-		oct->num_iqs++;
+	if (!oct->instr_queue[0])
+		return 1;
+	memset(oct->instr_queue[0], 0, sizeof(struct octeon_instr_queue));
+	oct->instr_queue[0]->q_index = 0;
+	oct->instr_queue[0]->app_ctx = (void *)(size_t)0;
+	oct->instr_queue[0]->ifidx = 0;
+	txpciq.u64 = 0;
+	txpciq.s.q_no = iq_no;
+	txpciq.s.use_qpg = 0;
+	txpciq.s.qpg = 0;
+	if (octeon_init_instr_queue(oct, txpciq, num_descs)) {
+		/* prevent memory leak */
+		vfree(oct->instr_queue[0]);
+		return 1;
 	}
 
+	oct->num_iqs++;
 	return 0;
 }
 
 int octeon_setup_output_queues(struct octeon_device *oct)
 {
-	u32 i, num_oqs = 0;
+	u32 num_oqs = 0;
 	u32 num_descs = 0;
 	u32 desc_size = 0;
+	u32 oq_no = 0;
+	int numa_node = cpu_to_node(oq_no % num_online_cpus());
 
+	num_oqs = 1;
 	/* this causes queue 0 to be default queue */
 	if (OCTEON_CN6XXX(oct)) {
-		/* CFG_GET_OQ_MAX_BASE_Q(CHIP_FIELD(oct, cn6xxx, conf)); */
-		num_oqs = 1;
 		num_descs =
 			CFG_GET_NUM_DEF_RX_DESCS(CHIP_FIELD(oct, cn6xxx, conf));
 		desc_size =
@@ -791,19 +801,15 @@ int octeon_setup_output_queues(struct octeon_device *oct)
 	}
 
 	oct->num_oqs = 0;
+	oct->droq[0] = vmalloc_node(sizeof(*oct->droq[0]), numa_node);
+	if (!oct->droq[0])
+		oct->droq[0] = vmalloc(sizeof(*oct->droq[0]));
+	if (!oct->droq[0])
+		return 1;
 
-	for (i = 0; i < num_oqs; i++) {
-		oct->droq[i] = vmalloc(sizeof(*oct->droq[i]));
-		if (!oct->droq[i])
-			return 1;
-
-		memset(oct->droq[i], 0, sizeof(struct octeon_droq));
-
-		if (octeon_init_droq(oct, i, num_descs, desc_size, NULL))
-			return 1;
-
-		oct->num_oqs++;
-	}
+	if (octeon_init_droq(oct, oq_no, num_descs, desc_size, NULL))
+		return 1;
+	oct->num_oqs++;
 
 	return 0;
 }

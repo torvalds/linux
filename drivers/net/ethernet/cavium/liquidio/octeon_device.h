@@ -267,6 +267,7 @@ struct octdev_props {
 	/* Each interface in the Octeon device has a network
 	 * device pointer (used for OS specific calls).
 	 */
+	int    gmxport;
 	struct net_device *netdev;
 };
 

@@ -69,12 +69,16 @@ static inline int IQ_INSTR_MODE_64B(struct octeon_device *oct, int iq_no)
 
 /* Return 0 on success, 1 on failure */
 int octeon_init_instr_queue(struct octeon_device *oct,
-			    u32 iq_no, u32 num_descs)
+			    union oct_txpciq txpciq,
+			    u32 num_descs)
 {
 	struct octeon_instr_queue *iq;
 	struct octeon_iq_config *conf = NULL;
+	u32 iq_no = (u32)txpciq.s.q_no;
 	u32 q_size;
 	struct cavium_wq *db_wq;
+	int orig_node = dev_to_node(&oct->pci_dev->dev);
+	int numa_node = cpu_to_node(iq_no % num_online_cpus());
 
 	if (OCTEON_CN6XXX(oct))
 		conf = &(CFG_GET_IQ_CFG(CHIP_FIELD(oct, cn6xxx, conf)));
@@ -95,9 +99,15 @@ int octeon_init_instr_queue(struct octeon_device *oct,
 	q_size = (u32)conf->instr_type * num_descs;
 
 	iq = oct->instr_queue[iq_no];
+	iq->oct_dev = oct;
 
+	set_dev_node(&oct->pci_dev->dev, numa_node);
 	iq->base_addr = lio_dma_alloc(oct, q_size,
 				      (dma_addr_t *)&iq->base_addr_dma);
+	set_dev_node(&oct->pci_dev->dev, orig_node);
+	if (!iq->base_addr)
+		iq->base_addr = lio_dma_alloc(oct, q_size,
+					      (dma_addr_t *)&iq->base_addr_dma);
 	if (!iq->base_addr) {
 		dev_err(&oct->pci_dev->dev, "Cannot allocate memory for instr queue %d\n",
 			iq_no);
@@ -109,7 +119,11 @@ int octeon_init_instr_queue(struct octeon_device *oct,
 	/* Initialize a list to holds requests that have been posted to Octeon
 	 * but has yet to be fetched by octeon
 	 */
-	iq->request_list = vmalloc(sizeof(*iq->request_list) * num_descs);
+	iq->request_list = vmalloc_node((sizeof(*iq->request_list) * num_descs),
+					       numa_node);
+	if (!iq->request_list)
+		iq->request_list = vmalloc(sizeof(*iq->request_list) *
+						  num_descs);
 	if (!iq->request_list) {
 		lio_dma_free(oct, q_size, iq->base_addr, iq->base_addr_dma);
 		dev_err(&oct->pci_dev->dev, "Alloc failed for IQ[%d] nr free list\n",
@@ -122,7 +136,7 @@ int octeon_init_instr_queue(struct octeon_device *oct,
 	dev_dbg(&oct->pci_dev->dev, "IQ[%d]: base: %p basedma: %llx count: %d\n",
 		iq_no, iq->base_addr, iq->base_addr_dma, iq->max_count);
 
-	iq->iq_no = iq_no;
+	iq->txpciq.u64 = txpciq.u64;
 	iq->fill_threshold = (u32)conf->db_min;
 	iq->fill_cnt = 0;
 	iq->host_write_index = 0;
@@ -189,26 +203,38 @@ int octeon_delete_instr_queue(struct octeon_device *oct, u32 iq_no)
 
 /* Return 0 on success, 1 on failure */
 int octeon_setup_iq(struct octeon_device *oct,
-		    u32 iq_no,
+		    int ifidx,
+		    int q_index,
+		    union oct_txpciq txpciq,
 		    u32 num_descs,
 		    void *app_ctx)
 {
+	u32 iq_no = (u32)txpciq.s.q_no;
+	int numa_node = cpu_to_node(iq_no % num_online_cpus());
+
 	if (oct->instr_queue[iq_no]) {
 		dev_dbg(&oct->pci_dev->dev, "IQ is in use. Cannot create the IQ: %d again\n",
 			iq_no);
+		oct->instr_queue[iq_no]->txpciq.u64 = txpciq.u64;
 		oct->instr_queue[iq_no]->app_ctx = app_ctx;
 		return 0;
 	}
 	oct->instr_queue[iq_no] =
-	    vmalloc(sizeof(struct octeon_instr_queue));
+	    vmalloc_node(sizeof(struct octeon_instr_queue), numa_node);
+	if (!oct->instr_queue[iq_no])
+		oct->instr_queue[iq_no] =
+		    vmalloc(sizeof(struct octeon_instr_queue));
 	if (!oct->instr_queue[iq_no])
 		return 1;
 
 	memset(oct->instr_queue[iq_no], 0,
 	       sizeof(struct octeon_instr_queue));
 
+	oct->instr_queue[iq_no]->q_index = q_index;
 	oct->instr_queue[iq_no]->app_ctx = app_ctx;
-	if (octeon_init_instr_queue(oct, iq_no, num_descs)) {
+	oct->instr_queue[iq_no]->ifidx = ifidx;
+
+	if (octeon_init_instr_queue(oct, txpciq, num_descs)) {
 		vfree(oct->instr_queue[iq_no]);
 		oct->instr_queue[iq_no] = NULL;
 		return 1;
@@ -395,7 +421,7 @@ lio_process_iq_request_list(struct octeon_device *oct,
 		case REQTYPE_SOFT_COMMAND:
 			sc = buf;
 
-			irh = (struct octeon_instr_irh *)&sc->cmd.irh;
+			irh = (struct octeon_instr_irh *)&sc->cmd.cmd2.irh;
 			if (irh->rflag) {
 				/* We're expecting a response from Octeon.
 				 * It's up to lio_process_ordered_list() to
@@ -558,7 +584,7 @@ octeon_prepare_soft_command(struct octeon_device *oct,
 			    u64 ossp1)
 {
 	struct octeon_config *oct_cfg;
-	struct octeon_instr_ih *ih;
+	struct octeon_instr_ih2 *ih2;
 	struct octeon_instr_irh *irh;
 	struct octeon_instr_rdp *rdp;
 
@@ -567,73 +593,69 @@ octeon_prepare_soft_command(struct octeon_device *oct,
 
 	oct_cfg = octeon_get_conf(oct);
 
-	ih          = (struct octeon_instr_ih *)&sc->cmd.ih;
-	ih->tagtype = ATOMIC_TAG;
-	ih->tag     = LIO_CONTROL;
-	ih->raw     = 1;
-	ih->grp     = CFG_GET_CTRL_Q_GRP(oct_cfg);
+	ih2          = (struct octeon_instr_ih2 *)&sc->cmd.cmd2.ih2;
+	ih2->tagtype = ATOMIC_TAG;
+	ih2->tag     = LIO_CONTROL;
+	ih2->raw     = 1;
+	ih2->grp     = CFG_GET_CTRL_Q_GRP(oct_cfg);
 
 	if (sc->datasize) {
-		ih->dlengsz = sc->datasize;
-		ih->rs = 1;
+		ih2->dlengsz = sc->datasize;
+		ih2->rs = 1;
 	}
 
-	irh            = (struct octeon_instr_irh *)&sc->cmd.irh;
+	irh            = (struct octeon_instr_irh *)&sc->cmd.cmd2.irh;
 	irh->opcode    = opcode;
 	irh->subcode   = subcode;
 
 	/* opcode/subcode specific parameters (ossp) */
 	irh->ossp       = irh_ossp;
-	sc->cmd.ossp[0] = ossp0;
-	sc->cmd.ossp[1] = ossp1;
+	sc->cmd.cmd2.ossp[0] = ossp0;
+	sc->cmd.cmd2.ossp[1] = ossp1;
 
 	if (sc->rdatasize) {
-		rdp            = (struct octeon_instr_rdp *)&sc->cmd.rdp;
+		rdp = (struct octeon_instr_rdp *)&sc->cmd.cmd2.rdp;
 		rdp->pcie_port = oct->pcie_port;
 		rdp->rlen      = sc->rdatasize;
 
 		irh->rflag =  1;
-		irh->len   =  4;
-		ih->fsz    = 40; /* irh+ossp[0]+ossp[1]+rdp+rptr = 40 bytes */
+		ih2->fsz   = 40; /* irh+ossp[0]+ossp[1]+rdp+rptr = 40 bytes */
 	} else {
 		irh->rflag =  0;
-		irh->len   =  2;
-		ih->fsz    = 24; /* irh + ossp[0] + ossp[1] = 24 bytes */
+		ih2->fsz   = 24; /* irh + ossp[0] + ossp[1] = 24 bytes */
 	}
-
-	while (!(oct->io_qmask.iq & (1 << sc->iq_no)))
-		sc->iq_no++;
 }
 
 int octeon_send_soft_command(struct octeon_device *oct,
 			     struct octeon_soft_command *sc)
 {
-	struct octeon_instr_ih *ih;
+	struct octeon_instr_ih2 *ih2;
 	struct octeon_instr_irh *irh;
 	struct octeon_instr_rdp *rdp;
+	u32 len;
 
-	ih = (struct octeon_instr_ih *)&sc->cmd.ih;
-	if (ih->dlengsz) {
-		BUG_ON(!sc->dmadptr);
-		sc->cmd.dptr = sc->dmadptr;
+	ih2 = (struct octeon_instr_ih2 *)&sc->cmd.cmd2.ih2;
+	if (ih2->dlengsz) {
+		WARN_ON(!sc->dmadptr);
+		sc->cmd.cmd2.dptr = sc->dmadptr;
 	}
-
-	irh = (struct octeon_instr_irh *)&sc->cmd.irh;
+	irh = (struct octeon_instr_irh *)&sc->cmd.cmd2.irh;
 	if (irh->rflag) {
 		BUG_ON(!sc->dmarptr);
 		BUG_ON(!sc->status_word);
 		*sc->status_word = COMPLETION_WORD_INIT;
 
-		rdp = (struct octeon_instr_rdp *)&sc->cmd.rdp;
+		rdp = (struct octeon_instr_rdp *)&sc->cmd.cmd2.rdp;
 
-		sc->cmd.rptr = sc->dmarptr;
+		sc->cmd.cmd2.rptr = sc->dmarptr;
 	}
+	len = (u32)ih2->dlengsz;
 
 	if (sc->wait_time)
 		sc->timeout = jiffies + sc->wait_time;
 
-	return octeon_send_command(oct, sc->iq_no, 1, &sc->cmd, sc,
-				   (u32)ih->dlengsz, REQTYPE_SOFT_COMMAND);
+	return (octeon_send_command(oct, sc->iq_no, 1, &sc->cmd, sc,
+				    len, REQTYPE_SOFT_COMMAND));
 }
 
 int octeon_setup_sc_buffer_pool(struct octeon_device *oct)

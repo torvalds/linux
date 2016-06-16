@@ -127,7 +127,7 @@ static int lio_get_settings(struct net_device *netdev, struct ethtool_cmd *ecmd)
 		dev_err(&oct->pci_dev->dev, "Unknown link interface reported\n");
 	}
 
-	if (linfo->link.s.status) {
+	if (linfo->link.s.link_up) {
 		ethtool_cmd_speed_set(ecmd, linfo->link.s.speed);
 		ecmd->duplex = linfo->link.s.duplex;
 	} else {
@@ -222,23 +222,20 @@ static int octnet_gpio_access(struct net_device *netdev, int addr, int val)
 	struct lio *lio = GET_LIO(netdev);
 	struct octeon_device *oct = lio->oct_dev;
 	struct octnic_ctrl_pkt nctrl;
-	struct octnic_ctrl_params nparams;
 	int ret = 0;
 
 	memset(&nctrl, 0, sizeof(struct octnic_ctrl_pkt));
 
 	nctrl.ncmd.u64 = 0;
 	nctrl.ncmd.s.cmd = OCTNET_CMD_GPIO_ACCESS;
-	nctrl.ncmd.s.param1 = lio->linfo.ifidx;
-	nctrl.ncmd.s.param2 = addr;
-	nctrl.ncmd.s.param3 = val;
+	nctrl.ncmd.s.param1 = addr;
+	nctrl.ncmd.s.param2 = val;
+	nctrl.iq_no = lio->linfo.txpciq[0].s.q_no;
 	nctrl.wait_time = 100;
 	nctrl.netpndev = (u64)netdev;
 	nctrl.cb_fn = liquidio_link_ctrl_cmd_completion;
 
-	nparams.resp_order = OCTEON_RESP_ORDERED;
-
-	ret = octnet_send_nic_ctrl_pkt(lio->oct_dev, &nctrl, nparams);
+	ret = octnet_send_nic_ctrl_pkt(lio->oct_dev, &nctrl);
 	if (ret < 0) {
 		dev_err(&oct->pci_dev->dev, "Failed to configure gpio value\n");
 		return -EINVAL;
@@ -303,8 +300,9 @@ octnet_mdio45_access(struct lio *lio, int op, int loc, int *value)
 	mdio_cmd->mdio_addr = loc;
 	if (op)
 		mdio_cmd->value1 = *value;
-	mdio_cmd->value2 = lio->linfo.ifidx;
 	octeon_swap_8B_data((u64 *)mdio_cmd, sizeof(struct oct_mdio_cmd) / 8);
+
+	sc->iq_no = lio->linfo.txpciq[0].s.q_no;
 
 	octeon_prepare_soft_command(oct_dev, sc, OPCODE_NIC, OPCODE_NIC_MDIO45,
 				    0, 0, 0);
@@ -317,7 +315,7 @@ octnet_mdio45_access(struct lio *lio, int op, int loc, int *value)
 
 	retval = octeon_send_soft_command(oct_dev, sc);
 
-	if (retval) {
+	if (retval == IQ_SEND_FAILED) {
 		dev_err(&oct_dev->pci_dev->dev,
 			"octnet_mdio45_access instruction failed status: %x\n",
 			retval);
@@ -503,10 +501,10 @@ static void lio_set_msglevel(struct net_device *netdev, u32 msglvl)
 	if ((msglvl ^ lio->msg_enable) & NETIF_MSG_HW) {
 		if (msglvl & NETIF_MSG_HW)
 			liquidio_set_feature(netdev,
-					     OCTNET_CMD_VERBOSE_ENABLE);
+					     OCTNET_CMD_VERBOSE_ENABLE, 0);
 		else
 			liquidio_set_feature(netdev,
-					     OCTNET_CMD_VERBOSE_DISABLE);
+					     OCTNET_CMD_VERBOSE_DISABLE, 0);
 	}
 
 	lio->msg_enable = msglvl;
@@ -653,7 +651,7 @@ static int lio_get_intr_coalesce(struct net_device *netdev,
 				intrmod_cfg->intrmod_mincnt_trigger;
 		}
 
-		iq = oct->instr_queue[lio->linfo.txpciq[0]];
+		iq = oct->instr_queue[lio->linfo.txpciq[0].s.q_no];
 		intr_coal->tx_max_coalesced_frames = iq->fill_threshold;
 		break;
 
@@ -722,7 +720,7 @@ static int octnet_set_intrmod_cfg(void *oct, struct oct_intrmod_cfg *intr_cfg)
 	sc->wait_time = 1000;
 
 	retval = octeon_send_soft_command(oct_dev, sc);
-	if (retval) {
+	if (retval == IQ_SEND_FAILED) {
 		octeon_free_soft_command(oct_dev, sc);
 		return -EINVAL;
 	}
@@ -859,7 +857,7 @@ static int lio_set_intr_coalesce(struct net_device *netdev,
 	if ((intr_coal->tx_max_coalesced_frames >= CN6XXX_DB_MIN) &&
 	    (intr_coal->tx_max_coalesced_frames <= CN6XXX_DB_MAX)) {
 		for (j = 0; j < lio->linfo.num_txpciq; j++) {
-			q_no = lio->linfo.txpciq[j];
+			q_no = lio->linfo.txpciq[j].s.q_no;
 			oct->instr_queue[q_no]->fill_threshold =
 				intr_coal->tx_max_coalesced_frames;
 		}
@@ -950,7 +948,6 @@ static int lio_set_settings(struct net_device *netdev, struct ethtool_cmd *ecmd)
 	struct octeon_device *oct = lio->oct_dev;
 	struct oct_link_info *linfo;
 	struct octnic_ctrl_pkt nctrl;
-	struct octnic_ctrl_params nparams;
 	int ret = 0;
 
 	/* get the link info */
@@ -978,9 +975,9 @@ static int lio_set_settings(struct net_device *netdev, struct ethtool_cmd *ecmd)
 
 	nctrl.ncmd.u64 = 0;
 	nctrl.ncmd.s.cmd = OCTNET_CMD_SET_SETTINGS;
+	nctrl.iq_no = lio->linfo.txpciq[0].s.q_no;
 	nctrl.wait_time = 1000;
 	nctrl.netpndev = (u64)netdev;
-	nctrl.ncmd.s.param1 = lio->linfo.ifidx;
 	nctrl.cb_fn = liquidio_link_ctrl_cmd_completion;
 
 	/* Passing the parameters sent by ethtool like Speed, Autoneg & Duplex
@@ -990,19 +987,17 @@ static int lio_set_settings(struct net_device *netdev, struct ethtool_cmd *ecmd)
 		/* Autoneg ON */
 		nctrl.ncmd.s.more = OCTNIC_NCMD_PHY_ON |
 				     OCTNIC_NCMD_AUTONEG_ON;
-		nctrl.ncmd.s.param2 = ecmd->advertising;
+		nctrl.ncmd.s.param1 = ecmd->advertising;
 	} else {
 		/* Autoneg OFF */
 		nctrl.ncmd.s.more = OCTNIC_NCMD_PHY_ON;
 
-		nctrl.ncmd.s.param3 = ecmd->duplex;
+		nctrl.ncmd.s.param2 = ecmd->duplex;
 
-		nctrl.ncmd.s.param2 = ecmd->speed;
+		nctrl.ncmd.s.param1 = ecmd->speed;
 	}
 
-	nparams.resp_order = OCTEON_RESP_ORDERED;
-
-	ret = octnet_send_nic_ctrl_pkt(lio->oct_dev, &nctrl, nparams);
+	ret = octnet_send_nic_ctrl_pkt(lio->oct_dev, &nctrl);
 	if (ret < 0) {
 		dev_err(&oct->pci_dev->dev, "Failed to set settings\n");
 		return -1;

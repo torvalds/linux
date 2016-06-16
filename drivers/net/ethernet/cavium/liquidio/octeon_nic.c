@@ -44,11 +44,11 @@
 
 void *
 octeon_alloc_soft_command_resp(struct octeon_device    *oct,
-			       struct octeon_instr_64B *cmd,
-			       size_t		       rdatasize)
+			       union octeon_instr_64B *cmd,
+			       u32		       rdatasize)
 {
 	struct octeon_soft_command *sc;
-	struct octeon_instr_ih  *ih;
+	struct octeon_instr_ih2  *ih2;
 	struct octeon_instr_irh *irh;
 	struct octeon_instr_rdp *rdp;
 
@@ -59,23 +59,24 @@ octeon_alloc_soft_command_resp(struct octeon_device    *oct,
 		return NULL;
 
 	/* Copy existing command structure into the soft command */
-	memcpy(&sc->cmd, cmd, sizeof(struct octeon_instr_64B));
+	memcpy(&sc->cmd, cmd, sizeof(union octeon_instr_64B));
 
 	/* Add in the response related fields. Opcode and Param are already
 	 * there.
 	 */
-	ih      = (struct octeon_instr_ih *)&sc->cmd.ih;
-	ih->fsz = 40; /* irh + ossp[0] + ossp[1] + rdp + rptr = 40 bytes */
+	ih2      = (struct octeon_instr_ih2 *)&sc->cmd.cmd2.ih2;
+	rdp     = (struct octeon_instr_rdp *)&sc->cmd.cmd2.rdp;
+	irh     = (struct octeon_instr_irh *)&sc->cmd.cmd2.irh;
+	ih2->fsz = 40; /* irh + ossp[0] + ossp[1] + rdp + rptr = 40 bytes */
 
-	irh        = (struct octeon_instr_irh *)&sc->cmd.irh;
 	irh->rflag = 1; /* a response is required */
-	irh->len   = 4; /* means four 64-bit words immediately follow irh */
 
-	rdp            = (struct octeon_instr_rdp *)&sc->cmd.rdp;
 	rdp->pcie_port = oct->pcie_port;
 	rdp->rlen      = rdatasize;
 
 	*sc->status_word = COMPLETION_WORD_INIT;
+
+	sc->cmd.cmd2.rptr =  sc->dmarptr;
 
 	sc->wait_time = 1000;
 	sc->timeout = jiffies + sc->wait_time;
@@ -119,12 +120,11 @@ static void octnet_link_ctrl_callback(struct octeon_device *oct,
 
 static inline struct octeon_soft_command
 *octnic_alloc_ctrl_pkt_sc(struct octeon_device *oct,
-			  struct octnic_ctrl_pkt *nctrl,
-			  struct octnic_ctrl_params nparams)
+			  struct octnic_ctrl_pkt *nctrl)
 {
 	struct octeon_soft_command *sc = NULL;
 	u8 *data;
-	size_t rdatasize;
+	u32 rdatasize;
 	u32 uddsize = 0, datasize = 0;
 
 	uddsize = (u32)(nctrl->ncmd.s.more * 8);
@@ -143,7 +143,7 @@ static inline struct octeon_soft_command
 
 	data = (u8 *)sc->virtdptr;
 
-	memcpy(data, &nctrl->ncmd,  OCTNET_CMD_SIZE);
+	memcpy(data, &nctrl->ncmd, OCTNET_CMD_SIZE);
 
 	octeon_swap_8B_data((u64 *)data, (OCTNET_CMD_SIZE >> 3));
 
@@ -151,6 +151,8 @@ static inline struct octeon_soft_command
 		/* Endian-Swap for UDD should have been done by caller. */
 		memcpy(data + OCTNET_CMD_SIZE, nctrl->udd, uddsize);
 	}
+
+	sc->iq_no = (u32)nctrl->iq_no;
 
 	octeon_prepare_soft_command(oct, sc, OPCODE_NIC, OPCODE_NIC_CMD,
 				    0, 0, 0);
@@ -164,13 +166,12 @@ static inline struct octeon_soft_command
 
 int
 octnet_send_nic_ctrl_pkt(struct octeon_device *oct,
-			 struct octnic_ctrl_pkt *nctrl,
-			 struct octnic_ctrl_params nparams)
+			 struct octnic_ctrl_pkt *nctrl)
 {
 	int retval;
 	struct octeon_soft_command *sc = NULL;
 
-	sc = octnic_alloc_ctrl_pkt_sc(oct, nctrl, nparams);
+	sc = octnic_alloc_ctrl_pkt_sc(oct, nctrl);
 	if (!sc) {
 		dev_err(&oct->pci_dev->dev, "%s soft command alloc failed\n",
 			__func__);
@@ -178,7 +179,7 @@ octnet_send_nic_ctrl_pkt(struct octeon_device *oct,
 	}
 
 	retval = octeon_send_soft_command(oct, sc);
-	if (retval) {
+	if (retval == IQ_SEND_FAILED) {
 		octeon_free_soft_command(oct, sc);
 		dev_err(&oct->pci_dev->dev, "%s soft command send failed status: %x\n",
 			__func__, retval);
