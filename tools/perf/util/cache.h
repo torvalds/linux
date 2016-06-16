@@ -11,14 +11,9 @@
 #include <linux/string.h>
 
 #define CMD_EXEC_PATH "--exec-path"
-#define CMD_PERF_DIR "--perf-dir="
-#define CMD_WORK_TREE "--work-tree="
 #define CMD_DEBUGFS_DIR "--debugfs-dir="
 
-#define PERF_DIR_ENVIRONMENT "PERF_DIR"
-#define PERF_WORK_TREE_ENVIRONMENT "PERF_WORK_TREE"
 #define EXEC_PATH_ENVIRONMENT "PERF_EXEC_PATH"
-#define DEFAULT_PERF_DIR_ENVIRONMENT ".perf"
 #define PERF_DEBUGFS_ENVIRONMENT "PERF_DEBUGFS_DIR"
 #define PERF_TRACEFS_ENVIRONMENT "PERF_TRACEFS_DIR"
 #define PERF_PAGER_ENVIRONMENT "PERF_PAGER"
