@@ -809,6 +809,12 @@ static int port100_send_cmd_async(struct port100 *dev, u8 cmd_code,
 			PORT100_FRAME_MAX_PAYLOAD_LEN +
 			PORT100_FRAME_TAIL_LEN;
 
+	if (dev->cmd) {
+		nfc_err(&dev->interface->dev,
+			"A command is still in process\n");
+		return -EBUSY;
+	}
+
 	resp = alloc_skb(resp_len, GFP_KERNEL);
 	if (!resp)
 		return -ENOMEM;
