@@ -60,7 +60,7 @@ static void wakeup_timer_fn(unsigned long data)
 	adapter->hw_status = MWIFIEX_HW_STATUS_RESET;
 	mwifiex_cancel_all_pending_cmd(adapter);
 
-	if (adapter->if_ops.card_reset)
+	if (adapter->if_ops.card_reset && !adapter->hs_activated)
 		adapter->if_ops.card_reset(adapter);
 }
 
