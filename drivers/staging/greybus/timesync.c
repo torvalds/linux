@@ -157,10 +157,8 @@ static void gb_timesync_set_state(struct gb_timesync_svc *timesync_svc,
 		wake_up(&timesync_svc->wait_queue);
 		break;
 	case GB_TIMESYNC_STATE_INACTIVE:
-		if (timesync_svc->state != GB_TIMESYNC_STATE_INIT) {
-			timesync_svc->state = state;
-			wake_up(&timesync_svc->wait_queue);
-		}
+		timesync_svc->state = state;
+		wake_up(&timesync_svc->wait_queue);
 		break;
 	case GB_TIMESYNC_STATE_INIT:
 		if (timesync_svc->state != GB_TIMESYNC_STATE_INVALID) {
