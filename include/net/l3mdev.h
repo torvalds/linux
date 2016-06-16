@@ -39,6 +39,9 @@ struct l3mdev_ops {
 	/* IPv6 ops */
 	struct dst_entry * (*l3mdev_get_rt6_dst)(const struct net_device *dev,
 						 struct flowi6 *fl6);
+	int		   (*l3mdev_get_saddr6)(struct net_device *dev,
+						const struct sock *sk,
+						struct flowi6 *fl6);
 };
 
 #ifdef CONFIG_NET_L3_MASTER_DEV
@@ -140,6 +143,8 @@ static inline bool netif_index_is_l3_master(struct net *net, int ifindex)
 int l3mdev_get_saddr(struct net *net, int ifindex, struct flowi4 *fl4);
 
 struct dst_entry *l3mdev_get_rt6_dst(struct net *net, struct flowi6 *fl6);
+int l3mdev_get_saddr6(struct net *net, const struct sock *sk,
+		      struct flowi6 *fl6);
 
 static inline
 struct sk_buff *l3mdev_l3_rcv(struct sk_buff *skb, u16 proto)
@@ -228,6 +233,12 @@ static inline
 struct dst_entry *l3mdev_get_rt6_dst(struct net *net, struct flowi6 *fl6)
 {
 	return NULL;
+}
+
+static inline int l3mdev_get_saddr6(struct net *net, const struct sock *sk,
+				    struct flowi6 *fl6)
+{
+	return 0;
 }
 
 static inline
