@@ -20,6 +20,7 @@
 #include <linux/delay.h>
 #include <linux/kthread.h>
 #include <linux/irqreturn.h>
+#include <linux/pm_runtime.h>
 
 #include <linux/mei.h>
 
@@ -934,6 +935,8 @@ static int mei_txe_hw_start(struct mei_device *dev)
 		dev_err(dev->dev, "wait for aliveness failed ... bailing out\n");
 		return ret;
 	}
+
+	pm_runtime_set_active(dev->dev);
 
 	/* enable input ready interrupts:
 	 * SEC_IPC_HOST_INT_MASK.IPC_INPUT_READY_INT_MASK

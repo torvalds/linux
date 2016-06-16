@@ -347,6 +347,10 @@ static int mei_txe_pm_runtime_suspend(struct device *device)
 	dev_dbg(&pdev->dev, "rpm: txe: runtime suspend ret=%d\n", ret);
 
 	mutex_unlock(&dev->device_lock);
+
+	if (ret && ret != -EAGAIN)
+		schedule_work(&dev->reset_work);
+
 	return ret;
 }
 
@@ -371,6 +375,9 @@ static int mei_txe_pm_runtime_resume(struct device *device)
 	mutex_unlock(&dev->device_lock);
 
 	dev_dbg(&pdev->dev, "rpm: txe: runtime resume ret = %d\n", ret);
+
+	if (ret)
+		schedule_work(&dev->reset_work);
 
 	return ret;
 }
