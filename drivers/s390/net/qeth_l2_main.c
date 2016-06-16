@@ -1800,6 +1800,12 @@ static int qeth_bridgeport_makerc(struct qeth_card *card,
 			dev_err(&card->gdev->dev,
 	"The device is not configured as a Bridge Port\n");
 			break;
+		case 0x2B10:
+		case 0x0010: /* OS mismatch */
+			rc = -EPERM;
+			dev_err(&card->gdev->dev,
+	"A Bridge Port is already configured by a different operating system\n");
+			break;
 		case 0x2B14:
 		case 0x0014: /* Another device is Primary */
 			switch (setcmd) {
