@@ -206,7 +206,7 @@ static void ltq_shutdown_eiu_irq(struct irq_data *d)
 }
 
 static struct irq_chip ltq_irq_type = {
-	"icu",
+	.name = "icu",
 	.irq_enable = ltq_enable_irq,
 	.irq_disable = ltq_disable_irq,
 	.irq_unmask = ltq_enable_irq,
@@ -216,7 +216,7 @@ static struct irq_chip ltq_irq_type = {
 };
 
 static struct irq_chip ltq_eiu_type = {
-	"eiu",
+	.name = "eiu",
 	.irq_startup = ltq_startup_eiu_irq,
 	.irq_shutdown = ltq_shutdown_eiu_irq,
 	.irq_enable = ltq_enable_irq,
