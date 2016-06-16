@@ -277,6 +277,26 @@ void msm_rd_debugfs_cleanup(struct drm_minor *minor)
 	kfree(rd);
 }
 
+static void snapshot_buf(struct msm_rd_state *rd,
+		struct msm_gem_submit *submit, int idx,
+		uint32_t iova, uint32_t size)
+{
+	struct msm_gem_object *obj = submit->bos[idx].obj;
+	const char *buf;
+
+	buf = msm_gem_get_vaddr_locked(&obj->base);
+	if (IS_ERR(buf))
+		return;
+
+	buf += iova - submit->bos[idx].iova;
+
+	rd_write_section(rd, RD_GPUADDR,
+			(uint32_t[2]){ iova, size }, 8);
+	rd_write_section(rd, RD_BUFFER_CONTENTS, buf, size);
+
+	msm_gem_put_vaddr_locked(&obj->base);
+}
+
 /* called under struct_mutex */
 void msm_rd_dump_submit(struct msm_gem_submit *submit)
 {
@@ -306,21 +326,11 @@ void msm_rd_dump_submit(struct msm_gem_submit *submit)
 	 */
 
 	for (i = 0; i < submit->nr_cmds; i++) {
-		uint32_t idx  = submit->cmd[i].idx;
 		uint32_t iova = submit->cmd[i].iova;
 		uint32_t szd  = submit->cmd[i].size; /* in dwords */
-		struct msm_gem_object *obj = submit->bos[idx].obj;
-		const char *buf = msm_gem_get_vaddr_locked(&obj->base);
 
-		if (IS_ERR(buf))
-			continue;
-
-		buf += iova - submit->bos[idx].iova;
-
-		rd_write_section(rd, RD_GPUADDR,
-				(uint32_t[2]){ iova, szd * 4 }, 8);
-		rd_write_section(rd, RD_BUFFER_CONTENTS,
-				buf, szd * 4);
+		snapshot_buf(rd, submit, submit->cmd[i].idx,
+				submit->cmd[i].iova, szd * 4);
 
 		switch (submit->cmd[i].type) {
 		case MSM_SUBMIT_CMD_IB_TARGET_BUF:
@@ -335,8 +345,6 @@ void msm_rd_dump_submit(struct msm_gem_submit *submit)
 					(uint32_t[2]){ iova, szd }, 8);
 			break;
 		}
-
-		msm_gem_put_vaddr_locked(&obj->base);
 	}
 }
 #endif
