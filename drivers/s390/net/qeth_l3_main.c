@@ -2314,22 +2314,21 @@ static int qeth_l3_arp_query(struct qeth_card *card, char __user *udata)
 	if (rc) {
 		if (copy_to_user(udata, qinfo.udata, 4))
 			rc = -EFAULT;
-			goto free_and_out;
-	} else {
-#ifdef CONFIG_QETH_IPV6
-		if (qinfo.mask_bits & QETH_QARP_WITH_IPV6) {
-			/* fails in case of GuestLAN QDIO mode */
-			qeth_l3_query_arp_cache_info(card, QETH_PROT_IPV6,
-				&qinfo);
-		}
-#endif
-		if (copy_to_user(udata, qinfo.udata, qinfo.udata_len)) {
-			QETH_CARD_TEXT(card, 4, "qactf");
-			rc = -EFAULT;
-			goto free_and_out;
-		}
-		QETH_CARD_TEXT(card, 4, "qacts");
+		goto free_and_out;
 	}
+#ifdef CONFIG_QETH_IPV6
+	if (qinfo.mask_bits & QETH_QARP_WITH_IPV6) {
+		/* fails in case of GuestLAN QDIO mode */
+		qeth_l3_query_arp_cache_info(card, QETH_PROT_IPV6, &qinfo);
+	}
+#endif
+	if (copy_to_user(udata, qinfo.udata, qinfo.udata_len)) {
+		QETH_CARD_TEXT(card, 4, "qactf");
+		rc = -EFAULT;
+		goto free_and_out;
+	}
+	QETH_CARD_TEXT(card, 4, "qacts");
+
 free_and_out:
 	kfree(qinfo.udata);
 out:
