@@ -215,8 +215,6 @@ static int tilcdc_unload(struct drm_device *dev)
 	return 0;
 }
 
-static size_t tilcdc_num_regs(void);
-
 static int tilcdc_load(struct drm_device *dev, unsigned long flags)
 {
 	struct platform_device *pdev = dev->platformdev;
@@ -228,11 +226,7 @@ static int tilcdc_load(struct drm_device *dev, unsigned long flags)
 	int ret;
 
 	priv = devm_kzalloc(dev->dev, sizeof(*priv), GFP_KERNEL);
-	if (priv)
-		priv->saved_register =
-			devm_kcalloc(dev->dev, tilcdc_num_regs(),
-				     sizeof(*priv->saved_register), GFP_KERNEL);
-	if (!priv || !priv->saved_register) {
+	if (!priv) {
 		dev_err(dev->dev, "failed to allocate private data\n");
 		return -ENOMEM;
 	}
@@ -439,7 +433,7 @@ static void tilcdc_disable_vblank(struct drm_device *dev, unsigned int pipe)
 	return;
 }
 
-#if defined(CONFIG_DEBUG_FS) || defined(CONFIG_PM_SLEEP)
+#if defined(CONFIG_DEBUG_FS)
 static const struct {
 	const char *name;
 	uint8_t  rev;
@@ -470,15 +464,6 @@ static const struct {
 #undef REG
 };
 
-static size_t tilcdc_num_regs(void)
-{
-	return ARRAY_SIZE(registers);
-}
-#else
-static size_t tilcdc_num_regs(void)
-{
-	return 0;
-}
 #endif
 
 #ifdef CONFIG_DEBUG_FS
@@ -610,28 +595,11 @@ static int tilcdc_pm_suspend(struct device *dev)
 {
 	struct drm_device *ddev = dev_get_drvdata(dev);
 	struct tilcdc_drm_private *priv = ddev->dev_private;
-	unsigned i, n = 0;
 
-	drm_kms_helper_poll_disable(ddev);
+	priv->saved_state = drm_atomic_helper_suspend(ddev);
 
 	/* Select sleep pin state */
 	pinctrl_pm_select_sleep_state(dev);
-
-	if (pm_runtime_suspended(dev)) {
-		priv->ctx_valid = false;
-		return 0;
-	}
-
-	/* Disable the LCDC controller, to avoid locking up the PRCM */
-	priv->saved_dpms_state = tilcdc_crtc_current_dpms_state(priv->crtc);
-	tilcdc_crtc_dpms(priv->crtc, DRM_MODE_DPMS_OFF);
-
-	/* Save register state: */
-	for (i = 0; i < ARRAY_SIZE(registers); i++)
-		if (registers[i].save && (priv->rev >= registers[i].rev))
-			priv->saved_register[n++] = tilcdc_read(ddev, registers[i].reg);
-
-	priv->ctx_valid = true;
 
 	return 0;
 }
@@ -640,25 +608,15 @@ static int tilcdc_pm_resume(struct device *dev)
 {
 	struct drm_device *ddev = dev_get_drvdata(dev);
 	struct tilcdc_drm_private *priv = ddev->dev_private;
-	unsigned i, n = 0;
+	int ret = 0;
 
 	/* Select default pin state */
 	pinctrl_pm_select_default_state(dev);
 
-	if (priv->ctx_valid == true) {
-		/* Restore register state: */
-		for (i = 0; i < ARRAY_SIZE(registers); i++)
-			if (registers[i].save &&
-			    (priv->rev >= registers[i].rev))
-				tilcdc_write(ddev, registers[i].reg,
-					     priv->saved_register[n++]);
-	}
+	if (priv->saved_state)
+		ret = drm_atomic_helper_resume(ddev, priv->saved_state);
 
-	tilcdc_crtc_dpms(priv->crtc, priv->saved_dpms_state);
-
-	drm_kms_helper_poll_enable(ddev);
-
-	return 0;
+	return ret;
 }
 #endif
 

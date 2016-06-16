@@ -65,10 +65,8 @@ struct tilcdc_drm_private {
 	 */
 	uint32_t max_width;
 
-	/* register contents saved across suspend/resume: */
-	u32 *saved_register;
-	int saved_dpms_state;
-	bool ctx_valid;
+	/* The context for pm susped/resume cycle is stored here */
+	struct drm_atomic_state *saved_state;
 
 #ifdef CONFIG_CPU_FREQ
 	struct notifier_block freq_transition;
