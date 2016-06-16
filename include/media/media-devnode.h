@@ -69,8 +69,9 @@ struct media_file_operations {
 
 /**
  * struct media_devnode - Media device node
+ * @media_dev:	pointer to struct &media_device
  * @fops:	pointer to struct &media_file_operations with media device ops
- * @dev:	struct device pointer for the media controller device
+ * @dev:	pointer to struct &device containing the media controller device
  * @cdev:	struct cdev pointer character device
  * @parent:	parent device
  * @minor:	device node minor number
@@ -107,7 +108,7 @@ struct media_devnode {
 /**
  * media_devnode_register - register a media device node
  *
- * @media_dev: struct media_device we want to register a device node
+ * @mdev: struct media_device we want to register a device node
  * @devnode: media device node structure we want to register
  * @owner: should be filled with %THIS_MODULE
  *
