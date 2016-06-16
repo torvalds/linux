@@ -358,6 +358,7 @@ struct vmxnet3_adapter {
 	int		rx_buf_per_pkt;  /* only apply to the 1st ring */
 	dma_addr_t			shared_pa;
 	dma_addr_t queue_desc_pa;
+	dma_addr_t coal_conf_pa;
 
 	/* Wake-on-LAN */
 	u32     wol;
@@ -383,6 +384,9 @@ struct vmxnet3_adapter {
 	unsigned long  state;    /* VMXNET3_STATE_BIT_xxx */
 
 	int share_intr;
+
+	struct Vmxnet3_CoalesceScheme *coal_conf;
+	bool   default_coal_mode;
 
 	dma_addr_t adapter_pa;
 	dma_addr_t pm_conf_pa;
@@ -428,6 +432,11 @@ struct vmxnet3_adapter {
 #define VMXNET3_RX_DATA_RING(adapter, rqID)		\
 	(rqID >= 2 * adapter->num_rx_queues &&		\
 	rqID < 3 * adapter->num_rx_queues)		\
+
+#define VMXNET3_COAL_STATIC_DEFAULT_DEPTH	64
+
+#define VMXNET3_COAL_RBC_RATE(usecs) (1000000 / usecs)
+#define VMXNET3_COAL_RBC_USECS(rbc_rate) (1000000 / rbc_rate)
 
 int
 vmxnet3_quiesce_dev(struct vmxnet3_adapter *adapter);

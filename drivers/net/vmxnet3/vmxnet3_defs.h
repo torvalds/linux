@@ -80,6 +80,7 @@ enum {
 	VMXNET3_CMD_LOAD_PLUGIN,
 	VMXNET3_CMD_RESERVED2,
 	VMXNET3_CMD_RESERVED3,
+	VMXNET3_CMD_SET_COALESCE,
 
 	VMXNET3_CMD_FIRST_GET = 0xF00D0000,
 	VMXNET3_CMD_GET_QUEUE_STATUS = VMXNET3_CMD_FIRST_GET,
@@ -92,7 +93,8 @@ enum {
 	VMXNET3_CMD_GET_DEV_EXTRA_INFO,
 	VMXNET3_CMD_GET_CONF_INTR,
 	VMXNET3_CMD_GET_RESERVED1,
-	VMXNET3_CMD_GET_TXDATA_DESC_SIZE
+	VMXNET3_CMD_GET_TXDATA_DESC_SIZE,
+	VMXNET3_CMD_GET_COALESCE,
 };
 
 /*
@@ -635,6 +637,35 @@ struct Vmxnet3_RxQueueDesc {
 
 struct Vmxnet3_SetPolling {
 	u8					enablePolling;
+};
+
+#define VMXNET3_COAL_STATIC_MAX_DEPTH		128
+#define VMXNET3_COAL_RBC_MIN_RATE		100
+#define VMXNET3_COAL_RBC_MAX_RATE		100000
+
+enum Vmxnet3_CoalesceMode {
+	VMXNET3_COALESCE_DISABLED   = 0,
+	VMXNET3_COALESCE_ADAPT      = 1,
+	VMXNET3_COALESCE_STATIC     = 2,
+	VMXNET3_COALESCE_RBC        = 3
+};
+
+struct Vmxnet3_CoalesceRbc {
+	u32					rbc_rate;
+};
+
+struct Vmxnet3_CoalesceStatic {
+	u32					tx_depth;
+	u32					tx_comp_depth;
+	u32					rx_depth;
+};
+
+struct Vmxnet3_CoalesceScheme {
+	enum Vmxnet3_CoalesceMode		coalMode;
+	union {
+		struct Vmxnet3_CoalesceRbc	coalRbc;
+		struct Vmxnet3_CoalesceStatic	coalStatic;
+	} coalPara;
 };
 
 /* If the command data <= 16 bytes, use the shared memory directly.
