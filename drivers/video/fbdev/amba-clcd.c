@@ -565,7 +565,7 @@ static int clcdfb_register(struct clcd_fb *fb)
 
 #ifdef CONFIG_OF
 static int clcdfb_of_get_dpi_panel_mode(struct device_node *node,
-		struct fb_videomode *mode)
+		struct clcd_panel *clcd_panel)
 {
 	int err;
 	struct display_timing timing;
@@ -577,9 +577,30 @@ static int clcdfb_of_get_dpi_panel_mode(struct device_node *node,
 
 	videomode_from_timing(&timing, &video);
 
-	err = fb_videomode_from_videomode(&video, mode);
+	err = fb_videomode_from_videomode(&video, &clcd_panel->mode);
 	if (err)
 		return err;
+
+	/* Set up some inversion flags */
+	if (timing.flags & DISPLAY_FLAGS_PIXDATA_NEGEDGE)
+		clcd_panel->tim2 |= TIM2_IPC;
+	else if (!(timing.flags & DISPLAY_FLAGS_PIXDATA_POSEDGE))
+		/*
+		 * To preserve backwards compatibility, the IPC (inverted
+		 * pixel clock) flag needs to be set on any display that
+		 * doesn't explicitly specify that the pixel clock is
+		 * active on the negative or positive edge.
+		 */
+		clcd_panel->tim2 |= TIM2_IPC;
+
+	if (timing.flags & DISPLAY_FLAGS_HSYNC_LOW)
+		clcd_panel->tim2 |= TIM2_IHS;
+
+	if (timing.flags & DISPLAY_FLAGS_VSYNC_LOW)
+		clcd_panel->tim2 |= TIM2_IVS;
+
+	if (timing.flags & DISPLAY_FLAGS_DE_LOW)
+		clcd_panel->tim2 |= TIM2_IOE;
 
 	return 0;
 }
@@ -613,10 +634,11 @@ static int clcdfb_of_get_backlight(struct device_node *endpoint,
 }
 
 static int clcdfb_of_get_mode(struct device *dev, struct device_node *endpoint,
-		struct fb_videomode *mode)
+		struct clcd_panel *clcd_panel)
 {
 	int err;
 	struct device_node *panel;
+	struct fb_videomode *mode;
 	char *name;
 	int len;
 
@@ -626,11 +648,12 @@ static int clcdfb_of_get_mode(struct device *dev, struct device_node *endpoint,
 
 	/* Only directly connected DPI panels supported for now */
 	if (of_device_is_compatible(panel, "panel-dpi"))
-		err = clcdfb_of_get_dpi_panel_mode(panel, mode);
+		err = clcdfb_of_get_dpi_panel_mode(panel, clcd_panel);
 	else
 		err = -ENOENT;
 	if (err)
 		return err;
+	mode = &clcd_panel->mode;
 
 	len = clcdfb_snprintf_mode(NULL, 0, mode);
 	name = devm_kzalloc(dev, len + 1, GFP_KERNEL);
@@ -661,8 +684,8 @@ static int clcdfb_of_init_tft_panel(struct clcd_fb *fb, u32 r0, u32 g0, u32 b0)
 	};
 	int i;
 
-	/* Bypass pixel clock divider, data output on the falling edge */
-	fb->panel->tim2 = TIM2_BCD | TIM2_IPC;
+	/* Bypass pixel clock divider */
+	fb->panel->tim2 |= TIM2_BCD;
 
 	/* TFT display, vert. comp. interrupt at the start of the back porch */
 	fb->panel->cntl |= CNTL_LCDTFT | CNTL_LCDVCOMP(1);
@@ -702,7 +725,7 @@ static int clcdfb_of_init_display(struct clcd_fb *fb)
 	if (err)
 		return err;
 
-	err = clcdfb_of_get_mode(&fb->dev->dev, endpoint, &fb->panel->mode);
+	err = clcdfb_of_get_mode(&fb->dev->dev, endpoint, fb->panel);
 	if (err)
 		return err;
 
