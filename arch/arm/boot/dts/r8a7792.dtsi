@@ -280,8 +280,24 @@
 			clock-div = <48>;
 			clock-mult = <1>;
 		};
+		m2_clk: m2 {
+			compatible = "fixed-factor-clock";
+			clocks = <&cpg_clocks R8A7792_CLK_PLL1>;
+			#clock-cells = <0>;
+			clock-div = <8>;
+			clock-mult = <1>;
+		};
 
 		/* Gate clocks */
+		mstp1_clks: mstp1_clks@e6150134 {
+			compatible = "renesas,r8a7792-mstp-clocks",
+				     "renesas,cpg-mstp-clocks";
+			reg = <0 0xe6150134 0 4>, <0 0xe6150038 0 4>;
+			clocks = <&m2_clk>;
+			#clock-cells = <1>;
+			clock-indices = <R8A7792_CLK_JPU>;
+			clock-output-names = "jpu";
+		};
 		mstp2_clks: mstp2_clks@e6150138 {
 			compatible = "renesas,r8a7792-mstp-clocks",
 				     "renesas,cpg-mstp-clocks";
