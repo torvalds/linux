@@ -126,7 +126,8 @@ ssize_t __mei_cl_recv(struct mei_cl *cl, u8 *buf, size_t length)
 		goto out;
 
 	/* wait on event only if there is no other waiter */
-	if (list_empty(&cl->rd_completed) && !waitqueue_active(&cl->rx_wait)) {
+	/* synchronized under device mutex */
+	if (!waitqueue_active(&cl->rx_wait)) {
 
 		mutex_unlock(&bus->device_lock);
 

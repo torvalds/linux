@@ -183,7 +183,8 @@ static ssize_t mei_read(struct file *file, char __user *ubuf,
 		goto out;
 	}
 
-	if (list_empty(&cl->rd_completed) && !waitqueue_active(&cl->rx_wait)) {
+	/* synchronized under device mutex */
+	if (!waitqueue_active(&cl->rx_wait)) {
 		if (file->f_flags & O_NONBLOCK) {
 			rets = -EAGAIN;
 			goto out;
