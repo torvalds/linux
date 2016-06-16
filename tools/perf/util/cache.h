@@ -32,7 +32,6 @@ int perf_config_int(const char *, const char *);
 u64 perf_config_u64(const char *, const char *);
 int perf_config_bool(const char *, const char *);
 int config_error_nonbool(const char *);
-const char *perf_config_dirname(const char *, const char *);
 const char *perf_etc_perfconfig(void);
 
 char *alias_lookup(const char *alias);
@@ -45,9 +44,6 @@ static inline int is_absolute_path(const char *path)
 	return path[0] == '/';
 }
 
-char *strip_path_suffix(const char *path, const char *suffix);
-
 char *mkpath(const char *fmt, ...) __attribute__((format (printf, 1, 2)));
-char *perf_path(const char *fmt, ...) __attribute__((format (printf, 1, 2)));
 
 #endif /* __PERF_CACHE_H */

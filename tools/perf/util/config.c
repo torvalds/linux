@@ -372,7 +372,7 @@ int perf_config_bool(const char *name, const char *value)
 	return !!perf_config_bool_or_int(name, value, &discard);
 }
 
-const char *perf_config_dirname(const char *name, const char *value)
+static const char *perf_config_dirname(const char *name, const char *value)
 {
 	if (!name)
 		return NULL;
