@@ -6125,27 +6125,38 @@ static int qeth_set_ipa_tso(struct qeth_card *card, int on)
 int qeth_set_features(struct net_device *dev, netdev_features_t features)
 {
 	struct qeth_card *card = dev->ml_priv;
-	netdev_features_t changed = card->dev->features ^ features;
+	netdev_features_t changed = dev->features ^ features;
 	int rc = 0;
 
 	QETH_DBF_TEXT(SETUP, 2, "setfeat");
 	QETH_DBF_HEX(SETUP, 2, &features, sizeof(features));
 
-	if (card->state == CARD_STATE_DOWN ||
-	    card->state == CARD_STATE_RECOVER)
-		return 0;
-
-	if ((changed & NETIF_F_IP_CSUM))
+	if ((changed & NETIF_F_IP_CSUM)) {
 		rc = qeth_set_ipa_csum(card,
 				       features & NETIF_F_IP_CSUM ? 1 : 0,
 				       IPA_OUTBOUND_CHECKSUM);
-	if ((changed & NETIF_F_RXCSUM))
-		rc |= qeth_set_ipa_csum(card,
+		if (rc)
+			changed ^= NETIF_F_IP_CSUM;
+	}
+	if ((changed & NETIF_F_RXCSUM)) {
+		rc = qeth_set_ipa_csum(card,
 					features & NETIF_F_RXCSUM ? 1 : 0,
 					IPA_INBOUND_CHECKSUM);
-	if ((changed & NETIF_F_TSO))
-		rc |= qeth_set_ipa_tso(card, features & NETIF_F_TSO ? 1 : 0);
-	return rc ? -EIO : 0;
+		if (rc)
+			changed ^= NETIF_F_RXCSUM;
+	}
+	if ((changed & NETIF_F_TSO)) {
+		rc = qeth_set_ipa_tso(card, features & NETIF_F_TSO ? 1 : 0);
+		if (rc)
+			changed ^= NETIF_F_TSO;
+	}
+
+	/* everything changed successfully? */
+	if ((dev->features ^ features) == changed)
+		return 0;
+	/* something went wrong. save changed features and return error */
+	dev->features ^= changed;
+	return -EIO;
 }
 EXPORT_SYMBOL_GPL(qeth_set_features);
 
@@ -6164,6 +6175,11 @@ netdev_features_t qeth_fix_features(struct net_device *dev,
 		dev_info(&card->gdev->dev, "Outbound TSO not supported on %s\n",
 			 QETH_CARD_IFNAME(card));
 	}
+	/* if the card isn't up, remove features that require hw changes */
+	if (card->state == CARD_STATE_DOWN ||
+	    card->state == CARD_STATE_RECOVER)
+		features = features & ~(NETIF_F_IP_CSUM | NETIF_F_RXCSUM |
+					NETIF_F_TSO);
 	QETH_DBF_HEX(SETUP, 2, &features, sizeof(features));
 	return features;
 }
