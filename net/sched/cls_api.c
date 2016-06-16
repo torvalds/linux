@@ -169,7 +169,7 @@ replay:
 	if (prio == 0) {
 		switch (n->nlmsg_type) {
 		case RTM_DELTFILTER:
-			if (protocol || t->tcm_handle)
+			if (protocol || t->tcm_handle || tca[TCA_KIND])
 				return -ENOENT;
 			break;
 		case RTM_NEWTFILTER:
