@@ -2737,6 +2737,7 @@ struct wireless_dev *mwifiex_add_virtual_intf(struct wiphy *wiphy,
 	struct mwifiex_private *priv;
 	struct net_device *dev;
 	void *mdev_priv;
+	int ret;
 
 	if (!adapter)
 		return ERR_PTR(-EFAULT);
@@ -2861,6 +2862,13 @@ struct wireless_dev *mwifiex_add_virtual_intf(struct wiphy *wiphy,
 
 	mwifiex_init_priv_params(priv, dev);
 	priv->netdev = dev;
+
+	ret = mwifiex_send_cmd(priv, HostCmd_CMD_SET_BSS_MODE,
+			       HostCmd_ACT_GEN_SET, 0, NULL, true);
+		return ERR_PTR(ret);
+
+	ret = mwifiex_sta_init_cmd(priv, false, false);
+		return ERR_PTR(ret);
 
 	mwifiex_setup_ht_caps(&wiphy->bands[NL80211_BAND_2GHZ]->ht_cap, priv);
 	if (adapter->is_hw_11ac_capable)
