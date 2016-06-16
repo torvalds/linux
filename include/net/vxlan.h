@@ -4,6 +4,7 @@
 #include <linux/if_vlan.h>
 #include <net/udp_tunnel.h>
 #include <net/dst_metadata.h>
+#include <net/udp_tunnel.h>
 
 /* VXLAN protocol (RFC 7348) header:
  * +-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+
@@ -390,8 +391,7 @@ static inline __be32 vxlan_compute_rco(unsigned int start, unsigned int offset)
 
 static inline void vxlan_get_rx_port(struct net_device *netdev)
 {
-	ASSERT_RTNL();
-	call_netdevice_notifiers(NETDEV_OFFLOAD_PUSH_VXLAN, netdev);
+	udp_tunnel_get_rx_info(netdev);
 }
 
 static inline unsigned short vxlan_get_sk_family(struct vxlan_sock *vs)

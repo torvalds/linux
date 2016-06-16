@@ -3239,7 +3239,7 @@ static int vxlan_netdevice_event(struct notifier_block *unused,
 
 	if (event == NETDEV_UNREGISTER)
 		vxlan_handle_lowerdev_unregister(vn, dev);
-	else if (event == NETDEV_OFFLOAD_PUSH_VXLAN)
+	else if (event == NETDEV_UDP_TUNNEL_PUSH_INFO)
 		vxlan_push_rx_ports(dev);
 
 	return NOTIFY_DONE;

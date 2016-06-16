@@ -79,6 +79,11 @@ EXPORT_SYMBOL_GPL(setup_udp_tunnel_sock);
 static void __udp_tunnel_push_rx_port(struct net_device *dev,
 				      struct udp_tunnel_info *ti)
 {
+	if (dev->netdev_ops->ndo_udp_tunnel_add) {
+		dev->netdev_ops->ndo_udp_tunnel_add(dev, ti);
+		return;
+	}
+
 	switch (ti->type) {
 	case UDP_TUNNEL_TYPE_VXLAN:
 		if (!dev->netdev_ops->ndo_add_vxlan_port)
@@ -137,6 +142,11 @@ EXPORT_SYMBOL_GPL(udp_tunnel_notify_add_rx_port);
 static void __udp_tunnel_pull_rx_port(struct net_device *dev,
 				      struct udp_tunnel_info *ti)
 {
+	if (dev->netdev_ops->ndo_udp_tunnel_del) {
+		dev->netdev_ops->ndo_udp_tunnel_del(dev, ti);
+		return;
+	}
+
 	switch (ti->type) {
 	case UDP_TUNNEL_TYPE_VXLAN:
 		if (!dev->netdev_ops->ndo_del_vxlan_port)

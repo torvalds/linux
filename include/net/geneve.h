@@ -61,8 +61,7 @@ struct genevehdr {
 
 static inline void geneve_get_rx_port(struct net_device *netdev)
 {
-	ASSERT_RTNL();
-	call_netdevice_notifiers(NETDEV_OFFLOAD_PUSH_GENEVE, netdev);
+	udp_tunnel_get_rx_info(netdev);
 }
 
 #ifdef CONFIG_INET
