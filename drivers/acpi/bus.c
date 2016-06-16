@@ -174,22 +174,17 @@ void acpi_bus_detach_private_data(acpi_handle handle)
 EXPORT_SYMBOL_GPL(acpi_bus_detach_private_data);
 
 static void acpi_print_osc_error(acpi_handle handle,
-	struct acpi_osc_context *context, char *error)
+				 struct acpi_osc_context *context, char *error)
 {
-	struct acpi_buffer buffer = {ACPI_ALLOCATE_BUFFER};
 	int i;
 
-	if (ACPI_FAILURE(acpi_get_name(handle, ACPI_FULL_PATHNAME, &buffer)))
-		printk(KERN_DEBUG "%s: %s\n", context->uuid_str, error);
-	else {
-		printk(KERN_DEBUG "%s (%s): %s\n",
-		       (char *)buffer.pointer, context->uuid_str, error);
-		kfree(buffer.pointer);
-	}
-	printk(KERN_DEBUG "_OSC request data:");
+	acpi_handle_debug(handle, "(%s): %s\n", context->uuid_str, error);
+
+	pr_debug("_OSC request data:");
 	for (i = 0; i < context->cap.length; i += sizeof(u32))
-		printk(" %x", *((u32 *)(context->cap.pointer + i)));
-	printk("\n");
+		pr_debug(" %x", *((u32 *)(context->cap.pointer + i)));
+
+	pr_debug("\n");
 }
 
 acpi_status acpi_str_to_uuid(char *str, u8 *uuid)
