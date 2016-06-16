@@ -349,7 +349,8 @@ static const struct bpf_func_proto *kprobe_prog_func_proto(enum bpf_func_id func
 }
 
 /* bpf+kprobe programs can access fields of 'struct pt_regs' */
-static bool kprobe_prog_is_valid_access(int off, int size, enum bpf_access_type type)
+static bool kprobe_prog_is_valid_access(int off, int size, enum bpf_access_type type,
+					enum bpf_reg_type *reg_type)
 {
 	/* check bounds */
 	if (off < 0 || off >= sizeof(struct pt_regs))
@@ -427,7 +428,8 @@ static const struct bpf_func_proto *tp_prog_func_proto(enum bpf_func_id func_id)
 	}
 }
 
-static bool tp_prog_is_valid_access(int off, int size, enum bpf_access_type type)
+static bool tp_prog_is_valid_access(int off, int size, enum bpf_access_type type,
+				    enum bpf_reg_type *reg_type)
 {
 	if (off < sizeof(void *) || off >= PERF_MAX_TRACE_SIZE)
 		return false;

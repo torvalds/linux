@@ -111,6 +111,31 @@ enum bpf_access_type {
 	BPF_WRITE = 2
 };
 
+/* types of values stored in eBPF registers */
+enum bpf_reg_type {
+	NOT_INIT = 0,		 /* nothing was written into register */
+	UNKNOWN_VALUE,		 /* reg doesn't contain a valid pointer */
+	PTR_TO_CTX,		 /* reg points to bpf_context */
+	CONST_PTR_TO_MAP,	 /* reg points to struct bpf_map */
+	PTR_TO_MAP_VALUE,	 /* reg points to map element value */
+	PTR_TO_MAP_VALUE_OR_NULL,/* points to map elem value or NULL */
+	FRAME_PTR,		 /* reg == frame_pointer */
+	PTR_TO_STACK,		 /* reg == frame_pointer + imm */
+	CONST_IMM,		 /* constant integer value */
+
+	/* PTR_TO_PACKET represents:
+	 * skb->data
+	 * skb->data + imm
+	 * skb->data + (u16) var
+	 * skb->data + (u16) var + imm
+	 * if (range > 0) then [ptr, ptr + range - off) is safe to access
+	 * if (id > 0) means that some 'var' was added
+	 * if (off > 0) menas that 'imm' was added
+	 */
+	PTR_TO_PACKET,
+	PTR_TO_PACKET_END,	 /* skb->data + headlen */
+};
+
 struct bpf_prog;
 
 struct bpf_verifier_ops {
@@ -120,7 +145,8 @@ struct bpf_verifier_ops {
 	/* return true if 'size' wide access at offset 'off' within bpf_context
 	 * with 'type' (read or write) is allowed
 	 */
-	bool (*is_valid_access)(int off, int size, enum bpf_access_type type);
+	bool (*is_valid_access)(int off, int size, enum bpf_access_type type,
+				enum bpf_reg_type *reg_type);
 
 	u32 (*convert_ctx_access)(enum bpf_access_type type, int dst_reg,
 				  int src_reg, int ctx_off,
