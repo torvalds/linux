@@ -122,7 +122,8 @@
 				regulator-max-microvolt = <1350000>;
 				regulator-name = "vdd_log";
 				regulator-state-mem {
-					regulator-off-in-suspend;
+					regulator-on-in-suspend;
+					regulator-suspend-microvolt = <900000>;
 				};
 			};
 
@@ -165,8 +166,7 @@
 				regulator-max-microvolt = <1800000>;
 				regulator-name = "vcc1v8_dvp";
 				regulator-state-mem {
-					regulator-on-in-suspend;
-					regulator-suspend-microvolt = <1800000>;
+					regulator-off-in-suspend;
 				};
 			};
 
@@ -212,8 +212,7 @@
 				regulator-max-microvolt = <3000000>;
 				regulator-name = "vcca3v0_codec";
 				regulator-state-mem {
-					regulator-on-in-suspend;
-					regulator-suspend-microvolt = <3000000>;
+					regulator-off-in-suspend;
 				};
 			};
 
@@ -236,8 +235,7 @@
 				regulator-max-microvolt = <1800000>;
 				regulator-name = "vcca1v8_codec";
 				regulator-state-mem {
-					regulator-on-in-suspend;
-					regulator-suspend-microvolt = <1800000>;
+					regulator-off-in-suspend;
 				};
 			};
 
@@ -258,7 +256,7 @@
 				regulator-boot-on;
 				regulator-name = "vcc3v3_s3";
 				regulator-state-mem {
-					regulator-on-in-suspend;
+					regulator-off-in-suspend;
 				};
 			};
 
@@ -267,7 +265,7 @@
 				regulator-boot-on;
 				regulator-name = "vcc3v3_s0";
 				regulator-state-mem {
-					regulator-on-in-suspend;
+					regulator-off-in-suspend;
 				};
 			};
 		};
