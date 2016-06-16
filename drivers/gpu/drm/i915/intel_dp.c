@@ -571,30 +571,64 @@ void intel_power_sequencer_reset(struct drm_i915_private *dev_priv)
 	}
 }
 
+struct pps_registers {
+	i915_reg_t pp_ctrl;
+	i915_reg_t pp_stat;
+	i915_reg_t pp_on;
+	i915_reg_t pp_off;
+	i915_reg_t pp_div;
+};
+
+static void intel_pps_get_registers(struct drm_i915_private *dev_priv,
+				    struct intel_dp *intel_dp,
+				    struct pps_registers *regs)
+{
+	memset(regs, 0, sizeof(*regs));
+
+	if (IS_BROXTON(dev_priv)) {
+		int idx = bxt_power_sequencer_idx(intel_dp);
+
+		regs->pp_ctrl = BXT_PP_CONTROL(idx);
+		regs->pp_stat = BXT_PP_STATUS(idx);
+		regs->pp_on = BXT_PP_ON_DELAYS(idx);
+		regs->pp_off = BXT_PP_OFF_DELAYS(idx);
+	} else if (HAS_PCH_SPLIT(dev_priv)) {
+		regs->pp_ctrl = PCH_PP_CONTROL;
+		regs->pp_stat = PCH_PP_STATUS;
+		regs->pp_on = PCH_PP_ON_DELAYS;
+		regs->pp_off = PCH_PP_OFF_DELAYS;
+		regs->pp_div = PCH_PP_DIVISOR;
+	} else {
+		enum pipe pipe = vlv_power_sequencer_pipe(intel_dp);
+
+		regs->pp_ctrl = VLV_PIPE_PP_CONTROL(pipe);
+		regs->pp_stat = VLV_PIPE_PP_STATUS(pipe);
+		regs->pp_on = VLV_PIPE_PP_ON_DELAYS(pipe);
+		regs->pp_off = VLV_PIPE_PP_OFF_DELAYS(pipe);
+		regs->pp_div = VLV_PIPE_PP_DIVISOR(pipe);
+	}
+}
+
 static i915_reg_t
 _pp_ctrl_reg(struct intel_dp *intel_dp)
 {
-	struct drm_device *dev = intel_dp_to_dev(intel_dp);
+	struct pps_registers regs;
 
-	if (IS_BROXTON(dev))
-		return BXT_PP_CONTROL(bxt_power_sequencer_idx(intel_dp));
-	else if (HAS_PCH_SPLIT(dev))
-		return PCH_PP_CONTROL;
-	else
-		return VLV_PIPE_PP_CONTROL(vlv_power_sequencer_pipe(intel_dp));
+	intel_pps_get_registers(to_i915(intel_dp_to_dev(intel_dp)), intel_dp,
+				&regs);
+
+	return regs.pp_ctrl;
 }
 
 static i915_reg_t
 _pp_stat_reg(struct intel_dp *intel_dp)
 {
-	struct drm_device *dev = intel_dp_to_dev(intel_dp);
+	struct pps_registers regs;
 
-	if (IS_BROXTON(dev))
-		return BXT_PP_STATUS(bxt_power_sequencer_idx(intel_dp));
-	else if (HAS_PCH_SPLIT(dev))
-		return PCH_PP_STATUS;
-	else
-		return VLV_PIPE_PP_STATUS(vlv_power_sequencer_pipe(intel_dp));
+	intel_pps_get_registers(to_i915(intel_dp_to_dev(intel_dp)), intel_dp,
+				&regs);
+
+	return regs.pp_stat;
 }
 
 /* Reboot notifier handler to shutdown panel power to guarantee T12 timing
@@ -4745,7 +4779,7 @@ intel_dp_init_panel_power_sequencer(struct drm_device *dev,
 	struct edp_power_seq cur, vbt, spec,
 		*final = &intel_dp->pps_delays;
 	u32 pp_on, pp_off, pp_div = 0, pp_ctl = 0;
-	i915_reg_t pp_ctrl_reg, pp_on_reg, pp_off_reg, pp_div_reg;
+	struct pps_registers regs;
 
 	lockdep_assert_held(&dev_priv->pps_mutex);
 
@@ -4753,35 +4787,17 @@ intel_dp_init_panel_power_sequencer(struct drm_device *dev,
 	if (final->t11_t12 != 0)
 		return;
 
-	if (IS_BROXTON(dev)) {
-		int idx = bxt_power_sequencer_idx(intel_dp);
-
-		pp_ctrl_reg = BXT_PP_CONTROL(idx);
-		pp_on_reg = BXT_PP_ON_DELAYS(idx);
-		pp_off_reg = BXT_PP_OFF_DELAYS(idx);
-	} else if (HAS_PCH_SPLIT(dev)) {
-		pp_ctrl_reg = PCH_PP_CONTROL;
-		pp_on_reg = PCH_PP_ON_DELAYS;
-		pp_off_reg = PCH_PP_OFF_DELAYS;
-		pp_div_reg = PCH_PP_DIVISOR;
-	} else {
-		enum pipe pipe = vlv_power_sequencer_pipe(intel_dp);
-
-		pp_ctrl_reg = VLV_PIPE_PP_CONTROL(pipe);
-		pp_on_reg = VLV_PIPE_PP_ON_DELAYS(pipe);
-		pp_off_reg = VLV_PIPE_PP_OFF_DELAYS(pipe);
-		pp_div_reg = VLV_PIPE_PP_DIVISOR(pipe);
-	}
+	intel_pps_get_registers(dev_priv, intel_dp, &regs);
 
 	/* Workaround: Need to write PP_CONTROL with the unlock key as
 	 * the very first thing. */
 	pp_ctl = ironlake_get_pp_control(intel_dp);
 
-	pp_on = I915_READ(pp_on_reg);
-	pp_off = I915_READ(pp_off_reg);
+	pp_on = I915_READ(regs.pp_on);
+	pp_off = I915_READ(regs.pp_off);
 	if (!IS_BROXTON(dev)) {
-		I915_WRITE(pp_ctrl_reg, pp_ctl);
-		pp_div = I915_READ(pp_div_reg);
+		I915_WRITE(regs.pp_ctrl, pp_ctl);
+		pp_div = I915_READ(regs.pp_div);
 	}
 
 	/* Pull timing values out of registers */
@@ -4864,30 +4880,13 @@ intel_dp_init_panel_power_sequencer_registers(struct drm_device *dev,
 	struct drm_i915_private *dev_priv = dev->dev_private;
 	u32 pp_on, pp_off, pp_div, port_sel = 0;
 	int div = dev_priv->rawclk_freq / 1000;
-	i915_reg_t pp_on_reg, pp_off_reg, pp_div_reg, pp_ctrl_reg;
+	struct pps_registers regs;
 	enum port port = dp_to_dig_port(intel_dp)->port;
 	const struct edp_power_seq *seq = &intel_dp->pps_delays;
 
 	lockdep_assert_held(&dev_priv->pps_mutex);
 
-	if (IS_BROXTON(dev)) {
-		int idx = bxt_power_sequencer_idx(intel_dp);
-
-		pp_ctrl_reg = BXT_PP_CONTROL(idx);
-		pp_on_reg = BXT_PP_ON_DELAYS(idx);
-		pp_off_reg = BXT_PP_OFF_DELAYS(idx);
-
-	} else if (HAS_PCH_SPLIT(dev)) {
-		pp_on_reg = PCH_PP_ON_DELAYS;
-		pp_off_reg = PCH_PP_OFF_DELAYS;
-		pp_div_reg = PCH_PP_DIVISOR;
-	} else {
-		enum pipe pipe = vlv_power_sequencer_pipe(intel_dp);
-
-		pp_on_reg = VLV_PIPE_PP_ON_DELAYS(pipe);
-		pp_off_reg = VLV_PIPE_PP_OFF_DELAYS(pipe);
-		pp_div_reg = VLV_PIPE_PP_DIVISOR(pipe);
-	}
+	intel_pps_get_registers(dev_priv, intel_dp, &regs);
 
 	/*
 	 * And finally store the new values in the power sequencer. The
@@ -4904,7 +4903,7 @@ intel_dp_init_panel_power_sequencer_registers(struct drm_device *dev,
 	/* Compute the divisor for the pp clock, simply match the Bspec
 	 * formula. */
 	if (IS_BROXTON(dev)) {
-		pp_div = I915_READ(pp_ctrl_reg);
+		pp_div = I915_READ(regs.pp_ctrl);
 		pp_div &= ~BXT_POWER_CYCLE_DELAY_MASK;
 		pp_div |= (DIV_ROUND_UP((seq->t11_t12 + 1), 1000)
 				<< BXT_POWER_CYCLE_DELAY_SHIFT);
@@ -4927,19 +4926,19 @@ intel_dp_init_panel_power_sequencer_registers(struct drm_device *dev,
 
 	pp_on |= port_sel;
 
-	I915_WRITE(pp_on_reg, pp_on);
-	I915_WRITE(pp_off_reg, pp_off);
+	I915_WRITE(regs.pp_on, pp_on);
+	I915_WRITE(regs.pp_off, pp_off);
 	if (IS_BROXTON(dev))
-		I915_WRITE(pp_ctrl_reg, pp_div);
+		I915_WRITE(regs.pp_ctrl, pp_div);
 	else
-		I915_WRITE(pp_div_reg, pp_div);
+		I915_WRITE(regs.pp_div, pp_div);
 
 	DRM_DEBUG_KMS("panel power sequencer register settings: PP_ON %#x, PP_OFF %#x, PP_DIV %#x\n",
-		      I915_READ(pp_on_reg),
-		      I915_READ(pp_off_reg),
+		      I915_READ(regs.pp_on),
+		      I915_READ(regs.pp_off),
 		      IS_BROXTON(dev) ?
-		      (I915_READ(pp_ctrl_reg) & BXT_POWER_CYCLE_DELAY_MASK) :
-		      I915_READ(pp_div_reg));
+		      (I915_READ(regs.pp_ctrl) & BXT_POWER_CYCLE_DELAY_MASK) :
+		      I915_READ(regs.pp_div));
 }
 
 /**
