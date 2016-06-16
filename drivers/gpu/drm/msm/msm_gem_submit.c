@@ -488,7 +488,14 @@ int msm_ioctl_gem_submit(struct drm_device *dev, void *data,
 
 	submit->nr_cmds = i;
 
-	ret = msm_gpu_submit(gpu, submit, ctx);
+	submit->fence = msm_fence_alloc(gpu->fctx);
+	if (IS_ERR(submit->fence)) {
+		ret = PTR_ERR(submit->fence);
+		submit->fence = NULL;
+		goto out;
+	}
+
+	msm_gpu_submit(gpu, submit, ctx);
 
 	args->fence = submit->fence->seqno;
 
