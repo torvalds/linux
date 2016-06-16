@@ -898,10 +898,16 @@ static int qeth_l2_hard_start_xmit(struct sk_buff *skb, struct net_device *dev)
 	 */
 	if ((card->info.type != QETH_CARD_TYPE_IQD) &&
 	    !qeth_get_elements_no(card, new_skb, 0)) {
-		if (skb_linearize(new_skb))
+		int lin_rc = skb_linearize(new_skb);
+
+		if (card->options.performance_stats) {
+			if (lin_rc)
+				card->perf_stats.tx_linfail++;
+			else
+				card->perf_stats.tx_lin++;
+		}
+		if (lin_rc)
 			goto tx_drop;
-		if (card->options.performance_stats)
-			card->perf_stats.tx_lin++;
 	}
 
 	if (card->info.type == QETH_CARD_TYPE_OSN)

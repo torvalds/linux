@@ -5801,6 +5801,7 @@ static struct {
 	{"tx do_QDIO count"},
 	{"tx csum"},
 	{"tx lin"},
+	{"tx linfail"},
 	{"cq handler count"},
 	{"cq handler time"}
 };
@@ -5861,8 +5862,9 @@ void qeth_core_get_ethtool_stats(struct net_device *dev,
 	data[32] = card->perf_stats.outbound_do_qdio_cnt;
 	data[33] = card->perf_stats.tx_csum;
 	data[34] = card->perf_stats.tx_lin;
-	data[35] = card->perf_stats.cq_cnt;
-	data[36] = card->perf_stats.cq_time;
+	data[35] = card->perf_stats.tx_linfail;
+	data[36] = card->perf_stats.cq_cnt;
+	data[37] = card->perf_stats.cq_time;
 }
 EXPORT_SYMBOL_GPL(qeth_core_get_ethtool_stats);
 
