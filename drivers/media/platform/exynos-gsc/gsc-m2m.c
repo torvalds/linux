@@ -277,8 +277,8 @@ static int gsc_m2m_querycap(struct file *file, void *fh,
 	struct gsc_ctx *ctx = fh_to_ctx(fh);
 	struct gsc_dev *gsc = ctx->gsc_dev;
 
-	strlcpy(cap->driver, gsc->pdev->name, sizeof(cap->driver));
-	strlcpy(cap->card, gsc->pdev->name, sizeof(cap->card));
+	strlcpy(cap->driver, GSC_MODULE_NAME, sizeof(cap->driver));
+	strlcpy(cap->card, GSC_MODULE_NAME " gscaler", sizeof(cap->card));
 	snprintf(cap->bus_info, sizeof(cap->bus_info), "platform:%s",
 		 dev_name(&gsc->pdev->dev));
 	cap->device_caps = V4L2_CAP_STREAMING | V4L2_CAP_VIDEO_M2M_MPLANE |
