@@ -79,6 +79,7 @@ enum {
 	VMXNET3_CMD_RESERVED1,
 	VMXNET3_CMD_LOAD_PLUGIN,
 	VMXNET3_CMD_RESERVED2,
+	VMXNET3_CMD_RESERVED3,
 
 	VMXNET3_CMD_FIRST_GET = 0xF00D0000,
 	VMXNET3_CMD_GET_QUEUE_STATUS = VMXNET3_CMD_FIRST_GET,
@@ -612,6 +613,18 @@ struct Vmxnet3_RxQueueDesc {
 	u8				      __pad[88]; /* 128 aligned */
 };
 
+struct Vmxnet3_SetPolling {
+	u8					enablePolling;
+};
+
+/* If the command data <= 16 bytes, use the shared memory directly.
+ * otherwise, use variable length configuration descriptor.
+ */
+union Vmxnet3_CmdInfo {
+	struct Vmxnet3_VariableLenConfDesc	varConf;
+	struct Vmxnet3_SetPolling		setPolling;
+	__le64					data[2];
+};
 
 struct Vmxnet3_DSDevRead {
 	/* read-only region for device, read by dev in response to a SET cmd */
@@ -630,7 +643,14 @@ struct Vmxnet3_DriverShared {
 	__le32				pad;
 	struct Vmxnet3_DSDevRead	devRead;
 	__le32				ecr;
-	__le32				reserved[5];
+	__le32				reserved;
+	union {
+		__le32			reserved1[4];
+		union Vmxnet3_CmdInfo	cmdInfo; /* only valid in the context of
+						  * executing the relevant
+						  * command
+						  */
+	} cu;
 };
 
 
