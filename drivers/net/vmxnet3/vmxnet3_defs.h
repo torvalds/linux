@@ -92,6 +92,7 @@ enum {
 	VMXNET3_CMD_GET_DEV_EXTRA_INFO,
 	VMXNET3_CMD_GET_CONF_INTR,
 	VMXNET3_CMD_GET_RESERVED1,
+	VMXNET3_CMD_GET_TXDATA_DESC_SIZE
 };
 
 /*
@@ -377,12 +378,19 @@ union Vmxnet3_GenericDesc {
 #define VMXNET3_RING_SIZE_ALIGN 32
 #define VMXNET3_RING_SIZE_MASK  (VMXNET3_RING_SIZE_ALIGN - 1)
 
+/* Tx Data Ring buffer size must be a multiple of 64 */
+#define VMXNET3_TXDATA_DESC_SIZE_ALIGN 64
+#define VMXNET3_TXDATA_DESC_SIZE_MASK  (VMXNET3_TXDATA_DESC_SIZE_ALIGN - 1)
+
 /* Max ring size */
 #define VMXNET3_TX_RING_MAX_SIZE   4096
 #define VMXNET3_TC_RING_MAX_SIZE   4096
 #define VMXNET3_RX_RING_MAX_SIZE   4096
 #define VMXNET3_RX_RING2_MAX_SIZE  4096
 #define VMXNET3_RC_RING_MAX_SIZE   8192
+
+#define VMXNET3_TXDATA_DESC_MIN_SIZE 128
+#define VMXNET3_TXDATA_DESC_MAX_SIZE 2048
 
 /* a list of reasons for queue stop */
 
@@ -470,7 +478,9 @@ struct Vmxnet3_TxQueueConf {
 	__le32		compRingSize; /* # of comp desc */
 	__le32		ddLen;        /* size of driver data */
 	u8		intrIdx;
-	u8		_pad[7];
+	u8		_pad1[1];
+	__le16		txDataRingDescSize;
+	u8		_pad2[4];
 };
 
 

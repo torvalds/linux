@@ -396,8 +396,7 @@ vmxnet3_get_regs(struct net_device *netdev, struct ethtool_regs *regs, void *p)
 		buf[j++] = VMXNET3_GET_ADDR_LO(tq->data_ring.basePA);
 		buf[j++] = VMXNET3_GET_ADDR_HI(tq->data_ring.basePA);
 		buf[j++] = tq->data_ring.size;
-		/* transmit data ring buffer size */
-		buf[j++] = VMXNET3_HDR_COPY_SIZE;
+		buf[j++] = tq->txdata_desc_size;
 
 		buf[j++] = VMXNET3_GET_ADDR_LO(tq->comp_ring.basePA);
 		buf[j++] = VMXNET3_GET_ADDR_HI(tq->comp_ring.basePA);
@@ -591,7 +590,8 @@ vmxnet3_set_ringparam(struct net_device *netdev,
 		vmxnet3_rq_destroy_all(adapter);
 
 		err = vmxnet3_create_queues(adapter, new_tx_ring_size,
-			new_rx_ring_size, new_rx_ring2_size);
+					    new_rx_ring_size, new_rx_ring2_size,
+					    adapter->txdata_desc_size);
 
 		if (err) {
 			/* failed, most likely because of OOM, try default
@@ -604,7 +604,8 @@ vmxnet3_set_ringparam(struct net_device *netdev,
 			err = vmxnet3_create_queues(adapter,
 						    new_tx_ring_size,
 						    new_rx_ring_size,
-						    new_rx_ring2_size);
+						    new_rx_ring2_size,
+						    adapter->txdata_desc_size);
 			if (err) {
 				netdev_err(netdev, "failed to create queues "
 					   "with default sizes. Closing it\n");

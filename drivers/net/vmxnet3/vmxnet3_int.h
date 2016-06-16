@@ -241,6 +241,7 @@ struct vmxnet3_tx_queue {
 	int                             num_stop;  /* # of times the queue is
 						    * stopped */
 	int				qid;
+	u16				txdata_desc_size;
 } __attribute__((__aligned__(SMP_CACHE_BYTES)));
 
 enum vmxnet3_rx_buf_type {
@@ -363,6 +364,9 @@ struct vmxnet3_adapter {
 	u32 rx_ring_size;
 	u32 rx_ring2_size;
 
+	/* Size of buffer in the data ring */
+	u16 txdata_desc_size;
+
 	struct work_struct work;
 
 	unsigned long  state;    /* VMXNET3_STATE_BIT_xxx */
@@ -427,7 +431,8 @@ vmxnet3_set_features(struct net_device *netdev, netdev_features_t features);
 
 int
 vmxnet3_create_queues(struct vmxnet3_adapter *adapter,
-		      u32 tx_ring_size, u32 rx_ring_size, u32 rx_ring2_size);
+		      u32 tx_ring_size, u32 rx_ring_size, u32 rx_ring2_size,
+		      u16 txdata_desc_size);
 
 void vmxnet3_set_ethtool_ops(struct net_device *netdev);
 

@@ -435,8 +435,8 @@ vmxnet3_tq_destroy(struct vmxnet3_tx_queue *tq,
 		tq->tx_ring.base = NULL;
 	}
 	if (tq->data_ring.base) {
-		dma_free_coherent(&adapter->pdev->dev, tq->data_ring.size *
-				  sizeof(struct Vmxnet3_TxDataDesc),
+		dma_free_coherent(&adapter->pdev->dev,
+				  tq->data_ring.size * tq->txdata_desc_size,
 				  tq->data_ring.base, tq->data_ring.basePA);
 		tq->data_ring.base = NULL;
 	}
@@ -478,8 +478,8 @@ vmxnet3_tq_init(struct vmxnet3_tx_queue *tq,
 	tq->tx_ring.next2fill = tq->tx_ring.next2comp = 0;
 	tq->tx_ring.gen = VMXNET3_INIT_GEN;
 
-	memset(tq->data_ring.base, 0, tq->data_ring.size *
-	       sizeof(struct Vmxnet3_TxDataDesc));
+	memset(tq->data_ring.base, 0,
+	       tq->data_ring.size * tq->txdata_desc_size);
 
 	/* reset the tx comp ring contents to 0 and reset comp ring states */
 	memset(tq->comp_ring.base, 0, tq->comp_ring.size *
@@ -514,10 +514,10 @@ vmxnet3_tq_create(struct vmxnet3_tx_queue *tq,
 	}
 
 	tq->data_ring.base = dma_alloc_coherent(&adapter->pdev->dev,
-			tq->data_ring.size * sizeof(struct Vmxnet3_TxDataDesc),
+			tq->data_ring.size * tq->txdata_desc_size,
 			&tq->data_ring.basePA, GFP_KERNEL);
 	if (!tq->data_ring.base) {
-		netdev_err(adapter->netdev, "failed to allocate data ring\n");
+		netdev_err(adapter->netdev, "failed to allocate tx data ring\n");
 		goto err;
 	}
 
@@ -689,7 +689,7 @@ vmxnet3_map_pkt(struct sk_buff *skb, struct vmxnet3_tx_ctx *ctx,
 	if (ctx->copy_size) {
 		ctx->sop_txd->txd.addr = cpu_to_le64(tq->data_ring.basePA +
 					tq->tx_ring.next2fill *
-					sizeof(struct Vmxnet3_TxDataDesc));
+					tq->txdata_desc_size);
 		ctx->sop_txd->dword[2] = cpu_to_le32(dw2 | ctx->copy_size);
 		ctx->sop_txd->dword[3] = 0;
 
@@ -873,8 +873,9 @@ vmxnet3_parse_hdr(struct sk_buff *skb, struct vmxnet3_tx_queue *tq,
 			ctx->eth_ip_hdr_size = 0;
 			ctx->l4_hdr_size = 0;
 			/* copy as much as allowed */
-			ctx->copy_size = min((unsigned int)VMXNET3_HDR_COPY_SIZE
-					     , skb_headlen(skb));
+			ctx->copy_size = min_t(unsigned int,
+					       tq->txdata_desc_size,
+					       skb_headlen(skb));
 		}
 
 		if (skb->len <= VMXNET3_HDR_COPY_SIZE)
@@ -885,7 +886,7 @@ vmxnet3_parse_hdr(struct sk_buff *skb, struct vmxnet3_tx_queue *tq,
 			goto err;
 	}
 
-	if (unlikely(ctx->copy_size > VMXNET3_HDR_COPY_SIZE)) {
+	if (unlikely(ctx->copy_size > tq->txdata_desc_size)) {
 		tq->stats.oversized_hdr++;
 		ctx->copy_size = 0;
 		return 0;
@@ -2336,6 +2337,7 @@ vmxnet3_setup_driver_shared(struct vmxnet3_adapter *adapter)
 		tqc->ddPA           = cpu_to_le64(tq->buf_info_pa);
 		tqc->txRingSize     = cpu_to_le32(tq->tx_ring.size);
 		tqc->dataRingSize   = cpu_to_le32(tq->data_ring.size);
+		tqc->txDataRingDescSize = cpu_to_le32(tq->txdata_desc_size);
 		tqc->compRingSize   = cpu_to_le32(tq->comp_ring.size);
 		tqc->ddLen          = cpu_to_le32(
 					sizeof(struct vmxnet3_tx_buf_info) *
@@ -2689,7 +2691,8 @@ vmxnet3_adjust_rx_ring_size(struct vmxnet3_adapter *adapter)
 
 int
 vmxnet3_create_queues(struct vmxnet3_adapter *adapter, u32 tx_ring_size,
-		      u32 rx_ring_size, u32 rx_ring2_size)
+		      u32 rx_ring_size, u32 rx_ring2_size,
+		      u16 txdata_desc_size)
 {
 	int err = 0, i;
 
@@ -2698,6 +2701,7 @@ vmxnet3_create_queues(struct vmxnet3_adapter *adapter, u32 tx_ring_size,
 		tq->tx_ring.size   = tx_ring_size;
 		tq->data_ring.size = tx_ring_size;
 		tq->comp_ring.size = tx_ring_size;
+		tq->txdata_desc_size = txdata_desc_size;
 		tq->shared = &adapter->tqd_start[i].ctrl;
 		tq->stopped = true;
 		tq->adapter = adapter;
@@ -2754,9 +2758,34 @@ vmxnet3_open(struct net_device *netdev)
 	for (i = 0; i < adapter->num_tx_queues; i++)
 		spin_lock_init(&adapter->tx_queue[i].tx_lock);
 
-	err = vmxnet3_create_queues(adapter, adapter->tx_ring_size,
+	if (VMXNET3_VERSION_GE_3(adapter)) {
+		unsigned long flags;
+		u16 txdata_desc_size;
+
+		spin_lock_irqsave(&adapter->cmd_lock, flags);
+		VMXNET3_WRITE_BAR1_REG(adapter, VMXNET3_REG_CMD,
+				       VMXNET3_CMD_GET_TXDATA_DESC_SIZE);
+		txdata_desc_size = VMXNET3_READ_BAR1_REG(adapter,
+							 VMXNET3_REG_CMD);
+		spin_unlock_irqrestore(&adapter->cmd_lock, flags);
+
+		if ((txdata_desc_size < VMXNET3_TXDATA_DESC_MIN_SIZE) ||
+		    (txdata_desc_size > VMXNET3_TXDATA_DESC_MAX_SIZE) ||
+		    (txdata_desc_size & VMXNET3_TXDATA_DESC_SIZE_MASK)) {
+			adapter->txdata_desc_size =
+				sizeof(struct Vmxnet3_TxDataDesc);
+		} else {
+			adapter->txdata_desc_size = txdata_desc_size;
+		}
+	} else {
+		adapter->txdata_desc_size = sizeof(struct Vmxnet3_TxDataDesc);
+	}
+
+	err = vmxnet3_create_queues(adapter,
+				    adapter->tx_ring_size,
 				    adapter->rx_ring_size,
-				    adapter->rx_ring2_size);
+				    adapter->rx_ring2_size,
+				    adapter->txdata_desc_size);
 	if (err)
 		goto queue_err;
 
