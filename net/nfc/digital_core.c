@@ -176,6 +176,8 @@ static void digital_wq_cmd(struct work_struct *work)
 		return;
 	}
 
+	cmd->pending = 1;
+
 	mutex_unlock(&ddev->cmd_lock);
 
 	if (cmd->req)
