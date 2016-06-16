@@ -496,6 +496,16 @@ static int set_inv_enable(struct iio_dev *indio_dev,
 	return 0;
 }
 
+/* #define _RATE_DEBUG */
+
+#ifdef _RATE_DEBUG
+static s64 tm_irq_min = -1;
+static s64 tm_irq_max = -1;
+static s64 tm_irq_sum = -1;
+static s64 tm_irq_last_print = -1;
+static s64 tm_irq_count = -1;
+#endif
+
 /**
  *  inv_irq_handler() - Cache a timestamp at each data ready interrupt.
  */
@@ -510,6 +520,31 @@ static irqreturn_t inv_irq_handler(int irq, void *dev_id)
 	timestamp = get_time_ns();
 	time_since_last_irq = timestamp - st->last_isr_time;
 	spin_lock(&st->time_stamp_lock);
+
+#ifdef _RATE_DEBUG
+	if (tm_irq_min <= 0 && tm_irq_max <= 0) {
+		tm_irq_min = time_since_last_irq;
+		tm_irq_max = time_since_last_irq;
+		tm_irq_sum = 0;
+		tm_irq_count = 0;
+	} else if (time_since_last_irq < tm_irq_min) {
+		tm_irq_min = time_since_last_irq;
+	} else if (time_since_last_irq > tm_irq_max) {
+		tm_irq_max = time_since_last_irq;
+	}
+	tm_irq_sum += time_since_last_irq;
+	tm_irq_count++;
+
+	if (unlikely((timestamp - tm_irq_last_print) >= 1000000000)) {
+		pr_info("MPU Interrupt: %lld,%d,%lld\n", tm_irq_min, (u32)tm_irq_sum / (u32)tm_irq_count, tm_irq_max);
+		tm_irq_last_print = timestamp;
+		tm_irq_min = 0;
+		tm_irq_max = 0;
+		tm_irq_count = 0;
+		tm_irq_sum = 0;
+	}
+#endif
+
 	catch_up = 0;
 	while ((time_since_last_irq > st->irq_dur_ns * 2) &&
 	       (catch_up < MAX_CATCH_UP) &&
@@ -683,6 +718,14 @@ flush_fifo:
 	return IRQ_HANDLED;
 }
 
+#ifdef _RATE_DEBUG
+static s64 tm_min = -1;
+static s64 tm_max = -1;
+static s64 tm_sum = -1;
+static s64 tm_last_print = -1;
+static s64 tm_count = -1;
+#endif
+
 static int inv_report_gyro_accl_compass(struct iio_dev *indio_dev,
 					u8 *data, s64 t)
 {
@@ -799,12 +842,41 @@ static int inv_report_gyro_accl_compass(struct iio_dev *indio_dev,
 	tmp = (u64 *)buf;
 	tmp[DIV_ROUND_UP(ind, 8)] = t;
 
-	if (ind > 0)
+	if (ind > 0) {
+#ifdef _RATE_DEBUG
+		s64 tm_cur = get_time_ns();
+		s64 tm_delta = tm_cur - t;
+
+		if (tm_min <= 0 && tm_max <= 0) {
+			tm_min = tm_delta;
+			tm_max = tm_delta;
+			tm_sum = 0;
+			tm_count = 0;
+		} else if (tm_delta < tm_min) {
+			tm_min = tm_delta;
+		} else if (tm_delta > tm_max) {
+			tm_max = tm_delta;
+		}
+		tm_sum += tm_delta;
+		tm_count++;
+
+		if (unlikely((tm_cur - tm_last_print) >= 1000000000)) {
+			pr_info("MPU6050 report size: %d rate: %lld\n", ind, tm_count);
+			pr_info("MPU KRNL report: [%lld] %lld,%d,%lld\n", t, tm_min, (u32)tm_sum / (u32)tm_count, tm_max);
+			tm_last_print = tm_cur;
+			tm_min = 0;
+			tm_max = 0;
+			tm_count = 0;
+			tm_sum = 0;
+		}
+#endif
+
 #ifdef INV_KERNEL_3_10
 		iio_push_to_buffers(indio_dev, buf);
 #else
 		iio_push_to_buffer(indio_dev->buffer, buf, t);
 #endif
+	}
 
 	return 0;
 }
@@ -876,6 +948,14 @@ irqreturn_t inv_read_fifo(int irq, void *dev_id)
 	s64 buf[8];
 	s8 *tmp;
 
+#ifdef _RATE_DEBUG
+	s64 tm_i2c_sum = 0;
+	s64 tm = 0;
+	s64 tm_begin, tm_end;
+
+	tm_begin = get_time_ns();
+#endif
+
 	mutex_lock(&indio_dev->mlock);
 	if (!(iio_buffer_enabled(indio_dev)))
 		goto end_session;
@@ -911,8 +991,14 @@ irqreturn_t inv_read_fifo(int irq, void *dev_id)
 	bytes_per_datum = get_bytes_per_datum(st);
 	fifo_count = 0;
 	if (bytes_per_datum != 0) {
+#ifdef _RATE_DEBUG
+		tm = get_time_ns();
+#endif
 		result = inv_plat_read(st, reg->fifo_count_h,
 				FIFO_COUNT_BYTE, data);
+#ifdef _RATE_DEBUG
+		tm_i2c_sum += get_time_ns() - tm;
+#endif
 		if (result)
 			goto end_session;
 		fifo_count = be16_to_cpup((__be16 *)(&data[0]));
@@ -948,8 +1034,14 @@ irqreturn_t inv_read_fifo(int irq, void *dev_id)
 	}
 	tmp = (s8 *)buf;
 	while ((bytes_per_datum != 0) && (fifo_count >= bytes_per_datum)) {
+#ifdef _RATE_DEBUG
+		tm = get_time_ns();
+#endif
 		result = inv_plat_read(st, reg->fifo_r_w, bytes_per_datum,
 			data);
+#ifdef _RATE_DEBUG
+		tm_i2c_sum += get_time_ns() - tm;
+#endif
 		if (result)
 			goto flush_fifo;
 
@@ -965,6 +1057,12 @@ irqreturn_t inv_read_fifo(int irq, void *dev_id)
 
 end_session:
 	mutex_unlock(&indio_dev->mlock);
+
+#ifdef _RATE_DEBUG
+	tm_end = get_time_ns();
+	if (tm_end - tm_begin > 700000)
+		pr_info("%s: [%lld] %lld %lld %lld\n", __func__, timestamp, tm_begin - timestamp, tm_i2c_sum, tm_end - tm_begin);
+#endif
 
 	return IRQ_HANDLED;
 
