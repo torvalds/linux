@@ -35,6 +35,8 @@
 #include <video/of_display_timing.h>
 #include <video/videomode.h>
 
+#include "amba-clcd-nomadik.h"
+
 #define to_clcd(info)	container_of(info, struct clcd_fb, fb)
 
 /* This is limited to 16 characters when displayed by X startup */
@@ -997,7 +999,7 @@ static int clcdfb_probe(struct amba_device *dev, const struct amba_id *id)
 	if (ret)
 		goto free_fb;
 
-	ret = clcdfb_register(fb); 
+	ret = clcdfb_register(fb);
 	if (ret == 0) {
 		amba_set_drvdata(dev, fb);
 		goto out;
@@ -1041,6 +1043,8 @@ static struct clcd_vendor_data vendor_nomadik = {
 	.clock_timregs = true,
 	.packed_24_bit_pixels = true,
 	.st_bitmux_control = true,
+	.init_board = nomadik_clcd_init_board,
+	.init_panel = nomadik_clcd_init_panel,
 };
 
 static struct amba_id clcdfb_id_table[] = {
