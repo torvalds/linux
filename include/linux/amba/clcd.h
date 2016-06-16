@@ -108,6 +108,12 @@ struct clcd_panel {
 				grayscale:1;
 	unsigned int		connector;
 	struct backlight_device	*backlight;
+	/*
+	 * If the B/R lines are switched between the CLCD
+	 * and the panel we need to know this and not try to
+	 * compensate with the BGR bit in the control register.
+	 */
+	bool			bgr_connection;
 };
 
 struct clcd_regs {
@@ -234,16 +240,22 @@ static inline void clcdfb_decode(struct clcd_fb *fb, struct clcd_regs *regs)
 	if (var->grayscale)
 		val |= CNTL_LCDBW;
 
-	if (fb->panel->caps && fb->board->caps &&
-	    var->bits_per_pixel >= 16) {
+	if (fb->panel->caps && fb->board->caps && var->bits_per_pixel >= 16) {
 		/*
 		 * if board and panel supply capabilities, we can support
-		 * changing BGR/RGB depending on supplied parameters
+		 * changing BGR/RGB depending on supplied parameters. Here
+		 * we switch to what the framebuffer is providing if need
+		 * be, so if the framebuffer is BGR but the display connection
+		 * is RGB (first case) we switch it around. Vice versa mutatis
+		 * mutandis if the framebuffer is RGB but the display connection
+		 * is BGR, we flip it around.
 		 */
 		if (var->red.offset == 0)
 			val &= ~CNTL_BGR;
 		else
 			val |= CNTL_BGR;
+		if (fb->panel->bgr_connection)
+			val ^= CNTL_BGR;
 	}
 
 	switch (var->bits_per_pixel) {

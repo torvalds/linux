@@ -675,6 +675,7 @@ static int clcdfb_of_init_tft_panel(struct clcd_fb *fb, u32 r0, u32 g0, u32 b0)
 	} panels[] = {
 		{ 0x110, 1,  7, 13, CLCD_CAP_5551 },
 		{ 0x110, 0,  8, 16, CLCD_CAP_888 },
+		{ 0x110, 16, 8, 0,  CLCD_CAP_888 },
 		{ 0x111, 4, 14, 20, CLCD_CAP_444 },
 		{ 0x111, 3, 11, 19, CLCD_CAP_444 | CLCD_CAP_5551 },
 		{ 0x111, 3, 10, 19, CLCD_CAP_444 | CLCD_CAP_5551 |
@@ -701,6 +702,13 @@ static int clcdfb_of_init_tft_panel(struct clcd_fb *fb, u32 r0, u32 g0, u32 b0)
 		if (r0 == panels[i].r0 && b0 == panels[i].b0)
 			fb->panel->caps = panels[i].caps;
 	}
+
+	/*
+	 * If we actually physically connected the R lines to B and
+	 * vice versa
+	 */
+	if (r0 != 0 && b0 == 0)
+		fb->panel->bgr_connection = true;
 
 	return fb->panel->caps ? 0 : -EINVAL;
 }
