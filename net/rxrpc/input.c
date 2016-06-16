@@ -628,8 +628,7 @@ int rxrpc_extract_header(struct rxrpc_skb_priv *sp, struct sk_buff *skb)
 }
 
 static struct rxrpc_connection *rxrpc_conn_from_local(struct rxrpc_local *local,
-					       struct sk_buff *skb,
-					       struct rxrpc_skb_priv *sp)
+						      struct sk_buff *skb)
 {
 	struct rxrpc_peer *peer;
 	struct rxrpc_transport *trans;
@@ -647,7 +646,7 @@ static struct rxrpc_connection *rxrpc_conn_from_local(struct rxrpc_local *local,
 	if (!trans)
 		goto cant_find_conn;
 
-	conn = rxrpc_find_connection(trans, &sp->hdr);
+	conn = rxrpc_find_connection(trans, skb);
 	rxrpc_put_transport(trans);
 	if (!conn)
 		goto cant_find_conn;
@@ -739,7 +738,7 @@ void rxrpc_data_ready(struct sock *sk)
 		 * old-fashioned way doesn't really hurt */
 		struct rxrpc_connection *conn;
 
-		conn = rxrpc_conn_from_local(local, skb, sp);
+		conn = rxrpc_conn_from_local(local, skb);
 		if (!conn)
 			goto cant_route_call;
 

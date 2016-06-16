@@ -421,8 +421,9 @@ found_user_ID_now_present:
  */
 struct rxrpc_call *rxrpc_incoming_call(struct rxrpc_sock *rx,
 				       struct rxrpc_connection *conn,
-				       struct rxrpc_host_header *hdr)
+				       struct sk_buff *skb)
 {
+	struct rxrpc_skb_priv *sp = rxrpc_skb(skb);
 	struct rxrpc_call *call, *candidate;
 	struct rb_node **p, *parent;
 	u32 call_id;
@@ -435,13 +436,13 @@ struct rxrpc_call *rxrpc_incoming_call(struct rxrpc_sock *rx,
 	if (!candidate)
 		return ERR_PTR(-EBUSY);
 
-	candidate->socket = rx;
-	candidate->conn = conn;
-	candidate->cid = hdr->cid;
-	candidate->call_id = hdr->callNumber;
-	candidate->channel = hdr->cid & RXRPC_CHANNELMASK;
-	candidate->rx_data_post = 0;
-	candidate->state = RXRPC_CALL_SERVER_ACCEPTING;
+	candidate->socket	= rx;
+	candidate->conn		= conn;
+	candidate->cid		= sp->hdr.cid;
+	candidate->call_id	= sp->hdr.callNumber;
+	candidate->channel	= sp->hdr.cid & RXRPC_CHANNELMASK;
+	candidate->rx_data_post	= 0;
+	candidate->state	= RXRPC_CALL_SERVER_ACCEPTING;
 	if (conn->security_ix > 0)
 		candidate->state = RXRPC_CALL_SERVER_SECURING;
 
@@ -450,7 +451,7 @@ struct rxrpc_call *rxrpc_incoming_call(struct rxrpc_sock *rx,
 	/* set the channel for this call */
 	call = conn->channels[candidate->channel];
 	_debug("channel[%u] is %p", candidate->channel, call);
-	if (call && call->call_id == hdr->callNumber) {
+	if (call && call->call_id == sp->hdr.callNumber) {
 		/* already set; must've been a duplicate packet */
 		_debug("extant call [%d]", call->state);
 		ASSERTCMP(call->conn, ==, conn);
@@ -488,7 +489,7 @@ struct rxrpc_call *rxrpc_incoming_call(struct rxrpc_sock *rx,
 
 	/* check the call number isn't duplicate */
 	_debug("check dup");
-	call_id = hdr->callNumber;
+	call_id = sp->hdr.callNumber;
 	p = &conn->calls.rb_node;
 	parent = NULL;
 	while (*p) {

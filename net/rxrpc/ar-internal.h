@@ -544,7 +544,7 @@ struct rxrpc_call *rxrpc_new_client_call(struct rxrpc_sock *,
 					 unsigned long, gfp_t);
 struct rxrpc_call *rxrpc_incoming_call(struct rxrpc_sock *,
 				       struct rxrpc_connection *,
-				       struct rxrpc_host_header *);
+				       struct sk_buff *);
 void rxrpc_release_call(struct rxrpc_call *);
 void rxrpc_release_calls_on_socket(struct rxrpc_sock *);
 void __rxrpc_put_call(struct rxrpc_call *);
@@ -574,9 +574,9 @@ int rxrpc_connect_call(struct rxrpc_sock *, struct rxrpc_conn_parameters *,
 void rxrpc_put_connection(struct rxrpc_connection *);
 void __exit rxrpc_destroy_all_connections(void);
 struct rxrpc_connection *rxrpc_find_connection(struct rxrpc_transport *,
-					       struct rxrpc_host_header *);
+					       struct sk_buff *);
 extern struct rxrpc_connection *
-rxrpc_incoming_connection(struct rxrpc_transport *, struct rxrpc_host_header *);
+rxrpc_incoming_connection(struct rxrpc_transport *, struct sk_buff *);
 
 static inline bool rxrpc_conn_is_client(const struct rxrpc_connection *conn)
 {

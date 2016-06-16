@@ -588,10 +588,10 @@ interrupted:
  * get a record of an incoming connection
  */
 struct rxrpc_connection *
-rxrpc_incoming_connection(struct rxrpc_transport *trans,
-			  struct rxrpc_host_header *hdr)
+rxrpc_incoming_connection(struct rxrpc_transport *trans, struct sk_buff *skb)
 {
 	struct rxrpc_connection *conn, *candidate = NULL;
+	struct rxrpc_skb_priv *sp = rxrpc_skb(skb);
 	struct rb_node *p, **pp;
 	const char *new = "old";
 	__be32 epoch;
@@ -599,10 +599,10 @@ rxrpc_incoming_connection(struct rxrpc_transport *trans,
 
 	_enter("");
 
-	ASSERT(hdr->flags & RXRPC_CLIENT_INITIATED);
+	ASSERT(sp->hdr.flags & RXRPC_CLIENT_INITIATED);
 
-	epoch = hdr->epoch;
-	cid = hdr->cid & RXRPC_CIDMASK;
+	epoch = sp->hdr.epoch;
+	cid = sp->hdr.cid & RXRPC_CIDMASK;
 
 	/* search the connection list first */
 	read_lock_bh(&trans->conn_lock);
@@ -634,19 +634,19 @@ rxrpc_incoming_connection(struct rxrpc_transport *trans,
 		return ERR_PTR(-ENOMEM);
 	}
 
-	candidate->trans = trans;
-	candidate->proto.local = trans->local;
-	candidate->proto.epoch = hdr->epoch;
-	candidate->proto.cid = hdr->cid & RXRPC_CIDMASK;
-	candidate->proto.in_clientflag = RXRPC_CLIENT_INITIATED;
-	candidate->params.local = trans->local;
-	candidate->params.peer = trans->peer;
-	candidate->params.service_id = hdr->serviceId;
-	candidate->security_ix = hdr->securityIndex;
-	candidate->out_clientflag = 0;
-	candidate->state = RXRPC_CONN_SERVER;
+	candidate->trans		= trans;
+	candidate->proto.local		= trans->local;
+	candidate->proto.epoch		= sp->hdr.epoch;
+	candidate->proto.cid		= sp->hdr.cid & RXRPC_CIDMASK;
+	candidate->proto.in_clientflag	= RXRPC_CLIENT_INITIATED;
+	candidate->params.local		= trans->local;
+	candidate->params.peer		= trans->peer;
+	candidate->params.service_id	= sp->hdr.serviceId;
+	candidate->security_ix		= sp->hdr.securityIndex;
+	candidate->out_clientflag	= 0;
+	candidate->state		= RXRPC_CONN_SERVER;
 	if (candidate->params.service_id)
-		candidate->state = RXRPC_CONN_SERVER_UNSECURED;
+		candidate->state	= RXRPC_CONN_SERVER_UNSECURED;
 
 	write_lock_bh(&trans->conn_lock);
 
@@ -691,7 +691,7 @@ success:
 
 	/* we found the connection in the list immediately */
 found_extant_connection:
-	if (hdr->securityIndex != conn->security_ix) {
+	if (sp->hdr.securityIndex != conn->security_ix) {
 		read_unlock_bh(&trans->conn_lock);
 		goto security_mismatch;
 	}
@@ -701,7 +701,7 @@ found_extant_connection:
 
 	/* we found the connection on the second time through the list */
 found_extant_second:
-	if (hdr->securityIndex != conn->security_ix) {
+	if (sp->hdr.securityIndex != conn->security_ix) {
 		write_unlock_bh(&trans->conn_lock);
 		goto security_mismatch;
 	}
@@ -721,20 +721,21 @@ security_mismatch:
  * packet
  */
 struct rxrpc_connection *rxrpc_find_connection(struct rxrpc_transport *trans,
-					       struct rxrpc_host_header *hdr)
+					       struct sk_buff *skb)
 {
 	struct rxrpc_connection *conn;
+	struct rxrpc_skb_priv *sp = rxrpc_skb(skb);
 	struct rb_node *p;
 	u32 epoch, cid;
 
-	_enter(",{%x,%x}", hdr->cid, hdr->flags);
+	_enter(",{%x,%x}", sp->hdr.cid, sp->hdr.flags);
 
 	read_lock_bh(&trans->conn_lock);
 
-	cid = hdr->cid & RXRPC_CIDMASK;
-	epoch = hdr->epoch;
+	cid	= sp->hdr.cid & RXRPC_CIDMASK;
+	epoch	= sp->hdr.epoch;
 
-	if (hdr->flags & RXRPC_CLIENT_INITIATED)
+	if (sp->hdr.flags & RXRPC_CLIENT_INITIATED)
 		p = trans->server_conns.rb_node;
 	else
 		p = trans->client_conns.rb_node;
