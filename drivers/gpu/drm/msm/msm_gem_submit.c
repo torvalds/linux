@@ -364,6 +364,8 @@ int msm_ioctl_gem_submit(struct drm_device *dev, void *data,
 	struct msm_gem_submit *submit;
 	struct msm_gpu *gpu = priv->gpu;
 	struct fence *in_fence = NULL;
+	struct sync_file *sync_file = NULL;
+	int out_fence_fd = -1;
 	unsigned i;
 	int ret;
 
@@ -382,6 +384,14 @@ int msm_ioctl_gem_submit(struct drm_device *dev, void *data,
 	ret = mutex_lock_interruptible(&dev->struct_mutex);
 	if (ret)
 		return ret;
+
+	if (args->flags & MSM_SUBMIT_FENCE_FD_OUT) {
+		out_fence_fd = get_unused_fd_flags(O_CLOEXEC);
+		if (out_fence_fd < 0) {
+			ret = out_fence_fd;
+			goto out_unlock;
+		}
+	}
 
 	submit = submit_create(dev, gpu, args->nr_bos, args->nr_cmds);
 	if (!submit) {
@@ -495,9 +505,22 @@ int msm_ioctl_gem_submit(struct drm_device *dev, void *data,
 		goto out;
 	}
 
+	if (args->flags & MSM_SUBMIT_FENCE_FD_OUT) {
+		sync_file = sync_file_create(submit->fence);
+		if (!sync_file) {
+			ret = -ENOMEM;
+			goto out;
+		}
+	}
+
 	msm_gpu_submit(gpu, submit, ctx);
 
 	args->fence = submit->fence->seqno;
+
+	if (args->flags & MSM_SUBMIT_FENCE_FD_OUT) {
+		fd_install(out_fence_fd, sync_file->file);
+		args->fence_fd = out_fence_fd;
+	}
 
 out:
 	if (in_fence)
@@ -506,6 +529,8 @@ out:
 	if (ret)
 		msm_gem_submit_free(submit);
 out_unlock:
+	if (ret && (out_fence_fd >= 0))
+		put_unused_fd(out_fence_fd);
 	mutex_unlock(&dev->struct_mutex);
 	return ret;
 }

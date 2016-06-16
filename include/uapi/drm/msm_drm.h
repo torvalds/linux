@@ -187,9 +187,11 @@ struct drm_msm_gem_submit_bo {
 /* Valid submit ioctl flags: */
 #define MSM_SUBMIT_NO_IMPLICIT   0x80000000 /* disable implicit sync */
 #define MSM_SUBMIT_FENCE_FD_IN   0x40000000 /* enable input fence_fd */
+#define MSM_SUBMIT_FENCE_FD_OUT  0x20000000 /* enable output fence_fd */
 #define MSM_SUBMIT_FLAGS                ( \
 		MSM_SUBMIT_NO_IMPLICIT   | \
 		MSM_SUBMIT_FENCE_FD_IN   | \
+		MSM_SUBMIT_FENCE_FD_OUT  | \
 		0)
 
 /* Each cmdstream submit consists of a table of buffers involved, and
@@ -203,7 +205,7 @@ struct drm_msm_gem_submit {
 	__u32 nr_cmds;        /* in, number of submit_cmd's */
 	__u64 __user bos;     /* in, ptr to array of submit_bo's */
 	__u64 __user cmds;    /* in, ptr to array of submit_cmd's */
-	__s32 fence_fd;       /* in/out fence fd (see MSM_SUBMIT_FENCE_FD_IN) */
+	__s32 fence_fd;       /* in/out fence fd (see MSM_SUBMIT_FENCE_FD_IN/OUT) */
 };
 
 /* The normal way to synchronize with the GPU is just to CPU_PREP on
