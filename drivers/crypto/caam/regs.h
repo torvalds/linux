@@ -183,10 +183,10 @@ static inline u64 rd_reg64(void __iomem *reg)
 #ifdef CONFIG_SOC_IMX7D
 #define cpu_to_caam_dma(value) \
 		(((u64)cpu_to_caam32(lower_32_bits(value)) << 32) | \
-		 (u64)cpu_to_caam32(higher_32_bits(value)))
+		  (u64)cpu_to_caam32(upper_32_bits(value)))
 #define caam_dma_to_cpu(value) \
 		(((u64)caam32_to_cpu(lower_32_bits(value)) << 32) | \
-		 (u64)caam32_to_cpu(higher_32_bits(value)))
+		  (u64)caam32_to_cpu(upper_32_bits(value)))
 #else
 #define cpu_to_caam_dma(value) cpu_to_caam64(value)
 #define caam_dma_to_cpu(value) caam64_to_cpu(value)
