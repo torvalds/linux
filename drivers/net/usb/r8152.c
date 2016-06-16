@@ -116,6 +116,7 @@
 #define USB_TX_DMA		0xd434
 #define USB_TOLERANCE		0xd490
 #define USB_LPM_CTRL		0xd41a
+#define USB_BMU_RESET		0xd4b0
 #define USB_UPS_CTRL		0xd800
 #define USB_MISC_0		0xd81a
 #define USB_POWER_CUT		0xd80a
@@ -337,6 +338,10 @@
 /* USB_TX_DMA */
 #define TEST_MODE_DISABLE	0x00000001
 #define TX_SIZE_ADJUST1		0x00000100
+
+/* USB_BMU_RESET */
+#define BMU_RESET_EP_IN		0x01
+#define BMU_RESET_EP_OUT	0x02
 
 /* USB_UPS_CTRL */
 #define POWER_CUT		0x0100
@@ -2456,6 +2461,17 @@ static void r8153_teredo_off(struct r8152 *tp)
 	ocp_write_dword(tp, MCU_TYPE_PLA, PLA_TEREDO_TIMER, 0);
 }
 
+static void rtl_reset_bmu(struct r8152 *tp)
+{
+	u32 ocp_data;
+
+	ocp_data = ocp_read_byte(tp, MCU_TYPE_USB, USB_BMU_RESET);
+	ocp_data &= ~(BMU_RESET_EP_IN | BMU_RESET_EP_OUT);
+	ocp_write_byte(tp, MCU_TYPE_USB, USB_BMU_RESET, ocp_data);
+	ocp_data |= BMU_RESET_EP_IN | BMU_RESET_EP_OUT;
+	ocp_write_byte(tp, MCU_TYPE_USB, USB_BMU_RESET, ocp_data);
+}
+
 static void r8152_aldps_en(struct r8152 *tp, bool enable)
 {
 	if (enable) {
@@ -2681,6 +2697,7 @@ static void r8153_first_init(struct r8152 *tp)
 	r8153_hw_phy_cfg(tp);
 
 	rtl8152_nic_reset(tp);
+	rtl_reset_bmu(tp);
 
 	ocp_data = ocp_read_byte(tp, MCU_TYPE_PLA, PLA_OOB_CTRL);
 	ocp_data &= ~NOW_IS_OOB;
@@ -2742,6 +2759,7 @@ static void r8153_enter_oob(struct r8152 *tp)
 	ocp_write_byte(tp, MCU_TYPE_PLA, PLA_OOB_CTRL, ocp_data);
 
 	rtl_disable(tp);
+	rtl_reset_bmu(tp);
 
 	for (i = 0; i < 1000; i++) {
 		ocp_data = ocp_read_byte(tp, MCU_TYPE_PLA, PLA_OOB_CTRL);
@@ -2803,6 +2821,7 @@ static void rtl8153_disable(struct r8152 *tp)
 {
 	r8153_aldps_en(tp, false);
 	rtl_disable(tp);
+	rtl_reset_bmu(tp);
 	r8153_aldps_en(tp, true);
 	usb_enable_lpm(tp->udev);
 }
