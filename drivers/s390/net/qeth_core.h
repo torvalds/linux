@@ -844,6 +844,19 @@ struct qeth_trap_id {
 /*some helper functions*/
 #define QETH_CARD_IFNAME(card) (((card)->dev)? (card)->dev->name : "")
 
+/**
+ * qeth_get_elements_for_range() -	find number of SBALEs to cover range.
+ * @start:				Start of the address range.
+ * @end:				Address after the end of the range.
+ *
+ * Returns the number of pages, and thus QDIO buffer elements, needed to cover
+ * the specified address range.
+ */
+static inline int qeth_get_elements_for_range(addr_t start, addr_t end)
+{
+	return PFN_UP(end - 1) - PFN_DOWN(start);
+}
+
 static inline int qeth_get_micros(void)
 {
 	return (int) (get_tod_clock() >> 12);

@@ -3810,41 +3810,54 @@ int qeth_get_priority_queue(struct qeth_card *card, struct sk_buff *skb,
 }
 EXPORT_SYMBOL_GPL(qeth_get_priority_queue);
 
+/**
+ * qeth_get_elements_for_frags() -	find number of SBALEs for skb frags.
+ * @skb:				SKB address
+ *
+ * Returns the number of pages, and thus QDIO buffer elements, needed to cover
+ * fragmented part of the SKB. Returns zero for linear SKB.
+ */
 int qeth_get_elements_for_frags(struct sk_buff *skb)
 {
-	int cnt, length, e, elements = 0;
-	struct skb_frag_struct *frag;
-	char *data;
+	int cnt, elements = 0;
 
 	for (cnt = 0; cnt < skb_shinfo(skb)->nr_frags; cnt++) {
-		frag = &skb_shinfo(skb)->frags[cnt];
-		data = (char *)page_to_phys(skb_frag_page(frag)) +
-			frag->page_offset;
-		length = frag->size;
-		e = PFN_UP((unsigned long)data + length - 1) -
-			PFN_DOWN((unsigned long)data);
-		elements += e;
+		struct skb_frag_struct *frag = &skb_shinfo(skb)->frags[cnt];
+
+		elements += qeth_get_elements_for_range(
+			(addr_t)skb_frag_address(frag),
+			(addr_t)skb_frag_address(frag) + skb_frag_size(frag));
 	}
 	return elements;
 }
 EXPORT_SYMBOL_GPL(qeth_get_elements_for_frags);
 
+/**
+ * qeth_get_elements_no() -	find number of SBALEs for skb data, inc. frags.
+ * @card:			qeth card structure, to check max. elems.
+ * @skb:			SKB address
+ * @extra_elems:		extra elems needed, to check against max.
+ *
+ * Returns the number of pages, and thus QDIO buffer elements, needed to cover
+ * skb data, including linear part and fragments. Checks if the result plus
+ * extra_elems fits under the limit for the card. Returns 0 if it does not.
+ * Note: extra_elems is not included in the returned result.
+ */
 int qeth_get_elements_no(struct qeth_card *card,
-		     struct sk_buff *skb, int elems)
+		     struct sk_buff *skb, int extra_elems)
 {
-	int dlen = skb->len - skb->data_len;
-	int elements_needed = PFN_UP((unsigned long)skb->data + dlen - 1) -
-		PFN_DOWN((unsigned long)skb->data);
+	int elements = qeth_get_elements_for_range(
+				(addr_t)skb->data,
+				(addr_t)skb->data + skb_headlen(skb)) +
+			qeth_get_elements_for_frags(skb);
 
-	elements_needed += qeth_get_elements_for_frags(skb);
-
-	if ((elements_needed + elems) > QETH_MAX_BUFFER_ELEMENTS(card)) {
+	if ((elements + extra_elems) > QETH_MAX_BUFFER_ELEMENTS(card)) {
 		QETH_DBF_MESSAGE(2, "Invalid size of IP packet "
 			"(Number=%d / Length=%d). Discarded.\n",
-			(elements_needed+elems), skb->len);
+			elements + extra_elems, skb->len);
 		return 0;
 	}
-	return elements_needed;
+	return elements;
 }
 EXPORT_SYMBOL_GPL(qeth_get_elements_no);
 
@@ -3859,7 +3872,7 @@ int qeth_hdr_chk_and_bounce(struct sk_buff *skb, struct qeth_hdr **hdr, int len)
 		rest = len - inpage;
 		if (rest > hroom)
 			return 1;
-		memmove(skb->data - rest, skb->data, skb->len - skb->data_len);
+		memmove(skb->data - rest, skb->data, skb_headlen(skb));
 		skb->data -= rest;
 		skb->tail -= rest;
 		*hdr = (struct qeth_hdr *)skb->data;
@@ -3873,7 +3886,7 @@ static inline void __qeth_fill_buffer(struct sk_buff *skb,
 	struct qdio_buffer *buffer, int is_tso, int *next_element_to_fill,
 	int offset)
 {
-	int length = skb->len - skb->data_len;
+	int length = skb_headlen(skb);
 	int length_here;
 	int element;
 	char *data;

@@ -2793,15 +2793,34 @@ static void qeth_tso_fill_header(struct qeth_card *card,
 	}
 }
 
-static inline int qeth_l3_tso_elements(struct sk_buff *skb)
+/**
+ * qeth_get_elements_no_tso() - find number of SBALEs for skb data, inc. frags.
+ * @card:			qeth card structure, to check max. elems.
+ * @skb:			SKB address
+ * @extra_elems:		extra elems needed, to check against max.
+ *
+ * Returns the number of pages, and thus QDIO buffer elements, needed to cover
+ * skb data, including linear part and fragments, but excluding TCP header.
+ * (Exclusion of TCP header distinguishes it from qeth_get_elements_no().)
+ * Checks if the result plus extra_elems fits under the limit for the card.
+ * Returns 0 if it does not.
+ * Note: extra_elems is not included in the returned result.
+ */
+static int qeth_get_elements_no_tso(struct qeth_card *card,
+			struct sk_buff *skb, int extra_elems)
 {
-	unsigned long tcpd = (unsigned long)tcp_hdr(skb) +
-		tcp_hdr(skb)->doff * 4;
-	int tcpd_len = skb_headlen(skb) - (tcpd - (unsigned long)skb->data);
-	int elements = PFN_UP(tcpd + tcpd_len - 1) - PFN_DOWN(tcpd);
+	addr_t tcpdptr = (addr_t)tcp_hdr(skb) + tcp_hdrlen(skb);
+	int elements = qeth_get_elements_for_range(
+				tcpdptr,
+				(addr_t)skb->data + skb_headlen(skb)) +
+		qeth_get_elements_for_frags(skb);
 
-	elements += qeth_get_elements_for_frags(skb);
-
+	if ((elements + extra_elems) > QETH_MAX_BUFFER_ELEMENTS(card)) {
+		QETH_DBF_MESSAGE(2,
+	"Invalid size of TSO IP packet (Number=%d / Length=%d). Discarded.\n",
+				elements + extra_elems, skb->len);
+		return 0;
+	}
 	return elements;
 }
 
@@ -2810,8 +2829,8 @@ static int qeth_l3_hard_start_xmit(struct sk_buff *skb, struct net_device *dev)
 	int rc;
 	u16 *tag;
 	struct qeth_hdr *hdr = NULL;
-	int elements_needed = 0;
-	int elems;
+	int hdr_elements = 0;
+	int elements;
 	struct qeth_card *card = dev->ml_priv;
 	struct sk_buff *new_skb = NULL;
 	int ipv = qeth_get_ip_version(skb);
@@ -2859,7 +2878,7 @@ static int qeth_l3_hard_start_xmit(struct sk_buff *skb, struct net_device *dev)
 		hdr = kmem_cache_alloc(qeth_core_header_cache, GFP_ATOMIC);
 		if (!hdr)
 			goto tx_drop;
-		elements_needed++;
+		hdr_elements++;
 	} else {
 		/* create a clone with writeable headroom */
 		new_skb = skb_realloc_headroom(skb, sizeof(struct qeth_hdr_tso)
@@ -2895,7 +2914,7 @@ static int qeth_l3_hard_start_xmit(struct sk_buff *skb, struct net_device *dev)
 	 * chaining we can not send long frag lists
 	 */
 	if (large_send) {
-		if (qeth_l3_tso_elements(new_skb) + 1 > 16) {
+		if (!qeth_get_elements_no_tso(card, new_skb, 1)) {
 			if (skb_linearize(new_skb))
 				goto tx_drop;
 			if (card->options.performance_stats)
@@ -2909,7 +2928,7 @@ static int qeth_l3_hard_start_xmit(struct sk_buff *skb, struct net_device *dev)
 		memset(hdr, 0, sizeof(struct qeth_hdr_tso));
 		qeth_l3_fill_header(card, hdr, new_skb, ipv, cast_type);
 		qeth_tso_fill_header(card, hdr, new_skb);
-		elements_needed++;
+		hdr_elements++;
 	} else {
 		if (data_offset < 0) {
 			hdr = (struct qeth_hdr *)skb_push(new_skb,
@@ -2930,31 +2949,29 @@ static int qeth_l3_hard_start_xmit(struct sk_buff *skb, struct net_device *dev)
 			qeth_l3_hdr_csum(card, hdr, new_skb);
 	}
 
-	elems = qeth_get_elements_no(card, new_skb, elements_needed);
-	if (!elems) {
+	elements = qeth_get_elements_no(card, new_skb, hdr_elements);
+	if (!elements) {
 		if (data_offset >= 0)
 			kmem_cache_free(qeth_core_header_cache, hdr);
 		goto tx_drop;
 	}
-	elements_needed += elems;
-	nr_frags = skb_shinfo(new_skb)->nr_frags;
+	elements += hdr_elements;
 
 	if (card->info.type != QETH_CARD_TYPE_IQD) {
 		int len;
 		if (large_send)
 			len = ((unsigned long)tcp_hdr(new_skb) +
-				tcp_hdr(new_skb)->doff * 4) -
+				tcp_hdrlen(new_skb)) -
 				(unsigned long)new_skb->data;
 		else
 			len = sizeof(struct qeth_hdr_layer3);
 
 		if (qeth_hdr_chk_and_bounce(new_skb, &hdr, len))
 			goto tx_drop;
-		rc = qeth_do_send_packet(card, queue, new_skb, hdr,
-					 elements_needed);
+		rc = qeth_do_send_packet(card, queue, new_skb, hdr, elements);
 	} else
 		rc = qeth_do_send_packet_fast(card, queue, new_skb, hdr,
-					elements_needed, data_offset, 0);
+					elements, data_offset, 0);
 
 	if (!rc) {
 		card->stats.tx_packets++;
@@ -2962,6 +2979,7 @@ static int qeth_l3_hard_start_xmit(struct sk_buff *skb, struct net_device *dev)
 		if (new_skb != skb)
 			dev_kfree_skb_any(skb);
 		if (card->options.performance_stats) {
+			nr_frags = skb_shinfo(new_skb)->nr_frags;
 			if (large_send) {
 				card->perf_stats.large_send_bytes += tx_bytes;
 				card->perf_stats.large_send_cnt++;
