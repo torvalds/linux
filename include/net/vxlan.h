@@ -1,12 +1,8 @@
 #ifndef __NET_VXLAN_H
 #define __NET_VXLAN_H 1
 
-#include <linux/ip.h>
-#include <linux/ipv6.h>
 #include <linux/if_vlan.h>
-#include <linux/skbuff.h>
-#include <linux/netdevice.h>
-#include <linux/udp.h>
+#include <net/udp_tunnel.h>
 #include <net/dst_metadata.h>
 
 /* VXLAN protocol (RFC 7348) header:
