@@ -45,9 +45,8 @@ static int b53_mmap_read16(struct b53_device *dev, u8 page, u8 reg, u16 *val)
 	if (WARN_ON(reg % 2))
 		return -EINVAL;
 
-	if (IS_ENABLED(CONFIG_CPU_BIG_ENDIAN) && dev->pdata &&
-	    dev->pdata->big_endian)
-		*val = __raw_readw(regs + (page << 8) + reg);
+	if (dev->pdata && dev->pdata->big_endian)
+		*val = ioread16be(regs + (page << 8) + reg);
 	else
 		*val = readw(regs + (page << 8) + reg);
 
@@ -61,9 +60,8 @@ static int b53_mmap_read32(struct b53_device *dev, u8 page, u8 reg, u32 *val)
 	if (WARN_ON(reg % 4))
 		return -EINVAL;
 
-	if (IS_ENABLED(CONFIG_CPU_BIG_ENDIAN) && dev->pdata &&
-	    dev->pdata->big_endian)
-		*val = __raw_readl(regs + (page << 8) + reg);
+	if (dev->pdata && dev->pdata->big_endian)
+		*val = ioread32be(regs + (page << 8) + reg);
 	else
 		*val = readl(regs + (page << 8) + reg);
 
@@ -128,9 +126,8 @@ static int b53_mmap_write16(struct b53_device *dev, u8 page, u8 reg,
 	if (WARN_ON(reg % 2))
 		return -EINVAL;
 
-	if (IS_ENABLED(CONFIG_CPU_BIG_ENDIAN) && dev->pdata &&
-	    dev->pdata->big_endian)
-		__raw_writew(value, regs + (page << 8) + reg);
+	if (dev->pdata && dev->pdata->big_endian)
+		iowrite16be(value, regs + (page << 8) + reg);
 	else
 		writew(value, regs + (page << 8) + reg);
 
@@ -145,9 +142,8 @@ static int b53_mmap_write32(struct b53_device *dev, u8 page, u8 reg,
 	if (WARN_ON(reg % 4))
 		return -EINVAL;
 
-	if (IS_ENABLED(CONFIG_CPU_BIG_ENDIAN) && dev->pdata &&
-	    dev->pdata->big_endian)
-		__raw_writel(value, regs + (page << 8) + reg);
+	if (dev->pdata && dev->pdata->big_endian)
+		iowrite32be(value, regs + (page << 8) + reg);
 	else
 		writel(value, regs + (page << 8) + reg);
 
