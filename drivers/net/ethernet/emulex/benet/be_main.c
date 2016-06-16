@@ -3625,10 +3625,8 @@ static int be_open(struct net_device *netdev)
 		be_link_status_update(adapter, link_status);
 
 	netif_tx_start_all_queues(netdev);
-#ifdef CONFIG_BE2NET_VXLAN
 	if (skyhawk_chip(adapter))
-		vxlan_get_rx_port(netdev);
-#endif
+		udp_tunnel_get_rx_info(netdev);
 
 	return 0;
 err:
@@ -3755,7 +3753,6 @@ static void be_cancel_err_detection(struct be_adapter *adapter)
 	}
 }
 
-#ifdef CONFIG_BE2NET_VXLAN
 static void be_disable_vxlan_offloads(struct be_adapter *adapter)
 {
 	struct net_device *netdev = adapter->netdev;
@@ -3774,7 +3771,6 @@ static void be_disable_vxlan_offloads(struct be_adapter *adapter)
 	netdev->hw_features &= ~(NETIF_F_GSO_UDP_TUNNEL);
 	netdev->features &= ~(NETIF_F_GSO_UDP_TUNNEL);
 }
-#endif
 
 static void be_calculate_vf_res(struct be_adapter *adapter, u16 num_vfs,
 				struct be_resources *vft_res)
@@ -3875,9 +3871,7 @@ static int be_clear(struct be_adapter *adapter)
 					&vft_res);
 	}
 
-#ifdef CONFIG_BE2NET_VXLAN
 	be_disable_vxlan_offloads(adapter);
-#endif
 	kfree(adapter->pmac_id);
 	adapter->pmac_id = NULL;
 
@@ -4705,7 +4699,6 @@ static int be_ndo_bridge_getlink(struct sk_buff *skb, u32 pid, u32 seq,
 				       0, 0, nlflags, filter_mask, NULL);
 }
 
-#ifdef CONFIG_BE2NET_VXLAN
 /* VxLAN offload Notes:
  *
  * The stack defines tunnel offload flags (hw_enc_features) for IP and doesn't
@@ -4720,12 +4713,16 @@ static int be_ndo_bridge_getlink(struct sk_buff *skb, u32 pid, u32 seq,
  * adds more than one port, disable offloads and don't re-enable them again
  * until after all the tunnels are removed.
  */
-static void be_add_vxlan_port(struct net_device *netdev, sa_family_t sa_family,
-			      __be16 port)
+static void be_add_vxlan_port(struct net_device *netdev,
+			      struct udp_tunnel_info *ti)
 {
 	struct be_adapter *adapter = netdev_priv(netdev);
 	struct device *dev = &adapter->pdev->dev;
+	__be16 port = ti->port;
 	int status;
+
+	if (ti->type != UDP_TUNNEL_TYPE_VXLAN)
+		return;
 
 	if (lancer_chip(adapter) || BEx_chip(adapter) || be_is_mc(adapter))
 		return;
@@ -4774,10 +4771,14 @@ err:
 	be_disable_vxlan_offloads(adapter);
 }
 
-static void be_del_vxlan_port(struct net_device *netdev, sa_family_t sa_family,
-			      __be16 port)
+static void be_del_vxlan_port(struct net_device *netdev,
+			      struct udp_tunnel_info *ti)
 {
 	struct be_adapter *adapter = netdev_priv(netdev);
+	__be16 port = ti->port;
+
+	if (ti->type != UDP_TUNNEL_TYPE_VXLAN)
+		return;
 
 	if (lancer_chip(adapter) || BEx_chip(adapter) || be_is_mc(adapter))
 		return;
@@ -4839,7 +4840,6 @@ static netdev_features_t be_features_check(struct sk_buff *skb,
 
 	return features;
 }
-#endif
 
 static int be_get_phys_port_id(struct net_device *dev,
 			       struct netdev_phys_item_id *ppid)
@@ -4887,11 +4887,9 @@ static const struct net_device_ops be_netdev_ops = {
 #ifdef CONFIG_NET_RX_BUSY_POLL
 	.ndo_busy_poll		= be_busy_poll,
 #endif
-#ifdef CONFIG_BE2NET_VXLAN
-	.ndo_add_vxlan_port	= be_add_vxlan_port,
-	.ndo_del_vxlan_port	= be_del_vxlan_port,
+	.ndo_udp_tunnel_add	= be_add_vxlan_port,
+	.ndo_udp_tunnel_del	= be_del_vxlan_port,
 	.ndo_features_check	= be_features_check,
-#endif
 	.ndo_get_phys_port_id   = be_get_phys_port_id,
 };
 
