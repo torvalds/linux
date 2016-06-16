@@ -1,7 +1,7 @@
 /*
  * Linux driver for VMware's vmxnet3 ethernet NIC.
  *
- * Copyright (C) 2008-2015, VMware, Inc. All Rights Reserved.
+ * Copyright (C) 2008-2016, VMware, Inc. All Rights Reserved.
  *
  * This program is free software; you can redistribute it and/or modify it
  * under the terms of the GNU General Public License as published by the
@@ -20,7 +20,7 @@
  * The full GNU General Public License is included in this distribution in
  * the file called "COPYING".
  *
- * Maintained by: Shreyas Bhatewara <pv-drivers@vmware.com>
+ * Maintained by: pv-drivers@vmware.com
  *
  */
 
@@ -76,7 +76,9 @@ enum {
 	VMXNET3_CMD_UPDATE_IML,
 	VMXNET3_CMD_UPDATE_PMCFG,
 	VMXNET3_CMD_UPDATE_FEATURE,
+	VMXNET3_CMD_RESERVED1,
 	VMXNET3_CMD_LOAD_PLUGIN,
+	VMXNET3_CMD_RESERVED2,
 
 	VMXNET3_CMD_FIRST_GET = 0xF00D0000,
 	VMXNET3_CMD_GET_QUEUE_STATUS = VMXNET3_CMD_FIRST_GET,
@@ -87,7 +89,8 @@ enum {
 	VMXNET3_CMD_GET_DID_LO,
 	VMXNET3_CMD_GET_DID_HI,
 	VMXNET3_CMD_GET_DEV_EXTRA_INFO,
-	VMXNET3_CMD_GET_CONF_INTR
+	VMXNET3_CMD_GET_CONF_INTR,
+	VMXNET3_CMD_GET_RESERVED1,
 };
 
 /*

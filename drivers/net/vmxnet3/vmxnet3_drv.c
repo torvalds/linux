@@ -1,7 +1,7 @@
 /*
  * Linux driver for VMware's vmxnet3 ethernet NIC.
  *
- * Copyright (C) 2008-2009, VMware, Inc. All Rights Reserved.
+ * Copyright (C) 2008-2016, VMware, Inc. All Rights Reserved.
  *
  * This program is free software; you can redistribute it and/or modify it
  * under the terms of the GNU General Public License as published by the
@@ -20,7 +20,7 @@
  * The full GNU General Public License is included in this distribution in
  * the file called "COPYING".
  *
- * Maintained by: Shreyas Bhatewara <pv-drivers@vmware.com>
+ * Maintained by: pv-drivers@vmware.com
  *
  */
 
@@ -1363,7 +1363,7 @@ vmxnet3_rq_rx_complete(struct vmxnet3_rx_queue *rq,
 			rbi->dma_addr = new_dma_addr;
 			rxd->addr = cpu_to_le64(rbi->dma_addr);
 			rxd->len = rbi->len;
-			if (adapter->version == 2 &&
+			if (VMXNET3_VERSION_GE_2(adapter) &&
 			    rcd->type == VMXNET3_CDTYPE_RXCOMP_LRO) {
 				struct Vmxnet3_RxCompDescExt *rcdlro;
 				rcdlro = (struct Vmxnet3_RxCompDescExt *)rcd;
@@ -3200,12 +3200,16 @@ vmxnet3_probe_device(struct pci_dev *pdev,
 		goto err_alloc_pci;
 
 	ver = VMXNET3_READ_BAR1_REG(adapter, VMXNET3_REG_VRRS);
-	if (ver & 2) {
-		VMXNET3_WRITE_BAR1_REG(adapter, VMXNET3_REG_VRRS, 2);
-		adapter->version = 2;
-	} else if (ver & 1) {
-		VMXNET3_WRITE_BAR1_REG(adapter, VMXNET3_REG_VRRS, 1);
-		adapter->version = 1;
+	if (ver & (1 << VMXNET3_REV_2)) {
+		VMXNET3_WRITE_BAR1_REG(adapter,
+				       VMXNET3_REG_VRRS,
+				       1 << VMXNET3_REV_2);
+		adapter->version = VMXNET3_REV_2 + 1;
+	} else if (ver & (1 << VMXNET3_REV_1)) {
+		VMXNET3_WRITE_BAR1_REG(adapter,
+				       VMXNET3_REG_VRRS,
+				       1 << VMXNET3_REV_1);
+		adapter->version = VMXNET3_REV_1 + 1;
 	} else {
 		dev_err(&pdev->dev,
 			"Incompatible h/w version (0x%x) for adapter\n", ver);
