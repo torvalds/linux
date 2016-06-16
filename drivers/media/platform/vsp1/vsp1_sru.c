@@ -37,7 +37,7 @@ static inline void vsp1_sru_write(struct vsp1_sru *sru, struct vsp1_dl_list *dl,
  * Controls
  */
 
-#define V4L2_CID_VSP1_SRU_INTENSITY		(V4L2_CID_USER_BASE + 1)
+#define V4L2_CID_VSP1_SRU_INTENSITY		(V4L2_CID_USER_BASE | 0x1001)
 
 struct vsp1_sru_param {
 	u32 ctrl0;
