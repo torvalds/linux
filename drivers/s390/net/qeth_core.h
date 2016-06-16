@@ -19,6 +19,7 @@
 #include <linux/seq_file.h>
 #include <linux/ethtool.h>
 #include <linux/hashtable.h>
+#include <linux/ip.h>
 
 #include <net/ipv6.h>
 #include <net/if_inet6.h>
@@ -876,6 +877,11 @@ static inline int qeth_get_ip_version(struct sk_buff *skb)
 	default:
 		return 0;
 	}
+}
+
+static inline int qeth_get_ip_protocol(struct sk_buff *skb)
+{
+	return ip_hdr(skb)->protocol;
 }
 
 static inline void qeth_put_buffer_pool_entry(struct qeth_card *card,
