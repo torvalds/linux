@@ -869,6 +869,7 @@ static int qeth_l2_hard_start_xmit(struct sk_buff *skb, struct net_device *dev)
 	int data_offset = -1;
 	int elements_needed = 0;
 	int hd_len = 0;
+	int nr_frags;
 
 	if (card->qdio.do_prio_queueing || (cast_type &&
 					card->info.is_multicast_different))
@@ -891,6 +892,17 @@ static int qeth_l2_hard_start_xmit(struct sk_buff *skb, struct net_device *dev)
 		card->perf_stats.outbound_start_time = qeth_get_micros();
 	}
 	netif_stop_queue(dev);
+
+	/* fix hardware limitation: as long as we do not have sbal
+	 * chaining we can not send long frag lists
+	 */
+	if ((card->info.type != QETH_CARD_TYPE_IQD) &&
+	    !qeth_get_elements_no(card, new_skb, 0)) {
+		if (skb_linearize(new_skb))
+			goto tx_drop;
+		if (card->options.performance_stats)
+			card->perf_stats.tx_lin++;
+	}
 
 	if (card->info.type == QETH_CARD_TYPE_OSN)
 		hdr = (struct qeth_hdr *)skb->data;
@@ -943,6 +955,14 @@ static int qeth_l2_hard_start_xmit(struct sk_buff *skb, struct net_device *dev)
 	if (!rc) {
 		card->stats.tx_packets++;
 		card->stats.tx_bytes += tx_bytes;
+		if (card->options.performance_stats) {
+			nr_frags = skb_shinfo(new_skb)->nr_frags;
+			if (nr_frags) {
+				card->perf_stats.sg_skbs_sent++;
+				/* nr_frags + skb->data */
+				card->perf_stats.sg_frags_sent += nr_frags + 1;
+			}
+		}
 		if (new_skb != skb)
 			dev_kfree_skb_any(skb);
 		rc = NETDEV_TX_OK;
@@ -1118,12 +1138,16 @@ static int qeth_l2_setup_netdev(struct qeth_card *card)
 		&qeth_l2_ethtool_ops : &qeth_l2_osn_ops;
 	card->dev->features |= NETIF_F_HW_VLAN_CTAG_FILTER;
 	if (card->info.type == QETH_CARD_TYPE_OSD && !card->info.guestlan) {
-		card->dev->hw_features = NETIF_F_IP_CSUM | NETIF_F_RXCSUM;
+		card->dev->hw_features = NETIF_F_IP_CSUM | NETIF_F_RXCSUM |
+					 NETIF_F_SG;
 		/* Turn on RX offloading per default */
 		card->dev->features |= NETIF_F_RXCSUM;
 	}
 	card->info.broadcast_capable = 1;
 	qeth_l2_request_initial_mac(card);
+	card->dev->gso_max_size = (QETH_MAX_BUFFER_ELEMENTS(card) - 1) *
+				  PAGE_SIZE;
+	card->dev->gso_max_segs = (QETH_MAX_BUFFER_ELEMENTS(card) - 1);
 	SET_NETDEV_DEV(card->dev, &card->gdev->dev);
 	netif_napi_add(card->dev, &card->napi, qeth_l2_poll, QETH_NAPI_WEIGHT);
 	netif_carrier_off(card->dev);
