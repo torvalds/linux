@@ -554,6 +554,19 @@ static int mwifiex_pm_wakeup_card_complete(struct mwifiex_adapter *adapter)
 	return mwifiex_write_reg(adapter, CONFIGURATION_REG, 0);
 }
 
+static int mwifiex_sdio_dnld_fw(struct mwifiex_adapter *adapter,
+			struct mwifiex_fw_image *fw)
+{
+	struct sdio_mmc_card *card = adapter->card;
+	int ret;
+
+	sdio_claim_host(card->func);
+	ret = mwifiex_dnld_fw(adapter, fw);
+	sdio_release_host(card->func);
+
+	return ret;
+}
+
 /*
  * This function is used to initialize IO ports for the
  * chipsets supporting SDIO new mode eg SD8897.
@@ -2742,6 +2755,7 @@ static struct mwifiex_if_ops sdio_ops = {
 	.cleanup_mpa_buf = mwifiex_cleanup_mpa_buf,
 	.cmdrsp_complete = mwifiex_sdio_cmdrsp_complete,
 	.event_complete = mwifiex_sdio_event_complete,
+	.dnld_fw = mwifiex_sdio_dnld_fw,
 	.card_reset = mwifiex_sdio_card_reset,
 	.reg_dump = mwifiex_sdio_reg_dump,
 	.device_dump = mwifiex_sdio_device_dump,
