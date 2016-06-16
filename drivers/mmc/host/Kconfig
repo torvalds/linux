@@ -787,3 +787,13 @@ config MMC_SDHCI_MICROCHIP_PIC32
           If you have a controller with this interface, say Y or M here.
 
           If unsure, say N.
+config MMC_SDHCI_BRCMSTB
+	tristate "Broadcom SDIO/SD/MMC support"
+	depends on ARCH_BRCMSTB || BMIPS_GENERIC
+	depends on MMC_SDHCI_PLTFM
+	default y
+	help
+	  This selects support for the SDIO/SD/MMC Host Controller on
+	  Broadcom STB SoCs.
+
+	  If unsure, say Y.
