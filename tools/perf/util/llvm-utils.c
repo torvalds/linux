@@ -42,6 +42,8 @@ int perf_llvm_config(const char *var, const char *value)
 		llvm_param.kbuild_dir = strdup(value);
 	else if (!strcmp(var, "kbuild-opts"))
 		llvm_param.kbuild_opts = strdup(value);
+	else if (!strcmp(var, "dump-obj"))
+		llvm_param.dump_obj = !!perf_config_bool(var, value);
 	else
 		return -1;
 	llvm_param.user_set_param = true;
@@ -326,6 +328,42 @@ get_kbuild_opts(char **kbuild_dir, char **kbuild_include_opts)
 	pr_debug("include option is set to %s\n", *kbuild_include_opts);
 }
 
+static void
+dump_obj(const char *path, void *obj_buf, size_t size)
+{
+	char *obj_path = strdup(path);
+	FILE *fp;
+	char *p;
+
+	if (!obj_path) {
+		pr_warning("WARNING: No enough memory, skip object dumping\n");
+		return;
+	}
+
+	p = strrchr(obj_path, '.');
+	if (!p || (strcmp(p, ".c") != 0)) {
+		pr_warning("WARNING: invalid llvm source path: '%s', skip object dumping\n",
+			   obj_path);
+		goto out;
+	}
+
+	p[1] = 'o';
+	fp = fopen(obj_path, "wb");
+	if (!fp) {
+		pr_warning("WARNING: failed to open '%s': %s, skip object dumping\n",
+			   obj_path, strerror(errno));
+		goto out;
+	}
+
+	pr_info("LLVM: dumping %s\n", obj_path);
+	if (fwrite(obj_buf, size, 1, fp) != 1)
+		pr_warning("WARNING: failed to write to file '%s': %s, skip object dumping\n",
+			   obj_path, strerror(errno));
+	fclose(fp);
+out:
+	free(obj_path);
+}
+
 int llvm__compile_bpf(const char *path, void **p_obj_buf,
 		      size_t *p_obj_buf_sz)
 {
@@ -411,6 +449,10 @@ int llvm__compile_bpf(const char *path, void **p_obj_buf,
 
 	free(kbuild_dir);
 	free(kbuild_include_opts);
+
+	if (llvm_param.dump_obj)
+		dump_obj(path, obj_buf, obj_buf_sz);
+
 	if (!p_obj_buf)
 		free(obj_buf);
 	else
