@@ -882,6 +882,7 @@ struct i915_gem_context {
 	} engine[I915_NUM_ENGINES];
 	u32 ring_size;
 	u32 desc_template;
+	struct atomic_notifier_head status_notifier;
 
 	struct list_head link;
 

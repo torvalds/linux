@@ -298,6 +298,7 @@ __create_hw_context(struct drm_device *dev,
 	ctx->ring_size = 4 * PAGE_SIZE;
 	ctx->desc_template = GEN8_CTX_ADDRESSING_MODE(dev_priv) <<
 			     GEN8_CTX_ADDRESSING_MODE_SHIFT;
+	ATOMIC_INIT_NOTIFIER_HEAD(&ctx->status_notifier);
 
 	return ctx;
 
