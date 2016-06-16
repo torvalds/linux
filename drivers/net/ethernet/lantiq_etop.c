@@ -411,7 +411,6 @@ static int
 ltq_etop_mdio_init(struct net_device *dev)
 {
 	struct ltq_etop_priv *priv = netdev_priv(dev);
-	int i;
 	int err;
 
 	priv->mii_bus = mdiobus_alloc();
