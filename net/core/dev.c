@@ -2422,7 +2422,7 @@ EXPORT_SYMBOL(__skb_tx_hash);
 
 static void skb_warn_bad_offload(const struct sk_buff *skb)
 {
-	static const netdev_features_t null_features = 0;
+	static const netdev_features_t null_features;
 	struct net_device *dev = skb->dev;
 	const char *name = "";
 
