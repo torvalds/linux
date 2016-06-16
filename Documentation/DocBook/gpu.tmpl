@@ -1018,6 +1018,11 @@ int max_width, max_height;</synopsis>
       </para>
     </sect2>
     <sect2>
+      <title>DRM Format Handling</title>
+!Iinclude/drm/drm_fourcc.h
+!Edrivers/gpu/drm/drm_fourcc.c
+    </sect2>
+    <sect2>
       <title>Dumb Buffer Objects</title>
       <para>
 	The KMS API doesn't standardize backing storage object creation and
@@ -1570,7 +1575,7 @@ void intel_crt_init(struct drm_device *dev)
       </sect3>
       <sect3>
 	<title>Implementing Asynchronous Atomic Commit</title>
-!Pdrivers/gpu/drm/drm_atomic_helper.c implementing async commit
+!Pdrivers/gpu/drm/drm_atomic_helper.c implementing nonblocking commit
       </sect3>
       <sect3>
 	<title>Atomic State Reset and Initialization</title>
@@ -1682,6 +1687,12 @@ void intel_crt_init(struct drm_device *dev)
 !Iinclude/drm/drm_panel.h
 !Edrivers/gpu/drm/drm_panel.c
 !Pdrivers/gpu/drm/drm_panel.c drm panel
+    </sect2>
+    <sect2>
+      <title>Simple KMS Helper Reference</title>
+!Iinclude/drm/drm_simple_kms_helper.h
+!Edrivers/gpu/drm/drm_simple_kms_helper.c
+!Pdrivers/gpu/drm/drm_simple_kms_helper.c overview
     </sect2>
   </sect1>
 

@@ -239,37 +239,6 @@ const char *drm_get_subpixel_order_name(enum subpixel_order order)
 }
 EXPORT_SYMBOL(drm_get_subpixel_order_name);
 
-static char printable_char(int c)
-{
-	return isascii(c) && isprint(c) ? c : '?';
-}
-
-/**
- * drm_get_format_name - return a string for drm fourcc format
- * @format: format to compute name of
- *
- * Note that the buffer used by this function is globally shared and owned by
- * the function itself.
- *
- * FIXME: This isn't really multithreading safe.
- */
-const char *drm_get_format_name(uint32_t format)
-{
-	static char buf[32];
-
-	snprintf(buf, sizeof(buf),
-		 "%c%c%c%c %s-endian (0x%08x)",
-		 printable_char(format & 0xff),
-		 printable_char((format >> 8) & 0xff),
-		 printable_char((format >> 16) & 0xff),
-		 printable_char((format >> 24) & 0x7f),
-		 format & DRM_FORMAT_BIG_ENDIAN ? "big" : "little",
-		 format);
-
-	return buf;
-}
-EXPORT_SYMBOL(drm_get_format_name);
-
 /*
  * Internal function to assign a slot in the object idr and optionally
  * register the object into the idr.
@@ -535,7 +504,7 @@ EXPORT_SYMBOL(drm_framebuffer_unregister_private);
  *
  * Cleanup framebuffer. This function is intended to be used from the drivers
  * ->destroy callback. It can also be used to clean up driver private
- *  framebuffers embedded into a larger structure.
+ * framebuffers embedded into a larger structure.
  *
  * Note that this function does not remove the fb from active usuage - if it is
  * still used anywhere, hilarity can ensue since userspace could call getfb on
@@ -669,6 +638,9 @@ int drm_crtc_init_with_planes(struct drm_device *dev, struct drm_crtc *crtc,
 	crtc->dev = dev;
 	crtc->funcs = funcs;
 
+	INIT_LIST_HEAD(&crtc->commit_list);
+	spin_lock_init(&crtc->commit_lock);
+
 	drm_modeset_lock_init(&crtc->mutex);
 	ret = drm_mode_object_get(dev, &crtc->base, DRM_MODE_OBJECT_CRTC);
 	if (ret)
@@ -692,7 +664,7 @@ int drm_crtc_init_with_planes(struct drm_device *dev, struct drm_crtc *crtc,
 	crtc->base.properties = &crtc->properties;
 
 	list_add_tail(&crtc->head, &config->crtc_list);
-	config->num_crtc++;
+	crtc->index = config->num_crtc++;
 
 	crtc->primary = primary;
 	crtc->cursor = cursor;
@@ -722,6 +694,11 @@ void drm_crtc_cleanup(struct drm_crtc *crtc)
 {
 	struct drm_device *dev = crtc->dev;
 
+	/* Note that the crtc_list is considered to be static; should we
+	 * remove the drm_crtc at runtime we would have to decrement all
+	 * the indices on the drm_crtc after us in the crtc_list.
+	 */
+
 	kfree(crtc->gamma_store);
 	crtc->gamma_store = NULL;
 
@@ -740,29 +717,6 @@ void drm_crtc_cleanup(struct drm_crtc *crtc)
 	memset(crtc, 0, sizeof(*crtc));
 }
 EXPORT_SYMBOL(drm_crtc_cleanup);
-
-/**
- * drm_crtc_index - find the index of a registered CRTC
- * @crtc: CRTC to find index for
- *
- * Given a registered CRTC, return the index of that CRTC within a DRM
- * device's list of CRTCs.
- */
-unsigned int drm_crtc_index(struct drm_crtc *crtc)
-{
-	unsigned int index = 0;
-	struct drm_crtc *tmp;
-
-	drm_for_each_crtc(tmp, crtc->dev) {
-		if (tmp == crtc)
-			return index;
-
-		index++;
-	}
-
-	BUG();
-}
-EXPORT_SYMBOL(drm_crtc_index);
 
 /*
  * drm_mode_remove - remove and free a mode
@@ -1166,7 +1120,7 @@ int drm_encoder_init(struct drm_device *dev,
 	}
 
 	list_add_tail(&encoder->head, &dev->mode_config.encoder_list);
-	dev->mode_config.num_encoder++;
+	encoder->index = dev->mode_config.num_encoder++;
 
 out_put:
 	if (ret)
@@ -1180,29 +1134,6 @@ out_unlock:
 EXPORT_SYMBOL(drm_encoder_init);
 
 /**
- * drm_encoder_index - find the index of a registered encoder
- * @encoder: encoder to find index for
- *
- * Given a registered encoder, return the index of that encoder within a DRM
- * device's list of encoders.
- */
-unsigned int drm_encoder_index(struct drm_encoder *encoder)
-{
-	unsigned int index = 0;
-	struct drm_encoder *tmp;
-
-	drm_for_each_encoder(tmp, encoder->dev) {
-		if (tmp == encoder)
-			return index;
-
-		index++;
-	}
-
-	BUG();
-}
-EXPORT_SYMBOL(drm_encoder_index);
-
-/**
  * drm_encoder_cleanup - cleans up an initialised encoder
  * @encoder: encoder to cleanup
  *
@@ -1211,6 +1142,11 @@ EXPORT_SYMBOL(drm_encoder_index);
 void drm_encoder_cleanup(struct drm_encoder *encoder)
 {
 	struct drm_device *dev = encoder->dev;
+
+	/* Note that the encoder_list is considered to be static; should we
+	 * remove the drm_encoder at runtime we would have to decrement all
+	 * the indices on the drm_encoder after us in the encoder_list.
+	 */
 
 	drm_modeset_lock_all(dev);
 	drm_mode_object_unregister(dev, &encoder->base);
@@ -1300,7 +1236,7 @@ int drm_universal_plane_init(struct drm_device *dev, struct drm_plane *plane,
 	plane->type = type;
 
 	list_add_tail(&plane->head, &config->plane_list);
-	config->num_total_plane++;
+	plane->index = config->num_total_plane++;
 	if (plane->type == DRM_PLANE_TYPE_OVERLAY)
 		config->num_overlay_plane++;
 
@@ -1374,6 +1310,11 @@ void drm_plane_cleanup(struct drm_plane *plane)
 
 	BUG_ON(list_empty(&plane->head));
 
+	/* Note that the plane_list is considered to be static; should we
+	 * remove the drm_plane at runtime we would have to decrement all
+	 * the indices on the drm_plane after us in the plane_list.
+	 */
+
 	list_del(&plane->head);
 	dev->mode_config.num_total_plane--;
 	if (plane->type == DRM_PLANE_TYPE_OVERLAY)
@@ -1391,29 +1332,6 @@ void drm_plane_cleanup(struct drm_plane *plane)
 EXPORT_SYMBOL(drm_plane_cleanup);
 
 /**
- * drm_plane_index - find the index of a registered plane
- * @plane: plane to find index for
- *
- * Given a registered plane, return the index of that CRTC within a DRM
- * device's list of planes.
- */
-unsigned int drm_plane_index(struct drm_plane *plane)
-{
-	unsigned int index = 0;
-	struct drm_plane *tmp;
-
-	drm_for_each_plane(tmp, plane->dev) {
-		if (tmp == plane)
-			return index;
-
-		index++;
-	}
-
-	BUG();
-}
-EXPORT_SYMBOL(drm_plane_index);
-
-/**
  * drm_plane_from_index - find the registered plane at an index
  * @dev: DRM device
  * @idx: index of registered plane to find for
@@ -1425,13 +1343,11 @@ struct drm_plane *
 drm_plane_from_index(struct drm_device *dev, int idx)
 {
 	struct drm_plane *plane;
-	unsigned int i = 0;
 
-	drm_for_each_plane(plane, dev) {
-		if (i == idx)
+	drm_for_each_plane(plane, dev)
+		if (idx == plane->index)
 			return plane;
-		i++;
-	}
+
 	return NULL;
 }
 EXPORT_SYMBOL(drm_plane_from_index);
@@ -2821,8 +2737,6 @@ int drm_mode_setcrtc(struct drm_device *dev, void *data,
 			goto out;
 		}
 
-		drm_mode_set_crtcinfo(mode, CRTC_INTERLACE_HALVE_V);
-
 		/*
 		 * Check whether the primary plane supports the fb pixel format.
 		 * Drivers not implementing the universal planes API use a
@@ -2977,6 +2891,8 @@ static int drm_mode_cursor_universal(struct drm_crtc *crtc,
 				DRM_DEBUG_KMS("failed to wrap cursor buffer in drm framebuffer\n");
 				return PTR_ERR(fb);
 			}
+			fb->hot_x = req->hot_x;
+			fb->hot_y = req->hot_y;
 		} else {
 			fb = NULL;
 		}
@@ -4841,7 +4757,8 @@ bool drm_property_change_valid_get(struct drm_property *property,
 		if (value == 0)
 			return true;
 
-		return _object_find(property->dev, value, property->values[0]) != NULL;
+		*ref = _object_find(property->dev, value, property->values[0]);
+		return *ref != NULL;
 	}
 
 	for (i = 0; i < property->num_values; i++)
@@ -5228,7 +5145,7 @@ int drm_mode_gamma_set_ioctl(struct drm_device *dev,
 		goto out;
 	}
 
-	crtc->funcs->gamma_set(crtc, r_base, g_base, b_base, 0, crtc->gamma_size);
+	ret = crtc->funcs->gamma_set(crtc, r_base, g_base, b_base, crtc->gamma_size);
 
 out:
 	drm_modeset_unlock_all(dev);
@@ -5558,264 +5475,6 @@ int drm_mode_destroy_dumb_ioctl(struct drm_device *dev,
 }
 
 /**
- * drm_fb_get_bpp_depth - get the bpp/depth values for format
- * @format: pixel format (DRM_FORMAT_*)
- * @depth: storage for the depth value
- * @bpp: storage for the bpp value
- *
- * This only supports RGB formats here for compat with code that doesn't use
- * pixel formats directly yet.
- */
-void drm_fb_get_bpp_depth(uint32_t format, unsigned int *depth,
-			  int *bpp)
-{
-	switch (format) {
-	case DRM_FORMAT_C8:
-	case DRM_FORMAT_RGB332:
-	case DRM_FORMAT_BGR233:
-		*depth = 8;
-		*bpp = 8;
-		break;
-	case DRM_FORMAT_XRGB1555:
-	case DRM_FORMAT_XBGR1555:
-	case DRM_FORMAT_RGBX5551:
-	case DRM_FORMAT_BGRX5551:
-	case DRM_FORMAT_ARGB1555:
-	case DRM_FORMAT_ABGR1555:
-	case DRM_FORMAT_RGBA5551:
-	case DRM_FORMAT_BGRA5551:
-		*depth = 15;
-		*bpp = 16;
-		break;
-	case DRM_FORMAT_RGB565:
-	case DRM_FORMAT_BGR565:
-		*depth = 16;
-		*bpp = 16;
-		break;
-	case DRM_FORMAT_RGB888:
-	case DRM_FORMAT_BGR888:
-		*depth = 24;
-		*bpp = 24;
-		break;
-	case DRM_FORMAT_XRGB8888:
-	case DRM_FORMAT_XBGR8888:
-	case DRM_FORMAT_RGBX8888:
-	case DRM_FORMAT_BGRX8888:
-		*depth = 24;
-		*bpp = 32;
-		break;
-	case DRM_FORMAT_XRGB2101010:
-	case DRM_FORMAT_XBGR2101010:
-	case DRM_FORMAT_RGBX1010102:
-	case DRM_FORMAT_BGRX1010102:
-	case DRM_FORMAT_ARGB2101010:
-	case DRM_FORMAT_ABGR2101010:
-	case DRM_FORMAT_RGBA1010102:
-	case DRM_FORMAT_BGRA1010102:
-		*depth = 30;
-		*bpp = 32;
-		break;
-	case DRM_FORMAT_ARGB8888:
-	case DRM_FORMAT_ABGR8888:
-	case DRM_FORMAT_RGBA8888:
-	case DRM_FORMAT_BGRA8888:
-		*depth = 32;
-		*bpp = 32;
-		break;
-	default:
-		DRM_DEBUG_KMS("unsupported pixel format %s\n",
-			      drm_get_format_name(format));
-		*depth = 0;
-		*bpp = 0;
-		break;
-	}
-}
-EXPORT_SYMBOL(drm_fb_get_bpp_depth);
-
-/**
- * drm_format_num_planes - get the number of planes for format
- * @format: pixel format (DRM_FORMAT_*)
- *
- * Returns:
- * The number of planes used by the specified pixel format.
- */
-int drm_format_num_planes(uint32_t format)
-{
-	switch (format) {
-	case DRM_FORMAT_YUV410:
-	case DRM_FORMAT_YVU410:
-	case DRM_FORMAT_YUV411:
-	case DRM_FORMAT_YVU411:
-	case DRM_FORMAT_YUV420:
-	case DRM_FORMAT_YVU420:
-	case DRM_FORMAT_YUV422:
-	case DRM_FORMAT_YVU422:
-	case DRM_FORMAT_YUV444:
-	case DRM_FORMAT_YVU444:
-		return 3;
-	case DRM_FORMAT_NV12:
-	case DRM_FORMAT_NV21:
-	case DRM_FORMAT_NV16:
-	case DRM_FORMAT_NV61:
-	case DRM_FORMAT_NV24:
-	case DRM_FORMAT_NV42:
-		return 2;
-	default:
-		return 1;
-	}
-}
-EXPORT_SYMBOL(drm_format_num_planes);
-
-/**
- * drm_format_plane_cpp - determine the bytes per pixel value
- * @format: pixel format (DRM_FORMAT_*)
- * @plane: plane index
- *
- * Returns:
- * The bytes per pixel value for the specified plane.
- */
-int drm_format_plane_cpp(uint32_t format, int plane)
-{
-	unsigned int depth;
-	int bpp;
-
-	if (plane >= drm_format_num_planes(format))
-		return 0;
-
-	switch (format) {
-	case DRM_FORMAT_YUYV:
-	case DRM_FORMAT_YVYU:
-	case DRM_FORMAT_UYVY:
-	case DRM_FORMAT_VYUY:
-		return 2;
-	case DRM_FORMAT_NV12:
-	case DRM_FORMAT_NV21:
-	case DRM_FORMAT_NV16:
-	case DRM_FORMAT_NV61:
-	case DRM_FORMAT_NV24:
-	case DRM_FORMAT_NV42:
-		return plane ? 2 : 1;
-	case DRM_FORMAT_YUV410:
-	case DRM_FORMAT_YVU410:
-	case DRM_FORMAT_YUV411:
-	case DRM_FORMAT_YVU411:
-	case DRM_FORMAT_YUV420:
-	case DRM_FORMAT_YVU420:
-	case DRM_FORMAT_YUV422:
-	case DRM_FORMAT_YVU422:
-	case DRM_FORMAT_YUV444:
-	case DRM_FORMAT_YVU444:
-		return 1;
-	default:
-		drm_fb_get_bpp_depth(format, &depth, &bpp);
-		return bpp >> 3;
-	}
-}
-EXPORT_SYMBOL(drm_format_plane_cpp);
-
-/**
- * drm_format_horz_chroma_subsampling - get the horizontal chroma subsampling factor
- * @format: pixel format (DRM_FORMAT_*)
- *
- * Returns:
- * The horizontal chroma subsampling factor for the
- * specified pixel format.
- */
-int drm_format_horz_chroma_subsampling(uint32_t format)
-{
-	switch (format) {
-	case DRM_FORMAT_YUV411:
-	case DRM_FORMAT_YVU411:
-	case DRM_FORMAT_YUV410:
-	case DRM_FORMAT_YVU410:
-		return 4;
-	case DRM_FORMAT_YUYV:
-	case DRM_FORMAT_YVYU:
-	case DRM_FORMAT_UYVY:
-	case DRM_FORMAT_VYUY:
-	case DRM_FORMAT_NV12:
-	case DRM_FORMAT_NV21:
-	case DRM_FORMAT_NV16:
-	case DRM_FORMAT_NV61:
-	case DRM_FORMAT_YUV422:
-	case DRM_FORMAT_YVU422:
-	case DRM_FORMAT_YUV420:
-	case DRM_FORMAT_YVU420:
-		return 2;
-	default:
-		return 1;
-	}
-}
-EXPORT_SYMBOL(drm_format_horz_chroma_subsampling);
-
-/**
- * drm_format_vert_chroma_subsampling - get the vertical chroma subsampling factor
- * @format: pixel format (DRM_FORMAT_*)
- *
- * Returns:
- * The vertical chroma subsampling factor for the
- * specified pixel format.
- */
-int drm_format_vert_chroma_subsampling(uint32_t format)
-{
-	switch (format) {
-	case DRM_FORMAT_YUV410:
-	case DRM_FORMAT_YVU410:
-		return 4;
-	case DRM_FORMAT_YUV420:
-	case DRM_FORMAT_YVU420:
-	case DRM_FORMAT_NV12:
-	case DRM_FORMAT_NV21:
-		return 2;
-	default:
-		return 1;
-	}
-}
-EXPORT_SYMBOL(drm_format_vert_chroma_subsampling);
-
-/**
- * drm_format_plane_width - width of the plane given the first plane
- * @width: width of the first plane
- * @format: pixel format
- * @plane: plane index
- *
- * Returns:
- * The width of @plane, given that the width of the first plane is @width.
- */
-int drm_format_plane_width(int width, uint32_t format, int plane)
-{
-	if (plane >= drm_format_num_planes(format))
-		return 0;
-
-	if (plane == 0)
-		return width;
-
-	return width / drm_format_horz_chroma_subsampling(format);
-}
-EXPORT_SYMBOL(drm_format_plane_width);
-
-/**
- * drm_format_plane_height - height of the plane given the first plane
- * @height: height of the first plane
- * @format: pixel format
- * @plane: plane index
- *
- * Returns:
- * The height of @plane, given that the height of the first plane is @height.
- */
-int drm_format_plane_height(int height, uint32_t format, int plane)
-{
-	if (plane >= drm_format_num_planes(format))
-		return 0;
-
-	if (plane == 0)
-		return height;
-
-	return height / drm_format_vert_chroma_subsampling(format);
-}
-EXPORT_SYMBOL(drm_format_plane_height);
-
-/**
  * drm_rotation_simplify() - Try to simplify the rotation
  * @rotation: Rotation to be simplified
  * @supported_rotations: Supported rotations
@@ -6078,3 +5737,48 @@ struct drm_tile_group *drm_mode_create_tile_group(struct drm_device *dev,
 	return tg;
 }
 EXPORT_SYMBOL(drm_mode_create_tile_group);
+
+/**
+ * drm_crtc_enable_color_mgmt - enable color management properties
+ * @crtc: DRM CRTC
+ * @degamma_lut_size: the size of the degamma lut (before CSC)
+ * @has_ctm: whether to attach ctm_property for CSC matrix
+ * @gamma_lut_size: the size of the gamma lut (after CSC)
+ *
+ * This function lets the driver enable the color correction
+ * properties on a CRTC. This includes 3 degamma, csc and gamma
+ * properties that userspace can set and 2 size properties to inform
+ * the userspace of the lut sizes. Each of the properties are
+ * optional. The gamma and degamma properties are only attached if
+ * their size is not 0 and ctm_property is only attached if has_ctm is
+ * true.
+ */
+void drm_crtc_enable_color_mgmt(struct drm_crtc *crtc,
+				uint degamma_lut_size,
+				bool has_ctm,
+				uint gamma_lut_size)
+{
+	struct drm_device *dev = crtc->dev;
+	struct drm_mode_config *config = &dev->mode_config;
+
+	if (degamma_lut_size) {
+		drm_object_attach_property(&crtc->base,
+					   config->degamma_lut_property, 0);
+		drm_object_attach_property(&crtc->base,
+					   config->degamma_lut_size_property,
+					   degamma_lut_size);
+	}
+
+	if (has_ctm)
+		drm_object_attach_property(&crtc->base,
+					   config->ctm_property, 0);
+
+	if (gamma_lut_size) {
+		drm_object_attach_property(&crtc->base,
+					   config->gamma_lut_property, 0);
+		drm_object_attach_property(&crtc->base,
+					   config->gamma_lut_size_property,
+					   gamma_lut_size);
+	}
+}
+EXPORT_SYMBOL(drm_crtc_enable_color_mgmt);

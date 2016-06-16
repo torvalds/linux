@@ -690,9 +690,10 @@ u32 vc4_plane_write_dlist(struct drm_plane *plane, u32 __iomem *dlist)
 	return vc4_state->dlist_count;
 }
 
-u32 vc4_plane_dlist_size(struct drm_plane_state *state)
+u32 vc4_plane_dlist_size(const struct drm_plane_state *state)
 {
-	struct vc4_plane_state *vc4_state = to_vc4_plane_state(state);
+	const struct vc4_plane_state *vc4_state =
+		container_of(state, typeof(*vc4_state), base);
 
 	return vc4_state->dlist_count;
 }

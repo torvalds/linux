@@ -376,12 +376,6 @@ static int hda_dbg_show(struct seq_file *s, void *data)
 {
 	struct drm_info_node *node = s->private;
 	struct sti_hda *hda = (struct sti_hda *)node->info_ent->data;
-	struct drm_device *dev = node->minor->dev;
-	int ret;
-
-	ret = mutex_lock_interruptible(&dev->struct_mutex);
-	if (ret)
-		return ret;
 
 	seq_printf(s, "HD Analog: (vaddr = 0x%p)", hda->regs);
 	DBGFS_DUMP(HDA_ANA_CFG);
@@ -397,7 +391,6 @@ static int hda_dbg_show(struct seq_file *s, void *data)
 		hda_dbg_video_dacs_ctrl(s, hda->video_dacs_ctrl);
 	seq_puts(s, "\n");
 
-	mutex_unlock(&dev->struct_mutex);
 	return 0;
 }
 
@@ -676,20 +669,10 @@ static int sti_hda_connector_mode_valid(struct drm_connector *connector,
 	return MODE_OK;
 }
 
-struct drm_encoder *sti_hda_best_encoder(struct drm_connector *connector)
-{
-	struct sti_hda_connector *hda_connector
-		= to_sti_hda_connector(connector);
-
-	/* Best encoder is the one associated during connector creation */
-	return hda_connector->encoder;
-}
-
 static const
 struct drm_connector_helper_funcs sti_hda_connector_helper_funcs = {
 	.get_modes = sti_hda_connector_get_modes,
 	.mode_valid = sti_hda_connector_mode_valid,
-	.best_encoder = sti_hda_best_encoder,
 };
 
 static enum drm_connector_status

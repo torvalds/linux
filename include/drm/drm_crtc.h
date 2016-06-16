@@ -253,6 +253,8 @@ struct drm_framebuffer {
 	int bits_per_pixel;
 	int flags;
 	uint32_t pixel_format; /* fourcc format */
+	int hot_x;
+	int hot_y;
 	struct list_head filp_head;
 };
 
@@ -314,6 +316,7 @@ struct drm_plane_helper_funcs;
  * 	update to ensure framebuffer cleanup isn't done too early
  * @adjusted_mode: for use by helpers and drivers to compute adjusted mode timings
  * @mode: current mode timings
+ * @mode_blob: &drm_property_blob for @mode
  * @degamma_lut: Lookup table for converting framebuffer pixel data
  *	before apply the conversion matrix
  * @ctm: Transformation matrix
@@ -478,8 +481,8 @@ struct drm_crtc_funcs {
 	 * going on, which should eventually be unified to just one set of
 	 * hooks.
 	 */
-	void (*gamma_set)(struct drm_crtc *crtc, u16 *r, u16 *g, u16 *b,
-			  uint32_t start, uint32_t size);
+	int (*gamma_set)(struct drm_crtc *crtc, u16 *r, u16 *g, u16 *b,
+			 uint32_t size);
 
 	/**
 	 * @destroy:
@@ -708,6 +711,7 @@ struct drm_crtc_funcs {
  * @dev: parent DRM device
  * @port: OF node used by drm_of_find_possible_crtcs()
  * @head: list management
+ * @name: human readable name, can be overwritten by the driver
  * @mutex: per-CRTC locking
  * @base: base KMS object for ID tracking etc.
  * @primary: primary plane for this CRTC
@@ -724,9 +728,6 @@ struct drm_crtc_funcs {
  * @gamma_store: gamma ramp values
  * @helper_private: mid-layer private data
  * @properties: property tracking for this CRTC
- * @state: current atomic state for this CRTC
- * @acquire_ctx: per-CRTC implicit acquire context used by atomic drivers for
- * 	legacy IOCTLs
  *
  * Each CRTC may have one or more connectors associated with it.  This structure
  * allows the CRTC to be controlled.
@@ -738,12 +739,13 @@ struct drm_crtc {
 
 	char *name;
 
-	/*
-	 * crtc mutex
+	/**
+	 * @mutex:
 	 *
 	 * This provides a read lock for the overall crtc state (mode, dpms
 	 * state, ...) and a write lock for everything which can be update
-	 * without a full modeset (fb, cursor data, ...)
+	 * without a full modeset (fb, cursor data, crtc properties ...). Full
+	 * modeset also need to grab dev->mode_config.connection_mutex.
 	 */
 	struct drm_modeset_lock mutex;
 
@@ -752,6 +754,9 @@ struct drm_crtc {
 	/* primary and cursor planes for CRTC */
 	struct drm_plane *primary;
 	struct drm_plane *cursor;
+
+	/* position inside the mode_config.list, can be used as a [] idx */
+	unsigned index;
 
 	/* position of cursor plane on crtc */
 	int cursor_x;
@@ -779,11 +784,37 @@ struct drm_crtc {
 
 	struct drm_object_properties properties;
 
+	/**
+	 * @state:
+	 *
+	 * Current atomic state for this CRTC.
+	 */
 	struct drm_crtc_state *state;
 
-	/*
-	 * For legacy crtc IOCTLs so that atomic drivers can get at the locking
-	 * acquire context.
+	/**
+	 * @commit_list:
+	 *
+	 * List of &drm_crtc_commit structures tracking pending commits.
+	 * Protected by @commit_lock. This list doesn't hold its own full
+	 * reference, but burrows it from the ongoing commit. Commit entries
+	 * must be removed from this list once the commit is fully completed,
+	 * but before it's correspoding &drm_atomic_state gets destroyed.
+	 */
+	struct list_head commit_list;
+
+	/**
+	 * @commit_lock:
+	 *
+	 * Spinlock to protect @commit_list.
+	 */
+	spinlock_t commit_lock;
+
+	/**
+	 * @acquire_ctx:
+	 *
+	 * Per-CRTC implicit acquire context used by atomic drivers for legacy
+	 * IOCTLs, so that atomic drivers can get at the locking acquire
+	 * context.
 	 */
 	struct drm_modeset_acquire_ctx *acquire_ctx;
 };
@@ -1078,7 +1109,7 @@ struct drm_encoder_funcs {
  * @dev: parent DRM device
  * @head: list management
  * @base: base KMS object
- * @name: encoder name
+ * @name: human readable name, can be overwritten by the driver
  * @encoder_type: one of the %DRM_MODE_ENCODER_<foo> types in drm_mode.h
  * @possible_crtcs: bitmask of potential CRTC bindings
  * @possible_clones: bitmask of potential sibling encoders for cloning
@@ -1097,6 +1128,10 @@ struct drm_encoder {
 	struct drm_mode_object base;
 	char *name;
 	int encoder_type;
+
+	/* position inside the mode_config.list, can be used as a [] idx */
+	unsigned index;
+
 	uint32_t possible_crtcs;
 	uint32_t possible_clones;
 
@@ -1124,7 +1159,8 @@ struct drm_encoder {
  * @attr: sysfs attributes
  * @head: list management
  * @base: base KMS object
- * @name: connector name
+ * @name: human readable name, can be overwritten by the driver
+ * @connector_id: compacted connector id useful indexing arrays
  * @connector_type: one of the %DRM_MODE_CONNECTOR_<foo> types from drm_mode.h
  * @connector_type_id: index into connector type enum
  * @interlace_allowed: can this connector handle interlaced modes?
@@ -1137,7 +1173,6 @@ struct drm_encoder {
  * @funcs: connector control functions
  * @edid_blob_ptr: DRM property containing EDID if present
  * @properties: property tracking for this connector
- * @path_blob_ptr: DRM blob property data for the DP MST path property
  * @polled: a %DRM_CONNECTOR_POLL_<foo> value for core driven polling
  * @dpms: current dpms state
  * @helper_private: mid-layer private data
@@ -1200,8 +1235,23 @@ struct drm_connector {
 	struct drm_property_blob *edid_blob_ptr;
 	struct drm_object_properties properties;
 
+	/**
+	 * @path_blob_ptr:
+	 *
+	 * DRM blob property data for the DP MST path property.
+	 */
 	struct drm_property_blob *path_blob_ptr;
 
+	/**
+	 * @tile_blob_ptr:
+	 *
+	 * DRM blob property data for the tile property (used mostly by DP MST).
+	 * This is meant for screens which are driven through separate display
+	 * pipelines represented by &drm_crtc, which might not be running with
+	 * genlocked clocks. For tiled panels which are genlocked, like
+	 * dual-link LVDS or dual-link DSI, the driver should try to not expose
+	 * the tiling and virtualize both &drm_crtc and &drm_plane if needed.
+	 */
 	struct drm_property_blob *tile_blob_ptr;
 
 	uint8_t polled; /* DRM_CONNECTOR_POLL_* */
@@ -1263,6 +1313,7 @@ struct drm_connector {
  *	plane (in 16.16)
  * @src_w: width of visible portion of plane (in 16.16)
  * @src_h: height of visible portion of plane (in 16.16)
+ * @rotation: rotation of the plane
  * @state: backpointer to global drm_atomic_state
  */
 struct drm_plane_state {
@@ -1503,6 +1554,7 @@ enum drm_plane_type {
  * struct drm_plane - central DRM plane control structure
  * @dev: DRM device this plane belongs to
  * @head: for list management
+ * @name: human readable name, can be overwritten by the driver
  * @base: base mode object
  * @possible_crtcs: pipes this plane can be bound to
  * @format_types: array of formats supported by this plane
@@ -1516,6 +1568,7 @@ enum drm_plane_type {
  * @properties: property tracking for this plane
  * @type: type of plane (overlay, primary, cursor)
  * @state: current atomic state for this plane
+ * @helper_private: mid-layer private data
  */
 struct drm_plane {
 	struct drm_device *dev;
@@ -1523,6 +1576,13 @@ struct drm_plane {
 
 	char *name;
 
+	/**
+	 * @mutex:
+	 *
+	 * Protects modeset plane state, together with the mutex of &drm_crtc
+	 * this plane is linked to (when active, getting actived or getting
+	 * disabled).
+	 */
 	struct drm_modeset_lock mutex;
 
 	struct drm_mode_object base;
@@ -1542,6 +1602,9 @@ struct drm_plane {
 	struct drm_object_properties properties;
 
 	enum drm_plane_type type;
+
+	/* position inside the mode_config.list, can be used as a [] idx */
+	unsigned index;
 
 	const struct drm_plane_helper_funcs *helper_private;
 
@@ -1694,18 +1757,136 @@ struct drm_bridge {
 };
 
 /**
+ * struct drm_crtc_commit - track modeset commits on a CRTC
+ *
+ * This structure is used to track pending modeset changes and atomic commit on
+ * a per-CRTC basis. Since updating the list should never block this structure
+ * is reference counted to allow waiters to safely wait on an event to complete,
+ * without holding any locks.
+ *
+ * It has 3 different events in total to allow a fine-grained synchronization
+ * between outstanding updates::
+ *
+ *	atomic commit thread			hardware
+ *
+ * 	write new state into hardware	---->	...
+ * 	signal hw_done
+ * 						switch to new state on next
+ * 	...					v/hblank
+ *
+ *	wait for buffers to show up		...
+ *
+ *	...					send completion irq
+ *						irq handler signals flip_done
+ *	cleanup old buffers
+ *
+ * 	signal cleanup_done
+ *
+ * 	wait for flip_done		<----
+ * 	clean up atomic state
+ *
+ * The important bit to know is that cleanup_done is the terminal event, but the
+ * ordering between flip_done and hw_done is entirely up to the specific driver
+ * and modeset state change.
+ *
+ * For an implementation of how to use this look at
+ * drm_atomic_helper_setup_commit() from the atomic helper library.
+ */
+struct drm_crtc_commit {
+	/**
+	 * @crtc:
+	 *
+	 * DRM CRTC for this commit.
+	 */
+	struct drm_crtc *crtc;
+
+	/**
+	 * @ref:
+	 *
+	 * Reference count for this structure. Needed to allow blocking on
+	 * completions without the risk of the completion disappearing
+	 * meanwhile.
+	 */
+	struct kref ref;
+
+	/**
+	 * @flip_done:
+	 *
+	 * Will be signaled when the hardware has flipped to the new set of
+	 * buffers. Signals at the same time as when the drm event for this
+	 * commit is sent to userspace, or when an out-fence is singalled. Note
+	 * that for most hardware, in most cases this happens after @hw_done is
+	 * signalled.
+	 */
+	struct completion flip_done;
+
+	/**
+	 * @hw_done:
+	 *
+	 * Will be signalled when all hw register changes for this commit have
+	 * been written out. Especially when disabling a pipe this can be much
+	 * later than than @flip_done, since that can signal already when the
+	 * screen goes black, whereas to fully shut down a pipe more register
+	 * I/O is required.
+	 *
+	 * Note that this does not need to include separately reference-counted
+	 * resources like backing storage buffer pinning, or runtime pm
+	 * management.
+	 */
+	struct completion hw_done;
+
+	/**
+	 * @cleanup_done:
+	 *
+	 * Will be signalled after old buffers have been cleaned up by calling
+	 * drm_atomic_helper_cleanup_planes(). Since this can only happen after
+	 * a vblank wait completed it might be a bit later. This completion is
+	 * useful to throttle updates and avoid hardware updates getting ahead
+	 * of the buffer cleanup too much.
+	 */
+	struct completion cleanup_done;
+
+	/**
+	 * @commit_entry:
+	 *
+	 * Entry on the per-CRTC commit_list. Protected by crtc->commit_lock.
+	 */
+	struct list_head commit_entry;
+
+	/**
+	 * @event:
+	 *
+	 * &drm_pending_vblank_event pointer to clean up private events.
+	 */
+	struct drm_pending_vblank_event *event;
+};
+
+struct __drm_planes_state {
+	struct drm_plane *ptr;
+	struct drm_plane_state *state;
+};
+
+struct __drm_crtcs_state {
+	struct drm_crtc *ptr;
+	struct drm_crtc_state *state;
+	struct drm_crtc_commit *commit;
+};
+
+struct __drm_connnectors_state {
+	struct drm_connector *ptr;
+	struct drm_connector_state *state;
+};
+
+/**
  * struct drm_atomic_state - the global state object for atomic updates
  * @dev: parent DRM device
  * @allow_modeset: allow full modeset
  * @legacy_cursor_update: hint to enforce legacy cursor IOCTL semantics
  * @legacy_set_config: Disable conflicting encoders instead of failing with -EINVAL.
- * @planes: pointer to array of plane pointers
- * @plane_states: pointer to array of plane states pointers
+ * @planes: pointer to array of structures with per-plane data
  * @crtcs: pointer to array of CRTC pointers
- * @crtc_states: pointer to array of CRTC states pointers
  * @num_connector: size of the @connectors and @connector_states arrays
- * @connectors: pointer to array of connector pointers
- * @connector_states: pointer to array of connector states pointers
+ * @connectors: pointer to array of structures with per-connector data
  * @acquire_ctx: acquire context for this atomic modeset state update
  */
 struct drm_atomic_state {
@@ -1713,15 +1894,20 @@ struct drm_atomic_state {
 	bool allow_modeset : 1;
 	bool legacy_cursor_update : 1;
 	bool legacy_set_config : 1;
-	struct drm_plane **planes;
-	struct drm_plane_state **plane_states;
-	struct drm_crtc **crtcs;
-	struct drm_crtc_state **crtc_states;
+	struct __drm_planes_state *planes;
+	struct __drm_crtcs_state *crtcs;
 	int num_connector;
-	struct drm_connector **connectors;
-	struct drm_connector_state **connector_states;
+	struct __drm_connnectors_state *connectors;
 
 	struct drm_modeset_acquire_ctx *acquire_ctx;
+
+	/**
+	 * @commit_work:
+	 *
+	 * Work item which can be used by the driver or helpers to execute the
+	 * commit without blocking.
+	 */
+	struct work_struct commit_work;
 };
 
 
@@ -2022,8 +2208,6 @@ struct drm_mode_config_funcs {
  * @connection_mutex: ww mutex protecting connector state and routing
  * @acquire_ctx: global implicit acquire context used by atomic drivers for
  * 	legacy IOCTLs
- * @idr_mutex: mutex for KMS ID allocation and management
- * @crtc_idr: main KMS ID tracking object
  * @fb_lock: mutex to protect fb state and lists
  * @num_fb: number of fbs available
  * @fb_list: list of framebuffers available
@@ -2045,6 +2229,7 @@ struct drm_mode_config_funcs {
  * @fb_base: base address of the framebuffer
  * @poll_enabled: track polling support for this device
  * @poll_running: track polling status for this device
+ * @delayed_event: track delayed poll uevent deliver for this device
  * @output_poll_work: delayed work for polling in process context
  * @property_blob_list: list of all the blob property objects
  * @blob_lock: mutex for blob property allocation and management
@@ -2063,6 +2248,7 @@ struct drm_mode_config_funcs {
  * @async_page_flip: does this device support async flips on the primary plane?
  * @cursor_width: hint to userspace for max cursor width
  * @cursor_height: hint to userspace for max cursor height
+ * @helper_private: mid-layer private data
  *
  * Core mode resource tracking structure.  All CRTC, encoders, and connectors
  * enumerated by the driver are added here, as are global properties.  Some
@@ -2072,10 +2258,30 @@ struct drm_mode_config {
 	struct mutex mutex; /* protects configuration (mode lists etc.) */
 	struct drm_modeset_lock connection_mutex; /* protects connector->encoder and encoder->crtc links */
 	struct drm_modeset_acquire_ctx *acquire_ctx; /* for legacy _lock_all() / _unlock_all() */
-	struct mutex idr_mutex; /* for IDR management */
-	struct idr crtc_idr; /* use this idr for all IDs, fb, crtc, connector, modes - just makes life easier */
-	struct idr tile_idr; /* use this idr for all IDs, fb, crtc, connector, modes - just makes life easier */
-	/* this is limited to one for now */
+
+	/**
+	 * @idr_mutex:
+	 *
+	 * Mutex for KMS ID allocation and management. Protects both @crtc_idr
+	 * and @tile_idr.
+	 */
+	struct mutex idr_mutex;
+
+	/**
+	 * @crtc_idr:
+	 *
+	 * Main KMS ID tracking object. Use this idr for all IDs, fb, crtc,
+	 * connector, modes - just makes life easier to have only one.
+	 */
+	struct idr crtc_idr;
+
+	/**
+	 * @tile_idr:
+	 *
+	 * Use this idr for allocating new IDs for tiled sinks like use in some
+	 * high-res DP MST screens.
+	 */
+	struct idr tile_idr;
 
 	struct mutex fb_lock; /* proctects global and per-file fb lists */
 	int num_fb;
@@ -2177,11 +2383,17 @@ struct drm_mode_config {
 	/* whether async page flip is supported or not */
 	bool async_page_flip;
 
-	/* whether the driver supports fb modifiers */
+	/**
+	 * @allow_fb_modifiers:
+	 *
+	 * Whether the driver supports fb modifiers in the ADDFB2.1 ioctl call.
+	 */
 	bool allow_fb_modifiers;
 
 	/* cursor size */
 	uint32_t cursor_width, cursor_height;
+
+	struct drm_mode_config_helper_funcs *helper_private;
 };
 
 /**
@@ -2230,7 +2442,18 @@ int drm_crtc_init_with_planes(struct drm_device *dev,
 			      const struct drm_crtc_funcs *funcs,
 			      const char *name, ...);
 extern void drm_crtc_cleanup(struct drm_crtc *crtc);
-extern unsigned int drm_crtc_index(struct drm_crtc *crtc);
+
+/**
+ * drm_crtc_index - find the index of a registered CRTC
+ * @crtc: CRTC to find index for
+ *
+ * Given a registered CRTC, return the index of that CRTC within a DRM
+ * device's list of CRTCs.
+ */
+static inline unsigned int drm_crtc_index(struct drm_crtc *crtc)
+{
+	return crtc->index;
+}
 
 /**
  * drm_crtc_mask - find the mask of a registered CRTC
@@ -2284,7 +2507,18 @@ int drm_encoder_init(struct drm_device *dev,
 		     struct drm_encoder *encoder,
 		     const struct drm_encoder_funcs *funcs,
 		     int encoder_type, const char *name, ...);
-extern unsigned int drm_encoder_index(struct drm_encoder *encoder);
+
+/**
+ * drm_encoder_index - find the index of a registered encoder
+ * @encoder: encoder to find index for
+ *
+ * Given a registered encoder, return the index of that encoder within a DRM
+ * device's list of encoders.
+ */
+static inline unsigned int drm_encoder_index(struct drm_encoder *encoder)
+{
+	return encoder->index;
+}
 
 /**
  * drm_encoder_crtc_ok - can a given crtc drive a given encoder?
@@ -2315,7 +2549,18 @@ extern int drm_plane_init(struct drm_device *dev,
 			  const uint32_t *formats, unsigned int format_count,
 			  bool is_primary);
 extern void drm_plane_cleanup(struct drm_plane *plane);
-extern unsigned int drm_plane_index(struct drm_plane *plane);
+
+/**
+ * drm_plane_index - find the index of a registered plane
+ * @plane: plane to find index for
+ *
+ * Given a registered plane, return the index of that plane within a DRM
+ * device's list of planes.
+ */
+static inline unsigned int drm_plane_index(struct drm_plane *plane)
+{
+	return plane->index;
+}
 extern struct drm_plane * drm_plane_from_index(struct drm_device *dev, int idx);
 extern void drm_plane_force_disable(struct drm_plane *plane);
 extern int drm_plane_check_pixel_format(const struct drm_plane *plane,
@@ -2540,20 +2785,14 @@ extern int drm_mode_plane_set_obj_prop(struct drm_plane *plane,
 extern int drm_mode_atomic_ioctl(struct drm_device *dev,
 				 void *data, struct drm_file *file_priv);
 
-extern void drm_fb_get_bpp_depth(uint32_t format, unsigned int *depth,
-				 int *bpp);
-extern int drm_format_num_planes(uint32_t format);
-extern int drm_format_plane_cpp(uint32_t format, int plane);
-extern int drm_format_horz_chroma_subsampling(uint32_t format);
-extern int drm_format_vert_chroma_subsampling(uint32_t format);
-extern int drm_format_plane_width(int width, uint32_t format, int plane);
-extern int drm_format_plane_height(int height, uint32_t format, int plane);
-extern const char *drm_get_format_name(uint32_t format);
 extern struct drm_property *drm_mode_create_rotation_property(struct drm_device *dev,
 							      unsigned int supported_rotations);
 extern unsigned int drm_rotation_simplify(unsigned int rotation,
 					  unsigned int supported_rotations);
-
+extern void drm_crtc_enable_color_mgmt(struct drm_crtc *crtc,
+				       uint degamma_lut_size,
+				       bool has_ctm,
+				       uint gamma_lut_size);
 /* Helpers */
 
 static inline struct drm_plane *drm_plane_find(struct drm_device *dev,

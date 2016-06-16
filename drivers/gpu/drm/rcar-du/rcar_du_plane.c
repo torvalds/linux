@@ -140,18 +140,17 @@ int rcar_du_atomic_check_planes(struct drm_device *dev,
 	bool needs_realloc = false;
 	unsigned int groups = 0;
 	unsigned int i;
+	struct drm_plane *drm_plane;
+	struct drm_plane_state *drm_plane_state;
 
 	/* Check if hardware planes need to be reallocated. */
-	for (i = 0; i < dev->mode_config.num_total_plane; ++i) {
+	for_each_plane_in_state(state, drm_plane, drm_plane_state, i) {
 		struct rcar_du_plane_state *plane_state;
 		struct rcar_du_plane *plane;
 		unsigned int index;
 
-		if (!state->planes[i])
-			continue;
-
-		plane = to_rcar_plane(state->planes[i]);
-		plane_state = to_rcar_plane_state(state->plane_states[i]);
+		plane = to_rcar_plane(drm_plane);
+		plane_state = to_rcar_plane_state(drm_plane_state);
 
 		dev_dbg(rcdu->dev, "%s: checking plane (%u,%tu)\n", __func__,
 			plane->group->index, plane - plane->group->planes);
@@ -247,18 +246,15 @@ int rcar_du_atomic_check_planes(struct drm_device *dev,
 	}
 
 	/* Reallocate hardware planes for each plane that needs it. */
-	for (i = 0; i < dev->mode_config.num_total_plane; ++i) {
+	for_each_plane_in_state(state, drm_plane, drm_plane_state, i) {
 		struct rcar_du_plane_state *plane_state;
 		struct rcar_du_plane *plane;
 		unsigned int crtc_planes;
 		unsigned int free;
 		int idx;
 
-		if (!state->planes[i])
-			continue;
-
-		plane = to_rcar_plane(state->planes[i]);
-		plane_state = to_rcar_plane_state(state->plane_states[i]);
+		plane = to_rcar_plane(drm_plane);
+		plane_state = to_rcar_plane_state(drm_plane_state);
 
 		dev_dbg(rcdu->dev, "%s: allocating plane (%u,%tu)\n", __func__,
 			plane->group->index, plane - plane->group->planes);

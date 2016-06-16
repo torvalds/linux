@@ -13728,7 +13728,7 @@ static int intel_atomic_commit(struct drm_device *dev,
 		return ret;
 	}
 
-	drm_atomic_helper_swap_state(dev, state);
+	drm_atomic_helper_swap_state(state, true);
 	dev_priv->wm.distrust_bios_wm = false;
 	dev_priv->wm.skl_results = intel_state->wm_results;
 	intel_shared_dpll_commit(state);
@@ -16279,14 +16279,6 @@ void intel_modeset_cleanup(struct drm_device *dev)
 	intel_cleanup_gt_powersave(dev_priv);
 
 	intel_teardown_gmbus(dev);
-}
-
-/*
- * Return which encoder is currently attached for connector.
- */
-struct drm_encoder *intel_best_encoder(struct drm_connector *connector)
-{
-	return &intel_attached_encoder(connector)->base;
 }
 
 void intel_connector_attach_encoder(struct intel_connector *connector,

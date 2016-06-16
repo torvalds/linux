@@ -175,20 +175,22 @@ vc4_crtc_lut_load(struct drm_crtc *crtc)
 		HVS_WRITE(SCALER_GAMDATA, vc4_crtc->lut_b[i]);
 }
 
-static void
+static int
 vc4_crtc_gamma_set(struct drm_crtc *crtc, u16 *r, u16 *g, u16 *b,
-		   uint32_t start, uint32_t size)
+		   uint32_t size)
 {
 	struct vc4_crtc *vc4_crtc = to_vc4_crtc(crtc);
 	u32 i;
 
-	for (i = start; i < start + size; i++) {
+	for (i = 0; i < size; i++) {
 		vc4_crtc->lut_r[i] = r[i] >> 8;
 		vc4_crtc->lut_g[i] = g[i] >> 8;
 		vc4_crtc->lut_b[i] = b[i] >> 8;
 	}
 
 	vc4_crtc_lut_load(crtc);
+
+	return 0;
 }
 
 static u32 vc4_get_fifo_full_level(u32 format)
@@ -395,6 +397,7 @@ static int vc4_crtc_atomic_check(struct drm_crtc *crtc,
 	struct vc4_dev *vc4 = to_vc4_dev(dev);
 	struct drm_plane *plane;
 	unsigned long flags;
+	const struct drm_plane_state *plane_state;
 	u32 dlist_count = 0;
 	int ret;
 
@@ -404,18 +407,8 @@ static int vc4_crtc_atomic_check(struct drm_crtc *crtc,
 	if (hweight32(state->connector_mask) > 1)
 		return -EINVAL;
 
-	drm_atomic_crtc_state_for_each_plane(plane, state) {
-		struct drm_plane_state *plane_state =
-			state->state->plane_states[drm_plane_index(plane)];
-
-		/* plane might not have changed, in which case take
-		 * current state:
-		 */
-		if (!plane_state)
-			plane_state = plane->state;
-
+	drm_atomic_crtc_state_for_each_plane_state(plane, plane_state, state)
 		dlist_count += vc4_plane_dlist_size(plane_state);
-	}
 
 	dlist_count++; /* Account for SCALER_CTL0_END. */
 

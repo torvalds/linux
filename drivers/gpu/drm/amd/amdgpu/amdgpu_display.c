@@ -240,7 +240,7 @@ int amdgpu_crtc_page_flip(struct drm_crtc *crtc,
 
 	work->base = base;
 
-	r = drm_vblank_get(crtc->dev, amdgpu_crtc->crtc_id);
+	r = drm_crtc_vblank_get(crtc);
 	if (r) {
 		DRM_ERROR("failed to get vblank before flip\n");
 		goto pflip_cleanup;
@@ -268,7 +268,7 @@ int amdgpu_crtc_page_flip(struct drm_crtc *crtc,
 	return 0;
 
 vblank_cleanup:
-	drm_vblank_put(crtc->dev, amdgpu_crtc->crtc_id);
+	drm_crtc_vblank_put(crtc);
 
 pflip_cleanup:
 	if (unlikely(amdgpu_bo_reserve(new_rbo, false) != 0)) {

@@ -519,7 +519,7 @@ static int atmel_hlcdc_dc_atomic_commit(struct drm_device *dev,
 	}
 
 	/* Swap the state, this is the point of no return. */
-	drm_atomic_helper_swap_state(dev, state);
+	drm_atomic_helper_swap_state(state, true);
 
 	if (async)
 		queue_work(dc->wq, &commit->work);
@@ -776,7 +776,7 @@ static struct drm_driver atmel_hlcdc_dc_driver = {
 	.get_vblank_counter = drm_vblank_no_hw_counter,
 	.enable_vblank = atmel_hlcdc_dc_enable_vblank,
 	.disable_vblank = atmel_hlcdc_dc_disable_vblank,
-	.gem_free_object = drm_gem_cma_free_object,
+	.gem_free_object_unlocked = drm_gem_cma_free_object,
 	.gem_vm_ops = &drm_gem_cma_vm_ops,
 	.prime_handle_to_fd = drm_gem_prime_handle_to_fd,
 	.prime_fd_to_handle = drm_gem_prime_fd_to_handle,

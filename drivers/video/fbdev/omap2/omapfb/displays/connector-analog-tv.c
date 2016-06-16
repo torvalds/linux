@@ -14,7 +14,7 @@
 #include <linux/platform_device.h>
 #include <linux/of.h>
 
-#include <video/omapdss.h>
+#include <video/omapfb_dss.h>
 #include <video/omap-panel-data.h>
 
 struct panel_drv_data {
@@ -25,7 +25,6 @@ struct panel_drv_data {
 
 	struct omap_video_timings timings;
 
-	enum omap_dss_venc_type connector_type;
 	bool invert_polarity;
 };
 
@@ -44,10 +43,6 @@ static const struct omap_video_timings tvc_pal_timings = {
 };
 
 static const struct of_device_id tvc_of_match[];
-
-struct tvc_of_data {
-	enum omap_dss_venc_type connector_type;
-};
 
 #define to_panel_data(x) container_of(x, struct panel_drv_data, dssdev)
 
@@ -99,7 +94,7 @@ static int tvc_enable(struct omap_dss_device *dssdev)
 	in->ops.atv->set_timings(in, &ddata->timings);
 
 	if (!ddata->dev->of_node) {
-		in->ops.atv->set_type(in, ddata->connector_type);
+		in->ops.atv->set_type(in, OMAP_DSS_VENC_TYPE_COMPOSITE);
 
 		in->ops.atv->invert_vid_out_polarity(in,
 			ddata->invert_polarity);
@@ -207,7 +202,6 @@ static int tvc_probe_pdata(struct platform_device *pdev)
 
 	ddata->in = in;
 
-	ddata->connector_type = pdata->connector_type;
 	ddata->invert_polarity = pdata->invert_polarity;
 
 	dssdev = &ddata->dssdev;

@@ -151,12 +151,6 @@ static int mixer_dbg_show(struct seq_file *s, void *arg)
 {
 	struct drm_info_node *node = s->private;
 	struct sti_mixer *mixer = (struct sti_mixer *)node->info_ent->data;
-	struct drm_device *dev = node->minor->dev;
-	int ret;
-
-	ret = mutex_lock_interruptible(&dev->struct_mutex);
-	if (ret)
-		return ret;
 
 	seq_printf(s, "%s: (vaddr = 0x%p)",
 		   sti_mixer_to_str(mixer), mixer->regs);
@@ -176,7 +170,6 @@ static int mixer_dbg_show(struct seq_file *s, void *arg)
 	mixer_dbg_mxn(s, mixer->regs + GAM_MIXER_MX0);
 	seq_puts(s, "\n");
 
-	mutex_unlock(&dev->struct_mutex);
 	return 0;
 }
 

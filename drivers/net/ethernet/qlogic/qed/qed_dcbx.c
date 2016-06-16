@@ -192,9 +192,10 @@ qed_dcbx_process_tlv(struct qed_hwfn *p_hwfn,
 		     struct dcbx_app_priority_entry *p_tbl,
 		     u32 pri_tc_tbl, int count, bool dcbx_enabled)
 {
-	u8 tc, priority, priority_map;
+	u8 tc, priority_map;
 	enum dcbx_protocol_type type;
 	u16 protocol_id;
+	int priority;
 	bool enable;
 	int i;
 
@@ -221,7 +222,7 @@ qed_dcbx_process_tlv(struct qed_hwfn *p_hwfn,
 			 * indication, but we only got here if there was an
 			 * app tlv for the protocol, so dcbx must be enabled.
 			 */
-			enable = !!(type == DCBX_PROTOCOL_ETH);
+			enable = !(type == DCBX_PROTOCOL_ETH);
 
 			qed_dcbx_update_app_info(p_data, p_hwfn, enable, true,
 						 priority, tc, type);

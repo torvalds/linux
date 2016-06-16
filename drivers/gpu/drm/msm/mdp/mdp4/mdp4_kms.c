@@ -106,31 +106,27 @@ out:
 static void mdp4_prepare_commit(struct msm_kms *kms, struct drm_atomic_state *state)
 {
 	struct mdp4_kms *mdp4_kms = to_mdp4_kms(to_mdp_kms(kms));
-	int i, ncrtcs = state->dev->mode_config.num_crtc;
+	int i;
+	struct drm_crtc *crtc;
+	struct drm_crtc_state *crtc_state;
 
 	mdp4_enable(mdp4_kms);
 
 	/* see 119ecb7fd */
-	for (i = 0; i < ncrtcs; i++) {
-		struct drm_crtc *crtc = state->crtcs[i];
-		if (!crtc)
-			continue;
+	for_each_crtc_in_state(state, crtc, crtc_state, i)
 		drm_crtc_vblank_get(crtc);
-	}
 }
 
 static void mdp4_complete_commit(struct msm_kms *kms, struct drm_atomic_state *state)
 {
 	struct mdp4_kms *mdp4_kms = to_mdp4_kms(to_mdp_kms(kms));
-	int i, ncrtcs = state->dev->mode_config.num_crtc;
+	int i;
+	struct drm_crtc *crtc;
+	struct drm_crtc_state *crtc_state;
 
 	/* see 119ecb7fd */
-	for (i = 0; i < ncrtcs; i++) {
-		struct drm_crtc *crtc = state->crtcs[i];
-		if (!crtc)
-			continue;
+	for_each_crtc_in_state(state, crtc, crtc_state, i)
 		drm_crtc_vblank_put(crtc);
-	}
 
 	mdp4_disable(mdp4_kms);
 }

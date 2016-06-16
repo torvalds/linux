@@ -245,6 +245,17 @@ void vlan_dev_get_realdev_name(const struct net_device *dev, char *result)
 	strncpy(result, vlan_dev_priv(dev)->real_dev->name, 23);
 }
 
+bool vlan_dev_inherit_address(struct net_device *dev,
+			      struct net_device *real_dev)
+{
+	if (dev->addr_assign_type != NET_ADDR_STOLEN)
+		return false;
+
+	ether_addr_copy(dev->dev_addr, real_dev->dev_addr);
+	call_netdevice_notifiers(NETDEV_CHANGEADDR, dev);
+	return true;
+}
+
 static int vlan_dev_open(struct net_device *dev)
 {
 	struct vlan_dev_priv *vlan = vlan_dev_priv(dev);
@@ -255,7 +266,8 @@ static int vlan_dev_open(struct net_device *dev)
 	    !(vlan->flags & VLAN_FLAG_LOOSE_BINDING))
 		return -ENETDOWN;
 
-	if (!ether_addr_equal(dev->dev_addr, real_dev->dev_addr)) {
+	if (!ether_addr_equal(dev->dev_addr, real_dev->dev_addr) &&
+	    !vlan_dev_inherit_address(dev, real_dev)) {
 		err = dev_uc_add(real_dev, dev->dev_addr);
 		if (err < 0)
 			goto out;
@@ -560,8 +572,10 @@ static int vlan_dev_init(struct net_device *dev)
 	/* ipv6 shared card related stuff */
 	dev->dev_id = real_dev->dev_id;
 
-	if (is_zero_ether_addr(dev->dev_addr))
-		eth_hw_addr_inherit(dev, real_dev);
+	if (is_zero_ether_addr(dev->dev_addr)) {
+		ether_addr_copy(dev->dev_addr, real_dev->dev_addr);
+		dev->addr_assign_type = NET_ADDR_STOLEN;
+	}
 	if (is_zero_ether_addr(dev->broadcast))
 		memcpy(dev->broadcast, real_dev->broadcast, dev->addr_len);
 

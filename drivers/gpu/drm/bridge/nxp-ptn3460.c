@@ -235,16 +235,8 @@ out:
 	return num_modes;
 }
 
-static struct drm_encoder *ptn3460_best_encoder(struct drm_connector *connector)
-{
-	struct ptn3460_bridge *ptn_bridge = connector_to_ptn3460(connector);
-
-	return ptn_bridge->bridge.encoder;
-}
-
 static const struct drm_connector_helper_funcs ptn3460_connector_helper_funcs = {
 	.get_modes = ptn3460_get_modes,
-	.best_encoder = ptn3460_best_encoder,
 };
 
 static enum drm_connector_status ptn3460_detect(struct drm_connector *connector,

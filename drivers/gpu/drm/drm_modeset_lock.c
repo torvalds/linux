@@ -37,7 +37,7 @@
  *
  * For basic principles of &ww_mutex, see: Documentation/locking/ww-mutex-design.txt
  *
- * The basic usage pattern is to:
+ * The basic usage pattern is to::
  *
  *     drm_modeset_acquire_init(&ctx)
  *     retry:

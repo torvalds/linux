@@ -628,12 +628,6 @@ static int hdmi_dbg_show(struct seq_file *s, void *data)
 {
 	struct drm_info_node *node = s->private;
 	struct sti_hdmi *hdmi = (struct sti_hdmi *)node->info_ent->data;
-	struct drm_device *dev = node->minor->dev;
-	int ret;
-
-	ret = mutex_lock_interruptible(&dev->struct_mutex);
-	if (ret)
-		return ret;
 
 	seq_printf(s, "HDMI: (vaddr = 0x%p)", hdmi->regs);
 	DBGFS_DUMP("\n", HDMI_CFG);
@@ -690,7 +684,6 @@ static int hdmi_dbg_show(struct seq_file *s, void *data)
 	DBGFS_DUMP_DI(HDMI_SW_DI_N_PKT_WORD6, HDMI_IFRAME_SLOT_VENDOR);
 	seq_puts(s, "\n");
 
-	mutex_unlock(&dev->struct_mutex);
 	return 0;
 }
 
@@ -897,20 +890,10 @@ static int sti_hdmi_connector_mode_valid(struct drm_connector *connector,
 	return MODE_OK;
 }
 
-struct drm_encoder *sti_hdmi_best_encoder(struct drm_connector *connector)
-{
-	struct sti_hdmi_connector *hdmi_connector
-		= to_sti_hdmi_connector(connector);
-
-	/* Best encoder is the one associated during connector creation */
-	return hdmi_connector->encoder;
-}
-
 static const
 struct drm_connector_helper_funcs sti_hdmi_connector_helper_funcs = {
 	.get_modes = sti_hdmi_connector_get_modes,
 	.mode_valid = sti_hdmi_connector_mode_valid,
-	.best_encoder = sti_hdmi_best_encoder,
 };
 
 /* get detection status of display device */

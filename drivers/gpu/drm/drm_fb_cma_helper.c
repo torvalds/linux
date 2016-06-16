@@ -23,6 +23,7 @@
 #include <drm/drm_crtc_helper.h>
 #include <drm/drm_gem_cma_helper.h>
 #include <drm/drm_fb_cma_helper.h>
+#include <linux/dma-mapping.h>
 #include <linux/module.h>
 
 #define DEFAULT_FBDEFIO_DELAY_MS 50
@@ -52,7 +53,7 @@ struct drm_fbdev_cma {
  * will be set up automatically. dirty() is called by
  * drm_fb_helper_deferred_io() in process context (struct delayed_work).
  *
- * Example fbdev deferred io code:
+ * Example fbdev deferred io code::
  *
  *     static int driver_fbdev_fb_dirty(struct drm_framebuffer *fb,
  *                                      struct drm_file *file_priv,
@@ -162,6 +163,10 @@ static struct drm_fb_cma *drm_fb_cma_alloc(struct drm_device *dev,
  * drm_fb_cma_create_with_funcs() - helper function for the
  *                                  &drm_mode_config_funcs ->fb_create
  *                                  callback function
+ * @dev: DRM device
+ * @file_priv: drm file for the ioctl call
+ * @mode_cmd: metadata from the userspace fb creation request
+ * @funcs: vtable to be used for the new framebuffer object
  *
  * This can be used to set &drm_framebuffer_funcs for drivers that need the
  * dirty() callback. Use drm_fb_cma_create() if you don't need to change
@@ -223,6 +228,9 @@ EXPORT_SYMBOL_GPL(drm_fb_cma_create_with_funcs);
 
 /**
  * drm_fb_cma_create() - &drm_mode_config_funcs ->fb_create callback function
+ * @dev: DRM device
+ * @file_priv: drm file for the ioctl call
+ * @mode_cmd: metadata from the userspace fb creation request
  *
  * If your hardware has special alignment or pitch requirements these should be
  * checked before calling this function. Use drm_fb_cma_create_with_funcs() if
@@ -246,7 +254,7 @@ EXPORT_SYMBOL_GPL(drm_fb_cma_create);
  * This function will usually be called from the CRTC callback functions.
  */
 struct drm_gem_cma_object *drm_fb_cma_get_gem_obj(struct drm_framebuffer *fb,
-	unsigned int plane)
+						  unsigned int plane)
 {
 	struct drm_fb_cma *fb_cma = to_fb_cma(fb);
 
@@ -258,10 +266,6 @@ struct drm_gem_cma_object *drm_fb_cma_get_gem_obj(struct drm_framebuffer *fb,
 EXPORT_SYMBOL_GPL(drm_fb_cma_get_gem_obj);
 
 #ifdef CONFIG_DEBUG_FS
-/*
- * drm_fb_cma_describe() - Helper to dump information about a single
- * CMA framebuffer object
- */
 static void drm_fb_cma_describe(struct drm_framebuffer *fb, struct seq_file *m)
 {
 	struct drm_fb_cma *fb_cma = to_fb_cma(fb);
@@ -279,7 +283,9 @@ static void drm_fb_cma_describe(struct drm_framebuffer *fb, struct seq_file *m)
 
 /**
  * drm_fb_cma_debugfs_show() - Helper to list CMA framebuffer objects
- * in debugfs.
+ *			       in debugfs.
+ * @m: output file
+ * @arg: private data for the callback
  */
 int drm_fb_cma_debugfs_show(struct seq_file *m, void *arg)
 {
@@ -297,6 +303,12 @@ int drm_fb_cma_debugfs_show(struct seq_file *m, void *arg)
 EXPORT_SYMBOL_GPL(drm_fb_cma_debugfs_show);
 #endif
 
+static int drm_fb_cma_mmap(struct fb_info *info, struct vm_area_struct *vma)
+{
+	return dma_mmap_writecombine(info->device, vma, info->screen_base,
+				     info->fix.smem_start, info->fix.smem_len);
+}
+
 static struct fb_ops drm_fbdev_cma_ops = {
 	.owner		= THIS_MODULE,
 	.fb_fillrect	= drm_fb_helper_sys_fillrect,
@@ -307,6 +319,7 @@ static struct fb_ops drm_fbdev_cma_ops = {
 	.fb_blank	= drm_fb_helper_blank,
 	.fb_pan_display	= drm_fb_helper_pan_display,
 	.fb_setcmap	= drm_fb_helper_setcmap,
+	.fb_mmap	= drm_fb_cma_mmap,
 };
 
 static int drm_fbdev_cma_deferred_io_mmap(struct fb_info *info,
@@ -333,6 +346,7 @@ static int drm_fbdev_cma_defio_init(struct fb_info *fbi,
 	fbops = kzalloc(sizeof(*fbops), GFP_KERNEL);
 	if (!fbdefio || !fbops) {
 		kfree(fbdefio);
+		kfree(fbops);
 		return -ENOMEM;
 	}
 
@@ -445,7 +459,7 @@ err_cma_destroy:
 err_fb_info_destroy:
 	drm_fb_helper_release_fbi(helper);
 err_gem_free_object:
-	dev->driver->gem_free_object(&obj->base);
+	drm_gem_object_unreference_unlocked(&obj->base);
 	return ret;
 }
 EXPORT_SYMBOL(drm_fbdev_cma_create_with_funcs);

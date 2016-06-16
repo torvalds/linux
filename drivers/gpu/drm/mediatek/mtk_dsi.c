@@ -575,14 +575,6 @@ static int mtk_dsi_connector_get_modes(struct drm_connector *connector)
 	return drm_panel_get_modes(dsi->panel);
 }
 
-static struct drm_encoder *mtk_dsi_connector_best_encoder(
-		struct drm_connector *connector)
-{
-	struct mtk_dsi *dsi = connector_to_dsi(connector);
-
-	return &dsi->encoder;
-}
-
 static const struct drm_encoder_helper_funcs mtk_dsi_encoder_helper_funcs = {
 	.mode_fixup = mtk_dsi_encoder_mode_fixup,
 	.mode_set = mtk_dsi_encoder_mode_set,
@@ -603,7 +595,6 @@ static const struct drm_connector_funcs mtk_dsi_connector_funcs = {
 static const struct drm_connector_helper_funcs
 	mtk_dsi_connector_helper_funcs = {
 	.get_modes = mtk_dsi_connector_get_modes,
-	.best_encoder = mtk_dsi_connector_best_encoder,
 };
 
 static int mtk_drm_attach_bridge(struct drm_bridge *bridge,
@@ -695,10 +686,8 @@ static void mtk_dsi_destroy_conn_enc(struct mtk_dsi *dsi)
 {
 	drm_encoder_cleanup(&dsi->encoder);
 	/* Skip connector cleanup if creation was delegated to the bridge */
-	if (dsi->conn.dev) {
-		drm_connector_unregister(&dsi->conn);
+	if (dsi->conn.dev)
 		drm_connector_cleanup(&dsi->conn);
-	}
 }
 
 static void mtk_dsi_ddp_start(struct mtk_ddp_comp *comp)
