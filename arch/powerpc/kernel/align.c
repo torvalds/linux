@@ -873,6 +873,20 @@ int fix_alignment(struct pt_regs *regs)
 		return emulate_vsx(addr, reg, areg, regs, flags, nb, elsize);
 	}
 #endif
+
+	/*
+	 * ISA 3.0 (such as P9) copy, copy_first, paste and paste_last alignment
+	 * check.
+	 *
+	 * Send a SIGBUS to the process that caused the fault.
+	 *
+	 * We do not emulate these because paste may contain additional metadata
+	 * when pasting to a co-processor. Furthermore, paste_last is the
+	 * synchronisation point for preceding copy/paste sequences.
+	 */
+	if ((instruction & 0xfc0006fe) == PPC_INST_COPY)
+		return -EIO;
+
 	/* A size of 0 indicates an instruction we don't support, with
 	 * the exception of DCBZ which is handled as a special case here
 	 */
