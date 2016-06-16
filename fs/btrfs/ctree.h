@@ -2535,20 +2535,20 @@ static inline gfp_t btrfs_alloc_write_mask(struct address_space *mapping)
 
 u64 btrfs_csum_bytes_to_leaves(struct btrfs_root *root, u64 csum_bytes);
 
-static inline u64 btrfs_calc_trans_metadata_size(struct btrfs_root *root,
+static inline u64 btrfs_calc_trans_metadata_size(struct btrfs_fs_info *fs_info,
 						 unsigned num_items)
 {
-	return root->fs_info->nodesize * BTRFS_MAX_LEVEL * 2 * num_items;
+	return fs_info->nodesize * BTRFS_MAX_LEVEL * 2 * num_items;
 }
 
 /*
  * Doing a truncate won't result in new nodes or leaves, just what we need for
  * COW.
  */
-static inline u64 btrfs_calc_trunc_metadata_size(struct btrfs_root *root,
+static inline u64 btrfs_calc_trunc_metadata_size(struct btrfs_fs_info *fs_info,
 						 unsigned num_items)
 {
-	return root->fs_info->nodesize * BTRFS_MAX_LEVEL * num_items;
+	return fs_info->nodesize * BTRFS_MAX_LEVEL * num_items;
 }
 
 int btrfs_should_throttle_delayed_refs(struct btrfs_trans_handle *trans,

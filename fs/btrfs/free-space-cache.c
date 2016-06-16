@@ -210,8 +210,8 @@ int btrfs_check_trunc_cache_free_space(struct btrfs_root *root,
 	int ret;
 
 	/* 1 for slack space, 1 for updating the inode */
-	needed_bytes = btrfs_calc_trunc_metadata_size(root, 1) +
-		btrfs_calc_trans_metadata_size(root, 1);
+	needed_bytes = btrfs_calc_trunc_metadata_size(root->fs_info, 1) +
+		btrfs_calc_trans_metadata_size(root->fs_info, 1);
 
 	spin_lock(&rsv->lock);
 	if (rsv->reserved < needed_bytes)

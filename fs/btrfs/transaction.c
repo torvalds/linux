@@ -502,7 +502,8 @@ start_transaction(struct btrfs_root *root, unsigned int num_items,
 		if (ret)
 			return ERR_PTR(ret);
 
-		num_bytes = btrfs_calc_trans_metadata_size(root, num_items);
+		num_bytes = btrfs_calc_trans_metadata_size(root->fs_info,
+							   num_items);
 		/*
 		 * Do the reservation for the relocation root creation
 		 */
@@ -624,7 +625,7 @@ struct btrfs_trans_handle *btrfs_start_transaction_fallback_global_rsv(
 	if (IS_ERR(trans))
 		return trans;
 
-	num_bytes = btrfs_calc_trans_metadata_size(root, num_items);
+	num_bytes = btrfs_calc_trans_metadata_size(root->fs_info, num_items);
 	ret = btrfs_cond_migrate_bytes(root->fs_info,
 				       &root->fs_info->trans_block_rsv,
 				       num_bytes,

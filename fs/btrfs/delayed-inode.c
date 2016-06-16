@@ -549,7 +549,7 @@ static int btrfs_delayed_item_reserve_metadata(struct btrfs_trans_handle *trans,
 	src_rsv = trans->block_rsv;
 	dst_rsv = &root->fs_info->delayed_block_rsv;
 
-	num_bytes = btrfs_calc_trans_metadata_size(root, 1);
+	num_bytes = btrfs_calc_trans_metadata_size(root->fs_info, 1);
 	ret = btrfs_block_rsv_migrate(src_rsv, dst_rsv, num_bytes, 1);
 	if (!ret) {
 		trace_btrfs_space_reservation(root->fs_info, "delayed_item",
@@ -592,7 +592,7 @@ static int btrfs_delayed_inode_reserve_metadata(
 	src_rsv = trans->block_rsv;
 	dst_rsv = &root->fs_info->delayed_block_rsv;
 
-	num_bytes = btrfs_calc_trans_metadata_size(root, 1);
+	num_bytes = btrfs_calc_trans_metadata_size(root->fs_info, 1);
 
 	/*
 	 * If our block_rsv is the delalloc block reserve then check and see if
