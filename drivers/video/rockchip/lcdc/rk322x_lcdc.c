@@ -2159,8 +2159,9 @@ static int vop_enable_irq(struct rk_lcdc_driver *dev_drv)
 	val = INTR_FS | INTR_LINE_FLAG0 | INTR_BUS_ERROR | INTR_LINE_FLAG1 |
 		INTR_WIN0_EMPTY | INTR_WIN1_EMPTY | INTR_HWC_EMPTY |
 		INTR_POST_BUF_EMPTY;
+	val |= val << 16;
 
-	vop_mask_writel(vop_dev, INTR_EN0, INTR_MASK, val);
+	vop_msk_reg(vop_dev, INTR_EN0, val);
 
 	return 0;
 }
