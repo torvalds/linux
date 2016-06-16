@@ -456,6 +456,12 @@ struct port100 {
 	struct urb *out_urb;
 	struct urb *in_urb;
 
+	/* This mutex protects the out_urb and avoids to submit a new command
+	 * through port100_send_frame_async() while the previous one is being
+	 * canceled through port100_abort_cmd().
+	 */
+	struct mutex out_urb_lock;
+
 	struct work_struct cmd_complete_work;
 
 	u8 cmd_type;
@@ -464,6 +470,8 @@ struct port100 {
 	 * for any queuing/locking mechanism at driver level.
 	 */
 	struct port100_cmd *cmd;
+
+	bool cmd_cancel;
 };
 
 struct port100_cmd {
@@ -718,9 +726,21 @@ static int port100_send_ack(struct port100 *dev)
 {
 	int rc;
 
+	mutex_lock(&dev->out_urb_lock);
+
+	usb_kill_urb(dev->out_urb);
+
 	dev->out_urb->transfer_buffer = ack_frame;
 	dev->out_urb->transfer_buffer_length = sizeof(ack_frame);
 	rc = usb_submit_urb(dev->out_urb, GFP_KERNEL);
+
+	/* Set the cmd_cancel flag only if the URB has been successfully
+	 * submitted. It will be reset by the out URB completion callback
+	 * port100_send_complete().
+	 */
+	dev->cmd_cancel = !rc;
+
+	mutex_unlock(&dev->out_urb_lock);
 
 	return rc;
 }
@@ -729,6 +749,16 @@ static int port100_send_frame_async(struct port100 *dev, struct sk_buff *out,
 				    struct sk_buff *in, int in_len)
 {
 	int rc;
+
+	mutex_lock(&dev->out_urb_lock);
+
+	/* A command cancel frame as been sent through dev->out_urb. Don't try
+	 * to submit a new one.
+	 */
+	if (dev->cmd_cancel) {
+		rc = -EAGAIN;
+		goto exit;
+	}
 
 	dev->out_urb->transfer_buffer = out->data;
 	dev->out_urb->transfer_buffer_length = out->len;
@@ -741,16 +771,15 @@ static int port100_send_frame_async(struct port100 *dev, struct sk_buff *out,
 
 	rc = usb_submit_urb(dev->out_urb, GFP_KERNEL);
 	if (rc)
-		return rc;
+		goto exit;
 
 	rc = port100_submit_urb_for_ack(dev, GFP_KERNEL);
 	if (rc)
-		goto error;
+		usb_unlink_urb(dev->out_urb);
 
-	return 0;
+exit:
+	mutex_unlock(&dev->out_urb_lock);
 
-error:
-	usb_unlink_urb(dev->out_urb);
 	return rc;
 }
 
@@ -891,6 +920,8 @@ static struct sk_buff *port100_send_cmd_sync(struct port100 *dev, u8 cmd_code,
 static void port100_send_complete(struct urb *urb)
 {
 	struct port100 *dev = urb->context;
+
+	dev->cmd_cancel = false;
 
 	switch (urb->status) {
 	case 0:
@@ -1455,6 +1486,7 @@ static int port100_probe(struct usb_interface *interface,
 	if (!dev)
 		return -ENOMEM;
 
+	mutex_init(&dev->out_urb_lock);
 	dev->udev = usb_get_dev(interface_to_usbdev(interface));
 	dev->interface = interface;
 	usb_set_intfdata(interface, dev);
