@@ -664,7 +664,7 @@ static void digital_in_recv_dep_res(struct nfc_digital_dev *ddev, void *arg,
 		rc = PTR_ERR(resp);
 		resp = NULL;
 
-		if (((rc != -ETIMEDOUT) || ddev->nack_count) &&
+		if ((rc == -EIO || (rc == -ETIMEDOUT && ddev->nack_count)) &&
 		    (ddev->nack_count++ < DIGITAL_NFC_DEP_N_RETRY_NACK)) {
 			ddev->atn_count = 0;
 
