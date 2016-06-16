@@ -4134,7 +4134,8 @@ static int btrfs_check_super_valid(struct btrfs_fs_info *fs_info,
 		ret = -EINVAL;
 	}
 	if (!is_power_of_2(btrfs_super_stripesize(sb)) ||
-	    btrfs_super_stripesize(sb) != sectorsize) {
+		((btrfs_super_stripesize(sb) != sectorsize) &&
+			(btrfs_super_stripesize(sb) != 4096))) {
 		btrfs_err(fs_info, "invalid stripesize %u",
 		       btrfs_super_stripesize(sb));
 		ret = -EINVAL;
