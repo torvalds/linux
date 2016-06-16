@@ -130,9 +130,9 @@ static void samsung_time_stop(unsigned int channel)
 
 	spin_lock_irqsave(&samsung_pwm_lock, flags);
 
-	tcon = __raw_readl(pwm.base + REG_TCON);
+	tcon = readl_relaxed(pwm.base + REG_TCON);
 	tcon &= ~TCON_START(channel);
-	__raw_writel(tcon, pwm.base + REG_TCON);
+	writel_relaxed(tcon, pwm.base + REG_TCON);
 
 	spin_unlock_irqrestore(&samsung_pwm_lock, flags);
 }
@@ -148,14 +148,14 @@ static void samsung_time_setup(unsigned int channel, unsigned long tcnt)
 
 	spin_lock_irqsave(&samsung_pwm_lock, flags);
 
-	tcon = __raw_readl(pwm.base + REG_TCON);
+	tcon = readl_relaxed(pwm.base + REG_TCON);
 
 	tcon &= ~(TCON_START(tcon_chan) | TCON_AUTORELOAD(tcon_chan));
 	tcon |= TCON_MANUALUPDATE(tcon_chan);
 
-	__raw_writel(tcnt, pwm.base + REG_TCNTB(channel));
-	__raw_writel(tcnt, pwm.base + REG_TCMPB(channel));
-	__raw_writel(tcon, pwm.base + REG_TCON);
+	writel_relaxed(tcnt, pwm.base + REG_TCNTB(channel));
+	writel_relaxed(tcnt, pwm.base + REG_TCMPB(channel));
+	writel_relaxed(tcon, pwm.base + REG_TCON);
 
 	spin_unlock_irqrestore(&samsung_pwm_lock, flags);
 }
@@ -170,7 +170,7 @@ static void samsung_time_start(unsigned int channel, bool periodic)
 
 	spin_lock_irqsave(&samsung_pwm_lock, flags);
 
-	tcon = __raw_readl(pwm.base + REG_TCON);
+	tcon = readl_relaxed(pwm.base + REG_TCON);
 
 	tcon &= ~TCON_MANUALUPDATE(channel);
 	tcon |= TCON_START(channel);
@@ -180,7 +180,7 @@ static void samsung_time_start(unsigned int channel, bool periodic)
 	else
 		tcon &= ~TCON_AUTORELOAD(channel);
 
-	__raw_writel(tcon, pwm.base + REG_TCON);
+	writel_relaxed(tcon, pwm.base + REG_TCON);
 
 	spin_unlock_irqrestore(&samsung_pwm_lock, flags);
 }
