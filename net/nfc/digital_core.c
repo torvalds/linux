@@ -612,6 +612,8 @@ static int digital_dep_link_down(struct nfc_dev *nfc_dev)
 {
 	struct nfc_digital_dev *ddev = nfc_get_drvdata(nfc_dev);
 
+	digital_abort_cmd(ddev);
+
 	ddev->curr_protocol = 0;
 
 	return 0;
