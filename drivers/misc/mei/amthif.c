@@ -408,39 +408,20 @@ void mei_amthif_complete(struct mei_cl *cl, struct mei_cl_cb *cb)
  * mei_clear_list - removes all callbacks associated with file
  *		from mei_cb_list
  *
- * @dev: device structure.
  * @file: file structure
  * @mei_cb_list: callbacks list
  *
  * mei_clear_list is called to clear resources associated with file
  * when application calls close function or Ctrl-C was pressed
  */
-static void mei_clear_list(struct mei_device *dev,
-		const struct file *file, struct list_head *mei_cb_list)
+static void mei_clear_list(const struct file *file,
+			   struct list_head *mei_cb_list)
 {
 	struct mei_cl_cb *cb, *next;
 
 	list_for_each_entry_safe(cb, next, mei_cb_list, list)
 		if (file == cb->fp)
 			mei_io_cb_free(cb);
-}
-
-/**
- * mei_clear_lists - removes all callbacks associated with file
- *
- * @dev: device structure
- * @file: file structure
- *
- * mei_clear_lists is called to clear resources associated with file
- * when application calls close function or Ctrl-C was pressed
- */
-static void mei_clear_lists(struct mei_device *dev, const struct file *file)
-{
-	struct mei_cl *cl = &dev->iamthif_cl;
-
-	mei_clear_list(dev, file, &dev->amthif_cmd_list.list);
-	mei_clear_list(dev, file, &cl->rd_completed);
-	mei_clear_list(dev, file, &dev->ctrl_rd_list.list);
 }
 
 /**
@@ -465,7 +446,9 @@ int mei_amthif_release(struct mei_device *dev, struct file *file)
 		dev->iamthif_canceled = true;
 	}
 
-	mei_clear_lists(dev, file);
+	mei_clear_list(file, &dev->amthif_cmd_list.list);
+	mei_clear_list(file, &cl->rd_completed);
+	mei_clear_list(file, &dev->ctrl_rd_list.list);
 
 	return 0;
 }
