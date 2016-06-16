@@ -79,6 +79,31 @@ static inline int l3mdev_master_ifindex_by_index(struct net *net, int ifindex)
 	return rc;
 }
 
+static inline
+const struct net_device *l3mdev_master_dev_rcu(const struct net_device *_dev)
+{
+	/* netdev_master_upper_dev_get_rcu calls
+	 * list_first_or_null_rcu to walk the upper dev list.
+	 * list_first_or_null_rcu does not handle a const arg. We aren't
+	 * making changes, just want the master device from that list so
+	 * typecast to remove the const
+	 */
+	struct net_device *dev = (struct net_device *)_dev;
+	const struct net_device *master;
+
+	if (!dev)
+		return NULL;
+
+	if (netif_is_l3_master(dev))
+		master = dev;
+	else if (netif_is_l3_slave(dev))
+		master = netdev_master_upper_dev_get_rcu(dev);
+	else
+		master = NULL;
+
+	return master;
+}
+
 /* get index of an interface to use for FIB lookups. For devices
  * enslaved to an L3 master device FIB lookups are based on the
  * master index
@@ -188,6 +213,12 @@ static inline int l3mdev_master_ifindex(struct net_device *dev)
 static inline int l3mdev_master_ifindex_by_index(struct net *net, int ifindex)
 {
 	return 0;
+}
+
+static inline
+const struct net_device *l3mdev_master_dev_rcu(const struct net_device *dev)
+{
+	return NULL;
 }
 
 static inline int l3mdev_fib_oif_rcu(struct net_device *dev)
