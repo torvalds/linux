@@ -430,11 +430,10 @@ vmxnet3_get_regs(struct net_device *netdev, struct ethtool_regs *regs, void *p)
 		buf[j++] = rq->rx_ring[1].next2comp;
 		buf[j++] = rq->rx_ring[1].gen;
 
-		/* receive data ring */
-		buf[j++] = 0;
-		buf[j++] = 0;
-		buf[j++] = 0;
-		buf[j++] = 0;
+		buf[j++] = VMXNET3_GET_ADDR_LO(rq->data_ring.basePA);
+		buf[j++] = VMXNET3_GET_ADDR_HI(rq->data_ring.basePA);
+		buf[j++] = rq->rx_ring[0].size;
+		buf[j++] = rq->data_ring.desc_size;
 
 		buf[j++] = VMXNET3_GET_ADDR_LO(rq->comp_ring.basePA);
 		buf[j++] = VMXNET3_GET_ADDR_HI(rq->comp_ring.basePA);
@@ -503,12 +502,14 @@ vmxnet3_get_ringparam(struct net_device *netdev,
 
 	param->rx_max_pending = VMXNET3_RX_RING_MAX_SIZE;
 	param->tx_max_pending = VMXNET3_TX_RING_MAX_SIZE;
-	param->rx_mini_max_pending = 0;
+	param->rx_mini_max_pending = VMXNET3_VERSION_GE_3(adapter) ?
+		VMXNET3_RXDATA_DESC_MAX_SIZE : 0;
 	param->rx_jumbo_max_pending = VMXNET3_RX_RING2_MAX_SIZE;
 
 	param->rx_pending = adapter->rx_ring_size;
 	param->tx_pending = adapter->tx_ring_size;
-	param->rx_mini_pending = 0;
+	param->rx_mini_pending = VMXNET3_VERSION_GE_3(adapter) ?
+		adapter->rxdata_desc_size : 0;
 	param->rx_jumbo_pending = adapter->rx_ring2_size;
 }
 
@@ -519,6 +520,7 @@ vmxnet3_set_ringparam(struct net_device *netdev,
 {
 	struct vmxnet3_adapter *adapter = netdev_priv(netdev);
 	u32 new_tx_ring_size, new_rx_ring_size, new_rx_ring2_size;
+	u16 new_rxdata_desc_size;
 	u32 sz;
 	int err = 0;
 
@@ -539,6 +541,15 @@ vmxnet3_set_ringparam(struct net_device *netdev,
 		netdev_err(netdev, "adapter not completely initialized, "
 			   "ring size cannot be changed yet\n");
 		return -EOPNOTSUPP;
+	}
+
+	if (VMXNET3_VERSION_GE_3(adapter)) {
+		if (param->rx_mini_pending < 0 ||
+		    param->rx_mini_pending > VMXNET3_RXDATA_DESC_MAX_SIZE) {
+			return -EINVAL;
+		}
+	} else if (param->rx_mini_pending != 0) {
+		return -EINVAL;
 	}
 
 	/* round it up to a multiple of VMXNET3_RING_SIZE_ALIGN */
@@ -567,9 +578,19 @@ vmxnet3_set_ringparam(struct net_device *netdev,
 	new_rx_ring2_size = min_t(u32, new_rx_ring2_size,
 				  VMXNET3_RX_RING2_MAX_SIZE);
 
+	/* rx data ring buffer size has to be a multiple of
+	 * VMXNET3_RXDATA_DESC_SIZE_ALIGN
+	 */
+	new_rxdata_desc_size =
+		(param->rx_mini_pending + VMXNET3_RXDATA_DESC_SIZE_MASK) &
+		~VMXNET3_RXDATA_DESC_SIZE_MASK;
+	new_rxdata_desc_size = min_t(u16, new_rxdata_desc_size,
+				     VMXNET3_RXDATA_DESC_MAX_SIZE);
+
 	if (new_tx_ring_size == adapter->tx_ring_size &&
 	    new_rx_ring_size == adapter->rx_ring_size &&
-	    new_rx_ring2_size == adapter->rx_ring2_size) {
+	    new_rx_ring2_size == adapter->rx_ring2_size &&
+	    new_rxdata_desc_size == adapter->rxdata_desc_size) {
 		return 0;
 	}
 
@@ -591,8 +612,8 @@ vmxnet3_set_ringparam(struct net_device *netdev,
 
 		err = vmxnet3_create_queues(adapter, new_tx_ring_size,
 					    new_rx_ring_size, new_rx_ring2_size,
-					    adapter->txdata_desc_size);
-
+					    adapter->txdata_desc_size,
+					    new_rxdata_desc_size);
 		if (err) {
 			/* failed, most likely because of OOM, try default
 			 * size */
@@ -601,11 +622,15 @@ vmxnet3_set_ringparam(struct net_device *netdev,
 			new_rx_ring_size = VMXNET3_DEF_RX_RING_SIZE;
 			new_rx_ring2_size = VMXNET3_DEF_RX_RING2_SIZE;
 			new_tx_ring_size = VMXNET3_DEF_TX_RING_SIZE;
+			new_rxdata_desc_size = VMXNET3_VERSION_GE_3(adapter) ?
+				VMXNET3_DEF_RXDATA_DESC_SIZE : 0;
+
 			err = vmxnet3_create_queues(adapter,
 						    new_tx_ring_size,
 						    new_rx_ring_size,
 						    new_rx_ring2_size,
-						    adapter->txdata_desc_size);
+						    adapter->txdata_desc_size,
+						    new_rxdata_desc_size);
 			if (err) {
 				netdev_err(netdev, "failed to create queues "
 					   "with default sizes. Closing it\n");
@@ -621,6 +646,7 @@ vmxnet3_set_ringparam(struct net_device *netdev,
 	adapter->tx_ring_size = new_tx_ring_size;
 	adapter->rx_ring_size = new_rx_ring_size;
 	adapter->rx_ring2_size = new_rx_ring2_size;
+	adapter->rxdata_desc_size = new_rxdata_desc_size;
 
 out:
 	clear_bit(VMXNET3_STATE_BIT_RESETTING, &adapter->state);
