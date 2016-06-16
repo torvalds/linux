@@ -208,16 +208,6 @@
 } while (0)
 
 enum {
-	ADVANCED_CONTEXT = 0,
-	LEGACY_32B_CONTEXT,
-	ADVANCED_AD_CONTEXT,
-	LEGACY_64B_CONTEXT
-};
-#define GEN8_CTX_ADDRESSING_MODE_SHIFT 3
-#define GEN8_CTX_ADDRESSING_MODE(dev)  (USES_FULL_48BIT_PPGTT(dev) ?\
-		LEGACY_64B_CONTEXT :\
-		LEGACY_32B_CONTEXT)
-enum {
 	FAULT_AND_HANG = 0,
 	FAULT_AND_HALT, /* Debug only */
 	FAULT_AND_STREAM,
@@ -281,8 +271,6 @@ logical_ring_init_platform_invariants(struct intel_engine_cs *engine)
 					(engine->id == VCS || engine->id == VCS2);
 
 	engine->ctx_desc_template = GEN8_CTX_VALID;
-	engine->ctx_desc_template |= GEN8_CTX_ADDRESSING_MODE(dev_priv) <<
-				   GEN8_CTX_ADDRESSING_MODE_SHIFT;
 	if (IS_GEN8(dev_priv))
 		engine->ctx_desc_template |= GEN8_CTX_L3LLC_COHERENT;
 	engine->ctx_desc_template |= GEN8_CTX_PRIVILEGE;
@@ -325,7 +313,8 @@ intel_lr_context_descriptor_update(struct i915_gem_context *ctx,
 
 	BUILD_BUG_ON(MAX_CONTEXT_HW_ID > (1<<GEN8_CTX_ID_WIDTH));
 
-	desc = engine->ctx_desc_template;			/* bits  0-11 */
+	desc = ctx->desc_template;				/* bits  3-4  */
+	desc |= engine->ctx_desc_template;			/* bits  0-11 */
 	desc |= ce->lrc_vma->node.start + LRC_PPHWSP_PN * PAGE_SIZE;
 								/* bits 12-31 */
 	desc |= (u64)ctx->hw_id << GEN8_CTX_ID_SHIFT;		/* bits 32-52 */
