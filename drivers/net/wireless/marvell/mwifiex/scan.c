@@ -2001,6 +2001,32 @@ static void mwifiex_check_next_scan_command(struct mwifiex_private *priv)
 	return;
 }
 
+void mwifiex_cancel_scan(struct mwifiex_adapter *adapter)
+{
+	struct mwifiex_private *priv;
+	unsigned long cmd_flags;
+	int i;
+
+	mwifiex_cancel_pending_scan_cmd(adapter);
+
+	if (adapter->scan_processing) {
+		spin_lock_irqsave(&adapter->mwifiex_cmd_lock, cmd_flags);
+		adapter->scan_processing = false;
+		spin_unlock_irqrestore(&adapter->mwifiex_cmd_lock, cmd_flags);
+		for (i = 0; i < adapter->priv_num; i++) {
+			priv = adapter->priv[i];
+			if (!priv)
+				continue;
+			if (priv->scan_request) {
+				mwifiex_dbg(adapter, INFO,
+					    "info: aborting scan\n");
+				cfg80211_scan_done(priv->scan_request, 1);
+				priv->scan_request = NULL;
+			}
+		}
+	}
+}
+
 /*
  * This function handles the command response of scan.
  *
