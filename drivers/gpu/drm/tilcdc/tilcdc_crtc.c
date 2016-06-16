@@ -127,7 +127,7 @@ static void stop(struct drm_crtc *crtc)
 	if (priv->rev == 2) {
 		int ret = wait_event_timeout(tilcdc_crtc->frame_done_wq,
 					     tilcdc_crtc->frame_done,
-					     msecs_to_jiffies(50));
+					     msecs_to_jiffies(500));
 		if (ret == 0)
 			dev_err(dev->dev, "%s: timeout waiting for framedone\n",
 				__func__);
