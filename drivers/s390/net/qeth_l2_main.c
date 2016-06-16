@@ -1113,11 +1113,16 @@ static int qeth_l2_setup_netdev(struct qeth_card *card)
 	card->dev->features |= NETIF_F_HW_VLAN_CTAG_FILTER;
 	if (card->info.type == QETH_CARD_TYPE_OSD && !card->info.guestlan) {
 		card->dev->hw_features = NETIF_F_SG;
+		card->dev->vlan_features = NETIF_F_SG;
 		/* OSA 3S and earlier has no RX/TX support */
-		if (qeth_is_supported(card, IPA_OUTBOUND_CHECKSUM))
+		if (qeth_is_supported(card, IPA_OUTBOUND_CHECKSUM)) {
 			card->dev->hw_features |= NETIF_F_IP_CSUM;
-		if (qeth_is_supported(card, IPA_INBOUND_CHECKSUM))
+			card->dev->vlan_features |= NETIF_F_IP_CSUM;
+		}
+		if (qeth_is_supported(card, IPA_INBOUND_CHECKSUM)) {
 			card->dev->hw_features |= NETIF_F_RXCSUM;
+			card->dev->vlan_features |= NETIF_F_RXCSUM;
+		}
 		/* Turn on SG per default */
 		card->dev->features |= NETIF_F_SG;
 	}
