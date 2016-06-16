@@ -674,6 +674,8 @@ irqreturn_t lineevent_irq_thread(int irq, void *p)
 	} else if (le->eflags & GPIOEVENT_REQUEST_FALLING_EDGE) {
 		/* Emit high-to-low event */
 		ge.id = GPIOEVENT_EVENT_FALLING_EDGE;
+	} else {
+		return IRQ_NONE;
 	}
 
 	ret = kfifo_put(&le->events, ge);
