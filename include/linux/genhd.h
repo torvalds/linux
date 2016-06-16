@@ -205,7 +205,6 @@ struct gendisk {
 	void *private_data;
 
 	int flags;
-	struct device *driverfs_dev;  // FIXME: remove
 	struct kobject *slave_dir;
 
 	struct timer_rand_state *random;
@@ -417,8 +416,7 @@ extern void part_round_stats(int cpu, struct hd_struct *part);
 extern void device_add_disk(struct device *parent, struct gendisk *disk);
 static inline void add_disk(struct gendisk *disk)
 {
-	/* temporary while we convert callers to device_add_disk */
-	device_add_disk(disk->driverfs_dev, disk);
+	device_add_disk(NULL, disk);
 }
 
 extern void del_gendisk(struct gendisk *gp);
