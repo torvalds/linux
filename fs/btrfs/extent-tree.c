@@ -9436,9 +9436,9 @@ again:
 out:
 	if (cache->flags & BTRFS_BLOCK_GROUP_SYSTEM) {
 		alloc_flags = update_block_group_flags(root, cache->flags);
-		lock_chunks(root->fs_info->chunk_root);
+		lock_chunks(root->fs_info);
 		check_system_chunk(trans, root, alloc_flags);
-		unlock_chunks(root->fs_info->chunk_root);
+		unlock_chunks(root->fs_info);
 	}
 	mutex_unlock(&root->fs_info->ro_block_group_mutex);
 
@@ -10482,7 +10482,7 @@ int btrfs_remove_block_group(struct btrfs_trans_handle *trans,
 
 	memcpy(&key, &block_group->key, sizeof(key));
 
-	lock_chunks(root);
+	lock_chunks(root->fs_info);
 	if (!list_empty(&em->list)) {
 		/* We're in the transaction->pending_chunks list. */
 		free_extent_map(em);
@@ -10550,7 +10550,7 @@ int btrfs_remove_block_group(struct btrfs_trans_handle *trans,
 		free_extent_map(em);
 	}
 
-	unlock_chunks(root);
+	unlock_chunks(root->fs_info);
 
 	ret = remove_block_group_free_space(trans, root->fs_info, block_group);
 	if (ret)

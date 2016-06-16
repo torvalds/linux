@@ -1889,10 +1889,10 @@ int btrfs_rm_device(struct btrfs_root *root, char *device_path, u64 devid)
 	}
 
 	if (device->writeable) {
-		lock_chunks(root);
+		lock_chunks(root->fs_info);
 		list_del_init(&device->dev_alloc_list);
 		device->fs_devices->rw_devices--;
-		unlock_chunks(root);
+		unlock_chunks(root->fs_info);
 		clear_super = true;
 	}
 
@@ -1981,11 +1981,11 @@ out:
 
 error_undo:
 	if (device->writeable) {
-		lock_chunks(root);
+		lock_chunks(root->fs_info);
 		list_add(&device->dev_alloc_list,
 			 &root->fs_info->fs_devices->alloc_list);
 		device->fs_devices->rw_devices++;
-		unlock_chunks(root);
+		unlock_chunks(root->fs_info);
 	}
 	goto out;
 }
@@ -2212,9 +2212,9 @@ static int btrfs_prepare_sprout(struct btrfs_root *root)
 	list_for_each_entry(device, &seed_devices->devices, dev_list)
 		device->fs_devices = seed_devices;
 
-	lock_chunks(root);
+	lock_chunks(root->fs_info);
 	list_splice_init(&fs_devices->alloc_list, &seed_devices->alloc_list);
-	unlock_chunks(root);
+	unlock_chunks(root->fs_info);
 
 	fs_devices->seeding = 0;
 	fs_devices->num_devices = 0;
@@ -2404,7 +2404,7 @@ int btrfs_init_new_device(struct btrfs_fs_info *fs_info, char *device_path)
 	device->fs_devices = root->fs_info->fs_devices;
 
 	mutex_lock(&root->fs_info->fs_devices->device_list_mutex);
-	lock_chunks(root);
+	lock_chunks(root->fs_info);
 	list_add_rcu(&device->dev_list, &root->fs_info->fs_devices->devices);
 	list_add(&device->dev_alloc_list,
 		 &root->fs_info->fs_devices->alloc_list);
@@ -2438,13 +2438,13 @@ int btrfs_init_new_device(struct btrfs_fs_info *fs_info, char *device_path)
 	 */
 	btrfs_clear_space_info_full(root->fs_info);
 
-	unlock_chunks(root);
+	unlock_chunks(root->fs_info);
 	mutex_unlock(&root->fs_info->fs_devices->device_list_mutex);
 
 	if (seeding_dev) {
-		lock_chunks(root);
+		lock_chunks(root->fs_info);
 		ret = init_first_rw_device(trans, root, device);
-		unlock_chunks(root);
+		unlock_chunks(root->fs_info);
 		if (ret) {
 			btrfs_abort_transaction(trans, ret);
 			goto error_trans;
@@ -2689,13 +2689,13 @@ int btrfs_grow_device(struct btrfs_trans_handle *trans,
 	if (!device->writeable)
 		return -EACCES;
 
-	lock_chunks(device->fs_info->dev_root);
+	lock_chunks(device->fs_info);
 	old_total = btrfs_super_total_bytes(super_copy);
 	diff = new_size - device->total_bytes;
 
 	if (new_size <= device->total_bytes ||
 	    device->is_tgtdev_for_dev_replace) {
-		unlock_chunks(device->fs_info->dev_root);
+		unlock_chunks(device->fs_info);
 		return -EINVAL;
 	}
 
@@ -2710,7 +2710,7 @@ int btrfs_grow_device(struct btrfs_trans_handle *trans,
 	if (list_empty(&device->resized_list))
 		list_add_tail(&device->resized_list,
 			      &fs_devices->resized_devices);
-	unlock_chunks(device->fs_info->dev_root);
+	unlock_chunks(device->fs_info);
 
 	return btrfs_update_device(trans, device);
 }
@@ -2766,7 +2766,7 @@ static int btrfs_del_sys_chunk(struct btrfs_fs_info *fs_info,
 	u32 cur;
 	struct btrfs_key key;
 
-	lock_chunks(root);
+	lock_chunks(root->fs_info);
 	array_size = btrfs_super_sys_array_size(super_copy);
 
 	ptr = super_copy->sys_chunk_array;
@@ -2796,7 +2796,7 @@ static int btrfs_del_sys_chunk(struct btrfs_fs_info *fs_info,
 			cur += len;
 		}
 	}
-	unlock_chunks(root);
+	unlock_chunks(root->fs_info);
 	return ret;
 }
 
@@ -2832,9 +2832,9 @@ int btrfs_remove_chunk(struct btrfs_trans_handle *trans,
 		return -EINVAL;
 	}
 	map = em->map_lookup;
-	lock_chunks(root->fs_info->chunk_root);
+	lock_chunks(fs_info);
 	check_system_chunk(trans, extent_root, map->type);
-	unlock_chunks(root->fs_info->chunk_root);
+	unlock_chunks(fs_info);
 
 	/*
 	 * Take the device list mutex to prevent races with the final phase of
@@ -2854,14 +2854,14 @@ int btrfs_remove_chunk(struct btrfs_trans_handle *trans,
 		}
 
 		if (device->bytes_used > 0) {
-			lock_chunks(root);
+			lock_chunks(root->fs_info);
 			btrfs_device_set_bytes_used(device,
 					device->bytes_used - dev_extent_len);
 			spin_lock(&root->fs_info->free_chunk_lock);
 			root->fs_info->free_chunk_space += dev_extent_len;
 			spin_unlock(&root->fs_info->free_chunk_lock);
 			btrfs_clear_space_info_full(root->fs_info);
-			unlock_chunks(root);
+			unlock_chunks(root->fs_info);
 		}
 
 		if (map->stripes[i].dev) {
@@ -4383,7 +4383,7 @@ int btrfs_shrink_device(struct btrfs_device *device, u64 new_size)
 
 	path->reada = READA_FORWARD;
 
-	lock_chunks(root);
+	lock_chunks(root->fs_info);
 
 	btrfs_device_set_total_bytes(device, new_size);
 	if (device->writeable) {
@@ -4392,7 +4392,7 @@ int btrfs_shrink_device(struct btrfs_device *device, u64 new_size)
 		root->fs_info->free_chunk_space -= diff;
 		spin_unlock(&root->fs_info->free_chunk_lock);
 	}
-	unlock_chunks(root);
+	unlock_chunks(root->fs_info);
 
 again:
 	key.objectid = device->devid;
@@ -4464,7 +4464,7 @@ again:
 		goto done;
 	}
 
-	lock_chunks(root);
+	lock_chunks(root->fs_info);
 
 	/*
 	 * We checked in the above loop all device extents that were already in
@@ -4484,7 +4484,7 @@ again:
 
 		if (contains_pending_extent(trans->transaction, device,
 					    &start, len)) {
-			unlock_chunks(root);
+			unlock_chunks(root->fs_info);
 			checked_pending_chunks = true;
 			failed = 0;
 			retried = false;
@@ -4502,7 +4502,7 @@ again:
 
 	WARN_ON(diff > old_total);
 	btrfs_set_super_total_bytes(super_copy, old_total - diff);
-	unlock_chunks(root);
+	unlock_chunks(root->fs_info);
 
 	/* Now btrfs_update_device() will change the on-disk size. */
 	ret = btrfs_update_device(trans, device);
@@ -4510,14 +4510,14 @@ again:
 done:
 	btrfs_free_path(path);
 	if (ret) {
-		lock_chunks(root);
+		lock_chunks(root->fs_info);
 		btrfs_device_set_total_bytes(device, old_size);
 		if (device->writeable)
 			device->fs_devices->total_rw_bytes += diff;
 		spin_lock(&root->fs_info->free_chunk_lock);
 		root->fs_info->free_chunk_space += diff;
 		spin_unlock(&root->fs_info->free_chunk_lock);
-		unlock_chunks(root);
+		unlock_chunks(root->fs_info);
 	}
 	return ret;
 }
@@ -4531,11 +4531,11 @@ static int btrfs_add_system_chunk(struct btrfs_root *root,
 	u32 array_size;
 	u8 *ptr;
 
-	lock_chunks(root);
+	lock_chunks(root->fs_info);
 	array_size = btrfs_super_sys_array_size(super_copy);
 	if (array_size + item_size + sizeof(disk_key)
 			> BTRFS_SYSTEM_CHUNK_ARRAY_SIZE) {
-		unlock_chunks(root);
+		unlock_chunks(root->fs_info);
 		return -EFBIG;
 	}
 
@@ -4546,7 +4546,7 @@ static int btrfs_add_system_chunk(struct btrfs_root *root,
 	memcpy(ptr, chunk, item_size);
 	item_size += sizeof(disk_key);
 	btrfs_set_super_sys_array_size(super_copy, array_size + item_size);
-	unlock_chunks(root);
+	unlock_chunks(root->fs_info);
 
 	return 0;
 }
@@ -6804,7 +6804,7 @@ int btrfs_read_chunk_tree(struct btrfs_fs_info *fs_info)
 		return -ENOMEM;
 
 	mutex_lock(&uuid_mutex);
-	lock_chunks(root);
+	lock_chunks(root->fs_info);
 
 	/*
 	 * Read all device items, and then all the chunk items. All
@@ -6871,7 +6871,7 @@ int btrfs_read_chunk_tree(struct btrfs_fs_info *fs_info)
 	}
 	ret = 0;
 error:
-	unlock_chunks(root);
+	unlock_chunks(root->fs_info);
 	mutex_unlock(&uuid_mutex);
 
 	btrfs_free_path(path);
@@ -7172,13 +7172,13 @@ void btrfs_update_commit_device_size(struct btrfs_fs_info *fs_info)
 		return;
 
 	mutex_lock(&fs_devices->device_list_mutex);
-	lock_chunks(fs_info->dev_root);
+	lock_chunks(fs_info);
 	list_for_each_entry_safe(curr, next, &fs_devices->resized_devices,
 				 resized_list) {
 		list_del_init(&curr->resized_list);
 		curr->commit_total_bytes = curr->disk_total_bytes;
 	}
-	unlock_chunks(fs_info->dev_root);
+	unlock_chunks(fs_info);
 	mutex_unlock(&fs_devices->device_list_mutex);
 }
 
@@ -7195,7 +7195,7 @@ void btrfs_update_commit_device_bytes_used(struct btrfs_root *root,
 		return;
 
 	/* In order to kick the device replace finish process */
-	lock_chunks(root);
+	lock_chunks(root->fs_info);
 	list_for_each_entry(em, &transaction->pending_chunks, list) {
 		map = em->map_lookup;
 
@@ -7204,7 +7204,7 @@ void btrfs_update_commit_device_bytes_used(struct btrfs_root *root,
 			dev->commit_bytes_used = dev->bytes_used;
 		}
 	}
-	unlock_chunks(root);
+	unlock_chunks(root->fs_info);
 }
 
 void btrfs_set_fs_info_ptr(struct btrfs_fs_info *fs_info)

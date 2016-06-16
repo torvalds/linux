@@ -532,14 +532,14 @@ void btrfs_update_commit_device_size(struct btrfs_fs_info *fs_info);
 void btrfs_update_commit_device_bytes_used(struct btrfs_root *root,
 					struct btrfs_transaction *transaction);
 
-static inline void lock_chunks(struct btrfs_root *root)
+static inline void lock_chunks(struct btrfs_fs_info *fs_info)
 {
-	mutex_lock(&root->fs_info->chunk_mutex);
+	mutex_lock(&fs_info->chunk_mutex);
 }
 
-static inline void unlock_chunks(struct btrfs_root *root)
+static inline void unlock_chunks(struct btrfs_fs_info *fs_info)
 {
-	mutex_unlock(&root->fs_info->chunk_mutex);
+	mutex_unlock(&fs_info->chunk_mutex);
 }
 
 struct list_head *btrfs_get_fs_uuids(void);

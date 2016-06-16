@@ -3328,7 +3328,7 @@ void btrfs_put_block_group_trimming(struct btrfs_block_group_cache *block_group)
 	spin_unlock(&block_group->lock);
 
 	if (cleanup) {
-		lock_chunks(block_group->fs_info->chunk_root);
+		lock_chunks(block_group->fs_info);
 		em_tree = &block_group->fs_info->mapping_tree.map_tree;
 		write_lock(&em_tree->lock);
 		em = lookup_extent_mapping(em_tree, block_group->key.objectid,
@@ -3340,7 +3340,7 @@ void btrfs_put_block_group_trimming(struct btrfs_block_group_cache *block_group)
 		 */
 		remove_extent_mapping(em_tree, em);
 		write_unlock(&em_tree->lock);
-		unlock_chunks(block_group->fs_info->chunk_root);
+		unlock_chunks(block_group->fs_info);
 
 		/* once for us and once for the tree */
 		free_extent_map(em);
