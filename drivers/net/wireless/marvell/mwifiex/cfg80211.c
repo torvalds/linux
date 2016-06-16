@@ -1672,6 +1672,9 @@ static int mwifiex_cfg80211_change_beacon(struct wiphy *wiphy,
 					  struct cfg80211_beacon_data *data)
 {
 	struct mwifiex_private *priv = mwifiex_netdev_get_priv(dev);
+	struct mwifiex_adapter *adapter = priv->adapter;
+
+	mwifiex_cancel_scan(adapter);
 
 	if (GET_BSS_ROLE(priv) != MWIFIEX_BSS_ROLE_UAP) {
 		mwifiex_dbg(priv->adapter, ERROR,
