@@ -103,6 +103,7 @@ void setup_udp_tunnel_sock(struct net *net, struct socket *sock,
 enum udp_parsable_tunnel_type {
 	UDP_TUNNEL_TYPE_VXLAN,		/* RFC 7348 */
 	UDP_TUNNEL_TYPE_GENEVE,		/* draft-ietf-nvo3-geneve */
+	UDP_TUNNEL_TYPE_VXLAN_GPE,	/* draft-ietf-nvo3-vxlan-gpe */
 };
 
 struct udp_tunnel_info {
