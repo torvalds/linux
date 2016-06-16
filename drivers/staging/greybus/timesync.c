@@ -1065,6 +1065,8 @@ void gb_timesync_svc_remove(struct gb_svc *svc)
 	if (!timesync_svc)
 		goto done;
 
+	cancel_delayed_work_sync(&timesync_svc->delayed_work);
+
 	mutex_lock(&timesync_svc->mutex);
 
 	gb_timesync_teardown(timesync_svc);
@@ -1079,7 +1081,6 @@ void gb_timesync_svc_remove(struct gb_svc *svc)
 	gb_timesync_set_state_atomic(timesync_svc, GB_TIMESYNC_STATE_INVALID);
 	debugfs_remove(timesync_svc->frame_ktime_dentry);
 	debugfs_remove(timesync_svc->frame_time_dentry);
-	cancel_delayed_work_sync(&timesync_svc->delayed_work);
 	destroy_workqueue(timesync_svc->work_queue);
 	list_del(&timesync_svc->list);
 
