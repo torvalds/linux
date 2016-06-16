@@ -617,9 +617,7 @@ static void rs_set_capacity(struct raid_set *rs)
 {
 	struct mddev *mddev = &rs->md;
 
-	/* Make sure we access most actual mddev properties */
-	smp_rmb();
-	if (rs->ti->len != mddev->array_sectors && !rs_is_reshaping(rs)) {
+	if (rs->ti->len != mddev->array_sectors) {
 		struct gendisk *gendisk = dm_disk(dm_table_get_md(rs->ti->table));
 
 		set_capacity(gendisk, mddev->array_sectors);
@@ -1471,7 +1469,9 @@ static void do_table_event(struct work_struct *ws)
 {
 	struct raid_set *rs = container_of(ws, struct raid_set, md.event_work);
 
-	rs_set_capacity(rs);
+	smp_rmb(); /* Make sure we access most actual mddev properties */
+	if (!rs_is_reshaping(rs))
+		rs_set_capacity(rs);
 	dm_table_event(rs->ti->table);
 }
 
