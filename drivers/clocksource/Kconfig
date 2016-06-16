@@ -270,7 +270,7 @@ config CLKSRC_EXYNOS_MCT
 	  Support for Multi Core Timer controller on Exynos SoCs.
 
 config CLKSRC_SAMSUNG_PWM
-	bool "PWM timer drvier for Samsung S3C, S5P" if COMPILE_TEST
+	bool "PWM timer driver for Samsung S3C, S5P" if COMPILE_TEST
 	depends on GENERIC_CLOCKEVENTS
 	depends on HAS_IOMEM
 	help
