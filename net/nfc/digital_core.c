@@ -842,6 +842,14 @@ void nfc_digital_unregister_device(struct nfc_digital_dev *ddev)
 
 	list_for_each_entry_safe(cmd, n, &ddev->cmd_queue, queue) {
 		list_del(&cmd->queue);
+
+		/* Call the command callback if any and pass it a ENODEV error.
+		 * This gives a chance to the command issuer to free any
+		 * allocated buffer.
+		 */
+		if (cmd->cmd_cb)
+			cmd->cmd_cb(ddev, cmd->cb_context, ERR_PTR(-ENODEV));
+
 		kfree(cmd->mdaa_params);
 		kfree(cmd);
 	}
