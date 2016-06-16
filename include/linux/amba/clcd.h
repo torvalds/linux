@@ -93,6 +93,8 @@ enum {
 	CLCD_CAP_ALL		= CLCD_CAP_BGR | CLCD_CAP_RGB,
 };
 
+struct backlight_device;
+
 struct clcd_panel {
 	struct fb_videomode	mode;
 	signed short		width;	/* width in mm */
@@ -105,6 +107,7 @@ struct clcd_panel {
 				fixedtimings:1,
 				grayscale:1;
 	unsigned int		connector;
+	struct backlight_device	*backlight;
 };
 
 struct clcd_regs {

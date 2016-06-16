@@ -30,6 +30,7 @@
 #include <linux/of.h>
 #include <linux/of_address.h>
 #include <linux/of_graph.h>
+#include <linux/backlight.h>
 #include <video/display_timing.h>
 #include <video/of_display_timing.h>
 #include <video/videomode.h>
@@ -70,6 +71,11 @@ static void clcdfb_disable(struct clcd_fb *fb)
 
 	if (fb->board->disable)
 		fb->board->disable(fb);
+
+	if (fb->panel->backlight) {
+		fb->panel->backlight->props.power = FB_BLANK_POWERDOWN;
+		backlight_update_status(fb->panel->backlight);
+	}
 
 	val = readl(fb->regs + fb->off_cntl);
 	if (val & CNTL_LCDPWR) {
@@ -115,6 +121,14 @@ static void clcdfb_enable(struct clcd_fb *fb, u32 cntl)
 	 */
 	cntl |= CNTL_LCDPWR;
 	writel(cntl, fb->regs + fb->off_cntl);
+
+	/*
+	 * Turn on backlight
+	 */
+	if (fb->panel->backlight) {
+		fb->panel->backlight->props.power = FB_BLANK_UNBLANK;
+		backlight_update_status(fb->panel->backlight);
+	}
 
 	/*
 	 * finally, enable the interface.
@@ -576,6 +590,28 @@ static int clcdfb_snprintf_mode(char *buf, int size, struct fb_videomode *mode)
 			mode->refresh);
 }
 
+static int clcdfb_of_get_backlight(struct device_node *endpoint,
+				   struct clcd_panel *clcd_panel)
+{
+	struct device_node *panel;
+	struct device_node *backlight;
+
+	panel = of_graph_get_remote_port_parent(endpoint);
+	if (!panel)
+		return -ENODEV;
+
+	/* Look up the optional backlight phandle */
+	backlight = of_parse_phandle(panel, "backlight", 0);
+	if (backlight) {
+		clcd_panel->backlight = of_find_backlight_by_node(backlight);
+		of_node_put(backlight);
+
+		if (!clcd_panel->backlight)
+			return -EPROBE_DEFER;
+	}
+	return 0;
+}
+
 static int clcdfb_of_get_mode(struct device *dev, struct device_node *endpoint,
 		struct fb_videomode *mode)
 {
@@ -661,6 +697,10 @@ static int clcdfb_of_init_display(struct clcd_fb *fb)
 	endpoint = of_graph_get_next_endpoint(fb->dev->dev.of_node, NULL);
 	if (!endpoint)
 		return -ENODEV;
+
+	err = clcdfb_of_get_backlight(endpoint, fb->panel);
+	if (err)
+		return err;
 
 	err = clcdfb_of_get_mode(&fb->dev->dev, endpoint, &fb->panel->mode);
 	if (err)
