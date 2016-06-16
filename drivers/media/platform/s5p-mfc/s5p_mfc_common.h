@@ -25,6 +25,8 @@
 #include "regs-mfc.h"
 #include "regs-mfc-v8.h"
 
+#define S5P_MFC_NAME		"s5p-mfc"
+
 /* Definitions related to MFC memory */
 
 /* Offset base used to differentiate between CAPTURE and OUTPUT

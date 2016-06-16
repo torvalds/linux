@@ -265,8 +265,8 @@ static int vidioc_querycap(struct file *file, void *priv,
 {
 	struct s5p_mfc_dev *dev = video_drvdata(file);
 
-	strncpy(cap->driver, dev->plat_dev->name, sizeof(cap->driver) - 1);
-	strncpy(cap->card, dev->plat_dev->name, sizeof(cap->card) - 1);
+	strncpy(cap->driver, S5P_MFC_NAME, sizeof(cap->driver) - 1);
+	strncpy(cap->card, dev->vfd_dec->name, sizeof(cap->card) - 1);
 	snprintf(cap->bus_info, sizeof(cap->bus_info), "platform:%s",
 		 dev_name(&dev->plat_dev->dev));
 	/*
