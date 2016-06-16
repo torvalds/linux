@@ -12,7 +12,8 @@ CFLAGS := -Wall -O2 -Wall -Werror -DGIT_VERSION='"$(GIT_VERSION)"' -I$(CURDIR) $
 
 export CFLAGS
 
-SUB_DIRS = benchmarks 		\
+SUB_DIRS = alignment		\
+	   benchmarks		\
 	   copyloops		\
 	   context_switch	\
 	   dscr			\
