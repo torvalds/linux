@@ -5268,8 +5268,8 @@ no_mem:
 }
 EXPORT_SYMBOL_GPL(qeth_core_get_next_skb);
 
-static int qeth_setassparms_cb(struct qeth_card *card,
-			       struct qeth_reply *reply, unsigned long data)
+int qeth_setassparms_cb(struct qeth_card *card,
+			struct qeth_reply *reply, unsigned long data)
 {
 	struct qeth_ipa_cmd *cmd;
 
@@ -5297,6 +5297,7 @@ static int qeth_setassparms_cb(struct qeth_card *card,
 
 	return 0;
 }
+EXPORT_SYMBOL_GPL(qeth_setassparms_cb);
 
 struct qeth_cmd_buffer *qeth_get_setassparms_cmd(struct qeth_card *card,
 						 enum qeth_ipa_funcs ipa_func,
@@ -6053,74 +6054,120 @@ int qeth_core_ethtool_get_settings(struct net_device *netdev,
 }
 EXPORT_SYMBOL_GPL(qeth_core_ethtool_get_settings);
 
-static int qeth_send_checksum_command(struct qeth_card *card)
+static int qeth_send_checksum_on(struct qeth_card *card, int cstype)
 {
+	long rxtx_arg;
 	int rc;
 
-	rc = qeth_send_simple_setassparms(card, IPA_INBOUND_CHECKSUM,
-					  IPA_CMD_ASS_START, 0);
+	rc = qeth_send_simple_setassparms(card, cstype, IPA_CMD_ASS_START, 0);
 	if (rc) {
-		dev_warn(&card->gdev->dev, "Starting HW checksumming for %s "
-			"failed, using SW checksumming\n",
-			QETH_CARD_IFNAME(card));
+		dev_warn(&card->gdev->dev,
+			 "Starting HW checksumming for %s failed, using SW checksumming\n",
+			 QETH_CARD_IFNAME(card));
 		return rc;
 	}
-	rc = qeth_send_simple_setassparms(card, IPA_INBOUND_CHECKSUM,
-					  IPA_CMD_ASS_ENABLE,
-					  card->info.csum_mask);
+	rxtx_arg = (cstype == IPA_OUTBOUND_CHECKSUM) ? card->info.tx_csum_mask
+						     : card->info.csum_mask;
+	rc = qeth_send_simple_setassparms(card, cstype, IPA_CMD_ASS_ENABLE,
+					  rxtx_arg);
 	if (rc) {
-		dev_warn(&card->gdev->dev, "Enabling HW checksumming for %s "
-			"failed, using SW checksumming\n",
-			QETH_CARD_IFNAME(card));
+		dev_warn(&card->gdev->dev,
+			 "Enabling HW checksumming for %s failed, using SW checksumming\n",
+			 QETH_CARD_IFNAME(card));
 		return rc;
 	}
+
+	dev_info(&card->gdev->dev, "HW Checksumming (%sbound) enabled\n",
+		 cstype == IPA_INBOUND_CHECKSUM ? "in" : "out");
 	return 0;
 }
 
-int qeth_set_rx_csum(struct qeth_card *card, int on)
+static int qeth_set_ipa_csum(struct qeth_card *card, int on, int cstype)
 {
 	int rc;
 
 	if (on) {
-		rc = qeth_send_checksum_command(card);
+		rc = qeth_send_checksum_on(card, cstype);
 		if (rc)
 			return -EIO;
-		dev_info(&card->gdev->dev,
-			"HW Checksumming (inbound) enabled\n");
 	} else {
-		rc = qeth_send_simple_setassparms(card,
-			IPA_INBOUND_CHECKSUM, IPA_CMD_ASS_STOP, 0);
+		rc = qeth_send_simple_setassparms(card, cstype,
+						  IPA_CMD_ASS_STOP, 0);
 		if (rc)
 			return -EIO;
 	}
 	return 0;
 }
-EXPORT_SYMBOL_GPL(qeth_set_rx_csum);
 
-int qeth_start_ipa_tx_checksum(struct qeth_card *card)
+static int qeth_set_ipa_tso(struct qeth_card *card, int on)
 {
-	int rc = 0;
+	int rc;
 
-	if (!qeth_is_supported(card, IPA_OUTBOUND_CHECKSUM))
-		return rc;
-	rc = qeth_send_simple_setassparms(card, IPA_OUTBOUND_CHECKSUM,
-					  IPA_CMD_ASS_START, 0);
-	if (rc)
-		goto err_out;
-	rc = qeth_send_simple_setassparms(card, IPA_OUTBOUND_CHECKSUM,
-					  IPA_CMD_ASS_ENABLE,
-					  card->info.tx_csum_mask);
-	if (rc)
-		goto err_out;
+	QETH_CARD_TEXT(card, 3, "sttso");
 
-	dev_info(&card->gdev->dev, "HW TX Checksumming enabled\n");
-	return rc;
-err_out:
-	dev_warn(&card->gdev->dev, "Enabling HW TX checksumming for %s "
-		"failed, using SW TX checksumming\n", QETH_CARD_IFNAME(card));
+	if (on) {
+		rc = qeth_send_simple_setassparms(card, IPA_OUTBOUND_TSO,
+						  IPA_CMD_ASS_START, 0);
+		if (rc) {
+			dev_warn(&card->gdev->dev,
+				 "Starting outbound TCP segmentation offload for %s failed\n",
+				 QETH_CARD_IFNAME(card));
+			return -EIO;
+		}
+		dev_info(&card->gdev->dev, "Outbound TSO enabled\n");
+	} else {
+		rc = qeth_send_simple_setassparms(card, IPA_OUTBOUND_TSO,
+						  IPA_CMD_ASS_STOP, 0);
+	}
 	return rc;
 }
-EXPORT_SYMBOL_GPL(qeth_start_ipa_tx_checksum);
+
+int qeth_set_features(struct net_device *dev, netdev_features_t features)
+{
+	struct qeth_card *card = dev->ml_priv;
+	netdev_features_t changed = card->dev->features ^ features;
+	int rc = 0;
+
+	QETH_DBF_TEXT(SETUP, 2, "setfeat");
+	QETH_DBF_HEX(SETUP, 2, &features, sizeof(features));
+
+	if (card->state == CARD_STATE_DOWN ||
+	    card->state == CARD_STATE_RECOVER)
+		return 0;
+
+	if ((changed & NETIF_F_IP_CSUM))
+		rc = qeth_set_ipa_csum(card,
+				       features & NETIF_F_IP_CSUM ? 1 : 0,
+				       IPA_OUTBOUND_CHECKSUM);
+	if ((changed & NETIF_F_RXCSUM))
+		rc |= qeth_set_ipa_csum(card,
+					features & NETIF_F_RXCSUM ? 1 : 0,
+					IPA_INBOUND_CHECKSUM);
+	if ((changed & NETIF_F_TSO))
+		rc |= qeth_set_ipa_tso(card, features & NETIF_F_TSO ? 1 : 0);
+	return rc ? -EIO : 0;
+}
+EXPORT_SYMBOL_GPL(qeth_set_features);
+
+netdev_features_t qeth_fix_features(struct net_device *dev,
+				    netdev_features_t features)
+{
+	struct qeth_card *card = dev->ml_priv;
+
+	QETH_DBF_TEXT(SETUP, 2, "fixfeat");
+	if (!qeth_is_supported(card, IPA_OUTBOUND_CHECKSUM))
+		features &= ~NETIF_F_IP_CSUM;
+	if (!qeth_is_supported(card, IPA_INBOUND_CHECKSUM))
+		features &= ~NETIF_F_RXCSUM;
+	if (!qeth_is_supported(card, IPA_OUTBOUND_TSO)) {
+		features &= ~NETIF_F_TSO;
+		dev_info(&card->gdev->dev, "Outbound TSO not supported on %s\n",
+			 QETH_CARD_IFNAME(card));
+	}
+	QETH_DBF_HEX(SETUP, 2, &features, sizeof(features));
+	return features;
+}
+EXPORT_SYMBOL_GPL(qeth_fix_features);
 
 static int __init qeth_core_init(void)
 {

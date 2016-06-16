@@ -404,38 +404,6 @@ static int qeth_l2_vlan_rx_kill_vid(struct net_device *dev,
 	return rc;
 }
 
-static netdev_features_t qeth_l2_fix_features(struct net_device *dev,
-					      netdev_features_t features)
-{
-	struct qeth_card *card = dev->ml_priv;
-
-	QETH_DBF_TEXT(SETUP, 2, "fixfeat");
-	if (!qeth_is_supported(card, IPA_OUTBOUND_CHECKSUM))
-		features &= ~NETIF_F_IP_CSUM;
-	if (!qeth_is_supported(card, IPA_INBOUND_CHECKSUM))
-		features &= ~NETIF_F_RXCSUM;
-	QETH_DBF_HEX(SETUP, 2, &features, sizeof(features));
-	return features;
-}
-
-static int qeth_l2_set_features(struct net_device *dev,
-				netdev_features_t features)
-{
-	struct qeth_card *card = dev->ml_priv;
-	netdev_features_t changed = dev->features ^ features;
-
-	QETH_DBF_TEXT(SETUP, 2, "setfeat");
-	QETH_DBF_HEX(SETUP, 2, &features, sizeof(features));
-
-	if (card->state == CARD_STATE_DOWN ||
-	    card->state == CARD_STATE_RECOVER)
-		return 0;
-
-	if (!(changed & NETIF_F_RXCSUM))
-		return 0;
-	return qeth_set_rx_csum(card, features & NETIF_F_RXCSUM ? 1 : 0);
-}
-
 static void qeth_l2_stop_card(struct qeth_card *card, int recovery_mode)
 {
 	QETH_DBF_TEXT(SETUP , 2, "stopcard");
@@ -1112,8 +1080,8 @@ static const struct net_device_ops qeth_l2_netdev_ops = {
 	.ndo_vlan_rx_add_vid	= qeth_l2_vlan_rx_add_vid,
 	.ndo_vlan_rx_kill_vid   = qeth_l2_vlan_rx_kill_vid,
 	.ndo_tx_timeout	   	= qeth_tx_timeout,
-	.ndo_fix_features	= qeth_l2_fix_features,
-	.ndo_set_features	= qeth_l2_set_features
+	.ndo_fix_features	= qeth_fix_features,
+	.ndo_set_features	= qeth_set_features
 };
 
 static int qeth_l2_setup_netdev(struct qeth_card *card)
@@ -1144,10 +1112,14 @@ static int qeth_l2_setup_netdev(struct qeth_card *card)
 		&qeth_l2_ethtool_ops : &qeth_l2_osn_ops;
 	card->dev->features |= NETIF_F_HW_VLAN_CTAG_FILTER;
 	if (card->info.type == QETH_CARD_TYPE_OSD && !card->info.guestlan) {
-		card->dev->hw_features = NETIF_F_IP_CSUM | NETIF_F_RXCSUM |
-					 NETIF_F_SG;
-		/* Turn on RX offloading and SG per default */
-		card->dev->features |= NETIF_F_RXCSUM | NETIF_F_SG;
+		card->dev->hw_features = NETIF_F_SG;
+		/* OSA 3S and earlier has no RX/TX support */
+		if (qeth_is_supported(card, IPA_OUTBOUND_CHECKSUM))
+			card->dev->hw_features |= NETIF_F_IP_CSUM;
+		if (qeth_is_supported(card, IPA_INBOUND_CHECKSUM))
+			card->dev->hw_features |= NETIF_F_RXCSUM;
+		/* Turn on SG per default */
+		card->dev->features |= NETIF_F_SG;
 	}
 	card->info.broadcast_capable = 1;
 	qeth_l2_request_initial_mac(card);
@@ -1165,9 +1137,6 @@ static int qeth_l2_start_ipassists(struct qeth_card *card)
 	/* configure isolation level */
 	if (qeth_set_access_ctrl_online(card, 0))
 		return -ENODEV;
-	if (qeth_is_supported(card, IPA_INBOUND_CHECKSUM))
-		qeth_set_rx_csum(card, 1);
-	qeth_start_ipa_tx_checksum(card);
 	return 0;
 }
 
@@ -1236,7 +1205,8 @@ static int __qeth_l2_set_online(struct ccwgroup_device *gdev, int recovery_mode)
 contin:
 	if ((card->info.type == QETH_CARD_TYPE_OSD) ||
 	    (card->info.type == QETH_CARD_TYPE_OSX)) {
-		if (qeth_l2_start_ipassists(card))
+		rc = qeth_l2_start_ipassists(card);
+		if (rc)
 			goto out_remove;
 	}
 
