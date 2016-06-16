@@ -3475,6 +3475,8 @@ int i915_switch_context(struct drm_i915_gem_request *req);
 void i915_gem_context_free(struct kref *ctx_ref);
 struct drm_i915_gem_object *
 i915_gem_alloc_context_obj(struct drm_device *dev, size_t size);
+struct i915_gem_context *
+i915_gem_context_create_gvt(struct drm_device *dev);
 
 static inline struct i915_gem_context *
 i915_gem_context_lookup(struct drm_i915_file_private *file_priv, u32 id)
