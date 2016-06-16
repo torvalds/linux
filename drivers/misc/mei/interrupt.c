@@ -107,8 +107,14 @@ int mei_cl_irq_read_msg(struct mei_cl *cl,
 
 	cb = list_first_entry_or_null(&cl->rd_pending, struct mei_cl_cb, list);
 	if (!cb) {
-		cl_err(dev, cl, "pending read cb not found\n");
-		goto out;
+		if (!mei_cl_is_fixed_address(cl)) {
+			cl_err(dev, cl, "pending read cb not found\n");
+			goto out;
+		}
+		cb = mei_cl_alloc_cb(cl, mei_cl_mtu(cl), MEI_FOP_READ, cl->fp);
+		if (!cb)
+			goto out;
+		list_add_tail(&cb->list, &cl->rd_pending);
 	}
 
 	if (!mei_cl_is_connected(cl)) {

@@ -1145,26 +1145,19 @@ err:
  * mei_cl_flow_ctrl_creds - checks flow_control credits for cl.
  *
  * @cl: host client
- * @fp: the file pointer associated with the pointer
  *
  * Return: 1 if mei_flow_ctrl_creds >0, 0 - otherwise.
  */
-static int mei_cl_flow_ctrl_creds(struct mei_cl *cl, const struct file *fp)
+static int mei_cl_flow_ctrl_creds(struct mei_cl *cl)
 {
-	int rets;
-
 	if (WARN_ON(!cl || !cl->me_cl))
 		return -EINVAL;
 
 	if (cl->mei_flow_ctrl_creds > 0)
 		return 1;
 
-	if (mei_cl_is_fixed_address(cl)) {
-		rets = mei_cl_read_start(cl, mei_cl_mtu(cl), fp);
-		if (rets && rets != -EBUSY)
-			return rets;
+	if (mei_cl_is_fixed_address(cl))
 		return 1;
-	}
 
 	if (mei_cl_is_single_recv_buf(cl)) {
 		if (cl->me_cl->mei_flow_ctrl_creds > 0)
@@ -1537,7 +1530,7 @@ int mei_cl_irq_write(struct mei_cl *cl, struct mei_cl_cb *cb,
 
 	first_chunk = cb->buf_idx == 0;
 
-	rets = first_chunk ? mei_cl_flow_ctrl_creds(cl, cb->fp) : 1;
+	rets = first_chunk ? mei_cl_flow_ctrl_creds(cl) : 1;
 	if (rets < 0)
 		return rets;
 
@@ -1643,7 +1636,7 @@ int mei_cl_write(struct mei_cl *cl, struct mei_cl_cb *cb, bool blocking)
 	mei_hdr.msg_complete = 0;
 	mei_hdr.internal = cb->internal;
 
-	rets = mei_cl_flow_ctrl_creds(cl, cb->fp);
+	rets = mei_cl_flow_ctrl_creds(cl);
 	if (rets < 0)
 		goto err;
 
