@@ -426,6 +426,37 @@ vlv_power_sequencer_pipe(struct intel_dp *intel_dp)
 	return intel_dp->pps_pipe;
 }
 
+static int
+bxt_power_sequencer_idx(struct intel_dp *intel_dp)
+{
+	struct intel_digital_port *intel_dig_port = dp_to_dig_port(intel_dp);
+	struct drm_device *dev = intel_dig_port->base.base.dev;
+	struct drm_i915_private *dev_priv = dev->dev_private;
+
+	lockdep_assert_held(&dev_priv->pps_mutex);
+
+	/* We should never land here with regular DP ports */
+	WARN_ON(!is_edp(intel_dp));
+
+	/*
+	 * TODO: BXT has 2 PPS instances. The correct port->PPS instance
+	 * mapping needs to be retrieved from VBT, for now just hard-code to
+	 * use instance #0 always.
+	 */
+	if (!intel_dp->pps_reset)
+		return 0;
+
+	intel_dp->pps_reset = false;
+
+	/*
+	 * Only the HW needs to be reprogrammed, the SW state is fixed and
+	 * has been setup during connector init.
+	 */
+	intel_dp_init_panel_power_sequencer_registers(dev, intel_dp);
+
+	return 0;
+}
+
 typedef bool (*vlv_pipe_check)(struct drm_i915_private *dev_priv,
 			       enum pipe pipe);
 
@@ -507,12 +538,13 @@ vlv_initial_power_sequencer_setup(struct intel_dp *intel_dp)
 	intel_dp_init_panel_power_sequencer_registers(dev, intel_dp);
 }
 
-void vlv_power_sequencer_reset(struct drm_i915_private *dev_priv)
+void intel_power_sequencer_reset(struct drm_i915_private *dev_priv)
 {
 	struct drm_device *dev = dev_priv->dev;
 	struct intel_encoder *encoder;
 
-	if (WARN_ON(!IS_VALLEYVIEW(dev) && !IS_CHERRYVIEW(dev)))
+	if (WARN_ON(!IS_VALLEYVIEW(dev) && !IS_CHERRYVIEW(dev) &&
+		    !IS_BROXTON(dev)))
 		return;
 
 	/*
@@ -532,7 +564,10 @@ void vlv_power_sequencer_reset(struct drm_i915_private *dev_priv)
 			continue;
 
 		intel_dp = enc_to_intel_dp(&encoder->base);
-		intel_dp->pps_pipe = INVALID_PIPE;
+		if (IS_BROXTON(dev))
+			intel_dp->pps_reset = true;
+		else
+			intel_dp->pps_pipe = INVALID_PIPE;
 	}
 }
 
@@ -542,7 +577,7 @@ _pp_ctrl_reg(struct intel_dp *intel_dp)
 	struct drm_device *dev = intel_dp_to_dev(intel_dp);
 
 	if (IS_BROXTON(dev))
-		return BXT_PP_CONTROL(0);
+		return BXT_PP_CONTROL(bxt_power_sequencer_idx(intel_dp));
 	else if (HAS_PCH_SPLIT(dev))
 		return PCH_PP_CONTROL;
 	else
@@ -555,7 +590,7 @@ _pp_stat_reg(struct intel_dp *intel_dp)
 	struct drm_device *dev = intel_dp_to_dev(intel_dp);
 
 	if (IS_BROXTON(dev))
-		return BXT_PP_STATUS(0);
+		return BXT_PP_STATUS(bxt_power_sequencer_idx(intel_dp));
 	else if (HAS_PCH_SPLIT(dev))
 		return PCH_PP_STATUS;
 	else
@@ -4719,14 +4754,11 @@ intel_dp_init_panel_power_sequencer(struct drm_device *dev,
 		return;
 
 	if (IS_BROXTON(dev)) {
-		/*
-		 * TODO: BXT has 2 sets of PPS registers.
-		 * Correct Register for Broxton need to be identified
-		 * using VBT. hardcoding for now
-		 */
-		pp_ctrl_reg = BXT_PP_CONTROL(0);
-		pp_on_reg = BXT_PP_ON_DELAYS(0);
-		pp_off_reg = BXT_PP_OFF_DELAYS(0);
+		int idx = bxt_power_sequencer_idx(intel_dp);
+
+		pp_ctrl_reg = BXT_PP_CONTROL(idx);
+		pp_on_reg = BXT_PP_ON_DELAYS(idx);
+		pp_off_reg = BXT_PP_OFF_DELAYS(idx);
 	} else if (HAS_PCH_SPLIT(dev)) {
 		pp_ctrl_reg = PCH_PP_CONTROL;
 		pp_on_reg = PCH_PP_ON_DELAYS;
@@ -4839,14 +4871,11 @@ intel_dp_init_panel_power_sequencer_registers(struct drm_device *dev,
 	lockdep_assert_held(&dev_priv->pps_mutex);
 
 	if (IS_BROXTON(dev)) {
-		/*
-		 * TODO: BXT has 2 sets of PPS registers.
-		 * Correct Register for Broxton need to be identified
-		 * using VBT. hardcoding for now
-		 */
-		pp_ctrl_reg = BXT_PP_CONTROL(0);
-		pp_on_reg = BXT_PP_ON_DELAYS(0);
-		pp_off_reg = BXT_PP_OFF_DELAYS(0);
+		int idx = bxt_power_sequencer_idx(intel_dp);
+
+		pp_ctrl_reg = BXT_PP_CONTROL(idx);
+		pp_on_reg = BXT_PP_ON_DELAYS(idx);
+		pp_off_reg = BXT_PP_OFF_DELAYS(idx);
 
 	} else if (HAS_PCH_SPLIT(dev)) {
 		pp_on_reg = PCH_PP_ON_DELAYS;

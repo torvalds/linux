@@ -578,6 +578,7 @@ void bxt_enable_dc9(struct drm_i915_private *dev_priv)
 
 	DRM_DEBUG_KMS("Enabling DC9\n");
 
+	intel_power_sequencer_reset(dev_priv);
 	gen9_set_dc_state(dev_priv, DC_STATE_EN_DC9);
 }
 
@@ -1112,7 +1113,7 @@ static void vlv_display_power_well_deinit(struct drm_i915_private *dev_priv)
 	/* make sure we're done processing display irqs */
 	synchronize_irq(dev_priv->dev->irq);
 
-	vlv_power_sequencer_reset(dev_priv);
+	intel_power_sequencer_reset(dev_priv);
 }
 
 static void vlv_display_power_well_enable(struct drm_i915_private *dev_priv,
