@@ -62,11 +62,8 @@ static int rvin_mbus_supported(struct rvin_dev *vin)
 
 static int rvin_graph_notify_complete(struct v4l2_async_notifier *notifier)
 {
-	struct v4l2_subdev *sd;
 	struct rvin_dev *vin = notifier_to_vin(notifier);
 	int ret;
-
-	sd = vin_to_source(vin);
 
 	ret = v4l2_device_register_subdev_nodes(&vin->v4l2_dev);
 	if (ret < 0) {
