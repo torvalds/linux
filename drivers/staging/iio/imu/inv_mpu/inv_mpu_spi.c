@@ -43,6 +43,7 @@ static int inv_spi_read(struct inv_mpu_iio_s *st, u8 reg, int len, u8 *data)
 	struct spi_message msg;
 	int res;
 	u8 d[2];
+	struct spi_device *spi = to_spi_device(st->dev);
 	struct spi_transfer xfers[] = {
 		{
 			.tx_buf = d,
@@ -61,10 +62,15 @@ static int inv_spi_read(struct inv_mpu_iio_s *st, u8 reg, int len, u8 *data)
 
 	d[0] = (reg | INV_SPI_READ);
 
+	if ((reg == REG_FIFO_R_W) || (reg == FIFO_COUNT_BYTE))
+		spi->max_speed_hz = 20000000;
+	else
+		spi->max_speed_hz = 1000000;
+
 	spi_message_init(&msg);
 	spi_message_add_tail(&xfers[0], &msg);
 	spi_message_add_tail(&xfers[1], &msg);
-	res = spi_sync(to_spi_device(st->dev), &msg);
+	res = spi_sync(spi, &msg);
 
 	return res;
 }
@@ -74,6 +80,7 @@ static int inv_spi_single_write(struct inv_mpu_iio_s *st, u8 reg, u8 data)
 	struct spi_message msg;
 	int res;
 	u8 d[2];
+	struct spi_device *spi = to_spi_device(st->dev);
 	struct spi_transfer xfers = {
 		.tx_buf = d,
 		.bits_per_word = 8,
@@ -82,6 +89,7 @@ static int inv_spi_single_write(struct inv_mpu_iio_s *st, u8 reg, u8 data)
 
 	d[0] = reg;
 	d[1] = data;
+	spi->max_speed_hz = 1000000;
 	spi_message_init(&msg);
 	spi_message_add_tail(&xfers, &msg);
 	res = spi_sync(to_spi_device(st->dev), &msg);
