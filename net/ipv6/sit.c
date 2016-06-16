@@ -560,13 +560,13 @@ static int ipip6_err(struct sk_buff *skb, u32 info)
 
 	if (type == ICMP_DEST_UNREACH && code == ICMP_FRAG_NEEDED) {
 		ipv4_update_pmtu(skb, dev_net(skb->dev), info,
-				 t->parms.link, 0, IPPROTO_IPV6, 0);
+				 t->parms.link, 0, iph->protocol, 0);
 		err = 0;
 		goto out;
 	}
 	if (type == ICMP_REDIRECT) {
 		ipv4_redirect(skb, dev_net(skb->dev), t->parms.link, 0,
-			      IPPROTO_IPV6, 0);
+			      iph->protocol, 0);
 		err = 0;
 		goto out;
 	}
