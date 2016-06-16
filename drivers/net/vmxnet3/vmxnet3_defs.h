@@ -81,6 +81,7 @@ enum {
 	VMXNET3_CMD_RESERVED2,
 	VMXNET3_CMD_RESERVED3,
 	VMXNET3_CMD_SET_COALESCE,
+	VMXNET3_CMD_REGISTER_MEMREGS,
 
 	VMXNET3_CMD_FIRST_GET = 0xF00D0000,
 	VMXNET3_CMD_GET_QUEUE_STATUS = VMXNET3_CMD_FIRST_GET,
@@ -666,6 +667,22 @@ struct Vmxnet3_CoalesceScheme {
 		struct Vmxnet3_CoalesceRbc	coalRbc;
 		struct Vmxnet3_CoalesceStatic	coalStatic;
 	} coalPara;
+};
+
+struct Vmxnet3_MemoryRegion {
+	__le64					startPA;
+	__le32					length;
+	__le16					txQueueBits;
+	__le16					rxQueueBits;
+};
+
+#define MAX_MEMORY_REGION_PER_QUEUE 16
+#define MAX_MEMORY_REGION_PER_DEVICE 256
+
+struct Vmxnet3_MemRegs {
+	__le16					numRegs;
+	__le16					pad[3];
+	struct Vmxnet3_MemoryRegion		memRegs[1];
 };
 
 /* If the command data <= 16 bytes, use the shared memory directly.
