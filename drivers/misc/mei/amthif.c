@@ -204,7 +204,7 @@ static int mei_amthif_read_start(struct mei_cl *cl, const struct file *file)
 	list_add_tail(&cb->list, &dev->ctrl_wr_list.list);
 
 	dev->iamthif_state = MEI_IAMTHIF_READING;
-	dev->iamthif_fp = cb->fp;
+	cl->fp = cb->fp;
 
 	return 0;
 }
@@ -230,13 +230,13 @@ int mei_amthif_run_next_cmd(struct mei_device *dev)
 					typeof(*cb), list);
 	if (!cb) {
 		dev->iamthif_state = MEI_IAMTHIF_IDLE;
-		dev->iamthif_fp = NULL;
+		cl->fp = NULL;
 		return 0;
 	}
 
 	list_del_init(&cb->list);
 	dev->iamthif_state = MEI_IAMTHIF_WRITING;
-	dev->iamthif_fp = cb->fp;
+	cl->fp = cb->fp;
 
 	ret = mei_cl_write(cl, cb, false);
 	if (ret < 0)
@@ -375,7 +375,7 @@ void mei_amthif_complete(struct mei_cl *cl, struct mei_cl_cb *cb)
 			return;
 		}
 		dev->iamthif_state = MEI_IAMTHIF_IDLE;
-		dev->iamthif_fp = NULL;
+		cl->fp = NULL;
 		if (!dev->iamthif_canceled) {
 			/*
 			 * in case of error enqueue the write cb to complete
@@ -453,11 +453,12 @@ static void mei_clear_lists(struct mei_device *dev, const struct file *file)
 */
 int mei_amthif_release(struct mei_device *dev, struct file *file)
 {
+	struct mei_cl *cl = file->private_data;
+
 	if (dev->iamthif_open_count > 0)
 		dev->iamthif_open_count--;
 
-	if (dev->iamthif_fp == file &&
-	    dev->iamthif_state != MEI_IAMTHIF_IDLE) {
+	if (cl->fp == file && dev->iamthif_state != MEI_IAMTHIF_IDLE) {
 
 		dev_dbg(dev->dev, "amthif canceled iamthif state %d\n",
 		    dev->iamthif_state);

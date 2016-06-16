@@ -71,6 +71,7 @@ static int mei_open(struct inode *inode, struct file *file)
 		goto err_unlock;
 	}
 
+	cl->fp = file;
 	file->private_data = cl;
 
 	mutex_unlock(&dev->device_lock);

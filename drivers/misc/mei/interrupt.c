@@ -516,7 +516,6 @@ void mei_timer(struct work_struct *work)
 			dev_err(dev->dev, "timer: amthif  hanged.\n");
 			mei_reset(dev);
 
-			dev->iamthif_fp = NULL;
 			mei_amthif_run_next_cmd(dev);
 		}
 	}

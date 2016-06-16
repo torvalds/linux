@@ -200,6 +200,7 @@ struct mei_cl_cb {
  * @ev_async: event async notification
  * @status: connection status
  * @me_cl: fw client connected
+ * @fp: file associated with client
  * @host_client_id: host id
  * @mei_flow_ctrl_creds: transmit flow credentials
  * @timer_count:  watchdog timer for operation completion
@@ -223,6 +224,7 @@ struct mei_cl {
 	struct fasync_struct *ev_async;
 	int status;
 	struct mei_me_client *me_cl;
+	const struct file *fp;
 	u8 host_client_id;
 	u8 mei_flow_ctrl_creds;
 	u8 timer_count;
@@ -398,7 +400,6 @@ const char *mei_pg_state_str(enum mei_pg_state state);
  * @override_fixed_address: force allow fixed address behavior
  *
  * @amthif_cmd_list : amthif list for cmd waiting
- * @iamthif_fp : file for current amthif operation
  * @iamthif_cl  : amthif host client
  * @iamthif_open_count : number of opened amthif connections
  * @iamthif_stall_timer : timer to detect amthif hang
@@ -481,8 +482,6 @@ struct mei_device {
 
 	/* amthif list for cmd waiting */
 	struct mei_cl_cb amthif_cmd_list;
-	/* driver managed amthif list for reading completed amthif cmd data */
-	const struct file *iamthif_fp;
 	struct mei_cl iamthif_cl;
 	long iamthif_open_count;
 	u32 iamthif_stall_timer;
