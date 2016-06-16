@@ -1140,8 +1140,8 @@ static int qeth_l2_setup_netdev(struct qeth_card *card)
 	if (card->info.type == QETH_CARD_TYPE_OSD && !card->info.guestlan) {
 		card->dev->hw_features = NETIF_F_IP_CSUM | NETIF_F_RXCSUM |
 					 NETIF_F_SG;
-		/* Turn on RX offloading per default */
-		card->dev->features |= NETIF_F_RXCSUM;
+		/* Turn on RX offloading and SG per default */
+		card->dev->features |= NETIF_F_RXCSUM | NETIF_F_SG;
 	}
 	card->info.broadcast_capable = 1;
 	qeth_l2_request_initial_mac(card);
