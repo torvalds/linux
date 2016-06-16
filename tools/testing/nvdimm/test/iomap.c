@@ -10,11 +10,13 @@
  * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the GNU
  * General Public License for more details.
  */
+#include <linux/memremap.h>
 #include <linux/rculist.h>
 #include <linux/export.h>
 #include <linux/ioport.h>
 #include <linux/module.h>
 #include <linux/types.h>
+#include <linux/pfn_t.h>
 #include <linux/io.h>
 #include <linux/mm.h>
 #include "nfit_test.h"
@@ -98,10 +100,6 @@ void *__wrap_devm_memremap(struct device *dev, resource_size_t offset,
 }
 EXPORT_SYMBOL(__wrap_devm_memremap);
 
-#ifdef __HAVE_ARCH_PTE_DEVMAP
-#include <linux/memremap.h>
-#include <linux/pfn_t.h>
-
 void *__wrap_devm_memremap_pages(struct device *dev, struct resource *res,
 		struct percpu_ref *ref, struct vmem_altmap *altmap)
 {
@@ -123,19 +121,6 @@ pfn_t __wrap_phys_to_pfn_t(phys_addr_t addr, unsigned long flags)
         return phys_to_pfn_t(addr, flags);
 }
 EXPORT_SYMBOL(__wrap_phys_to_pfn_t);
-#else
-/* to be removed post 4.5-rc1 */
-void *__wrap_devm_memremap_pages(struct device *dev, struct resource *res)
-{
-	resource_size_t offset = res->start;
-	struct nfit_test_resource *nfit_res = get_nfit_res(offset);
-
-	if (nfit_res)
-		return nfit_res->buf + offset - nfit_res->res->start;
-	return devm_memremap_pages(dev, res);
-}
-EXPORT_SYMBOL(__wrap_devm_memremap_pages);
-#endif
 
 void *__wrap_memremap(resource_size_t offset, size_t size,
 		unsigned long flags)
