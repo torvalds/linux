@@ -246,7 +246,7 @@ static void armada_370_xp_timer_resume(void)
 	writel(timer0_local_ctrl_reg, local_base + TIMER_CTRL_OFF);
 }
 
-struct syscore_ops armada_370_xp_timer_syscore_ops = {
+static struct syscore_ops armada_370_xp_timer_syscore_ops = {
 	.suspend	= armada_370_xp_timer_suspend,
 	.resume		= armada_370_xp_timer_resume,
 };
