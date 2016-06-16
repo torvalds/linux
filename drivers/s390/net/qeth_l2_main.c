@@ -780,7 +780,7 @@ qeth_l2_add_mac(struct qeth_card *card, struct netdev_hw_addr *ha, u8 is_uc)
 			qeth_l2_mac_hash(ha->addr)) {
 		if (is_uc == mac->is_uc &&
 		    !memcmp(ha->addr, mac->mac_addr, OSA_ADDR_LEN)) {
-			mac->disp_flag = QETH_DISP_MAC_DO_NOTHING;
+			mac->disp_flag = QETH_DISP_ADDR_DO_NOTHING;
 			return;
 		}
 	}
@@ -792,7 +792,7 @@ qeth_l2_add_mac(struct qeth_card *card, struct netdev_hw_addr *ha, u8 is_uc)
 
 	memcpy(mac->mac_addr, ha->addr, OSA_ADDR_LEN);
 	mac->is_uc = is_uc;
-	mac->disp_flag = QETH_DISP_MAC_ADD;
+	mac->disp_flag = QETH_DISP_ADDR_ADD;
 
 	hash_add(card->mac_htable, &mac->hnode,
 			qeth_l2_mac_hash(mac->mac_addr));
@@ -825,7 +825,7 @@ static void qeth_l2_set_rx_mode(struct net_device *dev)
 		qeth_l2_add_mac(card, ha, 1);
 
 	hash_for_each_safe(card->mac_htable, i, tmp, mac, hnode) {
-		if (mac->disp_flag == QETH_DISP_MAC_DELETE) {
+		if (mac->disp_flag == QETH_DISP_ADDR_DELETE) {
 			if (!mac->is_uc)
 				rc = qeth_l2_send_delgroupmac(card,
 						mac->mac_addr);
@@ -837,15 +837,15 @@ static void qeth_l2_set_rx_mode(struct net_device *dev)
 			hash_del(&mac->hnode);
 			kfree(mac);
 
-		} else if (mac->disp_flag == QETH_DISP_MAC_ADD) {
+		} else if (mac->disp_flag == QETH_DISP_ADDR_ADD) {
 			rc = qeth_l2_write_mac(card, mac);
 			if (rc) {
 				hash_del(&mac->hnode);
 				kfree(mac);
 			} else
-				mac->disp_flag = QETH_DISP_MAC_DELETE;
+				mac->disp_flag = QETH_DISP_ADDR_DELETE;
 		} else
-			mac->disp_flag = QETH_DISP_MAC_DELETE;
+			mac->disp_flag = QETH_DISP_ADDR_DELETE;
 	}
 
 	spin_unlock_bh(&card->mclock);

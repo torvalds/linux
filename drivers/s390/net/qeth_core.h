@@ -561,7 +561,6 @@ enum qeth_ip_types {
 	QETH_IP_TYPE_NORMAL,
 	QETH_IP_TYPE_VIPA,
 	QETH_IP_TYPE_RXIP,
-	QETH_IP_TYPE_DEL_ALL_MC,
 };
 
 enum qeth_cmd_buffer_state {
@@ -742,17 +741,10 @@ struct qeth_vlan_vid {
 	unsigned short vid;
 };
 
-enum qeth_mac_disposition {
-	QETH_DISP_MAC_DELETE = 0,
-	QETH_DISP_MAC_DO_NOTHING = 1,
-	QETH_DISP_MAC_ADD = 2,
-};
-
-struct qeth_mac {
-	u8 mac_addr[OSA_ADDR_LEN];
-	u8 is_uc:1;
-	u8 disp_flag:2;
-	struct hlist_node hnode;
+enum qeth_addr_disposition {
+	QETH_DISP_ADDR_DELETE = 0,
+	QETH_DISP_ADDR_DO_NOTHING = 1,
+	QETH_DISP_ADDR_ADD = 2,
 };
 
 struct qeth_rx {
@@ -800,6 +792,8 @@ struct qeth_card {
 	unsigned long active_vlans[BITS_TO_LONGS(VLAN_N_VID)];
 	struct list_head vid_list;
 	DECLARE_HASHTABLE(mac_htable, 4);
+	DECLARE_HASHTABLE(ip_htable, 4);
+	DECLARE_HASHTABLE(ip_mc_htable, 4);
 	struct work_struct kernel_thread_starter;
 	spinlock_t thread_mask_lock;
 	unsigned long thread_start_mask;
@@ -807,8 +801,6 @@ struct qeth_card {
 	unsigned long thread_running_mask;
 	struct task_struct *recovery_task;
 	spinlock_t ip_lock;
-	struct list_head ip_list;
-	struct list_head *ip_tbd_list;
 	struct qeth_ipato ipato;
 	struct list_head cmd_waiter_list;
 	/* QDIO buffer handling */
