@@ -757,6 +757,9 @@ static void imx_ldb_unbind(struct device *dev, struct device *master,
 	for (i = 0; i < 2; i++) {
 		struct imx_ldb_channel *channel = &imx_ldb->channel[i];
 
+		if (channel->panel)
+			drm_panel_detach(channel->panel);
+
 		kfree(channel->edid);
 		i2c_put_adapter(channel->ddc);
 	}
