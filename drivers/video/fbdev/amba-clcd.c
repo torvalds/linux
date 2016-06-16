@@ -36,6 +36,7 @@
 #include <video/videomode.h>
 
 #include "amba-clcd-nomadik.h"
+#include "amba-clcd-versatile.h"
 
 #define to_clcd(info)	container_of(info, struct clcd_fb, fb)
 
@@ -1036,7 +1037,8 @@ static int clcdfb_remove(struct amba_device *dev)
 }
 
 static struct clcd_vendor_data vendor_arm = {
-	/* No special business */
+	/* Sets up the versatile board displays */
+	.init_panel = versatile_clcd_init_panel,
 };
 
 static struct clcd_vendor_data vendor_nomadik = {
