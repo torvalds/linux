@@ -1373,8 +1373,12 @@ done:
 #define VALIDATE_DESC(desc) do { \
 	if (!desc) \
 		return 0; \
+	if (IS_ERR(desc)) {						\
+		pr_warn("%s: invalid GPIO (errorpointer)\n", __func__); \
+		return PTR_ERR(desc); \
+	} \
 	if (!desc->gdev) { \
-		pr_warn("%s: invalid GPIO\n", __func__); \
+		pr_warn("%s: invalid GPIO (no device)\n", __func__); \
 		return -EINVAL; \
 	} \
 	if ( !desc->gdev->chip ) { \
@@ -1386,8 +1390,12 @@ done:
 #define VALIDATE_DESC_VOID(desc) do { \
 	if (!desc) \
 		return; \
+	if (IS_ERR(desc)) {						\
+		pr_warn("%s: invalid GPIO (errorpointer)\n", __func__); \
+		return; \
+	} \
 	if (!desc->gdev) { \
-		pr_warn("%s: invalid GPIO\n", __func__); \
+		pr_warn("%s: invalid GPIO (no device)\n", __func__); \
 		return; \
 	} \
 	if (!desc->gdev->chip) { \
@@ -2061,7 +2069,7 @@ int gpiod_to_irq(const struct gpio_desc *desc)
 	 * requires this function to not return zero on an invalid descriptor
 	 * but rather a negative error number.
 	 */
-	if (!desc || !desc->gdev || !desc->gdev->chip)
+	if (!desc || IS_ERR(desc) || !desc->gdev || !desc->gdev->chip)
 		return -EINVAL;
 
 	chip = desc->gdev->chip;
