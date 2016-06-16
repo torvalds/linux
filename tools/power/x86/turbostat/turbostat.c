@@ -2663,6 +2663,9 @@ void rapl_probe(unsigned int family, unsigned int model)
 	case 0x4D:	/* AVN */
 		do_rapl = RAPL_PKG | RAPL_CORES;
 		break;
+	case 0x5f:	/* DNV */
+		do_rapl = RAPL_PKG | RAPL_DRAM | RAPL_DRAM_POWER_INFO | RAPL_DRAM_PERF_STATUS | RAPL_PKG_PERF_STATUS | RAPL_PKG_POWER_INFO | RAPL_CORES_ENERGY_STATUS;
+		break;
 	default:
 		return;
 	}
