@@ -15,10 +15,9 @@
 #define _CPPC_ACPI_H
 
 #include <linux/acpi.h>
-#include <linux/mailbox_controller.h>
-#include <linux/mailbox_client.h>
 #include <linux/types.h>
 
+#include <acpi/pcc.h>
 #include <acpi/processor.h>
 
 /* Only support CPPCv2 for now. */
@@ -129,9 +128,5 @@ extern int cppc_get_perf_ctrs(int cpu, struct cppc_perf_fb_ctrs *perf_fb_ctrs);
 extern int cppc_set_perf(int cpu, struct cppc_perf_ctrls *perf_ctrls);
 extern int cppc_get_perf_caps(int cpu, struct cppc_perf_caps *caps);
 extern int acpi_get_psd_map(struct cpudata **);
-
-/* Methods to interact with the PCC mailbox controller. */
-extern struct mbox_chan *
-	pcc_mbox_request_channel(struct mbox_client *, unsigned int);
 
 #endif /* _CPPC_ACPI_H*/
