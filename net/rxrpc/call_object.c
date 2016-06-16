@@ -334,7 +334,7 @@ static struct rxrpc_call *rxrpc_alloc_client_call(
 	rxrpc_call_hash_add(call);
 
 	spin_lock(&call->conn->trans->peer->lock);
-	list_add(&call->error_link, &call->conn->trans->peer->error_targets);
+	hlist_add_head(&call->error_link, &call->conn->trans->peer->error_targets);
 	spin_unlock(&call->conn->trans->peer->lock);
 
 	call->lifetimer.expires = jiffies + rxrpc_max_call_lifetime;
@@ -516,7 +516,7 @@ struct rxrpc_call *rxrpc_incoming_call(struct rxrpc_sock *rx,
 	write_unlock_bh(&conn->lock);
 
 	spin_lock(&conn->trans->peer->lock);
-	list_add(&call->error_link, &conn->trans->peer->error_targets);
+	hlist_add_head(&call->error_link, &conn->trans->peer->error_targets);
 	spin_unlock(&conn->trans->peer->lock);
 
 	write_lock_bh(&rxrpc_call_lock);
@@ -812,7 +812,7 @@ static void rxrpc_cleanup_call(struct rxrpc_call *call)
 
 	if (call->conn) {
 		spin_lock(&call->conn->trans->peer->lock);
-		list_del(&call->error_link);
+		hlist_del_init(&call->error_link);
 		spin_unlock(&call->conn->trans->peer->lock);
 
 		write_lock_bh(&call->conn->lock);

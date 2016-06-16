@@ -102,6 +102,8 @@ static int rxrpc_validate_address(struct rxrpc_sock *rx,
 
 	switch (srx->transport.family) {
 	case AF_INET:
+		if (srx->transport_len < sizeof(struct sockaddr_in))
+			return -EINVAL;
 		_debug("INET: %x @ %pI4",
 		       ntohs(srx->transport.sin.sin_port),
 		       &srx->transport.sin.sin_addr);
@@ -244,7 +246,7 @@ struct rxrpc_transport *rxrpc_name_to_transport(struct rxrpc_sock *rx,
 		return ERR_PTR(-EAFNOSUPPORT);
 
 	/* find a remote transport endpoint from the local one */
-	peer = rxrpc_get_peer(srx, gfp);
+	peer = rxrpc_lookup_peer(rx->local, srx, gfp);
 	if (IS_ERR(peer))
 		return ERR_CAST(peer);
 
@@ -835,13 +837,27 @@ static void __exit af_rxrpc_exit(void)
 	rxrpc_destroy_all_calls();
 	rxrpc_destroy_all_connections();
 	rxrpc_destroy_all_transports();
-	rxrpc_destroy_all_peers();
-	rxrpc_destroy_all_locals();
 
 	ASSERTCMP(atomic_read(&rxrpc_n_skbs), ==, 0);
 
+	/* We need to flush the scheduled work twice because the local endpoint
+	 * records involve a work item in their destruction as they can only be
+	 * destroyed from process context.  However, a connection may have a
+	 * work item outstanding - and this will pin the local endpoint record
+	 * until the connection goes away.
+	 *
+	 * Peers don't pin locals and calls pin sockets - which prevents the
+	 * module from being unloaded - so we should only need two flushes.
+	 */
 	_debug("flush scheduled work");
 	flush_workqueue(rxrpc_workqueue);
+	_debug("flush scheduled work 2");
+	flush_workqueue(rxrpc_workqueue);
+	_debug("synchronise RCU");
+	rcu_barrier();
+	_debug("destroy locals");
+	rxrpc_destroy_all_locals();
+
 	remove_proc_entry("rxrpc_conns", init_net.proc_net);
 	remove_proc_entry("rxrpc_calls", init_net.proc_net);
 	destroy_workqueue(rxrpc_workqueue);

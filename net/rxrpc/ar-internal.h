@@ -9,7 +9,9 @@
  * 2 of the License, or (at your option) any later version.
  */
 
+#include <linux/atomic.h>
 #include <net/sock.h>
+#include <net/af_rxrpc.h>
 #include <rxrpc/packet.h>
 
 #if 0
@@ -168,46 +170,49 @@ struct rxrpc_security {
 };
 
 /*
- * RxRPC local transport endpoint definition
- * - matched by local port, address and protocol type
+ * RxRPC local transport endpoint description
+ * - owned by a single AF_RXRPC socket
+ * - pointed to by transport socket struct sk_user_data
  */
 struct rxrpc_local {
+	struct rcu_head		rcu;
+	atomic_t		usage;
+	struct list_head	link;
 	struct socket		*socket;	/* my UDP socket */
-	struct work_struct	destroyer;	/* endpoint destroyer */
-	struct work_struct	acceptor;	/* incoming call processor */
-	struct work_struct	rejecter;	/* packet reject writer */
-	struct work_struct	event_processor; /* endpoint event processor */
+	struct work_struct	processor;
 	struct list_head	services;	/* services listening on this endpoint */
-	struct list_head	link;		/* link in endpoint list */
 	struct rw_semaphore	defrag_sem;	/* control re-enablement of IP DF bit */
 	struct sk_buff_head	accept_queue;	/* incoming calls awaiting acceptance */
 	struct sk_buff_head	reject_queue;	/* packets awaiting rejection */
 	struct sk_buff_head	event_queue;	/* endpoint event packets awaiting processing */
+	struct mutex		conn_lock;	/* Client connection creation lock */
 	spinlock_t		lock;		/* access lock */
 	rwlock_t		services_lock;	/* lock for services list */
-	atomic_t		usage;
 	int			debug_id;	/* debug ID for printks */
-	volatile char		error_rcvd;	/* T if received ICMP error outstanding */
+	bool			dead;
 	struct sockaddr_rxrpc	srx;		/* local address */
 };
 
 /*
  * RxRPC remote transport endpoint definition
- * - matched by remote port, address and protocol type
- * - holds the connection ID counter for connections between the two endpoints
+ * - matched by local endpoint, remote port, address and protocol type
  */
 struct rxrpc_peer {
-	struct work_struct	destroyer;	/* peer destroyer */
-	struct list_head	link;		/* link in master peer list */
-	struct list_head	error_targets;	/* targets for net error distribution */
-	spinlock_t		lock;		/* access lock */
+	struct rcu_head		rcu;		/* This must be first */
 	atomic_t		usage;
+	unsigned long		hash_key;
+	struct hlist_node	hash_link;
+	struct rxrpc_local	*local;
+	struct hlist_head	error_targets;	/* targets for net error distribution */
+	struct work_struct	error_distributor;
+	spinlock_t		lock;		/* access lock */
 	unsigned int		if_mtu;		/* interface MTU for this peer */
 	unsigned int		mtu;		/* network MTU for this peer */
 	unsigned int		maxdata;	/* data size (MTU - hdrsize) */
 	unsigned short		hdrsize;	/* header size (IP + UDP + RxRPC) */
 	int			debug_id;	/* debug ID for printks */
-	int			net_error;	/* network error distributed */
+	int			error_report;	/* Net (+0) or local (+1000000) to distribute */
+#define RXRPC_LOCAL_ERROR_OFFSET 1000000
 	struct sockaddr_rxrpc	srx;		/* remote address */
 
 	/* calculated RTT cache */
@@ -226,12 +231,10 @@ struct rxrpc_peer {
 struct rxrpc_transport {
 	struct rxrpc_local	*local;		/* local transport endpoint */
 	struct rxrpc_peer	*peer;		/* remote transport endpoint */
-	struct work_struct	error_handler;	/* network error distributor */
 	struct rb_root		bundles;	/* client connection bundles on this transport */
 	struct rb_root		client_conns;	/* client connections on this transport */
 	struct rb_root		server_conns;	/* server connections on this transport */
 	struct list_head	link;		/* link in master session list */
-	struct sk_buff_head	error_queue;	/* error packets awaiting processing */
 	unsigned long		put_time;	/* time at which to reap */
 	spinlock_t		client_lock;	/* client connection allocation lock */
 	rwlock_t		conn_lock;	/* lock for active/dead connections */
@@ -390,7 +393,7 @@ struct rxrpc_call {
 	struct work_struct	destroyer;	/* call destroyer */
 	struct work_struct	processor;	/* packet processor and ACK generator */
 	struct list_head	link;		/* link in master call list */
-	struct list_head	error_link;	/* link in error distribution list */
+	struct hlist_node	error_link;	/* link in error distribution list */
 	struct list_head	accept_link;	/* calls awaiting acceptance */
 	struct rb_node		sock_node;	/* node in socket call tree */
 	struct rb_node		conn_node;	/* node in connection call tree */
@@ -408,7 +411,8 @@ struct rxrpc_call {
 	atomic_t		sequence;	/* Tx data packet sequence counter */
 	u32			local_abort;	/* local abort code */
 	u32			remote_abort;	/* remote abort code */
-	int			error;		/* local error incurred */
+	int			error_report;	/* Network error (ICMP/local transport) */
+	int			error;		/* Local error incurred */
 	enum rxrpc_call_state	state : 8;	/* current state of call */
 	int			debug_id;	/* debug ID for printks */
 	u8			channel;	/* connection channel occupied by this call */
@@ -484,7 +488,7 @@ extern struct rxrpc_transport *rxrpc_name_to_transport(struct rxrpc_sock *,
 /*
  * call_accept.c
  */
-void rxrpc_accept_incoming_calls(struct work_struct *);
+void rxrpc_accept_incoming_calls(struct rxrpc_local *);
 struct rxrpc_call *rxrpc_accept_call(struct rxrpc_sock *, unsigned long);
 int rxrpc_reject_call(struct rxrpc_sock *);
 
@@ -524,7 +528,7 @@ void __exit rxrpc_destroy_all_calls(void);
  */
 void rxrpc_process_connection(struct work_struct *);
 void rxrpc_reject_packet(struct rxrpc_local *, struct sk_buff *);
-void rxrpc_reject_packets(struct work_struct *);
+void rxrpc_reject_packets(struct rxrpc_local *);
 
 /*
  * conn_object.c
@@ -570,13 +574,33 @@ int rxrpc_get_server_data_key(struct rxrpc_connection *, const void *, time_t,
 			      u32);
 
 /*
+ * local_event.c
+ */
+extern void rxrpc_process_local_events(struct rxrpc_local *);
+
+/*
  * local_object.c
  */
-extern rwlock_t rxrpc_local_lock;
-
-struct rxrpc_local *rxrpc_lookup_local(struct sockaddr_rxrpc *);
-void rxrpc_put_local(struct rxrpc_local *);
+struct rxrpc_local *rxrpc_lookup_local(const struct sockaddr_rxrpc *);
+void __rxrpc_put_local(struct rxrpc_local *);
 void __exit rxrpc_destroy_all_locals(void);
+
+static inline void rxrpc_get_local(struct rxrpc_local *local)
+{
+	atomic_inc(&local->usage);
+}
+
+static inline
+struct rxrpc_local *rxrpc_get_local_maybe(struct rxrpc_local *local)
+{
+	return atomic_inc_not_zero(&local->usage) ? local : NULL;
+}
+
+static inline void rxrpc_put_local(struct rxrpc_local *local)
+{
+	if (atomic_dec_and_test(&local->usage))
+		__rxrpc_put_local(local);
+}
 
 /*
  * misc.c
@@ -603,18 +627,37 @@ int rxrpc_send_packet(struct rxrpc_transport *, struct sk_buff *);
 int rxrpc_do_sendmsg(struct rxrpc_sock *, struct msghdr *, size_t);
 
 /*
- * peer_error.c
+ * peer_event.c
  */
-void rxrpc_UDP_error_report(struct sock *);
-void rxrpc_UDP_error_handler(struct work_struct *);
+void rxrpc_error_report(struct sock *);
+void rxrpc_peer_error_distributor(struct work_struct *);
 
 /*
  * peer_object.c
  */
-struct rxrpc_peer *rxrpc_get_peer(struct sockaddr_rxrpc *, gfp_t);
-void rxrpc_put_peer(struct rxrpc_peer *);
-struct rxrpc_peer *rxrpc_find_peer(struct rxrpc_local *, __be32, __be16);
-void __exit rxrpc_destroy_all_peers(void);
+struct rxrpc_peer *rxrpc_lookup_peer_rcu(struct rxrpc_local *,
+					 const struct sockaddr_rxrpc *);
+struct rxrpc_peer *rxrpc_lookup_peer(struct rxrpc_local *,
+				     struct sockaddr_rxrpc *, gfp_t);
+struct rxrpc_peer *rxrpc_alloc_peer(struct rxrpc_local *, gfp_t);
+
+static inline void rxrpc_get_peer(struct rxrpc_peer *peer)
+{
+	atomic_inc(&peer->usage);
+}
+
+static inline
+struct rxrpc_peer *rxrpc_get_peer_maybe(struct rxrpc_peer *peer)
+{
+	return atomic_inc_not_zero(&peer->usage) ? peer : NULL;
+}
+
+extern void __rxrpc_put_peer(struct rxrpc_peer *peer);
+static inline void rxrpc_put_peer(struct rxrpc_peer *peer)
+{
+	if (atomic_dec_and_test(&peer->usage))
+		__rxrpc_put_peer(peer);
+}
 
 /*
  * proc.c
@@ -671,6 +714,12 @@ void rxrpc_put_transport(struct rxrpc_transport *);
 void __exit rxrpc_destroy_all_transports(void);
 struct rxrpc_transport *rxrpc_find_transport(struct rxrpc_local *,
 					     struct rxrpc_peer *);
+
+/*
+ * utils.c
+ */
+void rxrpc_get_addr_from_skb(struct rxrpc_local *, const struct sk_buff *,
+			     struct sockaddr_rxrpc *);
 
 /*
  * debug tracing
@@ -840,15 +889,6 @@ static inline void rxrpc_purge_queue(struct sk_buff_head *list)
 	while ((skb = skb_dequeue((list))) != NULL)
 		rxrpc_free_skb(skb);
 }
-
-static inline void __rxrpc_get_local(struct rxrpc_local *local, const char *f)
-{
-	CHECK_SLAB_OKAY(&local->usage);
-	if (atomic_inc_return(&local->usage) == 1)
-		printk("resurrected (%s)\n", f);
-}
-
-#define rxrpc_get_local(LOCAL) __rxrpc_get_local((LOCAL), __func__)
 
 #define rxrpc_get_call(CALL)				\
 do {							\

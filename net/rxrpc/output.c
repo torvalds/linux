@@ -707,7 +707,9 @@ out:
 call_aborted:
 	rxrpc_free_skb(skb);
 	if (call->state == RXRPC_CALL_NETWORK_ERROR)
-		ret = call->conn->trans->peer->net_error;
+		ret = call->error_report < RXRPC_LOCAL_ERROR_OFFSET ?
+			call->error_report :
+			call->error_report - RXRPC_LOCAL_ERROR_OFFSET;
 	else
 		ret = -ECONNABORTED;
 	_leave(" = %d", ret);

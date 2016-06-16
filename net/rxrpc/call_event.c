@@ -864,17 +864,24 @@ void rxrpc_process_call(struct work_struct *work)
 	}
 
 	if (test_bit(RXRPC_CALL_EV_RCVD_ERROR, &call->events)) {
+		enum rxrpc_skb_mark mark;
 		int error;
 
 		clear_bit(RXRPC_CALL_EV_CONN_ABORT, &call->events);
 		clear_bit(RXRPC_CALL_EV_REJECT_BUSY, &call->events);
 		clear_bit(RXRPC_CALL_EV_ABORT, &call->events);
 
-		error = call->conn->trans->peer->net_error;
-		_debug("post net error %d", error);
+		error = call->error_report;
+		if (error < RXRPC_LOCAL_ERROR_OFFSET) {
+			mark = RXRPC_SKB_MARK_NET_ERROR;
+			_debug("post net error %d", error);
+		} else {
+			mark = RXRPC_SKB_MARK_LOCAL_ERROR;
+			error -= RXRPC_LOCAL_ERROR_OFFSET;
+			_debug("post net local error %d", error);
+		}
 
-		if (rxrpc_post_message(call, RXRPC_SKB_MARK_NET_ERROR,
-				       error, true) < 0)
+		if (rxrpc_post_message(call, mark, error, true) < 0)
 			goto no_mem;
 		clear_bit(RXRPC_CALL_EV_RCVD_ERROR, &call->events);
 		goto kill_ACKs;
