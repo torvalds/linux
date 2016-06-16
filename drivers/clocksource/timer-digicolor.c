@@ -63,7 +63,7 @@ struct digicolor_timer {
 	int timer_id; /* one of TIMER_* */
 };
 
-struct digicolor_timer *dc_timer(struct clock_event_device *ce)
+static struct digicolor_timer *dc_timer(struct clock_event_device *ce)
 {
 	return container_of(ce, struct digicolor_timer, ce);
 }
