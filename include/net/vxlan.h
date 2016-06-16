@@ -389,11 +389,6 @@ static inline __be32 vxlan_compute_rco(unsigned int start, unsigned int offset)
 	return vni_field;
 }
 
-static inline void vxlan_get_rx_port(struct net_device *netdev)
-{
-	udp_tunnel_get_rx_info(netdev);
-}
-
 static inline unsigned short vxlan_get_sk_family(struct vxlan_sock *vs)
 {
 	return vs->sock->sk->sk_family;

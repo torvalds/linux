@@ -1026,32 +1026,6 @@ struct tc_to_netdev {
  *	not implement this, it is assumed that the hw is not able to have
  *	multiple net devices on single physical port.
  *
- * void (*ndo_add_vxlan_port)(struct  net_device *dev,
- *			      sa_family_t sa_family, __be16 port);
- *	Called by vxlan to notify a driver about the UDP port and socket
- *	address family that vxlan is listening to. It is called only when
- *	a new port starts listening. The operation is protected by the
- *	vxlan_net->sock_lock.
- *
- * void (*ndo_add_geneve_port)(struct net_device *dev,
- *			       sa_family_t sa_family, __be16 port);
- *	Called by geneve to notify a driver about the UDP port and socket
- *	address family that geneve is listnening to. It is called only when
- *	a new port starts listening. The operation is protected by the
- *	geneve_net->sock_lock.
- *
- * void (*ndo_del_geneve_port)(struct net_device *dev,
- *			       sa_family_t sa_family, __be16 port);
- *	Called by geneve to notify the driver about a UDP port and socket
- *	address family that geneve is not listening to anymore. The operation
- *	is protected by the geneve_net->sock_lock.
- *
- * void (*ndo_del_vxlan_port)(struct  net_device *dev,
- *			      sa_family_t sa_family, __be16 port);
- *	Called by vxlan to notify the driver about a UDP port and socket
- *	address family that vxlan is not listening to anymore. The operation
- *	is protected by the vxlan_net->sock_lock.
- *
  * void (*ndo_udp_tunnel_add)(struct net_device *dev,
  *			      struct udp_tunnel_info *ti);
  *	Called by UDP tunnel to notify a driver about the UDP port and socket
@@ -1272,18 +1246,6 @@ struct net_device_ops {
 							struct netdev_phys_item_id *ppid);
 	int			(*ndo_get_phys_port_name)(struct net_device *dev,
 							  char *name, size_t len);
-	void			(*ndo_add_vxlan_port)(struct  net_device *dev,
-						      sa_family_t sa_family,
-						      __be16 port);
-	void			(*ndo_del_vxlan_port)(struct  net_device *dev,
-						      sa_family_t sa_family,
-						      __be16 port);
-	void			(*ndo_add_geneve_port)(struct  net_device *dev,
-						       sa_family_t sa_family,
-						       __be16 port);
-	void			(*ndo_del_geneve_port)(struct  net_device *dev,
-						       sa_family_t sa_family,
-						       __be16 port);
 	void			(*ndo_udp_tunnel_add)(struct net_device *dev,
 						      struct udp_tunnel_info *ti);
 	void			(*ndo_udp_tunnel_del)(struct net_device *dev,

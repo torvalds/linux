@@ -76,47 +76,20 @@ void setup_udp_tunnel_sock(struct net *net, struct socket *sock,
 }
 EXPORT_SYMBOL_GPL(setup_udp_tunnel_sock);
 
-static void __udp_tunnel_push_rx_port(struct net_device *dev,
-				      struct udp_tunnel_info *ti)
-{
-	if (dev->netdev_ops->ndo_udp_tunnel_add) {
-		dev->netdev_ops->ndo_udp_tunnel_add(dev, ti);
-		return;
-	}
-
-	switch (ti->type) {
-	case UDP_TUNNEL_TYPE_VXLAN:
-		if (!dev->netdev_ops->ndo_add_vxlan_port)
-			break;
-
-		dev->netdev_ops->ndo_add_vxlan_port(dev,
-						    ti->sa_family,
-						    ti->port);
-		break;
-	case UDP_TUNNEL_TYPE_GENEVE:
-		if (!dev->netdev_ops->ndo_add_geneve_port)
-			break;
-
-		dev->netdev_ops->ndo_add_geneve_port(dev,
-						     ti->sa_family,
-						     ti->port);
-		break;
-	default:
-		break;
-	}
-}
-
 void udp_tunnel_push_rx_port(struct net_device *dev, struct socket *sock,
 			     unsigned short type)
 {
 	struct sock *sk = sock->sk;
 	struct udp_tunnel_info ti;
 
+	if (!dev->netdev_ops->ndo_udp_tunnel_add)
+		return;
+
 	ti.type = type;
 	ti.sa_family = sk->sk_family;
 	ti.port = inet_sk(sk)->inet_sport;
 
-	__udp_tunnel_push_rx_port(dev, &ti);
+	dev->netdev_ops->ndo_udp_tunnel_add(dev, &ti);
 }
 EXPORT_SYMBOL_GPL(udp_tunnel_push_rx_port);
 
@@ -133,41 +106,14 @@ void udp_tunnel_notify_add_rx_port(struct socket *sock, unsigned short type)
 	ti.port = inet_sk(sk)->inet_sport;
 
 	rcu_read_lock();
-	for_each_netdev_rcu(net, dev)
-		__udp_tunnel_push_rx_port(dev, &ti);
+	for_each_netdev_rcu(net, dev) {
+		if (!dev->netdev_ops->ndo_udp_tunnel_add)
+			continue;
+		dev->netdev_ops->ndo_udp_tunnel_add(dev, &ti);
+	}
 	rcu_read_unlock();
 }
 EXPORT_SYMBOL_GPL(udp_tunnel_notify_add_rx_port);
-
-static void __udp_tunnel_pull_rx_port(struct net_device *dev,
-				      struct udp_tunnel_info *ti)
-{
-	if (dev->netdev_ops->ndo_udp_tunnel_del) {
-		dev->netdev_ops->ndo_udp_tunnel_del(dev, ti);
-		return;
-	}
-
-	switch (ti->type) {
-	case UDP_TUNNEL_TYPE_VXLAN:
-		if (!dev->netdev_ops->ndo_del_vxlan_port)
-			break;
-
-		dev->netdev_ops->ndo_del_vxlan_port(dev,
-						    ti->sa_family,
-						    ti->port);
-		break;
-	case UDP_TUNNEL_TYPE_GENEVE:
-		if (!dev->netdev_ops->ndo_del_geneve_port)
-			break;
-
-		dev->netdev_ops->ndo_del_geneve_port(dev,
-						     ti->sa_family,
-						     ti->port);
-		break;
-	default:
-		break;
-	}
-}
 
 /* Notify netdevs that UDP port is no more listening */
 void udp_tunnel_notify_del_rx_port(struct socket *sock, unsigned short type)
@@ -182,8 +128,11 @@ void udp_tunnel_notify_del_rx_port(struct socket *sock, unsigned short type)
 	ti.port = inet_sk(sk)->inet_sport;
 
 	rcu_read_lock();
-	for_each_netdev_rcu(net, dev)
-		__udp_tunnel_pull_rx_port(dev, &ti);
+	for_each_netdev_rcu(net, dev) {
+		if (!dev->netdev_ops->ndo_udp_tunnel_del)
+			continue;
+		dev->netdev_ops->ndo_udp_tunnel_del(dev, &ti);
+	}
 	rcu_read_unlock();
 }
 EXPORT_SYMBOL_GPL(udp_tunnel_notify_del_rx_port);
