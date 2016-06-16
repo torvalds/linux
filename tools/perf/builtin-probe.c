@@ -512,6 +512,7 @@ __cmd_probe(int argc, const char **argv, const char *prefix __maybe_unused)
 		    "Enable symbol demangling"),
 	OPT_BOOLEAN(0, "demangle-kernel", &symbol_conf.demangle_kernel,
 		    "Enable kernel symbol demangling"),
+	OPT_BOOLEAN(0, "cache", &probe_conf.cache, "Manipulate probe cache"),
 	OPT_END()
 	};
 	int ret;

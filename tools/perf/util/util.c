@@ -97,20 +97,17 @@ int rm_rf(char *path)
 		scnprintf(namebuf, sizeof(namebuf), "%s/%s",
 			  path, d->d_name);
 
-		ret = stat(namebuf, &statbuf);
+		/* We have to check symbolic link itself */
+		ret = lstat(namebuf, &statbuf);
 		if (ret < 0) {
 			pr_debug("stat failed: %s\n", namebuf);
 			break;
 		}
 
-		if (S_ISREG(statbuf.st_mode))
-			ret = unlink(namebuf);
-		else if (S_ISDIR(statbuf.st_mode))
+		if (S_ISDIR(statbuf.st_mode))
 			ret = rm_rf(namebuf);
-		else {
-			pr_debug("unknown file: %s\n", namebuf);
-			ret = -1;
-		}
+		else
+			ret = unlink(namebuf);
 	}
 	closedir(dir);
 

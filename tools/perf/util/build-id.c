@@ -387,9 +387,8 @@ void disable_buildid_cache(void)
 	no_buildid_cache = true;
 }
 
-static char *build_id_cache__dirname_from_path(const char *name,
-					       bool is_kallsyms, bool is_vdso,
-					       const char *sbuild_id)
+char *build_id_cache__cachedir(const char *sbuild_id, const char *name,
+			       bool is_kallsyms, bool is_vdso)
 {
 	char *realname = (char *)name, *filename;
 	bool slash = is_kallsyms || is_vdso;
@@ -417,8 +416,7 @@ int build_id_cache__list_build_ids(const char *pathname,
 	char *dir_name;
 	int ret = 0;
 
-	dir_name = build_id_cache__dirname_from_path(pathname, false, false,
-						     NULL);
+	dir_name = build_id_cache__cachedir(NULL, pathname, false, false);
 	if (!dir_name)
 		return -ENOMEM;
 
@@ -444,8 +442,8 @@ int build_id_cache__add_s(const char *sbuild_id, const char *name,
 			goto out_free;
 	}
 
-	dir_name = build_id_cache__dirname_from_path(name, is_kallsyms,
-						     is_vdso, sbuild_id);
+	dir_name = build_id_cache__cachedir(sbuild_id, name,
+					    is_kallsyms, is_vdso);
 	if (!dir_name)
 		goto out_free;
 

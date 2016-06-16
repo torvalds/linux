@@ -67,7 +67,6 @@ int e_snprintf(char *str, size_t size, const char *format, ...)
 	return ret;
 }
 
-static char *synthesize_perf_probe_point(struct perf_probe_point *pp);
 static struct machine *host_machine;
 
 /* Initialize symbol maps and path of vmlinux/modules */
@@ -1603,6 +1602,10 @@ int parse_probe_trace_command(const char *cmd, struct probe_trace_event *tev)
 	p = strchr(argv[1], ':');
 	if (p) {
 		tp->module = strndup(argv[1], p - argv[1]);
+		if (!tp->module) {
+			ret = -ENOMEM;
+			goto out;
+		}
 		p++;
 	} else
 		p = argv[1];
@@ -1712,7 +1715,7 @@ out:
 }
 
 /* Compose only probe point (not argument) */
-static char *synthesize_perf_probe_point(struct perf_probe_point *pp)
+char *synthesize_perf_probe_point(struct perf_probe_point *pp)
 {
 	struct strbuf buf;
 	char *tmp, *ret = NULL;
@@ -1751,30 +1754,36 @@ out:
 	return ret;
 }
 
-#if 0
 char *synthesize_perf_probe_command(struct perf_probe_event *pev)
 {
-	char *buf;
-	int i, len, ret;
+	struct strbuf buf;
+	char *tmp, *ret = NULL;
+	int i;
 
-	buf = synthesize_perf_probe_point(&pev->point);
-	if (!buf)
+	if (strbuf_init(&buf, 64))
 		return NULL;
+	if (pev->event)
+		if (strbuf_addf(&buf, "%s:%s=", pev->group ?: PERFPROBE_GROUP,
+				pev->event) < 0)
+			goto out;
 
-	len = strlen(buf);
+	tmp = synthesize_perf_probe_point(&pev->point);
+	if (!tmp || strbuf_addstr(&buf, tmp) < 0)
+		goto out;
+	free(tmp);
+
 	for (i = 0; i < pev->nargs; i++) {
-		ret = e_snprintf(&buf[len], MAX_CMDLEN - len, " %s",
-				 pev->args[i].name);
-		if (ret <= 0) {
-			free(buf);
-			return NULL;
-		}
-		len += ret;
+		tmp = synthesize_perf_probe_arg(pev->args + i);
+		if (!tmp || strbuf_addf(&buf, " %s", tmp) < 0)
+			goto out;
+		free(tmp);
 	}
 
-	return buf;
+	ret = strbuf_detach(&buf, NULL);
+out:
+	strbuf_release(&buf);
+	return ret;
 }
-#endif
 
 static int __synthesize_probe_trace_arg_ref(struct probe_trace_arg_ref *ref,
 					    struct strbuf *buf, int depth)
@@ -2024,6 +2033,79 @@ void clear_perf_probe_event(struct perf_probe_event *pev)
 	}
 	free(pev->args);
 	memset(pev, 0, sizeof(*pev));
+}
+
+#define strdup_or_goto(str, label)	\
+({ char *__p = NULL; if (str && !(__p = strdup(str))) goto label; __p; })
+
+static int perf_probe_point__copy(struct perf_probe_point *dst,
+				  struct perf_probe_point *src)
+{
+	dst->file = strdup_or_goto(src->file, out_err);
+	dst->function = strdup_or_goto(src->function, out_err);
+	dst->lazy_line = strdup_or_goto(src->lazy_line, out_err);
+	dst->line = src->line;
+	dst->retprobe = src->retprobe;
+	dst->offset = src->offset;
+	return 0;
+
+out_err:
+	clear_perf_probe_point(dst);
+	return -ENOMEM;
+}
+
+static int perf_probe_arg__copy(struct perf_probe_arg *dst,
+				struct perf_probe_arg *src)
+{
+	struct perf_probe_arg_field *field, **ppfield;
+
+	dst->name = strdup_or_goto(src->name, out_err);
+	dst->var = strdup_or_goto(src->var, out_err);
+	dst->type = strdup_or_goto(src->type, out_err);
+
+	field = src->field;
+	ppfield = &(dst->field);
+	while (field) {
+		*ppfield = zalloc(sizeof(*field));
+		if (!*ppfield)
+			goto out_err;
+		(*ppfield)->name = strdup_or_goto(field->name, out_err);
+		(*ppfield)->index = field->index;
+		(*ppfield)->ref = field->ref;
+		field = field->next;
+		ppfield = &((*ppfield)->next);
+	}
+	return 0;
+out_err:
+	return -ENOMEM;
+}
+
+int perf_probe_event__copy(struct perf_probe_event *dst,
+			   struct perf_probe_event *src)
+{
+	int i;
+
+	dst->event = strdup_or_goto(src->event, out_err);
+	dst->group = strdup_or_goto(src->group, out_err);
+	dst->target = strdup_or_goto(src->target, out_err);
+	dst->uprobes = src->uprobes;
+
+	if (perf_probe_point__copy(&dst->point, &src->point) < 0)
+		goto out_err;
+
+	dst->args = zalloc(sizeof(struct perf_probe_arg) * src->nargs);
+	if (!dst->args)
+		goto out_err;
+	dst->nargs = src->nargs;
+
+	for (i = 0; i < src->nargs; i++)
+		if (perf_probe_arg__copy(&dst->args[i], &src->args[i]) < 0)
+			goto out_err;
+	return 0;
+
+out_err:
+	clear_perf_probe_event(dst);
+	return -ENOMEM;
 }
 
 void clear_probe_trace_event(struct probe_trace_event *tev)
@@ -2432,6 +2514,7 @@ static int __add_probe_trace_events(struct perf_probe_event *pev,
 {
 	int i, fd, ret;
 	struct probe_trace_event *tev = NULL;
+	struct probe_cache *cache = NULL;
 	struct strlist *namelist;
 
 	fd = probe_file__open(PF_FL_RW | (pev->uprobes ? PF_FL_UPROBE : 0));
@@ -2473,6 +2556,14 @@ static int __add_probe_trace_events(struct perf_probe_event *pev,
 	}
 	if (ret == -EINVAL && pev->uprobes)
 		warn_uprobe_event_compat(tev);
+	if (ret == 0 && probe_conf.cache) {
+		cache = probe_cache__new(pev->target);
+		if (!cache ||
+		    probe_cache__add_entry(cache, pev, tevs, ntevs) < 0 ||
+		    probe_cache__commit(cache) < 0)
+			pr_warning("Failed to add event to probe cache\n");
+		probe_cache__delete(cache);
+	}
 
 	strlist__delete(namelist);
 close_out:
@@ -2500,9 +2591,6 @@ static int find_probe_functions(struct map *map, char *name,
 
 	return found;
 }
-
-#define strdup_or_goto(str, label)	\
-	({ char *__p = strdup(str); if (!__p) goto label; __p; })
 
 void __weak arch__fix_tev_from_maps(struct perf_probe_event *pev __maybe_unused,
 				struct probe_trace_event *tev __maybe_unused,

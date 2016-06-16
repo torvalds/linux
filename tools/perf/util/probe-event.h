@@ -12,6 +12,7 @@ struct probe_conf {
 	bool	show_location_range;
 	bool	force_add;
 	bool	no_inlines;
+	bool	cache;
 	int	max_probes;
 };
 extern struct probe_conf probe_conf;
@@ -121,6 +122,10 @@ int parse_probe_trace_command(const char *cmd, struct probe_trace_event *tev);
 char *synthesize_perf_probe_command(struct perf_probe_event *pev);
 char *synthesize_probe_trace_command(struct probe_trace_event *tev);
 char *synthesize_perf_probe_arg(struct perf_probe_arg *pa);
+char *synthesize_perf_probe_point(struct perf_probe_point *pp);
+
+int perf_probe_event__copy(struct perf_probe_event *dst,
+			   struct perf_probe_event *src);
 
 /* Check the perf_probe_event needs debuginfo */
 bool perf_probe_event_need_dwarf(struct perf_probe_event *pev);
