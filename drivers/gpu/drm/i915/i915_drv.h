@@ -880,6 +880,7 @@ struct i915_gem_context {
 		int pin_count;
 		bool initialised;
 	} engine[I915_NUM_ENGINES];
+	u32 ring_size;
 
 	struct list_head link;
 

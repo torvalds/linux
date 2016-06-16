@@ -295,6 +295,7 @@ __create_hw_context(struct drm_device *dev,
 	ctx->remap_slice = ALL_L3_SLICES(dev_priv);
 
 	ctx->hang_stats.ban_period_seconds = DRM_I915_CTX_BAN_PERIOD;
+	ctx->ring_size = 4 * PAGE_SIZE;
 
 	return ctx;
 

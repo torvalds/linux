@@ -2527,7 +2527,7 @@ static int execlists_context_deferred_alloc(struct i915_gem_context *ctx,
 		return PTR_ERR(ctx_obj);
 	}
 
-	ringbuf = intel_engine_create_ringbuffer(engine, 4 * PAGE_SIZE);
+	ringbuf = intel_engine_create_ringbuffer(engine, ctx->ring_size);
 	if (IS_ERR(ringbuf)) {
 		ret = PTR_ERR(ringbuf);
 		goto error_deref_obj;
