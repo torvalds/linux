@@ -230,6 +230,22 @@ struct resource *__wrap___request_region(struct resource *parent,
 }
 EXPORT_SYMBOL(__wrap___request_region);
 
+int __wrap_insert_resource(struct resource *parent, struct resource *res)
+{
+	if (get_nfit_res(res->start))
+		return 0;
+	return insert_resource(parent, res);
+}
+EXPORT_SYMBOL(__wrap_insert_resource);
+
+int __wrap_remove_resource(struct resource *res)
+{
+	if (get_nfit_res(res->start))
+		return 0;
+	return remove_resource(res);
+}
+EXPORT_SYMBOL(__wrap_remove_resource);
+
 struct resource *__wrap___devm_request_region(struct device *dev,
 		struct resource *parent, resource_size_t start,
 		resource_size_t n, const char *name)

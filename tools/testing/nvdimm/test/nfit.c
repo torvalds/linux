@@ -470,11 +470,7 @@ static void release_nfit_res(void *data)
 	list_del(&nfit_res->list);
 	spin_unlock(&nfit_test_lock);
 
-	if (is_vmalloc_addr(nfit_res->buf))
-		vfree(nfit_res->buf);
-	else
-		dma_free_coherent(nfit_res->dev, resource_size(res),
-				nfit_res->buf, res->start);
+	vfree(nfit_res->buf);
 	kfree(res);
 	kfree(nfit_res);
 }
@@ -507,9 +503,7 @@ static void *__test_alloc(struct nfit_test *t, size_t size, dma_addr_t *dma,
 
 	return nfit_res->buf;
  err:
-	if (buf && !is_vmalloc_addr(buf))
-		dma_free_coherent(dev, size, buf, *dma);
-	else if (buf)
+	if (buf)
 		vfree(buf);
 	kfree(res);
 	kfree(nfit_res);
@@ -521,15 +515,6 @@ static void *test_alloc(struct nfit_test *t, size_t size, dma_addr_t *dma)
 	void *buf = vmalloc(size);
 
 	*dma = (unsigned long) buf;
-	return __test_alloc(t, size, dma, buf);
-}
-
-static void *test_alloc_coherent(struct nfit_test *t, size_t size,
-		dma_addr_t *dma)
-{
-	struct device *dev = &t->pdev.dev;
-	void *buf = dma_alloc_coherent(dev, size, dma, GFP_KERNEL);
-
 	return __test_alloc(t, size, dma, buf);
 }
 
@@ -592,15 +577,15 @@ static int nfit_test0_alloc(struct nfit_test *t)
 		return -ENOMEM;
 	t->nfit_size = nfit_size;
 
-	t->spa_set[0] = test_alloc_coherent(t, SPA0_SIZE, &t->spa_set_dma[0]);
+	t->spa_set[0] = test_alloc(t, SPA0_SIZE, &t->spa_set_dma[0]);
 	if (!t->spa_set[0])
 		return -ENOMEM;
 
-	t->spa_set[1] = test_alloc_coherent(t, SPA1_SIZE, &t->spa_set_dma[1]);
+	t->spa_set[1] = test_alloc(t, SPA1_SIZE, &t->spa_set_dma[1]);
 	if (!t->spa_set[1])
 		return -ENOMEM;
 
-	t->spa_set[2] = test_alloc_coherent(t, SPA0_SIZE, &t->spa_set_dma[2]);
+	t->spa_set[2] = test_alloc(t, SPA0_SIZE, &t->spa_set_dma[2]);
 	if (!t->spa_set[2])
 		return -ENOMEM;
 
@@ -639,7 +624,7 @@ static int nfit_test1_alloc(struct nfit_test *t)
 		return -ENOMEM;
 	t->nfit_size = nfit_size;
 
-	t->spa_set[0] = test_alloc_coherent(t, SPA2_SIZE, &t->spa_set_dma[0]);
+	t->spa_set[0] = test_alloc(t, SPA2_SIZE, &t->spa_set_dma[0]);
 	if (!t->spa_set[0])
 		return -ENOMEM;
 
@@ -1523,12 +1508,6 @@ static struct platform_driver nfit_test_driver = {
 	.id_table = nfit_test_id,
 };
 
-#ifdef CONFIG_CMA_SIZE_MBYTES
-#define CMA_SIZE_MBYTES CONFIG_CMA_SIZE_MBYTES
-#else
-#define CMA_SIZE_MBYTES 0
-#endif
-
 static __init int nfit_test_init(void)
 {
 	int rc, i;
@@ -1538,7 +1517,6 @@ static __init int nfit_test_init(void)
 	for (i = 0; i < NUM_NFITS; i++) {
 		struct nfit_test *nfit_test;
 		struct platform_device *pdev;
-		static int once;
 
 		nfit_test = kzalloc(sizeof(*nfit_test), GFP_KERNEL);
 		if (!nfit_test) {
@@ -1577,20 +1555,6 @@ static __init int nfit_test_init(void)
 			goto err_register;
 
 		instances[i] = nfit_test;
-
-		if (!once++) {
-			dma_addr_t dma;
-			void *buf;
-
-			buf = dma_alloc_coherent(&pdev->dev, SZ_128M, &dma,
-					GFP_KERNEL);
-			if (!buf) {
-				rc = -ENOMEM;
-				dev_warn(&pdev->dev, "need 128M of free cma\n");
-				goto err_register;
-			}
-			dma_free_coherent(&pdev->dev, SZ_128M, buf, dma);
-		}
 	}
 
 	rc = platform_driver_register(&nfit_test_driver);
