@@ -474,8 +474,12 @@ static int imx_ldb_register(struct drm_device *drm,
 	drm_connector_init(drm, &imx_ldb_ch->connector,
 			   &imx_ldb_connector_funcs, DRM_MODE_CONNECTOR_LVDS);
 
-	if (imx_ldb_ch->panel)
-		drm_panel_attach(imx_ldb_ch->panel, &imx_ldb_ch->connector);
+	if (imx_ldb_ch->panel) {
+		ret = drm_panel_attach(imx_ldb_ch->panel,
+				       &imx_ldb_ch->connector);
+		if (ret)
+			return ret;
+	}
 
 	drm_mode_connector_attach_encoder(&imx_ldb_ch->connector, encoder);
 
