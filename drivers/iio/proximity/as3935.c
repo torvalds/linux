@@ -345,7 +345,6 @@ static int as3935_probe(struct spi_device *spi)
 
 	st = iio_priv(indio_dev);
 	st->spi = spi;
-	st->tune_cap = 0;
 
 	spi_set_drvdata(spi, indio_dev);
 	mutex_init(&st->lock);
