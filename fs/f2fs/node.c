@@ -1765,7 +1765,7 @@ static void scan_nat_page(struct f2fs_sb_info *sbi,
 	}
 }
 
-static void build_free_nids(struct f2fs_sb_info *sbi)
+void build_free_nids(struct f2fs_sb_info *sbi)
 {
 	struct f2fs_nm_info *nm_i = NM_I(sbi);
 	struct curseg_info *curseg = CURSEG_I(sbi, CURSEG_HOT_DATA);
@@ -1774,7 +1774,7 @@ static void build_free_nids(struct f2fs_sb_info *sbi)
 	nid_t nid = nm_i->next_scan_nid;
 
 	/* Enough entries */
-	if (nm_i->fcnt > NAT_ENTRY_PER_BLOCK)
+	if (nm_i->fcnt >= NAT_ENTRY_PER_BLOCK)
 		return;
 
 	/* readahead nat pages to be scanned */
@@ -1912,12 +1912,15 @@ int try_to_free_nids(struct f2fs_sb_info *sbi, int nr_shrink)
 	struct free_nid *i, *next;
 	int nr = nr_shrink;
 
+	if (nm_i->fcnt <= MAX_FREE_NIDS)
+		return 0;
+
 	if (!mutex_trylock(&nm_i->build_lock))
 		return 0;
 
 	spin_lock(&nm_i->free_nid_list_lock);
 	list_for_each_entry_safe(i, next, &nm_i->free_nid_list, list) {
-		if (nr_shrink <= 0 || nm_i->fcnt <= NAT_ENTRY_PER_BLOCK)
+		if (nr_shrink <= 0 || nm_i->fcnt <= MAX_FREE_NIDS)
 			break;
 		if (i->state == NID_ALLOC)
 			continue;

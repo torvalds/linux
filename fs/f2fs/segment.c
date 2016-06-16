@@ -371,7 +371,9 @@ void f2fs_balance_fs_bg(struct f2fs_sb_info *sbi)
 		try_to_free_nats(sbi, NAT_ENTRY_PER_BLOCK);
 
 	if (!available_free_memory(sbi, FREE_NIDS))
-		try_to_free_nids(sbi, NAT_ENTRY_PER_BLOCK * FREE_NID_PAGES);
+		try_to_free_nids(sbi, MAX_FREE_NIDS);
+	else
+		build_free_nids(sbi);
 
 	/* checkpoint is the only way to shrink partial cached entries */
 	if (!available_free_memory(sbi, NAT_ENTRIES) ||
