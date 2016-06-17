@@ -105,6 +105,11 @@ enum {
 	MLX5_CQE_VERSION_V1,
 };
 
+struct mlx5_ib_vma_private_data {
+	struct list_head list;
+	struct vm_area_struct *vma;
+};
+
 struct mlx5_ib_ucontext {
 	struct ib_ucontext	ibucontext;
 	struct list_head	db_page_list;
@@ -116,6 +121,7 @@ struct mlx5_ib_ucontext {
 	u8			cqe_version;
 	/* Transport Domain number */
 	u32			tdn;
+	struct list_head	vma_private_list;
 };
 
 static inline struct mlx5_ib_ucontext *to_mucontext(struct ib_ucontext *ibucontext)

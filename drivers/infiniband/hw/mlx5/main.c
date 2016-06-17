@@ -42,11 +42,13 @@
 #include <asm/pat.h>
 #endif
 #include <linux/sched.h>
+#include <linux/delay.h>
 #include <rdma/ib_user_verbs.h>
 #include <rdma/ib_addr.h>
 #include <rdma/ib_cache.h>
 #include <linux/mlx5/port.h>
 #include <linux/mlx5/vport.h>
+#include <linux/list.h>
 #include <rdma/ib_smi.h>
 #include <rdma/ib_umem.h>
 #include <linux/in.h>
@@ -983,6 +985,7 @@ static struct ib_ucontext *mlx5_ib_alloc_ucontext(struct ib_device *ibdev,
 			goto out_uars;
 	}
 
+	INIT_LIST_HEAD(&context->vma_private_list);
 	INIT_LIST_HEAD(&context->db_page_list);
 	mutex_init(&context->db_page_mutex);
 
@@ -1086,6 +1089,125 @@ static int get_index(unsigned long offset)
 	return get_arg(offset);
 }
 
+static void  mlx5_ib_vma_open(struct vm_area_struct *area)
+{
+	/* vma_open is called when a new VMA is created on top of our VMA.  This
+	 * is done through either mremap flow or split_vma (usually due to
+	 * mlock, madvise, munmap, etc.) We do not support a clone of the VMA,
+	 * as this VMA is strongly hardware related.  Therefore we set the
+	 * vm_ops of the newly created/cloned VMA to NULL, to prevent it from
+	 * calling us again and trying to do incorrect actions.  We assume that
+	 * the original VMA size is exactly a single page, and therefore all
+	 * "splitting" operation will not happen to it.
+	 */
+	area->vm_ops = NULL;
+}
+
+static void  mlx5_ib_vma_close(struct vm_area_struct *area)
+{
+	struct mlx5_ib_vma_private_data *mlx5_ib_vma_priv_data;
+
+	/* It's guaranteed that all VMAs opened on a FD are closed before the
+	 * file itself is closed, therefore no sync is needed with the regular
+	 * closing flow. (e.g. mlx5 ib_dealloc_ucontext)
+	 * However need a sync with accessing the vma as part of
+	 * mlx5_ib_disassociate_ucontext.
+	 * The close operation is usually called under mm->mmap_sem except when
+	 * process is exiting.
+	 * The exiting case is handled explicitly as part of
+	 * mlx5_ib_disassociate_ucontext.
+	 */
+	mlx5_ib_vma_priv_data = (struct mlx5_ib_vma_private_data *)area->vm_private_data;
+
+	/* setting the vma context pointer to null in the mlx5_ib driver's
+	 * private data, to protect a race condition in
+	 * mlx5_ib_disassociate_ucontext().
+	 */
+	mlx5_ib_vma_priv_data->vma = NULL;
+	list_del(&mlx5_ib_vma_priv_data->list);
+	kfree(mlx5_ib_vma_priv_data);
+}
+
+static const struct vm_operations_struct mlx5_ib_vm_ops = {
+	.open = mlx5_ib_vma_open,
+	.close = mlx5_ib_vma_close
+};
+
+static int mlx5_ib_set_vma_data(struct vm_area_struct *vma,
+				struct mlx5_ib_ucontext *ctx)
+{
+	struct mlx5_ib_vma_private_data *vma_prv;
+	struct list_head *vma_head = &ctx->vma_private_list;
+
+	vma_prv = kzalloc(sizeof(*vma_prv), GFP_KERNEL);
+	if (!vma_prv)
+		return -ENOMEM;
+
+	vma_prv->vma = vma;
+	vma->vm_private_data = vma_prv;
+	vma->vm_ops =  &mlx5_ib_vm_ops;
+
+	list_add(&vma_prv->list, vma_head);
+
+	return 0;
+}
+
+static void mlx5_ib_disassociate_ucontext(struct ib_ucontext *ibcontext)
+{
+	int ret;
+	struct vm_area_struct *vma;
+	struct mlx5_ib_vma_private_data *vma_private, *n;
+	struct mlx5_ib_ucontext *context = to_mucontext(ibcontext);
+	struct task_struct *owning_process  = NULL;
+	struct mm_struct   *owning_mm       = NULL;
+
+	owning_process = get_pid_task(ibcontext->tgid, PIDTYPE_PID);
+	if (!owning_process)
+		return;
+
+	owning_mm = get_task_mm(owning_process);
+	if (!owning_mm) {
+		pr_info("no mm, disassociate ucontext is pending task termination\n");
+		while (1) {
+			put_task_struct(owning_process);
+			usleep_range(1000, 2000);
+			owning_process = get_pid_task(ibcontext->tgid,
+						      PIDTYPE_PID);
+			if (!owning_process ||
+			    owning_process->state == TASK_DEAD) {
+				pr_info("disassociate ucontext done, task was terminated\n");
+				/* in case task was dead need to release the
+				 * task struct.
+				 */
+				if (owning_process)
+					put_task_struct(owning_process);
+				return;
+			}
+		}
+	}
+
+	/* need to protect from a race on closing the vma as part of
+	 * mlx5_ib_vma_close.
+	 */
+	down_read(&owning_mm->mmap_sem);
+	list_for_each_entry_safe(vma_private, n, &context->vma_private_list,
+				 list) {
+		vma = vma_private->vma;
+		ret = zap_vma_ptes(vma, vma->vm_start,
+				   PAGE_SIZE);
+		WARN_ONCE(ret, "%s: zap_vma_ptes failed", __func__);
+		/* context going to be destroyed, should
+		 * not access ops any more.
+		 */
+		vma->vm_ops = NULL;
+		list_del(&vma_private->list);
+		kfree(vma_private);
+	}
+	up_read(&owning_mm->mmap_sem);
+	mmput(owning_mm);
+	put_task_struct(owning_process);
+}
+
 static inline char *mmap_cmd2str(enum mlx5_ib_mmap_cmd cmd)
 {
 	switch (cmd) {
@@ -1101,8 +1223,10 @@ static inline char *mmap_cmd2str(enum mlx5_ib_mmap_cmd cmd)
 }
 
 static int uar_mmap(struct mlx5_ib_dev *dev, enum mlx5_ib_mmap_cmd cmd,
-		    struct vm_area_struct *vma, struct mlx5_uuar_info *uuari)
+		    struct vm_area_struct *vma,
+		    struct mlx5_ib_ucontext *context)
 {
+	struct mlx5_uuar_info *uuari = &context->uuari;
 	int err;
 	unsigned long idx;
 	phys_addr_t pfn, pa;
@@ -1152,14 +1276,13 @@ static int uar_mmap(struct mlx5_ib_dev *dev, enum mlx5_ib_mmap_cmd cmd,
 	mlx5_ib_dbg(dev, "mapped %s at 0x%lx, PA %pa\n", mmap_cmd2str(cmd),
 		    vma->vm_start, &pa);
 
-	return 0;
+	return mlx5_ib_set_vma_data(vma, context);
 }
 
 static int mlx5_ib_mmap(struct ib_ucontext *ibcontext, struct vm_area_struct *vma)
 {
 	struct mlx5_ib_ucontext *context = to_mucontext(ibcontext);
 	struct mlx5_ib_dev *dev = to_mdev(ibcontext->device);
-	struct mlx5_uuar_info *uuari = &context->uuari;
 	unsigned long command;
 	phys_addr_t pfn;
 
@@ -1168,7 +1291,7 @@ static int mlx5_ib_mmap(struct ib_ucontext *ibcontext, struct vm_area_struct *vm
 	case MLX5_IB_MMAP_WC_PAGE:
 	case MLX5_IB_MMAP_NC_PAGE:
 	case MLX5_IB_MMAP_REGULAR_PAGE:
-		return uar_mmap(dev, command, vma, uuari);
+		return uar_mmap(dev, command, vma, context);
 
 	case MLX5_IB_MMAP_GET_CONTIGUOUS_PAGES:
 		return -ENOSYS;
@@ -2427,6 +2550,8 @@ static void *mlx5_ib_add(struct mlx5_core_dev *mdev)
 		dev->ib_dev.get_vf_stats	= mlx5_ib_get_vf_stats;
 		dev->ib_dev.set_vf_guid		= mlx5_ib_set_vf_guid;
 	}
+
+	dev->ib_dev.disassociate_ucontext = mlx5_ib_disassociate_ucontext;
 
 	mlx5_ib_internal_fill_odp_caps(dev);
 
