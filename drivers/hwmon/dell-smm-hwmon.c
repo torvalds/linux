@@ -73,6 +73,7 @@ static u32 i8k_hwmon_flags;
 static uint i8k_fan_mult = I8K_FAN_MULT;
 static uint i8k_pwm_mult;
 static uint i8k_fan_max = I8K_FAN_HIGH;
+static bool disallow_fan_type_call;
 
 #define I8K_HWMON_HAVE_TEMP1	(1 << 0)
 #define I8K_HWMON_HAVE_TEMP2	(1 << 1)
@@ -240,6 +241,9 @@ static int i8k_get_fan_speed(int fan)
 static int i8k_get_fan_type(int fan)
 {
 	struct smm_regs regs = { .eax = I8K_SMM_GET_FAN_TYPE, };
+
+	if (disallow_fan_type_call)
+		return -EINVAL;
 
 	regs.ebx = fan & 0xff;
 	return i8k_smm(&regs) ? : regs.eax & 0xff;
@@ -726,6 +730,9 @@ static struct attribute *i8k_attrs[] = {
 static umode_t i8k_is_visible(struct kobject *kobj, struct attribute *attr,
 			      int index)
 {
+	if (disallow_fan_type_call &&
+	    (index == 9 || index == 12))
+		return 0;
 	if (index >= 0 && index <= 1 &&
 	    !(i8k_hwmon_flags & I8K_HWMON_HAVE_TEMP1))
 		return 0;
@@ -937,12 +944,14 @@ static struct dmi_system_id i8k_dmi_table[] __initdata = {
 
 MODULE_DEVICE_TABLE(dmi, i8k_dmi_table);
 
-static struct dmi_system_id i8k_blacklist_dmi_table[] __initdata = {
+/*
+ * On some machines once I8K_SMM_GET_FAN_TYPE is issued then CPU fan speed
+ * randomly going up and down due to bug in Dell SMM or BIOS. Here is blacklist
+ * of affected Dell machines for which we disallow I8K_SMM_GET_FAN_TYPE call.
+ * See bug: https://bugzilla.kernel.org/show_bug.cgi?id=100121
+ */
+static struct dmi_system_id i8k_blacklist_fan_type_dmi_table[] __initdata = {
 	{
-		/*
-		 * CPU fan speed going up and down on Dell Studio XPS 8000
-		 * for unknown reasons.
-		 */
 		.ident = "Dell Studio XPS 8000",
 		.matches = {
 			DMI_EXACT_MATCH(DMI_SYS_VENDOR, "Dell Inc."),
@@ -950,14 +959,17 @@ static struct dmi_system_id i8k_blacklist_dmi_table[] __initdata = {
 		},
 	},
 	{
-		/*
-		 * CPU fan speed going up and down on Dell Studio XPS 8100
-		 * for unknown reasons.
-		 */
 		.ident = "Dell Studio XPS 8100",
 		.matches = {
 			DMI_EXACT_MATCH(DMI_SYS_VENDOR, "Dell Inc."),
 			DMI_EXACT_MATCH(DMI_PRODUCT_NAME, "Studio XPS 8100"),
+		},
+	},
+	{
+		.ident = "Dell Inspiron 580",
+		.matches = {
+			DMI_EXACT_MATCH(DMI_SYS_VENDOR, "Dell Inc."),
+			DMI_EXACT_MATCH(DMI_PRODUCT_NAME, "Inspiron 580 "),
 		},
 	},
 	{ }
@@ -974,8 +986,7 @@ static int __init i8k_probe(void)
 	/*
 	 * Get DMI information
 	 */
-	if (!dmi_check_system(i8k_dmi_table) ||
-	    dmi_check_system(i8k_blacklist_dmi_table)) {
+	if (!dmi_check_system(i8k_dmi_table)) {
 		if (!ignore_dmi && !force)
 			return -ENODEV;
 
@@ -985,6 +996,9 @@ static int __init i8k_probe(void)
 			i8k_get_dmi_data(DMI_PRODUCT_NAME),
 			i8k_get_dmi_data(DMI_BIOS_VERSION));
 	}
+
+	if (dmi_check_system(i8k_blacklist_fan_type_dmi_table))
+		disallow_fan_type_call = true;
 
 	strlcpy(bios_version, i8k_get_dmi_data(DMI_BIOS_VERSION),
 		sizeof(bios_version));
