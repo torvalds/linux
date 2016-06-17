@@ -799,9 +799,40 @@ static int rt5514_set_tdm_slot(struct snd_soc_dai *dai, unsigned int tx_mask,
 	return 0;
 }
 
+static int rt5514_set_bias_level(struct snd_soc_codec *codec,
+			enum snd_soc_bias_level level)
+{
+	struct rt5514_priv *rt5514 = snd_soc_codec_get_drvdata(codec);
+	int ret;
+
+	switch (level) {
+	case SND_SOC_BIAS_PREPARE:
+		if (IS_ERR(rt5514->mclk))
+			break;
+
+		if (snd_soc_codec_get_bias_level(codec) == SND_SOC_BIAS_ON) {
+			clk_disable_unprepare(rt5514->mclk);
+		} else {
+			ret = clk_prepare_enable(rt5514->mclk);
+			if (ret)
+				return ret;
+		}
+		break;
+
+	default:
+		break;
+	}
+
+	return 0;
+}
+
 static int rt5514_probe(struct snd_soc_codec *codec)
 {
 	struct rt5514_priv *rt5514 = snd_soc_codec_get_drvdata(codec);
+
+	rt5514->mclk = devm_clk_get(codec->dev, "mclk");
+	if (PTR_ERR(rt5514->mclk) == -EPROBE_DEFER)
+		return -EPROBE_DEFER;
 
 	rt5514->codec = codec;
 
@@ -858,6 +889,7 @@ struct snd_soc_dai_driver rt5514_dai[] = {
 static struct snd_soc_codec_driver soc_codec_dev_rt5514 = {
 	.probe = rt5514_probe,
 	.idle_bias_off = true,
+	.set_bias_level = rt5514_set_bias_level,
 	.controls = rt5514_snd_controls,
 	.num_controls = ARRAY_SIZE(rt5514_snd_controls),
 	.dapm_widgets = rt5514_dapm_widgets,

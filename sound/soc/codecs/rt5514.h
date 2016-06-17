@@ -12,6 +12,8 @@
 #ifndef __RT5514_H__
 #define __RT5514_H__
 
+#include <linux/clk.h>
+
 #define RT5514_DEVICE_ID			0x10ec5514
 
 #define RT5514_RESET				0x2000
@@ -240,6 +242,7 @@ enum {
 struct rt5514_priv {
 	struct snd_soc_codec *codec;
 	struct regmap *i2c_regmap, *regmap;
+	struct clk *mclk;
 	int sysclk;
 	int sysclk_src;
 	int lrck;
