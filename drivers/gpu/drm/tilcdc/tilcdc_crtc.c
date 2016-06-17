@@ -731,18 +731,17 @@ irqreturn_t tilcdc_crtc_irq(struct drm_crtc *crtc)
 			wake_up(&tilcdc_crtc->frame_done_wq);
 		}
 		tilcdc_write(dev, LCDC_END_OF_INT_IND_REG, 0);
-	}
 
-	if (stat & LCDC_SYNC_LOST) {
-		dev_err_ratelimited(dev->dev, "%s(0x%08x): Sync lost",
-				    __func__, stat);
-		tilcdc_crtc->frame_intact = false;
-		if (tilcdc_crtc->sync_lost_count++ > SYNC_LOST_COUNT_LIMIT) {
-			dev_err(dev->dev,
-				"%s(0x%08x): Sync lost flood detected, disabling the interrupt",
-				__func__, stat);
-			tilcdc_write(dev, LCDC_INT_ENABLE_CLR_REG,
-				     LCDC_SYNC_LOST);
+		if (stat & LCDC_SYNC_LOST) {
+			dev_err_ratelimited(dev->dev, "%s(0x%08x): Sync lost",
+					    __func__, stat);
+			tilcdc_crtc->frame_intact = false;
+			if (tilcdc_crtc->sync_lost_count++ >
+			    SYNC_LOST_COUNT_LIMIT) {
+				dev_err(dev->dev, "%s(0x%08x): Sync lost flood detected, disabling the interrupt", __func__, stat);
+				tilcdc_write(dev, LCDC_INT_ENABLE_CLR_REG,
+					     LCDC_SYNC_LOST);
+			}
 		}
 	}
 
