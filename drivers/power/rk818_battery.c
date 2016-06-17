@@ -1,19 +1,8 @@
 /*
- * rk818/rk819 battery driver
+ * rk818 battery driver
  *
- *  Copyright (C) 2014 Rockchip Electronics Co., Ltd
- *  Author: zhangqing <zhangqing@rock-chips.com>
- *	    chenjh    <chenjh@rock-chips.com>
- *          Andy Yan  <andy.yan@rock-chips.com>
- *
- *  Copyright (C) 2008-2009 Texas Instruments, Inc.
- *  Author: Texas Instruments, Inc.
- *
- * Copyright (C) 2008-2009 Texas Instruments, Inc.
- * Author: Texas Instruments, Inc.
- * Copyright (c) 2014, Fuzhou Rockchip Electronics Co., Ltd
- * Author: zhangqing <zhangqing@rock-chips.com>
- * Copyright (C) 2014-2015 Intel Mobile Communications GmbH
+ * Copyright (C) 2016 Rockchip Electronics Co., Ltd
+ * chenjh <chenjh@rock-chips.com>
  *
  * This program is free software; you can redistribute it and/or modify it
  * under the terms and conditions of the GNU General Public License,
@@ -25,45 +14,30 @@
  * more details.
  *
  */
-#include <linux/kernel.h>
-#include <linux/module.h>
-#include <linux/param.h>
-#include <linux/jiffies.h>
-#include <linux/workqueue.h>
+
 #include <linux/delay.h>
-#include <linux/platform_device.h>
-#include <linux/power_supply.h>
-#include <linux/idr.h>
-#include <linux/i2c.h>
-#include <linux/slab.h>
-#include <asm/unaligned.h>
+#include <linux/fb.h>
 #include <linux/gpio.h>
-#include <linux/proc_fs.h>
-#include <linux/uaccess.h>
-#include <linux/mfd/rk818.h>
-#include <linux/time.h>
-#include <linux/interrupt.h>
-#include <linux/rtc.h>
-#include <linux/wakelock.h>
-#include <linux/of_gpio.h>
+#include <linux/iio/consumer.h>
+#include <linux/iio/iio.h>
 #include <linux/irq.h>
 #include <linux/irqdomain.h>
-#include <linux/usb/phy.h>
-#include <linux/fb.h>
-
-#if defined(CONFIG_X86_INTEL_SOFIA)
-#include <linux/usb/phy-intel.h>
-#else
+#include <linux/jiffies.h>
+#include <linux/mfd/rk808.h>
+#include <linux/module.h>
+#include <linux/of_device.h>
+#include <linux/of_gpio.h>
+#include <linux/platform_device.h>
+#include <linux/power_supply.h>
 #include <linux/power/rk_usbbc.h>
-#endif
+#include <linux/regmap.h>
+#include <linux/rtc.h>
+#include <linux/timer.h>
+#include <linux/wakelock.h>
+#include <linux/workqueue.h>
 #include "rk818_battery.h"
 
-/* if you  want to disable, don't set it as 0,
-just be: "static int dbg_enable;" is ok*/
-
-static int dbg_enable;
-#define RK818_SYS_DBG 1
-
+static int dbg_enable = 0;
 module_param_named(dbg_level, dbg_enable, int, 0644);
 
 #define DBG(args...) \
@@ -73,347 +47,198 @@ module_param_named(dbg_level, dbg_enable, int, 0644);
 		} \
 	} while (0)
 
+#define BAT_INFO(fmt, args...) pr_info("rk818-bat: "fmt, ##args)
+
+/* default param */
 #define DEFAULT_BAT_RES			135
-#define DEFAULT_CHRG_VOL		4200
-#define DEFAULT_CHRG_CUR		1000
-#define DEFAULT_INPUT_CUR		1400
-#define DEFAULT_SLP_ENTER_CUR		600
-#define DEFAULT_SLP_EXIT_CUR		600
+#define DEFAULT_SLP_ENTER_CUR		300
+#define DEFAULT_SLP_EXIT_CUR		300
+#define DEFAULT_SLP_FILTER_CUR		100
+#define DEFAULT_PWROFF_VOL_THRESD	3400
+#define DEFAULT_MONITOR_SEC		5
+#define DEFAULT_ALGR_VOL_THRESD1	3850
+#define DEFAULT_ALGR_VOL_THRESD2	3950
+#define DEFAULT_MAX_SOC_OFFSET		60
+#define DEFAULT_FB_TEMP			TEMP_105C
+#define DEFAULT_POFFSET			42
+#define DEFAULT_COFFSET			0x832
+#define DEFAULT_SAMPLE_RES		20
+#define DEFAULT_ENERGY_MODE		0
+#define INVALID_COFFSET_MIN		0x780
+#define INVALID_COFFSET_MAX		0x980
+#define INVALID_VOL_THRESD		2500
 
-#define DSOC_DISCHRG_EMU_CURR		1200
-#define DSOC_DISCHRG_FAST_DEC_SEC	120	/*seconds*/
-#define DSOC_DISCHRG_FAST_EER_RANGE	10
-#define DSOC_CHRG_FAST_CALIB_CURR_MAX	400	/*mA*/
-#define DSOC_CHRG_FAST_INC_SEC		120	/*seconds*/
-#define DSOC_CHRG_FAST_EER_RANGE	10
-#define DSOC_CHRG_EMU_CURR		1200
-#define DSOC_CHRG_TERM_CURR		600
-#define DSOC_CHRG_TERM_VOL		4100
-#define	CHRG_FINISH_VOL			4100
+/* sample resistor and division */
+#define SAMPLE_RES_10MR			10
+#define SAMPLE_RES_20MR			20
+#define SAMPLE_RES_DIV1			1
+#define SAMPLE_RES_DIV2			2
 
-/*realtime RSOC calib param*/
-#define RSOC_DISCHRG_ERR_LOWER	40
-#define RSOC_DISCHRG_ERR_UPPER	50
-#define RSOC_ERR_CHCK_CNT	15
-#define RSOC_COMPS		20	/*compensation*/
-#define RSOC_CALIB_CURR_MAX	900	/*mA*/
-#define RSOC_CALIB_DISCHRGR_TIME	3	/*min*/
+/* virtual params */
+#define VIRTUAL_CURRENT			1000
+#define VIRTUAL_VOLTAGE			3888
+#define VIRTUAL_SOC			66
+#define VIRTUAL_PRESET			1
+#define VIRTUAL_TEMPERATURE		188
 
-#define RSOC_RESUME_ERR		10
-#define REBOOT_INTER_MIN	1
+/* charge */
+#define FINISH_CHRG_CUR			1000
+#define TERM_CHRG_DSOC			88
+#define TERM_CHRG_CURR			600
+#define TERM_CHRG_K			650
+#define SIMULATE_CHRG_INTV		8
+#define SIMULATE_CHRG_CURR		400
+#define SIMULATE_CHRG_K			1500
+#define FULL_CHRG_K			400
 
-#define INTERPOLATE_MAX		1000
-#define MAX_INT			0x7FFF
-#define TIME_10MIN_SEC		600
+/* zero algorithm */
+#define PWROFF_THRESD			3400
+#define MIN_ZERO_DSOC_ACCURACY		10	/*0.01%*/
+#define MIN_ZERO_OVERCNT		100
+#define MIN_ACCURACY			1
+#define DEF_PWRPATH_RES			50
+#define	WAIT_DSOC_DROP_SEC		15
+#define	WAIT_SHTD_DROP_SEC		30
+#define ZERO_GAP_XSOC1			10
+#define ZERO_GAP_XSOC2			5
+#define ZERO_GAP_XSOC3			3
+#define ZERO_LOAD_LVL1			1400
+#define ZERO_LOAD_LVL2			600
 
-#define CHRG_VOL_SHIFT		4
-#define CHRG_ILIM_SHIFT		0
-#define CHRG_ICUR_SHIFT		0
-#define DEF_CHRG_VOL		CHRG_VOL4200
-#define DEF_CHRG_CURR_SEL	CHRG_CUR1400mA
-#define DEF_CHRG_CURR_LMT	ILIM_2000MA
+#define ADC_CALIB_THRESHOLD		4
+#define ADC_CALIB_LMT_MIN		3
+#define NTC_CALC_FACTOR			7
 
-/*TEST_POWER_MODE params*/
-#define TEST_CURRENT		1000
-#define TEST_VOLTAGE		3800
-#define TEST_SOC		66
-#define TEST_STATUS		POWER_SUPPLY_STATUS_CHARGING
-#define TEST_PRESET		1
-#define TEST_AC_ONLINE		1
-#define TEST_USB_ONLINE		0
+/* time */
+#define	POWER_ON_SEC_BASE		1
+#define MINUTE(x)			((x) * 60)
 
-#define ZERO_ALGOR_THRESD	3800
-#define DISCHRG_ZERO_MODE	1
-#define DISCHRG_NORMAL_MODE	0
-#define DEF_LAST_ZERO_MODE_SOC	-1
+/* sleep */
+#define SLP_CURR_MAX			40
+#define SLP_CURR_MIN			6
+#define DISCHRG_TIME_STEP1		MINUTE(10)
+#define DISCHRG_TIME_STEP2		MINUTE(60)
+#define SLP_DSOC_VOL_THRESD		3600
+#define REBOOT_PERIOD_SEC		180
+#define REBOOT_MAX_CNT			80
 
-#define	DISCHRG_MODE		0
-#define	CHRG_MODE		1
+/* fcc */
+#define MIN_FCC				500
 
-#define	TREND_STAT_FLAT		0
-#define	TREND_STAT_DOWN		-1
-#define	TREND_STAT_UP		1
-#define	TREND_CAP_DIFF		5
-
-#define	POWER_ON_SEC_BASE	1
-#define MINUTE			60
-
-#define SLP_CURR_MAX		40
-#define SLP_CURR_MIN		6
-#define WAKEUP_SEC_THRESD	40
-#define CHRG_TIME_STEP		(60)
-#define DISCHRG_TIME_STEP_0	(30 * 60)
-#define DISCHRG_TIME_STEP_1	(60 * 60)
-
-#define DEF_PCB_OFFSET		42
-#define DEF_CAL_OFFSET		0x832
-#define DEF_PWRPATH_RES		50
-#define SEC_TO_EMPTY		300
-#define DSOC_CHRG_FINISH_CURR	1100
-#define SLP_CHRG_CURR		1000
-#define SLP_DSOC_VOL_THRESD	3600
-/*if voltage is lower than this thresd,
-   we consider it as invalid
- */
-#define INVALID_VOL_THRESD	2500
-#define PWR_OFF_THRESD		3400
-#define MIN_ZERO_ACCURACY	5	/*0.01%*/
-#define MIN_ROUND_ACCURACY	1
-
-#define MAX_FCC			10000
-#define MIN_FCC			500
-/*
- * the following table value depends on datasheet
- */
-int CHRG_V_LMT[] = {4050, 4100, 4150, 4200, 4250, 4300, 4350};
-
-int CHRG_I_CUR[] = {1000, 1200, 1400, 1600, 1800, 2000,
-		   2250, 2400, 2600, 2800, 3000};
-
-int CHRG_I_LMT[] = {450, 800, 850, 1000, 1250, 1500, 1750,
-		   2000, 2250, 2500, 2750, 3000};
-
-u8 CHRG_CVCC_HOUR[] = {4, 5, 6, 8, 10, 12, 14, 16};
-
-#define RK818_DC_IN		0
-#define RK818_DC_OUT		1
-
-#define	OCV_VALID_SHIFT		(0)
-#define	OCV_CALIB_SHIFT		(1)
-#define FIRST_PWRON_SHIFT	(2)
-
-#define SEC_TO_MIN(x)		((x) / 60)
-
-struct rk81x_battery {
+struct rk818_battery {
+	struct platform_device		*pdev;
+	struct rk808			*rk818;
+	struct regmap			*regmap;
 	struct device			*dev;
-	struct cell_state		cell;
-	struct power_supply		bat;
-	struct power_supply		ac;
-	struct power_supply		usb;
-	struct delayed_work		work;
-	struct rk818			*rk818;
-	struct pinctrl                  *pinctrl;
-	struct pinctrl_state            *pins_default;
-
+	struct power_supply		*bat;
 	struct battery_platform_data	*pdata;
-
-	int				dc_det_pin;
-	int				dc_det_level;
-	int				dc_det_irq;
-	int				irq;
-	int				ac_online;
-	int				usb_online;
-	int				otg_online;
-	int				dc_online;
-	int				psy_status;
+	struct workqueue_struct		*bat_monitor_wq;
+	struct delayed_work		bat_delay_work;
+	struct delayed_work		calib_delay_work;
+	struct wake_lock		wake_lock;
+	struct notifier_block           fb_nb;
+	struct timer_list		caltimer;
+	struct timeval			rtc_base;
+	int				bat_res;
+	int				chrg_status;
+	bool				is_initialized;
+	bool				is_first_power_on;
+	u8				res_div;
 	int				current_avg;
-	int				current_offset;
-
-	uint16_t			voltage;
-	uint16_t			voltage_ocv;
-	uint16_t			relax_voltage;
-	u8				chrg_status;
-	u8				slp_chrg_status;
-
-	u8				otg_status;
-	int				pcb_ioffset;
-	bool				pcb_ioffset_updated;
-
-	int				design_capacity;
+	int				voltage_avg;
+	int				voltage_ocv;
+	int				voltage_relax;
+	int				voltage_k;
+	int				voltage_b;
+	int				remain_cap;
+	int				design_cap;
+	int				nac;
 	int				fcc;
 	int				qmax;
-	int				remain_capacity;
-	int				nac;
-	int				temp_nac;
 	int				dsoc;
-	int				display_soc;
 	int				rsoc;
-	int				trend_start_cap;
-
-	int				est_ocv_vol;
-	int				est_ocv_soc;
-	u8				err_chck_cnt;
-	int				err_soc_sum;
-	int				bat_res_update_cnt;
-	int				soc_counter;
-	int				dod0;
-	int				dod0_status;
-	int				dod0_voltage;
-	int				dod0_capacity;
-	unsigned long			dod0_time;
-	u8				dod0_level;
-	int				adjust_cap;
-
-	int				enter_flatzone;
-	int				exit_flatzone;
-
-	int				time2empty;
-	int				time2full;
-
-	int				*ocv_table;
-	int				*res_table;
-
-	int				current_k;/* (ICALIB0, ICALIB1) */
-	int				current_b;
-
-	int				voltage_k;/* VCALIB0 VCALIB1 */
-	int				voltage_b;
-	bool				enter_finish;
+	int				poffset;
+	int				age_ocv_soc;
+	bool				age_allow_update;
+	int				age_level;
+	int				age_ocv_cap;
+	int				age_voltage;
+	int				age_adjust_cap;
+	unsigned long			age_keep_sec;
 	int				zero_timeout_cnt;
-	int				zero_old_remain_cap;
-
-	int				line_k;
-	u8				check_count;
-
-	int				charge_smooth_time;
-	int				sum_suspend_cap;
-	int				suspend_cap;
-
-	unsigned long			suspend_time_sum;
-
-	int				suspend_rsoc;
-	int				slp_psy_status;
-	int				suspend_charge_current;
-	int				resume_soc;
-	int				bat_res;
-	bool				charge_smooth_status;
-	bool				discharge_smooth_status;
-
-	u32                             plug_in_min;
-	u32                             plug_out_min;
-	u32                             finish_sig_min;
-
-	struct notifier_block		battery_nb;
-	struct usb_phy			*usb_phy;
-	struct notifier_block		usb_nb;
-	struct notifier_block           fb_nb;
+	int				zero_remain_cap;
+	int				zero_dsoc;
+	int				zero_linek;
+	u64				zero_drop_sec;
+	u64				shtd_drop_sec;
+	int				sm_remain_cap;
+	int				sm_linek;
+	int				sm_chrg_dsoc;
+	int				sm_dischrg_dsoc;
+	int				algo_rest_val;
+	int				algo_rest_mode;
+	int				sleep_sum_cap;
+	int				sleep_remain_cap;
+	unsigned long			sleep_dischrg_sec;
+	unsigned long			sleep_sum_sec;
+	bool				sleep_chrg_online;
+	u8				sleep_chrg_status;
+	bool				adc_allow_update;
 	int                             fb_blank;
-	int				early_resume;
-	int				s2r; /*suspend to resume*/
-	struct workqueue_struct		*wq;
-	struct delayed_work		battery_monitor_work;
-	struct delayed_work		otg_check_work;
-	struct delayed_work             usb_phy_delay_work;
-	struct delayed_work		chrg_term_mode_switch_work;
-	struct delayed_work		ac_usb_check_work;
-	struct delayed_work		dc_det_check_work;
-	enum bc_port_type		charge_otg;
-	int				ma;
-
-	struct wake_lock		resume_wake_lock;
+	bool				s2r; /*suspend to resume*/
+	u32				work_mode;
+	int				temperature;
+	u32				monitor_ms;
+	u32				pwroff_min;
+	unsigned long			finish_base;
+	unsigned long			boot_base;
+	unsigned long			flat_match_sec;
 	unsigned long			plug_in_base;
 	unsigned long			plug_out_base;
-	unsigned long			finish_sig_base;
-	unsigned long			power_on_base;
-
-	int				chrg_time2full;
-	int				chrg_cap2full;
-
-	bool				is_first_poweron;
-
-	int				fg_drv_mode;
-	int				debug_finish_real_soc;
-	int				debug_finish_temp_soc;
-	int				chrg_min[10];
-	int				chrg_v_lmt;
-	int				chrg_i_lmt;
-	int				chrg_i_cur;
-	uint16_t			pwroff_min;
-	unsigned long			wakeup_sec;
-	u32				delta_vol_smooth;
-	unsigned long			dischrg_normal_base;
-	unsigned long			dischrg_emu_base;
-	unsigned long			chrg_normal_base;
-	unsigned long			chrg_term_base;
-	unsigned long			chrg_emu_base;
-	unsigned long			chrg_finish_base;
-	unsigned long			fcc_update_sec;
-	int				loader_charged;
-	u8				dischrg_algorithm_mode;
-	int				last_zero_mode_dsoc;
-	u8				current_mode;
-	unsigned long			dischrg_save_sec;
-	unsigned long			chrg_save_sec;
-	struct timeval			suspend_rtc_base;
+	u8				halt_cnt;
+	bool				is_halt;
+	bool				is_max_soc_offset;
+	bool				is_sw_reset;
+	bool				is_ocv_calib;
+	int				last_dsoc;
+	int				dbg_cap_low0;
+	int				dbg_pwr_dsoc;
+	int				dbg_pwr_rsoc;
+	int				dbg_pwr_vol;
+	int				dbg_chrg_min[10];
+	int				dbg_meet_soc;
+	int				dbg_calc_dsoc;
+	int				dbg_calc_rsoc;
 };
 
-u32 support_usb_adp, support_dc_adp, power_dc2otg;
+#define DIV(x)	((x) ? (x) : 1)
 
-#define to_device_info(x) container_of((x), \
-				struct rk81x_battery, bat)
-
-#define to_ac_device_info(x) container_of((x), \
-				struct rk81x_battery, ac)
-
-#define to_usb_device_info(x) container_of((x), \
-				struct rk81x_battery, usb)
-
-static int loader_charged;
-
-static int __init rk81x_bat_loader_charged(char *__unused)
-{
-	loader_charged = 1;
-
-	pr_info("battery charged in loader\n");
-
-	return 0;
-}
-__setup("loader_charged", rk81x_bat_loader_charged);
-
-static u64 get_runtime_sec(void)
+static u64 get_boot_sec(void)
 {
 	struct timespec ts;
 
 	get_monotonic_boottime(&ts);
+
 	return ts.tv_sec;
 }
 
-static inline unsigned long  BASE_TO_SEC(unsigned long x)
+static unsigned long base2sec(unsigned long x)
 {
 	if (x)
-		return (get_runtime_sec() > x) ? (get_runtime_sec() - x) : 0;
+		return (get_boot_sec() > x) ? (get_boot_sec() - x) : 0;
 	else
 		return 0;
 }
 
-static inline unsigned long BASE_TO_MIN(unsigned long x)
+static unsigned long base2min(unsigned long x)
 {
-	return  BASE_TO_SEC(x) / 60;
-}
-
-static bool rk81x_bat_support_adp_type(enum hw_support_adp type)
-{
-	bool bl = false;
-
-	switch (type) {
-	case HW_ADP_TYPE_USB:
-		if (support_usb_adp)
-			bl = true;
-		break;
-	case HW_ADP_TYPE_DC:
-		if (support_dc_adp)
-			bl = true;
-		break;
-	case HW_ADP_TYPE_DUAL:
-		if (support_usb_adp && support_dc_adp)
-			bl = true;
-		break;
-	default:
-			break;
-	}
-
-	return bl;
-}
-
-static bool rk81x_chrg_online(struct rk81x_battery *di)
-{
-	return di->usb_online || di->ac_online;
+	return base2sec(x) / 60;
 }
 
 static u32 interpolate(int value, u32 *table, int size)
 {
-	uint8_t i;
-	uint16_t d;
+	u8 i;
+	u16 d;
 
 	for (i = 0; i < size; i++) {
 		if (value < table[i])
@@ -421,11 +246,11 @@ static u32 interpolate(int value, u32 *table, int size)
 	}
 
 	if ((i > 0) && (i < size)) {
-		d = (value - table[i-1]) * (INTERPOLATE_MAX / (size - 1));
-		d /= table[i] - table[i-1];
-		d = d + (i-1) * (INTERPOLATE_MAX / (size - 1));
+		d = (value - table[i - 1]) * (MAX_INTERPOLATE / (size - 1));
+		d /= table[i] - table[i - 1];
+		d = d + (i - 1) * (MAX_INTERPOLATE / (size - 1));
 	} else {
-		d = i * ((INTERPOLATE_MAX + size / 2) / size);
+		d = i * ((MAX_INTERPOLATE + size / 2) / size);
 	}
 
 	if (d > 1000)
@@ -434,21 +259,18 @@ static u32 interpolate(int value, u32 *table, int size)
 	return d;
 }
 
-/* Returns (a * b) / c */
+/* (a*b)/c */
 static int32_t ab_div_c(u32 a, u32 b, u32 c)
 {
 	bool sign;
 	u32 ans = MAX_INT;
-	int32_t tmp;
+	int tmp;
 
-	sign = ((((a^b)^c) & 0x80000000) != 0);
-
+	sign = ((((a ^ b) ^ c) & 0x80000000) != 0);
 	if (c != 0) {
 		if (sign)
 			c = -c;
-
 		tmp = (a * b + (c >> 1)) / c;
-
 		if (tmp < MAX_INT)
 			ans = tmp;
 	}
@@ -459,998 +281,592 @@ static int32_t ab_div_c(u32 a, u32 b, u32 c)
 	return ans;
 }
 
-static int div(int val)
+static int rk818_bat_read(struct rk818_battery *di, u8 reg)
 {
-	return (val == 0) ? 1 : val;
-}
+	int ret, val;
 
-static int rk81x_bat_read(struct rk81x_battery *di, u8 reg,
-			  u8 buf[], unsigned len)
-{
-	int ret = -1;
-	int i;
+	ret = regmap_read(di->regmap, reg, &val);
+	if (ret)
+		dev_err(di->dev, "read reg:0x%x failed\n", reg);
 
-	for (i = 0; ret < 0 && i < 3; i++) {
-		ret = rk818_i2c_read(di->rk818, reg, len, buf);
-		if (ret < 0)
-			dev_err(di->dev, "read reg:0x%02x failed\n", reg);
-	}
-
-	return (ret < 0) ? ret : 0;
-}
-
-static int rk81x_bat_write(struct rk81x_battery *di, u8 reg,
-			   u8 const buf[], unsigned len)
-{
-	int ret = -1;
-	int i;
-
-	for (i = 0; ret < 0 && i < 3; i++) {
-		ret = rk818_i2c_write(di->rk818, reg, (int)len, *buf);
-		if (ret < 0)
-			dev_err(di->dev, "write reg:0x%02x failed\n", reg);
-	}
-
-	return (ret < 0) ? ret : 0;
-}
-
-static int rk81x_bat_set_bit(struct rk81x_battery *di, u8 reg, u8 shift)
-{
-	int ret = -1;
-	int i;
-
-	for (i = 0; ret < 0 && i < 3; i++) {
-		ret = rk818_set_bits(di->rk818, reg, 1 << shift, 1 << shift);
-		if (ret < 0)
-			dev_err(di->dev, "set reg:0x%02x failed\n", reg);
-	}
-
-	return ret;
-}
-
-static int rk81x_bat_clr_bit(struct rk81x_battery *di, u8 reg, u8 shift)
-{
-	int ret = -1;
-	int i;
-
-	for (i = 0; ret < 0 && i < 3; i++) {
-		ret = rk818_set_bits(di->rk818, reg, 1 << shift, 0 << shift);
-		if (ret < 0)
-			dev_err(di->dev, "set reg:0x%02x failed\n", reg);
-	}
-
-	return ret;
-}
-
-static u8 rk81x_bat_read_bit(struct rk81x_battery *di, u8 reg, u8 shift)
-{
-	u8 buf;
-	u8 val;
-
-	rk81x_bat_read(di, reg, &buf, 1);
-	val = (buf & BIT(shift)) >> shift;
 	return val;
 }
 
-static void rk81x_dbg_dmp_gauge_regs(struct rk81x_battery *di)
+static int rk818_bat_write(struct rk818_battery *di, u8 reg, u8 buf)
 {
-	int i = 0;
-	u8 buf;
+	int ret;
 
-	DBG("%s dump charger register start:\n", __func__);
-	for (i = 0xAC; i < 0xEE; i++) {
-		rk81x_bat_read(di, i, &buf, 1);
-		DBG("0x%02x : 0x%02x\n", i, buf);
-	}
-	DBG("demp end!\n");
+	ret = regmap_write(di->regmap, reg, buf);
+	if (ret)
+		dev_err(di->dev, "i2c write reg: 0x%2x error\n", reg);
+
+	return ret;
 }
 
-static void rk81x_dbg_dmp_charger_regs(struct rk81x_battery *di)
+static int rk818_bat_set_bits(struct rk818_battery *di, u8 reg, u8 mask, u8 buf)
 {
-	int i = 0;
-	char buf;
+	int ret;
 
-	DBG("%s dump the register start:\n", __func__);
-	for (i = 0x99; i < 0xAB; i++) {
-		rk81x_bat_read(di, i, &buf, 1);
-		DBG(" the register is  0x%02x, the value is 0x%02x\n", i, buf);
-	}
-	DBG("demp end!\n");
+	ret = regmap_update_bits(di->regmap, reg, mask, buf);
+	if (ret)
+		dev_err(di->dev, "write reg:0x%x failed\n", reg);
+
+	return ret;
 }
 
-static void rk81x_bat_reset_zero_var(struct rk81x_battery *di)
+static int rk818_bat_clear_bits(struct rk818_battery *di, u8 reg, u8 mask)
 {
-	di->dischrg_algorithm_mode = DISCHRG_NORMAL_MODE;
-	di->last_zero_mode_dsoc = DEF_LAST_ZERO_MODE_SOC;
+	int ret;
+
+	ret = regmap_update_bits(di->regmap, reg, mask, 0);
+	if (ret)
+		dev_err(di->dev, "clr reg:0x%02x failed\n", reg);
+
+	return ret;
 }
 
-static void rk81x_bat_capacity_init_post(struct rk81x_battery *di)
+static void rk818_bat_dump_regs(struct rk818_battery *di, u8 start, u8 end)
 {
-	rk81x_bat_reset_zero_var(di);
-	di->trend_start_cap = di->remain_capacity;
-}
+	int i;
 
-static void rk81x_bat_capacity_init(struct rk81x_battery *di, u32 capacity)
-{
-	u8 buf;
-	u32 capacity_ma;
-	int delta_cap;
-
-	delta_cap = capacity - di->remain_capacity;
-	if (!delta_cap)
+	if (!dbg_enable)
 		return;
 
-	di->adjust_cap += delta_cap;
-
-	capacity_ma = capacity * 2390;/* 2134;//36*14/900*4096/521*500; */
-	do {
-		buf = (capacity_ma >> 24) & 0xff;
-		rk81x_bat_write(di, GASCNT_CAL_REG3, &buf, 1);
-		buf = (capacity_ma >> 16) & 0xff;
-		rk81x_bat_write(di, GASCNT_CAL_REG2, &buf, 1);
-		buf = (capacity_ma >> 8) & 0xff;
-		rk81x_bat_write(di, GASCNT_CAL_REG1, &buf, 1);
-		buf = (capacity_ma & 0xff) | 0x01;
-		rk81x_bat_write(di, GASCNT_CAL_REG0, &buf, 1);
-		rk81x_bat_read(di, GASCNT_CAL_REG0, &buf, 1);
-
-	} while (buf == 0);
-
-	if (di->chrg_status != CHARGE_FINISH || di->dod0_status == 1)
-		dev_dbg(di->dev, "update capacity :%d--remain_cap:%d\n",
-			capacity, di->remain_capacity);
+	DBG("dump regs from: 0x%x-->0x%x\n", start, end);
+	for (i = start; i < end; i++)
+		DBG("0x%x: 0x%0x\n", i, rk818_bat_read(di, i));
 }
 
-#if RK818_SYS_DBG
-/*
- * interface for debug: do rk81x_bat_first_pwron() without unloading battery
- */
-static ssize_t bat_calib_read(struct device *dev,
-			      struct device_attribute *attr, char *buf)
+static bool rk818_bat_chrg_online(struct rk818_battery *di)
 {
-	struct power_supply *psy_bat = dev_get_drvdata(dev);
-	struct rk81x_battery *di = to_device_info(psy_bat);
-	int val;
+	u8 buf;
 
-	val = rk81x_bat_read_bit(di, MISC_MARK_REG, OCV_CALIB_SHIFT);
+	buf = rk818_bat_read(di, RK818_VB_MON_REG);
 
-	return sprintf(buf, "%d\n", val);
+	return (buf & PLUG_IN_STS) ? true : false;
 }
 
-static ssize_t bat_calib_write(struct device *dev,
-			       struct device_attribute *attr,
-			       const char *buf, size_t count)
+static int rk818_bat_get_coulomb_cap(struct rk818_battery *di)
 {
-	u8 val;
-	int ret;
-	struct power_supply *psy_bat = dev_get_drvdata(dev);
-	struct rk81x_battery *di = to_device_info(psy_bat);
+	int val = 0;
 
-	ret = kstrtou8(buf, 0, &val);
-	if (ret < 0)
-		return ret;
+	val |= rk818_bat_read(di, RK818_GASCNT3_REG) << 24;
+	val |= rk818_bat_read(di, RK818_GASCNT2_REG) << 16;
+	val |= rk818_bat_read(di, RK818_GASCNT1_REG) << 8;
+	val |= rk818_bat_read(di, RK818_GASCNT0_REG) << 0;
 
-	if (val)
-		rk81x_bat_set_bit(di, MISC_MARK_REG, OCV_CALIB_SHIFT);
-	else
-		rk81x_bat_clr_bit(di, MISC_MARK_REG, OCV_CALIB_SHIFT);
-	return count;
+	return (val / 2390) * di->res_div;
 }
 
-/*
- * interface for debug: force battery to over discharge
- */
-static ssize_t bat_test_power_read(struct device *dev,
-				   struct device_attribute *attr, char *buf)
+static int rk818_bat_get_rsoc(struct rk818_battery *di)
 {
-	struct power_supply *psy_bat = dev_get_drvdata(dev);
-	struct rk81x_battery *di = to_device_info(psy_bat);
+	int remain_cap;
 
-	return sprintf(buf, "%d\n", di->fg_drv_mode);
+	remain_cap = rk818_bat_get_coulomb_cap(di);
+	return (remain_cap + di->fcc / 200) * 100 / DIV(di->fcc);
 }
 
-static ssize_t bat_test_power_write(struct device *dev,
-				    struct device_attribute *attr,
-				    const char *buf, size_t count)
-{
-	u8 val;
-	int ret;
-	struct power_supply *psy_bat = dev_get_drvdata(dev);
-	struct rk81x_battery *di = to_device_info(psy_bat);
-
-	ret = kstrtou8(buf, 0, &val);
-	if (ret < 0)
-		return ret;
-
-	if (val == 1)
-		di->fg_drv_mode = TEST_POWER_MODE;
-	else
-		di->fg_drv_mode = FG_NORMAL_MODE;
-
-	return count;
-}
-
-static ssize_t bat_fcc_read(struct device *dev,
-			    struct device_attribute *attr, char *buf)
-{
-	struct power_supply *psy_bat = dev_get_drvdata(dev);
-	struct rk81x_battery *di = to_device_info(psy_bat);
-
-	return sprintf(buf, "%d\n", di->fcc);
-}
-
-static ssize_t bat_fcc_write(struct device *dev,
-			     struct device_attribute *attr,
-			     const char *buf, size_t count)
-{
-	u16 val;
-	int ret;
-	struct power_supply *psy_bat = dev_get_drvdata(dev);
-	struct rk81x_battery *di = to_device_info(psy_bat);
-
-	ret = kstrtou16(buf, 0, &val);
-	if (ret < 0)
-		return ret;
-
-	di->fcc = val;
-
-	return count;
-}
-
-static ssize_t bat_dsoc_read(struct device *dev,
-			     struct device_attribute *attr, char *buf)
-{
-	struct power_supply *psy_bat = dev_get_drvdata(dev);
-	struct rk81x_battery *di = to_device_info(psy_bat);
-
-	return sprintf(buf, "%d\n", di->dsoc);
-}
-
-static ssize_t bat_dsoc_write(struct device *dev,
-			      struct device_attribute *attr,
-			     const char *buf, size_t count)
-{
-	u8 val;
-	int ret;
-	struct power_supply *psy_bat = dev_get_drvdata(dev);
-	struct rk81x_battery *di = to_device_info(psy_bat);
-
-	ret = kstrtou8(buf, 0, &val);
-	if (ret < 0)
-		return ret;
-
-	di->dsoc = val;
-
-	return count;
-}
-
-static ssize_t bat_rsoc_read(struct device *dev,
-			     struct device_attribute *attr, char *buf)
-{
-	struct power_supply *psy_bat = dev_get_drvdata(dev);
-	struct rk81x_battery *di = to_device_info(psy_bat);
-
-	return sprintf(buf, "%d\n", di->rsoc);
-}
-
-static ssize_t bat_rsoc_write(struct device *dev,
-			      struct device_attribute *attr,
+static ssize_t bat_info_store(struct device *dev, struct device_attribute *attr,
 			      const char *buf, size_t count)
 {
-	u8 val;
-	int ret;
-	u32 capacity;
-	struct power_supply *psy_bat = dev_get_drvdata(dev);
-	struct rk81x_battery *di = to_device_info(psy_bat);
+	char cmd;
+	struct rk818_battery *di = dev_get_drvdata(dev);
 
-	ret = kstrtou8(buf, 0, &val);
-	if (ret < 0)
-		return ret;
+	sscanf(buf, "%c", &cmd);
 
-	capacity = di->fcc * val / 100;
-	rk81x_bat_capacity_init(di, capacity);
-	rk81x_bat_capacity_init_post(di);
+	if (cmd == 'n')
+		rk818_bat_set_bits(di, RK818_MISC_MARK_REG,
+				   FG_RESET_NOW, FG_RESET_NOW);
+	else if (cmd == 'm')
+		rk818_bat_set_bits(di, RK818_MISC_MARK_REG,
+				   FG_RESET_LATE, FG_RESET_LATE);
+	else if (cmd == 'c')
+		rk818_bat_clear_bits(di, RK818_MISC_MARK_REG,
+				     FG_RESET_LATE | FG_RESET_NOW);
+	else if (cmd == 'r')
+		BAT_INFO("0x%2x\n", rk818_bat_read(di, RK818_MISC_MARK_REG));
+	else
+		BAT_INFO("command error\n");
 
 	return count;
-}
-
-static ssize_t bat_remain_cap_read(struct device *dev,
-				   struct device_attribute *attr,
-				   char *buf)
-{
-	struct power_supply *psy_bat = dev_get_drvdata(dev);
-	struct rk81x_battery *di = to_device_info(psy_bat);
-
-	return sprintf(buf, "%d\n", di->remain_capacity);
 }
 
 static struct device_attribute rk818_bat_attr[] = {
-	__ATTR(fcc, 0664, bat_fcc_read, bat_fcc_write),
-	__ATTR(dsoc, 0664, bat_dsoc_read, bat_dsoc_write),
-	__ATTR(rsoc, 0664, bat_rsoc_read, bat_rsoc_write),
-	__ATTR(remain_capacity, 0664, bat_remain_cap_read, NULL),
-	__ATTR(test_power, 0664, bat_test_power_read, bat_test_power_write),
-	__ATTR(calib, 0664, bat_calib_read, bat_calib_write),
+	__ATTR(bat, 0664, NULL, bat_info_store),
 };
-#endif
 
-static int rk81x_bat_gauge_enable(struct rk81x_battery *di)
+static void rk818_bat_enable_gauge(struct rk818_battery *di)
 {
-	int ret;
 	u8 buf;
 
-	ret = rk81x_bat_read(di, TS_CTRL_REG, &buf, 1);
-	if (ret < 0) {
-		dev_err(di->dev, "error reading TS_CTRL_REG");
-		return ret;
+	buf = rk818_bat_read(di, RK818_TS_CTRL_REG);
+	buf |= GG_EN;
+	rk818_bat_write(di, RK818_TS_CTRL_REG, buf);
+}
+
+static void rk818_bat_save_age_level(struct rk818_battery *di, u8 level)
+{
+	rk818_bat_write(di, RK818_UPDAT_LEVE_REG, level);
+}
+
+static u8 rk818_bat_get_age_level(struct  rk818_battery *di)
+{
+	return rk818_bat_read(di, RK818_UPDAT_LEVE_REG);
+}
+
+static int rk818_bat_get_vcalib0(struct rk818_battery *di)
+{
+	int val = 0;
+
+	val |= rk818_bat_read(di, RK818_VCALIB0_REGL) << 0;
+	val |= rk818_bat_read(di, RK818_VCALIB0_REGH) << 8;
+
+	DBG("<%s>. voffset0: 0x%x\n", __func__, val);
+	return val;
+}
+
+static int rk818_bat_get_vcalib1(struct rk818_battery *di)
+{
+	int val = 0;
+
+	val |= rk818_bat_read(di, RK818_VCALIB1_REGL) << 0;
+	val |= rk818_bat_read(di, RK818_VCALIB1_REGH) << 8;
+
+	DBG("<%s>. voffset1: 0x%x\n", __func__, val);
+	return val;
+}
+
+static int rk818_bat_get_ioffset(struct rk818_battery *di)
+{
+	int val = 0;
+
+	val |= rk818_bat_read(di, RK818_IOFFSET_REGL) << 0;
+	val |= rk818_bat_read(di, RK818_IOFFSET_REGH) << 8;
+
+	DBG("<%s>. ioffset: 0x%x\n", __func__, val);
+	return val;
+}
+
+static int rk818_bat_get_coffset(struct rk818_battery *di)
+{
+	int val = 0;
+
+	val |= rk818_bat_read(di, RK818_CAL_OFFSET_REGL) << 0;
+	val |= rk818_bat_read(di, RK818_CAL_OFFSET_REGH) << 8;
+
+	DBG("<%s>. coffset: 0x%x\n", __func__, val);
+	return val;
+}
+
+static void rk818_bat_set_coffset(struct rk818_battery *di, int val)
+{
+	u8 buf;
+
+	if ((val < INVALID_COFFSET_MIN) || (val > INVALID_COFFSET_MAX)) {
+		BAT_INFO("set invalid coffset=0x%x\n", val);
+		return;
 	}
 
-	buf |= GG_EN;
-	rk81x_bat_write(di, TS_CTRL_REG, &buf, 1);
-
-	return 0;
+	buf = (val >> 8) & 0xff;
+	rk818_bat_write(di, RK818_CAL_OFFSET_REGH, buf);
+	buf = (val >> 0) & 0xff;
+	rk818_bat_write(di, RK818_CAL_OFFSET_REGL, buf);
+	DBG("<%s>. coffset: 0x%x\n", __func__, val);
 }
 
-static void rk81x_bat_save_level(struct  rk81x_battery *di, u8 save_soc)
-{
-	rk81x_bat_write(di, UPDAT_LEVE_REG, &save_soc, 1);
-}
-
-static u8 rk81x_bat_get_level(struct  rk81x_battery *di)
-{
-	u8 soc;
-
-	rk81x_bat_read(di, UPDAT_LEVE_REG, &soc, 1);
-
-	return soc;
-}
-
-static int rk81x_bat_get_vcalib0(struct rk81x_battery *di)
-{
-	int ret;
-	int temp = 0;
-	u8 buf;
-
-	ret = rk81x_bat_read(di, VCALIB0_REGL, &buf, 1);
-	temp = buf;
-	ret = rk81x_bat_read(di, VCALIB0_REGH, &buf, 1);
-	temp |= buf << 8;
-
-	DBG("%s voltage0 offset vale is %d\n", __func__, temp);
-	return temp;
-}
-
-static int rk81x_bat_get_vcalib1(struct  rk81x_battery *di)
-{
-	int ret;
-	int temp = 0;
-	u8 buf;
-
-	ret = rk81x_bat_read(di, VCALIB1_REGL, &buf, 1);
-	temp = buf;
-	ret = rk81x_bat_read(di, VCALIB1_REGH, &buf, 1);
-	temp |= buf << 8;
-
-	DBG("%s voltage1 offset vale is %d\n", __func__, temp);
-	return temp;
-}
-
-static int rk81x_bat_get_ioffset(struct rk81x_battery *di)
-{
-	int ret;
-	int temp = 0;
-	u8 buf;
-
-	ret = rk81x_bat_read(di, IOFFSET_REGL, &buf, 1);
-	temp = buf;
-	ret = rk81x_bat_read(di, IOFFSET_REGH, &buf, 1);
-	temp |= buf << 8;
-
-	return temp;
-}
-
-static uint16_t rk81x_bat_get_cal_offset(struct rk81x_battery *di)
-{
-	int ret;
-	uint16_t temp = 0;
-	u8 buf;
-
-	ret = rk81x_bat_read(di, CAL_OFFSET_REGL, &buf, 1);
-	temp = buf;
-	ret = rk81x_bat_read(di, CAL_OFFSET_REGH, &buf, 1);
-	temp |= buf << 8;
-
-	return temp;
-}
-
-static int rk81x_bat_set_cal_offset(struct rk81x_battery *di, u32 value)
-{
-	int ret;
-	u8 buf;
-
-	buf = value & 0xff;
-	ret = rk81x_bat_write(di, CAL_OFFSET_REGL, &buf, 1);
-	buf = (value >> 8) & 0xff;
-	ret = rk81x_bat_write(di, CAL_OFFSET_REGH, &buf, 1);
-
-	return 0;
-}
-
-static void rk81x_bat_get_vol_offset(struct rk81x_battery *di)
+static void rk818_bat_init_voltage_kb(struct rk818_battery *di)
 {
 	int vcalib0, vcalib1;
 
-	vcalib0 = rk81x_bat_get_vcalib0(di);
-	vcalib1 = rk81x_bat_get_vcalib1(di);
-
-	di->voltage_k = (4200 - 3000) * 1000 / div((vcalib1 - vcalib0));
+	vcalib0 = rk818_bat_get_vcalib0(di);
+	vcalib1 = rk818_bat_get_vcalib1(di);
+	di->voltage_k = (4200 - 3000) * 1000 / DIV(vcalib1 - vcalib0);
 	di->voltage_b = 4200 - (di->voltage_k * vcalib1) / 1000;
-	DBG("voltage_k=%d(x1000),voltage_b=%d\n", di->voltage_k, di->voltage_b);
+
+	DBG("voltage_k=%d(*1000),voltage_b=%d\n", di->voltage_k, di->voltage_b);
 }
 
-static uint16_t rk81x_bat_get_ocv_vol(struct rk81x_battery *di)
+static int rk818_bat_get_ocv_voltage(struct rk818_battery *di)
 {
-	int ret;
-	u8 buf;
-	uint16_t temp;
-	uint16_t voltage_now = 0;
-	int i;
-	int val[3];
+	int vol, val = 0;
 
-	for (i = 0; i < 3; i++) {
-		ret = rk81x_bat_read(di, BAT_OCV_REGL, &buf, 1);
-		val[i] = buf;
-		ret = rk81x_bat_read(di, BAT_OCV_REGH, &buf, 1);
-		val[i] |= buf << 8;
+	val |= rk818_bat_read(di, RK818_BAT_OCV_REGL) << 0;
+	val |= rk818_bat_read(di, RK818_BAT_OCV_REGH) << 8;
 
-		if (ret < 0) {
-			dev_err(di->dev, "error read BAT_OCV_REGH");
-			return ret;
-		}
-	}
-
-	if (val[0] == val[1])
-		temp = val[0];
-	else
-		temp = val[2];
-
-	voltage_now = di->voltage_k * temp / 1000 + di->voltage_b;
-
-	return voltage_now;
-}
-
-static int rk81x_bat_get_vol(struct rk81x_battery *di)
-{
-	int ret;
-	int vol;
-	u8 buf;
-	int temp;
-	int val[3];
-	int i;
-
-	for (i = 0; i < 3; i++) {
-		ret = rk81x_bat_read(di, BAT_VOL_REGL, &buf, 1);
-		val[i] = buf;
-		ret = rk81x_bat_read(di, BAT_VOL_REGH, &buf, 1);
-		val[i] |= buf << 8;
-
-		if (ret < 0) {
-			dev_err(di->dev, "error read BAT_VOL_REGH");
-			return ret;
-		}
-	}
-	/*check value*/
-	if (val[0] == val[1])
-		temp = val[0];
-	else
-		temp = val[2];
-
-	vol = di->voltage_k * temp / 1000 + di->voltage_b;
+	vol = di->voltage_k * val / 1000 + di->voltage_b;
 
 	return vol;
 }
 
-static bool is_rk81x_bat_relax_mode(struct rk81x_battery *di)
+static int rk818_bat_get_avg_voltage(struct rk818_battery *di)
 {
-	int ret;
+	int vol, val = 0;
+
+	val |= rk818_bat_read(di, RK818_BAT_VOL_REGL) << 0;
+	val |= rk818_bat_read(di, RK818_BAT_VOL_REGH) << 8;
+
+	vol = di->voltage_k * val / 1000 + di->voltage_b;
+
+	return vol;
+}
+
+static bool is_rk818_bat_relax_mode(struct rk818_battery *di)
+{
 	u8 status;
 
-	ret = rk81x_bat_read(di, GGSTS, &status, 1);
-
-	if ((!(status & RELAX_VOL1_UPD)) || (!(status & RELAX_VOL2_UPD)))
+	status = rk818_bat_read(di, RK818_GGSTS_REG);
+	if (!(status & RELAX_VOL1_UPD) || !(status & RELAX_VOL2_UPD))
 		return false;
 	else
 		return true;
 }
 
-static uint16_t rk81x_bat_get_relax_vol1(struct rk81x_battery *di)
+static u16 rk818_bat_get_relax_vol1(struct rk818_battery *di)
 {
-	int ret;
-	u8 buf;
-	uint16_t temp = 0, voltage_now;
+	u16 vol, val = 0;
 
-	ret = rk81x_bat_read(di, RELAX_VOL1_REGL, &buf, 1);
-	temp = buf;
-	ret = rk81x_bat_read(di, RELAX_VOL1_REGH, &buf, 1);
-	temp |= (buf << 8);
+	val |= rk818_bat_read(di, RK818_RELAX_VOL1_REGL) << 0;
+	val |= rk818_bat_read(di, RK818_RELAX_VOL1_REGH) << 8;
+	vol = di->voltage_k * val / 1000 + di->voltage_b;
 
-	voltage_now = di->voltage_k * temp / 1000 + di->voltage_b;
-
-	return voltage_now;
+	return vol;
 }
 
-static uint16_t rk81x_bat_get_relax_vol2(struct rk81x_battery *di)
+static u16 rk818_bat_get_relax_vol2(struct rk818_battery *di)
 {
-	int ret;
-	u8 buf;
-	uint16_t temp = 0, voltage_now;
+	u16 vol, val = 0;
 
-	ret = rk81x_bat_read(di, RELAX_VOL2_REGL, &buf, 1);
-	temp = buf;
-	ret = rk81x_bat_read(di, RELAX_VOL2_REGH, &buf, 1);
-	temp |= (buf << 8);
+	val |= rk818_bat_read(di, RK818_RELAX_VOL2_REGL) << 0;
+	val |= rk818_bat_read(di, RK818_RELAX_VOL2_REGH) << 8;
+	vol = di->voltage_k * val / 1000 + di->voltage_b;
 
-	voltage_now = di->voltage_k * temp / 1000 + di->voltage_b;
-
-	return voltage_now;
+	return vol;
 }
 
-static uint16_t rk81x_bat_get_relax_vol(struct rk81x_battery *di)
+static u16 rk818_bat_get_relax_voltage(struct rk818_battery *di)
 {
-	int ret;
-	u8 status;
-	uint16_t relax_vol1, relax_vol2;
-	u8 ggcon;
+	u16 relax_vol1, relax_vol2;
 
-	ret = rk81x_bat_read(di, GGSTS, &status, 1);
-	ret = rk81x_bat_read(di, GGCON, &ggcon, 1);
-
-	relax_vol1 = rk81x_bat_get_relax_vol1(di);
-	relax_vol2 = rk81x_bat_get_relax_vol2(di);
-	DBG("<%s>. GGSTS=0x%x, GGCON=0x%x, relax_vol1=%d, relax_vol2=%d\n",
-	    __func__, status, ggcon, relax_vol1, relax_vol2);
-
-	if (is_rk81x_bat_relax_mode(di))
-		return relax_vol1 > relax_vol2 ? relax_vol1 : relax_vol2;
-	else
+	if (!is_rk818_bat_relax_mode(di))
 		return 0;
+
+	relax_vol1 = rk818_bat_get_relax_vol1(di);
+	relax_vol2 = rk818_bat_get_relax_vol2(di);
+
+	return relax_vol1 > relax_vol2 ? relax_vol1 : relax_vol2;
 }
 
-/* OCV Lookup table
- * Open Circuit Voltage (OCV) correction routine. This function estimates SOC,
- * based on the voltage.
- */
-static int rk81x_bat_vol_to_capacity(struct rk81x_battery *di, int voltage)
+static int rk818_bat_get_avg_current(struct rk818_battery *di)
 {
-	u32 *ocv_table;
-	int ocv_size;
-	u32 tmp;
-	int ocv_soc;
+	int cur, val = 0;
 
-	ocv_table = di->pdata->battery_ocv;
+	val |= rk818_bat_read(di, RK818_BAT_CUR_AVG_REGL) << 0;
+	val |= rk818_bat_read(di, RK818_BAT_CUR_AVG_REGH) << 8;
+
+	if (val & 0x800)
+		val -= 4096;
+	cur = val * di->res_div * 1506 / 1000;
+
+	return cur;
+}
+
+static int rk818_bat_vol_to_ocvsoc(struct rk818_battery *di, int voltage)
+{
+	u32 *ocv_table, temp;
+	int ocv_size, ocv_soc;
+
+	ocv_table = di->pdata->ocv_table;
 	ocv_size = di->pdata->ocv_size;
-	tmp = interpolate(voltage, ocv_table, ocv_size);
-	ocv_soc = ab_div_c(tmp, MAX_PERCENTAGE, INTERPOLATE_MAX);
-	di->temp_nac = ab_div_c(tmp, di->fcc, INTERPOLATE_MAX);
+	temp = interpolate(voltage, ocv_table, ocv_size);
+	ocv_soc = ab_div_c(temp, MAX_PERCENTAGE, MAX_INTERPOLATE);
 
 	return ocv_soc;
 }
 
-static int rk81x_bat_get_raw_adc_current(struct rk81x_battery *di)
+static int rk818_bat_vol_to_ocvcap(struct rk818_battery *di, int voltage)
 {
-	u8 buf;
-	int ret;
-	int val;
+	u32 *ocv_table, temp;
+	int ocv_size, cap;
 
-	ret = rk81x_bat_read(di, BAT_CUR_AVG_REGL, &buf, 1);
-	if (ret < 0) {
-		dev_err(di->dev, "error reading BAT_CUR_AVG_REGL");
-		return ret;
-	}
-	val = buf;
-	ret = rk81x_bat_read(di, BAT_CUR_AVG_REGH, &buf, 1);
-	if (ret < 0) {
-		dev_err(di->dev, "error reading BAT_CUR_AVG_REGH");
-		return ret;
-	}
-	val |= (buf << 8);
+	ocv_table = di->pdata->ocv_table;
+	ocv_size = di->pdata->ocv_size;
+	temp = interpolate(voltage, ocv_table, ocv_size);
+	cap = ab_div_c(temp, di->fcc, MAX_INTERPOLATE);
 
-	if (ret < 0) {
-		dev_err(di->dev, "error reading BAT_CUR_AVG_REGH");
-		return ret;
-	}
+	return cap;
+}
 
+static int rk818_bat_vol_to_zerosoc(struct rk818_battery *di, int voltage)
+{
+	u32 *ocv_table, temp;
+	int ocv_size, ocv_soc;
+
+	ocv_table = di->pdata->zero_table;
+	ocv_size = di->pdata->ocv_size;
+	temp = interpolate(voltage, ocv_table, ocv_size);
+	ocv_soc = ab_div_c(temp, MAX_PERCENTAGE, MAX_INTERPOLATE);
+
+	return ocv_soc;
+}
+
+static int rk818_bat_vol_to_zerocap(struct rk818_battery *di, int voltage)
+{
+	u32 *ocv_table, temp;
+	int ocv_size, cap;
+
+	ocv_table = di->pdata->zero_table;
+	ocv_size = di->pdata->ocv_size;
+	temp = interpolate(voltage, ocv_table, ocv_size);
+	cap = ab_div_c(temp, di->fcc, MAX_INTERPOLATE);
+
+	return cap;
+}
+
+static int rk818_bat_get_iadc(struct rk818_battery *di)
+{
+	int val = 0;
+
+	val |= rk818_bat_read(di, RK818_BAT_CUR_AVG_REGL) << 0;
+	val |= rk818_bat_read(di, RK818_BAT_CUR_AVG_REGH) << 8;
 	if (val > 2047)
 		val -= 4096;
 
 	return val;
 }
 
-static void rk81x_bat_ioffset_sample_set(struct rk81x_battery *di, int time)
+static bool rk818_bat_adc_calib(struct rk818_battery *di)
 {
-	u8 ggcon;
+	int i, ioffset, coffset, adc, save_coffset;
 
-	rk81x_bat_read(di, GGCON, &ggcon, 1);
-	ggcon &= ~(0x30); /*clear <5:4>*/
-	ggcon |= time;
-	rk81x_bat_write(di, GGCON, &ggcon, 1);
-}
+	if ((di->chrg_status != CHARGE_FINISH) ||
+	    (base2min(di->boot_base) < ADC_CALIB_LMT_MIN) ||
+	    (abs(di->current_avg) < ADC_CALIB_THRESHOLD))
+		return false;
 
-/*
- * when charger finish signal comes, we need calibrate the current, make it
- * close to 0.
- */
-static bool rk81x_bat_zero_current_calib(struct rk81x_battery *di)
-{
-	int adc_value;
-	uint16_t C0;
-	uint16_t C1;
-	int ioffset;
-	u8 pcb_offset = 0;
-	u8 retry = 0;
-	bool ret = true;
-
-	if ((di->chrg_status == CHARGE_FINISH) &&
-	    (BASE_TO_MIN(di->power_on_base) >= 3) &&
-	    (abs(di->current_avg) > 4)) {
-		for (retry = 0; retry < 5; retry++) {
-			adc_value = rk81x_bat_get_raw_adc_current(di);
-			if (!rk81x_chrg_online(di) || abs(adc_value) > 30) {
-				dev_warn(di->dev, "charger plugout\n");
-				ret = true;
-				break;
-			}
-
-			DBG("<%s>. adc_value = %d\n", __func__, adc_value);
-			C0 = rk81x_bat_get_cal_offset(di);
-			C1 = adc_value + C0;
-			DBG("<%s>. C0(cal_offset) = %d, C1 = %d\n",
-			    __func__, C0, C1);
-			rk81x_bat_set_cal_offset(di, C1);
-			DBG("<%s>. new cal_offset = %d\n",
-			    __func__, rk81x_bat_get_cal_offset(di));
-			msleep(3000);
-			adc_value = rk81x_bat_get_raw_adc_current(di);
-			DBG("<%s>. adc_value = %d\n", __func__, adc_value);
-			if (abs(adc_value) < 4) {
-				if (rk81x_bat_get_cal_offset(di) < 0x7ff) {
-					ioffset = rk81x_bat_get_ioffset(di);
-					rk81x_bat_set_cal_offset(di,
-								 ioffset + 42);
-				} else {
-					ioffset = rk81x_bat_get_ioffset(di);
-					pcb_offset = C1 - ioffset;
-					di->pcb_ioffset = pcb_offset;
-					di->pcb_ioffset_updated  = true;
-					rk81x_bat_write(di,
-							PCB_IOFFSET_REG,
-							&pcb_offset, 1);
-				}
-				DBG("<%s>. update the cal_offset, C1 = %d\n"
-				    "i_offset = %d, pcb_offset = %d\n",
-					__func__, C1, ioffset, pcb_offset);
-				ret = false;
-				break;
-			} else {
-				dev_dbg(di->dev, "ioffset cal failed\n");
-				rk81x_bat_set_cal_offset(di, C0);
-			}
-
-			di->pcb_ioffset_updated  = false;
+	save_coffset = rk818_bat_get_coffset(di);
+	for (i = 0; i < 5; i++) {
+		adc = rk818_bat_get_iadc(di);
+		if (!rk818_bat_chrg_online(di)) {
+			rk818_bat_set_coffset(di, save_coffset);
+			BAT_INFO("quit, charger plugout when calib adc\n");
+			return false;
+		}
+		coffset = rk818_bat_get_coffset(di);
+		rk818_bat_set_coffset(di, coffset + adc);
+		msleep(2000);
+		adc = rk818_bat_get_iadc(di);
+		if (abs(adc) < ADC_CALIB_THRESHOLD) {
+			coffset = rk818_bat_get_coffset(di);
+			ioffset = rk818_bat_get_ioffset(di);
+			di->poffset = coffset - ioffset;
+			rk818_bat_write(di, RK818_POFFSET_REG, di->poffset);
+			BAT_INFO("new offset:c=0x%x, i=0x%x, p=0x%x\n",
+				 coffset, ioffset, di->poffset);
+			return true;
+		} else {
+			BAT_INFO("coffset calib again %d..\n", i);
+			rk818_bat_set_coffset(di, coffset);
+			msleep(2000);
 		}
 	}
 
-	return ret;
+	return false;
 }
 
-static void rk81x_bat_set_relax_thres(struct rk81x_battery *di)
+static void rk818_bat_set_ioffset_sample(struct rk818_battery *di)
+{
+	u8 ggcon;
+
+	ggcon = rk818_bat_read(di, RK818_GGCON_REG);
+	ggcon &= ~ADC_CAL_MIN_MSK;
+	ggcon |= ADC_CAL_8MIN;
+	rk818_bat_write(di, RK818_GGCON_REG, ggcon);
+}
+
+static void rk818_bat_set_ocv_sample(struct rk818_battery *di)
+{
+	u8 ggcon;
+
+	ggcon = rk818_bat_read(di, RK818_GGCON_REG);
+	ggcon &= ~OCV_SAMP_MIN_MSK;
+	ggcon |= OCV_SAMP_8MIN;
+	rk818_bat_write(di, RK818_GGCON_REG, ggcon);
+}
+
+static void rk818_bat_restart_relax(struct rk818_battery *di)
+{
+	u8 ggsts;
+
+	ggsts = rk818_bat_read(di, RK818_GGSTS_REG);
+	ggsts &= ~RELAX_VOL12_UPD_MSK;
+	rk818_bat_write(di, RK818_GGSTS_REG, ggsts);
+}
+
+static void rk818_bat_set_relax_sample(struct rk818_battery *di)
 {
 	u8 buf;
 	int enter_thres, exit_thres;
-	struct cell_state *cell = &di->cell;
+	struct battery_platform_data *pdata = di->pdata;
 
-	enter_thres = (cell->config->ocv->sleep_enter_current) * 1000 / 1506;
-	exit_thres = (cell->config->ocv->sleep_exit_current) * 1000 / 1506;
-	DBG("<%s>. sleep_enter_current = %d, sleep_exit_current = %d\n",
-	    __func__, cell->config->ocv->sleep_enter_current,
-	cell->config->ocv->sleep_exit_current);
+	enter_thres = pdata->sleep_enter_current * 1000 / 1506 / di->res_div;
+	exit_thres = pdata->sleep_exit_current * 1000 / 1506 / di->res_div;
 
-	buf  = enter_thres & 0xff;
-	rk81x_bat_write(di, RELAX_ENTRY_THRES_REGL, &buf, 1);
+	/* set relax enter and exit threshold */
+	buf = enter_thres & 0xff;
+	rk818_bat_write(di, RK818_RELAX_ENTRY_THRES_REGL, buf);
 	buf = (enter_thres >> 8) & 0xff;
-	rk81x_bat_write(di, RELAX_ENTRY_THRES_REGH, &buf, 1);
+	rk818_bat_write(di, RK818_RELAX_ENTRY_THRES_REGH, buf);
 
-	buf  = exit_thres & 0xff;
-	rk81x_bat_write(di, RELAX_EXIT_THRES_REGL, &buf, 1);
+	buf = exit_thres & 0xff;
+	rk818_bat_write(di, RK818_RELAX_EXIT_THRES_REGL, buf);
 	buf = (exit_thres >> 8) & 0xff;
-	rk81x_bat_write(di, RELAX_EXIT_THRES_REGH, &buf, 1);
+	rk818_bat_write(di, RK818_RELAX_EXIT_THRES_REGH, buf);
 
-	/* set sample time */
-	rk81x_bat_read(di, GGCON, &buf, 1);
-	buf &= ~(3 << 2);/*8min*/
-	buf &= ~0x01; /* clear bat_res calc*/
-	rk81x_bat_write(di, GGCON, &buf, 1);
+	/* reset relax update state */
+	rk818_bat_restart_relax(di);
+	DBG("<%s>. sleep_enter_current = %d, sleep_exit_current = %d\n",
+	    __func__, pdata->sleep_enter_current, pdata->sleep_exit_current);
 }
 
-static void rk81x_bat_restart_relax(struct rk81x_battery *di)
+static bool is_rk818_bat_exist(struct rk818_battery *di)
 {
-	u8 ggcon;
-	u8 ggsts;
-
-	rk81x_bat_read(di, GGCON, &ggcon, 1);
-	ggcon &= ~0x0c;
-	rk81x_bat_write(di, GGCON, &ggcon, 1);
-
-	rk81x_bat_read(di, GGSTS, &ggsts, 1);
-	ggsts &= ~0x0c;
-	rk81x_bat_write(di, GGSTS, &ggsts, 1);
+	return (rk818_bat_read(di, RK818_SUP_STS_REG) & BAT_EXS) ? true : false;
 }
 
-static int rk81x_bat_get_avg_current(struct rk81x_battery *di)
-{
-	u8  buf;
-	int ret;
-	int current_now;
-	int temp;
-	int val[3];
-	int i;
-
-	for (i = 0; i < 3; i++) {
-		ret = rk81x_bat_read(di, BAT_CUR_AVG_REGL, &buf, 1);
-		if (ret < 0) {
-			dev_err(di->dev, "error read BAT_CUR_AVG_REGL");
-			return ret;
-		}
-		val[i] = buf;
-
-		ret = rk81x_bat_read(di, BAT_CUR_AVG_REGH, &buf, 1);
-		if (ret < 0) {
-			dev_err(di->dev, "error read BAT_CUR_AVG_REGH");
-			return ret;
-		}
-		val[i] |= (buf<<8);
-	}
-	/*check value*/
-	if (val[0] == val[1])
-		current_now = val[0];
-	else
-		current_now = val[2];
-
-	if (current_now & 0x800)
-		current_now -= 4096;
-
-	temp = current_now * 1506 / 1000;/*1000*90/14/4096*500/521;*/
-
-	return temp;
-}
-
-static void rk81x_bat_set_power_supply_state(struct rk81x_battery *di,
-					     enum charger_type  charger_type)
-{
-	di->usb_online = OFFLINE;
-	di->ac_online = OFFLINE;
-	di->dc_online = OFFLINE;
-
-	switch (charger_type) {
-	case NO_CHARGER:
-		di->psy_status = POWER_SUPPLY_STATUS_DISCHARGING;
-		break;
-	case USB_CHARGER:
-		di->usb_online = ONLINE;
-		di->psy_status = POWER_SUPPLY_STATUS_CHARGING;
-		break;
-	case DC_CHARGER:/*treat dc as ac*/
-		di->dc_online = ONLINE;
-	case AC_CHARGER:
-		di->ac_online = ONLINE;
-		di->psy_status = POWER_SUPPLY_STATUS_CHARGING;
-		break;
-	default:
-		di->psy_status = POWER_SUPPLY_STATUS_DISCHARGING;
-	}
-
-	if (di->wq)
-		queue_delayed_work(di->wq, &di->chrg_term_mode_switch_work,
-				   msecs_to_jiffies(1000));
-}
-
-/* high load: current < 0 with charger in.
- * System will not shutdown while dsoc=0% with charging state(ac_online),
- * which will cause over discharge, so oppose status before report states.
- */
-static void rk81x_bat_lowpwr_check(struct rk81x_battery *di)
-{
-	static u64 time;
-	int pwr_off_thresd = di->pdata->power_off_thresd;
-
-	if (di->current_avg < 0 &&  di->voltage < pwr_off_thresd) {
-		if (!time)
-			time = get_runtime_sec();
-
-		if (BASE_TO_SEC(time) > (MINUTE)) {
-			rk81x_bat_set_power_supply_state(di, NO_CHARGER);
-			dev_info(di->dev, "low power....\n");
-		}
-
-		if (di->voltage <= pwr_off_thresd - 50) {
-			di->dsoc--;
-			rk81x_bat_set_power_supply_state(di, NO_CHARGER);
-		}
-	} else {
-		time = 0;
-	}
-}
-
-static int is_rk81x_bat_exist(struct  rk81x_battery *di)
+static bool is_rk818_bat_first_pwron(struct rk818_battery *di)
 {
 	u8 buf;
 
-	rk81x_bat_read(di, SUP_STS_REG, &buf, 1);
-
-	return (buf & 0x80) ? 1 : 0;
-}
-
-static bool is_rk81x_bat_first_poweron(struct  rk81x_battery *di)
-{
-	u8 buf;
-	u8 temp;
-
-	rk81x_bat_read(di, GGSTS, &buf, 1);
-	DBG("%s GGSTS value is 0x%2x\n", __func__, buf);
-	/*di->pwron_bat_con = buf;*/
-	if (buf&BAT_CON) {
-		buf &= ~(BAT_CON);
-		do {
-			rk81x_bat_write(di, GGSTS, &buf, 1);
-			rk81x_bat_read(di, GGSTS, &temp, 1);
-		} while (temp & BAT_CON);
+	buf = rk818_bat_read(di, RK818_GGSTS_REG);
+	if (buf & BAT_CON) {
+		buf &= ~BAT_CON;
+		rk818_bat_write(di, RK818_GGSTS_REG, buf);
 		return true;
 	}
 
 	return false;
 }
 
-static void rk81x_bat_flatzone_vol_init(struct rk81x_battery *di)
+static u8 rk818_bat_get_pwroff_min(struct rk818_battery *di)
 {
-	u32 *ocv_table;
-	int ocv_size;
-	int temp_table[21];
-	int i, j;
+	u8 cur, last;
 
-	ocv_table = di->pdata->battery_ocv;
-	ocv_size = di->pdata->ocv_size;
+	cur = rk818_bat_read(di, RK818_NON_ACT_TIMER_CNT_REG);
+	last = rk818_bat_read(di, RK818_NON_ACT_TIMER_CNT_SAVE_REG);
+	rk818_bat_write(di, RK818_NON_ACT_TIMER_CNT_SAVE_REG, cur);
 
-	for (j = 0; j < 21; j++)
-		temp_table[j] = 0;
-
-	j = 0;
-	for (i = 1; i < ocv_size-1; i++) {
-		if (ocv_table[i+1] < ocv_table[i] + 20)
-			temp_table[j++] = i;
-	}
-
-	temp_table[j] = temp_table[j-1] + 1;
-	i = temp_table[0];
-	di->enter_flatzone = ocv_table[i];
-	j = 0;
-
-	for (i = 0; i < 20; i++) {
-		if (temp_table[i] < temp_table[i+1])
-			j = i + 1;
-	}
-
-	i = temp_table[j];
-	di->exit_flatzone = ocv_table[i];
-
-	DBG("enter_flatzone = %d exit_flatzone = %d\n",
-	    di->enter_flatzone, di->exit_flatzone);
+	return (cur != last) ? cur : 0;
 }
 
-static void rk81x_bat_power_on_save(struct rk81x_battery *di, int ocv_voltage)
+static u8 is_rk818_bat_initialized(struct rk818_battery *di)
 {
-	u8 ocv_valid, first_pwron;
-	u8 soc_level;
-	u8 ocv_soc;
+	u8 val = rk818_bat_read(di, RK818_MISC_MARK_REG);
 
-	/*buf==1: OCV_VOL is valid*/
-	ocv_valid = rk81x_bat_read_bit(di, MISC_MARK_REG, OCV_VALID_SHIFT);
-	first_pwron = rk81x_bat_read_bit(di, MISC_MARK_REG, FIRST_PWRON_SHIFT);
-	DBG("readbit: ocv_valid=%d, first_pwron=%d\n", ocv_valid, first_pwron);
+	if (val & FG_INIT) {
+		val &= ~FG_INIT;
+		rk818_bat_write(di, RK818_MISC_MARK_REG, val);
+		return true;
+	} else {
+		return false;
+	}
+}
 
-	if (first_pwron == 1 || ocv_valid == 1) {
+static bool is_rk818_bat_ocv_valid(struct rk818_battery *di)
+{
+	return (!di->is_initialized && di->pwroff_min >= 30) ? true : false;
+}
+
+static void rk818_bat_init_age_algorithm(struct rk818_battery *di)
+{
+	int age_level, ocv_soc, ocv_cap, ocv_vol;
+
+	if (di->is_first_power_on || is_rk818_bat_ocv_valid(di)) {
 		DBG("<%s> enter.\n", __func__);
-		ocv_soc = rk81x_bat_vol_to_capacity(di, ocv_voltage);
-		if ((ocv_soc < 20) && (ocv_voltage > 2750)) {
-			di->dod0_voltage = ocv_voltage;
-			di->dod0_capacity = di->temp_nac;
-			di->adjust_cap = 0;
-			di->dod0 = ocv_soc;
+		ocv_vol = rk818_bat_get_ocv_voltage(di);
+		ocv_soc = rk818_bat_vol_to_ocvsoc(di, ocv_vol);
+		ocv_cap = rk818_bat_vol_to_ocvcap(di, ocv_vol);
+		if (ocv_soc < 20) {
+			di->age_voltage = ocv_vol;
+			di->age_ocv_cap = ocv_cap;
+			di->age_ocv_soc = ocv_soc;
+			di->age_adjust_cap = 0;
 
 			if (ocv_soc <= 0)
-				di->dod0_level = 100;
+				di->age_level = 100;
 			else if (ocv_soc < 5)
-				di->dod0_level = 95;
+				di->age_level = 95;
 			else if (ocv_soc < 10)
-				di->dod0_level = 90;
+				di->age_level = 90;
 			else
-				di->dod0_level = 80;
-			/* save_soc = di->dod0_level; */
-			soc_level = rk81x_bat_get_level(di);
-			if (soc_level >  di->dod0_level) {
-				di->dod0_status = 0;
-				soc_level -= 5;
-				if (soc_level <= 80)
-					soc_level = 80;
-				rk81x_bat_save_level(di, soc_level);
+				di->age_level = 80;
+
+			age_level = rk818_bat_get_age_level(di);
+			if (age_level > di->age_level) {
+				di->age_allow_update = false;
+				age_level -= 5;
+				if (age_level <= 80)
+					age_level = 80;
+				rk818_bat_save_age_level(di, age_level);
 			} else {
-				di->dod0_status = 1;
-				/*time start*/
-				di->fcc_update_sec = get_runtime_sec();
+				di->age_allow_update = true;
+				di->age_keep_sec = get_boot_sec();
 			}
 
-			dev_info(di->dev, "dod0_vol:%d, dod0_cap:%d\n"
-				 "dod0:%d, soc_level:%d: dod0_status:%d\n"
-				 "dod0_level:%d",
-				 di->dod0_voltage, di->dod0_capacity,
-				 ocv_soc, soc_level, di->dod0_status,
-				 di->dod0_level);
+			BAT_INFO("init_age_algorithm: "
+				 "age_vol:%d, age_ocv_cap:%d, "
+				 "age_ocv_soc:%d, old_age_level:%d, "
+				 "age_allow_update:%d, new_age_level:%d\n",
+				 di->age_voltage, di->age_ocv_cap,
+				 ocv_soc, age_level, di->age_allow_update,
+				 di->age_level);
 		}
 	}
 }
 
-static int rk81x_bat_get_rsoc(struct   rk81x_battery *di)
-{
-	return (di->remain_capacity + di->fcc / 200) * 100 / div(di->fcc);
-}
-
-static enum power_supply_property rk_battery_props[] = {
-	POWER_SUPPLY_PROP_STATUS,
+static enum power_supply_property rk818_bat_props[] = {
 	POWER_SUPPLY_PROP_CURRENT_NOW,
 	POWER_SUPPLY_PROP_VOLTAGE_NOW,
 	POWER_SUPPLY_PROP_PRESENT,
 	POWER_SUPPLY_PROP_HEALTH,
 	POWER_SUPPLY_PROP_CAPACITY,
+	POWER_SUPPLY_PROP_TEMP,
 };
 
-static int rk81x_battery_get_property(struct power_supply *psy,
+static int rk818_battery_get_property(struct power_supply *psy,
 				      enum power_supply_property psp,
 				      union power_supply_propval *val)
 {
-	struct rk81x_battery *di = to_device_info(psy);
+	struct rk818_battery *di = power_supply_get_drvdata(psy);
 
 	switch (psp) {
 	case POWER_SUPPLY_PROP_CURRENT_NOW:
 		val->intval = di->current_avg * 1000;/*uA*/
-		if (di->fg_drv_mode == TEST_POWER_MODE)
-			val->intval = TEST_CURRENT * 1000;
+		if (di->pdata->bat_mode == MODE_VIRTUAL)
+			val->intval = VIRTUAL_CURRENT * 1000;
 		break;
 	case POWER_SUPPLY_PROP_VOLTAGE_NOW:
-		val->intval = di->voltage * 1000;/*uV*/
-		if (di->fg_drv_mode == TEST_POWER_MODE)
-			val->intval = TEST_VOLTAGE * 1000;
-
+		val->intval = di->voltage_avg * 1000;/*uV*/
+		if (di->pdata->bat_mode == MODE_VIRTUAL)
+			val->intval = VIRTUAL_VOLTAGE * 1000;
 		break;
 	case POWER_SUPPLY_PROP_PRESENT:
-		val->intval = is_rk81x_bat_exist(di);
-		if (di->fg_drv_mode == TEST_POWER_MODE)
-			val->intval = TEST_PRESET;
-
+		val->intval = is_rk818_bat_exist(di);
+		if (di->pdata->bat_mode == MODE_VIRTUAL)
+			val->intval = VIRTUAL_PRESET;
 		break;
 	case POWER_SUPPLY_PROP_CAPACITY:
 		val->intval = di->dsoc;
-		if (di->fg_drv_mode == TEST_POWER_MODE)
-			val->intval = TEST_SOC;
-
-		DBG("<%s>, report dsoc: %d\n", __func__, val->intval);
+		if (di->pdata->bat_mode == MODE_VIRTUAL)
+			val->intval = VIRTUAL_SOC;
+		DBG("<%s>. report dsoc: %d\n", __func__, val->intval);
 		break;
 	case POWER_SUPPLY_PROP_HEALTH:
 		val->intval = POWER_SUPPLY_HEALTH_GOOD;
 		break;
-	case POWER_SUPPLY_PROP_STATUS:
-		val->intval = di->psy_status;
-		if (di->fg_drv_mode == TEST_POWER_MODE)
-			val->intval = TEST_STATUS;
-
+	case POWER_SUPPLY_PROP_TEMP:
+		val->intval = di->temperature;
+		if (di->pdata->bat_mode == MODE_VIRTUAL)
+			val->intval = VIRTUAL_TEMPERATURE;
 		break;
 	default:
 		return -EINVAL;
@@ -1459,2960 +875,2334 @@ static int rk81x_battery_get_property(struct power_supply *psy,
 	return 0;
 }
 
-static enum power_supply_property rk_battery_ac_props[] = {
-	POWER_SUPPLY_PROP_ONLINE,
+static const struct power_supply_desc rk818_bat_desc = {
+	.name		= "battery",
+	.type		= POWER_SUPPLY_TYPE_BATTERY,
+	.properties	= rk818_bat_props,
+	.num_properties	= ARRAY_SIZE(rk818_bat_props),
+	.get_property	= rk818_battery_get_property,
 };
 
-static enum power_supply_property rk_battery_usb_props[] = {
-	POWER_SUPPLY_PROP_ONLINE,
-};
-
-static int rk81x_battery_ac_get_property(struct power_supply *psy,
-					 enum power_supply_property psp,
-					 union power_supply_propval *val)
+static int rk818_bat_init_power_supply(struct rk818_battery *di)
 {
-	int ret = 0;
-	struct rk81x_battery *di = to_ac_device_info(psy);
+	struct power_supply_config psy_cfg = { .drv_data = di, };
 
-	switch (psp) {
-	case POWER_SUPPLY_PROP_ONLINE:
-		if (rk81x_chrg_online(di))
-			rk81x_bat_lowpwr_check(di);
-		val->intval = di->ac_online;	/*discharging*/
-		if (di->fg_drv_mode == TEST_POWER_MODE)
-			val->intval = TEST_AC_ONLINE;
-
-		break;
-	default:
-		ret = -EINVAL;
-		break;
-	}
-	return ret;
-}
-
-static int rk81x_battery_usb_get_property(struct power_supply *psy,
-					  enum power_supply_property psp,
-					  union power_supply_propval *val)
-{
-	int ret = 0;
-	struct rk81x_battery *di = to_usb_device_info(psy);
-
-	switch (psp) {
-	case POWER_SUPPLY_PROP_ONLINE:
-		if (rk81x_chrg_online(di))
-			rk81x_bat_lowpwr_check(di);
-		val->intval = di->usb_online;
-		if (di->fg_drv_mode == TEST_POWER_MODE)
-			val->intval = TEST_USB_ONLINE;
-		break;
-	default:
-		ret = -EINVAL;
-		break;
-	}
-
-	return ret;
-}
-
-static int rk81x_bat_power_supply_init(struct rk81x_battery *di)
-{
-	int ret;
-
-	di->bat.name = "BATTERY";
-	di->bat.type = POWER_SUPPLY_TYPE_BATTERY;
-	di->bat.properties = rk_battery_props;
-	di->bat.num_properties = ARRAY_SIZE(rk_battery_props);
-	di->bat.get_property = rk81x_battery_get_property;
-
-	di->ac.name = "AC";
-	di->ac.type = POWER_SUPPLY_TYPE_MAINS;
-	di->ac.properties = rk_battery_ac_props;
-	di->ac.num_properties = ARRAY_SIZE(rk_battery_ac_props);
-	di->ac.get_property = rk81x_battery_ac_get_property;
-
-	di->usb.name = "USB";
-	di->usb.type = POWER_SUPPLY_TYPE_USB;
-	di->usb.properties = rk_battery_usb_props;
-	di->usb.num_properties = ARRAY_SIZE(rk_battery_usb_props);
-	di->usb.get_property = rk81x_battery_usb_get_property;
-
-	ret = power_supply_register(di->dev, &di->bat);
-	if (ret) {
-		dev_err(di->dev, "failed to register main battery\n");
-		goto batt_failed;
-	}
-	ret = power_supply_register(di->dev, &di->usb);
-	if (ret) {
-		dev_err(di->dev, "failed to register usb power supply\n");
-		goto usb_failed;
-	}
-	ret = power_supply_register(di->dev, &di->ac);
-	if (ret) {
-		dev_err(di->dev, "failed to register ac power supply\n");
-		goto ac_failed;
+	di->bat = devm_power_supply_register(di->dev, &rk818_bat_desc, &psy_cfg);
+	if (IS_ERR(di->bat)) {
+		dev_err(di->dev, "register bat power supply fail\n");
+		return PTR_ERR(di->bat);
 	}
 
 	return 0;
-
-ac_failed:
-	power_supply_unregister(&di->ac);
-usb_failed:
-	power_supply_unregister(&di->usb);
-batt_failed:
-	power_supply_unregister(&di->bat);
-
-	return ret;
 }
 
-static void rk81x_bat_save_remain_capacity(struct rk81x_battery *di,
-					   int capacity)
+static void rk818_bat_save_cap(struct rk818_battery *di, int cap)
 {
 	u8 buf;
-	static u32 capacity_ma;
+	static u32 old_cap;
 
-	if (capacity >= di->qmax)
-		capacity = di->qmax;
-
-	if (capacity <= 0)
-		capacity = 0;
-
-	if (capacity_ma == capacity)
+	if (cap >= di->qmax)
+		cap = di->qmax;
+	if (cap <= 0)
+		cap = 0;
+	if (old_cap == cap)
 		return;
 
-	capacity_ma = capacity;
-
-	buf = (capacity_ma >> 24) & 0xff;
-	rk81x_bat_write(di, REMAIN_CAP_REG3, &buf, 1);
-	buf = (capacity_ma >> 16) & 0xff;
-	rk81x_bat_write(di, REMAIN_CAP_REG2, &buf, 1);
-	buf = (capacity_ma >> 8) & 0xff;
-	rk81x_bat_write(di, REMAIN_CAP_REG1, &buf, 1);
-	buf = (capacity_ma & 0xff) | 0x01;
-	rk81x_bat_write(di, REMAIN_CAP_REG0, &buf, 1);
+	old_cap = cap;
+	buf = (cap >> 24) & 0xff;
+	rk818_bat_write(di, RK818_REMAIN_CAP_REG3, buf);
+	buf = (cap >> 16) & 0xff;
+	rk818_bat_write(di, RK818_REMAIN_CAP_REG2, buf);
+	buf = (cap >> 8) & 0xff;
+	rk818_bat_write(di, RK818_REMAIN_CAP_REG1, buf);
+	buf = (cap >> 0) & 0xff;
+	rk818_bat_write(di, RK818_REMAIN_CAP_REG0, buf);
 }
 
-static int rk81x_bat_get_remain_capacity(struct rk81x_battery *di)
+static int rk818_bat_get_prev_cap(struct rk818_battery *di)
 {
-	int ret;
-	u8 buf;
-	u32 capacity;
-	int i;
-	int val[3];
+	int val = 0;
 
-	for (i = 0; i < 3; i++) {
-		ret = rk81x_bat_read(di, REMAIN_CAP_REG3, &buf, 1);
-		val[i] = buf << 24;
-		ret = rk81x_bat_read(di, REMAIN_CAP_REG2, &buf, 1);
-		val[i] |= buf << 16;
-		ret = rk81x_bat_read(di, REMAIN_CAP_REG1, &buf, 1);
-		val[i] |= buf << 8;
-		ret = rk81x_bat_read(di, REMAIN_CAP_REG0, &buf, 1);
-		val[i] |= buf;
+	val |= rk818_bat_read(di, RK818_REMAIN_CAP_REG3) << 24;
+	val |= rk818_bat_read(di, RK818_REMAIN_CAP_REG2) << 16;
+	val |= rk818_bat_read(di, RK818_REMAIN_CAP_REG1) << 8;
+	val |= rk818_bat_read(di, RK818_REMAIN_CAP_REG0) << 0;
+
+	return val;
+}
+
+static void rk818_bat_save_fcc(struct rk818_battery *di, u32 fcc)
+{
+	u8 buf;
+
+	buf = (fcc >> 24) & 0xff;
+	rk818_bat_write(di, RK818_NEW_FCC_REG3, buf);
+	buf = (fcc >> 16) & 0xff;
+	rk818_bat_write(di, RK818_NEW_FCC_REG2, buf);
+	buf = (fcc >> 8) & 0xff;
+	rk818_bat_write(di, RK818_NEW_FCC_REG1, buf);
+	buf = (fcc >> 0) & 0xff;
+	rk818_bat_write(di, RK818_NEW_FCC_REG0, buf);
+
+	BAT_INFO("save fcc: %d\n", fcc);
+}
+
+static int rk818_bat_get_fcc(struct rk818_battery *di)
+{
+	u32 fcc = 0;
+
+	fcc |= rk818_bat_read(di, RK818_NEW_FCC_REG3) << 24;
+	fcc |= rk818_bat_read(di, RK818_NEW_FCC_REG2) << 16;
+	fcc |= rk818_bat_read(di, RK818_NEW_FCC_REG1) << 8;
+	fcc |= rk818_bat_read(di, RK818_NEW_FCC_REG0) << 0;
+
+	if (fcc < MIN_FCC) {
+		BAT_INFO("invalid fcc(%d), use design cap", fcc);
+		fcc = di->pdata->design_capacity;
+		rk818_bat_save_fcc(di, fcc);
+	} else if (fcc > di->pdata->design_qmax) {
+		BAT_INFO("invalid fcc(%d), use qmax", fcc);
+		fcc = di->pdata->design_qmax;
+		rk818_bat_save_fcc(di, fcc);
 	}
 
-	if (val[0] == val[1])
-		capacity = val[0];
-	else
-		capacity = val[2];
-
-	return capacity;
+	return fcc;
 }
 
-static void rk81x_bat_save_fcc(struct rk81x_battery *di, u32 capacity)
+static void rk818_bat_init_coulomb_cap(struct rk818_battery *di, u32 capacity)
 {
 	u8 buf;
-	u32 capacity_ma;
+	u32 cap;
 
-	capacity_ma = capacity;
-	buf = (capacity_ma >> 24) & 0xff;
-	rk81x_bat_write(di, NEW_FCC_REG3, &buf, 1);
-	buf = (capacity_ma >> 16) & 0xff;
-	rk81x_bat_write(di, NEW_FCC_REG2, &buf, 1);
-	buf = (capacity_ma >> 8) & 0xff;
-	rk81x_bat_write(di, NEW_FCC_REG1, &buf, 1);
-	buf = (capacity_ma & 0xff) | 0x01;
-	rk81x_bat_write(di, NEW_FCC_REG0, &buf, 1);
+	cap = capacity * 2390 / di->res_div;
+	buf = (cap >> 24) & 0xff;
+	rk818_bat_write(di, RK818_GASCNT_CAL_REG3, buf);
+	buf = (cap >> 16) & 0xff;
+	rk818_bat_write(di, RK818_GASCNT_CAL_REG2, buf);
+	buf = (cap >> 8) & 0xff;
+	rk818_bat_write(di, RK818_GASCNT_CAL_REG1, buf);
+	buf = ((cap >> 0) & 0xff);
+	rk818_bat_write(di, RK818_GASCNT_CAL_REG0, buf);
 
-	dev_info(di->dev, "update fcc : %d\n", capacity);
+	DBG("<%s>. new coulomb cap = %d\n", __func__, capacity);
+	di->remain_cap = capacity;
+	di->rsoc = rk818_bat_get_rsoc(di);
 }
 
-static int rk81x_bat_get_fcc(struct rk81x_battery *di)
+static void rk818_bat_save_dsoc(struct rk818_battery *di, u8 save_soc)
 {
-	u8 buf;
-	u32 capacity;
-
-	rk81x_bat_read(di, NEW_FCC_REG3, &buf, 1);
-	capacity = buf << 24;
-	rk81x_bat_read(di, NEW_FCC_REG2, &buf, 1);
-	capacity |= buf << 16;
-	rk81x_bat_read(di, NEW_FCC_REG1, &buf, 1);
-	capacity |= buf << 8;
-	rk81x_bat_read(di, NEW_FCC_REG0, &buf, 1);
-	capacity |= buf;
-
-	if (capacity < MIN_FCC) {
-		dev_warn(di->dev, "invalid fcc(0x%x), use design capacity",
-			 capacity);
-		capacity = di->design_capacity;
-		rk81x_bat_save_fcc(di, capacity);
-	} else if (capacity > di->qmax) {
-		dev_warn(di->dev, "invalid fcc(0x%x), use qmax", capacity);
-		capacity = di->qmax;
-		rk81x_bat_save_fcc(di, capacity);
-	}
-
-	return capacity;
-}
-
-static int rk81x_bat_get_realtime_capacity(struct rk81x_battery *di)
-{
-	int ret;
-	int temp = 0;
-	u8 buf;
-	u32 capacity;
-	int i;
-	int val[3];
-
-	for (i = 0; i < 3; i++) {
-		ret = rk81x_bat_read(di, GASCNT3, &buf, 1);
-		val[i] = buf << 24;
-		ret = rk81x_bat_read(di, GASCNT2, &buf, 1);
-		val[i] |= buf << 16;
-		ret = rk81x_bat_read(di, GASCNT1, &buf, 1);
-		val[i] |= buf << 8;
-		ret = rk81x_bat_read(di, GASCNT0, &buf, 1);
-		val[i] |= buf;
-	}
-	if (val[0] == val[1])
-		temp = val[0];
-	else
-		temp = val[2];
-
-	capacity = temp / 2390;/* 4096*900/14/36*500/521; */
-
-	return capacity;
-}
-
-static int rk81x_bat_save_dsoc(struct  rk81x_battery *di, u8 save_soc)
-{
-	static u8 last_soc;
+	static int last_soc = -1;
 
 	if (last_soc != save_soc) {
-		rk81x_bat_write(di, SOC_REG, &save_soc, 1);
+		rk818_bat_write(di, RK818_SOC_REG, save_soc);
 		last_soc = save_soc;
 	}
-
-	return 0;
 }
 
-static int rk81x_bat_save_reboot_cnt(struct  rk81x_battery *di, u8 save_cnt)
+static int rk818_bat_get_prev_dsoc(struct rk818_battery *di)
 {
-	u8 cnt;
-
-	cnt = save_cnt;
-	rk81x_bat_write(di, REBOOT_CNT_REG, &cnt, 1);
-	return 0;
+	return rk818_bat_read(di, RK818_SOC_REG);
 }
 
-static void rk81x_bat_set_current(struct rk81x_battery *di, int charge_current)
+static void rk818_bat_save_reboot_cnt(struct rk818_battery *di, u8 save_cnt)
 {
-	u8 usb_ctrl_reg;
-
-	rk81x_bat_read(di, USB_CTRL_REG, &usb_ctrl_reg, 1);
-	usb_ctrl_reg &= (~0x0f);/* (VLIM_4400MV | ILIM_1200MA) |(0x01 << 7); */
-	usb_ctrl_reg |= (charge_current | CHRG_CT_EN);
-	rk81x_bat_write(di, USB_CTRL_REG, &usb_ctrl_reg, 1);
+	rk818_bat_write(di, RK818_REBOOT_CNT_REG, save_cnt);
 }
 
-static void rk81x_bat_set_chrg_current(struct rk81x_battery *di,
-				       enum charger_type charger_type)
+static int rk818_bat_fb_notifier(struct notifier_block *nb,
+				 unsigned long event, void *data)
 {
-	switch (charger_type) {
-	case NO_CHARGER:
-	case USB_CHARGER:
-		rk81x_bat_set_current(di, ILIM_450MA);
-		break;
-	case AC_CHARGER:
-	case DC_CHARGER:
-		rk81x_bat_set_current(di, di->chrg_i_lmt);
-		break;
-	default:
-		rk81x_bat_set_current(di, ILIM_450MA);
-	}
-}
-
-#if defined(CONFIG_ARCH_ROCKCHIP)
-
-static void rk81x_bat_set_charger_param(struct rk81x_battery *di,
-					enum charger_type charger_type)
-{
-	rk81x_bat_set_chrg_current(di, charger_type);
-	rk81x_bat_set_power_supply_state(di, charger_type);
-
-	switch (charger_type) {
-	case NO_CHARGER:
-		power_supply_changed(&di->bat);
-		break;
-	case USB_CHARGER:
-	case AC_CHARGER:
-		power_supply_changed(&di->usb);
-		break;
-	case DC_CHARGER:
-		power_supply_changed(&di->ac);
-		break;
-	default:
-		break;
-	}
-}
-
-static void rk81x_bat_set_otg_state(struct rk81x_battery *di, int state)
-{
-	switch (state) {
-	case USB_OTG_POWER_ON:
-		rk81x_bat_set_bit(di, NT_STS_MSK_REG2, PLUG_IN_INT);
-		rk81x_bat_set_bit(di, NT_STS_MSK_REG2, PLUG_OUT_INT);
-		rk818_set_bits(di->rk818, DCDC_EN_REG, OTG_EN_MASK, OTG_EN);
-		break;
-	case USB_OTG_POWER_OFF:
-		rk81x_bat_clr_bit(di, NT_STS_MSK_REG2, PLUG_IN_INT);
-		rk81x_bat_clr_bit(di, NT_STS_MSK_REG2, PLUG_OUT_INT);
-		rk818_set_bits(di->rk818, DCDC_EN_REG, OTG_EN_MASK, OTG_DIS);
-		break;
-	default:
-		break;
-	}
-}
-
-static enum charger_type rk81x_bat_get_dc_state(struct rk81x_battery *di)
-{
-	int ret;
-	enum charger_type charger_type = NO_CHARGER;
-
-	if (di->fg_drv_mode == TEST_POWER_MODE) {
-		charger_type = DC_CHARGER;
-		goto out;
-	}
-	/*
-	if (di->otg_online)
-		goto out;
-	*/
-	if (!gpio_is_valid(di->dc_det_pin))
-		goto out;
-
-	ret = gpio_request(di->dc_det_pin, "rk818_dc_det");
-	if (ret < 0) {
-		pr_err("Failed to request gpio %d with ret:""%d\n",
-		       di->dc_det_pin, ret);
-		goto out;
-	}
-
-	gpio_direction_input(di->dc_det_pin);
-	ret = gpio_get_value(di->dc_det_pin);
-	if (ret == di->dc_det_level)
-		charger_type = DC_CHARGER;
-	else
-		charger_type = NO_CHARGER;
-	gpio_free(di->dc_det_pin);
-out:
-	return charger_type;
-}
-
-static void rk81x_battery_dc_delay_work(struct work_struct *work)
-{
-	enum charger_type charger_type;
-	struct rk81x_battery *di = container_of(work,
-				struct rk81x_battery, dc_det_check_work.work);
-
-	charger_type = rk81x_bat_get_dc_state(di);
-
-	if (charger_type == DC_CHARGER) {
-		rk81x_bat_set_charger_param(di, DC_CHARGER);
-		if (power_dc2otg && di->otg_online)
-			rk81x_bat_set_otg_state(di, USB_OTG_POWER_OFF);
-	} else {
-		if (di->otg_online) {
-			rk81x_bat_set_otg_state(di, USB_OTG_POWER_ON);
-			rk81x_bat_set_charger_param(di, NO_CHARGER);
-		} else {
-			queue_delayed_work(di->wq,
-					   &di->ac_usb_check_work,
-					   msecs_to_jiffies(10));
-		}
-	}
-}
-
-static void rk81x_battery_acusb_delay_work(struct work_struct *work)
-{
-	u8 buf;
-	int gadget_flag, usb_id;
-	struct rk81x_battery *di = container_of(work,
-			struct rk81x_battery, ac_usb_check_work.work);
-
-	rk81x_bat_read(di, VB_MOD_REG, &buf, 1);
-	usb_id = dwc_otg_check_dpdm(0);
-	switch (usb_id) {
-	case 0:
-		if ((buf & PLUG_IN_STS) != 0)
-			rk81x_bat_set_charger_param(di, DC_CHARGER);
-		else
-			rk81x_bat_set_charger_param(di, NO_CHARGER);
-		break;
-	case 1:
-	case 3:
-		rk81x_bat_set_charger_param(di, USB_CHARGER);
-		break;
-	case 2:
-		rk81x_bat_set_charger_param(di, AC_CHARGER);
-		break;
-	default:
-		break;
-	}
-	/*check unstanderd charger*/
-	if (usb_id == 1 || usb_id == 3) {
-		gadget_flag = get_gadget_connect_flag();
-		if (0 == gadget_flag) {
-			di->check_count++;
-			if (di->check_count >= 5) {
-				di->check_count = 0;
-				rk81x_bat_set_charger_param(di, AC_CHARGER);
-			} else {
-				queue_delayed_work(di->wq,
-						   &di->ac_usb_check_work,
-						   msecs_to_jiffies(1000));
-			}
-		} else {/*confirm: USB_CHARGER*/
-			di->check_count = 0;
-		}
-	}
-}
-#endif
-
-#if defined(CONFIG_X86_INTEL_SOFIA)
-static int rk81x_get_chrg_type_by_usb_phy(struct rk81x_battery *di, int ma)
-{
-	enum charger_type charger_type;
-
-	if (ma > 500)
-		charger_type =  AC_CHARGER;
-	else if (ma >= 100)
-		charger_type = USB_CHARGER;
-	else
-		charger_type = NO_CHARGER;
-
-	di->ma = ma;
-
-	dev_info(di->dev, "limit current:%d\n", ma);
-
-	return charger_type;
-}
-
-static void rk81x_battery_usb_notifier_delayed_work(struct work_struct *work)
-{
-	struct rk81x_battery *di;
-	enum charger_type type;
-
-	di = container_of(work, struct rk81x_battery, usb_phy_delay_work.work);
-	type = rk81x_get_chrg_type_by_usb_phy(di, di->ma);
-
-	rk81x_bat_set_chrg_current(di, type);
-	power_supply_changed(&di->usb);
-}
-
-static int rk81x_battery_usb_notifier(struct notifier_block *nb,
-				      unsigned long event, void *data)
-{
-	struct rk81x_battery *di;
-	struct power_supply_cable_props *cable_props;
-	enum charger_type type;
-
-	di = container_of(nb, struct rk81x_battery, usb_nb);
-
-	if (!data)
-		return NOTIFY_BAD;
-
-	switch (event) {
-	case USB_EVENT_CHARGER:
-		cable_props = (struct power_supply_cable_props *)data;
-		type = rk81x_get_chrg_type_by_usb_phy(di, cable_props->ma);
-		rk81x_bat_set_power_supply_state(di, type);
-		queue_delayed_work(di->wq, &di->usb_phy_delay_work,
-				   msecs_to_jiffies(50));
-		break;
-
-	default:
-		break;
-	}
-
-	return NOTIFY_OK;
-}
-#endif
-
-static int rk81x_battery_fb_notifier(struct notifier_block *nb,
-				     unsigned long event, void *data)
-{
-	struct rk81x_battery *di;
+	struct rk818_battery *di;
 	struct fb_event *evdata = data;
-	int blank;
 
-	di = container_of(nb, struct rk81x_battery, fb_nb);
-
-	if (event != FB_EVENT_BLANK && event != FB_EVENT_CONBLANK)
-		return 0;
-
-	blank = *(int *)evdata->data;
-
-	if (di->fb_blank != blank)
-		di->fb_blank = blank;
-	else
-		return 0;
-
-	if (blank == FB_BLANK_UNBLANK)
-		di->early_resume = 1;
+	di = container_of(nb, struct rk818_battery, fb_nb);
+	di->fb_blank = *(int *)evdata->data;
 
 	return 0;
 }
 
-static int rk81x_battery_register_fb_notify(struct rk81x_battery *di)
+static int rk818_bat_register_fb_notify(struct rk818_battery *di)
 {
 	memset(&di->fb_nb, 0, sizeof(di->fb_nb));
-	di->fb_nb.notifier_call = rk81x_battery_fb_notifier;
+	di->fb_nb.notifier_call = rk818_bat_fb_notifier;
 
 	return fb_register_client(&di->fb_nb);
 }
 
-/*
- * it is first time for battery to be weld, init by ocv table
- */
-static void rk81x_bat_first_pwron(struct rk81x_battery *di)
+static int rk818_bat_unregister_fb_notify(struct rk818_battery *di)
 {
-	rk81x_bat_save_fcc(di, di->design_capacity);
-	di->fcc = rk81x_bat_get_fcc(di);
+	return fb_unregister_client(&di->fb_nb);
+}
 
-	di->rsoc = rk81x_bat_vol_to_capacity(di, di->voltage_ocv);
+static u8 rk818_bat_get_halt_cnt(struct rk818_battery *di)
+{
+	return rk818_bat_read(di, RK818_HALT_CNT_REG);
+}
+
+static void rk818_bat_inc_halt_cnt(struct rk818_battery *di)
+{
+	u8 cnt;
+
+	cnt = rk818_bat_read(di, RK818_HALT_CNT_REG);
+	rk818_bat_write(di, RK818_HALT_CNT_REG, ++cnt);
+}
+
+static bool is_rk818_bat_last_halt(struct rk818_battery *di)
+{
+	int pre_cap = rk818_bat_get_prev_cap(di);
+	int now_cap = rk818_bat_get_coulomb_cap(di);
+
+	/* over 10%: system halt last time */
+	if (abs(now_cap - pre_cap) > (di->fcc / 10)) {
+		rk818_bat_inc_halt_cnt(di);
+		return true;
+	} else {
+		return false;
+	}
+}
+
+static void rk818_bat_first_pwron(struct rk818_battery *di)
+{
+	int ocv_vol;
+
+	rk818_bat_save_fcc(di, di->design_cap);
+	ocv_vol = rk818_bat_get_ocv_voltage(di);
+	di->fcc = rk818_bat_get_fcc(di);
+	di->nac = rk818_bat_vol_to_ocvcap(di, ocv_vol);
+	di->rsoc = rk818_bat_vol_to_ocvsoc(di, ocv_vol);
 	di->dsoc = di->rsoc;
-	di->nac  = di->temp_nac;
 
-	rk81x_bat_set_bit(di, MISC_MARK_REG, OCV_VALID_SHIFT);
-	rk81x_bat_set_bit(di, MISC_MARK_REG, FIRST_PWRON_SHIFT);/*save*/
-	DBG("<%s>.this is first poweron: OCV-SOC:%d, OCV-CAP:%d, FCC:%d\n",
-	    __func__, di->dsoc, di->nac, di->fcc);
+	BAT_INFO("first on: dsoc=%d, rsoc=%d cap=%d, fcc=%d, ov=%d\n",
+		 di->dsoc, di->rsoc, di->nac, di->fcc, ocv_vol);
 }
 
-static int rk81x_bat_get_calib_vol(struct rk81x_battery *di)
+static void rk818_bat_not_first_pwron(struct rk818_battery *di)
 {
-	int calib_vol;
-	int init_cur, diff;
-	int est_vol;
-	int relax_vol = di->relax_voltage;
-	int ocv_vol = di->voltage_ocv;
+	int now_cap, pre_soc, pre_cap, ocv_cap, ocv_soc, ocv_vol;
 
-	init_cur = rk81x_bat_get_avg_current(di);
-	diff = (di->bat_res + di->pdata->chrg_diff_vol) * init_cur;
-	diff /= 1000;
-	est_vol = di->voltage - diff;
+	di->fcc = rk818_bat_get_fcc(di);
+	pre_soc = rk818_bat_get_prev_dsoc(di);
+	pre_cap = rk818_bat_get_prev_cap(di);
+	now_cap = rk818_bat_get_coulomb_cap(di);
+	di->is_halt = is_rk818_bat_last_halt(di);
+	di->halt_cnt = rk818_bat_get_halt_cnt(di);
+	di->is_initialized = is_rk818_bat_initialized(di);
+	di->is_ocv_calib = is_rk818_bat_ocv_valid(di);
 
-	if (di->loader_charged) {
-		calib_vol = est_vol;
-		return calib_vol;
-	}
-
-	if (di->pwroff_min > 8) {
-		if (abs(relax_vol - ocv_vol) < 100) {
-			calib_vol = ocv_vol;
-		} else {
-			if (abs(relax_vol - est_vol) > abs(ocv_vol - est_vol))
-				calib_vol = ocv_vol;
-			else
-				calib_vol = relax_vol;
+	if (di->is_halt) {
+		BAT_INFO("system halt last time... cap: pre=%d, now=%d\n",
+			 pre_cap, now_cap);
+		if (now_cap < 0)
+			now_cap = 0;
+		rk818_bat_init_coulomb_cap(di, now_cap);
+		pre_cap = now_cap;
+		pre_soc = di->rsoc;
+		goto finish;
+	} else if (di->is_initialized) {
+		BAT_INFO("initialized yet..\n");
+		goto finish;
+	} else if (di->is_ocv_calib) {
+		ocv_vol = rk818_bat_get_ocv_voltage(di);
+		ocv_soc = rk818_bat_vol_to_ocvsoc(di, ocv_vol);
+		ocv_cap = rk818_bat_vol_to_ocvcap(di, ocv_vol);
+		pre_cap = ocv_cap;
+		if (abs(ocv_soc - pre_soc) >= di->pdata->max_soc_offset) {
+			BAT_INFO("trigger max soc offset, dsoc: %d -> %d\n",
+				 pre_soc, ocv_soc);
+			pre_soc = ocv_soc;
+			di->is_max_soc_offset = true;
 		}
-	} else if (di->pwroff_min > 2) {
-		calib_vol = ocv_vol;
-	} else {
-		calib_vol = -1;
+		BAT_INFO("OCV calib: cap=%d, rsoc=%d\n", ocv_cap, ocv_soc);
 	}
 
-	dev_info(di->dev, "c=%d, v=%d, relax=%d, ocv=%d, est=%d, calib=%d\n",
-		 init_cur, di->voltage, relax_vol, ocv_vol, est_vol, calib_vol);
-
-	return calib_vol;
-}
-
-/*
- * it is not first time for battery to be weld, init by last record info
- */
-static void rk81x_bat_not_first_pwron(struct rk81x_battery *di)
-{
-	u8 pwron_soc;
-	u8 init_soc;
-	int remain_capacity;
-	int ocv_soc;
-	int calib_vol, calib_soc, calib_capacity;
-
-	rk81x_bat_clr_bit(di, MISC_MARK_REG, FIRST_PWRON_SHIFT);
-	rk81x_bat_read(di, SOC_REG, &pwron_soc, 1);
-	init_soc = pwron_soc;
-	remain_capacity = rk81x_bat_get_remain_capacity(di);
-
-	/* check if support uboot charge,
-	 * if support, uboot charge driver should have done init work,
-	 * so here we should skip init work
-	 */
-#if defined(CONFIG_ARCH_ROCKCHIP)
-	if (di->loader_charged) {
-		dev_info(di->dev, "loader charged\n");
-		goto out;
-	}
-#endif
-	calib_vol = rk81x_bat_get_calib_vol(di);
-	if (calib_vol > 0) {
-		calib_soc = rk81x_bat_vol_to_capacity(di, calib_vol);
-		calib_capacity = di->temp_nac;
-
-		if (abs(calib_soc - init_soc) >= 70 || di->loader_charged) {
-			init_soc = calib_soc;
-			remain_capacity = calib_capacity;
-		}
-		dev_info(di->dev, "calib_vol %d, init soc %d, remain_cap %d\n",
-			 calib_vol, init_soc, remain_capacity);
-	}
-
-	ocv_soc = rk81x_bat_vol_to_capacity(di, di->voltage_ocv);
-	DBG("<%s>, Not first pwron, real_remain_cap = %d, ocv-remain_cp=%d\n",
-	    __func__, remain_capacity, di->temp_nac);
-
-	if (di->pwroff_min > 0) {
-		if (di->pwroff_min > 30) {
-			rk81x_bat_set_bit(di, MISC_MARK_REG, OCV_VALID_SHIFT);
-
-			remain_capacity = di->temp_nac;
-			DBG("<%s>pwroff > 30 minute, remain_cap = %d\n",
-			    __func__, remain_capacity);
-
-		} else if ((di->pwroff_min > 5) &&
-				(abs(ocv_soc - init_soc) >= 10)) {
-			if (remain_capacity >= di->temp_nac * 120/100)
-				remain_capacity = di->temp_nac * 110/100;
-			else if (remain_capacity < di->temp_nac * 8/10)
-				remain_capacity = di->temp_nac * 9/10;
-			DBG("<%s> pwroff > 5 minute, remain_cap = %d\n",
-			    __func__, remain_capacity);
-		}
-	} else {
-		rk81x_bat_clr_bit(di, MISC_MARK_REG, OCV_VALID_SHIFT);
-	}
-out:
-	di->dsoc = init_soc;
-	di->nac = remain_capacity;
-	if (di->nac <= 0)
+finish:
+	di->dsoc = pre_soc;
+	di->nac = pre_cap;
+	if (di->nac < 0)
 		di->nac = 0;
-	dev_info(di->dev, "reg soc=%d, init soc = %d, init cap=%d\n",
-		 pwron_soc, di->dsoc, di->nac);
+
+	BAT_INFO("dsoc=%d cap=%d v=%d ov=%d rv=%d min=%d psoc=%d pcap=%d\n",
+		 di->dsoc, di->nac, rk818_bat_get_avg_voltage(di),
+		 rk818_bat_get_ocv_voltage(di), rk818_bat_get_relax_voltage(di),
+		 di->pwroff_min, rk818_bat_get_prev_dsoc(di),
+		 rk818_bat_get_prev_cap(di));
 }
 
-static u8 rk81x_bat_get_pwroff_min(struct rk81x_battery *di)
+static bool rk818_bat_ocv_sw_reset(struct rk818_battery *di)
 {
-	u8 curr_pwroff_min, last_pwroff_min;
+	u8 buf;
 
-	rk81x_bat_read(di, NON_ACT_TIMER_CNT_REG,
-		       &curr_pwroff_min, 1);
-	rk81x_bat_read(di, NON_ACT_TIMER_CNT_REG_SAVE,
-		       &last_pwroff_min, 1);
-
-	rk81x_bat_write(di, NON_ACT_TIMER_CNT_REG_SAVE,
-			&curr_pwroff_min, 1);
-
-	return (curr_pwroff_min != last_pwroff_min) ? curr_pwroff_min : 0;
-}
-
-static int rk81x_bat_rsoc_init(struct rk81x_battery *di)
-{
-	u8 calib_en;/*debug*/
-
-	di->voltage  = rk81x_bat_get_vol(di);
-	di->voltage_ocv = rk81x_bat_get_ocv_vol(di);
-	di->pwroff_min = rk81x_bat_get_pwroff_min(di);
-	di->relax_voltage = rk81x_bat_get_relax_vol(di);
-	di->current_avg = rk81x_bat_get_avg_current(di);
-
-	dev_info(di->dev, "v=%d, ov=%d, rv=%d, c=%d, pwroff_min=%d\n",
-		 di->voltage, di->voltage_ocv, di->relax_voltage,
-		 di->current_avg, di->pwroff_min);
-
-	calib_en = rk81x_bat_read_bit(di, MISC_MARK_REG, OCV_CALIB_SHIFT);
-	DBG("readbit: calib_en=%d\n", calib_en);
-	if (is_rk81x_bat_first_poweron(di) ||
-	    ((di->pwroff_min >= 30) && (calib_en == 1))) {
-		rk81x_bat_first_pwron(di);
-		rk81x_bat_clr_bit(di, MISC_MARK_REG, OCV_CALIB_SHIFT);
-
+	buf = rk818_bat_read(di, RK818_MISC_MARK_REG);
+	if (((buf & FG_RESET_LATE) && di->pwroff_min >= 30) ||
+	    (buf & FG_RESET_NOW)) {
+		buf &= ~FG_RESET_LATE;
+		buf &= ~FG_RESET_NOW;
+		rk818_bat_write(di, RK818_MISC_MARK_REG, buf);
+		BAT_INFO("manual reset fuel gauge\n");
+		return true;
 	} else {
-		rk81x_bat_not_first_pwron(di);
+		return false;
 	}
-
-	return 0;
 }
 
-static u8 rk81x_bat_get_chrg_status(struct rk81x_battery *di)
+static void rk818_bat_init_rsoc(struct rk818_battery *di)
+{
+	di->is_first_power_on = is_rk818_bat_first_pwron(di);
+	di->is_sw_reset = rk818_bat_ocv_sw_reset(di);
+	di->pwroff_min = rk818_bat_get_pwroff_min(di);
+
+	if (di->is_first_power_on || di->is_sw_reset)
+		rk818_bat_first_pwron(di);
+	else
+		rk818_bat_not_first_pwron(di);
+}
+
+static u8 rk818_bat_get_chrg_status(struct rk818_battery *di)
 {
 	u8 status;
-	u8 ret = 0;
 
-	rk81x_bat_read(di, SUP_STS_REG, &status, 1);
-	status &= (0x70);
+	status = rk818_bat_read(di, RK818_SUP_STS_REG) & CHRG_STATUS_MSK;
 	switch (status) {
 	case CHARGE_OFF:
-		ret = CHARGE_OFF;
-		DBG("  CHARGE-OFF ...\n");
+		DBG("CHARGE-OFF ...\n");
 		break;
 	case DEAD_CHARGE:
-		ret = DEAD_CHARGE;
-		DBG("  DEAD CHARGE ...\n");
+		BAT_INFO("DEAD CHARGE...\n");
 		break;
-	case  TRICKLE_CHARGE:
-		ret = DEAD_CHARGE;
-		DBG("  TRICKLE CHARGE ...\n ");
+	case TRICKLE_CHARGE:
+		BAT_INFO("TRICKLE CHARGE...\n ");
 		break;
-	case  CC_OR_CV:
-		ret = CC_OR_CV;
-		DBG("  CC or CV ...\n");
+	case CC_OR_CV:
+		DBG("CC or CV...\n");
 		break;
-	case  CHARGE_FINISH:
-		ret = CHARGE_FINISH;
-		DBG("  CHARGE FINISH ...\n");
+	case CHARGE_FINISH:
+		DBG("CHARGE FINISH...\n");
 		break;
-	case  USB_OVER_VOL:
-		ret = USB_OVER_VOL;
-		DBG("  USB OVER VOL ...\n");
+	case USB_OVER_VOL:
+		BAT_INFO("USB OVER VOL...\n");
 		break;
-	case  BAT_TMP_ERR:
-		ret = BAT_TMP_ERR;
-		DBG("  BAT TMP ERROR ...\n");
+	case BAT_TMP_ERR:
+		BAT_INFO("BAT TMP ERROR...\n");
 		break;
-	case  TIMER_ERR:
-		ret = TIMER_ERR;
-		DBG("  TIMER ERROR ...\n");
+	case TIMER_ERR:
+		BAT_INFO("TIMER ERROR...\n");
 		break;
-	case  USB_EXIST:
-		ret = USB_EXIST;
-		DBG("  USB EXIST ...\n");
+	case USB_EXIST:
+		BAT_INFO("USB EXIST...\n");
 		break;
-	case  USB_EFF:
-		ret = USB_EFF;
-		DBG("  USB EFF...\n");
+	case USB_EFF:
+		BAT_INFO("USB EFF...\n");
 		break;
 	default:
 		return -EINVAL;
 	}
 
-	return ret;
+	return status;
 }
 
-static void rk81x_bat_match_param(struct rk81x_battery *di, int chrg_vol,
-				  int chrg_ilim, int chrg_cur)
+static u8 rk818_bat_parse_fb_temperature(struct rk818_battery *di)
 {
-	int i;
+	u8 reg;
+	int index, fb_temp;
 
-	di->chrg_v_lmt = DEF_CHRG_VOL;
-	di->chrg_i_lmt = DEF_CHRG_CURR_LMT;
-	di->chrg_i_cur = DEF_CHRG_CURR_SEL;
-
-	for (i = 0; i < ARRAY_SIZE(CHRG_V_LMT); i++) {
-		if (chrg_vol < CHRG_V_LMT[i])
+	reg = DEFAULT_FB_TEMP;
+	fb_temp = di->pdata->fb_temp;
+	for (index = 0; index < ARRAY_SIZE(feedback_temp_array); index++) {
+		if (fb_temp < feedback_temp_array[index])
 			break;
-
-		di->chrg_v_lmt = (i << CHRG_VOL_SHIFT);
+		reg = (index << FB_TEMP_SHIFT);
 	}
 
-	for (i = 0; i < ARRAY_SIZE(CHRG_I_LMT); i++) {
-		if (chrg_ilim < CHRG_I_LMT[i])
-			break;
-
-		di->chrg_i_lmt = (i << CHRG_ILIM_SHIFT);
-	}
-
-	for (i = 0; i < ARRAY_SIZE(CHRG_I_CUR); i++) {
-		if (chrg_cur < CHRG_I_CUR[i])
-			break;
-
-		di->chrg_i_cur = (i << CHRG_ICUR_SHIFT);
-	}
-	DBG("<%s>. vol = 0x%x, i_lim = 0x%x, cur=0x%x\n",
-	    __func__, di->chrg_v_lmt, di->chrg_i_lmt, di->chrg_i_cur);
+	return reg;
 }
 
-static u8 rk81x_bat_select_finish_ma(int fcc)
+static u8 rk818_bat_parse_finish_ma(struct rk818_battery *di, int fcc)
 {
-	u8 ma = FINISH_150MA;
+	u8 ma;
 
-	if (fcc > 5000)
+	if (di->pdata->sample_res == SAMPLE_RES_10MR)
+		ma = FINISH_100MA;
+	else if (fcc > 5000)
 		ma = FINISH_250MA;
-
 	else if (fcc >= 4000)
 		ma = FINISH_200MA;
-
 	else if (fcc >= 3000)
 		ma = FINISH_150MA;
-
 	else
 		ma = FINISH_100MA;
 
 	return ma;
 }
-#if 0
-/*
- * there is a timer inside rk81x to calc how long the battery is in charging
- * state. rk81x will close PowerPath inside IC when timer reach, which will
- * stop the charging work. we have to reset the corresponding bits to restart
- * the timer to avoid that case.
- */
-static void rk81x_bat_init_chrg_timer(struct rk81x_battery *di)
+
+static void rk818_bat_init_chrg_config(struct rk818_battery *di)
 {
-	u8 buf;
+	u8 usb_ctrl, chrg_ctrl2, chrg_ctrl3;
+	u8 thermal, ggcon, finish_ma, fb_temp;
 
-	rk81x_bat_read(di, CHRG_CTRL_REG3, &buf, 1);
-	buf &= ~CHRG_TIMER_CCCV_EN;
-	rk81x_bat_write(di, CHRG_CTRL_REG3, &buf, 1);
-	udelay(40);
-	rk81x_bat_read(di, CHRG_CTRL_REG3, &buf, 1);
-	buf |= CHRG_TIMER_CCCV_EN;
-	rk81x_bat_write(di, CHRG_CTRL_REG3, &buf, 1);
-	dev_info(di->dev, "reset cccv charge timer\n");
-}
-#endif
+	finish_ma = rk818_bat_parse_finish_ma(di, di->fcc);
+	fb_temp = rk818_bat_parse_fb_temperature(di);
 
-static void rk81x_bat_charger_init(struct  rk81x_battery *di)
-{
-	u8 chrg_ctrl_reg1, usb_ctrl_reg, chrg_ctrl_reg2, chrg_ctrl_reg3;
-	u8 sup_sts_reg, thremal_reg, ggcon;
-	int chrg_vol, chrg_cur, chrg_ilim;
-	u8 finish_ma;
+	ggcon = rk818_bat_read(di, RK818_GGCON_REG);
+	thermal = rk818_bat_read(di, RK818_THERMAL_REG);
+	usb_ctrl = rk818_bat_read(di, RK818_USB_CTRL_REG);
+	chrg_ctrl2 = rk818_bat_read(di, RK818_CHRG_CTRL_REG2);
+	chrg_ctrl3 = rk818_bat_read(di, RK818_CHRG_CTRL_REG3);
 
-	chrg_vol = di->pdata->max_charger_voltagemV;
-	chrg_cur = di->pdata->max_charger_currentmA;
-	chrg_ilim = di->pdata->max_charger_ilimitmA;
+	/* set charge finish current */
+	chrg_ctrl3 |= CHRG_TERM_DIG_SIGNAL;
+	chrg_ctrl2 &= ~FINISH_CUR_MSK;
+	chrg_ctrl2 |= finish_ma;
 
-	rk81x_bat_match_param(di, chrg_vol, chrg_ilim, chrg_cur);
-	finish_ma = rk81x_bat_select_finish_ma(di->fcc);
+	/* disable cccv mode */
+	chrg_ctrl3 &= ~CHRG_TIMER_CCCV_EN;
 
-	/*rk81x_bat_init_chrg_timer(di);*/
-
-	rk81x_bat_read(di, THERMAL_REG, &thremal_reg, 1);
-	rk81x_bat_read(di, USB_CTRL_REG, &usb_ctrl_reg, 1);
-	rk81x_bat_read(di, CHRG_CTRL_REG1, &chrg_ctrl_reg1, 1);
-	rk81x_bat_read(di, CHRG_CTRL_REG2, &chrg_ctrl_reg2, 1);
-	rk81x_bat_read(di, SUP_STS_REG, &sup_sts_reg, 1);
-	rk81x_bat_read(di, CHRG_CTRL_REG3, &chrg_ctrl_reg3, 1);
-	rk81x_bat_read(di, GGCON, &ggcon, 1);
-
-	usb_ctrl_reg &= (~0x0f);
-
-	if (rk81x_bat_support_adp_type(HW_ADP_TYPE_USB))
-		usb_ctrl_reg |= (CHRG_CT_EN | ILIM_450MA);/*en temp feed back*/
+	/* set feed back temperature */
+	if (di->pdata->fb_temp)
+		usb_ctrl |= CHRG_CT_EN;
 	else
-		usb_ctrl_reg |= (CHRG_CT_EN | di->chrg_i_lmt);
+		usb_ctrl &= ~CHRG_CT_EN;
+	thermal &= ~FB_TEMP_MSK;
+	thermal |= fb_temp;
 
-	if (di->fg_drv_mode == TEST_POWER_MODE)
-		usb_ctrl_reg |= (CHRG_CT_EN | di->chrg_i_lmt);
+	/* adc current mode */
+	ggcon |= ADC_CUR_MODE;
 
-	chrg_ctrl_reg1 &= (0x00);
-	chrg_ctrl_reg1 |= (CHRG_EN) | (di->chrg_v_lmt | di->chrg_i_cur);
-
-	chrg_ctrl_reg3 |= CHRG_TERM_DIG_SIGNAL;/* digital finish mode*/
-	chrg_ctrl_reg3 &= ~CHRG_TIMER_CCCV_EN;/*disable*/
-
-	chrg_ctrl_reg2 &= ~(0xc7);
-	chrg_ctrl_reg2 |= finish_ma | CHG_CCCV_6HOUR;
-
-	sup_sts_reg &= ~(0x01 << 3);
-	sup_sts_reg |= (0x01 << 2);
-
-	thremal_reg &= (~0x0c);
-	thremal_reg |= TEMP_105C;/*temp feed back: 105c*/
-	ggcon |= ADC_CURRENT_MODE;
-
-	rk81x_bat_write(di, THERMAL_REG, &thremal_reg, 1);
-	rk81x_bat_write(di, CHRG_CTRL_REG3, &chrg_ctrl_reg3, 1);
-	/*don't touch charge  setting when boot int loader charge mode*/
-	if (!di->loader_charged)
-		rk81x_bat_write(di, USB_CTRL_REG, &usb_ctrl_reg, 1);
-	rk81x_bat_write(di, CHRG_CTRL_REG1, &chrg_ctrl_reg1, 1);
-	rk81x_bat_write(di, CHRG_CTRL_REG2, &chrg_ctrl_reg2, 1);
-	rk81x_bat_write(di, SUP_STS_REG, &sup_sts_reg, 1);
-	rk81x_bat_write(di, GGCON, &ggcon, 1);
+	rk818_bat_write(di, RK818_GGCON_REG, ggcon);
+	rk818_bat_write(di, RK818_THERMAL_REG, thermal);
+	rk818_bat_write(di, RK818_USB_CTRL_REG, usb_ctrl);
+	rk818_bat_write(di, RK818_CHRG_CTRL_REG2, chrg_ctrl2);
+	rk818_bat_write(di, RK818_CHRG_CTRL_REG3, chrg_ctrl3);
 }
 
-static void rk81x_bat_fg_init(struct rk81x_battery *di)
+static void rk818_bat_init_coffset(struct rk818_battery *di)
 {
-	u8 pcb_offset;
-	int cal_offset;
-	u8 val;
+	int coffset, ioffset;
 
-	val = 0x30;
-	rk81x_bat_write(di, ADC_CTRL_REG, &val, 1);
+	ioffset = rk818_bat_get_ioffset(di);
+	di->poffset = rk818_bat_read(di, RK818_POFFSET_REG);
+	if (!di->poffset)
+		di->poffset = DEFAULT_POFFSET;
 
-	rk81x_bat_gauge_enable(di);
-	/* get the volatege offset */
-	rk81x_bat_get_vol_offset(di);
-	rk81x_bat_charger_init(di);
-	rk81x_bat_set_relax_thres(di);
+	coffset = di->poffset + ioffset;
+	if (coffset < INVALID_COFFSET_MIN || coffset > INVALID_COFFSET_MAX)
+		coffset = DEFAULT_COFFSET;
 
-	/* get the current offset , the value write to the CAL_OFFSET */
-	di->current_offset = rk81x_bat_get_ioffset(di);
-	rk81x_bat_read(di, PCB_IOFFSET_REG, &pcb_offset, 1);
-	DBG("<%s>. pcb_offset = 0x%x, io_offset = 0x%x\n",
-	    __func__, pcb_offset, di->current_offset);
-	if (!pcb_offset)
-		pcb_offset = DEF_PCB_OFFSET;
-	cal_offset = pcb_offset + di->current_offset;
-	if (cal_offset < 0x7ff || cal_offset > 0x8ff)
-		cal_offset = DEF_CAL_OFFSET;
-	rk81x_bat_set_cal_offset(di, cal_offset);
-	/* set sample time for cal_offset interval*/
-	rk81x_bat_ioffset_sample_set(di, SAMP_TIME_8MIN);
+	rk818_bat_set_coffset(di, coffset);
 
-	rk81x_bat_rsoc_init(di);
-	rk81x_bat_capacity_init(di, di->nac);
-	rk81x_bat_capacity_init_post(di);
-
-	di->remain_capacity = rk81x_bat_get_realtime_capacity(di);
-	di->current_avg = rk81x_bat_get_avg_current(di);
-
-	rk81x_bat_restart_relax(di);
-	rk81x_bat_power_on_save(di, di->voltage_ocv);
-	val = 0;
-	rk81x_bat_write(di, OCV_VOL_VALID_REG, &val, 1);
-
-	rk81x_dbg_dmp_gauge_regs(di);
-	rk81x_dbg_dmp_charger_regs(di);
-
-	DBG("<%s> :\n"
-	    "nac = %d , remain_capacity = %d\n"
-	    "OCV_voltage = %d, voltage = %d\n"
-	    "SOC = %d, fcc = %d\n, current=%d\n"
-	    "cal_offset = 0x%x\n",
-	    __func__,
-	    di->nac, di->remain_capacity,
-	    di->voltage_ocv, di->voltage,
-	    di->dsoc, di->fcc, di->current_avg,
-	    cal_offset);
+	DBG("<%s>. offset: p=0x%x, i=0x%x, c=0x%x\n",
+	    __func__, di->poffset, ioffset, rk818_bat_get_coffset(di));
 }
 
-static void rk81x_bat_zero_calc_linek(struct rk81x_battery *di)
+static void rk818_bat_caltimer_isr(unsigned long data)
 {
-	int dead_voltage, ocv_voltage;
-	int voltage, voltage_old, voltage_now;
-	int i, rsoc;
-	int q_ocv, q_dead;
-	int count_num = 0;
-	int currentnow;
-	int ocv_soc, dead_soc;
-	int power_off_thresd = di->pdata->power_off_thresd;
+	struct rk818_battery *di = (struct rk818_battery *)data;
 
-	do {
-		voltage_old = rk81x_bat_get_vol(di);
-		msleep(100);
-		voltage_now = rk81x_bat_get_vol(di);
-		count_num++;
-	} while ((voltage_old == voltage_now) && (count_num < 11));
-	DBG("<%s>. current calc count=%d\n", __func__, count_num);
-
-	voltage = 0;
-	for (i = 0; i < 10; i++) {
-		voltage += rk81x_bat_get_vol(di);
-		msleep(100);
-	}
-	voltage /= 10;
-
-	currentnow = rk81x_bat_get_avg_current(di);
-
-	/* 50 mo power-path mos */
-	dead_voltage = power_off_thresd - currentnow *
-				(di->bat_res + DEF_PWRPATH_RES) / 1000;
-
-	ocv_voltage = voltage - (currentnow * di->bat_res) / 1000;
-	DBG("ZERO0: dead_voltage(shtd) = %d, ocv_voltage(now) = %d\n",
-	    dead_voltage, ocv_voltage);
-
-	dead_soc = rk81x_bat_vol_to_capacity(di, dead_voltage);
-	q_dead = di->temp_nac;
-	DBG("ZERO0: dead_voltage_soc = %d, q_dead = %d\n",
-	    dead_soc, q_dead);
-
-	ocv_soc = rk81x_bat_vol_to_capacity(di, ocv_voltage);
-	q_ocv = di->temp_nac;
-	DBG("ZERO0: ocv_voltage_soc = %d, q_ocv = %d\n",
-	    ocv_soc, q_ocv);
-
-	rsoc = ocv_soc - dead_soc;
-	if ((di->dsoc == 1) && (rsoc > 0)) {/*discharge*/
-		di->line_k = 1000;
-	} else if (rsoc > 0) {
-		di->line_k = (di->display_soc + rsoc / 2) / div(rsoc);
-	} else {
-		di->dsoc--;
-		di->display_soc = di->dsoc * 1000;
-	}
-
-	di->zero_old_remain_cap = di->remain_capacity;
-
-	DBG("ZERO-new: new-line_k=%d, dsoc=%d, X0soc=%d\n"
-	    "ZERO-new: di->display_soc=%d, old_remain_cap=%d\n\n",
-	    di->line_k, di->dsoc, rsoc,
-	    di->display_soc, di->zero_old_remain_cap);
+	mod_timer(&di->caltimer, jiffies + MINUTE(8) * HZ);
+	queue_delayed_work(di->bat_monitor_wq, &di->calib_delay_work,
+			   msecs_to_jiffies(10));
 }
 
-static void rk81x_bat_zero_algorithm(struct rk81x_battery *di)
+static void rk818_bat_internal_calib(struct work_struct *work)
 {
-	int delta_cap, delta_soc;
-	int tmp_dsoc;
+	int ioffset, poffset;
+	struct rk818_battery *di = container_of(work,
+			struct rk818_battery, calib_delay_work.work);
 
-	di->zero_timeout_cnt++;
-	delta_cap = di->zero_old_remain_cap - di->remain_capacity;
-	delta_soc = di->line_k * (delta_cap * 100) / div(di->fcc);
-
-	DBG("ZERO1: line_k=%d, display_soc(Y0)=%d, dsoc=%d, rsoc=%d\n"
-	    "ZERO1: delta_soc(X0)=%d, delta_cap=%d, old_remain_cap = %d\n"
-	    "ZERO1: timeout_cnt=%d\n\n",
-	    di->line_k, di->display_soc, di->dsoc, di->rsoc,
-	    delta_soc, delta_cap, di->zero_old_remain_cap,
-	    di->zero_timeout_cnt);
-
-	if ((delta_soc >= MIN_ZERO_ACCURACY) ||
-	    (di->zero_timeout_cnt > 500)) {
-		DBG("ZERO1:--------- enter calc -----------\n");
-		di->zero_timeout_cnt = 0;
-		di->display_soc -= delta_soc;
-		tmp_dsoc = (di->display_soc + MIN_ROUND_ACCURACY) / 1000;
-		di->dsoc = tmp_dsoc;
-		/* need to be init, otherwise when switch between discharge and
-		 * charge display_soc will be init as: dsoc * 1000
-		 */
-		di->last_zero_mode_dsoc = tmp_dsoc;
-		DBG("ZERO1: display_soc(Y0)=%d, dsoc=%d, rsoc=%d, tmp_soc=%d",
-		    di->display_soc, di->dsoc, di->rsoc, tmp_dsoc);
-
-		rk81x_bat_zero_calc_linek(di);
-	}
-}
-
-static int rk81x_bat_est_ocv_vol(struct rk81x_battery *di)
-{
-	return (di->voltage -
-				(di->bat_res * di->current_avg) / 1000);
-}
-
-static int rk81x_bat_est_ocv_soc(struct rk81x_battery *di)
-{
-	int ocv_soc, ocv_voltage;
-
-	ocv_voltage = rk81x_bat_est_ocv_vol(di);
-	ocv_soc = rk81x_bat_vol_to_capacity(di, ocv_voltage);
-
-	return ocv_soc;
-}
-
-/* we will estimate a ocv voltage to get a ocv soc.
- * if there is a big offset between ocv_soc and rsoc,
- * we will decide whether we should reinit capacity or not
- */
-static void rk81x_bat_rsoc_dischrg_check(struct rk81x_battery *di)
-{
-	int ocv_soc = di->est_ocv_soc;
-	int ocv_volt = di->est_ocv_vol;
-	int rsoc = rk81x_bat_get_rsoc(di);
-	int max_volt = di->pdata->max_charger_voltagemV;
-
-	if (ocv_volt > max_volt)
-		goto out;
-
-	if (di->plug_out_min >= RSOC_CALIB_DISCHRGR_TIME) {
-		if ((ocv_soc-rsoc >= RSOC_DISCHRG_ERR_LOWER) ||
-		    (di->rsoc == 0) ||
-		    (rsoc-ocv_soc >= RSOC_DISCHRG_ERR_UPPER)) {
-			di->err_chck_cnt++;
-			di->err_soc_sum += ocv_soc;
-		} else {
-			goto out;
-		}
-		DBG("<%s>. rsoc err_chck_cnt = %d, err_soc_sum = %d\n",
-		    __func__, di->err_chck_cnt, di->err_soc_sum);
-
-		if (di->err_chck_cnt >= RSOC_ERR_CHCK_CNT) {
-			ocv_soc = di->err_soc_sum / RSOC_ERR_CHCK_CNT;
-			if (rsoc-ocv_soc >= RSOC_DISCHRG_ERR_UPPER)
-				ocv_soc += RSOC_COMPS;
-
-			di->temp_nac = ocv_soc * di->fcc / 100;
-			rk81x_bat_capacity_init(di, di->temp_nac);
-			rk81x_bat_capacity_init_post(di);
-			di->rsoc = rk81x_bat_get_rsoc(di);
-			di->remain_capacity =
-					rk81x_bat_get_realtime_capacity(di);
-			di->err_soc_sum = 0;
-			di->err_chck_cnt = 0;
-			DBG("<%s>. update: rsoc = %d\n", __func__, ocv_soc);
-		}
-	 } else {
-out:
-		di->err_chck_cnt = 0;
-		di->err_soc_sum = 0;
-	}
-}
-
-static void rk81x_bat_rsoc_check(struct rk81x_battery *di)
-{
-	u8 status = di->psy_status;
-
-	if ((status == POWER_SUPPLY_STATUS_CHARGING) ||
-	    (status == POWER_SUPPLY_STATUS_FULL)) {
-		if ((di->current_avg < 0) &&
-		    (di->chrg_status != CHARGE_FINISH))
-			rk81x_bat_rsoc_dischrg_check(di);
-		/*
-		else
-			rsoc_chrg_calib(di);
-		*/
-
-	} else if (status == POWER_SUPPLY_STATUS_DISCHARGING) {
-		rk81x_bat_rsoc_dischrg_check(di);
-	}
-}
-
-static void rk81x_bat_emulator_dischrg(struct rk81x_battery *di)
-{
-	u32 temp, soc_time = 0;
-	unsigned long sec_unit;
-
-	if (!di->dischrg_emu_base)
-		di->dischrg_emu_base = get_runtime_sec();
-
-	sec_unit = BASE_TO_SEC(di->dischrg_emu_base) + di->dischrg_save_sec;
-
-	temp = di->fcc * 3600 / 100;
-
-	if (abs(di->current_avg) < DSOC_DISCHRG_EMU_CURR)
-		soc_time = temp / div(abs(DSOC_DISCHRG_EMU_CURR));
+	/* calib coffset */
+	poffset = rk818_bat_read(di, RK818_POFFSET_REG);
+	if (poffset)
+		di->poffset = poffset;
 	else
-		soc_time = temp / div(abs(di->current_avg));
+		di->poffset = DEFAULT_POFFSET;
 
-	if  (sec_unit > soc_time) {
-		di->dsoc--;
-		di->dischrg_emu_base = get_runtime_sec();
-		di->dischrg_save_sec = 0;
-	}
+	ioffset = rk818_bat_get_ioffset(di);
+	rk818_bat_set_coffset(di, ioffset + di->poffset);
 
-	DBG("<%s> soc_time=%d, sec_unit=%lu\n",
-	    __func__, soc_time, sec_unit);
+	/* calib voltage kb */
+	rk818_bat_init_voltage_kb(di);
+	BAT_INFO("caltimer: ioffset=0x%x, coffset=0x%x, poffset=%d\n",
+		 ioffset, rk818_bat_get_coffset(di), di->poffset);
 }
 
-/*
- * when there is a big offset between dsoc and rsoc, dsoc needs to
- * speed up to keep pace witch rsoc.
- */
-static void rk81x_bat_emulator_chrg(struct rk81x_battery *di)
+static void rk818_bat_init_caltimer(struct rk818_battery *di)
 {
-	u32 soc_time = 0, temp;
-	int plus_soc;
-	unsigned long chrg_emu_sec;
-
-	if (!di->chrg_emu_base)
-		di->chrg_emu_base = get_runtime_sec();
-
-	chrg_emu_sec = BASE_TO_SEC(di->chrg_emu_base) + di->chrg_save_sec;
-	temp = di->fcc * 3600 / 100;
-
-	if (di->ac_online) {
-		if (di->current_avg < DSOC_CHRG_EMU_CURR)
-			soc_time = temp / abs(DSOC_CHRG_EMU_CURR);
-		else
-			soc_time = temp / div(abs(di->current_avg));
-	} else {
-		soc_time = temp / 450;
-	}
-
-	plus_soc = chrg_emu_sec / soc_time;
-	if  (chrg_emu_sec > soc_time) {
-		di->dsoc += plus_soc;
-		di->chrg_emu_base = get_runtime_sec();
-		di->chrg_save_sec = 0;
-	}
-
-	DBG("<%s>. soc_time=%d, chrg_emu_sec=%lu, plus_soc=%d\n",
-	    __func__, soc_time, chrg_emu_sec, plus_soc);
+	setup_timer(&di->caltimer, rk818_bat_caltimer_isr, (unsigned long)di);
+	di->caltimer.expires = jiffies + MINUTE(8) * HZ;
+	add_timer(&di->caltimer);
+	INIT_DELAYED_WORK(&di->calib_delay_work, rk818_bat_internal_calib);
 }
 
-/* check voltage and current when dsoc is close to full.
- * we will do a fake charge to adjust charing speed which
- * aims to make battery full charged and match finish signal.
- */
-static void rk81x_bat_terminal_chrg(struct rk81x_battery *di)
+static void rk818_bat_init_zero_table(struct rk818_battery *di)
 {
-	u32 soc_time;
-	int plus_soc;
-	unsigned long chrg_term_sec;
+	int i, diff, min, max;
+	size_t ocv_size, length;
 
-	if (!di->chrg_term_base)
-		di->chrg_term_base = get_runtime_sec();
-
-	chrg_term_sec = BASE_TO_SEC(di->chrg_term_base) + di->chrg_save_sec;
-	/*check current and voltage*/
-
-	soc_time = di->fcc * 3600 / 100 / (abs(DSOC_CHRG_TERM_CURR));
-
-	plus_soc = chrg_term_sec / soc_time;
-	if  (chrg_term_sec > soc_time) {
-		di->dsoc += plus_soc;
-		di->chrg_term_base = get_runtime_sec();
-		di->chrg_save_sec = 0;
-	}
-	DBG("<%s>. soc_time=%d, chrg_term_sec=%lu, plus_soc=%d\n",
-	    __func__, soc_time, chrg_term_sec, plus_soc);
-}
-
-static void rk81x_bat_normal_dischrg(struct rk81x_battery *di)
-{
-	int soc_time = 0;
-	int now_current = di->current_avg;
-	unsigned long dischrg_normal_sec;
-
-	if (!di->dischrg_normal_base)
-		di->dischrg_normal_base = get_runtime_sec();
-
-	dischrg_normal_sec = BASE_TO_SEC(di->dischrg_normal_base) +
-						di->dischrg_save_sec;
-
-	soc_time = di->fcc * 3600 / 100 / div(abs(now_current));
-	DBG("<%s>. rsoc=%d, dsoc=%d, dischrg_st=%d\n",
-	    __func__, di->rsoc, di->dsoc, di->discharge_smooth_status);
-
-	if (di->rsoc == di->dsoc) {
-		DBG("<%s>. rsoc == dsoc\n", __func__);
-		di->dsoc = di->rsoc;
-		di->dischrg_normal_base = get_runtime_sec();
-		di->dischrg_save_sec = 0;
-		/*di->discharge_smooth_status = false;*/
-	} else if (di->rsoc > di->dsoc - 1) {
-		DBG("<%s>. rsoc > dsoc - 1\n", __func__);
-		if (dischrg_normal_sec > soc_time * 3 / 2) {
-			di->dsoc--;
-			di->dischrg_normal_base = get_runtime_sec();
-			di->dischrg_save_sec = 0;
-		}
-		di->discharge_smooth_status = true;
-
-	} else if (di->rsoc < di->dsoc - 1) {
-		DBG("<%s>. rsoc < dsoc - 1\n", __func__);
-		if (dischrg_normal_sec > soc_time * 3 / 4) {
-			di->dsoc--;
-			di->dischrg_normal_base = get_runtime_sec();
-			di->dischrg_save_sec = 0;
-		}
-		di->discharge_smooth_status = true;
-
-	} else if (di->rsoc == di->dsoc - 1) {
-		DBG("<%s>. rsoc == dsoc - 1\n", __func__);
-		if (di->discharge_smooth_status) {
-			if (dischrg_normal_sec > soc_time * 3 / 4) {
-				di->dsoc--;
-				di->dischrg_normal_base = get_runtime_sec();
-				di->dischrg_save_sec = 0;
-				di->discharge_smooth_status = false;
-			}
-		} else {
-			di->dsoc--;
-			di->dischrg_normal_base = get_runtime_sec();
-			di->dischrg_save_sec = 0;
-			di->discharge_smooth_status = false;
-		}
-	}
-
-	DBG("<%s>, rsoc = %d, dsoc = %d, discharge_smooth_status = %d\n"
-	    "dischrg_normal_sec = %lu, soc_time = %d, delta_vol=%d\n",
-	    __func__, di->rsoc, di->dsoc, di->discharge_smooth_status,
-	    dischrg_normal_sec, soc_time, di->delta_vol_smooth);
-}
-
-static void rk81x_bat_dischrg_smooth(struct rk81x_battery *di)
-{
-	int delta_soc;
-	int tmp_dsoc;
-
-	/* first resume from suspend: we don't run this,
-	 * the sleep_dischrg will handle dsoc, and what
-	 * ever this is fake wakeup or not, we should clean
-	 * zero algorithm mode, or it will handle the dsoc.
-	 */
-	if (di->s2r) {
-		rk81x_bat_reset_zero_var(di);
+	ocv_size = di->pdata->ocv_size;
+	length = sizeof(di->pdata->zero_table) * ocv_size;
+	di->pdata->zero_table =
+			devm_kzalloc(di->dev, length, GFP_KERNEL);
+	if (!di->pdata->zero_table) {
+		di->pdata->zero_table = di->pdata->ocv_table;
+		dev_err(di->dev, "malloc zero table fail\n");
 		return;
 	}
 
-	di->rsoc = rk81x_bat_get_rsoc(di);
+	min = di->pdata->pwroff_vol,
+	max = di->pdata->ocv_table[ocv_size - 4];
+	diff = (max - min) / (ocv_size - 1);
+	for (i = 0; i < ocv_size; i++)
+		di->pdata->zero_table[i] = min + (i * diff);
 
-	DBG("<%s>. rsoc = %d, dsoc = %d, dischrg_algorithm_mode=%d\n",
-	    __func__, di->rsoc, di->dsoc, di->dischrg_algorithm_mode);
+	for (i = 0; i < ocv_size; i++)
+		DBG("zero[%d] = %d\n", i, di->pdata->zero_table[i]);
 
-	if (di->dischrg_algorithm_mode == DISCHRG_NORMAL_MODE) {
-		delta_soc = di->dsoc - di->rsoc;
+	for (i = 0; i < ocv_size; i++)
+		DBG("ocv[%d] = %d\n", i, di->pdata->ocv_table[i]);
+}
 
-		if (delta_soc > DSOC_DISCHRG_FAST_EER_RANGE) {
-			di->dischrg_normal_base = 0;
-			rk81x_bat_emulator_dischrg(di);
-		} else {
-			di->chrg_emu_base = 0;
-			rk81x_bat_normal_dischrg(di);
-		}
+static void rk818_bat_calc_sm_linek(struct rk818_battery *di)
+{
+	int linek, current_avg;
+	u8 diff, delta;
 
-		if (di->voltage < ZERO_ALGOR_THRESD) {
-			di->dischrg_normal_base = 0;
-			di->chrg_emu_base = 0;
-			di->dischrg_algorithm_mode = DISCHRG_ZERO_MODE;
-			di->zero_timeout_cnt = 0;
+	delta = abs(di->dsoc - di->rsoc);
+	diff = delta * 3;/* speed:3/4 */
+	current_avg = rk818_bat_get_avg_current(di);
+	if (current_avg >= 0) {
+		if (di->dsoc < di->rsoc)
+			linek = 1000 * (delta + diff) / diff;
+		else if (di->dsoc > di->rsoc)
+			linek = 1000 * diff / (delta + diff);
+		else
+			linek = 1000;
+		di->dbg_meet_soc = (di->dsoc >= di->rsoc) ?
+				   (di->dsoc + diff) : (di->rsoc + diff);
+	} else {
+		if (di->dsoc < di->rsoc)
+			linek = -1000 * diff / (delta + diff);
+		else if (di->dsoc > di->rsoc)
+			linek = -1000 * (delta + diff) / diff;
+		else
+			linek = -1000;
+		di->dbg_meet_soc = (di->dsoc >= di->rsoc) ?
+				   (di->dsoc - diff) : (di->rsoc - diff);
+	}
 
-			DBG("<%s>. dsoc=%d, last_zero_mode_dsoc=%d\n",
-			    __func__, di->dsoc, di->last_zero_mode_dsoc);
-			if (di->dsoc != di->last_zero_mode_dsoc) {
-				tmp_dsoc = (di->display_soc +
-						MIN_ROUND_ACCURACY) / 1000;
-				/* if last display_soc invalid, recalc.
-				 * otherwise keep this value(in case: plugin and
-				 * plugout quickly or wakeup from deep sleep,
-				 * we need't init display_soc)
-				 */
-				if (tmp_dsoc != di->dsoc)
-					/* first init value should round up,
-					 * other wise dsoc will quickly turn to
-					 * dsoc-- if MIN_ROUND_ACCURACY value is
-					 * small,eg:1.(in case: power on system)
-					 */
-					di->display_soc = (di->dsoc + 1) *
-						1000 - MIN_ROUND_ACCURACY;
-				di->last_zero_mode_dsoc = di->dsoc;
-				rk81x_bat_zero_calc_linek(di);
-				DBG("<%s>. first calc, init linek\n", __func__);
+	di->sm_linek = linek;
+	di->sm_remain_cap = di->remain_cap;
+	di->dbg_calc_dsoc = di->dsoc;
+	di->dbg_calc_rsoc = di->rsoc;
+
+	DBG("<%s>.diff=%d, k=%d, cur=%d\n", __func__, diff, linek, current_avg);
+}
+
+static void rk818_bat_calc_zero_linek(struct rk818_battery *di)
+{
+	int dead_voltage, ocv_voltage;
+	int voltage_avg, current_avg, vsys;
+	int ocv_cap, dead_cap, xsoc;
+	int ocv_soc, dead_soc;
+	int pwroff_vol;
+	int i, cnt, vol_old, vol_now;
+	int org_linek = 0, min_gap_xsoc;
+
+	if ((abs(di->current_avg) < 500) && (di->dsoc > 10))
+		pwroff_vol = di->pdata->pwroff_vol + 50;
+	else
+		pwroff_vol = di->pdata->pwroff_vol;
+
+	do {
+		vol_old = rk818_bat_get_avg_voltage(di);
+		msleep(100);
+		vol_now = rk818_bat_get_avg_voltage(di);
+		cnt++;
+	} while ((vol_old == vol_now) && (cnt < 11));
+
+	voltage_avg = 0;
+	for (i = 0; i < 10; i++) {
+		voltage_avg += rk818_bat_get_avg_voltage(di);
+		msleep(100);
+	}
+
+	/* calc estimate ocv voltage */
+	voltage_avg /= 10;
+	current_avg = rk818_bat_get_avg_current(di);
+	vsys = voltage_avg + (current_avg * DEF_PWRPATH_RES) / 1000;
+
+	DBG("ZERO0: shtd_vol: org = %d, now = %d\n",
+	    di->pdata->pwroff_vol, pwroff_vol);
+
+	dead_voltage = pwroff_vol - current_avg *
+				(di->bat_res + DEF_PWRPATH_RES) / 1000;
+	ocv_voltage = voltage_avg - (current_avg * di->bat_res) / 1000;
+	DBG("ZERO0: dead_voltage(shtd) = %d, ocv_voltage(now) = %d\n",
+	    dead_voltage, ocv_voltage);
+
+	/* calc estimate soc and cap */
+	dead_soc = rk818_bat_vol_to_zerosoc(di, dead_voltage);
+	dead_cap = rk818_bat_vol_to_zerocap(di, dead_voltage);
+	DBG("ZERO0: dead_soc = %d, dead_cap = %d\n",
+	    dead_soc, dead_cap);
+
+	ocv_soc = rk818_bat_vol_to_zerosoc(di, ocv_voltage);
+	ocv_cap = rk818_bat_vol_to_zerocap(di, ocv_voltage);
+	DBG("ZERO0: ocv_soc = %d, ocv_cap = %d\n",
+	    ocv_soc, ocv_cap);
+
+	if (abs(current_avg) > ZERO_LOAD_LVL1)
+		min_gap_xsoc = ZERO_GAP_XSOC3;
+	else if (abs(current_avg) > ZERO_LOAD_LVL2)
+		min_gap_xsoc = ZERO_GAP_XSOC2;
+	else
+		min_gap_xsoc = ZERO_GAP_XSOC1;
+
+	/* xsoc: available rsoc */
+	xsoc = ocv_soc - dead_soc;
+	di->zero_remain_cap = di->remain_cap;
+	di->zero_timeout_cnt = 0;
+	if ((di->dsoc <= 1) && (xsoc > 0)) {
+		di->zero_linek = 400;
+		di->zero_drop_sec = 0;
+	} else if (xsoc >= 0) {
+		di->zero_drop_sec = 0;
+		di->zero_linek = (di->zero_dsoc + xsoc / 2) / DIV(xsoc);
+		org_linek = di->zero_linek;
+		/* battery energy mode to use up voltage */
+		if ((di->pdata->energy_mode) &&
+		    (xsoc - di->dsoc >= ZERO_GAP_XSOC3) &&
+		    (di->dsoc <= 10) && (di->zero_linek < 600)) {
+			di->zero_linek = 500;
+			DBG("ZERO-new: zero_linek adjust step0...\n");
+		/* reserve enough power yet, slow down any way */
+		} else if ((xsoc - di->dsoc >= min_gap_xsoc) ||
+			   ((xsoc - di->dsoc >= ZERO_GAP_XSOC2) &&
+			    (di->dsoc <= 10))) {
+			if (xsoc - di->dsoc >= 2 * min_gap_xsoc)
+				di->zero_linek = 400;
+			else if (xsoc - di->dsoc >= 2 + min_gap_xsoc)
+				di->zero_linek = 600;
+			else
+				di->zero_linek = 800;
+			DBG("ZERO-new: zero_linek adjust step1...\n");
+		/* control zero mode beginning enter */
+		} else if ((di->zero_linek > 1800) && (di->dsoc > 70)) {
+			di->zero_linek = 1800;
+			DBG("ZERO-new: zero_linek adjust step2...\n");
+		/* dsoc close to xsoc: it must reserve power */
+		} else if ((di->zero_linek > 1000) && (di->zero_linek < 1300)) {
+			di->zero_linek = 1300;
+			DBG("ZERO-new: zero_linek adjust step3...\n");
+		/* dsoc[5~15], dsoc < xsoc */
+		} else if ((di->dsoc <= 15 && di->dsoc > 5) &&
+			   (di->zero_linek <= 1300)) {
+			/* slow down */
+			if (xsoc - di->dsoc >= min_gap_xsoc)
+				di->zero_linek = 800;
+			/* reserve power */
+			else
+				di->zero_linek = 1300;
+			DBG("ZERO-new: zero_linek adjust step4...\n");
+		/* dsoc[5, 100], dsoc < xsoc */
+		} else if ((di->zero_linek < 1000) && (di->dsoc >= 5)) {
+			if ((xsoc - di->dsoc) < min_gap_xsoc) {
+				/* reserve power */
+				di->zero_linek = 1300;
+			} else {
+				if (abs(di->current_avg) > 500)/* heavy */
+					di->zero_linek = 900;
+				else
+					di->zero_linek = 1000;
 			}
+			DBG("ZERO-new: zero_linek adjust step5...\n");
+		/* dsoc[0~5], dsoc < xsoc */
+		} else if ((di->zero_linek < 1000) && (di->dsoc <= 5)) {
+			if ((xsoc - di->dsoc) <= 3)
+				di->zero_linek = 1300;
+			else
+				di->zero_linek = 800;
+				DBG("ZERO-new: zero_linek adjust step6...\n");
 		}
 	} else {
-		rk81x_bat_zero_algorithm(di);
-
-		if (di->voltage > ZERO_ALGOR_THRESD + 50) {
-			di->dischrg_algorithm_mode = DISCHRG_NORMAL_MODE;
-			di->zero_timeout_cnt = 0;
-			DBG("<%s>. exit zero_algorithm\n", __func__);
+		/* xsoc < 0 */
+		di->zero_linek = 1000;
+		if (!di->zero_drop_sec)
+			di->zero_drop_sec = get_boot_sec();
+		if (base2sec(di->zero_drop_sec) >= WAIT_DSOC_DROP_SEC) {
+			DBG("ZERO0: t=%lu\n", base2sec(di->zero_drop_sec));
+			di->zero_drop_sec = 0;
+			di->dsoc--;
+			di->zero_dsoc = (di->dsoc + 1) * 1000 -
+						MIN_ACCURACY;
 		}
+	}
+
+	if (voltage_avg < pwroff_vol - 70) {
+		if (!di->shtd_drop_sec)
+			di->shtd_drop_sec = get_boot_sec();
+		if (base2sec(di->shtd_drop_sec) > WAIT_SHTD_DROP_SEC) {
+			BAT_INFO("voltage extreme low...soc:%d->0\n", di->dsoc);
+			di->shtd_drop_sec = 0;
+			di->dsoc = 0;
+		}
+	} else {
+		di->shtd_drop_sec = 0;
+	}
+
+	DBG("ZERO-new: org_linek=%d, zero_linek=%d, dsoc=%d, Xsoc=%d, "
+	    "rsoc=%d, gap=%d, v=%d, vsys=%d\n"
+	    "ZERO-new: di->zero_dsoc=%d, zero_remain_cap=%d, zero_drop=%ld, "
+	    "sht_drop=%ld\n\n",
+	    org_linek, di->zero_linek, di->dsoc, xsoc, di->rsoc,
+	    min_gap_xsoc, voltage_avg, vsys, di->zero_dsoc, di->zero_remain_cap,
+	    base2sec(di->zero_drop_sec), base2sec(di->shtd_drop_sec));
+}
+
+static void rk818_bat_finish_algo_prepare(struct rk818_battery *di)
+{
+	di->finish_base = get_boot_sec();
+	if (!di->finish_base)
+		di->finish_base = 1;
+}
+
+static void rk818_bat_smooth_algo_prepare(struct rk818_battery *di)
+{
+	int tmp_soc;
+
+	tmp_soc = di->sm_chrg_dsoc / 1000;
+	if (tmp_soc != di->dsoc)
+		di->sm_chrg_dsoc = di->dsoc * 1000;
+
+	tmp_soc = di->sm_dischrg_dsoc / 1000;
+	if (tmp_soc != di->dsoc)
+		di->sm_dischrg_dsoc =
+		(di->dsoc + 1) * 1000 - MIN_ACCURACY;
+
+	DBG("<%s>. tmp_soc=%d, dsoc=%d, dsoc:sm_dischrg=%d, sm_chrg=%d\n",
+	    __func__, tmp_soc, di->dsoc, di->sm_dischrg_dsoc, di->sm_chrg_dsoc);
+
+	rk818_bat_calc_sm_linek(di);
+}
+
+static void rk818_bat_zero_algo_prepare(struct rk818_battery *di)
+{
+	int tmp_dsoc;
+
+	tmp_dsoc = di->zero_dsoc / 1000;
+	if (tmp_dsoc != di->dsoc)
+		di->zero_dsoc = (di->dsoc + 1) * 1000 - MIN_ACCURACY;
+
+	DBG("<%s>. first calc, reinit linek\n", __func__);
+
+	rk818_bat_calc_zero_linek(di);
+}
+
+static void rk818_bat_calc_zero_algorithm(struct rk818_battery *di)
+{
+	int tmp_soc = 0, sm_delta_dsoc = 0;
+
+	tmp_soc = di->zero_dsoc / 1000;
+	if (tmp_soc == di->dsoc)
+		goto out;
+
+	DBG("<%s>. enter: dsoc=%d, rsoc=%d\n", __func__, di->dsoc, di->rsoc);
+	/* when discharge slow down, take sm chrg into calc */
+	if (di->dsoc < di->rsoc) {
+		/* take sm charge rest into calc */
+		tmp_soc = di->sm_chrg_dsoc / 1000;
+		if (tmp_soc == di->dsoc) {
+			sm_delta_dsoc = di->sm_chrg_dsoc - di->dsoc * 1000;
+			di->sm_chrg_dsoc = di->dsoc * 1000;
+			di->zero_dsoc += sm_delta_dsoc;
+			DBG("ZERO1: take sm chrg,delta=%d\n", sm_delta_dsoc);
+		}
+	}
+
+	/* when discharge speed up, take sm dischrg into calc */
+	if (di->dsoc > di->rsoc) {
+		/* take sm discharge rest into calc */
+		tmp_soc = di->sm_dischrg_dsoc / 1000;
+		if (tmp_soc == di->dsoc) {
+			sm_delta_dsoc = di->sm_dischrg_dsoc -
+				((di->dsoc + 1) * 1000 - MIN_ACCURACY);
+			di->sm_dischrg_dsoc = (di->dsoc + 1) * 1000 -
+								MIN_ACCURACY;
+			di->zero_dsoc += sm_delta_dsoc;
+			DBG("ZERO1: take sm dischrg,delta=%d\n", sm_delta_dsoc);
+		}
+	}
+
+	/* check overflow */
+	if (di->zero_dsoc > (di->dsoc + 1) * 1000 - MIN_ACCURACY) {
+		DBG("ZERO1: zero dsoc overflow: %d\n", di->zero_dsoc);
+		di->zero_dsoc = (di->dsoc + 1) * 1000 - MIN_ACCURACY;
+	}
+
+	/* check new dsoc */
+	tmp_soc = di->zero_dsoc / 1000;
+	if (tmp_soc != di->dsoc) {
+		/* avoid dsoc jump when heavy load */
+		if ((di->dsoc - tmp_soc) > 1) {
+			di->dsoc--;
+			di->zero_dsoc = (di->dsoc + 1) * 1000 - MIN_ACCURACY;
+			DBG("ZERO1: heavy load...\n");
+		} else {
+			di->dsoc = tmp_soc;
+		}
+		di->zero_drop_sec = 0;
+	}
+
+out:
+	DBG("ZERO1: zero_dsoc(Y0)=%d, dsoc=%d, rsoc=%d, tmp_soc=%d\n",
+	    di->zero_dsoc, di->dsoc, di->rsoc, tmp_soc);
+	DBG("ZERO1: sm_dischrg_dsoc=%d, sm_chrg_dsoc=%d\n",
+	    di->sm_dischrg_dsoc, di->sm_chrg_dsoc);
+}
+
+static void rk818_bat_zero_algorithm(struct rk818_battery *di)
+{
+	int delta_cap = 0, delta_soc = 0;
+
+	di->zero_timeout_cnt++;
+	delta_cap = di->zero_remain_cap - di->remain_cap;
+	delta_soc = di->zero_linek * (delta_cap * 100) / DIV(di->fcc);
+
+	DBG("ZERO1: zero_linek=%d, zero_dsoc(Y0)=%d, dsoc=%d, rsoc=%d\n"
+	    "ZERO1: delta_soc(X0)=%d, delta_cap=%d, zero_remain_cap = %d\n"
+	    "ZERO1: timeout_cnt=%d, sm_dischrg=%d, sm_chrg=%d\n\n",
+	    di->zero_linek, di->zero_dsoc, di->dsoc, di->rsoc,
+	    delta_soc, delta_cap, di->zero_remain_cap,
+	    di->zero_timeout_cnt, di->sm_dischrg_dsoc, di->sm_chrg_dsoc);
+
+	if ((delta_soc >= MIN_ZERO_DSOC_ACCURACY) ||
+	    (di->zero_timeout_cnt > MIN_ZERO_OVERCNT) ||
+	    (di->zero_linek == 0)) {
+		DBG("ZERO1:--------- enter calc -----------\n");
+		di->zero_timeout_cnt = 0;
+		di->zero_dsoc -= delta_soc;
+		rk818_bat_calc_zero_algorithm(di);
+		rk818_bat_calc_zero_linek(di);
 	}
 }
 
-static void rk81x_bat_dbg_time_table(struct rk81x_battery *di)
+static void rk818_bat_dump_time_table(struct rk818_battery *di)
 {
 	u8 i;
 	static int old_index;
 	static int old_min;
-	u32 time;
 	int mod = di->dsoc % 10;
 	int index = di->dsoc / 10;
+	u32 time;
 
-	if (rk81x_chrg_online(di))
-		time = di->plug_in_min;
+	if (rk818_bat_chrg_online(di))
+		time = base2min(di->plug_in_base);
 	else
-		time = di->plug_out_min;
+		time = base2min(di->plug_out_base);
 
 	if ((mod == 0) && (index > 0) && (old_index != index)) {
-		di->chrg_min[index-1] = time - old_min;
+		di->dbg_chrg_min[index - 1] = time - old_min;
 		old_min = time;
 		old_index = index;
 	}
 
 	for (i = 1; i < 11; i++)
-		DBG("Time[%d]=%d, ", (i * 10), di->chrg_min[i-1]);
+		DBG("Time[%d]=%d, ", (i * 10), di->dbg_chrg_min[i - 1]);
 	DBG("\n");
 }
 
-static void rk81x_bat_dbg_dmp_info(struct rk81x_battery *di)
+static void rk818_bat_debug_info(struct rk818_battery *di)
 {
-	u8 sup_tst_reg, ggcon_reg, ggsts_reg, vb_mod_reg;
-	u8 usb_ctrl_reg, chrg_ctrl_reg1, thremal_reg;
-	u8 chrg_ctrl_reg2, chrg_ctrl_reg3, rtc_val, misc_reg;
+	u8 sup_tst, ggcon, ggsts, vb_mod, ts_ctrl, reboot_cnt;
+	u8 usb_ctrl, chrg_ctrl1, thermal;
+	u8 int_sts1, int_sts2;
+	u8 int_msk1, int_msk2;
+	u8 chrg_ctrl2, chrg_ctrl3, rtc, misc, dcdc_en;
+	char *work_mode[] = {"ZERO", "FINISH", "UN", "UN", "SMOOTH"};
+	char *bat_mode[] = {"BAT", "VIRTUAL"};
 
-	if (dbg_enable) {
-		rk81x_bat_read(di, MISC_MARK_REG, &misc_reg, 1);
-		rk81x_bat_read(di, GGCON, &ggcon_reg, 1);
-		rk81x_bat_read(di, GGSTS, &ggsts_reg, 1);
-		rk81x_bat_read(di, SUP_STS_REG, &sup_tst_reg, 1);
-		rk81x_bat_read(di, VB_MOD_REG, &vb_mod_reg, 1);
-		rk81x_bat_read(di, USB_CTRL_REG, &usb_ctrl_reg, 1);
-		rk81x_bat_read(di, CHRG_CTRL_REG1, &chrg_ctrl_reg1, 1);
-		rk81x_bat_read(di, CHRG_CTRL_REG2, &chrg_ctrl_reg2, 1);
-		rk81x_bat_read(di, CHRG_CTRL_REG3, &chrg_ctrl_reg3, 1);
-		rk81x_bat_read(di, 0x00, &rtc_val, 1);
-		rk81x_bat_read(di, THERMAL_REG, &thremal_reg, 1);
-	}
-
-	DBG("\n------------- dump_debug_regs -----------------\n"
-	    "GGCON = 0x%2x, GGSTS = 0x%2x, RTC	= 0x%2x\n"
-	    "SUP_STS_REG  = 0x%2x, VB_MOD_REG	= 0x%2x\n"
-	    "USB_CTRL_REG  = 0x%2x, CHRG_CTRL_REG1 = 0x%2x\n"
-	    "THERMAL_REG = 0x%2x, MISC_MARK_REG = 0x%x\n"
-	    "CHRG_CTRL_REG2 = 0x%2x, CHRG_CTRL_REG3 = 0x%2x\n\n",
-	    ggcon_reg, ggsts_reg, rtc_val,
-	    sup_tst_reg, vb_mod_reg,
-	    usb_ctrl_reg, chrg_ctrl_reg1,
-	    thremal_reg, misc_reg,
-	    chrg_ctrl_reg2, chrg_ctrl_reg3
-	   );
-
-	DBG("#######################################################\n"
-	    "voltage = %d, current-avg = %d\n"
-	    "fcc = %d, remain_capacity = %d, ocv_volt = %d\n"
-	    "check_ocv = %d, check_soc = %d, bat_res = %d\n"
-	    "display_soc = %d, cpapacity_soc = %d\n"
-	    "AC-ONLINE = %d, USB-ONLINE = %d, charging_status = %d\n"
-	    "i_offset=0x%x, cal_offset=0x%x, adjust_cap=%d\n"
-	    "plug_in = %d, plug_out = %d, finish_sig = %d, finish_chrg=%lu\n"
-	    "sec: chrg=%lu, dischrg=%lu, term_chrg=%lu, emu_chrg=%lu\n"
-	    "emu_dischrg = %lu, power_on_sec = %lu\n"
-	    "mode:%d, save_chrg_sec = %lu, save_dischrg_sec = %lu\n"
-	    "#########################################################\n",
-	    di->voltage, di->current_avg,
-	    di->fcc, di->remain_capacity, di->voltage_ocv,
-	    di->est_ocv_vol, di->est_ocv_soc, di->bat_res,
-	    di->dsoc, di->rsoc,
-	    di->ac_online, di->usb_online, di->psy_status,
-	    rk81x_bat_get_ioffset(di), rk81x_bat_get_cal_offset(di),
-	    di->adjust_cap, di->plug_in_min, di->plug_out_min,
-	    di->finish_sig_min, BASE_TO_SEC(di->chrg_finish_base),
-	    BASE_TO_SEC(di->chrg_normal_base),
-	    BASE_TO_SEC(di->dischrg_normal_base),
-	    BASE_TO_SEC(di->chrg_term_base),
-	    BASE_TO_SEC(di->chrg_emu_base),
-	    BASE_TO_SEC(di->dischrg_emu_base),
-	    BASE_TO_SEC(di->power_on_base),
-	    di->current_mode, di->chrg_save_sec, di->dischrg_save_sec
-	   );
-}
-
-static void rk81x_bat_update_fcc(struct rk81x_battery *di)
-{
-	int fcc0;
-	int remain_cap;
-	int dod0_to_soc100_min;
-
-	remain_cap = di->remain_capacity - di->dod0_capacity - di->adjust_cap;
-	dod0_to_soc100_min = BASE_TO_MIN(di->fcc_update_sec);
-
-	DBG("%s: remain_cap:%d, ajust_cap:%d, dod0_status=%d\n"
-	    "dod0_capacity:%d, dod0_to_soc100_min:%d\n",
-	    __func__, remain_cap, di->adjust_cap, di->dod0_status,
-	    di->dod0_capacity, dod0_to_soc100_min);
-
-	if ((di->chrg_status == CHARGE_FINISH) && (di->dod0_status == 1) &&
-	    (dod0_to_soc100_min < 1200)) {
-		DBG("%s: dod0:%d, dod0_cap:%d, dod0_level:%d\n",
-		    __func__, di->dod0, di->dod0_capacity, di->dod0_level);
-
-		fcc0 = remain_cap * 100 / div(100 - di->dod0);
-
-		dev_info(di->dev, "%s: fcc0:%d, fcc:%d\n",
-			 __func__, fcc0, di->fcc);
-
-		if ((fcc0 < di->qmax) && (fcc0 > 1000)) {
-			di->dod0_status = 0;
-			di->fcc = fcc0;
-			rk81x_bat_capacity_init(di, di->fcc);
-			rk81x_bat_capacity_init_post(di);
-			rk81x_bat_save_fcc(di, di->fcc);
-			rk81x_bat_save_level(di, di->dod0_level);
-			DBG("%s: new fcc0:%d\n", __func__, di->fcc);
-		}
-
-		di->dod0_status = 0;
-	}
-}
-
-static void rk81x_bat_dbg_get_finish_soc(struct rk81x_battery *di)
-{
-	if (di->chrg_status == CHARGE_FINISH) {
-		di->debug_finish_real_soc = di->dsoc;
-		di->debug_finish_temp_soc = di->rsoc;
-	}
-}
-
-static void rk81x_bat_wait_finish_sig(struct rk81x_battery *di)
-{
-	int chrg_finish_vol = di->pdata->max_charger_voltagemV;
-	bool ret;
-
-	if ((di->chrg_status == CHARGE_FINISH) &&
-	    (di->voltage > chrg_finish_vol - 150) &&  di->enter_finish) {
-		rk81x_bat_update_fcc(di);/* save new fcc*/
-		ret = rk81x_bat_zero_current_calib(di);
-		if (ret)
-			di->enter_finish = false;
-		/* debug msg*/
-		rk81x_bat_dbg_get_finish_soc(di);
-	}
-}
-
-static void rk81x_bat_finish_chrg(struct rk81x_battery *di)
-{
-	unsigned long sec_finish;
-	int soc_time = 0, plus_soc;
-	int temp;
-
-	if (di->dsoc < 100) {
-		if (!di->chrg_finish_base)
-			di->chrg_finish_base = get_runtime_sec();
-
-		sec_finish = BASE_TO_SEC(di->chrg_finish_base) +
-						di->chrg_save_sec;
-		temp = di->fcc * 3600 / 100;
-		if (di->ac_online)
-			soc_time = temp / DSOC_CHRG_FINISH_CURR;
-		else
-			soc_time = temp / 450;
-
-		plus_soc = sec_finish / soc_time;
-		if (sec_finish > soc_time) {
-			di->dsoc += plus_soc;
-			di->chrg_finish_base = get_runtime_sec();
-			di->chrg_save_sec = 0;
-		}
-		DBG("<%s>,CHARGE_FINISH:dsoc<100,dsoc=%d\n"
-		    "soc_time=%d, sec_finish=%lu, plus_soc=%d\n",
-		    __func__, di->dsoc, soc_time, sec_finish, plus_soc);
-	}
-}
-
-static u8 rk81x_bat_get_valid_soc(unsigned long soc)
-{
-	return (soc <= 100) ? soc : 0;
-}
-
-static void rk81x_bat_normal_chrg(struct rk81x_battery *di)
-{
-	int now_current;
-	u32 soc_time, unit_sec;
-	int plus_soc = 0;
-	unsigned long chrg_normal_sec;
-
-	now_current = rk81x_bat_get_avg_current(di);
-	soc_time = di->fcc * 3600 / 100 / div(abs(now_current)); /*1% time*/
-
-	if (!di->chrg_normal_base)
-		di->chrg_normal_base = get_runtime_sec();
-
-	chrg_normal_sec = BASE_TO_SEC(di->chrg_normal_base) + di->chrg_save_sec;
-	di->rsoc = rk81x_bat_get_rsoc(di);
-
-	DBG("<%s>. rsoc=%d, dsoc=%d, chrg_st=%d\n",
-	    __func__, di->rsoc, di->dsoc, di->charge_smooth_status);
-
-	if (di->dsoc == di->rsoc) {
-		DBG("<%s>. rsoc == dsoc + 1\n", __func__);
-		di->rsoc = rk81x_bat_get_rsoc(di);
-		di->chrg_normal_base = get_runtime_sec();
-		di->chrg_save_sec = 0;
-		/*di->charge_smooth_status = false;*/
-	} else if (di->rsoc < di->dsoc + 1) {
-		DBG("<%s>. rsoc < dsoc + 1\n", __func__);
-		unit_sec = soc_time * 3 / 2;
-		plus_soc = rk81x_bat_get_valid_soc(chrg_normal_sec / unit_sec);
-		if  (chrg_normal_sec > unit_sec) {
-			di->dsoc += plus_soc;
-			di->chrg_normal_base = get_runtime_sec();
-			di->chrg_save_sec = 0;
-		}
-		di->charge_smooth_status = true;
-	} else if (di->rsoc > di->dsoc + 1) {
-		DBG("<%s>. rsoc > dsoc + 1\n", __func__);
-		unit_sec = soc_time * 3 / 4;
-		plus_soc = rk81x_bat_get_valid_soc(chrg_normal_sec / unit_sec);
-		if  (chrg_normal_sec > unit_sec) {
-			di->dsoc += plus_soc;
-			di->chrg_normal_base = get_runtime_sec();
-			di->chrg_save_sec = 0;
-		}
-		di->charge_smooth_status = true;
-	} else if (di->rsoc == di->dsoc + 1) {
-		DBG("<%s>. rsoc == dsoc + 1\n", __func__);
-		if (di->charge_smooth_status) {
-			unit_sec = soc_time * 3 / 4;
-			if (chrg_normal_sec > unit_sec) {
-				di->dsoc = di->rsoc;
-				di->chrg_normal_base = get_runtime_sec();
-				di->charge_smooth_status = false;
-				di->chrg_save_sec = 0;
-			}
-		} else {
-			di->dsoc = di->rsoc;
-			di->chrg_normal_base = get_runtime_sec();
-			di->charge_smooth_status = false;
-			di->chrg_save_sec = 0;
-		}
-	}
-
-	DBG("<%s>, rsoc = %d, dsoc = %d, charge_smooth_status = %d\n"
-	    "chrg_normal_sec = %lu, soc_time = %d, plus_soc=%d\n",
-	    __func__, di->rsoc, di->dsoc, di->charge_smooth_status,
-	    chrg_normal_sec, soc_time, plus_soc);
-}
-
-static void rk81x_bat_update_time(struct rk81x_battery *di)
-{
-	u64 runtime_sec;
-
-	runtime_sec = get_runtime_sec();
-
-	/*update by charger type*/
-	if (rk81x_chrg_online(di))
-		di->plug_out_base = runtime_sec;
+	if (rk818_bat_chrg_online(di))
+		di->plug_out_base = get_boot_sec();
 	else
-		di->plug_in_base = runtime_sec;
+		di->plug_in_base = get_boot_sec();
 
-	/*update by current*/
-	if (di->chrg_status != CHARGE_FINISH) {
-		di->finish_sig_base = runtime_sec;
-		di->chrg_finish_base = runtime_sec;
-	}
+	rk818_bat_dump_time_table(di);
 
-	di->plug_in_min = BASE_TO_MIN(di->plug_in_base);
-	di->plug_out_min = BASE_TO_MIN(di->plug_out_base);
-	di->finish_sig_min = BASE_TO_MIN(di->finish_sig_base);
-
-	rk81x_bat_dbg_time_table(di);
-}
-
-static int rk81x_bat_get_rsoc_trend(struct rk81x_battery *di, int *trend_mult)
-{
-	int trend_start_cap = di->trend_start_cap;
-	int remain_cap = di->remain_capacity;
-	int diff_cap;
-	int state;
-
-	if (di->s2r && !di->slp_psy_status)
-		di->trend_start_cap = di->remain_capacity;
-
-	diff_cap = remain_cap - trend_start_cap;
-	DBG("<%s>. trend_start_cap = %d, diff_cap = %d\n",
-	    __func__, trend_start_cap, diff_cap);
-	*trend_mult = abs(diff_cap) / TREND_CAP_DIFF;
-
-	if (abs(diff_cap) >= TREND_CAP_DIFF) {
-		di->trend_start_cap = di->remain_capacity;
-		state = (diff_cap > 0) ? TREND_STAT_UP : TREND_STAT_DOWN;
-		DBG("<%s>. new trend_start_cap=%d", __func__, trend_start_cap);
-	} else {
-		state = TREND_STAT_FLAT;
-	}
-
-	return state;
-}
-
-static void rk81x_bat_arbitrate_rsoc_trend(struct rk81x_battery *di)
-{
-	int state, soc_time;
-	static int trend_down_cnt, trend_up_cnt;
-	int trend_cnt_thresd;
-	int now_current = di->current_avg;
-	int trend_mult = 0;
-
-	trend_cnt_thresd = di->fcc / 100 / TREND_CAP_DIFF;
-	state = rk81x_bat_get_rsoc_trend(di, &trend_mult);
-	DBG("<%s>. TREND_STAT = %d, trend_mult = %d\n",
-	    __func__, state, trend_mult);
-	if (di->chrg_status == CHARGE_FINISH)
+	if (!dbg_enable)
 		return;
 
-	if (state == TREND_STAT_UP) {
-		rk81x_bat_reset_zero_var(di);
-		trend_down_cnt = 0;
-		trend_up_cnt += trend_mult;
-		if (trend_up_cnt >= trend_cnt_thresd) {
-			trend_up_cnt = 0;
-			di->dischrg_save_sec = 0;
+	ts_ctrl = rk818_bat_read(di, RK818_TS_CTRL_REG);
+	misc = rk818_bat_read(di, RK818_MISC_MARK_REG);
+	ggcon = rk818_bat_read(di, RK818_GGCON_REG);
+	ggsts = rk818_bat_read(di, RK818_GGSTS_REG);
+	sup_tst = rk818_bat_read(di, RK818_SUP_STS_REG);
+	vb_mod = rk818_bat_read(di, RK818_VB_MON_REG);
+	usb_ctrl = rk818_bat_read(di, RK818_USB_CTRL_REG);
+	chrg_ctrl1 = rk818_bat_read(di, RK818_CHRG_CTRL_REG1);
+	chrg_ctrl2 = rk818_bat_read(di, RK818_CHRG_CTRL_REG2);
+	chrg_ctrl3 = rk818_bat_read(di, RK818_CHRG_CTRL_REG3);
+	rtc = rk818_bat_read(di, 0);
+	thermal = rk818_bat_read(di, RK818_THERMAL_REG);
+	int_sts1 = rk818_bat_read(di, RK818_INT_STS_REG1);
+	int_sts2 = rk818_bat_read(di, RK818_INT_STS_REG2);
+	int_msk1 = rk818_bat_read(di, RK818_INT_STS_MSK_REG1);
+	int_msk2 = rk818_bat_read(di, RK818_INT_STS_MSK_REG2);
+	dcdc_en = rk818_bat_read(di, RK818_DCDC_EN_REG);
+	reboot_cnt = rk818_bat_read(di, RK818_REBOOT_CNT_REG);
+
+	DBG("\n------- DEBUG REGS, [Ver: %s] -------------------\n"
+	    "GGCON=0x%2x, GGSTS=0x%2x, RTC=0x%2x, DCDC_EN2=0x%2x\n"
+	    "SUP_STS= 0x%2x, VB_MOD=0x%2x, USB_CTRL=0x%2x\n"
+	    "THERMAL=0x%2x, MISC_MARK=0x%2x, TS_CTRL=0x%2x\n"
+	    "CHRG_CTRL:REG1=0x%2x, REG2=0x%2x, REG3=0x%2x\n"
+	    "INT_STS:  REG1=0x%2x, REG2=0x%2x\n"
+	    "INT_MSK:  REG1=0x%2x, REG2=0x%2x\n",
+	    DRIVER_VERSION, ggcon, ggsts, rtc, dcdc_en,
+	    sup_tst, vb_mod, usb_ctrl,
+	    thermal, misc, ts_ctrl,
+	    chrg_ctrl1, chrg_ctrl2, chrg_ctrl3,
+	    int_sts1, int_sts2, int_msk1, int_msk2
+	   );
+
+	DBG("###############################################################\n"
+	    "Dsoc=%d, Rsoc=%d, Vavg=%d, Iavg=%d, Cap=%d, Fcc=%d, d=%d\n"
+	    "K=%d, Mode=%s, Oldcap=%d, Is=%d, Ip=%d, Vs=%d\n"
+	    "shtd_min=%d, fb_temp=%d, bat_temp=%d, sample_res=%d\n"
+	    "off:i=0x%x, c=0x%x, p=%d, Rbat=%d, age_ocv_cap=%d, fb=%d\n"
+	    "adp:finish=%lu, boot_min=%lu, sleep_min=%lu, adc=%d, Vsys=%d\n"
+	    "bat:%s, meet: soc=%d, calc: dsoc=%d, rsoc=%d, Vocv=%d\n"
+	    "pwr: dsoc=%d, rsoc=%d, vol=%d, halt: st=%d, cnt=%d, reboot=%d\n"
+	    "max=%d, init=%d, sw=%d, ocv_c=%d, below0=%d, changed=%d\n"
+	    "###############################################################\n",
+	    di->dsoc, di->rsoc, di->voltage_avg, di->current_avg,
+	    di->remain_cap, di->fcc, di->rsoc - di->dsoc,
+	    di->sm_linek, work_mode[di->work_mode], di->sm_remain_cap,
+	    di->res_div * chrg_cur_sel_array[chrg_ctrl1 & 0x0f],
+	    chrg_cur_input_array[usb_ctrl & 0x0f],
+	    chrg_vol_sel_array[(chrg_ctrl1 & 0x70) >> 4],
+	    di->pwroff_min,
+	    feedback_temp_array[(thermal & 0x0c) >> 2], di->temperature,
+	    di->pdata->sample_res, rk818_bat_get_ioffset(di),
+	    rk818_bat_get_coffset(di), di->poffset, di->bat_res,
+	    di->age_adjust_cap, di->fb_blank, base2min(di->finish_base),
+	    base2min(di->boot_base), di->sleep_sum_sec / 60,
+	    di->adc_allow_update,
+	    di->voltage_avg + di->current_avg * DEF_PWRPATH_RES / 1000,
+	    bat_mode[di->pdata->bat_mode], di->dbg_meet_soc, di->dbg_calc_dsoc,
+	    di->dbg_calc_rsoc, di->voltage_ocv, di->dbg_pwr_dsoc,
+	    di->dbg_pwr_rsoc, di->dbg_pwr_vol, di->is_halt, di->halt_cnt,
+	    reboot_cnt, di->is_max_soc_offset, di->is_initialized,
+	    di->is_sw_reset, di->is_ocv_calib, di->dbg_cap_low0, di->last_dsoc
+	   );
+}
+
+static void rk818_bat_init_capacity(struct rk818_battery *di, u32 cap)
+{
+	int delta_cap;
+
+	delta_cap = cap - di->remain_cap;
+	if (!delta_cap)
+		return;
+
+	di->age_adjust_cap += delta_cap;
+	rk818_bat_init_coulomb_cap(di, cap);
+	rk818_bat_smooth_algo_prepare(di);
+	rk818_bat_zero_algo_prepare(di);
+}
+
+static void rk818_bat_update_age_fcc(struct rk818_battery *di)
+{
+	int fcc, remain_cap, age_keep_min, lock_fcc;
+
+	lock_fcc = rk818_bat_get_coulomb_cap(di);
+	remain_cap = lock_fcc - di->age_ocv_cap - di->age_adjust_cap;
+	age_keep_min = base2min(di->age_keep_sec);
+
+	DBG("<%s>. lock_fcc=%d, age:ocv_cap=%d, adjust_cap=%d, remain_cap=%d, "
+	    "allow_update=%d, keep_min:%d\n",
+	    __func__, lock_fcc, di->age_ocv_cap, di->age_adjust_cap, remain_cap,
+	    di->age_allow_update, age_keep_min);
+
+	if ((di->chrg_status == CHARGE_FINISH) && (di->age_allow_update) &&
+	    (age_keep_min < 1200)) {
+		di->age_allow_update = false;
+		fcc = remain_cap * 100 / DIV(100 - di->age_ocv_soc);
+		BAT_INFO("lock_fcc=%d, calc_cap=%d, age: soc=%d, cap=%d, "
+			 "level=%d, fcc:%d->%d?\n",
+			 lock_fcc, remain_cap, di->age_ocv_soc,
+			 di->age_ocv_cap, di->age_level, di->fcc, fcc);
+
+		if ((fcc < di->qmax) && (fcc > MIN_FCC)) {
+			BAT_INFO("fcc:%d->%d!\n", di->fcc, fcc);
+			di->fcc = fcc;
+			rk818_bat_init_capacity(di, di->fcc);
+			rk818_bat_save_fcc(di, di->fcc);
+			rk818_bat_save_age_level(di, di->age_level);
 		}
-	} else if (state == TREND_STAT_DOWN) {
-		trend_up_cnt = 0;
-		trend_down_cnt += trend_mult;
-		if (trend_down_cnt >= trend_cnt_thresd) {
-			trend_down_cnt = 0;
-			di->chrg_save_sec = 0;
+	}
+}
+
+static void rk818_bat_wait_finish_sig(struct rk818_battery *di)
+{
+	int chrg_finish_vol = di->pdata->max_chrg_voltage;
+
+	if (!rk818_bat_chrg_online(di))
+		return;
+
+	if ((di->chrg_status == CHARGE_FINISH) && (di->adc_allow_update) &&
+	    (di->voltage_avg > chrg_finish_vol - 150)) {
+		rk818_bat_update_age_fcc(di);
+		if (rk818_bat_adc_calib(di))
+			di->adc_allow_update = false;
+	}
+}
+
+static void rk818_bat_finish_algorithm(struct rk818_battery *di)
+{
+	unsigned long finish_sec, soc_sec;
+	int plus_soc, rest = 0;
+
+	/* rsoc */
+	if ((di->remain_cap != di->fcc) &&
+	    (rk818_bat_get_chrg_status(di) == CHARGE_FINISH)) {
+		di->age_adjust_cap += (di->fcc - di->remain_cap);
+		rk818_bat_init_coulomb_cap(di, di->fcc);
+	}
+
+	/* dsoc */
+	if (di->dsoc < 100) {
+		if (!di->finish_base)
+			di->finish_base = get_boot_sec();
+		finish_sec = base2sec(di->finish_base);
+		soc_sec = di->fcc * 3600 / 100 / FINISH_CHRG_CUR;
+		plus_soc = finish_sec / soc_sec;
+		if (finish_sec > soc_sec) {
+			rest = finish_sec % soc_sec;
+			di->dsoc += plus_soc;
+			di->finish_base = get_boot_sec();
+			if (di->finish_base > rest)
+				di->finish_base = get_boot_sec() - rest;
+		}
+		DBG("<%s>.CHARGE_FINISH:dsoc<100,dsoc=%d\n"
+		    "soc_time=%lu, sec_finish=%lu, plus_soc=%d, rest=%d\n",
+		    __func__, di->dsoc, soc_sec, finish_sec, plus_soc, rest);
+	}
+}
+
+static void rk818_bat_calc_smooth_dischrg(struct rk818_battery *di)
+{
+	int tmp_soc = 0, sm_delta_dsoc = 0, zero_delta_dsoc = 0;
+
+	tmp_soc = di->sm_dischrg_dsoc / 1000;
+	if (tmp_soc == di->dsoc)
+		goto out;
+
+	DBG("<%s>. enter: dsoc=%d, rsoc=%d\n", __func__, di->dsoc, di->rsoc);
+	/* when dischrge slow down, take sm charge rest into calc */
+	if (di->dsoc < di->rsoc) {
+		tmp_soc = di->sm_chrg_dsoc / 1000;
+		if (tmp_soc == di->dsoc) {
+			sm_delta_dsoc = di->sm_chrg_dsoc - di->dsoc * 1000;
+			di->sm_chrg_dsoc = di->dsoc * 1000;
+			di->sm_dischrg_dsoc += sm_delta_dsoc;
+			DBG("<%s>. take sm dischrg, delta=%d\n",
+			    __func__, sm_delta_dsoc);
 		}
 	}
 
-	soc_time = di->fcc * 3600 / 100 / div(abs(now_current));
-	if ((di->chrg_save_sec * 3 / 4 > soc_time) &&
-	    (trend_up_cnt <= trend_cnt_thresd / 2) &&
-	    (now_current >= 0))
-		di->chrg_save_sec = 0;
+	/* when discharge speed up, take zero discharge rest into calc */
+	if (di->dsoc > di->rsoc) {
+		tmp_soc = di->zero_dsoc / 1000;
+		if (tmp_soc == di->dsoc) {
+			zero_delta_dsoc = di->zero_dsoc - ((di->dsoc + 1) *
+						1000 - MIN_ACCURACY);
+			di->zero_dsoc = (di->dsoc + 1) * 1000 - MIN_ACCURACY;
+			di->sm_dischrg_dsoc += zero_delta_dsoc;
+			DBG("<%s>. take zero schrg, delta=%d\n",
+			    __func__, zero_delta_dsoc);
+		}
+	}
 
-	else if ((di->dischrg_save_sec * 3 / 4 > soc_time) &&
-		 (trend_down_cnt <= trend_cnt_thresd / 2) &&
-		 (now_current < 0))
-		di->dischrg_save_sec = 0;
+	/* check up overflow */
+	if ((di->sm_dischrg_dsoc) > ((di->dsoc + 1) * 1000 - MIN_ACCURACY)) {
+		DBG("<%s>. dischrg_dsoc up overflow\n", __func__);
+		di->sm_dischrg_dsoc = (di->dsoc + 1) *
+					1000 - MIN_ACCURACY;
+	}
 
-	DBG("<%s>. state=%d, cnt_thresd=%d, soc_time=%d\n"
-	    "up_cnt=%d, down_cnt=%d\n",
-	    __func__, state, trend_cnt_thresd, soc_time,
-	    trend_up_cnt, trend_down_cnt);
+	/* check new dsoc */
+	tmp_soc = di->sm_dischrg_dsoc / 1000;
+	if (tmp_soc != di->dsoc) {
+		di->dsoc = tmp_soc;
+		di->sm_chrg_dsoc = di->dsoc * 1000;
+	}
+out:
+	DBG("<%s>. dsoc=%d, rsoc=%d, dsoc:sm_dischrg=%d, sm_chrg=%d, zero=%d\n",
+	    __func__, di->dsoc, di->rsoc, di->sm_dischrg_dsoc, di->sm_chrg_dsoc,
+	    di->zero_dsoc);
+
 }
 
-static void rk81x_bat_chrg_smooth(struct rk81x_battery *di)
+static void rk818_bat_calc_smooth_chrg(struct rk818_battery *di)
 {
-	u32 *ocv_table = di->pdata->battery_ocv;
-	int delta_soc = di->rsoc - di->dsoc;
+	int tmp_soc = 0, sm_delta_dsoc = 0, zero_delta_dsoc = 0;
 
-	if (di->chrg_status == CHARGE_FINISH ||
-	    di->slp_chrg_status == CHARGE_FINISH) {
-		/*clear sleep charge status*/
-		di->slp_chrg_status = rk81x_bat_get_chrg_status(di);
-		di->chrg_emu_base = 0;
-		di->chrg_normal_base = 0;
-		di->chrg_term_base = 0;
-		rk81x_bat_finish_chrg(di);
-		rk81x_bat_capacity_init(di, di->fcc);
-		rk81x_bat_capacity_init_post(di);
-	} else if ((di->ac_online == ONLINE && di->dsoc >= 90) &&
-		   ((di->current_avg > DSOC_CHRG_TERM_CURR) ||
-		    (di->voltage < ocv_table[18] + 20))) {
-		di->chrg_emu_base = 0;
-		di->chrg_normal_base = 0;
-		di->chrg_finish_base = 0;
-		rk81x_bat_terminal_chrg(di);
-	} else if (di->chrg_status != CHARGE_FINISH &&
-		   delta_soc >= DSOC_CHRG_FAST_EER_RANGE) {
-		di->chrg_term_base = 0;
-		di->chrg_normal_base = 0;
-		di->chrg_finish_base = 0;
-		rk81x_bat_emulator_chrg(di);
+	tmp_soc = di->sm_chrg_dsoc / 1000;
+	if (tmp_soc == di->dsoc)
+		goto out;
+
+	DBG("<%s>. enter: dsoc=%d, rsoc=%d\n", __func__, di->dsoc, di->rsoc);
+	/* when charge slow down, take zero & sm dischrg into calc */
+	if (di->dsoc > di->rsoc) {
+		/* take sm discharge rest into calc */
+		tmp_soc = di->sm_dischrg_dsoc / 1000;
+		if (tmp_soc == di->dsoc) {
+			sm_delta_dsoc = di->sm_dischrg_dsoc -
+					((di->dsoc + 1) * 1000 - MIN_ACCURACY);
+			di->sm_dischrg_dsoc = (di->dsoc + 1) * 1000 -
+							MIN_ACCURACY;
+			di->sm_chrg_dsoc += sm_delta_dsoc;
+			DBG("<%s>. take sm dischrg, delta=%d\n",
+			   __func__, sm_delta_dsoc);
+		}
+
+		/* take zero discharge rest into calc */
+		tmp_soc = di->zero_dsoc / 1000;
+		if (tmp_soc == di->dsoc) {
+			zero_delta_dsoc = di->zero_dsoc -
+			((di->dsoc + 1) * 1000 - MIN_ACCURACY);
+			di->zero_dsoc = (di->dsoc + 1) * 1000 - MIN_ACCURACY;
+			di->sm_chrg_dsoc += zero_delta_dsoc;
+			DBG("<%s>. take zero dischrg, delta=%d\n",
+			    __func__, zero_delta_dsoc);
+		}
+	}
+
+	/* check down overflow */
+	if (di->sm_chrg_dsoc < di->dsoc * 1000) {
+		DBG("<%s>. chrg_dsoc down overflow\n", __func__);
+		di->sm_chrg_dsoc = di->dsoc * 1000;
+	}
+
+	/* check new dsoc */
+	tmp_soc = di->sm_chrg_dsoc / 1000;
+	if (tmp_soc != di->dsoc) {
+		di->dsoc = tmp_soc;
+		di->sm_dischrg_dsoc = (di->dsoc + 1) * 1000 - MIN_ACCURACY;
+	}
+out:
+	DBG("<%s>.dsoc=%d, rsoc=%d, dsoc: sm_dischrg=%d, sm_chrg=%d, zero=%d\n",
+	    __func__, di->dsoc, di->rsoc, di->sm_dischrg_dsoc, di->sm_chrg_dsoc,
+	    di->zero_dsoc);
+}
+
+static void rk818_bat_smooth_algorithm(struct rk818_battery *di)
+{
+	int ydsoc = 0, delta_cap = 0, old_cap = 0;
+	unsigned long tgt_sec = 0;
+
+	di->remain_cap = rk818_bat_get_coulomb_cap(di);
+
+	/* full charge: slow down */
+	if ((di->dsoc == 99) && (di->chrg_status == CC_OR_CV)) {
+		di->sm_linek = FULL_CHRG_K;
+	/* terminal charge, slow down */
+	} else if ((di->current_avg >= TERM_CHRG_CURR) &&
+	    (di->chrg_status == CC_OR_CV) && (di->dsoc >= TERM_CHRG_DSOC)) {
+		di->sm_linek = TERM_CHRG_K;
+		DBG("<%s>. terminal mode..\n", __func__);
+	/* simulate charge, speed up */
+	} else if ((di->current_avg <= SIMULATE_CHRG_CURR) &&
+		   (di->current_avg > 0) && (di->chrg_status == CC_OR_CV) &&
+		   (di->dsoc < TERM_CHRG_DSOC) &&
+		   ((di->rsoc - di->dsoc) >= SIMULATE_CHRG_INTV)) {
+		di->sm_linek = SIMULATE_CHRG_K;
+		DBG("<%s>. simulate mode..\n", __func__);
 	} else {
-		di->chrg_emu_base = 0;
-		di->chrg_term_base = 0;
-		di->chrg_finish_base = 0;
-		rk81x_bat_normal_chrg(di);
-	}
-}
-
-static unsigned long rk81x_bat_save_dischrg_sec(struct rk81x_battery *di)
-{
-	unsigned long dischrg_normal_sec = BASE_TO_SEC(di->dischrg_normal_base);
-	unsigned long dischrg_emu_sec = BASE_TO_SEC(di->dischrg_emu_base);
-
-	DBG("dischrg_normal_sec=%lu, dischrg_emu_sec=%lu\n",
-	    dischrg_normal_sec, dischrg_emu_sec);
-
-	return (dischrg_normal_sec > dischrg_emu_sec) ?
-		dischrg_normal_sec : dischrg_emu_sec;
-}
-
-static unsigned long rk81x_bat_save_chrg_sec(struct rk81x_battery *di)
-{
-	unsigned long sec1, sec2;
-	unsigned long chrg_normal_sec = BASE_TO_SEC(di->chrg_normal_base);
-	unsigned long chrg_term_sec = BASE_TO_SEC(di->chrg_term_base);
-	unsigned long chrg_emu_sec = BASE_TO_SEC(di->chrg_emu_base);
-	unsigned long chrg_finish_sec = BASE_TO_SEC(di->chrg_finish_base);
-
-	sec1 = (chrg_normal_sec > chrg_term_sec) ?
-		chrg_normal_sec : chrg_term_sec;
-
-	sec2 = (chrg_emu_sec > chrg_finish_sec) ?
-		chrg_emu_sec : chrg_finish_sec;
-	DBG("chrg_normal_sec=%lu, chrg_term_sec=%lu\n"
-	    "chrg_emu_sec=%lu, chrg_finish_sec=%lu\n",
-	    chrg_normal_sec, chrg_term_sec,
-	    chrg_emu_sec, chrg_finish_sec);
-
-	return (sec1 > sec2) ? sec1 : sec2;
-}
-
-static void rk81x_bat_display_smooth(struct rk81x_battery *di)
-{
-	if ((di->current_avg >= 0) || (di->chrg_status == CHARGE_FINISH)) {
-		if (di->current_mode == DISCHRG_MODE) {
-			di->current_mode = CHRG_MODE;
-			di->dischrg_save_sec += rk81x_bat_save_dischrg_sec(di);
-			di->dischrg_normal_base = 0;
-			di->dischrg_emu_base = 0;
-			if (di->chrg_status == CHARGE_FINISH)
-				di->dischrg_save_sec = 0;
-			if ((di->chrg_status == CHARGE_FINISH) &&
-			    (di->dsoc >= 100))
-				di->chrg_save_sec = 0;
-
-			DBG("<%s>---dischrg_save_sec = %lu\n",
-			    __func__, di->dischrg_save_sec);
+		/* charge and discharge switch */
+		if ((di->sm_linek * di->current_avg <= 0) ||
+		    (di->sm_linek == TERM_CHRG_K) ||
+		    (di->sm_linek == FULL_CHRG_K) ||
+		    (di->sm_linek == SIMULATE_CHRG_K)) {
+			DBG("<%s>. linek mode, retinit sm linek..\n", __func__);
+			rk818_bat_calc_sm_linek(di);
 		}
+	}
 
-		if (!rk81x_chrg_online(di)) {
-			dev_err(di->dev, "discharge, current error:%d\n",
-				di->current_avg);
+	old_cap = di->sm_remain_cap;
+	/*
+	 * when dsoc equal rsoc(not include full, term, simulate case),
+	 * sm_linek should change to -1000/1000 smoothly to avoid dsoc+1/-1
+	 * right away, so change it after flat seconds
+	 */
+	if ((di->dsoc == di->rsoc) && (abs(di->sm_linek) != 1000) &&
+	    (di->sm_linek != FULL_CHRG_K && di->sm_linek != TERM_CHRG_K &&
+	     di->sm_linek != SIMULATE_CHRG_K)) {
+		if (!di->flat_match_sec)
+			di->flat_match_sec = get_boot_sec();
+		tgt_sec = di->fcc * 3600 / 100 / abs(di->current_avg) / 3;
+		if (base2sec(di->flat_match_sec) >= tgt_sec) {
+			di->flat_match_sec = 0;
+			di->sm_linek = (di->current_avg >= 0) ? 1000 : -1000;
+		}
+		DBG("<%s>. flat_sec=%ld, tgt_sec=%ld, sm_k=%d\n", __func__,
+		    base2sec(di->flat_match_sec), tgt_sec, di->sm_linek);
+	} else {
+		di->flat_match_sec = 0;
+	}
+
+	/* abs(k)=1000 or dsoc=100, stop calc */
+	if ((abs(di->sm_linek) == 1000) || (di->current_avg >= 0 &&
+	     di->chrg_status == CC_OR_CV && di->dsoc >= 100)) {
+		DBG("<%s>. sm_linek=%d\n", __func__, di->sm_linek);
+		if (abs(di->sm_linek) == 1000) {
+			di->dsoc = di->rsoc;
+			di->sm_linek = (di->sm_linek > 0) ? 1000 : -1000;
+			DBG("<%s>. dsoc == rsoc, sm_linek=%d\n",
+			    __func__, di->sm_linek);
+		}
+		di->sm_remain_cap = di->remain_cap;
+		di->sm_chrg_dsoc = di->dsoc * 1000;
+		di->sm_dischrg_dsoc = (di->dsoc + 1) * 1000 - MIN_ACCURACY;
+		DBG("<%s>. sm_dischrg_dsoc=%d, sm_chrg_dsoc=%d\n",
+		    __func__, di->sm_dischrg_dsoc, di->sm_chrg_dsoc);
+	} else {
+		delta_cap = di->remain_cap - di->sm_remain_cap;
+		if (delta_cap == 0) {
+			DBG("<%s>. delta_cap = 0\n", __func__);
+			return;
+		}
+		ydsoc = di->sm_linek * abs(delta_cap) * 100 / DIV(di->fcc);
+		if (ydsoc == 0) {
+			DBG("<%s>. ydsoc = 0\n", __func__);
+			return;
+		}
+		di->sm_remain_cap = di->remain_cap;
+
+		DBG("<%s>. k=%d, ydsoc=%d; cap:old=%d, new:%d; delta_cap=%d\n",
+		    __func__, di->sm_linek, ydsoc, old_cap,
+		    di->sm_remain_cap, delta_cap);
+
+		/* discharge mode */
+		if (ydsoc < 0) {
+			di->sm_dischrg_dsoc += ydsoc;
+			rk818_bat_calc_smooth_dischrg(di);
+		/* charge mode */
 		} else {
-			rk81x_bat_chrg_smooth(di);
-			di->discharge_smooth_status = true;
+			di->sm_chrg_dsoc += ydsoc;
+			rk818_bat_calc_smooth_chrg(di);
 		}
-	} else {
-		if (di->current_mode == CHRG_MODE) {
-			di->current_mode = DISCHRG_MODE;
-			di->chrg_save_sec += rk81x_bat_save_chrg_sec(di);
-			di->chrg_normal_base = 0;
-			di->chrg_emu_base = 0;
-			di->chrg_term_base = 0;
-			di->chrg_finish_base = 0;
-			DBG("<%s>---chrg_save_sec = %lu\n",
-			    __func__, di->chrg_save_sec);
+
+		if (di->s2r) {
+			di->s2r = false;
+			rk818_bat_calc_sm_linek(di);
 		}
-		rk81x_bat_dischrg_smooth(di);
-		di->charge_smooth_status = true;
 	}
 }
 
 /*
- * update rsoc by relax voltage
+ * cccv and finish switch all the time will cause dsoc freeze,
+ * if so, do finish chrg, 100ma is less than min finish_ma.
  */
-static void rk81x_bat_relax_vol_calib(struct rk81x_battery *di)
+static bool rk818_bat_fake_finish_mode(struct rk818_battery *di)
 {
-	int relax_vol = di->relax_voltage;
-	int ocv_soc, capacity;
-
-	ocv_soc = rk81x_bat_vol_to_capacity(di, relax_vol);
-	capacity = (ocv_soc * di->fcc / 100);
-	rk81x_bat_capacity_init(di, capacity);
-	di->remain_capacity = rk81x_bat_get_realtime_capacity(di);
-	di->rsoc = rk81x_bat_get_rsoc(di);
-	rk81x_bat_capacity_init_post(di);
-	DBG("%s, RSOC=%d, CAP=%d\n", __func__, ocv_soc, capacity);
+	if ((di->rsoc == 100) && (rk818_bat_get_chrg_status(di) == CC_OR_CV) &&
+	    (abs(di->current_avg) <= 100))
+		return true;
+	else
+		return false;
 }
 
-/* condition:
- * 1: must do it, 0: when necessary
- */
-static void rk81x_bat_vol_calib(struct rk81x_battery *di, int condition)
+static void rk818_bat_display_smooth(struct rk818_battery *di)
 {
-	int ocv_vol = di->est_ocv_vol;
-	int ocv_soc = 0, capacity = 0;
-
-	ocv_soc = rk81x_bat_vol_to_capacity(di, ocv_vol);
-	capacity = (ocv_soc * di->fcc / 100);
-	if (condition || (abs(ocv_soc-di->rsoc) >= RSOC_RESUME_ERR)) {
-		rk81x_bat_capacity_init(di, capacity);
-		di->remain_capacity = rk81x_bat_get_realtime_capacity(di);
-		di->rsoc = rk81x_bat_get_rsoc(di);
-		rk81x_bat_capacity_init_post(di);
-		DBG("<%s>, rsoc updated!\n", __func__);
-	}
-	DBG("<%s>, OCV_VOL=%d,OCV_SOC=%d, CAP=%d\n",
-	    __func__, ocv_vol, ocv_soc, capacity);
-}
-
-static int  rk81x_bat_sleep_dischrg(struct rk81x_battery *di)
-{
-	int delta_soc = 0;
-	int temp_dsoc;
-	unsigned long sleep_sec = di->suspend_time_sum;
-	int power_off_thresd = di->pdata->power_off_thresd;
-
-	DBG("<%s>, enter: dsoc=%d, rsoc=%d\n"
-	    "relax_vol=%d, vol=%d, sleep_min=%lu\n",
-	    __func__, di->dsoc, di->rsoc,
-	    di->relax_voltage, di->voltage, sleep_sec / 60);
-
-	if (di->relax_voltage >= di->voltage) {
-		rk81x_bat_relax_vol_calib(di);
-		rk81x_bat_restart_relax(di);
-
-	/* current_avg < 0: make sure the system is not
-	 * wakeup by charger plugin.
-	 */
-	/* even if relax voltage is not caught rightly, realtime voltage
-	 * is quite close to relax voltage, we should not do nothing after
-	 * sleep 30min
-	 */
-	} else  {
-		rk81x_bat_vol_calib(di, 1);
+	/* discharge: reinit "zero & smooth" algorithm to avoid handling dsoc */
+	if (di->s2r && !di->sleep_chrg_online) {
+		DBG("s2r: discharge, reset algorithm...\n");
+		di->s2r = false;
+		rk818_bat_zero_algo_prepare(di);
+		rk818_bat_smooth_algo_prepare(di);
+		return;
 	}
 
-	/*handle dsoc*/
-	if (di->dsoc <= di->rsoc) {
-		di->sum_suspend_cap = (SLP_CURR_MIN * sleep_sec / 3600);
-		delta_soc = di->sum_suspend_cap * 100 / di->fcc;
-		temp_dsoc = di->dsoc - delta_soc;
-
-		pr_info("battery calib0: rl=%d, dl=%d, intl=%d\n",
-			di->rsoc, di->dsoc, delta_soc);
-
-		if (delta_soc > 0) {
-			if ((temp_dsoc < di->dsoc) && (di->dsoc < 5))
-				di->dsoc--;
-			else if ((temp_dsoc < 5) && (di->dsoc >= 5))
-				di->dsoc = 5;
-			else if (temp_dsoc > 5)
-				di->dsoc = temp_dsoc;
+	if (di->work_mode == MODE_FINISH) {
+		DBG("step1: charge finish...\n");
+		rk818_bat_finish_algorithm(di);
+		if ((rk818_bat_get_chrg_status(di) != CHARGE_FINISH) &&
+		    !rk818_bat_fake_finish_mode(di)) {
+			if ((di->current_avg < 0) &&
+			    (di->voltage_avg < di->pdata->zero_algorithm_vol)) {
+				DBG("step1: change to zero mode...\n");
+				rk818_bat_zero_algo_prepare(di);
+				di->work_mode = MODE_ZERO;
+			} else {
+				DBG("step1: change to smooth mode...\n");
+				rk818_bat_smooth_algo_prepare(di);
+				di->work_mode = MODE_SMOOTH;
+			}
 		}
-
-		DBG("%s: dsoc<=rsoc, sum_cap=%d==>delta_soc=%d,temp_dsoc=%d\n",
-		    __func__, di->sum_suspend_cap, delta_soc, temp_dsoc);
+	} else if (di->work_mode == MODE_ZERO) {
+		DBG("step2: zero algorithm...\n");
+		rk818_bat_zero_algorithm(di);
+		if ((di->voltage_avg >= di->pdata->zero_algorithm_vol + 50) ||
+		    (di->current_avg >= 0)) {
+			DBG("step2: change to smooth mode...\n");
+			rk818_bat_smooth_algo_prepare(di);
+			di->work_mode = MODE_SMOOTH;
+		} else if ((rk818_bat_get_chrg_status(di) == CHARGE_FINISH) ||
+			   rk818_bat_fake_finish_mode(di)) {
+			DBG("step2: change to finish mode...\n");
+			rk818_bat_finish_algo_prepare(di);
+			di->work_mode = MODE_FINISH;
+		}
 	} else {
-		/*di->dsoc > di->rsoc*/
-		di->sum_suspend_cap = (SLP_CURR_MAX * sleep_sec / 3600);
-		delta_soc = di->sum_suspend_cap / (di->fcc / 100);
-		temp_dsoc = di->dsoc - di->rsoc;
+		DBG("step3: smooth algorithm...\n");
+		rk818_bat_smooth_algorithm(di);
+		if ((di->current_avg < 0) &&
+		    (di->voltage_avg < di->pdata->zero_algorithm_vol)) {
+			DBG("step3: change to zero mode...\n");
+			rk818_bat_zero_algo_prepare(di);
+			di->work_mode = MODE_ZERO;
+		} else if ((rk818_bat_get_chrg_status(di) == CHARGE_FINISH) ||
+			   rk818_bat_fake_finish_mode(di)) {
+			DBG("step3: change to finish mode...\n");
+			rk818_bat_finish_algo_prepare(di);
+			di->work_mode = MODE_FINISH;
+		}
+	}
+}
 
-		pr_info("battery calib1: rsoc=%d, dsoc=%d, intsoc=%d\n",
-			di->rsoc, di->dsoc, delta_soc);
+static void rk818_bat_relax_vol_calib(struct rk818_battery *di)
+{
+	int soc, cap, vol;
 
-		if ((di->est_ocv_vol > SLP_DSOC_VOL_THRESD) &&
-		    (temp_dsoc > delta_soc))
-			di->dsoc -= delta_soc;
+	vol = di->voltage_relax;
+	soc = rk818_bat_vol_to_ocvsoc(di, vol);
+	cap = rk818_bat_vol_to_ocvcap(di, vol);
+	rk818_bat_init_capacity(di, cap);
+	BAT_INFO("sleep ocv calib: rsoc=%d, cap=%d\n", soc, cap);
+}
+
+static void rk818_bat_relife_age_flag(struct rk818_battery *di)
+{
+	u8 ocv_soc, ocv_cap, soc_level;
+
+	if (di->voltage_relax <= 0)
+		return;
+
+	ocv_soc = rk818_bat_vol_to_ocvsoc(di, di->voltage_relax);
+	ocv_cap = rk818_bat_vol_to_ocvcap(di, di->voltage_relax);
+	DBG("<%s>. ocv_soc=%d, min=%lu, vol=%d\n", __func__,
+	    ocv_soc, di->sleep_dischrg_sec / 60, di->voltage_relax);
+
+	/* sleep enough time and ocv_soc enough low */
+	if (!di->age_allow_update && ocv_soc <= 10) {
+		di->age_voltage = di->voltage_relax;
+		di->age_ocv_cap = ocv_cap;
+		di->age_ocv_soc = ocv_soc;
+		di->age_adjust_cap = 0;
+
+		if (ocv_soc <= 1)
+			di->age_level = 100;
+		else if (ocv_soc < 5)
+			di->age_level = 90;
 		else
-			di->dsoc = di->rsoc;
+			di->age_level = 80;
 
-		DBG("%s: dsoc > rsoc, sum_cap=%d==>delta_soc=%d,temp_dsoc=%d\n",
-		    __func__, di->sum_suspend_cap, delta_soc, temp_dsoc);
+		soc_level = rk818_bat_get_age_level(di);
+		if (soc_level > di->age_level) {
+			di->age_allow_update = false;
+		} else {
+			di->age_allow_update = true;
+			di->age_keep_sec = get_boot_sec();
+		}
+
+		BAT_INFO("resume: age_vol:%d, age_ocv_cap:%d, age_ocv_soc:%d, "
+			 "soc_level:%d, age_allow_update:%d, "
+			 "age_level:%d\n",
+			 di->age_voltage, di->age_ocv_cap, ocv_soc, soc_level,
+			 di->age_allow_update, di->age_level);
 	}
-
-	if (!di->relax_voltage && di->voltage <= power_off_thresd)
-		di->dsoc = 0;
-
-	if (di->dsoc <= 0)
-		di->dsoc = 0;
-
-	DBG("<%s>, out: dsoc=%d, rsoc=%d, sum_cap=%d\n",
-	    __func__, di->dsoc, di->rsoc, di->sum_suspend_cap);
-
-	return delta_soc;
 }
 
-static int rk81x_bat_sleep_chrg(struct rk81x_battery *di)
+static int rk818_bat_sleep_dischrg(struct rk818_battery *di)
 {
-	int sleep_soc = 0;
-	unsigned long sleep_sec;
+	bool ocv_soc_updated = false;
+	int tgt_dsoc, gap_soc, sleep_soc = 0;
+	int pwroff_vol = di->pdata->pwroff_vol;
+	unsigned long sleep_sec = di->sleep_dischrg_sec;
 
-	sleep_sec = di->suspend_time_sum;
-	if (((di->suspend_charge_current < 800) &&
-	     (di->ac_online == ONLINE)) ||
-	     (di->chrg_status == CHARGE_FINISH)) {
-		DBG("<%s>,sleep: ac online current < 800\n", __func__);
-		if (sleep_sec > 0) {
-			/*default charge current: 1000mA*/
-			sleep_soc = SLP_CHRG_CURR * sleep_sec * 100
-						/ 3600 / div(di->fcc);
-		}
-	} else {
-		DBG("<%s>, usb charge\n", __func__);
+	DBG("<%s>. enter: dsoc=%d, rsoc=%d, rv=%d, v=%d, sleep_min=%lu\n",
+	    __func__, di->dsoc, di->rsoc, di->voltage_relax,
+	    di->voltage_avg, sleep_sec / 60);
+
+	if (di->voltage_relax >= di->voltage_avg) {
+		rk818_bat_relax_vol_calib(di);
+		rk818_bat_restart_relax(di);
+		rk818_bat_relife_age_flag(di);
+		ocv_soc_updated = true;
 	}
+
+	/* handle dsoc */
+	if (di->dsoc <= di->rsoc) {
+		di->sleep_sum_cap = (SLP_CURR_MIN * sleep_sec / 3600);
+		sleep_soc = di->sleep_sum_cap * 100 / di->fcc;
+		tgt_dsoc = di->dsoc - sleep_soc;
+		if (sleep_soc > 0) {
+			BAT_INFO("calib0: rl=%d, dl=%d, intval=%d\n",
+				 di->rsoc, di->dsoc, sleep_soc);
+			if (di->dsoc < 5) {
+				di->dsoc--;
+			} else if ((tgt_dsoc < 5) && (di->dsoc >= 5)) {
+				if (di->dsoc == 5)
+					di->dsoc--;
+				else
+					di->dsoc = 5;
+			} else if (tgt_dsoc > 5) {
+				di->dsoc = tgt_dsoc;
+			}
+		}
+
+		DBG("%s: dsoc<=rsoc, sum_cap=%d==>sleep_soc=%d, tgt_dsoc=%d\n",
+		    __func__, di->sleep_sum_cap, sleep_soc, tgt_dsoc);
+	} else {
+		/* di->dsoc > di->rsoc */
+		di->sleep_sum_cap = (SLP_CURR_MAX * sleep_sec / 3600);
+		sleep_soc = di->sleep_sum_cap / (di->fcc / 100);
+		gap_soc = di->dsoc - di->rsoc;
+
+		BAT_INFO("calib1: rsoc=%d, dsoc=%d, intval=%d\n",
+			 di->rsoc, di->dsoc, sleep_soc);
+		if (gap_soc > sleep_soc) {
+			if ((gap_soc - 5) > (sleep_soc * 2))
+				di->dsoc -= (sleep_soc * 2);
+			else
+				di->dsoc -= sleep_soc;
+		} else {
+			di->dsoc = di->rsoc;
+		}
+
+		DBG("%s: dsoc>rsoc, sum_cap=%d=>sleep_soc=%d, gap_soc=%d\n",
+		    __func__, di->sleep_sum_cap, sleep_soc, gap_soc);
+	}
+
+	if (di->voltage_avg <= pwroff_vol - 70) {
+		di->dsoc = 0;
+		BAT_INFO("low power sleeping, shutdown... %d\n", di->dsoc);
+	}
+
+	if (ocv_soc_updated && sleep_soc && (di->rsoc - di->dsoc) < 5 &&
+	    di->dsoc < 40) {
+		di->dsoc--;
+		BAT_INFO("low power sleeping, reserved... %d\n", di->dsoc);
+	}
+
+	if (di->dsoc <= 0) {
+		di->dsoc = 0;
+		BAT_INFO("sleep dsoc is %d...\n", di->dsoc);
+	}
+
+	DBG("<%s>. out: dsoc=%d, rsoc=%d, sum_cap=%d\n",
+	    __func__, di->dsoc, di->rsoc, di->sleep_sum_cap);
 
 	return sleep_soc;
 }
 
-/*
- * only do report when there is a change.
- *
- * if ((di->dsoc == 0) && (di->fg_drv_mode == FG_NORMAL_MODE)):
- * when dsoc == 0, we must do report. But it will generate too much android
- * info when we enter test_power mode without battery, so we add a fg_drv_mode
- * ajudgement.
- */
-static void rk81x_bat_power_supply_changed(struct rk81x_battery *di)
+static void rk818_bat_power_supply_changed(struct rk818_battery *di)
 {
-	static u32 old_soc;
-	static u32 old_ac_status;
-	static u32 old_usb_status;
-	static u32 old_charge_status;
-	bool state_changed;
+	static int old_soc = -1;
 
-	state_changed = false;
-	if ((di->dsoc == 0) && (di->fg_drv_mode == FG_NORMAL_MODE))
-		state_changed = true;
-	else if (di->dsoc != old_soc)
-		state_changed = true;
-	else if (di->ac_online != old_ac_status)
-		state_changed = true;
-	else if (di->usb_online != old_usb_status)
-		state_changed = true;
-	else if (old_charge_status != di->psy_status)
-		state_changed = true;
-
-	if (rk81x_chrg_online(di)) {
-		if (di->dsoc == 100)
-			di->psy_status = POWER_SUPPLY_STATUS_FULL;
-		else
-			di->psy_status = POWER_SUPPLY_STATUS_CHARGING;
-	}
-
-	if (state_changed) {
-		power_supply_changed(&di->bat);
-		power_supply_changed(&di->usb);
-		power_supply_changed(&di->ac);
-		old_soc = di->dsoc;
-		old_ac_status = di->ac_online;
-		old_usb_status = di->usb_online;
-		old_charge_status = di->psy_status;
-		dev_info(di->dev, "changed: dsoc=%d, rsoc=%d\n",
-			 di->dsoc, di->rsoc);
-	}
-}
-
-#if 0
-static u8 rk81x_bat_get_cvcc_chrg_hour(struct rk81x_battery *di)
-{
-	u8 hour, buf;
-
-	rk81x_bat_read(di, CHRG_CTRL_REG2, &buf, 1);
-	hour = buf & 0x07;
-
-	return CHRG_CVCC_HOUR[hour];
-}
-
-/* we have to estimate the charging finish time from now, to decide
- * whether we should reset the timer or not.
- */
-static void rk81x_bat_chrg_over_time_check(struct rk81x_battery *di)
-{
-	u8 cvcc_hour;
-	int remain_capacity;
-
-	cvcc_hour = rk81x_bat_get_cvcc_chrg_hour(di);
-	if (di->dsoc < di->rsoc)
-		remain_capacity = di->dsoc * di->fcc / 100;
-	else
-		remain_capacity = di->remain_capacity;
-
-	DBG("CHRG_TIME(min): %ld, cvcc hour: %d",
-	    BASE_TO_MIN(di->plug_in_base), cvcc_hour);
-
-	if (BASE_TO_MIN(di->plug_in_base) >= (cvcc_hour - 2) * 60) {
-		di->chrg_cap2full = di->fcc - remain_capacity;
-		if (di->current_avg <= 0)
-			di->current_avg = 1;
-
-		di->chrg_time2full = di->chrg_cap2full * 3600 /
-					div(abs(di->current_avg));
-
-		DBG("CHRG_TIME2FULL(min):%d, chrg_cap2full=%d, current=%d\n",
-		    SEC_TO_MIN(di->chrg_time2full), di->chrg_cap2full,
-		    di->current_avg);
-
-		if (SEC_TO_MIN(di->chrg_time2full) > 60) {
-			/*rk81x_bat_init_chrg_timer(di);*/
-			di->plug_in_base = get_runtime_sec();
-			DBG("%s: reset charge timer\n", __func__);
-		}
-	}
-}
-#endif
-
-/*
- * in case that we will do reboot stress test, we need a special way
- * to ajust the dsoc.
- */
-static void rk81x_bat_check_reboot(struct rk81x_battery *di)
-{
-	u8 rsoc = di->rsoc;
-	u8 dsoc = di->dsoc;
-	u8 cnt;
-	int unit_time;
-	int smooth_time;
-
-	rk81x_bat_read(di, REBOOT_CNT_REG, &cnt, 1);
-	cnt++;
-
-	unit_time = di->fcc * 3600 / 100 / 1200;/*1200mA default*/
-	smooth_time = cnt * BASE_TO_SEC(di->power_on_base);
-
-	DBG("%s: cnt:%d, unit:%d, sm:%d, sec:%lu, dsoc:%d, rsoc:%d\n",
-	    __func__, cnt, unit_time, smooth_time,
-	    BASE_TO_SEC(di->power_on_base), dsoc, rsoc);
-
-	if (di->current_avg >= 0 || di->chrg_status == CHARGE_FINISH) {
-		DBG("chrg, sm:%d, aim:%d\n", smooth_time, unit_time * 3 / 5);
-		if ((dsoc < rsoc - 1) && (smooth_time > unit_time * 3 / 5)) {
-			cnt = 0;
-			dsoc++;
-			if (dsoc >= 100)
-				dsoc = 100;
-			rk81x_bat_save_dsoc(di, dsoc);
-		}
-	} else {
-		DBG("dischrg, sm:%d, aim:%d\n", smooth_time, unit_time * 3 / 5);
-		if ((dsoc > rsoc) && (smooth_time > unit_time * 3 / 5)) {
-			cnt = 0;
-			dsoc--;
-			if (dsoc <= 0)
-				dsoc = 0;
-			rk81x_bat_save_dsoc(di, dsoc);
-		}
-	}
-
-	rk81x_bat_save_reboot_cnt(di, cnt);
-}
-
-static void rk81x_bat_update_calib_param(struct rk81x_battery *di)
-{
-	static u32 old_min;
-	u32 min;
-	int current_offset;
-	uint16_t cal_offset;
-	u8 pcb_offset = DEF_PCB_OFFSET;
-
-	min = BASE_TO_MIN(di->power_on_base);
-	if ((min % 8) && (old_min != min)) {
-		old_min = min;
-		rk81x_bat_get_vol_offset(di);
-		if (di->pcb_ioffset_updated)
-			rk81x_bat_read(di, PCB_IOFFSET_REG, &pcb_offset, 1);
-
-		current_offset = rk81x_bat_get_ioffset(di);
-		rk81x_bat_set_cal_offset(di, current_offset + pcb_offset);
-		cal_offset = rk81x_bat_get_cal_offset(di);
-		if (cal_offset < 0x7ff)
-			rk81x_bat_set_cal_offset(di, di->current_offset +
-						 DEF_PCB_OFFSET);
-		DBG("<%s>. k=%d, b=%d, cal_offset=%d, i_offset=%d\n",
-		    __func__, di->voltage_k, di->voltage_b, cal_offset,
-		    rk81x_bat_get_ioffset(di));
-	}
-}
-
-static void rk81x_bat_update_info(struct rk81x_battery *di)
-{
 	if (di->dsoc > 100)
 		di->dsoc = 100;
 	else if (di->dsoc < 0)
 		di->dsoc = 0;
 
+	if (di->dsoc == old_soc)
+		return;
+
+	old_soc = di->dsoc;
+	di->last_dsoc = di->dsoc;
+	power_supply_changed(di->bat);
+	BAT_INFO("changed: dsoc=%d, rsoc=%d, v=%d, c=%d, cap=%d\n",
+		 di->dsoc, di->rsoc, di->voltage_avg, di->current_avg,
+		 di->remain_cap);
+}
+
+static u8 rk818_bat_check_reboot(struct rk818_battery *di)
+{
+	u8 cnt;
+
+	cnt = rk818_bat_read(di, RK818_REBOOT_CNT_REG);
+	cnt++;
+
+	if (cnt >= REBOOT_MAX_CNT) {
+		BAT_INFO("reboot: %d --> %d\n", di->dsoc, di->rsoc);
+		di->dsoc = di->rsoc;
+		if (di->dsoc > 100)
+			di->dsoc = 100;
+		else if (di->dsoc < 0)
+			di->dsoc = 0;
+		rk818_bat_save_dsoc(di, di->dsoc);
+		cnt = REBOOT_MAX_CNT;
+	}
+
+	rk818_bat_save_reboot_cnt(di, cnt);
+	DBG("reboot cnt: %d\n", cnt);
+
+	return cnt;
+}
+
+static void rk818_bat_rsoc_daemon(struct rk818_battery *di)
+{
+	int est_vol;
+	static unsigned long sec;
+
+	if ((di->remain_cap < 0) && (di->fb_blank != 0)) {
+		sec = get_boot_sec();
+		wake_lock_timeout(&di->wake_lock,
+				  (di->pdata->monitor_sec + 1) * HZ);
+		if (base2sec(sec) >= 60) {
+			sec = 0;
+			di->dbg_cap_low0++;
+			est_vol = di->voltage_avg -
+					(di->bat_res * di->current_avg) / 1000;
+			di->remain_cap = rk818_bat_vol_to_ocvcap(di, est_vol);
+			di->rsoc = rk818_bat_vol_to_ocvsoc(di, est_vol);
+			rk818_bat_init_capacity(di, di->remain_cap);
+			BAT_INFO("adjust cap below 0 --> %d, rsoc=%d\n",
+				 di->remain_cap, di->rsoc);
+			wake_unlock(&di->wake_lock);
+		}
+	} else {
+		sec = 0;
+	}
+}
+
+static void rk818_bat_update_info(struct rk818_battery *di)
+{
+	di->voltage_avg = rk818_bat_get_avg_voltage(di);
+	di->current_avg = rk818_bat_get_avg_current(di);
+	di->voltage_relax = rk818_bat_get_relax_voltage(di);
+	di->rsoc = rk818_bat_get_rsoc(di);
+	di->remain_cap = rk818_bat_get_coulomb_cap(di);
+	di->chrg_status = rk818_bat_get_chrg_status(di);
+
+	/* smooth charge */
+	if (di->remain_cap > di->fcc) {
+		di->sm_remain_cap -= (di->remain_cap - di->fcc);
+		DBG("<%s>. cap: remain=%d, sm_remain=%d\n",
+		    __func__, di->remain_cap, di->sm_remain_cap);
+		rk818_bat_init_coulomb_cap(di, di->fcc);
+	}
+
+	if (di->chrg_status != CHARGE_FINISH)
+		di->finish_base = get_boot_sec();
+
 	/*
 	 * we need update fcc in continuous charging state, if discharge state
 	 * keep at least 2 hour, we decide not to update fcc, so clear the
-	 * fcc update flag: dod0_status.
+	 * fcc update flag: age_allow_update.
 	 */
-	if (BASE_TO_MIN(di->plug_out_base) > 120)
-		di->dod0_status = 0;
+	if (base2min(di->plug_out_base) > 120)
+		di->age_allow_update = false;
 
-	di->voltage  = rk81x_bat_get_vol(di);
-	di->current_avg = rk81x_bat_get_avg_current(di);
-	di->chrg_status = rk81x_bat_get_chrg_status(di);
-	di->relax_voltage = rk81x_bat_get_relax_vol(di);
-	di->est_ocv_vol = rk81x_bat_est_ocv_vol(di);
-	di->est_ocv_soc = rk81x_bat_est_ocv_soc(di);
-	/*rk81x_bat_chrg_over_time_check(di);*/
-	rk81x_bat_update_calib_param(di);
+	/* do adc calib: status must from cccv mode to finish mode */
 	if (di->chrg_status == CC_OR_CV)
-		di->enter_finish = true;
-
-	if (!rk81x_chrg_online(di) && di->s2r)
-		return;
-
-	di->remain_capacity = rk81x_bat_get_realtime_capacity(di);
-	if (di->remain_capacity > di->fcc) {
-		rk81x_bat_capacity_init(di, di->fcc);
-		rk81x_bat_capacity_init_post(di);
-		di->remain_capacity = di->fcc;
-	}
-
-	di->rsoc = rk81x_bat_get_rsoc(di);
+		di->adc_allow_update = true;
 }
 
-static int rk81x_bat_update_resume_state(struct rk81x_battery *di)
+/* get ntc resistance */
+static int rk818_bat_get_ntc_res(struct rk818_battery *di)
 {
-	if (di->slp_psy_status)
-		return rk81x_bat_sleep_chrg(di);
-	else
-		return rk81x_bat_sleep_dischrg(di);
+	int val = 0;
+
+	val |= rk818_bat_read(di, RK818_TS1_ADC_REGL) << 0;
+	val |= rk818_bat_read(di, RK818_TS1_ADC_REGH) << 8;
+
+	val = val * NTC_CALC_FACTOR; /*reference voltage 2.2V,current 80ua*/
+	DBG("<%s>. ntc_res=%d\n", __func__, val);
+
+	return val;
 }
 
-static void rk81x_bat_fcc_flag_check(struct rk81x_battery *di)
+static void rk818_bat_update_temperature(struct rk818_battery *di)
 {
-	u8 ocv_soc, soc_level;
-	int relax_vol = di->relax_voltage;
+	u32 ntc_size, *ntc_table;
+	int i, res;
 
-	if (relax_vol <= 0)
-		return;
+	ntc_table = di->pdata->ntc_table;
+	ntc_size = di->pdata->ntc_size;
+	di->temperature = VIRTUAL_TEMPERATURE;
 
-	ocv_soc = rk81x_bat_vol_to_capacity(di, relax_vol);
-	DBG("<%s>. ocv_soc=%d, min=%lu, vol=%d\n", __func__,
-	    ocv_soc, SEC_TO_MIN(di->suspend_time_sum), relax_vol);
-
-	if ((SEC_TO_MIN(di->suspend_time_sum) > 30) &&
-	    (di->dod0_status == 0) &&
-	    (ocv_soc <= 10)) {
-		di->dod0_voltage = relax_vol;
-		di->dod0_capacity = di->temp_nac;
-		di->adjust_cap = 0;
-		di->dod0 = ocv_soc;
-
-		if (ocv_soc <= 1)
-			di->dod0_level = 100;
-		else if (ocv_soc < 5)
-			di->dod0_level = 90;
-		else
-			di->dod0_level = 80;
-
-		/* save_soc = di->dod0_level; */
-		soc_level = rk81x_bat_get_level(di);
-		if (soc_level >  di->dod0_level) {
-			di->dod0_status = 0;
+	if (ntc_size) {
+		res = rk818_bat_get_ntc_res(di);
+		if (res < ntc_table[ntc_size - 1]) {
+			BAT_INFO("bat ntc upper max degree: R=%d\n", res);
+		} else if (res > ntc_table[0]) {
+			BAT_INFO("bat ntc lower min degree: R=%d\n", res);
 		} else {
-			di->dod0_status = 1;
-			/*time start*/
-			di->fcc_update_sec = get_runtime_sec();
+			for (i = 0; i < ntc_size; i++) {
+				if (res >= ntc_table[i])
+					break;
+			}
+			di->temperature = (i + di->pdata->ntc_degree_from) * 10;
 		}
-
-		dev_info(di->dev, "resume: relax_vol:%d, dod0_cap:%d\n"
-			 "dod0:%d, soc_level:%d: dod0_status:%d\n"
-			 "dod0_level:%d",
-			 di->dod0_voltage, di->dod0_capacity,
-			 ocv_soc, soc_level, di->dod0_status,
-			 di->dod0_level);
 	}
 }
 
-static void rk81x_chrg_term_mode_set(struct rk81x_battery *di, int mode)
+static void rk818_bat_init_dsoc_algorithm(struct rk818_battery *di)
 {
 	u8 buf;
-	u8 mask = 0x20;
+	int16_t rest = 0;
+	unsigned long soc_sec;
+	const char *mode_name[] = { "MODE_ZERO", "MODE_FINISH",
+		"MODE_SMOOTH_CHRG", "MODE_SMOOTH_DISCHRG", "MODE_SMOOTH", };
 
-	rk81x_bat_read(di, CHRG_CTRL_REG3, &buf, 1);
-	buf &= ~mask;
-	buf |= mode;
-	rk81x_bat_write(di, CHRG_CTRL_REG3, &buf, 1);
+	/* get rest */
+	rest |= rk818_bat_read(di, RK818_CALC_REST_REGH) << 8;
+	rest |= rk818_bat_read(di, RK818_CALC_REST_REGL) << 0;
 
-	dev_info(di->dev, "set charge to %s termination mode\n",
-		 mode ? "digital" : "analog");
-}
+	/* get mode */
+	buf = rk818_bat_read(di, RK818_MISC_MARK_REG);
+	di->algo_rest_mode = (buf & ALGO_REST_MODE_MSK) >> ALGO_REST_MODE_SHIFT;
 
-static void rk81x_chrg_term_mode_switch_work(struct work_struct *work)
-{
-	struct rk81x_battery *di;
-
-	di = container_of(work, struct rk81x_battery,
-			  chrg_term_mode_switch_work.work);
-
-	if (rk81x_chrg_online(di))
-		rk81x_chrg_term_mode_set(di, CHRG_TERM_DIG_SIGNAL);
-	else
-		rk81x_chrg_term_mode_set(di, CHRG_TERM_ANA_SIGNAL);
-}
-
-static void rk81x_battery_work(struct work_struct *work)
-{
-	struct rk81x_battery *di;
-	int ms = TIMER_MS_COUNTS;
-
-	di = container_of(work, struct rk81x_battery,
-			  battery_monitor_work.work);
-	if (rk81x_chrg_online(di)) {
-		rk81x_bat_wait_finish_sig(di);
-		/*rk81x_bat_chrg_finish_routine(di);*/
-	}
-	rk81x_bat_fcc_flag_check(di);
-	rk81x_bat_arbitrate_rsoc_trend(di);
-	rk81x_bat_display_smooth(di);
-	rk81x_bat_update_time(di);
-	rk81x_bat_update_info(di);
-	rk81x_bat_rsoc_check(di);
-	rk81x_bat_power_supply_changed(di);
-	rk81x_bat_save_dsoc(di, di->dsoc);
-	rk81x_bat_save_remain_capacity(di, di->remain_capacity);
-
-	rk81x_bat_dbg_dmp_info(di);
-
-	if (!di->early_resume && di->s2r && !di->slp_psy_status)
-		ms = 30 * TIMER_MS_COUNTS;
-	else
-		di->early_resume = 0;
-
-	di->s2r = 0;
-
-	queue_delayed_work(di->wq, &di->battery_monitor_work,
-			   msecs_to_jiffies(ms));
-}
-
-#if defined(CONFIG_ARCH_ROCKCHIP)
-static void rk81x_battery_otg_delay_work(struct work_struct *work)
-{
-	struct rk81x_battery *di = container_of(work,
-			struct rk81x_battery, otg_check_work.work);
-
-	enum bc_port_type event = di->charge_otg;
-
-	/* do not touch CHRG_CTRL_REG1[7]: CHRG_EN, hardware can
-	 * recognize otg plugin and will auto ajust this bit
-	 */
-	switch (event) {
-	case USB_OTG_POWER_ON:
-		di->otg_online = ONLINE;
-		if (power_dc2otg && di->dc_online) {
-			dev_info(di->dev, "otg power from dc adapter\n");
-			return;
+	if (rk818_bat_get_chrg_status(di) == CHARGE_FINISH) {
+		if (di->algo_rest_mode == MODE_FINISH) {
+			soc_sec = di->fcc * 3600 / 100 / FINISH_CHRG_CUR;
+			if ((rest / soc_sec) > 0) {
+				if (di->dsoc < 100) {
+					di->dsoc++;
+					di->algo_rest_val = rest % soc_sec;
+					BAT_INFO("algorithm rest(%d) dsoc "
+						 "inc: %d\n",
+						 rest, di->dsoc);
+				} else {
+					di->algo_rest_val = 0;
+				}
+			} else {
+				di->algo_rest_val = rest;
+			}
+		} else {
+			di->algo_rest_val = rest;
 		}
-		dev_info(di->dev, "charge disable, otg enable\n");
-		rk81x_bat_set_otg_state(di, USB_OTG_POWER_ON);
-		break;
-
-	case USB_OTG_POWER_OFF:
-		dev_info(di->dev, "charge enable, otg disable\n");
-		di->otg_online = OFFLINE;
-		rk81x_bat_set_otg_state(di, USB_OTG_POWER_OFF);
-		/*maybe dc still plugin*/
-		queue_delayed_work(di->wq, &di->dc_det_check_work,
-				   msecs_to_jiffies(10));
-		break;
-
-	default:
-		break;
+	} else {
+		/* charge speed up */
+		if ((rest / 1000) > 0 && rk818_bat_chrg_online(di)) {
+			if (di->dsoc < di->rsoc) {
+				di->dsoc++;
+				di->algo_rest_val = rest % 1000;
+				BAT_INFO("algorithm rest(%d) dsoc inc: %d\n",
+					 rest, di->dsoc);
+			} else {
+				di->algo_rest_val = 0;
+			}
+		/* discharge speed up */
+		} else if (((rest / 1000) < 0) && !rk818_bat_chrg_online(di)) {
+			if (di->dsoc > di->rsoc) {
+				di->dsoc--;
+				di->algo_rest_val = rest % 1000;
+				BAT_INFO("algorithm rest(%d) dsoc sub: %d\n",
+					 rest, di->dsoc);
+			} else {
+				di->algo_rest_val = 0;
+			}
+		} else {
+			di->algo_rest_val = rest;
+		}
 	}
-}
 
-static BLOCKING_NOTIFIER_HEAD(battery_chain_head);
+	if (di->dsoc >= 100)
+		di->dsoc = 100;
+	else if (di->dsoc <= 0)
+		di->dsoc = 0;
 
-int register_battery_notifier(struct notifier_block *nb)
-{
-	return blocking_notifier_chain_register(&battery_chain_head, nb);
-}
-EXPORT_SYMBOL_GPL(register_battery_notifier);
-
-int unregister_battery_notifier(struct notifier_block *nb)
-{
-	return blocking_notifier_chain_unregister(&battery_chain_head, nb);
-}
-EXPORT_SYMBOL_GPL(unregister_battery_notifier);
-
-int battery_notifier_call_chain(unsigned long val)
-{
-	return (blocking_notifier_call_chain(&battery_chain_head, val, NULL)
-		== NOTIFY_BAD) ? -EINVAL : 0;
-}
-EXPORT_SYMBOL_GPL(battery_notifier_call_chain);
-
-static int rk81x_bat_usb_notifier_call(struct notifier_block *nb,
-				       unsigned long event, void *data)
-{
-	enum charger_type charger_type;
-	struct rk81x_battery *di =
-	    container_of(nb, struct rk81x_battery, battery_nb);
-
-	if (di->fg_drv_mode == TEST_POWER_MODE)
-		return NOTIFY_OK;
-
-	/*if dc is pluging, ignore usb*/
-	charger_type = rk81x_bat_get_dc_state(di);
-	if ((charger_type == DC_CHARGER) &&
-	    (event != USB_OTG_POWER_OFF) &&
-	    (event != USB_OTG_POWER_ON))
-		return NOTIFY_OK;
-
-	switch (event) {
-	case USB_BC_TYPE_DISCNT:/*maybe dc still plugin*/
-		queue_delayed_work(di->wq, &di->dc_det_check_work,
-				   msecs_to_jiffies(10));
-		break;
-	case USB_BC_TYPE_SDP:
-	case USB_BC_TYPE_CDP:/*nonstandard charger*/
-	case USB_BC_TYPE_DCP:/*standard charger*/
-		queue_delayed_work(di->wq, &di->ac_usb_check_work,
-				   msecs_to_jiffies(10));
-		break;
-	case USB_OTG_POWER_ON:/*otg on*/
-		di->charge_otg	= USB_OTG_POWER_ON;
-		queue_delayed_work(di->wq, &di->otg_check_work,
-				   msecs_to_jiffies(10));
-		break;
-	case USB_OTG_POWER_OFF:/*otg off*/
-		di->charge_otg = USB_OTG_POWER_OFF;
-		queue_delayed_work(di->wq, &di->otg_check_work,
-				   msecs_to_jiffies(10));
-		break;
-	default:
-		return NOTIFY_OK;
+	/* init current mode */
+	di->voltage_avg = rk818_bat_get_avg_voltage(di);
+	di->current_avg = rk818_bat_get_avg_current(di);
+	if (rk818_bat_get_chrg_status(di) == CHARGE_FINISH) {
+		rk818_bat_finish_algo_prepare(di);
+		di->work_mode = MODE_FINISH;
+	} else if ((di->current_avg < 0) &&
+		   (di->voltage_avg < di->pdata->zero_algorithm_vol)) {
+		rk818_bat_zero_algo_prepare(di);
+		di->work_mode = MODE_ZERO;
+	} else {
+		rk818_bat_smooth_algo_prepare(di);
+		di->work_mode = MODE_SMOOTH;
 	}
-	return NOTIFY_OK;
-}
-#endif
-static irqreturn_t rk81x_vbat_lo_irq(int irq, void *bat)
-{
-	pr_info("\n------- %s:lower power warning!\n", __func__);
 
+	DBG("<%s>. init: org_rest=%d, rest=%d, mode=%s; "
+	    "doc(x1000): zero=%d, chrg=%d, dischrg=%d, finish=%lu\n",
+	    __func__, rest, di->algo_rest_val, mode_name[di->algo_rest_mode],
+	    di->zero_dsoc, di->sm_chrg_dsoc, di->sm_dischrg_dsoc,
+	    di->finish_base);
+}
+
+static void rk818_bat_save_algo_rest(struct rk818_battery *di)
+{
+	u8 buf, mode;
+	int16_t algo_rest = 0;
+	int tmp_soc;
+	int zero_rest = 0, sm_chrg_rest = 0;
+	int sm_dischrg_rest = 0, finish_rest = 0;
+	const char *mode_name[] = { "MODE_ZERO", "MODE_FINISH",
+		"MODE_SMOOTH_CHRG", "MODE_SMOOTH_DISCHRG", "MODE_SMOOTH", };
+
+	/* zero dischrg */
+	tmp_soc = (di->zero_dsoc) / 1000;
+	if (tmp_soc == di->dsoc)
+		zero_rest = di->zero_dsoc - ((di->dsoc + 1) * 1000 -
+				MIN_ACCURACY);
+
+	/* sm chrg */
+	tmp_soc = di->sm_chrg_dsoc / 1000;
+	if (tmp_soc == di->dsoc)
+		sm_chrg_rest = di->sm_chrg_dsoc - di->dsoc * 1000;
+
+	/* sm dischrg */
+	tmp_soc = (di->sm_dischrg_dsoc) / 1000;
+	if (tmp_soc == di->dsoc)
+		sm_dischrg_rest = di->sm_dischrg_dsoc - ((di->dsoc + 1) * 1000 -
+				MIN_ACCURACY);
+
+	/* last time is also finish chrg, then add last rest */
+	if (di->algo_rest_mode == MODE_FINISH && di->algo_rest_val)
+		finish_rest = base2sec(di->finish_base) + di->algo_rest_val;
+	else
+		finish_rest = base2sec(di->finish_base);
+
+	/* total calc */
+	if ((rk818_bat_chrg_online(di) && (di->dsoc > di->rsoc)) ||
+	    (!rk818_bat_chrg_online(di) && (di->dsoc < di->rsoc)) ||
+	    (di->dsoc == di->rsoc)) {
+		di->algo_rest_val = 0;
+		algo_rest = 0;
+		DBG("<%s>. step1..\n", __func__);
+	} else if (di->work_mode == MODE_FINISH) {
+		algo_rest = finish_rest;
+		DBG("<%s>. step2..\n", __func__);
+	} else if (di->algo_rest_mode == MODE_FINISH) {
+		algo_rest = zero_rest + sm_dischrg_rest + sm_chrg_rest;
+		DBG("<%s>. step3..\n", __func__);
+	} else {
+		if (rk818_bat_chrg_online(di) && (di->dsoc < di->rsoc))
+			algo_rest = sm_chrg_rest + di->algo_rest_val;
+		else if (!rk818_bat_chrg_online(di) && (di->dsoc > di->rsoc))
+			algo_rest = zero_rest + sm_dischrg_rest +
+				    di->algo_rest_val;
+		else
+			algo_rest = zero_rest + sm_dischrg_rest + sm_chrg_rest +
+				    di->algo_rest_val;
+		DBG("<%s>. step4..\n", __func__);
+	}
+
+	/* check mode */
+	if ((di->work_mode == MODE_FINISH) || (di->work_mode == MODE_ZERO)) {
+		mode = di->work_mode;
+	} else {/* MODE_SMOOTH */
+		if (di->sm_linek > 0)
+			mode = MODE_SMOOTH_CHRG;
+		else
+			mode = MODE_SMOOTH_DISCHRG;
+	}
+
+	/* save mode */
+	buf = rk818_bat_read(di, RK818_MISC_MARK_REG);
+	buf &= ~ALGO_REST_MODE_MSK;
+	buf |= (mode << ALGO_REST_MODE_SHIFT);
+	rk818_bat_write(di, RK818_MISC_MARK_REG, buf);
+
+	/* save rest */
+	buf = (algo_rest >> 8) & 0xff;
+	rk818_bat_write(di, RK818_CALC_REST_REGH, buf);
+	buf = (algo_rest >> 0) & 0xff;
+	rk818_bat_write(di, RK818_CALC_REST_REGL, buf);
+
+	DBG("<%s>. rest: algo=%d, mode=%s, last_rest=%d; zero=%d, "
+	    "chrg=%d, dischrg=%d, finish=%lu\n",
+	    __func__, algo_rest, mode_name[mode], di->algo_rest_val, zero_rest,
+	    sm_chrg_rest, sm_dischrg_rest, base2sec(di->finish_base));
+}
+
+static void rk818_bat_save_data(struct rk818_battery *di)
+{
+	rk818_bat_save_dsoc(di, di->dsoc);
+	rk818_bat_save_cap(di, di->remain_cap);
+	rk818_bat_save_algo_rest(di);
+}
+
+static void rk818_battery_work(struct work_struct *work)
+{
+	struct rk818_battery *di =
+		container_of(work, struct rk818_battery, bat_delay_work.work);
+
+	rk818_bat_update_info(di);
+	rk818_bat_wait_finish_sig(di);
+	rk818_bat_rsoc_daemon(di);
+	rk818_bat_update_temperature(di);
+	rk818_bat_display_smooth(di);
+	rk818_bat_power_supply_changed(di);
+	rk818_bat_save_data(di);
+	rk818_bat_debug_info(di);
+
+	queue_delayed_work(di->bat_monitor_wq, &di->bat_delay_work,
+			   msecs_to_jiffies(di->monitor_ms));
+}
+
+static irqreturn_t rk818_vb_low_irq(int irq, void *bat)
+{
+	struct rk818_battery *di = (struct rk818_battery *)bat;
+
+	di->dsoc = 0;
 	rk_send_wakeup_key();
-	kernel_power_off();
+	BAT_INFO("lower power yet, power off system! v=%d, c=%d, dsoc=%d\n",
+		 di->voltage_avg, di->current_avg, di->dsoc);
+
 	return IRQ_HANDLED;
 }
 
-static irqreturn_t rk81x_vbat_plug_in(int irq, void *bat)
+static void rk818_bat_init_sysfs(struct rk818_battery *di)
 {
-	pr_info("\n------- %s:irq = %d\n", __func__, irq);
-	rk_send_wakeup_key();
-	return IRQ_HANDLED;
-}
-
-static irqreturn_t rk81x_vbat_plug_out(int irq, void  *bat)
-{
-	pr_info("\n-------- %s:irq = %d\n", __func__, irq);
-	rk_send_wakeup_key();
-	return IRQ_HANDLED;
-}
-
-static irqreturn_t rk81x_vbat_charge_ok(int irq, void  *bat)
-{
-	struct rk81x_battery *di = (struct rk81x_battery *)bat;
-
-	pr_info("\n---------- %s:irq = %d\n", __func__, irq);
-	di->finish_sig_base = get_runtime_sec();
-	rk_send_wakeup_key();
-	return IRQ_HANDLED;
-}
-
-static irqreturn_t rk81x_vbat_dc_det(int irq, void *bat)
-{
-	struct rk81x_battery *di = (struct rk81x_battery *)bat;
-
-	queue_delayed_work(di->wq,
-			   &di->dc_det_check_work,
-			   msecs_to_jiffies(10));
-	rk_send_wakeup_key();
-
-	return IRQ_HANDLED;
-}
-
-static int rk81x_bat_sysfs_init(struct rk81x_battery *di)
-{
-	int ret;
-	int i;
+	int i, ret;
 
 	for (i = 0; i < ARRAY_SIZE(rk818_bat_attr); i++) {
-		ret = sysfs_create_file(&di->bat.dev->kobj,
+		ret = sysfs_create_file(&di->dev->kobj,
 					&rk818_bat_attr[i].attr);
-		if (ret != 0)
-			dev_err(di->dev, "create battery node(%s) error\n",
+		if (ret)
+			dev_err(di->dev, "create bat node(%s) error\n",
 				rk818_bat_attr[i].attr.name);
 	}
-
-	return ret;
 }
 
-static void rk81x_bat_irq_init(struct rk81x_battery *di)
+static int rk818_bat_init_irqs(struct rk818_battery *di)
 {
-	int plug_in_irq, plug_out_irq, chrg_ok_irq, vb_lo_irq;
-	int ret;
-	struct rk818 *chip = di->rk818;
+	struct rk808 *rk818 = di->rk818;
+	struct platform_device *pdev = di->pdev;
+	int ret, vb_lo_irq;
 
-#if defined(CONFIG_X86_INTEL_SOFIA)
-	vb_lo_irq = chip->irq_base + RK818_IRQ_VB_LO;
-	chrg_ok_irq = chip->irq_base + RK818_IRQ_CHG_OK;
-	plug_in_irq = chip->irq_base + RK818_IRQ_PLUG_IN;
-	plug_out_irq = chip->irq_base + RK818_IRQ_PLUG_OUT;
-#else
-	vb_lo_irq = irq_create_mapping(chip->irq_domain, RK818_IRQ_VB_LO);
-	plug_in_irq = irq_create_mapping(chip->irq_domain, RK818_IRQ_PLUG_IN);
-	plug_out_irq = irq_create_mapping(chip->irq_domain, RK818_IRQ_PLUG_OUT);
-	chrg_ok_irq = irq_create_mapping(chip->irq_domain, RK818_IRQ_CHG_OK);
-#endif
-
-	ret = request_threaded_irq(vb_lo_irq, NULL, rk81x_vbat_lo_irq,
-				   IRQF_TRIGGER_HIGH, "rk818_vbatlow", di);
-	if (ret != 0)
-		dev_err(chip->dev, "vb_lo_irq request failed!\n");
-
-	di->irq = vb_lo_irq;
-	enable_irq_wake(di->irq);
-
-	ret = request_threaded_irq(plug_in_irq, NULL, rk81x_vbat_plug_in,
-				   IRQF_TRIGGER_RISING, "rk81x_vbat_plug_in",
-				   di);
-	if (ret != 0)
-		dev_err(chip->dev, "plug_in_irq request failed!\n");
-
-	ret = request_threaded_irq(plug_out_irq, NULL, rk81x_vbat_plug_out,
-				   IRQF_TRIGGER_FALLING, "rk81x_vbat_plug_out",
-				   di);
-	if (ret != 0)
-		dev_err(chip->dev, "plug_out_irq request failed!\n");
-
-	ret = request_threaded_irq(chrg_ok_irq, NULL, rk81x_vbat_charge_ok,
-				   IRQF_TRIGGER_RISING, "rk81x_vbat_charge_ok",
-				   di);
-	if (ret != 0)
-		dev_err(chip->dev, "chrg_ok_irq request failed!\n");
-}
-
-static void rk81x_bat_info_init(struct rk81x_battery *di,
-				struct rk818 *chip)
-{
-	u8 val;
-	unsigned long time_base = POWER_ON_SEC_BASE;
-
-	rk81x_bat_read(di, RK818_VB_MON_REG, &val, 1);
-	if (val & PLUG_IN_STS)
-		rk81x_bat_set_power_supply_state(di, USB_CHARGER);
-
-	di->cell.config = di->pdata->cell_cfg;
-	di->design_capacity = di->pdata->cell_cfg->design_capacity;
-	di->qmax = di->pdata->cell_cfg->design_qmax;
-	di->early_resume = 1;
-	di->psy_status = POWER_SUPPLY_STATUS_DISCHARGING;
-	di->bat_res = di->pdata->sense_resistor_mohm;
-	di->dischrg_algorithm_mode = DISCHRG_NORMAL_MODE;
-	di->last_zero_mode_dsoc = DEF_LAST_ZERO_MODE_SOC;
-	di->slp_chrg_status = rk81x_bat_get_chrg_status(di);
-	di->loader_charged = loader_charged;
-	di->chrg_finish_base = time_base;
-	di->power_on_base = time_base;
-	di->plug_in_base = time_base;
-	di->plug_out_base = time_base;
-	di->finish_sig_base = time_base;
-	di->fcc = rk81x_bat_get_fcc(di);
-}
-
-static void rk81x_bat_dc_det_init(struct rk81x_battery *di,
-				  struct device_node *np)
-{
-	struct device *dev = di->dev;
-	enum of_gpio_flags flags;
-	int ret;
-
-	di->dc_det_pin = of_get_named_gpio_flags(np, "dc_det_gpio", 0, &flags);
-	if (di->dc_det_pin == -EPROBE_DEFER) {
-		dev_err(dev, "dc_det_gpio error\n");
-		return;
+	vb_lo_irq = regmap_irq_get_virq(rk818->irq_data, RK818_IRQ_VB_LO);
+	if (vb_lo_irq < 0) {
+		dev_err(di->dev, "vb_lo_irq request failed!\n");
+		return vb_lo_irq;
 	}
 
-	if (gpio_is_valid(di->dc_det_pin)) {
-		di->dc_det_level = (flags & OF_GPIO_ACTIVE_LOW) ?
-						RK818_DC_IN : RK818_DC_OUT;
-		di->dc_det_irq = gpio_to_irq(di->dc_det_pin);
-
-		ret = request_irq(di->dc_det_irq, rk81x_vbat_dc_det,
-				  IRQF_TRIGGER_RISING | IRQF_TRIGGER_FALLING,
-				  "rk81x_dc_det", di);
-		if (ret != 0) {
-			dev_err(di->dev, "rk818_dc_det_irq request failed!\n");
-			goto err;
-		}
-		enable_irq_wake(di->dc_det_irq);
+	ret = devm_request_threaded_irq(di->dev, vb_lo_irq, NULL,
+					rk818_vb_low_irq, IRQF_TRIGGER_HIGH,
+					"rk818_vb_low", di);
+	if (ret) {
+		dev_err(&pdev->dev, "vb_lo_irq request failed!\n");
+		return ret;
 	}
+	enable_irq_wake(vb_lo_irq);
 
-	return;
-err:
-	gpio_free(di->dc_det_pin);
+	return 0;
 }
 
-static int rk81x_bat_get_suspend_sec(struct rk81x_battery *di)
+static void rk818_bat_init_info(struct rk818_battery *di)
+{
+	di->design_cap = di->pdata->design_capacity;
+	di->qmax = di->pdata->design_qmax;
+	di->bat_res = di->pdata->bat_res;
+	di->monitor_ms = di->pdata->monitor_sec * TIMER_MS_COUNTS;
+	di->boot_base = POWER_ON_SEC_BASE;
+	di->res_div = (di->pdata->sample_res == SAMPLE_RES_20MR) ?
+		       SAMPLE_RES_DIV1 : SAMPLE_RES_DIV2;
+}
+
+static int rk818_bat_rtc_sleep_sec(struct rk818_battery *di)
 {
 	int err;
-	int delta_sec = 0;
+	int interval_sec = 0;
 	struct rtc_time tm;
-	struct timespec tv = {
-		.tv_nsec = NSEC_PER_SEC >> 1,
-	};
+	struct timespec tv = { .tv_nsec = NSEC_PER_SEC >> 1, };
 	struct rtc_device *rtc = rtc_class_open(CONFIG_RTC_HCTOSYS_DEVICE);
 
 	err = rtc_read_time(rtc, &tm);
 	if (err) {
-		dev_err(rtc->dev.parent,
-			"hctosys: unable to read the hardware clock\n");
-		goto out;
+		dev_err(rtc->dev.parent, "hctosys: read hardware clk failed\n");
+		return 0;
 	}
+
 	err = rtc_valid_tm(&tm);
 	if (err) {
-		dev_err(rtc->dev.parent,
-			"hctosys: invalid date/time\n");
-		goto out;
+		dev_err(rtc->dev.parent, "hctosys: invalid date time\n");
+		return 0;
 	}
 
 	rtc_tm_to_time(&tm, &tv.tv_sec);
-	delta_sec = tv.tv_sec - di->suspend_rtc_base.tv_sec;
-out:
-	return (delta_sec > 0) ? delta_sec : 0;
+	interval_sec = tv.tv_sec - di->rtc_base.tv_sec;
+
+	return (interval_sec > 0) ? interval_sec : 0;
+}
+
+static void rk818_bat_init_ts1_detect(struct rk818_battery *di)
+{
+	u8 buf;
+
+	if (!di->pdata->ntc_size)
+		return;
+
+	/* ADC_TS1_EN */
+	buf = rk818_bat_read(di, RK818_ADC_CTRL_REG);
+	buf |= ADC_TS1_EN;
+	rk818_bat_write(di, RK818_ADC_CTRL_REG, buf);
+}
+
+static void rk818_bat_set_shtd_vol(struct rk818_battery *di)
+{
+	u8 val;
+
+	/* set vbat lowest 3.0v shutdown */
+	val = rk818_bat_read(di, RK818_VB_MON_REG);
+	val &= ~(VBAT_LOW_VOL_MASK | VBAT_LOW_ACT_MASK);
+	val |= (RK818_VBAT_LOW_3V0 | EN_VABT_LOW_SHUT_DOWN);
+	rk818_bat_write(di, RK818_VB_MON_REG, val);
+
+	/* disable low irq */
+	rk818_bat_set_bits(di, RK818_INT_STS_MSK_REG1,
+			   VB_LOW_INT_EN, VB_LOW_INT_EN);
+}
+
+static void rk818_bat_init_fg(struct rk818_battery *di)
+{
+	rk818_bat_enable_gauge(di);
+	rk818_bat_init_voltage_kb(di);
+	rk818_bat_init_coffset(di);
+	rk818_bat_set_relax_sample(di);
+	rk818_bat_set_ioffset_sample(di);
+	rk818_bat_set_ocv_sample(di);
+	rk818_bat_init_ts1_detect(di);
+	rk818_bat_init_rsoc(di);
+	rk818_bat_init_coulomb_cap(di, di->nac);
+	rk818_bat_init_age_algorithm(di);
+	rk818_bat_init_chrg_config(di);
+	rk818_bat_set_shtd_vol(di);
+	rk818_bat_init_zero_table(di);
+	rk818_bat_init_caltimer(di);
+	rk818_bat_init_dsoc_algorithm(di);
+
+	di->voltage_avg = rk818_bat_get_avg_voltage(di);
+	di->voltage_ocv = rk818_bat_get_ocv_voltage(di);
+	di->voltage_relax = rk818_bat_get_relax_voltage(di);
+	di->current_avg = rk818_bat_get_avg_current(di);
+	di->remain_cap = rk818_bat_get_coulomb_cap(di);
+	di->dbg_pwr_dsoc = di->dsoc;
+	di->dbg_pwr_rsoc = di->rsoc;
+	di->dbg_pwr_vol = di->voltage_avg;
+
+	rk818_bat_dump_regs(di, 0x99, 0xee);
+	DBG("nac=%d cap=%d ov=%d v=%d rv=%d dl=%d rl=%d c=%d\n",
+	    di->nac, di->remain_cap, di->voltage_ocv, di->voltage_avg,
+	    di->voltage_relax, di->dsoc, di->rsoc, di->current_avg);
 }
 
 #ifdef CONFIG_OF
-static int rk81x_bat_parse_dt(struct rk81x_battery *di)
+static int rk818_bat_parse_dt(struct rk818_battery *di)
 {
-	struct device_node *np;
-	struct battery_platform_data *pdata;
-	struct cell_config *cell_cfg;
-	struct ocv_config *ocv_cfg;
-	struct property *prop;
-	struct rk818 *rk818 = di->rk818;
-	struct device *dev = di->dev;
 	u32 out_value;
 	int length, ret;
 	size_t size;
+	struct device_node *np = di->dev->of_node;
+	struct battery_platform_data *pdata;
+	struct device *dev = di->dev;
 
-	np = of_find_node_by_name(rk818->dev->of_node, "battery");
-	if (!np) {
-		dev_err(dev, "battery node not found!\n");
-		return -EINVAL;
-	}
-
-	pdata = devm_kzalloc(rk818->dev, sizeof(*pdata), GFP_KERNEL);
+	pdata = devm_kzalloc(dev, sizeof(*pdata), GFP_KERNEL);
 	if (!pdata)
 		return -ENOMEM;
 
-	cell_cfg = devm_kzalloc(rk818->dev, sizeof(*cell_cfg), GFP_KERNEL);
-	if (!cell_cfg)
-		return -ENOMEM;
+	di->pdata = pdata;
+	/* init default param */
+	pdata->bat_res = DEFAULT_BAT_RES;
+	pdata->monitor_sec = DEFAULT_MONITOR_SEC;
+	pdata->pwroff_vol = DEFAULT_PWROFF_VOL_THRESD;
+	pdata->sleep_exit_current = DEFAULT_SLP_EXIT_CUR;
+	pdata->sleep_enter_current = DEFAULT_SLP_ENTER_CUR;
+	pdata->bat_mode = MODE_BATTARY;
+	pdata->max_soc_offset = DEFAULT_MAX_SOC_OFFSET;
+	pdata->sample_res = DEFAULT_SAMPLE_RES;
+	pdata->energy_mode = DEFAULT_ENERGY_MODE;
+	pdata->fb_temp = DEFAULT_FB_TEMP;
 
-	ocv_cfg = devm_kzalloc(rk818->dev, sizeof(*ocv_cfg), GFP_KERNEL);
-	if (!ocv_cfg)
-		return -ENOMEM;
-
-	prop = of_find_property(np, "ocv_table", &length);
-	if (!prop) {
+	/* parse necessary param */
+	if (!of_find_property(np, "ocv_table", &length)) {
 		dev_err(dev, "ocv_table not found!\n");
 		return -EINVAL;
 	}
+
 	pdata->ocv_size = length / sizeof(u32);
 	if (pdata->ocv_size <= 0) {
 		dev_err(dev, "invalid ocv table\n");
 		return -EINVAL;
 	}
 
-	size = sizeof(*pdata->battery_ocv) * pdata->ocv_size;
-
-	pdata->battery_ocv = devm_kzalloc(rk818->dev, size, GFP_KERNEL);
-	if (!pdata->battery_ocv)
+	size = sizeof(*pdata->ocv_table) * pdata->ocv_size;
+	pdata->ocv_table = devm_kzalloc(di->dev, size, GFP_KERNEL);
+	if (!pdata->ocv_table)
 		return -ENOMEM;
 
-	ret = of_property_read_u32_array(np, "ocv_table", pdata->battery_ocv,
+	ret = of_property_read_u32_array(np, "ocv_table",
+					 pdata->ocv_table,
 					 pdata->ocv_size);
 	if (ret < 0)
 		return ret;
-
-	/******************** charger param  ****************************/
-	ret = of_property_read_u32(np, "max_chrg_currentmA", &out_value);
-	if (ret < 0) {
-		dev_err(dev, "max_chrg_currentmA not found!\n");
-		out_value = DEFAULT_CHRG_CUR;
-	}
-	pdata->max_charger_currentmA = out_value;
-
-	ret = of_property_read_u32(np, "max_input_currentmA", &out_value);
-	if (ret < 0) {
-		dev_err(dev, "max_charger_ilimitmA not found!\n");
-		out_value = DEFAULT_INPUT_CUR;
-	}
-	pdata->max_charger_ilimitmA = out_value;
-
-	ret = of_property_read_u32(np, "bat_res", &out_value);
-	if (ret < 0) {
-		dev_err(dev, "bat_res not found!\n");
-		out_value = DEFAULT_BAT_RES;
-	}
-	pdata->sense_resistor_mohm = out_value;
-
-	ret = of_property_read_u32(np, "max_charge_voltagemV", &out_value);
-	if (ret < 0) {
-		dev_err(dev, "max_charge_voltagemV not found!\n");
-		out_value = DEFAULT_CHRG_VOL;
-	}
-	pdata->max_charger_voltagemV = out_value;
 
 	ret = of_property_read_u32(np, "design_capacity", &out_value);
 	if (ret < 0) {
 		dev_err(dev, "design_capacity not found!\n");
 		return ret;
 	}
-	cell_cfg->design_capacity  = out_value;
+	pdata->design_capacity = out_value;
 
 	ret = of_property_read_u32(np, "design_qmax", &out_value);
 	if (ret < 0) {
 		dev_err(dev, "design_qmax not found!\n");
 		return ret;
 	}
-	cell_cfg->design_qmax = out_value;
-
-	ret = of_property_read_u32(np, "sleep_enter_current", &out_value);
+	pdata->design_qmax = out_value;
+	ret = of_property_read_u32(np, "max_chrg_voltage", &out_value);
 	if (ret < 0) {
-		dev_err(dev, "sleep_enter_current not found!\n");
-		out_value = DEFAULT_SLP_ENTER_CUR;
+		dev_err(dev, "max_chrg_voltage missing!\n");
+		return ret;
 	}
-	ocv_cfg->sleep_enter_current = out_value;
+	pdata->max_chrg_voltage = out_value;
+	if (out_value >= 4300)
+		pdata->zero_algorithm_vol = DEFAULT_ALGR_VOL_THRESD2;
+	else
+		pdata->zero_algorithm_vol = DEFAULT_ALGR_VOL_THRESD1;
 
-	ret = of_property_read_u32(np, "sleep_exit_current", &out_value);
-	if (ret < 0) {
-		dev_err(dev, "sleep_exit_current not found!\n");
-		out_value = DEFAULT_SLP_EXIT_CUR;
+	ret = of_property_read_u32(np, "fb_temperature", &pdata->fb_temp);
+	if (ret < 0)
+		dev_err(dev, "fb_temperature missing!\n");
+
+	ret = of_property_read_u32(np, "sample_res", &pdata->sample_res);
+	if (ret < 0)
+		dev_err(dev, "sample_res missing!\n");
+
+	ret = of_property_read_u32(np, "energy_mode", &pdata->energy_mode);
+	if (ret < 0)
+		dev_err(dev, "energy_mode missing!\n");
+
+	ret = of_property_read_u32(np, "max_soc_offset",
+				   &pdata->max_soc_offset);
+	if (ret < 0)
+		dev_err(dev, "max_soc_offset missing!\n");
+
+	ret = of_property_read_u32(np, "monitor_sec", &pdata->monitor_sec);
+	if (ret < 0)
+		dev_err(dev, "monitor_sec missing!\n");
+
+	ret = of_property_read_u32(np, "zero_algorithm_vol",
+				   &pdata->zero_algorithm_vol);
+	if (ret < 0)
+		dev_err(dev, "zero_algorithm_vol missing!\n");
+
+	ret = of_property_read_u32(np, "virtual_power", &pdata->bat_mode);
+	if (ret < 0)
+		dev_err(dev, "virtual_power missing!\n");
+
+	ret = of_property_read_u32(np, "bat_res", &pdata->bat_res);
+	if (ret < 0)
+		dev_err(dev, "bat_res missing!\n");
+
+	ret = of_property_read_u32(np, "sleep_enter_current",
+				   &pdata->sleep_enter_current);
+	if (ret < 0)
+		dev_err(dev, "sleep_enter_current missing!\n");
+
+	ret = of_property_read_u32(np, "sleep_exit_current",
+				   &pdata->sleep_exit_current);
+	if (ret < 0)
+		dev_err(dev, "sleep_exit_current missing!\n");
+
+	ret = of_property_read_u32(np, "power_off_thresd", &pdata->pwroff_vol);
+	if (ret < 0)
+		dev_err(dev, "power_off_thresd missing!\n");
+
+	if (!of_find_property(np, "ntc_table", &length)) {
+		pdata->ntc_size = 0;
+	} else {
+		/* get ntc degree base value */
+		ret = of_property_read_u32_index(np, "ntc_degree_from", 1,
+						 &pdata->ntc_degree_from);
+		if (ret) {
+			dev_err(dev, "invalid ntc_degree_from\n");
+			return -EINVAL;
+		}
+
+		of_property_read_u32_index(np, "ntc_degree_from", 0,
+					   &out_value);
+		if (out_value)
+			pdata->ntc_degree_from = -pdata->ntc_degree_from;
+
+		pdata->ntc_size = length / sizeof(u32);
 	}
-	ocv_cfg->sleep_exit_current = out_value;
 
-	ret = of_property_read_u32(np, "power_off_thresd", &out_value);
-	if (ret < 0) {
-		dev_warn(dev, "power_off_thresd not found!\n");
-		out_value = PWR_OFF_THRESD;
-	}
-	pdata->power_off_thresd = out_value;
+	if (pdata->ntc_size) {
+		size = sizeof(*pdata->ntc_table) * pdata->ntc_size;
+		pdata->ntc_table = devm_kzalloc(di->dev, size, GFP_KERNEL);
+		if (!pdata->ntc_table)
+			return -ENOMEM;
 
-	of_property_read_u32(np, "chrg_diff_voltagemV", &pdata->chrg_diff_vol);
-	of_property_read_u32(np, "virtual_power", &di->fg_drv_mode);
-	di->fg_drv_mode = di->fg_drv_mode ? TEST_POWER_MODE : FG_NORMAL_MODE;
-
-	/*************  charger support adp types **********************/
-	ret = of_property_read_u32(np, "support_usb_adp", &support_usb_adp);
-	ret = of_property_read_u32(np, "support_dc_adp", &support_dc_adp);
-	ret = of_property_read_u32(np, "power_dc2otg", &power_dc2otg);
-
-	if (!support_usb_adp && !support_dc_adp) {
-		dev_err(dev, "miss both: usb_adp and dc_adp,default:usb_adp!\n");
-		support_usb_adp = 1;
+		ret = of_property_read_u32_array(np, "ntc_table",
+						 pdata->ntc_table,
+						 pdata->ntc_size);
+		if (ret < 0)
+			return ret;
 	}
 
-	/*if (support_dc_adp)*/
-	rk81x_bat_dc_det_init(di, np);
-
-	cell_cfg->ocv = ocv_cfg;
-	pdata->cell_cfg = cell_cfg;
-	di->pdata = pdata;
-
-	DBG("\nthe battery dts info dump:\n"
+	DBG("the battery dts info dump:\n"
 	    "bat_res:%d\n"
-	    "max_input_currentmA:%d\n"
-	    "max_chrg_currentmA:%d\n"
-	    "max_charge_voltagemV:%d\n"
 	    "design_capacity:%d\n"
 	    "design_qmax :%d\n"
 	    "sleep_enter_current:%d\n"
 	    "sleep_exit_current:%d\n"
-	    "support_usb_adp:%d\n"
-	    "support_dc_adp:%d\n"
-	    "power_off_thresd:%d\n",
-	    pdata->sense_resistor_mohm, pdata->max_charger_ilimitmA,
-	    pdata->max_charger_currentmA, pdata->max_charger_voltagemV,
-	    cell_cfg->design_capacity, cell_cfg->design_qmax,
-	    cell_cfg->ocv->sleep_enter_current,
-	    cell_cfg->ocv->sleep_exit_current,
-	    support_usb_adp, support_dc_adp, pdata->power_off_thresd);
+	    "zero_algorithm_vol:%d\n"
+	    "monitor_sec:%d\n"
+	    "max_soc_offset:%d\n"
+	    "virtual_power:%d\n"
+	    "pwroff_vol:%d\n"
+	    "sample_res:%d\n"
+	    "ntc_size=%d\n"
+	    "ntc_degree_from:%d\n"
+	    "ntc_degree_to:%d\n",
+	    pdata->bat_res, pdata->design_capacity, pdata->design_qmax,
+	    pdata->sleep_enter_current, pdata->sleep_exit_current,
+	    pdata->zero_algorithm_vol, pdata->monitor_sec,
+	    pdata->max_soc_offset, pdata->bat_mode, pdata->pwroff_vol,
+	    pdata->sample_res, pdata->ntc_size, pdata->ntc_degree_from,
+	    pdata->ntc_degree_from + pdata->ntc_size - 1
+	    );
 
 	return 0;
 }
-
 #else
-static int rk81x_bat_parse_dt(struct rk81x_battery *di)
+static int rk818_bat_parse_dt(struct rk818_battery *di)
 {
 	return -ENODEV;
 }
 #endif
 
-static int rk81x_battery_probe(struct platform_device *pdev)
+static const struct of_device_id rk818_battery_of_match[] = {
+	{.compatible = "rk818-battery",},
+	{ },
+};
+
+static int rk818_battery_probe(struct platform_device *pdev)
 {
-	struct rk818 *chip = dev_get_drvdata(pdev->dev.parent);
-	struct rk81x_battery *di;
+	const struct of_device_id *of_id =
+			of_match_device(rk818_battery_of_match, &pdev->dev);
+	struct rk818_battery *di;
+	struct rk808 *rk818 = dev_get_drvdata(pdev->dev.parent);
 	int ret;
+
+	if (!of_id) {
+		dev_err(&pdev->dev, "Failed to find matching dt id\n");
+		return -ENODEV;
+	}
 
 	di = devm_kzalloc(&pdev->dev, sizeof(*di), GFP_KERNEL);
 	if (!di)
 		return -ENOMEM;
-	di->rk818 = chip;
+
+	di->rk818 = rk818;
+	di->pdev = pdev;
 	di->dev = &pdev->dev;
+	di->regmap = rk818->regmap;
 	platform_set_drvdata(pdev, di);
 
-	ret = rk81x_bat_parse_dt(di);
+	ret = rk818_bat_parse_dt(di);
 	if (ret < 0) {
-		dev_err(&pdev->dev, "rk81x battery parse dt failed!\n");
+		dev_err(di->dev, "rk818 battery parse dt failed!\n");
 		return ret;
 	}
 
-	rk81x_bat_info_init(di, chip);
-	if (!is_rk81x_bat_exist(di)) {
-		dev_info(di->dev, "not battery, enter test power mode\n");
-		di->fg_drv_mode = TEST_POWER_MODE;
+	if (!is_rk818_bat_exist(di)) {
+		di->pdata->bat_mode = MODE_VIRTUAL;
+		dev_err(di->dev, "no battery, virtual power mode\n");
 	}
 
-	ret = rk81x_bat_power_supply_init(di);
+	ret = rk818_bat_init_irqs(di);
+	if (ret != 0) {
+		dev_err(di->dev, "rk818 bat init irqs failed!\n");
+		return ret;
+	}
+
+	ret = rk818_bat_init_power_supply(di);
 	if (ret) {
-		dev_err(&pdev->dev, "rk81x power supply register failed!\n");
+		dev_err(di->dev, "rk818 power supply register failed!\n");
 		return ret;
 	}
 
-	rk81x_bat_irq_init(di);
-	rk81x_bat_sysfs_init(di);
-
-	rk81x_bat_fg_init(di);
-	wake_lock_init(&di->resume_wake_lock, WAKE_LOCK_SUSPEND,
-		       "resume_charging");
-	rk81x_bat_flatzone_vol_init(di);
-
-#if defined(CONFIG_X86_INTEL_SOFIA)
-	di->usb_phy = usb_get_phy(USB_PHY_TYPE_USB2);
-	if (IS_ERR_OR_NULL(di->usb_phy)) {
-		dev_err(di->dev, "get usb phy failed\n");
-		return PTR_ERR(di->usb_phy);
-	}
-	di->usb_nb.notifier_call = rk81x_battery_usb_notifier;
-	ret = usb_register_notifier(di->usb_phy, &di->usb_nb);
-	if (ret)
-		dev_err(di->dev, "registr usb phy notification failed\n");
-	INIT_DELAYED_WORK(&di->usb_phy_delay_work,
-			  rk81x_battery_usb_notifier_delayed_work);
-#endif
-
-	rk81x_battery_register_fb_notify(di);
-	di->wq = alloc_ordered_workqueue("%s", WQ_MEM_RECLAIM | WQ_FREEZABLE,
-					 "rk81x-battery-work");
-	INIT_DELAYED_WORK(&di->battery_monitor_work, rk81x_battery_work);
-	INIT_DELAYED_WORK(&di->chrg_term_mode_switch_work,
-			  rk81x_chrg_term_mode_switch_work);
-
-	queue_delayed_work(di->wq, &di->battery_monitor_work,
+	rk818_bat_init_info(di);
+	rk818_bat_init_fg(di);
+	rk818_bat_init_sysfs(di);
+	rk818_bat_register_fb_notify(di);
+	wake_lock_init(&di->wake_lock, WAKE_LOCK_SUSPEND, "rk818_bat_lock");
+	di->bat_monitor_wq = alloc_ordered_workqueue("%s",
+			WQ_MEM_RECLAIM | WQ_FREEZABLE, "rk818-bat-monitor-wq");
+	INIT_DELAYED_WORK(&di->bat_delay_work, rk818_battery_work);
+	queue_delayed_work(di->bat_monitor_wq, &di->bat_delay_work,
 			   msecs_to_jiffies(TIMER_MS_COUNTS * 5));
 
-#if defined(CONFIG_ARCH_ROCKCHIP)
-	INIT_DELAYED_WORK(&di->otg_check_work,
-			  rk81x_battery_otg_delay_work);
-	INIT_DELAYED_WORK(&di->ac_usb_check_work,
-			  rk81x_battery_acusb_delay_work);
-	INIT_DELAYED_WORK(&di->dc_det_check_work,
-			  rk81x_battery_dc_delay_work);
-	/*power on check*/
-	queue_delayed_work(di->wq, &di->dc_det_check_work,
-			   msecs_to_jiffies(TIMER_MS_COUNTS * 5));
-
-	di->battery_nb.notifier_call = rk81x_bat_usb_notifier_call;
-	rk_bc_detect_notifier_register(&di->battery_nb, &di->charge_otg);
-#endif
-	dev_info(di->dev, "battery driver version %s\n", DRIVER_VERSION);
+	BAT_INFO("driver version %s\n", DRIVER_VERSION);
 
 	return ret;
 }
 
-static int rk81x_battery_suspend(struct platform_device *dev,
+static int rk818_battery_suspend(struct platform_device *dev,
 				 pm_message_t state)
 {
-	struct rk81x_battery *di = platform_get_drvdata(dev);
+	struct rk818_battery *di = platform_get_drvdata(dev);
+	u8 val;
 
-	/*while otg and dc both plugin*/
-	rk81x_bat_set_bit(di, NT_STS_MSK_REG2, CHRG_CVTLMT_INT);
+	cancel_delayed_work_sync(&di->bat_delay_work);
 
-	di->slp_psy_status = rk81x_chrg_online(di);
-	di->chrg_status = rk81x_bat_get_chrg_status(di);
-	di->slp_chrg_status = rk81x_bat_get_chrg_status(di);
-	di->suspend_charge_current = rk81x_bat_get_avg_current(di);
-	di->dischrg_save_sec += rk81x_bat_save_dischrg_sec(di);
-	di->dischrg_normal_base = 0;
-	di->dischrg_emu_base = 0;
-	do_gettimeofday(&di->suspend_rtc_base);
+	di->s2r = false;
+	di->sleep_chrg_online = rk818_bat_chrg_online(di);
+	di->sleep_chrg_status = rk818_bat_get_chrg_status(di);
+	di->current_avg = rk818_bat_get_avg_current(di);
+	di->remain_cap = rk818_bat_get_coulomb_cap(di);
+	di->rsoc = rk818_bat_get_rsoc(di);
+	do_gettimeofday(&di->rtc_base);
+	rk818_bat_save_data(di);
 
-	if (!rk81x_chrg_online(di)) {
-		di->chrg_save_sec += rk81x_bat_save_chrg_sec(di);
-		di->chrg_normal_base = 0;
-		di->chrg_emu_base = 0;
-		di->chrg_term_base = 0;
-		di->chrg_finish_base = 0;
+	/* if not CHARGE_FINISH, reinit finish_base.
+	 * avoid sleep loop between suspend and resume
+	 */
+	if (di->sleep_chrg_status != CHARGE_FINISH)
+		di->finish_base = get_boot_sec();
+
+	/* avoid: enter suspend from MODE_ZERO: load from heavy to light */
+	if ((di->work_mode == MODE_ZERO) &&
+	    (di->sleep_chrg_online) && (di->current_avg >= 0)) {
+		DBG("suspend: MODE_ZERO exit...\n");
+		/* it need't do prepare for mode finish and smooth, it will
+		 * be done in display_smooth
+		 */
+		if (di->sleep_chrg_status == CHARGE_FINISH) {
+			di->work_mode = MODE_FINISH;
+			di->finish_base = get_boot_sec();
+		} else {
+			di->work_mode = MODE_SMOOTH;
+			rk818_bat_smooth_algo_prepare(di);
+		}
 	}
 
-	di->s2r = 0;
+	/* set vbat low than 3.4v to generate a wakeup irq */
+	val = rk818_bat_read(di, RK818_VB_MON_REG);
+	val &= (~(VBAT_LOW_VOL_MASK | VBAT_LOW_ACT_MASK));
+	val |= (RK818_VBAT_LOW_3V4 | EN_VBAT_LOW_IRQ);
+	rk818_bat_write(di, RK818_VB_MON_REG, val);
+	rk818_bat_set_bits(di, RK818_INT_STS_MSK_REG1, VB_LOW_INT_EN, 0);
 
-	pr_info("battery suspend dl=%d rl=%d c=%d v=%d at=%ld st=0x%x chg=%d\n",
-		di->dsoc, di->rsoc, di->suspend_charge_current, di->voltage,
-		di->suspend_time_sum, di->chrg_status, di->slp_psy_status);
+	BAT_INFO("suspend: dl=%d rl=%d c=%d v=%d cap=%d at=%ld st=0x%x ch=%d\n",
+		 di->dsoc, di->rsoc, di->current_avg,
+		 rk818_bat_get_avg_voltage(di), rk818_bat_get_coulomb_cap(di),
+		 di->sleep_dischrg_sec, di->sleep_chrg_status,
+		 di->sleep_chrg_online);
 
 	return 0;
 }
 
-static int rk81x_battery_resume(struct platform_device *dev)
+static int rk818_battery_resume(struct platform_device *dev)
 {
-	struct rk81x_battery *di = platform_get_drvdata(dev);
-	int pwroff_thresd = di->pdata->power_off_thresd;
-	int delta_time;
-	int time_step;
-	int delta_soc;
-	int vol;
+	struct rk818_battery *di = platform_get_drvdata(dev);
+	int interval_sec, time_step, pwroff_vol;
+	u8 val;
 
-	/*while otg and dc both plugin*/
-	rk81x_bat_clr_bit(di, NT_STS_MSK_REG2, CHRG_CVTLMT_INT);
+	di->s2r = true;
+	di->current_avg = rk818_bat_get_avg_current(di);
+	di->voltage_relax = rk818_bat_get_relax_voltage(di);
+	di->voltage_avg = rk818_bat_get_avg_voltage(di);
+	di->remain_cap = rk818_bat_get_coulomb_cap(di);
+	di->rsoc = rk818_bat_get_rsoc(di);
+	interval_sec = rk818_bat_rtc_sleep_sec(di);
+	di->sleep_sum_sec += interval_sec;
+	pwroff_vol = di->pdata->pwroff_vol;
 
-	di->discharge_smooth_status = true;
-	di->charge_smooth_status = true;
-	di->s2r = 1;
-	vol  = rk81x_bat_get_vol(di);
-	if (vol < INVALID_VOL_THRESD) {
-		dev_err(di->dev, "invalid voltage :%d", vol);
-		vol = di->voltage;
-		dbg_enable = 1;
-	}
-	di->voltage = vol;
-	di->current_avg = rk81x_bat_get_avg_current(di);
-	di->relax_voltage = rk81x_bat_get_relax_vol(di);
-	di->est_ocv_vol = rk81x_bat_est_ocv_vol(di);
-	di->est_ocv_soc = rk81x_bat_est_ocv_soc(di);
-	delta_time = rk81x_bat_get_suspend_sec(di);
-	di->suspend_time_sum += delta_time;
-#if defined(CONFIG_ARCH_ROCKCHIP)
-	di->remain_capacity = rk81x_bat_get_realtime_capacity(di);
-#endif
-
-	if (di->slp_psy_status) {
-		time_step = CHRG_TIME_STEP;
-	} else {
-		if (di->voltage <= pwroff_thresd + 50)
-			time_step = DISCHRG_TIME_STEP_0;
+	if (!di->sleep_chrg_online) {
+		/* only add up discharge sleep seconds */
+		di->sleep_dischrg_sec += interval_sec;
+		if (di->voltage_avg <= pwroff_vol + 50)
+			time_step = DISCHRG_TIME_STEP1;
 		else
-			time_step = DISCHRG_TIME_STEP_1;
+			time_step = DISCHRG_TIME_STEP2;
 	}
 
-	pr_info("battery resume c=%d v=%d ev=%d rv=%d dt=%d at=%ld chg=%d\n",
-		di->current_avg, di->voltage, di->est_ocv_vol,
-		di->relax_voltage, delta_time, di->suspend_time_sum,
-		di->slp_psy_status);
+	BAT_INFO("resume: dl=%d rl=%d c=%d v=%d rv=%d "
+		 "cap=%d dt=%d at=%ld ch=%d\n",
+		 di->dsoc, di->rsoc, di->current_avg, di->voltage_avg,
+		 di->voltage_relax, rk818_bat_get_coulomb_cap(di), interval_sec,
+		 di->sleep_dischrg_sec, di->sleep_chrg_online);
 
-	if (di->suspend_time_sum > time_step) {
-		delta_soc = rk81x_bat_update_resume_state(di);
-		if (delta_soc)
-			di->suspend_time_sum = 0;
+	/* sleep: enough time and discharge */
+	if ((di->sleep_dischrg_sec > time_step) && (!di->sleep_chrg_online)) {
+		if (rk818_bat_sleep_dischrg(di))
+			di->sleep_dischrg_sec = 0;
 	}
 
-	if ((!rk81x_chrg_online(di) && di->voltage <= pwroff_thresd) ||
-	    rk81x_chrg_online(di))
-		wake_lock_timeout(&di->resume_wake_lock, 5 * HZ);
+	rk818_bat_save_data(di);
+
+	/* set vbat lowest 3.0v shutdown */
+	val = rk818_bat_read(di, RK818_VB_MON_REG);
+	val &= ~(VBAT_LOW_VOL_MASK | VBAT_LOW_ACT_MASK);
+	val |= (RK818_VBAT_LOW_3V0 | EN_VABT_LOW_SHUT_DOWN);
+	rk818_bat_write(di, RK818_VB_MON_REG, val);
+	rk818_bat_set_bits(di, RK818_INT_STS_MSK_REG1,
+			   VB_LOW_INT_EN, VB_LOW_INT_EN);
+
+	/* charge/lowpower lock: for battery work to update dsoc and rsoc */
+	if ((di->sleep_chrg_online) ||
+	    (!di->sleep_chrg_online && di->voltage_avg < di->pdata->pwroff_vol))
+		wake_lock_timeout(&di->wake_lock, msecs_to_jiffies(2000));
+
+	queue_delayed_work(di->bat_monitor_wq, &di->bat_delay_work,
+			   msecs_to_jiffies(1000));
+
 	return 0;
 }
 
-static int rk81x_battery_remove(struct platform_device *dev)
+static void rk818_battery_shutdown(struct platform_device *dev)
 {
-	struct rk81x_battery *di = platform_get_drvdata(dev);
+	u8 cnt = 0;
+	struct rk818_battery *di = platform_get_drvdata(dev);
 
-	cancel_delayed_work_sync(&di->battery_monitor_work);
-	return 0;
-}
-
-static void rk81x_battery_shutdown(struct platform_device *dev)
-{
-	struct rk81x_battery *di = platform_get_drvdata(dev);
-
-	cancel_delayed_work_sync(&di->battery_monitor_work);
-	rk_bc_detect_notifier_unregister(&di->battery_nb);
-
-	if (BASE_TO_MIN(di->power_on_base) <= REBOOT_INTER_MIN)
-		rk81x_bat_check_reboot(di);
+	cancel_delayed_work_sync(&di->bat_delay_work);
+	cancel_delayed_work_sync(&di->calib_delay_work);
+	rk818_bat_unregister_fb_notify(di);
+	del_timer(&di->caltimer);
+	if (base2sec(di->boot_base) < REBOOT_PERIOD_SEC)
+		cnt = rk818_bat_check_reboot(di);
 	else
-		rk81x_bat_save_reboot_cnt(di, 0);
-	rk81x_chrg_term_mode_set(di, CHRG_TERM_ANA_SIGNAL);
+		rk818_bat_save_reboot_cnt(di, 0);
+
+	BAT_INFO("shutdown: dl=%d rl=%d c=%d v=%d cap=%d f=%d ch=%d n=%d "
+		 "mode=%d rest=%d\n",
+		 di->dsoc, di->rsoc, di->current_avg, di->voltage_avg,
+		 di->remain_cap, di->fcc, rk818_bat_chrg_online(di), cnt,
+		 di->algo_rest_mode, di->algo_rest_val);
 }
 
-static struct platform_driver rk81x_battery_driver = {
-	.driver     = {
-		.name   = "rk818-battery",
-		.owner  = THIS_MODULE,
+static struct platform_driver rk818_battery_driver = {
+	.probe = rk818_battery_probe,
+	.suspend = rk818_battery_suspend,
+	.resume = rk818_battery_resume,
+	.shutdown = rk818_battery_shutdown,
+	.driver = {
+		.name = "rk818-battery",
+		.of_match_table = rk818_battery_of_match,
 	},
-
-	.probe      = rk81x_battery_probe,
-	.remove     = rk81x_battery_remove,
-	.suspend    = rk81x_battery_suspend,
-	.resume     = rk81x_battery_resume,
-	.shutdown   = rk81x_battery_shutdown,
 };
 
 static int __init battery_init(void)
 {
-	return platform_driver_register(&rk81x_battery_driver);
+	return platform_driver_register(&rk818_battery_driver);
 }
-
 fs_initcall_sync(battery_init);
+
 static void __exit battery_exit(void)
 {
-	platform_driver_unregister(&rk81x_battery_driver);
+	platform_driver_unregister(&rk818_battery_driver);
 }
 module_exit(battery_exit);
 
 MODULE_LICENSE("GPL");
 MODULE_ALIAS("platform:rk818-battery");
-MODULE_AUTHOR("ROCKCHIP");
+MODULE_AUTHOR("chenjh<chenjh@rock-chips.com>");
