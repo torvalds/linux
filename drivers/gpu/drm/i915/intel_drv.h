@@ -1488,7 +1488,14 @@ extern struct drm_display_mode *intel_find_panel_downclock(
 				struct drm_display_mode *fixed_mode,
 				struct drm_connector *connector);
 void intel_backlight_register(struct drm_device *dev);
-void intel_backlight_unregister(struct drm_device *dev);
+
+#if IS_ENABLED(CONFIG_BACKLIGHT_CLASS_DEVICE)
+void intel_backlight_device_unregister(struct intel_connector *connector);
+#else /* CONFIG_BACKLIGHT_CLASS_DEVICE */
+static inline void intel_backlight_device_unregister(struct intel_connector *connector)
+{
+}
+#endif /* CONFIG_BACKLIGHT_CLASS_DEVICE */
 
 
 /* intel_psr.c */

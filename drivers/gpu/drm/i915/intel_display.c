@@ -16221,6 +16221,9 @@ void intel_modeset_gem_init(struct drm_device *dev)
 
 void intel_connector_unregister(struct drm_connector *connector)
 {
+	struct intel_connector *intel_connector = to_intel_connector(connector);
+
+	intel_backlight_device_unregister(intel_connector);
 	intel_panel_destroy_backlight(connector);
 }
 
@@ -16229,8 +16232,6 @@ void intel_modeset_cleanup(struct drm_device *dev)
 	struct drm_i915_private *dev_priv = dev->dev_private;
 
 	intel_disable_gt_powersave(dev_priv);
-
-	intel_backlight_unregister(dev);
 
 	/*
 	 * Interrupts and polling as the first thing to avoid creating havoc.

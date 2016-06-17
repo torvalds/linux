@@ -1216,7 +1216,7 @@ static int intel_backlight_device_register(struct intel_connector *connector)
 	return 0;
 }
 
-static void intel_backlight_device_unregister(struct intel_connector *connector)
+void intel_backlight_device_unregister(struct intel_connector *connector)
 {
 	struct intel_panel *panel = &connector->panel;
 
@@ -1229,9 +1229,6 @@ static void intel_backlight_device_unregister(struct intel_connector *connector)
 static int intel_backlight_device_register(struct intel_connector *connector)
 {
 	return 0;
-}
-static void intel_backlight_device_unregister(struct intel_connector *connector)
-{
 }
 #endif /* CONFIG_BACKLIGHT_CLASS_DEVICE */
 
@@ -1819,12 +1816,4 @@ void intel_backlight_register(struct drm_device *dev)
 
 	for_each_intel_connector(dev, connector)
 		intel_backlight_device_register(connector);
-}
-
-void intel_backlight_unregister(struct drm_device *dev)
-{
-	struct intel_connector *connector;
-
-	for_each_intel_connector(dev, connector)
-		intel_backlight_device_unregister(connector);
 }
