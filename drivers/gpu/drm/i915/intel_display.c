@@ -36,6 +36,7 @@
 #include "intel_drv.h"
 #include <drm/i915_drm.h>
 #include "i915_drv.h"
+#include "i915_gem_dmabuf.h"
 #include "intel_dsi.h"
 #include "i915_trace.h"
 #include <drm/drm_atomic.h>
@@ -46,7 +47,6 @@
 #include <drm/drm_rect.h>
 #include <linux/dma_remapping.h>
 #include <linux/reservation.h>
-#include <linux/dma-buf.h>
 
 static bool is_mmio_work(struct intel_flip_work *work)
 {
@@ -11429,6 +11429,8 @@ static int intel_gen7_queue_flip(struct drm_device *dev,
 static bool use_mmio_flip(struct intel_engine_cs *engine,
 			  struct drm_i915_gem_object *obj)
 {
+	struct reservation_object *resv;
+
 	/*
 	 * This is not being used for older platforms, because
 	 * non-availability of flip done interrupt forces us to use
@@ -11449,12 +11451,12 @@ static bool use_mmio_flip(struct intel_engine_cs *engine,
 		return true;
 	else if (i915.enable_execlists)
 		return true;
-	else if (obj->base.dma_buf &&
-		 !reservation_object_test_signaled_rcu(obj->base.dma_buf->resv,
-						       false))
+
+	resv = i915_gem_object_get_dmabuf_resv(obj);
+	if (resv && !reservation_object_test_signaled_rcu(resv, false))
 		return true;
-	else
-		return engine != i915_gem_request_get_engine(obj->last_write_req);
+
+	return engine != i915_gem_request_get_engine(obj->last_write_req);
 }
 
 static void skl_do_mmio_flip(struct intel_crtc *intel_crtc,
@@ -11543,6 +11545,7 @@ static void intel_mmio_flip_work_func(struct work_struct *w)
 	struct intel_framebuffer *intel_fb =
 		to_intel_framebuffer(crtc->base.primary->fb);
 	struct drm_i915_gem_object *obj = intel_fb->obj;
+	struct reservation_object *resv;
 
 	if (work->flip_queued_req)
 		WARN_ON(__i915_wait_request(work->flip_queued_req,
@@ -11550,9 +11553,9 @@ static void intel_mmio_flip_work_func(struct work_struct *w)
 					    &dev_priv->rps.mmioflips));
 
 	/* For framebuffer backed by dmabuf, wait for fence */
-	if (obj->base.dma_buf)
-		WARN_ON(reservation_object_wait_timeout_rcu(obj->base.dma_buf->resv,
-							    false, false,
+	resv = i915_gem_object_get_dmabuf_resv(obj);
+	if (resv)
+		WARN_ON(reservation_object_wait_timeout_rcu(resv, false, false,
 							    MAX_SCHEDULE_TIMEOUT) < 0);
 
 	intel_pipe_update_start(crtc);
@@ -14032,6 +14035,7 @@ intel_prepare_plane_fb(struct drm_plane *plane,
 	struct drm_framebuffer *fb = new_state->fb;
 	struct drm_i915_gem_object *obj = intel_fb_obj(fb);
 	struct drm_i915_gem_object *old_obj = intel_fb_obj(plane->state->fb);
+	struct reservation_object *resv;
 	int ret = 0;
 
 	if (!obj && !old_obj)
@@ -14061,12 +14065,15 @@ intel_prepare_plane_fb(struct drm_plane *plane,
 		}
 	}
 
+	if (!obj)
+		return 0;
+
 	/* For framebuffer backed by dmabuf, wait for fence */
-	if (obj && obj->base.dma_buf) {
+	resv = i915_gem_object_get_dmabuf_resv(obj);
+	if (resv) {
 		long lret;
 
-		lret = reservation_object_wait_timeout_rcu(obj->base.dma_buf->resv,
-							   false, true,
+		lret = reservation_object_wait_timeout_rcu(resv, false, true,
 							   MAX_SCHEDULE_TIMEOUT);
 		if (lret == -ERESTARTSYS)
 			return lret;
@@ -14074,9 +14081,7 @@ intel_prepare_plane_fb(struct drm_plane *plane,
 		WARN(lret < 0, "waiting returns %li\n", lret);
 	}
 
-	if (!obj) {
-		ret = 0;
-	} else if (plane->type == DRM_PLANE_TYPE_CURSOR &&
+	if (plane->type == DRM_PLANE_TYPE_CURSOR &&
 	    INTEL_INFO(dev)->cursor_needs_physical) {
 		int align = IS_I830(dev) ? 16 * 1024 : 256;
 		ret = i915_gem_object_attach_phys(obj, align);
@@ -14086,7 +14091,7 @@ intel_prepare_plane_fb(struct drm_plane *plane,
 		ret = intel_pin_and_fence_fb_obj(fb, new_state->rotation);
 	}
 
-	if (ret == 0 && obj) {
+	if (ret == 0) {
 		struct intel_plane_state *plane_state =
 			to_intel_plane_state(new_state);
 
