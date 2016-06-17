@@ -1569,6 +1569,7 @@ enum ib_flow_spec_type {
 	IB_FLOW_SPEC_IB		= 0x22,
 	/* L3 header*/
 	IB_FLOW_SPEC_IPV4	= 0x30,
+	IB_FLOW_SPEC_IPV6	= 0x31,
 	/* L4 headers*/
 	IB_FLOW_SPEC_TCP	= 0x40,
 	IB_FLOW_SPEC_UDP	= 0x41
@@ -1630,6 +1631,18 @@ struct ib_flow_spec_ipv4 {
 	struct ib_flow_ipv4_filter mask;
 };
 
+struct ib_flow_ipv6_filter {
+	u8	src_ip[16];
+	u8	dst_ip[16];
+};
+
+struct ib_flow_spec_ipv6 {
+	enum ib_flow_spec_type	   type;
+	u16			   size;
+	struct ib_flow_ipv6_filter val;
+	struct ib_flow_ipv6_filter mask;
+};
+
 struct ib_flow_tcp_udp_filter {
 	__be16	dst_port;
 	__be16	src_port;
@@ -1651,6 +1664,7 @@ union ib_flow_spec {
 	struct ib_flow_spec_ib		ib;
 	struct ib_flow_spec_ipv4        ipv4;
 	struct ib_flow_spec_tcp_udp	tcp_udp;
+	struct ib_flow_spec_ipv6        ipv6;
 };
 
 struct ib_flow_attr {

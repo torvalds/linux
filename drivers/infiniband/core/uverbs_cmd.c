@@ -3105,6 +3105,15 @@ static int kern_spec_to_ib_spec(struct ib_uverbs_flow_spec *kern_spec,
 		memcpy(&ib_spec->ipv4.mask, &kern_spec->ipv4.mask,
 		       sizeof(struct ib_flow_ipv4_filter));
 		break;
+	case IB_FLOW_SPEC_IPV6:
+		ib_spec->ipv6.size = sizeof(struct ib_flow_spec_ipv6);
+		if (ib_spec->ipv6.size != kern_spec->ipv6.size)
+			return -EINVAL;
+		memcpy(&ib_spec->ipv6.val, &kern_spec->ipv6.val,
+		       sizeof(struct ib_flow_ipv6_filter));
+		memcpy(&ib_spec->ipv6.mask, &kern_spec->ipv6.mask,
+		       sizeof(struct ib_flow_ipv6_filter));
+		break;
 	case IB_FLOW_SPEC_TCP:
 	case IB_FLOW_SPEC_UDP:
 		ib_spec->tcp_udp.size = sizeof(struct ib_flow_spec_tcp_udp);

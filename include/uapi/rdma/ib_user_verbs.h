@@ -867,6 +867,24 @@ struct ib_uverbs_flow_spec_tcp_udp {
 	struct ib_uverbs_flow_tcp_udp_filter mask;
 };
 
+struct ib_uverbs_flow_ipv6_filter {
+	__u8 src_ip[16];
+	__u8 dst_ip[16];
+};
+
+struct ib_uverbs_flow_spec_ipv6 {
+	union {
+		struct ib_uverbs_flow_spec_hdr hdr;
+		struct {
+			__u32 type;
+			__u16 size;
+			__u16 reserved;
+		};
+	};
+	struct ib_uverbs_flow_ipv6_filter val;
+	struct ib_uverbs_flow_ipv6_filter mask;
+};
+
 struct ib_uverbs_flow_attr {
 	__u32 type;
 	__u16 size;
