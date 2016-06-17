@@ -642,7 +642,6 @@ static int eeh_reset_device(struct eeh_pe *pe, struct pci_bus *bus,
 		if (pe->type & EEH_PE_VF) {
 			eeh_pe_dev_traverse(pe, eeh_rmv_device, NULL);
 		} else {
-			eeh_pe_state_clear(pe, EEH_PE_PRI_BUS);
 			pci_lock_rescan_remove();
 			pci_hp_remove_devices(bus);
 			pci_unlock_rescan_remove();
@@ -692,10 +691,12 @@ static int eeh_reset_device(struct eeh_pe *pe, struct pci_bus *bus,
 		 */
 		edev = list_first_entry(&pe->edevs, struct eeh_dev, list);
 		eeh_pe_traverse(pe, eeh_pe_detach_dev, NULL);
-		if (pe->type & EEH_PE_VF)
+		if (pe->type & EEH_PE_VF) {
 			eeh_add_virt_device(edev, NULL);
-		else
+		} else {
+			eeh_pe_state_clear(pe, EEH_PE_PRI_BUS);
 			pci_hp_add_devices(bus);
+		}
 	} else if (frozen_bus && rmv_data->removed) {
 		pr_info("EEH: Sleep 5s ahead of partial hotplug\n");
 		ssleep(5);
