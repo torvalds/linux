@@ -34,9 +34,9 @@ static const struct sdio_device_id ks7010_sdio_ids[] = {
 };
 MODULE_DEVICE_TABLE(sdio, ks7010_sdio_ids);
 
-static int ks7910_sdio_probe(struct sdio_func *function,
+static int ks7010_sdio_probe(struct sdio_func *function,
 			     const struct sdio_device_id *device);
-static void ks7910_sdio_remove(struct sdio_func *function);
+static void ks7010_sdio_remove(struct sdio_func *function);
 static void ks7010_rw_function(struct work_struct *work);
 static int ks7010_sdio_read(struct ks_wlan_private *priv, unsigned int address,
 			    unsigned char *buffer, int length);
@@ -778,7 +778,7 @@ static int ks7010_sdio_data_compare(struct ks_wlan_private *priv, u32 address,
 	return rc;
 }
 
-static int ks79xx_upload_firmware(struct ks_wlan_private *priv,
+static int ks7010_upload_firmware(struct ks_wlan_private *priv,
 				  struct ks_sdio_card *card)
 {
 	unsigned int size, offset, n = 0;
@@ -952,10 +952,10 @@ static void ks7010_card_init(struct ks_wlan_private *priv)
 }
 
 static struct sdio_driver ks7010_sdio_driver = {
-	.name = "ks7910_sdio",
+	.name = "ks7010_sdio",
 	.id_table = ks7010_sdio_ids,
-	.probe = ks7910_sdio_probe,
-	.remove = ks7910_sdio_remove,
+	.probe = ks7010_sdio_probe,
+	.remove = ks7010_sdio_remove,
 };
 
 static void ks7010_init_defaults(struct ks_wlan_private *priv)
@@ -985,7 +985,7 @@ static void ks7010_init_defaults(struct ks_wlan_private *priv)
 	priv->reg.rate_set.size = 12;
 }
 
-static int ks7910_sdio_probe(struct sdio_func *func,
+static int ks7010_sdio_probe(struct sdio_func *func,
 			     const struct sdio_device_id *device)
 {
 	struct ks_wlan_private *priv;
@@ -994,7 +994,7 @@ static int ks7910_sdio_probe(struct sdio_func *func,
 	unsigned char rw_data;
 	int ret;
 
-	DPRINTK(5, "ks7910_sdio_probe()\n");
+	DPRINTK(5, "ks7010_sdio_probe()\n");
 
 	priv = NULL;
 	netdev = NULL;
@@ -1049,11 +1049,11 @@ static int ks7910_sdio_probe(struct sdio_func *func,
 	/* private memory allocate */
 	netdev = alloc_etherdev(sizeof(*priv));
 	if (netdev == NULL) {
-		printk(KERN_ERR "ks79xx : Unable to alloc new net device\n");
+		printk(KERN_ERR "ks7010 : Unable to alloc new net device\n");
 		goto error_release_irq;
 	}
 	if (dev_alloc_name(netdev, netdev->name) < 0) {
-		printk(KERN_ERR "ks79xx :  Couldn't get name!\n");
+		printk(KERN_ERR "ks7010 :  Couldn't get name!\n");
 		goto error_free_netdev;
 	}
 
@@ -1091,10 +1091,10 @@ static int ks7910_sdio_probe(struct sdio_func *func,
 	ks7010_init_defaults(priv);
 
 	/* Upload firmware */
-	ret = ks79xx_upload_firmware(priv, card);	/* firmware load */
+	ret = ks7010_upload_firmware(priv, card);	/* firmware load */
 	if (ret) {
 		printk(KERN_ERR
-		       "ks79xx: firmware load failed !! retern code = %d\n",
+		       "ks7010: firmware load failed !! retern code = %d\n",
 		       ret);
 		goto error_free_read_buf;
 	}
@@ -1151,13 +1151,13 @@ static int ks7910_sdio_probe(struct sdio_func *func,
 	return -ENODEV;
 }
 
-static void ks7910_sdio_remove(struct sdio_func *func)
+static void ks7010_sdio_remove(struct sdio_func *func)
 {
 	int ret;
 	struct ks_sdio_card *card;
 	struct ks_wlan_private *priv;
 	struct net_device *netdev;
-	DPRINTK(1, "ks7910_sdio_remove()\n");
+	DPRINTK(1, "ks7010_sdio_remove()\n");
 
 	card = sdio_get_drvdata(func);
 
