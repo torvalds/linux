@@ -67,6 +67,7 @@
 
 static DEFINE_MUTEX(i8k_mutex);
 static char bios_version[4];
+static char bios_machineid[16];
 static struct device *i8k_hwmon_dev;
 static u32 i8k_hwmon_flags;
 static uint i8k_fan_mult = I8K_FAN_MULT;
@@ -95,13 +96,13 @@ module_param(ignore_dmi, bool, 0);
 MODULE_PARM_DESC(ignore_dmi, "Continue probing hardware even if DMI data does not match");
 
 #if IS_ENABLED(CONFIG_I8K)
-static bool restricted;
+static bool restricted = true;
 module_param(restricted, bool, 0);
-MODULE_PARM_DESC(restricted, "Allow fan control if SYS_ADMIN capability set");
+MODULE_PARM_DESC(restricted, "Restrict fan control and serial number to CAP_SYS_ADMIN (default: 1)");
 
 static bool power_status;
 module_param(power_status, bool, 0600);
-MODULE_PARM_DESC(power_status, "Report power status in /proc/i8k");
+MODULE_PARM_DESC(power_status, "Report power status in /proc/i8k (default: 0)");
 #endif
 
 static uint fan_mult;
@@ -397,9 +398,11 @@ i8k_ioctl_unlocked(struct file *fp, unsigned int cmd, unsigned long arg)
 		break;
 
 	case I8K_MACHINE_ID:
-		memset(buff, 0, 16);
-		strlcpy(buff, i8k_get_dmi_data(DMI_PRODUCT_SERIAL),
-			sizeof(buff));
+		if (restricted && !capable(CAP_SYS_ADMIN))
+			return -EPERM;
+
+		memset(buff, 0, sizeof(buff));
+		strlcpy(buff, bios_machineid, sizeof(buff));
 		break;
 
 	case I8K_FN_STATUS:
@@ -516,7 +519,7 @@ static int i8k_proc_show(struct seq_file *seq, void *offset)
 	seq_printf(seq, "%s %s %s %d %d %d %d %d %d %d\n",
 		   I8K_PROC_FMT,
 		   bios_version,
-		   i8k_get_dmi_data(DMI_PRODUCT_SERIAL),
+		   (restricted && !capable(CAP_SYS_ADMIN)) ? "-1" : bios_machineid,
 		   cpu_temp,
 		   left_fan, right_fan, left_speed, right_speed,
 		   ac_power, fn_key);
@@ -985,6 +988,8 @@ static int __init i8k_probe(void)
 
 	strlcpy(bios_version, i8k_get_dmi_data(DMI_BIOS_VERSION),
 		sizeof(bios_version));
+	strlcpy(bios_machineid, i8k_get_dmi_data(DMI_PRODUCT_SERIAL),
+		sizeof(bios_machineid));
 
 	/*
 	 * Get SMM Dell signature
