@@ -76,7 +76,6 @@ struct omap_ssm_ctx {
  * @irq: IRQ number
  * @wake_irq: IRQ number for incoming wake line (-1 if none)
  * @wake_gpio: GPIO number for incoming wake line (-1 if none)
- * @pio_tasklet: Bottom half for PIO transfers and events
  * @flags: flags to keep track of states
  * @wk_refcount: Reference count for output wake line
  * @work: worker for starting TX
@@ -100,7 +99,6 @@ struct omap_ssi_port {
 	unsigned int		irq;
 	int			wake_irq;
 	struct gpio_desc	*wake_gpio;
-	struct tasklet_struct	pio_tasklet;
 	bool			wktest:1; /* FIXME: HACK to be removed */
 	unsigned long		flags;
 	unsigned int		wk_refcount;

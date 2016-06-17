@@ -877,7 +877,7 @@ static void ssi_pio_complete(struct hsi_port *port, struct list_head *queue)
 	u32 reg;
 	u32 val;
 
-	spin_lock(&omap_port->lock);
+	spin_lock_bh(&omap_port->lock);
 	msg = list_first_entry(queue, struct hsi_msg, link);
 	if ((!msg->sgt.nents) || (!msg->sgt.sgl->length)) {
 		msg->actual_len = 0;
@@ -909,7 +909,7 @@ static void ssi_pio_complete(struct hsi_port *port, struct list_head *queue)
 					(msg->ttype == HSI_MSG_WRITE))) {
 			writel(val, omap_ssi->sys +
 					SSI_MPU_STATUS_REG(port->num, 0));
-			spin_unlock(&omap_port->lock);
+			spin_unlock_bh(&omap_port->lock);
 
 			return;
 		}
@@ -925,12 +925,12 @@ static void ssi_pio_complete(struct hsi_port *port, struct list_head *queue)
 	writel_relaxed(reg, omap_ssi->sys + SSI_MPU_ENABLE_REG(port->num, 0));
 	writel_relaxed(val, omap_ssi->sys + SSI_MPU_STATUS_REG(port->num, 0));
 	list_del(&msg->link);
-	spin_unlock(&omap_port->lock);
+	spin_unlock_bh(&omap_port->lock);
 	msg->complete(msg);
 	ssi_transfer(omap_port, queue);
 }
 
-static void ssi_pio_tasklet(unsigned long ssi_port)
+static irqreturn_t ssi_pio_thread(int irq, void *ssi_port)
 {
 	struct hsi_port *port = (struct hsi_port *)ssi_port;
 	struct hsi_controller *ssi = to_hsi_controller(port->device.parent);
@@ -941,37 +941,29 @@ static void ssi_pio_tasklet(unsigned long ssi_port)
 	u32 status_reg;
 
 	pm_runtime_get_sync(omap_port->pdev);
-	status_reg = readl(sys + SSI_MPU_STATUS_REG(port->num, 0));
-	status_reg &= readl(sys + SSI_MPU_ENABLE_REG(port->num, 0));
 
-	for (ch = 0; ch < omap_port->channels; ch++) {
-		if (status_reg & SSI_DATAACCEPT(ch))
-			ssi_pio_complete(port, &omap_port->txqueue[ch]);
-		if (status_reg & SSI_DATAAVAILABLE(ch))
-			ssi_pio_complete(port, &omap_port->rxqueue[ch]);
-	}
-	if (status_reg & SSI_BREAKDETECTED)
-		ssi_break_complete(port);
-	if (status_reg & SSI_ERROROCCURED)
-		ssi_error(port);
+	do {
+		status_reg = readl(sys + SSI_MPU_STATUS_REG(port->num, 0));
+		status_reg &= readl(sys + SSI_MPU_ENABLE_REG(port->num, 0));
 
-	status_reg = readl(sys + SSI_MPU_STATUS_REG(port->num, 0));
-	status_reg &= readl(sys + SSI_MPU_ENABLE_REG(port->num, 0));
-	pm_runtime_put_sync(omap_port->pdev);
+		for (ch = 0; ch < omap_port->channels; ch++) {
+			if (status_reg & SSI_DATAACCEPT(ch))
+				ssi_pio_complete(port, &omap_port->txqueue[ch]);
+			if (status_reg & SSI_DATAAVAILABLE(ch))
+				ssi_pio_complete(port, &omap_port->rxqueue[ch]);
+		}
+		if (status_reg & SSI_BREAKDETECTED)
+			ssi_break_complete(port);
+		if (status_reg & SSI_ERROROCCURED)
+			ssi_error(port);
 
-	if (status_reg)
-		tasklet_hi_schedule(&omap_port->pio_tasklet);
-	else
-		enable_irq(omap_port->irq);
-}
+		status_reg = readl(sys + SSI_MPU_STATUS_REG(port->num, 0));
+		status_reg &= readl(sys + SSI_MPU_ENABLE_REG(port->num, 0));
 
-static irqreturn_t ssi_pio_isr(int irq, void *port)
-{
-	struct omap_ssi_port *omap_port = hsi_port_drvdata(port);
+		/* TODO: sleep if we retry? */
+	} while (status_reg);
 
-	tasklet_hi_schedule(&omap_port->pio_tasklet);
-	disable_irq_nosync(irq);
-
+	pm_runtime_put(omap_port->pdev);
 	return IRQ_HANDLED;
 }
 
@@ -1023,10 +1015,8 @@ static int ssi_port_irq(struct hsi_port *port, struct platform_device *pd)
 		return err;
 	}
 	omap_port->irq = err;
-	tasklet_init(&omap_port->pio_tasklet, ssi_pio_tasklet,
-							(unsigned long)port);
-	err = devm_request_irq(&port->device, omap_port->irq, ssi_pio_isr,
-						0, "mpu_irq0", port);
+	err = devm_request_threaded_irq(&port->device, omap_port->irq, NULL,
+				ssi_pio_thread, IRQF_ONESHOT, "SSI PORT", port);
 	if (err < 0)
 		dev_err(&port->device, "Request IRQ %d failed (%d)\n",
 							omap_port->irq, err);
@@ -1228,8 +1218,6 @@ static int ssi_port_remove(struct platform_device *pd)
 #endif
 
 	hsi_port_unregister_clients(port);
-
-	tasklet_kill(&omap_port->pio_tasklet);
 
 	port->async	= hsi_dummy_msg;
 	port->setup	= hsi_dummy_cl;
