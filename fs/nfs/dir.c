@@ -424,12 +424,17 @@ static int xdr_decode(nfs_readdir_descriptor_t *desc,
 static
 int nfs_same_file(struct dentry *dentry, struct nfs_entry *entry)
 {
+	struct inode *inode;
 	struct nfs_inode *nfsi;
 
 	if (d_really_is_negative(dentry))
 		return 0;
 
-	nfsi = NFS_I(d_inode(dentry));
+	inode = d_inode(dentry);
+	if (is_bad_inode(inode) || NFS_STALE(inode))
+		return 0;
+
+	nfsi = NFS_I(inode);
 	if (entry->fattr->fileid == nfsi->fileid)
 		return 1;
 	if (nfs_compare_fh(entry->fh, &nfsi->fh) == 0)
