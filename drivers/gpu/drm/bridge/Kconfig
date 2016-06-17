@@ -60,4 +60,6 @@ config DRM_SII902X
 
 source "drivers/gpu/drm/bridge/analogix/Kconfig"
 
+source "drivers/gpu/drm/bridge/adv7511/Kconfig"
+
 endmenu
