@@ -299,8 +299,10 @@ int acpi_get_psd_map(struct cpudata **all_cpu_data)
 			continue;
 
 		cpc_ptr = per_cpu(cpc_desc_ptr, i);
-		if (!cpc_ptr)
-			continue;
+		if (!cpc_ptr) {
+			retval = -EFAULT;
+			goto err_ret;
+		}
 
 		pdomain = &(cpc_ptr->domain_info);
 		cpumask_set_cpu(i, pr->shared_cpu_map);
@@ -322,8 +324,10 @@ int acpi_get_psd_map(struct cpudata **all_cpu_data)
 				continue;
 
 			match_cpc_ptr = per_cpu(cpc_desc_ptr, j);
-			if (!match_cpc_ptr)
-				continue;
+			if (!match_cpc_ptr) {
+				retval = -EFAULT;
+				goto err_ret;
+			}
 
 			match_pdomain = &(match_cpc_ptr->domain_info);
 			if (match_pdomain->domain != pdomain->domain)
@@ -353,8 +357,10 @@ int acpi_get_psd_map(struct cpudata **all_cpu_data)
 				continue;
 
 			match_cpc_ptr = per_cpu(cpc_desc_ptr, j);
-			if (!match_cpc_ptr)
-				continue;
+			if (!match_cpc_ptr) {
+				retval = -EFAULT;
+				goto err_ret;
+			}
 
 			match_pdomain = &(match_cpc_ptr->domain_info);
 			if (match_pdomain->domain != pdomain->domain)
