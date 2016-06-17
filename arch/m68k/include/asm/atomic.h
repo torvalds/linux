@@ -38,13 +38,6 @@ static inline void atomic_##op(int i, atomic_t *v)			\
 
 #ifdef CONFIG_RMW_INSNS
 
-/*
- * Am I reading these CAS loops right in that %2 is the old value and the first
- * iteration uses an uninitialized value?
- *
- * Would it not make sense to add: tmp = atomic_read(v); to avoid this?
- */
-
 #define ATOMIC_OP_RETURN(op, c_op, asm_op)				\
 static inline int atomic_##op##_return(int i, atomic_t *v)		\
 {									\
