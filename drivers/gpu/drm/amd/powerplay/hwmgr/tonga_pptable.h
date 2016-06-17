@@ -197,6 +197,22 @@ typedef struct _ATOM_Tonga_SCLK_Dependency_Table {
 	ATOM_Tonga_SCLK_Dependency_Record entries[1];				 /* Dynamically allocate entries. */
 } ATOM_Tonga_SCLK_Dependency_Table;
 
+typedef struct _ATOM_Polaris_SCLK_Dependency_Record {
+	UCHAR  ucVddInd;											/* Base voltage */
+	USHORT usVddcOffset;										/* Offset relative to base voltage */
+	ULONG ulSclk;
+	USHORT usEdcCurrent;
+	UCHAR  ucReliabilityTemperature;
+	UCHAR  ucCKSVOffsetandDisable;			/* Bits 0~6: Voltage offset for CKS, Bit 7: Disable/enable for the SCLK level. */
+	ULONG  ulSclkOffset;
+} ATOM_Polaris_SCLK_Dependency_Record;
+
+typedef struct _ATOM_Polaris_SCLK_Dependency_Table {
+	UCHAR ucRevId;
+	UCHAR ucNumEntries;							/* Number of entries. */
+	ATOM_Polaris_SCLK_Dependency_Record entries[1];				 /* Dynamically allocate entries. */
+} ATOM_Polaris_SCLK_Dependency_Table;
+
 typedef struct _ATOM_Tonga_PCIE_Record {
 	UCHAR ucPCIEGenSpeed;
 	UCHAR usPCIELaneWidth;
