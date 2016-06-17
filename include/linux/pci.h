@@ -1554,7 +1554,11 @@ static inline const char *pci_name(const struct pci_dev *pdev)
 /* Some archs don't want to expose struct resource to userland as-is
  * in sysfs and /proc
  */
-#ifndef HAVE_ARCH_PCI_RESOURCE_TO_USER
+#ifdef HAVE_ARCH_PCI_RESOURCE_TO_USER
+void pci_resource_to_user(const struct pci_dev *dev, int bar,
+			  const struct resource *rsrc,
+			  resource_size_t *start, resource_size_t *end);
+#else
 static inline void pci_resource_to_user(const struct pci_dev *dev, int bar,
 		const struct resource *rsrc, resource_size_t *start,
 		resource_size_t *end)
