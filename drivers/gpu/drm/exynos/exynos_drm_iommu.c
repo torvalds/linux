@@ -21,6 +21,23 @@
 #include "exynos_drm_drv.h"
 #include "exynos_drm_iommu.h"
 
+static inline int configure_dma_max_seg_size(struct device *dev)
+{
+	if (!dev->dma_parms)
+		dev->dma_parms = kzalloc(sizeof(*dev->dma_parms), GFP_KERNEL);
+	if (!dev->dma_parms)
+		return -ENOMEM;
+
+	dma_set_max_seg_size(dev, DMA_BIT_MASK(32));
+	return 0;
+}
+
+static inline void clear_dma_max_seg_size(struct device *dev)
+{
+	kfree(dev->dma_parms);
+	dev->dma_parms = NULL;
+}
+
 /*
  * drm_create_iommu_mapping - create a mapping structure
  *
@@ -80,13 +97,10 @@ int drm_iommu_attach_device(struct drm_device *drm_dev,
 	if (!priv->mapping)
 		return 0;
 
-	subdrv_dev->dma_parms = devm_kzalloc(subdrv_dev,
-					sizeof(*subdrv_dev->dma_parms),
-					GFP_KERNEL);
-	if (!subdrv_dev->dma_parms)
-		return -ENOMEM;
 
-	dma_set_max_seg_size(subdrv_dev, 0xffffffffu);
+	ret = configure_dma_max_seg_size(subdrv_dev);
+	if (ret)
+		return ret;
 
 	if (subdrv_dev->archdata.mapping)
 		arm_iommu_detach_device(subdrv_dev);
@@ -94,6 +108,7 @@ int drm_iommu_attach_device(struct drm_device *drm_dev,
 	ret = arm_iommu_attach_device(subdrv_dev, priv->mapping);
 	if (ret < 0) {
 		DRM_DEBUG_KMS("failed iommu attach.\n");
+		clear_dma_max_seg_size(subdrv_dev);
 		return ret;
 	}
 
@@ -119,4 +134,5 @@ void drm_iommu_detach_device(struct drm_device *drm_dev,
 		return;
 
 	arm_iommu_detach_device(subdrv_dev);
+	clear_dma_max_seg_size(subdrv_dev);
 }
