@@ -807,15 +807,10 @@ static int ks79xx_upload_firmware(struct ks_wlan_private *priv,
 		goto error_out0;
 	}
 
-	if (request_firmware
-	    (&fw_entry, priv->reg.rom_file,
-	     &priv->ks_wlan_hw.sdio_card->func->dev) != 0) {
-		DPRINTK(1, "error request_firmware() file=%s\n",
-			priv->reg.rom_file);
-		return 1;
-	}
-	DPRINTK(4, "success request_firmware() file=%s size=%zu\n",
-		priv->reg.rom_file, fw_entry->size);
+	retval = request_firmware(&fw_entry, ROM_FILE, &priv->ks_wlan_hw.sdio_card->func->dev);
+	if (retval)
+		return retval;
+
 	length = fw_entry->size;
 
 	/* Load Program */
@@ -966,6 +961,33 @@ static struct sdio_driver ks7010_sdio_driver = {
 extern int ks_wlan_net_start(struct net_device *dev);
 extern int ks_wlan_net_stop(struct net_device *dev);
 
+static void ks7010_init_defaults(struct ks_wlan_private *priv)
+{
+	priv->reg.tx_rate = TX_RATE_AUTO;
+	priv->reg.preamble = LONG_PREAMBLE;
+	priv->reg.powermgt = POWMGT_ACTIVE_MODE;
+	priv->reg.scan_type = ACTIVE_SCAN;
+	priv->reg.beacon_lost_count = 20;
+	priv->reg.rts = 2347UL;
+	priv->reg.fragment = 2346UL;
+	priv->reg.phy_type = D_11BG_COMPATIBLE_MODE;
+	priv->reg.cts_mode = CTS_MODE_FALSE;
+	priv->reg.rate_set.body[11] = TX_RATE_54M;
+	priv->reg.rate_set.body[10] = TX_RATE_48M;
+	priv->reg.rate_set.body[9] = TX_RATE_36M;
+	priv->reg.rate_set.body[8] = TX_RATE_18M;
+	priv->reg.rate_set.body[7] = TX_RATE_9M;
+	priv->reg.rate_set.body[6] = TX_RATE_24M | BASIC_RATE;
+	priv->reg.rate_set.body[5] = TX_RATE_12M | BASIC_RATE;
+	priv->reg.rate_set.body[4] = TX_RATE_6M | BASIC_RATE;
+	priv->reg.rate_set.body[3] = TX_RATE_11M | BASIC_RATE;
+	priv->reg.rate_set.body[2] = TX_RATE_5M | BASIC_RATE;
+	priv->reg.rate_set.body[1] = TX_RATE_2M | BASIC_RATE;
+	priv->reg.rate_set.body[0] = TX_RATE_1M | BASIC_RATE;
+	priv->reg.tx_rate = TX_RATE_FULL_AUTO;
+	priv->reg.rate_set.size = 12;
+}
+
 static int ks7910_sdio_probe(struct sdio_func *func,
 			     const struct sdio_device_id *device)
 {
@@ -1069,14 +1091,7 @@ static int ks7910_sdio_probe(struct sdio_func *func,
 	hostif_init(priv);
 	ks_wlan_net_start(netdev);
 
-	/* Read config file */
-	ret = ks_wlan_read_config_file(priv);
-	if (ret) {
-		printk(KERN_ERR
-		       "ks79xx: read configuration file failed !! retern code = %d\n",
-		       ret);
-		goto error_free_read_buf;
-	}
+	ks7010_init_defaults(priv);
 
 	/* Upload firmware */
 	ret = ks79xx_upload_firmware(priv, card);	/* firmware load */

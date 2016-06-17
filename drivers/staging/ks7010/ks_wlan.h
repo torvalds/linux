@@ -73,7 +73,6 @@ struct ks_wlan_parameter {
 	uint16_t phy_type;	/* 11b/11g/11bg mode type */
 	uint16_t cts_mode;	/* for 11g/11bg mode cts mode */
 	uint16_t phy_info_timer;	/* phy information timer */
-	char rom_file[256];
 };
 
 enum {

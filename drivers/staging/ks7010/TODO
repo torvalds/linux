@@ -26,7 +26,6 @@ Now the TODOs:
 - fix codechecker warnings (checkpatch, sparse, smatch). But PLEASE make sure
   that you are not only silencing the warning but really fixing code. You
   should understand the change you submit.
-- drop using a config file and use an upstream technique for configuration
 - fix the 'card removal' event when card is inserted when booting
 - check what other upstream wireless mechanisms can be used instead of the
   custom ones here
