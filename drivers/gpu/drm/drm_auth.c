@@ -49,7 +49,7 @@ int drm_getmagic(struct drm_device *dev, void *data, struct drm_file *file_priv)
 	struct drm_auth *auth = data;
 	int ret = 0;
 
-	mutex_lock(&dev->struct_mutex);
+	mutex_lock(&dev->master_mutex);
 	if (!file_priv->magic) {
 		ret = idr_alloc(&file_priv->master->magic_map, file_priv,
 				1, 0, GFP_KERNEL);
@@ -57,7 +57,7 @@ int drm_getmagic(struct drm_device *dev, void *data, struct drm_file *file_priv)
 			file_priv->magic = ret;
 	}
 	auth->magic = file_priv->magic;
-	mutex_unlock(&dev->struct_mutex);
+	mutex_unlock(&dev->master_mutex);
 
 	DRM_DEBUG("%u\n", auth->magic);
 
@@ -82,13 +82,13 @@ int drm_authmagic(struct drm_device *dev, void *data,
 
 	DRM_DEBUG("%u\n", auth->magic);
 
-	mutex_lock(&dev->struct_mutex);
+	mutex_lock(&dev->master_mutex);
 	file = idr_find(&file_priv->master->magic_map, auth->magic);
 	if (file) {
 		file->authenticated = 1;
 		idr_replace(&file_priv->master->magic_map, NULL, auth->magic);
 	}
-	mutex_unlock(&dev->struct_mutex);
+	mutex_unlock(&dev->master_mutex);
 
 	return file ? 0 : -EINVAL;
 }
@@ -117,7 +117,7 @@ static struct drm_master *drm_master_create(struct drm_device *dev)
  * @dev: The associated device.
  * @fpriv: File private identifying the client.
  *
- * This function must be called with dev::struct_mutex held.
+ * This function must be called with dev::master_mutex held.
  * Returns negative error code on failure. Zero on success.
  */
 static int drm_new_set_master(struct drm_device *dev, struct drm_file *fpriv)
@@ -248,12 +248,10 @@ void drm_master_release(struct drm_file *file_priv)
 	struct drm_device *dev = file_priv->minor->dev;
 	struct drm_master *master = file_priv->master;
 
-	mutex_lock(&dev->struct_mutex);
+	mutex_lock(&dev->master_mutex);
 	if (file_priv->magic)
 		idr_remove(&file_priv->master->magic_map, file_priv->magic);
-	mutex_unlock(&dev->struct_mutex);
 
-	mutex_lock(&dev->master_mutex);
 	if (!file_priv->is_master)
 		goto out;
 
