@@ -13,7 +13,7 @@
 #include <asm/apic.h>
 #include <asm/param.h>
 
-#define MAX_NUM_FREQS	8
+#define MAX_NUM_FREQS	9
 
 /*
  * If MSR_PERF_STAT[31] is set, the maximum resolved bus ratio can be
@@ -40,6 +40,9 @@ static struct freq_desc freq_desc_tables[] = {
 	{ 6, 0x37, 1, { 83300, 100000, 133300, 116700, 80000, 0, 0, 0 } },
 	/* ANN - Intel Atom processor Z3500 series */
 	{ 6, 0x5a, 1, { 83300, 100000, 133300, 100000, 0, 0, 0, 0 } },
+	/* AMT - Intel Atom processor X7-Z8000 and X5-Z8000 series */
+	{ 6, 0x4c, 1, { 83300, 100000, 133300, 116700,
+			80000, 93300, 90000, 88900, 87500 } },
 };
 
 static int match_cpu(u8 family, u8 model)
