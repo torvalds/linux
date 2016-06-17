@@ -37,6 +37,30 @@
 		};
 	};
 
+	blsp2_i2c0_default: blsp2_i2c0 {
+		pinmux {
+			function = "blsp_i2c7";
+			pins = "gpio55", "gpio56";
+		};
+		pinconf {
+			pins = "gpio55", "gpio56";
+			drive-strength = <16>;
+			bias-disable;
+		};
+	};
+
+	blsp2_i2c0_sleep: blsp2_i2c0_sleep {
+		pinmux {
+			function = "gpio";
+			pins = "gpio55", "gpio56";
+		};
+		pinconf {
+			pins = "gpio55", "gpio56";
+			drive-strength = <2>;
+			bias-disable;
+		};
+	};
+
 	blsp2_uart1_2pins_default: blsp2_uart1_2pins {
 		pinmux {
 			function = "blsp_uart8";
