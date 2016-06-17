@@ -117,7 +117,7 @@ static bool max9860_precious(struct device *dev, unsigned int reg)
 	return false;
 }
 
-const struct regmap_config max9860_regmap = {
+static const struct regmap_config max9860_regmap = {
 	.reg_bits = 8,
 	.val_bits = 8,
 
@@ -593,7 +593,7 @@ static int max9860_resume(struct device *dev)
 }
 #endif
 
-const struct dev_pm_ops max9860_pm_ops = {
+static const struct dev_pm_ops max9860_pm_ops = {
 	SET_RUNTIME_PM_OPS(max9860_suspend, max9860_resume, NULL)
 };
 
