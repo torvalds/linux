@@ -27,11 +27,12 @@
 
 static int reg_net = 0;
 
-static const struct sdio_device_id if_sdio_ids[] = {
+static const struct sdio_device_id ks7010_sdio_ids[] = {
 	{SDIO_DEVICE(SDIO_VENDOR_ID_KS_CODE_A, SDIO_DEVICE_ID_KS_7010)},
 	{SDIO_DEVICE(SDIO_VENDOR_ID_KS_CODE_B, SDIO_DEVICE_ID_KS_7010)},
 	{ /* all zero */ }
 };
+MODULE_DEVICE_TABLE(sdio, ks7010_sdio_ids);
 
 static int ks7910_sdio_probe(struct sdio_func *function,
 			     const struct sdio_device_id *device);
@@ -952,7 +953,7 @@ static void ks7010_card_init(struct ks_wlan_private *priv)
 
 static struct sdio_driver ks7010_sdio_driver = {
 	.name = "ks7910_sdio",
-	.id_table = if_sdio_ids,
+	.id_table = ks7010_sdio_ids,
 	.probe = ks7910_sdio_probe,
 	.remove = ks7910_sdio_remove,
 };
