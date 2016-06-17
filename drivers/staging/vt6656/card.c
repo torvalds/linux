@@ -46,11 +46,11 @@
 #include "key.h"
 #include "usbpipe.h"
 
-/* const u16 cwRXBCNTSFOff[MAX_RATE] =
+/* const u16 cw_rxbcntsf_off[MAX_RATE] =
  *   {17, 34, 96, 192, 34, 23, 17, 11, 8, 5, 4, 3};
  */
 
-static const u16 cwRXBCNTSFOff[MAX_RATE] = {
+static const u16 cw_rxbcntsf_off[MAX_RATE] = {
 	192, 96, 34, 17, 34, 23, 17, 11, 8, 5, 4, 3
 };
 
@@ -504,7 +504,7 @@ u64 vnt_get_tsf_offset(u8 rx_rate, u64 tsf1, u64 tsf2)
 	u64 tsf_offset = 0;
 	u16 rx_bcn_offset;
 
-	rx_bcn_offset = cwRXBCNTSFOff[rx_rate % MAX_RATE];
+	rx_bcn_offset = cw_rxbcntsf_off[rx_rate % MAX_RATE];
 
 	tsf2 += (u64)rx_bcn_offset;
 
