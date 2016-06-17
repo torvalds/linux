@@ -3912,8 +3912,23 @@ skl_compute_ddb(struct drm_atomic_state *state)
 	 * pretend that all pipes switched active status so that we'll
 	 * ensure a full DDB recompute.
 	 */
-	if (dev_priv->wm.distrust_bios_wm)
+	if (dev_priv->wm.distrust_bios_wm) {
+		ret = drm_modeset_lock(&dev->mode_config.connection_mutex,
+				       state->acquire_ctx);
+		if (ret)
+			return ret;
+
 		intel_state->active_pipe_changes = ~0;
+
+		/*
+		 * We usually only initialize intel_state->active_crtcs if we
+		 * we're doing a modeset; make sure this field is always
+		 * initialized during the sanitization process that happens
+		 * on the first commit too.
+		 */
+		if (!intel_state->modeset)
+			intel_state->active_crtcs = dev_priv->active_crtcs;
+	}
 
 	/*
 	 * If the modeset changes which CRTC's are active, we need to
