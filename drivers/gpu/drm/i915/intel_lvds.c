@@ -1082,6 +1082,8 @@ void intel_lvds_init(struct drm_device *dev)
 		fixed_mode = drm_mode_duplicate(dev, dev_priv->vbt.lfp_lvds_vbt_mode);
 		if (fixed_mode) {
 			fixed_mode->type |= DRM_MODE_TYPE_PREFERRED;
+			connector->display_info.width_mm = fixed_mode->width_mm;
+			connector->display_info.height_mm = fixed_mode->height_mm;
 			goto out;
 		}
 	}

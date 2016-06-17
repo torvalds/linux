@@ -528,11 +528,11 @@ drm_crtc_helper_disable(struct drm_crtc *crtc)
 int drm_crtc_helper_set_config(struct drm_mode_set *set)
 {
 	struct drm_device *dev;
-	struct drm_crtc *new_crtc;
-	struct drm_encoder *save_encoders, *new_encoder, *encoder;
+	struct drm_crtc **save_encoder_crtcs, *new_crtc;
+	struct drm_encoder **save_connector_encoders, *new_encoder, *encoder;
 	bool mode_changed = false; /* if true do a full mode set */
 	bool fb_changed = false; /* if true and !mode_changed just do a flip */
-	struct drm_connector *save_connectors, *connector;
+	struct drm_connector *connector;
 	int count = 0, ro, fail = 0;
 	const struct drm_crtc_helper_funcs *crtc_funcs;
 	struct drm_mode_set save_set;
@@ -574,15 +574,15 @@ int drm_crtc_helper_set_config(struct drm_mode_set *set)
 	 * Allocate space for the backup of all (non-pointer) encoder and
 	 * connector data.
 	 */
-	save_encoders = kzalloc(dev->mode_config.num_encoder *
-				sizeof(struct drm_encoder), GFP_KERNEL);
-	if (!save_encoders)
+	save_encoder_crtcs = kzalloc(dev->mode_config.num_encoder *
+				sizeof(struct drm_crtc *), GFP_KERNEL);
+	if (!save_encoder_crtcs)
 		return -ENOMEM;
 
-	save_connectors = kzalloc(dev->mode_config.num_connector *
-				sizeof(struct drm_connector), GFP_KERNEL);
-	if (!save_connectors) {
-		kfree(save_encoders);
+	save_connector_encoders = kzalloc(dev->mode_config.num_connector *
+				sizeof(struct drm_encoder *), GFP_KERNEL);
+	if (!save_connector_encoders) {
+		kfree(save_encoder_crtcs);
 		return -ENOMEM;
 	}
 
@@ -593,12 +593,12 @@ int drm_crtc_helper_set_config(struct drm_mode_set *set)
 	 */
 	count = 0;
 	drm_for_each_encoder(encoder, dev) {
-		save_encoders[count++] = *encoder;
+		save_encoder_crtcs[count++] = encoder->crtc;
 	}
 
 	count = 0;
 	drm_for_each_connector(connector, dev) {
-		save_connectors[count++] = *connector;
+		save_connector_encoders[count++] = connector->encoder;
 	}
 
 	save_set.crtc = set->crtc;
@@ -631,8 +631,12 @@ int drm_crtc_helper_set_config(struct drm_mode_set *set)
 		mode_changed = true;
 	}
 
-	/* take a reference on all connectors in set */
+	/* take a reference on all unbound connectors in set, reuse the
+	 * already taken reference for bound connectors
+	 */
 	for (ro = 0; ro < set->num_connectors; ro++) {
+		if (set->connectors[ro]->encoder)
+			continue;
 		drm_connector_reference(set->connectors[ro]);
 	}
 
@@ -754,30 +758,28 @@ int drm_crtc_helper_set_config(struct drm_mode_set *set)
 		}
 	}
 
-	/* after fail drop reference on all connectors in save set */
-	count = 0;
-	drm_for_each_connector(connector, dev) {
-		drm_connector_unreference(&save_connectors[count++]);
-	}
-
-	kfree(save_connectors);
-	kfree(save_encoders);
+	kfree(save_connector_encoders);
+	kfree(save_encoder_crtcs);
 	return 0;
 
 fail:
 	/* Restore all previous data. */
 	count = 0;
 	drm_for_each_encoder(encoder, dev) {
-		*encoder = save_encoders[count++];
+		encoder->crtc = save_encoder_crtcs[count++];
 	}
 
 	count = 0;
 	drm_for_each_connector(connector, dev) {
-		*connector = save_connectors[count++];
+		connector->encoder = save_connector_encoders[count++];
 	}
 
-	/* after fail drop reference on all connectors in set */
+	/* after fail drop reference on all unbound connectors in set, let
+	 * bound connectors keep their reference
+	 */
 	for (ro = 0; ro < set->num_connectors; ro++) {
+		if (set->connectors[ro]->encoder)
+			continue;
 		drm_connector_unreference(set->connectors[ro]);
 	}
 
@@ -787,8 +789,8 @@ fail:
 				      save_set.y, save_set.fb))
 		DRM_ERROR("failed to restore config after modeset failure\n");
 
-	kfree(save_connectors);
-	kfree(save_encoders);
+	kfree(save_connector_encoders);
+	kfree(save_encoder_crtcs);
 	return ret;
 }
 EXPORT_SYMBOL(drm_crtc_helper_set_config);
