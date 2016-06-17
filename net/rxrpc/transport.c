@@ -46,9 +46,7 @@ static struct rxrpc_transport *rxrpc_alloc_transport(struct rxrpc_local *local,
 		trans->local = local;
 		trans->peer = peer;
 		INIT_LIST_HEAD(&trans->link);
-		trans->bundles = RB_ROOT;
 		trans->server_conns = RB_ROOT;
-		spin_lock_init(&trans->client_lock);
 		rwlock_init(&trans->conn_lock);
 		atomic_set(&trans->usage, 1);
 		trans->debug_id = atomic_inc_return(&rxrpc_debug_id);

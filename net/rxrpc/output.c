@@ -140,7 +140,6 @@ rxrpc_new_client_call_for_sendmsg(struct rxrpc_sock *rx, struct msghdr *msg,
 				  unsigned long user_call_ID, bool exclusive)
 {
 	struct rxrpc_conn_parameters cp;
-	struct rxrpc_conn_bundle *bundle;
 	struct rxrpc_transport *trans;
 	struct rxrpc_call *call;
 	struct key *key;
@@ -171,16 +170,8 @@ rxrpc_new_client_call_for_sendmsg(struct rxrpc_sock *rx, struct msghdr *msg,
 	}
 	cp.peer = trans->peer;
 
-	bundle = rxrpc_get_bundle(rx, trans, cp.key, srx->srx_service,
-				  GFP_KERNEL);
-	if (IS_ERR(bundle)) {
-		ret = PTR_ERR(bundle);
-		goto out_trans;
-	}
-
-	call = rxrpc_new_client_call(rx, &cp, trans, bundle, user_call_ID,
+	call = rxrpc_new_client_call(rx, &cp, trans, srx, user_call_ID,
 				     GFP_KERNEL);
-	rxrpc_put_bundle(trans, bundle);
 	rxrpc_put_transport(trans);
 	if (IS_ERR(call)) {
 		ret = PTR_ERR(call);

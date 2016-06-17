@@ -33,9 +33,7 @@ static DEFINE_SPINLOCK(rxrpc_conn_id_lock);
  * client conns away from the current allocation point to try and keep the IDs
  * concentrated.  We will also need to retire connections from an old epoch.
  */
-int rxrpc_get_client_connection_id(struct rxrpc_connection *conn,
-				   struct rxrpc_transport *trans,
-				   gfp_t gfp)
+int rxrpc_get_client_connection_id(struct rxrpc_connection *conn, gfp_t gfp)
 {
 	u32 epoch;
 	int id;
@@ -43,7 +41,6 @@ int rxrpc_get_client_connection_id(struct rxrpc_connection *conn,
 	_enter("");
 
 	idr_preload(gfp);
-	write_lock_bh(&trans->conn_lock);
 	spin_lock(&rxrpc_conn_id_lock);
 
 	epoch = rxrpc_epoch;
@@ -68,7 +65,6 @@ int rxrpc_get_client_connection_id(struct rxrpc_connection *conn,
 	rxrpc_client_conn_ids.cur = id + 1;
 
 	spin_unlock(&rxrpc_conn_id_lock);
-	write_unlock_bh(&trans->conn_lock);
 	idr_preload_end();
 
 	conn->proto.epoch = epoch;
@@ -79,7 +75,6 @@ int rxrpc_get_client_connection_id(struct rxrpc_connection *conn,
 
 error:
 	spin_unlock(&rxrpc_conn_id_lock);
-	write_unlock_bh(&trans->conn_lock);
 	idr_preload_end();
 	_leave(" = %d", id);
 	return id;

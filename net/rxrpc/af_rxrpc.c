@@ -276,7 +276,6 @@ struct rxrpc_call *rxrpc_kernel_begin_call(struct socket *sock,
 					   gfp_t gfp)
 {
 	struct rxrpc_conn_parameters cp;
-	struct rxrpc_conn_bundle *bundle;
 	struct rxrpc_transport *trans;
 	struct rxrpc_call *call;
 	struct rxrpc_sock *rx = rxrpc_sk(sock->sk);
@@ -311,15 +310,7 @@ struct rxrpc_call *rxrpc_kernel_begin_call(struct socket *sock,
 	}
 	cp.peer = trans->peer;
 
-	bundle = rxrpc_get_bundle(rx, trans, key, srx->srx_service, gfp);
-	if (IS_ERR(bundle)) {
-		call = ERR_CAST(bundle);
-		goto out;
-	}
-
-	call = rxrpc_new_client_call(rx, &cp, trans, bundle, user_call_ID, gfp);
-	rxrpc_put_bundle(trans, bundle);
-out:
+	call = rxrpc_new_client_call(rx, &cp, trans, srx, user_call_ID, gfp);
 	rxrpc_put_transport(trans);
 out_notrans:
 	release_sock(&rx->sk);

@@ -186,7 +186,8 @@ struct rxrpc_local {
 	struct sk_buff_head	accept_queue;	/* incoming calls awaiting acceptance */
 	struct sk_buff_head	reject_queue;	/* packets awaiting rejection */
 	struct sk_buff_head	event_queue;	/* endpoint event packets awaiting processing */
-	struct mutex		conn_lock;	/* Client connection creation lock */
+	struct rb_root		client_conns;	/* Client connections by socket params */
+	spinlock_t		client_conns_lock; /* Lock for client_conns */
 	spinlock_t		lock;		/* access lock */
 	rwlock_t		services_lock;	/* lock for services list */
 	int			debug_id;	/* debug ID for printks */
@@ -232,32 +233,12 @@ struct rxrpc_peer {
 struct rxrpc_transport {
 	struct rxrpc_local	*local;		/* local transport endpoint */
 	struct rxrpc_peer	*peer;		/* remote transport endpoint */
-	struct rb_root		bundles;	/* client connection bundles on this transport */
 	struct rb_root		server_conns;	/* server connections on this transport */
 	struct list_head	link;		/* link in master session list */
 	unsigned long		put_time;	/* time at which to reap */
-	spinlock_t		client_lock;	/* client connection allocation lock */
 	rwlock_t		conn_lock;	/* lock for active/dead connections */
 	atomic_t		usage;
 	int			debug_id;	/* debug ID for printks */
-};
-
-/*
- * RxRPC client connection bundle
- * - matched by { transport, service_id, key }
- */
-struct rxrpc_conn_bundle {
-	struct rb_node		node;		/* node in transport's lookup tree */
-	struct list_head	unused_conns;	/* unused connections in this bundle */
-	struct list_head	avail_conns;	/* available connections in this bundle */
-	struct list_head	busy_conns;	/* busy connections in this bundle */
-	struct key		*key;		/* security for this bundle */
-	wait_queue_head_t	chanwait;	/* wait for channel to become available */
-	atomic_t		usage;
-	int			debug_id;	/* debug ID for printks */
-	unsigned short		num_conns;	/* number of connections in this bundle */
-	u16			service_id;	/* Service ID for this bundle */
-	u8			security_ix;	/* security type */
 };
 
 /*
@@ -295,17 +276,21 @@ struct rxrpc_conn_parameters {
  */
 struct rxrpc_connection {
 	struct rxrpc_transport	*trans;		/* transport session */
-	struct rxrpc_conn_bundle *bundle;	/* connection bundle (client) */
 	struct rxrpc_conn_proto	proto;
 	struct rxrpc_conn_parameters params;
 
+	spinlock_t		channel_lock;
+	struct rxrpc_call	*channels[RXRPC_MAXCALLS]; /* active calls */
+	wait_queue_head_t	channel_wq;	/* queue to wait for channel to become available */
+
 	struct work_struct	processor;	/* connection event processor */
-	struct rb_node		node;		/* node in transport's lookup tree */
+	union {
+		struct rb_node	client_node;	/* Node in local->client_conns */
+		struct rb_node	service_node;	/* Node in trans->server_conns */
+	};
 	struct list_head	link;		/* link in master connection list */
-	struct list_head	bundle_link;	/* link in bundle */
 	struct rb_root		calls;		/* calls on this connection */
 	struct sk_buff_head	rx_queue;	/* received conn-level packets */
-	struct rxrpc_call	*channels[RXRPC_MAXCALLS]; /* channels (active calls) */
 	const struct rxrpc_security *security;	/* applied security module */
 	struct key		*server_key;	/* security for this service */
 	struct crypto_skcipher	*cipher;	/* encryption handle */
@@ -314,7 +299,7 @@ struct rxrpc_connection {
 #define RXRPC_CONN_HAS_IDR	0		/* - Has a client conn ID assigned */
 	unsigned long		events;
 #define RXRPC_CONN_CHALLENGE	0		/* send challenge packet */
-	unsigned long		put_time;	/* time at which to reap */
+	unsigned long		put_time;	/* Time at which last put */
 	rwlock_t		lock;		/* access lock */
 	spinlock_t		state_lock;	/* state-change lock */
 	atomic_t		usage;
@@ -335,7 +320,7 @@ struct rxrpc_connection {
 	unsigned int		call_counter;	/* call ID counter */
 	atomic_t		serial;		/* packet serial number counter */
 	atomic_t		hi_serial;	/* highest serial number received */
-	u8			avail_calls;	/* number of calls available */
+	atomic_t		avail_chans;	/* number of channels available */
 	u8			size_align;	/* data size alignment (for security) */
 	u8			header_size;	/* rxrpc + security header size */
 	u8			security_size;	/* security header size */
@@ -386,6 +371,8 @@ enum rxrpc_call_event {
  * The states that a call can be in.
  */
 enum rxrpc_call_state {
+	RXRPC_CALL_UNINITIALISED,
+	RXRPC_CALL_CLIENT_AWAIT_CONN,	/* - client waiting for connection to become available */
 	RXRPC_CALL_CLIENT_SEND_REQUEST,	/* - client sending request phase */
 	RXRPC_CALL_CLIENT_AWAIT_REPLY,	/* - client awaiting reply */
 	RXRPC_CALL_CLIENT_RECV_REPLY,	/* - client receiving reply phase */
@@ -540,7 +527,7 @@ struct rxrpc_call *rxrpc_find_call_by_user_ID(struct rxrpc_sock *, unsigned long
 struct rxrpc_call *rxrpc_new_client_call(struct rxrpc_sock *,
 					 struct rxrpc_conn_parameters *,
 					 struct rxrpc_transport *,
-					 struct rxrpc_conn_bundle *,
+					 struct sockaddr_rxrpc *,
 					 unsigned long, gfp_t);
 struct rxrpc_call *rxrpc_incoming_call(struct rxrpc_sock *,
 				       struct rxrpc_connection *,
@@ -555,8 +542,7 @@ void __exit rxrpc_destroy_all_calls(void);
  */
 extern struct idr rxrpc_client_conn_ids;
 
-int rxrpc_get_client_connection_id(struct rxrpc_connection *,
-				   struct rxrpc_transport *, gfp_t);
+int rxrpc_get_client_connection_id(struct rxrpc_connection *, gfp_t);
 void rxrpc_put_client_connection_id(struct rxrpc_connection *);
 
 /*
@@ -573,13 +559,10 @@ extern unsigned int rxrpc_connection_expiry;
 extern struct list_head rxrpc_connections;
 extern rwlock_t rxrpc_connection_lock;
 
-struct rxrpc_conn_bundle *rxrpc_get_bundle(struct rxrpc_sock *,
-					   struct rxrpc_transport *,
-					   struct key *, u16, gfp_t);
-void rxrpc_put_bundle(struct rxrpc_transport *, struct rxrpc_conn_bundle *);
-int rxrpc_connect_call(struct rxrpc_sock *, struct rxrpc_conn_parameters *,
-		       struct rxrpc_transport *, struct rxrpc_conn_bundle *,
-		       struct rxrpc_call *, gfp_t);
+int rxrpc_connect_call(struct rxrpc_call *, struct rxrpc_conn_parameters *,
+		       struct rxrpc_transport *,
+		       struct sockaddr_rxrpc *, gfp_t);
+void rxrpc_disconnect_call(struct rxrpc_call *);
 void rxrpc_put_connection(struct rxrpc_connection *);
 void __exit rxrpc_destroy_all_connections(void);
 struct rxrpc_connection *rxrpc_find_connection(struct rxrpc_transport *,
