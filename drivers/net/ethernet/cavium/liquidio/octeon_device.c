@@ -19,7 +19,6 @@
 * This file may also be available under a different license from Cavium.
 * Contact Cavium, Inc. for more information
 **********************************************************************/
-#include <linux/version.h>
 #include <linux/types.h>
 #include <linux/list.h>
 #include <linux/interrupt.h>
