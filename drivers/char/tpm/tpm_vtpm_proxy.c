@@ -541,7 +541,7 @@ static long vtpmx_fops_ioctl(struct file *f, unsigned int ioctl,
 				   unsigned long arg)
 {
 	void __user *argp = (void __user *)arg;
-	struct vtpm_proxy_new_dev *vtpm_new_dev_p;
+	struct vtpm_proxy_new_dev __user *vtpm_new_dev_p;
 	struct vtpm_proxy_new_dev vtpm_new_dev;
 	struct file *file;
 
