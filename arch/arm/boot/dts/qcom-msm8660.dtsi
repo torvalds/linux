@@ -211,11 +211,11 @@
 					row-hold = <91500>;
 				};
 
-				rtc@11d {
+				rtc@1e8 {
 					compatible = "qcom,pm8058-rtc";
+					reg = <0x1e8>;
 					interrupt-parent = <&pmicintc>;
 					interrupts = <39 1>;
-					reg = <0x11d>;
 					allow-set-time;
 				};
 
