@@ -1033,7 +1033,7 @@ static int ks7010_sdio_probe(struct sdio_func *func,
 		printk(KERN_ERR "ks7010 : Unable to alloc new net device\n");
 		goto error_release_irq;
 	}
-	if (dev_alloc_name(netdev, netdev->name) < 0) {
+	if (dev_alloc_name(netdev, "wlan%d") < 0) {
 		printk(KERN_ERR "ks7010 :  Couldn't get name!\n");
 		goto error_free_netdev;
 	}
