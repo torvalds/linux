@@ -1810,6 +1810,13 @@ static struct intel_rps_client *to_rps_client(struct drm_file *file)
 	return &fpriv->rps;
 }
 
+static enum fb_op_origin
+write_origin(struct drm_i915_gem_object *obj, unsigned domain)
+{
+	return domain == I915_GEM_DOMAIN_GTT && !obj->has_wc_mmap ?
+	       ORIGIN_GTT : ORIGIN_CPU;
+}
+
 /**
  * Called when user space prepares to use an object with the CPU, either
  * through the mmap ioctl's mapping or a GTT mapping.
@@ -1866,9 +1873,7 @@ i915_gem_set_domain_ioctl(struct drm_device *dev, void *data,
 		ret = i915_gem_object_set_to_cpu_domain(obj, write_domain != 0);
 
 	if (write_domain != 0)
-		intel_fb_obj_invalidate(obj,
-					write_domain == I915_GEM_DOMAIN_GTT ?
-					ORIGIN_GTT : ORIGIN_CPU);
+		intel_fb_obj_invalidate(obj, write_origin(obj, write_domain));
 
 unref:
 	drm_gem_object_unreference(&obj->base);
@@ -1975,6 +1980,9 @@ i915_gem_mmap_ioctl(struct drm_device *dev, void *data,
 		else
 			addr = -ENOMEM;
 		up_write(&mm->mmap_sem);
+
+		/* This may race, but that's ok, it only gets set */
+		WRITE_ONCE(to_intel_bo(obj)->has_wc_mmap, true);
 	}
 	drm_gem_object_unreference_unlocked(obj);
 	if (IS_ERR((void *)addr))
