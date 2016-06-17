@@ -703,7 +703,8 @@ css_generate_pgid(struct channel_subsystem *css, u32 tod_high)
 
 	if (css_general_characteristics.mcss) {
 		css->global_pgid.pgid_high.ext_cssid.version = 0x80;
-		css->global_pgid.pgid_high.ext_cssid.cssid = css->cssid;
+		css->global_pgid.pgid_high.ext_cssid.cssid =
+			(css->cssid < 0) ? 0 : css->cssid;
 	} else {
 		css->global_pgid.pgid_high.cpu_addr = stap();
 	}
@@ -794,7 +795,8 @@ static int __init setup_css(int nr)
 	}
 	mutex_init(&css->mutex);
 	css->valid = 1;
-	css->cssid = nr;
+	css->cssid = chsc_get_cssid(nr);
+
 	dev_set_name(&css->device, "css%x", nr);
 	css->device.release = channel_subsystem_release;
 	tod_high = (u32) (get_tod_clock() >> 32);
