@@ -653,7 +653,7 @@ static const struct file_operations lineevent_fileops = {
 #endif
 };
 
-irqreturn_t lineevent_irq_thread(int irq, void *p)
+static irqreturn_t lineevent_irq_thread(int irq, void *p)
 {
 	struct lineevent_state *le = p;
 	struct gpioevent_data ge;
