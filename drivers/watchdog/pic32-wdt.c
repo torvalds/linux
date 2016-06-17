@@ -174,8 +174,8 @@ static int pic32_wdt_drv_probe(struct platform_device *pdev)
 	struct resource *mem;
 
 	wdt = devm_kzalloc(&pdev->dev, sizeof(*wdt), GFP_KERNEL);
-	if (IS_ERR(wdt))
-		return PTR_ERR(wdt);
+	if (!wdt)
+		return -ENOMEM;
 
 	mem = platform_get_resource(pdev, IORESOURCE_MEM, 0);
 	wdt->regs = devm_ioremap_resource(&pdev->dev, mem);
