@@ -389,11 +389,11 @@ config HID_LCPOWER
 	Support for LC-Power RC1000MCE RF remote control.
 
 config HID_LED
-	tristate "Simple USB RGB LED support"
+	tristate "Simple RGB LED support"
 	depends on HID
 	depends on LEDS_CLASS
 	---help---
-	Support for simple USB RGB LED devices. Currently supported are the
+	Support for simple RGB LED devices. Currently supported are the
 	Riso Kagaku Webmail Notifier and the Dream Cheeky Webmail Notifier
 	and Friends Alert.
 
