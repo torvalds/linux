@@ -140,6 +140,14 @@ static int i8k_smm(struct smm_regs *regs)
 	int eax = regs->eax;
 	cpumask_var_t old_mask;
 
+#ifdef DEBUG
+	int ebx = regs->ebx;
+	unsigned long duration;
+	ktime_t calltime, delta, rettime;
+
+	calltime = ktime_get();
+#endif
+
 	/* SMM requires CPU 0 */
 	if (!alloc_cpumask_var(&old_mask, GFP_KERNEL))
 		return -ENOMEM;
@@ -211,6 +219,15 @@ static int i8k_smm(struct smm_regs *regs)
 out:
 	set_cpus_allowed_ptr(current, old_mask);
 	free_cpumask_var(old_mask);
+
+#ifdef DEBUG
+	rettime = ktime_get();
+	delta = ktime_sub(rettime, calltime);
+	duration = ktime_to_ns(delta) >> 10;
+	pr_debug("smm(0x%.4x 0x%.4x) = 0x%.4x  (took %7lu usecs)\n", eax, ebx,
+		(rc ? 0xffff : regs->eax & 0xffff), duration);
+#endif
+
 	return rc;
 }
 
