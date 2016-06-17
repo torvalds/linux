@@ -3115,8 +3115,6 @@ skl_get_total_relative_data_rate(struct intel_crtc_state *intel_cstate)
 		total_data_rate += intel_cstate->wm.skl.plane_y_data_rate[id];
 	}
 
-	WARN_ON(cstate->plane_mask && total_data_rate == 0);
-
 	return total_data_rate;
 }
 
