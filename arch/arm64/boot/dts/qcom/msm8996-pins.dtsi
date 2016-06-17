@@ -218,4 +218,38 @@
 			bias-disable;
 		};
 	};
+
+	blsp2_spi5_default: blsp2_spi5_default {
+		pinmux {
+			function = "blsp_spi12";
+			pins = "gpio85", "gpio86", "gpio88";
+		};
+		pinmux_cs {
+			function = "gpio";
+			pins = "gpio87";
+		};
+		pinconf {
+			pins = "gpio85", "gpio86", "gpio88";
+			drive-strength = <12>;
+			bias-disable;
+		};
+		pinconf_cs {
+			pins = "gpio87";
+			drive-strength = <16>;
+			bias-disable;
+			output-high;
+		};
+	};
+
+	blsp2_spi5_sleep: blsp2_spi5_sleep {
+		pinmux {
+			function = "gpio";
+			pins = "gpio85", "gpio86", "gpio87", "gpio88";
+		};
+		pinconf {
+			pins = "gpio85", "gpio86", "gpio87", "gpio88";
+			drive-strength = <2>;
+			bias-pull-down;
+		};
+	};
 };
