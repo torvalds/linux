@@ -1808,7 +1808,7 @@ static int vop_config_timing(struct rk_lcdc_driver *dev_drv)
 		vop_msk_reg(vop_dev, LINE_FLAG, val);
 	}
 	vop_post_cfg(dev_drv);
-	if (x_res <= VOP_INPUT_MAX_WIDTH / 2)
+	if ((x_res <= VOP_INPUT_MAX_WIDTH / 2) && (vop_dev->id == 0))
 		vop_msk_reg(vop_dev, SYS_CTRL, V_POST_LB_MODE(1));
 	else
 		vop_msk_reg(vop_dev, SYS_CTRL, V_POST_LB_MODE(0));
