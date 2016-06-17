@@ -1657,12 +1657,16 @@ static void hv_pci_onchannelcallback(void *context)
 			continue;
 		}
 
+		/* Zero length indicates there are no more packets. */
+		if (ret || !bytes_recvd)
+			break;
+
 		/*
 		 * All incoming packets must be at least as large as a
 		 * response.
 		 */
 		if (bytes_recvd <= sizeof(struct pci_response))
-			break;
+			continue;
 		desc = (struct vmpacket_descriptor *)buffer;
 
 		switch (desc->type) {
@@ -1724,7 +1728,6 @@ static void hv_pci_onchannelcallback(void *context)
 				desc->type, req_id, bytes_recvd);
 			break;
 		}
-		break;
 	}
 
 	kfree(buffer);
