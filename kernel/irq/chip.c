@@ -426,6 +426,49 @@ out_unlock:
 }
 EXPORT_SYMBOL_GPL(handle_simple_irq);
 
+/**
+ *	handle_untracked_irq - Simple and software-decoded IRQs.
+ *	@desc:	the interrupt description structure for this irq
+ *
+ *	Untracked interrupts are sent from a demultiplexing interrupt
+ *	handler when the demultiplexer does not know which device it its
+ *	multiplexed irq domain generated the interrupt. IRQ's handled
+ *	through here are not subjected to stats tracking, randomness, or
+ *	spurious interrupt detection.
+ *
+ *	Note: Like handle_simple_irq, the caller is expected to handle
+ *	the ack, clear, mask and unmask issues if necessary.
+ */
+void handle_untracked_irq(struct irq_desc *desc)
+{
+	unsigned int flags = 0;
+
+	raw_spin_lock(&desc->lock);
+
+	if (!irq_may_run(desc))
+		goto out_unlock;
+
+	desc->istate &= ~(IRQS_REPLAY | IRQS_WAITING);
+
+	if (unlikely(!desc->action || irqd_irq_disabled(&desc->irq_data))) {
+		desc->istate |= IRQS_PENDING;
+		goto out_unlock;
+	}
+
+	desc->istate &= ~IRQS_PENDING;
+	irqd_set(&desc->irq_data, IRQD_IRQ_INPROGRESS);
+	raw_spin_unlock(&desc->lock);
+
+	__handle_irq_event_percpu(desc, &flags);
+
+	raw_spin_lock(&desc->lock);
+	irqd_clear(&desc->irq_data, IRQD_IRQ_INPROGRESS);
+
+out_unlock:
+	raw_spin_unlock(&desc->lock);
+}
+EXPORT_SYMBOL_GPL(handle_untracked_irq);
+
 /*
  * Called unconditionally from handle_level_irq() and only for oneshot
  * interrupts from handle_fasteoi_irq()
