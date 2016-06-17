@@ -146,9 +146,7 @@ struct atmel_uart_port {
 	struct scatterlist		sg_tx;
 	struct scatterlist		sg_rx;
 	struct tasklet_struct	tasklet;
-	unsigned int		irq_status;
 	unsigned int		irq_status_prev;
-	unsigned int		status_change;
 	unsigned int		tx_len;
 
 	struct circ_buf		rx_ring;
@@ -1237,14 +1235,27 @@ atmel_handle_status(struct uart_port *port, unsigned int pending,
 		    unsigned int status)
 {
 	struct atmel_uart_port *atmel_port = to_atmel_uart_port(port);
+	unsigned int status_change;
 
 	if (pending & (ATMEL_US_RIIC | ATMEL_US_DSRIC | ATMEL_US_DCDIC
 				| ATMEL_US_CTSIC)) {
-		atmel_port->irq_status = status;
-		atmel_port->status_change = atmel_port->irq_status ^
-					    atmel_port->irq_status_prev;
+		status_change = status ^ atmel_port->irq_status_prev;
 		atmel_port->irq_status_prev = status;
-		tasklet_schedule(&atmel_port->tasklet);
+
+		if (status_change & (ATMEL_US_RI | ATMEL_US_DSR
+					| ATMEL_US_DCD | ATMEL_US_CTS)) {
+			/* TODO: All reads to CSR will clear these interrupts! */
+			if (status_change & ATMEL_US_RI)
+				port->icount.rng++;
+			if (status_change & ATMEL_US_DSR)
+				port->icount.dsr++;
+			if (status_change & ATMEL_US_DCD)
+				uart_handle_dcd_change(port, !(status & ATMEL_US_DCD));
+			if (status_change & ATMEL_US_CTS)
+				uart_handle_cts_change(port, !(status & ATMEL_US_CTS));
+
+			wake_up_interruptible(&port->state->port.delta_msr_wait);
+		}
 	}
 }
 
@@ -1575,30 +1586,11 @@ static void atmel_tasklet_func(unsigned long data)
 {
 	struct uart_port *port = (struct uart_port *)data;
 	struct atmel_uart_port *atmel_port = to_atmel_uart_port(port);
-	unsigned int status = atmel_port->irq_status;
-	unsigned int status_change = atmel_port->status_change;
 
 	/* The interrupt handler does not take the lock */
 	spin_lock(&port->lock);
 
 	atmel_port->schedule_tx(port);
-
-	if (status_change & (ATMEL_US_RI | ATMEL_US_DSR
-				| ATMEL_US_DCD | ATMEL_US_CTS)) {
-		/* TODO: All reads to CSR will clear these interrupts! */
-		if (status_change & ATMEL_US_RI)
-			port->icount.rng++;
-		if (status_change & ATMEL_US_DSR)
-			port->icount.dsr++;
-		if (status_change & ATMEL_US_DCD)
-			uart_handle_dcd_change(port, !(status & ATMEL_US_DCD));
-		if (status_change & ATMEL_US_CTS)
-			uart_handle_cts_change(port, !(status & ATMEL_US_CTS));
-
-		wake_up_interruptible(&port->state->port.delta_msr_wait);
-
-		atmel_port->status_change = 0;
-	}
 
 	atmel_port->schedule_rx(port);
 
@@ -1833,7 +1825,6 @@ static int atmel_startup(struct uart_port *port)
 
 	/* Save current CSR for comparison in atmel_tasklet_func() */
 	atmel_port->irq_status_prev = atmel_get_lines_status(port);
-	atmel_port->irq_status = atmel_port->irq_status_prev;
 
 	/*
 	 * Finally, enable the serial port
