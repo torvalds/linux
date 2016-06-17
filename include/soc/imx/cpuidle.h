@@ -18,8 +18,8 @@
 void imx6q_cpuidle_fec_irqs_used(void);
 void imx6q_cpuidle_fec_irqs_unused(void);
 #else
-void imx6q_cpuidle_fec_irqs_used(void) { }
-void imx6q_cpuidle_fec_irqs_unused(void) { }
+static inline void imx6q_cpuidle_fec_irqs_used(void) { }
+static inline void imx6q_cpuidle_fec_irqs_unused(void) { }
 #endif
 
 #endif /* __SOC_IMX_CPUIDLE_H__ */
