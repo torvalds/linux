@@ -21,7 +21,6 @@
 #include <linux/ioport.h>
 #include <linux/math64.h>
 #include <linux/module.h>
-#include <linux/mtd/mtd.h>
 #include <linux/mutex.h>
 #include <linux/of.h>
 #include <linux/of_device.h>
