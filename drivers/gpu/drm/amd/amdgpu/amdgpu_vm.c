@@ -311,6 +311,32 @@ error:
 	return r;
 }
 
+static bool amdgpu_vm_ring_has_compute_vm_bug(struct amdgpu_ring *ring)
+{
+	struct amdgpu_device *adev = ring->adev;
+	const struct amdgpu_ip_block_version *ip_block;
+
+	if (ring->type != AMDGPU_RING_TYPE_COMPUTE)
+		/* only compute rings */
+		return false;
+
+	ip_block = amdgpu_get_ip_block(adev, AMD_IP_BLOCK_TYPE_GFX);
+	if (!ip_block)
+		return false;
+
+	if (ip_block->major <= 7) {
+		/* gfx7 has no workaround */
+		return true;
+	} else if (ip_block->major == 8) {
+		if (adev->gfx.mec_fw_version >= 673)
+			/* gfx8 is fixed in MEC firmware 673 */
+			return false;
+		else
+			return true;
+	}
+	return false;
+}
+
 /**
  * amdgpu_vm_flush - hardware flush the vm
  *
@@ -339,7 +365,7 @@ int amdgpu_vm_flush(struct amdgpu_ring *ring,
 
 	if (ring->funcs->emit_pipeline_sync && (
 	    pd_addr != AMDGPU_VM_NO_FLUSH || gds_switch_needed ||
-		    ring->type == AMDGPU_RING_TYPE_COMPUTE))
+	    amdgpu_vm_ring_has_compute_vm_bug(ring)))
 		amdgpu_ring_emit_pipeline_sync(ring);
 
 	if (ring->funcs->emit_vm_flush &&
