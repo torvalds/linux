@@ -4877,17 +4877,10 @@ i915_ring_test_irq_set(void *data, u64 val)
 {
 	struct drm_device *dev = data;
 	struct drm_i915_private *dev_priv = dev->dev_private;
-	int ret;
 
+	val &= INTEL_INFO(dev_priv)->ring_mask;
 	DRM_DEBUG_DRIVER("Masking interrupts on rings 0x%08llx\n", val);
-
-	/* Lock against concurrent debugfs callers */
-	ret = mutex_lock_interruptible(&dev->struct_mutex);
-	if (ret)
-		return ret;
-
 	dev_priv->gpu_error.test_irq_rings = val;
-	mutex_unlock(&dev->struct_mutex);
 
 	return 0;
 }
