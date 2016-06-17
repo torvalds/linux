@@ -28,7 +28,7 @@ pick_next_task_idle(struct rq *rq, struct task_struct *prev, struct pin_cookie c
 {
 	put_prev_task(rq, prev);
 
-	schedstat_inc(rq, sched_goidle);
+	schedstat_inc(rq->sched_goidle);
 	return rq->idle;
 }
 
