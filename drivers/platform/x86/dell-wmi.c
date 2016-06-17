@@ -133,6 +133,9 @@ static const struct key_entry dell_wmi_keymap_type_0000[] __initconst = {
 	/* Audio panel key */
 	{ KE_IGNORE, 0xe026, { KEY_RESERVED } },
 
+	/* LCD Display On/Off Control key */
+	{ KE_KEY,    0xe027, { KEY_DISPLAYTOGGLE } },
+
 	/* Untested, Multimedia key on Dell Vostro 3560 */
 	/* { KE_IGNORE, 0xe028, { KEY_RESERVED } }, */
 
