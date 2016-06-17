@@ -127,9 +127,9 @@ struct inode *gfs2_inode_lookup(struct super_block *sb, unsigned int type,
 	struct gfs2_inode *ip;
 	struct gfs2_glock *io_gl = NULL;
 	struct gfs2_holder i_gh;
-	bool unlock = false;
 	int error;
 
+	gfs2_holder_mark_uninitialized(&i_gh);
 	inode = gfs2_iget(sb, no_addr);
 	if (!inode)
 		return ERR_PTR(-ENOMEM);
@@ -159,7 +159,6 @@ struct inode *gfs2_inode_lookup(struct super_block *sb, unsigned int type,
 						   GL_SKIP, &i_gh);
 			if (error)
 				goto fail_put;
-			unlock = true;
 
 			if (blktype != GFS2_BLKST_FREE) {
 				error = gfs2_check_blk_type(sdp, no_addr,
@@ -191,7 +190,7 @@ struct inode *gfs2_inode_lookup(struct super_block *sb, unsigned int type,
 		unlock_new_inode(inode);
 	}
 
-	if (unlock)
+	if (gfs2_holder_initialized(&i_gh))
 		gfs2_glock_dq_uninit(&i_gh);
 	return inode;
 
@@ -203,7 +202,7 @@ fail_refresh:
 fail_put:
 	if (io_gl)
 		gfs2_glock_put(io_gl);
-	if (unlock)
+	if (gfs2_holder_initialized(&i_gh))
 		gfs2_glock_dq_uninit(&i_gh);
 	ip->i_gl->gl_object = NULL;
 fail:
@@ -281,8 +280,8 @@ struct inode *gfs2_lookupi(struct inode *dir, const struct qstr *name,
 	struct gfs2_holder d_gh;
 	int error = 0;
 	struct inode *inode = NULL;
-	int unlock = 0;
 
+	gfs2_holder_mark_uninitialized(&d_gh);
 	if (!name->len || name->len > GFS2_FNAMESIZE)
 		return ERR_PTR(-ENAMETOOLONG);
 
@@ -297,7 +296,6 @@ struct inode *gfs2_lookupi(struct inode *dir, const struct qstr *name,
 		error = gfs2_glock_nq_init(dip->i_gl, LM_ST_SHARED, 0, &d_gh);
 		if (error)
 			return ERR_PTR(error);
-		unlock = 1;
 	}
 
 	if (!is_root) {
@@ -310,7 +308,7 @@ struct inode *gfs2_lookupi(struct inode *dir, const struct qstr *name,
 	if (IS_ERR(inode))
 		error = PTR_ERR(inode);
 out:
-	if (unlock)
+	if (gfs2_holder_initialized(&d_gh))
 		gfs2_glock_dq_uninit(&d_gh);
 	if (error == -ENOENT)
 		return NULL;
@@ -1354,7 +1352,7 @@ static int gfs2_rename(struct inode *odir, struct dentry *odentry,
 	struct gfs2_inode *ip = GFS2_I(d_inode(odentry));
 	struct gfs2_inode *nip = NULL;
 	struct gfs2_sbd *sdp = GFS2_SB(odir);
-	struct gfs2_holder ghs[5], r_gh = { .gh_gl = NULL, };
+	struct gfs2_holder ghs[5], r_gh;
 	struct gfs2_rgrpd *nrgd;
 	unsigned int num_gh;
 	int dir_rename = 0;
@@ -1362,6 +1360,7 @@ static int gfs2_rename(struct inode *odir, struct dentry *odentry,
 	unsigned int x;
 	int error;
 
+	gfs2_holder_mark_uninitialized(&r_gh);
 	if (d_really_is_positive(ndentry)) {
 		nip = GFS2_I(d_inode(ndentry));
 		if (ip == nip)
@@ -1551,7 +1550,7 @@ out_gunlock:
 		gfs2_holder_uninit(ghs + x);
 	}
 out_gunlock_r:
-	if (r_gh.gh_gl)
+	if (gfs2_holder_initialized(&r_gh))
 		gfs2_glock_dq_uninit(&r_gh);
 out:
 	return error;
@@ -1577,13 +1576,14 @@ static int gfs2_exchange(struct inode *odir, struct dentry *odentry,
 	struct gfs2_inode *oip = GFS2_I(odentry->d_inode);
 	struct gfs2_inode *nip = GFS2_I(ndentry->d_inode);
 	struct gfs2_sbd *sdp = GFS2_SB(odir);
-	struct gfs2_holder ghs[5], r_gh = { .gh_gl = NULL, };
+	struct gfs2_holder ghs[5], r_gh;
 	unsigned int num_gh;
 	unsigned int x;
 	umode_t old_mode = oip->i_inode.i_mode;
 	umode_t new_mode = nip->i_inode.i_mode;
 	int error;
 
+	gfs2_holder_mark_uninitialized(&r_gh);
 	error = gfs2_rindex_update(sdp);
 	if (error)
 		return error;
@@ -1691,7 +1691,7 @@ out_gunlock:
 		gfs2_holder_uninit(ghs + x);
 	}
 out_gunlock_r:
-	if (r_gh.gh_gl)
+	if (gfs2_holder_initialized(&r_gh))
 		gfs2_glock_dq_uninit(&r_gh);
 out:
 	return error;
@@ -1788,9 +1788,8 @@ int gfs2_permission(struct inode *inode, int mask)
 	struct gfs2_inode *ip;
 	struct gfs2_holder i_gh;
 	int error;
-	int unlock = 0;
 
-
+	gfs2_holder_mark_uninitialized(&i_gh);
 	ip = GFS2_I(inode);
 	if (gfs2_glock_is_locked_by_me(ip->i_gl) == NULL) {
 		if (mask & MAY_NOT_BLOCK)
@@ -1798,14 +1797,13 @@ int gfs2_permission(struct inode *inode, int mask)
 		error = gfs2_glock_nq_init(ip->i_gl, LM_ST_SHARED, LM_FLAG_ANY, &i_gh);
 		if (error)
 			return error;
-		unlock = 1;
 	}
 
 	if ((mask & MAY_WRITE) && IS_IMMUTABLE(inode))
 		error = -EACCES;
 	else
 		error = generic_permission(inode, mask);
-	if (unlock)
+	if (gfs2_holder_initialized(&i_gh))
 		gfs2_glock_dq_uninit(&i_gh);
 
 	return error;
@@ -1977,17 +1975,16 @@ static int gfs2_getattr(struct vfsmount *mnt, struct dentry *dentry,
 	struct gfs2_inode *ip = GFS2_I(inode);
 	struct gfs2_holder gh;
 	int error;
-	int unlock = 0;
 
+	gfs2_holder_mark_uninitialized(&gh);
 	if (gfs2_glock_is_locked_by_me(ip->i_gl) == NULL) {
 		error = gfs2_glock_nq_init(ip->i_gl, LM_ST_SHARED, LM_FLAG_ANY, &gh);
 		if (error)
 			return error;
-		unlock = 1;
 	}
 
 	generic_fillattr(inode, stat);
-	if (unlock)
+	if (gfs2_holder_initialized(&gh))
 		gfs2_glock_dq_uninit(&gh);
 
 	return 0;
