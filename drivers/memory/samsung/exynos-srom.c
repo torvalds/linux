@@ -11,7 +11,7 @@
  */
 
 #include <linux/io.h>
-#include <linux/module.h>
+#include <linux/init.h>
 #include <linux/of.h>
 #include <linux/of_address.h>
 #include <linux/of_platform.h>
@@ -159,16 +159,6 @@ static int exynos_srom_probe(struct platform_device *pdev)
 	return of_platform_populate(np, NULL, NULL, dev);
 }
 
-static int exynos_srom_remove(struct platform_device *pdev)
-{
-	struct exynos_srom *srom = platform_get_drvdata(pdev);
-
-	kfree(srom->reg_offset);
-	iounmap(srom->reg_base);
-
-	return 0;
-}
-
 #ifdef CONFIG_PM_SLEEP
 static void exynos_srom_save(void __iomem *base,
 				    struct exynos_srom_reg_dump *rd,
@@ -211,21 +201,16 @@ static const struct of_device_id of_exynos_srom_ids[] = {
 	},
 	{},
 };
-MODULE_DEVICE_TABLE(of, of_exynos_srom_ids);
 
 static SIMPLE_DEV_PM_OPS(exynos_srom_pm_ops, exynos_srom_suspend, exynos_srom_resume);
 
 static struct platform_driver exynos_srom_driver = {
 	.probe = exynos_srom_probe,
-	.remove = exynos_srom_remove,
 	.driver = {
 		.name = "exynos-srom",
 		.of_match_table = of_exynos_srom_ids,
 		.pm = &exynos_srom_pm_ops,
+		.suppress_bind_attrs = true,
 	},
 };
-module_platform_driver(exynos_srom_driver);
-
-MODULE_AUTHOR("Pankaj Dubey <pankaj.dubey@samsung.com>");
-MODULE_DESCRIPTION("Exynos SROM Controller Driver");
-MODULE_LICENSE("GPL");
+builtin_platform_driver(exynos_srom_driver);
