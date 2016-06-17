@@ -108,6 +108,12 @@ struct atmel_uart_char {
 	u16		ch;
 };
 
+/*
+ * Be careful, the real size of the ring buffer is
+ * sizeof(atmel_uart_char) * ATMEL_SERIAL_RINGSIZE. It means that ring buffer
+ * can contain up to 1024 characters in PIO mode and up to 4096 characters in
+ * DMA mode.
+ */
 #define ATMEL_SERIAL_RINGSIZE 1024
 
 /*
