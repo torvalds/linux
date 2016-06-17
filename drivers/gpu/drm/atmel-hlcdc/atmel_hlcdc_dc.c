@@ -815,14 +815,7 @@ static int atmel_hlcdc_dc_drm_probe(struct platform_device *pdev)
 	if (ret)
 		goto err_unload;
 
-	ret = drm_connector_register_all(ddev);
-	if (ret)
-		goto err_unregister;
-
 	return 0;
-
-err_unregister:
-	drm_dev_unregister(ddev);
 
 err_unload:
 	atmel_hlcdc_dc_unload(ddev);
