@@ -76,9 +76,10 @@ static int match_cpu(u8 family, u8 model)
 	(freq_desc_tables[cpu_index].freqs[freq_id])
 
 /*
- * Do MSR calibration only for known/supported CPUs.
+ * MSR-based CPU/TSC frequency discovery for certain CPUs.
  *
- * Returns the calibration value or 0 if MSR calibration failed.
+ * Set global "lapic_timer_frequency" to bus_clock_cycles/jiffy
+ * Return processor base frequency in KHz, or 0 on failure.
  */
 unsigned long try_msr_calibrate_tsc(void)
 {
@@ -100,31 +101,17 @@ unsigned long try_msr_calibrate_tsc(void)
 		rdmsr(MSR_IA32_PERF_STATUS, lo, hi);
 		ratio = (hi >> 8) & 0x1f;
 	}
-	pr_info("Maximum core-clock to bus-clock ratio: 0x%x\n", ratio);
-
-	if (!ratio)
-		goto fail;
 
 	/* Get FSB FREQ ID */
 	rdmsr(MSR_FSB_FREQ, lo, hi);
 	freq_id = lo & 0x7;
 	freq = id_to_freq(cpu_index, freq_id);
-	pr_info("Resolved frequency ID: %u, frequency: %u KHz\n",
-				freq_id, freq);
-	if (!freq)
-		goto fail;
 
 	/* TSC frequency = maximum resolved freq * maximum resolved bus ratio */
 	res = freq * ratio;
-	pr_info("TSC runs at %lu KHz\n", res);
 
 #ifdef CONFIG_X86_LOCAL_APIC
 	lapic_timer_frequency = (freq * 1000) / HZ;
-	pr_info("lapic_timer_frequency = %d\n", lapic_timer_frequency);
 #endif
 	return res;
-
-fail:
-	pr_warn("Fast TSC calibration using MSR failed\n");
-	return 0;
 }
