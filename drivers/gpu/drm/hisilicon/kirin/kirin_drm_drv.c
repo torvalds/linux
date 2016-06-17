@@ -221,19 +221,12 @@ static int kirin_drm_bind(struct device *dev)
 	if (ret)
 		goto err_kms_cleanup;
 
-	/* connectors should be registered after drm device register */
-	ret = drm_connector_register_all(drm_dev);
-	if (ret)
-		goto err_drm_dev_unregister;
-
 	DRM_INFO("Initialized %s %d.%d.%d %s on minor %d\n",
 		 driver->name, driver->major, driver->minor, driver->patchlevel,
 		 driver->date, drm_dev->primary->index);
 
 	return 0;
 
-err_drm_dev_unregister:
-	drm_dev_unregister(drm_dev);
 err_kms_cleanup:
 	kirin_drm_kms_cleanup(drm_dev);
 err_drm_dev_unref:
@@ -246,7 +239,6 @@ static void kirin_drm_unbind(struct device *dev)
 {
 	struct drm_device *drm_dev = dev_get_drvdata(dev);
 
-	drm_connector_unregister_all(drm_dev);
 	drm_dev_unregister(drm_dev);
 	kirin_drm_kms_cleanup(drm_dev);
 	drm_dev_unref(drm_dev);
