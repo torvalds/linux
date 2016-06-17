@@ -35,11 +35,11 @@ static struct freq_desc freq_desc_tables[] = {
 	/* CLV+ */
 	{ 6, 0x35, 0, { 0, 133200, 0, 0, 0, 99840, 0, 83200 } },
 	/* TNG - Intel Atom processor Z3400 series */
-	{ 6, 0x4a, 1, { 0, 99840, 133200, 0, 0, 0, 0, 0 } },
+	{ 6, 0x4a, 1, { 0, 100000, 133300, 0, 0, 0, 0, 0 } },
 	/* VLV2 - Intel Atom processor E3000, Z3600, Z3700 series */
-	{ 6, 0x37, 1, { 83200, 99840, 133200, 166400, 0, 0, 0, 0 } },
+	{ 6, 0x37, 1, { 83300, 100000, 133300, 116700, 80000, 0, 0, 0 } },
 	/* ANN - Intel Atom processor Z3500 series */
-	{ 6, 0x5a, 1, { 83200, 99840, 133200, 99840, 0, 0, 0, 0 } },
+	{ 6, 0x5a, 1, { 83300, 100000, 133300, 100000, 0, 0, 0, 0 } },
 };
 
 static int match_cpu(u8 family, u8 model)
