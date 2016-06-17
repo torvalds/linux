@@ -29,22 +29,9 @@
 #include <linux/slab.h>
 #include <linux/pmem.h>
 #include <linux/nd.h>
+#include "pmem.h"
 #include "pfn.h"
 #include "nd.h"
-
-struct pmem_device {
-	/* One contiguous memory region per device */
-	phys_addr_t		phys_addr;
-	/* when non-zero this device is hosting a 'pfn' instance */
-	phys_addr_t		data_offset;
-	u64			pfn_flags;
-	void __pmem		*virt_addr;
-	/* immutable base size of the namespace */
-	size_t			size;
-	/* trim size when namespace capacity has been section aligned */
-	u32			pfn_pad;
-	struct badblocks	bb;
-};
 
 static void pmem_clear_poison(struct pmem_device *pmem, phys_addr_t offset,
 		unsigned int len)
@@ -163,7 +150,8 @@ static int pmem_rw_page(struct block_device *bdev, sector_t sector,
 	return rc;
 }
 
-static long pmem_direct_access(struct block_device *bdev, sector_t sector,
+/* see "strong" declaration in tools/testing/nvdimm/pmem-dax.c */
+__weak long pmem_direct_access(struct block_device *bdev, sector_t sector,
 		      void __pmem **kaddr, pfn_t *pfn, long size)
 {
 	struct pmem_device *pmem = bdev->bd_queue->queuedata;
