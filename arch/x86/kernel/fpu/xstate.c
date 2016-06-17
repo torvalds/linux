@@ -269,8 +269,6 @@ static void __init setup_xstate_features(void)
 		WARN_ONCE(last_good_offset > xstate_offsets[i],
 			"x86/fpu: misordered xstate at %d\n", last_good_offset);
 		last_good_offset = xstate_offsets[i];
-
-		printk(KERN_INFO "x86/fpu: xstate_offset[%d]: %4d, xstate_sizes[%d]: %4d\n", i, ebx, i, eax);
 	}
 }
 
@@ -370,6 +368,21 @@ static void __init setup_xstate_comp(void)
 				xstate_comp_offsets[i] =
 					ALIGN(xstate_comp_offsets[i], 64);
 		}
+	}
+}
+
+/*
+ * Print out xstate component offsets and sizes
+ */
+static void __init print_xstate_offset_size(void)
+{
+	int i;
+
+	for (i = FIRST_EXTENDED_XFEATURE; i < XFEATURE_MAX; i++) {
+		if (!xfeature_enabled(i))
+			continue;
+		pr_info("x86/fpu: xstate_offset[%d]: %4d, xstate_sizes[%d]: %4d\n",
+			 i, xstate_comp_offsets[i], i, xstate_sizes[i]);
 	}
 }
 
@@ -707,6 +720,7 @@ void __init fpu__init_system_xstate(void)
 	fpu__init_prepare_fx_sw_frame();
 	setup_init_fpu_buf();
 	setup_xstate_comp();
+	print_xstate_offset_size();
 
 	pr_info("x86/fpu: Enabled xstate features 0x%llx, context size is %d bytes, using '%s' format.\n",
 		xfeatures_mask,
