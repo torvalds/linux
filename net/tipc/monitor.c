@@ -122,8 +122,8 @@ static int dom_size(int peers)
 
 static void map_set(u64 *up_map, int i, unsigned int v)
 {
-	*up_map &= ~(1 << i);
-	*up_map |= (v << i);
+	*up_map &= ~(1ULL << i);
+	*up_map |= ((u64)v << i);
 }
 
 static int map_get(u64 up_map, int i)
