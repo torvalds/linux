@@ -7924,8 +7924,8 @@ nfs4_layoutget_handle_exception(struct rpc_task *task,
 			break;
 		}
 		lo = NFS_I(inode)->layout;
-		if (lo && nfs4_stateid_match(&lgp->args.stateid,
-					&lo->plh_stateid)) {
+		if (lo && !test_bit(NFS_LAYOUT_INVALID_STID, &lo->plh_flags) &&
+		    nfs4_stateid_match_other(&lgp->args.stateid, &lo->plh_stateid)) {
 			LIST_HEAD(head);
 
 			/*
@@ -7936,10 +7936,10 @@ nfs4_layoutget_handle_exception(struct rpc_task *task,
 			pnfs_mark_matching_lsegs_invalid(lo, &head, NULL, 0);
 			spin_unlock(&inode->i_lock);
 			pnfs_free_lseg_list(&head);
+			status = -EAGAIN;
+			goto out;
 		} else
 			spin_unlock(&inode->i_lock);
-		status = -EAGAIN;
-		goto out;
 	}
 
 	status = nfs4_handle_exception(server, status, exception);
