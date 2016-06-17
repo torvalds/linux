@@ -10,15 +10,15 @@
  *   published by the Free Software Foundation.
  */
 
-#include <linux/workqueue.h>
-#include <asm/atomic.h>
+#include <linux/firmware.h>
 #include <linux/mmc/card.h>
 #include <linux/mmc/sdio_func.h>
+#include <linux/workqueue.h>
+#include <asm/atomic.h>
 
 #include "ks_wlan.h"
 #include "ks_wlan_ioctl.h"
 #include "ks_hostif.h"
-
 #include "ks7010_sdio.h"
 
 #define KS7010_FUNC_NUM 1
@@ -777,7 +777,6 @@ static int ks7010_sdio_data_compare(struct ks_wlan_private *priv, u32 address,
 	return rc;
 }
 
-#include <linux/firmware.h>
 static int ks79xx_upload_firmware(struct ks_wlan_private *priv,
 				  struct ks_sdio_card *card)
 {
