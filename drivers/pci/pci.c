@@ -26,6 +26,7 @@
 #include <linux/pm_runtime.h>
 #include <linux/pci_hotplug.h>
 #include <asm/setup.h>
+#include <asm/dma.h>
 #include <linux/aer.h>
 #include "pci.h"
 
