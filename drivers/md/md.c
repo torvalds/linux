@@ -3173,8 +3173,7 @@ int md_rdev_init(struct md_rdev *rdev)
 	rdev->data_offset = 0;
 	rdev->new_data_offset = 0;
 	rdev->sb_events = 0;
-	rdev->last_read_error.tv_sec  = 0;
-	rdev->last_read_error.tv_nsec = 0;
+	rdev->last_read_error = 0;
 	rdev->sb_loaded = 0;
 	rdev->bb_page = NULL;
 	atomic_set(&rdev->nr_pending, 0);

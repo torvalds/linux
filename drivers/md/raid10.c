@@ -2174,21 +2174,20 @@ static void recovery_request_write(struct mddev *mddev, struct r10bio *r10_bio)
  */
 static void check_decay_read_errors(struct mddev *mddev, struct md_rdev *rdev)
 {
-	struct timespec cur_time_mon;
+	long cur_time_mon;
 	unsigned long hours_since_last;
 	unsigned int read_errors = atomic_read(&rdev->read_errors);
 
-	ktime_get_ts(&cur_time_mon);
+	cur_time_mon = ktime_get_seconds();
 
-	if (rdev->last_read_error.tv_sec == 0 &&
-	    rdev->last_read_error.tv_nsec == 0) {
+	if (rdev->last_read_error == 0) {
 		/* first time we've seen a read error */
 		rdev->last_read_error = cur_time_mon;
 		return;
 	}
 
-	hours_since_last = (cur_time_mon.tv_sec -
-			    rdev->last_read_error.tv_sec) / 3600;
+	hours_since_last = (long)(cur_time_mon -
+			    rdev->last_read_error) / 3600;
 
 	rdev->last_read_error = cur_time_mon;
 
