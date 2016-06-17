@@ -68,7 +68,7 @@ static int match_cpu(u8 family, u8 model)
  * Set global "lapic_timer_frequency" to bus_clock_cycles/jiffy
  * Return processor base frequency in KHz, or 0 on failure.
  */
-unsigned long try_msr_calibrate_tsc(void)
+unsigned long cpu_khz_from_msr(void)
 {
 	u32 lo, hi, ratio, freq_id, freq;
 	unsigned long res;

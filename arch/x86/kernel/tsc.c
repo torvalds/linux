@@ -674,10 +674,7 @@ unsigned long native_calibrate_tsc(void)
 	unsigned long flags, latch, ms, fast_calibrate;
 	int hpet = is_hpet_enabled(), i, loopmin;
 
-	/* Calibrate TSC using MSR for Intel Atom SoCs */
-	local_irq_save(flags);
-	fast_calibrate = try_msr_calibrate_tsc();
-	local_irq_restore(flags);
+	fast_calibrate = cpu_khz_from_msr();
 	if (fast_calibrate)
 		return fast_calibrate;
 
