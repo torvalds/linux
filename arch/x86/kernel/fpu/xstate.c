@@ -112,6 +112,27 @@ int cpu_has_xfeatures(u64 xfeatures_needed, const char **feature_name)
 }
 EXPORT_SYMBOL_GPL(cpu_has_xfeatures);
 
+static int xfeature_is_supervisor(int xfeature_nr)
+{
+	/*
+	 * We currently do not support supervisor states, but if
+	 * we did, we could find out like this.
+	 *
+	 * SDM says: If state component 'i' is a user state component,
+	 * ECX[0] return 0; if state component i is a supervisor
+	 * state component, ECX[0] returns 1.
+	 */
+	u32 eax, ebx, ecx, edx;
+
+	cpuid_count(XSTATE_CPUID, xfeature_nr, &eax, &ebx, &ecx, &edx);
+	return !!(ecx & 1);
+}
+
+static int xfeature_is_user(int xfeature_nr)
+{
+	return !xfeature_is_supervisor(xfeature_nr);
+}
+
 /*
  * When executing XSAVEOPT (or other optimized XSAVE instructions), if
  * a processor implementation detects that an FPU state component is still
@@ -230,7 +251,14 @@ static void __init setup_xstate_features(void)
 			continue;
 
 		cpuid_count(XSTATE_CPUID, i, &eax, &ebx, &ecx, &edx);
-		xstate_offsets[i] = ebx;
+
+		/*
+		 * If an xfeature is supervisor state, the offset
+		 * in EBX is invalid. We leave it to -1.
+		 */
+		if (xfeature_is_user(i))
+			xstate_offsets[i] = ebx;
+
 		xstate_sizes[i] = eax;
 		/*
 		 * In our xstate size checks, we assume that the
@@ -375,31 +403,19 @@ static void __init setup_init_fpu_buf(void)
 	copy_xregs_to_kernel_booting(&init_fpstate.xsave);
 }
 
-static int xfeature_is_supervisor(int xfeature_nr)
-{
-	/*
-	 * We currently do not support supervisor states, but if
-	 * we did, we could find out like this.
-	 *
-	 * SDM says: If state component i is a user state component,
-	 * ECX[0] return 0; if state component i is a supervisor
-	 * state component, ECX[0] returns 1.
-	u32 eax, ebx, ecx, edx;
-	cpuid_count(XSTATE_CPUID, xfeature_nr, &eax, &ebx, &ecx, &edx;
-	return !!(ecx & 1);
-	*/
-	return 0;
-}
-/*
-static int xfeature_is_user(int xfeature_nr)
-{
-	return !xfeature_is_supervisor(xfeature_nr);
-}
-*/
-
 static int xfeature_uncompacted_offset(int xfeature_nr)
 {
 	u32 eax, ebx, ecx, edx;
+
+	/*
+	 * Only XSAVES supports supervisor states and it uses compacted
+	 * format. Checking a supervisor state's uncompacted offset is
+	 * an error.
+	 */
+	if (XFEATURE_MASK_SUPERVISOR & (1 << xfeature_nr)) {
+		WARN_ONCE(1, "No fixed offset for xstate %d\n", xfeature_nr);
+		return -1;
+	}
 
 	CHECK_XFEATURE(xfeature_nr);
 	cpuid_count(XSTATE_CPUID, xfeature_nr, &eax, &ebx, &ecx, &edx);

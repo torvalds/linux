@@ -18,6 +18,9 @@
 #define XSAVE_YMM_SIZE	    256
 #define XSAVE_YMM_OFFSET    (XSAVE_HDR_SIZE + XSAVE_HDR_OFFSET)
 
+/* Supervisor features */
+#define XFEATURE_MASK_SUPERVISOR (XFEATURE_MASK_PT)
+
 /* Supported features which support lazy state saving */
 #define XFEATURE_MASK_LAZY	(XFEATURE_MASK_FP | \
 				 XFEATURE_MASK_SSE | \
