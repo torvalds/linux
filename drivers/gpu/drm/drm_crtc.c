@@ -1047,9 +1047,9 @@ EXPORT_SYMBOL(drm_connector_unregister);
  * @dev: drm device
  *
  * This function registers all connectors in sysfs and other places so that
- * userspace can start to access them. Drivers can call it after calling
- * drm_dev_register() to complete the device registration, if they don't call
- * drm_connector_register() on each connector individually.
+ * userspace can start to access them. drm_connector_register_all() is called
+ * automatically from drm_dev_register() to complete the device registration,
+ * if they don't call drm_connector_register() on each connector individually.
  *
  * When a device is unplugged and should be removed from userspace access,
  * call drm_connector_unregister_all(), which is the inverse of this
