@@ -25,8 +25,6 @@
 #define KS7010_IO_BLOCK_SIZE 512
 #define KS7010_MAX_CLOCK 25000000
 
-static int reg_net = 0;
-
 static const struct sdio_device_id ks7010_sdio_ids[] = {
 	{SDIO_DEVICE(SDIO_VENDOR_ID_KS_CODE_A, SDIO_DEVICE_ID_KS_7010)},
 	{SDIO_DEVICE(SDIO_VENDOR_ID_KS_CODE_B, SDIO_DEVICE_ID_KS_7010)},
@@ -936,8 +934,6 @@ static void ks7010_card_init(struct ks_wlan_private *priv)
 	if (priv->dev_state >= DEVICE_STATE_PREINIT) {
 		DPRINTK(1, "DEVICE READY!!\n");
 		priv->dev_state = DEVICE_STATE_READY;
-		reg_net = register_netdev(priv->net_dev);
-		DPRINTK(3, "register_netdev=%d\n", reg_net);
 	} else {
 		DPRINTK(1, "dev_state=%d\n", priv->dev_state);
 	}
@@ -1115,6 +1111,10 @@ static int ks7010_sdio_probe(struct sdio_func *func,
 	INIT_DELAYED_WORK(&priv->ks_wlan_hw.rw_wq, ks7010_rw_function);
 	ks7010_card_init(priv);
 
+	ret = register_netdev(priv->net_dev);
+	if (ret)
+		goto error_free_read_buf;
+
 	return 0;
 
  error_free_read_buf:
@@ -1196,9 +1196,7 @@ static void ks7010_sdio_remove(struct sdio_func *func)
 		hostif_exit(priv);
 		DPRINTK(1, "hostif_exit\n");
 
-		if (!reg_net)
-			unregister_netdev(netdev);
-		DPRINTK(1, "unregister_netdev\n");
+		unregister_netdev(netdev);
 
 		trx_device_exit(priv);
 		if (priv->ks_wlan_hw.read_buf) {
