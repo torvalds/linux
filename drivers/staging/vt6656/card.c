@@ -548,6 +548,7 @@ void vnt_adjust_tsf(struct vnt_private *priv, u8 rx_rate,
 	vnt_control_out(priv, MESSAGE_TYPE_SET_TSFTBTT,
 			MESSAGE_REQUEST_TSF, 0, 8, data);
 }
+
 /*
  * Description: Read NIC TSF counter
  *              Get local TSF counter
