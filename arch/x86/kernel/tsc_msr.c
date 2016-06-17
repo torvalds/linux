@@ -86,6 +86,9 @@ unsigned long try_msr_calibrate_tsc(void)
 	unsigned long res;
 	int cpu_index;
 
+	if (boot_cpu_data.x86_vendor != X86_VENDOR_INTEL)
+		return 0;
+
 	cpu_index = match_cpu(boot_cpu_data.x86, boot_cpu_data.x86_model);
 	if (cpu_index < 0)
 		return 0;
