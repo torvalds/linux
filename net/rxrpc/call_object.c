@@ -286,11 +286,9 @@ static struct rxrpc_call *rxrpc_alloc_call(gfp_t gfp)
 /*
  * Allocate a new client call.
  */
-static struct rxrpc_call *rxrpc_alloc_client_call(
-	struct rxrpc_sock *rx,
-	struct rxrpc_conn_parameters *cp,
-	struct sockaddr_rxrpc *srx,
-	gfp_t gfp)
+static struct rxrpc_call *rxrpc_alloc_client_call(struct rxrpc_sock *rx,
+						  struct sockaddr_rxrpc *srx,
+						  gfp_t gfp)
 {
 	struct rxrpc_call *call;
 
@@ -333,7 +331,6 @@ static struct rxrpc_call *rxrpc_alloc_client_call(
  */
 static int rxrpc_begin_client_call(struct rxrpc_call *call,
 				   struct rxrpc_conn_parameters *cp,
-				   struct rxrpc_transport *trans,
 				   struct sockaddr_rxrpc *srx,
 				   gfp_t gfp)
 {
@@ -342,7 +339,7 @@ static int rxrpc_begin_client_call(struct rxrpc_call *call,
 	/* Set up or get a connection record and set the protocol parameters,
 	 * including channel number and call ID.
 	 */
-	ret = rxrpc_connect_call(call, cp, trans, srx, gfp);
+	ret = rxrpc_connect_call(call, cp, srx, gfp);
 	if (ret < 0)
 		return ret;
 
@@ -366,7 +363,6 @@ static int rxrpc_begin_client_call(struct rxrpc_call *call,
  */
 struct rxrpc_call *rxrpc_new_client_call(struct rxrpc_sock *rx,
 					 struct rxrpc_conn_parameters *cp,
-					 struct rxrpc_transport *trans,
 					 struct sockaddr_rxrpc *srx,
 					 unsigned long user_call_ID,
 					 gfp_t gfp)
@@ -377,7 +373,7 @@ struct rxrpc_call *rxrpc_new_client_call(struct rxrpc_sock *rx,
 
 	_enter("%p,%lx", rx, user_call_ID);
 
-	call = rxrpc_alloc_client_call(rx, cp, srx, gfp);
+	call = rxrpc_alloc_client_call(rx, srx, gfp);
 	if (IS_ERR(call)) {
 		_leave(" = %ld", PTR_ERR(call));
 		return call;
@@ -413,7 +409,7 @@ struct rxrpc_call *rxrpc_new_client_call(struct rxrpc_sock *rx,
 	list_add_tail(&call->link, &rxrpc_calls);
 	write_unlock_bh(&rxrpc_call_lock);
 
-	ret = rxrpc_begin_client_call(call, cp, trans, srx, gfp);
+	ret = rxrpc_begin_client_call(call, cp, srx, gfp);
 	if (ret < 0)
 		goto error;
 

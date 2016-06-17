@@ -140,10 +140,8 @@ rxrpc_new_client_call_for_sendmsg(struct rxrpc_sock *rx, struct msghdr *msg,
 				  unsigned long user_call_ID, bool exclusive)
 {
 	struct rxrpc_conn_parameters cp;
-	struct rxrpc_transport *trans;
 	struct rxrpc_call *call;
 	struct key *key;
-	long ret;
 
 	DECLARE_SOCKADDR(struct sockaddr_rxrpc *, srx, msg->msg_name);
 
@@ -162,30 +160,10 @@ rxrpc_new_client_call_for_sendmsg(struct rxrpc_sock *rx, struct msghdr *msg,
 	cp.security_level	= rx->min_sec_level;
 	cp.exclusive		= rx->exclusive | exclusive;
 	cp.service_id		= srx->srx_service;
-	trans = rxrpc_name_to_transport(&cp, msg->msg_name, msg->msg_namelen,
-					GFP_KERNEL);
-	if (IS_ERR(trans)) {
-		ret = PTR_ERR(trans);
-		goto out;
-	}
-	cp.peer = trans->peer;
-
-	call = rxrpc_new_client_call(rx, &cp, trans, srx, user_call_ID,
-				     GFP_KERNEL);
-	rxrpc_put_transport(trans);
-	if (IS_ERR(call)) {
-		ret = PTR_ERR(call);
-		goto out_trans;
-	}
+	call = rxrpc_new_client_call(rx, &cp, srx, user_call_ID, GFP_KERNEL);
 
 	_leave(" = %p\n", call);
 	return call;
-
-out_trans:
-	rxrpc_put_transport(trans);
-out:
-	_leave(" = %ld", ret);
-	return ERR_PTR(ret);
 }
 
 /*

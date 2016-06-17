@@ -100,9 +100,7 @@ static void rxrpc_add_call_ID_to_conn(struct rxrpc_connection *conn,
  * padding bytes in *cp.
  */
 static struct rxrpc_connection *
-rxrpc_alloc_client_connection(struct rxrpc_conn_parameters *cp,
-			      struct rxrpc_transport *trans,
-			      gfp_t gfp)
+rxrpc_alloc_client_connection(struct rxrpc_conn_parameters *cp, gfp_t gfp)
 {
 	struct rxrpc_connection *conn;
 	int ret;
@@ -146,9 +144,10 @@ rxrpc_alloc_client_connection(struct rxrpc_conn_parameters *cp,
 	list_add_tail(&conn->link, &rxrpc_connections);
 	write_unlock(&rxrpc_connection_lock);
 
+	/* We steal the caller's peer ref. */
+	cp->peer = NULL;
+	rxrpc_get_local(conn->params.local);
 	key_get(conn->params.key);
-	conn->trans = trans;
-	atomic_inc(&trans->usage);
 
 	_leave(" = %p", conn);
 	return conn;
@@ -167,7 +166,6 @@ error_0:
  */
 int rxrpc_connect_call(struct rxrpc_call *call,
 		       struct rxrpc_conn_parameters *cp,
-		       struct rxrpc_transport *trans,
 		       struct sockaddr_rxrpc *srx,
 		       gfp_t gfp)
 {
@@ -181,8 +179,9 @@ int rxrpc_connect_call(struct rxrpc_call *call,
 
 	_enter("{%d,%lx},", call->debug_id, call->user_call_ID);
 
-	cp->peer = trans->peer;
-	rxrpc_get_peer(cp->peer);
+	cp->peer = rxrpc_lookup_peer(cp->local, srx, gfp);
+	if (!cp->peer)
+		return -ENOMEM;
 
 	if (!cp->exclusive) {
 		/* Search for a existing client connection unless this is going
@@ -210,7 +209,7 @@ int rxrpc_connect_call(struct rxrpc_call *call,
 
 	/* We didn't find a connection or we want an exclusive one. */
 	_debug("get new conn");
-	candidate = rxrpc_alloc_client_connection(cp, trans, gfp);
+	candidate = rxrpc_alloc_client_connection(cp, gfp);
 	if (!candidate) {
 		_leave(" = -ENOMEM");
 		return -ENOMEM;
@@ -281,6 +280,8 @@ found_channel:
 
 	rxrpc_add_call_ID_to_conn(conn, call);
 	spin_unlock(&conn->channel_lock);
+	rxrpc_put_peer(cp->peer);
+	cp->peer = NULL;
 	_leave(" = %p {u=%d}", conn, atomic_read(&conn->usage));
 	return 0;
 
@@ -329,6 +330,8 @@ interrupted:
 	remove_wait_queue(&conn->channel_wq, &myself);
 	__set_current_state(TASK_RUNNING);
 	rxrpc_put_connection(conn);
+	rxrpc_put_peer(cp->peer);
+	cp->peer = NULL;
 	_leave(" = -ERESTARTSYS");
 	return -ERESTARTSYS;
 }
@@ -336,7 +339,8 @@ interrupted:
 /*
  * get a record of an incoming connection
  */
-struct rxrpc_connection *rxrpc_incoming_connection(struct rxrpc_transport *trans,
+struct rxrpc_connection *rxrpc_incoming_connection(struct rxrpc_local *local,
+						   struct rxrpc_peer *peer,
 						   struct sk_buff *skb)
 {
 	struct rxrpc_connection *conn, *candidate = NULL;
@@ -354,9 +358,9 @@ struct rxrpc_connection *rxrpc_incoming_connection(struct rxrpc_transport *trans
 	cid = sp->hdr.cid & RXRPC_CIDMASK;
 
 	/* search the connection list first */
-	read_lock_bh(&trans->conn_lock);
+	read_lock_bh(&peer->conn_lock);
 
-	p = trans->server_conns.rb_node;
+	p = peer->service_conns.rb_node;
 	while (p) {
 		conn = rb_entry(p, struct rxrpc_connection, service_node);
 
@@ -373,7 +377,7 @@ struct rxrpc_connection *rxrpc_incoming_connection(struct rxrpc_transport *trans
 		else
 			goto found_extant_connection;
 	}
-	read_unlock_bh(&trans->conn_lock);
+	read_unlock_bh(&peer->conn_lock);
 
 	/* not yet present - create a candidate for a new record and then
 	 * redo the search */
@@ -383,13 +387,12 @@ struct rxrpc_connection *rxrpc_incoming_connection(struct rxrpc_transport *trans
 		return ERR_PTR(-ENOMEM);
 	}
 
-	candidate->trans		= trans;
-	candidate->proto.local		= trans->local;
+	candidate->proto.local		= local;
 	candidate->proto.epoch		= sp->hdr.epoch;
 	candidate->proto.cid		= sp->hdr.cid & RXRPC_CIDMASK;
 	candidate->proto.in_clientflag	= RXRPC_CLIENT_INITIATED;
-	candidate->params.local		= trans->local;
-	candidate->params.peer		= trans->peer;
+	candidate->params.local		= local;
+	candidate->params.peer		= peer;
 	candidate->params.service_id	= sp->hdr.serviceId;
 	candidate->security_ix		= sp->hdr.securityIndex;
 	candidate->out_clientflag	= 0;
@@ -397,9 +400,9 @@ struct rxrpc_connection *rxrpc_incoming_connection(struct rxrpc_transport *trans
 	if (candidate->params.service_id)
 		candidate->state	= RXRPC_CONN_SERVER_UNSECURED;
 
-	write_lock_bh(&trans->conn_lock);
+	write_lock_bh(&peer->conn_lock);
 
-	pp = &trans->server_conns.rb_node;
+	pp = &peer->service_conns.rb_node;
 	p = NULL;
 	while (*pp) {
 		p = *pp;
@@ -421,10 +424,11 @@ struct rxrpc_connection *rxrpc_incoming_connection(struct rxrpc_transport *trans
 	conn = candidate;
 	candidate = NULL;
 	rb_link_node(&conn->service_node, p, pp);
-	rb_insert_color(&conn->service_node, &trans->server_conns);
-	atomic_inc(&conn->trans->usage);
+	rb_insert_color(&conn->service_node, &peer->service_conns);
+	rxrpc_get_peer(peer);
+	rxrpc_get_local(local);
 
-	write_unlock_bh(&trans->conn_lock);
+	write_unlock_bh(&peer->conn_lock);
 
 	write_lock(&rxrpc_connection_lock);
 	list_add_tail(&conn->link, &rxrpc_connections);
@@ -441,21 +445,21 @@ success:
 	/* we found the connection in the list immediately */
 found_extant_connection:
 	if (sp->hdr.securityIndex != conn->security_ix) {
-		read_unlock_bh(&trans->conn_lock);
+		read_unlock_bh(&peer->conn_lock);
 		goto security_mismatch;
 	}
 	rxrpc_get_connection(conn);
-	read_unlock_bh(&trans->conn_lock);
+	read_unlock_bh(&peer->conn_lock);
 	goto success;
 
 	/* we found the connection on the second time through the list */
 found_extant_second:
 	if (sp->hdr.securityIndex != conn->security_ix) {
-		write_unlock_bh(&trans->conn_lock);
+		write_unlock_bh(&peer->conn_lock);
 		goto security_mismatch;
 	}
 	rxrpc_get_connection(conn);
-	write_unlock_bh(&trans->conn_lock);
+	write_unlock_bh(&peer->conn_lock);
 	kfree(candidate);
 	goto success;
 
@@ -469,7 +473,8 @@ security_mismatch:
  * find a connection based on transport and RxRPC connection ID for an incoming
  * packet
  */
-struct rxrpc_connection *rxrpc_find_connection(struct rxrpc_transport *trans,
+struct rxrpc_connection *rxrpc_find_connection(struct rxrpc_local *local,
+					       struct rxrpc_peer *peer,
 					       struct sk_buff *skb)
 {
 	struct rxrpc_connection *conn;
@@ -479,13 +484,13 @@ struct rxrpc_connection *rxrpc_find_connection(struct rxrpc_transport *trans,
 
 	_enter(",{%x,%x}", sp->hdr.cid, sp->hdr.flags);
 
-	read_lock_bh(&trans->conn_lock);
+	read_lock_bh(&peer->conn_lock);
 
 	cid	= sp->hdr.cid & RXRPC_CIDMASK;
 	epoch	= sp->hdr.epoch;
 
 	if (sp->hdr.flags & RXRPC_CLIENT_INITIATED) {
-		p = trans->server_conns.rb_node;
+		p = peer->service_conns.rb_node;
 		while (p) {
 			conn = rb_entry(p, struct rxrpc_connection, service_node);
 
@@ -508,13 +513,13 @@ struct rxrpc_connection *rxrpc_find_connection(struct rxrpc_transport *trans,
 			goto found;
 	}
 
-	read_unlock_bh(&trans->conn_lock);
+	read_unlock_bh(&peer->conn_lock);
 	_leave(" = NULL");
 	return NULL;
 
 found:
 	rxrpc_get_connection(conn);
-	read_unlock_bh(&trans->conn_lock);
+	read_unlock_bh(&peer->conn_lock);
 	_leave(" = %p", conn);
 	return conn;
 }
@@ -576,8 +581,9 @@ static void rxrpc_destroy_connection(struct rxrpc_connection *conn)
 	conn->security->clear(conn);
 	key_put(conn->params.key);
 	key_put(conn->server_key);
+	rxrpc_put_peer(conn->params.peer);
+	rxrpc_put_local(conn->params.local);
 
-	rxrpc_put_transport(conn->trans);
 	kfree(conn);
 	_leave("");
 }
@@ -588,6 +594,7 @@ static void rxrpc_destroy_connection(struct rxrpc_connection *conn)
 static void rxrpc_connection_reaper(struct work_struct *work)
 {
 	struct rxrpc_connection *conn, *_p;
+	struct rxrpc_peer *peer;
 	unsigned long now, earliest, reap_time;
 
 	LIST_HEAD(graveyard);
@@ -624,7 +631,8 @@ static void rxrpc_connection_reaper(struct work_struct *work)
 
 			spin_unlock(&local->client_conns_lock);
 		} else {
-			write_lock_bh(&conn->trans->conn_lock);
+			peer = conn->params.peer;
+			write_lock_bh(&peer->conn_lock);
 			reap_time = conn->put_time + rxrpc_connection_expiry;
 
 			if (atomic_read(&conn->usage) > 0) {
@@ -632,12 +640,12 @@ static void rxrpc_connection_reaper(struct work_struct *work)
 			} else if (reap_time <= now) {
 				list_move_tail(&conn->link, &graveyard);
 				rb_erase(&conn->service_node,
-					 &conn->trans->server_conns);
+					 &peer->service_conns);
 			} else if (reap_time < earliest) {
 				earliest = reap_time;
 			}
 
-			write_unlock_bh(&conn->trans->conn_lock);
+			write_unlock_bh(&peer->conn_lock);
 		}
 	}
 	write_unlock(&rxrpc_connection_lock);

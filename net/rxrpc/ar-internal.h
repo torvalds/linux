@@ -207,6 +207,8 @@ struct rxrpc_peer {
 	struct rxrpc_local	*local;
 	struct hlist_head	error_targets;	/* targets for net error distribution */
 	struct work_struct	error_distributor;
+	struct rb_root		service_conns;	/* Service connections */
+	rwlock_t		conn_lock;
 	spinlock_t		lock;		/* access lock */
 	unsigned int		if_mtu;		/* interface MTU for this peer */
 	unsigned int		mtu;		/* network MTU for this peer */
@@ -223,22 +225,6 @@ struct rxrpc_peer {
 	unsigned int		rtt_point;	/* next entry at which to insert */
 	unsigned int		rtt_usage;	/* amount of cache actually used */
 	suseconds_t		rtt_cache[RXRPC_RTT_CACHE_SIZE]; /* calculated RTT cache */
-};
-
-/*
- * RxRPC point-to-point transport / connection manager definition
- * - handles a bundle of connections between two endpoints
- * - matched by { local, peer }
- */
-struct rxrpc_transport {
-	struct rxrpc_local	*local;		/* local transport endpoint */
-	struct rxrpc_peer	*peer;		/* remote transport endpoint */
-	struct rb_root		server_conns;	/* server connections on this transport */
-	struct list_head	link;		/* link in master session list */
-	unsigned long		put_time;	/* time at which to reap */
-	rwlock_t		conn_lock;	/* lock for active/dead connections */
-	atomic_t		usage;
-	int			debug_id;	/* debug ID for printks */
 };
 
 /*
@@ -271,11 +257,10 @@ struct rxrpc_conn_parameters {
 
 /*
  * RxRPC connection definition
- * - matched by { transport, service_id, conn_id, direction, key }
+ * - matched by { local, peer, epoch, conn_id, direction }
  * - each connection can only handle four simultaneous calls
  */
 struct rxrpc_connection {
-	struct rxrpc_transport	*trans;		/* transport session */
 	struct rxrpc_conn_proto	proto;
 	struct rxrpc_conn_parameters params;
 
@@ -286,7 +271,7 @@ struct rxrpc_connection {
 	struct work_struct	processor;	/* connection event processor */
 	union {
 		struct rb_node	client_node;	/* Node in local->client_conns */
-		struct rb_node	service_node;	/* Node in trans->server_conns */
+		struct rb_node	service_node;	/* Node in peer->service_conns */
 	};
 	struct list_head	link;		/* link in master connection list */
 	struct rb_root		calls;		/* calls on this connection */
@@ -494,10 +479,6 @@ extern u32 rxrpc_epoch;
 extern atomic_t rxrpc_debug_id;
 extern struct workqueue_struct *rxrpc_workqueue;
 
-extern struct rxrpc_transport *rxrpc_name_to_transport(struct rxrpc_conn_parameters *,
-						       struct sockaddr *,
-						       int, gfp_t);
-
 /*
  * call_accept.c
  */
@@ -526,7 +507,6 @@ struct rxrpc_call *rxrpc_find_call_hash(struct rxrpc_host_header *,
 struct rxrpc_call *rxrpc_find_call_by_user_ID(struct rxrpc_sock *, unsigned long);
 struct rxrpc_call *rxrpc_new_client_call(struct rxrpc_sock *,
 					 struct rxrpc_conn_parameters *,
-					 struct rxrpc_transport *,
 					 struct sockaddr_rxrpc *,
 					 unsigned long, gfp_t);
 struct rxrpc_call *rxrpc_incoming_call(struct rxrpc_sock *,
@@ -560,15 +540,16 @@ extern struct list_head rxrpc_connections;
 extern rwlock_t rxrpc_connection_lock;
 
 int rxrpc_connect_call(struct rxrpc_call *, struct rxrpc_conn_parameters *,
-		       struct rxrpc_transport *,
 		       struct sockaddr_rxrpc *, gfp_t);
+struct rxrpc_connection *rxrpc_find_connection(struct rxrpc_local *,
+					       struct rxrpc_peer *,
+					       struct sk_buff *);
 void rxrpc_disconnect_call(struct rxrpc_call *);
 void rxrpc_put_connection(struct rxrpc_connection *);
 void __exit rxrpc_destroy_all_connections(void);
-struct rxrpc_connection *rxrpc_find_connection(struct rxrpc_transport *,
-					       struct sk_buff *);
-extern struct rxrpc_connection *
-rxrpc_incoming_connection(struct rxrpc_transport *, struct sk_buff *);
+struct rxrpc_connection *rxrpc_incoming_connection(struct rxrpc_local *,
+						   struct rxrpc_peer *,
+						   struct sk_buff *);
 
 static inline bool rxrpc_conn_is_client(const struct rxrpc_connection *conn)
 {
@@ -583,12 +564,6 @@ static inline bool rxrpc_conn_is_service(const struct rxrpc_connection *conn)
 static inline void rxrpc_get_connection(struct rxrpc_connection *conn)
 {
 	atomic_inc(&conn->usage);
-}
-
-static inline
-struct rxrpc_connection *rxrpc_get_connection_maybe(struct rxrpc_connection *conn)
-{
-	return atomic_inc_not_zero(&conn->usage) ? conn : NULL;
 }
 
 /*
@@ -743,18 +718,6 @@ extern void rxrpc_sysctl_exit(void);
 static inline int __init rxrpc_sysctl_init(void) { return 0; }
 static inline void rxrpc_sysctl_exit(void) {}
 #endif
-
-/*
- * transport.c
- */
-extern unsigned int rxrpc_transport_expiry;
-
-struct rxrpc_transport *rxrpc_get_transport(struct rxrpc_local *,
-					    struct rxrpc_peer *, gfp_t);
-void rxrpc_put_transport(struct rxrpc_transport *);
-void __exit rxrpc_destroy_all_transports(void);
-struct rxrpc_transport *rxrpc_find_transport(struct rxrpc_local *,
-					     struct rxrpc_peer *);
 
 /*
  * utils.c

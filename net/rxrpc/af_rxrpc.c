@@ -224,37 +224,6 @@ static int rxrpc_listen(struct socket *sock, int backlog)
 	return ret;
 }
 
-/*
- * find a transport by address
- */
-struct rxrpc_transport *
-rxrpc_name_to_transport(struct rxrpc_conn_parameters *cp,
-			struct sockaddr *addr,
-			int addr_len,
-			gfp_t gfp)
-{
-	struct sockaddr_rxrpc *srx = (struct sockaddr_rxrpc *) addr;
-	struct rxrpc_transport *trans;
-
-	_enter("%p,%d", addr, addr_len);
-
-	if (cp->local->srx.transport_type != srx->transport_type)
-		return ERR_PTR(-ESOCKTNOSUPPORT);
-	if (cp->local->srx.transport.family != srx->transport.family)
-		return ERR_PTR(-EAFNOSUPPORT);
-
-	/* find a remote transport endpoint from the local one */
-	cp->peer = rxrpc_lookup_peer(cp->local, srx, gfp);
-	if (!cp->peer)
-		return ERR_PTR(-ENOMEM);
-
-	/* find a transport */
-	trans = rxrpc_get_transport(cp->local, cp->peer, gfp);
-	rxrpc_put_peer(cp->peer);
-	_leave(" = %p", trans);
-	return trans;
-}
-
 /**
  * rxrpc_kernel_begin_call - Allow a kernel service to begin a call
  * @sock: The socket on which to make the call
@@ -276,7 +245,6 @@ struct rxrpc_call *rxrpc_kernel_begin_call(struct socket *sock,
 					   gfp_t gfp)
 {
 	struct rxrpc_conn_parameters cp;
-	struct rxrpc_transport *trans;
 	struct rxrpc_call *call;
 	struct rxrpc_sock *rx = rxrpc_sk(sock->sk);
 	int ret;
@@ -300,19 +268,8 @@ struct rxrpc_call *rxrpc_kernel_begin_call(struct socket *sock,
 	cp.security_level	= 0;
 	cp.exclusive		= false;
 	cp.service_id		= srx->srx_service;
+	call = rxrpc_new_client_call(rx, &cp, srx, user_call_ID, gfp);
 
-	trans = rxrpc_name_to_transport(&cp, (struct sockaddr *)srx,
-					sizeof(*srx), gfp);
-	if (IS_ERR(trans)) {
-		call = ERR_CAST(trans);
-		trans = NULL;
-		goto out_notrans;
-	}
-	cp.peer = trans->peer;
-
-	call = rxrpc_new_client_call(rx, &cp, trans, srx, user_call_ID, gfp);
-	rxrpc_put_transport(trans);
-out_notrans:
 	release_sock(&rx->sk);
 	_leave(" = %p", call);
 	return call;
@@ -831,7 +788,6 @@ static void __exit af_rxrpc_exit(void)
 	proto_unregister(&rxrpc_proto);
 	rxrpc_destroy_all_calls();
 	rxrpc_destroy_all_connections();
-	rxrpc_destroy_all_transports();
 
 	ASSERTCMP(atomic_read(&rxrpc_n_skbs), ==, 0);
 

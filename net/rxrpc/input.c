@@ -631,7 +631,6 @@ static struct rxrpc_connection *rxrpc_conn_from_local(struct rxrpc_local *local,
 						      struct sk_buff *skb)
 {
 	struct rxrpc_peer *peer;
-	struct rxrpc_transport *trans;
 	struct rxrpc_connection *conn;
 	struct sockaddr_rxrpc srx;
 
@@ -641,13 +640,8 @@ static struct rxrpc_connection *rxrpc_conn_from_local(struct rxrpc_local *local,
 	if (!peer)
 		goto cant_find_peer;
 
-	trans = rxrpc_find_transport(local, peer);
+	conn = rxrpc_find_connection(local, peer, skb);
 	rcu_read_unlock();
-	if (!trans)
-		goto cant_find_conn;
-
-	conn = rxrpc_find_connection(trans, skb);
-	rxrpc_put_transport(trans);
 	if (!conn)
 		goto cant_find_conn;
 

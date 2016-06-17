@@ -74,7 +74,6 @@ static int rxrpc_accept_incoming_call(struct rxrpc_local *local,
 				      struct sockaddr_rxrpc *srx)
 {
 	struct rxrpc_connection *conn;
-	struct rxrpc_transport *trans;
 	struct rxrpc_skb_priv *sp, *nsp;
 	struct rxrpc_peer *peer;
 	struct rxrpc_call *call;
@@ -102,16 +101,8 @@ static int rxrpc_accept_incoming_call(struct rxrpc_local *local,
 		goto error;
 	}
 
-	trans = rxrpc_get_transport(local, peer, GFP_NOIO);
+	conn = rxrpc_incoming_connection(local, peer, skb);
 	rxrpc_put_peer(peer);
-	if (IS_ERR(trans)) {
-		_debug("no trans");
-		ret = -EBUSY;
-		goto error;
-	}
-
-	conn = rxrpc_incoming_connection(trans, skb);
-	rxrpc_put_transport(trans);
 	if (IS_ERR(conn)) {
 		_debug("no conn");
 		ret = PTR_ERR(conn);
