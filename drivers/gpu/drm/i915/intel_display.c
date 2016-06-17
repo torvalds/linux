@@ -16219,18 +16219,14 @@ void intel_modeset_gem_init(struct drm_device *dev)
 	intel_backlight_register(dev);
 }
 
-void intel_connector_unregister(struct intel_connector *intel_connector)
+void intel_connector_unregister(struct drm_connector *connector)
 {
-	struct drm_connector *connector = &intel_connector->base;
-
 	intel_panel_destroy_backlight(connector);
-	drm_connector_unregister(connector);
 }
 
 void intel_modeset_cleanup(struct drm_device *dev)
 {
 	struct drm_i915_private *dev_priv = dev->dev_private;
-	struct intel_connector *connector;
 
 	intel_disable_gt_powersave(dev_priv);
 
@@ -16256,9 +16252,7 @@ void intel_modeset_cleanup(struct drm_device *dev)
 	/* flush any delayed tasks or pending work */
 	flush_scheduled_work();
 
-	/* destroy the backlight and sysfs files before encoders/connectors */
-	for_each_intel_connector(dev, connector)
-		connector->unregister(connector);
+	drm_connector_unregister_all(dev);
 
 	drm_mode_config_cleanup(dev);
 
