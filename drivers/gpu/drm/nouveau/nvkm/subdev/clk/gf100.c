@@ -99,7 +99,7 @@ read_div(struct gf100_clk *clk, int doff, u32 dsrc, u32 dctl)
 {
 	struct nvkm_device *device = clk->base.subdev.device;
 	u32 ssrc = nvkm_rd32(device, dsrc + (doff * 4));
-	u32 sctl = nvkm_rd32(device, dctl + (doff * 4));
+	u32 sclk, sctl, sdiv = 2;
 
 	switch (ssrc & 0x00000003) {
 	case 0:
@@ -109,13 +109,21 @@ read_div(struct gf100_clk *clk, int doff, u32 dsrc, u32 dctl)
 	case 2:
 		return 100000;
 	case 3:
-		if (sctl & 0x80000000) {
-			u32 sclk = read_vco(clk, dsrc + (doff * 4));
-			u32 sdiv = (sctl & 0x0000003f) + 2;
-			return (sclk * 2) / sdiv;
+		sclk = read_vco(clk, dsrc + (doff * 4));
+
+		/* Memclk has doff of 0 despite its alt. location */
+		if (doff <= 2) {
+			sctl = nvkm_rd32(device, dctl + (doff * 4));
+
+			if (sctl & 0x80000000) {
+				if (ssrc & 0x100)
+					sctl >>= 8;
+
+				sdiv = (sctl & 0x3f) + 2;
+			}
 		}
 
-		return read_vco(clk, dsrc + (doff * 4));
+		return (sclk * 2) / sdiv;
 	default:
 		return 0;
 	}
