@@ -248,6 +248,11 @@ void drm_master_release(struct drm_file *file_priv)
 	struct drm_device *dev = file_priv->minor->dev;
 	struct drm_master *master = file_priv->master;
 
+	mutex_lock(&dev->struct_mutex);
+	if (file_priv->magic)
+		idr_remove(&file_priv->master->magic_map, file_priv->magic);
+	mutex_unlock(&dev->struct_mutex);
+
 	mutex_lock(&dev->master_mutex);
 	if (!file_priv->is_master)
 		goto out;

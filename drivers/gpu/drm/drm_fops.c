@@ -376,11 +376,6 @@ int drm_release(struct inode *inode, struct file *filp)
 	list_del(&file_priv->lhead);
 	mutex_unlock(&dev->filelist_mutex);
 
-	mutex_lock(&dev->struct_mutex);
-	if (file_priv->magic)
-		idr_remove(&file_priv->master->magic_map, file_priv->magic);
-	mutex_unlock(&dev->struct_mutex);
-
 	if (dev->driver->preclose)
 		dev->driver->preclose(dev, file_priv);
 
