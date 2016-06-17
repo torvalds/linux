@@ -1900,4 +1900,12 @@ config RAVE_SP_CORE
 	  device found on several devices in RAVE line of hardware.
 
 endmenu
+
+config FUSB_30X
+	tristate "Fairchild fusb302 Support"
+	depends on I2C
+	help
+	  This option provides a driver for the Fairchild FUSB302.
+	  It support typec-pd functionality by controlled using I2C.
+
 endif

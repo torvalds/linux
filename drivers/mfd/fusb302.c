@@ -10,7 +10,7 @@
  */
 
 #include <linux/delay.h>
-#include <linux/extcon.h>
+#include <linux/extcon-provider.h>
 #include <linux/gpio.h>
 #include <linux/interrupt.h>
 #include <linux/module.h>
