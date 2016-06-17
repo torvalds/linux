@@ -19,8 +19,8 @@
 #include <linux/of_gpio.h>
 #include <sound/soc.h>
 #include <sound/jack.h>
-#include "../codecs/rt5645.h"
-#include "../codecs/rt5677.h"
+#include "../../codecs/rt5645.h"
+#include "../../codecs/rt5677.h"
 
 #define MCLK_FOR_CODECS		12288000
 

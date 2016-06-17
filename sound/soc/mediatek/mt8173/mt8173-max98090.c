@@ -18,7 +18,7 @@
 #include <sound/soc.h>
 #include <sound/jack.h>
 #include <linux/gpio.h>
-#include "../codecs/max98090.h"
+#include "../../codecs/max98090.h"
 
 static struct snd_soc_jack mt8173_max98090_jack;
 
