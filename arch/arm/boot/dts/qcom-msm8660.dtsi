@@ -262,6 +262,22 @@
 				no-1-8-v;
 				vmmc-supply = <&vsdcc_fixed>;
 			};
+
+			sdcc5: sdcc@12200000 {
+				compatible	= "arm,pl18x", "arm,primecell";
+				arm,primecell-periphid = <0x00051180>;
+				status		= "disabled";
+				reg		= <0x12200000 0x8000>;
+				interrupts	= <GIC_SPI 188 IRQ_TYPE_LEVEL_HIGH>;
+				interrupt-names	= "cmd_irq";
+				clocks		= <&gcc SDC5_CLK>, <&gcc SDC5_H_CLK>;
+				clock-names	= "mclk", "apb_pclk";
+				bus-width	= <4>;
+				cap-sd-highspeed;
+				cap-mmc-highspeed;
+				max-frequency	= <48000000>;
+				vmmc-supply = <&vsdcc_fixed>;
+			};
 		};
 
 		tcsr: syscon@1a400000 {
