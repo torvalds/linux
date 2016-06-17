@@ -1165,7 +1165,7 @@ static void kvm_write_wall_clock(struct kvm *kvm, gpa_t wall_clock)
 	int version;
 	int r;
 	struct pvclock_wall_clock wc;
-	struct timespec boot;
+	struct timespec64 boot;
 
 	if (!wall_clock)
 		return;
@@ -1188,13 +1188,13 @@ static void kvm_write_wall_clock(struct kvm *kvm, gpa_t wall_clock)
 	 * wall clock specified here.  guest system time equals host
 	 * system time for us, thus we must fill in host boot time here.
 	 */
-	getboottime(&boot);
+	getboottime64(&boot);
 
 	if (kvm->arch.kvmclock_offset) {
-		struct timespec ts = ns_to_timespec(kvm->arch.kvmclock_offset);
-		boot = timespec_sub(boot, ts);
+		struct timespec64 ts = ns_to_timespec64(kvm->arch.kvmclock_offset);
+		boot = timespec64_sub(boot, ts);
 	}
-	wc.sec = boot.tv_sec;
+	wc.sec = (u32)boot.tv_sec; /* overflow in 2106 guest time */
 	wc.nsec = boot.tv_nsec;
 	wc.version = version;
 
