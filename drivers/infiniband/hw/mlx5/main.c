@@ -459,8 +459,17 @@ static int mlx5_ib_query_device(struct ib_device *ibdev,
 	int max_rq_sg;
 	int max_sq_sg;
 	u64 min_page_size = 1ull << MLX5_CAP_GEN(mdev, log_pg_sz);
+	struct mlx5_ib_query_device_resp resp = {};
+	size_t resp_len;
+	u64 max_tso;
 
-	if (uhw->inlen || uhw->outlen)
+	resp_len = sizeof(resp.comp_mask) + sizeof(resp.response_length);
+	if (uhw->outlen && uhw->outlen < resp_len)
+		return -EINVAL;
+	else
+		resp.response_length = resp_len;
+
+	if (uhw->inlen && !ib_is_udata_cleared(uhw, 0, uhw->inlen))
 		return -EINVAL;
 
 	memset(props, 0, sizeof(*props));
@@ -513,9 +522,20 @@ static int mlx5_ib_query_device(struct ib_device *ibdev,
 	if (MLX5_CAP_GEN(mdev, block_lb_mc))
 		props->device_cap_flags |= IB_DEVICE_BLOCK_MULTICAST_LOOPBACK;
 
-	if (MLX5_CAP_GEN(dev->mdev, eth_net_offloads) &&
-	    (MLX5_CAP_ETH(dev->mdev, csum_cap)))
+	if (MLX5_CAP_GEN(dev->mdev, eth_net_offloads)) {
+		if (MLX5_CAP_ETH(mdev, csum_cap))
 			props->device_cap_flags |= IB_DEVICE_RAW_IP_CSUM;
+
+		if (field_avail(typeof(resp), tso_caps, uhw->outlen)) {
+			max_tso = MLX5_CAP_ETH(mdev, max_lso_cap);
+			if (max_tso) {
+				resp.tso_caps.max_tso = 1 << max_tso;
+				resp.tso_caps.supported_qpts |=
+					1 << IB_QPT_RAW_PACKET;
+				resp.response_length += sizeof(resp.tso_caps);
+			}
+		}
+	}
 
 	if (MLX5_CAP_GEN(mdev, ipoib_basic_offloads)) {
 		props->device_cap_flags |= IB_DEVICE_UD_IP_CSUM;
@@ -577,6 +597,13 @@ static int mlx5_ib_query_device(struct ib_device *ibdev,
 
 	if (!mlx5_core_is_pf(mdev))
 		props->device_cap_flags |= IB_DEVICE_VIRTUAL_FUNCTION;
+
+	if (uhw->outlen) {
+		err = ib_copy_to_udata(uhw, &resp, resp.response_length);
+
+		if (err)
+			return err;
+	}
 
 	return 0;
 }
@@ -995,6 +1022,11 @@ static struct ib_ucontext *mlx5_ib_alloc_ucontext(struct ib_device *ibdev,
 	if (field_avail(typeof(resp), cqe_version, udata->outlen))
 		resp.response_length += sizeof(resp.cqe_version);
 
+	if (field_avail(typeof(resp), cmds_supp_uhw, udata->outlen)) {
+		resp.cmds_supp_uhw |= MLX5_USER_CMDS_SUPP_UHW_QUERY_DEVICE;
+		resp.response_length += sizeof(resp.cmds_supp_uhw);
+	}
+
 	/*
 	 * We don't want to expose information from the PCI bar that is located
 	 * after 4096 bytes, so if the arch only supports larger pages, let's
@@ -1009,8 +1041,7 @@ static struct ib_ucontext *mlx5_ib_alloc_ucontext(struct ib_device *ibdev,
 			offsetof(struct mlx5_init_seg, internal_timer_h) %
 			PAGE_SIZE;
 		resp.response_length += sizeof(resp.hca_core_clock_offset) +
-					sizeof(resp.reserved2) +
-					sizeof(resp.reserved3);
+					sizeof(resp.reserved2);
 	}
 
 	err = ib_copy_to_udata(udata, &resp, resp.response_length);

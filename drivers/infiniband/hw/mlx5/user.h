@@ -83,6 +83,10 @@ enum mlx5_ib_alloc_ucontext_resp_mask {
 	MLX5_IB_ALLOC_UCONTEXT_RESP_MASK_CORE_CLOCK_OFFSET = 1UL << 0,
 };
 
+enum mlx5_user_cmds_supp_uhw {
+	MLX5_USER_CMDS_SUPP_UHW_QUERY_DEVICE = 1 << 0,
+};
+
 struct mlx5_ib_alloc_ucontext_resp {
 	__u32	qp_tab_size;
 	__u32	bf_reg_size;
@@ -98,13 +102,29 @@ struct mlx5_ib_alloc_ucontext_resp {
 	__u32	comp_mask;
 	__u32	response_length;
 	__u8	cqe_version;
-	__u8	reserved2;
-	__u16	reserved3;
+	__u8	cmds_supp_uhw;
+	__u16	reserved2;
 	__u64	hca_core_clock_offset;
 };
 
 struct mlx5_ib_alloc_pd_resp {
 	__u32	pdn;
+};
+
+struct mlx5_ib_tso_caps {
+	__u32 max_tso; /* Maximum tso payload size in bytes */
+
+	/* Corresponding bit will be set if qp type from
+	 * 'enum ib_qp_type' is supported, e.g.
+	 * supported_qpts |= 1 << IB_QPT_UD
+	 */
+	__u32 supported_qpts;
+};
+
+struct mlx5_ib_query_device_resp {
+	__u32	comp_mask;
+	__u32	response_length;
+	struct	mlx5_ib_tso_caps tso_caps;
 };
 
 struct mlx5_ib_create_cq {
