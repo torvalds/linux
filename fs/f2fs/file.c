@@ -354,7 +354,7 @@ static loff_t f2fs_seek_block(struct file *file, loff_t offset, int whence)
 
 	for (; data_ofs < isize; data_ofs = (loff_t)pgofs << PAGE_SHIFT) {
 		set_new_dnode(&dn, inode, NULL, NULL, 0);
-		err = get_dnode_of_data(&dn, pgofs, LOOKUP_NODE_RA);
+		err = get_dnode_of_data(&dn, pgofs, LOOKUP_NODE);
 		if (err && err != -ENOENT) {
 			goto fail;
 		} else if (err == -ENOENT) {

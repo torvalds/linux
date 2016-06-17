@@ -652,7 +652,7 @@ int f2fs_map_blocks(struct inode *inode, struct f2fs_map_blocks *map,
 	unsigned int maxblocks = map->m_len;
 	struct dnode_of_data dn;
 	struct f2fs_sb_info *sbi = F2FS_I_SB(inode);
-	int mode = create ? ALLOC_NODE : LOOKUP_NODE_RA;
+	int mode = create ? ALLOC_NODE : LOOKUP_NODE;
 	pgoff_t pgofs, end_offset, end;
 	int err = 0, ofs = 1;
 	unsigned int ofs_in_node, last_ofs_in_node;
