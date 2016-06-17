@@ -25,6 +25,7 @@
 #include <linux/err.h>
 #include <linux/module.h>
 #include <linux/platform_device.h>
+#include <linux/mfd/max77620.h>
 #include <linux/mfd/max77686.h>
 #include <linux/mfd/max77686-private.h>
 #include <linux/clk-provider.h>
@@ -35,12 +36,14 @@
 
 #include <dt-bindings/clock/maxim,max77686.h>
 #include <dt-bindings/clock/maxim,max77802.h>
+#include <dt-bindings/clock/maxim,max77620.h>
 
 #define MAX77802_CLOCK_LOW_JITTER_SHIFT 0x3
 
 enum max77686_chip_name {
 	CHIP_MAX77686,
 	CHIP_MAX77802,
+	CHIP_MAX77620,
 };
 
 struct max77686_hw_clk_info {
@@ -94,6 +97,15 @@ max77686_hw_clk_info max77802_hw_clks_info[MAX77802_CLKS_NUM] = {
 		.name = "32khz_cp",
 		.clk_reg = MAX77802_REG_32KHZ,
 		.clk_enable_mask = BIT(MAX77802_CLK_32K_CP),
+	},
+};
+
+static const struct
+max77686_hw_clk_info max77620_hw_clks_info[MAX77620_CLKS_NUM] = {
+	[MAX77620_CLK_32K_OUT0] = {
+		.name = "32khz_out0",
+		.clk_reg = MAX77620_REG_CNFG1_32K,
+		.clk_enable_mask = MAX77620_CNFG1_32K_OUT0_EN,
 	},
 };
 
@@ -179,6 +191,11 @@ static int max77686_clk_probe(struct platform_device *pdev)
 	case CHIP_MAX77802:
 		num_clks = MAX77802_CLKS_NUM;
 		hw_clks = max77802_hw_clks_info;
+		break;
+
+	case CHIP_MAX77620:
+		num_clks = MAX77620_CLKS_NUM;
+		hw_clks = max77620_hw_clks_info;
 		break;
 
 	default:
@@ -284,6 +301,7 @@ static int max77686_clk_remove(struct platform_device *pdev)
 static const struct platform_device_id max77686_clk_id[] = {
 	{ "max77686-clk", .driver_data = CHIP_MAX77686, },
 	{ "max77802-clk", .driver_data = CHIP_MAX77802, },
+	{ "max77620-clock", .driver_data = CHIP_MAX77620, },
 	{},
 };
 MODULE_DEVICE_TABLE(platform, max77686_clk_id);

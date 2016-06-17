@@ -32,10 +32,11 @@ config COMMON_CLK_WM831X
 source "drivers/clk/versatile/Kconfig"
 
 config COMMON_CLK_MAX77686
-	tristate "Clock driver for Maxim 77686/77802 MFD"
-	depends on MFD_MAX77686
+	tristate "Clock driver for Maxim 77620/77686/77802 MFD"
+	depends on MFD_MAX77686 || MFD_MAX77620
 	---help---
-	  This driver supports Maxim 77686/77802 crystal oscillator clock.
+	  This driver supports Maxim 77620/77686/77802 crystal oscillator
+	  clock.
 
 config COMMON_CLK_RK808
 	tristate "Clock driver for RK808/RK818"
