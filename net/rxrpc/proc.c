@@ -59,25 +59,28 @@ static int rxrpc_call_seq_show(struct seq_file *seq, void *v)
 	}
 
 	call = list_entry(v, struct rxrpc_call, link);
-	conn = call->conn;
 
 	sprintf(lbuff, "%pI4:%u",
-		&conn->params.local->srx.transport.sin.sin_addr,
-		ntohs(conn->params.local->srx.transport.sin.sin_port));
+		&call->local->srx.transport.sin.sin_addr,
+		ntohs(call->local->srx.transport.sin.sin_port));
 
-	sprintf(rbuff, "%pI4:%u",
-		&conn->params.peer->srx.transport.sin.sin_addr,
-		ntohs(conn->params.peer->srx.transport.sin.sin_port));
+	conn = call->conn;
+	if (conn)
+		sprintf(rbuff, "%pI4:%u",
+			&conn->params.peer->srx.transport.sin.sin_addr,
+			ntohs(conn->params.peer->srx.transport.sin.sin_port));
+	else
+		strcpy(rbuff, "no_connection");
 
 	seq_printf(seq,
 		   "UDP   %-22.22s %-22.22s %4x %08x %08x %s %3u"
 		   " %-8.8s %08x %lx\n",
 		   lbuff,
 		   rbuff,
-		   call->conn->params.service_id,
+		   call->service_id,
 		   call->cid,
 		   call->call_id,
-		   rxrpc_conn_is_service(call->conn) ? "Svc" : "Clt",
+		   call->in_clientflag ? "Svc" : "Clt",
 		   atomic_read(&call->usage),
 		   rxrpc_call_states[call->state],
 		   call->remote_abort ?: call->local_abort,
