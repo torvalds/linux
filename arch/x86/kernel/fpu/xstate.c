@@ -270,6 +270,33 @@ static void __init print_xstate_features(void)
 }
 
 /*
+ * This check is important because it is easy to get XSTATE_*
+ * confused with XSTATE_BIT_*.
+ */
+#define CHECK_XFEATURE(nr) do {		\
+	WARN_ON(nr < FIRST_EXTENDED_XFEATURE);	\
+	WARN_ON(nr >= XFEATURE_MAX);	\
+} while (0)
+
+/*
+ * We could cache this like xstate_size[], but we only use
+ * it here, so it would be a waste of space.
+ */
+static int xfeature_is_aligned(int xfeature_nr)
+{
+	u32 eax, ebx, ecx, edx;
+
+	CHECK_XFEATURE(xfeature_nr);
+	cpuid_count(XSTATE_CPUID, xfeature_nr, &eax, &ebx, &ecx, &edx);
+	/*
+	 * The value returned by ECX[1] indicates the alignment
+	 * of state component 'i' when the compacted format
+	 * of the extended region of an XSAVE area is used:
+	 */
+	return !!(ecx & 2);
+}
+
+/*
  * This function sets up offsets and sizes of all extended states in
  * xsave area. This supports both standard format and compacted format
  * of the xsave aread.
@@ -306,10 +333,14 @@ static void __init setup_xstate_comp(void)
 		else
 			xstate_comp_sizes[i] = 0;
 
-		if (i > FIRST_EXTENDED_XFEATURE)
+		if (i > FIRST_EXTENDED_XFEATURE) {
 			xstate_comp_offsets[i] = xstate_comp_offsets[i-1]
 					+ xstate_comp_sizes[i-1];
 
+			if (xfeature_is_aligned(i))
+				xstate_comp_offsets[i] =
+					ALIGN(xstate_comp_offsets[i], 64);
+		}
 	}
 }
 
@@ -365,33 +396,6 @@ static int xfeature_is_user(int xfeature_nr)
 	return !xfeature_is_supervisor(xfeature_nr);
 }
 */
-
-/*
- * This check is important because it is easy to get XSTATE_*
- * confused with XSTATE_BIT_*.
- */
-#define CHECK_XFEATURE(nr) do {		\
-	WARN_ON(nr < FIRST_EXTENDED_XFEATURE);	\
-	WARN_ON(nr >= XFEATURE_MAX);	\
-} while (0)
-
-/*
- * We could cache this like xstate_size[], but we only use
- * it here, so it would be a waste of space.
- */
-static int xfeature_is_aligned(int xfeature_nr)
-{
-	u32 eax, ebx, ecx, edx;
-
-	CHECK_XFEATURE(xfeature_nr);
-	cpuid_count(XSTATE_CPUID, xfeature_nr, &eax, &ebx, &ecx, &edx);
-	/*
-	 * The value returned by ECX[1] indicates the alignment
-	 * of state component i when the compacted format
-	 * of the extended region of an XSAVE area is used
-	 */
-	return !!(ecx & 2);
-}
 
 static int xfeature_uncompacted_offset(int xfeature_nr)
 {
