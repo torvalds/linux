@@ -255,7 +255,13 @@ static void ssi_gdd_tasklet(unsigned long dev)
 	unsigned int lch;
 	u32 status_reg;
 
-	pm_runtime_get_sync(ssi->device.parent);
+	pm_runtime_get(ssi->device.parent);
+
+	if (!pm_runtime_active(ssi->device.parent)) {
+		dev_warn(ssi->device.parent, "ssi_gdd_tasklet called without runtime PM!\n");
+		pm_runtime_put(ssi->device.parent);
+		return;
+	}
 
 	status_reg = readl(sys + SSI_GDD_MPU_IRQ_STATUS_REG);
 	for (lch = 0; lch < SSI_MAX_GDD_LCH; lch++) {
