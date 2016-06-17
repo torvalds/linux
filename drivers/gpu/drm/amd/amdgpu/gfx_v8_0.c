@@ -6465,6 +6465,20 @@ static void gfx_v8_0_set_gds_init(struct amdgpu_device *adev)
 	}
 }
 
+static void gfx_v8_0_set_user_cu_inactive_bitmap(struct amdgpu_device *adev,
+						 u32 bitmap)
+{
+	u32 data;
+
+	if (!bitmap)
+		return;
+
+	data = bitmap << GC_USER_SHADER_ARRAY_CONFIG__INACTIVE_CUS__SHIFT;
+	data &= GC_USER_SHADER_ARRAY_CONFIG__INACTIVE_CUS_MASK;
+
+	WREG32(mmGC_USER_SHADER_ARRAY_CONFIG, data);
+}
+
 static u32 gfx_v8_0_get_cu_active_bitmap(struct amdgpu_device *adev)
 {
 	u32 data, mask;
@@ -6485,8 +6499,11 @@ static void gfx_v8_0_get_cu_info(struct amdgpu_device *adev)
 	int i, j, k, counter, active_cu_number = 0;
 	u32 mask, bitmap, ao_bitmap, ao_cu_mask = 0;
 	struct amdgpu_cu_info *cu_info = &adev->gfx.cu_info;
+	unsigned disable_masks[4 * 2];
 
 	memset(cu_info, 0, sizeof(*cu_info));
+
+	amdgpu_gfx_parse_disable_cu(disable_masks, 4, 2);
 
 	mutex_lock(&adev->grbm_idx_mutex);
 	for (i = 0; i < adev->gfx.config.max_shader_engines; i++) {
@@ -6495,6 +6512,9 @@ static void gfx_v8_0_get_cu_info(struct amdgpu_device *adev)
 			ao_bitmap = 0;
 			counter = 0;
 			gfx_v8_0_select_se_sh(adev, i, j);
+			if (i < 4 && j < 2)
+				gfx_v8_0_set_user_cu_inactive_bitmap(
+					adev, disable_masks[i * 2 + j]);
 			bitmap = gfx_v8_0_get_cu_active_bitmap(adev);
 			cu_info->bitmap[i][j] = bitmap;
 
