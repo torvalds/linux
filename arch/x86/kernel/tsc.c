@@ -693,7 +693,11 @@ unsigned long native_calibrate_tsc(void)
 		switch (boot_cpu_data.x86_model) {
 		case 0x4E:	/* SKL */
 		case 0x5E:	/* SKL */
-			crystal_khz = 24000;	/* 24 MHz */
+			crystal_khz = 24000;	/* 24.0 MHz */
+			break;
+		case 0x5C:	/* BXT */
+			crystal_khz = 19200;	/* 19.2 MHz */
+			break;
 		}
 	}
 
@@ -895,6 +899,8 @@ int recalibrate_cpu_khz(void)
 	tsc_khz = x86_platform.calibrate_tsc();
 	if (tsc_khz == 0)
 		tsc_khz = cpu_khz;
+	else if (abs(cpu_khz - tsc_khz) * 10 > tsc_khz)
+		cpu_khz = tsc_khz;
 	cpu_data(0).loops_per_jiffy = cpufreq_scale(cpu_data(0).loops_per_jiffy,
 						    cpu_khz_old, cpu_khz);
 
@@ -1302,8 +1308,16 @@ void __init tsc_init(void)
 
 	cpu_khz = x86_platform.calibrate_cpu();
 	tsc_khz = x86_platform.calibrate_tsc();
+
+	/*
+	 * Trust non-zero tsc_khz as authorative,
+	 * and use it to sanity check cpu_khz,
+	 * which will be off if system timer is off.
+	 */
 	if (tsc_khz == 0)
 		tsc_khz = cpu_khz;
+	else if (abs(cpu_khz - tsc_khz) * 10 > tsc_khz)
+		cpu_khz = tsc_khz;
 
 	if (!tsc_khz) {
 		mark_tsc_unstable("could not calculate TSC khz");
