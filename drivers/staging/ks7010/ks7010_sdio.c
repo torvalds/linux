@@ -958,9 +958,6 @@ static struct sdio_driver ks7010_sdio_driver = {
 	.remove = ks7910_sdio_remove,
 };
 
-extern int ks_wlan_net_start(struct net_device *dev);
-extern int ks_wlan_net_stop(struct net_device *dev);
-
 static void ks7010_init_defaults(struct ks_wlan_private *priv)
 {
 	priv->reg.tx_rate = TX_RATE_AUTO;
