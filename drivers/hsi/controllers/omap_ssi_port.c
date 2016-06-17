@@ -1236,8 +1236,6 @@ static int ssi_port_probe(struct platform_device *pd)
 	spin_lock_init(&omap_port->wk_lock);
 	omap_port->dev = &port->device;
 
-	pm_runtime_irq_safe(omap_port->pdev);
-
 	pm_runtime_use_autosuspend(omap_port->pdev);
 	pm_runtime_set_autosuspend_delay(omap_port->pdev, 250);
 	pm_runtime_enable(omap_port->pdev);

@@ -543,7 +543,6 @@ static int ssi_probe(struct platform_device *pd)
 	if (err < 0)
 		goto out1;
 
-	pm_runtime_irq_safe(&pd->dev);
 	pm_runtime_enable(&pd->dev);
 
 	err = ssi_hw_init(ssi);
