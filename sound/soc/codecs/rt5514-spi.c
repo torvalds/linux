@@ -80,7 +80,7 @@ static void rt5514_spi_copy_work(struct work_struct *work)
 {
 	struct rt5514_dsp *rt5514_dsp =
 		container_of(work, struct rt5514_dsp, copy_work.work);
-	struct snd_pcm_runtime *runtime = rt5514_dsp->substream->runtime;
+	struct snd_pcm_runtime *runtime;
 	size_t period_bytes, truncated_bytes = 0;
 
 	mutex_lock(&rt5514_dsp->dma_lock);
@@ -89,6 +89,7 @@ static void rt5514_spi_copy_work(struct work_struct *work)
 		goto done;
 	}
 
+	runtime = rt5514_dsp->substream->runtime;
 	period_bytes = snd_pcm_lib_period_bytes(rt5514_dsp->substream);
 
 	if (rt5514_dsp->buf_size - rt5514_dsp->dsp_offset <  period_bytes)
