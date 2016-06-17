@@ -2153,68 +2153,6 @@ err:
 	return ret;
 }
 
-static int gpmc_gpio_get_direction(struct gpio_chip *chip, unsigned int offset)
-{
-	return 1;	/* we're input only */
-}
-
-static int gpmc_gpio_direction_input(struct gpio_chip *chip,
-				     unsigned int offset)
-{
-	return 0;	/* we're input only */
-}
-
-static int gpmc_gpio_direction_output(struct gpio_chip *chip,
-				      unsigned int offset, int value)
-{
-	return -EINVAL;	/* we're input only */
-}
-
-static void gpmc_gpio_set(struct gpio_chip *chip, unsigned int offset,
-			  int value)
-{
-}
-
-static int gpmc_gpio_get(struct gpio_chip *chip, unsigned int offset)
-{
-	u32 reg;
-
-	offset += 8;
-
-	reg = gpmc_read_reg(GPMC_STATUS) & BIT(offset);
-
-	return !!reg;
-}
-
-static int gpmc_gpio_init(struct gpmc_device *gpmc)
-{
-	int ret;
-
-	gpmc->gpio_chip.parent = gpmc->dev;
-	gpmc->gpio_chip.owner = THIS_MODULE;
-	gpmc->gpio_chip.label = DEVICE_NAME;
-	gpmc->gpio_chip.ngpio = gpmc_nr_waitpins;
-	gpmc->gpio_chip.get_direction = gpmc_gpio_get_direction;
-	gpmc->gpio_chip.direction_input = gpmc_gpio_direction_input;
-	gpmc->gpio_chip.direction_output = gpmc_gpio_direction_output;
-	gpmc->gpio_chip.set = gpmc_gpio_set;
-	gpmc->gpio_chip.get = gpmc_gpio_get;
-	gpmc->gpio_chip.base = -1;
-
-	ret = gpiochip_add(&gpmc->gpio_chip);
-	if (ret < 0) {
-		dev_err(gpmc->dev, "could not register gpio chip: %d\n", ret);
-		return ret;
-	}
-
-	return 0;
-}
-
-static void gpmc_gpio_exit(struct gpmc_device *gpmc)
-{
-	gpiochip_remove(&gpmc->gpio_chip);
-}
-
 static int gpmc_probe_dt(struct platform_device *pdev)
 {
 	int ret;
@@ -2279,7 +2217,69 @@ static int gpmc_probe_dt_children(struct platform_device *pdev)
 {
 	return 0;
 }
-#endif
+#endif /* CONFIG_OF */
+
+static int gpmc_gpio_get_direction(struct gpio_chip *chip, unsigned int offset)
+{
+	return 1;	/* we're input only */
+}
+
+static int gpmc_gpio_direction_input(struct gpio_chip *chip,
+				     unsigned int offset)
+{
+	return 0;	/* we're input only */
+}
+
+static int gpmc_gpio_direction_output(struct gpio_chip *chip,
+				      unsigned int offset, int value)
+{
+	return -EINVAL;	/* we're input only */
+}
+
+static void gpmc_gpio_set(struct gpio_chip *chip, unsigned int offset,
+			  int value)
+{
+}
+
+static int gpmc_gpio_get(struct gpio_chip *chip, unsigned int offset)
+{
+	u32 reg;
+
+	offset += 8;
+
+	reg = gpmc_read_reg(GPMC_STATUS) & BIT(offset);
+
+	return !!reg;
+}
+
+static int gpmc_gpio_init(struct gpmc_device *gpmc)
+{
+	int ret;
+
+	gpmc->gpio_chip.parent = gpmc->dev;
+	gpmc->gpio_chip.owner = THIS_MODULE;
+	gpmc->gpio_chip.label = DEVICE_NAME;
+	gpmc->gpio_chip.ngpio = gpmc_nr_waitpins;
+	gpmc->gpio_chip.get_direction = gpmc_gpio_get_direction;
+	gpmc->gpio_chip.direction_input = gpmc_gpio_direction_input;
+	gpmc->gpio_chip.direction_output = gpmc_gpio_direction_output;
+	gpmc->gpio_chip.set = gpmc_gpio_set;
+	gpmc->gpio_chip.get = gpmc_gpio_get;
+	gpmc->gpio_chip.base = -1;
+
+	ret = gpiochip_add(&gpmc->gpio_chip);
+	if (ret < 0) {
+		dev_err(gpmc->dev, "could not register gpio chip: %d\n", ret);
+		return ret;
+	}
+
+	return 0;
+}
+
+static void gpmc_gpio_exit(struct gpmc_device *gpmc)
+{
+	gpiochip_remove(&gpmc->gpio_chip);
+}
 
 static int gpmc_probe(struct platform_device *pdev)
 {
