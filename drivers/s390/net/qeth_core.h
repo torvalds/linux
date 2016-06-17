@@ -19,6 +19,7 @@
 #include <linux/seq_file.h>
 #include <linux/ethtool.h>
 #include <linux/hashtable.h>
+#include <linux/ip.h>
 
 #include <net/ipv6.h>
 #include <net/if_inet6.h>
@@ -144,6 +145,7 @@ struct qeth_perf_stats {
 	unsigned int sg_alloc_page_rx;
 	unsigned int tx_csum;
 	unsigned int tx_lin;
+	unsigned int tx_linfail;
 };
 
 /* Routing stuff */
@@ -559,7 +561,6 @@ enum qeth_ip_types {
 	QETH_IP_TYPE_NORMAL,
 	QETH_IP_TYPE_VIPA,
 	QETH_IP_TYPE_RXIP,
-	QETH_IP_TYPE_DEL_ALL_MC,
 };
 
 enum qeth_cmd_buffer_state {
@@ -740,17 +741,10 @@ struct qeth_vlan_vid {
 	unsigned short vid;
 };
 
-enum qeth_mac_disposition {
-	QETH_DISP_MAC_DELETE = 0,
-	QETH_DISP_MAC_DO_NOTHING = 1,
-	QETH_DISP_MAC_ADD = 2,
-};
-
-struct qeth_mac {
-	u8 mac_addr[OSA_ADDR_LEN];
-	u8 is_uc:1;
-	u8 disp_flag:2;
-	struct hlist_node hnode;
+enum qeth_addr_disposition {
+	QETH_DISP_ADDR_DELETE = 0,
+	QETH_DISP_ADDR_DO_NOTHING = 1,
+	QETH_DISP_ADDR_ADD = 2,
 };
 
 struct qeth_rx {
@@ -798,6 +792,8 @@ struct qeth_card {
 	unsigned long active_vlans[BITS_TO_LONGS(VLAN_N_VID)];
 	struct list_head vid_list;
 	DECLARE_HASHTABLE(mac_htable, 4);
+	DECLARE_HASHTABLE(ip_htable, 4);
+	DECLARE_HASHTABLE(ip_mc_htable, 4);
 	struct work_struct kernel_thread_starter;
 	spinlock_t thread_mask_lock;
 	unsigned long thread_start_mask;
@@ -805,8 +801,6 @@ struct qeth_card {
 	unsigned long thread_running_mask;
 	struct task_struct *recovery_task;
 	spinlock_t ip_lock;
-	struct list_head ip_list;
-	struct list_head *ip_tbd_list;
 	struct qeth_ipato ipato;
 	struct list_head cmd_waiter_list;
 	/* QDIO buffer handling */
@@ -844,6 +838,19 @@ struct qeth_trap_id {
 /*some helper functions*/
 #define QETH_CARD_IFNAME(card) (((card)->dev)? (card)->dev->name : "")
 
+/**
+ * qeth_get_elements_for_range() -	find number of SBALEs to cover range.
+ * @start:				Start of the address range.
+ * @end:				Address after the end of the range.
+ *
+ * Returns the number of pages, and thus QDIO buffer elements, needed to cover
+ * the specified address range.
+ */
+static inline int qeth_get_elements_for_range(addr_t start, addr_t end)
+{
+	return PFN_UP(end - 1) - PFN_DOWN(start);
+}
+
 static inline int qeth_get_micros(void)
 {
 	return (int) (get_tod_clock() >> 12);
@@ -863,6 +870,11 @@ static inline int qeth_get_ip_version(struct sk_buff *skb)
 	default:
 		return 0;
 	}
+}
+
+static inline int qeth_get_ip_protocol(struct sk_buff *skb)
+{
+	return ip_hdr(skb)->protocol;
 }
 
 static inline void qeth_put_buffer_pool_entry(struct qeth_card *card,
@@ -981,12 +993,13 @@ int qeth_send_setassparms(struct qeth_card *, struct qeth_cmd_buffer *, __u16,
 			  int (*reply_cb)(struct qeth_card *,
 					  struct qeth_reply *, unsigned long),
 			  void *);
+int qeth_setassparms_cb(struct qeth_card *, struct qeth_reply *, unsigned long);
 struct qeth_cmd_buffer *qeth_get_setassparms_cmd(struct qeth_card *,
 						 enum qeth_ipa_funcs,
 						 __u16, __u16,
 						 enum qeth_prot_versions);
-int qeth_start_ipa_tx_checksum(struct qeth_card *);
-int qeth_set_rx_csum(struct qeth_card *, int);
+int qeth_set_features(struct net_device *, netdev_features_t);
+netdev_features_t qeth_fix_features(struct net_device *, netdev_features_t);
 
 /* exports for OSN */
 int qeth_osn_assist(struct net_device *, void *, int);
