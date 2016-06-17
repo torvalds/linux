@@ -791,15 +791,16 @@ static void unlock_bus(struct i2c_adapter *i2c, unsigned int flags)
 }
 
 /**
- * drm_dp_aux_register() - initialise and register aux channel
+ * drm_dp_aux_init() - minimally initialise an aux channel
  * @aux: DisplayPort AUX channel
  *
- * Returns 0 on success or a negative error code on failure.
+ * If you need to use the drm_dp_aux's i2c adapter prior to registering it
+ * with the outside world, call drm_dp_aux_init() first. You must still
+ * call drm_dp_aux_register() once the connector has been registered to
+ * allow userspace access to the auxiliary DP channel.
  */
-int drm_dp_aux_register(struct drm_dp_aux *aux)
+void drm_dp_aux_init(struct drm_dp_aux *aux)
 {
-	int ret;
-
 	mutex_init(&aux->hw_mutex);
 
 	aux->ddc.algo = &drm_dp_i2c_algo;
@@ -809,6 +810,23 @@ int drm_dp_aux_register(struct drm_dp_aux *aux)
 	aux->ddc.lock_bus = lock_bus;
 	aux->ddc.trylock_bus = trylock_bus;
 	aux->ddc.unlock_bus = unlock_bus;
+}
+EXPORT_SYMBOL(drm_dp_aux_init);
+
+/**
+ * drm_dp_aux_register() - initialise and register aux channel
+ * @aux: DisplayPort AUX channel
+ *
+ * Automatically calls drm_dp_aux_init() if this hasn't been done yet.
+ *
+ * Returns 0 on success or a negative error code on failure.
+ */
+int drm_dp_aux_register(struct drm_dp_aux *aux)
+{
+	int ret;
+
+	if (!aux->ddc.algo)
+		drm_dp_aux_init(aux);
 
 	aux->ddc.class = I2C_CLASS_DDC;
 	aux->ddc.owner = THIS_MODULE;
