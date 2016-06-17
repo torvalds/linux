@@ -532,6 +532,7 @@ void verity_fec_init_io(struct dm_verity_io *io)
 	memset(fio->bufs, 0, sizeof(fio->bufs));
 	fio->nbufs = 0;
 	fio->output = NULL;
+	fio->level = 0;
 }
 
 /*
