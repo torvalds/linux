@@ -1408,7 +1408,7 @@ static void fm10k_update_itr(struct fm10k_ring_container *ring_container)
 	 * that the calculation will never get below a 1. The bit shift
 	 * accounts for changes in the ITR due to PCIe link speed.
 	 */
-	itr_round = ACCESS_ONCE(ring_container->itr_scale) + 8;
+	itr_round = READ_ONCE(ring_container->itr_scale) + 8;
 	avg_wire_size += BIT(itr_round) - 1;
 	avg_wire_size >>= itr_round;
 

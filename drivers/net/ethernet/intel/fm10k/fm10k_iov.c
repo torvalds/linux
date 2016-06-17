@@ -51,7 +51,7 @@ s32 fm10k_iov_event(struct fm10k_intfc *interface)
 	int i;
 
 	/* if there is no iov_data then there is no mailbox to process */
-	if (!ACCESS_ONCE(interface->iov_data))
+	if (!READ_ONCE(interface->iov_data))
 		return 0;
 
 	rcu_read_lock();
@@ -99,7 +99,7 @@ s32 fm10k_iov_mbx(struct fm10k_intfc *interface)
 	int i;
 
 	/* if there is no iov_data then there is no mailbox to process */
-	if (!ACCESS_ONCE(interface->iov_data))
+	if (!READ_ONCE(interface->iov_data))
 		return 0;
 
 	rcu_read_lock();

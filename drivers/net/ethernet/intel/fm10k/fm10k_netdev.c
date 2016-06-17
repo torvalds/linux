@@ -1098,7 +1098,7 @@ static struct rtnl_link_stats64 *fm10k_get_stats64(struct net_device *netdev,
 	rcu_read_lock();
 
 	for (i = 0; i < interface->num_rx_queues; i++) {
-		ring = ACCESS_ONCE(interface->rx_ring[i]);
+		ring = READ_ONCE(interface->rx_ring[i]);
 
 		if (!ring)
 			continue;
@@ -1114,7 +1114,7 @@ static struct rtnl_link_stats64 *fm10k_get_stats64(struct net_device *netdev,
 	}
 
 	for (i = 0; i < interface->num_tx_queues; i++) {
-		ring = ACCESS_ONCE(interface->tx_ring[i]);
+		ring = READ_ONCE(interface->tx_ring[i]);
 
 		if (!ring)
 			continue;
@@ -1299,7 +1299,7 @@ static void *fm10k_dfwd_add_station(struct net_device *dev,
 static void fm10k_dfwd_del_station(struct net_device *dev, void *priv)
 {
 	struct fm10k_intfc *interface = netdev_priv(dev);
-	struct fm10k_l2_accel *l2_accel = ACCESS_ONCE(interface->l2_accel);
+	struct fm10k_l2_accel *l2_accel = READ_ONCE(interface->l2_accel);
 	struct fm10k_dglort_cfg dglort = { 0 };
 	struct fm10k_hw *hw = &interface->hw;
 	struct net_device *sdev = priv;
