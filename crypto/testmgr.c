@@ -3659,6 +3659,46 @@ static const struct alg_test_desc alg_test_descs[] = {
 			}
 		}
 	}, {
+		.alg = "sha3-224",
+		.test = alg_test_hash,
+		.fips_allowed = 1,
+		.suite = {
+			.hash = {
+				.vecs = sha3_224_tv_template,
+				.count = SHA3_224_TEST_VECTORS
+			}
+		}
+	}, {
+		.alg = "sha3-256",
+		.test = alg_test_hash,
+		.fips_allowed = 1,
+		.suite = {
+			.hash = {
+				.vecs = sha3_256_tv_template,
+				.count = SHA3_256_TEST_VECTORS
+			}
+		}
+	}, {
+		.alg = "sha3-384",
+		.test = alg_test_hash,
+		.fips_allowed = 1,
+		.suite = {
+			.hash = {
+				.vecs = sha3_384_tv_template,
+				.count = SHA3_384_TEST_VECTORS
+			}
+		}
+	}, {
+		.alg = "sha3-512",
+		.test = alg_test_hash,
+		.fips_allowed = 1,
+		.suite = {
+			.hash = {
+				.vecs = sha3_512_tv_template,
+				.count = SHA3_512_TEST_VECTORS
+			}
+		}
+	}, {
 		.alg = "sha384",
 		.test = alg_test_hash,
 		.fips_allowed = 1,
