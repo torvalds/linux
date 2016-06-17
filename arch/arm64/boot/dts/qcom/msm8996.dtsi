@@ -161,7 +161,7 @@
 			status = "disabled";
 		};
 
-		pinctrl@1010000 {
+		msmgpio: pinctrl@1010000 {
 			compatible = "qcom,msm8996-pinctrl";
 			reg = <0x01010000 0x300000>;
 			interrupts = <GIC_SPI 208 IRQ_TYPE_LEVEL_HIGH>;
