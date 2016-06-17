@@ -101,6 +101,10 @@ enum {
 	DEVICE_COUNT_RESOURCE = PCI_NUM_RESOURCES,
 };
 
+/*
+ * pci_power_t values must match the bits in the Capabilities PME_Support
+ * and Control/Status PowerState fields in the Power Management capability.
+ */
 typedef int __bitwise pci_power_t;
 
 #define PCI_D0		((pci_power_t __force) 0)
