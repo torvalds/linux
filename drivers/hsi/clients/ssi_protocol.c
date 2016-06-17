@@ -150,6 +150,7 @@ struct ssi_protocol {
 	struct net_device	*netdev;
 	struct list_head	txqueue;
 	struct list_head	cmdqueue;
+	struct work_struct	work;
 	struct hsi_client	*cl;
 	struct list_head	link;
 	atomic_t		tx_usecnt;
@@ -968,6 +969,15 @@ static int ssip_pn_set_mtu(struct net_device *dev, int new_mtu)
 	return 0;
 }
 
+static void ssip_xmit_work(struct work_struct *work)
+{
+	struct ssi_protocol *ssi =
+				container_of(work, struct ssi_protocol, work);
+	struct hsi_client *cl = ssi->cl;
+
+	ssip_xmit(cl);
+}
+
 static int ssip_pn_xmit(struct sk_buff *skb, struct net_device *dev)
 {
 	struct hsi_client *cl = to_hsi_client(dev->dev.parent);
@@ -1020,7 +1030,7 @@ static int ssip_pn_xmit(struct sk_buff *skb, struct net_device *dev)
 		dev_dbg(&cl->device, "Start TX on SEND READY qlen %d\n",
 							ssi->txqueue_len);
 		spin_unlock_bh(&ssi->lock);
-		ssip_xmit(cl);
+		schedule_work(&ssi->work);
 	} else {
 		spin_unlock_bh(&ssi->lock);
 	}
@@ -1097,6 +1107,7 @@ static int ssi_protocol_probe(struct device *dev)
 	atomic_set(&ssi->tx_usecnt, 0);
 	hsi_client_set_drvdata(cl, ssi);
 	ssi->cl = cl;
+	INIT_WORK(&ssi->work, ssip_xmit_work);
 
 	ssi->channel_id_cmd = hsi_get_channel_id_by_name(cl, "mcsaab-control");
 	if (ssi->channel_id_cmd < 0) {
