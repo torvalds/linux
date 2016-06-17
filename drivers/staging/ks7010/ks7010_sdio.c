@@ -34,14 +34,6 @@ static const struct sdio_device_id ks7010_sdio_ids[] = {
 };
 MODULE_DEVICE_TABLE(sdio, ks7010_sdio_ids);
 
-static int ks7010_sdio_probe(struct sdio_func *function,
-			     const struct sdio_device_id *device);
-static void ks7010_sdio_remove(struct sdio_func *function);
-static void ks7010_rw_function(struct work_struct *work);
-static int ks7010_sdio_read(struct ks_wlan_private *priv, unsigned int address,
-			    unsigned char *buffer, int length);
-static int ks7010_sdio_write(struct ks_wlan_private *priv, unsigned int address,
-			     unsigned char *buffer, int length);
 /* macro */
 
 #define inc_txqhead(priv) \
@@ -57,6 +49,45 @@ static int ks7010_sdio_write(struct ks_wlan_private *priv, unsigned int address,
         ( priv->rx_dev.qtail = (priv->rx_dev.qtail + 1) % RX_DEVICE_BUFF_SIZE )
 #define cnt_rxqbody(priv) \
         (((priv->rx_dev.qtail + RX_DEVICE_BUFF_SIZE) - (priv->rx_dev.qhead)) % RX_DEVICE_BUFF_SIZE )
+
+static int ks7010_sdio_read(struct ks_wlan_private *priv, unsigned int address,
+			    unsigned char *buffer, int length)
+{
+	struct ks_sdio_card *card;
+	int rc;
+
+	card = priv->ks_wlan_hw.sdio_card;
+
+	if (length == 1)	/* CMD52 */
+		*buffer = sdio_readb(card->func, address, &rc);
+	else	/* CMD53 multi-block transfer */
+		rc = sdio_memcpy_fromio(card->func, buffer, address, length);
+
+	if (rc != 0)
+		DPRINTK(1, "sdio error=%d size=%d\n", rc, length);
+
+	return rc;
+}
+
+static int ks7010_sdio_write(struct ks_wlan_private *priv, unsigned int address,
+			     unsigned char *buffer, int length)
+{
+	struct ks_sdio_card *card;
+	int rc;
+
+	card = priv->ks_wlan_hw.sdio_card;
+
+	if (length == 1)	/* CMD52 */
+		sdio_writeb(card->func, *buffer, (unsigned int)address, &rc);
+	else	/* CMD53 */
+		rc = sdio_memcpy_toio(card->func, (unsigned int)address, buffer,
+				      length);
+
+	if (rc != 0)
+		DPRINTK(1, "sdio error=%d size=%d\n", rc, length);
+
+	return rc;
+}
 
 void ks_wlan_hw_sleep_doze_request(struct ks_wlan_private *priv)
 {
@@ -228,45 +259,6 @@ int ks_wlan_hw_power_save(struct ks_wlan_private *priv)
 	queue_delayed_work(priv->ks_wlan_hw.ks7010sdio_wq,
 			   &priv->ks_wlan_hw.rw_wq, 1);
 	return 0;
-}
-
-static int ks7010_sdio_read(struct ks_wlan_private *priv, unsigned int address,
-			    unsigned char *buffer, int length)
-{
-	struct ks_sdio_card *card;
-	int rc;
-
-	card = priv->ks_wlan_hw.sdio_card;
-
-	if (length == 1)	/* CMD52 */
-		*buffer = sdio_readb(card->func, address, &rc);
-	else	/* CMD53 multi-block transfer */
-		rc = sdio_memcpy_fromio(card->func, buffer, address, length);
-
-	if (rc != 0)
-		DPRINTK(1, "sdio error=%d size=%d\n", rc, length);
-
-	return rc;
-}
-
-static int ks7010_sdio_write(struct ks_wlan_private *priv, unsigned int address,
-			     unsigned char *buffer, int length)
-{
-	struct ks_sdio_card *card;
-	int rc;
-
-	card = priv->ks_wlan_hw.sdio_card;
-
-	if (length == 1)	/* CMD52 */
-		sdio_writeb(card->func, *buffer, (unsigned int)address, &rc);
-	else	/* CMD53 */
-		rc = sdio_memcpy_toio(card->func, (unsigned int)address, buffer,
-				      length);
-
-	if (rc != 0)
-		DPRINTK(1, "sdio error=%d size=%d\n", rc, length);
-
-	return rc;
 }
 
 static int enqueue_txdev(struct ks_wlan_private *priv, unsigned char *p,
@@ -951,13 +943,6 @@ static void ks7010_card_init(struct ks_wlan_private *priv)
 	}
 }
 
-static struct sdio_driver ks7010_sdio_driver = {
-	.name = "ks7010_sdio",
-	.id_table = ks7010_sdio_ids,
-	.probe = ks7010_sdio_probe,
-	.remove = ks7010_sdio_remove,
-};
-
 static void ks7010_init_defaults(struct ks_wlan_private *priv)
 {
 	priv->reg.tx_rate = TX_RATE_AUTO;
@@ -1238,6 +1223,13 @@ static void ks7010_sdio_remove(struct sdio_func *func)
 	DPRINTK(5, " Bye !!\n");
 	return;
 }
+
+static struct sdio_driver ks7010_sdio_driver = {
+	.name = "ks7010_sdio",
+	.id_table = ks7010_sdio_ids,
+	.probe = ks7010_sdio_probe,
+	.remove = ks7010_sdio_remove,
+};
 
 module_driver(ks7010_sdio_driver, sdio_register_driver, sdio_unregister_driver);
 MODULE_AUTHOR("Sang Engineering, Qi-Hardware, KeyStream");
