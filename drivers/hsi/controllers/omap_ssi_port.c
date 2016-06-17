@@ -767,13 +767,12 @@ static int ssi_release(struct hsi_client *cl)
 	struct omap_ssi_port *omap_port = hsi_port_drvdata(port);
 	struct hsi_controller *ssi = to_hsi_controller(port->device.parent);
 
-	spin_lock_bh(&omap_port->lock);
 	pm_runtime_get_sync(omap_port->pdev);
+	spin_lock_bh(&omap_port->lock);
 	/* Stop all the pending DMA requests for that client */
 	ssi_cleanup_gdd(ssi, cl);
 	/* Now cleanup all the queues */
 	ssi_cleanup_queues(cl);
-	pm_runtime_put_sync(omap_port->pdev);
 	/* If it is the last client of the port, do extra checks and cleanup */
 	if (port->claimed <= 1) {
 		/*
@@ -782,15 +781,16 @@ static int ssi_release(struct hsi_client *cl)
 		 */
 		if (test_and_clear_bit(SSI_WAKE_EN, &omap_port->flags))
 			pm_runtime_put_sync(omap_port->pdev);
-		pm_runtime_get_sync(omap_port->pdev);
+		pm_runtime_get(omap_port->pdev);
 		/* Stop any SSI TX/RX without a client */
 		ssi_set_port_mode(omap_port, SSI_MODE_SLEEP);
 		omap_port->sst.mode = SSI_MODE_SLEEP;
 		omap_port->ssr.mode = SSI_MODE_SLEEP;
-		pm_runtime_put_sync(omap_port->pdev);
+		pm_runtime_put(omap_port->pdev);
 		WARN_ON(omap_port->wk_refcount != 0);
 	}
 	spin_unlock_bh(&omap_port->lock);
+	pm_runtime_put_sync(omap_port->pdev);
 
 	return 0;
 }
