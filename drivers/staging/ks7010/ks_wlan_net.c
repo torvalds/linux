@@ -2199,17 +2199,6 @@ static int ks_wlan_set_mlme(struct net_device *dev,
 }
 
 /*------------------------------------------------------------------*/
-/* Private handler : get driver version */
-static int ks_wlan_get_driver_version(struct net_device *dev,
-				      struct iw_request_info *info,
-				      struct iw_point *dwrq, char *extra)
-{
-	strcpy(extra, KS_WLAN_DRIVER_VERSION_INFO);
-	dwrq->length = strlen(KS_WLAN_DRIVER_VERSION_INFO) + 1;
-	return 0;
-}
-
-/*------------------------------------------------------------------*/
 /* Private handler : get firemware version */
 static int ks_wlan_get_firmware_version(struct net_device *dev,
 					struct iw_request_info *info,
@@ -3128,8 +3117,6 @@ static int ks_wlan_hostt(struct net_device *dev, struct iw_request_info *info,
 
 static const struct iw_priv_args ks_wlan_private_args[] = {
 /*{ cmd, set_args, get_args, name[16] } */
-	{KS_WLAN_GET_DRIVER_VERSION, IW_PRIV_TYPE_NONE,
-	 IW_PRIV_TYPE_CHAR | (128 + 1), "GetDriverVer"},
 	{KS_WLAN_GET_FIRM_VERSION, IW_PRIV_TYPE_NONE,
 	 IW_PRIV_TYPE_CHAR | (128 + 1), "GetFirmwareVer"},
 #ifdef WPS
@@ -3258,7 +3245,7 @@ static const iw_handler ks_wlan_handler[] = {
 /* private_handler */
 static const iw_handler ks_wlan_private_handler[] = {
 	(iw_handler) NULL,	/*  0 */
-	(iw_handler) ks_wlan_get_driver_version,	/*  1 KS_WLAN_GET_DRIVER_VERSION */
+	(iw_handler) NULL,	/*  1, used to be: KS_WLAN_GET_DRIVER_VERSION */
 	(iw_handler) NULL,	/*  2 */
 	(iw_handler) ks_wlan_get_firmware_version,	/*  3 KS_WLAN_GET_FIRM_VERSION */
 #ifdef WPS

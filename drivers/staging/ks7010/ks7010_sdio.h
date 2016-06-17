@@ -143,6 +143,5 @@ struct rx_device {
 	spinlock_t rx_dev_lock;
 };
 #define	ROM_FILE "ks7010sd.rom"
-#define	KS_WLAN_DRIVER_VERSION_INFO  "ks7010 sdio linux 007"
 
 #endif /* _KS7010_SDIO_H */
