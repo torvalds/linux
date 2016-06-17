@@ -57,8 +57,8 @@ static int rds_tcp_skbuf_handler(struct ctl_table *ctl, int write,
 				 void __user *buffer, size_t *lenp,
 				 loff_t *fpos);
 
-int rds_tcp_min_sndbuf = SOCK_MIN_SNDBUF;
-int rds_tcp_min_rcvbuf = SOCK_MIN_RCVBUF;
+static int rds_tcp_min_sndbuf = SOCK_MIN_SNDBUF;
+static int rds_tcp_min_rcvbuf = SOCK_MIN_RCVBUF;
 
 static struct ctl_table rds_tcp_sysctl_table[] = {
 #define	RDS_TCP_SNDBUF	0
