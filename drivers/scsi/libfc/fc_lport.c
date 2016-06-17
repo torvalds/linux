@@ -301,7 +301,6 @@ struct fc_host_statistics *fc_get_host_stats(struct Scsi_Host *shost)
 {
 	struct fc_host_statistics *fc_stats;
 	struct fc_lport *lport = shost_priv(shost);
-	struct timespec v0, v1;
 	unsigned int cpu;
 	u64 fcp_in_bytes = 0;
 	u64 fcp_out_bytes = 0;
@@ -309,9 +308,7 @@ struct fc_host_statistics *fc_get_host_stats(struct Scsi_Host *shost)
 	fc_stats = &lport->host_stats;
 	memset(fc_stats, 0, sizeof(struct fc_host_statistics));
 
-	jiffies_to_timespec(jiffies, &v0);
-	jiffies_to_timespec(lport->boot_time, &v1);
-	fc_stats->seconds_since_last_reset = (v0.tv_sec - v1.tv_sec);
+	fc_stats->seconds_since_last_reset = (lport->boot_time - jiffies) / HZ;
 
 	for_each_possible_cpu(cpu) {
 		struct fc_stats *stats;
