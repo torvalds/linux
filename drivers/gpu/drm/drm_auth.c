@@ -246,11 +246,13 @@ int drm_master_open(struct drm_file *file_priv)
 void drm_master_release(struct drm_file *file_priv)
 {
 	struct drm_device *dev = file_priv->minor->dev;
+	struct drm_master *master = file_priv->master;
 
 	mutex_lock(&dev->master_mutex);
-	if (file_priv->is_master) {
-		struct drm_master *master = file_priv->master;
+	if (!file_priv->is_master)
+		goto out;
 
+	if (!drm_core_check_feature(dev, DRIVER_MODESET)) {
 		/*
 		 * Since the master is disappearing, so is the
 		 * possibility to lock.
@@ -264,15 +266,15 @@ void drm_master_release(struct drm_file *file_priv)
 			wake_up_interruptible_all(&master->lock.lock_queue);
 		}
 		mutex_unlock(&dev->struct_mutex);
-
-		if (file_priv->minor->master == file_priv->master) {
-			/* drop the reference held my the minor */
-			if (dev->driver->master_drop)
-				dev->driver->master_drop(dev, file_priv, true);
-			drm_master_put(&file_priv->minor->master);
-		}
 	}
 
+	if (file_priv->minor->master == file_priv->master) {
+		/* drop the reference held my the minor */
+		if (dev->driver->master_drop)
+			dev->driver->master_drop(dev, file_priv, true);
+		drm_master_put(&file_priv->minor->master);
+	}
+out:
 	/* drop the master reference held by the file priv */
 	if (file_priv->master)
 		drm_master_put(&file_priv->master);
