@@ -58,7 +58,7 @@ static int ssi_debug_show(struct seq_file *m, void *p __maybe_unused)
 	seq_printf(m, "REVISION\t: 0x%08x\n",  readl(sys + SSI_REVISION_REG));
 	seq_printf(m, "SYSCONFIG\t: 0x%08x\n", readl(sys + SSI_SYSCONFIG_REG));
 	seq_printf(m, "SYSSTATUS\t: 0x%08x\n", readl(sys + SSI_SYSSTATUS_REG));
-	pm_runtime_put_sync(ssi->device.parent);
+	pm_runtime_put(ssi->device.parent);
 
 	return 0;
 }
@@ -112,7 +112,7 @@ static int ssi_debug_gdd_show(struct seq_file *m, void *p __maybe_unused)
 				readw(gdd + SSI_GDD_CLNK_CTRL_REG(lch)));
 	}
 
-	pm_runtime_put_sync(ssi->device.parent);
+	pm_runtime_put(ssi->device.parent);
 
 	return 0;
 }
@@ -193,7 +193,7 @@ void ssi_waketest(struct hsi_client *cl, unsigned int enable)
 	} else {
 		writel_relaxed(SSI_WAKE(0),
 				omap_ssi->sys +	SSI_CLEAR_WAKE_REG(port->num));
-		pm_runtime_put_sync(ssi->device.parent);
+		pm_runtime_put(ssi->device.parent);
 	}
 }
 EXPORT_SYMBOL_GPL(ssi_waketest);
@@ -217,7 +217,7 @@ static void ssi_gdd_complete(struct hsi_controller *ssi, unsigned int lch)
 	if (msg->ttype == HSI_MSG_READ) {
 		dir = DMA_FROM_DEVICE;
 		val = SSI_DATAAVAILABLE(msg->channel);
-		pm_runtime_put_sync(ssi->device.parent);
+		pm_runtime_put(omap_port->pdev);
 	} else {
 		dir = DMA_TO_DEVICE;
 		val = SSI_DATAACCEPT(msg->channel);
@@ -265,7 +265,7 @@ static void ssi_gdd_tasklet(unsigned long dev)
 	writel_relaxed(status_reg, sys + SSI_GDD_MPU_IRQ_STATUS_REG);
 	status_reg = readl(sys + SSI_GDD_MPU_IRQ_STATUS_REG);
 
-	pm_runtime_put_sync(ssi->device.parent);
+	pm_runtime_put(ssi->device.parent);
 
 	if (status_reg)
 		tasklet_hi_schedule(&omap_ssi->gdd_tasklet);
