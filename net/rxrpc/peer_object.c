@@ -50,6 +50,9 @@ static unsigned long rxrpc_peer_hash_key(struct rxrpc_local *local,
 		size = sizeof(srx->transport.sin.sin_addr);
 		p = (u16 *)&srx->transport.sin.sin_addr;
 		break;
+	default:
+		WARN(1, "AF_RXRPC: Unsupported transport address family\n");
+		return 0;
 	}
 
 	/* Step through the peer address in 16-bit portions for speed */
