@@ -118,7 +118,7 @@ static inline unsigned long dma_max_pfn(struct device *dev)
 
 #define arch_setup_dma_ops arch_setup_dma_ops
 extern void arch_setup_dma_ops(struct device *dev, u64 dma_base, u64 size,
-			       struct iommu_ops *iommu, bool coherent);
+			       const struct iommu_ops *iommu, bool coherent);
 
 #define arch_teardown_dma_ops arch_teardown_dma_ops
 extern void arch_teardown_dma_ops(struct device *dev);
@@ -161,8 +161,6 @@ static inline bool dma_capable(struct device *dev, dma_addr_t addr, size_t size)
 }
 
 static inline void dma_mark_clean(void *addr, size_t size) { }
-
-extern int arm_dma_set_mask(struct device *dev, u64 dma_mask);
 
 /**
  * arm_dma_alloc - allocate consistent memory for DMA

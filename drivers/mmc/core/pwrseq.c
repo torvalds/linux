@@ -8,88 +8,55 @@
  *  MMC power sequence management
  */
 #include <linux/kernel.h>
-#include <linux/platform_device.h>
 #include <linux/err.h>
+#include <linux/module.h>
 #include <linux/of.h>
-#include <linux/of_platform.h>
 
 #include <linux/mmc/host.h>
 
 #include "pwrseq.h"
 
-struct mmc_pwrseq_match {
-	const char *compatible;
-	struct mmc_pwrseq *(*alloc)(struct mmc_host *host, struct device *dev);
-};
-
-static struct mmc_pwrseq_match pwrseq_match[] = {
-	{
-		.compatible = "mmc-pwrseq-simple",
-		.alloc = mmc_pwrseq_simple_alloc,
-	}, {
-		.compatible = "mmc-pwrseq-emmc",
-		.alloc = mmc_pwrseq_emmc_alloc,
-	},
-};
-
-static struct mmc_pwrseq_match *mmc_pwrseq_find(struct device_node *np)
-{
-	struct mmc_pwrseq_match *match = ERR_PTR(-ENODEV);
-	int i;
-
-	for (i = 0; i < ARRAY_SIZE(pwrseq_match); i++) {
-		if (of_device_is_compatible(np,	pwrseq_match[i].compatible)) {
-			match = &pwrseq_match[i];
-			break;
-		}
-	}
-
-	return match;
-}
+static DEFINE_MUTEX(pwrseq_list_mutex);
+static LIST_HEAD(pwrseq_list);
 
 int mmc_pwrseq_alloc(struct mmc_host *host)
 {
-	struct platform_device *pdev;
 	struct device_node *np;
-	struct mmc_pwrseq_match *match;
-	struct mmc_pwrseq *pwrseq;
-	int ret = 0;
+	struct mmc_pwrseq *p;
 
 	np = of_parse_phandle(host->parent->of_node, "mmc-pwrseq", 0);
 	if (!np)
 		return 0;
 
-	pdev = of_find_device_by_node(np);
-	if (!pdev) {
-		ret = -ENODEV;
-		goto err;
+	mutex_lock(&pwrseq_list_mutex);
+	list_for_each_entry(p, &pwrseq_list, pwrseq_node) {
+		if (p->dev->of_node == np) {
+			if (!try_module_get(p->owner))
+				dev_err(host->parent,
+					"increasing module refcount failed\n");
+			else
+				host->pwrseq = p;
+
+			break;
+		}
 	}
 
-	match = mmc_pwrseq_find(np);
-	if (IS_ERR(match)) {
-		ret = PTR_ERR(match);
-		goto err;
-	}
+	of_node_put(np);
+	mutex_unlock(&pwrseq_list_mutex);
 
-	pwrseq = match->alloc(host, &pdev->dev);
-	if (IS_ERR(pwrseq)) {
-		ret = PTR_ERR(pwrseq);
-		goto err;
-	}
+	if (!host->pwrseq)
+		return -EPROBE_DEFER;
 
-	host->pwrseq = pwrseq;
 	dev_info(host->parent, "allocated mmc-pwrseq\n");
 
-err:
-	of_node_put(np);
-	return ret;
+	return 0;
 }
 
 void mmc_pwrseq_pre_power_on(struct mmc_host *host)
 {
 	struct mmc_pwrseq *pwrseq = host->pwrseq;
 
-	if (pwrseq && pwrseq->ops && pwrseq->ops->pre_power_on)
+	if (pwrseq && pwrseq->ops->pre_power_on)
 		pwrseq->ops->pre_power_on(host);
 }
 
@@ -97,7 +64,7 @@ void mmc_pwrseq_post_power_on(struct mmc_host *host)
 {
 	struct mmc_pwrseq *pwrseq = host->pwrseq;
 
-	if (pwrseq && pwrseq->ops && pwrseq->ops->post_power_on)
+	if (pwrseq && pwrseq->ops->post_power_on)
 		pwrseq->ops->post_power_on(host);
 }
 
@@ -105,7 +72,7 @@ void mmc_pwrseq_power_off(struct mmc_host *host)
 {
 	struct mmc_pwrseq *pwrseq = host->pwrseq;
 
-	if (pwrseq && pwrseq->ops && pwrseq->ops->power_off)
+	if (pwrseq && pwrseq->ops->power_off)
 		pwrseq->ops->power_off(host);
 }
 
@@ -113,8 +80,31 @@ void mmc_pwrseq_free(struct mmc_host *host)
 {
 	struct mmc_pwrseq *pwrseq = host->pwrseq;
 
-	if (pwrseq && pwrseq->ops && pwrseq->ops->free)
-		pwrseq->ops->free(host);
-
-	host->pwrseq = NULL;
+	if (pwrseq) {
+		module_put(pwrseq->owner);
+		host->pwrseq = NULL;
+	}
 }
+
+int mmc_pwrseq_register(struct mmc_pwrseq *pwrseq)
+{
+	if (!pwrseq || !pwrseq->ops || !pwrseq->dev)
+		return -EINVAL;
+
+	mutex_lock(&pwrseq_list_mutex);
+	list_add(&pwrseq->pwrseq_node, &pwrseq_list);
+	mutex_unlock(&pwrseq_list_mutex);
+
+	return 0;
+}
+EXPORT_SYMBOL_GPL(mmc_pwrseq_register);
+
+void mmc_pwrseq_unregister(struct mmc_pwrseq *pwrseq)
+{
+	if (pwrseq) {
+		mutex_lock(&pwrseq_list_mutex);
+		list_del(&pwrseq->pwrseq_node);
+		mutex_unlock(&pwrseq_list_mutex);
+	}
+}
+EXPORT_SYMBOL_GPL(mmc_pwrseq_unregister);

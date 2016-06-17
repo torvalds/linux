@@ -88,8 +88,7 @@ static void __init dove_clk_init(void)
 	struct clk *nand, *camera, *i2s0, *i2s1, *crypto, *ac97, *pdma;
 	struct clk *xor0, *xor1, *ge, *gephy;
 
-	tclk = clk_register_fixed_rate(NULL, "tclk", NULL, CLK_IS_ROOT,
-				       dove_tclk);
+	tclk = clk_register_fixed_rate(NULL, "tclk", NULL, 0, dove_tclk);
 
 	usb0 = dove_register_gate("usb0", "tclk", CLOCK_GATING_BIT_USB0);
 	usb1 = dove_register_gate("usb1", "tclk", CLOCK_GATING_BIT_USB1);

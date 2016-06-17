@@ -587,7 +587,6 @@ struct mtd_info;
 
 struct bcma_sflash {
 	bool present;
-	u32 window;
 	u32 blocksize;
 	u16 numblocks;
 	u32 size;

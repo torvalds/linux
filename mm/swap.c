@@ -47,6 +47,9 @@ static DEFINE_PER_CPU(struct pagevec, lru_add_pvec);
 static DEFINE_PER_CPU(struct pagevec, lru_rotate_pvecs);
 static DEFINE_PER_CPU(struct pagevec, lru_deactivate_file_pvecs);
 static DEFINE_PER_CPU(struct pagevec, lru_deactivate_pvecs);
+#ifdef CONFIG_SMP
+static DEFINE_PER_CPU(struct pagevec, activate_page_pvecs);
+#endif
 
 /*
  * This path almost never happens for VM activity - pages are normally
@@ -274,8 +277,6 @@ static void __activate_page(struct page *page, struct lruvec *lruvec,
 }
 
 #ifdef CONFIG_SMP
-static DEFINE_PER_CPU(struct pagevec, activate_page_pvecs);
-
 static void activate_page_drain(int cpu)
 {
 	struct pagevec *pvec = &per_cpu(activate_page_pvecs, cpu);
@@ -666,6 +667,24 @@ static void lru_add_drain_per_cpu(struct work_struct *dummy)
 
 static DEFINE_PER_CPU(struct work_struct, lru_add_drain_work);
 
+/*
+ * lru_add_drain_wq is used to do lru_add_drain_all() from a WQ_MEM_RECLAIM
+ * workqueue, aiding in getting memory freed.
+ */
+static struct workqueue_struct *lru_add_drain_wq;
+
+static int __init lru_init(void)
+{
+	lru_add_drain_wq = alloc_workqueue("lru-add-drain", WQ_MEM_RECLAIM, 0);
+
+	if (WARN(!lru_add_drain_wq,
+		"Failed to create workqueue lru_add_drain_wq"))
+		return -ENOMEM;
+
+	return 0;
+}
+early_initcall(lru_init);
+
 void lru_add_drain_all(void)
 {
 	static DEFINE_MUTEX(lock);
@@ -685,7 +704,7 @@ void lru_add_drain_all(void)
 		    pagevec_count(&per_cpu(lru_deactivate_pvecs, cpu)) ||
 		    need_activate_page_drain(cpu)) {
 			INIT_WORK(work, lru_add_drain_per_cpu);
-			schedule_work_on(cpu, work);
+			queue_work_on(cpu, lru_add_drain_wq, work);
 			cpumask_set_cpu(cpu, &has_work);
 		}
 	}

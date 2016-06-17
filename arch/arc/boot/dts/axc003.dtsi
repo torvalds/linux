@@ -10,9 +10,10 @@
  * Device tree for AXC003 CPU card: HS38x UP configuration
  */
 
+/include/ "skeleton_hs.dtsi"
+
 / {
 	compatible = "snps,arc";
-	clock-frequency = <90000000>;
 	#address-cells = <1>;
 	#size-cells = <1>;
 
@@ -23,7 +24,13 @@
 
 		ranges = <0x00000000 0xf0000000 0x10000000>;
 
-		cpu_intc: archs-intc@cpu {
+		core_clk: core_clk {
+			#clock-cells = <0>;
+			compatible = "fixed-clock";
+			clock-frequency = <90000000>;
+		};
+
+		core_intc: archs-intc@cpu {
 			compatible = "snps,archs-intc";
 			interrupt-controller;
 			#interrupt-cells = <1>;
@@ -47,7 +54,7 @@
 				reg = <0>;
 				interrupt-controller;
 				#interrupt-cells = <2>;
-				interrupt-parent = <&cpu_intc>;
+				interrupt-parent = <&core_intc>;
 				interrupts = <25>;
 			};
 		};
@@ -66,7 +73,7 @@
 		arcpct0: pct {
 			compatible = "snps,archs-pct";
 			#interrupt-cells = <1>;
-			interrupt-parent = <&cpu_intc>;
+			interrupt-parent = <&core_intc>;
 			interrupts = <20>;
 		};
 	};
@@ -89,7 +96,7 @@
 		compatible = "snps,dw-apb-ictl";
 		reg = < 0xe0012000 0x200 >;
 		interrupt-controller;
-		interrupt-parent = <&cpu_intc>;
+		interrupt-parent = <&core_intc>;
 		interrupts = < 24 >;
 	};
 
@@ -99,5 +106,19 @@
 		ranges = <0x00000000 0x80000000 0x40000000>;
 		device_type = "memory";
 		reg = <0x80000000 0x20000000>;	/* 512MiB */
+	};
+
+	reserved-memory {
+		#address-cells = <1>;
+		#size-cells = <1>;
+		ranges;
+		/*
+		 * Move frame buffer out of IOC aperture (0x8z-0xAz).
+		 */
+		frame_buffer: frame_buffer@be000000 {
+			compatible = "shared-dma-pool";
+			reg = <0xbe000000 0x2000000>;
+			no-map;
+		};
 	};
 };

@@ -849,9 +849,9 @@ static int wsm_startup_indication(struct cw1200_common *priv,
 
 	/* Disable unsupported frequency bands */
 	if (!(priv->wsm_caps.fw_cap & 0x1))
-		priv->hw->wiphy->bands[IEEE80211_BAND_2GHZ] = NULL;
+		priv->hw->wiphy->bands[NL80211_BAND_2GHZ] = NULL;
 	if (!(priv->wsm_caps.fw_cap & 0x2))
-		priv->hw->wiphy->bands[IEEE80211_BAND_5GHZ] = NULL;
+		priv->hw->wiphy->bands[NL80211_BAND_5GHZ] = NULL;
 
 	priv->firmware_ready = 1;
 	wake_up(&priv->wsm_startup_done);

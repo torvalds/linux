@@ -399,7 +399,7 @@ static const struct acpi_simple_repair_info *acpi_ns_match_simple_repair(struct
  ******************************************************************************/
 
 acpi_status
-acpi_ns_repair_null_element(struct acpi_evaluate_info * info,
+acpi_ns_repair_null_element(struct acpi_evaluate_info *info,
 			    u32 expected_btypes,
 			    u32 package_index,
 			    union acpi_operand_object **return_object_ptr)

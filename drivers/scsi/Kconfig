@@ -17,6 +17,7 @@ config SCSI
 	tristate "SCSI device support"
 	depends on BLOCK
 	select SCSI_DMA if HAS_DMA
+	select SG_POOL
 	---help---
 	  If you want to use a SCSI hard disk, SCSI tape drive, SCSI CD-ROM or
 	  any other SCSI device under Linux, say Y and make sure that you know
@@ -202,12 +203,12 @@ config SCSI_ENCLOSURE
 	  certain enclosure conditions to be reported and is not required.
 
 config SCSI_CONSTANTS
-	bool "Verbose SCSI error reporting (kernel size +=75K)"
+	bool "Verbose SCSI error reporting (kernel size += 36K)"
 	depends on SCSI
 	help
 	  The error messages regarding your SCSI hardware will be easier to
 	  understand if you say Y here; it will enlarge your kernel by about
-	  75 KB. If in doubt, say Y.
+	  36 KB. If in doubt, say Y.
 
 config SCSI_LOGGING
 	bool "SCSI logging facility"
@@ -812,17 +813,6 @@ config SCSI_GENERIC_NCR5380_MMIO
 
 	  To compile this driver as a module, choose M here: the
 	  module will be called g_NCR5380_mmio.
-
-config SCSI_GENERIC_NCR53C400
-	bool "Enable NCR53c400 extensions"
-	depends on SCSI_GENERIC_NCR5380
-	help
-	  This enables certain optimizations for the NCR53c400 SCSI cards.
-	  You might as well try it out.  Note that this driver will only probe
-	  for the Trantor T130B in its default configuration; you might have
-	  to pass a command line option to the kernel at boot time if it does
-	  not detect your card.  See the file
-	  <file:Documentation/scsi/g_NCR5380.txt> for details.
 
 config SCSI_IPS
 	tristate "IBM ServeRAID support"

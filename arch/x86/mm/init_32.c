@@ -284,7 +284,7 @@ kernel_physical_mapping_init(unsigned long start,
 	 */
 	mapping_iter = 1;
 
-	if (!cpu_has_pse)
+	if (!boot_cpu_has(X86_FEATURE_PSE))
 		use_pse = 0;
 
 repeat:
@@ -804,9 +804,6 @@ void __init mem_init(void)
 	BUILD_BUG_ON(VMALLOC_START			>= VMALLOC_END);
 #undef high_memory
 #undef __FIXADDR_TOP
-#ifdef CONFIG_RANDOMIZE_BASE
-	BUILD_BUG_ON(CONFIG_RANDOMIZE_BASE_MAX_OFFSET > KERNEL_IMAGE_SIZE);
-#endif
 
 #ifdef CONFIG_HIGHMEM
 	BUG_ON(PKMAP_BASE + LAST_PKMAP*PAGE_SIZE	> FIXADDR_START);

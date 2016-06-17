@@ -16,19 +16,23 @@ al	Annapurna Labs
 allwinner	Allwinner Technology Co., Ltd.
 alphascale	AlphaScale Integrated Circuits Systems, Inc.
 altr	Altera Corp.
+amazon	Amazon.com, Inc.
 amcc	Applied Micro Circuits Corporation (APM, formally AMCC)
 amd	Advanced Micro Devices (AMD), Inc.
 amlogic	Amlogic, Inc.
 ampire	Ampire Co., Ltd.
 ams	AMS AG
 amstaos	AMS-Taos Inc.
+analogix	Analogix Semiconductor, Inc.
 apm	Applied Micro Circuits Corporation (APM)
 aptina	Aptina Imaging
 arasan	Arasan Chip Systems
 arm	ARM Ltd.
 armadeus	ARMadeus Systems SARL
+arrow	Arrow Electronics
 artesyn	Artesyn Embedded Technologies Inc.
 asahi-kasei	Asahi Kasei Corp.
+aspeed	ASPEED Technology Inc.
 atlas	Atlas Scientific LLC
 atmel	Atmel Corporation
 auo	AU Optronics Corporation
@@ -58,6 +62,7 @@ cnxt	Conexant Systems, Inc.
 compulab	CompuLab Ltd.
 cortina	Cortina Systems, Inc.
 cosmic	Cosmic Circuits
+creative	Creative Technology Ltd
 crystalfontz	Crystalfontz America, Inc.
 cubietech	Cubietech, Ltd.
 cypress	Cypress Semiconductor Corporation
@@ -70,11 +75,14 @@ digilent	Diglent, Inc.
 dlg	Dialog Semiconductor
 dlink	D-Link Corporation
 dmo	Data Modul AG
+dptechnics	DPTechnics
+dragino	Dragino Technology Co., Limited
 ea	Embedded Artists AB
 ebv	EBV Elektronik
 edt	Emerging Display Technologies
 eeti	eGalax_eMPIA Technology Inc
 elan	Elan Microelectronic Corp.
+embest	Shenzhen Embest Technology Co., Ltd.
 emmicro	EM Microelectronic
 energymicro	Silicon Laboratories (formerly Energy Micro AS)
 epcos	EPCOS AG
@@ -86,11 +94,13 @@ eukrea  Eukréa Electromatique
 everest	Everest Semiconductor Co. Ltd.
 everspin	Everspin Technologies, Inc.
 excito	Excito
+ezchip	EZchip Semiconductor
 fcs	Fairchild Semiconductor
 firefly	Firefly
 focaltech	FocalTech Systems Co.,Ltd
 fsl	Freescale Semiconductor
 ge	General Electric Company
+geekbuying	GeekBuying
 GEFanuc	GE Fanuc Intelligent Platforms Embedded Systems, Inc.
 gef	GE Fanuc Intelligent Platforms Embedded Systems, Inc.
 geniatech	Geniatech, Inc.
@@ -118,6 +128,7 @@ idt	Integrated Device Technologies, Inc.
 ifi	Ingenieurburo Fur Ic-Technologie (I/F/I)
 iom	Iomega Corporation
 img	Imagination Technologies Ltd.
+inforce	Inforce Computing
 ingenic	Ingenic Semiconductor
 innolux	Innolux Corporation
 intel	Intel Corporation
@@ -141,6 +152,7 @@ lsi	LSI Corp. (LSI Logic)
 lltc	Linear Technology Corporation
 marvell	Marvell Technology Group Ltd.
 maxim	Maxim Integrated Products
+meas	Measurement Specialties
 mediatek	MediaTek Inc.
 melexis	Melexis N.V.
 merrii	Merrii Technology Co., Ltd.
@@ -152,6 +164,7 @@ mitsubishi	Mitsubishi Electric Corporation
 mosaixtech	Mosaix Technologies, Inc.
 moxa	Moxa
 mpl	MPL AG
+mqmaker	mqmaker Inc.
 msi	Micro-Star International Co. Ltd.
 mti	Imagination Technologies Ltd. (formerly MIPS Technologies Inc.)
 mundoreader	Mundo Reader S.L.
@@ -171,12 +184,15 @@ nvidia	NVIDIA
 nxp	NXP Semiconductors
 okaya	Okaya Electric America, Inc.
 olimex	OLIMEX Ltd.
+onion	Onion Corporation
 onnn	ON Semiconductor Corp.
+ontat	On Tat Industrial Company
 opencores	OpenCores.org
 option	Option NV
 ortustech	Ortus Technology Co., Ltd.
 ovti	OmniVision Technologies
 ORCL	Oracle Corporation
+oxsemi	Oxford Semiconductor, Ltd.
 panasonic	Panasonic Corporation
 parade	Parade Technologies Inc.
 pericom	Pericom Technology Inc.
@@ -239,6 +255,7 @@ synology	Synology, Inc.
 SUNW	Sun Microsystems, Inc
 tbs	TBS Technologies
 tcl	Toby Churchill Ltd.
+technexion	TechNexion
 technologic	Technologic Systems
 thine	THine Electronics, Inc.
 ti	Texas Instruments
@@ -247,10 +264,13 @@ toradex	Toradex AG
 toshiba	Toshiba Corporation
 toumaz	Toumaz
 tplink	TP-LINK Technologies Co., Ltd.
+tpk	TPK U.S.A. LLC
 tronfy	Tronfy
 tronsmart	Tronsmart
 truly	Truly Semiconductors Limited
+tyan	Tyan Computer Corporation
 upisemi	uPI Semiconductor Corp.
+uniwest	United Western Technologies Corp (UniWest)
 urt	United Radiant Technology Corporation
 usi	Universal Scientific Industrial Co., Ltd.
 v3	V3 Semiconductor
@@ -259,6 +279,7 @@ via	VIA Technologies, Inc.
 virtio	Virtual I/O Device Specification, developed by the OASIS consortium
 vivante	Vivante Corporation
 voipac	Voipac Technologies s.r.o.
+wd	Western Digital Corp.
 wexler	Wexler
 winbond Winbond Electronics corp.
 wlf	Wolfson Microelectronics

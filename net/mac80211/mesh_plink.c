@@ -61,7 +61,7 @@ static bool rssi_threshold_check(struct ieee80211_sub_if_data *sdata,
 	s32 rssi_threshold = sdata->u.mesh.mshcfg.rssi_threshold;
 	return rssi_threshold == 0 ||
 	       (sta &&
-		(s8)-ewma_signal_read(&sta->rx_stats.avg_signal) >
+		(s8)-ewma_signal_read(&sta->rx_stats_avg.signal) >
 						rssi_threshold);
 }
 
@@ -93,18 +93,18 @@ static inline void mesh_plink_fsm_restart(struct sta_info *sta)
 static u32 mesh_set_short_slot_time(struct ieee80211_sub_if_data *sdata)
 {
 	struct ieee80211_local *local = sdata->local;
-	enum ieee80211_band band = ieee80211_get_sdata_band(sdata);
+	enum nl80211_band band = ieee80211_get_sdata_band(sdata);
 	struct ieee80211_supported_band *sband = local->hw.wiphy->bands[band];
 	struct sta_info *sta;
 	u32 erp_rates = 0, changed = 0;
 	int i;
 	bool short_slot = false;
 
-	if (band == IEEE80211_BAND_5GHZ) {
+	if (band == NL80211_BAND_5GHZ) {
 		/* (IEEE 802.11-2012 19.4.5) */
 		short_slot = true;
 		goto out;
-	} else if (band != IEEE80211_BAND_2GHZ)
+	} else if (band != NL80211_BAND_2GHZ)
 		goto out;
 
 	for (i = 0; i < sband->n_bitrates; i++)
@@ -247,7 +247,7 @@ static int mesh_plink_frame_tx(struct ieee80211_sub_if_data *sdata,
 	mgmt->u.action.u.self_prot.action_code = action;
 
 	if (action != WLAN_SP_MESH_PEERING_CLOSE) {
-		enum ieee80211_band band = ieee80211_get_sdata_band(sdata);
+		enum nl80211_band band = ieee80211_get_sdata_band(sdata);
 
 		/* capability info */
 		pos = skb_put(skb, 2);
@@ -331,7 +331,9 @@ free:
  *
  * @sta: mesh peer link to deactivate
  *
- * All mesh paths with this peer as next hop will be flushed
+ * Mesh paths with this peer as next hop should be flushed
+ * by the caller outside of plink_lock.
+ *
  * Returns beacon changed flag if the beacon content changed.
  *
  * Locking: the caller must hold sta->mesh->plink_lock
@@ -346,7 +348,6 @@ static u32 __mesh_plink_deactivate(struct sta_info *sta)
 	if (sta->mesh->plink_state == NL80211_PLINK_ESTAB)
 		changed = mesh_plink_dec_estab_count(sdata);
 	sta->mesh->plink_state = NL80211_PLINK_BLOCKED;
-	mesh_path_flush_by_nexthop(sta);
 
 	ieee80211_mps_sta_status_update(sta);
 	changed |= ieee80211_mps_set_sta_local_pm(sta,
@@ -374,6 +375,7 @@ u32 mesh_plink_deactivate(struct sta_info *sta)
 			    sta->sta.addr, sta->mesh->llid, sta->mesh->plid,
 			    sta->mesh->reason);
 	spin_unlock_bh(&sta->mesh->plink_lock);
+	mesh_path_flush_by_nexthop(sta);
 
 	return changed;
 }
@@ -383,7 +385,7 @@ static void mesh_sta_info_init(struct ieee80211_sub_if_data *sdata,
 			       struct ieee802_11_elems *elems, bool insert)
 {
 	struct ieee80211_local *local = sdata->local;
-	enum ieee80211_band band = ieee80211_get_sdata_band(sdata);
+	enum nl80211_band band = ieee80211_get_sdata_band(sdata);
 	struct ieee80211_supported_band *sband;
 	u32 rates, basic_rates = 0, changed = 0;
 	enum ieee80211_sta_rx_bandwidth bw = sta->sta.bandwidth;
@@ -748,6 +750,7 @@ u32 mesh_plink_block(struct sta_info *sta)
 	changed = __mesh_plink_deactivate(sta);
 	sta->mesh->plink_state = NL80211_PLINK_BLOCKED;
 	spin_unlock_bh(&sta->mesh->plink_lock);
+	mesh_path_flush_by_nexthop(sta);
 
 	return changed;
 }
@@ -797,6 +800,7 @@ static u32 mesh_plink_fsm(struct ieee80211_sub_if_data *sdata,
 	struct mesh_config *mshcfg = &sdata->u.mesh.mshcfg;
 	enum ieee80211_self_protected_actioncode action = 0;
 	u32 changed = 0;
+	bool flush = false;
 
 	mpl_dbg(sdata, "peer %pM in state %s got event %s\n", sta->sta.addr,
 		mplstates[sta->mesh->plink_state], mplevents[event]);
@@ -885,6 +889,7 @@ static u32 mesh_plink_fsm(struct ieee80211_sub_if_data *sdata,
 			changed |= mesh_set_short_slot_time(sdata);
 			mesh_plink_close(sdata, sta, event);
 			action = WLAN_SP_MESH_PEERING_CLOSE;
+			flush = true;
 			break;
 		case OPN_ACPT:
 			action = WLAN_SP_MESH_PEERING_CONFIRM;
@@ -916,6 +921,8 @@ static u32 mesh_plink_fsm(struct ieee80211_sub_if_data *sdata,
 		break;
 	}
 	spin_unlock_bh(&sta->mesh->plink_lock);
+	if (flush)
+		mesh_path_flush_by_nexthop(sta);
 	if (action) {
 		mesh_plink_frame_tx(sdata, sta, action, sta->sta.addr,
 				    sta->mesh->llid, sta->mesh->plid,

@@ -24,7 +24,7 @@
 #include "eventactionchains.h"
 #include "eventsubchains.h"
 
-static const pem_event_action *initialize_event[] = {
+static const pem_event_action * const initialize_event[] = {
 	block_adjust_power_state_tasks,
 	power_budget_tasks,
 	system_config_tasks,
@@ -45,7 +45,7 @@ const struct action_chain initialize_action_chain = {
 	initialize_event
 };
 
-static const pem_event_action *uninitialize_event[] = {
+static const pem_event_action * const uninitialize_event[] = {
 	ungate_all_display_phys_tasks,
 	uninitialize_display_phy_access_tasks,
 	disable_gfx_voltage_island_power_gating_tasks,
@@ -64,7 +64,7 @@ const struct action_chain uninitialize_action_chain = {
 	uninitialize_event
 };
 
-static const pem_event_action *power_source_change_event_pp_enabled[] = {
+static const pem_event_action * const power_source_change_event_pp_enabled[] = {
 	set_power_source_tasks,
 	set_power_saving_state_tasks,
 	adjust_power_state_tasks,
@@ -79,7 +79,7 @@ const struct action_chain power_source_change_action_chain_pp_enabled = {
 	power_source_change_event_pp_enabled
 };
 
-static const pem_event_action *power_source_change_event_pp_disabled[] = {
+static const pem_event_action * const power_source_change_event_pp_disabled[] = {
 	set_power_source_tasks,
 	set_nbmcu_state_tasks,
 	NULL
@@ -90,7 +90,7 @@ const struct action_chain power_source_changes_action_chain_pp_disabled = {
 	power_source_change_event_pp_disabled
 };
 
-static const pem_event_action *power_source_change_event_hardware_dc[] = {
+static const pem_event_action * const power_source_change_event_hardware_dc[] = {
 	set_power_source_tasks,
 	set_power_saving_state_tasks,
 	adjust_power_state_tasks,
@@ -106,7 +106,7 @@ const struct action_chain power_source_change_action_chain_hardware_dc = {
 	power_source_change_event_hardware_dc
 };
 
-static const pem_event_action *suspend_event[] = {
+static const pem_event_action * const suspend_event[] = {
 	reset_display_phy_access_tasks,
 	unregister_interrupt_tasks,
 	disable_gfx_voltage_island_power_gating_tasks,
@@ -130,7 +130,7 @@ const struct action_chain suspend_action_chain = {
 	suspend_event
 };
 
-static const pem_event_action *resume_event[] = {
+static const pem_event_action * const resume_event[] = {
 	unblock_hw_access_tasks,
 	resume_connected_standby_tasks,
 	notify_smu_resume_tasks,
@@ -164,7 +164,7 @@ const struct action_chain resume_action_chain = {
 	resume_event
 };
 
-static const pem_event_action *complete_init_event[] = {
+static const pem_event_action * const complete_init_event[] = {
 	unblock_adjust_power_state_tasks,
 	adjust_power_state_tasks,
 	enable_gfx_clock_gating_tasks,
@@ -178,7 +178,7 @@ const struct action_chain complete_init_action_chain = {
 	complete_init_event
 };
 
-static const pem_event_action *enable_gfx_clock_gating_event[] = {
+static const pem_event_action * const enable_gfx_clock_gating_event[] = {
 	enable_gfx_clock_gating_tasks,
 	NULL
 };
@@ -188,7 +188,7 @@ const struct action_chain enable_gfx_clock_gating_action_chain = {
 	enable_gfx_clock_gating_event
 };
 
-static const pem_event_action *disable_gfx_clock_gating_event[] = {
+static const pem_event_action * const disable_gfx_clock_gating_event[] = {
 	disable_gfx_clock_gating_tasks,
 	NULL
 };
@@ -198,7 +198,7 @@ const struct action_chain disable_gfx_clock_gating_action_chain = {
 	disable_gfx_clock_gating_event
 };
 
-static const pem_event_action *enable_cgpg_event[] = {
+static const pem_event_action * const enable_cgpg_event[] = {
 	enable_cgpg_tasks,
 	NULL
 };
@@ -208,7 +208,7 @@ const struct action_chain enable_cgpg_action_chain = {
 	enable_cgpg_event
 };
 
-static const pem_event_action *disable_cgpg_event[] = {
+static const pem_event_action * const disable_cgpg_event[] = {
 	disable_cgpg_tasks,
 	NULL
 };
@@ -221,7 +221,7 @@ const struct action_chain disable_cgpg_action_chain = {
 
 /* Enable user _2d performance and activate */
 
-static const pem_event_action *enable_user_state_event[] = {
+static const pem_event_action * const enable_user_state_event[] = {
 	create_new_user_performance_state_tasks,
 	adjust_power_state_tasks,
 	NULL
@@ -232,7 +232,7 @@ const struct action_chain enable_user_state_action_chain = {
 	enable_user_state_event
 };
 
-static const pem_event_action *enable_user_2d_performance_event[] = {
+static const pem_event_action * const enable_user_2d_performance_event[] = {
 	enable_user_2d_performance_tasks,
 	add_user_2d_performance_state_tasks,
 	set_performance_state_tasks,
@@ -247,7 +247,7 @@ const struct action_chain enable_user_2d_performance_action_chain = {
 };
 
 
-static const pem_event_action *disable_user_2d_performance_event[] = {
+static const pem_event_action * const disable_user_2d_performance_event[] = {
 	disable_user_2d_performance_tasks,
 	delete_user_2d_performance_state_tasks,
 	NULL
@@ -259,7 +259,7 @@ const struct action_chain disable_user_2d_performance_action_chain = {
 };
 
 
-static const pem_event_action *display_config_change_event[] = {
+static const pem_event_action * const display_config_change_event[] = {
 	/* countDisplayConfigurationChangeEventTasks, */
 	unblock_adjust_power_state_tasks,
 	set_cpu_power_state,
@@ -278,7 +278,7 @@ const struct action_chain display_config_change_action_chain = {
 	display_config_change_event
 };
 
-static const pem_event_action *readjust_power_state_event[] = {
+static const pem_event_action * const readjust_power_state_event[] = {
 	adjust_power_state_tasks,
 	NULL
 };

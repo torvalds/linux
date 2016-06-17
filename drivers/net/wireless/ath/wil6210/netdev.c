@@ -60,11 +60,7 @@ static int wil_do_ioctl(struct net_device *ndev, struct ifreq *ifr, int cmd)
 {
 	struct wil6210_priv *wil = ndev_to_wil(ndev);
 
-	int ret = wil_ioctl(wil, ifr->ifr_data, cmd);
-
-	wil_dbg_misc(wil, "ioctl(0x%04x) -> %d\n", cmd, ret);
-
-	return ret;
+	return wil_ioctl(wil, ifr->ifr_data, cmd);
 }
 
 static const struct net_device_ops wil_netdev_ops = {
@@ -149,6 +145,7 @@ void *wil_if_alloc(struct device *dev)
 
 	wil = wdev_to_wil(wdev);
 	wil->wdev = wdev;
+	wil->radio_wdev = wdev;
 
 	wil_dbg_misc(wil, "%s()\n", __func__);
 
@@ -160,7 +157,7 @@ void *wil_if_alloc(struct device *dev)
 
 	wdev->iftype = NL80211_IFTYPE_STATION; /* TODO */
 	/* default monitor channel */
-	ch = wdev->wiphy->bands[IEEE80211_BAND_60GHZ]->channels;
+	ch = wdev->wiphy->bands[NL80211_BAND_60GHZ]->channels;
 	cfg80211_chandef_create(&wdev->preset_chandef, ch, NL80211_CHAN_NO_HT);
 
 	ndev = alloc_netdev(0, "wlan%d", NET_NAME_UNKNOWN, wil_dev_setup);

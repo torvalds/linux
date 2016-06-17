@@ -70,7 +70,6 @@ static void dump_zones(struct mddev *mddev)
 			(unsigned long long)zone_size>>1);
 		zone_start = conf->strip_zone[j].zone_end;
 	}
-	printk(KERN_INFO "\n");
 }
 
 static int create_strip_zones(struct mddev *mddev, struct r0conf **private_conf)
@@ -85,6 +84,7 @@ static int create_strip_zones(struct mddev *mddev, struct r0conf **private_conf)
 	struct r0conf *conf = kzalloc(sizeof(*conf), GFP_KERNEL);
 	unsigned short blksize = 512;
 
+	*private_conf = ERR_PTR(-ENOMEM);
 	if (!conf)
 		return -ENOMEM;
 	rdev_for_each(rdev1, mddev) {

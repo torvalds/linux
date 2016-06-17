@@ -39,6 +39,90 @@
 		ethernet0 = &gmac1;
 	};
 
+	leds {
+		compatible = "gpio-leds";
+
+		hps_led0 {
+			label = "hps:blue:led0";
+			gpios = <&portb 24 0>;	/* HPS_GPIO53 */
+			linux,default-trigger = "heartbeat";
+		};
+
+		hps_led1 {
+			label = "hps:blue:led1";
+			gpios = <&portb 25 0>;	/* HPS_GPIO54 */
+			linux,default-trigger = "heartbeat";
+		};
+
+		hps_led2 {
+			label = "hps:blue:led2";
+			gpios = <&portb 26 0>;	/* HPS_GPIO55 */
+			linux,default-trigger = "heartbeat";
+		};
+
+		hps_led3 {
+			label = "hps:blue:led3";
+			gpios = <&portb 27 0>;	/* HPS_GPIO56 */
+			linux,default-trigger = "heartbeat";
+		};
+	};
+
+	gpio-keys {
+		compatible = "gpio-keys";
+
+		hps_sw0 {
+			label = "hps_sw0";
+			gpios = <&portc 20 0>;	/* HPS_GPI7 */
+			linux,input-type = <5>;	/* EV_SW */
+			linux,code = <0x0>;	/* SW_LID */
+		};
+
+		hps_sw1 {
+			label = "hps_sw1";
+			gpios = <&portc 19 0>;	/* HPS_GPI6 */
+			linux,input-type = <5>;	/* EV_SW */
+			linux,code = <0x5>;	/* SW_DOCK */
+		};
+
+		hps_sw2 {
+			label = "hps_sw2";
+			gpios = <&portc 18 0>;	/* HPS_GPI5 */
+			linux,input-type = <5>;	/* EV_SW */
+			linux,code = <0xa>;	/* SW_KEYPAD_SLIDE */
+		};
+
+		hps_sw3 {
+			label = "hps_sw3";
+			gpios = <&portc 17 0>;	/* HPS_GPI4 */
+			linux,input-type = <5>;	/* EV_SW */
+			linux,code = <0xc>;	/* SW_ROTATE_LOCK */
+		};
+
+		hps_hkey0 {
+			label = "hps_hkey0";
+			gpios = <&portc 21 1>;	/* HPS_GPI8 */
+			linux,code = <187>;	/* KEY_F17 */
+		};
+
+		hps_hkey1 {
+			label = "hps_hkey1";
+			gpios = <&portc 22 1>;	/* HPS_GPI9 */
+			linux,code = <188>;	/* KEY_F18 */
+		};
+
+		hps_hkey2 {
+			label = "hps_hkey2";
+			gpios = <&portc 23 1>;	/* HPS_GPI10 */
+			linux,code = <189>;	/* KEY_F19 */
+		};
+
+		hps_hkey3 {
+			label = "hps_hkey3";
+			gpios = <&portc 24 1>;	/* HPS_GPI11 */
+			linux,code = <190>;	/* KEY_F20 */
+		};
+	};
+
 	regulator_3_3v: vcc3p3-regulator {
 		compatible = "regulator-fixed";
 		regulator-name = "VCC3P3";
@@ -61,7 +145,15 @@
 	rxc-skew-ps = <2000>;
 };
 
-&gpio2 {
+&gpio0 {	/* GPIO 0..29 */
+	status = "okay";
+};
+
+&gpio1 {	/* GPIO 30..57 */
+	status = "okay";
+};
+
+&gpio2 {	/* GPIO 58..66 (HLGPI 0..13 at offset 13) */
 	status = "okay";
 };
 

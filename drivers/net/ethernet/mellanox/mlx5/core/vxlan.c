@@ -95,21 +95,22 @@ struct mlx5e_vxlan *mlx5e_vxlan_lookup_port(struct mlx5e_priv *priv, u16 port)
 	return vxlan;
 }
 
-int mlx5e_vxlan_add_port(struct mlx5e_priv *priv, u16 port)
+static void mlx5e_vxlan_add_port(struct work_struct *work)
 {
+	struct mlx5e_vxlan_work *vxlan_work =
+		container_of(work, struct mlx5e_vxlan_work, work);
+	struct mlx5e_priv *priv = vxlan_work->priv;
 	struct mlx5e_vxlan_db *vxlan_db = &priv->vxlan;
+	u16 port = vxlan_work->port;
 	struct mlx5e_vxlan *vxlan;
 	int err;
 
-	err = mlx5e_vxlan_core_add_port_cmd(priv->mdev, port);
-	if (err)
-		return err;
+	if (mlx5e_vxlan_core_add_port_cmd(priv->mdev, port))
+		goto free_work;
 
 	vxlan = kzalloc(sizeof(*vxlan), GFP_KERNEL);
-	if (!vxlan) {
-		err = -ENOMEM;
+	if (!vxlan)
 		goto err_delete_port;
-	}
 
 	vxlan->udp_port = port;
 
@@ -119,13 +120,14 @@ int mlx5e_vxlan_add_port(struct mlx5e_priv *priv, u16 port)
 	if (err)
 		goto err_free;
 
-	return 0;
+	goto free_work;
 
 err_free:
 	kfree(vxlan);
 err_delete_port:
 	mlx5e_vxlan_core_del_port_cmd(priv->mdev, port);
-	return err;
+free_work:
+	kfree(vxlan_work);
 }
 
 static void __mlx5e_vxlan_core_del_port(struct mlx5e_priv *priv, u16 port)
@@ -145,12 +147,36 @@ static void __mlx5e_vxlan_core_del_port(struct mlx5e_priv *priv, u16 port)
 	kfree(vxlan);
 }
 
-void mlx5e_vxlan_del_port(struct mlx5e_priv *priv, u16 port)
+static void mlx5e_vxlan_del_port(struct work_struct *work)
 {
-	if (!mlx5e_vxlan_lookup_port(priv, port))
-		return;
+	struct mlx5e_vxlan_work *vxlan_work =
+		container_of(work, struct mlx5e_vxlan_work, work);
+	struct mlx5e_priv *priv = vxlan_work->priv;
+	u16 port = vxlan_work->port;
 
 	__mlx5e_vxlan_core_del_port(priv, port);
+
+	kfree(vxlan_work);
+}
+
+void mlx5e_vxlan_queue_work(struct mlx5e_priv *priv, sa_family_t sa_family,
+			    u16 port, int add)
+{
+	struct mlx5e_vxlan_work *vxlan_work;
+
+	vxlan_work = kmalloc(sizeof(*vxlan_work), GFP_ATOMIC);
+	if (!vxlan_work)
+		return;
+
+	if (add)
+		INIT_WORK(&vxlan_work->work, mlx5e_vxlan_add_port);
+	else
+		INIT_WORK(&vxlan_work->work, mlx5e_vxlan_del_port);
+
+	vxlan_work->priv = priv;
+	vxlan_work->port = port;
+	vxlan_work->sa_family = sa_family;
+	queue_work(priv->wq, &vxlan_work->work);
 }
 
 void mlx5e_vxlan_cleanup(struct mlx5e_priv *priv)

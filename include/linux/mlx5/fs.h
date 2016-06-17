@@ -58,6 +58,8 @@ enum mlx5_flow_namespace_type {
 	MLX5_FLOW_NAMESPACE_LEFTOVERS,
 	MLX5_FLOW_NAMESPACE_ANCHOR,
 	MLX5_FLOW_NAMESPACE_FDB,
+	MLX5_FLOW_NAMESPACE_ESW_EGRESS,
+	MLX5_FLOW_NAMESPACE_ESW_INGRESS,
 };
 
 struct mlx5_flow_table;
@@ -71,6 +73,7 @@ struct mlx5_flow_destination {
 		u32			tir_num;
 		struct mlx5_flow_table	*ft;
 		u32			vport_num;
+		struct mlx5_fc		*counter;
 	};
 };
 
@@ -82,12 +85,19 @@ struct mlx5_flow_table *
 mlx5_create_auto_grouped_flow_table(struct mlx5_flow_namespace *ns,
 				    int prio,
 				    int num_flow_table_entries,
-				    int max_num_groups);
+				    int max_num_groups,
+				    u32 level);
 
 struct mlx5_flow_table *
 mlx5_create_flow_table(struct mlx5_flow_namespace *ns,
 		       int prio,
-		       int num_flow_table_entries);
+		       int num_flow_table_entries,
+		       u32 level);
+struct mlx5_flow_table *
+mlx5_create_vport_flow_table(struct mlx5_flow_namespace *ns,
+			     int prio,
+			     int num_flow_table_entries,
+			     u32 level, u16 vport);
 int mlx5_destroy_flow_table(struct mlx5_flow_table *ft);
 
 /* inbox should be set with the following values:
@@ -112,5 +122,14 @@ mlx5_add_flow_rule(struct mlx5_flow_table *ft,
 		   u32 flow_tag,
 		   struct mlx5_flow_destination *dest);
 void mlx5_del_flow_rule(struct mlx5_flow_rule *fr);
+
+int mlx5_modify_rule_destination(struct mlx5_flow_rule *rule,
+				 struct mlx5_flow_destination *dest);
+
+struct mlx5_fc *mlx5_flow_rule_counter(struct mlx5_flow_rule *rule);
+struct mlx5_fc *mlx5_fc_create(struct mlx5_core_dev *dev, bool aging);
+void mlx5_fc_destroy(struct mlx5_core_dev *dev, struct mlx5_fc *counter);
+void mlx5_fc_query_cached(struct mlx5_fc *counter,
+			  u64 *bytes, u64 *packets, u64 *lastuse);
 
 #endif

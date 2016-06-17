@@ -87,6 +87,8 @@ int cvmx_helper_get_number_of_interfaces(void)
 		return 9;
 	if (OCTEON_IS_MODEL(OCTEON_CN56XX) || OCTEON_IS_MODEL(OCTEON_CN52XX))
 		return 4;
+	if (OCTEON_IS_MODEL(OCTEON_CN7XXX))
+		return 5;
 	else
 		return 3;
 }
@@ -260,6 +262,41 @@ static cvmx_helper_interface_mode_t __cvmx_get_mode_octeon2(int interface)
 }
 
 /**
+ * @INTERNAL
+ * Return interface mode for CN7XXX.
+ */
+static cvmx_helper_interface_mode_t __cvmx_get_mode_cn7xxx(int interface)
+{
+	union cvmx_gmxx_inf_mode mode;
+
+	mode.u64 = cvmx_read_csr(CVMX_GMXX_INF_MODE(interface));
+
+	switch (interface) {
+	case 0:
+	case 1:
+		switch (mode.cn68xx.mode) {
+		case 0:
+			return CVMX_HELPER_INTERFACE_MODE_DISABLED;
+		case 1:
+		case 2:
+			return CVMX_HELPER_INTERFACE_MODE_SGMII;
+		case 3:
+			return CVMX_HELPER_INTERFACE_MODE_XAUI;
+		default:
+			return CVMX_HELPER_INTERFACE_MODE_SGMII;
+		}
+	case 2:
+		return CVMX_HELPER_INTERFACE_MODE_NPI;
+	case 3:
+		return CVMX_HELPER_INTERFACE_MODE_LOOP;
+	case 4:
+		return CVMX_HELPER_INTERFACE_MODE_RGMII;
+	default:
+		return CVMX_HELPER_INTERFACE_MODE_DISABLED;
+	}
+}
+
+/**
  * Get the operating mode of an interface. Depending on the Octeon
  * chip and configuration, this function returns an enumeration
  * of the type of packet I/O supported by an interface.
@@ -276,6 +313,12 @@ cvmx_helper_interface_mode_t cvmx_helper_interface_get_mode(int interface)
 	if (interface < 0 ||
 	    interface >= cvmx_helper_get_number_of_interfaces())
 		return CVMX_HELPER_INTERFACE_MODE_DISABLED;
+
+	/*
+	 * OCTEON III models
+	 */
+	if (OCTEON_IS_MODEL(OCTEON_CN7XXX))
+		return __cvmx_get_mode_cn7xxx(interface);
 
 	/*
 	 * Octeon II models

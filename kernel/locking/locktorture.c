@@ -75,12 +75,7 @@ struct lock_stress_stats {
 	long n_lock_acquired;
 };
 
-#if defined(MODULE)
-#define LOCKTORTURE_RUNNABLE_INIT 1
-#else
-#define LOCKTORTURE_RUNNABLE_INIT 0
-#endif
-int torture_runnable = LOCKTORTURE_RUNNABLE_INIT;
+int torture_runnable = IS_ENABLED(MODULE);
 module_param(torture_runnable, int, 0444);
 MODULE_PARM_DESC(torture_runnable, "Start locktorture at module init");
 
@@ -394,12 +389,12 @@ static void torture_rtmutex_boost(struct torture_random_state *trsp)
 
 	if (!rt_task(current)) {
 		/*
-		 * (1) Boost priority once every ~50k operations. When the
+		 * Boost priority once every ~50k operations. When the
 		 * task tries to take the lock, the rtmutex it will account
 		 * for the new priority, and do any corresponding pi-dance.
 		 */
-		if (!(torture_random(trsp) %
-		      (cxt.nrealwriters_stress * factor))) {
+		if (trsp && !(torture_random(trsp) %
+			      (cxt.nrealwriters_stress * factor))) {
 			policy = SCHED_FIFO;
 			param.sched_priority = MAX_RT_PRIO - 1;
 		} else /* common case, do nothing */
@@ -748,6 +743,15 @@ static void lock_torture_cleanup(void)
 	if (torture_cleanup_begin())
 		return;
 
+	/*
+	 * Indicates early cleanup, meaning that the test has not run,
+	 * such as when passing bogus args when loading the module. As
+	 * such, only perform the underlying torture-specific cleanups,
+	 * and avoid anything related to locktorture.
+	 */
+	if (!cxt.lwsa)
+		goto end;
+
 	if (writer_tasks) {
 		for (i = 0; i < cxt.nrealwriters_stress; i++)
 			torture_stop_kthread(lock_torture_writer,
@@ -776,6 +780,7 @@ static void lock_torture_cleanup(void)
 	else
 		lock_torture_print_module_parms(cxt.cur_ops,
 						"End of test: SUCCESS");
+end:
 	torture_cleanup_end();
 }
 
@@ -870,6 +875,7 @@ static int __init lock_torture_init(void)
 			VERBOSE_TOROUT_STRING("cxt.lrsa: Out of memory");
 			firsterr = -ENOMEM;
 			kfree(cxt.lwsa);
+			cxt.lwsa = NULL;
 			goto unwind;
 		}
 
@@ -878,6 +884,7 @@ static int __init lock_torture_init(void)
 			cxt.lrsa[i].n_lock_acquired = 0;
 		}
 	}
+
 	lock_torture_print_module_parms(cxt.cur_ops, "Start of test");
 
 	/* Prepare torture context. */

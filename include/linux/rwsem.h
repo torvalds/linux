@@ -14,6 +14,7 @@
 #include <linux/list.h>
 #include <linux/spinlock.h>
 #include <linux/atomic.h>
+#include <linux/err.h>
 #ifdef CONFIG_RWSEM_SPIN_ON_OWNER
 #include <linux/osq_lock.h>
 #endif
@@ -43,6 +44,7 @@ struct rw_semaphore {
 
 extern struct rw_semaphore *rwsem_down_read_failed(struct rw_semaphore *sem);
 extern struct rw_semaphore *rwsem_down_write_failed(struct rw_semaphore *sem);
+extern struct rw_semaphore *rwsem_down_write_failed_killable(struct rw_semaphore *sem);
 extern struct rw_semaphore *rwsem_wake(struct rw_semaphore *);
 extern struct rw_semaphore *rwsem_downgrade_wake(struct rw_semaphore *sem);
 
@@ -116,6 +118,7 @@ extern int down_read_trylock(struct rw_semaphore *sem);
  * lock for writing
  */
 extern void down_write(struct rw_semaphore *sem);
+extern int __must_check down_write_killable(struct rw_semaphore *sem);
 
 /*
  * trylock for writing -- returns 1 if successful, 0 if contention
@@ -153,6 +156,7 @@ extern void downgrade_write(struct rw_semaphore *sem);
  */
 extern void down_read_nested(struct rw_semaphore *sem, int subclass);
 extern void down_write_nested(struct rw_semaphore *sem, int subclass);
+extern int down_write_killable_nested(struct rw_semaphore *sem, int subclass);
 extern void _down_write_nest_lock(struct rw_semaphore *sem, struct lockdep_map *nest_lock);
 
 # define down_write_nest_lock(sem, nest_lock)			\
@@ -173,6 +177,7 @@ extern void up_read_non_owner(struct rw_semaphore *sem);
 # define down_read_nested(sem, subclass)		down_read(sem)
 # define down_write_nest_lock(sem, nest_lock)	down_write(sem)
 # define down_write_nested(sem, subclass)	down_write(sem)
+# define down_write_killable_nested(sem, subclass)	down_write_killable(sem)
 # define down_read_non_owner(sem)		down_read(sem)
 # define up_read_non_owner(sem)			up_read(sem)
 #endif

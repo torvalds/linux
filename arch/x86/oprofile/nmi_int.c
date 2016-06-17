@@ -636,7 +636,7 @@ static int __init ppro_init(char **cpu_type)
 	__u8 cpu_model = boot_cpu_data.x86_model;
 	struct op_x86_model_spec *spec = &op_ppro_spec;	/* default */
 
-	if (force_cpu_type == arch_perfmon && cpu_has_arch_perfmon)
+	if (force_cpu_type == arch_perfmon && boot_cpu_has(X86_FEATURE_ARCH_PERFMON))
 		return 0;
 
 	/*
@@ -700,7 +700,7 @@ int __init op_nmi_init(struct oprofile_operations *ops)
 	char *cpu_type = NULL;
 	int ret = 0;
 
-	if (!cpu_has_apic)
+	if (!boot_cpu_has(X86_FEATURE_APIC))
 		return -ENODEV;
 
 	if (force_cpu_type == timer)
@@ -761,7 +761,7 @@ int __init op_nmi_init(struct oprofile_operations *ops)
 		if (cpu_type)
 			break;
 
-		if (!cpu_has_arch_perfmon)
+		if (!boot_cpu_has(X86_FEATURE_ARCH_PERFMON))
 			return -ENODEV;
 
 		/* use arch perfmon as fallback */

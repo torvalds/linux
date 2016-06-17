@@ -25,6 +25,7 @@
 #include <linux/list.h>
 #include <linux/printk.h>
 #include <linux/hrtimer.h>
+#include <linux/of.h>
 #include "governor.h"
 
 static struct class *devfreq_class;
@@ -188,6 +189,29 @@ static struct devfreq_governor *find_devfreq_governor(const char *name)
 	return ERR_PTR(-ENODEV);
 }
 
+static int devfreq_notify_transition(struct devfreq *devfreq,
+		struct devfreq_freqs *freqs, unsigned int state)
+{
+	if (!devfreq)
+		return -EINVAL;
+
+	switch (state) {
+	case DEVFREQ_PRECHANGE:
+		srcu_notifier_call_chain(&devfreq->transition_notifier_list,
+				DEVFREQ_PRECHANGE, freqs);
+		break;
+
+	case DEVFREQ_POSTCHANGE:
+		srcu_notifier_call_chain(&devfreq->transition_notifier_list,
+				DEVFREQ_POSTCHANGE, freqs);
+		break;
+	default:
+		return -EINVAL;
+	}
+
+	return 0;
+}
+
 /* Load monitoring helper functions for governors use */
 
 /**
@@ -199,7 +223,8 @@ static struct devfreq_governor *find_devfreq_governor(const char *name)
  */
 int update_devfreq(struct devfreq *devfreq)
 {
-	unsigned long freq;
+	struct devfreq_freqs freqs;
+	unsigned long freq, cur_freq;
 	int err = 0;
 	u32 flags = 0;
 
@@ -233,9 +258,21 @@ int update_devfreq(struct devfreq *devfreq)
 		flags |= DEVFREQ_FLAG_LEAST_UPPER_BOUND; /* Use LUB */
 	}
 
+	if (devfreq->profile->get_cur_freq)
+		devfreq->profile->get_cur_freq(devfreq->dev.parent, &cur_freq);
+	else
+		cur_freq = devfreq->previous_freq;
+
+	freqs.old = cur_freq;
+	freqs.new = freq;
+	devfreq_notify_transition(devfreq, &freqs, DEVFREQ_PRECHANGE);
+
 	err = devfreq->profile->target(devfreq->dev.parent, &freq, flags);
 	if (err)
 		return err;
+
+	freqs.new = freq;
+	devfreq_notify_transition(devfreq, &freqs, DEVFREQ_POSTCHANGE);
 
 	if (devfreq->profile->freq_table)
 		if (devfreq_update_status(devfreq, freq))
@@ -541,6 +578,8 @@ struct devfreq *devfreq_add_device(struct device *dev,
 		goto err_out;
 	}
 
+	srcu_init_notifier_head(&devfreq->transition_notifier_list);
+
 	mutex_unlock(&devfreq->lock);
 
 	mutex_lock(&devfreq_list_lock);
@@ -638,6 +677,49 @@ struct devfreq *devm_devfreq_add_device(struct device *dev,
 	return devfreq;
 }
 EXPORT_SYMBOL(devm_devfreq_add_device);
+
+#ifdef CONFIG_OF
+/*
+ * devfreq_get_devfreq_by_phandle - Get the devfreq device from devicetree
+ * @dev - instance to the given device
+ * @index - index into list of devfreq
+ *
+ * return the instance of devfreq device
+ */
+struct devfreq *devfreq_get_devfreq_by_phandle(struct device *dev, int index)
+{
+	struct device_node *node;
+	struct devfreq *devfreq;
+
+	if (!dev)
+		return ERR_PTR(-EINVAL);
+
+	if (!dev->of_node)
+		return ERR_PTR(-EINVAL);
+
+	node = of_parse_phandle(dev->of_node, "devfreq", index);
+	if (!node)
+		return ERR_PTR(-ENODEV);
+
+	mutex_lock(&devfreq_list_lock);
+	list_for_each_entry(devfreq, &devfreq_list, node) {
+		if (devfreq->dev.parent
+			&& devfreq->dev.parent->of_node == node) {
+			mutex_unlock(&devfreq_list_lock);
+			return devfreq;
+		}
+	}
+	mutex_unlock(&devfreq_list_lock);
+
+	return ERR_PTR(-EPROBE_DEFER);
+}
+#else
+struct devfreq *devfreq_get_devfreq_by_phandle(struct device *dev, int index)
+{
+	return ERR_PTR(-ENODEV);
+}
+#endif /* CONFIG_OF */
+EXPORT_SYMBOL_GPL(devfreq_get_devfreq_by_phandle);
 
 /**
  * devm_devfreq_remove_device() - Resource-managed devfreq_remove_device()
@@ -1265,6 +1347,129 @@ void devm_devfreq_unregister_opp_notifier(struct device *dev,
 			       devm_devfreq_dev_match, devfreq));
 }
 EXPORT_SYMBOL(devm_devfreq_unregister_opp_notifier);
+
+/**
+ * devfreq_register_notifier() - Register a driver with devfreq
+ * @devfreq:	The devfreq object.
+ * @nb:		The notifier block to register.
+ * @list:	DEVFREQ_TRANSITION_NOTIFIER.
+ */
+int devfreq_register_notifier(struct devfreq *devfreq,
+				struct notifier_block *nb,
+				unsigned int list)
+{
+	int ret = 0;
+
+	if (!devfreq)
+		return -EINVAL;
+
+	switch (list) {
+	case DEVFREQ_TRANSITION_NOTIFIER:
+		ret = srcu_notifier_chain_register(
+				&devfreq->transition_notifier_list, nb);
+		break;
+	default:
+		ret = -EINVAL;
+	}
+
+	return ret;
+}
+EXPORT_SYMBOL(devfreq_register_notifier);
+
+/*
+ * devfreq_unregister_notifier() - Unregister a driver with devfreq
+ * @devfreq:	The devfreq object.
+ * @nb:		The notifier block to be unregistered.
+ * @list:	DEVFREQ_TRANSITION_NOTIFIER.
+ */
+int devfreq_unregister_notifier(struct devfreq *devfreq,
+				struct notifier_block *nb,
+				unsigned int list)
+{
+	int ret = 0;
+
+	if (!devfreq)
+		return -EINVAL;
+
+	switch (list) {
+	case DEVFREQ_TRANSITION_NOTIFIER:
+		ret = srcu_notifier_chain_unregister(
+				&devfreq->transition_notifier_list, nb);
+		break;
+	default:
+		ret = -EINVAL;
+	}
+
+	return ret;
+}
+EXPORT_SYMBOL(devfreq_unregister_notifier);
+
+struct devfreq_notifier_devres {
+	struct devfreq *devfreq;
+	struct notifier_block *nb;
+	unsigned int list;
+};
+
+static void devm_devfreq_notifier_release(struct device *dev, void *res)
+{
+	struct devfreq_notifier_devres *this = res;
+
+	devfreq_unregister_notifier(this->devfreq, this->nb, this->list);
+}
+
+/**
+ * devm_devfreq_register_notifier()
+	- Resource-managed devfreq_register_notifier()
+ * @dev:	The devfreq user device. (parent of devfreq)
+ * @devfreq:	The devfreq object.
+ * @nb:		The notifier block to be unregistered.
+ * @list:	DEVFREQ_TRANSITION_NOTIFIER.
+ */
+int devm_devfreq_register_notifier(struct device *dev,
+				struct devfreq *devfreq,
+				struct notifier_block *nb,
+				unsigned int list)
+{
+	struct devfreq_notifier_devres *ptr;
+	int ret;
+
+	ptr = devres_alloc(devm_devfreq_notifier_release, sizeof(*ptr),
+				GFP_KERNEL);
+	if (!ptr)
+		return -ENOMEM;
+
+	ret = devfreq_register_notifier(devfreq, nb, list);
+	if (ret) {
+		devres_free(ptr);
+		return ret;
+	}
+
+	ptr->devfreq = devfreq;
+	ptr->nb = nb;
+	ptr->list = list;
+	devres_add(dev, ptr);
+
+	return 0;
+}
+EXPORT_SYMBOL(devm_devfreq_register_notifier);
+
+/**
+ * devm_devfreq_unregister_notifier()
+	- Resource-managed devfreq_unregister_notifier()
+ * @dev:	The devfreq user device. (parent of devfreq)
+ * @devfreq:	The devfreq object.
+ * @nb:		The notifier block to be unregistered.
+ * @list:	DEVFREQ_TRANSITION_NOTIFIER.
+ */
+void devm_devfreq_unregister_notifier(struct device *dev,
+				struct devfreq *devfreq,
+				struct notifier_block *nb,
+				unsigned int list)
+{
+	WARN_ON(devres_release(dev, devm_devfreq_notifier_release,
+			       devm_devfreq_dev_match, devfreq));
+}
+EXPORT_SYMBOL(devm_devfreq_unregister_notifier);
 
 MODULE_AUTHOR("MyungJoo Ham <myungjoo.ham@samsung.com>");
 MODULE_DESCRIPTION("devfreq class support");

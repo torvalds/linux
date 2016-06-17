@@ -184,7 +184,7 @@ acpi_status acpi_ex_opcode_3A_1T_1R(struct acpi_walk_state *walk_state)
 		/* Get the Integer values from the objects */
 
 		index = operand[1]->integer.value;
-		length = (acpi_size) operand[2]->integer.value;
+		length = (acpi_size)operand[2]->integer.value;
 
 		/*
 		 * If the index is beyond the length of the String/Buffer, or if the
@@ -198,8 +198,8 @@ acpi_status acpi_ex_opcode_3A_1T_1R(struct acpi_walk_state *walk_state)
 
 		else if ((index + length) > operand[0]->string.length) {
 			length =
-			    (acpi_size) operand[0]->string.length -
-			    (acpi_size) index;
+			    (acpi_size)operand[0]->string.length -
+			    (acpi_size)index;
 		}
 
 		/* Strings always have a sub-pointer, not so for buffers */
@@ -209,7 +209,7 @@ acpi_status acpi_ex_opcode_3A_1T_1R(struct acpi_walk_state *walk_state)
 
 			/* Always allocate a new buffer for the String */
 
-			buffer = ACPI_ALLOCATE_ZEROED((acpi_size) length + 1);
+			buffer = ACPI_ALLOCATE_ZEROED((acpi_size)length + 1);
 			if (!buffer) {
 				status = AE_NO_MEMORY;
 				goto cleanup;

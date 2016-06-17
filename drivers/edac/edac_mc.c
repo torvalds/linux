@@ -565,7 +565,8 @@ void edac_mc_reset_delay_period(unsigned long value)
 	list_for_each(item, &mc_devices) {
 		mci = list_entry(item, struct mem_ctl_info, link);
 
-		edac_mod_work(&mci->work, value);
+		if (mci->op_state == OP_RUNNING_POLL)
+			edac_mod_work(&mci->work, value);
 	}
 	mutex_unlock(&mem_ctls_mutex);
 }
@@ -923,7 +924,7 @@ static void edac_inc_ue_error(struct mem_ctl_info *mci,
 	mci->ue_mc += count;
 
 	if (!enable_per_layer_report) {
-		mci->ce_noinfo_count += count;
+		mci->ue_noinfo_count += count;
 		return;
 	}
 

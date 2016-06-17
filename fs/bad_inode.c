@@ -100,14 +100,14 @@ static int bad_inode_setattr(struct dentry *direntry, struct iattr *attrs)
 	return -EIO;
 }
 
-static int bad_inode_setxattr(struct dentry *dentry, const char *name,
-		const void *value, size_t size, int flags)
+static int bad_inode_setxattr(struct dentry *dentry, struct inode *inode,
+		const char *name, const void *value, size_t size, int flags)
 {
 	return -EIO;
 }
 
-static ssize_t bad_inode_getxattr(struct dentry *dentry, const char *name,
-			void *buffer, size_t size)
+static ssize_t bad_inode_getxattr(struct dentry *dentry, struct inode *inode,
+			const char *name, void *buffer, size_t size)
 {
 	return -EIO;
 }

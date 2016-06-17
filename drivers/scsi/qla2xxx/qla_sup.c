@@ -3222,7 +3222,7 @@ qla24xx_read_fcp_prio_cfg(scsi_qla_host_t *vha)
 		ha->fcp_prio_cfg = vmalloc(FCP_PRIO_CFG_SIZE);
 		if (!ha->fcp_prio_cfg) {
 			ql_log(ql_log_warn, vha, 0x00d5,
-			    "Unable to allocate memory for fcp priorty data (%x).\n",
+			    "Unable to allocate memory for fcp priority data (%x).\n",
 			    FCP_PRIO_CFG_SIZE);
 			return QLA_FUNCTION_FAILED;
 		}

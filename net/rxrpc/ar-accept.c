@@ -108,7 +108,7 @@ static int rxrpc_accept_incoming_call(struct rxrpc_local *local,
 		goto error;
 	}
 
-	conn = rxrpc_incoming_connection(trans, &sp->hdr, GFP_NOIO);
+	conn = rxrpc_incoming_connection(trans, &sp->hdr);
 	rxrpc_put_transport(trans);
 	if (IS_ERR(conn)) {
 		_debug("no conn");
@@ -116,7 +116,7 @@ static int rxrpc_accept_incoming_call(struct rxrpc_local *local,
 		goto error;
 	}
 
-	call = rxrpc_incoming_call(rx, conn, &sp->hdr, GFP_NOIO);
+	call = rxrpc_incoming_call(rx, conn, &sp->hdr);
 	rxrpc_put_connection(conn);
 	if (IS_ERR(call)) {
 		_debug("no call");

@@ -35,6 +35,15 @@
 #include "iio_utils.h"
 
 /**
+ * enum autochan - state for the automatic channel enabling mechanism
+ */
+enum autochan {
+	AUTOCHANNELS_DISABLED,
+	AUTOCHANNELS_ENABLED,
+	AUTOCHANNELS_ACTIVE,
+};
+
+/**
  * size_from_channelarray() - calculate the storage size of a scan
  * @channels:		the channel info array
  * @num_channels:	number of channels
@@ -191,10 +200,51 @@ void process_scan(char *data,
 	printf("\n");
 }
 
+static int enable_disable_all_channels(char *dev_dir_name, int enable)
+{
+	const struct dirent *ent;
+	char scanelemdir[256];
+	DIR *dp;
+	int ret;
+
+	snprintf(scanelemdir, sizeof(scanelemdir),
+		 FORMAT_SCAN_ELEMENTS_DIR, dev_dir_name);
+	scanelemdir[sizeof(scanelemdir)-1] = '\0';
+
+	dp = opendir(scanelemdir);
+	if (!dp) {
+		fprintf(stderr, "Enabling/disabling channels: can't open %s\n",
+			scanelemdir);
+		return -EIO;
+	}
+
+	ret = -ENOENT;
+	while (ent = readdir(dp), ent) {
+		if (iioutils_check_suffix(ent->d_name, "_en")) {
+			printf("%sabling: %s\n",
+			       enable ? "En" : "Dis",
+			       ent->d_name);
+			ret = write_sysfs_int(ent->d_name, scanelemdir,
+					      enable);
+			if (ret < 0)
+				fprintf(stderr, "Failed to enable/disable %s\n",
+					ent->d_name);
+		}
+	}
+
+	if (closedir(dp) == -1) {
+		perror("Enabling/disabling channels: "
+		       "Failed to close directory");
+		return -errno;
+	}
+	return 0;
+}
+
 void print_usage(void)
 {
 	fprintf(stderr, "Usage: generic_buffer [options]...\n"
 		"Capture, convert and output data from IIO device buffer\n"
+		"  -a         Auto-activate all available channels\n"
 		"  -c <n>     Do n conversions\n"
 		"  -e         Disable wait for event (new data)\n"
 		"  -g         Use trigger-less mode\n"
@@ -225,12 +275,16 @@ int main(int argc, char **argv)
 	int scan_size;
 	int noevents = 0;
 	int notrigger = 0;
+	enum autochan autochannels = AUTOCHANNELS_DISABLED;
 	char *dummy;
 
 	struct iio_channel_info *channels;
 
-	while ((c = getopt(argc, argv, "c:egl:n:t:w:")) != -1) {
+	while ((c = getopt(argc, argv, "ac:egl:n:t:w:")) != -1) {
 		switch (c) {
+		case 'a':
+			autochannels = AUTOCHANNELS_ENABLED;
+			break;
 		case 'c':
 			errno = 0;
 			num_loops = strtoul(optarg, &dummy, 10);
@@ -304,7 +358,19 @@ int main(int argc, char **argv)
 			}
 		}
 
-		/* Verify the trigger exists */
+		/* Look for this "-devN" trigger */
+		trig_num = find_type_by_name(trigger_name, "trigger");
+		if (trig_num < 0) {
+			/* OK try the simpler "-trigger" suffix instead */
+			free(trigger_name);
+			ret = asprintf(&trigger_name,
+				       "%s-trigger", device_name);
+			if (ret < 0) {
+				ret = -ENOMEM;
+				goto error_free_dev_dir_name;
+			}
+		}
+
 		trig_num = find_type_by_name(trigger_name, "trigger");
 		if (trig_num < 0) {
 			fprintf(stderr, "Failed to find the trigger %s\n",
@@ -328,12 +394,47 @@ int main(int argc, char **argv)
 			"diag %s\n", dev_dir_name);
 		goto error_free_triggername;
 	}
-	if (!num_channels) {
+	if (num_channels && autochannels == AUTOCHANNELS_ENABLED) {
+		fprintf(stderr, "Auto-channels selected but some channels "
+			"are already activated in sysfs\n");
+		fprintf(stderr, "Proceeding without activating any channels\n");
+	}
+
+	if (!num_channels && autochannels == AUTOCHANNELS_ENABLED) {
+		fprintf(stderr,
+			"No channels are enabled, enabling all channels\n");
+
+		ret = enable_disable_all_channels(dev_dir_name, 1);
+		if (ret) {
+			fprintf(stderr, "Failed to enable all channels\n");
+			goto error_free_triggername;
+		}
+
+		/* This flags that we need to disable the channels again */
+		autochannels = AUTOCHANNELS_ACTIVE;
+
+		ret = build_channel_array(dev_dir_name, &channels,
+					  &num_channels);
+		if (ret) {
+			fprintf(stderr, "Problem reading scan element "
+				"information\n"
+				"diag %s\n", dev_dir_name);
+			goto error_disable_channels;
+		}
+		if (!num_channels) {
+			fprintf(stderr, "Still no channels after "
+				"auto-enabling, giving up\n");
+			goto error_disable_channels;
+		}
+	}
+
+	if (!num_channels && autochannels == AUTOCHANNELS_DISABLED) {
 		fprintf(stderr,
 			"No channels are enabled, we have nothing to scan.\n");
 		fprintf(stderr, "Enable channels manually in "
 			FORMAT_SCAN_ELEMENTS_DIR
-			"/*_en and try again.\n", dev_dir_name);
+			"/*_en or pass -a to autoenable channels and "
+			"try again.\n", dev_dir_name);
 		ret = -ENOENT;
 		goto error_free_triggername;
 	}
@@ -467,7 +568,12 @@ error_free_channels:
 error_free_triggername:
 	if (datardytrigger)
 		free(trigger_name);
-
+error_disable_channels:
+	if (autochannels == AUTOCHANNELS_ACTIVE) {
+		ret = enable_disable_all_channels(dev_dir_name, 0);
+		if (ret)
+			fprintf(stderr, "Failed to disable all channels\n");
+	}
 error_free_dev_dir_name:
 	free(dev_dir_name);
 

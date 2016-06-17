@@ -403,7 +403,6 @@ static sense_reason_t rd_do_prot_rw(struct se_cmd *cmd, bool is_read)
 	struct se_device *se_dev = cmd->se_dev;
 	struct rd_dev *dev = RD_DEV(se_dev);
 	struct rd_dev_sg_table *prot_table;
-	bool need_to_release = false;
 	struct scatterlist *prot_sg;
 	u32 sectors = cmd->data_length / se_dev->dev_attrib.block_size;
 	u32 prot_offset, prot_page;
@@ -431,9 +430,6 @@ static sense_reason_t rd_do_prot_rw(struct se_cmd *cmd, bool is_read)
 
 	if (!rc)
 		sbc_dif_copy_prot(cmd, sectors, is_read, prot_sg, prot_offset);
-
-	if (need_to_release)
-		kfree(prot_sg);
 
 	return rc;
 }

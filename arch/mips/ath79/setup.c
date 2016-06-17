@@ -17,6 +17,7 @@
 #include <linux/bootmem.h>
 #include <linux/err.h>
 #include <linux/clk.h>
+#include <linux/clk-provider.h>
 #include <linux/of_platform.h>
 #include <linux/of_fdt.h>
 
@@ -203,24 +204,55 @@ void __init plat_mem_setup(void)
 	fdt_start = fw_getenvl("fdt_start");
 	if (fdt_start)
 		__dt_setup_arch((void *)KSEG0ADDR(fdt_start));
-#ifdef CONFIG_BUILTIN_DTB
-	else
-		__dt_setup_arch(__dtb_start);
-#endif
+	else if (fw_arg0 == -2)
+		__dt_setup_arch((void *)KSEG0ADDR(fw_arg1));
 
-	ath79_reset_base = ioremap_nocache(AR71XX_RESET_BASE,
-					   AR71XX_RESET_SIZE);
-	ath79_pll_base = ioremap_nocache(AR71XX_PLL_BASE,
-					 AR71XX_PLL_SIZE);
-	ath79_detect_sys_type();
-	ath79_ddr_ctrl_init();
+	if (mips_machtype != ATH79_MACH_GENERIC_OF) {
+		ath79_reset_base = ioremap_nocache(AR71XX_RESET_BASE,
+						   AR71XX_RESET_SIZE);
+		ath79_pll_base = ioremap_nocache(AR71XX_PLL_BASE,
+						 AR71XX_PLL_SIZE);
+		ath79_detect_sys_type();
+		ath79_ddr_ctrl_init();
 
-	if (mips_machtype != ATH79_MACH_GENERIC_OF)
 		detect_memory_region(0, ATH79_MEM_SIZE_MIN, ATH79_MEM_SIZE_MAX);
 
-	_machine_restart = ath79_restart;
+		/* OF machines should use the reset driver */
+		_machine_restart = ath79_restart;
+	}
+
 	_machine_halt = ath79_halt;
 	pm_power_off = ath79_halt;
+}
+
+static void __init ath79_of_plat_time_init(void)
+{
+	struct device_node *np;
+	struct clk *clk;
+	unsigned long cpu_clk_rate;
+
+	of_clk_init(NULL);
+
+	np = of_get_cpu_node(0, NULL);
+	if (!np) {
+		pr_err("Failed to get CPU node\n");
+		return;
+	}
+
+	clk = of_clk_get(np, 0);
+	if (IS_ERR(clk)) {
+		pr_err("Failed to get CPU clock: %ld\n", PTR_ERR(clk));
+		return;
+	}
+
+	cpu_clk_rate = clk_get_rate(clk);
+
+	pr_info("CPU clock: %lu.%03lu MHz\n",
+		cpu_clk_rate / 1000000, (cpu_clk_rate / 1000) % 1000);
+
+	mips_hpt_frequency = cpu_clk_rate / 2;
+
+	clk_put(clk);
 }
 
 void __init plat_time_init(void)
@@ -229,6 +261,11 @@ void __init plat_time_init(void)
 	unsigned long ahb_clk_rate;
 	unsigned long ddr_clk_rate;
 	unsigned long ref_clk_rate;
+
+	if (IS_ENABLED(CONFIG_OF) && mips_machtype == ATH79_MACH_GENERIC_OF) {
+		ath79_of_plat_time_init();
+		return;
+	}
 
 	ath79_clocks_init();
 

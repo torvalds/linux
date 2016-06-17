@@ -2727,7 +2727,7 @@ static int ofdpa_port_obj_fib4_add(struct rocker_port *rocker_port,
 
 	return ofdpa_port_fib_ipv4(ofdpa_port, trans,
 				   htonl(fib4->dst), fib4->dst_len,
-				   &fib4->fi, fib4->tb_id, 0);
+				   fib4->fi, fib4->tb_id, 0);
 }
 
 static int ofdpa_port_obj_fib4_del(struct rocker_port *rocker_port,
@@ -2737,7 +2737,7 @@ static int ofdpa_port_obj_fib4_del(struct rocker_port *rocker_port,
 
 	return ofdpa_port_fib_ipv4(ofdpa_port, NULL,
 				   htonl(fib4->dst), fib4->dst_len,
-				   &fib4->fi, fib4->tb_id,
+				   fib4->fi, fib4->tb_id,
 				   OFDPA_OP_FLAG_REMOVE);
 }
 

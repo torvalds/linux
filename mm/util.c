@@ -297,7 +297,8 @@ unsigned long vm_mmap_pgoff(struct file *file, unsigned long addr,
 
 	ret = security_mmap_file(file, prot, flag);
 	if (!ret) {
-		down_write(&mm->mmap_sem);
+		if (down_write_killable(&mm->mmap_sem))
+			return -EINTR;
 		ret = do_mmap_pgoff(file, addr, len, prot, flag, pgoff,
 				    &populate);
 		up_write(&mm->mmap_sem);
@@ -345,6 +346,29 @@ void *page_rmapping(struct page *page)
 	page = compound_head(page);
 	return __page_rmapping(page);
 }
+
+/*
+ * Return true if this page is mapped into pagetables.
+ * For compound page it returns true if any subpage of compound page is mapped.
+ */
+bool page_mapped(struct page *page)
+{
+	int i;
+
+	if (likely(!PageCompound(page)))
+		return atomic_read(&page->_mapcount) >= 0;
+	page = compound_head(page);
+	if (atomic_read(compound_mapcount_ptr(page)) >= 0)
+		return true;
+	if (PageHuge(page))
+		return false;
+	for (i = 0; i < hpage_nr_pages(page); i++) {
+		if (atomic_read(&page[i]._mapcount) >= 0)
+			return true;
+	}
+	return false;
+}
+EXPORT_SYMBOL(page_mapped);
 
 struct anon_vma *page_anon_vma(struct page *page)
 {

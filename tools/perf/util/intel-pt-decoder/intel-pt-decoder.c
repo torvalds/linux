@@ -356,7 +356,7 @@ static const char *intel_pt_err_msgs[] = {
 
 int intel_pt__strerror(int code, char *buf, size_t buflen)
 {
-	if (code < 1 || code > INTEL_PT_ERR_MAX)
+	if (code < 1 || code >= INTEL_PT_ERR_MAX)
 		code = INTEL_PT_ERR_UNK;
 	strlcpy(buf, intel_pt_err_msgs[code], buflen);
 	return 0;

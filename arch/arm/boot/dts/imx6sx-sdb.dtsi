@@ -254,6 +254,12 @@
 	status = "okay";
 };
 
+&sai1 {
+	pinctrl-names = "default";
+	pinctrl-0 = <&pinctrl_sai1>;
+	status = "disabled";
+};
+
 &ssi2 {
 	status = "okay";
 };
@@ -465,6 +471,16 @@
 		pinctrl_vcc_sd3: vccsd3grp {
 			fsl,pins = <
 				MX6SX_PAD_KEY_COL1__GPIO2_IO_11		0x17059
+			>;
+		};
+
+		pinctrl_sai1: sai1grp {
+			fsl,pins = <
+				MX6SX_PAD_CSI_DATA00__SAI1_TX_BCLK	0x130b0
+				MX6SX_PAD_CSI_DATA01__SAI1_TX_SYNC	0x130b0
+				MX6SX_PAD_CSI_HSYNC__SAI1_TX_DATA_0	0x120b0
+				MX6SX_PAD_CSI_VSYNC__SAI1_RX_DATA_0	0x130b0
+				MX6SX_PAD_CSI_PIXCLK__AUDMUX_MCLK	0x130b0
 			>;
 		};
 

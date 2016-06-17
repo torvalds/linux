@@ -27,6 +27,7 @@
 #include <linux/module.h>
 #include <linux/platform_device.h> /* platform_device() */
 #include <linux/sched.h>
+#include <linux/seq_file.h>
 #include <linux/slab.h>
 #include <linux/time.h>
 #include <linux/vmalloc.h>

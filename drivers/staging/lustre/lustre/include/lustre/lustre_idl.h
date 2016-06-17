@@ -183,6 +183,12 @@ struct lu_seq_range {
 	__u32 lsr_flags;
 };
 
+struct lu_seq_range_array {
+	__u32 lsra_count;
+	__u32 lsra_padding;
+	struct lu_seq_range lsra_lsr[0];
+};
+
 #define LU_SEQ_RANGE_MDT	0x0
 #define LU_SEQ_RANGE_OST	0x1
 #define LU_SEQ_RANGE_ANY	0x3
@@ -578,7 +584,7 @@ static inline __u64 ostid_seq(const struct ost_id *ostid)
 	if (fid_seq_is_mdt0(ostid->oi.oi_seq))
 		return FID_SEQ_OST_MDT0;
 
-	if (fid_seq_is_default(ostid->oi.oi_seq))
+	if (unlikely(fid_seq_is_default(ostid->oi.oi_seq)))
 		return FID_SEQ_LOV_DEFAULT;
 
 	if (fid_is_idif(&ostid->oi_fid))
@@ -590,8 +596,11 @@ static inline __u64 ostid_seq(const struct ost_id *ostid)
 /* extract OST objid from a wire ost_id (id/seq) pair */
 static inline __u64 ostid_id(const struct ost_id *ostid)
 {
-	if (fid_seq_is_mdt0(ostid_seq(ostid)))
+	if (fid_seq_is_mdt0(ostid->oi.oi_seq))
 		return ostid->oi.oi_id & IDIF_OID_MASK;
+
+	if (unlikely(fid_seq_is_default(ostid->oi.oi_seq)))
+		return ostid->oi.oi_id;
 
 	if (fid_is_idif(&ostid->oi_fid))
 		return fid_idif_id(fid_seq(&ostid->oi_fid),
@@ -636,12 +645,22 @@ static inline void ostid_set_seq_llog(struct ost_id *oi)
  */
 static inline void ostid_set_id(struct ost_id *oi, __u64 oid)
 {
-	if (fid_seq_is_mdt0(ostid_seq(oi))) {
+	if (fid_seq_is_mdt0(oi->oi.oi_seq)) {
 		if (oid >= IDIF_MAX_OID) {
 			CERROR("Bad %llu to set " DOSTID "\n", oid, POSTID(oi));
 			return;
 		}
 		oi->oi.oi_id = oid;
+	} else if (fid_is_idif(&oi->oi_fid)) {
+		if (oid >= IDIF_MAX_OID) {
+			CERROR("Bad %llu to set "DOSTID"\n",
+			       oid, POSTID(oi));
+			return;
+		}
+		oi->oi_fid.f_seq = fid_idif_seq(oid,
+						fid_idif_ost_idx(&oi->oi_fid));
+		oi->oi_fid.f_oid = oid;
+		oi->oi_fid.f_ver = oid >> 48;
 	} else {
 		if (oid > OBIF_MAX_OID) {
 			CERROR("Bad %llu to set " DOSTID "\n", oid, POSTID(oi));
@@ -651,25 +670,31 @@ static inline void ostid_set_id(struct ost_id *oi, __u64 oid)
 	}
 }
 
-static inline void ostid_inc_id(struct ost_id *oi)
+static inline int fid_set_id(struct lu_fid *fid, __u64 oid)
 {
-	if (fid_seq_is_mdt0(ostid_seq(oi))) {
-		if (unlikely(ostid_id(oi) + 1 > IDIF_MAX_OID)) {
-			CERROR("Bad inc "DOSTID"\n", POSTID(oi));
-			return;
-		}
-		oi->oi.oi_id++;
-	} else {
-		oi->oi_fid.f_oid++;
+	if (unlikely(fid_seq_is_igif(fid->f_seq))) {
+		CERROR("bad IGIF, "DFID"\n", PFID(fid));
+		return -EBADF;
 	}
-}
 
-static inline void ostid_dec_id(struct ost_id *oi)
-{
-	if (fid_seq_is_mdt0(ostid_seq(oi)))
-		oi->oi.oi_id--;
-	else
-		oi->oi_fid.f_oid--;
+	if (fid_is_idif(fid)) {
+		if (oid >= IDIF_MAX_OID) {
+			CERROR("Too large OID %#llx to set IDIF "DFID"\n",
+			       (unsigned long long)oid, PFID(fid));
+			return -EBADF;
+		}
+		fid->f_seq = fid_idif_seq(oid, fid_idif_ost_idx(fid));
+		fid->f_oid = oid;
+		fid->f_ver = oid >> 48;
+	} else {
+		if (oid > OBIF_MAX_OID) {
+			CERROR("Too large OID %#llx to set REG "DFID"\n",
+			       (unsigned long long)oid, PFID(fid));
+			return -EBADF;
+		}
+		fid->f_oid = oid;
+	}
+	return 0;
 }
 
 /**
@@ -684,30 +709,34 @@ static inline void ostid_dec_id(struct ost_id *oi)
 static inline int ostid_to_fid(struct lu_fid *fid, struct ost_id *ostid,
 			       __u32 ost_idx)
 {
+	__u64 seq = ostid_seq(ostid);
+
 	if (ost_idx > 0xffff) {
 		CERROR("bad ost_idx, "DOSTID" ost_idx:%u\n", POSTID(ostid),
 		       ost_idx);
 		return -EBADF;
 	}
 
-	if (fid_seq_is_mdt0(ostid_seq(ostid))) {
+	if (fid_seq_is_mdt0(seq)) {
+		__u64 oid = ostid_id(ostid);
+
 		/* This is a "legacy" (old 1.x/2.early) OST object in "group 0"
 		 * that we map into the IDIF namespace.  It allows up to 2^48
 		 * objects per OST, as this is the object namespace that has
 		 * been in production for years.  This can handle create rates
 		 * of 1M objects/s/OST for 9 years, or combinations thereof.
 		 */
-		if (ostid_id(ostid) >= IDIF_MAX_OID) {
+		if (oid >= IDIF_MAX_OID) {
 			CERROR("bad MDT0 id, " DOSTID " ost_idx:%u\n",
 			       POSTID(ostid), ost_idx);
 			return -EBADF;
 		}
-		fid->f_seq = fid_idif_seq(ostid_id(ostid), ost_idx);
+		fid->f_seq = fid_idif_seq(oid, ost_idx);
 		/* truncate to 32 bits by assignment */
-		fid->f_oid = ostid_id(ostid);
+		fid->f_oid = oid;
 		/* in theory, not currently used */
-		fid->f_ver = ostid_id(ostid) >> 48;
-	} else /* if (fid_seq_is_idif(seq) || fid_seq_is_norm(seq)) */ {
+		fid->f_ver = oid >> 48;
+	} else if (likely(!fid_seq_is_default(seq))) {
 	       /* This is either an IDIF object, which identifies objects across
 		* all OSTs, or a regular FID.  The IDIF namespace maps legacy
 		* OST objects into the FID namespace.  In both cases, we just
@@ -1001,8 +1030,9 @@ static inline int lu_dirent_calc_size(int namelen, __u16 attr)
 
 		size = (sizeof(struct lu_dirent) + namelen + align) & ~align;
 		size += sizeof(struct luda_type);
-	} else
+	} else {
 		size = sizeof(struct lu_dirent) + namelen;
+	}
 
 	return (size + 7) & ~7;
 }
@@ -1256,6 +1286,9 @@ void lustre_swab_ptlrpc_body(struct ptlrpc_body *pb);
 #define OBD_CONNECT_PINGLESS	0x4000000000000ULL/* pings not required */
 #define OBD_CONNECT_FLOCK_DEAD	0x8000000000000ULL/* flock deadlock detection */
 #define OBD_CONNECT_DISP_STRIPE 0x10000000000000ULL/*create stripe disposition*/
+#define OBD_CONNECT_OPEN_BY_FID	0x20000000000000ULL	/* open by fid won't pack
+							 * name in request
+							 */
 
 /* XXX README XXX:
  * Please DO NOT add flag values here before first ensuring that this same
@@ -1428,6 +1461,8 @@ enum obdo_flags {
 					   */
 	OBD_FL_RECOV_RESEND = 0x00080000, /* recoverable resent */
 	OBD_FL_NOSPC_BLK    = 0x00100000, /* no more block space on OST */
+	OBD_FL_FLUSH	    = 0x00200000, /* flush pages on the OST */
+	OBD_FL_SHORT_IO	    = 0x00400000, /* short io request */
 
 	/* Note that while these checksum values are currently separate bits,
 	 * in 2.x we can actually allow all values from 1-31 if we wanted.
@@ -1523,6 +1558,11 @@ static inline void fid_to_lmm_oi(const struct lu_fid *fid,
 static inline void lmm_oi_set_seq(struct ost_id *oi, __u64 seq)
 {
 	oi->oi.oi_seq = seq;
+}
+
+static inline void lmm_oi_set_id(struct ost_id *oi, __u64 oid)
+{
+	oi->oi.oi_id = oid;
 }
 
 static inline __u64 lmm_oi_id(struct ost_id *oi)
@@ -1732,6 +1772,11 @@ void lustre_swab_obd_statfs(struct obd_statfs *os);
 #define OBD_BRW_MEMALLOC       0x800 /* Client runs in the "kswapd" context */
 #define OBD_BRW_OVER_USRQUOTA 0x1000 /* Running out of user quota */
 #define OBD_BRW_OVER_GRPQUOTA 0x2000 /* Running out of group quota */
+#define OBD_BRW_SOFT_SYNC     0x4000 /* This flag notifies the server
+				      * that the client is running low on
+				      * space for unstable pages; asking
+				      * it to sync quickly
+				      */
 
 #define OBD_OBJECT_EOF 0xffffffffffffffffULL
 
@@ -2436,6 +2481,7 @@ struct mdt_rec_reint {
 
 void lustre_swab_mdt_rec_reint(struct mdt_rec_reint *rr);
 
+/* lmv structures */
 struct lmv_desc {
 	__u32 ld_tgt_count;		/* how many MDS's */
 	__u32 ld_active_tgt_count;	 /* how many active */
@@ -2460,7 +2506,6 @@ struct lmv_stripe_md {
 	struct lu_fid mea_ids[0];
 };
 
-/* lmv structures */
 #define MEA_MAGIC_LAST_CHAR      0xb2221ca1
 #define MEA_MAGIC_ALL_CHARS      0xb222a11c
 #define MEA_MAGIC_HASH_SEGMENT   0xb222a11b
@@ -2470,9 +2515,10 @@ struct lmv_stripe_md {
 #define MAX_HASH_HIGHEST_BIT     0x1000000000000000ULL
 
 enum fld_rpc_opc {
-	FLD_QUERY		       = 900,
+	FLD_QUERY	= 900,
+	FLD_READ	= 901,
 	FLD_LAST_OPC,
-	FLD_FIRST_OPC		   = FLD_QUERY
+	FLD_FIRST_OPC	= FLD_QUERY
 };
 
 enum seq_rpc_opc {
@@ -2484,6 +2530,12 @@ enum seq_rpc_opc {
 enum seq_op {
 	SEQ_ALLOC_SUPER = 0,
 	SEQ_ALLOC_META = 1
+};
+
+enum fld_op {
+	FLD_CREATE = 0,
+	FLD_DELETE = 1,
+	FLD_LOOKUP = 2,
 };
 
 /*
@@ -2581,6 +2633,8 @@ struct ldlm_extent {
 	__u64 end;
 	__u64 gid;
 };
+
+#define LDLM_GID_ANY ((__u64)-1)
 
 static inline int ldlm_extent_overlap(struct ldlm_extent *ex1,
 				      struct ldlm_extent *ex2)
@@ -3304,7 +3358,7 @@ struct getinfo_fid2path {
 	char	    gf_path[0];
 } __packed;
 
-void lustre_swab_fid2path (struct getinfo_fid2path *gf);
+void lustre_swab_fid2path(struct getinfo_fid2path *gf);
 
 enum {
 	LAYOUT_INTENT_ACCESS    = 0,

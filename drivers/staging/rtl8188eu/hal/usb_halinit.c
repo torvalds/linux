@@ -11,11 +11,6 @@
  * FITNESS FOR A PARTICULAR PURPOSE. See the GNU General Public License for
  * more details.
  *
- * You should have received a copy of the GNU General Public License along with
- * this program; if not, write to the Free Software Foundation, Inc.,
- * 51 Franklin Street, Fifth Floor, Boston, MA 02110, USA
- *
- *
  ******************************************************************************/
 #define _HCI_HAL_INIT_C_
 
@@ -62,8 +57,8 @@ static bool HalUsbSetQueuePipeMapping8188EUsb(struct adapter *adapt, u8 NumInPip
 	_ConfigNormalChipOutEP_8188E(adapt, NumOutPipe);
 
 	/*  Normal chip with one IN and one OUT doesn't have interrupt IN EP. */
-	if (1 == haldata->OutEpNumber) {
-		if (1 != NumInPipe)
+	if (haldata->OutEpNumber == 1) {
+		if (NumInPipe != 1)
 			return result;
 	}
 
@@ -179,7 +174,7 @@ static void _InitQueueReservedPage(struct adapter *Adapter)
 		if (haldata->OutEpQueueSel & TX_SELE_LQ)
 			numLQ = 0x1C;
 
-		/*  NOTE: This step shall be proceed before writting REG_RQPN. */
+		/*  NOTE: This step shall be proceed before writing REG_RQPN. */
 		if (haldata->OutEpQueueSel & TX_SELE_NQ)
 			numNQ = 0x1C;
 		value8 = (u8)_NPQ(numNQ);
@@ -457,7 +452,8 @@ static void _InitRetryFunction(struct adapter *Adapter)
  *	When		Who		Remark
  *	12/10/2010	MHC		Separate to smaller function.
  *
- *---------------------------------------------------------------------------*/
+ *---------------------------------------------------------------------------
+ */
 static void usb_AggSettingTxUpdate(struct adapter *Adapter)
 {
 	struct hal_data_8188e	*haldata = GET_HAL_DATA(Adapter);
@@ -489,7 +485,8 @@ static void usb_AggSettingTxUpdate(struct adapter *Adapter)
  *	When		Who		Remark
  *	12/10/2010	MHC		Separate to smaller function.
  *
- *---------------------------------------------------------------------------*/
+ *---------------------------------------------------------------------------
+ */
 static void
 usb_AggSettingRxUpdate(
 		struct adapter *Adapter
@@ -655,7 +652,8 @@ static void _InitAntenna_Selection(struct adapter *Adapter)
  * Revised History:
  *	When		Who		Remark
  *	08/23/2010	MHC		HW suspend mode switch test..
- *---------------------------------------------------------------------------*/
+ *---------------------------------------------------------------------------
+ */
 enum rt_rf_power_state RfOnOffDetect(struct adapter *adapt)
 {
 	u8 val8;
@@ -687,11 +685,9 @@ static u32 rtl8188eu_hal_init(struct adapter *Adapter)
 
 	#define HAL_INIT_PROFILE_TAG(stage) do {} while (0)
 
-
 	HAL_INIT_PROFILE_TAG(HAL_INIT_STAGES_BEGIN);
 
 	if (Adapter->pwrctrlpriv.bkeepfwalive) {
-
 		if (haldata->odmpriv.RFCalibrateInfo.bIQKInitialized) {
 			rtl88eu_phy_iq_calibrate(Adapter, true);
 		} else {
@@ -715,9 +711,8 @@ static u32 rtl8188eu_hal_init(struct adapter *Adapter)
 	/*  Save target channel */
 	haldata->CurrentChannel = 6;/* default set to 6 */
 
-	if (pwrctrlpriv->reg_rfoff) {
+	if (pwrctrlpriv->reg_rfoff)
 		pwrctrlpriv->rf_pwrstate = rf_off;
-	}
 
 	/*  2010/08/09 MH We need to check if we need to turnon or off RF after detecting */
 	/*  HW GPIO pin. Before PHY_RFConfig8192C. */
@@ -749,10 +744,9 @@ static u32 rtl8188eu_hal_init(struct adapter *Adapter)
 			DBG_88E("%s: Download Firmware failed!!\n", __func__);
 			Adapter->bFWReady = false;
 			return status;
-		} else {
-			RT_TRACE(_module_hci_hal_init_c_, _drv_info_, ("Initializeadapt8192CSdio(): Download Firmware Success!!\n"));
-			Adapter->bFWReady = true;
 		}
+		RT_TRACE(_module_hci_hal_init_c_, _drv_info_, ("Initializeadapt8192CSdio(): Download Firmware Success!!\n"));
+		Adapter->bFWReady = true;
 	}
 	rtl8188e_InitializeFirmwareVars(Adapter);
 
@@ -878,7 +872,7 @@ HAL_INIT_PROFILE_TAG(HAL_INIT_STAGES_IQK);
 		/*  2010/08/26 MH Merge from 8192CE. */
 	if (pwrctrlpriv->rf_pwrstate == rf_on) {
 		if (haldata->odmpriv.RFCalibrateInfo.bIQKInitialized) {
-				rtl88eu_phy_iq_calibrate(Adapter, true);
+			rtl88eu_phy_iq_calibrate(Adapter, true);
 		} else {
 			rtl88eu_phy_iq_calibrate(Adapter, false);
 			haldata->odmpriv.RFCalibrateInfo.bIQKInitialized = true;
@@ -904,7 +898,6 @@ HAL_INIT_PROFILE_TAG(HAL_INIT_STAGES_END);
 
 	DBG_88E("%s in %dms\n", __func__,
 		jiffies_to_msecs(jiffies - init_start_time));
-
 
 	return status;
 }
@@ -968,6 +961,7 @@ static void CardDisableRTL8188EU(struct adapter *Adapter)
 	haldata->bMacPwrCtrlOn = false;
 	Adapter->bFWReady = false;
 }
+
 static void rtl8192cu_hw_power_down(struct adapter *adapt)
 {
 	/*  2010/-8/09 MH For power down module, we need to enable register block contrl reg at 0x1c. */
@@ -980,7 +974,6 @@ static void rtl8192cu_hw_power_down(struct adapter *adapt)
 
 static u32 rtl8188eu_hal_deinit(struct adapter *Adapter)
 {
-
 	DBG_88E("==> %s\n", __func__);
 
 	usb_write32(Adapter, REG_HIMR_88E, IMR_DISABLED_88E);
@@ -999,14 +992,14 @@ static u32 rtl8188eu_hal_deinit(struct adapter *Adapter)
 		}
 	}
 	return _SUCCESS;
- }
+}
 
 static unsigned int rtl8188eu_inirp_init(struct adapter *Adapter)
 {
 	u8 i;
 	struct recv_buf *precvbuf;
 	uint	status;
-	struct recv_priv *precvpriv = &(Adapter->recvpriv);
+	struct recv_priv *precvpriv = &Adapter->recvpriv;
 
 	status = _SUCCESS;
 
@@ -1116,7 +1109,6 @@ readAdapterInfo_8188EU(
 	Hal_ReadAntennaDiversity88E(adapt, eeprom->efuse_eeprom_data, eeprom->bautoload_fail_flag);
 	Hal_EfuseParseBoardType88E(adapt, eeprom->efuse_eeprom_data, eeprom->bautoload_fail_flag);
 	Hal_ReadThermalMeter_88E(adapt, eeprom->efuse_eeprom_data, eeprom->bautoload_fail_flag);
-
 }
 
 static void _ReadPROMContent(
@@ -1212,7 +1204,7 @@ static void hw_var_set_opmode(struct adapter *Adapter, u8 variable, u8 *val)
 		StopTxBeacon(Adapter);
 
 		usb_write8(Adapter, REG_BCN_CTRL, 0x19);/* disable atim wnd */
-	} else if ((mode == _HW_STATE_ADHOC_)) {
+	} else if (mode == _HW_STATE_ADHOC_) {
 		ResumeTxBeacon(Adapter);
 		usb_write8(Adapter, REG_BCN_CTRL, 0x1a);
 	} else if (mode == _HW_STATE_AP_) {
@@ -1363,7 +1355,7 @@ static void SetHwReg8188EU(struct adapter *Adapter, u8 variable, u8 *val)
 		{
 			u64	tsf;
 			struct mlme_ext_priv	*pmlmeext = &Adapter->mlmeextpriv;
-			struct mlme_ext_info	*pmlmeinfo = &(pmlmeext->mlmext_info);
+			struct mlme_ext_info	*pmlmeinfo = &pmlmeext->mlmext_info;
 
 			tsf = pmlmeext->TSFValue - rtw_modular64(pmlmeext->TSFValue, (pmlmeinfo->bcn_interval*1024)) - 1024; /* us */
 
@@ -1420,7 +1412,7 @@ static void SetHwReg8188EU(struct adapter *Adapter, u8 variable, u8 *val)
 			usb_write8(Adapter, REG_BCN_CTRL, usb_read8(Adapter, REG_BCN_CTRL) | BIT(4));
 		} else { /* sitesurvey done */
 			struct mlme_ext_priv	*pmlmeext = &Adapter->mlmeextpriv;
-			struct mlme_ext_info	*pmlmeinfo = &(pmlmeext->mlmext_info);
+			struct mlme_ext_info	*pmlmeinfo = &pmlmeext->mlmext_info;
 
 			if ((is_client_associated_to_ap(Adapter)) ||
 			    ((pmlmeinfo->state&0x03) == WIFI_FW_ADHOC_STATE)) {
@@ -1490,7 +1482,7 @@ static void SetHwReg8188EU(struct adapter *Adapter, u8 variable, u8 *val)
 		{
 			u8 u1bAIFS, aSifsTime;
 			struct mlme_ext_priv	*pmlmeext = &Adapter->mlmeextpriv;
-			struct mlme_ext_info	*pmlmeinfo = &(pmlmeext->mlmext_info);
+			struct mlme_ext_info	*pmlmeinfo = &pmlmeext->mlmext_info;
 
 			usb_write8(Adapter, REG_SLOT, val[0]);
 
@@ -1790,7 +1782,7 @@ static void SetHwReg8188EU(struct adapter *Adapter, u8 variable, u8 *val)
 		}
 		break;
 	case HW_VAR_H2C_MEDIA_STATUS_RPT:
-		rtl8188e_set_FwMediaStatus_cmd(Adapter , (*(__le16 *)val));
+		rtl8188e_set_FwMediaStatus_cmd(Adapter, (*(__le16 *)val));
 		break;
 	case HW_VAR_BCN_VALID:
 		/* BCN_VALID, BIT16 of REG_TDECTRL = BIT0 of REG_TDECTRL+2, write 1 to clear, Clear by sw */
@@ -1855,7 +1847,6 @@ static void GetHwReg8188EU(struct adapter *Adapter, u8 variable, u8 *val)
 	default:
 		break;
 	}
-
 }
 
 /*  */
@@ -1904,19 +1895,19 @@ GetHalDefVar8188EUsb(
 	case HAL_DEF_RA_DECISION_RATE:
 		{
 			u8 MacID = *((u8 *)pValue);
-			*((u8 *)pValue) = ODM_RA_GetDecisionRate_8188E(&(haldata->odmpriv), MacID);
+			*((u8 *)pValue) = ODM_RA_GetDecisionRate_8188E(&haldata->odmpriv, MacID);
 		}
 		break;
 	case HAL_DEF_RA_SGI:
 		{
 			u8 MacID = *((u8 *)pValue);
-			*((u8 *)pValue) = ODM_RA_GetShortGI_8188E(&(haldata->odmpriv), MacID);
+			*((u8 *)pValue) = ODM_RA_GetShortGI_8188E(&haldata->odmpriv, MacID);
 		}
 		break;
 	case HAL_DEF_PT_PWR_STATUS:
 		{
 			u8 MacID = *((u8 *)pValue);
-			*((u8 *)pValue) = ODM_RA_GetHwPwrStatus_8188E(&(haldata->odmpriv), MacID);
+			*((u8 *)pValue) = ODM_RA_GetHwPwrStatus_8188E(&haldata->odmpriv, MacID);
 		}
 		break;
 	case HW_VAR_MAX_RX_AMPDU_FACTOR:
@@ -1939,7 +1930,7 @@ GetHalDefVar8188EUsb(
 		break;
 	case HW_DEF_ODM_DBG_FLAG:
 		{
-			struct odm_dm_struct *dm_ocm = &(haldata->odmpriv);
+			struct odm_dm_struct *dm_ocm = &haldata->odmpriv;
 			pr_info("dm_ocm->DebugComponents = 0x%llx\n", dm_ocm->DebugComponents);
 		}
 		break;
@@ -1967,8 +1958,8 @@ static void UpdateHalRAMask8188EUsb(struct adapter *adapt, u32 mac_id, u8 rssi_l
 	struct sta_info	*psta;
 	struct hal_data_8188e	*haldata = GET_HAL_DATA(adapt);
 	struct mlme_ext_priv	*pmlmeext = &adapt->mlmeextpriv;
-	struct mlme_ext_info	*pmlmeinfo = &(pmlmeext->mlmext_info);
-	struct wlan_bssid_ex	*cur_network = &(pmlmeinfo->network);
+	struct mlme_ext_info	*pmlmeinfo = &pmlmeext->mlmext_info;
+	struct wlan_bssid_ex	*cur_network = &pmlmeinfo->network;
 
 	if (mac_id >= NUM_STA) /* CAM_SIZE */
 		return;
@@ -1981,8 +1972,8 @@ static void UpdateHalRAMask8188EUsb(struct adapter *adapt, u32 mac_id, u8 rssi_l
 		networkType = judge_network_type(adapt, cur_network->SupportedRates, supportRateNum) & 0xf;
 		raid = networktype_to_raid(networkType);
 		mask = update_supported_rate(cur_network->SupportedRates, supportRateNum);
-		mask |= (pmlmeinfo->HT_enable) ? update_MSC_rate(&(pmlmeinfo->HT_caps)) : 0;
-		if (support_short_GI(adapt, &(pmlmeinfo->HT_caps)))
+		mask |= (pmlmeinfo->HT_enable) ? update_MSC_rate(&pmlmeinfo->HT_caps) : 0;
+		if (support_short_GI(adapt, &pmlmeinfo->HT_caps))
 			shortGIrate = true;
 		break;
 	case 1:/* for broadcast/multicast */
@@ -2023,8 +2014,8 @@ static void UpdateHalRAMask8188EUsb(struct adapter *adapt, u32 mac_id, u8 rssi_l
 static void SetBeaconRelatedRegisters8188EUsb(struct adapter *adapt)
 {
 	u32 value32;
-	struct mlme_ext_priv	*pmlmeext = &(adapt->mlmeextpriv);
-	struct mlme_ext_info	*pmlmeinfo = &(pmlmeext->mlmext_info);
+	struct mlme_ext_priv	*pmlmeext = &adapt->mlmeextpriv;
+	struct mlme_ext_info	*pmlmeinfo = &pmlmeext->mlmext_info;
 	u32 bcn_ctrl_reg			= REG_BCN_CTRL;
 	/* reset TSF, enable update TSF, correcting TSF On Beacon */
 
@@ -2081,9 +2072,8 @@ void rtl8188eu_set_hal_ops(struct adapter *adapt)
 {
 	struct hal_ops	*halfunc = &adapt->HalFunc;
 
-
-	adapt->HalData = kzalloc(sizeof(struct hal_data_8188e), GFP_KERNEL);
-	if (adapt->HalData == NULL)
+	adapt->HalData = kzalloc(sizeof(*adapt->HalData), GFP_KERNEL);
+	if (!adapt->HalData)
 		DBG_88E("cant not alloc memory for HAL DATA\n");
 
 	halfunc->hal_power_on = rtl8188eu_InitPowerOn;

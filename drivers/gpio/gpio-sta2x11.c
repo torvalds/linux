@@ -20,7 +20,7 @@
  *
  */
 
-#include <linux/module.h>
+#include <linux/init.h>
 #include <linux/kernel.h>
 #include <linux/slab.h>
 #include <linux/gpio.h>
@@ -432,8 +432,4 @@ static struct platform_driver sta2x11_gpio_platform_driver = {
 	},
 	.probe = gsta_probe,
 };
-
-module_platform_driver(sta2x11_gpio_platform_driver);
-
-MODULE_LICENSE("GPL v2");
-MODULE_DESCRIPTION("sta2x11_gpio GPIO driver");
+builtin_platform_driver(sta2x11_gpio_platform_driver);

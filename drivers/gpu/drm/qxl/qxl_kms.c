@@ -261,10 +261,6 @@ static int qxl_device_init(struct qxl_device *qdev,
 	qdev->gc_queue = create_singlethread_workqueue("qxl_gc");
 	INIT_WORK(&qdev->gc_work, qxl_gc_work);
 
-	r = qxl_fb_init(qdev);
-	if (r)
-		return r;
-
 	return 0;
 }
 

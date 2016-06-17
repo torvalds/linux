@@ -223,7 +223,7 @@ iss_video_far_end(struct iss_video *video)
 		if (entity == &video->video.entity)
 			continue;
 
-		if (!is_media_entity_v4l2_io(entity))
+		if (!is_media_entity_v4l2_video_device(entity))
 			continue;
 
 		far_end = to_iss_video(media_entity_to_video_device(entity));

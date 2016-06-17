@@ -12,6 +12,10 @@ struct rds_tcp_connection {
 
 	struct list_head	t_tcp_node;
 	struct rds_connection   *conn;
+	/* t_conn_lock synchronizes the connection establishment between
+	 * rds_tcp_accept_one and rds_tcp_conn_connect
+	 */
+	struct mutex		t_conn_lock;
 	struct socket		*t_sock;
 	void			*t_orig_write_space;
 	void			*t_orig_data_ready;
@@ -46,6 +50,7 @@ struct rds_tcp_statistics {
 void rds_tcp_tune(struct socket *sock);
 void rds_tcp_nonagle(struct socket *sock);
 void rds_tcp_set_callbacks(struct socket *sock, struct rds_connection *conn);
+void rds_tcp_reset_callbacks(struct socket *sock, struct rds_connection *conn);
 void rds_tcp_restore_callbacks(struct socket *sock,
 			       struct rds_tcp_connection *tc);
 u32 rds_tcp_snd_nxt(struct rds_tcp_connection *tc);

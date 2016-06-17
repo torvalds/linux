@@ -161,39 +161,127 @@ static void *unflatten_dt_alloc(void **mem, unsigned long size,
 	return res;
 }
 
-/**
- * unflatten_dt_node - Alloc and populate a device_node from the flat tree
- * @blob: The parent device tree blob
- * @mem: Memory chunk to use for allocating device nodes and properties
- * @poffset: pointer to node in flat tree
- * @dad: Parent struct device_node
- * @nodepp: The device_node tree created by the call
- * @fpsize: Size of the node path up at the current depth.
- * @dryrun: If true, do not allocate device nodes but still calculate needed
- * memory size
- */
-static void * unflatten_dt_node(const void *blob,
-				void *mem,
-				int *poffset,
-				struct device_node *dad,
-				struct device_node **nodepp,
-				unsigned long fpsize,
+static void populate_properties(const void *blob,
+				int offset,
+				void **mem,
+				struct device_node *np,
+				const char *nodename,
 				bool dryrun)
 {
-	const __be32 *p;
+	struct property *pp, **pprev = NULL;
+	int cur;
+	bool has_name = false;
+
+	pprev = &np->properties;
+	for (cur = fdt_first_property_offset(blob, offset);
+	     cur >= 0;
+	     cur = fdt_next_property_offset(blob, cur)) {
+		const __be32 *val;
+		const char *pname;
+		u32 sz;
+
+		val = fdt_getprop_by_offset(blob, cur, &pname, &sz);
+		if (!val) {
+			pr_warn("%s: Cannot locate property at 0x%x\n",
+				__func__, cur);
+			continue;
+		}
+
+		if (!pname) {
+			pr_warn("%s: Cannot find property name at 0x%x\n",
+				__func__, cur);
+			continue;
+		}
+
+		if (!strcmp(pname, "name"))
+			has_name = true;
+
+		pp = unflatten_dt_alloc(mem, sizeof(struct property),
+					__alignof__(struct property));
+		if (dryrun)
+			continue;
+
+		/* We accept flattened tree phandles either in
+		 * ePAPR-style "phandle" properties, or the
+		 * legacy "linux,phandle" properties.  If both
+		 * appear and have different values, things
+		 * will get weird. Don't do that.
+		 */
+		if (!strcmp(pname, "phandle") ||
+		    !strcmp(pname, "linux,phandle")) {
+			if (!np->phandle)
+				np->phandle = be32_to_cpup(val);
+		}
+
+		/* And we process the "ibm,phandle" property
+		 * used in pSeries dynamic device tree
+		 * stuff
+		 */
+		if (!strcmp(pname, "ibm,phandle"))
+			np->phandle = be32_to_cpup(val);
+
+		pp->name   = (char *)pname;
+		pp->length = sz;
+		pp->value  = (__be32 *)val;
+		*pprev     = pp;
+		pprev      = &pp->next;
+	}
+
+	/* With version 0x10 we may not have the name property,
+	 * recreate it here from the unit name if absent
+	 */
+	if (!has_name) {
+		const char *p = nodename, *ps = p, *pa = NULL;
+		int len;
+
+		while (*p) {
+			if ((*p) == '@')
+				pa = p;
+			else if ((*p) == '/')
+				ps = p + 1;
+			p++;
+		}
+
+		if (pa < ps)
+			pa = p;
+		len = (pa - ps) + 1;
+		pp = unflatten_dt_alloc(mem, sizeof(struct property) + len,
+					__alignof__(struct property));
+		if (!dryrun) {
+			pp->name   = "name";
+			pp->length = len;
+			pp->value  = pp + 1;
+			*pprev     = pp;
+			pprev      = &pp->next;
+			memcpy(pp->value, ps, len - 1);
+			((char *)pp->value)[len - 1] = 0;
+			pr_debug("fixed up name for %s -> %s\n",
+				 nodename, (char *)pp->value);
+		}
+	}
+
+	if (!dryrun)
+		*pprev = NULL;
+}
+
+static unsigned int populate_node(const void *blob,
+				  int offset,
+				  void **mem,
+				  struct device_node *dad,
+				  unsigned int fpsize,
+				  struct device_node **pnp,
+				  bool dryrun)
+{
 	struct device_node *np;
-	struct property *pp, **prev_pp = NULL;
 	const char *pathp;
 	unsigned int l, allocl;
-	static int depth;
-	int old_depth;
-	int offset;
-	int has_name = 0;
 	int new_format = 0;
 
-	pathp = fdt_get_name(blob, *poffset, &l);
-	if (!pathp)
-		return mem;
+	pathp = fdt_get_name(blob, offset, &l);
+	if (!pathp) {
+		*pnp = NULL;
+		return 0;
+	}
 
 	allocl = ++l;
 
@@ -223,7 +311,7 @@ static void * unflatten_dt_node(const void *blob,
 		}
 	}
 
-	np = unflatten_dt_alloc(&mem, sizeof(struct device_node) + allocl,
+	np = unflatten_dt_alloc(mem, sizeof(struct device_node) + allocl,
 				__alignof__(struct device_node));
 	if (!dryrun) {
 		char *fn;
@@ -246,89 +334,15 @@ static void * unflatten_dt_node(const void *blob,
 		}
 		memcpy(fn, pathp, l);
 
-		prev_pp = &np->properties;
 		if (dad != NULL) {
 			np->parent = dad;
 			np->sibling = dad->child;
 			dad->child = np;
 		}
 	}
-	/* process properties */
-	for (offset = fdt_first_property_offset(blob, *poffset);
-	     (offset >= 0);
-	     (offset = fdt_next_property_offset(blob, offset))) {
-		const char *pname;
-		u32 sz;
 
-		if (!(p = fdt_getprop_by_offset(blob, offset, &pname, &sz))) {
-			offset = -FDT_ERR_INTERNAL;
-			break;
-		}
-
-		if (pname == NULL) {
-			pr_info("Can't find property name in list !\n");
-			break;
-		}
-		if (strcmp(pname, "name") == 0)
-			has_name = 1;
-		pp = unflatten_dt_alloc(&mem, sizeof(struct property),
-					__alignof__(struct property));
-		if (!dryrun) {
-			/* We accept flattened tree phandles either in
-			 * ePAPR-style "phandle" properties, or the
-			 * legacy "linux,phandle" properties.  If both
-			 * appear and have different values, things
-			 * will get weird.  Don't do that. */
-			if ((strcmp(pname, "phandle") == 0) ||
-			    (strcmp(pname, "linux,phandle") == 0)) {
-				if (np->phandle == 0)
-					np->phandle = be32_to_cpup(p);
-			}
-			/* And we process the "ibm,phandle" property
-			 * used in pSeries dynamic device tree
-			 * stuff */
-			if (strcmp(pname, "ibm,phandle") == 0)
-				np->phandle = be32_to_cpup(p);
-			pp->name = (char *)pname;
-			pp->length = sz;
-			pp->value = (__be32 *)p;
-			*prev_pp = pp;
-			prev_pp = &pp->next;
-		}
-	}
-	/* with version 0x10 we may not have the name property, recreate
-	 * it here from the unit name if absent
-	 */
-	if (!has_name) {
-		const char *p1 = pathp, *ps = pathp, *pa = NULL;
-		int sz;
-
-		while (*p1) {
-			if ((*p1) == '@')
-				pa = p1;
-			if ((*p1) == '/')
-				ps = p1 + 1;
-			p1++;
-		}
-		if (pa < ps)
-			pa = p1;
-		sz = (pa - ps) + 1;
-		pp = unflatten_dt_alloc(&mem, sizeof(struct property) + sz,
-					__alignof__(struct property));
-		if (!dryrun) {
-			pp->name = "name";
-			pp->length = sz;
-			pp->value = pp + 1;
-			*prev_pp = pp;
-			prev_pp = &pp->next;
-			memcpy(pp->value, ps, sz - 1);
-			((char *)pp->value)[sz - 1] = 0;
-			pr_debug("fixed up name for %s -> %s\n", pathp,
-				(char *)pp->value);
-		}
-	}
+	populate_properties(blob, offset, mem, np, pathp, dryrun);
 	if (!dryrun) {
-		*prev_pp = NULL;
 		np->name = of_get_property(np, "name", NULL);
 		np->type = of_get_property(np, "device_type", NULL);
 
@@ -338,36 +352,105 @@ static void * unflatten_dt_node(const void *blob,
 			np->type = "<NULL>";
 	}
 
-	old_depth = depth;
-	*poffset = fdt_next_node(blob, *poffset, &depth);
-	if (depth < 0)
-		depth = 0;
-	while (*poffset > 0 && depth > old_depth)
-		mem = unflatten_dt_node(blob, mem, poffset, np, NULL,
-					fpsize, dryrun);
+	*pnp = np;
+	return fpsize;
+}
 
-	if (*poffset < 0 && *poffset != -FDT_ERR_NOTFOUND)
-		pr_err("unflatten: error %d processing FDT\n", *poffset);
+static void reverse_nodes(struct device_node *parent)
+{
+	struct device_node *child, *next;
+
+	/* In-depth first */
+	child = parent->child;
+	while (child) {
+		reverse_nodes(child);
+
+		child = child->sibling;
+	}
+
+	/* Reverse the nodes in the child list */
+	child = parent->child;
+	parent->child = NULL;
+	while (child) {
+		next = child->sibling;
+
+		child->sibling = parent->child;
+		parent->child = child;
+		child = next;
+	}
+}
+
+/**
+ * unflatten_dt_nodes - Alloc and populate a device_node from the flat tree
+ * @blob: The parent device tree blob
+ * @mem: Memory chunk to use for allocating device nodes and properties
+ * @dad: Parent struct device_node
+ * @nodepp: The device_node tree created by the call
+ *
+ * It returns the size of unflattened device tree or error code
+ */
+static int unflatten_dt_nodes(const void *blob,
+			      void *mem,
+			      struct device_node *dad,
+			      struct device_node **nodepp)
+{
+	struct device_node *root;
+	int offset = 0, depth = 0, initial_depth = 0;
+#define FDT_MAX_DEPTH	64
+	unsigned int fpsizes[FDT_MAX_DEPTH];
+	struct device_node *nps[FDT_MAX_DEPTH];
+	void *base = mem;
+	bool dryrun = !base;
+
+	if (nodepp)
+		*nodepp = NULL;
+
+	/*
+	 * We're unflattening device sub-tree if @dad is valid. There are
+	 * possibly multiple nodes in the first level of depth. We need
+	 * set @depth to 1 to make fdt_next_node() happy as it bails
+	 * immediately when negative @depth is found. Otherwise, the device
+	 * nodes except the first one won't be unflattened successfully.
+	 */
+	if (dad)
+		depth = initial_depth = 1;
+
+	root = dad;
+	fpsizes[depth] = dad ? strlen(of_node_full_name(dad)) : 0;
+	nps[depth] = dad;
+
+	for (offset = 0;
+	     offset >= 0 && depth >= initial_depth;
+	     offset = fdt_next_node(blob, offset, &depth)) {
+		if (WARN_ON_ONCE(depth >= FDT_MAX_DEPTH))
+			continue;
+
+		fpsizes[depth+1] = populate_node(blob, offset, &mem,
+						 nps[depth],
+						 fpsizes[depth],
+						 &nps[depth+1], dryrun);
+		if (!fpsizes[depth+1])
+			return mem - base;
+
+		if (!dryrun && nodepp && !*nodepp)
+			*nodepp = nps[depth+1];
+		if (!dryrun && !root)
+			root = nps[depth+1];
+	}
+
+	if (offset < 0 && offset != -FDT_ERR_NOTFOUND) {
+		pr_err("%s: Error %d processing FDT\n", __func__, offset);
+		return -EINVAL;
+	}
 
 	/*
 	 * Reverse the child list. Some drivers assumes node order matches .dts
 	 * node order
 	 */
-	if (!dryrun && np->child) {
-		struct device_node *child = np->child;
-		np->child = NULL;
-		while (child) {
-			struct device_node *next = child->sibling;
-			child->sibling = np->child;
-			np->child = child;
-			child = next;
-		}
-	}
+	if (!dryrun)
+		reverse_nodes(root);
 
-	if (nodepp)
-		*nodepp = np;
-
-	return mem;
+	return mem - base;
 }
 
 /**
@@ -378,23 +461,27 @@ static void * unflatten_dt_node(const void *blob,
  * pointers of the nodes so the normal device-tree walking functions
  * can be used.
  * @blob: The blob to expand
+ * @dad: Parent device node
  * @mynodes: The device_node tree created by the call
  * @dt_alloc: An allocator that provides a virtual address to memory
  * for the resulting tree
+ *
+ * Returns NULL on failure or the memory chunk containing the unflattened
+ * device tree on success.
  */
-static void __unflatten_device_tree(const void *blob,
-			     struct device_node **mynodes,
-			     void * (*dt_alloc)(u64 size, u64 align))
+static void *__unflatten_device_tree(const void *blob,
+				     struct device_node *dad,
+				     struct device_node **mynodes,
+				     void *(*dt_alloc)(u64 size, u64 align))
 {
-	unsigned long size;
-	int start;
+	int size;
 	void *mem;
 
 	pr_debug(" -> unflatten_device_tree()\n");
 
 	if (!blob) {
 		pr_debug("No device tree pointer\n");
-		return;
+		return NULL;
 	}
 
 	pr_debug("Unflattening device tree:\n");
@@ -404,15 +491,16 @@ static void __unflatten_device_tree(const void *blob,
 
 	if (fdt_check_header(blob)) {
 		pr_err("Invalid device tree blob header\n");
-		return;
+		return NULL;
 	}
 
 	/* First pass, scan for size */
-	start = 0;
-	size = (unsigned long)unflatten_dt_node(blob, NULL, &start, NULL, NULL, 0, true);
-	size = ALIGN(size, 4);
+	size = unflatten_dt_nodes(blob, NULL, dad, NULL);
+	if (size < 0)
+		return NULL;
 
-	pr_debug("  size is %lx, allocating...\n", size);
+	size = ALIGN(size, 4);
+	pr_debug("  size is %d, allocating...\n", size);
 
 	/* Allocate memory for the expanded device tree */
 	mem = dt_alloc(size + 4, __alignof__(struct device_node));
@@ -423,13 +511,13 @@ static void __unflatten_device_tree(const void *blob,
 	pr_debug("  unflattening %p...\n", mem);
 
 	/* Second pass, do actual unflattening */
-	start = 0;
-	unflatten_dt_node(blob, mem, &start, NULL, mynodes, 0, false);
+	unflatten_dt_nodes(blob, mem, dad, mynodes);
 	if (be32_to_cpup(mem + size) != 0xdeadbeef)
 		pr_warning("End of tree marker overwritten: %08x\n",
 			   be32_to_cpup(mem + size));
 
 	pr_debug(" <- unflatten_device_tree()\n");
+	return mem;
 }
 
 static void *kernel_tree_alloc(u64 size, u64 align)
@@ -441,18 +529,29 @@ static DEFINE_MUTEX(of_fdt_unflatten_mutex);
 
 /**
  * of_fdt_unflatten_tree - create tree of device_nodes from flat blob
+ * @blob: Flat device tree blob
+ * @dad: Parent device node
+ * @mynodes: The device tree created by the call
  *
  * unflattens the device-tree passed by the firmware, creating the
  * tree of struct device_node. It also fills the "name" and "type"
  * pointers of the nodes so the normal device-tree walking functions
  * can be used.
+ *
+ * Returns NULL on failure or the memory chunk containing the unflattened
+ * device tree on success.
  */
-void of_fdt_unflatten_tree(const unsigned long *blob,
-			struct device_node **mynodes)
+void *of_fdt_unflatten_tree(const unsigned long *blob,
+			    struct device_node *dad,
+			    struct device_node **mynodes)
 {
+	void *mem;
+
 	mutex_lock(&of_fdt_unflatten_mutex);
-	__unflatten_device_tree(blob, mynodes, &kernel_tree_alloc);
+	mem = __unflatten_device_tree(blob, dad, mynodes, &kernel_tree_alloc);
 	mutex_unlock(&of_fdt_unflatten_mutex);
+
+	return mem;
 }
 EXPORT_SYMBOL_GPL(of_fdt_unflatten_tree);
 
@@ -969,10 +1068,16 @@ int __init early_init_dt_scan_chosen(unsigned long node, const char *uname,
 	 * is set in which case we override whatever was found earlier.
 	 */
 #ifdef CONFIG_CMDLINE
-#ifndef CONFIG_CMDLINE_FORCE
+#if defined(CONFIG_CMDLINE_EXTEND)
+	strlcat(data, " ", COMMAND_LINE_SIZE);
+	strlcat(data, CONFIG_CMDLINE, COMMAND_LINE_SIZE);
+#elif defined(CONFIG_CMDLINE_FORCE)
+	strlcpy(data, CONFIG_CMDLINE, COMMAND_LINE_SIZE);
+#else
+	/* No arguments from boot loader, use kernel's  cmdl*/
 	if (!((char *)data)[0])
-#endif
 		strlcpy(data, CONFIG_CMDLINE, COMMAND_LINE_SIZE);
+#endif
 #endif /* CONFIG_CMDLINE */
 
 	pr_debug("Command line is: %s\n", (char*)data);
@@ -1118,7 +1223,7 @@ bool __init early_init_dt_scan(void *params)
  */
 void __init unflatten_device_tree(void)
 {
-	__unflatten_device_tree(initial_boot_params, &of_root,
+	__unflatten_device_tree(initial_boot_params, NULL, &of_root,
 				early_init_dt_alloc_memory_arch);
 
 	/* Get pointer to "/chosen" and "/aliases" nodes for use everywhere */

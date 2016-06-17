@@ -11,6 +11,8 @@ Main node required properties:
 - interrupt-controller : Identifies the node as an interrupt controller
 - #interrupt-cells : Specifies the number of cells needed to encode an
   interrupt source. Must be a single cell with a value of at least 3.
+  If the system requires describing PPI affinity, then the value must
+  be at least 4.
 
   The 1st cell is the interrupt type; 0 for SPI interrupts, 1 for PPI
   interrupts. Other values are reserved for future use.
@@ -24,7 +26,14 @@ Main node required properties:
 		1 = edge triggered
 		4 = level triggered
 
-  Cells 4 and beyond are reserved for future use and must have a value
+  The 4th cell is a phandle to a node describing a set of CPUs this
+  interrupt is affine to. The interrupt must be a PPI, and the node
+  pointed must be a subnode of the "ppi-partitions" subnode. For
+  interrupt types other than PPI or PPIs that are not partitionned,
+  this cell must be zero. See the "ppi-partitions" node description
+  below.
+
+  Cells 5 and beyond are reserved for future use and must have a value
   of 0 if present.
 
 - reg : Specifies base physical address(s) and size of the GIC
@@ -49,6 +58,11 @@ Optional
   region is present.
 
 Sub-nodes:
+
+PPI affinity can be expressed as a single "ppi-partitions" node,
+containing a set of sub-nodes, each with the following property:
+- affinity: Should be a list of phandles to CPU nodes (as described in
+Documentation/devicetree/bindings/arm/cpus.txt).
 
 GICv3 has one or more Interrupt Translation Services (ITS) that are
 used to route Message Signalled Interrupts (MSI) to the CPUs.
@@ -91,7 +105,7 @@ Examples:
 
 	gic: interrupt-controller@2c010000 {
 		compatible = "arm,gic-v3";
-		#interrupt-cells = <3>;
+		#interrupt-cells = <4>;
 		#address-cells = <2>;
 		#size-cells = <2>;
 		ranges;
@@ -119,4 +133,20 @@ Examples:
 			#msi-cells = <1>;
 			reg = <0x0 0x2c400000 0 0x200000>;
 		};
+
+		ppi-partitions {
+			part0: interrupt-partition-0 {
+				affinity = <&cpu0 &cpu2>;
+			};
+
+			part1: interrupt-partition-1 {
+				affinity = <&cpu1 &cpu3>;
+			};
+		};
+	};
+
+
+	device@0 {
+		reg = <0 0 0 4>;
+		interrupts = <1 1 4 &part0>;
 	};

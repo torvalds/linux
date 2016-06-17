@@ -1392,6 +1392,10 @@ struct ulp_mem_io {
 #define T5_ULP_MEMIO_ORDER_V(x) ((x) << T5_ULP_MEMIO_ORDER_S)
 #define T5_ULP_MEMIO_ORDER_F    T5_ULP_MEMIO_ORDER_V(1U)
 
+#define T5_ULP_MEMIO_FID_S	4
+#define T5_ULP_MEMIO_FID_M	0x7ff
+#define T5_ULP_MEMIO_FID_V(x)	((x) << T5_ULP_MEMIO_FID_S)
+
 /* ulp_mem_io.lock_addr fields */
 #define ULP_MEMIO_ADDR_S    0
 #define ULP_MEMIO_ADDR_V(x) ((x) << ULP_MEMIO_ADDR_S)

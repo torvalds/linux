@@ -133,6 +133,8 @@ static int mtk_mdio_read(struct mii_bus *bus, int phy_addr, int phy_reg)
 static void mtk_phy_link_adjust(struct net_device *dev)
 {
 	struct mtk_mac *mac = netdev_priv(dev);
+	u16 lcl_adv = 0, rmt_adv = 0;
+	u8 flowctrl;
 	u32 mcr = MAC_MCR_MAX_RX_1536 | MAC_MCR_IPG_CFG |
 		  MAC_MCR_FORCE_MODE | MAC_MCR_TX_EN |
 		  MAC_MCR_RX_EN | MAC_MCR_BACKOFF_EN |
@@ -150,11 +152,30 @@ static void mtk_phy_link_adjust(struct net_device *dev)
 	if (mac->phy_dev->link)
 		mcr |= MAC_MCR_FORCE_LINK;
 
-	if (mac->phy_dev->duplex)
+	if (mac->phy_dev->duplex) {
 		mcr |= MAC_MCR_FORCE_DPX;
 
-	if (mac->phy_dev->pause)
-		mcr |= MAC_MCR_FORCE_RX_FC | MAC_MCR_FORCE_TX_FC;
+		if (mac->phy_dev->pause)
+			rmt_adv = LPA_PAUSE_CAP;
+		if (mac->phy_dev->asym_pause)
+			rmt_adv |= LPA_PAUSE_ASYM;
+
+		if (mac->phy_dev->advertising & ADVERTISED_Pause)
+			lcl_adv |= ADVERTISE_PAUSE_CAP;
+		if (mac->phy_dev->advertising & ADVERTISED_Asym_Pause)
+			lcl_adv |= ADVERTISE_PAUSE_ASYM;
+
+		flowctrl = mii_resolve_flowctrl_fdx(lcl_adv, rmt_adv);
+
+		if (flowctrl & FLOW_CTRL_TX)
+			mcr |= MAC_MCR_FORCE_TX_FC;
+		if (flowctrl & FLOW_CTRL_RX)
+			mcr |= MAC_MCR_FORCE_RX_FC;
+
+		netif_dbg(mac->hw, link, dev, "rx pause %s, tx pause %s\n",
+			  flowctrl & FLOW_CTRL_RX ? "enabled" : "disabled",
+			  flowctrl & FLOW_CTRL_TX ? "enabled" : "disabled");
+	}
 
 	mtk_w32(mac->hw, mcr, MTK_MAC_MCR(mac->id));
 
@@ -208,10 +229,16 @@ static int mtk_phy_connect(struct mtk_mac *mac)
 	u32 val, ge_mode;
 
 	np = of_parse_phandle(mac->of_node, "phy-handle", 0);
+	if (!np && of_phy_is_fixed_link(mac->of_node))
+		if (!of_phy_register_fixed_link(mac->of_node))
+			np = of_node_get(mac->of_node);
 	if (!np)
 		return -ENODEV;
 
 	switch (of_get_phy_mode(np)) {
+	case PHY_INTERFACE_MODE_RGMII_TXID:
+	case PHY_INTERFACE_MODE_RGMII_RXID:
+	case PHY_INTERFACE_MODE_RGMII_ID:
 	case PHY_INTERFACE_MODE_RGMII:
 		ge_mode = 0;
 		break;
@@ -236,7 +263,8 @@ static int mtk_phy_connect(struct mtk_mac *mac)
 	mac->phy_dev->autoneg = AUTONEG_ENABLE;
 	mac->phy_dev->speed = 0;
 	mac->phy_dev->duplex = 0;
-	mac->phy_dev->supported &= PHY_BASIC_FEATURES;
+	mac->phy_dev->supported &= PHY_GBIT_FEATURES | SUPPORTED_Pause |
+				   SUPPORTED_Asym_Pause;
 	mac->phy_dev->advertising = mac->phy_dev->supported |
 				    ADVERTISED_Autoneg;
 	phy_start_aneg(mac->phy_dev);
@@ -280,7 +308,7 @@ static int mtk_mdio_init(struct mtk_eth *eth)
 	return 0;
 
 err_free_bus:
-	kfree(eth->mii_bus);
+	mdiobus_free(eth->mii_bus);
 
 err_put_node:
 	of_node_put(mii_np);
@@ -295,7 +323,7 @@ static void mtk_mdio_cleanup(struct mtk_eth *eth)
 
 	mdiobus_unregister(eth->mii_bus);
 	of_node_put(eth->mii_bus->dev.of_node);
-	kfree(eth->mii_bus);
+	mdiobus_free(eth->mii_bus);
 }
 
 static inline void mtk_irq_disable(struct mtk_eth *eth, u32 mask)
@@ -536,7 +564,6 @@ static int mtk_tx_map(struct sk_buff *skb, struct net_device *dev,
 	struct mtk_eth *eth = mac->hw;
 	struct mtk_tx_dma *itxd, *txd;
 	struct mtk_tx_buf *tx_buf;
-	unsigned long flags;
 	dma_addr_t mapped_addr;
 	unsigned int nr_frags;
 	int i, n_desc = 1;
@@ -568,11 +595,6 @@ static int mtk_tx_map(struct sk_buff *skb, struct net_device *dev,
 	if (unlikely(dma_mapping_error(&dev->dev, mapped_addr)))
 		return -ENOMEM;
 
-	/* normally we can rely on the stack not calling this more than once,
-	 * however we have 2 queues running ont he same ring so we need to lock
-	 * the ring access
-	 */
-	spin_lock_irqsave(&eth->page_lock, flags);
 	WRITE_ONCE(itxd->txd1, mapped_addr);
 	tx_buf->flags |= MTK_TX_FLAGS_SINGLE0;
 	dma_unmap_addr_set(tx_buf, dma_addr0, mapped_addr);
@@ -609,8 +631,7 @@ static int mtk_tx_map(struct sk_buff *skb, struct net_device *dev,
 			WRITE_ONCE(txd->txd1, mapped_addr);
 			WRITE_ONCE(txd->txd3, (TX_DMA_SWC |
 					       TX_DMA_PLEN0(frag_map_size) |
-					       last_frag * TX_DMA_LS0) |
-					       mac->id);
+					       last_frag * TX_DMA_LS0));
 			WRITE_ONCE(txd->txd4, 0);
 
 			tx_buf->skb = (struct sk_buff *)MTK_DMA_DUMMY_DESC;
@@ -631,8 +652,6 @@ static int mtk_tx_map(struct sk_buff *skb, struct net_device *dev,
 	WRITE_ONCE(itxd->txd4, txd4);
 	WRITE_ONCE(itxd->txd3, (TX_DMA_SWC | TX_DMA_PLEN0(skb_headlen(skb)) |
 				(!nr_frags * TX_DMA_LS0)));
-
-	spin_unlock_irqrestore(&eth->page_lock, flags);
 
 	netdev_sent_queue(dev, skb->len);
 	skb_tx_timestamp(skb);
@@ -661,8 +680,6 @@ err_dma:
 		itxd = mtk_qdma_phys_to_virt(ring, itxd->txd2);
 	} while (itxd != txd);
 
-	spin_unlock_irqrestore(&eth->page_lock, flags);
-
 	return -ENOMEM;
 }
 
@@ -681,7 +698,29 @@ static inline int mtk_cal_txd_req(struct sk_buff *skb)
 		nfrags += skb_shinfo(skb)->nr_frags;
 	}
 
-	return DIV_ROUND_UP(nfrags, 2);
+	return nfrags;
+}
+
+static void mtk_wake_queue(struct mtk_eth *eth)
+{
+	int i;
+
+	for (i = 0; i < MTK_MAC_COUNT; i++) {
+		if (!eth->netdev[i])
+			continue;
+		netif_wake_queue(eth->netdev[i]);
+	}
+}
+
+static void mtk_stop_queue(struct mtk_eth *eth)
+{
+	int i;
+
+	for (i = 0; i < MTK_MAC_COUNT; i++) {
+		if (!eth->netdev[i])
+			continue;
+		netif_stop_queue(eth->netdev[i]);
+	}
 }
 
 static int mtk_start_xmit(struct sk_buff *skb, struct net_device *dev)
@@ -690,14 +729,22 @@ static int mtk_start_xmit(struct sk_buff *skb, struct net_device *dev)
 	struct mtk_eth *eth = mac->hw;
 	struct mtk_tx_ring *ring = &eth->tx_ring;
 	struct net_device_stats *stats = &dev->stats;
+	unsigned long flags;
 	bool gso = false;
 	int tx_num;
 
+	/* normally we can rely on the stack not calling this more than once,
+	 * however we have 2 queues running on the same ring so we need to lock
+	 * the ring access
+	 */
+	spin_lock_irqsave(&eth->page_lock, flags);
+
 	tx_num = mtk_cal_txd_req(skb);
 	if (unlikely(atomic_read(&ring->free_count) <= tx_num)) {
-		netif_stop_queue(dev);
+		mtk_stop_queue(eth);
 		netif_err(eth, tx_queued, dev,
 			  "Tx Ring full when queue awake!\n");
+		spin_unlock_irqrestore(&eth->page_lock, flags);
 		return NETDEV_TX_BUSY;
 	}
 
@@ -720,15 +767,17 @@ static int mtk_start_xmit(struct sk_buff *skb, struct net_device *dev)
 		goto drop;
 
 	if (unlikely(atomic_read(&ring->free_count) <= ring->thresh)) {
-		netif_stop_queue(dev);
+		mtk_stop_queue(eth);
 		if (unlikely(atomic_read(&ring->free_count) >
 			     ring->thresh))
-			netif_wake_queue(dev);
+			mtk_wake_queue(eth);
 	}
+	spin_unlock_irqrestore(&eth->page_lock, flags);
 
 	return NETDEV_TX_OK;
 
 drop:
+	spin_unlock_irqrestore(&eth->page_lock, flags);
 	stats->tx_dropped++;
 	dev_kfree_skb(skb);
 	return NETDEV_TX_OK;
@@ -897,13 +946,8 @@ static int mtk_poll_tx(struct mtk_eth *eth, int budget, bool *tx_again)
 	if (!total)
 		return 0;
 
-	for (i = 0; i < MTK_MAC_COUNT; i++) {
-		if (!eth->netdev[i] ||
-		    unlikely(!netif_queue_stopped(eth->netdev[i])))
-			continue;
-		if (atomic_read(&ring->free_count) > ring->thresh)
-			netif_wake_queue(eth->netdev[i]);
-	}
+	if (atomic_read(&ring->free_count) > ring->thresh)
+		mtk_wake_queue(eth);
 
 	return total;
 }
@@ -1176,7 +1220,7 @@ static void mtk_tx_timeout(struct net_device *dev)
 	eth->netdev[mac->id]->stats.tx_errors++;
 	netif_err(eth, tx_err, dev,
 		  "transmit timed out\n");
-	schedule_work(&mac->pending_work);
+	schedule_work(&eth->pending_work);
 }
 
 static irqreturn_t mtk_handle_irq(int irq, void *_eth)
@@ -1413,19 +1457,30 @@ static int mtk_do_ioctl(struct net_device *dev, struct ifreq *ifr, int cmd)
 
 static void mtk_pending_work(struct work_struct *work)
 {
-	struct mtk_mac *mac = container_of(work, struct mtk_mac, pending_work);
-	struct mtk_eth *eth = mac->hw;
-	struct net_device *dev = eth->netdev[mac->id];
-	int err;
+	struct mtk_eth *eth = container_of(work, struct mtk_eth, pending_work);
+	int err, i;
+	unsigned long restart = 0;
 
 	rtnl_lock();
-	mtk_stop(dev);
 
-	err = mtk_open(dev);
-	if (err) {
-		netif_alert(eth, ifup, dev,
-			    "Driver up/down cycle failed, closing device.\n");
-		dev_close(dev);
+	/* stop all devices to make sure that dma is properly shut down */
+	for (i = 0; i < MTK_MAC_COUNT; i++) {
+		if (!eth->netdev[i])
+			continue;
+		mtk_stop(eth->netdev[i]);
+		__set_bit(i, &restart);
+	}
+
+	/* restart DMA and enable IRQs */
+	for (i = 0; i < MTK_MAC_COUNT; i++) {
+		if (!test_bit(i, &restart))
+			continue;
+		err = mtk_open(eth->netdev[i]);
+		if (err) {
+			netif_alert(eth, ifup, eth->netdev[i],
+			      "Driver up/down cycle failed, closing device.\n");
+			dev_close(eth->netdev[i]);
+		}
 	}
 	rtnl_unlock();
 }
@@ -1435,15 +1490,13 @@ static int mtk_cleanup(struct mtk_eth *eth)
 	int i;
 
 	for (i = 0; i < MTK_MAC_COUNT; i++) {
-		struct mtk_mac *mac = netdev_priv(eth->netdev[i]);
-
 		if (!eth->netdev[i])
 			continue;
 
 		unregister_netdev(eth->netdev[i]);
 		free_netdev(eth->netdev[i]);
-		cancel_work_sync(&mac->pending_work);
 	}
+	cancel_work_sync(&eth->pending_work);
 
 	return 0;
 }
@@ -1631,7 +1684,6 @@ static int mtk_add_mac(struct mtk_eth *eth, struct device_node *np)
 	mac->id = id;
 	mac->hw = eth;
 	mac->of_node = np;
-	INIT_WORK(&mac->pending_work, mtk_pending_work);
 
 	mac->hw_stats = devm_kzalloc(eth->dev,
 				     sizeof(*mac->hw_stats),
@@ -1645,6 +1697,7 @@ static int mtk_add_mac(struct mtk_eth *eth, struct device_node *np)
 	mac->hw_stats->reg_offset = id * MTK_STAT_OFFSET;
 
 	SET_NETDEV_DEV(eth->netdev[id], eth->dev);
+	eth->netdev[id]->watchdog_timeo = HZ;
 	eth->netdev[id]->netdev_ops = &mtk_netdev_ops;
 	eth->netdev[id]->base_addr = (unsigned long)eth->base;
 	eth->netdev[id]->vlan_features = MTK_HW_FEATURES &
@@ -1677,10 +1730,6 @@ static int mtk_probe(struct platform_device *pdev)
 	struct mtk_soc_data *soc;
 	struct mtk_eth *eth;
 	int err;
-
-	err = device_reset(&pdev->dev);
-	if (err)
-		return err;
 
 	match = of_match_device(of_mtk_match, &pdev->dev);
 	soc = (struct mtk_soc_data *)match->data;
@@ -1736,6 +1785,7 @@ static int mtk_probe(struct platform_device *pdev)
 
 	eth->dev = &pdev->dev;
 	eth->msg_enable = netif_msg_init(mtk_msg_level, MTK_DEFAULT_MSG_ENABLE);
+	INIT_WORK(&eth->pending_work, mtk_pending_work);
 
 	err = mtk_hw_init(eth);
 	if (err)

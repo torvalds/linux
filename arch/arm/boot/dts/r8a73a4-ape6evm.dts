@@ -189,28 +189,28 @@
 
 &pfc {
 	scifa0_pins: serial0 {
-		renesas,groups = "scifa0_data";
-		renesas,function = "scifa0";
+		groups = "scifa0_data";
+		function = "scifa0";
 	};
 
 	mmc0_pins: mmc {
-		renesas,groups = "mmc0_data8", "mmc0_ctrl";
-		renesas,function = "mmc0";
+		groups = "mmc0_data8", "mmc0_ctrl";
+		function = "mmc0";
 	};
 
 	sdhi0_pins: sd0 {
-		renesas,groups = "sdhi0_data4", "sdhi0_ctrl", "sdhi0_cd";
-		renesas,function = "sdhi0";
+		groups = "sdhi0_data4", "sdhi0_ctrl", "sdhi0_cd";
+		function = "sdhi0";
 	};
 
 	sdhi1_pins: sd1 {
-		renesas,groups = "sdhi1_data4", "sdhi1_ctrl";
-		renesas,function = "sdhi1";
+		groups = "sdhi1_data4", "sdhi1_ctrl";
+		function = "sdhi1";
 	};
 
 	keyboard_pins: keyboard {
-		renesas,pins = "PORT324", "PORT325", "PORT326", "PORT327",
-			       "PORT328", "PORT329";
+		pins = "PORT324", "PORT325", "PORT326", "PORT327", "PORT328",
+		       "PORT329";
 		bias-pull-up;
 	};
 };

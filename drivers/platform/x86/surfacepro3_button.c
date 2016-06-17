@@ -24,6 +24,8 @@
 #define SURFACE_BUTTON_OBJ_NAME		"VGBI"
 #define SURFACE_BUTTON_DEVICE_NAME	"Surface Pro 3/4 Buttons"
 
+#define SURFACE_BUTTON_NOTIFY_TABLET_MODE	0xc8
+
 #define SURFACE_BUTTON_NOTIFY_PRESS_POWER	0xc6
 #define SURFACE_BUTTON_NOTIFY_RELEASE_POWER	0xc7
 
@@ -33,7 +35,7 @@
 #define SURFACE_BUTTON_NOTIFY_PRESS_VOLUME_UP	0xc0
 #define SURFACE_BUTTON_NOTIFY_RELEASE_VOLUME_UP	0xc1
 
-#define SURFACE_BUTTON_NOTIFY_PRESS_VOLUME_DOWN	0xc2
+#define SURFACE_BUTTON_NOTIFY_PRESS_VOLUME_DOWN		0xc2
 #define SURFACE_BUTTON_NOTIFY_RELEASE_VOLUME_DOWN	0xc3
 
 ACPI_MODULE_NAME("surface pro 3 button");
@@ -105,9 +107,12 @@ static void surface_button_notify(struct acpi_device *device, u32 event)
 	case SURFACE_BUTTON_NOTIFY_RELEASE_VOLUME_DOWN:
 		key_code = KEY_VOLUMEDOWN;
 		break;
+	case SURFACE_BUTTON_NOTIFY_TABLET_MODE:
+		dev_warn_once(&device->dev, "Tablet mode is not supported\n");
+		break;
 	default:
 		dev_info_ratelimited(&device->dev,
-				  "Unsupported event [0x%x]\n", event);
+				     "Unsupported event [0x%x]\n", event);
 		break;
 	}
 	input = button->input;

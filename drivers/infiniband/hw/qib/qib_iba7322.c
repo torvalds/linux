@@ -1308,21 +1308,6 @@ static const struct  qib_hwerror_msgs qib_7322p_error_msgs[] = {
 	SYM_LSB(IntMask, fldname##17IntMask)), \
 	.msg = #fldname "_C", .sz = sizeof(#fldname "_C") }
 
-static const struct  qib_hwerror_msgs qib_7322_intr_msgs[] = {
-	INTR_AUTO_P(SDmaInt),
-	INTR_AUTO_P(SDmaProgressInt),
-	INTR_AUTO_P(SDmaIdleInt),
-	INTR_AUTO_P(SDmaCleanupDone),
-	INTR_AUTO_C(RcvUrg),
-	INTR_AUTO_P(ErrInt),
-	INTR_AUTO(ErrInt),      /* non-port-specific errs */
-	INTR_AUTO(AssertGPIOInt),
-	INTR_AUTO_P(SendDoneInt),
-	INTR_AUTO(SendBufAvailInt),
-	INTR_AUTO_C(RcvAvail),
-	{ .mask = 0, .sz = 0 }
-};
-
 #define TXSYMPTOM_AUTO_P(fldname) \
 	{ .mask = SYM_MASK(SendHdrErrSymptom_0, fldname), \
 	.msg = #fldname, .sz = sizeof(#fldname) }

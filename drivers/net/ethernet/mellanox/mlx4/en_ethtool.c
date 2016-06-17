@@ -362,7 +362,7 @@ static void mlx4_en_get_ethtool_stats(struct net_device *dev,
 
 	for (i = 0; i < NUM_MAIN_STATS; i++, bitmap_iterator_inc(&it))
 		if (bitmap_iterator_test(&it))
-			data[index++] = ((unsigned long *)&priv->stats)[i];
+			data[index++] = ((unsigned long *)&dev->stats)[i];
 
 	for (i = 0; i < NUM_PORT_STATS; i++, bitmap_iterator_inc(&it))
 		if (bitmap_iterator_test(&it))

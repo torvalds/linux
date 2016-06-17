@@ -338,6 +338,7 @@ static void ieee80211_key_replace(struct ieee80211_sub_if_data *sdata,
 		} else {
 			rcu_assign_pointer(sta->gtk[idx], new);
 		}
+		ieee80211_check_fast_rx(sta);
 	} else {
 		defunikey = old &&
 			old == key_mtx_dereference(sdata->local,

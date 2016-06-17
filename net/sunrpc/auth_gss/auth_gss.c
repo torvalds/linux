@@ -1299,11 +1299,11 @@ gss_destroy_cred(struct rpc_cred *cred)
 static struct rpc_cred *
 gss_lookup_cred(struct rpc_auth *auth, struct auth_cred *acred, int flags)
 {
-	return rpcauth_lookup_credcache(auth, acred, flags);
+	return rpcauth_lookup_credcache(auth, acred, flags, GFP_NOFS);
 }
 
 static struct rpc_cred *
-gss_create_cred(struct rpc_auth *auth, struct auth_cred *acred, int flags)
+gss_create_cred(struct rpc_auth *auth, struct auth_cred *acred, int flags, gfp_t gfp)
 {
 	struct gss_auth *gss_auth = container_of(auth, struct gss_auth, rpc_auth);
 	struct gss_cred	*cred = NULL;
@@ -1313,7 +1313,7 @@ gss_create_cred(struct rpc_auth *auth, struct auth_cred *acred, int flags)
 		__func__, from_kuid(&init_user_ns, acred->uid),
 		auth->au_flavor);
 
-	if (!(cred = kzalloc(sizeof(*cred), GFP_NOFS)))
+	if (!(cred = kzalloc(sizeof(*cred), gfp)))
 		goto out_err;
 
 	rpcauth_init_cred(&cred->gc_base, acred, auth, &gss_credops);

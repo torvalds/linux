@@ -64,6 +64,9 @@ struct ipoib_mcast_iter {
 	unsigned int       send_only;
 };
 
+/* join state that allows creating mcg with sendonly member request */
+#define SENDONLY_FULLMEMBER_JOIN	8
+
 /*
  * This should be called with the priv->lock held
  */
@@ -326,12 +329,23 @@ void ipoib_mcast_carrier_on_task(struct work_struct *work)
 	struct ipoib_dev_priv *priv = container_of(work, struct ipoib_dev_priv,
 						   carrier_on_task);
 	struct ib_port_attr attr;
+	int ret;
 
 	if (ib_query_port(priv->ca, priv->port, &attr) ||
 	    attr.state != IB_PORT_ACTIVE) {
 		ipoib_dbg(priv, "Keeping carrier off until IB port is active\n");
 		return;
 	}
+	/*
+	 * Check if can send sendonly MCG's with sendonly-fullmember join state.
+	 * It done here after the successfully join to the broadcast group,
+	 * because the broadcast group must always be joined first and is always
+	 * re-joined if the SM changes substantially.
+	 */
+	ret = ipoib_check_sm_sendonly_fullmember_support(priv);
+	if (ret < 0)
+		pr_debug("%s failed query sm support for sendonly-fullmember (ret: %d)\n",
+			 priv->dev->name, ret);
 
 	/*
 	 * Take rtnl_lock to avoid racing with ipoib_stop() and
@@ -515,22 +529,20 @@ static int ipoib_mcast_join(struct net_device *dev, struct ipoib_mcast *mcast)
 		rec.hop_limit	  = priv->broadcast->mcmember.hop_limit;
 
 		/*
-		 * Send-only IB Multicast joins do not work at the core
-		 * IB layer yet, so we can't use them here.  However,
-		 * we are emulating an Ethernet multicast send, which
-		 * does not require a multicast subscription and will
-		 * still send properly.  The most appropriate thing to
+		 * Send-only IB Multicast joins work at the core IB layer but
+		 * require specific SM support.
+		 * We can use such joins here only if the current SM supports that feature.
+		 * However, if not, we emulate an Ethernet multicast send,
+		 * which does not require a multicast subscription and will
+		 * still send properly. The most appropriate thing to
 		 * do is to create the group if it doesn't exist as that
 		 * most closely emulates the behavior, from a user space
-		 * application perspecitive, of Ethernet multicast
-		 * operation.  For now, we do a full join, maybe later
-		 * when the core IB layers support send only joins we
-		 * will use them.
+		 * application perspective, of Ethernet multicast operation.
 		 */
-#if 0
-		if (test_bit(IPOIB_MCAST_FLAG_SENDONLY, &mcast->flags))
-			rec.join_state = 4;
-#endif
+		if (test_bit(IPOIB_MCAST_FLAG_SENDONLY, &mcast->flags) &&
+		    priv->sm_fullmember_sendonly_support)
+			/* SM supports sendonly-fullmember, otherwise fallback to full-member */
+			rec.join_state = SENDONLY_FULLMEMBER_JOIN;
 	}
 	spin_unlock_irq(&priv->lock);
 
@@ -570,11 +582,13 @@ void ipoib_mcast_join_task(struct work_struct *work)
 		return;
 	}
 	priv->local_lid = port_attr.lid;
+	netif_addr_lock_bh(dev);
 
-	if (ib_query_gid(priv->ca, priv->port, 0, &priv->local_gid, NULL))
-		ipoib_warn(priv, "ib_query_gid() failed\n");
-	else
-		memcpy(priv->dev->dev_addr + 4, priv->local_gid.raw, sizeof (union ib_gid));
+	if (!test_bit(IPOIB_FLAG_DEV_ADDR_SET, &priv->flags)) {
+		netif_addr_unlock_bh(dev);
+		return;
+	}
+	netif_addr_unlock_bh(dev);
 
 	spin_lock_irq(&priv->lock);
 	if (!test_bit(IPOIB_FLAG_OPER_UP, &priv->flags))

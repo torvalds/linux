@@ -188,6 +188,15 @@ static void set_prefetch_parameters(void)
 			}
 			break;
 
+		case CPU_LOONGSON3:
+			/* Loongson-3 only support the Pref_Load/Pref_Store. */
+			pref_bias_clear_store = 128;
+			pref_bias_copy_load = 128;
+			pref_bias_copy_store = 128;
+			pref_src_mode = Pref_Load;
+			pref_dst_mode = Pref_Store;
+			break;
+
 		default:
 			pref_bias_clear_store = 128;
 			pref_bias_copy_load = 256;

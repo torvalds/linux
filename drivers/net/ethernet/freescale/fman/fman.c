@@ -615,7 +615,7 @@ struct fman {
 	struct fman_cfg *cfg;
 	struct muram_info *muram;
 	/* cam section in muram */
-	int cam_offset;
+	unsigned long cam_offset;
 	size_t cam_size;
 	/* Fifo in MURAM */
 	int fifo_offset;
@@ -2772,7 +2772,7 @@ static struct fman *read_dts_node(struct platform_device *of_dev)
 	/* Get the FM address */
 	res = platform_get_resource(of_dev, IORESOURCE_MEM, 0);
 	if (!res) {
-		dev_err(&of_dev->dev, "%s: Can't get FMan memory resouce\n",
+		dev_err(&of_dev->dev, "%s: Can't get FMan memory resource\n",
 			__func__);
 		goto fman_node_put;
 	}

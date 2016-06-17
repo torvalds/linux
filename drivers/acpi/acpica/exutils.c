@@ -301,8 +301,8 @@ static u32 acpi_ex_digits_needed(u64 value, u32 base)
  *
  * FUNCTION:    acpi_ex_eisa_id_to_string
  *
- * PARAMETERS:  compressed_id   - EISAID to be converted
- *              out_string      - Where to put the converted string (8 bytes)
+ * PARAMETERS:  out_string      - Where to put the converted string (8 bytes)
+ *              compressed_id   - EISAID to be converted
  *
  * RETURN:      None
  *
@@ -354,7 +354,7 @@ void acpi_ex_eisa_id_to_string(char *out_string, u64 compressed_id)
  *                                possible 64-bit integer.
  *              value           - Value to be converted
  *
- * RETURN:      None, string
+ * RETURN:      Converted string in out_string
  *
  * DESCRIPTION: Convert a 64-bit integer to decimal string representation.
  *              Assumes string buffer is large enough to hold the string. The
@@ -384,9 +384,9 @@ void acpi_ex_integer_to_string(char *out_string, u64 value)
  * FUNCTION:    acpi_ex_pci_cls_to_string
  *
  * PARAMETERS:  out_string      - Where to put the converted string (7 bytes)
- * PARAMETERS:  class_code      - PCI class code to be converted (3 bytes)
+ *              class_code      - PCI class code to be converted (3 bytes)
  *
- * RETURN:      None
+ * RETURN:      Converted string in out_string
  *
  * DESCRIPTION: Convert 3-bytes PCI class code to string representation.
  *              Return buffer must be large enough to hold the string. The
@@ -417,7 +417,7 @@ void acpi_ex_pci_cls_to_string(char *out_string, u8 class_code[3])
  *
  * PARAMETERS:  space_id            - ID to be validated
  *
- * RETURN:      TRUE if valid/supported ID.
+ * RETURN:      TRUE if space_id is a valid/supported ID.
  *
  * DESCRIPTION: Validate an operation region space_ID.
  *

@@ -177,9 +177,8 @@ struct trace_options {
 };
 
 struct trace_pid_list {
-	unsigned int			nr_pids;
-	int				order;
-	pid_t				*pids;
+	int				pid_max;
+	unsigned long			*pids;
 };
 
 /*
@@ -656,6 +655,7 @@ static inline void __trace_stack(struct trace_array *tr, unsigned long flags,
 extern cycle_t ftrace_now(int cpu);
 
 extern void trace_find_cmdline(int pid, char comm[]);
+extern void trace_event_follow_fork(struct trace_array *tr, bool enable);
 
 #ifdef CONFIG_DYNAMIC_FTRACE
 extern unsigned long ftrace_update_tot_cnt;
@@ -967,6 +967,7 @@ extern int trace_get_user(struct trace_parser *parser, const char __user *ubuf,
 		C(STOP_ON_FREE,		"disable_on_free"),	\
 		C(IRQ_INFO,		"irq-info"),		\
 		C(MARKERS,		"markers"),		\
+		C(EVENT_FORK,		"event-fork"),		\
 		FUNCTION_FLAGS					\
 		FGRAPH_FLAGS					\
 		STACK_FLAGS					\
@@ -1063,6 +1064,137 @@ struct trace_subsystem_dir {
 	int				ref_count;
 	int				nr_events;
 };
+
+extern int call_filter_check_discard(struct trace_event_call *call, void *rec,
+				     struct ring_buffer *buffer,
+				     struct ring_buffer_event *event);
+
+void trace_buffer_unlock_commit_regs(struct trace_array *tr,
+				     struct ring_buffer *buffer,
+				     struct ring_buffer_event *event,
+				     unsigned long flags, int pc,
+				     struct pt_regs *regs);
+
+static inline void trace_buffer_unlock_commit(struct trace_array *tr,
+					      struct ring_buffer *buffer,
+					      struct ring_buffer_event *event,
+					      unsigned long flags, int pc)
+{
+	trace_buffer_unlock_commit_regs(tr, buffer, event, flags, pc, NULL);
+}
+
+DECLARE_PER_CPU(struct ring_buffer_event *, trace_buffered_event);
+DECLARE_PER_CPU(int, trace_buffered_event_cnt);
+void trace_buffered_event_disable(void);
+void trace_buffered_event_enable(void);
+
+static inline void
+__trace_event_discard_commit(struct ring_buffer *buffer,
+			     struct ring_buffer_event *event)
+{
+	if (this_cpu_read(trace_buffered_event) == event) {
+		/* Simply release the temp buffer */
+		this_cpu_dec(trace_buffered_event_cnt);
+		return;
+	}
+	ring_buffer_discard_commit(buffer, event);
+}
+
+/*
+ * Helper function for event_trigger_unlock_commit{_regs}().
+ * If there are event triggers attached to this event that requires
+ * filtering against its fields, then they wil be called as the
+ * entry already holds the field information of the current event.
+ *
+ * It also checks if the event should be discarded or not.
+ * It is to be discarded if the event is soft disabled and the
+ * event was only recorded to process triggers, or if the event
+ * filter is active and this event did not match the filters.
+ *
+ * Returns true if the event is discarded, false otherwise.
+ */
+static inline bool
+__event_trigger_test_discard(struct trace_event_file *file,
+			     struct ring_buffer *buffer,
+			     struct ring_buffer_event *event,
+			     void *entry,
+			     enum event_trigger_type *tt)
+{
+	unsigned long eflags = file->flags;
+
+	if (eflags & EVENT_FILE_FL_TRIGGER_COND)
+		*tt = event_triggers_call(file, entry);
+
+	if (test_bit(EVENT_FILE_FL_SOFT_DISABLED_BIT, &file->flags) ||
+	    (unlikely(file->flags & EVENT_FILE_FL_FILTERED) &&
+	     !filter_match_preds(file->filter, entry))) {
+		__trace_event_discard_commit(buffer, event);
+		return true;
+	}
+
+	return false;
+}
+
+/**
+ * event_trigger_unlock_commit - handle triggers and finish event commit
+ * @file: The file pointer assoctiated to the event
+ * @buffer: The ring buffer that the event is being written to
+ * @event: The event meta data in the ring buffer
+ * @entry: The event itself
+ * @irq_flags: The state of the interrupts at the start of the event
+ * @pc: The state of the preempt count at the start of the event.
+ *
+ * This is a helper function to handle triggers that require data
+ * from the event itself. It also tests the event against filters and
+ * if the event is soft disabled and should be discarded.
+ */
+static inline void
+event_trigger_unlock_commit(struct trace_event_file *file,
+			    struct ring_buffer *buffer,
+			    struct ring_buffer_event *event,
+			    void *entry, unsigned long irq_flags, int pc)
+{
+	enum event_trigger_type tt = ETT_NONE;
+
+	if (!__event_trigger_test_discard(file, buffer, event, entry, &tt))
+		trace_buffer_unlock_commit(file->tr, buffer, event, irq_flags, pc);
+
+	if (tt)
+		event_triggers_post_call(file, tt, entry);
+}
+
+/**
+ * event_trigger_unlock_commit_regs - handle triggers and finish event commit
+ * @file: The file pointer assoctiated to the event
+ * @buffer: The ring buffer that the event is being written to
+ * @event: The event meta data in the ring buffer
+ * @entry: The event itself
+ * @irq_flags: The state of the interrupts at the start of the event
+ * @pc: The state of the preempt count at the start of the event.
+ *
+ * This is a helper function to handle triggers that require data
+ * from the event itself. It also tests the event against filters and
+ * if the event is soft disabled and should be discarded.
+ *
+ * Same as event_trigger_unlock_commit() but calls
+ * trace_buffer_unlock_commit_regs() instead of trace_buffer_unlock_commit().
+ */
+static inline void
+event_trigger_unlock_commit_regs(struct trace_event_file *file,
+				 struct ring_buffer *buffer,
+				 struct ring_buffer_event *event,
+				 void *entry, unsigned long irq_flags, int pc,
+				 struct pt_regs *regs)
+{
+	enum event_trigger_type tt = ETT_NONE;
+
+	if (!__event_trigger_test_discard(file, buffer, event, entry, &tt))
+		trace_buffer_unlock_commit_regs(file->tr, buffer, event,
+						irq_flags, pc, regs);
+
+	if (tt)
+		event_triggers_post_call(file, tt, entry);
+}
 
 #define FILTER_PRED_INVALID	((unsigned short)-1)
 #define FILTER_PRED_IS_RIGHT	(1 << 15)
@@ -1161,6 +1293,15 @@ extern struct mutex event_mutex;
 extern struct list_head ftrace_events;
 
 extern const struct file_operations event_trigger_fops;
+extern const struct file_operations event_hist_fops;
+
+#ifdef CONFIG_HIST_TRIGGERS
+extern int register_trigger_hist_cmd(void);
+extern int register_trigger_hist_enable_disable_cmds(void);
+#else
+static inline int register_trigger_hist_cmd(void) { return 0; }
+static inline int register_trigger_hist_enable_disable_cmds(void) { return 0; }
+#endif
 
 extern int register_trigger_cmds(void);
 extern void clear_event_triggers(struct trace_array *tr);
@@ -1174,9 +1315,41 @@ struct event_trigger_data {
 	char				*filter_str;
 	void				*private_data;
 	bool				paused;
+	bool				paused_tmp;
 	struct list_head		list;
+	char				*name;
+	struct list_head		named_list;
+	struct event_trigger_data	*named_data;
 };
 
+/* Avoid typos */
+#define ENABLE_EVENT_STR	"enable_event"
+#define DISABLE_EVENT_STR	"disable_event"
+#define ENABLE_HIST_STR		"enable_hist"
+#define DISABLE_HIST_STR	"disable_hist"
+
+struct enable_trigger_data {
+	struct trace_event_file		*file;
+	bool				enable;
+	bool				hist;
+};
+
+extern int event_enable_trigger_print(struct seq_file *m,
+				      struct event_trigger_ops *ops,
+				      struct event_trigger_data *data);
+extern void event_enable_trigger_free(struct event_trigger_ops *ops,
+				      struct event_trigger_data *data);
+extern int event_enable_trigger_func(struct event_command *cmd_ops,
+				     struct trace_event_file *file,
+				     char *glob, char *cmd, char *param);
+extern int event_enable_register_trigger(char *glob,
+					 struct event_trigger_ops *ops,
+					 struct event_trigger_data *data,
+					 struct trace_event_file *file);
+extern void event_enable_unregister_trigger(char *glob,
+					    struct event_trigger_ops *ops,
+					    struct event_trigger_data *test,
+					    struct trace_event_file *file);
 extern void trigger_data_free(struct event_trigger_data *data);
 extern int event_trigger_init(struct event_trigger_ops *ops,
 			      struct event_trigger_data *data);
@@ -1189,7 +1362,18 @@ extern void unregister_trigger(char *glob, struct event_trigger_ops *ops,
 extern int set_trigger_filter(char *filter_str,
 			      struct event_trigger_data *trigger_data,
 			      struct trace_event_file *file);
+extern struct event_trigger_data *find_named_trigger(const char *name);
+extern bool is_named_trigger(struct event_trigger_data *test);
+extern int save_named_trigger(const char *name,
+			      struct event_trigger_data *data);
+extern void del_named_trigger(struct event_trigger_data *data);
+extern void pause_named_trigger(struct event_trigger_data *data);
+extern void unpause_named_trigger(struct event_trigger_data *data);
+extern void set_named_trigger_data(struct event_trigger_data *data,
+				   struct event_trigger_data *named_data);
 extern int register_event_command(struct event_command *cmd);
+extern int unregister_event_command(struct event_command *cmd);
+extern int register_trigger_hist_enable_disable_cmds(void);
 
 /**
  * struct event_trigger_ops - callbacks for trace event triggers

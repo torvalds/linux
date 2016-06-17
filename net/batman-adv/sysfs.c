@@ -116,11 +116,13 @@ batadv_kobj_to_vlan(struct batadv_priv *bat_priv, struct kobject *obj)
 static char *batadv_uev_action_str[] = {
 	"add",
 	"del",
-	"change"
+	"change",
+	"loopdetect",
 };
 
 static char *batadv_uev_type_str[] = {
-	"gw"
+	"gw",
+	"bla",
 };
 
 /* Use this, if you have customized show and store functions for vlan attrs */
@@ -830,6 +832,7 @@ static ssize_t batadv_store_mesh_iface(struct kobject *kobj,
 				       size_t count)
 {
 	struct net_device *net_dev = batadv_kobj_to_netdev(kobj);
+	struct net *net = dev_net(net_dev);
 	struct batadv_hard_iface *hard_iface;
 	int status_tmp = -1;
 	int ret = count;
@@ -873,7 +876,7 @@ static ssize_t batadv_store_mesh_iface(struct kobject *kobj,
 		batadv_hardif_disable_interface(hard_iface,
 						BATADV_IF_CLEANUP_AUTO);
 
-	ret = batadv_hardif_enable_interface(hard_iface, buff);
+	ret = batadv_hardif_enable_interface(hard_iface, net, buff);
 
 unlock:
 	rtnl_unlock();
