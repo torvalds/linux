@@ -71,7 +71,6 @@ static inline int atomic_##op##_return(int i, atomic_t *v)		\
 static inline int atomic_fetch_##op(int i, atomic_t *v)			\
 {									\
 	unsigned int val, orig;						\
-	SCOND_FAIL_RETRY_VAR_DEF                                        \
 									\
 	/*								\
 	 * Explicit full memory barrier needed before/after as		\
@@ -84,11 +83,8 @@ static inline int atomic_fetch_##op(int i, atomic_t *v)			\
 	"	" #asm_op " %[val], %[orig], %[i]	\n"		\
 	"	scond   %[val], [%[ctr]]		\n"		\
 	"						\n"		\
-	SCOND_FAIL_RETRY_ASM						\
-									\
 	: [val]	"=&r"	(val),						\
 	  [orig] "=&r" (orig)						\
-	  SCOND_FAIL_RETRY_VARS						\
 	: [ctr]	"r"	(&v->counter),					\
 	  [i]	"ir"	(i)						\
 	: "cc");							\
@@ -198,10 +194,6 @@ ATOMIC_OPS(and, &=, and)
 ATOMIC_OPS(andnot, &= ~, bic)
 ATOMIC_OPS(or, |=, or)
 ATOMIC_OPS(xor, ^=, xor)
-
-#undef SCOND_FAIL_RETRY_VAR_DEF
-#undef SCOND_FAIL_RETRY_ASM
-#undef SCOND_FAIL_RETRY_VARS
 
 #else /* CONFIG_ARC_PLAT_EZNPS */
 
