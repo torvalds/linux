@@ -236,7 +236,7 @@ STUB_GET_NEXT_HIGH_MONO_COUNT(virt, id)
 STUB_RESET_SYSTEM(virt, id)
 
 void
-efi_gettimeofday (struct timespec *ts)
+efi_gettimeofday (struct timespec64 *ts)
 {
 	efi_time_t tm;
 
@@ -245,7 +245,7 @@ efi_gettimeofday (struct timespec *ts)
 		return;
 	}
 
-	ts->tv_sec = mktime(tm.year, tm.month, tm.day,
+	ts->tv_sec = mktime64(tm.year, tm.month, tm.day,
 			    tm.hour, tm.minute, tm.second);
 	ts->tv_nsec = tm.nanosecond;
 }
