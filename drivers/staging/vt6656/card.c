@@ -66,7 +66,6 @@ static const u16 cwRXBCNTSFOff[MAX_RATE] = {
  */
 void vnt_set_channel(struct vnt_private *priv, u32 connection_channel)
 {
-
 	if (connection_channel > CB_MAX_CHANNEL || !connection_channel)
 		return;
 
@@ -168,7 +167,6 @@ static u16 vnt_get_ofdm_rate(struct vnt_private *priv, u16 rate_idx)
 static void vnt_calculate_ofdm_rate(u16 rate, u8 bb_type,
 				    u8 *tx_rate, u8 *rsv_time)
 {
-
 	switch (rate) {
 	case RATE_6M:
 		if (bb_type == BB_TYPE_11A) {
@@ -479,7 +477,6 @@ int vnt_ofdm_min_rate(struct vnt_private *priv)
 
 u8 vnt_get_pkt_type(struct vnt_private *priv)
 {
-
 	if (priv->bb_type == BB_TYPE_11A || priv->bb_type == BB_TYPE_11B)
 		return (u8)priv->bb_type;
 	else if (vnt_ofdm_min_rate(priv))
@@ -566,7 +563,6 @@ void vnt_adjust_tsf(struct vnt_private *priv, u8 rx_rate,
  */
 bool vnt_get_current_tsf(struct vnt_private *priv, u64 *current_tsf)
 {
-
 	*current_tsf = priv->current_tsf;
 
 	return true;
@@ -585,7 +581,6 @@ bool vnt_get_current_tsf(struct vnt_private *priv, u64 *current_tsf)
  */
 bool vnt_clear_current_tsf(struct vnt_private *priv)
 {
-
 	vnt_mac_reg_bits_on(priv, MAC_REG_TFTCTL, TFTCTL_TSFCNTRST);
 
 	priv->current_tsf = 0;
