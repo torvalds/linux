@@ -115,6 +115,28 @@ void adv7533_dsi_power_off(struct adv7511 *adv)
 	regmap_write(adv->regmap_cec, 0x27, 0x0b);
 }
 
+void adv7533_mode_set(struct adv7511 *adv, struct drm_display_mode *mode)
+{
+	struct mipi_dsi_device *dsi = adv->dsi;
+	int lanes, ret;
+
+	if (adv->num_dsi_lanes != 4)
+		return;
+
+	if (mode->clock > 80000)
+		lanes = 4;
+	else
+		lanes = 3;
+
+	if (lanes != dsi->lanes) {
+		mipi_dsi_detach(dsi);
+		dsi->lanes = lanes;
+		ret = mipi_dsi_attach(dsi);
+		if (ret)
+			dev_err(&dsi->dev, "failed to change host lanes\n");
+	}
+}
+
 int adv7533_patch_registers(struct adv7511 *adv)
 {
 	return regmap_register_patch(adv->regmap,

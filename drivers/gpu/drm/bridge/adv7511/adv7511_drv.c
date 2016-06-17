@@ -712,6 +712,9 @@ static void adv7511_mode_set(struct adv7511 *adv7511,
 	regmap_update_bits(adv7511->regmap, 0x17,
 		0x60, (vsync_polarity << 6) | (hsync_polarity << 5));
 
+	if (adv7511->type == ADV7533)
+		adv7533_mode_set(adv7511, adj_mode);
+
 	drm_mode_copy(&adv7511->curr_mode, adj_mode);
 
 	/*
