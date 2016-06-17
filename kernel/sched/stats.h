@@ -33,7 +33,8 @@ rq_sched_info_dequeued(struct rq *rq, unsigned long long delta)
 #define schedstat_inc(var)		do { if (schedstat_enabled()) { var++; } } while (0)
 #define schedstat_add(var, amt)		do { if (schedstat_enabled()) { var += (amt); } } while (0)
 #define schedstat_set(var, val)		do { if (schedstat_enabled()) { var = (val); } } while (0)
-#define schedstat_val(var)		((schedstat_enabled()) ? (var) : 0)
+#define schedstat_val(var)		(var)
+#define schedstat_val_or_zero(var)	((schedstat_enabled()) ? (var) : 0)
 
 #else /* !CONFIG_SCHEDSTATS */
 static inline void
@@ -50,6 +51,7 @@ rq_sched_info_depart(struct rq *rq, unsigned long long delta)
 #define schedstat_add(var, amt)		do { } while (0)
 #define schedstat_set(var, val)		do { } while (0)
 #define schedstat_val(var)		0
+#define schedstat_val_or_zero(var)	0
 #endif /* CONFIG_SCHEDSTATS */
 
 #ifdef CONFIG_SCHED_INFO
