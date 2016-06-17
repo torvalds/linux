@@ -1256,16 +1256,17 @@ static int parse_insn(struct comedi_device *dev, struct comedi_insn *insn,
 		switch (insn->insn) {
 		case INSN_GTOD:
 			{
-				struct timeval tv;
+				struct timespec64 tv;
 
 				if (insn->n != 2) {
 					ret = -EINVAL;
 					break;
 				}
 
-				do_gettimeofday(&tv);
-				data[0] = tv.tv_sec;
-				data[1] = tv.tv_usec;
+				ktime_get_real_ts64(&tv);
+				/* unsigned data safe until 2106 */
+				data[0] = (unsigned int)tv.tv_sec;
+				data[1] = tv.tv_nsec / NSEC_PER_USEC;
 				ret = 2;
 
 				break;
