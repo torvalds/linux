@@ -1,14 +1,5 @@
 /*
- * tsc_msr.c - MSR based TSC calibration on Intel Atom SoC platforms.
- *
- * TSC in Intel Atom SoC runs at a constant rate which can be figured
- * by this formula:
- * <maximum core-clock to bus-clock ratio> * <maximum resolved frequency>
- * See Intel 64 and IA-32 System Programming Guid section 16.12 and 30.11.5
- * for details.
- * Especially some Intel Atom SoCs don't have PIT(i8254) or HPET, so MSR
- * based calibration is the only option.
- *
+ * tsc_msr.c - TSC frequency enumeration via MSR
  *
  * Copyright (C) 2013 Intel Corporation
  * Author: Bin Gao <bin.gao@intel.com>
@@ -22,17 +13,10 @@
 #include <asm/apic.h>
 #include <asm/param.h>
 
-/* CPU reference clock frequency: in KHz */
-#define FREQ_83		83200
-#define FREQ_100	99840
-#define FREQ_133	133200
-#define FREQ_166	166400
-
 #define MAX_NUM_FREQS	8
 
 /*
- * According to Intel 64 and IA-32 System Programming Guide,
- * if MSR_PERF_STAT[31] is set, the maximum resolved bus ratio can be
+ * If MSR_PERF_STAT[31] is set, the maximum resolved bus ratio can be
  * read in MSR_PLATFORM_ID[12:8], otherwise in MSR_PERF_STAT[44:40].
  * Unfortunately some Intel Atom SoCs aren't quite compliant to this,
  * so we need manually differentiate SoC families. This is what the
@@ -47,15 +31,15 @@ struct freq_desc {
 
 static struct freq_desc freq_desc_tables[] = {
 	/* PNW */
-	{ 6, 0x27, 0, { 0, 0, 0, 0, 0, FREQ_100, 0, FREQ_83 } },
+	{ 6, 0x27, 0, { 0, 0, 0, 0, 0, 99840, 0, 83200 } },
 	/* CLV+ */
-	{ 6, 0x35, 0, { 0, FREQ_133, 0, 0, 0, FREQ_100, 0, FREQ_83 } },
-	/* TNG */
-	{ 6, 0x4a, 1, { 0, FREQ_100, FREQ_133, 0, 0, 0, 0, 0 } },
-	/* VLV2 */
-	{ 6, 0x37, 1, { FREQ_83, FREQ_100, FREQ_133, FREQ_166, 0, 0, 0, 0 } },
-	/* ANN */
-	{ 6, 0x5a, 1, { FREQ_83, FREQ_100, FREQ_133, FREQ_100, 0, 0, 0, 0 } },
+	{ 6, 0x35, 0, { 0, 133200, 0, 0, 0, 99840, 0, 83200 } },
+	/* TNG - Intel Atom processor Z3400 series */
+	{ 6, 0x4a, 1, { 0, 99840, 133200, 0, 0, 0, 0, 0 } },
+	/* VLV2 - Intel Atom processor E3000, Z3600, Z3700 series */
+	{ 6, 0x37, 1, { 83200, 99840, 133200, 166400, 0, 0, 0, 0 } },
+	/* ANN - Intel Atom processor Z3500 series */
+	{ 6, 0x5a, 1, { 83200, 99840, 133200, 99840, 0, 0, 0, 0 } },
 };
 
 static int match_cpu(u8 family, u8 model)
