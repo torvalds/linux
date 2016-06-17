@@ -200,8 +200,8 @@ struct mem_dqblk {
 	qsize_t dqb_ihardlimit;	/* absolute limit on allocated inodes */
 	qsize_t dqb_isoftlimit;	/* preferred inode limit */
 	qsize_t dqb_curinodes;	/* current # allocated inodes */
-	time_t dqb_btime;	/* time limit for excessive disk use */
-	time_t dqb_itime;	/* time limit for excessive inode use */
+	time64_t dqb_btime;	/* time limit for excessive disk use */
+	time64_t dqb_itime;	/* time limit for excessive inode use */
 };
 
 /*
