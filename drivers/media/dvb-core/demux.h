@@ -143,7 +143,7 @@ struct dmx_ts_feed {
 		   int type,
 		   enum dmx_ts_pes pes_type,
 		   size_t circular_buffer_size,
-		   struct timespec timeout);
+		   ktime_t timeout);
 	int (*start_filtering)(struct dmx_ts_feed *feed);
 	int (*stop_filtering)(struct dmx_ts_feed *feed);
 };
