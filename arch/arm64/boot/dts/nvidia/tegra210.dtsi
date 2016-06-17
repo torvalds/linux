@@ -872,6 +872,18 @@
 		#nvidia,mipi-calibrate-cells = <1>;
 	};
 
+	aconnect@702c0000 {
+		compatible = "nvidia,tegra210-aconnect";
+		clocks = <&tegra_car TEGRA210_CLK_APE>,
+			 <&tegra_car TEGRA210_CLK_APB2APE>;
+		clock-names = "ape", "apb2ape";
+		power-domains = <&pd_audio>;
+		#address-cells = <1>;
+		#size-cells = <1>;
+		ranges = <0x702c0000 0x0 0x702c0000 0x00040000>;
+		status = "disabled";
+	};
+
 	spi@70410000 {
 		compatible = "nvidia,tegra210-qspi";
 		reg = <0x0 0x70410000 0x0 0x1000>;
