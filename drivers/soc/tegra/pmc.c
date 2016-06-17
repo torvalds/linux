@@ -942,10 +942,10 @@ static int tegra_io_rail_prepare(unsigned int id, unsigned long *request,
 	return 0;
 }
 
-static int tegra_io_rail_poll(unsigned long offset, unsigned long mask,
-			      unsigned long val, unsigned long timeout)
+static int tegra_io_rail_poll(unsigned long offset, u32 mask,
+			      u32 val, unsigned long timeout)
 {
-	unsigned long value;
+	u32 value;
 
 	timeout = jiffies + msecs_to_jiffies(timeout);
 
