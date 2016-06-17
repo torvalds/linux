@@ -20,7 +20,6 @@
 #include <linux/ioport.h>
 #include <linux/spinlock.h>
 #include <linux/io.h>
-#include <linux/module.h>
 #include <linux/gpio/driver.h>
 #include <linux/interrupt.h>
 #include <linux/irqdomain.h>
@@ -1807,7 +1806,6 @@ static const struct of_device_id gpmc_dt_ids[] = {
 	{ .compatible = "ti,am3352-gpmc" },	/* am335x devices */
 	{ }
 };
-MODULE_DEVICE_TABLE(of, gpmc_dt_ids);
 
 /**
  * gpmc_read_settings_dt - read gpmc settings from device-tree
@@ -2437,15 +2435,7 @@ static __init int gpmc_init(void)
 {
 	return platform_driver_register(&gpmc_driver);
 }
-
-static __exit void gpmc_exit(void)
-{
-	platform_driver_unregister(&gpmc_driver);
-
-}
-
 postcore_initcall(gpmc_init);
-module_exit(gpmc_exit);
 
 static struct omap3_gpmc_regs gpmc_context;
 
