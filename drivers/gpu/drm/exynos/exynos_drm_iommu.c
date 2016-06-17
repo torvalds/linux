@@ -97,6 +97,11 @@ int drm_iommu_attach_device(struct drm_device *drm_dev,
 	if (!priv->mapping)
 		return 0;
 
+	if (get_dma_ops(priv->dma_dev) != get_dma_ops(subdrv_dev)) {
+		DRM_ERROR("Device %s lacks support for IOMMU\n",
+			  dev_name(subdrv_dev));
+		return -EINVAL;
+	}
 
 	ret = configure_dma_max_seg_size(subdrv_dev);
 	if (ret)
