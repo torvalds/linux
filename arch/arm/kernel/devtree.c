@@ -23,6 +23,7 @@
 #include <asm/cputype.h>
 #include <asm/setup.h>
 #include <asm/page.h>
+#include <asm/prom.h>
 #include <asm/smp_plat.h>
 #include <asm/mach/arch.h>
 #include <asm/mach-types.h>
