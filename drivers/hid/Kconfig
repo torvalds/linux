@@ -388,6 +388,18 @@ config HID_LCPOWER
 	---help---
 	Support for LC-Power RC1000MCE RF remote control.
 
+config HID_LED
+	tristate "Simple USB RGB LED support"
+	depends on HID
+	depends on LEDS_CLASS
+	---help---
+	Support for simple USB RGB LED devices. Currently supported are the
+	Riso Kagaku Webmail Notifier and the Dream Cheeky Webmail Notifier
+	and Friends Alert.
+
+	To compile this driver as a module, choose M here: the
+	module will be called hid-led.
+
 config HID_LENOVO
 	tristate "Lenovo / Thinkpad devices"
 	depends on HID
