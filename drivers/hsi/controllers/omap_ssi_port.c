@@ -375,7 +375,7 @@ static int ssi_async_break(struct hsi_msg *msg)
 		spin_unlock_bh(&omap_port->lock);
 	}
 out:
-	pm_runtime_put_sync(omap_port->pdev);
+	pm_runtime_put(omap_port->pdev);
 
 	return err;
 }
@@ -515,7 +515,7 @@ static int ssi_setup(struct hsi_client *cl)
 	omap_port->ssr.mode = cl->rx_cfg.mode;
 out:
 	spin_unlock_bh(&omap_port->lock);
-	pm_runtime_put_sync(omap_port->pdev);
+	pm_runtime_put(omap_port->pdev);
 
 	return err;
 }
@@ -546,7 +546,7 @@ static int ssi_flush(struct hsi_client *cl)
 			continue;
 		writew_relaxed(0, omap_ssi->gdd + SSI_GDD_CCR_REG(i));
 		if (msg->ttype == HSI_MSG_READ)
-			pm_runtime_put_sync(omap_port->pdev);
+			pm_runtime_put(omap_port->pdev);
 		omap_ssi->gdd_trn[i].msg = NULL;
 	}
 	/* Flush all SST buffers */
@@ -570,7 +570,7 @@ static int ssi_flush(struct hsi_client *cl)
 	for (i = 0; i < omap_port->channels; i++) {
 		/* Release write clocks */
 		if (!list_empty(&omap_port->txqueue[i]))
-			pm_runtime_put_sync(omap_port->pdev);
+			pm_runtime_put(omap_port->pdev);
 		ssi_flush_queue(&omap_port->txqueue[i], NULL);
 		ssi_flush_queue(&omap_port->rxqueue[i], NULL);
 	}
@@ -580,7 +580,7 @@ static int ssi_flush(struct hsi_client *cl)
 	pinctrl_pm_select_default_state(omap_port->pdev);
 
 	spin_unlock_bh(&omap_port->lock);
-	pm_runtime_put_sync(omap_port->pdev);
+	pm_runtime_put(omap_port->pdev);
 
 	return 0;
 }
@@ -687,7 +687,7 @@ static void ssi_cleanup_queues(struct hsi_client *cl)
 			txbufstate |= (1 << i);
 			status |= SSI_DATAACCEPT(i);
 			/* Release the clocks writes, also GDD ones */
-			pm_runtime_put_sync(omap_port->pdev);
+			pm_runtime_put(omap_port->pdev);
 		}
 		ssi_flush_queue(&omap_port->txqueue[i], cl);
 	}
@@ -742,7 +742,7 @@ static void ssi_cleanup_gdd(struct hsi_controller *ssi, struct hsi_client *cl)
 		 * ssi_cleanup_queues
 		 */
 		if (msg->ttype == HSI_MSG_READ)
-			pm_runtime_put_sync(omap_port->pdev);
+			pm_runtime_put(omap_port->pdev);
 		omap_ssi->gdd_trn[i].msg = NULL;
 	}
 	tmp = readl_relaxed(omap_ssi->sys + SSI_GDD_MPU_IRQ_ENABLE_REG);
@@ -790,7 +790,7 @@ static int ssi_release(struct hsi_client *cl)
 		WARN_ON(omap_port->wk_refcount != 0);
 	}
 	spin_unlock_bh(&omap_port->lock);
-	pm_runtime_put_sync(omap_port->pdev);
+	pm_runtime_put(omap_port->pdev);
 
 	return 0;
 }
@@ -937,7 +937,7 @@ static void ssi_pio_complete(struct hsi_port *port, struct list_head *queue)
 	reg = readl(omap_ssi->sys + SSI_MPU_ENABLE_REG(port->num, 0));
 	if (msg->ttype == HSI_MSG_WRITE) {
 		/* Release clocks for write transfer */
-		pm_runtime_put_sync(omap_port->pdev);
+		pm_runtime_put(omap_port->pdev);
 	}
 	reg &= ~val;
 	writel_relaxed(reg, omap_ssi->sys + SSI_MPU_ENABLE_REG(port->num, 0));
