@@ -17,6 +17,42 @@
 
 #ifdef CONFIG_DRM_EXYNOS_IOMMU
 
+#if defined(CONFIG_ARM_DMA_USE_IOMMU)
+#include <asm/dma-iommu.h>
+
+static inline int __exynos_iommu_create_mapping(struct exynos_drm_private *priv,
+					unsigned long start, unsigned long size)
+{
+	priv->mapping = arm_iommu_create_mapping(&platform_bus_type, start,
+						 size);
+	return IS_ERR(priv->mapping);
+}
+
+static inline void
+__exynos_iommu_release_mapping(struct exynos_drm_private *priv)
+{
+	arm_iommu_release_mapping(priv->mapping);
+}
+
+static inline int __exynos_iommu_attach(struct exynos_drm_private *priv,
+					struct device *dev)
+{
+	if (dev->archdata.mapping)
+		arm_iommu_detach_device(dev);
+
+	return arm_iommu_attach_device(dev, priv->mapping);
+}
+
+static inline void __exynos_iommu_detach(struct exynos_drm_private *priv,
+					 struct device *dev)
+{
+	arm_iommu_detach_device(dev);
+}
+
+#else
+#error Unsupported architecture and IOMMU/DMA-mapping glue code
+#endif
+
 int drm_create_iommu_mapping(struct drm_device *drm_dev);
 
 void drm_release_iommu_mapping(struct drm_device *drm_dev);

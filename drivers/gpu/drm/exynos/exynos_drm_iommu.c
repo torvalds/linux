@@ -14,9 +14,6 @@
 
 #include <linux/dma-mapping.h>
 #include <linux/iommu.h>
-#include <linux/kref.h>
-
-#include <asm/dma-iommu.h>
 
 #include "exynos_drm_drv.h"
 #include "exynos_drm_iommu.h"
@@ -45,33 +42,22 @@ static inline void clear_dma_max_seg_size(struct device *dev)
  */
 int drm_create_iommu_mapping(struct drm_device *drm_dev)
 {
-	struct dma_iommu_mapping *mapping = NULL;
 	struct exynos_drm_private *priv = drm_dev->dev_private;
 
-	mapping = arm_iommu_create_mapping(&platform_bus_type,
-			EXYNOS_DEV_ADDR_START, EXYNOS_DEV_ADDR_SIZE);
-
-	if (IS_ERR(mapping))
-		return PTR_ERR(mapping);
-
-	priv->mapping = mapping;
-
-	return 0;
+	return __exynos_iommu_create_mapping(priv, EXYNOS_DEV_ADDR_START,
+					     EXYNOS_DEV_ADDR_SIZE);
 }
 
 /*
  * drm_release_iommu_mapping - release iommu mapping structure
  *
  * @drm_dev: DRM device
- *
- * if mapping->kref becomes 0 then all things related to iommu mapping
- * will be released
  */
 void drm_release_iommu_mapping(struct drm_device *drm_dev)
 {
 	struct exynos_drm_private *priv = drm_dev->dev_private;
 
-	arm_iommu_release_mapping(priv->mapping);
+	__exynos_iommu_release_mapping(priv);
 }
 
 /*
@@ -89,9 +75,6 @@ int drm_iommu_attach_device(struct drm_device *drm_dev,
 	struct exynos_drm_private *priv = drm_dev->dev_private;
 	int ret;
 
-	if (!priv->mapping)
-		return 0;
-
 	if (get_dma_ops(priv->dma_dev) != get_dma_ops(subdrv_dev)) {
 		DRM_ERROR("Device %s lacks support for IOMMU\n",
 			  dev_name(subdrv_dev));
@@ -102,15 +85,9 @@ int drm_iommu_attach_device(struct drm_device *drm_dev,
 	if (ret)
 		return ret;
 
-	if (subdrv_dev->archdata.mapping)
-		arm_iommu_detach_device(subdrv_dev);
-
-	ret = arm_iommu_attach_device(subdrv_dev, priv->mapping);
-	if (ret < 0) {
-		DRM_DEBUG_KMS("failed iommu attach.\n");
+	ret = __exynos_iommu_attach(priv, subdrv_dev);
+	if (ret)
 		clear_dma_max_seg_size(subdrv_dev);
-		return ret;
-	}
 
 	return 0;
 }
@@ -128,11 +105,7 @@ void drm_iommu_detach_device(struct drm_device *drm_dev,
 				struct device *subdrv_dev)
 {
 	struct exynos_drm_private *priv = drm_dev->dev_private;
-	struct dma_iommu_mapping *mapping = priv->mapping;
 
-	if (!mapping || !mapping->domain)
-		return;
-
-	arm_iommu_detach_device(subdrv_dev);
+	__exynos_iommu_detach(priv, subdrv_dev);
 	clear_dma_max_seg_size(subdrv_dev);
 }
