@@ -184,42 +184,40 @@ static int bcm_proc_show(struct seq_file *m, void *v)
 			continue;
 
 		seq_printf(m, "rx_op: %03X %-5s ",
-				op->can_id, bcm_proc_getifname(ifname, op->ifindex));
+			   op->can_id, bcm_proc_getifname(ifname, op->ifindex));
 		seq_printf(m, "[%u]%c ", op->nframes,
-				(op->flags & RX_CHECK_DLC)?'d':' ');
+			   (op->flags & RX_CHECK_DLC) ? 'd' : ' ');
 		if (op->kt_ival1.tv64)
 			seq_printf(m, "timeo=%lld ",
-					(long long)
-					ktime_to_us(op->kt_ival1));
+				   (long long)ktime_to_us(op->kt_ival1));
 
 		if (op->kt_ival2.tv64)
 			seq_printf(m, "thr=%lld ",
-					(long long)
-					ktime_to_us(op->kt_ival2));
+				   (long long)ktime_to_us(op->kt_ival2));
 
 		seq_printf(m, "# recv %ld (%ld) => reduction: ",
-				op->frames_filtered, op->frames_abs);
+			   op->frames_filtered, op->frames_abs);
 
 		reduction = 100 - (op->frames_filtered * 100) / op->frames_abs;
 
 		seq_printf(m, "%s%ld%%\n",
-				(reduction == 100)?"near ":"", reduction);
+			   (reduction == 100) ? "near " : "", reduction);
 	}
 
 	list_for_each_entry(op, &bo->tx_ops, list) {
 
 		seq_printf(m, "tx_op: %03X %s [%u] ",
-				op->can_id,
-				bcm_proc_getifname(ifname, op->ifindex),
-				op->nframes);
+			   op->can_id,
+			   bcm_proc_getifname(ifname, op->ifindex),
+			   op->nframes);
 
 		if (op->kt_ival1.tv64)
 			seq_printf(m, "t1=%lld ",
-					(long long) ktime_to_us(op->kt_ival1));
+				   (long long)ktime_to_us(op->kt_ival1));
 
 		if (op->kt_ival2.tv64)
 			seq_printf(m, "t2=%lld ",
-					(long long) ktime_to_us(op->kt_ival2));
+				   (long long)ktime_to_us(op->kt_ival2));
 
 		seq_printf(m, "# sent %ld\n", op->frames_abs);
 	}
@@ -282,7 +280,7 @@ static void bcm_can_tx(struct bcm_op *op)
 	/* reached last frame? */
 	if (op->currframe >= op->nframes)
 		op->currframe = 0;
- out:
+out:
 	dev_put(dev);
 }
 
