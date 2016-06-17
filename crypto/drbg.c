@@ -1686,7 +1686,7 @@ static int drbg_init_sym_kernel(struct drbg_state *drbg)
 	if (!req) {
 		pr_info("DRBG: could not allocate request queue\n");
 		drbg_fini_sym_kernel(drbg);
-		return PTR_ERR(req);
+		return -ENOMEM;
 	}
 	drbg->ctr_req = req;
 	skcipher_request_set_callback(req, CRYPTO_TFM_REQ_MAY_BACKLOG,
