@@ -20,50 +20,32 @@
 /*
  * Tracepoints for VM enters
  */
-TRACE_EVENT(kvm_enter,
-	    TP_PROTO(struct kvm_vcpu *vcpu),
-	    TP_ARGS(vcpu),
-	    TP_STRUCT__entry(
-			__field(unsigned long, pc)
-	    ),
+DECLARE_EVENT_CLASS(kvm_transition,
+	TP_PROTO(struct kvm_vcpu *vcpu),
+	TP_ARGS(vcpu),
+	TP_STRUCT__entry(
+		__field(unsigned long, pc)
+	),
 
-	    TP_fast_assign(
-			__entry->pc = vcpu->arch.pc;
-	    ),
+	TP_fast_assign(
+		__entry->pc = vcpu->arch.pc;
+	),
 
-	    TP_printk("PC: 0x%08lx",
-		      __entry->pc)
+	TP_printk("PC: 0x%08lx",
+		  __entry->pc)
 );
 
-TRACE_EVENT(kvm_reenter,
-	    TP_PROTO(struct kvm_vcpu *vcpu),
-	    TP_ARGS(vcpu),
-	    TP_STRUCT__entry(
-			__field(unsigned long, pc)
-	    ),
+DEFINE_EVENT(kvm_transition, kvm_enter,
+	     TP_PROTO(struct kvm_vcpu *vcpu),
+	     TP_ARGS(vcpu));
 
-	    TP_fast_assign(
-			__entry->pc = vcpu->arch.pc;
-	    ),
+DEFINE_EVENT(kvm_transition, kvm_reenter,
+	     TP_PROTO(struct kvm_vcpu *vcpu),
+	     TP_ARGS(vcpu));
 
-	    TP_printk("PC: 0x%08lx",
-		      __entry->pc)
-);
-
-TRACE_EVENT(kvm_out,
-	    TP_PROTO(struct kvm_vcpu *vcpu),
-	    TP_ARGS(vcpu),
-	    TP_STRUCT__entry(
-			__field(unsigned long, pc)
-	    ),
-
-	    TP_fast_assign(
-			__entry->pc = vcpu->arch.pc;
-	    ),
-
-	    TP_printk("PC: 0x%08lx",
-		      __entry->pc)
-);
+DEFINE_EVENT(kvm_transition, kvm_out,
+	     TP_PROTO(struct kvm_vcpu *vcpu),
+	     TP_ARGS(vcpu));
 
 /* The first 32 exit reasons correspond to Cause.ExcCode */
 #define KVM_TRACE_EXIT_INT		 0
