@@ -2790,18 +2790,6 @@ static void et131x_handle_send_pkts(struct et131x_adapter *adapter)
 	spin_unlock_irqrestore(&adapter->tcb_send_qlock, flags);
 }
 
-static int et131x_get_settings(struct net_device *netdev,
-			       struct ethtool_cmd *cmd)
-{
-	return phy_ethtool_gset(netdev->phydev, cmd);
-}
-
-static int et131x_set_settings(struct net_device *netdev,
-			       struct ethtool_cmd *cmd)
-{
-	return phy_ethtool_sset(netdev->phydev, cmd);
-}
-
 static int et131x_get_regs_len(struct net_device *netdev)
 {
 #define ET131X_REGS_LEN 256
@@ -2974,12 +2962,12 @@ static void et131x_get_drvinfo(struct net_device *netdev,
 }
 
 static struct ethtool_ops et131x_ethtool_ops = {
-	.get_settings	= et131x_get_settings,
-	.set_settings	= et131x_set_settings,
 	.get_drvinfo	= et131x_get_drvinfo,
 	.get_regs_len	= et131x_get_regs_len,
 	.get_regs	= et131x_get_regs,
 	.get_link	= ethtool_op_get_link,
+	.get_link_ksettings = phy_ethtool_get_link_ksettings,
+	.set_link_ksettings = phy_ethtool_set_link_ksettings,
 };
 
 /* et131x_hwaddr_init - set up the MAC Address */
