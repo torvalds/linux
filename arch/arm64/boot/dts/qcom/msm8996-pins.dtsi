@@ -13,6 +13,40 @@
 
 &msmgpio {
 
+	blsp1_spi0_default: blsp1_spi0_default {
+		pinmux {
+			function = "blsp_spi1";
+			pins = "gpio0", "gpio1", "gpio3";
+		};
+		pinmux_cs {
+			function = "gpio";
+			pins = "gpio2";
+		};
+		pinconf {
+			pins = "gpio0", "gpio1", "gpio3";
+			drive-strength = <12>;
+			bias-disable;
+		};
+		pinconf_cs {
+			pins = "gpio2";
+			drive-strength = <16>;
+			bias-disable;
+			output-high;
+		};
+	};
+
+	blsp1_spi0_sleep: blsp1_spi0_sleep {
+		pinmux {
+			function = "gpio";
+			pins = "gpio0", "gpio1", "gpio2", "gpio3";
+		};
+		pinconf {
+			pins = "gpio0", "gpio1", "gpio2", "gpio3";
+			drive-strength = <2>;
+			bias-pull-down;
+		};
+	};
+
 	blsp1_i2c2_default: blsp1_i2c2_default {
 		pinmux {
 			function = "blsp_i2c3";
