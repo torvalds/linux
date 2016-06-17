@@ -187,7 +187,7 @@ static void rxrpc_resend(struct rxrpc_call *call)
 
 			_proto("Tx DATA %%%u { #%d }",
 			       sp->hdr.serial, sp->hdr.seq);
-			if (rxrpc_send_packet(call->conn->trans, txb) < 0) {
+			if (rxrpc_send_data_packet(call->conn, txb) < 0) {
 				stop = true;
 				sp->resend_at = jiffies + 3;
 			} else {

@@ -670,7 +670,7 @@ extern const char *rxrpc_acks(u8 reason);
  */
 extern unsigned int rxrpc_resend_timeout;
 
-int rxrpc_send_packet(struct rxrpc_transport *, struct sk_buff *);
+int rxrpc_send_data_packet(struct rxrpc_connection *, struct sk_buff *);
 int rxrpc_do_sendmsg(struct rxrpc_sock *, struct msghdr *, size_t);
 
 /*

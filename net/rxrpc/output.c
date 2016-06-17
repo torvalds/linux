@@ -338,7 +338,7 @@ EXPORT_SYMBOL(rxrpc_kernel_abort_call);
 /*
  * send a packet through the transport endpoint
  */
-int rxrpc_send_packet(struct rxrpc_transport *trans, struct sk_buff *skb)
+int rxrpc_send_data_packet(struct rxrpc_connection *conn, struct sk_buff *skb)
 {
 	struct kvec iov[1];
 	struct msghdr msg;
@@ -349,30 +349,30 @@ int rxrpc_send_packet(struct rxrpc_transport *trans, struct sk_buff *skb)
 	iov[0].iov_base = skb->head;
 	iov[0].iov_len = skb->len;
 
-	msg.msg_name = &trans->peer->srx.transport.sin;
-	msg.msg_namelen = sizeof(trans->peer->srx.transport.sin);
+	msg.msg_name = &conn->params.peer->srx.transport;
+	msg.msg_namelen = conn->params.peer->srx.transport_len;
 	msg.msg_control = NULL;
 	msg.msg_controllen = 0;
 	msg.msg_flags = 0;
 
 	/* send the packet with the don't fragment bit set if we currently
 	 * think it's small enough */
-	if (skb->len - sizeof(struct rxrpc_wire_header) < trans->peer->maxdata) {
-		down_read(&trans->local->defrag_sem);
+	if (skb->len - sizeof(struct rxrpc_wire_header) < conn->params.peer->maxdata) {
+		down_read(&conn->params.local->defrag_sem);
 		/* send the packet by UDP
 		 * - returns -EMSGSIZE if UDP would have to fragment the packet
 		 *   to go out of the interface
 		 *   - in which case, we'll have processed the ICMP error
 		 *     message and update the peer record
 		 */
-		ret = kernel_sendmsg(trans->local->socket, &msg, iov, 1,
+		ret = kernel_sendmsg(conn->params.local->socket, &msg, iov, 1,
 				     iov[0].iov_len);
 
-		up_read(&trans->local->defrag_sem);
+		up_read(&conn->params.local->defrag_sem);
 		if (ret == -EMSGSIZE)
 			goto send_fragmentable;
 
-		_leave(" = %d [%u]", ret, trans->peer->maxdata);
+		_leave(" = %d [%u]", ret, conn->params.peer->maxdata);
 		return ret;
 	}
 
@@ -380,21 +380,28 @@ send_fragmentable:
 	/* attempt to send this message with fragmentation enabled */
 	_debug("send fragment");
 
-	down_write(&trans->local->defrag_sem);
-	opt = IP_PMTUDISC_DONT;
-	ret = kernel_setsockopt(trans->local->socket, SOL_IP, IP_MTU_DISCOVER,
-				(char *) &opt, sizeof(opt));
-	if (ret == 0) {
-		ret = kernel_sendmsg(trans->local->socket, &msg, iov, 1,
-				     iov[0].iov_len);
+	down_write(&conn->params.local->defrag_sem);
 
-		opt = IP_PMTUDISC_DO;
-		kernel_setsockopt(trans->local->socket, SOL_IP,
-				  IP_MTU_DISCOVER, (char *) &opt, sizeof(opt));
+	switch (conn->params.local->srx.transport.family) {
+	case AF_INET:
+		opt = IP_PMTUDISC_DONT;
+		ret = kernel_setsockopt(conn->params.local->socket,
+					SOL_IP, IP_MTU_DISCOVER,
+					(char *)&opt, sizeof(opt));
+		if (ret == 0) {
+			ret = kernel_sendmsg(conn->params.local->socket, &msg, iov, 1,
+					     iov[0].iov_len);
+
+			opt = IP_PMTUDISC_DO;
+			kernel_setsockopt(conn->params.local->socket, SOL_IP,
+					  IP_MTU_DISCOVER,
+					  (char *)&opt, sizeof(opt));
+		}
+		break;
 	}
 
-	up_write(&trans->local->defrag_sem);
-	_leave(" = %d [frag %u]", ret, trans->peer->maxdata);
+	up_write(&conn->params.local->defrag_sem);
+	_leave(" = %d [frag %u]", ret, conn->params.peer->maxdata);
 	return ret;
 }
 
@@ -506,7 +513,7 @@ static void rxrpc_queue_packet(struct rxrpc_call *call, struct sk_buff *skb,
 	if (try_to_del_timer_sync(&call->ack_timer) >= 0) {
 		/* the packet may be freed by rxrpc_process_call() before this
 		 * returns */
-		ret = rxrpc_send_packet(call->conn->trans, skb);
+		ret = rxrpc_send_data_packet(call->conn, skb);
 		_net("sent skb %p", skb);
 	} else {
 		_debug("failed to delete ACK timer");
