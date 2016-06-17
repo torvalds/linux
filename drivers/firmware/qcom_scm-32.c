@@ -547,3 +547,16 @@ int __qcom_scm_pas_shutdown(struct device *dev, u32 peripheral)
 
 	return ret ? : le32_to_cpu(out);
 }
+
+int __qcom_scm_pas_mss_reset(struct device *dev, bool reset)
+{
+	__le32 out;
+	__le32 in = cpu_to_le32(reset);
+	int ret;
+
+	ret = qcom_scm_call(dev, QCOM_SCM_SVC_PIL, QCOM_SCM_PAS_MSS_RESET,
+			&in, sizeof(in),
+			&out, sizeof(out));
+
+	return ret ? : le32_to_cpu(out);
+}

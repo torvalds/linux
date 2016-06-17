@@ -46,6 +46,7 @@ extern void __qcom_scm_init(void);
 #define QCOM_SCM_PAS_AUTH_AND_RESET_CMD	0x5
 #define QCOM_SCM_PAS_SHUTDOWN_CMD	0x6
 #define QCOM_SCM_PAS_IS_SUPPORTED_CMD	0x7
+#define QCOM_SCM_PAS_MSS_RESET		0xa
 extern bool __qcom_scm_pas_supported(struct device *dev, u32 peripheral);
 extern int  __qcom_scm_pas_init_image(struct device *dev, u32 peripheral,
 		dma_addr_t metadata_phys);
@@ -53,6 +54,7 @@ extern int  __qcom_scm_pas_mem_setup(struct device *dev, u32 peripheral,
 		phys_addr_t addr, phys_addr_t size);
 extern int  __qcom_scm_pas_auth_and_reset(struct device *dev, u32 peripheral);
 extern int  __qcom_scm_pas_shutdown(struct device *dev, u32 peripheral);
+extern int  __qcom_scm_pas_mss_reset(struct device *dev, bool reset);
 
 /* common error codes */
 #define QCOM_SCM_V2_EBUSY	-12
