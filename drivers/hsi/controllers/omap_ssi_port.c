@@ -645,6 +645,7 @@ static void ssi_transfer(struct omap_ssi_port *omap_port,
 	struct hsi_msg *msg;
 	int err = -1;
 
+	pm_runtime_get(omap_port->pdev);
 	spin_lock_bh(&omap_port->lock);
 	while (err < 0) {
 		err = ssi_start_transfer(queue);
@@ -659,6 +660,7 @@ static void ssi_transfer(struct omap_ssi_port *omap_port,
 		}
 	}
 	spin_unlock_bh(&omap_port->lock);
+	pm_runtime_put(omap_port->pdev);
 }
 
 static void ssi_cleanup_queues(struct hsi_client *cl)
