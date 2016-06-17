@@ -98,7 +98,7 @@ struct u1_dev {
 	u32	sp_btn_cnt;
 };
 
-struct u1_dev *priv;
+static struct u1_dev *priv;
 
 static int u1_read_write_register(struct hid_device *hdev, u32 address,
 	u8 *read_val, u8 write_val, bool read_flag)
