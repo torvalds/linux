@@ -597,8 +597,10 @@ int etnaviv_gpu_init(struct etnaviv_gpu *gpu)
 	bool mmuv2;
 
 	ret = pm_runtime_get_sync(gpu->dev);
-	if (ret < 0)
+	if (ret < 0) {
+		dev_err(gpu->dev, "Failed to enable GPU power domain\n");
 		return ret;
+	}
 
 	etnaviv_hw_identify(gpu);
 
@@ -635,8 +637,10 @@ int etnaviv_gpu_init(struct etnaviv_gpu *gpu)
 	}
 
 	ret = etnaviv_hw_reset(gpu);
-	if (ret)
+	if (ret) {
+		dev_err(gpu->dev, "GPU reset failed\n");
 		goto fail;
+	}
 
 	/* Setup IOMMU.. eventually we will (I think) do this once per context
 	 * and have separate page tables per context.  For now, to keep things
@@ -654,12 +658,14 @@ int etnaviv_gpu_init(struct etnaviv_gpu *gpu)
 	}
 
 	if (!iommu) {
+		dev_err(gpu->dev, "Failed to allocate GPU IOMMU domain\n");
 		ret = -ENOMEM;
 		goto fail;
 	}
 
 	gpu->mmu = etnaviv_iommu_new(gpu, iommu, version);
 	if (!gpu->mmu) {
+		dev_err(gpu->dev, "Failed to instantiate GPU IOMMU\n");
 		iommu_domain_free(iommu);
 		ret = -ENOMEM;
 		goto fail;
