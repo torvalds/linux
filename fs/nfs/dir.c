@@ -1368,7 +1368,6 @@ EXPORT_SYMBOL_GPL(nfs_dentry_operations);
 struct dentry *nfs_lookup(struct inode *dir, struct dentry * dentry, unsigned int flags)
 {
 	struct dentry *res;
-	struct dentry *parent;
 	struct inode *inode = NULL;
 	struct nfs_fh *fhandle = NULL;
 	struct nfs_fattr *fattr = NULL;
@@ -1398,7 +1397,6 @@ struct dentry *nfs_lookup(struct inode *dir, struct dentry * dentry, unsigned in
 	if (IS_ERR(label))
 		goto out;
 
-	parent = dentry->d_parent;
 	/* Protect against concurrent sillydeletes */
 	trace_nfs_lookup_enter(dir, dentry, flags);
 	error = NFS_PROTO(dir)->lookup(dir, &dentry->d_name, fhandle, fattr, label);
