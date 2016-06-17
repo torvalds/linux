@@ -3200,6 +3200,8 @@ static int apply_dir_move(struct send_ctx *sctx, struct pending_dir_move *pm)
 
 	sctx->send_progress = sctx->cur_ino + 1;
 	ret = path_loop(sctx, name, pm->ino, pm->gen, &ancestor);
+	if (ret < 0)
+		goto out;
 	if (ret) {
 		LIST_HEAD(deleted_refs);
 		ASSERT(ancestor > BTRFS_FIRST_FREE_OBJECTID);
