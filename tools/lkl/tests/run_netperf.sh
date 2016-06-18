@@ -56,11 +56,11 @@ then
   exit 1
 fi
 
-function clean {
+clean() {
     sudo killall netserver &> /dev/null || true
 }
 
-function clean_with_tap {
+clean_with_tap() {
     sudo ip link set dev $LKL_HIJACK_NET_IFPARAMS down &> /dev/null || true
     sudo ip tuntap del dev $LKL_HIJACK_NET_IFPARAMS mode tap &> /dev/null || true
     clean
