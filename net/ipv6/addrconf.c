@@ -1524,6 +1524,28 @@ out:
 	return hiscore_idx;
 }
 
+static int ipv6_get_saddr_master(struct net *net,
+				 const struct net_device *dst_dev,
+				 const struct net_device *master,
+				 struct ipv6_saddr_dst *dst,
+				 struct ipv6_saddr_score *scores,
+				 int hiscore_idx)
+{
+	struct inet6_dev *idev;
+
+	idev = __in6_dev_get(dst_dev);
+	if (idev)
+		hiscore_idx = __ipv6_dev_get_saddr(net, dst, idev,
+						   scores, hiscore_idx);
+
+	idev = __in6_dev_get(master);
+	if (idev)
+		hiscore_idx = __ipv6_dev_get_saddr(net, dst, idev,
+						   scores, hiscore_idx);
+
+	return hiscore_idx;
+}
+
 int ipv6_dev_get_saddr(struct net *net, const struct net_device *dst_dev,
 		       const struct in6_addr *daddr, unsigned int prefs,
 		       struct in6_addr *saddr)
@@ -1577,13 +1599,39 @@ int ipv6_dev_get_saddr(struct net *net, const struct net_device *dst_dev,
 		if (idev)
 			hiscore_idx = __ipv6_dev_get_saddr(net, &dst, idev, scores, hiscore_idx);
 	} else {
+		const struct net_device *master;
+		int master_idx = 0;
+
+		/* if dst_dev exists and is enslaved to an L3 device, then
+		 * prefer addresses from dst_dev and then the master over
+		 * any other enslaved devices in the L3 domain.
+		 */
+		master = l3mdev_master_dev_rcu(dst_dev);
+		if (master) {
+			master_idx = master->ifindex;
+
+			hiscore_idx = ipv6_get_saddr_master(net, dst_dev,
+							    master, &dst,
+							    scores, hiscore_idx);
+
+			if (scores[hiscore_idx].ifa)
+				goto out;
+		}
+
 		for_each_netdev_rcu(net, dev) {
+			/* only consider addresses on devices in the
+			 * same L3 domain
+			 */
+			if (l3mdev_master_ifindex_rcu(dev) != master_idx)
+				continue;
 			idev = __in6_dev_get(dev);
 			if (!idev)
 				continue;
 			hiscore_idx = __ipv6_dev_get_saddr(net, &dst, idev, scores, hiscore_idx);
 		}
 	}
+
+out:
 	rcu_read_unlock();
 
 	hiscore = &scores[hiscore_idx];

@@ -2586,23 +2586,6 @@ struct rt6_info *addrconf_dst_alloc(struct inet6_dev *idev,
 	return rt;
 }
 
-int ip6_route_get_saddr(struct net *net,
-			struct rt6_info *rt,
-			const struct in6_addr *daddr,
-			unsigned int prefs,
-			struct in6_addr *saddr)
-{
-	struct inet6_dev *idev =
-		rt ? ip6_dst_idev((struct dst_entry *)rt) : NULL;
-	int err = 0;
-	if (rt && rt->rt6i_prefsrc.plen)
-		*saddr = rt->rt6i_prefsrc.addr;
-	else
-		err = ipv6_dev_get_saddr(net, idev ? idev->dev : NULL,
-					 daddr, prefs, saddr);
-	return err;
-}
-
 /* remove deleted ip from prefsrc entries */
 struct arg_dev_net_ip {
 	struct net_device *dev;

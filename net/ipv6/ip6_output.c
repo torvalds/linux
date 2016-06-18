@@ -910,6 +910,13 @@ static int ip6_dst_lookup_tail(struct net *net, const struct sock *sk,
 	int err;
 	int flags = 0;
 
+	if (ipv6_addr_any(&fl6->saddr) && fl6->flowi6_oif &&
+	    (!*dst || !(*dst)->error)) {
+		err = l3mdev_get_saddr6(net, sk, fl6);
+		if (err)
+			goto out_err;
+	}
+
 	/* The correct way to handle this would be to do
 	 * ip6_route_get_saddr, and then ip6_route_output; however,
 	 * the route-specific preferred source forces the
@@ -999,10 +1006,11 @@ static int ip6_dst_lookup_tail(struct net *net, const struct sock *sk,
 	return 0;
 
 out_err_release:
-	if (err == -ENETUNREACH)
-		IP6_INC_STATS(net, NULL, IPSTATS_MIB_OUTNOROUTES);
 	dst_release(*dst);
 	*dst = NULL;
+out_err:
+	if (err == -ENETUNREACH)
+		IP6_INC_STATS(net, NULL, IPSTATS_MIB_OUTNOROUTES);
 	return err;
 }
 
