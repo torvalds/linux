@@ -879,6 +879,7 @@ static int cs53l30_codec_probe(struct snd_soc_codec *codec)
 static struct snd_soc_codec_driver cs53l30_driver = {
 	.probe = cs53l30_codec_probe,
 	.set_bias_level = cs53l30_set_bias_level,
+	.idle_bias_off = true,
 
 	.dapm_widgets = cs53l30_dapm_widgets,
 	.num_dapm_widgets = ARRAY_SIZE(cs53l30_dapm_widgets),
