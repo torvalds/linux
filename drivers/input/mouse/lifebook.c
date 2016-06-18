@@ -287,7 +287,7 @@ static int lifebook_create_relative_device(struct psmouse *psmouse)
 		 "%s/input1", psmouse->ps2dev.serio->phys);
 
 	dev2->phys = priv->phys;
-	dev2->name = "PS/2 Touchpad";
+	dev2->name = "LBPS/2 Fujitsu Lifebook Touchpad";
 	dev2->id.bustype = BUS_I8042;
 	dev2->id.vendor  = 0x0002;
 	dev2->id.product = PSMOUSE_LIFEBOOK;
