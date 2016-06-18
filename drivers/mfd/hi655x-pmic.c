@@ -105,12 +105,9 @@ static int hi655x_pmic_probe(struct platform_device *pdev)
 	pmic->dev = dev;
 
 	pmic->res = platform_get_resource(pdev, IORESOURCE_MEM, 0);
-	if (!pmic->res)
-		return -ENOENT;
-
 	base = devm_ioremap_resource(dev, pmic->res);
-	if (!base)
-		return -ENOMEM;
+	if (IS_ERR(base))
+		return PTR_ERR(base);
 
 	pmic->regmap = devm_regmap_init_mmio_clk(dev, NULL, base,
 						 &hi655x_regmap_config);
