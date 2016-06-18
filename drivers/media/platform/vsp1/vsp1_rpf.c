@@ -38,7 +38,7 @@ static inline void vsp1_rpf_write(struct vsp1_rwpf *rpf,
  * V4L2 Subdevice Operations
  */
 
-static struct v4l2_subdev_ops rpf_ops = {
+static const struct v4l2_subdev_ops rpf_ops = {
 	.pad    = &vsp1_rwpf_pad_ops,
 };
 

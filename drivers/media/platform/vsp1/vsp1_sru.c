@@ -239,7 +239,7 @@ static int sru_set_format(struct v4l2_subdev *subdev,
 	return 0;
 }
 
-static struct v4l2_subdev_pad_ops sru_pad_ops = {
+static const struct v4l2_subdev_pad_ops sru_pad_ops = {
 	.init_cfg = vsp1_entity_init_cfg,
 	.enum_mbus_code = sru_enum_mbus_code,
 	.enum_frame_size = sru_enum_frame_size,
@@ -247,7 +247,7 @@ static struct v4l2_subdev_pad_ops sru_pad_ops = {
 	.set_fmt = sru_set_format,
 };
 
-static struct v4l2_subdev_ops sru_ops = {
+static const struct v4l2_subdev_ops sru_ops = {
 	.pad    = &sru_pad_ops,
 };
 

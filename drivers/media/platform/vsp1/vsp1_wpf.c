@@ -62,11 +62,11 @@ static int wpf_s_stream(struct v4l2_subdev *subdev, int enable)
  * V4L2 Subdevice Operations
  */
 
-static struct v4l2_subdev_video_ops wpf_video_ops = {
+static const struct v4l2_subdev_video_ops wpf_video_ops = {
 	.s_stream = wpf_s_stream,
 };
 
-static struct v4l2_subdev_ops wpf_ops = {
+static const struct v4l2_subdev_ops wpf_ops = {
 	.video	= &wpf_video_ops,
 	.pad    = &vsp1_rwpf_pad_ops,
 };

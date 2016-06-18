@@ -104,7 +104,7 @@ static int lif_set_format(struct v4l2_subdev *subdev,
 	return 0;
 }
 
-static struct v4l2_subdev_pad_ops lif_pad_ops = {
+static const struct v4l2_subdev_pad_ops lif_pad_ops = {
 	.init_cfg = vsp1_entity_init_cfg,
 	.enum_mbus_code = lif_enum_mbus_code,
 	.enum_frame_size = lif_enum_frame_size,
@@ -112,7 +112,7 @@ static struct v4l2_subdev_pad_ops lif_pad_ops = {
 	.set_fmt = lif_set_format,
 };
 
-static struct v4l2_subdev_ops lif_ops = {
+static const struct v4l2_subdev_ops lif_ops = {
 	.pad    = &lif_pad_ops,
 };
 

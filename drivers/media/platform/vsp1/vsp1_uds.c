@@ -226,7 +226,7 @@ static int uds_set_format(struct v4l2_subdev *subdev,
  * V4L2 Subdevice Operations
  */
 
-static struct v4l2_subdev_pad_ops uds_pad_ops = {
+static const struct v4l2_subdev_pad_ops uds_pad_ops = {
 	.init_cfg = vsp1_entity_init_cfg,
 	.enum_mbus_code = uds_enum_mbus_code,
 	.enum_frame_size = uds_enum_frame_size,
@@ -234,7 +234,7 @@ static struct v4l2_subdev_pad_ops uds_pad_ops = {
 	.set_fmt = uds_set_format,
 };
 
-static struct v4l2_subdev_ops uds_ops = {
+static const struct v4l2_subdev_ops uds_ops = {
 	.pad    = &uds_pad_ops,
 };
 

@@ -107,7 +107,7 @@ static int hsit_set_format(struct v4l2_subdev *subdev,
 	return 0;
 }
 
-static struct v4l2_subdev_pad_ops hsit_pad_ops = {
+static const struct v4l2_subdev_pad_ops hsit_pad_ops = {
 	.init_cfg = vsp1_entity_init_cfg,
 	.enum_mbus_code = hsit_enum_mbus_code,
 	.enum_frame_size = hsit_enum_frame_size,
@@ -115,7 +115,7 @@ static struct v4l2_subdev_pad_ops hsit_pad_ops = {
 	.set_fmt = hsit_set_format,
 };
 
-static struct v4l2_subdev_ops hsit_ops = {
+static const struct v4l2_subdev_ops hsit_ops = {
 	.pad    = &hsit_pad_ops,
 };
 
