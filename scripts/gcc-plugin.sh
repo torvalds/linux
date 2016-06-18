@@ -1,5 +1,12 @@
 #!/bin/sh
 srctree=$(dirname "$0")
+
+SHOW_ERROR=
+if [ "$1" = "--show-error" ] ; then
+	SHOW_ERROR=1
+	shift || true
+fi
+
 gccplugins_dir=$($3 -print-file-name=plugin)
 plugincc=$($1 -E -x c++ - -o /dev/null -I"${srctree}"/gcc-plugins -I"${gccplugins_dir}"/include 2>&1 <<EOF
 #include "gcc-common.h"
@@ -13,6 +20,9 @@ EOF
 
 if [ $? -ne 0 ]
 then
+	if [ -n "$SHOW_ERROR" ] ; then
+		echo "${plugincc}" >&2
+	fi
 	exit 1
 fi
 
@@ -47,5 +57,9 @@ if [ $? -eq 0 ]
 then
 	echo "$2"
 	exit 0
+fi
+
+if [ -n "$SHOW_ERROR" ] ; then
+	echo "${plugincc}" >&2
 fi
 exit 1
