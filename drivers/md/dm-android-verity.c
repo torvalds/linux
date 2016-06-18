@@ -44,6 +44,7 @@
 static char verifiedbootstate[VERITY_COMMANDLINE_PARAM_LENGTH];
 static char veritymode[VERITY_COMMANDLINE_PARAM_LENGTH];
 static char veritykeyid[VERITY_DEFAULT_KEY_ID_LENGTH];
+static char buildvariant[BUILD_VARIANT];
 
 static bool target_added;
 static bool verity_enabled = true;
@@ -88,9 +89,24 @@ static int __init verity_keyid_param(char *line)
 
 __setup("veritykeyid=", verity_keyid_param);
 
+static int __init verity_buildvariant(char *line)
+{
+	strlcpy(buildvariant, line, sizeof(buildvariant));
+	return 1;
+}
+
+__setup("buildvariant=", verity_buildvariant);
+
 static inline bool default_verity_key_id(void)
 {
 	return veritykeyid[0] != '\0';
+}
+
+static inline bool is_eng(void)
+{
+	static const char typeeng[]  = "eng";
+
+	return !strncmp(buildvariant, typeeng, sizeof(typeeng));
 }
 
 static int table_extract_mpi_array(struct public_key_signature *pks,
@@ -262,7 +278,7 @@ static int extract_fec_header(dev_t dev, struct fec_header *fec,
 
 	bdev = blkdev_get_by_dev(dev, FMODE_READ, NULL);
 
-	if (IS_ERR(bdev)) {
+	if (IS_ERR_OR_NULL(bdev)) {
 		DMERR("bdev get error");
 		return PTR_ERR(bdev);
 	}
@@ -323,6 +339,24 @@ static void find_metadata_offset(struct fec_header *fec,
 		*metadata_offset = device_size - VERITY_METADATA_SIZE;
 }
 
+static int find_size(dev_t dev, u64 *device_size)
+{
+	struct block_device *bdev;
+
+	bdev = blkdev_get_by_dev(dev, FMODE_READ, NULL);
+	if (IS_ERR_OR_NULL(bdev)) {
+		DMERR("blkdev_get_by_dev failed");
+		return PTR_ERR(bdev);
+	}
+
+	*device_size = i_size_read(bdev->bd_inode);
+	*device_size >>= SECTOR_SHIFT;
+
+	DMINFO("blkdev size in sectors: %llu", *device_size);
+	blkdev_put(bdev, FMODE_READ);
+	return 0;
+}
+
 static struct android_metadata *extract_metadata(dev_t dev,
 				struct fec_header *fec)
 {
@@ -337,7 +371,7 @@ static struct android_metadata *extract_metadata(dev_t dev,
 
 	bdev = blkdev_get_by_dev(dev, FMODE_READ, NULL);
 
-	if (IS_ERR(bdev)) {
+	if (IS_ERR_OR_NULL(bdev)) {
 		DMERR("blkdev_get_by_dev failed");
 		return ERR_CAST(bdev);
 	}
@@ -632,12 +666,13 @@ static int android_verity_ctr(struct dm_target *ti, unsigned argc, char **argv)
 	struct fec_ecc_metadata uninitialized_var(ecc);
 	char buf[FEC_ARG_LENGTH], *buf_ptr;
 	unsigned long long tmpll;
+	u64 device_size;
 
 	if (argc == 1) {
 		/* Use the default keyid */
 		if (default_verity_key_id())
 			key_id = veritykeyid;
-		else {
+		else if (!is_eng()) {
 			DMERR("veritykeyid= is not set");
 			handle_error();
 			return -EINVAL;
@@ -650,7 +685,6 @@ static int android_verity_ctr(struct dm_target *ti, unsigned argc, char **argv)
 		return -EINVAL;
 	}
 
-	strreplace(key_id, '#', ' ');
 	target_device = argv[0];
 
 	dev = name_to_dev_t(target_device);
@@ -659,6 +693,26 @@ static int android_verity_ctr(struct dm_target *ti, unsigned argc, char **argv)
 		handle_error();
 		return -EINVAL;
 	}
+
+	if (is_eng()) {
+		err = find_size(dev, &device_size);
+		if (err) {
+			DMERR("error finding bdev size");
+			handle_error();
+			return err;
+		}
+
+		ti->len = device_size;
+		err = add_as_linear_device(ti, target_device);
+		if (err) {
+			handle_error();
+			return err;
+		}
+		verity_enabled = false;
+		return 0;
+	}
+
+	strreplace(key_id, '#', ' ');
 
 	DMINFO("key:%s dev:%s", key_id, target_device);
 
