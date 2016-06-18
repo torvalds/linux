@@ -2278,9 +2278,9 @@ int msm_dsi_host_set_display_mode(struct mipi_dsi_host *host,
 	}
 
 	msm_host->mode = drm_mode_duplicate(msm_host->dev, mode);
-	if (IS_ERR(msm_host->mode)) {
+	if (!msm_host->mode) {
 		pr_err("%s: cannot duplicate mode\n", __func__);
-		return PTR_ERR(msm_host->mode);
+		return -ENOMEM;
 	}
 
 	return 0;
