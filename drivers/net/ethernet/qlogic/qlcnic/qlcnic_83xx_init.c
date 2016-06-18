@@ -1020,7 +1020,6 @@ static int qlcnic_83xx_idc_check_state_validity(struct qlcnic_adapter *adapter,
 	return 0;
 }
 
-#ifdef CONFIG_QLCNIC_VXLAN
 #define QLC_83XX_ENCAP_TYPE_VXLAN	BIT_1
 #define QLC_83XX_MATCH_ENCAP_ID		BIT_2
 #define QLC_83XX_SET_VXLAN_UDP_DPORT	BIT_3
@@ -1089,14 +1088,12 @@ static int qlcnic_set_vxlan_parsing(struct qlcnic_adapter *adapter,
 
 	return ret;
 }
-#endif
 
 static void qlcnic_83xx_periodic_tasks(struct qlcnic_adapter *adapter)
 {
 	if (adapter->fhash.fnum)
 		qlcnic_prune_lb_filters(adapter);
 
-#ifdef CONFIG_QLCNIC_VXLAN
 	if (adapter->flags & QLCNIC_ADD_VXLAN_PORT) {
 		if (qlcnic_set_vxlan_port(adapter))
 			return;
@@ -1112,7 +1109,6 @@ static void qlcnic_83xx_periodic_tasks(struct qlcnic_adapter *adapter)
 		adapter->ahw->vxlan_port = 0;
 		adapter->flags &= ~QLCNIC_DEL_VXLAN_PORT;
 	}
-#endif
 }
 
 /**

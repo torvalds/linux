@@ -37,9 +37,7 @@
 #include <net/udp.h>
 #include <net/checksum.h>
 #include <net/ip6_checksum.h>
-#if defined(CONFIG_VXLAN) || defined(CONFIG_VXLAN_MODULE)
-#include <net/vxlan.h>
-#endif
+#include <net/udp_tunnel.h>
 #ifdef CONFIG_NET_RX_BUSY_POLL
 #include <net/busy_poll.h>
 #endif
@@ -5255,15 +5253,8 @@ static int __bnxt_open_nic(struct bnxt *bp, bool irq_re_init, bool link_re_init)
 			netdev_warn(bp->dev, "failed to update phy settings\n");
 	}
 
-	if (irq_re_init) {
-#if defined(CONFIG_VXLAN) || defined(CONFIG_VXLAN_MODULE)
-		vxlan_get_rx_port(bp->dev);
-#endif
-		if (!bnxt_hwrm_tunnel_dst_port_alloc(
-				bp, htons(0x17c1),
-				TUNNEL_DST_PORT_FREE_REQ_TUNNEL_TYPE_GENEVE))
-			bp->nge_port_cnt = 1;
-	}
+	if (irq_re_init)
+		udp_tunnel_get_rx_info(bp->dev);
 
 	set_bit(BNXT_STATE_OPEN, &bp->state);
 	bnxt_enable_int(bp);
@@ -5881,6 +5872,15 @@ static void bnxt_sp_task(struct work_struct *work)
 		bnxt_hwrm_tunnel_dst_port_free(
 			bp, TUNNEL_DST_PORT_FREE_REQ_TUNNEL_TYPE_VXLAN);
 	}
+	if (test_and_clear_bit(BNXT_GENEVE_ADD_PORT_SP_EVENT, &bp->sp_event)) {
+		bnxt_hwrm_tunnel_dst_port_alloc(
+			bp, bp->nge_port,
+			TUNNEL_DST_PORT_FREE_REQ_TUNNEL_TYPE_GENEVE);
+	}
+	if (test_and_clear_bit(BNXT_GENEVE_DEL_PORT_SP_EVENT, &bp->sp_event)) {
+		bnxt_hwrm_tunnel_dst_port_free(
+			bp, TUNNEL_DST_PORT_FREE_REQ_TUNNEL_TYPE_GENEVE);
+	}
 	if (test_and_clear_bit(BNXT_RESET_TASK_SP_EVENT, &bp->sp_event))
 		bnxt_reset(bp, false);
 
@@ -6250,47 +6250,83 @@ static void bnxt_cfg_ntp_filters(struct bnxt *bp)
 
 #endif /* CONFIG_RFS_ACCEL */
 
-static void bnxt_add_vxlan_port(struct net_device *dev, sa_family_t sa_family,
-				__be16 port)
+static void bnxt_udp_tunnel_add(struct net_device *dev,
+				struct udp_tunnel_info *ti)
 {
 	struct bnxt *bp = netdev_priv(dev);
+
+	if (ti->sa_family != AF_INET6 && ti->sa_family != AF_INET)
+		return;
 
 	if (!netif_running(dev))
 		return;
 
-	if (sa_family != AF_INET6 && sa_family != AF_INET)
-		return;
+	switch (ti->type) {
+	case UDP_TUNNEL_TYPE_VXLAN:
+		if (bp->vxlan_port_cnt && bp->vxlan_port != ti->port)
+			return;
 
-	if (bp->vxlan_port_cnt && bp->vxlan_port != port)
-		return;
-
-	bp->vxlan_port_cnt++;
-	if (bp->vxlan_port_cnt == 1) {
-		bp->vxlan_port = port;
-		set_bit(BNXT_VXLAN_ADD_PORT_SP_EVENT, &bp->sp_event);
-		schedule_work(&bp->sp_task);
-	}
-}
-
-static void bnxt_del_vxlan_port(struct net_device *dev, sa_family_t sa_family,
-				__be16 port)
-{
-	struct bnxt *bp = netdev_priv(dev);
-
-	if (!netif_running(dev))
-		return;
-
-	if (sa_family != AF_INET6 && sa_family != AF_INET)
-		return;
-
-	if (bp->vxlan_port_cnt && bp->vxlan_port == port) {
-		bp->vxlan_port_cnt--;
-
-		if (bp->vxlan_port_cnt == 0) {
-			set_bit(BNXT_VXLAN_DEL_PORT_SP_EVENT, &bp->sp_event);
+		bp->vxlan_port_cnt++;
+		if (bp->vxlan_port_cnt == 1) {
+			bp->vxlan_port = ti->port;
+			set_bit(BNXT_VXLAN_ADD_PORT_SP_EVENT, &bp->sp_event);
 			schedule_work(&bp->sp_task);
 		}
+		break;
+	case UDP_TUNNEL_TYPE_GENEVE:
+		if (bp->nge_port_cnt && bp->nge_port != ti->port)
+			return;
+
+		bp->nge_port_cnt++;
+		if (bp->nge_port_cnt == 1) {
+			bp->nge_port = ti->port;
+			set_bit(BNXT_GENEVE_ADD_PORT_SP_EVENT, &bp->sp_event);
+		}
+		break;
+	default:
+		return;
 	}
+
+	schedule_work(&bp->sp_task);
+}
+
+static void bnxt_udp_tunnel_del(struct net_device *dev,
+				struct udp_tunnel_info *ti)
+{
+	struct bnxt *bp = netdev_priv(dev);
+
+	if (ti->sa_family != AF_INET6 && ti->sa_family != AF_INET)
+		return;
+
+	if (!netif_running(dev))
+		return;
+
+	switch (ti->type) {
+	case UDP_TUNNEL_TYPE_VXLAN:
+		if (!bp->vxlan_port_cnt || bp->vxlan_port != ti->port)
+			return;
+		bp->vxlan_port_cnt--;
+
+		if (bp->vxlan_port_cnt != 0)
+			return;
+
+		set_bit(BNXT_VXLAN_DEL_PORT_SP_EVENT, &bp->sp_event);
+		break;
+	case UDP_TUNNEL_TYPE_GENEVE:
+		if (!bp->nge_port_cnt || bp->nge_port != ti->port)
+			return;
+		bp->nge_port_cnt--;
+
+		if (bp->nge_port_cnt != 0)
+			return;
+
+		set_bit(BNXT_GENEVE_DEL_PORT_SP_EVENT, &bp->sp_event);
+		break;
+	default:
+		return;
+	}
+
+	schedule_work(&bp->sp_task);
 }
 
 static const struct net_device_ops bnxt_netdev_ops = {
@@ -6321,8 +6357,8 @@ static const struct net_device_ops bnxt_netdev_ops = {
 #ifdef CONFIG_RFS_ACCEL
 	.ndo_rx_flow_steer	= bnxt_rx_flow_steer,
 #endif
-	.ndo_add_vxlan_port	= bnxt_add_vxlan_port,
-	.ndo_del_vxlan_port	= bnxt_del_vxlan_port,
+	.ndo_udp_tunnel_add	= bnxt_udp_tunnel_add,
+	.ndo_udp_tunnel_del	= bnxt_udp_tunnel_del,
 #ifdef CONFIG_NET_RX_BUSY_POLL
 	.ndo_busy_poll		= bnxt_busy_poll,
 #endif

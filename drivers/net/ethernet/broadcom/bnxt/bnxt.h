@@ -1049,6 +1049,7 @@ struct bnxt {
 	__be16			vxlan_port;
 	u8			vxlan_port_cnt;
 	__le16			vxlan_fw_dst_port_id;
+	__be16			nge_port;
 	u8			nge_port_cnt;
 	__le16			nge_fw_dst_port_id;
 	u8			port_partition_type;
@@ -1078,6 +1079,8 @@ struct bnxt {
 #define BNXT_PERIODIC_STATS_SP_EVENT	9
 #define BNXT_HWRM_PORT_MODULE_SP_EVENT	10
 #define BNXT_RESET_TASK_SILENT_SP_EVENT	11
+#define BNXT_GENEVE_ADD_PORT_SP_EVENT	12
+#define BNXT_GENEVE_DEL_PORT_SP_EVENT	13
 
 	struct bnxt_pf_info	pf;
 #ifdef CONFIG_BNXT_SRIOV
