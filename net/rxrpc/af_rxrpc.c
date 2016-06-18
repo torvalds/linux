@@ -247,8 +247,8 @@ struct rxrpc_transport *rxrpc_name_to_transport(struct rxrpc_sock *rx,
 
 	/* find a remote transport endpoint from the local one */
 	peer = rxrpc_lookup_peer(rx->local, srx, gfp);
-	if (IS_ERR(peer))
-		return ERR_CAST(peer);
+	if (!peer)
+		return ERR_PTR(-ENOMEM);
 
 	/* find a transport */
 	trans = rxrpc_get_transport(rx->local, peer, gfp);

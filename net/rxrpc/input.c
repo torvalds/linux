@@ -639,7 +639,7 @@ static struct rxrpc_connection *rxrpc_conn_from_local(struct rxrpc_local *local,
 	rxrpc_get_addr_from_skb(local, skb, &srx);
 	rcu_read_lock();
 	peer = rxrpc_lookup_peer_rcu(local, &srx);
-	if (IS_ERR(peer))
+	if (!peer)
 		goto cant_find_peer;
 
 	trans = rxrpc_find_transport(local, peer);
