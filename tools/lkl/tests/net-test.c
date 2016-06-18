@@ -70,7 +70,7 @@ static int test_icmp(char *str, int len)
 	inet_aton(dst, &saddr.sin_addr);
 
 	ret = lkl_sys_sendto(sock, icmp, sizeof(*icmp), 0,
-			     (struct __lkl__kernel_sockaddr_storage *)&saddr,
+			     (struct lkl_sockaddr*)&saddr,
 			     sizeof(saddr));
 	if (ret < 0) {
 		snprintf(str, len, "sendto error (%s)", strerror(errno));

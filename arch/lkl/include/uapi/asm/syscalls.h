@@ -37,8 +37,6 @@ typedef __s64			s64;
 
 #define __user
 
-#define sockaddr __lkl__kernel_sockaddr_storage
-
 #include <asm/unistd.h>
 /* Temporary undefine system calls that don't have data types defined in UAPI
  * headers */
@@ -92,6 +90,14 @@ typedef __s64			s64;
 #include <asm/siginfo.h>
 #include <linux/utime.h>
 #include <asm/socket.h>
+
+/* Define data structures used in system calls that are not defined in UAPI
+ * headers */
+struct sockaddr {
+	unsigned short int sa_family;
+	char sa_data[14];
+};
+
 #include <linux/if.h>
 #define __UAPI_DEF_IN_IPPROTO	1
 #define __UAPI_DEF_IN_ADDR	1
@@ -110,8 +116,6 @@ typedef __s64			s64;
 #include <linux/virtio_net.h>
 #include <linux/virtio_ring.h>
 
-/* Define data structures used in system calls that are not defined in UAPI
- * headers */
 struct user_msghdr {
 	void		__user *msg_name;	/* ptr to socket address structure */
 	int		msg_namelen;		/* size of socket address structure */
