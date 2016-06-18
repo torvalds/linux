@@ -158,7 +158,7 @@ static void cleanup(bool sysfiles)
  *
  * Module unload.  This is where it all ends.
  */
-static void dgnc_cleanup_module(void)
+static void __exit dgnc_cleanup_module(void)
 {
 	cleanup(true);
 	pci_unregister_driver(&dgnc_driver);
