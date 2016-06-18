@@ -235,8 +235,7 @@ static void tse_get_regs(struct net_device *dev, struct ethtool_regs *regs,
 
 static int tse_get_settings(struct net_device *dev, struct ethtool_cmd *cmd)
 {
-	struct altera_tse_private *priv = netdev_priv(dev);
-	struct phy_device *phydev = priv->phydev;
+	struct phy_device *phydev = dev->phydev;
 
 	if (phydev == NULL)
 		return -ENODEV;
@@ -246,8 +245,7 @@ static int tse_get_settings(struct net_device *dev, struct ethtool_cmd *cmd)
 
 static int tse_set_settings(struct net_device *dev, struct ethtool_cmd *cmd)
 {
-	struct altera_tse_private *priv = netdev_priv(dev);
-	struct phy_device *phydev = priv->phydev;
+	struct phy_device *phydev = dev->phydev;
 
 	if (phydev == NULL)
 		return -ENODEV;

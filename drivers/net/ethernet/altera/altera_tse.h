@@ -473,7 +473,6 @@ struct altera_tse_private {
 	int phy_addr;		/* PHY's MDIO address, -1 for autodetection */
 	phy_interface_t phy_iface;
 	struct mii_bus *mdio;
-	struct phy_device *phydev;
 	int oldspeed;
 	int oldduplex;
 	int oldlink;
