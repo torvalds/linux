@@ -368,6 +368,15 @@ static void ehci_shutdown(struct usb_hcd *hcd)
 {
 	struct ehci_hcd	*ehci = hcd_to_ehci(hcd);
 
+	/**
+	 * Protect the system from crashing at system shutdown in cases where
+	 * usb host is not added yet from OTG controller driver.
+	 * As ehci_setup() not done yet, so stop accessing registers or
+	 * variables initialized in ehci_setup()
+	 */
+	if (!ehci->sbrn)
+		return;
+
 	spin_lock_irq(&ehci->lock);
 	ehci->shutdown = true;
 	ehci->rh_state = EHCI_RH_STOPPING;
