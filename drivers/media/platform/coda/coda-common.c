@@ -2216,7 +2216,7 @@ static int coda_probe(struct platform_device *pdev)
 	dev->rstc = devm_reset_control_get_optional(&pdev->dev, NULL);
 	if (IS_ERR(dev->rstc)) {
 		ret = PTR_ERR(dev->rstc);
-		if (ret == -ENOENT || ret == -ENOSYS) {
+		if (ret == -ENOENT || ret == -ENOTSUPP) {
 			dev->rstc = NULL;
 		} else {
 			dev_err(&pdev->dev, "failed get reset control: %d\n",
