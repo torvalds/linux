@@ -26,6 +26,7 @@
 #define VERITY_METADATA_SIZE (8 * DATA_BLOCK_SIZE)
 #define VERITY_TABLE_ARGS 10
 #define VERITY_COMMANDLINE_PARAM_LENGTH 20
+#define BUILD_VARIANT 20
 
 /*
  * <subject>:<sha1-id> is the format for the identifier.
