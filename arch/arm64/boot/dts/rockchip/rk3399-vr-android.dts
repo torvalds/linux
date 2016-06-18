@@ -546,7 +546,6 @@
 &spi1 {
 	status = "okay";
 	max-freq = <50000000>;
-	dma-names = "tx", "rx";
 	mpu6500@0 {
 		status = "okay";
 		compatible = "inv-spi,mpu6500";
@@ -557,11 +556,11 @@
 		spi-max-frequency = <1000000>;
 		spi-cpha;
 		spi-cpol;
-		mpu-int_config = <0x10>;
+		mpu-int_config = <0x00>;
 		mpu-level_shifter = <0>;
-		mpu-orientation = <0 1 0 1 0 0 0 0 1>;
+		mpu-orientation = <1 0 0 0 1 0 0 0 1>;
 		orientation-x= <1>;
-		orientation-y= <1>;
+		orientation-y= <0>;
 		orientation-z= <1>;
 		mpu-debug = <1>;
 	};
