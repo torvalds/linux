@@ -1,1 +1,0 @@
-obj-y += platform.o
