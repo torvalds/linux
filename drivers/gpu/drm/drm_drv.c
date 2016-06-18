@@ -687,7 +687,8 @@ int drm_dev_register(struct drm_device *dev, unsigned long flags)
 			goto err_minors;
 	}
 
-	drm_connector_register_all(dev);
+	if (drm_core_check_feature(dev, DRIVER_MODESET))
+		drm_connector_register_all(dev);
 
 	ret = 0;
 	goto out_unlock;
@@ -719,7 +720,8 @@ void drm_dev_unregister(struct drm_device *dev)
 
 	drm_lastclose(dev);
 
-	drm_connector_unregister_all(dev);
+	if (drm_core_check_feature(dev, DRIVER_MODESET))
+		drm_connector_unregister_all(dev);
 
 	if (dev->driver->unload)
 		dev->driver->unload(dev);
