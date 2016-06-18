@@ -474,6 +474,8 @@ static int linehandle_create(struct gpio_device *gdev, void __user *ip)
 		dev_dbg(&gdev->dev, "registered chardev handle for line %d\n",
 			offset);
 	}
+	/* Let i point at the last handle */
+	i--;
 	lh->numdescs = handlereq.lines;
 
 	fd = anon_inode_getfd("gpio-linehandle",
