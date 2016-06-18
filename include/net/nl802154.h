@@ -54,6 +54,8 @@ enum nl802154_commands {
 
 	NL802154_CMD_SET_ACKREQ_DEFAULT,
 
+	NL802154_CMD_SET_WPAN_PHY_NETNS,
+
 	/* add new commands above here */
 
 #ifdef CONFIG_IEEE802154_NL802154_EXPERIMENTAL
@@ -125,6 +127,9 @@ enum nl802154_attrs {
 	NL802154_ATTR_ACKREQ_DEFAULT,
 
 	NL802154_ATTR_PAD,
+
+	NL802154_ATTR_PID,
+	NL802154_ATTR_NETNS_FD,
 
 	/* add attributes here, update the policy in nl802154.c */
 
