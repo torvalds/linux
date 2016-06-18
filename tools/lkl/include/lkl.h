@@ -301,6 +301,17 @@ struct lkl_netdev *lkl_netdev_dpdk_create(const char *ifname);
  */
 struct lkl_netdev *lkl_netdev_vde_create(const char *switch_path);
 
+/*
+ * lkl_register_dbg_handler- register a signal handler that loads a debug lib.
+ *
+ * The signal handler is triggered by Ctrl-Z. It creates a new pthread which
+ * call dbg_entrance().
+ *
+ * If you run the program from shell script, make sure you ignore SIGTSTP by
+ * "trap '' TSTP" in the shell script.
+ */
+void lkl_register_dbg_handler();
+
 #ifdef __cplusplus
 }
 #endif

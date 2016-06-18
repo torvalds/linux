@@ -208,7 +208,8 @@ hijack_init(void)
 
 	if (!debug)
 		lkl_host_ops.print = NULL;
-
+	else
+		lkl_register_dbg_handler();
 
 	ret = lkl_start_kernel(&lkl_host_ops, 64 * 1024 * 1024, "");
 	if (ret) {
