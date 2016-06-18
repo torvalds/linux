@@ -3,7 +3,6 @@
 #include "endian.h"
 #include <lkl_host.h>
 
-
 static inline void set_sockaddr(struct lkl_sockaddr_in *sin, unsigned int addr,
 				unsigned short port)
 {
@@ -158,4 +157,46 @@ int lkl_netdev_get_ifindex(int id)
 	lkl_sys_close(sock);
 
 	return ret < 0 ? ret : ifr.lkl_ifr_ifindex;
+}
+
+struct lkl_arpreq {
+	struct lkl_sockaddr arp_pa;      /* protocol address */
+	struct lkl_sockaddr arp_ha;      /* hardware address */
+	int             arp_flags;   /* flags */
+	struct lkl_sockaddr arp_netmask; /* netmask of protocol address */
+	char            arp_dev[LKL_IFNAMSIZ];
+};
+
+#define LKL_ATF_PERM 0x04
+#define LKL_ATF_COM 0x02
+
+int lkl_add_arp_entry(int ifindex, unsigned int ip, void* mac) {
+	struct lkl_arpreq req;
+	int ret = 0;
+	struct lkl_ifreq ifr;
+	struct lkl_sockaddr_in* sin = (struct lkl_sockaddr_in*)&req.arp_pa;
+	int sock;
+
+	bzero(&req, sizeof(req));
+	sin->sin_family = LKL_AF_INET;
+	sin->sin_addr.lkl_s_addr = ip;
+	memcpy(req.arp_ha.sa_data, mac, LKL_ETH_ALEN);
+
+	sock = lkl_sys_socket(LKL_AF_INET, LKL_SOCK_DGRAM, 0);
+	if (sock < 0) {
+		return sock;
+	}
+
+	req.arp_flags = LKL_ATF_PERM | LKL_ATF_COM;
+
+	ret = ifindex_to_name(sock, &ifr, ifindex);
+	if (ret < 0) {
+		lkl_sys_close(sock);
+		return ret;
+	}
+	strcpy(req.arp_dev, ifr.ifr_ifrn.ifrn_name);
+
+	ret = lkl_sys_ioctl(sock, LKL_SIOCSARP, (long)(&req));
+	lkl_sys_close(sock);
+	return ret;
 }
