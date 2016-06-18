@@ -543,6 +543,12 @@ struct cpdma_chan *cpdma_chan_create(struct cpdma_ctlr *ctlr, int chan_num,
 }
 EXPORT_SYMBOL_GPL(cpdma_chan_create);
 
+int cpdma_chan_get_rx_buf_num(struct cpdma_ctlr *ctlr)
+{
+	return ctlr->pool->num_desc / 2;
+}
+EXPORT_SYMBOL_GPL(cpdma_chan_get_rx_buf_num);
+
 int cpdma_chan_destroy(struct cpdma_chan *chan)
 {
 	struct cpdma_ctlr *ctlr;
