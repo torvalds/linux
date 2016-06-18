@@ -1035,26 +1035,6 @@ static const struct net_device_ops nb8800_netdev_ops = {
 	.ndo_validate_addr	= eth_validate_addr,
 };
 
-static int nb8800_get_settings(struct net_device *dev, struct ethtool_cmd *cmd)
-{
-	struct phy_device *phydev = dev->phydev;
-
-	if (!phydev)
-		return -ENODEV;
-
-	return phy_ethtool_gset(phydev, cmd);
-}
-
-static int nb8800_set_settings(struct net_device *dev, struct ethtool_cmd *cmd)
-{
-	struct phy_device *phydev = dev->phydev;
-
-	if (!phydev)
-		return -ENODEV;
-
-	return phy_ethtool_sset(phydev, cmd);
-}
-
 static int nb8800_nway_reset(struct net_device *dev)
 {
 	struct phy_device *phydev = dev->phydev;
@@ -1183,8 +1163,6 @@ static void nb8800_get_ethtool_stats(struct net_device *dev,
 }
 
 static const struct ethtool_ops nb8800_ethtool_ops = {
-	.get_settings		= nb8800_get_settings,
-	.set_settings		= nb8800_set_settings,
 	.nway_reset		= nb8800_nway_reset,
 	.get_link		= ethtool_op_get_link,
 	.get_pauseparam		= nb8800_get_pauseparam,
@@ -1192,6 +1170,8 @@ static const struct ethtool_ops nb8800_ethtool_ops = {
 	.get_sset_count		= nb8800_get_sset_count,
 	.get_strings		= nb8800_get_strings,
 	.get_ethtool_stats	= nb8800_get_ethtool_stats,
+	.get_link_ksettings	= phy_ethtool_get_link_ksettings,
+	.set_link_ksettings	= phy_ethtool_set_link_ksettings,
 };
 
 static int nb8800_hw_init(struct net_device *dev)
