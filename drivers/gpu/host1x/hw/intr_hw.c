@@ -38,7 +38,7 @@ static void host1x_intr_syncpt_handle(struct host1x_syncpt *syncpt)
 	host1x_sync_writel(host, BIT_MASK(id),
 		HOST1X_SYNC_SYNCPT_THRESH_CPU0_INT_STATUS(BIT_WORD(id)));
 
-	queue_work(host->intr_wq, &syncpt->intr.work);
+	schedule_work(&syncpt->intr.work);
 }
 
 static irqreturn_t syncpt_thresh_isr(int irq, void *dev_id)
@@ -127,8 +127,12 @@ static void _host1x_intr_disable_syncpt_intr(struct host1x *host, u32 id)
 
 static int _host1x_free_syncpt_irq(struct host1x *host)
 {
+	int i;
+
 	devm_free_irq(host->dev, host->intr_syncpt_irq, host);
-	flush_workqueue(host->intr_wq);
+
+	for (i = 0; i < host->info->nb_pts; i++)
+		cancel_work_sync(&host->syncpt[i].intr.work);
 	return 0;
 }
 

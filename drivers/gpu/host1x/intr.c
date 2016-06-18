@@ -277,9 +277,6 @@ int host1x_intr_init(struct host1x *host, unsigned int irq_sync)
 
 	mutex_init(&host->intr_mutex);
 	host->intr_syncpt_irq = irq_sync;
-	host->intr_wq = create_workqueue("host_syncpt");
-	if (!host->intr_wq)
-		return -ENOMEM;
 
 	for (id = 0; id < nb_pts; ++id) {
 		struct host1x_syncpt *syncpt = host->syncpt + id;
@@ -299,7 +296,6 @@ int host1x_intr_init(struct host1x *host, unsigned int irq_sync)
 void host1x_intr_deinit(struct host1x *host)
 {
 	host1x_intr_stop(host);
-	destroy_workqueue(host->intr_wq);
 }
 
 void host1x_intr_start(struct host1x *host)

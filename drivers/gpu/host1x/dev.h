@@ -109,7 +109,6 @@ struct host1x {
 	struct clk *clk;
 
 	struct mutex intr_mutex;
-	struct workqueue_struct *intr_wq;
 	int intr_syncpt_irq;
 
 	const struct host1x_syncpt_ops *syncpt_op;
