@@ -674,7 +674,7 @@ static void vsp1_video_stop_streaming(struct vb2_queue *vq)
 	int ret;
 
 	mutex_lock(&pipe->lock);
-	if (--pipe->stream_count == 0) {
+	if (--pipe->stream_count == pipe->num_inputs) {
 		/* Stop the pipeline. */
 		ret = vsp1_pipeline_stop(pipe);
 		if (ret == -ETIMEDOUT)
