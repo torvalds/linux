@@ -614,7 +614,9 @@ qed_spq_add_entry(struct qed_hwfn *p_hwfn,
 
 			*p_en2 = *p_ent;
 
-			kfree(p_ent);
+			/* EBLOCK responsible to free the allocated p_ent */
+			if (p_ent->comp_mode != QED_SPQ_MODE_EBLOCK)
+				kfree(p_ent);
 
 			p_ent = p_en2;
 		}
@@ -749,6 +751,15 @@ int qed_spq_post(struct qed_hwfn *p_hwfn,
 		 * Thus, after gaining the answer perform the cleanup here.
 		 */
 		rc = qed_spq_block(p_hwfn, p_ent, fw_return_code);
+
+		if (p_ent->queue == &p_spq->unlimited_pending) {
+			/* This is an allocated p_ent which does not need to
+			 * return to pool.
+			 */
+			kfree(p_ent);
+			return rc;
+		}
+
 		if (rc)
 			goto spq_post_fail2;
 
@@ -844,8 +855,12 @@ int qed_spq_completion(struct qed_hwfn *p_hwfn,
 		found->comp_cb.function(p_hwfn, found->comp_cb.cookie, p_data,
 					fw_return_code);
 
-	if (found->comp_mode != QED_SPQ_MODE_EBLOCK)
-		/* EBLOCK is responsible for freeing its own entry */
+	if ((found->comp_mode != QED_SPQ_MODE_EBLOCK) ||
+	    (found->queue == &p_spq->unlimited_pending))
+		/* EBLOCK  is responsible for returning its own entry into the
+		 * free list, unless it originally added the entry into the
+		 * unlimited pending list.
+		 */
 		qed_spq_return_entry(p_hwfn, found);
 
 	/* Attempt to post pending requests */
