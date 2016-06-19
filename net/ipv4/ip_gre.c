@@ -144,6 +144,7 @@ static void ipgre_err(struct sk_buff *skb, u32 info,
 	const struct iphdr *iph;
 	const int type = icmp_hdr(skb)->type;
 	const int code = icmp_hdr(skb)->code;
+	unsigned int data_len = 0;
 	struct ip_tunnel *t;
 
 	switch (type) {
@@ -169,6 +170,7 @@ static void ipgre_err(struct sk_buff *skb, u32 info,
 	case ICMP_TIME_EXCEEDED:
 		if (code != ICMP_EXC_TTL)
 			return;
+		data_len = icmp_hdr(skb)->un.reserved[1] * 4; /* RFC 4884 4.1 */
 		break;
 
 	case ICMP_REDIRECT:
@@ -186,6 +188,13 @@ static void ipgre_err(struct sk_buff *skb, u32 info,
 
 	if (!t)
 		return;
+
+#if IS_ENABLED(CONFIG_IPV6)
+       if (tpi->proto == htons(ETH_P_IPV6) &&
+           !ip6_err_gen_icmpv6_unreach(skb, iph->ihl * 4 + tpi->hdr_len,
+				       type, data_len))
+               return;
+#endif
 
 	if (t->parms.iph.daddr == 0 ||
 	    ipv4_is_multicast(t->parms.iph.daddr))
