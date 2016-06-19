@@ -109,7 +109,10 @@ void __init imx_init_l2cache(void)
 	if (!(readl_relaxed(l2x0_base + L2X0_CTRL) & L2X0_CTRL_EN)) {
 		/* Configure the L2 PREFETCH and POWER registers */
 		val = readl_relaxed(l2x0_base + L310_PREFETCH_CTRL);
-		val |= 0x70800000;
+		val |= L310_PREFETCH_CTRL_DBL_LINEFILL |
+			L310_PREFETCH_CTRL_INSTR_PREFETCH |
+			L310_PREFETCH_CTRL_DATA_PREFETCH |
+			L310_PREFETCH_CTRL_DBL_LINEFILL_INCR;
 		writel_relaxed(val, l2x0_base + L310_PREFETCH_CTRL);
 	}
 
