@@ -160,6 +160,10 @@ struct cgs_firmware_info {
 	uint16_t		feature_version;
 	uint32_t		image_size;
 	uint64_t		mc_addr;
+
+	/* only for smc firmware */
+	uint32_t		ucode_start_address;
+
 	void			*kptr;
 };
 

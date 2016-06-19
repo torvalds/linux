@@ -752,6 +752,9 @@ static int amdgpu_cgs_get_firmware_info(struct cgs_device *cgs_device,
 
 		if (!adev->pm.fw) {
 			switch (adev->asic_type) {
+			case CHIP_TOPAZ:
+				strcpy(fw_name, "amdgpu/topaz_smc.bin");
+				break;
 			case CHIP_TONGA:
 				strcpy(fw_name, "amdgpu/tonga_smc.bin");
 				break;
@@ -800,6 +803,7 @@ static int amdgpu_cgs_get_firmware_info(struct cgs_device *cgs_device,
 
 		info->version = adev->pm.fw_version;
 		info->image_size = ucode_size;
+		info->ucode_start_address = ucode_start_address;
 		info->kptr = (void *)src;
 	}
 	return 0;
