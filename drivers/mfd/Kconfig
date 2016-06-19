@@ -491,6 +491,8 @@ config MFD_KEMPLD
 		* COMe-cDC2 (microETXexpress-DC)
 		* COMe-cHL6
 		* COMe-cPC2 (microETXexpress-PC)
+		* COMe-cSL6
+		* COMe-mAL10
 		* COMe-mBT10
 		* COMe-mCT10
 		* COMe-mTT10 (nanoETXexpress-TT)
