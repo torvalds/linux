@@ -248,10 +248,6 @@ qed_sp_update_accept_mode(struct qed_hwfn *p_hwfn,
 		SET_FIELD(state, ETH_VPORT_TX_MODE_UCAST_DROP_ALL,
 			  !!(accept_filter & QED_ACCEPT_NONE));
 
-		SET_FIELD(state, ETH_VPORT_TX_MODE_UCAST_ACCEPT_ALL,
-			  (!!(accept_filter & QED_ACCEPT_UCAST_MATCHED) &&
-			   !!(accept_filter & QED_ACCEPT_UCAST_UNMATCHED)));
-
 		SET_FIELD(state, ETH_VPORT_TX_MODE_MCAST_DROP_ALL,
 			  !!(accept_filter & QED_ACCEPT_NONE));
 
