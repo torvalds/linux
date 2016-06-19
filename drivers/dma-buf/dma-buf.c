@@ -907,8 +907,11 @@ static int dma_buf_init_debugfs(void)
 
 	err = dma_buf_debugfs_create_file("bufinfo", NULL);
 
-	if (err)
+	if (err) {
 		pr_debug("dma_buf: debugfs: failed to create node bufinfo\n");
+		debugfs_remove_recursive(dma_buf_debugfs_dir);
+		dma_buf_debugfs_dir = NULL;
+	}
 
 	return err;
 }
