@@ -1511,22 +1511,6 @@ static void bgmac_get_ethtool_stats(struct net_device *dev,
 	}
 }
 
-static int bgmac_get_settings(struct net_device *net_dev,
-			      struct ethtool_cmd *cmd)
-{
-	struct bgmac *bgmac = netdev_priv(net_dev);
-
-	return phy_ethtool_gset(net_dev->phydev, cmd);
-}
-
-static int bgmac_set_settings(struct net_device *net_dev,
-			      struct ethtool_cmd *cmd)
-{
-	struct bgmac *bgmac = netdev_priv(net_dev);
-
-	return phy_ethtool_sset(net_dev->phydev, cmd);
-}
-
 static void bgmac_get_drvinfo(struct net_device *net_dev,
 			      struct ethtool_drvinfo *info)
 {
@@ -1538,9 +1522,9 @@ static const struct ethtool_ops bgmac_ethtool_ops = {
 	.get_strings		= bgmac_get_strings,
 	.get_sset_count		= bgmac_get_sset_count,
 	.get_ethtool_stats	= bgmac_get_ethtool_stats,
-	.get_settings		= bgmac_get_settings,
-	.set_settings		= bgmac_set_settings,
 	.get_drvinfo		= bgmac_get_drvinfo,
+	.get_link_ksettings     = phy_ethtool_get_link_ksettings,
+	.set_link_ksettings     = phy_ethtool_set_link_ksettings,
 };
 
 /**************************************************
