@@ -117,6 +117,7 @@ int gre_parse_header(struct sk_buff *skb, struct tnl_ptk_info *tpi,
 		if ((*(u8 *)options & 0xF0) != 0x40)
 			hdr_len += 4;
 	}
+	tpi->hdr_len = hdr_len;
 	return hdr_len;
 }
 EXPORT_SYMBOL(gre_parse_header);

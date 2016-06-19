@@ -157,6 +157,7 @@ struct tnl_ptk_info {
 	__be16 proto;
 	__be32 key;
 	__be32 seq;
+	int hdr_len;
 };
 
 #define PACKET_RCVD	0

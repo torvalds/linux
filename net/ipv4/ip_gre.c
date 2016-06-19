@@ -187,6 +187,12 @@ static void ipgre_err(struct sk_buff *skb, u32 info,
 	if (!t)
 		return;
 
+#if IS_ENABLED(CONFIG_IPV6)
+       if (tpi->proto == htons(ETH_P_IPV6) &&
+           !ip6_err_gen_icmpv6_unreach(skb, iph->ihl * 4 + tpi->hdr_len, type))
+               return;
+#endif
+
 	if (t->parms.iph.daddr == 0 ||
 	    ipv4_is_multicast(t->parms.iph.daddr))
 		return;
