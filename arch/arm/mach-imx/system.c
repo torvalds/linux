@@ -111,8 +111,12 @@ void __init imx_init_l2cache(void)
 		val = readl_relaxed(l2x0_base + L310_PREFETCH_CTRL);
 		val |= L310_PREFETCH_CTRL_DBL_LINEFILL |
 			L310_PREFETCH_CTRL_INSTR_PREFETCH |
-			L310_PREFETCH_CTRL_DATA_PREFETCH |
-			L310_PREFETCH_CTRL_DBL_LINEFILL_INCR;
+			L310_PREFETCH_CTRL_DATA_PREFETCH;
+
+		/* Set perfetch offset to improve performance */
+		val &= ~L310_PREFETCH_CTRL_OFFSET_MASK;
+		val |= 15;
+
 		writel_relaxed(val, l2x0_base + L310_PREFETCH_CTRL);
 	}
 
