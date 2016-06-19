@@ -72,6 +72,7 @@ int qed_sp_eth_vport_start(struct qed_hwfn *p_hwfn,
 	p_ramrod->mtu			= cpu_to_le16(p_params->mtu);
 	p_ramrod->inner_vlan_removal_en	= p_params->remove_inner_vlan;
 	p_ramrod->drop_ttl0_en		= p_params->drop_ttl0;
+	p_ramrod->untagged		= p_params->only_untagged;
 
 	SET_FIELD(rx_mode, ETH_VPORT_RX_MODE_UCAST_DROP_ALL, 1);
 	SET_FIELD(rx_mode, ETH_VPORT_RX_MODE_MCAST_DROP_ALL, 1);
@@ -246,10 +247,6 @@ qed_sp_update_accept_mode(struct qed_hwfn *p_hwfn,
 
 		SET_FIELD(state, ETH_VPORT_TX_MODE_UCAST_DROP_ALL,
 			  !!(accept_filter & QED_ACCEPT_NONE));
-
-		SET_FIELD(state, ETH_VPORT_TX_MODE_UCAST_ACCEPT_ALL,
-			  (!!(accept_filter & QED_ACCEPT_UCAST_MATCHED) &&
-			   !!(accept_filter & QED_ACCEPT_UCAST_UNMATCHED)));
 
 		SET_FIELD(state, ETH_VPORT_TX_MODE_MCAST_DROP_ALL,
 			  !!(accept_filter & QED_ACCEPT_NONE));
@@ -1748,7 +1745,8 @@ static int qed_start_vport(struct qed_dev *cdev,
 			   start.vport_id, start.mtu);
 	}
 
-	qed_reset_vport_stats(cdev);
+	if (params->clear_stats)
+		qed_reset_vport_stats(cdev);
 
 	return 0;
 }
