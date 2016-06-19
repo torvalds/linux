@@ -5091,6 +5091,11 @@ static int wl12xx_update_sta_state(struct wl1271 *wl,
 		if (ret < 0)
 			return ret;
 
+		/* reconfigure rates */
+		ret = wl12xx_cmd_add_peer(wl, wlvif, sta, wl_sta->hlid);
+		if (ret < 0)
+			return ret;
+
 		ret = wl1271_acx_set_ht_capabilities(wl, &sta->ht_cap, true,
 						     wl_sta->hlid);
 		if (ret)
