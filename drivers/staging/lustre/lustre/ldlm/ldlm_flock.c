@@ -255,14 +255,13 @@ reprocess:
 			 * overflow and underflow.
 			 */
 			if ((new->l_policy_data.l_flock.start >
-			     (lock->l_policy_data.l_flock.end + 1))
-			    && (lock->l_policy_data.l_flock.end !=
-				OBD_OBJECT_EOF))
+			     (lock->l_policy_data.l_flock.end + 1)) &&
+			    (lock->l_policy_data.l_flock.end != OBD_OBJECT_EOF))
 				continue;
 
 			if ((new->l_policy_data.l_flock.end <
-			     (lock->l_policy_data.l_flock.start - 1))
-			    && (lock->l_policy_data.l_flock.start != 0))
+			     (lock->l_policy_data.l_flock.start - 1)) &&
+			    (lock->l_policy_data.l_flock.start != 0))
 				break;
 
 			if (new->l_policy_data.l_flock.start <

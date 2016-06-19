@@ -1017,8 +1017,8 @@ int class_process_proc_param(char *prefix, struct lprocfs_vars *lvars,
 		/* Search proc entries */
 		while (lvars[j].name) {
 			var = &lvars[j];
-			if (!class_match_param(key, var->name, NULL)
-			    && keylen == strlen(var->name)) {
+			if (!class_match_param(key, var->name, NULL) &&
+			    keylen == strlen(var->name)) {
 				matched++;
 				rc = -EROFS;
 				if (var->fops && var->fops->write) {
