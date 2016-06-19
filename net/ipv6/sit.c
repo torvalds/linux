@@ -484,6 +484,7 @@ static int ipip6_err(struct sk_buff *skb, u32 info)
 	const struct iphdr *iph = (const struct iphdr *)skb->data;
 	const int type = icmp_hdr(skb)->type;
 	const int code = icmp_hdr(skb)->code;
+	unsigned int data_len = 0;
 	struct ip_tunnel *t;
 	int err;
 
@@ -508,6 +509,7 @@ static int ipip6_err(struct sk_buff *skb, u32 info)
 	case ICMP_TIME_EXCEEDED:
 		if (code != ICMP_EXC_TTL)
 			return 0;
+		data_len = icmp_hdr(skb)->un.reserved[1] * 4; /* RFC 4884 4.1 */
 		break;
 	case ICMP_REDIRECT:
 		break;
@@ -536,7 +538,7 @@ static int ipip6_err(struct sk_buff *skb, u32 info)
 	}
 
 	err = 0;
-	if (!ip6_err_gen_icmpv6_unreach(skb, iph->ihl * 4, type))
+	if (!ip6_err_gen_icmpv6_unreach(skb, iph->ihl * 4, type, data_len))
 		goto out;
 
 	if (t->parms.iph.daddr == 0)
