@@ -25,7 +25,7 @@
 #include "drmP.h"
 #include "amdgpu.h"
 #include "ppsmc.h"
-#include "iceland_smumgr.h"
+#include "iceland_smum.h"
 #include "smu_ucode_xfer_vi.h"
 #include "amdgpu_ucode.h"
 
