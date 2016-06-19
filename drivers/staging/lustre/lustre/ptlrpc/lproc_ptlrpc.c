@@ -1158,7 +1158,6 @@ void ptlrpc_lprocfs_brw(struct ptlrpc_request *req, int bytes)
 
 	lprocfs_counter_add(svc_stats, idx, bytes);
 }
-
 EXPORT_SYMBOL(ptlrpc_lprocfs_brw);
 
 void ptlrpc_lprocfs_unregister_service(struct ptlrpc_service *svc)
