@@ -30,6 +30,7 @@
 #include "linux/delay.h"
 #include "cz_smumgr.h"
 #include "tonga_smumgr.h"
+#include "iceland_smumgr.h"
 #include "fiji_smumgr.h"
 #include "polaris10_smumgr.h"
 
@@ -58,6 +59,9 @@ int smum_init(struct amd_pp_init *pp_init, struct pp_instance *handle)
 		break;
 	case AMDGPU_FAMILY_VI:
 		switch (smumgr->chip_id) {
+		case CHIP_TOPAZ:
+			iceland_smum_init(smumgr);
+			break;
 		case CHIP_TONGA:
 			tonga_smum_init(smumgr);
 			break;
