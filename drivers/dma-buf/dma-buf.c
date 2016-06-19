@@ -824,7 +824,7 @@ void dma_buf_vunmap(struct dma_buf *dmabuf, void *vaddr)
 EXPORT_SYMBOL_GPL(dma_buf_vunmap);
 
 #ifdef CONFIG_DEBUG_FS
-static int dma_buf_describe(struct seq_file *s)
+static int dma_buf_debug_show(struct seq_file *s, void *unused)
 {
 	int ret;
 	struct dma_buf *buf_obj;
@@ -879,17 +879,9 @@ static int dma_buf_describe(struct seq_file *s)
 	return 0;
 }
 
-static int dma_buf_show(struct seq_file *s, void *unused)
-{
-	void (*func)(struct seq_file *) = s->private;
-
-	func(s);
-	return 0;
-}
-
 static int dma_buf_debug_open(struct inode *inode, struct file *file)
 {
-	return single_open(file, dma_buf_show, inode->i_private);
+	return single_open(file, dma_buf_debug_show, NULL);
 }
 
 static const struct file_operations dma_buf_debug_fops = {
@@ -913,7 +905,7 @@ static int dma_buf_init_debugfs(void)
 		return err;
 	}
 
-	err = dma_buf_debugfs_create_file("bufinfo", dma_buf_describe);
+	err = dma_buf_debugfs_create_file("bufinfo", NULL);
 
 	if (err)
 		pr_debug("dma_buf: debugfs: failed to create node bufinfo\n");
