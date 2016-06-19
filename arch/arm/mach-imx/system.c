@@ -98,13 +98,11 @@ void __init imx_init_l2cache(void)
 
 	np = of_find_compatible_node(NULL, NULL, "arm,pl310-cache");
 	if (!np)
-		goto out;
+		return;
 
 	l2x0_base = of_iomap(np, 0);
-	if (!l2x0_base) {
-		of_node_put(np);
-		goto out;
-	}
+	if (!l2x0_base)
+		goto put_node;
 
 	if (!(readl_relaxed(l2x0_base + L2X0_CTRL) & L2X0_CTRL_EN)) {
 		/* Configure the L2 PREFETCH and POWER registers */
@@ -121,9 +119,7 @@ void __init imx_init_l2cache(void)
 	}
 
 	iounmap(l2x0_base);
+put_node:
 	of_node_put(np);
-
-out:
-	l2x0_of_init(0, ~0);
 }
 #endif
