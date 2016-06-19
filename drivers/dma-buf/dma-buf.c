@@ -895,22 +895,22 @@ static struct dentry *dma_buf_debugfs_dir;
 
 static int dma_buf_init_debugfs(void)
 {
+	struct dentry *d;
 	int err = 0;
 
-	dma_buf_debugfs_dir = debugfs_create_dir("dma_buf", NULL);
+	d = debugfs_create_dir("dma_buf", NULL);
+	if (IS_ERR(d))
+		return PTR_ERR(d);
 
-	if (IS_ERR(dma_buf_debugfs_dir)) {
-		err = PTR_ERR(dma_buf_debugfs_dir);
-		dma_buf_debugfs_dir = NULL;
-		return err;
-	}
+	dma_buf_debugfs_dir = d;
 
-	err = dma_buf_debugfs_create_file("bufinfo", NULL);
-
-	if (err) {
+	d = debugfs_create_file("bufinfo", S_IRUGO, dma_buf_debugfs_dir,
+				NULL, &dma_buf_debug_fops);
+	if (IS_ERR(d)) {
 		pr_debug("dma_buf: debugfs: failed to create node bufinfo\n");
 		debugfs_remove_recursive(dma_buf_debugfs_dir);
 		dma_buf_debugfs_dir = NULL;
+		err = PTR_ERR(d);
 	}
 
 	return err;
@@ -920,17 +920,6 @@ static void dma_buf_uninit_debugfs(void)
 {
 	if (dma_buf_debugfs_dir)
 		debugfs_remove_recursive(dma_buf_debugfs_dir);
-}
-
-int dma_buf_debugfs_create_file(const char *name,
-				int (*write)(struct seq_file *))
-{
-	struct dentry *d;
-
-	d = debugfs_create_file(name, S_IRUGO, dma_buf_debugfs_dir,
-			write, &dma_buf_debug_fops);
-
-	return PTR_ERR_OR_ZERO(d);
 }
 #else
 static inline int dma_buf_init_debugfs(void)
