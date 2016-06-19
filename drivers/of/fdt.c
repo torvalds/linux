@@ -395,7 +395,7 @@ static int unflatten_dt_nodes(const void *blob,
 			      struct device_node **nodepp)
 {
 	struct device_node *root;
-	int offset = 0, depth = 0;
+	int offset = 0, depth = 0, initial_depth = 0;
 #define FDT_MAX_DEPTH	64
 	unsigned int fpsizes[FDT_MAX_DEPTH];
 	struct device_node *nps[FDT_MAX_DEPTH];
@@ -405,11 +405,22 @@ static int unflatten_dt_nodes(const void *blob,
 	if (nodepp)
 		*nodepp = NULL;
 
+	/*
+	 * We're unflattening device sub-tree if @dad is valid. There are
+	 * possibly multiple nodes in the first level of depth. We need
+	 * set @depth to 1 to make fdt_next_node() happy as it bails
+	 * immediately when negative @depth is found. Otherwise, the device
+	 * nodes except the first one won't be unflattened successfully.
+	 */
+	if (dad)
+		depth = initial_depth = 1;
+
 	root = dad;
 	fpsizes[depth] = dad ? strlen(of_node_full_name(dad)) : 0;
 	nps[depth] = dad;
+
 	for (offset = 0;
-	     offset >= 0 && depth >= 0;
+	     offset >= 0 && depth >= initial_depth;
 	     offset = fdt_next_node(blob, offset, &depth)) {
 		if (WARN_ON_ONCE(depth >= FDT_MAX_DEPTH))
 			continue;
