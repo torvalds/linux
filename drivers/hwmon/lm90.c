@@ -790,16 +790,14 @@ static inline int temp_from_u8_adt7461(struct lm90_data *data, u8 val)
 {
 	if (data->flags & LM90_FLAG_ADT7461_EXT)
 		return (val - 64) * 1000;
-	else
-		return temp_from_s8(val);
+	return temp_from_s8(val);
 }
 
 static inline int temp_from_u16_adt7461(struct lm90_data *data, u16 val)
 {
 	if (data->flags & LM90_FLAG_ADT7461_EXT)
 		return (val - 0x4000) / 64 * 250;
-	else
-		return temp_from_s16(val);
+	return temp_from_s16(val);
 }
 
 static u8 temp_to_u8_adt7461(struct lm90_data *data, long val)
@@ -810,13 +808,12 @@ static u8 temp_to_u8_adt7461(struct lm90_data *data, long val)
 		if (val >= 191000)
 			return 0xFF;
 		return (val + 500 + 64000) / 1000;
-	} else {
-		if (val <= 0)
-			return 0;
-		if (val >= 127000)
-			return 127;
-		return (val + 500) / 1000;
 	}
+	if (val <= 0)
+		return 0;
+	if (val >= 127000)
+		return 127;
+	return (val + 500) / 1000;
 }
 
 static u16 temp_to_u16_adt7461(struct lm90_data *data, long val)
@@ -827,13 +824,12 @@ static u16 temp_to_u16_adt7461(struct lm90_data *data, long val)
 		if (val >= 191750)
 			return 0xFFC0;
 		return (val + 64000 + 125) / 250 * 64;
-	} else {
-		if (val <= 0)
-			return 0;
-		if (val >= 127750)
-			return 0x7FC0;
-		return (val + 125) / 250 * 64;
 	}
+	if (val <= 0)
+		return 0;
+	if (val >= 127750)
+		return 0x7FC0;
+	return (val + 125) / 250 * 64;
 }
 
 /*
