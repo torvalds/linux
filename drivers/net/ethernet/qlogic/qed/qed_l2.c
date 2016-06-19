@@ -72,6 +72,7 @@ int qed_sp_eth_vport_start(struct qed_hwfn *p_hwfn,
 	p_ramrod->mtu			= cpu_to_le16(p_params->mtu);
 	p_ramrod->inner_vlan_removal_en	= p_params->remove_inner_vlan;
 	p_ramrod->drop_ttl0_en		= p_params->drop_ttl0;
+	p_ramrod->untagged		= p_params->only_untagged;
 
 	SET_FIELD(rx_mode, ETH_VPORT_RX_MODE_UCAST_DROP_ALL, 1);
 	SET_FIELD(rx_mode, ETH_VPORT_RX_MODE_MCAST_DROP_ALL, 1);
