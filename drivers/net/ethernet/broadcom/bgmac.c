@@ -1320,7 +1320,7 @@ static int bgmac_open(struct net_device *net_dev)
 	}
 	napi_enable(&bgmac->napi);
 
-	phy_start(bgmac->phy_dev);
+	phy_start(net_dev->phydev);
 
 	netif_carrier_on(net_dev);
 	return 0;
@@ -1332,7 +1332,7 @@ static int bgmac_stop(struct net_device *net_dev)
 
 	netif_carrier_off(net_dev);
 
-	phy_stop(bgmac->phy_dev);
+	phy_stop(net_dev->phydev);
 
 	napi_disable(&bgmac->napi);
 	bgmac_chip_intrs_off(bgmac);
@@ -1370,12 +1370,10 @@ static int bgmac_set_mac_address(struct net_device *net_dev, void *addr)
 
 static int bgmac_ioctl(struct net_device *net_dev, struct ifreq *ifr, int cmd)
 {
-	struct bgmac *bgmac = netdev_priv(net_dev);
-
 	if (!netif_running(net_dev))
 		return -EINVAL;
 
-	return phy_mii_ioctl(bgmac->phy_dev, ifr, cmd);
+	return phy_mii_ioctl(net_dev->phydev, ifr, cmd);
 }
 
 static const struct net_device_ops bgmac_netdev_ops = {
@@ -1518,7 +1516,7 @@ static int bgmac_get_settings(struct net_device *net_dev,
 {
 	struct bgmac *bgmac = netdev_priv(net_dev);
 
-	return phy_ethtool_gset(bgmac->phy_dev, cmd);
+	return phy_ethtool_gset(net_dev->phydev, cmd);
 }
 
 static int bgmac_set_settings(struct net_device *net_dev,
@@ -1526,7 +1524,7 @@ static int bgmac_set_settings(struct net_device *net_dev,
 {
 	struct bgmac *bgmac = netdev_priv(net_dev);
 
-	return phy_ethtool_sset(bgmac->phy_dev, cmd);
+	return phy_ethtool_sset(net_dev->phydev, cmd);
 }
 
 static void bgmac_get_drvinfo(struct net_device *net_dev,
@@ -1563,7 +1561,7 @@ static int bgmac_mii_write(struct mii_bus *bus, int mii_id, int regnum,
 static void bgmac_adjust_link(struct net_device *net_dev)
 {
 	struct bgmac *bgmac = netdev_priv(net_dev);
-	struct phy_device *phy_dev = bgmac->phy_dev;
+	struct phy_device *phy_dev = net_dev->phydev;
 	bool update = false;
 
 	if (phy_dev->link) {
@@ -1606,8 +1604,6 @@ static int bgmac_fixed_phy_register(struct bgmac *bgmac)
 		bgmac_err(bgmac, "Connecting PHY failed\n");
 		return err;
 	}
-
-	bgmac->phy_dev = phy_dev;
 
 	return err;
 }
@@ -1653,7 +1649,6 @@ static int bgmac_mii_register(struct bgmac *bgmac)
 		err = PTR_ERR(phy_dev);
 		goto err_unregister_bus;
 	}
-	bgmac->phy_dev = phy_dev;
 
 	return err;
 

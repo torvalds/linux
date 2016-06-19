@@ -441,7 +441,6 @@ struct bgmac {
 	struct net_device *net_dev;
 	struct napi_struct napi;
 	struct mii_bus *mii_bus;
-	struct phy_device *phy_dev;
 
 	/* DMA */
 	struct bgmac_dma_ring tx_ring[BGMAC_MAX_TX_RINGS];
