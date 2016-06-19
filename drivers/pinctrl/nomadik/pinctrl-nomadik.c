@@ -854,7 +854,7 @@ static int nmk_gpio_get_dir(struct gpio_chip *chip, unsigned offset)
 
 	clk_enable(nmk_chip->clk);
 
-	dir = !!(readl(nmk_chip->addr + NMK_GPIO_DIR) & BIT(offset));
+	dir = !(readl(nmk_chip->addr + NMK_GPIO_DIR) & BIT(offset));
 
 	clk_disable(nmk_chip->clk);
 

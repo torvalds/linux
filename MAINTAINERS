@@ -7990,6 +7990,7 @@ Q:	http://patchwork.ozlabs.org/project/netdev/list/
 T:	git git://git.kernel.org/pub/scm/linux/kernel/git/davem/net.git
 T:	git git://git.kernel.org/pub/scm/linux/kernel/git/davem/net-next.git
 S:	Odd Fixes
+F:	Documentation/devicetree/bindings/net/
 F:	drivers/net/
 F:	include/linux/if_*
 F:	include/linux/netdevice.h
@@ -8945,6 +8946,7 @@ M:	Linus Walleij <linus.walleij@linaro.org>
 L:	linux-gpio@vger.kernel.org
 T:	git git://git.kernel.org/pub/scm/linux/kernel/git/linusw/linux-pinctrl.git
 S:	Maintained
+F:	Documentation/devicetree/bindings/pinctrl/
 F:	drivers/pinctrl/
 F:	include/linux/pinctrl/
 

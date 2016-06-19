@@ -712,6 +712,7 @@ static void ip6gre_tnl_link_config(struct ip6_tnl *t, int set_mtu)
 	fl6->daddr = p->raddr;
 	fl6->flowi6_oif = p->link;
 	fl6->flowlabel = 0;
+	fl6->flowi6_proto = IPPROTO_GRE;
 
 	if (!(p->flags&IP6_TNL_F_USE_ORIG_TCLASS))
 		fl6->flowlabel |= IPV6_TCLASS_MASK & p->flowinfo;
@@ -1027,6 +1028,8 @@ static int ip6gre_tunnel_init_common(struct net_device *dev)
 
 	dev->hard_header_len = LL_MAX_HEADER + t_hlen;
 	dev->mtu = ETH_DATA_LEN - t_hlen;
+	if (dev->type == ARPHRD_ETHER)
+		dev->mtu -= ETH_HLEN;
 	if (!(tunnel->parms.flags & IP6_TNL_F_IGN_ENCAP_LIMIT))
 		dev->mtu -= 8;
 

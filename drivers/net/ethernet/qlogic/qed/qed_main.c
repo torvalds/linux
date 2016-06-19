@@ -413,15 +413,17 @@ static int qed_set_int_mode(struct qed_dev *cdev, bool force_mode)
 		/* Fallthrough */
 
 	case QED_INT_MODE_MSI:
-		rc = pci_enable_msi(cdev->pdev);
-		if (!rc) {
-			int_params->out.int_mode = QED_INT_MODE_MSI;
-			goto out;
-		}
+		if (cdev->num_hwfns == 1) {
+			rc = pci_enable_msi(cdev->pdev);
+			if (!rc) {
+				int_params->out.int_mode = QED_INT_MODE_MSI;
+				goto out;
+			}
 
-		DP_NOTICE(cdev, "Failed to enable MSI\n");
-		if (force_mode)
-			goto out;
+			DP_NOTICE(cdev, "Failed to enable MSI\n");
+			if (force_mode)
+				goto out;
+		}
 		/* Fallthrough */
 
 	case QED_INT_MODE_INTA:

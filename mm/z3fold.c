@@ -412,7 +412,7 @@ static void z3fold_free(struct z3fold_pool *pool, unsigned long handle)
 		/* HEADLESS page stored */
 		bud = HEADLESS;
 	} else {
-		bud = (handle - zhdr->first_num) & BUDDY_MASK;
+		bud = handle_to_buddy(handle);
 
 		switch (bud) {
 		case FIRST:
@@ -572,15 +572,19 @@ next:
 			pool->pages_nr--;
 			spin_unlock(&pool->lock);
 			return 0;
-		} else if (zhdr->first_chunks != 0 &&
-			   zhdr->last_chunks != 0 && zhdr->middle_chunks != 0) {
-			/* Full, add to buddied list */
-			list_add(&zhdr->buddy, &pool->buddied);
-		} else if (!test_bit(PAGE_HEADLESS, &page->private)) {
-			z3fold_compact_page(zhdr);
-			/* add to unbuddied list */
-			freechunks = num_free_chunks(zhdr);
-			list_add(&zhdr->buddy, &pool->unbuddied[freechunks]);
+		}  else if (!test_bit(PAGE_HEADLESS, &page->private)) {
+			if (zhdr->first_chunks != 0 &&
+			    zhdr->last_chunks != 0 &&
+			    zhdr->middle_chunks != 0) {
+				/* Full, add to buddied list */
+				list_add(&zhdr->buddy, &pool->buddied);
+			} else {
+				z3fold_compact_page(zhdr);
+				/* add to unbuddied list */
+				freechunks = num_free_chunks(zhdr);
+				list_add(&zhdr->buddy,
+					 &pool->unbuddied[freechunks]);
+			}
 		}
 
 		/* add to beginning of LRU */
