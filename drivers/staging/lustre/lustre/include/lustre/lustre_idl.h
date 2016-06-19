@@ -382,7 +382,7 @@ static inline __u64 fid_ver_oid(const struct lu_fid *fid)
  * used for other purposes and not risk collisions with existing inodes.
  *
  * Different FID Format
- * http://arch.lustre.org/index.php?title=Interoperability_fids_zfs#NEW.0
+ * http://wiki.old.lustre.org/index.php/Architecture_-_Interoperability_fids_zfs
  */
 enum fid_seq {
 	FID_SEQ_OST_MDT0	= 0,
@@ -700,7 +700,7 @@ static inline int fid_set_id(struct lu_fid *fid, __u64 oid)
  * be passed through unchanged.  Only legacy OST objects in "group 0"
  * will be mapped into the IDIF namespace so that they can fit into the
  * struct lu_fid fields without loss.  For reference see:
- * http://arch.lustre.org/index.php?title=Interoperability_fids_zfs
+ * http://wiki.old.lustre.org/index.php/Architecture_-_Interoperability_fids_zfs
  */
 static inline int ostid_to_fid(struct lu_fid *fid, struct ost_id *ostid,
 			       __u32 ost_idx)
