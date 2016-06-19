@@ -558,6 +558,45 @@ void icmpv6_param_prob(struct sk_buff *skb, u8 code, int pos)
 	kfree_skb(skb);
 }
 
+/* Generate icmpv6 with type/code ICMPV6_DEST_UNREACH/ICMPV6_ADDR_UNREACH
+ * if sufficient data bytes are available
+ * @nhs is the size of the tunnel header(s) :
+ *  Either an IPv4 header for SIT encap
+ *         an IPv4 header + GRE header for GRE encap
+ */
+int ip6_err_gen_icmpv6_unreach(struct sk_buff *skb, int nhs)
+{
+	struct rt6_info *rt;
+	struct sk_buff *skb2;
+
+	if (!pskb_may_pull(skb, nhs + sizeof(struct ipv6hdr) + 8))
+		return 1;
+
+	skb2 = skb_clone(skb, GFP_ATOMIC);
+
+	if (!skb2)
+		return 1;
+
+	skb_dst_drop(skb2);
+	skb_pull(skb2, nhs);
+	skb_reset_network_header(skb2);
+
+	rt = rt6_lookup(dev_net(skb->dev), &ipv6_hdr(skb2)->saddr, NULL, 0, 0);
+
+	if (rt && rt->dst.dev)
+		skb2->dev = rt->dst.dev;
+
+	icmpv6_send(skb2, ICMPV6_DEST_UNREACH, ICMPV6_ADDR_UNREACH, 0);
+
+	if (rt)
+		ip6_rt_put(rt);
+
+	kfree_skb(skb2);
+
+	return 0;
+}
+EXPORT_SYMBOL(ip6_err_gen_icmpv6_unreach);
+
 static void icmpv6_echo_reply(struct sk_buff *skb)
 {
 	struct net *net = dev_net(skb->dev);

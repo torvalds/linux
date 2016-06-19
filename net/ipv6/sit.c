@@ -479,42 +479,6 @@ static void ipip6_tunnel_uninit(struct net_device *dev)
 	dev_put(dev);
 }
 
-/* Generate icmpv6 with type/code ICMPV6_DEST_UNREACH/ICMPV6_ADDR_UNREACH
- * if sufficient data bytes are available
- */
-static int ipip6_err_gen_icmpv6_unreach(struct sk_buff *skb)
-{
-	int ihl = ((const struct iphdr *)skb->data)->ihl*4;
-	struct rt6_info *rt;
-	struct sk_buff *skb2;
-
-	if (!pskb_may_pull(skb, ihl + sizeof(struct ipv6hdr) + 8))
-		return 1;
-
-	skb2 = skb_clone(skb, GFP_ATOMIC);
-
-	if (!skb2)
-		return 1;
-
-	skb_dst_drop(skb2);
-	skb_pull(skb2, ihl);
-	skb_reset_network_header(skb2);
-
-	rt = rt6_lookup(dev_net(skb->dev), &ipv6_hdr(skb2)->saddr, NULL, 0, 0);
-
-	if (rt && rt->dst.dev)
-		skb2->dev = rt->dst.dev;
-
-	icmpv6_send(skb2, ICMPV6_DEST_UNREACH, ICMPV6_ADDR_UNREACH, 0);
-
-	if (rt)
-		ip6_rt_put(rt);
-
-	kfree_skb(skb2);
-
-	return 0;
-}
-
 static int ipip6_err(struct sk_buff *skb, u32 info)
 {
 	const struct iphdr *iph = (const struct iphdr *)skb->data;
@@ -575,7 +539,7 @@ static int ipip6_err(struct sk_buff *skb, u32 info)
 		goto out;
 
 	err = 0;
-	if (!ipip6_err_gen_icmpv6_unreach(skb))
+	if (!ip6_err_gen_icmpv6_unreach(skb, iph->ihl * 4))
 		goto out;
 
 	if (t->parms.iph.ttl == 0 && type == ICMP_TIME_EXCEEDED)
