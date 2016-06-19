@@ -2,7 +2,7 @@
  * USB Attached SCSI
  * Note that this is not the same as the USB Mass Storage driver
  *
- * Copyright Hans de Goede <hdegoede@redhat.com> for Red Hat, Inc. 2013 - 2014
+ * Copyright Hans de Goede <hdegoede@redhat.com> for Red Hat, Inc. 2013 - 2016
  * Copyright Matthew Wilcox for Intel Corp, 2010
  * Copyright Sarah Sharp for Intel Corp, 2010
  *
@@ -246,6 +246,29 @@ static void uas_xfer_data(struct urb *urb, struct scsi_cmnd *cmnd,
 	}
 }
 
+static bool uas_evaluate_response_iu(struct response_iu *riu, struct scsi_cmnd *cmnd)
+{
+	u8 response_code = riu->response_code;
+
+	switch (response_code) {
+	case RC_INCORRECT_LUN:
+		cmnd->result = DID_BAD_TARGET << 16;
+		break;
+	case RC_TMF_SUCCEEDED:
+		cmnd->result = DID_OK << 16;
+		break;
+	case RC_TMF_NOT_SUPPORTED:
+		cmnd->result = DID_TARGET_FAILURE << 16;
+		break;
+	default:
+		uas_log_cmd_state(cmnd, "response iu", response_code);
+		cmnd->result = DID_ERROR << 16;
+		break;
+	}
+
+	return response_code == RC_TMF_SUCCEEDED;
+}
+
 static void uas_stat_cmplt(struct urb *urb)
 {
 	struct iu *iu = urb->transfer_buffer;
@@ -258,6 +281,7 @@ static void uas_stat_cmplt(struct urb *urb)
 	unsigned long flags;
 	unsigned int idx;
 	int status = urb->status;
+	bool success;
 
 	spin_lock_irqsave(&devinfo->lock, flags);
 
@@ -313,13 +337,13 @@ static void uas_stat_cmplt(struct urb *urb)
 		uas_xfer_data(urb, cmnd, SUBMIT_DATA_OUT_URB);
 		break;
 	case IU_ID_RESPONSE:
-		uas_log_cmd_state(cmnd, "unexpected response iu",
-				  ((struct response_iu *)iu)->response_code);
-		/* Error, cancel data transfers */
-		data_in_urb = usb_get_urb(cmdinfo->data_in_urb);
-		data_out_urb = usb_get_urb(cmdinfo->data_out_urb);
 		cmdinfo->state &= ~COMMAND_INFLIGHT;
-		cmnd->result = DID_ERROR << 16;
+		success = uas_evaluate_response_iu((struct response_iu *)iu, cmnd);
+		if (!success) {
+			/* Error, cancel data transfers */
+			data_in_urb = usb_get_urb(cmdinfo->data_in_urb);
+			data_out_urb = usb_get_urb(cmdinfo->data_out_urb);
+		}
 		uas_try_complete(cmnd, __func__);
 		break;
 	default:
@@ -757,6 +781,17 @@ static int uas_eh_bus_reset_handler(struct scsi_cmnd *cmnd)
 	return SUCCESS;
 }
 
+static int uas_target_alloc(struct scsi_target *starget)
+{
+	struct uas_dev_info *devinfo = (struct uas_dev_info *)
+			dev_to_shost(starget->dev.parent)->hostdata;
+
+	if (devinfo->flags & US_FL_NO_REPORT_LUNS)
+		starget->no_report_luns = 1;
+
+	return 0;
+}
+
 static int uas_slave_alloc(struct scsi_device *sdev)
 {
 	struct uas_dev_info *devinfo =
@@ -800,7 +835,6 @@ static int uas_slave_configure(struct scsi_device *sdev)
 	if (devinfo->flags & US_FL_BROKEN_FUA)
 		sdev->broken_fua = 1;
 
-	scsi_change_queue_depth(sdev, devinfo->qdepth - 2);
 	return 0;
 }
 
@@ -808,11 +842,12 @@ static struct scsi_host_template uas_host_template = {
 	.module = THIS_MODULE,
 	.name = "uas",
 	.queuecommand = uas_queuecommand,
+	.target_alloc = uas_target_alloc,
 	.slave_alloc = uas_slave_alloc,
 	.slave_configure = uas_slave_configure,
 	.eh_abort_handler = uas_eh_abort_handler,
 	.eh_bus_reset_handler = uas_eh_bus_reset_handler,
-	.can_queue = 65536,	/* Is there a limit on the _host_ ? */
+	.can_queue = MAX_CMNDS,
 	.this_id = -1,
 	.sg_tablesize = SG_NONE,
 	.skip_settle_delay = 1,
@@ -931,6 +966,12 @@ static int uas_probe(struct usb_interface *intf, const struct usb_device_id *id)
 	result = uas_configure_endpoints(devinfo);
 	if (result)
 		goto set_alt0;
+
+	/*
+	 * 1 tag is reserved for untagged commands +
+	 * 1 tag to avoid off by one errors in some bridge firmwares
+	 */
+	shost->can_queue = devinfo->qdepth - 2;
 
 	usb_set_intfdata(intf, shost);
 	result = scsi_add_host(shost, &intf->dev);

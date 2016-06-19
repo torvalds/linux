@@ -18,6 +18,9 @@
 #include <linux/module.h>
 #include <linux/delay.h>
 #include <linux/device.h>
+#include <linux/gpio/consumer.h>
+#include <linux/of.h>
+#include <linux/of_gpio.h>
 
 #include <linux/spi/spi.h>
 
@@ -74,6 +77,7 @@
 
 #define KS8995_REGS_SIZE	0x80
 #define KSZ8864_REGS_SIZE	0x100
+#define KSZ8795_REGS_SIZE	0x100
 
 #define ID1_CHIPID_M		0xf
 #define ID1_CHIPID_S		4
@@ -82,15 +86,63 @@
 #define ID1_START_SW		1	/* start the switch */
 
 #define FAMILY_KS8995		0x95
+#define FAMILY_KSZ8795		0x87
 #define CHIPID_M		0
+#define KS8995_CHIP_ID		0x00
+#define KSZ8864_CHIP_ID		0x01
+#define KSZ8795_CHIP_ID		0x09
 
 #define KS8995_CMD_WRITE	0x02U
 #define KS8995_CMD_READ		0x03U
 
 #define KS8995_RESET_DELAY	10 /* usec */
 
+enum ks8995_chip_variant {
+	ks8995,
+	ksz8864,
+	ksz8795,
+	max_variant
+};
+
+struct ks8995_chip_params {
+	char *name;
+	int family_id;
+	int chip_id;
+	int regs_size;
+	int addr_width;
+	int addr_shift;
+};
+
+static const struct ks8995_chip_params ks8995_chip[] = {
+	[ks8995] = {
+		.name = "KS8995MA",
+		.family_id = FAMILY_KS8995,
+		.chip_id = KS8995_CHIP_ID,
+		.regs_size = KS8995_REGS_SIZE,
+		.addr_width = 8,
+		.addr_shift = 0,
+	},
+	[ksz8864] = {
+		.name = "KSZ8864RMN",
+		.family_id = FAMILY_KS8995,
+		.chip_id = KSZ8864_CHIP_ID,
+		.regs_size = KSZ8864_REGS_SIZE,
+		.addr_width = 8,
+		.addr_shift = 0,
+	},
+	[ksz8795] = {
+		.name = "KSZ8795CLX",
+		.family_id = FAMILY_KSZ8795,
+		.chip_id = KSZ8795_CHIP_ID,
+		.regs_size = KSZ8795_REGS_SIZE,
+		.addr_width = 12,
+		.addr_shift = 1,
+	},
+};
+
 struct ks8995_pdata {
-	/* not yet implemented */
+	int reset_gpio;
+	enum of_gpio_flags reset_gpio_flags;
 };
 
 struct ks8995_switch {
@@ -98,7 +150,17 @@ struct ks8995_switch {
 	struct mutex		lock;
 	struct ks8995_pdata	*pdata;
 	struct bin_attribute	regs_attr;
+	const struct ks8995_chip_params	*chip;
+	int			revision_id;
 };
+
+static const struct spi_device_id ks8995_id[] = {
+	{"ks8995", ks8995},
+	{"ksz8864", ksz8864},
+	{"ksz8795", ksz8795},
+	{ }
+};
+MODULE_DEVICE_TABLE(spi, ks8995_id);
 
 static inline u8 get_chip_id(u8 val)
 {
@@ -110,29 +172,50 @@ static inline u8 get_chip_rev(u8 val)
 	return (val >> ID1_REVISION_S) & ID1_REVISION_M;
 }
 
+/* create_spi_cmd - create a chip specific SPI command header
+ * @ks: pointer to switch instance
+ * @cmd: SPI command for switch
+ * @address: register address for command
+ *
+ * Different chip families use different bit pattern to address the switches
+ * registers:
+ *
+ * KS8995: 8bit command + 8bit address
+ * KSZ8795: 3bit command + 12bit address + 1bit TR (?)
+ */
+static inline __be16 create_spi_cmd(struct ks8995_switch *ks, int cmd,
+				    unsigned address)
+{
+	u16 result = cmd;
+
+	/* make room for address (incl. address shift) */
+	result <<= ks->chip->addr_width + ks->chip->addr_shift;
+	/* add address */
+	result |= address << ks->chip->addr_shift;
+	/* SPI protocol needs big endian */
+	return cpu_to_be16(result);
+}
 /* ------------------------------------------------------------------------ */
 static int ks8995_read(struct ks8995_switch *ks, char *buf,
 		 unsigned offset, size_t count)
 {
-	u8 cmd[2];
+	__be16 cmd;
 	struct spi_transfer t[2];
 	struct spi_message m;
 	int err;
 
+	cmd = create_spi_cmd(ks, KS8995_CMD_READ, offset);
 	spi_message_init(&m);
 
 	memset(&t, 0, sizeof(t));
 
-	t[0].tx_buf = cmd;
+	t[0].tx_buf = &cmd;
 	t[0].len = sizeof(cmd);
 	spi_message_add_tail(&t[0], &m);
 
 	t[1].rx_buf = buf;
 	t[1].len = count;
 	spi_message_add_tail(&t[1], &m);
-
-	cmd[0] = KS8995_CMD_READ;
-	cmd[1] = offset;
 
 	mutex_lock(&ks->lock);
 	err = spi_sync(ks->spi, &m);
@@ -141,29 +224,26 @@ static int ks8995_read(struct ks8995_switch *ks, char *buf,
 	return err ? err : count;
 }
 
-
 static int ks8995_write(struct ks8995_switch *ks, char *buf,
 		 unsigned offset, size_t count)
 {
-	u8 cmd[2];
+	__be16 cmd;
 	struct spi_transfer t[2];
 	struct spi_message m;
 	int err;
 
+	cmd = create_spi_cmd(ks, KS8995_CMD_WRITE, offset);
 	spi_message_init(&m);
 
 	memset(&t, 0, sizeof(t));
 
-	t[0].tx_buf = cmd;
+	t[0].tx_buf = &cmd;
 	t[0].len = sizeof(cmd);
 	spi_message_add_tail(&t[0], &m);
 
 	t[1].tx_buf = buf;
 	t[1].len = count;
 	spi_message_add_tail(&t[1], &m);
-
-	cmd[0] = KS8995_CMD_WRITE;
-	cmd[1] = offset;
 
 	mutex_lock(&ks->lock);
 	err = spi_sync(ks->spi, &m);
@@ -233,6 +313,107 @@ static ssize_t ks8995_registers_write(struct file *filp, struct kobject *kobj,
 	return ks8995_write(ks8995, buf, off, count);
 }
 
+/* ks8995_get_revision - get chip revision
+ * @ks: pointer to switch instance
+ *
+ * Verify chip family and id and get chip revision.
+ */
+static int ks8995_get_revision(struct ks8995_switch *ks)
+{
+	int err;
+	u8 id0, id1, ksz8864_id;
+
+	/* read family id */
+	err = ks8995_read_reg(ks, KS8995_REG_ID0, &id0);
+	if (err) {
+		err = -EIO;
+		goto err_out;
+	}
+
+	/* verify family id */
+	if (id0 != ks->chip->family_id) {
+		dev_err(&ks->spi->dev, "chip family id mismatch: expected 0x%02x but 0x%02x read\n",
+			ks->chip->family_id, id0);
+		err = -ENODEV;
+		goto err_out;
+	}
+
+	switch (ks->chip->family_id) {
+	case FAMILY_KS8995:
+		/* try reading chip id at CHIP ID1 */
+		err = ks8995_read_reg(ks, KS8995_REG_ID1, &id1);
+		if (err) {
+			err = -EIO;
+			goto err_out;
+		}
+
+		/* verify chip id */
+		if ((get_chip_id(id1) == CHIPID_M) &&
+		    (get_chip_id(id1) == ks->chip->chip_id)) {
+			/* KS8995MA */
+			ks->revision_id = get_chip_rev(id1);
+		} else if (get_chip_id(id1) != CHIPID_M) {
+			/* KSZ8864RMN */
+			err = ks8995_read_reg(ks, KS8995_REG_ID1, &ksz8864_id);
+			if (err) {
+				err = -EIO;
+				goto err_out;
+			}
+
+			if ((ksz8864_id & 0x80) &&
+			    (ks->chip->chip_id == KSZ8864_CHIP_ID)) {
+				ks->revision_id = get_chip_rev(id1);
+			}
+
+		} else {
+			dev_err(&ks->spi->dev, "unsupported chip id for KS8995 family: 0x%02x\n",
+				id1);
+			err = -ENODEV;
+		}
+		break;
+	case FAMILY_KSZ8795:
+		/* try reading chip id at CHIP ID1 */
+		err = ks8995_read_reg(ks, KS8995_REG_ID1, &id1);
+		if (err) {
+			err = -EIO;
+			goto err_out;
+		}
+
+		if (get_chip_id(id1) == ks->chip->chip_id) {
+			ks->revision_id = get_chip_rev(id1);
+		} else {
+			dev_err(&ks->spi->dev, "unsupported chip id for KSZ8795 family: 0x%02x\n",
+				id1);
+			err = -ENODEV;
+		}
+		break;
+	default:
+		dev_err(&ks->spi->dev, "unsupported family id: 0x%02x\n", id0);
+		err = -ENODEV;
+		break;
+	}
+err_out:
+	return err;
+}
+
+/* ks8995_parse_dt - setup platform data from devicetree
+ * @ks: pointer to switch instance
+ *
+ * Parses supported DT properties and sets up platform data
+ * accordingly.
+ */
+static void ks8995_parse_dt(struct ks8995_switch *ks)
+{
+	struct device_node *np = ks->spi->dev.of_node;
+	struct ks8995_pdata *pdata = ks->pdata;
+
+	if (!np)
+		return;
+
+	pdata->reset_gpio = of_get_named_gpio_flags(np, "reset-gpios", 0,
+		&pdata->reset_gpio_flags);
+}
+
 static const struct bin_attribute ks8995_registers_attr = {
 	.attr = {
 		.name   = "registers",
@@ -244,24 +425,58 @@ static const struct bin_attribute ks8995_registers_attr = {
 };
 
 /* ------------------------------------------------------------------------ */
-
 static int ks8995_probe(struct spi_device *spi)
 {
-	struct ks8995_switch    *ks;
-	struct ks8995_pdata     *pdata;
-	u8      ids[2];
-	int     err;
+	struct ks8995_switch *ks;
+	int err;
+	int variant = spi_get_device_id(spi)->driver_data;
 
-	/* Chip description */
-	pdata = spi->dev.platform_data;
+	if (variant >= max_variant) {
+		dev_err(&spi->dev, "bad chip variant %d\n", variant);
+		return -ENODEV;
+	}
 
 	ks = devm_kzalloc(&spi->dev, sizeof(*ks), GFP_KERNEL);
 	if (!ks)
 		return -ENOMEM;
 
 	mutex_init(&ks->lock);
-	ks->pdata = pdata;
-	ks->spi = spi_dev_get(spi);
+	ks->spi = spi;
+	ks->chip = &ks8995_chip[variant];
+
+	if (ks->spi->dev.of_node) {
+		ks->pdata = devm_kzalloc(&spi->dev, sizeof(*ks->pdata),
+					 GFP_KERNEL);
+		if (!ks->pdata)
+			return -ENOMEM;
+
+		ks->pdata->reset_gpio = -1;
+
+		ks8995_parse_dt(ks);
+	}
+
+	if (!ks->pdata)
+		ks->pdata = spi->dev.platform_data;
+
+	/* de-assert switch reset */
+	if (ks->pdata && gpio_is_valid(ks->pdata->reset_gpio)) {
+		unsigned long flags;
+
+		flags = (ks->pdata->reset_gpio_flags == OF_GPIO_ACTIVE_LOW ?
+			 GPIOF_ACTIVE_LOW : 0);
+
+		err = devm_gpio_request_one(&spi->dev,
+					    ks->pdata->reset_gpio,
+					    flags, "switch-reset");
+		if (err) {
+			dev_err(&spi->dev,
+				"failed to get reset-gpios: %d\n", err);
+			return -EIO;
+		}
+
+		gpiod_set_value(gpio_to_desc(ks->pdata->reset_gpio), 0);
+	}
+
 	spi_set_drvdata(spi, ks);
 
 	spi->mode = SPI_MODE_0;
@@ -272,39 +487,12 @@ static int ks8995_probe(struct spi_device *spi)
 		return err;
 	}
 
-	err = ks8995_read(ks, ids, KS8995_REG_ID0, sizeof(ids));
-	if (err < 0) {
-		dev_err(&spi->dev, "unable to read id registers, err=%d\n",
-				err);
+	err = ks8995_get_revision(ks);
+	if (err)
 		return err;
-	}
 
-	switch (ids[0]) {
-	case FAMILY_KS8995:
-		break;
-	default:
-		dev_err(&spi->dev, "unknown family id:%02x\n", ids[0]);
-		return -ENODEV;
-	}
-
+	ks->regs_attr.size = ks->chip->regs_size;
 	memcpy(&ks->regs_attr, &ks8995_registers_attr, sizeof(ks->regs_attr));
-	if (get_chip_id(ids[1]) != CHIPID_M) {
-		u8 val;
-
-		/* Check if this is a KSZ8864RMN */
-		err = ks8995_read(ks, &val, KSZ8864_REG_ID1, sizeof(val));
-		if (err < 0) {
-			dev_err(&spi->dev,
-				"unable to read chip id register, err=%d\n",
-				err);
-			return err;
-		}
-		if ((val & 0x80) == 0) {
-			dev_err(&spi->dev, "unknown chip:%02x,0\n", ids[1]);
-			return err;
-		}
-		ks->regs_attr.size = KSZ8864_REGS_SIZE;
-	}
 
 	err = ks8995_reset(ks);
 	if (err)
@@ -317,14 +505,8 @@ static int ks8995_probe(struct spi_device *spi)
 		return err;
 	}
 
-	if (get_chip_id(ids[1]) == CHIPID_M) {
-		dev_info(&spi->dev,
-			 "KS8995 device found, Chip ID:%x, Revision:%x\n",
-			 get_chip_id(ids[1]), get_chip_rev(ids[1]));
-	} else {
-		dev_info(&spi->dev, "KSZ8864 device found, Revision:%x\n",
-			 get_chip_rev(ids[1]));
-	}
+	dev_info(&spi->dev, "%s device found, Chip ID:%x, Revision:%x\n",
+		 ks->chip->name, ks->chip->chip_id, ks->revision_id);
 
 	return 0;
 }
@@ -335,17 +517,21 @@ static int ks8995_remove(struct spi_device *spi)
 
 	sysfs_remove_bin_file(&spi->dev.kobj, &ks->regs_attr);
 
+	/* assert reset */
+	if (ks->pdata && gpio_is_valid(ks->pdata->reset_gpio))
+		gpiod_set_value(gpio_to_desc(ks->pdata->reset_gpio), 1);
+
 	return 0;
 }
 
 /* ------------------------------------------------------------------------ */
-
 static struct spi_driver ks8995_driver = {
 	.driver = {
 		.name	    = "spi-ks8995",
 	},
 	.probe	  = ks8995_probe,
 	.remove	  = ks8995_remove,
+	.id_table = ks8995_id,
 };
 
 module_spi_driver(ks8995_driver);

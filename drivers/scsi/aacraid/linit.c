@@ -38,6 +38,7 @@
 #include <linux/module.h>
 #include <linux/moduleparam.h>
 #include <linux/pci.h>
+#include <linux/aer.h>
 #include <linux/pci-aspm.h>
 #include <linux/slab.h>
 #include <linux/mutex.h>
@@ -79,7 +80,7 @@ MODULE_VERSION(AAC_DRIVER_FULL_VERSION);
 
 static DEFINE_MUTEX(aac_mutex);
 static LIST_HEAD(aac_devices);
-static int aac_cfg_major = -1;
+static int aac_cfg_major = AAC_CHARDEV_UNREGISTERED;
 char aac_driver_version[] = AAC_DRIVER_FULL_VERSION;
 
 /*
@@ -451,8 +452,11 @@ static int aac_slave_configure(struct scsi_device *sdev)
 		else if (depth < 2)
 			depth = 2;
 		scsi_change_queue_depth(sdev, depth);
-	} else
+	} else {
 		scsi_change_queue_depth(sdev, 1);
+
+		sdev->tagged_supported = 1;
+	}
 
 	return 0;
 }
@@ -700,23 +704,18 @@ static int aac_cfg_open(struct inode *inode, struct file *file)
 static long aac_cfg_ioctl(struct file *file,
 		unsigned int cmd, unsigned long arg)
 {
-	int ret;
-	struct aac_dev *aac;
-	aac = (struct aac_dev *)file->private_data;
-	if (!capable(CAP_SYS_RAWIO) || aac->adapter_shutdown)
-		return -EPERM;
-	mutex_lock(&aac_mutex);
-	ret = aac_do_ioctl(file->private_data, cmd, (void __user *)arg);
-	mutex_unlock(&aac_mutex);
+	struct aac_dev *aac = (struct aac_dev *)file->private_data;
 
-	return ret;
+	if (!capable(CAP_SYS_RAWIO))
+		return -EPERM;
+
+	return aac_do_ioctl(aac, cmd, (void __user *)arg);
 }
 
 #ifdef CONFIG_COMPAT
 static long aac_compat_do_ioctl(struct aac_dev *dev, unsigned cmd, unsigned long arg)
 {
 	long ret;
-	mutex_lock(&aac_mutex);
 	switch (cmd) {
 	case FSACTL_MINIPORT_REV_CHECK:
 	case FSACTL_SENDFIB:
@@ -750,7 +749,6 @@ static long aac_compat_do_ioctl(struct aac_dev *dev, unsigned cmd, unsigned long
 		ret = -ENOIOCTLCMD;
 		break;
 	}
-	mutex_unlock(&aac_mutex);
 	return ret;
 }
 
@@ -1075,6 +1073,8 @@ static void __aac_shutdown(struct aac_dev * aac)
 	int i;
 	int cpu;
 
+	aac_send_shutdown(aac);
+
 	if (aac->aif_thread) {
 		int i;
 		/* Clear out events first */
@@ -1086,7 +1086,6 @@ static void __aac_shutdown(struct aac_dev * aac)
 		}
 		kthread_stop(aac->thread);
 	}
-	aac_send_shutdown(aac);
 	aac_adapter_disable_int(aac);
 	cpu = cpumask_first(cpu_online_mask);
 	if (aac->pdev->device == PMC_DEVICE_S6 ||
@@ -1120,6 +1119,13 @@ static void __aac_shutdown(struct aac_dev * aac)
 	else if (aac->max_msix > 1)
 		pci_disable_msix(aac->pdev);
 }
+static void aac_init_char(void)
+{
+	aac_cfg_major = register_chrdev(0, "aac", &aac_cfg_fops);
+	if (aac_cfg_major < 0) {
+		pr_err("aacraid: unable to register \"aac\" device.\n");
+	}
+}
 
 static int aac_probe_one(struct pci_dev *pdev, const struct pci_device_id *id)
 {
@@ -1131,6 +1137,12 @@ static int aac_probe_one(struct pci_dev *pdev, const struct pci_device_id *id)
 	int unique_id = 0;
 	u64 dmamask;
 	extern int aac_sync_mode;
+
+	/*
+	 * Only series 7 needs freset.
+	 */
+	 if (pdev->device == PMC_DEVICE_S7)
+		pdev->needs_freset = 1;
 
 	list_for_each_entry(aac, &aac_devices, entry) {
 		if (aac->id > unique_id)
@@ -1171,6 +1183,9 @@ static int aac_probe_one(struct pci_dev *pdev, const struct pci_device_id *id)
 	shost->max_cmd_len = 16;
 	shost->use_cmd_list = 1;
 
+	if (aac_cfg_major == AAC_CHARDEV_NEEDS_REINIT)
+		aac_init_char();
+
 	aac = (struct aac_dev *)shost->hostdata;
 	aac->base_start = pci_resource_start(pdev, 0);
 	aac->scsi_host_ptr = shost;
@@ -1185,6 +1200,7 @@ static int aac_probe_one(struct pci_dev *pdev, const struct pci_device_id *id)
 		goto out_free_host;
 	spin_lock_init(&aac->fib_lock);
 
+	mutex_init(&aac->ioctl_mutex);
 	/*
 	 *	Map in the registers from the adapter.
 	 */
@@ -1296,6 +1312,9 @@ static int aac_probe_one(struct pci_dev *pdev, const struct pci_device_id *id)
 		goto out_deinit;
 	scsi_scan_host(shost);
 
+	pci_enable_pcie_error_reporting(pdev);
+	pci_save_state(pdev);
+
 	return 0;
 
  out_deinit:
@@ -1317,7 +1336,6 @@ static int aac_probe_one(struct pci_dev *pdev, const struct pci_device_id *id)
 	return error;
 }
 
-#if (defined(CONFIG_PM))
 static void aac_release_resources(struct aac_dev *aac)
 {
 	int i;
@@ -1404,14 +1422,26 @@ static int aac_acquire_resources(struct aac_dev *dev)
 
 	aac_adapter_enable_int(dev);
 
-	if (!dev->sync_mode)
+	/*max msix may change  after EEH
+	 * Re-assign vectors to fibs
+	 */
+	aac_fib_vector_assign(dev);
+
+	if (!dev->sync_mode) {
+		/* After EEH recovery or suspend resume, max_msix count
+		 * may change, therfore updating in init as well.
+		 */
 		aac_adapter_start(dev);
+		dev->init->Sa_MSIXVectors = cpu_to_le32(dev->max_msix);
+	}
 	return 0;
 
 error_iounmap:
 	return -1;
 
 }
+
+#if (defined(CONFIG_PM))
 static int aac_suspend(struct pci_dev *pdev, pm_message_t state)
 {
 
@@ -1495,9 +1525,141 @@ static void aac_remove_one(struct pci_dev *pdev)
 	pci_disable_device(pdev);
 	if (list_empty(&aac_devices)) {
 		unregister_chrdev(aac_cfg_major, "aac");
-		aac_cfg_major = -1;
+		aac_cfg_major = AAC_CHARDEV_NEEDS_REINIT;
 	}
 }
+
+static void aac_flush_ios(struct aac_dev *aac)
+{
+	int i;
+	struct scsi_cmnd *cmd;
+
+	for (i = 0; i < aac->scsi_host_ptr->can_queue; i++) {
+		cmd = (struct scsi_cmnd *)aac->fibs[i].callback_data;
+		if (cmd && (cmd->SCp.phase == AAC_OWNER_FIRMWARE)) {
+			scsi_dma_unmap(cmd);
+
+			if (aac->handle_pci_error)
+				cmd->result = DID_NO_CONNECT << 16;
+			else
+				cmd->result = DID_RESET << 16;
+
+			cmd->scsi_done(cmd);
+		}
+	}
+}
+
+static pci_ers_result_t aac_pci_error_detected(struct pci_dev *pdev,
+					enum pci_channel_state error)
+{
+	struct Scsi_Host *shost = pci_get_drvdata(pdev);
+	struct aac_dev *aac = shost_priv(shost);
+
+	dev_err(&pdev->dev, "aacraid: PCI error detected %x\n", error);
+
+	switch (error) {
+	case pci_channel_io_normal:
+		return PCI_ERS_RESULT_CAN_RECOVER;
+	case pci_channel_io_frozen:
+		aac->handle_pci_error = 1;
+
+		scsi_block_requests(aac->scsi_host_ptr);
+		aac_flush_ios(aac);
+		aac_release_resources(aac);
+
+		pci_disable_pcie_error_reporting(pdev);
+		aac_adapter_ioremap(aac, 0);
+
+		return PCI_ERS_RESULT_NEED_RESET;
+	case pci_channel_io_perm_failure:
+		aac->handle_pci_error = 1;
+
+		aac_flush_ios(aac);
+		return PCI_ERS_RESULT_DISCONNECT;
+	}
+
+	return PCI_ERS_RESULT_NEED_RESET;
+}
+
+static pci_ers_result_t aac_pci_mmio_enabled(struct pci_dev *pdev)
+{
+	dev_err(&pdev->dev, "aacraid: PCI error - mmio enabled\n");
+	return PCI_ERS_RESULT_NEED_RESET;
+}
+
+static pci_ers_result_t aac_pci_slot_reset(struct pci_dev *pdev)
+{
+	dev_err(&pdev->dev, "aacraid: PCI error - slot reset\n");
+	pci_restore_state(pdev);
+	if (pci_enable_device(pdev)) {
+		dev_warn(&pdev->dev,
+			"aacraid: failed to enable slave\n");
+		goto fail_device;
+	}
+
+	pci_set_master(pdev);
+
+	if (pci_enable_device_mem(pdev)) {
+		dev_err(&pdev->dev, "pci_enable_device_mem failed\n");
+		goto fail_device;
+	}
+
+	return PCI_ERS_RESULT_RECOVERED;
+
+fail_device:
+	dev_err(&pdev->dev, "aacraid: PCI error - slot reset failed\n");
+	return PCI_ERS_RESULT_DISCONNECT;
+}
+
+
+static void aac_pci_resume(struct pci_dev *pdev)
+{
+	struct Scsi_Host *shost = pci_get_drvdata(pdev);
+	struct scsi_device *sdev = NULL;
+	struct aac_dev *aac = (struct aac_dev *)shost_priv(shost);
+
+	pci_cleanup_aer_uncorrect_error_status(pdev);
+
+	if (aac_adapter_ioremap(aac, aac->base_size)) {
+
+		dev_err(&pdev->dev, "aacraid: ioremap failed\n");
+		/* remap failed, go back ... */
+		aac->comm_interface = AAC_COMM_PRODUCER;
+		if (aac_adapter_ioremap(aac, AAC_MIN_FOOTPRINT_SIZE)) {
+			dev_warn(&pdev->dev,
+				"aacraid: unable to map adapter.\n");
+
+			return;
+		}
+	}
+
+	msleep(10000);
+
+	aac_acquire_resources(aac);
+
+	/*
+	 * reset this flag to unblock ioctl() as it was set
+	 * at aac_send_shutdown() to block ioctls from upperlayer
+	 */
+	aac->adapter_shutdown = 0;
+	aac->handle_pci_error = 0;
+
+	shost_for_each_device(sdev, shost)
+		if (sdev->sdev_state == SDEV_OFFLINE)
+			sdev->sdev_state = SDEV_RUNNING;
+	scsi_unblock_requests(aac->scsi_host_ptr);
+	scsi_scan_host(aac->scsi_host_ptr);
+	pci_save_state(pdev);
+
+	dev_err(&pdev->dev, "aacraid: PCI error - resume\n");
+}
+
+static struct pci_error_handlers aac_pci_err_handler = {
+	.error_detected		= aac_pci_error_detected,
+	.mmio_enabled		= aac_pci_mmio_enabled,
+	.slot_reset		= aac_pci_slot_reset,
+	.resume			= aac_pci_resume,
+};
 
 static struct pci_driver aac_pci_driver = {
 	.name		= AAC_DRIVERNAME,
@@ -1509,6 +1671,7 @@ static struct pci_driver aac_pci_driver = {
 	.resume		= aac_resume,
 #endif
 	.shutdown	= aac_shutdown,
+	.err_handler    = &aac_pci_err_handler,
 };
 
 static int __init aac_init(void)
@@ -1522,11 +1685,8 @@ static int __init aac_init(void)
 	if (error < 0)
 		return error;
 
-	aac_cfg_major = register_chrdev( 0, "aac", &aac_cfg_fops);
-	if (aac_cfg_major < 0) {
-		printk(KERN_WARNING
-			"aacraid: unable to register \"aac\" device.\n");
-	}
+	aac_init_char();
+
 
 	return 0;
 }

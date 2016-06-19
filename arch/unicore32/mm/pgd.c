@@ -54,7 +54,7 @@ pgd_t *get_pgd_slow(struct mm_struct *mm)
 		if (!new_pmd)
 			goto no_pmd;
 
-		new_pte = pte_alloc_map(mm, NULL, new_pmd, 0);
+		new_pte = pte_alloc_map(mm, new_pmd, 0);
 		if (!new_pte)
 			goto no_pte;
 

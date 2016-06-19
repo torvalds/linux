@@ -278,7 +278,7 @@ static umode_t genwqe_is_visible(struct kobject *kobj,
 				 struct attribute *attr, int n)
 {
 	unsigned int j;
-	struct device *dev = container_of(kobj, struct device, kobj);
+	struct device *dev = kobj_to_dev(kobj);
 	struct genwqe_dev *cd = dev_get_drvdata(dev);
 	umode_t mode = attr->mode;
 

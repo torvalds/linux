@@ -27,7 +27,6 @@
 
 #include "board.h"
 
-
 static struct fb_videomode lcdc0_mode = {
 	.name		= "AMPIER/AM-800480",
 	.xres		= 800,

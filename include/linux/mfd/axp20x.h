@@ -18,6 +18,7 @@ enum {
 	AXP202_ID,
 	AXP209_ID,
 	AXP221_ID,
+	AXP223_ID,
 	AXP288_ID,
 	NR_AXP20X_VARIANTS,
 };
@@ -396,7 +397,7 @@ enum axp288_irqs {
 
 struct axp20x_dev {
 	struct device			*dev;
-	struct i2c_client		*i2c_client;
+	int				irq;
 	struct regmap			*regmap;
 	struct regmap_irq_chip_data	*regmap_irqc;
 	long				variant;
@@ -461,5 +462,36 @@ static inline int axp20x_read_variable_width(struct regmap *regmap,
 
 	return result;
 }
+
+/**
+ * axp20x_match_device(): Setup axp20x variant related fields
+ *
+ * @axp20x: axp20x device to setup (.dev field must be set)
+ * @dev: device associated with this axp20x device
+ *
+ * This lets the axp20x core configure the mfd cells and register maps
+ * for later use.
+ */
+int axp20x_match_device(struct axp20x_dev *axp20x);
+
+/**
+ * axp20x_device_probe(): Probe a configured axp20x device
+ *
+ * @axp20x: axp20x device to probe (must be configured)
+ *
+ * This function lets the axp20x core register the axp20x mfd devices
+ * and irqchip. The axp20x device passed in must be fully configured
+ * with axp20x_match_device, its irq set, and regmap created.
+ */
+int axp20x_device_probe(struct axp20x_dev *axp20x);
+
+/**
+ * axp20x_device_probe(): Remove a axp20x device
+ *
+ * @axp20x: axp20x device to remove
+ *
+ * This tells the axp20x core to remove the associated mfd devices
+ */
+int axp20x_device_remove(struct axp20x_dev *axp20x);
 
 #endif /* __LINUX_MFD_AXP20X_H */

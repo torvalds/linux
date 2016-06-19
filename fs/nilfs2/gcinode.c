@@ -115,7 +115,7 @@ int nilfs_gccache_submit_read_data(struct inode *inode, sector_t blkoff,
 
  failed:
 	unlock_page(bh->b_page);
-	page_cache_release(bh->b_page);
+	put_page(bh->b_page);
 	return err;
 }
 

@@ -10,7 +10,7 @@
 
 #include <linux/init.h>
 #include <linux/spinlock.h>
-#include <linux/gpio.h>
+#include <linux/gpio/driver.h>
 #include <linux/errno.h>
 #include <linux/io.h>
 #include <asm/txx9pio.h>
@@ -85,5 +85,5 @@ int __init txx9_gpio_init(unsigned long baseaddr,
 		return -ENODEV;
 	txx9_gpio_chip.base = base;
 	txx9_gpio_chip.ngpio = num;
-	return gpiochip_add(&txx9_gpio_chip);
+	return gpiochip_add_data(&txx9_gpio_chip, NULL);
 }

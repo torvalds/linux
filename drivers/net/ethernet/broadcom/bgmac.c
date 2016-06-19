@@ -26,6 +26,18 @@ static const struct bcma_device_id bgmac_bcma_tbl[] = {
 };
 MODULE_DEVICE_TABLE(bcma, bgmac_bcma_tbl);
 
+static inline bool bgmac_is_bcm4707_family(struct bgmac *bgmac)
+{
+	switch (bgmac->core->bus->chipinfo.id) {
+	case BCMA_CHIP_ID_BCM4707:
+	case BCMA_CHIP_ID_BCM47094:
+	case BCMA_CHIP_ID_BCM53018:
+		return true;
+	default:
+		return false;
+	}
+}
+
 static bool bgmac_wait_value(struct bcma_device *core, u16 reg, u32 mask,
 			     u32 value, int timeout)
 {
@@ -987,11 +999,9 @@ static void bgmac_mac_speed(struct bgmac *bgmac)
 static void bgmac_miiconfig(struct bgmac *bgmac)
 {
 	struct bcma_device *core = bgmac->core;
-	struct bcma_chipinfo *ci = &core->bus->chipinfo;
 	u8 imode;
 
-	if (ci->id == BCMA_CHIP_ID_BCM4707 ||
-	    ci->id == BCMA_CHIP_ID_BCM53018) {
+	if (bgmac_is_bcm4707_family(bgmac)) {
 		bcma_awrite32(core, BCMA_IOCTL,
 			      bcma_aread32(core, BCMA_IOCTL) | 0x40 |
 			      BGMAC_BCMA_IOCTL_SW_CLKEN);
@@ -1043,8 +1053,9 @@ static void bgmac_chip_reset(struct bgmac *bgmac)
 	    (ci->id == BCMA_CHIP_ID_BCM53572 && ci->pkg == BCMA_PKG_ID_BCM47188))
 		iost &= ~BGMAC_BCMA_IOST_ATTACHED;
 
-	/* 3GMAC: for BCM4707, only do core reset at bgmac_probe() */
-	if (ci->id != BCMA_CHIP_ID_BCM4707) {
+	/* 3GMAC: for BCM4707 & BCM47094, only do core reset at bgmac_probe() */
+	if (ci->id != BCMA_CHIP_ID_BCM4707 &&
+	    ci->id != BCMA_CHIP_ID_BCM47094) {
 		flags = 0;
 		if (iost & BGMAC_BCMA_IOST_ATTACHED) {
 			flags = BGMAC_BCMA_IOCTL_SW_CLKEN;
@@ -1055,9 +1066,7 @@ static void bgmac_chip_reset(struct bgmac *bgmac)
 	}
 
 	/* Request Misc PLL for corerev > 2 */
-	if (core->id.rev > 2 &&
-	    ci->id != BCMA_CHIP_ID_BCM4707 &&
-	    ci->id != BCMA_CHIP_ID_BCM53018) {
+	if (core->id.rev > 2 && !bgmac_is_bcm4707_family(bgmac)) {
 		bgmac_set(bgmac, BCMA_CLKCTLST,
 			  BGMAC_BCMA_CLKCTLST_MISC_PLL_REQ);
 		bgmac_wait_value(bgmac->core, BCMA_CLKCTLST,
@@ -1193,8 +1202,7 @@ static void bgmac_enable(struct bgmac *bgmac)
 		break;
 	}
 
-	if (ci->id != BCMA_CHIP_ID_BCM4707 &&
-	    ci->id != BCMA_CHIP_ID_BCM53018) {
+	if (!bgmac_is_bcm4707_family(bgmac)) {
 		rxq_ctl = bgmac_read(bgmac, BGMAC_RXQ_CTL);
 		rxq_ctl &= ~BGMAC_RXQ_CTL_MDP_MASK;
 		bp_clk = bcma_pmu_get_bus_clock(&bgmac->core->bus->drv_cc) /
@@ -1472,14 +1480,12 @@ static int bgmac_fixed_phy_register(struct bgmac *bgmac)
 
 static int bgmac_mii_register(struct bgmac *bgmac)
 {
-	struct bcma_chipinfo *ci = &bgmac->core->bus->chipinfo;
 	struct mii_bus *mii_bus;
 	struct phy_device *phy_dev;
 	char bus_id[MII_BUS_ID_SIZE + 3];
 	int err = 0;
 
-	if (ci->id == BCMA_CHIP_ID_BCM4707 ||
-	    ci->id == BCMA_CHIP_ID_BCM53018)
+	if (bgmac_is_bcm4707_family(bgmac))
 		return bgmac_fixed_phy_register(bgmac);
 
 	mii_bus = mdiobus_alloc();
@@ -1539,7 +1545,6 @@ static void bgmac_mii_unregister(struct bgmac *bgmac)
 /* http://bcm-v4.sipsolutions.net/mac-gbit/gmac/chipattach */
 static int bgmac_probe(struct bcma_device *core)
 {
-	struct bcma_chipinfo *ci = &core->bus->chipinfo;
 	struct net_device *net_dev;
 	struct bgmac *bgmac;
 	struct ssb_sprom *sprom = &core->bus->sprom;
@@ -1566,6 +1571,11 @@ static int bgmac_probe(struct bcma_device *core)
 		eth_random_addr(mac);
 		dev_warn(&core->dev, "Using random MAC: %pM\n", mac);
 	}
+
+	/* This (reset &) enable is not preset in specs or reference driver but
+	 * Broadcom does it in arch PCI code when enabling fake PCI device.
+	 */
+	bcma_core_enable(core, 0);
 
 	/* Allocation and references */
 	net_dev = alloc_etherdev(sizeof(*bgmac));
@@ -1620,8 +1630,7 @@ static int bgmac_probe(struct bcma_device *core)
 	bgmac_chip_reset(bgmac);
 
 	/* For Northstar, we have to take all GMAC core out of reset */
-	if (ci->id == BCMA_CHIP_ID_BCM4707 ||
-	    ci->id == BCMA_CHIP_ID_BCM53018) {
+	if (bgmac_is_bcm4707_family(bgmac)) {
 		struct bcma_device *ns_core;
 		int ns_gmac;
 

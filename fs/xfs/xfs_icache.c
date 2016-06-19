@@ -63,6 +63,9 @@ xfs_inode_alloc(
 		return NULL;
 	}
 
+	/* VFS doesn't initialise i_mode! */
+	VFS_I(ip)->i_mode = 0;
+
 	XFS_STATS_INC(mp, vn_active);
 	ASSERT(atomic_read(&ip->i_pincount) == 0);
 	ASSERT(!spin_is_locked(&ip->i_flags_lock));
@@ -79,7 +82,7 @@ xfs_inode_alloc(
 	memset(&ip->i_df, 0, sizeof(xfs_ifork_t));
 	ip->i_flags = 0;
 	ip->i_delayed_blks = 0;
-	memset(&ip->i_d, 0, sizeof(xfs_icdinode_t));
+	memset(&ip->i_d, 0, sizeof(ip->i_d));
 
 	return ip;
 }
@@ -98,7 +101,7 @@ void
 xfs_inode_free(
 	struct xfs_inode	*ip)
 {
-	switch (ip->i_d.di_mode & S_IFMT) {
+	switch (VFS_I(ip)->i_mode & S_IFMT) {
 	case S_IFREG:
 	case S_IFDIR:
 	case S_IFLNK:
@@ -132,6 +135,34 @@ xfs_inode_free(
 	XFS_STATS_DEC(ip->i_mount, vn_active);
 
 	call_rcu(&VFS_I(ip)->i_rcu, xfs_inode_free_callback);
+}
+
+/*
+ * When we recycle a reclaimable inode, we need to re-initialise the VFS inode
+ * part of the structure. This is made more complex by the fact we store
+ * information about the on-disk values in the VFS inode and so we can't just
+ * overwrite the values unconditionally. Hence we save the parameters we
+ * need to retain across reinitialisation, and rewrite them into the VFS inode
+ * after reinitialisation even if it fails.
+ */
+static int
+xfs_reinit_inode(
+	struct xfs_mount	*mp,
+	struct inode		*inode)
+{
+	int		error;
+	uint32_t	nlink = inode->i_nlink;
+	uint32_t	generation = inode->i_generation;
+	uint64_t	version = inode->i_version;
+	umode_t		mode = inode->i_mode;
+
+	error = inode_init_always(mp->m_super, inode);
+
+	set_nlink(inode, nlink);
+	inode->i_generation = generation;
+	inode->i_version = version;
+	inode->i_mode = mode;
+	return error;
 }
 
 /*
@@ -185,7 +216,7 @@ xfs_iget_cache_hit(
 	/*
 	 * If lookup is racing with unlink return an error immediately.
 	 */
-	if (ip->i_d.di_mode == 0 && !(flags & XFS_IGET_CREATE)) {
+	if (VFS_I(ip)->i_mode == 0 && !(flags & XFS_IGET_CREATE)) {
 		error = -ENOENT;
 		goto out_error;
 	}
@@ -208,7 +239,7 @@ xfs_iget_cache_hit(
 		spin_unlock(&ip->i_flags_lock);
 		rcu_read_unlock();
 
-		error = inode_init_always(mp->m_super, inode);
+		error = xfs_reinit_inode(mp, inode);
 		if (error) {
 			/*
 			 * Re-initializing the inode failed, and we are in deep
@@ -295,7 +326,7 @@ xfs_iget_cache_miss(
 
 	trace_xfs_iget_miss(ip);
 
-	if ((ip->i_d.di_mode == 0) && !(flags & XFS_IGET_CREATE)) {
+	if ((VFS_I(ip)->i_mode == 0) && !(flags & XFS_IGET_CREATE)) {
 		error = -ENOENT;
 		goto out_destroy;
 	}
@@ -444,7 +475,7 @@ again:
 	 * If we have a real type for an on-disk inode, we can setup the inode
 	 * now.	 If it's a new inode being created, xfs_ialloc will handle it.
 	 */
-	if (xfs_iflags_test(ip, XFS_INEW) && ip->i_d.di_mode != 0)
+	if (xfs_iflags_test(ip, XFS_INEW) && VFS_I(ip)->i_mode != 0)
 		xfs_setup_existing_inode(ip);
 	return 0;
 

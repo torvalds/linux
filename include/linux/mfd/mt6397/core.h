@@ -60,6 +60,8 @@ struct mt6397_chip {
 	u16 wake_mask[2];
 	u16 irq_masks_cur[2];
 	u16 irq_masks_cache[2];
+	u16 int_con[2];
+	u16 int_status[2];
 };
 
 #endif /* __MFD_MT6397_CORE_H__ */

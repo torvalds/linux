@@ -138,10 +138,10 @@ static const struct {
 	[MLX5E_100BASE_TX]   = {
 		.speed      = 100,
 	},
-	[MLX5E_100BASE_T]    = {
-		.supported  = SUPPORTED_100baseT_Full,
-		.advertised = ADVERTISED_100baseT_Full,
-		.speed      = 100,
+	[MLX5E_1000BASE_T]    = {
+		.supported  = SUPPORTED_1000baseT_Full,
+		.advertised = ADVERTISED_1000baseT_Full,
+		.speed      = 1000,
 	},
 	[MLX5E_10GBASE_T]    = {
 		.supported  = SUPPORTED_10000baseT_Full,
@@ -211,13 +211,14 @@ static void mlx5e_get_strings(struct net_device *dev,
 				sprintf(data + (idx++) * ETH_GSTRING_LEN,
 					"rx%d_%s", i, rq_stats_strings[j]);
 
-		for (i = 0; i < priv->params.num_channels; i++)
-			for (tc = 0; tc < priv->params.num_tc; tc++)
+		for (tc = 0; tc < priv->params.num_tc; tc++)
+			for (i = 0; i < priv->params.num_channels; i++)
 				for (j = 0; j < NUM_SQ_STATS; j++)
 					sprintf(data +
-						(idx++) * ETH_GSTRING_LEN,
-						"tx%d_%d_%s", i, tc,
-						sq_stats_strings[j]);
+					      (idx++) * ETH_GSTRING_LEN,
+					      "tx%d_%s",
+					      priv->channeltc_to_txq_map[i][tc],
+					      sq_stats_strings[j]);
 		break;
 	}
 }
@@ -249,8 +250,8 @@ static void mlx5e_get_ethtool_stats(struct net_device *dev,
 						&priv->state) ? 0 :
 				       ((u64 *)&priv->channel[i]->rq.stats)[j];
 
-	for (i = 0; i < priv->params.num_channels; i++)
-		for (tc = 0; tc < priv->params.num_tc; tc++)
+	for (tc = 0; tc < priv->params.num_tc; tc++)
+		for (i = 0; i < priv->params.num_channels; i++)
 			for (j = 0; j < NUM_SQ_STATS; j++)
 				data[idx++] = !test_bit(MLX5E_STATE_OPENED,
 							&priv->state) ? 0 :
@@ -401,6 +402,9 @@ static int mlx5e_get_coalesce(struct net_device *netdev,
 {
 	struct mlx5e_priv *priv = netdev_priv(netdev);
 
+	if (!MLX5_CAP_GEN(priv->mdev, cq_moderation))
+		return -ENOTSUPP;
+
 	coal->rx_coalesce_usecs       = priv->params.rx_cq_moderation_usec;
 	coal->rx_max_coalesced_frames = priv->params.rx_cq_moderation_pkts;
 	coal->tx_coalesce_usecs       = priv->params.tx_cq_moderation_usec;
@@ -418,10 +422,17 @@ static int mlx5e_set_coalesce(struct net_device *netdev,
 	int tc;
 	int i;
 
+	if (!MLX5_CAP_GEN(mdev, cq_moderation))
+		return -ENOTSUPP;
+
+	mutex_lock(&priv->state_lock);
 	priv->params.tx_cq_moderation_usec = coal->tx_coalesce_usecs;
 	priv->params.tx_cq_moderation_pkts = coal->tx_max_coalesced_frames;
 	priv->params.rx_cq_moderation_usec = coal->rx_coalesce_usecs;
 	priv->params.rx_cq_moderation_pkts = coal->rx_max_coalesced_frames;
+
+	if (!test_bit(MLX5E_STATE_OPENED, &priv->state))
+		goto out;
 
 	for (i = 0; i < priv->params.num_channels; ++i) {
 		c = priv->channel[i];
@@ -438,6 +449,8 @@ static int mlx5e_set_coalesce(struct net_device *netdev,
 					       coal->rx_max_coalesced_frames);
 	}
 
+out:
+	mutex_unlock(&priv->state_lock);
 	return 0;
 }
 
@@ -900,6 +913,129 @@ static int mlx5e_get_ts_info(struct net_device *dev,
 	return 0;
 }
 
+static __u32 mlx5e_get_wol_supported(struct mlx5_core_dev *mdev)
+{
+	__u32 ret = 0;
+
+	if (MLX5_CAP_GEN(mdev, wol_g))
+		ret |= WAKE_MAGIC;
+
+	if (MLX5_CAP_GEN(mdev, wol_s))
+		ret |= WAKE_MAGICSECURE;
+
+	if (MLX5_CAP_GEN(mdev, wol_a))
+		ret |= WAKE_ARP;
+
+	if (MLX5_CAP_GEN(mdev, wol_b))
+		ret |= WAKE_BCAST;
+
+	if (MLX5_CAP_GEN(mdev, wol_m))
+		ret |= WAKE_MCAST;
+
+	if (MLX5_CAP_GEN(mdev, wol_u))
+		ret |= WAKE_UCAST;
+
+	if (MLX5_CAP_GEN(mdev, wol_p))
+		ret |= WAKE_PHY;
+
+	return ret;
+}
+
+static __u32 mlx5e_refomrat_wol_mode_mlx5_to_linux(u8 mode)
+{
+	__u32 ret = 0;
+
+	if (mode & MLX5_WOL_MAGIC)
+		ret |= WAKE_MAGIC;
+
+	if (mode & MLX5_WOL_SECURED_MAGIC)
+		ret |= WAKE_MAGICSECURE;
+
+	if (mode & MLX5_WOL_ARP)
+		ret |= WAKE_ARP;
+
+	if (mode & MLX5_WOL_BROADCAST)
+		ret |= WAKE_BCAST;
+
+	if (mode & MLX5_WOL_MULTICAST)
+		ret |= WAKE_MCAST;
+
+	if (mode & MLX5_WOL_UNICAST)
+		ret |= WAKE_UCAST;
+
+	if (mode & MLX5_WOL_PHY_ACTIVITY)
+		ret |= WAKE_PHY;
+
+	return ret;
+}
+
+static u8 mlx5e_refomrat_wol_mode_linux_to_mlx5(__u32 mode)
+{
+	u8 ret = 0;
+
+	if (mode & WAKE_MAGIC)
+		ret |= MLX5_WOL_MAGIC;
+
+	if (mode & WAKE_MAGICSECURE)
+		ret |= MLX5_WOL_SECURED_MAGIC;
+
+	if (mode & WAKE_ARP)
+		ret |= MLX5_WOL_ARP;
+
+	if (mode & WAKE_BCAST)
+		ret |= MLX5_WOL_BROADCAST;
+
+	if (mode & WAKE_MCAST)
+		ret |= MLX5_WOL_MULTICAST;
+
+	if (mode & WAKE_UCAST)
+		ret |= MLX5_WOL_UNICAST;
+
+	if (mode & WAKE_PHY)
+		ret |= MLX5_WOL_PHY_ACTIVITY;
+
+	return ret;
+}
+
+static void mlx5e_get_wol(struct net_device *netdev,
+			  struct ethtool_wolinfo *wol)
+{
+	struct mlx5e_priv *priv = netdev_priv(netdev);
+	struct mlx5_core_dev *mdev = priv->mdev;
+	u8 mlx5_wol_mode;
+	int err;
+
+	memset(wol, 0, sizeof(*wol));
+
+	wol->supported = mlx5e_get_wol_supported(mdev);
+	if (!wol->supported)
+		return;
+
+	err = mlx5_query_port_wol(mdev, &mlx5_wol_mode);
+	if (err)
+		return;
+
+	wol->wolopts = mlx5e_refomrat_wol_mode_mlx5_to_linux(mlx5_wol_mode);
+}
+
+static int mlx5e_set_wol(struct net_device *netdev, struct ethtool_wolinfo *wol)
+{
+	struct mlx5e_priv *priv = netdev_priv(netdev);
+	struct mlx5_core_dev *mdev = priv->mdev;
+	__u32 wol_supported = mlx5e_get_wol_supported(mdev);
+	u32 mlx5_wol_mode;
+
+	if (!wol_supported)
+		return -ENOTSUPP;
+
+	if (wol->wolopts & ~wol_supported)
+		return -EINVAL;
+
+	mlx5_wol_mode = mlx5e_refomrat_wol_mode_linux_to_mlx5(wol->wolopts);
+
+	return mlx5_set_port_wol(mdev, mlx5_wol_mode);
+}
+
 const struct ethtool_ops mlx5e_ethtool_ops = {
 	.get_drvinfo       = mlx5e_get_drvinfo,
 	.get_link          = ethtool_op_get_link,
@@ -924,4 +1060,6 @@ const struct ethtool_ops mlx5e_ethtool_ops = {
 	.get_pauseparam    = mlx5e_get_pauseparam,
 	.set_pauseparam    = mlx5e_set_pauseparam,
 	.get_ts_info       = mlx5e_get_ts_info,
+	.get_wol	   = mlx5e_get_wol,
+	.set_wol	   = mlx5e_set_wol,
 };

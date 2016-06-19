@@ -262,7 +262,10 @@ static void __init fpu__init_system_xstate_size_legacy(void)
  * not only saved the restores along the way, but we also have the
  * FPU ready to be used for the original task.
  *
- * 'eager' switching is used on modern CPUs, there we switch the FPU
+ * 'lazy' is deprecated because it's almost never a performance win
+ * and it's much more complicated than 'eager'.
+ *
+ * 'eager' switching is by default on all CPUs, there we switch the FPU
  * state during every context switch, regardless of whether the task
  * has used FPU instructions in that time slice or not. This is done
  * because modern FPU context saving instructions are able to optimize
@@ -273,7 +276,7 @@ static void __init fpu__init_system_xstate_size_legacy(void)
  *   to use 'eager' restores, if we detect that a task is using the FPU
  *   frequently. See the fpu->counter logic in fpu/internal.h for that. ]
  */
-static enum { AUTO, ENABLE, DISABLE } eagerfpu = AUTO;
+static enum { ENABLE, DISABLE } eagerfpu = ENABLE;
 
 /*
  * Find supported xfeatures based on cpu features and command-line input.
@@ -344,15 +347,9 @@ static void __init fpu__init_system_ctx_switch(void)
  */
 static void __init fpu__init_parse_early_param(void)
 {
-	/*
-	 * No need to check "eagerfpu=auto" again, since it is the
-	 * initial default.
-	 */
 	if (cmdline_find_option_bool(boot_command_line, "eagerfpu=off")) {
 		eagerfpu = DISABLE;
 		fpu__clear_eager_fpu_features();
-	} else if (cmdline_find_option_bool(boot_command_line, "eagerfpu=on")) {
-		eagerfpu = ENABLE;
 	}
 
 	if (cmdline_find_option_bool(boot_command_line, "no387"))

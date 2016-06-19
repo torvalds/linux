@@ -19,13 +19,13 @@
  * warranty of any kind, whether express or implied.
  */
 
-#include <linux/kernel.h>
-#include <linux/module.h>
-#include <linux/slab.h>
+#include <linux/acpi.h>
 #include <linux/i2c.h>
 #include <linux/i2c-mux.h>
+#include <linux/kernel.h>
+#include <linux/module.h>
 #include <linux/of.h>
-#include <linux/acpi.h>
+#include <linux/slab.h>
 
 /* multiplexer per channel data */
 struct i2c_mux_priv {

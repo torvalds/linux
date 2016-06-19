@@ -24,6 +24,7 @@
 
 /* Intel PCH thermal Device IDs */
 #define PCH_THERMAL_DID_WPT	0x9CA4 /* Wildcat Point */
+#define PCH_THERMAL_DID_SKL	0x9D31 /* Skylake PCH */
 
 /* Wildcat Point-LP  PCH Thermal registers */
 #define WPT_TEMP	0x0000	/* Temperature */
@@ -201,6 +202,10 @@ static int intel_pch_thermal_probe(struct pci_dev *pdev,
 		ptd->ops = &pch_dev_ops_wpt;
 		dev_name = "pch_wildcat_point";
 		break;
+	case PCH_THERMAL_DID_SKL:
+		ptd->ops = &pch_dev_ops_wpt;
+		dev_name = "pch_skylake";
+		break;
 	default:
 		dev_err(&pdev->dev, "unknown pch thermal device\n");
 		return -ENODEV;
@@ -266,6 +271,7 @@ static void intel_pch_thermal_remove(struct pci_dev *pdev)
 
 static struct pci_device_id intel_pch_thermal_id[] = {
 	{ PCI_DEVICE(PCI_VENDOR_ID_INTEL, PCH_THERMAL_DID_WPT) },
+	{ PCI_DEVICE(PCI_VENDOR_ID_INTEL, PCH_THERMAL_DID_SKL) },
 	{ 0, },
 };
 MODULE_DEVICE_TABLE(pci, intel_pch_thermal_id);

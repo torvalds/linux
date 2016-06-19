@@ -142,17 +142,6 @@ static unsigned long top_clk_regs[] __initdata = {
 	MUX_ENABLE_TOP_FSYS1,
 	MUX_ENABLE_TOP_PERIC0,
 	MUX_ENABLE_TOP_PERIC1,
-	MUX_STAT_TOP0,
-	MUX_STAT_TOP1,
-	MUX_STAT_TOP2,
-	MUX_STAT_TOP3,
-	MUX_STAT_TOP4,
-	MUX_STAT_TOP_MSCL,
-	MUX_STAT_TOP_CAM1,
-	MUX_STAT_TOP_FSYS0,
-	MUX_STAT_TOP_FSYS1,
-	MUX_STAT_TOP_PERIC0,
-	MUX_STAT_TOP_PERIC1,
 	DIV_TOP0,
 	DIV_TOP1,
 	DIV_TOP2,
@@ -170,22 +159,6 @@ static unsigned long top_clk_regs[] __initdata = {
 	DIV_TOP_PERIC3,
 	DIV_TOP_PERIC4,
 	DIV_TOP_PLL_FREQ_DET,
-	DIV_STAT_TOP0,
-	DIV_STAT_TOP1,
-	DIV_STAT_TOP2,
-	DIV_STAT_TOP3,
-	DIV_STAT_TOP4,
-	DIV_STAT_TOP_MSCL,
-	DIV_STAT_TOP_CAM10,
-	DIV_STAT_TOP_CAM11,
-	DIV_STAT_TOP_FSYS0,
-	DIV_STAT_TOP_FSYS1,
-	DIV_STAT_TOP_FSYS2,
-	DIV_STAT_TOP_PERIC0,
-	DIV_STAT_TOP_PERIC1,
-	DIV_STAT_TOP_PERIC2,
-	DIV_STAT_TOP_PERIC3,
-	DIV_STAT_TOP_PLL_FREQ_DET,
 	ENABLE_ACLK_TOP,
 	ENABLE_SCLK_TOP,
 	ENABLE_SCLK_TOP_MSCL,
@@ -251,18 +224,18 @@ static struct samsung_fixed_factor_clock top_fixed_factor_clks[] __initdata = {
 
 static struct samsung_fixed_rate_clock top_fixed_clks[] __initdata = {
 	/* Xi2s{0|1}CDCLK input clock for I2S/PCM */
-	FRATE(0, "ioclk_audiocdclk1", NULL, CLK_IS_ROOT, 100000000),
-	FRATE(0, "ioclk_audiocdclk0", NULL, CLK_IS_ROOT, 100000000),
+	FRATE(0, "ioclk_audiocdclk1", NULL, 0, 100000000),
+	FRATE(0, "ioclk_audiocdclk0", NULL, 0, 100000000),
 	/* Xi2s1SDI input clock for SPDIF */
-	FRATE(0, "ioclk_spdif_extclk", NULL, CLK_IS_ROOT, 100000000),
+	FRATE(0, "ioclk_spdif_extclk", NULL, 0, 100000000),
 	/* XspiCLK[4:0] input clock for SPI */
-	FRATE(0, "ioclk_spi4_clk_in", NULL, CLK_IS_ROOT, 50000000),
-	FRATE(0, "ioclk_spi3_clk_in", NULL, CLK_IS_ROOT, 50000000),
-	FRATE(0, "ioclk_spi2_clk_in", NULL, CLK_IS_ROOT, 50000000),
-	FRATE(0, "ioclk_spi1_clk_in", NULL, CLK_IS_ROOT, 50000000),
-	FRATE(0, "ioclk_spi0_clk_in", NULL, CLK_IS_ROOT, 50000000),
+	FRATE(0, "ioclk_spi4_clk_in", NULL, 0, 50000000),
+	FRATE(0, "ioclk_spi3_clk_in", NULL, 0, 50000000),
+	FRATE(0, "ioclk_spi2_clk_in", NULL, 0, 50000000),
+	FRATE(0, "ioclk_spi1_clk_in", NULL, 0, 50000000),
+	FRATE(0, "ioclk_spi0_clk_in", NULL, 0, 50000000),
 	/* Xi2s1SCLK input clock for I2S1_BCLK */
-	FRATE(0, "ioclk_i2s1_bclk_in", NULL, CLK_IS_ROOT, 12288000),
+	FRATE(0, "ioclk_i2s1_bclk_in", NULL, 0, 12288000),
 };
 
 static struct samsung_mux_clock top_mux_clks[] __initdata = {
@@ -490,9 +463,9 @@ static struct samsung_div_clock top_div_clks[] __initdata = {
 	DIV(CLK_DIV_SCLK_ISP_SENSOR1_A, "div_sclk_isp_sensor1_a",
 			"mout_sclk_isp_sensor1", DIV_TOP_CAM11, 8, 4),
 	DIV(CLK_DIV_SCLK_ISP_SENSOR0_B, "div_sclk_isp_sensor0_b",
-			"div_sclk_isp_sensor0_a", DIV_TOP_CAM11, 12, 4),
+			"div_sclk_isp_sensor0_a", DIV_TOP_CAM11, 4, 4),
 	DIV(CLK_DIV_SCLK_ISP_SENSOR0_A, "div_sclk_isp_sensor0_a",
-			"mout_sclk_isp_sensor0", DIV_TOP_CAM11, 8, 4),
+			"mout_sclk_isp_sensor0", DIV_TOP_CAM11, 0, 4),
 
 	/* DIV_TOP_FSYS0 */
 	DIV(CLK_DIV_SCLK_MMC1_B, "div_sclk_mmc1_b", "div_sclk_mmc1_a",
@@ -999,26 +972,12 @@ static unsigned long mif_clk_regs[] __initdata = {
 	MUX_ENABLE_MIF5,
 	MUX_ENABLE_MIF6,
 	MUX_ENABLE_MIF7,
-	MUX_STAT_MIF0,
-	MUX_STAT_MIF1,
-	MUX_STAT_MIF2,
-	MUX_STAT_MIF3,
-	MUX_STAT_MIF4,
-	MUX_STAT_MIF5,
-	MUX_STAT_MIF6,
-	MUX_STAT_MIF7,
 	DIV_MIF1,
 	DIV_MIF2,
 	DIV_MIF3,
 	DIV_MIF4,
 	DIV_MIF5,
 	DIV_MIF_PLL_FREQ_DET,
-	DIV_STAT_MIF1,
-	DIV_STAT_MIF2,
-	DIV_STAT_MIF3,
-	DIV_STAT_MIF4,
-	DIV_STAT_MIF5,
-	DIV_STAT_MIF_PLL_FREQ_DET,
 	ENABLE_ACLK_MIF0,
 	ENABLE_ACLK_MIF1,
 	ENABLE_ACLK_MIF2,
@@ -1565,7 +1524,6 @@ CLK_OF_DECLARE(exynos5433_cmu_mif, "samsung,exynos5433-cmu-mif",
 
 static unsigned long peric_clk_regs[] __initdata = {
 	DIV_PERIC,
-	DIV_STAT_PERIC,
 	ENABLE_ACLK_PERIC,
 	ENABLE_PCLK_PERIC0,
 	ENABLE_PCLK_PERIC1,
@@ -2012,11 +1970,6 @@ static unsigned long fsys_clk_regs[] __initdata = {
 	MUX_ENABLE_FSYS2,
 	MUX_ENABLE_FSYS3,
 	MUX_ENABLE_FSYS4,
-	MUX_STAT_FSYS0,
-	MUX_STAT_FSYS1,
-	MUX_STAT_FSYS2,
-	MUX_STAT_FSYS3,
-	MUX_STAT_FSYS4,
 	MUX_IGNORE_FSYS2,
 	MUX_IGNORE_FSYS3,
 	ENABLE_ACLK_FSYS0,
@@ -2031,42 +1984,40 @@ static struct samsung_fixed_rate_clock fsys_fixed_clks[] __initdata = {
 	/* PHY clocks from USBDRD30_PHY */
 	FRATE(CLK_PHYCLK_USBDRD30_UDRD30_PHYCLOCK_PHY,
 			"phyclk_usbdrd30_udrd30_phyclock_phy", NULL,
-			CLK_IS_ROOT, 60000000),
+			0, 60000000),
 	FRATE(CLK_PHYCLK_USBDRD30_UDRD30_PIPE_PCLK_PHY,
 			"phyclk_usbdrd30_udrd30_pipe_pclk_phy", NULL,
-			CLK_IS_ROOT, 125000000),
+			0, 125000000),
 	/* PHY clocks from USBHOST30_PHY */
 	FRATE(CLK_PHYCLK_USBHOST30_UHOST30_PHYCLOCK_PHY,
 			"phyclk_usbhost30_uhost30_phyclock_phy", NULL,
-			CLK_IS_ROOT, 60000000),
+			0, 60000000),
 	FRATE(CLK_PHYCLK_USBHOST30_UHOST30_PIPE_PCLK_PHY,
 			"phyclk_usbhost30_uhost30_pipe_pclk_phy", NULL,
-			CLK_IS_ROOT, 125000000),
+			0, 125000000),
 	/* PHY clocks from USBHOST20_PHY */
 	FRATE(CLK_PHYCLK_USBHOST20_PHY_FREECLK_PHY,
-			"phyclk_usbhost20_phy_freeclk_phy", NULL, CLK_IS_ROOT,
-			60000000),
+			"phyclk_usbhost20_phy_freeclk_phy", NULL, 0, 60000000),
 	FRATE(CLK_PHYCLK_USBHOST20_PHY_PHYCLOCK_PHY,
-			"phyclk_usbhost20_phy_phyclock_phy", NULL, CLK_IS_ROOT,
-			60000000),
+			"phyclk_usbhost20_phy_phyclock_phy", NULL, 0, 60000000),
 	FRATE(CLK_PHYCLK_USBHOST20_PHY_CLK48MOHCI_PHY,
 			"phyclk_usbhost20_phy_clk48mohci_phy", NULL,
-			CLK_IS_ROOT, 48000000),
+			0, 48000000),
 	FRATE(CLK_PHYCLK_USBHOST20_PHY_HSIC1_PHY,
-			"phyclk_usbhost20_phy_hsic1_phy", NULL, CLK_IS_ROOT,
+			"phyclk_usbhost20_phy_hsic1_phy", NULL, 0,
 			60000000),
 	/* PHY clocks from UFS_PHY */
 	FRATE(CLK_PHYCLK_UFS_TX0_SYMBOL_PHY, "phyclk_ufs_tx0_symbol_phy",
-			NULL, CLK_IS_ROOT, 300000000),
+			NULL, 0, 300000000),
 	FRATE(CLK_PHYCLK_UFS_RX0_SYMBOL_PHY, "phyclk_ufs_rx0_symbol_phy",
-			NULL, CLK_IS_ROOT, 300000000),
+			NULL, 0, 300000000),
 	FRATE(CLK_PHYCLK_UFS_TX1_SYMBOL_PHY, "phyclk_ufs_tx1_symbol_phy",
-			NULL, CLK_IS_ROOT, 300000000),
+			NULL, 0, 300000000),
 	FRATE(CLK_PHYCLK_UFS_RX1_SYMBOL_PHY, "phyclk_ufs_rx1_symbol_phy",
-			NULL, CLK_IS_ROOT, 300000000),
+			NULL, 0, 300000000),
 	/* PHY clocks from LLI_PHY */
 	FRATE(CLK_PHYCLK_LLI_MPHY_TO_UFS_PHY, "phyclk_lli_mphy_to_ufs_phy",
-			NULL, CLK_IS_ROOT, 26000000),
+			NULL, 0, 26000000),
 };
 
 static struct samsung_mux_clock fsys_mux_clks[] __initdata = {
@@ -2362,9 +2313,7 @@ CLK_OF_DECLARE(exynos5433_cmu_fsys, "samsung,exynos5433-cmu-fsys",
 static unsigned long g2d_clk_regs[] __initdata = {
 	MUX_SEL_G2D0,
 	MUX_SEL_ENABLE_G2D0,
-	MUX_SEL_STAT_G2D0,
 	DIV_G2D,
-	DIV_STAT_G2D,
 	DIV_ENABLE_ACLK_G2D,
 	DIV_ENABLE_ACLK_G2D_SECURE_SMMU_G2D,
 	DIV_ENABLE_PCLK_G2D,
@@ -2520,16 +2469,9 @@ static unsigned long disp_clk_regs[] __initdata = {
 	MUX_ENABLE_DISP2,
 	MUX_ENABLE_DISP3,
 	MUX_ENABLE_DISP4,
-	MUX_STAT_DISP0,
-	MUX_STAT_DISP1,
-	MUX_STAT_DISP2,
-	MUX_STAT_DISP3,
-	MUX_STAT_DISP4,
 	MUX_IGNORE_DISP2,
 	DIV_DISP,
 	DIV_DISP_PLL_FREQ_DET,
-	DIV_STAT_DISP,
-	DIV_STAT_DISP_PLL_FREQ_DET,
 	ENABLE_ACLK_DISP0,
 	ENABLE_ACLK_DISP1,
 	ENABLE_PCLK_DISP,
@@ -2604,18 +2546,16 @@ static struct samsung_fixed_factor_clock disp_fixed_factor_clks[] __initdata = {
 
 static struct samsung_fixed_rate_clock disp_fixed_clks[] __initdata = {
 	/* PHY clocks from MIPI_DPHY1 */
-	FRATE(0, "phyclk_mipidphy1_bitclkdiv8_phy", NULL, CLK_IS_ROOT,
-			188000000),
-	FRATE(0, "phyclk_mipidphy1_rxclkesc0_phy", NULL, CLK_IS_ROOT,
-			100000000),
+	FRATE(0, "phyclk_mipidphy1_bitclkdiv8_phy", NULL, 0, 188000000),
+	FRATE(0, "phyclk_mipidphy1_rxclkesc0_phy", NULL, 0, 100000000),
 	/* PHY clocks from MIPI_DPHY0 */
-	FRATE(0, "phyclk_mipidphy0_bitclkdiv8_phy", NULL, CLK_IS_ROOT,
-			188000000),
-	FRATE(0, "phyclk_mipidphy0_rxclkesc0_phy", NULL, CLK_IS_ROOT,
-			100000000),
+	FRATE(0, "phyclk_mipidphy0_bitclkdiv8_phy", NULL, 0, 188000000),
+	FRATE(0, "phyclk_mipidphy0_rxclkesc0_phy", NULL, 0, 100000000),
 	/* PHY clocks from HDMI_PHY */
-	FRATE(0, "phyclk_hdmiphy_tmds_clko_phy", NULL, CLK_IS_ROOT, 300000000),
-	FRATE(0, "phyclk_hdmiphy_pixel_clko_phy", NULL, CLK_IS_ROOT, 166000000),
+	FRATE(CLK_PHYCLK_HDMIPHY_TMDS_CLKO_PHY, "phyclk_hdmiphy_tmds_clko_phy",
+			NULL, 0, 300000000),
+	FRATE(CLK_PHYCLK_HDMIPHY_PIXEL_CLKO_PHY, "phyclk_hdmiphy_pixel_clko_phy",
+			NULL, 0, 166000000),
 };
 
 static struct samsung_mux_clock disp_mux_clks[] __initdata = {
@@ -2820,6 +2760,8 @@ static struct samsung_gate_clock disp_gate_clks[] __initdata = {
 			ENABLE_PCLK_DISP, 2, 0, 0),
 	GATE(CLK_PCLK_DECON_TV, "pclk_decon_tv", "div_pclk_disp",
 			ENABLE_PCLK_DISP, 1, 0, 0),
+	GATE(CLK_PCLK_DECON, "pclk_decon", "div_pclk_disp",
+			ENABLE_PCLK_DISP, 0, 0, 0),
 
 	/* ENABLE_SCLK_DISP */
 	GATE(CLK_PHYCLK_MIPIDPHY1_BITCLKDIV8, "phyclk_mipidphy1_bitclkdiv8",
@@ -2919,11 +2861,8 @@ static unsigned long aud_clk_regs[] __initdata = {
 	MUX_SEL_AUD1,
 	MUX_ENABLE_AUD0,
 	MUX_ENABLE_AUD1,
-	MUX_STAT_AUD0,
 	DIV_AUD0,
 	DIV_AUD1,
-	DIV_STAT_AUD0,
-	DIV_STAT_AUD1,
 	ENABLE_ACLK_AUD,
 	ENABLE_PCLK_AUD,
 	ENABLE_SCLK_AUD0,
@@ -2937,9 +2876,9 @@ PNAME(mout_aud_pll_user_aud_p)	= { "oscclk", "fout_aud_pll", };
 PNAME(mout_sclk_aud_pcm_p)	= { "mout_aud_pll_user", "ioclk_audiocdclk0",};
 
 static struct samsung_fixed_rate_clock aud_fixed_clks[] __initdata = {
-	FRATE(0, "ioclk_jtag_tclk", NULL, CLK_IS_ROOT, 33000000),
-	FRATE(0, "ioclk_slimbus_clk", NULL, CLK_IS_ROOT, 25000000),
-	FRATE(0, "ioclk_i2s_bclk", NULL, CLK_IS_ROOT, 50000000),
+	FRATE(0, "ioclk_jtag_tclk", NULL, 0, 33000000),
+	FRATE(0, "ioclk_slimbus_clk", NULL, 0, 25000000),
+	FRATE(0, "ioclk_i2s_bclk", NULL, 0, 50000000),
 };
 
 static struct samsung_mux_clock aud_mux_clks[] __initdata = {
@@ -3087,7 +3026,6 @@ PNAME(mout_aclk_bus2_400_p)	= { "oscclk", "aclk_bus2_400", };
 
 #define CMU_BUS_COMMON_CLK_REGS	\
 	DIV_BUS,		\
-	DIV_STAT_BUS,		\
 	ENABLE_ACLK_BUS,	\
 	ENABLE_PCLK_BUS,	\
 	ENABLE_IP_BUS0,		\
@@ -3100,7 +3038,6 @@ static unsigned long bus01_clk_regs[] __initdata = {
 static unsigned long bus2_clk_regs[] __initdata = {
 	MUX_SEL_BUS2,
 	MUX_ENABLE_BUS2,
-	MUX_STAT_BUS2,
 	CMU_BUS_COMMON_CLK_REGS,
 };
 
@@ -3259,11 +3196,8 @@ static unsigned long g3d_clk_regs[] __initdata = {
 	G3D_PLL_FREQ_DET,
 	MUX_SEL_G3D,
 	MUX_ENABLE_G3D,
-	MUX_STAT_G3D,
 	DIV_G3D,
 	DIV_G3D_PLL_FREQ_DET,
-	DIV_STAT_G3D,
-	DIV_STAT_G3D_PLL_FREQ_DET,
 	ENABLE_ACLK_G3D,
 	ENABLE_PCLK_G3D,
 	ENABLE_SCLK_G3D,
@@ -3379,7 +3313,6 @@ CLK_OF_DECLARE(exynos5433_cmu_g3d, "samsung,exynos5433-cmu-g3d",
 static unsigned long gscl_clk_regs[] __initdata = {
 	MUX_SEL_GSCL,
 	MUX_ENABLE_GSCL,
-	MUX_STAT_GSCL,
 	ENABLE_ACLK_GSCL,
 	ENABLE_ACLK_GSCL_SECURE_SMMU_GSCL0,
 	ENABLE_ACLK_GSCL_SECURE_SMMU_GSCL1,
@@ -3472,11 +3405,11 @@ static struct samsung_gate_clock gscl_gate_clks[] __initdata = {
 
 	/* ENABLE_PCLK_GSCL_SECURE_SMMU_GSCL1 */
 	GATE(CLK_PCLK_SMMU_GSCL1, "pclk_smmu_gscl1", "mout_aclk_gscl_111_user",
-		ENABLE_PCLK_GSCL_SECURE_SMMU_GSCL0, 0, 0, 0),
+		ENABLE_PCLK_GSCL_SECURE_SMMU_GSCL1, 0, 0, 0),
 
 	/* ENABLE_PCLK_GSCL_SECURE_SMMU_GSCL2 */
 	GATE(CLK_PCLK_SMMU_GSCL2, "pclk_smmu_gscl2", "mout_aclk_gscl_111_user",
-		ENABLE_PCLK_GSCL_SECURE_SMMU_GSCL0, 0, 0, 0),
+		ENABLE_PCLK_GSCL_SECURE_SMMU_GSCL2, 0, 0, 0),
 };
 
 static struct samsung_cmu_info gscl_cmu_info __initdata = {
@@ -3543,15 +3476,9 @@ static unsigned long apollo_clk_regs[] __initdata = {
 	MUX_ENABLE_APOLLO0,
 	MUX_ENABLE_APOLLO1,
 	MUX_ENABLE_APOLLO2,
-	MUX_STAT_APOLLO0,
-	MUX_STAT_APOLLO1,
-	MUX_STAT_APOLLO2,
 	DIV_APOLLO0,
 	DIV_APOLLO1,
 	DIV_APOLLO_PLL_FREQ_DET,
-	DIV_STAT_APOLLO0,
-	DIV_STAT_APOLLO1,
-	DIV_STAT_APOLLO_PLL_FREQ_DET,
 	ENABLE_ACLK_APOLLO,
 	ENABLE_PCLK_APOLLO,
 	ENABLE_SCLK_APOLLO,
@@ -3735,15 +3662,9 @@ static unsigned long atlas_clk_regs[] __initdata = {
 	MUX_ENABLE_ATLAS0,
 	MUX_ENABLE_ATLAS1,
 	MUX_ENABLE_ATLAS2,
-	MUX_STAT_ATLAS0,
-	MUX_STAT_ATLAS1,
-	MUX_STAT_ATLAS2,
 	DIV_ATLAS0,
 	DIV_ATLAS1,
 	DIV_ATLAS_PLL_FREQ_DET,
-	DIV_STAT_ATLAS0,
-	DIV_STAT_ATLAS1,
-	DIV_STAT_ATLAS_PLL_FREQ_DET,
 	ENABLE_ACLK_ATLAS,
 	ENABLE_PCLK_ATLAS,
 	ENABLE_SCLK_ATLAS,
@@ -3937,10 +3858,7 @@ static unsigned long mscl_clk_regs[] __initdata = {
 	MUX_SEL_MSCL1,
 	MUX_ENABLE_MSCL0,
 	MUX_ENABLE_MSCL1,
-	MUX_STAT_MSCL0,
-	MUX_STAT_MSCL1,
 	DIV_MSCL,
-	DIV_STAT_MSCL,
 	ENABLE_ACLK_MSCL,
 	ENABLE_ACLK_MSCL_SECURE_SMMU_M2MSCALER0,
 	ENABLE_ACLK_MSCL_SECURE_SMMU_M2MSCALER1,
@@ -4097,9 +4015,7 @@ CLK_OF_DECLARE(exynos5433_cmu_mscl, "samsung,exynos5433-cmu-mscl",
 static unsigned long mfc_clk_regs[] __initdata = {
 	MUX_SEL_MFC,
 	MUX_ENABLE_MFC,
-	MUX_STAT_MFC,
 	DIV_MFC,
-	DIV_STAT_MFC,
 	ENABLE_ACLK_MFC,
 	ENABLE_ACLK_MFC_SECURE_SMMU_MFC,
 	ENABLE_PCLK_MFC,
@@ -4207,9 +4123,7 @@ CLK_OF_DECLARE(exynos5433_cmu_mfc, "samsung,exynos5433-cmu-mfc",
 static unsigned long hevc_clk_regs[] __initdata = {
 	MUX_SEL_HEVC,
 	MUX_ENABLE_HEVC,
-	MUX_STAT_HEVC,
 	DIV_HEVC,
-	DIV_STAT_HEVC,
 	ENABLE_ACLK_HEVC,
 	ENABLE_ACLK_HEVC_SECURE_SMMU_HEVC,
 	ENABLE_PCLK_HEVC,
@@ -4321,9 +4235,7 @@ CLK_OF_DECLARE(exynos5433_cmu_hevc, "samsung,exynos5433-cmu-hevc",
 static unsigned long isp_clk_regs[] __initdata = {
 	MUX_SEL_ISP,
 	MUX_ENABLE_ISP,
-	MUX_STAT_ISP,
 	DIV_ISP,
-	DIV_STAT_ISP,
 	ENABLE_ACLK_ISP0,
 	ENABLE_ACLK_ISP1,
 	ENABLE_ACLK_ISP2,
@@ -4603,20 +4515,11 @@ static unsigned long cam0_clk_regs[] __initdata = {
 	MUX_ENABLE_CAM02,
 	MUX_ENABLE_CAM03,
 	MUX_ENABLE_CAM04,
-	MUX_STAT_CAM00,
-	MUX_STAT_CAM01,
-	MUX_STAT_CAM02,
-	MUX_STAT_CAM03,
-	MUX_STAT_CAM04,
 	MUX_IGNORE_CAM01,
 	DIV_CAM00,
 	DIV_CAM01,
 	DIV_CAM02,
 	DIV_CAM03,
-	DIV_STAT_CAM00,
-	DIV_STAT_CAM01,
-	DIV_STAT_CAM02,
-	DIV_STAT_CAM03,
 	ENABLE_ACLK_CAM00,
 	ENABLE_ACLK_CAM01,
 	ENABLE_ACLK_CAM02,
@@ -4687,9 +4590,9 @@ PNAME(mout_sclk_pixelasync_lite_c_init_a_p) = {
 
 static struct samsung_fixed_rate_clock cam0_fixed_clks[] __initdata = {
 	FRATE(CLK_PHYCLK_RXBYTEECLKHS0_S4_PHY, "phyclk_rxbyteclkhs0_s4_phy",
-			NULL, CLK_IS_ROOT, 100000000),
+			NULL, 0, 100000000),
 	FRATE(CLK_PHYCLK_RXBYTEECLKHS0_S2A_PHY, "phyclk_rxbyteclkhs0_s2a_phy",
-			NULL, CLK_IS_ROOT, 100000000),
+			NULL, 0, 100000000),
 };
 
 static struct samsung_mux_clock cam0_mux_clks[] __initdata = {
@@ -4749,21 +4652,21 @@ static struct samsung_mux_clock cam0_mux_clks[] __initdata = {
 	MUX(CLK_MOUT_SCLK_LITE_FREECNT_C, "mout_sclk_lite_freecnt_c",
 			mout_sclk_lite_freecnt_c_p, MUX_SEL_CAM04, 24, 1),
 	MUX(CLK_MOUT_SCLK_LITE_FREECNT_B, "mout_sclk_lite_freecnt_b",
-			mout_sclk_lite_freecnt_b_p, MUX_SEL_CAM04, 24, 1),
+			mout_sclk_lite_freecnt_b_p, MUX_SEL_CAM04, 20, 1),
 	MUX(CLK_MOUT_SCLK_LITE_FREECNT_A, "mout_sclk_lite_freecnt_a",
-			mout_sclk_lite_freecnt_a_p, MUX_SEL_CAM04, 24, 1),
+			mout_sclk_lite_freecnt_a_p, MUX_SEL_CAM04, 16, 1),
 	MUX(CLK_MOUT_SCLK_PIXELASYNC_LITE_C_B, "mout_sclk_pixelasync_lite_c_b",
-			mout_sclk_pixelasync_lite_c_b_p, MUX_SEL_CAM04, 24, 1),
+			mout_sclk_pixelasync_lite_c_b_p, MUX_SEL_CAM04, 12, 1),
 	MUX(CLK_MOUT_SCLK_PIXELASYNC_LITE_C_A, "mout_sclk_pixelasync_lite_c_a",
-			mout_sclk_pixelasync_lite_c_a_p, MUX_SEL_CAM04, 24, 1),
+			mout_sclk_pixelasync_lite_c_a_p, MUX_SEL_CAM04, 8, 1),
 	MUX(CLK_MOUT_SCLK_PIXELASYNC_LITE_C_INIT_B,
 			"mout_sclk_pixelasync_lite_c_init_b",
 			mout_sclk_pixelasync_lite_c_init_b_p,
-			MUX_SEL_CAM04, 24, 1),
+			MUX_SEL_CAM04, 4, 1),
 	MUX(CLK_MOUT_SCLK_PIXELASYNC_LITE_C_INIT_A,
 			"mout_sclk_pixelasync_lite_c_init_a",
 			mout_sclk_pixelasync_lite_c_init_a_p,
-			MUX_SEL_CAM04, 24, 1),
+			MUX_SEL_CAM04, 0, 1),
 };
 
 static struct samsung_div_clock cam0_div_clks[] __initdata = {
@@ -5074,14 +4977,9 @@ static unsigned long cam1_clk_regs[] __initdata = {
 	MUX_ENABLE_CAM10,
 	MUX_ENABLE_CAM11,
 	MUX_ENABLE_CAM12,
-	MUX_STAT_CAM10,
-	MUX_STAT_CAM11,
-	MUX_STAT_CAM12,
 	MUX_IGNORE_CAM11,
 	DIV_CAM10,
 	DIV_CAM11,
-	DIV_STAT_CAM10,
-	DIV_STAT_CAM11,
 	ENABLE_ACLK_CAM10,
 	ENABLE_ACLK_CAM11,
 	ENABLE_ACLK_CAM12,
@@ -5120,7 +5018,7 @@ PNAME(mout_aclk_lite_c_a_p)		= { "mout_aclk_cam1_552_user",
 
 static struct samsung_fixed_rate_clock cam1_fixed_clks[] __initdata = {
 	FRATE(CLK_PHYCLK_RXBYTEECLKHS0_S2B, "phyclk_rxbyteclkhs0_s2b_phy", NULL,
-			CLK_IS_ROOT, 100000000),
+			0, 100000000),
 };
 
 static struct samsung_mux_clock cam1_mux_clks[] __initdata = {
@@ -5134,9 +5032,9 @@ static struct samsung_mux_clock cam1_mux_clks[] __initdata = {
 	MUX(CLK_MOUT_ACLK_CAM1_333_USER, "mout_aclk_cam1_333_user",
 			mout_aclk_cam1_333_user_p, MUX_SEL_CAM10, 8, 1),
 	MUX(CLK_MOUT_ACLK_CAM1_400_USER, "mout_aclk_cam1_400_user",
-			mout_aclk_cam1_400_user_p, MUX_SEL_CAM01, 4, 1),
+			mout_aclk_cam1_400_user_p, MUX_SEL_CAM10, 4, 1),
 	MUX(CLK_MOUT_ACLK_CAM1_552_USER, "mout_aclk_cam1_552_user",
-			mout_aclk_cam1_552_user_p, MUX_SEL_CAM01, 0, 1),
+			mout_aclk_cam1_552_user_p, MUX_SEL_CAM10, 0, 1),
 
 	/* MUX_SEL_CAM11 */
 	MUX(CLK_MOUT_PHYCLK_RXBYTECLKHS0_S2B_USER,
@@ -5161,7 +5059,7 @@ static struct samsung_mux_clock cam1_mux_clks[] __initdata = {
 
 static struct samsung_div_clock cam1_div_clks[] __initdata = {
 	/* DIV_CAM10 */
-	DIV(CLK_DIV_SCLK_ISP_WPWM, "div_sclk_isp_wpwm",
+	DIV(CLK_DIV_SCLK_ISP_MPWM, "div_sclk_isp_mpwm",
 			"div_pclk_cam1_83", DIV_CAM10, 16, 2),
 	DIV(CLK_DIV_PCLK_CAM1_83, "div_pclk_cam1_83",
 			"mout_aclk_cam1_333_user", DIV_CAM10, 12, 2),
@@ -5355,7 +5253,7 @@ static struct samsung_gate_clock cam1_gate_clks[] __initdata = {
 			ENABLE_PCLK_CAM1, 5, CLK_IGNORE_UNUSED, 0),
 	GATE(CLK_PCLK_ISP_I2C0, "pclk_isp_i2c0", "div_pclk_cam1_83",
 			ENABLE_PCLK_CAM1, 4, CLK_IGNORE_UNUSED, 0),
-	GATE(CLK_PCLK_ISP_MPWM, "pclk_isp_wpwm", "div_pclk_cam1_83",
+	GATE(CLK_PCLK_ISP_MPWM, "pclk_isp_mpwm", "div_pclk_cam1_83",
 			ENABLE_PCLK_CAM1, 3, CLK_IGNORE_UNUSED, 0),
 	GATE(CLK_PCLK_FD, "pclk_fd", "div_pclk_fd",
 			ENABLE_PCLK_CAM1, 3, CLK_IGNORE_UNUSED, 0),
@@ -5388,7 +5286,7 @@ static struct samsung_gate_clock cam1_gate_clks[] __initdata = {
 			ENABLE_SCLK_CAM1, 5, 0, 0),
 	GATE(CLK_SCLK_ISP_SPI0, "sclk_isp_spi0", "mout_sclk_isp_spi0_user",
 			ENABLE_SCLK_CAM1, 4, 0, 0),
-	GATE(CLK_SCLK_ISP_MPWM, "sclk_isp_wpwm", "div_sclk_isp_wpwm",
+	GATE(CLK_SCLK_ISP_MPWM, "sclk_isp_mpwm", "div_sclk_isp_mpwm",
 			ENABLE_SCLK_CAM1, 3, 0, 0),
 	GATE(CLK_PCLK_DBG_ISP, "sclk_dbg_isp", "div_pclk_dbg_cam1",
 			ENABLE_SCLK_CAM1, 2, 0, 0),

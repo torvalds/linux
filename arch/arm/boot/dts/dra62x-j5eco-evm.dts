@@ -6,6 +6,7 @@
 /dts-v1/;
 
 #include "dra62x.dtsi"
+#include <dt-bindings/interrupt-controller/irq.h>
 
 / {
 	model = "DRA62x J5 Eco EVM";
@@ -33,6 +34,63 @@
 &cpsw_emac1 {
 	phy_id = <&davinci_mdio>, <1>;
 	phy-mode = "rgmii";
+};
+
+&gpmc {
+	ranges = <0 0 0x04000000 0x01000000>;	/* CS0: 16MB for NAND */
+
+	nand@0,0 {
+		compatible = "ti,omap2-nand";
+		reg = <0 0 4>; /* CS0, offset 0, IO size 4 */
+		interrupt-parent = <&gpmc>;
+		interrupts = <0 IRQ_TYPE_NONE>, /* fifoevent */
+			     <1 IRQ_TYPE_NONE>; /* termcount */
+		linux,mtd-name= "micron,mt29f2g16aadwp";
+		#address-cells = <1>;
+		#size-cells = <1>;
+		ti,nand-ecc-opt = "bch8";
+		nand-bus-width = <16>;
+		gpmc,device-width = <2>;
+		gpmc,sync-clk-ps = <0>;
+		gpmc,cs-on-ns = <0>;
+		gpmc,cs-rd-off-ns = <44>;
+		gpmc,cs-wr-off-ns = <44>;
+		gpmc,adv-on-ns = <6>;
+		gpmc,adv-rd-off-ns = <34>;
+		gpmc,adv-wr-off-ns = <44>;
+		gpmc,we-on-ns = <0>;
+		gpmc,we-off-ns = <40>;
+		gpmc,oe-on-ns = <0>;
+		gpmc,oe-off-ns = <54>;
+		gpmc,access-ns = <64>;
+		gpmc,rd-cycle-ns = <82>;
+		gpmc,wr-cycle-ns = <82>;
+		gpmc,bus-turnaround-ns = <0>;
+		gpmc,cycle2cycle-delay-ns = <0>;
+		gpmc,clk-activation-ns = <0>;
+		gpmc,wr-access-ns = <40>;
+		gpmc,wr-data-mux-bus-ns = <0>;
+		partition@0 {
+			label = "X-Loader";
+			reg = <0 0x80000>;
+		};
+		partition@0x80000 {
+			label = "U-Boot";
+			reg = <0x80000 0x1c0000>;
+		};
+		partition@0x1c0000 {
+			label = "Environment";
+			reg = <0x240000 0x40000>;
+		};
+		partition@0x280000 {
+			label = "Kernel";
+			reg = <0x280000 0x500000>;
+		};
+		partition@0x780000 {
+			label = "Filesystem";
+			reg = <0x780000 0xf880000>;
+		};
+	};
 };
 
 &mmc2 {

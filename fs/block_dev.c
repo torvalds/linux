@@ -331,7 +331,7 @@ static int blkdev_write_end(struct file *file, struct address_space *mapping,
 	ret = block_write_end(file, mapping, pos, len, copied, page, fsdata);
 
 	unlock_page(page);
-	page_cache_release(page);
+	put_page(page);
 
 	return ret;
 }
@@ -575,7 +575,11 @@ static const struct super_operations bdev_sops = {
 static struct dentry *bd_mount(struct file_system_type *fs_type,
 	int flags, const char *dev_name, void *data)
 {
-	return mount_pseudo(fs_type, "bdev:", &bdev_sops, NULL, BDEVFS_MAGIC);
+	struct dentry *dent;
+	dent = mount_pseudo(fs_type, "bdev:", &bdev_sops, NULL, BDEVFS_MAGIC);
+	if (dent)
+		dent->d_sb->s_iflags |= SB_I_CGROUPWB;
+	return dent;
 }
 
 static struct file_system_type bd_type = {
@@ -1145,7 +1149,7 @@ void bd_set_size(struct block_device *bdev, loff_t size)
 	inode_lock(bdev->bd_inode);
 	i_size_write(bdev->bd_inode, size);
 	inode_unlock(bdev->bd_inode);
-	while (bsize < PAGE_CACHE_SIZE) {
+	while (bsize < PAGE_SIZE) {
 		if (size & bsize)
 			break;
 		bsize <<= 1;

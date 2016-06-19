@@ -57,7 +57,8 @@
 
 /**
  * Server placed lock on granted list, or a recovering client wants the
- * lock added to the granted list, no questions asked. */
+ * lock added to the granted list, no questions asked.
+ */
 #define LDLM_FL_BLOCK_GRANTED           0x0000000000000002ULL /* bit 1 */
 #define ldlm_is_block_granted(_l)       LDLM_TEST_FLAG((_l), 1ULL <<  1)
 #define ldlm_set_block_granted(_l)      LDLM_SET_FLAG((_l), 1ULL <<  1)
@@ -65,7 +66,8 @@
 
 /**
  * Server placed lock on conv list, or a recovering client wants the lock
- * added to the conv list, no questions asked. */
+ * added to the conv list, no questions asked.
+ */
 #define LDLM_FL_BLOCK_CONV              0x0000000000000004ULL /* bit 2 */
 #define ldlm_is_block_conv(_l)          LDLM_TEST_FLAG((_l), 1ULL <<  2)
 #define ldlm_set_block_conv(_l)         LDLM_SET_FLAG((_l), 1ULL <<  2)
@@ -73,7 +75,8 @@
 
 /**
  * Server placed lock on wait list, or a recovering client wants the lock
- * added to the wait list, no questions asked. */
+ * added to the wait list, no questions asked.
+ */
 #define LDLM_FL_BLOCK_WAIT              0x0000000000000008ULL /* bit 3 */
 #define ldlm_is_block_wait(_l)          LDLM_TEST_FLAG((_l), 1ULL <<  3)
 #define ldlm_set_block_wait(_l)         LDLM_SET_FLAG((_l), 1ULL <<  3)
@@ -87,7 +90,8 @@
 
 /**
  * Lock is being replayed.  This could probably be implied by the fact that
- * one of BLOCK_{GRANTED,CONV,WAIT} is set, but that is pretty dangerous. */
+ * one of BLOCK_{GRANTED,CONV,WAIT} is set, but that is pretty dangerous.
+ */
 #define LDLM_FL_REPLAY                  0x0000000000000100ULL /* bit 8 */
 #define ldlm_is_replay(_l)              LDLM_TEST_FLAG((_l), 1ULL <<  8)
 #define ldlm_set_replay(_l)             LDLM_SET_FLAG((_l), 1ULL <<  8)
@@ -125,7 +129,8 @@
 
 /**
  * Server told not to wait if blocked. For AGL, OST will not send glimpse
- * callback. */
+ * callback.
+ */
 #define LDLM_FL_BLOCK_NOWAIT            0x0000000000040000ULL /* bit 18 */
 #define ldlm_is_block_nowait(_l)        LDLM_TEST_FLAG((_l), 1ULL << 18)
 #define ldlm_set_block_nowait(_l)       LDLM_SET_FLAG((_l), 1ULL << 18)
@@ -141,7 +146,8 @@
  * Immediately cancel such locks when they block some other locks. Send
  * cancel notification to original lock holder, but expect no reply. This
  * is for clients (like liblustre) that cannot be expected to reliably
- * response to blocking AST. */
+ * response to blocking AST.
+ */
 #define LDLM_FL_CANCEL_ON_BLOCK         0x0000000000800000ULL /* bit 23 */
 #define ldlm_is_cancel_on_block(_l)     LDLM_TEST_FLAG((_l), 1ULL << 23)
 #define ldlm_set_cancel_on_block(_l)    LDLM_SET_FLAG((_l), 1ULL << 23)
@@ -164,7 +170,8 @@
 
 /**
  * Used for marking lock as a target for -EINTR while cp_ast sleep emulation
- * + race with upcoming bl_ast. */
+ * + race with upcoming bl_ast.
+ */
 #define LDLM_FL_FAIL_LOC                0x0000000100000000ULL /* bit 32 */
 #define ldlm_is_fail_loc(_l)            LDLM_TEST_FLAG((_l), 1ULL << 32)
 #define ldlm_set_fail_loc(_l)           LDLM_SET_FLAG((_l), 1ULL << 32)
@@ -172,7 +179,8 @@
 
 /**
  * Used while processing the unused list to know that we have already
- * handled this lock and decided to skip it. */
+ * handled this lock and decided to skip it.
+ */
 #define LDLM_FL_SKIPPED                 0x0000000200000000ULL /* bit 33 */
 #define ldlm_is_skipped(_l)             LDLM_TEST_FLAG((_l), 1ULL << 33)
 #define ldlm_set_skipped(_l)            LDLM_SET_FLAG((_l), 1ULL << 33)
@@ -231,7 +239,8 @@
  * The proper fix is to do the granting inside of the completion AST,
  * which can be replaced with a LVB-aware wrapping function for OSC locks.
  * That change is pretty high-risk, though, and would need a lot more
- * testing. */
+ * testing.
+ */
 #define LDLM_FL_LVB_READY               0x0000020000000000ULL /* bit 41 */
 #define ldlm_is_lvb_ready(_l)           LDLM_TEST_FLAG((_l), 1ULL << 41)
 #define ldlm_set_lvb_ready(_l)          LDLM_SET_FLAG((_l), 1ULL << 41)
@@ -243,7 +252,8 @@
  * dirty pages.  It can remain on the granted list during this whole time.
  * Threads racing to update the KMS after performing their writeback need
  * to know to exclude each other's locks from the calculation as they walk
- * the granted list. */
+ * the granted list.
+ */
 #define LDLM_FL_KMS_IGNORE              0x0000040000000000ULL /* bit 42 */
 #define ldlm_is_kms_ignore(_l)          LDLM_TEST_FLAG((_l), 1ULL << 42)
 #define ldlm_set_kms_ignore(_l)         LDLM_SET_FLAG((_l), 1ULL << 42)
@@ -263,7 +273,8 @@
 
 /**
  * optimization hint: LDLM can run blocking callback from current context
- * w/o involving separate thread. in order to decrease cs rate */
+ * w/o involving separate thread. in order to decrease cs rate
+ */
 #define LDLM_FL_ATOMIC_CB               0x0000200000000000ULL /* bit 45 */
 #define ldlm_is_atomic_cb(_l)           LDLM_TEST_FLAG((_l), 1ULL << 45)
 #define ldlm_set_atomic_cb(_l)          LDLM_SET_FLAG((_l), 1ULL << 45)
@@ -280,7 +291,8 @@
  * LDLM_FL_BL_DONE is to be set by ldlm_cancel_callback() when lock cache is
  * dropped to let ldlm_callback_handler() return EINVAL to the server. It
  * is used when ELC RPC is already prepared and is waiting for rpc_lock,
- * too late to send a separate CANCEL RPC. */
+ * too late to send a separate CANCEL RPC.
+ */
 #define LDLM_FL_BL_AST                  0x0000400000000000ULL /* bit 46 */
 #define ldlm_is_bl_ast(_l)              LDLM_TEST_FLAG((_l), 1ULL << 46)
 #define ldlm_set_bl_ast(_l)             LDLM_SET_FLAG((_l), 1ULL << 46)
@@ -295,7 +307,8 @@
 /**
  * Don't put lock into the LRU list, so that it is not canceled due
  * to aging.  Used by MGC locks, they are cancelled only at unmount or
- * by callback. */
+ * by callback.
+ */
 #define LDLM_FL_NO_LRU                  0x0001000000000000ULL /* bit 48 */
 #define ldlm_is_no_lru(_l)              LDLM_TEST_FLAG((_l), 1ULL << 48)
 #define ldlm_set_no_lru(_l)             LDLM_SET_FLAG((_l), 1ULL << 48)
@@ -304,7 +317,8 @@
 /**
  * Set for locks that failed and where the server has been notified.
  *
- * Protected by lock and resource locks. */
+ * Protected by lock and resource locks.
+ */
 #define LDLM_FL_FAIL_NOTIFIED           0x0002000000000000ULL /* bit 49 */
 #define ldlm_is_fail_notified(_l)       LDLM_TEST_FLAG((_l), 1ULL << 49)
 #define ldlm_set_fail_notified(_l)      LDLM_SET_FLAG((_l), 1ULL << 49)
@@ -315,7 +329,8 @@
  * be destroyed when last reference to them is released. Set by
  * ldlm_lock_destroy_internal().
  *
- * Protected by lock and resource locks. */
+ * Protected by lock and resource locks.
+ */
 #define LDLM_FL_DESTROYED               0x0004000000000000ULL /* bit 50 */
 #define ldlm_is_destroyed(_l)           LDLM_TEST_FLAG((_l), 1ULL << 50)
 #define ldlm_set_destroyed(_l)          LDLM_SET_FLAG((_l), 1ULL << 50)
@@ -333,7 +348,8 @@
  * NB: compared with check_res_locked(), checking this bit is cheaper.
  * Also, spin_is_locked() is deprecated for kernel code; one reason is
  * because it works only for SMP so user needs to add extra macros like
- * LASSERT_SPIN_LOCKED for uniprocessor kernels. */
+ * LASSERT_SPIN_LOCKED for uniprocessor kernels.
+ */
 #define LDLM_FL_RES_LOCKED              0x0010000000000000ULL /* bit 52 */
 #define ldlm_is_res_locked(_l)          LDLM_TEST_FLAG((_l), 1ULL << 52)
 #define ldlm_set_res_locked(_l)         LDLM_SET_FLAG((_l), 1ULL << 52)
@@ -343,7 +359,8 @@
  * It's set once we call ldlm_add_waiting_lock_res_locked() to start the
  * lock-timeout timer and it will never be reset.
  *
- * Protected by lock and resource locks. */
+ * Protected by lock and resource locks.
+ */
 #define LDLM_FL_WAITED                  0x0020000000000000ULL /* bit 53 */
 #define ldlm_is_waited(_l)              LDLM_TEST_FLAG((_l), 1ULL << 53)
 #define ldlm_set_waited(_l)             LDLM_SET_FLAG((_l), 1ULL << 53)
@@ -365,10 +382,10 @@
 #define LDLM_TEST_FLAG(_l, _b)        (((_l)->l_flags & (_b)) != 0)
 
 /** set a ldlm_lock flag bit */
-#define LDLM_SET_FLAG(_l, _b)         (((_l)->l_flags |= (_b))
+#define LDLM_SET_FLAG(_l, _b)         ((_l)->l_flags |= (_b))
 
 /** clear a ldlm_lock flag bit */
-#define LDLM_CLEAR_FLAG(_l, _b)       (((_l)->l_flags &= ~(_b))
+#define LDLM_CLEAR_FLAG(_l, _b)       ((_l)->l_flags &= ~(_b))
 
 /** Mask of flags inherited from parent lock when doing intents. */
 #define LDLM_INHERIT_FLAGS            LDLM_FL_INHERIT_MASK

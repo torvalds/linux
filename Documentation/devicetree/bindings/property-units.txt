@@ -1,0 +1,39 @@
+Standard Unit Suffixes for Property names
+
+Properties which have a unit of measure are recommended to have a unit
+suffix appended to the property name. The list below contains the
+recommended suffixes. Other variations exist in bindings, but should not
+be used in new bindings or added here. The inconsistency in the unit
+prefixes is due to selecting the most commonly used variants.
+
+It is also recommended to use the units listed here and not add additional
+unit prefixes.
+
+Time/Frequency
+----------------------------------------
+-mhz		: megahertz
+-hz		: Hertz (preferred)
+-sec		: seconds
+-ms		: milliseconds
+-us		: microseconds
+-ns		: nanoseconds
+
+Distance
+----------------------------------------
+-mm		: millimeters
+
+Electricity
+----------------------------------------
+-microamp	: micro amps
+-ohms		: Ohms
+-micro-ohms	: micro Ohms
+-microvolt	: micro volts
+
+Temperature
+----------------------------------------
+-celsius	: Degrees Celsius
+-millicelsius	: Degreee milli-Celsius
+
+Pressure
+----------------------------------------
+-kpascal	: kiloPascal

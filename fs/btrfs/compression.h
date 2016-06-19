@@ -48,6 +48,15 @@ int btrfs_submit_compressed_read(struct inode *inode, struct bio *bio,
 void btrfs_clear_biovec_end(struct bio_vec *bvec, int vcnt,
 				   unsigned long pg_index,
 				   unsigned long pg_offset);
+
+enum btrfs_compression_type {
+	BTRFS_COMPRESS_NONE  = 0,
+	BTRFS_COMPRESS_ZLIB  = 1,
+	BTRFS_COMPRESS_LZO   = 2,
+	BTRFS_COMPRESS_TYPES = 2,
+	BTRFS_COMPRESS_LAST  = 3,
+};
+
 struct btrfs_compress_op {
 	struct list_head *(*alloc_workspace)(void);
 

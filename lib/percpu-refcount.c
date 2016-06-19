@@ -12,7 +12,7 @@
  * particular cpu can (and will) wrap - this is fine, when we go to shutdown the
  * percpu counters will all sum to the correct value
  *
- * (More precisely: because moduler arithmatic is commutative the sum of all the
+ * (More precisely: because modular arithmetic is commutative the sum of all the
  * percpu_count vars will be equal to what it would have been if all the gets
  * and puts were done to a single integer, even if some of the percpu integers
  * overflow or underflow).

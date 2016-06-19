@@ -54,21 +54,38 @@ Boston, MA 02110-1301, USA.  */
 !
 ! (none)
 !
+! __ashlsi3_r0
+!
+! Entry:
+!
+! r4: Value to shift
+! r0: Shifts
+!
+! Exit:
+!
+! r0: Result
+!
+! Destroys:
+!
+! (none)
+
+
 	.global	__ashlsi3
+	.global	__ashlsi3_r0
 	
 	.align	2
 __ashlsi3:
-	mov	#31,r0
-	and	r0,r5
+	mov	r5,r0
+	.align	2
+__ashlsi3_r0:
+	and	#31,r0
+	mov.l	r4,@-r15
+	mov	r0,r4
 	mova	ashlsi3_table,r0
-	mov.b	@(r0,r5),r5
-#ifdef __sh1__
-	add	r5,r0
+	mov.b	@(r0,r4),r4
+	add	r4,r0
 	jmp	@r0
-#else
-	braf	r5
-#endif
-	mov	r4,r0
+	mov.l	@r15+,r0
 
 	.align	2
 ashlsi3_table:

@@ -32,6 +32,7 @@
 #include <linux/hdmi.h>
 #include <linux/i2c.h>
 #include <linux/module.h>
+#include <linux/vga_switcheroo.h>
 #include <drm/drmP.h>
 #include <drm/drm_edid.h>
 #include <drm/drm_displayid.h>
@@ -204,7 +205,7 @@ static const struct drm_display_mode drm_dmt_modes[] = {
 		   DRM_MODE_FLAG_PHSYNC | DRM_MODE_FLAG_PVSYNC) },
 	/* 0x0f - 1024x768@43Hz, interlace */
 	{ DRM_MODE("1024x768i", DRM_MODE_TYPE_DRIVER, 44900, 1024, 1032,
-		   1208, 1264, 0, 768, 768, 772, 817, 0,
+		   1208, 1264, 0, 768, 768, 776, 817, 0,
 		   DRM_MODE_FLAG_PHSYNC | DRM_MODE_FLAG_PVSYNC |
 		   DRM_MODE_FLAG_INTERLACE) },
 	/* 0x10 - 1024x768@60Hz */
@@ -521,12 +522,12 @@ static const struct drm_display_mode edid_est_modes[] = {
 		   720, 840, 0, 480, 481, 484, 500, 0,
 		   DRM_MODE_FLAG_NHSYNC | DRM_MODE_FLAG_NVSYNC) }, /* 640x480@75Hz */
 	{ DRM_MODE("640x480", DRM_MODE_TYPE_DRIVER, 31500, 640, 664,
-		   704,  832, 0, 480, 489, 491, 520, 0,
+		   704,  832, 0, 480, 489, 492, 520, 0,
 		   DRM_MODE_FLAG_NHSYNC | DRM_MODE_FLAG_NVSYNC) }, /* 640x480@72Hz */
 	{ DRM_MODE("640x480", DRM_MODE_TYPE_DRIVER, 30240, 640, 704,
 		   768,  864, 0, 480, 483, 486, 525, 0,
 		   DRM_MODE_FLAG_NHSYNC | DRM_MODE_FLAG_NVSYNC) }, /* 640x480@67Hz */
-	{ DRM_MODE("640x480", DRM_MODE_TYPE_DRIVER, 25200, 640, 656,
+	{ DRM_MODE("640x480", DRM_MODE_TYPE_DRIVER, 25175, 640, 656,
 		   752, 800, 0, 480, 490, 492, 525, 0,
 		   DRM_MODE_FLAG_NHSYNC | DRM_MODE_FLAG_NVSYNC) }, /* 640x480@60Hz */
 	{ DRM_MODE("720x400", DRM_MODE_TYPE_DRIVER, 35500, 720, 738,
@@ -538,7 +539,7 @@ static const struct drm_display_mode edid_est_modes[] = {
 	{ DRM_MODE("1280x1024", DRM_MODE_TYPE_DRIVER, 135000, 1280, 1296,
 		   1440, 1688, 0, 1024, 1025, 1028, 1066, 0,
 		   DRM_MODE_FLAG_PHSYNC | DRM_MODE_FLAG_PVSYNC) }, /* 1280x1024@75Hz */
-	{ DRM_MODE("1024x768", DRM_MODE_TYPE_DRIVER, 78800, 1024, 1040,
+	{ DRM_MODE("1024x768", DRM_MODE_TYPE_DRIVER, 78750, 1024, 1040,
 		   1136, 1312, 0,  768, 769, 772, 800, 0,
 		   DRM_MODE_FLAG_PHSYNC | DRM_MODE_FLAG_PVSYNC) }, /* 1024x768@75Hz */
 	{ DRM_MODE("1024x768", DRM_MODE_TYPE_DRIVER, 75000, 1024, 1048,
@@ -1395,6 +1396,31 @@ struct edid *drm_get_edid(struct drm_connector *connector,
 EXPORT_SYMBOL(drm_get_edid);
 
 /**
+ * drm_get_edid_switcheroo - get EDID data for a vga_switcheroo output
+ * @connector: connector we're probing
+ * @adapter: I2C adapter to use for DDC
+ *
+ * Wrapper around drm_get_edid() for laptops with dual GPUs using one set of
+ * outputs. The wrapper adds the requisite vga_switcheroo calls to temporarily
+ * switch DDC to the GPU which is retrieving EDID.
+ *
+ * Return: Pointer to valid EDID or %NULL if we couldn't find any.
+ */
+struct edid *drm_get_edid_switcheroo(struct drm_connector *connector,
+				     struct i2c_adapter *adapter)
+{
+	struct pci_dev *pdev = connector->dev->pdev;
+	struct edid *edid;
+
+	vga_switcheroo_lock_ddc(pdev);
+	edid = drm_get_edid(connector, adapter);
+	vga_switcheroo_unlock_ddc(pdev);
+
+	return edid;
+}
+EXPORT_SYMBOL(drm_get_edid_switcheroo);
+
+/**
  * drm_edid_duplicate - duplicate an EDID and the extensions
  * @edid: EDID to duplicate
  *
@@ -2215,7 +2241,7 @@ drm_est3_modes(struct drm_connector *connector, struct detailed_timing *timing)
 {
 	int i, j, m, modes = 0;
 	struct drm_display_mode *mode;
-	u8 *est = ((u8 *)timing) + 5;
+	u8 *est = ((u8 *)timing) + 6;
 
 	for (i = 0; i < 6; i++) {
 		for (j = 7; j >= 0; j--) {
@@ -3282,7 +3308,7 @@ void drm_edid_to_eld(struct drm_connector *connector, struct edid *edid)
 	u8 *cea;
 	u8 *name;
 	u8 *db;
-	int sad_count = 0;
+	int total_sad_count = 0;
 	int mnl;
 	int dbl;
 
@@ -3296,6 +3322,7 @@ void drm_edid_to_eld(struct drm_connector *connector, struct edid *edid)
 
 	name = NULL;
 	drm_for_each_detailed_block((u8 *)edid, monitor_name, &name);
+	/* max: 13 bytes EDID, 16 bytes ELD */
 	for (mnl = 0; name && mnl < 13; mnl++) {
 		if (name[mnl] == 0x0a)
 			break;
@@ -3324,11 +3351,15 @@ void drm_edid_to_eld(struct drm_connector *connector, struct edid *edid)
 			dbl = cea_db_payload_len(db);
 
 			switch (cea_db_tag(db)) {
+				int sad_count;
+
 			case AUDIO_BLOCK:
 				/* Audio Data Block, contains SADs */
-				sad_count = dbl / 3;
-				if (dbl >= 1)
-					memcpy(eld + 20 + mnl, &db[1], dbl);
+				sad_count = min(dbl / 3, 15 - total_sad_count);
+				if (sad_count >= 1)
+					memcpy(eld + 20 + mnl + total_sad_count * 3,
+					       &db[1], sad_count * 3);
+				total_sad_count += sad_count;
 				break;
 			case SPEAKER_BLOCK:
 				/* Speaker Allocation Data Block */
@@ -3345,13 +3376,13 @@ void drm_edid_to_eld(struct drm_connector *connector, struct edid *edid)
 			}
 		}
 	}
-	eld[5] |= sad_count << 4;
+	eld[5] |= total_sad_count << 4;
 
 	eld[DRM_ELD_BASELINE_ELD_LEN] =
 		DIV_ROUND_UP(drm_eld_calc_baseline_block_size(eld), 4);
 
 	DRM_DEBUG_KMS("ELD size %d, SAD count %d\n",
-		      drm_eld_size(eld), sad_count);
+		      drm_eld_size(eld), total_sad_count);
 }
 EXPORT_SYMBOL(drm_edid_to_eld);
 

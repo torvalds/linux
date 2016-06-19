@@ -491,7 +491,6 @@ static inline int set_memory_nx(unsigned long addr, int numpages) { return 0; }
 #endif
 
 #ifdef CONFIG_DEBUG_RODATA
-void mark_rodata_ro(void);
 void set_kernel_text_rw(void);
 void set_kernel_text_ro(void);
 #else

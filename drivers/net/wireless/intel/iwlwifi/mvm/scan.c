@@ -7,6 +7,7 @@
  *
  * Copyright(c) 2012 - 2014 Intel Corporation. All rights reserved.
  * Copyright(c) 2013 - 2015 Intel Mobile Communications GmbH
+ * Copyright(c) 2016 Intel Deutschland GmbH
  *
  * This program is free software; you can redistribute it and/or modify
  * it under the terms of version 2 of the GNU General Public License as
@@ -33,6 +34,7 @@
  *
  * Copyright(c) 2012 - 2014 Intel Corporation. All rights reserved.
  * Copyright(c) 2013 - 2015 Intel Mobile Communications GmbH
+ * Copyright(c) 2016 Intel Deutschland GmbH
  * All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
@@ -297,6 +299,12 @@ void iwl_mvm_rx_lmac_scan_iter_complete_notif(struct iwl_mvm *mvm,
 		       iwl_mvm_dump_channel_list(notif->results,
 						 notif->scanned_channels, buf,
 						 sizeof(buf)));
+
+	if (mvm->sched_scan_pass_all == SCHED_SCAN_PASS_ALL_FOUND) {
+		IWL_DEBUG_SCAN(mvm, "Pass all scheduled scan results found\n");
+		ieee80211_sched_scan_results(mvm->hw);
+		mvm->sched_scan_pass_all = SCHED_SCAN_PASS_ALL_ENABLED;
+	}
 }
 
 void iwl_mvm_rx_scan_match_found(struct iwl_mvm *mvm,
@@ -380,6 +388,7 @@ void iwl_mvm_rx_lmac_scan_complete_notif(struct iwl_mvm *mvm,
 
 		mvm->scan_status &= ~IWL_MVM_SCAN_SCHED;
 		ieee80211_sched_scan_stopped(mvm->hw);
+		mvm->sched_scan_pass_all = SCHED_SCAN_PASS_ALL_DISABLED;
 	} else if (mvm->scan_status & IWL_MVM_SCAN_REGULAR) {
 		IWL_DEBUG_SCAN(mvm, "Regular scan %s, EBS status %s (FW)\n",
 			       aborted ? "aborted" : "completed",
@@ -533,10 +542,13 @@ static bool iwl_mvm_scan_pass_all(struct iwl_mvm *mvm,
 		IWL_DEBUG_SCAN(mvm,
 			       "Sending scheduled scan with filtering, n_match_sets %d\n",
 			       req->n_match_sets);
+		mvm->sched_scan_pass_all = SCHED_SCAN_PASS_ALL_DISABLED;
 		return false;
 	}
 
 	IWL_DEBUG_SCAN(mvm, "Sending Scheduled scan without filtering\n");
+
+	mvm->sched_scan_pass_all = SCHED_SCAN_PASS_ALL_ENABLED;
 	return true;
 }
 
@@ -788,6 +800,9 @@ static int iwl_mvm_scan_lmac_flags(struct iwl_mvm *mvm,
 		flags |= IWL_MVM_LMAC_SCAN_FLAG_ITER_COMPLETE;
 #endif
 
+	if (mvm->sched_scan_pass_all == SCHED_SCAN_PASS_ALL_ENABLED)
+		flags |= IWL_MVM_LMAC_SCAN_FLAG_ITER_COMPLETE;
+
 	if (iwl_mvm_is_regular_scan(params) &&
 	    vif->type != NL80211_IFTYPE_P2P_DEVICE &&
 	    params->type != IWL_SCAN_TYPE_FRAGMENTED)
@@ -930,8 +945,11 @@ int iwl_mvm_config_scan(struct iwl_mvm *mvm)
 	if (WARN_ON(num_channels > mvm->fw->ucode_capa.n_scan_channels))
 		return -ENOBUFS;
 
-	if (type == mvm->scan_type)
+	if (type == mvm->scan_type) {
+		IWL_DEBUG_SCAN(mvm,
+			       "Ignoring UMAC scan config of the same type\n");
 		return 0;
+	}
 
 	cmd_size = sizeof(*scan_config) + mvm->fw->ucode_capa.n_scan_channels;
 
@@ -1071,6 +1089,9 @@ static u32 iwl_mvm_scan_umac_flags(struct iwl_mvm *mvm,
 		flags |= IWL_UMAC_SCAN_GEN_FLAGS_ITER_COMPLETE;
 #endif
 
+	if (mvm->sched_scan_pass_all == SCHED_SCAN_PASS_ALL_ENABLED)
+		flags |= IWL_UMAC_SCAN_GEN_FLAGS_ITER_COMPLETE;
+
 	if (iwl_mvm_is_regular_scan(params) &&
 	    vif->type != NL80211_IFTYPE_P2P_DEVICE &&
 	    params->type != IWL_SCAN_TYPE_FRAGMENTED)
@@ -1109,7 +1130,7 @@ static int iwl_mvm_scan_umac(struct iwl_mvm *mvm, struct ieee80211_vif *vif,
 	cmd->general_flags = cpu_to_le32(iwl_mvm_scan_umac_flags(mvm, params,
 								 vif));
 
-	if (type == IWL_MVM_SCAN_SCHED)
+	if (type == IWL_MVM_SCAN_SCHED || type == IWL_MVM_SCAN_NETDETECT)
 		cmd->flags = cpu_to_le32(IWL_UMAC_SCAN_FLAG_PREEMPTIVE);
 
 	if (iwl_mvm_scan_use_ebs(mvm, vif))
@@ -1298,10 +1319,6 @@ int iwl_mvm_sched_scan_start(struct iwl_mvm *mvm,
 		return -EBUSY;
 	}
 
-	/* we don't support "match all" in the firmware */
-	if (!req->n_match_sets)
-		return -EOPNOTSUPP;
-
 	ret = iwl_mvm_check_running_scans(mvm, type);
 	if (ret)
 		return ret;
@@ -1355,7 +1372,7 @@ int iwl_mvm_sched_scan_start(struct iwl_mvm *mvm,
 
 	if (fw_has_capa(&mvm->fw->ucode_capa, IWL_UCODE_TLV_CAPA_UMAC_SCAN)) {
 		hcmd.id = iwl_cmd_id(SCAN_REQ_UMAC, IWL_ALWAYS_LONG_GROUP, 0);
-		ret = iwl_mvm_scan_umac(mvm, vif, &params, IWL_MVM_SCAN_SCHED);
+		ret = iwl_mvm_scan_umac(mvm, vif, &params, type);
 	} else {
 		hcmd.id = SCAN_OFFLOAD_REQUEST_CMD;
 		ret = iwl_mvm_scan_lmac(mvm, vif, &params);
@@ -1397,6 +1414,7 @@ void iwl_mvm_rx_umac_scan_complete_notif(struct iwl_mvm *mvm,
 		iwl_mvm_unref(mvm, IWL_MVM_REF_SCAN);
 	} else if (mvm->scan_uid_status[uid] == IWL_MVM_SCAN_SCHED) {
 		ieee80211_sched_scan_stopped(mvm->hw);
+		mvm->sched_scan_pass_all = SCHED_SCAN_PASS_ALL_DISABLED;
 	}
 
 	mvm->scan_status &= ~mvm->scan_uid_status[uid];
@@ -1431,6 +1449,12 @@ void iwl_mvm_rx_umac_scan_iter_complete_notif(struct iwl_mvm *mvm,
 		       iwl_mvm_dump_channel_list(notif->results,
 						 notif->scanned_channels, buf,
 						 sizeof(buf)));
+
+	if (mvm->sched_scan_pass_all == SCHED_SCAN_PASS_ALL_FOUND) {
+		IWL_DEBUG_SCAN(mvm, "Pass all scheduled scan results found\n");
+		ieee80211_sched_scan_results(mvm->hw);
+		mvm->sched_scan_pass_all = SCHED_SCAN_PASS_ALL_ENABLED;
+	}
 }
 
 static int iwl_mvm_umac_scan_abort(struct iwl_mvm *mvm, int type)
@@ -1525,6 +1549,7 @@ void iwl_mvm_report_scan_aborted(struct iwl_mvm *mvm)
 		uid = iwl_mvm_scan_uid_by_status(mvm, IWL_MVM_SCAN_SCHED);
 		if (uid >= 0 && !mvm->restart_fw) {
 			ieee80211_sched_scan_stopped(mvm->hw);
+			mvm->sched_scan_pass_all = SCHED_SCAN_PASS_ALL_DISABLED;
 			mvm->scan_uid_status[uid] = 0;
 		}
 
@@ -1546,8 +1571,11 @@ void iwl_mvm_report_scan_aborted(struct iwl_mvm *mvm)
 		 * restart_hw, so do not report if FW is about to be
 		 * restarted.
 		 */
-		if ((mvm->scan_status & IWL_MVM_SCAN_SCHED) && !mvm->restart_fw)
+		if ((mvm->scan_status & IWL_MVM_SCAN_SCHED) &&
+		    !mvm->restart_fw) {
 			ieee80211_sched_scan_stopped(mvm->hw);
+			mvm->sched_scan_pass_all = SCHED_SCAN_PASS_ALL_DISABLED;
+		}
 	}
 }
 
@@ -1583,6 +1611,7 @@ out:
 			ieee80211_scan_completed(mvm->hw, true);
 	} else if (notify) {
 		ieee80211_sched_scan_stopped(mvm->hw);
+		mvm->sched_scan_pass_all = SCHED_SCAN_PASS_ALL_DISABLED;
 	}
 
 	return ret;

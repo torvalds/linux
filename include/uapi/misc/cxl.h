@@ -55,11 +55,35 @@ struct cxl_afu_id {
 	__u64 reserved6;
 };
 
+/* base adapter image header is included in the image */
+#define CXL_AI_NEED_HEADER	0x0000000000000001ULL
+#define CXL_AI_ALL		CXL_AI_NEED_HEADER
+
+#define CXL_AI_HEADER_SIZE 128
+#define CXL_AI_BUFFER_SIZE 4096
+#define CXL_AI_MAX_ENTRIES 256
+#define CXL_AI_MAX_CHUNK_SIZE (CXL_AI_BUFFER_SIZE * CXL_AI_MAX_ENTRIES)
+
+struct cxl_adapter_image {
+	__u64 flags;
+	__u64 data;
+	__u64 len_data;
+	__u64 len_image;
+	__u64 reserved1;
+	__u64 reserved2;
+	__u64 reserved3;
+	__u64 reserved4;
+};
+
 /* ioctl numbers */
 #define CXL_MAGIC 0xCA
+/* AFU devices */
 #define CXL_IOCTL_START_WORK		_IOW(CXL_MAGIC, 0x00, struct cxl_ioctl_start_work)
 #define CXL_IOCTL_GET_PROCESS_ELEMENT	_IOR(CXL_MAGIC, 0x01, __u32)
 #define CXL_IOCTL_GET_AFU_ID            _IOR(CXL_MAGIC, 0x02, struct cxl_afu_id)
+/* adapter devices */
+#define CXL_IOCTL_DOWNLOAD_IMAGE        _IOW(CXL_MAGIC, 0x0A, struct cxl_adapter_image)
+#define CXL_IOCTL_VALIDATE_IMAGE        _IOW(CXL_MAGIC, 0x0B, struct cxl_adapter_image)
 
 #define CXL_READ_MIN_SIZE 0x1000 /* 4K */
 

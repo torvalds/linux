@@ -34,6 +34,7 @@
 #include "atom.h"
 
 #include <linux/pm_runtime.h>
+#include <linux/vga_switcheroo.h>
 
 static int radeon_dp_handle_hpd(struct drm_connector *connector)
 {
@@ -344,6 +345,11 @@ static void radeon_connector_get_edid(struct drm_connector *connector)
 		else if (radeon_connector->ddc_bus)
 			radeon_connector->edid = drm_get_edid(&radeon_connector->base,
 							      &radeon_connector->ddc_bus->adapter);
+	} else if (vga_switcheroo_handler_flags() & VGA_SWITCHEROO_CAN_SWITCH_DDC &&
+		   connector->connector_type == DRM_MODE_CONNECTOR_LVDS &&
+		   radeon_connector->ddc_bus) {
+		radeon_connector->edid = drm_get_edid_switcheroo(&radeon_connector->base,
+								 &radeon_connector->ddc_bus->adapter);
 	} else if (radeon_connector->ddc_bus) {
 		radeon_connector->edid = drm_get_edid(&radeon_connector->base,
 						      &radeon_connector->ddc_bus->adapter);
@@ -1996,10 +2002,12 @@ radeon_add_atom_connector(struct drm_device *dev,
 						   rdev->mode_info.dither_property,
 						   RADEON_FMT_DITHER_DISABLE);
 
-			if (radeon_audio != 0)
+			if (radeon_audio != 0) {
 				drm_object_attach_property(&radeon_connector->base.base,
 							   rdev->mode_info.audio_property,
 							   RADEON_AUDIO_AUTO);
+				radeon_connector->audio = RADEON_AUDIO_AUTO;
+			}
 			if (ASIC_IS_DCE5(rdev))
 				drm_object_attach_property(&radeon_connector->base.base,
 							   rdev->mode_info.output_csc_property,
@@ -2124,6 +2132,7 @@ radeon_add_atom_connector(struct drm_device *dev,
 				drm_object_attach_property(&radeon_connector->base.base,
 							   rdev->mode_info.audio_property,
 							   RADEON_AUDIO_AUTO);
+				radeon_connector->audio = RADEON_AUDIO_AUTO;
 			}
 			if (connector_type == DRM_MODE_CONNECTOR_DVII) {
 				radeon_connector->dac_load_detect = true;
@@ -2179,6 +2188,7 @@ radeon_add_atom_connector(struct drm_device *dev,
 				drm_object_attach_property(&radeon_connector->base.base,
 							   rdev->mode_info.audio_property,
 							   RADEON_AUDIO_AUTO);
+				radeon_connector->audio = RADEON_AUDIO_AUTO;
 			}
 			if (ASIC_IS_DCE5(rdev))
 				drm_object_attach_property(&radeon_connector->base.base,
@@ -2231,6 +2241,7 @@ radeon_add_atom_connector(struct drm_device *dev,
 				drm_object_attach_property(&radeon_connector->base.base,
 							   rdev->mode_info.audio_property,
 							   RADEON_AUDIO_AUTO);
+				radeon_connector->audio = RADEON_AUDIO_AUTO;
 			}
 			if (ASIC_IS_DCE5(rdev))
 				drm_object_attach_property(&radeon_connector->base.base,

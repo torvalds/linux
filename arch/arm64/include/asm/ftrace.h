@@ -48,7 +48,7 @@ static inline unsigned long ftrace_call_adjust(unsigned long addr)
  * See kernel/trace/trace_syscalls.c
  *
  * x86 code says:
- * If the user realy wants these, then they should use the
+ * If the user really wants these, then they should use the
  * raw syscall tracepoints with filtering.
  */
 #define ARCH_TRACE_IGNORE_COMPAT_SYSCALLS

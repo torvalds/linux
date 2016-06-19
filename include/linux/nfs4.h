@@ -529,6 +529,7 @@ enum pnfs_layouttype {
 	LAYOUT_OSD2_OBJECTS = 2,
 	LAYOUT_BLOCK_VOLUME = 3,
 	LAYOUT_FLEX_FILES = 4,
+	LAYOUT_SCSI = 5,
 	LAYOUT_TYPE_MAX
 };
 
@@ -555,6 +556,7 @@ enum pnfs_block_volume_type {
 	PNFS_BLOCK_VOLUME_SLICE		= 1,
 	PNFS_BLOCK_VOLUME_CONCAT	= 2,
 	PNFS_BLOCK_VOLUME_STRIPE	= 3,
+	PNFS_BLOCK_VOLUME_SCSI		= 4,
 };
 
 enum pnfs_block_extent_state {
@@ -567,6 +569,23 @@ enum pnfs_block_extent_state {
 /* on the wire size of a block layout extent */
 #define PNFS_BLOCK_EXTENT_SIZE \
 	(7 * sizeof(__be32) + NFS4_DEVICEID4_SIZE)
+
+/* on the wire size of a scsi commit range */
+#define PNFS_SCSI_RANGE_SIZE \
+	(4 * sizeof(__be32))
+
+enum scsi_code_set {
+	PS_CODE_SET_BINARY	= 1,
+	PS_CODE_SET_ASCII	= 2,
+	PS_CODE_SET_UTF8	= 3
+};
+
+enum scsi_designator_type {
+	PS_DESIGNATOR_T10	= 1,
+	PS_DESIGNATOR_EUI64	= 2,
+	PS_DESIGNATOR_NAA	= 3,
+	PS_DESIGNATOR_NAME	= 8
+};
 
 #define NFL4_UFLG_MASK			0x0000003F
 #define NFL4_UFLG_DENSE			0x00000001

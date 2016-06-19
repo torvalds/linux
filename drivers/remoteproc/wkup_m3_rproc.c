@@ -122,6 +122,7 @@ static const struct of_device_id wkup_m3_rproc_of_match[] = {
 	{ .compatible = "ti,am4372-wkup-m3", },
 	{},
 };
+MODULE_DEVICE_TABLE(of, wkup_m3_rproc_of_match);
 
 static int wkup_m3_rproc_probe(struct platform_device *pdev)
 {

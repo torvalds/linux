@@ -2,7 +2,7 @@
  *
  * Copyright (C) 2014-2015 Renesas Electronics Corporation
  * Copyright (C) 2015 Renesas Solutions Corp.
- * Copyright (C) 2015 Cogent Embedded, Inc. <source@cogentembedded.com>
+ * Copyright (C) 2015-2016 Cogent Embedded, Inc. <source@cogentembedded.com>
  *
  * Based on the SuperH Ethernet driver
  *
@@ -837,6 +837,8 @@ static inline void ravb_write(struct net_device *ndev, u32 data,
 	iowrite32(data, priv->addr + reg);
 }
 
+void ravb_modify(struct net_device *ndev, enum ravb_reg reg, u32 clear,
+		 u32 set);
 int ravb_wait(struct net_device *ndev, enum ravb_reg reg, u32 mask, u32 value);
 
 irqreturn_t ravb_ptp_interrupt(struct net_device *ndev);

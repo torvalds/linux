@@ -628,15 +628,7 @@ static int bgpio_pdev_probe(struct platform_device *pdev)
 
 	platform_set_drvdata(pdev, gc);
 
-	return gpiochip_add_data(gc, NULL);
-}
-
-static int bgpio_pdev_remove(struct platform_device *pdev)
-{
-	struct gpio_chip *gc = platform_get_drvdata(pdev);
-
-	gpiochip_remove(gc);
-	return 0;
+	return devm_gpiochip_add_data(&pdev->dev, gc, NULL);
 }
 
 static const struct platform_device_id bgpio_id_table[] = {
@@ -657,7 +649,6 @@ static struct platform_driver bgpio_driver = {
 	},
 	.id_table = bgpio_id_table,
 	.probe = bgpio_pdev_probe,
-	.remove = bgpio_pdev_remove,
 };
 
 module_platform_driver(bgpio_driver);

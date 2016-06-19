@@ -39,7 +39,7 @@ struct l3mdev_ops {
 
 #ifdef CONFIG_NET_L3_MASTER_DEV
 
-int l3mdev_master_ifindex_rcu(struct net_device *dev);
+int l3mdev_master_ifindex_rcu(const struct net_device *dev);
 static inline int l3mdev_master_ifindex(struct net_device *dev)
 {
 	int ifindex;
@@ -179,7 +179,7 @@ struct dst_entry *l3mdev_rt6_dst_by_oif(struct net *net,
 
 #else
 
-static inline int l3mdev_master_ifindex_rcu(struct net_device *dev)
+static inline int l3mdev_master_ifindex_rcu(const struct net_device *dev)
 {
 	return 0;
 }

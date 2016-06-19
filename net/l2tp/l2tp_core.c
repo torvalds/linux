@@ -1376,9 +1376,9 @@ static int l2tp_tunnel_sock_create(struct net *net,
 			memcpy(&udp_conf.peer_ip6, cfg->peer_ip6,
 			       sizeof(udp_conf.peer_ip6));
 			udp_conf.use_udp6_tx_checksums =
-			    cfg->udp6_zero_tx_checksums;
+			  ! cfg->udp6_zero_tx_checksums;
 			udp_conf.use_udp6_rx_checksums =
-			    cfg->udp6_zero_rx_checksums;
+			  ! cfg->udp6_zero_rx_checksums;
 		} else
 #endif
 		{

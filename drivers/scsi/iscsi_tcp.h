@@ -45,8 +45,8 @@ struct iscsi_sw_tcp_conn {
 	void			(*old_write_space)(struct sock *);
 
 	/* data and header digests */
-	struct hash_desc	tx_hash;	/* CRC32C (Tx) */
-	struct hash_desc	rx_hash;	/* CRC32C (Rx) */
+	struct ahash_request	*tx_hash;	/* CRC32C (Tx) */
+	struct ahash_request	*rx_hash;	/* CRC32C (Rx) */
 
 	/* MIB custom statistics */
 	uint32_t		sendpage_failures_cnt;

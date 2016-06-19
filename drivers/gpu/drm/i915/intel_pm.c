@@ -32,6 +32,8 @@
 #include <linux/module.h>
 
 /**
+ * DOC: RC6
+ *
  * RC6 is a special power stage which allows the GPU to enter an very
  * low-voltage mode when idle, using down to 0V while at this stage.  This
  * stage is entered automatically when the GPU is idle when RC6 support is
@@ -546,7 +548,7 @@ static const struct intel_watermark_params i845_wm_info = {
  * intel_calculate_wm - calculate watermark level
  * @clock_in_khz: pixel clock
  * @wm: chip FIFO params
- * @pixel_size: display pixel size
+ * @cpp: bytes per pixel
  * @latency_ns: memory latency for the platform
  *
  * Calculate the watermark level (the level at which the display plane will
@@ -562,8 +564,7 @@ static const struct intel_watermark_params i845_wm_info = {
  */
 static unsigned long intel_calculate_wm(unsigned long clock_in_khz,
 					const struct intel_watermark_params *wm,
-					int fifo_size,
-					int pixel_size,
+					int fifo_size, int cpp,
 					unsigned long latency_ns)
 {
 	long entries_required, wm_size;
@@ -574,7 +575,7 @@ static unsigned long intel_calculate_wm(unsigned long clock_in_khz,
 	 * clocks go from a few thousand to several hundred thousand.
 	 * latency is usually a few thousand
 	 */
-	entries_required = ((clock_in_khz / 1000) * pixel_size * latency_ns) /
+	entries_required = ((clock_in_khz / 1000) * cpp * latency_ns) /
 		1000;
 	entries_required = DIV_ROUND_UP(entries_required, wm->cacheline_size);
 
@@ -638,13 +639,13 @@ static void pineview_update_wm(struct drm_crtc *unused_crtc)
 	crtc = single_enabled_crtc(dev);
 	if (crtc) {
 		const struct drm_display_mode *adjusted_mode = &to_intel_crtc(crtc)->config->base.adjusted_mode;
-		int pixel_size = crtc->primary->state->fb->bits_per_pixel / 8;
+		int cpp = drm_format_plane_cpp(crtc->primary->state->fb->pixel_format, 0);
 		int clock = adjusted_mode->crtc_clock;
 
 		/* Display SR */
 		wm = intel_calculate_wm(clock, &pineview_display_wm,
 					pineview_display_wm.fifo_size,
-					pixel_size, latency->display_sr);
+					cpp, latency->display_sr);
 		reg = I915_READ(DSPFW1);
 		reg &= ~DSPFW_SR_MASK;
 		reg |= FW_WM(wm, SR);
@@ -654,7 +655,7 @@ static void pineview_update_wm(struct drm_crtc *unused_crtc)
 		/* cursor SR */
 		wm = intel_calculate_wm(clock, &pineview_cursor_wm,
 					pineview_display_wm.fifo_size,
-					pixel_size, latency->cursor_sr);
+					cpp, latency->cursor_sr);
 		reg = I915_READ(DSPFW3);
 		reg &= ~DSPFW_CURSOR_SR_MASK;
 		reg |= FW_WM(wm, CURSOR_SR);
@@ -663,7 +664,7 @@ static void pineview_update_wm(struct drm_crtc *unused_crtc)
 		/* Display HPLL off SR */
 		wm = intel_calculate_wm(clock, &pineview_display_hplloff_wm,
 					pineview_display_hplloff_wm.fifo_size,
-					pixel_size, latency->display_hpll_disable);
+					cpp, latency->display_hpll_disable);
 		reg = I915_READ(DSPFW3);
 		reg &= ~DSPFW_HPLL_SR_MASK;
 		reg |= FW_WM(wm, HPLL_SR);
@@ -672,7 +673,7 @@ static void pineview_update_wm(struct drm_crtc *unused_crtc)
 		/* cursor HPLL off SR */
 		wm = intel_calculate_wm(clock, &pineview_cursor_hplloff_wm,
 					pineview_display_hplloff_wm.fifo_size,
-					pixel_size, latency->cursor_hpll_disable);
+					cpp, latency->cursor_hpll_disable);
 		reg = I915_READ(DSPFW3);
 		reg &= ~DSPFW_HPLL_CURSOR_MASK;
 		reg |= FW_WM(wm, HPLL_CURSOR);
@@ -696,7 +697,7 @@ static bool g4x_compute_wm0(struct drm_device *dev,
 {
 	struct drm_crtc *crtc;
 	const struct drm_display_mode *adjusted_mode;
-	int htotal, hdisplay, clock, pixel_size;
+	int htotal, hdisplay, clock, cpp;
 	int line_time_us, line_count;
 	int entries, tlb_miss;
 
@@ -711,10 +712,10 @@ static bool g4x_compute_wm0(struct drm_device *dev,
 	clock = adjusted_mode->crtc_clock;
 	htotal = adjusted_mode->crtc_htotal;
 	hdisplay = to_intel_crtc(crtc)->config->pipe_src_w;
-	pixel_size = crtc->primary->state->fb->bits_per_pixel / 8;
+	cpp = drm_format_plane_cpp(crtc->primary->state->fb->pixel_format, 0);
 
 	/* Use the small buffer method to calculate plane watermark */
-	entries = ((clock * pixel_size / 1000) * display_latency_ns) / 1000;
+	entries = ((clock * cpp / 1000) * display_latency_ns) / 1000;
 	tlb_miss = display->fifo_size*display->cacheline_size - hdisplay * 8;
 	if (tlb_miss > 0)
 		entries += tlb_miss;
@@ -726,7 +727,7 @@ static bool g4x_compute_wm0(struct drm_device *dev,
 	/* Use the large buffer method to calculate cursor watermark */
 	line_time_us = max(htotal * 1000 / clock, 1);
 	line_count = (cursor_latency_ns / line_time_us + 1000) / 1000;
-	entries = line_count * crtc->cursor->state->crtc_w * pixel_size;
+	entries = line_count * crtc->cursor->state->crtc_w * cpp;
 	tlb_miss = cursor->fifo_size*cursor->cacheline_size - hdisplay * 8;
 	if (tlb_miss > 0)
 		entries += tlb_miss;
@@ -782,7 +783,7 @@ static bool g4x_compute_srwm(struct drm_device *dev,
 {
 	struct drm_crtc *crtc;
 	const struct drm_display_mode *adjusted_mode;
-	int hdisplay, htotal, pixel_size, clock;
+	int hdisplay, htotal, cpp, clock;
 	unsigned long line_time_us;
 	int line_count, line_size;
 	int small, large;
@@ -798,21 +799,21 @@ static bool g4x_compute_srwm(struct drm_device *dev,
 	clock = adjusted_mode->crtc_clock;
 	htotal = adjusted_mode->crtc_htotal;
 	hdisplay = to_intel_crtc(crtc)->config->pipe_src_w;
-	pixel_size = crtc->primary->state->fb->bits_per_pixel / 8;
+	cpp = drm_format_plane_cpp(crtc->primary->state->fb->pixel_format, 0);
 
 	line_time_us = max(htotal * 1000 / clock, 1);
 	line_count = (latency_ns / line_time_us + 1000) / 1000;
-	line_size = hdisplay * pixel_size;
+	line_size = hdisplay * cpp;
 
 	/* Use the minimum of the small and large buffer method for primary */
-	small = ((clock * pixel_size / 1000) * latency_ns) / 1000;
+	small = ((clock * cpp / 1000) * latency_ns) / 1000;
 	large = line_count * line_size;
 
 	entries = DIV_ROUND_UP(min(small, large), display->cacheline_size);
 	*display_wm = entries + display->guard_size;
 
 	/* calculate the self-refresh watermark for display cursor */
-	entries = line_count * pixel_size * crtc->cursor->state->crtc_w;
+	entries = line_count * cpp * crtc->cursor->state->crtc_w;
 	entries = DIV_ROUND_UP(entries, cursor->cacheline_size);
 	*cursor_wm = entries + cursor->guard_size;
 
@@ -904,13 +905,13 @@ enum vlv_wm_level {
 static unsigned int vlv_wm_method2(unsigned int pixel_rate,
 				   unsigned int pipe_htotal,
 				   unsigned int horiz_pixels,
-				   unsigned int bytes_per_pixel,
+				   unsigned int cpp,
 				   unsigned int latency)
 {
 	unsigned int ret;
 
 	ret = (latency * pixel_rate) / (pipe_htotal * 10000);
-	ret = (ret + 1) * horiz_pixels * bytes_per_pixel;
+	ret = (ret + 1) * horiz_pixels * cpp;
 	ret = DIV_ROUND_UP(ret, 64);
 
 	return ret;
@@ -939,7 +940,7 @@ static uint16_t vlv_compute_wm_level(struct intel_plane *plane,
 				     int level)
 {
 	struct drm_i915_private *dev_priv = to_i915(plane->base.dev);
-	int clock, htotal, pixel_size, width, wm;
+	int clock, htotal, cpp, width, wm;
 
 	if (dev_priv->wm.pri_latency[level] == 0)
 		return USHRT_MAX;
@@ -947,7 +948,7 @@ static uint16_t vlv_compute_wm_level(struct intel_plane *plane,
 	if (!state->visible)
 		return 0;
 
-	pixel_size = drm_format_plane_cpp(state->base.fb->pixel_format, 0);
+	cpp = drm_format_plane_cpp(state->base.fb->pixel_format, 0);
 	clock = crtc->config->base.adjusted_mode.crtc_clock;
 	htotal = crtc->config->base.adjusted_mode.crtc_htotal;
 	width = crtc->config->pipe_src_w;
@@ -963,7 +964,7 @@ static uint16_t vlv_compute_wm_level(struct intel_plane *plane,
 		 */
 		wm = 63;
 	} else {
-		wm = vlv_wm_method2(clock, htotal, width, pixel_size,
+		wm = vlv_wm_method2(clock, htotal, width, cpp,
 				    dev_priv->wm.pri_latency[level] * 10);
 	}
 
@@ -1437,7 +1438,7 @@ static void i965_update_wm(struct drm_crtc *unused_crtc)
 		int clock = adjusted_mode->crtc_clock;
 		int htotal = adjusted_mode->crtc_htotal;
 		int hdisplay = to_intel_crtc(crtc)->config->pipe_src_w;
-		int pixel_size = crtc->primary->state->fb->bits_per_pixel / 8;
+		int cpp = drm_format_plane_cpp(crtc->primary->state->fb->pixel_format, 0);
 		unsigned long line_time_us;
 		int entries;
 
@@ -1445,7 +1446,7 @@ static void i965_update_wm(struct drm_crtc *unused_crtc)
 
 		/* Use ns/us then divide to preserve precision */
 		entries = (((sr_latency_ns / line_time_us) + 1000) / 1000) *
-			pixel_size * hdisplay;
+			cpp * hdisplay;
 		entries = DIV_ROUND_UP(entries, I915_FIFO_LINE_SIZE);
 		srwm = I965_FIFO_SIZE - entries;
 		if (srwm < 0)
@@ -1455,7 +1456,7 @@ static void i965_update_wm(struct drm_crtc *unused_crtc)
 			      entries, srwm);
 
 		entries = (((sr_latency_ns / line_time_us) + 1000) / 1000) *
-			pixel_size * crtc->cursor->state->crtc_w;
+			cpp * crtc->cursor->state->crtc_w;
 		entries = DIV_ROUND_UP(entries,
 					  i965_cursor_wm_info.cacheline_size);
 		cursor_sr = i965_cursor_wm_info.fifo_size -
@@ -1516,7 +1517,7 @@ static void i9xx_update_wm(struct drm_crtc *unused_crtc)
 	crtc = intel_get_crtc_for_plane(dev, 0);
 	if (intel_crtc_active(crtc)) {
 		const struct drm_display_mode *adjusted_mode;
-		int cpp = crtc->primary->state->fb->bits_per_pixel / 8;
+		int cpp = drm_format_plane_cpp(crtc->primary->state->fb->pixel_format, 0);
 		if (IS_GEN2(dev))
 			cpp = 4;
 
@@ -1538,7 +1539,7 @@ static void i9xx_update_wm(struct drm_crtc *unused_crtc)
 	crtc = intel_get_crtc_for_plane(dev, 1);
 	if (intel_crtc_active(crtc)) {
 		const struct drm_display_mode *adjusted_mode;
-		int cpp = crtc->primary->state->fb->bits_per_pixel / 8;
+		int cpp = drm_format_plane_cpp(crtc->primary->state->fb->pixel_format, 0);
 		if (IS_GEN2(dev))
 			cpp = 4;
 
@@ -1584,7 +1585,7 @@ static void i9xx_update_wm(struct drm_crtc *unused_crtc)
 		int clock = adjusted_mode->crtc_clock;
 		int htotal = adjusted_mode->crtc_htotal;
 		int hdisplay = to_intel_crtc(enabled)->config->pipe_src_w;
-		int pixel_size = enabled->primary->state->fb->bits_per_pixel / 8;
+		int cpp = drm_format_plane_cpp(enabled->primary->state->fb->pixel_format, 0);
 		unsigned long line_time_us;
 		int entries;
 
@@ -1592,7 +1593,7 @@ static void i9xx_update_wm(struct drm_crtc *unused_crtc)
 
 		/* Use ns/us then divide to preserve precision */
 		entries = (((sr_latency_ns / line_time_us) + 1000) / 1000) *
-			pixel_size * hdisplay;
+			cpp * hdisplay;
 		entries = DIV_ROUND_UP(entries, wm_info->cacheline_size);
 		DRM_DEBUG_KMS("self-refresh entries: %d\n", entries);
 		srwm = wm_info->fifo_size - entries;
@@ -1672,6 +1673,9 @@ uint32_t ilk_pipe_pixel_rate(const struct intel_crtc_state *pipe_config)
 		if (pipe_h < pfit_h)
 			pipe_h = pfit_h;
 
+		if (WARN_ON(!pfit_w || !pfit_h))
+			return pixel_rate;
+
 		pixel_rate = div_u64((uint64_t) pixel_rate * pipe_w * pipe_h,
 				     pfit_w * pfit_h);
 	}
@@ -1680,15 +1684,14 @@ uint32_t ilk_pipe_pixel_rate(const struct intel_crtc_state *pipe_config)
 }
 
 /* latency must be in 0.1us units. */
-static uint32_t ilk_wm_method1(uint32_t pixel_rate, uint8_t bytes_per_pixel,
-			       uint32_t latency)
+static uint32_t ilk_wm_method1(uint32_t pixel_rate, uint8_t cpp, uint32_t latency)
 {
 	uint64_t ret;
 
 	if (WARN(latency == 0, "Latency value missing\n"))
 		return UINT_MAX;
 
-	ret = (uint64_t) pixel_rate * bytes_per_pixel * latency;
+	ret = (uint64_t) pixel_rate * cpp * latency;
 	ret = DIV_ROUND_UP_ULL(ret, 64 * 10000) + 2;
 
 	return ret;
@@ -1696,24 +1699,37 @@ static uint32_t ilk_wm_method1(uint32_t pixel_rate, uint8_t bytes_per_pixel,
 
 /* latency must be in 0.1us units. */
 static uint32_t ilk_wm_method2(uint32_t pixel_rate, uint32_t pipe_htotal,
-			       uint32_t horiz_pixels, uint8_t bytes_per_pixel,
+			       uint32_t horiz_pixels, uint8_t cpp,
 			       uint32_t latency)
 {
 	uint32_t ret;
 
 	if (WARN(latency == 0, "Latency value missing\n"))
 		return UINT_MAX;
+	if (WARN_ON(!pipe_htotal))
+		return UINT_MAX;
 
 	ret = (latency * pixel_rate) / (pipe_htotal * 10000);
-	ret = (ret + 1) * horiz_pixels * bytes_per_pixel;
+	ret = (ret + 1) * horiz_pixels * cpp;
 	ret = DIV_ROUND_UP(ret, 64) + 2;
 	return ret;
 }
 
 static uint32_t ilk_wm_fbc(uint32_t pri_val, uint32_t horiz_pixels,
-			   uint8_t bytes_per_pixel)
+			   uint8_t cpp)
 {
-	return DIV_ROUND_UP(pri_val * 64, horiz_pixels * bytes_per_pixel) + 2;
+	/*
+	 * Neither of these should be possible since this function shouldn't be
+	 * called if the CRTC is off or the plane is invisible.  But let's be
+	 * extra paranoid to avoid a potential divide-by-zero if we screw up
+	 * elsewhere in the driver.
+	 */
+	if (WARN_ON(!cpp))
+		return 0;
+	if (WARN_ON(!horiz_pixels))
+		return 0;
+
+	return DIV_ROUND_UP(pri_val * 64, horiz_pixels * cpp) + 2;
 }
 
 struct ilk_wm_maximums {
@@ -1732,13 +1748,14 @@ static uint32_t ilk_compute_pri_wm(const struct intel_crtc_state *cstate,
 				   uint32_t mem_value,
 				   bool is_lp)
 {
-	int bpp = pstate->base.fb ? pstate->base.fb->bits_per_pixel / 8 : 0;
+	int cpp = pstate->base.fb ?
+		drm_format_plane_cpp(pstate->base.fb->pixel_format, 0) : 0;
 	uint32_t method1, method2;
 
 	if (!cstate->base.active || !pstate->visible)
 		return 0;
 
-	method1 = ilk_wm_method1(ilk_pipe_pixel_rate(cstate), bpp, mem_value);
+	method1 = ilk_wm_method1(ilk_pipe_pixel_rate(cstate), cpp, mem_value);
 
 	if (!is_lp)
 		return method1;
@@ -1746,8 +1763,7 @@ static uint32_t ilk_compute_pri_wm(const struct intel_crtc_state *cstate,
 	method2 = ilk_wm_method2(ilk_pipe_pixel_rate(cstate),
 				 cstate->base.adjusted_mode.crtc_htotal,
 				 drm_rect_width(&pstate->dst),
-				 bpp,
-				 mem_value);
+				 cpp, mem_value);
 
 	return min(method1, method2);
 }
@@ -1760,18 +1776,18 @@ static uint32_t ilk_compute_spr_wm(const struct intel_crtc_state *cstate,
 				   const struct intel_plane_state *pstate,
 				   uint32_t mem_value)
 {
-	int bpp = pstate->base.fb ? pstate->base.fb->bits_per_pixel / 8 : 0;
+	int cpp = pstate->base.fb ?
+		drm_format_plane_cpp(pstate->base.fb->pixel_format, 0) : 0;
 	uint32_t method1, method2;
 
 	if (!cstate->base.active || !pstate->visible)
 		return 0;
 
-	method1 = ilk_wm_method1(ilk_pipe_pixel_rate(cstate), bpp, mem_value);
+	method1 = ilk_wm_method1(ilk_pipe_pixel_rate(cstate), cpp, mem_value);
 	method2 = ilk_wm_method2(ilk_pipe_pixel_rate(cstate),
 				 cstate->base.adjusted_mode.crtc_htotal,
 				 drm_rect_width(&pstate->dst),
-				 bpp,
-				 mem_value);
+				 cpp, mem_value);
 	return min(method1, method2);
 }
 
@@ -1804,12 +1820,13 @@ static uint32_t ilk_compute_fbc_wm(const struct intel_crtc_state *cstate,
 				   const struct intel_plane_state *pstate,
 				   uint32_t pri_val)
 {
-	int bpp = pstate->base.fb ? pstate->base.fb->bits_per_pixel / 8 : 0;
+	int cpp = pstate->base.fb ?
+		drm_format_plane_cpp(pstate->base.fb->pixel_format, 0) : 0;
 
 	if (!cstate->base.active || !pstate->visible)
 		return 0;
 
-	return ilk_wm_fbc(pri_val, drm_rect_width(&pstate->dst), bpp);
+	return ilk_wm_fbc(pri_val, drm_rect_width(&pstate->dst), cpp);
 }
 
 static unsigned int ilk_display_fifo_size(const struct drm_device *dev)
@@ -2002,14 +2019,19 @@ static void ilk_compute_wm_level(const struct drm_i915_private *dev_priv,
 }
 
 static uint32_t
-hsw_compute_linetime_wm(struct drm_device *dev, struct drm_crtc *crtc)
+hsw_compute_linetime_wm(struct drm_device *dev,
+			struct intel_crtc_state *cstate)
 {
 	struct drm_i915_private *dev_priv = dev->dev_private;
-	struct intel_crtc *intel_crtc = to_intel_crtc(crtc);
-	const struct drm_display_mode *adjusted_mode = &intel_crtc->config->base.adjusted_mode;
+	const struct drm_display_mode *adjusted_mode =
+		&cstate->base.adjusted_mode;
 	u32 linetime, ips_linetime;
 
-	if (!intel_crtc->active)
+	if (!cstate->base.active)
+		return 0;
+	if (WARN_ON(adjusted_mode->crtc_clock == 0))
+		return 0;
+	if (WARN_ON(dev_priv->cdclk_freq == 0))
 		return 0;
 
 	/* The WM are computed with base on how long it takes to fill a single
@@ -2281,6 +2303,7 @@ static int ilk_compute_pipe_wm(struct intel_crtc *intel_crtc,
 		return PTR_ERR(cstate);
 
 	pipe_wm = &cstate->wm.optimal.ilk;
+	memset(pipe_wm, 0, sizeof(*pipe_wm));
 
 	for_each_intel_plane_on_crtc(dev, intel_crtc, intel_plane) {
 		ps = drm_atomic_get_plane_state(state,
@@ -2317,8 +2340,7 @@ static int ilk_compute_pipe_wm(struct intel_crtc *intel_crtc,
 			     pristate, sprstate, curstate, &pipe_wm->wm[0]);
 
 	if (IS_HASWELL(dev) || IS_BROADWELL(dev))
-		pipe_wm->linetime = hsw_compute_linetime_wm(dev,
-							    &intel_crtc->base);
+		pipe_wm->linetime = hsw_compute_linetime_wm(dev, cstate);
 
 	/* LP0 watermarks always use 1/2 DDB partitioning */
 	ilk_compute_wm_maximums(dev, 0, &config, INTEL_DDB_PART_1_2, &max);
@@ -2854,25 +2876,28 @@ skl_plane_relative_data_rate(const struct intel_crtc_state *cstate,
 			     const struct drm_plane_state *pstate,
 			     int y)
 {
-	struct intel_crtc *intel_crtc = to_intel_crtc(cstate->base.crtc);
+	struct intel_plane_state *intel_pstate = to_intel_plane_state(pstate);
 	struct drm_framebuffer *fb = pstate->fb;
+	uint32_t width = 0, height = 0;
+
+	width = drm_rect_width(&intel_pstate->src) >> 16;
+	height = drm_rect_height(&intel_pstate->src) >> 16;
+
+	if (intel_rotation_90_or_270(pstate->rotation))
+		swap(width, height);
 
 	/* for planar format */
 	if (fb->pixel_format == DRM_FORMAT_NV12) {
 		if (y)  /* y-plane data rate */
-			return intel_crtc->config->pipe_src_w *
-				intel_crtc->config->pipe_src_h *
+			return width * height *
 				drm_format_plane_cpp(fb->pixel_format, 0);
 		else    /* uv-plane data rate */
-			return (intel_crtc->config->pipe_src_w/2) *
-				(intel_crtc->config->pipe_src_h/2) *
+			return (width / 2) * (height / 2) *
 				drm_format_plane_cpp(fb->pixel_format, 1);
 	}
 
 	/* for packed formats */
-	return intel_crtc->config->pipe_src_w *
-		intel_crtc->config->pipe_src_h *
-		drm_format_plane_cpp(fb->pixel_format, 0);
+	return width * height * drm_format_plane_cpp(fb->pixel_format, 0);
 }
 
 /*
@@ -2951,8 +2976,9 @@ skl_allocate_pipe_ddb(struct intel_crtc_state *cstate,
 		struct drm_framebuffer *fb = plane->state->fb;
 		int id = skl_wm_plane_id(intel_plane);
 
-		if (fb == NULL)
+		if (!to_intel_plane_state(plane->state)->visible)
 			continue;
+
 		if (plane->type == DRM_PLANE_TYPE_CURSOR)
 			continue;
 
@@ -2978,7 +3004,7 @@ skl_allocate_pipe_ddb(struct intel_crtc_state *cstate,
 		uint16_t plane_blocks, y_plane_blocks = 0;
 		int id = skl_wm_plane_id(intel_plane);
 
-		if (pstate->fb == NULL)
+		if (!to_intel_plane_state(pstate)->visible)
 			continue;
 		if (plane->type == DRM_PLANE_TYPE_CURSOR)
 			continue;
@@ -3028,26 +3054,25 @@ static uint32_t skl_pipe_pixel_rate(const struct intel_crtc_state *config)
 
 /*
  * The max latency should be 257 (max the punit can code is 255 and we add 2us
- * for the read latency) and bytes_per_pixel should always be <= 8, so that
+ * for the read latency) and cpp should always be <= 8, so that
  * should allow pixel_rate up to ~2 GHz which seems sufficient since max
  * 2xcdclk is 1350 MHz and the pixel rate should never exceed that.
 */
-static uint32_t skl_wm_method1(uint32_t pixel_rate, uint8_t bytes_per_pixel,
-			       uint32_t latency)
+static uint32_t skl_wm_method1(uint32_t pixel_rate, uint8_t cpp, uint32_t latency)
 {
 	uint32_t wm_intermediate_val, ret;
 
 	if (latency == 0)
 		return UINT_MAX;
 
-	wm_intermediate_val = latency * pixel_rate * bytes_per_pixel / 512;
+	wm_intermediate_val = latency * pixel_rate * cpp / 512;
 	ret = DIV_ROUND_UP(wm_intermediate_val, 1000);
 
 	return ret;
 }
 
 static uint32_t skl_wm_method2(uint32_t pixel_rate, uint32_t pipe_htotal,
-			       uint32_t horiz_pixels, uint8_t bytes_per_pixel,
+			       uint32_t horiz_pixels, uint8_t cpp,
 			       uint64_t tiling, uint32_t latency)
 {
 	uint32_t ret;
@@ -3057,7 +3082,7 @@ static uint32_t skl_wm_method2(uint32_t pixel_rate, uint32_t pipe_htotal,
 	if (latency == 0)
 		return UINT_MAX;
 
-	plane_bytes_per_line = horiz_pixels * bytes_per_pixel;
+	plane_bytes_per_line = horiz_pixels * cpp;
 
 	if (tiling == I915_FORMAT_MOD_Y_TILED ||
 	    tiling == I915_FORMAT_MOD_Yf_TILED) {
@@ -3102,28 +3127,36 @@ static bool skl_compute_plane_wm(const struct drm_i915_private *dev_priv,
 {
 	struct drm_plane *plane = &intel_plane->base;
 	struct drm_framebuffer *fb = plane->state->fb;
+	struct intel_plane_state *intel_pstate =
+					to_intel_plane_state(plane->state);
 	uint32_t latency = dev_priv->wm.skl_latency[level];
 	uint32_t method1, method2;
 	uint32_t plane_bytes_per_line, plane_blocks_per_line;
 	uint32_t res_blocks, res_lines;
 	uint32_t selected_result;
-	uint8_t bytes_per_pixel;
+	uint8_t cpp;
+	uint32_t width = 0, height = 0;
 
-	if (latency == 0 || !cstate->base.active || !fb)
+	if (latency == 0 || !cstate->base.active || !intel_pstate->visible)
 		return false;
 
-	bytes_per_pixel = drm_format_plane_cpp(fb->pixel_format, 0);
+	width = drm_rect_width(&intel_pstate->src) >> 16;
+	height = drm_rect_height(&intel_pstate->src) >> 16;
+
+	if (intel_rotation_90_or_270(plane->state->rotation))
+		swap(width, height);
+
+	cpp = drm_format_plane_cpp(fb->pixel_format, 0);
 	method1 = skl_wm_method1(skl_pipe_pixel_rate(cstate),
-				 bytes_per_pixel,
-				 latency);
+				 cpp, latency);
 	method2 = skl_wm_method2(skl_pipe_pixel_rate(cstate),
 				 cstate->base.adjusted_mode.crtc_htotal,
-				 cstate->pipe_src_w,
-				 bytes_per_pixel,
+				 width,
+				 cpp,
 				 fb->modifier[0],
 				 latency);
 
-	plane_bytes_per_line = cstate->pipe_src_w * bytes_per_pixel;
+	plane_bytes_per_line = width * cpp;
 	plane_blocks_per_line = DIV_ROUND_UP(plane_bytes_per_line, 512);
 
 	if (fb->modifier[0] == I915_FORMAT_MOD_Y_TILED ||
@@ -3131,11 +3164,11 @@ static bool skl_compute_plane_wm(const struct drm_i915_private *dev_priv,
 		uint32_t min_scanlines = 4;
 		uint32_t y_tile_minimum;
 		if (intel_rotation_90_or_270(plane->state->rotation)) {
-			int bpp = (fb->pixel_format == DRM_FORMAT_NV12) ?
+			int cpp = (fb->pixel_format == DRM_FORMAT_NV12) ?
 				drm_format_plane_cpp(fb->pixel_format, 1) :
 				drm_format_plane_cpp(fb->pixel_format, 0);
 
-			switch (bpp) {
+			switch (cpp) {
 			case 1:
 				min_scanlines = 16;
 				break;
@@ -3606,23 +3639,45 @@ static void skl_update_wm(struct drm_crtc *crtc)
 	dev_priv->wm.skl_hw = *results;
 }
 
-static void ilk_program_watermarks(struct drm_i915_private *dev_priv)
+static void ilk_compute_wm_config(struct drm_device *dev,
+				  struct intel_wm_config *config)
 {
-	struct drm_device *dev = dev_priv->dev;
+	struct intel_crtc *crtc;
+
+	/* Compute the currently _active_ config */
+	for_each_intel_crtc(dev, crtc) {
+		const struct intel_pipe_wm *wm = &crtc->wm.active.ilk;
+
+		if (!wm->pipe_enabled)
+			continue;
+
+		config->sprites_enabled |= wm->sprites_enabled;
+		config->sprites_scaled |= wm->sprites_scaled;
+		config->num_pipes_active++;
+	}
+}
+
+static void ilk_program_watermarks(struct intel_crtc_state *cstate)
+{
+	struct drm_crtc *crtc = cstate->base.crtc;
+	struct drm_device *dev = crtc->dev;
+	struct drm_i915_private *dev_priv = to_i915(dev);
 	struct intel_pipe_wm lp_wm_1_2 = {}, lp_wm_5_6 = {}, *best_lp_wm;
 	struct ilk_wm_maximums max;
-	struct intel_wm_config *config = &dev_priv->wm.config;
+	struct intel_wm_config config = {};
 	struct ilk_wm_values results = {};
 	enum intel_ddb_partitioning partitioning;
 
-	ilk_compute_wm_maximums(dev, 1, config, INTEL_DDB_PART_1_2, &max);
-	ilk_wm_merge(dev, config, &max, &lp_wm_1_2);
+	ilk_compute_wm_config(dev, &config);
+
+	ilk_compute_wm_maximums(dev, 1, &config, INTEL_DDB_PART_1_2, &max);
+	ilk_wm_merge(dev, &config, &max, &lp_wm_1_2);
 
 	/* 5/6 split only in single pipe config on IVB+ */
 	if (INTEL_INFO(dev)->gen >= 7 &&
-	    config->num_pipes_active == 1 && config->sprites_enabled) {
-		ilk_compute_wm_maximums(dev, 1, config, INTEL_DDB_PART_5_6, &max);
-		ilk_wm_merge(dev, config, &max, &lp_wm_5_6);
+	    config.num_pipes_active == 1 && config.sprites_enabled) {
+		ilk_compute_wm_maximums(dev, 1, &config, INTEL_DDB_PART_5_6, &max);
+		ilk_wm_merge(dev, &config, &max, &lp_wm_5_6);
 
 		best_lp_wm = ilk_find_best_result(dev, &lp_wm_1_2, &lp_wm_5_6);
 	} else {
@@ -3639,7 +3694,6 @@ static void ilk_program_watermarks(struct drm_i915_private *dev_priv)
 
 static void ilk_update_wm(struct drm_crtc *crtc)
 {
-	struct drm_i915_private *dev_priv = to_i915(crtc->dev);
 	struct intel_crtc *intel_crtc = to_intel_crtc(crtc);
 	struct intel_crtc_state *cstate = to_intel_crtc_state(crtc->state);
 
@@ -3659,7 +3713,7 @@ static void ilk_update_wm(struct drm_crtc *crtc)
 
 	intel_crtc->wm.active.ilk = cstate->wm.optimal.ilk;
 
-	ilk_program_watermarks(dev_priv);
+	ilk_program_watermarks(cstate);
 }
 
 static void skl_pipe_wm_active_state(uint32_t val,
@@ -4045,7 +4099,7 @@ void intel_update_watermarks(struct drm_crtc *crtc)
 		dev_priv->display.update_wm(crtc);
 }
 
-/**
+/*
  * Lock protecting IPS related data structures
  */
 DEFINE_SPINLOCK(mchdev_lock);
@@ -4081,10 +4135,12 @@ bool ironlake_set_drps(struct drm_device *dev, u8 val)
 static void ironlake_enable_drps(struct drm_device *dev)
 {
 	struct drm_i915_private *dev_priv = dev->dev_private;
-	u32 rgvmodectl = I915_READ(MEMMODECTL);
+	u32 rgvmodectl;
 	u8 fmax, fmin, fstart, vstart;
 
 	spin_lock_irq(&mchdev_lock);
+
+	rgvmodectl = I915_READ(MEMMODECTL);
 
 	/* Enable temp reporting */
 	I915_WRITE16(PMMISC, I915_READ(PMMISC) | MCPPCE_EN);
@@ -4518,20 +4574,70 @@ static void intel_print_rc6_info(struct drm_device *dev, u32 mode)
 	}
 	if (HAS_RC6p(dev))
 		DRM_DEBUG_KMS("Enabling RC6 states: RC6 %s RC6p %s RC6pp %s\n",
-			      (mode & GEN6_RC_CTL_RC6_ENABLE) ? "on" : "off",
-			      (mode & GEN6_RC_CTL_RC6p_ENABLE) ? "on" : "off",
-			      (mode & GEN6_RC_CTL_RC6pp_ENABLE) ? "on" : "off");
+			      onoff(mode & GEN6_RC_CTL_RC6_ENABLE),
+			      onoff(mode & GEN6_RC_CTL_RC6p_ENABLE),
+			      onoff(mode & GEN6_RC_CTL_RC6pp_ENABLE));
 
 	else
 		DRM_DEBUG_KMS("Enabling RC6 states: RC6 %s\n",
-			      (mode & GEN6_RC_CTL_RC6_ENABLE) ? "on" : "off");
+			      onoff(mode & GEN6_RC_CTL_RC6_ENABLE));
 }
 
-static int sanitize_rc6_option(const struct drm_device *dev, int enable_rc6)
+static bool bxt_check_bios_rc6_setup(const struct drm_device *dev)
+{
+	struct drm_i915_private *dev_priv = dev->dev_private;
+	bool enable_rc6 = true;
+	unsigned long rc6_ctx_base;
+
+	if (!(I915_READ(RC6_LOCATION) & RC6_CTX_IN_DRAM)) {
+		DRM_DEBUG_KMS("RC6 Base location not set properly.\n");
+		enable_rc6 = false;
+	}
+
+	/*
+	 * The exact context size is not known for BXT, so assume a page size
+	 * for this check.
+	 */
+	rc6_ctx_base = I915_READ(RC6_CTX_BASE) & RC6_CTX_BASE_MASK;
+	if (!((rc6_ctx_base >= dev_priv->gtt.stolen_reserved_base) &&
+	      (rc6_ctx_base + PAGE_SIZE <= dev_priv->gtt.stolen_reserved_base +
+					dev_priv->gtt.stolen_reserved_size))) {
+		DRM_DEBUG_KMS("RC6 Base address not as expected.\n");
+		enable_rc6 = false;
+	}
+
+	if (!(((I915_READ(PWRCTX_MAXCNT_RCSUNIT) & IDLE_TIME_MASK) > 1) &&
+	      ((I915_READ(PWRCTX_MAXCNT_VCSUNIT0) & IDLE_TIME_MASK) > 1) &&
+	      ((I915_READ(PWRCTX_MAXCNT_BCSUNIT) & IDLE_TIME_MASK) > 1) &&
+	      ((I915_READ(PWRCTX_MAXCNT_VECSUNIT) & IDLE_TIME_MASK) > 1))) {
+		DRM_DEBUG_KMS("Engine Idle wait time not set properly.\n");
+		enable_rc6 = false;
+	}
+
+	if (!(I915_READ(GEN6_RC_CONTROL) & (GEN6_RC_CTL_RC6_ENABLE |
+					    GEN6_RC_CTL_HW_ENABLE)) &&
+	    ((I915_READ(GEN6_RC_CONTROL) & GEN6_RC_CTL_HW_ENABLE) ||
+	     !(I915_READ(GEN6_RC_STATE) & RC6_STATE))) {
+		DRM_DEBUG_KMS("HW/SW RC6 is not enabled by BIOS.\n");
+		enable_rc6 = false;
+	}
+
+	return enable_rc6;
+}
+
+int sanitize_rc6_option(const struct drm_device *dev, int enable_rc6)
 {
 	/* No RC6 before Ironlake and code is gone for ilk. */
 	if (INTEL_INFO(dev)->gen < 6)
 		return 0;
+
+	if (!enable_rc6)
+		return 0;
+
+	if (IS_BROXTON(dev) && !bxt_check_bios_rc6_setup(dev)) {
+		DRM_INFO("RC6 disabled by BIOS\n");
+		return 0;
+	}
 
 	/* Respect the kernel parameter if it is set */
 	if (enable_rc6 >= 0) {
@@ -4702,8 +4808,7 @@ static void gen9_enable_rc6(struct drm_device *dev)
 	/* 3a: Enable RC6 */
 	if (intel_enable_rc6(dev) & INTEL_RC6_ENABLE)
 		rc6_mask = GEN6_RC_CTL_RC6_ENABLE;
-	DRM_INFO("RC6 %s\n", (rc6_mask & GEN6_RC_CTL_RC6_ENABLE) ?
-			"on" : "off");
+	DRM_INFO("RC6 %s\n", onoff(rc6_mask & GEN6_RC_CTL_RC6_ENABLE));
 	/* WaRsUseTimeoutMode */
 	if (IS_SKL_REVID(dev, 0, SKL_REVID_D0) ||
 	    IS_BXT_REVID(dev, 0, BXT_REVID_A1)) {
@@ -4722,8 +4827,7 @@ static void gen9_enable_rc6(struct drm_device *dev)
 	 * 3b: Enable Coarse Power Gating only when RC6 is enabled.
 	 * WaRsDisableCoarsePowerGating:skl,bxt - Render/Media PG need to be disabled with RC6.
 	 */
-	if ((IS_BROXTON(dev) && (INTEL_REVID(dev) < BXT_REVID_B0)) ||
-	    ((IS_SKL_GT3(dev) || IS_SKL_GT4(dev)) && (INTEL_REVID(dev) <= SKL_REVID_F0)))
+	if (NEEDS_WaRsDisableCoarsePowerGating(dev))
 		I915_WRITE(GEN9_PG_ENABLE, 0);
 	else
 		I915_WRITE(GEN9_PG_ENABLE, (rc6_mask & GEN6_RC_CTL_RC6_ENABLE) ?
@@ -5146,8 +5250,6 @@ static void cherryview_setup_pctx(struct drm_device *dev)
 	u32 pcbr;
 	int pctx_size = 32*1024;
 
-	WARN_ON(!mutex_is_locked(&dev->struct_mutex));
-
 	pcbr = I915_READ(VLV_PCBR);
 	if ((pcbr >> VLV_PCBR_ADDR_SHIFT) == 0) {
 		DRM_DEBUG_DRIVER("BIOS didn't set up PCBR, fixing up\n");
@@ -5169,7 +5271,7 @@ static void valleyview_setup_pctx(struct drm_device *dev)
 	u32 pcbr;
 	int pctx_size = 24*1024;
 
-	WARN_ON(!mutex_is_locked(&dev->struct_mutex));
+	mutex_lock(&dev->struct_mutex);
 
 	pcbr = I915_READ(VLV_PCBR);
 	if (pcbr) {
@@ -5197,7 +5299,7 @@ static void valleyview_setup_pctx(struct drm_device *dev)
 	pctx = i915_gem_object_create_stolen(dev, pctx_size);
 	if (!pctx) {
 		DRM_DEBUG("not enough stolen space for PCTX, disabling\n");
-		return;
+		goto out;
 	}
 
 	pctx_paddr = dev_priv->mm.stolen_base + pctx->stolen->start;
@@ -5206,6 +5308,7 @@ static void valleyview_setup_pctx(struct drm_device *dev)
 out:
 	DRM_DEBUG_DRIVER("PCBR: 0x%08x\n", I915_READ(VLV_PCBR));
 	dev_priv->vlv_pctx = pctx;
+	mutex_unlock(&dev->struct_mutex);
 }
 
 static void valleyview_cleanup_pctx(struct drm_device *dev)
@@ -5215,7 +5318,7 @@ static void valleyview_cleanup_pctx(struct drm_device *dev)
 	if (WARN_ON(!dev_priv->vlv_pctx))
 		return;
 
-	drm_gem_object_unreference(&dev_priv->vlv_pctx->base);
+	drm_gem_object_unreference_unlocked(&dev_priv->vlv_pctx->base);
 	dev_priv->vlv_pctx = NULL;
 }
 
@@ -6024,7 +6127,6 @@ void intel_init_gt_powersave(struct drm_device *dev)
 {
 	struct drm_i915_private *dev_priv = dev->dev_private;
 
-	i915.enable_rc6 = sanitize_rc6_option(dev, i915.enable_rc6);
 	/*
 	 * RPM depends on RC6 to save restore the GT HW context, so make RC6 a
 	 * requirement.
@@ -6159,8 +6261,8 @@ void intel_enable_gt_powersave(struct drm_device *dev)
 		return;
 
 	if (IS_IRONLAKE_M(dev)) {
-		mutex_lock(&dev->struct_mutex);
 		ironlake_enable_drps(dev);
+		mutex_lock(&dev->struct_mutex);
 		intel_init_emon(dev);
 		mutex_unlock(&dev->struct_mutex);
 	} else if (INTEL_INFO(dev)->gen >= 6) {
@@ -6544,6 +6646,12 @@ static void broadwell_init_clock_gating(struct drm_device *dev)
 	misccpctl = I915_READ(GEN7_MISCCPCTL);
 	I915_WRITE(GEN7_MISCCPCTL, misccpctl & ~GEN7_DOP_CLOCK_GATE_ENABLE);
 	I915_WRITE(GEN8_L3SQCREG1, BDW_WA_L3SQCREG1_DEFAULT);
+	/*
+	 * Wait at least 100 clocks before re-enabling clock gating. See
+	 * the definition of L3SQCREG1 in BSpec.
+	 */
+	POSTING_READ(GEN8_L3SQCREG1);
+	udelay(1);
 	I915_WRITE(GEN7_MISCCPCTL, misccpctl);
 
 	/*
@@ -6990,6 +7098,7 @@ void intel_init_pm(struct drm_device *dev)
 		     dev_priv->wm.spr_latency[0] && dev_priv->wm.cur_latency[0])) {
 			dev_priv->display.update_wm = ilk_update_wm;
 			dev_priv->display.compute_pipe_wm = ilk_compute_pipe_wm;
+			dev_priv->display.program_watermarks = ilk_program_watermarks;
 		} else {
 			DRM_DEBUG_KMS("Failed to read display plane latency. "
 				      "Disable CxSR\n");
@@ -7155,9 +7264,10 @@ static int chv_gpu_freq(struct drm_i915_private *dev_priv, int val)
 {
 	int div, czclk_freq = DIV_ROUND_CLOSEST(dev_priv->czclk_freq, 1000);
 
-	div = vlv_gpu_freq_div(czclk_freq) / 2;
+	div = vlv_gpu_freq_div(czclk_freq);
 	if (div < 0)
 		return div;
+	div /= 2;
 
 	return DIV_ROUND_CLOSEST(czclk_freq * val, 2 * div) / 2;
 }
@@ -7166,9 +7276,10 @@ static int chv_freq_opcode(struct drm_i915_private *dev_priv, int val)
 {
 	int mul, czclk_freq = DIV_ROUND_CLOSEST(dev_priv->czclk_freq, 1000);
 
-	mul = vlv_gpu_freq_div(czclk_freq) / 2;
+	mul = vlv_gpu_freq_div(czclk_freq);
 	if (mul < 0)
 		return mul;
+	mul /= 2;
 
 	/* CHV needs even values */
 	return DIV_ROUND_CLOSEST(val * 2 * mul, czclk_freq) * 2;

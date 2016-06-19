@@ -117,20 +117,13 @@ static int octeon_gpio_probe(struct platform_device *pdev)
 	chip->get = octeon_gpio_get;
 	chip->direction_output = octeon_gpio_dir_out;
 	chip->set = octeon_gpio_set;
-	err = gpiochip_add_data(chip, gpio);
+	err = devm_gpiochip_add_data(&pdev->dev, chip, gpio);
 	if (err)
 		goto out;
 
 	dev_info(&pdev->dev, "OCTEON GPIO driver probed.\n");
 out:
 	return err;
-}
-
-static int octeon_gpio_remove(struct platform_device *pdev)
-{
-	struct gpio_chip *chip = dev_get_platdata(&pdev->dev);
-	gpiochip_remove(chip);
-	return 0;
 }
 
 static struct of_device_id octeon_gpio_match[] = {
@@ -147,7 +140,6 @@ static struct platform_driver octeon_gpio_driver = {
 		.of_match_table = octeon_gpio_match,
 	},
 	.probe		= octeon_gpio_probe,
-	.remove		= octeon_gpio_remove,
 };
 
 module_platform_driver(octeon_gpio_driver);

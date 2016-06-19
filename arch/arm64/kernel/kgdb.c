@@ -292,8 +292,8 @@ static struct notifier_block kgdb_notifier = {
 };
 
 /*
- * kgdb_arch_init - Perform any architecture specific initalization.
- * This function will handle the initalization of any architecture
+ * kgdb_arch_init - Perform any architecture specific initialization.
+ * This function will handle the initialization of any architecture
  * specific callbacks.
  */
 int kgdb_arch_init(void)

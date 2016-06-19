@@ -25,21 +25,4 @@
 
 #define T5_ISS_VALID		(1 << 18)
 
-struct ulptx_idata {
-	__be32 cmd_more;
-	__be32 len;
-};
-
-struct cpl_rx_data_ddp {
-	union opcode_tid ot;
-	__be16 urg;
-	__be16 len;
-	__be32 seq;
-	union {
-		__be32 nxt_seq;
-		__be32 ddp_report;
-	};
-	__be32 ulp_crc;
-	__be32 ddpvld;
-};
 #endif	/* __CXGB4I_H__ */

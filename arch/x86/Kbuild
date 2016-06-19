@@ -1,5 +1,6 @@
-
 obj-y += entry/
+
+obj-$(CONFIG_PERF_EVENTS) += events/
 
 obj-$(CONFIG_KVM) += kvm/
 

@@ -154,7 +154,7 @@
   *
   * The Darwin I2C driver is less subtle though. On any non-success status
   * from the response command, it waits 5ms and tries again up to 20 times,
-  * it doesn't differenciate between fatal errors or "busy" status.
+  * it doesn't differentiate between fatal errors or "busy" status.
   *
   * This driver provides an asynchronous paramblock based i2c command
   * interface to be used either directly by low level code or by a higher

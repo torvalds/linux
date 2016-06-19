@@ -33,6 +33,7 @@
 #ifndef MLX4_DRIVER_H
 #define MLX4_DRIVER_H
 
+#include <net/devlink.h>
 #include <linux/mlx4/device.h>
 
 struct mlx4_dev;
@@ -88,6 +89,8 @@ struct mlx4_port_map {
 int mlx4_port_map_set(struct mlx4_dev *dev, struct mlx4_port_map *v2p);
 
 void *mlx4_get_protocol_dev(struct mlx4_dev *dev, enum mlx4_protocol proto, int port);
+
+struct devlink_port *mlx4_get_devlink_port(struct mlx4_dev *dev, int port);
 
 static inline u64 mlx4_mac_to_u64(u8 *addr)
 {

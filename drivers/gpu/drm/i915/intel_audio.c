@@ -262,8 +262,7 @@ static void hsw_audio_codec_disable(struct intel_encoder *encoder)
 	tmp |= AUD_CONFIG_N_PROG_ENABLE;
 	tmp &= ~AUD_CONFIG_UPPER_N_MASK;
 	tmp &= ~AUD_CONFIG_LOWER_N_MASK;
-	if (intel_pipe_has_type(intel_crtc, INTEL_OUTPUT_DISPLAYPORT) ||
-	    intel_pipe_has_type(intel_crtc, INTEL_OUTPUT_DP_MST))
+	if (intel_pipe_has_type(intel_crtc, INTEL_OUTPUT_DISPLAYPORT))
 		tmp |= AUD_CONFIG_N_VALUE_INDEX;
 	I915_WRITE(HSW_AUD_CFG(pipe), tmp);
 
@@ -476,8 +475,7 @@ static void ilk_audio_codec_enable(struct drm_connector *connector,
 	tmp &= ~AUD_CONFIG_N_VALUE_INDEX;
 	tmp &= ~AUD_CONFIG_N_PROG_ENABLE;
 	tmp &= ~AUD_CONFIG_PIXEL_CLOCK_HDMI_MASK;
-	if (intel_pipe_has_type(intel_crtc, INTEL_OUTPUT_DISPLAYPORT) ||
-	    intel_pipe_has_type(intel_crtc, INTEL_OUTPUT_DP_MST))
+	if (intel_pipe_has_type(intel_crtc, INTEL_OUTPUT_DISPLAYPORT))
 		tmp |= AUD_CONFIG_N_VALUE_INDEX;
 	else
 		tmp |= audio_config_hdmi_pixel_clock(adjusted_mode);
@@ -515,8 +513,7 @@ void intel_audio_codec_enable(struct intel_encoder *intel_encoder)
 
 	/* ELD Conn_Type */
 	connector->eld[5] &= ~(3 << 2);
-	if (intel_pipe_has_type(crtc, INTEL_OUTPUT_DISPLAYPORT) ||
-	    intel_pipe_has_type(crtc, INTEL_OUTPUT_DP_MST))
+	if (intel_pipe_has_type(crtc, INTEL_OUTPUT_DISPLAYPORT))
 		connector->eld[5] |= (1 << 2);
 
 	connector->eld[6] = drm_av_sync_delay(connector, adjusted_mode) / 2;

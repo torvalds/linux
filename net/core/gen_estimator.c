@@ -191,6 +191,7 @@ struct gen_estimator *gen_find_node(const struct gnet_stats_basic_packed *bstats
 /**
  * gen_new_estimator - create a new rate estimator
  * @bstats: basic statistics
+ * @cpu_bstats: bstats per cpu
  * @rate_est: rate estimator statistics
  * @stats_lock: statistics lock
  * @opt: rate estimator configuration TLV
@@ -287,6 +288,7 @@ EXPORT_SYMBOL(gen_kill_estimator);
 /**
  * gen_replace_estimator - replace rate estimator configuration
  * @bstats: basic statistics
+ * @cpu_bstats: bstats per cpu
  * @rate_est: rate estimator statistics
  * @stats_lock: statistics lock
  * @opt: rate estimator configuration TLV

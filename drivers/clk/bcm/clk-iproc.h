@@ -61,6 +61,26 @@
 #define IPROC_CLK_PLL_SPLIT_STAT_CTRL BIT(6)
 
 /*
+ * Some PLLs have an additional divide by 2 in master clock calculation;
+ * MCLK = VCO_freq / (Mdiv * 2). Identify this to let the driver know
+ * of modified calculations
+ */
+#define IPROC_CLK_MCLK_DIV_BY_2 BIT(7)
+
+/*
+ * Some PLLs provide a look up table for the leaf clock frequencies and
+ * auto calculates VCO frequency parameters based on the provided leaf
+ * clock frequencies. They have a user mode that allows the divider
+ * controls to be determined by the user
+ */
+#define IPROC_CLK_PLL_USER_MODE_ON BIT(8)
+
+/*
+ * Some PLLs have an active low reset
+ */
+#define IPROC_CLK_PLL_RESET_ACTIVE_LOW BIT(9)
+
+/*
  * Parameters for VCO frequency configuration
  *
  * VCO frequency =
@@ -149,6 +169,7 @@ struct iproc_pll_ctrl {
 	struct iproc_clk_reg_op pdiv;
 	struct iproc_pll_vco_ctrl vco_ctrl;
 	struct iproc_clk_reg_op status;
+	struct iproc_clk_reg_op macro_mode;
 };
 
 /*
@@ -183,16 +204,16 @@ struct iproc_asiu_div {
 	unsigned int low_width;
 };
 
-void __init iproc_armpll_setup(struct device_node *node);
-void __init iproc_pll_clk_setup(struct device_node *node,
-				const struct iproc_pll_ctrl *pll_ctrl,
-				const struct iproc_pll_vco_param *vco,
-				unsigned int num_vco_entries,
-				const struct iproc_clk_ctrl *clk_ctrl,
-				unsigned int num_clks);
-void __init iproc_asiu_setup(struct device_node *node,
-			     const struct iproc_asiu_div *div,
-			     const struct iproc_asiu_gate *gate,
-			     unsigned int num_clks);
+void iproc_armpll_setup(struct device_node *node);
+void iproc_pll_clk_setup(struct device_node *node,
+			 const struct iproc_pll_ctrl *pll_ctrl,
+			 const struct iproc_pll_vco_param *vco,
+			 unsigned int num_vco_entries,
+			 const struct iproc_clk_ctrl *clk_ctrl,
+			 unsigned int num_clks);
+void iproc_asiu_setup(struct device_node *node,
+		      const struct iproc_asiu_div *div,
+		      const struct iproc_asiu_gate *gate,
+		      unsigned int num_clks);
 
 #endif /* _CLK_IPROC_H */

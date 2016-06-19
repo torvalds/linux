@@ -19,6 +19,7 @@
 
 #include "skeleton.dtsi"
 #include "exynos4-cpu-thermal.dtsi"
+#include "exynos-syscon-restart.dtsi"
 #include <dt-bindings/clock/exynos3250.h>
 
 / {
@@ -150,20 +151,6 @@
 			interrupt-controller;
 			#interrupt-cells = <3>;
 			interrupt-parent = <&gic>;
-		};
-
-		poweroff: syscon-poweroff {
-			compatible = "syscon-poweroff";
-			regmap = <&pmu_system_controller>;
-			offset = <0x330C>; /* PS_HOLD_CONTROL */
-			mask = <0x5200>; /* Reset value */
-		};
-
-		reboot: syscon-reboot {
-			compatible = "syscon-reboot";
-			regmap = <&pmu_system_controller>;
-			offset = <0x0400>; /* SWRESET */
-			mask = <0x1>;
 		};
 
 		mipi_phy: video-phy@10020710 {
@@ -381,7 +368,7 @@
 		};
 
 		amba {
-			compatible = "arm,amba-bus";
+			compatible = "simple-bus";
 			#address-cells = <1>;
 			#size-cells = <1>;
 			ranges;

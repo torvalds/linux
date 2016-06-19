@@ -40,6 +40,7 @@
 #include "hci_request.h"
 #include "hci_debugfs.h"
 #include "smp.h"
+#include "leds.h"
 
 static void hci_rx_work(struct work_struct *work);
 static void hci_cmd_work(struct work_struct *work);
@@ -1395,6 +1396,7 @@ static int hci_dev_do_open(struct hci_dev *hdev)
 		hci_dev_set_flag(hdev, HCI_RPA_EXPIRED);
 		set_bit(HCI_UP, &hdev->flags);
 		hci_sock_dev_event(hdev, HCI_DEV_UP);
+		hci_leds_update_powered(hdev, true);
 		if (!hci_dev_test_flag(hdev, HCI_SETUP) &&
 		    !hci_dev_test_flag(hdev, HCI_CONFIG) &&
 		    !hci_dev_test_flag(hdev, HCI_UNCONFIGURED) &&
@@ -1531,6 +1533,8 @@ int hci_dev_do_close(struct hci_dev *hdev)
 		hci_req_sync_unlock(hdev);
 		return 0;
 	}
+
+	hci_leds_update_powered(hdev, false);
 
 	/* Flush RX and TX works */
 	flush_work(&hdev->tx_work);
@@ -2017,6 +2021,7 @@ static void hci_power_on(struct work_struct *work)
 	if (test_bit(HCI_UP, &hdev->flags) &&
 	    hci_dev_test_flag(hdev, HCI_MGMT) &&
 	    hci_dev_test_and_clear_flag(hdev, HCI_AUTO_OFF)) {
+		cancel_delayed_work(&hdev->power_off);
 		hci_req_sync_lock(hdev);
 		err = __hci_req_hci_power_on(hdev);
 		hci_req_sync_unlock(hdev);
@@ -3066,6 +3071,8 @@ int hci_register_dev(struct hci_dev *hdev)
 	error = device_add(&hdev->dev);
 	if (error < 0)
 		goto err_wqueue;
+
+	hci_leds_init(hdev);
 
 	hdev->rfkill = rfkill_alloc(hdev->name, &hdev->dev,
 				    RFKILL_TYPE_BLUETOOTH, &hci_rfkill_ops,

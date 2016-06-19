@@ -105,6 +105,29 @@ __mlx5_mask(typ, fld))
 	___t; \
 })
 
+/* Big endian getters */
+#define MLX5_GET64_BE(typ, p, fld) (*((__be64 *)(p) +\
+	__mlx5_64_off(typ, fld)))
+
+#define MLX5_GET_BE(type_t, typ, p, fld) ({				  \
+		type_t tmp;						  \
+		switch (sizeof(tmp)) {					  \
+		case sizeof(u8):					  \
+			tmp = (__force type_t)MLX5_GET(typ, p, fld);	  \
+			break;						  \
+		case sizeof(u16):					  \
+			tmp = (__force type_t)cpu_to_be16(MLX5_GET(typ, p, fld)); \
+			break;						  \
+		case sizeof(u32):					  \
+			tmp = (__force type_t)cpu_to_be32(MLX5_GET(typ, p, fld)); \
+			break;						  \
+		case sizeof(u64):					  \
+			tmp = (__force type_t)MLX5_GET64_BE(typ, p, fld); \
+			break;						  \
+			}						  \
+		tmp;							  \
+		})
+
 enum {
 	MLX5_MAX_COMMANDS		= 32,
 	MLX5_CMD_DATA_BLOCK_SIZE	= 512,
@@ -351,6 +374,12 @@ enum {
 };
 
 enum {
+	MLX5_BW_NO_LIMIT   = 0,
+	MLX5_100_MBPS_UNIT = 3,
+	MLX5_GBPS_UNIT	   = 4,
+};
+
+enum {
 	MLX5_MAX_PAGE_SHIFT		= 31
 };
 
@@ -361,6 +390,17 @@ enum {
 
 enum {
 	MLX5_CAP_OFF_CMDIF_CSUM		= 46,
+};
+
+enum {
+	/*
+	 * Max wqe size for rdma read is 512 bytes, so this
+	 * limits our max_sge_rd as the wqe needs to fit:
+	 * - ctrl segment (16 bytes)
+	 * - rdma segment (16 bytes)
+	 * - scatter elements (16 bytes each)
+	 */
+	MLX5_MAX_SGE_RD	= (512 - 16 - 16) / 16
 };
 
 struct mlx5_inbox_hdr {
@@ -1177,6 +1217,17 @@ enum {
 	MLX5_RQC_RQ_TYPE_MEMORY_RQ_RPM    = 0x1,
 };
 
+enum mlx5_wol_mode {
+	MLX5_WOL_DISABLE        = 0,
+	MLX5_WOL_SECURED_MAGIC  = 1 << 1,
+	MLX5_WOL_MAGIC          = 1 << 2,
+	MLX5_WOL_ARP            = 1 << 3,
+	MLX5_WOL_BROADCAST      = 1 << 4,
+	MLX5_WOL_MULTICAST      = 1 << 5,
+	MLX5_WOL_UNICAST        = 1 << 6,
+	MLX5_WOL_PHY_ACTIVITY   = 1 << 7,
+};
+
 /* MLX5 DEV CAPs */
 
 /* TODO: EAT.ME */
@@ -1196,6 +1247,8 @@ enum mlx5_cap_type {
 	MLX5_CAP_FLOW_TABLE,
 	MLX5_CAP_ESWITCH_FLOW_TABLE,
 	MLX5_CAP_ESWITCH,
+	MLX5_CAP_RESERVED,
+	MLX5_CAP_VECTOR_CALC,
 	/* NUM OF CAP Types */
 	MLX5_CAP_NUM
 };
@@ -1258,6 +1311,10 @@ enum mlx5_cap_type {
 #define MLX5_CAP_ODP(mdev, cap)\
 	MLX5_GET(odp_cap, mdev->hca_caps_cur[MLX5_CAP_ODP], cap)
 
+#define MLX5_CAP_VECTOR_CALC(mdev, cap) \
+	MLX5_GET(vector_calc_cap, \
+		 mdev->hca_caps_cur[MLX5_CAP_VECTOR_CALC], cap)
+
 enum {
 	MLX5_CMD_STAT_OK			= 0x0,
 	MLX5_CMD_STAT_INT_ERR			= 0x1,
@@ -1284,7 +1341,8 @@ enum {
 	MLX5_RFC_3635_COUNTERS_GROUP	      = 0x3,
 	MLX5_ETHERNET_EXTENDED_COUNTERS_GROUP = 0x5,
 	MLX5_PER_PRIORITY_COUNTERS_GROUP      = 0x10,
-	MLX5_PER_TRAFFIC_CLASS_COUNTERS_GROUP = 0x11
+	MLX5_PER_TRAFFIC_CLASS_COUNTERS_GROUP = 0x11,
+	MLX5_INFINIBAND_PORT_COUNTERS_GROUP   = 0x20,
 };
 
 static inline u16 mlx5_to_sw_pkey_sz(int pkey_sz)
@@ -1294,6 +1352,11 @@ static inline u16 mlx5_to_sw_pkey_sz(int pkey_sz)
 	return MLX5_MIN_PKEY_TABLE_SIZE << pkey_sz;
 }
 
-#define MLX5_BY_PASS_NUM_PRIOS 9
+#define MLX5_BY_PASS_NUM_REGULAR_PRIOS 8
+#define MLX5_BY_PASS_NUM_DONT_TRAP_PRIOS 8
+#define MLX5_BY_PASS_NUM_MULTICAST_PRIOS 1
+#define MLX5_BY_PASS_NUM_PRIOS (MLX5_BY_PASS_NUM_REGULAR_PRIOS +\
+				MLX5_BY_PASS_NUM_DONT_TRAP_PRIOS +\
+				MLX5_BY_PASS_NUM_MULTICAST_PRIOS)
 
 #endif /* MLX5_DEVICE_H */

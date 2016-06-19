@@ -22,7 +22,6 @@ struct target_fabric_configfs {
 	struct list_head	tf_list;
 	struct config_group	tf_group;
 	struct config_group	tf_disc_group;
-	struct config_group	*tf_default_groups[2];
 	const struct target_core_fabric_ops *tf_ops;
 
 	struct config_item_type tf_discovery_cit;
@@ -60,10 +59,10 @@ struct se_dev_entry *core_get_se_deve_from_rtpi(struct se_node_acl *, u16);
 void	target_pr_kref_release(struct kref *);
 void	core_free_device_list_for_node(struct se_node_acl *,
 		struct se_portal_group *);
-void	core_update_device_list_access(u64, u32, struct se_node_acl *);
+void	core_update_device_list_access(u64, bool, struct se_node_acl *);
 struct se_dev_entry *target_nacl_find_deve(struct se_node_acl *, u64);
 int	core_enable_device_list_for_node(struct se_lun *, struct se_lun_acl *,
-		u64, u32, struct se_node_acl *, struct se_portal_group *);
+		u64, bool, struct se_node_acl *, struct se_portal_group *);
 void	core_disable_device_list_for_node(struct se_lun *, struct se_dev_entry *,
 		struct se_node_acl *, struct se_portal_group *);
 void	core_clear_lun_from_tpg(struct se_lun *, struct se_portal_group *);
@@ -73,7 +72,7 @@ void	core_dev_del_lun(struct se_portal_group *, struct se_lun *);
 struct se_lun_acl *core_dev_init_initiator_node_lun_acl(struct se_portal_group *,
 		struct se_node_acl *, u64, int *);
 int	core_dev_add_initiator_node_lun_acl(struct se_portal_group *,
-		struct se_lun_acl *, struct se_lun *lun, u32);
+		struct se_lun_acl *, struct se_lun *lun, bool);
 int	core_dev_del_initiator_node_lun_acl(struct se_lun *,
 		struct se_lun_acl *);
 void	core_dev_free_initiator_node_lun_acl(struct se_portal_group *,
@@ -119,7 +118,7 @@ void	core_tpg_add_node_to_devs(struct se_node_acl *, struct se_portal_group *,
 void	core_tpg_wait_for_nacl_pr_ref(struct se_node_acl *);
 struct se_lun *core_tpg_alloc_lun(struct se_portal_group *, u64);
 int	core_tpg_add_lun(struct se_portal_group *, struct se_lun *,
-		u32, struct se_device *);
+		bool, struct se_device *);
 void core_tpg_remove_lun(struct se_portal_group *, struct se_lun *);
 struct se_node_acl *core_tpg_add_initiator_node_acl(struct se_portal_group *tpg,
 		const char *initiatorname);

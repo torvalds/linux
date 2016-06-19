@@ -19,13 +19,14 @@ static __u64 ptr_to_u64(void *ptr)
 }
 
 int bpf_create_map(enum bpf_map_type map_type, int key_size, int value_size,
-		   int max_entries)
+		   int max_entries, int map_flags)
 {
 	union bpf_attr attr = {
 		.map_type = map_type,
 		.key_size = key_size,
 		.value_size = value_size,
-		.max_entries = max_entries
+		.max_entries = max_entries,
+		.map_flags = map_flags,
 	};
 
 	return syscall(__NR_bpf, BPF_MAP_CREATE, &attr, sizeof(attr));

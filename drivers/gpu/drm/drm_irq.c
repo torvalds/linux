@@ -1041,15 +1041,12 @@ static void send_vblank_event(struct drm_device *dev,
 		struct drm_pending_vblank_event *e,
 		unsigned long seq, struct timeval *now)
 {
-	assert_spin_locked(&dev->event_lock);
-
 	e->event.sequence = seq;
 	e->event.tv_sec = now->tv_sec;
 	e->event.tv_usec = now->tv_usec;
 
-	list_add_tail(&e->base.link,
-		      &e->base.file_priv->event_list);
-	wake_up_interruptible(&e->base.file_priv->event_wait);
+	drm_send_event_locked(dev, &e->base);
+
 	trace_drm_vblank_event_delivered(e->base.pid, e->pipe,
 					 e->event.sequence);
 }
@@ -1668,9 +1665,6 @@ static int drm_queue_vblank_event(struct drm_device *dev, unsigned int pipe,
 	e->event.base.type = DRM_EVENT_VBLANK;
 	e->event.base.length = sizeof(e->event);
 	e->event.user_data = vblwait->request.signal;
-	e->base.event = &e->event.base;
-	e->base.file_priv = file_priv;
-	e->base.destroy = (void (*) (struct drm_pending_event *)) kfree;
 
 	spin_lock_irqsave(&dev->event_lock, flags);
 
@@ -1686,12 +1680,12 @@ static int drm_queue_vblank_event(struct drm_device *dev, unsigned int pipe,
 		goto err_unlock;
 	}
 
-	if (file_priv->event_space < sizeof(e->event)) {
-		ret = -EBUSY;
-		goto err_unlock;
-	}
+	ret = drm_event_reserve_init_locked(dev, file_priv, &e->base,
+					    &e->event.base);
 
-	file_priv->event_space -= sizeof(e->event);
+	if (ret)
+		goto err_unlock;
+
 	seq = drm_vblank_count_and_time(dev, pipe, &now);
 
 	if ((vblwait->request.type & _DRM_VBLANK_NEXTONMISS) &&

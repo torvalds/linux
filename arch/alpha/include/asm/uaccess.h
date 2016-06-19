@@ -483,7 +483,13 @@ struct exception_table_entry
 	(pc) + (_fixup)->fixup.bits.nextinsn;			\
 })
 
-#define ARCH_HAS_SORT_EXTABLE
-#define ARCH_HAS_SEARCH_EXTABLE
+#define ARCH_HAS_RELATIVE_EXTABLE
+
+#define swap_ex_entry_fixup(a, b, tmp, delta)			\
+	do {							\
+		(a)->fixup.unit = (b)->fixup.unit;		\
+		(b)->fixup.unit = (tmp).fixup.unit;		\
+	} while (0)
+
 
 #endif /* __ALPHA_UACCESS_H */

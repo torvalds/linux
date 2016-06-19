@@ -1170,7 +1170,7 @@ static const struct snd_soc_dapm_route wm8998_dapm_routes[] = {
 	{ "DRC1 Signal Activity", NULL, "DRC1R" },
 };
 
-#define WM8998_RATES SNDRV_PCM_RATE_8000_192000
+#define WM8998_RATES SNDRV_PCM_RATE_KNOT
 
 #define WM8998_FORMATS (SNDRV_PCM_FMTBIT_S16_LE | SNDRV_PCM_FMTBIT_S20_3LE |\
 			SNDRV_PCM_FMTBIT_S24_LE | SNDRV_PCM_FMTBIT_S32_LE)
@@ -1323,6 +1323,8 @@ static int wm8998_codec_remove(struct snd_soc_codec *codec)
 	struct wm8998_priv *priv = snd_soc_codec_get_drvdata(codec);
 
 	priv->core.arizona->dapm = NULL;
+
+	arizona_free_spk(codec);
 
 	return 0;
 }

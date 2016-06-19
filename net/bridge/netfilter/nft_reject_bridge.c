@@ -40,7 +40,8 @@ static void nft_reject_br_push_etherhdr(struct sk_buff *oldskb,
 /* We cannot use oldskb->dev, it can be either bridge device (NF_BRIDGE INPUT)
  * or the bridge port (NF_BRIDGE PREROUTING).
  */
-static void nft_reject_br_send_v4_tcp_reset(struct sk_buff *oldskb,
+static void nft_reject_br_send_v4_tcp_reset(struct net *net,
+					    struct sk_buff *oldskb,
 					    const struct net_device *dev,
 					    int hook)
 {
@@ -63,9 +64,9 @@ static void nft_reject_br_send_v4_tcp_reset(struct sk_buff *oldskb,
 
 	skb_reserve(nskb, LL_MAX_HEADER);
 	niph = nf_reject_iphdr_put(nskb, oldskb, IPPROTO_TCP,
-				   sysctl_ip_default_ttl);
+				   net->ipv4.sysctl_ip_default_ttl);
 	nf_reject_ip_tcphdr_put(nskb, oldskb, oth);
-	niph->ttl	= sysctl_ip_default_ttl;
+	niph->ttl	= net->ipv4.sysctl_ip_default_ttl;
 	niph->tot_len	= htons(nskb->len);
 	ip_send_check(niph);
 
@@ -74,7 +75,8 @@ static void nft_reject_br_send_v4_tcp_reset(struct sk_buff *oldskb,
 	br_deliver(br_port_get_rcu(dev), nskb);
 }
 
-static void nft_reject_br_send_v4_unreach(struct sk_buff *oldskb,
+static void nft_reject_br_send_v4_unreach(struct net *net,
+					  struct sk_buff *oldskb,
 					  const struct net_device *dev,
 					  int hook, u8 code)
 {
@@ -119,7 +121,7 @@ static void nft_reject_br_send_v4_unreach(struct sk_buff *oldskb,
 
 	skb_reserve(nskb, LL_MAX_HEADER);
 	niph = nf_reject_iphdr_put(nskb, oldskb, IPPROTO_ICMP,
-				   sysctl_ip_default_ttl);
+				   net->ipv4.sysctl_ip_default_ttl);
 
 	skb_reset_transport_header(nskb);
 	icmph = (struct icmphdr *)skb_put(nskb, sizeof(struct icmphdr));
@@ -271,17 +273,17 @@ static void nft_reject_bridge_eval(const struct nft_expr *expr,
 	case htons(ETH_P_IP):
 		switch (priv->type) {
 		case NFT_REJECT_ICMP_UNREACH:
-			nft_reject_br_send_v4_unreach(pkt->skb, pkt->in,
-						      pkt->hook,
+			nft_reject_br_send_v4_unreach(pkt->net, pkt->skb,
+						      pkt->in, pkt->hook,
 						      priv->icmp_code);
 			break;
 		case NFT_REJECT_TCP_RST:
-			nft_reject_br_send_v4_tcp_reset(pkt->skb, pkt->in,
-							pkt->hook);
+			nft_reject_br_send_v4_tcp_reset(pkt->net, pkt->skb,
+							pkt->in, pkt->hook);
 			break;
 		case NFT_REJECT_ICMPX_UNREACH:
-			nft_reject_br_send_v4_unreach(pkt->skb, pkt->in,
-						      pkt->hook,
+			nft_reject_br_send_v4_unreach(pkt->net, pkt->skb,
+						      pkt->in, pkt->hook,
 						      nft_reject_icmp_code(priv->icmp_code));
 			break;
 		}

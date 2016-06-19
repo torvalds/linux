@@ -523,7 +523,7 @@
 	 */
 #define ASM_EXCEPTIONTABLE_ENTRY(fault_addr, except_addr)	\
 	.section __ex_table,"aw"			!	\
-	ASM_ULONG_INSN	fault_addr, except_addr		!	\
+	.word (fault_addr - .), (except_addr - .)	!	\
 	.previous
 
 

@@ -1,0 +1,6 @@
+fpu_syscall
+vmx_syscall
+fpu_preempt
+vmx_preempt
+fpu_signal
+vmx_signal

@@ -40,3 +40,8 @@ config SCOM_DEBUGFS
 config GE_FPGA
 	bool
 	default n
+
+config FSL_CORENET_RCPM
+	bool
+	help
+	  This option enables support for RCPM (Run Control/Power Management).

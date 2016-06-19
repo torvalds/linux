@@ -40,8 +40,8 @@
 #include "../pnfs.h"
 #include "../netns.h"
 
-#define PAGE_CACHE_SECTORS (PAGE_CACHE_SIZE >> SECTOR_SHIFT)
-#define PAGE_CACHE_SECTOR_SHIFT (PAGE_CACHE_SHIFT - SECTOR_SHIFT)
+#define PAGE_CACHE_SECTORS (PAGE_SIZE >> SECTOR_SHIFT)
+#define PAGE_CACHE_SECTOR_SHIFT (PAGE_SHIFT - SECTOR_SHIFT)
 #define SECTOR_SIZE (1 << SECTOR_SHIFT)
 
 struct pnfs_block_dev;
@@ -54,7 +54,6 @@ struct pnfs_block_dev;
  * Not actually limited by the protocol.
  */
 #define PNFS_BLOCK_UUID_LEN	128
-
 
 struct pnfs_block_volume {
 	enum pnfs_block_volume_type	type;
@@ -82,6 +81,13 @@ struct pnfs_block_volume {
 			u32		volumes_count;
 			u32		volumes[PNFS_BLOCK_MAX_DEVICES];
 		} stripe;
+		struct {
+			enum scsi_code_set		code_set;
+			enum scsi_designator_type	designator_type;
+			int				designator_len;
+			u8				designator[256];
+			u64				pr_key;
+		} scsi;
 	};
 };
 
@@ -105,6 +111,9 @@ struct pnfs_block_dev {
 
 	struct block_device		*bdev;
 	u64				disk_offset;
+
+	u64				pr_key;
+	bool				pr_registered;
 
 	bool (*map)(struct pnfs_block_dev *dev, u64 offset,
 			struct pnfs_block_dev_map *map);
@@ -131,6 +140,7 @@ struct pnfs_block_layout {
 	struct rb_root		bl_ext_rw;
 	struct rb_root		bl_ext_ro;
 	spinlock_t		bl_ext_lock;   /* Protects list manipulation */
+	bool			bl_scsi_layout;
 };
 
 static inline struct pnfs_block_layout *
@@ -182,6 +192,6 @@ void ext_tree_mark_committed(struct nfs4_layoutcommit_args *arg, int status);
 dev_t bl_resolve_deviceid(struct nfs_server *server,
 		struct pnfs_block_volume *b, gfp_t gfp_mask);
 int __init bl_init_pipefs(void);
-void __exit bl_cleanup_pipefs(void);
+void bl_cleanup_pipefs(void);
 
 #endif /* FS_NFS_NFS4BLOCKLAYOUT_H */

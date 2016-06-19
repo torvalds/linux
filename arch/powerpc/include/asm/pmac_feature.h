@@ -46,7 +46,7 @@
 
 /* PowerSurge are the first generation of PCI Pmacs. This include
  * all of the Grand-Central based machines. We currently don't
- * differenciate most of them.
+ * differentiate most of them.
  */
 #define PMAC_TYPE_PSURGE		0x10	/* PowerSurge */
 #define PMAC_TYPE_ANS			0x11	/* Apple Network Server */

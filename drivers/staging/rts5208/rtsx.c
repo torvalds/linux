@@ -320,7 +320,6 @@ static int rtsx_suspend(struct pci_dev *pci, pm_message_t state)
 	rtsx_do_before_power_down(chip, PM_S3);
 
 	if (dev->irq >= 0) {
-		synchronize_irq(dev->irq);
 		free_irq(dev->irq, (void *)dev);
 		dev->irq = -1;
 	}
@@ -398,7 +397,6 @@ static void rtsx_shutdown(struct pci_dev *pci)
 	rtsx_do_before_power_down(chip, PM_S1);
 
 	if (dev->irq >= 0) {
-		synchronize_irq(dev->irq);
 		free_irq(dev->irq, (void *)dev);
 		dev->irq = -1;
 	}
@@ -658,9 +656,6 @@ static void rtsx_release_resources(struct rtsx_dev *dev)
 	if (dev->remap_addr)
 		iounmap(dev->remap_addr);
 
-	pci_disable_device(dev->pci);
-	pci_release_regions(dev->pci);
-
 	rtsx_release_chip(dev->chip);
 	kfree(dev->chip);
 }
@@ -715,7 +710,7 @@ static void release_everything(struct rtsx_dev *dev)
 /* Thread to carry out delayed SCSI-device scanning */
 static int rtsx_scan_thread(void *__dev)
 {
-	struct rtsx_dev *dev = (struct rtsx_dev *)__dev;
+	struct rtsx_dev *dev = __dev;
 	struct rtsx_chip *chip = dev->chip;
 
 	/* Wait for the timeout to expire or for a disconnect */
@@ -852,7 +847,7 @@ static int rtsx_probe(struct pci_dev *pci,
 
 	dev_dbg(&pci->dev, "Realtek PCI-E card reader detected\n");
 
-	err = pci_enable_device(pci);
+	err = pcim_enable_device(pci);
 	if (err < 0) {
 		dev_err(&pci->dev, "PCI enable device failed!\n");
 		return err;
@@ -862,7 +857,6 @@ static int rtsx_probe(struct pci_dev *pci,
 	if (err < 0) {
 		dev_err(&pci->dev, "PCI request regions for %s failed!\n",
 			CR_DRIVER_NAME);
-		pci_disable_device(pci);
 		return err;
 	}
 
@@ -873,8 +867,6 @@ static int rtsx_probe(struct pci_dev *pci,
 	host = scsi_host_alloc(&rtsx_host_template, sizeof(*dev));
 	if (!host) {
 		dev_err(&pci->dev, "Unable to allocate the scsi host\n");
-		pci_release_regions(pci);
-		pci_disable_device(pci);
 		return -ENOMEM;
 	}
 
@@ -882,7 +874,7 @@ static int rtsx_probe(struct pci_dev *pci,
 	memset(dev, 0, sizeof(struct rtsx_dev));
 
 	dev->chip = kzalloc(sizeof(struct rtsx_chip), GFP_KERNEL);
-	if (dev->chip == NULL) {
+	if (!dev->chip) {
 		err = -ENOMEM;
 		goto errout;
 	}
@@ -903,7 +895,7 @@ static int rtsx_probe(struct pci_dev *pci,
 		 (unsigned int)pci_resource_len(pci, 0));
 	dev->addr = pci_resource_start(pci, 0);
 	dev->remap_addr = ioremap_nocache(dev->addr, pci_resource_len(pci, 0));
-	if (dev->remap_addr == NULL) {
+	if (!dev->remap_addr) {
 		dev_err(&pci->dev, "ioremap error\n");
 		err = -ENXIO;
 		goto errout;
@@ -918,7 +910,7 @@ static int rtsx_probe(struct pci_dev *pci,
 
 	dev->rtsx_resv_buf = dmam_alloc_coherent(&pci->dev, RTSX_RESV_BUF_LEN,
 			&dev->rtsx_resv_buf_addr, GFP_KERNEL);
-	if (dev->rtsx_resv_buf == NULL) {
+	if (!dev->rtsx_resv_buf) {
 		dev_err(&pci->dev, "alloc dma buffer fail\n");
 		err = -ENXIO;
 		goto errout;
@@ -1011,8 +1003,6 @@ static void rtsx_remove(struct pci_dev *pci)
 
 	quiesce_and_remove_host(dev);
 	release_everything(dev);
-
-	pci_set_drvdata(pci, NULL);
 }
 
 /* PCI IDs */

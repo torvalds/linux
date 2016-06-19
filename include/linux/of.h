@@ -133,7 +133,7 @@ void of_core_init(void);
 
 static inline bool is_of_node(struct fwnode_handle *fwnode)
 {
-	return fwnode && fwnode->type == FWNODE_OF;
+	return !IS_ERR_OR_NULL(fwnode) && fwnode->type == FWNODE_OF;
 }
 
 static inline struct device_node *to_of_node(struct fwnode_handle *fwnode)
@@ -296,13 +296,13 @@ extern int of_property_read_u64_array(const struct device_node *np,
 				      u64 *out_values,
 				      size_t sz);
 
-extern int of_property_read_string(struct device_node *np,
+extern int of_property_read_string(const struct device_node *np,
 				   const char *propname,
 				   const char **out_string);
-extern int of_property_match_string(struct device_node *np,
+extern int of_property_match_string(const struct device_node *np,
 				    const char *propname,
 				    const char *string);
-extern int of_property_read_string_helper(struct device_node *np,
+extern int of_property_read_string_helper(const struct device_node *np,
 					      const char *propname,
 					      const char **out_strs, size_t sz, int index);
 extern int of_device_is_compatible(const struct device_node *device,
@@ -538,14 +538,14 @@ static inline int of_property_read_u64_array(const struct device_node *np,
 	return -ENOSYS;
 }
 
-static inline int of_property_read_string(struct device_node *np,
+static inline int of_property_read_string(const struct device_node *np,
 					  const char *propname,
 					  const char **out_string)
 {
 	return -ENOSYS;
 }
 
-static inline int of_property_read_string_helper(struct device_node *np,
+static inline int of_property_read_string_helper(const struct device_node *np,
 						 const char *propname,
 						 const char **out_strs, size_t sz, int index)
 {
@@ -571,7 +571,7 @@ static inline int of_property_read_u64(const struct device_node *np,
 	return -ENOSYS;
 }
 
-static inline int of_property_match_string(struct device_node *np,
+static inline int of_property_match_string(const struct device_node *np,
 					   const char *propname,
 					   const char *string)
 {
@@ -773,7 +773,7 @@ static inline int of_property_count_u64_elems(const struct device_node *np,
  *
  * If @out_strs is NULL, the number of strings in the property is returned.
  */
-static inline int of_property_read_string_array(struct device_node *np,
+static inline int of_property_read_string_array(const struct device_node *np,
 						const char *propname, const char **out_strs,
 						size_t sz)
 {
@@ -792,7 +792,7 @@ static inline int of_property_read_string_array(struct device_node *np,
  * does not have a value, and -EILSEQ if the string is not null-terminated
  * within the length of the property data.
  */
-static inline int of_property_count_strings(struct device_node *np,
+static inline int of_property_count_strings(const struct device_node *np,
 					    const char *propname)
 {
 	return of_property_read_string_helper(np, propname, NULL, 0, 0);
@@ -816,7 +816,7 @@ static inline int of_property_count_strings(struct device_node *np,
  *
  * The out_string pointer is modified only if a valid string can be decoded.
  */
-static inline int of_property_read_string_index(struct device_node *np,
+static inline int of_property_read_string_index(const struct device_node *np,
 						const char *propname,
 						int index, const char **output)
 {

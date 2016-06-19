@@ -3054,6 +3054,7 @@ D: PLX USB338x driver
 D: PCA9634 driver
 D: Option GTM671WFS
 D: Fintek F81216A
+D: AD5761 iio driver
 D: Various kernel hacks
 S: Qtechnology A/S
 S: Valby Langgade 142

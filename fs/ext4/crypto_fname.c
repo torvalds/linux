@@ -11,11 +11,9 @@
  *
  */
 
-#include <crypto/hash.h>
-#include <crypto/sha.h>
+#include <crypto/skcipher.h>
 #include <keys/encrypted-type.h>
 #include <keys/user-type.h>
-#include <linux/crypto.h>
 #include <linux/gfp.h>
 #include <linux/kernel.h>
 #include <linux/key.h>
@@ -65,10 +63,10 @@ static int ext4_fname_encrypt(struct inode *inode,
 			      struct ext4_str *oname)
 {
 	u32 ciphertext_len;
-	struct ablkcipher_request *req = NULL;
+	struct skcipher_request *req = NULL;
 	DECLARE_EXT4_COMPLETION_RESULT(ecr);
 	struct ext4_crypt_info *ci = EXT4_I(inode)->i_crypt_info;
-	struct crypto_ablkcipher *tfm = ci->ci_ctfm;
+	struct crypto_skcipher *tfm = ci->ci_ctfm;
 	int res = 0;
 	char iv[EXT4_CRYPTO_BLOCK_SIZE];
 	struct scatterlist src_sg, dst_sg;
@@ -95,14 +93,14 @@ static int ext4_fname_encrypt(struct inode *inode,
 	}
 
 	/* Allocate request */
-	req = ablkcipher_request_alloc(tfm, GFP_NOFS);
+	req = skcipher_request_alloc(tfm, GFP_NOFS);
 	if (!req) {
 		printk_ratelimited(
 		    KERN_ERR "%s: crypto_request_alloc() failed\n", __func__);
 		kfree(alloc_buf);
 		return -ENOMEM;
 	}
-	ablkcipher_request_set_callback(req,
+	skcipher_request_set_callback(req,
 		CRYPTO_TFM_REQ_MAY_BACKLOG | CRYPTO_TFM_REQ_MAY_SLEEP,
 		ext4_dir_crypt_complete, &ecr);
 
@@ -117,14 +115,14 @@ static int ext4_fname_encrypt(struct inode *inode,
 	/* Create encryption request */
 	sg_init_one(&src_sg, workbuf, ciphertext_len);
 	sg_init_one(&dst_sg, oname->name, ciphertext_len);
-	ablkcipher_request_set_crypt(req, &src_sg, &dst_sg, ciphertext_len, iv);
-	res = crypto_ablkcipher_encrypt(req);
+	skcipher_request_set_crypt(req, &src_sg, &dst_sg, ciphertext_len, iv);
+	res = crypto_skcipher_encrypt(req);
 	if (res == -EINPROGRESS || res == -EBUSY) {
 		wait_for_completion(&ecr.completion);
 		res = ecr.res;
 	}
 	kfree(alloc_buf);
-	ablkcipher_request_free(req);
+	skcipher_request_free(req);
 	if (res < 0) {
 		printk_ratelimited(
 		    KERN_ERR "%s: Error (error code %d)\n", __func__, res);
@@ -145,11 +143,11 @@ static int ext4_fname_decrypt(struct inode *inode,
 			      struct ext4_str *oname)
 {
 	struct ext4_str tmp_in[2], tmp_out[1];
-	struct ablkcipher_request *req = NULL;
+	struct skcipher_request *req = NULL;
 	DECLARE_EXT4_COMPLETION_RESULT(ecr);
 	struct scatterlist src_sg, dst_sg;
 	struct ext4_crypt_info *ci = EXT4_I(inode)->i_crypt_info;
-	struct crypto_ablkcipher *tfm = ci->ci_ctfm;
+	struct crypto_skcipher *tfm = ci->ci_ctfm;
 	int res = 0;
 	char iv[EXT4_CRYPTO_BLOCK_SIZE];
 	unsigned lim = max_name_len(inode);
@@ -162,13 +160,13 @@ static int ext4_fname_decrypt(struct inode *inode,
 	tmp_out[0].name = oname->name;
 
 	/* Allocate request */
-	req = ablkcipher_request_alloc(tfm, GFP_NOFS);
+	req = skcipher_request_alloc(tfm, GFP_NOFS);
 	if (!req) {
 		printk_ratelimited(
 		    KERN_ERR "%s: crypto_request_alloc() failed\n",  __func__);
 		return -ENOMEM;
 	}
-	ablkcipher_request_set_callback(req,
+	skcipher_request_set_callback(req,
 		CRYPTO_TFM_REQ_MAY_BACKLOG | CRYPTO_TFM_REQ_MAY_SLEEP,
 		ext4_dir_crypt_complete, &ecr);
 
@@ -178,13 +176,13 @@ static int ext4_fname_decrypt(struct inode *inode,
 	/* Create encryption request */
 	sg_init_one(&src_sg, iname->name, iname->len);
 	sg_init_one(&dst_sg, oname->name, oname->len);
-	ablkcipher_request_set_crypt(req, &src_sg, &dst_sg, iname->len, iv);
-	res = crypto_ablkcipher_decrypt(req);
+	skcipher_request_set_crypt(req, &src_sg, &dst_sg, iname->len, iv);
+	res = crypto_skcipher_decrypt(req);
 	if (res == -EINPROGRESS || res == -EBUSY) {
 		wait_for_completion(&ecr.completion);
 		res = ecr.res;
 	}
-	ablkcipher_request_free(req);
+	skcipher_request_free(req);
 	if (res < 0) {
 		printk_ratelimited(
 		    KERN_ERR "%s: Error in ext4_fname_encrypt (error code %d)\n",

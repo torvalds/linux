@@ -300,7 +300,7 @@ extern void _memcpy_toio(volatile void __iomem *dest, const void *src,
  * When CONFIG_PPC_INDIRECT_MMIO is set, the platform can provide hooks
  * on all MMIOs. (Note that this is all 64 bits only for now)
  *
- * To help platforms who may need to differenciate MMIO addresses in
+ * To help platforms who may need to differentiate MMIO addresses in
  * their hooks, a bitfield is reserved for use by the platform near the
  * top of MMIO addresses (not PIO, those have to cope the hard way).
  *

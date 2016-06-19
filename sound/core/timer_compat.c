@@ -22,6 +22,19 @@
 
 #include <linux/compat.h>
 
+/*
+ * ILP32/LP64 has different size for 'long' type. Additionally, the size
+ * of storage alignment differs depending on architectures. Here, '__packed'
+ * qualifier is used so that the size of this structure is multiple of 4 and
+ * it fits to any architectures with 32 bit storage alignment.
+ */
+struct snd_timer_gparams32 {
+	struct snd_timer_id tid;
+	u32 period_num;
+	u32 period_den;
+	unsigned char reserved[32];
+} __packed;
+
 struct snd_timer_info32 {
 	u32 flags;
 	s32 card;
@@ -31,6 +44,19 @@ struct snd_timer_info32 {
 	u32 resolution;
 	unsigned char reserved[64];
 };
+
+static int snd_timer_user_gparams_compat(struct file *file,
+					struct snd_timer_gparams32 __user *user)
+{
+	struct snd_timer_gparams gparams;
+
+	if (copy_from_user(&gparams.tid, &user->tid, sizeof(gparams.tid)) ||
+	    get_user(gparams.period_num, &user->period_num) ||
+	    get_user(gparams.period_den, &user->period_den))
+		return -EFAULT;
+
+	return timer_set_gparams(&gparams);
+}
 
 static int snd_timer_user_info_compat(struct file *file,
 				      struct snd_timer_info32 __user *_info)
@@ -99,6 +125,7 @@ static int snd_timer_user_status_compat(struct file *file,
  */
 
 enum {
+	SNDRV_TIMER_IOCTL_GPARAMS32 = _IOW('T', 0x04, struct snd_timer_gparams32),
 	SNDRV_TIMER_IOCTL_INFO32 = _IOR('T', 0x11, struct snd_timer_info32),
 	SNDRV_TIMER_IOCTL_STATUS32 = _IOW('T', 0x14, struct snd_timer_status32),
 #ifdef CONFIG_X86_X32
@@ -114,7 +141,6 @@ static long snd_timer_user_ioctl_compat(struct file *file, unsigned int cmd, uns
 	case SNDRV_TIMER_IOCTL_PVERSION:
 	case SNDRV_TIMER_IOCTL_TREAD:
 	case SNDRV_TIMER_IOCTL_GINFO:
-	case SNDRV_TIMER_IOCTL_GPARAMS:
 	case SNDRV_TIMER_IOCTL_GSTATUS:
 	case SNDRV_TIMER_IOCTL_SELECT:
 	case SNDRV_TIMER_IOCTL_PARAMS:
@@ -128,6 +154,8 @@ static long snd_timer_user_ioctl_compat(struct file *file, unsigned int cmd, uns
 	case SNDRV_TIMER_IOCTL_PAUSE_OLD:
 	case SNDRV_TIMER_IOCTL_NEXT_DEVICE:
 		return snd_timer_user_ioctl(file, cmd, (unsigned long)argp);
+	case SNDRV_TIMER_IOCTL_GPARAMS32:
+		return snd_timer_user_gparams_compat(file, argp);
 	case SNDRV_TIMER_IOCTL_INFO32:
 		return snd_timer_user_info_compat(file, argp);
 	case SNDRV_TIMER_IOCTL_STATUS32:

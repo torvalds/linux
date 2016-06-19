@@ -7,6 +7,13 @@ Required properties:
 - max-speed: see ethernet.txt file in the same directory.
 - phy: see ethernet.txt file in the same directory.
 
+Optional properties:
+- phy-reset-gpios : Should specify the gpio for phy reset
+- phy-reset-duration : Reset duration in milliseconds.  Should present
+  only if property "phy-reset-gpios" is available.  Missing the property
+  will have the duration be 1 millisecond.  Numbers greater than 1000 are
+  invalid and 1 millisecond will be used instead.
+
 Clock handling:
 The clock frequency is needed to calculate and set polling period of EMAC.
 It must be provided by one of:

@@ -107,7 +107,7 @@
 /*
  * 50 ldlm locks for 1MB of RAM.
  */
-#define LDLM_POOL_HOST_L ((NUM_CACHEPAGES >> (20 - PAGE_CACHE_SHIFT)) * 50)
+#define LDLM_POOL_HOST_L ((NUM_CACHEPAGES >> (20 - PAGE_SHIFT)) * 50)
 
 /*
  * Maximal possible grant step plan in %.
@@ -246,7 +246,6 @@ static void ldlm_cli_pool_pop_slv(struct ldlm_pool *pl)
 	 */
 	obd = container_of(pl, struct ldlm_namespace,
 			   ns_pool)->ns_obd;
-	LASSERT(obd != NULL);
 	read_lock(&obd->obd_pool_lock);
 	pl->pl_server_lock_volume = obd->obd_pool_slv;
 	atomic_set(&pl->pl_limit, obd->obd_pool_limit);
@@ -381,7 +380,7 @@ static int ldlm_pool_recalc(struct ldlm_pool *pl)
 	spin_unlock(&pl->pl_lock);
 
  recalc:
-	if (pl->pl_ops->po_recalc != NULL) {
+	if (pl->pl_ops->po_recalc) {
 		count = pl->pl_ops->po_recalc(pl);
 		lprocfs_counter_add(pl->pl_stats, LDLM_POOL_RECALC_STAT,
 				    count);
@@ -409,7 +408,7 @@ static int ldlm_pool_shrink(struct ldlm_pool *pl, int nr, gfp_t gfp_mask)
 {
 	int cancel = 0;
 
-	if (pl->pl_ops->po_shrink != NULL) {
+	if (pl->pl_ops->po_shrink) {
 		cancel = pl->pl_ops->po_shrink(pl, nr, gfp_mask);
 		if (nr > 0) {
 			lprocfs_counter_add(pl->pl_stats,
@@ -643,11 +642,11 @@ static void ldlm_pool_sysfs_fini(struct ldlm_pool *pl)
 
 static void ldlm_pool_debugfs_fini(struct ldlm_pool *pl)
 {
-	if (pl->pl_stats != NULL) {
+	if (pl->pl_stats) {
 		lprocfs_free_stats(&pl->pl_stats);
 		pl->pl_stats = NULL;
 	}
-	if (pl->pl_debugfs_entry != NULL) {
+	if (pl->pl_debugfs_entry) {
 		ldebugfs_remove(&pl->pl_debugfs_entry);
 		pl->pl_debugfs_entry = NULL;
 	}
@@ -834,7 +833,7 @@ static unsigned long ldlm_pools_count(ldlm_side_t client, gfp_t gfp_mask)
 			continue;
 		}
 
-		if (ns_old == NULL)
+		if (!ns_old)
 			ns_old = ns;
 
 		ldlm_namespace_get(ns);
@@ -957,7 +956,7 @@ static int ldlm_pools_recalc(ldlm_side_t client)
 			continue;
 		}
 
-		if (ns_old == NULL)
+		if (!ns_old)
 			ns_old = ns;
 
 		spin_lock(&ns->ns_lock);
@@ -1040,7 +1039,7 @@ static int ldlm_pools_thread_start(void)
 	struct l_wait_info lwi = { 0 };
 	struct task_struct *task;
 
-	if (ldlm_pools_thread != NULL)
+	if (ldlm_pools_thread)
 		return -EALREADY;
 
 	ldlm_pools_thread = kzalloc(sizeof(*ldlm_pools_thread), GFP_NOFS);
@@ -1065,7 +1064,7 @@ static int ldlm_pools_thread_start(void)
 
 static void ldlm_pools_thread_stop(void)
 {
-	if (ldlm_pools_thread == NULL)
+	if (!ldlm_pools_thread)
 		return;
 
 	thread_set_flags(ldlm_pools_thread, SVC_STOPPING);

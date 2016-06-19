@@ -111,9 +111,8 @@ static inline __sum16 csum_fold(__wsum sum)
 }
 
 static inline __wsum csum_tcpudp_nofold(__be32 saddr, __be32 daddr,
-					       unsigned short len,
-					       unsigned short proto,
-					       __wsum sum)
+					__u32 len, __u8 proto,
+					__wsum sum)
 {
 	asm("	add	%0, %1\n"
 	    "	adc	%0, %0, %2\n"
@@ -132,9 +131,8 @@ static inline __wsum csum_tcpudp_nofold(__be32 saddr, __be32 daddr,
  * returns a 16-bit checksum, already complemented
  */
 static inline __sum16 csum_tcpudp_magic(__be32 saddr, __be32 daddr,
-						   unsigned short len,
-						   unsigned short proto,
-						   __wsum sum)
+					__u32 len, __u8 proto,
+					__wsum sum)
 {
 	return csum_fold(csum_tcpudp_nofold(saddr,daddr,len,proto,sum));
 }

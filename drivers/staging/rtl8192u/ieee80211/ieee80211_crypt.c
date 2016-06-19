@@ -176,8 +176,7 @@ struct ieee80211_crypto_ops *ieee80211_get_crypto_ops(const char *name)
 
 	if (found_alg)
 		return found_alg->ops;
-	else
-		return NULL;
+	return NULL;
 }
 
 

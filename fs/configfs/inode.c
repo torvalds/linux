@@ -75,7 +75,8 @@ int configfs_setattr(struct dentry * dentry, struct iattr * iattr)
 		sd_iattr->ia_mode = sd->s_mode;
 		sd_iattr->ia_uid = GLOBAL_ROOT_UID;
 		sd_iattr->ia_gid = GLOBAL_ROOT_GID;
-		sd_iattr->ia_atime = sd_iattr->ia_mtime = sd_iattr->ia_ctime = CURRENT_TIME;
+		sd_iattr->ia_atime = sd_iattr->ia_mtime =
+			sd_iattr->ia_ctime = current_fs_time(inode->i_sb);
 		sd->s_iattr = sd_iattr;
 	}
 	/* attributes were changed atleast once in past */
@@ -111,7 +112,8 @@ int configfs_setattr(struct dentry * dentry, struct iattr * iattr)
 static inline void set_default_inode_attr(struct inode * inode, umode_t mode)
 {
 	inode->i_mode = mode;
-	inode->i_atime = inode->i_mtime = inode->i_ctime = CURRENT_TIME;
+	inode->i_atime = inode->i_mtime =
+		inode->i_ctime = current_fs_time(inode->i_sb);
 }
 
 static inline void set_inode_attr(struct inode * inode, struct iattr * iattr)
@@ -195,13 +197,21 @@ int configfs_create(struct dentry * dentry, umode_t mode, void (*init)(struct in
 		return -ENOMEM;
 
 	p_inode = d_inode(dentry->d_parent);
-	p_inode->i_mtime = p_inode->i_ctime = CURRENT_TIME;
+	p_inode->i_mtime = p_inode->i_ctime = current_fs_time(p_inode->i_sb);
 	configfs_set_inode_lock_class(sd, inode);
 
 	init(inode);
-	d_instantiate(dentry, inode);
-	if (S_ISDIR(mode) || S_ISLNK(mode))
+	if (S_ISDIR(mode) || S_ISLNK(mode)) {
+		/*
+		 * ->symlink(), ->mkdir(), configfs_register_subsystem() or
+		 * create_default_group() - already hashed.
+		 */
+		d_instantiate(dentry, inode);
 		dget(dentry);  /* pin link and directory dentries in core */
+	} else {
+		/* ->lookup() */
+		d_add(dentry, inode);
+	}
 	return error;
 }
 

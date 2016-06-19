@@ -204,8 +204,6 @@ void dccp_req_err(struct sock *sk, u64 seq)
 	 * ICMPs are not backlogged, hence we cannot get an established
 	 * socket here.
 	 */
-	WARN_ON(req->sk);
-
 	if (!between48(seq, dccp_rsk(req)->dreq_iss, dccp_rsk(req)->dreq_gss)) {
 		NET_INC_STATS_BH(net, LINUX_MIB_OUTOFWINDOWICMPS);
 	} else {
@@ -802,7 +800,7 @@ static int dccp_v4_rcv(struct sk_buff *skb)
 	}
 
 lookup:
-	sk = __inet_lookup_skb(&dccp_hashinfo, skb,
+	sk = __inet_lookup_skb(&dccp_hashinfo, skb, __dccp_hdr_len(dh),
 			       dh->dccph_sport, dh->dccph_dport);
 	if (!sk) {
 		dccp_pr_debug("failed to look up flow ID in table and "

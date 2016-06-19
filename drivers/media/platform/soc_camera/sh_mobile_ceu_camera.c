@@ -213,8 +213,7 @@ static int sh_mobile_ceu_videobuf_setup(struct vb2_queue *vq,
 			unsigned int *count, unsigned int *num_planes,
 			unsigned int sizes[], void *alloc_ctxs[])
 {
-	struct soc_camera_device *icd = container_of(vq,
-			struct soc_camera_device, vb2_vidq);
+	struct soc_camera_device *icd = soc_camera_from_vb2q(vq);
 	struct soc_camera_host *ici = to_soc_camera_host(icd->parent);
 	struct sh_mobile_ceu_dev *pcdev = ici->priv;
 
@@ -361,8 +360,7 @@ static int sh_mobile_ceu_videobuf_prepare(struct vb2_buffer *vb)
 static void sh_mobile_ceu_videobuf_queue(struct vb2_buffer *vb)
 {
 	struct vb2_v4l2_buffer *vbuf = to_vb2_v4l2_buffer(vb);
-	struct soc_camera_device *icd = container_of(vb->vb2_queue,
-			struct soc_camera_device, vb2_vidq);
+	struct soc_camera_device *icd = soc_camera_from_vb2q(vb->vb2_queue);
 	struct soc_camera_host *ici = to_soc_camera_host(icd->parent);
 	struct sh_mobile_ceu_dev *pcdev = ici->priv;
 	struct sh_mobile_ceu_buffer *buf = to_ceu_vb(vbuf);
@@ -413,8 +411,7 @@ error:
 static void sh_mobile_ceu_videobuf_release(struct vb2_buffer *vb)
 {
 	struct vb2_v4l2_buffer *vbuf = to_vb2_v4l2_buffer(vb);
-	struct soc_camera_device *icd = container_of(vb->vb2_queue,
-			struct soc_camera_device, vb2_vidq);
+	struct soc_camera_device *icd = soc_camera_from_vb2q(vb->vb2_queue);
 	struct soc_camera_host *ici = to_soc_camera_host(icd->parent);
 	struct sh_mobile_ceu_buffer *buf = to_ceu_vb(vbuf);
 	struct sh_mobile_ceu_dev *pcdev = ici->priv;
@@ -444,8 +441,7 @@ static void sh_mobile_ceu_videobuf_release(struct vb2_buffer *vb)
 static int sh_mobile_ceu_videobuf_init(struct vb2_buffer *vb)
 {
 	struct vb2_v4l2_buffer *vbuf = to_vb2_v4l2_buffer(vb);
-	struct soc_camera_device *icd = container_of(vb->vb2_queue,
-			struct soc_camera_device, vb2_vidq);
+	struct soc_camera_device *icd = soc_camera_from_vb2q(vb->vb2_queue);
 	struct soc_camera_host *ici = to_soc_camera_host(icd->parent);
 	struct sh_mobile_ceu_dev *pcdev = ici->priv;
 
@@ -460,7 +456,7 @@ static int sh_mobile_ceu_videobuf_init(struct vb2_buffer *vb)
 
 static void sh_mobile_ceu_stop_streaming(struct vb2_queue *q)
 {
-	struct soc_camera_device *icd = container_of(q, struct soc_camera_device, vb2_vidq);
+	struct soc_camera_device *icd = soc_camera_from_vb2q(q);
 	struct soc_camera_host *ici = to_soc_camera_host(icd->parent);
 	struct sh_mobile_ceu_dev *pcdev = ici->priv;
 	struct list_head *buf_head, *tmp;

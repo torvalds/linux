@@ -87,17 +87,6 @@ struct c4iw_debugfs_data {
 	int pos;
 };
 
-/* registered cxgb4 netlink callbacks */
-static struct ibnl_client_cbs c4iw_nl_cb_table[] = {
-	[RDMA_NL_IWPM_REG_PID] = {.dump = iwpm_register_pid_cb},
-	[RDMA_NL_IWPM_ADD_MAPPING] = {.dump = iwpm_add_mapping_cb},
-	[RDMA_NL_IWPM_QUERY_MAPPING] = {.dump = iwpm_add_and_query_mapping_cb},
-	[RDMA_NL_IWPM_HANDLE_ERR] = {.dump = iwpm_mapping_error_cb},
-	[RDMA_NL_IWPM_REMOTE_INFO] = {.dump = iwpm_remote_info_cb},
-	[RDMA_NL_IWPM_MAPINFO] = {.dump = iwpm_mapping_info_cb},
-	[RDMA_NL_IWPM_MAPINFO_NUM] = {.dump = iwpm_ack_mapping_info_cb}
-};
-
 static int count_idrs(int id, void *p, void *data)
 {
 	int *countp = data;
@@ -242,13 +231,13 @@ static int dump_qp(int id, void *p, void *data)
 	if (qp->ep) {
 		if (qp->ep->com.local_addr.ss_family == AF_INET) {
 			struct sockaddr_in *lsin = (struct sockaddr_in *)
-				&qp->ep->com.local_addr;
+				&qp->ep->com.cm_id->local_addr;
 			struct sockaddr_in *rsin = (struct sockaddr_in *)
-				&qp->ep->com.remote_addr;
+				&qp->ep->com.cm_id->remote_addr;
 			struct sockaddr_in *mapped_lsin = (struct sockaddr_in *)
-				&qp->ep->com.mapped_local_addr;
+				&qp->ep->com.cm_id->m_local_addr;
 			struct sockaddr_in *mapped_rsin = (struct sockaddr_in *)
-				&qp->ep->com.mapped_remote_addr;
+				&qp->ep->com.cm_id->m_remote_addr;
 
 			cc = snprintf(qpd->buf + qpd->pos, space,
 				      "rc qp sq id %u rq id %u state %u "
@@ -264,15 +253,15 @@ static int dump_qp(int id, void *p, void *data)
 				      ntohs(mapped_rsin->sin_port));
 		} else {
 			struct sockaddr_in6 *lsin6 = (struct sockaddr_in6 *)
-				&qp->ep->com.local_addr;
+				&qp->ep->com.cm_id->local_addr;
 			struct sockaddr_in6 *rsin6 = (struct sockaddr_in6 *)
-				&qp->ep->com.remote_addr;
+				&qp->ep->com.cm_id->remote_addr;
 			struct sockaddr_in6 *mapped_lsin6 =
 				(struct sockaddr_in6 *)
-				&qp->ep->com.mapped_local_addr;
+				&qp->ep->com.cm_id->m_local_addr;
 			struct sockaddr_in6 *mapped_rsin6 =
 				(struct sockaddr_in6 *)
-				&qp->ep->com.mapped_remote_addr;
+				&qp->ep->com.cm_id->m_remote_addr;
 
 			cc = snprintf(qpd->buf + qpd->pos, space,
 				      "rc qp sq id %u rq id %u state %u "
@@ -545,13 +534,13 @@ static int dump_ep(int id, void *p, void *data)
 
 	if (ep->com.local_addr.ss_family == AF_INET) {
 		struct sockaddr_in *lsin = (struct sockaddr_in *)
-			&ep->com.local_addr;
+			&ep->com.cm_id->local_addr;
 		struct sockaddr_in *rsin = (struct sockaddr_in *)
-			&ep->com.remote_addr;
+			&ep->com.cm_id->remote_addr;
 		struct sockaddr_in *mapped_lsin = (struct sockaddr_in *)
-			&ep->com.mapped_local_addr;
+			&ep->com.cm_id->m_local_addr;
 		struct sockaddr_in *mapped_rsin = (struct sockaddr_in *)
-			&ep->com.mapped_remote_addr;
+			&ep->com.cm_id->m_remote_addr;
 
 		cc = snprintf(epd->buf + epd->pos, space,
 			      "ep %p cm_id %p qp %p state %d flags 0x%lx "
@@ -569,13 +558,13 @@ static int dump_ep(int id, void *p, void *data)
 			      ntohs(mapped_rsin->sin_port));
 	} else {
 		struct sockaddr_in6 *lsin6 = (struct sockaddr_in6 *)
-			&ep->com.local_addr;
+			&ep->com.cm_id->local_addr;
 		struct sockaddr_in6 *rsin6 = (struct sockaddr_in6 *)
-			&ep->com.remote_addr;
+			&ep->com.cm_id->remote_addr;
 		struct sockaddr_in6 *mapped_lsin6 = (struct sockaddr_in6 *)
-			&ep->com.mapped_local_addr;
+			&ep->com.cm_id->m_local_addr;
 		struct sockaddr_in6 *mapped_rsin6 = (struct sockaddr_in6 *)
-			&ep->com.mapped_remote_addr;
+			&ep->com.cm_id->m_remote_addr;
 
 		cc = snprintf(epd->buf + epd->pos, space,
 			      "ep %p cm_id %p qp %p state %d flags 0x%lx "
@@ -610,9 +599,9 @@ static int dump_listen_ep(int id, void *p, void *data)
 
 	if (ep->com.local_addr.ss_family == AF_INET) {
 		struct sockaddr_in *lsin = (struct sockaddr_in *)
-			&ep->com.local_addr;
+			&ep->com.cm_id->local_addr;
 		struct sockaddr_in *mapped_lsin = (struct sockaddr_in *)
-			&ep->com.mapped_local_addr;
+			&ep->com.cm_id->m_local_addr;
 
 		cc = snprintf(epd->buf + epd->pos, space,
 			      "ep %p cm_id %p state %d flags 0x%lx stid %d "
@@ -623,9 +612,9 @@ static int dump_listen_ep(int id, void *p, void *data)
 			      ntohs(mapped_lsin->sin_port));
 	} else {
 		struct sockaddr_in6 *lsin6 = (struct sockaddr_in6 *)
-			&ep->com.local_addr;
+			&ep->com.cm_id->local_addr;
 		struct sockaddr_in6 *mapped_lsin6 = (struct sockaddr_in6 *)
-			&ep->com.mapped_local_addr;
+			&ep->com.cm_id->m_local_addr;
 
 		cc = snprintf(epd->buf + epd->pos, space,
 			      "ep %p cm_id %p state %d flags 0x%lx stid %d "
@@ -801,10 +790,9 @@ static int c4iw_rdev_open(struct c4iw_rdev *rdev)
 	     rdev->lldi.vr->qp.size,
 	     rdev->lldi.vr->cq.start,
 	     rdev->lldi.vr->cq.size);
-	PDBG("udb len 0x%x udb base %p db_reg %p gts_reg %p "
+	PDBG("udb %pR db_reg %p gts_reg %p "
 	     "qpmask 0x%x cqmask 0x%x\n",
-	     (unsigned)pci_resource_len(rdev->lldi.pdev, 2),
-	     (void *)pci_resource_start(rdev->lldi.pdev, 2),
+		&rdev->lldi.pdev->resource[2],
 	     rdev->lldi.db_reg, rdev->lldi.gts_reg,
 	     rdev->qpmask, rdev->cqmask);
 
@@ -1506,20 +1494,6 @@ static int __init c4iw_init_module(void)
 		printk(KERN_WARNING MOD
 		       "could not create debugfs entry, continuing\n");
 
-	if (ibnl_add_client(RDMA_NL_C4IW, RDMA_NL_IWPM_NUM_OPS,
-			    c4iw_nl_cb_table))
-		pr_err("%s[%u]: Failed to add netlink callback\n"
-		       , __func__, __LINE__);
-
-	err = iwpm_init(RDMA_NL_C4IW);
-	if (err) {
-		pr_err("port mapper initialization failed with %d\n", err);
-		ibnl_remove_client(RDMA_NL_C4IW);
-		c4iw_cm_term();
-		debugfs_remove_recursive(c4iw_debugfs_root);
-		return err;
-	}
-
 	cxgb4_register_uld(CXGB4_ULD_RDMA, &c4iw_uld_info);
 
 	return 0;
@@ -1537,8 +1511,6 @@ static void __exit c4iw_exit_module(void)
 	}
 	mutex_unlock(&dev_mutex);
 	cxgb4_unregister_uld(CXGB4_ULD_RDMA);
-	iwpm_exit(RDMA_NL_C4IW);
-	ibnl_remove_client(RDMA_NL_C4IW);
 	c4iw_cm_term();
 	debugfs_remove_recursive(c4iw_debugfs_root);
 }

@@ -94,13 +94,6 @@ static const struct drm_encoder_funcs mdp4_dtv_encoder_funcs = {
 	.destroy = mdp4_dtv_encoder_destroy,
 };
 
-static bool mdp4_dtv_encoder_mode_fixup(struct drm_encoder *encoder,
-		const struct drm_display_mode *mode,
-		struct drm_display_mode *adjusted_mode)
-{
-	return true;
-}
-
 static void mdp4_dtv_encoder_mode_set(struct drm_encoder *encoder,
 		struct drm_display_mode *mode,
 		struct drm_display_mode *adjusted_mode)
@@ -234,7 +227,6 @@ static void mdp4_dtv_encoder_enable(struct drm_encoder *encoder)
 }
 
 static const struct drm_encoder_helper_funcs mdp4_dtv_encoder_helper_funcs = {
-	.mode_fixup = mdp4_dtv_encoder_mode_fixup,
 	.mode_set = mdp4_dtv_encoder_mode_set,
 	.enable = mdp4_dtv_encoder_enable,
 	.disable = mdp4_dtv_encoder_disable,

@@ -128,10 +128,9 @@ static const struct file_operations debugfs_pci_perf_fops = {
 	.release = single_release,
 };
 
-void zpci_debug_init_device(struct zpci_dev *zdev)
+void zpci_debug_init_device(struct zpci_dev *zdev, const char *name)
 {
-	zdev->debugfs_dev = debugfs_create_dir(dev_name(&zdev->pdev->dev),
-					       debugfs_root);
+	zdev->debugfs_dev = debugfs_create_dir(name, debugfs_root);
 	if (IS_ERR(zdev->debugfs_dev))
 		zdev->debugfs_dev = NULL;
 

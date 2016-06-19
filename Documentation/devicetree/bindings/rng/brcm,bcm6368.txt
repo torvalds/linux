@@ -1,0 +1,17 @@
+BCM6368 Random number generator
+
+Required properties:
+
+- compatible : should be "brcm,bcm6368-rng"
+- reg : Specifies base physical address and size of the registers
+- clocks : phandle to clock-controller plus clock-specifier pair
+- clock-names : "ipsec" as a clock name
+
+Example:
+	random: rng@10004180 {
+		compatible = "brcm,bcm6368-rng";
+		reg = <0x10004180 0x14>;
+
+		clocks = <&periph_clk 18>;
+		clock-names = "ipsec";
+	};

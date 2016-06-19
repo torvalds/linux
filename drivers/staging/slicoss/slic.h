@@ -478,6 +478,8 @@ struct adapter {
 	u32             max_isr_xmits;
 	u32             rcv_interrupt_yields;
 	u32             intagg_period;
+	u32             intagg_delay;
+	u32             dynamic_intagg;
 	struct inicpm_state    *inicpm_info;
 	void *pinicpm_info;
 	struct slic_ifevents  if_events;

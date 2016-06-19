@@ -771,6 +771,11 @@ static u8 update_white_list(struct hci_request *req)
 	return 0x01;
 }
 
+static bool scan_use_rpa(struct hci_dev *hdev)
+{
+	return hci_dev_test_flag(hdev, HCI_PRIVACY);
+}
+
 void hci_req_add_le_passive_scan(struct hci_request *req)
 {
 	struct hci_cp_le_set_scan_param param_cp;
@@ -785,7 +790,8 @@ void hci_req_add_le_passive_scan(struct hci_request *req)
 	 * advertising with our address will be correctly reported
 	 * by the controller.
 	 */
-	if (hci_update_random_address(req, false, &own_addr_type))
+	if (hci_update_random_address(req, false, scan_use_rpa(hdev),
+				      &own_addr_type))
 		return;
 
 	/* Adding or removing entries from the white list must
@@ -866,6 +872,11 @@ static u32 get_adv_instance_flags(struct hci_dev *hdev, u8 instance)
 		if (hci_dev_test_flag(hdev, HCI_ADVERTISING_CONNECTABLE))
 			flags |= MGMT_ADV_FLAG_CONNECTABLE;
 
+		if (hci_dev_test_flag(hdev, HCI_LIMITED_DISCOVERABLE))
+			flags |= MGMT_ADV_FLAG_LIMITED_DISCOV;
+		else if (hci_dev_test_flag(hdev, HCI_DISCOVERABLE))
+			flags |= MGMT_ADV_FLAG_DISCOV;
+
 		return flags;
 	}
 
@@ -876,6 +887,29 @@ static u32 get_adv_instance_flags(struct hci_dev *hdev, u8 instance)
 		return 0;
 
 	return adv_instance->flags;
+}
+
+static bool adv_use_rpa(struct hci_dev *hdev, uint32_t flags)
+{
+	/* If privacy is not enabled don't use RPA */
+	if (!hci_dev_test_flag(hdev, HCI_PRIVACY))
+		return false;
+
+	/* If basic privacy mode is enabled use RPA */
+	if (!hci_dev_test_flag(hdev, HCI_LIMITED_PRIVACY))
+		return true;
+
+	/* If limited privacy mode is enabled don't use RPA if we're
+	 * both discoverable and bondable.
+	 */
+	if ((flags & MGMT_ADV_FLAG_DISCOV) &&
+	    hci_dev_test_flag(hdev, HCI_BONDABLE))
+		return false;
+
+	/* We're neither bondable nor discoverable in the limited
+	 * privacy mode, therefore use RPA.
+	 */
+	return true;
 }
 
 void __hci_req_enable_advertising(struct hci_request *req)
@@ -911,7 +945,9 @@ void __hci_req_enable_advertising(struct hci_request *req)
 	 * advertising is used. In that case it is fine to use a
 	 * non-resolvable private address.
 	 */
-	if (hci_update_random_address(req, !connectable, &own_addr_type) < 0)
+	if (hci_update_random_address(req, !connectable,
+				      adv_use_rpa(hdev, flags),
+				      &own_addr_type) < 0)
 		return;
 
 	memset(&cp, 0, sizeof(cp));
@@ -1325,7 +1361,7 @@ static void set_random_addr(struct hci_request *req, bdaddr_t *rpa)
 }
 
 int hci_update_random_address(struct hci_request *req, bool require_privacy,
-			      u8 *own_addr_type)
+			      bool use_rpa, u8 *own_addr_type)
 {
 	struct hci_dev *hdev = req->hdev;
 	int err;
@@ -1334,7 +1370,7 @@ int hci_update_random_address(struct hci_request *req, bool require_privacy,
 	 * current RPA has expired or there is something else than
 	 * the current RPA in use, then generate a new one.
 	 */
-	if (hci_dev_test_flag(hdev, HCI_PRIVACY)) {
+	if (use_rpa) {
 		int to;
 
 		*own_addr_type = ADDR_LE_DEV_RANDOM;
@@ -1596,8 +1632,15 @@ static int discoverable_update(struct hci_request *req, unsigned long opt)
 	/* Advertising instances don't use the global discoverable setting, so
 	 * only update AD if advertising was enabled using Set Advertising.
 	 */
-	if (hci_dev_test_flag(hdev, HCI_ADVERTISING))
+	if (hci_dev_test_flag(hdev, HCI_ADVERTISING)) {
 		__hci_req_update_adv_data(req, 0x00);
+
+		/* Discoverable mode affects the local advertising
+		 * address in limited privacy mode.
+		 */
+		if (hci_dev_test_flag(hdev, HCI_LIMITED_PRIVACY))
+			__hci_req_enable_advertising(req);
+	}
 
 	hci_dev_unlock(hdev);
 
@@ -1941,7 +1984,8 @@ static int active_scan(struct hci_request *req, unsigned long opt)
 	 * address (when privacy feature has been enabled) or non-resolvable
 	 * private address.
 	 */
-	err = hci_update_random_address(req, true, &own_addr_type);
+	err = hci_update_random_address(req, true, scan_use_rpa(hdev),
+					&own_addr_type);
 	if (err < 0)
 		own_addr_type = ADDR_LE_DEV_PUBLIC;
 

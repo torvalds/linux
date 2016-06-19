@@ -68,7 +68,7 @@ void *memset(void *s, int c, size_t count)
 		  "=r" (charcnt),	/* %1  Output */
 		  "=r" (dwordcnt),	/* %2  Output */
 		  "=r" (fill8reg),	/* %3  Output */
-		  "=r" (wrkrega)	/* %4  Output */
+		  "=&r" (wrkrega)	/* %4  Output only */
 		: "r" (c),		/* %5  Input */
 		  "0" (s),		/* %0  Input/Output */
 		  "1" (count)		/* %1  Input/Output */

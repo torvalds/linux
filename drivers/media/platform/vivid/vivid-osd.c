@@ -360,7 +360,7 @@ void vivid_fb_release_buffers(struct vivid_dev *dev)
 
 	/* Release pseudo palette */
 	kfree(dev->fb_info.pseudo_palette);
-	kfree((void *)dev->video_vbase);
+	kfree(dev->video_vbase);
 }
 
 /* Initialize the specified card */

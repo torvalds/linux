@@ -374,8 +374,13 @@ static struct pu_domain imx6q_pu_domain = {
 		.name = "PU",
 		.power_off = imx6q_pm_pu_power_off,
 		.power_on = imx6q_pm_pu_power_on,
-		.power_off_latency_ns = 25000,
-		.power_on_latency_ns = 2000000,
+		.states = {
+			[0] = {
+				.power_off_latency_ns = 25000,
+				.power_on_latency_ns = 2000000,
+			},
+		},
+		.state_count = 1,
 	},
 };
 

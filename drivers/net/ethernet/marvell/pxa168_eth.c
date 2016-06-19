@@ -979,6 +979,8 @@ static int pxa168_init_phy(struct net_device *dev)
 		return 0;
 
 	pep->phy = mdiobus_scan(pep->smi_bus, pep->phy_addr);
+	if (IS_ERR(pep->phy))
+		return PTR_ERR(pep->phy);
 	if (!pep->phy)
 		return -ENODEV;
 

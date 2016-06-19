@@ -12,7 +12,6 @@
 #include <linux/of_platform.h>
 
 #include <asm/mach/arch.h>
-#include <asm/system_misc.h>
 
 #include "generic.h"
 #include "soc.h"
@@ -33,7 +32,6 @@ static void __init at91rm9200_dt_device_init(void)
 
 	of_platform_populate(NULL, of_default_bus_match_table, NULL, soc_dev);
 
-	arm_pm_idle = at91rm9200_idle;
 	at91rm9200_pm_init();
 }
 

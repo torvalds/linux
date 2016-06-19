@@ -23,8 +23,8 @@
 #define CACR_IEC	0x00008000	/* Enable instruction cache */
 #define CACR_DNFB	0x00002000	/* Inhibited fill buffer */
 #define CACR_IDPI	0x00001000	/* Disable CPUSHL */
-#define CACR_IHLCK	0x00000800	/* Intruction cache half lock */
-#define CACR_IDCM	0x00000400	/* Intruction cache inhibit */
+#define CACR_IHLCK	0x00000800	/* Instruction cache half lock */
+#define CACR_IDCM	0x00000400	/* Instruction cache inhibit */
 #define CACR_ICINVA	0x00000100	/* Invalidate instr cache */
 #define CACR_EUSP	0x00000020	/* Enable separate user a7 */
 

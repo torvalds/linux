@@ -816,6 +816,7 @@ struct fwnode_handle *acpi_get_next_subnode(struct device *dev,
 			next = adev->node.next;
 			if (next == head) {
 				child = NULL;
+				adev = ACPI_COMPANION(dev);
 				goto nondev;
 			}
 			adev = list_entry(next, struct acpi_device, node);

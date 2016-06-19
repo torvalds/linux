@@ -1040,8 +1040,8 @@ static int acornfb_probe(struct platform_device *dev)
 		 * for the framebuffer if we are not using
 		 * VRAM.
 		 */
-		base = dma_alloc_writecombine(current_par.dev, size, &handle,
-					      GFP_KERNEL);
+		base = dma_alloc_wc(current_par.dev, size, &handle,
+				    GFP_KERNEL);
 		if (base == NULL) {
 			printk(KERN_ERR "acornfb: unable to allocate screen "
 			       "memory\n");

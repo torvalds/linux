@@ -35,9 +35,12 @@
 #include "i915_trace.h"
 #include "intel_drv.h"
 
+#include <linux/apple-gmux.h>
 #include <linux/console.h>
 #include <linux/module.h>
 #include <linux/pm_runtime.h>
+#include <linux/vgaarb.h>
+#include <linux/vga_switcheroo.h>
 #include <drm/drm_crtc_helper.h>
 
 static struct drm_driver driver;
@@ -600,13 +603,7 @@ static int i915_drm_suspend(struct drm_device *dev)
 
 	intel_suspend_gt_powersave(dev);
 
-	/*
-	 * Disable CRTCs directly since we want to preserve sw state
-	 * for _thaw. Also, power gate the CRTC power wells.
-	 */
-	drm_modeset_lock_all(dev);
 	intel_display_suspend(dev);
-	drm_modeset_unlock_all(dev);
 
 	intel_dp_mst_suspend(dev);
 
@@ -761,11 +758,9 @@ static int i915_drm_resume(struct drm_device *dev)
 		dev_priv->display.hpd_irq_setup(dev);
 	spin_unlock_irq(&dev_priv->irq_lock);
 
-	drm_modeset_lock_all(dev);
-	intel_display_resume(dev);
-	drm_modeset_unlock_all(dev);
-
 	intel_dp_mst_resume(dev);
+
+	intel_display_resume(dev);
 
 	/*
 	 * ... but also need to make sure that hotplug processing
@@ -797,7 +792,7 @@ static int i915_drm_resume(struct drm_device *dev)
 static int i915_drm_resume_early(struct drm_device *dev)
 {
 	struct drm_i915_private *dev_priv = dev->dev_private;
-	int ret = 0;
+	int ret;
 
 	/*
 	 * We have a resume ordering issue with the snd-hda driver also
@@ -807,6 +802,36 @@ static int i915_drm_resume_early(struct drm_device *dev)
 	 *
 	 * FIXME: This should be solved with a special hdmi sink device or
 	 * similar so that power domains can be employed.
+	 */
+
+	/*
+	 * Note that we need to set the power state explicitly, since we
+	 * powered off the device during freeze and the PCI core won't power
+	 * it back up for us during thaw. Powering off the device during
+	 * freeze is not a hard requirement though, and during the
+	 * suspend/resume phases the PCI core makes sure we get here with the
+	 * device powered on. So in case we change our freeze logic and keep
+	 * the device powered we can also remove the following set power state
+	 * call.
+	 */
+	ret = pci_set_power_state(dev->pdev, PCI_D0);
+	if (ret) {
+		DRM_ERROR("failed to set PCI D0 power state (%d)\n", ret);
+		goto out;
+	}
+
+	/*
+	 * Note that pci_enable_device() first enables any parent bridge
+	 * device and only then sets the power state for this device. The
+	 * bridge enabling is a nop though, since bridge devices are resumed
+	 * first. The order of enabling power and enabling the device is
+	 * imposed by the PCI core as described above, so here we preserve the
+	 * same order for the freeze/thaw phases.
+	 *
+	 * TODO: eventually we should remove pci_disable_device() /
+	 * pci_enable_enable_device() from suspend/resume. Due to how they
+	 * depend on the device enable refcount we can't anyway depend on them
+	 * disabling/enabling the device.
 	 */
 	if (pci_enable_device(dev->pdev)) {
 		ret = -EIO;
@@ -969,6 +994,15 @@ static int i915_pci_probe(struct pci_dev *pdev, const struct pci_device_id *ent)
 	if (PCI_FUNC(pdev->devfn))
 		return -ENODEV;
 
+	/*
+	 * apple-gmux is needed on dual GPU MacBook Pro
+	 * to probe the panel if we're the inactive GPU.
+	 */
+	if (IS_ENABLED(CONFIG_VGA_ARB) && IS_ENABLED(CONFIG_VGA_SWITCHEROO) &&
+	    apple_gmux_present() && pdev != vga_default_device() &&
+	    !vga_switcheroo_handler_flags())
+		return -EPROBE_DEFER;
+
 	return drm_get_pci_dev(pdev, ent, &driver);
 }
 
@@ -1079,7 +1113,6 @@ static int bxt_resume_prepare(struct drm_i915_private *dev_priv)
 	 */
 	broxton_init_cdclk(dev);
 	broxton_ddi_phy_init(dev);
-	intel_prepare_ddi(dev);
 
 	return 0;
 }
@@ -1338,8 +1371,8 @@ static int vlv_wait_for_gt_wells(struct drm_i915_private *dev_priv,
 		return 0;
 
 	DRM_DEBUG_KMS("waiting for GT wells to go %s (%08x)\n",
-			wait_for_on ? "on" : "off",
-			I915_READ(VLV_GTLC_PW_STATUS));
+		      onoff(wait_for_on),
+		      I915_READ(VLV_GTLC_PW_STATUS));
 
 	/*
 	 * RC6 transitioning can be delayed up to 2 msec (see
@@ -1348,7 +1381,7 @@ static int vlv_wait_for_gt_wells(struct drm_i915_private *dev_priv,
 	err = wait_for(COND, 3);
 	if (err)
 		DRM_ERROR("timeout waiting for GT wells to go %s\n",
-			  wait_for_on ? "on" : "off");
+			  onoff(wait_for_on));
 
 	return err;
 #undef COND
@@ -1359,7 +1392,7 @@ static void vlv_check_no_gt_access(struct drm_i915_private *dev_priv)
 	if (!(I915_READ(VLV_GTLC_PW_STATUS) & VLV_GTLC_ALLOWWAKEERR))
 		return;
 
-	DRM_ERROR("GT register access while GT waking disabled\n");
+	DRM_DEBUG_DRIVER("GT register access while GT waking disabled\n");
 	I915_WRITE(VLV_GTLC_PW_STATUS, VLV_GTLC_ALLOWWAKEERR);
 }
 
@@ -1503,6 +1536,10 @@ static int intel_runtime_suspend(struct device *device)
 
 	enable_rpm_wakeref_asserts(dev_priv);
 	WARN_ON_ONCE(atomic_read(&dev_priv->pm.wakeref_count));
+
+	if (intel_uncore_arm_unclaimed_mmio_detection(dev_priv))
+		DRM_ERROR("Unclaimed access detected prior to suspending\n");
+
 	dev_priv->pm.suspended = true;
 
 	/*
@@ -1551,6 +1588,8 @@ static int intel_runtime_resume(struct device *device)
 
 	intel_opregion_notify_adapter(dev, PCI_D0);
 	dev_priv->pm.suspended = false;
+	if (intel_uncore_unclaimed_mmio(dev_priv))
+		DRM_DEBUG_DRIVER("Unclaimed access during suspend, bios?\n");
 
 	intel_guc_resume(dev);
 

@@ -2458,7 +2458,7 @@ static struct dmar_domain *get_domain_for_dev(struct device *dev, int gaw)
 	}
 
 	/* register PCI DMA alias device */
-	if (req_id != dma_alias && dev_is_pci(dev)) {
+	if (dev_is_pci(dev) && req_id != dma_alias) {
 		tmp = dmar_insert_one_dev_info(iommu, PCI_BUS_NUM(dma_alias),
 					       dma_alias & 0xff, NULL, domain);
 

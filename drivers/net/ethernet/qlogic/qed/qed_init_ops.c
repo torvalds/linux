@@ -55,63 +55,98 @@ void qed_init_clear_rt_data(struct qed_hwfn *p_hwfn)
 	int i;
 
 	for (i = 0; i < RUNTIME_ARRAY_SIZE; i++)
-		p_hwfn->rt_data[i].b_valid = false;
+		p_hwfn->rt_data.b_valid[i] = false;
 }
 
 void qed_init_store_rt_reg(struct qed_hwfn *p_hwfn,
 			   u32 rt_offset,
 			   u32 val)
 {
-	p_hwfn->rt_data[rt_offset].init_val = val;
-	p_hwfn->rt_data[rt_offset].b_valid = true;
+	p_hwfn->rt_data.init_val[rt_offset] = val;
+	p_hwfn->rt_data.b_valid[rt_offset] = true;
 }
 
 void qed_init_store_rt_agg(struct qed_hwfn *p_hwfn,
-			   u32 rt_offset,
-			   u32 *val,
+			   u32 rt_offset, u32 *p_val,
 			   size_t size)
 {
 	size_t i;
 
 	for (i = 0; i < size / sizeof(u32); i++) {
-		p_hwfn->rt_data[rt_offset + i].init_val = val[i];
-		p_hwfn->rt_data[rt_offset + i].b_valid = true;
+		p_hwfn->rt_data.init_val[rt_offset + i] = p_val[i];
+		p_hwfn->rt_data.b_valid[rt_offset + i]	= true;
 	}
 }
 
-static void qed_init_rt(struct qed_hwfn *p_hwfn,
-			struct qed_ptt *p_ptt,
-			u32 addr,
-			u32 rt_offset,
-			u32 size)
+static int qed_init_rt(struct qed_hwfn	*p_hwfn,
+		       struct qed_ptt *p_ptt,
+		       u32 addr,
+		       u16 rt_offset,
+		       u16 size,
+		       bool b_must_dmae)
 {
-	struct qed_rt_data *rt_data = p_hwfn->rt_data + rt_offset;
-	u32 i;
+	u32 *p_init_val = &p_hwfn->rt_data.init_val[rt_offset];
+	bool *p_valid = &p_hwfn->rt_data.b_valid[rt_offset];
+	u16 i, segment;
+	int rc = 0;
 
+	/* Since not all RT entries are initialized, go over the RT and
+	 * for each segment of initialized values use DMA.
+	 */
 	for (i = 0; i < size; i++) {
-		if (!rt_data[i].b_valid)
+		if (!p_valid[i])
 			continue;
-		qed_wr(p_hwfn, p_ptt, addr + (i << 2), rt_data[i].init_val);
+
+		/* In case there isn't any wide-bus configuration here,
+		 * simply write the data instead of using dmae.
+		 */
+		if (!b_must_dmae) {
+			qed_wr(p_hwfn, p_ptt, addr + (i << 2),
+			       p_init_val[i]);
+			continue;
+		}
+
+		/* Start of a new segment */
+		for (segment = 1; i + segment < size; segment++)
+			if (!p_valid[i + segment])
+				break;
+
+		rc = qed_dmae_host2grc(p_hwfn, p_ptt,
+				       (uintptr_t)(p_init_val + i),
+				       addr + (i << 2), segment, 0);
+		if (rc != 0)
+			return rc;
+
+		/* Jump over the entire segment, including invalid entry */
+		i += segment;
 	}
+
+	return rc;
 }
 
 int qed_init_alloc(struct qed_hwfn *p_hwfn)
 {
-	struct qed_rt_data *rt_data;
+	struct qed_rt_data *rt_data = &p_hwfn->rt_data;
 
-	rt_data = kzalloc(sizeof(*rt_data) * RUNTIME_ARRAY_SIZE, GFP_ATOMIC);
-	if (!rt_data)
+	rt_data->b_valid = kzalloc(sizeof(bool) * RUNTIME_ARRAY_SIZE,
+				   GFP_KERNEL);
+	if (!rt_data->b_valid)
 		return -ENOMEM;
 
-	p_hwfn->rt_data = rt_data;
+	rt_data->init_val = kzalloc(sizeof(u32) * RUNTIME_ARRAY_SIZE,
+				    GFP_KERNEL);
+	if (!rt_data->init_val) {
+		kfree(rt_data->b_valid);
+		return -ENOMEM;
+	}
 
 	return 0;
 }
 
 void qed_init_free(struct qed_hwfn *p_hwfn)
 {
-	kfree(p_hwfn->rt_data);
-	p_hwfn->rt_data = NULL;
+	kfree(p_hwfn->rt_data.init_val);
+	kfree(p_hwfn->rt_data.b_valid);
 }
 
 static int qed_init_array_dmae(struct qed_hwfn *p_hwfn,
@@ -289,7 +324,8 @@ static int qed_init_cmd_wr(struct qed_hwfn *p_hwfn,
 	case INIT_SRC_RUNTIME:
 		qed_init_rt(p_hwfn, p_ptt, addr,
 			    le16_to_cpu(arg->runtime.offset),
-			    le16_to_cpu(arg->runtime.size));
+			    le16_to_cpu(arg->runtime.size),
+			    b_must_dmae);
 		break;
 	}
 
@@ -316,49 +352,50 @@ static void qed_init_cmd_rd(struct qed_hwfn *p_hwfn,
 			    struct qed_ptt *p_ptt,
 			    struct init_read_op *cmd)
 {
-	u32 data = le32_to_cpu(cmd->op_data);
-	u32 addr = GET_FIELD(data, INIT_READ_OP_ADDRESS) << 2;
+	bool (*comp_check)(u32 val, u32 expected_val);
+	u32 delay = QED_INIT_POLL_PERIOD_US, val;
+	u32 data, addr, poll;
+	int i;
 
-	bool	(*comp_check)(u32	val,
-			      u32	expected_val);
-	u32	delay = QED_INIT_POLL_PERIOD_US, val;
+	data = le32_to_cpu(cmd->op_data);
+	addr = GET_FIELD(data, INIT_READ_OP_ADDRESS) << 2;
+	poll = GET_FIELD(data, INIT_READ_OP_POLL_TYPE);
+
 
 	val = qed_rd(p_hwfn, p_ptt, addr);
 
-	data = le32_to_cpu(cmd->op_data);
-	if (GET_FIELD(data, INIT_READ_OP_POLL)) {
-		int i;
+	if (poll == INIT_POLL_NONE)
+		return;
 
-		switch (GET_FIELD(data, INIT_READ_OP_POLL_COMP)) {
-		case INIT_COMPARISON_EQ:
-			comp_check = comp_eq;
-			break;
-		case INIT_COMPARISON_OR:
-			comp_check = comp_or;
-			break;
-		case INIT_COMPARISON_AND:
-			comp_check = comp_and;
-			break;
-		default:
-			comp_check = NULL;
-			DP_ERR(p_hwfn, "Invalid poll comparison type %08x\n",
-			       data);
-			return;
-		}
+	switch (poll) {
+	case INIT_POLL_EQ:
+		comp_check = comp_eq;
+		break;
+	case INIT_POLL_OR:
+		comp_check = comp_or;
+		break;
+	case INIT_POLL_AND:
+		comp_check = comp_and;
+		break;
+	default:
+		DP_ERR(p_hwfn, "Invalid poll comparison type %08x\n",
+		       cmd->op_data);
+		return;
+	}
 
-		for (i = 0;
-		     i < QED_INIT_MAX_POLL_COUNT &&
-		     !comp_check(val, le32_to_cpu(cmd->expected_val));
-		     i++) {
-			udelay(delay);
-			val = qed_rd(p_hwfn, p_ptt, addr);
-		}
+	data = le32_to_cpu(cmd->expected_val);
+	for (i = 0;
+	     i < QED_INIT_MAX_POLL_COUNT && !comp_check(val, data);
+	     i++) {
+		udelay(delay);
+		val = qed_rd(p_hwfn, p_ptt, addr);
+	}
 
-		if (i == QED_INIT_MAX_POLL_COUNT)
-			DP_ERR(p_hwfn,
-			       "Timeout when polling reg: 0x%08x [ Waiting-for: %08x Got: %08x (comparsion %08x)]\n",
-			       addr, le32_to_cpu(cmd->expected_val),
-			       val, data);
+	if (i == QED_INIT_MAX_POLL_COUNT) {
+		DP_ERR(p_hwfn,
+		       "Timeout when polling reg: 0x%08x [ Waiting-for: %08x Got: %08x (comparsion %08x)]\n",
+		       addr, le32_to_cpu(cmd->expected_val),
+		       val, le32_to_cpu(cmd->op_data));
 	}
 }
 

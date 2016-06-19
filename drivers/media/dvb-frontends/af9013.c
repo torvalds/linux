@@ -866,9 +866,9 @@ err:
 	return ret;
 }
 
-static int af9013_get_frontend(struct dvb_frontend *fe)
+static int af9013_get_frontend(struct dvb_frontend *fe,
+			       struct dtv_frontend_properties *c)
 {
-	struct dtv_frontend_properties *c = &fe->dtv_property_cache;
 	struct af9013_state *state = fe->demodulator_priv;
 	int ret;
 	u8 buf[3];
@@ -1344,6 +1344,10 @@ err:
 static void af9013_release(struct dvb_frontend *fe)
 {
 	struct af9013_state *state = fe->demodulator_priv;
+
+	/* stop statistics polling */
+	cancel_delayed_work_sync(&state->statistics_work);
+
 	kfree(state);
 }
 

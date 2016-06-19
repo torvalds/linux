@@ -987,6 +987,21 @@ unsigned int crypto_alg_extsize(struct crypto_alg *alg)
 }
 EXPORT_SYMBOL_GPL(crypto_alg_extsize);
 
+int crypto_type_has_alg(const char *name, const struct crypto_type *frontend,
+			u32 type, u32 mask)
+{
+	int ret = 0;
+	struct crypto_alg *alg = crypto_find_alg(name, frontend, type, mask);
+
+	if (!IS_ERR(alg)) {
+		crypto_mod_put(alg);
+		ret = 1;
+	}
+
+	return ret;
+}
+EXPORT_SYMBOL_GPL(crypto_type_has_alg);
+
 static int __init crypto_algapi_init(void)
 {
 	crypto_init_proc();

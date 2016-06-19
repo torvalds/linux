@@ -26,16 +26,10 @@
  * Device Access
  */
 
-static inline u32 vsp1_rpf_read(struct vsp1_rwpf *rpf, u32 reg)
-{
-	return vsp1_read(rpf->entity.vsp1,
-			 reg + rpf->entity.index * VI6_RPF_OFFSET);
-}
-
 static inline void vsp1_rpf_write(struct vsp1_rwpf *rpf, u32 reg, u32 data)
 {
-	vsp1_write(rpf->entity.vsp1,
-		   reg + rpf->entity.index * VI6_RPF_OFFSET, data);
+	vsp1_mod_write(&rpf->entity, reg + rpf->entity.index * VI6_RPF_OFFSET,
+		       data);
 }
 
 /* -----------------------------------------------------------------------------
@@ -74,9 +68,11 @@ static const struct v4l2_ctrl_ops rpf_ctrl_ops = {
 
 static int rpf_s_stream(struct v4l2_subdev *subdev, int enable)
 {
+	struct vsp1_pipeline *pipe = to_vsp1_pipeline(&subdev->entity);
 	struct vsp1_rwpf *rpf = to_rwpf(subdev);
-	const struct vsp1_format_info *fmtinfo = rpf->video.fmtinfo;
-	const struct v4l2_pix_format_mplane *format = &rpf->video.format;
+	struct vsp1_device *vsp1 = rpf->entity.vsp1;
+	const struct vsp1_format_info *fmtinfo = rpf->fmtinfo;
+	const struct v4l2_pix_format_mplane *format = &rpf->format;
 	const struct v4l2_rect *crop = &rpf->crop;
 	u32 pstride;
 	u32 infmt;
@@ -154,6 +150,15 @@ static int rpf_s_stream(struct v4l2_subdev *subdev, int enable)
 	vsp1_rpf_write(rpf, VI6_RPF_ALPH_SEL, VI6_RPF_ALPH_SEL_AEXT_EXT |
 		       (fmtinfo->alpha ? VI6_RPF_ALPH_SEL_ASEL_PACKED
 				       : VI6_RPF_ALPH_SEL_ASEL_FIXED));
+
+	if (vsp1->info->uapi)
+		mutex_lock(rpf->ctrls.lock);
+	vsp1_rpf_write(rpf, VI6_RPF_VRTCOL_SET,
+		       rpf->alpha->cur.val << VI6_RPF_VRTCOL_SET_LAYA_SHIFT);
+	vsp1_pipeline_propagate_alpha(pipe, &rpf->entity, rpf->alpha->cur.val);
+	if (vsp1->info->uapi)
+		mutex_unlock(rpf->ctrls.lock);
+
 	vsp1_rpf_write(rpf, VI6_RPF_MSK_CTRL, 0);
 	vsp1_rpf_write(rpf, VI6_RPF_CKEY_CTRL, 0);
 
@@ -186,30 +191,28 @@ static struct v4l2_subdev_ops rpf_ops = {
  * Video Device Operations
  */
 
-static void rpf_vdev_queue(struct vsp1_video *video,
-			   struct vsp1_video_buffer *buf)
+static void rpf_set_memory(struct vsp1_rwpf *rpf, struct vsp1_rwpf_memory *mem)
 {
-	struct vsp1_rwpf *rpf = container_of(video, struct vsp1_rwpf, video);
 	unsigned int i;
 
 	for (i = 0; i < 3; ++i)
-		rpf->buf_addr[i] = buf->addr[i];
+		rpf->buf_addr[i] = mem->addr[i];
 
 	if (!vsp1_entity_is_streaming(&rpf->entity))
 		return;
 
 	vsp1_rpf_write(rpf, VI6_RPF_SRCM_ADDR_Y,
-		       buf->addr[0] + rpf->offsets[0]);
-	if (buf->buf.vb2_buf.num_planes > 1)
+		       mem->addr[0] + rpf->offsets[0]);
+	if (mem->num_planes > 1)
 		vsp1_rpf_write(rpf, VI6_RPF_SRCM_ADDR_C0,
-			       buf->addr[1] + rpf->offsets[1]);
-	if (buf->buf.vb2_buf.num_planes > 2)
+			       mem->addr[1] + rpf->offsets[1]);
+	if (mem->num_planes > 2)
 		vsp1_rpf_write(rpf, VI6_RPF_SRCM_ADDR_C1,
-			       buf->addr[2] + rpf->offsets[1]);
+			       mem->addr[2] + rpf->offsets[1]);
 }
 
-static const struct vsp1_video_operations rpf_vdev_ops = {
-	.queue = rpf_vdev_queue,
+static const struct vsp1_rwpf_operations rpf_vdev_ops = {
+	.set_memory = rpf_set_memory,
 };
 
 /* -----------------------------------------------------------------------------
@@ -219,13 +222,14 @@ static const struct vsp1_video_operations rpf_vdev_ops = {
 struct vsp1_rwpf *vsp1_rpf_create(struct vsp1_device *vsp1, unsigned int index)
 {
 	struct v4l2_subdev *subdev;
-	struct vsp1_video *video;
 	struct vsp1_rwpf *rpf;
 	int ret;
 
 	rpf = devm_kzalloc(vsp1->dev, sizeof(*rpf), GFP_KERNEL);
 	if (rpf == NULL)
 		return ERR_PTR(-ENOMEM);
+
+	rpf->ops = &rpf_vdev_ops;
 
 	rpf->max_width = RPF_MAX_WIDTH;
 	rpf->max_height = RPF_MAX_HEIGHT;
@@ -241,7 +245,7 @@ struct vsp1_rwpf *vsp1_rpf_create(struct vsp1_device *vsp1, unsigned int index)
 	subdev = &rpf->entity.subdev;
 	v4l2_subdev_init(subdev, &rpf_ops);
 
-	subdev->entity.ops = &vsp1_media_ops;
+	subdev->entity.ops = &vsp1->media_ops;
 	subdev->internal_ops = &vsp1_subdev_internal_ops;
 	snprintf(subdev->name, sizeof(subdev->name), "%s rpf.%u",
 		 dev_name(vsp1->dev), index);
@@ -252,8 +256,9 @@ struct vsp1_rwpf *vsp1_rpf_create(struct vsp1_device *vsp1, unsigned int index)
 
 	/* Initialize the control handler. */
 	v4l2_ctrl_handler_init(&rpf->ctrls, 1);
-	v4l2_ctrl_new_std(&rpf->ctrls, &rpf_ctrl_ops, V4L2_CID_ALPHA_COMPONENT,
-			  0, 255, 1, 255);
+	rpf->alpha = v4l2_ctrl_new_std(&rpf->ctrls, &rpf_ctrl_ops,
+				       V4L2_CID_ALPHA_COMPONENT,
+				       0, 255, 1, 255);
 
 	rpf->entity.subdev.ctrl_handler = &rpf->ctrls;
 
@@ -264,42 +269,9 @@ struct vsp1_rwpf *vsp1_rpf_create(struct vsp1_device *vsp1, unsigned int index)
 		goto error;
 	}
 
-	/* Initialize the video device. */
-	video = &rpf->video;
-
-	video->type = V4L2_BUF_TYPE_VIDEO_OUTPUT_MPLANE;
-	video->vsp1 = vsp1;
-	video->ops = &rpf_vdev_ops;
-
-	ret = vsp1_video_init(video, &rpf->entity);
-	if (ret < 0)
-		goto error;
-
-	rpf->entity.video = video;
-
 	return rpf;
 
 error:
 	vsp1_entity_destroy(&rpf->entity);
 	return ERR_PTR(ret);
-}
-
-/*
- * vsp1_rpf_create_links() - RPF pads links creation
- * @vsp1: Pointer to VSP1 device
- * @entity: Pointer to VSP1 entity
- *
- * return negative error code or zero on success
- */
-int vsp1_rpf_create_links(struct vsp1_device *vsp1,
-			       struct vsp1_entity *entity)
-{
-	struct vsp1_rwpf *rpf = to_rwpf(&entity->subdev);
-
-	/* Connect the video device to the RPF. */
-	return media_create_pad_link(&rpf->video.video.entity, 0,
-				     &rpf->entity.subdev.entity,
-				     RWPF_PAD_SINK,
-				     MEDIA_LNK_FL_ENABLED |
-				     MEDIA_LNK_FL_IMMUTABLE);
 }

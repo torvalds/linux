@@ -11,9 +11,11 @@
 
 #define CORE_SPQE_PAGE_SIZE_BYTES                       4096
 
+#define X_FINAL_CLEANUP_AGG_INT 1
+
 #define FW_MAJOR_VERSION	8
-#define FW_MINOR_VERSION	4
-#define FW_REVISION_VERSION	2
+#define FW_MINOR_VERSION	7
+#define FW_REVISION_VERSION	3
 #define FW_ENGINEERING_VERSION	0
 
 /***********************/
@@ -152,6 +154,9 @@
 /* number of queues in a PF queue group */
 #define QM_PF_QUEUE_GROUP_SIZE	8
 
+/* the size of a single queue element in bytes */
+#define QM_PQ_ELEMENT_SIZE                      4
+
 /* base number of Tx PQs in the CM PQ representation.
  * should be used when storing PQ IDs in CM PQ registers and context
  */
@@ -285,6 +290,16 @@
 #define PXP_NUM_ILT_RECORDS_K2 11000
 #define MAX_NUM_ILT_RECORDS MAX(PXP_NUM_ILT_RECORDS_BB, PXP_NUM_ILT_RECORDS_K2)
 
+#define SDM_COMP_TYPE_NONE              0
+#define SDM_COMP_TYPE_WAKE_THREAD       1
+#define SDM_COMP_TYPE_AGG_INT           2
+#define SDM_COMP_TYPE_CM                3
+#define SDM_COMP_TYPE_LOADER            4
+#define SDM_COMP_TYPE_PXP               5
+#define SDM_COMP_TYPE_INDICATE_ERROR    6
+#define SDM_COMP_TYPE_RELEASE_THREAD    7
+#define SDM_COMP_TYPE_RAM               8
+
 /******************/
 /* PBF CONSTANTS  */
 /******************/
@@ -335,7 +350,7 @@ struct event_ring_entry {
 
 /* Multi function mode */
 enum mf_mode {
-	SF,
+	ERROR_MODE /* Unsupported mode */,
 	MF_OVLAN,
 	MF_NPAR,
 	MAX_MF_MODE
@@ -606,4 +621,19 @@ struct status_block {
 #define STATUS_BLOCK_ZERO_PAD3_SHIFT  24
 };
 
+struct tunnel_parsing_flags {
+	u8 flags;
+#define TUNNEL_PARSING_FLAGS_TYPE_MASK              0x3
+#define TUNNEL_PARSING_FLAGS_TYPE_SHIFT             0
+#define TUNNEL_PARSING_FLAGS_TENNANT_ID_EXIST_MASK  0x1
+#define TUNNEL_PARSING_FLAGS_TENNANT_ID_EXIST_SHIFT 2
+#define TUNNEL_PARSING_FLAGS_NEXT_PROTOCOL_MASK     0x3
+#define TUNNEL_PARSING_FLAGS_NEXT_PROTOCOL_SHIFT    3
+#define TUNNEL_PARSING_FLAGS_FIRSTHDRIPMATCH_MASK   0x1
+#define TUNNEL_PARSING_FLAGS_FIRSTHDRIPMATCH_SHIFT  5
+#define TUNNEL_PARSING_FLAGS_IPV4_FRAGMENT_MASK     0x1
+#define TUNNEL_PARSING_FLAGS_IPV4_FRAGMENT_SHIFT    6
+#define TUNNEL_PARSING_FLAGS_IPV4_OPTIONS_MASK      0x1
+#define TUNNEL_PARSING_FLAGS_IPV4_OPTIONS_SHIFT     7
+};
 #endif /* __COMMON_HSI__ */

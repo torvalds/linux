@@ -69,7 +69,7 @@ struct iwpm_nlmsg_request {
 	u8	            nl_client;
 	u8                  request_done;
 	u16                 err_code;
-	wait_queue_head_t   waitq;
+	struct semaphore    sem;
 	struct kref         kref;
 };
 

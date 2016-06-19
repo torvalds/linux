@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2012-2015 Qualcomm Atheros, Inc.
+ * Copyright (c) 2012-2016 Qualcomm Atheros, Inc.
  *
  * Permission to use, copy, modify, and/or distribute this software for any
  * purpose with or without fee is hereby granted, provided that the above
@@ -22,9 +22,6 @@
 #include "txrx.h"
 #include "wmi.h"
 #include "boot_loader.h"
-
-#define WAIT_FOR_DISCONNECT_TIMEOUT_MS 2000
-#define WAIT_FOR_DISCONNECT_INTERVAL_MS 10
 
 bool debug_fw; /* = false; */
 module_param(debug_fw, bool, S_IRUGO);
@@ -155,7 +152,7 @@ __acquires(&sta->tid_rx_lock) __releases(&sta->tid_rx_lock)
 
 	if (sta->status != wil_sta_unused) {
 		if (!from_event)
-			wmi_disconnect_sta(wil, sta->addr, reason_code);
+			wmi_disconnect_sta(wil, sta->addr, reason_code, true);
 
 		switch (wdev->iftype) {
 		case NL80211_IFTYPE_AP:
@@ -195,8 +192,8 @@ static void _wil6210_disconnect(struct wil6210_priv *wil, const u8 *bssid,
 	struct wireless_dev *wdev = wil->wdev;
 
 	might_sleep();
-	wil_dbg_misc(wil, "%s(bssid=%pM, reason=%d, ev%s)\n", __func__, bssid,
-		     reason_code, from_event ? "+" : "-");
+	wil_info(wil, "%s(bssid=%pM, reason=%d, ev%s)\n", __func__, bssid,
+		 reason_code, from_event ? "+" : "-");
 
 	/* Cases are:
 	 * - disconnect single STA, still connected
@@ -258,13 +255,16 @@ static void wil_disconnect_worker(struct work_struct *work)
 static void wil_connect_timer_fn(ulong x)
 {
 	struct wil6210_priv *wil = (void *)x;
+	bool q;
 
-	wil_dbg_misc(wil, "Connect timeout\n");
+	wil_err(wil, "Connect timeout detected, disconnect station\n");
 
 	/* reschedule to thread context - disconnect won't
-	 * run from atomic context
+	 * run from atomic context.
+	 * queue on wmi_wq to prevent race with connect event.
 	 */
-	schedule_work(&wil->disconnect_worker);
+	q = queue_work(wil->wmi_wq, &wil->disconnect_worker);
+	wil_dbg_wmi(wil, "queue_work of disconnect_worker -> %d\n", q);
 }
 
 static void wil_scan_timer_fn(ulong x)
@@ -369,6 +369,32 @@ static int wil_find_free_vring(struct wil6210_priv *wil)
 	return -EINVAL;
 }
 
+int wil_tx_init(struct wil6210_priv *wil, int cid)
+{
+	int rc = -EINVAL, ringid;
+
+	if (cid < 0) {
+		wil_err(wil, "No connection pending\n");
+		goto out;
+	}
+	ringid = wil_find_free_vring(wil);
+	if (ringid < 0) {
+		wil_err(wil, "No free vring found\n");
+		goto out;
+	}
+
+	wil_dbg_wmi(wil, "Configure for connection CID %d vring %d\n",
+		    cid, ringid);
+
+	rc = wil_vring_init_tx(wil, ringid, 1 << tx_ring_order, cid, 0);
+	if (rc)
+		wil_err(wil, "wil_vring_init_tx for CID %d vring %d failed\n",
+			cid, ringid);
+
+out:
+	return rc;
+}
+
 int wil_bcast_init(struct wil6210_priv *wil)
 {
 	int ri = wil->bcast_vring, rc;
@@ -399,41 +425,6 @@ void wil_bcast_fini(struct wil6210_priv *wil)
 	wil_vring_fini_tx(wil, ri);
 }
 
-static void wil_connect_worker(struct work_struct *work)
-{
-	int rc, cid, ringid;
-	struct wil6210_priv *wil = container_of(work, struct wil6210_priv,
-						connect_worker);
-	struct net_device *ndev = wil_to_ndev(wil);
-
-	mutex_lock(&wil->mutex);
-
-	cid = wil->pending_connect_cid;
-	if (cid < 0) {
-		wil_err(wil, "No connection pending\n");
-		goto out;
-	}
-	ringid = wil_find_free_vring(wil);
-	if (ringid < 0) {
-		wil_err(wil, "No free vring found\n");
-		goto out;
-	}
-
-	wil_dbg_wmi(wil, "Configure for connection CID %d vring %d\n",
-		    cid, ringid);
-
-	rc = wil_vring_init_tx(wil, ringid, 1 << tx_ring_order, cid, 0);
-	wil->pending_connect_cid = -1;
-	if (rc == 0) {
-		wil->sta[cid].status = wil_sta_connected;
-		netif_tx_wake_all_queues(ndev);
-	} else {
-		wil_disconnect_cid(wil, cid, WLAN_REASON_UNSPECIFIED, true);
-	}
-out:
-	mutex_unlock(&wil->mutex);
-}
-
 int wil_priv_init(struct wil6210_priv *wil)
 {
 	uint i;
@@ -444,6 +435,9 @@ int wil_priv_init(struct wil6210_priv *wil)
 	for (i = 0; i < WIL6210_MAX_CID; i++)
 		spin_lock_init(&wil->sta[i].tid_rx_lock);
 
+	for (i = 0; i < WIL6210_MAX_TX_RINGS; i++)
+		spin_lock_init(&wil->vring_tx_data[i].lock);
+
 	mutex_init(&wil->mutex);
 	mutex_init(&wil->wmi_mutex);
 	mutex_init(&wil->back_rx_mutex);
@@ -453,12 +447,10 @@ int wil_priv_init(struct wil6210_priv *wil)
 	init_completion(&wil->wmi_ready);
 	init_completion(&wil->wmi_call);
 
-	wil->pending_connect_cid = -1;
 	wil->bcast_vring = -1;
 	setup_timer(&wil->connect_timer, wil_connect_timer_fn, (ulong)wil);
 	setup_timer(&wil->scan_timer, wil_scan_timer_fn, (ulong)wil);
 
-	INIT_WORK(&wil->connect_worker, wil_connect_worker);
 	INIT_WORK(&wil->disconnect_worker, wil_disconnect_worker);
 	INIT_WORK(&wil->wmi_event_worker, wmi_event_worker);
 	INIT_WORK(&wil->fw_error_worker, wil_fw_error_worker);
@@ -844,7 +836,6 @@ int wil_reset(struct wil6210_priv *wil, bool load_fw)
 	}
 
 	/* init after reset */
-	wil->pending_connect_cid = -1;
 	wil->ap_isolate = 0;
 	reinit_completion(&wil->wmi_ready);
 	reinit_completion(&wil->wmi_call);
@@ -948,8 +939,7 @@ int wil_up(struct wil6210_priv *wil)
 
 int __wil_down(struct wil6210_priv *wil)
 {
-	int iter = WAIT_FOR_DISCONNECT_TIMEOUT_MS /
-			WAIT_FOR_DISCONNECT_INTERVAL_MS;
+	int rc;
 
 	WARN_ON(!mutex_is_locked(&wil->mutex));
 
@@ -973,22 +963,16 @@ int __wil_down(struct wil6210_priv *wil)
 	}
 
 	if (test_bit(wil_status_fwconnected, wil->status) ||
-	    test_bit(wil_status_fwconnecting, wil->status))
-		wmi_send(wil, WMI_DISCONNECT_CMDID, NULL, 0);
+	    test_bit(wil_status_fwconnecting, wil->status)) {
 
-	/* make sure wil is idle (not connected) */
-	mutex_unlock(&wil->mutex);
-	while (iter--) {
-		int idle = !test_bit(wil_status_fwconnected, wil->status) &&
-			   !test_bit(wil_status_fwconnecting, wil->status);
-		if (idle)
-			break;
-		msleep(WAIT_FOR_DISCONNECT_INTERVAL_MS);
+		mutex_unlock(&wil->mutex);
+		rc = wmi_call(wil, WMI_DISCONNECT_CMDID, NULL, 0,
+			      WMI_DISCONNECT_EVENTID, NULL, 0,
+			      WIL6210_DISCONNECT_TO_MS);
+		mutex_lock(&wil->mutex);
+		if (rc)
+			wil_err(wil, "timeout waiting for disconnect\n");
 	}
-	mutex_lock(&wil->mutex);
-
-	if (iter < 0)
-		wil_err(wil, "timeout waiting for idle FW/HW\n");
 
 	wil_reset(wil, false);
 

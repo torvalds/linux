@@ -163,7 +163,7 @@ static void __init pistachio_clksrc_of_init(struct device_node *node)
 
 	periph_regs = syscon_regmap_lookup_by_phandle(node, "img,cr-periph");
 	if (IS_ERR(periph_regs)) {
-		pr_err("cannot get peripheral regmap (%lu)\n",
+		pr_err("cannot get peripheral regmap (%ld)\n",
 		       PTR_ERR(periph_regs));
 		return;
 	}
@@ -176,7 +176,7 @@ static void __init pistachio_clksrc_of_init(struct device_node *node)
 
 	sys_clk = of_clk_get_by_name(node, "sys");
 	if (IS_ERR(sys_clk)) {
-		pr_err("clock get failed (%lu)\n", PTR_ERR(sys_clk));
+		pr_err("clock get failed (%ld)\n", PTR_ERR(sys_clk));
 		return;
 	}
 

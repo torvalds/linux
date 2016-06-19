@@ -418,7 +418,7 @@ static int mxs_saif_hw_params(struct snd_pcm_substream *substream,
 	}
 
 	stat = __raw_readl(saif->base + SAIF_STAT);
-	if (stat & BM_SAIF_STAT_BUSY) {
+	if (!saif->mclk_in_use && (stat & BM_SAIF_STAT_BUSY)) {
 		dev_err(cpu_dai->dev, "error: busy\n");
 		return -EBUSY;
 	}

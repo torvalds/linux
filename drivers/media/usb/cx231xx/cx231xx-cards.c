@@ -1216,62 +1216,9 @@ static int cx231xx_media_device_init(struct cx231xx *dev,
 	if (!mdev)
 		return -ENOMEM;
 
-	mdev->dev = dev->dev;
-	strlcpy(mdev->model, dev->board.name, sizeof(mdev->model));
-	if (udev->serial)
-		strlcpy(mdev->serial, udev->serial, sizeof(mdev->serial));
-	strcpy(mdev->bus_info, udev->devpath);
-	mdev->hw_revision = le16_to_cpu(udev->descriptor.bcdDevice);
-	mdev->driver_version = LINUX_VERSION_CODE;
-
-	media_device_init(mdev);
+	media_device_usb_init(mdev, udev, dev->board.name);
 
 	dev->media_dev = mdev;
-#endif
-	return 0;
-}
-
-static int cx231xx_create_media_graph(struct cx231xx *dev)
-{
-#ifdef CONFIG_MEDIA_CONTROLLER
-	struct media_device *mdev = dev->media_dev;
-	struct media_entity *entity;
-	struct media_entity *tuner = NULL, *decoder = NULL;
-	int ret;
-
-	if (!mdev)
-		return 0;
-
-	media_device_for_each_entity(entity, mdev) {
-		switch (entity->function) {
-		case MEDIA_ENT_F_TUNER:
-			tuner = entity;
-			break;
-		case MEDIA_ENT_F_ATV_DECODER:
-			decoder = entity;
-			break;
-		}
-	}
-
-	/* Analog setup, using tuner as a link */
-
-	if (!decoder)
-		return 0;
-
-	if (tuner) {
-		ret = media_create_pad_link(tuner, TUNER_PAD_IF_OUTPUT, decoder, 0,
-					    MEDIA_LNK_FL_ENABLED);
-		if (ret < 0)
-			return ret;
-	}
-	ret = media_create_pad_link(decoder, 1, &dev->vdev.entity, 0,
-				    MEDIA_LNK_FL_ENABLED);
-	if (ret < 0)
-		return ret;
-	ret = media_create_pad_link(decoder, 2, &dev->vbi_dev.entity, 0,
-				    MEDIA_LNK_FL_ENABLED);
-	if (ret < 0)
-		return ret;
 #endif
 	return 0;
 }
@@ -1739,15 +1686,14 @@ static int cx231xx_usb_probe(struct usb_interface *interface,
 	/* load other modules required */
 	request_modules(dev);
 
-	retval = cx231xx_create_media_graph(dev);
-	if (retval < 0)
-		goto done;
-
 #ifdef CONFIG_MEDIA_CONTROLLER
-	retval = media_device_register(dev->media_dev);
-#endif
+	/* Init entities at the Media Controller */
+	cx231xx_v4l2_create_entities(dev);
 
-done:
+	retval = v4l2_mc_create_media_graph(dev->media_dev);
+	if (!retval)
+		retval = media_device_register(dev->media_dev);
+#endif
 	if (retval < 0)
 		cx231xx_release_resources(dev);
 	return retval;

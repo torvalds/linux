@@ -321,6 +321,11 @@ static bool handle_mmio_sgi_clear(struct kvm_vcpu *vcpu,
 
 static const struct vgic_io_range vgic_dist_ranges[] = {
 	{
+		.base		= GIC_DIST_SOFTINT,
+		.len		= 4,
+		.handle_mmio	= handle_mmio_sgi_reg,
+	},
+	{
 		.base		= GIC_DIST_CTRL,
 		.len		= 12,
 		.bits_per_irq	= 0,
@@ -385,11 +390,6 @@ static const struct vgic_io_range vgic_dist_ranges[] = {
 		.len		= VGIC_MAX_IRQS / 4,
 		.bits_per_irq	= 2,
 		.handle_mmio	= handle_mmio_cfg_reg,
-	},
-	{
-		.base		= GIC_DIST_SOFTINT,
-		.len		= 4,
-		.handle_mmio	= handle_mmio_sgi_reg,
 	},
 	{
 		.base		= GIC_DIST_SGI_PENDING_CLEAR,

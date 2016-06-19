@@ -15,6 +15,12 @@ config ATH10K_PCI
 	---help---
 	  This module adds support for PCIE bus
 
+config ATH10K_AHB
+	bool "Atheros ath10k AHB support"
+	depends on ATH10K_PCI && OF && RESET_CONTROLLER
+	---help---
+	  This module adds support for AHB bus
+
 config ATH10K_DEBUG
 	bool "Atheros ath10k debugging"
 	depends on ATH10K

@@ -41,13 +41,15 @@ static void *try_ram_remap(resource_size_t offset, size_t size)
  * memremap() - remap an iomem_resource as cacheable memory
  * @offset: iomem resource start address
  * @size: size of remap
- * @flags: either MEMREMAP_WB or MEMREMAP_WT
+ * @flags: any of MEMREMAP_WB, MEMREMAP_WT and MEMREMAP_WC
  *
  * memremap() is "ioremap" for cases where it is known that the resource
  * being mapped does not have i/o side effects and the __iomem
- * annotation is not applicable.
+ * annotation is not applicable. In the case of multiple flags, the different
+ * mapping types will be attempted in the order listed below until one of
+ * them succeeds.
  *
- * MEMREMAP_WB - matches the default mapping for "System RAM" on
+ * MEMREMAP_WB - matches the default mapping for System RAM on
  * the architecture.  This is usually a read-allocate write-back cache.
  * Morever, if MEMREMAP_WB is specified and the requested remap region is RAM
  * memremap() will bypass establishing a new mapping and instead return
@@ -56,12 +58,20 @@ static void *try_ram_remap(resource_size_t offset, size_t size)
  * MEMREMAP_WT - establish a mapping whereby writes either bypass the
  * cache or are written through to memory and never exist in a
  * cache-dirty state with respect to program visibility.  Attempts to
- * map "System RAM" with this mapping type will fail.
+ * map System RAM with this mapping type will fail.
+ *
+ * MEMREMAP_WC - establish a writecombine mapping, whereby writes may
+ * be coalesced together (e.g. in the CPU's write buffers), but is otherwise
+ * uncached. Attempts to map System RAM with this mapping type will fail.
  */
 void *memremap(resource_size_t offset, size_t size, unsigned long flags)
 {
-	int is_ram = region_intersects(offset, size, "System RAM");
+	int is_ram = region_intersects(offset, size,
+				       IORESOURCE_SYSTEM_RAM, IORES_DESC_NONE);
 	void *addr = NULL;
+
+	if (!flags)
+		return NULL;
 
 	if (is_ram == REGION_MIXED) {
 		WARN_ONCE(1, "memremap attempted on mixed range %pa size: %#lx\n",
@@ -71,12 +81,11 @@ void *memremap(resource_size_t offset, size_t size, unsigned long flags)
 
 	/* Try all mapping types requested until one returns non-NULL */
 	if (flags & MEMREMAP_WB) {
-		flags &= ~MEMREMAP_WB;
 		/*
 		 * MEMREMAP_WB is special in that it can be satisifed
 		 * from the direct map.  Some archs depend on the
 		 * capability of memremap() to autodetect cases where
-		 * the requested range is potentially in "System RAM"
+		 * the requested range is potentially in System RAM.
 		 */
 		if (is_ram == REGION_INTERSECTS)
 			addr = try_ram_remap(offset, size);
@@ -85,21 +94,22 @@ void *memremap(resource_size_t offset, size_t size, unsigned long flags)
 	}
 
 	/*
-	 * If we don't have a mapping yet and more request flags are
-	 * pending then we will be attempting to establish a new virtual
+	 * If we don't have a mapping yet and other request flags are
+	 * present then we will be attempting to establish a new virtual
 	 * address mapping.  Enforce that this mapping is not aliasing
-	 * "System RAM"
+	 * System RAM.
 	 */
-	if (!addr && is_ram == REGION_INTERSECTS && flags) {
+	if (!addr && is_ram == REGION_INTERSECTS && flags != MEMREMAP_WB) {
 		WARN_ONCE(1, "memremap attempted on ram %pa size: %#lx\n",
 				&offset, (unsigned long) size);
 		return NULL;
 	}
 
-	if (!addr && (flags & MEMREMAP_WT)) {
-		flags &= ~MEMREMAP_WT;
+	if (!addr && (flags & MEMREMAP_WT))
 		addr = ioremap_wt(offset, size);
-	}
+
+	if (!addr && (flags & MEMREMAP_WC))
+		addr = ioremap_wc(offset, size);
 
 	return addr;
 }
@@ -279,7 +289,8 @@ void *devm_memremap_pages(struct device *dev, struct resource *res,
 	align_start = res->start & ~(SECTION_SIZE - 1);
 	align_size = ALIGN(res->start + resource_size(res), SECTION_SIZE)
 		- align_start;
-	is_ram = region_intersects(align_start, align_size, "System RAM");
+	is_ram = region_intersects(align_start, align_size,
+		IORESOURCE_SYSTEM_RAM, IORES_DESC_NONE);
 
 	if (is_ram == REGION_MIXED) {
 		WARN_ONCE(1, "%s attempted on mixed region %pr\n",
@@ -389,7 +400,7 @@ struct vmem_altmap *to_vmem_altmap(unsigned long memmap_start)
 	/*
 	 * 'memmap_start' is the virtual address for the first "struct
 	 * page" in this range of the vmemmap array.  In the case of
-	 * CONFIG_SPARSE_VMEMMAP a page_to_pfn conversion is simple
+	 * CONFIG_SPARSEMEM_VMEMMAP a page_to_pfn conversion is simple
 	 * pointer arithmetic, so we can perform this to_vmem_altmap()
 	 * conversion without concern for the initialization state of
 	 * the struct page fields.
@@ -398,7 +409,7 @@ struct vmem_altmap *to_vmem_altmap(unsigned long memmap_start)
 	struct dev_pagemap *pgmap;
 
 	/*
-	 * Uncoditionally retrieve a dev_pagemap associated with the
+	 * Unconditionally retrieve a dev_pagemap associated with the
 	 * given physical address, this is only for use in the
 	 * arch_{add|remove}_memory() for setting up and tearing down
 	 * the memmap.

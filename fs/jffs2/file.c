@@ -87,14 +87,15 @@ static int jffs2_do_readpage_nolock (struct inode *inode, struct page *pg)
 	int ret;
 
 	jffs2_dbg(2, "%s(): ino #%lu, page at offset 0x%lx\n",
-		  __func__, inode->i_ino, pg->index << PAGE_CACHE_SHIFT);
+		  __func__, inode->i_ino, pg->index << PAGE_SHIFT);
 
 	BUG_ON(!PageLocked(pg));
 
 	pg_buf = kmap(pg);
 	/* FIXME: Can kmap fail? */
 
-	ret = jffs2_read_inode_range(c, f, pg_buf, pg->index << PAGE_CACHE_SHIFT, PAGE_CACHE_SIZE);
+	ret = jffs2_read_inode_range(c, f, pg_buf, pg->index << PAGE_SHIFT,
+				     PAGE_SIZE);
 
 	if (ret) {
 		ClearPageUptodate(pg);
@@ -137,8 +138,8 @@ static int jffs2_write_begin(struct file *filp, struct address_space *mapping,
 	struct page *pg;
 	struct inode *inode = mapping->host;
 	struct jffs2_inode_info *f = JFFS2_INODE_INFO(inode);
-	pgoff_t index = pos >> PAGE_CACHE_SHIFT;
-	uint32_t pageofs = index << PAGE_CACHE_SHIFT;
+	pgoff_t index = pos >> PAGE_SHIFT;
+	uint32_t pageofs = index << PAGE_SHIFT;
 	int ret = 0;
 
 	pg = grab_cache_page_write_begin(mapping, index, flags);
@@ -230,7 +231,7 @@ static int jffs2_write_begin(struct file *filp, struct address_space *mapping,
 
 out_page:
 	unlock_page(pg);
-	page_cache_release(pg);
+	put_page(pg);
 	return ret;
 }
 
@@ -245,14 +246,14 @@ static int jffs2_write_end(struct file *filp, struct address_space *mapping,
 	struct jffs2_inode_info *f = JFFS2_INODE_INFO(inode);
 	struct jffs2_sb_info *c = JFFS2_SB_INFO(inode->i_sb);
 	struct jffs2_raw_inode *ri;
-	unsigned start = pos & (PAGE_CACHE_SIZE - 1);
+	unsigned start = pos & (PAGE_SIZE - 1);
 	unsigned end = start + copied;
 	unsigned aligned_start = start & ~3;
 	int ret = 0;
 	uint32_t writtenlen = 0;
 
 	jffs2_dbg(1, "%s(): ino #%lu, page at 0x%lx, range %d-%d, flags %lx\n",
-		  __func__, inode->i_ino, pg->index << PAGE_CACHE_SHIFT,
+		  __func__, inode->i_ino, pg->index << PAGE_SHIFT,
 		  start, end, pg->flags);
 
 	/* We need to avoid deadlock with page_cache_read() in
@@ -261,7 +262,7 @@ static int jffs2_write_end(struct file *filp, struct address_space *mapping,
 	   to re-lock it. */
 	BUG_ON(!PageUptodate(pg));
 
-	if (end == PAGE_CACHE_SIZE) {
+	if (end == PAGE_SIZE) {
 		/* When writing out the end of a page, write out the
 		   _whole_ page. This helps to reduce the number of
 		   nodes in files which have many short writes, like
@@ -275,7 +276,7 @@ static int jffs2_write_end(struct file *filp, struct address_space *mapping,
 		jffs2_dbg(1, "%s(): Allocation of raw inode failed\n",
 			  __func__);
 		unlock_page(pg);
-		page_cache_release(pg);
+		put_page(pg);
 		return -ENOMEM;
 	}
 
@@ -292,7 +293,7 @@ static int jffs2_write_end(struct file *filp, struct address_space *mapping,
 	kmap(pg);
 
 	ret = jffs2_write_inode_range(c, f, ri, page_address(pg) + aligned_start,
-				      (pg->index << PAGE_CACHE_SHIFT) + aligned_start,
+				      (pg->index << PAGE_SHIFT) + aligned_start,
 				      end - aligned_start, &writtenlen);
 
 	kunmap(pg);
@@ -329,6 +330,6 @@ static int jffs2_write_end(struct file *filp, struct address_space *mapping,
 	jffs2_dbg(1, "%s() returning %d\n",
 		  __func__, writtenlen > 0 ? writtenlen : ret);
 	unlock_page(pg);
-	page_cache_release(pg);
+	put_page(pg);
 	return writtenlen > 0 ? writtenlen : ret;
 }

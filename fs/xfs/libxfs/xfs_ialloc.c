@@ -2403,8 +2403,8 @@ xfs_ialloc_compute_maxlevels(
 
 	maxleafents = (1LL << XFS_INO_AGINO_BITS(mp)) >>
 		XFS_INODES_PER_CHUNK_LOG;
-	minleafrecs = mp->m_alloc_mnr[0];
-	minnoderecs = mp->m_alloc_mnr[1];
+	minleafrecs = mp->m_inobt_mnr[0];
+	minnoderecs = mp->m_inobt_mnr[1];
 	maxblocks = (maxleafents + minleafrecs - 1) / minleafrecs;
 	for (level = 1; maxblocks > 1; level++)
 		maxblocks = (maxblocks + minnoderecs - 1) / minnoderecs;

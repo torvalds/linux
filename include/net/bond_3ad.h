@@ -306,5 +306,6 @@ int bond_3ad_lacpdu_recv(const struct sk_buff *skb, struct bonding *bond,
 			 struct slave *slave);
 int bond_3ad_set_carrier(struct bonding *bond);
 void bond_3ad_update_lacp_rate(struct bonding *bond);
+void bond_3ad_update_ad_actor_settings(struct bonding *bond);
 #endif /* _NET_BOND_3AD_H */
 

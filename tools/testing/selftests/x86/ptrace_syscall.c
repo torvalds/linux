@@ -103,6 +103,17 @@ static void sethandler(int sig, void (*handler)(int, siginfo_t *, void *),
 		err(1, "sigaction");
 }
 
+static void setsigign(int sig, int flags)
+{
+	struct sigaction sa;
+	memset(&sa, 0, sizeof(sa));
+	sa.sa_sigaction = (void *)SIG_IGN;
+	sa.sa_flags = flags;
+	sigemptyset(&sa.sa_mask);
+	if (sigaction(sig, &sa, 0))
+		err(1, "sigaction");
+}
+
 static void clearhandler(int sig)
 {
 	struct sigaction sa;
@@ -187,7 +198,7 @@ static void test_ptrace_syscall_restart(void)
 
 	printf("[RUN]\tSYSEMU\n");
 	if (ptrace(PTRACE_SYSEMU, chld, 0, 0) != 0)
-		err(1, "PTRACE_SYSCALL");
+		err(1, "PTRACE_SYSEMU");
 	wait_trap(chld);
 
 	if (ptrace(PTRACE_GETREGS, chld, 0, &regs) != 0)
@@ -218,7 +229,7 @@ static void test_ptrace_syscall_restart(void)
 		err(1, "PTRACE_SETREGS");
 
 	if (ptrace(PTRACE_SYSEMU, chld, 0, 0) != 0)
-		err(1, "PTRACE_SYSCALL");
+		err(1, "PTRACE_SYSEMU");
 	wait_trap(chld);
 
 	if (ptrace(PTRACE_GETREGS, chld, 0, &regs) != 0)
@@ -250,7 +261,7 @@ static void test_ptrace_syscall_restart(void)
 		err(1, "PTRACE_SETREGS");
 
 	if (ptrace(PTRACE_SYSEMU, chld, 0, 0) != 0)
-		err(1, "PTRACE_SYSCALL");
+		err(1, "PTRACE_SYSEMU");
 	wait_trap(chld);
 
 	if (ptrace(PTRACE_GETREGS, chld, 0, &regs) != 0)
@@ -277,6 +288,119 @@ static void test_ptrace_syscall_restart(void)
 	}
 }
 
+static void test_restart_under_ptrace(void)
+{
+	printf("[RUN]\tkernel syscall restart under ptrace\n");
+	pid_t chld = fork();
+	if (chld < 0)
+		err(1, "fork");
+
+	if (chld == 0) {
+		if (ptrace(PTRACE_TRACEME, 0, 0, 0) != 0)
+			err(1, "PTRACE_TRACEME");
+
+		printf("\tChild will take a nap until signaled\n");
+		setsigign(SIGUSR1, SA_RESTART);
+		raise(SIGSTOP);
+
+		syscall(SYS_pause, 0, 0, 0, 0, 0, 0);
+		_exit(0);
+	}
+
+	int status;
+
+	/* Wait for SIGSTOP. */
+	if (waitpid(chld, &status, 0) != chld || !WIFSTOPPED(status))
+		err(1, "waitpid");
+
+	struct user_regs_struct regs;
+
+	printf("[RUN]\tSYSCALL\n");
+	if (ptrace(PTRACE_SYSCALL, chld, 0, 0) != 0)
+		err(1, "PTRACE_SYSCALL");
+	wait_trap(chld);
+
+	/* We should be stopped at pause(2) entry. */
+
+	if (ptrace(PTRACE_GETREGS, chld, 0, &regs) != 0)
+		err(1, "PTRACE_GETREGS");
+
+	if (regs.user_syscall_nr != SYS_pause ||
+	    regs.user_arg0 != 0 || regs.user_arg1 != 0 ||
+	    regs.user_arg2 != 0 || regs.user_arg3 != 0 ||
+	    regs.user_arg4 != 0 || regs.user_arg5 != 0) {
+		printf("[FAIL]\tInitial args are wrong (nr=%lu, args=%lu %lu %lu %lu %lu %lu)\n", (unsigned long)regs.user_syscall_nr, (unsigned long)regs.user_arg0, (unsigned long)regs.user_arg1, (unsigned long)regs.user_arg2, (unsigned long)regs.user_arg3, (unsigned long)regs.user_arg4, (unsigned long)regs.user_arg5);
+		nerrs++;
+	} else {
+		printf("[OK]\tInitial nr and args are correct\n");
+	}
+
+	/* Interrupt it. */
+	kill(chld, SIGUSR1);
+
+	/* Advance.  We should be stopped at exit. */
+	printf("[RUN]\tSYSCALL\n");
+	if (ptrace(PTRACE_SYSCALL, chld, 0, 0) != 0)
+		err(1, "PTRACE_SYSCALL");
+	wait_trap(chld);
+
+	if (ptrace(PTRACE_GETREGS, chld, 0, &regs) != 0)
+		err(1, "PTRACE_GETREGS");
+
+	if (regs.user_syscall_nr != SYS_pause ||
+	    regs.user_arg0 != 0 || regs.user_arg1 != 0 ||
+	    regs.user_arg2 != 0 || regs.user_arg3 != 0 ||
+	    regs.user_arg4 != 0 || regs.user_arg5 != 0) {
+		printf("[FAIL]\tArgs after SIGUSR1 are wrong (nr=%lu, args=%lu %lu %lu %lu %lu %lu)\n", (unsigned long)regs.user_syscall_nr, (unsigned long)regs.user_arg0, (unsigned long)regs.user_arg1, (unsigned long)regs.user_arg2, (unsigned long)regs.user_arg3, (unsigned long)regs.user_arg4, (unsigned long)regs.user_arg5);
+		nerrs++;
+	} else {
+		printf("[OK]\tArgs after SIGUSR1 are correct (ax = %ld)\n",
+		       (long)regs.user_ax);
+	}
+
+	/* Poke the regs back in.  This must not break anything. */
+	if (ptrace(PTRACE_SETREGS, chld, 0, &regs) != 0)
+		err(1, "PTRACE_SETREGS");
+
+	/* Catch the (ignored) SIGUSR1. */
+	if (ptrace(PTRACE_CONT, chld, 0, 0) != 0)
+		err(1, "PTRACE_CONT");
+	if (waitpid(chld, &status, 0) != chld)
+		err(1, "waitpid");
+	if (!WIFSTOPPED(status)) {
+		printf("[FAIL]\tChild was stopped for SIGUSR1 (status = 0x%x)\n", status);
+		nerrs++;
+	} else {
+		printf("[OK]\tChild got SIGUSR1\n");
+	}
+
+	/* The next event should be pause(2) again. */
+	printf("[RUN]\tStep again\n");
+	if (ptrace(PTRACE_SYSCALL, chld, 0, 0) != 0)
+		err(1, "PTRACE_SYSCALL");
+	wait_trap(chld);
+
+	/* We should be stopped at pause(2) entry. */
+
+	if (ptrace(PTRACE_GETREGS, chld, 0, &regs) != 0)
+		err(1, "PTRACE_GETREGS");
+
+	if (regs.user_syscall_nr != SYS_pause ||
+	    regs.user_arg0 != 0 || regs.user_arg1 != 0 ||
+	    regs.user_arg2 != 0 || regs.user_arg3 != 0 ||
+	    regs.user_arg4 != 0 || regs.user_arg5 != 0) {
+		printf("[FAIL]\tpause did not restart (nr=%lu, args=%lu %lu %lu %lu %lu %lu)\n", (unsigned long)regs.user_syscall_nr, (unsigned long)regs.user_arg0, (unsigned long)regs.user_arg1, (unsigned long)regs.user_arg2, (unsigned long)regs.user_arg3, (unsigned long)regs.user_arg4, (unsigned long)regs.user_arg5);
+		nerrs++;
+	} else {
+		printf("[OK]\tpause(2) restarted correctly\n");
+	}
+
+	/* Kill it. */
+	kill(chld, SIGKILL);
+	if (waitpid(chld, &status, 0) != chld)
+		err(1, "waitpid");
+}
+
 int main()
 {
 	printf("[RUN]\tCheck int80 return regs\n");
@@ -289,6 +413,8 @@ int main()
 #endif
 
 	test_ptrace_syscall_restart();
+
+	test_restart_under_ptrace();
 
 	return 0;
 }

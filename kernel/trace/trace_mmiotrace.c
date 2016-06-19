@@ -146,7 +146,7 @@ static ssize_t mmio_read(struct trace_iterator *iter, struct file *filp,
 		/* XXX: This is later than where events were lost. */
 		trace_seq_printf(s, "MARK 0.000000 Lost %lu events.\n", n);
 		if (!overrun_detected)
-			pr_warning("mmiotrace has lost events.\n");
+			pr_warn("mmiotrace has lost events\n");
 		overrun_detected = true;
 		goto print_out;
 	}

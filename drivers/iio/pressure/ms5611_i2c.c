@@ -92,19 +92,25 @@ static int ms5611_i2c_probe(struct i2c_client *client,
 				     I2C_FUNC_SMBUS_WRITE_BYTE |
 				     I2C_FUNC_SMBUS_READ_WORD_DATA |
 				     I2C_FUNC_SMBUS_READ_I2C_BLOCK))
-		return -ENODEV;
+		return -EOPNOTSUPP;
 
 	indio_dev = devm_iio_device_alloc(&client->dev, sizeof(*st));
 	if (!indio_dev)
 		return -ENOMEM;
 
 	st = iio_priv(indio_dev);
+	i2c_set_clientdata(client, indio_dev);
 	st->reset = ms5611_i2c_reset;
 	st->read_prom_word = ms5611_i2c_read_prom_word;
 	st->read_adc_temp_and_pressure = ms5611_i2c_read_adc_temp_and_pressure;
 	st->client = client;
 
-	return ms5611_probe(indio_dev, &client->dev, id->driver_data);
+	return ms5611_probe(indio_dev, &client->dev, id->name, id->driver_data);
+}
+
+static int ms5611_i2c_remove(struct i2c_client *client)
+{
+	return ms5611_remove(i2c_get_clientdata(client));
 }
 
 static const struct i2c_device_id ms5611_id[] = {
@@ -120,6 +126,7 @@ static struct i2c_driver ms5611_driver = {
 	},
 	.id_table = ms5611_id,
 	.probe = ms5611_i2c_probe,
+	.remove = ms5611_i2c_remove,
 };
 module_i2c_driver(ms5611_driver);
 

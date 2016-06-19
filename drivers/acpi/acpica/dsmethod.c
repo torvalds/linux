@@ -428,6 +428,9 @@ acpi_ds_begin_method_execution(struct acpi_namespace_node *method_node,
 				obj_desc->method.mutex->mutex.
 				    original_sync_level =
 				    obj_desc->method.mutex->mutex.sync_level;
+
+				obj_desc->method.mutex->mutex.thread_id =
+				    acpi_os_get_thread_id();
 			}
 		}
 
@@ -809,8 +812,7 @@ acpi_ds_terminate_control_method(union acpi_operand_object *method_desc,
 		if (method_desc->method.
 		    info_flags & ACPI_METHOD_SERIALIZED_PENDING) {
 			if (walk_state) {
-				ACPI_INFO((AE_INFO,
-					   "Marking method %4.4s as Serialized "
+				ACPI_INFO(("Marking method %4.4s as Serialized "
 					   "because of AE_ALREADY_EXISTS error",
 					   walk_state->method_node->name.
 					   ascii));

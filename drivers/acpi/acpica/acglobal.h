@@ -165,7 +165,7 @@ ACPI_GLOBAL(u8, acpi_gbl_next_owner_id_offset);
 
 /* Initialization sequencing */
 
-ACPI_INIT_GLOBAL(u8, acpi_gbl_reg_methods_enabled, FALSE);
+ACPI_INIT_GLOBAL(u8, acpi_gbl_namespace_initialized, FALSE);
 
 /* Misc */
 

@@ -1,13 +1,12 @@
 #ifndef _TWSI_H
 #define _TWSI_H
 /*
+ * Copyright(c) 2015, 2016 Intel Corporation.
  *
  * This file is provided under a dual BSD/GPLv2 license.  When using or
  * redistributing this file, you may do so under either license.
  *
  * GPL LICENSE SUMMARY
- *
- * Copyright(c) 2015 Intel Corporation.
  *
  * This program is free software; you can redistribute it and/or modify
  * it under the terms of version 2 of the GNU General Public License as
@@ -19,8 +18,6 @@
  * General Public License for more details.
  *
  * BSD LICENSE
- *
- * Copyright(c) 2015 Intel Corporation.
  *
  * Redistribution and use in source and binary forms, with or without
  * modification, are permitted provided that the following conditions
@@ -54,8 +51,9 @@
 
 struct hfi1_devdata;
 
-/* Bit position of SDA pin in ASIC_QSFP* registers  */
+/* Bit position of SDA/SCL pins in ASIC_QSFP* registers  */
 #define  GPIO_SDA_NUM 1
+#define  GPIO_SCL_NUM 0
 
 /* these functions must be called with qsfp_lock held */
 int hfi1_twsi_reset(struct hfi1_devdata *dd, u32 target);
@@ -63,6 +61,5 @@ int hfi1_twsi_blk_rd(struct hfi1_devdata *dd, u32 target, int dev, int addr,
 		     void *buffer, int len);
 int hfi1_twsi_blk_wr(struct hfi1_devdata *dd, u32 target, int dev, int addr,
 		     const void *buffer, int len);
-
 
 #endif /* _TWSI_H */

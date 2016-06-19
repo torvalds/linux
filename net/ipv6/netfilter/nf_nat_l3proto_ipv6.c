@@ -131,29 +131,15 @@ static void nf_nat_ipv6_csum_recalc(struct sk_buff *skb,
 				    u8 proto, void *data, __sum16 *check,
 				    int datalen, int oldlen)
 {
-	const struct ipv6hdr *ipv6h = ipv6_hdr(skb);
-	struct rt6_info *rt = (struct rt6_info *)skb_dst(skb);
-
 	if (skb->ip_summed != CHECKSUM_PARTIAL) {
-		if (!(rt->rt6i_flags & RTF_LOCAL) &&
-		    (!skb->dev || skb->dev->features &
-		     (NETIF_F_IPV6_CSUM | NETIF_F_HW_CSUM))) {
-			skb->ip_summed = CHECKSUM_PARTIAL;
-			skb->csum_start = skb_headroom(skb) +
-					  skb_network_offset(skb) +
-					  (data - (void *)skb->data);
-			skb->csum_offset = (void *)check - data;
-			*check = ~csum_ipv6_magic(&ipv6h->saddr, &ipv6h->daddr,
-						  datalen, proto, 0);
-		} else {
-			*check = 0;
-			*check = csum_ipv6_magic(&ipv6h->saddr, &ipv6h->daddr,
-						 datalen, proto,
-						 csum_partial(data, datalen,
-							      0));
-			if (proto == IPPROTO_UDP && !*check)
-				*check = CSUM_MANGLED_0;
-		}
+		const struct ipv6hdr *ipv6h = ipv6_hdr(skb);
+
+		skb->ip_summed = CHECKSUM_PARTIAL;
+		skb->csum_start = skb_headroom(skb) + skb_network_offset(skb) +
+			(data - (void *)skb->data);
+		skb->csum_offset = (void *)check - data;
+		*check = ~csum_ipv6_magic(&ipv6h->saddr, &ipv6h->daddr,
+					  datalen, proto, 0);
 	} else
 		inet_proto_csum_replace2(check, skb,
 					 htons(oldlen), htons(datalen), true);

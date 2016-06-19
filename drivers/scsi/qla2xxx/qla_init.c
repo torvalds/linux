@@ -157,8 +157,12 @@ qla2x00_async_login(struct scsi_qla_host *vha, fc_port_t *fcport,
 	if (data[1] & QLA_LOGIO_LOGIN_RETRIED)
 		lio->u.logio.flags |= SRB_LOGIN_RETRIED;
 	rval = qla2x00_start_sp(sp);
-	if (rval != QLA_SUCCESS)
+	if (rval != QLA_SUCCESS) {
+		fcport->flags &= ~FCF_ASYNC_SENT;
+		fcport->flags |= FCF_LOGIN_NEEDED;
+		set_bit(RELOGIN_NEEDED, &vha->dpc_flags);
 		goto done_free_sp;
+	}
 
 	ql_dbg(ql_dbg_disc, vha, 0x2072,
 	    "Async-login - hdl=%x, loopid=%x portid=%02x%02x%02x "
@@ -2062,6 +2066,10 @@ qla24xx_update_fw_options(scsi_qla_host_t *vha)
 	if (IS_P3P_TYPE(ha))
 		return;
 
+	/*  Hold status IOCBs until ABTS response received. */
+	if (ql2xfwholdabts)
+		ha->fw_options[3] |= BIT_12;
+
 	/* Update Serial Link options. */
 	if ((le16_to_cpu(ha->fw_seriallink_options24[0]) & BIT_0) == 0)
 		return;
@@ -2844,7 +2852,6 @@ qla2x00_nvram_config(scsi_qla_host_t *vha)
 	if (nv->login_timeout < 4)
 		nv->login_timeout = 4;
 	ha->login_timeout = nv->login_timeout;
-	icb->login_timeout = nv->login_timeout;
 
 	/* Set minimum RATOV to 100 tenths of a second. */
 	ha->r_a_tov = 100;
@@ -5122,8 +5129,8 @@ qla24xx_nvram_config(scsi_qla_host_t *vha)
 	dptr = (uint32_t *)nv;
 	ha->isp_ops->read_nvram(vha, (uint8_t *)dptr, ha->nvram_base,
 	    ha->nvram_size);
-	for (cnt = 0, chksum = 0; cnt < ha->nvram_size >> 2; cnt++)
-		chksum += le32_to_cpu(*dptr++);
+	for (cnt = 0, chksum = 0; cnt < ha->nvram_size >> 2; cnt++, dptr++)
+		chksum += le32_to_cpu(*dptr);
 
 	ql_dbg(ql_dbg_init + ql_dbg_buffer, vha, 0x006a,
 	    "Contents of NVRAM\n");
@@ -5274,7 +5281,6 @@ qla24xx_nvram_config(scsi_qla_host_t *vha)
 	if (le16_to_cpu(nv->login_timeout) < 4)
 		nv->login_timeout = cpu_to_le16(4);
 	ha->login_timeout = le16_to_cpu(nv->login_timeout);
-	icb->login_timeout = nv->login_timeout;
 
 	/* Set minimum RATOV to 100 tenths of a second. */
 	ha->r_a_tov = 100;
@@ -5346,6 +5352,93 @@ qla24xx_nvram_config(scsi_qla_host_t *vha)
 	return (rval);
 }
 
+uint8_t qla27xx_find_valid_image(struct scsi_qla_host *vha)
+{
+	struct qla27xx_image_status pri_image_status, sec_image_status;
+	uint8_t valid_pri_image, valid_sec_image;
+	uint32_t *wptr;
+	uint32_t cnt, chksum, size;
+	struct qla_hw_data *ha = vha->hw;
+
+	valid_pri_image = valid_sec_image = 1;
+	ha->active_image = 0;
+	size = sizeof(struct qla27xx_image_status) / sizeof(uint32_t);
+
+	if (!ha->flt_region_img_status_pri) {
+		valid_pri_image = 0;
+		goto check_sec_image;
+	}
+
+	qla24xx_read_flash_data(vha, (uint32_t *)(&pri_image_status),
+	    ha->flt_region_img_status_pri, size);
+
+	if (pri_image_status.signature != QLA27XX_IMG_STATUS_SIGN) {
+		ql_dbg(ql_dbg_init, vha, 0x018b,
+		    "Primary image signature (0x%x) not valid\n",
+		    pri_image_status.signature);
+		valid_pri_image = 0;
+		goto check_sec_image;
+	}
+
+	wptr = (uint32_t *)(&pri_image_status);
+	cnt = size;
+
+	for (chksum = 0; cnt--; wptr++)
+		chksum += le32_to_cpu(*wptr);
+	if (chksum) {
+		ql_dbg(ql_dbg_init, vha, 0x018c,
+		    "Checksum validation failed for primary image (0x%x)\n",
+		    chksum);
+		valid_pri_image = 0;
+	}
+
+check_sec_image:
+	if (!ha->flt_region_img_status_sec) {
+		valid_sec_image = 0;
+		goto check_valid_image;
+	}
+
+	qla24xx_read_flash_data(vha, (uint32_t *)(&sec_image_status),
+	    ha->flt_region_img_status_sec, size);
+
+	if (sec_image_status.signature != QLA27XX_IMG_STATUS_SIGN) {
+		ql_dbg(ql_dbg_init, vha, 0x018d,
+		    "Secondary image signature(0x%x) not valid\n",
+		    sec_image_status.signature);
+		valid_sec_image = 0;
+		goto check_valid_image;
+	}
+
+	wptr = (uint32_t *)(&sec_image_status);
+	cnt = size;
+	for (chksum = 0; cnt--; wptr++)
+		chksum += le32_to_cpu(*wptr);
+	if (chksum) {
+		ql_dbg(ql_dbg_init, vha, 0x018e,
+		    "Checksum validation failed for secondary image (0x%x)\n",
+		    chksum);
+		valid_sec_image = 0;
+	}
+
+check_valid_image:
+	if (valid_pri_image && (pri_image_status.image_status_mask & 0x1))
+		ha->active_image = QLA27XX_PRIMARY_IMAGE;
+	if (valid_sec_image && (sec_image_status.image_status_mask & 0x1)) {
+		if (!ha->active_image ||
+		    pri_image_status.generation_number <
+		    sec_image_status.generation_number)
+			ha->active_image = QLA27XX_SECONDARY_IMAGE;
+	}
+
+	ql_dbg(ql_dbg_init, vha, 0x018f, "%s image\n",
+	    ha->active_image == 0 ? "default bootld and fw" :
+	    ha->active_image == 1 ? "primary" :
+	    ha->active_image == 2 ? "secondary" :
+	    "Invalid");
+
+	return ha->active_image;
+}
+
 static int
 qla24xx_load_risc_flash(scsi_qla_host_t *vha, uint32_t *srisc_addr,
     uint32_t faddr)
@@ -5367,6 +5460,10 @@ qla24xx_load_risc_flash(scsi_qla_host_t *vha, uint32_t *srisc_addr,
 	segments = FA_RISC_CODE_SEGMENTS;
 	dcode = (uint32_t *)req->ring;
 	*srisc_addr = 0;
+
+	if (IS_QLA27XX(ha) &&
+	    qla27xx_find_valid_image(vha) == QLA27XX_SECONDARY_IMAGE)
+		faddr = ha->flt_region_fw_sec;
 
 	/* Validate firmware image by checking version. */
 	qla24xx_read_flash_data(vha, dcode, faddr + 4, 4);
@@ -6068,8 +6165,8 @@ qla81xx_nvram_config(scsi_qla_host_t *vha)
 	ha->isp_ops->read_optrom(vha, ha->nvram, ha->flt_region_nvram << 2,
 	    ha->nvram_size);
 	dptr = (uint32_t *)nv;
-	for (cnt = 0, chksum = 0; cnt < ha->nvram_size >> 2; cnt++)
-		chksum += le32_to_cpu(*dptr++);
+	for (cnt = 0, chksum = 0; cnt < ha->nvram_size >> 2; cnt++, dptr++)
+		chksum += le32_to_cpu(*dptr);
 
 	ql_dbg(ql_dbg_init + ql_dbg_buffer, vha, 0x0111,
 	    "Contents of NVRAM:\n");
@@ -6231,7 +6328,6 @@ qla81xx_nvram_config(scsi_qla_host_t *vha)
 	if (le16_to_cpu(nv->login_timeout) < 4)
 		nv->login_timeout = cpu_to_le16(4);
 	ha->login_timeout = le16_to_cpu(nv->login_timeout);
-	icb->login_timeout = nv->login_timeout;
 
 	/* Set minimum RATOV to 100 tenths of a second. */
 	ha->r_a_tov = 100;
@@ -6413,12 +6509,17 @@ qla81xx_update_fw_options(scsi_qla_host_t *vha)
 {
 	struct qla_hw_data *ha = vha->hw;
 
+	/*  Hold status IOCBs until ABTS response received. */
+	if (ql2xfwholdabts)
+		ha->fw_options[3] |= BIT_12;
+
 	if (!ql2xetsenable)
-		return;
+		goto out;
 
 	/* Enable ETS Burst. */
 	memset(ha->fw_options, 0, sizeof(ha->fw_options));
 	ha->fw_options[2] |= BIT_9;
+out:
 	qla2x00_set_fw_options(vha, ha->fw_options);
 }
 

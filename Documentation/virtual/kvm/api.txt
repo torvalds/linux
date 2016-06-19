@@ -2507,8 +2507,9 @@ struct kvm_create_device {
 
 4.80 KVM_SET_DEVICE_ATTR/KVM_GET_DEVICE_ATTR
 
-Capability: KVM_CAP_DEVICE_CTRL, KVM_CAP_VM_ATTRIBUTES for vm device
-Type: device ioctl, vm ioctl
+Capability: KVM_CAP_DEVICE_CTRL, KVM_CAP_VM_ATTRIBUTES for vm device,
+  KVM_CAP_VCPU_ATTRIBUTES for vcpu device
+Type: device ioctl, vm ioctl, vcpu ioctl
 Parameters: struct kvm_device_attr
 Returns: 0 on success, -1 on error
 Errors:
@@ -2533,8 +2534,9 @@ struct kvm_device_attr {
 
 4.81 KVM_HAS_DEVICE_ATTR
 
-Capability: KVM_CAP_DEVICE_CTRL, KVM_CAP_VM_ATTRIBUTES for vm device
-Type: device ioctl, vm ioctl
+Capability: KVM_CAP_DEVICE_CTRL, KVM_CAP_VM_ATTRIBUTES for vm device,
+  KVM_CAP_VCPU_ATTRIBUTES for vcpu device
+Type: device ioctl, vm ioctl, vcpu ioctl
 Parameters: struct kvm_device_attr
 Returns: 0 on success, -1 on error
 Errors:
@@ -2577,6 +2579,8 @@ Possible features:
 	  Depends on KVM_CAP_ARM_EL1_32BIT (arm64 only).
 	- KVM_ARM_VCPU_PSCI_0_2: Emulate PSCI v0.2 for the CPU.
 	  Depends on KVM_CAP_ARM_PSCI_0_2.
+	- KVM_ARM_VCPU_PMU_V3: Emulate PMUv3 for the CPU.
+	  Depends on KVM_CAP_ARM_PMU_V3.
 
 
 4.83 KVM_ARM_PREFERRED_TARGET
@@ -3035,6 +3039,87 @@ Returns: 0 on success, -1 on error
 
 Queues an SMI on the thread's vcpu.
 
+4.97 KVM_CAP_PPC_MULTITCE
+
+Capability: KVM_CAP_PPC_MULTITCE
+Architectures: ppc
+Type: vm
+
+This capability means the kernel is capable of handling hypercalls
+H_PUT_TCE_INDIRECT and H_STUFF_TCE without passing those into the user
+space. This significantly accelerates DMA operations for PPC KVM guests.
+User space should expect that its handlers for these hypercalls
+are not going to be called if user space previously registered LIOBN
+in KVM (via KVM_CREATE_SPAPR_TCE or similar calls).
+
+In order to enable H_PUT_TCE_INDIRECT and H_STUFF_TCE use in the guest,
+user space might have to advertise it for the guest. For example,
+IBM pSeries (sPAPR) guest starts using them if "hcall-multi-tce" is
+present in the "ibm,hypertas-functions" device-tree property.
+
+The hypercalls mentioned above may or may not be processed successfully
+in the kernel based fast path. If they can not be handled by the kernel,
+they will get passed on to user space. So user space still has to have
+an implementation for these despite the in kernel acceleration.
+
+This capability is always enabled.
+
+4.98 KVM_CREATE_SPAPR_TCE_64
+
+Capability: KVM_CAP_SPAPR_TCE_64
+Architectures: powerpc
+Type: vm ioctl
+Parameters: struct kvm_create_spapr_tce_64 (in)
+Returns: file descriptor for manipulating the created TCE table
+
+This is an extension for KVM_CAP_SPAPR_TCE which only supports 32bit
+windows, described in 4.62 KVM_CREATE_SPAPR_TCE
+
+This capability uses extended struct in ioctl interface:
+
+/* for KVM_CAP_SPAPR_TCE_64 */
+struct kvm_create_spapr_tce_64 {
+	__u64 liobn;
+	__u32 page_shift;
+	__u32 flags;
+	__u64 offset;	/* in pages */
+	__u64 size; 	/* in pages */
+};
+
+The aim of extension is to support an additional bigger DMA window with
+a variable page size.
+KVM_CREATE_SPAPR_TCE_64 receives a 64bit window size, an IOMMU page shift and
+a bus offset of the corresponding DMA window, @size and @offset are numbers
+of IOMMU pages.
+
+@flags are not used at the moment.
+
+The rest of functionality is identical to KVM_CREATE_SPAPR_TCE.
+
+4.98 KVM_REINJECT_CONTROL
+
+Capability: KVM_CAP_REINJECT_CONTROL
+Architectures: x86
+Type: vm ioctl
+Parameters: struct kvm_reinject_control (in)
+Returns: 0 on success,
+         -EFAULT if struct kvm_reinject_control cannot be read,
+         -ENXIO if KVM_CREATE_PIT or KVM_CREATE_PIT2 didn't succeed earlier.
+
+i8254 (PIT) has two modes, reinject and !reinject.  The default is reinject,
+where KVM queues elapsed i8254 ticks and monitors completion of interrupt from
+vector(s) that i8254 injects.  Reinject mode dequeues a tick and injects its
+interrupt whenever there isn't a pending interrupt from i8254.
+!reinject mode injects an interrupt as soon as a tick arrives.
+
+struct kvm_reinject_control {
+	__u8 pit_reinject;
+	__u8 reserved[31];
+};
+
+pit_reinject = 0 (!reinject mode) is recommended, unless running an old
+operating system that uses the PIT for timing (e.g. Linux 2.4.x).
+
 5. The kvm_run structure
 ------------------------
 
@@ -3339,6 +3424,7 @@ EOI was received.
 
 		struct kvm_hyperv_exit {
 #define KVM_EXIT_HYPERV_SYNIC          1
+#define KVM_EXIT_HYPERV_HCALL          2
 			__u32 type;
 			union {
 				struct {
@@ -3347,6 +3433,11 @@ EOI was received.
 					__u64 evt_page;
 					__u64 msg_page;
 				} synic;
+				struct {
+					__u64 input;
+					__u64 result;
+					__u64 params[2];
+				} hcall;
 			} u;
 		};
 		/* KVM_EXIT_HYPERV */

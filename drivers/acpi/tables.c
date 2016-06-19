@@ -32,6 +32,7 @@
 #include <linux/errno.h>
 #include <linux/acpi.h>
 #include <linux/bootmem.h>
+#include "internal.h"
 
 #define ACPI_MAX_TABLES		128
 
@@ -456,6 +457,7 @@ int __init acpi_table_init(void)
 	status = acpi_initialize_tables(initial_tables, ACPI_MAX_TABLES, 0);
 	if (ACPI_FAILURE(status))
 		return -EINVAL;
+	acpi_initrd_initialize_tables();
 
 	check_multiple_madt();
 	return 0;
@@ -484,3 +486,13 @@ static int __init acpi_force_table_verification_setup(char *s)
 }
 
 early_param("acpi_force_table_verification", acpi_force_table_verification_setup);
+
+static int __init acpi_force_32bit_fadt_addr(char *s)
+{
+	pr_info("Forcing 32 Bit FADT addresses\n");
+	acpi_gbl_use32_bit_fadt_addresses = TRUE;
+
+	return 0;
+}
+
+early_param("acpi_force_32bit_fadt_addr", acpi_force_32bit_fadt_addr);

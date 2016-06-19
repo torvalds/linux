@@ -18,6 +18,8 @@
 #include <linux/filter.h>
 #include <linux/version.h>
 
+DEFINE_PER_CPU(int, bpf_prog_active);
+
 int sysctl_unprivileged_bpf_disabled __read_mostly;
 
 static LIST_HEAD(bpf_map_types);
@@ -44,6 +46,19 @@ static struct bpf_map *find_and_alloc_map(union bpf_attr *attr)
 void bpf_register_map_type(struct bpf_map_type_list *tl)
 {
 	list_add(&tl->list_node, &bpf_map_types);
+}
+
+int bpf_map_precharge_memlock(u32 pages)
+{
+	struct user_struct *user = get_current_user();
+	unsigned long memlock_limit, cur;
+
+	memlock_limit = rlimit(RLIMIT_MEMLOCK) >> PAGE_SHIFT;
+	cur = atomic_long_read(&user->locked_vm);
+	free_uid(user);
+	if (cur + pages > memlock_limit)
+		return -EPERM;
+	return 0;
 }
 
 static int bpf_map_charge_memlock(struct bpf_map *map)
@@ -122,11 +137,13 @@ static void bpf_map_show_fdinfo(struct seq_file *m, struct file *filp)
 		   "map_type:\t%u\n"
 		   "key_size:\t%u\n"
 		   "value_size:\t%u\n"
-		   "max_entries:\t%u\n",
+		   "max_entries:\t%u\n"
+		   "map_flags:\t%#x\n",
 		   map->map_type,
 		   map->key_size,
 		   map->value_size,
-		   map->max_entries);
+		   map->max_entries,
+		   map->map_flags);
 }
 #endif
 
@@ -151,7 +168,7 @@ int bpf_map_new_fd(struct bpf_map *map)
 		   offsetof(union bpf_attr, CMD##_LAST_FIELD) - \
 		   sizeof(attr->CMD##_LAST_FIELD)) != NULL
 
-#define BPF_MAP_CREATE_LAST_FIELD max_entries
+#define BPF_MAP_CREATE_LAST_FIELD map_flags
 /* called via syscall */
 static int map_create(union bpf_attr *attr)
 {
@@ -201,11 +218,18 @@ struct bpf_map *__bpf_map_get(struct fd f)
 	return f.file->private_data;
 }
 
-void bpf_map_inc(struct bpf_map *map, bool uref)
+/* prog's and map's refcnt limit */
+#define BPF_MAX_REFCNT 32768
+
+struct bpf_map *bpf_map_inc(struct bpf_map *map, bool uref)
 {
-	atomic_inc(&map->refcnt);
+	if (atomic_inc_return(&map->refcnt) > BPF_MAX_REFCNT) {
+		atomic_dec(&map->refcnt);
+		return ERR_PTR(-EBUSY);
+	}
 	if (uref)
 		atomic_inc(&map->usercnt);
+	return map;
 }
 
 struct bpf_map *bpf_map_get_with_uref(u32 ufd)
@@ -217,7 +241,7 @@ struct bpf_map *bpf_map_get_with_uref(u32 ufd)
 	if (IS_ERR(map))
 		return map;
 
-	bpf_map_inc(map, true);
+	map = bpf_map_inc(map, true);
 	fdput(f);
 
 	return map;
@@ -227,6 +251,11 @@ struct bpf_map *bpf_map_get_with_uref(u32 ufd)
 static void __user *u64_to_ptr(__u64 val)
 {
 	return (void __user *) (unsigned long) val;
+}
+
+int __weak bpf_stackmap_copy(struct bpf_map *map, void *key, void *value)
+{
+	return -ENOTSUPP;
 }
 
 /* last field in 'union bpf_attr' used by this command */
@@ -239,6 +268,7 @@ static int map_lookup_elem(union bpf_attr *attr)
 	int ufd = attr->map_fd;
 	struct bpf_map *map;
 	void *key, *value, *ptr;
+	u32 value_size;
 	struct fd f;
 	int err;
 
@@ -259,23 +289,37 @@ static int map_lookup_elem(union bpf_attr *attr)
 	if (copy_from_user(key, ukey, map->key_size) != 0)
 		goto free_key;
 
+	if (map->map_type == BPF_MAP_TYPE_PERCPU_HASH ||
+	    map->map_type == BPF_MAP_TYPE_PERCPU_ARRAY)
+		value_size = round_up(map->value_size, 8) * num_possible_cpus();
+	else
+		value_size = map->value_size;
+
 	err = -ENOMEM;
-	value = kmalloc(map->value_size, GFP_USER | __GFP_NOWARN);
+	value = kmalloc(value_size, GFP_USER | __GFP_NOWARN);
 	if (!value)
 		goto free_key;
 
-	rcu_read_lock();
-	ptr = map->ops->map_lookup_elem(map, key);
-	if (ptr)
-		memcpy(value, ptr, map->value_size);
-	rcu_read_unlock();
+	if (map->map_type == BPF_MAP_TYPE_PERCPU_HASH) {
+		err = bpf_percpu_hash_copy(map, key, value);
+	} else if (map->map_type == BPF_MAP_TYPE_PERCPU_ARRAY) {
+		err = bpf_percpu_array_copy(map, key, value);
+	} else if (map->map_type == BPF_MAP_TYPE_STACK_TRACE) {
+		err = bpf_stackmap_copy(map, key, value);
+	} else {
+		rcu_read_lock();
+		ptr = map->ops->map_lookup_elem(map, key);
+		if (ptr)
+			memcpy(value, ptr, value_size);
+		rcu_read_unlock();
+		err = ptr ? 0 : -ENOENT;
+	}
 
-	err = -ENOENT;
-	if (!ptr)
+	if (err)
 		goto free_value;
 
 	err = -EFAULT;
-	if (copy_to_user(uvalue, value, map->value_size) != 0)
+	if (copy_to_user(uvalue, value, value_size) != 0)
 		goto free_value;
 
 	err = 0;
@@ -298,6 +342,7 @@ static int map_update_elem(union bpf_attr *attr)
 	int ufd = attr->map_fd;
 	struct bpf_map *map;
 	void *key, *value;
+	u32 value_size;
 	struct fd f;
 	int err;
 
@@ -318,21 +363,37 @@ static int map_update_elem(union bpf_attr *attr)
 	if (copy_from_user(key, ukey, map->key_size) != 0)
 		goto free_key;
 
+	if (map->map_type == BPF_MAP_TYPE_PERCPU_HASH ||
+	    map->map_type == BPF_MAP_TYPE_PERCPU_ARRAY)
+		value_size = round_up(map->value_size, 8) * num_possible_cpus();
+	else
+		value_size = map->value_size;
+
 	err = -ENOMEM;
-	value = kmalloc(map->value_size, GFP_USER | __GFP_NOWARN);
+	value = kmalloc(value_size, GFP_USER | __GFP_NOWARN);
 	if (!value)
 		goto free_key;
 
 	err = -EFAULT;
-	if (copy_from_user(value, uvalue, map->value_size) != 0)
+	if (copy_from_user(value, uvalue, value_size) != 0)
 		goto free_value;
 
-	/* eBPF program that use maps are running under rcu_read_lock(),
-	 * therefore all map accessors rely on this fact, so do the same here
+	/* must increment bpf_prog_active to avoid kprobe+bpf triggering from
+	 * inside bpf map update or delete otherwise deadlocks are possible
 	 */
-	rcu_read_lock();
-	err = map->ops->map_update_elem(map, key, value, attr->flags);
-	rcu_read_unlock();
+	preempt_disable();
+	__this_cpu_inc(bpf_prog_active);
+	if (map->map_type == BPF_MAP_TYPE_PERCPU_HASH) {
+		err = bpf_percpu_hash_update(map, key, value, attr->flags);
+	} else if (map->map_type == BPF_MAP_TYPE_PERCPU_ARRAY) {
+		err = bpf_percpu_array_update(map, key, value, attr->flags);
+	} else {
+		rcu_read_lock();
+		err = map->ops->map_update_elem(map, key, value, attr->flags);
+		rcu_read_unlock();
+	}
+	__this_cpu_dec(bpf_prog_active);
+	preempt_enable();
 
 free_value:
 	kfree(value);
@@ -371,9 +432,13 @@ static int map_delete_elem(union bpf_attr *attr)
 	if (copy_from_user(key, ukey, map->key_size) != 0)
 		goto free_key;
 
+	preempt_disable();
+	__this_cpu_inc(bpf_prog_active);
 	rcu_read_lock();
 	err = map->ops->map_delete_elem(map, key);
 	rcu_read_unlock();
+	__this_cpu_dec(bpf_prog_active);
+	preempt_enable();
 
 free_key:
 	kfree(key);
@@ -600,6 +665,15 @@ static struct bpf_prog *__bpf_prog_get(struct fd f)
 	return f.file->private_data;
 }
 
+struct bpf_prog *bpf_prog_inc(struct bpf_prog *prog)
+{
+	if (atomic_inc_return(&prog->aux->refcnt) > BPF_MAX_REFCNT) {
+		atomic_dec(&prog->aux->refcnt);
+		return ERR_PTR(-EBUSY);
+	}
+	return prog;
+}
+
 /* called by sockets/tracing/seccomp before attaching program to an event
  * pairs with bpf_prog_put()
  */
@@ -612,7 +686,7 @@ struct bpf_prog *bpf_prog_get(u32 ufd)
 	if (IS_ERR(prog))
 		return prog;
 
-	atomic_inc(&prog->aux->refcnt);
+	prog = bpf_prog_inc(prog);
 	fdput(f);
 
 	return prog;

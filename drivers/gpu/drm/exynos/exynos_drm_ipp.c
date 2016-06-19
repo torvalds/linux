@@ -618,27 +618,18 @@ static void ipp_clean_mem_nodes(struct drm_device *drm_dev,
 	mutex_unlock(&c_node->mem_lock);
 }
 
-static void ipp_free_event(struct drm_pending_event *event)
-{
-	kfree(event);
-}
-
 static int ipp_get_event(struct drm_device *drm_dev,
 		struct drm_exynos_ipp_cmd_node *c_node,
 		struct drm_exynos_ipp_queue_buf *qbuf)
 {
 	struct drm_exynos_ipp_send_event *e;
-	unsigned long flags;
+	int ret;
 
 	DRM_DEBUG_KMS("ops_id[%d]buf_id[%d]\n", qbuf->ops_id, qbuf->buf_id);
 
 	e = kzalloc(sizeof(*e), GFP_KERNEL);
-	if (!e) {
-		spin_lock_irqsave(&drm_dev->event_lock, flags);
-		c_node->filp->event_space += sizeof(e->event);
-		spin_unlock_irqrestore(&drm_dev->event_lock, flags);
+	if (!e)
 		return -ENOMEM;
-	}
 
 	/* make event */
 	e->event.base.type = DRM_EXYNOS_IPP_EVENT;
@@ -646,9 +637,13 @@ static int ipp_get_event(struct drm_device *drm_dev,
 	e->event.user_data = qbuf->user_data;
 	e->event.prop_id = qbuf->prop_id;
 	e->event.buf_id[EXYNOS_DRM_OPS_DST] = qbuf->buf_id;
-	e->base.event = &e->event.base;
-	e->base.file_priv = c_node->filp;
-	e->base.destroy = ipp_free_event;
+
+	ret = drm_event_reserve_init(drm_dev, c_node->filp, &e->base, &e->event.base);
+	if (ret) {
+		kfree(e);
+		return ret;
+	}
+
 	mutex_lock(&c_node->event_lock);
 	list_add_tail(&e->base.link, &c_node->event_list);
 	mutex_unlock(&c_node->event_lock);
@@ -1412,7 +1407,6 @@ static int ipp_send_event(struct exynos_drm_ippdrv *ippdrv,
 	struct drm_exynos_ipp_send_event *e;
 	struct list_head *head;
 	struct timeval now;
-	unsigned long flags;
 	u32 tbuf_id[EXYNOS_DRM_OPS_MAX] = {0, };
 	int ret, i;
 
@@ -1525,10 +1519,7 @@ static int ipp_send_event(struct exynos_drm_ippdrv *ippdrv,
 	for_each_ipp_ops(i)
 		e->event.buf_id[i] = tbuf_id[i];
 
-	spin_lock_irqsave(&drm_dev->event_lock, flags);
-	list_move_tail(&e->base.link, &e->base.file_priv->event_list);
-	wake_up_interruptible(&e->base.file_priv->event_wait);
-	spin_unlock_irqrestore(&drm_dev->event_lock, flags);
+	drm_send_event(drm_dev, &e->base);
 	mutex_unlock(&c_node->event_lock);
 
 	DRM_DEBUG_KMS("done cmd[%d]prop_id[%d]buf_id[%d]\n",

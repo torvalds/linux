@@ -35,8 +35,8 @@
 /*
  * MegaRAID SAS Driver meta data
  */
-#define MEGASAS_VERSION				"06.808.16.00-rc1"
-#define MEGASAS_RELDATE				"Oct. 8, 2015"
+#define MEGASAS_VERSION				"06.810.09.00-rc1"
+#define MEGASAS_RELDATE				"Jan. 28, 2016"
 
 /*
  * Device IDs
@@ -152,6 +152,7 @@
 #define MFI_RESET_FLAGS				MFI_INIT_READY| \
 						MFI_INIT_MFIMODE| \
 						MFI_INIT_ABORT
+#define MPI2_IOCINIT_MSGFLAG_RDPQ_ARRAY_MODE    (0x01)
 
 /*
  * MFI frame flags
@@ -170,6 +171,7 @@
 
 /* Driver internal */
 #define DRV_DCMD_POLLED_MODE		0x1
+#define DRV_DCMD_SKIP_REFIRE		0x2
 
 /*
  * Definition for cmd_status
@@ -214,6 +216,7 @@
 
 #define MR_DCMD_CTRL_SET_CRASH_DUMP_PARAMS	0x01190100
 #define MR_DRIVER_SET_APP_CRASHDUMP_MODE	(0xF0010000 | 0x0600)
+#define MR_DCMD_PD_GET_INFO			0x02020000
 
 /*
  * Global functions
@@ -390,6 +393,7 @@ enum MR_EVT_ARGS {
 
 
 #define SGE_BUFFER_SIZE	4096
+#define MEGASAS_CLUSTER_ID_SIZE	16
 /*
  * define constants for device list query options
  */
@@ -434,6 +438,257 @@ enum MR_PD_STATE {
 	MR_PD_STATE_SYSTEM              = 0x40,
  };
 
+union MR_PD_REF {
+	struct {
+		u16	 deviceId;
+		u16	 seqNum;
+	} mrPdRef;
+	u32	 ref;
+};
+
+/*
+ * define the DDF Type bit structure
+ */
+union MR_PD_DDF_TYPE {
+	 struct {
+		union {
+			struct {
+#ifndef __BIG_ENDIAN_BITFIELD
+				 u16	 forcedPDGUID:1;
+				 u16	 inVD:1;
+				 u16	 isGlobalSpare:1;
+				 u16	 isSpare:1;
+				 u16	 isForeign:1;
+				 u16	 reserved:7;
+				 u16	 intf:4;
+#else
+				 u16	 intf:4;
+				 u16	 reserved:7;
+				 u16	 isForeign:1;
+				 u16	 isSpare:1;
+				 u16	 isGlobalSpare:1;
+				 u16	 inVD:1;
+				 u16	 forcedPDGUID:1;
+#endif
+			 } pdType;
+			 u16	 type;
+		 };
+		 u16	 reserved;
+	 } ddf;
+	 struct {
+		 u32	reserved;
+	 } nonDisk;
+	 u32	 type;
+} __packed;
+
+/*
+ * defines the progress structure
+ */
+union MR_PROGRESS {
+	struct  {
+		u16 progress;
+		union {
+			u16 elapsedSecs;
+			u16 elapsedSecsForLastPercent;
+		};
+	} mrProgress;
+	u32 w;
+} __packed;
+
+/*
+ * defines the physical drive progress structure
+ */
+struct MR_PD_PROGRESS {
+	struct {
+#ifndef MFI_BIG_ENDIAN
+		u32     rbld:1;
+		u32     patrol:1;
+		u32     clear:1;
+		u32     copyBack:1;
+		u32     erase:1;
+		u32     locate:1;
+		u32     reserved:26;
+#else
+		u32     reserved:26;
+		u32     locate:1;
+		u32     erase:1;
+		u32     copyBack:1;
+		u32     clear:1;
+		u32     patrol:1;
+		u32     rbld:1;
+#endif
+	} active;
+	union MR_PROGRESS     rbld;
+	union MR_PROGRESS     patrol;
+	union {
+		union MR_PROGRESS     clear;
+		union MR_PROGRESS     erase;
+	};
+
+	struct {
+#ifndef MFI_BIG_ENDIAN
+		u32     rbld:1;
+		u32     patrol:1;
+		u32     clear:1;
+		u32     copyBack:1;
+		u32     erase:1;
+		u32     reserved:27;
+#else
+		u32     reserved:27;
+		u32     erase:1;
+		u32     copyBack:1;
+		u32     clear:1;
+		u32     patrol:1;
+		u32     rbld:1;
+#endif
+	} pause;
+
+	union MR_PROGRESS     reserved[3];
+} __packed;
+
+struct  MR_PD_INFO {
+	union MR_PD_REF	ref;
+	u8 inquiryData[96];
+	u8 vpdPage83[64];
+	u8 notSupported;
+	u8 scsiDevType;
+
+	union {
+		u8 connectedPortBitmap;
+		u8 connectedPortNumbers;
+	};
+
+	u8 deviceSpeed;
+	u32 mediaErrCount;
+	u32 otherErrCount;
+	u32 predFailCount;
+	u32 lastPredFailEventSeqNum;
+
+	u16 fwState;
+	u8 disabledForRemoval;
+	u8 linkSpeed;
+	union MR_PD_DDF_TYPE state;
+
+	struct {
+		u8 count;
+#ifndef __BIG_ENDIAN_BITFIELD
+		u8 isPathBroken:4;
+		u8 reserved3:3;
+		u8 widePortCapable:1;
+#else
+		u8 widePortCapable:1;
+		u8 reserved3:3;
+		u8 isPathBroken:4;
+#endif
+
+		u8 connectorIndex[2];
+		u8 reserved[4];
+		u64 sasAddr[2];
+		u8 reserved2[16];
+	} pathInfo;
+
+	u64 rawSize;
+	u64 nonCoercedSize;
+	u64 coercedSize;
+	u16 enclDeviceId;
+	u8 enclIndex;
+
+	union {
+		u8 slotNumber;
+		u8 enclConnectorIndex;
+	};
+
+	struct MR_PD_PROGRESS progInfo;
+	u8 badBlockTableFull;
+	u8 unusableInCurrentConfig;
+	u8 vpdPage83Ext[64];
+	u8 powerState;
+	u8 enclPosition;
+	u32 allowedOps;
+	u16 copyBackPartnerId;
+	u16 enclPartnerDeviceId;
+	struct {
+#ifndef __BIG_ENDIAN_BITFIELD
+		u16 fdeCapable:1;
+		u16 fdeEnabled:1;
+		u16 secured:1;
+		u16 locked:1;
+		u16 foreign:1;
+		u16 needsEKM:1;
+		u16 reserved:10;
+#else
+		u16 reserved:10;
+		u16 needsEKM:1;
+		u16 foreign:1;
+		u16 locked:1;
+		u16 secured:1;
+		u16 fdeEnabled:1;
+		u16 fdeCapable:1;
+#endif
+	} security;
+	u8 mediaType;
+	u8 notCertified;
+	u8 bridgeVendor[8];
+	u8 bridgeProductIdentification[16];
+	u8 bridgeProductRevisionLevel[4];
+	u8 satBridgeExists;
+
+	u8 interfaceType;
+	u8 temperature;
+	u8 emulatedBlockSize;
+	u16 userDataBlockSize;
+	u16 reserved2;
+
+	struct {
+#ifndef __BIG_ENDIAN_BITFIELD
+		u32 piType:3;
+		u32 piFormatted:1;
+		u32 piEligible:1;
+		u32 NCQ:1;
+		u32 WCE:1;
+		u32 commissionedSpare:1;
+		u32 emergencySpare:1;
+		u32 ineligibleForSSCD:1;
+		u32 ineligibleForLd:1;
+		u32 useSSEraseType:1;
+		u32 wceUnchanged:1;
+		u32 supportScsiUnmap:1;
+		u32 reserved:18;
+#else
+		u32 reserved:18;
+		u32 supportScsiUnmap:1;
+		u32 wceUnchanged:1;
+		u32 useSSEraseType:1;
+		u32 ineligibleForLd:1;
+		u32 ineligibleForSSCD:1;
+		u32 emergencySpare:1;
+		u32 commissionedSpare:1;
+		u32 WCE:1;
+		u32 NCQ:1;
+		u32 piEligible:1;
+		u32 piFormatted:1;
+		u32 piType:3;
+#endif
+	} properties;
+
+	u64 shieldDiagCompletionTime;
+	u8 shieldCounter;
+
+	u8 linkSpeedOther;
+	u8 reserved4[2];
+
+	struct {
+#ifndef __BIG_ENDIAN_BITFIELD
+		u32 bbmErrCountSupported:1;
+		u32 bbmErrCount:31;
+#else
+		u32 bbmErrCount:31;
+		u32 bbmErrCountSupported:1;
+#endif
+	} bbmErr;
+
+	u8 reserved1[512-428];
+} __packed;
 
  /*
  * defines the physical drive address structure
@@ -473,6 +728,7 @@ struct megasas_pd_list {
 	u16             tid;
 	u8             driveType;
 	u8             driveState;
+	u8             interface;
 } __packed;
 
  /*
@@ -972,7 +1228,8 @@ struct megasas_ctrl_info {
 	*/
 	struct {
 #if defined(__BIG_ENDIAN_BITFIELD)
-		u32     reserved:26;
+		u32     reserved:25;
+		u32     passive:1;
 		u32     premiumFeatureMismatch:1;
 		u32     ctrlPropIncompatible:1;
 		u32     fwVersionMismatch:1;
@@ -986,11 +1243,12 @@ struct megasas_ctrl_info {
 		u32     fwVersionMismatch:1;
 		u32     ctrlPropIncompatible:1;
 		u32     premiumFeatureMismatch:1;
-		u32     reserved:26;
+		u32     passive:1;
+		u32     reserved:25;
 #endif
 	} cluster;
 
-	char clusterId[16];                     /*7D4h */
+	char clusterId[MEGASAS_CLUSTER_ID_SIZE]; /*0x7D4 */
 	struct {
 		u8  maxVFsSupported;            /*0x7E4*/
 		u8  numVFsEnabled;              /*0x7E5*/
@@ -1083,12 +1341,25 @@ struct megasas_ctrl_info {
 
 #define VD_EXT_DEBUG 0
 
+#define SCAN_PD_CHANNEL	0x1
+#define SCAN_VD_CHANNEL	0x2
 
 enum MR_SCSI_CMD_TYPE {
 	READ_WRITE_LDIO = 0,
 	NON_READ_WRITE_LDIO = 1,
 	READ_WRITE_SYSPDIO = 2,
 	NON_READ_WRITE_SYSPDIO = 3,
+};
+
+enum DCMD_TIMEOUT_ACTION {
+	INITIATE_OCR = 0,
+	KILL_ADAPTER = 1,
+	IGNORE_TIMEOUT = 2,
+};
+
+enum FW_BOOT_CONTEXT {
+	PROBE_CONTEXT = 0,
+	OCR_CONTEXT = 1,
 };
 
 /* Frame Type */
@@ -1137,6 +1408,7 @@ enum MR_SCSI_CMD_TYPE {
 
 #define MFI_OB_INTR_STATUS_MASK			0x00000002
 #define MFI_POLL_TIMEOUT_SECS			60
+#define MFI_IO_TIMEOUT_SECS			180
 #define MEGASAS_SRIOV_HEARTBEAT_INTERVAL_VF	(5 * HZ)
 #define MEGASAS_OCR_SETTLE_TIME_VF		(1000 * 30)
 #define MEGASAS_ROUTINE_WAIT_TIME_VF		300
@@ -1154,6 +1426,7 @@ enum MR_SCSI_CMD_TYPE {
 #define MR_MAX_REPLY_QUEUES_EXT_OFFSET          0X003FC000
 #define MR_MAX_REPLY_QUEUES_EXT_OFFSET_SHIFT    14
 #define MR_MAX_MSIX_REG_ARRAY                   16
+#define MR_RDPQ_MODE_OFFSET			0X00800000
 /*
 * register set for both 1068 and 1078 controllers
 * structure extended for 1078 registers
@@ -1193,8 +1466,9 @@ struct megasas_register_set {
 
 	u32 	outbound_scratch_pad ;		/*00B0h*/
 	u32	outbound_scratch_pad_2;         /*00B4h*/
+	u32	outbound_scratch_pad_3;         /*00B8h*/
 
-	u32	reserved_4[2];			/*00B8h*/
+	u32	reserved_4;			/*00BCh*/
 
 	u32 	inbound_low_queue_port ;	/*00C0h*/
 
@@ -1266,7 +1540,10 @@ union megasas_sgl_frame {
 typedef union _MFI_CAPABILITIES {
 	struct {
 #if   defined(__BIG_ENDIAN_BITFIELD)
-		u32     reserved:23;
+		u32     reserved:20;
+		u32     support_qd_throttling:1;
+		u32     support_fp_rlbypass:1;
+		u32     support_vfid_in_ioframe:1;
 		u32     support_ext_io_size:1;
 		u32	support_ext_queue_depth:1;
 		u32     security_protocol_cmds_fw:1;
@@ -1286,7 +1563,10 @@ typedef union _MFI_CAPABILITIES {
 		u32     security_protocol_cmds_fw:1;
 		u32	support_ext_queue_depth:1;
 		u32     support_ext_io_size:1;
-		u32     reserved:23;
+		u32     support_vfid_in_ioframe:1;
+		u32     support_fp_rlbypass:1;
+		u32     support_qd_throttling:1;
+		u32     reserved:20;
 #endif
 	} mfi_capabilities;
 	__le32		reg;
@@ -1511,6 +1791,15 @@ union megasas_frame {
 	u8 raw_bytes[64];
 };
 
+/**
+ * struct MR_PRIV_DEVICE - sdev private hostdata
+ * @is_tm_capable: firmware managed tm_capable flag
+ * @tm_busy: TM request is in progress
+ */
+struct MR_PRIV_DEVICE {
+	bool is_tm_capable;
+	bool tm_busy;
+};
 struct megasas_cmd;
 
 union megasas_evt_class_locale {
@@ -1700,6 +1989,19 @@ struct MR_DRV_SYSTEM_INFO {
 	u8	reserved[1980];
 };
 
+enum MR_PD_TYPE {
+		 UNKNOWN_DRIVE = 0,
+		 PARALLEL_SCSI = 1,
+		 SAS_PD = 2,
+		 SATA_PD = 3,
+		 FC_PD = 4,
+};
+
+/* JBOD Queue depth definitions */
+#define MEGASAS_SATA_QD	32
+#define MEGASAS_SAS_QD	64
+#define MEGASAS_DEFAULT_PD_QD	64
+
 struct megasas_instance {
 
 	__le32 *producer;
@@ -1714,6 +2016,8 @@ struct megasas_instance {
 	dma_addr_t vf_affiliation_111_h;
 	struct MR_CTRL_HB_HOST_MEM *hb_host_mem;
 	dma_addr_t hb_host_mem_h;
+	struct MR_PD_INFO *pd_info;
+	dma_addr_t pd_info_h;
 
 	__le32 *reply_queue;
 	dma_addr_t reply_queue_h;
@@ -1745,6 +2049,8 @@ struct megasas_instance {
 	u16 max_fw_cmds;
 	u16 max_mfi_cmds;
 	u16 max_scsi_cmds;
+	u16 ldio_threshold;
+	u16 cur_can_queue;
 	u32 max_sectors_per_req;
 	struct megasas_aen_event *ev;
 
@@ -1762,7 +2068,7 @@ struct megasas_instance {
 	struct megasas_evt_detail *evt_detail;
 	dma_addr_t evt_detail_h;
 	struct megasas_cmd *aen_cmd;
-	struct mutex aen_mutex;
+	struct mutex hba_mutex;
 	struct semaphore ioctl_sem;
 
 	struct Scsi_Host *host;
@@ -1775,6 +2081,7 @@ struct megasas_instance {
 	u32 fw_support_ieee;
 
 	atomic_t fw_outstanding;
+	atomic_t ldio_outstanding;
 	atomic_t fw_reset_no_pci_access;
 
 	struct megasas_instance_template *instancet;
@@ -1790,14 +2097,14 @@ struct megasas_instance {
 	u8 UnevenSpanSupport;
 
 	u8 supportmax256vd;
-	u8 allow_fw_scan;
+	u8 pd_list_not_supported;
 	u16 fw_supported_vd_count;
 	u16 fw_supported_pd_count;
 
 	u16 drv_supported_vd_count;
 	u16 drv_supported_pd_count;
 
-	u8 adprecovery;
+	atomic_t adprecovery;
 	unsigned long last_time;
 	u32 mfiStatus;
 	u32 last_seq_num;
@@ -1822,11 +2129,14 @@ struct megasas_instance {
 	char skip_heartbeat_timer_del;
 	u8 requestorId;
 	char PlasmaFW111;
-	char mpio;
+	char clusterId[MEGASAS_CLUSTER_ID_SIZE];
+	u8 peerIsPresent;
+	u8 passive;
 	u16 throttlequeuedepth;
 	u8 mask_interrupts;
 	u16 max_chain_frame_sz;
 	u8 is_imr;
+	u8 is_rdpq;
 	bool dev_handle;
 };
 struct MR_LD_VF_MAP {
@@ -1916,7 +2226,7 @@ struct megasas_instance_template {
 	u32 (*init_adapter)(struct megasas_instance *);
 	u32 (*build_and_issue_cmd) (struct megasas_instance *,
 				    struct scsi_cmnd *);
-	void (*issue_dcmd) (struct megasas_instance *instance,
+	int (*issue_dcmd)(struct megasas_instance *instance,
 			    struct megasas_cmd *cmd);
 };
 
@@ -2014,6 +2324,19 @@ struct megasas_mgmt_info {
 	int max_index;
 };
 
+enum MEGASAS_OCR_CAUSE {
+	FW_FAULT_OCR			= 0,
+	SCSIIO_TIMEOUT_OCR		= 1,
+	MFI_IO_TIMEOUT_OCR		= 2,
+};
+
+enum DCMD_RETURN_STATUS {
+	DCMD_SUCCESS		= 0,
+	DCMD_TIMEOUT		= 1,
+	DCMD_FAILED		= 2,
+	DCMD_NOT_FIRED		= 3,
+};
+
 u8
 MR_BuildRaidContext(struct megasas_instance *instance,
 		    struct IO_REQUEST_INFO *io_info,
@@ -2051,4 +2374,8 @@ void megasas_return_mfi_mpt_pthr(struct megasas_instance *instance,
 int megasas_cmd_type(struct scsi_cmnd *cmd);
 void megasas_setup_jbod_map(struct megasas_instance *instance);
 
+void megasas_update_sdev_properties(struct scsi_device *sdev);
+int megasas_reset_fusion(struct Scsi_Host *shost, int reason);
+int megasas_task_abort_fusion(struct scsi_cmnd *scmd);
+int megasas_reset_target_fusion(struct scsi_cmnd *scmd);
 #endif				/*LSI_MEGARAID_SAS_H */

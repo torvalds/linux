@@ -19,6 +19,7 @@
 #include <linux/sched.h>
 #include <linux/slab.h>
 #include <linux/rbtree.h>
+#include <linux/vmalloc.h>
 #include "ctree.h"
 #include "disk-io.h"
 #include "transaction.h"
@@ -311,7 +312,7 @@ struct tree_mod_root {
 
 struct tree_mod_elem {
 	struct rb_node node;
-	u64 index;		/* shifted logical */
+	u64 logical;
 	u64 seq;
 	enum mod_log_op op;
 
@@ -435,11 +436,11 @@ void btrfs_put_tree_mod_seq(struct btrfs_fs_info *fs_info,
 
 /*
  * key order of the log:
- *       index -> sequence
+ *       node/leaf start address -> sequence
  *
- * the index is the shifted logical of the *new* root node for root replace
- * operations, or the shifted logical of the affected block for all other
- * operations.
+ * The 'start address' is the logical address of the *new* root node
+ * for root replace operations, or the logical address of the affected
+ * block for all other operations.
  *
  * Note: must be called with write lock (tree_mod_log_write_lock).
  */
@@ -460,9 +461,9 @@ __tree_mod_log_insert(struct btrfs_fs_info *fs_info, struct tree_mod_elem *tm)
 	while (*new) {
 		cur = container_of(*new, struct tree_mod_elem, node);
 		parent = *new;
-		if (cur->index < tm->index)
+		if (cur->logical < tm->logical)
 			new = &((*new)->rb_left);
-		else if (cur->index > tm->index)
+		else if (cur->logical > tm->logical)
 			new = &((*new)->rb_right);
 		else if (cur->seq < tm->seq)
 			new = &((*new)->rb_left);
@@ -523,7 +524,7 @@ alloc_tree_mod_elem(struct extent_buffer *eb, int slot,
 	if (!tm)
 		return NULL;
 
-	tm->index = eb->start >> PAGE_CACHE_SHIFT;
+	tm->logical = eb->start;
 	if (op != MOD_LOG_KEY_ADD) {
 		btrfs_node_key(eb, &tm->key, slot);
 		tm->blockptr = btrfs_node_blockptr(eb, slot);
@@ -588,7 +589,7 @@ tree_mod_log_insert_move(struct btrfs_fs_info *fs_info,
 		goto free_tms;
 	}
 
-	tm->index = eb->start >> PAGE_CACHE_SHIFT;
+	tm->logical = eb->start;
 	tm->slot = src_slot;
 	tm->move.dst_slot = dst_slot;
 	tm->move.nr_items = nr_items;
@@ -699,7 +700,7 @@ tree_mod_log_insert_root(struct btrfs_fs_info *fs_info,
 		goto free_tms;
 	}
 
-	tm->index = new_root->start >> PAGE_CACHE_SHIFT;
+	tm->logical = new_root->start;
 	tm->old_root.logical = old_root->start;
 	tm->old_root.level = btrfs_header_level(old_root);
 	tm->generation = btrfs_header_generation(old_root);
@@ -739,16 +740,15 @@ __tree_mod_log_search(struct btrfs_fs_info *fs_info, u64 start, u64 min_seq,
 	struct rb_node *node;
 	struct tree_mod_elem *cur = NULL;
 	struct tree_mod_elem *found = NULL;
-	u64 index = start >> PAGE_CACHE_SHIFT;
 
 	tree_mod_log_read_lock(fs_info);
 	tm_root = &fs_info->tree_mod_log;
 	node = tm_root->rb_node;
 	while (node) {
 		cur = container_of(node, struct tree_mod_elem, node);
-		if (cur->index < index) {
+		if (cur->logical < start) {
 			node = node->rb_left;
-		} else if (cur->index > index) {
+		} else if (cur->logical > start) {
 			node = node->rb_right;
 		} else if (cur->seq < min_seq) {
 			node = node->rb_left;
@@ -1230,9 +1230,10 @@ __tree_mod_log_oldest_root(struct btrfs_fs_info *fs_info,
 		return NULL;
 
 	/*
-	 * the very last operation that's logged for a root is the replacement
-	 * operation (if it is replaced at all). this has the index of the *new*
-	 * root, making it the very first operation that's logged for this root.
+	 * the very last operation that's logged for a root is the
+	 * replacement operation (if it is replaced at all). this has
+	 * the logical address of the *new* root, making it the very
+	 * first operation that's logged for this root.
 	 */
 	while (1) {
 		tm = tree_mod_log_search_oldest(fs_info, root_logical,
@@ -1336,7 +1337,7 @@ __tree_mod_log_rewind(struct btrfs_fs_info *fs_info, struct extent_buffer *eb,
 		if (!next)
 			break;
 		tm = container_of(next, struct tree_mod_elem, node);
-		if (tm->index != first_tm->index)
+		if (tm->logical != first_tm->logical)
 			break;
 	}
 	tree_mod_log_read_unlock(fs_info);
@@ -5361,10 +5362,13 @@ int btrfs_compare_trees(struct btrfs_root *left_root,
 		goto out;
 	}
 
-	tmp_buf = kmalloc(left_root->nodesize, GFP_NOFS);
+	tmp_buf = kmalloc(left_root->nodesize, GFP_KERNEL | __GFP_NOWARN);
 	if (!tmp_buf) {
-		ret = -ENOMEM;
-		goto out;
+		tmp_buf = vmalloc(left_root->nodesize);
+		if (!tmp_buf) {
+			ret = -ENOMEM;
+			goto out;
+		}
 	}
 
 	left_path->search_commit_root = 1;
@@ -5565,7 +5569,7 @@ int btrfs_compare_trees(struct btrfs_root *left_root,
 out:
 	btrfs_free_path(left_path);
 	btrfs_free_path(right_path);
-	kfree(tmp_buf);
+	kvfree(tmp_buf);
 	return ret;
 }
 

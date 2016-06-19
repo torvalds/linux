@@ -567,7 +567,7 @@ static int lis3l02dq_read_event_config(struct iio_dev *indio_dev,
 {
 	u8 val;
 	int ret;
-	u8 mask = (1 << (chan->channel2 * 2 + (dir == IIO_EV_DIR_RISING)));
+	u8 mask = 1 << (chan->channel2 * 2 + (dir == IIO_EV_DIR_RISING));
 
 	ret = lis3l02dq_spi_read_reg_8(indio_dev,
 				       LIS3L02DQ_REG_WAKE_UP_CFG_ADDR,
@@ -622,7 +622,7 @@ static int lis3l02dq_write_event_config(struct iio_dev *indio_dev,
 	u8 val, control;
 	u8 currentlyset;
 	bool changed = false;
-	u8 mask = (1 << (chan->channel2 * 2 + (dir == IIO_EV_DIR_RISING)));
+	u8 mask = 1 << (chan->channel2 * 2 + (dir == IIO_EV_DIR_RISING));
 
 	mutex_lock(&indio_dev->mlock);
 	/* read current control */

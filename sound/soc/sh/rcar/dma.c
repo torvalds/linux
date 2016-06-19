@@ -622,15 +622,13 @@ static void rsnd_dma_of_path(struct rsnd_mod *this,
 	}
 }
 
-struct rsnd_mod *rsnd_dma_attach(struct rsnd_dai_stream *io,
-				 struct rsnd_mod *mod, int id)
+int rsnd_dma_attach(struct rsnd_dai_stream *io, struct rsnd_mod *mod,
+		    struct rsnd_mod **dma_mod, int id)
 {
-	struct rsnd_mod *dma_mod;
 	struct rsnd_mod *mod_from = NULL;
 	struct rsnd_mod *mod_to = NULL;
 	struct rsnd_priv *priv = rsnd_io_to_priv(io);
 	struct rsnd_dma_ctrl *dmac = rsnd_priv_to_dmac(priv);
-	struct rsnd_dma *dma;
 	struct device *dev = rsnd_priv_to_dev(priv);
 	struct rsnd_mod_ops *ops;
 	enum rsnd_mod_type type;
@@ -646,16 +644,9 @@ struct rsnd_mod *rsnd_dma_attach(struct rsnd_dai_stream *io,
 	 *	rsnd_rdai_continuance_probe()
 	 */
 	if (!dmac)
-		return ERR_PTR(-EAGAIN);
-
-	dma = devm_kzalloc(dev, sizeof(*dma), GFP_KERNEL);
-	if (!dma)
-		return ERR_PTR(-ENOMEM);
+		return -EAGAIN;
 
 	rsnd_dma_of_path(mod, io, is_play, &mod_from, &mod_to);
-
-	dma->src_addr = rsnd_dma_addr(io, mod_from, is_play, 1);
-	dma->dst_addr = rsnd_dma_addr(io, mod_to,   is_play, 0);
 
 	/* for Gen2 */
 	if (mod_from && mod_to) {
@@ -678,27 +669,38 @@ struct rsnd_mod *rsnd_dma_attach(struct rsnd_dai_stream *io,
 		type	= RSND_MOD_AUDMA;
 	}
 
-	dma_mod = rsnd_mod_get(dma);
+	if (!(*dma_mod)) {
+		struct rsnd_dma *dma;
 
-	ret = rsnd_mod_init(priv, dma_mod,
-			    ops, NULL, type, dma_id);
+		dma = devm_kzalloc(dev, sizeof(*dma), GFP_KERNEL);
+		if (!dma)
+			return -ENOMEM;
+
+		*dma_mod = rsnd_mod_get(dma);
+
+		dma->src_addr = rsnd_dma_addr(io, mod_from, is_play, 1);
+		dma->dst_addr = rsnd_dma_addr(io, mod_to,   is_play, 0);
+
+		ret = rsnd_mod_init(priv, *dma_mod, ops, NULL,
+				    rsnd_mod_get_status, type, dma_id);
+		if (ret < 0)
+			return ret;
+
+		dev_dbg(dev, "%s[%d] %s[%d] -> %s[%d]\n",
+			rsnd_mod_name(*dma_mod), rsnd_mod_id(*dma_mod),
+			rsnd_mod_name(mod_from), rsnd_mod_id(mod_from),
+			rsnd_mod_name(mod_to),   rsnd_mod_id(mod_to));
+
+		ret = attach(io, dma, id, mod_from, mod_to);
+		if (ret < 0)
+			return ret;
+	}
+
+	ret = rsnd_dai_connect(*dma_mod, io, type);
 	if (ret < 0)
-		return ERR_PTR(ret);
+		return ret;
 
-	dev_dbg(dev, "%s[%d] %s[%d] -> %s[%d]\n",
-		rsnd_mod_name(dma_mod), rsnd_mod_id(dma_mod),
-		rsnd_mod_name(mod_from), rsnd_mod_id(mod_from),
-		rsnd_mod_name(mod_to),   rsnd_mod_id(mod_to));
-
-	ret = attach(io, dma, id, mod_from, mod_to);
-	if (ret < 0)
-		return ERR_PTR(ret);
-
-	ret = rsnd_dai_connect(dma_mod, io, type);
-	if (ret < 0)
-		return ERR_PTR(ret);
-
-	return rsnd_mod_get(dma);
+	return 0;
 }
 
 int rsnd_dma_probe(struct rsnd_priv *priv)

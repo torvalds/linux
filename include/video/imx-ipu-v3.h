@@ -194,8 +194,9 @@ int ipu_cpmem_set_format_rgb(struct ipuv3_channel *ch,
 int ipu_cpmem_set_format_passthrough(struct ipuv3_channel *ch, int width);
 void ipu_cpmem_set_yuv_interleaved(struct ipuv3_channel *ch, u32 pixel_format);
 void ipu_cpmem_set_yuv_planar_full(struct ipuv3_channel *ch,
-				   u32 pixel_format, int stride,
-				   int u_offset, int v_offset);
+				   unsigned int uv_stride,
+				   unsigned int u_offset,
+				   unsigned int v_offset);
 void ipu_cpmem_set_yuv_planar(struct ipuv3_channel *ch,
 			      u32 pixel_format, int stride, int height);
 int ipu_cpmem_set_fmt(struct ipuv3_channel *ch, u32 drm_fourcc);
@@ -236,7 +237,7 @@ void ipu_dmfc_disable_channel(struct dmfc_channel *dmfc);
 int ipu_dmfc_alloc_bandwidth(struct dmfc_channel *dmfc,
 		unsigned long bandwidth_mbs, int burstsize);
 void ipu_dmfc_free_bandwidth(struct dmfc_channel *dmfc);
-int ipu_dmfc_init_channel(struct dmfc_channel *dmfc, int width);
+void ipu_dmfc_config_wait4eot(struct dmfc_channel *dmfc, int width);
 struct dmfc_channel *ipu_dmfc_get(struct ipu_soc *ipu, int ipuv3_channel);
 void ipu_dmfc_put(struct dmfc_channel *dmfc);
 

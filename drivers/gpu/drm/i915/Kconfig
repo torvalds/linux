@@ -2,9 +2,7 @@ config DRM_I915
 	tristate "Intel 8xx/9xx/G3x/G4x/HD Graphics"
 	depends on DRM
 	depends on X86 && PCI
-	depends on (AGP || AGP=n)
 	select INTEL_GTT
-	select AGP_INTEL if AGP
 	select INTERVAL_TREE
 	# we need shmfs for the swappable backing store, and in particular
 	# the shmem_readpage() which depends upon tmpfs
@@ -47,3 +45,14 @@ config DRM_I915_PRELIMINARY_HW_SUPPORT
 	  option changes the default for that module option.
 
 	  If in doubt, say "N".
+
+config DRM_I915_USERPTR
+	bool "Always enable userptr support"
+	depends on DRM_I915
+	select MMU_NOTIFIER
+	default y
+	help
+	  This option selects CONFIG_MMU_NOTIFIER if it isn't already
+	  selected to enabled full userptr support.
+
+	  If in doubt, say "Y".

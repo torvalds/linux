@@ -319,6 +319,9 @@ static ssize_t ibft_attr_show_nic(void *data, int type, char *buf)
 		val = cpu_to_be32(~((1 << (32-nic->subnet_mask_prefix))-1));
 		str += sprintf(str, "%pI4", &val);
 		break;
+	case ISCSI_BOOT_ETH_PREFIX_LEN:
+		str += sprintf(str, "%d\n", nic->subnet_mask_prefix);
+		break;
 	case ISCSI_BOOT_ETH_ORIGIN:
 		str += sprintf(str, "%d\n", nic->origin);
 		break;
@@ -460,6 +463,7 @@ static umode_t ibft_check_nic_for(void *data, int type)
 		if (address_not_null(nic->ip_addr))
 			rc = S_IRUGO;
 		break;
+	case ISCSI_BOOT_ETH_PREFIX_LEN:
 	case ISCSI_BOOT_ETH_SUBNET_MASK:
 		if (nic->subnet_mask_prefix)
 			rc = S_IRUGO;

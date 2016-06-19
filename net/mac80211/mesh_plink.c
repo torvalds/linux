@@ -976,6 +976,10 @@ mesh_plink_get_event(struct ieee80211_sub_if_data *sdata,
 			mpl_dbg(sdata, "Mesh plink error: no more free plinks\n");
 			goto out;
 		}
+
+		/* new matching peer */
+		event = OPN_ACPT;
+		goto out;
 	} else {
 		if (!test_sta_flag(sta, WLAN_STA_AUTH)) {
 			mpl_dbg(sdata, "Mesh plink: Action frame from non-authed peer\n");
@@ -983,12 +987,6 @@ mesh_plink_get_event(struct ieee80211_sub_if_data *sdata,
 		}
 		if (sta->mesh->plink_state == NL80211_PLINK_BLOCKED)
 			goto out;
-	}
-
-	/* new matching peer */
-	if (!sta) {
-		event = OPN_ACPT;
-		goto out;
 	}
 
 	switch (ftype) {

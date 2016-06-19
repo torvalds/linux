@@ -331,7 +331,7 @@ static inline unsigned nilfs_rec_len_from_disk(__le16 dlen)
 {
 	unsigned len = le16_to_cpu(dlen);
 
-#if !defined(__KERNEL__) || (PAGE_CACHE_SIZE >= 65536)
+#if !defined(__KERNEL__) || (PAGE_SIZE >= 65536)
 	if (len == NILFS_MAX_REC_LEN)
 		return 1 << 16;
 #endif
@@ -340,7 +340,7 @@ static inline unsigned nilfs_rec_len_from_disk(__le16 dlen)
 
 static inline __le16 nilfs_rec_len_to_disk(unsigned len)
 {
-#if !defined(__KERNEL__) || (PAGE_CACHE_SIZE >= 65536)
+#if !defined(__KERNEL__) || (PAGE_SIZE >= 65536)
 	if (len == (1 << 16))
 		return cpu_to_le16(NILFS_MAX_REC_LEN);
 	else if (len > (1 << 16))

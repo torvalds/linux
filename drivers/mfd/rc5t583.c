@@ -241,8 +241,8 @@ static const struct regmap_config rc5t583_regmap_config = {
 	.reg_bits = 8,
 	.val_bits = 8,
 	.volatile_reg = volatile_reg,
-	.max_register = RC5T583_MAX_REGS,
-	.num_reg_defaults_raw = RC5T583_MAX_REGS,
+	.max_register = RC5T583_MAX_REG,
+	.num_reg_defaults_raw = RC5T583_NUM_REGS,
 	.cache_type = REGCACHE_RBTREE,
 };
 

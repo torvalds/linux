@@ -108,7 +108,7 @@ static int uniphier_system_bus_check_overlap(
 
 	for (i = 0; i < ARRAY_SIZE(priv->bank); i++) {
 		for (j = i + 1; j < ARRAY_SIZE(priv->bank); j++) {
-			if (priv->bank[i].end > priv->bank[j].base ||
+			if (priv->bank[i].end > priv->bank[j].base &&
 			    priv->bank[i].base < priv->bank[j].end) {
 				dev_err(priv->dev,
 					"region overlap between bank%d and bank%d\n",

@@ -650,7 +650,7 @@ int main(int argc, char **argv)
 	}
 
 	hdr = fopen(headername, "w");
-	if (!out) {
+	if (!hdr) {
 		perror(headername);
 		exit(1);
 	}

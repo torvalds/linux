@@ -1413,9 +1413,8 @@ rs_stop(struct tty_struct *tty)
 		xoff = IO_FIELD(R_SERIAL0_XOFF, xoff_char,
 				STOP_CHAR(info->port.tty));
 		xoff |= IO_STATE(R_SERIAL0_XOFF, tx_stop, stop);
-		if (tty->termios.c_iflag & IXON ) {
+		if (I_IXON(tty))
 			xoff |= IO_STATE(R_SERIAL0_XOFF, auto_xoff, enable);
-		}
 
 		*((unsigned long *)&info->ioport[REG_XOFF]) = xoff;
 		local_irq_restore(flags);
@@ -1436,9 +1435,8 @@ rs_start(struct tty_struct *tty)
 					 info->xmit.tail,SERIAL_XMIT_SIZE)));
 		xoff = IO_FIELD(R_SERIAL0_XOFF, xoff_char, STOP_CHAR(tty));
 		xoff |= IO_STATE(R_SERIAL0_XOFF, tx_stop, enable);
-		if (tty->termios.c_iflag & IXON ) {
+		if (I_IXON(tty))
 			xoff |= IO_STATE(R_SERIAL0_XOFF, auto_xoff, enable);
-		}
 
 		*((unsigned long *)&info->ioport[REG_XOFF]) = xoff;
 		if (!info->uses_dma_out &&
@@ -2968,7 +2966,7 @@ static int rs_raw_write(struct tty_struct *tty,
 
 	local_save_flags(flags);
 	DFLOW(DEBUG_LOG(info->line, "write count %i ", count));
-	DFLOW(DEBUG_LOG(info->line, "ldisc %i\n", tty->ldisc.chars_in_buffer(tty)));
+	DFLOW(DEBUG_LOG(info->line, "ldisc\n"));
 
 
 	/* The local_irq_disable/restore_flags pairs below are needed
@@ -3161,13 +3159,12 @@ rs_throttle(struct tty_struct * tty)
 {
 	struct e100_serial *info = (struct e100_serial *)tty->driver_data;
 #ifdef SERIAL_DEBUG_THROTTLE
-	printk("throttle %s: %lu....\n", tty_name(tty),
-	       (unsigned long)tty->ldisc.chars_in_buffer(tty));
+	printk("throttle %s ....\n", tty_name(tty));
 #endif
-	DFLOW(DEBUG_LOG(info->line,"rs_throttle %lu\n", tty->ldisc.chars_in_buffer(tty)));
+	DFLOW(DEBUG_LOG(info->line,"rs_throttle\n"));
 
 	/* Do RTS before XOFF since XOFF might take some time */
-	if (tty->termios.c_cflag & CRTSCTS) {
+	if (C_CRTSCTS(tty)) {
 		/* Turn off RTS line */
 		e100_rts(info, 0);
 	}
@@ -3181,13 +3178,12 @@ rs_unthrottle(struct tty_struct * tty)
 {
 	struct e100_serial *info = (struct e100_serial *)tty->driver_data;
 #ifdef SERIAL_DEBUG_THROTTLE
-	printk("unthrottle %s: %lu....\n", tty_name(tty),
-	       (unsigned long)tty->ldisc.chars_in_buffer(tty));
+	printk("unthrottle %s ....\n", tty_name(tty));
 #endif
-	DFLOW(DEBUG_LOG(info->line,"rs_unthrottle ldisc %d\n", tty->ldisc.chars_in_buffer(tty)));
+	DFLOW(DEBUG_LOG(info->line,"rs_unthrottle ldisc\n"));
 	DFLOW(DEBUG_LOG(info->line,"rs_unthrottle flip.count: %i\n", tty->flip.count));
 	/* Do RTS before XOFF since XOFF might take some time */
-	if (tty->termios.c_cflag & CRTSCTS) {
+	if (C_CRTSCTS(tty)) {
 		/* Assert RTS line  */
 		e100_rts(info, 1);
 	}
@@ -3555,8 +3551,7 @@ rs_set_termios(struct tty_struct *tty, struct ktermios *old_termios)
 	change_speed(info);
 
 	/* Handle turning off CRTSCTS */
-	if ((old_termios->c_cflag & CRTSCTS) &&
-	    !(tty->termios.c_cflag & CRTSCTS))
+	if ((old_termios->c_cflag & CRTSCTS) && !C_CRTSCTS(tty))
 		rs_start(tty);
 
 }
@@ -3615,7 +3610,6 @@ rs_close(struct tty_struct *tty, struct file * filp)
 		local_irq_restore(flags);
 		return;
 	}
-	info->port.flags |= ASYNC_CLOSING;
 	/*
 	 * Now we wait for the transmit buffer to clear; and we notify
 	 * the line discipline to only process XON/XOFF characters.
@@ -3654,7 +3648,7 @@ rs_close(struct tty_struct *tty, struct file * filp)
 			schedule_timeout_interruptible(info->port.close_delay);
 		wake_up_interruptible(&info->port.open_wait);
 	}
-	info->port.flags &= ~(ASYNC_NORMAL_ACTIVE|ASYNC_CLOSING);
+	info->port.flags &= ~ASYNC_NORMAL_ACTIVE;
 	local_irq_restore(flags);
 
 	/* port closed */
@@ -3767,9 +3761,8 @@ block_til_ready(struct tty_struct *tty, struct file * filp,
 		return 0;
 	}
 
-	if (tty->termios.c_cflag & CLOCAL) {
-			do_clocal = 1;
-	}
+	if (C_CLOCAL(tty))
+		do_clocal = 1;
 
 	/*
 	 * Block waiting for the carrier detect and the line to become

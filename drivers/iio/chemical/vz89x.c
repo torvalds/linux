@@ -249,7 +249,7 @@ static int vz89x_probe(struct i2c_client *client,
 				I2C_FUNC_SMBUS_WORD_DATA | I2C_FUNC_SMBUS_BYTE))
 		data->xfer = vz89x_smbus_xfer;
 	else
-		return -ENOTSUPP;
+		return -EOPNOTSUPP;
 
 	i2c_set_clientdata(client, indio_dev);
 	data->client = client;

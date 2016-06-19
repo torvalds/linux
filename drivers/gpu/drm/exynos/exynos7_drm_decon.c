@@ -60,7 +60,6 @@ struct decon_context {
 	wait_queue_head_t		wait_vsync_queue;
 	atomic_t			wait_vsync_event;
 
-	struct exynos_drm_panel_info panel;
 	struct drm_encoder *encoder;
 };
 

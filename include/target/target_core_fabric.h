@@ -76,6 +76,7 @@ struct target_core_fabric_ops {
 	struct se_wwn *(*fabric_make_wwn)(struct target_fabric_configfs *,
 				struct config_group *, const char *);
 	void (*fabric_drop_wwn)(struct se_wwn *);
+	void (*add_wwn_groups)(struct se_wwn *);
 	struct se_portal_group *(*fabric_make_tpg)(struct se_wwn *,
 				struct config_group *, const char *);
 	void (*fabric_drop_tpg)(struct se_portal_group *);
@@ -87,7 +88,6 @@ struct target_core_fabric_ops {
 				struct config_group *, const char *);
 	void (*fabric_drop_np)(struct se_tpg_np *);
 	int (*fabric_init_nodeacl)(struct se_node_acl *, const char *);
-	void (*fabric_cleanup_nodeacl)(struct se_node_acl *);
 
 	struct configfs_attribute **tfc_discovery_attrs;
 	struct configfs_attribute **tfc_wwn_attrs;
@@ -107,6 +107,12 @@ void target_unregister_template(const struct target_core_fabric_ops *fo);
 
 int target_depend_item(struct config_item *item);
 void target_undepend_item(struct config_item *item);
+
+struct se_session *target_alloc_session(struct se_portal_group *,
+		unsigned int, unsigned int, enum target_prot_op prot_op,
+		const char *, void *,
+		int (*callback)(struct se_portal_group *,
+				struct se_session *, void *));
 
 struct se_session *transport_init_session(enum target_prot_op);
 int transport_alloc_session_tags(struct se_session *, unsigned int,

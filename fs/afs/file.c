@@ -164,7 +164,7 @@ int afs_page_filler(void *data, struct page *page)
 		_debug("cache said ENOBUFS");
 	default:
 	go_on:
-		offset = page->index << PAGE_CACHE_SHIFT;
+		offset = page->index << PAGE_SHIFT;
 		len = min_t(size_t, i_size_read(inode) - offset, PAGE_SIZE);
 
 		/* read the contents of the file from the server into the
@@ -319,7 +319,7 @@ static void afs_invalidatepage(struct page *page, unsigned int offset,
 	BUG_ON(!PageLocked(page));
 
 	/* we clean up only if the entire page is being invalidated */
-	if (offset == 0 && length == PAGE_CACHE_SIZE) {
+	if (offset == 0 && length == PAGE_SIZE) {
 #ifdef CONFIG_AFS_FSCACHE
 		if (PageFsCache(page)) {
 			struct afs_vnode *vnode = AFS_FS_I(page->mapping->host);

@@ -39,6 +39,19 @@ static inline void syscall_get_arguments(struct task_struct *tsk,
 	}
 }
 
+static inline void syscall_set_return_value(struct task_struct *task,
+					    struct pt_regs *regs,
+					    int error, long val)
+{
+	regs->gr[28] = error ? error : val;
+}
+
+static inline void syscall_rollback(struct task_struct *task,
+				    struct pt_regs *regs)
+{
+	/* do nothing */
+}
+
 static inline int syscall_get_arch(void)
 {
 	int arch = AUDIT_ARCH_PARISC;

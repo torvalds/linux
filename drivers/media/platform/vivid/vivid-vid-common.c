@@ -445,6 +445,9 @@ struct vivid_fmt vivid_formats[] = {
 		.planes   = 1,
 		.buffers = 1,
 	},
+
+	/* Multiplanar formats */
+
 	{
 		.fourcc   = V4L2_PIX_FMT_NV16M,
 		.vdownsampling = { 1, 1 },
@@ -495,10 +498,42 @@ struct vivid_fmt vivid_formats[] = {
 		.planes   = 2,
 		.buffers = 2,
 	},
+	{
+		.fourcc   = V4L2_PIX_FMT_YUV422M,
+		.vdownsampling = { 1, 1, 1 },
+		.bit_depth = { 8, 4, 4 },
+		.is_yuv   = true,
+		.planes   = 3,
+		.buffers = 3,
+	},
+	{
+		.fourcc   = V4L2_PIX_FMT_YVU422M,
+		.vdownsampling = { 1, 1, 1 },
+		.bit_depth = { 8, 4, 4 },
+		.is_yuv   = true,
+		.planes   = 3,
+		.buffers = 3,
+	},
+	{
+		.fourcc   = V4L2_PIX_FMT_YUV444M,
+		.vdownsampling = { 1, 1, 1 },
+		.bit_depth = { 8, 8, 8 },
+		.is_yuv   = true,
+		.planes   = 3,
+		.buffers = 3,
+	},
+	{
+		.fourcc   = V4L2_PIX_FMT_YVU444M,
+		.vdownsampling = { 1, 1, 1 },
+		.bit_depth = { 8, 8, 8 },
+		.is_yuv   = true,
+		.planes   = 3,
+		.buffers = 3,
+	},
 };
 
-/* There are 6 multiplanar formats in the list */
-#define VIVID_MPLANAR_FORMATS 6
+/* There are this many multiplanar formats in the list */
+#define VIVID_MPLANAR_FORMATS 10
 
 const struct vivid_fmt *vivid_get_format(struct vivid_dev *dev, u32 pixelformat)
 {

@@ -94,10 +94,19 @@ static __always_inline bool should_resched(int preempt_offset)
 
 #ifdef CONFIG_PREEMPT
   extern asmlinkage void ___preempt_schedule(void);
-# define __preempt_schedule() asm ("call ___preempt_schedule")
+# define __preempt_schedule()					\
+({								\
+	register void *__sp asm(_ASM_SP);			\
+	asm volatile ("call ___preempt_schedule" : "+r"(__sp));	\
+})
+
   extern asmlinkage void preempt_schedule(void);
   extern asmlinkage void ___preempt_schedule_notrace(void);
-# define __preempt_schedule_notrace() asm ("call ___preempt_schedule_notrace")
+# define __preempt_schedule_notrace()					\
+({									\
+	register void *__sp asm(_ASM_SP);				\
+	asm volatile ("call ___preempt_schedule_notrace" : "+r"(__sp));	\
+})
   extern asmlinkage void preempt_schedule_notrace(void);
 #endif
 

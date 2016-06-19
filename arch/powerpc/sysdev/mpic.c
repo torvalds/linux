@@ -2,7 +2,7 @@
  *  arch/powerpc/kernel/mpic.c
  *
  *  Driver for interrupt controllers following the OpenPIC standard, the
- *  common implementation beeing IBM's MPIC. This driver also can deal
+ *  common implementation being IBM's MPIC. This driver also can deal
  *  with various broken implementations of this HW.
  *
  *  Copyright (C) 2004 Benjamin Herrenschmidt, IBM Corp.
@@ -1657,7 +1657,7 @@ void __init mpic_init(struct mpic *mpic)
 		}
 	}
 
-	/* FSL mpic error interrupt intialization */
+	/* FSL mpic error interrupt initialization */
 	if (mpic->flags & MPIC_FSL_HAS_EIMR)
 		mpic_err_int_init(mpic, MPIC_FSL_ERR_INT);
 }

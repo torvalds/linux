@@ -339,7 +339,7 @@ static int ep93xx_gpio_add_bank(struct gpio_chip *gc, struct device *dev,
 		gc->to_irq = ep93xx_gpio_to_irq;
 	}
 
-	return gpiochip_add_data(gc, NULL);
+	return devm_gpiochip_add_data(dev, gc, NULL);
 }
 
 static int ep93xx_gpio_probe(struct platform_device *pdev)

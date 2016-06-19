@@ -281,6 +281,11 @@ struct tegra_pcie {
 	struct resource prefetch;
 	struct resource busn;
 
+	struct {
+		resource_size_t mem;
+		resource_size_t io;
+	} offset;
+
 	struct clk *pex_clk;
 	struct clk *afi_clk;
 	struct clk *pll_e;
@@ -295,7 +300,6 @@ struct tegra_pcie {
 	struct tegra_msi msi;
 
 	struct list_head ports;
-	unsigned int num_ports;
 	u32 xbar_config;
 
 	struct regulator_bulk_data *supplies;
@@ -426,31 +430,38 @@ free:
 	return ERR_PTR(err);
 }
 
-/*
- * Look up a virtual address mapping for the specified bus number. If no such
- * mapping exists, try to create one.
- */
-static void __iomem *tegra_pcie_bus_map(struct tegra_pcie *pcie,
-					unsigned int busnr)
+static int tegra_pcie_add_bus(struct pci_bus *bus)
 {
-	struct tegra_pcie_bus *bus;
+	struct tegra_pcie *pcie = sys_to_pcie(bus->sysdata);
+	struct tegra_pcie_bus *b;
 
-	list_for_each_entry(bus, &pcie->buses, list)
-		if (bus->nr == busnr)
-			return (void __iomem *)bus->area->addr;
+	b = tegra_pcie_bus_alloc(pcie, bus->number);
+	if (IS_ERR(b))
+		return PTR_ERR(b);
 
-	bus = tegra_pcie_bus_alloc(pcie, busnr);
-	if (IS_ERR(bus))
-		return NULL;
+	list_add_tail(&b->list, &pcie->buses);
 
-	list_add_tail(&bus->list, &pcie->buses);
-
-	return (void __iomem *)bus->area->addr;
+	return 0;
 }
 
-static void __iomem *tegra_pcie_conf_address(struct pci_bus *bus,
-					     unsigned int devfn,
-					     int where)
+static void tegra_pcie_remove_bus(struct pci_bus *child)
+{
+	struct tegra_pcie *pcie = sys_to_pcie(child->sysdata);
+	struct tegra_pcie_bus *bus, *tmp;
+
+	list_for_each_entry_safe(bus, tmp, &pcie->buses, list) {
+		if (bus->nr == child->number) {
+			vunmap(bus->area->addr);
+			list_del(&bus->list);
+			kfree(bus);
+			break;
+		}
+	}
+}
+
+static void __iomem *tegra_pcie_map_bus(struct pci_bus *bus,
+					unsigned int devfn,
+					int where)
 {
 	struct tegra_pcie *pcie = sys_to_pcie(bus->sysdata);
 	void __iomem *addr = NULL;
@@ -466,7 +477,12 @@ static void __iomem *tegra_pcie_conf_address(struct pci_bus *bus,
 			}
 		}
 	} else {
-		addr = tegra_pcie_bus_map(pcie, bus->number);
+		struct tegra_pcie_bus *b;
+
+		list_for_each_entry(b, &pcie->buses, list)
+			if (b->nr == bus->number)
+				addr = (void __iomem *)b->area->addr;
+
 		if (!addr) {
 			dev_err(pcie->dev,
 				"failed to map cfg. space for bus %u\n",
@@ -481,7 +497,9 @@ static void __iomem *tegra_pcie_conf_address(struct pci_bus *bus,
 }
 
 static struct pci_ops tegra_pcie_ops = {
-	.map_bus = tegra_pcie_conf_address,
+	.add_bus = tegra_pcie_add_bus,
+	.remove_bus = tegra_pcie_remove_bus,
+	.map_bus = tegra_pcie_map_bus,
 	.read = pci_generic_config_read32,
 	.write = pci_generic_config_write32,
 };
@@ -598,6 +616,17 @@ static int tegra_pcie_setup(int nr, struct pci_sys_data *sys)
 	struct tegra_pcie *pcie = sys_to_pcie(sys);
 	int err;
 
+	sys->mem_offset = pcie->offset.mem;
+	sys->io_offset = pcie->offset.io;
+
+	err = devm_request_resource(pcie->dev, &pcie->all, &pcie->io);
+	if (err < 0)
+		return err;
+
+	err = devm_request_resource(pcie->dev, &ioport_resource, &pcie->pio);
+	if (err < 0)
+		return err;
+
 	err = devm_request_resource(pcie->dev, &pcie->all, &pcie->mem);
 	if (err < 0)
 		return err;
@@ -606,6 +635,7 @@ static int tegra_pcie_setup(int nr, struct pci_sys_data *sys)
 	if (err)
 		return err;
 
+	pci_add_resource_offset(&sys->resources, &pcie->pio, sys->io_offset);
 	pci_add_resource_offset(&sys->resources, &pcie->mem, sys->mem_offset);
 	pci_add_resource_offset(&sys->resources, &pcie->prefetch,
 				sys->mem_offset);
@@ -741,7 +771,7 @@ static void tegra_pcie_setup_translations(struct tegra_pcie *pcie)
 	afi_writel(pcie, 0, AFI_FPCI_BAR5);
 
 	/* map all upstream transactions as uncached */
-	afi_writel(pcie, PHYS_OFFSET, AFI_CACHE_BAR0_ST);
+	afi_writel(pcie, 0, AFI_CACHE_BAR0_ST);
 	afi_writel(pcie, 0, AFI_CACHE_BAR0_SZ);
 	afi_writel(pcie, 0, AFI_CACHE_BAR1_ST);
 	afi_writel(pcie, 0, AFI_CACHE_BAR1_SZ);
@@ -1601,6 +1631,9 @@ static int tegra_pcie_parse_dt(struct tegra_pcie *pcie)
 
 		switch (res.flags & IORESOURCE_TYPE_BITS) {
 		case IORESOURCE_IO:
+			/* Track the bus -> CPU I/O mapping offset. */
+			pcie->offset.io = res.start - range.pci_addr;
+
 			memcpy(&pcie->pio, &res, sizeof(res));
 			pcie->pio.name = np->full_name;
 
@@ -1621,6 +1654,14 @@ static int tegra_pcie_parse_dt(struct tegra_pcie *pcie)
 			break;
 
 		case IORESOURCE_MEM:
+			/*
+			 * Track the bus -> CPU memory mapping offset. This
+			 * assumes that the prefetchable and non-prefetchable
+			 * regions will be the last of type IORESOURCE_MEM in
+			 * the ranges property.
+			 * */
+			pcie->offset.mem = res.start - range.pci_addr;
+
 			if (res.flags & IORESOURCE_PREFETCH) {
 				memcpy(&pcie->prefetch, &res, sizeof(res));
 				pcie->prefetch.name = "prefetchable";

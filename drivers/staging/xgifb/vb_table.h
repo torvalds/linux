@@ -1140,7 +1140,6 @@ static const struct SiS_LVDSData XGI_LVDS1024x768Data_1[] = {
 	{1344, 806, 1344, 806}	/* 06 (512x384,1024x768) */
 };
 
-
 static const struct SiS_LVDSData XGI_LVDS1024x768Data_2[] = {
 	{1344, 806, 1344, 806},
 	{1344, 806, 1344, 806},
@@ -1227,7 +1226,6 @@ static const struct SiS_LVDSData XGI_LVDS1024x768Data_1x75[] = {
 	{1088, 632, 1312, 800}, /* 05 (400x300,800x600) */
 	{1312, 800, 1312, 800}, /* 06 (512x384,1024x768) */
 };
-
 
 static const struct SiS_LVDSData XGI_LVDS1024x768Data_2x75[] = {
 	{1312, 800, 1312, 800}, /* ; 00 (320x200,320x400,640x200,640x400) */
@@ -2313,7 +2311,6 @@ static const unsigned char TVAntiFlickList[] = {/* NTSCAntiFlicker */
 	0x04, /* ; 0 ? */
 	0x00  /* ; 1 new anti-flicker ? */
 };
-
 
 static const unsigned char TVEdgeList[] = {
 	0x00, /* ; 0 NTSC No Edge enhance */

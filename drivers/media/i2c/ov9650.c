@@ -1046,8 +1046,8 @@ static int ov965x_initialize_controls(struct ov965x *ov965x)
 	ctrls->exposure->flags |= V4L2_CTRL_FLAG_VOLATILE;
 
 	v4l2_ctrl_auto_cluster(3, &ctrls->auto_wb, 0, false);
-	v4l2_ctrl_auto_cluster(3, &ctrls->auto_gain, 0, true);
-	v4l2_ctrl_auto_cluster(3, &ctrls->auto_exp, 1, true);
+	v4l2_ctrl_auto_cluster(2, &ctrls->auto_gain, 0, true);
+	v4l2_ctrl_auto_cluster(2, &ctrls->auto_exp, 1, true);
 	v4l2_ctrl_cluster(2, &ctrls->hflip);
 
 	ov965x->sd.ctrl_handler = hdl;

@@ -200,7 +200,7 @@ typedef struct journal_block_tag_s
 	__be32		t_blocknr_high; /* most-significant high 32bits. */
 } journal_block_tag_t;
 
-/* Tail of descriptor block, for checksumming */
+/* Tail of descriptor or revoke block, for checksumming */
 struct jbd2_journal_block_tail {
 	__be32		t_checksum;	/* crc32c(uuid+descr_block) */
 };
@@ -214,11 +214,6 @@ typedef struct jbd2_journal_revoke_header_s
 	journal_header_t r_header;
 	__be32		 r_count;	/* Count of bytes used in the block */
 } jbd2_journal_revoke_header_t;
-
-/* Tail of revoke block, for checksumming */
-struct jbd2_journal_revoke_tail {
-	__be32		r_checksum;	/* crc32c(uuid+revoke_block) */
-};
 
 /* Definitions for the journal tag flags word: */
 #define JBD2_FLAG_ESCAPE		1	/* on-disk block is escaped */
@@ -1137,7 +1132,8 @@ static inline void jbd2_unfile_log_bh(struct buffer_head *bh)
 }
 
 /* Log buffer allocation */
-struct buffer_head *jbd2_journal_get_descriptor_buffer(journal_t *journal);
+struct buffer_head *jbd2_journal_get_descriptor_buffer(transaction_t *, int);
+void jbd2_descriptor_block_csum_set(journal_t *, struct buffer_head *);
 int jbd2_journal_next_log_block(journal_t *, unsigned long long *);
 int jbd2_journal_get_log_tail(journal_t *journal, tid_t *tid,
 			      unsigned long *block);
@@ -1327,10 +1323,8 @@ extern int	   jbd2_journal_init_revoke_caches(void);
 extern void	   jbd2_journal_destroy_revoke(journal_t *);
 extern int	   jbd2_journal_revoke (handle_t *, unsigned long long, struct buffer_head *);
 extern int	   jbd2_journal_cancel_revoke(handle_t *, struct journal_head *);
-extern void	   jbd2_journal_write_revoke_records(journal_t *journal,
-						     transaction_t *transaction,
-						     struct list_head *log_bufs,
-						     int write_op);
+extern void	   jbd2_journal_write_revoke_records(transaction_t *transaction,
+						     struct list_head *log_bufs);
 
 /* Recovery revoke support */
 extern int	jbd2_journal_set_revoke(journal_t *, unsigned long long, tid_t);

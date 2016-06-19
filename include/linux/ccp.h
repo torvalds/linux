@@ -33,6 +33,18 @@ struct ccp_cmd;
  */
 int ccp_present(void);
 
+#define	CCP_VSIZE 16
+#define	CCP_VMASK		((unsigned int)((1 << CCP_VSIZE) - 1))
+#define	CCP_VERSION(v, r)	((unsigned int)((v << CCP_VSIZE) \
+					       | (r & CCP_VMASK)))
+
+/**
+ * ccp_version - get the version of the CCP
+ *
+ * Returns a positive version number, or zero if no CCP
+ */
+unsigned int ccp_version(void);
+
 /**
  * ccp_enqueue_cmd - queue an operation for processing by the CCP
  *
@@ -63,6 +75,11 @@ int ccp_enqueue_cmd(struct ccp_cmd *cmd);
 static inline int ccp_present(void)
 {
 	return -ENODEV;
+}
+
+static inline unsigned int ccp_version(void)
+{
+	return 0;
 }
 
 static inline int ccp_enqueue_cmd(struct ccp_cmd *cmd)

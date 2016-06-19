@@ -11,9 +11,16 @@
 
 #include <linux/kernel.h>
 #include <linux/errno.h>
+#include <linux/string.h>
 #include <keys/system_keyring.h>
 #include <crypto/public_key.h>
 #include "module-internal.h"
+
+enum pkey_id_type {
+	PKEY_ID_PGP,		/* OpenPGP generated key ID */
+	PKEY_ID_X509,		/* X.509 arbitrary subjectKeyIdentifier */
+	PKEY_ID_PKCS7,		/* Signature in PKCS#7 message */
+};
 
 /*
  * Module signature information block.

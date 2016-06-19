@@ -24,6 +24,7 @@
  */
 
 #include <linux/linkage.h>
+#include <asm/frame.h>
 
 .file "cast5-avx-x86_64-asm_64.S"
 
@@ -365,6 +366,7 @@ ENTRY(cast5_ecb_enc_16way)
 	 *	%rsi: dst
 	 *	%rdx: src
 	 */
+	FRAME_BEGIN
 
 	movq %rsi, %r11;
 
@@ -388,6 +390,7 @@ ENTRY(cast5_ecb_enc_16way)
 	vmovdqu RR4, (6*4*4)(%r11);
 	vmovdqu RL4, (7*4*4)(%r11);
 
+	FRAME_END
 	ret;
 ENDPROC(cast5_ecb_enc_16way)
 
@@ -398,6 +401,7 @@ ENTRY(cast5_ecb_dec_16way)
 	 *	%rdx: src
 	 */
 
+	FRAME_BEGIN
 	movq %rsi, %r11;
 
 	vmovdqu (0*4*4)(%rdx), RL1;
@@ -420,6 +424,7 @@ ENTRY(cast5_ecb_dec_16way)
 	vmovdqu RR4, (6*4*4)(%r11);
 	vmovdqu RL4, (7*4*4)(%r11);
 
+	FRAME_END
 	ret;
 ENDPROC(cast5_ecb_dec_16way)
 
@@ -429,6 +434,7 @@ ENTRY(cast5_cbc_dec_16way)
 	 *	%rsi: dst
 	 *	%rdx: src
 	 */
+	FRAME_BEGIN
 
 	pushq %r12;
 
@@ -469,6 +475,7 @@ ENTRY(cast5_cbc_dec_16way)
 
 	popq %r12;
 
+	FRAME_END
 	ret;
 ENDPROC(cast5_cbc_dec_16way)
 
@@ -479,6 +486,7 @@ ENTRY(cast5_ctr_16way)
 	 *	%rdx: src
 	 *	%rcx: iv (big endian, 64bit)
 	 */
+	FRAME_BEGIN
 
 	pushq %r12;
 
@@ -542,5 +550,6 @@ ENTRY(cast5_ctr_16way)
 
 	popq %r12;
 
+	FRAME_END
 	ret;
 ENDPROC(cast5_ctr_16way)

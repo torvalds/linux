@@ -104,7 +104,7 @@ static int plain_unpack_bsd(struct lustre_msg *msg, int swabbed)
 		return -EPROTO;
 
 	bsd = lustre_msg_buf(msg, PLAIN_PACK_BULK_OFF, PLAIN_BSD_SIZE);
-	if (bsd == NULL) {
+	if (!bsd) {
 		CERROR("bulk sec desc has short size %d\n",
 		       lustre_msg_buflen(msg, PLAIN_PACK_BULK_OFF));
 		return -EPROTO;
@@ -227,7 +227,7 @@ int plain_ctx_verify(struct ptlrpc_cli_ctx *ctx, struct ptlrpc_request *req)
 	swabbed = ptlrpc_rep_need_swab(req);
 
 	phdr = lustre_msg_buf(msg, PLAIN_PACK_HDR_OFF, sizeof(*phdr));
-	if (phdr == NULL) {
+	if (!phdr) {
 		CERROR("missing plain header\n");
 		return -EPROTO;
 	}
@@ -264,7 +264,8 @@ int plain_ctx_verify(struct ptlrpc_cli_ctx *ctx, struct ptlrpc_request *req)
 		}
 	} else {
 		/* whether we sent with bulk or not, we expect the same
-		 * in reply, except for early reply */
+		 * in reply, except for early reply
+		 */
 		if (!req->rq_early &&
 		    !equi(req->rq_pack_bulk == 1,
 			  phdr->ph_flags & PLAIN_FL_BULK)) {
@@ -419,7 +420,7 @@ void plain_destroy_sec(struct ptlrpc_sec *sec)
 	LASSERT(sec->ps_import);
 	LASSERT(atomic_read(&sec->ps_refcount) == 0);
 	LASSERT(atomic_read(&sec->ps_nctx) == 0);
-	LASSERT(plsec->pls_ctx == NULL);
+	LASSERT(!plsec->pls_ctx);
 
 	class_import_put(sec->ps_import);
 
@@ -468,7 +469,7 @@ struct ptlrpc_sec *plain_create_sec(struct obd_import *imp,
 	/* install ctx immediately if this is a reverse sec */
 	if (svc_ctx) {
 		ctx = plain_sec_install_ctx(plsec);
-		if (ctx == NULL) {
+		if (!ctx) {
 			plain_destroy_sec(sec);
 			return NULL;
 		}
@@ -492,7 +493,7 @@ struct ptlrpc_cli_ctx *plain_lookup_ctx(struct ptlrpc_sec *sec,
 		atomic_inc(&ctx->cc_refcount);
 	read_unlock(&plsec->pls_lock);
 
-	if (unlikely(ctx == NULL))
+	if (unlikely(!ctx))
 		ctx = plain_sec_install_ctx(plsec);
 
 	return ctx;
@@ -665,7 +666,7 @@ int plain_enlarge_reqbuf(struct ptlrpc_sec *sec,
 		newbuf_size = size_roundup_power2(newbuf_size);
 
 		newbuf = libcfs_kvzalloc(newbuf_size, GFP_NOFS);
-		if (newbuf == NULL)
+		if (!newbuf)
 			return -ENOMEM;
 
 		/* Must lock this, so that otherwise unprotected change of
@@ -673,7 +674,8 @@ int plain_enlarge_reqbuf(struct ptlrpc_sec *sec,
 		 * imp_replay_list traversing threads. See LU-3333
 		 * This is a bandaid at best, we really need to deal with this
 		 * in request enlarging code before unpacking that's already
-		 * there */
+		 * there
+		 */
 		if (req->rq_import)
 			spin_lock(&req->rq_import->imp_lock);
 
@@ -732,7 +734,7 @@ int plain_accept(struct ptlrpc_request *req)
 	swabbed = ptlrpc_req_need_swab(req);
 
 	phdr = lustre_msg_buf(msg, PLAIN_PACK_HDR_OFF, sizeof(*phdr));
-	if (phdr == NULL) {
+	if (!phdr) {
 		CERROR("missing plain header\n");
 		return -EPROTO;
 	}
@@ -801,7 +803,7 @@ int plain_alloc_rs(struct ptlrpc_request *req, int msgsize)
 		LASSERT(rs->rs_size >= rs_size);
 	} else {
 		rs = libcfs_kvzalloc(rs_size, GFP_NOFS);
-		if (rs == NULL)
+		if (!rs)
 			return -ENOMEM;
 
 		rs->rs_size = rs_size;

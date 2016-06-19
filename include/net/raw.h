@@ -57,7 +57,7 @@ int raw_seq_open(struct inode *ino, struct file *file,
 
 #endif
 
-void raw_hash_sk(struct sock *sk);
+int raw_hash_sk(struct sock *sk);
 void raw_unhash_sk(struct sock *sk);
 
 struct raw_sock {

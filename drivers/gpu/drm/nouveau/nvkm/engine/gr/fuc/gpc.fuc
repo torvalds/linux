@@ -322,6 +322,7 @@ main:
 
 // interrupt handler
 ih:
+	push $r0
 	push $r8
 	mov $r8 $flags
 	push $r8
@@ -358,6 +359,7 @@ ih:
 	pop $r8
 	mov $flags $r8
 	pop $r8
+	pop $r0
 	bclr $flags $p0
 	iret
 

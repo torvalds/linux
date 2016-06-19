@@ -104,6 +104,7 @@ static void genpd_sd_counter_inc(struct generic_pm_domain *genpd)
 
 static int genpd_power_on(struct generic_pm_domain *genpd, bool timed)
 {
+	unsigned int state_idx = genpd->state_idx;
 	ktime_t time_start;
 	s64 elapsed_ns;
 	int ret;
@@ -120,10 +121,10 @@ static int genpd_power_on(struct generic_pm_domain *genpd, bool timed)
 		return ret;
 
 	elapsed_ns = ktime_to_ns(ktime_sub(ktime_get(), time_start));
-	if (elapsed_ns <= genpd->power_on_latency_ns)
+	if (elapsed_ns <= genpd->states[state_idx].power_on_latency_ns)
 		return ret;
 
-	genpd->power_on_latency_ns = elapsed_ns;
+	genpd->states[state_idx].power_on_latency_ns = elapsed_ns;
 	genpd->max_off_time_changed = true;
 	pr_debug("%s: Power-%s latency exceeded, new value %lld ns\n",
 		 genpd->name, "on", elapsed_ns);
@@ -133,6 +134,7 @@ static int genpd_power_on(struct generic_pm_domain *genpd, bool timed)
 
 static int genpd_power_off(struct generic_pm_domain *genpd, bool timed)
 {
+	unsigned int state_idx = genpd->state_idx;
 	ktime_t time_start;
 	s64 elapsed_ns;
 	int ret;
@@ -149,10 +151,10 @@ static int genpd_power_off(struct generic_pm_domain *genpd, bool timed)
 		return ret;
 
 	elapsed_ns = ktime_to_ns(ktime_sub(ktime_get(), time_start));
-	if (elapsed_ns <= genpd->power_off_latency_ns)
+	if (elapsed_ns <= genpd->states[state_idx].power_off_latency_ns)
 		return ret;
 
-	genpd->power_off_latency_ns = elapsed_ns;
+	genpd->states[state_idx].power_off_latency_ns = elapsed_ns;
 	genpd->max_off_time_changed = true;
 	pr_debug("%s: Power-%s latency exceeded, new value %lld ns\n",
 		 genpd->name, "off", elapsed_ns);
@@ -485,8 +487,13 @@ static int pm_genpd_runtime_resume(struct device *dev)
 	if (timed && runtime_pm)
 		time_start = ktime_get();
 
-	genpd_start_dev(genpd, dev);
-	genpd_restore_dev(genpd, dev);
+	ret = genpd_start_dev(genpd, dev);
+	if (ret)
+		goto err_poweroff;
+
+	ret = genpd_restore_dev(genpd, dev);
+	if (ret)
+		goto err_stop;
 
 	/* Update resume latency value if the measured time exceeds it. */
 	if (timed && runtime_pm) {
@@ -501,6 +508,17 @@ static int pm_genpd_runtime_resume(struct device *dev)
 	}
 
 	return 0;
+
+err_stop:
+	genpd_stop_dev(genpd, dev);
+err_poweroff:
+	if (!dev->power.irq_safe) {
+		mutex_lock(&genpd->lock);
+		genpd_poweroff(genpd, 0);
+		mutex_unlock(&genpd->lock);
+	}
+
+	return ret;
 }
 
 static bool pd_ignore_unused;
@@ -585,6 +603,8 @@ static void pm_genpd_sync_poweroff(struct generic_pm_domain *genpd,
 	    || atomic_read(&genpd->sd_count) > 0)
 		return;
 
+	/* Choose the deepest state when suspending */
+	genpd->state_idx = genpd->state_count - 1;
 	genpd_power_off(genpd, timed);
 
 	genpd->status = GPD_STATE_POWER_OFF;
@@ -1378,7 +1398,7 @@ int pm_genpd_remove_subdomain(struct generic_pm_domain *genpd,
 	mutex_lock(&subdomain->lock);
 	mutex_lock_nested(&genpd->lock, SINGLE_DEPTH_NESTING);
 
-	if (!list_empty(&subdomain->slave_links) || subdomain->device_count) {
+	if (!list_empty(&subdomain->master_links) || subdomain->device_count) {
 		pr_warn("%s: unable to remove subdomain %s\n", genpd->name,
 			subdomain->name);
 		ret = -EBUSY;
@@ -1507,6 +1527,20 @@ void pm_genpd_init(struct generic_pm_domain *genpd,
 		genpd->dev_ops.stop = pm_clk_suspend;
 		genpd->dev_ops.start = pm_clk_resume;
 	}
+
+	if (genpd->state_idx >= GENPD_MAX_NUM_STATES) {
+		pr_warn("Initial state index out of bounds.\n");
+		genpd->state_idx = GENPD_MAX_NUM_STATES - 1;
+	}
+
+	if (genpd->state_count > GENPD_MAX_NUM_STATES) {
+		pr_warn("Limiting states to  %d\n", GENPD_MAX_NUM_STATES);
+		genpd->state_count = GENPD_MAX_NUM_STATES;
+	}
+
+	/* Use only one "off" state if there were no states declared */
+	if (genpd->state_count == 0)
+		genpd->state_count = 1;
 
 	mutex_lock(&gpd_list_lock);
 	list_add(&genpd->gpd_list_node, &gpd_list);
@@ -1667,6 +1701,9 @@ struct generic_pm_domain *of_genpd_get_from_provider(
 {
 	struct generic_pm_domain *genpd = ERR_PTR(-ENOENT);
 	struct of_genpd_provider *provider;
+
+	if (!genpdspec)
+		return ERR_PTR(-EINVAL);
 
 	mutex_lock(&of_genpd_mutex);
 
@@ -1864,6 +1901,7 @@ static int pm_genpd_summary_one(struct seq_file *s,
 	struct pm_domain_data *pm_data;
 	const char *kobj_path;
 	struct gpd_link *link;
+	char state[16];
 	int ret;
 
 	ret = mutex_lock_interruptible(&genpd->lock);
@@ -1872,7 +1910,13 @@ static int pm_genpd_summary_one(struct seq_file *s,
 
 	if (WARN_ON(genpd->status >= ARRAY_SIZE(status_lookup)))
 		goto exit;
-	seq_printf(s, "%-30s  %-15s ", genpd->name, status_lookup[genpd->status]);
+	if (genpd->status == GPD_STATE_POWER_OFF)
+		snprintf(state, sizeof(state), "%s-%u",
+			 status_lookup[genpd->status], genpd->state_idx);
+	else
+		snprintf(state, sizeof(state), "%s",
+			 status_lookup[genpd->status]);
+	seq_printf(s, "%-30s  %-15s ", genpd->name, state);
 
 	/*
 	 * Modifications on the list require holding locks on both

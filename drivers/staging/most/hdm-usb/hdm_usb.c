@@ -40,7 +40,6 @@
 #define MAX_SUFFIX_LEN		10
 #define MAX_STRING_LEN		80
 #define MAX_BUF_SIZE		0xFFFF
-#define CEILING(x, y)		(((x) + (y) - 1) / (y))
 
 #define USB_VENDOR_ID_SMSC	0x0424  /* VID: SMSC */
 #define USB_DEV_ID_BRDG		0xC001  /* PID: USB Bridge */
@@ -137,7 +136,6 @@ struct most_dev {
 #define to_mdev(d) container_of(d, struct most_dev, iface)
 #define to_mdev_from_work(w) container_of(w, struct most_dev, poll_work_obj)
 
-static struct workqueue_struct *schedule_usb_work;
 static void wq_clear_halt(struct work_struct *wq_obj);
 static void wq_netinfo(struct work_struct *wq_obj);
 
@@ -223,6 +221,7 @@ static void free_anchored_buffers(struct most_dev *mdev, unsigned int channel)
 		}
 		spin_lock_irqsave(&mdev->anchor_list_lock[channel], flags);
 		list_del(&anchor->list);
+		cancel_work_sync(&anchor->clear_work_obj);
 		kfree(anchor);
 	}
 	spin_unlock_irqrestore(&mdev->anchor_list_lock[channel], flags);
@@ -411,7 +410,7 @@ static void hdm_write_completion(struct urb *urb)
 			mbo->status = MBO_E_INVAL;
 			usb_unlink_urb(urb);
 			INIT_WORK(&anchor->clear_work_obj, wq_clear_halt);
-			queue_work(schedule_usb_work, &anchor->clear_work_obj);
+			schedule_work(&anchor->clear_work_obj);
 			return;
 		case -ENODEV:
 		case -EPROTO:
@@ -575,7 +574,7 @@ static void hdm_read_completion(struct urb *urb)
 			mbo->status = MBO_E_INVAL;
 			usb_unlink_urb(urb);
 			INIT_WORK(&anchor->clear_work_obj, wq_clear_halt);
-			queue_work(schedule_usb_work, &anchor->clear_work_obj);
+			schedule_work(&anchor->clear_work_obj);
 			return;
 		case -ENODEV:
 		case -EPROTO:
@@ -785,7 +784,7 @@ static int hdm_configure_channel(struct most_interface *iface, int channel,
 	temp_size += tail_space;
 
 	/* calculate extra length to comply w/ HW padding */
-	conf->extra_len = (CEILING(temp_size, USB_MTU) * USB_MTU)
+	conf->extra_len = (DIV_ROUND_UP(temp_size, USB_MTU) * USB_MTU)
 			  - conf->buffer_size;
 exit:
 	mdev->conf[channel] = *conf;
@@ -872,7 +871,7 @@ static void link_stat_timer_handler(unsigned long data)
 {
 	struct most_dev *mdev = (struct most_dev *)data;
 
-	queue_work(schedule_usb_work, &mdev->poll_work_obj);
+	schedule_work(&mdev->poll_work_obj);
 	mdev->link_stat_timer.expires = jiffies + (2 * HZ);
 	add_timer(&mdev->link_stat_timer);
 }
@@ -1299,7 +1298,7 @@ hdm_probe(struct usb_interface *interface, const struct usb_device_id *id)
 		tmp_cap->num_buffers_streaming = BUF_CHAIN_SIZE;
 		tmp_cap->data_type = MOST_CH_CONTROL | MOST_CH_ASYNC |
 				     MOST_CH_ISOC_AVP | MOST_CH_SYNC;
-		if (ep_desc->bEndpointAddress & USB_DIR_IN)
+		if (usb_endpoint_dir_in(ep_desc))
 			tmp_cap->direction = MOST_CH_RX;
 		else
 			tmp_cap->direction = MOST_CH_TX;
@@ -1415,19 +1414,13 @@ static int __init hdm_usb_init(void)
 		pr_err("could not register hdm_usb driver\n");
 		return -EIO;
 	}
-	schedule_usb_work = create_workqueue("hdmu_work");
-	if (!schedule_usb_work) {
-		pr_err("could not create workqueue\n");
-		usb_deregister(&hdm_usb);
-		return -ENOMEM;
-	}
+
 	return 0;
 }
 
 static void __exit hdm_usb_exit(void)
 {
 	pr_info("hdm_usb_exit()\n");
-	destroy_workqueue(schedule_usb_work);
 	usb_deregister(&hdm_usb);
 }
 

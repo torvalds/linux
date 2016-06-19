@@ -107,7 +107,7 @@ struct ldlm_bl_work_item {
 	struct list_head	      blwi_head;
 	int		     blwi_count;
 	struct completion	blwi_comp;
-	ldlm_cancel_flags_t     blwi_flags;
+	enum ldlm_cancel_flags  blwi_flags;
 	int		     blwi_mem_pressure;
 };
 
@@ -136,7 +136,7 @@ void ldlm_handle_bl_callback(struct ldlm_namespace *ns,
 		CDEBUG(D_DLMTRACE,
 		       "Lock %p already unused, calling callback (%p)\n", lock,
 		       lock->l_blocking_ast);
-		if (lock->l_blocking_ast != NULL)
+		if (lock->l_blocking_ast)
 			lock->l_blocking_ast(lock, ld, lock->l_ast_data,
 					     LDLM_CB_BLOCKING);
 	} else {
@@ -185,7 +185,7 @@ static void ldlm_handle_cp_callback(struct ptlrpc_request *req,
 	} else if (lvb_len > 0) {
 		if (lock->l_lvb_len > 0) {
 			/* for extent lock, lvb contains ost_lvb{}. */
-			LASSERT(lock->l_lvb_data != NULL);
+			LASSERT(lock->l_lvb_data);
 
 			if (unlikely(lock->l_lvb_len < lvb_len)) {
 				LDLM_ERROR(lock, "Replied LVB is larger than expectation, expected = %d, replied = %d",
@@ -194,7 +194,8 @@ static void ldlm_handle_cp_callback(struct ptlrpc_request *req,
 				goto out;
 			}
 		} else if (ldlm_has_layout(lock)) { /* for layout lock, lvb has
-						     * variable length */
+						     * variable length
+						     */
 			void *lvb_data;
 
 			lvb_data = kzalloc(lvb_len, GFP_NOFS);
@@ -205,7 +206,7 @@ static void ldlm_handle_cp_callback(struct ptlrpc_request *req,
 			}
 
 			lock_res_and_lock(lock);
-			LASSERT(lock->l_lvb_data == NULL);
+			LASSERT(!lock->l_lvb_data);
 			lock->l_lvb_type = LVB_T_LAYOUT;
 			lock->l_lvb_data = lvb_data;
 			lock->l_lvb_len = lvb_len;
@@ -224,7 +225,8 @@ static void ldlm_handle_cp_callback(struct ptlrpc_request *req,
 	}
 
 	/* If we receive the completion AST before the actual enqueue returned,
-	 * then we might need to switch lock modes, resources, or extents. */
+	 * then we might need to switch lock modes, resources, or extents.
+	 */
 	if (dlm_req->lock_desc.l_granted_mode != lock->l_req_mode) {
 		lock->l_req_mode = dlm_req->lock_desc.l_granted_mode;
 		LDLM_DEBUG(lock, "completion AST, new lock mode");
@@ -256,7 +258,8 @@ static void ldlm_handle_cp_callback(struct ptlrpc_request *req,
 
 	if (dlm_req->lock_flags & LDLM_FL_AST_SENT) {
 		/* BL_AST locks are not needed in LRU.
-		 * Let ldlm_cancel_lru() be fast. */
+		 * Let ldlm_cancel_lru() be fast.
+		 */
 		ldlm_lock_remove_from_lru(lock);
 		lock->l_flags |= LDLM_FL_CBPENDING | LDLM_FL_BL_AST;
 		LDLM_DEBUG(lock, "completion AST includes blocking AST");
@@ -276,8 +279,7 @@ static void ldlm_handle_cp_callback(struct ptlrpc_request *req,
 
 	LDLM_DEBUG(lock, "callback handler finished, about to run_ast_work");
 
-	/* Let Enqueue to call osc_lock_upcall() and initialize
-	 * l_ast_data */
+	/* Let Enqueue to call osc_lock_upcall() and initialize l_ast_data */
 	OBD_FAIL_TIMEOUT(OBD_FAIL_OSC_CP_ENQ_RACE, 2);
 
 	ldlm_run_ast_work(ns, &ast_list, LDLM_WORK_CP_AST);
@@ -312,10 +314,10 @@ static void ldlm_handle_gl_callback(struct ptlrpc_request *req,
 
 	LDLM_DEBUG(lock, "client glimpse AST callback handler");
 
-	if (lock->l_glimpse_ast != NULL)
+	if (lock->l_glimpse_ast)
 		rc = lock->l_glimpse_ast(lock, req);
 
-	if (req->rq_repmsg != NULL) {
+	if (req->rq_repmsg) {
 		ptlrpc_reply(req);
 	} else {
 		req->rq_status = rc;
@@ -353,7 +355,7 @@ static int ldlm_callback_reply(struct ptlrpc_request *req, int rc)
 }
 
 static int __ldlm_bl_to_thread(struct ldlm_bl_work_item *blwi,
-			       ldlm_cancel_flags_t cancel_flags)
+			       enum ldlm_cancel_flags cancel_flags)
 {
 	struct ldlm_bl_pool *blp = ldlm_state->ldlm_bl_pool;
 
@@ -371,7 +373,8 @@ static int __ldlm_bl_to_thread(struct ldlm_bl_work_item *blwi,
 	wake_up(&blp->blp_waitq);
 
 	/* can not check blwi->blwi_flags as blwi could be already freed in
-	   LCF_ASYNC mode */
+	 * LCF_ASYNC mode
+	 */
 	if (!(cancel_flags & LCF_ASYNC))
 		wait_for_completion(&blwi->blwi_comp);
 
@@ -383,7 +386,7 @@ static inline void init_blwi(struct ldlm_bl_work_item *blwi,
 			     struct ldlm_lock_desc *ld,
 			     struct list_head *cancels, int count,
 			     struct ldlm_lock *lock,
-			     ldlm_cancel_flags_t cancel_flags)
+			     enum ldlm_cancel_flags cancel_flags)
 {
 	init_completion(&blwi->blwi_comp);
 	INIT_LIST_HEAD(&blwi->blwi_head);
@@ -393,7 +396,7 @@ static inline void init_blwi(struct ldlm_bl_work_item *blwi,
 
 	blwi->blwi_ns = ns;
 	blwi->blwi_flags = cancel_flags;
-	if (ld != NULL)
+	if (ld)
 		blwi->blwi_ld = *ld;
 	if (count) {
 		list_add(&blwi->blwi_head, cancels);
@@ -417,7 +420,7 @@ static int ldlm_bl_to_thread(struct ldlm_namespace *ns,
 			     struct ldlm_lock_desc *ld,
 			     struct ldlm_lock *lock,
 			     struct list_head *cancels, int count,
-			     ldlm_cancel_flags_t cancel_flags)
+			     enum ldlm_cancel_flags cancel_flags)
 {
 	if (cancels && count == 0)
 		return 0;
@@ -451,7 +454,7 @@ int ldlm_bl_to_thread_lock(struct ldlm_namespace *ns, struct ldlm_lock_desc *ld,
 
 int ldlm_bl_to_thread_list(struct ldlm_namespace *ns, struct ldlm_lock_desc *ld,
 			   struct list_head *cancels, int count,
-			   ldlm_cancel_flags_t cancel_flags)
+			   enum ldlm_cancel_flags cancel_flags)
 {
 	return ldlm_bl_to_thread(ns, ld, NULL, cancels, count, cancel_flags);
 }
@@ -470,14 +473,14 @@ static int ldlm_handle_setinfo(struct ptlrpc_request *req)
 	req_capsule_set(&req->rq_pill, &RQF_OBD_SET_INFO);
 
 	key = req_capsule_client_get(&req->rq_pill, &RMF_SETINFO_KEY);
-	if (key == NULL) {
+	if (!key) {
 		DEBUG_REQ(D_IOCTL, req, "no set_info key");
 		return -EFAULT;
 	}
 	keylen = req_capsule_get_size(&req->rq_pill, &RMF_SETINFO_KEY,
 				      RCL_CLIENT);
 	val = req_capsule_client_get(&req->rq_pill, &RMF_SETINFO_VAL);
-	if (val == NULL) {
+	if (!val) {
 		DEBUG_REQ(D_IOCTL, req, "no set_info val");
 		return -EFAULT;
 	}
@@ -519,7 +522,7 @@ static int ldlm_handle_qc_callback(struct ptlrpc_request *req)
 	struct client_obd *cli = &req->rq_export->exp_obd->u.cli;
 
 	oqctl = req_capsule_client_get(&req->rq_pill, &RMF_OBD_QUOTACTL);
-	if (oqctl == NULL) {
+	if (!oqctl) {
 		CERROR("Can't unpack obd_quotactl\n");
 		return -EPROTO;
 	}
@@ -541,7 +544,8 @@ static int ldlm_callback_handler(struct ptlrpc_request *req)
 	/* Requests arrive in sender's byte order.  The ptlrpc service
 	 * handler has already checked and, if necessary, byte-swapped the
 	 * incoming request message body, but I am responsible for the
-	 * message buffers. */
+	 * message buffers.
+	 */
 
 	/* do nothing for sec context finalize */
 	if (lustre_msg_get_opc(req->rq_reqmsg) == SEC_CTX_FINI)
@@ -549,15 +553,14 @@ static int ldlm_callback_handler(struct ptlrpc_request *req)
 
 	req_capsule_init(&req->rq_pill, req, RCL_SERVER);
 
-	if (req->rq_export == NULL) {
+	if (!req->rq_export) {
 		rc = ldlm_callback_reply(req, -ENOTCONN);
 		ldlm_callback_errmsg(req, "Operate on unconnected server",
 				     rc, NULL);
 		return 0;
 	}
 
-	LASSERT(req->rq_export != NULL);
-	LASSERT(req->rq_export->exp_obd != NULL);
+	LASSERT(req->rq_export->exp_obd);
 
 	switch (lustre_msg_get_opc(req->rq_reqmsg)) {
 	case LDLM_BL_CALLBACK:
@@ -591,12 +594,12 @@ static int ldlm_callback_handler(struct ptlrpc_request *req)
 	}
 
 	ns = req->rq_export->exp_obd->obd_namespace;
-	LASSERT(ns != NULL);
+	LASSERT(ns);
 
 	req_capsule_set(&req->rq_pill, &RQF_LDLM_CALLBACK);
 
 	dlm_req = req_capsule_client_get(&req->rq_pill, &RMF_DLM_REQ);
-	if (dlm_req == NULL) {
+	if (!dlm_req) {
 		rc = ldlm_callback_reply(req, -EPROTO);
 		ldlm_callback_errmsg(req, "Operate without parameter", rc,
 				     NULL);
@@ -604,7 +607,8 @@ static int ldlm_callback_handler(struct ptlrpc_request *req)
 	}
 
 	/* Force a known safe race, send a cancel to the server for a lock
-	 * which the server has already started a blocking callback on. */
+	 * which the server has already started a blocking callback on.
+	 */
 	if (OBD_FAIL_CHECK(OBD_FAIL_LDLM_CANCEL_BL_CB_RACE) &&
 	    lustre_msg_get_opc(req->rq_reqmsg) == LDLM_BL_CALLBACK) {
 		rc = ldlm_cli_cancel(&dlm_req->lock_handle[0], 0);
@@ -634,7 +638,8 @@ static int ldlm_callback_handler(struct ptlrpc_request *req)
 		/* If somebody cancels lock and cache is already dropped,
 		 * or lock is failed before cp_ast received on client,
 		 * we can tell the server we have no lock. Otherwise, we
-		 * should send cancel after dropping the cache. */
+		 * should send cancel after dropping the cache.
+		 */
 		if (((lock->l_flags & LDLM_FL_CANCELING) &&
 		    (lock->l_flags & LDLM_FL_BL_DONE)) ||
 		    (lock->l_flags & LDLM_FL_FAILED)) {
@@ -648,7 +653,8 @@ static int ldlm_callback_handler(struct ptlrpc_request *req)
 			return 0;
 		}
 		/* BL_AST locks are not needed in LRU.
-		 * Let ldlm_cancel_lru() be fast. */
+		 * Let ldlm_cancel_lru() be fast.
+		 */
 		ldlm_lock_remove_from_lru(lock);
 		lock->l_flags |= LDLM_FL_BL_AST;
 	}
@@ -661,7 +667,8 @@ static int ldlm_callback_handler(struct ptlrpc_request *req)
 	 * But we'd also like to be able to indicate in the reply that we're
 	 * cancelling right now, because it's unused, or have an intent result
 	 * in the reply, so we might have to push the responsibility for sending
-	 * the reply down into the AST handlers, alas. */
+	 * the reply down into the AST handlers, alas.
+	 */
 
 	switch (lustre_msg_get_opc(req->rq_reqmsg)) {
 	case LDLM_BL_CALLBACK:
@@ -781,17 +788,17 @@ static int ldlm_bl_thread_main(void *arg)
 
 		blwi = ldlm_bl_get_work(blp);
 
-		if (blwi == NULL) {
+		if (!blwi) {
 			atomic_dec(&blp->blp_busy_threads);
 			l_wait_event_exclusive(blp->blp_waitq,
-					 (blwi = ldlm_bl_get_work(blp)) != NULL,
+					 (blwi = ldlm_bl_get_work(blp)),
 					 &lwi);
 			busy = atomic_inc_return(&blp->blp_busy_threads);
 		} else {
 			busy = atomic_read(&blp->blp_busy_threads);
 		}
 
-		if (blwi->blwi_ns == NULL)
+		if (!blwi->blwi_ns)
 			/* added by ldlm_cleanup() */
 			break;
 
@@ -810,7 +817,8 @@ static int ldlm_bl_thread_main(void *arg)
 			/* The special case when we cancel locks in LRU
 			 * asynchronously, we pass the list of locks here.
 			 * Thus locks are marked LDLM_FL_CANCELING, but NOT
-			 * canceled locally yet. */
+			 * canceled locally yet.
+			 */
 			count = ldlm_cli_cancel_list_local(&blwi->blwi_head,
 							   blwi->blwi_count,
 							   LCF_BL_AST);
@@ -915,7 +923,7 @@ static int ldlm_setup(void)
 	int rc = 0;
 	int i;
 
-	if (ldlm_state != NULL)
+	if (ldlm_state)
 		return -EALREADY;
 
 	ldlm_state = kzalloc(sizeof(*ldlm_state), GFP_NOFS);
@@ -1040,7 +1048,7 @@ static int ldlm_cleanup(void)
 
 	ldlm_pools_fini();
 
-	if (ldlm_state->ldlm_bl_pool != NULL) {
+	if (ldlm_state->ldlm_bl_pool) {
 		struct ldlm_bl_pool *blp = ldlm_state->ldlm_bl_pool;
 
 		while (atomic_read(&blp->blp_num_threads) > 0) {
@@ -1059,7 +1067,7 @@ static int ldlm_cleanup(void)
 		kfree(blp);
 	}
 
-	if (ldlm_state->ldlm_cb_service != NULL)
+	if (ldlm_state->ldlm_cb_service)
 		ptlrpc_unregister_service(ldlm_state->ldlm_cb_service);
 
 	if (ldlm_ns_kset)
@@ -1085,13 +1093,13 @@ int ldlm_init(void)
 	ldlm_resource_slab = kmem_cache_create("ldlm_resources",
 					       sizeof(struct ldlm_resource), 0,
 					       SLAB_HWCACHE_ALIGN, NULL);
-	if (ldlm_resource_slab == NULL)
+	if (!ldlm_resource_slab)
 		return -ENOMEM;
 
 	ldlm_lock_slab = kmem_cache_create("ldlm_locks",
 			      sizeof(struct ldlm_lock), 0,
 			      SLAB_HWCACHE_ALIGN | SLAB_DESTROY_BY_RCU, NULL);
-	if (ldlm_lock_slab == NULL) {
+	if (!ldlm_lock_slab) {
 		kmem_cache_destroy(ldlm_resource_slab);
 		return -ENOMEM;
 	}
@@ -1099,7 +1107,7 @@ int ldlm_init(void)
 	ldlm_interval_slab = kmem_cache_create("interval_node",
 					sizeof(struct ldlm_interval),
 					0, SLAB_HWCACHE_ALIGN, NULL);
-	if (ldlm_interval_slab == NULL) {
+	if (!ldlm_interval_slab) {
 		kmem_cache_destroy(ldlm_resource_slab);
 		kmem_cache_destroy(ldlm_lock_slab);
 		return -ENOMEM;
@@ -1117,7 +1125,8 @@ void ldlm_exit(void)
 	kmem_cache_destroy(ldlm_resource_slab);
 	/* ldlm_lock_put() use RCU to call ldlm_lock_free, so need call
 	 * synchronize_rcu() to wait a grace period elapsed, so that
-	 * ldlm_lock_free() get a chance to be called. */
+	 * ldlm_lock_free() get a chance to be called.
+	 */
 	synchronize_rcu();
 	kmem_cache_destroy(ldlm_lock_slab);
 	kmem_cache_destroy(ldlm_interval_slab);

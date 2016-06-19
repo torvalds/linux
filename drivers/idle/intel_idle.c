@@ -65,7 +65,7 @@
 #include <asm/mwait.h>
 #include <asm/msr.h>
 
-#define INTEL_IDLE_VERSION "0.4"
+#define INTEL_IDLE_VERSION "0.4.1"
 #define PREFIX "intel_idle: "
 
 static struct cpuidle_driver intel_idle_driver = {
@@ -660,6 +660,35 @@ static struct cpuidle_state skl_cstates[] = {
 		.enter = NULL }
 };
 
+static struct cpuidle_state skx_cstates[] = {
+	{
+		.name = "C1-SKX",
+		.desc = "MWAIT 0x00",
+		.flags = MWAIT2flg(0x00),
+		.exit_latency = 2,
+		.target_residency = 2,
+		.enter = &intel_idle,
+		.enter_freeze = intel_idle_freeze, },
+	{
+		.name = "C1E-SKX",
+		.desc = "MWAIT 0x01",
+		.flags = MWAIT2flg(0x01),
+		.exit_latency = 10,
+		.target_residency = 20,
+		.enter = &intel_idle,
+		.enter_freeze = intel_idle_freeze, },
+	{
+		.name = "C6-SKX",
+		.desc = "MWAIT 0x20",
+		.flags = MWAIT2flg(0x20) | CPUIDLE_FLAG_TLB_FLUSHED,
+		.exit_latency = 133,
+		.target_residency = 600,
+		.enter = &intel_idle,
+		.enter_freeze = intel_idle_freeze, },
+	{
+		.enter = NULL }
+};
+
 static struct cpuidle_state atom_cstates[] = {
 	{
 		.name = "C1E-ATM",
@@ -713,6 +742,26 @@ static struct cpuidle_state avn_cstates[] = {
 		.target_residency = 45,
 		.enter = &intel_idle,
 		.enter_freeze = intel_idle_freeze, },
+	{
+		.enter = NULL }
+};
+static struct cpuidle_state knl_cstates[] = {
+	{
+		.name = "C1-KNL",
+		.desc = "MWAIT 0x00",
+		.flags = MWAIT2flg(0x00),
+		.exit_latency = 1,
+		.target_residency = 2,
+		.enter = &intel_idle,
+		.enter_freeze = intel_idle_freeze },
+	{
+		.name = "C6-KNL",
+		.desc = "MWAIT 0x10",
+		.flags = MWAIT2flg(0x10) | CPUIDLE_FLAG_TLB_FLUSHED,
+		.exit_latency = 120,
+		.target_residency = 500,
+		.enter = &intel_idle,
+		.enter_freeze = intel_idle_freeze },
 	{
 		.enter = NULL }
 };
@@ -798,8 +847,11 @@ static int cpu_hotplug_notify(struct notifier_block *n,
 		 * driver in this case
 		 */
 		dev = per_cpu_ptr(intel_idle_cpuidle_devices, hotcpu);
-		if (!dev->registered)
-			intel_idle_cpu_init(hotcpu);
+		if (dev->registered)
+			break;
+
+		if (intel_idle_cpu_init(hotcpu))
+			return NOTIFY_BAD;
 
 		break;
 	}
@@ -884,10 +936,18 @@ static const struct idle_cpu idle_cpu_skl = {
 	.disable_promotion_to_c1e = true,
 };
 
+static const struct idle_cpu idle_cpu_skx = {
+	.state_table = skx_cstates,
+	.disable_promotion_to_c1e = true,
+};
 
 static const struct idle_cpu idle_cpu_avn = {
 	.state_table = avn_cstates,
 	.disable_promotion_to_c1e = true,
+};
+
+static const struct idle_cpu idle_cpu_knl = {
+	.state_table = knl_cstates,
 };
 
 #define ICPU(model, cpu) \
@@ -921,6 +981,10 @@ static const struct x86_cpu_id intel_idle_ids[] __initconst = {
 	ICPU(0x56, idle_cpu_bdw),
 	ICPU(0x4e, idle_cpu_skl),
 	ICPU(0x5e, idle_cpu_skl),
+	ICPU(0x8e, idle_cpu_skl),
+	ICPU(0x9e, idle_cpu_skl),
+	ICPU(0x55, idle_cpu_skx),
+	ICPU(0x57, idle_cpu_knl),
 	{}
 };
 MODULE_DEVICE_TABLE(x86cpu, intel_idle_ids);
@@ -962,22 +1026,15 @@ static int __init intel_idle_probe(void)
 	icpu = (const struct idle_cpu *)id->driver_data;
 	cpuidle_state_table = icpu->state_table;
 
-	if (boot_cpu_has(X86_FEATURE_ARAT))	/* Always Reliable APIC Timer */
-		lapic_timer_reliable_states = LAPIC_TIMER_ALWAYS_RELIABLE;
-	else
-		on_each_cpu(__setup_broadcast_timer, (void *)true, 1);
-
 	pr_debug(PREFIX "v" INTEL_IDLE_VERSION
 		" model 0x%X\n", boot_cpu_data.x86_model);
 
-	pr_debug(PREFIX "lapic_timer_reliable_states 0x%x\n",
-		lapic_timer_reliable_states);
 	return 0;
 }
 
 /*
  * intel_idle_cpuidle_devices_uninit()
- * unregister, free cpuidle_devices
+ * Unregisters the cpuidle devices.
  */
 static void intel_idle_cpuidle_devices_uninit(void)
 {
@@ -988,49 +1045,102 @@ static void intel_idle_cpuidle_devices_uninit(void)
 		dev = per_cpu_ptr(intel_idle_cpuidle_devices, i);
 		cpuidle_unregister_device(dev);
 	}
-
-	free_percpu(intel_idle_cpuidle_devices);
-	return;
 }
 
+/*
+ * ivt_idle_state_table_update(void)
+ *
+ * Tune IVT multi-socket targets
+ * Assumption: num_sockets == (max_package_num + 1)
+ */
+static void ivt_idle_state_table_update(void)
+{
+	/* IVT uses a different table for 1-2, 3-4, and > 4 sockets */
+	int cpu, package_num, num_sockets = 1;
+
+	for_each_online_cpu(cpu) {
+		package_num = topology_physical_package_id(cpu);
+		if (package_num + 1 > num_sockets) {
+			num_sockets = package_num + 1;
+
+			if (num_sockets > 4) {
+				cpuidle_state_table = ivt_cstates_8s;
+				return;
+			}
+		}
+	}
+
+	if (num_sockets > 2)
+		cpuidle_state_table = ivt_cstates_4s;
+
+	/* else, 1 and 2 socket systems use default ivt_cstates */
+}
+/*
+ * sklh_idle_state_table_update(void)
+ *
+ * On SKL-H (model 0x5e) disable C8 and C9 if:
+ * C10 is enabled and SGX disabled
+ */
+static void sklh_idle_state_table_update(void)
+{
+	unsigned long long msr;
+	unsigned int eax, ebx, ecx, edx;
+
+
+	/* if PC10 disabled via cmdline intel_idle.max_cstate=7 or shallower */
+	if (max_cstate <= 7)
+		return;
+
+	/* if PC10 not present in CPUID.MWAIT.EDX */
+	if ((mwait_substates & (0xF << 28)) == 0)
+		return;
+
+	rdmsrl(MSR_NHM_SNB_PKG_CST_CFG_CTL, msr);
+
+	/* PC10 is not enabled in PKG C-state limit */
+	if ((msr & 0xF) != 8)
+		return;
+
+	ecx = 0;
+	cpuid(7, &eax, &ebx, &ecx, &edx);
+
+	/* if SGX is present */
+	if (ebx & (1 << 2)) {
+
+		rdmsrl(MSR_IA32_FEATURE_CONTROL, msr);
+
+		/* if SGX is enabled */
+		if (msr & (1 << 18))
+			return;
+	}
+
+	skl_cstates[5].disabled = 1;	/* C8-SKL */
+	skl_cstates[6].disabled = 1;	/* C9-SKL */
+}
 /*
  * intel_idle_state_table_update()
  *
  * Update the default state_table for this CPU-id
- *
- * Currently used to access tuned IVT multi-socket targets
- * Assumption: num_sockets == (max_package_num + 1)
  */
-void intel_idle_state_table_update(void)
+
+static void intel_idle_state_table_update(void)
 {
-	/* IVT uses a different table for 1-2, 3-4, and > 4 sockets */
-	if (boot_cpu_data.x86_model == 0x3e) { /* IVT */
-		int cpu, package_num, num_sockets = 1;
+	switch (boot_cpu_data.x86_model) {
 
-		for_each_online_cpu(cpu) {
-			package_num = topology_physical_package_id(cpu);
-			if (package_num + 1 > num_sockets) {
-				num_sockets = package_num + 1;
-
-				if (num_sockets > 4) {
-					cpuidle_state_table = ivt_cstates_8s;
-					return;
-				}
-			}
-		}
-
-		if (num_sockets > 2)
-			cpuidle_state_table = ivt_cstates_4s;
-		/* else, 1 and 2 socket systems use default ivt_cstates */
+	case 0x3e: /* IVT */
+		ivt_idle_state_table_update();
+		break;
+	case 0x5e: /* SKL-H */
+		sklh_idle_state_table_update();
+		break;
 	}
-	return;
 }
 
 /*
  * intel_idle_cpuidle_driver_init()
  * allocate, initialize cpuidle_states
  */
-static int __init intel_idle_cpuidle_driver_init(void)
+static void __init intel_idle_cpuidle_driver_init(void)
 {
 	int cstate;
 	struct cpuidle_driver *drv = &intel_idle_driver;
@@ -1063,6 +1173,14 @@ static int __init intel_idle_cpuidle_driver_init(void)
 		if (num_substates == 0)
 			continue;
 
+		/* if state marked as disabled, skip it */
+		if (cpuidle_state_table[cstate].disabled != 0) {
+			pr_debug(PREFIX "state %s is disabled",
+				cpuidle_state_table[cstate].name);
+			continue;
+		}
+
+
 		if (((mwait_cstate + 1) > 2) &&
 			!boot_cpu_has(X86_FEATURE_NONSTOP_TSC))
 			mark_tsc_unstable("TSC halts in idle"
@@ -1074,18 +1192,10 @@ static int __init intel_idle_cpuidle_driver_init(void)
 		drv->state_count += 1;
 	}
 
-	if (icpu->auto_demotion_disable_flags)
-		on_each_cpu(auto_demotion_disable, NULL, 1);
-
 	if (icpu->byt_auto_demotion_disable_flag) {
 		wrmsrl(MSR_CC6_DEMOTION_POLICY_CONFIG, 0);
 		wrmsrl(MSR_MC6_DEMOTION_POLICY_CONFIG, 0);
 	}
-
-	if (icpu->disable_promotion_to_c1e)	/* each-cpu is redundant */
-		on_each_cpu(c1e_promotion_disable, NULL, 1);
-
-	return 0;
 }
 
 
@@ -1104,7 +1214,6 @@ static int intel_idle_cpu_init(int cpu)
 
 	if (cpuidle_register_device(dev)) {
 		pr_debug(PREFIX "cpuidle_register_device %d failed!\n", cpu);
-		intel_idle_cpuidle_devices_uninit();
 		return -EIO;
 	}
 
@@ -1129,40 +1238,51 @@ static int __init intel_idle_init(void)
 	if (retval)
 		return retval;
 
+	intel_idle_cpuidle_devices = alloc_percpu(struct cpuidle_device);
+	if (intel_idle_cpuidle_devices == NULL)
+		return -ENOMEM;
+
 	intel_idle_cpuidle_driver_init();
 	retval = cpuidle_register_driver(&intel_idle_driver);
 	if (retval) {
 		struct cpuidle_driver *drv = cpuidle_get_driver();
 		printk(KERN_DEBUG PREFIX "intel_idle yielding to %s",
 			drv ? drv->name : "none");
+		free_percpu(intel_idle_cpuidle_devices);
 		return retval;
 	}
-
-	intel_idle_cpuidle_devices = alloc_percpu(struct cpuidle_device);
-	if (intel_idle_cpuidle_devices == NULL)
-		return -ENOMEM;
 
 	cpu_notifier_register_begin();
 
 	for_each_online_cpu(i) {
 		retval = intel_idle_cpu_init(i);
 		if (retval) {
+			intel_idle_cpuidle_devices_uninit();
 			cpu_notifier_register_done();
 			cpuidle_unregister_driver(&intel_idle_driver);
+			free_percpu(intel_idle_cpuidle_devices);
 			return retval;
 		}
 	}
 	__register_cpu_notifier(&cpu_hotplug_notifier);
 
+	if (boot_cpu_has(X86_FEATURE_ARAT))	/* Always Reliable APIC Timer */
+		lapic_timer_reliable_states = LAPIC_TIMER_ALWAYS_RELIABLE;
+	else
+		on_each_cpu(__setup_broadcast_timer, (void *)true, 1);
+
 	cpu_notifier_register_done();
+
+	pr_debug(PREFIX "lapic_timer_reliable_states 0x%x\n",
+		lapic_timer_reliable_states);
 
 	return 0;
 }
 
 static void __exit intel_idle_exit(void)
 {
-	intel_idle_cpuidle_devices_uninit();
-	cpuidle_unregister_driver(&intel_idle_driver);
+	struct cpuidle_device *dev;
+	int i;
 
 	cpu_notifier_register_begin();
 
@@ -1170,9 +1290,15 @@ static void __exit intel_idle_exit(void)
 		on_each_cpu(__setup_broadcast_timer, (void *)false, 1);
 	__unregister_cpu_notifier(&cpu_hotplug_notifier);
 
+	for_each_possible_cpu(i) {
+		dev = per_cpu_ptr(intel_idle_cpuidle_devices, i);
+		cpuidle_unregister_device(dev);
+	}
+
 	cpu_notifier_register_done();
 
-	return;
+	cpuidle_unregister_driver(&intel_idle_driver);
+	free_percpu(intel_idle_cpuidle_devices);
 }
 
 module_init(intel_idle_init);

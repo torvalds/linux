@@ -268,5 +268,6 @@
 		regulator-min-microvolt = <3300000>;
 		regulator-max-microvolt = <3300000>;
 		vin-supply = <&vcc_3v3_reg>;
+		regulator-always-on;
 	};
 };

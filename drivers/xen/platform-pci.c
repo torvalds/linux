@@ -2,6 +2,9 @@
  * platform-pci.c
  *
  * Xen platform PCI device driver
+ *
+ * Authors: ssmith@xensource.com and stefano.stabellini@eu.citrix.com
+ *
  * Copyright (c) 2005, Intel Corporation.
  * Copyright (c) 2007, XenSource Inc.
  * Copyright (c) 2010, Citrix
@@ -24,7 +27,7 @@
 
 #include <linux/interrupt.h>
 #include <linux/io.h>
-#include <linux/module.h>
+#include <linux/init.h>
 #include <linux/pci.h>
 
 #include <xen/platform_pci.h>
@@ -35,10 +38,6 @@
 #include <xen/xen-ops.h>
 
 #define DRV_NAME    "xen-platform-pci"
-
-MODULE_AUTHOR("ssmith@xensource.com and stefano.stabellini@eu.citrix.com");
-MODULE_DESCRIPTION("Xen platform PCI device");
-MODULE_LICENSE("GPL");
 
 static unsigned long platform_mmio;
 static unsigned long platform_mmio_alloc;
@@ -101,8 +100,8 @@ static int platform_pci_resume(struct pci_dev *pdev)
 	return 0;
 }
 
-static int platform_pci_init(struct pci_dev *pdev,
-			     const struct pci_device_id *ent)
+static int platform_pci_probe(struct pci_dev *pdev,
+			      const struct pci_device_id *ent)
 {
 	int i, ret;
 	long ioaddr;
@@ -181,20 +180,17 @@ static struct pci_device_id platform_pci_tbl[] = {
 	{0,}
 };
 
-MODULE_DEVICE_TABLE(pci, platform_pci_tbl);
-
 static struct pci_driver platform_driver = {
 	.name =           DRV_NAME,
-	.probe =          platform_pci_init,
+	.probe =          platform_pci_probe,
 	.id_table =       platform_pci_tbl,
 #ifdef CONFIG_PM
 	.resume_early =   platform_pci_resume,
 #endif
 };
 
-static int __init platform_pci_module_init(void)
+static int __init platform_pci_init(void)
 {
 	return pci_register_driver(&platform_driver);
 }
-
-module_init(platform_pci_module_init);
+device_initcall(platform_pci_init);

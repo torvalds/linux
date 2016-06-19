@@ -1066,7 +1066,7 @@ static void gsm_process_modem(struct tty_struct *tty, struct gsm_dlci *dlci,
 	/* Carrier drop -> hangup */
 	if (tty) {
 		if ((mlines & TIOCM_CD) == 0 && (dlci->modem_rx & TIOCM_CD))
-			if (!(tty->termios.c_cflag & CLOCAL))
+			if (!C_CLOCAL(tty))
 				tty_hangup(tty);
 	}
 	if (brk & 0x01)
@@ -2304,21 +2304,6 @@ static void gsmld_receive_buf(struct tty_struct *tty, const unsigned char *cp,
 }
 
 /**
- *	gsmld_chars_in_buffer	-	report available bytes
- *	@tty: tty device
- *
- *	Report the number of characters buffered to be delivered to user
- *	at this instant in time.
- *
- *	Locking: gsm lock
- */
-
-static ssize_t gsmld_chars_in_buffer(struct tty_struct *tty)
-{
-	return 0;
-}
-
-/**
  *	gsmld_flush_buffer	-	clean input queue
  *	@tty:	terminal device
  *
@@ -2830,7 +2815,6 @@ static struct tty_ldisc_ops tty_ldisc_packet = {
 	.open            = gsmld_open,
 	.close           = gsmld_close,
 	.flush_buffer    = gsmld_flush_buffer,
-	.chars_in_buffer = gsmld_chars_in_buffer,
 	.read            = gsmld_read,
 	.write           = gsmld_write,
 	.ioctl           = gsmld_ioctl,
@@ -3132,7 +3116,7 @@ static void gsmtty_throttle(struct tty_struct *tty)
 	struct gsm_dlci *dlci = tty->driver_data;
 	if (dlci->state == DLCI_CLOSED)
 		return;
-	if (tty->termios.c_cflag & CRTSCTS)
+	if (C_CRTSCTS(tty))
 		dlci->modem_tx &= ~TIOCM_DTR;
 	dlci->throttled = 1;
 	/* Send an MSC with DTR cleared */
@@ -3144,7 +3128,7 @@ static void gsmtty_unthrottle(struct tty_struct *tty)
 	struct gsm_dlci *dlci = tty->driver_data;
 	if (dlci->state == DLCI_CLOSED)
 		return;
-	if (tty->termios.c_cflag & CRTSCTS)
+	if (C_CRTSCTS(tty))
 		dlci->modem_tx |= TIOCM_DTR;
 	dlci->throttled = 0;
 	/* Send an MSC with DTR set */

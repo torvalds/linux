@@ -128,6 +128,7 @@ bool rcu_gp_is_normal(void)
 {
 	return READ_ONCE(rcu_normal);
 }
+EXPORT_SYMBOL_GPL(rcu_gp_is_normal);
 
 static atomic_t rcu_expedited_nesting =
 	ATOMIC_INIT(IS_ENABLED(CONFIG_RCU_EXPEDITE_BOOT) ? 1 : 0);

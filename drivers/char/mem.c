@@ -695,7 +695,7 @@ static loff_t memory_lseek(struct file *file, loff_t offset, int orig)
 		offset += file->f_pos;
 	case SEEK_SET:
 		/* to avoid userland mistaking f_pos=-9 as -EBADF=-9 */
-		if (IS_ERR_VALUE((unsigned long long)offset)) {
+		if ((unsigned long long)offset >= -MAX_ERRNO) {
 			ret = -EOVERFLOW;
 			break;
 		}

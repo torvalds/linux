@@ -632,7 +632,6 @@ static void hisi_nfc_host_init(struct hinfc_host *host)
 }
 
 static struct nand_ecclayout nand_ecc_2K_16bits = {
-	.oobavail = 6,
 	.oobfree = { {2, 6} },
 };
 

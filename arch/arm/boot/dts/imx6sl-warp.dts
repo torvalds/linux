@@ -118,7 +118,7 @@
 	bus-width = <4>;
 	non-removable;
 	keep-power-in-suspend;
-	enable-sdio-wakeup;
+	wakeup-source;
 	mmc-pwrseq = <&usdhc3_pwrseq>;
 	status = "okay";
 };

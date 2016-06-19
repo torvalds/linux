@@ -114,8 +114,6 @@ extern unsigned int memset_nocache_branch; /* Insn to be replaced by NOP */
 
 notrace void __init machine_init(u64 dt_ptr)
 {
-	lockdep_init();
-
 	/* Enable early debugging if any specified (see udbg.h) */
 	udbg_early_init();
 

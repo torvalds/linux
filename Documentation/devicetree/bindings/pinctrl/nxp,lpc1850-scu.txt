@@ -22,6 +22,10 @@ The following generic nodes are supported:
  - input-schmitt-disable
  - slew-rate
 
+NXP specific properties:
+ - nxp,gpio-pin-interrupt : Assign pin to gpio pin interrupt controller
+			    irq number 0 to 7. See example below.
+
 Not all pins support all properties so either refer to the NXP 1850/4350
 user manual or the pin table in the pinctrl-lpc18xx driver for supported
 pin properties.
@@ -51,6 +55,16 @@ pinctrl: pinctrl@40086000 {
 		uart0_tx_cfg {
 			pins = "pf_10";
 			function = "uart0";
+			bias-disable;
+		};
+	};
+
+	gpio_joystick_pins: gpio-joystick-pins {
+		gpio_joystick_1_cfg {
+			pins =  "p9_0";
+			function = "gpio";
+			nxp,gpio-pin-interrupt = <0>;
+			input-enable;
 			bias-disable;
 		};
 	};

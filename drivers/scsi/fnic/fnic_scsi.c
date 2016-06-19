@@ -958,22 +958,21 @@ static void fnic_fcpio_icmnd_cmpl_handler(struct fnic *fnic,
 	case FCPIO_INVALID_PARAM:    /* some parameter in request invalid */
 	case FCPIO_REQ_NOT_SUPPORTED:/* request type is not supported */
 	default:
-		shost_printk(KERN_ERR, fnic->lport->host, "hdr status = %s\n",
-			     fnic_fcpio_status_to_str(hdr_status));
 		sc->result = (DID_ERROR << 16) | icmnd_cmpl->scsi_status;
 		break;
 	}
+
+	/* Break link with the SCSI command */
+	CMD_SP(sc) = NULL;
+	CMD_FLAGS(sc) |= FNIC_IO_DONE;
+
+	spin_unlock_irqrestore(io_lock, flags);
 
 	if (hdr_status != FCPIO_SUCCESS) {
 		atomic64_inc(&fnic_stats->io_stats.io_failures);
 		shost_printk(KERN_ERR, fnic->lport->host, "hdr status = %s\n",
 			     fnic_fcpio_status_to_str(hdr_status));
 	}
-	/* Break link with the SCSI command */
-	CMD_SP(sc) = NULL;
-	CMD_FLAGS(sc) |= FNIC_IO_DONE;
-
-	spin_unlock_irqrestore(io_lock, flags);
 
 	fnic_release_ioreq_buf(fnic, io_req, sc);
 

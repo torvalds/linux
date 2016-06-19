@@ -8,6 +8,18 @@
 #include <linux/thermal.h>
 #include <linux/tracepoint.h>
 
+TRACE_DEFINE_ENUM(THERMAL_TRIP_CRITICAL);
+TRACE_DEFINE_ENUM(THERMAL_TRIP_HOT);
+TRACE_DEFINE_ENUM(THERMAL_TRIP_PASSIVE);
+TRACE_DEFINE_ENUM(THERMAL_TRIP_ACTIVE);
+
+#define show_tzt_type(type)					\
+	__print_symbolic(type,					\
+			 { THERMAL_TRIP_CRITICAL, "CRITICAL"},	\
+			 { THERMAL_TRIP_HOT,      "HOT"},	\
+			 { THERMAL_TRIP_PASSIVE,  "PASSIVE"},	\
+			 { THERMAL_TRIP_ACTIVE,   "ACTIVE"})
+
 TRACE_EVENT(thermal_temperature,
 
 	TP_PROTO(struct thermal_zone_device *tz),
@@ -73,9 +85,9 @@ TRACE_EVENT(thermal_zone_trip,
 		__entry->trip_type = trip_type;
 	),
 
-	TP_printk("thermal_zone=%s id=%d trip=%d trip_type=%d",
+	TP_printk("thermal_zone=%s id=%d trip=%d trip_type=%s",
 		__get_str(thermal_zone), __entry->id, __entry->trip,
-		__entry->trip_type)
+		show_tzt_type(__entry->trip_type))
 );
 
 TRACE_EVENT(thermal_power_cpu_get_power,

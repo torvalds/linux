@@ -351,7 +351,7 @@ static struct srcu_struct pmus_srcu;
  *   1 - disallow cpu events for unpriv
  *   2 - disallow kernel profiling for unpriv
  */
-int sysctl_perf_event_paranoid __read_mostly = 1;
+int sysctl_perf_event_paranoid __read_mostly = 2;
 
 /* Minimum for 512 kiB + 1 user control page */
 int sysctl_perf_event_mlock __read_mostly = 512 + (PAGE_SIZE / 1024); /* 'free' kiB per user */
@@ -376,8 +376,11 @@ static void update_perf_cpu_limits(void)
 	u64 tmp = perf_sample_period_ns;
 
 	tmp *= sysctl_perf_cpu_time_max_percent;
-	do_div(tmp, 100);
-	ACCESS_ONCE(perf_sample_allowed_ns) = tmp;
+	tmp = div_u64(tmp, 100);
+	if (!tmp)
+		tmp = 1;
+
+	WRITE_ONCE(perf_sample_allowed_ns, tmp);
 }
 
 static int perf_rotate_context(struct perf_cpu_context *cpuctx);
@@ -409,7 +412,14 @@ int perf_cpu_time_max_percent_handler(struct ctl_table *table, int write,
 	if (ret || !write)
 		return ret;
 
-	update_perf_cpu_limits();
+	if (sysctl_perf_cpu_time_max_percent == 100 ||
+	    sysctl_perf_cpu_time_max_percent == 0) {
+		printk(KERN_WARNING
+		       "perf: Dynamic interrupt throttling disabled, can hang your system!\n");
+		WRITE_ONCE(perf_sample_allowed_ns, 0);
+	} else {
+		update_perf_cpu_limits();
+	}
 
 	return 0;
 }
@@ -423,62 +433,68 @@ int perf_cpu_time_max_percent_handler(struct ctl_table *table, int write,
 #define NR_ACCUMULATED_SAMPLES 128
 static DEFINE_PER_CPU(u64, running_sample_length);
 
+static u64 __report_avg;
+static u64 __report_allowed;
+
 static void perf_duration_warn(struct irq_work *w)
 {
-	u64 allowed_ns = ACCESS_ONCE(perf_sample_allowed_ns);
-	u64 avg_local_sample_len;
-	u64 local_samples_len;
-
-	local_samples_len = __this_cpu_read(running_sample_length);
-	avg_local_sample_len = local_samples_len/NR_ACCUMULATED_SAMPLES;
-
 	printk_ratelimited(KERN_WARNING
-			"perf interrupt took too long (%lld > %lld), lowering "
-			"kernel.perf_event_max_sample_rate to %d\n",
-			avg_local_sample_len, allowed_ns >> 1,
-			sysctl_perf_event_sample_rate);
+		"perf: interrupt took too long (%lld > %lld), lowering "
+		"kernel.perf_event_max_sample_rate to %d\n",
+		__report_avg, __report_allowed,
+		sysctl_perf_event_sample_rate);
 }
 
 static DEFINE_IRQ_WORK(perf_duration_work, perf_duration_warn);
 
 void perf_sample_event_took(u64 sample_len_ns)
 {
-	u64 allowed_ns = ACCESS_ONCE(perf_sample_allowed_ns);
-	u64 avg_local_sample_len;
-	u64 local_samples_len;
+	u64 max_len = READ_ONCE(perf_sample_allowed_ns);
+	u64 running_len;
+	u64 avg_len;
+	u32 max;
 
-	if (allowed_ns == 0)
+	if (max_len == 0)
 		return;
 
-	/* decay the counter by 1 average sample */
-	local_samples_len = __this_cpu_read(running_sample_length);
-	local_samples_len -= local_samples_len/NR_ACCUMULATED_SAMPLES;
-	local_samples_len += sample_len_ns;
-	__this_cpu_write(running_sample_length, local_samples_len);
+	/* Decay the counter by 1 average sample. */
+	running_len = __this_cpu_read(running_sample_length);
+	running_len -= running_len/NR_ACCUMULATED_SAMPLES;
+	running_len += sample_len_ns;
+	__this_cpu_write(running_sample_length, running_len);
 
 	/*
-	 * note: this will be biased artifically low until we have
-	 * seen NR_ACCUMULATED_SAMPLES.  Doing it this way keeps us
+	 * Note: this will be biased artifically low until we have
+	 * seen NR_ACCUMULATED_SAMPLES. Doing it this way keeps us
 	 * from having to maintain a count.
 	 */
-	avg_local_sample_len = local_samples_len/NR_ACCUMULATED_SAMPLES;
-
-	if (avg_local_sample_len <= allowed_ns)
+	avg_len = running_len/NR_ACCUMULATED_SAMPLES;
+	if (avg_len <= max_len)
 		return;
 
-	if (max_samples_per_tick <= 1)
-		return;
+	__report_avg = avg_len;
+	__report_allowed = max_len;
 
-	max_samples_per_tick = DIV_ROUND_UP(max_samples_per_tick, 2);
-	sysctl_perf_event_sample_rate = max_samples_per_tick * HZ;
+	/*
+	 * Compute a throttle threshold 25% below the current duration.
+	 */
+	avg_len += avg_len / 4;
+	max = (TICK_NSEC / 100) * sysctl_perf_cpu_time_max_percent;
+	if (avg_len < max)
+		max /= (u32)avg_len;
+	else
+		max = 1;
+
+	WRITE_ONCE(perf_sample_allowed_ns, avg_len);
+	WRITE_ONCE(max_samples_per_tick, max);
+
+	sysctl_perf_event_sample_rate = max * HZ;
 	perf_sample_period_ns = NSEC_PER_SEC / sysctl_perf_event_sample_rate;
 
-	update_perf_cpu_limits();
-
 	if (!irq_work_queue(&perf_duration_work)) {
-		early_printk("perf interrupt took too long (%lld > %lld), lowering "
+		early_printk("perf: interrupt took too long (%lld > %lld), lowering "
 			     "kernel.perf_event_max_sample_rate to %d\n",
-			     avg_local_sample_len, allowed_ns >> 1,
+			     __report_avg, __report_allowed,
 			     sysctl_perf_event_sample_rate);
 	}
 }
@@ -1090,6 +1106,7 @@ static void put_ctx(struct perf_event_context *ctx)
  * function.
  *
  * Lock order:
+ *    cred_guard_mutex
  *	task_struct::perf_event_mutex
  *	  perf_event_context::mutex
  *	    perf_event::child_mutex;
@@ -2402,13 +2419,23 @@ static void ctx_sched_out(struct perf_event_context *ctx,
 			cpuctx->task_ctx = NULL;
 	}
 
-	is_active ^= ctx->is_active; /* changed bits */
-
+	/*
+	 * Always update time if it was set; not only when it changes.
+	 * Otherwise we can 'forget' to update time for any but the last
+	 * context we sched out. For example:
+	 *
+	 *   ctx_sched_out(.event_type = EVENT_FLEXIBLE)
+	 *   ctx_sched_out(.event_type = EVENT_PINNED)
+	 *
+	 * would only update time for the pinned events.
+	 */
 	if (is_active & EVENT_TIME) {
 		/* update (and stop) ctx time */
 		update_context_time(ctx);
 		update_cgrp_time_from_cpuctx(cpuctx);
 	}
+
+	is_active ^= ctx->is_active; /* changed bits */
 
 	if (!ctx->nr_active || !(is_active & EVENT_ALL))
 		return;
@@ -3112,17 +3139,6 @@ done:
 	return rotate;
 }
 
-#ifdef CONFIG_NO_HZ_FULL
-bool perf_event_can_stop_tick(void)
-{
-	if (atomic_read(&nr_freq_events) ||
-	    __this_cpu_read(perf_throttled_count))
-		return false;
-	else
-		return true;
-}
-#endif
-
 void perf_event_task_tick(void)
 {
 	struct list_head *head = this_cpu_ptr(&active_ctx_list);
@@ -3133,6 +3149,7 @@ void perf_event_task_tick(void)
 
 	__this_cpu_inc(perf_throttled_seq);
 	throttled = __this_cpu_xchg(perf_throttled_count, 0);
+	tick_dep_clear_cpu(smp_processor_id(), TICK_DEP_BIT_PERF_EVENTS);
 
 	list_for_each_entry_safe(ctx, tmp, head, active_ctx_list)
 		perf_adjust_freq_unthr_context(ctx, throttled);
@@ -3405,7 +3422,6 @@ static struct task_struct *
 find_lively_task_by_vpid(pid_t vpid)
 {
 	struct task_struct *task;
-	int err;
 
 	rcu_read_lock();
 	if (!vpid)
@@ -3419,16 +3435,7 @@ find_lively_task_by_vpid(pid_t vpid)
 	if (!task)
 		return ERR_PTR(-ESRCH);
 
-	/* Reuse ptrace permission checks for now. */
-	err = -EACCES;
-	if (!ptrace_may_access(task, PTRACE_MODE_READ_REALCREDS))
-		goto errout;
-
 	return task;
-errout:
-	put_task_struct(task);
-	return ERR_PTR(err);
-
 }
 
 /*
@@ -3564,6 +3571,28 @@ static void unaccount_event_cpu(struct perf_event *event, int cpu)
 		atomic_dec(&per_cpu(perf_cgroup_events, cpu));
 }
 
+#ifdef CONFIG_NO_HZ_FULL
+static DEFINE_SPINLOCK(nr_freq_lock);
+#endif
+
+static void unaccount_freq_event_nohz(void)
+{
+#ifdef CONFIG_NO_HZ_FULL
+	spin_lock(&nr_freq_lock);
+	if (atomic_dec_and_test(&nr_freq_events))
+		tick_nohz_dep_clear(TICK_DEP_BIT_PERF_EVENTS);
+	spin_unlock(&nr_freq_lock);
+#endif
+}
+
+static void unaccount_freq_event(void)
+{
+	if (tick_nohz_full_enabled())
+		unaccount_freq_event_nohz();
+	else
+		atomic_dec(&nr_freq_events);
+}
+
 static void unaccount_event(struct perf_event *event)
 {
 	bool dec = false;
@@ -3580,7 +3609,7 @@ static void unaccount_event(struct perf_event *event)
 	if (event->attr.task)
 		atomic_dec(&nr_task_events);
 	if (event->attr.freq)
-		atomic_dec(&nr_freq_events);
+		unaccount_freq_event();
 	if (event->attr.context_switch) {
 		dec = true;
 		atomic_dec(&nr_switch_events);
@@ -4198,6 +4227,14 @@ static void __perf_event_period(struct perf_event *event,
 	active = (event->state == PERF_EVENT_STATE_ACTIVE);
 	if (active) {
 		perf_pmu_disable(ctx->pmu);
+		/*
+		 * We could be throttled; unthrottle now to avoid the tick
+		 * trying to unthrottle while we already re-started the event.
+		 */
+		if (event->hw.interrupts == MAX_INTERRUPTS) {
+			event->hw.interrupts = 0;
+			perf_log_throttle(event, 1);
+		}
 		event->pmu->stop(event, PERF_EF_UPDATE);
 	}
 
@@ -6424,9 +6461,9 @@ static int __perf_event_overflow(struct perf_event *event,
 		if (unlikely(throttle
 			     && hwc->interrupts >= max_samples_per_tick)) {
 			__this_cpu_inc(perf_throttled_count);
+			tick_dep_set_cpu(smp_processor_id(), TICK_DEP_BIT_PERF_EVENTS);
 			hwc->interrupts = MAX_INTERRUPTS;
 			perf_log_throttle(event, 0);
-			tick_nohz_full_kick();
 			ret = 1;
 		}
 	}
@@ -6785,7 +6822,7 @@ static void swevent_hlist_release(struct swevent_htable *swhash)
 	kfree_rcu(hlist, rcu_head);
 }
 
-static void swevent_hlist_put_cpu(struct perf_event *event, int cpu)
+static void swevent_hlist_put_cpu(int cpu)
 {
 	struct swevent_htable *swhash = &per_cpu(swevent_htable, cpu);
 
@@ -6797,15 +6834,15 @@ static void swevent_hlist_put_cpu(struct perf_event *event, int cpu)
 	mutex_unlock(&swhash->hlist_mutex);
 }
 
-static void swevent_hlist_put(struct perf_event *event)
+static void swevent_hlist_put(void)
 {
 	int cpu;
 
 	for_each_possible_cpu(cpu)
-		swevent_hlist_put_cpu(event, cpu);
+		swevent_hlist_put_cpu(cpu);
 }
 
-static int swevent_hlist_get_cpu(struct perf_event *event, int cpu)
+static int swevent_hlist_get_cpu(int cpu)
 {
 	struct swevent_htable *swhash = &per_cpu(swevent_htable, cpu);
 	int err = 0;
@@ -6828,14 +6865,13 @@ exit:
 	return err;
 }
 
-static int swevent_hlist_get(struct perf_event *event)
+static int swevent_hlist_get(void)
 {
-	int err;
-	int cpu, failed_cpu;
+	int err, cpu, failed_cpu;
 
 	get_online_cpus();
 	for_each_possible_cpu(cpu) {
-		err = swevent_hlist_get_cpu(event, cpu);
+		err = swevent_hlist_get_cpu(cpu);
 		if (err) {
 			failed_cpu = cpu;
 			goto fail;
@@ -6848,7 +6884,7 @@ fail:
 	for_each_possible_cpu(cpu) {
 		if (cpu == failed_cpu)
 			break;
-		swevent_hlist_put_cpu(event, cpu);
+		swevent_hlist_put_cpu(cpu);
 	}
 
 	put_online_cpus();
@@ -6864,7 +6900,7 @@ static void sw_perf_event_destroy(struct perf_event *event)
 	WARN_ON(event->parent);
 
 	static_key_slow_dec(&perf_swevent_enabled[event_id]);
-	swevent_hlist_put(event);
+	swevent_hlist_put();
 }
 
 static int perf_swevent_init(struct perf_event *event)
@@ -6895,7 +6931,7 @@ static int perf_swevent_init(struct perf_event *event)
 	if (!event->parent) {
 		int err;
 
-		err = swevent_hlist_get(event);
+		err = swevent_hlist_get();
 		if (err)
 			return err;
 
@@ -7816,6 +7852,27 @@ static void account_event_cpu(struct perf_event *event, int cpu)
 		atomic_inc(&per_cpu(perf_cgroup_events, cpu));
 }
 
+/* Freq events need the tick to stay alive (see perf_event_task_tick). */
+static void account_freq_event_nohz(void)
+{
+#ifdef CONFIG_NO_HZ_FULL
+	/* Lock so we don't race with concurrent unaccount */
+	spin_lock(&nr_freq_lock);
+	if (atomic_inc_return(&nr_freq_events) == 1)
+		tick_nohz_dep_set(TICK_DEP_BIT_PERF_EVENTS);
+	spin_unlock(&nr_freq_lock);
+#endif
+}
+
+static void account_freq_event(void)
+{
+	if (tick_nohz_full_enabled())
+		account_freq_event_nohz();
+	else
+		atomic_inc(&nr_freq_events);
+}
+
+
 static void account_event(struct perf_event *event)
 {
 	bool inc = false;
@@ -7831,10 +7888,8 @@ static void account_event(struct perf_event *event)
 		atomic_inc(&nr_comm_events);
 	if (event->attr.task)
 		atomic_inc(&nr_task_events);
-	if (event->attr.freq) {
-		if (atomic_inc_return(&nr_freq_events) == 1)
-			tick_nohz_full_kick_all();
-	}
+	if (event->attr.freq)
+		account_freq_event();
 	if (event->attr.context_switch) {
 		atomic_inc(&nr_switch_events);
 		inc = true;
@@ -8000,6 +8055,9 @@ perf_event_alloc(struct perf_event_attr *attr, int cpu,
 				goto err_per_task;
 		}
 	}
+
+	/* symmetric to unaccount_event() in _free_event() */
+	account_event(event);
 
 	return event;
 
@@ -8347,6 +8405,24 @@ SYSCALL_DEFINE5(perf_event_open,
 
 	get_online_cpus();
 
+	if (task) {
+		err = mutex_lock_interruptible(&task->signal->cred_guard_mutex);
+		if (err)
+			goto err_cpus;
+
+		/*
+		 * Reuse ptrace permission checks for now.
+		 *
+		 * We must hold cred_guard_mutex across this and any potential
+		 * perf_install_in_context() call for this new event to
+		 * serialize against exec() altering our credentials (and the
+		 * perf_event_exit_task() that could imply).
+		 */
+		err = -EACCES;
+		if (!ptrace_may_access(task, PTRACE_MODE_READ_REALCREDS))
+			goto err_cred;
+	}
+
 	if (flags & PERF_FLAG_PID_CGROUP)
 		cgroup_fd = pid;
 
@@ -8354,7 +8430,7 @@ SYSCALL_DEFINE5(perf_event_open,
 				 NULL, NULL, cgroup_fd);
 	if (IS_ERR(event)) {
 		err = PTR_ERR(event);
-		goto err_cpus;
+		goto err_cred;
 	}
 
 	if (is_sampling_event(event)) {
@@ -8363,8 +8439,6 @@ SYSCALL_DEFINE5(perf_event_open,
 			goto err_alloc;
 		}
 	}
-
-	account_event(event);
 
 	/*
 	 * Special case software events and allow them to be part of
@@ -8413,11 +8487,6 @@ SYSCALL_DEFINE5(perf_event_open,
 	if ((pmu->capabilities & PERF_PMU_CAP_EXCLUSIVE) && group_leader) {
 		err = -EBUSY;
 		goto err_context;
-	}
-
-	if (task) {
-		put_task_struct(task);
-		task = NULL;
 	}
 
 	/*
@@ -8478,6 +8547,7 @@ SYSCALL_DEFINE5(perf_event_open,
 					f_flags);
 	if (IS_ERR(event_file)) {
 		err = PTR_ERR(event_file);
+		event_file = NULL;
 		goto err_context;
 	}
 
@@ -8515,6 +8585,11 @@ SYSCALL_DEFINE5(perf_event_open,
 	}
 
 	WARN_ON_ONCE(ctx->parent_ctx);
+
+	/*
+	 * This is the point on no return; we cannot fail hereafter. This is
+	 * where we start modifying current state.
+	 */
 
 	if (move_group) {
 		/*
@@ -8587,6 +8662,11 @@ SYSCALL_DEFINE5(perf_event_open,
 		mutex_unlock(&gctx->mutex);
 	mutex_unlock(&ctx->mutex);
 
+	if (task) {
+		mutex_unlock(&task->signal->cred_guard_mutex);
+		put_task_struct(task);
+	}
+
 	put_online_cpus();
 
 	mutex_lock(&current->perf_event_mutex);
@@ -8619,6 +8699,9 @@ err_alloc:
 	 */
 	if (!event_file)
 		free_event(event);
+err_cred:
+	if (task)
+		mutex_unlock(&task->signal->cred_guard_mutex);
 err_cpus:
 	put_online_cpus();
 err_task:
@@ -8661,8 +8744,6 @@ perf_event_create_kernel_counter(struct perf_event_attr *attr, int cpu,
 
 	/* Mark owner so we could distinguish it from user events. */
 	event->owner = TASK_TOMBSTONE;
-
-	account_event(event);
 
 	ctx = find_get_context(event->pmu, task, event);
 	if (IS_ERR(ctx)) {
@@ -8905,6 +8986,9 @@ static void perf_event_exit_task_context(struct task_struct *child, int ctxn)
 
 /*
  * When a child task exits, feed back event values to parent events.
+ *
+ * Can be called with cred_guard_mutex held when called from
+ * install_exec_creds().
  */
 void perf_event_exit_task(struct task_struct *child)
 {
@@ -9397,10 +9481,29 @@ perf_cpu_notify(struct notifier_block *self, unsigned long action, void *hcpu)
 	switch (action & ~CPU_TASKS_FROZEN) {
 
 	case CPU_UP_PREPARE:
+		/*
+		 * This must be done before the CPU comes alive, because the
+		 * moment we can run tasks we can encounter (software) events.
+		 *
+		 * Specifically, someone can have inherited events on kthreadd
+		 * or a pre-existing worker thread that gets re-bound.
+		 */
 		perf_event_init_cpu(cpu);
 		break;
 
 	case CPU_DOWN_PREPARE:
+		/*
+		 * This must be done before the CPU dies because after that an
+		 * active event might want to IPI the CPU and that'll not work
+		 * so great for dead CPUs.
+		 *
+		 * XXX smp_call_function_single() return -ENXIO without a warn
+		 * so we could possibly deal with this.
+		 *
+		 * This is safe against new events arriving because
+		 * sys_perf_event_open() serializes against hotplug using
+		 * get_online_cpus().
+		 */
 		perf_event_exit_cpu(cpu);
 		break;
 	default:
@@ -9447,6 +9550,7 @@ ssize_t perf_event_sysfs_show(struct device *dev, struct device_attribute *attr,
 
 	return 0;
 }
+EXPORT_SYMBOL_GPL(perf_event_sysfs_show);
 
 static int __init perf_event_sysfs_init(void)
 {

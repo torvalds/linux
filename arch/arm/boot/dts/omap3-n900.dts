@@ -65,50 +65,51 @@
 		camera_lens_cover {
 			label = "Camera Lens Cover";
 			gpios = <&gpio4 14 GPIO_ACTIVE_LOW>; /* 110 */
-			linux,input-type = <5>; /* EV_SW */
-			linux,code = <0x09>; /* SW_CAMERA_LENS_COVER */
-			wakeup-source;
+			linux,input-type = <EV_SW>;
+			linux,code = <SW_CAMERA_LENS_COVER>;
+			linux,can-disable;
 		};
 
 		camera_focus {
 			label = "Camera Focus";
 			gpios = <&gpio3 4 GPIO_ACTIVE_LOW>; /* 68 */
-			linux,code = <0x210>; /* KEY_CAMERA_FOCUS */
-			wakeup-source;
+			linux,code = <KEY_CAMERA_FOCUS>;
+			linux,can-disable;
 		};
 
 		camera_capture {
 			label = "Camera Capture";
 			gpios = <&gpio3 5 GPIO_ACTIVE_LOW>; /* 69 */
-			linux,code = <0xd4>; /* KEY_CAMERA */
-			wakeup-source;
+			linux,code = <KEY_CAMERA>;
+			linux,can-disable;
 		};
 
 		lock_button {
 			label = "Lock Button";
 			gpios = <&gpio4 17 GPIO_ACTIVE_LOW>; /* 113 */
-			linux,code = <0x98>; /* KEY_SCREENLOCK */
-			wakeup-source;
+			linux,code = <KEY_SCREENLOCK>;
+			linux,can-disable;
 		};
 
 		keypad_slide {
 			label = "Keypad Slide";
 			gpios = <&gpio3 7 GPIO_ACTIVE_LOW>; /* 71 */
-			linux,input-type = <5>; /* EV_SW */
-			linux,code = <0x0a>; /* SW_KEYPAD_SLIDE */
-			wakeup-source;
+			linux,input-type = <EV_SW>;
+			linux,code = <SW_KEYPAD_SLIDE>;
+			linux,can-disable;
 		};
 
 		proximity_sensor {
 			label = "Proximity Sensor";
 			gpios = <&gpio3 25 GPIO_ACTIVE_HIGH>; /* 89 */
-			linux,input-type = <5>; /* EV_SW */
-			linux,code = <0x0b>; /* SW_FRONT_PROXIMITY */
+			linux,input-type = <EV_SW>;
+			linux,code = <SW_FRONT_PROXIMITY>;
+			linux,can-disable;
 		};
 	};
 
-	isp1704: isp1704 {
-		compatible = "nxp,isp1704";
+	isp1707: isp1707 {
+		compatible = "nxp,isp1707";
 		nxp,enable-gpio = <&gpio3 3 GPIO_ACTIVE_HIGH>;
 		usb-phy = <&usb2_phy>;
 	};
@@ -328,6 +329,7 @@
 	regulator-name = "V28";
 	regulator-min-microvolt = <2800000>;
 	regulator-max-microvolt = <2800000>;
+	regulator-initial-mode = <0x0e>; /* RES_STATE_ACTIVE */
 	regulator-always-on; /* due to battery cover sensor */
 };
 
@@ -335,30 +337,35 @@
 	regulator-name = "VCSI";
 	regulator-min-microvolt = <1800000>;
 	regulator-max-microvolt = <1800000>;
+	regulator-initial-mode = <0x0e>; /* RES_STATE_ACTIVE */
 };
 
 &vaux3 {
 	regulator-name = "VMMC2_30";
 	regulator-min-microvolt = <2800000>;
 	regulator-max-microvolt = <3000000>;
+	regulator-initial-mode = <0x0e>; /* RES_STATE_ACTIVE */
 };
 
 &vaux4 {
 	regulator-name = "VCAM_ANA_28";
 	regulator-min-microvolt = <2800000>;
 	regulator-max-microvolt = <2800000>;
+	regulator-initial-mode = <0x0e>; /* RES_STATE_ACTIVE */
 };
 
 &vmmc1 {
 	regulator-name = "VMMC1";
 	regulator-min-microvolt = <1850000>;
 	regulator-max-microvolt = <3150000>;
+	regulator-initial-mode = <0x0e>; /* RES_STATE_ACTIVE */
 };
 
 &vmmc2 {
 	regulator-name = "V28_A";
 	regulator-min-microvolt = <2800000>;
 	regulator-max-microvolt = <3000000>;
+	regulator-initial-mode = <0x0e>; /* RES_STATE_ACTIVE */
 	regulator-always-on; /* due VIO leak to AIC34 VDDs */
 };
 
@@ -366,6 +373,7 @@
 	regulator-name = "VPLL";
 	regulator-min-microvolt = <1800000>;
 	regulator-max-microvolt = <1800000>;
+	regulator-initial-mode = <0x0e>; /* RES_STATE_ACTIVE */
 	regulator-always-on;
 };
 
@@ -373,6 +381,7 @@
 	regulator-name = "VSDI_CSI";
 	regulator-min-microvolt = <1800000>;
 	regulator-max-microvolt = <1800000>;
+	regulator-initial-mode = <0x0e>; /* RES_STATE_ACTIVE */
 	regulator-always-on;
 };
 
@@ -380,6 +389,7 @@
 	regulator-name = "VMMC2_IO_18";
 	regulator-min-microvolt = <1800000>;
 	regulator-max-microvolt = <1800000>;
+	regulator-initial-mode = <0x0e>; /* RES_STATE_ACTIVE */
 };
 
 &vio {
@@ -522,6 +532,21 @@
 		amstaos,cover-comp-gain = <16>;
 	};
 
+	adp1653: led-controller@30 {
+		compatible = "adi,adp1653";
+		reg = <0x30>;
+		enable-gpios = <&gpio3 24 GPIO_ACTIVE_HIGH>; /* 88 */
+
+		flash {
+			flash-timeout-us = <500000>;
+			flash-max-microamp = <320000>;
+			led-max-microamp = <50000>;
+		};
+		indicator {
+			led-max-microamp = <17500>;
+		};
+	};
+
 	lp5523: lp5523@32 {
 		compatible = "national,lp5523";
 		reg = <0x32>;
@@ -618,7 +643,7 @@
 		ti,termination-current = <100>;
 		ti,resistor-sense = <68>;
 
-		ti,usb-charger-detection = <&isp1704>;
+		ti,usb-charger-detection = <&isp1707>;
 	};
 };
 

@@ -1280,6 +1280,11 @@ static void svm_set_rflags(struct kvm_vcpu *vcpu, unsigned long rflags)
 	to_svm(vcpu)->vmcb->save.rflags = rflags;
 }
 
+static u32 svm_get_pkru(struct kvm_vcpu *vcpu)
+{
+	return 0;
+}
+
 static void svm_cache_reg(struct kvm_vcpu *vcpu, enum kvm_reg reg)
 {
 	switch (reg) {
@@ -1858,8 +1863,7 @@ static int halt_interception(struct vcpu_svm *svm)
 static int vmmcall_interception(struct vcpu_svm *svm)
 {
 	svm->next_rip = kvm_rip_read(&svm->vcpu) + 3;
-	kvm_emulate_hypercall(&svm->vcpu);
-	return 1;
+	return kvm_emulate_hypercall(&svm->vcpu);
 }
 
 static unsigned long nested_svm_get_tdp_cr3(struct kvm_vcpu *vcpu)
@@ -4348,6 +4352,9 @@ static struct kvm_x86_ops svm_x86_ops = {
 	.cache_reg = svm_cache_reg,
 	.get_rflags = svm_get_rflags,
 	.set_rflags = svm_set_rflags,
+
+	.get_pkru = svm_get_pkru,
+
 	.fpu_activate = svm_fpu_activate,
 	.fpu_deactivate = svm_fpu_deactivate,
 

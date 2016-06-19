@@ -13,6 +13,47 @@ static struct dentry *qla2x00_dfs_root;
 static atomic_t qla2x00_dfs_root_count;
 
 static int
+qla2x00_dfs_tgt_sess_show(struct seq_file *s, void *unused)
+{
+	scsi_qla_host_t *vha = s->private;
+	struct qla_hw_data *ha = vha->hw;
+	unsigned long flags;
+	struct qla_tgt_sess *sess = NULL;
+	struct qla_tgt *tgt= vha->vha_tgt.qla_tgt;
+
+	seq_printf(s, "%s\n",vha->host_str);
+	if (tgt) {
+		seq_printf(s, "Port ID   Port Name                Handle\n");
+
+		spin_lock_irqsave(&ha->tgt.sess_lock, flags);
+		list_for_each_entry(sess, &tgt->sess_list, sess_list_entry) {
+			seq_printf(s, "%02x:%02x:%02x  %8phC  %d\n",
+					   sess->s_id.b.domain,sess->s_id.b.area,
+					   sess->s_id.b.al_pa,	sess->port_name,
+					   sess->loop_id);
+		}
+		spin_unlock_irqrestore(&ha->tgt.sess_lock, flags);
+	}
+
+	return 0;
+}
+
+static int
+qla2x00_dfs_tgt_sess_open(struct inode *inode, struct file *file)
+{
+	scsi_qla_host_t *vha = inode->i_private;
+	return single_open(file, qla2x00_dfs_tgt_sess_show, vha);
+}
+
+
+static const struct file_operations dfs_tgt_sess_ops = {
+	.open		= qla2x00_dfs_tgt_sess_open,
+	.read		= seq_read,
+	.llseek		= seq_lseek,
+	.release	= single_release,
+};
+
+static int
 qla_dfs_fw_resource_cnt_show(struct seq_file *s, void *unused)
 {
 	struct scsi_qla_host *vha = s->private;
@@ -248,6 +289,15 @@ create_nodes:
 		    "Unable to create debugfs fce node.\n");
 		goto out;
 	}
+
+	ha->tgt.dfs_tgt_sess = debugfs_create_file("tgt_sess",
+		S_IRUSR, ha->dfs_dir, vha, &dfs_tgt_sess_ops);
+	if (!ha->tgt.dfs_tgt_sess) {
+		ql_log(ql_log_warn, vha, 0xffff,
+			"Unable to create debugFS tgt_sess node.\n");
+		goto out;
+	}
+
 out:
 	return 0;
 }
@@ -256,6 +306,11 @@ int
 qla2x00_dfs_remove(scsi_qla_host_t *vha)
 {
 	struct qla_hw_data *ha = vha->hw;
+
+	if (ha->tgt.dfs_tgt_sess) {
+		debugfs_remove(ha->tgt.dfs_tgt_sess);
+		ha->tgt.dfs_tgt_sess = NULL;
+	}
 
 	if (ha->dfs_fw_resource_cnt) {
 		debugfs_remove(ha->dfs_fw_resource_cnt);

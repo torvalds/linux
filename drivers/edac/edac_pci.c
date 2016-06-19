@@ -195,55 +195,24 @@ static void edac_pci_workq_function(struct work_struct *work_req)
 
 	mutex_lock(&edac_pci_ctls_mutex);
 
-	if (pci->op_state == OP_RUNNING_POLL) {
-		/* we might be in POLL mode, but there may NOT be a poll func
-		 */
-		if ((pci->edac_check != NULL) && edac_pci_get_check_errors())
-			pci->edac_check(pci);
-
-		/* if we are on a one second period, then use round */
-		msec = edac_pci_get_poll_msec();
-		if (msec == 1000)
-			delay = round_jiffies_relative(msecs_to_jiffies(msec));
-		else
-			delay = msecs_to_jiffies(msec);
-
-		/* Reschedule only if we are in POLL mode */
-		edac_queue_work(&pci->work, delay);
+	if (pci->op_state != OP_RUNNING_POLL) {
+		mutex_unlock(&edac_pci_ctls_mutex);
+		return;
 	}
 
+	if (edac_pci_get_check_errors())
+		pci->edac_check(pci);
+
+	/* if we are on a one second period, then use round */
+	msec = edac_pci_get_poll_msec();
+	if (msec == 1000)
+		delay = round_jiffies_relative(msecs_to_jiffies(msec));
+	else
+		delay = msecs_to_jiffies(msec);
+
+	edac_queue_work(&pci->work, delay);
+
 	mutex_unlock(&edac_pci_ctls_mutex);
-}
-
-/*
- * edac_pci_workq_setup()
- * 	initialize a workq item for this edac_pci instance
- * 	passing in the new delay period in msec
- *
- *	locking model:
- *		called when 'edac_pci_ctls_mutex' is locked
- */
-static void edac_pci_workq_setup(struct edac_pci_ctl_info *pci,
-				 unsigned int msec)
-{
-	edac_dbg(0, "\n");
-
-	INIT_DELAYED_WORK(&pci->work, edac_pci_workq_function);
-
-	edac_queue_work(&pci->work, msecs_to_jiffies(edac_pci_get_poll_msec()));
-}
-
-/*
- * edac_pci_workq_teardown()
- * 	stop the workq processing on this edac_pci instance
- */
-static void edac_pci_workq_teardown(struct edac_pci_ctl_info *pci)
-{
-	edac_dbg(0, "\n");
-
-	pci->op_state = OP_OFFLINE;
-
-	edac_stop_work(&pci->work);
 }
 
 /*
@@ -289,10 +258,12 @@ int edac_pci_add_device(struct edac_pci_ctl_info *pci, int edac_idx)
 		goto fail1;
 	}
 
-	if (pci->edac_check != NULL) {
+	if (pci->edac_check) {
 		pci->op_state = OP_RUNNING_POLL;
 
-		edac_pci_workq_setup(pci, 1000);
+		INIT_DELAYED_WORK(&pci->work, edac_pci_workq_function);
+		edac_queue_work(&pci->work, msecs_to_jiffies(edac_pci_get_poll_msec()));
+
 	} else {
 		pci->op_state = OP_RUNNING_INTERRUPT;
 	}
@@ -350,8 +321,8 @@ struct edac_pci_ctl_info *edac_pci_del_device(struct device *dev)
 
 	mutex_unlock(&edac_pci_ctls_mutex);
 
-	/* stop the workq timer */
-	edac_pci_workq_teardown(pci);
+	if (pci->edac_check)
+		edac_stop_work(&pci->work);
 
 	edac_printk(KERN_INFO, EDAC_PCI,
 		"Removed device %d for %s %s: DEV %s\n",

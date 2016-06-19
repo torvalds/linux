@@ -16,12 +16,12 @@
 #include <linux/rtc.h>
 #include <linux/module.h>
 
-#define DRV_VERSION "0.0.1"
-
 #define PCF85063_REG_CTRL1		0x00 /* status */
+#define PCF85063_REG_CTRL1_STOP		BIT(5)
 #define PCF85063_REG_CTRL2		0x01
 
 #define PCF85063_REG_SC			0x04 /* datetime */
+#define PCF85063_REG_SC_OS		0x80
 #define PCF85063_REG_MN			0x05
 #define PCF85063_REG_HR			0x06
 #define PCF85063_REG_DM			0x07
@@ -29,15 +29,31 @@
 #define PCF85063_REG_MO			0x09
 #define PCF85063_REG_YR			0x0A
 
-#define PCF85063_MO_C			0x80 /* century */
-
 static struct i2c_driver pcf85063_driver;
 
-struct pcf85063 {
-	struct rtc_device *rtc;
-	int c_polarity;	/* 0: MO_C=1 means 19xx, otherwise MO_C=1 means 20xx */
-	int voltage_low; /* indicates if a low_voltage was detected */
-};
+static int pcf85063_stop_clock(struct i2c_client *client, u8 *ctrl1)
+{
+	s32 ret;
+
+	ret = i2c_smbus_read_byte_data(client, PCF85063_REG_CTRL1);
+	if (ret < 0) {
+		dev_err(&client->dev, "Failing to stop the clock\n");
+		return -EIO;
+	}
+
+	/* stop the clock */
+	ret |= PCF85063_REG_CTRL1_STOP;
+
+	ret = i2c_smbus_write_byte_data(client, PCF85063_REG_CTRL1, ret);
+	if (ret < 0) {
+		dev_err(&client->dev, "Failing to stop the clock\n");
+		return -EIO;
+	}
+
+	*ctrl1 = ret;
+
+	return 0;
+}
 
 /*
  * In the routines that deal directly with the pcf85063 hardware, we use
@@ -45,81 +61,85 @@ struct pcf85063 {
  */
 static int pcf85063_get_datetime(struct i2c_client *client, struct rtc_time *tm)
 {
-	struct pcf85063 *pcf85063 = i2c_get_clientdata(client);
-	unsigned char buf[13] = { PCF85063_REG_CTRL1 };
-	struct i2c_msg msgs[] = {
-		{/* setup read ptr */
-			.addr = client->addr,
-			.len = 1,
-			.buf = buf
-		},
-		{/* read status + date */
-			.addr = client->addr,
-			.flags = I2C_M_RD,
-			.len = 13,
-			.buf = buf
-		},
-	};
+	int rc;
+	u8 regs[7];
 
-	/* read registers */
-	if ((i2c_transfer(client->adapter, msgs, 2)) != 2) {
-		dev_err(&client->dev, "%s: read error\n", __func__);
+	/*
+	 * while reading, the time/date registers are blocked and not updated
+	 * anymore until the access is finished. To not lose a second
+	 * event, the access must be finished within one second. So, read all
+	 * time/date registers in one turn.
+	 */
+	rc = i2c_smbus_read_i2c_block_data(client, PCF85063_REG_SC,
+					   sizeof(regs), regs);
+	if (rc != sizeof(regs)) {
+		dev_err(&client->dev, "date/time register read error\n");
 		return -EIO;
 	}
 
-	tm->tm_sec = bcd2bin(buf[PCF85063_REG_SC] & 0x7F);
-	tm->tm_min = bcd2bin(buf[PCF85063_REG_MN] & 0x7F);
-	tm->tm_hour = bcd2bin(buf[PCF85063_REG_HR] & 0x3F); /* rtc hr 0-23 */
-	tm->tm_mday = bcd2bin(buf[PCF85063_REG_DM] & 0x3F);
-	tm->tm_wday = buf[PCF85063_REG_DW] & 0x07;
-	tm->tm_mon = bcd2bin(buf[PCF85063_REG_MO] & 0x1F) - 1; /* rtc mn 1-12 */
-	tm->tm_year = bcd2bin(buf[PCF85063_REG_YR]);
+	/* if the clock has lost its power it makes no sense to use its time */
+	if (regs[0] & PCF85063_REG_SC_OS) {
+		dev_warn(&client->dev, "Power loss detected, invalid time\n");
+		return -EINVAL;
+	}
+
+	tm->tm_sec = bcd2bin(regs[0] & 0x7F);
+	tm->tm_min = bcd2bin(regs[1] & 0x7F);
+	tm->tm_hour = bcd2bin(regs[2] & 0x3F); /* rtc hr 0-23 */
+	tm->tm_mday = bcd2bin(regs[3] & 0x3F);
+	tm->tm_wday = regs[4] & 0x07;
+	tm->tm_mon = bcd2bin(regs[5] & 0x1F) - 1; /* rtc mn 1-12 */
+	tm->tm_year = bcd2bin(regs[6]);
 	if (tm->tm_year < 70)
 		tm->tm_year += 100;	/* assume we are in 1970...2069 */
-	/* detect the polarity heuristically. see note above. */
-	pcf85063->c_polarity = (buf[PCF85063_REG_MO] & PCF85063_MO_C) ?
-		(tm->tm_year >= 100) : (tm->tm_year < 100);
 
 	return rtc_valid_tm(tm);
 }
 
 static int pcf85063_set_datetime(struct i2c_client *client, struct rtc_time *tm)
 {
-	int i = 0, err = 0;
-	unsigned char buf[11];
+	int rc;
+	u8 regs[8];
 
-	/* Control & status */
-	buf[PCF85063_REG_CTRL1] = 0;
-	buf[PCF85063_REG_CTRL2] = 5;
+	/*
+	 * to accurately set the time, reset the divider chain and keep it in
+	 * reset state until all time/date registers are written
+	 */
+	rc = pcf85063_stop_clock(client, &regs[7]);
+	if (rc != 0)
+		return rc;
 
 	/* hours, minutes and seconds */
-	buf[PCF85063_REG_SC] = bin2bcd(tm->tm_sec) & 0x7F;
+	regs[0] = bin2bcd(tm->tm_sec) & 0x7F; /* clear OS flag */
 
-	buf[PCF85063_REG_MN] = bin2bcd(tm->tm_min);
-	buf[PCF85063_REG_HR] = bin2bcd(tm->tm_hour);
+	regs[1] = bin2bcd(tm->tm_min);
+	regs[2] = bin2bcd(tm->tm_hour);
 
 	/* Day of month, 1 - 31 */
-	buf[PCF85063_REG_DM] = bin2bcd(tm->tm_mday);
+	regs[3] = bin2bcd(tm->tm_mday);
 
 	/* Day, 0 - 6 */
-	buf[PCF85063_REG_DW] = tm->tm_wday & 0x07;
+	regs[4] = tm->tm_wday & 0x07;
 
 	/* month, 1 - 12 */
-	buf[PCF85063_REG_MO] = bin2bcd(tm->tm_mon + 1);
+	regs[5] = bin2bcd(tm->tm_mon + 1);
 
 	/* year and century */
-	buf[PCF85063_REG_YR] = bin2bcd(tm->tm_year % 100);
+	regs[6] = bin2bcd(tm->tm_year % 100);
 
-	/* write register's data */
-	for (i = 0; i < sizeof(buf); i++) {
-		unsigned char data[2] = { i, buf[i] };
+	/*
+	 * after all time/date registers are written, let the 'address auto
+	 * increment' feature wrap around and write register CTRL1 to re-enable
+	 * the clock divider chain again
+	 */
+	regs[7] &= ~PCF85063_REG_CTRL1_STOP;
 
-		err = i2c_master_send(client, data, sizeof(data));
-		if (err != sizeof(data)) {
-			dev_err(&client->dev, "%s: err=%d addr=%02x, data=%02x\n",
-					__func__, err, data[0], data[1]);
-			return -EIO;
-		}
+	/* write all registers at once */
+	rc = i2c_smbus_write_i2c_block_data(client, PCF85063_REG_SC,
+					    sizeof(regs), regs);
+	if (rc < 0) {
+		dev_err(&client->dev, "date/time register write error\n");
+		return rc;
 	}
 
 	return 0;
@@ -143,27 +163,18 @@ static const struct rtc_class_ops pcf85063_rtc_ops = {
 static int pcf85063_probe(struct i2c_client *client,
 				const struct i2c_device_id *id)
 {
-	struct pcf85063 *pcf85063;
+	struct rtc_device *rtc;
 
 	dev_dbg(&client->dev, "%s\n", __func__);
 
 	if (!i2c_check_functionality(client->adapter, I2C_FUNC_I2C))
 		return -ENODEV;
 
-	pcf85063 = devm_kzalloc(&client->dev, sizeof(struct pcf85063),
-				GFP_KERNEL);
-	if (!pcf85063)
-		return -ENOMEM;
+	rtc = devm_rtc_device_register(&client->dev,
+				       pcf85063_driver.driver.name,
+				       &pcf85063_rtc_ops, THIS_MODULE);
 
-	dev_info(&client->dev, "chip found, driver version " DRV_VERSION "\n");
-
-	i2c_set_clientdata(client, pcf85063);
-
-	pcf85063->rtc = devm_rtc_device_register(&client->dev,
-				pcf85063_driver.driver.name,
-				&pcf85063_rtc_ops, THIS_MODULE);
-
-	return PTR_ERR_OR_ZERO(pcf85063->rtc);
+	return PTR_ERR_OR_ZERO(rtc);
 }
 
 static const struct i2c_device_id pcf85063_id[] = {
@@ -194,4 +205,3 @@ module_i2c_driver(pcf85063_driver);
 MODULE_AUTHOR("Søren Andersen <san@rosetechnology.dk>");
 MODULE_DESCRIPTION("PCF85063 RTC driver");
 MODULE_LICENSE("GPL");
-MODULE_VERSION(DRV_VERSION);

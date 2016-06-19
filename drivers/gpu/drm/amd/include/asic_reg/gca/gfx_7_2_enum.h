@@ -6225,6 +6225,12 @@ typedef enum TCC_CACHE_POLICIES {
 	TCC_CACHE_POLICY_STREAM                          = 0x1,
 	TCC_CACHE_POLICY_BYPASS                          = 0x2,
 } TCC_CACHE_POLICIES;
+typedef enum MTYPE {
+	MTYPE_NC_NV                                      = 0x0,
+	MTYPE_NC                                         = 0x1,
+	MTYPE_CC                                         = 0x2,
+	MTYPE_UC                                         = 0x3,
+} MTYPE;
 typedef enum PERFMON_COUNTER_MODE {
 	PERFMON_COUNTER_MODE_ACCUM                       = 0x0,
 	PERFMON_COUNTER_MODE_ACTIVE_CYCLES               = 0x1,

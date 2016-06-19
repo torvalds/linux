@@ -154,16 +154,14 @@ static int cpi_req(void)
 	wait_for_completion(&completion);
 
 	if (req->status != SCLP_REQ_DONE) {
-		pr_warning("request failed (status=0x%02x)\n",
-			   req->status);
+		pr_warn("request failed (status=0x%02x)\n", req->status);
 		rc = -EIO;
 		goto out_free_req;
 	}
 
 	response = ((struct cpi_sccb *) req->sccb)->header.response_code;
 	if (response != 0x0020) {
-		pr_warning("request failed with response code 0x%x\n",
-			   response);
+		pr_warn("request failed with response code 0x%x\n", response);
 		rc = -EIO;
 	}
 

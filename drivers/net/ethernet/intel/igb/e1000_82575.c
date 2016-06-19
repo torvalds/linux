@@ -34,6 +34,7 @@
 #include "e1000_mac.h"
 #include "e1000_82575.h"
 #include "e1000_i210.h"
+#include "igb.h"
 
 static s32  igb_get_invariants_82575(struct e1000_hw *);
 static s32  igb_acquire_phy_82575(struct e1000_hw *);
@@ -70,6 +71,32 @@ static s32 igb_validate_nvm_checksum_i350(struct e1000_hw *hw);
 static s32 igb_update_nvm_checksum_i350(struct e1000_hw *hw);
 static const u16 e1000_82580_rxpbs_table[] = {
 	36, 72, 144, 1, 2, 4, 8, 16, 35, 70, 140 };
+
+/* Due to a hw errata, if the host tries to  configure the VFTA register
+ * while performing queries from the BMC or DMA, then the VFTA in some
+ * cases won't be written.
+ */
+
+/**
+ *  igb_write_vfta_i350 - Write value to VLAN filter table
+ *  @hw: pointer to the HW structure
+ *  @offset: register offset in VLAN filter table
+ *  @value: register value written to VLAN filter table
+ *
+ *  Writes value at the given offset in the register array which stores
+ *  the VLAN filter table.
+ **/
+static void igb_write_vfta_i350(struct e1000_hw *hw, u32 offset, u32 value)
+{
+	struct igb_adapter *adapter = hw->back;
+	int i;
+
+	for (i = 10; i--;)
+		array_wr32(E1000_VFTA, offset, value);
+
+	wrfl();
+	adapter->shadow_vfta[offset] = value;
+}
 
 /**
  *  igb_sgmii_uses_mdio_82575 - Determine if I2C pins are for external MDIO
@@ -398,6 +425,8 @@ static s32 igb_init_mac_params_82575(struct e1000_hw *hw)
 
 	/* Set mta register count */
 	mac->mta_reg_count = 128;
+	/* Set uta register count */
+	mac->uta_reg_count = (hw->mac.type == e1000_82575) ? 0 : 128;
 	/* Set rar entry count */
 	switch (mac->type) {
 	case e1000_82576:
@@ -428,6 +457,11 @@ static s32 igb_init_mac_params_82575(struct e1000_hw *hw)
 		mac->ops.acquire_swfw_sync = igb_acquire_swfw_sync_82575;
 		mac->ops.release_swfw_sync = igb_release_swfw_sync_82575;
 	}
+
+	if ((hw->mac.type == e1000_i350) || (hw->mac.type == e1000_i354))
+		mac->ops.write_vfta = igb_write_vfta_i350;
+	else
+		mac->ops.write_vfta = igb_write_vfta;
 
 	/* Set if part includes ASF firmware */
 	mac->asf_firmware_present = true;
@@ -1517,10 +1551,7 @@ static s32 igb_init_hw_82575(struct e1000_hw *hw)
 
 	/* Disabling VLAN filtering */
 	hw_dbg("Initializing the IEEE VLAN\n");
-	if ((hw->mac.type == e1000_i350) || (hw->mac.type == e1000_i354))
-		igb_clear_vfta_i350(hw);
-	else
-		igb_clear_vfta(hw);
+	igb_clear_vfta(hw);
 
 	/* Setup the receive address */
 	igb_init_rx_addrs(hw, rar_count);
@@ -2889,7 +2920,7 @@ static struct e1000_mac_operations e1000_mac_ops_82575 = {
 #endif
 };
 
-static struct e1000_phy_operations e1000_phy_ops_82575 = {
+static const struct e1000_phy_operations e1000_phy_ops_82575 = {
 	.acquire              = igb_acquire_phy_82575,
 	.get_cfg_done         = igb_get_cfg_done_82575,
 	.release              = igb_release_phy_82575,

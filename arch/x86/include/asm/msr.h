@@ -42,14 +42,6 @@ struct saved_msrs {
 	struct saved_msr *array;
 };
 
-static inline unsigned long long native_read_tscp(unsigned int *aux)
-{
-	unsigned long low, high;
-	asm volatile(".byte 0x0f,0x01,0xf9"
-		     : "=a" (low), "=d" (high), "=c" (*aux));
-	return low | ((u64)high << 32);
-}
-
 /*
  * both i386 and x86_64 returns 64-bit value in edx:eax, but gcc's "A"
  * constraint has different meanings. For i386, "A" means exactly

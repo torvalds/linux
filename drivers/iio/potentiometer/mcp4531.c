@@ -159,7 +159,7 @@ static int mcp4531_probe(struct i2c_client *client,
 	if (!i2c_check_functionality(client->adapter,
 				     I2C_FUNC_SMBUS_WORD_DATA)) {
 		dev_err(dev, "SMBUS Word Data not supported\n");
-		return -EIO;
+		return -EOPNOTSUPP;
 	}
 
 	indio_dev = devm_iio_device_alloc(dev, sizeof(*data));

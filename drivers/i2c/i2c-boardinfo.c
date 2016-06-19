@@ -12,11 +12,11 @@
  * GNU General Public License for more details.
  */
 
-#include <linux/kernel.h>
-#include <linux/i2c.h>
-#include <linux/slab.h>
 #include <linux/export.h>
+#include <linux/i2c.h>
+#include <linux/kernel.h>
 #include <linux/rwsem.h>
+#include <linux/slab.h>
 
 #include "i2c-core.h"
 

@@ -11,4 +11,10 @@
 #define MIN_FDT_ALIGN		8
 #define MAX_FDT_SIZE		SZ_2M
 
+/*
+ * arm64 requires the kernel image to placed
+ * TEXT_OFFSET bytes beyond a 2 MB aligned base
+ */
+#define MIN_KIMG_ALIGN		SZ_2M
+
 #endif

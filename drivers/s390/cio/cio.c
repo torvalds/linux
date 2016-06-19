@@ -656,7 +656,7 @@ struct subchannel *cio_probe_console(void)
 
 	sch_no = cio_get_console_sch_no();
 	if (sch_no == -1) {
-		pr_warning("No CCW console was found\n");
+		pr_warn("No CCW console was found\n");
 		return ERR_PTR(-ENODEV);
 	}
 	init_subchannel_id(&schid);

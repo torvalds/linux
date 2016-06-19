@@ -43,11 +43,11 @@
 #ifndef VIRTIO_BLK_NO_LEGACY
 #define VIRTIO_BLK_F_BARRIER	0	/* Does host support barriers? */
 #define VIRTIO_BLK_F_SCSI	7	/* Supports scsi command passthru */
-#define VIRTIO_BLK_F_WCE	9	/* Writeback mode enabled after reset */
+#define VIRTIO_BLK_F_FLUSH	9	/* Flush command supported */
 #define VIRTIO_BLK_F_CONFIG_WCE	11	/* Writeback mode available in config */
 #ifndef __KERNEL__
-/* Old (deprecated) name for VIRTIO_BLK_F_WCE. */
-#define VIRTIO_BLK_F_FLUSH VIRTIO_BLK_F_WCE
+/* Old (deprecated) name for VIRTIO_BLK_F_FLUSH. */
+#define VIRTIO_BLK_F_WCE VIRTIO_BLK_F_FLUSH
 #endif
 #endif /* !VIRTIO_BLK_NO_LEGACY */
 

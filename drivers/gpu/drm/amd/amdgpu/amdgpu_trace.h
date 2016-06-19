@@ -38,10 +38,10 @@ TRACE_EVENT(amdgpu_cs,
 
 	    TP_fast_assign(
 			   __entry->bo_list = p->bo_list;
-			   __entry->ring = p->ibs[i].ring->idx;
-			   __entry->dw = p->ibs[i].length_dw;
+			   __entry->ring = p->job->ring->idx;
+			   __entry->dw = p->job->ibs[i].length_dw;
 			   __entry->fences = amdgpu_fence_count_emitted(
-				p->ibs[i].ring);
+				p->job->ring);
 			   ),
 	    TP_printk("bo_list=%p, ring=%u, dw=%u, fences=%u",
 		      __entry->bo_list, __entry->ring, __entry->dw,
@@ -65,7 +65,7 @@ TRACE_EVENT(amdgpu_cs_ioctl,
 			   __entry->sched_job = &job->base;
 			   __entry->ib = job->ibs;
 			   __entry->fence = &job->base.s_fence->base;
-			   __entry->ring_name = job->ibs[0].ring->name;
+			   __entry->ring_name = job->ring->name;
 			   __entry->num_ibs = job->num_ibs;
 			   ),
 	    TP_printk("adev=%p, sched_job=%p, first ib=%p, sched fence=%p, ring name:%s, num_ibs:%u",
@@ -90,7 +90,7 @@ TRACE_EVENT(amdgpu_sched_run_job,
 			   __entry->sched_job = &job->base;
 			   __entry->ib = job->ibs;
 			   __entry->fence = &job->base.s_fence->base;
-			   __entry->ring_name = job->ibs[0].ring->name;
+			   __entry->ring_name = job->ring->name;
 			   __entry->num_ibs = job->num_ibs;
 			   ),
 	    TP_printk("adev=%p, sched_job=%p, first ib=%p, sched fence=%p, ring name:%s, num_ibs:%u",
@@ -100,18 +100,24 @@ TRACE_EVENT(amdgpu_sched_run_job,
 
 
 TRACE_EVENT(amdgpu_vm_grab_id,
-	    TP_PROTO(unsigned vmid, int ring),
-	    TP_ARGS(vmid, ring),
+	    TP_PROTO(struct amdgpu_vm *vm, int ring, unsigned vmid,
+		     uint64_t pd_addr),
+	    TP_ARGS(vm, ring, vmid, pd_addr),
 	    TP_STRUCT__entry(
-			     __field(u32, vmid)
+			     __field(struct amdgpu_vm *, vm)
 			     __field(u32, ring)
+			     __field(u32, vmid)
+			     __field(u64, pd_addr)
 			     ),
 
 	    TP_fast_assign(
-			   __entry->vmid = vmid;
+			   __entry->vm = vm;
 			   __entry->ring = ring;
+			   __entry->vmid = vmid;
+			   __entry->pd_addr = pd_addr;
 			   ),
-	    TP_printk("vmid=%u, ring=%u", __entry->vmid, __entry->ring)
+	    TP_printk("vm=%p, ring=%u, id=%u, pd_addr=%010Lx", __entry->vm,
+		      __entry->ring, __entry->vmid, __entry->pd_addr)
 );
 
 TRACE_EVENT(amdgpu_vm_bo_map,
@@ -228,8 +234,8 @@ TRACE_EVENT(amdgpu_vm_flush,
 			   __entry->ring = ring;
 			   __entry->id = id;
 			   ),
-	    TP_printk("pd_addr=%010Lx, ring=%u, id=%u",
-		      __entry->pd_addr, __entry->ring, __entry->id)
+	    TP_printk("ring=%u, id=%u, pd_addr=%010Lx",
+		      __entry->ring, __entry->id, __entry->pd_addr)
 );
 
 TRACE_EVENT(amdgpu_bo_list_set,
@@ -245,42 +251,6 @@ TRACE_EVENT(amdgpu_bo_list_set,
 			   __entry->bo = bo;
 			   ),
 	    TP_printk("list=%p, bo=%p", __entry->list, __entry->bo)
-);
-
-DECLARE_EVENT_CLASS(amdgpu_semaphore_request,
-
-	    TP_PROTO(int ring, struct amdgpu_semaphore *sem),
-
-	    TP_ARGS(ring, sem),
-
-	    TP_STRUCT__entry(
-			     __field(int, ring)
-			     __field(signed, waiters)
-			     __field(uint64_t, gpu_addr)
-			     ),
-
-	    TP_fast_assign(
-			   __entry->ring = ring;
-			   __entry->waiters = sem->waiters;
-			   __entry->gpu_addr = sem->gpu_addr;
-			   ),
-
-	    TP_printk("ring=%u, waiters=%d, addr=%010Lx", __entry->ring,
-		      __entry->waiters, __entry->gpu_addr)
-);
-
-DEFINE_EVENT(amdgpu_semaphore_request, amdgpu_semaphore_signale,
-
-	    TP_PROTO(int ring, struct amdgpu_semaphore *sem),
-
-	    TP_ARGS(ring, sem)
-);
-
-DEFINE_EVENT(amdgpu_semaphore_request, amdgpu_semaphore_wait,
-
-	    TP_PROTO(int ring, struct amdgpu_semaphore *sem),
-
-	    TP_ARGS(ring, sem)
 );
 
 #endif

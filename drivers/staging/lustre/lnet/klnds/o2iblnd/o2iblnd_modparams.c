@@ -52,8 +52,10 @@ static int timeout = 50;
 module_param(timeout, int, 0644);
 MODULE_PARM_DESC(timeout, "timeout (seconds)");
 
-/* Number of threads in each scheduler pool which is percpt,
- * we will estimate reasonable value based on CPUs if it's set to zero. */
+/*
+ * Number of threads in each scheduler pool which is percpt,
+ * we will estimate reasonable value based on CPUs if it's set to zero.
+ */
 static int nscheds;
 module_param(nscheds, int, 0444);
 MODULE_PARM_DESC(nscheds, "number of threads in each scheduler pool");
@@ -200,7 +202,7 @@ kiblnd_tunables_init(void)
 	if (*kiblnd_tunables.kib_map_on_demand == 1)
 		*kiblnd_tunables.kib_map_on_demand = 2; /* don't make sense to create map if only one fragment */
 
-	if (*kiblnd_tunables.kib_concurrent_sends == 0) {
+	if (!*kiblnd_tunables.kib_concurrent_sends) {
 		if (*kiblnd_tunables.kib_map_on_demand > 0 &&
 		    *kiblnd_tunables.kib_map_on_demand <= IBLND_MAX_RDMA_FRAGS / 8)
 			*kiblnd_tunables.kib_concurrent_sends = (*kiblnd_tunables.kib_peertxcredits) * 2;

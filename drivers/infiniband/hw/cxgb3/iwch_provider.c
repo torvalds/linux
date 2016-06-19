@@ -657,7 +657,8 @@ err:
 	return ERR_PTR(err);
 }
 
-static struct ib_mw *iwch_alloc_mw(struct ib_pd *pd, enum ib_mw_type type)
+static struct ib_mw *iwch_alloc_mw(struct ib_pd *pd, enum ib_mw_type type,
+				   struct ib_udata *udata)
 {
 	struct iwch_dev *rhp;
 	struct iwch_pd *php;
@@ -1389,6 +1390,8 @@ int iwch_register_device(struct iwch_dev *dev)
 	dev->ibdev.iwcm->add_ref = iwch_qp_add_ref;
 	dev->ibdev.iwcm->rem_ref = iwch_qp_rem_ref;
 	dev->ibdev.iwcm->get_qp = iwch_get_qp;
+	memcpy(dev->ibdev.iwcm->ifname, dev->rdev.t3cdev_p->lldev->name,
+	       sizeof(dev->ibdev.iwcm->ifname));
 
 	ret = ib_register_device(&dev->ibdev, NULL);
 	if (ret)

@@ -426,7 +426,7 @@ int pxa2xx_pinctrl_init(struct platform_device *pdev,
 
 	return 0;
 }
-EXPORT_SYMBOL(pxa2xx_pinctrl_init);
+EXPORT_SYMBOL_GPL(pxa2xx_pinctrl_init);
 
 int pxa2xx_pinctrl_exit(struct platform_device *pdev)
 {
@@ -435,3 +435,4 @@ int pxa2xx_pinctrl_exit(struct platform_device *pdev)
 	pinctrl_unregister(pctl->pctl_dev);
 	return 0;
 }
+EXPORT_SYMBOL_GPL(pxa2xx_pinctrl_exit);

@@ -352,6 +352,16 @@ struct wiphy *wiphy_new_nm(const struct cfg80211_ops *ops, int sizeof_priv,
 	WARN_ON(ops->add_station && !ops->del_station);
 	WARN_ON(ops->add_mpath && !ops->del_mpath);
 	WARN_ON(ops->join_mesh && !ops->leave_mesh);
+	WARN_ON(ops->start_p2p_device && !ops->stop_p2p_device);
+	WARN_ON(ops->start_ap && !ops->stop_ap);
+	WARN_ON(ops->join_ocb && !ops->leave_ocb);
+	WARN_ON(ops->suspend && !ops->resume);
+	WARN_ON(ops->sched_scan_start && !ops->sched_scan_stop);
+	WARN_ON(ops->remain_on_channel && !ops->cancel_remain_on_channel);
+	WARN_ON(ops->tdls_channel_switch && !ops->tdls_cancel_channel_switch);
+	WARN_ON(ops->add_tx_ts && !ops->del_tx_ts);
+	WARN_ON(ops->set_tx_power && !ops->get_tx_power);
+	WARN_ON(ops->set_antenna && !ops->get_antenna);
 
 	alloc_size = sizeof(*rdev) + sizeof_priv;
 

@@ -16,6 +16,8 @@
 #include <asm/vgtod.h>
 #include <asm/vvar.h>
 
+int vclocks_used __read_mostly;
+
 DEFINE_VVAR(struct vsyscall_gtod_data, vsyscall_gtod_data);
 
 void update_vsyscall_tz(void)
@@ -26,12 +28,17 @@ void update_vsyscall_tz(void)
 
 void update_vsyscall(struct timekeeper *tk)
 {
+	int vclock_mode = tk->tkr_mono.clock->archdata.vclock_mode;
 	struct vsyscall_gtod_data *vdata = &vsyscall_gtod_data;
+
+	/* Mark the new vclock used. */
+	BUILD_BUG_ON(VCLOCK_MAX >= 32);
+	WRITE_ONCE(vclocks_used, READ_ONCE(vclocks_used) | (1 << vclock_mode));
 
 	gtod_write_begin(vdata);
 
 	/* copy vsyscall data */
-	vdata->vclock_mode	= tk->tkr_mono.clock->archdata.vclock_mode;
+	vdata->vclock_mode	= vclock_mode;
 	vdata->cycle_last	= tk->tkr_mono.cycle_last;
 	vdata->mask		= tk->tkr_mono.mask;
 	vdata->mult		= tk->tkr_mono.mult;

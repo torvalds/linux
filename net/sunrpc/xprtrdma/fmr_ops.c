@@ -80,13 +80,13 @@ fmr_op_init(struct rpcrdma_xprt *r_xprt)
 		if (!r)
 			goto out;
 
-		r->r.fmr.physaddrs = kmalloc(RPCRDMA_MAX_FMR_SGES *
-					     sizeof(u64), GFP_KERNEL);
-		if (!r->r.fmr.physaddrs)
+		r->fmr.physaddrs = kmalloc(RPCRDMA_MAX_FMR_SGES *
+					   sizeof(u64), GFP_KERNEL);
+		if (!r->fmr.physaddrs)
 			goto out_free;
 
-		r->r.fmr.fmr = ib_alloc_fmr(pd, mr_access_flags, &fmr_attr);
-		if (IS_ERR(r->r.fmr.fmr))
+		r->fmr.fmr = ib_alloc_fmr(pd, mr_access_flags, &fmr_attr);
+		if (IS_ERR(r->fmr.fmr))
 			goto out_fmr_err;
 
 		list_add(&r->mw_list, &buf->rb_mws);
@@ -95,9 +95,9 @@ fmr_op_init(struct rpcrdma_xprt *r_xprt)
 	return 0;
 
 out_fmr_err:
-	rc = PTR_ERR(r->r.fmr.fmr);
+	rc = PTR_ERR(r->fmr.fmr);
 	dprintk("RPC:       %s: ib_alloc_fmr status %i\n", __func__, rc);
-	kfree(r->r.fmr.physaddrs);
+	kfree(r->fmr.physaddrs);
 out_free:
 	kfree(r);
 out:
@@ -109,7 +109,7 @@ __fmr_unmap(struct rpcrdma_mw *r)
 {
 	LIST_HEAD(l);
 
-	list_add(&r->r.fmr.fmr->list, &l);
+	list_add(&r->fmr.fmr->list, &l);
 	return ib_unmap_fmr(&l);
 }
 
@@ -148,7 +148,7 @@ fmr_op_map(struct rpcrdma_xprt *r_xprt, struct rpcrdma_mr_seg *seg,
 		nsegs = RPCRDMA_MAX_FMR_SGES;
 	for (i = 0; i < nsegs;) {
 		rpcrdma_map_one(device, seg, direction);
-		mw->r.fmr.physaddrs[i] = seg->mr_dma;
+		mw->fmr.physaddrs[i] = seg->mr_dma;
 		len += seg->mr_len;
 		++seg;
 		++i;
@@ -158,13 +158,13 @@ fmr_op_map(struct rpcrdma_xprt *r_xprt, struct rpcrdma_mr_seg *seg,
 			break;
 	}
 
-	rc = ib_map_phys_fmr(mw->r.fmr.fmr, mw->r.fmr.physaddrs,
+	rc = ib_map_phys_fmr(mw->fmr.fmr, mw->fmr.physaddrs,
 			     i, seg1->mr_dma);
 	if (rc)
 		goto out_maperr;
 
 	seg1->rl_mw = mw;
-	seg1->mr_rkey = mw->r.fmr.fmr->rkey;
+	seg1->mr_rkey = mw->fmr.fmr->rkey;
 	seg1->mr_base = seg1->mr_dma + pageoff;
 	seg1->mr_nsegs = i;
 	seg1->mr_len = len;
@@ -219,7 +219,7 @@ fmr_op_unmap_sync(struct rpcrdma_xprt *r_xprt, struct rpcrdma_req *req)
 		seg = &req->rl_segments[i];
 		mw = seg->rl_mw;
 
-		list_add(&mw->r.fmr.fmr->list, &unmap_list);
+		list_add(&mw->fmr.fmr->list, &unmap_list);
 
 		i += seg->mr_nsegs;
 	}
@@ -281,9 +281,9 @@ fmr_op_destroy(struct rpcrdma_buffer *buf)
 	while (!list_empty(&buf->rb_all)) {
 		r = list_entry(buf->rb_all.next, struct rpcrdma_mw, mw_all);
 		list_del(&r->mw_all);
-		kfree(r->r.fmr.physaddrs);
+		kfree(r->fmr.physaddrs);
 
-		rc = ib_dealloc_fmr(r->r.fmr.fmr);
+		rc = ib_dealloc_fmr(r->fmr.fmr);
 		if (rc)
 			dprintk("RPC:       %s: ib_dealloc_fmr failed %i\n",
 				__func__, rc);

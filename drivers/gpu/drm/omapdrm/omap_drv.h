@@ -31,6 +31,8 @@
 #include <drm/drm_gem.h>
 #include <drm/omap_drm.h>
 
+#include "dss/omapdss.h"
+
 #define DBG(fmt, ...) DRM_DEBUG(fmt"\n", ##__VA_ARGS__)
 #define VERB(fmt, ...) if (0) DRM_DEBUG(fmt, ##__VA_ARGS__) /* verbose debug */
 
@@ -106,7 +108,6 @@ struct omap_drm_private {
 
 	/* atomic commit */
 	struct {
-		struct list_head events;
 		wait_queue_head_t wait;
 		u32 pending;
 		spinlock_t lock;	/* Protects commit.pending */
@@ -189,12 +190,15 @@ void omap_framebuffer_update_scanout(struct drm_framebuffer *fb,
 		struct omap_drm_window *win, struct omap_overlay_info *info);
 struct drm_connector *omap_framebuffer_get_next_connector(
 		struct drm_framebuffer *fb, struct drm_connector *from);
+bool omap_framebuffer_supports_rotation(struct drm_framebuffer *fb);
 
 void omap_gem_init(struct drm_device *dev);
 void omap_gem_deinit(struct drm_device *dev);
 
 struct drm_gem_object *omap_gem_new(struct drm_device *dev,
 		union omap_gem_size gsize, uint32_t flags);
+struct drm_gem_object *omap_gem_new_dmabuf(struct drm_device *dev, size_t size,
+		struct sg_table *sgt);
 int omap_gem_new_handle(struct drm_device *dev, struct drm_file *file,
 		union omap_gem_size gsize, uint32_t flags, uint32_t *handle);
 void omap_gem_free_object(struct drm_gem_object *obj);

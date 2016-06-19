@@ -21,7 +21,7 @@
 /*
  * Time till packet resend (in jiffies).
  */
-unsigned rxrpc_resend_timeout = 4 * HZ;
+unsigned int rxrpc_resend_timeout = 4 * HZ;
 
 static int rxrpc_send_data(struct rxrpc_sock *rx,
 			   struct rxrpc_call *call,
@@ -111,11 +111,11 @@ static void rxrpc_send_abort(struct rxrpc_call *call, u32 abort_code)
 	if (call->state <= RXRPC_CALL_COMPLETE) {
 		call->state = RXRPC_CALL_LOCALLY_ABORTED;
 		call->abort_code = abort_code;
-		set_bit(RXRPC_CALL_ABORT, &call->events);
+		set_bit(RXRPC_CALL_EV_ABORT, &call->events);
 		del_timer_sync(&call->resend_timer);
 		del_timer_sync(&call->ack_timer);
-		clear_bit(RXRPC_CALL_RESEND_TIMER, &call->events);
-		clear_bit(RXRPC_CALL_ACK, &call->events);
+		clear_bit(RXRPC_CALL_EV_RESEND_TIMER, &call->events);
+		clear_bit(RXRPC_CALL_EV_ACK, &call->events);
 		clear_bit(RXRPC_CALL_RUN_RTIMER, &call->flags);
 		rxrpc_queue_call(call);
 	}
@@ -136,7 +136,7 @@ int rxrpc_client_sendmsg(struct rxrpc_sock *rx, struct rxrpc_transport *trans,
 	struct rxrpc_call *call;
 	unsigned long user_call_ID = 0;
 	struct key *key;
-	__be16 service_id;
+	u16 service_id;
 	u32 abort_code = 0;
 	int ret;
 
@@ -151,11 +151,11 @@ int rxrpc_client_sendmsg(struct rxrpc_sock *rx, struct rxrpc_transport *trans,
 
 	bundle = NULL;
 	if (trans) {
-		service_id = rx->service_id;
+		service_id = rx->srx.srx_service;
 		if (msg->msg_name) {
 			DECLARE_SOCKADDR(struct sockaddr_rxrpc *, srx,
 					 msg->msg_name);
-			service_id = htons(srx->srx_service);
+			service_id = srx->srx_service;
 		}
 		key = rx->key;
 		if (key && !rx->key->payload.data[0])
@@ -348,7 +348,7 @@ int rxrpc_send_packet(struct rxrpc_transport *trans, struct sk_buff *skb)
 
 	/* send the packet with the don't fragment bit set if we currently
 	 * think it's small enough */
-	if (skb->len - sizeof(struct rxrpc_header) < trans->peer->maxdata) {
+	if (skb->len - sizeof(struct rxrpc_wire_header) < trans->peer->maxdata) {
 		down_read(&trans->local->defrag_sem);
 		/* send the packet by UDP
 		 * - returns -EMSGSIZE if UDP would have to fragment the packet
@@ -401,7 +401,8 @@ static int rxrpc_wait_for_tx_window(struct rxrpc_sock *rx,
 	int ret;
 
 	_enter(",{%d},%ld",
-	       CIRC_SPACE(call->acks_head, call->acks_tail, call->acks_winsz),
+	       CIRC_SPACE(call->acks_head, ACCESS_ONCE(call->acks_tail),
+			  call->acks_winsz),
 	       *timeo);
 
 	add_wait_queue(&call->tx_waitq, &myself);
@@ -409,7 +410,7 @@ static int rxrpc_wait_for_tx_window(struct rxrpc_sock *rx,
 	for (;;) {
 		set_current_state(TASK_INTERRUPTIBLE);
 		ret = 0;
-		if (CIRC_SPACE(call->acks_head, call->acks_tail,
+		if (CIRC_SPACE(call->acks_head, ACCESS_ONCE(call->acks_tail),
 			       call->acks_winsz) > 0)
 			break;
 		if (signal_pending(current)) {
@@ -437,7 +438,7 @@ static inline void rxrpc_instant_resend(struct rxrpc_call *call)
 	if (try_to_del_timer_sync(&call->resend_timer) >= 0) {
 		clear_bit(RXRPC_CALL_RUN_RTIMER, &call->flags);
 		if (call->state < RXRPC_CALL_COMPLETE &&
-		    !test_and_set_bit(RXRPC_CALL_RESEND_TIMER, &call->events))
+		    !test_and_set_bit(RXRPC_CALL_EV_RESEND_TIMER, &call->events))
 			rxrpc_queue_call(call);
 	}
 	read_unlock_bh(&call->state_lock);
@@ -480,8 +481,7 @@ static void rxrpc_queue_packet(struct rxrpc_call *call, struct sk_buff *skb,
 		write_unlock_bh(&call->state_lock);
 	}
 
-	_proto("Tx DATA %%%u { #%u }",
-	       ntohl(sp->hdr.serial), ntohl(sp->hdr.seq));
+	_proto("Tx DATA %%%u { #%u }", sp->hdr.serial, sp->hdr.seq);
 
 	sp->need_resend = false;
 	sp->resend_at = jiffies + rxrpc_resend_timeout;
@@ -510,6 +510,29 @@ static void rxrpc_queue_packet(struct rxrpc_call *call, struct sk_buff *skb,
 	}
 
 	_leave("");
+}
+
+/*
+ * Convert a host-endian header into a network-endian header.
+ */
+static void rxrpc_insert_header(struct sk_buff *skb)
+{
+	struct rxrpc_wire_header whdr;
+	struct rxrpc_skb_priv *sp = rxrpc_skb(skb);
+
+	whdr.epoch	= htonl(sp->hdr.epoch);
+	whdr.cid	= htonl(sp->hdr.cid);
+	whdr.callNumber	= htonl(sp->hdr.callNumber);
+	whdr.seq	= htonl(sp->hdr.seq);
+	whdr.serial	= htonl(sp->hdr.serial);
+	whdr.type	= sp->hdr.type;
+	whdr.flags	= sp->hdr.flags;
+	whdr.userStatus	= sp->hdr.userStatus;
+	whdr.securityIndex = sp->hdr.securityIndex;
+	whdr._rsvd	= htons(sp->hdr._rsvd);
+	whdr.serviceId	= htons(sp->hdr.serviceId);
+
+	memcpy(skb->head, &whdr, sizeof(whdr));
 }
 
 /*
@@ -548,7 +571,8 @@ static int rxrpc_send_data(struct rxrpc_sock *rx,
 
 			_debug("alloc");
 
-			if (CIRC_SPACE(call->acks_head, call->acks_tail,
+			if (CIRC_SPACE(call->acks_head,
+				       ACCESS_ONCE(call->acks_tail),
 				       call->acks_winsz) <= 0) {
 				ret = -EAGAIN;
 				if (msg->msg_flags & MSG_DONTWAIT)
@@ -650,22 +674,22 @@ static int rxrpc_send_data(struct rxrpc_sock *rx,
 
 			seq = atomic_inc_return(&call->sequence);
 
-			sp->hdr.epoch = conn->epoch;
-			sp->hdr.cid = call->cid;
+			sp->hdr.epoch	= conn->epoch;
+			sp->hdr.cid	= call->cid;
 			sp->hdr.callNumber = call->call_id;
-			sp->hdr.seq = htonl(seq);
-			sp->hdr.serial =
-				htonl(atomic_inc_return(&conn->serial));
-			sp->hdr.type = RXRPC_PACKET_TYPE_DATA;
+			sp->hdr.seq	= seq;
+			sp->hdr.serial	= atomic_inc_return(&conn->serial);
+			sp->hdr.type	= RXRPC_PACKET_TYPE_DATA;
 			sp->hdr.userStatus = 0;
 			sp->hdr.securityIndex = conn->security_ix;
-			sp->hdr._rsvd = 0;
-			sp->hdr.serviceId = conn->service_id;
+			sp->hdr._rsvd	= 0;
+			sp->hdr.serviceId = call->service_id;
 
 			sp->hdr.flags = conn->out_clientflag;
 			if (msg_data_left(msg) == 0 && !more)
 				sp->hdr.flags |= RXRPC_LAST_PACKET;
-			else if (CIRC_SPACE(call->acks_head, call->acks_tail,
+			else if (CIRC_SPACE(call->acks_head,
+					    ACCESS_ONCE(call->acks_tail),
 					    call->acks_winsz) > 1)
 				sp->hdr.flags |= RXRPC_MORE_PACKETS;
 			if (more && seq & 1)
@@ -673,12 +697,11 @@ static int rxrpc_send_data(struct rxrpc_sock *rx,
 
 			ret = rxrpc_secure_packet(
 				call, skb, skb->mark,
-				skb->head + sizeof(struct rxrpc_header));
+				skb->head + sizeof(struct rxrpc_wire_header));
 			if (ret < 0)
 				goto out;
 
-			memcpy(skb->head, &sp->hdr,
-			       sizeof(struct rxrpc_header));
+			rxrpc_insert_header(skb);
 			rxrpc_queue_packet(call, skb, !msg_data_left(msg) && !more);
 			skb = NULL;
 		}

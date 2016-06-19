@@ -861,9 +861,6 @@ static void s3c2410_nand_init_chip(struct s3c2410_nand_info *info,
 	chip->ecc.mode	    = NAND_ECC_SOFT;
 #endif
 
-	if (set->ecc_layout != NULL)
-		chip->ecc.layout = set->ecc_layout;
-
 	if (set->disable_ecc)
 		chip->ecc.mode	= NAND_ECC_NONE;
 

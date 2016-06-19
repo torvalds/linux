@@ -1,13 +1,16 @@
 == Amlogic Meson pinmux controller ==
 
 Required properties for the root node:
- - compatible: "amlogic,meson8-pinctrl" or "amlogic,meson8b-pinctrl"
+ - compatible: one of "amlogic,meson8-cbus-pinctrl"
+		      "amlogic,meson8b-cbus-pinctrl"
+		      "amlogic,meson8-aobus-pinctrl"
+		      "amlogic,meson8b-aobus-pinctrl"
  - reg: address and size of registers controlling irq functionality
 
 === GPIO sub-nodes ===
 
-The 2 power domains of the controller (regular and always-on) are
-represented as sub-nodes and each of them acts as a GPIO controller.
+The GPIO bank for the controller is represented as a sub-node and it acts as a
+GPIO controller.
 
 Required properties for sub-nodes are:
  - reg: should contain address and size for mux, pull-enable, pull and
@@ -17,10 +20,6 @@ Required properties for sub-nodes are:
    when it is missing the "pull" registers are used instead
  - gpio-controller: identifies the node as a gpio controller
  - #gpio-cells: must be 2
-
-Valid sub-node names are:
- - "banks" for the regular domain
- - "ao-bank" for the always-on domain
 
 === Other sub-nodes ===
 
@@ -45,7 +44,7 @@ pinctrl-bindings.txt
 === Example ===
 
 	pinctrl: pinctrl@c1109880 {
-		compatible = "amlogic,meson8-pinctrl";
+		compatible = "amlogic,meson8-cbus-pinctrl";
 		reg = <0xc1109880 0x10>;
 		#address-cells = <1>;
 		#size-cells = <1>;
@@ -61,15 +60,6 @@ pinctrl-bindings.txt
 			#gpio-cells = <2>;
                };
 
-		gpio_ao: ao-bank@c1108030 {
-			reg = <0xc8100014 0x4>,
-			      <0xc810002c 0x4>,
-			      <0xc8100024 0x8>;
-			reg-names = "mux", "pull", "gpio";
-			gpio-controller;
-			#gpio-cells = <2>;
-		};
-
 		nand {
 			mux {
 				groups = "nand_io", "nand_io_ce0", "nand_io_ce1",
@@ -77,20 +67,6 @@ pinctrl-bindings.txt
 					 "nand_wen_clk", "nand_ren_clk", "nand_dqs",
 					 "nand_ce2", "nand_ce3";
 				function = "nand";
-			};
-		};
-
-		uart_ao_a {
-			mux {
-				groups = "uart_tx_ao_a", "uart_rx_ao_a",
-					 "uart_cts_ao_a", "uart_rts_ao_a";
-				function = "uart_ao";
-			};
-
-			conf {
-				pins = "GPIOAO_0", "GPIOAO_1",
-				       "GPIOAO_2", "GPIOAO_3";
-				bias-disable;
 			};
 		};
 	};

@@ -48,9 +48,6 @@
 
   <refsect1>
     <title>Description</title>
-
-    <para><emphasis role="bold">NOTE:</emphasis> This new ioctl is programmed to be added on Kernel 4.6. Its definition/arguments may change until its final version.</para>
-
     <para>The typical usage of this ioctl is to call it twice.
     On the first call, the structure defined at &media-v2-topology; should
     be zeroed. At return, if no errors happen, this ioctl will return the

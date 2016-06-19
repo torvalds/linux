@@ -2134,7 +2134,6 @@ static int ab8500_codec_set_dai_fmt(struct snd_soc_dai *dai, unsigned int fmt)
 			"%s: ERROR: Unsupporter master mask 0x%x\n",
 			__func__, fmt & SND_SOC_DAIFMT_MASTER_MASK);
 		return -EINVAL;
-		break;
 	}
 
 	snd_soc_update_bits(codec, AB8500_DIGIFCONF3, mask, val);

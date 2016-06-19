@@ -251,6 +251,27 @@ static int rockchip_drm_unload(struct drm_device *drm_dev)
 	return 0;
 }
 
+static void rockchip_drm_crtc_cancel_pending_vblank(struct drm_crtc *crtc,
+						    struct drm_file *file_priv)
+{
+	struct rockchip_drm_private *priv = crtc->dev->dev_private;
+	int pipe = drm_crtc_index(crtc);
+
+	if (pipe < ROCKCHIP_MAX_CRTC &&
+	    priv->crtc_funcs[pipe] &&
+	    priv->crtc_funcs[pipe]->cancel_pending_vblank)
+		priv->crtc_funcs[pipe]->cancel_pending_vblank(crtc, file_priv);
+}
+
+static void rockchip_drm_preclose(struct drm_device *dev,
+				  struct drm_file *file_priv)
+{
+	struct drm_crtc *crtc;
+
+	list_for_each_entry(crtc, &dev->mode_config.crtc_list, head)
+		rockchip_drm_crtc_cancel_pending_vblank(crtc, file_priv);
+}
+
 void rockchip_drm_lastclose(struct drm_device *dev)
 {
 	struct rockchip_drm_private *priv = dev->dev_private;
@@ -281,6 +302,7 @@ static struct drm_driver rockchip_drm_driver = {
 				  DRIVER_PRIME | DRIVER_ATOMIC,
 	.load			= rockchip_drm_load,
 	.unload			= rockchip_drm_unload,
+	.preclose		= rockchip_drm_preclose,
 	.lastclose		= rockchip_drm_lastclose,
 	.get_vblank_counter	= drm_vblank_no_hw_counter,
 	.enable_vblank		= rockchip_drm_crtc_enable_vblank,
@@ -383,36 +405,6 @@ static const struct dev_pm_ops rockchip_drm_pm_ops = {
 	SET_SYSTEM_SLEEP_PM_OPS(rockchip_drm_sys_suspend,
 				rockchip_drm_sys_resume)
 };
-
-/*
- * @node: device tree node containing encoder input ports
- * @encoder: drm_encoder
- */
-int rockchip_drm_encoder_get_mux_id(struct device_node *node,
-				    struct drm_encoder *encoder)
-{
-	struct device_node *ep;
-	struct drm_crtc *crtc = encoder->crtc;
-	struct of_endpoint endpoint;
-	struct device_node *port;
-	int ret;
-
-	if (!node || !crtc)
-		return -EINVAL;
-
-	for_each_endpoint_of_node(node, ep) {
-		port = of_graph_get_remote_port(ep);
-		of_node_put(port);
-		if (port == crtc->port) {
-			ret = of_graph_parse_endpoint(ep, &endpoint);
-			of_node_put(ep);
-			return ret ?: endpoint.id;
-		}
-	}
-
-	return -EINVAL;
-}
-EXPORT_SYMBOL_GPL(rockchip_drm_encoder_get_mux_id);
 
 static int compare_of(struct device *dev, void *data)
 {

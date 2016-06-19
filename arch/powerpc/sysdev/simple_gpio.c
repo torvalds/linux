@@ -46,7 +46,7 @@ static int u8_gpio_get(struct gpio_chip *gc, unsigned int gpio)
 {
 	struct of_mm_gpio_chip *mm_gc = to_of_mm_gpio_chip(gc);
 
-	return in_8(mm_gc->regs) & u8_pin2mask(gpio);
+	return !!(in_8(mm_gc->regs) & u8_pin2mask(gpio));
 }
 
 static void u8_gpio_set(struct gpio_chip *gc, unsigned int gpio, int val)

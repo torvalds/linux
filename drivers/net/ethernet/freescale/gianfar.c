@@ -2324,6 +2324,7 @@ static int gfar_start_xmit(struct sk_buff *skb, struct net_device *dev)
 	struct txfcb *fcb = NULL;
 	struct txbd8 *txbdp, *txbdp_start, *base, *txbdp_tstamp = NULL;
 	u32 lstatus;
+	skb_frag_t *frag;
 	int i, rq = 0;
 	int do_tstamp, do_csum, do_vlan;
 	u32 bufaddr;
@@ -2391,52 +2392,6 @@ static int gfar_start_xmit(struct sk_buff *skb, struct net_device *dev)
 	txbdp = txbdp_start = tx_queue->cur_tx;
 	lstatus = be32_to_cpu(txbdp->lstatus);
 
-	/* Time stamp insertion requires one additional TxBD */
-	if (unlikely(do_tstamp))
-		txbdp_tstamp = txbdp = next_txbd(txbdp, base,
-						 tx_queue->tx_ring_size);
-
-	if (nr_frags == 0) {
-		if (unlikely(do_tstamp)) {
-			u32 lstatus_ts = be32_to_cpu(txbdp_tstamp->lstatus);
-
-			lstatus_ts |= BD_LFLAG(TXBD_LAST | TXBD_INTERRUPT);
-			txbdp_tstamp->lstatus = cpu_to_be32(lstatus_ts);
-		} else {
-			lstatus |= BD_LFLAG(TXBD_LAST | TXBD_INTERRUPT);
-		}
-	} else {
-		/* Place the fragment addresses and lengths into the TxBDs */
-		for (i = 0; i < nr_frags; i++) {
-			unsigned int frag_len;
-			/* Point at the next BD, wrapping as needed */
-			txbdp = next_txbd(txbdp, base, tx_queue->tx_ring_size);
-
-			frag_len = skb_shinfo(skb)->frags[i].size;
-
-			lstatus = be32_to_cpu(txbdp->lstatus) | frag_len |
-				  BD_LFLAG(TXBD_READY);
-
-			/* Handle the last BD specially */
-			if (i == nr_frags - 1)
-				lstatus |= BD_LFLAG(TXBD_LAST | TXBD_INTERRUPT);
-
-			bufaddr = skb_frag_dma_map(priv->dev,
-						   &skb_shinfo(skb)->frags[i],
-						   0,
-						   frag_len,
-						   DMA_TO_DEVICE);
-			if (unlikely(dma_mapping_error(priv->dev, bufaddr)))
-				goto dma_map_err;
-
-			/* set the TxBD length and buffer pointer */
-			txbdp->bufPtr = cpu_to_be32(bufaddr);
-			txbdp->lstatus = cpu_to_be32(lstatus);
-		}
-
-		lstatus = be32_to_cpu(txbdp_start->lstatus);
-	}
-
 	/* Add TxPAL between FCB and frame if required */
 	if (unlikely(do_tstamp)) {
 		skb_push(skb, GMAC_TXPAL_LEN);
@@ -2471,18 +2426,52 @@ static int gfar_start_xmit(struct sk_buff *skb, struct net_device *dev)
 	if (do_vlan)
 		gfar_tx_vlan(skb, fcb);
 
-	/* Setup tx hardware time stamping if requested */
-	if (unlikely(do_tstamp)) {
-		skb_shinfo(skb)->tx_flags |= SKBTX_IN_PROGRESS;
-		fcb->ptp = 1;
-	}
-
 	bufaddr = dma_map_single(priv->dev, skb->data, skb_headlen(skb),
 				 DMA_TO_DEVICE);
 	if (unlikely(dma_mapping_error(priv->dev, bufaddr)))
 		goto dma_map_err;
 
 	txbdp_start->bufPtr = cpu_to_be32(bufaddr);
+
+	/* Time stamp insertion requires one additional TxBD */
+	if (unlikely(do_tstamp))
+		txbdp_tstamp = txbdp = next_txbd(txbdp, base,
+						 tx_queue->tx_ring_size);
+
+	if (likely(!nr_frags)) {
+		lstatus |= BD_LFLAG(TXBD_LAST | TXBD_INTERRUPT);
+	} else {
+		u32 lstatus_start = lstatus;
+
+		/* Place the fragment addresses and lengths into the TxBDs */
+		frag = &skb_shinfo(skb)->frags[0];
+		for (i = 0; i < nr_frags; i++, frag++) {
+			unsigned int size;
+
+			/* Point at the next BD, wrapping as needed */
+			txbdp = next_txbd(txbdp, base, tx_queue->tx_ring_size);
+
+			size = skb_frag_size(frag);
+
+			lstatus = be32_to_cpu(txbdp->lstatus) | size |
+				  BD_LFLAG(TXBD_READY);
+
+			/* Handle the last BD specially */
+			if (i == nr_frags - 1)
+				lstatus |= BD_LFLAG(TXBD_LAST | TXBD_INTERRUPT);
+
+			bufaddr = skb_frag_dma_map(priv->dev, frag, 0,
+						   size, DMA_TO_DEVICE);
+			if (unlikely(dma_mapping_error(priv->dev, bufaddr)))
+				goto dma_map_err;
+
+			/* set the TxBD length and buffer pointer */
+			txbdp->bufPtr = cpu_to_be32(bufaddr);
+			txbdp->lstatus = cpu_to_be32(lstatus);
+		}
+
+		lstatus = lstatus_start;
+	}
 
 	/* If time stamping is requested one additional TxBD must be set up. The
 	 * first TxBD points to the FCB and must have a data length of
@@ -2494,12 +2483,19 @@ static int gfar_start_xmit(struct sk_buff *skb, struct net_device *dev)
 
 		bufaddr = be32_to_cpu(txbdp_start->bufPtr);
 		bufaddr += fcb_len;
+
 		lstatus_ts |= BD_LFLAG(TXBD_READY) |
 			      (skb_headlen(skb) - fcb_len);
+		if (!nr_frags)
+			lstatus_ts |= BD_LFLAG(TXBD_LAST | TXBD_INTERRUPT);
 
 		txbdp_tstamp->bufPtr = cpu_to_be32(bufaddr);
 		txbdp_tstamp->lstatus = cpu_to_be32(lstatus_ts);
 		lstatus |= BD_LFLAG(TXBD_CRC | TXBD_READY) | GMAC_FCB_LEN;
+
+		/* Setup tx hardware time stamping */
+		skb_shinfo(skb)->tx_flags |= SKBTX_IN_PROGRESS;
+		fcb->ptp = 1;
 	} else {
 		lstatus |= BD_LFLAG(TXBD_CRC | TXBD_READY) | skb_headlen(skb);
 	}
@@ -2712,7 +2708,7 @@ static void gfar_clean_tx_ring(struct gfar_priv_tx_q *tx_queue)
 					  ~0x7UL);
 
 			memset(&shhwtstamps, 0, sizeof(shhwtstamps));
-			shhwtstamps.hwtstamp = ns_to_ktime(*ns);
+			shhwtstamps.hwtstamp = ns_to_ktime(be64_to_cpu(*ns));
 			skb_pull(skb, GMAC_FCB_LEN + GMAC_TXPAL_LEN);
 			skb_tstamp_tx(skb, &shhwtstamps);
 			gfar_clear_txbd_status(bdp);
@@ -2944,7 +2940,7 @@ static bool gfar_add_rx_frag(struct gfar_rx_buff *rxb, u32 lstatus,
 	/* change offset to the other half */
 	rxb->page_offset ^= GFAR_RXB_TRUESIZE;
 
-	atomic_inc(&page->_count);
+	page_ref_inc(page);
 
 	return true;
 }
@@ -3041,7 +3037,7 @@ static void gfar_process_frame(struct net_device *ndev, struct sk_buff *skb)
 		u64 *ns = (u64 *) skb->data;
 
 		memset(shhwtstamps, 0, sizeof(*shhwtstamps));
-		shhwtstamps->hwtstamp = ns_to_ktime(*ns);
+		shhwtstamps->hwtstamp = ns_to_ktime(be64_to_cpu(*ns));
 	}
 
 	if (priv->padding)

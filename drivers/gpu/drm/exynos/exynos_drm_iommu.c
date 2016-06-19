@@ -9,7 +9,7 @@
  * option) any later version.
  */
 
-#include <drmP.h>
+#include <drm/drmP.h>
 #include <drm/exynos_drm.h>
 
 #include <linux/dma-mapping.h>
@@ -30,7 +30,6 @@ int drm_create_iommu_mapping(struct drm_device *drm_dev)
 {
 	struct dma_iommu_mapping *mapping = NULL;
 	struct exynos_drm_private *priv = drm_dev->dev_private;
-	struct device *dev = drm_dev->dev;
 
 	if (!priv->da_start)
 		priv->da_start = EXYNOS_DEV_ADDR_START;
@@ -43,18 +42,9 @@ int drm_create_iommu_mapping(struct drm_device *drm_dev)
 	if (IS_ERR(mapping))
 		return PTR_ERR(mapping);
 
-	dev->dma_parms = devm_kzalloc(dev, sizeof(*dev->dma_parms),
-					GFP_KERNEL);
-	if (!dev->dma_parms)
-		goto error;
-
-	dma_set_max_seg_size(dev, 0xffffffffu);
-	dev->archdata.mapping = mapping;
+	priv->mapping = mapping;
 
 	return 0;
-error:
-	arm_iommu_release_mapping(mapping);
-	return -ENOMEM;
 }
 
 /*
@@ -67,9 +57,9 @@ error:
  */
 void drm_release_iommu_mapping(struct drm_device *drm_dev)
 {
-	struct device *dev = drm_dev->dev;
+	struct exynos_drm_private *priv = drm_dev->dev_private;
 
-	arm_iommu_release_mapping(dev->archdata.mapping);
+	arm_iommu_release_mapping(priv->mapping);
 }
 
 /*
@@ -84,10 +74,10 @@ void drm_release_iommu_mapping(struct drm_device *drm_dev)
 int drm_iommu_attach_device(struct drm_device *drm_dev,
 				struct device *subdrv_dev)
 {
-	struct device *dev = drm_dev->dev;
+	struct exynos_drm_private *priv = drm_dev->dev_private;
 	int ret;
 
-	if (!dev->archdata.mapping)
+	if (!priv->mapping)
 		return 0;
 
 	subdrv_dev->dma_parms = devm_kzalloc(subdrv_dev,
@@ -101,22 +91,11 @@ int drm_iommu_attach_device(struct drm_device *drm_dev,
 	if (subdrv_dev->archdata.mapping)
 		arm_iommu_detach_device(subdrv_dev);
 
-	ret = arm_iommu_attach_device(subdrv_dev, dev->archdata.mapping);
+	ret = arm_iommu_attach_device(subdrv_dev, priv->mapping);
 	if (ret < 0) {
 		DRM_DEBUG_KMS("failed iommu attach.\n");
 		return ret;
 	}
-
-	/*
-	 * Set dma_ops to drm_device just one time.
-	 *
-	 * The dma mapping api needs device object and the api is used
-	 * to allocate physial memory and map it with iommu table.
-	 * If iommu attach succeeded, the sub driver would have dma_ops
-	 * for iommu and also all sub drivers have same dma_ops.
-	 */
-	if (get_dma_ops(dev) == get_dma_ops(NULL))
-		set_dma_ops(dev, get_dma_ops(subdrv_dev));
 
 	return 0;
 }
@@ -133,8 +112,8 @@ int drm_iommu_attach_device(struct drm_device *drm_dev,
 void drm_iommu_detach_device(struct drm_device *drm_dev,
 				struct device *subdrv_dev)
 {
-	struct device *dev = drm_dev->dev;
-	struct dma_iommu_mapping *mapping = dev->archdata.mapping;
+	struct exynos_drm_private *priv = drm_dev->dev_private;
+	struct dma_iommu_mapping *mapping = priv->mapping;
 
 	if (!mapping || !mapping->domain)
 		return;

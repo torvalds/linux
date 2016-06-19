@@ -55,12 +55,6 @@ static const struct drm_connector_helper_funcs connector_helper_funcs = {
 	.best_encoder = rcar_du_connector_best_encoder,
 };
 
-static void rcar_du_hdmi_connector_destroy(struct drm_connector *connector)
-{
-	drm_connector_unregister(connector);
-	drm_connector_cleanup(connector);
-}
-
 static enum drm_connector_status
 rcar_du_hdmi_connector_detect(struct drm_connector *connector, bool force)
 {
@@ -79,7 +73,7 @@ static const struct drm_connector_funcs connector_funcs = {
 	.reset = drm_atomic_helper_connector_reset,
 	.detect = rcar_du_hdmi_connector_detect,
 	.fill_modes = drm_helper_probe_single_connector_modes,
-	.destroy = rcar_du_hdmi_connector_destroy,
+	.destroy = drm_connector_cleanup,
 	.atomic_duplicate_state = drm_atomic_helper_connector_duplicate_state,
 	.atomic_destroy_state = drm_atomic_helper_connector_destroy_state,
 };
@@ -108,9 +102,6 @@ int rcar_du_hdmi_connector_init(struct rcar_du_device *rcdu,
 		return ret;
 
 	drm_connector_helper_add(connector, &connector_helper_funcs);
-	ret = drm_connector_register(connector);
-	if (ret < 0)
-		return ret;
 
 	connector->dpms = DRM_MODE_DPMS_OFF;
 	drm_object_property_set_value(&connector->base,

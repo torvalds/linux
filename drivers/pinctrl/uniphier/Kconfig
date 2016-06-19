@@ -1,6 +1,6 @@
 menuconfig PINCTRL_UNIPHIER
 	bool "UniPhier SoC pinctrl drivers"
-	depends on ARCH_UNIPHIER
+	depends on ARCH_UNIPHIER || COMPILE_TEST
 	depends on OF && MFD_SYSCON
 	default y
 	select PINMUX
@@ -8,27 +8,27 @@ menuconfig PINCTRL_UNIPHIER
 
 if PINCTRL_UNIPHIER
 
-config PINCTRL_UNIPHIER_PH1_LD4
+config PINCTRL_UNIPHIER_LD4
 	tristate "UniPhier PH1-LD4 SoC pinctrl driver"
 	default y
 
-config PINCTRL_UNIPHIER_PH1_PRO4
+config PINCTRL_UNIPHIER_PRO4
 	tristate "UniPhier PH1-Pro4 SoC pinctrl driver"
 	default y
 
-config PINCTRL_UNIPHIER_PH1_SLD8
+config PINCTRL_UNIPHIER_SLD8
 	tristate "UniPhier PH1-sLD8 SoC pinctrl driver"
 	default y
 
-config PINCTRL_UNIPHIER_PH1_PRO5
+config PINCTRL_UNIPHIER_PRO5
 	tristate "UniPhier PH1-Pro5 SoC pinctrl driver"
 	default y
 
-config PINCTRL_UNIPHIER_PROXSTREAM2
+config PINCTRL_UNIPHIER_PXS2
 	tristate "UniPhier ProXstream2 SoC pinctrl driver"
 	default y
 
-config PINCTRL_UNIPHIER_PH1_LD6B
+config PINCTRL_UNIPHIER_LD6B
 	tristate "UniPhier PH1-LD6b SoC pinctrl driver"
 	default y
 

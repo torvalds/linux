@@ -79,7 +79,7 @@ config PINCTRL_AT91PIO4
 	  controller available on sama5d2 SoC.
 
 config PINCTRL_AMD
-	bool "AMD GPIO pin control"
+	tristate "AMD GPIO pin control"
 	depends on GPIOLIB
 	select GPIOLIB_IRQCHIP
 	select PINCONF
@@ -168,37 +168,6 @@ config PINCTRL_ST
 	select PINCONF
 	select GPIOLIB_IRQCHIP
 
-config PINCTRL_TEGRA
-	bool
-	select PINMUX
-	select PINCONF
-
-config PINCTRL_TEGRA20
-	bool
-	select PINCTRL_TEGRA
-
-config PINCTRL_TEGRA30
-	bool
-	select PINCTRL_TEGRA
-
-config PINCTRL_TEGRA114
-	bool
-	select PINCTRL_TEGRA
-
-config PINCTRL_TEGRA124
-	bool
-	select PINCTRL_TEGRA
-
-config PINCTRL_TEGRA210
-	bool
-	select PINCTRL_TEGRA
-
-config PINCTRL_TEGRA_XUSB
-	def_bool y if ARCH_TEGRA
-	select GENERIC_PHY
-	select PINCONF
-	select PINMUX
-
 config PINCTRL_TZ1090
 	bool "Toumaz Xenif TZ1090 pin control driver"
 	depends on SOC_TZ1090
@@ -238,6 +207,23 @@ config PINCTRL_PALMAS
 	  open drain configuration for the Palmas series devices like
 	  TPS65913, TPS80036 etc.
 
+config PINCTRL_PIC32
+	bool "Microchip PIC32 pin controller driver"
+	depends on OF
+	depends on MACH_PIC32
+	select PINMUX
+	select GENERIC_PINCONF
+	select GPIOLIB_IRQCHIP
+	select OF_GPIO
+	help
+	  This is the pin controller and gpio driver for Microchip PIC32
+	  microcontrollers. This option is selected automatically when specific
+	  machine and arch are selected to build.
+
+config PINCTRL_PIC32MZDA
+	def_bool y if PIC32MZDA
+	select PINCTRL_PIC32
+
 config PINCTRL_ZYNQ
 	bool "Pinctrl driver for Xilinx Zynq"
 	depends on ARCH_ZYNQ
@@ -257,7 +243,9 @@ source "drivers/pinctrl/qcom/Kconfig"
 source "drivers/pinctrl/samsung/Kconfig"
 source "drivers/pinctrl/sh-pfc/Kconfig"
 source "drivers/pinctrl/spear/Kconfig"
+source "drivers/pinctrl/stm32/Kconfig"
 source "drivers/pinctrl/sunxi/Kconfig"
+source "drivers/pinctrl/tegra/Kconfig"
 source "drivers/pinctrl/uniphier/Kconfig"
 source "drivers/pinctrl/vt8500/Kconfig"
 source "drivers/pinctrl/mediatek/Kconfig"

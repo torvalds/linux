@@ -328,12 +328,12 @@ static int pefile_digest_pe(const void *pebuf, unsigned int pelen,
 	void *digest;
 	int ret;
 
-	kenter(",%u", ctx->digest_algo);
+	kenter(",%s", ctx->digest_algo);
 
 	/* Allocate the hashing algorithm we're going to need and find out how
 	 * big the hash operational data will be.
 	 */
-	tfm = crypto_alloc_shash(hash_algo_name[ctx->digest_algo], 0, 0);
+	tfm = crypto_alloc_shash(ctx->digest_algo, 0, 0);
 	if (IS_ERR(tfm))
 		return (PTR_ERR(tfm) == -ENOENT) ? -ENOPKG : PTR_ERR(tfm);
 

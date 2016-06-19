@@ -47,6 +47,11 @@ CONTENTS
   5-3. IO
     5-3-1. IO Interface Files
     5-3-2. Writeback
+6. Namespace
+  6-1. Basics
+  6-2. The Root and Views
+  6-3. Migration and setns(2)
+  6-4. Interaction with Other Namespaces
 P. Information on Kernel Programming
   P-1. Filesystem Support for Writeback
 D. Deprecated v1 Core Features
@@ -131,6 +136,12 @@ controllers dynamically between the v2 and other hierarchies is
 strongly discouraged for production use.  It is recommended to decide
 the hierarchies and controller associations before starting using the
 controllers after system boot.
+
+During transition to v2, system management software might still
+automount the v1 cgroup filesystem and so hijack all controllers
+during boot, before manual intervention is possible. To make testing
+and experimenting easier, the kernel parameter cgroup_no_v1= allows
+disabling controllers in v1 and make them always available in v2.
 
 
 2-2. Organizing Processes
@@ -843,6 +854,15 @@ PAGE_SIZE multiple when read back.
 		Amount of memory used to cache filesystem data,
 		including tmpfs and shared memory.
 
+	  kernel_stack
+
+		Amount of memory allocated to kernel stacks.
+
+	  slab
+
+		Amount of memory used for storing in-kernel data
+		structures.
+
 	  sock
 
 		Amount of memory used in network transmission buffers
@@ -871,6 +891,16 @@ PAGE_SIZE multiple when read back.
 		on the internal memory management lists used by the
 		page reclaim algorithm
 
+	  slab_reclaimable
+
+		Part of "slab" that might be reclaimed, such as
+		dentries and inodes.
+
+	  slab_unreclaimable
+
+		Part of "slab" that cannot be reclaimed on memory
+		pressure.
+
 	  pgfault
 
 		Total number of page faults incurred
@@ -896,7 +926,7 @@ PAGE_SIZE multiple when read back.
 	limit, anonymous meomry of the cgroup will not be swapped out.
 
 
-5-2-2. General Usage
+5-2-2. Usage Guidelines
 
 "memory.high" is the main mechanism to control memory usage.
 Over-committing on high limit (sum of high limits > available memory)
@@ -1087,6 +1117,148 @@ writeback as follows.
 	For cgroup writeback, this is calculated into ratio against
 	total available memory and applied the same way as
 	vm.dirty[_background]_ratio.
+
+
+6. Namespace
+
+6-1. Basics
+
+cgroup namespace provides a mechanism to virtualize the view of the
+"/proc/$PID/cgroup" file and cgroup mounts.  The CLONE_NEWCGROUP clone
+flag can be used with clone(2) and unshare(2) to create a new cgroup
+namespace.  The process running inside the cgroup namespace will have
+its "/proc/$PID/cgroup" output restricted to cgroupns root.  The
+cgroupns root is the cgroup of the process at the time of creation of
+the cgroup namespace.
+
+Without cgroup namespace, the "/proc/$PID/cgroup" file shows the
+complete path of the cgroup of a process.  In a container setup where
+a set of cgroups and namespaces are intended to isolate processes the
+"/proc/$PID/cgroup" file may leak potential system level information
+to the isolated processes.  For Example:
+
+  # cat /proc/self/cgroup
+  0::/batchjobs/container_id1
+
+The path '/batchjobs/container_id1' can be considered as system-data
+and undesirable to expose to the isolated processes.  cgroup namespace
+can be used to restrict visibility of this path.  For example, before
+creating a cgroup namespace, one would see:
+
+  # ls -l /proc/self/ns/cgroup
+  lrwxrwxrwx 1 root root 0 2014-07-15 10:37 /proc/self/ns/cgroup -> cgroup:[4026531835]
+  # cat /proc/self/cgroup
+  0::/batchjobs/container_id1
+
+After unsharing a new namespace, the view changes.
+
+  # ls -l /proc/self/ns/cgroup
+  lrwxrwxrwx 1 root root 0 2014-07-15 10:35 /proc/self/ns/cgroup -> cgroup:[4026532183]
+  # cat /proc/self/cgroup
+  0::/
+
+When some thread from a multi-threaded process unshares its cgroup
+namespace, the new cgroupns gets applied to the entire process (all
+the threads).  This is natural for the v2 hierarchy; however, for the
+legacy hierarchies, this may be unexpected.
+
+A cgroup namespace is alive as long as there are processes inside or
+mounts pinning it.  When the last usage goes away, the cgroup
+namespace is destroyed.  The cgroupns root and the actual cgroups
+remain.
+
+
+6-2. The Root and Views
+
+The 'cgroupns root' for a cgroup namespace is the cgroup in which the
+process calling unshare(2) is running.  For example, if a process in
+/batchjobs/container_id1 cgroup calls unshare, cgroup
+/batchjobs/container_id1 becomes the cgroupns root.  For the
+init_cgroup_ns, this is the real root ('/') cgroup.
+
+The cgroupns root cgroup does not change even if the namespace creator
+process later moves to a different cgroup.
+
+  # ~/unshare -c # unshare cgroupns in some cgroup
+  # cat /proc/self/cgroup
+  0::/
+  # mkdir sub_cgrp_1
+  # echo 0 > sub_cgrp_1/cgroup.procs
+  # cat /proc/self/cgroup
+  0::/sub_cgrp_1
+
+Each process gets its namespace-specific view of "/proc/$PID/cgroup"
+
+Processes running inside the cgroup namespace will be able to see
+cgroup paths (in /proc/self/cgroup) only inside their root cgroup.
+From within an unshared cgroupns:
+
+  # sleep 100000 &
+  [1] 7353
+  # echo 7353 > sub_cgrp_1/cgroup.procs
+  # cat /proc/7353/cgroup
+  0::/sub_cgrp_1
+
+From the initial cgroup namespace, the real cgroup path will be
+visible:
+
+  $ cat /proc/7353/cgroup
+  0::/batchjobs/container_id1/sub_cgrp_1
+
+From a sibling cgroup namespace (that is, a namespace rooted at a
+different cgroup), the cgroup path relative to its own cgroup
+namespace root will be shown.  For instance, if PID 7353's cgroup
+namespace root is at '/batchjobs/container_id2', then it will see
+
+  # cat /proc/7353/cgroup
+  0::/../container_id2/sub_cgrp_1
+
+Note that the relative path always starts with '/' to indicate that
+its relative to the cgroup namespace root of the caller.
+
+
+6-3. Migration and setns(2)
+
+Processes inside a cgroup namespace can move into and out of the
+namespace root if they have proper access to external cgroups.  For
+example, from inside a namespace with cgroupns root at
+/batchjobs/container_id1, and assuming that the global hierarchy is
+still accessible inside cgroupns:
+
+  # cat /proc/7353/cgroup
+  0::/sub_cgrp_1
+  # echo 7353 > batchjobs/container_id2/cgroup.procs
+  # cat /proc/7353/cgroup
+  0::/../container_id2
+
+Note that this kind of setup is not encouraged.  A task inside cgroup
+namespace should only be exposed to its own cgroupns hierarchy.
+
+setns(2) to another cgroup namespace is allowed when:
+
+(a) the process has CAP_SYS_ADMIN against its current user namespace
+(b) the process has CAP_SYS_ADMIN against the target cgroup
+    namespace's userns
+
+No implicit cgroup changes happen with attaching to another cgroup
+namespace.  It is expected that the someone moves the attaching
+process under the target cgroup namespace root.
+
+
+6-4. Interaction with Other Namespaces
+
+Namespace specific cgroup hierarchy can be mounted by a process
+running inside a non-init cgroup namespace.
+
+  # mount -t cgroup2 none $MOUNT_POINT
+
+This will mount the unified cgroup hierarchy with cgroupns root as the
+filesystem root.  The process needs CAP_SYS_ADMIN against its user and
+mount namespaces.
+
+The virtualization of /proc/self/cgroup file combined with restricting
+the view of cgroup hierarchy by namespace-private cgroupfs mount
+provides a properly isolated cgroup view inside the container.
 
 
 P. Information on Kernel Programming
@@ -1367,6 +1539,12 @@ allocation from the slack available in other groups or the rest of the
 system than killing the group.  Otherwise, memory.max is there to
 limit this type of spillover and ultimately contain buggy or even
 malicious applications.
+
+Setting the original memory.limit_in_bytes below the current usage was
+subject to a race condition, where concurrent charges could cause the
+limit setting to fail. memory.max on the other hand will first set the
+limit to prevent new charges, and then reclaim and OOM kill until the
+new limit is met - or the task writing to memory.max is killed.
 
 The combined memory+swap accounting and limiting is replaced by real
 control over swap space.

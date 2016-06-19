@@ -680,7 +680,7 @@ static void _rtl92e_hwconfig(struct net_device *dev)
 
 	rtl92e_writeb(dev, BW_OPMODE, regBwOpMode);
 	{
-		u32 ratr_value = 0;
+		u32 ratr_value;
 
 		ratr_value = regRATR;
 		if (priv->rf_type == RF_1T2R)
@@ -1000,7 +1000,7 @@ void rtl92e_link_change(struct net_device *dev)
 	_rtl92e_update_msr(dev);
 
 	if (ieee->iw_mode == IW_MODE_INFRA || ieee->iw_mode == IW_MODE_ADHOC) {
-		u32 reg = 0;
+		u32 reg;
 
 		reg = rtl92e_readl(dev, RCR);
 		if (priv->rtllib->state == RTLLIB_LINKED) {
@@ -1186,7 +1186,7 @@ void  rtl92e_fill_tx_desc(struct net_device *dev, struct tx_desc *pdesc,
 	struct r8192_priv *priv = rtllib_priv(dev);
 	dma_addr_t mapping = pci_map_single(priv->pdev, skb->data, skb->len,
 			 PCI_DMA_TODEVICE);
-	struct tx_fwinfo_8190pci *pTxFwInfo = NULL;
+	struct tx_fwinfo_8190pci *pTxFwInfo;
 
 	pTxFwInfo = (struct tx_fwinfo_8190pci *)skb->data;
 	memset(pTxFwInfo, 0, sizeof(struct tx_fwinfo_8190pci));
@@ -2235,7 +2235,7 @@ void rtl92e_disable_irq(struct net_device *dev)
 
 void rtl92e_clear_irq(struct net_device *dev)
 {
-	u32 tmp = 0;
+	u32 tmp;
 
 	tmp = rtl92e_readl(dev, ISR);
 	rtl92e_writel(dev, ISR, tmp);

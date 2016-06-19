@@ -1,8 +1,10 @@
-Freescale MMA8452Q, MMA8453Q, MMA8652FC or MMA8653FC triaxial accelerometer
+Freescale MMA8451Q, MMA8452Q, MMA8453Q, MMA8652FC or MMA8653FC
+triaxial accelerometer
 
 Required properties:
 
   - compatible: should contain one of
+    * "fsl,mma8451"
     * "fsl,mma8452"
     * "fsl,mma8453"
     * "fsl,mma8652"

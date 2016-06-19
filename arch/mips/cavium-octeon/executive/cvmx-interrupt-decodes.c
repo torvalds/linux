@@ -68,7 +68,7 @@ void __cvmx_interrupt_gmxx_rxx_int_en_enable(int index, int block)
 		gmx_rx_int_en.s.pause_drp = 1;
 		/* Skipping gmx_rx_int_en.s.reserved_16_18 */
 		/*gmx_rx_int_en.s.ifgerr = 1; */
-		/*gmx_rx_int_en.s.coldet = 1; // Collsion detect */
+		/*gmx_rx_int_en.s.coldet = 1; // Collision detect */
 		/*gmx_rx_int_en.s.falerr = 1; // False carrier error or extend error after slottime */
 		/*gmx_rx_int_en.s.rsverr = 1; // RGMII reserved opcodes */
 		/*gmx_rx_int_en.s.pcterr = 1; // Bad Preamble / Protocol */
@@ -89,7 +89,7 @@ void __cvmx_interrupt_gmxx_rxx_int_en_enable(int index, int block)
 		/*gmx_rx_int_en.s.phy_spd = 1; */
 		/*gmx_rx_int_en.s.phy_link = 1; */
 		/*gmx_rx_int_en.s.ifgerr = 1; */
-		/*gmx_rx_int_en.s.coldet = 1; // Collsion detect */
+		/*gmx_rx_int_en.s.coldet = 1; // Collision detect */
 		/*gmx_rx_int_en.s.falerr = 1; // False carrier error or extend error after slottime */
 		/*gmx_rx_int_en.s.rsverr = 1; // RGMII reserved opcodes */
 		/*gmx_rx_int_en.s.pcterr = 1; // Bad Preamble / Protocol */
@@ -112,7 +112,7 @@ void __cvmx_interrupt_gmxx_rxx_int_en_enable(int index, int block)
 		/*gmx_rx_int_en.s.phy_spd = 1; */
 		/*gmx_rx_int_en.s.phy_link = 1; */
 		/*gmx_rx_int_en.s.ifgerr = 1; */
-		/*gmx_rx_int_en.s.coldet = 1; // Collsion detect */
+		/*gmx_rx_int_en.s.coldet = 1; // Collision detect */
 		/*gmx_rx_int_en.s.falerr = 1; // False carrier error or extend error after slottime */
 		/*gmx_rx_int_en.s.rsverr = 1; // RGMII reserved opcodes */
 		/*gmx_rx_int_en.s.pcterr = 1; // Bad Preamble / Protocol */
@@ -134,7 +134,7 @@ void __cvmx_interrupt_gmxx_rxx_int_en_enable(int index, int block)
 		/*gmx_rx_int_en.s.phy_spd = 1; */
 		/*gmx_rx_int_en.s.phy_link = 1; */
 		/*gmx_rx_int_en.s.ifgerr = 1; */
-		/*gmx_rx_int_en.s.coldet = 1; // Collsion detect */
+		/*gmx_rx_int_en.s.coldet = 1; // Collision detect */
 		/*gmx_rx_int_en.s.falerr = 1; // False carrier error or extend error after slottime */
 		/*gmx_rx_int_en.s.rsverr = 1; // RGMII reserved opcodes */
 		/*gmx_rx_int_en.s.pcterr = 1; // Bad Preamble / Protocol */
@@ -156,7 +156,7 @@ void __cvmx_interrupt_gmxx_rxx_int_en_enable(int index, int block)
 		/*gmx_rx_int_en.s.phy_spd = 1; */
 		/*gmx_rx_int_en.s.phy_link = 1; */
 		/*gmx_rx_int_en.s.ifgerr = 1; */
-		/*gmx_rx_int_en.s.coldet = 1; // Collsion detect */
+		/*gmx_rx_int_en.s.coldet = 1; // Collision detect */
 		/*gmx_rx_int_en.s.falerr = 1; // False carrier error or extend error after slottime */
 		/*gmx_rx_int_en.s.rsverr = 1; // RGMII reserved opcodes */
 		/*gmx_rx_int_en.s.pcterr = 1; // Bad Preamble / Protocol */
@@ -179,7 +179,7 @@ void __cvmx_interrupt_gmxx_rxx_int_en_enable(int index, int block)
 		/*gmx_rx_int_en.s.phy_spd = 1; */
 		/*gmx_rx_int_en.s.phy_link = 1; */
 		/*gmx_rx_int_en.s.ifgerr = 1; */
-		/*gmx_rx_int_en.s.coldet = 1; // Collsion detect */
+		/*gmx_rx_int_en.s.coldet = 1; // Collision detect */
 		/*gmx_rx_int_en.s.falerr = 1; // False carrier error or extend error after slottime */
 		/*gmx_rx_int_en.s.rsverr = 1; // RGMII reserved opcodes */
 		/*gmx_rx_int_en.s.pcterr = 1; // Bad Preamble / Protocol */
@@ -209,7 +209,7 @@ void __cvmx_interrupt_gmxx_rxx_int_en_enable(int index, int block)
 		gmx_rx_int_en.s.pause_drp = 1;
 		/* Skipping gmx_rx_int_en.s.reserved_16_18 */
 		/*gmx_rx_int_en.s.ifgerr = 1; */
-		/*gmx_rx_int_en.s.coldet = 1; // Collsion detect */
+		/*gmx_rx_int_en.s.coldet = 1; // Collision detect */
 		/*gmx_rx_int_en.s.falerr = 1; // False carrier error or extend error after slottime */
 		/*gmx_rx_int_en.s.rsverr = 1; // RGMII reserved opcodes */
 		/*gmx_rx_int_en.s.pcterr = 1; // Bad Preamble / Protocol */

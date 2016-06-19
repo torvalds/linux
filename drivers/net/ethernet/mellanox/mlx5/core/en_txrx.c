@@ -60,7 +60,7 @@ int mlx5e_napi_poll(struct napi_struct *napi, int budget)
 	clear_bit(MLX5E_CHANNEL_NAPI_SCHED, &c->flags);
 
 	for (i = 0; i < c->num_tc; i++)
-		busy |= mlx5e_poll_tx_cq(&c->sq[i].cq);
+		busy |= mlx5e_poll_tx_cq(&c->sq[i].cq, budget);
 
 	work_done = mlx5e_poll_rx_cq(&c->rq.cq, budget);
 	busy |= work_done == budget;

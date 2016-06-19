@@ -20,8 +20,6 @@
 #include <linux/bootmem.h>
 #include <linux/seq_file.h>
 #include <linux/init.h>
-#include <linux/platform_device.h>
-#include <linux/module.h>
 #include <linux/of.h>
 #include <linux/of_fdt.h>
 #include <linux/of_platform.h>
@@ -137,11 +135,6 @@ void __init setup_arch(char **cmdline_p)
 	parse_early_param();
 
 	bootmem_init();
-#if defined(CONFIG_H8300H_SIM) || defined(CONFIG_H8S_SIM)
-	sim_console_register();
-#endif
-
-	early_platform_driver_probe("earlyprintk", 1, 0);
 	/*
 	 * get kmalloc into gear
 	 */

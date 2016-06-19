@@ -376,7 +376,7 @@ static const struct mfd_cell micro_cells[] = {
 	{ .name = "ipaq-micro-leds", },
 };
 
-static int micro_resume(struct device *dev)
+static int __maybe_unused micro_resume(struct device *dev)
 {
 	struct ipaq_micro *micro = dev_get_drvdata(dev);
 

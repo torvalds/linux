@@ -2516,21 +2516,6 @@ static int ocfs2_update_edge_lengths(handle_t *handle,
 	struct ocfs2_extent_block *eb;
 	u32 range;
 
-	/*
-	 * In normal tree rotation process, we will never touch the
-	 * tree branch above subtree_index and ocfs2_extend_rotate_transaction
-	 * doesn't reserve the credits for them either.
-	 *
-	 * But we do have a special case here which will update the rightmost
-	 * records for all the bh in the path.
-	 * So we have to allocate extra credits and access them.
-	 */
-	ret = ocfs2_extend_trans(handle, subtree_index);
-	if (ret) {
-		mlog_errno(ret);
-		goto out;
-	}
-
 	ret = ocfs2_journal_access_path(et->et_ci, handle, path);
 	if (ret) {
 		mlog_errno(ret);
@@ -2956,7 +2941,7 @@ static int __ocfs2_rotate_tree_left(handle_t *handle,
 		     right_path->p_node[subtree_root].bh->b_blocknr,
 		     right_path->p_tree_depth);
 
-		ret = ocfs2_extend_rotate_transaction(handle, subtree_root,
+		ret = ocfs2_extend_rotate_transaction(handle, 0,
 						      orig_credits, left_path);
 		if (ret) {
 			mlog_errno(ret);
@@ -3029,21 +3014,9 @@ static int ocfs2_remove_rightmost_path(handle_t *handle,
 	struct ocfs2_extent_block *eb;
 	struct ocfs2_extent_list *el;
 
-
 	ret = ocfs2_et_sanity_check(et);
 	if (ret)
 		goto out;
-	/*
-	 * There's two ways we handle this depending on
-	 * whether path is the only existing one.
-	 */
-	ret = ocfs2_extend_rotate_transaction(handle, 0,
-					      handle->h_buffer_credits,
-					      path);
-	if (ret) {
-		mlog_errno(ret);
-		goto out;
-	}
 
 	ret = ocfs2_journal_access_path(et->et_ci, handle, path);
 	if (ret) {
@@ -3641,6 +3614,14 @@ static int ocfs2_merge_rec_left(struct ocfs2_path *right_path,
 		 */
 		if (le16_to_cpu(right_rec->e_leaf_clusters) == 0 &&
 		    le16_to_cpu(el->l_next_free_rec) == 1) {
+			/* extend credit for ocfs2_remove_rightmost_path */
+			ret = ocfs2_extend_rotate_transaction(handle, 0,
+					handle->h_buffer_credits,
+					right_path);
+			if (ret) {
+				mlog_errno(ret);
+				goto out;
+			}
 
 			ret = ocfs2_remove_rightmost_path(handle, et,
 							  right_path,
@@ -3679,6 +3660,14 @@ static int ocfs2_try_to_merge_extent(handle_t *handle,
 	BUG_ON(ctxt->c_contig_type == CONTIG_NONE);
 
 	if (ctxt->c_split_covers_rec && ctxt->c_has_empty_extent) {
+		/* extend credit for ocfs2_remove_rightmost_path */
+		ret = ocfs2_extend_rotate_transaction(handle, 0,
+				handle->h_buffer_credits,
+				path);
+		if (ret) {
+			mlog_errno(ret);
+			goto out;
+		}
 		/*
 		 * The merge code will need to create an empty
 		 * extent to take the place of the newly
@@ -3727,6 +3716,15 @@ static int ocfs2_try_to_merge_extent(handle_t *handle,
 		 */
 		BUG_ON(!ocfs2_is_empty_extent(&el->l_recs[0]));
 
+		/* extend credit for ocfs2_remove_rightmost_path */
+		ret = ocfs2_extend_rotate_transaction(handle, 0,
+					handle->h_buffer_credits,
+					path);
+		if (ret) {
+			mlog_errno(ret);
+			goto out;
+		}
+
 		/* The merge left us with an empty extent, remove it. */
 		ret = ocfs2_rotate_tree_left(handle, et, path, dealloc);
 		if (ret) {
@@ -3743,6 +3741,15 @@ static int ocfs2_try_to_merge_extent(handle_t *handle,
 		ret = ocfs2_merge_rec_left(path, handle, et, rec,
 					   dealloc, split_index);
 
+		if (ret) {
+			mlog_errno(ret);
+			goto out;
+		}
+
+		/* extend credit for ocfs2_remove_rightmost_path */
+		ret = ocfs2_extend_rotate_transaction(handle, 0,
+				handle->h_buffer_credits,
+				path);
 		if (ret) {
 			mlog_errno(ret);
 			goto out;
@@ -3783,6 +3790,16 @@ static int ocfs2_try_to_merge_extent(handle_t *handle,
 		}
 
 		if (ctxt->c_split_covers_rec) {
+			/* extend credit for ocfs2_remove_rightmost_path */
+			ret = ocfs2_extend_rotate_transaction(handle, 0,
+					handle->h_buffer_credits,
+					path);
+			if (ret) {
+				mlog_errno(ret);
+				ret = 0;
+				goto out;
+			}
+
 			/*
 			 * The merge may have left an empty extent in
 			 * our leaf. Try to rotate it away.
@@ -5342,6 +5359,15 @@ static int ocfs2_truncate_rec(handle_t *handle,
 	struct ocfs2_extent_block *eb;
 
 	if (ocfs2_is_empty_extent(&el->l_recs[0]) && index > 0) {
+		/* extend credit for ocfs2_remove_rightmost_path */
+		ret = ocfs2_extend_rotate_transaction(handle, 0,
+				handle->h_buffer_credits,
+				path);
+		if (ret) {
+			mlog_errno(ret);
+			goto out;
+		}
+
 		ret = ocfs2_rotate_tree_left(handle, et, path, dealloc);
 		if (ret) {
 			mlog_errno(ret);
@@ -5928,16 +5954,6 @@ static int ocfs2_replay_truncate_records(struct ocfs2_super *osb,
 
 		ocfs2_journal_dirty(handle, tl_bh);
 
-		/* TODO: Perhaps we can calculate the bulk of the
-		 * credits up front rather than extending like
-		 * this. */
-		status = ocfs2_extend_trans(handle,
-					    OCFS2_TRUNCATE_LOG_FLUSH_ONE_REC);
-		if (status < 0) {
-			mlog_errno(status);
-			goto bail;
-		}
-
 		rec = tl->tl_recs[i];
 		start_blk = ocfs2_clusters_to_blocks(data_alloc_inode->i_sb,
 						    le32_to_cpu(rec.t_start));
@@ -5957,6 +5973,13 @@ static int ocfs2_replay_truncate_records(struct ocfs2_super *osb,
 				mlog_errno(status);
 				goto bail;
 			}
+		}
+
+		status = ocfs2_extend_trans(handle,
+				OCFS2_TRUNCATE_LOG_FLUSH_ONE_REC);
+		if (status < 0) {
+			mlog_errno(status);
+			goto bail;
 		}
 		i--;
 	}
@@ -6016,7 +6039,7 @@ int __ocfs2_flush_truncate_log(struct ocfs2_super *osb)
 		goto out_mutex;
 	}
 
-	handle = ocfs2_start_trans(osb, OCFS2_TRUNCATE_LOG_UPDATE);
+	handle = ocfs2_start_trans(osb, OCFS2_TRUNCATE_LOG_FLUSH_ONE_REC);
 	if (IS_ERR(handle)) {
 		status = PTR_ERR(handle);
 		mlog_errno(status);
@@ -6079,7 +6102,7 @@ void ocfs2_schedule_truncate_log_flush(struct ocfs2_super *osb,
 		if (cancel)
 			cancel_delayed_work(&osb->osb_truncate_log_wq);
 
-		queue_delayed_work(ocfs2_wq, &osb->osb_truncate_log_wq,
+		queue_delayed_work(osb->ocfs2_wq, &osb->osb_truncate_log_wq,
 				   OCFS2_TRUNCATE_LOG_FLUSH_INTERVAL);
 	}
 }
@@ -6253,7 +6276,7 @@ void ocfs2_truncate_log_shutdown(struct ocfs2_super *osb)
 
 	if (tl_inode) {
 		cancel_delayed_work(&osb->osb_truncate_log_wq);
-		flush_workqueue(ocfs2_wq);
+		flush_workqueue(osb->ocfs2_wq);
 
 		status = ocfs2_flush_truncate_log(osb);
 		if (status < 0)
@@ -6648,7 +6671,7 @@ static void ocfs2_zero_cluster_pages(struct inode *inode, loff_t start,
 {
 	int i;
 	struct page *page;
-	unsigned int from, to = PAGE_CACHE_SIZE;
+	unsigned int from, to = PAGE_SIZE;
 	struct super_block *sb = inode->i_sb;
 
 	BUG_ON(!ocfs2_sparse_alloc(OCFS2_SB(sb)));
@@ -6656,21 +6679,21 @@ static void ocfs2_zero_cluster_pages(struct inode *inode, loff_t start,
 	if (numpages == 0)
 		goto out;
 
-	to = PAGE_CACHE_SIZE;
+	to = PAGE_SIZE;
 	for(i = 0; i < numpages; i++) {
 		page = pages[i];
 
-		from = start & (PAGE_CACHE_SIZE - 1);
-		if ((end >> PAGE_CACHE_SHIFT) == page->index)
-			to = end & (PAGE_CACHE_SIZE - 1);
+		from = start & (PAGE_SIZE - 1);
+		if ((end >> PAGE_SHIFT) == page->index)
+			to = end & (PAGE_SIZE - 1);
 
-		BUG_ON(from > PAGE_CACHE_SIZE);
-		BUG_ON(to > PAGE_CACHE_SIZE);
+		BUG_ON(from > PAGE_SIZE);
+		BUG_ON(to > PAGE_SIZE);
 
 		ocfs2_map_and_dirty_page(inode, handle, from, to, page, 1,
 					 &phys);
 
-		start = (page->index + 1) << PAGE_CACHE_SHIFT;
+		start = (page->index + 1) << PAGE_SHIFT;
 	}
 out:
 	if (pages)
@@ -6689,7 +6712,7 @@ int ocfs2_grab_pages(struct inode *inode, loff_t start, loff_t end,
 
 	numpages = 0;
 	last_page_bytes = PAGE_ALIGN(end);
-	index = start >> PAGE_CACHE_SHIFT;
+	index = start >> PAGE_SHIFT;
 	do {
 		pages[numpages] = find_or_create_page(mapping, index, GFP_NOFS);
 		if (!pages[numpages]) {
@@ -6700,7 +6723,7 @@ int ocfs2_grab_pages(struct inode *inode, loff_t start, loff_t end,
 
 		numpages++;
 		index++;
-	} while (index < (last_page_bytes >> PAGE_CACHE_SHIFT));
+	} while (index < (last_page_bytes >> PAGE_SHIFT));
 
 out:
 	if (ret != 0) {
@@ -6927,8 +6950,8 @@ int ocfs2_convert_inline_data_to_extents(struct inode *inode,
 		 * to do that now.
 		 */
 		if (!ocfs2_sparse_alloc(osb) &&
-		    PAGE_CACHE_SIZE < osb->s_clustersize)
-			end = PAGE_CACHE_SIZE;
+		    PAGE_SIZE < osb->s_clustersize)
+			end = PAGE_SIZE;
 
 		ret = ocfs2_grab_eof_pages(inode, 0, end, pages, &num_pages);
 		if (ret) {
@@ -6948,8 +6971,8 @@ int ocfs2_convert_inline_data_to_extents(struct inode *inode,
 			goto out_unlock;
 		}
 
-		page_end = PAGE_CACHE_SIZE;
-		if (PAGE_CACHE_SIZE > osb->s_clustersize)
+		page_end = PAGE_SIZE;
+		if (PAGE_SIZE > osb->s_clustersize)
 			page_end = osb->s_clustersize;
 
 		for (i = 0; i < num_pages; i++)

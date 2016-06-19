@@ -24,7 +24,6 @@
 #include <asm/nmi.h>
 #include <asm/apic.h>
 #include <asm/processor.h>
-#include <asm/cpufeature.h>
 
 #include "op_x86_model.h"
 #include "op_counter.h"

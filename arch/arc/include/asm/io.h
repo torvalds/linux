@@ -13,14 +13,41 @@
 #include <asm/byteorder.h>
 #include <asm/page.h>
 
-extern void __iomem *ioremap(unsigned long physaddr, unsigned long size);
-extern void __iomem *ioremap_prot(phys_addr_t offset, unsigned long size,
+#ifdef CONFIG_ISA_ARCV2
+#include <asm/barrier.h>
+#define __iormb()		rmb()
+#define __iowmb()		wmb()
+#else
+#define __iormb()		do { } while (0)
+#define __iowmb()		do { } while (0)
+#endif
+
+extern void __iomem *ioremap(phys_addr_t paddr, unsigned long size);
+extern void __iomem *ioremap_prot(phys_addr_t paddr, unsigned long size,
 				  unsigned long flags);
+static inline void __iomem *ioport_map(unsigned long port, unsigned int nr)
+{
+	return (void __iomem *)port;
+}
+
+static inline void ioport_unmap(void __iomem *addr)
+{
+}
+
 extern void iounmap(const void __iomem *addr);
 
 #define ioremap_nocache(phy, sz)	ioremap(phy, sz)
 #define ioremap_wc(phy, sz)		ioremap(phy, sz)
 #define ioremap_wt(phy, sz)		ioremap(phy, sz)
+
+/*
+ * io{read,write}{16,32}be() macros
+ */
+#define ioread16be(p)		({ u16 __v = be16_to_cpu((__force __be16)__raw_readw(p)); __iormb(); __v; })
+#define ioread32be(p)		({ u32 __v = be32_to_cpu((__force __be32)__raw_readl(p)); __iormb(); __v; })
+
+#define iowrite16be(v,p)	({ __iowmb(); __raw_writew((__force u16)cpu_to_be16(v), p); })
+#define iowrite32be(v,p)	({ __iowmb(); __raw_writel((__force u32)cpu_to_be32(v), p); })
 
 /* Change struct page to physical address */
 #define page_to_phys(page)		(page_to_pfn(page) << PAGE_SHIFT)
@@ -99,15 +126,6 @@ static inline void __raw_writel(u32 w, volatile void __iomem *addr)
 
 }
 
-#ifdef CONFIG_ISA_ARCV2
-#include <asm/barrier.h>
-#define __iormb()		rmb()
-#define __iowmb()		wmb()
-#else
-#define __iormb()		do { } while (0)
-#define __iowmb()		do { } while (0)
-#endif
-
 /*
  * MMIO can also get buffered/optimized in micro-arch, so barriers needed
  * Based on ARM model for the typical use case
@@ -129,15 +147,23 @@ static inline void __raw_writel(u32 w, volatile void __iomem *addr)
 #define writel(v,c)		({ __iowmb(); writel_relaxed(v,c); })
 
 /*
- * Relaxed API for drivers which can handle any ordering themselves
+ * Relaxed API for drivers which can handle barrier ordering themselves
+ *
+ * Also these are defined to perform little endian accesses.
+ * To provide the typical device register semantics of fixed endian,
+ * swap the byte order for Big Endian
+ *
+ * http://lkml.kernel.org/r/201603100845.30602.arnd@arndb.de
  */
 #define readb_relaxed(c)	__raw_readb(c)
-#define readw_relaxed(c)	__raw_readw(c)
-#define readl_relaxed(c)	__raw_readl(c)
+#define readw_relaxed(c) ({ u16 __r = le16_to_cpu((__force __le16) \
+					__raw_readw(c)); __r; })
+#define readl_relaxed(c) ({ u32 __r = le32_to_cpu((__force __le32) \
+					__raw_readl(c)); __r; })
 
 #define writeb_relaxed(v,c)	__raw_writeb(v,c)
-#define writew_relaxed(v,c)	__raw_writew(v,c)
-#define writel_relaxed(v,c)	__raw_writel(v,c)
+#define writew_relaxed(v,c)	__raw_writew((__force u16) cpu_to_le16(v),c)
+#define writel_relaxed(v,c)	__raw_writel((__force u32) cpu_to_le32(v),c)
 
 #include <asm-generic/io.h>
 

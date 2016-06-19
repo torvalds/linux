@@ -55,6 +55,11 @@ static const struct nvkm_device_tegra_func gk20a_platform_data = {
 	.iommu_bit = 34,
 };
 
+static const struct nvkm_device_tegra_func gm20b_platform_data = {
+	.iommu_bit = 34,
+	.require_ref_clk = true,
+};
+
 static const struct of_device_id nouveau_platform_match[] = {
 	{
 		.compatible = "nvidia,gk20a",
@@ -62,7 +67,7 @@ static const struct of_device_id nouveau_platform_match[] = {
 	},
 	{
 		.compatible = "nvidia,gm20b",
-		.data = &gk20a_platform_data,
+		.data = &gm20b_platform_data,
 	},
 	{ }
 };

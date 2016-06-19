@@ -2,7 +2,7 @@
 
 The ARC HS can be configured with a pipeline performance monitor for counting
 CPU and cache events like cache misses and hits. Like conventional PCT there
-are 100+ hardware conditions dynamically mapped to upto 32 counters.
+are 100+ hardware conditions dynamically mapped to up to 32 counters.
 It also supports overflow interrupts.
 
 Required properties:

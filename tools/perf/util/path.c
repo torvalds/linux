@@ -41,36 +41,6 @@ static char *cleanup_path(char *path)
 	return path;
 }
 
-static char *perf_vsnpath(char *buf, size_t n, const char *fmt, va_list args)
-{
-	const char *perf_dir = get_perf_dir();
-	size_t len;
-
-	len = strlen(perf_dir);
-	if (n < len + 1)
-		goto bad;
-	memcpy(buf, perf_dir, len);
-	if (len && !is_dir_sep(perf_dir[len-1]))
-		buf[len++] = '/';
-	len += vsnprintf(buf + len, n - len, fmt, args);
-	if (len >= n)
-		goto bad;
-	return cleanup_path(buf);
-bad:
-	strlcpy(buf, bad_path, n);
-	return buf;
-}
-
-char *perf_pathdup(const char *fmt, ...)
-{
-	char path[PATH_MAX];
-	va_list args;
-	va_start(args, fmt);
-	(void)perf_vsnpath(path, sizeof(path), fmt, args);
-	va_end(args);
-	return xstrdup(path);
-}
-
 char *mkpath(const char *fmt, ...)
 {
 	va_list args;

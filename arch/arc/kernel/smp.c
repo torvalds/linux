@@ -142,7 +142,7 @@ void start_kernel_secondary(void)
 
 	local_irq_enable();
 	preempt_disable();
-	cpu_startup_entry(CPUHP_ONLINE);
+	cpu_startup_entry(CPUHP_AP_ONLINE_IDLE);
 }
 
 /*

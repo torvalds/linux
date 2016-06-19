@@ -40,6 +40,7 @@
 #define P2A_INT_ENABLE			0x3070
 #define P2A_INT_ENA_ALL			0xf
 #define RP_LTSSM			0x3c64
+#define RP_LTSSM_MASK			0x1f
 #define LTSSM_L0			0xf
 
 /* TLP configuration type 0 and 1 */
@@ -140,7 +141,7 @@ static void tlp_write_tx(struct altera_pcie *pcie,
 
 static bool altera_pcie_link_is_up(struct altera_pcie *pcie)
 {
-	return !!(cra_readl(pcie, RP_LTSSM) & LTSSM_L0);
+	return !!((cra_readl(pcie, RP_LTSSM) & RP_LTSSM_MASK) == LTSSM_L0);
 }
 
 static bool altera_pcie_valid_config(struct altera_pcie *pcie,

@@ -17,7 +17,7 @@
 #include <linux/atomic.h>
 
 #ifdef CONFIG_X86
-#include <asm/processor.h>	/* for boot_cpu_has below */
+#include <asm/cpufeature.h>	/* for boot_cpu_has below */
 #endif
 
 #define TEST(bit, op, c_op, val)				\

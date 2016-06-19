@@ -133,7 +133,8 @@ EXPORT_SYMBOL(lustre_msg_size_v2);
  * NOTE: this should only be used for NEW requests, and should always be
  *       in the form of a v2 request.  If this is a connection to a v1
  *       target then the first buffer will be stripped because the ptlrpc
- *       data is part of the lustre_msg_v1 header. b=14043 */
+ *       data is part of the lustre_msg_v1 header. b=14043
+ */
 int lustre_msg_size(__u32 magic, int count, __u32 *lens)
 {
 	__u32 size[] = { sizeof(struct ptlrpc_body) };
@@ -157,7 +158,8 @@ int lustre_msg_size(__u32 magic, int count, __u32 *lens)
 EXPORT_SYMBOL(lustre_msg_size);
 
 /* This is used to determine the size of a buffer that was already packed
- * and will correctly handle the different message formats. */
+ * and will correctly handle the different message formats.
+ */
 int lustre_packed_msg_size(struct lustre_msg *msg)
 {
 	switch (msg->lm_magic) {
@@ -183,7 +185,7 @@ void lustre_init_msg_v2(struct lustre_msg_v2 *msg, int count, __u32 *lens,
 	for (i = 0; i < count; i++)
 		msg->lm_buflens[i] = lens[i];
 
-	if (bufs == NULL)
+	if (!bufs)
 		return;
 
 	ptr = (char *)msg + lustre_msg_hdr_size_v2(count);
@@ -267,7 +269,8 @@ lustre_get_emerg_rs(struct ptlrpc_service_part *svcpt)
 
 		spin_unlock(&svcpt->scp_rep_lock);
 		/* If we cannot get anything for some long time, we better
-		 * bail out instead of waiting infinitely */
+		 * bail out instead of waiting infinitely
+		 */
 		lwi = LWI_TIMEOUT(cfs_time_seconds(10), NULL, NULL);
 		rc = l_wait_event(svcpt->scp_rep_waitq,
 				  !list_empty(&svcpt->scp_rep_idle), &lwi);
@@ -277,7 +280,7 @@ lustre_get_emerg_rs(struct ptlrpc_service_part *svcpt)
 	}
 
 	rs = list_entry(svcpt->scp_rep_idle.next,
-			    struct ptlrpc_reply_state, rs_list);
+			struct ptlrpc_reply_state, rs_list);
 	list_del(&rs->rs_list);
 
 	spin_unlock(&svcpt->scp_rep_lock);
@@ -306,7 +309,7 @@ int lustre_pack_reply_v2(struct ptlrpc_request *req, int count,
 	struct ptlrpc_reply_state *rs;
 	int msg_len, rc;
 
-	LASSERT(req->rq_reply_state == NULL);
+	LASSERT(!req->rq_reply_state);
 
 	if ((flags & LPRFL_EARLY_REPLY) == 0) {
 		spin_lock(&req->rq_lock);
@@ -383,7 +386,6 @@ void *lustre_msg_buf_v2(struct lustre_msg_v2 *m, int n, int min_size)
 {
 	int i, offset, buflen, bufcount;
 
-	LASSERT(m != NULL);
 	LASSERT(n >= 0);
 
 	bufcount = m->lm_bufcount;
@@ -488,7 +490,7 @@ void lustre_free_reply_state(struct ptlrpc_reply_state *rs)
 	LASSERT(!rs->rs_difficult || rs->rs_handled);
 	LASSERT(!rs->rs_on_net);
 	LASSERT(!rs->rs_scheduled);
-	LASSERT(rs->rs_export == NULL);
+	LASSERT(!rs->rs_export);
 	LASSERT(rs->rs_nlocks == 0);
 	LASSERT(list_empty(&rs->rs_exp_list));
 	LASSERT(list_empty(&rs->rs_obd_list));
@@ -677,7 +679,8 @@ int lustre_msg_buflen(struct lustre_msg *m, int n)
 EXPORT_SYMBOL(lustre_msg_buflen);
 
 /* NB return the bufcount for lustre_msg_v2 format, so if message is packed
- * in V1 format, the result is one bigger. (add struct ptlrpc_body). */
+ * in V1 format, the result is one bigger. (add struct ptlrpc_body).
+ */
 int lustre_msg_bufcount(struct lustre_msg *m)
 {
 	switch (m->lm_magic) {
@@ -705,7 +708,7 @@ char *lustre_msg_string(struct lustre_msg *m, int index, int max_len)
 		LASSERTF(0, "incorrect message magic: %08x\n", m->lm_magic);
 	}
 
-	if (str == NULL) {
+	if (!str) {
 		CERROR("can't unpack string in msg %p buffer[%d]\n", m, index);
 		return NULL;
 	}
@@ -740,7 +743,6 @@ static inline void *__lustre_swab_buf(struct lustre_msg *msg, int index,
 {
 	void *ptr = NULL;
 
-	LASSERT(msg != NULL);
 	switch (msg->lm_magic) {
 	case LUSTRE_MSG_MAGIC_V2:
 		ptr = lustre_msg_buf_v2(msg, index, min_size);
@@ -799,7 +801,8 @@ __u32 lustre_msg_get_flags(struct lustre_msg *msg)
 	/* no break */
 	default:
 		/* flags might be printed in debug code while message
-		 * uninitialized */
+		 * uninitialized
+		 */
 		return 0;
 	}
 }
@@ -1032,7 +1035,8 @@ int lustre_msg_get_status(struct lustre_msg *msg)
 	/* no break */
 	default:
 		/* status might be printed in debug code while message
-		 * uninitialized */
+		 * uninitialized
+		 */
 		return -EINVAL;
 	}
 }
@@ -1368,7 +1372,8 @@ void lustre_msg_set_jobid(struct lustre_msg *msg, char *jobid)
 		struct ptlrpc_body *pb;
 
 		/* Don't set jobid for ldlm ast RPCs, they've been shrunk.
-		 * See the comment in ptlrpc_request_pack(). */
+		 * See the comment in ptlrpc_request_pack().
+		 */
 		if (!opc || opc == LDLM_BL_CALLBACK ||
 		    opc == LDLM_CP_CALLBACK || opc == LDLM_GL_CALLBACK)
 			return;
@@ -1377,7 +1382,7 @@ void lustre_msg_set_jobid(struct lustre_msg *msg, char *jobid)
 				       sizeof(struct ptlrpc_body));
 		LASSERTF(pb, "invalid msg %p: no ptlrpc body!\n", msg);
 
-		if (jobid != NULL)
+		if (jobid)
 			memcpy(pb->pb_jobid, jobid, JOBSTATS_JOBID_SIZE);
 		else if (pb->pb_jobid[0] == '\0')
 			lustre_get_jobid(pb->pb_jobid);
@@ -1427,7 +1432,7 @@ int do_set_info_async(struct obd_import *imp,
 	int rc;
 
 	req = ptlrpc_request_alloc(imp, &RQF_OBD_SET_INFO);
-	if (req == NULL)
+	if (!req)
 		return -ENOMEM;
 
 	req_capsule_set_size(&req->rq_pill, &RMF_SETINFO_KEY,
@@ -1488,7 +1493,8 @@ void lustre_swab_ptlrpc_body(struct ptlrpc_body *b)
 	 * clients and servers without ptlrpc_body_v2 (< 2.3)
 	 * do not swab any fields beyond pb_jobid, as we are
 	 * using this swab function for both ptlrpc_body
-	 * and ptlrpc_body_v2. */
+	 * and ptlrpc_body_v2.
+	 */
 	CLASSERT(offsetof(typeof(*b), pb_jobid) != 0);
 }
 EXPORT_SYMBOL(lustre_swab_ptlrpc_body);
@@ -1502,7 +1508,8 @@ void lustre_swab_connect(struct obd_connect_data *ocd)
 	__swab32s(&ocd->ocd_index);
 	__swab32s(&ocd->ocd_brw_size);
 	/* ocd_blocksize and ocd_inodespace don't need to be swabbed because
-	 * they are 8-byte values */
+	 * they are 8-byte values
+	 */
 	__swab16s(&ocd->ocd_grant_extent);
 	__swab32s(&ocd->ocd_unused);
 	__swab64s(&ocd->ocd_transno);
@@ -1512,7 +1519,8 @@ void lustre_swab_connect(struct obd_connect_data *ocd)
 	/* Fields after ocd_cksum_types are only accessible by the receiver
 	 * if the corresponding flag in ocd_connect_flags is set. Accessing
 	 * any field after ocd_maxbytes on the receiver without a valid flag
-	 * may result in out-of-bound memory access and kernel oops. */
+	 * may result in out-of-bound memory access and kernel oops.
+	 */
 	if (ocd->ocd_connect_flags & OBD_CONNECT_MAX_EASIZE)
 		__swab32s(&ocd->ocd_max_easize);
 	if (ocd->ocd_connect_flags & OBD_CONNECT_MAXBYTES)
@@ -1848,20 +1856,6 @@ void lustre_swab_fiemap(struct ll_user_fiemap *fiemap)
 }
 EXPORT_SYMBOL(lustre_swab_fiemap);
 
-void lustre_swab_idx_info(struct idx_info *ii)
-{
-	__swab32s(&ii->ii_magic);
-	__swab32s(&ii->ii_flags);
-	__swab16s(&ii->ii_count);
-	__swab32s(&ii->ii_attrs);
-	lustre_swab_lu_fid(&ii->ii_fid);
-	__swab64s(&ii->ii_version);
-	__swab64s(&ii->ii_hash_start);
-	__swab64s(&ii->ii_hash_end);
-	__swab16s(&ii->ii_keysize);
-	__swab16s(&ii->ii_recsize);
-}
-
 void lustre_swab_mdt_rec_reint (struct mdt_rec_reint *rr)
 {
 	__swab32s(&rr->rr_opcode);
@@ -1914,7 +1908,7 @@ static void print_lum(struct lov_user_md *lum)
 	CDEBUG(D_OTHER, "\tlmm_stripe_size: %#x\n", lum->lmm_stripe_size);
 	CDEBUG(D_OTHER, "\tlmm_stripe_count: %#x\n", lum->lmm_stripe_count);
 	CDEBUG(D_OTHER, "\tlmm_stripe_offset/lmm_layout_gen: %#x\n",
-			lum->lmm_stripe_offset);
+	       lum->lmm_stripe_offset);
 }
 
 static void lustre_swab_lmm_oi(struct ost_id *oi)
@@ -1986,7 +1980,8 @@ static void lustre_swab_ldlm_policy_data(ldlm_wire_policy_data_t *d)
 {
 	/* the lock data is a union and the first two fields are always an
 	 * extent so it's ok to process an LDLM_EXTENT and LDLM_FLOCK lock
-	 * data the same way. */
+	 * data the same way.
+	 */
 	__swab64s(&d->l_extent.start);
 	__swab64s(&d->l_extent.end);
 	__swab64s(&d->l_extent.gid);
@@ -2034,16 +2029,6 @@ void lustre_swab_ldlm_reply(struct ldlm_reply *r)
 	__swab64s(&r->lock_policy_res2);
 }
 EXPORT_SYMBOL(lustre_swab_ldlm_reply);
-
-void lustre_swab_quota_body(struct quota_body *b)
-{
-	lustre_swab_lu_fid(&b->qb_fid);
-	lustre_swab_lu_fid((struct lu_fid *)&b->qb_id);
-	__swab32s(&b->qb_flags);
-	__swab64s(&b->qb_count);
-	__swab64s(&b->qb_usage);
-	__swab64s(&b->qb_slv_ver);
-}
 
 /* Dump functions */
 void dump_ioo(struct obd_ioobj *ioo)
@@ -2287,24 +2272,6 @@ void lustre_swab_hsm_request(struct hsm_request *hr)
 	__swab32s(&hr->hr_data_len);
 }
 EXPORT_SYMBOL(lustre_swab_hsm_request);
-
-void lustre_swab_update_buf(struct update_buf *ub)
-{
-	__swab32s(&ub->ub_magic);
-	__swab32s(&ub->ub_count);
-}
-EXPORT_SYMBOL(lustre_swab_update_buf);
-
-void lustre_swab_update_reply_buf(struct update_reply *ur)
-{
-	int i;
-
-	__swab32s(&ur->ur_version);
-	__swab32s(&ur->ur_count);
-	for (i = 0; i < ur->ur_count; i++)
-		__swab32s(&ur->ur_lens[i]);
-}
-EXPORT_SYMBOL(lustre_swab_update_reply_buf);
 
 void lustre_swab_swap_layouts(struct mdc_swap_layouts *msl)
 {

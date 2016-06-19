@@ -217,9 +217,9 @@ static int qede_set_settings(struct net_device *dev, struct ethtool_cmd *cmd)
 	struct qed_link_params params;
 	u32 speed;
 
-	if (edev->dev_info.common.is_mf) {
+	if (!edev->dev_info.common.is_mf_default) {
 		DP_INFO(edev,
-			"Link parameters can not be changed in MF mode\n");
+			"Link parameters can not be changed in non-default mode\n");
 		return -EOPNOTSUPP;
 	}
 
@@ -428,7 +428,7 @@ static int qede_set_pauseparam(struct net_device *dev,
 	struct qed_link_params params;
 	struct qed_link_output current_link;
 
-	if (!edev->dev_info.common.is_mf) {
+	if (!edev->dev_info.common.is_mf_default) {
 		DP_INFO(edev,
 			"Pause parameters can not be updated in non-default mode\n");
 		return -EOPNOTSUPP;

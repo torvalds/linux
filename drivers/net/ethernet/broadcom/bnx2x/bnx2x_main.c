@@ -59,7 +59,9 @@
 #include <linux/semaphore.h>
 #include <linux/stringify.h>
 #include <linux/vmalloc.h>
-
+#if IS_ENABLED(CONFIG_BNX2X_GENEVE)
+#include <net/geneve.h>
+#endif
 #include "bnx2x.h"
 #include "bnx2x_init.h"
 #include "bnx2x_init_ops.h"
@@ -10074,11 +10076,13 @@ static void bnx2x_parity_recover(struct bnx2x *bp)
 	}
 }
 
-#ifdef CONFIG_BNX2X_VXLAN
-static int bnx2x_vxlan_port_update(struct bnx2x *bp, u16 port)
+#if defined(CONFIG_BNX2X_VXLAN) || IS_ENABLED(CONFIG_BNX2X_GENEVE)
+static int bnx2x_udp_port_update(struct bnx2x *bp)
 {
 	struct bnx2x_func_switch_update_params *switch_update_params;
 	struct bnx2x_func_state_params func_params = {NULL};
+	struct bnx2x_udp_tunnel *udp_tunnel;
+	u16 vxlan_port = 0, geneve_port = 0;
 	int rc;
 
 	switch_update_params = &func_params.params.switch_update;
@@ -10093,60 +10097,96 @@ static int bnx2x_vxlan_port_update(struct bnx2x *bp, u16 port)
 	/* Function parameters */
 	__set_bit(BNX2X_F_UPDATE_TUNNEL_CFG_CHNG,
 		  &switch_update_params->changes);
-	switch_update_params->vxlan_dst_port = port;
+
+	if (bp->udp_tunnel_ports[BNX2X_UDP_PORT_GENEVE].count) {
+		udp_tunnel = &bp->udp_tunnel_ports[BNX2X_UDP_PORT_GENEVE];
+		geneve_port = udp_tunnel->dst_port;
+		switch_update_params->geneve_dst_port = geneve_port;
+	}
+
+	if (bp->udp_tunnel_ports[BNX2X_UDP_PORT_VXLAN].count) {
+		udp_tunnel = &bp->udp_tunnel_ports[BNX2X_UDP_PORT_VXLAN];
+		vxlan_port = udp_tunnel->dst_port;
+		switch_update_params->vxlan_dst_port = vxlan_port;
+	}
+
+	/* Re-enable inner-rss for the offloaded UDP tunnels */
+	__set_bit(BNX2X_F_UPDATE_TUNNEL_INNER_RSS,
+		  &switch_update_params->changes);
+
 	rc = bnx2x_func_state_change(bp, &func_params);
 	if (rc)
-		BNX2X_ERR("failed to change vxlan dst port to %d (rc = 0x%x)\n",
-			  port, rc);
+		BNX2X_ERR("failed to set UDP dst port to %04x %04x (rc = 0x%x)\n",
+			  vxlan_port, geneve_port, rc);
+	else
+		DP(BNX2X_MSG_SP,
+		   "Configured UDP ports: Vxlan [%04x] Geneve [%04x]\n",
+		   vxlan_port, geneve_port);
+
 	return rc;
 }
 
-static void __bnx2x_add_vxlan_port(struct bnx2x *bp, u16 port)
+static void __bnx2x_add_udp_port(struct bnx2x *bp, u16 port,
+				 enum bnx2x_udp_port_type type)
 {
-	if (!netif_running(bp->dev))
+	struct bnx2x_udp_tunnel *udp_port = &bp->udp_tunnel_ports[type];
+
+	if (!netif_running(bp->dev) || !IS_PF(bp))
 		return;
 
-	if (bp->vxlan_dst_port_count && bp->vxlan_dst_port == port) {
-		bp->vxlan_dst_port_count++;
-		return;
-	}
-
-	if (bp->vxlan_dst_port_count || !IS_PF(bp)) {
-		DP(BNX2X_MSG_SP, "Vxlan destination port limit reached\n");
+	if (udp_port->count && udp_port->dst_port == port) {
+		udp_port->count++;
 		return;
 	}
 
-	bp->vxlan_dst_port = port;
-	bp->vxlan_dst_port_count = 1;
-	bnx2x_schedule_sp_rtnl(bp, BNX2X_SP_RTNL_ADD_VXLAN_PORT, 0);
+	if (udp_port->count) {
+		DP(BNX2X_MSG_SP,
+		   "UDP tunnel [%d] -  destination port limit reached\n",
+		   type);
+		return;
+	}
+
+	udp_port->dst_port = port;
+	udp_port->count = 1;
+	bnx2x_schedule_sp_rtnl(bp, BNX2X_SP_RTNL_CHANGE_UDP_PORT, 0);
 }
 
+static void __bnx2x_del_udp_port(struct bnx2x *bp, u16 port,
+				 enum bnx2x_udp_port_type type)
+{
+	struct bnx2x_udp_tunnel *udp_port = &bp->udp_tunnel_ports[type];
+
+	if (!IS_PF(bp))
+		return;
+
+	if (!udp_port->count || udp_port->dst_port != port) {
+		DP(BNX2X_MSG_SP, "Invalid UDP tunnel [%d] port\n",
+		   type);
+		return;
+	}
+
+	/* Remove reference, and make certain it's no longer in use */
+	udp_port->count--;
+	if (udp_port->count)
+		return;
+	udp_port->dst_port = 0;
+
+	if (netif_running(bp->dev))
+		bnx2x_schedule_sp_rtnl(bp, BNX2X_SP_RTNL_CHANGE_UDP_PORT, 0);
+	else
+		DP(BNX2X_MSG_SP, "Deleted UDP tunnel [%d] port %d\n",
+		   type, port);
+}
+#endif
+
+#ifdef CONFIG_BNX2X_VXLAN
 static void bnx2x_add_vxlan_port(struct net_device *netdev,
 				 sa_family_t sa_family, __be16 port)
 {
 	struct bnx2x *bp = netdev_priv(netdev);
 	u16 t_port = ntohs(port);
 
-	__bnx2x_add_vxlan_port(bp, t_port);
-}
-
-static void __bnx2x_del_vxlan_port(struct bnx2x *bp, u16 port)
-{
-	if (!bp->vxlan_dst_port_count || bp->vxlan_dst_port != port ||
-	    !IS_PF(bp)) {
-		DP(BNX2X_MSG_SP, "Invalid vxlan port\n");
-		return;
-	}
-	bp->vxlan_dst_port_count--;
-	if (bp->vxlan_dst_port_count)
-		return;
-
-	if (netif_running(bp->dev)) {
-		bnx2x_schedule_sp_rtnl(bp, BNX2X_SP_RTNL_DEL_VXLAN_PORT, 0);
-	} else {
-		bp->vxlan_dst_port = 0;
-		netdev_info(bp->dev, "Deleted vxlan dest port %d", port);
-	}
+	__bnx2x_add_udp_port(bp, t_port, BNX2X_UDP_PORT_VXLAN);
 }
 
 static void bnx2x_del_vxlan_port(struct net_device *netdev,
@@ -10155,7 +10195,27 @@ static void bnx2x_del_vxlan_port(struct net_device *netdev,
 	struct bnx2x *bp = netdev_priv(netdev);
 	u16 t_port = ntohs(port);
 
-	__bnx2x_del_vxlan_port(bp, t_port);
+	__bnx2x_del_udp_port(bp, t_port, BNX2X_UDP_PORT_VXLAN);
+}
+#endif
+
+#if IS_ENABLED(CONFIG_BNX2X_GENEVE)
+static void bnx2x_add_geneve_port(struct net_device *netdev,
+				  sa_family_t sa_family, __be16 port)
+{
+	struct bnx2x *bp = netdev_priv(netdev);
+	u16 t_port = ntohs(port);
+
+	__bnx2x_add_udp_port(bp, t_port, BNX2X_UDP_PORT_GENEVE);
+}
+
+static void bnx2x_del_geneve_port(struct net_device *netdev,
+				  sa_family_t sa_family, __be16 port)
+{
+	struct bnx2x *bp = netdev_priv(netdev);
+	u16 t_port = ntohs(port);
+
+	__bnx2x_del_udp_port(bp, t_port, BNX2X_UDP_PORT_GENEVE);
 }
 #endif
 
@@ -10167,9 +10227,6 @@ static int bnx2x_close(struct net_device *dev);
 static void bnx2x_sp_rtnl_task(struct work_struct *work)
 {
 	struct bnx2x *bp = container_of(work, struct bnx2x, sp_rtnl_task.work);
-#ifdef CONFIG_BNX2X_VXLAN
-	u16 port;
-#endif
 
 	rtnl_lock();
 
@@ -10268,23 +10325,27 @@ sp_rtnl_not_reset:
 			       &bp->sp_rtnl_state))
 		bnx2x_update_mng_version(bp);
 
+#if defined(CONFIG_BNX2X_VXLAN) || IS_ENABLED(CONFIG_BNX2X_GENEVE)
+	if (test_and_clear_bit(BNX2X_SP_RTNL_CHANGE_UDP_PORT,
+			       &bp->sp_rtnl_state)) {
+		if (bnx2x_udp_port_update(bp)) {
+			/* On error, forget configuration */
+			memset(bp->udp_tunnel_ports, 0,
+			       sizeof(struct bnx2x_udp_tunnel) *
+			       BNX2X_UDP_PORT_MAX);
+		} else {
+			/* Since we don't store additional port information,
+			 * if no port is configured for any feature ask for
+			 * information about currently configured ports.
+			 */
 #ifdef CONFIG_BNX2X_VXLAN
-	port = bp->vxlan_dst_port;
-	if (test_and_clear_bit(BNX2X_SP_RTNL_ADD_VXLAN_PORT,
-			       &bp->sp_rtnl_state)) {
-		if (!bnx2x_vxlan_port_update(bp, port))
-			netdev_info(bp->dev, "Added vxlan dest port %d", port);
-		else
-			bp->vxlan_dst_port = 0;
-	}
-
-	if (test_and_clear_bit(BNX2X_SP_RTNL_DEL_VXLAN_PORT,
-			       &bp->sp_rtnl_state)) {
-		if (!bnx2x_vxlan_port_update(bp, 0)) {
-			netdev_info(bp->dev,
-				    "Deleted vxlan dest port %d", port);
-			bp->vxlan_dst_port = 0;
-			vxlan_get_rx_port(bp->dev);
+			if (!bp->udp_tunnel_ports[BNX2X_UDP_PORT_VXLAN].count)
+				vxlan_get_rx_port(bp->dev);
+#endif
+#if IS_ENABLED(CONFIG_BNX2X_GENEVE)
+			if (!bp->udp_tunnel_ports[BNX2X_UDP_PORT_GENEVE].count)
+				geneve_get_rx_port(bp->dev);
+#endif
 		}
 	}
 #endif
@@ -12366,8 +12427,10 @@ static int bnx2x_init_bp(struct bnx2x *bp)
 
 	if (SHMEM2_HAS(bp, dcbx_lldp_params_offset) &&
 	    SHMEM2_HAS(bp, dcbx_lldp_dcbx_stat_offset) &&
+	    SHMEM2_HAS(bp, dcbx_en) &&
 	    SHMEM2_RD(bp, dcbx_lldp_params_offset) &&
-	    SHMEM2_RD(bp, dcbx_lldp_dcbx_stat_offset)) {
+	    SHMEM2_RD(bp, dcbx_lldp_dcbx_stat_offset) &&
+	    SHMEM2_RD(bp, dcbx_en[BP_PORT(bp)])) {
 		bnx2x_dcbx_set_state(bp, true, BNX2X_DCBX_ENABLED_ON_NEG_ON);
 		bnx2x_dcbx_init_params(bp);
 	} else {
@@ -12491,6 +12554,10 @@ static int bnx2x_open(struct net_device *dev)
 #ifdef CONFIG_BNX2X_VXLAN
 	if (IS_PF(bp))
 		vxlan_get_rx_port(dev);
+#endif
+#if IS_ENABLED(CONFIG_BNX2X_GENEVE)
+	if (IS_PF(bp))
+		geneve_get_rx_port(dev);
 #endif
 
 	return 0;
@@ -12992,7 +13059,7 @@ static const struct net_device_ops bnx2x_netdev_ops = {
 #ifdef CONFIG_NET_POLL_CONTROLLER
 	.ndo_poll_controller	= poll_bnx2x,
 #endif
-	.ndo_setup_tc		= bnx2x_setup_tc,
+	.ndo_setup_tc		= __bnx2x_setup_tc,
 #ifdef CONFIG_BNX2X_SRIOV
 	.ndo_set_vf_mac		= bnx2x_set_vf_mac,
 	.ndo_set_vf_vlan	= bnx2x_set_vf_vlan,
@@ -13008,6 +13075,10 @@ static const struct net_device_ops bnx2x_netdev_ops = {
 #ifdef CONFIG_BNX2X_VXLAN
 	.ndo_add_vxlan_port	= bnx2x_add_vxlan_port,
 	.ndo_del_vxlan_port	= bnx2x_del_vxlan_port,
+#endif
+#if IS_ENABLED(CONFIG_BNX2X_GENEVE)
+	.ndo_add_geneve_port	= bnx2x_add_geneve_port,
+	.ndo_del_geneve_port	= bnx2x_del_geneve_port,
 #endif
 };
 
@@ -14814,6 +14885,10 @@ static int bnx2x_get_fc_npiv(struct net_device *dev,
 	}
 
 	offset = SHMEM2_RD(bp, fc_npiv_nvram_tbl_addr[BP_PORT(bp)]);
+	if (!offset) {
+		DP(BNX2X_MSG_MCP, "No FC-NPIV in NVRAM\n");
+		goto out;
+	}
 	DP(BNX2X_MSG_MCP, "Offset of FC-NPIV in NVRAM: %08x\n", offset);
 
 	/* Read the table contents from nvram */

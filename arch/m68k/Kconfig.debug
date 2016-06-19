@@ -12,7 +12,7 @@ config BOOTPARAM_STRING
 
 config EARLY_PRINTK
 	bool "Early printk"
-	depends on !(SUN3 || M68360 || M68000 || COLDFIRE)
+	depends on !(SUN3 || M68000 || COLDFIRE)
 	help
           Write kernel log output directly to a serial port.
           Where implemented, output goes to the framebuffer as well.

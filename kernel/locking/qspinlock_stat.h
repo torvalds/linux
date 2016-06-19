@@ -22,6 +22,7 @@
  *   pv_kick_wake	- # of vCPU kicks used for computing pv_latency_wake
  *   pv_latency_kick	- average latency (ns) of vCPU kick operation
  *   pv_latency_wake	- average latency (ns) from vCPU kick to wakeup
+ *   pv_lock_slowpath	- # of locking operations via the slowpath
  *   pv_lock_stealing	- # of lock stealing operations
  *   pv_spurious_wakeup	- # of spurious wakeups
  *   pv_wait_again	- # of vCPU wait's that happened after a vCPU kick
@@ -45,6 +46,7 @@ enum qlock_stats {
 	qstat_pv_kick_wake,
 	qstat_pv_latency_kick,
 	qstat_pv_latency_wake,
+	qstat_pv_lock_slowpath,
 	qstat_pv_lock_stealing,
 	qstat_pv_spurious_wakeup,
 	qstat_pv_wait_again,
@@ -70,6 +72,7 @@ static const char * const qstat_names[qstat_num + 1] = {
 	[qstat_pv_spurious_wakeup] = "pv_spurious_wakeup",
 	[qstat_pv_latency_kick]	   = "pv_latency_kick",
 	[qstat_pv_latency_wake]    = "pv_latency_wake",
+	[qstat_pv_lock_slowpath]   = "pv_lock_slowpath",
 	[qstat_pv_lock_stealing]   = "pv_lock_stealing",
 	[qstat_pv_wait_again]      = "pv_wait_again",
 	[qstat_pv_wait_early]      = "pv_wait_early",
@@ -133,10 +136,12 @@ static ssize_t qstat_read(struct file *file, char __user *user_buf,
 	}
 
 	if (counter == qstat_pv_hash_hops) {
-		u64 frac;
+		u64 frac = 0;
 
-		frac = 100ULL * do_div(stat, kicks);
-		frac = DIV_ROUND_CLOSEST_ULL(frac, kicks);
+		if (kicks) {
+			frac = 100ULL * do_div(stat, kicks);
+			frac = DIV_ROUND_CLOSEST_ULL(frac, kicks);
+		}
 
 		/*
 		 * Return a X.XX decimal number
@@ -278,19 +283,6 @@ static inline void __pv_wait(u8 *ptr, u8 val)
 
 #define pv_kick(c)	__pv_kick(c)
 #define pv_wait(p, v)	__pv_wait(p, v)
-
-/*
- * PV unfair trylock count tracking function
- */
-static inline int qstat_spin_steal_lock(struct qspinlock *lock)
-{
-	int ret = pv_queued_spin_steal_lock(lock);
-
-	qstat_inc(qstat_pv_lock_stealing, ret);
-	return ret;
-}
-#undef  queued_spin_trylock
-#define queued_spin_trylock(l)	qstat_spin_steal_lock(l)
 
 #else /* CONFIG_QUEUED_LOCK_STAT */
 

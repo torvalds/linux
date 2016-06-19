@@ -19,7 +19,7 @@
  * Thanks to Paul M for explaining this.
  *
  * PPC can only do rel jumps += 32MB, and often the kernel and other
- * modules are furthur away than this.  So, we jump to a table of
+ * modules are further away than this.  So, we jump to a table of
  * trampolines attached to the module (the Procedure Linkage Table)
  * whenever that happens.
  */
@@ -78,9 +78,17 @@ struct mod_arch_specific {
 #    endif	/* MODULE */
 #endif
 
-bool is_module_trampoline(u32 *insns);
-int module_trampoline_target(struct module *mod, u32 *trampoline,
+int module_trampoline_target(struct module *mod, unsigned long trampoline,
 			     unsigned long *target);
+
+#ifdef CONFIG_DYNAMIC_FTRACE
+int module_finalize_ftrace(struct module *mod, const Elf_Shdr *sechdrs);
+#else
+static inline int module_finalize_ftrace(struct module *mod, const Elf_Shdr *sechdrs)
+{
+	return 0;
+}
+#endif
 
 struct exception_table_entry;
 void sort_ex_table(struct exception_table_entry *start,

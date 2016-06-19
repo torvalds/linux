@@ -1057,18 +1057,18 @@ static int set_machine_constraints(struct regulator_dev *rdev,
 
 	ret = machine_constraints_voltage(rdev, rdev->constraints);
 	if (ret != 0)
-		goto out;
+		return ret;
 
 	ret = machine_constraints_current(rdev, rdev->constraints);
 	if (ret != 0)
-		goto out;
+		return ret;
 
 	if (rdev->constraints->ilim_uA && ops->set_input_current_limit) {
 		ret = ops->set_input_current_limit(rdev,
 						   rdev->constraints->ilim_uA);
 		if (ret < 0) {
 			rdev_err(rdev, "failed to set input limit\n");
-			goto out;
+			return ret;
 		}
 	}
 
@@ -1077,21 +1077,20 @@ static int set_machine_constraints(struct regulator_dev *rdev,
 		ret = suspend_prepare(rdev, rdev->constraints->initial_state);
 		if (ret < 0) {
 			rdev_err(rdev, "failed to set suspend state\n");
-			goto out;
+			return ret;
 		}
 	}
 
 	if (rdev->constraints->initial_mode) {
 		if (!ops->set_mode) {
 			rdev_err(rdev, "no set_mode operation\n");
-			ret = -EINVAL;
-			goto out;
+			return -EINVAL;
 		}
 
 		ret = ops->set_mode(rdev, rdev->constraints->initial_mode);
 		if (ret < 0) {
 			rdev_err(rdev, "failed to set initial mode: %d\n", ret);
-			goto out;
+			return ret;
 		}
 	}
 
@@ -1102,7 +1101,7 @@ static int set_machine_constraints(struct regulator_dev *rdev,
 		ret = _regulator_do_enable(rdev);
 		if (ret < 0 && ret != -EINVAL) {
 			rdev_err(rdev, "failed to enable\n");
-			goto out;
+			return ret;
 		}
 	}
 
@@ -1111,7 +1110,7 @@ static int set_machine_constraints(struct regulator_dev *rdev,
 		ret = ops->set_ramp_delay(rdev, rdev->constraints->ramp_delay);
 		if (ret < 0) {
 			rdev_err(rdev, "failed to set ramp_delay\n");
-			goto out;
+			return ret;
 		}
 	}
 
@@ -1119,7 +1118,7 @@ static int set_machine_constraints(struct regulator_dev *rdev,
 		ret = ops->set_pull_down(rdev);
 		if (ret < 0) {
 			rdev_err(rdev, "failed to set pull down\n");
-			goto out;
+			return ret;
 		}
 	}
 
@@ -1127,7 +1126,7 @@ static int set_machine_constraints(struct regulator_dev *rdev,
 		ret = ops->set_soft_start(rdev);
 		if (ret < 0) {
 			rdev_err(rdev, "failed to set soft start\n");
-			goto out;
+			return ret;
 		}
 	}
 
@@ -1136,16 +1135,34 @@ static int set_machine_constraints(struct regulator_dev *rdev,
 		ret = ops->set_over_current_protection(rdev);
 		if (ret < 0) {
 			rdev_err(rdev, "failed to set over current protection\n");
-			goto out;
+			return ret;
+		}
+	}
+
+	if (rdev->constraints->active_discharge && ops->set_active_discharge) {
+		bool ad_state = (rdev->constraints->active_discharge ==
+			      REGULATOR_ACTIVE_DISCHARGE_ENABLE) ? true : false;
+
+		ret = ops->set_active_discharge(rdev, ad_state);
+		if (ret < 0) {
+			rdev_err(rdev, "failed to set active discharge\n");
+			return ret;
+		}
+	}
+
+	if (rdev->constraints->active_discharge && ops->set_active_discharge) {
+		bool ad_state = (rdev->constraints->active_discharge ==
+			      REGULATOR_ACTIVE_DISCHARGE_ENABLE) ? true : false;
+
+		ret = ops->set_active_discharge(rdev, ad_state);
+		if (ret < 0) {
+			rdev_err(rdev, "failed to set active discharge\n");
+			return ret;
 		}
 	}
 
 	print_constraints(rdev);
 	return 0;
-out:
-	kfree(rdev->constraints);
-	rdev->constraints = NULL;
-	return ret;
 }
 
 /**
@@ -3918,6 +3935,16 @@ regulator_register(const struct regulator_desc *regulator_desc,
 			goto clean;
 	}
 
+	if ((config->ena_gpio || config->ena_gpio_initialized) &&
+	    gpio_is_valid(config->ena_gpio)) {
+		ret = regulator_ena_gpio_request(rdev, config);
+		if (ret != 0) {
+			rdev_err(rdev, "Failed to request enable GPIO%d: %d\n",
+				 config->ena_gpio, ret);
+			goto clean;
+		}
+	}
+
 	/* register with sysfs */
 	rdev->dev.class = &regulator_class;
 	rdev->dev.parent = dev;
@@ -3926,20 +3953,10 @@ regulator_register(const struct regulator_desc *regulator_desc,
 	ret = device_register(&rdev->dev);
 	if (ret != 0) {
 		put_device(&rdev->dev);
-		goto clean;
+		goto wash;
 	}
 
 	dev_set_drvdata(&rdev->dev, rdev);
-
-	if ((config->ena_gpio || config->ena_gpio_initialized) &&
-	    gpio_is_valid(config->ena_gpio)) {
-		ret = regulator_ena_gpio_request(rdev, config);
-		if (ret != 0) {
-			rdev_err(rdev, "Failed to request enable GPIO%d: %d\n",
-				 config->ena_gpio, ret);
-			goto wash;
-		}
-	}
 
 	/* set regulator constraints */
 	if (init_data)
@@ -3979,13 +3996,13 @@ unset_supplies:
 
 scrub:
 	regulator_ena_gpio_free(rdev);
-	kfree(rdev->constraints);
-wash:
 	device_unregister(&rdev->dev);
 	/* device core frees rdev */
 	rdev = ERR_PTR(ret);
 	goto out;
 
+wash:
+	regulator_ena_gpio_free(rdev);
 clean:
 	kfree(rdev);
 	rdev = ERR_PTR(ret);

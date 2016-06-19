@@ -1,4 +1,4 @@
-/* Copyright (C) 2012-2015 B.A.T.M.A.N. contributors:
+/* Copyright (C) 2012-2016  B.A.T.M.A.N. contributors:
  *
  * Martin Hundebøll, Jeppe Ledet-Pedersen
  *

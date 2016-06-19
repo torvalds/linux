@@ -660,6 +660,10 @@ int apply_relocate_add(Elf_Shdr *sechdrs,
 			}
 			*loc = (*loc & ~0x3ff1ffd) | reassemble_22(val);
 			break;
+		case R_PARISC_PCREL32:
+			/* 32-bit PC relative address */
+			*loc = val - dot - 8 + addend;
+			break;
 
 		default:
 			printk(KERN_ERR "module %s: Unknown relocation: %u\n",
@@ -787,6 +791,10 @@ int apply_relocate_add(Elf_Shdr *sechdrs,
 			val = (val - dot - 8)/4;
 			CHECK_RELOC(val, 22);
 			*loc = (*loc & ~0x3ff1ffd) | reassemble_22(val);
+			break;
+		case R_PARISC_PCREL32:
+			/* 32-bit PC relative address */
+			*loc = val - dot - 8 + addend;
 			break;
 		case R_PARISC_DIR64:
 			/* 64-bit effective address */

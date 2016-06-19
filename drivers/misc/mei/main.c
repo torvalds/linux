@@ -65,7 +65,7 @@ static int mei_open(struct inode *inode, struct file *file)
 		goto err_unlock;
 	}
 
-	cl = mei_cl_alloc_linked(dev, MEI_HOST_CLIENT_ID_ANY);
+	cl = mei_cl_alloc_linked(dev);
 	if (IS_ERR(cl)) {
 		err = PTR_ERR(cl);
 		goto err_unlock;
@@ -159,27 +159,22 @@ static ssize_t mei_read(struct file *file, char __user *ubuf,
 		goto out;
 	}
 
+	if (ubuf == NULL) {
+		rets = -EMSGSIZE;
+		goto out;
+	}
+
 	if (cl == &dev->iamthif_cl) {
 		rets = mei_amthif_read(dev, file, ubuf, length, offset);
 		goto out;
 	}
 
 	cb = mei_cl_read_cb(cl, file);
-	if (cb) {
-		/* read what left */
-		if (cb->buf_idx > *offset)
-			goto copy_buffer;
-		/* offset is beyond buf_idx we have no more data return 0 */
-		if (cb->buf_idx > 0 && cb->buf_idx <= *offset) {
-			rets = 0;
-			goto free;
-		}
-		/* Offset needs to be cleaned for contiguous reads*/
-		if (cb->buf_idx == 0 && *offset > 0)
-			*offset = 0;
-	} else if (*offset > 0) {
+	if (cb)
+		goto copy_buffer;
+
+	if (*offset > 0)
 		*offset = 0;
-	}
 
 	err = mei_cl_read_start(cl, length, file);
 	if (err && err != -EBUSY) {
@@ -214,11 +209,6 @@ static ssize_t mei_read(struct file *file, char __user *ubuf,
 
 	cb = mei_cl_read_cb(cl, file);
 	if (!cb) {
-		if (mei_cl_is_fixed_address(cl) && dev->allow_fixed_address) {
-			cb = mei_cl_read_cb(cl, NULL);
-			if (cb)
-				goto copy_buffer;
-		}
 		rets = 0;
 		goto out;
 	}
@@ -231,10 +221,10 @@ copy_buffer:
 		goto free;
 	}
 
-	cl_dbg(dev, cl, "buf.size = %d buf.idx = %ld\n",
-	    cb->buf.size, cb->buf_idx);
-	if (length == 0 || ubuf == NULL || *offset > cb->buf_idx) {
-		rets = -EMSGSIZE;
+	cl_dbg(dev, cl, "buf.size = %zu buf.idx = %zu offset = %lld\n",
+	       cb->buf.size, cb->buf_idx, *offset);
+	if (*offset >= cb->buf_idx) {
+		rets = 0;
 		goto free;
 	}
 
@@ -250,11 +240,13 @@ copy_buffer:
 
 	rets = length;
 	*offset += length;
-	if ((unsigned long)*offset < cb->buf_idx)
+	/* not all data was read, keep the cb */
+	if (*offset < cb->buf_idx)
 		goto out;
 
 free:
 	mei_io_cb_free(cb);
+	*offset = 0;
 
 out:
 	cl_dbg(dev, cl, "end mei read rets = %d\n", rets);
@@ -275,9 +267,8 @@ static ssize_t mei_write(struct file *file, const char __user *ubuf,
 			 size_t length, loff_t *offset)
 {
 	struct mei_cl *cl = file->private_data;
-	struct mei_cl_cb *write_cb = NULL;
+	struct mei_cl_cb *cb;
 	struct mei_device *dev;
-	unsigned long timeout = 0;
 	int rets;
 
 	if (WARN_ON(!cl || !cl->dev))
@@ -313,52 +304,31 @@ static ssize_t mei_write(struct file *file, const char __user *ubuf,
 		goto out;
 	}
 
-	if (cl == &dev->iamthif_cl) {
-		write_cb = mei_amthif_find_read_list_entry(dev, file);
-
-		if (write_cb) {
-			timeout = write_cb->read_time +
-				mei_secs_to_jiffies(MEI_IAMTHIF_READ_TIMER);
-
-			if (time_after(jiffies, timeout)) {
-				*offset = 0;
-				mei_io_cb_free(write_cb);
-				write_cb = NULL;
-			}
-		}
-	}
-
 	*offset = 0;
-	write_cb = mei_cl_alloc_cb(cl, length, MEI_FOP_WRITE, file);
-	if (!write_cb) {
+	cb = mei_cl_alloc_cb(cl, length, MEI_FOP_WRITE, file);
+	if (!cb) {
 		rets = -ENOMEM;
 		goto out;
 	}
 
-	rets = copy_from_user(write_cb->buf.data, ubuf, length);
+	rets = copy_from_user(cb->buf.data, ubuf, length);
 	if (rets) {
 		dev_dbg(dev->dev, "failed to copy data from userland\n");
 		rets = -EFAULT;
+		mei_io_cb_free(cb);
 		goto out;
 	}
 
 	if (cl == &dev->iamthif_cl) {
-		rets = mei_amthif_write(cl, write_cb);
-
-		if (rets) {
-			dev_err(dev->dev,
-				"amthif write failed with status = %d\n", rets);
-			goto out;
-		}
-		mutex_unlock(&dev->device_lock);
-		return length;
+		rets = mei_amthif_write(cl, cb);
+		if (!rets)
+			rets = length;
+		goto out;
 	}
 
-	rets = mei_cl_write(cl, write_cb, false);
+	rets = mei_cl_write(cl, cb, false);
 out:
 	mutex_unlock(&dev->device_lock);
-	if (rets < 0)
-		mei_io_cb_free(write_cb);
 	return rets;
 }
 
@@ -393,12 +363,22 @@ static int mei_ioctl_connect_client(struct file *file,
 
 	/* find ME client we're trying to connect to */
 	me_cl = mei_me_cl_by_uuid(dev, &data->in_client_uuid);
-	if (!me_cl ||
-	    (me_cl->props.fixed_address && !dev->allow_fixed_address)) {
+	if (!me_cl) {
 		dev_dbg(dev->dev, "Cannot connect to FW Client UUID = %pUl\n",
 			&data->in_client_uuid);
-		mei_me_cl_put(me_cl);
-		return  -ENOTTY;
+		rets = -ENOTTY;
+		goto end;
+	}
+
+	if (me_cl->props.fixed_address) {
+		bool forbidden = dev->override_fixed_address ?
+			 !dev->allow_fixed_address : !dev->hbm_f_fa_supported;
+		if (forbidden) {
+			dev_dbg(dev->dev, "Connection forbidden to FW Client UUID = %pUl\n",
+				&data->in_client_uuid);
+			rets = -ENOTTY;
+			goto end;
+		}
 	}
 
 	dev_dbg(dev->dev, "Connect to FW Client ID = %d\n",
@@ -454,7 +434,7 @@ end:
  *
  * Return: 0 on success , <0 on error
  */
-static int mei_ioctl_client_notify_request(struct file *file, u32 request)
+static int mei_ioctl_client_notify_request(const struct file *file, u32 request)
 {
 	struct mei_cl *cl = file->private_data;
 
@@ -473,7 +453,7 @@ static int mei_ioctl_client_notify_request(struct file *file, u32 request)
  *
  * Return: 0 on success , <0 on error
  */
-static int mei_ioctl_client_notify_get(struct file *file, u32 *notify_get)
+static int mei_ioctl_client_notify_get(const struct file *file, u32 *notify_get)
 {
 	struct mei_cl *cl = file->private_data;
 	bool notify_ev;

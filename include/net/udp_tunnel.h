@@ -88,8 +88,8 @@ int udp_tunnel6_xmit_skb(struct dst_entry *dst, struct sock *sk,
 			 struct sk_buff *skb,
 			 struct net_device *dev, struct in6_addr *saddr,
 			 struct in6_addr *daddr,
-			 __u8 prio, __u8 ttl, __be16 src_port,
-			 __be16 dst_port, bool nocheck);
+			 __u8 prio, __u8 ttl, __be32 label,
+			 __be16 src_port, __be16 dst_port, bool nocheck);
 #endif
 
 void udp_tunnel_sock_release(struct socket *sock);
@@ -103,16 +103,7 @@ static inline struct sk_buff *udp_tunnel_handle_offloads(struct sk_buff *skb,
 {
 	int type = udp_csum ? SKB_GSO_UDP_TUNNEL_CSUM : SKB_GSO_UDP_TUNNEL;
 
-	return iptunnel_handle_offloads(skb, udp_csum, type);
-}
-
-static inline void udp_tunnel_gro_complete(struct sk_buff *skb, int nhoff)
-{
-	struct udphdr *uh;
-
-	uh = (struct udphdr *)(skb->data + nhoff - sizeof(struct udphdr));
-	skb_shinfo(skb)->gso_type |= uh->check ?
-				SKB_GSO_UDP_TUNNEL_CSUM : SKB_GSO_UDP_TUNNEL;
+	return iptunnel_handle_offloads(skb, type);
 }
 
 static inline void udp_tunnel_encap_enable(struct socket *sock)

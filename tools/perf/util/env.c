@@ -6,6 +6,8 @@ struct perf_env perf_env;
 
 void perf_env__exit(struct perf_env *env)
 {
+	int i;
+
 	zfree(&env->hostname);
 	zfree(&env->os_release);
 	zfree(&env->version);
@@ -19,6 +21,10 @@ void perf_env__exit(struct perf_env *env)
 	zfree(&env->numa_nodes);
 	zfree(&env->pmu_mappings);
 	zfree(&env->cpu);
+
+	for (i = 0; i < env->caches_cnt; i++)
+		cpu_cache_level__free(&env->caches[i]);
+	zfree(&env->caches);
 }
 
 int perf_env__set_cmdline(struct perf_env *env, int argc, const char *argv[])
@@ -74,4 +80,11 @@ int perf_env__read_cpu_topology_map(struct perf_env *env)
 
 	env->nr_cpus_avail = nr_cpus;
 	return 0;
+}
+
+void cpu_cache_level__free(struct cpu_cache_level *cache)
+{
+	free(cache->type);
+	free(cache->map);
+	free(cache->size);
 }

@@ -44,8 +44,20 @@ static const struct intel_lpss_platform_info bxt_info = {
 	.clk_rate = 100000000,
 };
 
+static struct property_entry bxt_i2c_properties[] = {
+	PROPERTY_ENTRY_U32("i2c-sda-hold-time-ns", 42),
+	PROPERTY_ENTRY_U32("i2c-sda-falling-time-ns", 171),
+	PROPERTY_ENTRY_U32("i2c-scl-falling-time-ns", 208),
+	{ },
+};
+
+static struct property_set bxt_i2c_pset = {
+	.properties = bxt_i2c_properties,
+};
+
 static const struct intel_lpss_platform_info bxt_i2c_info = {
 	.clk_rate = 133000000,
+	.pset = &bxt_i2c_pset,
 };
 
 static const struct acpi_device_id intel_lpss_acpi_ids[] = {

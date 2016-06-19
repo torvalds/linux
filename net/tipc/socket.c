@@ -42,6 +42,7 @@
 #include "name_distr.h"
 #include "socket.h"
 #include "bcast.h"
+#include "netlink.h"
 
 #define SS_LISTENING		-1	/* socket is listening */
 #define SS_READY		-2	/* socket is connectionless */
@@ -125,14 +126,6 @@ static const struct proto_ops packet_ops;
 static const struct proto_ops stream_ops;
 static const struct proto_ops msg_ops;
 static struct proto tipc_proto;
-
-static const struct nla_policy tipc_nl_sock_policy[TIPC_NLA_SOCK_MAX + 1] = {
-	[TIPC_NLA_SOCK_UNSPEC]		= { .type = NLA_UNSPEC },
-	[TIPC_NLA_SOCK_ADDR]		= { .type = NLA_U32 },
-	[TIPC_NLA_SOCK_REF]		= { .type = NLA_U32 },
-	[TIPC_NLA_SOCK_CON]		= { .type = NLA_NESTED },
-	[TIPC_NLA_SOCK_HAS_PUBL]	= { .type = NLA_FLAG }
-};
 
 static const struct rhashtable_params tsk_rht_params;
 

@@ -349,7 +349,7 @@ struct mon_bus *mon_bus_lookup(unsigned int num)
 static int __init mon_init(void)
 {
 	struct usb_bus *ubus;
-	int rc;
+	int rc, id;
 
 	if ((rc = mon_text_init()) != 0)
 		goto err_text;
@@ -365,12 +365,11 @@ static int __init mon_init(void)
 	}
 	// MOD_INC_USE_COUNT(which_module?);
 
-	mutex_lock(&usb_bus_list_lock);
-	list_for_each_entry (ubus, &usb_bus_list, bus_list) {
+	mutex_lock(&usb_bus_idr_lock);
+	idr_for_each_entry(&usb_bus_idr, ubus, id)
 		mon_bus_init(ubus);
-	}
 	usb_register_notify(&mon_nb);
-	mutex_unlock(&usb_bus_list_lock);
+	mutex_unlock(&usb_bus_idr_lock);
 	return 0;
 
 err_reg:

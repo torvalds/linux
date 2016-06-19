@@ -19,8 +19,6 @@
 #include <linux/err.h>
 #include <linux/slab.h>
 
-#define to_clk_composite(_hw) container_of(_hw, struct clk_composite, hw)
-
 static u8 clk_composite_get_parent(struct clk_hw *hw)
 {
 	struct clk_composite *composite = to_clk_composite(hw);

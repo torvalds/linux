@@ -650,7 +650,7 @@ xfs_buf_read_map(
 	if (bp) {
 		trace_xfs_buf_read(bp, flags, _RET_IP_);
 
-		if (!XFS_BUF_ISDONE(bp)) {
+		if (!(bp->b_flags & XBF_DONE)) {
 			XFS_STATS_INC(target->bt_mount, xb_get_read);
 			bp->b_ops = ops;
 			_xfs_buf_read(bp, flags);

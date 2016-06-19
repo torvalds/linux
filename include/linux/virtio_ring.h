@@ -59,6 +59,35 @@ static inline void virtio_store_mb(bool weak_barriers,
 struct virtio_device;
 struct virtqueue;
 
+/*
+ * Creates a virtqueue and allocates the descriptor ring.  If
+ * may_reduce_num is set, then this may allocate a smaller ring than
+ * expected.  The caller should query virtqueue_get_ring_size to learn
+ * the actual size of the ring.
+ */
+struct virtqueue *vring_create_virtqueue(unsigned int index,
+					 unsigned int num,
+					 unsigned int vring_align,
+					 struct virtio_device *vdev,
+					 bool weak_barriers,
+					 bool may_reduce_num,
+					 bool (*notify)(struct virtqueue *vq),
+					 void (*callback)(struct virtqueue *vq),
+					 const char *name);
+
+/* Creates a virtqueue with a custom layout. */
+struct virtqueue *__vring_new_virtqueue(unsigned int index,
+					struct vring vring,
+					struct virtio_device *vdev,
+					bool weak_barriers,
+					bool (*notify)(struct virtqueue *),
+					void (*callback)(struct virtqueue *),
+					const char *name);
+
+/*
+ * Creates a virtqueue with a standard layout but a caller-allocated
+ * ring.
+ */
 struct virtqueue *vring_new_virtqueue(unsigned int index,
 				      unsigned int num,
 				      unsigned int vring_align,
@@ -68,7 +97,13 @@ struct virtqueue *vring_new_virtqueue(unsigned int index,
 				      bool (*notify)(struct virtqueue *vq),
 				      void (*callback)(struct virtqueue *vq),
 				      const char *name);
+
+/*
+ * Destroys a virtqueue.  If created with vring_create_virtqueue, this
+ * also frees the ring.
+ */
 void vring_del_virtqueue(struct virtqueue *vq);
+
 /* Filter out transport-specific feature bits. */
 void vring_transport_features(struct virtio_device *vdev);
 

@@ -1,11 +1,10 @@
 /*
+ * Copyright(c) 2015, 2016 Intel Corporation.
  *
  * This file is provided under a dual BSD/GPLv2 license.  When using or
  * redistributing this file, you may do so under either license.
  *
  * GPL LICENSE SUMMARY
- *
- * Copyright(c) 2015 Intel Corporation.
  *
  * This program is free software; you can redistribute it and/or modify
  * it under the terms of version 2 of the GNU General Public License as
@@ -17,8 +16,6 @@
  * General Public License for more details.
  *
  * BSD LICENSE
- *
- * Copyright(c) 2015 Intel Corporation.
  *
  * Redistribution and use in source and binary forms, with or without
  * modification, are permitted provided that the following conditions
@@ -51,36 +48,62 @@
 #include <linux/mm.h>
 #include <linux/sched.h>
 #include <linux/device.h>
+#include <linux/module.h>
 
 #include "hfi.h"
 
-/**
- * hfi1_map_page - a safety wrapper around pci_map_page()
+static unsigned long cache_size = 256;
+module_param(cache_size, ulong, S_IRUGO | S_IWUSR);
+MODULE_PARM_DESC(cache_size, "Send and receive side cache size limit (in MB)");
+
+/*
+ * Determine whether the caller can pin pages.
+ *
+ * This function should be used in the implementation of buffer caches.
+ * The cache implementation should call this function prior to attempting
+ * to pin buffer pages in order to determine whether they should do so.
+ * The function computes cache limits based on the configured ulimit and
+ * cache size. Use of this function is especially important for caches
+ * which are not limited in any other way (e.g. by HW resources) and, thus,
+ * could keeping caching buffers.
  *
  */
-dma_addr_t hfi1_map_page(struct pci_dev *hwdev, struct page *page,
-			 unsigned long offset, size_t size, int direction)
+bool hfi1_can_pin_pages(struct hfi1_devdata *dd, u32 nlocked, u32 npages)
 {
-	dma_addr_t phys;
-
-	phys = pci_map_page(hwdev, page, offset, size, direction);
-
-	return phys;
-}
-
-int hfi1_acquire_user_pages(unsigned long vaddr, size_t npages, bool writable,
-			    struct page **pages)
-{
-	unsigned long pinned, lock_limit = rlimit(RLIMIT_MEMLOCK) >> PAGE_SHIFT;
+	unsigned long ulimit = rlimit(RLIMIT_MEMLOCK), pinned, cache_limit,
+		size = (cache_size * (1UL << 20)); /* convert to bytes */
+	unsigned usr_ctxts = dd->num_rcv_contexts - dd->first_user_ctxt;
 	bool can_lock = capable(CAP_IPC_LOCK);
-	int ret;
+
+	/*
+	 * Calculate per-cache size. The calculation below uses only a quarter
+	 * of the available per-context limit. This leaves space for other
+	 * pinning. Should we worry about shared ctxts?
+	 */
+	cache_limit = (ulimit / usr_ctxts) / 4;
+
+	/* If ulimit isn't set to "unlimited" and is smaller than cache_size. */
+	if (ulimit != (-1UL) && size > cache_limit)
+		size = cache_limit;
+
+	/* Convert to number of pages */
+	size = DIV_ROUND_UP(size, PAGE_SIZE);
 
 	down_read(&current->mm->mmap_sem);
 	pinned = current->mm->pinned_vm;
 	up_read(&current->mm->mmap_sem);
 
-	if (pinned + npages > lock_limit && !can_lock)
-		return -ENOMEM;
+	/* First, check the absolute limit against all pinned pages. */
+	if (pinned + npages >= ulimit && !can_lock)
+		return false;
+
+	return ((nlocked + npages) <= size) || can_lock;
+}
+
+int hfi1_acquire_user_pages(unsigned long vaddr, size_t npages, bool writable,
+			    struct page **pages)
+{
+	int ret;
 
 	ret = get_user_pages_fast(vaddr, npages, writable, pages);
 	if (ret < 0)
@@ -93,7 +116,8 @@ int hfi1_acquire_user_pages(unsigned long vaddr, size_t npages, bool writable,
 	return ret;
 }
 
-void hfi1_release_user_pages(struct page **p, size_t npages, bool dirty)
+void hfi1_release_user_pages(struct mm_struct *mm, struct page **p,
+			     size_t npages, bool dirty)
 {
 	size_t i;
 
@@ -103,9 +127,9 @@ void hfi1_release_user_pages(struct page **p, size_t npages, bool dirty)
 		put_page(p[i]);
 	}
 
-	if (current->mm) { /* during close after signal, mm can be NULL */
-		down_write(&current->mm->mmap_sem);
-		current->mm->pinned_vm -= npages;
-		up_write(&current->mm->mmap_sem);
+	if (mm) { /* during close after signal, mm can be NULL */
+		down_write(&mm->mmap_sem);
+		mm->pinned_vm -= npages;
+		up_write(&mm->mmap_sem);
 	}
 }

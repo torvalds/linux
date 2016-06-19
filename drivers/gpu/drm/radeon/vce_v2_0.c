@@ -53,7 +53,7 @@ static void vce_v2_0_set_sw_cg(struct radeon_device *rdev, bool gated)
 		WREG32(VCE_UENC_REG_CLOCK_GATING, tmp);
 
 		WREG32(VCE_CGTT_CLK_OVERRIDE, 0);
-    } else {
+	} else {
 		tmp = RREG32(VCE_CLOCK_GATING_B);
 		tmp |= 0xe7;
 		tmp &= ~0xe70000;

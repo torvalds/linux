@@ -19,19 +19,25 @@
 #include "be.h"
 #include "be_cmds.h"
 
-static char *be_port_misconfig_evt_desc[] = {
-	"A valid SFP module detected",
-	"Optics faulted/ incorrectly installed/ not installed.",
-	"Optics of two types installed.",
-	"Incompatible optics.",
-	"Unknown port SFP status"
+char *be_misconfig_evt_port_state[] = {
+	"Physical Link is functional",
+	"Optics faulted/incorrectly installed/not installed - Reseat optics. If issue not resolved, replace.",
+	"Optics of two types installed – Remove one optic or install matching pair of optics.",
+	"Incompatible optics – Replace with compatible optics for card to function.",
+	"Unqualified optics – Replace with Avago optics for Warranty and Technical Support.",
+	"Uncertified optics – Replace with Avago-certified optics to enable link operation."
 };
 
-static char *be_port_misconfig_remedy_desc[] = {
-	"",
-	"Reseat optics. If issue not resolved, replace",
-	"Remove one optic or install matching pair of optics",
-	"Replace with compatible optics for card to function",
+static char *be_port_misconfig_evt_severity[] = {
+	"KERN_WARN",
+	"KERN_INFO",
+	"KERN_ERR",
+	"KERN_WARN"
+};
+
+static char *phy_state_oper_desc[] = {
+	"Link is non-operational",
+	"Link is operational",
 	""
 };
 
@@ -65,7 +71,22 @@ static struct be_cmd_priv_map cmd_priv_map[] = {
 		CMD_SUBSYSTEM_COMMON,
 		BE_PRIV_LNKMGMT | BE_PRIV_VHADM |
 		BE_PRIV_DEVCFG | BE_PRIV_DEVSEC
-	}
+	},
+	{
+		OPCODE_LOWLEVEL_HOST_DDR_DMA,
+		CMD_SUBSYSTEM_LOWLEVEL,
+		BE_PRIV_DEVCFG | BE_PRIV_DEVSEC
+	},
+	{
+		OPCODE_LOWLEVEL_LOOPBACK_TEST,
+		CMD_SUBSYSTEM_LOWLEVEL,
+		BE_PRIV_DEVCFG | BE_PRIV_DEVSEC
+	},
+	{
+		OPCODE_LOWLEVEL_SET_LOOPBACK_MODE,
+		CMD_SUBSYSTEM_LOWLEVEL,
+		BE_PRIV_DEVCFG | BE_PRIV_DEVSEC
+	},
 };
 
 static bool be_cmd_allowed(struct be_adapter *adapter, u8 opcode, u8 subsystem)
@@ -236,7 +257,8 @@ static int be_mcc_compl_process(struct be_adapter *adapter,
 
 	if (base_status != MCC_STATUS_SUCCESS &&
 	    !be_skip_err_log(opcode, base_status, addl_status)) {
-		if (base_status == MCC_STATUS_UNAUTHORIZED_REQUEST) {
+		if (base_status == MCC_STATUS_UNAUTHORIZED_REQUEST ||
+		    addl_status == MCC_ADDL_STATUS_INSUFFICIENT_PRIVILEGES) {
 			dev_warn(&adapter->pdev->dev,
 				 "VF is not privileged to issue opcode %d-%d\n",
 				 opcode, subsystem);
@@ -281,22 +303,56 @@ static void be_async_port_misconfig_event_process(struct be_adapter *adapter,
 {
 	struct be_async_event_misconfig_port *evt =
 			(struct be_async_event_misconfig_port *)compl;
-	u32 sfp_mismatch_evt = le32_to_cpu(evt->event_data_word1);
+	u32 sfp_misconfig_evt_word1 = le32_to_cpu(evt->event_data_word1);
+	u32 sfp_misconfig_evt_word2 = le32_to_cpu(evt->event_data_word2);
+	u8 phy_oper_state = PHY_STATE_OPER_MSG_NONE;
 	struct device *dev = &adapter->pdev->dev;
-	u8 port_misconfig_evt;
+	u8 msg_severity = DEFAULT_MSG_SEVERITY;
+	u8 phy_state_info;
+	u8 new_phy_state;
 
-	port_misconfig_evt =
-		((sfp_mismatch_evt >> (adapter->hba_port_num * 8)) & 0xff);
+	new_phy_state =
+		(sfp_misconfig_evt_word1 >> (adapter->hba_port_num * 8)) & 0xff;
 
+	if (new_phy_state == adapter->phy_state)
+		return;
+
+	adapter->phy_state = new_phy_state;
+
+	/* for older fw that doesn't populate link effect data */
+	if (!sfp_misconfig_evt_word2)
+		goto log_message;
+
+	phy_state_info =
+		(sfp_misconfig_evt_word2 >> (adapter->hba_port_num * 8)) & 0xff;
+
+	if (phy_state_info & PHY_STATE_INFO_VALID) {
+		msg_severity = (phy_state_info & PHY_STATE_MSG_SEVERITY) >> 1;
+
+		if (be_phy_unqualified(new_phy_state))
+			phy_oper_state = (phy_state_info & PHY_STATE_OPER);
+	}
+
+log_message:
 	/* Log an error message that would allow a user to determine
 	 * whether the SFPs have an issue
 	 */
-	dev_info(dev, "Port %c: %s %s", adapter->port_name,
-		 be_port_misconfig_evt_desc[port_misconfig_evt],
-		 be_port_misconfig_remedy_desc[port_misconfig_evt]);
+	if (be_phy_state_unknown(new_phy_state))
+		dev_printk(be_port_misconfig_evt_severity[msg_severity], dev,
+			   "Port %c: Unrecognized Optics state: 0x%x. %s",
+			   adapter->port_name,
+			   new_phy_state,
+			   phy_state_oper_desc[phy_oper_state]);
+	else
+		dev_printk(be_port_misconfig_evt_severity[msg_severity], dev,
+			   "Port %c: %s %s",
+			   adapter->port_name,
+			   be_misconfig_evt_port_state[new_phy_state],
+			   phy_state_oper_desc[phy_oper_state]);
 
-	if (port_misconfig_evt == INCOMPATIBLE_SFP)
-		adapter->flags |= BE_FLAGS_EVT_INCOMPATIBLE_SFP;
+	/* Log Vendor name and part no. if a misconfigured SFP is detected */
+	if (be_phy_misconfigured(new_phy_state))
+		adapter->flags |= BE_FLAGS_PHY_MISCONFIGURED;
 }
 
 /* Grp5 CoS Priority evt */
@@ -540,7 +596,7 @@ static int be_mcc_notify_wait(struct be_adapter *adapter)
 	int status;
 	struct be_mcc_wrb *wrb;
 	struct be_mcc_obj *mcc_obj = &adapter->mcc_obj;
-	u16 index = mcc_obj->q.head;
+	u32 index = mcc_obj->q.head;
 	struct be_cmd_resp_hdr *resp;
 
 	index_dec(&index, mcc_obj->q.len);
@@ -1497,34 +1553,25 @@ int be_cmd_if_create(struct be_adapter *adapter, u32 cap_flags, u32 en_flags,
 	return status;
 }
 
-/* Uses MCCQ */
+/* Uses MCCQ if available else MBOX */
 int be_cmd_if_destroy(struct be_adapter *adapter, int interface_id, u32 domain)
 {
-	struct be_mcc_wrb *wrb;
+	struct be_mcc_wrb wrb = {0};
 	struct be_cmd_req_if_destroy *req;
 	int status;
 
 	if (interface_id == -1)
 		return 0;
 
-	spin_lock_bh(&adapter->mcc_lock);
-
-	wrb = wrb_from_mccq(adapter);
-	if (!wrb) {
-		status = -EBUSY;
-		goto err;
-	}
-	req = embedded_payload(wrb);
+	req = embedded_payload(&wrb);
 
 	be_wrb_cmd_hdr_prepare(&req->hdr, CMD_SUBSYSTEM_COMMON,
 			       OPCODE_COMMON_NTWK_INTERFACE_DESTROY,
-			       sizeof(*req), wrb, NULL);
+			       sizeof(*req), &wrb, NULL);
 	req->hdr.domain = domain;
 	req->interface_id = cpu_to_le32(interface_id);
 
-	status = be_mcc_notify_wait(adapter);
-err:
-	spin_unlock_bh(&adapter->mcc_lock);
+	status = be_cmd_notify_wait(adapter, &wrb);
 	return status;
 }
 
@@ -3168,6 +3215,10 @@ int be_cmd_set_loopback(struct be_adapter *adapter, u8 port_num,
 	struct be_cmd_req_set_lmode *req;
 	int status;
 
+	if (!be_cmd_allowed(adapter, OPCODE_LOWLEVEL_SET_LOOPBACK_MODE,
+			    CMD_SUBSYSTEM_LOWLEVEL))
+		return -EPERM;
+
 	spin_lock_bh(&adapter->mcc_lock);
 
 	wrb = wrb_from_mccq(adapter);
@@ -3212,6 +3263,10 @@ int be_cmd_loopback_test(struct be_adapter *adapter, u32 port_num,
 	struct be_cmd_req_loopback_test *req;
 	struct be_cmd_resp_loopback_test *resp;
 	int status;
+
+	if (!be_cmd_allowed(adapter, OPCODE_LOWLEVEL_LOOPBACK_TEST,
+			    CMD_SUBSYSTEM_LOWLEVEL))
+		return -EPERM;
 
 	spin_lock_bh(&adapter->mcc_lock);
 
@@ -3258,6 +3313,10 @@ int be_cmd_ddr_dma_test(struct be_adapter *adapter, u64 pattern,
 	struct be_cmd_req_ddrdma_test *req;
 	int status;
 	int i, j = 0;
+
+	if (!be_cmd_allowed(adapter, OPCODE_LOWLEVEL_HOST_DDR_DMA,
+			    CMD_SUBSYSTEM_LOWLEVEL))
+		return -EPERM;
 
 	spin_lock_bh(&adapter->mcc_lock);
 

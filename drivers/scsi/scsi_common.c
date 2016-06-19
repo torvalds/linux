@@ -278,8 +278,16 @@ int scsi_set_sense_information(u8 *buf, int buf_len, u64 info)
 		ucp[3] = 0;
 		put_unaligned_be64(info, &ucp[4]);
 	} else if ((buf[0] & 0x7f) == 0x70) {
-		buf[0] |= 0x80;
-		put_unaligned_be64(info, &buf[3]);
+		/*
+		 * Only set the 'VALID' bit if we can represent the value
+		 * correctly; otherwise just fill out the lower bytes and
+		 * clear the 'VALID' flag.
+		 */
+		if (info <= 0xffffffffUL)
+			buf[0] |= 0x80;
+		else
+			buf[0] &= 0x7f;
+		put_unaligned_be32((u32)info, &buf[3]);
 	}
 
 	return 0;

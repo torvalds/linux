@@ -336,7 +336,7 @@ static inline
 struct usb_hcd *usb_hcd_get_by_usb_dev(struct usb_device *usb_dev)
 {
 	struct usb_hcd *usb_hcd;
-	usb_hcd = container_of(usb_dev->bus, struct usb_hcd, self);
+	usb_hcd = bus_to_hcd(usb_dev->bus);
 	return usb_get_hcd(usb_hcd);
 }
 

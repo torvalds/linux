@@ -40,7 +40,6 @@
 
 #include <asm/div64.h>
 #include <asm/io.h>
-#include <asm/sizes.h>
 
 #include "mmci.h"
 #include "mmci_qcom_dml.h"

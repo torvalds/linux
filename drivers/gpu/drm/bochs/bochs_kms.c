@@ -30,13 +30,6 @@ static void bochs_crtc_dpms(struct drm_crtc *crtc, int mode)
 	}
 }
 
-static bool bochs_crtc_mode_fixup(struct drm_crtc *crtc,
-				  const struct drm_display_mode *mode,
-				  struct drm_display_mode *adjusted_mode)
-{
-	return true;
-}
-
 static int bochs_crtc_mode_set_base(struct drm_crtc *crtc, int x, int y,
 				    struct drm_framebuffer *old_fb)
 {
@@ -135,7 +128,6 @@ static const struct drm_crtc_funcs bochs_crtc_funcs = {
 
 static const struct drm_crtc_helper_funcs bochs_helper_funcs = {
 	.dpms = bochs_crtc_dpms,
-	.mode_fixup = bochs_crtc_mode_fixup,
 	.mode_set = bochs_crtc_mode_set,
 	.mode_set_base = bochs_crtc_mode_set_base,
 	.prepare = bochs_crtc_prepare,
@@ -150,13 +142,6 @@ static void bochs_crtc_init(struct drm_device *dev)
 	drm_crtc_init(dev, crtc, &bochs_crtc_funcs);
 	drm_mode_crtc_set_gamma_size(crtc, 256);
 	drm_crtc_helper_add(crtc, &bochs_helper_funcs);
-}
-
-static bool bochs_encoder_mode_fixup(struct drm_encoder *encoder,
-				     const struct drm_display_mode *mode,
-				     struct drm_display_mode *adjusted_mode)
-{
-	return true;
 }
 
 static void bochs_encoder_mode_set(struct drm_encoder *encoder,
@@ -179,7 +164,6 @@ static void bochs_encoder_commit(struct drm_encoder *encoder)
 
 static const struct drm_encoder_helper_funcs bochs_encoder_helper_funcs = {
 	.dpms = bochs_encoder_dpms,
-	.mode_fixup = bochs_encoder_mode_fixup,
 	.mode_set = bochs_encoder_mode_set,
 	.prepare = bochs_encoder_prepare,
 	.commit = bochs_encoder_commit,

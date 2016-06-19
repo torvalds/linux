@@ -157,7 +157,8 @@ static void dump_dev_cap_flags2(struct mlx4_dev *dev, u64 flags)
 		[29] = "802.1ad offload support",
 		[31] = "Modifying loopback source checks using UPDATE_QP support",
 		[32] = "Loopback source checks support",
-		[33] = "RoCEv2 support"
+		[33] = "RoCEv2 support",
+		[34] = "DMFS Sniffer support (UC & MC)"
 	};
 	int i;
 
@@ -810,6 +811,8 @@ int mlx4_QUERY_DEV_CAP(struct mlx4_dev *dev, struct mlx4_dev_cap *dev_cap)
 	if (field & 0x80)
 		dev_cap->flags2 |= MLX4_DEV_CAP_FLAG2_FS_EN;
 	dev_cap->fs_log_max_ucast_qp_range_size = field & 0x1f;
+	if (field & 0x20)
+		dev_cap->flags2 |= MLX4_DEV_CAP_FLAG2_DMFS_UC_MC_SNIFFER;
 	MLX4_GET(field, outbox, QUERY_DEV_CAP_PORT_BEACON_OFFSET);
 	if (field & 0x80)
 		dev_cap->flags2 |= MLX4_DEV_CAP_FLAG2_PORT_BEACON;

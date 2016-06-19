@@ -21,6 +21,7 @@ struct nfsd4_layout_ops {
 	u32		notify_types;
 
 	__be32 (*proc_getdeviceinfo)(struct super_block *sb,
+			struct nfs4_client *clp,
 			struct nfsd4_getdeviceinfo *gdevp);
 	__be32 (*encode_getdeviceinfo)(struct xdr_stream *xdr,
 			struct nfsd4_getdeviceinfo *gdevp);
@@ -32,10 +33,17 @@ struct nfsd4_layout_ops {
 
 	__be32 (*proc_layoutcommit)(struct inode *inode,
 			struct nfsd4_layoutcommit *lcp);
+
+	void (*fence_client)(struct nfs4_layout_stateid *ls);
 };
 
 extern const struct nfsd4_layout_ops *nfsd4_layout_ops[];
+#ifdef CONFIG_NFSD_BLOCKLAYOUT
 extern const struct nfsd4_layout_ops bl_layout_ops;
+#endif
+#ifdef CONFIG_NFSD_SCSILAYOUT
+extern const struct nfsd4_layout_ops scsi_layout_ops;
+#endif
 
 __be32 nfsd4_preprocess_layout_stateid(struct svc_rqst *rqstp,
 		struct nfsd4_compound_state *cstate, stateid_t *stateid,

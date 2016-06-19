@@ -13,21 +13,23 @@
  * Marc Gauthier<marc@tensilica.com> <marc@alumni.uwaterloo.ca>
  */
 
-#include <linux/kernel.h>
-#include <linux/sched.h>
-#include <linux/mm.h>
 #include <linux/errno.h>
+#include <linux/hw_breakpoint.h>
+#include <linux/kernel.h>
+#include <linux/mm.h>
+#include <linux/perf_event.h>
 #include <linux/ptrace.h>
-#include <linux/smp.h>
+#include <linux/sched.h>
 #include <linux/security.h>
 #include <linux/signal.h>
+#include <linux/smp.h>
 
-#include <asm/pgtable.h>
-#include <asm/page.h>
-#include <asm/uaccess.h>
-#include <asm/ptrace.h>
-#include <asm/elf.h>
 #include <asm/coprocessor.h>
+#include <asm/elf.h>
+#include <asm/page.h>
+#include <asm/pgtable.h>
+#include <asm/ptrace.h>
+#include <asm/uaccess.h>
 
 
 void user_enable_single_step(struct task_struct *child)
@@ -267,6 +269,146 @@ int ptrace_pokeusr(struct task_struct *child, long regno, long val)
 	return 0;
 }
 
+#ifdef CONFIG_HAVE_HW_BREAKPOINT
+static void ptrace_hbptriggered(struct perf_event *bp,
+				struct perf_sample_data *data,
+				struct pt_regs *regs)
+{
+	int i;
+	siginfo_t info;
+	struct arch_hw_breakpoint *bkpt = counter_arch_bp(bp);
+
+	if (bp->attr.bp_type & HW_BREAKPOINT_X) {
+		for (i = 0; i < XCHAL_NUM_IBREAK; ++i)
+			if (current->thread.ptrace_bp[i] == bp)
+				break;
+		i <<= 1;
+	} else {
+		for (i = 0; i < XCHAL_NUM_DBREAK; ++i)
+			if (current->thread.ptrace_wp[i] == bp)
+				break;
+		i = (i << 1) | 1;
+	}
+
+	info.si_signo = SIGTRAP;
+	info.si_errno = i;
+	info.si_code = TRAP_HWBKPT;
+	info.si_addr = (void __user *)bkpt->address;
+
+	force_sig_info(SIGTRAP, &info, current);
+}
+
+static struct perf_event *ptrace_hbp_create(struct task_struct *tsk, int type)
+{
+	struct perf_event_attr attr;
+
+	ptrace_breakpoint_init(&attr);
+
+	/* Initialise fields to sane defaults. */
+	attr.bp_addr	= 0;
+	attr.bp_len	= 1;
+	attr.bp_type	= type;
+	attr.disabled	= 1;
+
+	return register_user_hw_breakpoint(&attr, ptrace_hbptriggered, NULL,
+					   tsk);
+}
+
+/*
+ * Address bit 0 choose instruction (0) or data (1) break register, bits
+ * 31..1 are the register number.
+ * Both PTRACE_GETHBPREGS and PTRACE_SETHBPREGS transfer two 32-bit words:
+ * address (0) and control (1).
+ * Instruction breakpoint contorl word is 0 to clear breakpoint, 1 to set.
+ * Data breakpoint control word bit 31 is 'trigger on store', bit 30 is
+ * 'trigger on load, bits 29..0 are length. Length 0 is used to clear a
+ * breakpoint. To set a breakpoint length must be a power of 2 in the range
+ * 1..64 and the address must be length-aligned.
+ */
+
+static long ptrace_gethbpregs(struct task_struct *child, long addr,
+			      long __user *datap)
+{
+	struct perf_event *bp;
+	u32 user_data[2] = {0};
+	bool dbreak = addr & 1;
+	unsigned idx = addr >> 1;
+
+	if ((!dbreak && idx >= XCHAL_NUM_IBREAK) ||
+	    (dbreak && idx >= XCHAL_NUM_DBREAK))
+		return -EINVAL;
+
+	if (dbreak)
+		bp = child->thread.ptrace_wp[idx];
+	else
+		bp = child->thread.ptrace_bp[idx];
+
+	if (bp) {
+		user_data[0] = bp->attr.bp_addr;
+		user_data[1] = bp->attr.disabled ? 0 : bp->attr.bp_len;
+		if (dbreak) {
+			if (bp->attr.bp_type & HW_BREAKPOINT_R)
+				user_data[1] |= DBREAKC_LOAD_MASK;
+			if (bp->attr.bp_type & HW_BREAKPOINT_W)
+				user_data[1] |= DBREAKC_STOR_MASK;
+		}
+	}
+
+	if (copy_to_user(datap, user_data, sizeof(user_data)))
+		return -EFAULT;
+
+	return 0;
+}
+
+static long ptrace_sethbpregs(struct task_struct *child, long addr,
+			      long __user *datap)
+{
+	struct perf_event *bp;
+	struct perf_event_attr attr;
+	u32 user_data[2];
+	bool dbreak = addr & 1;
+	unsigned idx = addr >> 1;
+	int bp_type = 0;
+
+	if ((!dbreak && idx >= XCHAL_NUM_IBREAK) ||
+	    (dbreak && idx >= XCHAL_NUM_DBREAK))
+		return -EINVAL;
+
+	if (copy_from_user(user_data, datap, sizeof(user_data)))
+		return -EFAULT;
+
+	if (dbreak) {
+		bp = child->thread.ptrace_wp[idx];
+		if (user_data[1] & DBREAKC_LOAD_MASK)
+			bp_type |= HW_BREAKPOINT_R;
+		if (user_data[1] & DBREAKC_STOR_MASK)
+			bp_type |= HW_BREAKPOINT_W;
+	} else {
+		bp = child->thread.ptrace_bp[idx];
+		bp_type = HW_BREAKPOINT_X;
+	}
+
+	if (!bp) {
+		bp = ptrace_hbp_create(child,
+				       bp_type ? bp_type : HW_BREAKPOINT_RW);
+		if (IS_ERR(bp))
+			return PTR_ERR(bp);
+		if (dbreak)
+			child->thread.ptrace_wp[idx] = bp;
+		else
+			child->thread.ptrace_bp[idx] = bp;
+	}
+
+	attr = bp->attr;
+	attr.bp_addr = user_data[0];
+	attr.bp_len = user_data[1] & ~(DBREAKC_LOAD_MASK | DBREAKC_STOR_MASK);
+	attr.bp_type = bp_type;
+	attr.disabled = !attr.bp_len;
+
+	return modify_user_hw_breakpoint(bp, &attr);
+}
+#endif
+
 long arch_ptrace(struct task_struct *child, long request,
 		 unsigned long addr, unsigned long data)
 {
@@ -307,7 +449,15 @@ long arch_ptrace(struct task_struct *child, long request,
 	case PTRACE_SETXTREGS:
 		ret = ptrace_setxregs(child, datap);
 		break;
+#ifdef CONFIG_HAVE_HW_BREAKPOINT
+	case PTRACE_GETHBPREGS:
+		ret = ptrace_gethbpregs(child, addr, datap);
+		break;
 
+	case PTRACE_SETHBPREGS:
+		ret = ptrace_sethbpregs(child, addr, datap);
+		break;
+#endif
 	default:
 		ret = ptrace_request(child, request, addr, data);
 		break;

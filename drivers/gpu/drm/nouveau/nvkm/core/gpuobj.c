@@ -253,3 +253,23 @@ nvkm_gpuobj_wrap(struct nvkm_memory *memory, struct nvkm_gpuobj **pgpuobj)
 	(*pgpuobj)->size = nvkm_memory_size(memory);
 	return 0;
 }
+
+void
+nvkm_gpuobj_memcpy_to(struct nvkm_gpuobj *dst, u32 dstoffset, void *src,
+		      u32 length)
+{
+	int i;
+
+	for (i = 0; i < length; i += 4)
+		nvkm_wo32(dst, dstoffset + i, *(u32 *)(src + i));
+}
+
+void
+nvkm_gpuobj_memcpy_from(void *dst, struct nvkm_gpuobj *src, u32 srcoffset,
+			u32 length)
+{
+	int i;
+
+	for (i = 0; i < length; i += 4)
+		((u32 *)src)[i / 4] = nvkm_ro32(src, srcoffset + i);
+}

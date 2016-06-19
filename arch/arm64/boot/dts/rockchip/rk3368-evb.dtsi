@@ -111,7 +111,7 @@
 		pinctrl-0 = <&pwr_key>;
 
 		button@0 {
-			gpio-key,wakeup = <1>;
+			wakeup-source;
 			gpios = <&gpio0 2 GPIO_ACTIVE_LOW>;
 			label = "GPIO Power";
 			linux,code = <116>;

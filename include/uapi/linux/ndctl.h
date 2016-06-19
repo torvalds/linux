@@ -98,6 +98,14 @@ struct nd_cmd_ars_status {
 	} __packed records[0];
 } __packed;
 
+struct nd_cmd_clear_error {
+	__u64 address;
+	__u64 length;
+	__u32 status;
+	__u8 reserved[4];
+	__u64 cleared;
+} __packed;
+
 enum {
 	ND_CMD_IMPLEMENTED = 0,
 
@@ -105,6 +113,7 @@ enum {
 	ND_CMD_ARS_CAP = 1,
 	ND_CMD_ARS_START = 2,
 	ND_CMD_ARS_STATUS = 3,
+	ND_CMD_CLEAR_ERROR = 4,
 
 	/* per-dimm commands */
 	ND_CMD_SMART = 1,
@@ -129,6 +138,7 @@ static inline const char *nvdimm_bus_cmd_name(unsigned cmd)
 		[ND_CMD_ARS_CAP] = "ars_cap",
 		[ND_CMD_ARS_START] = "ars_start",
 		[ND_CMD_ARS_STATUS] = "ars_status",
+		[ND_CMD_CLEAR_ERROR] = "clear_error",
 	};
 
 	if (cmd < ARRAY_SIZE(names) && names[cmd])
@@ -186,6 +196,9 @@ static inline const char *nvdimm_cmd_name(unsigned cmd)
 
 #define ND_IOCTL_ARS_STATUS		_IOWR(ND_IOCTL, ND_CMD_ARS_STATUS,\
 					struct nd_cmd_ars_status)
+
+#define ND_IOCTL_CLEAR_ERROR		_IOWR(ND_IOCTL, ND_CMD_CLEAR_ERROR,\
+					struct nd_cmd_clear_error)
 
 #define ND_DEVICE_DIMM 1            /* nd_dimm: container for "config data" */
 #define ND_DEVICE_REGION_PMEM 2     /* nd_region: (parent of PMEM namespaces) */

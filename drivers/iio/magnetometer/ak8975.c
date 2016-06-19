@@ -252,7 +252,7 @@ struct ak_def {
 	u8 data_regs[3];
 };
 
-static struct ak_def ak_def_array[AK_MAX_TYPE] = {
+static const struct ak_def ak_def_array[AK_MAX_TYPE] = {
 	{
 		.type = AK8975,
 		.raw_to_gauss = ak8975_raw_to_gauss,
@@ -360,7 +360,7 @@ static struct ak_def ak_def_array[AK_MAX_TYPE] = {
  */
 struct ak8975_data {
 	struct i2c_client	*client;
-	struct ak_def		*def;
+	const struct ak_def	*def;
 	struct attribute_group	attrs;
 	struct mutex		lock;
 	u8			asa[3];
@@ -462,6 +462,8 @@ static int ak8975_setup_irq(struct ak8975_data *data)
 	int rc;
 	int irq;
 
+	init_waitqueue_head(&data->data_ready_queue);
+	clear_bit(0, &data->flags);
 	if (client->irq)
 		irq = client->irq;
 	else
@@ -477,8 +479,6 @@ static int ak8975_setup_irq(struct ak8975_data *data)
 		return rc;
 	}
 
-	init_waitqueue_head(&data->data_ready_queue);
-	clear_bit(0, &data->flags);
 	data->eoc_irq = irq;
 
 	return rc;
@@ -732,7 +732,7 @@ static int ak8975_probe(struct i2c_client *client,
 	int eoc_gpio;
 	int err;
 	const char *name = NULL;
-	enum asahi_compass_chipset chipset;
+	enum asahi_compass_chipset chipset = AK_MAX_TYPE;
 
 	/* Grab and set up the supplied GPIO. */
 	if (client->dev.platform_data)

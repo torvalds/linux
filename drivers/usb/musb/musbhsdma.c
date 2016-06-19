@@ -117,8 +117,8 @@ static void configure_channel(struct dma_channel *channel,
 	u8 bchannel = musb_channel->idx;
 	u16 csr = 0;
 
-	dev_dbg(musb->controller, "%p, pkt_sz %d, addr 0x%x, len %d, mode %d\n",
-			channel, packet_sz, dma_addr, len, mode);
+	dev_dbg(musb->controller, "%p, pkt_sz %d, addr %pad, len %d, mode %d\n",
+			channel, packet_sz, &dma_addr, len, mode);
 
 	if (mode) {
 		csr |= 1 << MUSB_HSDMA_MODE1_SHIFT;
@@ -152,10 +152,10 @@ static int dma_channel_program(struct dma_channel *channel,
 	struct musb_dma_controller *controller = musb_channel->controller;
 	struct musb *musb = controller->private_data;
 
-	dev_dbg(musb->controller, "ep%d-%s pkt_sz %d, dma_addr 0x%x length %d, mode %d\n",
+	dev_dbg(musb->controller, "ep%d-%s pkt_sz %d, dma_addr %pad length %d, mode %d\n",
 		musb_channel->epnum,
 		musb_channel->transmit ? "Tx" : "Rx",
-		packet_sz, dma_addr, len, mode);
+		packet_sz, &dma_addr, len, mode);
 
 	BUG_ON(channel->status == MUSB_DMA_STATUS_UNKNOWN ||
 		channel->status == MUSB_DMA_STATUS_BUSY);

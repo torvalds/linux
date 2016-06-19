@@ -40,6 +40,7 @@
 #include "link.h"
 #include "discover.h"
 #include "bcast.h"
+#include "netlink.h"
 
 #define MAX_ADDR_STR 60
 
@@ -52,23 +53,6 @@ static struct tipc_media * const media_info_array[] = {
 	&udp_media_info,
 #endif
 	NULL
-};
-
-static const struct nla_policy
-tipc_nl_bearer_policy[TIPC_NLA_BEARER_MAX + 1]	= {
-	[TIPC_NLA_BEARER_UNSPEC]		= { .type = NLA_UNSPEC },
-	[TIPC_NLA_BEARER_NAME] = {
-		.type = NLA_STRING,
-		.len = TIPC_MAX_BEARER_NAME
-	},
-	[TIPC_NLA_BEARER_PROP]			= { .type = NLA_NESTED },
-	[TIPC_NLA_BEARER_DOMAIN]		= { .type = NLA_U32 }
-};
-
-static const struct nla_policy tipc_nl_media_policy[TIPC_NLA_MEDIA_MAX + 1] = {
-	[TIPC_NLA_MEDIA_UNSPEC]		= { .type = NLA_UNSPEC },
-	[TIPC_NLA_MEDIA_NAME]		= { .type = NLA_STRING },
-	[TIPC_NLA_MEDIA_PROP]		= { .type = NLA_NESTED }
 };
 
 static void bearer_disable(struct net *net, struct tipc_bearer *b);

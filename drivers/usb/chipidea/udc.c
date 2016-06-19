@@ -819,7 +819,6 @@ static int _ep_queue(struct usb_ep *ep, struct usb_request *req,
 			       ci->ep0out : ci->ep0in;
 		if (!list_empty(&hwep->qh.queue)) {
 			_ep_nuke(hwep);
-			retval = -EOVERFLOW;
 			dev_warn(hwep->ci->dev, "endpoint ctrl %X nuked\n",
 				 _usb_addr(hwep));
 		}
@@ -1068,7 +1067,8 @@ __acquires(ci->lock)
 		}
 		break;
 	case USB_REQ_GET_STATUS:
-		if (type != (USB_DIR_IN|USB_RECIP_DEVICE)   &&
+		if ((type != (USB_DIR_IN|USB_RECIP_DEVICE) ||
+			le16_to_cpu(req.wIndex) == OTG_STS_SELECTOR) &&
 		    type != (USB_DIR_IN|USB_RECIP_ENDPOINT) &&
 		    type != (USB_DIR_IN|USB_RECIP_INTERFACE))
 			goto delegate;

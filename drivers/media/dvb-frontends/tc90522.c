@@ -201,10 +201,10 @@ static const enum fe_code_rate fec_conv_sat[] = {
 	FEC_2_3, /* for 8PSK. (trellis code) */
 };
 
-static int tc90522s_get_frontend(struct dvb_frontend *fe)
+static int tc90522s_get_frontend(struct dvb_frontend *fe,
+				 struct dtv_frontend_properties *c)
 {
 	struct tc90522_state *state;
-	struct dtv_frontend_properties *c;
 	struct dtv_fe_stats *stats;
 	int ret, i;
 	int layers;
@@ -212,7 +212,6 @@ static int tc90522s_get_frontend(struct dvb_frontend *fe)
 	u32 cndat;
 
 	state = fe->demodulator_priv;
-	c = &fe->dtv_property_cache;
 	c->delivery_system = SYS_ISDBS;
 	c->symbol_rate = 28860000;
 
@@ -337,10 +336,10 @@ static const enum fe_modulation mod_conv[] = {
 	DQPSK, QPSK, QAM_16, QAM_64, 0, 0, 0, 0
 };
 
-static int tc90522t_get_frontend(struct dvb_frontend *fe)
+static int tc90522t_get_frontend(struct dvb_frontend *fe,
+				 struct dtv_frontend_properties *c)
 {
 	struct tc90522_state *state;
-	struct dtv_frontend_properties *c;
 	struct dtv_fe_stats *stats;
 	int ret, i;
 	int layers;
@@ -348,7 +347,6 @@ static int tc90522t_get_frontend(struct dvb_frontend *fe)
 	u32 cndat;
 
 	state = fe->demodulator_priv;
-	c = &fe->dtv_property_cache;
 	c->delivery_system = SYS_ISDBT;
 	c->bandwidth_hz = 6000000;
 	mode = 1;

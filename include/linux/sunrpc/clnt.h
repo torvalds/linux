@@ -25,6 +25,7 @@
 #include <asm/signal.h>
 #include <linux/path.h>
 #include <net/ipv6.h>
+#include <linux/sunrpc/xprtmultipath.h>
 
 struct rpc_inode;
 
@@ -67,6 +68,7 @@ struct rpc_clnt {
 #if IS_ENABLED(CONFIG_SUNRPC_DEBUG)
 	struct dentry		*cl_debugfs;	/* debugfs directory */
 #endif
+	struct rpc_xprt_iter	cl_xpi;
 };
 
 /*
@@ -139,7 +141,6 @@ struct rpc_clnt *rpc_create_xprt(struct rpc_create_args *args,
 					struct rpc_xprt *xprt);
 struct rpc_clnt	*rpc_bind_new_program(struct rpc_clnt *,
 				const struct rpc_program *, u32);
-void rpc_task_reset_client(struct rpc_task *task, struct rpc_clnt *clnt);
 struct rpc_clnt *rpc_clone_client(struct rpc_clnt *);
 struct rpc_clnt *rpc_clone_client_set_auth(struct rpc_clnt *,
 				rpc_authflavor_t);
@@ -180,6 +181,21 @@ void		rpc_force_rebind(struct rpc_clnt *);
 size_t		rpc_peeraddr(struct rpc_clnt *, struct sockaddr *, size_t);
 const char	*rpc_peeraddr2str(struct rpc_clnt *, enum rpc_display_format_t);
 int		rpc_localaddr(struct rpc_clnt *, struct sockaddr *, size_t);
+
+int 		rpc_clnt_iterate_for_each_xprt(struct rpc_clnt *clnt,
+			int (*fn)(struct rpc_clnt *, struct rpc_xprt *, void *),
+			void *data);
+
+int 		rpc_clnt_test_and_add_xprt(struct rpc_clnt *clnt,
+			struct rpc_xprt_switch *xps,
+			struct rpc_xprt *xprt,
+			void *dummy);
+int		rpc_clnt_add_xprt(struct rpc_clnt *, struct xprt_create *,
+			int (*setup)(struct rpc_clnt *,
+				struct rpc_xprt_switch *,
+				struct rpc_xprt *,
+				void *),
+			void *data);
 
 const char *rpc_proc_name(const struct rpc_task *task);
 #endif /* __KERNEL__ */

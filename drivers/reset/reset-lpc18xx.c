@@ -136,7 +136,7 @@ static int lpc18xx_rgu_status(struct reset_controller_dev *rcdev,
 	return !(readl(rc->base + offset) & bit);
 }
 
-static struct reset_control_ops lpc18xx_rgu_ops = {
+static const struct reset_control_ops lpc18xx_rgu_ops = {
 	.reset		= lpc18xx_rgu_reset,
 	.assert		= lpc18xx_rgu_assert,
 	.deassert	= lpc18xx_rgu_deassert,

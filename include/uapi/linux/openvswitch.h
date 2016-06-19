@@ -454,6 +454,14 @@ struct ovs_key_ct_labels {
 #define OVS_CS_F_REPLY_DIR         0x08 /* Flow is in the reply direction. */
 #define OVS_CS_F_INVALID           0x10 /* Could not track connection. */
 #define OVS_CS_F_TRACKED           0x20 /* Conntrack has occurred. */
+#define OVS_CS_F_SRC_NAT           0x40 /* Packet's source address/port was
+					 * mangled by NAT.
+					 */
+#define OVS_CS_F_DST_NAT           0x80 /* Packet's destination address/port
+					 * was mangled by NAT.
+					 */
+
+#define OVS_CS_F_NAT_MASK (OVS_CS_F_SRC_NAT | OVS_CS_F_DST_NAT)
 
 /**
  * enum ovs_flow_attr - attributes for %OVS_FLOW_* commands.
@@ -632,6 +640,8 @@ struct ovs_action_hash {
  * mask. For each bit set in the mask, the corresponding bit in the value is
  * copied to the connection tracking label field in the connection.
  * @OVS_CT_ATTR_HELPER: variable length string defining conntrack ALG.
+ * @OVS_CT_ATTR_NAT: Nested OVS_NAT_ATTR_* for performing L3 network address
+ * translation (NAT) on the packet.
  */
 enum ovs_ct_attr {
 	OVS_CT_ATTR_UNSPEC,
@@ -641,10 +651,49 @@ enum ovs_ct_attr {
 	OVS_CT_ATTR_LABELS,     /* labels to associate with this connection. */
 	OVS_CT_ATTR_HELPER,     /* netlink helper to assist detection of
 				   related connections. */
+	OVS_CT_ATTR_NAT,        /* Nested OVS_NAT_ATTR_* */
 	__OVS_CT_ATTR_MAX
 };
 
 #define OVS_CT_ATTR_MAX (__OVS_CT_ATTR_MAX - 1)
+
+/**
+ * enum ovs_nat_attr - Attributes for %OVS_CT_ATTR_NAT.
+ *
+ * @OVS_NAT_ATTR_SRC: Flag for Source NAT (mangle source address/port).
+ * @OVS_NAT_ATTR_DST: Flag for Destination NAT (mangle destination
+ * address/port).  Only one of (@OVS_NAT_ATTR_SRC, @OVS_NAT_ATTR_DST) may be
+ * specified.  Effective only for packets for ct_state NEW connections.
+ * Packets of committed connections are mangled by the NAT action according to
+ * the committed NAT type regardless of the flags specified.  As a corollary, a
+ * NAT action without a NAT type flag will only mangle packets of committed
+ * connections.  The following NAT attributes only apply for NEW
+ * (non-committed) connections, and they may be included only when the CT
+ * action has the @OVS_CT_ATTR_COMMIT flag and either @OVS_NAT_ATTR_SRC or
+ * @OVS_NAT_ATTR_DST is also included.
+ * @OVS_NAT_ATTR_IP_MIN: struct in_addr or struct in6_addr
+ * @OVS_NAT_ATTR_IP_MAX: struct in_addr or struct in6_addr
+ * @OVS_NAT_ATTR_PROTO_MIN: u16 L4 protocol specific lower boundary (port)
+ * @OVS_NAT_ATTR_PROTO_MAX: u16 L4 protocol specific upper boundary (port)
+ * @OVS_NAT_ATTR_PERSISTENT: Flag for persistent IP mapping across reboots
+ * @OVS_NAT_ATTR_PROTO_HASH: Flag for pseudo random L4 port mapping (MD5)
+ * @OVS_NAT_ATTR_PROTO_RANDOM: Flag for fully randomized L4 port mapping
+ */
+enum ovs_nat_attr {
+	OVS_NAT_ATTR_UNSPEC,
+	OVS_NAT_ATTR_SRC,
+	OVS_NAT_ATTR_DST,
+	OVS_NAT_ATTR_IP_MIN,
+	OVS_NAT_ATTR_IP_MAX,
+	OVS_NAT_ATTR_PROTO_MIN,
+	OVS_NAT_ATTR_PROTO_MAX,
+	OVS_NAT_ATTR_PERSISTENT,
+	OVS_NAT_ATTR_PROTO_HASH,
+	OVS_NAT_ATTR_PROTO_RANDOM,
+	__OVS_NAT_ATTR_MAX,
+};
+
+#define OVS_NAT_ATTR_MAX (__OVS_NAT_ATTR_MAX - 1)
 
 /**
  * enum ovs_action_attr - Action types.

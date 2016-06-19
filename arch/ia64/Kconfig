@@ -574,11 +574,7 @@ config PCI_DOMAINS
 config PCI_SYSCALL
 	def_bool PCI
 
-source "drivers/pci/pcie/Kconfig"
-
 source "drivers/pci/Kconfig"
-
-source "drivers/pci/hotplug/Kconfig"
 
 source "drivers/pcmcia/Kconfig"
 

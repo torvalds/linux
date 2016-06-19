@@ -157,7 +157,6 @@ static struct platform_device *hp_wmi_platform_dev;
 static struct rfkill *wifi_rfkill;
 static struct rfkill *bluetooth_rfkill;
 static struct rfkill *wwan_rfkill;
-static struct rfkill *gps_rfkill;
 
 struct rfkill2_device {
 	u8 id;
@@ -613,10 +612,6 @@ static void hp_wmi_notify(u32 value, void *context)
 			rfkill_set_states(wwan_rfkill,
 					  hp_wmi_get_sw_state(HPWMI_WWAN),
 					  hp_wmi_get_hw_state(HPWMI_WWAN));
-		if (gps_rfkill)
-			rfkill_set_states(gps_rfkill,
-					  hp_wmi_get_sw_state(HPWMI_GPS),
-					  hp_wmi_get_hw_state(HPWMI_GPS));
 		break;
 	case HPWMI_CPU_BATTERY_THROTTLE:
 		pr_info("Unimplemented CPU throttle because of 3 Cell battery event detected\n");
@@ -746,7 +741,7 @@ static int __init hp_wmi_rfkill_setup(struct platform_device *device)
 						(void *) HPWMI_BLUETOOTH);
 		if (!bluetooth_rfkill) {
 			err = -ENOMEM;
-			goto register_wifi_error;
+			goto register_bluetooth_error;
 		}
 		rfkill_init_sw_state(bluetooth_rfkill,
 				     hp_wmi_get_sw_state(HPWMI_BLUETOOTH));
@@ -764,7 +759,7 @@ static int __init hp_wmi_rfkill_setup(struct platform_device *device)
 					   (void *) HPWMI_WWAN);
 		if (!wwan_rfkill) {
 			err = -ENOMEM;
-			goto register_bluetooth_error;
+			goto register_wwan_error;
 		}
 		rfkill_init_sw_state(wwan_rfkill,
 				     hp_wmi_get_sw_state(HPWMI_WWAN));
@@ -775,35 +770,13 @@ static int __init hp_wmi_rfkill_setup(struct platform_device *device)
 			goto register_wwan_error;
 	}
 
-	if (wireless & 0x8) {
-		gps_rfkill = rfkill_alloc("hp-gps", &device->dev,
-						RFKILL_TYPE_GPS,
-						&hp_wmi_rfkill_ops,
-						(void *) HPWMI_GPS);
-		if (!gps_rfkill) {
-			err = -ENOMEM;
-			goto register_wwan_error;
-		}
-		rfkill_init_sw_state(gps_rfkill,
-				     hp_wmi_get_sw_state(HPWMI_GPS));
-		rfkill_set_hw_state(gps_rfkill,
-				    hp_wmi_get_hw_state(HPWMI_GPS));
-		err = rfkill_register(gps_rfkill);
-		if (err)
-			goto register_gps_error;
-	}
-
 	return 0;
-register_gps_error:
-	rfkill_destroy(gps_rfkill);
-	gps_rfkill = NULL;
-	if (bluetooth_rfkill)
-		rfkill_unregister(bluetooth_rfkill);
+
 register_wwan_error:
 	rfkill_destroy(wwan_rfkill);
 	wwan_rfkill = NULL;
-	if (gps_rfkill)
-		rfkill_unregister(gps_rfkill);
+	if (bluetooth_rfkill)
+		rfkill_unregister(bluetooth_rfkill);
 register_bluetooth_error:
 	rfkill_destroy(bluetooth_rfkill);
 	bluetooth_rfkill = NULL;
@@ -907,7 +880,6 @@ static int __init hp_wmi_bios_setup(struct platform_device *device)
 	wifi_rfkill = NULL;
 	bluetooth_rfkill = NULL;
 	wwan_rfkill = NULL;
-	gps_rfkill = NULL;
 	rfkill2_count = 0;
 
 	if (hp_wmi_bios_2009_later() || hp_wmi_rfkill_setup(device))
@@ -960,10 +932,6 @@ static int __exit hp_wmi_bios_remove(struct platform_device *device)
 		rfkill_unregister(wwan_rfkill);
 		rfkill_destroy(wwan_rfkill);
 	}
-	if (gps_rfkill) {
-		rfkill_unregister(gps_rfkill);
-		rfkill_destroy(gps_rfkill);
-	}
 
 	return 0;
 }
@@ -999,10 +967,6 @@ static int hp_wmi_resume_handler(struct device *device)
 		rfkill_set_states(wwan_rfkill,
 				  hp_wmi_get_sw_state(HPWMI_WWAN),
 				  hp_wmi_get_hw_state(HPWMI_WWAN));
-	if (gps_rfkill)
-		rfkill_set_states(gps_rfkill,
-				  hp_wmi_get_sw_state(HPWMI_GPS),
-				  hp_wmi_get_hw_state(HPWMI_GPS));
 
 	return 0;
 }

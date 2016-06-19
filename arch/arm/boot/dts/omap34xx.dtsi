@@ -46,13 +46,19 @@
 			       0x480bd800 0x017c>;
 			interrupts = <24>;
 			iommus = <&mmu_isp>;
-			syscon = <&scm_conf 0xdc>;
+			syscon = <&scm_conf 0x6c>;
 			ti,phy-type = <OMAP3ISP_PHY_TYPE_COMPLEX_IO>;
 			#clock-cells = <1>;
 			ports {
 				#address-cells = <1>;
 				#size-cells = <0>;
 			};
+		};
+
+		bandgap {
+			reg = <0x48002524 0x4>;
+			compatible = "ti,omap34xx-bandgap";
+			#thermal-sensor-cells = <0>;
 		};
 	};
 };

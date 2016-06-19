@@ -15,6 +15,7 @@ else
 PERF := .
 PERF_O := $(PERF)
 O_OPT :=
+FULL_O := $(shell readlink -f $(PERF_O) || echo $(PERF_O))
 
 ifneq ($(O),)
   FULL_O := $(shell readlink -f $(O) || echo $(O))
@@ -79,6 +80,7 @@ make_no_libaudit    := NO_LIBAUDIT=1
 make_no_libbionic   := NO_LIBBIONIC=1
 make_no_auxtrace    := NO_AUXTRACE=1
 make_no_libbpf	    := NO_LIBBPF=1
+make_no_libcrypto   := NO_LIBCRYPTO=1
 make_tags           := tags
 make_cscope         := cscope
 make_help           := help
@@ -102,6 +104,7 @@ make_minimal        := NO_LIBPERL=1 NO_LIBPYTHON=1 NO_NEWT=1 NO_GTK2=1
 make_minimal        += NO_DEMANGLE=1 NO_LIBELF=1 NO_LIBUNWIND=1 NO_BACKTRACE=1
 make_minimal        += NO_LIBNUMA=1 NO_LIBAUDIT=1 NO_LIBBIONIC=1
 make_minimal        += NO_LIBDW_DWARF_UNWIND=1 NO_AUXTRACE=1 NO_LIBBPF=1
+make_minimal        += NO_LIBCRYPTO=1
 
 # $(run) contains all available tests
 run := make_pure
@@ -110,6 +113,9 @@ run := make_pure
 # disable features detection
 ifeq ($(MK),Makefile)
 run += make_clean_all
+MAKE_F := $(MAKE)
+else
+MAKE_F := $(MAKE) -f $(MK)
 endif
 run += make_python_perf_so
 run += make_debug
@@ -260,6 +266,8 @@ run := $(shell shuf -e $(run))
 run_O := $(shell shuf -e $(run_O))
 endif
 
+max_width := $(shell echo $(run_O) | sed 's/ /\n/g' | wc -L)
+
 ifdef DEBUG
 d := $(info run   $(run))
 d := $(info run_O $(run_O))
@@ -267,13 +275,13 @@ endif
 
 MAKEFLAGS := --no-print-directory
 
-clean := @(cd $(PERF); make -s -f $(MK) $(O_OPT) clean >/dev/null)
+clean := @(cd $(PERF); $(MAKE_F) -s $(O_OPT) clean >/dev/null)
 
 $(run):
 	$(call clean)
 	@TMP_DEST=$$(mktemp -d); \
-	cmd="cd $(PERF) && make -f $(MK) $(PARALLEL_OPT) $(O_OPT) DESTDIR=$$TMP_DEST $($@)"; \
-	echo "- $@: $$cmd" && echo $$cmd > $@ && \
+	cmd="cd $(PERF) && $(MAKE_F) $($@) $(PARALLEL_OPT) $(O_OPT) DESTDIR=$$TMP_DEST"; \
+	printf "%*.*s: %s\n" $(max_width) $(max_width) "$@" "$$cmd" && echo $$cmd > $@ && \
 	( eval $$cmd ) >> $@ 2>&1; \
 	echo "  test: $(call test,$@)" >> $@ 2>&1; \
 	$(call test,$@) && \
@@ -283,8 +291,8 @@ $(run_O):
 	$(call clean)
 	@TMP_O=$$(mktemp -d); \
 	TMP_DEST=$$(mktemp -d); \
-	cmd="cd $(PERF) && make -f $(MK) $(PARALLEL_OPT) O=$$TMP_O DESTDIR=$$TMP_DEST $($(patsubst %_O,%,$@))"; \
-	echo "- $@: $$cmd" && echo $$cmd > $@ && \
+	cmd="cd $(PERF) && $(MAKE_F) $($(patsubst %_O,%,$@)) $(PARALLEL_OPT) O=$$TMP_O DESTDIR=$$TMP_DEST"; \
+	printf "%*.*s: %s\n" $(max_width) $(max_width) "$@" "$$cmd" && echo $$cmd > $@ && \
 	( eval $$cmd ) >> $@ 2>&1 && \
 	echo "  test: $(call test_O,$@)" >> $@ 2>&1; \
 	$(call test_O,$@) && \
@@ -313,11 +321,43 @@ make_kernelsrc_tools:
 	(make -C ../../tools $(PARALLEL_OPT) $(K_O_OPT) perf) > $@ 2>&1 && \
 	test -x $(KERNEL_O)/tools/perf/perf && rm -f $@ || (cat $@ ; false)
 
+FEATURES_DUMP_FILE := $(FULL_O)/BUILD_TEST_FEATURE_DUMP
+FEATURES_DUMP_FILE_STATIC := $(FULL_O)/BUILD_TEST_FEATURE_DUMP_STATIC
+
 all: $(run) $(run_O) tarpkg make_kernelsrc make_kernelsrc_tools
 	@echo OK
+	@rm -f $(FEATURES_DUMP_FILE) $(FEATURES_DUMP_FILE_STATIC)
 
 out: $(run_O)
 	@echo OK
+	@rm -f $(FEATURES_DUMP_FILE) $(FEATURES_DUMP_FILE_STATIC)
+
+ifeq ($(REUSE_FEATURES_DUMP),1)
+$(FEATURES_DUMP_FILE):
+	$(call clean)
+	@cmd="cd $(PERF) && make FEATURE_DUMP_COPY=$@ $(O_OPT) feature-dump"; \
+	echo "- $@: $$cmd" && echo $$cmd && \
+	( eval $$cmd ) > /dev/null 2>&1
+
+$(FEATURES_DUMP_FILE_STATIC):
+	$(call clean)
+	@cmd="cd $(PERF) && make FEATURE_DUMP_COPY=$@ $(O_OPT) LDFLAGS='-static' feature-dump"; \
+	echo "- $@: $$cmd" && echo $$cmd && \
+	( eval $$cmd ) > /dev/null 2>&1
+
+# Add feature dump dependency for run/run_O targets
+$(foreach t,$(run) $(run_O),$(eval \
+	$(t): $(if $(findstring make_static,$(t)),\
+		$(FEATURES_DUMP_FILE_STATIC),\
+		$(FEATURES_DUMP_FILE))))
+
+# Append 'FEATURES_DUMP=' option to all test cases. For example:
+# make_no_libbpf: NO_LIBBPF=1  --> NO_LIBBPF=1 FEATURES_DUMP=/a/b/BUILD_TEST_FEATURE_DUMP
+# make_static: LDFLAGS=-static --> LDFLAGS=-static FEATURES_DUMP=/a/b/BUILD_TEST_FEATURE_DUMP_STATIC
+$(foreach t,$(run),$(if $(findstring make_static,$(t)),\
+			$(eval $(t) := $($(t)) FEATURES_DUMP=$(FEATURES_DUMP_FILE_STATIC)),\
+			$(eval $(t) := $($(t)) FEATURES_DUMP=$(FEATURES_DUMP_FILE))))
+endif
 
 .PHONY: all $(run) $(run_O) tarpkg clean make_kernelsrc make_kernelsrc_tools
 endif # ifndef MK

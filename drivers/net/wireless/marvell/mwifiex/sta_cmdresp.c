@@ -1076,8 +1076,11 @@ int mwifiex_process_sta_cmdresp(struct mwifiex_private *priv, u16 cmdresp_no,
 		break;
 	case HostCmd_CMD_802_11_BG_SCAN_QUERY:
 		ret = mwifiex_ret_802_11_scan(priv, resp);
+		cfg80211_sched_scan_results(priv->wdev.wiphy);
 		mwifiex_dbg(adapter, CMD,
 			    "info: CMD_RESP: BG_SCAN result is ready!\n");
+		break;
+	case HostCmd_CMD_802_11_BG_SCAN_CONFIG:
 		break;
 	case HostCmd_CMD_TXPWR_CFG:
 		ret = mwifiex_ret_tx_power_cfg(priv, resp);
@@ -1232,6 +1235,9 @@ int mwifiex_process_sta_cmdresp(struct mwifiex_private *priv, u16 cmdresp_no,
 		break;
 	case HostCmd_CMD_SDIO_SP_RX_AGGR_CFG:
 		ret = mwifiex_ret_sdio_rx_aggr_cfg(priv, resp);
+		break;
+	case HostCmd_CMD_HS_WAKEUP_REASON:
+		ret = mwifiex_ret_wakeup_reason(priv, resp, data_buf);
 		break;
 	case HostCmd_CMD_TDLS_CONFIG:
 		break;

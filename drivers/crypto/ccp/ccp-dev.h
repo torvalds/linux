@@ -1,7 +1,7 @@
 /*
  * AMD Cryptographic Coprocessor (CCP) driver
  *
- * Copyright (C) 2013 Advanced Micro Devices, Inc.
+ * Copyright (C) 2013,2016 Advanced Micro Devices, Inc.
  *
  * Author: Tom Lendacky <thomas.lendacky@amd.com>
  *
@@ -23,6 +23,7 @@
 #include <linux/hw_random.h>
 #include <linux/bitops.h>
 
+#define MAX_CCP_NAME_LEN		16
 #define MAX_DMAPOOL_NAME_LEN		32
 
 #define MAX_HW_QUEUES			5
@@ -140,6 +141,29 @@
 #define CCP_ECC_RESULT_OFFSET		60
 #define CCP_ECC_RESULT_SUCCESS		0x0001
 
+struct ccp_op;
+
+/* Structure for computation functions that are device-specific */
+struct ccp_actions {
+	int (*perform_aes)(struct ccp_op *);
+	int (*perform_xts_aes)(struct ccp_op *);
+	int (*perform_sha)(struct ccp_op *);
+	int (*perform_rsa)(struct ccp_op *);
+	int (*perform_passthru)(struct ccp_op *);
+	int (*perform_ecc)(struct ccp_op *);
+	int (*init)(struct ccp_device *);
+	void (*destroy)(struct ccp_device *);
+	irqreturn_t (*irqhandler)(int, void *);
+};
+
+/* Structure to hold CCP version-specific values */
+struct ccp_vdata {
+	unsigned int version;
+	struct ccp_actions *perform;
+};
+
+extern struct ccp_vdata ccpv3;
+
 struct ccp_device;
 struct ccp_cmd;
 
@@ -184,6 +208,13 @@ struct ccp_cmd_queue {
 } ____cacheline_aligned;
 
 struct ccp_device {
+	struct list_head entry;
+
+	struct ccp_vdata *vdata;
+	unsigned int ord;
+	char name[MAX_CCP_NAME_LEN];
+	char rngname[MAX_CCP_NAME_LEN];
+
 	struct device *dev;
 
 	/*
@@ -258,18 +289,132 @@ struct ccp_device {
 	unsigned int axcache;
 };
 
+enum ccp_memtype {
+	CCP_MEMTYPE_SYSTEM = 0,
+	CCP_MEMTYPE_KSB,
+	CCP_MEMTYPE_LOCAL,
+	CCP_MEMTYPE__LAST,
+};
+
+struct ccp_dma_info {
+	dma_addr_t address;
+	unsigned int offset;
+	unsigned int length;
+	enum dma_data_direction dir;
+};
+
+struct ccp_dm_workarea {
+	struct device *dev;
+	struct dma_pool *dma_pool;
+	unsigned int length;
+
+	u8 *address;
+	struct ccp_dma_info dma;
+};
+
+struct ccp_sg_workarea {
+	struct scatterlist *sg;
+	int nents;
+
+	struct scatterlist *dma_sg;
+	struct device *dma_dev;
+	unsigned int dma_count;
+	enum dma_data_direction dma_dir;
+
+	unsigned int sg_used;
+
+	u64 bytes_left;
+};
+
+struct ccp_data {
+	struct ccp_sg_workarea sg_wa;
+	struct ccp_dm_workarea dm_wa;
+};
+
+struct ccp_mem {
+	enum ccp_memtype type;
+	union {
+		struct ccp_dma_info dma;
+		u32 ksb;
+	} u;
+};
+
+struct ccp_aes_op {
+	enum ccp_aes_type type;
+	enum ccp_aes_mode mode;
+	enum ccp_aes_action action;
+};
+
+struct ccp_xts_aes_op {
+	enum ccp_aes_action action;
+	enum ccp_xts_aes_unit_size unit_size;
+};
+
+struct ccp_sha_op {
+	enum ccp_sha_type type;
+	u64 msg_bits;
+};
+
+struct ccp_rsa_op {
+	u32 mod_size;
+	u32 input_len;
+};
+
+struct ccp_passthru_op {
+	enum ccp_passthru_bitwise bit_mod;
+	enum ccp_passthru_byteswap byte_swap;
+};
+
+struct ccp_ecc_op {
+	enum ccp_ecc_function function;
+};
+
+struct ccp_op {
+	struct ccp_cmd_queue *cmd_q;
+
+	u32 jobid;
+	u32 ioc;
+	u32 soc;
+	u32 ksb_key;
+	u32 ksb_ctx;
+	u32 init;
+	u32 eom;
+
+	struct ccp_mem src;
+	struct ccp_mem dst;
+
+	union {
+		struct ccp_aes_op aes;
+		struct ccp_xts_aes_op xts;
+		struct ccp_sha_op sha;
+		struct ccp_rsa_op rsa;
+		struct ccp_passthru_op passthru;
+		struct ccp_ecc_op ecc;
+	} u;
+};
+
+static inline u32 ccp_addr_lo(struct ccp_dma_info *info)
+{
+	return lower_32_bits(info->address + info->offset);
+}
+
+static inline u32 ccp_addr_hi(struct ccp_dma_info *info)
+{
+	return upper_32_bits(info->address + info->offset) & 0x0000ffff;
+}
+
 int ccp_pci_init(void);
 void ccp_pci_exit(void);
 
 int ccp_platform_init(void);
 void ccp_platform_exit(void);
 
-struct ccp_device *ccp_alloc_struct(struct device *dev);
-int ccp_init(struct ccp_device *ccp);
-void ccp_destroy(struct ccp_device *ccp);
-bool ccp_queues_suspended(struct ccp_device *ccp);
+void ccp_add_device(struct ccp_device *ccp);
+void ccp_del_device(struct ccp_device *ccp);
 
-irqreturn_t ccp_irq_handler(int irq, void *data);
+struct ccp_device *ccp_alloc_struct(struct device *dev);
+bool ccp_queues_suspended(struct ccp_device *ccp);
+int ccp_cmd_queue_thread(void *data);
 
 int ccp_run_cmd(struct ccp_cmd_queue *cmd_q, struct ccp_cmd *cmd);
 

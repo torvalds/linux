@@ -430,8 +430,7 @@ static int rcar_thermal_probe(struct platform_device *pdev)
 	struct rcar_thermal_priv *priv;
 	struct device *dev = &pdev->dev;
 	struct resource *res, *irq;
-	const struct of_device_id *of_id = of_match_device(rcar_thermal_dt_ids, dev);
-	unsigned long of_data = (unsigned long)of_id->data;
+	unsigned long of_data = (unsigned long)of_device_get_match_data(dev);
 	int mres = 0;
 	int i;
 	int ret = -ENODEV;

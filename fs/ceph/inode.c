@@ -549,6 +549,10 @@ int ceph_fill_file_size(struct inode *inode, int issued,
 	if (ceph_seq_cmp(truncate_seq, ci->i_truncate_seq) > 0 ||
 	    (truncate_seq == ci->i_truncate_seq && size > inode->i_size)) {
 		dout("size %lld -> %llu\n", inode->i_size, size);
+		if (size > 0 && S_ISDIR(inode->i_mode)) {
+			pr_err("fill_file_size non-zero size for directory\n");
+			size = 0;
+		}
 		i_size_write(inode, size);
 		inode->i_blocks = (size + (1<<9) - 1) >> 9;
 		ci->i_reported_size = size;
@@ -977,13 +981,8 @@ out_unlock:
 /*
  * splice a dentry to an inode.
  * caller must hold directory i_mutex for this to be safe.
- *
- * we will only rehash the resulting dentry if @prehash is
- * true; @prehash will be set to false (for the benefit of
- * the caller) if we fail.
  */
-static struct dentry *splice_dentry(struct dentry *dn, struct inode *in,
-				    bool *prehash)
+static struct dentry *splice_dentry(struct dentry *dn, struct inode *in)
 {
 	struct dentry *realdn;
 
@@ -996,8 +995,6 @@ static struct dentry *splice_dentry(struct dentry *dn, struct inode *in,
 	if (IS_ERR(realdn)) {
 		pr_err("splice_dentry error %ld %p inode %p ino %llx.%llx\n",
 		       PTR_ERR(realdn), dn, in, ceph_vinop(in));
-		if (prehash)
-			*prehash = false; /* don't rehash on error */
 		dn = realdn; /* note realdn contains the error */
 		goto out;
 	} else if (realdn) {
@@ -1013,8 +1010,6 @@ static struct dentry *splice_dentry(struct dentry *dn, struct inode *in,
 		dout("dn %p attached to %p ino %llx.%llx\n",
 		     dn, d_inode(dn), ceph_vinop(d_inode(dn)));
 	}
-	if ((!prehash || *prehash) && d_unhashed(dn))
-		d_rehash(dn);
 out:
 	return dn;
 }
@@ -1247,10 +1242,8 @@ retry_lookup:
 				dout("d_delete %p\n", dn);
 				d_delete(dn);
 			} else {
-				dout("d_instantiate %p NULL\n", dn);
-				d_instantiate(dn, NULL);
 				if (have_lease && d_unhashed(dn))
-					d_rehash(dn);
+					d_add(dn, NULL);
 				update_dentry_lease(dn, rinfo->dlease,
 						    session,
 						    req->r_request_started);
@@ -1262,7 +1255,7 @@ retry_lookup:
 		if (d_really_is_negative(dn)) {
 			ceph_dir_clear_ordered(dir);
 			ihold(in);
-			dn = splice_dentry(dn, in, &have_lease);
+			dn = splice_dentry(dn, in);
 			if (IS_ERR(dn)) {
 				err = PTR_ERR(dn);
 				goto done;
@@ -1272,6 +1265,7 @@ retry_lookup:
 			dout(" %p links to %p %llx.%llx, not %llx.%llx\n",
 			     dn, d_inode(dn), ceph_vinop(d_inode(dn)),
 			     ceph_vinop(in));
+			d_invalidate(dn);
 			have_lease = false;
 		}
 
@@ -1292,7 +1286,7 @@ retry_lookup:
 		dout(" linking snapped dir %p to dn %p\n", in, dn);
 		ceph_dir_clear_ordered(dir);
 		ihold(in);
-		dn = splice_dentry(dn, in, NULL);
+		dn = splice_dentry(dn, in);
 		if (IS_ERR(dn)) {
 			err = PTR_ERR(dn);
 			goto done;
@@ -1344,7 +1338,7 @@ void ceph_readdir_cache_release(struct ceph_readdir_cache_control *ctl)
 {
 	if (ctl->page) {
 		kunmap(ctl->page);
-		page_cache_release(ctl->page);
+		put_page(ctl->page);
 		ctl->page = NULL;
 	}
 }
@@ -1354,21 +1348,26 @@ static int fill_readdir_cache(struct inode *dir, struct dentry *dn,
 			      struct ceph_mds_request *req)
 {
 	struct ceph_inode_info *ci = ceph_inode(dir);
-	unsigned nsize = PAGE_CACHE_SIZE / sizeof(struct dentry*);
+	unsigned nsize = PAGE_SIZE / sizeof(struct dentry*);
 	unsigned idx = ctl->index % nsize;
 	pgoff_t pgoff = ctl->index / nsize;
 
 	if (!ctl->page || pgoff != page_index(ctl->page)) {
 		ceph_readdir_cache_release(ctl);
-		ctl->page  = grab_cache_page(&dir->i_data, pgoff);
+		if (idx == 0)
+			ctl->page = grab_cache_page(&dir->i_data, pgoff);
+		else
+			ctl->page = find_lock_page(&dir->i_data, pgoff);
 		if (!ctl->page) {
 			ctl->index = -1;
-			return -ENOMEM;
+			return idx == 0 ? -ENOMEM : 0;
 		}
 		/* reading/filling the cache are serialized by
 		 * i_mutex, no need to use page lock */
 		unlock_page(ctl->page);
 		ctl->dentries = kmap(ctl->page);
+		if (idx == 0)
+			memset(ctl->dentries, 0, PAGE_SIZE);
 	}
 
 	if (req->r_dir_release_cnt == atomic64_read(&ci->i_release_count) &&
@@ -1391,7 +1390,7 @@ int ceph_readdir_prepopulate(struct ceph_mds_request *req,
 	struct qstr dname;
 	struct dentry *dn;
 	struct inode *in;
-	int err = 0, ret, i;
+	int err = 0, skipped = 0, ret, i;
 	struct inode *snapdir = NULL;
 	struct ceph_mds_request_head *rhead = req->r_request->front.iov_base;
 	struct ceph_dentry_info *di;
@@ -1503,7 +1502,17 @@ retry_lookup:
 		}
 
 		if (d_really_is_negative(dn)) {
-			struct dentry *realdn = splice_dentry(dn, in, NULL);
+			struct dentry *realdn;
+
+			if (ceph_security_xattr_deadlock(in)) {
+				dout(" skip splicing dn %p to inode %p"
+				     " (security xattr deadlock)\n", dn, in);
+				iput(in);
+				skipped++;
+				goto next_item;
+			}
+
+			realdn = splice_dentry(dn, in);
 			if (IS_ERR(realdn)) {
 				err = PTR_ERR(realdn);
 				d_drop(dn);
@@ -1520,7 +1529,7 @@ retry_lookup:
 				    req->r_session,
 				    req->r_request_started);
 
-		if (err == 0 && cache_ctl.index >= 0) {
+		if (err == 0 && skipped == 0 && cache_ctl.index >= 0) {
 			ret = fill_readdir_cache(d_inode(parent), dn,
 						 &cache_ctl, req);
 			if (ret < 0)
@@ -1531,7 +1540,7 @@ next_item:
 			dput(dn);
 	}
 out:
-	if (err == 0) {
+	if (err == 0 && skipped == 0) {
 		req->r_did_prepopulate = true;
 		req->r_readdir_cache_idx = cache_ctl.index;
 	}
@@ -1961,7 +1970,7 @@ int ceph_setattr(struct dentry *dentry, struct iattr *attr)
 	if (dirtied) {
 		inode_dirty_flags = __ceph_mark_dirty_caps(ci, dirtied,
 							   &prealloc_cf);
-		inode->i_ctime = CURRENT_TIME;
+		inode->i_ctime = current_fs_time(inode->i_sb);
 	}
 
 	release &= issued;

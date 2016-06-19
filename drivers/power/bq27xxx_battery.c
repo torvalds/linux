@@ -46,6 +46,7 @@
 #include <linux/platform_device.h>
 #include <linux/power_supply.h>
 #include <linux/slab.h>
+#include <linux/of.h>
 
 #include <linux/power/bq27xxx_battery.h>
 
@@ -1090,15 +1091,26 @@ static const struct platform_device_id bq27xxx_battery_platform_id_table[] = {
 };
 MODULE_DEVICE_TABLE(platform, bq27xxx_battery_platform_id_table);
 
+#ifdef CONFIG_OF
+static const struct of_device_id bq27xxx_battery_platform_of_match_table[] = {
+	{ .compatible = "ti,bq27000" },
+	{},
+};
+MODULE_DEVICE_TABLE(of, bq27xxx_battery_platform_of_match_table);
+#endif
+
 static struct platform_driver bq27xxx_battery_platform_driver = {
 	.probe	= bq27xxx_battery_platform_probe,
 	.remove = bq27xxx_battery_platform_remove,
 	.driver = {
 		.name = "bq27000-battery",
+		.of_match_table = of_match_ptr(bq27xxx_battery_platform_of_match_table),
 	},
 	.id_table = bq27xxx_battery_platform_id_table,
 };
 module_platform_driver(bq27xxx_battery_platform_driver);
+
+MODULE_ALIAS("platform:bq27000-battery");
 
 MODULE_AUTHOR("Rodolfo Giometti <giometti@linux.it>");
 MODULE_DESCRIPTION("BQ27xxx battery monitor driver");

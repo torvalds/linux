@@ -380,10 +380,7 @@ static void pnv_pci_config_check_eeh(struct pci_dn *pdn)
 	 */
 	pe_no = pdn->pe_number;
 	if (pe_no == IODA_INVALID_PE) {
-		if (phb->type == PNV_PHB_P5IOC2)
-			pe_no = 0;
-		else
-			pe_no = phb->ioda.reserved_pe;
+		pe_no = phb->ioda.reserved_pe;
 	}
 
 	/*
@@ -805,7 +802,6 @@ DECLARE_PCI_FIXUP_EARLY(PCI_VENDOR_ID_IBM, 0x3b9, pnv_p7ioc_rc_quirk);
 void __init pnv_pci_init(void)
 {
 	struct device_node *np;
-	bool found_ioda = false;
 
 	pci_add_flags(PCI_CAN_SKIP_ISA_ALIGN);
 
@@ -813,19 +809,10 @@ void __init pnv_pci_init(void)
 	if (!firmware_has_feature(FW_FEATURE_OPAL))
 		return;
 
-	/* Look for IODA IO-Hubs. We don't support mixing IODA
-	 * and p5ioc2 due to the need to change some global
-	 * probing flags
-	 */
+	/* Look for IODA IO-Hubs. */
 	for_each_compatible_node(np, NULL, "ibm,ioda-hub") {
 		pnv_pci_init_ioda_hub(np);
-		found_ioda = true;
 	}
-
-	/* Look for p5ioc2 IO-Hubs */
-	if (!found_ioda)
-		for_each_compatible_node(np, NULL, "ibm,p5ioc2")
-			pnv_pci_init_p5ioc2_hub(np);
 
 	/* Look for ioda2 built-in PHB3's */
 	for_each_compatible_node(np, NULL, "ibm,ioda2-phb")

@@ -303,7 +303,7 @@ static int amdgpu_info_ioctl(struct drm_device *dev, void *data, struct drm_file
 			fw_info.feature = adev->vce.fb_version;
 			break;
 		case AMDGPU_INFO_FW_UVD:
-			fw_info.ver = 0;
+			fw_info.ver = adev->uvd.fw_version;
 			fw_info.feature = 0;
 			break;
 		case AMDGPU_INFO_FW_GMC:
@@ -382,8 +382,9 @@ static int amdgpu_info_ioctl(struct drm_device *dev, void *data, struct drm_file
 		struct drm_amdgpu_info_vram_gtt vram_gtt;
 
 		vram_gtt.vram_size = adev->mc.real_vram_size;
+		vram_gtt.vram_size -= adev->vram_pin_size;
 		vram_gtt.vram_cpu_accessible_size = adev->mc.visible_vram_size;
-		vram_gtt.vram_cpu_accessible_size -= adev->vram_pin_size;
+		vram_gtt.vram_cpu_accessible_size -= (adev->vram_pin_size - adev->invisible_pin_size);
 		vram_gtt.gtt_size  = adev->mc.gtt_size;
 		vram_gtt.gtt_size -= adev->gart_pin_size;
 		return copy_to_user(out, &vram_gtt,
@@ -447,8 +448,7 @@ static int amdgpu_info_ioctl(struct drm_device *dev, void *data, struct drm_file
 			dev_info.max_memory_clock = adev->pm.default_mclk * 10;
 		}
 		dev_info.enabled_rb_pipes_mask = adev->gfx.config.backend_enable_mask;
-		dev_info.num_rb_pipes = adev->gfx.config.max_backends_per_se *
-					adev->gfx.config.max_shader_engines;
+		dev_info.num_rb_pipes = adev->gfx.config.num_rbs;
 		dev_info.num_hw_gfx_contexts = adev->gfx.config.max_hw_contexts;
 		dev_info._pad = 0;
 		dev_info.ids_flags = 0;
@@ -727,6 +727,12 @@ int amdgpu_get_vblank_timestamp_kms(struct drm_device *dev, unsigned int pipe,
 
 	/* Get associated drm_crtc: */
 	crtc = &adev->mode_info.crtcs[pipe]->base;
+	if (!crtc) {
+		/* This can occur on driver load if some component fails to
+		 * initialize completely and driver is unloaded */
+		DRM_ERROR("Uninitialized crtc %d\n", pipe);
+		return -EINVAL;
+	}
 
 	/* Helper routine in DRM core does all the work: */
 	return drm_calc_vbltimestamp_from_scanoutpos(dev, pipe, max_error,

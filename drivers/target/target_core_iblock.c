@@ -413,8 +413,39 @@ iblock_execute_unmap(struct se_cmd *cmd, sector_t lba, sector_t nolb)
 }
 
 static sense_reason_t
+iblock_execute_write_same_direct(struct block_device *bdev, struct se_cmd *cmd)
+{
+	struct se_device *dev = cmd->se_dev;
+	struct scatterlist *sg = &cmd->t_data_sg[0];
+	struct page *page = NULL;
+	int ret;
+
+	if (sg->offset) {
+		page = alloc_page(GFP_KERNEL);
+		if (!page)
+			return TCM_OUT_OF_RESOURCES;
+		sg_copy_to_buffer(sg, cmd->t_data_nents, page_address(page),
+				  dev->dev_attrib.block_size);
+	}
+
+	ret = blkdev_issue_write_same(bdev,
+				target_to_linux_sector(dev, cmd->t_task_lba),
+				target_to_linux_sector(dev,
+					sbc_get_write_same_sectors(cmd)),
+				GFP_KERNEL, page ? page : sg_page(sg));
+	if (page)
+		__free_page(page);
+	if (ret)
+		return TCM_LOGICAL_UNIT_COMMUNICATION_FAILURE;
+
+	target_complete_cmd(cmd, GOOD);
+	return 0;
+}
+
+static sense_reason_t
 iblock_execute_write_same(struct se_cmd *cmd)
 {
+	struct block_device *bdev = IBLOCK_DEV(cmd->se_dev)->ibd_bd;
 	struct iblock_req *ibr;
 	struct scatterlist *sg;
 	struct bio *bio;
@@ -438,6 +469,9 @@ iblock_execute_write_same(struct se_cmd *cmd)
 			cmd->se_dev->dev_attrib.block_size);
 		return TCM_INVALID_CDB_FIELD;
 	}
+
+	if (bdev_write_same(bdev))
+		return iblock_execute_write_same_direct(bdev, cmd);
 
 	ibr = kzalloc(sizeof(struct iblock_req), GFP_KERNEL);
 	if (!ibr)

@@ -39,7 +39,6 @@ MODULE_PARM_DESC(idi_48_irq, "ACCES 104-IDI-48 interrupt line number");
  * @ack_lock:	synchronization lock to prevent IRQ handler race conditions
  * @irq_mask:	input bits affected by interrupts
  * @base:	base port address of the GPIO device
- * @extent:	extent of port address region of the GPIO device
  * @irq:	Interrupt line number
  * @cos_enb:	Change-Of-State IRQ enable boundaries mask
  */
@@ -49,7 +48,6 @@ struct idi_48_gpio {
 	spinlock_t ack_lock;
 	unsigned char irq_mask[6];
 	unsigned base;
-	unsigned extent;
 	unsigned irq;
 	unsigned char cos_enb;
 };
@@ -227,11 +225,10 @@ static int __init idi_48_probe(struct platform_device *pdev)
 	if (!idi48gpio)
 		return -ENOMEM;
 
-	if (!request_region(base, extent, name)) {
-		dev_err(dev, "Unable to lock %s port addresses (0x%X-0x%X)\n",
-			name, base, base + extent);
-		err = -EBUSY;
-		goto err_lock_io_port;
+	if (!devm_request_region(dev, base, extent, name)) {
+		dev_err(dev, "Unable to lock port addresses (0x%X-0x%X)\n",
+			base, base + extent);
+		return -EBUSY;
 	}
 
 	idi48gpio->chip.label = name;
@@ -243,7 +240,6 @@ static int __init idi_48_probe(struct platform_device *pdev)
 	idi48gpio->chip.direction_input = idi_48_gpio_direction_input;
 	idi48gpio->chip.get = idi_48_gpio_get;
 	idi48gpio->base = base;
-	idi48gpio->extent = extent;
 	idi48gpio->irq = irq;
 
 	spin_lock_init(&idi48gpio->lock);
@@ -253,7 +249,7 @@ static int __init idi_48_probe(struct platform_device *pdev)
 	err = gpiochip_add_data(&idi48gpio->chip, idi48gpio);
 	if (err) {
 		dev_err(dev, "GPIO registering failed (%d)\n", err);
-		goto err_gpio_register;
+		return err;
 	}
 
 	/* Disable IRQ by default */
@@ -264,23 +260,20 @@ static int __init idi_48_probe(struct platform_device *pdev)
 		handle_edge_irq, IRQ_TYPE_NONE);
 	if (err) {
 		dev_err(dev, "Could not add irqchip (%d)\n", err);
-		goto err_gpiochip_irqchip_add;
+		goto err_gpiochip_remove;
 	}
 
-	err = request_irq(irq, idi_48_irq_handler, 0, name, idi48gpio);
+	err = request_irq(irq, idi_48_irq_handler, IRQF_SHARED, name,
+		idi48gpio);
 	if (err) {
 		dev_err(dev, "IRQ handler registering failed (%d)\n", err);
-		goto err_request_irq;
+		goto err_gpiochip_remove;
 	}
 
 	return 0;
 
-err_request_irq:
-err_gpiochip_irqchip_add:
+err_gpiochip_remove:
 	gpiochip_remove(&idi48gpio->chip);
-err_gpio_register:
-	release_region(base, extent);
-err_lock_io_port:
 	return err;
 }
 
@@ -290,7 +283,6 @@ static int idi_48_remove(struct platform_device *pdev)
 
 	free_irq(idi48gpio->irq, idi48gpio);
 	gpiochip_remove(&idi48gpio->chip);
-	release_region(idi48gpio->base, idi48gpio->extent);
 
 	return 0;
 }
@@ -340,4 +332,4 @@ module_exit(idi_48_exit);
 
 MODULE_AUTHOR("William Breathitt Gray <vilhelm.gray@gmail.com>");
 MODULE_DESCRIPTION("ACCES 104-IDI-48 GPIO driver");
-MODULE_LICENSE("GPL");
+MODULE_LICENSE("GPL v2");

@@ -27,9 +27,9 @@
  *   Vlad Yasevich     <vladislav.yasevich@hp.com>
  */
 
+#include <crypto/hash.h>
 #include <linux/slab.h>
 #include <linux/types.h>
-#include <linux/crypto.h>
 #include <linux/scatterlist.h>
 #include <net/sctp/sctp.h>
 #include <net/sctp/auth.h>
@@ -448,7 +448,7 @@ struct sctp_shared_key *sctp_auth_get_shkey(
  */
 int sctp_auth_init_hmacs(struct sctp_endpoint *ep, gfp_t gfp)
 {
-	struct crypto_hash *tfm = NULL;
+	struct crypto_shash *tfm = NULL;
 	__u16   id;
 
 	/* If AUTH extension is disabled, we are done */
@@ -462,9 +462,8 @@ int sctp_auth_init_hmacs(struct sctp_endpoint *ep, gfp_t gfp)
 		return 0;
 
 	/* Allocated the array of pointers to transorms */
-	ep->auth_hmacs = kzalloc(
-			    sizeof(struct crypto_hash *) * SCTP_AUTH_NUM_HMACS,
-			    gfp);
+	ep->auth_hmacs = kzalloc(sizeof(struct crypto_shash *) *
+				 SCTP_AUTH_NUM_HMACS, gfp);
 	if (!ep->auth_hmacs)
 		return -ENOMEM;
 
@@ -483,8 +482,7 @@ int sctp_auth_init_hmacs(struct sctp_endpoint *ep, gfp_t gfp)
 			continue;
 
 		/* Allocate the ID */
-		tfm = crypto_alloc_hash(sctp_hmac_list[id].hmac_name, 0,
-					CRYPTO_ALG_ASYNC);
+		tfm = crypto_alloc_shash(sctp_hmac_list[id].hmac_name, 0, 0);
 		if (IS_ERR(tfm))
 			goto out_err;
 
@@ -500,7 +498,7 @@ out_err:
 }
 
 /* Destroy the hmac tfm array */
-void sctp_auth_destroy_hmacs(struct crypto_hash *auth_hmacs[])
+void sctp_auth_destroy_hmacs(struct crypto_shash *auth_hmacs[])
 {
 	int i;
 
@@ -508,8 +506,7 @@ void sctp_auth_destroy_hmacs(struct crypto_hash *auth_hmacs[])
 		return;
 
 	for (i = 0; i < SCTP_AUTH_NUM_HMACS; i++) {
-		if (auth_hmacs[i])
-			crypto_free_hash(auth_hmacs[i]);
+		crypto_free_shash(auth_hmacs[i]);
 	}
 	kfree(auth_hmacs);
 }
@@ -709,8 +706,7 @@ void sctp_auth_calculate_hmac(const struct sctp_association *asoc,
 			      struct sctp_auth_chunk *auth,
 			      gfp_t gfp)
 {
-	struct scatterlist sg;
-	struct hash_desc desc;
+	struct crypto_shash *tfm;
 	struct sctp_auth_bytes *asoc_key;
 	__u16 key_id, hmac_id;
 	__u8 *digest;
@@ -742,16 +738,22 @@ void sctp_auth_calculate_hmac(const struct sctp_association *asoc,
 
 	/* set up scatter list */
 	end = skb_tail_pointer(skb);
-	sg_init_one(&sg, auth, end - (unsigned char *)auth);
 
-	desc.tfm = asoc->ep->auth_hmacs[hmac_id];
-	desc.flags = 0;
+	tfm = asoc->ep->auth_hmacs[hmac_id];
 
 	digest = auth->auth_hdr.hmac;
-	if (crypto_hash_setkey(desc.tfm, &asoc_key->data[0], asoc_key->len))
+	if (crypto_shash_setkey(tfm, &asoc_key->data[0], asoc_key->len))
 		goto free;
 
-	crypto_hash_digest(&desc, &sg, sg.length, digest);
+	{
+		SHASH_DESC_ON_STACK(desc, tfm);
+
+		desc->tfm = tfm;
+		desc->flags = 0;
+		crypto_shash_digest(desc, (u8 *)auth,
+				    end - (unsigned char *)auth, digest);
+		shash_desc_zero(desc);
+	}
 
 free:
 	if (free_key)

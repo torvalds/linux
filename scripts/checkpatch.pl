@@ -269,7 +269,8 @@ our $Sparse	= qr{
 			__init_refok|
 			__kprobes|
 			__ref|
-			__rcu
+			__rcu|
+			__private
 		}x;
 our $InitAttributePrefix = qr{__(?:mem|cpu|dev|net_|)};
 our $InitAttributeData = qr{$InitAttributePrefix(?:initdata\b)};
@@ -3239,6 +3240,30 @@ sub process {
 #ignore lines not being added
 		next if ($line =~ /^[^\+]/);
 
+# check for declarations of signed or unsigned without int
+		while ($line =~ m{($Declare)\s*(?!char\b|short\b|int\b|long\b)\s*($Ident)?\s*[=,;\[\)\(]}g) {
+			my $type = $1;
+			my $var = $2;
+			$var = "" if (!defined $var);
+			if ($type =~ /^(?:(?:$Storage|$Inline|$Attribute)\s+)*((?:un)?signed)((?:\s*\*)*)\s*$/) {
+				my $sign = $1;
+				my $pointer = $2;
+
+				$pointer = "" if (!defined $pointer);
+
+				if (WARN("UNSPECIFIED_INT",
+					 "Prefer '" . trim($sign) . " int" . rtrim($pointer) . "' to bare use of '$sign" . rtrim($pointer) . "'\n" . $herecurr) &&
+				    $fix) {
+					my $decl = trim($sign) . " int ";
+					my $comp_pointer = $pointer;
+					$comp_pointer =~ s/\s//g;
+					$decl .= $comp_pointer;
+					$decl = rtrim($decl) if ($var eq "");
+					$fixed[$fixlinenr] =~ s@\b$sign\s*\Q$pointer\E\s*$var\b@$decl$var@;
+				}
+			}
+		}
+
 # TEST: allow direct testing of the type matcher.
 		if ($dbg_type) {
 			if ($line =~ /^.\s*$Declare\s*$/) {
@@ -4108,7 +4133,7 @@ sub process {
 ## 		}
 
 #need space before brace following if, while, etc
-		if (($line =~ /\(.*\)\{/ && $line !~ /\($Type\){/) ||
+		if (($line =~ /\(.*\)\{/ && $line !~ /\($Type\)\{/) ||
 		    $line =~ /do\{/) {
 			if (ERROR("SPACING",
 				  "space required before the open brace '{'\n" . $herecurr) &&
@@ -4559,6 +4584,9 @@ sub process {
 			       $dstat =~ s/$Ident\s*($String)/$1/)
 			{
 			}
+
+			# Make asm volatile uses seem like a generic function
+			$dstat =~ s/\b_*asm_*\s+_*volatile_*\b/asm_volatile/g;
 
 			my $exceptions = qr{
 				$Declare|

@@ -184,20 +184,30 @@ static int lenovo_send_cmd_cptkbd(struct hid_device *hdev,
 			unsigned char byte2, unsigned char byte3)
 {
 	int ret;
-	unsigned char buf[] = {0x18, byte2, byte3};
+	unsigned char *buf;
+
+	buf = kzalloc(3, GFP_KERNEL);
+	if (!buf)
+		return -ENOMEM;
+
+	buf[0] = 0x18;
+	buf[1] = byte2;
+	buf[2] = byte3;
 
 	switch (hdev->product) {
 	case USB_DEVICE_ID_LENOVO_CUSBKBD:
-		ret = hid_hw_raw_request(hdev, 0x13, buf, sizeof(buf),
+		ret = hid_hw_raw_request(hdev, 0x13, buf, 3,
 					HID_FEATURE_REPORT, HID_REQ_SET_REPORT);
 		break;
 	case USB_DEVICE_ID_LENOVO_CBTKBD:
-		ret = hid_hw_output_report(hdev, buf, sizeof(buf));
+		ret = hid_hw_output_report(hdev, buf, 3);
 		break;
 	default:
 		ret = -EINVAL;
 		break;
 	}
+
+	kfree(buf);
 
 	return ret < 0 ? ret : 0; /* BT returns 0, USB returns sizeof(buf) */
 }

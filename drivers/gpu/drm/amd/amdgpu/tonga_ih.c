@@ -307,7 +307,7 @@ static int tonga_ih_sw_fini(void *handle)
 
 	amdgpu_irq_fini(adev);
 	amdgpu_ih_ring_fini(adev);
-	amdgpu_irq_add_domain(adev);
+	amdgpu_irq_remove_domain(adev);
 
 	return 0;
 }

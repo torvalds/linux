@@ -32,6 +32,7 @@
  */
 
 #include <linux/slab.h>
+#include <rdma/ib_user_verbs.h>
 
 #include "mlx4_ib.h"
 
@@ -334,7 +335,8 @@ int mlx4_ib_dereg_mr(struct ib_mr *ibmr)
 	return 0;
 }
 
-struct ib_mw *mlx4_ib_alloc_mw(struct ib_pd *pd, enum ib_mw_type type)
+struct ib_mw *mlx4_ib_alloc_mw(struct ib_pd *pd, enum ib_mw_type type,
+			       struct ib_udata *udata)
 {
 	struct mlx4_ib_dev *dev = to_mdev(pd->device);
 	struct mlx4_ib_mw *mw;

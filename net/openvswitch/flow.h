@@ -55,7 +55,7 @@ struct ovs_tunnel_info {
 	FIELD_SIZEOF(struct sw_flow_key, recirc_id))
 
 struct sw_flow_key {
-	u8 tun_opts[255];
+	u8 tun_opts[IP_TUNNEL_OPTS_MAX];
 	u8 tun_opts_len;
 	struct ip_tunnel_key tun_key;	/* Encapsulating tunnel key. */
 	struct {

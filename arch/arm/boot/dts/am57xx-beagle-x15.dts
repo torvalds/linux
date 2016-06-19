@@ -24,7 +24,7 @@
 
 	memory {
 		device_type = "memory";
-		reg = <0x80000000 0x80000000>;
+		reg = <0x0 0x80000000 0x0 0x80000000>;
 	};
 
 	vdd_3v3: fixedregulator-vdd_3v3 {
@@ -97,13 +97,6 @@
 		gpio-fan,speed-map = <0     0>,
 				     <13000 1>;
 		#cooling-cells = <2>;
-	};
-
-	extcon_usb1: extcon_usb1 {
-		compatible = "linux,extcon-usb-gpio";
-		id-gpio = <&gpio7 25 GPIO_ACTIVE_HIGH>;
-		pinctrl-names = "default";
-		pinctrl-0 = <&extcon_usb1_pins>;
 	};
 
 	hdmi0: connector {
@@ -349,12 +342,6 @@
 		>;
 	};
 
-	extcon_usb1_pins: extcon_usb1_pins {
-		pinctrl-single,pins = <
-			DRA7XX_CORE_IOPAD(0x37ec, PIN_INPUT_PULLUP | MUX_MODE14) /* uart1_rtsn.gpio7_25 */
-		>;
-	};
-
 	tpd12s015_pins: pinmux_tpd12s015_pins {
 		pinctrl-single,pins = <
 			DRA7XX_CORE_IOPAD(0x37b0, PIN_OUTPUT | MUX_MODE14)		/* gpio7_10 CT_CP_HPD */
@@ -562,8 +549,7 @@
 		extcon_usb2: tps659038_usb {
 			compatible = "ti,palmas-usb-vid";
 			ti,enable-vbus-detection;
-			ti,enable-id-detection;
-			id-gpios = <&gpio7 24 GPIO_ACTIVE_HIGH>;
+			vbus-gpio = <&gpio4 21 GPIO_ACTIVE_HIGH>;
 		};
 
 	};
@@ -592,6 +578,11 @@
 		IOVDD-supply = <&vdd_3v3>;
 		DRVDD-supply = <&vdd_3v3>;
 		DVDD-supply = <&aic_dvdd>;
+	};
+
+	eeprom: eeprom@50 {
+		compatible = "at,24c32";
+		reg = <0x50>;
 	};
 };
 
@@ -700,10 +691,6 @@
 	dr_mode = "host";
 	pinctrl-names = "default";
 	pinctrl-0 = <&usb1_pins>;
-};
-
-&omap_dwc3_1 {
-	extcon = <&extcon_usb1>;
 };
 
 &omap_dwc3_2 {

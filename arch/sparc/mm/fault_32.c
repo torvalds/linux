@@ -303,10 +303,10 @@ no_context:
 		fixup = search_extables_range(regs->pc, &g2);
 		/* Values below 10 are reserved for other things */
 		if (fixup > 10) {
-			extern const unsigned __memset_start[];
-			extern const unsigned __memset_end[];
-			extern const unsigned __csum_partial_copy_start[];
-			extern const unsigned __csum_partial_copy_end[];
+			extern const unsigned int __memset_start[];
+			extern const unsigned int __memset_end[];
+			extern const unsigned int __csum_partial_copy_start[];
+			extern const unsigned int __csum_partial_copy_end[];
 
 #ifdef DEBUG_EXCEPTIONS
 			printk("Exception: PC<%08lx> faddr<%08lx>\n",

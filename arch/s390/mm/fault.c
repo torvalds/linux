@@ -32,6 +32,7 @@
 #include <asm/asm-offsets.h>
 #include <asm/diag.h>
 #include <asm/pgtable.h>
+#include <asm/gmap.h>
 #include <asm/irq.h>
 #include <asm/mmu_context.h>
 #include <asm/facility.h>
@@ -183,6 +184,8 @@ static void dump_fault_info(struct pt_regs *regs)
 {
 	unsigned long asce;
 
+	pr_alert("Failing address: %016lx TEID: %016lx\n",
+		 regs->int_parm_long & __FAIL_ADDR_MASK, regs->int_parm_long);
 	pr_alert("Fault in ");
 	switch (regs->int_parm_long & 3) {
 	case 3:
@@ -218,7 +221,9 @@ static void dump_fault_info(struct pt_regs *regs)
 	dump_pagetable(asce, regs->int_parm_long & __FAIL_ADDR_MASK);
 }
 
-static inline void report_user_fault(struct pt_regs *regs, long signr)
+int show_unhandled_signals = 1;
+
+void report_user_fault(struct pt_regs *regs, long signr, int is_mm_fault)
 {
 	if ((task_pid_nr(current) > 1) && !show_unhandled_signals)
 		return;
@@ -230,9 +235,8 @@ static inline void report_user_fault(struct pt_regs *regs, long signr)
 	       regs->int_code & 0xffff, regs->int_code >> 17);
 	print_vma_addr(KERN_CONT "in ", regs->psw.addr);
 	printk(KERN_CONT "\n");
-	printk(KERN_ALERT "failing address: %016lx TEID: %016lx\n",
-	       regs->int_parm_long & __FAIL_ADDR_MASK, regs->int_parm_long);
-	dump_fault_info(regs);
+	if (is_mm_fault)
+		dump_fault_info(regs);
 	show_regs(regs);
 }
 
@@ -244,7 +248,7 @@ static noinline void do_sigsegv(struct pt_regs *regs, int si_code)
 {
 	struct siginfo si;
 
-	report_user_fault(regs, SIGSEGV);
+	report_user_fault(regs, SIGSEGV, 1);
 	si.si_signo = SIGSEGV;
 	si.si_code = si_code;
 	si.si_addr = (void __user *)(regs->int_parm_long & __FAIL_ADDR_MASK);
@@ -272,8 +276,6 @@ static noinline void do_no_context(struct pt_regs *regs)
 	else
 		printk(KERN_ALERT "Unable to handle kernel paging request"
 		       " in virtual user address space\n");
-	printk(KERN_ALERT "failing address: %016lx TEID: %016lx\n",
-	       regs->int_parm_long & __FAIL_ADDR_MASK, regs->int_parm_long);
 	dump_fault_info(regs);
 	die(regs, "Oops");
 	do_exit(SIGKILL);

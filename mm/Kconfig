@@ -187,7 +187,6 @@ config MEMORY_HOTPLUG
 	bool "Allow for memory hot-add"
 	depends on SPARSEMEM || X86_64_ACPI_NUMA
 	depends on ARCH_ENABLE_MEMORY_HOTPLUG
-	depends on (IA64 || X86 || PPC_BOOK3S_64 || SUPERH || S390)
 
 config MEMORY_HOTPLUG_SPARSE
 	def_bool y
@@ -652,10 +651,9 @@ config IDLE_PAGE_TRACKING
 
 config ZONE_DEVICE
 	bool "Device memory (pmem, etc...) hotplug support" if EXPERT
-	default !ZONE_DMA
-	depends on !ZONE_DMA
 	depends on MEMORY_HOTPLUG
 	depends on MEMORY_HOTREMOVE
+	depends on SPARSEMEM_VMEMMAP
 	depends on X86_64 #arch_add_memory() comprehends device memory
 
 	help
@@ -668,4 +666,9 @@ config ZONE_DEVICE
 	  If FS_DAX is enabled, then say Y.
 
 config FRAME_VECTOR
+	bool
+
+config ARCH_USES_HIGH_VMA_FLAGS
+	bool
+config ARCH_HAS_PKEYS
 	bool

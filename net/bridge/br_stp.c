@@ -30,13 +30,6 @@ static const char *const br_port_state_names[] = {
 	[BR_STATE_BLOCKING] = "blocking",
 };
 
-void br_log_state(const struct net_bridge_port *p)
-{
-	br_info(p->br, "port %u(%s) entered %s state\n",
-		(unsigned int) p->port_no, p->dev->name,
-		br_port_state_names[p->state]);
-}
-
 void br_set_state(struct net_bridge_port *p, unsigned int state)
 {
 	struct switchdev_attr attr = {
@@ -52,6 +45,10 @@ void br_set_state(struct net_bridge_port *p, unsigned int state)
 	if (err && err != -EOPNOTSUPP)
 		br_warn(p->br, "error setting offload STP state on port %u(%s)\n",
 				(unsigned int) p->port_no, p->dev->name);
+	else
+		br_info(p->br, "port %u(%s) entered %s state\n",
+				(unsigned int) p->port_no, p->dev->name,
+				br_port_state_names[p->state]);
 }
 
 /* called under bridge lock */
@@ -126,7 +123,6 @@ static void br_root_port_block(const struct net_bridge *br,
 		  (unsigned int) p->port_no, p->dev->name);
 
 	br_set_state(p, BR_STATE_LISTENING);
-	br_log_state(p);
 	br_ifinfo_notify(RTM_NEWLINK, p);
 
 	if (br->forward_delay > 0)
@@ -407,7 +403,6 @@ static void br_make_blocking(struct net_bridge_port *p)
 			br_topology_change_detection(p->br);
 
 		br_set_state(p, BR_STATE_BLOCKING);
-		br_log_state(p);
 		br_ifinfo_notify(RTM_NEWLINK, p);
 
 		del_timer(&p->forward_delay_timer);
@@ -431,7 +426,6 @@ static void br_make_forwarding(struct net_bridge_port *p)
 	else
 		br_set_state(p, BR_STATE_LEARNING);
 
-	br_log_state(p);
 	br_ifinfo_notify(RTM_NEWLINK, p);
 
 	if (br->forward_delay != 0)
@@ -568,6 +562,14 @@ int br_set_max_age(struct net_bridge *br, unsigned long val)
 
 }
 
+/* Set time interval that dynamic forwarding entries live
+ * For pure software bridge, allow values outside the 802.1
+ * standard specification for special cases:
+ *  0 - entry never ages (all permanant)
+ *  1 - entry disappears (no persistance)
+ *
+ * Offloaded switch entries maybe more restrictive
+ */
 int br_set_ageing_time(struct net_bridge *br, u32 ageing_time)
 {
 	struct switchdev_attr attr = {
@@ -579,11 +581,8 @@ int br_set_ageing_time(struct net_bridge *br, u32 ageing_time)
 	unsigned long t = clock_t_to_jiffies(ageing_time);
 	int err;
 
-	if (t < BR_MIN_AGEING_TIME || t > BR_MAX_AGEING_TIME)
-		return -ERANGE;
-
 	err = switchdev_port_attr_set(br->dev, &attr);
-	if (err)
+	if (err && err != -EOPNOTSUPP)
 		return err;
 
 	br->ageing_time = t;

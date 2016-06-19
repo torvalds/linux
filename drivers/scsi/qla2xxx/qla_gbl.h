@@ -90,6 +90,7 @@ extern int qla2xxx_mctp_dump(scsi_qla_host_t *);
 extern int
 qla2x00_alloc_outstanding_cmds(struct qla_hw_data *, struct req_que *);
 extern int qla2x00_init_rings(scsi_qla_host_t *);
+extern uint8_t qla27xx_find_valid_image(struct scsi_qla_host *);
 
 /*
  * Global Data in qla_os.c source file.
@@ -121,6 +122,7 @@ extern int ql2xmdcapmask;
 extern int ql2xmdenable;
 extern int ql2xexlogins;
 extern int ql2xexchoffld;
+extern int ql2xfwholdabts;
 
 extern int qla2x00_loop_reset(scsi_qla_host_t *);
 extern void qla2x00_abort_all_cmds(scsi_qla_host_t *, int);

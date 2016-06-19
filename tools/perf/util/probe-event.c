@@ -2179,7 +2179,7 @@ static int perf_probe_event__sprintf(const char *group, const char *event,
 		strbuf_addf(result, " in %s", module);
 
 	if (pev->nargs > 0) {
-		strbuf_addstr(result, " with");
+		strbuf_add(result, " with", 5);
 		for (i = 0; i < pev->nargs; i++) {
 			ret = synthesize_perf_probe_arg(&pev->args[i],
 							buf, 128);

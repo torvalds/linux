@@ -24,7 +24,7 @@
 #define MII_BCM7XXX_100TX_FALSE_CAR	0x13
 #define MII_BCM7XXX_100TX_DISC		0x14
 #define MII_BCM7XXX_AUX_MODE		0x1d
-#define  MII_BCM7XX_64CLK_MDIO		BIT(12)
+#define  MII_BCM7XXX_64CLK_MDIO		BIT(12)
 #define MII_BCM7XXX_TEST		0x1f
 #define  MII_BCM7XXX_SHD_MODE_2		BIT(2)
 
@@ -247,7 +247,7 @@ static int bcm7xxx_config_init(struct phy_device *phydev)
 	int ret;
 
 	/* Enable 64 clock MDIO */
-	phy_write(phydev, MII_BCM7XXX_AUX_MODE, MII_BCM7XX_64CLK_MDIO);
+	phy_write(phydev, MII_BCM7XXX_AUX_MODE, MII_BCM7XXX_64CLK_MDIO);
 	phy_read(phydev, MII_BCM7XXX_AUX_MODE);
 
 	/* set shadow mode 2 */
@@ -317,6 +317,21 @@ static int bcm7xxx_suspend(struct phy_device *phydev)
 	.resume		= bcm7xxx_28nm_resume,				\
 }
 
+#define BCM7XXX_40NM_EPHY(_oui, _name)					\
+{									\
+	.phy_id         = (_oui),					\
+	.phy_id_mask    = 0xfffffff0,					\
+	.name           = _name,					\
+	.features       = PHY_BASIC_FEATURES |				\
+			  SUPPORTED_Pause | SUPPORTED_Asym_Pause,	\
+	.flags          = PHY_IS_INTERNAL,				\
+	.config_init    = bcm7xxx_config_init,				\
+	.config_aneg    = genphy_config_aneg,				\
+	.read_status    = genphy_read_status,				\
+	.suspend        = bcm7xxx_suspend,				\
+	.resume         = bcm7xxx_config_init,				\
+}
+
 static struct phy_driver bcm7xxx_driver[] = {
 	BCM7XXX_28NM_GPHY(PHY_ID_BCM7250, "Broadcom BCM7250"),
 	BCM7XXX_28NM_GPHY(PHY_ID_BCM7364, "Broadcom BCM7364"),
@@ -324,48 +339,19 @@ static struct phy_driver bcm7xxx_driver[] = {
 	BCM7XXX_28NM_GPHY(PHY_ID_BCM7439, "Broadcom BCM7439"),
 	BCM7XXX_28NM_GPHY(PHY_ID_BCM7439_2, "Broadcom BCM7439 (2)"),
 	BCM7XXX_28NM_GPHY(PHY_ID_BCM7445, "Broadcom BCM7445"),
-{
-	.phy_id         = PHY_ID_BCM7425,
-	.phy_id_mask    = 0xfffffff0,
-	.name           = "Broadcom BCM7425",
-	.features       = PHY_BASIC_FEATURES |
-			  SUPPORTED_Pause | SUPPORTED_Asym_Pause,
-	.flags          = PHY_IS_INTERNAL,
-	.config_init    = bcm7xxx_config_init,
-	.config_aneg    = genphy_config_aneg,
-	.read_status    = genphy_read_status,
-	.suspend        = bcm7xxx_suspend,
-	.resume         = bcm7xxx_config_init,
-}, {
-	.phy_id         = PHY_ID_BCM7429,
-	.phy_id_mask    = 0xfffffff0,
-	.name           = "Broadcom BCM7429",
-	.features       = PHY_BASIC_FEATURES |
-			  SUPPORTED_Pause | SUPPORTED_Asym_Pause,
-	.flags          = PHY_IS_INTERNAL,
-	.config_init    = bcm7xxx_config_init,
-	.config_aneg    = genphy_config_aneg,
-	.read_status    = genphy_read_status,
-	.suspend        = bcm7xxx_suspend,
-	.resume         = bcm7xxx_config_init,
-}, {
-	.phy_id         = PHY_ID_BCM7435,
-	.phy_id_mask    = 0xfffffff0,
-	.name           = "Broadcom BCM7435",
-	.features       = PHY_BASIC_FEATURES |
-			  SUPPORTED_Pause | SUPPORTED_Asym_Pause,
-	.flags          = PHY_IS_INTERNAL,
-	.config_init    = bcm7xxx_config_init,
-	.config_aneg    = genphy_config_aneg,
-	.read_status    = genphy_read_status,
-	.suspend        = bcm7xxx_suspend,
-	.resume         = bcm7xxx_config_init,
-} };
+	BCM7XXX_40NM_EPHY(PHY_ID_BCM7346, "Broadcom BCM7346"),
+	BCM7XXX_40NM_EPHY(PHY_ID_BCM7362, "Broadcom BCM7362"),
+	BCM7XXX_40NM_EPHY(PHY_ID_BCM7425, "Broadcom BCM7425"),
+	BCM7XXX_40NM_EPHY(PHY_ID_BCM7429, "Broadcom BCM7429"),
+	BCM7XXX_40NM_EPHY(PHY_ID_BCM7435, "Broadcom BCM7435"),
+};
 
 static struct mdio_device_id __maybe_unused bcm7xxx_tbl[] = {
 	{ PHY_ID_BCM7250, 0xfffffff0, },
 	{ PHY_ID_BCM7364, 0xfffffff0, },
 	{ PHY_ID_BCM7366, 0xfffffff0, },
+	{ PHY_ID_BCM7346, 0xfffffff0, },
+	{ PHY_ID_BCM7362, 0xfffffff0, },
 	{ PHY_ID_BCM7425, 0xfffffff0, },
 	{ PHY_ID_BCM7429, 0xfffffff0, },
 	{ PHY_ID_BCM7439, 0xfffffff0, },

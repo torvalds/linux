@@ -70,12 +70,12 @@
 			fsl,espi-num-chipselects = <2>;
 
 			flash@0 {
-				compatible = "atmel,at25df641";
+				compatible = "atmel,at25df641", "jedec,spi-nor";
 				reg = <0>;
 				spi-max-frequency = <10000000>;
 			};
 			flash@1 {
-				compatible = "atmel,at25df641";
+				compatible = "atmel,at25df641", "jedec,spi-nor";
 				reg = <1>;
 				spi-max-frequency = <10000000>;
 			};

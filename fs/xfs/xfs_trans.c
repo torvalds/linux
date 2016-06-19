@@ -1028,6 +1028,8 @@ __xfs_trans_roll(
 	struct xfs_trans_res	tres;
 	int			error;
 
+	*committed = 0;
+
 	/*
 	 * Ensure that the inode is always logged.
 	 */
@@ -1082,6 +1084,6 @@ xfs_trans_roll(
 	struct xfs_trans	**tpp,
 	struct xfs_inode	*dp)
 {
-	int			committed = 0;
+	int			committed;
 	return __xfs_trans_roll(tpp, dp, &committed);
 }

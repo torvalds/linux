@@ -35,6 +35,11 @@ nvkm_device_tegra_power_up(struct nvkm_device_tegra *tdev)
 	ret = clk_prepare_enable(tdev->clk);
 	if (ret)
 		goto err_clk;
+	if (tdev->clk_ref) {
+		ret = clk_prepare_enable(tdev->clk_ref);
+		if (ret)
+			goto err_clk_ref;
+	}
 	ret = clk_prepare_enable(tdev->clk_pwr);
 	if (ret)
 		goto err_clk_pwr;
@@ -57,6 +62,9 @@ nvkm_device_tegra_power_up(struct nvkm_device_tegra *tdev)
 err_clamp:
 	clk_disable_unprepare(tdev->clk_pwr);
 err_clk_pwr:
+	if (tdev->clk_ref)
+		clk_disable_unprepare(tdev->clk_ref);
+err_clk_ref:
 	clk_disable_unprepare(tdev->clk);
 err_clk:
 	regulator_disable(tdev->vdd);
@@ -71,6 +79,8 @@ nvkm_device_tegra_power_down(struct nvkm_device_tegra *tdev)
 	udelay(10);
 
 	clk_disable_unprepare(tdev->clk_pwr);
+	if (tdev->clk_ref)
+		clk_disable_unprepare(tdev->clk_ref);
 	clk_disable_unprepare(tdev->clk);
 	udelay(10);
 
@@ -255,7 +265,6 @@ nvkm_device_tegra_new(const struct nvkm_device_tegra_func *func,
 
 	tdev->func = func;
 	tdev->pdev = pdev;
-	tdev->irq = -1;
 
 	tdev->vdd = devm_regulator_get(&pdev->dev, "vdd");
 	if (IS_ERR(tdev->vdd)) {
@@ -275,11 +284,27 @@ nvkm_device_tegra_new(const struct nvkm_device_tegra_func *func,
 		goto free;
 	}
 
+	if (func->require_ref_clk)
+		tdev->clk_ref = devm_clk_get(&pdev->dev, "ref");
+	if (IS_ERR(tdev->clk_ref)) {
+		ret = PTR_ERR(tdev->clk_ref);
+		goto free;
+	}
+
 	tdev->clk_pwr = devm_clk_get(&pdev->dev, "pwr");
 	if (IS_ERR(tdev->clk_pwr)) {
 		ret = PTR_ERR(tdev->clk_pwr);
 		goto free;
 	}
+
+	/**
+	 * The IOMMU bit defines the upper limit of the GPU-addressable space.
+	 * This will be refined in nouveau_ttm_init but we need to do it early
+	 * for instmem to behave properly
+	 */
+	ret = dma_set_mask(&pdev->dev, DMA_BIT_MASK(tdev->func->iommu_bit));
+	if (ret)
+		goto free;
 
 	nvkm_device_tegra_probe_iommu(tdev);
 

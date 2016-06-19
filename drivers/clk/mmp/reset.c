@@ -74,7 +74,7 @@ static int mmp_clk_reset_deassert(struct reset_controller_dev *rcdev,
 	return 0;
 }
 
-static struct reset_control_ops mmp_clk_reset_ops = {
+static const struct reset_control_ops mmp_clk_reset_ops = {
 	.assert		= mmp_clk_reset_assert,
 	.deassert	= mmp_clk_reset_deassert,
 };

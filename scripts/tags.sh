@@ -163,6 +163,8 @@ regex_c=(
 	'/^TRACE_EVENT(\([[:alnum:]_]*\).*/trace_\1_rcuidle/'
 	'/^DEFINE_EVENT([^,)]*, *\([[:alnum:]_]*\).*/trace_\1/'
 	'/^DEFINE_EVENT([^,)]*, *\([[:alnum:]_]*\).*/trace_\1_rcuidle/'
+	'/^DEFINE_INSN_CACHE_OPS(\([[:alnum:]_]*\).*/get_\1_slot/'
+	'/^DEFINE_INSN_CACHE_OPS(\([[:alnum:]_]*\).*/free_\1_slot/'
 	'/^PAGEFLAG(\([[:alnum:]_]*\).*/Page\1/'
 	'/^PAGEFLAG(\([[:alnum:]_]*\).*/SetPage\1/'
 	'/^PAGEFLAG(\([[:alnum:]_]*\).*/ClearPage\1/'

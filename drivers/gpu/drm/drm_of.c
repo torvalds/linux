@@ -149,3 +149,37 @@ int drm_of_component_probe(struct device *dev,
 	return component_master_add_with_match(dev, m_ops, match);
 }
 EXPORT_SYMBOL(drm_of_component_probe);
+
+/*
+ * drm_of_encoder_active_endpoint - return the active encoder endpoint
+ * @node: device tree node containing encoder input ports
+ * @encoder: drm_encoder
+ *
+ * Given an encoder device node and a drm_encoder with a connected crtc,
+ * parse the encoder endpoint connecting to the crtc port.
+ */
+int drm_of_encoder_active_endpoint(struct device_node *node,
+				   struct drm_encoder *encoder,
+				   struct of_endpoint *endpoint)
+{
+	struct device_node *ep;
+	struct drm_crtc *crtc = encoder->crtc;
+	struct device_node *port;
+	int ret;
+
+	if (!node || !crtc)
+		return -EINVAL;
+
+	for_each_endpoint_of_node(node, ep) {
+		port = of_graph_get_remote_port(ep);
+		of_node_put(port);
+		if (port == crtc->port) {
+			ret = of_graph_parse_endpoint(ep, endpoint);
+			of_node_put(ep);
+			return ret;
+		}
+	}
+
+	return -EINVAL;
+}
+EXPORT_SYMBOL_GPL(drm_of_encoder_active_endpoint);

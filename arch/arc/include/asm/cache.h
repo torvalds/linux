@@ -54,6 +54,7 @@ extern char *arc_cache_mumbojumbo(int cpu_id, char *buf, int len);
 extern void read_decode_cache_bcr(void);
 
 extern int ioc_exists;
+extern unsigned long perip_base;
 
 #endif	/* !__ASSEMBLY__ */
 

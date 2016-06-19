@@ -27,7 +27,7 @@ enum jz_gpio_function {
 
 /*
  Usually a driver for a SoC component has to request several gpio pins and
- configure them as funcion pins.
+ configure them as function pins.
  jz_gpio_bulk_request can be used to ease this process.
  Usually one would do something like:
 

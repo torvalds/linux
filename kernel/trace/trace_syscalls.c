@@ -106,6 +106,17 @@ static struct syscall_metadata *syscall_nr_to_meta(int nr)
 	return syscalls_metadata[nr];
 }
 
+const char *get_syscall_name(int syscall)
+{
+	struct syscall_metadata *entry;
+
+	entry = syscall_nr_to_meta(syscall);
+	if (!entry)
+		return NULL;
+
+	return entry->name;
+}
+
 static enum print_line_t
 print_syscall_enter(struct trace_iterator *iter, int flags,
 		    struct trace_event *event)
@@ -186,11 +197,11 @@ print_syscall_exit(struct trace_iterator *iter, int flags,
 
 extern char *__bad_type_size(void);
 
-#define SYSCALL_FIELD(type, name)					\
-	sizeof(type) != sizeof(trace.name) ?				\
+#define SYSCALL_FIELD(type, field, name)				\
+	sizeof(type) != sizeof(trace.field) ?				\
 		__bad_type_size() :					\
-		#type, #name, offsetof(typeof(trace), name),		\
-		sizeof(trace.name), is_signed_type(type)
+		#type, #name, offsetof(typeof(trace), field),		\
+		sizeof(trace.field), is_signed_type(type)
 
 static int __init
 __set_enter_print_fmt(struct syscall_metadata *entry, char *buf, int len)
@@ -261,7 +272,8 @@ static int __init syscall_enter_define_fields(struct trace_event_call *call)
 	int i;
 	int offset = offsetof(typeof(trace), args);
 
-	ret = trace_define_field(call, SYSCALL_FIELD(int, nr), FILTER_OTHER);
+	ret = trace_define_field(call, SYSCALL_FIELD(int, nr, __syscall_nr),
+				 FILTER_OTHER);
 	if (ret)
 		return ret;
 
@@ -281,11 +293,12 @@ static int __init syscall_exit_define_fields(struct trace_event_call *call)
 	struct syscall_trace_exit trace;
 	int ret;
 
-	ret = trace_define_field(call, SYSCALL_FIELD(int, nr), FILTER_OTHER);
+	ret = trace_define_field(call, SYSCALL_FIELD(int, nr, __syscall_nr),
+				 FILTER_OTHER);
 	if (ret)
 		return ret;
 
-	ret = trace_define_field(call, SYSCALL_FIELD(long, ret),
+	ret = trace_define_field(call, SYSCALL_FIELD(long, ret, ret),
 				 FILTER_OTHER);
 
 	return ret;

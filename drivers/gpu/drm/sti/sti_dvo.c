@@ -6,6 +6,7 @@
 
 #include <linux/clk.h>
 #include <linux/component.h>
+#include <linux/debugfs.h>
 #include <linux/module.h>
 #include <linux/of_gpio.h>
 #include <linux/platform_device.h>
@@ -154,6 +155,69 @@ static void dvo_awg_configure(struct sti_dvo *dvo, u32 *awg_ram_code, int nb)
 		writel(0, dvo->regs + DVO_DIGSYNC_INSTR_I + i * 4);
 
 	writel(DVO_AWG_CTRL_EN, dvo->regs + DVO_AWG_DIGSYNC_CTRL);
+}
+
+#define DBGFS_DUMP(reg) seq_printf(s, "\n  %-25s 0x%08X", #reg, \
+				   readl(dvo->regs + reg))
+
+static void dvo_dbg_awg_microcode(struct seq_file *s, void __iomem *reg)
+{
+	unsigned int i;
+
+	seq_puts(s, "\n\n");
+	seq_puts(s, "  DVO AWG microcode:");
+	for (i = 0; i < AWG_MAX_INST; i++) {
+		if (i % 8 == 0)
+			seq_printf(s, "\n  %04X:", i);
+		seq_printf(s, " %04X", readl(reg + i * 4));
+	}
+}
+
+static int dvo_dbg_show(struct seq_file *s, void *data)
+{
+	struct drm_info_node *node = s->private;
+	struct sti_dvo *dvo = (struct sti_dvo *)node->info_ent->data;
+	struct drm_device *dev = node->minor->dev;
+	int ret;
+
+	ret = mutex_lock_interruptible(&dev->struct_mutex);
+	if (ret)
+		return ret;
+
+	seq_printf(s, "DVO: (vaddr = 0x%p)", dvo->regs);
+	DBGFS_DUMP(DVO_AWG_DIGSYNC_CTRL);
+	DBGFS_DUMP(DVO_DOF_CFG);
+	DBGFS_DUMP(DVO_LUT_PROG_LOW);
+	DBGFS_DUMP(DVO_LUT_PROG_MID);
+	DBGFS_DUMP(DVO_LUT_PROG_HIGH);
+	dvo_dbg_awg_microcode(s, dvo->regs + DVO_DIGSYNC_INSTR_I);
+	seq_puts(s, "\n");
+
+	mutex_unlock(&dev->struct_mutex);
+	return 0;
+}
+
+static struct drm_info_list dvo_debugfs_files[] = {
+	{ "dvo", dvo_dbg_show, 0, NULL },
+};
+
+static void dvo_debugfs_exit(struct sti_dvo *dvo, struct drm_minor *minor)
+{
+	drm_debugfs_remove_files(dvo_debugfs_files,
+				 ARRAY_SIZE(dvo_debugfs_files),
+				 minor);
+}
+
+static int dvo_debugfs_init(struct sti_dvo *dvo, struct drm_minor *minor)
+{
+	unsigned int i;
+
+	for (i = 0; i < ARRAY_SIZE(dvo_debugfs_files); i++)
+		dvo_debugfs_files[i].data = dvo;
+
+	return drm_debugfs_create_files(dvo_debugfs_files,
+					ARRAY_SIZE(dvo_debugfs_files),
+					minor->debugfs_root, minor);
 }
 
 static void sti_dvo_disable(struct drm_bridge *bridge)
@@ -345,12 +409,14 @@ sti_dvo_connector_detect(struct drm_connector *connector, bool force)
 
 	DRM_DEBUG_DRIVER("\n");
 
-	if (!dvo->panel)
+	if (!dvo->panel) {
 		dvo->panel = of_drm_find_panel(dvo->panel_node);
+		if (dvo->panel)
+			drm_panel_attach(dvo->panel, connector);
+	}
 
 	if (dvo->panel)
-		if (!drm_panel_attach(dvo->panel, connector))
-			return connector_status_connected;
+		return connector_status_connected;
 
 	return connector_status_disconnected;
 }
@@ -453,6 +519,9 @@ static int sti_dvo_bind(struct device *dev, struct device *master, void *data)
 		goto err_sysfs;
 	}
 
+	if (dvo_debugfs_init(dvo, drm_dev->primary))
+		DRM_ERROR("DVO debugfs setup failed\n");
+
 	return 0;
 
 err_sysfs:
@@ -467,6 +536,9 @@ static void sti_dvo_unbind(struct device *dev,
 			   struct device *master, void *data)
 {
 	struct sti_dvo *dvo = dev_get_drvdata(dev);
+	struct drm_device *drm_dev = data;
+
+	dvo_debugfs_exit(dvo, drm_dev->primary);
 
 	drm_bridge_remove(dvo->bridge);
 }

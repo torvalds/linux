@@ -36,6 +36,7 @@ config INTEGRITY_ASYMMETRIC_KEYS
         select ASYMMETRIC_KEY_TYPE
         select ASYMMETRIC_PUBLIC_KEY_SUBTYPE
         select PUBLIC_KEY_ALGO_RSA
+        select CRYPTO_RSA
         select X509_CERTIFICATE_PARSER
 	help
 	  This option enables digital signature verification using
@@ -45,7 +46,6 @@ config INTEGRITY_TRUSTED_KEYRING
 	bool "Require all keys on the integrity keyrings be signed"
 	depends on SYSTEM_TRUSTED_KEYRING
 	depends on INTEGRITY_ASYMMETRIC_KEYS
-	select KEYS_DEBUG_PROC_KEYS
 	default y
 	help
 	   This option requires that all keys added to the .ima and

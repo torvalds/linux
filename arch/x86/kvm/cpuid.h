@@ -5,6 +5,7 @@
 #include <asm/cpu.h>
 
 int kvm_update_cpuid(struct kvm_vcpu *vcpu);
+bool kvm_mpx_supported(void);
 struct kvm_cpuid_entry2 *kvm_find_cpuid_entry(struct kvm_vcpu *vcpu,
 					      u32 function, u32 index);
 int kvm_dev_ioctl_get_cpuid(struct kvm_cpuid2 *cpuid,
@@ -79,6 +80,14 @@ static inline bool guest_cpuid_has_fsgsbase(struct kvm_vcpu *vcpu)
 	return best && (best->ebx & bit(X86_FEATURE_FSGSBASE));
 }
 
+static inline bool guest_cpuid_has_pku(struct kvm_vcpu *vcpu)
+{
+	struct kvm_cpuid_entry2 *best;
+
+	best = kvm_find_cpuid_entry(vcpu, 7, 0);
+	return best && (best->ecx & bit(X86_FEATURE_PKU));
+}
+
 static inline bool guest_cpuid_has_longmode(struct kvm_vcpu *vcpu)
 {
 	struct kvm_cpuid_entry2 *best;
@@ -133,14 +142,6 @@ static inline bool guest_cpuid_has_rtm(struct kvm_vcpu *vcpu)
 
 	best = kvm_find_cpuid_entry(vcpu, 7, 0);
 	return best && (best->ebx & bit(X86_FEATURE_RTM));
-}
-
-static inline bool guest_cpuid_has_mpx(struct kvm_vcpu *vcpu)
-{
-	struct kvm_cpuid_entry2 *best;
-
-	best = kvm_find_cpuid_entry(vcpu, 7, 0);
-	return best && (best->ebx & bit(X86_FEATURE_MPX));
 }
 
 static inline bool guest_cpuid_has_pcommit(struct kvm_vcpu *vcpu)

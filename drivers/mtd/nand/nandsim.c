@@ -1339,7 +1339,7 @@ static void put_pages(struct nandsim *ns)
 	int i;
 
 	for (i = 0; i < ns->held_cnt; i++)
-		page_cache_release(ns->held_pages[i]);
+		put_page(ns->held_pages[i]);
 }
 
 /* Get page cache pages in advance to provide NOFS memory allocation */
@@ -1349,8 +1349,8 @@ static int get_pages(struct nandsim *ns, struct file *file, size_t count, loff_t
 	struct page *page;
 	struct address_space *mapping = file->f_mapping;
 
-	start_index = pos >> PAGE_CACHE_SHIFT;
-	end_index = (pos + count - 1) >> PAGE_CACHE_SHIFT;
+	start_index = pos >> PAGE_SHIFT;
+	end_index = (pos + count - 1) >> PAGE_SHIFT;
 	if (end_index - start_index + 1 > NS_MAX_HELD_PAGES)
 		return -EINVAL;
 	ns->held_cnt = 0;

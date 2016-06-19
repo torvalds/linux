@@ -5485,11 +5485,11 @@ unsigned int ar9003_get_paprd_scale_factor(struct ath_hw *ah,
 			  AR9300_PAPRD_SCALE_1);
 	else {
 		if (chan->channel >= 5700)
-		return MS(le32_to_cpu(eep->modalHeader5G.papdRateMaskHt20),
-			  AR9300_PAPRD_SCALE_1);
+			return MS(le32_to_cpu(eep->modalHeader5G.papdRateMaskHt20),
+				  AR9300_PAPRD_SCALE_1);
 		else if (chan->channel >= 5400)
 			return MS(le32_to_cpu(eep->modalHeader5G.papdRateMaskHt40),
-				   AR9300_PAPRD_SCALE_2);
+				  AR9300_PAPRD_SCALE_2);
 		else
 			return MS(le32_to_cpu(eep->modalHeader5G.papdRateMaskHt40),
 				  AR9300_PAPRD_SCALE_1);

@@ -78,7 +78,7 @@ static int ppc4xx_gpio_get(struct gpio_chip *gc, unsigned int gpio)
 	struct of_mm_gpio_chip *mm_gc = to_of_mm_gpio_chip(gc);
 	struct ppc4xx_gpio __iomem *regs = mm_gc->regs;
 
-	return in_be32(&regs->ir) & GPIO_MASK(gpio);
+	return !!(in_be32(&regs->ir) & GPIO_MASK(gpio));
 }
 
 static inline void

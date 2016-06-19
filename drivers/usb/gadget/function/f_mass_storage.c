@@ -3093,7 +3093,7 @@ static int fsg_bind(struct usb_configuration *c, struct usb_function *f)
 	fsg_ss_bulk_out_comp_desc.bMaxBurst = max_burst;
 
 	ret = usb_assign_descriptors(f, fsg_fs_function, fsg_hs_function,
-			fsg_ss_function);
+			fsg_ss_function, fsg_ss_function);
 	if (ret)
 		goto autoconf_fail;
 
@@ -3484,11 +3484,11 @@ static struct usb_function_instance *fsg_alloc_inst(void)
 
 	opts->lun0.lun = opts->common->luns[0];
 	opts->lun0.lun_id = 0;
-	config_group_init_type_name(&opts->lun0.group, "lun.0", &fsg_lun_type);
-	opts->default_groups[0] = &opts->lun0.group;
-	opts->func_inst.group.default_groups = opts->default_groups;
 
 	config_group_init_type_name(&opts->func_inst.group, "", &fsg_func_type);
+
+	config_group_init_type_name(&opts->lun0.group, "lun.0", &fsg_lun_type);
+	configfs_add_default_group(&opts->lun0.group, &opts->func_inst.group);
 
 	return &opts->func_inst;
 

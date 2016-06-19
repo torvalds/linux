@@ -2,10 +2,9 @@
 # Renesas SH and SH Mobile PINCTRL drivers
 #
 
-if ARCH_SHMOBILE || SUPERH
+if ARCH_RENESAS || SUPERH
 
 config PINCTRL_SH_PFC
-	select GPIO_SH_PFC if ARCH_REQUIRE_GPIOLIB
 	select PINMUX
 	select PINCONF
 	select GENERIC_PINCONF
@@ -13,12 +12,12 @@ config PINCTRL_SH_PFC
 	help
 	  This enables pin control drivers for SH and SH Mobile platforms
 
-config GPIO_SH_PFC
-	bool "SuperH PFC GPIO support"
-	depends on PINCTRL_SH_PFC && GPIOLIB
+config PINCTRL_SH_PFC_GPIO
+	select GPIOLIB
+	select PINCTRL_SH_PFC
+	bool
 	help
-	  This enables support for GPIOs within the SoC's pin function
-	  controller.
+	  This enables pin control and GPIO drivers for SH/SH Mobile platforms
 
 config PINCTRL_PFC_EMEV2
 	def_bool y
@@ -28,12 +27,12 @@ config PINCTRL_PFC_EMEV2
 config PINCTRL_PFC_R8A73A4
 	def_bool y
 	depends on ARCH_R8A73A4
-	select PINCTRL_SH_PFC
+	select PINCTRL_SH_PFC_GPIO
 
 config PINCTRL_PFC_R8A7740
 	def_bool y
 	depends on ARCH_R8A7740
-	select PINCTRL_SH_PFC
+	select PINCTRL_SH_PFC_GPIO
 
 config PINCTRL_PFC_R8A7778
 	def_bool y
@@ -73,79 +72,66 @@ config PINCTRL_PFC_R8A7795
 config PINCTRL_PFC_SH7203
 	def_bool y
 	depends on CPU_SUBTYPE_SH7203
-	depends on GPIOLIB
-	select PINCTRL_SH_PFC
+	select PINCTRL_SH_PFC_GPIO
 
 config PINCTRL_PFC_SH7264
 	def_bool y
 	depends on CPU_SUBTYPE_SH7264
-	depends on GPIOLIB
-	select PINCTRL_SH_PFC
+	select PINCTRL_SH_PFC_GPIO
 
 config PINCTRL_PFC_SH7269
 	def_bool y
 	depends on CPU_SUBTYPE_SH7269
-	depends on GPIOLIB
-	select PINCTRL_SH_PFC
+	select PINCTRL_SH_PFC_GPIO
 
 config PINCTRL_PFC_SH73A0
 	def_bool y
 	depends on ARCH_SH73A0
-	select PINCTRL_SH_PFC
+	select PINCTRL_SH_PFC_GPIO
 	select REGULATOR
 
 config PINCTRL_PFC_SH7720
 	def_bool y
 	depends on CPU_SUBTYPE_SH7720
-	depends on GPIOLIB
-	select PINCTRL_SH_PFC
+	select PINCTRL_SH_PFC_GPIO
 
 config PINCTRL_PFC_SH7722
 	def_bool y
 	depends on CPU_SUBTYPE_SH7722
-	depends on GPIOLIB
-	select PINCTRL_SH_PFC
+	select PINCTRL_SH_PFC_GPIO
 
 config PINCTRL_PFC_SH7723
 	def_bool y
 	depends on CPU_SUBTYPE_SH7723
-	depends on GPIOLIB
-	select PINCTRL_SH_PFC
+	select PINCTRL_SH_PFC_GPIO
 
 config PINCTRL_PFC_SH7724
 	def_bool y
 	depends on CPU_SUBTYPE_SH7724
-	depends on GPIOLIB
-	select PINCTRL_SH_PFC
+	select PINCTRL_SH_PFC_GPIO
 
 config PINCTRL_PFC_SH7734
 	def_bool y
 	depends on CPU_SUBTYPE_SH7734
-	depends on GPIOLIB
-	select PINCTRL_SH_PFC
+	select PINCTRL_SH_PFC_GPIO
 
 config PINCTRL_PFC_SH7757
 	def_bool y
 	depends on CPU_SUBTYPE_SH7757
-	depends on GPIOLIB
-	select PINCTRL_SH_PFC
+	select PINCTRL_SH_PFC_GPIO
 
 config PINCTRL_PFC_SH7785
 	def_bool y
 	depends on CPU_SUBTYPE_SH7785
-	depends on GPIOLIB
-	select PINCTRL_SH_PFC
+	select PINCTRL_SH_PFC_GPIO
 
 config PINCTRL_PFC_SH7786
 	def_bool y
 	depends on CPU_SUBTYPE_SH7786
-	depends on GPIOLIB
-	select PINCTRL_SH_PFC
+	select PINCTRL_SH_PFC_GPIO
 
 config PINCTRL_PFC_SHX3
 	def_bool y
 	depends on CPU_SUBTYPE_SHX3
-	depends on GPIOLIB
-	select PINCTRL_SH_PFC
-
+	select PINCTRL_SH_PFC_GPIO
 endif

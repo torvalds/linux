@@ -140,17 +140,29 @@ static void __init omap_clk_register_apll(struct clk_hw *hw,
 	struct dpll_data *ad = clk_hw->dpll_data;
 	struct clk *clk;
 
-	ad->clk_ref = of_clk_get(node, 0);
-	ad->clk_bypass = of_clk_get(node, 1);
-
-	if (IS_ERR(ad->clk_ref) || IS_ERR(ad->clk_bypass)) {
-		pr_debug("clk-ref or clk-bypass for %s not ready, retry\n",
+	clk = of_clk_get(node, 0);
+	if (IS_ERR(clk)) {
+		pr_debug("clk-ref for %s not ready, retry\n",
 			 node->name);
 		if (!ti_clk_retry_init(node, hw, omap_clk_register_apll))
 			return;
 
 		goto cleanup;
 	}
+
+	ad->clk_ref = __clk_get_hw(clk);
+
+	clk = of_clk_get(node, 1);
+	if (IS_ERR(clk)) {
+		pr_debug("clk-bypass for %s not ready, retry\n",
+			 node->name);
+		if (!ti_clk_retry_init(node, hw, omap_clk_register_apll))
+			return;
+
+		goto cleanup;
+	}
+
+	ad->clk_bypass = __clk_get_hw(clk);
 
 	clk = clk_register(NULL, &clk_hw->hw);
 	if (!IS_ERR(clk)) {

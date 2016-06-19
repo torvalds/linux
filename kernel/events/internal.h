@@ -182,8 +182,6 @@ DEFINE_OUTPUT_COPY(__output_copy_user, arch_perf_out_copy_user)
 /* Callchain handling */
 extern struct perf_callchain_entry *
 perf_callchain(struct perf_event *event, struct pt_regs *regs);
-extern int get_callchain_buffers(void);
-extern void put_callchain_buffers(void);
 
 static inline int get_recursion_context(int *recursion)
 {

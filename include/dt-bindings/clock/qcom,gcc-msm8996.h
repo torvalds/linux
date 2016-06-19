@@ -336,4 +336,15 @@
 #define GCC_MSS_Q6_BCR						99
 #define GCC_QREFS_VBG_CAL_BCR					100
 
+/* Indexes for GDSCs */
+#define AGGRE0_NOC_GDSC			0
+#define HLOS1_VOTE_AGGRE0_NOC_GDSC	1
+#define HLOS1_VOTE_LPASS_ADSP_GDSC	2
+#define HLOS1_VOTE_LPASS_CORE_GDSC	3
+#define USB30_GDSC			4
+#define PCIE0_GDSC			5
+#define PCIE1_GDSC			6
+#define PCIE2_GDSC			7
+#define UFS_GDSC			8
+
 #endif

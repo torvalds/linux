@@ -183,7 +183,6 @@ struct iss_video_fh {
 	struct vb2_queue queue;
 	struct v4l2_format format;
 	struct v4l2_fract timeperframe;
-	struct media_entity_graph graph;
 };
 
 #define to_iss_video_fh(fh)	container_of(fh, struct iss_video_fh, vfh)

@@ -21,6 +21,8 @@
 
 #define VLAN_TAB_MASK     15
 
+static int vlan_net_id;
+
 static int tcf_vlan(struct sk_buff *skb, const struct tc_action *a,
 		    struct tcf_result *res)
 {
@@ -68,13 +70,14 @@ static int tcf_vlan_init(struct net *net, struct nlattr *nla,
 			 struct nlattr *est, struct tc_action *a,
 			 int ovr, int bind)
 {
+	struct tc_action_net *tn = net_generic(net, vlan_net_id);
 	struct nlattr *tb[TCA_VLAN_MAX + 1];
 	struct tc_vlan *parm;
 	struct tcf_vlan *v;
 	int action;
 	__be16 push_vid = 0;
 	__be16 push_proto = 0;
-	int ret = 0;
+	int ret = 0, exists = 0;
 	int err;
 
 	if (!nla)
@@ -87,15 +90,25 @@ static int tcf_vlan_init(struct net *net, struct nlattr *nla,
 	if (!tb[TCA_VLAN_PARMS])
 		return -EINVAL;
 	parm = nla_data(tb[TCA_VLAN_PARMS]);
+	exists = tcf_hash_check(tn, parm->index, a, bind);
+	if (exists && bind)
+		return 0;
+
 	switch (parm->v_action) {
 	case TCA_VLAN_ACT_POP:
 		break;
 	case TCA_VLAN_ACT_PUSH:
-		if (!tb[TCA_VLAN_PUSH_VLAN_ID])
+		if (!tb[TCA_VLAN_PUSH_VLAN_ID]) {
+			if (exists)
+				tcf_hash_release(a, bind);
 			return -EINVAL;
+		}
 		push_vid = nla_get_u16(tb[TCA_VLAN_PUSH_VLAN_ID]);
-		if (push_vid >= VLAN_VID_MASK)
+		if (push_vid >= VLAN_VID_MASK) {
+			if (exists)
+				tcf_hash_release(a, bind);
 			return -ERANGE;
+		}
 
 		if (tb[TCA_VLAN_PUSH_VLAN_PROTOCOL]) {
 			push_proto = nla_get_be16(tb[TCA_VLAN_PUSH_VLAN_PROTOCOL]);
@@ -111,20 +124,20 @@ static int tcf_vlan_init(struct net *net, struct nlattr *nla,
 		}
 		break;
 	default:
+		if (exists)
+			tcf_hash_release(a, bind);
 		return -EINVAL;
 	}
 	action = parm->v_action;
 
-	if (!tcf_hash_check(parm->index, a, bind)) {
-		ret = tcf_hash_create(parm->index, est, a, sizeof(*v),
-				      bind, false);
+	if (!exists) {
+		ret = tcf_hash_create(tn, parm->index, est, a,
+				      sizeof(*v), bind, false);
 		if (ret)
 			return ret;
 
 		ret = ACT_P_CREATED;
 	} else {
-		if (bind)
-			return 0;
 		tcf_hash_release(a, bind);
 		if (!ovr)
 			return -EEXIST;
@@ -143,7 +156,7 @@ static int tcf_vlan_init(struct net *net, struct nlattr *nla,
 	spin_unlock_bh(&v->tcf_lock);
 
 	if (ret == ACT_P_CREATED)
-		tcf_hash_insert(a);
+		tcf_hash_insert(tn, a);
 	return ret;
 }
 
@@ -181,6 +194,22 @@ nla_put_failure:
 	return -1;
 }
 
+static int tcf_vlan_walker(struct net *net, struct sk_buff *skb,
+			   struct netlink_callback *cb, int type,
+			   struct tc_action *a)
+{
+	struct tc_action_net *tn = net_generic(net, vlan_net_id);
+
+	return tcf_generic_walker(tn, skb, cb, type, a);
+}
+
+static int tcf_vlan_search(struct net *net, struct tc_action *a, u32 index)
+{
+	struct tc_action_net *tn = net_generic(net, vlan_net_id);
+
+	return tcf_hash_search(tn, a, index);
+}
+
 static struct tc_action_ops act_vlan_ops = {
 	.kind		=	"vlan",
 	.type		=	TCA_ACT_VLAN,
@@ -188,16 +217,39 @@ static struct tc_action_ops act_vlan_ops = {
 	.act		=	tcf_vlan,
 	.dump		=	tcf_vlan_dump,
 	.init		=	tcf_vlan_init,
+	.walk		=	tcf_vlan_walker,
+	.lookup		=	tcf_vlan_search,
+};
+
+static __net_init int vlan_init_net(struct net *net)
+{
+	struct tc_action_net *tn = net_generic(net, vlan_net_id);
+
+	return tc_action_net_init(tn, &act_vlan_ops, VLAN_TAB_MASK);
+}
+
+static void __net_exit vlan_exit_net(struct net *net)
+{
+	struct tc_action_net *tn = net_generic(net, vlan_net_id);
+
+	tc_action_net_exit(tn);
+}
+
+static struct pernet_operations vlan_net_ops = {
+	.init = vlan_init_net,
+	.exit = vlan_exit_net,
+	.id   = &vlan_net_id,
+	.size = sizeof(struct tc_action_net),
 };
 
 static int __init vlan_init_module(void)
 {
-	return tcf_register_action(&act_vlan_ops, VLAN_TAB_MASK);
+	return tcf_register_action(&act_vlan_ops, &vlan_net_ops);
 }
 
 static void __exit vlan_cleanup_module(void)
 {
-	tcf_unregister_action(&act_vlan_ops);
+	tcf_unregister_action(&act_vlan_ops, &vlan_net_ops);
 }
 
 module_init(vlan_init_module);

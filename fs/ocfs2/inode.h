@@ -43,9 +43,6 @@ struct ocfs2_inode_info
 	/* protects extended attribute changes on this inode */
 	struct rw_semaphore		ip_xattr_sem;
 
-	/* Number of outstanding AIO's which are not page aligned */
-	struct mutex			ip_unaligned_aio;
-
 	/* These fields are protected by ip_lock */
 	spinlock_t			ip_lock;
 	u32				ip_open_count;
@@ -56,6 +53,9 @@ struct ocfs2_inode_info
 	struct mutex			ip_io_mutex;
 	u32				ip_flags; /* see below */
 	u32				ip_attr; /* inode attributes */
+
+	/* Record unwritten extents during direct io. */
+	struct list_head		ip_unwritten_list;
 
 	/* protected by recovery_lock. */
 	struct inode			*ip_next_orphan;
@@ -139,6 +139,9 @@ int ocfs2_drop_inode(struct inode *inode);
 /* Flags for ocfs2_iget() */
 #define OCFS2_FI_FLAG_SYSFILE		0x1
 #define OCFS2_FI_FLAG_ORPHAN_RECOVERY	0x2
+#define OCFS2_FI_FLAG_FILECHECK_CHK	0x4
+#define OCFS2_FI_FLAG_FILECHECK_FIX	0x8
+
 struct inode *ocfs2_ilookup(struct super_block *sb, u64 feoff);
 struct inode *ocfs2_iget(struct ocfs2_super *osb, u64 feoff, unsigned flags,
 			 int sysfile_type);

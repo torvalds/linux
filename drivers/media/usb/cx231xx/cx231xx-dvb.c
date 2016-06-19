@@ -25,6 +25,7 @@
 
 #include <media/v4l2-common.h>
 #include <media/videobuf-vmalloc.h>
+#include <media/tuner.h>
 
 #include "xc5000.h"
 #include "s5h1432.h"
@@ -551,7 +552,8 @@ static int register_dvb(struct cx231xx_dvb *dvb,
 
 	/* register network adapter */
 	dvb_net_init(&dvb->adapter, &dvb->net, &dvb->demux.dmx);
-	result = dvb_create_media_graph(&dvb->adapter, false);
+	result = dvb_create_media_graph(&dvb->adapter,
+					dev->tuner_type == TUNER_ABSENT);
 	if (result < 0)
 		goto fail_create_graph;
 
@@ -801,6 +803,9 @@ static int dvb_init(struct cx231xx *dev)
 		/* attach tuner */
 		memset(&si2157_config, 0, sizeof(si2157_config));
 		si2157_config.fe = dev->dvb->frontend;
+#ifdef CONFIG_MEDIA_CONTROLLER_DVB
+		si2157_config.mdev = dev->media_dev;
+#endif
 		si2157_config.if_port = 1;
 		si2157_config.inversion = true;
 		strlcpy(info.type, "si2157", I2C_NAME_SIZE);
@@ -857,6 +862,9 @@ static int dvb_init(struct cx231xx *dev)
 		/* attach tuner */
 		memset(&si2157_config, 0, sizeof(si2157_config));
 		si2157_config.fe = dev->dvb->frontend;
+#ifdef CONFIG_MEDIA_CONTROLLER_DVB
+		si2157_config.mdev = dev->media_dev;
+#endif
 		si2157_config.if_port = 1;
 		si2157_config.inversion = true;
 		strlcpy(info.type, "si2157", I2C_NAME_SIZE);

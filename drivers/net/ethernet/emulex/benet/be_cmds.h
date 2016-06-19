@@ -68,7 +68,8 @@ enum mcc_addl_status {
 	MCC_ADDL_STATUS_TOO_MANY_INTERFACES = 0x4a,
 	MCC_ADDL_STATUS_INSUFFICIENT_VLANS = 0xab,
 	MCC_ADDL_STATUS_INVALID_SIGNATURE = 0x56,
-	MCC_ADDL_STATUS_MISSING_SIGNATURE = 0x57
+	MCC_ADDL_STATUS_MISSING_SIGNATURE = 0x57,
+	MCC_ADDL_STATUS_INSUFFICIENT_PRIVILEGES = 0x60
 };
 
 #define CQE_BASE_STATUS_MASK		0xFFFF
@@ -175,10 +176,53 @@ struct be_async_event_qnq {
 	u32 flags;
 } __packed;
 
-#define INCOMPATIBLE_SFP		0x3
+enum {
+	BE_PHY_FUNCTIONAL	= 0,
+	BE_PHY_NOT_PRESENT	= 1,
+	BE_PHY_DIFF_MEDIA	= 2,
+	BE_PHY_INCOMPATIBLE	= 3,
+	BE_PHY_UNQUALIFIED	= 4,
+	BE_PHY_UNCERTIFIED	= 5
+};
+
+#define PHY_STATE_MSG_SEVERITY		0x6
+#define PHY_STATE_OPER			0x1
+#define PHY_STATE_INFO_VALID		0x80
+#define	PHY_STATE_OPER_MSG_NONE		0x2
+#define DEFAULT_MSG_SEVERITY		0x1
+
+#define be_phy_state_unknown(phy_state) (phy_state > BE_PHY_UNCERTIFIED)
+#define be_phy_unqualified(phy_state)				\
+			(phy_state == BE_PHY_UNQUALIFIED ||	\
+			 phy_state == BE_PHY_UNCERTIFIED)
+#define be_phy_misconfigured(phy_state)				\
+			(phy_state == BE_PHY_INCOMPATIBLE ||	\
+			 phy_state == BE_PHY_UNQUALIFIED ||	\
+			 phy_state == BE_PHY_UNCERTIFIED)
+
+extern  char *be_misconfig_evt_port_state[];
+
 /* async event indicating misconfigured port */
 struct be_async_event_misconfig_port {
+ /* DATA_WORD1:
+  * phy state of port 0: bits 7 - 0
+  * phy state of port 1: bits 15 - 8
+  * phy state of port 2: bits 23 - 16
+  * phy state of port 3: bits 31 - 24
+  */
 	u32 event_data_word1;
+ /* DATA_WORD2:
+  * phy state info of port 0: bits 7 - 0
+  * phy state info of port 1: bits 15 - 8
+  * phy state info of port 2: bits 23 - 16
+  * phy state info of port 3: bits 31 - 24
+  *
+  * PHY STATE INFO:
+  * Link operability	 :bit 0
+  * Message severity	 :bit 2 - 1
+  * Rsvd			 :bits 6 - 3
+  * phy state info valid	 :bit 7
+  */
 	u32 event_data_word2;
 	u32 rsvd0;
 	u32 flags;

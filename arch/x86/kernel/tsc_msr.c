@@ -92,7 +92,7 @@ unsigned long try_msr_calibrate_tsc(void)
 
 	if (freq_desc_tables[cpu_index].msr_plat) {
 		rdmsr(MSR_PLATFORM_INFO, lo, hi);
-		ratio = (lo >> 8) & 0x1f;
+		ratio = (lo >> 8) & 0xff;
 	} else {
 		rdmsr(MSR_IA32_PERF_STATUS, lo, hi);
 		ratio = (hi >> 8) & 0x1f;

@@ -93,11 +93,13 @@ struct intel_ring_hangcheck {
 	int score;
 	enum intel_ring_hangcheck_action action;
 	int deadlock;
+	u32 instdone[I915_NUM_INSTDONE_REG];
 };
 
 struct intel_ringbuffer {
 	struct drm_i915_gem_object *obj;
 	void __iomem *virtual_start;
+	struct i915_vma *vma;
 
 	struct intel_engine_cs *ring;
 	struct list_head link;
@@ -147,14 +149,16 @@ struct  i915_ctx_workarounds {
 struct  intel_engine_cs {
 	const char	*name;
 	enum intel_ring_id {
-		RCS = 0x0,
-		VCS,
+		RCS = 0,
 		BCS,
-		VECS,
-		VCS2
+		VCS,
+		VCS2,	/* Keep instances of the same type engine together. */
+		VECS
 	} id;
 #define I915_NUM_RINGS 5
-#define LAST_USER_RING (VECS + 1)
+#define _VCS(n) (VCS + (n))
+	unsigned int exec_id;
+	unsigned int guc_id;
 	u32		mmio_base;
 	struct		drm_device *dev;
 	struct intel_ringbuffer *buffer;
@@ -268,6 +272,8 @@ struct  intel_engine_cs {
 	struct list_head execlist_queue;
 	struct list_head execlist_retired_req_list;
 	u8 next_context_status_buffer;
+	bool disable_lite_restore_wa;
+	u32 ctx_desc_template;
 	u32             irq_keep_mask; /* bitmask for interrupts that should not be masked */
 	int		(*emit_request)(struct drm_i915_gem_request *request);
 	int		(*emit_flush)(struct drm_i915_gem_request *request,
@@ -305,7 +311,6 @@ struct  intel_engine_cs {
 
 	wait_queue_head_t irq_queue;
 
-	struct intel_context *default_context;
 	struct intel_context *last_context;
 
 	struct intel_ring_hangcheck hangcheck;
@@ -406,7 +411,7 @@ intel_write_status_page(struct intel_engine_cs *ring,
 	ring->status_page.page_addr[reg] = value;
 }
 
-/**
+/*
  * Reads a dword out of the status page, which is written to from the command
  * queue by automatic updates, MI_REPORT_HEAD, MI_STORE_DATA_INDEX, or
  * MI_STORE_DATA_IMM.
@@ -423,6 +428,7 @@ intel_write_status_page(struct intel_engine_cs *ring,
  * The area from dword 0x30 to 0x3ff is available for driver usage.
  */
 #define I915_GEM_HWS_INDEX		0x30
+#define I915_GEM_HWS_INDEX_ADDR (I915_GEM_HWS_INDEX << MI_STORE_DWORD_INDEX_SHIFT)
 #define I915_GEM_HWS_SCRATCH_INDEX	0x40
 #define I915_GEM_HWS_SCRATCH_ADDR (I915_GEM_HWS_SCRATCH_INDEX << MI_STORE_DWORD_INDEX_SHIFT)
 

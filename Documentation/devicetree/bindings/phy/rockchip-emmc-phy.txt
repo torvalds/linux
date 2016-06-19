@@ -1,0 +1,25 @@
+Rockchip EMMC PHY
+-----------------------
+
+Required properties:
+ - compatible: rockchip,rk3399-emmc-phy
+ - #phy-cells: must be 0
+ - reg: PHY register address offset and length in "general
+   register files"
+
+Example:
+
+
+grf: syscon@ff770000 {
+	compatible = "rockchip,rk3399-grf", "syscon", "simple-mfd";
+	#address-cells = <1>;
+	#size-cells = <1>;
+
+...
+
+	emmcphy: phy@f780 {
+		compatible = "rockchip,rk3399-emmc-phy";
+		reg = <0xf780 0x20>;
+		#phy-cells = <0>;
+	};
+};

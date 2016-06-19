@@ -12,7 +12,6 @@
 #include <linux/dmi.h>
 #include <linux/slab.h>
 
-#include <asm-generic/pci-bridge.h>
 #include <asm/acpi.h>
 #include <asm/segment.h>
 #include <asm/io.h>

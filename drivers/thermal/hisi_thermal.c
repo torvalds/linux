@@ -68,12 +68,12 @@ static inline int _step_to_temp(int step)
 	 * Every step equals (1 * 200) / 255 celsius, and finally
 	 * need convert to millicelsius.
 	 */
-	return (HISI_TEMP_BASE + (step * 200 / 255)) * 1000;
+	return (HISI_TEMP_BASE * 1000 + (step * 200000 / 255));
 }
 
 static inline long _temp_to_step(long temp)
 {
-	return ((temp / 1000 - HISI_TEMP_BASE) * 255 / 200);
+	return ((temp - HISI_TEMP_BASE * 1000) * 255) / 200000;
 }
 
 static long hisi_thermal_get_sensor_temp(struct hisi_thermal_data *data,

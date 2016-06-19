@@ -34,7 +34,10 @@ name as necessary to disambiguate it from others is necessary.  Note that option
 \fB--debug\fP displays additional system configuration information.  Invoking this parameter
 more than once may also enable internal turbostat debug information.
 .PP
-\fB--interval seconds\fP overrides the default 5-second measurement interval.
+\fB--interval seconds\fP overrides the default 5.0 second measurement interval.
+.PP
+\fB--out output_file\fP turbostat output is written to the specified output_file.
+The file is truncated if it already exists, and it is created if it does not exist.
 .PP
 \fB--help\fP displays usage for the most common parameters.
 .PP
@@ -61,7 +64,7 @@ displays the statistics gathered since it was forked.
 .nf
 \fBCPU\fP Linux CPU (logical processor) number.  Yes, it is okay that on many systems the CPUs are not listed in numerical order -- for efficiency reasons, turbostat runs in topology order, so HT siblings appear together.
 \fBAVG_MHz\fP number of cycles executed divided by time elapsed.
-\fB%Busy\fP percent of the interval that the CPU retired instructions, aka. % of time in "C0" state.
+\fBBusy%\fP percent of the interval that the CPU retired instructions, aka. % of time in "C0" state.
 \fBBzy_MHz\fP average clock rate while the CPU was busy (in "c0" state).
 \fBTSC_MHz\fP average MHz that the TSC ran during the entire interval.
 .fi
@@ -83,13 +86,14 @@ Note that multiple CPUs per core indicate support for Intel(R) Hyper-Threading T
 \fBRAM_%\fP percent of the interval that RAPL throttling was active on DRAM.
 .fi
 .PP
-.SH EXAMPLE
+.SH PERIODIC EXAMPLE
 Without any parameters, turbostat displays statistics ever 5 seconds.
-(override interval with "-i sec" option, or specify a command
-for turbostat to fork).
+Periodic output goes to stdout, by default, unless --out is used to specify an output file.
+The 5-second interval can be changed with th "-i sec" option.
+Or a command may be specified as in "FORK EXAMPLE" below.
 .nf
 [root@hsw]# ./turbostat
-     CPU Avg_MHz   %Busy Bzy_MHz TSC_MHz
+     CPU Avg_MHz   Busy% Bzy_MHz TSC_MHz
        -     488   12.51    3898    3498
        0       0    0.01    3885    3498
        4    3897   99.99    3898    3498
@@ -145,7 +149,7 @@ cpu0: MSR_IA32_THERM_STATUS: 0x88340000 (48 C +/- 1)
 cpu1: MSR_IA32_THERM_STATUS: 0x88440000 (32 C +/- 1)
 cpu2: MSR_IA32_THERM_STATUS: 0x88450000 (31 C +/- 1)
 cpu3: MSR_IA32_THERM_STATUS: 0x88490000 (27 C +/- 1)
-    Core     CPU Avg_MHz   %Busy Bzy_MHz TSC_MHz     SMI  CPU%c1  CPU%c3  CPU%c6  CPU%c7 CoreTmp  PkgTmp PkgWatt CorWatt GFXWatt
+    Core     CPU Avg_MHz   Busy% Bzy_MHz TSC_MHz     SMI  CPU%c1  CPU%c3  CPU%c6  CPU%c7 CoreTmp  PkgTmp PkgWatt CorWatt GFXWatt
        -       -     493   12.64    3898    3498       0   12.64    0.00    0.00   74.72      47      47   21.62   13.74    0.00
        0       0       4    0.11    3894    3498       0   99.89    0.00    0.00    0.00      47      47   21.62   13.74    0.00
        0       4    3897   99.98    3898    3498       0    0.02
@@ -171,14 +175,16 @@ The --debug option adds additional columns to the measurement ouput, including C
 See the field definitions above.
 .SH FORK EXAMPLE
 If turbostat is invoked with a command, it will fork that command
-and output the statistics gathered when the command exits.
+and output the statistics gathered after the command exits.
+In this case, turbostat output goes to stderr, by default.
+Output can instead be saved to a file using the --out option.
 eg. Here a cycle soaker is run on 1 CPU (see %c0) for a few seconds
 until ^C while the other CPUs are mostly idle:
 
 .nf
 root@hsw: turbostat cat /dev/zero > /dev/null
 ^C
-     CPU Avg_MHz   %Busy Bzy_MHz TSC_MHz
+     CPU Avg_MHz   Busy% Bzy_MHz TSC_MHz
        -     482   12.51    3854    3498
        0       0    0.01    1960    3498
        4       0    0.00    2128    3498
@@ -192,12 +198,12 @@ root@hsw: turbostat cat /dev/zero > /dev/null
 
 .fi
 Above the cycle soaker drives cpu5 up its 3.9 GHz turbo limit.
-The first row shows the average MHz and %Busy across all the processors in the system.
+The first row shows the average MHz and Busy% across all the processors in the system.
 
 Note that the Avg_MHz column reflects the total number of cycles executed
-divided by the measurement interval.  If the %Busy column is 100%,
+divided by the measurement interval.  If the Busy% column is 100%,
 then the processor was running at that speed the entire interval.
-The Avg_MHz multiplied by the %Busy results in the Bzy_MHz --
+The Avg_MHz multiplied by the Busy% results in the Bzy_MHz --
 which is the average frequency while the processor was executing --
 not including any non-busy idle time.
 
@@ -233,7 +239,7 @@ in the brand string in /proc/cpuinfo.  On a system where
 the TSC stops in idle, TSC_MHz will drop
 below the processor's base frequency.
 
-%Busy = MPERF_delta/TSC_delta
+Busy% = MPERF_delta/TSC_delta
 
 Bzy_MHz = TSC_delta/APERF_delta/MPERF_delta/measurement_interval
 

@@ -40,9 +40,9 @@ void __flush_dcache_page(phys_addr_t paddr, unsigned long vaddr);
 
 void flush_dcache_page(struct page *page);
 
-void dma_cache_wback_inv(unsigned long start, unsigned long sz);
-void dma_cache_inv(unsigned long start, unsigned long sz);
-void dma_cache_wback(unsigned long start, unsigned long sz);
+void dma_cache_wback_inv(phys_addr_t start, unsigned long sz);
+void dma_cache_inv(phys_addr_t start, unsigned long sz);
+void dma_cache_wback(phys_addr_t start, unsigned long sz);
 
 #define flush_dcache_mmap_lock(mapping)		do { } while (0)
 #define flush_dcache_mmap_unlock(mapping)	do { } while (0)

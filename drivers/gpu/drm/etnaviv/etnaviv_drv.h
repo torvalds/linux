@@ -75,9 +75,6 @@ int etnaviv_ioctl_gem_submit(struct drm_device *dev, void *data,
 int etnaviv_gem_mmap(struct file *filp, struct vm_area_struct *vma);
 int etnaviv_gem_fault(struct vm_area_struct *vma, struct vm_fault *vmf);
 int etnaviv_gem_mmap_offset(struct drm_gem_object *obj, u64 *offset);
-int etnaviv_gem_get_iova(struct etnaviv_gpu *gpu,
-	struct drm_gem_object *obj, u32 *iova);
-void etnaviv_gem_put_iova(struct etnaviv_gpu *gpu, struct drm_gem_object *obj);
 struct sg_table *etnaviv_gem_prime_get_sg_table(struct drm_gem_object *obj);
 void *etnaviv_gem_prime_vmap(struct drm_gem_object *obj);
 void etnaviv_gem_prime_vunmap(struct drm_gem_object *obj, void *vaddr);

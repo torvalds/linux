@@ -257,10 +257,13 @@ struct nicvf_drv_stats {
 	u64 rx_frames_jumbo;
 	u64 rx_drops;
 
+	u64 rcv_buffer_alloc_failures;
+
 	/* Tx */
 	u64 tx_frames_ok;
 	u64 tx_drops;
 	u64 tx_tso;
+	u64 tx_timeout;
 	u64 txq_stop;
 	u64 txq_wake;
 };
@@ -269,45 +272,54 @@ struct nicvf {
 	struct nicvf		*pnicvf;
 	struct net_device	*netdev;
 	struct pci_dev		*pdev;
-	u8			vf_id;
-	u8			node;
-	u8			tns_mode:1;
-	u8			sqs_mode:1;
-	u8			loopback_supported:1;
-	bool			hw_tso;
-	u16			mtu;
+	void __iomem		*reg_base;
 	struct queue_set	*qs;
+	struct nicvf_cq_poll	*napi[8];
+	u8			vf_id;
+	u8			sqs_id;
+	bool                    sqs_mode;
+	bool			hw_tso;
+
+	/* Receive buffer alloc */
+	u32			rb_page_offset;
+	u16			rb_pageref;
+	bool			rb_alloc_fail;
+	bool			rb_work_scheduled;
+	struct page		*rb_page;
+	struct delayed_work	rbdr_work;
+	struct tasklet_struct	rbdr_task;
+
+	/* Secondary Qset */
+	u8			sqs_count;
 #define	MAX_SQS_PER_VF_SINGLE_NODE		5
 #define	MAX_SQS_PER_VF				11
-	u8			sqs_id;
-	u8			sqs_count; /* Secondary Qset count */
 	struct nicvf		*snicvf[MAX_SQS_PER_VF];
+
+	/* Queue count */
 	u8			rx_queues;
 	u8			tx_queues;
 	u8			max_queues;
-	void __iomem		*reg_base;
+
+	u8			node;
+	u8			cpi_alg;
+	u16			mtu;
 	bool			link_up;
 	u8			duplex;
 	u32			speed;
-	struct page		*rb_page;
-	u32			rb_page_offset;
-	bool			rb_alloc_fail;
-	bool			rb_work_scheduled;
-	struct delayed_work	rbdr_work;
-	struct tasklet_struct	rbdr_task;
-	struct tasklet_struct	qs_err_task;
-	struct tasklet_struct	cq_task;
-	struct nicvf_cq_poll	*napi[8];
+	bool			tns_mode;
+	bool			loopback_supported;
 	struct nicvf_rss_info	rss_info;
-	u8			cpi_alg;
+	struct tasklet_struct	qs_err_task;
+	struct work_struct	reset_task;
+
 	/* Interrupt coalescing settings */
 	u32			cq_coalesce_usecs;
-
 	u32			msg_enable;
+
+	/* Stats */
 	struct nicvf_hw_stats   hw_stats;
 	struct nicvf_drv_stats  drv_stats;
 	struct bgx_stats	bgx_stats;
-	struct work_struct	reset_task;
 
 	/* MSI-X  */
 	bool			msix_enabled;
@@ -315,6 +327,7 @@ struct nicvf {
 	struct msix_entry	msix_entries[NIC_VF_MSIX_VECTORS];
 	char			irq_name[NIC_VF_MSIX_VECTORS][20];
 	bool			irq_allocated[NIC_VF_MSIX_VECTORS];
+	cpumask_var_t		affinity_mask[NIC_VF_MSIX_VECTORS];
 
 	/* VF <-> PF mailbox communication */
 	bool			pf_acked;

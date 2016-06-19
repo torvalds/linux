@@ -99,7 +99,7 @@ struct dim2_hdm {
 	struct most_channel_capability capabilities[DMA_CHANNELS];
 	struct most_interface most_iface;
 	char name[16 + sizeof "dim2-"];
-	void *io_base;
+	void __iomem *io_base;
 	unsigned int irq_ahb0;
 	int clk_speed;
 	struct task_struct *netinfo_task;
@@ -138,9 +138,9 @@ bool dim2_sysfs_get_state_cb(void)
  * dimcb_io_read - callback from HAL to read an I/O register
  * @ptr32: register address
  */
-u32 dimcb_io_read(u32 *ptr32)
+u32 dimcb_io_read(u32 __iomem *ptr32)
 {
-	return __raw_readl(ptr32);
+	return readl(ptr32);
 }
 
 /**
@@ -148,9 +148,9 @@ u32 dimcb_io_read(u32 *ptr32)
  * @ptr32: register address
  * @value: value to write
  */
-void dimcb_io_write(u32 *ptr32, u32 value)
+void dimcb_io_write(u32 __iomem *ptr32, u32 value)
 {
-	__raw_writel(value, ptr32);
+	writel(value, ptr32);
 }
 
 /**
@@ -251,7 +251,7 @@ static int try_start_dim_transfer(struct hdm_channel *hdm_ch)
 		return -EAGAIN;
 	}
 
-	mbo = list_entry(head->next, struct mbo, list);
+	mbo = list_first_entry(head, struct mbo, list);
 	buf_size = mbo->buffer_length;
 
 	BUG_ON(mbo->bus_address == 0);
@@ -362,7 +362,7 @@ static void service_done_flag(struct dim2_hdm *dev, int ch_idx)
 			break;
 		}
 
-		mbo = list_entry(head->next, struct mbo, list);
+		mbo = list_first_entry(head, struct mbo, list);
 		list_del(head->next);
 		spin_unlock_irqrestore(&dim_lock, flags);
 
@@ -495,7 +495,7 @@ static void complete_all_mbos(struct list_head *head)
 			break;
 		}
 
-		mbo = list_entry(head->next, struct mbo, list);
+		mbo = list_first_entry(head, struct mbo, list);
 		list_del(head->next);
 		spin_unlock_irqrestore(&dim_lock, flags);
 
@@ -736,7 +736,7 @@ static int dim2_probe(struct platform_device *pdev)
 	int ret, i;
 	struct kobject *kobj;
 
-	dev = kzalloc(sizeof(*dev), GFP_KERNEL);
+	dev = devm_kzalloc(&pdev->dev, sizeof(*dev), GFP_KERNEL);
 	if (!dev)
 		return -ENOMEM;
 
@@ -747,47 +747,31 @@ static int dim2_probe(struct platform_device *pdev)
 	test_dev = dev;
 #else
 	res = platform_get_resource(pdev, IORESOURCE_MEM, 0);
-	if (!res) {
-		pr_err("no memory region defined\n");
-		ret = -ENOENT;
-		goto err_free_dev;
-	}
-
-	if (!request_mem_region(res->start, resource_size(res), pdev->name)) {
-		pr_err("failed to request mem region\n");
-		ret = -EBUSY;
-		goto err_free_dev;
-	}
-
-	dev->io_base = ioremap(res->start, resource_size(res));
-	if (!dev->io_base) {
-		pr_err("failed to ioremap\n");
-		ret = -ENOMEM;
-		goto err_release_mem;
-	}
+	dev->io_base = devm_ioremap_resource(&pdev->dev, res);
+	if (IS_ERR(dev->io_base))
+		return PTR_ERR(dev->io_base);
 
 	ret = platform_get_irq(pdev, 0);
 	if (ret < 0) {
-		pr_err("failed to get irq\n");
-		goto err_unmap_io;
+		dev_err(&pdev->dev, "failed to get irq\n");
+		return -ENODEV;
 	}
 	dev->irq_ahb0 = ret;
 
-	ret = request_irq(dev->irq_ahb0, dim2_ahb_isr, 0, "mlb_ahb0", dev);
+	ret = devm_request_irq(&pdev->dev, dev->irq_ahb0, dim2_ahb_isr, 0,
+			       "mlb_ahb0", dev);
 	if (ret) {
-		pr_err("failed to request IRQ: %d, err: %d\n",
-		       dev->irq_ahb0, ret);
-		goto err_unmap_io;
+		dev_err(&pdev->dev, "failed to request IRQ: %d, err: %d\n",
+			dev->irq_ahb0, ret);
+		return ret;
 	}
 #endif
 	init_waitqueue_head(&dev->netinfo_waitq);
 	dev->deliver_netinfo = 0;
 	dev->netinfo_task = kthread_run(&deliver_netinfo_thread, (void *)dev,
 					"dim2_netinfo");
-	if (IS_ERR(dev->netinfo_task)) {
-		ret = PTR_ERR(dev->netinfo_task);
-		goto err_free_irq;
-	}
+	if (IS_ERR(dev->netinfo_task))
+		return PTR_ERR(dev->netinfo_task);
 
 	for (i = 0; i < DMA_CHANNELS; i++) {
 		struct most_channel_capability *cap = dev->capabilities + i;
@@ -833,7 +817,7 @@ static int dim2_probe(struct platform_device *pdev)
 	kobj = most_register_interface(&dev->most_iface);
 	if (IS_ERR(kobj)) {
 		ret = PTR_ERR(kobj);
-		pr_err("failed to register MOST interface\n");
+		dev_err(&pdev->dev, "failed to register MOST interface\n");
 		goto err_stop_thread;
 	}
 
@@ -843,7 +827,7 @@ static int dim2_probe(struct platform_device *pdev)
 
 	ret = startup_dim(pdev);
 	if (ret) {
-		pr_err("failed to initialize DIM2\n");
+		dev_err(&pdev->dev, "failed to initialize DIM2\n");
 		goto err_destroy_bus;
 	}
 
@@ -855,16 +839,6 @@ err_unreg_iface:
 	most_deregister_interface(&dev->most_iface);
 err_stop_thread:
 	kthread_stop(dev->netinfo_task);
-err_free_irq:
-#if !defined(ENABLE_HDM_TEST)
-	free_irq(dev->irq_ahb0, dev);
-err_unmap_io:
-	iounmap(dev->io_base);
-err_release_mem:
-	release_mem_region(res->start, resource_size(res));
-err_free_dev:
-#endif
-	kfree(dev);
 
 	return ret;
 }
@@ -878,7 +852,6 @@ err_free_dev:
 static int dim2_remove(struct platform_device *pdev)
 {
 	struct dim2_hdm *dev = platform_get_drvdata(pdev);
-	struct resource *res = platform_get_resource(pdev, IORESOURCE_MEM, 0);
 	struct dim2_platform_data *pdata = pdev->dev.platform_data;
 	unsigned long flags;
 
@@ -892,13 +865,6 @@ static int dim2_remove(struct platform_device *pdev)
 	dim2_sysfs_destroy(&dev->bus);
 	most_deregister_interface(&dev->most_iface);
 	kthread_stop(dev->netinfo_task);
-#if !defined(ENABLE_HDM_TEST)
-	free_irq(dev->irq_ahb0, dev);
-	iounmap(dev->io_base);
-	release_mem_region(res->start, resource_size(res));
-#endif
-	kfree(dev);
-	platform_set_drvdata(pdev, NULL);
 
 	/*
 	 * break link to local platform_device_id struct

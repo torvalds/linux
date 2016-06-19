@@ -36,12 +36,14 @@ static struct device_node *__of_find_node_by_full_name(struct device_node *node,
 
 	/* check */
 	if (of_node_cmp(node->full_name, full_name) == 0)
-		return node;
+		return of_node_get(node);
 
 	for_each_child_of_node(node, child) {
 		found = __of_find_node_by_full_name(child, full_name);
-		if (found != NULL)
+		if (found != NULL) {
+			of_node_put(child);
 			return found;
+		}
 	}
 
 	return NULL;
@@ -174,6 +176,7 @@ static int __of_adjust_phandle_ref(struct device_node *node,
 			if (of_prop_cmp(sprop->name, propstr) == 0)
 				break;
 		}
+		of_node_put(refnode);
 
 		if (!sprop) {
 			pr_err("%s: Could not find property '%s'\n",

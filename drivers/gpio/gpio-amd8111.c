@@ -25,6 +25,7 @@
  * License version 2. This program is licensed "as is" without any
  * warranty of any kind, whether express or implied.
  */
+#include <linux/ioport.h>
 #include <linux/module.h>
 #include <linux/kernel.h>
 #include <linux/gpio.h>
@@ -204,7 +205,8 @@ found:
 	gp.pmbase &= 0x0000FF00;
 	if (gp.pmbase == 0)
 		goto out;
-	if (!request_region(gp.pmbase + PMBASE_OFFSET, PMBASE_SIZE, "AMD GPIO")) {
+	if (!devm_request_region(&pdev->dev, gp.pmbase + PMBASE_OFFSET,
+		PMBASE_SIZE, "AMD GPIO")) {
 		dev_err(&pdev->dev, "AMD GPIO region 0x%x already in use!\n",
 			gp.pmbase + PMBASE_OFFSET);
 		err = -EBUSY;
@@ -213,7 +215,6 @@ found:
 	gp.pm = ioport_map(gp.pmbase + PMBASE_OFFSET, PMBASE_SIZE);
 	if (!gp.pm) {
 		dev_err(&pdev->dev, "Couldn't map io port into io memory\n");
-		release_region(gp.pmbase + PMBASE_OFFSET, PMBASE_SIZE);
 		err = -ENOMEM;
 		goto out;
 	}
@@ -228,7 +229,6 @@ found:
 		printk(KERN_ERR "GPIO registering failed (%d)\n",
 		       err);
 		ioport_unmap(gp.pm);
-		release_region(gp.pmbase + PMBASE_OFFSET, PMBASE_SIZE);
 		goto out;
 	}
 out:
@@ -239,7 +239,6 @@ static void __exit amd_gpio_exit(void)
 {
 	gpiochip_remove(&gp.chip);
 	ioport_unmap(gp.pm);
-	release_region(gp.pmbase + PMBASE_OFFSET, PMBASE_SIZE);
 }
 
 module_init(amd_gpio_init);

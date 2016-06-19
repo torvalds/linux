@@ -46,8 +46,6 @@ int imx_drm_set_bus_format_pins(struct drm_encoder *encoder,
 int imx_drm_set_bus_format(struct drm_encoder *encoder,
 		u32 bus_format);
 
-int imx_drm_encoder_get_mux_id(struct device_node *node,
-		struct drm_encoder *encoder);
 int imx_drm_encoder_parse_of(struct drm_device *drm,
 	struct drm_encoder *encoder, struct device_node *np);
 

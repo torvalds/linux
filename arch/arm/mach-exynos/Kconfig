@@ -5,7 +5,7 @@
 #
 # Licensed under GPLv2
 
-# Configuration options for the EXYNOS4
+# Configuration options for the EXYNOS
 
 menuconfig ARCH_EXYNOS
 	bool "Samsung EXYNOS"
@@ -17,6 +17,7 @@ menuconfig ARCH_EXYNOS
 	select ARM_GIC
 	select COMMON_CLK_SAMSUNG
 	select EXYNOS_THERMAL
+	select EXYNOS_PMU
 	select HAVE_ARM_SCU if SMP
 	select HAVE_S3C2410_I2C if I2C
 	select HAVE_S3C2410_WATCHDOG if WATCHDOG
@@ -25,8 +26,10 @@ menuconfig ARCH_EXYNOS
 	select PINCTRL_EXYNOS
 	select PM_GENERIC_DOMAINS if PM
 	select S5P_DEV_MFC
+	select SOC_SAMSUNG
 	select SRAM
 	select THERMAL
+	select THERMAL_OF
 	select MFD_SYSCON
 	select CLKSRC_EXYNOS_MCT
 	select POWER_RESET

@@ -2,15 +2,6 @@
 # Netlink Sockets
 #
 
-config NETLINK_MMAP
-	bool "NETLINK: mmaped IO"
-	---help---
-	  This option enables support for memory mapped netlink IO. This
-	  reduces overhead by avoiding copying data between kernel- and
-	  userspace.
-
-	  If unsure, say N.
-
 config NETLINK_DIAG
 	tristate "NETLINK: socket monitoring interface"
 	default n

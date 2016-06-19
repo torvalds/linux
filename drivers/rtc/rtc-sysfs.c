@@ -218,6 +218,34 @@ wakealarm_store(struct device *dev, struct device_attribute *attr,
 }
 static DEVICE_ATTR_RW(wakealarm);
 
+static ssize_t
+offset_show(struct device *dev, struct device_attribute *attr, char *buf)
+{
+	ssize_t retval;
+	long offset;
+
+	retval = rtc_read_offset(to_rtc_device(dev), &offset);
+	if (retval == 0)
+		retval = sprintf(buf, "%ld\n", offset);
+
+	return retval;
+}
+
+static ssize_t
+offset_store(struct device *dev, struct device_attribute *attr,
+	     const char *buf, size_t n)
+{
+	ssize_t retval;
+	long offset;
+
+	retval = kstrtol(buf, 10, &offset);
+	if (retval == 0)
+		retval = rtc_set_offset(to_rtc_device(dev), offset);
+
+	return (retval < 0) ? retval : n;
+}
+static DEVICE_ATTR_RW(offset);
+
 static struct attribute *rtc_attrs[] = {
 	&dev_attr_name.attr,
 	&dev_attr_date.attr,
@@ -226,6 +254,7 @@ static struct attribute *rtc_attrs[] = {
 	&dev_attr_max_user_freq.attr,
 	&dev_attr_hctosys.attr,
 	&dev_attr_wakealarm.attr,
+	&dev_attr_offset.attr,
 	NULL,
 };
 
@@ -249,9 +278,13 @@ static umode_t rtc_attr_is_visible(struct kobject *kobj,
 	struct rtc_device *rtc = to_rtc_device(dev);
 	umode_t mode = attr->mode;
 
-	if (attr == &dev_attr_wakealarm.attr)
+	if (attr == &dev_attr_wakealarm.attr) {
 		if (!rtc_does_wakealarm(rtc))
 			mode = 0;
+	} else if (attr == &dev_attr_offset.attr) {
+		if (!rtc->ops->set_offset)
+			mode = 0;
+	}
 
 	return mode;
 }

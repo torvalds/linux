@@ -71,6 +71,10 @@ struct exynos_drm_gem *exynos_drm_gem_create(struct drm_device *dev,
 int exynos_drm_gem_create_ioctl(struct drm_device *dev, void *data,
 				struct drm_file *file_priv);
 
+/* get fake-offset of gem object that can be used with mmap. */
+int exynos_drm_gem_map_ioctl(struct drm_device *dev, void *data,
+			     struct drm_file *file_priv);
+
 /*
  * get dma address from gem handle and this function could be used for
  * other drivers such as 2d/3d acceleration drivers.

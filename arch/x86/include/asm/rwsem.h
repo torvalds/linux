@@ -25,7 +25,7 @@
  * This should be totally fair - if anything is waiting, a process that wants a
  * lock will go to the back of the queue. When the currently active lock is
  * released, if there's a writer at the front of the queue, then that and only
- * that will be woken up; if there's a bunch of consequtive readers at the
+ * that will be woken up; if there's a bunch of consecutive readers at the
  * front, then they'll all be woken up, but no other readers will be.
  */
 

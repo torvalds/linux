@@ -360,7 +360,6 @@ static struct adapter *rtw_usb_if1_init(struct dvobj_priv *dvobj,
 
 	padapter->bDriverStopped = true;
 	mutex_init(&padapter->hw_init_mutex);
-	padapter->chip_type = RTL8188E;
 
 	pnetdev = rtw_init_netdev(padapter);
 	if (pnetdev == NULL)
@@ -442,7 +441,7 @@ free_adapter:
 	if (status != _SUCCESS) {
 		if (pnetdev)
 			rtw_free_netdev(pnetdev);
-		else if (padapter)
+		else
 			vfree(padapter);
 		padapter = NULL;
 	}
@@ -474,8 +473,7 @@ static void rtw_usb_if1_deinit(struct adapter *if1)
 	pr_debug("+r871xu_dev_remove, hw_init_completed=%d\n",
 		if1->hw_init_completed);
 	rtw_free_drv_sw(if1);
-	if (pnetdev)
-		rtw_free_netdev(pnetdev);
+	rtw_free_netdev(pnetdev);
 }
 
 static int rtw_drv_init(struct usb_interface *pusb_intf, const struct usb_device_id *pdid)
@@ -483,23 +481,19 @@ static int rtw_drv_init(struct usb_interface *pusb_intf, const struct usb_device
 	struct adapter *if1 = NULL;
 	struct dvobj_priv *dvobj;
 
-	RT_TRACE(_module_hci_intfs_c_, _drv_err_, ("+rtw_drv_init\n"));
-
 	/* Initialize dvobj_priv */
 	dvobj = usb_dvobj_init(pusb_intf);
-	if (dvobj == NULL) {
+	if (!dvobj) {
 		RT_TRACE(_module_hci_intfs_c_, _drv_err_,
 			 ("initialize device object priv Failed!\n"));
 		goto exit;
 	}
 
 	if1 = rtw_usb_if1_init(dvobj, pusb_intf, pdid);
-	if (if1 == NULL) {
+	if (!if1) {
 		pr_debug("rtw_init_primarystruct adapter Failed!\n");
 		goto free_dvobj;
 	}
-
-	RT_TRACE(_module_hci_intfs_c_, _drv_err_, ("-871x_drv - drv_init, success!\n"));
 
 	return 0;
 

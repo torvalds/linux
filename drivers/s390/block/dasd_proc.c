@@ -322,13 +322,12 @@ static ssize_t dasd_stats_proc_write(struct file *file,
 	return user_len;
 out_parse_error:
 	rc = -EINVAL;
-	pr_warning("%s is not a supported value for /proc/dasd/statistics\n",
-		str);
+	pr_warn("%s is not a supported value for /proc/dasd/statistics\n", str);
 out_error:
 	vfree(buffer);
 	return rc;
 #else
-	pr_warning("/proc/dasd/statistics: is not activated in this kernel\n");
+	pr_warn("/proc/dasd/statistics: is not activated in this kernel\n");
 	return user_len;
 #endif				/* CONFIG_DASD_PROFILE */
 }

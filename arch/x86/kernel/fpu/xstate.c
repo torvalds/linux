@@ -5,6 +5,7 @@
  */
 #include <linux/compat.h>
 #include <linux/cpu.h>
+#include <linux/pkeys.h>
 
 #include <asm/fpu/api.h>
 #include <asm/fpu/internal.h>
@@ -13,6 +14,11 @@
 
 #include <asm/tlbflush.h>
 
+/*
+ * Although we spell it out in here, the Processor Trace
+ * xfeature is completely unused.  We use other mechanisms
+ * to save/restore PT state in Linux.
+ */
 static const char *xfeature_names[] =
 {
 	"x87 floating point registers"	,
@@ -23,6 +29,8 @@ static const char *xfeature_names[] =
 	"AVX-512 opmask"		,
 	"AVX-512 Hi256"			,
 	"AVX-512 ZMM_Hi256"		,
+	"Processor Trace (unused)"	,
+	"Protection Keys User registers",
 	"unknown xstate feature"	,
 };
 
@@ -51,8 +59,12 @@ void fpu__xstate_clear_all_cpu_caps(void)
 	setup_clear_cpu_cap(X86_FEATURE_AVX512PF);
 	setup_clear_cpu_cap(X86_FEATURE_AVX512ER);
 	setup_clear_cpu_cap(X86_FEATURE_AVX512CD);
+	setup_clear_cpu_cap(X86_FEATURE_AVX512DQ);
+	setup_clear_cpu_cap(X86_FEATURE_AVX512BW);
+	setup_clear_cpu_cap(X86_FEATURE_AVX512VL);
 	setup_clear_cpu_cap(X86_FEATURE_MPX);
 	setup_clear_cpu_cap(X86_FEATURE_XGETBV1);
+	setup_clear_cpu_cap(X86_FEATURE_PKU);
 }
 
 /*
@@ -231,7 +243,7 @@ static void __init print_xstate_feature(u64 xstate_mask)
 	const char *feature_name;
 
 	if (cpu_has_xfeatures(xstate_mask, &feature_name))
-		pr_info("x86/fpu: Supporting XSAVE feature 0x%02Lx: '%s'\n", xstate_mask, feature_name);
+		pr_info("x86/fpu: Supporting XSAVE feature 0x%03Lx: '%s'\n", xstate_mask, feature_name);
 }
 
 /*
@@ -247,6 +259,7 @@ static void __init print_xstate_features(void)
 	print_xstate_feature(XFEATURE_MASK_OPMASK);
 	print_xstate_feature(XFEATURE_MASK_ZMM_Hi256);
 	print_xstate_feature(XFEATURE_MASK_Hi16_ZMM);
+	print_xstate_feature(XFEATURE_MASK_PKRU);
 }
 
 /*
@@ -463,6 +476,7 @@ static void check_xstate_against_struct(int nr)
 	XCHECK_SZ(sz, nr, XFEATURE_OPMASK,    struct avx_512_opmask_state);
 	XCHECK_SZ(sz, nr, XFEATURE_ZMM_Hi256, struct avx_512_zmm_uppers_state);
 	XCHECK_SZ(sz, nr, XFEATURE_Hi16_ZMM,  struct avx_512_hi16_state);
+	XCHECK_SZ(sz, nr, XFEATURE_PKRU,      struct pkru_state);
 
 	/*
 	 * Make *SURE* to add any feature numbers in below if
@@ -470,7 +484,8 @@ static void check_xstate_against_struct(int nr)
 	 * numbers.
 	 */
 	if ((nr < XFEATURE_YMM) ||
-	    (nr >= XFEATURE_MAX)) {
+	    (nr >= XFEATURE_MAX) ||
+	    (nr == XFEATURE_PT_UNIMPLEMENTED_SO_FAR)) {
 		WARN_ONCE(1, "no structure for xstate: %d\n", nr);
 		XSTATE_WARN_ON(1);
 	}
@@ -668,6 +683,19 @@ void fpu__resume_cpu(void)
 }
 
 /*
+ * Given an xstate feature mask, calculate where in the xsave
+ * buffer the state is.  Callers should ensure that the buffer
+ * is valid.
+ *
+ * Note: does not work for compacted buffers.
+ */
+void *__raw_xsave_addr(struct xregs_state *xsave, int xstate_feature_mask)
+{
+	int feature_nr = fls64(xstate_feature_mask) - 1;
+
+	return (void *)xsave + xstate_comp_offsets[feature_nr];
+}
+/*
  * Given the xsave area and a state inside, this function returns the
  * address of the state.
  *
@@ -687,7 +715,6 @@ void fpu__resume_cpu(void)
  */
 void *get_xsave_addr(struct xregs_state *xsave, int xstate_feature)
 {
-	int feature_nr = fls64(xstate_feature) - 1;
 	/*
 	 * Do we even *have* xsave state?
 	 */
@@ -715,7 +742,7 @@ void *get_xsave_addr(struct xregs_state *xsave, int xstate_feature)
 	if (!(xsave->header.xfeatures & xstate_feature))
 		return NULL;
 
-	return (void *)xsave + xstate_comp_offsets[feature_nr];
+	return __raw_xsave_addr(xsave, xstate_feature);
 }
 EXPORT_SYMBOL_GPL(get_xsave_addr);
 
@@ -749,4 +776,157 @@ const void *get_xsave_field_ptr(int xsave_state)
 	fpu__save(fpu);
 
 	return get_xsave_addr(&fpu->state.xsave, xsave_state);
+}
+
+
+/*
+ * Set xfeatures (aka XSTATE_BV) bit for a feature that we want
+ * to take out of its "init state".  This will ensure that an
+ * XRSTOR actually restores the state.
+ */
+static void fpu__xfeature_set_non_init(struct xregs_state *xsave,
+		int xstate_feature_mask)
+{
+	xsave->header.xfeatures |= xstate_feature_mask;
+}
+
+/*
+ * This function is safe to call whether the FPU is in use or not.
+ *
+ * Note that this only works on the current task.
+ *
+ * Inputs:
+ *	@xsave_state: state which is defined in xsave.h (e.g. XFEATURE_MASK_FP,
+ *	XFEATURE_MASK_SSE, etc...)
+ *	@xsave_state_ptr: a pointer to a copy of the state that you would
+ *	like written in to the current task's FPU xsave state.  This pointer
+ *	must not be located in the current tasks's xsave area.
+ * Output:
+ *	address of the state in the xsave area or NULL if the state
+ *	is not present or is in its 'init state'.
+ */
+static void fpu__xfeature_set_state(int xstate_feature_mask,
+		void *xstate_feature_src, size_t len)
+{
+	struct xregs_state *xsave = &current->thread.fpu.state.xsave;
+	struct fpu *fpu = &current->thread.fpu;
+	void *dst;
+
+	if (!boot_cpu_has(X86_FEATURE_XSAVE)) {
+		WARN_ONCE(1, "%s() attempted with no xsave support", __func__);
+		return;
+	}
+
+	/*
+	 * Tell the FPU code that we need the FPU state to be in
+	 * 'fpu' (not in the registers), and that we need it to
+	 * be stable while we write to it.
+	 */
+	fpu__current_fpstate_write_begin();
+
+	/*
+	 * This method *WILL* *NOT* work for compact-format
+	 * buffers.  If the 'xstate_feature_mask' is unset in
+	 * xcomp_bv then we may need to move other feature state
+	 * "up" in the buffer.
+	 */
+	if (xsave->header.xcomp_bv & xstate_feature_mask) {
+		WARN_ON_ONCE(1);
+		goto out;
+	}
+
+	/* find the location in the xsave buffer of the desired state */
+	dst = __raw_xsave_addr(&fpu->state.xsave, xstate_feature_mask);
+
+	/*
+	 * Make sure that the pointer being passed in did not
+	 * come from the xsave buffer itself.
+	 */
+	WARN_ONCE(xstate_feature_src == dst, "set from xsave buffer itself");
+
+	/* put the caller-provided data in the location */
+	memcpy(dst, xstate_feature_src, len);
+
+	/*
+	 * Mark the xfeature so that the CPU knows there is state
+	 * in the buffer now.
+	 */
+	fpu__xfeature_set_non_init(xsave, xstate_feature_mask);
+out:
+	/*
+	 * We are done writing to the 'fpu'.  Reenable preeption
+	 * and (possibly) move the fpstate back in to the fpregs.
+	 */
+	fpu__current_fpstate_write_end();
+}
+
+#define NR_VALID_PKRU_BITS (CONFIG_NR_PROTECTION_KEYS * 2)
+#define PKRU_VALID_MASK (NR_VALID_PKRU_BITS - 1)
+
+/*
+ * This will go out and modify the XSAVE buffer so that PKRU is
+ * set to a particular state for access to 'pkey'.
+ *
+ * PKRU state does affect kernel access to user memory.  We do
+ * not modfiy PKRU *itself* here, only the XSAVE state that will
+ * be restored in to PKRU when we return back to userspace.
+ */
+int arch_set_user_pkey_access(struct task_struct *tsk, int pkey,
+		unsigned long init_val)
+{
+	struct xregs_state *xsave = &tsk->thread.fpu.state.xsave;
+	struct pkru_state *old_pkru_state;
+	struct pkru_state new_pkru_state;
+	int pkey_shift = (pkey * PKRU_BITS_PER_PKEY);
+	u32 new_pkru_bits = 0;
+
+	/*
+	 * This check implies XSAVE support.  OSPKE only gets
+	 * set if we enable XSAVE and we enable PKU in XCR0.
+	 */
+	if (!boot_cpu_has(X86_FEATURE_OSPKE))
+		return -EINVAL;
+
+	/* Set the bits we need in PKRU  */
+	if (init_val & PKEY_DISABLE_ACCESS)
+		new_pkru_bits |= PKRU_AD_BIT;
+	if (init_val & PKEY_DISABLE_WRITE)
+		new_pkru_bits |= PKRU_WD_BIT;
+
+	/* Shift the bits in to the correct place in PKRU for pkey. */
+	new_pkru_bits <<= pkey_shift;
+
+	/* Locate old copy of the state in the xsave buffer */
+	old_pkru_state = get_xsave_addr(xsave, XFEATURE_MASK_PKRU);
+
+	/*
+	 * When state is not in the buffer, it is in the init
+	 * state, set it manually.  Otherwise, copy out the old
+	 * state.
+	 */
+	if (!old_pkru_state)
+		new_pkru_state.pkru = 0;
+	else
+		new_pkru_state.pkru = old_pkru_state->pkru;
+
+	/* mask off any old bits in place */
+	new_pkru_state.pkru &= ~((PKRU_AD_BIT|PKRU_WD_BIT) << pkey_shift);
+	/* Set the newly-requested bits */
+	new_pkru_state.pkru |= new_pkru_bits;
+
+	/*
+	 * We could theoretically live without zeroing pkru.pad.
+	 * The current XSAVE feature state definition says that
+	 * only bytes 0->3 are used.  But we do not want to
+	 * chance leaking kernel stack out to userspace in case a
+	 * memcpy() of the whole xsave buffer was done.
+	 *
+	 * They're in the same cacheline anyway.
+	 */
+	new_pkru_state.pad = 0;
+
+	fpu__xfeature_set_state(XFEATURE_MASK_PKRU, &new_pkru_state,
+			sizeof(new_pkru_state));
+
+	return 0;
 }

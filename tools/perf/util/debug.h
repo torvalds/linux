@@ -53,5 +53,6 @@ int eprintf_time(int level, int var, u64 t, const char *fmt, ...) __attribute__(
 int veprintf(int level, int var, const char *fmt, va_list args);
 
 int perf_debug_option(const char *str);
+void perf_debug_setup(void);
 
 #endif	/* __PERF_DEBUG_H */

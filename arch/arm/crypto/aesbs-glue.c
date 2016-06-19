@@ -13,6 +13,7 @@
 #include <crypto/ablk_helper.h>
 #include <crypto/algapi.h>
 #include <linux/module.h>
+#include <crypto/xts.h>
 
 #include "aes_glue.h"
 
@@ -89,6 +90,11 @@ static int aesbs_xts_set_key(struct crypto_tfm *tfm, const u8 *in_key,
 {
 	struct aesbs_xts_ctx *ctx = crypto_tfm_ctx(tfm);
 	int bits = key_len * 4;
+	int err;
+
+	err = xts_check_key(tfm, in_key, key_len);
+	if (err)
+		return err;
 
 	if (private_AES_set_encrypt_key(in_key, bits, &ctx->enc.rk)) {
 		tfm->crt_flags |= CRYPTO_TFM_RES_BAD_KEY_LEN;

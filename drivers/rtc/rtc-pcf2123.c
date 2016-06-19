@@ -48,6 +48,7 @@
 
 #define DRV_VERSION "0.6"
 
+/* REGISTERS */
 #define PCF2123_REG_CTRL1	(0x00)	/* Control Register 1 */
 #define PCF2123_REG_CTRL2	(0x01)	/* Control Register 2 */
 #define PCF2123_REG_SC		(0x02)	/* datetime */
@@ -57,10 +58,54 @@
 #define PCF2123_REG_DW		(0x06)
 #define PCF2123_REG_MO		(0x07)
 #define PCF2123_REG_YR		(0x08)
+#define PCF2123_REG_ALRM_MN	(0x09)	/* Alarm Registers */
+#define PCF2123_REG_ALRM_HR	(0x0a)
+#define PCF2123_REG_ALRM_DM	(0x0b)
+#define PCF2123_REG_ALRM_DW	(0x0c)
+#define PCF2123_REG_OFFSET	(0x0d)	/* Clock Rate Offset Register */
+#define PCF2123_REG_TMR_CLKOUT	(0x0e)	/* Timer Registers */
+#define PCF2123_REG_CTDWN_TMR	(0x0f)
 
-#define PCF2123_SUBADDR		(1 << 4)
-#define PCF2123_WRITE		((0 << 7) | PCF2123_SUBADDR)
-#define PCF2123_READ		((1 << 7) | PCF2123_SUBADDR)
+/* PCF2123_REG_CTRL1 BITS */
+#define CTRL1_CLEAR		(0)	/* Clear */
+#define CTRL1_CORR_INT		BIT(1)	/* Correction irq enable */
+#define CTRL1_12_HOUR		BIT(2)	/* 12 hour time */
+#define CTRL1_SW_RESET	(BIT(3) | BIT(4) | BIT(6))	/* Software reset */
+#define CTRL1_STOP		BIT(5)	/* Stop the clock */
+#define CTRL1_EXT_TEST		BIT(7)	/* External clock test mode */
+
+/* PCF2123_REG_CTRL2 BITS */
+#define CTRL2_TIE		BIT(0)	/* Countdown timer irq enable */
+#define CTRL2_AIE		BIT(1)	/* Alarm irq enable */
+#define CTRL2_TF		BIT(2)	/* Countdown timer flag */
+#define CTRL2_AF		BIT(3)	/* Alarm flag */
+#define CTRL2_TI_TP		BIT(4)	/* Irq pin generates pulse */
+#define CTRL2_MSF		BIT(5)	/* Minute or second irq flag */
+#define CTRL2_SI		BIT(6)	/* Second irq enable */
+#define CTRL2_MI		BIT(7)	/* Minute irq enable */
+
+/* PCF2123_REG_SC BITS */
+#define OSC_HAS_STOPPED		BIT(7)	/* Clock has been stopped */
+
+/* PCF2123_REG_ALRM_XX BITS */
+#define ALRM_ENABLE		BIT(7)	/* MN, HR, DM, or DW alarm enable */
+
+/* PCF2123_REG_TMR_CLKOUT BITS */
+#define CD_TMR_4096KHZ		(0)	/* 4096 KHz countdown timer */
+#define CD_TMR_64HZ		(1)	/* 64 Hz countdown timer */
+#define CD_TMR_1HZ		(2)	/* 1 Hz countdown timer */
+#define CD_TMR_60th_HZ		(3)	/* 60th Hz countdown timer */
+#define CD_TMR_TE		BIT(3)	/* Countdown timer enable */
+
+/* PCF2123_REG_OFFSET BITS */
+#define OFFSET_SIGN_BIT		BIT(6)	/* 2's complement sign bit */
+#define OFFSET_COARSE		BIT(7)	/* Coarse mode offset */
+#define OFFSET_STEP		(2170)	/* Offset step in parts per billion */
+
+/* READ/WRITE ADDRESS BITS */
+#define PCF2123_WRITE		BIT(4)
+#define PCF2123_READ		(BIT(4) | BIT(7))
+
 
 static struct spi_driver pcf2123_driver;
 
@@ -84,12 +129,44 @@ static inline void pcf2123_delay_trec(void)
 	ndelay(30);
 }
 
+static int pcf2123_read(struct device *dev, u8 reg, u8 *rxbuf, size_t size)
+{
+	struct spi_device *spi = to_spi_device(dev);
+	int ret;
+
+	reg |= PCF2123_READ;
+	ret = spi_write_then_read(spi, &reg, 1, rxbuf, size);
+	pcf2123_delay_trec();
+
+	return ret;
+}
+
+static int pcf2123_write(struct device *dev, u8 *txbuf, size_t size)
+{
+	struct spi_device *spi = to_spi_device(dev);
+	int ret;
+
+	txbuf[0] |= PCF2123_WRITE;
+	ret = spi_write(spi, txbuf, size);
+	pcf2123_delay_trec();
+
+	return ret;
+}
+
+static int pcf2123_write_reg(struct device *dev, u8 reg, u8 val)
+{
+	u8 txbuf[2];
+
+	txbuf[0] = reg;
+	txbuf[1] = val;
+	return pcf2123_write(dev, txbuf, sizeof(txbuf));
+}
+
 static ssize_t pcf2123_show(struct device *dev, struct device_attribute *attr,
 			    char *buffer)
 {
-	struct spi_device *spi = to_spi_device(dev);
 	struct pcf2123_sysfs_reg *r;
-	u8 txbuf[1], rxbuf[1];
+	u8 rxbuf[1];
 	unsigned long reg;
 	int ret;
 
@@ -99,19 +176,16 @@ static ssize_t pcf2123_show(struct device *dev, struct device_attribute *attr,
 	if (ret)
 		return ret;
 
-	txbuf[0] = PCF2123_READ | reg;
-	ret = spi_write_then_read(spi, txbuf, 1, rxbuf, 1);
+	ret = pcf2123_read(dev, reg, rxbuf, 1);
 	if (ret < 0)
 		return -EIO;
-	pcf2123_delay_trec();
+
 	return sprintf(buffer, "0x%x\n", rxbuf[0]);
 }
 
 static ssize_t pcf2123_store(struct device *dev, struct device_attribute *attr,
 			     const char *buffer, size_t count) {
-	struct spi_device *spi = to_spi_device(dev);
 	struct pcf2123_sysfs_reg *r;
-	u8 txbuf[2];
 	unsigned long reg;
 	unsigned long val;
 
@@ -127,27 +201,78 @@ static ssize_t pcf2123_store(struct device *dev, struct device_attribute *attr,
 	if (ret)
 		return ret;
 
-	txbuf[0] = PCF2123_WRITE | reg;
-	txbuf[1] = val;
-	ret = spi_write(spi, txbuf, sizeof(txbuf));
+	pcf2123_write_reg(dev, reg, val);
 	if (ret < 0)
 		return -EIO;
-	pcf2123_delay_trec();
 	return count;
+}
+
+static int pcf2123_read_offset(struct device *dev, long *offset)
+{
+	int ret;
+	s8 reg;
+
+	ret = pcf2123_read(dev, PCF2123_REG_OFFSET, &reg, 1);
+	if (ret < 0)
+		return ret;
+
+	if (reg & OFFSET_COARSE)
+		reg <<= 1; /* multiply by 2 and sign extend */
+	else
+		reg |= (reg & OFFSET_SIGN_BIT) << 1; /* sign extend only */
+
+	*offset = ((long)reg) * OFFSET_STEP;
+
+	return 0;
+}
+
+/*
+ * The offset register is a 7 bit signed value with a coarse bit in bit 7.
+ * The main difference between the two is normal offset adjusts the first
+ * second of n minutes every other hour, with 61, 62 and 63 being shoved
+ * into the 60th minute.
+ * The coarse adjustment does the same, but every hour.
+ * the two overlap, with every even normal offset value corresponding
+ * to a coarse offset. Based on this algorithm, it seems that despite the
+ * name, coarse offset is a better fit for overlapping values.
+ */
+static int pcf2123_set_offset(struct device *dev, long offset)
+{
+	s8 reg;
+
+	if (offset > OFFSET_STEP * 127)
+		reg = 127;
+	else if (offset < OFFSET_STEP * -128)
+		reg = -128;
+	else
+		reg = (s8)((offset + (OFFSET_STEP >> 1)) / OFFSET_STEP);
+
+	/* choose fine offset only for odd values in the normal range */
+	if (reg & 1 && reg <= 63 && reg >= -64) {
+		/* Normal offset. Clear the coarse bit */
+		reg &= ~OFFSET_COARSE;
+	} else {
+		/* Coarse offset. Divide by 2 and set the coarse bit */
+		reg >>= 1;
+		reg |= OFFSET_COARSE;
+	}
+
+	return pcf2123_write_reg(dev, PCF2123_REG_OFFSET, reg);
 }
 
 static int pcf2123_rtc_read_time(struct device *dev, struct rtc_time *tm)
 {
-	struct spi_device *spi = to_spi_device(dev);
-	u8 txbuf[1], rxbuf[7];
+	u8 rxbuf[7];
 	int ret;
 
-	txbuf[0] = PCF2123_READ | PCF2123_REG_SC;
-	ret = spi_write_then_read(spi, txbuf, sizeof(txbuf),
-			rxbuf, sizeof(rxbuf));
+	ret = pcf2123_read(dev, PCF2123_REG_SC, rxbuf, sizeof(rxbuf));
 	if (ret < 0)
 		return ret;
-	pcf2123_delay_trec();
+
+	if (rxbuf[0] & OSC_HAS_STOPPED) {
+		dev_info(dev, "clock was stopped. Time is not valid\n");
+		return -EINVAL;
+	}
 
 	tm->tm_sec = bcd2bin(rxbuf[0] & 0x7F);
 	tm->tm_min = bcd2bin(rxbuf[1] & 0x7F);
@@ -170,7 +295,6 @@ static int pcf2123_rtc_read_time(struct device *dev, struct rtc_time *tm)
 
 static int pcf2123_rtc_set_time(struct device *dev, struct rtc_time *tm)
 {
-	struct spi_device *spi = to_spi_device(dev);
 	u8 txbuf[8];
 	int ret;
 
@@ -181,15 +305,12 @@ static int pcf2123_rtc_set_time(struct device *dev, struct rtc_time *tm)
 			tm->tm_mday, tm->tm_mon, tm->tm_year, tm->tm_wday);
 
 	/* Stop the counter first */
-	txbuf[0] = PCF2123_WRITE | PCF2123_REG_CTRL1;
-	txbuf[1] = 0x20;
-	ret = spi_write(spi, txbuf, 2);
+	ret = pcf2123_write_reg(dev, PCF2123_REG_CTRL1, CTRL1_STOP);
 	if (ret < 0)
 		return ret;
-	pcf2123_delay_trec();
 
 	/* Set the new time */
-	txbuf[0] = PCF2123_WRITE | PCF2123_REG_SC;
+	txbuf[0] = PCF2123_REG_SC;
 	txbuf[1] = bin2bcd(tm->tm_sec & 0x7F);
 	txbuf[2] = bin2bcd(tm->tm_min & 0x7F);
 	txbuf[3] = bin2bcd(tm->tm_hour & 0x3F);
@@ -198,18 +319,48 @@ static int pcf2123_rtc_set_time(struct device *dev, struct rtc_time *tm)
 	txbuf[6] = bin2bcd((tm->tm_mon + 1) & 0x1F); /* rtc mn 1-12 */
 	txbuf[7] = bin2bcd(tm->tm_year < 100 ? tm->tm_year : tm->tm_year - 100);
 
-	ret = spi_write(spi, txbuf, sizeof(txbuf));
+	ret = pcf2123_write(dev, txbuf, sizeof(txbuf));
 	if (ret < 0)
 		return ret;
-	pcf2123_delay_trec();
 
 	/* Start the counter */
-	txbuf[0] = PCF2123_WRITE | PCF2123_REG_CTRL1;
-	txbuf[1] = 0x00;
-	ret = spi_write(spi, txbuf, 2);
+	ret = pcf2123_write_reg(dev, PCF2123_REG_CTRL1, CTRL1_CLEAR);
 	if (ret < 0)
 		return ret;
-	pcf2123_delay_trec();
+
+	return 0;
+}
+
+static int pcf2123_reset(struct device *dev)
+{
+	int ret;
+	u8  rxbuf[2];
+
+	ret = pcf2123_write_reg(dev, PCF2123_REG_CTRL1, CTRL1_SW_RESET);
+	if (ret < 0)
+		return ret;
+
+	/* Stop the counter */
+	dev_dbg(dev, "stopping RTC\n");
+	ret = pcf2123_write_reg(dev, PCF2123_REG_CTRL1, CTRL1_STOP);
+	if (ret < 0)
+		return ret;
+
+	/* See if the counter was actually stopped */
+	dev_dbg(dev, "checking for presence of RTC\n");
+	ret = pcf2123_read(dev, PCF2123_REG_CTRL1, rxbuf, sizeof(rxbuf));
+	if (ret < 0)
+		return ret;
+
+	dev_dbg(dev, "received data from RTC (0x%02X 0x%02X)\n",
+		rxbuf[0], rxbuf[1]);
+	if (!(rxbuf[0] & CTRL1_STOP))
+		return -ENODEV;
+
+	/* Start the counter */
+	ret = pcf2123_write_reg(dev, PCF2123_REG_CTRL1, CTRL1_CLEAR);
+	if (ret < 0)
+		return ret;
 
 	return 0;
 }
@@ -217,13 +368,16 @@ static int pcf2123_rtc_set_time(struct device *dev, struct rtc_time *tm)
 static const struct rtc_class_ops pcf2123_rtc_ops = {
 	.read_time	= pcf2123_rtc_read_time,
 	.set_time	= pcf2123_rtc_set_time,
+	.read_offset	= pcf2123_read_offset,
+	.set_offset	= pcf2123_set_offset,
+
 };
 
 static int pcf2123_probe(struct spi_device *spi)
 {
 	struct rtc_device *rtc;
+	struct rtc_time tm;
 	struct pcf2123_plat_data *pdata;
-	u8 txbuf[2], rxbuf[2];
 	int ret, i;
 
 	pdata = devm_kzalloc(&spi->dev, sizeof(struct pcf2123_plat_data),
@@ -232,55 +386,18 @@ static int pcf2123_probe(struct spi_device *spi)
 		return -ENOMEM;
 	spi->dev.platform_data = pdata;
 
-	/* Send a software reset command */
-	txbuf[0] = PCF2123_WRITE | PCF2123_REG_CTRL1;
-	txbuf[1] = 0x58;
-	dev_dbg(&spi->dev, "resetting RTC (0x%02X 0x%02X)\n",
-			txbuf[0], txbuf[1]);
-	ret = spi_write(spi, txbuf, 2 * sizeof(u8));
-	if (ret < 0)
-		goto kfree_exit;
-	pcf2123_delay_trec();
-
-	/* Stop the counter */
-	txbuf[0] = PCF2123_WRITE | PCF2123_REG_CTRL1;
-	txbuf[1] = 0x20;
-	dev_dbg(&spi->dev, "stopping RTC (0x%02X 0x%02X)\n",
-			txbuf[0], txbuf[1]);
-	ret = spi_write(spi, txbuf, 2 * sizeof(u8));
-	if (ret < 0)
-		goto kfree_exit;
-	pcf2123_delay_trec();
-
-	/* See if the counter was actually stopped */
-	txbuf[0] = PCF2123_READ | PCF2123_REG_CTRL1;
-	dev_dbg(&spi->dev, "checking for presence of RTC (0x%02X)\n",
-			txbuf[0]);
-	ret = spi_write_then_read(spi, txbuf, 1 * sizeof(u8),
-					rxbuf, 2 * sizeof(u8));
-	dev_dbg(&spi->dev, "received data from RTC (0x%02X 0x%02X)\n",
-			rxbuf[0], rxbuf[1]);
-	if (ret < 0)
-		goto kfree_exit;
-	pcf2123_delay_trec();
-
-	if (!(rxbuf[0] & 0x20)) {
-		dev_err(&spi->dev, "chip not found\n");
-		ret = -ENODEV;
-		goto kfree_exit;
+	ret = pcf2123_rtc_read_time(&spi->dev, &tm);
+	if (ret < 0) {
+		ret = pcf2123_reset(&spi->dev);
+		if (ret < 0) {
+			dev_err(&spi->dev, "chip not found\n");
+			goto kfree_exit;
+		}
 	}
 
 	dev_info(&spi->dev, "chip found, driver version " DRV_VERSION "\n");
 	dev_info(&spi->dev, "spiclk %u KHz.\n",
 			(spi->max_speed_hz + 500) / 1000);
-
-	/* Start the counter */
-	txbuf[0] = PCF2123_WRITE | PCF2123_REG_CTRL1;
-	txbuf[1] = 0x00;
-	ret = spi_write(spi, txbuf, sizeof(txbuf));
-	if (ret < 0)
-		goto kfree_exit;
-	pcf2123_delay_trec();
 
 	/* Finalize the initialization */
 	rtc = devm_rtc_device_register(&spi->dev, pcf2123_driver.driver.name,

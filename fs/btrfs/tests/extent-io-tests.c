@@ -32,8 +32,8 @@ static noinline int process_page_range(struct inode *inode, u64 start, u64 end,
 {
 	int ret;
 	struct page *pages[16];
-	unsigned long index = start >> PAGE_CACHE_SHIFT;
-	unsigned long end_index = end >> PAGE_CACHE_SHIFT;
+	unsigned long index = start >> PAGE_SHIFT;
+	unsigned long end_index = end >> PAGE_SHIFT;
 	unsigned long nr_pages = end_index - index + 1;
 	int i;
 	int count = 0;
@@ -49,9 +49,9 @@ static noinline int process_page_range(struct inode *inode, u64 start, u64 end,
 				count++;
 			if (flags & PROCESS_UNLOCK && PageLocked(pages[i]))
 				unlock_page(pages[i]);
-			page_cache_release(pages[i]);
+			put_page(pages[i]);
 			if (flags & PROCESS_RELEASE)
-				page_cache_release(pages[i]);
+				put_page(pages[i]);
 		}
 		nr_pages -= ret;
 		index += ret;
@@ -93,7 +93,7 @@ static int test_find_delalloc(void)
 	 * everything to make sure our pages don't get evicted and screw up our
 	 * test.
 	 */
-	for (index = 0; index < (total_dirty >> PAGE_CACHE_SHIFT); index++) {
+	for (index = 0; index < (total_dirty >> PAGE_SHIFT); index++) {
 		page = find_or_create_page(inode->i_mapping, index, GFP_KERNEL);
 		if (!page) {
 			test_msg("Failed to allocate test page\n");
@@ -104,7 +104,7 @@ static int test_find_delalloc(void)
 		if (index) {
 			unlock_page(page);
 		} else {
-			page_cache_get(page);
+			get_page(page);
 			locked_page = page;
 		}
 	}
@@ -129,7 +129,7 @@ static int test_find_delalloc(void)
 	}
 	unlock_extent(&tmp, start, end);
 	unlock_page(locked_page);
-	page_cache_release(locked_page);
+	put_page(locked_page);
 
 	/*
 	 * Test this scenario
@@ -139,7 +139,7 @@ static int test_find_delalloc(void)
 	 */
 	test_start = SZ_64M;
 	locked_page = find_lock_page(inode->i_mapping,
-				     test_start >> PAGE_CACHE_SHIFT);
+				     test_start >> PAGE_SHIFT);
 	if (!locked_page) {
 		test_msg("Couldn't find the locked page\n");
 		goto out_bits;
@@ -165,7 +165,7 @@ static int test_find_delalloc(void)
 	}
 	unlock_extent(&tmp, start, end);
 	/* locked_page was unlocked above */
-	page_cache_release(locked_page);
+	put_page(locked_page);
 
 	/*
 	 * Test this scenario
@@ -174,7 +174,7 @@ static int test_find_delalloc(void)
 	 */
 	test_start = max_bytes + 4096;
 	locked_page = find_lock_page(inode->i_mapping, test_start >>
-				     PAGE_CACHE_SHIFT);
+				     PAGE_SHIFT);
 	if (!locked_page) {
 		test_msg("Could'nt find the locked page\n");
 		goto out_bits;
@@ -225,13 +225,13 @@ static int test_find_delalloc(void)
 	 * range we want to find.
 	 */
 	page = find_get_page(inode->i_mapping,
-			     (max_bytes + SZ_1M) >> PAGE_CACHE_SHIFT);
+			     (max_bytes + SZ_1M) >> PAGE_SHIFT);
 	if (!page) {
 		test_msg("Couldn't find our page\n");
 		goto out_bits;
 	}
 	ClearPageDirty(page);
-	page_cache_release(page);
+	put_page(page);
 
 	/* We unlocked it in the previous test */
 	lock_page(locked_page);
@@ -239,7 +239,7 @@ static int test_find_delalloc(void)
 	end = 0;
 	/*
 	 * Currently if we fail to find dirty pages in the delalloc range we
-	 * will adjust max_bytes down to PAGE_CACHE_SIZE and then re-search.  If
+	 * will adjust max_bytes down to PAGE_SIZE and then re-search.  If
 	 * this changes at any point in the future we will need to fix this
 	 * tests expected behavior.
 	 */
@@ -249,9 +249,9 @@ static int test_find_delalloc(void)
 		test_msg("Didn't find our range\n");
 		goto out_bits;
 	}
-	if (start != test_start && end != test_start + PAGE_CACHE_SIZE - 1) {
+	if (start != test_start && end != test_start + PAGE_SIZE - 1) {
 		test_msg("Expected start %Lu end %Lu, got start %Lu end %Lu\n",
-			 test_start, test_start + PAGE_CACHE_SIZE - 1, start,
+			 test_start, test_start + PAGE_SIZE - 1, start,
 			 end);
 		goto out_bits;
 	}
@@ -265,7 +265,7 @@ out_bits:
 	clear_extent_bits(&tmp, 0, total_dirty - 1, (unsigned)-1, GFP_KERNEL);
 out:
 	if (locked_page)
-		page_cache_release(locked_page);
+		put_page(locked_page);
 	process_page_range(inode, 0, total_dirty - 1,
 			   PROCESS_UNLOCK | PROCESS_RELEASE);
 	iput(inode);
@@ -298,9 +298,9 @@ static int __test_eb_bitmaps(unsigned long *bitmap, struct extent_buffer *eb,
 		return -EINVAL;
 	}
 
-	bitmap_set(bitmap, (PAGE_CACHE_SIZE - sizeof(long) / 2) * BITS_PER_BYTE,
+	bitmap_set(bitmap, (PAGE_SIZE - sizeof(long) / 2) * BITS_PER_BYTE,
 		   sizeof(long) * BITS_PER_BYTE);
-	extent_buffer_bitmap_set(eb, PAGE_CACHE_SIZE - sizeof(long) / 2, 0,
+	extent_buffer_bitmap_set(eb, PAGE_SIZE - sizeof(long) / 2, 0,
 				 sizeof(long) * BITS_PER_BYTE);
 	if (memcmp_extent_buffer(eb, bitmap, 0, len) != 0) {
 		test_msg("Setting straddling pages failed\n");
@@ -309,10 +309,10 @@ static int __test_eb_bitmaps(unsigned long *bitmap, struct extent_buffer *eb,
 
 	bitmap_set(bitmap, 0, len * BITS_PER_BYTE);
 	bitmap_clear(bitmap,
-		     (PAGE_CACHE_SIZE - sizeof(long) / 2) * BITS_PER_BYTE,
+		     (PAGE_SIZE - sizeof(long) / 2) * BITS_PER_BYTE,
 		     sizeof(long) * BITS_PER_BYTE);
 	extent_buffer_bitmap_set(eb, 0, 0, len * BITS_PER_BYTE);
-	extent_buffer_bitmap_clear(eb, PAGE_CACHE_SIZE - sizeof(long) / 2, 0,
+	extent_buffer_bitmap_clear(eb, PAGE_SIZE - sizeof(long) / 2, 0,
 				   sizeof(long) * BITS_PER_BYTE);
 	if (memcmp_extent_buffer(eb, bitmap, 0, len) != 0) {
 		test_msg("Clearing straddling pages failed\n");
@@ -353,7 +353,7 @@ static int __test_eb_bitmaps(unsigned long *bitmap, struct extent_buffer *eb,
 
 static int test_eb_bitmaps(void)
 {
-	unsigned long len = PAGE_CACHE_SIZE * 4;
+	unsigned long len = PAGE_SIZE * 4;
 	unsigned long *bitmap;
 	struct extent_buffer *eb;
 	int ret;
@@ -379,7 +379,7 @@ static int test_eb_bitmaps(void)
 
 	/* Do it over again with an extent buffer which isn't page-aligned. */
 	free_extent_buffer(eb);
-	eb = __alloc_dummy_extent_buffer(NULL, PAGE_CACHE_SIZE / 2, len);
+	eb = __alloc_dummy_extent_buffer(NULL, PAGE_SIZE / 2, len);
 	if (!eb) {
 		test_msg("Couldn't allocate test extent buffer\n");
 		kfree(bitmap);

@@ -86,6 +86,12 @@
 				#size-cells = <0>;
 			};
 		};
+
+		bandgap {
+			reg = <0x48002524 0x4>;
+			compatible = "ti,omap36xx-bandgap";
+			#thermal-sensor-cells = <0>;
+		};
 	};
 };
 

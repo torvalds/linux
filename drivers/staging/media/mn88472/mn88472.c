@@ -96,9 +96,9 @@ static int mn88472_set_frontend(struct dvb_frontend *fe)
 	/* Calculate IF registers ( (1<<24)*IF / Xtal ) */
 	tmp =  div_u64(if_frequency * (u64)(1<<24) + (dev->xtal / 2),
 				   dev->xtal);
-	if_val[0] = ((tmp >> 16) & 0xff);
-	if_val[1] = ((tmp >>  8) & 0xff);
-	if_val[2] = ((tmp >>  0) & 0xff);
+	if_val[0] = (tmp >> 16) & 0xff;
+	if_val[1] = (tmp >>  8) & 0xff;
+	if_val[2] = (tmp >>  0) & 0xff;
 
 	ret = regmap_write(dev->regmap[2], 0xfb, 0x13);
 	ret = regmap_write(dev->regmap[2], 0xef, 0x13);
@@ -456,7 +456,7 @@ static int mn88472_probe(struct i2c_client *client,
 	}
 
 	dev = kzalloc(sizeof(*dev), GFP_KERNEL);
-	if (dev == NULL) {
+	if (!dev) {
 		ret = -ENOMEM;
 		goto err;
 	}
@@ -483,7 +483,7 @@ static int mn88472_probe(struct i2c_client *client,
 	 * 0x1a and 0x1c, in order to get own I2C client for each register page.
 	 */
 	dev->client[1] = i2c_new_dummy(client->adapter, 0x1a);
-	if (dev->client[1] == NULL) {
+	if (!dev->client[1]) {
 		ret = -ENODEV;
 		dev_err(&client->dev, "I2C registration failed\n");
 		if (ret)
@@ -497,7 +497,7 @@ static int mn88472_probe(struct i2c_client *client,
 	i2c_set_clientdata(dev->client[1], dev);
 
 	dev->client[2] = i2c_new_dummy(client->adapter, 0x1c);
-	if (dev->client[2] == NULL) {
+	if (!dev->client[2]) {
 		ret = -ENODEV;
 		dev_err(&client->dev, "2nd I2C registration failed\n");
 		if (ret)
