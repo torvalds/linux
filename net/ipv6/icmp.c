@@ -564,8 +564,9 @@ void icmpv6_param_prob(struct sk_buff *skb, u8 code, int pos)
  *  Either an IPv4 header for SIT encap
  *         an IPv4 header + GRE header for GRE encap
  */
-int ip6_err_gen_icmpv6_unreach(struct sk_buff *skb, int nhs)
+int ip6_err_gen_icmpv6_unreach(struct sk_buff *skb, int nhs, int type)
 {
+	struct in6_addr temp_saddr;
 	struct rt6_info *rt;
 	struct sk_buff *skb2;
 
@@ -586,8 +587,13 @@ int ip6_err_gen_icmpv6_unreach(struct sk_buff *skb, int nhs)
 	if (rt && rt->dst.dev)
 		skb2->dev = rt->dst.dev;
 
-	icmpv6_send(skb2, ICMPV6_DEST_UNREACH, ICMPV6_ADDR_UNREACH, 0);
-
+	ipv6_addr_set_v4mapped(ip_hdr(skb)->saddr, &temp_saddr);
+	if (type == ICMP_TIME_EXCEEDED)
+		icmp6_send(skb2, ICMPV6_TIME_EXCEED, ICMPV6_EXC_HOPLIMIT,
+			   0, &temp_saddr);
+	else
+		icmp6_send(skb2, ICMPV6_DEST_UNREACH, ICMPV6_ADDR_UNREACH,
+			   0, &temp_saddr);
 	if (rt)
 		ip6_rt_put(rt);
 

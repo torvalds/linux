@@ -535,11 +535,11 @@ static int ipip6_err(struct sk_buff *skb, u32 info)
 		goto out;
 	}
 
-	if (t->parms.iph.daddr == 0)
+	err = 0;
+	if (!ip6_err_gen_icmpv6_unreach(skb, iph->ihl * 4, type))
 		goto out;
 
-	err = 0;
-	if (!ip6_err_gen_icmpv6_unreach(skb, iph->ihl * 4))
+	if (t->parms.iph.daddr == 0)
 		goto out;
 
 	if (t->parms.iph.ttl == 0 && type == ICMP_TIME_EXCEEDED)
