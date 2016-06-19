@@ -160,17 +160,21 @@ void iwl_free_fw_paging(struct iwl_mvm *mvm)
 		return;
 
 	for (i = 0; i < NUM_OF_FW_PAGING_BLOCKS; i++) {
-		if (!mvm->fw_paging_db[i].fw_paging_block) {
+		struct iwl_fw_paging *paging = &mvm->fw_paging_db[i];
+
+		if (!paging->fw_paging_block) {
 			IWL_DEBUG_FW(mvm,
 				     "Paging: block %d already freed, continue to next page\n",
 				     i);
 
 			continue;
 		}
+		dma_unmap_page(mvm->trans->dev, paging->fw_paging_phys,
+			       paging->fw_paging_size, DMA_BIDIRECTIONAL);
 
-		__free_pages(mvm->fw_paging_db[i].fw_paging_block,
-			     get_order(mvm->fw_paging_db[i].fw_paging_size));
-		mvm->fw_paging_db[i].fw_paging_block = NULL;
+		__free_pages(paging->fw_paging_block,
+			     get_order(paging->fw_paging_size));
+		paging->fw_paging_block = NULL;
 	}
 	kfree(mvm->trans->paging_download_buf);
 	mvm->trans->paging_download_buf = NULL;
