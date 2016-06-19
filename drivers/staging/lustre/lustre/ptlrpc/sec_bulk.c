@@ -269,7 +269,7 @@ static unsigned long enc_pools_shrink_scan(struct shrinker *s,
 static inline
 int npages_to_npools(unsigned long npages)
 {
-	return (int) ((npages + PAGES_PER_POOL - 1) / PAGES_PER_POOL);
+	return (int)((npages + PAGES_PER_POOL - 1) / PAGES_PER_POOL);
 }
 
 /*

@@ -644,7 +644,7 @@ static int logname2fsname(const char *logname, char *buf, int buflen)
 		return -EINVAL;
 	}
 
-	len = min((int) (ptr - logname), buflen - 1);
+	len = min((int)(ptr - logname), buflen - 1);
 
 	memcpy(buf, logname, len);
 	buf[len] = '\0';

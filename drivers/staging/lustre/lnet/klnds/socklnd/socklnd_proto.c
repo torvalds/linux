@@ -503,7 +503,7 @@ ksocknal_send_hello_v1(struct ksock_conn *conn, ksock_hello_msg_t *hello)
 	if (!hello->kshm_nips)
 		goto out;
 
-	for (i = 0; i < (int) hello->kshm_nips; i++)
+	for (i = 0; i < (int)hello->kshm_nips; i++)
 		hello->kshm_ips[i] = __cpu_to_le32(hello->kshm_ips[i]);
 
 	rc = lnet_sock_write(sock, hello->kshm_ips,
@@ -622,7 +622,7 @@ ksocknal_recv_hello_v1(struct ksock_conn *conn, ksock_hello_msg_t *hello,
 		goto out;
 	}
 
-	for (i = 0; i < (int) hello->kshm_nips; i++) {
+	for (i = 0; i < (int)hello->kshm_nips; i++) {
 		hello->kshm_ips[i] = __le32_to_cpu(hello->kshm_ips[i]);
 
 		if (!hello->kshm_ips[i]) {
@@ -690,7 +690,7 @@ ksocknal_recv_hello_v2(struct ksock_conn *conn, ksock_hello_msg_t *hello, int ti
 		return rc;
 	}
 
-	for (i = 0; i < (int) hello->kshm_nips; i++) {
+	for (i = 0; i < (int)hello->kshm_nips; i++) {
 		if (conn->ksnc_flip)
 			__swab32s(&hello->kshm_ips[i]);
 

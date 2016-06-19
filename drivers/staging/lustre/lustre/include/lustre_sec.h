@@ -217,13 +217,13 @@ enum sptlrpc_bulk_service {
 
 #define SPTLRPC_FLVR_DEFAULT	    SPTLRPC_FLVR_NULL
 
-#define SPTLRPC_FLVR_INVALID	    ((__u32) 0xFFFFFFFF)
-#define SPTLRPC_FLVR_ANY		((__u32) 0xFFF00000)
+#define SPTLRPC_FLVR_INVALID	    ((__u32)0xFFFFFFFF)
+#define SPTLRPC_FLVR_ANY		((__u32)0xFFF00000)
 
 /**
  * extract the useful part from wire flavor
  */
-#define WIRE_FLVR(wflvr)		(((__u32) (wflvr)) & 0x000FFFFF)
+#define WIRE_FLVR(wflvr)		(((__u32)(wflvr)) & 0x000FFFFF)
 
 /** @} flavor */
 

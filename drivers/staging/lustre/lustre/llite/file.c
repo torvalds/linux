@@ -1413,7 +1413,7 @@ out_unlock:
 out:
 	return rc;
 out_req_free:
-	ptlrpc_req_finished((struct ptlrpc_request *) oit.d.lustre.it_data);
+	ptlrpc_req_finished((struct ptlrpc_request *)oit.d.lustre.it_data);
 	goto out;
 }
 

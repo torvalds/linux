@@ -56,7 +56,7 @@ static struct ptlrpc_svc_ctx    null_svc_ctx;
 static inline
 void null_encode_sec_part(struct lustre_msg *msg, enum lustre_sec_part sp)
 {
-	msg->lm_secflvr |= (((__u32) sp) & 0xFF) << 24;
+	msg->lm_secflvr |= (((__u32)sp) & 0xFF) << 24;
 }
 
 static inline
@@ -326,7 +326,7 @@ int null_alloc_rs(struct ptlrpc_request *req, int msgsize)
 	rs->rs_svc_ctx = req->rq_svc_ctx;
 	atomic_inc(&req->rq_svc_ctx->sc_refcount);
 
-	rs->rs_repbuf = (struct lustre_msg *) (rs + 1);
+	rs->rs_repbuf = (struct lustre_msg *)(rs + 1);
 	rs->rs_repbuf_len = rs_size - sizeof(*rs);
 	rs->rs_msg = rs->rs_repbuf;
 

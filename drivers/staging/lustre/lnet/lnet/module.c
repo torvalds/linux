@@ -196,7 +196,7 @@ static int __init lnet_init(void)
 		 * Have to schedule a separate thread to avoid deadlocking
 		 * in modload
 		 */
-		(void) kthread_run(lnet_configure, NULL, "lnet_initd");
+		(void)kthread_run(lnet_configure, NULL, "lnet_initd");
 	}
 
 	return 0;

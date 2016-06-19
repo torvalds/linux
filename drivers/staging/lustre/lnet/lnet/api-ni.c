@@ -1673,7 +1673,7 @@ lnet_fill_ni_info(struct lnet_ni *ni, struct lnet_ioctl_config_data *config)
 	if (!ni || !config)
 		return;
 
-	net_config = (struct lnet_ioctl_net_config *) config->cfg_bulk;
+	net_config = (struct lnet_ioctl_net_config *)config->cfg_bulk;
 	if (!net_config)
 		return;
 

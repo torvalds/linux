@@ -475,7 +475,7 @@ ksocknal_add_peer(lnet_ni_t *ni, lnet_process_id_t id, __u32 ipaddr, int port)
 	write_lock_bh(&ksocknal_data.ksnd_global_lock);
 
 	/* always called with a ref on ni, so shutdown can't have started */
-	LASSERT(!((struct ksock_net *) ni->ni_data)->ksnn_shutdown);
+	LASSERT(!((struct ksock_net *)ni->ni_data)->ksnn_shutdown);
 
 	peer2 = ksocknal_find_peer_locked(ni, id);
 	if (peer2) {
@@ -1146,7 +1146,7 @@ ksocknal_create_conn(lnet_ni_t *ni, struct ksock_route *route,
 		write_lock_bh(global_lock);
 
 		/* called with a ref on ni, so shutdown can't have started */
-		LASSERT(!((struct ksock_net *) ni->ni_data)->ksnn_shutdown);
+		LASSERT(!((struct ksock_net *)ni->ni_data)->ksnn_shutdown);
 
 		peer2 = ksocknal_find_peer_locked(ni, peerid);
 		if (!peer2) {

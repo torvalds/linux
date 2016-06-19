@@ -560,7 +560,7 @@ static int vvp_pgcache_show(struct seq_file *f, void *v)
 
 	env = cl_env_get(&refcheck);
 	if (!IS_ERR(env)) {
-		pos = *(loff_t *) v;
+		pos = *(loff_t *)v;
 		vvp_pgcache_id_unpack(pos, &id);
 		sbi = f->private;
 		clob = vvp_pgcache_obj(env, &sbi->ll_cl->cd_lu_dev, &id);

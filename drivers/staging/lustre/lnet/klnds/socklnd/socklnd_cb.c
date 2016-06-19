@@ -126,7 +126,7 @@ ksocknal_send_iov(struct ksock_conn *conn, struct ksock_tx *tx)
 	do {
 		LASSERT(tx->tx_niov > 0);
 
-		if (nob < (int) iov->iov_len) {
+		if (nob < (int)iov->iov_len) {
 			iov->iov_base = (void *)((char *)iov->iov_base + nob);
 			iov->iov_len -= nob;
 			return rc;
@@ -326,7 +326,7 @@ ksocknal_recv_kiov(struct ksock_conn *conn)
 	do {
 		LASSERT(conn->ksnc_rx_nkiov > 0);
 
-		if (nob < (int) kiov->kiov_len) {
+		if (nob < (int)kiov->kiov_len) {
 			kiov->kiov_offset += nob;
 			kiov->kiov_len -= nob;
 			return -EAGAIN;

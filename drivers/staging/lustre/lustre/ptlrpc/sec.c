@@ -1100,7 +1100,7 @@ int sptlrpc_cli_unwrap_early_reply(struct ptlrpc_request *req,
 	early_req->rq_flvr = req->rq_flvr;
 	early_req->rq_repbuf = early_buf;
 	early_req->rq_repbuf_len = early_bufsz;
-	early_req->rq_repdata = (struct lustre_msg *) early_buf;
+	early_req->rq_repdata = (struct lustre_msg *)early_buf;
 	early_req->rq_repdata_len = early_size;
 	early_req->rq_early = 1;
 	early_req->rq_reqmsg = req->rq_reqmsg;
@@ -1552,7 +1552,7 @@ void _sptlrpc_enlarge_msg_inplace(struct lustre_msg *msg,
 	/* move from segment + 1 to end segment */
 	LASSERT(msg->lm_magic == LUSTRE_MSG_MAGIC_V2);
 	oldmsg_size = lustre_msg_size_v2(msg->lm_bufcount, msg->lm_buflens);
-	movesize = oldmsg_size - ((unsigned long) src - (unsigned long) msg);
+	movesize = oldmsg_size - ((unsigned long)src - (unsigned long)msg);
 	LASSERT(movesize >= 0);
 
 	if (movesize)
