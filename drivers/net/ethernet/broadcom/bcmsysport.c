@@ -96,24 +96,6 @@ static inline void tdma_port_write_desc_addr(struct bcm_sysport_priv *priv,
 }
 
 /* Ethtool operations */
-static int bcm_sysport_set_settings(struct net_device *dev,
-				    struct ethtool_cmd *cmd)
-{
-	if (!netif_running(dev))
-		return -EINVAL;
-
-	return phy_ethtool_sset(dev->phydev, cmd);
-}
-
-static int bcm_sysport_get_settings(struct net_device *dev,
-				    struct ethtool_cmd *cmd)
-{
-	if (!netif_running(dev))
-		return -EINVAL;
-
-	return phy_ethtool_gset(dev->phydev, cmd);
-}
-
 static int bcm_sysport_set_rx_csum(struct net_device *dev,
 				   netdev_features_t wanted)
 {
@@ -1711,8 +1693,6 @@ static int bcm_sysport_stop(struct net_device *dev)
 }
 
 static struct ethtool_ops bcm_sysport_ethtool_ops = {
-	.get_settings		= bcm_sysport_get_settings,
-	.set_settings		= bcm_sysport_set_settings,
 	.get_drvinfo		= bcm_sysport_get_drvinfo,
 	.get_msglevel		= bcm_sysport_get_msglvl,
 	.set_msglevel		= bcm_sysport_set_msglvl,
@@ -1724,6 +1704,8 @@ static struct ethtool_ops bcm_sysport_ethtool_ops = {
 	.set_wol		= bcm_sysport_set_wol,
 	.get_coalesce		= bcm_sysport_get_coalesce,
 	.set_coalesce		= bcm_sysport_set_coalesce,
+	.get_link_ksettings     = phy_ethtool_get_link_ksettings,
+	.set_link_ksettings     = phy_ethtool_set_link_ksettings,
 };
 
 static const struct net_device_ops bcm_sysport_netdev_ops = {
