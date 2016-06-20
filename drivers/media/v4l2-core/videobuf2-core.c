@@ -1847,7 +1847,7 @@ static void __vb2_queue_cancel(struct vb2_queue *q)
 	 * Make sure to call buf_finish for any queued buffers. Normally
 	 * that's done in dqbuf, but that's not going to happen when we
 	 * cancel the whole queue. Note: this code belongs here, not in
-	 * __vb2_dqbuf() since in vb2_internal_dqbuf() there is a critical
+	 * __vb2_dqbuf() since in vb2_core_dqbuf() there is a critical
 	 * call to __fill_user_buffer() after buf_finish(). That order can't
 	 * be changed, so we can't move the buf_finish() to __vb2_dqbuf().
 	 */
