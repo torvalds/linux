@@ -18,6 +18,17 @@ struct random_ready_callback {
 };
 
 extern void add_device_randomness(const void *, unsigned int);
+
+#if defined(CONFIG_GCC_PLUGIN_LATENT_ENTROPY) && !defined(__CHECKER__)
+static inline void add_latent_entropy(void)
+{
+	add_device_randomness((const void *)&latent_entropy,
+			      sizeof(latent_entropy));
+}
+#else
+static inline void add_latent_entropy(void) {}
+#endif
+
 extern void add_input_randomness(unsigned int type, unsigned int code,
 				 unsigned int value);
 extern void add_interrupt_randomness(int irq, int irq_flags);
