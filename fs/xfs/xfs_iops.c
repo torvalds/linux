@@ -801,19 +801,34 @@ xfs_setattr_size(
 		return error;
 
 	/*
+	 * Wait for all direct I/O to complete.
+	 */
+	inode_dio_wait(inode);
+
+	/*
 	 * File data changes must be complete before we start the transaction to
 	 * modify the inode.  This needs to be done before joining the inode to
 	 * the transaction because the inode cannot be unlocked once it is a
 	 * part of the transaction.
 	 *
-	 * Start with zeroing any data block beyond EOF that we may expose on
-	 * file extension.
+	 * Start with zeroing any data beyond EOF that we may expose on file
+	 * extension, or zeroing out the rest of the block on a downward
+	 * truncate.
 	 */
 	if (newsize > oldsize) {
 		error = xfs_zero_eof(ip, newsize, oldsize, &did_zeroing);
-		if (error)
-			return error;
+	} else {
+		if (IS_DAX(inode)) {
+			error = dax_truncate_page(inode, newsize,
+					xfs_get_blocks_direct);
+		} else {
+			error = block_truncate_page(inode->i_mapping, newsize,
+					xfs_get_blocks);
+		}
 	}
+
+	if (error)
+		return error;
 
 	/*
 	 * We are going to log the inode size change in this transaction so
@@ -830,9 +845,6 @@ xfs_setattr_size(
 		if (error)
 			return error;
 	}
-
-	/* Now wait for all direct I/O to complete. */
-	inode_dio_wait(inode);
 
 	/*
 	 * We've already locked out new page faults, so now we can safely remove
@@ -851,13 +863,6 @@ xfs_setattr_size(
 	 * to hope that the caller sees ENOMEM and retries the truncate
 	 * operation.
 	 */
-	if (IS_DAX(inode))
-		error = dax_truncate_page(inode, newsize, xfs_get_blocks_direct);
-	else
-		error = block_truncate_page(inode->i_mapping, newsize,
-					    xfs_get_blocks);
-	if (error)
-		return error;
 	truncate_setsize(inode, newsize);
 
 	error = xfs_trans_alloc(mp, &M_RES(mp)->tr_itruncate, 0, 0, 0, &tp);
