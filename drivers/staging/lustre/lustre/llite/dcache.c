@@ -302,6 +302,17 @@ static int ll_revalidate_dentry(struct dentry *dentry,
 {
 	struct inode *dir = d_inode(dentry->d_parent);
 
+	/* If this is intermediate component path lookup and we were able to get
+	 * to this dentry, then its lock has not been revoked and the
+	 * path component is valid.
+	 */
+	if (lookup_flags & LOOKUP_PARENT)
+		return 1;
+
+	/* Symlink - always valid as long as the dentry was found */
+	if (dentry->d_inode && S_ISLNK(dentry->d_inode->i_mode))
+		return 1;
+
 	/*
 	 * if open&create is set, talk to MDS to make sure file is created if
 	 * necessary, because we can't do this in ->open() later since that's
