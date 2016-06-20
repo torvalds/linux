@@ -73,8 +73,15 @@ static void rpf_configure(struct vsp1_entity *entity,
 	u32 pstride;
 	u32 infmt;
 
-	if (!full)
+	if (!full) {
+		vsp1_rpf_write(rpf, dl, VI6_RPF_VRTCOL_SET,
+			       rpf->alpha << VI6_RPF_VRTCOL_SET_LAYA_SHIFT);
+		vsp1_rpf_write(rpf, dl, VI6_RPF_MULT_ALPHA, rpf->mult_alpha |
+			       (rpf->alpha << VI6_RPF_MULT_ALPHA_RATIO_SHIFT));
+
+		vsp1_pipeline_propagate_alpha(pipe, dl, rpf->alpha);
 		return;
+	}
 
 	/* Source size, stride and crop offsets.
 	 *
@@ -171,9 +178,6 @@ static void rpf_configure(struct vsp1_entity *entity,
 		       (fmtinfo->alpha ? VI6_RPF_ALPH_SEL_ASEL_PACKED
 				       : VI6_RPF_ALPH_SEL_ASEL_FIXED));
 
-	vsp1_rpf_write(rpf, dl, VI6_RPF_VRTCOL_SET,
-		       rpf->alpha << VI6_RPF_VRTCOL_SET_LAYA_SHIFT);
-
 	if (entity->vsp1->info->gen == 3) {
 		u32 mult;
 
@@ -191,8 +195,7 @@ static void rpf_configure(struct vsp1_entity *entity,
 			mult = VI6_RPF_MULT_ALPHA_A_MMD_RATIO
 			     | (premultiplied ?
 				VI6_RPF_MULT_ALPHA_P_MMD_RATIO :
-				VI6_RPF_MULT_ALPHA_P_MMD_NONE)
-			     | (rpf->alpha << VI6_RPF_MULT_ALPHA_RATIO_SHIFT);
+				VI6_RPF_MULT_ALPHA_P_MMD_NONE);
 		} else {
 			/* When the input doesn't contain an alpha channel the
 			 * global alpha value is applied in the unpacking unit,
@@ -203,10 +206,8 @@ static void rpf_configure(struct vsp1_entity *entity,
 			     | VI6_RPF_MULT_ALPHA_P_MMD_NONE;
 		}
 
-		vsp1_rpf_write(rpf, dl, VI6_RPF_MULT_ALPHA, mult);
+		rpf->mult_alpha = mult;
 	}
-
-	vsp1_pipeline_propagate_alpha(pipe, dl, rpf->alpha);
 
 	vsp1_rpf_write(rpf, dl, VI6_RPF_MSK_CTRL, 0);
 	vsp1_rpf_write(rpf, dl, VI6_RPF_CKEY_CTRL, 0);
@@ -252,6 +253,8 @@ struct vsp1_rwpf *vsp1_rpf_create(struct vsp1_device *vsp1, unsigned int index)
 			index);
 		goto error;
 	}
+
+	v4l2_ctrl_handler_setup(&rpf->ctrls);
 
 	return rpf;
 

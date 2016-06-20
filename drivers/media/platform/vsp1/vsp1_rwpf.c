@@ -243,8 +243,6 @@ static const struct v4l2_ctrl_ops vsp1_rwpf_ctrl_ops = {
 
 int vsp1_rwpf_init_ctrls(struct vsp1_rwpf *rwpf)
 {
-	rwpf->alpha = 255;
-
 	v4l2_ctrl_handler_init(&rwpf->ctrls, 1);
 	v4l2_ctrl_new_std(&rwpf->ctrls, &vsp1_rwpf_ctrl_ops,
 			  V4L2_CID_ALPHA_COMPONENT, 0, 255, 1, 255);

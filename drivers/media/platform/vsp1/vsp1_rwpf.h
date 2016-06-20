@@ -49,6 +49,9 @@ struct vsp1_rwpf {
 
 	unsigned int alpha;
 
+	u32 mult_alpha;
+	u32 outfmt;
+
 	unsigned int offsets[2];
 	struct vsp1_rwpf_memory mem;
 
