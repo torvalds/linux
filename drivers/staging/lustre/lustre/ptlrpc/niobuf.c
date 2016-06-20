@@ -577,19 +577,18 @@ int ptl_send_rpc(struct ptlrpc_request *request, int noreply)
 	}
 
 	spin_lock(&request->rq_lock);
-	/* If the MD attach succeeds, there _will_ be a reply_in callback */
-	request->rq_receiving_reply = !noreply;
-	request->rq_req_unlink = 1;
 	/* We are responsible for unlinking the reply buffer */
-	request->rq_reply_unlink = !noreply;
+	request->rq_reply_unlinked = noreply;
+	request->rq_receiving_reply = !noreply;
 	/* Clear any flags that may be present from previous sends. */
+	request->rq_req_unlinked = 0;
 	request->rq_replied = 0;
 	request->rq_err = 0;
 	request->rq_timedout = 0;
 	request->rq_net_err = 0;
 	request->rq_resend = 0;
 	request->rq_restart = 0;
-	request->rq_reply_truncate = 0;
+	request->rq_reply_truncated = 0;
 	spin_unlock(&request->rq_lock);
 
 	if (!noreply) {
@@ -604,7 +603,7 @@ int ptl_send_rpc(struct ptlrpc_request *request, int noreply)
 		reply_md.user_ptr = &request->rq_reply_cbid;
 		reply_md.eq_handle = ptlrpc_eq_h;
 
-		/* We must see the unlink callback to unset rq_reply_unlink,
+		/* We must see the unlink callback to set rq_reply_unlinked,
 		 * so we can't auto-unlink
 		 */
 		rc = LNetMDAttach(reply_me_h, reply_md, LNET_RETAIN,
@@ -651,9 +650,10 @@ int ptl_send_rpc(struct ptlrpc_request *request, int noreply)
 			  connection,
 			  request->rq_request_portal,
 			  request->rq_xid, 0);
-	if (rc == 0)
+	if (likely(rc == 0))
 		goto out;
 
+	request->rq_req_unlinked = 1;
 	ptlrpc_req_finished(request);
 	if (noreply)
 		goto out;

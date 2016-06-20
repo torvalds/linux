@@ -1428,7 +1428,7 @@ struct ptlrpc_request {
 	 * rq_list
 	 */
 	spinlock_t rq_lock;
-	/** client-side flags are serialized by rq_lock */
+	/** client-side flags are serialized by rq_lock @{ */
 	unsigned int rq_intr:1, rq_replied:1, rq_err:1,
 		rq_timedout:1, rq_resend:1, rq_restart:1,
 		/**
@@ -1444,18 +1444,15 @@ struct ptlrpc_request {
 		rq_no_resend:1, rq_waiting:1, rq_receiving_reply:1,
 		rq_no_delay:1, rq_net_err:1, rq_wait_ctx:1,
 		rq_early:1,
-		rq_req_unlink:1, rq_reply_unlink:1,
+		rq_req_unlinked:1,	/* unlinked request buffer from lnet */
+		rq_reply_unlinked:1,	/* unlinked reply buffer from lnet */
 		rq_memalloc:1,      /* req originated from "kswapd" */
-		/* server-side flags */
-		rq_packed_final:1,  /* packed final reply */
-		rq_hp:1,	    /* high priority RPC */
-		rq_at_linked:1,     /* link into service's srv_at_array */
-		rq_reply_truncate:1,
 		rq_committed:1,
-		/* whether the "rq_set" is a valid one */
+		rq_reply_truncated:1,
+		/** whether the "rq_set" is a valid one */
 		rq_invalid_rqset:1,
 		rq_generation_set:1,
-		/* do not resend request on -EINPROGRESS */
+		/** do not resend request on -EINPROGRESS */
 		rq_no_retry_einprogress:1,
 		/* allow the req to be sent if the import is in recovery
 		 * status
@@ -1463,6 +1460,14 @@ struct ptlrpc_request {
 		rq_allow_replay:1,
 		/* bulk request, sent to server, but uncommitted */
 		rq_unstable:1;
+	/** @} */
+
+	/** server-side flags @{ */
+	unsigned int
+		rq_hp:1,		/**< high priority RPC */
+		rq_at_linked:1,		/**< link into service's srv_at_array */
+		rq_packed_final:1;	/**< packed final reply */
+	/** @} */
 
 	/** one of RQ_PHASE_* */
 	enum rq_phase			rq_phase;
@@ -2784,8 +2789,8 @@ ptlrpc_client_recv_or_unlink(struct ptlrpc_request *req)
 		spin_unlock(&req->rq_lock);
 		return 1;
 	}
-	rc = req->rq_receiving_reply;
-	rc = rc || req->rq_req_unlink || req->rq_reply_unlink;
+	rc = !req->rq_req_unlinked || !req->rq_reply_unlinked ||
+	     req->rq_receiving_reply;
 	spin_unlock(&req->rq_lock);
 	return rc;
 }
