@@ -615,8 +615,8 @@ static void iwl_mvm_bt_notif_iterator(void *_data, u8 *mac,
 	 * don't reduce the Tx power if one of these is true:
 	 *  we are in LOOSE
 	 *  single share antenna product
-	 *  BT is active
-	 *  we are associated
+	 *  BT is inactive
+	 *  we are not associated
 	 */
 	if (iwl_get_coex_type(mvm, vif) == BT_COEX_LOOSE_LUT ||
 	    mvm->cfg->bt_shared_single_ant || !vif->bss_conf.assoc ||
