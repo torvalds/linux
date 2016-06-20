@@ -557,6 +557,8 @@ void __init of_irq_init(const struct of_device_id *matches)
 			 * its children can get processed in a subsequent pass.
 			 */
 			list_add_tail(&desc->list, &intc_parent_list);
+
+			of_node_set_flag(desc->dev, OF_POPULATED);
 		}
 
 		/* Get the next pending parent that might have children */
