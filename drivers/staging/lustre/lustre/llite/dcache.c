@@ -249,7 +249,7 @@ void ll_invalidate_aliases(struct inode *inode)
 	CDEBUG(D_INODE, "marking dentries for ino "DFID"(%p) invalid\n",
 	       PFID(ll_inode2fid(inode)), inode);
 
-	ll_lock_dcache(inode);
+	spin_lock(&inode->i_lock);
 	hlist_for_each_entry(dentry, &inode->i_dentry, d_u.d_alias) {
 		CDEBUG(D_DENTRY, "dentry in drop %pd (%p) parent %p inode %p flags %d\n",
 		       dentry, dentry, dentry->d_parent,
@@ -257,7 +257,7 @@ void ll_invalidate_aliases(struct inode *inode)
 
 		d_lustre_invalidate(dentry, 0);
 	}
-	ll_unlock_dcache(inode);
+	spin_unlock(&inode->i_lock);
 }
 
 int ll_revalidate_it_finish(struct ptlrpc_request *request,

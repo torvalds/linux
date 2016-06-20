@@ -1229,16 +1229,6 @@ static inline void ll_set_lock_data(struct obd_export *exp, struct inode *inode,
 		*bits = it->d.lustre.it_lock_bits;
 }
 
-static inline void ll_lock_dcache(struct inode *inode)
-{
-	spin_lock(&inode->i_lock);
-}
-
-static inline void ll_unlock_dcache(struct inode *inode)
-{
-	spin_unlock(&inode->i_lock);
-}
-
 static inline int d_lustre_invalid(const struct dentry *dentry)
 {
 	struct ll_dentry_data *lld = ll_d2d(dentry);

@@ -140,7 +140,7 @@ static void ll_invalidate_negative_children(struct inode *dir)
 {
 	struct dentry *dentry, *tmp_subdir;
 
-	ll_lock_dcache(dir);
+	spin_lock(&dir->i_lock);
 	hlist_for_each_entry(dentry, &dir->i_dentry, d_u.d_alias) {
 		spin_lock(&dentry->d_lock);
 		if (!list_empty(&dentry->d_subdirs)) {
@@ -155,7 +155,7 @@ static void ll_invalidate_negative_children(struct inode *dir)
 		}
 		spin_unlock(&dentry->d_lock);
 	}
-	ll_unlock_dcache(dir);
+	spin_unlock(&dir->i_lock);
 }
 
 int ll_md_blocking_ast(struct ldlm_lock *lock, struct ldlm_lock_desc *desc,
@@ -317,7 +317,7 @@ static struct dentry *ll_find_alias(struct inode *inode, struct dentry *dentry)
 	discon_alias = NULL;
 	invalid_alias = NULL;
 
-	ll_lock_dcache(inode);
+	spin_lock(&inode->i_lock);
 	hlist_for_each_entry(alias, &inode->i_dentry, d_u.d_alias) {
 		LASSERT(alias != dentry);
 
@@ -342,7 +342,7 @@ static struct dentry *ll_find_alias(struct inode *inode, struct dentry *dentry)
 		dget_dlock(alias);
 		spin_unlock(&alias->d_lock);
 	}
-	ll_unlock_dcache(inode);
+	spin_unlock(&inode->i_lock);
 
 	return alias;
 }
