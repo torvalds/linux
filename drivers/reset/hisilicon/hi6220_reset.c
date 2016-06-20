@@ -27,7 +27,16 @@
 #define PERIPH_DEASSERT_OFFSET    0x304
 #define PERIPH_MAX_INDEX          0x509
 
+#define SC_MEDIA_RSTEN            0x052C
+#define SC_MEDIA_RSTDIS           0x0530
+#define MEDIA_MAX_INDEX           8
+
 #define to_reset_data(x) container_of(x, struct hi6220_reset_data, rc_dev)
+
+enum hi6220_reset_ctrl_type {
+	PERIPHERAL,
+	MEDIA,
+};
 
 struct hi6220_reset_data {
 	struct reset_controller_dev rc_dev;
@@ -63,16 +72,42 @@ static const struct reset_control_ops hi6220_peripheral_reset_ops = {
 	.deassert = hi6220_peripheral_deassert,
 };
 
+static int hi6220_media_assert(struct reset_controller_dev *rc_dev,
+			       unsigned long idx)
+{
+	struct hi6220_reset_data *data = to_reset_data(rc_dev);
+	struct regmap *regmap = data->regmap;
+
+	return regmap_write(regmap, SC_MEDIA_RSTEN, BIT(idx));
+}
+
+static int hi6220_media_deassert(struct reset_controller_dev *rc_dev,
+				 unsigned long idx)
+{
+	struct hi6220_reset_data *data = to_reset_data(rc_dev);
+	struct regmap *regmap = data->regmap;
+
+	return regmap_write(regmap, SC_MEDIA_RSTDIS, BIT(idx));
+}
+
+static const struct reset_control_ops hi6220_media_reset_ops = {
+	.assert = hi6220_media_assert,
+	.deassert = hi6220_media_deassert,
+};
+
 static int hi6220_reset_probe(struct platform_device *pdev)
 {
 	struct device_node *np = pdev->dev.of_node;
 	struct device *dev = &pdev->dev;
+	enum hi6220_reset_ctrl_type type;
 	struct hi6220_reset_data *data;
 	struct regmap *regmap;
 
 	data = devm_kzalloc(dev, sizeof(*data), GFP_KERNEL);
 	if (!data)
 		return -ENOMEM;
+
+	type = (enum hi6220_reset_ctrl_type)of_device_get_match_data(dev);
 
 	regmap = syscon_node_to_regmap(np);
 	if (IS_ERR(regmap)) {
@@ -82,8 +117,13 @@ static int hi6220_reset_probe(struct platform_device *pdev)
 
 	data->regmap = regmap;
 	data->rc_dev.of_node = np;
-	data->rc_dev.ops = &hi6220_peripheral_reset_ops;
-	data->rc_dev.nr_resets = PERIPH_MAX_INDEX;
+	if (type == MEDIA) {
+		data->rc_dev.ops = &hi6220_media_reset_ops;
+		data->rc_dev.nr_resets = MEDIA_MAX_INDEX;
+	} else {
+		data->rc_dev.ops = &hi6220_peripheral_reset_ops;
+		data->rc_dev.nr_resets = PERIPH_MAX_INDEX;
+	}
 
 	return reset_controller_register(&data->rc_dev);
 }
@@ -91,6 +131,11 @@ static int hi6220_reset_probe(struct platform_device *pdev)
 static const struct of_device_id hi6220_reset_match[] = {
 	{
 		.compatible = "hisilicon,hi6220-sysctrl",
+		.data = (void *)PERIPHERAL,
+	},
+	{
+		.compatible = "hisilicon,hi6220-mediactrl",
+		.data = (void *)MEDIA,
 	},
 	{ /* sentinel */ },
 };
