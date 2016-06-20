@@ -459,6 +459,29 @@ int nhi_mailbox(struct tbt_nhi_ctxt *nhi_ctxt, u32 cmd, u32 data, bool deinit)
 	return 0;
 }
 
+static inline bool nhi_is_path_disconnected(u32 cmd, u8 num_ports)
+{
+	return (cmd >= DISCONNECT_PORT_A_INTER_DOMAIN_PATH &&
+		cmd < (DISCONNECT_PORT_A_INTER_DOMAIN_PATH + num_ports));
+}
+
+static int nhi_mailbox_disconn_path(struct tbt_nhi_ctxt *nhi_ctxt, u32 cmd)
+	__releases(&controllers_list_mutex)
+{
+	struct port_net_dev *port;
+	u32 port_num = cmd - DISCONNECT_PORT_A_INTER_DOMAIN_PATH;
+
+	port = &(nhi_ctxt->net_devices[port_num]);
+	mutex_lock(&port->state_mutex);
+
+	mutex_unlock(&controllers_list_mutex);
+	port->medium_sts = MEDIUM_READY_FOR_APPROVAL;
+	if (port->net_dev)
+		negotiation_events(port->net_dev, MEDIUM_DISCONNECTED);
+	mutex_unlock(&port->state_mutex);
+	return  0;
+}
+
 static int nhi_mailbox_generic(struct tbt_nhi_ctxt *nhi_ctxt, u32 mb_cmd)
 	__releases(&controllers_list_mutex)
 {
@@ -505,13 +528,90 @@ static int nhi_genl_mailbox(__always_unused struct sk_buff *u_skb,
 		return -ERESTART;
 
 	nhi_ctxt = nhi_search_ctxt(*(u32 *)info->userhdr);
-	if (nhi_ctxt && !nhi_ctxt->d0_exit)
-		return nhi_mailbox_generic(nhi_ctxt, mb_cmd);
+	if (nhi_ctxt && !nhi_ctxt->d0_exit) {
+
+		/* rwsem is released later by the below functions */
+		if (nhi_is_path_disconnected(cmd, nhi_ctxt->num_ports))
+			return nhi_mailbox_disconn_path(nhi_ctxt, cmd);
+		else
+			return nhi_mailbox_generic(nhi_ctxt, mb_cmd);
+
+	}
 
 	mutex_unlock(&controllers_list_mutex);
 	return -ENODEV;
 }
 
+static int nhi_genl_approve_networking(__always_unused struct sk_buff *u_skb,
+				       struct genl_info *info)
+{
+	struct tbt_nhi_ctxt *nhi_ctxt;
+	struct route_string *route_str;
+	int res = -ENODEV;
+	u8 port_num;
+
+	if (!info || !info->userhdr || !info->attrs ||
+	    !info->attrs[NHI_ATTR_LOCAL_ROUTE_STRING] ||
+	    !info->attrs[NHI_ATTR_LOCAL_UUID] ||
+	    !info->attrs[NHI_ATTR_REMOTE_UUID] ||
+	    !info->attrs[NHI_ATTR_LOCAL_DEPTH])
+		return -EINVAL;
+
+	/*
+	 * route_str is an unique topological address
+	 * used for approving remote controller
+	 */
+	route_str = nla_data(info->attrs[NHI_ATTR_LOCAL_ROUTE_STRING]);
+	/* extracts the port we're connected to */
+	port_num = PORT_NUM_FROM_LINK(L0_PORT_NUM(route_str->lo));
+
+	if (mutex_lock_interruptible(&controllers_list_mutex))
+		return -ERESTART;
+
+	nhi_ctxt = nhi_search_ctxt(*(u32 *)info->userhdr);
+	if (nhi_ctxt && !nhi_ctxt->d0_exit) {
+		struct port_net_dev *port;
+
+		if (port_num >= nhi_ctxt->num_ports) {
+			res = -EINVAL;
+			goto free_ctl_list;
+		}
+
+		port = &(nhi_ctxt->net_devices[port_num]);
+
+		mutex_lock(&port->state_mutex);
+		mutex_unlock(&controllers_list_mutex);
+
+		if (port->medium_sts != MEDIUM_READY_FOR_APPROVAL)
+			goto unlock;
+
+		port->medium_sts = MEDIUM_READY_FOR_CONNECTION;
+
+		if (!port->net_dev) {
+			port->net_dev = nhi_alloc_etherdev(nhi_ctxt, port_num,
+							   info);
+			if (!port->net_dev) {
+				mutex_unlock(&port->state_mutex);
+				return -ENOMEM;
+			}
+		} else {
+			nhi_update_etherdev(nhi_ctxt, port->net_dev, info);
+
+			negotiation_events(port->net_dev,
+					   MEDIUM_READY_FOR_CONNECTION);
+		}
+
+unlock:
+		mutex_unlock(&port->state_mutex);
+
+		return 0;
+	}
+
+free_ctl_list:
+	mutex_unlock(&controllers_list_mutex);
+
+	return res;
+}
 
 static int nhi_genl_send_msg(struct tbt_nhi_ctxt *nhi_ctxt, enum pdf_value pdf,
 			     const u8 *msg, u32 msg_len)
@@ -558,17 +658,124 @@ genl_put_reply_failure:
 	return res;
 }
 
+static bool nhi_handle_inter_domain_msg(struct tbt_nhi_ctxt *nhi_ctxt,
+					struct thunderbolt_ip_header *hdr)
+{
+	struct port_net_dev *port;
+	u8 port_num;
+
+	const uuid_be proto_uuid = APPLE_THUNDERBOLT_IP_PROTOCOL_UUID;
+
+	if (uuid_be_cmp(proto_uuid, hdr->apple_tbt_ip_proto_uuid) != 0)
+		return true;
+
+	port_num = PORT_NUM_FROM_LINK(
+				L0_PORT_NUM(be32_to_cpu(hdr->route_str.lo)));
+
+	if (unlikely(port_num >= nhi_ctxt->num_ports))
+		return false;
+
+	port = &(nhi_ctxt->net_devices[port_num]);
+	mutex_lock(&port->state_mutex);
+	if (port->net_dev != NULL)
+		negotiation_messages(port->net_dev, hdr);
+	mutex_unlock(&port->state_mutex);
+
+	return false;
+}
+
+static void nhi_handle_notification_msg(struct tbt_nhi_ctxt *nhi_ctxt,
+					const u8 *msg)
+{
+	struct port_net_dev *port;
+	u8 port_num;
+
+	switch (msg[3]) {
+
+	case NC_INTER_DOMAIN_CONNECTED:
+		port_num = PORT_NUM_FROM_MSG(msg[5]);
+#define INTER_DOMAIN_APPROVED BIT(3)
+		if (port_num < nhi_ctxt->num_ports &&
+		    !(msg[5] & INTER_DOMAIN_APPROVED))
+			nhi_ctxt->net_devices[port_num].medium_sts =
+						MEDIUM_READY_FOR_APPROVAL;
+		break;
+
+	case NC_INTER_DOMAIN_DISCONNECTED:
+		port_num = PORT_NUM_FROM_MSG(msg[5]);
+
+		if (unlikely(port_num >= nhi_ctxt->num_ports))
+			break;
+
+		port = &(nhi_ctxt->net_devices[port_num]);
+		mutex_lock(&port->state_mutex);
+		port->medium_sts = MEDIUM_DISCONNECTED;
+
+		if (port->net_dev != NULL)
+			negotiation_events(port->net_dev,
+					   MEDIUM_DISCONNECTED);
+		mutex_unlock(&port->state_mutex);
+		break;
+	}
+}
+
+static bool nhi_handle_icm_response_msg(struct tbt_nhi_ctxt *nhi_ctxt,
+					const u8 *msg)
+{
+	struct port_net_dev *port;
+	bool send_event = true;
+	u8 port_num;
+
+	if (nhi_ctxt->ignore_icm_resp &&
+	    msg[3] == RC_INTER_DOMAIN_PKT_SENT) {
+		nhi_ctxt->ignore_icm_resp = false;
+		send_event = false;
+	}
+	if (nhi_ctxt->wait_for_icm_resp) {
+		nhi_ctxt->wait_for_icm_resp = false;
+		up(&nhi_ctxt->send_sem);
+	}
+
+	if (msg[3] == RC_APPROVE_INTER_DOMAIN_CONNECTION) {
+#define APPROVE_INTER_DOMAIN_ERROR BIT(0)
+		if (unlikely(msg[2] & APPROVE_INTER_DOMAIN_ERROR))
+			return send_event;
+
+		port_num = PORT_NUM_FROM_MSG(msg[5]);
+
+		if (unlikely(port_num >= nhi_ctxt->num_ports))
+			return send_event;
+
+		port = &(nhi_ctxt->net_devices[port_num]);
+		mutex_lock(&port->state_mutex);
+		port->medium_sts = MEDIUM_CONNECTED;
+
+		if (port->net_dev != NULL)
+			negotiation_events(port->net_dev, MEDIUM_CONNECTED);
+		mutex_unlock(&port->state_mutex);
+	}
+
+	return send_event;
+}
+
 static bool nhi_msg_from_icm_analysis(struct tbt_nhi_ctxt *nhi_ctxt,
 					enum pdf_value pdf,
 					const u8 *msg, u32 msg_len)
 {
-	/*
-	 * preparation for messages that won't be sent,
-	 * currently unused in this patch.
-	 */
 	bool send_event = true;
 
 	switch (pdf) {
+	case PDF_INTER_DOMAIN_REQUEST:
+	case PDF_INTER_DOMAIN_RESPONSE:
+		send_event = nhi_handle_inter_domain_msg(
+					nhi_ctxt,
+					(struct thunderbolt_ip_header *)msg);
+		break;
+
+	case PDF_FW_TO_SW_NOTIFICATION:
+		nhi_handle_notification_msg(nhi_ctxt, msg);
+		break;
+
 	case PDF_ERROR_NOTIFICATION:
 		/* fallthrough */
 	case PDF_WRITE_CONFIGURATION_REGISTERS:
@@ -578,7 +785,12 @@ static bool nhi_msg_from_icm_analysis(struct tbt_nhi_ctxt *nhi_ctxt,
 			nhi_ctxt->wait_for_icm_resp = false;
 			up(&nhi_ctxt->send_sem);
 		}
-		/* fallthrough */
+		break;
+
+	case PDF_FW_TO_SW_RESPONSE:
+		send_event = nhi_handle_icm_response_msg(nhi_ctxt, msg);
+		break;
+
 	default:
 		break;
 	}
@@ -751,6 +963,13 @@ static const struct nla_policy nhi_genl_policy[NHI_ATTR_MAX + 1] = {
 					.len = TBT_ICM_RING_MAX_FRAME_SIZE },
 	[NHI_ATTR_MSG_FROM_ICM]		= { .type = NLA_BINARY,
 					.len = TBT_ICM_RING_MAX_FRAME_SIZE },
+	[NHI_ATTR_LOCAL_ROUTE_STRING]	= {
+					.len = sizeof(struct route_string) },
+	[NHI_ATTR_LOCAL_UUID]		= { .len = sizeof(uuid_be) },
+	[NHI_ATTR_REMOTE_UUID]		= { .len = sizeof(uuid_be) },
+	[NHI_ATTR_LOCAL_DEPTH]		= { .type = NLA_U8, },
+	[NHI_ATTR_ENABLE_FULL_E2E]	= { .type = NLA_FLAG, },
+	[NHI_ATTR_MATCH_FRAME_ID]	= { .type = NLA_FLAG, },
 };
 
 /* NHI genetlink operations array */
@@ -782,6 +1001,12 @@ static const struct genl_ops nhi_ops[] = {
 		.doit = nhi_genl_mailbox,
 		.flags = GENL_ADMIN_PERM,
 	},
+	{
+		.cmd = NHI_CMD_APPROVE_TBT_NETWORKING,
+		.policy = nhi_genl_policy,
+		.doit = nhi_genl_approve_networking,
+		.flags = GENL_ADMIN_PERM,
+	},
 };
 
 /* NHI genetlink family */
@@ -799,6 +1024,17 @@ static int nhi_suspend(struct device *dev) __releases(&nhi_ctxt->send_sem)
 	struct tbt_nhi_ctxt *nhi_ctxt = pci_get_drvdata(to_pci_dev(dev));
 	void __iomem *rx_reg, *tx_reg;
 	u32 rx_reg_val, tx_reg_val;
+	int i;
+
+	for (i = 0; i < nhi_ctxt->num_ports; i++) {
+		struct port_net_dev *port = &nhi_ctxt->net_devices[i];
+
+		mutex_lock(&port->state_mutex);
+		port->medium_sts = MEDIUM_DISCONNECTED;
+		if (port->net_dev)
+			negotiation_events(port->net_dev, MEDIUM_DISCONNECTED);
+		mutex_unlock(&port->state_mutex);
+	}
 
 	/* must be after negotiation_events, since messages might be sent */
 	nhi_ctxt->d0_exit = true;
@@ -957,6 +1193,15 @@ static void icm_nhi_remove(struct pci_dev *pdev)
 	int i;
 
 	nhi_suspend(&pdev->dev);
+
+	for (i = 0; i < nhi_ctxt->num_ports; i++) {
+		mutex_lock(&nhi_ctxt->net_devices[i].state_mutex);
+		if (nhi_ctxt->net_devices[i].net_dev) {
+			nhi_dealloc_etherdev(nhi_ctxt->net_devices[i].net_dev);
+			nhi_ctxt->net_devices[i].net_dev = NULL;
+		}
+		mutex_unlock(&nhi_ctxt->net_devices[i].state_mutex);
+	}
 
 	if (nhi_ctxt->net_workqueue)
 		destroy_workqueue(nhi_ctxt->net_workqueue);

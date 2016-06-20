@@ -23,6 +23,10 @@
 #include <linux/semaphore.h>
 #include <net/genetlink.h>
 
+#define APPLE_THUNDERBOLT_IP_PROTOCOL_UUID	\
+	UUID_BE(0x9E588F79, 0x478A, 0x1636,		\
+		0x64, 0x56, 0xC6, 0x97, 0xDD, 0xC8, 0x20, 0xA9)
+
 /*
  * Each physical port contains 2 channels.
  * Devices are exposed to user based on physical ports.
@@ -32,7 +36,12 @@
  * Calculate host physical port number (Zero-based numbering) from
  * host channel/link which starts from 1.
  */
-#define PORT_NUM_FROM_LINK(link) (((link) - 1) / CHANNELS_PER_PORT_NUM)
+#define PORT_NUM_FROM_LINK(link)	(((link) - 1) / CHANNELS_PER_PORT_NUM)
+#define INTER_DOMAIN_LINK_SHIFT		0
+#define INTER_DOMAIN_LINK_MASK		GENMASK(2, INTER_DOMAIN_LINK_SHIFT)
+#define PORT_NUM_FROM_MSG(msg)		PORT_NUM_FROM_LINK(((msg) & \
+						INTER_DOMAIN_LINK_MASK) >> \
+						INTER_DOMAIN_LINK_SHIFT)
 
 #define TBT_TX_RING_FULL(prod, cons, size) ((((prod) + 1) % (size)) == (cons))
 #define TBT_TX_RING_EMPTY(prod, cons) ((prod) == (cons))
@@ -125,6 +134,17 @@ enum {
 	CC_SET_FW_MODE_FDA_DA_ALL
 };
 
+struct route_string {
+	u32 hi;
+	u32 lo;
+};
+
+struct route_string_be {
+	__be32 hi;
+	__be32 lo;
+};
+
+#define L0_PORT_NUM(cpu_route_str_lo) ((cpu_route_str_lo) & GENMASK(5, 0))
 
 /* NHI genetlink attributes */
 enum {
@@ -138,12 +158,53 @@ enum {
 	NHI_ATTR_PDF,
 	NHI_ATTR_MSG_TO_ICM,
 	NHI_ATTR_MSG_FROM_ICM,
+	NHI_ATTR_LOCAL_ROUTE_STRING,
+	NHI_ATTR_LOCAL_UUID,
+	NHI_ATTR_REMOTE_UUID,
+	NHI_ATTR_LOCAL_DEPTH,
+	NHI_ATTR_ENABLE_FULL_E2E,
+	NHI_ATTR_MATCH_FRAME_ID,
 	__NHI_ATTR_MAX,
 };
 #define NHI_ATTR_MAX (__NHI_ATTR_MAX - 1)
 
+/* ThunderboltIP Packet Types */
+enum thunderbolt_ip_packet_type {
+	THUNDERBOLT_IP_LOGIN_TYPE,
+	THUNDERBOLT_IP_LOGIN_RESPONSE_TYPE,
+	THUNDERBOLT_IP_LOGOUT_TYPE,
+	THUNDERBOLT_IP_STATUS_TYPE
+};
+
+struct thunderbolt_ip_header {
+	struct route_string_be route_str;
+	__be32 attributes;
+#define HDR_ATTR_LEN_SHIFT	0
+#define HDR_ATTR_LEN_MASK	GENMASK(5, HDR_ATTR_LEN_SHIFT)
+#define HDR_ATTR_SEQ_NUM_SHIFT	27
+#define HDR_ATTR_SEQ_NUM_MASK	GENMASK(28, HDR_ATTR_SEQ_NUM_SHIFT)
+	uuid_be apple_tbt_ip_proto_uuid;
+	uuid_be initiator_uuid;
+	uuid_be target_uuid;
+	__be32 packet_type;
+	__be32 command_id;
+};
+
+enum medium_status {
+	/* Handle cable disconnection or peer down */
+	MEDIUM_DISCONNECTED,
+	/* Connection is fully established */
+	MEDIUM_CONNECTED,
+	/*  Awaiting for being approved by user-space module */
+	MEDIUM_READY_FOR_APPROVAL,
+	/* Approved by user-space, awaiting for establishment flow to finish */
+	MEDIUM_READY_FOR_CONNECTION,
+	NUM_MEDIUM_STATUSES
+};
+
 struct port_net_dev {
 	struct net_device *net_dev;
+	enum medium_status medium_sts;
 	struct mutex state_mutex;
 };
 
@@ -213,5 +274,16 @@ struct tbt_nhi_ctxt {
 int nhi_send_message(struct tbt_nhi_ctxt *nhi_ctxt, enum pdf_value pdf,
 		      u32 msg_len, const void *msg, bool ignore_icm_resp);
 int nhi_mailbox(struct tbt_nhi_ctxt *nhi_ctxt, u32 cmd, u32 data, bool deinit);
+struct net_device *nhi_alloc_etherdev(struct tbt_nhi_ctxt *nhi_ctxt,
+				      u8 port_num, struct genl_info *info);
+void nhi_update_etherdev(struct tbt_nhi_ctxt *nhi_ctxt,
+			 struct net_device *net_dev, struct genl_info *info);
+void nhi_dealloc_etherdev(struct net_device *net_dev);
+void negotiation_events(struct net_device *net_dev,
+			enum medium_status medium_sts);
+void negotiation_messages(struct net_device *net_dev,
+			  struct thunderbolt_ip_header *hdr);
+void tbt_net_rx_msi(struct net_device *net_dev);
+void tbt_net_tx_msi(struct net_device *net_dev);
 
 #endif
