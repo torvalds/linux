@@ -18,6 +18,7 @@
 #ifndef __XFS_IOMAP_H__
 #define __XFS_IOMAP_H__
 
+struct iomap;
 struct xfs_inode;
 struct xfs_bmbt_irec;
 
@@ -28,5 +29,8 @@ int xfs_iomap_write_delay(struct xfs_inode *, xfs_off_t, size_t,
 int xfs_iomap_write_allocate(struct xfs_inode *, xfs_off_t,
 			struct xfs_bmbt_irec *);
 int xfs_iomap_write_unwritten(struct xfs_inode *, xfs_off_t, xfs_off_t);
+
+void xfs_bmbt_to_iomap(struct xfs_inode *, struct iomap *,
+		struct xfs_bmbt_irec *);
 
 #endif /* __XFS_IOMAP_H__*/
