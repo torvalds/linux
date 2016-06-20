@@ -136,7 +136,8 @@ static int u1_read_write_register(struct hid_device *hdev, u32 address,
 
 	input[7] = check_sum;
 	ret = hid_hw_raw_request(hdev, U1_FEATURE_REPORT_ID, input,
-			sizeof(input), HID_FEATURE_REPORT, HID_REQ_SET_REPORT);
+			sizeof(u8)*U1_FEATURE_REPORT_LEN, HID_FEATURE_REPORT,
+			HID_REQ_SET_REPORT);
 
 	if (ret < 0) {
 		dev_err(&hdev->dev, "failed to read command (%d)\n", ret);
@@ -145,8 +146,8 @@ static int u1_read_write_register(struct hid_device *hdev, u32 address,
 
 	if (read_flag) {
 		ret = hid_hw_raw_request(hdev, U1_FEATURE_REPORT_ID, readbuf,
-				sizeof(readbuf), HID_FEATURE_REPORT,
-				HID_REQ_GET_REPORT);
+				sizeof(u8)*U1_FEATURE_REPORT_LEN,
+				HID_FEATURE_REPORT, HID_REQ_GET_REPORT);
 
 		if (ret < 0) {
 			dev_err(&hdev->dev, "failed read register (%d)\n", ret);
