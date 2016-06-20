@@ -107,22 +107,18 @@ static void xway_cmd_ctrl(struct mtd_info *mtd, int cmd, unsigned int ctrl)
 	unsigned long nandaddr = (unsigned long) this->IO_ADDR_W;
 	unsigned long flags;
 
-	if (ctrl & NAND_CTRL_CHANGE) {
-		nandaddr &= ~(NAND_WRITE_CMD | NAND_WRITE_ADDR);
-		if (ctrl & NAND_CLE)
-			nandaddr |= NAND_WRITE_CMD;
-		else
-			nandaddr |= NAND_WRITE_ADDR;
-		this->IO_ADDR_W = (void __iomem *) nandaddr;
-	}
+	if (cmd == NAND_CMD_NONE)
+		return;
 
-	if (cmd != NAND_CMD_NONE) {
-		spin_lock_irqsave(&ebu_lock, flags);
-		writeb(cmd, this->IO_ADDR_W);
-		while ((ltq_ebu_r32(EBU_NAND_WAIT) & NAND_WAIT_WR_C) == 0)
-			;
-		spin_unlock_irqrestore(&ebu_lock, flags);
-	}
+	spin_lock_irqsave(&ebu_lock, flags);
+	if (ctrl & NAND_CLE)
+		writeb(cmd, (void __iomem *) (nandaddr | NAND_WRITE_CMD));
+	else if (ctrl & NAND_ALE)
+		writeb(cmd, (void __iomem *) (nandaddr | NAND_WRITE_ADDR));
+
+	while ((ltq_ebu_r32(EBU_NAND_WAIT) & NAND_WAIT_WR_C) == 0)
+		;
+	spin_unlock_irqrestore(&ebu_lock, flags);
 }
 
 static int xway_dev_ready(struct mtd_info *mtd)
