@@ -286,16 +286,10 @@ static const struct snd_kcontrol_new aic34_rx51_controls[] = {
 
 static int rx51_aic34_init(struct snd_soc_pcm_runtime *rtd)
 {
-	struct snd_soc_codec *codec = rtd->codec;
 	struct snd_soc_card *card = rtd->card;
 	struct rx51_audio_pdata *pdata = snd_soc_card_get_drvdata(card);
 	int err;
 
-	err = tpa6130a2_add_controls(codec);
-	if (err < 0) {
-		dev_err(card->dev, "Failed to add TPA6130A2 controls\n");
-		return err;
-	}
 	snd_soc_limit_volume(card, "TPA6130A2 Headphone Playback Volume", 42);
 
 	err = omap_mcbsp_st_add_controls(rtd, 2);
@@ -357,12 +351,20 @@ static struct snd_soc_aux_dev rx51_aux_dev[] = {
 		.name = "TLV320AIC34b",
 		.codec_name = "tlv320aic3x-codec.2-0019",
 	},
+	{
+		.name = "TPA61320A2",
+		.codec_name = "tpa6130a2.2-0060",
+	},
 };
 
 static struct snd_soc_codec_conf rx51_codec_conf[] = {
 	{
 		.dev_name = "tlv320aic3x-codec.2-0019",
 		.name_prefix = "b",
+	},
+	{
+		.dev_name = "tpa6130a2.2-0060",
+		.name_prefix = "TPA6130A2",
 	},
 };
 
@@ -435,11 +437,10 @@ static int rx51_soc_probe(struct platform_device *pdev)
 			dev_err(&pdev->dev, "Headphone amplifier node is not provided\n");
 			return -EINVAL;
 		}
-
-		/* TODO: tpa6130a2a driver supports only a single instance, so
-		 * this driver ignores the headphone-amplifier node for now.
-		 * It's already mandatory in the DT binding to be future proof.
-		 */
+		rx51_aux_dev[1].codec_name = NULL;
+		rx51_aux_dev[1].codec_of_node = dai_node;
+		rx51_codec_conf[1].dev_name = NULL;
+		rx51_codec_conf[1].of_node = dai_node;
 	}
 
 	pdata = devm_kzalloc(&pdev->dev, sizeof(*pdata), GFP_KERNEL);

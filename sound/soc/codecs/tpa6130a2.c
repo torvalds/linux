@@ -273,7 +273,7 @@ static const DECLARE_TLV_DB_RANGE(tpa6130_tlv,
 );
 
 static const struct snd_kcontrol_new tpa6130a2_controls[] = {
-	SOC_SINGLE_EXT_TLV("TPA6130A2 Headphone Playback Volume",
+	SOC_SINGLE_EXT_TLV("Headphone Playback Volume",
 		       TPA6130A2_REG_VOL_MUTE, 0, 0x3f, 0,
 		       tpa6130a2_get_volsw, tpa6130a2_put_volsw,
 		       tpa6130_tlv),
@@ -286,7 +286,7 @@ static const DECLARE_TLV_DB_RANGE(tpa6140_tlv,
 );
 
 static const struct snd_kcontrol_new tpa6140a2_controls[] = {
-	SOC_SINGLE_EXT_TLV("TPA6140A2 Headphone Playback Volume",
+	SOC_SINGLE_EXT_TLV("Headphone Playback Volume",
 		       TPA6130A2_REG_VOL_MUTE, 1, 0x1f, 0,
 		       tpa6130a2_get_volsw, tpa6130a2_put_volsw,
 		       tpa6140_tlv),
@@ -348,23 +348,22 @@ int tpa6130a2_stereo_enable(struct snd_soc_codec *codec, int enable)
 }
 EXPORT_SYMBOL_GPL(tpa6130a2_stereo_enable);
 
-int tpa6130a2_add_controls(struct snd_soc_codec *codec)
+static int tpa6130a2_component_probe(struct snd_soc_component *component)
 {
-	struct	tpa6130a2_data *data;
-
-	if (tpa6130a2_client == NULL)
-		return -ENODEV;
-
-	data = i2c_get_clientdata(tpa6130a2_client);
+	struct tpa6130a2_data *data = snd_soc_component_get_drvdata(component);
 
 	if (data->id == TPA6140A2)
-		return snd_soc_add_codec_controls(codec, tpa6140a2_controls,
-						ARRAY_SIZE(tpa6140a2_controls));
+		return snd_soc_add_component_controls(component,
+			tpa6140a2_controls, ARRAY_SIZE(tpa6140a2_controls));
 	else
-		return snd_soc_add_codec_controls(codec, tpa6130a2_controls,
-						ARRAY_SIZE(tpa6130a2_controls));
+		return snd_soc_add_component_controls(component,
+			tpa6130a2_controls, ARRAY_SIZE(tpa6130a2_controls));
 }
-EXPORT_SYMBOL_GPL(tpa6130a2_add_controls);
+
+struct snd_soc_component_driver tpa6130a2_component_driver = {
+	.name = "tpa6130a2",
+	.probe = tpa6130a2_component_probe,
+};
 
 static int tpa6130a2_probe(struct i2c_client *client,
 			   const struct i2c_device_id *id)
@@ -451,7 +450,8 @@ static int tpa6130a2_probe(struct i2c_client *client,
 	if (ret != 0)
 		goto err_gpio;
 
-	return 0;
+	return devm_snd_soc_register_component(&client->dev,
+			&tpa6130a2_component_driver, NULL, 0);
 
 err_gpio:
 	tpa6130a2_client = NULL;
