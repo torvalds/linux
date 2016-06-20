@@ -674,22 +674,25 @@ static int wcn36xx_smd_update_scan_params_rsp(void *buf, size_t len)
 	return 0;
 }
 
-int wcn36xx_smd_update_scan_params(struct wcn36xx *wcn)
+int wcn36xx_smd_update_scan_params(struct wcn36xx *wcn,
+				   u8 *channels, size_t channel_count)
 {
-	struct wcn36xx_hal_update_scan_params_req msg_body;
+	struct wcn36xx_hal_update_scan_params_req_ex msg_body;
 	int ret = 0;
 
 	mutex_lock(&wcn->hal_mutex);
 	INIT_HAL_MSG(msg_body, WCN36XX_HAL_UPDATE_SCAN_PARAM_REQ);
 
-	msg_body.dot11d_enabled	= 0;
-	msg_body.dot11d_resolved = 0;
-	msg_body.channel_count = 26;
+	msg_body.dot11d_enabled	= false;
+	msg_body.dot11d_resolved = true;
+
+	msg_body.channel_count = channel_count;
+	memcpy(msg_body.channels, channels, channel_count);
 	msg_body.active_min_ch_time = 60;
 	msg_body.active_max_ch_time = 120;
 	msg_body.passive_min_ch_time = 60;
 	msg_body.passive_max_ch_time = 110;
-	msg_body.state = 0;
+	msg_body.state = PHY_SINGLE_CHANNEL_CENTERED;
 
 	PREPARE_HAL_BUF(wcn->hal_buf, msg_body);
 
