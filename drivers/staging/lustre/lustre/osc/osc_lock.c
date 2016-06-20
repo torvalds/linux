@@ -699,7 +699,7 @@ unsigned long osc_ldlm_weigh_ast(struct ldlm_lock *dlmlock)
 
 	LASSERT(dlmlock->l_resource->lr_type == LDLM_EXTENT);
 	obj = dlmlock->l_ast_data;
-	if (obj) {
+	if (!obj) {
 		weight = 1;
 		goto out;
 	}
