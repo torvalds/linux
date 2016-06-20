@@ -261,17 +261,6 @@ static void wcn36xx_feat_caps_info(struct wcn36xx *wcn)
 	}
 }
 
-static void wcn36xx_detect_chip_version(struct wcn36xx *wcn)
-{
-	if (get_feat_caps(wcn->fw_feat_caps, DOT11AC)) {
-		wcn36xx_info("Chip is 3680\n");
-		wcn->chip_version = WCN36XX_CHIP_3680;
-	} else {
-		wcn36xx_info("Chip is 3660\n");
-		wcn->chip_version = WCN36XX_CHIP_3660;
-	}
-}
-
 static int wcn36xx_start(struct ieee80211_hw *hw)
 {
 	struct wcn36xx *wcn = hw->priv;
@@ -325,9 +314,6 @@ static int wcn36xx_start(struct ieee80211_hw *hw)
 		else
 			wcn36xx_feat_caps_info(wcn);
 	}
-
-	wcn36xx_detect_chip_version(wcn);
-	wcn36xx_smd_update_cfg(wcn, WCN36XX_HAL_CFG_ENABLE_MC_ADDR_LIST, 1);
 
 	/* DMA channel initialization */
 	ret = wcn36xx_dxe_init(wcn);
@@ -1094,6 +1080,8 @@ static int wcn36xx_platform_get_resources(struct wcn36xx *wcn,
 		wcn36xx_err("failed to acquire qcom,mmio reference\n");
 		return -EINVAL;
 	}
+
+	wcn->is_pronto = !!of_device_is_compatible(mmio_node, "qcom,pronto");
 
 	/* Map the CCU memory */
 	index = of_property_match_string(mmio_node, "reg-names", "ccu");

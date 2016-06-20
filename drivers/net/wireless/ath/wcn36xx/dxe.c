@@ -702,12 +702,13 @@ int wcn36xx_dxe_init(struct wcn36xx *wcn)
 	reg_data = WCN36XX_DXE_REG_RESET;
 	wcn36xx_dxe_write_register(wcn, WCN36XX_DXE_REG_CSR_RESET, reg_data);
 
-	/* Setting interrupt path */
-	reg_data = WCN36XX_DXE_CCU_INT;
-	if (wcn->chip_version == WCN36XX_CHIP_3680)
-		wcn36xx_ccu_write_register(wcn, WCN36XX_DXE_REG_CCU_INT_3680, reg_data);
+	/* Select channels for rx avail and xfer done interrupts... */
+	reg_data = (WCN36XX_DXE_INT_CH3_MASK | WCN36XX_DXE_INT_CH1_MASK) << 16 |
+		    WCN36XX_DXE_INT_CH0_MASK | WCN36XX_DXE_INT_CH4_MASK;
+	if (wcn->is_pronto)
+		wcn36xx_ccu_write_register(wcn, WCN36XX_CCU_DXE_INT_SELECT_PRONTO, reg_data);
 	else
-		wcn36xx_ccu_write_register(wcn, WCN36XX_DXE_REG_CCU_INT_3660, reg_data);
+		wcn36xx_ccu_write_register(wcn, WCN36XX_CCU_DXE_INT_SELECT_RIVA, reg_data);
 
 	/***************************************/
 	/* Init descriptors for TX LOW channel */
