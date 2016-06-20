@@ -69,6 +69,11 @@
 #define PHYCTRL_DR_66OHM	0x2
 #define PHYCTRL_DR_100OHM	0x3
 #define PHYCTRL_DR_40OHM	0x4
+#define PHYCTRL_OTAPDLYENA		0x1
+#define PHYCTRL_OTAPDLYENA_MASK		0x1
+#define PHYCTRL_OTAPDLYENA_SHIFT	0xb
+#define PHYCTRL_OTAPDLYSEL_MASK		0xf
+#define PHYCTRL_OTAPDLYSEL_SHIFT	0x7
 
 struct rockchip_emmc_phy {
 	unsigned int	reg_offset;
@@ -180,6 +185,20 @@ static int rockchip_emmc_phy_power_on(struct phy *phy)
 		     HIWORD_UPDATE(PHYCTRL_DR_50OHM,
 				   PHYCTRL_DR_MASK,
 				   PHYCTRL_DR_SHIFT));
+
+	/* Output tap delay: enable */
+	regmap_write(rk_phy->reg_base,
+		     rk_phy->reg_offset + GRF_EMMCPHY_CON0,
+		     HIWORD_UPDATE(PHYCTRL_OTAPDLYENA,
+				   PHYCTRL_OTAPDLYENA_MASK,
+				   PHYCTRL_OTAPDLYENA_SHIFT));
+
+	/* Output tap delay */
+	regmap_write(rk_phy->reg_base,
+		     rk_phy->reg_offset + GRF_EMMCPHY_CON0,
+		     HIWORD_UPDATE(4,
+				   PHYCTRL_OTAPDLYSEL_MASK,
+				   PHYCTRL_OTAPDLYSEL_SHIFT));
 
 	/* Power up emmc phy analog blocks */
 	ret = rockchip_emmc_phy_power(rk_phy, PHYCTRL_PDB_PWR_ON);
