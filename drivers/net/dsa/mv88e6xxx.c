@@ -38,21 +38,74 @@ static void assert_reg_lock(struct mv88e6xxx_priv_state *ps)
 	}
 }
 
-/* If the switch's ADDR[4:0] strap pins are strapped to zero, it will
- * use all 32 SMI bus addresses on its SMI bus, and all switch registers
- * will be directly accessible on some {device address,register address}
- * pair.  If the ADDR[4:0] pins are not strapped to zero, the switch
- * will only respond to SMI transactions to that specific address, and
- * an indirect addressing mechanism needs to be used to access its
- * registers.
+/* The switch ADDR[4:1] configuration pins define the chip SMI device address
+ * (ADDR[0] is always zero, thus only even SMI addresses can be strapped).
+ *
+ * When ADDR is all zero, the chip uses Single-chip Addressing Mode, assuming it
+ * is the only device connected to the SMI master. In this mode it responds to
+ * all 32 possible SMI addresses, and thus maps directly the internal devices.
+ *
+ * When ADDR is non-zero, the chip uses Multi-chip Addressing Mode, allowing
+ * multiple devices to share the SMI interface. In this mode it responds to only
+ * 2 registers, used to indirectly access the internal SMI devices.
  */
-static int mv88e6xxx_reg_wait_ready(struct mii_bus *bus, int sw_addr)
+
+static int mv88e6xxx_smi_read(struct mv88e6xxx_priv_state *ps,
+			      int addr, int reg, u16 *val)
+{
+	if (!ps->smi_ops)
+		return -EOPNOTSUPP;
+
+	return ps->smi_ops->read(ps, addr, reg, val);
+}
+
+static int mv88e6xxx_smi_write(struct mv88e6xxx_priv_state *ps,
+			       int addr, int reg, u16 val)
+{
+	if (!ps->smi_ops)
+		return -EOPNOTSUPP;
+
+	return ps->smi_ops->write(ps, addr, reg, val);
+}
+
+static int mv88e6xxx_smi_single_chip_read(struct mv88e6xxx_priv_state *ps,
+					  int addr, int reg, u16 *val)
+{
+	int ret;
+
+	ret = mdiobus_read_nested(ps->bus, addr, reg);
+	if (ret < 0)
+		return ret;
+
+	*val = ret & 0xffff;
+
+	return 0;
+}
+
+static int mv88e6xxx_smi_single_chip_write(struct mv88e6xxx_priv_state *ps,
+					   int addr, int reg, u16 val)
+{
+	int ret;
+
+	ret = mdiobus_write_nested(ps->bus, addr, reg, val);
+	if (ret < 0)
+		return ret;
+
+	return 0;
+}
+
+static const struct mv88e6xxx_ops mv88e6xxx_smi_single_chip_ops = {
+	.read = mv88e6xxx_smi_single_chip_read,
+	.write = mv88e6xxx_smi_single_chip_write,
+};
+
+static int mv88e6xxx_smi_multi_chip_wait(struct mv88e6xxx_priv_state *ps)
 {
 	int ret;
 	int i;
 
 	for (i = 0; i < 16; i++) {
-		ret = mdiobus_read_nested(bus, sw_addr, SMI_CMD);
+		ret = mdiobus_read_nested(ps->bus, ps->sw_addr, SMI_CMD);
 		if (ret < 0)
 			return ret;
 
@@ -63,53 +116,116 @@ static int mv88e6xxx_reg_wait_ready(struct mii_bus *bus, int sw_addr)
 	return -ETIMEDOUT;
 }
 
-static int __mv88e6xxx_reg_read(struct mii_bus *bus, int sw_addr, int addr,
-				int reg)
+static int mv88e6xxx_smi_multi_chip_read(struct mv88e6xxx_priv_state *ps,
+					 int addr, int reg, u16 *val)
 {
 	int ret;
 
-	if (sw_addr == 0)
-		return mdiobus_read_nested(bus, addr, reg);
-
 	/* Wait for the bus to become free. */
-	ret = mv88e6xxx_reg_wait_ready(bus, sw_addr);
+	ret = mv88e6xxx_smi_multi_chip_wait(ps);
 	if (ret < 0)
 		return ret;
 
 	/* Transmit the read command. */
-	ret = mdiobus_write_nested(bus, sw_addr, SMI_CMD,
+	ret = mdiobus_write_nested(ps->bus, ps->sw_addr, SMI_CMD,
 				   SMI_CMD_OP_22_READ | (addr << 5) | reg);
 	if (ret < 0)
 		return ret;
 
 	/* Wait for the read command to complete. */
-	ret = mv88e6xxx_reg_wait_ready(bus, sw_addr);
+	ret = mv88e6xxx_smi_multi_chip_wait(ps);
 	if (ret < 0)
 		return ret;
 
 	/* Read the data. */
-	ret = mdiobus_read_nested(bus, sw_addr, SMI_DATA);
+	ret = mdiobus_read_nested(ps->bus, ps->sw_addr, SMI_DATA);
 	if (ret < 0)
 		return ret;
 
-	return ret & 0xffff;
+	*val = ret & 0xffff;
+
+	return 0;
+}
+
+static int mv88e6xxx_smi_multi_chip_write(struct mv88e6xxx_priv_state *ps,
+					  int addr, int reg, u16 val)
+{
+	int ret;
+
+	/* Wait for the bus to become free. */
+	ret = mv88e6xxx_smi_multi_chip_wait(ps);
+	if (ret < 0)
+		return ret;
+
+	/* Transmit the data to write. */
+	ret = mdiobus_write_nested(ps->bus, ps->sw_addr, SMI_DATA, val);
+	if (ret < 0)
+		return ret;
+
+	/* Transmit the write command. */
+	ret = mdiobus_write_nested(ps->bus, ps->sw_addr, SMI_CMD,
+				   SMI_CMD_OP_22_WRITE | (addr << 5) | reg);
+	if (ret < 0)
+		return ret;
+
+	/* Wait for the write command to complete. */
+	ret = mv88e6xxx_smi_multi_chip_wait(ps);
+	if (ret < 0)
+		return ret;
+
+	return 0;
+}
+
+static const struct mv88e6xxx_ops mv88e6xxx_smi_multi_chip_ops = {
+	.read = mv88e6xxx_smi_multi_chip_read,
+	.write = mv88e6xxx_smi_multi_chip_write,
+};
+
+static int mv88e6xxx_read(struct mv88e6xxx_priv_state *ps,
+			  int addr, int reg, u16 *val)
+{
+	int err;
+
+	assert_reg_lock(ps);
+
+	err = mv88e6xxx_smi_read(ps, addr, reg, val);
+	if (err)
+		return err;
+
+	dev_dbg(ps->dev, "<- addr: 0x%.2x reg: 0x%.2x val: 0x%.4x\n",
+		addr, reg, *val);
+
+	return 0;
+}
+
+static int mv88e6xxx_write(struct mv88e6xxx_priv_state *ps,
+			   int addr, int reg, u16 val)
+{
+	int err;
+
+	assert_reg_lock(ps);
+
+	err = mv88e6xxx_smi_write(ps, addr, reg, val);
+	if (err)
+		return err;
+
+	dev_dbg(ps->dev, "-> addr: 0x%.2x reg: 0x%.2x val: 0x%.4x\n",
+		addr, reg, val);
+
+	return 0;
 }
 
 static int _mv88e6xxx_reg_read(struct mv88e6xxx_priv_state *ps,
 			       int addr, int reg)
 {
-	int ret;
+	u16 val;
+	int err;
 
-	assert_reg_lock(ps);
+	err = mv88e6xxx_read(ps, addr, reg, &val);
+	if (err)
+		return err;
 
-	ret = __mv88e6xxx_reg_read(ps->bus, ps->sw_addr, addr, reg);
-	if (ret < 0)
-		return ret;
-
-	dev_dbg(ps->dev, "<- addr: 0x%.2x reg: 0x%.2x val: 0x%.4x\n",
-		addr, reg, ret);
-
-	return ret;
+	return val;
 }
 
 static int mv88e6xxx_reg_read(struct mv88e6xxx_priv_state *ps, int addr,
@@ -124,47 +240,10 @@ static int mv88e6xxx_reg_read(struct mv88e6xxx_priv_state *ps, int addr,
 	return ret;
 }
 
-static int __mv88e6xxx_reg_write(struct mii_bus *bus, int sw_addr, int addr,
-				 int reg, u16 val)
-{
-	int ret;
-
-	if (sw_addr == 0)
-		return mdiobus_write_nested(bus, addr, reg, val);
-
-	/* Wait for the bus to become free. */
-	ret = mv88e6xxx_reg_wait_ready(bus, sw_addr);
-	if (ret < 0)
-		return ret;
-
-	/* Transmit the data to write. */
-	ret = mdiobus_write_nested(bus, sw_addr, SMI_DATA, val);
-	if (ret < 0)
-		return ret;
-
-	/* Transmit the write command. */
-	ret = mdiobus_write_nested(bus, sw_addr, SMI_CMD,
-				   SMI_CMD_OP_22_WRITE | (addr << 5) | reg);
-	if (ret < 0)
-		return ret;
-
-	/* Wait for the write command to complete. */
-	ret = mv88e6xxx_reg_wait_ready(bus, sw_addr);
-	if (ret < 0)
-		return ret;
-
-	return 0;
-}
-
 static int _mv88e6xxx_reg_write(struct mv88e6xxx_priv_state *ps, int addr,
 				int reg, u16 val)
 {
-	assert_reg_lock(ps);
-
-	dev_dbg(ps->dev, "-> addr: 0x%.2x reg: 0x%.2x val: 0x%.4x\n",
-		addr, reg, val);
-
-	return __mv88e6xxx_reg_write(ps->bus, ps->sw_addr, addr, reg, val);
+	return mv88e6xxx_write(ps, addr, reg, val);
 }
 
 static int mv88e6xxx_reg_write(struct mv88e6xxx_priv_state *ps, int addr,
@@ -3664,6 +3743,13 @@ static int mv88e6xxx_smi_init(struct mv88e6xxx_priv_state *ps,
 {
 	/* ADDR[0] pin is unavailable externally and considered zero */
 	if (sw_addr & 0x1)
+		return -EINVAL;
+
+	if (sw_addr == 0)
+		ps->smi_ops = &mv88e6xxx_smi_single_chip_ops;
+	else if (mv88e6xxx_has(ps, MV88E6XXX_FLAG_MULTI_CHIP))
+		ps->smi_ops = &mv88e6xxx_smi_multi_chip_ops;
+	else
 		return -EINVAL;
 
 	ps->bus = bus;
