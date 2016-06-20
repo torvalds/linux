@@ -12,29 +12,12 @@
 #include "../../util/top.h"
 #include "../../arch/common.h"
 
-#include "../browser.h"
+#include "../browsers/hists.h"
 #include "../helpline.h"
 #include "../util.h"
 #include "../ui.h"
 #include "map.h"
 #include "annotate.h"
-
-struct hist_browser {
-	struct ui_browser   b;
-	struct hists	    *hists;
-	struct hist_entry   *he_selection;
-	struct map_symbol   *selection;
-	struct hist_browser_timer *hbt;
-	struct pstack	    *pstack;
-	struct perf_env *env;
-	int		     print_seq;
-	bool		     show_dso;
-	bool		     show_headers;
-	float		     min_pcnt;
-	u64		     nr_non_filtered_entries;
-	u64		     nr_hierarchy_entries;
-	u64		     nr_callchain_rows;
-};
 
 extern void hist_browser__init_hpp(void);
 
