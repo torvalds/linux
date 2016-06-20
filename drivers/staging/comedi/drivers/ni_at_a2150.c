@@ -1,62 +1,47 @@
 /*
-    comedi/drivers/ni_at_a2150.c
-    Driver for National Instruments AT-A2150 boards
-    Copyright (C) 2001, 2002 Frank Mori Hess <fmhess@users.sourceforge.net>
+ * Comedi driver for National Instruments AT-A2150 boards
+ * Copyright (C) 2001, 2002 Frank Mori Hess <fmhess@users.sourceforge.net>
+ *
+ * COMEDI - Linux Control and Measurement Device Interface
+ * Copyright (C) 2000 David A. Schleef <ds@schleef.org>
+ *
+ * This program is free software; you can redistribute it and/or modify
+ * it under the terms of the GNU General Public License as published by
+ * the Free Software Foundation; either version 2 of the License, or
+ * (at your option) any later version.
+ *
+ * This program is distributed in the hope that it will be useful,
+ * but WITHOUT ANY WARRANTY; without even the implied warranty of
+ * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+ * GNU General Public License for more details.
+ */
 
-    COMEDI - Linux Control and Measurement Device Interface
-    Copyright (C) 2000 David A. Schleef <ds@schleef.org>
-
-    This program is free software; you can redistribute it and/or modify
-    it under the terms of the GNU General Public License as published by
-    the Free Software Foundation; either version 2 of the License, or
-    (at your option) any later version.
-
-    This program is distributed in the hope that it will be useful,
-    but WITHOUT ANY WARRANTY; without even the implied warranty of
-    MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
-    GNU General Public License for more details.
-*/
 /*
-Driver: ni_at_a2150
-Description: National Instruments AT-A2150
-Author: Frank Mori Hess
-Status: works
-Devices: [National Instruments] AT-A2150C (at_a2150c), AT-2150S (at_a2150s)
-
-If you want to ac couple the board's inputs, use AREF_OTHER.
-
-Configuration options:
-  [0] - I/O port base address
-  [1] - IRQ (optional, required for timed conversions)
-  [2] - DMA (optional, required for timed conversions)
-
-*/
-/*
-Yet another driver for obsolete hardware brought to you by Frank Hess.
-Testing and debugging help provided by Dave Andruczyk.
-
-This driver supports the boards:
-
-AT-A2150C
-AT-A2150S
-
-The only difference is their master clock frequencies.
-
-Options:
-	[0] - base io address
-	[1] - irq
-	[2] - dma channel
-
-References (from ftp://ftp.natinst.com/support/manuals):
-
-	   320360.pdf  AT-A2150 User Manual
-
-TODO:
-
-analog level triggering
-TRIG_WAKE_EOS
-
-*/
+ * Driver: ni_at_a2150
+ * Description: National Instruments AT-A2150
+ * Author: Frank Mori Hess
+ * Status: works
+ * Devices: [National Instruments] AT-A2150C (at_a2150c), AT-2150S (at_a2150s)
+ *
+ * Configuration options:
+ *   [0] - I/O port base address
+ *   [1] - IRQ (optional, required for timed conversions)
+ *   [2] - DMA (optional, required for timed conversions)
+ *
+ * Yet another driver for obsolete hardware brought to you by Frank Hess.
+ * Testing and debugging help provided by Dave Andruczyk.
+ *
+ * If you want to ac couple the board's inputs, use AREF_OTHER.
+ *
+ * The only difference in the boards is their master clock frequencies.
+ *
+ * References (from ftp://ftp.natinst.com/support/manuals):
+ *   320360.pdf  AT-A2150 User Manual
+ *
+ * TODO:
+ * - analog level triggering
+ * - TRIG_WAKE_EOS
+ */
 
 #include <linux/module.h>
 #include <linux/delay.h>
@@ -536,8 +521,10 @@ static int a2150_ai_cmd(struct comedi_device *dev, struct comedi_subdevice *s)
 
 	comedi_isadma_program(desc);
 
-	/* clear dma interrupt before enabling it, to try and get rid of that
-	 * one spurious interrupt that has been happening */
+	/*
+	 * Clear dma interrupt before enabling it, to try and get rid of
+	 * that one spurious interrupt that has been happening.
+	 */
 	outw(0x00, dev->iobase + DMA_TC_CLEAR_REG);
 
 	/*  enable dma on card */
