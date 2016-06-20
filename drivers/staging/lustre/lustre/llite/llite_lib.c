@@ -83,15 +83,11 @@ static struct ll_sb_info *ll_init_sbi(struct super_block *sb)
 	pages = si.totalram - si.totalhigh;
 	lru_page_max = pages / 2;
 
-	/* initialize ll_cache data */
-	atomic_set(&sbi->ll_cache.ccc_users, 0);
-	sbi->ll_cache.ccc_lru_max = lru_page_max;
-	atomic_set(&sbi->ll_cache.ccc_lru_left, lru_page_max);
-	spin_lock_init(&sbi->ll_cache.ccc_lru_lock);
-	INIT_LIST_HEAD(&sbi->ll_cache.ccc_lru);
-
-	atomic_set(&sbi->ll_cache.ccc_unstable_nr, 0);
-	init_waitqueue_head(&sbi->ll_cache.ccc_unstable_waitq);
+	sbi->ll_cache = cl_cache_init(lru_page_max);
+	if (!sbi->ll_cache) {
+		kfree(sbi);
+		return NULL;
+	}
 
 	sbi->ll_ra_info.ra_max_pages_per_file = min(pages / 32,
 					   SBI_DEFAULT_READAHEAD_MAX);
@@ -130,6 +126,11 @@ static struct ll_sb_info *ll_init_sbi(struct super_block *sb)
 static void ll_free_sbi(struct super_block *sb)
 {
 	struct ll_sb_info *sbi = ll_s2sbi(sb);
+
+	if (sbi->ll_cache) {
+		cl_cache_decref(sbi->ll_cache);
+		sbi->ll_cache = NULL;
+	}
 
 	kfree(sbi);
 }
@@ -488,8 +489,8 @@ static int client_common_fill_super(struct super_block *sb, char *md, char *dt,
 	cl_sb_init(sb);
 
 	err = obd_set_info_async(NULL, sbi->ll_dt_exp, sizeof(KEY_CACHE_SET),
-				 KEY_CACHE_SET, sizeof(sbi->ll_cache),
-				 &sbi->ll_cache, NULL);
+				 KEY_CACHE_SET, sizeof(*sbi->ll_cache),
+				 sbi->ll_cache, NULL);
 
 	sb->s_root = d_make_root(root);
 	if (!sb->s_root) {
@@ -534,8 +535,6 @@ out_lock_cn_cb:
 out_dt:
 	obd_disconnect(sbi->ll_dt_exp);
 	sbi->ll_dt_exp = NULL;
-	/* Make sure all OScs are gone, since cl_cache is accessing sbi. */
-	obd_zombie_barrier();
 out_md_fid:
 	obd_fid_fini(sbi->ll_md_exp->exp_obd);
 out_md:
@@ -585,10 +584,6 @@ static void client_common_put_super(struct super_block *sb)
 	obd_fid_fini(sbi->ll_dt_exp->exp_obd);
 	obd_disconnect(sbi->ll_dt_exp);
 	sbi->ll_dt_exp = NULL;
-	/* wait till all OSCs are gone, since cl_cache is accessing sbi.
-	 * see LU-2543.
-	 */
-	obd_zombie_barrier();
 
 	ldebugfs_unregister_mountpoint(sbi);
 
@@ -921,12 +916,12 @@ void ll_put_super(struct super_block *sb)
 	if (!force) {
 		struct l_wait_info lwi = LWI_INTR(LWI_ON_SIGNAL_NOOP, NULL);
 
-		rc = l_wait_event(sbi->ll_cache.ccc_unstable_waitq,
-				  !atomic_read(&sbi->ll_cache.ccc_unstable_nr),
+		rc = l_wait_event(sbi->ll_cache->ccc_unstable_waitq,
+				  !atomic_read(&sbi->ll_cache->ccc_unstable_nr),
 				  &lwi);
 	}
 
-	ccc_count = atomic_read(&sbi->ll_cache.ccc_unstable_nr);
+	ccc_count = atomic_read(&sbi->ll_cache->ccc_unstable_nr);
 	if (!force && rc != -EINTR)
 		LASSERTF(!ccc_count, "count: %i\n", ccc_count);
 

@@ -452,7 +452,7 @@ struct ll_sb_info {
 	 * any page which is sent to a server as part of a bulk request,
 	 * but is uncommitted to stable storage.
 	 */
-	struct cl_client_cache    ll_cache;
+	struct cl_client_cache    *ll_cache;
 
 	struct lprocfs_stats     *ll_ra_stats;
 

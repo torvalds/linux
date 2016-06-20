@@ -356,7 +356,7 @@ static int ll_max_cached_mb_seq_show(struct seq_file *m, void *v)
 {
 	struct super_block     *sb    = m->private;
 	struct ll_sb_info      *sbi   = ll_s2sbi(sb);
-	struct cl_client_cache *cache = &sbi->ll_cache;
+	struct cl_client_cache *cache = sbi->ll_cache;
 	int shift = 20 - PAGE_SHIFT;
 	int max_cached_mb;
 	int unused_mb;
@@ -383,7 +383,7 @@ static ssize_t ll_max_cached_mb_seq_write(struct file *file,
 {
 	struct super_block *sb = ((struct seq_file *)file->private_data)->private;
 	struct ll_sb_info *sbi = ll_s2sbi(sb);
-	struct cl_client_cache *cache = &sbi->ll_cache;
+	struct cl_client_cache *cache = sbi->ll_cache;
 	struct lu_env *env;
 	int refcheck;
 	int mult, rc, pages_number;
@@ -822,7 +822,7 @@ static ssize_t unstable_stats_show(struct kobject *kobj,
 {
 	struct ll_sb_info *sbi = container_of(kobj, struct ll_sb_info,
 					      ll_kobj);
-	struct cl_client_cache *cache = &sbi->ll_cache;
+	struct cl_client_cache *cache = sbi->ll_cache;
 	int pages, mb;
 
 	pages = atomic_read(&cache->ccc_unstable_nr);
