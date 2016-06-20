@@ -155,17 +155,17 @@ struct mlxsw_sp_sb {
 struct mlxsw_sp {
 	struct {
 		struct list_head list;
-		unsigned long mapped[BITS_TO_LONGS(MLXSW_SP_VFID_PORT_MAX)];
+		DECLARE_BITMAP(mapped, MLXSW_SP_VFID_PORT_MAX);
 	} port_vfids;
 	struct {
 		struct list_head list;
-		unsigned long mapped[BITS_TO_LONGS(MLXSW_SP_VFID_BR_MAX)];
+		DECLARE_BITMAP(mapped, MLXSW_SP_VFID_BR_MAX);
 	} br_vfids;
 	struct {
 		struct list_head list;
-		unsigned long mapped[BITS_TO_LONGS(MLXSW_SP_MID_MAX)];
+		DECLARE_BITMAP(mapped, MLXSW_SP_MID_MAX);
 	} br_mids;
-	unsigned long active_fids[BITS_TO_LONGS(VLAN_N_VID)];
+	DECLARE_BITMAP(active_fids, VLAN_N_VID);
 	struct mlxsw_sp_port **ports;
 	struct mlxsw_core *core;
 	const struct mlxsw_bus_info *bus_info;
