@@ -1126,6 +1126,18 @@ int hdmi_add_vic(int vic, struct list_head *head)
 	if (vic == 0)
 		return -1;
 
+	if (vic & HDMI_VIDEO_YUV420) {
+		v = vic & 0xff;
+		if (v != HDMI_3840X2160P_50HZ &&
+		    v != HDMI_3840X2160P_60HZ &&
+		    v != HDMI_4096X2160P_50HZ &&
+		    v != HDMI_4096X2160P_60HZ &&
+		    v != HDMI_3840X2160P_50HZ_21_9 &&
+		    v != HDMI_3840X2160P_60HZ_21_9) {
+			return -1;
+		}
+	}
+
 	list_for_each(pos, head) {
 		modelist = list_entry(pos, struct display_modelist, list);
 		v = modelist->vic;
