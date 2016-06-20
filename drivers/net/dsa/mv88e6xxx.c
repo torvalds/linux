@@ -3728,7 +3728,7 @@ static int mv88e6xxx_probe(struct mdio_device *mdiodev)
 	if (!ps->info)
 		return -ENODEV;
 
-	ps->reset = devm_gpiod_get(&mdiodev->dev, "reset", GPIOD_ASIS);
+	ps->reset = devm_gpiod_get(dev, "reset", GPIOD_ASIS);
 	if (IS_ERR(ps->reset)) {
 		err = PTR_ERR(ps->reset);
 		if (err == -ENOENT) {
@@ -3743,13 +3743,13 @@ static int mv88e6xxx_probe(struct mdio_device *mdiodev)
 	    !of_property_read_u32(np, "eeprom-length", &eeprom_len))
 		ps->eeprom_len = eeprom_len;
 
-	err = mv88e6xxx_mdio_register(ps, mdiodev->dev.of_node);
+	err = mv88e6xxx_mdio_register(ps, np);
 	if (err)
 		return err;
 
 	dev_set_drvdata(dev, ds);
 
-	err = dsa_register_switch(ds, mdiodev->dev.of_node);
+	err = dsa_register_switch(ds, np);
 	if (err) {
 		mv88e6xxx_mdio_unregister(ps);
 		return err;
