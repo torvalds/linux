@@ -240,6 +240,42 @@ static int cpuacct_percpu_seq_show(struct seq_file *m, void *V)
 	return __cpuacct_percpu_seq_show(m, CPUACCT_STAT_NSTATS);
 }
 
+static int cpuacct_all_seq_show(struct seq_file *m, void *V)
+{
+	struct cpuacct *ca = css_ca(seq_css(m));
+	int index;
+	int cpu;
+
+	seq_puts(m, "cpu");
+	for (index = 0; index < CPUACCT_STAT_NSTATS; index++)
+		seq_printf(m, " %s", cpuacct_stat_desc[index]);
+	seq_puts(m, "\n");
+
+	for_each_possible_cpu(cpu) {
+		struct cpuacct_usage *cpuusage = per_cpu_ptr(ca->cpuusage, cpu);
+
+		seq_printf(m, "%d", cpu);
+
+		for (index = 0; index < CPUACCT_STAT_NSTATS; index++) {
+#ifndef CONFIG_64BIT
+			/*
+			 * Take rq->lock to make 64-bit read safe on 32-bit
+			 * platforms.
+			 */
+			raw_spin_lock_irq(&cpu_rq(cpu)->lock);
+#endif
+
+			seq_printf(m, " %llu", cpuusage->usages[index]);
+
+#ifndef CONFIG_64BIT
+			raw_spin_unlock_irq(&cpu_rq(cpu)->lock);
+#endif
+		}
+		seq_puts(m, "\n");
+	}
+	return 0;
+}
+
 static int cpuacct_stats_show(struct seq_file *sf, void *v)
 {
 	struct cpuacct *ca = css_ca(seq_css(sf));
@@ -292,6 +328,10 @@ static struct cftype files[] = {
 	{
 		.name = "usage_percpu_sys",
 		.seq_show = cpuacct_percpu_sys_seq_show,
+	},
+	{
+		.name = "usage_all",
+		.seq_show = cpuacct_all_seq_show,
 	},
 	{
 		.name = "stat",
