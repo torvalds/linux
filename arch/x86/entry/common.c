@@ -40,7 +40,7 @@ static struct thread_info *pt_regs_to_thread_info(struct pt_regs *regs)
 
 #ifdef CONFIG_CONTEXT_TRACKING
 /* Called on entry from user mode with IRQs off. */
-__visible void enter_from_user_mode(void)
+__visible inline void enter_from_user_mode(void)
 {
 	CT_WARN_ON(ct_state() != CONTEXT_USER);
 	user_exit_irqoff();
