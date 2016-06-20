@@ -24,6 +24,7 @@
 #include <linux/uio.h>
 #include <linux/backing-dev.h>
 #include <linux/buffer_head.h>
+#include <linux/dax.h>
 #include "internal.h"
 
 typedef loff_t (*iomap_actor_t)(struct inode *inode, loff_t pos, loff_t len,
@@ -268,6 +269,15 @@ static int iomap_zero(struct inode *inode, loff_t pos, unsigned offset,
 	return iomap_write_end(inode, pos, bytes, bytes, page);
 }
 
+static int iomap_dax_zero(loff_t pos, unsigned offset, unsigned bytes,
+		struct iomap *iomap)
+{
+	sector_t sector = iomap->blkno +
+		(((pos & ~(PAGE_SIZE - 1)) - iomap->offset) >> 9);
+
+	return __dax_zero_page_range(iomap->bdev, sector, offset, bytes);
+}
+
 static loff_t
 iomap_zero_range_actor(struct inode *inode, loff_t pos, loff_t count,
 		void *data, struct iomap *iomap)
@@ -286,7 +296,10 @@ iomap_zero_range_actor(struct inode *inode, loff_t pos, loff_t count,
 		offset = pos & (PAGE_SIZE - 1); /* Within page */
 		bytes = min_t(unsigned, PAGE_SIZE - offset, count);
 
-		status = iomap_zero(inode, pos, offset, bytes, iomap);
+		if (IS_DAX(inode))
+			status = iomap_dax_zero(pos, offset, bytes, iomap);
+		else
+			status = iomap_zero(inode, pos, offset, bytes, iomap);
 		if (status < 0)
 			return status;
 
