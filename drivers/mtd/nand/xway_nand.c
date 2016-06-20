@@ -35,7 +35,6 @@
 #define NAND_CMD_CS		BIT(4) /* chip select */
 #define NAND_CMD_SE		BIT(5) /* spare area access latch */
 #define NAND_CMD_WP		BIT(6) /* write protect */
-#define NAND_WRITE_CMD_RESET	0xff
 #define NAND_WRITE_CMD		(NAND_CMD_CS | NAND_CMD_CLE)
 #define NAND_WRITE_ADDR		(NAND_CMD_CS | NAND_CMD_ALE)
 #define NAND_WRITE_DATA		(NAND_CMD_CS)
@@ -67,22 +66,6 @@
 struct xway_nand_data {
 	struct nand_chip	chip;
 };
-
-static void xway_reset_chip(struct nand_chip *chip)
-{
-	unsigned long nandaddr = (unsigned long) chip->IO_ADDR_W;
-	unsigned long flags;
-
-	nandaddr &= ~NAND_WRITE_ADDR;
-	nandaddr |= NAND_WRITE_CMD;
-
-	/* finish with a reset */
-	spin_lock_irqsave(&ebu_lock, flags);
-	writeb(NAND_WRITE_CMD_RESET, (void __iomem *) nandaddr);
-	while ((ltq_ebu_r32(EBU_NAND_WAIT) & NAND_WAIT_WR_C) == 0)
-		;
-	spin_unlock_irqrestore(&ebu_lock, flags);
-}
 
 static void xway_select_chip(struct mtd_info *mtd, int chip)
 {
@@ -198,9 +181,6 @@ static int xway_nand_probe(struct platform_device *pdev)
 	ltq_ebu_w32(NAND_CON_NANDM | NAND_CON_CSMUX | NAND_CON_CS_P
 		| NAND_CON_SE_P | NAND_CON_WP_P | NAND_CON_PRE_P
 		| cs_flag, EBU_NAND_CON);
-
-	/* finish with a reset */
-	xway_reset_chip(&data->chip);
 
 	/* Scan to find existence of the device */
 	err = nand_scan(mtd, 1);
