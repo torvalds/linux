@@ -399,7 +399,19 @@ static int ll_intent_file_open(struct dentry *dentry, void *lmm,
 	 * parameters. No need for the open lock
 	 */
 	if (!lmm && lmmsize == 0) {
-		itp->it_flags |= MDS_OPEN_LOCK;
+		struct ll_dentry_data *ldd = ll_d2d(dentry);
+		/*
+		 * If we came via ll_iget_for_nfs, then we need to request
+		 * struct ll_dentry_data *ldd = ll_d2d(file->f_dentry);
+		 *
+		 * NB: when ldd is NULL, it must have come via normal
+		 * lookup path only, since ll_iget_for_nfs always calls
+		 * ll_d_init().
+		 */
+		if (ldd && ldd->lld_nfs_dentry) {
+			ldd->lld_nfs_dentry = 0;
+			itp->it_flags |= MDS_OPEN_LOCK;
+		}
 		if (itp->it_flags & FMODE_WRITE)
 			opc = LUSTRE_OPC_CREATE;
 	}
