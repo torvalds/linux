@@ -405,3 +405,93 @@ out_unlock:
 	return ret;
 }
 EXPORT_SYMBOL_GPL(iomap_page_mkwrite);
+
+struct fiemap_ctx {
+	struct fiemap_extent_info *fi;
+	struct iomap prev;
+};
+
+static int iomap_to_fiemap(struct fiemap_extent_info *fi,
+		struct iomap *iomap, u32 flags)
+{
+	switch (iomap->type) {
+	case IOMAP_HOLE:
+		/* skip holes */
+		return 0;
+	case IOMAP_DELALLOC:
+		flags |= FIEMAP_EXTENT_DELALLOC | FIEMAP_EXTENT_UNKNOWN;
+		break;
+	case IOMAP_UNWRITTEN:
+		flags |= FIEMAP_EXTENT_UNWRITTEN;
+		break;
+	case IOMAP_MAPPED:
+		break;
+	}
+
+	return fiemap_fill_next_extent(fi, iomap->offset,
+			iomap->blkno != IOMAP_NULL_BLOCK ? iomap->blkno << 9: 0,
+			iomap->length, flags | FIEMAP_EXTENT_MERGED);
+
+}
+
+static loff_t
+iomap_fiemap_actor(struct inode *inode, loff_t pos, loff_t length, void *data,
+		struct iomap *iomap)
+{
+	struct fiemap_ctx *ctx = data;
+	loff_t ret = length;
+
+	if (iomap->type == IOMAP_HOLE)
+		return length;
+
+	ret = iomap_to_fiemap(ctx->fi, &ctx->prev, 0);
+	ctx->prev = *iomap;
+	switch (ret) {
+	case 0:		/* success */
+		return length;
+	case 1:		/* extent array full */
+		return 0;
+	default:
+		return ret;
+	}
+}
+
+int iomap_fiemap(struct inode *inode, struct fiemap_extent_info *fi,
+		loff_t start, loff_t len, struct iomap_ops *ops)
+{
+	struct fiemap_ctx ctx;
+	loff_t ret;
+
+	memset(&ctx, 0, sizeof(ctx));
+	ctx.fi = fi;
+	ctx.prev.type = IOMAP_HOLE;
+
+	ret = fiemap_check_flags(fi, FIEMAP_FLAG_SYNC);
+	if (ret)
+		return ret;
+
+	ret = filemap_write_and_wait(inode->i_mapping);
+	if (ret)
+		return ret;
+
+	while (len > 0) {
+		ret = iomap_apply(inode, start, len, 0, ops, &ctx,
+				iomap_fiemap_actor);
+		if (ret < 0)
+			return ret;
+		if (ret == 0)
+			break;
+
+		start += ret;
+		len -= ret;
+	}
+
+	if (ctx.prev.type != IOMAP_HOLE) {
+		ret = iomap_to_fiemap(fi, &ctx.prev, FIEMAP_EXTENT_LAST);
+		if (ret < 0)
+			return ret;
+	}
+
+	return 0;
+}
+EXPORT_SYMBOL_GPL(iomap_fiemap);
