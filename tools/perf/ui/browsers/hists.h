@@ -18,6 +18,10 @@ struct hist_browser {
 	u64		     nr_non_filtered_entries;
 	u64		     nr_hierarchy_entries;
 	u64		     nr_callchain_rows;
+
+	/* Get title string. */
+	int                  (*title)(struct hist_browser *browser,
+			     char *bf, size_t size);
 };
 
 struct hist_browser *hist_browser__new(struct hists *hists,

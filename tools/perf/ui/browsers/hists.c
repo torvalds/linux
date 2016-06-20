@@ -21,9 +21,8 @@
 
 extern void hist_browser__init_hpp(void);
 
-static int hists__browser_title(struct hists *hists,
-				struct hist_browser_timer *hbt,
-				char *bf, size_t size);
+static int perf_evsel_browser_title(struct hist_browser *browser,
+				    char *bf, size_t size);
 static void hist_browser__update_nr_entries(struct hist_browser *hb);
 
 static struct rb_node *hists__filter_entries(struct rb_node *nd,
@@ -568,6 +567,11 @@ static void ui_browser__warn_lost_events(struct ui_browser *browser)
 		"Or reduce the sampling frequency.");
 }
 
+static int hist_browser__title(struct hist_browser *browser, char *bf, size_t size)
+{
+	return browser->title ? browser->title(browser, bf, size) : 0;
+}
+
 int hist_browser__run(struct hist_browser *browser, const char *help)
 {
 	int key;
@@ -578,7 +582,7 @@ int hist_browser__run(struct hist_browser *browser, const char *help)
 	browser->b.entries = &browser->hists->entries;
 	browser->b.nr_entries = hist_browser__nr_entries(browser);
 
-	hists__browser_title(browser->hists, hbt, title, sizeof(title));
+	hist_browser__title(browser, title, sizeof(title));
 
 	if (ui_browser__show(&browser->b, title, "%s", help) < 0)
 		return -1;
@@ -604,8 +608,7 @@ int hist_browser__run(struct hist_browser *browser, const char *help)
 				ui_browser__warn_lost_events(&browser->b);
 			}
 
-			hists__browser_title(browser->hists,
-					     hbt, title, sizeof(title));
+			hist_browser__title(browser, title, sizeof(title));
 			ui_browser__show_title(&browser->b, title);
 			continue;
 		}
@@ -2054,6 +2057,7 @@ struct hist_browser *hist_browser__new(struct hists *hists,
 		browser->show_headers = symbol_conf.show_hist_headers;
 		browser->hbt = hbt;
 		browser->env = env;
+		browser->title = perf_evsel_browser_title;
 	}
 
 	return browser;
@@ -2080,10 +2084,11 @@ static inline bool is_report_browser(void *timer)
 	return timer == NULL;
 }
 
-static int hists__browser_title(struct hists *hists,
-				struct hist_browser_timer *hbt,
+static int perf_evsel_browser_title(struct hist_browser *browser,
 				char *bf, size_t size)
 {
+	struct hist_browser_timer *hbt = browser->hbt;
+	struct hists *hists = browser->hists;
 	char unit;
 	int printed;
 	const struct dso *dso = hists->dso_filter;
