@@ -674,14 +674,14 @@ static void init_amd_bd(struct cpuinfo_x86 *c)
 	u64 value;
 
 	/* re-enable TopologyExtensions if switched off by BIOS */
-	if ((c->x86_model >= 0x10) && (c->x86_model <= 0x1f) &&
+	if ((c->x86_model >= 0x10) && (c->x86_model <= 0x6f) &&
 	    !cpu_has(c, X86_FEATURE_TOPOEXT)) {
 
 		if (msr_set_bit(0xc0011005, 54) > 0) {
 			rdmsrl(0xc0011005, value);
 			if (value & BIT_64(54)) {
 				set_cpu_cap(c, X86_FEATURE_TOPOEXT);
-				pr_info(FW_INFO "CPU: Re-enabling disabled Topology Extensions Support.\n");
+				pr_info_once(FW_INFO "CPU: Re-enabling disabled Topology Extensions Support.\n");
 			}
 		}
 	}

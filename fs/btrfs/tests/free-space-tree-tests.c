@@ -16,6 +16,7 @@
  * Boston, MA 021110-1307, USA.
  */
 
+#include <linux/types.h>
 #include "btrfs-tests.h"
 #include "../ctree.h"
 #include "../disk-io.h"
@@ -30,7 +31,7 @@ struct free_space_extent {
  * The test cases align their operations to this in order to hit some of the
  * edge cases in the bitmap code.
  */
-#define BITMAP_RANGE (BTRFS_FREE_SPACE_BITMAP_BITS * 4096)
+#define BITMAP_RANGE (BTRFS_FREE_SPACE_BITMAP_BITS * PAGE_SIZE)
 
 static int __check_free_space_extents(struct btrfs_trans_handle *trans,
 				      struct btrfs_fs_info *fs_info,
@@ -439,7 +440,8 @@ typedef int (*test_func_t)(struct btrfs_trans_handle *,
 			   struct btrfs_block_group_cache *,
 			   struct btrfs_path *);
 
-static int run_test(test_func_t test_func, int bitmaps)
+static int run_test(test_func_t test_func, int bitmaps,
+		u32 sectorsize, u32 nodesize)
 {
 	struct btrfs_root *root = NULL;
 	struct btrfs_block_group_cache *cache = NULL;
@@ -447,7 +449,7 @@ static int run_test(test_func_t test_func, int bitmaps)
 	struct btrfs_path *path = NULL;
 	int ret;
 
-	root = btrfs_alloc_dummy_root();
+	root = btrfs_alloc_dummy_root(sectorsize, nodesize);
 	if (IS_ERR(root)) {
 		test_msg("Couldn't allocate dummy root\n");
 		ret = PTR_ERR(root);
@@ -466,7 +468,8 @@ static int run_test(test_func_t test_func, int bitmaps)
 	root->fs_info->free_space_root = root;
 	root->fs_info->tree_root = root;
 
-	root->node = alloc_test_extent_buffer(root->fs_info, 4096);
+	root->node = alloc_test_extent_buffer(root->fs_info,
+		nodesize, nodesize);
 	if (!root->node) {
 		test_msg("Couldn't allocate dummy buffer\n");
 		ret = -ENOMEM;
@@ -474,9 +477,9 @@ static int run_test(test_func_t test_func, int bitmaps)
 	}
 	btrfs_set_header_level(root->node, 0);
 	btrfs_set_header_nritems(root->node, 0);
-	root->alloc_bytenr += 8192;
+	root->alloc_bytenr += 2 * nodesize;
 
-	cache = btrfs_alloc_dummy_block_group(8 * BITMAP_RANGE);
+	cache = btrfs_alloc_dummy_block_group(8 * BITMAP_RANGE, sectorsize);
 	if (!cache) {
 		test_msg("Couldn't allocate dummy block group cache\n");
 		ret = -ENOMEM;
@@ -534,17 +537,18 @@ out:
 	return ret;
 }
 
-static int run_test_both_formats(test_func_t test_func)
+static int run_test_both_formats(test_func_t test_func,
+	u32 sectorsize, u32 nodesize)
 {
 	int ret;
 
-	ret = run_test(test_func, 0);
+	ret = run_test(test_func, 0, sectorsize, nodesize);
 	if (ret)
 		return ret;
-	return run_test(test_func, 1);
+	return run_test(test_func, 1, sectorsize, nodesize);
 }
 
-int btrfs_test_free_space_tree(void)
+int btrfs_test_free_space_tree(u32 sectorsize, u32 nodesize)
 {
 	test_func_t tests[] = {
 		test_empty_block_group,
@@ -561,9 +565,11 @@ int btrfs_test_free_space_tree(void)
 
 	test_msg("Running free space tree tests\n");
 	for (i = 0; i < ARRAY_SIZE(tests); i++) {
-		int ret = run_test_both_formats(tests[i]);
+		int ret = run_test_both_formats(tests[i], sectorsize,
+			nodesize);
 		if (ret) {
-			test_msg("%pf failed\n", tests[i]);
+			test_msg("%pf : sectorsize %u failed\n",
+				tests[i], sectorsize);
 			return ret;
 		}
 	}

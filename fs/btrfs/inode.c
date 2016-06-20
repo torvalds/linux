@@ -3271,7 +3271,16 @@ int btrfs_orphan_add(struct btrfs_trans_handle *trans, struct inode *inode)
 	/* grab metadata reservation from transaction handle */
 	if (reserve) {
 		ret = btrfs_orphan_reserve_metadata(trans, inode);
-		BUG_ON(ret); /* -ENOSPC in reservation; Logic error? JDM */
+		ASSERT(!ret);
+		if (ret) {
+			atomic_dec(&root->orphan_inodes);
+			clear_bit(BTRFS_INODE_ORPHAN_META_RESERVED,
+				  &BTRFS_I(inode)->runtime_flags);
+			if (insert)
+				clear_bit(BTRFS_INODE_HAS_ORPHAN_ITEM,
+					  &BTRFS_I(inode)->runtime_flags);
+			return ret;
+		}
 	}
 
 	/* insert an orphan item to track this unlinked/truncated file */
@@ -6979,7 +6988,18 @@ insert:
 		 * existing will always be non-NULL, since there must be
 		 * extent causing the -EEXIST.
 		 */
-		if (start >= extent_map_end(existing) ||
+		if (existing->start == em->start &&
+		    extent_map_end(existing) == extent_map_end(em) &&
+		    em->block_start == existing->block_start) {
+			/*
+			 * these two extents are the same, it happens
+			 * with inlines especially
+			 */
+			free_extent_map(em);
+			em = existing;
+			err = 0;
+
+		} else if (start >= extent_map_end(existing) ||
 		    start <= existing->start) {
 			/*
 			 * The existing extent map is the one nearest to

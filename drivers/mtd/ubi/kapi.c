@@ -302,6 +302,7 @@ EXPORT_SYMBOL_GPL(ubi_open_volume_nm);
 struct ubi_volume_desc *ubi_open_volume_path(const char *pathname, int mode)
 {
 	int error, ubi_num, vol_id;
+	struct path path;
 	struct kstat stat;
 
 	dbg_gen("open volume %s, mode %d", pathname, mode);
@@ -309,7 +310,12 @@ struct ubi_volume_desc *ubi_open_volume_path(const char *pathname, int mode)
 	if (!pathname || !*pathname)
 		return ERR_PTR(-EINVAL);
 
-	error = vfs_stat(pathname, &stat);
+	error = kern_path(pathname, LOOKUP_FOLLOW, &path);
+	if (error)
+		return ERR_PTR(error);
+
+	error = vfs_getattr(&path, &stat);
+	path_put(&path);
 	if (error)
 		return ERR_PTR(error);
 

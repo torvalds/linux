@@ -606,6 +606,9 @@ config HAVE_ARCH_HASH
 	  file which provides platform-specific implementations of some
 	  functions in <linux/hash.h> or fs/namei.c.
 
+config ISA_BUS_API
+	def_bool ISA
+
 #
 # ABI hall of shame
 #

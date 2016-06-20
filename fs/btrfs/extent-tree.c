@@ -2042,6 +2042,11 @@ int btrfs_discard_extent(struct btrfs_root *root, u64 bytenr,
 	struct btrfs_bio *bbio = NULL;
 
 
+	/*
+	 * Avoid races with device replace and make sure our bbio has devices
+	 * associated to its stripes that don't go away while we are discarding.
+	 */
+	btrfs_bio_counter_inc_blocked(root->fs_info);
 	/* Tell the block device(s) that the sectors can be discarded */
 	ret = btrfs_map_block(root->fs_info, REQ_DISCARD,
 			      bytenr, &num_bytes, &bbio, 0);
@@ -2074,6 +2079,7 @@ int btrfs_discard_extent(struct btrfs_root *root, u64 bytenr,
 		}
 		btrfs_put_bbio(bbio);
 	}
+	btrfs_bio_counter_dec(root->fs_info);
 
 	if (actual_bytes)
 		*actual_bytes = discarded_bytes;
@@ -8010,8 +8016,9 @@ btrfs_init_new_buffer(struct btrfs_trans_handle *trans, struct btrfs_root *root,
 	struct extent_buffer *buf;
 
 	buf = btrfs_find_create_tree_block(root, bytenr);
-	if (!buf)
-		return ERR_PTR(-ENOMEM);
+	if (IS_ERR(buf))
+		return buf;
+
 	btrfs_set_header_generation(buf, trans->transid);
 	btrfs_set_buffer_lockdep_class(root->root_key.objectid, buf, level);
 	btrfs_tree_lock(buf);
@@ -8038,7 +8045,7 @@ btrfs_init_new_buffer(struct btrfs_trans_handle *trans, struct btrfs_root *root,
 		set_extent_dirty(&trans->transaction->dirty_pages, buf->start,
 			 buf->start + buf->len - 1, GFP_NOFS);
 	}
-	trans->blocks_used++;
+	trans->dirty = true;
 	/* this returns a buffer locked for blocking */
 	return buf;
 }
@@ -8653,8 +8660,9 @@ static noinline int do_walk_down(struct btrfs_trans_handle *trans,
 	next = btrfs_find_tree_block(root->fs_info, bytenr);
 	if (!next) {
 		next = btrfs_find_create_tree_block(root, bytenr);
-		if (!next)
-			return -ENOMEM;
+		if (IS_ERR(next))
+			return PTR_ERR(next);
+
 		btrfs_set_buffer_lockdep_class(root->root_key.objectid, next,
 					       level - 1);
 		reada = 1;

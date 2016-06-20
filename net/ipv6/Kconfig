@@ -232,6 +232,15 @@ config IPV6_GRE
 
 	  Saying M here will produce a module called ip6_gre. If unsure, say N.
 
+config IPV6_FOU
+	tristate
+	default NET_FOU && IPV6
+
+config IPV6_FOU_TUNNEL
+	tristate
+	default NET_FOU_IP_TUNNELS && IPV6_FOU
+	select IPV6_TUNNEL
+
 config IPV6_MULTIPLE_TABLES
 	bool "IPv6: Multiple Routing Tables"
 	select FIB_RULES

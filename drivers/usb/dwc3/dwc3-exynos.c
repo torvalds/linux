@@ -128,12 +128,6 @@ static int dwc3_exynos_probe(struct platform_device *pdev)
 
 	platform_set_drvdata(pdev, exynos);
 
-	ret = dwc3_exynos_register_phys(exynos);
-	if (ret) {
-		dev_err(dev, "couldn't register PHYs\n");
-		return ret;
-	}
-
 	exynos->dev	= dev;
 
 	exynos->clk = devm_clk_get(dev, "usbdrd30");
@@ -183,20 +177,29 @@ static int dwc3_exynos_probe(struct platform_device *pdev)
 		goto err3;
 	}
 
+	ret = dwc3_exynos_register_phys(exynos);
+	if (ret) {
+		dev_err(dev, "couldn't register PHYs\n");
+		goto err4;
+	}
+
 	if (node) {
 		ret = of_platform_populate(node, NULL, NULL, dev);
 		if (ret) {
 			dev_err(dev, "failed to add dwc3 core\n");
-			goto err4;
+			goto err5;
 		}
 	} else {
 		dev_err(dev, "no device node, failed to add dwc3 core\n");
 		ret = -ENODEV;
-		goto err4;
+		goto err5;
 	}
 
 	return 0;
 
+err5:
+	platform_device_unregister(exynos->usb2_phy);
+	platform_device_unregister(exynos->usb3_phy);
 err4:
 	regulator_disable(exynos->vdd10);
 err3:

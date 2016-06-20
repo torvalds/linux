@@ -2245,10 +2245,8 @@ static void spin(struct pktgen_dev *pkt_dev, ktime_t spin_until)
 	hrtimer_set_expires(&t.timer, spin_until);
 
 	remaining = ktime_to_ns(hrtimer_expires_remaining(&t.timer));
-	if (remaining <= 0) {
-		pkt_dev->next_tx = ktime_add_ns(spin_until, pkt_dev->delay);
-		return;
-	}
+	if (remaining <= 0)
+		goto out;
 
 	start_time = ktime_get();
 	if (remaining < 100000) {
@@ -2273,7 +2271,9 @@ static void spin(struct pktgen_dev *pkt_dev, ktime_t spin_until)
 	}
 
 	pkt_dev->idle_acc += ktime_to_ns(ktime_sub(end_time, start_time));
+out:
 	pkt_dev->next_tx = ktime_add_ns(spin_until, pkt_dev->delay);
+	destroy_hrtimer_on_stack(&t.timer);
 }
 
 static inline void set_pkt_overhead(struct pktgen_dev *pkt_dev)

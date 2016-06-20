@@ -1018,7 +1018,7 @@ static int dwc2_hsotg_process_req_status(struct dwc2_hsotg *hsotg,
 	return 1;
 }
 
-static int dwc2_hsotg_ep_sethalt(struct usb_ep *ep, int value);
+static int dwc2_hsotg_ep_sethalt(struct usb_ep *ep, int value, bool now);
 
 /**
  * get_ep_head - return the first request on the endpoint
@@ -1094,7 +1094,7 @@ static int dwc2_hsotg_process_req_feature(struct dwc2_hsotg *hsotg,
 		case USB_ENDPOINT_HALT:
 			halted = ep->halted;
 
-			dwc2_hsotg_ep_sethalt(&ep->ep, set);
+			dwc2_hsotg_ep_sethalt(&ep->ep, set, true);
 
 			ret = dwc2_hsotg_send_reply(hsotg, ep0, NULL, 0);
 			if (ret) {
@@ -2948,8 +2948,13 @@ static int dwc2_hsotg_ep_dequeue(struct usb_ep *ep, struct usb_request *req)
  * dwc2_hsotg_ep_sethalt - set halt on a given endpoint
  * @ep: The endpoint to set halt.
  * @value: Set or unset the halt.
+ * @now: If true, stall the endpoint now. Otherwise return -EAGAIN if
+ *       the endpoint is busy processing requests.
+ *
+ * We need to stall the endpoint immediately if request comes from set_feature
+ * protocol command handler.
  */
-static int dwc2_hsotg_ep_sethalt(struct usb_ep *ep, int value)
+static int dwc2_hsotg_ep_sethalt(struct usb_ep *ep, int value, bool now)
 {
 	struct dwc2_hsotg_ep *hs_ep = our_ep(ep);
 	struct dwc2_hsotg *hs = hs_ep->parent;
@@ -2967,6 +2972,17 @@ static int dwc2_hsotg_ep_sethalt(struct usb_ep *ep, int value)
 			dev_warn(hs->dev,
 				 "%s: can't clear halt on ep0\n", __func__);
 		return 0;
+	}
+
+	if (hs_ep->isochronous) {
+		dev_err(hs->dev, "%s is Isochronous Endpoint\n", ep->name);
+		return -EINVAL;
+	}
+
+	if (!now && value && !list_empty(&hs_ep->queue)) {
+		dev_dbg(hs->dev, "%s request is pending, cannot halt\n",
+			ep->name);
+		return -EAGAIN;
 	}
 
 	if (hs_ep->dir_in) {
@@ -3020,7 +3036,7 @@ static int dwc2_hsotg_ep_sethalt_lock(struct usb_ep *ep, int value)
 	int ret = 0;
 
 	spin_lock_irqsave(&hs->lock, flags);
-	ret = dwc2_hsotg_ep_sethalt(ep, value);
+	ret = dwc2_hsotg_ep_sethalt(ep, value, false);
 	spin_unlock_irqrestore(&hs->lock, flags);
 
 	return ret;
