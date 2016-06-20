@@ -1344,6 +1344,13 @@ struct i40e_mac_filter *i40e_add_filter(struct i40e_vsi *vsi,
 	if (!vsi || !macaddr)
 		return NULL;
 
+	/* Do not allow broadcast filter to be added since broadcast filter
+	 * is added as part of add VSI for any newly created VSI except
+	 * FDIR VSI
+	 */
+	if (is_broadcast_ether_addr(macaddr))
+		return NULL;
+
 	f = i40e_find_filter(vsi, macaddr, vlan, is_vf, is_netdev);
 	if (!f) {
 		f = kzalloc(sizeof(*f), GFP_ATOMIC);
@@ -2150,18 +2157,6 @@ int i40e_sync_vsi_filters(struct i40e_vsi *vsi)
 					 "set multicast promisc failed, err %d, aq_err %d\n",
 					 aq_ret, pf->hw.aq.asq_last_status);
 			}
-		}
-		aq_ret = i40e_aq_set_vsi_broadcast(&vsi->back->hw,
-						   vsi->seid,
-						   cur_promisc, NULL);
-		if (aq_ret) {
-			retval = i40e_aq_rc_to_posix(aq_ret,
-						     pf->hw.aq.asq_last_status);
-			dev_info(&pf->pdev->dev,
-				 "set brdcast promisc failed, err %s, aq_err %s\n",
-				 i40e_stat_str(&pf->hw, aq_ret),
-				 i40e_aq_str(&pf->hw,
-					     pf->hw.aq.asq_last_status));
 		}
 	}
 out:
@@ -9224,6 +9219,7 @@ int i40e_is_vsi_uplink_mode_veb(struct i40e_vsi *vsi)
 static int i40e_add_vsi(struct i40e_vsi *vsi)
 {
 	int ret = -ENODEV;
+	i40e_status aq_ret = 0;
 	u8 laa_macaddr[ETH_ALEN];
 	bool found_laa_mac_filter = false;
 	struct i40e_pf *pf = vsi->back;
@@ -9412,6 +9408,18 @@ static int i40e_add_vsi(struct i40e_vsi *vsi)
 		vsi->info.valid_sections = 0;
 		vsi->seid = ctxt.seid;
 		vsi->id = ctxt.vsi_number;
+	}
+	/* Except FDIR VSI, for all othet VSI set the broadcast filter */
+	if (vsi->type != I40E_VSI_FDIR) {
+		aq_ret = i40e_aq_set_vsi_broadcast(hw, vsi->seid, true, NULL);
+		if (aq_ret) {
+			ret = i40e_aq_rc_to_posix(aq_ret,
+						  hw->aq.asq_last_status);
+			dev_info(&pf->pdev->dev,
+				 "set brdcast promisc failed, err %s, aq_err %s\n",
+				 i40e_stat_str(hw, aq_ret),
+				 i40e_aq_str(hw, hw->aq.asq_last_status));
+		}
 	}
 
 	spin_lock_bh(&vsi->mac_filter_list_lock);
