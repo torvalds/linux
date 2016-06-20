@@ -769,11 +769,10 @@ static bool hal_EfusePartialWriteCheck(struct adapter *pAdapter, u8 efuseType, u
 	bool bRet = false;
 	u8 i, efuse_data = 0, cur_header = 0;
 	u8 matched_wden = 0, badworden = 0;
-	u16	startAddr = 0, efuse_max_available_len = 0, efuse_max = 0;
+	u16	startAddr = 0, efuse_max_available_len = 0;
 	struct pgpkt curPkt;
 
 	EFUSE_GetEfuseDefinition(pAdapter, efuseType, TYPE_AVAILABLE_EFUSE_BYTES_BANK, (void *)&efuse_max_available_len);
-	EFUSE_GetEfuseDefinition(pAdapter, efuseType, TYPE_EFUSE_REAL_CONTENT_LEN, (void *)&efuse_max);
 
 	rtw_hal_get_hwreg(pAdapter, HW_VAR_EFUSE_BYTES, (u8 *)&startAddr);
 	startAddr %= EFUSE_REAL_CONTENT_LEN;
