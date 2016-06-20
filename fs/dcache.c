@@ -2503,7 +2503,6 @@ retry:
 		rcu_read_unlock();
 		goto retry;
 	}
-	rcu_read_unlock();
 	/*
 	 * No changes for the parent since the beginning of d_lookup().
 	 * Since all removals from the chain happen with hlist_bl_lock(),
@@ -2516,8 +2515,6 @@ retry:
 			continue;
 		if (dentry->d_parent != parent)
 			continue;
-		if (d_unhashed(dentry))
-			continue;
 		if (parent->d_flags & DCACHE_OP_COMPARE) {
 			int tlen = dentry->d_name.len;
 			const char *tname = dentry->d_name.name;
@@ -2529,9 +2526,18 @@ retry:
 			if (dentry_cmp(dentry, str, len))
 				continue;
 		}
-		dget(dentry);
 		hlist_bl_unlock(b);
-		/* somebody is doing lookup for it right now; wait for it */
+		/* now we can try to grab a reference */
+		if (!lockref_get_not_dead(&dentry->d_lockref)) {
+			rcu_read_unlock();
+			goto retry;
+		}
+
+		rcu_read_unlock();
+		/*
+		 * somebody is likely to be still doing lookup for it;
+		 * wait for them to finish
+		 */
 		spin_lock(&dentry->d_lock);
 		d_wait_lookup(dentry);
 		/*
@@ -2562,6 +2568,7 @@ retry:
 		dput(new);
 		return dentry;
 	}
+	rcu_read_unlock();
 	/* we can't take ->d_lock here; it's OK, though. */
 	new->d_flags |= DCACHE_PAR_LOOKUP;
 	new->d_wait = wq;
