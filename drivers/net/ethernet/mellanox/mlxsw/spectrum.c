@@ -2651,7 +2651,28 @@ static bool mlxsw_sp_port_dev_check(const struct net_device *dev)
 	return dev->netdev_ops == &mlxsw_sp_port_netdev_ops;
 }
 
-static int mlxsw_sp_port_bridge_join(struct mlxsw_sp_port *mlxsw_sp_port)
+static bool mlxsw_sp_master_bridge_check(struct mlxsw_sp *mlxsw_sp,
+					 struct net_device *br_dev)
+{
+	return !mlxsw_sp->master_bridge.dev ||
+	       mlxsw_sp->master_bridge.dev == br_dev;
+}
+
+static void mlxsw_sp_master_bridge_inc(struct mlxsw_sp *mlxsw_sp,
+				       struct net_device *br_dev)
+{
+	mlxsw_sp->master_bridge.dev = br_dev;
+	mlxsw_sp->master_bridge.ref_count++;
+}
+
+static void mlxsw_sp_master_bridge_dec(struct mlxsw_sp *mlxsw_sp)
+{
+	if (--mlxsw_sp->master_bridge.ref_count == 0)
+		mlxsw_sp->master_bridge.dev = NULL;
+}
+
+static int mlxsw_sp_port_bridge_join(struct mlxsw_sp_port *mlxsw_sp_port,
+				     struct net_device *br_dev)
 {
 	struct net_device *dev = mlxsw_sp_port->dev;
 	int err;
@@ -2664,6 +2685,8 @@ static int mlxsw_sp_port_bridge_join(struct mlxsw_sp_port *mlxsw_sp_port)
 	err = mlxsw_sp_port_kill_vid(dev, 0, 1);
 	if (err)
 		return err;
+
+	mlxsw_sp_master_bridge_inc(mlxsw_sp_port->mlxsw_sp, br_dev);
 
 	mlxsw_sp_port->learning = 1;
 	mlxsw_sp_port->learning_sync = 1;
@@ -2683,6 +2706,8 @@ static void mlxsw_sp_port_bridge_leave(struct mlxsw_sp_port *mlxsw_sp_port,
 
 	mlxsw_sp_port_pvid_set(mlxsw_sp_port, 1);
 
+	mlxsw_sp_master_bridge_dec(mlxsw_sp_port->mlxsw_sp);
+
 	mlxsw_sp_port->learning = 0;
 	mlxsw_sp_port->learning_sync = 0;
 	mlxsw_sp_port->uc_flood = 0;
@@ -2692,26 +2717,6 @@ static void mlxsw_sp_port_bridge_leave(struct mlxsw_sp_port *mlxsw_sp_port,
 	 * packets will be classified to the default vFID.
 	 */
 	mlxsw_sp_port_add_vid(dev, 0, 1);
-}
-
-static bool mlxsw_sp_master_bridge_check(struct mlxsw_sp *mlxsw_sp,
-					 struct net_device *br_dev)
-{
-	return !mlxsw_sp->master_bridge.dev ||
-	       mlxsw_sp->master_bridge.dev == br_dev;
-}
-
-static void mlxsw_sp_master_bridge_inc(struct mlxsw_sp *mlxsw_sp,
-				       struct net_device *br_dev)
-{
-	mlxsw_sp->master_bridge.dev = br_dev;
-	mlxsw_sp->master_bridge.ref_count++;
-}
-
-static void mlxsw_sp_master_bridge_dec(struct mlxsw_sp *mlxsw_sp)
-{
-	if (--mlxsw_sp->master_bridge.ref_count == 0)
-		mlxsw_sp->master_bridge.dev = NULL;
 }
 
 static int mlxsw_sp_lag_create(struct mlxsw_sp *mlxsw_sp, u16 lag_id)
@@ -2910,7 +2915,6 @@ static void mlxsw_sp_port_lag_leave(struct mlxsw_sp_port *mlxsw_sp_port,
 	if (mlxsw_sp_port->bridged) {
 		mlxsw_sp_port_active_vlans_del(mlxsw_sp_port);
 		mlxsw_sp_port_bridge_leave(mlxsw_sp_port, false);
-		mlxsw_sp_master_bridge_dec(mlxsw_sp);
 	}
 
 	if (lag->ref_count == 1) {
@@ -3049,13 +3053,11 @@ static int mlxsw_sp_netdevice_port_upper_event(struct net_device *dev,
 				 mlxsw_sp_port_vlan_unlink(mlxsw_sp_port,
 							   upper_dev);
 		} else if (netif_is_bridge_master(upper_dev)) {
-			if (info->linking) {
-				err = mlxsw_sp_port_bridge_join(mlxsw_sp_port);
-				mlxsw_sp_master_bridge_inc(mlxsw_sp, upper_dev);
-			} else {
+			if (info->linking)
+				err = mlxsw_sp_port_bridge_join(mlxsw_sp_port,
+								upper_dev);
+			else
 				mlxsw_sp_port_bridge_leave(mlxsw_sp_port, true);
-				mlxsw_sp_master_bridge_dec(mlxsw_sp);
-			}
 		} else if (netif_is_lag_master(upper_dev)) {
 			if (info->linking)
 				err = mlxsw_sp_port_lag_join(mlxsw_sp_port,
