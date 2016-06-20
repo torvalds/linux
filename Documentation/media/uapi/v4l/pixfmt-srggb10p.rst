@@ -20,10 +20,10 @@ Description
 ===========
 
 These four pixel formats are packed raw sRGB / Bayer formats with 10
-bits per colour. Every four consecutive colour components are packed
-into 5 bytes. Each of the first 4 bytes contain the 8 high order bits of
-the pixels, and the fifth byte contains the two least significants bits
-of each pixel, in the same order.
+bits per sample. Every four consecutive samples are packed into 5
+bytes. Each of the first 4 bytes contain the 8 high order bits
+of the pixels, and the 5th byte contains the 2 least significants
+bits of each pixel, in the same order.
 
 Each n-pixel row contains n/2 green samples and n/2 blue or red samples,
 with alternating green-red and green-blue rows. They are conventionally

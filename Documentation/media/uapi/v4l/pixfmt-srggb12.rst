@@ -26,10 +26,11 @@ high bits filled with zeros. Each n-pixel row contains n/2 green samples
 and n/2 blue or red samples, with alternating red and blue rows. Bytes
 are stored in memory in little endian order. They are conventionally
 described as GRGR... BGBG..., RGRG... GBGB..., etc. Below is an example
-of one of these formats
+of one of these formats:
 
 **Byte Order.**
-Each cell is one byte, high 4 bits in high bytes are 0.
+Each cell is one byte, the 4 most significant bits in the high bytes are
+0.
 
 
 
