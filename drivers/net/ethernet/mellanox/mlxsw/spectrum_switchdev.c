@@ -57,11 +57,8 @@ static u16 mlxsw_sp_port_vid_to_fid_get(struct mlxsw_sp_port *mlxsw_sp_port,
 {
 	u16 fid = vid;
 
-	if (mlxsw_sp_port_is_vport(mlxsw_sp_port)) {
-		u16 vfid = mlxsw_sp_vport_vfid_get(mlxsw_sp_port);
-
-		fid = mlxsw_sp_vfid_to_fid(vfid);
-	}
+	if (mlxsw_sp_port_is_vport(mlxsw_sp_port))
+		fid = mlxsw_sp_vport_fid_get(mlxsw_sp_port);
 
 	if (!fid)
 		fid = mlxsw_sp_port->pvid;
@@ -236,8 +233,9 @@ static int mlxsw_sp_port_uc_flood_set(struct mlxsw_sp_port *mlxsw_sp_port,
 	int err;
 
 	if (mlxsw_sp_port_is_vport(mlxsw_sp_port)) {
-		u16 vfid = mlxsw_sp_vport_vfid_get(mlxsw_sp_port);
+		u16 vfid, fid = mlxsw_sp_vport_fid_get(mlxsw_sp_port);
 
+		vfid = mlxsw_sp_fid_to_vfid(fid);
 		return  __mlxsw_sp_port_flood_set(mlxsw_sp_port, vfid, vfid,
 						  set, true);
 	}
@@ -1136,12 +1134,8 @@ static int mlxsw_sp_port_fdb_dump(struct mlxsw_sp_port *mlxsw_sp_port,
 	if (!sfd_pl)
 		return -ENOMEM;
 
-	if (mlxsw_sp_port_is_vport(mlxsw_sp_port)) {
-		u16 tmp;
-
-		tmp = mlxsw_sp_vport_vfid_get(mlxsw_sp_port);
-		vport_fid = mlxsw_sp_vfid_to_fid(tmp);
-	}
+	if (mlxsw_sp_port_is_vport(mlxsw_sp_port))
+		vport_fid = mlxsw_sp_vport_fid_get(mlxsw_sp_port);
 
 	mlxsw_reg_sfd_pack(sfd_pl, MLXSW_REG_SFD_OP_QUERY_DUMP, 0);
 	do {
@@ -1313,11 +1307,10 @@ static void mlxsw_sp_fdb_notify_mac_process(struct mlxsw_sp *mlxsw_sp,
 	}
 
 	if (mlxsw_sp_fid_is_vfid(fid)) {
-		u16 vfid = mlxsw_sp_fid_to_vfid(fid);
 		struct mlxsw_sp_port *mlxsw_sp_vport;
 
-		mlxsw_sp_vport = mlxsw_sp_port_vport_find_by_vfid(mlxsw_sp_port,
-								  vfid);
+		mlxsw_sp_vport = mlxsw_sp_port_vport_find_by_fid(mlxsw_sp_port,
+								 fid);
 		if (!mlxsw_sp_vport) {
 			netdev_err(mlxsw_sp_port->dev, "Failed to find a matching vPort following FDB notification\n");
 			goto just_remove;
@@ -1373,11 +1366,10 @@ static void mlxsw_sp_fdb_notify_mac_lag_process(struct mlxsw_sp *mlxsw_sp,
 	}
 
 	if (mlxsw_sp_fid_is_vfid(fid)) {
-		u16 vfid = mlxsw_sp_fid_to_vfid(fid);
 		struct mlxsw_sp_port *mlxsw_sp_vport;
 
-		mlxsw_sp_vport = mlxsw_sp_port_vport_find_by_vfid(mlxsw_sp_port,
-								  vfid);
+		mlxsw_sp_vport = mlxsw_sp_port_vport_find_by_fid(mlxsw_sp_port,
+								 fid);
 		if (!mlxsw_sp_vport) {
 			netdev_err(mlxsw_sp_port->dev, "Failed to find a matching vPort following FDB notification\n");
 			goto just_remove;

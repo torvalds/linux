@@ -87,11 +87,11 @@ struct mlxsw_sp_upper {
 	unsigned int ref_count;
 };
 
-struct mlxsw_sp_vfid {
+struct mlxsw_sp_fid {
 	struct list_head list;
-	u16 nr_vports;
-	u16 vfid;	/* Starting at 0 */
-	struct net_device *br_dev;
+	unsigned int ref_count;
+	struct net_device *dev;
+	u16 fid;
 	u16 vid;
 };
 
@@ -217,7 +217,7 @@ struct mlxsw_sp_port {
 	u16 lag_id;
 	struct {
 		struct list_head list;
-		struct mlxsw_sp_vfid *vfid;
+		struct mlxsw_sp_fid *f;
 		u16 vid;
 	} vport;
 	struct {
@@ -262,13 +262,13 @@ mlxsw_sp_port_lagged_get(struct mlxsw_sp *mlxsw_sp, u16 lag_id, u8 port_index)
 static inline bool
 mlxsw_sp_port_is_vport(const struct mlxsw_sp_port *mlxsw_sp_port)
 {
-	return mlxsw_sp_port->vport.vfid;
+	return mlxsw_sp_port->vport.f;
 }
 
 static inline struct net_device *
 mlxsw_sp_vport_br_get(const struct mlxsw_sp_port *mlxsw_sp_vport)
 {
-	return mlxsw_sp_vport->vport.vfid->br_dev;
+	return mlxsw_sp_vport->vport.f->dev;
 }
 
 static inline u16
@@ -278,9 +278,9 @@ mlxsw_sp_vport_vid_get(const struct mlxsw_sp_port *mlxsw_sp_vport)
 }
 
 static inline u16
-mlxsw_sp_vport_vfid_get(const struct mlxsw_sp_port *mlxsw_sp_vport)
+mlxsw_sp_vport_fid_get(const struct mlxsw_sp_port *mlxsw_sp_vport)
 {
-	return mlxsw_sp_vport->vport.vfid->vfid;
+	return mlxsw_sp_vport->vport.f->fid;
 }
 
 static inline struct mlxsw_sp_port *
@@ -298,14 +298,14 @@ mlxsw_sp_port_vport_find(const struct mlxsw_sp_port *mlxsw_sp_port, u16 vid)
 }
 
 static inline struct mlxsw_sp_port *
-mlxsw_sp_port_vport_find_by_vfid(const struct mlxsw_sp_port *mlxsw_sp_port,
-				 u16 vfid)
+mlxsw_sp_port_vport_find_by_fid(const struct mlxsw_sp_port *mlxsw_sp_port,
+				u16 fid)
 {
 	struct mlxsw_sp_port *mlxsw_sp_vport;
 
 	list_for_each_entry(mlxsw_sp_vport, &mlxsw_sp_port->vports_list,
 			    vport.list) {
-		if (mlxsw_sp_vport_vfid_get(mlxsw_sp_vport) == vfid)
+		if (mlxsw_sp_vport_fid_get(mlxsw_sp_vport) == fid)
 			return mlxsw_sp_vport;
 	}
 
