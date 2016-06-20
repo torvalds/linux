@@ -2950,7 +2950,7 @@ static void intel_dp_info(struct seq_file *m,
 
 	seq_printf(m, "\tDPCD rev: %x\n", intel_dp->dpcd[DP_DPCD_REV]);
 	seq_printf(m, "\taudio support: %s\n", yesno(intel_dp->has_audio));
-	if (intel_encoder->type == INTEL_OUTPUT_EDP)
+	if (intel_connector->base.connector_type == DRM_MODE_CONNECTOR_eDP)
 		intel_panel_info(m, &intel_connector->panel);
 }
 
@@ -3473,17 +3473,23 @@ static int i915_dp_mst_info(struct seq_file *m, void *unused)
 {
 	struct drm_info_node *node = (struct drm_info_node *) m->private;
 	struct drm_device *dev = node->minor->dev;
-	struct drm_encoder *encoder;
 	struct intel_encoder *intel_encoder;
 	struct intel_digital_port *intel_dig_port;
+	struct drm_connector *connector;
+
 	drm_modeset_lock_all(dev);
-	list_for_each_entry(encoder, &dev->mode_config.encoder_list, head) {
-		intel_encoder = to_intel_encoder(encoder);
-		if (intel_encoder->type != INTEL_OUTPUT_DISPLAYPORT)
+	drm_for_each_connector(connector, dev) {
+		if (connector->connector_type != DRM_MODE_CONNECTOR_DisplayPort)
 			continue;
-		intel_dig_port = enc_to_dig_port(encoder);
+
+		intel_encoder = intel_attached_encoder(connector);
+		if (!intel_encoder || intel_encoder->type == INTEL_OUTPUT_DP_MST)
+			continue;
+
+		intel_dig_port = enc_to_dig_port(&intel_encoder->base);
 		if (!intel_dig_port->dp.can_mst)
 			continue;
+
 		seq_printf(m, "MST Source Port %c\n",
 			   port_name(intel_dig_port->port));
 		drm_dp_mst_dump_topology(m, &intel_dig_port->dp.mst_mgr);
