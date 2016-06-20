@@ -123,9 +123,9 @@ static const char *oes_strings[] = {
 		/* ----- part 4 ----- */				      \
 		## __VA_ARGS__);					      \
 	if (lvl == D_ERROR && __ext->oe_dlmlock)			      \
-		LDLM_ERROR(__ext->oe_dlmlock, "extent: %p\n", __ext);	      \
+		LDLM_ERROR(__ext->oe_dlmlock, "extent: %p", __ext);	      \
 	else								      \
-		LDLM_DEBUG(__ext->oe_dlmlock, "extent: %p\n", __ext);	      \
+		LDLM_DEBUG(__ext->oe_dlmlock, "extent: %p", __ext);	      \
 } while (0)
 
 #undef EASSERTF

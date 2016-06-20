@@ -1440,7 +1440,7 @@ int ldlm_fill_lvb(struct ldlm_lock *lock, struct req_capsule *pill,
 		memcpy(data, lvb, size);
 		break;
 	default:
-		LDLM_ERROR(lock, "Unknown LVB type: %d\n", lock->l_lvb_type);
+		LDLM_ERROR(lock, "Unknown LVB type: %d", lock->l_lvb_type);
 		dump_stack();
 		return -EINVAL;
 	}

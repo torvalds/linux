@@ -637,7 +637,8 @@ static int ldlm_callback_handler(struct ptlrpc_request *req)
 		 */
 		if ((ldlm_is_canceling(lock) && ldlm_is_bl_done(lock)) ||
 		    ldlm_is_failed(lock)) {
-			LDLM_DEBUG(lock, "callback on lock %#llx - lock disappeared\n",
+			LDLM_DEBUG(lock,
+				   "callback on lock %#llx - lock disappeared",
 				   dlm_req->lock_handle[0].cookie);
 			unlock_res_and_lock(lock);
 			LDLM_LOCK_RELEASE(lock);

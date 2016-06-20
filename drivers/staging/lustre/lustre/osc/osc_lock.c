@@ -1168,7 +1168,7 @@ int osc_lock_init(const struct lu_env *env,
 		osc_lock_set_writer(env, io, obj, oscl);
 
 
-	LDLM_DEBUG_NOLOCK("lock %p, osc lock %p, flags %llx\n",
+	LDLM_DEBUG_NOLOCK("lock %p, osc lock %p, flags %llx",
 			  lock, oscl, oscl->ols_flags);
 
 	return 0;
