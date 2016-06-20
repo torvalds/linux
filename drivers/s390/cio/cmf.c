@@ -164,6 +164,9 @@ static inline u64 time_to_avg_nsec(u32 value, u32 count)
 	return ret;
 }
 
+#define CMF_OFF 0
+#define CMF_ON	2
+
 /*
  * Activate or deactivate the channel monitor. When area is NULL,
  * the monitor is deactivated. The channel monitor needs to
@@ -176,7 +179,7 @@ static inline void cmf_activate(void *area, unsigned int onoff)
 	register long __gpr1 asm("1");
 
 	__gpr2 = area;
-	__gpr1 = onoff ? 2 : 0;
+	__gpr1 = onoff;
 	/* activate channel measurement */
 	asm("schm" : : "d" (__gpr2), "d" (__gpr1) );
 }
@@ -587,7 +590,7 @@ static int alloc_cmb(struct ccw_device *cdev)
 			/* everything ok */
 			memset(mem, 0, size);
 			cmb_area.mem = mem;
-			cmf_activate(cmb_area.mem, 1);
+			cmf_activate(cmb_area.mem, CMF_ON);
 		}
 	}
 
@@ -621,7 +624,7 @@ static void free_cmb(struct ccw_device *cdev)
 	if (list_empty(&cmb_area.list)) {
 		ssize_t size;
 		size = sizeof(struct cmb) * cmb_area.num_channels;
-		cmf_activate(NULL, 0);
+		cmf_activate(NULL, CMF_OFF);
 		free_pages((unsigned long)cmb_area.mem, get_order(size));
 		cmb_area.mem = NULL;
 	}
@@ -830,7 +833,7 @@ static int alloc_cmbe(struct ccw_device *cdev)
 
 	/* activate global measurement if this is the first channel */
 	if (list_empty(&cmb_area.list))
-		cmf_activate(NULL, 1);
+		cmf_activate(NULL, CMF_ON);
 	list_add_tail(&cdev->private->cmb_list, &cmb_area.list);
 
 	spin_unlock_irq(cdev->ccwlock);
@@ -867,7 +870,7 @@ static void free_cmbe(struct ccw_device *cdev)
 	/* deactivate global measurement if this is the last channel */
 	list_del_init(&cdev->private->cmb_list);
 	if (list_empty(&cmb_area.list))
-		cmf_activate(NULL, 0);
+		cmf_activate(NULL, CMF_OFF);
 	spin_unlock_irq(cdev->ccwlock);
 	spin_unlock(&cmb_area.lock);
 }
@@ -1321,7 +1324,7 @@ void cmf_reactivate(void)
 {
 	spin_lock(&cmb_area.lock);
 	if (!list_empty(&cmb_area.list))
-		cmf_activate(cmb_area.mem, 1);
+		cmf_activate(cmb_area.mem, CMF_ON);
 	spin_unlock(&cmb_area.lock);
 }
 
