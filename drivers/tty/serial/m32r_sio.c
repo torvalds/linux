@@ -30,7 +30,6 @@
 #define SUPPORT_SYSRQ
 #endif
 
-#include <linux/module.h>
 #include <linux/tty.h>
 #include <linux/tty_flip.h>
 #include <linux/ioport.h>
@@ -1057,19 +1056,4 @@ static int __init m32r_sio_init(void)
 
 	return ret;
 }
-
-static void __exit m32r_sio_exit(void)
-{
-	int i;
-
-	for (i = 0; i < UART_NR; i++)
-		uart_remove_one_port(&m32r_sio_reg, &m32r_sio_ports[i].port);
-
-	uart_unregister_driver(&m32r_sio_reg);
-}
-
-module_init(m32r_sio_init);
-module_exit(m32r_sio_exit);
-
-MODULE_LICENSE("GPL");
-MODULE_DESCRIPTION("Generic M32R SIO serial driver");
+device_initcall(m32r_sio_init);
