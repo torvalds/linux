@@ -159,16 +159,29 @@ static ssize_t set_temp(struct device *dev, struct device_attribute *da,
 	return count;
 }
 
+static ssize_t show_update_interval(struct device *dev,
+				    struct device_attribute *da, char *buf)
+{
+	struct lm75_data *data = lm75_update_device(dev);
+
+	if (IS_ERR(data))
+		return PTR_ERR(data);
+
+	return sprintf(buf, "%u\n", jiffies_to_msecs(data->sample_time));
+}
+
 static SENSOR_DEVICE_ATTR(temp1_max, S_IWUSR | S_IRUGO,
 			show_temp, set_temp, 1);
 static SENSOR_DEVICE_ATTR(temp1_max_hyst, S_IWUSR | S_IRUGO,
 			show_temp, set_temp, 2);
 static SENSOR_DEVICE_ATTR(temp1_input, S_IRUGO, show_temp, NULL, 0);
+static DEVICE_ATTR(update_interval, S_IRUGO, show_update_interval, NULL);
 
 static struct attribute *lm75_attrs[] = {
 	&sensor_dev_attr_temp1_input.dev_attr.attr,
 	&sensor_dev_attr_temp1_max.dev_attr.attr,
 	&sensor_dev_attr_temp1_max_hyst.dev_attr.attr,
+	&dev_attr_update_interval.attr,
 
 	NULL
 };
