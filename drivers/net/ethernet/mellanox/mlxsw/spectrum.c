@@ -3034,6 +3034,10 @@ static int mlxsw_sp_netdevice_port_upper_event(struct net_device *dev,
 	switch (event) {
 	case NETDEV_PRECHANGEUPPER:
 		upper_dev = info->upper_dev;
+		if (!is_vlan_dev(upper_dev) &&
+		    !netif_is_lag_master(upper_dev) &&
+		    !netif_is_bridge_master(upper_dev))
+			return -EINVAL;
 		if (!info->master || !info->linking)
 			break;
 		/* HW limitation forbids to put ports to multiple bridges. */
@@ -3070,6 +3074,9 @@ static int mlxsw_sp_netdevice_port_upper_event(struct net_device *dev,
 			else
 				err = mlxsw_sp_port_lag_leave(mlxsw_sp_port,
 							      upper_dev);
+		} else {
+			err = -EINVAL;
+			WARN_ON(1);
 		}
 		break;
 	}
