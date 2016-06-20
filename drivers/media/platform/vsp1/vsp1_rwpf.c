@@ -121,6 +121,11 @@ static int vsp1_rwpf_set_format(struct v4l2_subdev *subdev,
 					    RWPF_PAD_SOURCE);
 	*format = fmt->format;
 
+	if (rwpf->flip.rotate) {
+		format->width = fmt->format.height;
+		format->height = fmt->format.width;
+	}
+
 done:
 	mutex_unlock(&rwpf->entity.lock);
 	return ret;

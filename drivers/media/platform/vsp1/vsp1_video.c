@@ -187,9 +187,13 @@ static void vsp1_video_pipeline_setup_partitions(struct vsp1_pipeline *pipe)
 	struct vsp1_entity *entity;
 	unsigned int div_size;
 
+	/*
+	 * Partitions are computed on the size before rotation, use the format
+	 * at the WPF sink.
+	 */
 	format = vsp1_entity_get_pad_format(&pipe->output->entity,
 					    pipe->output->entity.config,
-					    RWPF_PAD_SOURCE);
+					    RWPF_PAD_SINK);
 	div_size = format->width;
 
 	/* Gen2 hardware doesn't require image partitioning. */
@@ -229,9 +233,13 @@ static struct v4l2_rect vsp1_video_partition(struct vsp1_pipeline *pipe,
 	struct v4l2_rect partition;
 	unsigned int modulus;
 
+	/*
+	 * Partitions are computed on the size before rotation, use the format
+	 * at the WPF sink.
+	 */
 	format = vsp1_entity_get_pad_format(&pipe->output->entity,
 					    pipe->output->entity.config,
-					    RWPF_PAD_SOURCE);
+					    RWPF_PAD_SINK);
 
 	/* A single partition simply processes the output size in full. */
 	if (pipe->partitions <= 1) {

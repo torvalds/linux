@@ -56,9 +56,14 @@ struct vsp1_rwpf {
 
 	struct {
 		spinlock_t lock;
-		struct v4l2_ctrl *ctrls[2];
+		struct {
+			struct v4l2_ctrl *vflip;
+			struct v4l2_ctrl *hflip;
+			struct v4l2_ctrl *rotate;
+		} ctrls;
 		unsigned int pending;
 		unsigned int active;
+		bool rotate;
 	} flip;
 
 	struct vsp1_rwpf_memory mem;

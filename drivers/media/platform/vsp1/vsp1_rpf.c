@@ -106,7 +106,7 @@ static void rpf_configure(struct vsp1_entity *entity,
 			 * of the pipeline.
 			 */
 			output = vsp1_entity_get_pad_format(wpf, wpf->config,
-							    RWPF_PAD_SOURCE);
+							    RWPF_PAD_SINK);
 
 			crop.width = pipe->partition.width * input_width
 				   / output->width;
