@@ -2042,25 +2042,30 @@ static int hist_browser__dump(struct hist_browser *browser)
 	return 0;
 }
 
+void hist_browser__init(struct hist_browser *browser,
+			struct hists *hists)
+{
+	struct perf_hpp_fmt *fmt;
+
+	browser->hists			= hists;
+	browser->b.refresh		= hist_browser__refresh;
+	browser->b.refresh_dimensions	= hist_browser__refresh_dimensions;
+	browser->b.seek			= ui_browser__hists_seek;
+	browser->b.use_navkeypressed	= true;
+	browser->show_headers		= symbol_conf.show_hist_headers;
+
+	hists__for_each_format(hists, fmt) {
+		perf_hpp__reset_width(fmt, hists);
+		++browser->b.columns;
+	}
+}
+
 struct hist_browser *hist_browser__new(struct hists *hists)
 {
 	struct hist_browser *browser = zalloc(sizeof(*browser));
 
-	if (browser) {
-		struct perf_hpp_fmt *fmt;
-
-		browser->hists = hists;
-		browser->b.refresh = hist_browser__refresh;
-		browser->b.refresh_dimensions = hist_browser__refresh_dimensions;
-		browser->b.seek = ui_browser__hists_seek;
-		browser->b.use_navkeypressed = true;
-		browser->show_headers = symbol_conf.show_hist_headers;
-
-		hists__for_each_format(hists, fmt) {
-			perf_hpp__reset_width(fmt, hists);
-			++browser->b.columns;
-		}
-	}
+	if (browser)
+		hist_browser__init(browser, hists);
 
 	return browser;
 }
