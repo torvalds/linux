@@ -387,7 +387,8 @@ static size_t upcall_msg_size(const struct dp_upcall_info *upcall_info,
 {
 	size_t size = NLMSG_ALIGN(sizeof(struct ovs_header))
 		+ nla_total_size(hdrlen) /* OVS_PACKET_ATTR_PACKET */
-		+ nla_total_size(ovs_key_attr_size()); /* OVS_PACKET_ATTR_KEY */
+		+ nla_total_size(ovs_key_attr_size()) /* OVS_PACKET_ATTR_KEY */
+		+ nla_total_size(sizeof(unsigned int)); /* OVS_PACKET_ATTR_LEN */
 
 	/* OVS_PACKET_ATTR_USERDATA */
 	if (upcall_info->userdata)
@@ -508,6 +509,16 @@ static int queue_userspace_packet(struct datapath *dp, struct sk_buff *skb,
 	if (upcall_info->mru) {
 		if (nla_put_u16(user_skb, OVS_PACKET_ATTR_MRU,
 				upcall_info->mru)) {
+			err = -ENOBUFS;
+			goto out;
+		}
+		pad_packet(dp, user_skb);
+	}
+
+	/* Add OVS_PACKET_ATTR_LEN when packet is truncated */
+	if (cutlen > 0) {
+		if (nla_put_u32(user_skb, OVS_PACKET_ATTR_LEN,
+				skb->len)) {
 			err = -ENOBUFS;
 			goto out;
 		}
