@@ -1484,7 +1484,7 @@ static int fm10k_poll(struct napi_struct *napi, int budget)
 	/* re-enable the q_vector */
 	fm10k_qv_enable(q_vector);
 
-	return 0;
+	return min(work_done, budget - 1);
 }
 
 /**
