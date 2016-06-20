@@ -89,8 +89,6 @@ struct lm75_data {
 						   2 = hyst */
 };
 
-static int lm75_read_value(struct i2c_client *client, u8 reg);
-static int lm75_write_value(struct i2c_client *client, u8 reg, u16 value);
 static struct lm75_data *lm75_update_device(struct device *dev);
 
 
@@ -156,7 +154,7 @@ static ssize_t set_temp(struct device *dev, struct device_attribute *da,
 	temp = clamp_val(temp, LM75_TEMP_MIN, LM75_TEMP_MAX);
 	data->temp[nr] = DIV_ROUND_CLOSEST(temp  << (resolution - 8),
 					   1000) << (16 - resolution);
-	lm75_write_value(client, LM75_REG_TEMP[nr], data->temp[nr]);
+	i2c_smbus_write_word_swapped(client, LM75_REG_TEMP[nr], data->temp[nr]);
 	mutex_unlock(&data->update_lock);
 	return count;
 }
@@ -296,7 +294,7 @@ lm75_probe(struct i2c_client *client, const struct i2c_device_id *id)
 	}
 
 	/* configure as specified */
-	status = lm75_read_value(client, LM75_REG_CONF);
+	status = i2c_smbus_read_byte_data(client, LM75_REG_CONF);
 	if (status < 0) {
 		dev_dbg(dev, "Can't read config? %d\n", status);
 		return status;
@@ -305,7 +303,7 @@ lm75_probe(struct i2c_client *client, const struct i2c_device_id *id)
 	new = status & ~clr_mask;
 	new |= set_mask;
 	if (status != new)
-		lm75_write_value(client, LM75_REG_CONF, new);
+		i2c_smbus_write_byte_data(client, LM75_REG_CONF, new);
 
 	devm_add_action(dev, lm75_remove, data);
 
@@ -450,13 +448,13 @@ static int lm75_suspend(struct device *dev)
 {
 	int status;
 	struct i2c_client *client = to_i2c_client(dev);
-	status = lm75_read_value(client, LM75_REG_CONF);
+	status = i2c_smbus_read_byte_data(client, LM75_REG_CONF);
 	if (status < 0) {
 		dev_dbg(&client->dev, "Can't read config? %d\n", status);
 		return status;
 	}
 	status = status | LM75_SHUTDOWN;
-	lm75_write_value(client, LM75_REG_CONF, status);
+	i2c_smbus_write_byte_data(client, LM75_REG_CONF, status);
 	return 0;
 }
 
@@ -464,13 +462,13 @@ static int lm75_resume(struct device *dev)
 {
 	int status;
 	struct i2c_client *client = to_i2c_client(dev);
-	status = lm75_read_value(client, LM75_REG_CONF);
+	status = i2c_smbus_read_byte_data(client, LM75_REG_CONF);
 	if (status < 0) {
 		dev_dbg(&client->dev, "Can't read config? %d\n", status);
 		return status;
 	}
 	status = status & ~LM75_SHUTDOWN;
-	lm75_write_value(client, LM75_REG_CONF, status);
+	i2c_smbus_write_byte_data(client, LM75_REG_CONF, status);
 	return 0;
 }
 
@@ -497,29 +495,6 @@ static struct i2c_driver lm75_driver = {
 
 /*-----------------------------------------------------------------------*/
 
-/* register access */
-
-/*
- * All registers are word-sized, except for the configuration register.
- * LM75 uses a high-byte first convention, which is exactly opposite to
- * the SMBus standard.
- */
-static int lm75_read_value(struct i2c_client *client, u8 reg)
-{
-	if (reg == LM75_REG_CONF)
-		return i2c_smbus_read_byte_data(client, reg);
-	else
-		return i2c_smbus_read_word_swapped(client, reg);
-}
-
-static int lm75_write_value(struct i2c_client *client, u8 reg, u16 value)
-{
-	if (reg == LM75_REG_CONF)
-		return i2c_smbus_write_byte_data(client, reg, value);
-	else
-		return i2c_smbus_write_word_swapped(client, reg, value);
-}
-
 static struct lm75_data *lm75_update_device(struct device *dev)
 {
 	struct lm75_data *data = dev_get_drvdata(dev);
@@ -536,7 +511,8 @@ static struct lm75_data *lm75_update_device(struct device *dev)
 		for (i = 0; i < ARRAY_SIZE(data->temp); i++) {
 			int status;
 
-			status = lm75_read_value(client, LM75_REG_TEMP[i]);
+			status = i2c_smbus_read_word_swapped(client,
+							     LM75_REG_TEMP[i]);
 			if (unlikely(status < 0)) {
 				dev_dbg(dev,
 					"LM75: Failed to read value: reg %d, error %d\n",
