@@ -336,7 +336,7 @@ int ldlm_cli_enqueue_fini(struct obd_export *exp, struct ptlrpc_request *req,
 			  enum ldlm_type type, __u8 with_policy,
 			  enum ldlm_mode mode,
 			  __u64 *flags, void *lvb, __u32 lvb_len,
-			  struct lustre_handle *lockh, int rc)
+			  const struct lustre_handle *lockh, int rc)
 {
 	struct ldlm_namespace *ns = exp->exp_obd->obd_namespace;
 	int is_replay = *flags & LDLM_FL_REPLAY;
@@ -1023,7 +1023,7 @@ EXPORT_SYMBOL(ldlm_cli_update_pool);
  *
  * Lock must not have any readers or writers by this time.
  */
-int ldlm_cli_cancel(struct lustre_handle *lockh,
+int ldlm_cli_cancel(const struct lustre_handle *lockh,
 		    enum ldlm_cancel_flags cancel_flags)
 {
 	struct obd_export *exp;

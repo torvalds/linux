@@ -499,7 +499,7 @@ static int ldlm_handle_setinfo(struct ptlrpc_request *req)
 
 static inline void ldlm_callback_errmsg(struct ptlrpc_request *req,
 					const char *msg, int rc,
-					struct lustre_handle *handle)
+					const struct lustre_handle *handle)
 {
 	DEBUG_REQ((req->rq_no_reply || rc) ? D_WARNING : D_DLMTRACE, req,
 		  "%s: [nid %s] [rc %d] [lock %#llx]",
