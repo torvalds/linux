@@ -3440,10 +3440,10 @@ static int mlxsw_sp_netdevice_vport_event(struct net_device *dev,
 	switch (event) {
 	case NETDEV_PRECHANGEUPPER:
 		upper_dev = info->upper_dev;
-		if (!info->master || !info->linking)
-			break;
 		if (!netif_is_bridge_master(upper_dev))
 			return -EINVAL;
+		if (!info->linking)
+			break;
 		/* We can't have multiple VLAN interfaces configured on
 		 * the same port and being members in the same bridge.
 		 */
@@ -3453,8 +3453,6 @@ static int mlxsw_sp_netdevice_vport_event(struct net_device *dev,
 		break;
 	case NETDEV_CHANGEUPPER:
 		upper_dev = info->upper_dev;
-		if (!info->master)
-			break;
 		if (info->linking) {
 			if (!mlxsw_sp_vport) {
 				WARN_ON(!mlxsw_sp_vport);
