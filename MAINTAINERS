@@ -2603,7 +2603,7 @@ T:	git git://github.com/broadcom/cygnus-linux.git
 S:	Maintained
 N:	iproc
 N:	cygnus
-N:	nsp
+N:	bcm[-_]nsp
 N:	bcm9113*
 N:	bcm9583*
 N:	bcm9585*
@@ -2614,6 +2614,8 @@ N:	bcm583*
 N:	bcm585*
 N:	bcm586*
 N:	bcm88312
+F:	drivers/clk/bcm/clk-ns*
+F:	drivers/pinctrl/bcm/pinctrl-ns*
 
 BROADCOM BRCMSTB GPIO DRIVER
 M:	Gregory Fong <gregory.0xf0@gmail.com>
