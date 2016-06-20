@@ -599,7 +599,7 @@ static int vmd_enable_domain(struct vmd_dev *vmd)
 	sd->node = pcibus_to_node(vmd->dev->bus);
 
 	vmd->irq_domain = pci_msi_create_irq_domain(NULL, &vmd_msi_domain_info,
-						    NULL);
+						    x86_vector_domain);
 	if (!vmd->irq_domain)
 		return -ENODEV;
 
