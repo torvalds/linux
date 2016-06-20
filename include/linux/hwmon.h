@@ -31,6 +31,7 @@ enum hwmon_sensor_types {
 enum hwmon_chip_attributes {
 	hwmon_chip_temp_reset_history,
 	hwmon_chip_in_reset_history,
+	hwmon_chip_curr_reset_history,
 	hwmon_chip_register_tz,
 	hwmon_chip_update_interval,
 	hwmon_chip_alarms,
@@ -38,6 +39,7 @@ enum hwmon_chip_attributes {
 
 #define HWMON_C_TEMP_RESET_HISTORY	BIT(hwmon_chip_temp_reset_history)
 #define HWMON_C_IN_RESET_HISTORY	BIT(hwmon_chip_in_reset_history)
+#define HWMON_C_CURR_RESET_HISTORY	BIT(hwmon_chip_curr_reset_history)
 #define HWMON_C_REGISTER_TZ		BIT(hwmon_chip_register_tz)
 #define HWMON_C_UPDATE_INTERVAL		BIT(hwmon_chip_update_interval)
 #define HWMON_C_ALARMS			BIT(hwmon_chip_alarms)
@@ -125,6 +127,40 @@ enum hwmon_in_attributes {
 #define HWMON_I_MAX_ALARM	BIT(hwmon_in_max_alarm)
 #define HWMON_I_LCRIT_ALARM	BIT(hwmon_in_lcrit_alarm)
 #define HWMON_I_CRIT_ALARM	BIT(hwmon_in_crit_alarm)
+
+enum hwmon_curr_attributes {
+	hwmon_curr_input,
+	hwmon_curr_min,
+	hwmon_curr_max,
+	hwmon_curr_lcrit,
+	hwmon_curr_crit,
+	hwmon_curr_average,
+	hwmon_curr_lowest,
+	hwmon_curr_highest,
+	hwmon_curr_reset_history,
+	hwmon_curr_label,
+	hwmon_curr_alarm,
+	hwmon_curr_min_alarm,
+	hwmon_curr_max_alarm,
+	hwmon_curr_lcrit_alarm,
+	hwmon_curr_crit_alarm,
+};
+
+#define HWMON_C_INPUT		BIT(hwmon_curr_input)
+#define HWMON_C_MIN		BIT(hwmon_curr_min)
+#define HWMON_C_MAX		BIT(hwmon_curr_max)
+#define HWMON_C_LCRIT		BIT(hwmon_curr_lcrit)
+#define HWMON_C_CRIT		BIT(hwmon_curr_crit)
+#define HWMON_C_AVERAGE		BIT(hwmon_curr_average)
+#define HWMON_C_LOWEST		BIT(hwmon_curr_lowest)
+#define HWMON_C_HIGHEST		BIT(hwmon_curr_highest)
+#define HWMON_C_RESET_HISTORY	BIT(hwmon_curr_reset_history)
+#define HWMON_C_LABEL		BIT(hwmon_curr_label)
+#define HWMON_C_ALARM		BIT(hwmon_curr_alarm)
+#define HWMON_C_MIN_ALARM	BIT(hwmon_curr_min_alarm)
+#define HWMON_C_MAX_ALARM	BIT(hwmon_curr_max_alarm)
+#define HWMON_C_LCRIT_ALARM	BIT(hwmon_curr_lcrit_alarm)
+#define HWMON_C_CRIT_ALARM	BIT(hwmon_curr_crit_alarm)
 
 /**
  * struct hwmon_ops - hwmon device operations
