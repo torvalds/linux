@@ -14,6 +14,7 @@
 #include <linux/types.h>
 #include <linux/kernel.h>
 #include <linux/string.h>
+#include <linux/libfdt.h>
 
 #include <asm/addrspace.h>
 
@@ -35,6 +36,8 @@ extern void puthex(unsigned long long val);
 #define puts(s) do {} while (0)
 #define puthex(val) do {} while (0)
 #endif
+
+extern char __appended_dtb[];
 
 void error(char *x)
 {
@@ -113,6 +116,20 @@ void decompress_kernel(unsigned long boot_heap_start)
 	/* Decompress the kernel with according algorithm */
 	__decompress((char *)zimage_start, zimage_size, 0, 0,
 		   (void *)VMLINUX_LOAD_ADDRESS_ULL, 0, 0, error);
+
+	if (IS_ENABLED(CONFIG_MIPS_RAW_APPENDED_DTB) &&
+	    fdt_magic((void *)&__appended_dtb) == FDT_MAGIC) {
+		unsigned int image_size, dtb_size;
+
+		dtb_size = fdt_totalsize((void *)&__appended_dtb);
+
+		/* last four bytes is always image size in little endian */
+		image_size = le32_to_cpup((void *)&__image_end - 4);
+
+		/* copy dtb to where the booted kernel will expect it */
+		memcpy((void *)VMLINUX_LOAD_ADDRESS_ULL + image_size,
+		       __appended_dtb, dtb_size);
+	}
 
 	/* FIXME: should we flush cache here? */
 	puts("Now, booting the kernel...\n");
