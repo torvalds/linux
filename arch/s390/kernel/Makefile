@@ -2,6 +2,9 @@
 # Makefile for the linux kernel.
 #
 
+KCOV_INSTRUMENT_early.o := n
+KCOV_INSTRUMENT_sclp.o := n
+
 ifdef CONFIG_FUNCTION_TRACER
 # Don't trace early setup code and tracing code
 CFLAGS_REMOVE_early.o = $(CC_FLAGS_FTRACE)
