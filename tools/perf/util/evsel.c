@@ -1389,8 +1389,11 @@ fallback_missing_features:
 	if (perf_missing_features.lbr_flags)
 		evsel->attr.branch_sample_type &= ~(PERF_SAMPLE_BRANCH_NO_FLAGS |
 				     PERF_SAMPLE_BRANCH_NO_CYCLES);
-	if (perf_missing_features.write_backward)
+	if (perf_missing_features.write_backward) {
+		if (evsel->overwrite)
+			return -EINVAL;
 		evsel->attr.write_backward = false;
+	}
 retry_sample_id:
 	if (perf_missing_features.sample_id_all)
 		evsel->attr.sample_id_all = 0;
@@ -1453,12 +1456,6 @@ retry_open:
 				err = -EINVAL;
 				goto out_close;
 			}
-
-			if (evsel->overwrite &&
-			    perf_missing_features.write_backward) {
-				err = -EINVAL;
-				goto out_close;
-			}
 		}
 	}
 
@@ -1496,7 +1493,10 @@ try_fallback:
 	 * Must probe features in the order they were added to the
 	 * perf_event_attr interface.
 	 */
-	if (!perf_missing_features.clockid_wrong && evsel->attr.use_clockid) {
+	if (!perf_missing_features.write_backward && evsel->attr.write_backward) {
+		perf_missing_features.write_backward = true;
+		goto fallback_missing_features;
+	} else if (!perf_missing_features.clockid_wrong && evsel->attr.use_clockid) {
 		perf_missing_features.clockid_wrong = true;
 		goto fallback_missing_features;
 	} else if (!perf_missing_features.clockid && evsel->attr.use_clockid) {
@@ -1521,12 +1521,7 @@ try_fallback:
 			  PERF_SAMPLE_BRANCH_NO_FLAGS))) {
 		perf_missing_features.lbr_flags = true;
 		goto fallback_missing_features;
-	} else if (!perf_missing_features.write_backward &&
-			evsel->attr.write_backward) {
-		perf_missing_features.write_backward = true;
-		goto fallback_missing_features;
 	}
-
 out_close:
 	do {
 		while (--thread >= 0) {
@@ -2409,6 +2404,8 @@ int perf_evsel__open_strerror(struct perf_evsel *evsel, struct target *target,
 	"We found oprofile daemon running, please stop it and try again.");
 		break;
 	case EINVAL:
+		if (evsel->overwrite && perf_missing_features.write_backward)
+			return scnprintf(msg, size, "Reading from overwrite event is not supported by this kernel.");
 		if (perf_missing_features.clockid)
 			return scnprintf(msg, size, "clockid feature not supported.");
 		if (perf_missing_features.clockid_wrong)
