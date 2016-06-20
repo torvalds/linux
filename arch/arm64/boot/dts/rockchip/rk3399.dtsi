@@ -234,6 +234,8 @@
 		assigned-clock-rates = <200000000>;
 		clocks = <&cru SCLK_EMMC>, <&cru ACLK_EMMC>;
 		clock-names = "clk_xin", "clk_ahb";
+		clock-output-names = "emmc_cardclock";
+		#clock-cells = <0>;
 		phys = <&emmc_phy>;
 		phy-names = "phy_arasan";
 		status = "disabled";
@@ -765,6 +767,8 @@
 		emmc_phy: phy@f780 {
 			compatible = "rockchip,rk3399-emmc-phy";
 			reg = <0xf780 0x24>;
+			clocks = <&sdhci>;
+			clock-names = "emmcclk";
 			#phy-cells = <0>;
 			status = "disabled";
 		};
