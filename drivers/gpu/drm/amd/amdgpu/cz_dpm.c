@@ -2219,6 +2219,7 @@ static void cz_dpm_powergate_vce(struct amdgpu_device *adev, bool gate)
 			}
 		}
 	} else { /*pi->caps_vce_pg*/
+		pi->vce_power_gated = gate;
 		cz_update_vce_dpm(adev);
 		cz_enable_vce_dpm(adev, !gate);
 	}
