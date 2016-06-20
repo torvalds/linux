@@ -1569,10 +1569,9 @@ static int ddb_probe(struct pci_dev *pdev, const struct pci_device_id *id)
 	if (pci_enable_device(pdev) < 0)
 		return -ENODEV;
 
-	dev = vmalloc(sizeof(struct ddb));
+	dev = vzalloc(sizeof(struct ddb));
 	if (dev == NULL)
 		return -ENOMEM;
-	memset(dev, 0, sizeof(struct ddb));
 
 	dev->pdev = pdev;
 	pci_set_drvdata(pdev, dev);
