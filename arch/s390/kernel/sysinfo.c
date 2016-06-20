@@ -20,13 +20,7 @@
 
 int topology_max_mnest;
 
-/*
- * stsi - store system information
- *
- * Returns the current configuration level if function code 0 was specified.
- * Otherwise returns 0 on success or a negative value on error.
- */
-int stsi(void *sysinfo, int fc, int sel1, int sel2)
+static inline int __stsi(void *sysinfo, int fc, int sel1, int sel2, int *lvl)
 {
 	register int r0 asm("0") = (fc << 28) | sel1;
 	register int r1 asm("1") = sel2;
@@ -41,9 +35,24 @@ int stsi(void *sysinfo, int fc, int sel1, int sel2)
 		: "+d" (r0), "+d" (rc)
 		: "d" (r1), "a" (sysinfo), "K" (-EOPNOTSUPP)
 		: "cc", "memory");
+	*lvl = ((unsigned int) r0) >> 28;
+	return rc;
+}
+
+/*
+ * stsi - store system information
+ *
+ * Returns the current configuration level if function code 0 was specified.
+ * Otherwise returns 0 on success or a negative value on error.
+ */
+int stsi(void *sysinfo, int fc, int sel1, int sel2)
+{
+	int lvl, rc;
+
+	rc = __stsi(sysinfo, fc, sel1, sel2, &lvl);
 	if (rc)
 		return rc;
-	return fc ? 0 : ((unsigned int) r0) >> 28;
+	return fc ? 0 : lvl;
 }
 EXPORT_SYMBOL(stsi);
 
