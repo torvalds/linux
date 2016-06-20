@@ -88,6 +88,7 @@ struct mlxsw_sp_upper {
 };
 
 struct mlxsw_sp_fid {
+	void (*leave)(struct mlxsw_sp_port *mlxsw_sp_vport);
 	struct list_head list;
 	unsigned int ref_count;
 	struct net_device *dev;

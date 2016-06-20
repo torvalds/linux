@@ -660,6 +660,8 @@ static int mlxsw_sp_vfid_op(struct mlxsw_sp *mlxsw_sp, u16 fid, bool create)
 	return mlxsw_reg_write(mlxsw_sp->core, MLXSW_REG(sfmr), sfmr_pl);
 }
 
+static void mlxsw_sp_vport_vfid_leave(struct mlxsw_sp_port *mlxsw_sp_vport);
+
 static struct mlxsw_sp_fid *mlxsw_sp_vfid_create(struct mlxsw_sp *mlxsw_sp,
 						 u16 vid)
 {
@@ -685,6 +687,7 @@ static struct mlxsw_sp_fid *mlxsw_sp_vfid_create(struct mlxsw_sp *mlxsw_sp,
 	if (!f)
 		goto err_allocate_vfid;
 
+	f->leave = mlxsw_sp_vport_vfid_leave;
 	f->fid = fid;
 	f->vid = vid;
 
@@ -887,6 +890,7 @@ int mlxsw_sp_port_kill_vid(struct net_device *dev,
 {
 	struct mlxsw_sp_port *mlxsw_sp_port = netdev_priv(dev);
 	struct mlxsw_sp_port *mlxsw_sp_vport;
+	struct mlxsw_sp_fid *f;
 	int err;
 
 	/* VLAN 0 is removed from HW filter when device goes down, but
@@ -921,7 +925,12 @@ int mlxsw_sp_port_kill_vid(struct net_device *dev,
 		return err;
 	}
 
-	mlxsw_sp_vport_vfid_leave(mlxsw_sp_vport);
+	/* Drop FID reference. If this was the last reference the
+	 * resources will be freed.
+	 */
+	f = mlxsw_sp_vport_fid_get(mlxsw_sp_vport);
+	if (f && !WARN_ON(!f->leave))
+		f->leave(mlxsw_sp_vport);
 
 	/* When removing the last VLAN interface on a bridged port we need to
 	 * transition all active 802.1Q bridge VLANs to use VID to FID
@@ -2836,15 +2845,12 @@ err_col_port_add:
 	return err;
 }
 
-static void mlxsw_sp_vport_bridge_leave(struct mlxsw_sp_port *mlxsw_sp_vport);
-
 static void mlxsw_sp_port_lag_leave(struct mlxsw_sp_port *mlxsw_sp_port,
 				    struct net_device *lag_dev)
 {
 	struct mlxsw_sp *mlxsw_sp = mlxsw_sp_port->mlxsw_sp;
-	struct mlxsw_sp_port *mlxsw_sp_vport;
-	struct mlxsw_sp_upper *lag;
 	u16 lag_id = mlxsw_sp_port->lag_id;
+	struct mlxsw_sp_upper *lag;
 
 	if (!mlxsw_sp_port->lagged)
 		return;
@@ -2853,21 +2859,6 @@ static void mlxsw_sp_port_lag_leave(struct mlxsw_sp_port *mlxsw_sp_port,
 
 	mlxsw_sp_lag_col_port_disable(mlxsw_sp_port, lag_id);
 	mlxsw_sp_lag_col_port_remove(mlxsw_sp_port, lag_id);
-
-	/* In case we leave a LAG device that has bridges built on top,
-	 * then their teardown sequence is never issued and we need to
-	 * invoke the necessary cleanup routines ourselves.
-	 */
-	list_for_each_entry(mlxsw_sp_vport, &mlxsw_sp_port->vports_list,
-			    vport.list) {
-		struct net_device *br_dev;
-
-		if (!mlxsw_sp_vport->bridged)
-			continue;
-
-		br_dev = mlxsw_sp_vport_br_get(mlxsw_sp_vport);
-		mlxsw_sp_vport_bridge_leave(mlxsw_sp_vport);
-	}
 
 	if (mlxsw_sp_port->bridged) {
 		mlxsw_sp_port_active_vlans_del(mlxsw_sp_port);
@@ -2946,17 +2937,6 @@ static void mlxsw_sp_port_vlan_unlink(struct mlxsw_sp_port *mlxsw_sp_port,
 	mlxsw_sp_vport = mlxsw_sp_port_vport_find(mlxsw_sp_port, vid);
 	if (WARN_ON(!mlxsw_sp_vport))
 		return;
-
-	/* When removing a VLAN device while still bridged we should first
-	 * remove it from the bridge, as we receive the bridge's notification
-	 * when the vPort is already gone.
-	 */
-	if (mlxsw_sp_vport->bridged) {
-		struct net_device *br_dev;
-
-		br_dev = mlxsw_sp_vport_br_get(mlxsw_sp_vport);
-		mlxsw_sp_vport_bridge_leave(mlxsw_sp_vport);
-	}
 
 	mlxsw_sp_vport->dev = mlxsw_sp_port->dev;
 }
@@ -3115,6 +3095,8 @@ static u16 mlxsw_sp_avail_br_vfid_get(const struct mlxsw_sp *mlxsw_sp)
 				   MLXSW_SP_VFID_BR_MAX);
 }
 
+static void mlxsw_sp_vport_br_vfid_leave(struct mlxsw_sp_port *mlxsw_sp_vport);
+
 static struct mlxsw_sp_fid *mlxsw_sp_br_vfid_create(struct mlxsw_sp *mlxsw_sp,
 						    struct net_device *br_dev)
 {
@@ -3140,6 +3122,7 @@ static struct mlxsw_sp_fid *mlxsw_sp_br_vfid_create(struct mlxsw_sp *mlxsw_sp,
 	if (!f)
 		goto err_allocate_vfid;
 
+	f->leave = mlxsw_sp_vport_br_vfid_leave;
 	f->fid = fid;
 	f->dev = br_dev;
 
@@ -3321,10 +3304,6 @@ static int mlxsw_sp_netdevice_vport_event(struct net_device *dev,
 			err = mlxsw_sp_vport_bridge_join(mlxsw_sp_vport,
 							 upper_dev);
 		} else {
-			/* We ignore bridge's unlinking notifications if vPort
-			 * is gone, since we already left the bridge when the
-			 * VLAN device was unlinked from the real device.
-			 */
 			if (!mlxsw_sp_vport)
 				return 0;
 			mlxsw_sp_vport_bridge_leave(mlxsw_sp_vport);
