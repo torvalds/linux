@@ -62,7 +62,7 @@ struct osc_io {
 	/** super class */
 	struct cl_io_slice oi_cl;
 	/** true if this io is lockless. */
-	int		oi_lockless;
+	unsigned int		oi_lockless;
 	/** how many LRU pages are reserved for this IO */
 	int oi_lru_reserved;
 
