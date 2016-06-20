@@ -128,13 +128,26 @@ struct btrfs_fs_info *btrfs_alloc_dummy_fs_info(void)
 	extent_io_tree_init(&fs_info->freed_extents[0], NULL);
 	extent_io_tree_init(&fs_info->freed_extents[1], NULL);
 	fs_info->pinned_extents = &fs_info->freed_extents[0];
+	set_bit(BTRFS_FS_STATE_DUMMY_FS_INFO, &fs_info->fs_state);
+
+	test_mnt->mnt_sb->s_fs_info = fs_info;
+
 	return fs_info;
 }
 
-static void btrfs_free_dummy_fs_info(struct btrfs_fs_info *fs_info)
+void btrfs_free_dummy_fs_info(struct btrfs_fs_info *fs_info)
 {
 	struct radix_tree_iter iter;
 	void **slot;
+
+	if (!fs_info)
+		return;
+
+	if (WARN_ON(!test_bit(BTRFS_FS_STATE_DUMMY_FS_INFO,
+			      &fs_info->fs_state)))
+		return;
+
+	test_mnt->mnt_sb->s_fs_info = NULL;
 
 	spin_lock(&fs_info->buffer_lock);
 	radix_tree_for_each_slot(slot, &fs_info->buffer_radix, &iter, 0) {
@@ -167,10 +180,11 @@ void btrfs_free_dummy_root(struct btrfs_root *root)
 {
 	if (!root)
 		return;
+	/* Will be freed by btrfs_free_fs_roots */
+	if (WARN_ON(test_bit(BTRFS_ROOT_IN_RADIX, &root->state)))
+		return;
 	if (root->node)
 		free_extent_buffer(root->node);
-	if (root->fs_info)
-		btrfs_free_dummy_fs_info(root->fs_info);
 	kfree(root);
 }
 

@@ -1233,6 +1233,7 @@ static void __setup_root(u32 nodesize, u32 sectorsize, u32 stripesize,
 			 struct btrfs_root *root, struct btrfs_fs_info *fs_info,
 			 u64 objectid)
 {
+	bool dummy = test_bit(BTRFS_FS_STATE_DUMMY_FS_INFO, &fs_info->fs_state);
 	root->node = NULL;
 	root->commit_root = NULL;
 	root->sectorsize = sectorsize;
@@ -1287,14 +1288,14 @@ static void __setup_root(u32 nodesize, u32 sectorsize, u32 stripesize,
 	root->log_transid = 0;
 	root->log_transid_committed = -1;
 	root->last_log_commit = 0;
-	if (fs_info)
+	if (!dummy)
 		extent_io_tree_init(&root->dirty_log_pages,
 				     fs_info->btree_inode->i_mapping);
 
 	memset(&root->root_key, 0, sizeof(root->root_key));
 	memset(&root->root_item, 0, sizeof(root->root_item));
 	memset(&root->defrag_progress, 0, sizeof(root->defrag_progress));
-	if (fs_info)
+	if (!dummy)
 		root->defrag_trans_start = fs_info->generation;
 	else
 		root->defrag_trans_start = 0;
@@ -1315,15 +1316,19 @@ static struct btrfs_root *btrfs_alloc_root(struct btrfs_fs_info *fs_info,
 
 #ifdef CONFIG_BTRFS_FS_RUN_SANITY_TESTS
 /* Should only be used by the testing infrastructure */
-struct btrfs_root *btrfs_alloc_dummy_root(u32 sectorsize, u32 nodesize)
+struct btrfs_root *btrfs_alloc_dummy_root(struct btrfs_fs_info *fs_info,
+					  u32 sectorsize, u32 nodesize)
 {
 	struct btrfs_root *root;
 
-	root = btrfs_alloc_root(NULL, GFP_KERNEL);
+	if (!fs_info)
+		return ERR_PTR(-EINVAL);
+
+	root = btrfs_alloc_root(fs_info, GFP_KERNEL);
 	if (!root)
 		return ERR_PTR(-ENOMEM);
 	/* We don't use the stripesize in selftest, set it as sectorsize */
-	__setup_root(nodesize, sectorsize, sectorsize, root, NULL,
+	__setup_root(nodesize, sectorsize, sectorsize, root, fs_info,
 			BTRFS_ROOT_TREE_OBJECTID);
 	set_bit(BTRFS_ROOT_DUMMY_ROOT, &root->state);
 	root->alloc_bytenr = 0;

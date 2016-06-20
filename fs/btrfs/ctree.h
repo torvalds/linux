@@ -117,6 +117,7 @@ static inline unsigned long btrfs_chunk_item_size(int num_stripes)
 #define BTRFS_FS_STATE_REMOUNTING	1
 #define BTRFS_FS_STATE_TRANS_ABORTED	2
 #define BTRFS_FS_STATE_DEV_REPLACING	3
+#define BTRFS_FS_STATE_DUMMY_FS_INFO	4
 
 #define BTRFS_BACKREF_REV_MAX		256
 #define BTRFS_BACKREF_REV_SHIFT		56

@@ -35,6 +35,7 @@ int btrfs_test_qgroups(u32 sectorsize, u32 nodesize);
 int btrfs_test_free_space_tree(u32 sectorsize, u32 nodesize);
 struct inode *btrfs_new_test_inode(void);
 struct btrfs_fs_info *btrfs_alloc_dummy_fs_info(void);
+void btrfs_free_dummy_fs_info(struct btrfs_fs_info *fs_info);
 void btrfs_free_dummy_root(struct btrfs_root *root);
 struct btrfs_block_group_cache *
 btrfs_alloc_dummy_block_group(unsigned long length, u32 sectorsize);

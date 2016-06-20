@@ -90,7 +90,8 @@ void btrfs_drop_and_free_fs_root(struct btrfs_fs_info *fs_info,
 void btrfs_free_fs_root(struct btrfs_root *root);
 
 #ifdef CONFIG_BTRFS_FS_RUN_SANITY_TESTS
-struct btrfs_root *btrfs_alloc_dummy_root(u32 sectorsize, u32 nodesize);
+struct btrfs_root *btrfs_alloc_dummy_root(struct btrfs_fs_info *fs_info,
+					  u32 sectorsize, u32 nodesize);
 #endif
 
 /*
