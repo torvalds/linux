@@ -19,6 +19,7 @@
 #include <linux/io.h>
 #include <linux/jiffies.h>
 #include <linux/of.h>
+#include <linux/of_address.h>
 #include <linux/sched.h>
 #include <linux/smp.h>
 
@@ -255,6 +256,57 @@ static int kona_boot_secondary(unsigned int cpu, struct task_struct *idle)
 	return -ENXIO;
 }
 
+/* Cluster Dormant Control command to bring CPU into a running state */
+#define CDC_CMD			6
+#define CDC_CMD_OFFSET		0
+#define CDC_CMD_REG(cpu)	(CDC_CMD_OFFSET + 4*(cpu))
+
+/*
+ * BCM23550 has a Cluster Dormant Control block that keeps the core in
+ * idle state. A command needs to be sent to the block to bring the CPU
+ * into running state.
+ */
+static int bcm23550_boot_secondary(unsigned int cpu, struct task_struct *idle)
+{
+	void __iomem *cdc_base;
+	struct device_node *dn;
+	char *name;
+	int ret;
+
+	/* Make sure a CDC node exists before booting the
+	 * secondary core.
+	 */
+	name = "brcm,bcm23550-cdc";
+	dn = of_find_compatible_node(NULL, NULL, name);
+	if (!dn) {
+		pr_err("unable to find cdc node\n");
+		return -ENODEV;
+	}
+
+	cdc_base = of_iomap(dn, 0);
+	of_node_put(dn);
+
+	if (!cdc_base) {
+		pr_err("unable to remap cdc base register\n");
+		return -ENOMEM;
+	}
+
+	/* Boot the secondary core */
+	ret = kona_boot_secondary(cpu, idle);
+	if (ret)
+		goto out;
+
+	/* Bring this CPU to RUN state so that nIRQ nFIQ
+	 * signals are unblocked.
+	 */
+	writel_relaxed(CDC_CMD, cdc_base + CDC_CMD_REG(cpu));
+
+out:
+	iounmap(cdc_base);
+
+	return ret;
+}
+
 static int nsp_boot_secondary(unsigned int cpu, struct task_struct *idle)
 {
 	int ret;
@@ -282,6 +334,12 @@ static const struct smp_operations bcm_smp_ops __initconst = {
 };
 CPU_METHOD_OF_DECLARE(bcm_smp_bcm281xx, "brcm,bcm11351-cpu-method",
 			&bcm_smp_ops);
+
+static const struct smp_operations bcm23550_smp_ops __initconst = {
+	.smp_boot_secondary	= bcm23550_boot_secondary,
+};
+CPU_METHOD_OF_DECLARE(bcm_smp_bcm23550, "brcm,bcm23550",
+			&bcm23550_smp_ops);
 
 static const struct smp_operations nsp_smp_ops __initconst = {
 	.smp_prepare_cpus	= bcm_smp_prepare_cpus,

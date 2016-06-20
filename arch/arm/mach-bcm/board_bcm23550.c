@@ -1,5 +1,5 @@
 /*
- * Copyright (C) 2014 Broadcom Corporation
+ * Copyright (C) 2016 Broadcom
  *
  * This program is free software; you can redistribute it and/or
  * modify it under the terms of the GNU General Public License as
@@ -15,20 +15,11 @@
 
 #include <asm/mach/arch.h>
 
-#include "kona_l2_cache.h"
-
-static void __init bcm21664_init(void)
-{
-	of_platform_populate(NULL, of_default_bus_match_table, NULL, NULL);
-	kona_l2_cache_init();
-}
-
-static const char * const bcm21664_dt_compat[] = {
-	"brcm,bcm21664",
+static const char * const bcm23550_dt_compat[] = {
+	"brcm,bcm23550",
 	NULL,
 };
 
-DT_MACHINE_START(BCM21664_DT, "BCM21664 Broadcom Application Processor")
-	.init_machine = bcm21664_init,
-	.dt_compat = bcm21664_dt_compat,
+DT_MACHINE_START(BCM23550_DT, "BCM23550 Broadcom Application Processor")
+	.dt_compat = bcm23550_dt_compat,
 MACHINE_END
