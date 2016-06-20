@@ -30,6 +30,12 @@ Optional Properties:
   - arasan,soc-ctl-syscon: A phandle to a syscon device (see ../mfd/syscon.txt)
     used to access core corecfg registers.  Offsets of registers in this
     syscon are determined based on the main compatible string for the device.
+  - clock-output-names: If specified, this will be the name of the card clock
+    which will be exposed by this device.  Required if #clock-cells is
+    specified.
+  - #clock-cells: If specified this should be the value <0>.  With this property
+    in place we will export a clock representing the Card Clock.  This clock
+    is expected to be consumed by our PHY.  You must also specify
 
 Example:
 	sdhci@e0100000 {
@@ -61,7 +67,9 @@ Example:
 		arasan,soc-ctl-syscon = <&grf>;
 		assigned-clocks = <&cru SCLK_EMMC>;
 		assigned-clock-rates = <200000000>;
+		clock-output-names = "emmc_cardclock";
 		phys = <&emmc_phy>;
 		phy-names = "phy_arasan";
+		#clock-cells = <0>;
 		status = "disabled";
 	};
