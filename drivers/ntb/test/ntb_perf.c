@@ -133,7 +133,6 @@ struct perf_ctx {
 	spinlock_t		db_lock;
 	struct perf_mw		mw;
 	bool			link_is_up;
-	struct work_struct	link_cleanup;
 	struct delayed_work	link_work;
 	wait_queue_head_t	link_wq;
 	struct dentry		*debugfs_node_dir;
@@ -158,10 +157,16 @@ static void perf_link_event(void *ctx)
 {
 	struct perf_ctx *perf = ctx;
 
-	if (ntb_link_is_up(perf->ntb, NULL, NULL) == 1)
+	if (ntb_link_is_up(perf->ntb, NULL, NULL) == 1) {
 		schedule_delayed_work(&perf->link_work, 2*HZ);
-	else
-		schedule_work(&perf->link_cleanup);
+	} else {
+		dev_dbg(&perf->ntb->pdev->dev, "link down\n");
+
+		if (!perf->link_is_up)
+			cancel_delayed_work_sync(&perf->link_work);
+
+		perf->link_is_up = false;
+	}
 }
 
 static void perf_db_event(void *ctx, int vec)
@@ -547,18 +552,6 @@ out:
 				      msecs_to_jiffies(PERF_LINK_DOWN_TIMEOUT));
 }
 
-static void perf_link_cleanup(struct work_struct *work)
-{
-	struct perf_ctx *perf = container_of(work,
-					     struct perf_ctx,
-					     link_cleanup);
-
-	dev_dbg(&perf->ntb->pdev->dev, "%s called\n", __func__);
-
-	if (!perf->link_is_up)
-		cancel_delayed_work_sync(&perf->link_work);
-}
-
 static int perf_setup_mw(struct ntb_dev *ntb, struct perf_ctx *perf)
 {
 	struct perf_mw *mw;
@@ -787,7 +780,6 @@ static int perf_probe(struct ntb_client *client, struct ntb_dev *ntb)
 	perf_setup_mw(ntb, perf);
 	init_waitqueue_head(&perf->link_wq);
 	INIT_DELAYED_WORK(&perf->link_work, perf_link_work);
-	INIT_WORK(&perf->link_cleanup, perf_link_cleanup);
 
 	rc = ntb_set_ctx(ntb, perf, &perf_ops);
 	if (rc)
@@ -807,7 +799,6 @@ static int perf_probe(struct ntb_client *client, struct ntb_dev *ntb)
 
 err_ctx:
 	cancel_delayed_work_sync(&perf->link_work);
-	cancel_work_sync(&perf->link_cleanup);
 	kfree(perf);
 err_perf:
 	return rc;
@@ -823,7 +814,6 @@ static void perf_remove(struct ntb_client *client, struct ntb_dev *ntb)
 	mutex_lock(&perf->run_mutex);
 
 	cancel_delayed_work_sync(&perf->link_work);
-	cancel_work_sync(&perf->link_cleanup);
 
 	ntb_clear_ctx(ntb);
 	ntb_link_disable(ntb);
