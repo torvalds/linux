@@ -1327,9 +1327,9 @@ static void init_plx9080(struct comedi_device *dev)
 	bits |= PLX_DMAMODE_BURSTEN;
 	/*  4020 uses 32 bit dma */
 	if (board->layout == LAYOUT_4020)
-		bits |= PLX_DMAMODE_WIDTH32;
+		bits |= PLX_DMAMODE_WIDTH_32;
 	else		/*  localspace0 bus is 16 bits wide */
-		bits |= PLX_DMAMODE_WIDTH16;
+		bits |= PLX_DMAMODE_WIDTH_16;
 	writel(bits, plx_iobase + PLX_REG_DMAMODE1);
 	if (ao_cmd_is_supported(board))
 		writel(bits, plx_iobase + PLX_REG_DMAMODE0);

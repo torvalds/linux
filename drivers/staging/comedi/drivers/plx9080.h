@@ -60,9 +60,9 @@ struct plx_dma_desc {
 #define PLX_REG_LAS1RR		0x00f0
 
 #define PLX_LASRR_IO		BIT(0)		/* Map to: 1=I/O, 0=Mem */
-#define PLX_LASRR_ANY32		(BIT(1) * 0)	/* Locate anywhere in 32 bit */
-#define PLX_LASRR_LT1MB		(BIT(1) * 1)	/* Locate in 1st meg */
-#define PLX_LASRR_ANY64		(BIT(1) * 2)	/* Locate anywhere in 64 bit */
+#define PLX_LASRR_MLOC_ANY32	(BIT(1) * 0)	/* Locate anywhere in 32 bit */
+#define PLX_LASRR_MLOC_LT1MB	(BIT(1) * 1)	/* Locate in 1st meg */
+#define PLX_LASRR_MLOC_ANY64	(BIT(1) * 2)	/* Locate anywhere in 64 bit */
 #define PLX_LASRR_MLOC_MASK	GENMASK(2, 1)	/* Memory location bits */
 #define PLX_LASRR_PREFETCH	BIT(3)		/* Memory is prefetchable */
 /* bits that specify range for memory space decode bits */
@@ -166,10 +166,10 @@ struct plx_dma_desc {
 #define PLX_REG_LBRD1		0x00f8
 
 /* Memory Space Local Bus Width */
-#define PLX_LBRD_MSWIDTH8	(BIT(0) * 0)	/* 8 bits wide */
-#define PLX_LBRD_MSWIDTH16	(BIT(0) * 1)	/* 16 bits wide */
-#define PLX_LBRD_MSWIDTH32	(BIT(0) * 2)	/* 32 bits wide */
-#define PLX_LBRD_MSWIDTH32A	(BIT(0) * 3)	/* 32 bits wide */
+#define PLX_LBRD_MSWIDTH_8	(BIT(0) * 0)	/* 8 bits wide */
+#define PLX_LBRD_MSWIDTH_16	(BIT(0) * 1)	/* 16 bits wide */
+#define PLX_LBRD_MSWIDTH_32	(BIT(0) * 2)	/* 32 bits wide */
+#define PLX_LBRD_MSWIDTH_32A	(BIT(0) * 3)	/* 32 bits wide */
 #define PLX_LBRD_MSWIDTH_MASK	GENMASK(1, 0)
 /* Memory Space Internal Wait States */
 #define PLX_LBRD_MSIWS(x)	(BIT(2) * ((x) & 0xf))
@@ -194,10 +194,10 @@ struct plx_dma_desc {
 #define PLX_LBRD_PFCOUNT_MASK	GENMASK(14, 11)
 #define PLX_LBRD_TO_PFCOUNT(r)	(((r) & PLX_LBRD_PFCOUNT_MASK) >> 11)
 /* Expansion ROM Space Local Bus Width (LBRD0 only) */
-#define PLX_LBRD0_EROMWIDTH8	(BIT(16) * 0)	/* 8 bits wide */
-#define PLX_LBRD0_EROMWIDTH16	(BIT(16) * 1)	/* 16 bits wide */
-#define PLX_LBRD0_EROMWIDTH32	(BIT(16) * 2)	/* 32 bits wide */
-#define PLX_LBRD0_EROMWIDTH32A	(BIT(16) * 3)	/* 32 bits wide */
+#define PLX_LBRD0_EROMWIDTH_8	(BIT(16) * 0)	/* 8 bits wide */
+#define PLX_LBRD0_EROMWIDTH_16	(BIT(16) * 1)	/* 16 bits wide */
+#define PLX_LBRD0_EROMWIDTH_32	(BIT(16) * 2)	/* 32 bits wide */
+#define PLX_LBRD0_EROMWIDTH_32A	(BIT(16) * 3)	/* 32 bits wide */
 #define PLX_LBRD0_EROMWIDTH_MASK	GENMASK(17, 16)
 /* Expansion ROM Space Internal Wait States (LBRD0 only) */
 #define PLX_LBRD0_EROMIWS(x)	(BIT(18) * ((x) & 0xf))
@@ -239,10 +239,10 @@ struct plx_dma_desc {
 /* LLOCK# Input Enable */
 #define PLX_DMPBAM_LLOCKIEN	BIT(2)
 /* Direct Master Read Prefetch Size Control (bits 12, 3) */
-#define PLX_DMPBAM_RPSIZECONT	((BIT(12) * 0) | (BIT(3) * 0))
-#define PLX_DMPBAM_RPSIZE4	((BIT(12) * 0) | (BIT(3) * 1))
-#define PLX_DMPBAM_RPSIZE8	((BIT(12) * 1) | (BIT(3) * 0))
-#define PLX_DMPBAM_RPSIZE16	((BIT(12) * 1) | (BIT(3) * 1))
+#define PLX_DMPBAM_RPSIZE_CONT	((BIT(12) * 0) | (BIT(3) * 0))
+#define PLX_DMPBAM_RPSIZE_4	((BIT(12) * 0) | (BIT(3) * 1))
+#define PLX_DMPBAM_RPSIZE_8	((BIT(12) * 1) | (BIT(3) * 0))
+#define PLX_DMPBAM_RPSIZE_16	((BIT(12) * 1) | (BIT(3) * 1))
 #define PLX_DMPBAM_RPSIZE_MASK	(BIT(12) | BIT(3))
 /* Direct Master PCI Read Mode - deassert IRDY when FIFO full */
 #define PLX_DMPBAM_RMIRDY	BIT(4)
@@ -259,10 +259,10 @@ struct plx_dma_desc {
 /* I/O Remap Select */
 #define PLX_DMPBAM_IOREMAPSEL	BIT(13)
 /* Direct Master Write Delay */
-#define PLX_DMPBAM_WDELAYNONE	(BIT(14) * 0)
-#define PLX_DMPBAM_WDELAY4	(BIT(14) * 1)
-#define PLX_DMPBAM_WDELAY8	(BIT(14) * 2)
-#define PLX_DMPBAM_WDELAY16	(BIT(14) * 3)
+#define PLX_DMPBAM_WDELAY_NONE	(BIT(14) * 0)
+#define PLX_DMPBAM_WDELAY_4	(BIT(14) * 1)
+#define PLX_DMPBAM_WDELAY_8	(BIT(14) * 2)
+#define PLX_DMPBAM_WDELAY_16	(BIT(14) * 3)
 #define PLX_DMPBAM_WDELAY_MASK	GENMASK(15, 14)
 /* Remap of Local-to-PCI Space Into PCI Address Space */
 #define PLX_DMPBAM_REMAP_MASK	GENMASK(31, 16)
@@ -462,10 +462,10 @@ struct plx_dma_desc {
 #define PLX_REG_DMAMODE1	0x0094
 
 /* Local Bus Width */
-#define PLX_DMAMODE_WIDTH8	(BIT(0) * 0)	/* 8 bits wide */
-#define PLX_DMAMODE_WIDTH16	(BIT(0) * 1)	/* 16 bits wide */
-#define PLX_DMAMODE_WIDTH32	(BIT(0) * 2)	/* 32 bits wide */
-#define PLX_DMAMODE_WIDTH32A	(BIT(0) * 3)	/* 32 bits wide */
+#define PLX_DMAMODE_WIDTH_8	(BIT(0) * 0)	/* 8 bits wide */
+#define PLX_DMAMODE_WIDTH_16	(BIT(0) * 1)	/* 16 bits wide */
+#define PLX_DMAMODE_WIDTH_32	(BIT(0) * 2)	/* 32 bits wide */
+#define PLX_DMAMODE_WIDTH_32A	(BIT(0) * 3)	/* 32 bits wide */
 #define PLX_DMAMODE_WIDTH_MASK	GENMASK(1, 0)
 /* Internal Wait States */
 #define PLX_DMAMODE_IWS(x)	(BIT(2) * ((x) & 0xf))
