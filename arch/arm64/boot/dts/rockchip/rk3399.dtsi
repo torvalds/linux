@@ -1792,6 +1792,11 @@
 				rockchip,pins =
 					<4 21 RK_FUNC_1 &pcfg_pull_none>;
 			};
+
+			spdif_bus_1: spdif-bus-1 {
+				rockchip,pins =
+					<3 16 RK_FUNC_3 &pcfg_pull_none>;
+			};
 		};
 
 		spi0 {
