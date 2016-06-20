@@ -50,4 +50,19 @@ struct lookup_intent {
 	unsigned int    it_lock_set:1;
 };
 
+static inline int it_disposition(struct lookup_intent *it, int flag)
+{
+	return it->it_disposition & flag;
+}
+
+static inline void it_set_disposition(struct lookup_intent *it, int flag)
+{
+	it->it_disposition |= flag;
+}
+
+static inline void it_clear_disposition(struct lookup_intent *it, int flag)
+{
+	it->it_disposition &= ~flag;
+}
+
 #endif
