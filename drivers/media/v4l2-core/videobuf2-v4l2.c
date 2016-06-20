@@ -621,27 +621,6 @@ int vb2_qbuf(struct vb2_queue *q, struct v4l2_buffer *b)
 }
 EXPORT_SYMBOL_GPL(vb2_qbuf);
 
-static int vb2_internal_dqbuf(struct vb2_queue *q, struct v4l2_buffer *b,
-		bool nonblocking)
-{
-	int ret;
-
-	if (b->type != q->type) {
-		dprintk(1, "invalid buffer type\n");
-		return -EINVAL;
-	}
-
-	ret = vb2_core_dqbuf(q, NULL, b, nonblocking);
-
-	/*
-	 *  After calling the VIDIOC_DQBUF V4L2_BUF_FLAG_DONE must be
-	 *  cleared.
-	 */
-	b->flags &= ~V4L2_BUF_FLAG_DONE;
-
-	return ret;
-}
-
 /**
  * vb2_dqbuf() - Dequeue a buffer to the userspace
  * @q:		videobuf2 queue
@@ -665,11 +644,27 @@ static int vb2_internal_dqbuf(struct vb2_queue *q, struct v4l2_buffer *b,
  */
 int vb2_dqbuf(struct vb2_queue *q, struct v4l2_buffer *b, bool nonblocking)
 {
+	int ret;
+
 	if (vb2_fileio_is_active(q)) {
 		dprintk(1, "file io in progress\n");
 		return -EBUSY;
 	}
-	return vb2_internal_dqbuf(q, b, nonblocking);
+
+	if (b->type != q->type) {
+		dprintk(1, "invalid buffer type\n");
+		return -EINVAL;
+	}
+
+	ret = vb2_core_dqbuf(q, NULL, b, nonblocking);
+
+	/*
+	 *  After calling the VIDIOC_DQBUF V4L2_BUF_FLAG_DONE must be
+	 *  cleared.
+	 */
+	b->flags &= ~V4L2_BUF_FLAG_DONE;
+
+	return ret;
 }
 EXPORT_SYMBOL_GPL(vb2_dqbuf);
 
