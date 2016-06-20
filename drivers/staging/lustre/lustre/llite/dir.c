@@ -362,7 +362,7 @@ struct page *ll_get_dir_page(struct inode *dir, __u64 hash,
 
 		ll_finish_md_op_data(op_data);
 
-		request = (struct ptlrpc_request *)it.it_data;
+		request = (struct ptlrpc_request *)it.it_request;
 		if (request)
 			ptlrpc_req_finished(request);
 		if (rc < 0) {

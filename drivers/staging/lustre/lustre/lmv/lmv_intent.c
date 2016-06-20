@@ -84,7 +84,7 @@ static int lmv_intent_remote(struct obd_export *exp, void *lmm,
 	if (pmode) {
 		plock.cookie = it->it_lock_handle;
 		it->it_lock_mode = 0;
-		it->it_data = NULL;
+		it->it_request = NULL;
 	}
 
 	LASSERT(fid_is_sane(&body->fid1));

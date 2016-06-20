@@ -46,7 +46,7 @@ struct lookup_intent {
 	int		it_lock_mode;
 	int		it_remote_lock_mode;
 	__u64	   it_remote_lock_handle;
-	void	   *it_data;
+	struct ptlrpc_request *it_request;
 	unsigned int    it_lock_set:1;
 };
 

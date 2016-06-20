@@ -561,7 +561,7 @@ static int mdc_finish_enqueue(struct obd_export *exp,
 	it->it_status = (int)lockrep->lock_policy_res2;
 	it->it_lock_mode = einfo->ei_mode;
 	it->it_lock_handle = lockh->cookie;
-	it->it_data = req;
+	it->it_request = req;
 
 	/* Technically speaking rq_transno must already be zero if
 	 * it_status is in error, so the check is a bit redundant
@@ -883,7 +883,7 @@ resend:
 
 		it->it_lock_handle = 0;
 		it->it_lock_mode = 0;
-		it->it_data = NULL;
+		it->it_request = NULL;
 	}
 
 	return rc;
@@ -1146,7 +1146,7 @@ int mdc_intent_lock(struct obd_export *exp, struct md_op_data *op_data,
 	if (rc < 0)
 		return rc;
 
-	*reqp = it->it_data;
+	*reqp = it->it_request;
 	rc = mdc_finish_intent_lock(exp, *reqp, op_data, it, &lockh);
 	return rc;
 }
