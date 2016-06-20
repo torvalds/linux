@@ -1375,6 +1375,7 @@ struct batadv_skb_cb {
  *  locally generated packet
  * @if_outgoing: packet where the packet should be sent to, or NULL if
  *  unspecified
+ * @queue_left: The queue (counter) this packet was applied to
  */
 struct batadv_forw_packet {
 	struct hlist_node list;
@@ -1387,6 +1388,7 @@ struct batadv_forw_packet {
 	struct delayed_work delayed_work;
 	struct batadv_hard_iface *if_incoming;
 	struct batadv_hard_iface *if_outgoing;
+	atomic_t *queue_left;
 };
 
 /**
