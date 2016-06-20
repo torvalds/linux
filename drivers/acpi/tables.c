@@ -34,6 +34,7 @@
 #include <linux/bootmem.h>
 #include <linux/earlycpio.h>
 #include <linux/memblock.h>
+#include <linux/initrd.h>
 #include "internal.h"
 
 #ifdef CONFIG_ACPI_CUSTOM_DSDT
@@ -481,8 +482,10 @@ static DECLARE_BITMAP(acpi_initrd_installed, NR_ACPI_INITRD_TABLES);
 
 #define MAP_CHUNK_SIZE   (NR_FIX_BTMAPS << PAGE_SHIFT)
 
-static void __init acpi_table_initrd_init(void *data, size_t size)
+void __init acpi_table_upgrade(void)
 {
+	void *data = (void *)initrd_start;
+	size_t size = initrd_end - initrd_start;
 	int sig, no, table_nr = 0, total_offset = 0;
 	long offset = 0;
 	struct acpi_table_header *table;
@@ -696,10 +699,6 @@ next_table:
 	}
 }
 #else
-static void __init acpi_table_initrd_init(void *data, size_t size)
-{
-}
-
 static acpi_status
 acpi_table_initrd_override(struct acpi_table_header *existing_table,
 			   acpi_physical_address *address,
@@ -740,11 +739,6 @@ acpi_os_table_override(struct acpi_table_header *existing_table,
 	if (*new_table != NULL)
 		acpi_table_taint(existing_table);
 	return AE_OK;
-}
-
-void __init early_acpi_table_init(void *data, size_t size)
-{
-	acpi_table_initrd_init(data, size);
 }
 
 /*
