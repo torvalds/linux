@@ -634,11 +634,10 @@ static int weigh_cb(const struct lu_env *env, struct cl_io *io,
 
 	if (cl_page_is_vmlocked(env, page) ||
 	    PageDirty(page->cp_vmpage) || PageWriteback(page->cp_vmpage)
-	   ) {
-		(*(unsigned long *)cbdata)++;
+	   )
 		return CLP_GANG_ABORT;
-	}
 
+	*(pgoff_t *)cbdata = osc_index(ops) + 1;
 	return CLP_GANG_OKAY;
 }
 
@@ -648,7 +647,7 @@ static unsigned long osc_lock_weight(const struct lu_env *env,
 {
 	struct cl_io *io = &osc_env_info(env)->oti_io;
 	struct cl_object *obj = cl_object_top(&oscobj->oo_cl);
-	unsigned long npages = 0;
+	pgoff_t page_index;
 	int result;
 
 	io->ci_obj = obj;
@@ -657,11 +656,12 @@ static unsigned long osc_lock_weight(const struct lu_env *env,
 	if (result != 0)
 		return result;
 
+	page_index = cl_index(obj, extent->start);
 	do {
 		result = osc_page_gang_lookup(env, io, oscobj,
-					      cl_index(obj, extent->start),
+					      page_index,
 					      cl_index(obj, extent->end),
-					      weigh_cb, (void *)&npages);
+					      weigh_cb, (void *)&page_index);
 		if (result == CLP_GANG_ABORT)
 			break;
 		if (result == CLP_GANG_RESCHED)
@@ -669,7 +669,7 @@ static unsigned long osc_lock_weight(const struct lu_env *env,
 	} while (result != CLP_GANG_OKAY);
 	cl_io_fini(env, io);
 
-	return npages;
+	return result == CLP_GANG_ABORT ? 1 : 0;
 }
 
 /**
