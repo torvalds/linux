@@ -35,11 +35,13 @@
 /**
  * struct sdhci_arasan_data
  * @clk_ahb:	Pointer to the AHB clock
- * @phy: Pointer to the generic phy
+ * @phy:	Pointer to the generic phy
+ * @phy_on:	True if the PHY is turned on.
  */
 struct sdhci_arasan_data {
 	struct clk	*clk_ahb;
 	struct phy	*phy;
+	bool		phy_on;
 };
 
 static unsigned int sdhci_arasan_get_timeout_clock(struct sdhci_host *host)
@@ -61,12 +63,10 @@ static void sdhci_arasan_set_clock(struct sdhci_host *host, unsigned int clock)
 {
 	struct sdhci_pltfm_host *pltfm_host = sdhci_priv(host);
 	struct sdhci_arasan_data *sdhci_arasan = sdhci_pltfm_priv(pltfm_host);
-	bool ctrl_phy = false;
 
-	if (clock > MMC_HIGH_52_MAX_DTR && (!IS_ERR(sdhci_arasan->phy)))
-		ctrl_phy = true;
+	if (sdhci_arasan->phy_on && !IS_ERR(sdhci_arasan->phy)) {
+		sdhci_arasan->phy_on = false;
 
-	if (ctrl_phy) {
 		spin_unlock_irq(&host->lock);
 		phy_power_off(sdhci_arasan->phy);
 		spin_lock_irq(&host->lock);
@@ -74,7 +74,9 @@ static void sdhci_arasan_set_clock(struct sdhci_host *host, unsigned int clock)
 
 	sdhci_set_clock(host, clock);
 
-	if (ctrl_phy) {
+	if (host->mmc->actual_clock && !IS_ERR(sdhci_arasan->phy)) {
+		sdhci_arasan->phy_on = true;
+
 		spin_unlock_irq(&host->lock);
 		phy_power_on(sdhci_arasan->phy);
 		spin_lock_irq(&host->lock);
@@ -257,12 +259,6 @@ static int sdhci_arasan_probe(struct platform_device *pdev)
 			goto clk_disable_all;
 		}
 
-		ret = phy_power_on(sdhci_arasan->phy);
-		if (ret < 0) {
-			dev_err(&pdev->dev, "phy_power_on err.\n");
-			goto err_phy_power;
-		}
-
 		host->mmc_host_ops.hs400_enhanced_strobe =
 					sdhci_arasan_hs400_enhanced_strobe;
 	}
@@ -274,9 +270,6 @@ static int sdhci_arasan_probe(struct platform_device *pdev)
 	return 0;
 
 err_add_host:
-	if (!IS_ERR(sdhci_arasan->phy))
-		phy_power_off(sdhci_arasan->phy);
-err_phy_power:
 	if (!IS_ERR(sdhci_arasan->phy))
 		phy_exit(sdhci_arasan->phy);
 clk_disable_all:
