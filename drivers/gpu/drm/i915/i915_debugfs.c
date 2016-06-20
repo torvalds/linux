@@ -3374,31 +3374,16 @@ static int i915_ddb_info(struct seq_file *m, void *unused)
 static void drrs_status_per_crtc(struct seq_file *m,
 		struct drm_device *dev, struct intel_crtc *intel_crtc)
 {
-	struct intel_encoder *intel_encoder;
 	struct drm_i915_private *dev_priv = dev->dev_private;
 	struct i915_drrs *drrs = &dev_priv->drrs;
 	int vrefresh = 0;
+	struct drm_connector *connector;
 
-	for_each_encoder_on_crtc(dev, &intel_crtc->base, intel_encoder) {
-		/* Encoder connected on this CRTC */
-		switch (intel_encoder->type) {
-		case INTEL_OUTPUT_EDP:
-			seq_puts(m, "eDP:\n");
-			break;
-		case INTEL_OUTPUT_DSI:
-			seq_puts(m, "DSI:\n");
-			break;
-		case INTEL_OUTPUT_HDMI:
-			seq_puts(m, "HDMI:\n");
-			break;
-		case INTEL_OUTPUT_DISPLAYPORT:
-			seq_puts(m, "DP:\n");
-			break;
-		default:
-			seq_printf(m, "Other encoder (id=%d).\n",
-						intel_encoder->type);
-			return;
-		}
+	drm_for_each_connector(connector, dev) {
+		if (connector->state->crtc != &intel_crtc->base)
+			continue;
+
+		seq_printf(m, "%s:\n", connector->name);
 	}
 
 	if (dev_priv->vbt.drrs_type == STATIC_DRRS_SUPPORT)
@@ -3461,18 +3446,16 @@ static int i915_drrs_status(struct seq_file *m, void *unused)
 	struct intel_crtc *intel_crtc;
 	int active_crtc_cnt = 0;
 
+	drm_modeset_lock_all(dev);
 	for_each_intel_crtc(dev, intel_crtc) {
-		drm_modeset_lock(&intel_crtc->base.mutex, NULL);
-
 		if (intel_crtc->base.state->active) {
 			active_crtc_cnt++;
 			seq_printf(m, "\nCRTC %d:  ", active_crtc_cnt);
 
 			drrs_status_per_crtc(m, dev, intel_crtc);
 		}
-
-		drm_modeset_unlock(&intel_crtc->base.mutex);
 	}
+	drm_modeset_unlock_all(dev);
 
 	if (!active_crtc_cnt)
 		seq_puts(m, "No active crtc found\n");
