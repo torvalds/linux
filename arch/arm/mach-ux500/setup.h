@@ -11,16 +11,6 @@
 #ifndef __ASM_ARCH_SETUP_H
 #define __ASM_ARCH_SETUP_H
 
-#include <asm/mach/arch.h>
-#include <linux/init.h>
-
-
-void ux500_l2x0_init(void);
-
-void ux500_restart(enum reboot_mode mode, const char *cmd);
-
-extern void __init ux500_init_irq(void);
-
 extern void ux500_cpu_die(unsigned int cpu);
 
 #endif /*  __ASM_ARCH_SETUP_H */
