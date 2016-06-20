@@ -290,7 +290,7 @@ mlxsw_sp_vport_br_get(const struct mlxsw_sp_port *mlxsw_sp_vport)
 {
 	struct mlxsw_sp_fid *f = mlxsw_sp_vport_fid_get(mlxsw_sp_vport);
 
-	return f->dev;
+	return f ? f->dev : NULL;
 }
 
 static inline struct mlxsw_sp_port *
@@ -317,7 +317,7 @@ mlxsw_sp_port_vport_find_by_fid(const struct mlxsw_sp_port *mlxsw_sp_port,
 			    vport.list) {
 		struct mlxsw_sp_fid *f = mlxsw_sp_vport_fid_get(mlxsw_sp_vport);
 
-		if (f->fid == fid)
+		if (f && f->fid == fid)
 			return mlxsw_sp_vport;
 	}
 

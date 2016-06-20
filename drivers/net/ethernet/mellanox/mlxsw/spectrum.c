@@ -3323,7 +3323,9 @@ mlxsw_sp_port_master_bridge_check(const struct mlxsw_sp_port *mlxsw_sp_port,
 
 	list_for_each_entry(mlxsw_sp_vport, &mlxsw_sp_port->vports_list,
 			    vport.list) {
-		if (mlxsw_sp_vport_br_get(mlxsw_sp_vport) == br_dev)
+		struct net_device *dev = mlxsw_sp_vport_br_get(mlxsw_sp_vport);
+
+		if (dev && dev == br_dev)
 			return false;
 	}
 
