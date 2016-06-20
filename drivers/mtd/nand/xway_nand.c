@@ -4,6 +4,7 @@
  *  by the Free Software Foundation.
  *
  *  Copyright © 2012 John Crispin <blogic@openwrt.org>
+ *  Copyright © 2016 Hauke Mehrtens <hauke@hauke-m.de>
  */
 
 #include <linux/mtd/nand.h>
@@ -62,6 +63,10 @@
 #define NAND_CON_CS_P		(1 << 4)
 #define NAND_CON_CSMUX		(1 << 1)
 #define NAND_CON_NANDM		1
+
+struct xway_nand_data {
+	struct nand_chip	chip;
+};
 
 static void xway_reset_chip(struct nand_chip *chip)
 {
@@ -139,16 +144,51 @@ static unsigned char xway_read_byte(struct mtd_info *mtd)
 	return ret;
 }
 
+/*
+ * Probe for the NAND device.
+ */
 static int xway_nand_probe(struct platform_device *pdev)
 {
-	struct nand_chip *this = platform_get_drvdata(pdev);
-	unsigned long nandaddr = (unsigned long) this->IO_ADDR_W;
-	const __be32 *cs = of_get_property(pdev->dev.of_node,
-					"lantiq,cs", NULL);
+	struct xway_nand_data *data;
+	struct mtd_info *mtd;
+	struct resource *res;
+	int err;
+	void __iomem *nandaddr;
+	u32 cs;
 	u32 cs_flag = 0;
 
+	/* Allocate memory for the device structure (and zero it) */
+	data = devm_kzalloc(&pdev->dev, sizeof(struct xway_nand_data),
+			    GFP_KERNEL);
+	if (!data)
+		return -ENOMEM;
+
+	res = platform_get_resource(pdev, IORESOURCE_MEM, 0);
+	nandaddr = devm_ioremap_resource(&pdev->dev, res);
+	if (IS_ERR(nandaddr))
+		return PTR_ERR(nandaddr);
+
+	nand_set_flash_node(&data->chip, pdev->dev.of_node);
+	mtd = nand_to_mtd(&data->chip);
+	mtd->dev.parent = &pdev->dev;
+
+	data->chip.IO_ADDR_R = nandaddr;
+	data->chip.IO_ADDR_W = nandaddr;
+	data->chip.cmd_ctrl = xway_cmd_ctrl;
+	data->chip.dev_ready = xway_dev_ready;
+	data->chip.select_chip = xway_select_chip;
+	data->chip.read_byte = xway_read_byte;
+	data->chip.chip_delay = 30;
+
+	data->chip.ecc.mode = NAND_ECC_SOFT;
+	data->chip.ecc.algo = NAND_ECC_HAMMING;
+
+	platform_set_drvdata(pdev, data);
+	nand_set_controller_data(&data->chip, data);
+
 	/* load our CS from the DT. Either we find a valid 1 or default to 0 */
-	if (cs && (*cs == 1))
+	err = of_property_read_u32(pdev->dev.of_node, "lantiq,cs", &cs);
+	if (!err && cs == 1)
 		cs_flag = NAND_CON_IN_CS1 | NAND_CON_OUT_CS1;
 
 	/* setup the EBU to run in NAND mode on our base addr */
@@ -164,43 +204,47 @@ static int xway_nand_probe(struct platform_device *pdev)
 		| cs_flag, EBU_NAND_CON);
 
 	/* finish with a reset */
-	xway_reset_chip(this);
+	xway_reset_chip(&data->chip);
 
-	return 0;
+	/* Scan to find existence of the device */
+	err = nand_scan(mtd, 1);
+	if (err)
+		return err;
+
+	err = mtd_device_register(mtd, NULL, 0);
+	if (err)
+		nand_release(mtd);
+
+	return err;
 }
-
-static struct platform_nand_data xway_nand_data = {
-	.chip = {
-		.nr_chips		= 1,
-		.chip_delay		= 30,
-	},
-	.ctrl = {
-		.probe		= xway_nand_probe,
-		.cmd_ctrl	= xway_cmd_ctrl,
-		.dev_ready	= xway_dev_ready,
-		.select_chip	= xway_select_chip,
-		.read_byte	= xway_read_byte,
-	}
-};
 
 /*
- * Try to find the node inside the DT. If it is available attach out
- * platform_nand_data
+ * Remove a NAND device.
  */
-static int __init xway_register_nand(void)
+static int xway_nand_remove(struct platform_device *pdev)
 {
-	struct device_node *node;
-	struct platform_device *pdev;
+	struct xway_nand_data *data = platform_get_drvdata(pdev);
 
-	node = of_find_compatible_node(NULL, NULL, "lantiq,nand-xway");
-	if (!node)
-		return -ENOENT;
-	pdev = of_find_device_by_node(node);
-	if (!pdev)
-		return -EINVAL;
-	pdev->dev.platform_data = &xway_nand_data;
-	of_node_put(node);
+	nand_release(nand_to_mtd(&data->chip));
+
 	return 0;
 }
 
-subsys_initcall(xway_register_nand);
+static const struct of_device_id xway_nand_match[] = {
+	{ .compatible = "lantiq,nand-xway" },
+	{},
+};
+MODULE_DEVICE_TABLE(of, xway_nand_match);
+
+static struct platform_driver xway_nand_driver = {
+	.probe	= xway_nand_probe,
+	.remove	= xway_nand_remove,
+	.driver	= {
+		.name		= "lantiq,nand-xway",
+		.of_match_table = xway_nand_match,
+	},
+};
+
+module_platform_driver(xway_nand_driver);
+
+MODULE_LICENSE("GPL");
