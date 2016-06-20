@@ -760,7 +760,7 @@ i915_gem_shmem_pread(struct drm_device *dev,
 	int needs_clflush = 0;
 	struct sg_page_iter sg_iter;
 
-	if (!obj->base.filp)
+	if (!i915_gem_object_has_struct_page(obj))
 		return -ENODEV;
 
 	user_data = u64_to_user_ptr(args->data_ptr);
@@ -1298,7 +1298,8 @@ i915_gem_pwrite_ioctl(struct drm_device *dev, void *data,
 	 * pread/pwrite currently are reading and writing from the CPU
 	 * perspective, requiring manual detiling by the client.
 	 */
-	if (!obj->base.filp || cpu_write_needs_clflush(obj)) {
+	if (!i915_gem_object_has_struct_page(obj) ||
+	    cpu_write_needs_clflush(obj)) {
 		ret = i915_gem_gtt_pwrite_fast(dev_priv, obj, args, file);
 		/* Note that the gtt paths might fail with non-page-backed user
 		 * pointers (e.g. gtt mappings when moving data between
@@ -1308,7 +1309,7 @@ i915_gem_pwrite_ioctl(struct drm_device *dev, void *data,
 	if (ret == -EFAULT) {
 		if (obj->phys_handle)
 			ret = i915_gem_phys_pwrite(obj, args, file);
-		else if (obj->base.filp)
+		else if (i915_gem_object_has_struct_page(obj))
 			ret = i915_gem_shmem_pwrite(dev, obj, args, file);
 		else
 			ret = -ENODEV;
