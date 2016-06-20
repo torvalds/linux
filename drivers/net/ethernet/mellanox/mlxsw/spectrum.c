@@ -2589,6 +2589,9 @@ mlxsw_sp_port_fdb_flush_by_port_fid(const struct mlxsw_sp_port *mlxsw_sp_port,
 	mlxsw_reg_sfdf_port_fid_system_port_set(sfdf_pl,
 						mlxsw_sp_port->local_port);
 
+	netdev_dbg(mlxsw_sp_port->dev, "FDB flushed using Port=%d, FID=%d\n",
+		   mlxsw_sp_port->local_port, fid);
+
 	return mlxsw_reg_write(mlxsw_sp->core, MLXSW_REG(sfdf), sfdf_pl);
 }
 
@@ -2602,6 +2605,9 @@ mlxsw_sp_port_fdb_flush_by_lag_id_fid(const struct mlxsw_sp_port *mlxsw_sp_port,
 	mlxsw_reg_sfdf_pack(sfdf_pl, MLXSW_REG_SFDF_FLUSH_PER_LAG_AND_FID);
 	mlxsw_reg_sfdf_fid_set(sfdf_pl, fid);
 	mlxsw_reg_sfdf_lag_fid_lag_id_set(sfdf_pl, mlxsw_sp_port->lag_id);
+
+	netdev_dbg(mlxsw_sp_port->dev, "FDB flushed using LAG ID=%d, FID=%d\n",
+		   mlxsw_sp_port->lag_id, fid);
 
 	return mlxsw_reg_write(mlxsw_sp->core, MLXSW_REG(sfdf), sfdf_pl);
 }
@@ -3174,6 +3180,8 @@ static int mlxsw_sp_vport_br_vfid_join(struct mlxsw_sp_port *mlxsw_sp_vport,
 	mlxsw_sp_vport_fid_set(mlxsw_sp_vport, f);
 	f->ref_count++;
 
+	netdev_dbg(mlxsw_sp_vport->dev, "Joined FID=%d\n", f->fid);
+
 	return 0;
 
 err_vport_fid_map:
@@ -3187,6 +3195,8 @@ err_vport_flood_set:
 static void mlxsw_sp_vport_br_vfid_leave(struct mlxsw_sp_port *mlxsw_sp_vport)
 {
 	struct mlxsw_sp_fid *f = mlxsw_sp_vport_fid_get(mlxsw_sp_vport);
+
+	netdev_dbg(mlxsw_sp_vport->dev, "Left FID=%d\n", f->fid);
 
 	mlxsw_sp_vport_fid_map(mlxsw_sp_vport, f->fid, false);
 
