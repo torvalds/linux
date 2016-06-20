@@ -2481,14 +2481,11 @@ M:	Scott Branden <sbranden@broadcom.com>
 M:	bcm-kernel-feedback-list@broadcom.com
 T:	git git://github.com/broadcom/mach-bcm
 S:	Maintained
+N:	bcm281*
+N:	bcm113*
+N:	bcm216*
+N:	kona
 F:	arch/arm/mach-bcm/
-F:	arch/arm/boot/dts/bcm113*
-F:	arch/arm/boot/dts/bcm216*
-F:	arch/arm/boot/dts/bcm281*
-F:	arch/arm64/boot/dts/broadcom/
-F:	arch/arm/configs/bcm_defconfig
-F:	drivers/mmc/host/sdhci-bcm-kona.c
-F:	drivers/clocksource/bcm_kona_timer.c
 
 BROADCOM BCM2835 ARM ARCHITECTURE
 M:	Stephen Warren <swarren@wwwdotorg.org>
