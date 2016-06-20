@@ -247,7 +247,7 @@ int ptlrpc_unregister_bulk(struct ptlrpc_request *req, int async)
 
 	/* Let's setup deadline for reply unlink. */
 	if (OBD_FAIL_CHECK(OBD_FAIL_PTLRPC_LONG_BULK_UNLINK) &&
-	    async && req->rq_bulk_deadline == 0)
+	    async && req->rq_bulk_deadline == 0 && cfs_fail_val == 0)
 		req->rq_bulk_deadline = ktime_get_real_seconds() + LONG_UNLINK;
 
 	if (ptlrpc_client_bulk_active(req) == 0)	/* completed or */
@@ -266,7 +266,7 @@ int ptlrpc_unregister_bulk(struct ptlrpc_request *req, int async)
 		return 1;				/* never registered */
 
 	/* Move to "Unregistering" phase as bulk was not unlinked yet. */
-	ptlrpc_rqphase_move(req, RQ_PHASE_UNREGISTERING);
+	ptlrpc_rqphase_move(req, RQ_PHASE_UNREG_BULK);
 
 	/* Do not wait for unlink to finish. */
 	if (async)

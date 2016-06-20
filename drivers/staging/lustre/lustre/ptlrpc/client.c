@@ -621,6 +621,8 @@ int ptlrpc_request_bufs_pack(struct ptlrpc_request *request,
 	request->rq_reply_cbid.cbid_arg = request;
 
 	request->rq_reply_deadline = 0;
+	request->rq_bulk_deadline = 0;
+	request->rq_req_deadline = 0;
 	request->rq_phase = RQ_PHASE_NEW;
 	request->rq_next_phase = RQ_PHASE_UNDEFINED;
 
@@ -631,6 +633,37 @@ int ptlrpc_request_bufs_pack(struct ptlrpc_request *request,
 
 	request->rq_xid = ptlrpc_next_xid();
 	lustre_msg_set_opc(request->rq_reqmsg, opcode);
+
+	/* Let's setup deadline for req/reply/bulk unlink for opcode. */
+	if (cfs_fail_val == opcode) {
+		time_t *fail_t = NULL, *fail2_t = NULL;
+
+		if (CFS_FAIL_CHECK(OBD_FAIL_PTLRPC_LONG_BULK_UNLINK)) {
+			fail_t = &request->rq_bulk_deadline;
+		} else if (CFS_FAIL_CHECK(OBD_FAIL_PTLRPC_LONG_REPL_UNLINK)) {
+			fail_t = &request->rq_reply_deadline;
+		} else if (CFS_FAIL_CHECK(OBD_FAIL_PTLRPC_LONG_REQ_UNLINK)) {
+			fail_t = &request->rq_req_deadline;
+		} else if (CFS_FAIL_CHECK(OBD_FAIL_PTLRPC_LONG_BOTH_UNLINK)) {
+			fail_t = &request->rq_reply_deadline;
+			fail2_t = &request->rq_bulk_deadline;
+		}
+
+		if (fail_t) {
+			*fail_t = ktime_get_real_seconds() + LONG_UNLINK;
+
+			if (fail2_t)
+				*fail2_t = ktime_get_real_seconds() +
+						 LONG_UNLINK;
+
+			/* The RPC is infected, let the test change the
+			 * fail_loc
+			 */
+			set_current_state(TASK_UNINTERRUPTIBLE);
+			schedule_timeout(cfs_time_seconds(2));
+			set_current_state(TASK_RUNNING);
+		}
+	}
 
 	return 0;
 
@@ -1481,15 +1514,27 @@ int ptlrpc_check_set(const struct lu_env *env, struct ptlrpc_request_set *set)
 		if (!(req->rq_phase == RQ_PHASE_RPC ||
 		      req->rq_phase == RQ_PHASE_BULK ||
 		      req->rq_phase == RQ_PHASE_INTERPRET ||
-		      req->rq_phase == RQ_PHASE_UNREGISTERING ||
+		      req->rq_phase == RQ_PHASE_UNREG_RPC ||
+		      req->rq_phase == RQ_PHASE_UNREG_BULK ||
 		      req->rq_phase == RQ_PHASE_COMPLETE)) {
 			DEBUG_REQ(D_ERROR, req, "bad phase %x", req->rq_phase);
 			LBUG();
 		}
 
-		if (req->rq_phase == RQ_PHASE_UNREGISTERING) {
+		if (req->rq_phase == RQ_PHASE_UNREG_RPC ||
+		    req->rq_phase == RQ_PHASE_UNREG_BULK) {
 			LASSERT(req->rq_next_phase != req->rq_phase);
 			LASSERT(req->rq_next_phase != RQ_PHASE_UNDEFINED);
+
+			if (req->rq_req_deadline &&
+			    !OBD_FAIL_CHECK(OBD_FAIL_PTLRPC_LONG_REQ_UNLINK))
+				req->rq_req_deadline = 0;
+			if (req->rq_reply_deadline &&
+			    !OBD_FAIL_CHECK(OBD_FAIL_PTLRPC_LONG_REPL_UNLINK))
+				req->rq_reply_deadline = 0;
+			if (req->rq_bulk_deadline &&
+			    !OBD_FAIL_CHECK(OBD_FAIL_PTLRPC_LONG_BULK_UNLINK))
+				req->rq_bulk_deadline = 0;
 
 			/*
 			 * Skip processing until reply is unlinked. We
@@ -1498,7 +1543,10 @@ int ptlrpc_check_set(const struct lu_env *env, struct ptlrpc_request_set *set)
 			 * sure that all rdma transfers finished and will
 			 * not corrupt any data.
 			 */
-			if (ptlrpc_client_recv_or_unlink(req) ||
+			if (req->rq_phase == RQ_PHASE_UNREG_RPC &&
+			    ptlrpc_client_recv_or_unlink(req))
+				continue;
+			if (req->rq_phase == RQ_PHASE_UNREG_BULK &&
 			    ptlrpc_client_bulk_active(req))
 				continue;
 
@@ -1976,7 +2024,7 @@ void ptlrpc_interrupted_set(void *data)
 			list_entry(tmp, struct ptlrpc_request, rq_set_chain);
 
 		if (req->rq_phase != RQ_PHASE_RPC &&
-		    req->rq_phase != RQ_PHASE_UNREGISTERING)
+		    req->rq_phase != RQ_PHASE_UNREG_RPC)
 			continue;
 
 		ptlrpc_mark_interrupted(req);
@@ -2288,8 +2336,9 @@ int ptlrpc_unregister_reply(struct ptlrpc_request *request, int async)
 
 	/* Let's setup deadline for reply unlink. */
 	if (OBD_FAIL_CHECK(OBD_FAIL_PTLRPC_LONG_REPL_UNLINK) &&
-	    async && request->rq_reply_deadline == 0)
-		request->rq_reply_deadline = ktime_get_real_seconds()+LONG_UNLINK;
+	    async && request->rq_reply_deadline == 0 && cfs_fail_val == 0)
+		request->rq_reply_deadline =
+			ktime_get_real_seconds() + LONG_UNLINK;
 
 	/* Nothing left to do. */
 	if (!ptlrpc_client_recv_or_unlink(request))
@@ -2302,7 +2351,7 @@ int ptlrpc_unregister_reply(struct ptlrpc_request *request, int async)
 		return 1;
 
 	/* Move to "Unregistering" phase as reply was not unlinked yet. */
-	ptlrpc_rqphase_move(request, RQ_PHASE_UNREGISTERING);
+	ptlrpc_rqphase_move(request, RQ_PHASE_UNREG_RPC);
 
 	/* Do not wait for unlink to finish. */
 	if (async)
@@ -2932,7 +2981,6 @@ static void ptlrpcd_add_work_req(struct ptlrpc_request *req)
 	req->rq_timeout		= obd_timeout;
 	req->rq_sent		= ktime_get_real_seconds();
 	req->rq_deadline	= req->rq_sent + req->rq_timeout;
-	req->rq_reply_deadline	= req->rq_deadline;
 	req->rq_phase		= RQ_PHASE_INTERPRET;
 	req->rq_next_phase	= RQ_PHASE_COMPLETE;
 	req->rq_xid		= ptlrpc_next_xid();
