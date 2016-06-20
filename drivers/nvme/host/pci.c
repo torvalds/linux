@@ -2015,6 +2015,24 @@ static void nvme_remove(struct pci_dev *pdev)
 	nvme_put_ctrl(&dev->ctrl);
 }
 
+static int nvme_pci_sriov_configure(struct pci_dev *pdev, int numvfs)
+{
+	int ret = 0;
+
+	if (numvfs == 0) {
+		if (pci_vfs_assigned(pdev)) {
+			dev_warn(&pdev->dev,
+				"Cannot disable SR-IOV VFs while assigned\n");
+			return -EPERM;
+		}
+		pci_disable_sriov(pdev);
+		return 0;
+	}
+
+	ret = pci_enable_sriov(pdev, numvfs);
+	return ret ? ret : numvfs;
+}
+
 #ifdef CONFIG_PM_SLEEP
 static int nvme_suspend(struct device *dev)
 {
@@ -2117,6 +2135,7 @@ static struct pci_driver nvme_driver = {
 	.driver		= {
 		.pm	= &nvme_dev_pm_ops,
 	},
+	.sriov_configure = nvme_pci_sriov_configure,
 	.err_handler	= &nvme_err_handler,
 };
 
