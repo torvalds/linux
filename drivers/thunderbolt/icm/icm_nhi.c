@@ -897,6 +897,7 @@ static irqreturn_t nhi_msi(int __always_unused irq, void *data)
 {
 	struct tbt_nhi_ctxt *nhi_ctxt = data;
 	u32 isr0, isr1, imr0, imr1;
+	int i;
 
 	/* clear on read */
 	isr0 = ioread32(nhi_ctxt->iobase + REG_RING_NOTIFY_BASE);
@@ -918,6 +919,20 @@ static irqreturn_t nhi_msi(int __always_unused irq, void *data)
 		  REG_RING_INTERRUPT_STEP);
 
 	spin_unlock(&nhi_ctxt->lock);
+
+	for (i = 0; i < nhi_ctxt->num_ports; ++i) {
+		struct net_device *net_dev =
+				nhi_ctxt->net_devices[i].net_dev;
+		if (net_dev) {
+			u8 path = PATH_FROM_PORT(nhi_ctxt->num_paths, i);
+
+			if (isr0 & REG_RING_INT_RX_PROCESSED(
+					path, nhi_ctxt->num_paths))
+				tbt_net_rx_msi(net_dev);
+			if (isr0 & REG_RING_INT_TX_PROCESSED(path))
+				tbt_net_tx_msi(net_dev);
+		}
+	}
 
 	if (isr0 & REG_RING_INT_RX_PROCESSED(TBT_ICM_RING_NUM,
 					     nhi_ctxt->num_paths))
