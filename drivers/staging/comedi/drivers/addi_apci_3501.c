@@ -22,6 +22,33 @@
  * more details.
  */
 
+/*
+ * Driver: addi_apci_3501
+ * Description: ADDI-DATA APCI-3501 Analog output board
+ * Devices: [ADDI-DATA] APCI-3501 (addi_apci_3501)
+ * Author: H Hartley Sweeten <hsweeten@visionengravers.com>
+ * Updated: Mon, 20 Jun 2016 10:57:01 -0700
+ * Status: untested
+ *
+ * Configuration Options: not applicable, uses comedi PCI auto config
+ *
+ * This board has the following features:
+ *   - 4 or 8 analog output channels
+ *   - 2 optically isolated digital inputs
+ *   - 2 optically isolated digital outputs
+ *   - 1 12-bit watchdog/timer
+ *
+ * There are 2 versions of the APCI-3501:
+ *   - APCI-3501-4  4 analog output channels
+ *   - APCI-3501-8  8 analog output channels
+ *
+ * These boards use the same PCI Vendor/Device IDs. The number of output
+ * channels used by this driver is determined by reading the EEPROM on
+ * the board.
+ *
+ * The watchdog/timer subdevice is not currently supported.
+ */
+
 #include <linux/module.h>
 
 #include "../comedi_pci.h"
