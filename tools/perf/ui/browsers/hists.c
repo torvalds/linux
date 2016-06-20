@@ -568,7 +568,7 @@ static void ui_browser__warn_lost_events(struct ui_browser *browser)
 		"Or reduce the sampling frequency.");
 }
 
-static int hist_browser__run(struct hist_browser *browser, const char *help)
+int hist_browser__run(struct hist_browser *browser, const char *help)
 {
 	int key;
 	char title[160];
@@ -2039,9 +2039,9 @@ static int hist_browser__dump(struct hist_browser *browser)
 	return 0;
 }
 
-static struct hist_browser *hist_browser__new(struct hists *hists,
-					      struct hist_browser_timer *hbt,
-					      struct perf_env *env)
+struct hist_browser *hist_browser__new(struct hists *hists,
+				       struct hist_browser_timer *hbt,
+				       struct perf_env *env)
 {
 	struct hist_browser *browser = zalloc(sizeof(*browser));
 
@@ -2059,7 +2059,7 @@ static struct hist_browser *hist_browser__new(struct hists *hists,
 	return browser;
 }
 
-static void hist_browser__delete(struct hist_browser *browser)
+void hist_browser__delete(struct hist_browser *browser)
 {
 	free(browser);
 }
