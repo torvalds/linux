@@ -237,9 +237,8 @@ resizer_calculate_resize_ratios(struct vpfe_resizer_device *resizer, int index)
 			((informat->width) * 256) / (outformat->width);
 }
 
-void
-static resizer_enable_422_420_conversion(struct resizer_params *param,
-					 int index, bool en)
+static void resizer_enable_422_420_conversion(struct resizer_params *param,
+					      int index, bool en)
 {
 	param->rsz_rsc_param[index].cen = en;
 	param->rsz_rsc_param[index].yen = en;
@@ -825,7 +824,7 @@ resizer_set_defualt_configuration(struct vpfe_resizer_device *resizer)
 				.o_hsz = WIDTH_O - 1,
 				.v_dif = 256,
 				.v_typ_y = VPFE_RSZ_INTP_CUBIC,
-				.h_typ_c = VPFE_RSZ_INTP_CUBIC,
+				.v_typ_c = VPFE_RSZ_INTP_CUBIC,
 				.h_dif = 256,
 				.h_typ_y = VPFE_RSZ_INTP_CUBIC,
 				.h_typ_c = VPFE_RSZ_INTP_CUBIC,
@@ -843,7 +842,7 @@ resizer_set_defualt_configuration(struct vpfe_resizer_device *resizer)
 				.o_hsz = WIDTH_O - 1,
 				.v_dif = 256,
 				.v_typ_y = VPFE_RSZ_INTP_CUBIC,
-				.h_typ_c = VPFE_RSZ_INTP_CUBIC,
+				.v_typ_c = VPFE_RSZ_INTP_CUBIC,
 				.h_dif = 256,
 				.h_typ_y = VPFE_RSZ_INTP_CUBIC,
 				.h_typ_c = VPFE_RSZ_INTP_CUBIC,
