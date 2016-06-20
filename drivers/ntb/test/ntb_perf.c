@@ -135,6 +135,7 @@ struct perf_ctx {
 	bool			link_is_up;
 	struct work_struct	link_cleanup;
 	struct delayed_work	link_work;
+	wait_queue_head_t	link_wq;
 	struct dentry		*debugfs_node_dir;
 	struct dentry		*debugfs_run;
 	struct dentry		*debugfs_threads;
@@ -533,6 +534,7 @@ static void perf_link_work(struct work_struct *work)
 		goto out1;
 
 	perf->link_is_up = true;
+	wake_up(&perf->link_wq);
 
 	return;
 
@@ -653,7 +655,7 @@ static ssize_t debugfs_run_write(struct file *filp, const char __user *ubuf,
 	int node, i;
 	DECLARE_WAIT_QUEUE_HEAD(wq);
 
-	if (!perf->link_is_up)
+	if (wait_event_interruptible(perf->link_wq, perf->link_is_up))
 		return -ENOLINK;
 
 	if (perf->perf_threads == 0)
@@ -783,6 +785,7 @@ static int perf_probe(struct ntb_client *client, struct ntb_dev *ntb)
 	mutex_init(&perf->run_mutex);
 	spin_lock_init(&perf->db_lock);
 	perf_setup_mw(ntb, perf);
+	init_waitqueue_head(&perf->link_wq);
 	INIT_DELAYED_WORK(&perf->link_work, perf_link_work);
 	INIT_WORK(&perf->link_cleanup, perf_link_cleanup);
 
