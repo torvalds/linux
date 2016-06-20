@@ -259,6 +259,7 @@ static struct attribute *hwmon_genattr(struct device *dev,
 
 static const char * const hwmon_chip_attr_templates[] = {
 	[hwmon_chip_temp_reset_history] = "temp_reset_history",
+	[hwmon_chip_in_reset_history] = "in_reset_history",
 	[hwmon_chip_update_interval] = "update_interval",
 	[hwmon_chip_alarms] = "alarms",
 };
@@ -290,14 +291,34 @@ static const char * const hwmon_temp_attr_templates[] = {
 	[hwmon_temp_reset_history] = "temp%d_reset_history",
 };
 
+static const char * const hwmon_in_attr_templates[] = {
+	[hwmon_in_input] = "in%d_input",
+	[hwmon_in_min] = "in%d_min",
+	[hwmon_in_max] = "in%d_max",
+	[hwmon_in_lcrit] = "in%d_lcrit",
+	[hwmon_in_crit] = "in%d_crit",
+	[hwmon_in_average] = "in%d_average",
+	[hwmon_in_lowest] = "in%d_lowest",
+	[hwmon_in_highest] = "in%d_highest",
+	[hwmon_in_reset_history] = "in%d_reset_history",
+	[hwmon_in_label] = "in%d_label",
+	[hwmon_in_alarm] = "in%d_alarm",
+	[hwmon_in_min_alarm] = "in%d_min_alarm",
+	[hwmon_in_max_alarm] = "in%d_max_alarm",
+	[hwmon_in_lcrit_alarm] = "in%d_lcrit_alarm",
+	[hwmon_in_crit_alarm] = "in%d_crit_alarm",
+};
+
 static const char * const *__templates[] = {
 	[hwmon_chip] = hwmon_chip_attr_templates,
 	[hwmon_temp] = hwmon_temp_attr_templates,
+	[hwmon_in] = hwmon_in_attr_templates,
 };
 
 static const int __templates_size[] = {
 	[hwmon_chip] = ARRAY_SIZE(hwmon_chip_attr_templates),
 	[hwmon_temp] = ARRAY_SIZE(hwmon_temp_attr_templates),
+	[hwmon_in] = ARRAY_SIZE(hwmon_in_attr_templates),
 };
 
 static int hwmon_num_channel_attrs(const struct hwmon_channel_info *info)
