@@ -394,7 +394,7 @@ static int sugov_init(struct cpufreq_policy *policy)
 	return ret;
 }
 
-static int sugov_exit(struct cpufreq_policy *policy)
+static void sugov_exit(struct cpufreq_policy *policy)
 {
 	struct sugov_policy *sg_policy = policy->governor_data;
 	struct sugov_tunables *tunables = sg_policy->tunables;
@@ -412,7 +412,6 @@ static int sugov_exit(struct cpufreq_policy *policy)
 	mutex_unlock(&global_tunables_lock);
 
 	sugov_policy_free(sg_policy);
-	return 0;
 }
 
 static int sugov_start(struct cpufreq_policy *policy)
@@ -444,7 +443,7 @@ static int sugov_start(struct cpufreq_policy *policy)
 	return 0;
 }
 
-static int sugov_stop(struct cpufreq_policy *policy)
+static void sugov_stop(struct cpufreq_policy *policy)
 {
 	struct sugov_policy *sg_policy = policy->governor_data;
 	unsigned int cpu;
@@ -456,53 +455,29 @@ static int sugov_stop(struct cpufreq_policy *policy)
 
 	irq_work_sync(&sg_policy->irq_work);
 	cancel_work_sync(&sg_policy->work);
-	return 0;
 }
 
-static int sugov_limits(struct cpufreq_policy *policy)
+static void sugov_limits(struct cpufreq_policy *policy)
 {
 	struct sugov_policy *sg_policy = policy->governor_data;
 
 	if (!policy->fast_switch_enabled) {
 		mutex_lock(&sg_policy->work_lock);
-
-		if (policy->max < policy->cur)
-			__cpufreq_driver_target(policy, policy->max,
-						CPUFREQ_RELATION_H);
-		else if (policy->min > policy->cur)
-			__cpufreq_driver_target(policy, policy->min,
-						CPUFREQ_RELATION_L);
-
+		cpufreq_policy_apply_limits(policy);
 		mutex_unlock(&sg_policy->work_lock);
 	}
 
 	sg_policy->need_freq_update = true;
-	return 0;
-}
-
-int sugov_governor(struct cpufreq_policy *policy, unsigned int event)
-{
-	if (event == CPUFREQ_GOV_POLICY_INIT) {
-		return sugov_init(policy);
-	} else if (policy->governor_data) {
-		switch (event) {
-		case CPUFREQ_GOV_POLICY_EXIT:
-			return sugov_exit(policy);
-		case CPUFREQ_GOV_START:
-			return sugov_start(policy);
-		case CPUFREQ_GOV_STOP:
-			return sugov_stop(policy);
-		case CPUFREQ_GOV_LIMITS:
-			return sugov_limits(policy);
-		}
-	}
-	return -EINVAL;
 }
 
 static struct cpufreq_governor schedutil_gov = {
 	.name = "schedutil",
-	.governor = sugov_governor,
 	.owner = THIS_MODULE,
+	.init = sugov_init,
+	.exit = sugov_exit,
+	.start = sugov_start,
+	.stop = sugov_stop,
+	.limits = sugov_limits,
 };
 
 static int __init sugov_module_init(void)

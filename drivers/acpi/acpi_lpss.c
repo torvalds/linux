@@ -29,6 +29,7 @@ ACPI_MODULE_NAME("acpi_lpss");
 #ifdef CONFIG_X86_INTEL_LPSS
 
 #include <asm/cpu_device_id.h>
+#include <asm/intel-family.h>
 #include <asm/iosf_mbi.h>
 #include <asm/pmc_atom.h>
 
@@ -229,8 +230,8 @@ static const struct lpss_device_desc bsw_spi_dev_desc = {
 #define ICPU(model)	{ X86_VENDOR_INTEL, 6, model, X86_FEATURE_ANY, }
 
 static const struct x86_cpu_id lpss_cpu_ids[] = {
-	ICPU(0x37),	/* Valleyview, Bay Trail */
-	ICPU(0x4c),	/* Braswell, Cherry Trail */
+	ICPU(INTEL_FAM6_ATOM_SILVERMONT1),	/* Valleyview, Bay Trail */
+	ICPU(INTEL_FAM6_ATOM_AIRMONT),	/* Braswell, Cherry Trail */
 	{}
 };
 
