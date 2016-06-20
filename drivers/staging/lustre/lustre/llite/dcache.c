@@ -202,27 +202,27 @@ int ll_d_init(struct dentry *de)
 
 void ll_intent_drop_lock(struct lookup_intent *it)
 {
-	if (it->it_op && it->d.lustre.it_lock_mode) {
+	if (it->it_op && it->it_lock_mode) {
 		struct lustre_handle handle;
 
-		handle.cookie = it->d.lustre.it_lock_handle;
+		handle.cookie = it->it_lock_handle;
 
 		CDEBUG(D_DLMTRACE, "releasing lock with cookie %#llx from it %p\n",
 		       handle.cookie, it);
-		ldlm_lock_decref(&handle, it->d.lustre.it_lock_mode);
+		ldlm_lock_decref(&handle, it->it_lock_mode);
 
 		/* bug 494: intent_release may be called multiple times, from
 		 * this thread and we don't want to double-decref this lock
 		 */
-		it->d.lustre.it_lock_mode = 0;
-		if (it->d.lustre.it_remote_lock_mode != 0) {
-			handle.cookie = it->d.lustre.it_remote_lock_handle;
+		it->it_lock_mode = 0;
+		if (it->it_remote_lock_mode != 0) {
+			handle.cookie = it->it_remote_lock_handle;
 
 			CDEBUG(D_DLMTRACE, "releasing remote lock with cookie%#llx from it %p\n",
 			       handle.cookie, it);
 			ldlm_lock_decref(&handle,
-					 it->d.lustre.it_remote_lock_mode);
-			it->d.lustre.it_remote_lock_mode = 0;
+					 it->it_remote_lock_mode);
+			it->it_remote_lock_mode = 0;
 		}
 	}
 }
@@ -233,13 +233,13 @@ void ll_intent_release(struct lookup_intent *it)
 	ll_intent_drop_lock(it);
 	/* We are still holding extra reference on a request, need to free it */
 	if (it_disposition(it, DISP_ENQ_OPEN_REF))
-		ptlrpc_req_finished(it->d.lustre.it_data); /* ll_file_open */
+		ptlrpc_req_finished(it->it_data); /* ll_file_open */
 
 	if (it_disposition(it, DISP_ENQ_CREATE_REF)) /* create rec */
-		ptlrpc_req_finished(it->d.lustre.it_data);
+		ptlrpc_req_finished(it->it_data);
 
-	it->d.lustre.it_disposition = 0;
-	it->d.lustre.it_data = NULL;
+	it->it_disposition = 0;
+	it->it_data = NULL;
 }
 
 void ll_invalidate_aliases(struct inode *inode)
@@ -279,7 +279,7 @@ int ll_revalidate_it_finish(struct ptlrpc_request *request,
 
 void ll_lookup_finish_locks(struct lookup_intent *it, struct inode *inode)
 {
-	if (it->d.lustre.it_lock_mode && inode) {
+	if (it->it_lock_mode && inode) {
 		struct ll_sb_info *sbi = ll_i2sbi(inode);
 
 		CDEBUG(D_DLMTRACE, "setting l_data to inode "DFID"(%p)\n",

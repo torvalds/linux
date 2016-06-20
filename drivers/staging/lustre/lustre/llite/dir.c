@@ -362,7 +362,7 @@ struct page *ll_get_dir_page(struct inode *dir, __u64 hash,
 
 		ll_finish_md_op_data(op_data);
 
-		request = (struct ptlrpc_request *)it.d.lustre.it_data;
+		request = (struct ptlrpc_request *)it.it_data;
 		if (request)
 			ptlrpc_req_finished(request);
 		if (rc < 0) {
@@ -374,7 +374,7 @@ struct page *ll_get_dir_page(struct inode *dir, __u64 hash,
 		CDEBUG(D_INODE, "setting lr_lvb_inode to inode "DFID"(%p)\n",
 		       PFID(ll_inode2fid(dir)), dir);
 		md_set_lock_data(ll_i2sbi(dir)->ll_md_exp,
-				 &it.d.lustre.it_lock_handle, dir, NULL);
+				 &it.it_lock_handle, dir, NULL);
 	} else {
 		/* for cross-ref object, l_ast_data of the lock may not be set,
 		 * we reset it here

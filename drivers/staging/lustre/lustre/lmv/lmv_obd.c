@@ -1679,7 +1679,7 @@ lmv_enqueue_remote(struct obd_export *exp, struct ldlm_enqueue_info *einfo,
 		   struct lustre_handle *lockh, void *lmm, int lmmsize,
 		   __u64 extra_lock_flags)
 {
-	struct ptlrpc_request      *req = it->d.lustre.it_data;
+	struct ptlrpc_request      *req = it->it_data;
 	struct obd_device	  *obd = exp->exp_obd;
 	struct lmv_obd	     *lmv = &obd->u.lmv;
 	struct lustre_handle	plock;
@@ -1701,11 +1701,11 @@ lmv_enqueue_remote(struct obd_export *exp, struct ldlm_enqueue_info *einfo,
 	/*
 	 * We got LOOKUP lock, but we really need attrs.
 	 */
-	pmode = it->d.lustre.it_lock_mode;
+	pmode = it->it_lock_mode;
 	LASSERT(pmode != 0);
 	memcpy(&plock, lockh, sizeof(plock));
-	it->d.lustre.it_lock_mode = 0;
-	it->d.lustre.it_data = NULL;
+	it->it_lock_mode = 0;
+	it->it_data = NULL;
 	fid1 = body->fid1;
 
 	ptlrpc_req_finished(req);

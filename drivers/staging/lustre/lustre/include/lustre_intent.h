@@ -34,7 +34,11 @@
 #define LUSTRE_INTENT_H
 
 /* intent IT_XXX are defined in lustre/include/obd.h */
-struct lustre_intent_data {
+
+struct lookup_intent {
+	int		it_op;
+	int		it_create_mode;
+	__u64		it_flags;
 	int		it_disposition;
 	int		it_status;
 	__u64		it_lock_handle;
@@ -44,15 +48,6 @@ struct lustre_intent_data {
 	__u64	   it_remote_lock_handle;
 	void	   *it_data;
 	unsigned int    it_lock_set:1;
-};
-
-struct lookup_intent {
-	int     it_op;
-	int     it_create_mode;
-	__u64   it_flags;
-	union {
-		struct lustre_intent_data lustre;
-	} d;
 };
 
 #endif

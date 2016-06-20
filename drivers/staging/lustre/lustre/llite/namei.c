@@ -393,7 +393,7 @@ static int ll_lookup_it_finish(struct ptlrpc_request *request,
 	 * when I return
 	 */
 	CDEBUG(D_DENTRY, "it %p it_disposition %x\n", it,
-	       it->d.lustre.it_disposition);
+	       it->it_disposition);
 	if (!it_disposition(it, DISP_LOOKUP_NEG)) {
 		rc = ll_prep_inode(&inode, request, (*de)->d_sb, it);
 		if (rc)
@@ -445,7 +445,7 @@ static int ll_lookup_it_finish(struct ptlrpc_request *request,
 		/* Check that parent has UPDATE lock. */
 		struct lookup_intent parent_it = {
 					.it_op = IT_GETATTR,
-					.d.lustre.it_lock_handle = 0 };
+					.it_lock_handle = 0 };
 
 		if (md_revalidate_lock(ll_i2mdexp(parent), &parent_it,
 				       &ll_i2info(parent)->lli_fid, NULL)) {
@@ -656,10 +656,10 @@ static struct inode *ll_create_node(struct inode *dir, struct lookup_intent *it)
 	struct ll_sb_info *sbi = ll_i2sbi(dir);
 	int rc;
 
-	LASSERT(it && it->d.lustre.it_disposition);
+	LASSERT(it && it->it_disposition);
 
 	LASSERT(it_disposition(it, DISP_ENQ_CREATE_REF));
-	request = it->d.lustre.it_data;
+	request = it->it_data;
 	it_clear_disposition(it, DISP_ENQ_CREATE_REF);
 	rc = ll_prep_inode(&inode, request, dir->i_sb, it);
 	if (rc) {
