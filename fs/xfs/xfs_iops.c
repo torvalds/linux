@@ -44,7 +44,7 @@
 #include <linux/xattr.h>
 #include <linux/posix_acl.h>
 #include <linux/security.h>
-#include <linux/fiemap.h>
+#include <linux/iomap.h>
 #include <linux/slab.h>
 
 /*
@@ -1004,51 +1004,6 @@ xfs_vn_update_time(
 	return xfs_trans_commit(tp);
 }
 
-#define XFS_FIEMAP_FLAGS	(FIEMAP_FLAG_SYNC|FIEMAP_FLAG_XATTR)
-
-/*
- * Call fiemap helper to fill in user data.
- * Returns positive errors to xfs_getbmap.
- */
-STATIC int
-xfs_fiemap_format(
-	void			**arg,
-	struct getbmapx		*bmv,
-	int			*full)
-{
-	int			error;
-	struct fiemap_extent_info *fieinfo = *arg;
-	u32			fiemap_flags = 0;
-	u64			logical, physical, length;
-
-	/* Do nothing for a hole */
-	if (bmv->bmv_block == -1LL)
-		return 0;
-
-	logical = BBTOB(bmv->bmv_offset);
-	physical = BBTOB(bmv->bmv_block);
-	length = BBTOB(bmv->bmv_length);
-
-	if (bmv->bmv_oflags & BMV_OF_PREALLOC)
-		fiemap_flags |= FIEMAP_EXTENT_UNWRITTEN;
-	else if (bmv->bmv_oflags & BMV_OF_DELALLOC) {
-		fiemap_flags |= (FIEMAP_EXTENT_DELALLOC |
-				 FIEMAP_EXTENT_UNKNOWN);
-		physical = 0;   /* no block yet */
-	}
-	if (bmv->bmv_oflags & BMV_OF_LAST)
-		fiemap_flags |= FIEMAP_EXTENT_LAST;
-
-	error = fiemap_fill_next_extent(fieinfo, logical, physical,
-					length, fiemap_flags);
-	if (error > 0) {
-		error = 0;
-		*full = 1;	/* user array now full */
-	}
-
-	return error;
-}
-
 STATIC int
 xfs_vn_fiemap(
 	struct inode		*inode,
@@ -1056,38 +1011,13 @@ xfs_vn_fiemap(
 	u64			start,
 	u64			length)
 {
-	xfs_inode_t		*ip = XFS_I(inode);
-	struct getbmapx		bm;
 	int			error;
 
-	error = fiemap_check_flags(fieinfo, XFS_FIEMAP_FLAGS);
-	if (error)
-		return error;
+	xfs_ilock(XFS_I(inode), XFS_IOLOCK_SHARED);
+	error = iomap_fiemap(inode, fieinfo, start, length, &xfs_iomap_ops);
+	xfs_iunlock(XFS_I(inode), XFS_IOLOCK_SHARED);
 
-	/* Set up bmap header for xfs internal routine */
-	bm.bmv_offset = BTOBBT(start);
-	/* Special case for whole file */
-	if (length == FIEMAP_MAX_OFFSET)
-		bm.bmv_length = -1LL;
-	else
-		bm.bmv_length = BTOBB(start + length) - bm.bmv_offset;
-
-	/* We add one because in getbmap world count includes the header */
-	bm.bmv_count = !fieinfo->fi_extents_max ? MAXEXTNUM :
-					fieinfo->fi_extents_max + 1;
-	bm.bmv_count = min_t(__s32, bm.bmv_count,
-			     (PAGE_SIZE * 16 / sizeof(struct getbmapx)));
-	bm.bmv_iflags = BMV_IF_PREALLOC | BMV_IF_NO_HOLES;
-	if (fieinfo->fi_flags & FIEMAP_FLAG_XATTR)
-		bm.bmv_iflags |= BMV_IF_ATTRFORK;
-	if (!(fieinfo->fi_flags & FIEMAP_FLAG_SYNC))
-		bm.bmv_iflags |= BMV_IF_DELALLOC;
-
-	error = xfs_getbmap(ip, &bm, xfs_fiemap_format, fieinfo);
-	if (error)
-		return error;
-
-	return 0;
+	return error;
 }
 
 STATIC int
