@@ -1918,7 +1918,13 @@ int ll_prep_inode(struct inode **inode, struct ptlrpc_request *req,
 		 * At this point server returns to client's same fid as client
 		 * generated for creating. So using ->fid1 is okay here.
 		 */
-		LASSERT(fid_is_sane(&md.body->fid1));
+		if (!fid_is_sane(&md.body->fid1)) {
+			CERROR("%s: Fid is insane " DFID "\n",
+			       ll_get_fsname(sb, NULL, 0),
+			       PFID(&md.body->fid1));
+			rc = -EINVAL;
+			goto out;
+		}
 
 		*inode = ll_iget(sb, cl_fid_build_ino(&md.body->fid1,
 					     sbi->ll_flags & LL_SBI_32BIT_API),
