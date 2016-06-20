@@ -40,9 +40,11 @@ static inline void vsp1_uds_write(struct vsp1_uds *uds, struct vsp1_dl_list *dl,
  * Scaling Computation
  */
 
-void vsp1_uds_set_alpha(struct vsp1_uds *uds, struct vsp1_dl_list *dl,
+void vsp1_uds_set_alpha(struct vsp1_entity *entity, struct vsp1_dl_list *dl,
 			unsigned int alpha)
 {
+	struct vsp1_uds *uds = to_uds(&entity->subdev);
+
 	vsp1_uds_write(uds, dl, VI6_UDS_ALPVAL,
 		       alpha << VI6_UDS_ALPVAL_VAL0_SHIFT);
 }

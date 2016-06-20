@@ -206,7 +206,7 @@ static void rpf_configure(struct vsp1_entity *entity,
 		vsp1_rpf_write(rpf, dl, VI6_RPF_MULT_ALPHA, mult);
 	}
 
-	vsp1_pipeline_propagate_alpha(pipe, &rpf->entity, dl, rpf->alpha);
+	vsp1_pipeline_propagate_alpha(pipe, dl, rpf->alpha);
 
 	vsp1_rpf_write(rpf, dl, VI6_RPF_MSK_CTRL, 0);
 	vsp1_rpf_write(rpf, dl, VI6_RPF_CKEY_CTRL, 0);

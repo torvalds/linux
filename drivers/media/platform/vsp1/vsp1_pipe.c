@@ -301,42 +301,20 @@ void vsp1_pipeline_frame_end(struct vsp1_pipeline *pipe)
  * to be scaled, we disable alpha scaling when the UDS input has a fixed alpha
  * value. The UDS then outputs a fixed alpha value which needs to be programmed
  * from the input RPF alpha.
- *
- * This function can only be called from a subdev s_stream handler as it
- * requires a valid display list context.
  */
 void vsp1_pipeline_propagate_alpha(struct vsp1_pipeline *pipe,
-				   struct vsp1_entity *input,
-				   struct vsp1_dl_list *dl,
-				   unsigned int alpha)
+				   struct vsp1_dl_list *dl, unsigned int alpha)
 {
-	struct vsp1_entity *entity;
-	struct media_pad *pad;
+	if (!pipe->uds)
+		return;
 
-	pad = media_entity_remote_pad(&input->pads[RWPF_PAD_SOURCE]);
+	/* The BRU background color has a fixed alpha value set to 255, the
+	 * output alpha value is thus always equal to 255.
+	 */
+	if (pipe->uds_input->type == VSP1_ENTITY_BRU)
+		alpha = 255;
 
-	while (pad) {
-		if (!is_media_entity_v4l2_subdev(pad->entity))
-			break;
-
-		entity = to_vsp1_entity(media_entity_to_v4l2_subdev(pad->entity));
-
-		/* The BRU background color has a fixed alpha value set to 255,
-		 * the output alpha value is thus always equal to 255.
-		 */
-		if (entity->type == VSP1_ENTITY_BRU)
-			alpha = 255;
-
-		if (entity->type == VSP1_ENTITY_UDS) {
-			struct vsp1_uds *uds = to_uds(&entity->subdev);
-
-			vsp1_uds_set_alpha(uds, dl, alpha);
-			break;
-		}
-
-		pad = &entity->pads[entity->source_pad];
-		pad = media_entity_remote_pad(pad);
-	}
+	vsp1_uds_set_alpha(pipe->uds, dl, alpha);
 }
 
 void vsp1_pipelines_suspend(struct vsp1_device *vsp1)
