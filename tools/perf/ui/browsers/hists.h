@@ -24,9 +24,7 @@ struct hist_browser {
 			     char *bf, size_t size);
 };
 
-struct hist_browser *hist_browser__new(struct hists *hists,
-				       struct hist_browser_timer *hbt,
-				       struct perf_env *env);
+struct hist_browser *hist_browser__new(struct hists *hists);
 void hist_browser__delete(struct hist_browser *browser);
 int hist_browser__run(struct hist_browser *browser, const char *help);
 #endif /* _PERF_UI_BROWSER_HISTS_H_ */
