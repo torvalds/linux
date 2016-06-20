@@ -106,9 +106,9 @@ int ife_get_meta_u16(struct sk_buff *skb, struct tcf_meta_info *mi)
 }
 EXPORT_SYMBOL_GPL(ife_get_meta_u16);
 
-int ife_alloc_meta_u32(struct tcf_meta_info *mi, void *metaval)
+int ife_alloc_meta_u32(struct tcf_meta_info *mi, void *metaval, gfp_t gfp)
 {
-	mi->metaval = kmemdup(metaval, sizeof(u32), GFP_KERNEL);
+	mi->metaval = kmemdup(metaval, sizeof(u32), gfp);
 	if (!mi->metaval)
 		return -ENOMEM;
 
@@ -116,9 +116,9 @@ int ife_alloc_meta_u32(struct tcf_meta_info *mi, void *metaval)
 }
 EXPORT_SYMBOL_GPL(ife_alloc_meta_u32);
 
-int ife_alloc_meta_u16(struct tcf_meta_info *mi, void *metaval)
+int ife_alloc_meta_u16(struct tcf_meta_info *mi, void *metaval, gfp_t gfp)
 {
-	mi->metaval = kmemdup(metaval, sizeof(u16), GFP_KERNEL);
+	mi->metaval = kmemdup(metaval, sizeof(u16), gfp);
 	if (!mi->metaval)
 		return -ENOMEM;
 
@@ -240,10 +240,10 @@ static int ife_validate_metatype(struct tcf_meta_ops *ops, void *val, int len)
 }
 
 /* called when adding new meta information
- * under ife->tcf_lock
+ * under ife->tcf_lock for existing action
 */
 static int load_metaops_and_vet(struct tcf_ife_info *ife, u32 metaid,
-				void *val, int len)
+				void *val, int len, bool exists)
 {
 	struct tcf_meta_ops *ops = find_ife_oplist(metaid);
 	int ret = 0;
@@ -251,11 +251,13 @@ static int load_metaops_and_vet(struct tcf_ife_info *ife, u32 metaid,
 	if (!ops) {
 		ret = -ENOENT;
 #ifdef CONFIG_MODULES
-		spin_unlock_bh(&ife->tcf_lock);
+		if (exists)
+			spin_unlock_bh(&ife->tcf_lock);
 		rtnl_unlock();
 		request_module("ifemeta%u", metaid);
 		rtnl_lock();
-		spin_lock_bh(&ife->tcf_lock);
+		if (exists)
+			spin_lock_bh(&ife->tcf_lock);
 		ops = find_ife_oplist(metaid);
 #endif
 	}
@@ -272,10 +274,10 @@ static int load_metaops_and_vet(struct tcf_ife_info *ife, u32 metaid,
 }
 
 /* called when adding new meta information
- * under ife->tcf_lock
+ * under ife->tcf_lock for existing action
 */
 static int add_metainfo(struct tcf_ife_info *ife, u32 metaid, void *metaval,
-			int len)
+			int len, bool exists)
 {
 	struct tcf_meta_info *mi = NULL;
 	struct tcf_meta_ops *ops = find_ife_oplist(metaid);
@@ -284,7 +286,7 @@ static int add_metainfo(struct tcf_ife_info *ife, u32 metaid, void *metaval,
 	if (!ops)
 		return -ENOENT;
 
-	mi = kzalloc(sizeof(*mi), GFP_KERNEL);
+	mi = kzalloc(sizeof(*mi), exists ? GFP_ATOMIC : GFP_KERNEL);
 	if (!mi) {
 		/*put back what find_ife_oplist took */
 		module_put(ops->owner);
@@ -294,7 +296,7 @@ static int add_metainfo(struct tcf_ife_info *ife, u32 metaid, void *metaval,
 	mi->metaid = metaid;
 	mi->ops = ops;
 	if (len > 0) {
-		ret = ops->alloc(mi, metaval);
+		ret = ops->alloc(mi, metaval, exists ? GFP_ATOMIC : GFP_KERNEL);
 		if (ret != 0) {
 			kfree(mi);
 			module_put(ops->owner);
@@ -307,14 +309,14 @@ static int add_metainfo(struct tcf_ife_info *ife, u32 metaid, void *metaval,
 	return ret;
 }
 
-static int use_all_metadata(struct tcf_ife_info *ife)
+static int use_all_metadata(struct tcf_ife_info *ife, bool exists)
 {
 	struct tcf_meta_ops *o;
 	int rc = 0;
 	int installed = 0;
 
 	list_for_each_entry(o, &ifeoplist, list) {
-		rc = add_metainfo(ife, o->metaid, NULL, 0);
+		rc = add_metainfo(ife, o->metaid, NULL, 0, exists);
 		if (rc == 0)
 			installed += 1;
 	}
@@ -385,8 +387,9 @@ static void tcf_ife_cleanup(struct tc_action *a, int bind)
 	spin_unlock_bh(&ife->tcf_lock);
 }
 
-/* under ife->tcf_lock */
-static int populate_metalist(struct tcf_ife_info *ife, struct nlattr **tb)
+/* under ife->tcf_lock for existing action */
+static int populate_metalist(struct tcf_ife_info *ife, struct nlattr **tb,
+			     bool exists)
 {
 	int len = 0;
 	int rc = 0;
@@ -398,11 +401,11 @@ static int populate_metalist(struct tcf_ife_info *ife, struct nlattr **tb)
 			val = nla_data(tb[i]);
 			len = nla_len(tb[i]);
 
-			rc = load_metaops_and_vet(ife, i, val, len);
+			rc = load_metaops_and_vet(ife, i, val, len, exists);
 			if (rc != 0)
 				return rc;
 
-			rc = add_metainfo(ife, i, val, len);
+			rc = add_metainfo(ife, i, val, len, exists);
 			if (rc)
 				return rc;
 		}
@@ -474,7 +477,8 @@ static int tcf_ife_init(struct net *net, struct nlattr *nla,
 			saddr = nla_data(tb[TCA_IFE_SMAC]);
 	}
 
-	spin_lock_bh(&ife->tcf_lock);
+	if (exists)
+		spin_lock_bh(&ife->tcf_lock);
 	ife->tcf_action = parm->action;
 
 	if (parm->flags & IFE_ENCODE) {
@@ -504,11 +508,12 @@ metadata_parse_err:
 			if (ret == ACT_P_CREATED)
 				_tcf_ife_cleanup(a, bind);
 
-			spin_unlock_bh(&ife->tcf_lock);
+			if (exists)
+				spin_unlock_bh(&ife->tcf_lock);
 			return err;
 		}
 
-		err = populate_metalist(ife, tb2);
+		err = populate_metalist(ife, tb2, exists);
 		if (err)
 			goto metadata_parse_err;
 
@@ -518,17 +523,19 @@ metadata_parse_err:
 		 * as we can. You better have at least one else we are
 		 * going to bail out
 		 */
-		err = use_all_metadata(ife);
+		err = use_all_metadata(ife, exists);
 		if (err) {
 			if (ret == ACT_P_CREATED)
 				_tcf_ife_cleanup(a, bind);
 
-			spin_unlock_bh(&ife->tcf_lock);
+			if (exists)
+				spin_unlock_bh(&ife->tcf_lock);
 			return err;
 		}
 	}
 
-	spin_unlock_bh(&ife->tcf_lock);
+	if (exists)
+		spin_unlock_bh(&ife->tcf_lock);
 
 	if (ret == ACT_P_CREATED)
 		tcf_hash_insert(tn, a);
