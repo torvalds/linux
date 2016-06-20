@@ -483,14 +483,11 @@ int Efuse_PgPacketRead(struct adapter *pAdapter, u8 offset, u8 *data)
 	u8 hoffset = 0, hworden = 0;
 	u8 tmpidx = 0;
 	u8 tmpdata[8];
-	u8 max_section = 0;
 	u8 tmp_header = 0;
-
-	EFUSE_GetEfuseDefinition(pAdapter, EFUSE_WIFI, TYPE_EFUSE_MAX_SECTION, (void *)&max_section);
 
 	if (!data)
 		return false;
-	if (offset > max_section)
+	if (offset > EFUSE_MAX_SECTION_88E)
 		return false;
 
 	memset(data, 0xff, sizeof(u8) * PGPKT_DATA_SIZE);
