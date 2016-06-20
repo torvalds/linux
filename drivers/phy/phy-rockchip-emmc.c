@@ -85,6 +85,7 @@ static int rockchip_emmc_phy_power(struct rockchip_emmc_phy *rk_phy,
 {
 	unsigned int caldone;
 	unsigned int dllrdy;
+	unsigned long timeout;
 
 	/*
 	 * Keep phyctrl_pdb and phyctrl_endll low to allow
@@ -137,15 +138,26 @@ static int rockchip_emmc_phy_power(struct rockchip_emmc_phy *rk_phy,
 				   PHYCTRL_ENDLL_MASK,
 				   PHYCTRL_ENDLL_SHIFT));
 	/*
-	 * After enable analog DLL circuits, we need an extra 10.2us
-	 * for dll to be ready for work. But according to testing, we
-	 * find some chips need more than 25us.
+	 * After enabling analog DLL circuits docs say that we need 10.2 us if
+	 * our source clock is at 50 MHz and that lock time scales linearly
+	 * with clock speed.  If we are powering on the PHY and the card clock
+	 * is super slow (like 100 kHZ) this could take as long as 5.1 ms as
+	 * per the math: 10.2 us * (50000000 Hz / 100000 Hz) => 5.1 ms
+	 * Hopefully we won't be running at 100 kHz, but we should still make
+	 * sure we wait long enough.
 	 */
-	udelay(30);
-	regmap_read(rk_phy->reg_base,
-		    rk_phy->reg_offset + GRF_EMMCPHY_STATUS,
-		    &dllrdy);
-	dllrdy = (dllrdy >> PHYCTRL_DLLRDY_SHIFT) & PHYCTRL_DLLRDY_MASK;
+	timeout = jiffies + msecs_to_jiffies(10);
+	do {
+		udelay(1);
+
+		regmap_read(rk_phy->reg_base,
+			rk_phy->reg_offset + GRF_EMMCPHY_STATUS,
+			&dllrdy);
+		dllrdy = (dllrdy >> PHYCTRL_DLLRDY_SHIFT) & PHYCTRL_DLLRDY_MASK;
+		if (dllrdy == PHYCTRL_DLLRDY_DONE)
+			break;
+	} while (!time_after(jiffies, timeout));
+
 	if (dllrdy != PHYCTRL_DLLRDY_DONE) {
 		pr_err("rockchip_emmc_phy_power: dllrdy timeout.\n");
 		return -ETIMEDOUT;
