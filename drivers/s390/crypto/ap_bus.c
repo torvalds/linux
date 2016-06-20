@@ -169,6 +169,19 @@ static int ap_configuration_available(void)
 	return test_facility(12);
 }
 
+static inline struct ap_queue_status
+__pqap_tapq(ap_qid_t qid, unsigned long *info)
+{
+	register unsigned long reg0 asm ("0") = qid;
+	register struct ap_queue_status reg1 asm ("1");
+	register unsigned long reg2 asm ("2") = 0UL;
+
+	asm volatile(".long 0xb2af0000"		/* PQAP(TAPQ) */
+		     : "+d" (reg0), "=d" (reg1), "+d" (reg2) : : "cc");
+	*info = reg2;
+	return reg1;
+}
+
 /**
  * ap_test_queue(): Test adjunct processor queue.
  * @qid: The AP queue number
@@ -179,17 +192,15 @@ static int ap_configuration_available(void)
 static inline struct ap_queue_status
 ap_test_queue(ap_qid_t qid, unsigned long *info)
 {
-	register unsigned long reg0 asm ("0") = qid;
-	register struct ap_queue_status reg1 asm ("1");
-	register unsigned long reg2 asm ("2") = 0UL;
+	struct ap_queue_status aqs;
+	unsigned long _info;
 
 	if (test_facility(15))
-		reg0 |= 1UL << 23;		/* set APFT T bit*/
-	asm volatile(".long 0xb2af0000"		/* PQAP(TAPQ) */
-		     : "+d" (reg0), "=d" (reg1), "+d" (reg2) : : "cc");
+		qid |= 1UL << 23;		/* set APFT T bit*/
+	aqs = __pqap_tapq(qid, &_info);
 	if (info)
-		*info = reg2;
-	return reg1;
+		*info = _info;
+	return aqs;
 }
 
 /**
@@ -237,14 +248,12 @@ ap_queue_interruption_control(ap_qid_t qid, void *ind)
  *
  * Returns 0 on success, or -EOPNOTSUPP.
  */
-static inline int ap_query_configuration(void)
+static inline int __ap_query_configuration(void)
 {
 	register unsigned long reg0 asm ("0") = 0x04000000UL;
 	register unsigned long reg1 asm ("1") = -EINVAL;
 	register void *reg2 asm ("2") = (void *) ap_configuration;
 
-	if (!ap_configuration)
-		return -EOPNOTSUPP;
 	asm volatile(
 		".long 0xb2af0000\n"		/* PQAP(QCI) */
 		"0: la    %1,0\n"
@@ -255,6 +264,13 @@ static inline int ap_query_configuration(void)
 		: "cc");
 
 	return reg1;
+}
+
+static inline int ap_query_configuration(void)
+{
+	if (!ap_configuration)
+		return -EOPNOTSUPP;
+	return __ap_query_configuration();
 }
 
 /**
@@ -346,6 +362,26 @@ static int ap_queue_enable_interruption(struct ap_device *ap_dev, void *ind)
 	}
 }
 
+static inline struct ap_queue_status
+__nqap(ap_qid_t qid, unsigned long long psmid, void *msg, size_t length)
+{
+	typedef struct { char _[length]; } msgblock;
+	register unsigned long reg0 asm ("0") = qid | 0x40000000UL;
+	register struct ap_queue_status reg1 asm ("1");
+	register unsigned long reg2 asm ("2") = (unsigned long) msg;
+	register unsigned long reg3 asm ("3") = (unsigned long) length;
+	register unsigned long reg4 asm ("4") = (unsigned int) (psmid >> 32);
+	register unsigned long reg5 asm ("5") = psmid & 0xffffffff;
+
+	asm volatile (
+		"0: .long 0xb2ad0042\n"		/* NQAP */
+		"   brc   2,0b"
+		: "+d" (reg0), "=d" (reg1), "+d" (reg2), "+d" (reg3)
+		: "d" (reg4), "d" (reg5), "m" (*(msgblock *) msg)
+		: "cc");
+	return reg1;
+}
+
 /**
  * __ap_send(): Send message to adjunct processor queue.
  * @qid: The AP queue number
@@ -363,24 +399,9 @@ static inline struct ap_queue_status
 __ap_send(ap_qid_t qid, unsigned long long psmid, void *msg, size_t length,
 	  unsigned int special)
 {
-	typedef struct { char _[length]; } msgblock;
-	register unsigned long reg0 asm ("0") = qid | 0x40000000UL;
-	register struct ap_queue_status reg1 asm ("1");
-	register unsigned long reg2 asm ("2") = (unsigned long) msg;
-	register unsigned long reg3 asm ("3") = (unsigned long) length;
-	register unsigned long reg4 asm ("4") = (unsigned int) (psmid >> 32);
-	register unsigned long reg5 asm ("5") = psmid & 0xffffffff;
-
 	if (special == 1)
-		reg0 |= 0x400000UL;
-
-	asm volatile (
-		"0: .long 0xb2ad0042\n"		/* NQAP */
-		"   brc   2,0b"
-		: "+d" (reg0), "=d" (reg1), "+d" (reg2), "+d" (reg3)
-		: "d" (reg4), "d" (reg5), "m" (*(msgblock *) msg)
-		: "cc" );
-	return reg1;
+		qid |= 0x400000UL;
+	return __nqap(qid, psmid, msg, length);
 }
 
 int ap_send(ap_qid_t qid, unsigned long long psmid, void *msg, size_t length)
