@@ -2708,8 +2708,7 @@ static void mlxsw_sp_master_bridge_inc(struct mlxsw_sp *mlxsw_sp,
 	mlxsw_sp->master_bridge.ref_count++;
 }
 
-static void mlxsw_sp_master_bridge_dec(struct mlxsw_sp *mlxsw_sp,
-				       struct net_device *br_dev)
+static void mlxsw_sp_master_bridge_dec(struct mlxsw_sp *mlxsw_sp)
 {
 	if (--mlxsw_sp->master_bridge.ref_count == 0)
 		mlxsw_sp->master_bridge.dev = NULL;
@@ -2911,7 +2910,7 @@ static void mlxsw_sp_port_lag_leave(struct mlxsw_sp_port *mlxsw_sp_port,
 	if (mlxsw_sp_port->bridged) {
 		mlxsw_sp_port_active_vlans_del(mlxsw_sp_port);
 		mlxsw_sp_port_bridge_leave(mlxsw_sp_port, false);
-		mlxsw_sp_master_bridge_dec(mlxsw_sp, NULL);
+		mlxsw_sp_master_bridge_dec(mlxsw_sp);
 	}
 
 	if (lag->ref_count == 1) {
@@ -3055,7 +3054,7 @@ static int mlxsw_sp_netdevice_port_upper_event(struct net_device *dev,
 				mlxsw_sp_master_bridge_inc(mlxsw_sp, upper_dev);
 			} else {
 				mlxsw_sp_port_bridge_leave(mlxsw_sp_port, true);
-				mlxsw_sp_master_bridge_dec(mlxsw_sp, upper_dev);
+				mlxsw_sp_master_bridge_dec(mlxsw_sp);
 			}
 		} else if (netif_is_lag_master(upper_dev)) {
 			if (info->linking)
