@@ -3712,8 +3712,6 @@ static int mv88e6xxx_probe(struct mdio_device *mdiodev)
 	ps->sw_addr = mdiodev->addr;
 	mutex_init(&ps->smi_mutex);
 
-	get_device(&ps->bus->dev);
-
 	ds->drv = &mv88e6xxx_switch_driver;
 
 	id = mv88e6xxx_reg_read(ps, REG_PORT(0), PORT_SWITCH_ID);
@@ -3767,7 +3765,6 @@ static void mv88e6xxx_remove(struct mdio_device *mdiodev)
 	struct mv88e6xxx_priv_state *ps = ds_to_priv(ds);
 
 	dsa_unregister_switch(ds);
-	put_device(&ps->bus->dev);
 
 	mv88e6xxx_mdio_unregister(ps);
 }
