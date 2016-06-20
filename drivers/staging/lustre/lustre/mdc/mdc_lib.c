@@ -467,6 +467,18 @@ void mdc_close_pack(struct ptlrpc_request *req, struct md_op_data *op_data)
 	rec = req_capsule_client_get(&req->rq_pill, &RMF_REC_REINT);
 
 	mdc_setattr_pack_rec(rec, op_data);
+	/*
+	 * The client will zero out local timestamps when losing the IBITS lock
+	 * so any new RPC timestamps will update the client inode's timestamps.
+	 * There was a defect on the server side which allowed the atime to be
+	 * overwritten by a zeroed-out atime packed into the close RPC.
+	 *
+	 * Proactively clear the MDS_ATTR_ATIME flag in the RPC in this case
+	 * to avoid zeroing the atime on old unpatched servers.  See LU-8041.
+	 */
+	if (rec->sa_atime == 0)
+		rec->sa_valid &= ~MDS_ATTR_ATIME;
+
 	mdc_ioepoch_pack(epoch, op_data);
 	mdc_hsm_release_pack(req, op_data);
 }
