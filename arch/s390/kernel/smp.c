@@ -318,17 +318,11 @@ static void pcpu_delegate(struct pcpu *pcpu, void (*func)(void *),
  */
 static int pcpu_set_smt(unsigned int mtid)
 {
-	register unsigned long reg1 asm ("1") = (unsigned long) mtid;
 	int cc;
 
 	if (smp_cpu_mtid == mtid)
 		return 0;
-	asm volatile(
-		"	sigp	%1,0,%2	# sigp set multi-threading\n"
-		"	ipm	%0\n"
-		"	srl	%0,28\n"
-		: "=d" (cc) : "d" (reg1), "K" (SIGP_SET_MULTI_THREADING)
-		: "cc");
+	cc = __pcpu_sigp(0, SIGP_SET_MULTI_THREADING, mtid, NULL);
 	if (cc == 0) {
 		smp_cpu_mtid = mtid;
 		smp_cpu_mt_shift = 0;
