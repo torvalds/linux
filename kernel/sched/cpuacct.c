@@ -243,27 +243,26 @@ static int cpuacct_percpu_seq_show(struct seq_file *m, void *V)
 static int cpuacct_stats_show(struct seq_file *sf, void *v)
 {
 	struct cpuacct *ca = css_ca(seq_css(sf));
+	s64 val[CPUACCT_STAT_NSTATS];
 	int cpu;
-	s64 val = 0;
+	int stat;
 
+	memset(val, 0, sizeof(val));
 	for_each_possible_cpu(cpu) {
-		struct kernel_cpustat *kcpustat = per_cpu_ptr(ca->cpustat, cpu);
-		val += kcpustat->cpustat[CPUTIME_USER];
-		val += kcpustat->cpustat[CPUTIME_NICE];
-	}
-	val = cputime64_to_clock_t(val);
-	seq_printf(sf, "%s %lld\n", cpuacct_stat_desc[CPUACCT_STAT_USER], val);
+		u64 *cpustat = per_cpu_ptr(ca->cpustat, cpu)->cpustat;
 
-	val = 0;
-	for_each_possible_cpu(cpu) {
-		struct kernel_cpustat *kcpustat = per_cpu_ptr(ca->cpustat, cpu);
-		val += kcpustat->cpustat[CPUTIME_SYSTEM];
-		val += kcpustat->cpustat[CPUTIME_IRQ];
-		val += kcpustat->cpustat[CPUTIME_SOFTIRQ];
+		val[CPUACCT_STAT_USER]   += cpustat[CPUTIME_USER];
+		val[CPUACCT_STAT_USER]   += cpustat[CPUTIME_NICE];
+		val[CPUACCT_STAT_SYSTEM] += cpustat[CPUTIME_SYSTEM];
+		val[CPUACCT_STAT_SYSTEM] += cpustat[CPUTIME_IRQ];
+		val[CPUACCT_STAT_SYSTEM] += cpustat[CPUTIME_SOFTIRQ];
 	}
 
-	val = cputime64_to_clock_t(val);
-	seq_printf(sf, "%s %lld\n", cpuacct_stat_desc[CPUACCT_STAT_SYSTEM], val);
+	for (stat = 0; stat < CPUACCT_STAT_NSTATS; stat++) {
+		seq_printf(sf, "%s %lld\n",
+			   cpuacct_stat_desc[stat],
+			   cputime64_to_clock_t(val[stat]));
+	}
 
 	return 0;
 }
