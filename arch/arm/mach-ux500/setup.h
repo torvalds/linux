@@ -19,11 +19,9 @@ void ux500_l2x0_init(void);
 
 void ux500_restart(enum reboot_mode mode, const char *cmd);
 
-void __init ux500_setup_id(void);
-
 extern void __init ux500_init_irq(void);
 
-extern struct device *ux500_soc_device_init(const char *soc_id);
+extern struct device *ux500_soc_device_init(void);
 
 extern void ux500_cpu_die(unsigned int cpu);
 

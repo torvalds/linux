@@ -20,7 +20,6 @@
 #include <linux/of_platform.h>
 #include <linux/perf/arm_pmu.h>
 #include <linux/regulator/machine.h>
-#include <linux/random.h>
 
 #include <asm/mach/map.h>
 
@@ -60,31 +59,6 @@ static struct arm_pmu_platdata db8500_pmu_platdata = {
 	.handle_irq		= db8500_pmu_handler,
 };
 
-static const char *db8500_read_soc_id(void)
-{
-	void __iomem *uid;
-	const char *retstr;
-
-	uid = ioremap(U8500_BB_UID_BASE, 0x20);
-	if (!uid)
-		return NULL;
-	/* Throw these device-specific numbers into the entropy pool */
-	add_device_randomness(uid, 0x14);
-	retstr = kasprintf(GFP_KERNEL, "%08x%08x%08x%08x%08x",
-			 readl((u32 *)uid+0),
-			 readl((u32 *)uid+1), readl((u32 *)uid+2),
-			 readl((u32 *)uid+3), readl((u32 *)uid+4));
-	iounmap(uid);
-	return retstr;
-}
-
-static struct device * __init db8500_soc_device_init(void)
-{
-	const char *soc_id = db8500_read_soc_id();
-
-	return ux500_soc_device_init(soc_id);
-}
-
 static struct of_dev_auxdata u8500_auxdata_lookup[] __initdata = {
 	/* Requires call-back bindings. */
 	OF_DEV_AUXDATA("arm,cortex-a9-pmu", 0, "arm-pmu", &db8500_pmu_platdata),
@@ -121,7 +95,7 @@ static const struct of_device_id u8500_local_bus_nodes[] = {
 
 static void __init u8500_init_machine(void)
 {
-	struct device *parent = db8500_soc_device_init();
+	struct device *parent = ux500_soc_device_init();
 
 	/* automatically probe child nodes of dbx5x0 devices */
 	if (of_machine_is_compatible("st-ericsson,u8540"))

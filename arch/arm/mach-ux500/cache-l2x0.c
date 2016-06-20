@@ -12,7 +12,6 @@
 #include <asm/hardware/cache-l2x0.h>
 
 #include "db8500-regs.h"
-#include "id.h"
 
 static int __init ux500_l2x0_unlock(void)
 {
