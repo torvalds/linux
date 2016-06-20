@@ -119,10 +119,11 @@ static void vmd_compose_msi_msg(struct irq_data *data, struct msi_msg *msg)
 static void vmd_irq_enable(struct irq_data *data)
 {
 	struct vmd_irq *vmdirq = data->chip_data;
+	unsigned long flags;
 
-	raw_spin_lock(&list_lock);
+	raw_spin_lock_irqsave(&list_lock, flags);
 	list_add_tail_rcu(&vmdirq->node, &vmdirq->irq->irq_list);
-	raw_spin_unlock(&list_lock);
+	raw_spin_unlock_irqrestore(&list_lock, flags);
 
 	data->chip->irq_unmask(data);
 }
@@ -130,13 +131,14 @@ static void vmd_irq_enable(struct irq_data *data)
 static void vmd_irq_disable(struct irq_data *data)
 {
 	struct vmd_irq *vmdirq = data->chip_data;
+	unsigned long flags;
 
 	data->chip->irq_mask(data);
 
-	raw_spin_lock(&list_lock);
+	raw_spin_lock_irqsave(&list_lock, flags);
 	list_del_rcu(&vmdirq->node);
 	INIT_LIST_HEAD_RCU(&vmdirq->node);
-	raw_spin_unlock(&list_lock);
+	raw_spin_unlock_irqrestore(&list_lock, flags);
 }
 
 /*
@@ -170,13 +172,14 @@ static irq_hw_number_t vmd_get_hwirq(struct msi_domain_info *info,
 static struct vmd_irq_list *vmd_next_irq(struct vmd_dev *vmd)
 {
 	int i, best = 0;
+	unsigned long flags;
 
-	raw_spin_lock(&list_lock);
+	raw_spin_lock_irqsave(&list_lock, flags);
 	for (i = 1; i < vmd->msix_count; i++)
 		if (vmd->irqs[i].count < vmd->irqs[best].count)
 			best = i;
 	vmd->irqs[best].count++;
-	raw_spin_unlock(&list_lock);
+	raw_spin_unlock_irqrestore(&list_lock, flags);
 
 	return &vmd->irqs[best];
 }
@@ -204,11 +207,12 @@ static void vmd_msi_free(struct irq_domain *domain,
 			struct msi_domain_info *info, unsigned int virq)
 {
 	struct vmd_irq *vmdirq = irq_get_chip_data(virq);
+	unsigned long flags;
 
 	/* XXX: Potential optimization to rebalance */
-	raw_spin_lock(&list_lock);
+	raw_spin_lock_irqsave(&list_lock, flags);
 	vmdirq->irq->count--;
-	raw_spin_unlock(&list_lock);
+	raw_spin_unlock_irqrestore(&list_lock, flags);
 
 	kfree_rcu(vmdirq, rcu);
 }
