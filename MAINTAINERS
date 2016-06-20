@@ -8131,6 +8131,7 @@ F:	drivers/ntb/
 F:	drivers/net/ntb_netdev.c
 F:	include/linux/ntb.h
 F:	include/linux/ntb_transport.h
+F:	tools/testing/selftests/ntb/
 
 NTB INTEL DRIVER
 M:	Jon Mason <jdmason@kudzu.us>
