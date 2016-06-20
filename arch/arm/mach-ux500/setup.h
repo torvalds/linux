@@ -14,6 +14,9 @@
 #include <asm/mach/arch.h>
 #include <linux/init.h>
 
+
+void ux500_l2x0_init(void);
+
 void ux500_restart(enum reboot_mode mode, const char *cmd);
 
 void __init ux500_setup_id(void);

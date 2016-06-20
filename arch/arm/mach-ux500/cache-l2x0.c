@@ -51,17 +51,11 @@ static void ux500_l2c310_write_sec(unsigned long val, unsigned reg)
 	 */
 }
 
-static int __init ux500_l2x0_init(void)
+void __init ux500_l2x0_init(void)
 {
-	/* Multiplatform guard */
-	if (!((cpu_is_u8500_family() || cpu_is_ux540_family())))
-		return -ENODEV;
-
 	/* Unlock before init */
 	ux500_l2x0_unlock();
 	outer_cache.write_sec = ux500_l2c310_write_sec;
-	l2x0_of_init(0, ~0);
 
 	return 0;
 }
-early_initcall(ux500_l2x0_init);

@@ -65,6 +65,7 @@ void __init ux500_init_irq(void)
 	}
 	prcmu_early_init(r.start, r.end-r.start);
 	ux500_pm_init(r.start, r.end-r.start);
+	ux500_l2x0_init();
 
 	/*
 	 * Init clocks here so that they are available for system timer

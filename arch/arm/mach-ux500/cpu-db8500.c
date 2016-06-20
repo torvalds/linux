@@ -141,10 +141,11 @@ static const char * stericsson_dt_platform_compat[] = {
 };
 
 DT_MACHINE_START(U8500_DT, "ST-Ericsson Ux5x0 platform (Device Tree Support)")
+	.l2c_aux_val    = 0,
+	.l2c_aux_mask	= ~0,
 	.map_io		= u8500_map_io,
 	.init_irq	= ux500_init_irq,
 	.init_machine	= u8500_init_machine,
-	.init_late	= NULL,
 	.dt_compat      = stericsson_dt_platform_compat,
 	.restart        = ux500_restart,
 MACHINE_END
