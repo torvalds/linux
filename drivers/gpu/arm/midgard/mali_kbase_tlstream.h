@@ -124,6 +124,8 @@ void __kbase_tlstream_tl_nret_as_ctx(void *as, void *ctx);
 void __kbase_tlstream_tl_ret_atom_as(void *atom, void *as);
 void __kbase_tlstream_tl_nret_atom_as(void *atom, void *as);
 void __kbase_tlstream_tl_dep_atom_atom(void *atom1, void *atom2);
+void __kbase_tlstream_tl_ndep_atom_atom(void *atom1, void *atom2);
+void __kbase_tlstream_tl_rdep_atom_atom(void *atom1, void *atom2);
 void __kbase_tlstream_tl_attrib_atom_config(
 		void *atom, u64 jd, u64 affinity, u32 config);
 void __kbase_tlstream_tl_attrib_as_config(
@@ -392,6 +394,28 @@ extern atomic_t kbase_tlstream_enabled;
  */
 #define kbase_tlstream_tl_dep_atom_atom(atom1, atom2) \
 	__TRACE_IF_ENABLED(tl_dep_atom_atom, atom1, atom2)
+
+/**
+ * kbase_tlstream_tl_ndep_atom_atom - dependency between atoms resolved
+ * @atom1: name of the child atom object
+ * @atom2: name of the parent atom object that depended on child atom
+ *
+ * Function emits a timeline message informing that parent atom execution
+ * dependency on child atom has been resolved.
+ */
+#define kbase_tlstream_tl_ndep_atom_atom(atom1, atom2) \
+	__TRACE_IF_ENABLED(tl_ndep_atom_atom, atom1, atom2)
+
+/**
+ * kbase_tlstream_tl_rdep_atom_atom - information about already resolved dependency between atoms
+ * @atom1: name of the child atom object
+ * @atom2: name of the parent atom object that depended on child atom
+ *
+ * Function emits a timeline message informing that parent atom execution
+ * dependency on child atom has been resolved.
+ */
+#define kbase_tlstream_tl_rdep_atom_atom(atom1, atom2) \
+	__TRACE_IF_ENABLED(tl_rdep_atom_atom, atom1, atom2)
 
 /**
  * kbase_tlstream_tl_attrib_atom_config - atom job slot attributes

@@ -1,6 +1,6 @@
 /*
  *
- * (C) COPYRIGHT 2013-2015 ARM Limited. All rights reserved.
+ * (C) COPYRIGHT 2013-2016 ARM Limited. All rights reserved.
  *
  * This program is free software and is provided to you under the terms of the
  * GNU General Public License version 2 as published by the Free Software
@@ -125,6 +125,8 @@ static int debug_mem_show(struct seq_file *m, void *v)
 
 	page = pfn_to_page(PFN_DOWN(map->alloc->pages[data->offset]));
 	mapping = vmap(&page, 1, VM_MAP, prot);
+	if (!mapping)
+		goto out;
 
 	for (i = 0; i < PAGE_SIZE; i += 4*sizeof(*mapping)) {
 		seq_printf(m, "%016llx:", i + ((map->start_pfn +
@@ -160,11 +162,15 @@ static int debug_mem_open(struct inode *i, struct file *file)
 	int ret;
 
 	ret = seq_open(file, &ops);
-
 	if (ret)
 		return ret;
 
 	mem_data = kmalloc(sizeof(*mem_data), GFP_KERNEL);
+	if (!mem_data) {
+		ret = -ENOMEM;
+		goto out;
+	}
+
 	mem_data->kctx = kctx;
 
 	INIT_LIST_HEAD(&mem_data->mapping_list);
@@ -184,6 +190,11 @@ static int debug_mem_open(struct inode *i, struct file *file)
 			continue;
 
 		mapping = kmalloc(sizeof(*mapping), GFP_KERNEL);
+		if (!mapping) {
+			ret = -ENOMEM;
+			kbase_gpu_vm_unlock(kctx);
+			goto out;
+		}
 
 		mapping->alloc = kbase_mem_phy_alloc_get(reg->gpu_alloc);
 		mapping->start_pfn = reg->start_pfn;
@@ -197,6 +208,22 @@ static int debug_mem_open(struct inode *i, struct file *file)
 	((struct seq_file *)file->private_data)->private = mem_data;
 
 	return 0;
+
+out:
+	if (mem_data) {
+		while (!list_empty(&mem_data->mapping_list)) {
+			struct debug_mem_mapping *mapping;
+
+			mapping = list_first_entry(&mem_data->mapping_list,
+					struct debug_mem_mapping, node);
+			kbase_mem_phy_alloc_put(mapping->alloc);
+			list_del(&mapping->node);
+			kfree(mapping);
+		}
+		fput(kctx_file);
+	}
+	seq_release(i, file);
+	return ret;
 }
 
 static int debug_mem_release(struct inode *inode, struct file *file)

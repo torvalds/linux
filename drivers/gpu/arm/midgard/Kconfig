@@ -59,6 +59,15 @@ config MALI_DEVFREQ
 	  governor, the frequency of Mali will be dynamically selected from the
 	  available OPPs.
 
+config MALI_DMA_FENCE
+	bool "DMA_BUF fence support for Mali (EXPERIMENTAL)"
+	depends on MALI_MIDGARD && !KDS
+	default n
+	help
+	  Support DMA_BUF fences for Mali.
+
+	  This option should only be enabled if KDS is not present and
+	  the Linux Kernel has built in support for DMA_BUF fences.
 
 # MALI_EXPERT configuration options
 

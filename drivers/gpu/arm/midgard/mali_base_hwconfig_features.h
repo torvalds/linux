@@ -186,4 +186,6 @@ static const enum base_hw_feature base_hw_features_tMIx[] = {
 	BASE_HW_FEATURE_END
 };
 
+
+
 #endif /* _BASE_HWCONFIG_FEATURES_H_ */

@@ -799,13 +799,33 @@ static int kbasep_replay_parse_payload(struct kbase_context *kctx,
 	f_atom->core_req = payload->fragment_core_req | BASEP_JD_REQ_EVENT_NEVER;
 
 	/* Sanity check core requirements*/
-	if ((t_atom->core_req & BASEP_JD_REQ_ATOM_TYPE &
+	if (unlikely((t_atom->core_req & BASEP_JD_REQ_ATOM_TYPE &
 			       ~BASE_JD_REQ_COHERENT_GROUP) != BASE_JD_REQ_T ||
 	    (f_atom->core_req & BASEP_JD_REQ_ATOM_TYPE &
-			      ~BASE_JD_REQ_COHERENT_GROUP) != BASE_JD_REQ_FS ||
+			      ~BASE_JD_REQ_COHERENT_GROUP & ~BASE_JD_REQ_FS_AFBC) != BASE_JD_REQ_FS ||
 	     t_atom->core_req & BASE_JD_REQ_EXTERNAL_RESOURCES ||
-	     f_atom->core_req & BASE_JD_REQ_EXTERNAL_RESOURCES) {
-		dev_err(kctx->kbdev->dev, "Invalid core requirements\n");
+	     f_atom->core_req & BASE_JD_REQ_EXTERNAL_RESOURCES)) {
+
+		int t_atom_type = t_atom->core_req & BASEP_JD_REQ_ATOM_TYPE & ~BASE_JD_REQ_COHERENT_GROUP;
+		int f_atom_type = f_atom->core_req & BASEP_JD_REQ_ATOM_TYPE & ~BASE_JD_REQ_COHERENT_GROUP & ~BASE_JD_REQ_FS_AFBC;
+		int t_has_ex_res = t_atom->core_req & BASE_JD_REQ_EXTERNAL_RESOURCES;
+		int f_has_ex_res = f_atom->core_req & BASE_JD_REQ_EXTERNAL_RESOURCES;
+
+		if (t_atom_type != BASE_JD_REQ_T) {
+			dev_err(kctx->kbdev->dev, "Invalid core requirement: Tiler atom not a tiler job. Was: 0x%x\n Expected: 0x%x",
+			    t_atom_type, BASE_JD_REQ_T);
+		}
+		if (f_atom_type != BASE_JD_REQ_FS) {
+			dev_err(kctx->kbdev->dev, "Invalid core requirement: Fragment shader atom not a fragment shader. Was 0x%x Expected: 0x%x\n",
+			    f_atom_type, BASE_JD_REQ_FS);
+		}
+		if (t_has_ex_res) {
+			dev_err(kctx->kbdev->dev, "Invalid core requirement: Tiler atom has external resources.\n");
+		}
+		if (f_has_ex_res) {
+			dev_err(kctx->kbdev->dev, "Invalid core requirement: Fragment shader atom has external resources.\n");
+		}
+
 		goto out;
 	}
 

@@ -207,8 +207,6 @@ static void kbasep_job_slot_update_head_start_timestamp(
 	}
 }
 
-#if (defined(MALI_MIPE_ENABLED) && MALI_MIPE_ENABLED) || \
-	!defined(MALI_MIPE_ENABLED)
 /**
  * kbasep_trace_tl_nret_atom_lpu - Call nret_atom_lpu timeline tracepoint
  * @kbdev: kbase device
@@ -226,7 +224,6 @@ static void kbasep_trace_tl_nret_atom_lpu(struct kbase_device *kbdev, int i)
 	kbase_tlstream_tl_nret_atom_lpu(katom,
 		&kbdev->gpu_props.props.raw_props.js_features[i]);
 }
-#endif
 
 void kbase_job_done(struct kbase_device *kbdev, u32 done)
 {
@@ -291,11 +288,8 @@ void kbase_job_done(struct kbase_device *kbdev, u32 done)
 
 					kbase_tlstream_aux_job_softstop(i);
 
-#if (defined(MALI_MIPE_ENABLED) && MALI_MIPE_ENABLED) || \
-	!defined(MALI_MIPE_ENABLED)
 					kbasep_trace_tl_nret_atom_lpu(
 						kbdev, i);
-#endif
 
 					/* Soft-stopped job - read the value of
 					 * JS<n>_TAIL so that the job chain can

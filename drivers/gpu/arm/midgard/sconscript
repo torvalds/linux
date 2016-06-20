@@ -44,8 +44,7 @@ kbase_src = [Glob('#kernel/drivers/gpu/arm/midgard/*.c'),
              Glob('#kernel/drivers/gpu/arm/midgard/K*'))
              ]
 
-kbase_src += [Glob('#kernel/drivers/gpu/arm/midgard/internal/*/*.c'),
-              Glob('#kernel/drivers/gpu/arm/midgard/internal/*/*/*.c')]
+kbase_src += [Glob('#kernel/drivers/gpu/arm/midgard/internal/*/*.c')]
 
 if Glob('#kernel/drivers/gpu/arm/midgard/tests/internal/src/mock') and env['unit'] == '1':
 	kbase_src += [Glob('#kernel/drivers/gpu/arm/midgard/tests/internal/src/mock/*.c')]
@@ -122,10 +121,6 @@ if env['os'] != 'android':
 # need Module.symvers from ump.ko build
 if int(env['ump']) == 1:
 	env.Depends('$STATIC_LIB_PATH/mali_kbase.ko', '$STATIC_LIB_PATH/ump.ko')
-
-if Glob('internal/sconsfrag'):
-	execfile('internal/sconsfrag')
-	get_internal(env)
 
 env.KernelObjTarget('kbase', cmd)
 

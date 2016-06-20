@@ -1,6 +1,6 @@
 /*
  *
- * (C) COPYRIGHT 2012-2015 ARM Limited. All rights reserved.
+ * (C) COPYRIGHT 2012-2016 ARM Limited. All rights reserved.
  *
  * This program is free software and is provided to you under the terms of the
  * GNU General Public License version 2 as published by the Free Software
@@ -15,51 +15,71 @@
 
 
 
+#include <linux/spinlock.h>
 #include "mali_kbase_debug_job_fault.h"
 
 #ifdef CONFIG_DEBUG_FS
 
-static bool kbase_is_job_fault_event_pending(struct list_head *event_list)
+static bool kbase_is_job_fault_event_pending(struct kbase_device *kbdev)
 {
-	bool ret;
+	struct list_head *event_list = &kbdev->job_fault_event_list;
+	unsigned long    flags;
+	bool             ret;
 
-	ret = (!list_empty(event_list));
+	spin_lock_irqsave(&kbdev->job_fault_event_lock, flags);
+	ret = !list_empty(event_list);
+	spin_unlock_irqrestore(&kbdev->job_fault_event_lock, flags);
 
 	return ret;
 }
 
-static bool kbase_ctx_has_no_event_pending(
-		struct kbase_context *kctx, struct list_head *event_list)
+static bool kbase_ctx_has_no_event_pending(struct kbase_context *kctx)
 {
+	struct kbase_device *kbdev = kctx->kbdev;
+	struct list_head *event_list = &kctx->kbdev->job_fault_event_list;
 	struct base_job_fault_event *event;
+	unsigned long               flags;
 
-	if (list_empty(event_list))
+	spin_lock_irqsave(&kbdev->job_fault_event_lock, flags);
+	if (list_empty(event_list)) {
+		spin_unlock_irqrestore(&kbdev->job_fault_event_lock, flags);
 		return true;
-	list_for_each_entry(event, event_list, head) {
-		if (event->katom->kctx == kctx)
-			return false;
 	}
-	return false;
+	list_for_each_entry(event, event_list, head) {
+		if (event->katom->kctx == kctx) {
+			spin_unlock_irqrestore(&kbdev->job_fault_event_lock,
+					flags);
+			return false;
+		}
+	}
+	spin_unlock_irqrestore(&kbdev->job_fault_event_lock, flags);
+	return true;
 }
 
 /* wait until the fault happen and copy the event */
 static int kbase_job_fault_event_wait(struct kbase_device *kbdev,
-		struct list_head *event_list,
 		struct base_job_fault_event *event)
 {
+	struct list_head            *event_list = &kbdev->job_fault_event_list;
 	struct base_job_fault_event *event_in;
+	unsigned long               flags;
 
+	spin_lock_irqsave(&kbdev->job_fault_event_lock, flags);
 	if (list_empty(event_list)) {
+		spin_unlock_irqrestore(&kbdev->job_fault_event_lock, flags);
 		if (wait_event_interruptible(kbdev->job_fault_wq,
-				kbase_is_job_fault_event_pending(event_list)))
+				 kbase_is_job_fault_event_pending(kbdev)))
 			return -ERESTARTSYS;
+		spin_lock_irqsave(&kbdev->job_fault_event_lock, flags);
 	}
 
 	event_in = list_entry(event_list->next,
 			struct base_job_fault_event, head);
-
 	event->event_code = event_in->event_code;
 	event->katom = event_in->katom;
+
+	spin_unlock_irqrestore(&kbdev->job_fault_event_lock, flags);
+
 	return 0;
 
 }
@@ -102,12 +122,16 @@ static void kbase_job_fault_resume_event_cleanup(struct kbase_context *kctx)
 static void kbase_job_fault_event_cleanup(struct kbase_device *kbdev)
 {
 	struct list_head *event_list = &kbdev->job_fault_event_list;
+	unsigned long    flags;
 
+	spin_lock_irqsave(&kbdev->job_fault_event_lock, flags);
 	while (!list_empty(event_list)) {
-
 		kbase_job_fault_event_dequeue(kbdev, event_list);
+		spin_unlock_irqrestore(&kbdev->job_fault_event_lock, flags);
 		wake_up(&kbdev->job_fault_resume_wq);
+		spin_lock_irqsave(&kbdev->job_fault_event_lock, flags);
 	}
+	spin_unlock_irqrestore(&kbdev->job_fault_event_lock, flags);
 }
 
 static void kbase_job_fault_resume_worker(struct work_struct *data)
@@ -129,8 +153,7 @@ static void kbase_job_fault_resume_worker(struct work_struct *data)
 	 * atoms belong to the same context.
 	 */
 	wait_event(kctx->kbdev->job_fault_resume_wq,
-			kbase_ctx_has_no_event_pending(kctx,
-					&kctx->kbdev->job_fault_event_list));
+			 kbase_ctx_has_no_event_pending(kctx));
 
 	atomic_set(&kctx->job_fault_count, 0);
 	kbase_jd_done_worker(&katom->work);
@@ -166,9 +189,12 @@ static void kbase_job_fault_event_post(struct kbase_device *kbdev,
 		struct kbase_jd_atom *katom, u32 completion_code)
 {
 	struct base_job_fault_event *event;
+	unsigned long flags;
 
+	spin_lock_irqsave(&kbdev->job_fault_event_lock, flags);
 	event = kbase_job_fault_event_queue(&kbdev->job_fault_event_list,
 				katom, completion_code);
+	spin_unlock_irqrestore(&kbdev->job_fault_event_lock, flags);
 
 	wake_up_interruptible(&kbdev->job_fault_wq);
 
@@ -293,9 +319,10 @@ static void *debug_job_fault_start(struct seq_file *m, loff_t *pos)
 	 */
 	if (*pos == 0) {
 		event = kmalloc(sizeof(*event), GFP_KERNEL);
+		if (!event)
+			return NULL;
 		event->reg_offset = 0;
-		if (kbase_job_fault_event_wait(kbdev,
-				&kbdev->job_fault_event_list, event)) {
+		if (kbase_job_fault_event_wait(kbdev, event)) {
 			kfree(event);
 			return NULL;
 		}
@@ -329,11 +356,15 @@ static void debug_job_fault_stop(struct seq_file *m, void *v)
 		dev_info(kbdev->dev, "debug job fault seq stop stage 1");
 
 	} else {
+		unsigned long flags;
+
+		spin_lock_irqsave(&kbdev->job_fault_event_lock, flags);
 		if (!list_empty(&kbdev->job_fault_event_list)) {
 			kbase_job_fault_event_dequeue(kbdev,
 				&kbdev->job_fault_event_list);
 			wake_up(&kbdev->job_fault_resume_wq);
 		}
+		spin_unlock_irqrestore(&kbdev->job_fault_event_lock, flags);
 		dev_info(kbdev->dev, "debug job fault seq stop stage 2");
 	}
 
@@ -404,6 +435,7 @@ int kbase_debug_job_fault_dev_init(struct kbase_device *kbdev)
 
 	init_waitqueue_head(&(kbdev->job_fault_wq));
 	init_waitqueue_head(&(kbdev->job_fault_resume_wq));
+	spin_lock_init(&kbdev->job_fault_event_lock);
 
 	kbdev->job_fault_resume_workq = alloc_workqueue(
 			"kbase_job_fault_resume_work_queue", WQ_MEM_RECLAIM, 1);

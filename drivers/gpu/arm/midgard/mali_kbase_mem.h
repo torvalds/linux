@@ -131,6 +131,8 @@ struct kbase_mem_phy_alloc {
 
 	unsigned long properties;
 
+	struct list_head       zone_cache;
+
 	/* member in union valid based on @a type */
 	union {
 #ifdef CONFIG_UMP
@@ -157,7 +159,7 @@ struct kbase_mem_phy_alloc {
 			unsigned long nr_pages;
 			struct page **pages;
 			unsigned int current_mapping_usage_count;
-			struct task_struct *owner;
+			struct mm_struct *mm;
 			dma_addr_t *dma_addrs;
 		} user_buf;
 	} imported;
@@ -373,6 +375,7 @@ static inline struct kbase_mem_phy_alloc *kbase_alloc_create(size_t nr_pages, en
 	alloc->pages = (void *)(alloc + 1);
 	INIT_LIST_HEAD(&alloc->mappings);
 	alloc->type = type;
+	INIT_LIST_HEAD(&alloc->zone_cache);
 
 	if (type == KBASE_MEM_TYPE_IMPORTED_USER_BUF)
 		alloc->imported.user_buf.dma_addrs =
@@ -989,23 +992,53 @@ struct kbase_ctx_ext_res_meta *kbase_sticky_resource_acquire(
  * @kctx:     kbase context.
  * @meta:     Binding metadata.
  * @gpu_addr: GPU address of the external resource.
- * @force:    If the release is being forced.
  *
  * If meta is NULL then gpu_addr will be used to scan the metadata list and
  * find the matching metadata (if any), otherwise the provided meta will be
  * used and gpu_addr will be ignored.
  *
- * If force is true then the refcount in the metadata is ignored and the
- * resource will be forced freed.
- *
  * Return: True if the release found the metadata and the reference was dropped.
  */
 bool kbase_sticky_resource_release(struct kbase_context *kctx,
-		struct kbase_ctx_ext_res_meta *meta, u64 gpu_addr, bool force);
+		struct kbase_ctx_ext_res_meta *meta, u64 gpu_addr);
 
 /**
  * kbase_sticky_resource_term - Terminate sticky resource management.
  * @kctx: kbase context
  */
 void kbase_sticky_resource_term(struct kbase_context *kctx);
+
+/**
+ * kbase_zone_cache_update - Update the memory zone cache after new pages have
+ * been added.
+ * @alloc:        The physical memory allocation to build the cache for.
+ * @start_offset: Offset to where the new pages start.
+ *
+ * Updates an existing memory zone cache, updating the counters for the
+ * various zones.
+ * If the memory allocation doesn't already have a zone cache assume that
+ * one isn't created and thus don't do anything.
+ *
+ * Return: Zero cache was updated, negative error code on error.
+ */
+int kbase_zone_cache_update(struct kbase_mem_phy_alloc *alloc,
+		size_t start_offset);
+
+/**
+ * kbase_zone_cache_build - Build the memory zone cache.
+ * @alloc:        The physical memory allocation to build the cache for.
+ *
+ * Create a new zone cache for the provided physical memory allocation if
+ * one doesn't already exist, if one does exist then just return.
+ *
+ * Return: Zero if the zone cache was created, negative error code on error.
+ */
+int kbase_zone_cache_build(struct kbase_mem_phy_alloc *alloc);
+
+/**
+ * kbase_zone_cache_clear - Clear the memory zone cache.
+ * @alloc:        The physical memory allocation to clear the cache on.
+ */
+void kbase_zone_cache_clear(struct kbase_mem_phy_alloc *alloc);
+
 #endif				/* _KBASE_MEM_H_ */

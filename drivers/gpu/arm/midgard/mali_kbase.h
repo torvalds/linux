@@ -45,6 +45,7 @@
 #include <mali_kbase_uku.h>
 #include <mali_kbase_linux.h>
 
+#include "mali_kbase_strings.h"
 #include "mali_kbase_pm.h"
 #include "mali_kbase_mem_lowlevel.h"
 #include "mali_kbase_defs.h"
@@ -146,6 +147,7 @@ void kbase_jd_free_external_resources(struct kbase_jd_atom *katom);
 bool jd_submit_atom(struct kbase_context *kctx,
 			 const struct base_jd_atom_v2 *user_atom,
 			 struct kbase_jd_atom *katom);
+void kbase_jd_dep_clear_locked(struct kbase_jd_atom *katom);
 
 void kbase_job_done(struct kbase_device *kbdev, u32 done);
 
@@ -210,7 +212,6 @@ void kbase_device_trace_buffer_uninstall(struct kbase_context *kctx);
 /* api to be ported per OS, only need to do the raw register access */
 void kbase_os_reg_write(struct kbase_device *kbdev, u16 offset, u32 value);
 u32 kbase_os_reg_read(struct kbase_device *kbdev, u16 offset);
-
 
 void kbasep_as_do_poke(struct work_struct *work);
 

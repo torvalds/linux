@@ -567,5 +567,4 @@
 
 /* End TILER_CONFIG register */
 
-
 #endif /* _MIDGARD_REGMAP_H_ */

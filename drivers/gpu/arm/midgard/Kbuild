@@ -15,7 +15,7 @@
 
 
 # Driver version string which is returned to userspace via an ioctl
-MALI_RELEASE_NAME ?= "r11p0-00rel0"
+MALI_RELEASE_NAME ?= "r12p0-04rel0"
 
 # Paths required for build
 KBASE_PATH = $(src)
@@ -111,7 +111,8 @@ SRC := \
 	mali_kbase_smc.c \
 	mali_kbase_mem_pool.c \
 	mali_kbase_mem_pool_debugfs.c \
-	mali_kbase_tlstream.c
+	mali_kbase_tlstream.c \
+	mali_kbase_strings.c
 
 ifeq ($(MALI_UNIT_TEST),1)
 	SRC += mali_kbase_tlstream_test.c
@@ -120,6 +121,7 @@ endif
 ifeq ($(MALI_CUSTOMER_RELEASE),0)
 	SRC += mali_kbase_regs_dump_debugfs.c
 endif
+
 
 # Job Scheduler Policy: Completely Fair Scheduler
 SRC += mali_kbase_js_policy_cfs.c
@@ -198,9 +200,10 @@ obj-$(CONFIG_MALI_MIDGARD) += mali_kbase.o
 # Tell the Linux build system to enable building of our .c files
 mali_kbase-y := $(SRC:.c=.o)
 
+mali_kbase-$(CONFIG_MALI_DMA_FENCE) += mali_kbase_dma_fence.o
+
 ifneq ($(wildcard $(src)/internal/Kbuild),)
 ifeq ($(MALI_CUSTOMER_RELEASE),0)
-# This include may set MALI_BACKEND_PATH and CONFIG_MALI_BACKEND_REAL
 include  $(src)/internal/Kbuild
 mali_kbase-y += $(INTERNAL:.c=.o)
 endif

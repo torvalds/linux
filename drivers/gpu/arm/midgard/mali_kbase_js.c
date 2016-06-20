@@ -2665,6 +2665,7 @@ static void js_return_worker(struct work_struct *data)
 			WARN_ON(!kctx->ctx_runnable_ref);
 			kctx->ctx_runnable_ref = false;
 			atomic_dec(&kbdev->js_data.nr_contexts_runnable);
+			timer_sync = true;
 		}
 
 		if (kctx->as_nr != KBASEP_AS_NR_INVALID &&
@@ -2763,6 +2764,7 @@ bool kbase_js_complete_atom_wq(struct kbase_context *kctx,
 			WARN_ON(!kctx->ctx_runnable_ref);
 			kctx->ctx_runnable_ref = false;
 			atomic_dec(&kbdev->js_data.nr_contexts_runnable);
+			timer_sync = true;
 		}
 	}
 	WARN_ON(katom->atom_flags & KBASE_KATOM_FLAG_JSCTX_IN_LL);

@@ -441,9 +441,10 @@ static struct kbase_vinstr_client *kbasep_vinstr_attach_client(
 	struct kbase_vinstr_client *cli;
 
 	KBASE_DEBUG_ASSERT(vinstr_ctx);
-	KBASE_DEBUG_ASSERT(buffer_count >= 0);
-	KBASE_DEBUG_ASSERT(buffer_count <= MAX_BUFFER_COUNT);
-	KBASE_DEBUG_ASSERT(!(buffer_count & (buffer_count - 1)));
+
+	if (buffer_count > MAX_BUFFER_COUNT
+	    || (buffer_count & (buffer_count - 1)))
+		return NULL;
 
 	cli = kzalloc(sizeof(*cli), GFP_KERNEL);
 	if (!cli)
@@ -497,7 +498,7 @@ static struct kbase_vinstr_client *kbasep_vinstr_attach_client(
 
 		/* Allocate required number of dumping buffers. */
 		cli->dump_buffers = (char *)__get_free_pages(
-				GFP_KERNEL,
+				GFP_KERNEL | __GFP_ZERO,
 				get_order(cli->dump_size * cli->buffer_count));
 		if (!cli->dump_buffers)
 			goto error;
@@ -1517,7 +1518,8 @@ static int kbasep_vinstr_hwcnt_reader_mmap(struct file *filp,
 		struct vm_area_struct *vma)
 {
 	struct kbase_vinstr_client *cli;
-	size_t                     size;
+	unsigned long size, addr, pfn, offset;
+	unsigned long vm_size = vma->vm_end - vma->vm_start;
 
 	KBASE_DEBUG_ASSERT(filp);
 	KBASE_DEBUG_ASSERT(vma);
@@ -1526,14 +1528,24 @@ static int kbasep_vinstr_hwcnt_reader_mmap(struct file *filp,
 	KBASE_DEBUG_ASSERT(cli);
 
 	size = cli->buffer_count * cli->dump_size;
-	if (vma->vm_end - vma->vm_start > size)
-		return -ENOMEM;
+
+	if (vma->vm_pgoff > (size >> PAGE_SHIFT))
+		return -EINVAL;
+	if (vm_size > size)
+		return -EINVAL;
+
+	offset = vma->vm_pgoff << PAGE_SHIFT;
+	if ((vm_size + offset) > size)
+		return -EINVAL;
+
+	addr = __pa((unsigned long)cli->dump_buffers + offset);
+	pfn = addr >> PAGE_SHIFT;
 
 	return remap_pfn_range(
 			vma,
 			vma->vm_start,
-			__pa((unsigned long)cli->dump_buffers) >> PAGE_SHIFT,
-			size,
+			pfn,
+			vm_size,
 			vma->vm_page_prot);
 }
 

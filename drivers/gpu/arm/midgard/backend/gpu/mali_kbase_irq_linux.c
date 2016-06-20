@@ -1,6 +1,6 @@
 /*
  *
- * (C) COPYRIGHT 2014-2015 ARM Limited. All rights reserved.
+ * (C) COPYRIGHT 2014-2016 ARM Limited. All rights reserved.
  *
  * This program is free software and is provided to you under the terms of the
  * GNU General Public License version 2 as published by the Free Software
@@ -28,7 +28,6 @@
 #define MMU_IRQ_TAG	1
 #define GPU_IRQ_TAG	2
 
-
 static void *kbase_tag(void *ptr, u32 tag)
 {
 	return (void *)(((uintptr_t) ptr) | tag);
@@ -38,9 +37,6 @@ static void *kbase_untag(void *ptr)
 {
 	return (void *)(((uintptr_t) ptr) & ~3);
 }
-
-
-
 
 static irqreturn_t kbase_job_irq_handler(int irq, void *data)
 {
@@ -151,12 +147,12 @@ static irqreturn_t kbase_gpu_irq_handler(int irq, void *data)
 
 	return IRQ_HANDLED;
 }
+
 static irq_handler_t kbase_handler_table[] = {
 	[JOB_IRQ_TAG] = kbase_job_irq_handler,
 	[MMU_IRQ_TAG] = kbase_mmu_irq_handler,
 	[GPU_IRQ_TAG] = kbase_gpu_irq_handler,
 };
-
 
 #ifdef CONFIG_MALI_DEBUG
 #define  JOB_IRQ_HANDLER JOB_IRQ_TAG

@@ -65,6 +65,8 @@ kbase_create_context(struct kbase_device *kbdev, bool is_compat)
 	kctx->process_mm = NULL;
 	atomic_set(&kctx->nonmapped_pages, 0);
 	kctx->slots_pullable = 0;
+	kctx->tgid = current->tgid;
+	kctx->pid = current->pid;
 
 	err = kbase_mem_pool_init(&kctx->mem_pool,
 			kbdev->mem_pool_max_size_default,
@@ -97,10 +99,13 @@ kbase_create_context(struct kbase_device *kbdev, bool is_compat)
 #ifdef CONFIG_KDS
 	INIT_LIST_HEAD(&kctx->waiting_kds_resource);
 #endif
+	err = kbase_dma_fence_init(kctx);
+	if (err)
+		goto free_event;
 
 	err = kbase_mmu_init(kctx);
 	if (err)
-		goto free_event;
+		goto term_dma_fence;
 
 	kctx->pgd = kbase_mmu_alloc_pgd(kctx);
 	if (!kctx->pgd)
@@ -110,8 +115,6 @@ kbase_create_context(struct kbase_device *kbdev, bool is_compat)
 	if (!kctx->aliasing_sink_page)
 		goto no_sink_page;
 
-	kctx->tgid = current->tgid;
-	kctx->pid = current->pid;
 	init_waitqueue_head(&kctx->event_queue);
 
 	kctx->cookies = KBASE_COOKIE_MASK;
@@ -160,6 +163,8 @@ no_sink_page:
 	kbase_gpu_vm_unlock(kctx);
 free_mmu:
 	kbase_mmu_term(kctx);
+term_dma_fence:
+	kbase_dma_fence_term(kctx);
 free_event:
 	kbase_event_cleanup(kctx);
 free_jd:
@@ -253,6 +258,8 @@ void kbase_destroy_context(struct kbase_context *kctx)
 	kbase_jd_exit(kctx);
 
 	kbase_pm_context_idle(kbdev);
+
+	kbase_dma_fence_term(kctx);
 
 	kbase_mmu_term(kctx);
 

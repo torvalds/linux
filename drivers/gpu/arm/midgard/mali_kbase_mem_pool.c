@@ -264,6 +264,8 @@ static size_t kbase_mem_pool_grow(struct kbase_mem_pool *pool,
 
 	for (i = 0; i < nr_to_grow && !kbase_mem_pool_is_full(pool); i++) {
 		p = kbase_mem_pool_alloc_page(pool);
+		if (!p)
+			break;
 		kbase_mem_pool_add(pool, p);
 	}
 

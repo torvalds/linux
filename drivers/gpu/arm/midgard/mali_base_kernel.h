@@ -173,7 +173,10 @@ enum {
 	BASE_MEM_SECURE = (1U << 16),          /**< Secure memory */
 	BASE_MEM_DONT_NEED = (1U << 17),       /**< Not needed physical
 						    memory */
-
+	BASE_MEM_IMPORT_SHARED = (1U << 18),   /**< Must use shared CPU/GPU zone
+						    (SAME_VA zone) but doesn't
+						    require the addresses to
+						    be the same */
 };
 
 /**
@@ -181,7 +184,7 @@ enum {
  *
  * Must be kept in sync with the ::base_mem_alloc_flags flags
  */
-#define BASE_MEM_FLAGS_NR_BITS 18
+#define BASE_MEM_FLAGS_NR_BITS 19
 
 /**
   * A mask for all output bits, excluding IN/OUT bits.
@@ -470,6 +473,8 @@ typedef u16 base_jd_core_req;
  * If this bit is set then completion of this atom will not cause an event to
  * be sent to userspace, whether successful or not; completion events will be
  * deferred until an atom completes which does not have this bit set.
+ *
+ * This bit may not be used in combination with BASE_JD_REQ_EXTERNAL_RESOURCES.
  */
 #define BASE_JD_REQ_EVENT_COALESCE (1U << 5)
 
@@ -492,6 +497,8 @@ typedef u16 base_jd_core_req;
  * but should instead be part of a NULL jobs inserted into the dependency tree.
  * The first pre_dep object must be configured for the external resouces to use,
  * the second pre_dep object can be used to create other dependencies.
+ *
+ * This bit may not be used in combination with BASE_JD_REQ_EVENT_COALESCE.
  */
 #define BASE_JD_REQ_EXTERNAL_RESOURCES   (1U << 8)
 
@@ -817,6 +824,7 @@ struct base_external_resource_list {
 struct base_jd_debug_copy_buffer {
 	u64 address;
 	u64 size;
+	struct base_external_resource extres;
 };
 
 /**

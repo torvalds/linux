@@ -53,6 +53,8 @@
 #include "sync.h"
 #endif				/* CONFIG_SYNC */
 
+#include "mali_kbase_dma_fence.h"
+
 #ifdef CONFIG_DEBUG_FS
 #include <linux/debugfs.h>
 #endif				/* CONFIG_DEBUG_FS */
@@ -350,6 +352,59 @@ struct kbase_jd_atom {
 	struct sync_fence *fence;
 	struct sync_fence_waiter sync_waiter;
 #endif				/* CONFIG_SYNC */
+#ifdef CONFIG_MALI_DMA_FENCE
+	struct {
+		/* This points to the dma-buf fence for this atom. If this is
+		 * NULL then there is no fence for this atom and the other
+		 * fields related to dma_fence may have invalid data.
+		 *
+		 * The context and seqno fields contain the details for this
+		 * fence.
+		 *
+		 * This fence is signaled when the katom is completed,
+		 * regardless of the event_code of the katom (signal also on
+		 * failure).
+		 */
+		struct fence *fence;
+		/* The dma-buf fence context number for this atom. A unique
+		 * context number is allocated to each katom in the context on
+		 * context creation.
+		 */
+		unsigned int context;
+		/* The dma-buf fence sequence number for this atom. This is
+		 * increased every time this katom uses dma-buf fence.
+		 */
+		atomic_t seqno;
+		/* This contains a list of all callbacks set up to wait on
+		 * other fences.  This atom must be held back from JS until all
+		 * these callbacks have been called and dep_count have reached
+		 * 0. The initial value of dep_count must be equal to the
+		 * number of callbacks on this list.
+		 *
+		 * This list is protected by jctx.lock. Callbacks are added to
+		 * this list when the atom is built and the wait are set up.
+		 * All the callbacks then stay on the list until all callbacks
+		 * have been called and the atom is queued, or cancelled, and
+		 * then all callbacks are taken off the list and freed.
+		 */
+		struct list_head callbacks;
+		/* Atomic counter of number of outstandind dma-buf fence
+		 * dependencies for this atom. When dep_count reaches 0 the
+		 * atom may be queued.
+		 *
+		 * The special value "-1" may only be set after the count
+		 * reaches 0, while holding jctx.lock. This indicates that the
+		 * atom has been handled, either queued in JS or cancelled.
+		 *
+		 * If anyone but the dma-fence worker sets this to -1 they must
+		 * ensure that any potentially queued worker must have
+		 * completed before allowing the atom to be marked as unused.
+		 * This can be done by flushing the fence work queue:
+		 * kctx->dma_fence.wq.
+		 */
+		atomic_t dep_count;
+	} dma_fence;
+#endif /* CONFIG_MALI_DMA_FENCE */
 
 	/* Note: refer to kbasep_js_atom_retained_state, which will take a copy of some of the following members */
 	enum base_jd_event_code event_code;
@@ -799,10 +854,12 @@ struct kbase_device {
 	u64 reg_start;
 	size_t reg_size;
 	void __iomem *reg;
+
 	struct {
 		int irq;
 		int flags;
 	} irqs[3];
+
 	struct clk *clock;
 #ifdef CONFIG_REGULATOR
 	struct regulator *regulator;
@@ -817,7 +874,7 @@ struct kbase_device {
 	atomic_t serving_gpu_irq;
 	atomic_t serving_mmu_irq;
 	spinlock_t reg_op_lock;
-#endif				/* CONFIG_MALI_NO_MALI */
+#endif	/* CONFIG_MALI_NO_MALI */
 
 	struct kbase_pm_device_data pm;
 	struct kbasep_js_device_data js_data;
@@ -982,6 +1039,7 @@ struct kbase_device {
 	wait_queue_head_t job_fault_resume_wq;
 	struct workqueue_struct *job_fault_resume_workq;
 	struct list_head job_fault_event_list;
+	spinlock_t job_fault_event_lock;
 	struct kbase_context *kctx_fault;
 
 #if !MALI_CUSTOMER_RELEASE
@@ -1203,6 +1261,12 @@ struct kbase_context {
 #ifdef CONFIG_KDS
 	struct list_head waiting_kds_resource;
 #endif
+#ifdef CONFIG_MALI_DMA_FENCE
+	struct {
+		struct list_head waiting_resource;
+		struct workqueue_struct *wq;
+	} dma_fence;
+#endif /* CONFIG_MALI_DMA_FENCE */
 	/** This is effectively part of the Run Pool, because it only has a valid
 	 * setting (!=KBASEP_AS_NR_INVALID) whilst the context is scheduled in
 	 *
@@ -1318,8 +1382,6 @@ struct kbase_context {
  *                                 which is mapped.
  * @gpu_addr:                      The GPU virtual address the resource is
  *                                 mapped to.
- * @refcount:                      Refcount to keep track of the number of
- *                                 active mappings.
  *
  * External resources can be mapped into multiple contexts as well as the same
  * context multiple times.
@@ -1327,7 +1389,7 @@ struct kbase_context {
  * information to it as it could be removed under our feet leaving external
  * resources pinned.
  * This metadata structure binds a single external resource to a single
- * context, ensuring that per context refcount is tracked separately so it can
+ * context, ensuring that per context mapping is tracked separately so it can
  * be overridden when needed and abuses by the application (freeing the resource
  * multiple times) don't effect the refcount of the physical allocation.
  */
@@ -1335,7 +1397,6 @@ struct kbase_ctx_ext_res_meta {
 	struct list_head ext_res_node;
 	struct kbase_mem_phy_alloc *alloc;
 	u64 gpu_addr;
-	u64 refcount;
 };
 
 enum kbase_reg_access_type {

@@ -1,6 +1,6 @@
 /*
  *
- * (C) COPYRIGHT 2012-2015 ARM Limited. All rights reserved.
+ * (C) COPYRIGHT 2012-2016 ARM Limited. All rights reserved.
  *
  * This program is free software and is provided to you under the terms of the
  * GNU General Public License version 2 as published by the Free Software
@@ -385,7 +385,6 @@ TRACE_EVENT(mali_timeline_context_active,
 			(int)__entry->ts_nsec,
 			__entry->count)
 );
-
 
 #endif /* _MALI_TIMELINE_H */
 
