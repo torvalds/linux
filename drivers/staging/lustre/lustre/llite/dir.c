@@ -1097,8 +1097,7 @@ static int quotactl_ioctl(struct ll_sb_info *sbi, struct if_quotactl *qctl)
 	case Q_QUOTAOFF:
 	case Q_SETQUOTA:
 	case Q_SETINFO:
-		if (!capable(CFS_CAP_SYS_ADMIN) ||
-		    sbi->ll_flags & LL_SBI_RMT_CLIENT)
+		if (!capable(CFS_CAP_SYS_ADMIN))
 			return -EPERM;
 		break;
 	case Q_GETQUOTA:
@@ -1106,8 +1105,7 @@ static int quotactl_ioctl(struct ll_sb_info *sbi, struct if_quotactl *qctl)
 		      !uid_eq(current_euid(), make_kuid(&init_user_ns, id))) ||
 		     (type == GRPQUOTA &&
 		      !in_egroup_p(make_kgid(&init_user_ns, id)))) &&
-		    (!capable(CFS_CAP_SYS_ADMIN) ||
-		     sbi->ll_flags & LL_SBI_RMT_CLIENT))
+		      !capable(CFS_CAP_SYS_ADMIN))
 			return -EPERM;
 		break;
 	case Q_GETINFO:
@@ -1118,9 +1116,6 @@ static int quotactl_ioctl(struct ll_sb_info *sbi, struct if_quotactl *qctl)
 	}
 
 	if (valid != QC_GENERAL) {
-		if (sbi->ll_flags & LL_SBI_RMT_CLIENT)
-			return -EOPNOTSUPP;
-
 		if (cmd == Q_GETINFO)
 			qctl->qc_cmd = Q_GETOINFO;
 		else if (cmd == Q_GETQUOTA)
@@ -1621,8 +1616,7 @@ free_lmm:
 		struct obd_quotactl *oqctl;
 		int error = 0;
 
-		if (!capable(CFS_CAP_SYS_ADMIN) ||
-		    sbi->ll_flags & LL_SBI_RMT_CLIENT)
+		if (!capable(CFS_CAP_SYS_ADMIN))
 			return -EPERM;
 
 		oqctl = kzalloc(sizeof(*oqctl), GFP_NOFS);
@@ -1645,8 +1639,7 @@ free_lmm:
 	case OBD_IOC_POLL_QUOTACHECK: {
 		struct if_quotacheck *check;
 
-		if (!capable(CFS_CAP_SYS_ADMIN) ||
-		    sbi->ll_flags & LL_SBI_RMT_CLIENT)
+		if (!capable(CFS_CAP_SYS_ADMIN))
 			return -EPERM;
 
 		check = kzalloc(sizeof(*check), GFP_NOFS);
@@ -1703,20 +1696,6 @@ out_quotactl:
 		return ll_get_obd_name(inode, cmd, arg);
 	case LL_IOC_FLUSHCTX:
 		return ll_flush_ctx(inode);
-#ifdef CONFIG_FS_POSIX_ACL
-	case LL_IOC_RMTACL: {
-		if (sbi->ll_flags & LL_SBI_RMT_CLIENT && is_root_inode(inode)) {
-			struct ll_file_data *fd = LUSTRE_FPRIVATE(file);
-
-			rc = rct_add(&sbi->ll_rct, current_pid(), arg);
-			if (!rc)
-				fd->fd_flags |= LL_FILE_RMTACL;
-			return rc;
-		} else {
-			return 0;
-		}
-	}
-#endif
 	case LL_IOC_GETOBDCOUNT: {
 		int count, vallen;
 		struct obd_export *exp;

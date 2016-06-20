@@ -176,11 +176,7 @@ LUSTRE_RO_ATTR(filesfree);
 static ssize_t client_type_show(struct kobject *kobj, struct attribute *attr,
 				char *buf)
 {
-	struct ll_sb_info *sbi = container_of(kobj, struct ll_sb_info,
-					      ll_kobj);
-
-	return sprintf(buf, "%s client\n",
-			sbi->ll_flags & LL_SBI_RMT_CLIENT ? "remote" : "local");
+	return sprintf(buf, "local client\n");
 }
 LUSTRE_RO_ATTR(client_type);
 

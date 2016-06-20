@@ -1802,19 +1802,6 @@ void lustre_swab_obd_quotactl(struct obd_quotactl *q)
 }
 EXPORT_SYMBOL(lustre_swab_obd_quotactl);
 
-void lustre_swab_mdt_remote_perm(struct mdt_remote_perm *p)
-{
-	__swab32s(&p->rp_uid);
-	__swab32s(&p->rp_gid);
-	__swab32s(&p->rp_fsuid);
-	__swab32s(&p->rp_fsuid_h);
-	__swab32s(&p->rp_fsgid);
-	__swab32s(&p->rp_fsgid_h);
-	__swab32s(&p->rp_access_perm);
-	__swab32s(&p->rp_padding);
-};
-EXPORT_SYMBOL(lustre_swab_mdt_remote_perm);
-
 void lustre_swab_fid2path(struct getinfo_fid2path *gf)
 {
 	lustre_swab_lu_fid(&gf->gf_fid);

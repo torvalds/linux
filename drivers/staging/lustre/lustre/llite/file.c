@@ -344,18 +344,6 @@ int ll_file_release(struct inode *inode, struct file *file)
 	CDEBUG(D_VFSTRACE, "VFS Op:inode="DFID"(%p)\n",
 	       PFID(ll_inode2fid(inode)), inode);
 
-#ifdef CONFIG_FS_POSIX_ACL
-	if (sbi->ll_flags & LL_SBI_RMT_CLIENT && is_root_inode(inode)) {
-		struct ll_file_data *fd = LUSTRE_FPRIVATE(file);
-
-		if (unlikely(fd->fd_flags & LL_FILE_RMTACL)) {
-			fd->fd_flags &= ~LL_FILE_RMTACL;
-			rct_del(&sbi->ll_rct, current_pid());
-			et_search_free(&sbi->ll_et, current_pid());
-		}
-	}
-#endif
-
 	if (!is_root_inode(inode))
 		ll_stats_ops_tally(sbi, LPROC_LL_RELEASE, 1);
 	fd = LUSTRE_FPRIVATE(file);
@@ -3155,9 +3143,6 @@ int ll_inode_permission(struct inode *inode, int mask)
 
 	CDEBUG(D_VFSTRACE, "VFS Op:inode="DFID"(%p), inode mode %x mask %o\n",
 	       PFID(ll_inode2fid(inode)), inode, inode->i_mode, mask);
-
-	if (ll_i2sbi(inode)->ll_flags & LL_SBI_RMT_CLIENT)
-		return lustre_check_remote_perm(inode, mask);
 
 	ll_stats_ops_tally(ll_i2sbi(inode), LPROC_LL_INODE_PERM, 1);
 	rc = generic_permission(inode, mask);

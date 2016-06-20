@@ -357,7 +357,6 @@ void osc_page_submit(const struct lu_env *env, struct osc_page *opg,
 		     enum cl_req_type crt, int brw_flags)
 {
 	struct osc_async_page *oap = &opg->ops_oap;
-	struct osc_object *obj = oap->oap_obj;
 
 	LASSERTF(oap->oap_magic == OAP_MAGIC, "Bad oap magic: oap %p, magic 0x%x\n",
 		 oap, oap->oap_magic);
@@ -372,8 +371,7 @@ void osc_page_submit(const struct lu_env *env, struct osc_page *opg,
 	if (osc_over_unstable_soft_limit(oap->oap_cli))
 		oap->oap_brw_flags |= OBD_BRW_SOFT_SYNC;
 
-	if (!client_is_remote(osc_export(obj)) &&
-	    capable(CFS_CAP_SYS_RESOURCE)) {
+	if (capable(CFS_CAP_SYS_RESOURCE)) {
 		oap->oap_brw_flags |= OBD_BRW_NOQUOTA;
 		oap->oap_cmd |= OBD_BRW_NOQUOTA;
 	}

@@ -2607,27 +2607,6 @@ static int lmv_clear_open_replay_data(struct obd_export *exp,
 	return md_clear_open_replay_data(tgt->ltd_exp, och);
 }
 
-static int lmv_get_remote_perm(struct obd_export *exp,
-			       const struct lu_fid *fid,
-			       __u32 suppgid, struct ptlrpc_request **request)
-{
-	struct obd_device       *obd = exp->exp_obd;
-	struct lmv_obd	  *lmv = &obd->u.lmv;
-	struct lmv_tgt_desc     *tgt;
-	int		      rc;
-
-	rc = lmv_check_connect(obd);
-	if (rc)
-		return rc;
-
-	tgt = lmv_find_target(lmv, fid);
-	if (IS_ERR(tgt))
-		return PTR_ERR(tgt);
-
-	rc = md_get_remote_perm(tgt->ltd_exp, fid, suppgid, request);
-	return rc;
-}
-
 static int lmv_intent_getattr_async(struct obd_export *exp,
 				    struct md_enqueue_info *minfo,
 				    struct ldlm_enqueue_info *einfo)
@@ -2791,7 +2770,6 @@ static struct md_ops lmv_md_ops = {
 	.free_lustre_md		= lmv_free_lustre_md,
 	.set_open_replay_data	= lmv_set_open_replay_data,
 	.clear_open_replay_data	= lmv_clear_open_replay_data,
-	.get_remote_perm	= lmv_get_remote_perm,
 	.intent_getattr_async	= lmv_intent_getattr_async,
 	.revalidate_lock	= lmv_revalidate_lock
 };

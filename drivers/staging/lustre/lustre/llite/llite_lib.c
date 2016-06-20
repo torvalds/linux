@@ -171,8 +171,8 @@ static int client_common_fill_super(struct super_block *sb, char *md, char *dt,
 				  OBD_CONNECT_VERSION  | OBD_CONNECT_BRW_SIZE |
 				  OBD_CONNECT_CANCELSET | OBD_CONNECT_FID     |
 				  OBD_CONNECT_AT       | OBD_CONNECT_LOV_V3   |
-				  OBD_CONNECT_RMT_CLIENT | OBD_CONNECT_VBR    |
-				  OBD_CONNECT_FULL20   | OBD_CONNECT_64BITHASH|
+				  OBD_CONNECT_VBR	| OBD_CONNECT_FULL20  |
+				  OBD_CONNECT_64BITHASH |
 				  OBD_CONNECT_EINPROGRESS |
 				  OBD_CONNECT_JOBSTATS | OBD_CONNECT_LVB_TYPE |
 				  OBD_CONNECT_LAYOUTLOCK |
@@ -213,8 +213,6 @@ static int client_common_fill_super(struct super_block *sb, char *md, char *dt,
 
 	/* real client */
 	data->ocd_connect_flags |= OBD_CONNECT_REAL;
-	if (sbi->ll_flags & LL_SBI_RMT_CLIENT)
-		data->ocd_connect_flags |= OBD_CONNECT_RMT_CLIENT_FORCE;
 
 	data->ocd_brw_size = MD_MAX_BRW_SIZE;
 
@@ -307,18 +305,6 @@ static int client_common_fill_super(struct super_block *sb, char *md, char *dt,
 		sbi->ll_flags &= ~LL_SBI_ACL;
 	}
 
-	if (data->ocd_connect_flags & OBD_CONNECT_RMT_CLIENT) {
-		if (!(sbi->ll_flags & LL_SBI_RMT_CLIENT)) {
-			sbi->ll_flags |= LL_SBI_RMT_CLIENT;
-			LCONSOLE_INFO("client is set as remote by default.\n");
-		}
-	} else {
-		if (sbi->ll_flags & LL_SBI_RMT_CLIENT) {
-			sbi->ll_flags &= ~LL_SBI_RMT_CLIENT;
-			LCONSOLE_INFO("client claims to be remote, but server rejected, forced to be local.\n");
-		}
-	}
-
 	if (data->ocd_connect_flags & OBD_CONNECT_64BITHASH)
 		sbi->ll_flags |= LL_SBI_64BIT_HASH;
 
@@ -352,10 +338,9 @@ static int client_common_fill_super(struct super_block *sb, char *md, char *dt,
 				  OBD_CONNECT_REQPORTAL | OBD_CONNECT_BRW_SIZE |
 				  OBD_CONNECT_CANCELSET | OBD_CONNECT_FID      |
 				  OBD_CONNECT_SRVLOCK   | OBD_CONNECT_TRUNCLOCK|
-				  OBD_CONNECT_AT | OBD_CONNECT_RMT_CLIENT |
-				  OBD_CONNECT_OSS_CAPA | OBD_CONNECT_VBR|
-				  OBD_CONNECT_FULL20 | OBD_CONNECT_64BITHASH |
-				  OBD_CONNECT_MAXBYTES |
+				  OBD_CONNECT_AT	| OBD_CONNECT_OSS_CAPA |
+				  OBD_CONNECT_VBR	| OBD_CONNECT_FULL20   |
+				  OBD_CONNECT_64BITHASH | OBD_CONNECT_MAXBYTES |
 				  OBD_CONNECT_EINPROGRESS |
 				  OBD_CONNECT_JOBSTATS | OBD_CONNECT_LVB_TYPE |
 				  OBD_CONNECT_LAYOUTLOCK | OBD_CONNECT_PINGLESS;
@@ -378,8 +363,6 @@ static int client_common_fill_super(struct super_block *sb, char *md, char *dt,
 	}
 
 	data->ocd_connect_flags |= OBD_CONNECT_LRU_RESIZE;
-	if (sbi->ll_flags & LL_SBI_RMT_CLIENT)
-		data->ocd_connect_flags |= OBD_CONNECT_RMT_CLIENT_FORCE;
 
 	CDEBUG(D_RPCTRACE, "ocd_connect_flags: %#llx ocd_version: %d ocd_grant: %d\n",
 	       data->ocd_connect_flags,
@@ -442,9 +425,7 @@ static int client_common_fill_super(struct super_block *sb, char *md, char *dt,
 	 * XXX: move this to after cbd setup?
 	 */
 	valid = OBD_MD_FLGETATTR | OBD_MD_FLBLOCKS | OBD_MD_FLMODEASIZE;
-	if (sbi->ll_flags & LL_SBI_RMT_CLIENT)
-		valid |= OBD_MD_FLRMTPERM;
-	else if (sbi->ll_flags & LL_SBI_ACL)
+	if (sbi->ll_flags & LL_SBI_ACL)
 		valid |= OBD_MD_FLACL;
 
 	op_data = kzalloc(sizeof(*op_data), GFP_NOFS);
@@ -499,13 +480,6 @@ static int client_common_fill_super(struct super_block *sb, char *md, char *dt,
 		CERROR("cannot start close thread: rc %d\n", err);
 		goto out_root;
 	}
-
-#ifdef CONFIG_FS_POSIX_ACL
-	if (sbi->ll_flags & LL_SBI_RMT_CLIENT) {
-		rct_init(&sbi->ll_rct);
-		et_init(&sbi->ll_et);
-	}
-#endif
 
 	checksum = sbi->ll_flags & LL_SBI_CHECKSUM;
 	err = obd_set_info_async(NULL, sbi->ll_dt_exp, sizeof(KEY_CHECKSUM),
@@ -604,13 +578,6 @@ static void client_common_put_super(struct super_block *sb)
 {
 	struct ll_sb_info *sbi = ll_s2sbi(sb);
 
-#ifdef CONFIG_FS_POSIX_ACL
-	if (sbi->ll_flags & LL_SBI_RMT_CLIENT) {
-		et_fini(&sbi->ll_et);
-		rct_fini(&sbi->ll_rct);
-	}
-#endif
-
 	ll_close_thread_shutdown(sbi->ll_lcq);
 
 	cl_sb_fini(sb);
@@ -700,11 +667,6 @@ static int ll_options(char *options, int *flags)
 			*flags &= ~tmp;
 			goto next;
 		}
-		tmp = ll_set_opt("remote_client", s1, LL_SBI_RMT_CLIENT);
-		if (tmp) {
-			*flags |= tmp;
-			goto next;
-		}
 		tmp = ll_set_opt("user_fid2path", s1, LL_SBI_USER_FID2PATH);
 		if (tmp) {
 			*flags |= tmp;
@@ -788,12 +750,9 @@ void ll_lli_init(struct ll_inode_info *lli)
 	lli->lli_maxbytes = MAX_LFS_FILESIZE;
 	spin_lock_init(&lli->lli_lock);
 	lli->lli_posix_acl = NULL;
-	lli->lli_remote_perms = NULL;
-	mutex_init(&lli->lli_rmtperm_mutex);
 	/* Do not set lli_fid, it has been initialized already. */
 	fid_zero(&lli->lli_pfid);
 	INIT_LIST_HEAD(&lli->lli_close_list);
-	lli->lli_rmtperm_time = 0;
 	lli->lli_pending_och = NULL;
 	lli->lli_mds_read_och = NULL;
 	lli->lli_mds_write_och = NULL;
@@ -1075,17 +1034,9 @@ void ll_clear_inode(struct inode *inode)
 
 	ll_xattr_cache_destroy(inode);
 
-	if (sbi->ll_flags & LL_SBI_RMT_CLIENT) {
-		LASSERT(!lli->lli_posix_acl);
-		if (lli->lli_remote_perms) {
-			free_rmtperm_hash(lli->lli_remote_perms);
-			lli->lli_remote_perms = NULL;
-		}
-	}
 #ifdef CONFIG_FS_POSIX_ACL
-	else if (lli->lli_posix_acl) {
+	if (lli->lli_posix_acl) {
 		LASSERT(atomic_read(&lli->lli_posix_acl->a_refcount) == 1);
-		LASSERT(!lli->lli_remote_perms);
 		posix_acl_release(lli->lli_posix_acl);
 		lli->lli_posix_acl = NULL;
 	}
@@ -1537,12 +1488,8 @@ void ll_update_inode(struct inode *inode, struct lustre_md *md)
 			lli->lli_maxbytes = MAX_LFS_FILESIZE;
 	}
 
-	if (sbi->ll_flags & LL_SBI_RMT_CLIENT) {
-		if (body->valid & OBD_MD_FLRMTPERM)
-			ll_update_remote_perm(inode, md->remote_perm);
-	}
 #ifdef CONFIG_FS_POSIX_ACL
-	else if (body->valid & OBD_MD_FLACL) {
+	if (body->valid & OBD_MD_FLACL) {
 		spin_lock(&lli->lli_lock);
 		if (lli->lli_posix_acl)
 			posix_acl_release(lli->lli_posix_acl);

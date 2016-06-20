@@ -1384,7 +1384,6 @@ struct ptlrpc_request {
 				 rq_bulk_write:1,    /* request bulk write */
 				 /* server authentication flags */
 				 rq_auth_gss:1,      /* authenticated by gss */
-				 rq_auth_remote:1,   /* authed as remote user */
 				 rq_auth_usr_root:1, /* authed as root */
 				 rq_auth_usr_mdt:1,  /* authed as mdt */
 				 rq_auth_usr_ost:1,  /* authed as ost */

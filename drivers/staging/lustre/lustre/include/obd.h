@@ -1115,9 +1115,6 @@ struct md_ops {
 			     ldlm_policy_data_t *, enum ldlm_mode,
 			     enum ldlm_cancel_flags flags, void *opaque);
 
-	int (*get_remote_perm)(struct obd_export *, const struct lu_fid *,
-			       __u32, struct ptlrpc_request **);
-
 	int (*intent_getattr_async)(struct obd_export *,
 				    struct md_enqueue_info *,
 				    struct ldlm_enqueue_info *);
