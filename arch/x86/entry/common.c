@@ -43,7 +43,7 @@ static struct thread_info *pt_regs_to_thread_info(struct pt_regs *regs)
 __visible void enter_from_user_mode(void)
 {
 	CT_WARN_ON(ct_state() != CONTEXT_USER);
-	user_exit();
+	user_exit_irqoff();
 }
 #else
 static inline void enter_from_user_mode(void) {}
@@ -274,7 +274,7 @@ __visible inline void prepare_exit_to_usermode(struct pt_regs *regs)
 	ti->status &= ~TS_COMPAT;
 #endif
 
-	user_enter();
+	user_enter_irqoff();
 }
 
 #define SYSCALL_EXIT_WORK_FLAGS				\

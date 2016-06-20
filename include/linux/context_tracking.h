@@ -31,6 +31,19 @@ static inline void user_exit(void)
 		context_tracking_exit(CONTEXT_USER);
 }
 
+/* Called with interrupts disabled.  */
+static inline void user_enter_irqoff(void)
+{
+	if (context_tracking_is_enabled())
+		__context_tracking_enter(CONTEXT_USER);
+
+}
+static inline void user_exit_irqoff(void)
+{
+	if (context_tracking_is_enabled())
+		__context_tracking_exit(CONTEXT_USER);
+}
+
 static inline enum ctx_state exception_enter(void)
 {
 	enum ctx_state prev_ctx;
@@ -69,6 +82,8 @@ static inline enum ctx_state ct_state(void)
 #else
 static inline void user_enter(void) { }
 static inline void user_exit(void) { }
+static inline void user_enter_irqoff(void) { }
+static inline void user_exit_irqoff(void) { }
 static inline enum ctx_state exception_enter(void) { return 0; }
 static inline void exception_exit(enum ctx_state prev_ctx) { }
 static inline enum ctx_state ct_state(void) { return CONTEXT_DISABLED; }
