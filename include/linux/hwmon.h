@@ -32,6 +32,7 @@ enum hwmon_chip_attributes {
 	hwmon_chip_temp_reset_history,
 	hwmon_chip_in_reset_history,
 	hwmon_chip_curr_reset_history,
+	hwmon_chip_power_reset_history,
 	hwmon_chip_register_tz,
 	hwmon_chip_update_interval,
 	hwmon_chip_alarms,
@@ -40,6 +41,7 @@ enum hwmon_chip_attributes {
 #define HWMON_C_TEMP_RESET_HISTORY	BIT(hwmon_chip_temp_reset_history)
 #define HWMON_C_IN_RESET_HISTORY	BIT(hwmon_chip_in_reset_history)
 #define HWMON_C_CURR_RESET_HISTORY	BIT(hwmon_chip_curr_reset_history)
+#define HWMON_C_POWER_RESET_HISTORY	BIT(hwmon_chip_power_reset_history)
 #define HWMON_C_REGISTER_TZ		BIT(hwmon_chip_register_tz)
 #define HWMON_C_UPDATE_INTERVAL		BIT(hwmon_chip_update_interval)
 #define HWMON_C_ALARMS			BIT(hwmon_chip_alarms)
@@ -161,6 +163,58 @@ enum hwmon_curr_attributes {
 #define HWMON_C_MAX_ALARM	BIT(hwmon_curr_max_alarm)
 #define HWMON_C_LCRIT_ALARM	BIT(hwmon_curr_lcrit_alarm)
 #define HWMON_C_CRIT_ALARM	BIT(hwmon_curr_crit_alarm)
+
+enum hwmon_power_attributes {
+	hwmon_power_average,
+	hwmon_power_average_interval,
+	hwmon_power_average_interval_max,
+	hwmon_power_average_interval_min,
+	hwmon_power_average_highest,
+	hwmon_power_average_lowest,
+	hwmon_power_average_max,
+	hwmon_power_average_min,
+	hwmon_power_input,
+	hwmon_power_input_highest,
+	hwmon_power_input_lowest,
+	hwmon_power_reset_history,
+	hwmon_power_accuracy,
+	hwmon_power_cap,
+	hwmon_power_cap_hyst,
+	hwmon_power_cap_max,
+	hwmon_power_cap_min,
+	hwmon_power_max,
+	hwmon_power_crit,
+	hwmon_power_label,
+	hwmon_power_alarm,
+	hwmon_power_cap_alarm,
+	hwmon_power_max_alarm,
+	hwmon_power_crit_alarm,
+};
+
+#define HWMON_P_AVERAGE			BIT(hwmon_power_average)
+#define HWMON_P_AVERAGE_INTERVAL	BIT(hwmon_power_average_interval)
+#define HWMON_P_AVERAGE_INTERVAL_MAX	BIT(hwmon_power_average_interval_max)
+#define HWMON_P_AVERAGE_INTERVAL_MIN	BIT(hwmon_power_average_interval_min)
+#define HWMON_P_AVERAGE_HIGHEST		BIT(hwmon_power_average_highest)
+#define HWMON_P_AVERAGE_LOWEST		BIT(hwmon_power_average_lowest)
+#define HWMON_P_AVERAGE_MAX		BIT(hwmon_power_average_max)
+#define HWMON_P_AVERAGE_MIN		BIT(hwmon_power_average_min)
+#define HWMON_P_INPUT			BIT(hwmon_power_input)
+#define HWMON_P_INPUT_HIGHEST		BIT(hwmon_power_input_highest)
+#define HWMON_P_INPUT_LOWEST		BIT(hwmon_power_input_lowest)
+#define HWMON_P_RESET_HISTORY		BIT(hwmon_power_reset_history)
+#define HWMON_P_ACCURACY		BIT(hwmon_power_accuracy)
+#define HWMON_P_CAP			BIT(hwmon_power_cap)
+#define HWMON_P_CAP_HYST		BIT(hwmon_power_cap_hyst)
+#define HWMON_P_CAP_MAX			BIT(hwmon_power_cap_max)
+#define HWMON_P_CAP_MIN			BIT(hwmon_power_cap_min)
+#define HWMON_P_MAX			BIT(hwmon_power_max)
+#define HWMON_P_CRIT			BIT(hwmon_power_crit)
+#define HWMON_P_LABEL			BIT(hwmon_power_label)
+#define HWMON_P_ALARM			BIT(hwmon_power_alarm)
+#define HWMON_P_CAP_ALARM		BIT(hwmon_power_cap_alarm)
+#define HWMON_P_MAX_ALARM		BIT(hwmon_power_max_alarm)
+#define HWMON_P_CRIT_ALARM		BIT(hwmon_power_crit_alarm)
 
 /**
  * struct hwmon_ops - hwmon device operations

@@ -261,6 +261,7 @@ static const char * const hwmon_chip_attr_templates[] = {
 	[hwmon_chip_temp_reset_history] = "temp_reset_history",
 	[hwmon_chip_in_reset_history] = "in_reset_history",
 	[hwmon_chip_curr_reset_history] = "curr_reset_history",
+	[hwmon_chip_power_reset_history] = "power_reset_history",
 	[hwmon_chip_update_interval] = "update_interval",
 	[hwmon_chip_alarms] = "alarms",
 };
@@ -328,11 +329,39 @@ static const char * const hwmon_curr_attr_templates[] = {
 	[hwmon_curr_crit_alarm] = "curr%d_crit_alarm",
 };
 
+static const char * const hwmon_power_attr_templates[] = {
+	[hwmon_power_average] = "power%d_average",
+	[hwmon_power_average_interval] = "power%d_average_interval",
+	[hwmon_power_average_interval_max] = "power%d_interval_max",
+	[hwmon_power_average_interval_min] = "power%d_interval_min",
+	[hwmon_power_average_highest] = "power%d_average_highest",
+	[hwmon_power_average_lowest] = "power%d_average_lowest",
+	[hwmon_power_average_max] = "power%d_average_max",
+	[hwmon_power_average_min] = "power%d_average_min",
+	[hwmon_power_input] = "power%d_input",
+	[hwmon_power_input_highest] = "power%d_input_highest",
+	[hwmon_power_input_lowest] = "power%d_input_lowest",
+	[hwmon_power_reset_history] = "power%d_reset_history",
+	[hwmon_power_accuracy] = "power%d_accuracy",
+	[hwmon_power_cap] = "power%d_cap",
+	[hwmon_power_cap_hyst] = "power%d_cap_hyst",
+	[hwmon_power_cap_max] = "power%d_cap_max",
+	[hwmon_power_cap_min] = "power%d_cap_min",
+	[hwmon_power_max] = "power%d_max",
+	[hwmon_power_crit] = "power%d_crit",
+	[hwmon_power_label] = "power%d_label",
+	[hwmon_power_alarm] = "power%d_alarm",
+	[hwmon_power_cap_alarm] = "power%d_cap_alarm",
+	[hwmon_power_max_alarm] = "power%d_max_alarm",
+	[hwmon_power_crit_alarm] = "power%d_crit_alarm",
+};
+
 static const char * const *__templates[] = {
 	[hwmon_chip] = hwmon_chip_attr_templates,
 	[hwmon_temp] = hwmon_temp_attr_templates,
 	[hwmon_in] = hwmon_in_attr_templates,
 	[hwmon_curr] = hwmon_curr_attr_templates,
+	[hwmon_power] = hwmon_power_attr_templates,
 };
 
 static const int __templates_size[] = {
@@ -340,6 +369,7 @@ static const int __templates_size[] = {
 	[hwmon_temp] = ARRAY_SIZE(hwmon_temp_attr_templates),
 	[hwmon_in] = ARRAY_SIZE(hwmon_in_attr_templates),
 	[hwmon_curr] = ARRAY_SIZE(hwmon_curr_attr_templates),
+	[hwmon_power] = ARRAY_SIZE(hwmon_power_attr_templates),
 };
 
 static int hwmon_num_channel_attrs(const struct hwmon_channel_info *info)
