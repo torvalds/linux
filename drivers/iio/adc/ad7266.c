@@ -417,6 +417,10 @@ static int ad7266_probe(struct spi_device *spi)
 
 		st->vref_uv = ret;
 	} else {
+		/* Any other error indicates that the regulator does exist */
+		if (PTR_ERR(st->reg) != -ENODEV)
+			return PTR_ERR(st->reg);
+
 		/* Use internal reference */
 		st->vref_uv = 2500000;
 	}
