@@ -2701,7 +2701,6 @@ static int i915_sink_crc(struct seq_file *m, void *data)
 {
 	struct drm_info_node *node = m->private;
 	struct drm_device *dev = node->minor->dev;
-	struct intel_encoder *encoder;
 	struct intel_connector *connector;
 	struct intel_dp *intel_dp = NULL;
 	int ret;
@@ -2709,18 +2708,19 @@ static int i915_sink_crc(struct seq_file *m, void *data)
 
 	drm_modeset_lock_all(dev);
 	for_each_intel_connector(dev, connector) {
+		struct drm_crtc *crtc;
 
-		if (connector->base.dpms != DRM_MODE_DPMS_ON)
+		if (!connector->base.state->best_encoder)
 			continue;
 
-		if (!connector->base.encoder)
+		crtc = connector->base.state->crtc;
+		if (!crtc->state->active)
 			continue;
 
-		encoder = to_intel_encoder(connector->base.encoder);
-		if (encoder->type != INTEL_OUTPUT_EDP)
+		if (connector->base.connector_type != DRM_MODE_CONNECTOR_eDP)
 			continue;
 
-		intel_dp = enc_to_intel_dp(&encoder->base);
+		intel_dp = enc_to_intel_dp(connector->base.state->best_encoder);
 
 		ret = intel_dp_sink_crc(intel_dp, crc);
 		if (ret)
