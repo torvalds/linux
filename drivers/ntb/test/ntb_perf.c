@@ -273,6 +273,7 @@ static int perf_move_data(struct pthr_ctx *pctx, char __iomem *dst, char *src,
 	char __iomem *tmp = dst;
 	u64 perf, diff_us;
 	ktime_t kstart, kstop, kdiff;
+	unsigned long last_sleep = jiffies;
 
 	chunks = div64_u64(win_size, buf_size);
 	total_chunks = div64_u64(total, buf_size);
@@ -288,8 +289,9 @@ static int perf_move_data(struct pthr_ctx *pctx, char __iomem *dst, char *src,
 		} else
 			tmp += buf_size;
 
-		/* Probably should schedule every 4GB to prevent soft hang. */
-		if (((copied % SZ_4G) == 0) && !use_dma) {
+		/* Probably should schedule every 5s to prevent soft hang. */
+		if (unlikely((jiffies - last_sleep) > 5 * HZ)) {
+			last_sleep = jiffies;
 			set_current_state(TASK_INTERRUPTIBLE);
 			schedule_timeout(1);
 		}
