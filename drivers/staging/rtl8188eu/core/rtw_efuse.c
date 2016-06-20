@@ -846,12 +846,7 @@ hal_EfusePgCheckAvailableAddr(
 		u8 efuseType
 	)
 {
-	u16	efuse_max_available_len = 0;
-
-	/* Change to check TYPE_EFUSE_MAP_LEN , because 8188E raw 256, logic map over 256. */
-	EFUSE_GetEfuseDefinition(pAdapter, EFUSE_WIFI, TYPE_EFUSE_MAP_LEN, (void *)&efuse_max_available_len);
-
-	if (Efuse_GetCurrentSize(pAdapter) >= efuse_max_available_len)
+	if (Efuse_GetCurrentSize(pAdapter) >= EFUSE_MAP_LEN_88E)
 		return false;
 	return true;
 }
@@ -977,13 +972,9 @@ void efuse_WordEnableDataRead(u8 word_en, u8 *sourdata, u8 *targetdata)
  */
 static void Efuse_ReadAllMap(struct adapter *pAdapter, u8 efuseType, u8 *Efuse)
 {
-	u16 mapLen = 0;
-
 	Efuse_PowerSwitch(pAdapter, false, true);
 
-	EFUSE_GetEfuseDefinition(pAdapter, efuseType, TYPE_EFUSE_MAP_LEN, (void *)&mapLen);
-
-	efuse_ReadEFuse(pAdapter, efuseType, 0, mapLen, Efuse);
+	efuse_ReadEFuse(pAdapter, efuseType, 0, EFUSE_MAP_LEN_88E, Efuse);
 
 	Efuse_PowerSwitch(pAdapter, false, false);
 }
@@ -996,12 +987,9 @@ void EFUSE_ShadowMapUpdate(
 	u8 efuseType)
 {
 	struct eeprom_priv *pEEPROM = GET_EEPROM_EFUSE_PRIV(pAdapter);
-	u16 mapLen = 0;
-
-	EFUSE_GetEfuseDefinition(pAdapter, efuseType, TYPE_EFUSE_MAP_LEN, (void *)&mapLen);
 
 	if (pEEPROM->bautoload_fail_flag)
-		memset(pEEPROM->efuse_eeprom_data, 0xFF, mapLen);
+		memset(pEEPROM->efuse_eeprom_data, 0xFF, EFUSE_MAP_LEN_88E);
 	else
 		Efuse_ReadAllMap(pAdapter, efuseType, pEEPROM->efuse_eeprom_data);
 }
