@@ -2196,7 +2196,7 @@ void assert_qgroups_uptodate(struct btrfs_trans_handle *trans)
 {
 	if (list_empty(&trans->qgroup_ref_list) && !trans->delayed_ref_elem.seq)
 		return;
-	btrfs_err(trans->root->fs_info,
+	btrfs_err(trans->fs_info,
 		"qgroups not uptodate in trans handle %p:  list is%s empty, "
 		"seq is %#x.%x",
 		trans, list_empty(&trans->qgroup_ref_list) ? "" : " not",

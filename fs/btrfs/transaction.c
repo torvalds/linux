@@ -561,6 +561,7 @@ again:
 	h->transaction = cur_trans;
 	h->root = root;
 	h->use_count = 1;
+	h->fs_info = root->fs_info;
 
 	h->type = type;
 	h->can_flush_pending_bgs = true;

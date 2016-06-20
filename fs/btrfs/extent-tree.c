@@ -4589,7 +4589,7 @@ out:
 	 */
 	if (trans->can_flush_pending_bgs &&
 	    trans->chunk_bytes_reserved >= (u64)SZ_2M) {
-		btrfs_create_pending_block_groups(trans, trans->root);
+		btrfs_create_pending_block_groups(trans, extent_root);
 		btrfs_trans_release_chunk_metadata(trans);
 	}
 	return ret;
@@ -5730,7 +5730,7 @@ void btrfs_trans_release_metadata(struct btrfs_trans_handle *trans,
  */
 void btrfs_trans_release_chunk_metadata(struct btrfs_trans_handle *trans)
 {
-	struct btrfs_fs_info *fs_info = trans->root->fs_info;
+	struct btrfs_fs_info *fs_info = trans->fs_info;
 
 	if (!trans->chunk_bytes_reserved)
 		return;
@@ -8543,7 +8543,7 @@ static int record_one_subtree_extent(struct btrfs_trans_handle *trans,
 
 	delayed_refs = &trans->transaction->delayed_refs;
 	spin_lock(&delayed_refs->lock);
-	if (btrfs_qgroup_insert_dirty_extent(trans->root->fs_info,
+	if (btrfs_qgroup_insert_dirty_extent(trans->fs_info,
 					     delayed_refs, qrecord))
 		kfree(qrecord);
 	spin_unlock(&delayed_refs->lock);
