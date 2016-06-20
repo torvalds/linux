@@ -331,6 +331,15 @@ static const struct rockchip_vpu_codec_ops mode_ops[] = {
 		.reset = rk3288_vpu_dec_reset,
 	},
 	{
+		.codec_mode = RK3288_VPU_CODEC_H264E,
+		.init = rk3288_vpu_h264e_init,
+		.exit = rk3288_vpu_h264e_exit,
+		.irq = rk3288_vpu_enc_irq,
+		.run = rk3288_vpu_h264e_run,
+		.done = rk3288_vpu_h264e_done,
+		.reset = rk3288_vpu_enc_reset,
+	},
+	{
 		.codec_mode = RK3288_VPU_CODEC_H264D,
 		.init = rk3288_vpu_h264d_init,
 		.exit = rk3288_vpu_h264d_exit,
@@ -428,4 +437,32 @@ void rockchip_vpu_vp8e_assemble_bitstream(struct rockchip_vpu_ctx *ctx,
 
 	vb2_set_plane_payload(&dst_buf->vb.vb2_buf, 0,
 				hdr_size + ext_hdr_size + dct_size);
+}
+
+void rockchip_vpu_h264e_assemble_bitstream(struct rockchip_vpu_ctx *ctx,
+					struct rockchip_vpu_buf *dst_buf)
+{
+	size_t sps_size = dst_buf->h264e.sps_size;
+	size_t pps_size = dst_buf->h264e.pps_size;
+	size_t slices_size = dst_buf->h264e.slices_size;
+	size_t dst_size;
+	void *dst;
+
+	struct stream_s *sps = &ctx->run.h264e.sps;
+	struct stream_s *pps = &ctx->run.h264e.pps;
+
+	dst_size = vb2_plane_size(&dst_buf->vb.vb2_buf, 0);
+	dst = vb2_plane_vaddr(&dst_buf->vb.vb2_buf, 0);
+
+	if (WARN_ON(sps_size + pps_size + slices_size > dst_size))
+		return;
+
+	vpu_debug(1, "%s: sps_size = %u, pps_size = %u, slices_size = %u\n",
+		__func__, sps_size, pps_size, slices_size);
+
+	memcpy(dst, sps->buffer, sps_size);
+	memcpy(dst + sps_size, pps->buffer, pps_size);
+
+	vb2_set_plane_payload(&dst_buf->vb.vb2_buf, 0,
+			      sps_size + pps_size + slices_size);
 }

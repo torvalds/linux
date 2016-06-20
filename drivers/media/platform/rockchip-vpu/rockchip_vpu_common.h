@@ -77,20 +77,22 @@ struct rockchip_vpu_variant {
  * enum rockchip_vpu_codec_mode - codec operating mode.
  * @RK_VPU_CODEC_NONE:		Used for RAW video formats.
  * @RK3288_VPU_CODEC_H264D:	Rk3288 H264 decoder.
+ * @RK3288_VPU_CODEC_H264E:	Rk3288 H264 encoder.
  * @RK3288_VPU_CODEC_VP8D:	Rk3288 VP8 decoder.
  * @RK3288_VPU_CODEC_VP8E:	Rk3288 VP8 encoder.
  */
 enum rockchip_vpu_codec_mode {
 	RK_VPU_CODEC_NONE	= (1 << 0),
 	RK3288_VPU_CODEC_H264D	= (1 << 1),
-	RK3288_VPU_CODEC_VP8D	= (1 << 2),
-	RK3288_VPU_CODEC_VP8E	= (1 << 3),
+	RK3288_VPU_CODEC_H264E	= (1 << 2),
+	RK3288_VPU_CODEC_VP8D	= (1 << 3),
+	RK3288_VPU_CODEC_VP8E	= (1 << 4),
 };
 
 #define ROCKCHIP_VPU_DECODERS	(RK3288_VPU_CODEC_H264D | RK3288_VPU_CODEC_VP8D)
-#define ROCKCHIP_VPU_ENCODERS	(RK3288_VPU_CODEC_VP8E)
+#define ROCKCHIP_VPU_ENCODERS	(RK3288_VPU_CODEC_H264E | RK3288_VPU_CODEC_VP8E)
 
-#define RK3288_CODECS		(RK_VPU_CODEC_NONE | RK3288_VPU_CODEC_H264D | RK3288_VPU_CODEC_VP8D | RK3288_VPU_CODEC_VP8E)
+#define RK3288_CODECS		(RK_VPU_CODEC_NONE | RK3288_VPU_CODEC_H264D | RK3288_VPU_CODEC_H264E | RK3288_VPU_CODEC_VP8D | RK3288_VPU_CODEC_VP8E)
 
 /**
  * enum rockchip_vpu_plane - indices of planes inside a VB2 buffer.
@@ -124,6 +126,18 @@ struct rockchip_vpu_vp8e_buf_data {
 };
 
 /**
+ * struct rockchip_vpu_h264e_buf_data - mode-specific per-buffer data
+ * @sps_size:		Size of sps data in the buffer.
+ * @pps_size:		Size of pps data in the buffer.
+ * @slices_size:	Size of slices data in the buffer.
+ */
+struct rockchip_vpu_h264e_buf_data {
+	size_t sps_size;
+	size_t pps_size;
+	size_t slices_size;
+};
+
+/**
  * struct rockchip_vpu_buf - Private data related to each VB2 buffer.
  * @vb:			Pointer to related VB2 buffer.
  * @list:		List head for queuing in buffer queue.
@@ -134,6 +148,7 @@ struct rockchip_vpu_buf {
 
 	/* Mode-specific data. */
 	union {
+		struct rockchip_vpu_h264e_buf_data h264e;
 		struct rockchip_vpu_vp8e_buf_data vp8e;
 	};
 };
@@ -233,7 +248,7 @@ struct rockchip_vpu_run_ops {
  *		by user space.
  */
 struct rockchip_vpu_vp8e_run {
-		const struct rockchip_reg_params *reg_params;
+	const struct rockchip_reg_params *reg_params;
 };
 
 /**
@@ -266,6 +281,33 @@ struct rockchip_vpu_h264d_run {
 	u8 dpb_map[16];
 };
 
+/* struct for assemble bitstream */
+struct stream_s {
+	u8 *buffer; /* point to first byte of stream */
+	u8 *stream; /* Pointer to next byte of stream */
+	u32 size;   /* Byte size of stream buffer */
+	u32 byte_cnt;    /* Byte counter */
+	u32 bit_cnt; /* Bit counter */
+	u32 byte_buffer; /* Byte buffer */
+	u32 buffered_bits;   /* Amount of bits in byte buffer, [0-7] */
+	s32 overflow;    /* This will signal a buffer overflow */
+};
+
+void stream_put_bits(struct stream_s *buffer, s32 value, s32 number,
+		     const char *name);
+void stream_buffer_reset(struct stream_s *buffer);
+int stream_buffer_init(struct stream_s *buffer, u8 *stream, s32 size);
+
+/**
+ * struct rockchip_vpu_h264e_run - per-run data specific to H264 encoding.
+ */
+struct rockchip_vpu_h264e_run {
+	const struct rockchip_reg_params *reg_params;
+	struct stream_s sps;
+	struct stream_s pps;
+	u32 hw_write_offset;
+};
+
 /**
  * struct rockchip_vpu_run - per-run data for hardware code.
  * @src:		Source buffer to be processed.
@@ -286,6 +328,7 @@ struct rockchip_vpu_run {
 		struct rockchip_vpu_vp8e_run vp8e;
 		struct rockchip_vpu_vp8d_run vp8d;
 		struct rockchip_vpu_h264d_run h264d;
+		struct rockchip_vpu_h264e_run h264e;
 		/* Other modes will need different data. */
 	};
 };

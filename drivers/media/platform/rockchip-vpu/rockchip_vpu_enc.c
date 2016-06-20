@@ -95,6 +95,12 @@ static struct rockchip_vpu_fmt formats[] = {
 		.codec_mode = RK3288_VPU_CODEC_VP8E,
 		.num_planes = 1,
 	},
+	{
+		.name = "H264 Encoded Stream",
+		.fourcc = V4L2_PIX_FMT_H264,
+		.codec_mode = RK3288_VPU_CODEC_H264E,
+		.num_planes = 1,
+	},
 };
 
 static struct rockchip_vpu_fmt *find_format(struct rockchip_vpu_dev *dev, u32 fourcc, bool bitstream)
@@ -1171,6 +1177,13 @@ static void rockchip_vpu_buf_finish(struct vb2_buffer *vb)
 
 		buf = vb_to_buf(vb);
 		rockchip_vpu_vp8e_assemble_bitstream(ctx, buf);
+	} else if (vq->type == V4L2_BUF_TYPE_VIDEO_CAPTURE_MPLANE
+	    && vb->state == VB2_BUF_STATE_DONE
+	    && ctx->vpu_dst_fmt->fourcc == V4L2_PIX_FMT_H264) {
+		struct rockchip_vpu_buf *buf;
+
+		buf = vb_to_buf(vb);
+		rockchip_vpu_h264e_assemble_bitstream(ctx, buf);
 	}
 
 	vpu_debug_leave();
@@ -1330,6 +1343,9 @@ static void rockchip_vpu_enc_prepare_run(struct rockchip_vpu_ctx *ctx)
 		memcpy(ctx->run.priv_src.cpu,
 			get_ctrl_ptr(ctx, ROCKCHIP_VPU_ENC_CTRL_HW_PARAMS),
 			ROCKCHIP_HW_PARAMS_SIZE);
+	} else if (ctx->vpu_dst_fmt->fourcc == V4L2_PIX_FMT_H264) {
+		ctx->run.h264e.reg_params = get_ctrl_ptr(ctx,
+			ROCKCHIP_VPU_ENC_CTRL_REG_PARAMS);
 	}
 }
 
