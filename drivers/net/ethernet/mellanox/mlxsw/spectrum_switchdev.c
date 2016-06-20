@@ -58,7 +58,7 @@ static u16 mlxsw_sp_port_vid_to_fid_get(struct mlxsw_sp_port *mlxsw_sp_port,
 	u16 fid = vid;
 
 	if (mlxsw_sp_port_is_vport(mlxsw_sp_port))
-		fid = mlxsw_sp_vport_fid_get(mlxsw_sp_port);
+		fid = mlxsw_sp_vport_fid_get(mlxsw_sp_port)->fid;
 
 	if (!fid)
 		fid = mlxsw_sp_port->pvid;
@@ -233,9 +233,9 @@ static int mlxsw_sp_port_uc_flood_set(struct mlxsw_sp_port *mlxsw_sp_port,
 	int err;
 
 	if (mlxsw_sp_port_is_vport(mlxsw_sp_port)) {
-		u16 vfid, fid = mlxsw_sp_vport_fid_get(mlxsw_sp_port);
+		u16 fid = mlxsw_sp_vport_fid_get(mlxsw_sp_port)->fid;
+		u16 vfid = mlxsw_sp_fid_to_vfid(fid);
 
-		vfid = mlxsw_sp_fid_to_vfid(fid);
 		return  __mlxsw_sp_port_flood_set(mlxsw_sp_port, vfid, vfid,
 						  set, true);
 	}
@@ -1212,7 +1212,7 @@ static int mlxsw_sp_port_fdb_dump(struct mlxsw_sp_port *mlxsw_sp_port,
 		return -ENOMEM;
 
 	if (mlxsw_sp_port_is_vport(mlxsw_sp_port))
-		vport_fid = mlxsw_sp_vport_fid_get(mlxsw_sp_port);
+		vport_fid = mlxsw_sp_vport_fid_get(mlxsw_sp_port)->fid;
 
 	mlxsw_reg_sfd_pack(sfd_pl, MLXSW_REG_SFD_OP_QUERY_DUMP, 0);
 	do {

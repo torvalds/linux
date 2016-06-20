@@ -776,7 +776,7 @@ static int mlxsw_sp_vport_vfid_join(struct mlxsw_sp_port *mlxsw_sp_vport)
 	if (err)
 		goto err_vport_fid_map;
 
-	mlxsw_sp_vport->vport.f = f;
+	mlxsw_sp_vport_fid_set(mlxsw_sp_vport, f);
 	f->ref_count++;
 
 	return 0;
@@ -792,9 +792,9 @@ err_vport_flood_set:
 
 static void mlxsw_sp_vport_vfid_leave(struct mlxsw_sp_port *mlxsw_sp_vport)
 {
-	struct mlxsw_sp_fid *f = mlxsw_sp_vport->vport.f;
+	struct mlxsw_sp_fid *f = mlxsw_sp_vport_fid_get(mlxsw_sp_vport);
 
-	mlxsw_sp_vport->vport.f = NULL;
+	mlxsw_sp_vport_fid_set(mlxsw_sp_vport, NULL);
 
 	mlxsw_sp_vport_fid_map(mlxsw_sp_vport, f->fid, false);
 
@@ -2639,7 +2639,8 @@ static int mlxsw_sp_vport_fdb_flush(struct mlxsw_sp_port *mlxsw_sp_vport,
 		return mlxsw_sp_port_fdb_flush_by_lag_id_fid(mlxsw_sp_vport,
 							     fid);
 	else
-		return mlxsw_sp_port_fdb_flush_by_port_fid(mlxsw_sp_vport, fid);
+		return mlxsw_sp_port_fdb_flush_by_port_fid(mlxsw_sp_vport,
+							   fid);
 }
 
 static bool mlxsw_sp_port_dev_check(const struct net_device *dev)
@@ -3229,7 +3230,7 @@ static int mlxsw_sp_vport_br_vfid_join(struct mlxsw_sp_port *mlxsw_sp_vport,
 	if (err)
 		goto err_vport_fid_map;
 
-	mlxsw_sp_vport->vport.f = f;
+	mlxsw_sp_vport_fid_set(mlxsw_sp_vport, f);
 	f->ref_count++;
 
 	return 0;
@@ -3244,13 +3245,13 @@ err_vport_flood_set:
 
 static void mlxsw_sp_vport_br_vfid_leave(struct mlxsw_sp_port *mlxsw_sp_vport)
 {
-	struct mlxsw_sp_fid *f = mlxsw_sp_vport->vport.f;
+	struct mlxsw_sp_fid *f = mlxsw_sp_vport_fid_get(mlxsw_sp_vport);
 
 	mlxsw_sp_vport_fid_map(mlxsw_sp_vport, f->fid, false);
 
 	mlxsw_sp_vport_flood_set(mlxsw_sp_vport, f->fid, false);
 
-	mlxsw_sp_vport->vport.f = NULL;
+	mlxsw_sp_vport_fid_set(mlxsw_sp_vport, NULL);
 	if (--f->ref_count == 0)
 		mlxsw_sp_br_vfid_destroy(mlxsw_sp_vport->mlxsw_sp, f);
 }
@@ -3293,8 +3294,8 @@ err_vport_br_vfid_join:
 static void mlxsw_sp_vport_bridge_leave(struct mlxsw_sp_port *mlxsw_sp_vport,
 					bool flush_fdb)
 {
+	u16 fid = mlxsw_sp_vport_fid_get(mlxsw_sp_vport)->fid;
 	u16 vid = mlxsw_sp_vport_vid_get(mlxsw_sp_vport);
-	u16 fid = mlxsw_sp_vport_fid_get(mlxsw_sp_vport);
 
 	mlxsw_sp_port_vid_learning_set(mlxsw_sp_vport, vid, false);
 
