@@ -2525,8 +2525,7 @@ M:	bcm-kernel-feedback-list@broadcom.com
 L:	linux-arm-kernel@lists.infradead.org (moderated for non-subscribers)
 T:	git git://github.com/broadcom/stblinux.git
 S:	Maintained
-F:	arch/arm/mach-bcm/bcm63xx.c
-F:	arch/arm/include/debug/bcm63xx.S
+N:	bcm63xx
 
 BROADCOM BCM63XX/BCM33XX UDC DRIVER
 M:	Kevin Cernekee <cernekee@gmail.com>
