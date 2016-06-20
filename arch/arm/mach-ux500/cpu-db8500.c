@@ -27,13 +27,6 @@
 
 #include "board-mop500.h"
 #include "db8500-regs.h"
-#include "id.h"
-
-static void __init u8500_map_io(void)
-{
-	debug_ll_io_init();
-	ux500_setup_id();
-}
 
 /*
  * The PMU IRQ lines of two cores are wired together into a single interrupt.
@@ -117,7 +110,6 @@ static const char * stericsson_dt_platform_compat[] = {
 DT_MACHINE_START(U8500_DT, "ST-Ericsson Ux5x0 platform (Device Tree Support)")
 	.l2c_aux_val    = 0,
 	.l2c_aux_mask	= ~0,
-	.map_io		= u8500_map_io,
 	.init_irq	= ux500_init_irq,
 	.init_machine	= u8500_init_machine,
 	.dt_compat      = stericsson_dt_platform_compat,
