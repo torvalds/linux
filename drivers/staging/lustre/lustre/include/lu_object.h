@@ -779,7 +779,7 @@ do {								      \
 	if (cfs_cdebug_show(mask, DEBUG_SUBSYSTEM)) {		     \
 		LIBCFS_DEBUG_MSG_DATA_DECL(msgdata, mask, NULL);		\
 		lu_object_print(env, &msgdata, lu_cdebug_printer, object);\
-		CDEBUG(mask, format, ## __VA_ARGS__);		    \
+		CDEBUG(mask, format "\n", ## __VA_ARGS__);		    \
 	}								 \
 } while (0)
 
