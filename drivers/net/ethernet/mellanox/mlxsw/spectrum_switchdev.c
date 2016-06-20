@@ -500,6 +500,8 @@ static void __mlxsw_sp_port_fid_leave(struct mlxsw_sp_port *mlxsw_sp_port,
 	if (WARN_ON(!f))
 		return;
 
+	mlxsw_sp_port_fdb_flush(mlxsw_sp_port, fid);
+
 	if (--f->ref_count == 0)
 		mlxsw_sp_fid_destroy(mlxsw_sp_port->mlxsw_sp, f);
 }
