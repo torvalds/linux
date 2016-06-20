@@ -68,6 +68,22 @@ struct xway_nand_data {
 	unsigned long		csflags;
 };
 
+static u8 xway_readb(struct mtd_info *mtd, int op)
+{
+	struct nand_chip *chip = mtd_to_nand(mtd);
+	void __iomem *nandaddr = chip->IO_ADDR_R;
+
+	return readb(nandaddr + op);
+}
+
+static void xway_writeb(struct mtd_info *mtd, int op, u8 value)
+{
+	struct nand_chip *chip = mtd_to_nand(mtd);
+	void __iomem *nandaddr = chip->IO_ADDR_W;
+
+	writeb(value, nandaddr + op);
+}
+
 static void xway_select_chip(struct mtd_info *mtd, int select)
 {
 	struct nand_chip *chip = mtd_to_nand(mtd);
@@ -91,16 +107,13 @@ static void xway_select_chip(struct mtd_info *mtd, int select)
 
 static void xway_cmd_ctrl(struct mtd_info *mtd, int cmd, unsigned int ctrl)
 {
-	struct nand_chip *this = mtd_to_nand(mtd);
-	unsigned long nandaddr = (unsigned long) this->IO_ADDR_W;
-
 	if (cmd == NAND_CMD_NONE)
 		return;
 
 	if (ctrl & NAND_CLE)
-		writeb(cmd, (void __iomem *) (nandaddr | NAND_WRITE_CMD));
+		xway_writeb(mtd, NAND_WRITE_CMD, cmd);
 	else if (ctrl & NAND_ALE)
-		writeb(cmd, (void __iomem *) (nandaddr | NAND_WRITE_ADDR));
+		xway_writeb(mtd, NAND_WRITE_ADDR, cmd);
 
 	while ((ltq_ebu_r32(EBU_NAND_WAIT) & NAND_WAIT_WR_C) == 0)
 		;
@@ -113,10 +126,7 @@ static int xway_dev_ready(struct mtd_info *mtd)
 
 static unsigned char xway_read_byte(struct mtd_info *mtd)
 {
-	struct nand_chip *this = mtd_to_nand(mtd);
-	unsigned long nandaddr = (unsigned long) this->IO_ADDR_R;
-
-	return ltq_r8((void __iomem *)(nandaddr + NAND_READ_DATA));
+	return xway_readb(mtd, NAND_READ_DATA);
 }
 
 /*
