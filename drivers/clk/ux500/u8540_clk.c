@@ -12,13 +12,7 @@
 #include <linux/clkdev.h>
 #include <linux/clk-provider.h>
 #include <linux/mfd/dbx500-prcmu.h>
-#include <linux/platform_data/clk-ux500.h>
 #include "clk.h"
-
-static const struct of_device_id u8540_clk_of_match[] = {
-	{ .compatible = "stericsson,u8540-clks", },
-	{ }
-};
 
 /* CLKRST4 is missing making it hard to index things */
 enum clkrst_index {
@@ -30,19 +24,12 @@ enum clkrst_index {
 	CLKRST_MAX,
 };
 
-void u8540_clk_init(void)
+static void u8540_clk_init(struct device_node *np)
 {
 	struct clk *clk;
-	struct device_node *np = NULL;
 	u32 bases[CLKRST_MAX];
 	int i;
 
-	if (of_have_populated_dt())
-		np = of_find_matching_node(NULL, u8540_clk_of_match);
-	if (!np) {
-		pr_err("Either DT or U8540 Clock node not found\n");
-		return;
-	}
 	for (i = 0; i < ARRAY_SIZE(bases); i++) {
 		struct resource r;
 
@@ -607,3 +594,4 @@ void u8540_clk_init(void)
 			bases[CLKRST6_INDEX], BIT(0), CLK_SET_RATE_GATE);
 	clk_register_clkdev(clk, NULL, "rng");
 }
+CLK_OF_DECLARE(u8540_clks, "stericsson,u8540-clks", u8540_clk_init);

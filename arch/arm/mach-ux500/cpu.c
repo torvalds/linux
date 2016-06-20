@@ -19,7 +19,6 @@
 #include <linux/irq.h>
 #include <linux/irqchip.h>
 #include <linux/irqchip/arm-gic.h>
-#include <linux/platform_data/clk-ux500.h>
 #include <linux/platform_data/arm-ux500-pm.h>
 
 #include <asm/mach/map.h>
@@ -66,17 +65,6 @@ void __init ux500_init_irq(void)
 	prcmu_early_init(r.start, r.end-r.start);
 	ux500_pm_init(r.start, r.end-r.start);
 	ux500_l2x0_init();
-
-	/*
-	 * Init clocks here so that they are available for system timer
-	 * initialization.
-	 */
-	if (cpu_is_u8500_family())
-		u8500_clk_init();
-	else if (cpu_is_u9540())
-		u9540_clk_init();
-	else if (cpu_is_u8540())
-		u8540_clk_init();
 }
 
 static const char * __init ux500_get_machine(void)
