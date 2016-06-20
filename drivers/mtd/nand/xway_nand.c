@@ -129,6 +129,22 @@ static unsigned char xway_read_byte(struct mtd_info *mtd)
 	return xway_readb(mtd, NAND_READ_DATA);
 }
 
+static void xway_read_buf(struct mtd_info *mtd, u_char *buf, int len)
+{
+	int i;
+
+	for (i = 0; i < len; i++)
+		buf[i] = xway_readb(mtd, NAND_WRITE_DATA);
+}
+
+static void xway_write_buf(struct mtd_info *mtd, const u_char *buf, int len)
+{
+	int i;
+
+	for (i = 0; i < len; i++)
+		xway_writeb(mtd, NAND_WRITE_DATA, buf[i]);
+}
+
 /*
  * Probe for the NAND device.
  */
@@ -162,6 +178,8 @@ static int xway_nand_probe(struct platform_device *pdev)
 	data->chip.cmd_ctrl = xway_cmd_ctrl;
 	data->chip.dev_ready = xway_dev_ready;
 	data->chip.select_chip = xway_select_chip;
+	data->chip.write_buf = xway_write_buf;
+	data->chip.read_buf = xway_read_buf;
 	data->chip.read_byte = xway_read_byte;
 	data->chip.chip_delay = 30;
 
