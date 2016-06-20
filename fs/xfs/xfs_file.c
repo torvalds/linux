@@ -37,6 +37,7 @@
 #include "xfs_log.h"
 #include "xfs_icache.h"
 #include "xfs_pnfs.h"
+#include "xfs_iomap.h"
 
 #include <linux/dcache.h>
 #include <linux/falloc.h>
@@ -79,62 +80,50 @@ xfs_rw_ilock_demote(
 		inode_unlock(VFS_I(ip));
 }
 
-/*
- * xfs_iozero clears the specified range supplied via the page cache (except in
- * the DAX case). Writes through the page cache will allocate blocks over holes,
- * though the callers usually map the holes first and avoid them. If a block is
- * not completely zeroed, then it will be read from disk before being partially
- * zeroed.
- *
- * In the DAX case, we can just directly write to the underlying pages. This
- * will not allocate blocks, but will avoid holes and unwritten extents and so
- * not do unnecessary work.
- */
-int
-xfs_iozero(
-	struct xfs_inode	*ip,	/* inode			*/
-	loff_t			pos,	/* offset in file		*/
-	size_t			count)	/* size of data to zero		*/
+static int
+xfs_dax_zero_range(
+	struct inode		*inode,
+	loff_t			pos,
+	size_t			count)
 {
-	struct page		*page;
-	struct address_space	*mapping;
 	int			status = 0;
 
-
-	mapping = VFS_I(ip)->i_mapping;
 	do {
 		unsigned offset, bytes;
-		void *fsdata;
 
 		offset = (pos & (PAGE_SIZE -1)); /* Within page */
 		bytes = PAGE_SIZE - offset;
 		if (bytes > count)
 			bytes = count;
 
-		if (IS_DAX(VFS_I(ip))) {
-			status = dax_zero_page_range(VFS_I(ip), pos, bytes,
-						     xfs_get_blocks_direct);
-			if (status)
-				break;
-		} else {
-			status = pagecache_write_begin(NULL, mapping, pos, bytes,
-						AOP_FLAG_UNINTERRUPTIBLE,
-						&page, &fsdata);
-			if (status)
-				break;
+		status = dax_zero_page_range(inode, pos, bytes,
+					     xfs_get_blocks_direct);
+		if (status)
+			break;
 
-			zero_user(page, offset, bytes);
-
-			status = pagecache_write_end(NULL, mapping, pos, bytes,
-						bytes, page, fsdata);
-			WARN_ON(status <= 0); /* can't return less than zero! */
-			status = 0;
-		}
 		pos += bytes;
 		count -= bytes;
 	} while (count);
 
 	return status;
+}
+
+/*
+ * Clear the specified ranges to zero through either the pagecache or DAX.
+ * Holes and unwritten extents will be left as-is as they already are zeroed.
+ */
+int
+xfs_iozero(
+	struct xfs_inode	*ip,
+	loff_t			pos,
+	size_t			count)
+{
+	struct inode		*inode = VFS_I(ip);
+
+	if (IS_DAX(VFS_I(ip)))
+		return xfs_dax_zero_range(inode, pos, count);
+	else
+		return iomap_zero_range(inode, pos, count, NULL, &xfs_iomap_ops);
 }
 
 int
@@ -841,7 +830,7 @@ xfs_file_buffered_aio_write(
 write_retry:
 	trace_xfs_file_buffered_write(ip, iov_iter_count(from),
 				      iocb->ki_pos, 0);
-	ret = generic_perform_write(file, from, iocb->ki_pos);
+	ret = iomap_file_buffered_write(iocb, from, &xfs_iomap_ops);
 	if (likely(ret >= 0))
 		iocb->ki_pos += ret;
 
@@ -1553,7 +1542,7 @@ xfs_filemap_page_mkwrite(
 	if (IS_DAX(inode)) {
 		ret = __dax_mkwrite(vma, vmf, xfs_get_blocks_dax_fault);
 	} else {
-		ret = block_page_mkwrite(vma, vmf, xfs_get_blocks);
+		ret = iomap_page_mkwrite(vma, vmf, &xfs_iomap_ops);
 		ret = block_page_mkwrite_return(ret);
 	}
 

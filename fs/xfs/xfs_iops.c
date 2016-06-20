@@ -38,6 +38,7 @@
 #include "xfs_dir2.h"
 #include "xfs_trans_space.h"
 #include "xfs_pnfs.h"
+#include "xfs_iomap.h"
 
 #include <linux/capability.h>
 #include <linux/xattr.h>
@@ -822,8 +823,8 @@ xfs_setattr_size(
 			error = dax_truncate_page(inode, newsize,
 					xfs_get_blocks_direct);
 		} else {
-			error = block_truncate_page(inode->i_mapping, newsize,
-					xfs_get_blocks);
+			error = iomap_truncate_page(inode, newsize,
+					&did_zeroing, &xfs_iomap_ops);
 		}
 	}
 
@@ -838,8 +839,8 @@ xfs_setattr_size(
 	 * problem. Note that this includes any block zeroing we did above;
 	 * otherwise those blocks may not be zeroed after a crash.
 	 */
-	if (newsize > ip->i_d.di_size &&
-	    (oldsize != ip->i_d.di_size || did_zeroing)) {
+	if (did_zeroing ||
+	    (newsize > ip->i_d.di_size && oldsize != ip->i_d.di_size)) {
 		error = filemap_write_and_wait_range(VFS_I(ip)->i_mapping,
 						      ip->i_d.di_size, newsize);
 		if (error)
