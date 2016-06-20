@@ -113,3 +113,7 @@
 &usb3 {
 	vcc-gpio = <&chipcommon 18 GPIO_ACTIVE_HIGH>;
 };
+
+&spi_nor {
+	status = "okay";
+};

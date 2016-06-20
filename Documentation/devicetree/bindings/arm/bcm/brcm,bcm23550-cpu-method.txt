@@ -2,11 +2,11 @@ Broadcom Kona Family CPU Enable Method
 --------------------------------------
 This binding defines the enable method used for starting secondary
 CPUs in the following Broadcom SoCs:
-  BCM11130, BCM11140, BCM11351, BCM28145, BCM28155, BCM21664
+  BCM23550
 
 The enable method is specified by defining the following required
 properties in the "cpu" device tree node:
-  - enable-method = "brcm,bcm11351-cpu-method";
+  - enable-method = "brcm,bcm23550";
   - secondary-boot-reg = <...>;
 
 The secondary-boot-reg property is a u32 value that specifies the
@@ -30,7 +30,7 @@ Example:
 			device_type = "cpu";
 			compatible = "arm,cortex-a9";
 			reg = <1>;
-			enable-method = "brcm,bcm11351-cpu-method";
+			enable-method = "brcm,bcm23550";
 			secondary-boot-reg = <0x3500417c>;
 		};
 	};
