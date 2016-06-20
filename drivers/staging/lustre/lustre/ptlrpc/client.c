@@ -583,13 +583,18 @@ static void __ptlrpc_free_req_to_pool(struct ptlrpc_request *request)
 	spin_unlock(&pool->prp_lock);
 }
 
-static int __ptlrpc_request_bufs_pack(struct ptlrpc_request *request,
-				      __u32 version, int opcode,
-				      int count, __u32 *lengths, char **bufs,
-				      struct ptlrpc_cli_ctx *ctx)
+int ptlrpc_request_bufs_pack(struct ptlrpc_request *request,
+			     __u32 version, int opcode, char **bufs,
+			     struct ptlrpc_cli_ctx *ctx)
 {
-	struct obd_import *imp = request->rq_import;
+	int count;
+	struct obd_import *imp;
+	__u32 *lengths;
 	int rc;
+
+	count = req_capsule_filled_sizes(&request->rq_pill, RCL_CLIENT);
+	imp = request->rq_import;
+	lengths = request->rq_pill.rc_area[RCL_CLIENT];
 
 	if (unlikely(ctx)) {
 		request->rq_cli_ctx = sptlrpc_cli_ctx_get(ctx);
@@ -598,15 +603,12 @@ static int __ptlrpc_request_bufs_pack(struct ptlrpc_request *request,
 		if (rc)
 			goto out_free;
 	}
-
 	sptlrpc_req_set_flavor(request, opcode);
 
 	rc = lustre_pack_request(request, imp->imp_msg_magic, count,
 				 lengths, bufs);
-	if (rc) {
-		LASSERT(!request->rq_pool);
+	if (rc)
 		goto out_ctx;
-	}
 
 	lustre_msg_add_version(request->rq_reqmsg, version);
 	request->rq_send_state = LUSTRE_IMP_FULL;
@@ -631,23 +633,13 @@ static int __ptlrpc_request_bufs_pack(struct ptlrpc_request *request,
 	lustre_msg_set_opc(request->rq_reqmsg, opcode);
 
 	return 0;
+
 out_ctx:
+	LASSERT(!request->rq_pool);
 	sptlrpc_cli_ctx_put(request->rq_cli_ctx, 1);
 out_free:
 	class_import_put(imp);
 	return rc;
-}
-
-int ptlrpc_request_bufs_pack(struct ptlrpc_request *request,
-			     __u32 version, int opcode, char **bufs,
-			     struct ptlrpc_cli_ctx *ctx)
-{
-	int count;
-
-	count = req_capsule_filled_sizes(&request->rq_pill, RCL_CLIENT);
-	return __ptlrpc_request_bufs_pack(request, version, opcode, count,
-					  request->rq_pill.rc_area[RCL_CLIENT],
-					  bufs, ctx);
 }
 EXPORT_SYMBOL(ptlrpc_request_bufs_pack);
 
