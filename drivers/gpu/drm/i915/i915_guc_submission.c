@@ -582,7 +582,7 @@ static int guc_ring_doorbell(struct i915_guc_client *gc)
  */
 int i915_guc_submit(struct drm_i915_gem_request *rq)
 {
-	unsigned int engine_id = rq->engine->guc_id;
+	unsigned int engine_id = rq->engine->id;
 	struct intel_guc *guc = &rq->i915->guc;
 	struct i915_guc_client *client = guc->execbuf_client;
 	int b_ret;

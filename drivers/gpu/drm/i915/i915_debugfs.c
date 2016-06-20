@@ -2544,9 +2544,9 @@ static void i915_guc_client_info(struct seq_file *m,
 
 	for_each_engine(engine, dev_priv) {
 		seq_printf(m, "\tSubmissions: %llu %s\n",
-				client->submissions[engine->guc_id],
+				client->submissions[engine->id],
 				engine->name);
-		tot += client->submissions[engine->guc_id];
+		tot += client->submissions[engine->id];
 	}
 	seq_printf(m, "\tTotal: %llu\n", tot);
 }
@@ -2587,9 +2587,9 @@ static int i915_guc_info(struct seq_file *m, void *data)
 	seq_printf(m, "\nGuC submissions:\n");
 	for_each_engine(engine, dev_priv) {
 		seq_printf(m, "\t%-24s: %10llu, last seqno 0x%08x\n",
-			engine->name, guc.submissions[engine->guc_id],
-			guc.last_seqno[engine->guc_id]);
-		total += guc.submissions[engine->guc_id];
+			engine->name, guc.submissions[engine->id],
+			guc.last_seqno[engine->id]);
+		total += guc.submissions[engine->id];
 	}
 	seq_printf(m, "\t%s: %llu\n", "Total", total);
 
