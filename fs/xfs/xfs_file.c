@@ -85,10 +85,11 @@ xfs_rw_ilock_demote(
  * Holes and unwritten extents will be left as-is as they already are zeroed.
  */
 int
-xfs_iozero(
+xfs_zero_range(
 	struct xfs_inode	*ip,
-	loff_t			pos,
-	size_t			count)
+	xfs_off_t		pos,
+	xfs_off_t		count,
+	bool			*did_zero)
 {
 	return iomap_zero_range(VFS_I(ip), pos, count, NULL, &xfs_iomap_ops);
 }
@@ -419,7 +420,7 @@ xfs_zero_last_block(
 	if (isize + zero_len > offset)
 		zero_len = offset - isize;
 	*did_zeroing = true;
-	return xfs_iozero(ip, isize, zero_len);
+	return xfs_zero_range(ip, isize, zero_len, NULL);
 }
 
 /*
@@ -518,7 +519,7 @@ xfs_zero_eof(
 		if ((zero_off + zero_len) > offset)
 			zero_len = offset - zero_off;
 
-		error = xfs_iozero(ip, zero_off, zero_len);
+		error = xfs_zero_range(ip, zero_off, zero_len, NULL);
 		if (error)
 			return error;
 
