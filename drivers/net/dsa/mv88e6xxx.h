@@ -554,11 +554,8 @@ struct mv88e6xxx_priv_state {
 	/* The device this structure is associated to */
 	struct device *dev;
 
-	/* When using multi-chip addressing, this mutex protects
-	 * access to the indirect access registers.  (In single-chip
-	 * mode, this mutex is effectively useless.)
-	 */
-	struct mutex	smi_mutex;
+	/* This mutex protects the access to the switch registers */
+	struct mutex reg_lock;
 
 	/* The MII bus and the address on the bus that is used to
 	 * communication with the switch
