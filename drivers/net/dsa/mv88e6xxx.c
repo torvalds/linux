@@ -21,6 +21,7 @@
 #include <linux/list.h>
 #include <linux/mdio.h>
 #include <linux/module.h>
+#include <linux/of_device.h>
 #include <linux/of_mdio.h>
 #include <linux/netdevice.h>
 #include <linux/gpio/consumer.h>
@@ -3617,6 +3618,7 @@ static int mv88e6xxx_detect(struct mv88e6xxx_priv_state *ps)
 	if (!info)
 		return -ENODEV;
 
+	/* Update the compatible info with the probed one */
 	ps->info = info;
 
 	dev_info(ps->dev, "switch 0x%x detected: %s, revision %u\n",
@@ -3668,6 +3670,9 @@ static const char *mv88e6xxx_drv_probe(struct device *dsa_dev,
 	ps = mv88e6xxx_alloc_chip(dsa_dev);
 	if (!ps)
 		return NULL;
+
+	/* Legacy SMI probing will only support chips similar to 88E6085 */
+	ps->info = &mv88e6xxx_table[MV88E6085];
 
 	err = mv88e6xxx_smi_init(ps, bus, sw_addr);
 	if (err)
@@ -3754,13 +3759,20 @@ static int mv88e6xxx_probe(struct mdio_device *mdiodev)
 {
 	struct device *dev = &mdiodev->dev;
 	struct device_node *np = dev->of_node;
+	const struct mv88e6xxx_info *compat_info;
 	struct mv88e6xxx_priv_state *ps;
 	u32 eeprom_len;
 	int err;
 
+	compat_info = of_device_get_match_data(dev);
+	if (!compat_info)
+		return -EINVAL;
+
 	ps = mv88e6xxx_alloc_chip(dev);
 	if (!ps)
 		return -ENOMEM;
+
+	ps->info = compat_info;
 
 	err = mv88e6xxx_smi_init(ps, mdiodev->bus, mdiodev->addr);
 	if (err)
@@ -3801,7 +3813,10 @@ static void mv88e6xxx_remove(struct mdio_device *mdiodev)
 }
 
 static const struct of_device_id mv88e6xxx_of_match[] = {
-	{ .compatible = "marvell,mv88e6085" },
+	{
+		.compatible = "marvell,mv88e6085",
+		.data = &mv88e6xxx_table[MV88E6085],
+	},
 	{ /* sentinel */ },
 };
 
