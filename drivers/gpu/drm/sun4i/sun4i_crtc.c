@@ -65,6 +65,14 @@ static void sun4i_crtc_disable(struct drm_crtc *crtc)
 	DRM_DEBUG_DRIVER("Disabling the CRTC\n");
 
 	sun4i_tcon_disable(drv->tcon);
+
+	if (crtc->state->event && !crtc->state->active) {
+		spin_lock_irq(&crtc->dev->event_lock);
+		drm_crtc_send_vblank_event(crtc, crtc->state->event);
+		spin_unlock_irq(&crtc->dev->event_lock);
+
+		crtc->state->event = NULL;
+	}
 }
 
 static void sun4i_crtc_enable(struct drm_crtc *crtc)
