@@ -260,12 +260,15 @@ err_port_flood_set:
 	return err;
 }
 
-int mlxsw_sp_vport_flood_set(struct mlxsw_sp_port *mlxsw_sp_vport, u16 vfid,
+int mlxsw_sp_vport_flood_set(struct mlxsw_sp_port *mlxsw_sp_vport, u16 fid,
 			     bool set)
 {
+	u16 vfid;
+
 	/* In case of vFIDs, index into the flooding table is relative to
 	 * the start of the vFIDs range.
 	 */
+	vfid = mlxsw_sp_fid_to_vfid(fid);
 	return __mlxsw_sp_port_flood_set(mlxsw_sp_vport, vfid, vfid, set,
 					 false);
 }

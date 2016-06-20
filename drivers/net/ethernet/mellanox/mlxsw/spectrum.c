@@ -793,9 +793,9 @@ int mlxsw_sp_port_add_vid(struct net_device *dev, __be16 __always_unused proto,
 		goto err_port_vport_create;
 	}
 
+	fid = mlxsw_sp_vfid_to_fid(vfid->vfid);
 	if (!vfid->nr_vports) {
-		err = mlxsw_sp_vport_flood_set(mlxsw_sp_vport, vfid->vfid,
-					       true);
+		err = mlxsw_sp_vport_flood_set(mlxsw_sp_vport, fid, true);
 		if (err) {
 			netdev_err(dev, "Failed to setup flooding for vFID=%d\n",
 				   vfid->vfid);
@@ -815,7 +815,6 @@ int mlxsw_sp_port_add_vid(struct net_device *dev, __be16 __always_unused proto,
 		}
 	}
 
-	fid = mlxsw_sp_vfid_to_fid(vfid->vfid);
 	err = mlxsw_sp_vport_fid_map(mlxsw_sp_vport, fid, true);
 	if (err) {
 		netdev_err(dev, "Failed to map {Port, VID=%d} to vFID=%d\n",
@@ -858,7 +857,7 @@ err_vport_fid_map:
 		mlxsw_sp_port_vlan_mode_trans(mlxsw_sp_port);
 err_port_vp_mode_trans:
 	if (!vfid->nr_vports)
-		mlxsw_sp_vport_flood_set(mlxsw_sp_vport, vfid->vfid, false);
+		mlxsw_sp_vport_flood_set(mlxsw_sp_vport, fid, false);
 err_vport_flood_set:
 	mlxsw_sp_port_vport_destroy(mlxsw_sp_vport);
 err_port_vport_create:
@@ -3260,7 +3259,7 @@ static void mlxsw_sp_vport_bridge_leave(struct mlxsw_sp_port *mlxsw_sp_vport,
 		goto err_port_vid_learning_set;
 	}
 
-	err = mlxsw_sp_vport_flood_set(mlxsw_sp_vport, vfid->vfid, false);
+	err = mlxsw_sp_vport_flood_set(mlxsw_sp_vport, fid, false);
 	if (err) {
 		netdev_err(dev, "Failed clear to clear flooding\n");
 		goto err_vport_flood_set;
@@ -3320,7 +3319,8 @@ static int mlxsw_sp_vport_bridge_join(struct mlxsw_sp_port *mlxsw_sp_vport,
 		}
 	}
 
-	err = mlxsw_sp_vport_flood_set(mlxsw_sp_vport, vfid->vfid, true);
+	fid = mlxsw_sp_vfid_to_fid(vfid->vfid);
+	err = mlxsw_sp_vport_flood_set(mlxsw_sp_vport, fid, true);
 	if (err) {
 		netdev_err(dev, "Failed to setup flooding for vFID=%d\n",
 			   vfid->vfid);
@@ -3344,7 +3344,6 @@ static int mlxsw_sp_vport_bridge_join(struct mlxsw_sp_port *mlxsw_sp_vport,
 		goto err_vport_fid_unmap;
 	}
 
-	fid = mlxsw_sp_vfid_to_fid(vfid->vfid);
 	err = mlxsw_sp_vport_fid_map(mlxsw_sp_vport, fid, true);
 	if (err) {
 		netdev_err(dev, "Failed to map {Port, VID} to vFID=%d\n",
@@ -3371,7 +3370,7 @@ err_vport_fid_map:
 err_vport_fid_unmap:
 	mlxsw_sp_port_vid_learning_set(mlxsw_sp_vport, vid, false);
 err_port_vid_learning_set:
-	mlxsw_sp_vport_flood_set(mlxsw_sp_vport, vfid->vfid, false);
+	mlxsw_sp_vport_flood_set(mlxsw_sp_vport, fid, false);
 err_port_flood_set:
 	if (!vfid->nr_vports)
 		mlxsw_sp_br_vfid_destroy(mlxsw_sp, vfid);
