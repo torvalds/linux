@@ -406,7 +406,7 @@ static int ad7266_probe(struct spi_device *spi)
 	st = iio_priv(indio_dev);
 
 	st->reg = regulator_get(&spi->dev, "vref");
-	if (!IS_ERR_OR_NULL(st->reg)) {
+	if (!IS_ERR(st->reg)) {
 		ret = regulator_enable(st->reg);
 		if (ret)
 			goto error_put_reg;
