@@ -578,10 +578,10 @@ static void __init acpi_table_initrd_init(void *data, size_t size)
 			clen = size;
 			if (clen > MAP_CHUNK_SIZE - slop)
 				clen = MAP_CHUNK_SIZE - slop;
-			dest_p = early_ioremap(dest_addr & PAGE_MASK,
-						 clen + slop);
+			dest_p = early_memremap(dest_addr & PAGE_MASK,
+						clen + slop);
 			memcpy(dest_p + slop, src_p, clen);
-			early_iounmap(dest_p, clen + slop);
+			early_memunmap(dest_p, clen + slop);
 			src_p += clen;
 			dest_addr += clen;
 			size -= clen;
