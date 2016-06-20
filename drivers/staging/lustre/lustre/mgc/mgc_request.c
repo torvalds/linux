@@ -496,7 +496,9 @@ static void do_requeue(struct config_llog_data *cld)
 	 * export which is being disconnected. Take the client
 	 * semaphore to make the check non-racy.
 	 */
-	down_read(&cld->cld_mgcexp->exp_obd->u.cli.cl_sem);
+	down_read_nested(&cld->cld_mgcexp->exp_obd->u.cli.cl_sem,
+			 OBD_CLI_SEM_MGC);
+
 	if (cld->cld_mgcexp->exp_obd->u.cli.cl_conn_count != 0) {
 		int rc;
 

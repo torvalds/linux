@@ -228,6 +228,12 @@ enum {
 #define MDC_MAX_RIF_DEFAULT       8
 #define MDC_MAX_RIF_MAX	 512
 
+enum obd_cl_sem_lock_class {
+	OBD_CLI_SEM_NORMAL,
+	OBD_CLI_SEM_MGC,
+	OBD_CLI_SEM_MDCOSC,
+};
+
 struct mdc_rpc_lock;
 struct obd_import;
 struct client_obd {
