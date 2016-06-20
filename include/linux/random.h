@@ -30,8 +30,8 @@ static inline void add_latent_entropy(void) {}
 #endif
 
 extern void add_input_randomness(unsigned int type, unsigned int code,
-				 unsigned int value);
-extern void add_interrupt_randomness(int irq, int irq_flags);
+				 unsigned int value) __latent_entropy;
+extern void add_interrupt_randomness(int irq, int irq_flags) __latent_entropy;
 
 extern void get_random_bytes(void *buf, int nbytes);
 extern int add_random_ready_callback(struct random_ready_callback *rdy);
