@@ -153,9 +153,10 @@ static void *nft_hash_deactivate(const struct nft_set *set,
 				 const struct nft_set_elem *elem)
 {
 	struct nft_hash *priv = nft_set_priv(set);
+	struct net *net = read_pnet(&set->pnet);
 	struct nft_hash_elem *he;
 	struct nft_hash_cmp_arg arg = {
-		.genmask = nft_genmask_next(read_pnet(&set->pnet)),
+		.genmask = nft_genmask_next(net),
 		.set	 = set,
 		.key	 = elem->key.val.data,
 	};
@@ -163,7 +164,8 @@ static void *nft_hash_deactivate(const struct nft_set *set,
 	rcu_read_lock();
 	he = rhashtable_lookup_fast(&priv->ht, &arg, nft_hash_params);
 	if (he != NULL) {
-		if (!nft_set_elem_mark_busy(&he->ext))
+		if (!nft_set_elem_mark_busy(&he->ext) ||
+		    !nft_is_active(net, &he->ext))
 			nft_set_elem_change_active(set, &he->ext);
 		else
 			he = NULL;
