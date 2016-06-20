@@ -1,50 +1,49 @@
 /*
-    comedi/drivers/ni_pcidio.c
-    driver for National Instruments PCI-DIO-32HS
+ * Comedi driver for National Instruments PCI-DIO-32HS
+ *
+ * COMEDI - Linux Control and Measurement Device Interface
+ * Copyright (C) 1999,2002 David A. Schleef <ds@schleef.org>
+ *
+ * This program is free software; you can redistribute it and/or modify
+ * it under the terms of the GNU General Public License as published by
+ * the Free Software Foundation; either version 2 of the License, or
+ * (at your option) any later version.
+ *
+ * This program is distributed in the hope that it will be useful,
+ * but WITHOUT ANY WARRANTY; without even the implied warranty of
+ * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+ * GNU General Public License for more details.
+ */
 
-    COMEDI - Linux Control and Measurement Device Interface
-    Copyright (C) 1999,2002 David A. Schleef <ds@schleef.org>
-
-    This program is free software; you can redistribute it and/or modify
-    it under the terms of the GNU General Public License as published by
-    the Free Software Foundation; either version 2 of the License, or
-    (at your option) any later version.
-
-    This program is distributed in the hope that it will be useful,
-    but WITHOUT ANY WARRANTY; without even the implied warranty of
-    MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
-    GNU General Public License for more details.
-*/
 /*
-Driver: ni_pcidio
-Description: National Instruments PCI-DIO32HS, PCI-6533
-Author: ds
-Status: works
-Devices: [National Instruments] PCI-DIO-32HS (ni_pcidio)
-	 [National Instruments] PXI-6533, PCI-6533 (pxi-6533)
-	 [National Instruments] PCI-6534 (pci-6534)
-Updated: Mon, 09 Jan 2012 14:27:23 +0000
-
-The DIO32HS board appears as one subdevice, with 32 channels.
-Each channel is individually I/O configurable.  The channel order
-is 0=A0, 1=A1, 2=A2, ... 8=B0, 16=C0, 24=D0.  The driver only
-supports simple digital I/O; no handshaking is supported.
-
-DMA mostly works for the PCI-DIO32HS, but only in timed input mode.
-
-The PCI-DIO-32HS/PCI-6533 has a configurable external trigger. Setting
-scan_begin_arg to 0 or CR_EDGE triggers on the leading edge. Setting
-scan_begin_arg to CR_INVERT or (CR_EDGE | CR_INVERT) triggers on the
-trailing edge.
-
-This driver could be easily modified to support AT-MIO32HS and
-AT-MIO96.
-
-The PCI-6534 requires a firmware upload after power-up to work, the
-firmware data and instructions for loading it with comedi_config
-it are contained in the
-comedi_nonfree_firmware tarball available from http://www.comedi.org
-*/
+ * Driver: ni_pcidio
+ * Description: National Instruments PCI-DIO32HS, PCI-6533
+ * Author: ds
+ * Status: works
+ * Devices: [National Instruments] PCI-DIO-32HS (ni_pcidio)
+ *   [National Instruments] PXI-6533, PCI-6533 (pxi-6533)
+ *   [National Instruments] PCI-6534 (pci-6534)
+ * Updated: Mon, 09 Jan 2012 14:27:23 +0000
+ *
+ * The DIO32HS board appears as one subdevice, with 32 channels. Each
+ * channel is individually I/O configurable. The channel order is 0=A0,
+ * 1=A1, 2=A2, ... 8=B0, 16=C0, 24=D0. The driver only supports simple
+ * digital I/O; no handshaking is supported.
+ *
+ * DMA mostly works for the PCI-DIO32HS, but only in timed input mode.
+ *
+ * The PCI-DIO-32HS/PCI-6533 has a configurable external trigger. Setting
+ * scan_begin_arg to 0 or CR_EDGE triggers on the leading edge. Setting
+ * scan_begin_arg to CR_INVERT or (CR_EDGE | CR_INVERT) triggers on the
+ * trailing edge.
+ *
+ * This driver could be easily modified to support AT-MIO32HS and AT-MIO96.
+ *
+ * The PCI-6534 requires a firmware upload after power-up to work, the
+ * firmware data and instructions for loading it with comedi_config
+ * it are contained in the comedi_nonfree_firmware tarball available from
+ * http://www.comedi.org
+ */
 
 #define USE_DMA
 
@@ -649,8 +648,10 @@ static int ni_pcidio_cmd(struct comedi_device *dev, struct comedi_subdevice *s)
 		writeb(1, dev->mmio + AckDelay);
 		writeb(0x0b, dev->mmio + AckNotDelay);
 		writeb(0x01, dev->mmio + Data1Delay);
-		/* manual, page 4-5: ClockSpeed comment is incorrectly listed
-		 * on DAQOptions */
+		/*
+		 * manual, page 4-5:
+		 * ClockSpeed comment is incorrectly listed on DAQOptions
+		 */
 		writew(0, dev->mmio + ClockSpeed);
 		writeb(0, dev->mmio + DAQOptions);
 	} else {
