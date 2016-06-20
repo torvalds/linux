@@ -129,12 +129,18 @@ static int st_dwc3_drd_init(struct st_dwc3 *dwc3_data)
 	switch (dwc3_data->dr_mode) {
 	case USB_DR_MODE_PERIPHERAL:
 
-		val &= ~(USB3_FORCE_VBUSVALID | USB3_DELAY_VBUSVALID
+		val &= ~(USB3_DELAY_VBUSVALID
 			| USB3_SEL_FORCE_OPMODE | USB3_FORCE_OPMODE(0x3)
 			| USB3_SEL_FORCE_DPPULLDOWN2 | USB3_FORCE_DPPULLDOWN2
 			| USB3_SEL_FORCE_DMPULLDOWN2 | USB3_FORCE_DMPULLDOWN2);
 
-		val |= USB3_DEVICE_NOT_HOST;
+		/*
+		 * USB3_PORT2_FORCE_VBUSVALID When '1' and when
+		 * USB3_PORT2_DEVICE_NOT_HOST = 1, forces VBUSVLDEXT2 input
+		 * of the pico PHY to 1.
+		 */
+
+		val |= USB3_DEVICE_NOT_HOST | USB3_FORCE_VBUSVALID;
 		break;
 
 	case USB_DR_MODE_HOST:

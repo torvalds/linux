@@ -136,6 +136,8 @@ static void svc_xprt_free(struct kref *kref)
 	/* See comment on corresponding get in xs_setup_bc_tcp(): */
 	if (xprt->xpt_bc_xprt)
 		xprt_put(xprt->xpt_bc_xprt);
+	if (xprt->xpt_bc_xps)
+		xprt_switch_put(xprt->xpt_bc_xps);
 	xprt->xpt_ops->xpo_free(xprt);
 	module_put(owner);
 }

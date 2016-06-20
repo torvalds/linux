@@ -1,7 +1,7 @@
 /*
  * Media Controller ancillary functions
  *
- * Copyright (c) 2016 Mauro Carvalho Chehab <mchehab@osg.samsung.com>
+ * Copyright (c) 2016 Mauro Carvalho Chehab <mchehab@kernel.org>
  * Copyright (C) 2016 Shuah Khan <shuahkh@osg.samsung.com>
  * Copyright (C) 2006-2010 Nokia Corporation
  * Copyright (c) 2016 Intel Corporation.
