@@ -2963,8 +2963,11 @@ static int __ll_inode_revalidate(struct dentry *dentry, __u64 ibits)
 		 * here to preserve get_cwd functionality on 2.6.
 		 * Bug 10503
 		 */
-		if (!d_inode(dentry)->i_nlink)
+		if (!d_inode(dentry)->i_nlink) {
+			spin_lock(&inode->i_lock);
 			d_lustre_invalidate(dentry, 0);
+			spin_unlock(&inode->i_lock);
+		}
 
 		ll_lookup_finish_locks(&oit, inode);
 	} else if (!ll_have_md_lock(d_inode(dentry), &ibits, LCK_MINMODE)) {
