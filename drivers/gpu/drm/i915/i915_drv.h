@@ -2266,6 +2266,12 @@ struct drm_i915_gem_object {
 };
 #define to_intel_bo(x) container_of(x, struct drm_i915_gem_object, base)
 
+static inline bool
+i915_gem_object_has_struct_page(const struct drm_i915_gem_object *obj)
+{
+	return obj->ops->flags & I915_GEM_OBJECT_HAS_STRUCT_PAGE;
+}
+
 /*
  * Optimised SGL iterator for GEM objects
  */
