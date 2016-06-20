@@ -277,7 +277,7 @@ static int load_metaops_and_vet(struct tcf_ife_info *ife, u32 metaid,
  * under ife->tcf_lock for existing action
 */
 static int add_metainfo(struct tcf_ife_info *ife, u32 metaid, void *metaval,
-			int len, bool exists)
+			int len, bool atomic)
 {
 	struct tcf_meta_info *mi = NULL;
 	struct tcf_meta_ops *ops = find_ife_oplist(metaid);
@@ -286,7 +286,7 @@ static int add_metainfo(struct tcf_ife_info *ife, u32 metaid, void *metaval,
 	if (!ops)
 		return -ENOENT;
 
-	mi = kzalloc(sizeof(*mi), exists ? GFP_ATOMIC : GFP_KERNEL);
+	mi = kzalloc(sizeof(*mi), atomic ? GFP_ATOMIC : GFP_KERNEL);
 	if (!mi) {
 		/*put back what find_ife_oplist took */
 		module_put(ops->owner);
@@ -296,7 +296,7 @@ static int add_metainfo(struct tcf_ife_info *ife, u32 metaid, void *metaval,
 	mi->metaid = metaid;
 	mi->ops = ops;
 	if (len > 0) {
-		ret = ops->alloc(mi, metaval, exists ? GFP_ATOMIC : GFP_KERNEL);
+		ret = ops->alloc(mi, metaval, atomic ? GFP_ATOMIC : GFP_KERNEL);
 		if (ret != 0) {
 			kfree(mi);
 			module_put(ops->owner);
@@ -309,17 +309,19 @@ static int add_metainfo(struct tcf_ife_info *ife, u32 metaid, void *metaval,
 	return ret;
 }
 
-static int use_all_metadata(struct tcf_ife_info *ife, bool exists)
+static int use_all_metadata(struct tcf_ife_info *ife)
 {
 	struct tcf_meta_ops *o;
 	int rc = 0;
 	int installed = 0;
 
+	read_lock(&ife_mod_lock);
 	list_for_each_entry(o, &ifeoplist, list) {
-		rc = add_metainfo(ife, o->metaid, NULL, 0, exists);
+		rc = add_metainfo(ife, o->metaid, NULL, 0, true);
 		if (rc == 0)
 			installed += 1;
 	}
+	read_unlock(&ife_mod_lock);
 
 	if (installed)
 		return 0;
@@ -523,7 +525,7 @@ metadata_parse_err:
 		 * as we can. You better have at least one else we are
 		 * going to bail out
 		 */
-		err = use_all_metadata(ife, exists);
+		err = use_all_metadata(ife);
 		if (err) {
 			if (ret == ACT_P_CREATED)
 				_tcf_ife_cleanup(a, bind);
