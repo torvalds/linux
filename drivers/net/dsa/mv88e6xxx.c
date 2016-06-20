@@ -3616,6 +3616,19 @@ static struct mv88e6xxx_priv_state *mv88e6xxx_alloc_chip(struct device *dev)
 	return ps;
 }
 
+static int mv88e6xxx_smi_init(struct mv88e6xxx_priv_state *ps,
+			      struct mii_bus *bus, int sw_addr)
+{
+	/* ADDR[0] pin is unavailable externally and considered zero */
+	if (sw_addr & 0x1)
+		return -EINVAL;
+
+	ps->bus = bus;
+	ps->sw_addr = sw_addr;
+
+	return 0;
+}
+
 static const char *mv88e6xxx_drv_probe(struct device *dsa_dev,
 				       struct device *host_dev, int sw_addr,
 				       void **priv)
@@ -3635,7 +3648,11 @@ static const char *mv88e6xxx_drv_probe(struct device *dsa_dev,
 	if (!ps)
 		return NULL;
 
-	id = __mv88e6xxx_reg_read(bus, sw_addr, REG_PORT(0), PORT_SWITCH_ID);
+	err = mv88e6xxx_smi_init(ps, bus, sw_addr);
+	if (err)
+		goto free;
+
+	id = mv88e6xxx_reg_read(ps, REG_PORT(0), PORT_SWITCH_ID);
 	if (id < 0)
 		goto free;
 
@@ -3648,8 +3665,6 @@ static const char *mv88e6xxx_drv_probe(struct device *dsa_dev,
 
 	name = info->name;
 
-	ps->bus = bus;
-	ps->sw_addr = sw_addr;
 	ps->info = info;
 
 	err = mv88e6xxx_mdio_register(ps, NULL);
@@ -3741,8 +3756,9 @@ static int mv88e6xxx_probe(struct mdio_device *mdiodev)
 	if (!ps)
 		return -ENOMEM;
 
-	ps->bus = mdiodev->bus;
-	ps->sw_addr = mdiodev->addr;
+	err = mv88e6xxx_smi_init(ps, mdiodev->bus, mdiodev->addr);
+	if (err)
+		return err;
 
 	id = mv88e6xxx_reg_read(ps, REG_PORT(0), PORT_SWITCH_ID);
 	if (id < 0)
