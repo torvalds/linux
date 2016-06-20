@@ -519,6 +519,7 @@ struct mv88e6xxx_info {
 	const char *name;
 	unsigned int num_databases;
 	unsigned int num_ports;
+	unsigned int port_base_addr;
 	unsigned long flags;
 };
 
