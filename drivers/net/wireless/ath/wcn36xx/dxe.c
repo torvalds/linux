@@ -35,26 +35,27 @@ void *wcn36xx_dxe_get_next_bd(struct wcn36xx *wcn, bool is_low)
 	return ch->head_blk_ctl->bd_cpu_addr;
 }
 
+static void wcn36xx_ccu_write_register(struct wcn36xx *wcn, int addr, int data)
+{
+	wcn36xx_dbg(WCN36XX_DBG_DXE,
+		    "wcn36xx_ccu_write_register: addr=%x, data=%x\n",
+		    addr, data);
+
+	writel(data, wcn->ccu_base + addr);
+}
+
 static void wcn36xx_dxe_write_register(struct wcn36xx *wcn, int addr, int data)
 {
 	wcn36xx_dbg(WCN36XX_DBG_DXE,
 		    "wcn36xx_dxe_write_register: addr=%x, data=%x\n",
 		    addr, data);
 
-	writel(data, wcn->mmio + addr);
+	writel(data, wcn->dxe_base + addr);
 }
-
-#define wcn36xx_dxe_write_register_x(wcn, reg, reg_data)		 \
-do {									 \
-	if (wcn->chip_version == WCN36XX_CHIP_3680)			 \
-		wcn36xx_dxe_write_register(wcn, reg ## _3680, reg_data); \
-	else								 \
-		wcn36xx_dxe_write_register(wcn, reg ## _3660, reg_data); \
-} while (0)								 \
 
 static void wcn36xx_dxe_read_register(struct wcn36xx *wcn, int addr, int *data)
 {
-	*data = readl(wcn->mmio + addr);
+	*data = readl(wcn->dxe_base + addr);
 
 	wcn36xx_dbg(WCN36XX_DBG_DXE,
 		    "wcn36xx_dxe_read_register: addr=%x, data=%x\n",
@@ -703,7 +704,10 @@ int wcn36xx_dxe_init(struct wcn36xx *wcn)
 
 	/* Setting interrupt path */
 	reg_data = WCN36XX_DXE_CCU_INT;
-	wcn36xx_dxe_write_register_x(wcn, WCN36XX_DXE_REG_CCU_INT, reg_data);
+	if (wcn->chip_version == WCN36XX_CHIP_3680)
+		wcn36xx_ccu_write_register(wcn, WCN36XX_DXE_REG_CCU_INT_3680, reg_data);
+	else
+		wcn36xx_ccu_write_register(wcn, WCN36XX_DXE_REG_CCU_INT_3660, reg_data);
 
 	/***************************************/
 	/* Init descriptors for TX LOW channel */
