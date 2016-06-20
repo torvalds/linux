@@ -266,6 +266,11 @@
 /* Macro to hide a typecast. */
 #define ptlrpc_req_async_args(req) ((void *)&req->rq_async_args)
 
+struct ptlrpc_replay_async_args {
+	int		praa_old_state;
+	int		praa_old_status;
+};
+
 /**
  * Structure to single define portal connection.
  */
@@ -1243,6 +1248,166 @@ struct ptlrpc_hpreq_ops {
 	void (*hpreq_fini)(struct ptlrpc_request *);
 };
 
+struct ptlrpc_cli_req {
+	/** For bulk requests on client only: bulk descriptor */
+	struct ptlrpc_bulk_desc		*cr_bulk;
+	/** optional time limit for send attempts */
+	long				 cr_delay_limit;
+	/** time request was first queued */
+	time_t				 cr_queued_time;
+	/** request sent timeval */
+	struct timespec64		 cr_sent_tv;
+	/** time for request really sent out */
+	time_t				 cr_sent_out;
+	/** when req reply unlink must finish. */
+	time_t				 cr_reply_deadline;
+	/** when req bulk unlink must finish. */
+	time_t				 cr_bulk_deadline;
+	/** Portal to which this request would be sent */
+	short				 cr_req_ptl;
+	/** Portal where to wait for reply and where reply would be sent */
+	short				 cr_rep_ptl;
+	/** request resending number */
+	unsigned int			 cr_resend_nr;
+	/** What was import generation when this request was sent */
+	int				 cr_imp_gen;
+	enum lustre_imp_state		 cr_send_state;
+	/** Per-request waitq introduced by bug 21938 for recovery waiting */
+	wait_queue_head_t		 cr_set_waitq;
+	/** Link item for request set lists */
+	struct list_head		 cr_set_chain;
+	/** link to waited ctx */
+	struct list_head		 cr_ctx_chain;
+
+	/** client's half ctx */
+	struct ptlrpc_cli_ctx		*cr_cli_ctx;
+	/** Link back to the request set */
+	struct ptlrpc_request_set	*cr_set;
+	/** outgoing request MD handle */
+	lnet_handle_md_t		 cr_req_md_h;
+	/** request-out callback parameter */
+	struct ptlrpc_cb_id		 cr_req_cbid;
+	/** incoming reply MD handle */
+	lnet_handle_md_t		 cr_reply_md_h;
+	wait_queue_head_t		 cr_reply_waitq;
+	/** reply callback parameter */
+	struct ptlrpc_cb_id		 cr_reply_cbid;
+	/** Async completion handler, called when reply is received */
+	ptlrpc_interpterer_t		 cr_reply_interp;
+	/** Async completion context */
+	union ptlrpc_async_args		 cr_async_args;
+	/** Opaq data for replay and commit callbacks. */
+	void				*cr_cb_data;
+	/**
+	 * Commit callback, called when request is committed and about to be
+	 * freed.
+	 */
+	void (*cr_commit_cb)(struct ptlrpc_request *);
+	/** Replay callback, called after request is replayed at recovery */
+	void (*cr_replay_cb)(struct ptlrpc_request *);
+};
+
+/** client request member alias */
+/* NB: these alias should NOT be used by any new code, instead they should
+ * be removed step by step to avoid potential abuse
+ */
+#define rq_bulk			rq_cli.cr_bulk
+#define rq_delay_limit		rq_cli.cr_delay_limit
+#define rq_queued_time		rq_cli.cr_queued_time
+#define rq_sent_tv		rq_cli.cr_sent_tv
+#define rq_real_sent		rq_cli.cr_sent_out
+#define rq_reply_deadline	rq_cli.cr_reply_deadline
+#define rq_bulk_deadline	rq_cli.cr_bulk_deadline
+#define rq_nr_resend		rq_cli.cr_resend_nr
+#define rq_request_portal	rq_cli.cr_req_ptl
+#define rq_reply_portal		rq_cli.cr_rep_ptl
+#define rq_import_generation	rq_cli.cr_imp_gen
+#define rq_send_state		rq_cli.cr_send_state
+#define rq_set_chain		rq_cli.cr_set_chain
+#define rq_ctx_chain		rq_cli.cr_ctx_chain
+#define rq_set			rq_cli.cr_set
+#define rq_set_waitq		rq_cli.cr_set_waitq
+#define rq_cli_ctx		rq_cli.cr_cli_ctx
+#define rq_req_md_h		rq_cli.cr_req_md_h
+#define rq_req_cbid		rq_cli.cr_req_cbid
+#define rq_reply_md_h		rq_cli.cr_reply_md_h
+#define rq_reply_waitq		rq_cli.cr_reply_waitq
+#define rq_reply_cbid		rq_cli.cr_reply_cbid
+#define rq_interpret_reply	rq_cli.cr_reply_interp
+#define rq_async_args		rq_cli.cr_async_args
+#define rq_cb_data		rq_cli.cr_cb_data
+#define rq_commit_cb		rq_cli.cr_commit_cb
+#define rq_replay_cb		rq_cli.cr_replay_cb
+
+struct ptlrpc_srv_req {
+	/** initial thread servicing this request */
+	struct ptlrpc_thread		*sr_svc_thread;
+	/**
+	 * Server side list of incoming unserved requests sorted by arrival
+	 * time.  Traversed from time to time to notice about to expire
+	 * requests and sent back "early replies" to clients to let them
+	 * know server is alive and well, just very busy to service their
+	 * requests in time
+	 */
+	struct list_head		sr_timed_list;
+	/** server-side per-export list */
+	struct list_head		sr_exp_list;
+	/** server-side history, used for debuging purposes. */
+	struct list_head		sr_hist_list;
+	/** history sequence # */
+	__u64				sr_hist_seq;
+	/** the index of service's srv_at_array into which request is linked */
+	time_t				sr_at_index;
+	/** authed uid */
+	uid_t				sr_auth_uid;
+	/** authed uid mapped to */
+	uid_t				sr_auth_mapped_uid;
+	/** RPC is generated from what part of Lustre */
+	enum lustre_sec_part		sr_sp_from;
+	/** request session context */
+	struct lu_context		sr_ses;
+	/** \addtogroup  nrs
+	 * @{
+	 */
+	/** stub for NRS request */
+	struct ptlrpc_nrs_request	sr_nrq;
+	/** @} nrs */
+	/** request arrival time */
+	struct timespec64		sr_arrival_time;
+	/** server's half ctx */
+	struct ptlrpc_svc_ctx		*sr_svc_ctx;
+	/** (server side), pointed directly into req buffer */
+	struct ptlrpc_user_desc		*sr_user_desc;
+	/** separated reply state */
+	struct ptlrpc_reply_state	*sr_reply_state;
+	/** server-side hp handlers */
+	struct ptlrpc_hpreq_ops		*sr_ops;
+	/** incoming request buffer */
+	struct ptlrpc_request_buffer_desc *sr_rqbd;
+};
+
+/** server request member alias */
+/* NB: these alias should NOT be used by any new code, instead they should
+ * be removed step by step to avoid potential abuse
+ */
+#define rq_svc_thread		rq_srv.sr_svc_thread
+#define rq_timed_list		rq_srv.sr_timed_list
+#define rq_exp_list		rq_srv.sr_exp_list
+#define rq_history_list		rq_srv.sr_hist_list
+#define rq_history_seq		rq_srv.sr_hist_seq
+#define rq_at_index		rq_srv.sr_at_index
+#define rq_auth_uid		rq_srv.sr_auth_uid
+#define rq_auth_mapped_uid	rq_srv.sr_auth_mapped_uid
+#define rq_sp_from		rq_srv.sr_sp_from
+#define rq_session		rq_srv.sr_ses
+#define rq_nrq			rq_srv.sr_nrq
+#define rq_arrival_time		rq_srv.sr_arrival_time
+#define rq_reply_state		rq_srv.sr_reply_state
+#define rq_svc_ctx		rq_srv.sr_svc_ctx
+#define rq_user_desc		rq_srv.sr_user_desc
+#define rq_ops			rq_srv.sr_ops
+#define rq_rqbd			rq_srv.sr_rqbd
+
 /**
  * Represents remote procedure call.
  *
@@ -1251,42 +1416,14 @@ struct ptlrpc_hpreq_ops {
  */
 struct ptlrpc_request {
 	/* Request type: one of PTL_RPC_MSG_* */
-	int rq_type;
+	int				 rq_type;
 	/** Result of request processing */
-	int rq_status;
+	int				 rq_status;
 	/**
 	 * Linkage item through which this request is included into
 	 * sending/delayed lists on client and into rqbd list on server
 	 */
-	struct list_head rq_list;
-	/**
-	 * Server side list of incoming unserved requests sorted by arrival
-	 * time.  Traversed from time to time to notice about to expire
-	 * requests and sent back "early replies" to clients to let them
-	 * know server is alive and well, just very busy to service their
-	 * requests in time
-	 */
-	struct list_head rq_timed_list;
-	/** server-side history, used for debugging purposes. */
-	struct list_head rq_history_list;
-	/** server-side per-export list */
-	struct list_head rq_exp_list;
-	/** server-side hp handlers */
-	struct ptlrpc_hpreq_ops *rq_ops;
-
-	/** initial thread servicing this request */
-	struct ptlrpc_thread *rq_svc_thread;
-
-	/** history sequence # */
-	__u64 rq_history_seq;
-	/** \addtogroup  nrs
-	 * @{
-	 */
-	/** stub for NRS request */
-	struct ptlrpc_nrs_request rq_nrq;
-	/** @} nrs */
-	/** the index of service's srv_at_array into which request is linked */
-	u32 rq_at_index;
+	struct list_head		 rq_list;
 	/** Lock to protect request flags and some other important bits, like
 	 * rq_list
 	 */
@@ -1327,19 +1464,15 @@ struct ptlrpc_request {
 		/* bulk request, sent to server, but uncommitted */
 		rq_unstable:1;
 
-	unsigned int rq_nr_resend;
-
-	enum rq_phase rq_phase; /* one of RQ_PHASE_* */
-	enum rq_phase rq_next_phase; /* one of RQ_PHASE_* to be used next */
-	atomic_t rq_refcount; /* client-side refcount for SENT race,
-			       * server-side refcount for multiple replies
-			       */
-
-	/** Portal to which this request would be sent */
-	short rq_request_portal;  /* XXX FIXME bug 249 */
-	/** Portal where to wait for reply and where reply would be sent */
-	short rq_reply_portal;    /* XXX FIXME bug 249 */
-
+	/** one of RQ_PHASE_* */
+	enum rq_phase			rq_phase;
+	/** one of RQ_PHASE_* to be used next */
+	enum rq_phase			rq_next_phase;
+	/**
+	 * client-side refcount for SENT race, server-side refcount
+	 * for multiple replies
+	 */
+	atomic_t			rq_refcount;
 	/**
 	 * client-side:
 	 * !rq_truncate : # reply bytes actually received,
@@ -1350,6 +1483,8 @@ struct ptlrpc_request {
 	int rq_reqlen;
 	/** Reply length */
 	int rq_replen;
+	/** Pool if request is from preallocated list */
+	struct ptlrpc_request_pool     *rq_pool;
 	/** Request message - what client sent */
 	struct lustre_msg *rq_reqmsg;
 	/** Reply message - server response */
@@ -1362,19 +1497,20 @@ struct ptlrpc_request {
 	 * List item to for replay list. Not yet committed requests get linked
 	 * there.
 	 * Also see \a rq_replay comment above.
+	 * It's also link chain on obd_export::exp_req_replay_queue
 	 */
 	struct list_head rq_replay_list;
-
+	/** non-shared members for client & server request*/
+	union {
+		struct ptlrpc_cli_req    rq_cli;
+		struct ptlrpc_srv_req    rq_srv;
+	};
 	/**
 	 * security and encryption data
 	 * @{
 	 */
-	struct ptlrpc_cli_ctx   *rq_cli_ctx;     /**< client's half ctx */
-	struct ptlrpc_svc_ctx   *rq_svc_ctx;     /**< server's half ctx */
-	struct list_head	       rq_ctx_chain;   /**< link to waited ctx */
-
-	struct sptlrpc_flavor    rq_flvr;	/**< for client & server */
-	enum lustre_sec_part     rq_sp_from;
+	/** description of flavors for client & server */
+	struct sptlrpc_flavor		rq_flvr;
 
 	/* client/server security flags */
 	unsigned int
@@ -1392,19 +1528,15 @@ struct ptlrpc_request {
 				 rq_pack_bulk:1,
 				 /* doesn't expect reply FIXME */
 				 rq_no_reply:1,
-				 rq_pill_init:1;     /* pill initialized */
+				 rq_pill_init:1, /* pill initialized */
+				 rq_srv_req:1; /* server request */
 
-	uid_t		    rq_auth_uid;	/* authed uid */
-	uid_t		    rq_auth_mapped_uid; /* authed uid mapped to */
-
-	/* (server side), pointed directly into req buffer */
-	struct ptlrpc_user_desc *rq_user_desc;
-
-	/* various buffer pointers */
-	struct lustre_msg       *rq_reqbuf;      /* req wrapper */
-	char		    *rq_repbuf;      /* rep buffer */
-	struct lustre_msg       *rq_repdata;     /* rep wrapper msg */
-	struct lustre_msg       *rq_clrbuf;      /* only in priv mode */
+	/** various buffer pointers */
+	struct lustre_msg       *rq_reqbuf;	/**< req wrapper */
+	char			*rq_repbuf;	/**< rep buffer */
+	struct lustre_msg       *rq_repdata;	/**< rep wrapper msg */
+	/** only in priv mode */
+	struct lustre_msg       *rq_clrbuf;
 	int		      rq_reqbuf_len;  /* req wrapper buf len */
 	int		      rq_reqdata_len; /* req wrapper msg len */
 	int		      rq_repbuf_len;  /* rep buffer len */
@@ -1421,97 +1553,28 @@ struct ptlrpc_request {
 	__u32 rq_req_swab_mask;
 	__u32 rq_rep_swab_mask;
 
-	/** What was import generation when this request was sent */
-	int rq_import_generation;
-	enum lustre_imp_state rq_send_state;
-
 	/** how many early replies (for stats) */
 	int rq_early_count;
 
-	/** client+server request */
-	lnet_handle_md_t     rq_req_md_h;
-	struct ptlrpc_cb_id  rq_req_cbid;
-	/** optional time limit for send attempts */
-	long       rq_delay_limit;
-	/** time request was first queued */
-	unsigned long	   rq_queued_time;
-
-	/* server-side... */
-	/** request arrival time */
-	struct timespec64	rq_arrival_time;
-	/** separated reply state */
-	struct ptlrpc_reply_state *rq_reply_state;
-	/** incoming request buffer */
-	struct ptlrpc_request_buffer_desc *rq_rqbd;
-
-	/** client-only incoming reply */
-	lnet_handle_md_t     rq_reply_md_h;
-	wait_queue_head_t	  rq_reply_waitq;
-	struct ptlrpc_cb_id  rq_reply_cbid;
-
+	/** Server-side, export on which request was received */
+	struct obd_export		*rq_export;
+	/** import where request is being sent */
+	struct obd_import		*rq_import;
 	/** our LNet NID */
 	lnet_nid_t	   rq_self;
 	/** Peer description (the other side) */
 	lnet_process_id_t    rq_peer;
-	/** Server-side, export on which request was received */
-	struct obd_export   *rq_export;
-	/** Client side, import where request is being sent */
-	struct obd_import   *rq_import;
-
-	/** Replay callback, called after request is replayed at recovery */
-	void (*rq_replay_cb)(struct ptlrpc_request *);
 	/**
-	 * Commit callback, called when request is committed and about to be
-	 * freed.
+	 * service time estimate (secs)
+	 * If the request is not served by this time, it is marked as timed out.
 	 */
-	void (*rq_commit_cb)(struct ptlrpc_request *);
-	/** Opaq data for replay and commit callbacks. */
-	void  *rq_cb_data;
-
-	/** For bulk requests on client only: bulk descriptor */
-	struct ptlrpc_bulk_desc *rq_bulk;
-
-	/** client outgoing req */
+	int			rq_timeout;
 	/**
 	 * when request/reply sent (secs), or time when request should be sent
 	 */
 	time64_t rq_sent;
-	/** time for request really sent out */
-	time64_t rq_real_sent;
-
-	/** when request must finish. volatile
-	 * so that servers' early reply updates to the deadline aren't
-	 * kept in per-cpu cache
-	 */
-	volatile time64_t rq_deadline;
-	/** when req reply unlink must finish. */
-	time64_t rq_reply_deadline;
-	/** when req bulk unlink must finish. */
-	time64_t rq_bulk_deadline;
-	/**
-	 * service time estimate (secs)
-	 * If the requestsis not served by this time, it is marked as timed out.
-	 */
-	int    rq_timeout;
-
-	/** Multi-rpc bits */
-	/** Per-request waitq introduced by bug 21938 for recovery waiting */
-	wait_queue_head_t rq_set_waitq;
-	/** Link item for request set lists */
-	struct list_head  rq_set_chain;
-	/** Link back to the request set */
-	struct ptlrpc_request_set *rq_set;
-	/** Async completion handler, called when reply is received */
-	ptlrpc_interpterer_t rq_interpret_reply;
-	/** Async completion context */
-	union ptlrpc_async_args rq_async_args;
-
-	/** Pool if request is from preallocated list */
-	struct ptlrpc_request_pool *rq_pool;
-
-	struct lu_context	   rq_session;
-	struct lu_context	   rq_recov_session;
-
+	/** when request must finish. */
+	time64_t		  rq_deadline;
 	/** request format description */
 	struct req_capsule	  rq_pill;
 };

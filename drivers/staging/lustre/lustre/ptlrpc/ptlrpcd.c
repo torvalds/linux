@@ -157,9 +157,9 @@ static int ptlrpcd_users;
 
 void ptlrpcd_wake(struct ptlrpc_request *req)
 {
-	struct ptlrpc_request_set *rq_set = req->rq_set;
+	struct ptlrpc_request_set *set = req->rq_set;
 
-	wake_up(&rq_set->set_waitq);
+	wake_up(&set->set_waitq);
 }
 EXPORT_SYMBOL(ptlrpcd_wake);
 

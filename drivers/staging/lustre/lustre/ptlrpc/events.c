@@ -324,6 +324,7 @@ void request_in_callback(lnet_event_t *ev)
 		}
 	}
 
+	ptlrpc_srv_req_init(req);
 	/* NB we ABSOLUTELY RELY on req being zeroed, so pointers are NULL,
 	 * flags are reset and scalars are zero.  We only set the message
 	 * size to non-zero if this was a successful receive.
@@ -337,10 +338,6 @@ void request_in_callback(lnet_event_t *ev)
 	req->rq_self = ev->target.nid;
 	req->rq_rqbd = rqbd;
 	req->rq_phase = RQ_PHASE_NEW;
-	spin_lock_init(&req->rq_lock);
-	INIT_LIST_HEAD(&req->rq_timed_list);
-	INIT_LIST_HEAD(&req->rq_exp_list);
-	atomic_set(&req->rq_refcount, 1);
 	if (ev->type == LNET_EVENT_PUT)
 		CDEBUG(D_INFO, "incoming req@%p x%llu msgsize %u\n",
 		       req, req->rq_xid, ev->mlength);

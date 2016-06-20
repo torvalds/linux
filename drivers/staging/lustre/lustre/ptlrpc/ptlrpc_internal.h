@@ -288,4 +288,38 @@ static inline void ptlrpc_reqset_put(struct ptlrpc_request_set *set)
 	if (atomic_dec_and_test(&set->set_refcount))
 		kfree(set);
 }
+
+/** initialise ptlrpc common fields */
+static inline void ptlrpc_req_comm_init(struct ptlrpc_request *req)
+{
+	spin_lock_init(&req->rq_lock);
+	atomic_set(&req->rq_refcount, 1);
+	INIT_LIST_HEAD(&req->rq_list);
+	INIT_LIST_HEAD(&req->rq_replay_list);
+}
+
+/** initialise client side ptlrpc request */
+static inline void ptlrpc_cli_req_init(struct ptlrpc_request *req)
+{
+	struct ptlrpc_cli_req *cr = &req->rq_cli;
+
+	ptlrpc_req_comm_init(req);
+	INIT_LIST_HEAD(&cr->cr_set_chain);
+	INIT_LIST_HEAD(&cr->cr_ctx_chain);
+	init_waitqueue_head(&cr->cr_reply_waitq);
+	init_waitqueue_head(&cr->cr_set_waitq);
+}
+
+/** initialise server side ptlrpc request */
+static inline void ptlrpc_srv_req_init(struct ptlrpc_request *req)
+{
+	struct ptlrpc_srv_req *sr = &req->rq_srv;
+
+	ptlrpc_req_comm_init(req);
+	req->rq_srv_req = 1;
+	INIT_LIST_HEAD(&sr->sr_exp_list);
+	INIT_LIST_HEAD(&sr->sr_timed_list);
+	INIT_LIST_HEAD(&sr->sr_hist_list);
+}
+
 #endif /* PTLRPC_INTERNAL_H */

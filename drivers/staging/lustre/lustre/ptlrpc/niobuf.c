@@ -633,7 +633,7 @@ int ptl_send_rpc(struct ptlrpc_request *request, int noreply)
 
 	OBD_FAIL_TIMEOUT(OBD_FAIL_PTLRPC_DELAY_SEND, request->rq_timeout + 5);
 
-	ktime_get_real_ts64(&request->rq_arrival_time);
+	ktime_get_real_ts64(&request->rq_sent_tv);
 	request->rq_sent = ktime_get_real_seconds();
 	/* We give the server rq_timeout secs to process the req, and
 	 * add the network latency for our local timeout.

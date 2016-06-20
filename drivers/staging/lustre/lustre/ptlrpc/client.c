@@ -611,7 +611,6 @@ static int __ptlrpc_request_bufs_pack(struct ptlrpc_request *request,
 	lustre_msg_add_version(request->rq_reqmsg, version);
 	request->rq_send_state = LUSTRE_IMP_FULL;
 	request->rq_type = PTL_RPC_MSG_REQUEST;
-	request->rq_export = NULL;
 
 	request->rq_req_cbid.cbid_fn = request_out_callback;
 	request->rq_req_cbid.cbid_arg = request;
@@ -628,19 +627,7 @@ static int __ptlrpc_request_bufs_pack(struct ptlrpc_request *request,
 
 	ptlrpc_at_set_req_timeout(request);
 
-	spin_lock_init(&request->rq_lock);
-	INIT_LIST_HEAD(&request->rq_list);
-	INIT_LIST_HEAD(&request->rq_timed_list);
-	INIT_LIST_HEAD(&request->rq_replay_list);
-	INIT_LIST_HEAD(&request->rq_ctx_chain);
-	INIT_LIST_HEAD(&request->rq_set_chain);
-	INIT_LIST_HEAD(&request->rq_history_list);
-	INIT_LIST_HEAD(&request->rq_exp_list);
-	init_waitqueue_head(&request->rq_reply_waitq);
-	init_waitqueue_head(&request->rq_set_waitq);
 	request->rq_xid = ptlrpc_next_xid();
-	atomic_set(&request->rq_refcount, 1);
-
 	lustre_msg_set_opc(request->rq_reqmsg, opcode);
 
 	return 0;
@@ -718,7 +705,9 @@ struct ptlrpc_request *__ptlrpc_request_alloc(struct obd_import *imp,
 		request = ptlrpc_prep_req_from_pool(pool);
 
 	if (request) {
-		LASSERTF((unsigned long)imp > 0x1000, "%p\n", imp);
+		ptlrpc_cli_req_init(request);
+
+		LASSERTF((unsigned long)imp > 0x1000, "%p", imp);
 		LASSERT(imp != LP_POISON);
 		LASSERTF((unsigned long)imp->imp_client > 0x1000, "%p\n",
 			 imp->imp_client);
@@ -1235,8 +1224,9 @@ static int after_reply(struct ptlrpc_request *req)
 	}
 
 	ktime_get_real_ts64(&work_start);
-	timediff = (work_start.tv_sec - req->rq_arrival_time.tv_sec) * USEC_PER_SEC +
-		   (work_start.tv_nsec - req->rq_arrival_time.tv_nsec) / NSEC_PER_USEC;
+	timediff = (work_start.tv_sec - req->rq_sent_tv.tv_sec) * USEC_PER_SEC +
+		   (work_start.tv_nsec - req->rq_sent_tv.tv_nsec) /
+								 NSEC_PER_USEC;
 	if (obd->obd_svc_stats) {
 		lprocfs_counter_add(obd->obd_svc_stats, PTLRPC_REQWAIT_CNTR,
 				    timediff);
@@ -2191,11 +2181,11 @@ static void __ptlrpc_free_req(struct ptlrpc_request *request, int locked)
 {
 	if (!request)
 		return;
+	LASSERT(!request->rq_srv_req);
+	LASSERT(!request->rq_export);
 	LASSERTF(!request->rq_receiving_reply, "req %p\n", request);
-	LASSERTF(!request->rq_rqbd, "req %p\n", request);/* client-side */
 	LASSERTF(list_empty(&request->rq_list), "req %p\n", request);
 	LASSERTF(list_empty(&request->rq_set_chain), "req %p\n", request);
-	LASSERTF(list_empty(&request->rq_exp_list), "req %p\n", request);
 	LASSERTF(!request->rq_replay, "req %p\n", request);
 
 	req_capsule_fini(&request->rq_pill);
@@ -2221,10 +2211,7 @@ static void __ptlrpc_free_req(struct ptlrpc_request *request, int locked)
 
 	if (request->rq_repbuf)
 		sptlrpc_cli_free_repbuf(request);
-	if (request->rq_export) {
-		class_export_put(request->rq_export);
-		request->rq_export = NULL;
-	}
+
 	if (request->rq_import) {
 		class_import_put(request->rq_import);
 		request->rq_import = NULL;
@@ -2613,11 +2600,6 @@ int ptlrpc_queue_wait(struct ptlrpc_request *req)
 	return rc;
 }
 EXPORT_SYMBOL(ptlrpc_queue_wait);
-
-struct ptlrpc_replay_async_args {
-	int praa_old_state;
-	int praa_old_status;
-};
 
 /**
  * Callback used for replayed requests reply processing.
@@ -3013,10 +2995,11 @@ void *ptlrpcd_alloc_work(struct obd_import *imp,
 		return ERR_PTR(-ENOMEM);
 	}
 
+	ptlrpc_cli_req_init(req);
+
 	req->rq_send_state = LUSTRE_IMP_FULL;
 	req->rq_type = PTL_RPC_MSG_REQUEST;
 	req->rq_import = class_import_get(imp);
-	req->rq_export = NULL;
 	req->rq_interpret_reply = work_interpreter;
 	/* don't want reply */
 	req->rq_receiving_reply = 0;
@@ -3025,16 +3008,6 @@ void *ptlrpcd_alloc_work(struct obd_import *imp,
 	req->rq_no_delay = 1;
 	req->rq_no_resend = 1;
 	req->rq_pill.rc_fmt = (void *)&worker_format;
-
-	spin_lock_init(&req->rq_lock);
-	INIT_LIST_HEAD(&req->rq_list);
-	INIT_LIST_HEAD(&req->rq_replay_list);
-	INIT_LIST_HEAD(&req->rq_set_chain);
-	INIT_LIST_HEAD(&req->rq_history_list);
-	INIT_LIST_HEAD(&req->rq_exp_list);
-	init_waitqueue_head(&req->rq_reply_waitq);
-	init_waitqueue_head(&req->rq_set_waitq);
-	atomic_set(&req->rq_refcount, 1);
 
 	CLASSERT(sizeof(*args) <= sizeof(req->rq_async_args));
 	args = ptlrpc_req_async_args(req);
