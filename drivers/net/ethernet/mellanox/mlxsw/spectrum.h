@@ -165,7 +165,7 @@ struct mlxsw_sp {
 		struct list_head list;
 		DECLARE_BITMAP(mapped, MLXSW_SP_MID_MAX);
 	} br_mids;
-	DECLARE_BITMAP(active_fids, VLAN_N_VID);
+	struct list_head fids;	/* VLAN-aware bridge FIDs */
 	struct mlxsw_sp_port **ports;
 	struct mlxsw_core *core;
 	const struct mlxsw_bus_info *bus_info;
