@@ -69,11 +69,34 @@ unsigned long pseries_memory_block_size(void)
 	return memblock_size;
 }
 
-static void dlpar_free_drconf_property(struct property *prop)
+static void dlpar_free_property(struct property *prop)
 {
 	kfree(prop->name);
 	kfree(prop->value);
 	kfree(prop);
+}
+
+static struct property *dlpar_clone_property(struct property *prop,
+					     u32 prop_size)
+{
+	struct property *new_prop;
+
+	new_prop = kzalloc(sizeof(*new_prop), GFP_KERNEL);
+	if (!new_prop)
+		return NULL;
+
+	new_prop->name = kstrdup(prop->name, GFP_KERNEL);
+	new_prop->value = kzalloc(prop_size, GFP_KERNEL);
+	if (!new_prop->name || !new_prop->value) {
+		dlpar_free_property(new_prop);
+		return NULL;
+	}
+
+	memcpy(new_prop->value, prop->value, prop->length);
+	new_prop->length = prop_size;
+
+	of_property_set_flag(new_prop, OF_DYNAMIC);
+	return new_prop;
 }
 
 static struct property *dlpar_clone_drconf_property(struct device_node *dn)
@@ -87,18 +110,9 @@ static struct property *dlpar_clone_drconf_property(struct device_node *dn)
 	if (!prop)
 		return NULL;
 
-	new_prop = kzalloc(sizeof(*new_prop), GFP_KERNEL);
+	new_prop = dlpar_clone_property(prop, prop->length);
 	if (!new_prop)
 		return NULL;
-
-	new_prop->name = kstrdup(prop->name, GFP_KERNEL);
-	new_prop->value = kmemdup(prop->value, prop->length, GFP_KERNEL);
-	if (!new_prop->name || !new_prop->value) {
-		dlpar_free_drconf_property(new_prop);
-		return NULL;
-	}
-
-	new_prop->length = prop->length;
 
 	/* Convert the property to cpu endian-ness */
 	p = new_prop->value;
@@ -748,7 +762,7 @@ int dlpar_memory(struct pseries_hp_errorlog *hp_elog)
 		break;
 	}
 
-	dlpar_free_drconf_property(prop);
+	dlpar_free_property(prop);
 
 dlpar_memory_out:
 	of_node_put(dn);
