@@ -163,6 +163,8 @@ config ARCH_VEXPRESS
 	bool "ARMv8 software model (Versatile Express)"
 	select ARCH_REQUIRE_GPIOLIB
 	select COMMON_CLK_VERSATILE
+	select PM
+	select PM_GENERIC_DOMAINS
 	select POWER_RESET_VEXPRESS
 	select VEXPRESS_CONFIG
 	help
