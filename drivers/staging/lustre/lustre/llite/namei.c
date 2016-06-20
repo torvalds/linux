@@ -622,13 +622,10 @@ static int ll_atomic_open(struct inode *dir, struct dentry *dentry,
 		if (d_really_is_positive(dentry) && it_disposition(it, DISP_OPEN_OPEN)) {
 			/* Open dentry. */
 			if (S_ISFIFO(d_inode(dentry)->i_mode)) {
-				/* We cannot call open here as it would
-				 * deadlock.
+				/* We cannot call open here as it might
+				 * deadlock. This case is unreachable in
+				 * practice because of OBD_CONNECT_NODEVOH.
 				 */
-				if (it_disposition(it, DISP_ENQ_OPEN_REF))
-					ptlrpc_req_finished(
-						       (struct ptlrpc_request *)
-							  it->d.lustre.it_data);
 				rc = finish_no_open(file, de);
 			} else {
 				file->private_data = it;
