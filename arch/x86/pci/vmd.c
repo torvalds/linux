@@ -169,10 +169,13 @@ static irq_hw_number_t vmd_get_hwirq(struct msi_domain_info *info,
  * XXX: We can be even smarter selecting the best IRQ once we solve the
  * affinity problem.
  */
-static struct vmd_irq_list *vmd_next_irq(struct vmd_dev *vmd)
+static struct vmd_irq_list *vmd_next_irq(struct vmd_dev *vmd, struct msi_desc *desc)
 {
-	int i, best = 0;
+	int i, best = 1;
 	unsigned long flags;
+
+	if (!desc->msi_attrib.is_msix || vmd->msix_count == 1)
+		return &vmd->irqs[0];
 
 	raw_spin_lock_irqsave(&list_lock, flags);
 	for (i = 1; i < vmd->msix_count; i++)
@@ -188,14 +191,15 @@ static int vmd_msi_init(struct irq_domain *domain, struct msi_domain_info *info,
 			unsigned int virq, irq_hw_number_t hwirq,
 			msi_alloc_info_t *arg)
 {
-	struct vmd_dev *vmd = vmd_from_bus(msi_desc_to_pci_dev(arg->desc)->bus);
+	struct msi_desc *desc = arg->desc;
+	struct vmd_dev *vmd = vmd_from_bus(msi_desc_to_pci_dev(desc)->bus);
 	struct vmd_irq *vmdirq = kzalloc(sizeof(*vmdirq), GFP_KERNEL);
 
 	if (!vmdirq)
 		return -ENOMEM;
 
 	INIT_LIST_HEAD(&vmdirq->node);
-	vmdirq->irq = vmd_next_irq(vmd);
+	vmdirq->irq = vmd_next_irq(vmd, desc);
 	vmdirq->virq = virq;
 
 	irq_domain_set_info(domain, virq, vmdirq->irq->vmd_vector, info->chip,
