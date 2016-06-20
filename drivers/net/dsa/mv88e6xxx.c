@@ -3590,15 +3590,13 @@ static const struct mv88e6xxx_info mv88e6xxx_table[] = {
 	},
 };
 
-static const struct mv88e6xxx_info *
-mv88e6xxx_lookup_info(unsigned int prod_num, const struct mv88e6xxx_info *table,
-		      unsigned int num)
+static const struct mv88e6xxx_info *mv88e6xxx_lookup_info(unsigned int prod_num)
 {
 	int i;
 
-	for (i = 0; i < num; ++i)
-		if (table[i].prod_num == prod_num)
-			return &table[i];
+	for (i = 0; i < ARRAY_SIZE(mv88e6xxx_table); ++i)
+		if (mv88e6xxx_table[i].prod_num == prod_num)
+			return &mv88e6xxx_table[i];
 
 	return NULL;
 }
@@ -3625,8 +3623,7 @@ static const char *mv88e6xxx_drv_probe(struct device *dsa_dev,
 	prod_num = (id & 0xfff0) >> 4;
 	rev = id & 0x000f;
 
-	info = mv88e6xxx_lookup_info(prod_num, mv88e6xxx_table,
-				     ARRAY_SIZE(mv88e6xxx_table));
+	info = mv88e6xxx_lookup_info(prod_num);
 	if (!info)
 		return NULL;
 
@@ -3739,8 +3736,7 @@ static int mv88e6xxx_probe(struct mdio_device *mdiodev)
 	prod_num = (id & 0xfff0) >> 4;
 	rev = id & 0x000f;
 
-	ps->info = mv88e6xxx_lookup_info(prod_num, mv88e6xxx_table,
-					 ARRAY_SIZE(mv88e6xxx_table));
+	ps->info = mv88e6xxx_lookup_info(prod_num);
 	if (!ps->info)
 		return -ENODEV;
 
