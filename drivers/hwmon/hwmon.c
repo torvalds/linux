@@ -356,12 +356,30 @@ static const char * const hwmon_power_attr_templates[] = {
 	[hwmon_power_crit_alarm] = "power%d_crit_alarm",
 };
 
+static const char * const hwmon_energy_attr_templates[] = {
+	[hwmon_energy_input] = "energy%d_input",
+	[hwmon_energy_label] = "energy%d_label",
+};
+
+static const char * const hwmon_humidity_attr_templates[] = {
+	[hwmon_humidity_input] = "humidity%d_input",
+	[hwmon_humidity_label] = "humidity%d_label",
+	[hwmon_humidity_min] = "humidity%d_min",
+	[hwmon_humidity_min_hyst] = "humidity%d_min_hyst",
+	[hwmon_humidity_max] = "humidity%d_max",
+	[hwmon_humidity_max_hyst] = "humidity%d_max_hyst",
+	[hwmon_humidity_alarm] = "humidity%d_alarm",
+	[hwmon_humidity_fault] = "humidity%d_fault",
+};
+
 static const char * const *__templates[] = {
 	[hwmon_chip] = hwmon_chip_attr_templates,
 	[hwmon_temp] = hwmon_temp_attr_templates,
 	[hwmon_in] = hwmon_in_attr_templates,
 	[hwmon_curr] = hwmon_curr_attr_templates,
 	[hwmon_power] = hwmon_power_attr_templates,
+	[hwmon_energy] = hwmon_energy_attr_templates,
+	[hwmon_humidity] = hwmon_humidity_attr_templates,
 };
 
 static const int __templates_size[] = {
@@ -370,6 +388,8 @@ static const int __templates_size[] = {
 	[hwmon_in] = ARRAY_SIZE(hwmon_in_attr_templates),
 	[hwmon_curr] = ARRAY_SIZE(hwmon_curr_attr_templates),
 	[hwmon_power] = ARRAY_SIZE(hwmon_power_attr_templates),
+	[hwmon_energy] = ARRAY_SIZE(hwmon_energy_attr_templates),
+	[hwmon_humidity] = ARRAY_SIZE(hwmon_humidity_attr_templates),
 };
 
 static int hwmon_num_channel_attrs(const struct hwmon_channel_info *info)

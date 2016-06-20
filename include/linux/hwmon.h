@@ -26,6 +26,7 @@ enum hwmon_sensor_types {
 	hwmon_curr,
 	hwmon_power,
 	hwmon_energy,
+	hwmon_humidity,
 };
 
 enum hwmon_chip_attributes {
@@ -215,6 +216,34 @@ enum hwmon_power_attributes {
 #define HWMON_P_CAP_ALARM		BIT(hwmon_power_cap_alarm)
 #define HWMON_P_MAX_ALARM		BIT(hwmon_power_max_alarm)
 #define HWMON_P_CRIT_ALARM		BIT(hwmon_power_crit_alarm)
+
+enum hwmon_energy_attributes {
+	hwmon_energy_input,
+	hwmon_energy_label,
+};
+
+#define HWMON_E_INPUT			BIT(hwmon_energy_input)
+#define HWMON_E_LABEL			BIT(hwmon_energy_label)
+
+enum hwmon_humidity_attributes {
+	hwmon_humidity_input,
+	hwmon_humidity_label,
+	hwmon_humidity_min,
+	hwmon_humidity_min_hyst,
+	hwmon_humidity_max,
+	hwmon_humidity_max_hyst,
+	hwmon_humidity_alarm,
+	hwmon_humidity_fault,
+};
+
+#define HWMON_H_INPUT			BIT(hwmon_humidity_input)
+#define HWMON_H_LABEL			BIT(hwmon_humidity_label)
+#define HWMON_H_MIN			BIT(hwmon_humidity_min)
+#define HWMON_H_MIN_HYST		BIT(hwmon_humidity_min_hyst)
+#define HWMON_H_MAX			BIT(hwmon_humidity_max)
+#define HWMON_H_MAX_HYST		BIT(hwmon_humidity_max_hyst)
+#define HWMON_H_ALARM			BIT(hwmon_humidity_alarm)
+#define HWMON_H_FAULT			BIT(hwmon_humidity_fault)
 
 /**
  * struct hwmon_ops - hwmon device operations
