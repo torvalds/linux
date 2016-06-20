@@ -3601,6 +3601,30 @@ static const struct mv88e6xxx_info *mv88e6xxx_lookup_info(unsigned int prod_num)
 	return NULL;
 }
 
+static int mv88e6xxx_detect(struct mv88e6xxx_priv_state *ps)
+{
+	const struct mv88e6xxx_info *info;
+	int id, prod_num, rev;
+
+	id = mv88e6xxx_reg_read(ps, REG_PORT(0), PORT_SWITCH_ID);
+	if (id < 0)
+		return id;
+
+	prod_num = (id & 0xfff0) >> 4;
+	rev = id & 0x000f;
+
+	info = mv88e6xxx_lookup_info(prod_num);
+	if (!info)
+		return -ENODEV;
+
+	ps->info = info;
+
+	dev_info(ps->dev, "switch 0x%x detected: %s, revision %u\n",
+		 ps->info->prod_num, ps->info->name, rev);
+
+	return 0;
+}
+
 static struct mv88e6xxx_priv_state *mv88e6xxx_alloc_chip(struct device *dev)
 {
 	struct mv88e6xxx_priv_state *ps;
@@ -3633,11 +3657,8 @@ static const char *mv88e6xxx_drv_probe(struct device *dsa_dev,
 				       struct device *host_dev, int sw_addr,
 				       void **priv)
 {
-	const struct mv88e6xxx_info *info;
 	struct mv88e6xxx_priv_state *ps;
 	struct mii_bus *bus;
-	const char *name;
-	int id, prod_num, rev;
 	int err;
 
 	bus = dsa_host_dev_to_mii_bus(host_dev);
@@ -3652,20 +3673,9 @@ static const char *mv88e6xxx_drv_probe(struct device *dsa_dev,
 	if (err)
 		goto free;
 
-	id = mv88e6xxx_reg_read(ps, REG_PORT(0), PORT_SWITCH_ID);
-	if (id < 0)
+	err = mv88e6xxx_detect(ps);
+	if (err)
 		goto free;
-
-	prod_num = (id & 0xfff0) >> 4;
-	rev = id & 0x000f;
-
-	info = mv88e6xxx_lookup_info(prod_num);
-	if (!info)
-		goto free;
-
-	name = info->name;
-
-	ps->info = info;
 
 	err = mv88e6xxx_mdio_register(ps, NULL);
 	if (err)
@@ -3673,10 +3683,7 @@ static const char *mv88e6xxx_drv_probe(struct device *dsa_dev,
 
 	*priv = ps;
 
-	dev_info(&ps->bus->dev, "switch 0x%x probed: %s, revision %u\n",
-		 prod_num, name, rev);
-
-	return name;
+	return ps->info->name;
 free:
 	devm_kfree(dsa_dev, ps);
 
@@ -3748,7 +3755,6 @@ static int mv88e6xxx_probe(struct mdio_device *mdiodev)
 	struct device *dev = &mdiodev->dev;
 	struct device_node *np = dev->of_node;
 	struct mv88e6xxx_priv_state *ps;
-	int id, prod_num, rev;
 	u32 eeprom_len;
 	int err;
 
@@ -3760,16 +3766,9 @@ static int mv88e6xxx_probe(struct mdio_device *mdiodev)
 	if (err)
 		return err;
 
-	id = mv88e6xxx_reg_read(ps, REG_PORT(0), PORT_SWITCH_ID);
-	if (id < 0)
-		return id;
-
-	prod_num = (id & 0xfff0) >> 4;
-	rev = id & 0x000f;
-
-	ps->info = mv88e6xxx_lookup_info(prod_num);
-	if (!ps->info)
-		return -ENODEV;
+	err = mv88e6xxx_detect(ps);
+	if (err)
+		return err;
 
 	ps->reset = devm_gpiod_get_optional(dev, "reset", GPIOD_ASIS);
 	if (IS_ERR(ps->reset))
@@ -3788,9 +3787,6 @@ static int mv88e6xxx_probe(struct mdio_device *mdiodev)
 		mv88e6xxx_mdio_unregister(ps);
 		return err;
 	}
-
-	dev_info(dev, "switch 0x%x probed: %s, revision %u\n",
-		 prod_num, ps->info->name, rev);
 
 	return 0;
 }
