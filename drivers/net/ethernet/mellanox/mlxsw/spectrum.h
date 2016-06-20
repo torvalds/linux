@@ -259,12 +259,6 @@ mlxsw_sp_port_lagged_get(struct mlxsw_sp *mlxsw_sp, u16 lag_id, u8 port_index)
 	return mlxsw_sp_port && mlxsw_sp_port->lagged ? mlxsw_sp_port : NULL;
 }
 
-static inline bool
-mlxsw_sp_port_is_vport(const struct mlxsw_sp_port *mlxsw_sp_port)
-{
-	return mlxsw_sp_port->vport.f;
-}
-
 static inline struct net_device *
 mlxsw_sp_vport_br_get(const struct mlxsw_sp_port *mlxsw_sp_vport)
 {
@@ -275,6 +269,14 @@ static inline u16
 mlxsw_sp_vport_vid_get(const struct mlxsw_sp_port *mlxsw_sp_vport)
 {
 	return mlxsw_sp_vport->vport.vid;
+}
+
+static inline bool
+mlxsw_sp_port_is_vport(const struct mlxsw_sp_port *mlxsw_sp_port)
+{
+	u16 vid = mlxsw_sp_vport_vid_get(mlxsw_sp_port);
+
+	return vid != 0;
 }
 
 static inline u16
