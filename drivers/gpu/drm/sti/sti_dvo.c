@@ -497,10 +497,6 @@ static int sti_dvo_bind(struct device *dev, struct device *master, void *data)
 	drm_connector_helper_add(drm_connector,
 				 &sti_dvo_connector_helper_funcs);
 
-	err = drm_connector_register(drm_connector);
-	if (err)
-		goto err_connector;
-
 	err = drm_mode_connector_attach_encoder(drm_connector, encoder);
 	if (err) {
 		DRM_ERROR("Failed to attach a connector to a encoder\n");
@@ -510,10 +506,7 @@ static int sti_dvo_bind(struct device *dev, struct device *master, void *data)
 	return 0;
 
 err_sysfs:
-	drm_connector_unregister(drm_connector);
-err_connector:
 	drm_bridge_remove(bridge);
-	drm_connector_cleanup(drm_connector);
 	return -EINVAL;
 }
 

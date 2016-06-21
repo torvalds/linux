@@ -915,16 +915,6 @@ sti_hdmi_connector_detect(struct drm_connector *connector, bool force)
 	return connector_status_disconnected;
 }
 
-static void sti_hdmi_connector_destroy(struct drm_connector *connector)
-{
-	struct sti_hdmi_connector *hdmi_connector
-		= to_sti_hdmi_connector(connector);
-
-	drm_connector_unregister(connector);
-	drm_connector_cleanup(connector);
-	kfree(hdmi_connector);
-}
-
 static void sti_hdmi_connector_init_property(struct drm_device *drm_dev,
 					     struct drm_connector *connector)
 {
@@ -1024,7 +1014,7 @@ static int sti_hdmi_late_register(struct drm_connector *connector)
 static const struct drm_connector_funcs sti_hdmi_connector_funcs = {
 	.fill_modes = drm_helper_probe_single_connector_modes,
 	.detect = sti_hdmi_connector_detect,
-	.destroy = sti_hdmi_connector_destroy,
+	.destroy = drm_connector_cleanup,
 	.reset = drm_atomic_helper_connector_reset,
 	.set_property = drm_atomic_helper_connector_set_property,
 	.atomic_set_property = sti_hdmi_connector_set_property,
@@ -1092,10 +1082,6 @@ static int sti_hdmi_bind(struct device *dev, struct device *master, void *data)
 	/* initialise property */
 	sti_hdmi_connector_init_property(drm_dev, drm_connector);
 
-	err = drm_connector_register(drm_connector);
-	if (err)
-		goto err_connector;
-
 	err = drm_mode_connector_attach_encoder(drm_connector, encoder);
 	if (err) {
 		DRM_ERROR("Failed to attach a connector to a encoder\n");
@@ -1108,10 +1094,7 @@ static int sti_hdmi_bind(struct device *dev, struct device *master, void *data)
 	return 0;
 
 err_sysfs:
-	drm_connector_unregister(drm_connector);
-err_connector:
-	drm_connector_cleanup(drm_connector);
-
+	drm_bridge_remove(bridge);
 	return -EINVAL;
 }
 
