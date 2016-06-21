@@ -5328,6 +5328,7 @@ static bool intel_edp_init_connector(struct intel_dp *intel_dp,
 
 	pps_lock(intel_dp);
 	intel_edp_panel_vdd_sanitize(intel_dp);
+	intel_dp_init_panel_power_sequencer_registers(dev, intel_dp);
 	pps_unlock(intel_dp);
 
 	/* Cache DPCD and EDID for edp. */
@@ -5343,11 +5344,6 @@ static bool intel_edp_init_connector(struct intel_dp *intel_dp,
 		DRM_INFO("failed to retrieve link info, disabling eDP\n");
 		return false;
 	}
-
-	/* We now know it's not a ghost, init power sequence regs. */
-	pps_lock(intel_dp);
-	intel_dp_init_panel_power_sequencer_registers(dev, intel_dp);
-	pps_unlock(intel_dp);
 
 	mutex_lock(&dev->mode_config.mutex);
 	edid = drm_get_edid(connector, &intel_dp->aux.ddc);
