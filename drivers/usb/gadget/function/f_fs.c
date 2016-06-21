@@ -99,7 +99,8 @@ static void ffs_func_disable(struct usb_function *);
 static int ffs_func_setup(struct usb_function *,
 			  const struct usb_ctrlrequest *);
 static bool ffs_func_req_match(struct usb_function *,
-			       const struct usb_ctrlrequest *);
+			       const struct usb_ctrlrequest *,
+			       bool config0);
 static void ffs_func_suspend(struct usb_function *);
 static void ffs_func_resume(struct usb_function *);
 
@@ -3136,9 +3137,13 @@ static int ffs_func_setup(struct usb_function *f,
 }
 
 static bool ffs_func_req_match(struct usb_function *f,
-			       const struct usb_ctrlrequest *creq)
+			       const struct usb_ctrlrequest *creq,
+			       bool config0)
 {
 	struct ffs_function *func = ffs_func_from_usb(f);
+
+	if (config0)
+		return false;
 
 	switch (creq->bRequestType & USB_RECIP_MASK) {
 	case USB_RECIP_INTERFACE:
