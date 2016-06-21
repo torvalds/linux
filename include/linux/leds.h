@@ -387,8 +387,16 @@ struct gpio_led_platform_data {
 					unsigned long *delay_off);
 };
 
+#ifdef CONFIG_NEW_LEDS
 struct platform_device *gpio_led_register_device(
 		int id, const struct gpio_led_platform_data *pdata);
+#else
+static inline struct platform_device *gpio_led_register_device(
+		int id, const struct gpio_led_platform_data *pdata)
+{
+	return 0;
+}
+#endif
 
 enum cpu_led_event {
 	CPU_LED_IDLE_START,	/* CPU enters idle */
