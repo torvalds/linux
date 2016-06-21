@@ -680,8 +680,12 @@ void irq_dispose_mapping(unsigned int virq)
 	if (WARN_ON(domain == NULL))
 		return;
 
-	irq_domain_disassociate(domain, virq);
-	irq_free_desc(virq);
+	if (irq_domain_is_hierarchy(domain)) {
+		irq_domain_free_irqs(virq, 1);
+	} else {
+		irq_domain_disassociate(domain, virq);
+		irq_free_desc(virq);
+	}
 }
 EXPORT_SYMBOL_GPL(irq_dispose_mapping);
 
