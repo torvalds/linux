@@ -13,6 +13,10 @@ Optional properties:
 
   - reset-gpios : a GPIO spec for the reset pin.
 
+  - mute-gpios : a GPIO spec for the MUTE pin. The active state can be either
+		 GPIO_ACTIVE_HIGH or GPIO_ACTIVE_LOW, which would be handled
+		 by the driver automatically.
+
   - cirrus,micbias-lvl : Set the output voltage level on the MICBIAS Pin.
 			 0 = Hi-Z
 			 1 = 1.80 V

@@ -35,6 +35,7 @@ struct cs53l30_private {
 	struct regulator_bulk_data	supplies[CS53L30_NUM_SUPPLIES];
 	struct regmap			*regmap;
 	struct gpio_desc		*reset_gpio;
+	struct gpio_desc		*mute_gpio;
 	struct clk			*mclk;
 	bool				use_sdout2;
 	u32				mclk_rate;
@@ -833,6 +834,16 @@ static int cs53l30_set_dai_tdm_slot(struct snd_soc_dai *dai,
 	return 0;
 }
 
+static int cs53l30_mute_stream(struct snd_soc_dai *dai, int mute, int stream)
+{
+	struct cs53l30_private *priv = snd_soc_codec_get_drvdata(dai->codec);
+
+	if (priv->mute_gpio)
+		gpiod_set_value_cansleep(priv->mute_gpio, mute);
+
+	return 0;
+}
+
 /* SNDRV_PCM_RATE_KNOT -> 12000, 24000 Hz, limit with constraint list */
 #define CS53L30_RATES (SNDRV_PCM_RATE_8000_48000 | SNDRV_PCM_RATE_KNOT)
 
@@ -846,6 +857,7 @@ static const struct snd_soc_dai_ops cs53l30_ops = {
 	.set_sysclk = cs53l30_set_sysclk,
 	.set_tristate = cs53l30_set_tristate,
 	.set_tdm_slot = cs53l30_set_dai_tdm_slot,
+	.mute_stream = cs53l30_mute_stream,
 };
 
 static struct snd_soc_dai_driver cs53l30_dai = {
@@ -989,6 +1001,24 @@ static int cs53l30_i2c_probe(struct i2c_client *client,
 		}
 		/* Otherwise mark the mclk pointer to NULL */
 		cs53l30->mclk = NULL;
+	}
+
+	/* Fetch the MUTE control */
+	cs53l30->mute_gpio = devm_gpiod_get_optional(dev, "mute",
+						     GPIOD_OUT_HIGH);
+	if (IS_ERR(cs53l30->mute_gpio)) {
+		ret = PTR_ERR(cs53l30->mute_gpio);
+		goto error;
+	}
+
+	if (cs53l30->mute_gpio) {
+		/* Enable MUTE controls via MUTE pin */
+		regmap_write(cs53l30->regmap, CS53L30_MUTEP_CTL1,
+			     CS53L30_MUTEP_CTL1_MUTEALL);
+		/* Flip the polarity of MUTE pin */
+		if (gpiod_is_active_low(cs53l30->mute_gpio))
+			regmap_update_bits(cs53l30->regmap, CS53L30_MUTEP_CTL2,
+					   CS53L30_MUTE_PIN_POLARITY, 0);
 	}
 
 	if (!of_property_read_u8(np, "cirrus,micbias-lvl", &val))
