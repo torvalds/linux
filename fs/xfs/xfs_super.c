@@ -1294,6 +1294,7 @@ xfs_fs_remount(
 		 */
 		xfs_restore_resvblks(mp);
 		xfs_log_work_queue(mp);
+		xfs_queue_eofblocks(mp);
 	}
 
 	/* rw -> ro */
@@ -1306,6 +1307,13 @@ xfs_fs_remount(
 		 * return it to the same size.
 		 */
 		xfs_save_resvblks(mp);
+
+		/*
+		 * Cancel background eofb scanning so it cannot race with the
+		 * final log force+buftarg wait and deadlock the remount.
+		 */
+		cancel_delayed_work_sync(&mp->m_eofblocks_work);
+
 		xfs_quiesce_attr(mp);
 		mp->m_flags |= XFS_MOUNT_RDONLY;
 	}
@@ -1692,8 +1700,9 @@ xfs_init_zones(void)
 	if (!xfs_log_ticket_zone)
 		goto out_free_ioend_bioset;
 
-	xfs_bmap_free_item_zone = kmem_zone_init(sizeof(xfs_bmap_free_item_t),
-						"xfs_bmap_free_item");
+	xfs_bmap_free_item_zone = kmem_zone_init(
+			sizeof(struct xfs_bmap_free_item),
+			"xfs_bmap_free_item");
 	if (!xfs_bmap_free_item_zone)
 		goto out_destroy_log_ticket_zone;
 
