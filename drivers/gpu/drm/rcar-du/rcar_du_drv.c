@@ -319,8 +319,6 @@ static int rcar_du_probe(struct platform_device *pdev)
 	if (!ddev)
 		return -ENOMEM;
 
-	drm_dev_set_unique(ddev, dev_name(&pdev->dev));
-
 	rcdu->ddev = ddev;
 	ddev->dev_private = rcdu;
 

@@ -280,8 +280,6 @@ static int mtk_drm_bind(struct device *dev)
 	if (!drm)
 		return -ENOMEM;
 
-	drm_dev_set_unique(drm, dev_name(dev));
-
 	drm->dev_private = private;
 	private->drm = drm;
 

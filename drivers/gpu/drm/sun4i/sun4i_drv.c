@@ -135,10 +135,6 @@ static int sun4i_drv_bind(struct device *dev)
 	if (!drm)
 		return -ENOMEM;
 
-	ret = drm_dev_set_unique(drm, dev_name(drm->dev));
-	if (ret)
-		goto free_drm;
-
 	drv = devm_kzalloc(dev, sizeof(*drv), GFP_KERNEL);
 	if (!drv) {
 		ret = -ENOMEM;
