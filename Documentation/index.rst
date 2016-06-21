@@ -13,6 +13,7 @@ Contents:
 .. toctree::
    :maxdepth: 2
 
+   gpu/index
 
 Indices and tables
 ==================
