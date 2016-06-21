@@ -334,7 +334,7 @@ void drm_legacy_lock_release(struct drm_device *dev, struct file *filp)
 	struct drm_file *file_priv = filp->private_data;
 
 	/* if the master has gone away we can't do anything with the lock */
-	if (!file_priv->minor->master)
+	if (!dev->master)
 		return;
 
 	if (drm_legacy_i_have_hw_lock(dev, file_priv)) {

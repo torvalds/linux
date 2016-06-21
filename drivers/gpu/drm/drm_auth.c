@@ -128,13 +128,13 @@ static int drm_new_set_master(struct drm_device *dev, struct drm_file *fpriv)
 	lockdep_assert_held_once(&dev->master_mutex);
 
 	/* create a new master */
-	fpriv->minor->master = drm_master_create(fpriv->minor->dev);
-	if (!fpriv->minor->master)
+	dev->master = drm_master_create(dev);
+	if (!dev->master)
 		return -ENOMEM;
 
 	/* take another reference for the copy in the local file priv */
 	old_master = fpriv->master;
-	fpriv->master = drm_master_get(fpriv->minor->master);
+	fpriv->master = drm_master_get(dev->master);
 
 	if (dev->driver->master_create) {
 		ret = dev->driver->master_create(dev, fpriv->master);
@@ -157,7 +157,7 @@ static int drm_new_set_master(struct drm_device *dev, struct drm_file *fpriv)
 
 out_err:
 	/* drop both references and restore old master on failure */
-	drm_master_put(&fpriv->minor->master);
+	drm_master_put(&dev->master);
 	drm_master_put(&fpriv->master);
 	fpriv->master = old_master;
 
@@ -173,7 +173,7 @@ int drm_setmaster_ioctl(struct drm_device *dev, void *data,
 	if (file_priv->is_master)
 		goto out_unlock;
 
-	if (file_priv->minor->master) {
+	if (dev->master) {
 		ret = -EINVAL;
 		goto out_unlock;
 	}
@@ -188,13 +188,13 @@ int drm_setmaster_ioctl(struct drm_device *dev, void *data,
 		goto out_unlock;
 	}
 
-	file_priv->minor->master = drm_master_get(file_priv->master);
+	dev->master = drm_master_get(file_priv->master);
 	file_priv->is_master = 1;
 	if (dev->driver->master_set) {
 		ret = dev->driver->master_set(dev, file_priv, false);
 		if (unlikely(ret != 0)) {
 			file_priv->is_master = 0;
-			drm_master_put(&file_priv->minor->master);
+			drm_master_put(&dev->master);
 		}
 	}
 
@@ -212,13 +212,13 @@ int drm_dropmaster_ioctl(struct drm_device *dev, void *data,
 	if (!file_priv->is_master)
 		goto out_unlock;
 
-	if (!file_priv->minor->master)
+	if (!dev->master)
 		goto out_unlock;
 
 	ret = 0;
 	if (dev->driver->master_drop)
 		dev->driver->master_drop(dev, file_priv, false);
-	drm_master_put(&file_priv->minor->master);
+	drm_master_put(&dev->master);
 	file_priv->is_master = 0;
 
 out_unlock:
@@ -234,10 +234,10 @@ int drm_master_open(struct drm_file *file_priv)
 	/* if there is no current master make this fd it, but do not create
 	 * any master object for render clients */
 	mutex_lock(&dev->master_mutex);
-	if (!file_priv->minor->master)
+	if (!dev->master)
 		ret = drm_new_set_master(dev, file_priv);
 	else
-		file_priv->master = drm_master_get(file_priv->minor->master);
+		file_priv->master = drm_master_get(dev->master);
 	mutex_unlock(&dev->master_mutex);
 
 	return ret;
@@ -271,11 +271,11 @@ void drm_master_release(struct drm_file *file_priv)
 		mutex_unlock(&dev->struct_mutex);
 	}
 
-	if (file_priv->minor->master == file_priv->master) {
+	if (dev->master == file_priv->master) {
 		/* drop the reference held my the minor */
 		if (dev->driver->master_drop)
 			dev->driver->master_drop(dev, file_priv, true);
-		drm_master_put(&file_priv->minor->master);
+		drm_master_put(&dev->master);
 	}
 out:
 	/* drop the master reference held by the file priv */

@@ -336,7 +336,7 @@ struct drm_file {
 	void *driver_priv;
 
 	struct drm_master *master; /* master this node is currently associated with
-				      N.B. not always minor->master */
+				      N.B. not always dev->master */
 	/**
 	 * fbs - List of framebuffers associated with this file.
 	 *
@@ -708,9 +708,6 @@ struct drm_minor {
 
 	struct list_head debugfs_list;
 	struct mutex debugfs_lock; /* Protects debugfs_list. */
-
-	/* currently active master for this node. Protected by master_mutex */
-	struct drm_master *master;
 };
 
 
@@ -759,6 +756,10 @@ struct drm_device {
 	struct drm_minor *control;		/**< Control node */
 	struct drm_minor *primary;		/**< Primary node */
 	struct drm_minor *render;		/**< Render node */
+
+	/* currently active master for this device. Protected by master_mutex */
+	struct drm_master *master;
+
 	atomic_t unplugged;			/**< Flag whether dev is dead */
 	struct inode *anon_inode;		/**< inode for private address-space */
 	char *unique;				/**< unique name of the device */
