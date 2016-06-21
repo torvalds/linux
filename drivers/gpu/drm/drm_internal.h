@@ -29,9 +29,6 @@ extern struct mutex drm_global_mutex;
 void drm_lastclose(struct drm_device *dev);
 
 /* drm_pci.c */
-int drm_pci_set_unique(struct drm_device *dev,
-		       struct drm_master *master,
-		       struct drm_unique *u);
 int drm_irq_by_busid(struct drm_device *dev, void *data,
 		     struct drm_file *file_priv);
 

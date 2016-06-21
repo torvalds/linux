@@ -75,51 +75,6 @@ drm_unset_busid(struct drm_device *dev,
 	master->unique_len = 0;
 }
 
-/*
- * Set the bus id.
- *
- * \param inode device inode.
- * \param file_priv DRM file private.
- * \param cmd command.
- * \param arg user argument, pointing to a drm_unique structure.
- * \return zero on success or a negative number on failure.
- *
- * Copies the bus id from userspace into drm_device::unique, and verifies that
- * it matches the device this DRM is attached to (EINVAL otherwise).  Deprecated
- * in interface version 1.1 and will return EBUSY when setversion has requested
- * version 1.1 or greater. Also note that KMS is all version 1.1 and later and
- * UMS was only ever supported on pci devices.
- */
-static int drm_setunique(struct drm_device *dev, void *data,
-		  struct drm_file *file_priv)
-{
-	struct drm_unique *u = data;
-	struct drm_master *master = file_priv->master;
-	int ret;
-
-	if (master->unique_len || master->unique)
-		return -EBUSY;
-
-	if (!u->unique_len || u->unique_len > 1024)
-		return -EINVAL;
-
-	if (drm_core_check_feature(dev, DRIVER_MODESET))
-		return 0;
-
-	if (WARN_ON(!dev->pdev))
-		return -EINVAL;
-
-	ret = drm_pci_set_unique(dev, master, u);
-	if (ret)
-		goto err;
-
-	return 0;
-
-err:
-	drm_unset_busid(dev, master);
-	return ret;
-}
-
 static int drm_set_busid(struct drm_device *dev, struct drm_file *file_priv)
 {
 	struct drm_master *master = file_priv->master;
@@ -508,7 +463,7 @@ static const struct drm_ioctl_desc drm_ioctls[] = {
 	DRM_IOCTL_DEF(DRM_IOCTL_SET_CLIENT_CAP, drm_setclientcap, 0),
 	DRM_IOCTL_DEF(DRM_IOCTL_SET_VERSION, drm_setversion, DRM_MASTER),
 
-	DRM_IOCTL_DEF(DRM_IOCTL_SET_UNIQUE, drm_setunique, DRM_AUTH|DRM_MASTER|DRM_ROOT_ONLY),
+	DRM_IOCTL_DEF(DRM_IOCTL_SET_UNIQUE, drm_invalid_op, DRM_AUTH|DRM_MASTER|DRM_ROOT_ONLY),
 	DRM_IOCTL_DEF(DRM_IOCTL_BLOCK, drm_noop, DRM_AUTH|DRM_MASTER|DRM_ROOT_ONLY),
 	DRM_IOCTL_DEF(DRM_IOCTL_UNBLOCK, drm_noop, DRM_AUTH|DRM_MASTER|DRM_ROOT_ONLY),
 	DRM_IOCTL_DEF(DRM_IOCTL_AUTH_MAGIC, drm_authmagic, DRM_AUTH|DRM_UNLOCKED|DRM_MASTER),
