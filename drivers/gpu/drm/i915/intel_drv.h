@@ -1102,7 +1102,7 @@ void gen8_irq_power_well_pre_disable(struct drm_i915_private *dev_priv,
 
 /* intel_crt.c */
 void intel_crt_init(struct drm_device *dev);
-
+void intel_crt_reset(struct drm_encoder *encoder);
 
 /* intel_ddi.c */
 void intel_ddi_clk_select(struct intel_encoder *encoder,

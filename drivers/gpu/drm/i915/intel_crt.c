@@ -717,7 +717,7 @@ static int intel_crt_set_property(struct drm_connector *connector,
 	return 0;
 }
 
-static void intel_crt_reset(struct drm_encoder *encoder)
+void intel_crt_reset(struct drm_encoder *encoder)
 {
 	struct drm_device *dev = encoder->dev;
 	struct drm_i915_private *dev_priv = to_i915(dev);
