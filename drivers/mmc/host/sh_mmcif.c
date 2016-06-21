@@ -1009,22 +1009,6 @@ static void sh_mmcif_request(struct mmc_host *mmc, struct mmc_request *mrq)
 	host->state = STATE_REQUEST;
 	spin_unlock_irqrestore(&host->lock, flags);
 
-	switch (mrq->cmd->opcode) {
-	/* MMCIF does not support SD/SDIO command */
-	case MMC_SLEEP_AWAKE: /* = SD_IO_SEND_OP_COND (5) */
-	case MMC_SEND_EXT_CSD: /* = SD_SEND_IF_COND (8) */
-		if ((mrq->cmd->flags & MMC_CMD_MASK) != MMC_CMD_BCR)
-			break;
-	case MMC_APP_CMD:
-	case SD_IO_RW_DIRECT:
-		host->state = STATE_IDLE;
-		mrq->cmd->error = -ETIMEDOUT;
-		mmc_request_done(mmc, mrq);
-		return;
-	default:
-		break;
-	}
-
 	host->mrq = mrq;
 
 	sh_mmcif_start_cmd(host, mrq);
@@ -1488,6 +1472,8 @@ static int sh_mmcif_probe(struct platform_device *pdev)
 	sh_mmcif_init_ocr(host);
 
 	mmc->caps |= MMC_CAP_MMC_HIGHSPEED | MMC_CAP_WAIT_WHILE_BUSY;
+	mmc->caps2 |= MMC_CAP2_NO_SD | MMC_CAP2_NO_SDIO;
+
 	if (pd && pd->caps)
 		mmc->caps |= pd->caps;
 	mmc->max_segs = 32;
