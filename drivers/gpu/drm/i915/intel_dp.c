@@ -5327,8 +5327,18 @@ static bool intel_edp_init_connector(struct intel_dp *intel_dp,
 	}
 
 	pps_lock(intel_dp);
+
+	intel_dp_init_panel_power_timestamps(intel_dp);
+
+	if (IS_VALLEYVIEW(dev) || IS_CHERRYVIEW(dev)) {
+		vlv_initial_power_sequencer_setup(intel_dp);
+	} else {
+		intel_dp_init_panel_power_sequencer(dev, intel_dp);
+		intel_dp_init_panel_power_sequencer_registers(dev, intel_dp);
+	}
+
 	intel_edp_panel_vdd_sanitize(intel_dp);
-	intel_dp_init_panel_power_sequencer_registers(dev, intel_dp);
+
 	pps_unlock(intel_dp);
 
 	/* Cache DPCD and EDID for edp. */
@@ -5342,7 +5352,7 @@ static bool intel_edp_init_connector(struct intel_dp *intel_dp,
 	} else {
 		/* if this fails, presume the device is a ghost */
 		DRM_INFO("failed to retrieve link info, disabling eDP\n");
-		return false;
+		goto out_vdd_off;
 	}
 
 	mutex_lock(&dev->mode_config.mutex);
@@ -5412,6 +5422,18 @@ static bool intel_edp_init_connector(struct intel_dp *intel_dp,
 	intel_panel_setup_backlight(connector, pipe);
 
 	return true;
+
+out_vdd_off:
+	cancel_delayed_work_sync(&intel_dp->panel_vdd_work);
+	/*
+	 * vdd might still be enabled do to the delayed vdd off.
+	 * Make sure vdd is actually turned off here.
+	 */
+	pps_lock(intel_dp);
+	edp_panel_vdd_off_sync(intel_dp);
+	pps_unlock(intel_dp);
+
+	return false;
 }
 
 bool
@@ -5518,16 +5540,6 @@ intel_dp_init_connector(struct intel_digital_port *intel_dig_port,
 		BUG();
 	}
 
-	if (is_edp(intel_dp)) {
-		pps_lock(intel_dp);
-		intel_dp_init_panel_power_timestamps(intel_dp);
-		if (IS_VALLEYVIEW(dev) || IS_CHERRYVIEW(dev))
-			vlv_initial_power_sequencer_setup(intel_dp);
-		else
-			intel_dp_init_panel_power_sequencer(dev, intel_dp);
-		pps_unlock(intel_dp);
-	}
-
 	ret = intel_dp_aux_init(intel_dp, intel_connector);
 	if (ret)
 		goto fail;
@@ -5560,16 +5572,6 @@ intel_dp_init_connector(struct intel_digital_port *intel_dig_port,
 	return true;
 
 fail:
-	if (is_edp(intel_dp)) {
-		cancel_delayed_work_sync(&intel_dp->panel_vdd_work);
-		/*
-		 * vdd might still be enabled do to the delayed vdd off.
-		 * Make sure vdd is actually turned off here.
-		 */
-		pps_lock(intel_dp);
-		edp_panel_vdd_off_sync(intel_dp);
-		pps_unlock(intel_dp);
-	}
 	drm_connector_unregister(connector);
 	drm_connector_cleanup(connector);
 
