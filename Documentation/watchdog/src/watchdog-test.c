@@ -13,6 +13,7 @@
 #include <linux/watchdog.h>
 
 int fd;
+const char v = 'V';
 
 /*
  * This function simply sends an IOCTL to the driver, which in turn ticks
@@ -34,6 +35,7 @@ static void keep_alive(void)
 
 static void term(int sig)
 {
+    write(fd, &v, 1);
     close(fd);
     printf("\nStopping watchdog ticks...\n");
     exit(0);
@@ -89,6 +91,7 @@ int main(int argc, char *argv[])
 	sleep(ping_rate);
     }
 end:
+    write(fd, &v, 1);
     close(fd);
     return 0;
 }
