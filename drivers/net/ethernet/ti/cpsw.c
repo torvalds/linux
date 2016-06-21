@@ -2014,7 +2014,7 @@ static int cpsw_probe_dt(struct cpsw_platform_data *data,
 	if (ret)
 		dev_warn(&pdev->dev, "Doesn't have any child node\n");
 
-	for_each_child_of_node(node, slave_node) {
+	for_each_available_child_of_node(node, slave_node) {
 		struct cpsw_slave_data *slave_data = data->slave_data + i;
 		const void *mac_addr = NULL;
 		int lenp;
