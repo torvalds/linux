@@ -3116,6 +3116,27 @@ static u32 xhci_td_remainder(struct xhci_hcd *xhci, int transferred,
 	return (total_packet_count - ((transferred + trb_buff_len) / maxp));
 }
 
+static int xhci_align_td(struct xhci_hcd *xhci, struct urb *urb, u32 enqd_len,
+			 u32 *trb_buff_len)
+{
+	unsigned int unalign;
+	unsigned int max_pkt;
+
+	max_pkt = GET_MAX_PACKET(usb_endpoint_maxp(&urb->ep->desc));
+	unalign = (enqd_len + *trb_buff_len) % max_pkt;
+
+	/* we got lucky, last normal TRB data on segment is packet aligned */
+	if (unalign == 0)
+		return 0;
+
+	/* is the last nornal TRB alignable by splitting it */
+	if (*trb_buff_len > unalign) {
+		*trb_buff_len -= unalign;
+		return 0;
+	}
+	return 1;
+}
+
 /* This is very similar to what ehci-q.c qtd_fill() does */
 int xhci_queue_bulk_tx(struct xhci_hcd *xhci, gfp_t mem_flags,
 		struct urb *urb, int slot_id, unsigned int ep_index)
@@ -3198,6 +3219,12 @@ int xhci_queue_bulk_tx(struct xhci_hcd *xhci, gfp_t mem_flags,
 		 */
 		if (enqd_len + trb_buff_len < full_len) {
 			field |= TRB_CHAIN;
+			if (last_trb(xhci, ring, ring->enq_seg,
+				     ring->enqueue + 1)) {
+				if (xhci_align_td(xhci, urb, enqd_len,
+						 &trb_buff_len))
+					xhci_dbg(xhci, "TRB align fail\n");
+			}
 		} else {
 			field |= TRB_IOC;
 			more_trbs_coming = false;
