@@ -563,7 +563,7 @@ struct mv88e6xxx_priv_port {
 	struct net_device *bridge_dev;
 };
 
-struct mv88e6xxx_priv_state {
+struct mv88e6xxx_chip {
 	const struct mv88e6xxx_info *info;
 
 	/* The dsa_switch this private structure is related to */
@@ -625,10 +625,8 @@ struct mv88e6xxx_priv_state {
 };
 
 struct mv88e6xxx_ops {
-	int (*read)(struct mv88e6xxx_priv_state *ps,
-		    int addr, int reg, u16 *val);
-	int (*write)(struct mv88e6xxx_priv_state *ps,
-		     int addr, int reg, u16 val);
+	int (*read)(struct mv88e6xxx_chip *chip, int addr, int reg, u16 *val);
+	int (*write)(struct mv88e6xxx_chip *chip, int addr, int reg, u16 val);
 };
 
 enum stat_type {
@@ -644,10 +642,10 @@ struct mv88e6xxx_hw_stat {
 	enum stat_type type;
 };
 
-static inline bool mv88e6xxx_has(struct mv88e6xxx_priv_state *ps,
+static inline bool mv88e6xxx_has(struct mv88e6xxx_chip *chip,
 				 unsigned long flags)
 {
-	return (ps->info->flags & flags) == flags;
+	return (chip->info->flags & flags) == flags;
 }
 
 #endif
