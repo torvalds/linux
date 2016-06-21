@@ -271,7 +271,11 @@ static void hns_dsaf_ge_srst_by_port(struct dsaf_device *dsaf_dev, u32 port,
 		}
 	} else {
 		reg_val_1 = 0x15540 << dsaf_dev->reset_offset;
-		reg_val_2 = 0x100 << dsaf_dev->reset_offset;
+
+		if (AE_IS_VER1(dsaf_dev->dsaf_ver))
+			reg_val_2 = 0x100 << dsaf_dev->reset_offset;
+		else
+			reg_val_2 = 0x40 << dsaf_dev->reset_offset;
 
 		if (!dereset) {
 			dsaf_write_sub(dsaf_dev, DSAF_SUB_SC_GE_RESET_REQ1_REG,
