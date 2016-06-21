@@ -3436,7 +3436,7 @@ static u32 gfx_v7_0_halt_rlc(struct amdgpu_device *adev)
 	return orig;
 }
 
-void gfx_v7_0_enter_rlc_safe_mode(struct amdgpu_device *adev)
+static void gfx_v7_0_enter_rlc_safe_mode(struct amdgpu_device *adev)
 {
 	u32 tmp, i, mask;
 
@@ -3458,7 +3458,7 @@ void gfx_v7_0_enter_rlc_safe_mode(struct amdgpu_device *adev)
 	}
 }
 
-void gfx_v7_0_exit_rlc_safe_mode(struct amdgpu_device *adev)
+static void gfx_v7_0_exit_rlc_safe_mode(struct amdgpu_device *adev)
 {
 	u32 tmp;
 
@@ -4204,6 +4204,11 @@ static const struct amdgpu_gfx_funcs gfx_v7_0_gfx_funcs = {
 	.select_se_sh = &gfx_v7_0_select_se_sh,
 };
 
+static const struct amdgpu_rlc_funcs gfx_v7_0_rlc_funcs = {
+	.enter_safe_mode = gfx_v7_0_enter_rlc_safe_mode,
+	.exit_safe_mode = gfx_v7_0_exit_rlc_safe_mode
+};
+
 static int gfx_v7_0_early_init(void *handle)
 {
 	struct amdgpu_device *adev = (struct amdgpu_device *)handle;
@@ -4211,6 +4216,7 @@ static int gfx_v7_0_early_init(void *handle)
 	adev->gfx.num_gfx_rings = GFX7_NUM_GFX_RINGS;
 	adev->gfx.num_compute_rings = GFX7_NUM_COMPUTE_RINGS;
 	adev->gfx.funcs = &gfx_v7_0_gfx_funcs;
+	adev->gfx.rlc.funcs = &gfx_v7_0_rlc_funcs;
 	gfx_v7_0_set_ring_funcs(adev);
 	gfx_v7_0_set_irq_funcs(adev);
 	gfx_v7_0_set_gds_init(adev);
