@@ -299,7 +299,7 @@ static struct rockchip_clk_branch rk3366_clk_branches[] __initdata = {
 			RK3368_CLKSEL_CON(12), 7, 1, MFLAGS, 0, 5, DFLAGS,
 			RK3368_CLKGATE_CON(1), 3, GFLAGS),
 
-	COMPOSITE(0, "i2s_8ch_src", mux_pll_src_cpll_gpll_p, 0,
+	COMPOSITE(SCLK_I2S_8CH_SRC, "i2s_8ch_src", mux_pll_src_cpll_gpll_p, 0,
 			RK3368_CLKSEL_CON(27), 12, 1, MFLAGS, 0, 7, DFLAGS,
 			RK3368_CLKGATE_CON(6), 1, GFLAGS),
 	COMPOSITE_FRACMUX(0, "i2s_8ch_frac", "i2s_8ch_src", CLK_SET_RATE_PARENT,
@@ -312,7 +312,7 @@ static struct rockchip_clk_branch rk3366_clk_branches[] __initdata = {
 	GATE(SCLK_I2S_8CH, "sclk_i2s_8ch", "i2s_8ch_pre", CLK_SET_RATE_PARENT,
 			RK3368_CLKGATE_CON(6), 3, GFLAGS),
 
-	COMPOSITE(0, "spdif_8ch_src", mux_pll_src_cpll_gpll_p, 0,
+	COMPOSITE(SCLK_SPDIF_8CH_SRC, "spdif_8ch_src", mux_pll_src_cpll_gpll_p, 0,
 			RK3368_CLKSEL_CON(31), 12, 1, MFLAGS, 0, 7, DFLAGS,
 			RK3368_CLKGATE_CON(6), 4, GFLAGS),
 	COMPOSITE_FRACMUX(0, "spdif_8ch_frac", "spdif_8ch_src", CLK_SET_RATE_PARENT,
@@ -322,7 +322,7 @@ static struct rockchip_clk_branch rk3366_clk_branches[] __initdata = {
 	GATE(SCLK_SPDIF_8CH, "sclk_spdif_8ch", "spdif_8ch_mux", CLK_SET_RATE_PARENT,
 			RK3368_CLKGATE_CON(6), 6, GFLAGS),
 
-	COMPOSITE(0, "i2s_2ch_src", mux_pll_src_cpll_gpll_p, 0,
+	COMPOSITE(SCLK_I2S_2CH_SRC, "i2s_2ch_src", mux_pll_src_cpll_gpll_p, 0,
 			RK3368_CLKSEL_CON(53), 12, 1, MFLAGS, 0, 7, DFLAGS,
 			RK3368_CLKGATE_CON(5), 13, GFLAGS),
 	COMPOSITE_FRACMUX(0, "i2s_2ch_frac", "i2s_2ch_src", CLK_SET_RATE_PARENT,

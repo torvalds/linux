@@ -96,6 +96,9 @@
 #define SCLK_MPLL_SRC		130
 #define SCLK_32K_INTR		131
 #define SCLK_32K		132
+#define SCLK_I2S_8CH_SRC	133
+#define SCLK_I2S_2CH_SRC	134
+#define SCLK_SPDIF_8CH_SRC	135
 
 #define DCLK_VOP_FULL		170
 #define DCLK_VOP_LITE		171
