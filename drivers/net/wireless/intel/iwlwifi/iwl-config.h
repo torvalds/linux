@@ -66,8 +66,9 @@
 #define __IWL_CONFIG_H__
 
 #include <linux/types.h>
-#include <net/mac80211.h>
-
+#include <linux/netdevice.h>
+#include <linux/ieee80211.h>
+#include <linux/nl80211.h>
 
 enum iwl_device_family {
 	IWL_DEVICE_FAMILY_UNDEFINED,
@@ -192,7 +193,6 @@ struct iwl_base_params {
  * @ht40_bands: bitmap of bands (using %NL80211_BAND_*) that support HT40
  */
 struct iwl_ht_params {
-	enum ieee80211_smps_mode smps_mode;
 	u8 ht_greenfield_support:1,
 	   stbc:1,
 	   ldpc:1,
