@@ -143,7 +143,7 @@ static int show_cpuinfo(struct seq_file *m, void *v)
 		show_cpu_summary(m, v);
 	if (!machine_has_cpu_mhz)
 		return 0;
-	seq_printf(m, "\ncpu             : %ld\n", n);
+	seq_printf(m, "\ncpu number      : %ld\n", n);
 	show_cpu_mhz(m, n);
 	return 0;
 }
