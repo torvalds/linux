@@ -944,10 +944,12 @@ xfs_buf_trylock(
 	int			locked;
 
 	locked = down_trylock(&bp->b_sema) == 0;
-	if (locked)
+	if (locked) {
 		XB_SET_OWNER(bp);
-
-	trace_xfs_buf_trylock(bp, _RET_IP_);
+		trace_xfs_buf_trylock(bp, _RET_IP_);
+	} else {
+		trace_xfs_buf_trylock_fail(bp, _RET_IP_);
+	}
 	return locked;
 }
 
