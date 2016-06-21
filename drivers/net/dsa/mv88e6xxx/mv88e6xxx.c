@@ -1,5 +1,6 @@
 /*
- * net/dsa/mv88e6xxx.c - Marvell 88e6xxx switch chip support
+ * Marvell 88e6xxx Ethernet switch single-chip support
+ *
  * Copyright (c) 2008 Marvell Semiconductor
  *
  * Copyright (c) 2015 CMC Electronics, Inc.

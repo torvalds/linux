@@ -1,5 +1,6 @@
 /*
- * net/dsa/mv88e6xxx.h - Marvell 88e6xxx switch chip support
+ * Marvell 88e6xxx common definitions
+ *
  * Copyright (c) 2008 Marvell Semiconductor
  *
  * This program is free software; you can redistribute it and/or modify

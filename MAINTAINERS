@@ -7171,17 +7171,18 @@ W:	http://www.kernel.org/doc/man-pages
 L:	linux-man@vger.kernel.org
 S:	Maintained
 
+MARVELL 88E6XXX ETHERNET SWITCH FABRIC DRIVER
+M:	Andrew Lunn <andrew@lunn.ch>
+M:	Vivien Didelot <vivien.didelot@savoirfairelinux.com>
+S:	Maintained
+F:	drivers/net/dsa/mv88e6xxx/
+
 MARVELL ARMADA DRM SUPPORT
 M:	Russell King <rmk+kernel@armlinux.org.uk>
 S:	Maintained
 F:	drivers/gpu/drm/armada/
 F:	include/uapi/drm/armada_drm.h
 F:	Documentation/devicetree/bindings/display/armada/
-
-MARVELL 88E6352 DSA support
-M:	Guenter Roeck <linux@roeck-us.net>
-S:	Maintained
-F:	drivers/net/dsa/mv88e6352.c
 
 MARVELL CRYPTO DRIVER
 M:	Boris Brezillon <boris.brezillon@free-electrons.com>
