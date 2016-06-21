@@ -25,6 +25,7 @@
 #include <asm/mach/map.h>
 
 #include <mach/map.h>
+#include <plat/cpu.h>
 
 #include "common.h"
 #include "mfc.h"
