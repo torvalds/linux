@@ -64,7 +64,7 @@ void __init efi_fake_memmap(void)
 	void *old, *new;
 	int i;
 
-	if (!nr_fake_mem || !efi_enabled(EFI_MEMMAP))
+	if (!nr_fake_mem)
 		return;
 
 	/* count up the number of EFI memory descriptor */
