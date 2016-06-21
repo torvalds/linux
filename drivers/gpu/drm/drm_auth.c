@@ -116,11 +116,9 @@ static int drm_set_master(struct drm_device *dev, struct drm_file *fpriv,
 	int ret = 0;
 
 	dev->master = drm_master_get(fpriv->master);
-	fpriv->is_master = 1;
 	if (dev->driver->master_set) {
 		ret = dev->driver->master_set(dev, fpriv, new_master);
 		if (unlikely(ret != 0)) {
-			fpriv->is_master = 0;
 			drm_master_put(&dev->master);
 		}
 	}
@@ -157,7 +155,7 @@ static int drm_new_set_master(struct drm_device *dev, struct drm_file *fpriv)
 		if (ret)
 			goto out_err;
 	}
-	fpriv->allowed_master = 1;
+	fpriv->is_master = 1;
 	fpriv->authenticated = 1;
 
 	ret = drm_set_master(dev, fpriv, true);
@@ -196,7 +194,7 @@ int drm_setmaster_ioctl(struct drm_device *dev, void *data,
 		goto out_unlock;
 	}
 
-	if (!file_priv->allowed_master) {
+	if (!file_priv->is_master) {
 		ret = drm_new_set_master(dev, file_priv);
 		goto out_unlock;
 	}
@@ -213,7 +211,6 @@ static void drm_drop_master(struct drm_device *dev,
 	if (dev->driver->master_drop)
 		dev->driver->master_drop(dev, fpriv);
 	drm_master_put(&dev->master);
-	fpriv->is_master = 0;
 }
 
 int drm_dropmaster_ioctl(struct drm_device *dev, void *data,
@@ -291,7 +288,7 @@ out:
 
 bool drm_is_current_master(struct drm_file *fpriv)
 {
-	return fpriv->is_master;
+	return fpriv->is_master && fpriv->master == fpriv->minor->dev->master;
 }
 EXPORT_SYMBOL(drm_is_current_master);
 

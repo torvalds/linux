@@ -303,8 +303,6 @@ struct drm_prime_file_private {
 /** File private data */
 struct drm_file {
 	unsigned authenticated :1;
-	/* Whether we're master for a minor. Protected by master_mutex */
-	unsigned is_master :1;
 	/* true when the client has asked us to expose stereo 3D mode flags */
 	unsigned stereo_allowed :1;
 	/*
@@ -315,10 +313,10 @@ struct drm_file {
 	/* true if client understands atomic properties */
 	unsigned atomic:1;
 	/*
-	 * This client is allowed to gain master privileges for @master.
+	 * This client is the creator of @master.
 	 * Protected by struct drm_device::master_mutex.
 	 */
-	unsigned allowed_master:1;
+	unsigned is_master:1;
 
 	struct pid *pid;
 	kuid_t uid;
