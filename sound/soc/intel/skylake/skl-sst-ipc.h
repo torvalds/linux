@@ -45,6 +45,14 @@ struct skl_ipc_header {
 	u32 extension;
 };
 
+#define SKL_DSP_CORES_MAX  2
+
+struct skl_dsp_cores {
+	unsigned int count;
+	enum skl_dsp_states state[SKL_DSP_CORES_MAX];
+	int usage_count[SKL_DSP_CORES_MAX];
+};
+
 struct skl_sst {
 	struct device *dev;
 	struct sst_dsp *dsp;
@@ -66,6 +74,9 @@ struct skl_sst {
 
 	/* Is firmware loaded */
 	bool fw_loaded;
+
+	/* multi-core */
+	struct skl_dsp_cores cores;
 };
 
 struct skl_ipc_init_instance_msg {

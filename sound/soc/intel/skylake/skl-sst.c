@@ -84,10 +84,8 @@ static int skl_load_base_firmware(struct sst_dsp *ctx)
 		ret = request_firmware(&ctx->fw, ctx->fw_name, ctx->dev);
 		if (ret < 0) {
 			dev_err(ctx->dev, "Request firmware failed %d\n", ret);
-			skl_dsp_disable_core(ctx);
 			return -EIO;
 		}
-
 	}
 
 	ret = snd_skl_parse_uuids(ctx, SKL_ADSP_FW_BIN_HDR_OFFSET);
@@ -95,7 +93,7 @@ static int skl_load_base_firmware(struct sst_dsp *ctx)
 		dev_err(ctx->dev,
 				"UUID parsing err: %d\n", ret);
 		release_firmware(ctx->fw);
-		skl_dsp_disable_core(ctx);
+		skl_dsp_disable_core(ctx, SKL_DSP_CORE0_MASK);
 		return ret;
 	}
 
@@ -159,13 +157,13 @@ static int skl_load_base_firmware(struct sst_dsp *ctx)
 transfer_firmware_failed:
 	ctx->cl_dev.ops.cl_cleanup_controller(ctx);
 skl_load_base_firmware_failed:
-	skl_dsp_disable_core(ctx);
+	skl_dsp_disable_core(ctx, SKL_DSP_CORE0_MASK);
 	release_firmware(ctx->fw);
 	ctx->fw = NULL;
 	return ret;
 }
 
-static int skl_set_dsp_D0(struct sst_dsp *ctx)
+static int skl_set_dsp_D0(struct sst_dsp *ctx, unsigned int core_id)
 {
 	int ret;
 
@@ -180,7 +178,7 @@ static int skl_set_dsp_D0(struct sst_dsp *ctx)
 	return ret;
 }
 
-static int skl_set_dsp_D3(struct sst_dsp *ctx)
+static int skl_set_dsp_D3(struct sst_dsp *ctx, unsigned int core_id)
 {
 	int ret;
 	struct skl_ipc_dxstate_info dx;
@@ -207,7 +205,7 @@ static int skl_set_dsp_D3(struct sst_dsp *ctx)
 	skl_ipc_op_int_disable(ctx);
 	skl_ipc_int_disable(ctx);
 
-	ret = skl_dsp_disable_core(ctx);
+	ret = skl_dsp_disable_core(ctx, core_id);
 	if (ret < 0) {
 		dev_err(ctx->dev, "disable dsp core failed ret: %d\n", ret);
 		ret = -EIO;
@@ -466,11 +464,15 @@ int skl_sst_dsp_init(struct device *dev, void __iomem *mmio_base, int irq,
 	if (ret)
 		return ret;
 
+	skl->cores.count = 2;
+
 	ret = sst->fw_ops.load_fw(sst);
 	if (ret < 0) {
 		dev_err(dev, "Load base fw failed : %d", ret);
 		goto cleanup;
 	}
+
+	skl_dsp_init_core_state(sst);
 
 	if (dsp)
 		*dsp = skl;

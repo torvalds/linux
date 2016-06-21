@@ -58,7 +58,7 @@ static int sst_bxt_prepare_fw(struct sst_dsp *ctx,
 	ctx->dsp_ops.stream_tag = stream_tag;
 	memcpy(ctx->dmab.area, fwdata, fwsize);
 
-	ret = skl_dsp_core_power_up(ctx);
+	ret = skl_dsp_core_power_up(ctx, SKL_DSP_CORE0_MASK);
 	if (ret < 0) {
 		dev_err(ctx->dev, "Boot dsp core failed ret: %d\n", ret);
 		goto base_fw_load_failed;
@@ -68,7 +68,7 @@ static int sst_bxt_prepare_fw(struct sst_dsp *ctx,
 	sst_dsp_shim_write(ctx, SKL_ADSP_REG_HIPCI, SKL_ADSP_REG_HIPCI_BUSY |
 				(BXT_IPC_PURGE_FW | ((stream_tag - 1) << 9)));
 
-	ret = skl_dsp_start_core(ctx);
+	ret = skl_dsp_start_core(ctx, SKL_DSP_CORE0_MASK);
 	if (ret < 0) {
 		dev_err(ctx->dev, "Start dsp core failed ret: %d\n", ret);
 		ret = -EIO;
@@ -118,7 +118,8 @@ static int sst_bxt_prepare_fw(struct sst_dsp *ctx,
 
 base_fw_load_failed:
 	ctx->dsp_ops.cleanup(ctx->dev, &ctx->dmab, stream_tag);
-	skl_dsp_disable_core(ctx);
+	skl_dsp_core_power_down(ctx, SKL_DSP_CORE_MASK(1));
+	skl_dsp_disable_core(ctx, SKL_DSP_CORE_MASK(1));
 	return ret;
 }
 
@@ -183,14 +184,14 @@ static int bxt_load_base_firmware(struct sst_dsp *ctx)
 			sst_dsp_shim_read(ctx, BXT_ADSP_ERROR_CODE),
 			sst_dsp_shim_read(ctx, BXT_ADSP_FW_STATUS));
 
-		skl_dsp_disable_core(ctx);
+		skl_dsp_disable_core(ctx, SKL_DSP_CORE0_MASK);
 	} else {
 		dev_dbg(ctx->dev, "Firmware download successful\n");
 		ret = wait_event_timeout(skl->boot_wait, skl->boot_complete,
 					msecs_to_jiffies(SKL_IPC_BOOT_MSECS));
 		if (ret == 0) {
 			dev_err(ctx->dev, "DSP boot fail, FW Ready timeout\n");
-			skl_dsp_disable_core(ctx);
+			skl_dsp_disable_core(ctx, SKL_DSP_CORE0_MASK);
 			ret = -EIO;
 		} else {
 			skl_dsp_set_state_locked(ctx, SKL_DSP_RUNNING);
@@ -204,7 +205,7 @@ sst_load_base_firmware_failed:
 	return ret;
 }
 
-static int bxt_set_dsp_D0(struct sst_dsp *ctx)
+static int bxt_set_dsp_D0(struct sst_dsp *ctx, unsigned int core_id)
 {
 	struct skl_sst *skl = ctx->thread_context;
 	int ret;
@@ -219,7 +220,7 @@ static int bxt_set_dsp_D0(struct sst_dsp *ctx)
 		return ret;
 	}
 
-	ret = skl_dsp_enable_core(ctx);
+	ret = skl_dsp_enable_core(ctx, SKL_DSP_CORE0_MASK);
 	if (ret < 0) {
 		dev_err(ctx->dev, "enable dsp core failed ret: %d\n", ret);
 		return ret;
@@ -243,7 +244,7 @@ static int bxt_set_dsp_D0(struct sst_dsp *ctx)
 	return 0;
 }
 
-static int bxt_set_dsp_D3(struct sst_dsp *ctx)
+static int bxt_set_dsp_D3(struct sst_dsp *ctx, unsigned int core_id)
 {
 	struct skl_ipc_dxstate_info dx;
 	struct skl_sst *skl = ctx->thread_context;
@@ -262,7 +263,7 @@ static int bxt_set_dsp_D3(struct sst_dsp *ctx)
 		return ret;
 	}
 
-	ret = skl_dsp_disable_core(ctx);
+	ret = skl_dsp_disable_core(ctx, SKL_DSP_CORE0_MASK);
 	if (ret < 0) {
 		dev_err(ctx->dev, "disbale dsp core failed: %d\n", ret);
 		ret = -EIO;
@@ -329,6 +330,7 @@ int bxt_sst_dsp_init(struct device *dev, void __iomem *mmio_base, int irq,
 	if (ret)
 		return ret;
 
+	skl->cores.count = 2;
 	skl->boot_complete = false;
 	init_waitqueue_head(&skl->boot_wait);
 
@@ -337,6 +339,8 @@ int bxt_sst_dsp_init(struct device *dev, void __iomem *mmio_base, int irq,
 		dev_err(dev, "Load base fw failed: %x", ret);
 		return ret;
 	}
+
+	skl_dsp_init_core_state(sst);
 
 	if (dsp)
 		*dsp = skl;
