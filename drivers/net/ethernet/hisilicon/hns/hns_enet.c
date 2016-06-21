@@ -1633,7 +1633,7 @@ static void hns_nic_dump(struct hns_nic_priv *priv)
 	}
 }
 
-/* for resetting suntask*/
+/* for resetting subtask */
 static void hns_nic_reset_subtask(struct hns_nic_priv *priv)
 {
 	enum hnae_port_type type = priv->ae_handle->port_type;
