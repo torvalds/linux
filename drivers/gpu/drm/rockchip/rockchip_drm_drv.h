@@ -30,6 +30,7 @@
 
 struct drm_device;
 struct drm_connector;
+struct iommu_domain;
 
 /*
  * Rockchip drm private crtc funcs.
@@ -116,6 +117,7 @@ struct rockchip_drm_private {
 	unsigned int cpu_fence_context;
 	atomic_t cpu_fence_seqno;
 #endif
+	struct drm_mm mm;
 };
 
 void rockchip_drm_atomic_work(struct work_struct *work);

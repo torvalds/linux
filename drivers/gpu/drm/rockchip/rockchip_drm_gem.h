@@ -23,6 +23,8 @@ struct rockchip_gem_object {
 
 	void *kvaddr;
 	dma_addr_t dma_addr;
+
+	/* Used when IOMMU is disabled */
 	struct dma_attrs dma_attrs;
 
 #ifdef CONFIG_DRM_DMA_SYNC
@@ -30,6 +32,12 @@ struct rockchip_gem_object {
 	atomic_t acquire_shared_count;
 	bool acquire_exclusive;
 #endif
+	/* Used when IOMMU is enabled */
+	struct drm_mm_node mm;
+	unsigned long num_pages;
+	struct page **pages;
+	struct sg_table *sgt;
+	size_t size;
 };
 
 /*
