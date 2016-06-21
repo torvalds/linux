@@ -276,7 +276,7 @@ static inline size_t sg_pcopy_from_buffer(struct scatterlist *sgl,
 #define LED_HAVE_SET_BLOCKING
 #endif
 
-#if LINUX_VERSION_CODE < KERNEL_VERSION(3, 18, 0)
+#if LINUX_VERSION_CODE < KERNEL_VERSION(3, 19, 0)
 /*
  * From this version upper it was introduced the possibility to disable led
  * sysfs entries to handle control of the led device to v4l2, which was
