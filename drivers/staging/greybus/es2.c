@@ -473,7 +473,7 @@ static int message_send(struct gb_host_device *hd, u16 cport_id,
 
 	retval = usb_submit_urb(urb, gfp_mask);
 	if (retval) {
-		dev_err(&udev->dev, "failed to submit out-urb: %d\n", retval);
+		dev_err_ratelimited(&udev->dev, "failed to submit out-urb: %d\n", retval);
 
 		spin_lock_irqsave(&es2->cport_out_urb_lock, flags);
 		message->hcpriv = NULL;
