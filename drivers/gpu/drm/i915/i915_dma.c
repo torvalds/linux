@@ -525,18 +525,6 @@ static int i915_load_modeset_init(struct drm_device *dev)
 	/* Only enable hotplug handling once the fbdev is fully set up. */
 	intel_hpd_init(dev_priv);
 
-	/*
-	 * Some ports require correctly set-up hpd registers for detection to
-	 * work properly (leading to ghost connected connector status), e.g. VGA
-	 * on gm45.  Hence we can only set up the initial fbdev config after hpd
-	 * irqs are fully enabled. Now we should scan for the initial config
-	 * only once hotplug handling is enabled, but due to screwed-up locking
-	 * around kms/fbdev init we can't protect the fdbev initial config
-	 * scanning against hotplug events. Hence do this first and ignore the
-	 * tiny window where we will loose hotplug notifactions.
-	 */
-	intel_fbdev_initial_config_async(dev);
-
 	drm_kms_helper_poll_init(dev);
 
 	return 0;
@@ -1421,6 +1409,15 @@ static void i915_driver_register(struct drm_i915_private *dev_priv)
 		intel_gpu_ips_init(dev_priv);
 
 	i915_audio_component_init(dev_priv);
+
+	/*
+	 * Some ports require correctly set-up hpd registers for detection to
+	 * work properly (leading to ghost connected connector status), e.g. VGA
+	 * on gm45.  Hence we can only set up the initial fbdev config after hpd
+	 * irqs are fully enabled. We do it last so that the async config
+	 * cannot run before the connectors are registered.
+	 */
+	intel_fbdev_initial_config_async(dev);
 }
 
 /**
