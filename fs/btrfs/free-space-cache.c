@@ -1350,16 +1350,15 @@ out_nospc:
 	goto out;
 }
 
-int btrfs_write_out_cache(struct btrfs_root *root,
+int btrfs_write_out_cache(struct btrfs_fs_info *fs_info,
 			  struct btrfs_trans_handle *trans,
 			  struct btrfs_block_group_cache *block_group,
 			  struct btrfs_path *path)
 {
+	struct btrfs_root *root = fs_info->tree_root;
 	struct btrfs_free_space_ctl *ctl = block_group->free_space_ctl;
 	struct inode *inode;
 	int ret = 0;
-
-	root = root->fs_info->tree_root;
 
 	spin_lock(&block_group->lock);
 	if (block_group->disk_cache_state < BTRFS_DC_SETUP) {

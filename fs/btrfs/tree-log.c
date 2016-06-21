@@ -797,9 +797,9 @@ static noinline int replay_one_extent(struct btrfs_trans_handle *trans,
 						list);
 				if (!ret)
 					ret = btrfs_del_csums(trans,
-						      root->fs_info->csum_root,
-						      sums->bytenr,
-						      sums->len);
+							      root->fs_info,
+							      sums->bytenr,
+							      sums->len);
 				if (!ret)
 					ret = btrfs_csum_file_blocks(trans,
 						root->fs_info->csum_root,

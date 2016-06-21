@@ -72,7 +72,7 @@ int btrfs_wait_cache_io(struct btrfs_root *root,
 			struct btrfs_block_group_cache *block_group,
 			struct btrfs_io_ctl *io_ctl,
 			struct btrfs_path *path, u64 offset);
-int btrfs_write_out_cache(struct btrfs_root *root,
+int btrfs_write_out_cache(struct btrfs_fs_info *fs_info,
 			  struct btrfs_trans_handle *trans,
 			  struct btrfs_block_group_cache *block_group,
 			  struct btrfs_path *path);

@@ -2937,7 +2937,7 @@ int open_ctree(struct super_block *sb,
 	read_extent_buffer(chunk_root->node, fs_info->chunk_tree_uuid,
 	   btrfs_header_chunk_tree_uuid(chunk_root->node), BTRFS_UUID_SIZE);
 
-	ret = btrfs_read_chunk_tree(chunk_root);
+	ret = btrfs_read_chunk_tree(fs_info);
 	if (ret) {
 		btrfs_err(fs_info, "failed to read chunk tree: %d", ret);
 		goto fail_tree_roots;
@@ -3038,7 +3038,7 @@ retry_root_backup:
 		goto fail_sysfs;
 	}
 
-	ret = btrfs_read_block_groups(fs_info->extent_root);
+	ret = btrfs_read_block_groups(fs_info);
 	if (ret) {
 		btrfs_err(fs_info, "failed to read block groups: %d", ret);
 		goto fail_sysfs;

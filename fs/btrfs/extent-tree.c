@@ -2414,7 +2414,7 @@ static int run_one_delayed_ref(struct btrfs_trans_handle *trans,
 			btrfs_pin_extent(root, node->bytenr,
 					 node->num_bytes, 1);
 			if (head->is_data) {
-				ret = btrfs_del_csums(trans, root,
+				ret = btrfs_del_csums(trans, root->fs_info,
 						      node->bytenr,
 						      node->num_bytes);
 			}
@@ -3622,7 +3622,8 @@ again:
 
 		if (cache->disk_cache_state == BTRFS_DC_SETUP) {
 			cache->io_ctl.inode = NULL;
-			ret = btrfs_write_out_cache(root, trans, cache, path);
+			ret = btrfs_write_out_cache(root->fs_info, trans,
+						    cache, path);
 			if (ret == 0 && cache->io_ctl.inode) {
 				num_started++;
 				should_put = 0;
@@ -3774,7 +3775,8 @@ int btrfs_write_dirty_block_groups(struct btrfs_trans_handle *trans,
 
 		if (!ret && cache->disk_cache_state == BTRFS_DC_SETUP) {
 			cache->io_ctl.inode = NULL;
-			ret = btrfs_write_out_cache(root, trans, cache, path);
+			ret = btrfs_write_out_cache(root->fs_info, trans,
+						    cache, path);
 			if (ret == 0 && cache->io_ctl.inode) {
 				num_started++;
 				should_put = 0;
@@ -7068,7 +7070,7 @@ static int __btrfs_free_extent(struct btrfs_trans_handle *trans,
 		btrfs_release_path(path);
 
 		if (is_data) {
-			ret = btrfs_del_csums(trans, root, bytenr, num_bytes);
+			ret = btrfs_del_csums(trans, info, bytenr, num_bytes);
 			if (ret) {
 				btrfs_abort_transaction(trans, ret);
 				goto out;
@@ -9925,12 +9927,12 @@ btrfs_create_block_group_cache(struct btrfs_root *root, u64 start, u64 size)
 	return cache;
 }
 
-int btrfs_read_block_groups(struct btrfs_root *root)
+int btrfs_read_block_groups(struct btrfs_fs_info *info)
 {
+	struct btrfs_root *root = info->extent_root;
 	struct btrfs_path *path;
 	int ret;
 	struct btrfs_block_group_cache *cache;
-	struct btrfs_fs_info *info = root->fs_info;
 	struct btrfs_space_info *space_info;
 	struct btrfs_key key;
 	struct btrfs_key found_key;
@@ -9943,7 +9945,6 @@ int btrfs_read_block_groups(struct btrfs_root *root)
 	feature = btrfs_super_incompat_flags(info->super_copy);
 	mixed = !!(feature & BTRFS_FEATURE_INCOMPAT_MIXED_GROUPS);
 
-	root = info->extent_root;
 	key.objectid = 0;
 	key.offset = 0;
 	key.type = BTRFS_BLOCK_GROUP_ITEM_KEY;
@@ -10733,7 +10734,7 @@ void btrfs_delete_unused_bgs(struct btrfs_fs_info *fs_info)
 		 * Btrfs_remove_chunk will abort the transaction if things go
 		 * horribly wrong.
 		 */
-		ret = btrfs_remove_chunk(trans, root,
+		ret = btrfs_remove_chunk(trans, fs_info,
 					 block_group->key.objectid);
 
 		if (ret) {
