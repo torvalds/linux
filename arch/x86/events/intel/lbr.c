@@ -284,6 +284,20 @@ inline u64 lbr_from_signext_quirk_wr(u64 val)
 	return val;
 }
 
+/*
+ * If quirk is needed, ensure sign extension is 61 bits:
+ */
+u64 lbr_from_signext_quirk_rd(u64 val)
+{
+	if (static_branch_unlikely(&lbr_from_quirk_key))
+		/*
+		 * Quirk is on when TSX is not enabled. Therefore TSX
+		 * flags must be read as OFF.
+		 */
+		val &= ~(LBR_FROM_FLAG_IN_TX | LBR_FROM_FLAG_ABORT);
+	return val;
+}
+
 static void __intel_pmu_lbr_restore(struct x86_perf_task_context *task_ctx)
 {
 	int i;
@@ -300,7 +314,8 @@ static void __intel_pmu_lbr_restore(struct x86_perf_task_context *task_ctx)
 	tos = task_ctx->tos;
 	for (i = 0; i < tos; i++) {
 		lbr_idx = (tos - i) & mask;
-		wrmsrl(x86_pmu.lbr_from + lbr_idx, task_ctx->lbr_from[i]);
+		wrmsrl(x86_pmu.lbr_from + lbr_idx,
+			lbr_from_signext_quirk_wr(task_ctx->lbr_from[i]));
 		wrmsrl(x86_pmu.lbr_to + lbr_idx, task_ctx->lbr_to[i]);
 		if (x86_pmu.intel_cap.lbr_format == LBR_FORMAT_INFO)
 			wrmsrl(MSR_LBR_INFO_0 + lbr_idx, task_ctx->lbr_info[i]);
@@ -313,7 +328,7 @@ static void __intel_pmu_lbr_save(struct x86_perf_task_context *task_ctx)
 {
 	int i;
 	unsigned lbr_idx, mask;
-	u64 tos;
+	u64 tos, val;
 
 	if (task_ctx->lbr_callstack_users == 0) {
 		task_ctx->lbr_stack_state = LBR_NONE;
@@ -324,7 +339,8 @@ static void __intel_pmu_lbr_save(struct x86_perf_task_context *task_ctx)
 	tos = intel_pmu_lbr_tos();
 	for (i = 0; i < tos; i++) {
 		lbr_idx = (tos - i) & mask;
-		rdmsrl(x86_pmu.lbr_from + lbr_idx, task_ctx->lbr_from[i]);
+		rdmsrl(x86_pmu.lbr_from + lbr_idx, val);
+		task_ctx->lbr_from[i] = lbr_from_signext_quirk_rd(val);
 		rdmsrl(x86_pmu.lbr_to + lbr_idx, task_ctx->lbr_to[i]);
 		if (x86_pmu.intel_cap.lbr_format == LBR_FORMAT_INFO)
 			rdmsrl(MSR_LBR_INFO_0 + lbr_idx, task_ctx->lbr_info[i]);
@@ -502,6 +518,8 @@ static void intel_pmu_lbr_read_64(struct cpu_hw_events *cpuc)
 		int lbr_flags = lbr_desc[lbr_format];
 
 		rdmsrl(x86_pmu.lbr_from + lbr_idx, from);
+		from = lbr_from_signext_quirk_rd(from);
+
 		rdmsrl(x86_pmu.lbr_to   + lbr_idx, to);
 
 		if (lbr_format == LBR_FORMAT_INFO && need_info) {
