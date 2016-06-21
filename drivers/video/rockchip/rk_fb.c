@@ -3627,7 +3627,6 @@ int rk_fb_switch_screen(struct rk_screen *screen, int enable, int lcdc_id)
 			/* If there is more than one lcdc device, we disable
 			 *  the layer which attached to this device
 			 */
-			dev_drv->suspend_flag = 1;
 			flush_kthread_worker(&dev_drv->update_regs_worker);
 			for (i = 0; i < dev_drv->lcdc_win_num; i++) {
 				if (dev_drv->win[i] && dev_drv->win[i]->state)
@@ -3657,6 +3656,15 @@ int rk_fb_switch_screen(struct rk_screen *screen, int enable, int lcdc_id)
 		dev_drv->cur_screen->x_mirror = dev_drv->rotate_mode & X_MIRROR;
 		dev_drv->cur_screen->y_mirror = dev_drv->rotate_mode & Y_MIRROR;
 	}
+
+	if (load_screen || (rk_fb->disp_policy != DISPLAY_POLICY_BOX)) {
+		for (i = 0; i < dev_drv->lcdc_win_num; i++) {
+			if (dev_drv->win[i] && dev_drv->win[i]->state &&
+				dev_drv->ops->win_direct_en)
+				dev_drv->ops->win_direct_en(dev_drv, i, 0);
+		}
+	}
+
 	if (!dev_drv->uboot_logo || load_screen ||
 	    (rk_fb->disp_policy != DISPLAY_POLICY_BOX)) {
 		for (i = 0; i < dev_drv->lcdc_win_num; i++) {
@@ -3693,7 +3701,7 @@ int rk_fb_switch_screen(struct rk_screen *screen, int enable, int lcdc_id)
 					dev_drv->ops->cfg_done(dev_drv);
 				} else if (!dev_drv->win[win_id]->state) {
 					dev_drv->ops->open(dev_drv, win_id, 1);
-					dev_drv->suspend_flag = 0;
+					/* dev_drv->suspend_flag = 0; */
 					/* mutex_lock(&dev_drv->win_config);
 					 * info->var.xoffset = 0;
 					 * info->var.yoffset = 0;
