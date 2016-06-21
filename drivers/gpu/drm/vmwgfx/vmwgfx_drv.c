@@ -1228,8 +1228,7 @@ static int vmw_master_set(struct drm_device *dev,
 }
 
 static void vmw_master_drop(struct drm_device *dev,
-			    struct drm_file *file_priv,
-			    bool from_release)
+			    struct drm_file *file_priv)
 {
 	struct vmw_private *dev_priv = vmw_priv(dev);
 	struct vmw_fpriv *vmw_fp = vmw_fpriv(file_priv);

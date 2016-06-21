@@ -573,8 +573,7 @@ struct drm_driver {
 
 	int (*master_set)(struct drm_device *dev, struct drm_file *file_priv,
 			  bool from_open);
-	void (*master_drop)(struct drm_device *dev, struct drm_file *file_priv,
-			    bool from_release);
+	void (*master_drop)(struct drm_device *dev, struct drm_file *file_priv);
 
 	int (*debugfs_init)(struct drm_minor *minor);
 	void (*debugfs_cleanup)(struct drm_minor *minor);

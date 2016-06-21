@@ -110,6 +110,24 @@ static struct drm_master *drm_master_create(struct drm_device *dev)
 	return master;
 }
 
+static int drm_set_master(struct drm_device *dev, struct drm_file *fpriv,
+			  bool new_master)
+{
+	int ret = 0;
+
+	dev->master = drm_master_get(fpriv->master);
+	fpriv->is_master = 1;
+	if (dev->driver->master_set) {
+		ret = dev->driver->master_set(dev, fpriv, new_master);
+		if (unlikely(ret != 0)) {
+			fpriv->is_master = 0;
+			drm_master_put(&dev->master);
+		}
+	}
+
+	return ret;
+}
+
 /*
  * drm_new_set_master - Allocate a new master object and become master for the
  * associated master realm.
@@ -127,37 +145,32 @@ static int drm_new_set_master(struct drm_device *dev, struct drm_file *fpriv)
 
 	lockdep_assert_held_once(&dev->master_mutex);
 
-	/* create a new master */
-	dev->master = drm_master_create(dev);
-	if (!dev->master)
-		return -ENOMEM;
-
-	/* take another reference for the copy in the local file priv */
 	old_master = fpriv->master;
-	fpriv->master = drm_master_get(dev->master);
+	fpriv->master = drm_master_create(dev);
+	if (!fpriv->master) {
+		fpriv->master = old_master;
+		return -ENOMEM;
+	}
 
 	if (dev->driver->master_create) {
 		ret = dev->driver->master_create(dev, fpriv->master);
 		if (ret)
 			goto out_err;
 	}
-	if (dev->driver->master_set) {
-		ret = dev->driver->master_set(dev, fpriv, true);
-		if (ret)
-			goto out_err;
-	}
-
-	fpriv->is_master = 1;
 	fpriv->allowed_master = 1;
 	fpriv->authenticated = 1;
+
+	ret = drm_set_master(dev, fpriv, true);
+	if (ret)
+		goto out_err;
+
 	if (old_master)
 		drm_master_put(&old_master);
 
 	return 0;
 
 out_err:
-	/* drop both references and restore old master on failure */
-	drm_master_put(&dev->master);
+	/* drop references and restore old master on failure */
 	drm_master_put(&fpriv->master);
 	fpriv->master = old_master;
 
@@ -188,19 +201,19 @@ int drm_setmaster_ioctl(struct drm_device *dev, void *data,
 		goto out_unlock;
 	}
 
-	dev->master = drm_master_get(file_priv->master);
-	file_priv->is_master = 1;
-	if (dev->driver->master_set) {
-		ret = dev->driver->master_set(dev, file_priv, false);
-		if (unlikely(ret != 0)) {
-			file_priv->is_master = 0;
-			drm_master_put(&dev->master);
-		}
-	}
-
+	ret = drm_set_master(dev, file_priv, false);
 out_unlock:
 	mutex_unlock(&dev->master_mutex);
 	return ret;
+}
+
+static void drm_drop_master(struct drm_device *dev,
+			    struct drm_file *fpriv)
+{
+	if (dev->driver->master_drop)
+		dev->driver->master_drop(dev, fpriv);
+	drm_master_put(&dev->master);
+	fpriv->is_master = 0;
 }
 
 int drm_dropmaster_ioctl(struct drm_device *dev, void *data,
@@ -216,11 +229,7 @@ int drm_dropmaster_ioctl(struct drm_device *dev, void *data,
 		goto out_unlock;
 
 	ret = 0;
-	if (dev->driver->master_drop)
-		dev->driver->master_drop(dev, file_priv, false);
-	drm_master_put(&dev->master);
-	file_priv->is_master = 0;
-
+	drm_drop_master(dev, file_priv);
 out_unlock:
 	mutex_unlock(&dev->master_mutex);
 	return ret;
@@ -271,17 +280,12 @@ void drm_master_release(struct drm_file *file_priv)
 		mutex_unlock(&dev->struct_mutex);
 	}
 
-	if (dev->master == file_priv->master) {
-		/* drop the reference held my the minor */
-		if (dev->driver->master_drop)
-			dev->driver->master_drop(dev, file_priv, true);
-		drm_master_put(&dev->master);
-	}
+	if (dev->master == file_priv->master)
+		drm_drop_master(dev, file_priv);
 out:
 	/* drop the master reference held by the file priv */
 	if (file_priv->master)
 		drm_master_put(&file_priv->master);
-	file_priv->is_master = 0;
 	mutex_unlock(&dev->master_mutex);
 }
 
