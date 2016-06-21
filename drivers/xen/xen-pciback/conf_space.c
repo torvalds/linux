@@ -183,8 +183,7 @@ int xen_pcibk_config_read(struct pci_dev *dev, int offset, int size,
 		field_start = OFFSET(cfg_entry);
 		field_end = OFFSET(cfg_entry) + field->size;
 
-		if ((req_start >= field_start && req_start < field_end)
-		    || (req_end > field_start && req_end <= field_end)) {
+		 if (req_end > field_start && field_end > req_start) {
 			err = conf_space_read(dev, cfg_entry, field_start,
 					      &tmp_val);
 			if (err)
@@ -230,8 +229,7 @@ int xen_pcibk_config_write(struct pci_dev *dev, int offset, int size, u32 value)
 		field_start = OFFSET(cfg_entry);
 		field_end = OFFSET(cfg_entry) + field->size;
 
-		if ((req_start >= field_start && req_start < field_end)
-		    || (req_end > field_start && req_end <= field_end)) {
+		 if (req_end > field_start && field_end > req_start) {
 			tmp_val = 0;
 
 			err = xen_pcibk_config_read(dev, field_start,
