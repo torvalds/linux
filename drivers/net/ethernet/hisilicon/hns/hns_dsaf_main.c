@@ -516,10 +516,10 @@ static void hns_dsafv2_sbm_bp_wl_cfg(struct dsaf_device *dsaf_dev)
 		o_sbm_bp_cfg = dsaf_read_dev(dsaf_dev, reg);
 		dsaf_set_field(o_sbm_bp_cfg,
 			       DSAFV2_SBM_CFG3_SET_BUF_NUM_NO_PFC_M,
-			       DSAFV2_SBM_CFG3_SET_BUF_NUM_NO_PFC_S, 110);
+			       DSAFV2_SBM_CFG3_SET_BUF_NUM_NO_PFC_S, 48);
 		dsaf_set_field(o_sbm_bp_cfg,
 			       DSAFV2_SBM_CFG3_RESET_BUF_NUM_NO_PFC_M,
-			       DSAFV2_SBM_CFG3_RESET_BUF_NUM_NO_PFC_S, 160);
+			       DSAFV2_SBM_CFG3_RESET_BUF_NUM_NO_PFC_S, 80);
 		dsaf_write_dev(dsaf_dev, reg, o_sbm_bp_cfg);
 
 		/* for no enable pfc mode */
@@ -527,29 +527,39 @@ static void hns_dsafv2_sbm_bp_wl_cfg(struct dsaf_device *dsaf_dev)
 		o_sbm_bp_cfg = dsaf_read_dev(dsaf_dev, reg);
 		dsaf_set_field(o_sbm_bp_cfg,
 			       DSAFV2_SBM_CFG4_SET_BUF_NUM_NO_PFC_M,
-			       DSAFV2_SBM_CFG4_SET_BUF_NUM_NO_PFC_S, 128);
+			       DSAFV2_SBM_CFG4_SET_BUF_NUM_NO_PFC_S, 192);
 		dsaf_set_field(o_sbm_bp_cfg,
 			       DSAFV2_SBM_CFG4_RESET_BUF_NUM_NO_PFC_M,
-			       DSAFV2_SBM_CFG4_RESET_BUF_NUM_NO_PFC_S, 192);
+			       DSAFV2_SBM_CFG4_RESET_BUF_NUM_NO_PFC_S, 240);
 		dsaf_write_dev(dsaf_dev, reg, o_sbm_bp_cfg);
 	}
 
 	/* PPE */
-	reg = DSAF_SBM_BP_CFG_2_PPE_REG_0_REG + 0x80 * i;
-	o_sbm_bp_cfg = dsaf_read_dev(dsaf_dev, reg);
-	dsaf_set_field(o_sbm_bp_cfg, DSAFV2_SBM_CFG2_SET_BUF_NUM_M,
-		       DSAFV2_SBM_CFG2_SET_BUF_NUM_S, 10);
-	dsaf_set_field(o_sbm_bp_cfg, DSAFV2_SBM_CFG2_RESET_BUF_NUM_M,
-		       DSAFV2_SBM_CFG2_RESET_BUF_NUM_S, 12);
-	dsaf_write_dev(dsaf_dev, reg, o_sbm_bp_cfg);
+	for (i = 0; i < DSAFV2_SBM_PPE_CHN; i++) {
+		reg = DSAF_SBM_BP_CFG_2_PPE_REG_0_REG + 0x80 * i;
+		o_sbm_bp_cfg = dsaf_read_dev(dsaf_dev, reg);
+		dsaf_set_field(o_sbm_bp_cfg,
+			       DSAFV2_SBM_CFG2_PPE_SET_BUF_NUM_M,
+			       DSAFV2_SBM_CFG2_PPE_SET_BUF_NUM_S, 2);
+		dsaf_set_field(o_sbm_bp_cfg,
+			       DSAFV2_SBM_CFG2_PPE_RESET_BUF_NUM_M,
+			       DSAFV2_SBM_CFG2_PPE_RESET_BUF_NUM_S, 3);
+		dsaf_set_field(o_sbm_bp_cfg,
+			       DSAFV2_SBM_CFG2_PPE_CFG_USEFUL_NUM_M,
+			       DSAFV2_SBM_CFG2_PPE_CFG_USEFUL_NUM_S, 52);
+		dsaf_write_dev(dsaf_dev, reg, o_sbm_bp_cfg);
+	}
+
 	/* RoCEE */
 	for (i = 0; i < DASFV2_ROCEE_CRD_NUM; i++) {
 		reg = DSAFV2_SBM_BP_CFG_2_ROCEE_REG_0_REG + 0x80 * i;
 		o_sbm_bp_cfg = dsaf_read_dev(dsaf_dev, reg);
-		dsaf_set_field(o_sbm_bp_cfg, DSAFV2_SBM_CFG2_SET_BUF_NUM_M,
-			       DSAFV2_SBM_CFG2_SET_BUF_NUM_S, 2);
-		dsaf_set_field(o_sbm_bp_cfg, DSAFV2_SBM_CFG2_RESET_BUF_NUM_M,
-			       DSAFV2_SBM_CFG2_RESET_BUF_NUM_S, 4);
+		dsaf_set_field(o_sbm_bp_cfg,
+			       DSAFV2_SBM_CFG2_ROCEE_SET_BUF_NUM_M,
+			       DSAFV2_SBM_CFG2_ROCEE_SET_BUF_NUM_S, 2);
+		dsaf_set_field(o_sbm_bp_cfg,
+			       DSAFV2_SBM_CFG2_ROCEE_RESET_BUF_NUM_M,
+			       DSAFV2_SBM_CFG2_ROCEE_RESET_BUF_NUM_S, 4);
 		dsaf_write_dev(dsaf_dev, reg, o_sbm_bp_cfg);
 	}
 }
