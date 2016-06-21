@@ -34,6 +34,7 @@
 #include <linux/slab.h>
 #include <drm/drmP.h>
 #include <drm/drm_core.h>
+#include "drm_crtc_internal.h"
 #include "drm_legacy.h"
 #include "drm_internal.h"
 
@@ -688,7 +689,7 @@ int drm_dev_register(struct drm_device *dev, unsigned long flags)
 	}
 
 	if (drm_core_check_feature(dev, DRIVER_MODESET))
-		drm_connector_register_all(dev);
+		drm_modeset_register_all(dev);
 
 	ret = 0;
 	goto out_unlock;
@@ -721,7 +722,7 @@ void drm_dev_unregister(struct drm_device *dev)
 	drm_lastclose(dev);
 
 	if (drm_core_check_feature(dev, DRIVER_MODESET))
-		drm_connector_unregister_all(dev);
+		drm_modeset_unregister_all(dev);
 
 	if (dev->driver->unload)
 		dev->driver->unload(dev);
