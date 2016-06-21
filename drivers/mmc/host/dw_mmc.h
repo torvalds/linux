@@ -15,6 +15,7 @@
 #define _DW_MMC_H_
 
 #define DW_MMC_240A		0x240a
+#define DW_MMC_280A		0x280a
 
 #define SDMMC_CTRL		0x000
 #define SDMMC_PWREN		0x004
@@ -175,7 +176,10 @@
 /* Version ID register define */
 #define SDMMC_GET_VERID(x)		((x) & 0xFFFF)
 /* Card read threshold */
-#define SDMMC_SET_RD_THLD(v, x)		(((v) & 0xFFF) << 16 | (x))
+#define SDMMC_SET_THLD(v, x)		(((v) & 0xFFF) << 16 | (x))
+#define SDMMC_CARD_WR_THR_EN		BIT(2)
+#define SDMMC_CARD_RD_THR_EN		BIT(0)
+/* UHS-1 register defines */
 #define SDMMC_UHS_18V			BIT(0)
 /* All ctrl reset bits */
 #define SDMMC_CTRL_ALL_RESET_FLAGS \
