@@ -49,7 +49,7 @@ static u32 hns_nic_get_link(struct net_device *net_dev)
 	h = priv->ae_handle;
 
 	if (priv->phy) {
-		if (!genphy_update_link(priv->phy))
+		if (!genphy_read_status(priv->phy))
 			link_stat = priv->phy->link;
 		else
 			link_stat = 0;
