@@ -1972,7 +1972,7 @@ static int hns_nic_dev_probe(struct platform_device *pdev)
 	if (!dma_set_mask_and_coherent(dev, DMA_BIT_MASK(64)))
 		dev_dbg(dev, "set mask to 64bit\n");
 	else
-		dev_err(dev, "set mask to 32bit fail!\n");
+		dev_err(dev, "set mask to 64bit fail!\n");
 
 	/* carrier off reporting is important to ethtool even BEFORE open */
 	netif_carrier_off(ndev);
