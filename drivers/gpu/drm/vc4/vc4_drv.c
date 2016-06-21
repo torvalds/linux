@@ -211,22 +211,10 @@ static int vc4_drm_bind(struct device *dev)
 	if (ret < 0)
 		goto unbind_all;
 
-	/* Connector registration has to occur after DRM device
-	 * registration, because it creates sysfs entries based on the
-	 * DRM device.
-	 */
-	list_for_each_entry(connector, &drm->mode_config.connector_list, head) {
-		ret = drm_connector_register(connector);
-		if (ret)
-			goto unregister;
-	}
-
 	vc4_kms_load(drm);
 
 	return 0;
 
-unregister:
-	drm_dev_unregister(drm);
 unbind_all:
 	component_unbind_all(dev, drm);
 gem_destroy:
