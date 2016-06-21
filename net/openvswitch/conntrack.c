@@ -835,6 +835,42 @@ static bool labels_nonzero(const struct ovs_key_ct_labels *labels)
 	return false;
 }
 
+/* Lookup connection and confirm if unconfirmed. */
+static int ovs_ct_commit(struct net *net, struct sw_flow_key *key,
+			 const struct ovs_conntrack_info *info,
+			 struct sk_buff *skb)
+{
+	int err;
+
+	err = __ovs_ct_lookup(net, key, info, skb);
+	if (err)
+		return err;
+
+	/* Apply changes before confirming the connection so that the initial
+	 * conntrack NEW netlink event carries the values given in the CT
+	 * action.
+	 */
+	if (info->mark.mask) {
+		err = ovs_ct_set_mark(skb, key, info->mark.value,
+				      info->mark.mask);
+		if (err)
+			return err;
+	}
+	if (labels_nonzero(&info->labels.mask)) {
+		err = ovs_ct_set_labels(skb, key, &info->labels.value,
+					&info->labels.mask);
+		if (err)
+			return err;
+	}
+	/* This will take care of sending queued events even if the connection
+	 * is already confirmed.
+	 */
+	if (nf_conntrack_confirm(skb) != NF_ACCEPT)
+		return -EINVAL;
+
+	return 0;
+}
+
 /* Returns 0 on success, -EINPROGRESS if 'skb' is stolen, or other nonzero
  * value if 'skb' is freed.
  */
@@ -856,34 +892,10 @@ int ovs_ct_execute(struct net *net, struct sk_buff *skb,
 	}
 
 	if (info->commit)
-		err = __ovs_ct_lookup(net, key, info, skb);
+		err = ovs_ct_commit(net, key, info, skb);
 	else
 		err = ovs_ct_lookup(net, key, info, skb);
-	if (err)
-		goto err;
 
-	/* Apply changes before confirming the connection so that the initial
-	 * conntrack NEW netlink event carries the values given in the CT
-	 * action.
-	 */
-	if (info->mark.mask) {
-		err = ovs_ct_set_mark(skb, key, info->mark.value,
-				      info->mark.mask);
-		if (err)
-			goto err;
-	}
-	if (labels_nonzero(&info->labels.mask)) {
-		err = ovs_ct_set_labels(skb, key, &info->labels.value,
-					&info->labels.mask);
-		if (err)
-			goto err;
-	}
-	/* This will take care of sending queued events even if the connection
-	 * is already confirmed.
-	 */
-	if (info->commit && nf_conntrack_confirm(skb) != NF_ACCEPT)
-		err = -EINVAL;
-err:
 	skb_push(skb, nh_ofs);
 	if (err)
 		kfree_skb(skb);
@@ -1140,6 +1152,20 @@ static int parse_ct(const struct nlattr *attr, struct ovs_conntrack_info *info,
 		}
 	}
 
+#ifdef CONFIG_NF_CONNTRACK_MARK
+	if (!info->commit && info->mark.mask) {
+		OVS_NLERR(log,
+			  "Setting conntrack mark requires 'commit' flag.");
+		return -EINVAL;
+	}
+#endif
+#ifdef CONFIG_NF_CONNTRACK_LABELS
+	if (!info->commit && labels_nonzero(&info->labels.mask)) {
+		OVS_NLERR(log,
+			  "Setting conntrack labels requires 'commit' flag.");
+		return -EINVAL;
+	}
+#endif
 	if (rem > 0) {
 		OVS_NLERR(log, "Conntrack attr has %d unknown bytes", rem);
 		return -EINVAL;
