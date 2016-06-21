@@ -178,7 +178,7 @@ static int rk32_dsi_set_bits(struct dsi *dsi, u32 data, u32 reg)
 	val |= (data & bits) << offset;
 	rk32_dsi_write_reg(dsi, reg_addr, &val);
 
-	if (data > ((1 << (bits+1)) - 1)) {
+	if (data > bits) {
 		MIPI_TRACE("%s error reg_addr:0x%04x, offset:%d, bits:0x%04x, value:0x%04x\n",
 				__func__, reg_addr, offset, bits, data);
 	}
