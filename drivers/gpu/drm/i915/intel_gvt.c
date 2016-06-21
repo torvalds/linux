@@ -63,7 +63,7 @@ int intel_gvt_init(struct drm_i915_private *dev_priv)
 
 	if (!is_supported_device(dev_priv)) {
 		DRM_DEBUG_DRIVER("Unsupported device. GVT-g is disabled\n");
-		return 0;
+		goto bail;
 	}
 
 	/*
@@ -72,15 +72,19 @@ int intel_gvt_init(struct drm_i915_private *dev_priv)
 	ret = intel_gvt_init_host();
 	if (ret) {
 		DRM_DEBUG_DRIVER("Not in host or MPT modules not found\n");
-		return 0;
+		goto bail;
 	}
 
 	ret = intel_gvt_init_device(dev_priv);
 	if (ret) {
 		DRM_DEBUG_DRIVER("Fail to init GVT device\n");
-		return 0;
+		goto bail;
 	}
 
+	return 0;
+
+bail:
+	i915.enable_gvt = 0;
 	return 0;
 }
 
