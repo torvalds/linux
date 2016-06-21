@@ -2500,7 +2500,8 @@ static int s626_initialize(struct comedi_device *dev)
 	for (i = 0; i < 2; i++) {
 		writel(S626_I2C_CLKSEL, dev->mmio + S626_P_I2CSTAT);
 		s626_mc_enable(dev, S626_MC2_UPLD_IIC, S626_P_MC2);
-		ret = comedi_timeout(dev, NULL, NULL, s626_i2c_handshake_eoc, 0);
+		ret = comedi_timeout(dev, NULL,
+				     NULL, s626_i2c_handshake_eoc, 0);
 		if (ret)
 			return ret;
 	}
