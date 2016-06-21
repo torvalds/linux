@@ -135,8 +135,9 @@ static int lowpan_ndisc_opt_addr_space(const struct net_device *dev,
 			read_unlock_bh(&neigh->lock);
 			addr_space += __ndisc_opt_addr_space(IEEE802154_SHORT_ADDR_LEN, 0);
 			*ha = ha_buf;
+		} else {
+			read_unlock_bh(&neigh->lock);
 		}
-		read_unlock_bh(&neigh->lock);
 		break;
 	case NDISC_NEIGHBOUR_ADVERTISEMENT:
 	case NDISC_NEIGHBOUR_SOLICITATION:
