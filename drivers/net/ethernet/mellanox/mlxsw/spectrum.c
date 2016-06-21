@@ -49,6 +49,7 @@
 #include <linux/jiffies.h>
 #include <linux/bitops.h>
 #include <linux/list.h>
+#include <linux/notifier.h>
 #include <linux/dcbnl.h>
 #include <net/switchdev.h>
 #include <generated/utsrelease.h>
@@ -632,14 +633,14 @@ static int mlxsw_sp_port_vlan_mode_trans(struct mlxsw_sp_port *mlxsw_sp_port)
 	return 0;
 }
 
-static struct mlxsw_sp_vfid *
+static struct mlxsw_sp_fid *
 mlxsw_sp_vfid_find(const struct mlxsw_sp *mlxsw_sp, u16 vid)
 {
-	struct mlxsw_sp_vfid *vfid;
+	struct mlxsw_sp_fid *f;
 
-	list_for_each_entry(vfid, &mlxsw_sp->port_vfids.list, list) {
-		if (vfid->vid == vid)
-			return vfid;
+	list_for_each_entry(f, &mlxsw_sp->port_vfids.list, list) {
+		if (f->vid == vid)
+			return f;
 	}
 
 	return NULL;
@@ -651,75 +652,70 @@ static u16 mlxsw_sp_avail_vfid_get(const struct mlxsw_sp *mlxsw_sp)
 				   MLXSW_SP_VFID_PORT_MAX);
 }
 
-static int __mlxsw_sp_vfid_create(struct mlxsw_sp *mlxsw_sp, u16 vfid)
+static int mlxsw_sp_vfid_op(struct mlxsw_sp *mlxsw_sp, u16 fid, bool create)
 {
-	u16 fid = mlxsw_sp_vfid_to_fid(vfid);
 	char sfmr_pl[MLXSW_REG_SFMR_LEN];
 
-	mlxsw_reg_sfmr_pack(sfmr_pl, MLXSW_REG_SFMR_OP_CREATE_FID, fid, 0);
+	mlxsw_reg_sfmr_pack(sfmr_pl, !create, fid, 0);
 	return mlxsw_reg_write(mlxsw_sp->core, MLXSW_REG(sfmr), sfmr_pl);
 }
 
-static void __mlxsw_sp_vfid_destroy(struct mlxsw_sp *mlxsw_sp, u16 vfid)
-{
-	u16 fid = mlxsw_sp_vfid_to_fid(vfid);
-	char sfmr_pl[MLXSW_REG_SFMR_LEN];
+static void mlxsw_sp_vport_vfid_leave(struct mlxsw_sp_port *mlxsw_sp_vport);
 
-	mlxsw_reg_sfmr_pack(sfmr_pl, MLXSW_REG_SFMR_OP_DESTROY_FID, fid, 0);
-	mlxsw_reg_write(mlxsw_sp->core, MLXSW_REG(sfmr), sfmr_pl);
-}
-
-static struct mlxsw_sp_vfid *mlxsw_sp_vfid_create(struct mlxsw_sp *mlxsw_sp,
-						  u16 vid)
+static struct mlxsw_sp_fid *mlxsw_sp_vfid_create(struct mlxsw_sp *mlxsw_sp,
+						 u16 vid)
 {
 	struct device *dev = mlxsw_sp->bus_info->dev;
-	struct mlxsw_sp_vfid *vfid;
-	u16 n_vfid;
+	struct mlxsw_sp_fid *f;
+	u16 vfid, fid;
 	int err;
 
-	n_vfid = mlxsw_sp_avail_vfid_get(mlxsw_sp);
-	if (n_vfid == MLXSW_SP_VFID_PORT_MAX) {
+	vfid = mlxsw_sp_avail_vfid_get(mlxsw_sp);
+	if (vfid == MLXSW_SP_VFID_PORT_MAX) {
 		dev_err(dev, "No available vFIDs\n");
 		return ERR_PTR(-ERANGE);
 	}
 
-	err = __mlxsw_sp_vfid_create(mlxsw_sp, n_vfid);
+	fid = mlxsw_sp_vfid_to_fid(vfid);
+	err = mlxsw_sp_vfid_op(mlxsw_sp, fid, true);
 	if (err) {
-		dev_err(dev, "Failed to create vFID=%d\n", n_vfid);
+		dev_err(dev, "Failed to create FID=%d\n", fid);
 		return ERR_PTR(err);
 	}
 
-	vfid = kzalloc(sizeof(*vfid), GFP_KERNEL);
-	if (!vfid)
+	f = kzalloc(sizeof(*f), GFP_KERNEL);
+	if (!f)
 		goto err_allocate_vfid;
 
-	vfid->vfid = n_vfid;
-	vfid->vid = vid;
+	f->leave = mlxsw_sp_vport_vfid_leave;
+	f->fid = fid;
+	f->vid = vid;
 
-	list_add(&vfid->list, &mlxsw_sp->port_vfids.list);
-	set_bit(n_vfid, mlxsw_sp->port_vfids.mapped);
+	list_add(&f->list, &mlxsw_sp->port_vfids.list);
+	set_bit(vfid, mlxsw_sp->port_vfids.mapped);
 
-	return vfid;
+	return f;
 
 err_allocate_vfid:
-	__mlxsw_sp_vfid_destroy(mlxsw_sp, n_vfid);
+	mlxsw_sp_vfid_op(mlxsw_sp, fid, false);
 	return ERR_PTR(-ENOMEM);
 }
 
 static void mlxsw_sp_vfid_destroy(struct mlxsw_sp *mlxsw_sp,
-				  struct mlxsw_sp_vfid *vfid)
+				  struct mlxsw_sp_fid *f)
 {
-	clear_bit(vfid->vfid, mlxsw_sp->port_vfids.mapped);
-	list_del(&vfid->list);
+	u16 vfid = mlxsw_sp_fid_to_vfid(f->fid);
 
-	__mlxsw_sp_vfid_destroy(mlxsw_sp, vfid->vfid);
+	clear_bit(vfid, mlxsw_sp->port_vfids.mapped);
+	list_del(&f->list);
 
-	kfree(vfid);
+	mlxsw_sp_vfid_op(mlxsw_sp, f->fid, false);
+
+	kfree(f);
 }
 
 static struct mlxsw_sp_port *
-mlxsw_sp_port_vport_create(struct mlxsw_sp_port *mlxsw_sp_port,
-			   struct mlxsw_sp_vfid *vfid)
+mlxsw_sp_port_vport_create(struct mlxsw_sp_port *mlxsw_sp_port, u16 vid)
 {
 	struct mlxsw_sp_port *mlxsw_sp_vport;
 
@@ -737,8 +733,7 @@ mlxsw_sp_port_vport_create(struct mlxsw_sp_port *mlxsw_sp_port,
 	mlxsw_sp_vport->stp_state = BR_STATE_FORWARDING;
 	mlxsw_sp_vport->lagged = mlxsw_sp_port->lagged;
 	mlxsw_sp_vport->lag_id = mlxsw_sp_port->lag_id;
-	mlxsw_sp_vport->vport.vfid = vfid;
-	mlxsw_sp_vport->vport.vid = vfid->vid;
+	mlxsw_sp_vport->vport.vid = vid;
 
 	list_add(&mlxsw_sp_vport->vport.list, &mlxsw_sp_port->vports_list);
 
@@ -751,13 +746,72 @@ static void mlxsw_sp_port_vport_destroy(struct mlxsw_sp_port *mlxsw_sp_vport)
 	kfree(mlxsw_sp_vport);
 }
 
+static int mlxsw_sp_vport_fid_map(struct mlxsw_sp_port *mlxsw_sp_vport, u16 fid,
+				  bool valid)
+{
+	enum mlxsw_reg_svfa_mt mt = MLXSW_REG_SVFA_MT_PORT_VID_TO_FID;
+	u16 vid = mlxsw_sp_vport_vid_get(mlxsw_sp_vport);
+
+	return mlxsw_sp_port_vid_to_fid_set(mlxsw_sp_vport, mt, valid, fid,
+					    vid);
+}
+
+static int mlxsw_sp_vport_vfid_join(struct mlxsw_sp_port *mlxsw_sp_vport)
+{
+	u16 vid = mlxsw_sp_vport_vid_get(mlxsw_sp_vport);
+	struct mlxsw_sp_fid *f;
+	int err;
+
+	f = mlxsw_sp_vfid_find(mlxsw_sp_vport->mlxsw_sp, vid);
+	if (!f) {
+		f = mlxsw_sp_vfid_create(mlxsw_sp_vport->mlxsw_sp, vid);
+		if (IS_ERR(f))
+			return PTR_ERR(f);
+	}
+
+	if (!f->ref_count) {
+		err = mlxsw_sp_vport_flood_set(mlxsw_sp_vport, f->fid, true);
+		if (err)
+			goto err_vport_flood_set;
+	}
+
+	err = mlxsw_sp_vport_fid_map(mlxsw_sp_vport, f->fid, true);
+	if (err)
+		goto err_vport_fid_map;
+
+	mlxsw_sp_vport_fid_set(mlxsw_sp_vport, f);
+	f->ref_count++;
+
+	return 0;
+
+err_vport_fid_map:
+	if (!f->ref_count)
+		mlxsw_sp_vport_flood_set(mlxsw_sp_vport, f->fid, false);
+err_vport_flood_set:
+	if (!f->ref_count)
+		mlxsw_sp_vfid_destroy(mlxsw_sp_vport->mlxsw_sp, f);
+	return err;
+}
+
+static void mlxsw_sp_vport_vfid_leave(struct mlxsw_sp_port *mlxsw_sp_vport)
+{
+	struct mlxsw_sp_fid *f = mlxsw_sp_vport_fid_get(mlxsw_sp_vport);
+
+	mlxsw_sp_vport_fid_set(mlxsw_sp_vport, NULL);
+
+	mlxsw_sp_vport_fid_map(mlxsw_sp_vport, f->fid, false);
+
+	if (--f->ref_count == 0) {
+		mlxsw_sp_vport_flood_set(mlxsw_sp_vport, f->fid, false);
+		mlxsw_sp_vfid_destroy(mlxsw_sp_vport->mlxsw_sp, f);
+	}
+}
+
 int mlxsw_sp_port_add_vid(struct net_device *dev, __be16 __always_unused proto,
 			  u16 vid)
 {
 	struct mlxsw_sp_port *mlxsw_sp_port = netdev_priv(dev);
-	struct mlxsw_sp *mlxsw_sp = mlxsw_sp_port->mlxsw_sp;
 	struct mlxsw_sp_port *mlxsw_sp_vport;
-	struct mlxsw_sp_vfid *vfid;
 	int err;
 
 	/* VLAN 0 is added to HW filter when device goes up, but it is
@@ -771,31 +825,10 @@ int mlxsw_sp_port_add_vid(struct net_device *dev, __be16 __always_unused proto,
 		return 0;
 	}
 
-	vfid = mlxsw_sp_vfid_find(mlxsw_sp, vid);
-	if (!vfid) {
-		vfid = mlxsw_sp_vfid_create(mlxsw_sp, vid);
-		if (IS_ERR(vfid)) {
-			netdev_err(dev, "Failed to create vFID for VID=%d\n",
-				   vid);
-			return PTR_ERR(vfid);
-		}
-	}
-
-	mlxsw_sp_vport = mlxsw_sp_port_vport_create(mlxsw_sp_port, vfid);
+	mlxsw_sp_vport = mlxsw_sp_port_vport_create(mlxsw_sp_port, vid);
 	if (!mlxsw_sp_vport) {
 		netdev_err(dev, "Failed to create vPort for VID=%d\n", vid);
-		err = -ENOMEM;
-		goto err_port_vport_create;
-	}
-
-	if (!vfid->nr_vports) {
-		err = mlxsw_sp_vport_flood_set(mlxsw_sp_vport, vfid->vfid,
-					       true, false);
-		if (err) {
-			netdev_err(dev, "Failed to setup flooding for vFID=%d\n",
-				   vfid->vfid);
-			goto err_vport_flood_set;
-		}
+		return -ENOMEM;
 	}
 
 	/* When adding the first VLAN interface on a bridged port we need to
@@ -810,15 +843,10 @@ int mlxsw_sp_port_add_vid(struct net_device *dev, __be16 __always_unused proto,
 		}
 	}
 
-	err = mlxsw_sp_port_vid_to_fid_set(mlxsw_sp_vport,
-					   MLXSW_REG_SVFA_MT_PORT_VID_TO_FID,
-					   true,
-					   mlxsw_sp_vfid_to_fid(vfid->vfid),
-					   vid);
+	err = mlxsw_sp_vport_vfid_join(mlxsw_sp_vport);
 	if (err) {
-		netdev_err(dev, "Failed to map {Port, VID=%d} to vFID=%d\n",
-			   vid, vfid->vfid);
-		goto err_port_vid_to_fid_set;
+		netdev_err(dev, "Failed to join vFID\n");
+		goto err_vport_vfid_join;
 	}
 
 	err = mlxsw_sp_port_vid_learning_set(mlxsw_sp_vport, vid, false);
@@ -841,8 +869,6 @@ int mlxsw_sp_port_add_vid(struct net_device *dev, __be16 __always_unused proto,
 		goto err_port_stp_state_set;
 	}
 
-	vfid->nr_vports++;
-
 	return 0;
 
 err_port_stp_state_set:
@@ -850,21 +876,12 @@ err_port_stp_state_set:
 err_port_add_vid:
 	mlxsw_sp_port_vid_learning_set(mlxsw_sp_vport, vid, true);
 err_port_vid_learning_set:
-	mlxsw_sp_port_vid_to_fid_set(mlxsw_sp_vport,
-				     MLXSW_REG_SVFA_MT_PORT_VID_TO_FID, false,
-				     mlxsw_sp_vfid_to_fid(vfid->vfid), vid);
-err_port_vid_to_fid_set:
+	mlxsw_sp_vport_vfid_leave(mlxsw_sp_vport);
+err_vport_vfid_join:
 	if (list_is_singular(&mlxsw_sp_port->vports_list))
 		mlxsw_sp_port_vlan_mode_trans(mlxsw_sp_port);
 err_port_vp_mode_trans:
-	if (!vfid->nr_vports)
-		mlxsw_sp_vport_flood_set(mlxsw_sp_vport, vfid->vfid, false,
-					 false);
-err_vport_flood_set:
 	mlxsw_sp_port_vport_destroy(mlxsw_sp_vport);
-err_port_vport_create:
-	if (!vfid->nr_vports)
-		mlxsw_sp_vfid_destroy(mlxsw_sp, vfid);
 	return err;
 }
 
@@ -873,7 +890,7 @@ int mlxsw_sp_port_kill_vid(struct net_device *dev,
 {
 	struct mlxsw_sp_port *mlxsw_sp_port = netdev_priv(dev);
 	struct mlxsw_sp_port *mlxsw_sp_vport;
-	struct mlxsw_sp_vfid *vfid;
+	struct mlxsw_sp_fid *f;
 	int err;
 
 	/* VLAN 0 is removed from HW filter when device goes down, but
@@ -887,8 +904,6 @@ int mlxsw_sp_port_kill_vid(struct net_device *dev,
 		netdev_warn(dev, "VID=%d does not exist\n", vid);
 		return 0;
 	}
-
-	vfid = mlxsw_sp_vport->vport.vfid;
 
 	err = mlxsw_sp_port_stp_state_set(mlxsw_sp_vport, vid,
 					  MLXSW_REG_SPMS_STATE_DISCARDING);
@@ -910,16 +925,12 @@ int mlxsw_sp_port_kill_vid(struct net_device *dev,
 		return err;
 	}
 
-	err = mlxsw_sp_port_vid_to_fid_set(mlxsw_sp_vport,
-					   MLXSW_REG_SVFA_MT_PORT_VID_TO_FID,
-					   false,
-					   mlxsw_sp_vfid_to_fid(vfid->vfid),
-					   vid);
-	if (err) {
-		netdev_err(dev, "Failed to invalidate {Port, VID=%d} to vFID=%d mapping\n",
-			   vid, vfid->vfid);
-		return err;
-	}
+	/* Drop FID reference. If this was the last reference the
+	 * resources will be freed.
+	 */
+	f = mlxsw_sp_vport_fid_get(mlxsw_sp_vport);
+	if (f && !WARN_ON(!f->leave))
+		f->leave(mlxsw_sp_vport);
 
 	/* When removing the last VLAN interface on a bridged port we need to
 	 * transition all active 802.1Q bridge VLANs to use VID to FID
@@ -933,12 +944,7 @@ int mlxsw_sp_port_kill_vid(struct net_device *dev,
 		}
 	}
 
-	vfid->nr_vports--;
 	mlxsw_sp_port_vport_destroy(mlxsw_sp_vport);
-
-	/* Destroy the vFID if no vPorts are assigned to it anymore. */
-	if (!vfid->nr_vports)
-		mlxsw_sp_vfid_destroy(mlxsw_sp_port->mlxsw_sp, vfid);
 
 	return 0;
 }
@@ -2399,6 +2405,7 @@ static int mlxsw_sp_init(struct mlxsw_core *mlxsw_core,
 
 	mlxsw_sp->core = mlxsw_core;
 	mlxsw_sp->bus_info = mlxsw_bus_info;
+	INIT_LIST_HEAD(&mlxsw_sp->fids);
 	INIT_LIST_HEAD(&mlxsw_sp->port_vfids.list);
 	INIT_LIST_HEAD(&mlxsw_sp->br_vfids.list);
 	INIT_LIST_HEAD(&mlxsw_sp->br_mids.list);
@@ -2475,6 +2482,7 @@ static void mlxsw_sp_fini(struct mlxsw_core *mlxsw_core)
 	mlxsw_sp_traps_fini(mlxsw_sp);
 	mlxsw_sp_event_unregister(mlxsw_sp, MLXSW_TRAP_ID_PUDE);
 	mlxsw_sp_ports_remove(mlxsw_sp);
+	WARN_ON(!list_empty(&mlxsw_sp->fids));
 }
 
 static struct mlxsw_config_profile mlxsw_sp_config_profile = {
@@ -2536,16 +2544,37 @@ static struct mlxsw_driver mlxsw_sp_driver = {
 	.profile			= &mlxsw_sp_config_profile,
 };
 
-static int
-mlxsw_sp_port_fdb_flush_by_port(const struct mlxsw_sp_port *mlxsw_sp_port)
+static bool mlxsw_sp_lag_port_fid_member(struct mlxsw_sp_port *lag_port,
+					 u16 fid)
+{
+	if (mlxsw_sp_fid_is_vfid(fid))
+		return mlxsw_sp_port_vport_find_by_fid(lag_port, fid);
+	else
+		return test_bit(fid, lag_port->active_vlans);
+}
+
+static bool mlxsw_sp_port_fdb_should_flush(struct mlxsw_sp_port *mlxsw_sp_port,
+					   u16 fid)
 {
 	struct mlxsw_sp *mlxsw_sp = mlxsw_sp_port->mlxsw_sp;
-	char sfdf_pl[MLXSW_REG_SFDF_LEN];
+	u8 local_port = mlxsw_sp_port->local_port;
+	u16 lag_id = mlxsw_sp_port->lag_id;
+	int i, count = 0;
 
-	mlxsw_reg_sfdf_pack(sfdf_pl, MLXSW_REG_SFDF_FLUSH_PER_PORT);
-	mlxsw_reg_sfdf_system_port_set(sfdf_pl, mlxsw_sp_port->local_port);
+	if (!mlxsw_sp_port->lagged)
+		return true;
 
-	return mlxsw_reg_write(mlxsw_sp->core, MLXSW_REG(sfdf), sfdf_pl);
+	for (i = 0; i < MLXSW_SP_PORT_PER_LAG_MAX; i++) {
+		struct mlxsw_sp_port *lag_port;
+
+		lag_port = mlxsw_sp_port_lagged_get(mlxsw_sp, lag_id, i);
+		if (!lag_port || lag_port->local_port == local_port)
+			continue;
+		if (mlxsw_sp_lag_port_fid_member(lag_port, fid))
+			count++;
+	}
+
+	return !count;
 }
 
 static int
@@ -2560,17 +2589,8 @@ mlxsw_sp_port_fdb_flush_by_port_fid(const struct mlxsw_sp_port *mlxsw_sp_port,
 	mlxsw_reg_sfdf_port_fid_system_port_set(sfdf_pl,
 						mlxsw_sp_port->local_port);
 
-	return mlxsw_reg_write(mlxsw_sp->core, MLXSW_REG(sfdf), sfdf_pl);
-}
-
-static int
-mlxsw_sp_port_fdb_flush_by_lag_id(const struct mlxsw_sp_port *mlxsw_sp_port)
-{
-	struct mlxsw_sp *mlxsw_sp = mlxsw_sp_port->mlxsw_sp;
-	char sfdf_pl[MLXSW_REG_SFDF_LEN];
-
-	mlxsw_reg_sfdf_pack(sfdf_pl, MLXSW_REG_SFDF_FLUSH_PER_LAG);
-	mlxsw_reg_sfdf_lag_id_set(sfdf_pl, mlxsw_sp_port->lag_id);
+	netdev_dbg(mlxsw_sp_port->dev, "FDB flushed using Port=%d, FID=%d\n",
+		   mlxsw_sp_port->local_port, fid);
 
 	return mlxsw_reg_write(mlxsw_sp->core, MLXSW_REG(sfdf), sfdf_pl);
 }
@@ -2586,111 +2606,27 @@ mlxsw_sp_port_fdb_flush_by_lag_id_fid(const struct mlxsw_sp_port *mlxsw_sp_port,
 	mlxsw_reg_sfdf_fid_set(sfdf_pl, fid);
 	mlxsw_reg_sfdf_lag_fid_lag_id_set(sfdf_pl, mlxsw_sp_port->lag_id);
 
+	netdev_dbg(mlxsw_sp_port->dev, "FDB flushed using LAG ID=%d, FID=%d\n",
+		   mlxsw_sp_port->lag_id, fid);
+
 	return mlxsw_reg_write(mlxsw_sp->core, MLXSW_REG(sfdf), sfdf_pl);
 }
 
-static int
-__mlxsw_sp_port_fdb_flush(const struct mlxsw_sp_port *mlxsw_sp_port)
+int mlxsw_sp_port_fdb_flush(struct mlxsw_sp_port *mlxsw_sp_port, u16 fid)
 {
-	int err, last_err = 0;
-	u16 vid;
+	if (!mlxsw_sp_port_fdb_should_flush(mlxsw_sp_port, fid))
+		return 0;
 
-	for (vid = 1; vid < VLAN_N_VID - 1; vid++) {
-		err = mlxsw_sp_port_fdb_flush_by_port_fid(mlxsw_sp_port, vid);
-		if (err)
-			last_err = err;
-	}
-
-	return last_err;
-}
-
-static int
-__mlxsw_sp_port_fdb_flush_lagged(const struct mlxsw_sp_port *mlxsw_sp_port)
-{
-	int err, last_err = 0;
-	u16 vid;
-
-	for (vid = 1; vid < VLAN_N_VID - 1; vid++) {
-		err = mlxsw_sp_port_fdb_flush_by_lag_id_fid(mlxsw_sp_port, vid);
-		if (err)
-			last_err = err;
-	}
-
-	return last_err;
-}
-
-static int mlxsw_sp_port_fdb_flush(struct mlxsw_sp_port *mlxsw_sp_port)
-{
-	if (!list_empty(&mlxsw_sp_port->vports_list))
-		if (mlxsw_sp_port->lagged)
-			return __mlxsw_sp_port_fdb_flush_lagged(mlxsw_sp_port);
-		else
-			return __mlxsw_sp_port_fdb_flush(mlxsw_sp_port);
-	else
-		if (mlxsw_sp_port->lagged)
-			return mlxsw_sp_port_fdb_flush_by_lag_id(mlxsw_sp_port);
-		else
-			return mlxsw_sp_port_fdb_flush_by_port(mlxsw_sp_port);
-}
-
-static int mlxsw_sp_vport_fdb_flush(struct mlxsw_sp_port *mlxsw_sp_vport)
-{
-	u16 vfid = mlxsw_sp_vport_vfid_get(mlxsw_sp_vport);
-	u16 fid = mlxsw_sp_vfid_to_fid(vfid);
-
-	if (mlxsw_sp_vport->lagged)
-		return mlxsw_sp_port_fdb_flush_by_lag_id_fid(mlxsw_sp_vport,
+	if (mlxsw_sp_port->lagged)
+		return mlxsw_sp_port_fdb_flush_by_lag_id_fid(mlxsw_sp_port,
 							     fid);
 	else
-		return mlxsw_sp_port_fdb_flush_by_port_fid(mlxsw_sp_vport, fid);
+		return mlxsw_sp_port_fdb_flush_by_port_fid(mlxsw_sp_port, fid);
 }
 
 static bool mlxsw_sp_port_dev_check(const struct net_device *dev)
 {
 	return dev->netdev_ops == &mlxsw_sp_port_netdev_ops;
-}
-
-static int mlxsw_sp_port_bridge_join(struct mlxsw_sp_port *mlxsw_sp_port)
-{
-	struct net_device *dev = mlxsw_sp_port->dev;
-	int err;
-
-	/* When port is not bridged untagged packets are tagged with
-	 * PVID=VID=1, thereby creating an implicit VLAN interface in
-	 * the device. Remove it and let bridge code take care of its
-	 * own VLANs.
-	 */
-	err = mlxsw_sp_port_kill_vid(dev, 0, 1);
-	if (err)
-		return err;
-
-	mlxsw_sp_port->learning = 1;
-	mlxsw_sp_port->learning_sync = 1;
-	mlxsw_sp_port->uc_flood = 1;
-	mlxsw_sp_port->bridged = 1;
-
-	return 0;
-}
-
-static int mlxsw_sp_port_bridge_leave(struct mlxsw_sp_port *mlxsw_sp_port,
-				      bool flush_fdb)
-{
-	struct net_device *dev = mlxsw_sp_port->dev;
-
-	if (flush_fdb && mlxsw_sp_port_fdb_flush(mlxsw_sp_port))
-		netdev_err(mlxsw_sp_port->dev, "Failed to flush FDB\n");
-
-	mlxsw_sp_port_pvid_set(mlxsw_sp_port, 1);
-
-	mlxsw_sp_port->learning = 0;
-	mlxsw_sp_port->learning_sync = 0;
-	mlxsw_sp_port->uc_flood = 0;
-	mlxsw_sp_port->bridged = 0;
-
-	/* Add implicit VLAN interface in the device, so that untagged
-	 * packets will be classified to the default vFID.
-	 */
-	return mlxsw_sp_port_add_vid(dev, 0, 1);
 }
 
 static bool mlxsw_sp_master_bridge_check(struct mlxsw_sp *mlxsw_sp,
@@ -2707,11 +2643,54 @@ static void mlxsw_sp_master_bridge_inc(struct mlxsw_sp *mlxsw_sp,
 	mlxsw_sp->master_bridge.ref_count++;
 }
 
-static void mlxsw_sp_master_bridge_dec(struct mlxsw_sp *mlxsw_sp,
-				       struct net_device *br_dev)
+static void mlxsw_sp_master_bridge_dec(struct mlxsw_sp *mlxsw_sp)
 {
 	if (--mlxsw_sp->master_bridge.ref_count == 0)
 		mlxsw_sp->master_bridge.dev = NULL;
+}
+
+static int mlxsw_sp_port_bridge_join(struct mlxsw_sp_port *mlxsw_sp_port,
+				     struct net_device *br_dev)
+{
+	struct net_device *dev = mlxsw_sp_port->dev;
+	int err;
+
+	/* When port is not bridged untagged packets are tagged with
+	 * PVID=VID=1, thereby creating an implicit VLAN interface in
+	 * the device. Remove it and let bridge code take care of its
+	 * own VLANs.
+	 */
+	err = mlxsw_sp_port_kill_vid(dev, 0, 1);
+	if (err)
+		return err;
+
+	mlxsw_sp_master_bridge_inc(mlxsw_sp_port->mlxsw_sp, br_dev);
+
+	mlxsw_sp_port->learning = 1;
+	mlxsw_sp_port->learning_sync = 1;
+	mlxsw_sp_port->uc_flood = 1;
+	mlxsw_sp_port->bridged = 1;
+
+	return 0;
+}
+
+static void mlxsw_sp_port_bridge_leave(struct mlxsw_sp_port *mlxsw_sp_port)
+{
+	struct net_device *dev = mlxsw_sp_port->dev;
+
+	mlxsw_sp_port_pvid_set(mlxsw_sp_port, 1);
+
+	mlxsw_sp_master_bridge_dec(mlxsw_sp_port->mlxsw_sp);
+
+	mlxsw_sp_port->learning = 0;
+	mlxsw_sp_port->learning_sync = 0;
+	mlxsw_sp_port->uc_flood = 0;
+	mlxsw_sp_port->bridged = 0;
+
+	/* Add implicit VLAN interface in the device, so that untagged
+	 * packets will be classified to the default vFID.
+	 */
+	mlxsw_sp_port_add_vid(dev, 0, 1);
 }
 
 static int mlxsw_sp_lag_create(struct mlxsw_sp *mlxsw_sp, u16 lag_id)
@@ -2872,65 +2851,33 @@ err_col_port_add:
 	return err;
 }
 
-static int mlxsw_sp_vport_bridge_leave(struct mlxsw_sp_port *mlxsw_sp_vport,
-				       struct net_device *br_dev,
-				       bool flush_fdb);
-
-static int mlxsw_sp_port_lag_leave(struct mlxsw_sp_port *mlxsw_sp_port,
-				   struct net_device *lag_dev)
+static void mlxsw_sp_port_lag_leave(struct mlxsw_sp_port *mlxsw_sp_port,
+				    struct net_device *lag_dev)
 {
 	struct mlxsw_sp *mlxsw_sp = mlxsw_sp_port->mlxsw_sp;
-	struct mlxsw_sp_port *mlxsw_sp_vport;
-	struct mlxsw_sp_upper *lag;
 	u16 lag_id = mlxsw_sp_port->lag_id;
-	int err;
+	struct mlxsw_sp_upper *lag;
 
 	if (!mlxsw_sp_port->lagged)
-		return 0;
+		return;
 	lag = mlxsw_sp_lag_get(mlxsw_sp, lag_id);
 	WARN_ON(lag->ref_count == 0);
 
-	err = mlxsw_sp_lag_col_port_disable(mlxsw_sp_port, lag_id);
-	if (err)
-		return err;
-	err = mlxsw_sp_lag_col_port_remove(mlxsw_sp_port, lag_id);
-	if (err)
-		return err;
-
-	/* In case we leave a LAG device that has bridges built on top,
-	 * then their teardown sequence is never issued and we need to
-	 * invoke the necessary cleanup routines ourselves.
-	 */
-	list_for_each_entry(mlxsw_sp_vport, &mlxsw_sp_port->vports_list,
-			    vport.list) {
-		struct net_device *br_dev;
-
-		if (!mlxsw_sp_vport->bridged)
-			continue;
-
-		br_dev = mlxsw_sp_vport_br_get(mlxsw_sp_vport);
-		mlxsw_sp_vport_bridge_leave(mlxsw_sp_vport, br_dev, false);
-	}
+	mlxsw_sp_lag_col_port_disable(mlxsw_sp_port, lag_id);
+	mlxsw_sp_lag_col_port_remove(mlxsw_sp_port, lag_id);
 
 	if (mlxsw_sp_port->bridged) {
 		mlxsw_sp_port_active_vlans_del(mlxsw_sp_port);
-		mlxsw_sp_port_bridge_leave(mlxsw_sp_port, false);
-		mlxsw_sp_master_bridge_dec(mlxsw_sp, NULL);
+		mlxsw_sp_port_bridge_leave(mlxsw_sp_port);
 	}
 
-	if (lag->ref_count == 1) {
-		if (mlxsw_sp_port_fdb_flush_by_lag_id(mlxsw_sp_port))
-			netdev_err(mlxsw_sp_port->dev, "Failed to flush FDB\n");
-		err = mlxsw_sp_lag_destroy(mlxsw_sp, lag_id);
-		if (err)
-			return err;
-	}
+	if (lag->ref_count == 1)
+		mlxsw_sp_lag_destroy(mlxsw_sp, lag_id);
 
 	mlxsw_core_lag_mapping_clear(mlxsw_sp->core, lag_id,
 				     mlxsw_sp_port->local_port);
 	mlxsw_sp_port->lagged = 0;
 	lag->ref_count--;
-	return 0;
 }
 
 static int mlxsw_sp_lag_dist_port_add(struct mlxsw_sp_port *mlxsw_sp_port,
@@ -2979,42 +2926,25 @@ static int mlxsw_sp_port_vlan_link(struct mlxsw_sp_port *mlxsw_sp_port,
 	u16 vid = vlan_dev_vlan_id(vlan_dev);
 
 	mlxsw_sp_vport = mlxsw_sp_port_vport_find(mlxsw_sp_port, vid);
-	if (!mlxsw_sp_vport) {
-		WARN_ON(!mlxsw_sp_vport);
+	if (WARN_ON(!mlxsw_sp_vport))
 		return -EINVAL;
-	}
 
 	mlxsw_sp_vport->dev = vlan_dev;
 
 	return 0;
 }
 
-static int mlxsw_sp_port_vlan_unlink(struct mlxsw_sp_port *mlxsw_sp_port,
-				     struct net_device *vlan_dev)
+static void mlxsw_sp_port_vlan_unlink(struct mlxsw_sp_port *mlxsw_sp_port,
+				      struct net_device *vlan_dev)
 {
 	struct mlxsw_sp_port *mlxsw_sp_vport;
 	u16 vid = vlan_dev_vlan_id(vlan_dev);
 
 	mlxsw_sp_vport = mlxsw_sp_port_vport_find(mlxsw_sp_port, vid);
-	if (!mlxsw_sp_vport) {
-		WARN_ON(!mlxsw_sp_vport);
-		return -EINVAL;
-	}
-
-	/* When removing a VLAN device while still bridged we should first
-	 * remove it from the bridge, as we receive the bridge's notification
-	 * when the vPort is already gone.
-	 */
-	if (mlxsw_sp_vport->bridged) {
-		struct net_device *br_dev;
-
-		br_dev = mlxsw_sp_vport_br_get(mlxsw_sp_vport);
-		mlxsw_sp_vport_bridge_leave(mlxsw_sp_vport, br_dev, true);
-	}
+	if (WARN_ON(!mlxsw_sp_vport))
+		return;
 
 	mlxsw_sp_vport->dev = mlxsw_sp_port->dev;
-
-	return 0;
 }
 
 static int mlxsw_sp_netdevice_port_upper_event(struct net_device *dev,
@@ -3024,7 +2954,7 @@ static int mlxsw_sp_netdevice_port_upper_event(struct net_device *dev,
 	struct mlxsw_sp_port *mlxsw_sp_port;
 	struct net_device *upper_dev;
 	struct mlxsw_sp *mlxsw_sp;
-	int err;
+	int err = 0;
 
 	mlxsw_sp_port = netdev_priv(dev);
 	mlxsw_sp = mlxsw_sp_port->mlxsw_sp;
@@ -3033,73 +2963,56 @@ static int mlxsw_sp_netdevice_port_upper_event(struct net_device *dev,
 	switch (event) {
 	case NETDEV_PRECHANGEUPPER:
 		upper_dev = info->upper_dev;
-		if (!info->master || !info->linking)
+		if (!is_vlan_dev(upper_dev) &&
+		    !netif_is_lag_master(upper_dev) &&
+		    !netif_is_bridge_master(upper_dev))
+			return -EINVAL;
+		if (!info->linking)
 			break;
 		/* HW limitation forbids to put ports to multiple bridges. */
 		if (netif_is_bridge_master(upper_dev) &&
 		    !mlxsw_sp_master_bridge_check(mlxsw_sp, upper_dev))
-			return NOTIFY_BAD;
+			return -EINVAL;
 		if (netif_is_lag_master(upper_dev) &&
 		    !mlxsw_sp_master_lag_check(mlxsw_sp, upper_dev,
 					       info->upper_info))
-			return NOTIFY_BAD;
+			return -EINVAL;
+		if (netif_is_lag_master(upper_dev) && vlan_uses_dev(dev))
+			return -EINVAL;
+		if (netif_is_lag_port(dev) && is_vlan_dev(upper_dev) &&
+		    !netif_is_lag_master(vlan_dev_real_dev(upper_dev)))
+			return -EINVAL;
 		break;
 	case NETDEV_CHANGEUPPER:
 		upper_dev = info->upper_dev;
 		if (is_vlan_dev(upper_dev)) {
-			if (info->linking) {
+			if (info->linking)
 				err = mlxsw_sp_port_vlan_link(mlxsw_sp_port,
 							      upper_dev);
-				if (err) {
-					netdev_err(dev, "Failed to link VLAN device\n");
-					return NOTIFY_BAD;
-				}
-			} else {
-				err = mlxsw_sp_port_vlan_unlink(mlxsw_sp_port,
-								upper_dev);
-				if (err) {
-					netdev_err(dev, "Failed to unlink VLAN device\n");
-					return NOTIFY_BAD;
-				}
-			}
+			else
+				 mlxsw_sp_port_vlan_unlink(mlxsw_sp_port,
+							   upper_dev);
 		} else if (netif_is_bridge_master(upper_dev)) {
-			if (info->linking) {
-				err = mlxsw_sp_port_bridge_join(mlxsw_sp_port);
-				if (err) {
-					netdev_err(dev, "Failed to join bridge\n");
-					return NOTIFY_BAD;
-				}
-				mlxsw_sp_master_bridge_inc(mlxsw_sp, upper_dev);
-			} else {
-				err = mlxsw_sp_port_bridge_leave(mlxsw_sp_port,
-								 true);
-				mlxsw_sp_master_bridge_dec(mlxsw_sp, upper_dev);
-				if (err) {
-					netdev_err(dev, "Failed to leave bridge\n");
-					return NOTIFY_BAD;
-				}
-			}
+			if (info->linking)
+				err = mlxsw_sp_port_bridge_join(mlxsw_sp_port,
+								upper_dev);
+			else
+				mlxsw_sp_port_bridge_leave(mlxsw_sp_port);
 		} else if (netif_is_lag_master(upper_dev)) {
-			if (info->linking) {
+			if (info->linking)
 				err = mlxsw_sp_port_lag_join(mlxsw_sp_port,
 							     upper_dev);
-				if (err) {
-					netdev_err(dev, "Failed to join link aggregation\n");
-					return NOTIFY_BAD;
-				}
-			} else {
-				err = mlxsw_sp_port_lag_leave(mlxsw_sp_port,
-							      upper_dev);
-				if (err) {
-					netdev_err(dev, "Failed to leave link aggregation\n");
-					return NOTIFY_BAD;
-				}
-			}
+			else
+				mlxsw_sp_port_lag_leave(mlxsw_sp_port,
+							upper_dev);
+		} else {
+			err = -EINVAL;
+			WARN_ON(1);
 		}
 		break;
 	}
 
-	return NOTIFY_DONE;
+	return err;
 }
 
 static int mlxsw_sp_netdevice_port_lower_event(struct net_device *dev,
@@ -3123,7 +3036,7 @@ static int mlxsw_sp_netdevice_port_lower_event(struct net_device *dev,
 		break;
 	}
 
-	return NOTIFY_DONE;
+	return 0;
 }
 
 static int mlxsw_sp_netdevice_port_event(struct net_device *dev,
@@ -3137,7 +3050,7 @@ static int mlxsw_sp_netdevice_port_event(struct net_device *dev,
 		return mlxsw_sp_netdevice_port_lower_event(dev, event, ptr);
 	}
 
-	return NOTIFY_DONE;
+	return 0;
 }
 
 static int mlxsw_sp_netdevice_lag_event(struct net_device *lag_dev,
@@ -3150,23 +3063,23 @@ static int mlxsw_sp_netdevice_lag_event(struct net_device *lag_dev,
 	netdev_for_each_lower_dev(lag_dev, dev, iter) {
 		if (mlxsw_sp_port_dev_check(dev)) {
 			ret = mlxsw_sp_netdevice_port_event(dev, event, ptr);
-			if (ret == NOTIFY_BAD)
+			if (ret)
 				return ret;
 		}
 	}
 
-	return NOTIFY_DONE;
+	return 0;
 }
 
-static struct mlxsw_sp_vfid *
+static struct mlxsw_sp_fid *
 mlxsw_sp_br_vfid_find(const struct mlxsw_sp *mlxsw_sp,
 		      const struct net_device *br_dev)
 {
-	struct mlxsw_sp_vfid *vfid;
+	struct mlxsw_sp_fid *f;
 
-	list_for_each_entry(vfid, &mlxsw_sp->br_vfids.list, list) {
-		if (vfid->br_dev == br_dev)
-			return vfid;
+	list_for_each_entry(f, &mlxsw_sp->br_vfids.list, list) {
+		if (f->dev == br_dev)
+			return f;
 	}
 
 	return NULL;
@@ -3188,180 +3101,127 @@ static u16 mlxsw_sp_avail_br_vfid_get(const struct mlxsw_sp *mlxsw_sp)
 				   MLXSW_SP_VFID_BR_MAX);
 }
 
-static struct mlxsw_sp_vfid *mlxsw_sp_br_vfid_create(struct mlxsw_sp *mlxsw_sp,
-						     struct net_device *br_dev)
+static void mlxsw_sp_vport_br_vfid_leave(struct mlxsw_sp_port *mlxsw_sp_vport);
+
+static struct mlxsw_sp_fid *mlxsw_sp_br_vfid_create(struct mlxsw_sp *mlxsw_sp,
+						    struct net_device *br_dev)
 {
 	struct device *dev = mlxsw_sp->bus_info->dev;
-	struct mlxsw_sp_vfid *vfid;
-	u16 n_vfid;
+	struct mlxsw_sp_fid *f;
+	u16 vfid, fid;
 	int err;
 
-	n_vfid = mlxsw_sp_br_vfid_to_vfid(mlxsw_sp_avail_br_vfid_get(mlxsw_sp));
-	if (n_vfid == MLXSW_SP_VFID_MAX) {
+	vfid = mlxsw_sp_br_vfid_to_vfid(mlxsw_sp_avail_br_vfid_get(mlxsw_sp));
+	if (vfid == MLXSW_SP_VFID_MAX) {
 		dev_err(dev, "No available vFIDs\n");
 		return ERR_PTR(-ERANGE);
 	}
 
-	err = __mlxsw_sp_vfid_create(mlxsw_sp, n_vfid);
+	fid = mlxsw_sp_vfid_to_fid(vfid);
+	err = mlxsw_sp_vfid_op(mlxsw_sp, fid, true);
 	if (err) {
-		dev_err(dev, "Failed to create vFID=%d\n", n_vfid);
+		dev_err(dev, "Failed to create FID=%d\n", fid);
 		return ERR_PTR(err);
 	}
 
-	vfid = kzalloc(sizeof(*vfid), GFP_KERNEL);
-	if (!vfid)
+	f = kzalloc(sizeof(*f), GFP_KERNEL);
+	if (!f)
 		goto err_allocate_vfid;
 
-	vfid->vfid = n_vfid;
-	vfid->br_dev = br_dev;
+	f->leave = mlxsw_sp_vport_br_vfid_leave;
+	f->fid = fid;
+	f->dev = br_dev;
 
-	list_add(&vfid->list, &mlxsw_sp->br_vfids.list);
-	set_bit(mlxsw_sp_vfid_to_br_vfid(n_vfid), mlxsw_sp->br_vfids.mapped);
+	list_add(&f->list, &mlxsw_sp->br_vfids.list);
+	set_bit(mlxsw_sp_vfid_to_br_vfid(vfid), mlxsw_sp->br_vfids.mapped);
 
-	return vfid;
+	return f;
 
 err_allocate_vfid:
-	__mlxsw_sp_vfid_destroy(mlxsw_sp, n_vfid);
+	mlxsw_sp_vfid_op(mlxsw_sp, fid, false);
 	return ERR_PTR(-ENOMEM);
 }
 
 static void mlxsw_sp_br_vfid_destroy(struct mlxsw_sp *mlxsw_sp,
-				     struct mlxsw_sp_vfid *vfid)
+				     struct mlxsw_sp_fid *f)
 {
-	u16 br_vfid = mlxsw_sp_vfid_to_br_vfid(vfid->vfid);
+	u16 vfid = mlxsw_sp_fid_to_vfid(f->fid);
+	u16 br_vfid = mlxsw_sp_vfid_to_br_vfid(vfid);
 
 	clear_bit(br_vfid, mlxsw_sp->br_vfids.mapped);
-	list_del(&vfid->list);
+	list_del(&f->list);
 
-	__mlxsw_sp_vfid_destroy(mlxsw_sp, vfid->vfid);
+	mlxsw_sp_vfid_op(mlxsw_sp, f->fid, false);
 
-	kfree(vfid);
+	kfree(f);
 }
 
-static int mlxsw_sp_vport_bridge_leave(struct mlxsw_sp_port *mlxsw_sp_vport,
-				       struct net_device *br_dev,
-				       bool flush_fdb)
+static int mlxsw_sp_vport_br_vfid_join(struct mlxsw_sp_port *mlxsw_sp_vport,
+				       struct net_device *br_dev)
 {
-	struct mlxsw_sp *mlxsw_sp = mlxsw_sp_vport->mlxsw_sp;
-	u16 vid = mlxsw_sp_vport_vid_get(mlxsw_sp_vport);
-	struct net_device *dev = mlxsw_sp_vport->dev;
-	struct mlxsw_sp_vfid *vfid, *new_vfid;
+	struct mlxsw_sp_fid *f;
 	int err;
 
-	vfid = mlxsw_sp_br_vfid_find(mlxsw_sp, br_dev);
-	if (!vfid) {
-		WARN_ON(!vfid);
-		return -EINVAL;
+	f = mlxsw_sp_br_vfid_find(mlxsw_sp_vport->mlxsw_sp, br_dev);
+	if (!f) {
+		f = mlxsw_sp_br_vfid_create(mlxsw_sp_vport->mlxsw_sp, br_dev);
+		if (IS_ERR(f))
+			return PTR_ERR(f);
 	}
 
-	/* We need a vFID to go back to after leaving the bridge's vFID. */
-	new_vfid = mlxsw_sp_vfid_find(mlxsw_sp, vid);
-	if (!new_vfid) {
-		new_vfid = mlxsw_sp_vfid_create(mlxsw_sp, vid);
-		if (IS_ERR(new_vfid)) {
-			netdev_err(dev, "Failed to create vFID for VID=%d\n",
-				   vid);
-			return PTR_ERR(new_vfid);
-		}
-	}
-
-	/* Invalidate existing {Port, VID} to vFID mapping and create a new
-	 * one for the new vFID.
-	 */
-	err = mlxsw_sp_port_vid_to_fid_set(mlxsw_sp_vport,
-					   MLXSW_REG_SVFA_MT_PORT_VID_TO_FID,
-					   false,
-					   mlxsw_sp_vfid_to_fid(vfid->vfid),
-					   vid);
-	if (err) {
-		netdev_err(dev, "Failed to invalidate {Port, VID} to vFID=%d mapping\n",
-			   vfid->vfid);
-		goto err_port_vid_to_fid_invalidate;
-	}
-
-	err = mlxsw_sp_port_vid_to_fid_set(mlxsw_sp_vport,
-					   MLXSW_REG_SVFA_MT_PORT_VID_TO_FID,
-					   true,
-					   mlxsw_sp_vfid_to_fid(new_vfid->vfid),
-					   vid);
-	if (err) {
-		netdev_err(dev, "Failed to map {Port, VID} to vFID=%d\n",
-			   new_vfid->vfid);
-		goto err_port_vid_to_fid_validate;
-	}
-
-	err = mlxsw_sp_port_vid_learning_set(mlxsw_sp_vport, vid, false);
-	if (err) {
-		netdev_err(dev, "Failed to disable learning\n");
-		goto err_port_vid_learning_set;
-	}
-
-	err = mlxsw_sp_vport_flood_set(mlxsw_sp_vport, vfid->vfid, false,
-				       false);
-	if (err) {
-		netdev_err(dev, "Failed clear to clear flooding\n");
+	err = mlxsw_sp_vport_flood_set(mlxsw_sp_vport, f->fid, true);
+	if (err)
 		goto err_vport_flood_set;
-	}
 
-	err = mlxsw_sp_port_stp_state_set(mlxsw_sp_vport, vid,
-					  MLXSW_REG_SPMS_STATE_FORWARDING);
-	if (err) {
-		netdev_err(dev, "Failed to set STP state\n");
-		goto err_port_stp_state_set;
-	}
+	err = mlxsw_sp_vport_fid_map(mlxsw_sp_vport, f->fid, true);
+	if (err)
+		goto err_vport_fid_map;
 
-	if (flush_fdb && mlxsw_sp_vport_fdb_flush(mlxsw_sp_vport))
-		netdev_err(dev, "Failed to flush FDB\n");
+	mlxsw_sp_vport_fid_set(mlxsw_sp_vport, f);
+	f->ref_count++;
 
-	/* Switch between the vFIDs and destroy the old one if needed. */
-	new_vfid->nr_vports++;
-	mlxsw_sp_vport->vport.vfid = new_vfid;
-	vfid->nr_vports--;
-	if (!vfid->nr_vports)
-		mlxsw_sp_br_vfid_destroy(mlxsw_sp, vfid);
-
-	mlxsw_sp_vport->learning = 0;
-	mlxsw_sp_vport->learning_sync = 0;
-	mlxsw_sp_vport->uc_flood = 0;
-	mlxsw_sp_vport->bridged = 0;
+	netdev_dbg(mlxsw_sp_vport->dev, "Joined FID=%d\n", f->fid);
 
 	return 0;
 
-err_port_stp_state_set:
+err_vport_fid_map:
+	mlxsw_sp_vport_flood_set(mlxsw_sp_vport, f->fid, false);
 err_vport_flood_set:
-err_port_vid_learning_set:
-err_port_vid_to_fid_validate:
-err_port_vid_to_fid_invalidate:
-	/* Rollback vFID only if new. */
-	if (!new_vfid->nr_vports)
-		mlxsw_sp_vfid_destroy(mlxsw_sp, new_vfid);
+	if (!f->ref_count)
+		mlxsw_sp_br_vfid_destroy(mlxsw_sp_vport->mlxsw_sp, f);
 	return err;
+}
+
+static void mlxsw_sp_vport_br_vfid_leave(struct mlxsw_sp_port *mlxsw_sp_vport)
+{
+	struct mlxsw_sp_fid *f = mlxsw_sp_vport_fid_get(mlxsw_sp_vport);
+
+	netdev_dbg(mlxsw_sp_vport->dev, "Left FID=%d\n", f->fid);
+
+	mlxsw_sp_vport_fid_map(mlxsw_sp_vport, f->fid, false);
+
+	mlxsw_sp_vport_flood_set(mlxsw_sp_vport, f->fid, false);
+
+	mlxsw_sp_port_fdb_flush(mlxsw_sp_vport, f->fid);
+
+	mlxsw_sp_vport_fid_set(mlxsw_sp_vport, NULL);
+	if (--f->ref_count == 0)
+		mlxsw_sp_br_vfid_destroy(mlxsw_sp_vport->mlxsw_sp, f);
 }
 
 static int mlxsw_sp_vport_bridge_join(struct mlxsw_sp_port *mlxsw_sp_vport,
 				      struct net_device *br_dev)
 {
-	struct mlxsw_sp_vfid *old_vfid = mlxsw_sp_vport->vport.vfid;
-	struct mlxsw_sp *mlxsw_sp = mlxsw_sp_vport->mlxsw_sp;
 	u16 vid = mlxsw_sp_vport_vid_get(mlxsw_sp_vport);
 	struct net_device *dev = mlxsw_sp_vport->dev;
-	struct mlxsw_sp_vfid *vfid;
 	int err;
 
-	vfid = mlxsw_sp_br_vfid_find(mlxsw_sp, br_dev);
-	if (!vfid) {
-		vfid = mlxsw_sp_br_vfid_create(mlxsw_sp, br_dev);
-		if (IS_ERR(vfid)) {
-			netdev_err(dev, "Failed to create bridge vFID\n");
-			return PTR_ERR(vfid);
-		}
-	}
+	mlxsw_sp_vport_vfid_leave(mlxsw_sp_vport);
 
-	err = mlxsw_sp_vport_flood_set(mlxsw_sp_vport, vfid->vfid, true, false);
+	err = mlxsw_sp_vport_br_vfid_join(mlxsw_sp_vport, br_dev);
 	if (err) {
-		netdev_err(dev, "Failed to setup flooding for vFID=%d\n",
-			   vfid->vfid);
-		goto err_port_flood_set;
+		netdev_err(dev, "Failed to join vFID\n");
+		goto err_vport_br_vfid_join;
 	}
 
 	err = mlxsw_sp_port_vid_learning_set(mlxsw_sp_vport, vid, true);
@@ -3370,38 +3230,6 @@ static int mlxsw_sp_vport_bridge_join(struct mlxsw_sp_port *mlxsw_sp_vport,
 		goto err_port_vid_learning_set;
 	}
 
-	/* We need to invalidate existing {Port, VID} to vFID mapping and
-	 * create a new one for the bridge's vFID.
-	 */
-	err = mlxsw_sp_port_vid_to_fid_set(mlxsw_sp_vport,
-					   MLXSW_REG_SVFA_MT_PORT_VID_TO_FID,
-					   false,
-					   mlxsw_sp_vfid_to_fid(old_vfid->vfid),
-					   vid);
-	if (err) {
-		netdev_err(dev, "Failed to invalidate {Port, VID} to vFID=%d mapping\n",
-			   old_vfid->vfid);
-		goto err_port_vid_to_fid_invalidate;
-	}
-
-	err = mlxsw_sp_port_vid_to_fid_set(mlxsw_sp_vport,
-					   MLXSW_REG_SVFA_MT_PORT_VID_TO_FID,
-					   true,
-					   mlxsw_sp_vfid_to_fid(vfid->vfid),
-					   vid);
-	if (err) {
-		netdev_err(dev, "Failed to map {Port, VID} to vFID=%d\n",
-			   vfid->vfid);
-		goto err_port_vid_to_fid_validate;
-	}
-
-	/* Switch between the vFIDs and destroy the old one if needed. */
-	vfid->nr_vports++;
-	mlxsw_sp_vport->vport.vfid = vfid;
-	old_vfid->nr_vports--;
-	if (!old_vfid->nr_vports)
-		mlxsw_sp_vfid_destroy(mlxsw_sp, old_vfid);
-
 	mlxsw_sp_vport->learning = 1;
 	mlxsw_sp_vport->learning_sync = 1;
 	mlxsw_sp_vport->uc_flood = 1;
@@ -3409,18 +3237,30 @@ static int mlxsw_sp_vport_bridge_join(struct mlxsw_sp_port *mlxsw_sp_vport,
 
 	return 0;
 
-err_port_vid_to_fid_validate:
-	mlxsw_sp_port_vid_to_fid_set(mlxsw_sp_vport,
-				     MLXSW_REG_SVFA_MT_PORT_VID_TO_FID, false,
-				     mlxsw_sp_vfid_to_fid(old_vfid->vfid), vid);
-err_port_vid_to_fid_invalidate:
-	mlxsw_sp_port_vid_learning_set(mlxsw_sp_vport, vid, false);
 err_port_vid_learning_set:
-	mlxsw_sp_vport_flood_set(mlxsw_sp_vport, vfid->vfid, false, false);
-err_port_flood_set:
-	if (!vfid->nr_vports)
-		mlxsw_sp_br_vfid_destroy(mlxsw_sp, vfid);
+	mlxsw_sp_vport_br_vfid_leave(mlxsw_sp_vport);
+err_vport_br_vfid_join:
+	mlxsw_sp_vport_vfid_join(mlxsw_sp_vport);
 	return err;
+}
+
+static void mlxsw_sp_vport_bridge_leave(struct mlxsw_sp_port *mlxsw_sp_vport)
+{
+	u16 vid = mlxsw_sp_vport_vid_get(mlxsw_sp_vport);
+
+	mlxsw_sp_port_vid_learning_set(mlxsw_sp_vport, vid, false);
+
+	mlxsw_sp_vport_br_vfid_leave(mlxsw_sp_vport);
+
+	mlxsw_sp_vport_vfid_join(mlxsw_sp_vport);
+
+	mlxsw_sp_port_stp_state_set(mlxsw_sp_vport, vid,
+				    MLXSW_REG_SPMS_STATE_FORWARDING);
+
+	mlxsw_sp_vport->learning = 0;
+	mlxsw_sp_vport->learning_sync = 0;
+	mlxsw_sp_vport->uc_flood = 0;
+	mlxsw_sp_vport->bridged = 0;
 }
 
 static bool
@@ -3431,7 +3271,9 @@ mlxsw_sp_port_master_bridge_check(const struct mlxsw_sp_port *mlxsw_sp_port,
 
 	list_for_each_entry(mlxsw_sp_vport, &mlxsw_sp_port->vports_list,
 			    vport.list) {
-		if (mlxsw_sp_vport_br_get(mlxsw_sp_vport) == br_dev)
+		struct net_device *dev = mlxsw_sp_vport_br_get(mlxsw_sp_vport);
+
+		if (dev && dev == br_dev)
 			return false;
 	}
 
@@ -3446,56 +3288,39 @@ static int mlxsw_sp_netdevice_vport_event(struct net_device *dev,
 	struct netdev_notifier_changeupper_info *info = ptr;
 	struct mlxsw_sp_port *mlxsw_sp_vport;
 	struct net_device *upper_dev;
-	int err;
+	int err = 0;
 
 	mlxsw_sp_vport = mlxsw_sp_port_vport_find(mlxsw_sp_port, vid);
 
 	switch (event) {
 	case NETDEV_PRECHANGEUPPER:
 		upper_dev = info->upper_dev;
-		if (!info->master || !info->linking)
-			break;
 		if (!netif_is_bridge_master(upper_dev))
-			return NOTIFY_BAD;
+			return -EINVAL;
+		if (!info->linking)
+			break;
 		/* We can't have multiple VLAN interfaces configured on
 		 * the same port and being members in the same bridge.
 		 */
 		if (!mlxsw_sp_port_master_bridge_check(mlxsw_sp_port,
 						       upper_dev))
-			return NOTIFY_BAD;
+			return -EINVAL;
 		break;
 	case NETDEV_CHANGEUPPER:
 		upper_dev = info->upper_dev;
-		if (!info->master)
-			break;
 		if (info->linking) {
-			if (!mlxsw_sp_vport) {
-				WARN_ON(!mlxsw_sp_vport);
-				return NOTIFY_BAD;
-			}
+			if (WARN_ON(!mlxsw_sp_vport))
+				return -EINVAL;
 			err = mlxsw_sp_vport_bridge_join(mlxsw_sp_vport,
 							 upper_dev);
-			if (err) {
-				netdev_err(dev, "Failed to join bridge\n");
-				return NOTIFY_BAD;
-			}
 		} else {
-			/* We ignore bridge's unlinking notifications if vPort
-			 * is gone, since we already left the bridge when the
-			 * VLAN device was unlinked from the real device.
-			 */
 			if (!mlxsw_sp_vport)
-				return NOTIFY_DONE;
-			err = mlxsw_sp_vport_bridge_leave(mlxsw_sp_vport,
-							  upper_dev, true);
-			if (err) {
-				netdev_err(dev, "Failed to leave bridge\n");
-				return NOTIFY_BAD;
-			}
+				return 0;
+			mlxsw_sp_vport_bridge_leave(mlxsw_sp_vport);
 		}
 	}
 
-	return NOTIFY_DONE;
+	return err;
 }
 
 static int mlxsw_sp_netdevice_lag_vport_event(struct net_device *lag_dev,
@@ -3510,12 +3335,12 @@ static int mlxsw_sp_netdevice_lag_vport_event(struct net_device *lag_dev,
 		if (mlxsw_sp_port_dev_check(dev)) {
 			ret = mlxsw_sp_netdevice_vport_event(dev, event, ptr,
 							     vid);
-			if (ret == NOTIFY_BAD)
+			if (ret)
 				return ret;
 		}
 	}
 
-	return NOTIFY_DONE;
+	return 0;
 }
 
 static int mlxsw_sp_netdevice_vlan_event(struct net_device *vlan_dev,
@@ -3531,24 +3356,23 @@ static int mlxsw_sp_netdevice_vlan_event(struct net_device *vlan_dev,
 		return mlxsw_sp_netdevice_lag_vport_event(real_dev, event, ptr,
 							  vid);
 
-	return NOTIFY_DONE;
+	return 0;
 }
 
 static int mlxsw_sp_netdevice_event(struct notifier_block *unused,
 				    unsigned long event, void *ptr)
 {
 	struct net_device *dev = netdev_notifier_info_to_dev(ptr);
+	int err = 0;
 
 	if (mlxsw_sp_port_dev_check(dev))
-		return mlxsw_sp_netdevice_port_event(dev, event, ptr);
+		err = mlxsw_sp_netdevice_port_event(dev, event, ptr);
+	else if (netif_is_lag_master(dev))
+		err = mlxsw_sp_netdevice_lag_event(dev, event, ptr);
+	else if (is_vlan_dev(dev))
+		err = mlxsw_sp_netdevice_vlan_event(dev, event, ptr);
 
-	if (netif_is_lag_master(dev))
-		return mlxsw_sp_netdevice_lag_event(dev, event, ptr);
-
-	if (is_vlan_dev(dev))
-		return mlxsw_sp_netdevice_vlan_event(dev, event, ptr);
-
-	return NOTIFY_DONE;
+	return notifier_from_errno(err);
 }
 
 static struct notifier_block mlxsw_sp_netdevice_nb __read_mostly = {
