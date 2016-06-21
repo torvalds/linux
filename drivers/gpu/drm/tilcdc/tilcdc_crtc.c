@@ -89,6 +89,41 @@ static void set_scanout(struct drm_crtc *crtc, struct drm_framebuffer *fb)
 	tilcdc_crtc->curr_fb = fb;
 }
 
+static void tilcdc_crtc_enable_irqs(struct drm_device *dev)
+{
+	struct tilcdc_drm_private *priv = dev->dev_private;
+
+	tilcdc_clear_irqstatus(dev, 0xffffffff);
+
+	if (priv->rev == 1) {
+		tilcdc_set(dev, LCDC_RASTER_CTRL_REG,
+			LCDC_V1_UNDERFLOW_INT_ENA);
+	} else {
+		tilcdc_write(dev, LCDC_INT_ENABLE_SET_REG,
+			LCDC_V2_UNDERFLOW_INT_ENA |
+			LCDC_V2_END_OF_FRAME0_INT_ENA |
+			LCDC_FRAME_DONE | LCDC_SYNC_LOST);
+	}
+}
+
+static void tilcdc_crtc_disable_irqs(struct drm_device *dev)
+{
+	struct tilcdc_drm_private *priv = dev->dev_private;
+
+	/* disable irqs that we might have enabled: */
+	if (priv->rev == 1) {
+		tilcdc_clear(dev, LCDC_RASTER_CTRL_REG,
+			LCDC_V1_UNDERFLOW_INT_ENA | LCDC_V1_PL_INT_ENA);
+		tilcdc_clear(dev, LCDC_DMA_CTRL_REG,
+			LCDC_V1_END_OF_FRAME_INT_ENA);
+	} else {
+		tilcdc_write(dev, LCDC_INT_ENABLE_CLR_REG,
+			LCDC_V2_UNDERFLOW_INT_ENA | LCDC_V2_PL_INT_ENA |
+			LCDC_V2_END_OF_FRAME0_INT_ENA |
+			LCDC_FRAME_DONE | LCDC_SYNC_LOST);
+	}
+}
+
 static void reset(struct drm_crtc *crtc)
 {
 	struct drm_device *dev = crtc->dev;
@@ -107,6 +142,8 @@ static void start(struct drm_crtc *crtc)
 	struct drm_device *dev = crtc->dev;
 
 	reset(crtc);
+
+	tilcdc_crtc_enable_irqs(dev);
 
 	tilcdc_clear(dev, LCDC_DMA_CTRL_REG, LCDC_DUAL_FRAME_BUFFER_ENABLE);
 	tilcdc_set(dev, LCDC_RASTER_CTRL_REG, LCDC_PALETTE_LOAD_MODE(DATA_ONLY));
@@ -138,6 +175,8 @@ static void stop(struct drm_crtc *crtc)
 	}
 
 	drm_crtc_vblank_off(crtc);
+
+	tilcdc_crtc_disable_irqs(dev);
 }
 
 static void tilcdc_crtc_destroy(struct drm_crtc *crtc)
