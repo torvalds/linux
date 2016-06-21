@@ -1589,7 +1589,7 @@ int fat_fill_super(struct super_block *sb, void *data, int silent, int isvfat,
 
 	/*
 	 * GFP_KERNEL is ok here, because while we do hold the
-	 * supeblock lock, memory pressure can't call back into
+	 * superblock lock, memory pressure can't call back into
 	 * the filesystem, since we're only just about to mount
 	 * it and have no inodes etc active!
 	 */
