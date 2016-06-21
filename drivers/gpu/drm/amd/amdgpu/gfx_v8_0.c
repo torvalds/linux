@@ -3446,7 +3446,8 @@ static void gfx_v8_0_tiling_mode_table_init(struct amdgpu_device *adev)
 	}
 }
 
-void gfx_v8_0_select_se_sh(struct amdgpu_device *adev, u32 se_num, u32 sh_num)
+static void gfx_v8_0_select_se_sh(struct amdgpu_device *adev,
+				  u32 se_num, u32 sh_num)
 {
 	u32 data = REG_SET_FIELD(0, GRBM_GFX_INDEX, INSTANCE_BROADCAST_WRITES, 1);
 
@@ -5209,6 +5210,7 @@ static void gfx_v8_0_ring_emit_gds_switch(struct amdgpu_ring *ring,
 
 static const struct amdgpu_gfx_funcs gfx_v8_0_gfx_funcs = {
 	.get_gpu_clock_counter = &gfx_v8_0_get_gpu_clock_counter,
+	.select_se_sh = &gfx_v8_0_select_se_sh,
 };
 
 static int gfx_v8_0_early_init(void *handle)

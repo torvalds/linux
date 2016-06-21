@@ -30,6 +30,5 @@ extern const struct amd_ip_funcs gfx_v7_0_ip_funcs;
 void gfx_v7_0_enter_rlc_safe_mode(struct amdgpu_device *adev);
 void gfx_v7_0_exit_rlc_safe_mode(struct amdgpu_device *adev);
 void gfx_v7_0_rlc_stop(struct amdgpu_device *adev);
-void gfx_v7_0_select_se_sh(struct amdgpu_device *adev, u32 se_num, u32 sh_num);
 
 #endif

@@ -1035,12 +1035,12 @@ static uint32_t cik_read_indexed_register(struct amdgpu_device *adev,
 
 	mutex_lock(&adev->grbm_idx_mutex);
 	if (se_num != 0xffffffff || sh_num != 0xffffffff)
-		gfx_v7_0_select_se_sh(adev, se_num, sh_num);
+		amdgpu_gfx_select_se_sh(adev, se_num, sh_num);
 
 	val = RREG32(reg_offset);
 
 	if (se_num != 0xffffffff || sh_num != 0xffffffff)
-		gfx_v7_0_select_se_sh(adev, 0xffffffff, 0xffffffff);
+		amdgpu_gfx_select_se_sh(adev, 0xffffffff, 0xffffffff);
 	mutex_unlock(&adev->grbm_idx_mutex);
 	return val;
 }

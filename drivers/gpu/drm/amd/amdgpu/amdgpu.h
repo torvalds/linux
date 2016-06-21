@@ -1153,6 +1153,7 @@ struct amdgpu_cu_info {
 struct amdgpu_gfx_funcs {
 	/* get the gpu clock counter */
 	uint64_t (*get_gpu_clock_counter)(struct amdgpu_device *adev);
+	void (*select_se_sh)(struct amdgpu_device *adev, u32 se_num, u32 sh_num);
 };
 
 struct amdgpu_gfx {
@@ -2282,6 +2283,7 @@ amdgpu_get_sdma_instance(struct amdgpu_ring *ring)
 #define amdgpu_dpm_vblank_too_short(adev) (adev)->pm.funcs->vblank_too_short((adev))
 #define amdgpu_dpm_enable_bapm(adev, e) (adev)->pm.funcs->enable_bapm((adev), (e))
 #define amdgpu_gfx_get_gpu_clock_counter(adev) (adev)->gfx.funcs->get_gpu_clock_counter((adev))
+#define amdgpu_gfx_select_se_sh(adev, se, sh) (adev)->gfx.funcs->select_se_sh((adev), (se), (sh))
 
 #define amdgpu_dpm_get_temperature(adev) \
 	((adev)->pp_enabled ?						\
