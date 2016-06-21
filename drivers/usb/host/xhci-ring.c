@@ -3127,9 +3127,10 @@ int xhci_queue_bulk_tx(struct xhci_hcd *xhci, gfp_t mem_flags,
 	struct scatterlist *sg = NULL;
 	bool more_trbs_coming = true;
 	bool need_zero_pkt = false;
-	unsigned int num_trbs, last_trb_num, i;
+	bool first_trb = true;
+	unsigned int num_trbs;
 	unsigned int start_cycle, num_sgs = 0;
-	unsigned int running_total, block_len, trb_buff_len, full_len;
+	unsigned int enqd_len, block_len, trb_buff_len, full_len;
 	int ret;
 	u32 field, length_field, remainder;
 	u64 addr;
@@ -3138,14 +3139,19 @@ int xhci_queue_bulk_tx(struct xhci_hcd *xhci, gfp_t mem_flags,
 	if (!ring)
 		return -EINVAL;
 
+	full_len = urb->transfer_buffer_length;
 	/* If we have scatter/gather list, we use it. */
 	if (urb->num_sgs) {
 		num_sgs = urb->num_mapped_sgs;
 		sg = urb->sg;
+		addr = (u64) sg_dma_address(sg);
+		block_len = sg_dma_len(sg);
 		num_trbs = count_sg_trbs_needed(urb);
-	} else
+	} else {
 		num_trbs = count_trbs_needed(urb);
-
+		addr = (u64) urb->transfer_dma;
+		block_len = full_len;
+	}
 	ret = prepare_transfer(xhci, xhci->devs[slot_id],
 			ep_index, urb->stream_id,
 			num_trbs, urb, 0, mem_flags);
@@ -3153,8 +3159,6 @@ int xhci_queue_bulk_tx(struct xhci_hcd *xhci, gfp_t mem_flags,
 		return ret;
 
 	urb_priv = urb->hcpriv;
-
-	last_trb_num = num_trbs - 1;
 
 	/* Deal with URB_ZERO_PACKET - need one more td/trb */
 	if (urb->transfer_flags & URB_ZERO_PACKET && urb_priv->length > 1)
@@ -3170,40 +3174,20 @@ int xhci_queue_bulk_tx(struct xhci_hcd *xhci, gfp_t mem_flags,
 	start_trb = &ring->enqueue->generic;
 	start_cycle = ring->cycle_state;
 
-	full_len = urb->transfer_buffer_length;
-	running_total = 0;
-	block_len = 0;
-
 	/* Queue the TRBs, even if they are zero-length */
-	for (i = 0; i < num_trbs; i++) {
+	for (enqd_len = 0; enqd_len < full_len; enqd_len += trb_buff_len) {
 		field = TRB_TYPE(TRB_NORMAL);
 
-		if (block_len == 0) {
-			/* A new contiguous block. */
-			if (sg) {
-				addr = (u64) sg_dma_address(sg);
-				block_len = sg_dma_len(sg);
-			} else {
-				addr = (u64) urb->transfer_dma;
-				block_len = full_len;
-			}
-			/* TRB buffer should not cross 64KB boundaries */
-			trb_buff_len = TRB_BUFF_LEN_UP_TO_BOUNDARY(addr);
-			trb_buff_len = min_t(unsigned int,
-								trb_buff_len,
-								block_len);
-		} else {
-			/* Further through the contiguous block. */
-			trb_buff_len = block_len;
-			if (trb_buff_len > TRB_MAX_BUFF_SIZE)
-				trb_buff_len = TRB_MAX_BUFF_SIZE;
-		}
+		/* TRB buffer should not cross 64KB boundaries */
+		trb_buff_len = TRB_BUFF_LEN_UP_TO_BOUNDARY(addr);
+		trb_buff_len = min_t(unsigned int, trb_buff_len, block_len);
 
-		if (running_total + trb_buff_len > full_len)
-			trb_buff_len = full_len - running_total;
+		if (enqd_len + trb_buff_len > full_len)
+			trb_buff_len = full_len - enqd_len;
 
 		/* Don't change the cycle bit of the first TRB until later */
-		if (i == 0) {
+		if (first_trb) {
+			first_trb = false;
 			if (start_cycle == 0)
 				field |= TRB_CYCLE;
 		} else
@@ -3212,7 +3196,7 @@ int xhci_queue_bulk_tx(struct xhci_hcd *xhci, gfp_t mem_flags,
 		/* Chain all the TRBs together; clear the chain bit in the last
 		 * TRB to indicate it's the last TRB in the chain.
 		 */
-		if (i < last_trb_num) {
+		if (enqd_len + trb_buff_len < full_len) {
 			field |= TRB_CHAIN;
 		} else {
 			field |= TRB_IOC;
@@ -3225,9 +3209,9 @@ int xhci_queue_bulk_tx(struct xhci_hcd *xhci, gfp_t mem_flags,
 			field |= TRB_ISP;
 
 		/* Set the TRB length, TD size, and interrupter fields. */
-		remainder = xhci_td_remainder(xhci, running_total,
-							trb_buff_len, full_len,
-							urb, more_trbs_coming);
+		remainder = xhci_td_remainder(xhci, enqd_len, trb_buff_len,
+					      full_len, urb, more_trbs_coming);
+
 		length_field = TRB_LEN(trb_buff_len) |
 			TRB_TD_SIZE(remainder) |
 			TRB_INTR_TARGET(0);
@@ -3238,17 +3222,16 @@ int xhci_queue_bulk_tx(struct xhci_hcd *xhci, gfp_t mem_flags,
 				length_field,
 				field);
 
-		running_total += trb_buff_len;
 		addr += trb_buff_len;
 		block_len -= trb_buff_len;
 
-		if (sg) {
-			if (block_len == 0) {
-				/* New sg entry */
-				--num_sgs;
-				if (num_sgs == 0)
-					break;
+		if (sg && block_len == 0) {
+			/* New sg entry */
+			--num_sgs;
+			if (num_sgs != 0) {
 				sg = sg_next(sg);
+				block_len = sg_dma_len(sg);
+				addr = (u64) sg_dma_address(sg);
 			}
 		}
 	}
@@ -3262,7 +3245,7 @@ int xhci_queue_bulk_tx(struct xhci_hcd *xhci, gfp_t mem_flags,
 		queue_trb(xhci, ring, 0, 0, 0, TRB_INTR_TARGET(0), field);
 	}
 
-	check_trb_math(urb, running_total);
+	check_trb_math(urb, enqd_len);
 	giveback_first_trb(xhci, slot_id, ep_index, urb->stream_id,
 			start_cycle, start_trb);
 	return 0;
