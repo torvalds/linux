@@ -768,10 +768,10 @@ recv:
 			clean_count = 0;
 		}
 
-		/* poll one pkg*/
+		/* poll one pkt*/
 		err = hns_nic_poll_rx_skb(ring_data, &skb, &bnum);
 		if (unlikely(!skb)) /* this fault cannot be repaired */
-			break;
+			goto out;
 
 		recv_bds += bnum;
 		clean_count += bnum;
@@ -797,6 +797,7 @@ recv:
 		}
 	}
 
+out:
 	/* make all data has been write before submit */
 	if (clean_count > 0)
 		hns_nic_alloc_rx_buffers(ring_data, clean_count);
