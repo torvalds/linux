@@ -1451,8 +1451,7 @@ static int dw_mci_get_cd(struct mmc_host *mmc)
 	int gpio_cd = mmc_gpio_get_cd(mmc);
 
 	/* Use platform get_cd function, else try onboard card detect */
-	if ((mmc->caps & MMC_CAP_NEEDS_POLL) ||
-	    (mmc->caps & MMC_CAP_NONREMOVABLE))
+	if ((mmc->caps & MMC_CAP_NEEDS_POLL) || !mmc_card_is_removable(mmc))
 		present = 1;
 	else if (gpio_cd >= 0)
 		present = gpio_cd;
