@@ -35,6 +35,8 @@
 #define BIT_WRITEABLE_SHIFT	16
 #define SCHEDULE_DELAY	(60 * HZ)
 
+struct rockchip_usb2phy;
+
 enum rockchip_usb2phy_port_id {
 	USB2PHY_PORT_OTG,
 	USB2PHY_PORT_HOST,
@@ -77,10 +79,12 @@ struct rockchip_usb2phy_port_cfg {
 /**
  * struct rockchip_usb2phy_cfg: usb-phy configuration.
  * @num_ports: specify how many ports that the phy has.
+ * @phy_tuning: phy default parameters tunning.
  * @clkout_ctl: keep on/turn off output clk of phy.
  */
 struct rockchip_usb2phy_cfg {
 	unsigned int	num_ports;
+	int (*phy_tuning)(struct rockchip_usb2phy *);
 	struct usb2phy_reg	clkout_ctl;
 	const struct rockchip_usb2phy_port_cfg	*port_cfgs;
 };
@@ -501,6 +505,12 @@ static int rockchip_usb2phy_probe(struct platform_device *pdev)
 	if (IS_ERR(rphy->clk480m))
 		return PTR_ERR(rphy->clk480m);
 
+	if (rphy->phy_cfg->phy_tuning) {
+		ret = rphy->phy_cfg->phy_tuning(rphy);
+		if (ret)
+			return ret;
+	}
+
 	rphy->vbus_host_gpio =
 		devm_gpiod_get_optional(dev, "vbus_host", GPIOD_OUT_HIGH);
 	if (!rphy->vbus_host_gpio)
@@ -545,8 +555,28 @@ put_child:
 	return ret;
 }
 
+static int rk3366_usb2phy_tuning(struct rockchip_usb2phy *rphy)
+{
+	unsigned int open_pre_emphasize = 0xffff851f;
+	unsigned int eye_height_tuning = 0xffff68c8;
+	unsigned int compensation_tuning = 0xffff026e;
+	int ret = 0;
+
+	/* open HS pre-emphasize to expand HS slew rate for each port. */
+	ret |= regmap_write(rphy->grf, 0x0780, open_pre_emphasize);
+	ret |= regmap_write(rphy->grf, 0x079c, eye_height_tuning);
+	ret |= regmap_write(rphy->grf, 0x07b0, open_pre_emphasize);
+	ret |= regmap_write(rphy->grf, 0x07cc, eye_height_tuning);
+
+	/* compensate default tuning reference relate to ODT and etc. */
+	ret |= regmap_write(rphy->grf, 0x078c, compensation_tuning);
+
+	return ret;
+}
+
 static const struct rockchip_usb2phy_cfg rk3366_phy_cfgs = {
 	.num_ports	= 1,
+	.phy_tuning	= rk3366_usb2phy_tuning,
 	.clkout_ctl	= { 0x0724, 15, 15, 1, 0 },
 	.port_cfgs	= (struct rockchip_usb2phy_port_cfg[]) {
 		{
