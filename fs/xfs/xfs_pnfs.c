@@ -1,6 +1,7 @@
 /*
  * Copyright (c) 2014 Christoph Hellwig.
  */
+#include <linux/iomap.h>
 #include "xfs.h"
 #include "xfs_format.h"
 #include "xfs_log_format.h"
