@@ -89,6 +89,9 @@ static void mv_cesa_ablkcipher_std_step(struct ablkcipher_request *req)
 	size_t  len = min_t(size_t, req->nbytes - sreq->offset,
 			    CESA_SA_SRAM_PAYLOAD_SIZE);
 
+	mv_cesa_adjust_op(engine, &sreq->op);
+	memcpy_toio(engine->sram, &sreq->op, sizeof(sreq->op));
+
 	len = sg_pcopy_to_buffer(req->src, creq->src_nents,
 				 engine->sram + CESA_SA_DATA_SRAM_OFFSET,
 				 len, sreq->offset);
@@ -177,12 +180,9 @@ mv_cesa_ablkcipher_std_prepare(struct ablkcipher_request *req)
 {
 	struct mv_cesa_ablkcipher_req *creq = ablkcipher_request_ctx(req);
 	struct mv_cesa_ablkcipher_std_req *sreq = &creq->std;
-	struct mv_cesa_engine *engine = creq->base.engine;
 
 	sreq->size = 0;
 	sreq->offset = 0;
-	mv_cesa_adjust_op(engine, &sreq->op);
-	memcpy_toio(engine->sram, &sreq->op, sizeof(sreq->op));
 }
 
 static inline void mv_cesa_ablkcipher_prepare(struct crypto_async_request *req,

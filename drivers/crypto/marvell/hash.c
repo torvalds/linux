@@ -162,6 +162,15 @@ static void mv_cesa_ahash_std_step(struct ahash_request *req)
 	unsigned int new_cache_ptr = 0;
 	u32 frag_mode;
 	size_t  len;
+	unsigned int digsize;
+	int i;
+
+	mv_cesa_adjust_op(engine, &creq->op_tmpl);
+	memcpy_toio(engine->sram, &creq->op_tmpl, sizeof(creq->op_tmpl));
+
+	digsize = crypto_ahash_digestsize(crypto_ahash_reqtfm(req));
+	for (i = 0; i < digsize / 4; i++)
+		writel_relaxed(creq->state[i], engine->regs + CESA_IVDIG(i));
 
 	if (creq->cache_ptr)
 		memcpy_toio(engine->sram + CESA_SA_DATA_SRAM_OFFSET,
@@ -265,11 +274,8 @@ static void mv_cesa_ahash_std_prepare(struct ahash_request *req)
 {
 	struct mv_cesa_ahash_req *creq = ahash_request_ctx(req);
 	struct mv_cesa_ahash_std_req *sreq = &creq->req.std;
-	struct mv_cesa_engine *engine = creq->base.engine;
 
 	sreq->offset = 0;
-	mv_cesa_adjust_op(engine, &creq->op_tmpl);
-	memcpy_toio(engine->sram, &creq->op_tmpl, sizeof(creq->op_tmpl));
 }
 
 static void mv_cesa_ahash_step(struct crypto_async_request *req)
@@ -336,8 +342,6 @@ static void mv_cesa_ahash_prepare(struct crypto_async_request *req,
 {
 	struct ahash_request *ahashreq = ahash_request_cast(req);
 	struct mv_cesa_ahash_req *creq = ahash_request_ctx(ahashreq);
-	unsigned int digsize;
-	int i;
 
 	creq->base.engine = engine;
 
@@ -345,10 +349,6 @@ static void mv_cesa_ahash_prepare(struct crypto_async_request *req,
 		mv_cesa_ahash_dma_prepare(ahashreq);
 	else
 		mv_cesa_ahash_std_prepare(ahashreq);
-
-	digsize = crypto_ahash_digestsize(crypto_ahash_reqtfm(ahashreq));
-	for (i = 0; i < digsize / 4; i++)
-		writel_relaxed(creq->state[i], engine->regs + CESA_IVDIG(i));
 }
 
 static void mv_cesa_ahash_req_cleanup(struct crypto_async_request *req)
