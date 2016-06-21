@@ -452,31 +452,20 @@ void intel_hpd_irq_handler(struct drm_i915_private *dev_priv,
  *
  * This is a separate step from interrupt enabling to simplify the locking rules
  * in the driver load and resume code.
+ *
+ * Also see: intel_hpd_poll_init(), which enables connector polling
  */
 void intel_hpd_init(struct drm_i915_private *dev_priv)
 {
-	struct drm_device *dev = &dev_priv->drm;
-	struct drm_mode_config *mode_config = &dev->mode_config;
-	struct drm_connector *connector;
 	int i;
 
 	for_each_hpd_pin(i) {
 		dev_priv->hotplug.stats[i].count = 0;
 		dev_priv->hotplug.stats[i].state = HPD_ENABLED;
 	}
-	list_for_each_entry(connector, &mode_config->connector_list, head) {
-		struct intel_connector *intel_connector = to_intel_connector(connector);
-		connector->polled = intel_connector->polled;
 
-		/* MST has a dynamic intel_connector->encoder and it's reprobing
-		 * is all handled by the MST helpers. */
-		if (intel_connector->mst_port)
-			continue;
-
-		if (!connector->polled && I915_HAS_HOTPLUG(dev) &&
-		    intel_connector->encoder->hpd_pin > HPD_NONE)
-			connector->polled = DRM_CONNECTOR_POLL_HPD;
-	}
+	WRITE_ONCE(dev_priv->hotplug.poll_enabled, false);
+	schedule_work(&dev_priv->hotplug.poll_init_work);
 
 	/*
 	 * Interrupt setup is already guaranteed to be single-threaded, this is
@@ -488,10 +477,86 @@ void intel_hpd_init(struct drm_i915_private *dev_priv)
 	spin_unlock_irq(&dev_priv->irq_lock);
 }
 
+void i915_hpd_poll_init_work(struct work_struct *work) {
+	struct drm_i915_private *dev_priv =
+		container_of(work, struct drm_i915_private,
+			     hotplug.poll_init_work);
+	struct drm_device *dev = &dev_priv->drm;
+	struct drm_mode_config *mode_config = &dev->mode_config;
+	struct drm_connector *connector;
+	bool enabled;
+
+	mutex_lock(&dev->mode_config.mutex);
+
+	enabled = READ_ONCE(dev_priv->hotplug.poll_enabled);
+
+	list_for_each_entry(connector, &mode_config->connector_list, head) {
+		struct intel_connector *intel_connector =
+			to_intel_connector(connector);
+		connector->polled = intel_connector->polled;
+
+		/* MST has a dynamic intel_connector->encoder and it's reprobing
+		 * is all handled by the MST helpers. */
+		if (intel_connector->mst_port)
+			continue;
+
+		if (!connector->polled && I915_HAS_HOTPLUG(dev) &&
+		    intel_connector->encoder->hpd_pin > HPD_NONE) {
+			connector->polled = enabled ?
+				DRM_CONNECTOR_POLL_CONNECT |
+				DRM_CONNECTOR_POLL_DISCONNECT :
+				DRM_CONNECTOR_POLL_HPD;
+		}
+	}
+
+	if (enabled)
+		drm_kms_helper_poll_enable_locked(dev);
+
+	mutex_unlock(&dev->mode_config.mutex);
+
+	/*
+	 * We might have missed any hotplugs that happened while we were
+	 * in the middle of disabling polling
+	 */
+	if (!enabled)
+		drm_helper_hpd_irq_event(dev);
+}
+
+/**
+ * intel_hpd_poll_init - enables/disables polling for connectors with hpd
+ * @dev_priv: i915 device instance
+ * @enabled: Whether to enable or disable polling
+ *
+ * This function enables polling for all connectors, regardless of whether or
+ * not they support hotplug detection. Under certain conditions HPD may not be
+ * functional. On most Intel GPUs, this happens when we enter runtime suspend.
+ * On Valleyview and Cherryview systems, this also happens when we shut off all
+ * of the powerwells.
+ *
+ * Since this function can get called in contexts where we're already holding
+ * dev->mode_config.mutex, we do the actual hotplug enabling in a seperate
+ * worker.
+ *
+ * Also see: intel_hpd_init(), which restores hpd handling.
+ */
+void intel_hpd_poll_init(struct drm_i915_private *dev_priv)
+{
+	WRITE_ONCE(dev_priv->hotplug.poll_enabled, true);
+
+	/*
+	 * We might already be holding dev->mode_config.mutex, so do this in a
+	 * seperate worker
+	 * As well, there's no issue if we race here since we always reschedule
+	 * this worker anyway
+	 */
+	schedule_work(&dev_priv->hotplug.poll_init_work);
+}
+
 void intel_hpd_init_work(struct drm_i915_private *dev_priv)
 {
 	INIT_WORK(&dev_priv->hotplug.hotplug_work, i915_hotplug_work_func);
 	INIT_WORK(&dev_priv->hotplug.dig_port_work, i915_digport_work_func);
+	INIT_WORK(&dev_priv->hotplug.poll_init_work, i915_hpd_poll_init_work);
 	INIT_DELAYED_WORK(&dev_priv->hotplug.reenable_work,
 			  intel_hpd_irq_storm_reenable_work);
 }
@@ -508,6 +573,7 @@ void intel_hpd_cancel_work(struct drm_i915_private *dev_priv)
 
 	cancel_work_sync(&dev_priv->hotplug.dig_port_work);
 	cancel_work_sync(&dev_priv->hotplug.hotplug_work);
+	cancel_work_sync(&dev_priv->hotplug.poll_init_work);
 	cancel_delayed_work_sync(&dev_priv->hotplug.reenable_work);
 }
 
