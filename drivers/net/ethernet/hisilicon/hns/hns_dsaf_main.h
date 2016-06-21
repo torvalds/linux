@@ -322,6 +322,8 @@ struct dsaf_device {
 
 	struct dsaf_hw_stats hw_stats[DSAF_NODE_NUM];
 	struct dsaf_int_stat int_stat;
+	/* make sure tcam table config spinlock */
+	spinlock_t tcam_lock;
 };
 
 static inline void *hns_dsaf_dev_priv(const struct dsaf_device *dsaf_dev)

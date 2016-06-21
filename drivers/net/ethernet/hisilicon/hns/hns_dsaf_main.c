@@ -860,6 +860,8 @@ static void hns_dsaf_single_line_tbl_cfg(
 	struct dsaf_device *dsaf_dev,
 	u32 address, struct dsaf_tbl_line_cfg *ptbl_line)
 {
+	spin_lock_bh(&dsaf_dev->tcam_lock);
+
 	/*Write Addr*/
 	hns_dsaf_tbl_line_addr_cfg(dsaf_dev, address);
 
@@ -868,6 +870,8 @@ static void hns_dsaf_single_line_tbl_cfg(
 
 	/*Write Plus*/
 	hns_dsaf_tbl_line_pul(dsaf_dev);
+
+	spin_unlock_bh(&dsaf_dev->tcam_lock);
 }
 
 /**
@@ -881,6 +885,8 @@ static void hns_dsaf_tcam_uc_cfg(
 	struct dsaf_tbl_tcam_data *ptbl_tcam_data,
 	struct dsaf_tbl_tcam_ucast_cfg *ptbl_tcam_ucast)
 {
+	spin_lock_bh(&dsaf_dev->tcam_lock);
+
 	/*Write Addr*/
 	hns_dsaf_tbl_tcam_addr_cfg(dsaf_dev, address);
 	/*Write Tcam Data*/
@@ -889,6 +895,8 @@ static void hns_dsaf_tcam_uc_cfg(
 	hns_dsaf_tbl_tcam_ucast_cfg(dsaf_dev, ptbl_tcam_ucast);
 	/*Write Plus*/
 	hns_dsaf_tbl_tcam_data_ucast_pul(dsaf_dev);
+
+	spin_unlock_bh(&dsaf_dev->tcam_lock);
 }
 
 /**
@@ -903,6 +911,8 @@ static void hns_dsaf_tcam_mc_cfg(
 	struct dsaf_tbl_tcam_data *ptbl_tcam_data,
 	struct dsaf_tbl_tcam_mcast_cfg *ptbl_tcam_mcast)
 {
+	spin_lock_bh(&dsaf_dev->tcam_lock);
+
 	/*Write Addr*/
 	hns_dsaf_tbl_tcam_addr_cfg(dsaf_dev, address);
 	/*Write Tcam Data*/
@@ -911,6 +921,8 @@ static void hns_dsaf_tcam_mc_cfg(
 	hns_dsaf_tbl_tcam_mcast_cfg(dsaf_dev, ptbl_tcam_mcast);
 	/*Write Plus*/
 	hns_dsaf_tbl_tcam_data_mcast_pul(dsaf_dev);
+
+	spin_unlock_bh(&dsaf_dev->tcam_lock);
 }
 
 /**
@@ -920,6 +932,8 @@ static void hns_dsaf_tcam_mc_cfg(
  */
 static void hns_dsaf_tcam_mc_invld(struct dsaf_device *dsaf_dev, u32 address)
 {
+	spin_lock_bh(&dsaf_dev->tcam_lock);
+
 	/*Write Addr*/
 	hns_dsaf_tbl_tcam_addr_cfg(dsaf_dev, address);
 
@@ -932,6 +946,8 @@ static void hns_dsaf_tcam_mc_invld(struct dsaf_device *dsaf_dev, u32 address)
 
 	/*Write Plus*/
 	hns_dsaf_tbl_tcam_mcast_pul(dsaf_dev);
+
+	spin_unlock_bh(&dsaf_dev->tcam_lock);
 }
 
 /**
@@ -948,6 +964,8 @@ static void hns_dsaf_tcam_uc_get(
 {
 	u32 tcam_read_data0;
 	u32 tcam_read_data4;
+
+	spin_lock_bh(&dsaf_dev->tcam_lock);
 
 	/*Write Addr*/
 	hns_dsaf_tbl_tcam_addr_cfg(dsaf_dev, address);
@@ -981,6 +999,8 @@ static void hns_dsaf_tcam_uc_get(
 				 DSAF_TBL_UCAST_CFG1_OUT_PORT_S);
 	ptbl_tcam_ucast->tbl_ucast_dvc
 		= dsaf_get_bit(tcam_read_data0, DSAF_TBL_UCAST_CFG1_DVC_S);
+
+	spin_unlock_bh(&dsaf_dev->tcam_lock);
 }
 
 /**
@@ -996,6 +1016,8 @@ static void hns_dsaf_tcam_mc_get(
 	struct dsaf_tbl_tcam_mcast_cfg *ptbl_tcam_mcast)
 {
 	u32 data_tmp;
+
+	spin_lock_bh(&dsaf_dev->tcam_lock);
 
 	/*Write Addr*/
 	hns_dsaf_tbl_tcam_addr_cfg(dsaf_dev, address);
@@ -1027,6 +1049,8 @@ static void hns_dsaf_tcam_mc_get(
 	ptbl_tcam_mcast->tbl_mcast_port_msk[4] =
 		dsaf_get_field(data_tmp, DSAF_TBL_MCAST_CFG4_VM128_112_M,
 			       DSAF_TBL_MCAST_CFG4_VM128_112_S);
+
+	spin_unlock_bh(&dsaf_dev->tcam_lock);
 }
 
 /**
@@ -1351,6 +1375,7 @@ static int hns_dsaf_init(struct dsaf_device *dsaf_dev)
 	if (HNS_DSAF_IS_DEBUG(dsaf_dev))
 		return 0;
 
+	spin_lock_init(&dsaf_dev->tcam_lock);
 	ret = hns_dsaf_init_hw(dsaf_dev);
 	if (ret)
 		return ret;
