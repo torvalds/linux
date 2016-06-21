@@ -769,6 +769,29 @@ int qed_dmae_host2grc(struct qed_hwfn *p_hwfn,
 }
 
 int
+qed_dmae_grc2host(struct qed_hwfn *p_hwfn, struct qed_ptt *p_ptt, u32 grc_addr,
+		  dma_addr_t dest_addr, u32 size_in_dwords, u32 flags)
+{
+	u32 grc_addr_in_dw = grc_addr / sizeof(u32);
+	struct qed_dmae_params params;
+	int rc;
+
+	memset(&params, 0, sizeof(struct qed_dmae_params));
+	params.flags = flags;
+
+	mutex_lock(&p_hwfn->dmae_info.mutex);
+
+	rc = qed_dmae_execute_command(p_hwfn, p_ptt, grc_addr_in_dw,
+				      dest_addr, QED_DMAE_ADDRESS_GRC,
+				      QED_DMAE_ADDRESS_HOST_VIRT,
+				      size_in_dwords, &params);
+
+	mutex_unlock(&p_hwfn->dmae_info.mutex);
+
+	return rc;
+}
+
+int
 qed_dmae_host2host(struct qed_hwfn *p_hwfn,
 		   struct qed_ptt *p_ptt,
 		   dma_addr_t source_addr,
