@@ -2247,7 +2247,8 @@ static int __ffs_data_got_descs(struct ffs_data *ffs,
 			      FUNCTIONFS_HAS_MS_OS_DESC |
 			      FUNCTIONFS_VIRTUAL_ADDR |
 			      FUNCTIONFS_EVENTFD |
-			      FUNCTIONFS_ALL_CTRL_RECIP)) {
+			      FUNCTIONFS_ALL_CTRL_RECIP |
+			      FUNCTIONFS_CONFIG0_SETUP)) {
 			ret = -ENOSYS;
 			goto error;
 		}
@@ -3142,7 +3143,7 @@ static bool ffs_func_req_match(struct usb_function *f,
 {
 	struct ffs_function *func = ffs_func_from_usb(f);
 
-	if (config0)
+	if (config0 && !(func->ffs->user_flags & FUNCTIONFS_CONFIG0_SETUP))
 		return false;
 
 	switch (creq->bRequestType & USB_RECIP_MASK) {
