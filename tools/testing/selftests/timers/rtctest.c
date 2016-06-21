@@ -218,7 +218,7 @@ test_PIE:
 		retval = ioctl(fd, RTC_IRQP_SET, tmp);
 		if (retval == -1) {
 			/* not all RTCs can change their periodic IRQ rate */
-			if (errno == ENOTTY) {
+			if (errno == EINVAL) {
 				fprintf(stderr,
 					"\n...Periodic IRQ rate is fixed\n");
 				goto done;
