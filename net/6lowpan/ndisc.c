@@ -47,6 +47,9 @@ static int lowpan_ndisc_parse_options(const struct net_device *dev,
 				      struct nd_opt_hdr *nd_opt,
 				      struct ndisc_options *ndopts)
 {
+	if (!lowpan_is_ll(dev, LOWPAN_LLTYPE_IEEE802154))
+		return 0;
+
 	switch (nd_opt->nd_opt_type) {
 	case ND_OPT_SOURCE_LL_ADDR:
 	case ND_OPT_TARGET_LL_ADDR:
