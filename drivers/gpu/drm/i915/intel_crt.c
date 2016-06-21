@@ -329,9 +329,24 @@ static bool valleyview_crt_detect_hotplug(struct drm_connector *connector)
 	struct drm_device *dev = connector->dev;
 	struct intel_crt *crt = intel_attached_crt(connector);
 	struct drm_i915_private *dev_priv = to_i915(dev);
+	bool reenable_hpd;
 	u32 adpa;
 	bool ret;
 	u32 save_adpa;
+
+	/*
+	 * Doing a force trigger causes a hpd interrupt to get sent, which can
+	 * get us stuck in a loop if we're polling:
+	 *  - We enable power wells and reset the ADPA
+	 *  - output_poll_exec does force probe on VGA, triggering a hpd
+	 *  - HPD handler waits for poll to unlock dev->mode_config.mutex
+	 *  - output_poll_exec shuts off the ADPA, unlocks
+	 *    dev->mode_config.mutex
+	 *  - HPD handler runs, resets ADPA and brings us back to the start
+	 *
+	 * Just disable HPD interrupts here to prevent this
+	 */
+	reenable_hpd = intel_hpd_disable(dev_priv, crt->base.hpd_pin);
 
 	save_adpa = adpa = I915_READ(crt->adpa_reg);
 	DRM_DEBUG_KMS("trigger hotplug detect cycle: adpa=0x%x\n", adpa);
@@ -356,6 +371,9 @@ static bool valleyview_crt_detect_hotplug(struct drm_connector *connector)
 		ret = false;
 
 	DRM_DEBUG_KMS("valleyview hotplug adpa=0x%x, result %d\n", adpa, ret);
+
+	if (reenable_hpd)
+		intel_hpd_enable(dev_priv, crt->base.hpd_pin);
 
 	return ret;
 }

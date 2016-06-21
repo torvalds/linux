@@ -510,3 +510,30 @@ void intel_hpd_cancel_work(struct drm_i915_private *dev_priv)
 	cancel_work_sync(&dev_priv->hotplug.hotplug_work);
 	cancel_delayed_work_sync(&dev_priv->hotplug.reenable_work);
 }
+
+bool intel_hpd_disable(struct drm_i915_private *dev_priv, enum hpd_pin pin)
+{
+	bool ret = false;
+
+	if (pin == HPD_NONE)
+		return false;
+
+	spin_lock_irq(&dev_priv->irq_lock);
+	if (dev_priv->hotplug.stats[pin].state == HPD_ENABLED) {
+		dev_priv->hotplug.stats[pin].state = HPD_DISABLED;
+		ret = true;
+	}
+	spin_unlock_irq(&dev_priv->irq_lock);
+
+	return ret;
+}
+
+void intel_hpd_enable(struct drm_i915_private *dev_priv, enum hpd_pin pin)
+{
+	if (pin == HPD_NONE)
+		return;
+
+	spin_lock_irq(&dev_priv->irq_lock);
+	dev_priv->hotplug.stats[pin].state = HPD_ENABLED;
+	spin_unlock_irq(&dev_priv->irq_lock);
+}
