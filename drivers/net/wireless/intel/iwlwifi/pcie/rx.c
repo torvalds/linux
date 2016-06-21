@@ -960,7 +960,7 @@ int iwl_pcie_rx_init(struct iwl_trans *trans)
 		else
 			list_add(&rxb->list, &def_rxq->rx_used);
 		trans_pcie->global_table[i] = rxb;
-		rxb->vid = (u16)i;
+		rxb->vid = (u16)(i + 1);
 	}
 
 	iwl_pcie_rxq_alloc_rbs(trans, GFP_KERNEL, def_rxq);
@@ -1249,10 +1249,13 @@ restart:
 			 */
 			u16 vid = le32_to_cpu(rxq->used_bd[i]) & 0x0FFF;
 
-			if (WARN(vid >= ARRAY_SIZE(trans_pcie->global_table),
-				 "Invalid rxb index from HW %u\n", (u32)vid))
+			if (WARN(!vid ||
+				 vid > ARRAY_SIZE(trans_pcie->global_table),
+				 "Invalid rxb index from HW %u\n", (u32)vid)) {
+				iwl_force_nmi(trans);
 				goto out;
-			rxb = trans_pcie->global_table[vid];
+			}
+			rxb = trans_pcie->global_table[vid - 1];
 		} else {
 			rxb = rxq->queue[i];
 			rxq->queue[i] = NULL;
