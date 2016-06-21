@@ -99,6 +99,92 @@ void mv_cesa_dma_prepare(struct mv_cesa_req *dreq,
 	}
 }
 
+void mv_cesa_tdma_chain(struct mv_cesa_engine *engine,
+			struct mv_cesa_req *dreq)
+{
+	if (engine->chain.first == NULL && engine->chain.last == NULL) {
+		engine->chain.first = dreq->chain.first;
+		engine->chain.last  = dreq->chain.last;
+	} else {
+		struct mv_cesa_tdma_desc *last;
+
+		last = engine->chain.last;
+		last->next = dreq->chain.first;
+		engine->chain.last = dreq->chain.last;
+
+		if (!(last->flags & CESA_TDMA_BREAK_CHAIN))
+			last->next_dma = dreq->chain.first->cur_dma;
+	}
+}
+
+int mv_cesa_tdma_process(struct mv_cesa_engine *engine, u32 status)
+{
+	struct crypto_async_request *req = NULL;
+	struct mv_cesa_tdma_desc *tdma = NULL, *next = NULL;
+	dma_addr_t tdma_cur;
+	int res = 0;
+
+	tdma_cur = readl(engine->regs + CESA_TDMA_CUR);
+
+	for (tdma = engine->chain.first; tdma; tdma = next) {
+		spin_lock_bh(&engine->lock);
+		next = tdma->next;
+		spin_unlock_bh(&engine->lock);
+
+		if (tdma->flags & CESA_TDMA_END_OF_REQ) {
+			struct crypto_async_request *backlog = NULL;
+			struct mv_cesa_ctx *ctx;
+			u32 current_status;
+
+			spin_lock_bh(&engine->lock);
+			/*
+			 * if req is NULL, this means we're processing the
+			 * request in engine->req.
+			 */
+			if (!req)
+				req = engine->req;
+			else
+				req = mv_cesa_dequeue_req_locked(engine,
+								 &backlog);
+
+			/* Re-chaining to the next request */
+			engine->chain.first = tdma->next;
+			tdma->next = NULL;
+
+			/* If this is the last request, clear the chain */
+			if (engine->chain.first == NULL)
+				engine->chain.last  = NULL;
+			spin_unlock_bh(&engine->lock);
+
+			ctx = crypto_tfm_ctx(req->tfm);
+			current_status = (tdma->cur_dma == tdma_cur) ?
+					  status : CESA_SA_INT_ACC0_IDMA_DONE;
+			res = ctx->ops->process(req, current_status);
+			ctx->ops->complete(req);
+
+			if (res == 0)
+				mv_cesa_engine_enqueue_complete_request(engine,
+									req);
+
+			if (backlog)
+				backlog->complete(backlog, -EINPROGRESS);
+		}
+
+		if (res || tdma->cur_dma == tdma_cur)
+			break;
+	}
+
+	/* Save the last request in error to engine->req, so that the core
+	 * knows which request was fautly */
+	if (res) {
+		spin_lock_bh(&engine->lock);
+		engine->req = req;
+		spin_unlock_bh(&engine->lock);
+	}
+
+	return res;
+}
+
 static struct mv_cesa_tdma_desc *
 mv_cesa_dma_add_desc(struct mv_cesa_tdma_chain *chain, gfp_t flags)
 {

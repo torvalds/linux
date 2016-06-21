@@ -271,7 +271,9 @@ struct mv_cesa_op_ctx {
 /* TDMA descriptor flags */
 #define CESA_TDMA_DST_IN_SRAM			BIT(31)
 #define CESA_TDMA_SRC_IN_SRAM			BIT(30)
-#define CESA_TDMA_TYPE_MSK			GENMASK(29, 0)
+#define CESA_TDMA_END_OF_REQ			BIT(29)
+#define CESA_TDMA_BREAK_CHAIN			BIT(28)
+#define CESA_TDMA_TYPE_MSK			GENMASK(27, 0)
 #define CESA_TDMA_DUMMY				0
 #define CESA_TDMA_DATA				1
 #define CESA_TDMA_OP				2
@@ -431,6 +433,9 @@ struct mv_cesa_dev {
  *			SRAM
  * @queue:		fifo of the pending crypto requests
  * @load:		engine load counter, useful for load balancing
+ * @chain:		list of the current tdma descriptors being processed
+ * 			by this engine.
+ * @complete_queue:	fifo of the processed requests by the engine
  *
  * Structure storing CESA engine information.
  */
@@ -448,6 +453,8 @@ struct mv_cesa_engine {
 	struct gen_pool *pool;
 	struct crypto_queue queue;
 	atomic_t load;
+	struct mv_cesa_tdma_chain chain;
+	struct list_head complete_queue;
 };
 
 /**
@@ -608,6 +615,29 @@ struct mv_cesa_ahash_req {
 
 extern struct mv_cesa_dev *cesa_dev;
 
+
+static inline void
+mv_cesa_engine_enqueue_complete_request(struct mv_cesa_engine *engine,
+					struct crypto_async_request *req)
+{
+	list_add_tail(&req->list, &engine->complete_queue);
+}
+
+static inline struct crypto_async_request *
+mv_cesa_engine_dequeue_complete_request(struct mv_cesa_engine *engine)
+{
+	struct crypto_async_request *req;
+
+	req = list_first_entry_or_null(&engine->complete_queue,
+				       struct crypto_async_request,
+				       list);
+	if (req)
+		list_del(&req->list);
+
+	return req;
+}
+
+
 static inline enum mv_cesa_req_type
 mv_cesa_req_get_type(struct mv_cesa_req *req)
 {
@@ -688,6 +718,10 @@ static inline bool mv_cesa_mac_op_is_first_frag(const struct mv_cesa_op_ctx *op)
 
 int mv_cesa_queue_req(struct crypto_async_request *req,
 		      struct mv_cesa_req *creq);
+
+struct crypto_async_request *
+mv_cesa_dequeue_req_locked(struct mv_cesa_engine *engine,
+			   struct crypto_async_request **backlog);
 
 static inline struct mv_cesa_engine *mv_cesa_select_engine(int weight)
 {
@@ -794,6 +828,9 @@ static inline int mv_cesa_dma_process(struct mv_cesa_req *dreq,
 void mv_cesa_dma_prepare(struct mv_cesa_req *dreq,
 			 struct mv_cesa_engine *engine);
 void mv_cesa_dma_cleanup(struct mv_cesa_req *dreq);
+void mv_cesa_tdma_chain(struct mv_cesa_engine *engine,
+			struct mv_cesa_req *dreq);
+int mv_cesa_tdma_process(struct mv_cesa_engine *engine, u32 status);
 
 
 static inline void

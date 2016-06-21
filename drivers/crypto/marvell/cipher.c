@@ -390,6 +390,7 @@ static int mv_cesa_ablkcipher_dma_req_init(struct ablkcipher_request *req,
 		goto err_free_tdma;
 
 	basereq->chain = chain;
+	basereq->chain.last->flags |= CESA_TDMA_END_OF_REQ;
 
 	return 0;
 
@@ -447,7 +448,6 @@ static int mv_cesa_ablkcipher_req_init(struct ablkcipher_request *req,
 	mv_cesa_update_op_cfg(tmpl, CESA_SA_DESC_CFG_OP_CRYPT_ONLY,
 			      CESA_SA_DESC_CFG_OP_MSK);
 
-	/* TODO: add a threshold for DMA usage */
 	if (cesa_dev->caps->has_tdma)
 		ret = mv_cesa_ablkcipher_dma_req_init(req, tmpl);
 	else
