@@ -41,6 +41,8 @@
 #define SCHEDULE_DELAY		(60 * HZ)
 #define OTG_SCHEDULE_DELAY	(2 * HZ)
 
+struct rockchip_usb2phy;
+
 enum rockchip_usb2phy_port_id {
 	USB2PHY_PORT_OTG,
 	USB2PHY_PORT_HOST,
@@ -151,12 +153,14 @@ struct rockchip_usb2phy_port_cfg {
  * struct rockchip_usb2phy_cfg: usb-phy configuration.
  * @reg: the address offset of grf for usb-phy config.
  * @num_ports: specify how many ports that the phy has.
+ * @phy_tuning: phy default parameters tunning.
  * @clkout_ctl: keep on/turn off output clk of phy.
  * @chg_det: charger detection registers.
  */
 struct rockchip_usb2phy_cfg {
 	unsigned int	reg;
 	unsigned int	num_ports;
+	int (*phy_tuning)(struct rockchip_usb2phy *);
 	struct usb2phy_reg	clkout_ctl;
 	const struct rockchip_usb2phy_port_cfg	port_cfgs[USB2PHY_NUM_PORTS];
 	const struct rockchip_chg_det_reg	chg_det;
@@ -1170,6 +1174,12 @@ static int rockchip_usb2phy_probe(struct platform_device *pdev)
 		goto disable_clks;
 	}
 
+	if (rphy->phy_cfg->phy_tuning) {
+		ret = rphy->phy_cfg->phy_tuning(rphy);
+		if (ret)
+			goto disable_clks;
+	}
+
 	index = 0;
 	for_each_available_child_of_node(np, child_np) {
 		struct rockchip_usb2phy_port *rport = &rphy->ports[index];
@@ -1219,6 +1229,25 @@ disable_clks:
 		clk_disable_unprepare(rphy->clk);
 		clk_put(rphy->clk);
 	}
+	return ret;
+}
+
+static int rk3366_usb2phy_tuning(struct rockchip_usb2phy *rphy)
+{
+	unsigned int open_pre_emphasize = 0xffff851f;
+	unsigned int eye_height_tuning = 0xffff68c8;
+	unsigned int compensation_tuning = 0xffff026e;
+	int ret = 0;
+
+	/* open HS pre-emphasize to expand HS slew rate for each port. */
+	ret |= regmap_write(rphy->grf, 0x0780, open_pre_emphasize);
+	ret |= regmap_write(rphy->grf, 0x079c, eye_height_tuning);
+	ret |= regmap_write(rphy->grf, 0x07b0, open_pre_emphasize);
+	ret |= regmap_write(rphy->grf, 0x07cc, eye_height_tuning);
+
+	/* compensate default tuning reference relate to ODT and etc. */
+	ret |= regmap_write(rphy->grf, 0x078c, compensation_tuning);
+
 	return ret;
 }
 
@@ -1328,6 +1357,7 @@ static const struct rockchip_usb2phy_cfg rk3366_phy_cfgs[] = {
 	{
 		.reg = 0x700,
 		.num_ports	= 2,
+		.phy_tuning	= rk3366_usb2phy_tuning,
 		.clkout_ctl	= { 0x0724, 15, 15, 1, 0 },
 		.port_cfgs	= {
 			[USB2PHY_PORT_HOST] = {
