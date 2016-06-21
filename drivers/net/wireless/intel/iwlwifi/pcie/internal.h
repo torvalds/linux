@@ -68,12 +68,14 @@ struct iwl_host_cmd;
  * struct iwl_rx_mem_buffer
  * @page_dma: bus address of rxb page
  * @page: driver's pointer to the rxb page
+ * @invalid: rxb is in driver ownership - not owned by HW
  * @vid: index of this rxb in the global table
  */
 struct iwl_rx_mem_buffer {
 	dma_addr_t page_dma;
 	struct page *page;
 	u16 vid;
+	bool invalid;
 	struct list_head list;
 };
 

@@ -266,7 +266,7 @@ static void iwl_pcie_rxmq_restock(struct iwl_trans *trans,
 		rxb = list_first_entry(&rxq->rx_free, struct iwl_rx_mem_buffer,
 				       list);
 		list_del(&rxb->list);
-
+		rxb->invalid = false;
 		/* 12 first bits are expected to be empty */
 		WARN_ON(rxb->page_dma & DMA_BIT_MASK(12));
 		/* Point to Rx buffer via next RBD in circular buffer */
@@ -317,6 +317,7 @@ static void iwl_pcie_rxsq_restock(struct iwl_trans *trans,
 		rxb = list_first_entry(&rxq->rx_free, struct iwl_rx_mem_buffer,
 				       list);
 		list_del(&rxb->list);
+		rxb->invalid = false;
 
 		/* Point to Rx buffer via next RBD in circular buffer */
 		bd[rxq->write] = iwl_pcie_dma_addr2rbd_ptr(rxb->page_dma);
@@ -961,6 +962,7 @@ int iwl_pcie_rx_init(struct iwl_trans *trans)
 			list_add(&rxb->list, &def_rxq->rx_used);
 		trans_pcie->global_table[i] = rxb;
 		rxb->vid = (u16)(i + 1);
+		rxb->invalid = true;
 	}
 
 	iwl_pcie_rxq_alloc_rbs(trans, GFP_KERNEL, def_rxq);
@@ -1256,6 +1258,12 @@ restart:
 				goto out;
 			}
 			rxb = trans_pcie->global_table[vid - 1];
+			if (WARN(rxb->invalid,
+				 "Invalid rxb from HW %u\n", (u32)vid)) {
+				iwl_force_nmi(trans);
+				goto out;
+			}
+			rxb->invalid = true;
 		} else {
 			rxb = rxq->queue[i];
 			rxq->queue[i] = NULL;
