@@ -1455,6 +1455,7 @@ static int sh_mmcif_probe(struct platform_device *pdev)
 
 	mmc->caps |= MMC_CAP_MMC_HIGHSPEED | MMC_CAP_WAIT_WHILE_BUSY;
 	mmc->caps2 |= MMC_CAP2_NO_SD | MMC_CAP2_NO_SDIO;
+	mmc->max_busy_timeout = 10000;
 
 	if (pd && pd->caps)
 		mmc->caps |= pd->caps;
