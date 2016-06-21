@@ -3120,7 +3120,7 @@ static u32 xhci_td_remainder(struct xhci_hcd *xhci, int transferred,
 int xhci_queue_bulk_tx(struct xhci_hcd *xhci, gfp_t mem_flags,
 		struct urb *urb, int slot_id, unsigned int ep_index)
 {
-	struct xhci_ring *ep_ring;
+	struct xhci_ring *ring;
 	struct urb_priv *urb_priv;
 	struct xhci_td *td;
 	struct xhci_generic_trb *start_trb;
@@ -3129,14 +3129,13 @@ int xhci_queue_bulk_tx(struct xhci_hcd *xhci, gfp_t mem_flags,
 	bool zero_length_needed;
 	unsigned int num_trbs, last_trb_num, i;
 	unsigned int start_cycle, num_sgs = 0;
-	unsigned int running_total, block_len, trb_buff_len;
-	unsigned int full_len;
+	unsigned int running_total, block_len, trb_buff_len, full_len;
 	int ret;
 	u32 field, length_field, remainder;
 	u64 addr;
 
-	ep_ring = xhci_urb_to_transfer_ring(xhci, urb);
-	if (!ep_ring)
+	ring = xhci_urb_to_transfer_ring(xhci, urb);
+	if (!ring)
 		return -EINVAL;
 
 	/* If we have scatter/gather list, we use it. */
@@ -3177,8 +3176,8 @@ int xhci_queue_bulk_tx(struct xhci_hcd *xhci, gfp_t mem_flags,
 	 * until we've finished creating all the other TRBs.  The ring's cycle
 	 * state may change as we enqueue the other TRBs, so save it too.
 	 */
-	start_trb = &ep_ring->enqueue->generic;
-	start_cycle = ep_ring->cycle_state;
+	start_trb = &ring->enqueue->generic;
+	start_cycle = ring->cycle_state;
 
 	full_len = urb->transfer_buffer_length;
 	running_total = 0;
@@ -3217,7 +3216,7 @@ int xhci_queue_bulk_tx(struct xhci_hcd *xhci, gfp_t mem_flags,
 			if (start_cycle == 0)
 				field |= TRB_CYCLE;
 		} else
-			field |= ep_ring->cycle_state;
+			field |= ring->cycle_state;
 
 		/* Chain all the TRBs together; clear the chain bit in the last
 		 * TRB to indicate it's the last TRB in the chain.
@@ -3227,10 +3226,10 @@ int xhci_queue_bulk_tx(struct xhci_hcd *xhci, gfp_t mem_flags,
 		} else {
 			field |= TRB_IOC;
 			if (i == last_trb_num)
-				td->last_trb = ep_ring->enqueue;
+				td->last_trb = ring->enqueue;
 			else if (zero_length_needed) {
 				trb_buff_len = 0;
-				urb_priv->td[1]->last_trb = ep_ring->enqueue;
+				urb_priv->td[1]->last_trb = ring->enqueue;
 			}
 		}
 
@@ -3251,7 +3250,7 @@ int xhci_queue_bulk_tx(struct xhci_hcd *xhci, gfp_t mem_flags,
 			more_trbs_coming = true;
 		else
 			more_trbs_coming = false;
-		queue_trb(xhci, ep_ring, more_trbs_coming,
+		queue_trb(xhci, ring, more_trbs_coming,
 				lower_32_bits(addr),
 				upper_32_bits(addr),
 				length_field,
