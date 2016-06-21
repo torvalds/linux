@@ -3361,6 +3361,13 @@ static void intel_snb_check_microcode(void)
 	}
 }
 
+static bool is_lbr_from(unsigned long msr)
+{
+	unsigned long lbr_from_nr = x86_pmu.lbr_from + x86_pmu.lbr_nr;
+
+	return x86_pmu.lbr_from <= msr && msr < lbr_from_nr;
+}
+
 /*
  * Under certain circumstances, access certain MSR may cause #GP.
  * The function tests if the input MSR can be safely accessed.
@@ -3381,12 +3388,23 @@ static bool check_msr(unsigned long msr, u64 mask)
 	 * Only change the bits which can be updated by wrmsrl.
 	 */
 	val_tmp = val_old ^ mask;
+
+	if (is_lbr_from(msr))
+		val_tmp = lbr_from_signext_quirk_wr(val_tmp);
+
 	if (wrmsrl_safe(msr, val_tmp) ||
 	    rdmsrl_safe(msr, &val_new))
 		return false;
 
+	/*
+	 * Quirk only affects validation in wrmsr(), so wrmsrl()'s value
+	 * should equal rdmsrl()'s even with the quirk.
+	 */
 	if (val_new != val_tmp)
 		return false;
+
+	if (is_lbr_from(msr))
+		val_old = lbr_from_signext_quirk_wr(val_old);
 
 	/* Here it's sure that the MSR can be safely accessed.
 	 * Restore the old value and return.

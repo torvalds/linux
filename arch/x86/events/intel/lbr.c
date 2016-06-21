@@ -81,6 +81,8 @@ static enum {
 #define LBR_FROM_FLAG_IN_TX    (1ULL << 62)
 #define LBR_FROM_FLAG_ABORT    (1ULL << 61)
 
+#define LBR_FROM_SIGNEXT_2MSB	(BIT_ULL(60) | BIT_ULL(59))
+
 /*
  * x86control flow change classification
  * x86control flow changes include branches, interrupts, traps, faults
@@ -234,6 +236,53 @@ enum {
 	LBR_NONE,
 	LBR_VALID,
 };
+
+/*
+ * For formats with LBR_TSX flags (e.g. LBR_FORMAT_EIP_FLAGS2), bits 61:62 in
+ * MSR_LAST_BRANCH_FROM_x are the TSX flags when TSX is supported, but when
+ * TSX is not supported they have no consistent behavior:
+ *
+ *   - For wrmsr(), bits 61:62 are considered part of the sign extension.
+ *   - For HW updates (branch captures) bits 61:62 are always OFF and are not
+ *     part of the sign extension.
+ *
+ * Therefore, if:
+ *
+ *   1) LBR has TSX format
+ *   2) CPU has no TSX support enabled
+ *
+ * ... then any value passed to wrmsr() must be sign extended to 63 bits and any
+ * value from rdmsr() must be converted to have a 61 bits sign extension,
+ * ignoring the TSX flags.
+ */
+static inline bool lbr_from_signext_quirk_needed(void)
+{
+	int lbr_format = x86_pmu.intel_cap.lbr_format;
+	bool tsx_support = boot_cpu_has(X86_FEATURE_HLE) ||
+			   boot_cpu_has(X86_FEATURE_RTM);
+
+	return !tsx_support && (lbr_desc[lbr_format] & LBR_TSX);
+}
+
+DEFINE_STATIC_KEY_FALSE(lbr_from_quirk_key);
+
+/* If quirk is enabled, ensure sign extension is 63 bits: */
+inline u64 lbr_from_signext_quirk_wr(u64 val)
+{
+	if (static_branch_unlikely(&lbr_from_quirk_key)) {
+		/*
+		 * Sign extend into bits 61:62 while preserving bit 63.
+		 *
+		 * Quirk is enabled when TSX is disabled. Therefore TSX bits
+		 * in val are always OFF and must be changed to be sign
+		 * extension bits. Since bits 59:60 are guaranteed to be
+		 * part of the sign extension bits, we can just copy them
+		 * to 61:62.
+		 */
+		val |= (LBR_FROM_SIGNEXT_2MSB & val) << 2;
+	}
+	return val;
+}
 
 static void __intel_pmu_lbr_restore(struct x86_perf_task_context *task_ctx)
 {
@@ -1007,6 +1056,9 @@ void intel_pmu_lbr_init_hsw(void)
 
 	x86_pmu.lbr_sel_mask = LBR_SEL_MASK;
 	x86_pmu.lbr_sel_map  = hsw_lbr_sel_map;
+
+	if (lbr_from_signext_quirk_needed())
+		static_branch_enable(&lbr_from_quirk_key);
 }
 
 /* skylake */
