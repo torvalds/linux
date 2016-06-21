@@ -89,19 +89,6 @@ dma_addr_t xhci_trb_virt_to_dma(struct xhci_segment *seg,
 	return seg->dma + (segment_offset * sizeof(*trb));
 }
 
-/* Does this link TRB point to the first segment in a ring,
- * or was the previous TRB the last TRB on the last segment in the ERST?
- */
-static bool last_trb_on_last_seg(struct xhci_hcd *xhci, struct xhci_ring *ring,
-		struct xhci_segment *seg, union xhci_trb *trb)
-{
-	if (ring == xhci->event_ring)
-		return (trb == &seg->trbs[TRBS_PER_SEGMENT]) &&
-			(seg->next == xhci->event_ring->first_seg);
-	else
-		return le32_to_cpu(trb->link.control) & LINK_TOGGLE;
-}
-
 static bool trb_is_link(union xhci_trb *trb)
 {
 	return TRB_TYPE_LINK_LE32(trb->link.control);
@@ -116,6 +103,11 @@ static bool last_trb_on_ring(struct xhci_ring *ring,
 			struct xhci_segment *seg, union xhci_trb *trb)
 {
 	return last_trb_on_seg(seg, trb) && (seg->next == ring->first_seg);
+}
+
+static bool link_trb_toggles_cycle(union xhci_trb *trb)
+{
+	return le32_to_cpu(trb->link.control) & LINK_TOGGLE;
 }
 
 /* Updates trb to point to the next TRB in the ring, and updates seg if the next
@@ -226,7 +218,7 @@ static void inc_enq(struct xhci_hcd *xhci, struct xhci_ring *ring,
 		next->link.control ^= cpu_to_le32(TRB_CYCLE);
 
 		/* Toggle the cycle bit after the last ring segment. */
-		if (last_trb_on_last_seg(xhci, ring, ring->enq_seg, next))
+		if (link_trb_toggles_cycle(next))
 			ring->cycle_state ^= 1;
 
 		ring->enq_seg = ring->enq_seg->next;
@@ -2885,36 +2877,29 @@ static int prepare_ring(struct xhci_hcd *xhci, struct xhci_ring *ep_ring,
 		}
 	}
 
-	if (trb_is_link(ep_ring->enqueue)) {
-		struct xhci_ring *ring = ep_ring;
-		union xhci_trb *next;
+	while (trb_is_link(ep_ring->enqueue)) {
+		/* If we're not dealing with 0.95 hardware or isoc rings
+		 * on AMD 0.96 host, clear the chain bit.
+		 */
+		if (!xhci_link_trb_quirk(xhci) &&
+		    !(ep_ring->type == TYPE_ISOC &&
+		      (xhci->quirks & XHCI_AMD_0x96_HOST)))
+			ep_ring->enqueue->link.control &=
+				cpu_to_le32(~TRB_CHAIN);
+		else
+			ep_ring->enqueue->link.control |=
+				cpu_to_le32(TRB_CHAIN);
 
-		next = ring->enqueue;
+		wmb();
+		ep_ring->enqueue->link.control ^= cpu_to_le32(TRB_CYCLE);
 
-		while (trb_is_link(next)) {
-			/* If we're not dealing with 0.95 hardware or isoc rings
-			 * on AMD 0.96 host, clear the chain bit.
-			 */
-			if (!xhci_link_trb_quirk(xhci) &&
-					!(ring->type == TYPE_ISOC &&
-					 (xhci->quirks & XHCI_AMD_0x96_HOST)))
-				next->link.control &= cpu_to_le32(~TRB_CHAIN);
-			else
-				next->link.control |= cpu_to_le32(TRB_CHAIN);
+		/* Toggle the cycle bit after the last ring segment. */
+		if (link_trb_toggles_cycle(ep_ring->enqueue))
+			ep_ring->cycle_state ^= 1;
 
-			wmb();
-			next->link.control ^= cpu_to_le32(TRB_CYCLE);
-
-			/* Toggle the cycle bit after the last ring segment. */
-			if (last_trb_on_last_seg(xhci, ring, ring->enq_seg, next)) {
-				ring->cycle_state ^= 1;
-			}
-			ring->enq_seg = ring->enq_seg->next;
-			ring->enqueue = ring->enq_seg->trbs;
-			next = ring->enqueue;
-		}
+		ep_ring->enq_seg = ep_ring->enq_seg->next;
+		ep_ring->enqueue = ep_ring->enq_seg->trbs;
 	}
-
 	return 0;
 }
 
