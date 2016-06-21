@@ -198,10 +198,10 @@
 
 	timer {
 		compatible = "arm,armv8-timer";
-		interrupts = <1 0 0xff04>,	/* Secure Phys IRQ */
-			     <1 13 0xff04>,	/* Non-secure Phys IRQ */
-			     <1 14 0xff04>,	/* Virt IRQ */
-			     <1 15 0xff04>;	/* Hyp IRQ */
+		interrupts = <1 0 0xff08>,	/* Secure Phys IRQ */
+			     <1 13 0xff08>,	/* Non-secure Phys IRQ */
+			     <1 14 0xff08>,	/* Virt IRQ */
+			     <1 15 0xff08>;	/* Hyp IRQ */
 		clock-frequency = <50000000>;
 	};
 
