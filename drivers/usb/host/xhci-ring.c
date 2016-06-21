@@ -3092,7 +3092,7 @@ int xhci_queue_intr_tx(struct xhci_hcd *xhci, gfp_t mem_flags,
  */
 static u32 xhci_td_remainder(struct xhci_hcd *xhci, int transferred,
 			      int trb_buff_len, unsigned int td_total_len,
-			      struct urb *urb, unsigned int num_trbs_left)
+			      struct urb *urb, bool more_trbs_coming)
 {
 	u32 maxp, total_packet_count;
 
@@ -3101,7 +3101,7 @@ static u32 xhci_td_remainder(struct xhci_hcd *xhci, int transferred,
 		return ((td_total_len - transferred) >> 10);
 
 	/* One TRB with a zero-length data packet. */
-	if (num_trbs_left == 0 || (transferred == 0 && trb_buff_len == 0) ||
+	if (!more_trbs_coming || (transferred == 0 && trb_buff_len == 0) ||
 	    trb_buff_len == td_total_len)
 		return 0;
 
@@ -3216,7 +3216,7 @@ int xhci_queue_bulk_tx(struct xhci_hcd *xhci, gfp_t mem_flags,
 			field |= TRB_CHAIN;
 		} else {
 			field |= TRB_IOC;
-			more_trbs_coming = need_zero_pkt;
+			more_trbs_coming = false;
 			td->last_trb = ring->enqueue;
 		}
 
@@ -3227,13 +3227,12 @@ int xhci_queue_bulk_tx(struct xhci_hcd *xhci, gfp_t mem_flags,
 		/* Set the TRB length, TD size, and interrupter fields. */
 		remainder = xhci_td_remainder(xhci, running_total,
 							trb_buff_len, full_len,
-							urb, num_trbs - i - 1);
-
+							urb, more_trbs_coming);
 		length_field = TRB_LEN(trb_buff_len) |
 			TRB_TD_SIZE(remainder) |
 			TRB_INTR_TARGET(0);
 
-		queue_trb(xhci, ring, more_trbs_coming,
+		queue_trb(xhci, ring, more_trbs_coming | need_zero_pkt,
 				lower_32_bits(addr),
 				upper_32_bits(addr),
 				length_field,
@@ -3657,7 +3656,7 @@ static int xhci_queue_isoc_tx(struct xhci_hcd *xhci, gfp_t mem_flags,
 			/* Set the TRB length, TD size, & interrupter fields. */
 			remainder = xhci_td_remainder(xhci, running_total,
 						   trb_buff_len, td_len,
-						   urb, trbs_per_td - j - 1);
+						   urb, more_trbs_coming);
 
 			length_field = TRB_LEN(trb_buff_len) |
 				TRB_INTR_TARGET(0);
