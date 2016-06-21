@@ -540,7 +540,7 @@ int hns_rcb_set_coalesce_usecs(
 	}
 	if (timeout > HNS_RCB_MAX_COALESCED_USECS) {
 		dev_err(rcb_common->dsaf_dev->dev,
-			"error: not support coalesce %dus!\n", timeout);
+			"error: coalesce_usecs setting supports 0~1023us\n");
 		return -EINVAL;
 	}
 	hns_rcb_set_port_timeout(rcb_common, port_idx, timeout);
