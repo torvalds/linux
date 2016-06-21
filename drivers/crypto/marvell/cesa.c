@@ -111,7 +111,8 @@ static irqreturn_t mv_cesa_int(int irq, void *priv)
 	return ret;
 }
 
-int mv_cesa_queue_req(struct crypto_async_request *req)
+int mv_cesa_queue_req(struct crypto_async_request *req,
+		      struct mv_cesa_req *creq)
 {
 	int ret;
 	int i;

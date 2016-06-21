@@ -509,21 +509,11 @@ enum mv_cesa_req_type {
 
 /**
  * struct mv_cesa_req - CESA request
- * @type:	request type
  * @engine:	engine associated with this request
+ * @chain:	list of tdma descriptors associated  with this request
  */
 struct mv_cesa_req {
-	enum mv_cesa_req_type type;
 	struct mv_cesa_engine *engine;
-};
-
-/**
- * struct mv_cesa_tdma_req - CESA TDMA request
- * @base:	base information
- * @chain:	TDMA chain
- */
-struct mv_cesa_tdma_req {
-	struct mv_cesa_req base;
 	struct mv_cesa_tdma_chain chain;
 };
 
@@ -540,13 +530,11 @@ struct mv_cesa_sg_std_iter {
 
 /**
  * struct mv_cesa_ablkcipher_std_req - cipher standard request
- * @base:	base information
  * @op:		operation context
  * @offset:	current operation offset
  * @size:	size of the crypto operation
  */
 struct mv_cesa_ablkcipher_std_req {
-	struct mv_cesa_req base;
 	struct mv_cesa_op_ctx op;
 	unsigned int offset;
 	unsigned int size;
@@ -560,34 +548,27 @@ struct mv_cesa_ablkcipher_std_req {
  * @dst_nents:	number of entries in the dest sg list
  */
 struct mv_cesa_ablkcipher_req {
-	union {
-		struct mv_cesa_req base;
-		struct mv_cesa_tdma_req dma;
-		struct mv_cesa_ablkcipher_std_req std;
-	} req;
+	struct mv_cesa_req base;
+	struct mv_cesa_ablkcipher_std_req std;
 	int src_nents;
 	int dst_nents;
 };
 
 /**
  * struct mv_cesa_ahash_std_req - standard hash request
- * @base:	base information
  * @offset:	current operation offset
  */
 struct mv_cesa_ahash_std_req {
-	struct mv_cesa_req base;
 	unsigned int offset;
 };
 
 /**
  * struct mv_cesa_ahash_dma_req - DMA hash request
- * @base:		base information
  * @padding:		padding buffer
  * @padding_dma:	DMA address of the padding buffer
  * @cache_dma:		DMA address of the cache buffer
  */
 struct mv_cesa_ahash_dma_req {
-	struct mv_cesa_tdma_req base;
 	u8 *padding;
 	dma_addr_t padding_dma;
 	u8 *cache;
@@ -606,8 +587,8 @@ struct mv_cesa_ahash_dma_req {
  * @state:		hash state
  */
 struct mv_cesa_ahash_req {
+	struct mv_cesa_req base;
 	union {
-		struct mv_cesa_req base;
 		struct mv_cesa_ahash_dma_req dma;
 		struct mv_cesa_ahash_std_req std;
 	} req;
@@ -624,6 +605,12 @@ struct mv_cesa_ahash_req {
 /* CESA functions */
 
 extern struct mv_cesa_dev *cesa_dev;
+
+static inline enum mv_cesa_req_type
+mv_cesa_req_get_type(struct mv_cesa_req *req)
+{
+	return req->chain.first ? CESA_DMA_REQ : CESA_STD_REQ;
+}
 
 static inline void mv_cesa_update_op_cfg(struct mv_cesa_op_ctx *op,
 					 u32 cfg, u32 mask)
@@ -697,7 +684,8 @@ static inline bool mv_cesa_mac_op_is_first_frag(const struct mv_cesa_op_ctx *op)
 		CESA_SA_DESC_CFG_FIRST_FRAG;
 }
 
-int mv_cesa_queue_req(struct crypto_async_request *req);
+int mv_cesa_queue_req(struct crypto_async_request *req,
+		      struct mv_cesa_req *creq);
 
 /*
  * Helper function that indicates whether a crypto request needs to be
@@ -767,9 +755,9 @@ static inline bool mv_cesa_req_dma_iter_next_op(struct mv_cesa_dma_iter *iter)
 	return iter->op_len;
 }
 
-void mv_cesa_dma_step(struct mv_cesa_tdma_req *dreq);
+void mv_cesa_dma_step(struct mv_cesa_req *dreq);
 
-static inline int mv_cesa_dma_process(struct mv_cesa_tdma_req *dreq,
+static inline int mv_cesa_dma_process(struct mv_cesa_req *dreq,
 				      u32 status)
 {
 	if (!(status & CESA_SA_INT_ACC0_IDMA_DONE))
@@ -781,10 +769,10 @@ static inline int mv_cesa_dma_process(struct mv_cesa_tdma_req *dreq,
 	return 0;
 }
 
-void mv_cesa_dma_prepare(struct mv_cesa_tdma_req *dreq,
+void mv_cesa_dma_prepare(struct mv_cesa_req *dreq,
 			 struct mv_cesa_engine *engine);
+void mv_cesa_dma_cleanup(struct mv_cesa_req *dreq);
 
-void mv_cesa_dma_cleanup(struct mv_cesa_tdma_req *dreq);
 
 static inline void
 mv_cesa_tdma_desc_iter_init(struct mv_cesa_tdma_chain *chain)

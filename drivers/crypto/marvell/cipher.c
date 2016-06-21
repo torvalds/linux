@@ -70,22 +70,22 @@ mv_cesa_ablkcipher_dma_cleanup(struct ablkcipher_request *req)
 		dma_unmap_sg(cesa_dev->dev, req->src, creq->src_nents,
 			     DMA_BIDIRECTIONAL);
 	}
-	mv_cesa_dma_cleanup(&creq->req.dma);
+	mv_cesa_dma_cleanup(&creq->base);
 }
 
 static inline void mv_cesa_ablkcipher_cleanup(struct ablkcipher_request *req)
 {
 	struct mv_cesa_ablkcipher_req *creq = ablkcipher_request_ctx(req);
 
-	if (creq->req.base.type == CESA_DMA_REQ)
+	if (mv_cesa_req_get_type(&creq->base) == CESA_DMA_REQ)
 		mv_cesa_ablkcipher_dma_cleanup(req);
 }
 
 static void mv_cesa_ablkcipher_std_step(struct ablkcipher_request *req)
 {
 	struct mv_cesa_ablkcipher_req *creq = ablkcipher_request_ctx(req);
-	struct mv_cesa_ablkcipher_std_req *sreq = &creq->req.std;
-	struct mv_cesa_engine *engine = sreq->base.engine;
+	struct mv_cesa_ablkcipher_std_req *sreq = &creq->std;
+	struct mv_cesa_engine *engine = creq->base.engine;
 	size_t  len = min_t(size_t, req->nbytes - sreq->offset,
 			    CESA_SA_SRAM_PAYLOAD_SIZE);
 
@@ -115,8 +115,8 @@ static int mv_cesa_ablkcipher_std_process(struct ablkcipher_request *req,
 					  u32 status)
 {
 	struct mv_cesa_ablkcipher_req *creq = ablkcipher_request_ctx(req);
-	struct mv_cesa_ablkcipher_std_req *sreq = &creq->req.std;
-	struct mv_cesa_engine *engine = sreq->base.engine;
+	struct mv_cesa_ablkcipher_std_req *sreq = &creq->std;
+	struct mv_cesa_engine *engine = creq->base.engine;
 	size_t len;
 	unsigned int ivsize;
 
@@ -140,20 +140,19 @@ static int mv_cesa_ablkcipher_process(struct crypto_async_request *req,
 {
 	struct ablkcipher_request *ablkreq = ablkcipher_request_cast(req);
 	struct mv_cesa_ablkcipher_req *creq = ablkcipher_request_ctx(ablkreq);
-	struct mv_cesa_tdma_req *dreq;
+	struct mv_cesa_req *basereq = &creq->base;
 	unsigned int ivsize;
 	int ret;
 
-	if (creq->req.base.type == CESA_STD_REQ)
+	if (mv_cesa_req_get_type(basereq) == CESA_STD_REQ)
 		return mv_cesa_ablkcipher_std_process(ablkreq, status);
 
-	ret = mv_cesa_dma_process(&creq->req.dma, status);
+	ret = mv_cesa_dma_process(basereq, status);
 	if (ret)
 		return ret;
 
-	dreq = &creq->req.dma;
 	ivsize = crypto_ablkcipher_ivsize(crypto_ablkcipher_reqtfm(ablkreq));
-	memcpy_fromio(ablkreq->info, dreq->chain.last->data, ivsize);
+	memcpy_fromio(ablkreq->info, basereq->chain.last->data, ivsize);
 
 	return 0;
 }
@@ -163,8 +162,8 @@ static void mv_cesa_ablkcipher_step(struct crypto_async_request *req)
 	struct ablkcipher_request *ablkreq = ablkcipher_request_cast(req);
 	struct mv_cesa_ablkcipher_req *creq = ablkcipher_request_ctx(ablkreq);
 
-	if (creq->req.base.type == CESA_DMA_REQ)
-		mv_cesa_dma_step(&creq->req.dma);
+	if (mv_cesa_req_get_type(&creq->base) == CESA_DMA_REQ)
+		mv_cesa_dma_step(&creq->base);
 	else
 		mv_cesa_ablkcipher_std_step(ablkreq);
 }
@@ -173,17 +172,17 @@ static inline void
 mv_cesa_ablkcipher_dma_prepare(struct ablkcipher_request *req)
 {
 	struct mv_cesa_ablkcipher_req *creq = ablkcipher_request_ctx(req);
-	struct mv_cesa_tdma_req *dreq = &creq->req.dma;
+	struct mv_cesa_req *basereq = &creq->base;
 
-	mv_cesa_dma_prepare(dreq, dreq->base.engine);
+	mv_cesa_dma_prepare(basereq, basereq->engine);
 }
 
 static inline void
 mv_cesa_ablkcipher_std_prepare(struct ablkcipher_request *req)
 {
 	struct mv_cesa_ablkcipher_req *creq = ablkcipher_request_ctx(req);
-	struct mv_cesa_ablkcipher_std_req *sreq = &creq->req.std;
-	struct mv_cesa_engine *engine = sreq->base.engine;
+	struct mv_cesa_ablkcipher_std_req *sreq = &creq->std;
+	struct mv_cesa_engine *engine = creq->base.engine;
 
 	sreq->size = 0;
 	sreq->offset = 0;
@@ -196,9 +195,9 @@ static inline void mv_cesa_ablkcipher_prepare(struct crypto_async_request *req,
 {
 	struct ablkcipher_request *ablkreq = ablkcipher_request_cast(req);
 	struct mv_cesa_ablkcipher_req *creq = ablkcipher_request_ctx(ablkreq);
-	creq->req.base.engine = engine;
+	creq->base.engine = engine;
 
-	if (creq->req.base.type == CESA_DMA_REQ)
+	if (mv_cesa_req_get_type(&creq->base) == CESA_DMA_REQ)
 		mv_cesa_ablkcipher_dma_prepare(ablkreq);
 	else
 		mv_cesa_ablkcipher_std_prepare(ablkreq);
@@ -301,16 +300,15 @@ static int mv_cesa_ablkcipher_dma_req_init(struct ablkcipher_request *req,
 	struct mv_cesa_ablkcipher_req *creq = ablkcipher_request_ctx(req);
 	gfp_t flags = (req->base.flags & CRYPTO_TFM_REQ_MAY_SLEEP) ?
 		      GFP_KERNEL : GFP_ATOMIC;
-	struct mv_cesa_tdma_req *dreq = &creq->req.dma;
+	struct mv_cesa_req *basereq = &creq->base;
 	struct mv_cesa_ablkcipher_dma_iter iter;
 	struct mv_cesa_tdma_chain chain;
 	bool skip_ctx = false;
 	int ret;
 	unsigned int ivsize;
 
-	dreq->base.type = CESA_DMA_REQ;
-	dreq->chain.first = NULL;
-	dreq->chain.last = NULL;
+	basereq->chain.first = NULL;
+	basereq->chain.last = NULL;
 
 	if (req->src != req->dst) {
 		ret = dma_map_sg(cesa_dev->dev, req->src, creq->src_nents,
@@ -373,12 +371,12 @@ static int mv_cesa_ablkcipher_dma_req_init(struct ablkcipher_request *req,
 	if (ret)
 		goto err_free_tdma;
 
-	dreq->chain = chain;
+	basereq->chain = chain;
 
 	return 0;
 
 err_free_tdma:
-	mv_cesa_dma_cleanup(dreq);
+	mv_cesa_dma_cleanup(basereq);
 	if (req->dst != req->src)
 		dma_unmap_sg(cesa_dev->dev, req->dst, creq->dst_nents,
 			     DMA_FROM_DEVICE);
@@ -395,11 +393,13 @@ mv_cesa_ablkcipher_std_req_init(struct ablkcipher_request *req,
 				const struct mv_cesa_op_ctx *op_templ)
 {
 	struct mv_cesa_ablkcipher_req *creq = ablkcipher_request_ctx(req);
-	struct mv_cesa_ablkcipher_std_req *sreq = &creq->req.std;
+	struct mv_cesa_ablkcipher_std_req *sreq = &creq->std;
+	struct mv_cesa_req *basereq = &creq->base;
 
-	sreq->base.type = CESA_STD_REQ;
 	sreq->op = *op_templ;
 	sreq->skip_ctx = false;
+	basereq->chain.first = NULL;
+	basereq->chain.last = NULL;
 
 	return 0;
 }
@@ -441,6 +441,7 @@ static int mv_cesa_ablkcipher_req_init(struct ablkcipher_request *req,
 static int mv_cesa_des_op(struct ablkcipher_request *req,
 			  struct mv_cesa_op_ctx *tmpl)
 {
+	struct mv_cesa_ablkcipher_req *creq = ablkcipher_request_ctx(req);
 	struct mv_cesa_des_ctx *ctx = crypto_tfm_ctx(req->base.tfm);
 	int ret;
 
@@ -453,7 +454,7 @@ static int mv_cesa_des_op(struct ablkcipher_request *req,
 	if (ret)
 		return ret;
 
-	ret = mv_cesa_queue_req(&req->base);
+	ret = mv_cesa_queue_req(&req->base, &creq->base);
 	if (mv_cesa_req_needs_cleanup(&req->base, ret))
 		mv_cesa_ablkcipher_cleanup(req);
 
@@ -561,6 +562,7 @@ struct crypto_alg mv_cesa_cbc_des_alg = {
 static int mv_cesa_des3_op(struct ablkcipher_request *req,
 			   struct mv_cesa_op_ctx *tmpl)
 {
+	struct mv_cesa_ablkcipher_req *creq = ablkcipher_request_ctx(req);
 	struct mv_cesa_des3_ctx *ctx = crypto_tfm_ctx(req->base.tfm);
 	int ret;
 
@@ -573,7 +575,7 @@ static int mv_cesa_des3_op(struct ablkcipher_request *req,
 	if (ret)
 		return ret;
 
-	ret = mv_cesa_queue_req(&req->base);
+	ret = mv_cesa_queue_req(&req->base, &creq->base);
 	if (mv_cesa_req_needs_cleanup(&req->base, ret))
 		mv_cesa_ablkcipher_cleanup(req);
 
@@ -687,6 +689,7 @@ struct crypto_alg mv_cesa_cbc_des3_ede_alg = {
 static int mv_cesa_aes_op(struct ablkcipher_request *req,
 			  struct mv_cesa_op_ctx *tmpl)
 {
+	struct mv_cesa_ablkcipher_req *creq = ablkcipher_request_ctx(req);
 	struct mv_cesa_aes_ctx *ctx = crypto_tfm_ctx(req->base.tfm);
 	int ret, i;
 	u32 *key;
@@ -715,7 +718,7 @@ static int mv_cesa_aes_op(struct ablkcipher_request *req,
 	if (ret)
 		return ret;
 
-	ret = mv_cesa_queue_req(&req->base);
+	ret = mv_cesa_queue_req(&req->base, &creq->base);
 	if (mv_cesa_req_needs_cleanup(&req->base, ret))
 		mv_cesa_ablkcipher_cleanup(req);
 

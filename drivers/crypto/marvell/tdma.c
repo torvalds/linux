@@ -37,9 +37,9 @@ bool mv_cesa_req_dma_iter_next_transfer(struct mv_cesa_dma_iter *iter,
 	return true;
 }
 
-void mv_cesa_dma_step(struct mv_cesa_tdma_req *dreq)
+void mv_cesa_dma_step(struct mv_cesa_req *dreq)
 {
-	struct mv_cesa_engine *engine = dreq->base.engine;
+	struct mv_cesa_engine *engine = dreq->engine;
 
 	writel_relaxed(0, engine->regs + CESA_SA_CFG);
 
@@ -58,7 +58,7 @@ void mv_cesa_dma_step(struct mv_cesa_tdma_req *dreq)
 	writel(CESA_SA_CMD_EN_CESA_SA_ACCL0, engine->regs + CESA_SA_CMD);
 }
 
-void mv_cesa_dma_cleanup(struct mv_cesa_tdma_req *dreq)
+void mv_cesa_dma_cleanup(struct mv_cesa_req *dreq)
 {
 	struct mv_cesa_tdma_desc *tdma;
 
@@ -82,7 +82,7 @@ void mv_cesa_dma_cleanup(struct mv_cesa_tdma_req *dreq)
 	dreq->chain.last = NULL;
 }
 
-void mv_cesa_dma_prepare(struct mv_cesa_tdma_req *dreq,
+void mv_cesa_dma_prepare(struct mv_cesa_req *dreq,
 			 struct mv_cesa_engine *engine)
 {
 	struct mv_cesa_tdma_desc *tdma;
