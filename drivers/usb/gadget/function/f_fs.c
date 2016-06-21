@@ -98,6 +98,8 @@ static int ffs_func_set_alt(struct usb_function *, unsigned, unsigned);
 static void ffs_func_disable(struct usb_function *);
 static int ffs_func_setup(struct usb_function *,
 			  const struct usb_ctrlrequest *);
+static bool ffs_func_req_match(struct usb_function *,
+			       const struct usb_ctrlrequest *);
 static void ffs_func_suspend(struct usb_function *);
 static void ffs_func_resume(struct usb_function *);
 
@@ -2243,7 +2245,8 @@ static int __ffs_data_got_descs(struct ffs_data *ffs,
 			      FUNCTIONFS_HAS_SS_DESC |
 			      FUNCTIONFS_HAS_MS_OS_DESC |
 			      FUNCTIONFS_VIRTUAL_ADDR |
-			      FUNCTIONFS_EVENTFD)) {
+			      FUNCTIONFS_EVENTFD |
+			      FUNCTIONFS_ALL_CTRL_RECIP)) {
 			ret = -ENOSYS;
 			goto error;
 		}
@@ -3094,8 +3097,9 @@ static int ffs_func_setup(struct usb_function *f,
 	 * handle them.  All other either handled by composite or
 	 * passed to usb_configuration->setup() (if one is set).  No
 	 * matter, we will handle requests directed to endpoint here
-	 * as well (as it's straightforward) but what to do with any
-	 * other request?
+	 * as well (as it's straightforward).  Other request recipient
+	 * types are only handled when the user flag FUNCTIONFS_ALL_CTRL_RECIP
+	 * is being used.
 	 */
 	if (ffs->state != FFS_ACTIVE)
 		return -ENODEV;
@@ -3116,7 +3120,10 @@ static int ffs_func_setup(struct usb_function *f,
 		break;
 
 	default:
-		return -EOPNOTSUPP;
+		if (func->ffs->user_flags & FUNCTIONFS_ALL_CTRL_RECIP)
+			ret = le16_to_cpu(creq->wIndex);
+		else
+			return -EOPNOTSUPP;
 	}
 
 	spin_lock_irqsave(&ffs->ev.waitq.lock, flags);
@@ -3126,6 +3133,24 @@ static int ffs_func_setup(struct usb_function *f,
 	spin_unlock_irqrestore(&ffs->ev.waitq.lock, flags);
 
 	return 0;
+}
+
+static bool ffs_func_req_match(struct usb_function *f,
+			       const struct usb_ctrlrequest *creq)
+{
+	struct ffs_function *func = ffs_func_from_usb(f);
+
+	switch (creq->bRequestType & USB_RECIP_MASK) {
+	case USB_RECIP_INTERFACE:
+		return ffs_func_revmap_intf(func,
+					    le16_to_cpu(creq->wIndex) >= 0);
+	case USB_RECIP_ENDPOINT:
+		return ffs_func_revmap_ep(func,
+					  le16_to_cpu(creq->wIndex) >= 0);
+	default:
+		return (bool) (func->ffs->user_flags &
+			       FUNCTIONFS_ALL_CTRL_RECIP);
+	}
 }
 
 static void ffs_func_suspend(struct usb_function *f)
@@ -3378,6 +3403,7 @@ static struct usb_function *ffs_alloc(struct usb_function_instance *fi)
 	func->function.set_alt = ffs_func_set_alt;
 	func->function.disable = ffs_func_disable;
 	func->function.setup   = ffs_func_setup;
+	func->function.req_match = ffs_func_req_match;
 	func->function.suspend = ffs_func_suspend;
 	func->function.resume  = ffs_func_resume;
 	func->function.free_func = ffs_free;
