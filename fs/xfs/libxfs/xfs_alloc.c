@@ -1839,19 +1839,8 @@ void
 xfs_alloc_compute_maxlevels(
 	xfs_mount_t	*mp)	/* file system mount structure */
 {
-	int		level;
-	uint		maxblocks;
-	uint		maxleafents;
-	int		minleafrecs;
-	int		minnoderecs;
-
-	maxleafents = (mp->m_sb.sb_agblocks + 1) / 2;
-	minleafrecs = mp->m_alloc_mnr[0];
-	minnoderecs = mp->m_alloc_mnr[1];
-	maxblocks = (maxleafents + minleafrecs - 1) / minleafrecs;
-	for (level = 1; maxblocks > 1; level++)
-		maxblocks = (maxblocks + minnoderecs - 1) / minnoderecs;
-	mp->m_ag_maxlevels = level;
+	mp->m_ag_maxlevels = xfs_btree_compute_maxlevels(mp, mp->m_alloc_mnr,
+			(mp->m_sb.sb_agblocks + 1) / 2);
 }
 
 /*

@@ -4152,3 +4152,22 @@ xfs_btree_sblock_verify(
 
 	return true;
 }
+
+/*
+ * Calculate the number of btree levels needed to store a given number of
+ * records in a short-format btree.
+ */
+uint
+xfs_btree_compute_maxlevels(
+	struct xfs_mount	*mp,
+	uint			*limits,
+	unsigned long		len)
+{
+	uint			level;
+	unsigned long		maxblocks;
+
+	maxblocks = (len + limits[0] - 1) / limits[0];
+	for (level = 1; maxblocks > 1; level++)
+		maxblocks = (maxblocks + limits[1] - 1) / limits[1];
+	return level;
+}

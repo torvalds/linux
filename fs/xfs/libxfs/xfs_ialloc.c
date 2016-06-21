@@ -2394,20 +2394,11 @@ void
 xfs_ialloc_compute_maxlevels(
 	xfs_mount_t	*mp)		/* file system mount structure */
 {
-	int		level;
-	uint		maxblocks;
-	uint		maxleafents;
-	int		minleafrecs;
-	int		minnoderecs;
+	uint		inodes;
 
-	maxleafents = (1LL << XFS_INO_AGINO_BITS(mp)) >>
-		XFS_INODES_PER_CHUNK_LOG;
-	minleafrecs = mp->m_inobt_mnr[0];
-	minnoderecs = mp->m_inobt_mnr[1];
-	maxblocks = (maxleafents + minleafrecs - 1) / minleafrecs;
-	for (level = 1; maxblocks > 1; level++)
-		maxblocks = (maxblocks + minnoderecs - 1) / minnoderecs;
-	mp->m_in_maxlevels = level;
+	inodes = (1LL << XFS_INO_AGINO_BITS(mp)) >> XFS_INODES_PER_CHUNK_LOG;
+	mp->m_in_maxlevels = xfs_btree_compute_maxlevels(mp, mp->m_inobt_mnr,
+							 inodes);
 }
 
 /*
