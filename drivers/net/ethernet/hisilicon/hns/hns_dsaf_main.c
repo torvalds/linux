@@ -975,9 +975,9 @@ static void hns_dsaf_tcam_uc_get(
 
 	/*read tcam data*/
 	ptbl_tcam_data->tbl_tcam_data_high
-		= dsaf_read_dev(dsaf_dev, DSAF_TBL_TCAM_RDATA_LOW_0_REG);
-	ptbl_tcam_data->tbl_tcam_data_low
 		= dsaf_read_dev(dsaf_dev, DSAF_TBL_TCAM_RDATA_HIGH_0_REG);
+	ptbl_tcam_data->tbl_tcam_data_low
+		= dsaf_read_dev(dsaf_dev, DSAF_TBL_TCAM_RDATA_LOW_0_REG);
 
 	/*read tcam mcast*/
 	tcam_read_data0 = dsaf_read_dev(dsaf_dev,
@@ -1027,9 +1027,9 @@ static void hns_dsaf_tcam_mc_get(
 
 	/*read tcam data*/
 	ptbl_tcam_data->tbl_tcam_data_high =
-		dsaf_read_dev(dsaf_dev, DSAF_TBL_TCAM_RDATA_LOW_0_REG);
-	ptbl_tcam_data->tbl_tcam_data_low =
 		dsaf_read_dev(dsaf_dev, DSAF_TBL_TCAM_RDATA_HIGH_0_REG);
+	ptbl_tcam_data->tbl_tcam_data_low =
+		dsaf_read_dev(dsaf_dev, DSAF_TBL_TCAM_RDATA_LOW_0_REG);
 
 	/*read tcam mcast*/
 	ptbl_tcam_mcast->tbl_mcast_port_msk[0] =
