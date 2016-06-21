@@ -387,6 +387,12 @@ enum mv88e6xxx_cap {
 	 */
 	MV88E6XXX_CAP_EEPROM,
 
+	/* Multi-chip Addressing Mode.
+	 * Some chips require an indirect SMI access when their SMI device
+	 * address is not zero. See SMI_CMD and SMI_DATA.
+	 */
+	MV88E6XXX_CAP_MULTI_CHIP,
+
 	/* Port State Filtering for 802.1D Spanning Tree.
 	 * See PORT_CONTROL_STATE_* values in the PORT_CONTROL register.
 	 */
@@ -439,6 +445,7 @@ enum mv88e6xxx_cap {
 #define MV88E6XXX_FLAG_ATU		BIT(MV88E6XXX_CAP_ATU)
 #define MV88E6XXX_FLAG_EEE		BIT(MV88E6XXX_CAP_EEE)
 #define MV88E6XXX_FLAG_EEPROM		BIT(MV88E6XXX_CAP_EEPROM)
+#define MV88E6XXX_FLAG_MULTI_CHIP	BIT(MV88E6XXX_CAP_MULTI_CHIP)
 #define MV88E6XXX_FLAG_PORTSTATE	BIT(MV88E6XXX_CAP_PORTSTATE)
 #define MV88E6XXX_FLAG_PPU		BIT(MV88E6XXX_CAP_PPU)
 #define MV88E6XXX_FLAG_PPU_ACTIVE	BIT(MV88E6XXX_CAP_PPU_ACTIVE)
@@ -452,25 +459,29 @@ enum mv88e6xxx_cap {
 
 #define MV88E6XXX_FLAGS_FAMILY_6095	\
 	(MV88E6XXX_FLAG_ATU |		\
+	 MV88E6XXX_FLAG_MULTI_CHIP |	\
 	 MV88E6XXX_FLAG_PPU |		\
 	 MV88E6XXX_FLAG_VLANTABLE |	\
 	 MV88E6XXX_FLAG_VTU)
 
 #define MV88E6XXX_FLAGS_FAMILY_6097	\
 	(MV88E6XXX_FLAG_ATU |		\
+	 MV88E6XXX_FLAG_MULTI_CHIP |	\
 	 MV88E6XXX_FLAG_PPU |		\
 	 MV88E6XXX_FLAG_STU |		\
 	 MV88E6XXX_FLAG_VLANTABLE |	\
 	 MV88E6XXX_FLAG_VTU)
 
 #define MV88E6XXX_FLAGS_FAMILY_6165	\
-	(MV88E6XXX_FLAG_STU |		\
+	(MV88E6XXX_FLAG_MULTI_CHIP |	\
+	 MV88E6XXX_FLAG_STU |		\
 	 MV88E6XXX_FLAG_SWITCH_MAC |	\
 	 MV88E6XXX_FLAG_TEMP |		\
 	 MV88E6XXX_FLAG_VTU)
 
 #define MV88E6XXX_FLAGS_FAMILY_6185	\
 	(MV88E6XXX_FLAG_ATU |		\
+	 MV88E6XXX_FLAG_MULTI_CHIP |	\
 	 MV88E6XXX_FLAG_PPU |		\
 	 MV88E6XXX_FLAG_VLANTABLE |	\
 	 MV88E6XXX_FLAG_VTU)
@@ -479,6 +490,7 @@ enum mv88e6xxx_cap {
 	(MV88E6XXX_FLAG_ATU |		\
 	 MV88E6XXX_FLAG_EEE |		\
 	 MV88E6XXX_FLAG_EEPROM |	\
+	 MV88E6XXX_FLAG_MULTI_CHIP |	\
 	 MV88E6XXX_FLAG_PORTSTATE |	\
 	 MV88E6XXX_FLAG_PPU_ACTIVE |	\
 	 MV88E6XXX_FLAG_SMI_PHY |	\
@@ -490,6 +502,7 @@ enum mv88e6xxx_cap {
 
 #define MV88E6XXX_FLAGS_FAMILY_6351	\
 	(MV88E6XXX_FLAG_ATU |		\
+	 MV88E6XXX_FLAG_MULTI_CHIP |	\
 	 MV88E6XXX_FLAG_PORTSTATE |	\
 	 MV88E6XXX_FLAG_PPU_ACTIVE |	\
 	 MV88E6XXX_FLAG_SMI_PHY |	\
@@ -503,6 +516,7 @@ enum mv88e6xxx_cap {
 	(MV88E6XXX_FLAG_ATU |		\
 	 MV88E6XXX_FLAG_EEE |		\
 	 MV88E6XXX_FLAG_EEPROM |	\
+	 MV88E6XXX_FLAG_MULTI_CHIP |	\
 	 MV88E6XXX_FLAG_PORTSTATE |	\
 	 MV88E6XXX_FLAG_PPU_ACTIVE |	\
 	 MV88E6XXX_FLAG_SMI_PHY |	\
@@ -519,6 +533,7 @@ struct mv88e6xxx_info {
 	const char *name;
 	unsigned int num_databases;
 	unsigned int num_ports;
+	unsigned int port_base_addr;
 	unsigned long flags;
 };
 
@@ -541,6 +556,8 @@ struct mv88e6xxx_vtu_stu_entry {
 	u8	data[DSA_MAX_PORTS];
 };
 
+struct mv88e6xxx_ops;
+
 struct mv88e6xxx_priv_port {
 	struct net_device *bridge_dev;
 };
@@ -554,15 +571,13 @@ struct mv88e6xxx_priv_state {
 	/* The device this structure is associated to */
 	struct device *dev;
 
-	/* When using multi-chip addressing, this mutex protects
-	 * access to the indirect access registers.  (In single-chip
-	 * mode, this mutex is effectively useless.)
-	 */
-	struct mutex	smi_mutex;
+	/* This mutex protects the access to the switch registers */
+	struct mutex reg_lock;
 
 	/* The MII bus and the address on the bus that is used to
 	 * communication with the switch
 	 */
+	const struct mv88e6xxx_ops *smi_ops;
 	struct mii_bus *bus;
 	int sw_addr;
 
@@ -606,6 +621,13 @@ struct mv88e6xxx_priv_state {
 
 	/* And the MDIO bus itself */
 	struct mii_bus *mdio_bus;
+};
+
+struct mv88e6xxx_ops {
+	int (*read)(struct mv88e6xxx_priv_state *ps,
+		    int addr, int reg, u16 *val);
+	int (*write)(struct mv88e6xxx_priv_state *ps,
+		     int addr, int reg, u16 val);
 };
 
 enum stat_type {
