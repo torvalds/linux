@@ -12302,7 +12302,7 @@ S:	Maintained
 F:	drivers/net/vmxnet3/
 
 VMware PVSCSI driver
-M:	Arvind Kumar <arvindkumar@vmware.com>
+M:	Jim Gill <jgill@vmware.com>
 M:	VMware PV-Drivers <pv-drivers@vmware.com>
 L:	linux-scsi@vger.kernel.org
 S:	Maintained
