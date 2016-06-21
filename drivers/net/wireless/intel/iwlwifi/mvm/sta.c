@@ -1768,8 +1768,8 @@ int iwl_mvm_sta_rx_agg(struct iwl_mvm *mvm, struct ieee80211_sta *sta,
 
 	switch (status & IWL_ADD_STA_STATUS_MASK) {
 	case ADD_STA_SUCCESS:
-		IWL_DEBUG_INFO(mvm, "RX BA Session %sed in fw\n",
-			       start ? "start" : "stopp");
+		IWL_DEBUG_HT(mvm, "RX BA Session %sed in fw\n",
+			     start ? "start" : "stopp");
 		break;
 	case ADD_STA_IMMEDIATE_BA_FAILURE:
 		IWL_WARN(mvm, "RX BA Session refused by fw\n");
@@ -1824,6 +1824,8 @@ int iwl_mvm_sta_rx_agg(struct iwl_mvm *mvm, struct ieee80211_sta *sta,
 		 * supposed to happen) and we will free the session data while
 		 * RX is being processed in parallel
 		 */
+		IWL_DEBUG_HT(mvm, "Sta %d(%d) is assigned to BAID %d\n",
+			     mvm_sta->sta_id, tid, baid);
 		WARN_ON(rcu_access_pointer(mvm->baid_map[baid]));
 		rcu_assign_pointer(mvm->baid_map[baid], baid_data);
 	} else if (mvm->rx_ba_sessions > 0) {
@@ -1846,6 +1848,7 @@ int iwl_mvm_sta_rx_agg(struct iwl_mvm *mvm, struct ieee80211_sta *sta,
 		del_timer_sync(&baid_data->session_timer);
 		RCU_INIT_POINTER(mvm->baid_map[baid], NULL);
 		kfree_rcu(baid_data, rcu_head);
+		IWL_DEBUG_HT(mvm, "BAID %d is free\n", baid);
 	}
 	return 0;
 

@@ -476,6 +476,9 @@ void iwl_mvm_reorder_timer_expired(unsigned long data)
 		rcu_read_lock();
 		sta = rcu_dereference(buf->mvm->fw_id_to_mac_id[buf->sta_id]);
 		/* SN is set to the last expired frame + 1 */
+		IWL_DEBUG_HT(buf->mvm,
+			     "Releasing expired frames for sta %u, sn %d\n",
+			     buf->sta_id, sn);
 		iwl_mvm_release_frames(buf->mvm, sta, NULL, buf, sn);
 		rcu_read_unlock();
 	} else if (buf->num_stored) {
@@ -955,6 +958,9 @@ void iwl_mvm_rx_frame_release(struct iwl_mvm *mvm, struct napi_struct *napi,
 	struct iwl_mvm_baid_data *ba_data;
 
 	int baid = release->baid;
+
+	IWL_DEBUG_HT(mvm, "Frame release notification for BAID %u, NSSN %d\n",
+		     release->baid, le16_to_cpu(release->nssn));
 
 	if (WARN_ON_ONCE(baid == IWL_RX_REORDER_DATA_INVALID_BAID))
 		return;
