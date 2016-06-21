@@ -681,24 +681,29 @@ sti_hda_connector_detect(struct drm_connector *connector, bool force)
 	return connector_status_connected;
 }
 
-static void sti_hda_connector_destroy(struct drm_connector *connector)
+static int sti_hda_late_register(struct drm_connector *connector)
 {
 	struct sti_hda_connector *hda_connector
 		= to_sti_hda_connector(connector);
+	struct sti_hda *hda = hda_connector->hda;
 
-	drm_connector_unregister(connector);
-	drm_connector_cleanup(connector);
-	kfree(hda_connector);
+	if (hda_debugfs_init(hda, hda->drm_dev->primary)) {
+		DRM_ERROR("HDA debugfs setup failed\n");
+		return -EINVAL;
+	}
+
+	return 0;
 }
 
 static const struct drm_connector_funcs sti_hda_connector_funcs = {
 	.dpms = drm_atomic_helper_connector_dpms,
 	.fill_modes = drm_helper_probe_single_connector_modes,
 	.detect = sti_hda_connector_detect,
-	.destroy = sti_hda_connector_destroy,
+	.destroy = drm_connector_cleanup,
 	.reset = drm_atomic_helper_connector_reset,
 	.atomic_duplicate_state = drm_atomic_helper_connector_duplicate_state,
 	.atomic_destroy_state = drm_atomic_helper_connector_destroy_state,
+	.late_register = sti_hda_late_register,
 };
 
 static struct drm_encoder *sti_hda_find_encoder(struct drm_device *dev)
@@ -768,9 +773,6 @@ static int sti_hda_bind(struct device *dev, struct device *master, void *data)
 
 	/* force to disable hd dacs at startup */
 	hda_enable_hd_dacs(hda, false);
-
-	if (hda_debugfs_init(hda, drm_dev->primary))
-		DRM_ERROR("HDA debugfs setup failed\n");
 
 	return 0;
 

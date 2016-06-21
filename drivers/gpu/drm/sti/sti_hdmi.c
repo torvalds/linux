@@ -1007,8 +1007,21 @@ sti_hdmi_connector_get_property(struct drm_connector *connector,
 	return -EINVAL;
 }
 
+static int sti_hdmi_late_register(struct drm_connector *connector)
+{
+	struct sti_hdmi_connector *hdmi_connector
+		= to_sti_hdmi_connector(connector);
+	struct sti_hdmi *hdmi = hdmi_connector->hdmi;
+
+	if (hdmi_debugfs_init(hdmi, hdmi->drm_dev->primary)) {
+		DRM_ERROR("HDMI debugfs setup failed\n");
+		return -EINVAL;
+	}
+
+	return 0;
+}
+
 static const struct drm_connector_funcs sti_hdmi_connector_funcs = {
-	.dpms = drm_atomic_helper_connector_dpms,
 	.fill_modes = drm_helper_probe_single_connector_modes,
 	.detect = sti_hdmi_connector_detect,
 	.destroy = sti_hdmi_connector_destroy,
@@ -1018,6 +1031,7 @@ static const struct drm_connector_funcs sti_hdmi_connector_funcs = {
 	.atomic_get_property = sti_hdmi_connector_get_property,
 	.atomic_duplicate_state = drm_atomic_helper_connector_duplicate_state,
 	.atomic_destroy_state = drm_atomic_helper_connector_destroy_state,
+	.late_register = sti_hdmi_late_register,
 };
 
 static struct drm_encoder *sti_hdmi_find_encoder(struct drm_device *dev)
@@ -1090,9 +1104,6 @@ static int sti_hdmi_bind(struct device *dev, struct device *master, void *data)
 
 	/* Enable default interrupts */
 	hdmi_write(hdmi, HDMI_DEFAULT_INT, HDMI_INT_EN);
-
-	if (hdmi_debugfs_init(hdmi, drm_dev->primary))
-		DRM_ERROR("HDMI debugfs setup failed\n");
 
 	return 0;
 
