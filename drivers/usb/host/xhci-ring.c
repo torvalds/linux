@@ -66,6 +66,7 @@
 
 #include <linux/scatterlist.h>
 #include <linux/slab.h>
+#include <linux/dma-mapping.h>
 #include "xhci.h"
 #include "xhci-trace.h"
 #include "xhci-mtk.h"
@@ -626,6 +627,31 @@ static void xhci_giveback_urb_in_irq(struct xhci_hcd *xhci,
 	}
 }
 
+void xhci_unmap_td_bounce_buffer(struct xhci_hcd *xhci, struct xhci_ring *ring,
+				 struct xhci_td *td)
+{
+	struct device *dev = xhci_to_hcd(xhci)->self.controller;
+	struct xhci_segment *seg = td->bounce_seg;
+	struct urb *urb = td->urb;
+
+	if (!seg || !urb)
+		return;
+
+	if (usb_urb_dir_out(urb)) {
+		dma_unmap_single(dev, seg->bounce_dma, ring->bounce_buf_len,
+				 DMA_TO_DEVICE);
+		return;
+	}
+
+	/* for in tranfers we need to copy the data from bounce to sg */
+	sg_pcopy_from_buffer(urb->sg, urb->num_mapped_sgs, seg->bounce_buf,
+			     seg->bounce_len, seg->bounce_offs);
+	dma_unmap_single(dev, seg->bounce_dma, ring->bounce_buf_len,
+			 DMA_FROM_DEVICE);
+	seg->bounce_len = 0;
+	seg->bounce_offs = 0;
+}
+
 /*
  * When we get a command completion for a Stop Endpoint Command, we need to
  * unlink any cancelled TDs from the ring.  There are two ways to do that:
@@ -745,6 +771,8 @@ remove_finished_td:
 		/* Doesn't matter what we pass for status, since the core will
 		 * just overwrite it (because the URB has been unlinked).
 		 */
+		if (ep_ring && cur_td->bounce_seg)
+			xhci_unmap_td_bounce_buffer(xhci, ep_ring, cur_td);
 		xhci_giveback_urb_in_irq(xhci, cur_td, 0);
 
 		/* Stop processing the cancelled list if the watchdog timer is
@@ -767,6 +795,9 @@ static void xhci_kill_ring_urbs(struct xhci_hcd *xhci, struct xhci_ring *ring)
 		list_del_init(&cur_td->td_list);
 		if (!list_empty(&cur_td->cancelled_td_list))
 			list_del_init(&cur_td->cancelled_td_list);
+
+		if (cur_td->bounce_seg)
+			xhci_unmap_td_bounce_buffer(xhci, ring, cur_td);
 		xhci_giveback_urb_in_irq(xhci, cur_td, -ESHUTDOWN);
 	}
 }
@@ -1864,6 +1895,10 @@ td_cleanup:
 	/* Clean up the endpoint's TD list */
 	urb = td->urb;
 	urb_priv = urb->hcpriv;
+
+	/* if a bounce buffer was used to align this td then unmap it */
+	if (td->bounce_seg)
+		xhci_unmap_td_bounce_buffer(xhci, ep_ring, td);
 
 	/* Do one last check of the actual transfer length.
 	 * If the host controller said we transferred more data than the buffer
@@ -3116,11 +3151,14 @@ static u32 xhci_td_remainder(struct xhci_hcd *xhci, int transferred,
 	return (total_packet_count - ((transferred + trb_buff_len) / maxp));
 }
 
+
 static int xhci_align_td(struct xhci_hcd *xhci, struct urb *urb, u32 enqd_len,
-			 u32 *trb_buff_len)
+			 u32 *trb_buff_len, struct xhci_segment *seg)
 {
+	struct device *dev = xhci_to_hcd(xhci)->self.controller;
 	unsigned int unalign;
 	unsigned int max_pkt;
+	u32 new_buff_len;
 
 	max_pkt = GET_MAX_PACKET(usb_endpoint_maxp(&urb->ep->desc));
 	unalign = (enqd_len + *trb_buff_len) % max_pkt;
@@ -3129,11 +3167,48 @@ static int xhci_align_td(struct xhci_hcd *xhci, struct urb *urb, u32 enqd_len,
 	if (unalign == 0)
 		return 0;
 
+	xhci_dbg(xhci, "Unaligned %d bytes, buff len %d\n",
+		 unalign, *trb_buff_len);
+
 	/* is the last nornal TRB alignable by splitting it */
 	if (*trb_buff_len > unalign) {
 		*trb_buff_len -= unalign;
+		xhci_dbg(xhci, "split align, new buff len %d\n", *trb_buff_len);
 		return 0;
 	}
+
+	/*
+	 * We want enqd_len + trb_buff_len to sum up to a number aligned to
+	 * number which is divisible by the endpoint's wMaxPacketSize. IOW:
+	 * (size of currently enqueued TRBs + remainder) % wMaxPacketSize == 0.
+	 */
+	new_buff_len = max_pkt - (enqd_len % max_pkt);
+
+	if (new_buff_len > (urb->transfer_buffer_length - enqd_len))
+		new_buff_len = (urb->transfer_buffer_length - enqd_len);
+
+	/* create a max max_pkt sized bounce buffer pointed to by last trb */
+	if (usb_urb_dir_out(urb)) {
+		sg_pcopy_to_buffer(urb->sg, urb->num_mapped_sgs,
+				   seg->bounce_buf, new_buff_len, enqd_len);
+		seg->bounce_dma = dma_map_single(dev, seg->bounce_buf,
+						 max_pkt, DMA_TO_DEVICE);
+	} else {
+		seg->bounce_dma = dma_map_single(dev, seg->bounce_buf,
+						 max_pkt, DMA_FROM_DEVICE);
+	}
+
+	if (dma_mapping_error(dev, seg->bounce_dma)) {
+		/* try without aligning. Some host controllers survive */
+		xhci_warn(xhci, "Failed mapping bounce buffer, not aligning\n");
+		return 0;
+	}
+	*trb_buff_len = new_buff_len;
+	seg->bounce_len = new_buff_len;
+	seg->bounce_offs = enqd_len;
+
+	xhci_dbg(xhci, "Bounce align, new buff len %d\n", *trb_buff_len);
+
 	return 1;
 }
 
@@ -3152,9 +3227,9 @@ int xhci_queue_bulk_tx(struct xhci_hcd *xhci, gfp_t mem_flags,
 	unsigned int num_trbs;
 	unsigned int start_cycle, num_sgs = 0;
 	unsigned int enqd_len, block_len, trb_buff_len, full_len;
-	int ret;
+	int sent_len, ret;
 	u32 field, length_field, remainder;
-	u64 addr;
+	u64 addr, send_addr;
 
 	ring = xhci_urb_to_transfer_ring(xhci, urb);
 	if (!ring)
@@ -3194,6 +3269,7 @@ int xhci_queue_bulk_tx(struct xhci_hcd *xhci, gfp_t mem_flags,
 	 */
 	start_trb = &ring->enqueue->generic;
 	start_cycle = ring->cycle_state;
+	send_addr = addr;
 
 	/* Queue the TRBs, even if they are zero-length */
 	for (enqd_len = 0; enqd_len < full_len; enqd_len += trb_buff_len) {
@@ -3222,10 +3298,16 @@ int xhci_queue_bulk_tx(struct xhci_hcd *xhci, gfp_t mem_flags,
 			if (last_trb(xhci, ring, ring->enq_seg,
 				     ring->enqueue + 1)) {
 				if (xhci_align_td(xhci, urb, enqd_len,
-						 &trb_buff_len))
-					xhci_dbg(xhci, "TRB align fail\n");
+						  &trb_buff_len,
+						  ring->enq_seg)) {
+					send_addr = ring->enq_seg->bounce_dma;
+					/* assuming TD won't span 2 segs */
+					td->bounce_seg = ring->enq_seg;
+				}
 			}
-		} else {
+		}
+		if (enqd_len + trb_buff_len >= full_len) {
+			field &= ~TRB_CHAIN;
 			field |= TRB_IOC;
 			more_trbs_coming = false;
 			td->last_trb = ring->enqueue;
@@ -3244,23 +3326,27 @@ int xhci_queue_bulk_tx(struct xhci_hcd *xhci, gfp_t mem_flags,
 			TRB_INTR_TARGET(0);
 
 		queue_trb(xhci, ring, more_trbs_coming | need_zero_pkt,
-				lower_32_bits(addr),
-				upper_32_bits(addr),
+				lower_32_bits(send_addr),
+				upper_32_bits(send_addr),
 				length_field,
 				field);
 
 		addr += trb_buff_len;
-		block_len -= trb_buff_len;
+		sent_len = trb_buff_len;
 
-		if (sg && block_len == 0) {
+		while (sg && sent_len >= block_len) {
 			/* New sg entry */
 			--num_sgs;
+			sent_len -= block_len;
 			if (num_sgs != 0) {
 				sg = sg_next(sg);
 				block_len = sg_dma_len(sg);
 				addr = (u64) sg_dma_address(sg);
+				addr += sent_len;
 			}
 		}
+		block_len -= sent_len;
+		send_addr = addr;
 	}
 
 	if (need_zero_pkt) {
