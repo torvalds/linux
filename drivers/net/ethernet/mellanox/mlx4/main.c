@@ -4135,8 +4135,11 @@ static void mlx4_shutdown(struct pci_dev *pdev)
 
 	mlx4_info(persist->dev, "mlx4_shutdown was called\n");
 	mutex_lock(&persist->interface_state_mutex);
-	if (persist->interface_state & MLX4_INTERFACE_STATE_UP)
+	if (persist->interface_state & MLX4_INTERFACE_STATE_UP) {
+		/* Notify mlx4 clients that the kernel is being shut down */
+		persist->interface_state |= MLX4_INTERFACE_STATE_SHUTDOWN;
 		mlx4_unload_one(pdev);
+	}
 	mutex_unlock(&persist->interface_state_mutex);
 }
 
