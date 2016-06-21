@@ -200,7 +200,7 @@ test_PIE:
 	retval = ioctl(fd, RTC_IRQP_READ, &tmp);
 	if (retval == -1) {
 		/* not all RTCs support periodic IRQs */
-		if (errno == ENOTTY) {
+		if (errno == EINVAL) {
 			fprintf(stderr, "\nNo periodic IRQ support\n");
 			goto done;
 		}
