@@ -1114,10 +1114,10 @@ int hns_dsaf_set_rx_mac_pause_en(struct dsaf_device *dsaf_dev, int mac_id,
 				 u32 en)
 {
 	if (AE_IS_VER1(dsaf_dev->dsaf_ver)) {
-		if (!en)
+		if (!en) {
 			dev_err(dsaf_dev->dev, "dsafv1 can't close rx_pause!\n");
-
-		return -EINVAL;
+			return -EINVAL;
+		}
 	}
 
 	dsaf_set_dev_bit(dsaf_dev, DSAF_PAUSE_CFG_REG + mac_id * 4,
