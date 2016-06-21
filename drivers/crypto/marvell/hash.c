@@ -335,6 +335,8 @@ static void mv_cesa_ahash_complete(struct crypto_async_request *req)
 				result[i] = cpu_to_be32(creq->state[i]);
 		}
 	}
+
+	atomic_sub(ahashreq->nbytes, &engine->load);
 }
 
 static void mv_cesa_ahash_prepare(struct crypto_async_request *req,
@@ -365,7 +367,6 @@ static void mv_cesa_ahash_req_cleanup(struct crypto_async_request *req)
 static const struct mv_cesa_req_ops mv_cesa_ahash_req_ops = {
 	.step = mv_cesa_ahash_step,
 	.process = mv_cesa_ahash_process,
-	.prepare = mv_cesa_ahash_prepare,
 	.cleanup = mv_cesa_ahash_req_cleanup,
 	.complete = mv_cesa_ahash_complete,
 };
@@ -682,13 +683,13 @@ static int mv_cesa_ahash_req_init(struct ahash_request *req, bool *cached)
 	return ret;
 }
 
-static int mv_cesa_ahash_update(struct ahash_request *req)
+static int mv_cesa_ahash_queue_req(struct ahash_request *req)
 {
 	struct mv_cesa_ahash_req *creq = ahash_request_ctx(req);
+	struct mv_cesa_engine *engine;
 	bool cached = false;
 	int ret;
 
-	creq->len += req->nbytes;
 	ret = mv_cesa_ahash_req_init(req, &cached);
 	if (ret)
 		return ret;
@@ -696,61 +697,48 @@ static int mv_cesa_ahash_update(struct ahash_request *req)
 	if (cached)
 		return 0;
 
+	engine = mv_cesa_select_engine(req->nbytes);
+	mv_cesa_ahash_prepare(&req->base, engine);
+
 	ret = mv_cesa_queue_req(&req->base, &creq->base);
+
 	if (mv_cesa_req_needs_cleanup(&req->base, ret))
 		mv_cesa_ahash_cleanup(req);
 
 	return ret;
+}
+
+static int mv_cesa_ahash_update(struct ahash_request *req)
+{
+	struct mv_cesa_ahash_req *creq = ahash_request_ctx(req);
+
+	creq->len += req->nbytes;
+
+	return mv_cesa_ahash_queue_req(req);
 }
 
 static int mv_cesa_ahash_final(struct ahash_request *req)
 {
 	struct mv_cesa_ahash_req *creq = ahash_request_ctx(req);
 	struct mv_cesa_op_ctx *tmpl = &creq->op_tmpl;
-	bool cached = false;
-	int ret;
 
 	mv_cesa_set_mac_op_total_len(tmpl, creq->len);
 	creq->last_req = true;
 	req->nbytes = 0;
 
-	ret = mv_cesa_ahash_req_init(req, &cached);
-	if (ret)
-		return ret;
-
-	if (cached)
-		return 0;
-
-	ret = mv_cesa_queue_req(&req->base, &creq->base);
-	if (mv_cesa_req_needs_cleanup(&req->base, ret))
-		mv_cesa_ahash_cleanup(req);
-
-	return ret;
+	return mv_cesa_ahash_queue_req(req);
 }
 
 static int mv_cesa_ahash_finup(struct ahash_request *req)
 {
 	struct mv_cesa_ahash_req *creq = ahash_request_ctx(req);
 	struct mv_cesa_op_ctx *tmpl = &creq->op_tmpl;
-	bool cached = false;
-	int ret;
 
 	creq->len += req->nbytes;
 	mv_cesa_set_mac_op_total_len(tmpl, creq->len);
 	creq->last_req = true;
 
-	ret = mv_cesa_ahash_req_init(req, &cached);
-	if (ret)
-		return ret;
-
-	if (cached)
-		return 0;
-
-	ret = mv_cesa_queue_req(&req->base, &creq->base);
-	if (mv_cesa_req_needs_cleanup(&req->base, ret))
-		mv_cesa_ahash_cleanup(req);
-
-	return ret;
+	return mv_cesa_ahash_queue_req(req);
 }
 
 static int mv_cesa_ahash_export(struct ahash_request *req, void *hash,

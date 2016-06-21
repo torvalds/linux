@@ -400,7 +400,6 @@ struct mv_cesa_dev_dma {
  * @regs:	device registers
  * @sram_size:	usable SRAM size
  * @lock:	device lock
- * @queue:	crypto request queue
  * @engines:	array of engines
  * @dma:	dma pools
  *
@@ -412,7 +411,6 @@ struct mv_cesa_dev {
 	struct device *dev;
 	unsigned int sram_size;
 	spinlock_t lock;
-	struct crypto_queue queue;
 	struct mv_cesa_engine *engines;
 	struct mv_cesa_dev_dma *dma;
 };
@@ -431,6 +429,8 @@ struct mv_cesa_dev {
  * @int_mask:		interrupt mask cache
  * @pool:		memory pool pointing to the memory region reserved in
  *			SRAM
+ * @queue:		fifo of the pending crypto requests
+ * @load:		engine load counter, useful for load balancing
  *
  * Structure storing CESA engine information.
  */
@@ -446,11 +446,12 @@ struct mv_cesa_engine {
 	size_t max_req_len;
 	u32 int_mask;
 	struct gen_pool *pool;
+	struct crypto_queue queue;
+	atomic_t load;
 };
 
 /**
  * struct mv_cesa_req_ops - CESA request operations
- * @prepare:	prepare a request to be executed on the specified engine
  * @process:	process a request chunk result (should return 0 if the
  *		operation, -EINPROGRESS if it needs more steps or an error
  *		code)
@@ -460,8 +461,6 @@ struct mv_cesa_engine {
  * 		needed.
  */
 struct mv_cesa_req_ops {
-	void (*prepare)(struct crypto_async_request *req,
-			struct mv_cesa_engine *engine);
 	int (*process)(struct crypto_async_request *req, u32 status);
 	void (*step)(struct crypto_async_request *req);
 	void (*cleanup)(struct crypto_async_request *req);
@@ -689,6 +688,26 @@ static inline bool mv_cesa_mac_op_is_first_frag(const struct mv_cesa_op_ctx *op)
 
 int mv_cesa_queue_req(struct crypto_async_request *req,
 		      struct mv_cesa_req *creq);
+
+static inline struct mv_cesa_engine *mv_cesa_select_engine(int weight)
+{
+	int i;
+	u32 min_load = U32_MAX;
+	struct mv_cesa_engine *selected = NULL;
+
+	for (i = 0; i < cesa_dev->caps->nengines; i++) {
+		struct mv_cesa_engine *engine = cesa_dev->engines + i;
+		u32 load = atomic_read(&engine->load);
+		if (load < min_load) {
+			min_load = load;
+			selected = engine;
+		}
+	}
+
+	atomic_add(weight, &selected->load);
+
+	return selected;
+}
 
 /*
  * Helper function that indicates whether a crypto request needs to be

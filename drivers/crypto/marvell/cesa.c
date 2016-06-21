@@ -40,16 +40,14 @@ MODULE_PARM_DESC(allhwsupport, "Enable support for all hardware (even it if over
 
 struct mv_cesa_dev *cesa_dev;
 
-static void mv_cesa_dequeue_req_unlocked(struct mv_cesa_engine *engine)
+static void mv_cesa_dequeue_req_locked(struct mv_cesa_engine *engine)
 {
 	struct crypto_async_request *req, *backlog;
 	struct mv_cesa_ctx *ctx;
 
-	spin_lock_bh(&cesa_dev->lock);
-	backlog = crypto_get_backlog(&cesa_dev->queue);
-	req = crypto_dequeue_request(&cesa_dev->queue);
+	backlog = crypto_get_backlog(&engine->queue);
+	req = crypto_dequeue_request(&engine->queue);
 	engine->req = req;
-	spin_unlock_bh(&cesa_dev->lock);
 
 	if (!req)
 		return;
@@ -58,7 +56,6 @@ static void mv_cesa_dequeue_req_unlocked(struct mv_cesa_engine *engine)
 		backlog->complete(backlog, -EINPROGRESS);
 
 	ctx = crypto_tfm_ctx(req->tfm);
-	ctx->ops->prepare(req, engine);
 	ctx->ops->step(req);
 }
 
@@ -96,7 +93,7 @@ static irqreturn_t mv_cesa_int(int irq, void *priv)
 			if (res != -EINPROGRESS) {
 				spin_lock_bh(&engine->lock);
 				engine->req = NULL;
-				mv_cesa_dequeue_req_unlocked(engine);
+				mv_cesa_dequeue_req_locked(engine);
 				spin_unlock_bh(&engine->lock);
 				ctx->ops->complete(req);
 				ctx->ops->cleanup(req);
@@ -116,21 +113,19 @@ int mv_cesa_queue_req(struct crypto_async_request *req,
 		      struct mv_cesa_req *creq)
 {
 	int ret;
-	int i;
+	struct mv_cesa_engine *engine = creq->engine;
 
-	spin_lock_bh(&cesa_dev->lock);
-	ret = crypto_enqueue_request(&cesa_dev->queue, req);
-	spin_unlock_bh(&cesa_dev->lock);
+	spin_lock_bh(&engine->lock);
+	ret = crypto_enqueue_request(&engine->queue, req);
+	spin_unlock_bh(&engine->lock);
 
 	if (ret != -EINPROGRESS)
 		return ret;
 
-	for (i = 0; i < cesa_dev->caps->nengines; i++) {
-		spin_lock_bh(&cesa_dev->engines[i].lock);
-		if (!cesa_dev->engines[i].req)
-			mv_cesa_dequeue_req_unlocked(&cesa_dev->engines[i]);
-		spin_unlock_bh(&cesa_dev->engines[i].lock);
-	}
+	spin_lock_bh(&engine->lock);
+	if (!engine->req)
+		mv_cesa_dequeue_req_locked(engine);
+	spin_unlock_bh(&engine->lock);
 
 	return -EINPROGRESS;
 }
@@ -425,7 +420,7 @@ static int mv_cesa_probe(struct platform_device *pdev)
 		return -ENOMEM;
 
 	spin_lock_init(&cesa->lock);
-	crypto_init_queue(&cesa->queue, CESA_CRYPTO_DEFAULT_MAX_QLEN);
+
 	res = platform_get_resource_byname(pdev, IORESOURCE_MEM, "regs");
 	cesa->regs = devm_ioremap_resource(dev, res);
 	if (IS_ERR(cesa->regs))
@@ -498,6 +493,9 @@ static int mv_cesa_probe(struct platform_device *pdev)
 						engine);
 		if (ret)
 			goto err_cleanup;
+
+		crypto_init_queue(&engine->queue, CESA_CRYPTO_DEFAULT_MAX_QLEN);
+		atomic_set(&engine->load, 0);
 	}
 
 	cesa_dev = cesa;
