@@ -86,9 +86,10 @@ static void hns_cpld_set_led(struct hns_mac_cb *mac_cb, int link_status,
 			mac_cb->cpld_led_value = value;
 		}
 	} else {
-		dsaf_write_syscon(mac_cb->cpld_ctrl, mac_cb->cpld_ctrl_reg,
-				  CPLD_LED_DEFAULT_VALUE);
-		mac_cb->cpld_led_value = CPLD_LED_DEFAULT_VALUE;
+		value = (mac_cb->cpld_led_value) & (0x1 << DSAF_LED_ANCHOR_B);
+		dsaf_write_syscon(mac_cb->cpld_ctrl,
+				  mac_cb->cpld_ctrl_reg, value);
+		mac_cb->cpld_led_value = value;
 	}
 }
 
@@ -114,7 +115,7 @@ static int cpld_set_led_id(struct hns_mac_cb *mac_cb,
 			     CPLD_LED_ON_VALUE);
 		dsaf_write_syscon(mac_cb->cpld_ctrl, mac_cb->cpld_ctrl_reg,
 				  mac_cb->cpld_led_value);
-		return 2;
+		break;
 	case HNAE_LED_INACTIVE:
 		dsaf_set_bit(mac_cb->cpld_led_value, DSAF_LED_ANCHOR_B,
 			     CPLD_LED_DEFAULT_VALUE);
@@ -122,7 +123,8 @@ static int cpld_set_led_id(struct hns_mac_cb *mac_cb,
 				  mac_cb->cpld_led_value);
 		break;
 	default:
-		break;
+		dev_err(mac_cb->dev, "invalid led state: %d!", status);
+		return -EINVAL;
 	}
 
 	return 0;
