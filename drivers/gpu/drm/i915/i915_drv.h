@@ -2789,9 +2789,10 @@ struct drm_i915_cmd_table {
 #define HAS_BROKEN_CS_TLB(dev)		(IS_I830(dev) || IS_845G(dev))
 
 /* WaRsDisableCoarsePowerGating:skl,bxt */
-#define NEEDS_WaRsDisableCoarsePowerGating(dev) (IS_BXT_REVID(dev, 0, BXT_REVID_A1) || \
-						 IS_SKL_GT3(dev) || \
-						 IS_SKL_GT4(dev))
+#define NEEDS_WaRsDisableCoarsePowerGating(dev_priv) \
+	(IS_BXT_REVID(dev_priv, 0, BXT_REVID_A1) || \
+	 IS_SKL_GT3(dev_priv) || \
+	 IS_SKL_GT4(dev_priv))
 
 /*
  * dp aux and gmbus irq on gen4 seems to be able to generate legacy interrupts
