@@ -20,6 +20,7 @@
 		i2c0	= &blsp1_i2c2;
 		i2c1	= &blsp2_i2c1;
 		i2c2	= &blsp2_i2c0;
+		spi0	= &blsp1_spi0;
 	};
 
 	chosen {
@@ -52,6 +53,12 @@
 		i2c@075b6000 {
 		/* On Low speed expansion */
 			label = "LS-I2C1";
+			status = "okay";
+		};
+
+		spi@07575000 {
+		/* On Low speed expansion */
+			label = "LS-SPI0";
 			status = "okay";
 		};
 
