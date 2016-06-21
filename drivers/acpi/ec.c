@@ -1530,6 +1530,11 @@ static int ec_clear_on_resume(const struct dmi_system_id *id)
 	return 0;
 }
 
+/*
+ * Some ECDTs contain wrong register addresses.
+ * MSI MS-171F
+ * https://bugzilla.kernel.org/show_bug.cgi?id=12461
+ */
 static int ec_correct_ecdt(const struct dmi_system_id *id)
 {
 	pr_debug("Detected system needing ECDT address correction.\n");
@@ -1538,16 +1543,6 @@ static int ec_correct_ecdt(const struct dmi_system_id *id)
 }
 
 static struct dmi_system_id ec_dmi_table[] __initdata = {
-	{
-	ec_correct_ecdt, "Asus L4R", {
-	DMI_MATCH(DMI_BIOS_VERSION, "1008.006"),
-	DMI_MATCH(DMI_PRODUCT_NAME, "L4R"),
-	DMI_MATCH(DMI_BOARD_NAME, "L4R") }, NULL},
-	{
-	ec_correct_ecdt, "Asus M6R", {
-	DMI_MATCH(DMI_BIOS_VERSION, "0207"),
-	DMI_MATCH(DMI_PRODUCT_NAME, "M6R"),
-	DMI_MATCH(DMI_BOARD_NAME, "M6R") }, NULL},
 	{
 	ec_correct_ecdt, "MSI MS-171F", {
 	DMI_MATCH(DMI_SYS_VENDOR, "Micro-Star"),
@@ -1590,12 +1585,6 @@ int __init acpi_ec_ecdt_probe(void)
 
 	pr_info("EC description table is found, configuring boot EC\n");
 	if (EC_FLAGS_CORRECT_ECDT) {
-		/*
-		 * Asus L4R, Asus M6R
-		 * https://bugzilla.kernel.org/show_bug.cgi?id=9399
-		 * MSI MS-171F
-		 * https://bugzilla.kernel.org/show_bug.cgi?id=12461
-		 */
 		ec->command_addr = ecdt_ptr->data.address;
 		ec->data_addr = ecdt_ptr->control.address;
 	} else {
