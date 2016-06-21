@@ -416,16 +416,16 @@ void rockchip_drm_lastclose(struct drm_device *dev)
 
 static const struct drm_ioctl_desc rockchip_ioctls[] = {
 	DRM_IOCTL_DEF_DRV(ROCKCHIP_GEM_CREATE, rockchip_gem_create_ioctl,
-			  DRM_UNLOCKED | DRM_AUTH),
+			  DRM_UNLOCKED | DRM_AUTH | DRM_RENDER_ALLOW),
 	DRM_IOCTL_DEF_DRV(ROCKCHIP_GEM_MAP_OFFSET,
 			  rockchip_gem_map_offset_ioctl,
-			  DRM_UNLOCKED | DRM_AUTH),
+			  DRM_UNLOCKED | DRM_AUTH | DRM_RENDER_ALLOW),
 	DRM_IOCTL_DEF_DRV(ROCKCHIP_GEM_CPU_ACQUIRE,
 			  rockchip_gem_cpu_acquire_ioctl,
-			  DRM_UNLOCKED | DRM_AUTH),
+			  DRM_UNLOCKED | DRM_AUTH | DRM_RENDER_ALLOW),
 	DRM_IOCTL_DEF_DRV(ROCKCHIP_GEM_CPU_RELEASE,
 			  rockchip_gem_cpu_release_ioctl,
-			  DRM_UNLOCKED | DRM_AUTH),
+			  DRM_UNLOCKED | DRM_AUTH | DRM_RENDER_ALLOW),
 	DRM_IOCTL_DEF_DRV(ROCKCHIP_RGA_GET_VER, rockchip_rga_get_ver_ioctl,
 			  DRM_AUTH | DRM_RENDER_ALLOW),
 	DRM_IOCTL_DEF_DRV(ROCKCHIP_RGA_SET_CMDLIST,
@@ -455,7 +455,8 @@ const struct vm_operations_struct rockchip_drm_vm_ops = {
 
 static struct drm_driver rockchip_drm_driver = {
 	.driver_features	= DRIVER_MODESET | DRIVER_GEM |
-				  DRIVER_PRIME | DRIVER_ATOMIC,
+				  DRIVER_PRIME | DRIVER_ATOMIC |
+				  DRIVER_RENDER,
 	.load			= rockchip_drm_load,
 	.unload			= rockchip_drm_unload,
 	.preclose		= rockchip_drm_preclose,
