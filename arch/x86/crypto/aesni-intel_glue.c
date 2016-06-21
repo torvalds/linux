@@ -1098,9 +1098,12 @@ static int rfc4106_encrypt(struct aead_request *req)
 	struct cryptd_aead **ctx = crypto_aead_ctx(tfm);
 	struct cryptd_aead *cryptd_tfm = *ctx;
 
-	aead_request_set_tfm(req, irq_fpu_usable() ?
-				  cryptd_aead_child(cryptd_tfm) :
-				  &cryptd_tfm->base);
+	tfm = &cryptd_tfm->base;
+	if (irq_fpu_usable() && (!in_atomic() ||
+				 !cryptd_aead_queued(cryptd_tfm)))
+		tfm = cryptd_aead_child(cryptd_tfm);
+
+	aead_request_set_tfm(req, tfm);
 
 	return crypto_aead_encrypt(req);
 }
@@ -1111,9 +1114,12 @@ static int rfc4106_decrypt(struct aead_request *req)
 	struct cryptd_aead **ctx = crypto_aead_ctx(tfm);
 	struct cryptd_aead *cryptd_tfm = *ctx;
 
-	aead_request_set_tfm(req, irq_fpu_usable() ?
-				  cryptd_aead_child(cryptd_tfm) :
-				  &cryptd_tfm->base);
+	tfm = &cryptd_tfm->base;
+	if (irq_fpu_usable() && (!in_atomic() ||
+				 !cryptd_aead_queued(cryptd_tfm)))
+		tfm = cryptd_aead_child(cryptd_tfm);
+
+	aead_request_set_tfm(req, tfm);
 
 	return crypto_aead_decrypt(req);
 }
