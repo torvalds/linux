@@ -525,11 +525,11 @@ int drm_dev_init(struct drm_device *dev,
 		}
 	}
 
-	if (parent) {
-		ret = drm_dev_set_unique(dev, dev_name(parent));
-		if (ret)
-			goto err_setunique;
-	}
+	/* Use the parent device name as DRM device unique identifier, but fall
+	 * back to the driver name for virtual devices like vgem. */
+	ret = drm_dev_set_unique(dev, parent ? dev_name(parent) : driver->name);
+	if (ret)
+		goto err_setunique;
 
 	return 0;
 
