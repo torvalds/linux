@@ -191,11 +191,11 @@ static inline void vop_mask_write(struct vop *vop, uint32_t offset,
 		return;
 
 	if (write_mask) {
-		v = (v << shift) | (mask << (shift + 16));
+		v = ((v & mask) << shift) | (mask << (shift + 16));
 	} else {
 		uint32_t cached_val = vop->regsbak[offset >> 2];
 
-		v = (cached_val & ~(mask << shift)) | (v << shift);
+		v = (cached_val & ~(mask << shift)) | ((v & mask) << shift);
 		vop->regsbak[offset >> 2] = v;
 	}
 
