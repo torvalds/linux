@@ -24,7 +24,6 @@ struct gb_sdio_host {
 	struct mmc_request	*mrq;
 	struct mutex		lock;	/* lock for this host */
 	size_t			data_max;
-	void			*xfer_buffer;
 	spinlock_t		xfer;	/* lock to cancel ongoing transfer */
 	bool			xfer_stop;
 	struct workqueue_struct	*mrq_workqueue;
@@ -245,7 +244,8 @@ static int _gb_sdio_send(struct gb_sdio_host *host, struct mmc_data *data,
 			 size_t len, u16 nblocks, off_t skip)
 {
 	struct gb_sdio_transfer_request *request;
-	struct gb_sdio_transfer_response response;
+	struct gb_sdio_transfer_response *response;
+	struct gb_operation *operation;
 	struct scatterlist *sg = data->sg;
 	unsigned int sg_len = data->sg_len;
 	size_t copied;
@@ -255,30 +255,41 @@ static int _gb_sdio_send(struct gb_sdio_host *host, struct mmc_data *data,
 
 	WARN_ON(len > host->data_max);
 
-	request = host->xfer_buffer;
+	operation = gb_operation_create(host->connection, GB_SDIO_TYPE_TRANSFER,
+					len + sizeof(*request),
+					sizeof(*response), GFP_KERNEL);
+	if (!operation)
+		return -ENOMEM;
+
+	request = operation->request->payload;
 	request->data_flags = (data->flags >> 8);
 	request->data_blocks = cpu_to_le16(nblocks);
 	request->data_blksz = cpu_to_le16(data->blksz);
 
 	copied = sg_pcopy_to_buffer(sg, sg_len, &request->data[0], len, skip);
 
-	if (copied != len)
-		return -EINVAL;
+	if (copied != len) {
+		ret = -EINVAL;
+		goto err_put_operation;
+	}
 
-	ret = gb_operation_sync(host->connection, GB_SDIO_TYPE_TRANSFER,
-				request, len + sizeof(*request),
-				&response, sizeof(response));
+	ret = gb_operation_request_send_sync(operation);
 	if (ret < 0)
-		return ret;
+		goto err_put_operation;
 
-	send_blocks = le16_to_cpu(response.data_blocks);
-	send_blksz = le16_to_cpu(response.data_blksz);
+	response = operation->response->payload;
+
+	send_blocks = le16_to_cpu(response->data_blocks);
+	send_blksz = le16_to_cpu(response->data_blksz);
 
 	if (len != send_blksz * send_blocks) {
 		dev_err(mmc_dev(host->mmc), "send: size received: %zu != %d\n",
 			len, send_blksz * send_blocks);
-		return -EINVAL;
+		ret = -EINVAL;
 	}
+
+err_put_operation:
+	gb_operation_put(operation);
 
 	return ret;
 }
@@ -286,8 +297,9 @@ static int _gb_sdio_send(struct gb_sdio_host *host, struct mmc_data *data,
 static int _gb_sdio_recv(struct gb_sdio_host *host, struct mmc_data *data,
 			 size_t len, u16 nblocks, off_t skip)
 {
-	struct gb_sdio_transfer_request request;
+	struct gb_sdio_transfer_request *request;
 	struct gb_sdio_transfer_response *response;
+	struct gb_operation *operation;
 	struct scatterlist *sg = data->sg;
 	unsigned int sg_len = data->sg_len;
 	size_t copied;
@@ -297,33 +309,41 @@ static int _gb_sdio_recv(struct gb_sdio_host *host, struct mmc_data *data,
 
 	WARN_ON(len > host->data_max);
 
-	request.data_flags = (data->flags >> 8);
-	request.data_blocks = cpu_to_le16(nblocks);
-	request.data_blksz = cpu_to_le16(data->blksz);
+	operation = gb_operation_create(host->connection, GB_SDIO_TYPE_TRANSFER,
+					sizeof(*request),
+					len + sizeof(*response), GFP_KERNEL);
+	if (!operation)
+		return -ENOMEM;
 
-	response = host->xfer_buffer;
+	request = operation->request->payload;
+	request->data_flags = (data->flags >> 8);
+	request->data_blocks = cpu_to_le16(nblocks);
+	request->data_blksz = cpu_to_le16(data->blksz);
 
-	ret = gb_operation_sync(host->connection, GB_SDIO_TYPE_TRANSFER,
-				&request, sizeof(request), response, len +
-				sizeof(*response));
+	ret = gb_operation_request_send_sync(operation);
 	if (ret < 0)
-		return ret;
+		goto err_put_operation;
 
+	response = operation->response->payload;
 	recv_blocks = le16_to_cpu(response->data_blocks);
 	recv_blksz = le16_to_cpu(response->data_blksz);
 
 	if (len != recv_blksz * recv_blocks) {
 		dev_err(mmc_dev(host->mmc), "recv: size received: %d != %zu\n",
 			recv_blksz * recv_blocks, len);
-		return -EINVAL;
+		ret = -EINVAL;
+		goto err_put_operation;
 	}
 
 	copied = sg_pcopy_from_buffer(sg, sg_len, &response->data[0], len,
 				      skip);
 	if (copied != len)
-		return -EINVAL;
+		ret = -EINVAL;
 
-	return 0;
+err_put_operation:
+	gb_operation_put(operation);
+
+	return ret;
 }
 
 static int gb_sdio_transfer(struct gb_sdio_host *host, struct mmc_data *data)
@@ -720,7 +740,6 @@ static int gb_sdio_probe(struct gbphy_device *gbphy_dev,
 	struct gb_connection *connection;
 	struct mmc_host *mmc;
 	struct gb_sdio_host *host;
-	size_t max_buffer;
 	int ret = 0;
 
 	mmc = mmc_alloc_host(sizeof(*host), &gbphy_dev->dev);
@@ -760,19 +779,13 @@ static int gb_sdio_probe(struct gbphy_device *gbphy_dev,
 
 	mmc->max_req_size = mmc->max_blk_size * mmc->max_blk_count;
 
-	max_buffer = gb_operation_get_payload_size_max(host->connection);
-	host->xfer_buffer = kzalloc(max_buffer, GFP_KERNEL);
-	if (!host->xfer_buffer) {
-		ret = -ENOMEM;
-		goto exit_connection_disable;
-	}
 	mutex_init(&host->lock);
 	spin_lock_init(&host->xfer);
 	host->mrq_workqueue = alloc_workqueue("mmc-%s", 0, 1,
 					      dev_name(&gbphy_dev->dev));
 	if (!host->mrq_workqueue) {
 		ret = -ENOMEM;
-		goto exit_buf_free;
+		goto exit_connection_disable;
 	}
 	INIT_WORK(&host->mrqwork, gb_sdio_mrq_work);
 
@@ -791,8 +804,6 @@ static int gb_sdio_probe(struct gbphy_device *gbphy_dev,
 
 exit_wq_destroy:
 	destroy_workqueue(host->mrq_workqueue);
-exit_buf_free:
-	kfree(host->xfer_buffer);
 exit_connection_disable:
 	gb_connection_disable(connection);
 exit_connection_destroy:
@@ -821,7 +832,6 @@ static void gb_sdio_remove(struct gbphy_device *gbphy_dev)
 	mmc_remove_host(mmc);
 	gb_connection_disable(connection);
 	gb_connection_destroy(connection);
-	kfree(host->xfer_buffer);
 	mmc_free_host(mmc);
 }
 
