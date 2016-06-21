@@ -956,7 +956,6 @@ void __init intel_pmu_lbr_init_core(void)
 	 * SW branch filter usage:
 	 * - compensate for lack of HW filter
 	 */
-	pr_cont("4-deep LBR, ");
 }
 
 /* nehalem/westmere */
@@ -977,7 +976,6 @@ void __init intel_pmu_lbr_init_nhm(void)
 	 *   That requires LBR_FAR but that means far
 	 *   jmp need to be filtered out
 	 */
-	pr_cont("16-deep LBR, ");
 }
 
 /* sandy bridge */
@@ -997,7 +995,6 @@ void __init intel_pmu_lbr_init_snb(void)
 	 *   That requires LBR_FAR but that means far
 	 *   jmp need to be filtered out
 	 */
-	pr_cont("16-deep LBR, ");
 }
 
 /* haswell */
@@ -1010,8 +1007,6 @@ void intel_pmu_lbr_init_hsw(void)
 
 	x86_pmu.lbr_sel_mask = LBR_SEL_MASK;
 	x86_pmu.lbr_sel_map  = hsw_lbr_sel_map;
-
-	pr_cont("16-deep LBR, ");
 }
 
 /* skylake */
@@ -1031,7 +1026,6 @@ __init void intel_pmu_lbr_init_skl(void)
 	 *   That requires LBR_FAR but that means far
 	 *   jmp need to be filtered out
 	 */
-	pr_cont("32-deep LBR, ");
 }
 
 /* atom */
@@ -1057,7 +1051,6 @@ void __init intel_pmu_lbr_init_atom(void)
 	 * SW branch filter usage:
 	 * - compensate for lack of HW filter
 	 */
-	pr_cont("8-deep LBR, ");
 }
 
 /* slm */
@@ -1088,6 +1081,4 @@ void intel_pmu_lbr_init_knl(void)
 
 	x86_pmu.lbr_sel_mask = LBR_SEL_MASK;
 	x86_pmu.lbr_sel_map  = snb_lbr_sel_map;
-
-	pr_cont("8-deep LBR, ");
 }
