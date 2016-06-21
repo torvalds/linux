@@ -246,6 +246,21 @@
 			status = "disabled";
 		};
 
+		sdhc2: sdhci@74a4900 {
+			 status = "disabled";
+			 compatible = "qcom,sdhci-msm-v4";
+			 reg = <0x74a4900 0x314>, <0x74a4000 0x800>;
+			 reg-names = "hc_mem", "core_mem";
+
+			 interrupts = <0 125 0>, <0 221 0>;
+			 interrupt-names = "hc_irq", "pwr_irq";
+
+			 clock-names = "iface", "core";
+			 clocks = <&gcc GCC_SDCC2_AHB_CLK>,
+			 <&gcc GCC_SDCC2_APPS_CLK>;
+			 bus-width = <4>;
+		 };
+
 		msmgpio: pinctrl@1010000 {
 			compatible = "qcom,msm8996-pinctrl";
 			reg = <0x01010000 0x300000>;
