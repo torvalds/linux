@@ -86,6 +86,7 @@ struct drm_local_map;
 struct drm_device_dma;
 struct drm_dma_handle;
 struct drm_gem_object;
+struct drm_master;
 
 struct device_node;
 struct videomode;
@@ -371,30 +372,6 @@ struct drm_lock_data {
 	uint32_t kernel_waiters;
 	uint32_t user_waiters;
 	int idle_has_lock;
-};
-
-/**
- * struct drm_master - drm master structure
- *
- * @refcount: Refcount for this master object.
- * @dev: Link back to the DRM device
- * @unique: Unique identifier: e.g. busid. Protected by drm_global_mutex.
- * @unique_len: Length of unique field. Protected by drm_global_mutex.
- * @magic_map: Map of used authentication tokens. Protected by struct_mutex.
- * @lock: DRI lock information.
- * @driver_priv: Pointer to driver-private information.
- *
- * Note that master structures are only relevant for the legacy/primary device
- * nodes, hence there can only be one per device, not one per drm_minor.
- */
-struct drm_master {
-	struct kref refcount;
-	struct drm_device *dev;
-	char *unique;
-	int unique_len;
-	struct idr magic_map;
-	struct drm_lock_data lock;
-	void *driver_priv;
 };
 
 /* Flags and return codes for get_vblank_timestamp() driver function. */
@@ -1011,11 +988,6 @@ static inline wait_queue_head_t *drm_crtc_vblank_waitqueue(struct drm_crtc *crtc
 /* Modesetting support */
 extern void drm_vblank_pre_modeset(struct drm_device *dev, unsigned int pipe);
 extern void drm_vblank_post_modeset(struct drm_device *dev, unsigned int pipe);
-
-/* drm_auth.c */
-struct drm_master *drm_master_get(struct drm_master *master);
-void drm_master_put(struct drm_master **master);
-bool drm_is_current_master(struct drm_file *fpriv);
 
 /* drm_drv.c */
 void drm_put_dev(struct drm_device *dev);

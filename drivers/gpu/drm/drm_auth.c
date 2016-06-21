@@ -33,17 +33,27 @@
 #include "drm_legacy.h"
 
 /**
- * drm_getmagic - Get unique magic of a client
- * @dev: DRM device to operate on
- * @data: ioctl data containing the drm_auth object
- * @file_priv: DRM file that performs the operation
+ * DOC: master and authentication
  *
- * This looks up the unique magic of the passed client and returns it. If the
- * client did not have a magic assigned, yet, a new one is registered. The magic
- * is stored in the passed drm_auth object.
+ * struct &drm_master is used to track groups of clients with open
+ * primary/legacy device nodes. For every struct &drm_file which has had at
+ * least once successfully became the device master (either through the
+ * SET_MASTER IOCTL, or implicitly through opening the primary device node when
+ * no one else is the current master that time) there exists one &drm_master.
+ * This is noted in the is_master member of &drm_file. All other clients have
+ * just a pointer to the &drm_master they are associated with.
  *
- * Returns: 0 on success, negative error code on failure.
+ * In addition only one &drm_master can be the current master for a &drm_device.
+ * It can be switched through the DROP_MASTER and SET_MASTER IOCTL, or
+ * implicitly through closing/openeing the primary device node. See also
+ * drm_is_current_master().
+ *
+ * Clients can authenticate against the current master (if it matches their own)
+ * using the GETMAGIC and AUTHMAGIC IOCTLs. Together with exchanging masters,
+ * this allows controlled access to the device for an entire group of mutually
+ * trusted clients.
  */
+
 int drm_getmagic(struct drm_device *dev, void *data, struct drm_file *file_priv)
 {
 	struct drm_auth *auth = data;
@@ -64,16 +74,6 @@ int drm_getmagic(struct drm_device *dev, void *data, struct drm_file *file_priv)
 	return ret < 0 ? ret : 0;
 }
 
-/**
- * drm_authmagic - Authenticate client with a magic
- * @dev: DRM device to operate on
- * @data: ioctl data containing the drm_auth object
- * @file_priv: DRM file that performs the operation
- *
- * This looks up a DRM client by the passed magic and authenticates it.
- *
- * Returns: 0 on success, negative error code on failure.
- */
 int drm_authmagic(struct drm_device *dev, void *data,
 		  struct drm_file *file_priv)
 {
@@ -126,16 +126,6 @@ static int drm_set_master(struct drm_device *dev, struct drm_file *fpriv,
 	return ret;
 }
 
-/*
- * drm_new_set_master - Allocate a new master object and become master for the
- * associated master realm.
- *
- * @dev: The associated device.
- * @fpriv: File private identifying the client.
- *
- * This function must be called with dev::master_mutex held.
- * Returns negative error code on failure. Zero on success.
- */
 static int drm_new_set_master(struct drm_device *dev, struct drm_file *fpriv)
 {
 	struct drm_master *old_master;
@@ -286,12 +276,28 @@ out:
 	mutex_unlock(&dev->master_mutex);
 }
 
+/**
+ * drm_is_current_master - checks whether @priv is the current master
+ * @fpriv: DRM file private
+ *
+ * Checks whether @fpriv is current master on its device. This decides whether a
+ * client is allowed to run DRM_MASTER IOCTLs.
+ *
+ * Most of the modern IOCTL which require DRM_MASTER are for kernel modesetting
+ * - the current master is assumed to own the non-shareable display hardware.
+ */
 bool drm_is_current_master(struct drm_file *fpriv)
 {
 	return fpriv->is_master && fpriv->master == fpriv->minor->dev->master;
 }
 EXPORT_SYMBOL(drm_is_current_master);
 
+/**
+ * drm_master_get - reference a master pointer
+ * @master: struct &drm_master
+ *
+ * Increments the reference count of @master and returns a pointer to @master.
+ */
 struct drm_master *drm_master_get(struct drm_master *master)
 {
 	kref_get(&master->refcount);
@@ -314,6 +320,12 @@ static void drm_master_destroy(struct kref *kref)
 	kfree(master);
 }
 
+/**
+ * drm_master_put - unreference and clear a master pointer
+ * @master: pointer to a pointer of struct &drm_master
+ *
+ * This decrements the &drm_master behind @master and sets it to NULL.
+ */
 void drm_master_put(struct drm_master **master)
 {
 	kref_put(&(*master)->refcount, drm_master_destroy);

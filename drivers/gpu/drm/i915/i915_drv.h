@@ -47,6 +47,7 @@
 #include <drm/intel-gtt.h>
 #include <drm/drm_legacy.h> /* for struct drm_dma_handle */
 #include <drm/drm_gem.h>
+#include <drm/drm_auth.h>
 
 #include "i915_params.h"
 #include "i915_reg.h"

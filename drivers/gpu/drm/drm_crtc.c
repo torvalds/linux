@@ -39,6 +39,7 @@
 #include <drm/drm_fourcc.h>
 #include <drm/drm_modeset_lock.h>
 #include <drm/drm_atomic.h>
+#include <drm/drm_auth.h>
 
 #include "drm_crtc_internal.h"
 #include "drm_internal.h"

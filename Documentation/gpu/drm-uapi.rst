@@ -20,6 +20,19 @@ libdrm Device Lookup
 .. kernel-doc:: drivers/gpu/drm/drm_ioctl.c
    :doc: getunique and setversion story
 
+
+Primary Nodes, DRM Master and Authentication
+============================================
+
+.. kernel-doc:: drivers/gpu/drm/drm_auth.c
+   :doc: master and authentication
+
+.. kernel-doc:: drivers/gpu/drm/drm_auth.c
+   :export:
+
+.. kernel-doc:: include/drm/drm_auth.h
+   :internal:
+
 Render nodes
 ============
 
