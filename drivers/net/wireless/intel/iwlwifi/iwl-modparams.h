@@ -66,7 +66,6 @@
 #include <linux/types.h>
 #include <linux/spinlock.h>
 #include <linux/gfp.h>
-#include <net/mac80211.h>
 
 extern struct iwl_mod_params iwlwifi_mod_params;
 

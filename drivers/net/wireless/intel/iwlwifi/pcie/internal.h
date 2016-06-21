@@ -385,6 +385,8 @@ struct iwl_trans_pcie {
 	wait_queue_head_t wait_command_queue;
 	wait_queue_head_t d0i3_waitq;
 
+	u8 page_offs, dev_cmd_offs;
+
 	u8 cmd_queue;
 	u8 cmd_fifo;
 	unsigned int cmd_q_wdg_timeout;

@@ -1650,6 +1650,9 @@ static void iwl_trans_pcie_configure(struct iwl_trans *trans,
 	trans_pcie->scd_set_active = trans_cfg->scd_set_active;
 	trans_pcie->sw_csum_tx = trans_cfg->sw_csum_tx;
 
+	trans_pcie->page_offs = trans_cfg->cb_data_offs;
+	trans_pcie->dev_cmd_offs = trans_cfg->cb_data_offs + sizeof(void *);
+
 	trans->command_groups = trans_cfg->command_groups;
 	trans->command_groups_size = trans_cfg->command_groups_size;
 

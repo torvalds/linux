@@ -392,11 +392,6 @@ static inline void iwl_free_rxb(struct iwl_rx_cmd_buffer *r)
 
 #define MAX_NO_RECLAIM_CMDS	6
 
-/*
- * The first entry in driver_data array in ieee80211_tx_info
- * that can be used by the transport.
- */
-#define IWL_TRANS_FIRST_DRIVER_DATA 2
 #define IWL_MASK(lo, hi) ((1 << (hi)) | ((1 << (hi)) - (1 << (lo))))
 
 /*
@@ -500,6 +495,8 @@ struct iwl_hcmd_arr {
  * @command_groups_size: number of command groups, to avoid illegal access
  * @sdio_adma_addr: the default address to set for the ADMA in SDIO mode until
  *	we get the ALIVE from the uCode
+ * @cb_data_offs: offset inside skb->cb to store transport data at, must have
+ *	space for at least two pointers
  */
 struct iwl_trans_config {
 	struct iwl_op_mode *op_mode;
@@ -519,6 +516,8 @@ struct iwl_trans_config {
 	int command_groups_size;
 
 	u32 sdio_adma_addr;
+
+	u8 cb_data_offs;
 };
 
 struct iwl_trans_dump_data {

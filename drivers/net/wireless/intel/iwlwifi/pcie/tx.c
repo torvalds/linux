@@ -584,16 +584,16 @@ static int iwl_pcie_txq_init(struct iwl_trans *trans, struct iwl_txq *txq,
 	return 0;
 }
 
-static void iwl_pcie_free_tso_page(struct sk_buff *skb)
+static void iwl_pcie_free_tso_page(struct iwl_trans_pcie *trans_pcie,
+				   struct sk_buff *skb)
 {
-	struct ieee80211_tx_info *info = IEEE80211_SKB_CB(skb);
+	struct page **page_ptr;
 
-	if (info->driver_data[IWL_TRANS_FIRST_DRIVER_DATA]) {
-		struct page *page =
-			info->driver_data[IWL_TRANS_FIRST_DRIVER_DATA];
+	page_ptr = (void *)((u8 *)skb->cb + trans_pcie->page_offs);
 
-		__free_page(page);
-		info->driver_data[IWL_TRANS_FIRST_DRIVER_DATA] = NULL;
+	if (*page_ptr) {
+		__free_page(*page_ptr);
+		*page_ptr = NULL;
 	}
 }
 
@@ -639,7 +639,7 @@ static void iwl_pcie_txq_unmap(struct iwl_trans *trans, int txq_id)
 			if (WARN_ON_ONCE(!skb))
 				continue;
 
-			iwl_pcie_free_tso_page(skb);
+			iwl_pcie_free_tso_page(trans_pcie, skb);
 		}
 		iwl_pcie_txq_free_tfd(trans, txq);
 		q->read_ptr = iwl_queue_inc_wrap(q->read_ptr);
@@ -1084,7 +1084,7 @@ void iwl_trans_pcie_reclaim(struct iwl_trans *trans, int txq_id, int ssn,
 		if (WARN_ON_ONCE(!skb))
 			continue;
 
-		iwl_pcie_free_tso_page(skb);
+		iwl_pcie_free_tso_page(trans_pcie, skb);
 
 		__skb_queue_tail(skbs, skb);
 
@@ -1115,17 +1115,17 @@ void iwl_trans_pcie_reclaim(struct iwl_trans *trans, int txq_id, int ssn,
 
 		while (!skb_queue_empty(&overflow_skbs)) {
 			struct sk_buff *skb = __skb_dequeue(&overflow_skbs);
-			struct ieee80211_tx_info *info = IEEE80211_SKB_CB(skb);
-			u8 dev_cmd_idx = IWL_TRANS_FIRST_DRIVER_DATA + 1;
-			struct iwl_device_cmd *dev_cmd =
-				info->driver_data[dev_cmd_idx];
+			struct iwl_device_cmd *dev_cmd_ptr;
+
+			dev_cmd_ptr = *(void **)((u8 *)skb->cb +
+						 trans_pcie->dev_cmd_offs);
 
 			/*
 			 * Note that we can very well be overflowing again.
 			 * In that case, iwl_queue_space will be small again
 			 * and we won't wake mac80211's queue.
 			 */
-			iwl_trans_pcie_tx(trans, skb, dev_cmd, txq_id);
+			iwl_trans_pcie_tx(trans, skb, dev_cmd_ptr, txq_id);
 		}
 		spin_lock_bh(&txq->lock);
 
@@ -2024,7 +2024,6 @@ static int iwl_fill_data_tbs_amsdu(struct iwl_trans *trans, struct sk_buff *skb,
 				   struct iwl_cmd_meta *out_meta,
 				   struct iwl_device_cmd *dev_cmd, u16 tb1_len)
 {
-	struct ieee80211_tx_info *info = IEEE80211_SKB_CB(skb);
 	struct iwl_trans_pcie *trans_pcie = txq->trans_pcie;
 	struct ieee80211_hdr *hdr = (void *)skb->data;
 	unsigned int snap_ip_tcp_hdrlen, ip_hdrlen, total_len, hdr_room;
@@ -2033,6 +2032,7 @@ static int iwl_fill_data_tbs_amsdu(struct iwl_trans *trans, struct sk_buff *skb,
 	u16 length, iv_len, amsdu_pad;
 	u8 *start_hdr;
 	struct iwl_tso_hdr_page *hdr_page;
+	struct page **page_ptr;
 	int ret;
 	struct tso_t tso;
 
@@ -2063,7 +2063,8 @@ static int iwl_fill_data_tbs_amsdu(struct iwl_trans *trans, struct sk_buff *skb,
 
 	get_page(hdr_page->page);
 	start_hdr = hdr_page->pos;
-	info->driver_data[IWL_TRANS_FIRST_DRIVER_DATA] = hdr_page->page;
+	page_ptr = (void *)((u8 *)skb->cb + trans_pcie->page_offs);
+	*page_ptr = hdr_page->page;
 	memcpy(hdr_page->pos, skb->data + hdr_len, iv_len);
 	hdr_page->pos += iv_len;
 
@@ -2273,10 +2274,12 @@ int iwl_trans_pcie_tx(struct iwl_trans *trans, struct sk_buff *skb,
 
 		/* don't put the packet on the ring, if there is no room */
 		if (unlikely(iwl_queue_space(q) < 3)) {
-			struct ieee80211_tx_info *info = IEEE80211_SKB_CB(skb);
+			struct iwl_device_cmd **dev_cmd_ptr;
 
-			info->driver_data[IWL_TRANS_FIRST_DRIVER_DATA + 1] =
-				dev_cmd;
+			dev_cmd_ptr = (void *)((u8 *)skb->cb +
+					       trans_pcie->dev_cmd_offs);
+
+			*dev_cmd_ptr = dev_cmd;
 			__skb_queue_tail(&txq->overflow_q, skb);
 
 			spin_unlock(&txq->lock);
