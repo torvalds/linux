@@ -43,6 +43,7 @@
 /* s390-specific vcpu->requests bit members */
 #define KVM_REQ_ENABLE_IBS         8
 #define KVM_REQ_DISABLE_IBS        9
+#define KVM_REQ_ICPT_OPEREXC       10
 
 #define SIGP_CTRL_C		0x80
 #define SIGP_CTRL_SCN_MASK	0x3f
@@ -666,6 +667,7 @@ struct kvm_arch{
 	int user_cpu_state_ctrl;
 	int user_sigp;
 	int user_stsi;
+	int user_instr0;
 	struct s390_io_adapter *adapters[MAX_S390_IO_ADAPTERS];
 	wait_queue_head_t ipte_wq;
 	int ipte_lock_count;

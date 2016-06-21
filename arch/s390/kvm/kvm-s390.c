@@ -364,6 +364,7 @@ int kvm_vm_ioctl_check_extension(struct kvm *kvm, long ext)
 	case KVM_CAP_S390_USER_STSI:
 	case KVM_CAP_S390_SKEYS:
 	case KVM_CAP_S390_IRQ_STATE:
+	case KVM_CAP_S390_USER_INSTR0:
 		r = 1;
 		break;
 	case KVM_CAP_S390_MEM_OP:
@@ -456,6 +457,16 @@ out:
 	return r;
 }
 
+static void icpt_operexc_on_all_vcpus(struct kvm *kvm)
+{
+	unsigned int i;
+	struct kvm_vcpu *vcpu;
+
+	kvm_for_each_vcpu(i, vcpu, kvm) {
+		kvm_s390_sync_request(KVM_REQ_ICPT_OPEREXC, vcpu);
+	}
+}
+
 static int kvm_vm_ioctl_enable_cap(struct kvm *kvm, struct kvm_enable_cap *cap)
 {
 	int r;
@@ -505,6 +516,12 @@ static int kvm_vm_ioctl_enable_cap(struct kvm *kvm, struct kvm_enable_cap *cap)
 	case KVM_CAP_S390_USER_STSI:
 		VM_EVENT(kvm, 3, "%s", "ENABLE: CAP_S390_USER_STSI");
 		kvm->arch.user_stsi = 1;
+		r = 0;
+		break;
+	case KVM_CAP_S390_USER_INSTR0:
+		VM_EVENT(kvm, 3, "%s", "ENABLE: CAP_S390_USER_INSTR0");
+		kvm->arch.user_instr0 = 1;
+		icpt_operexc_on_all_vcpus(kvm);
 		r = 0;
 		break;
 	default:
@@ -1836,6 +1853,8 @@ void kvm_arch_vcpu_postcreate(struct kvm_vcpu *vcpu)
 		vcpu->arch.gmap = vcpu->kvm->arch.gmap;
 		sca_add_vcpu(vcpu);
 	}
+	if (test_kvm_facility(vcpu->kvm, 74) || vcpu->kvm->arch.user_instr0)
+		vcpu->arch.sie_block->ictl |= ICTL_OPEREXC;
 	/* make vcpu_load load the right gmap on the first trigger */
 	vcpu->arch.enabled_gmap = vcpu->arch.gmap;
 }
@@ -1923,8 +1942,6 @@ int kvm_arch_vcpu_setup(struct kvm_vcpu *vcpu)
 	}
 	vcpu->arch.sie_block->riccbd = (unsigned long) &vcpu->run->s.regs.riccb;
 	vcpu->arch.sie_block->ictl |= ICTL_ISKE | ICTL_SSKE | ICTL_RRBE;
-	if (test_kvm_facility(vcpu->kvm, 74))
-		vcpu->arch.sie_block->ictl |= ICTL_OPEREXC;
 
 	if (vcpu->kvm->arch.use_cmma) {
 		rc = kvm_s390_vcpu_setup_cmma(vcpu);
@@ -2366,6 +2383,11 @@ retry:
 			atomic_andnot(CPUSTAT_IBS,
 					  &vcpu->arch.sie_block->cpuflags);
 		}
+		goto retry;
+	}
+
+	if (kvm_check_request(KVM_REQ_ICPT_OPEREXC, vcpu)) {
+		vcpu->arch.sie_block->ictl |= ICTL_OPEREXC;
 		goto retry;
 	}
 
