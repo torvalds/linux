@@ -21,6 +21,7 @@
 		i2c1	= &blsp2_i2c1;
 		i2c2	= &blsp2_i2c0;
 		spi0	= &blsp1_spi0;
+		spi1	= &blsp2_spi5;
 	};
 
 	chosen {
@@ -65,6 +66,12 @@
 		i2c@075b5000 {
 		/* On High speed expansion */
 			label = "HS-I2C2";
+			status = "okay";
+		};
+
+		spi@075ba000{
+		/* On High speed expansion */
+			label = "HS-SPI1";
 			status = "okay";
 		};
 	};
