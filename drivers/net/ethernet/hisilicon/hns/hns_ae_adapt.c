@@ -465,6 +465,30 @@ static int  hns_ae_set_coalesce_frames(struct hnae_handle *handle,
 		ring_pair->port_id_in_comm, coalesce_frames);
 }
 
+static void hns_ae_get_coalesce_range(struct hnae_handle *handle,
+				      u32 *tx_frames_low, u32 *rx_frames_low,
+				      u32 *tx_frames_high, u32 *rx_frames_high,
+				      u32 *tx_usecs_low, u32 *rx_usecs_low,
+				      u32 *tx_usecs_high, u32 *rx_usecs_high)
+{
+	struct dsaf_device *dsaf_dev;
+
+	dsaf_dev = hns_ae_get_dsaf_dev(handle->dev);
+
+	*tx_frames_low  = HNS_RCB_MIN_COALESCED_FRAMES;
+	*rx_frames_low  = HNS_RCB_MIN_COALESCED_FRAMES;
+	*tx_frames_high =
+		(dsaf_dev->desc_num - 1 > HNS_RCB_MAX_COALESCED_FRAMES) ?
+		HNS_RCB_MAX_COALESCED_FRAMES : dsaf_dev->desc_num - 1;
+	*rx_frames_high =
+		(dsaf_dev->desc_num - 1 > HNS_RCB_MAX_COALESCED_FRAMES) ?
+		 HNS_RCB_MAX_COALESCED_FRAMES : dsaf_dev->desc_num - 1;
+	*tx_usecs_low   = 0;
+	*rx_usecs_low   = 0;
+	*tx_usecs_high  = HNS_RCB_MAX_COALESCED_USECS;
+	*rx_usecs_high  = HNS_RCB_MAX_COALESCED_USECS;
+}
+
 void hns_ae_update_stats(struct hnae_handle *handle,
 			 struct net_device_stats *net_stats)
 {
@@ -798,6 +822,7 @@ static struct hnae_ae_ops hns_dsaf_ops = {
 	.get_rx_max_coalesced_frames = hns_ae_get_rx_max_coalesced_frames,
 	.set_coalesce_usecs = hns_ae_set_coalesce_usecs,
 	.set_coalesce_frames = hns_ae_set_coalesce_frames,
+	.get_coalesce_range = hns_ae_get_coalesce_range,
 	.set_promisc_mode = hns_ae_set_promisc_mode,
 	.set_mac_addr = hns_ae_set_mac_address,
 	.set_mc_addr = hns_ae_set_multicast_one,

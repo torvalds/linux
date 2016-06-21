@@ -473,6 +473,11 @@ struct hnae_ae_ops {
 	int (*set_coalesce_usecs)(struct hnae_handle *handle, u32 timeout);
 	int (*set_coalesce_frames)(struct hnae_handle *handle,
 				   u32 coalesce_frames);
+	void (*get_coalesce_range)(struct hnae_handle *handle,
+				   u32 *tx_frames_low, u32 *rx_frames_low,
+				   u32 *tx_frames_high, u32 *rx_frames_high,
+				   u32 *tx_usecs_low, u32 *rx_usecs_low,
+				   u32 *tx_usecs_high, u32 *rx_usecs_high);
 	void (*set_promisc_mode)(struct hnae_handle *handle, u32 en);
 	int (*get_mac_addr)(struct hnae_handle *handle, void **p);
 	int (*set_mac_addr)(struct hnae_handle *handle, void *p);

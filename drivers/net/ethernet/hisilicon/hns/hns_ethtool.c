@@ -751,6 +751,16 @@ static int hns_get_coalesce(struct net_device *net_dev,
 		&ec->tx_max_coalesced_frames,
 		&ec->rx_max_coalesced_frames);
 
+	ops->get_coalesce_range(priv->ae_handle,
+				&ec->tx_max_coalesced_frames_low,
+				&ec->rx_max_coalesced_frames_low,
+				&ec->tx_max_coalesced_frames_high,
+				&ec->rx_max_coalesced_frames_high,
+				&ec->tx_coalesce_usecs_low,
+				&ec->rx_coalesce_usecs_low,
+				&ec->tx_coalesce_usecs_high,
+				&ec->rx_coalesce_usecs_high);
+
 	return 0;
 }
 
