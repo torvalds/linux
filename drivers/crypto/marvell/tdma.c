@@ -64,8 +64,9 @@ void mv_cesa_dma_cleanup(struct mv_cesa_tdma_req *dreq)
 
 	for (tdma = dreq->chain.first; tdma;) {
 		struct mv_cesa_tdma_desc *old_tdma = tdma;
+		u32 type = tdma->flags & CESA_TDMA_TYPE_MSK;
 
-		if (tdma->flags & CESA_TDMA_OP)
+		if (type == CESA_TDMA_OP)
 			dma_pool_free(cesa_dev->dma->op_pool, tdma->op,
 				      le32_to_cpu(tdma->src));
 
@@ -90,7 +91,7 @@ void mv_cesa_dma_prepare(struct mv_cesa_tdma_req *dreq,
 		if (tdma->flags & CESA_TDMA_SRC_IN_SRAM)
 			tdma->src = cpu_to_le32(tdma->src + engine->sram_dma);
 
-		if (tdma->flags & CESA_TDMA_OP)
+		if ((tdma->flags & CESA_TDMA_TYPE_MSK) == CESA_TDMA_OP)
 			mv_cesa_adjust_op(engine, tdma->op);
 	}
 }
