@@ -3857,6 +3857,7 @@ F:	drivers/gpu/vga/
 F:	Documentation/devicetree/bindings/display/
 F:	Documentation/devicetree/bindings/gpu/
 F:	Documentation/devicetree/bindings/video/
+F:	Documentation/gpu/
 F:	Documentation/DocBook/gpu.*
 F:	include/drm/
 F:	include/uapi/drm/
@@ -3909,6 +3910,7 @@ S:	Supported
 F:	drivers/gpu/drm/i915/
 F:	include/drm/i915*
 F:	include/uapi/drm/i915_drm.h
+F:	Documentation/gpu/i915.rst
 
 DRM DRIVERS FOR ATMEL HLCDC
 M:	Boris Brezillon <boris.brezillon@free-electrons.com>
