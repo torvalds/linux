@@ -242,6 +242,7 @@ static const char hns_nic_test_strs[][ETH_GSTRING_LEN] = {
 static int hns_nic_config_phy_loopback(struct phy_device *phy_dev, u8 en)
 {
 #define COPPER_CONTROL_REG 0
+#define PHY_POWER_DOWN BIT(11)
 #define PHY_LOOP_BACK BIT(14)
 	u16 val = 0;
 
@@ -252,33 +253,40 @@ static int hns_nic_config_phy_loopback(struct phy_device *phy_dev, u8 en)
 		/* speed : 1000M */
 		phy_write(phy_dev, HNS_PHY_PAGE_REG, 2);
 		phy_write(phy_dev, 21, 0x1046);
+
+		phy_write(phy_dev, HNS_PHY_PAGE_REG, 0);
 		/* Force Master */
 		phy_write(phy_dev, 9, 0x1F00);
+
 		/* Soft-reset */
 		phy_write(phy_dev, 0, 0x9140);
 		/* If autoneg disabled,two soft-reset operations */
 		phy_write(phy_dev, 0, 0x9140);
-		phy_write(phy_dev, 22, 0xFA);
+
+		phy_write(phy_dev, HNS_PHY_PAGE_REG, 0xFA);
 
 		/* Default is 0x0400 */
 		phy_write(phy_dev, 1, 0x418);
 
 		/* Force 1000M Link, Default is 0x0200 */
 		phy_write(phy_dev, 7, 0x20C);
-		phy_write(phy_dev, 22, 0);
+		phy_write(phy_dev, HNS_PHY_PAGE_REG, 0);
 
-		/* Enable MAC loop-back */
+		/* Enable PHY loop-back */
 		val = phy_read(phy_dev, COPPER_CONTROL_REG);
 		val |= PHY_LOOP_BACK;
+		val &= ~PHY_POWER_DOWN;
 		phy_write(phy_dev, COPPER_CONTROL_REG, val);
 	} else {
-		phy_write(phy_dev, 22, 0xFA);
+		phy_write(phy_dev, HNS_PHY_PAGE_REG, 0xFA);
 		phy_write(phy_dev, 1, 0x400);
 		phy_write(phy_dev, 7, 0x200);
-		phy_write(phy_dev, 22, 0);
+		phy_write(phy_dev, HNS_PHY_PAGE_REG, 0);
+		phy_write(phy_dev, 9, 0xF00);
 
 		val = phy_read(phy_dev, COPPER_CONTROL_REG);
 		val &= ~PHY_LOOP_BACK;
+		val |= PHY_POWER_DOWN;
 		phy_write(phy_dev, COPPER_CONTROL_REG, val);
 	}
 	return 0;
@@ -339,27 +347,15 @@ static int __lb_up(struct net_device *ndev,
 
 	hns_nic_net_reset(ndev);
 
-	if (priv->phy) {
-		phy_disconnect(priv->phy);
-		msleep(100);
-
-		ret = hns_nic_init_phy(ndev, h);
-		if (ret)
-			return ret;
-	}
-
 	ret = __lb_setup(ndev, loop_mode);
 	if (ret)
 		return ret;
 
-	msleep(100);
+	msleep(200);
 
 	ret = h->dev->ops->start ? h->dev->ops->start(h) : 0;
 	if (ret)
 		return ret;
-
-	if (priv->phy)
-		phy_start(priv->phy);
 
 	/* link adjust duplex*/
 	if (priv->ae_handle->phy_if != PHY_INTERFACE_MODE_XGMII)
@@ -560,9 +556,6 @@ static int __lb_down(struct net_device *ndev)
 		netdev_err(ndev, "%s: __lb_setup return error(%d)!\n",
 			   __func__,
 			   ret);
-
-	if (priv->phy)
-		phy_stop(priv->phy);
 
 	if (h->dev->ops->stop)
 		h->dev->ops->stop(h);
