@@ -102,7 +102,7 @@ int drm_clients_info(struct seq_file *m, void *data)
 			   task ? task->comm : "<unknown>",
 			   pid_vnr(priv->pid),
 			   priv->minor->index,
-			   priv->is_master ? 'y' : 'n',
+			   drm_is_current_master(priv) ? 'y' : 'n',
 			   priv->authenticated ? 'y' : 'n',
 			   from_kuid_munged(seq_user_ns(m), priv->uid),
 			   priv->magic);

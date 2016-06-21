@@ -219,7 +219,7 @@ int drm_legacy_lock(struct drm_device *dev, void *data,
 	/* don't set the block all signals on the master process for now 
 	 * really probably not the correct answer but lets us debug xkb
  	 * xserver for now */
-	if (!file_priv->is_master) {
+	if (!drm_is_current_master(file_priv)) {
 		dev->sigdata.context = lock->context;
 		dev->sigdata.lock = master->lock.hw_lock;
 	}

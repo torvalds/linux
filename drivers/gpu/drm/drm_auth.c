@@ -183,7 +183,7 @@ int drm_setmaster_ioctl(struct drm_device *dev, void *data,
 	int ret = 0;
 
 	mutex_lock(&dev->master_mutex);
-	if (file_priv->is_master)
+	if (drm_is_current_master(file_priv))
 		goto out_unlock;
 
 	if (dev->master) {
@@ -222,7 +222,7 @@ int drm_dropmaster_ioctl(struct drm_device *dev, void *data,
 	int ret = -EINVAL;
 
 	mutex_lock(&dev->master_mutex);
-	if (!file_priv->is_master)
+	if (!drm_is_current_master(file_priv))
 		goto out_unlock;
 
 	if (!dev->master)
@@ -261,7 +261,7 @@ void drm_master_release(struct drm_file *file_priv)
 	if (file_priv->magic)
 		idr_remove(&file_priv->master->magic_map, file_priv->magic);
 
-	if (!file_priv->is_master)
+	if (!drm_is_current_master(file_priv))
 		goto out;
 
 	if (!drm_core_check_feature(dev, DRIVER_MODESET)) {
@@ -288,6 +288,12 @@ out:
 		drm_master_put(&file_priv->master);
 	mutex_unlock(&dev->master_mutex);
 }
+
+bool drm_is_current_master(struct drm_file *fpriv)
+{
+	return fpriv->is_master;
+}
+EXPORT_SYMBOL(drm_is_current_master);
 
 struct drm_master *drm_master_get(struct drm_master *master)
 {
