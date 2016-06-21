@@ -473,6 +473,8 @@ static int vop_win_direct_en(struct rk_lcdc_driver *drv,
 {
 	struct vop_device *vop_dev =
 	    container_of(drv, struct vop_device, driver);
+
+	drv->win[win_id]->state = en;
 	if (win_id == 0)
 		win0_enable(vop_dev, en);
 	else if (win_id == 1)
@@ -2092,6 +2094,8 @@ static int vop_load_screen(struct rk_lcdc_driver *dev_drv, bool initscreen)
 	return 0;
 }
 
+static int vop_early_suspend(struct rk_lcdc_driver *dev_drv);
+static int vop_early_resume(struct rk_lcdc_driver *dev_drv);
 /*enable layer,open:1,enable;0 disable*/
 static void vop_layer_enable(struct vop_device *vop_dev,
 			     unsigned int win_id, bool open)
@@ -2116,14 +2120,21 @@ static void vop_layer_enable(struct vop_device *vop_dev,
 					      vop_dev->driver.win[win_id]);
 			vop_cfg_done(vop_dev);
 		}
-		/* if no layer used,disable lcdc */
-		if (!vop_dev->atv_layer_cnt) {
+	}
+	spin_unlock(&vop_dev->reg_lock);
+	/* if no layer used,disable lcdc */
+	if (vop_dev->prop == EXTEND) {
+		if (!vop_dev->atv_layer_cnt && !open) {
+			vop_early_suspend(&vop_dev->driver);
 			dev_info(vop_dev->dev,
 				 "no layer is used,go to standby!\n");
 			vop_dev->standby = 1;
+		} else if (open) {
+			vop_early_resume(&vop_dev->driver);
+			dev_info(vop_dev->dev, "wake up from standby!\n");
 		}
 	}
-	spin_unlock(&vop_dev->reg_lock);
+
 }
 
 static int vop_enable_irq(struct rk_lcdc_driver *dev_drv)
@@ -4121,6 +4132,8 @@ static int vop_config_done(struct rk_lcdc_driver *dev_drv)
 		win = dev_drv->win[i];
 		vop_alpha_cfg(dev_drv, i);
 		fbdc_en |= win->area[0].fbdc_en;
+		vop_dev->atv_layer_cnt &= ~(1 << win->id);
+		vop_dev->atv_layer_cnt |= (win->state << win->id);
 		if ((win->state == 0) && (win->last_state == 1)) {
 			switch (win->id) {
 			case 0:
