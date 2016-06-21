@@ -102,19 +102,6 @@ static bool last_trb_on_last_seg(struct xhci_hcd *xhci, struct xhci_ring *ring,
 		return le32_to_cpu(trb->link.control) & LINK_TOGGLE;
 }
 
-/* Is this TRB a link TRB or was the last TRB the last TRB in this event ring
- * segment?  I.e. would the updated event TRB pointer step off the end of the
- * event seg?
- */
-static int last_trb(struct xhci_hcd *xhci, struct xhci_ring *ring,
-		struct xhci_segment *seg, union xhci_trb *trb)
-{
-	if (ring == xhci->event_ring)
-		return trb == &seg->trbs[TRBS_PER_SEGMENT];
-	else
-		return TRB_TYPE_LINK_LE32(trb->link.control);
-}
-
 static bool trb_is_link(union xhci_trb *trb)
 {
 	return TRB_TYPE_LINK_LE32(trb->link.control);
@@ -124,6 +111,17 @@ static int enqueue_is_link_trb(struct xhci_ring *ring)
 {
 	struct xhci_link_trb *link = &ring->enqueue->link;
 	return TRB_TYPE_LINK_LE32(link->control);
+}
+
+static bool last_trb_on_seg(struct xhci_segment *seg, union xhci_trb *trb)
+{
+	return trb == &seg->trbs[TRBS_PER_SEGMENT - 1];
+}
+
+static bool last_trb_on_ring(struct xhci_ring *ring,
+			struct xhci_segment *seg, union xhci_trb *trb)
+{
+	return last_trb_on_seg(seg, trb) && (seg->next == ring->first_seg);
 }
 
 /* Updates trb to point to the next TRB in the ring, and updates seg if the next
@@ -151,31 +149,29 @@ static void inc_deq(struct xhci_hcd *xhci, struct xhci_ring *ring)
 {
 	ring->deq_updates++;
 
-	/*
-	 * If this is not event ring, and the dequeue pointer
-	 * is not on a link TRB, there is one more usable TRB
-	 */
-	if (ring->type != TYPE_EVENT && !trb_is_link(ring->dequeue))
-		ring->num_trbs_free++;
-
-	do {
-		/*
-		 * Update the dequeue pointer further if that was a link TRB or
-		 * we're at the end of an event ring segment (which doesn't have
-		 * link TRBS)
-		 */
-		if (last_trb(xhci, ring, ring->deq_seg, ring->dequeue)) {
-			if (ring->type == TYPE_EVENT &&
-					last_trb_on_last_seg(xhci, ring,
-						ring->deq_seg, ring->dequeue)) {
-				ring->cycle_state ^= 1;
-			}
-			ring->deq_seg = ring->deq_seg->next;
-			ring->dequeue = ring->deq_seg->trbs;
-		} else {
+	/* event ring doesn't have link trbs, check for last trb */
+	if (ring->type == TYPE_EVENT) {
+		if (!last_trb_on_seg(ring->deq_seg, ring->dequeue)) {
 			ring->dequeue++;
+			return;
 		}
-	} while (last_trb(xhci, ring, ring->deq_seg, ring->dequeue));
+		if (last_trb_on_ring(ring, ring->deq_seg, ring->dequeue))
+			ring->cycle_state ^= 1;
+		ring->deq_seg = ring->deq_seg->next;
+		ring->dequeue = ring->deq_seg->trbs;
+		return;
+	}
+
+	/* All other rings have link trbs */
+	if (!trb_is_link(ring->dequeue)) {
+		ring->dequeue++;
+		ring->num_trbs_free++;
+	}
+	while (trb_is_link(ring->dequeue)) {
+		ring->deq_seg = ring->deq_seg->next;
+		ring->dequeue = ring->deq_seg->trbs;
+	}
+	return;
 }
 
 /*
