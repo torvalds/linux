@@ -361,7 +361,7 @@ struct phy_device *of_phy_attach(struct net_device *dev,
 }
 EXPORT_SYMBOL(of_phy_attach);
 
-#if defined(CONFIG_FIXED_PHY)
+#if IS_ENABLED(CONFIG_FIXED_PHY)
 /*
  * of_phy_is_fixed_link() and of_phy_register_fixed_link() must
  * support two DT bindings:

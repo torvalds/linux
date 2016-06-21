@@ -69,7 +69,7 @@ static inline int of_mdio_parse_addr(struct device *dev,
 }
 #endif /* CONFIG_OF */
 
-#if defined(CONFIG_OF) && defined(CONFIG_FIXED_PHY)
+#if defined(CONFIG_OF) && IS_ENABLED(CONFIG_FIXED_PHY)
 extern int of_phy_register_fixed_link(struct device_node *np);
 extern bool of_phy_is_fixed_link(struct device_node *np);
 #else
