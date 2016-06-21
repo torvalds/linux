@@ -1441,7 +1441,6 @@ static int hns_nic_set_features(struct net_device *netdev,
 				netdev_features_t features)
 {
 	struct hns_nic_priv *priv = netdev_priv(netdev);
-	struct hnae_handle *h = priv->ae_handle;
 
 	switch (priv->enet_ver) {
 	case AE_VERSION_1:
@@ -1454,11 +1453,9 @@ static int hns_nic_set_features(struct net_device *netdev,
 			priv->ops.maybe_stop_tx = hns_nic_maybe_stop_tso;
 			/* The chip only support 7*4096 */
 			netif_set_gso_max_size(netdev, 7 * 4096);
-			h->dev->ops->set_tso_stats(h, 1);
 		} else {
 			priv->ops.fill_desc = fill_v2_desc;
 			priv->ops.maybe_stop_tx = hns_nic_maybe_stop_tx;
-			h->dev->ops->set_tso_stats(h, 0);
 		}
 		break;
 	}
@@ -1804,11 +1801,14 @@ static void hns_nic_set_priv_ops(struct net_device *netdev)
 			priv->ops.maybe_stop_tx = hns_nic_maybe_stop_tso;
 			/* This chip only support 7*4096 */
 			netif_set_gso_max_size(netdev, 7 * 4096);
-			h->dev->ops->set_tso_stats(h, 1);
 		} else {
 			priv->ops.fill_desc = fill_v2_desc;
 			priv->ops.maybe_stop_tx = hns_nic_maybe_stop_tx;
 		}
+		/* enable tso when init
+		 * control tso on/off through TSE bit in bd
+		 */
+		h->dev->ops->set_tso_stats(h, 1);
 	}
 }
 
