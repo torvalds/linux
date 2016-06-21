@@ -79,6 +79,23 @@ xfs_zero_extent(
 		GFP_NOFS, true);
 }
 
+/* Sort bmap items by AG. */
+static int
+xfs_bmap_free_list_cmp(
+	void			*priv,
+	struct list_head	*a,
+	struct list_head	*b)
+{
+	struct xfs_mount	*mp = priv;
+	struct xfs_bmap_free_item	*ra;
+	struct xfs_bmap_free_item	*rb;
+
+	ra = container_of(a, struct xfs_bmap_free_item, xbfi_list);
+	rb = container_of(b, struct xfs_bmap_free_item, xbfi_list);
+	return  XFS_FSB_TO_AGNO(mp, ra->xbfi_startblock) -
+		XFS_FSB_TO_AGNO(mp, rb->xbfi_startblock);
+}
+
 /*
  * Routine to be called at transaction's end by xfs_bmapi, xfs_bunmapi
  * caller.  Frees all the extents that need freeing, which must be done
@@ -99,14 +116,15 @@ xfs_bmap_finish(
 	int				error;	/* error return value */
 	int				committed;/* xact committed or not */
 	struct xfs_bmap_free_item	*free;	/* free extent item */
-	struct xfs_bmap_free_item	*next;	/* next item on free list */
 
 	ASSERT((*tp)->t_flags & XFS_TRANS_PERM_LOG_RES);
 	if (flist->xbf_count == 0)
 		return 0;
 
+	list_sort((*tp)->t_mountp, &flist->xbf_flist, xfs_bmap_free_list_cmp);
+
 	efi = xfs_trans_get_efi(*tp, flist->xbf_count);
-	for (free = flist->xbf_first; free; free = free->xbfi_next)
+	list_for_each_entry(free, &flist->xbf_flist, xbfi_list)
 		xfs_trans_log_efi_extent(*tp, efi, free->xbfi_startblock,
 			free->xbfi_blockcount);
 
@@ -138,15 +156,15 @@ xfs_bmap_finish(
 	 * on error.
 	 */
 	efd = xfs_trans_get_efd(*tp, efi, flist->xbf_count);
-	for (free = flist->xbf_first; free != NULL; free = next) {
-		next = free->xbfi_next;
-
+	while (!list_empty(&flist->xbf_flist)) {
+		free = list_first_entry(&flist->xbf_flist,
+				struct xfs_bmap_free_item, xbfi_list);
 		error = xfs_trans_free_extent(*tp, efd, free->xbfi_startblock,
 					      free->xbfi_blockcount);
 		if (error)
 			return error;
 
-		xfs_bmap_del_free(flist, NULL, free);
+		xfs_bmap_del_free(flist, free);
 	}
 
 	return 0;
@@ -799,7 +817,7 @@ xfs_bmap_punch_delalloc_range(
 		if (error)
 			break;
 
-		ASSERT(!flist.xbf_count && !flist.xbf_first);
+		ASSERT(!flist.xbf_count && list_empty(&flist.xbf_flist));
 next_block:
 		start_fsb++;
 		remaining--;

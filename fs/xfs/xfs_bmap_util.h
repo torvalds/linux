@@ -43,7 +43,6 @@ int	xfs_getbmap(struct xfs_inode *ip, struct getbmapx *bmv,
 
 /* functions in xfs_bmap.c that are only needed by xfs_bmap_util.c */
 void	xfs_bmap_del_free(struct xfs_bmap_free *flist,
-			  struct xfs_bmap_free_item *prev,
 			  struct xfs_bmap_free_item *free);
 int	xfs_bmap_extsize_align(struct xfs_mount *mp, struct xfs_bmbt_irec *gotp,
 			       struct xfs_bmbt_irec *prevp, xfs_extlen_t extsz,

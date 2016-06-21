@@ -62,12 +62,12 @@ struct xfs_bmalloca {
  * List of extents to be free "later".
  * The list is kept sorted on xbf_startblock.
  */
-typedef struct xfs_bmap_free_item
+struct xfs_bmap_free_item
 {
 	xfs_fsblock_t		xbfi_startblock;/* starting fs block number */
 	xfs_extlen_t		xbfi_blockcount;/* number of blocks in extent */
-	struct xfs_bmap_free_item *xbfi_next;	/* link to next entry */
-} xfs_bmap_free_item_t;
+	struct list_head	xbfi_list;
+};
 
 /*
  * Header for free extent list.
@@ -85,7 +85,7 @@ typedef struct xfs_bmap_free_item
  */
 typedef	struct xfs_bmap_free
 {
-	xfs_bmap_free_item_t	*xbf_first;	/* list of to-be-free extents */
+	struct list_head	xbf_flist;	/* list of to-be-free extents */
 	int			xbf_count;	/* count of items on list */
 	int			xbf_low;	/* alloc in low mode */
 } xfs_bmap_free_t;
@@ -141,8 +141,10 @@ static inline int xfs_bmapi_aflag(int w)
 
 static inline void xfs_bmap_init(xfs_bmap_free_t *flp, xfs_fsblock_t *fbp)
 {
-	((flp)->xbf_first = NULL, (flp)->xbf_count = 0, \
-		(flp)->xbf_low = 0, *(fbp) = NULLFSBLOCK);
+	INIT_LIST_HEAD(&flp->xbf_flist);
+	flp->xbf_count = 0;
+	flp->xbf_low = 0;
+	*fbp = NULLFSBLOCK;
 }
 
 /*

@@ -575,9 +575,7 @@ xfs_bmap_add_free(
 	xfs_fsblock_t		bno,		/* fs block number of extent */
 	xfs_filblks_t		len)		/* length of extent */
 {
-	xfs_bmap_free_item_t	*cur;		/* current (next) element */
-	xfs_bmap_free_item_t	*new;		/* new element */
-	xfs_bmap_free_item_t	*prev;		/* previous element */
+	struct xfs_bmap_free_item	*new;		/* new element */
 #ifdef DEBUG
 	xfs_agnumber_t		agno;
 	xfs_agblock_t		agbno;
@@ -597,17 +595,7 @@ xfs_bmap_add_free(
 	new = kmem_zone_alloc(xfs_bmap_free_item_zone, KM_SLEEP);
 	new->xbfi_startblock = bno;
 	new->xbfi_blockcount = (xfs_extlen_t)len;
-	for (prev = NULL, cur = flist->xbf_first;
-	     cur != NULL;
-	     prev = cur, cur = cur->xbfi_next) {
-		if (cur->xbfi_startblock >= bno)
-			break;
-	}
-	if (prev)
-		prev->xbfi_next = new;
-	else
-		flist->xbf_first = new;
-	new->xbfi_next = cur;
+	list_add(&new->xbfi_list, &flist->xbf_flist);
 	flist->xbf_count++;
 }
 
@@ -617,14 +605,10 @@ xfs_bmap_add_free(
  */
 void
 xfs_bmap_del_free(
-	xfs_bmap_free_t		*flist,	/* free item list header */
-	xfs_bmap_free_item_t	*prev,	/* previous item on list, if any */
-	xfs_bmap_free_item_t	*free)	/* list item to be freed */
+	struct xfs_bmap_free		*flist,	/* free item list header */
+	struct xfs_bmap_free_item	*free)	/* list item to be freed */
 {
-	if (prev)
-		prev->xbfi_next = free->xbfi_next;
-	else
-		flist->xbf_first = free->xbfi_next;
+	list_del(&free->xbfi_list);
 	flist->xbf_count--;
 	kmem_zone_free(xfs_bmap_free_item_zone, free);
 }
@@ -634,17 +618,16 @@ xfs_bmap_del_free(
  */
 void
 xfs_bmap_cancel(
-	xfs_bmap_free_t		*flist)	/* list of bmap_free_items */
+	struct xfs_bmap_free		*flist)	/* list of bmap_free_items */
 {
-	xfs_bmap_free_item_t	*free;	/* free list item */
-	xfs_bmap_free_item_t	*next;
+	struct xfs_bmap_free_item	*free;	/* free list item */
 
 	if (flist->xbf_count == 0)
 		return;
-	ASSERT(flist->xbf_first != NULL);
-	for (free = flist->xbf_first; free; free = next) {
-		next = free->xbfi_next;
-		xfs_bmap_del_free(flist, NULL, free);
+	while (!list_empty(&flist->xbf_flist)) {
+		free = list_first_entry(&flist->xbf_flist,
+				struct xfs_bmap_free_item, xbfi_list);
+		xfs_bmap_del_free(flist, free);
 	}
 	ASSERT(flist->xbf_count == 0);
 }
