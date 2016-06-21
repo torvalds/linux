@@ -275,6 +275,7 @@ struct mv_cesa_op_ctx {
 #define CESA_TDMA_DUMMY				0
 #define CESA_TDMA_DATA				1
 #define CESA_TDMA_OP				2
+#define CESA_TDMA_IV				3
 
 /**
  * struct mv_cesa_tdma_desc - TDMA descriptor
@@ -390,6 +391,7 @@ struct mv_cesa_dev_dma {
 	struct dma_pool *op_pool;
 	struct dma_pool *cache_pool;
 	struct dma_pool *padding_pool;
+	struct dma_pool *iv_pool;
 };
 
 /**
@@ -789,6 +791,9 @@ mv_cesa_tdma_desc_iter_init(struct mv_cesa_tdma_chain *chain)
 {
 	memset(chain, 0, sizeof(*chain));
 }
+
+int mv_cesa_dma_add_iv_op(struct mv_cesa_tdma_chain *chain, dma_addr_t src,
+			  u32 size, u32 flags, gfp_t gfp_flags);
 
 struct mv_cesa_op_ctx *mv_cesa_dma_add_op(struct mv_cesa_tdma_chain *chain,
 					const struct mv_cesa_op_ctx *op_templ,

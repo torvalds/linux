@@ -69,6 +69,9 @@ void mv_cesa_dma_cleanup(struct mv_cesa_tdma_req *dreq)
 		if (type == CESA_TDMA_OP)
 			dma_pool_free(cesa_dev->dma->op_pool, tdma->op,
 				      le32_to_cpu(tdma->src));
+		else if (type == CESA_TDMA_IV)
+			dma_pool_free(cesa_dev->dma->iv_pool, tdma->data,
+				      le32_to_cpu(tdma->dst));
 
 		tdma = tdma->next;
 		dma_pool_free(cesa_dev->dma->tdma_desc_pool, old_tdma,
@@ -118,6 +121,32 @@ mv_cesa_dma_add_desc(struct mv_cesa_tdma_chain *chain, gfp_t flags)
 	chain->last = new_tdma;
 
 	return new_tdma;
+}
+
+int mv_cesa_dma_add_iv_op(struct mv_cesa_tdma_chain *chain, dma_addr_t src,
+			  u32 size, u32 flags, gfp_t gfp_flags)
+{
+
+	struct mv_cesa_tdma_desc *tdma;
+	u8 *iv;
+	dma_addr_t dma_handle;
+
+	tdma = mv_cesa_dma_add_desc(chain, gfp_flags);
+	if (IS_ERR(tdma))
+		return PTR_ERR(tdma);
+
+	iv = dma_pool_alloc(cesa_dev->dma->iv_pool, flags, &dma_handle);
+	if (!iv)
+		return -ENOMEM;
+
+	tdma->byte_cnt = cpu_to_le32(size | BIT(31));
+	tdma->src = src;
+	tdma->dst = cpu_to_le32(dma_handle);
+	tdma->data = iv;
+
+	flags &= (CESA_TDMA_DST_IN_SRAM | CESA_TDMA_SRC_IN_SRAM);
+	tdma->flags = flags | CESA_TDMA_IV;
+	return 0;
 }
 
 struct mv_cesa_op_ctx *mv_cesa_dma_add_op(struct mv_cesa_tdma_chain *chain,
