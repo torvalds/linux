@@ -191,8 +191,8 @@ void	xfs_bmap_trace_exlist(struct xfs_inode *ip, xfs_extnum_t cnt,
 
 int	xfs_bmap_add_attrfork(struct xfs_inode *ip, int size, int rsvd);
 void	xfs_bmap_local_to_extents_empty(struct xfs_inode *ip, int whichfork);
-void	xfs_bmap_add_free(xfs_fsblock_t bno, xfs_filblks_t len,
-		struct xfs_bmap_free *flist, struct xfs_mount *mp);
+void	xfs_bmap_add_free(struct xfs_mount *mp, struct xfs_bmap_free *flist,
+			  xfs_fsblock_t bno, xfs_filblks_t len);
 void	xfs_bmap_cancel(struct xfs_bmap_free *flist);
 int	xfs_bmap_finish(struct xfs_trans **tp, struct xfs_bmap_free *flist,
 			struct xfs_inode *ip);
