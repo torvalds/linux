@@ -19,6 +19,7 @@
 		serial1 = &blsp2_uart2;
 		i2c0	= &blsp1_i2c2;
 		i2c1	= &blsp2_i2c1;
+		i2c2	= &blsp2_i2c0;
 	};
 
 	chosen {
@@ -51,6 +52,12 @@
 		i2c@075b6000 {
 		/* On Low speed expansion */
 			label = "LS-I2C1";
+			status = "okay";
+		};
+
+		i2c@075b5000 {
+		/* On High speed expansion */
+			label = "HS-I2C2";
 			status = "okay";
 		};
 	};
