@@ -15,6 +15,7 @@
 #include <linux/clk.h>
 #include <linux/i2c.h>
 #include <linux/of_device.h>
+#include <linux/property.h>
 #include <linux/regmap.h>
 #include <linux/slab.h>
 #include <linux/pm.h>
@@ -1418,7 +1419,7 @@ static struct snd_soc_dai_driver da7219_dai = {
 
 
 /*
- * DT
+ * DT/ACPI
  */
 
 static const struct of_device_id da7219_of_match[] = {
@@ -1434,7 +1435,7 @@ static const struct acpi_device_id da7219_acpi_match[] = {
 MODULE_DEVICE_TABLE(acpi, da7219_acpi_match);
 
 static enum da7219_micbias_voltage
-	da7219_of_micbias_lvl(struct snd_soc_codec *codec, u32 val)
+	da7219_fw_micbias_lvl(struct device *dev, u32 val)
 {
 	switch (val) {
 	case 1600:
@@ -1450,13 +1451,13 @@ static enum da7219_micbias_voltage
 	case 2600:
 		return DA7219_MICBIAS_2_6V;
 	default:
-		dev_warn(codec->dev, "Invalid micbias level");
+		dev_warn(dev, "Invalid micbias level");
 		return DA7219_MICBIAS_2_2V;
 	}
 }
 
 static enum da7219_mic_amp_in_sel
-	da7219_of_mic_amp_in_sel(struct snd_soc_codec *codec, const char *str)
+	da7219_fw_mic_amp_in_sel(struct device *dev, const char *str)
 {
 	if (!strcmp(str, "diff")) {
 		return DA7219_MIC_AMP_IN_SEL_DIFF;
@@ -1465,29 +1466,29 @@ static enum da7219_mic_amp_in_sel
 	} else if (!strcmp(str, "se_n")) {
 		return DA7219_MIC_AMP_IN_SEL_SE_N;
 	} else {
-		dev_warn(codec->dev, "Invalid mic input type selection");
+		dev_warn(dev, "Invalid mic input type selection");
 		return DA7219_MIC_AMP_IN_SEL_DIFF;
 	}
 }
 
-static struct da7219_pdata *da7219_of_to_pdata(struct snd_soc_codec *codec)
+static struct da7219_pdata *da7219_fw_to_pdata(struct snd_soc_codec *codec)
 {
-	struct device_node *np = codec->dev->of_node;
+	struct device *dev = codec->dev;
 	struct da7219_pdata *pdata;
 	const char *of_str;
 	u32 of_val32;
 
-	pdata = devm_kzalloc(codec->dev, sizeof(*pdata), GFP_KERNEL);
+	pdata = devm_kzalloc(dev, sizeof(*pdata), GFP_KERNEL);
 	if (!pdata)
 		return NULL;
 
-	if (of_property_read_u32(np, "dlg,micbias-lvl", &of_val32) >= 0)
-		pdata->micbias_lvl = da7219_of_micbias_lvl(codec, of_val32);
+	if (device_property_read_u32(dev, "dlg,micbias-lvl", &of_val32) >= 0)
+		pdata->micbias_lvl = da7219_fw_micbias_lvl(dev, of_val32);
 	else
 		pdata->micbias_lvl = DA7219_MICBIAS_2_2V;
 
-	if (!of_property_read_string(np, "dlg,mic-amp-in-sel", &of_str))
-		pdata->mic_amp_in_sel = da7219_of_mic_amp_in_sel(codec, of_str);
+	if (!device_property_read_string(dev, "dlg,mic-amp-in-sel", &of_str))
+		pdata->mic_amp_in_sel = da7219_fw_mic_amp_in_sel(dev, of_str);
 	else
 		pdata->mic_amp_in_sel = DA7219_MIC_AMP_IN_SEL_DIFF;
 
@@ -1662,11 +1663,10 @@ static int da7219_probe(struct snd_soc_codec *codec)
 		break;
 	}
 
-	/* Handle DT/Platform data */
-	if (codec->dev->of_node)
-		da7219->pdata = da7219_of_to_pdata(codec);
-	else
-		da7219->pdata = dev_get_platdata(codec->dev);
+	/* Handle DT/ACPI/Platform data */
+	da7219->pdata = dev_get_platdata(codec->dev);
+	if (!da7219->pdata)
+		da7219->pdata = da7219_fw_to_pdata(codec);
 
 	da7219_handle_pdata(codec);
 
