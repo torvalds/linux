@@ -61,6 +61,8 @@
 #define TLP_LOOP			500
 #define RP_DEVFN			0
 
+#define LINK_UP_TIMEOUT			5000
+
 #define INTX_NUM			4
 
 #define DWORD_MASK			3
@@ -101,6 +103,7 @@ static void altera_pcie_retrain(struct pci_dev *dev)
 {
 	u16 linkcap, linkstat;
 	struct altera_pcie *pcie = dev->bus->sysdata;
+	int timeout =  0;
 
 	if (!altera_pcie_link_is_up(pcie))
 		return;
@@ -115,9 +118,16 @@ static void altera_pcie_retrain(struct pci_dev *dev)
 		return;
 
 	pcie_capability_read_word(dev, PCI_EXP_LNKSTA, &linkstat);
-	if ((linkstat & PCI_EXP_LNKSTA_CLS) == PCI_EXP_LNKSTA_CLS_2_5GB)
+	if ((linkstat & PCI_EXP_LNKSTA_CLS) == PCI_EXP_LNKSTA_CLS_2_5GB) {
 		pcie_capability_set_word(dev, PCI_EXP_LNKCTL,
 					 PCI_EXP_LNKCTL_RL);
+		while (!altera_pcie_link_is_up(pcie)) {
+			timeout++;
+			if (timeout > LINK_UP_TIMEOUT)
+				break;
+			udelay(5);
+		}
+	}
 }
 DECLARE_PCI_FIXUP_EARLY(0x1172, PCI_ANY_ID, altera_pcie_retrain);
 
