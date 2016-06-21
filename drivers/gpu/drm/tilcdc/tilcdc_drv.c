@@ -541,7 +541,6 @@ static struct drm_driver tilcdc_driver = {
 	.load               = tilcdc_load,
 	.unload             = tilcdc_unload,
 	.lastclose          = tilcdc_lastclose,
-	.set_busid          = drm_platform_set_busid,
 	.irq_handler        = tilcdc_irq,
 	.irq_preinstall     = tilcdc_irq_preinstall,
 	.irq_postinstall    = tilcdc_irq_postinstall,

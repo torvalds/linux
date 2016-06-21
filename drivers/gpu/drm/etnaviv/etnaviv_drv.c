@@ -496,7 +496,6 @@ static struct drm_driver etnaviv_drm_driver = {
 				DRIVER_RENDER,
 	.open               = etnaviv_open,
 	.preclose           = etnaviv_preclose,
-	.set_busid          = drm_platform_set_busid,
 	.gem_free_object_unlocked = etnaviv_gem_free_object,
 	.gem_vm_ops         = &vm_ops,
 	.prime_handle_to_fd = drm_gem_prime_handle_to_fd,

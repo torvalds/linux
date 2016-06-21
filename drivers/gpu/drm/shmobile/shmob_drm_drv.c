@@ -259,7 +259,6 @@ static struct drm_driver shmob_drm_driver = {
 				| DRIVER_PRIME,
 	.load			= shmob_drm_load,
 	.unload			= shmob_drm_unload,
-	.set_busid		= drm_platform_set_busid,
 	.irq_handler		= shmob_drm_irq,
 	.get_vblank_counter	= drm_vblank_no_hw_counter,
 	.enable_vblank		= shmob_drm_enable_vblank,

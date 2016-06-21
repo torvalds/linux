@@ -171,7 +171,6 @@ static struct drm_driver kirin_drm_driver = {
 	.driver_features	= DRIVER_GEM | DRIVER_MODESET | DRIVER_PRIME |
 				  DRIVER_ATOMIC | DRIVER_HAVE_IRQ,
 	.fops			= &kirin_drm_fops,
-	.set_busid		= drm_platform_set_busid,
 
 	.gem_free_object_unlocked = drm_gem_cma_free_object,
 	.gem_vm_ops		= &drm_gem_cma_vm_ops,

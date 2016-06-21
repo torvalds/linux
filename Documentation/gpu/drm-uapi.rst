@@ -14,6 +14,12 @@ management, and output management.
 Cover generic ioctls and sysfs layout here. We only need high-level
 info, since man pages should cover the rest.
 
+libdrm Device Lookup
+====================
+
+.. kernel-doc:: drivers/gpu/drm/drm_ioctl.c
+   :doc: getunique and setversion story
+
 Render nodes
 ============
 
