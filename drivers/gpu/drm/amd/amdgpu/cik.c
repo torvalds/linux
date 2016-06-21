@@ -2024,7 +2024,6 @@ static const struct amdgpu_asic_funcs cik_asic_funcs =
 	.get_virtual_caps = &cik_get_virtual_caps,
 	/* these should be moved to their own ip modules */
 	.get_gpu_clock_counter = &gfx_v7_0_get_gpu_clock_counter,
-	.wait_for_mc_idle = &gmc_v7_0_mc_wait_for_idle,
 };
 
 static int cik_common_early_init(void *handle)

@@ -82,7 +82,7 @@ static void gmc_v7_0_init_golden_registers(struct amdgpu_device *adev)
  * (evergreen+).
  * Returns 0 if the MC is idle, -1 if not.
  */
-int gmc_v7_0_mc_wait_for_idle(struct amdgpu_device *adev)
+static int gmc_v7_0_mc_wait_for_idle(struct amdgpu_device *adev)
 {
 	unsigned i;
 	u32 tmp;
@@ -105,7 +105,7 @@ static void gmc_v7_0_mc_stop(struct amdgpu_device *adev,
 	if (adev->mode_info.num_crtc)
 		amdgpu_display_stop_mc_access(adev, save);
 
-	amdgpu_asic_wait_for_mc_idle(adev);
+	gmc_v7_0_mc_wait_for_idle(adev);
 
 	blackout = RREG32(mmMC_SHARED_BLACKOUT_CNTL);
 	if (REG_GET_FIELD(blackout, MC_SHARED_BLACKOUT_CNTL, BLACKOUT_MODE) != 1) {
@@ -311,7 +311,7 @@ static void gmc_v7_0_mc_program(struct amdgpu_device *adev)
 		amdgpu_display_set_vga_render_state(adev, false);
 
 	gmc_v7_0_mc_stop(adev, &save);
-	if (amdgpu_asic_wait_for_mc_idle(adev)) {
+	if (gmc_v7_0_mc_wait_for_idle(adev)) {
 		dev_warn(adev->dev, "Wait for MC idle timedout !\n");
 	}
 	/* Update configuration */
@@ -331,7 +331,7 @@ static void gmc_v7_0_mc_program(struct amdgpu_device *adev)
 	WREG32(mmMC_VM_AGP_BASE, 0);
 	WREG32(mmMC_VM_AGP_TOP, 0x0FFFFFFF);
 	WREG32(mmMC_VM_AGP_BOT, 0x0FFFFFFF);
-	if (amdgpu_asic_wait_for_mc_idle(adev)) {
+	if (gmc_v7_0_mc_wait_for_idle(adev)) {
 		dev_warn(adev->dev, "Wait for MC idle timedout !\n");
 	}
 	gmc_v7_0_mc_resume(adev, &save);

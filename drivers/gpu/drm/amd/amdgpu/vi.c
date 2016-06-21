@@ -1140,7 +1140,6 @@ static const struct amdgpu_asic_funcs vi_asic_funcs =
 	.get_virtual_caps = &vi_get_virtual_caps,
 	/* these should be moved to their own ip modules */
 	.get_gpu_clock_counter = &gfx_v8_0_get_gpu_clock_counter,
-	.wait_for_mc_idle = &gmc_v8_0_mc_wait_for_idle,
 };
 
 static int vi_common_early_init(void *handle)
