@@ -63,5 +63,6 @@ static struct platform_driver gen_pci_driver = {
 		.suppress_bind_attrs = true,
 	},
 	.probe = gen_pci_probe,
+	.remove = pci_host_common_remove,
 };
 builtin_platform_driver(gen_pci_driver);
