@@ -3125,8 +3125,8 @@ int xhci_queue_bulk_tx(struct xhci_hcd *xhci, gfp_t mem_flags,
 	struct xhci_td *td;
 	struct xhci_generic_trb *start_trb;
 	struct scatterlist *sg = NULL;
-	bool more_trbs_coming;
-	bool zero_length_needed;
+	bool more_trbs_coming = true;
+	bool need_zero_pkt = false;
 	unsigned int num_trbs, last_trb_num, i;
 	unsigned int start_cycle, num_sgs = 0;
 	unsigned int running_total, block_len, trb_buff_len, full_len;
@@ -3157,17 +3157,8 @@ int xhci_queue_bulk_tx(struct xhci_hcd *xhci, gfp_t mem_flags,
 	last_trb_num = num_trbs - 1;
 
 	/* Deal with URB_ZERO_PACKET - need one more td/trb */
-	zero_length_needed = urb->transfer_flags & URB_ZERO_PACKET &&
-		urb_priv->length == 2;
-	if (zero_length_needed) {
-		num_trbs++;
-		xhci_dbg(xhci, "Creating zero length td.\n");
-		ret = prepare_transfer(xhci, xhci->devs[slot_id],
-				ep_index, urb->stream_id,
-				1, urb, 1, mem_flags);
-		if (unlikely(ret < 0))
-			return ret;
-	}
+	if (urb->transfer_flags & URB_ZERO_PACKET && urb_priv->length > 1)
+		need_zero_pkt = true;
 
 	td = urb_priv->td[0];
 
@@ -3225,12 +3216,8 @@ int xhci_queue_bulk_tx(struct xhci_hcd *xhci, gfp_t mem_flags,
 			field |= TRB_CHAIN;
 		} else {
 			field |= TRB_IOC;
-			if (i == last_trb_num)
-				td->last_trb = ring->enqueue;
-			else if (zero_length_needed) {
-				trb_buff_len = 0;
-				urb_priv->td[1]->last_trb = ring->enqueue;
-			}
+			more_trbs_coming = need_zero_pkt;
+			td->last_trb = ring->enqueue;
 		}
 
 		/* Only set interrupt on short packet for IN endpoints */
@@ -3246,10 +3233,6 @@ int xhci_queue_bulk_tx(struct xhci_hcd *xhci, gfp_t mem_flags,
 			TRB_TD_SIZE(remainder) |
 			TRB_INTR_TARGET(0);
 
-		if (i < num_trbs - 1)
-			more_trbs_coming = true;
-		else
-			more_trbs_coming = false;
 		queue_trb(xhci, ring, more_trbs_coming,
 				lower_32_bits(addr),
 				upper_32_bits(addr),
@@ -3269,6 +3252,15 @@ int xhci_queue_bulk_tx(struct xhci_hcd *xhci, gfp_t mem_flags,
 				sg = sg_next(sg);
 			}
 		}
+	}
+
+	if (need_zero_pkt) {
+		ret = prepare_transfer(xhci, xhci->devs[slot_id],
+				       ep_index, urb->stream_id,
+				       1, urb, 1, mem_flags);
+		urb_priv->td[1]->last_trb = ring->enqueue;
+		field = TRB_TYPE(TRB_NORMAL) | ring->cycle_state | TRB_IOC;
+		queue_trb(xhci, ring, 0, 0, 0, TRB_INTR_TARGET(0), field);
 	}
 
 	check_trb_math(urb, running_total);
