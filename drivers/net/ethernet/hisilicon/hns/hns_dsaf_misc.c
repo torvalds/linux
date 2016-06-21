@@ -86,9 +86,10 @@ static void hns_cpld_set_led(struct hns_mac_cb *mac_cb, int link_status,
 			mac_cb->cpld_led_value = value;
 		}
 	} else {
-		dsaf_write_syscon(mac_cb->cpld_ctrl, mac_cb->cpld_ctrl_reg,
-				  CPLD_LED_DEFAULT_VALUE);
-		mac_cb->cpld_led_value = CPLD_LED_DEFAULT_VALUE;
+		value = (mac_cb->cpld_led_value) & (0x1 << DSAF_LED_ANCHOR_B);
+		dsaf_write_syscon(mac_cb->cpld_ctrl,
+				  mac_cb->cpld_ctrl_reg, value);
+		mac_cb->cpld_led_value = value;
 	}
 }
 
@@ -114,7 +115,7 @@ static int cpld_set_led_id(struct hns_mac_cb *mac_cb,
 			     CPLD_LED_ON_VALUE);
 		dsaf_write_syscon(mac_cb->cpld_ctrl, mac_cb->cpld_ctrl_reg,
 				  mac_cb->cpld_led_value);
-		return 2;
+		break;
 	case HNAE_LED_INACTIVE:
 		dsaf_set_bit(mac_cb->cpld_led_value, DSAF_LED_ANCHOR_B,
 			     CPLD_LED_DEFAULT_VALUE);
@@ -122,7 +123,8 @@ static int cpld_set_led_id(struct hns_mac_cb *mac_cb,
 				  mac_cb->cpld_led_value);
 		break;
 	default:
-		break;
+		dev_err(mac_cb->dev, "invalid led state: %d!", status);
+		return -EINVAL;
 	}
 
 	return 0;
@@ -271,7 +273,11 @@ static void hns_dsaf_ge_srst_by_port(struct dsaf_device *dsaf_dev, u32 port,
 		}
 	} else {
 		reg_val_1 = 0x15540 << dsaf_dev->reset_offset;
-		reg_val_2 = 0x100 << dsaf_dev->reset_offset;
+
+		if (AE_IS_VER1(dsaf_dev->dsaf_ver))
+			reg_val_2 = 0x100 << dsaf_dev->reset_offset;
+		else
+			reg_val_2 = 0x40 << dsaf_dev->reset_offset;
 
 		if (!dereset) {
 			dsaf_write_sub(dsaf_dev, DSAF_SUB_SC_GE_RESET_REQ1_REG,
@@ -431,11 +437,6 @@ int hns_mac_get_sfp_prsnt(struct hns_mac_cb *mac_cb, int *sfp_prsnt)
  */
 static int hns_mac_config_sds_loopback(struct hns_mac_cb *mac_cb, bool en)
 {
-	/* port 0-3 hilink4 base is serdes_vaddr + 0x00280000
-	 * port 4-7 hilink3 base is serdes_vaddr + 0x00200000
-	 */
-	u8 *base_addr = (u8 *)mac_cb->serdes_vaddr +
-		       (mac_cb->mac_id <= 3 ? 0x00280000 : 0x00200000);
 	const u8 lane_id[] = {
 		0,	/* mac 0 -> lane 0 */
 		1,	/* mac 1 -> lane 1 */
@@ -461,11 +462,30 @@ static int hns_mac_config_sds_loopback(struct hns_mac_cb *mac_cb, bool en)
 	}
 
 	if (mac_cb->serdes_ctrl) {
-		u32 origin = dsaf_read_syscon(mac_cb->serdes_ctrl, reg_offset);
+		u32 origin;
+
+		if (!AE_IS_VER1(mac_cb->dsaf_dev->dsaf_ver)) {
+#define HILINK_ACCESS_SEL_CFG		0x40008
+			/* hilink4 & hilink3 use the same xge training and
+			 * xge u adaptor. There is a hilink access sel cfg
+			 * register to select which one to be configed
+			 */
+			if ((!HNS_DSAF_IS_DEBUG(mac_cb->dsaf_dev)) &&
+			    (mac_cb->mac_id <= 3))
+				dsaf_write_syscon(mac_cb->serdes_ctrl,
+						  HILINK_ACCESS_SEL_CFG, 0);
+			else
+				dsaf_write_syscon(mac_cb->serdes_ctrl,
+						  HILINK_ACCESS_SEL_CFG, 3);
+		}
+
+		origin = dsaf_read_syscon(mac_cb->serdes_ctrl, reg_offset);
 
 		dsaf_set_field(origin, 1ull << 10, 10, en);
 		dsaf_write_syscon(mac_cb->serdes_ctrl, reg_offset, origin);
 	} else {
+		u8 *base_addr = (u8 *)mac_cb->serdes_vaddr +
+				(mac_cb->mac_id <= 3 ? 0x00280000 : 0x00200000);
 		dsaf_set_reg_field(base_addr, reg_offset, 1ull << 10, 10, en);
 	}
 

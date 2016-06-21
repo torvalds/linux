@@ -600,6 +600,7 @@ static int hns_nic_poll_rx_skb(struct hns_nic_ring_data *ring_data,
 		ring->stats.sw_err_cnt++;
 		return -ENOMEM;
 	}
+	skb_reset_mac_header(skb);
 
 	prefetchw(skb->data);
 	length = le16_to_cpu(desc->rx.pkt_len);
@@ -767,10 +768,10 @@ recv:
 			clean_count = 0;
 		}
 
-		/* poll one pkg*/
+		/* poll one pkt*/
 		err = hns_nic_poll_rx_skb(ring_data, &skb, &bnum);
 		if (unlikely(!skb)) /* this fault cannot be repaired */
-			break;
+			goto out;
 
 		recv_bds += bnum;
 		clean_count += bnum;
@@ -796,6 +797,7 @@ recv:
 		}
 	}
 
+out:
 	/* make all data has been write before submit */
 	if (clean_count > 0)
 		hns_nic_alloc_rx_buffers(ring_data, clean_count);
@@ -990,8 +992,26 @@ static void hns_nic_adjust_link(struct net_device *ndev)
 {
 	struct hns_nic_priv *priv = netdev_priv(ndev);
 	struct hnae_handle *h = priv->ae_handle;
+	int state = 1;
 
-	h->dev->ops->adjust_link(h, ndev->phydev->speed, ndev->phydev->duplex);
+	if (priv->phy) {
+		h->dev->ops->adjust_link(h, ndev->phydev->speed,
+					 ndev->phydev->duplex);
+		state = priv->phy->link;
+	}
+	state = state && h->dev->ops->get_status(h);
+
+	if (state != priv->link) {
+		if (state) {
+			netif_carrier_on(ndev);
+			netif_tx_wake_all_queues(ndev);
+			netdev_info(ndev, "link up\n");
+		} else {
+			netif_carrier_off(ndev);
+			netdev_info(ndev, "link down\n");
+		}
+		priv->link = state;
+	}
 }
 
 /**
@@ -1181,7 +1201,7 @@ static int hns_nic_net_up(struct net_device *ndev)
 {
 	struct hns_nic_priv *priv = netdev_priv(ndev);
 	struct hnae_handle *h = priv->ae_handle;
-	int i, j, k;
+	int i, j;
 	int ret;
 
 	ret = hns_nic_init_irq(priv);
@@ -1195,9 +1215,6 @@ static int hns_nic_net_up(struct net_device *ndev)
 		if (ret)
 			goto out_has_some_queues;
 	}
-
-	for (k = 0; k < h->q_num; k++)
-		h->dev->ops->toggle_queue_status(h->qs[k], 1);
 
 	ret = h->dev->ops->set_mac_addr(h, ndev->dev_addr);
 	if (ret)
@@ -1218,8 +1235,6 @@ static int hns_nic_net_up(struct net_device *ndev)
 out_start_err:
 	netif_stop_queue(ndev);
 out_set_mac_addr_err:
-	for (k = 0; k < h->q_num; k++)
-		h->dev->ops->toggle_queue_status(h->qs[k], 0);
 out_has_some_queues:
 	for (j = i - 1; j >= 0; j--)
 		hns_nic_ring_close(ndev, j);
@@ -1426,7 +1441,6 @@ static int hns_nic_set_features(struct net_device *netdev,
 				netdev_features_t features)
 {
 	struct hns_nic_priv *priv = netdev_priv(netdev);
-	struct hnae_handle *h = priv->ae_handle;
 
 	switch (priv->enet_ver) {
 	case AE_VERSION_1:
@@ -1439,11 +1453,9 @@ static int hns_nic_set_features(struct net_device *netdev,
 			priv->ops.maybe_stop_tx = hns_nic_maybe_stop_tso;
 			/* The chip only support 7*4096 */
 			netif_set_gso_max_size(netdev, 7 * 4096);
-			h->dev->ops->set_tso_stats(h, 1);
 		} else {
 			priv->ops.fill_desc = fill_v2_desc;
 			priv->ops.maybe_stop_tx = hns_nic_maybe_stop_tx;
-			h->dev->ops->set_tso_stats(h, 0);
 		}
 		break;
 	}
@@ -1576,27 +1588,14 @@ static void hns_nic_update_link_status(struct net_device *netdev)
 	struct hns_nic_priv *priv = netdev_priv(netdev);
 
 	struct hnae_handle *h = priv->ae_handle;
-	int state = 1;
 
-	if (priv->phy) {
-		if (!genphy_update_link(priv->phy))
-			state = priv->phy->link;
-		else
-			state = 0;
-	}
-	state = state && h->dev->ops->get_status(h);
+	if (h->phy_dev) {
+		if (h->phy_if != PHY_INTERFACE_MODE_XGMII)
+			return;
 
-	if (state != priv->link) {
-		if (state) {
-			netif_carrier_on(netdev);
-			netif_tx_wake_all_queues(netdev);
-			netdev_info(netdev, "link up\n");
-		} else {
-			netif_carrier_off(netdev);
-			netdev_info(netdev, "link down\n");
-		}
-		priv->link = state;
+		(void)genphy_read_status(h->phy_dev);
 	}
+	hns_nic_adjust_link(netdev);
 }
 
 /* for dumping key regs*/
@@ -1632,7 +1631,7 @@ static void hns_nic_dump(struct hns_nic_priv *priv)
 	}
 }
 
-/* for resetting suntask*/
+/* for resetting subtask */
 static void hns_nic_reset_subtask(struct hns_nic_priv *priv)
 {
 	enum hnae_port_type type = priv->ae_handle->port_type;
@@ -1802,11 +1801,14 @@ static void hns_nic_set_priv_ops(struct net_device *netdev)
 			priv->ops.maybe_stop_tx = hns_nic_maybe_stop_tso;
 			/* This chip only support 7*4096 */
 			netif_set_gso_max_size(netdev, 7 * 4096);
-			h->dev->ops->set_tso_stats(h, 1);
 		} else {
 			priv->ops.fill_desc = fill_v2_desc;
 			priv->ops.maybe_stop_tx = hns_nic_maybe_stop_tx;
 		}
+		/* enable tso when init
+		 * control tso on/off through TSE bit in bd
+		 */
+		h->dev->ops->set_tso_stats(h, 1);
 	}
 }
 
@@ -1971,7 +1973,7 @@ static int hns_nic_dev_probe(struct platform_device *pdev)
 	if (!dma_set_mask_and_coherent(dev, DMA_BIT_MASK(64)))
 		dev_dbg(dev, "set mask to 64bit\n");
 	else
-		dev_err(dev, "set mask to 32bit fail!\n");
+		dev_err(dev, "set mask to 64bit fail!\n");
 
 	/* carrier off reporting is important to ethtool even BEFORE open */
 	netif_carrier_off(ndev);

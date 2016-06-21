@@ -39,6 +39,9 @@ struct hns_mac_cb;
 
 #define DSAF_DUMP_REGS_NUM 504
 #define DSAF_STATIC_NUM 28
+#define DSAF_V2_STATIC_NUM	44
+#define DSAF_PRIO_NR	8
+#define DSAF_REG_PER_ZONE	3
 
 #define DSAF_STATS_READ(p, offset) (*((u64 *)((u8 *)(p) + (offset))))
 #define HNS_DSAF_IS_DEBUG(dev) (dev->dsaf_mode == DSAF_MODE_DISABLE_SP)
@@ -176,6 +179,8 @@ struct dsaf_hw_stats {
 	u64 local_addr_false;
 	u64 vlan_drop;
 	u64 stp_drop;
+	u64 rx_pfc[DSAF_PRIO_NR];
+	u64 tx_pfc[DSAF_PRIO_NR];
 	u64 tx_pkts;
 };
 
@@ -317,6 +322,8 @@ struct dsaf_device {
 
 	struct dsaf_hw_stats hw_stats[DSAF_NODE_NUM];
 	struct dsaf_int_stat int_stat;
+	/* make sure tcam table config spinlock */
+	spinlock_t tcam_lock;
 };
 
 static inline void *hns_dsaf_dev_priv(const struct dsaf_device *dsaf_dev)
@@ -417,9 +424,10 @@ void hns_dsaf_ae_uninit(struct dsaf_device *dsaf_dev);
 
 void hns_dsaf_update_stats(struct dsaf_device *dsaf_dev, u32 inode_num);
 
-int hns_dsaf_get_sset_count(int stringset);
+int hns_dsaf_get_sset_count(struct dsaf_device *dsaf_dev, int stringset);
 void hns_dsaf_get_stats(struct dsaf_device *ddev, u64 *data, int port);
-void hns_dsaf_get_strings(int stringset, u8 *data, int port);
+void hns_dsaf_get_strings(int stringset, u8 *data, int port,
+			  struct dsaf_device *dsaf_dev);
 
 void hns_dsaf_get_regs(struct dsaf_device *ddev, u32 port, void *data);
 int hns_dsaf_get_regs_count(void);
