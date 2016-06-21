@@ -300,13 +300,10 @@ int tmc_read_unprepare_etr(struct tmc_drvdata *drvdata)
 	if (local_read(&drvdata->mode) == CS_MODE_SYSFS) {
 		/*
 		 * The trace run will continue with the same allocated trace
-		 * buffer. As such zero-out the buffer so that we don't end
-		 * up with stale data.
-		 *
-		 * Since the tracer is still enabled drvdata::buf
-		 * can't be NULL.
+		 * buffer. The trace buffer is cleared in tmc_etr_enable_hw(),
+		 * so we don't have to explicitly clear it. Also, since the
+		 * tracer is still enabled drvdata::buf can't be NULL.
 		 */
-		memset(drvdata->buf, 0, drvdata->size);
 		tmc_etr_enable_hw(drvdata);
 	} else {
 		/*
@@ -315,7 +312,7 @@ int tmc_read_unprepare_etr(struct tmc_drvdata *drvdata)
 		 */
 		vaddr = drvdata->vaddr;
 		paddr = drvdata->paddr;
-		drvdata->buf = NULL;
+		drvdata->buf = drvdata->vaddr = NULL;
 	}
 
 	drvdata->reading = false;

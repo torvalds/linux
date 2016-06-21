@@ -24,18 +24,21 @@
 			compatible = "shared-dma-pool";
 			reg = <0x40000000 0x01000000>;
 			no-map;
+			status = "disabled";
 		};
 
 		gp1_reserved: rproc@41000000 {
 			compatible = "shared-dma-pool";
 			reg = <0x41000000 0x01000000>;
 			no-map;
+			status = "disabled";
 		};
 
 		audio_reserved: rproc@42000000 {
 			compatible = "shared-dma-pool";
 			reg = <0x42000000 0x01000000>;
 			no-map;
+			status = "disabled";
 		};
 
 		dmu_reserved: rproc@43000000 {
