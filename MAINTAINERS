@@ -3858,7 +3858,6 @@ F:	Documentation/devicetree/bindings/display/
 F:	Documentation/devicetree/bindings/gpu/
 F:	Documentation/devicetree/bindings/video/
 F:	Documentation/gpu/
-F:	Documentation/DocBook/gpu.*
 F:	include/drm/
 F:	include/uapi/drm/
 
