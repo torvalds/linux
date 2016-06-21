@@ -692,6 +692,7 @@ void init_entity_runnable_average(struct sched_entity *se)
 
 static inline u64 cfs_rq_clock_task(struct cfs_rq *cfs_rq);
 static int update_cfs_rq_load_avg(u64 now, struct cfs_rq *cfs_rq, bool update_freq);
+static void update_tg_load_avg(struct cfs_rq *cfs_rq, int force);
 static void attach_entity_load_avg(struct cfs_rq *cfs_rq, struct sched_entity *se);
 
 /*
@@ -725,6 +726,7 @@ void post_init_entity_util_avg(struct sched_entity *se)
 	struct sched_avg *sa = &se->avg;
 	long cap = (long)(SCHED_CAPACITY_SCALE - cfs_rq->avg.util_avg) / 2;
 	u64 now = cfs_rq_clock_task(cfs_rq);
+	int tg_update;
 
 	if (cap > 0) {
 		if (cfs_rq->avg.util_avg != 0) {
@@ -757,8 +759,10 @@ void post_init_entity_util_avg(struct sched_entity *se)
 		}
 	}
 
-	update_cfs_rq_load_avg(now, cfs_rq, false);
+	tg_update = update_cfs_rq_load_avg(now, cfs_rq, false);
 	attach_entity_load_avg(cfs_rq, se);
+	if (tg_update)
+		update_tg_load_avg(cfs_rq, false);
 }
 
 #else /* !CONFIG_SMP */
@@ -766,6 +770,9 @@ void init_entity_runnable_average(struct sched_entity *se)
 {
 }
 void post_init_entity_util_avg(struct sched_entity *se)
+{
+}
+static void update_tg_load_avg(struct cfs_rq *cfs_rq, int force)
 {
 }
 #endif /* CONFIG_SMP */
@@ -2912,7 +2919,23 @@ static inline void cfs_rq_util_change(struct cfs_rq *cfs_rq)
 	WRITE_ONCE(*ptr, res);					\
 } while (0)
 
-/* Group cfs_rq's load_avg is used for task_h_load and update_cfs_share */
+/**
+ * update_cfs_rq_load_avg - update the cfs_rq's load/util averages
+ * @now: current time, as per cfs_rq_clock_task()
+ * @cfs_rq: cfs_rq to update
+ * @update_freq: should we call cfs_rq_util_change() or will the call do so
+ *
+ * The cfs_rq avg is the direct sum of all its entities (blocked and runnable)
+ * avg. The immediate corollary is that all (fair) tasks must be attached, see
+ * post_init_entity_util_avg().
+ *
+ * cfs_rq->avg is used for task_h_load() and update_cfs_share() for example.
+ *
+ * Returns true if the load decayed or we removed utilization. It is expected
+ * that one calls update_tg_load_avg() on this condition, but after you've
+ * modified the cfs_rq avg (attach/detach), such that we propagate the new
+ * avg up.
+ */
 static inline int
 update_cfs_rq_load_avg(u64 now, struct cfs_rq *cfs_rq, bool update_freq)
 {
@@ -2967,6 +2990,14 @@ static inline void update_load_avg(struct sched_entity *se, int update_tg)
 		update_tg_load_avg(cfs_rq, 0);
 }
 
+/**
+ * attach_entity_load_avg - attach this entity to its cfs_rq load avg
+ * @cfs_rq: cfs_rq to attach to
+ * @se: sched_entity to attach
+ *
+ * Must call update_cfs_rq_load_avg() before this, since we rely on
+ * cfs_rq->avg.last_update_time being current.
+ */
 static void attach_entity_load_avg(struct cfs_rq *cfs_rq, struct sched_entity *se)
 {
 	if (!sched_feat(ATTACH_AGE_LOAD))
@@ -2998,6 +3029,14 @@ skip_aging:
 	cfs_rq_util_change(cfs_rq);
 }
 
+/**
+ * detach_entity_load_avg - detach this entity from its cfs_rq load avg
+ * @cfs_rq: cfs_rq to detach from
+ * @se: sched_entity to detach
+ *
+ * Must call update_cfs_rq_load_avg() before this, since we rely on
+ * cfs_rq->avg.last_update_time being current.
+ */
 static void detach_entity_load_avg(struct cfs_rq *cfs_rq, struct sched_entity *se)
 {
 	__update_load_avg(cfs_rq->avg.last_update_time, cpu_of(rq_of(cfs_rq)),
@@ -8404,6 +8443,7 @@ static void detach_task_cfs_rq(struct task_struct *p)
 	struct sched_entity *se = &p->se;
 	struct cfs_rq *cfs_rq = cfs_rq_of(se);
 	u64 now = cfs_rq_clock_task(cfs_rq);
+	int tg_update;
 
 	if (!vruntime_normalized(p)) {
 		/*
@@ -8415,8 +8455,10 @@ static void detach_task_cfs_rq(struct task_struct *p)
 	}
 
 	/* Catch up with the cfs_rq and remove our load when we leave */
-	update_cfs_rq_load_avg(now, cfs_rq, false);
+	tg_update = update_cfs_rq_load_avg(now, cfs_rq, false);
 	detach_entity_load_avg(cfs_rq, se);
+	if (tg_update)
+		update_tg_load_avg(cfs_rq, false);
 }
 
 static void attach_task_cfs_rq(struct task_struct *p)
@@ -8424,6 +8466,7 @@ static void attach_task_cfs_rq(struct task_struct *p)
 	struct sched_entity *se = &p->se;
 	struct cfs_rq *cfs_rq = cfs_rq_of(se);
 	u64 now = cfs_rq_clock_task(cfs_rq);
+	int tg_update;
 
 #ifdef CONFIG_FAIR_GROUP_SCHED
 	/*
@@ -8434,8 +8477,10 @@ static void attach_task_cfs_rq(struct task_struct *p)
 #endif
 
 	/* Synchronize task with its cfs_rq */
-	update_cfs_rq_load_avg(now, cfs_rq, false);
+	tg_update = update_cfs_rq_load_avg(now, cfs_rq, false);
 	attach_entity_load_avg(cfs_rq, se);
+	if (tg_update)
+		update_tg_load_avg(cfs_rq, false);
 
 	if (!vruntime_normalized(p))
 		se->vruntime += cfs_rq->min_vruntime;
