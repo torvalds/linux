@@ -37,6 +37,7 @@
 #include "drm_crtc_internal.h"
 #include "drm_legacy.h"
 #include "drm_internal.h"
+#include "drm_crtc_internal.h"
 
 /*
  * drm_debug: Enable debug output.

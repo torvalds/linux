@@ -3800,6 +3800,13 @@ void drm_fb_release(struct drm_file *priv)
 	}
 }
 
+static bool drm_property_type_valid(struct drm_property *property)
+{
+	if (property->flags & DRM_MODE_PROP_EXTENDED_TYPE)
+		return !(property->flags & DRM_MODE_PROP_LEGACY_TYPE);
+	return !!(property->flags & DRM_MODE_PROP_LEGACY_TYPE);
+}
+
 /**
  * drm_property_create - create a new property type
  * @dev: drm device
