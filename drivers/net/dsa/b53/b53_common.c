@@ -679,7 +679,7 @@ static void b53_get_ethtool_stats(struct dsa_switch *ds, int port,
 	for (i = 0; i < mib_size; i++) {
 		s = &mibs[i];
 
-		if (mibs->size == 8) {
+		if (s->size == 8) {
 			b53_read64(dev, B53_MIB_PAGE(port), s->offset, &val);
 		} else {
 			u32 val32;
