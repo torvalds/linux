@@ -287,17 +287,20 @@ static int mv_cesa_ahash_process(struct crypto_async_request *req, u32 status)
 {
 	struct ahash_request *ahashreq = ahash_request_cast(req);
 	struct mv_cesa_ahash_req *creq = ahash_request_ctx(ahashreq);
-	struct mv_cesa_engine *engine = creq->base.engine;
-	unsigned int digsize;
-	int ret, i;
 
 	if (mv_cesa_req_get_type(&creq->base) == CESA_DMA_REQ)
-		ret = mv_cesa_dma_process(&creq->base, status);
-	else
-		ret = mv_cesa_ahash_std_process(ahashreq, status);
+		return mv_cesa_dma_process(&creq->base, status);
 
-	if (ret == -EINPROGRESS)
-		return ret;
+	return mv_cesa_ahash_std_process(ahashreq, status);
+}
+
+static void mv_cesa_ahash_complete(struct crypto_async_request *req)
+{
+	struct ahash_request *ahashreq = ahash_request_cast(req);
+	struct mv_cesa_ahash_req *creq = ahash_request_ctx(ahashreq);
+	struct mv_cesa_engine *engine = creq->base.engine;
+	unsigned int digsize;
+	int i;
 
 	digsize = crypto_ahash_digestsize(crypto_ahash_reqtfm(ahashreq));
 	for (i = 0; i < digsize / 4; i++)
@@ -326,8 +329,6 @@ static int mv_cesa_ahash_process(struct crypto_async_request *req, u32 status)
 				result[i] = cpu_to_be32(creq->state[i]);
 		}
 	}
-
-	return ret;
 }
 
 static void mv_cesa_ahash_prepare(struct crypto_async_request *req,
@@ -366,6 +367,7 @@ static const struct mv_cesa_req_ops mv_cesa_ahash_req_ops = {
 	.process = mv_cesa_ahash_process,
 	.prepare = mv_cesa_ahash_prepare,
 	.cleanup = mv_cesa_ahash_req_cleanup,
+	.complete = mv_cesa_ahash_complete,
 };
 
 static int mv_cesa_ahash_init(struct ahash_request *req,

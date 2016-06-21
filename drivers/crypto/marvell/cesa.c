@@ -98,6 +98,7 @@ static irqreturn_t mv_cesa_int(int irq, void *priv)
 				engine->req = NULL;
 				mv_cesa_dequeue_req_unlocked(engine);
 				spin_unlock_bh(&engine->lock);
+				ctx->ops->complete(req);
 				ctx->ops->cleanup(req);
 				local_bh_disable();
 				req->complete(req, res);

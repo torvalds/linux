@@ -456,6 +456,8 @@ struct mv_cesa_engine {
  *		code)
  * @step:	launch the crypto operation on the next chunk
  * @cleanup:	cleanup the crypto request (release associated data)
+ * @complete:	complete the request, i.e copy result or context from sram when
+ * 		needed.
  */
 struct mv_cesa_req_ops {
 	void (*prepare)(struct crypto_async_request *req,
@@ -463,6 +465,7 @@ struct mv_cesa_req_ops {
 	int (*process)(struct crypto_async_request *req, u32 status);
 	void (*step)(struct crypto_async_request *req);
 	void (*cleanup)(struct crypto_async_request *req);
+	void (*complete)(struct crypto_async_request *req);
 };
 
 /**
