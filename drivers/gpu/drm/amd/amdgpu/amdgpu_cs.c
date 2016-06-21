@@ -459,7 +459,7 @@ static int amdgpu_cs_parser_bos(struct amdgpu_cs_parser *p,
 		list_splice(&need_pages, &p->validated);
 	}
 
-	amdgpu_vm_get_pt_bos(&fpriv->vm, &duplicates);
+	amdgpu_vm_get_pt_bos(p->adev, &fpriv->vm, &duplicates);
 
 	p->bytes_moved_threshold = amdgpu_cs_get_threshold_for_moves(p->adev);
 	p->bytes_moved = 0;
@@ -471,6 +471,9 @@ static int amdgpu_cs_parser_bos(struct amdgpu_cs_parser *p,
 	r = amdgpu_cs_list_validate(p, &p->validated);
 	if (r)
 		goto error_validate;
+
+	fpriv->vm.last_eviction_counter =
+		atomic64_read(&p->adev->num_evictions);
 
 	if (p->bo_list) {
 		struct amdgpu_bo *gds = p->bo_list->gds_obj;

@@ -115,15 +115,25 @@ void amdgpu_vm_get_pd_bo(struct amdgpu_vm *vm,
 /**
  * amdgpu_vm_get_bos - add the vm BOs to a duplicates list
  *
+ * @adev: amdgpu device pointer
  * @vm: vm providing the BOs
  * @duplicates: head of duplicates list
  *
  * Add the page directory to the BO duplicates list
  * for command submission.
  */
-void amdgpu_vm_get_pt_bos(struct amdgpu_vm *vm, struct list_head *duplicates)
+void amdgpu_vm_get_pt_bos(struct amdgpu_device *adev, struct amdgpu_vm *vm,
+			  struct list_head *duplicates)
 {
+	uint64_t num_evictions;
 	unsigned i;
+
+	/* We only need to validate the page tables
+	 * if they aren't already valid.
+	 */
+	num_evictions = atomic64_read(&adev->num_evictions);
+	if (num_evictions == vm->last_eviction_counter)
+		return;
 
 	/* add the vm page table to the list */
 	for (i = 0; i <= vm->max_pde_used; ++i) {
@@ -1534,6 +1544,7 @@ int amdgpu_vm_init(struct amdgpu_device *adev, struct amdgpu_vm *vm)
 	amdgpu_bo_unreserve(vm->page_directory);
 	if (r)
 		goto error_free_page_directory;
+	vm->last_eviction_counter = atomic64_read(&adev->num_evictions);
 
 	return 0;
 

@@ -864,6 +864,7 @@ struct amdgpu_vm {
 	struct amdgpu_bo	*page_directory;
 	unsigned		max_pde_used;
 	struct fence		*page_directory_fence;
+	uint64_t		last_eviction_counter;
 
 	/* array of page tables, one for each page directory entry */
 	struct amdgpu_vm_pt	*page_tables;
@@ -932,7 +933,8 @@ void amdgpu_vm_fini(struct amdgpu_device *adev, struct amdgpu_vm *vm);
 void amdgpu_vm_get_pd_bo(struct amdgpu_vm *vm,
 			 struct list_head *validated,
 			 struct amdgpu_bo_list_entry *entry);
-void amdgpu_vm_get_pt_bos(struct amdgpu_vm *vm, struct list_head *duplicates);
+void amdgpu_vm_get_pt_bos(struct amdgpu_device *adev, struct amdgpu_vm *vm,
+			  struct list_head *duplicates);
 void amdgpu_vm_move_pt_bos_in_lru(struct amdgpu_device *adev,
 				  struct amdgpu_vm *vm);
 int amdgpu_vm_grab_id(struct amdgpu_vm *vm, struct amdgpu_ring *ring,
