@@ -1042,6 +1042,8 @@ static int spi_imx_pio_transfer(struct spi_device *spi,
 				struct spi_transfer *transfer)
 {
 	struct spi_imx_data *spi_imx = spi_master_get_devdata(spi->master);
+	unsigned long transfer_timeout;
+	unsigned long timeout;
 
 	spi_imx->tx_buf = transfer->tx_buf;
 	spi_imx->rx_buf = transfer->rx_buf;
@@ -1054,7 +1056,15 @@ static int spi_imx_pio_transfer(struct spi_device *spi,
 
 	spi_imx->devtype_data->intctrl(spi_imx, MXC_INT_TE);
 
-	wait_for_completion(&spi_imx->xfer_done);
+	transfer_timeout = spi_imx_calculate_timeout(spi_imx, transfer->len);
+
+	timeout = wait_for_completion_timeout(&spi_imx->xfer_done,
+					      transfer_timeout);
+	if (!timeout) {
+		dev_err(&spi->dev, "I/O Error in PIO\n");
+		spi_imx->devtype_data->reset(spi_imx);
+		return -ETIMEDOUT;
+	}
 
 	return transfer->len;
 }
