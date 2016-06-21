@@ -18,7 +18,6 @@
 #include <linux/platform_device.h>
 #include <linux/usb/phy.h>
 #include <linux/slab.h>
-#include <linux/usb/xhci_pdriver.h>
 #include <linux/acpi.h>
 
 #include "xhci.h"
@@ -138,7 +137,6 @@ MODULE_DEVICE_TABLE(of, usb_xhci_of_match);
 
 static int xhci_plat_probe(struct platform_device *pdev)
 {
-	struct usb_xhci_pdata	*pdata = dev_get_platdata(&pdev->dev);
 	const struct of_device_id *match;
 	const struct hc_driver	*driver;
 	struct xhci_hcd		*xhci;
@@ -222,8 +220,7 @@ static int xhci_plat_probe(struct platform_device *pdev)
 		goto disable_clk;
 	}
 
-	if (device_property_read_bool(&pdev->dev, "usb3-lpm-capable") ||
-			(pdata && pdata->usb3_lpm_capable))
+	if (device_property_read_bool(&pdev->dev, "usb3-lpm-capable"))
 		xhci->quirks |= XHCI_LPM_SUPPORT;
 
 	if (HCC_MAX_PSA(xhci->hcc_params) >= 4)
