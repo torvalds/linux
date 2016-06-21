@@ -61,6 +61,9 @@ xfs_errortag_add(int error_tag, xfs_mount_t *mp)
 	int len;
 	int64_t fsid;
 
+	if (error_tag >= XFS_ERRTAG_MAX)
+		return -EINVAL;
+
 	memcpy(&fsid, mp->m_fixedfsid, sizeof(xfs_fsid_t));
 
 	for (i = 0; i < XFS_NUM_INJECT_ERROR; i++)  {
