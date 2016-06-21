@@ -12,6 +12,7 @@
  */
 
 #include "msm8996.dtsi"
+#include "apq8096-db820c-pins.dtsi"
 
 / {
 	aliases {
@@ -72,6 +73,15 @@
 		spi@075ba000{
 		/* On High speed expansion */
 			label = "HS-SPI1";
+			status = "okay";
+		};
+
+		sdhci@74a4900 {
+		/* External SD card */
+			pinctrl-names = "default", "sleep";
+			pinctrl-0 = <&sdc2_clk_on &sdc2_cmd_on &sdc2_data_on &sdc2_cd_on>;
+			pinctrl-1 = <&sdc2_clk_off &sdc2_cmd_off &sdc2_data_off &sdc2_cd_off>;
+			cd-gpios = <&msmgpio 38 0x1>;
 			status = "okay";
 		};
 	};
