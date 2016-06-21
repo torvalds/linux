@@ -167,6 +167,14 @@ static const struct dmi_system_id video_detect_dmi_table[] = {
 		DMI_MATCH(DMI_PRODUCT_VERSION, "ThinkPad X201s"),
 		},
 	},
+        {
+         .callback = video_detect_force_video,
+         .ident = "ThinkPad X201T",
+         .matches = {
+                DMI_MATCH(DMI_SYS_VENDOR, "LENOVO"),
+                DMI_MATCH(DMI_PRODUCT_VERSION, "ThinkPad X201T"),
+                },
+        },
 
 	/* The native backlight controls do not work on some older machines */
 	{
