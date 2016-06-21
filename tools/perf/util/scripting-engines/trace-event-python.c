@@ -806,6 +806,8 @@ static void python_process_general_event(struct perf_sample *sample,
 			PyInt_FromLong(sample->cpu));
 	pydict_set_item_string_decref(dict_sample, "ip",
 			PyLong_FromUnsignedLongLong(sample->ip));
+        pydict_set_item_string_decref(dict_sample, "addr",
+			PyLong_FromUnsignedLongLong(sample->addr));
 	pydict_set_item_string_decref(dict_sample, "time",
 			PyLong_FromUnsignedLongLong(sample->time));
 	pydict_set_item_string_decref(dict_sample, "period",

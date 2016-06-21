@@ -276,6 +276,7 @@ static int record__open(struct record *rec)
 	struct perf_evlist *evlist = rec->evlist;
 	struct perf_session *session = rec->session;
 	struct record_opts *opts = &rec->opts;
+	struct perf_evsel_config_term *err_term;
 	int rc = 0;
 
 	perf_evlist__config(evlist, opts);
@@ -300,6 +301,14 @@ try_again:
 	if (perf_evlist__apply_filters(evlist, &pos)) {
 		error("failed to set filter \"%s\" on event %s with %d (%s)\n",
 			pos->filter, perf_evsel__name(pos), errno,
+			strerror_r(errno, msg, sizeof(msg)));
+		rc = -1;
+		goto out;
+	}
+
+	if (perf_evlist__apply_drv_configs(evlist, &pos, &err_term)) {
+		error("failed to set config \"%s\" on event %s with %d (%s)\n",
+			err_term->val.drv_cfg, perf_evsel__name(pos), errno,
 			strerror_r(errno, msg, sizeof(msg)));
 		rc = -1;
 		goto out;

@@ -22,6 +22,7 @@
 #include <linux/list.h>
 #include <linux/mm.h>
 #include <linux/init.h>
+#include <linux/parser.h>
 #include <linux/perf_event.h>
 #include <linux/slab.h>
 #include <linux/types.h>
@@ -44,6 +45,17 @@ struct etm_event_data {
 	cpumask_t mask;
 	void *snk_config;
 	struct list_head **path;
+};
+
+/**
+ * struct perf_pmu_drv_config - Driver specific configuration needed
+ *				before a session can start.
+ * @sink:		The name of the sink this session should use.
+ * @entry:		Hook to the event->drv_configs list.
+ */
+struct perf_pmu_drv_config {
+	char *sink;
+	struct list_head entry;
 };
 
 static DEFINE_PER_CPU(struct perf_output_handle, ctx_handle);
@@ -155,15 +167,28 @@ static void etm_free_aux(void *data)
 	schedule_work(&event_data->work);
 }
 
-static void *etm_setup_aux(int event_cpu, void **pages,
+static void *etm_setup_aux(struct perf_event *event, void **pages,
 			   int nr_pages, bool overwrite)
 {
 	int cpu;
+	char *sink_def = NULL;
 	cpumask_t *mask;
 	struct coresight_device *sink;
 	struct etm_event_data *event_data = NULL;
+	struct perf_pmu_drv_config *drv_config;
 
-	event_data = alloc_event_data(event_cpu);
+	/*
+	 * Search the driver configurables looking for a sink.  If more than
+	 * one sink was specified the last one is taken.
+	 */
+	list_for_each_entry(drv_config, &event->drv_configs, entry) {
+		if (drv_config && drv_config->sink) {
+			sink_def = drv_config->sink;
+			break;
+		}
+	}
+
+	event_data = alloc_event_data(event->cpu);
 	if (!event_data)
 		return NULL;
 
@@ -184,7 +209,7 @@ static void *etm_setup_aux(int event_cpu, void **pages,
 		 * list of devices from source to sink that can be
 		 * referenced later when the path is actually needed.
 		 */
-		event_data->path[cpu] = coresight_build_path(csdev);
+		event_data->path[cpu] = coresight_build_path(csdev, sink_def);
 		if (!event_data->path[cpu])
 			goto err;
 	}
@@ -342,6 +367,95 @@ static void etm_event_del(struct perf_event *event, int mode)
 	etm_event_stop(event, PERF_EF_UPDATE);
 }
 
+enum {
+	ETM_TOKEN_SINK_CPU,
+	ETM_TOKEN_SINK,
+	ETM_TOKEN_ERR,
+};
+
+static const match_table_t drv_cfg_tokens = {
+	{ETM_TOKEN_SINK_CPU, "sink=cpu%d:%s"},
+	{ETM_TOKEN_SINK, "sink=%s"},
+	{ETM_TOKEN_ERR,	NULL},
+};
+
+static int etm_get_drv_configs(struct perf_event *event, void __user *arg)
+{
+	char *config, *sink = NULL;
+	int cpu = -1, token, ret = 0;
+	substring_t args[MAX_OPT_ARGS];
+	struct perf_pmu_drv_config *drv_config = NULL;
+
+	/* Make user supplied input usable */
+	config = strndup_user(arg, PAGE_SIZE);
+	if (IS_ERR(config))
+		return PTR_ERR(config);
+
+	/* See above declared @drv_cfg_tokens for the usable formats */
+	token = match_token(config, drv_cfg_tokens, args);
+	switch (token) {
+	case ETM_TOKEN_SINK:
+		/* Just a sink has been specified */
+		sink = match_strdup(&args[0]);
+		if (IS_ERR(sink)) {
+			ret = PTR_ERR(sink);
+			goto err;
+		}
+		break;
+	case ETM_TOKEN_SINK_CPU:
+		/* We have a sink and a CPU */
+		if (match_int(&args[0], &cpu)) {
+			ret = -EINVAL;
+			goto err;
+		}
+		sink = match_strdup(&args[1]);
+		if (IS_ERR(sink)) {
+			ret = PTR_ERR(sink);
+			goto err;
+		}
+		break;
+	default:
+		ret = -EINVAL;
+		goto err;
+	}
+
+	/* If the CPUs don't match the sink is destined to another path */
+	if (event->cpu != cpu)
+		goto err;
+
+	/*
+	 * We have a valid configuration, allocate memory and add to the list
+	 * of driver configurables.
+	 */
+	drv_config = kzalloc(sizeof(*drv_config), GFP_KERNEL);
+	if (IS_ERR(drv_config)) {
+		ret = PTR_ERR(drv_config);
+		goto err;
+	}
+
+	drv_config->sink = sink;
+	list_add(&drv_config->entry, &event->drv_configs);
+
+out:
+	kfree(config);
+	return ret;
+
+err:
+	kfree(sink);
+	goto out;
+}
+
+static void etm_free_drv_configs(struct perf_event *event)
+{
+	struct perf_pmu_drv_config *config, *itr;
+
+	list_for_each_entry_safe(config, itr, &event->drv_configs, entry) {
+		list_del(&config->entry);
+		kfree(config->sink);
+		kfree(config);
+	}
+}
+
 int etm_perf_symlink(struct coresight_device *csdev, bool link)
 {
 	char entry[sizeof("cpu9999999")];
@@ -383,6 +497,9 @@ static int __init etm_perf_init(void)
 	etm_pmu.stop		= etm_event_stop;
 	etm_pmu.add		= etm_event_add;
 	etm_pmu.del		= etm_event_del;
+	etm_pmu.get_drv_configs	= etm_get_drv_configs;
+	etm_pmu.free_drv_configs
+				= etm_free_drv_configs;
 
 	ret = perf_pmu_register(&etm_pmu, CORESIGHT_ETM_PMU_NAME, -1);
 	if (ret == 0)

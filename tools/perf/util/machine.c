@@ -1,3 +1,4 @@
+#include "build-id.h"
 #include "callchain.h"
 #include "debug.h"
 #include "event.h"
@@ -685,8 +686,16 @@ static struct dso *machine__get_kernel(struct machine *machine)
 						 DSO_TYPE_GUEST_KERNEL);
 	}
 
-	if (kernel != NULL && (!kernel->has_build_id))
-		dso__read_running_kernel_build_id(kernel, machine);
+	if (kernel != NULL && (!kernel->has_build_id)) {
+                if (symbol_conf.vmlinux_name != NULL) {
+                        filename__read_build_id(symbol_conf.vmlinux_name,
+                                                kernel->build_id,
+                                                sizeof(kernel->build_id));
+                        kernel->has_build_id = 1;
+                } else {
+		        dso__read_running_kernel_build_id(kernel, machine);
+                }
+        }
 
 	return kernel;
 }
@@ -700,8 +709,19 @@ static void machine__get_kallsyms_filename(struct machine *machine, char *buf,
 {
 	if (machine__is_default_guest(machine))
 		scnprintf(buf, bufsz, "%s", symbol_conf.default_guest_kallsyms);
-	else
-		scnprintf(buf, bufsz, "%s/proc/kallsyms", machine->root_dir);
+	else {
+                if (symbol_conf.vmlinux_name != 0) {
+                        unsigned char build_id[BUILD_ID_SIZE];
+                        char build_id_hex[SBUILD_ID_SIZE];
+                        filename__read_build_id(symbol_conf.vmlinux_name,
+                                                build_id,
+                                                sizeof(build_id));
+                        build_id__sprintf(build_id,sizeof(build_id), build_id_hex);
+                        build_id__filename((char *)build_id_hex,buf,bufsz);
+                } else {
+		        scnprintf(buf, bufsz, "%s/proc/kallsyms", machine->root_dir);
+                }
+        }
 }
 
 const char *ref_reloc_sym_names[] = {"_text", "_stext", NULL};
@@ -710,7 +730,7 @@ const char *ref_reloc_sym_names[] = {"_text", "_stext", NULL};
  * Returns the name of the start symbol in *symbol_name. Pass in NULL as
  * symbol_name if it's not that important.
  */
-static u64 machine__get_running_kernel_start(struct machine *machine,
+static u64 machine__get_kallsyms_kernel_start(struct machine *machine,
 					     const char **symbol_name)
 {
 	char filename[PATH_MAX];
@@ -738,7 +758,7 @@ static u64 machine__get_running_kernel_start(struct machine *machine,
 int __machine__create_kernel_maps(struct machine *machine, struct dso *kernel)
 {
 	enum map_type type;
-	u64 start = machine__get_running_kernel_start(machine, NULL);
+	u64 start = machine__get_kallsyms_kernel_start(machine, NULL);
 
 	for (type = 0; type < MAP__NR_TYPES; ++type) {
 		struct kmap *kmap;
@@ -1083,7 +1103,8 @@ int machine__create_kernel_maps(struct machine *machine)
 {
 	struct dso *kernel = machine__get_kernel(machine);
 	const char *name;
-	u64 addr = machine__get_running_kernel_start(machine, &name);
+	u64 addr = machine__get_kallsyms_kernel_start(machine, &name);
+
 	if (!addr)
 		return -1;
 
