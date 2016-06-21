@@ -840,6 +840,8 @@ void intel_fbdev_restore_mode(struct drm_device *dev)
 	if (!ifbdev)
 		return;
 
+	intel_fbdev_sync(ifbdev);
+
 	fb_helper = &ifbdev->helper;
 
 	ret = drm_fb_helper_restore_fbdev_mode_unlocked(fb_helper);
