@@ -258,7 +258,7 @@ static const struct mwifiex_pcie_card_reg mwifiex_reg_8997 = {
 	.fw_dump_end = 0xcff,
 	.fw_dump_host_ready = 0xcc,
 	.fw_dump_read_done = 0xdd,
-	.msix_support = 1,
+	.msix_support = 0,
 };
 
 static struct memory_type_mapping mem_type_mapping_tbl_w8897[] = {
