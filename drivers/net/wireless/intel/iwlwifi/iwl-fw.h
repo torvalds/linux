@@ -67,7 +67,6 @@
 #ifndef __iwl_fw_h__
 #define __iwl_fw_h__
 #include <linux/types.h>
-#include <net/mac80211.h>
 
 #include "iwl-fw-file.h"
 #include "iwl-fw-error-dump.h"
@@ -287,7 +286,7 @@ struct iwl_fw {
 
 	enum iwl_fw_type type;
 
-	struct ieee80211_cipher_scheme cs[IWL_UCODE_MAX_CS];
+	struct iwl_fw_cipher_scheme cs[IWL_UCODE_MAX_CS];
 	u8 human_readable[FW_VER_HUMAN_READABLE_SZ];
 
 	u32 sdio_adma_addr;

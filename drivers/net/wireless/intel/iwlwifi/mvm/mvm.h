@@ -1012,6 +1012,7 @@ struct iwl_mvm {
 	struct iwl_mvm_shared_mem_cfg shared_mem_cfg;
 
 	u32 ciphers[IWL_MVM_NUM_CIPHERS];
+	struct ieee80211_cipher_scheme cs[IWL_UCODE_MAX_CS];
 	struct iwl_mvm_tof_data tof_data;
 
 	struct ieee80211_vif *nan_vif;
