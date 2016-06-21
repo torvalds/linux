@@ -1951,6 +1951,8 @@ int amdgpu_gpu_reset(struct amdgpu_device *adev)
 	/* block TTM */
 	resched = ttm_bo_lock_delayed_workqueue(&adev->mman.bdev);
 
+	/* save scratch */
+	amdgpu_atombios_scratch_regs_save(adev);
 	r = amdgpu_suspend(adev);
 
 	for (i = 0; i < AMDGPU_MAX_RINGS; ++i) {
@@ -1975,7 +1977,8 @@ retry:
 		dev_info(adev->dev, "GPU reset succeeded, trying to resume\n");
 		r = amdgpu_resume(adev);
 	}
-
+	/* restore scratch */
+	amdgpu_atombios_scratch_regs_restore(adev);
 	if (!r) {
 		for (i = 0; i < AMDGPU_MAX_RINGS; ++i) {
 			struct amdgpu_ring *ring = adev->rings[i];
