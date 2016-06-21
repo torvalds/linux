@@ -14,8 +14,6 @@
  * GNU General Public License for more details.
  */
 
-#include <asm/dma-iommu.h>
-
 #include <drm/drmP.h>
 #include <drm/drm_atomic.h>
 #include <drm/drm_crtc_helper.h>
@@ -23,6 +21,7 @@
 #include <drm/drm_sync_helper.h>
 #include <drm/rockchip_drm.h>
 #include <linux/dma-mapping.h>
+#include <linux/dma-iommu.h>
 #include <linux/pm_runtime.h>
 #include <linux/memblock.h>
 #include <linux/module.h>
@@ -31,6 +30,9 @@
 #include <linux/component.h>
 #include <linux/fence.h>
 #include <linux/console.h>
+#include <linux/iommu.h>
+
+#include <drm/rockchip_drm.h>
 
 #include "rockchip_drm_drv.h"
 #include "rockchip_drm_fb.h"
@@ -616,28 +618,31 @@ err_unlock:
 int rockchip_drm_dma_attach_device(struct drm_device *drm_dev,
 				   struct device *dev)
 {
-	struct dma_iommu_mapping *mapping = drm_dev->dev->archdata.mapping;
+	struct rockchip_drm_private *private = drm_dev->dev_private;
 	int ret;
 
 	if (!is_support_iommu)
 		return 0;
 
-	ret = dma_set_coherent_mask(dev, DMA_BIT_MASK(32));
-	if (ret)
+	ret = iommu_attach_device(private->domain, dev);
+	if (ret) {
+		dev_err(dev, "Failed to attach iommu device\n");
 		return ret;
+	}
 
-	dma_set_max_seg_size(dev, DMA_BIT_MASK(32));
-
-	return arm_iommu_attach_device(dev, mapping);
+	return 0;
 }
 
 void rockchip_drm_dma_detach_device(struct drm_device *drm_dev,
 				    struct device *dev)
 {
+	struct rockchip_drm_private *private = drm_dev->dev_private;
+	struct iommu_domain *domain = private->domain;
+
 	if (!is_support_iommu)
 		return;
 
-	arm_iommu_detach_device(dev);
+	iommu_detach_device(domain, dev);
 }
 
 int rockchip_register_crtc_funcs(struct drm_crtc *crtc,
@@ -702,10 +707,44 @@ static void rockchip_drm_crtc_disable_vblank(struct drm_device *dev,
 		priv->crtc_funcs[pipe]->disable_vblank(crtc);
 }
 
+static int rockchip_drm_init_iommu(struct drm_device *drm_dev)
+{
+	struct rockchip_drm_private *private = drm_dev->dev_private;
+	struct iommu_domain_geometry *geometry;
+	u64 start, end;
+
+	if (!is_support_iommu)
+		return 0;
+
+	private->domain = iommu_domain_alloc(&platform_bus_type);
+	if (!private->domain)
+		return -ENOMEM;
+
+	geometry = &private->domain->geometry;
+	start = geometry->aperture_start;
+	end = geometry->aperture_end;
+
+	DRM_DEBUG("IOMMU context initialized (aperture: %#llx-%#llx)\n",
+		  start, end);
+	drm_mm_init(&private->mm, start, end - start + 1);
+
+	return 0;
+}
+
+static void rockchip_iommu_cleanup(struct drm_device *drm_dev)
+{
+	struct rockchip_drm_private *private = drm_dev->dev_private;
+
+	if (!is_support_iommu)
+		return;
+
+	drm_mm_takedown(&private->mm);
+	iommu_domain_free(private->domain);
+}
+
 static int rockchip_drm_load(struct drm_device *drm_dev, unsigned long flags)
 {
 	struct rockchip_drm_private *private;
-	struct dma_iommu_mapping *mapping = NULL;
 	struct device *dev = drm_dev->dev;
 	struct drm_connector *connector;
 	int ret;
@@ -728,38 +767,14 @@ static int rockchip_drm_load(struct drm_device *drm_dev, unsigned long flags)
 
 	rockchip_drm_mode_config_init(drm_dev);
 
-	dev->dma_parms = devm_kzalloc(dev, sizeof(*dev->dma_parms),
-				      GFP_KERNEL);
-	if (!dev->dma_parms) {
-		ret = -ENOMEM;
+	ret = rockchip_drm_init_iommu(drm_dev);
+	if (ret)
 		goto err_config_cleanup;
-	}
-
-	if (is_support_iommu) {
-		/* TODO(djkurtz): fetch the mapping start/size from somewhere */
-		mapping = arm_iommu_create_mapping(&platform_bus_type,
-						   0x00000000,
-						   SZ_2G);
-		if (IS_ERR(mapping)) {
-			ret = PTR_ERR(mapping);
-			goto err_config_cleanup;
-		}
-
-		ret = dma_set_mask_and_coherent(dev, DMA_BIT_MASK(32));
-		if (ret)
-			goto err_release_mapping;
-
-		dma_set_max_seg_size(dev, DMA_BIT_MASK(32));
-
-		ret = arm_iommu_attach_device(dev, mapping);
-		if (ret)
-			goto err_release_mapping;
-	}
 
 	/* Try to bind all sub drivers. */
 	ret = component_bind_all(dev, drm_dev);
 	if (ret)
-		goto err_detach_device;
+		goto err_iommu_cleanup;
 
 	/*
 	 * All components are now added, we can publish the connector sysfs
@@ -808,8 +823,6 @@ static int rockchip_drm_load(struct drm_device *drm_dev, unsigned long flags)
 
 	drm_dev->mode_config.allow_fb_modifiers = true;
 
-	if (is_support_iommu)
-		arm_iommu_release_mapping(mapping);
 	return 0;
 err_vblank_cleanup:
 	drm_vblank_cleanup(drm_dev);
@@ -817,12 +830,8 @@ err_kms_helper_poll_fini:
 	drm_kms_helper_poll_fini(drm_dev);
 err_unbind:
 	component_unbind_all(dev, drm_dev);
-err_detach_device:
-	if (is_support_iommu)
-		arm_iommu_detach_device(dev);
-err_release_mapping:
-	if (is_support_iommu)
-		arm_iommu_release_mapping(mapping);
+err_iommu_cleanup:
+	rockchip_iommu_cleanup(drm_dev);
 err_config_cleanup:
 	drm_mode_config_cleanup(drm_dev);
 	drm_dev->dev_private = NULL;
@@ -837,8 +846,7 @@ static int rockchip_drm_unload(struct drm_device *drm_dev)
 	drm_vblank_cleanup(drm_dev);
 	drm_kms_helper_poll_fini(drm_dev);
 	component_unbind_all(dev, drm_dev);
-	if (is_support_iommu)
-		arm_iommu_detach_device(dev);
+	rockchip_iommu_cleanup(drm_dev);
 	drm_mode_config_cleanup(drm_dev);
 	drm_dev->dev_private = NULL;
 
