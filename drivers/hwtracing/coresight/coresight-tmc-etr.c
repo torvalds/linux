@@ -15,10 +15,29 @@
  * this program.  If not, see <http://www.gnu.org/licenses/>.
  */
 
+#include <linux/circ_buf.h>
 #include <linux/coresight.h>
 #include <linux/dma-mapping.h>
+#include <linux/slab.h>
+
 #include "coresight-priv.h"
 #include "coresight-tmc.h"
+
+/**
+ * struct cs_etr_buffer - keep track of a recording session' specifics
+ * @tmc:	generic portion of the TMC buffers
+ * @paddr:	the physical address of a DMA'able contiguous memory area
+ * @vaddr:	the virtual address associated to @paddr
+ * @size:	how much memory we have, starting at @paddr
+ * @dev:	the device @vaddr has been tied to
+ */
+struct cs_etr_buffers {
+	struct cs_buffers	tmc;
+	dma_addr_t		paddr;
+	void __iomem		*vaddr;
+	u32			size;
+	struct device		*dev;
+};
 
 void tmc_etr_enable_hw(struct tmc_drvdata *drvdata)
 {
@@ -235,9 +254,233 @@ static void tmc_disable_etr_sink(struct coresight_device *csdev)
 	dev_info(drvdata->dev, "TMC-ETR disabled\n");
 }
 
+static void *tmc_alloc_etr_buffer(struct coresight_device *csdev, int cpu,
+				  void **pages, int nr_pages, bool overwrite)
+{
+	int node;
+	struct cs_etr_buffers *buf;
+	struct tmc_drvdata *drvdata = dev_get_drvdata(csdev->dev.parent);
+
+	if (cpu == -1)
+		cpu = smp_processor_id();
+	node = cpu_to_node(cpu);
+
+	/* Allocate memory structure for interaction with Perf */
+	buf = kzalloc_node(sizeof(struct cs_etr_buffers), GFP_KERNEL, node);
+	if (!buf)
+		return NULL;
+
+	buf->dev = drvdata->dev;
+	buf->size = drvdata->size;
+	buf->vaddr = dma_alloc_coherent(buf->dev, buf->size,
+					&buf->paddr, GFP_KERNEL);
+	if (!buf->vaddr) {
+		kfree(buf);
+		return NULL;
+	}
+
+	buf->tmc.snapshot = overwrite;
+	buf->tmc.nr_pages = nr_pages;
+	buf->tmc.data_pages = pages;
+
+	return buf;
+}
+
+static void tmc_free_etr_buffer(void *config)
+{
+	struct cs_etr_buffers *buf = config;
+
+	dma_free_coherent(buf->dev, buf->size, buf->vaddr, buf->paddr);
+	kfree(buf);
+}
+
+static int tmc_set_etr_buffer(struct coresight_device *csdev,
+			      struct perf_output_handle *handle,
+			      void *sink_config)
+{
+	int ret = 0;
+	unsigned long head;
+	struct cs_etr_buffers *buf = sink_config;
+	struct tmc_drvdata *drvdata = dev_get_drvdata(csdev->dev.parent);
+
+	/* wrap head around to the amount of space we have */
+	head = handle->head & ((buf->tmc.nr_pages << PAGE_SHIFT) - 1);
+
+	/* find the page to write to */
+	buf->tmc.cur = head / PAGE_SIZE;
+
+	/* and offset within that page */
+	buf->tmc.offset = head % PAGE_SIZE;
+
+	local_set(&buf->tmc.data_size, 0);
+
+	/* Tell the HW where to put the trace data */
+	drvdata->vaddr = buf->vaddr;
+	drvdata->paddr = buf->paddr;
+	memset(drvdata->vaddr, 0, drvdata->size);
+
+	return ret;
+}
+
+static unsigned long tmc_reset_etr_buffer(struct coresight_device *csdev,
+					  struct perf_output_handle *handle,
+					  void *sink_config, bool *lost)
+{
+	long size = 0;
+	struct cs_etr_buffers *buf = sink_config;
+	struct tmc_drvdata *drvdata = dev_get_drvdata(csdev->dev.parent);
+
+	if (buf) {
+		/*
+		 * In snapshot mode ->data_size holds the new address of the
+		 * ring buffer's head.  The size itself is the whole address
+		 * range since we want the latest information.
+		 */
+		if (buf->tmc.snapshot) {
+			size = buf->tmc.nr_pages << PAGE_SHIFT;
+			handle->head = local_xchg(&buf->tmc.data_size, size);
+		}
+
+		/*
+		 * Tell the tracer PMU how much we got in this run and if
+		 * something went wrong along the way.  Nobody else can use
+		 * this cs_etr_buffers instance until we are done.  As such
+		 * resetting parameters here and squaring off with the ring
+		 * buffer API in the tracer PMU is fine.
+		 */
+		*lost = !!local_xchg(&buf->tmc.lost, 0);
+		size = local_xchg(&buf->tmc.data_size, 0);
+	}
+
+	/* Get ready for another run */
+	drvdata->vaddr = NULL;
+	drvdata->paddr = 0;
+
+	return size;
+}
+
+static void tmc_update_etr_buffer(struct coresight_device *csdev,
+				  struct perf_output_handle *handle,
+				  void *sink_config)
+{
+	int i, cur;
+	u32 *buf_ptr;
+	u32 read_ptr, write_ptr;
+	u32 status, to_read;
+	unsigned long offset;
+	struct cs_buffers *buf = sink_config;
+	struct tmc_drvdata *drvdata = dev_get_drvdata(csdev->dev.parent);
+
+	if (!buf)
+		return;
+
+	/* This shouldn't happen */
+	if (WARN_ON_ONCE(local_read(&drvdata->mode) != CS_MODE_PERF))
+		return;
+
+	CS_UNLOCK(drvdata->base);
+
+	tmc_flush_and_stop(drvdata);
+
+	read_ptr = readl_relaxed(drvdata->base + TMC_RRP);
+	write_ptr = readl_relaxed(drvdata->base + TMC_RWP);
+
+	/*
+	 * Get a hold of the status register and see if a wrap around
+	 * has occurred.  If so adjust things accordingly.
+	 */
+	status = readl_relaxed(drvdata->base + TMC_STS);
+	if (status & TMC_STS_FULL) {
+		local_inc(&buf->lost);
+		to_read = drvdata->size;
+	} else {
+		to_read = CIRC_CNT(write_ptr, read_ptr, drvdata->size);
+	}
+
+	/*
+	 * The TMC RAM buffer may be bigger than the space available in the
+	 * perf ring buffer (handle->size).  If so advance the RRP so that we
+	 * get the latest trace data.
+	 */
+	if (to_read > handle->size) {
+		u32 buffer_start, mask = 0;
+
+		/* Read buffer start address in system memory */
+		buffer_start = readl_relaxed(drvdata->base + TMC_DBALO);
+
+		/*
+		 * The value written to RRP must be byte-address aligned to
+		 * the width of the trace memory databus _and_ to a frame
+		 * boundary (16 byte), whichever is the biggest. For example,
+		 * for 32-bit, 64-bit and 128-bit wide trace memory, the four
+		 * LSBs must be 0s. For 256-bit wide trace memory, the five
+		 * LSBs must be 0s.
+		 */
+		switch (drvdata->memwidth) {
+		case TMC_MEM_INTF_WIDTH_32BITS:
+		case TMC_MEM_INTF_WIDTH_64BITS:
+		case TMC_MEM_INTF_WIDTH_128BITS:
+			mask = GENMASK(31, 5);
+			break;
+		case TMC_MEM_INTF_WIDTH_256BITS:
+			mask = GENMASK(31, 6);
+			break;
+		}
+
+		/*
+		 * Make sure the new size is aligned in accordance with the
+		 * requirement explained above.
+		 */
+		to_read = handle->size & mask;
+		/* Move the RAM read pointer up */
+		read_ptr = (write_ptr + drvdata->size) - to_read;
+		/* Make sure we are still within our limits */
+		if (read_ptr > (buffer_start + (drvdata->size - 1)))
+			read_ptr -= drvdata->size;
+		/* Tell the HW */
+		writel_relaxed(read_ptr, drvdata->base + TMC_RRP);
+		local_inc(&buf->lost);
+	}
+
+	cur = buf->cur;
+	offset = buf->offset;
+
+	/* for every byte to read */
+	for (i = 0; i < to_read; i += 4) {
+		buf_ptr = buf->data_pages[cur] + offset;
+		*buf_ptr = readl_relaxed(drvdata->base + TMC_RRD);
+
+		offset += 4;
+		if (offset >= PAGE_SIZE) {
+			offset = 0;
+			cur++;
+			/* wrap around at the end of the buffer */
+			cur &= buf->nr_pages - 1;
+		}
+	}
+
+	/*
+	 * In snapshot mode all we have to do is communicate to
+	 * perf_aux_output_end() the address of the current head.  In full
+	 * trace mode the same function expects a size to move rb->aux_head
+	 * forward.
+	 */
+	if (buf->snapshot)
+		local_set(&buf->data_size, (cur * PAGE_SIZE) + offset);
+	else
+		local_add(to_read, &buf->data_size);
+
+	CS_LOCK(drvdata->base);
+}
+
 static const struct coresight_ops_sink tmc_etr_sink_ops = {
 	.enable		= tmc_enable_etr_sink,
 	.disable	= tmc_disable_etr_sink,
+	.alloc_buffer	= tmc_alloc_etr_buffer,
+	.free_buffer	= tmc_free_etr_buffer,
+	.set_buffer	= tmc_set_etr_buffer,
+	.reset_buffer	= tmc_reset_etr_buffer,
+	.update_buffer	= tmc_update_etr_buffer,
 };
 
 const struct coresight_ops tmc_etr_cs_ops = {
@@ -300,13 +543,10 @@ int tmc_read_unprepare_etr(struct tmc_drvdata *drvdata)
 	if (local_read(&drvdata->mode) == CS_MODE_SYSFS) {
 		/*
 		 * The trace run will continue with the same allocated trace
-		 * buffer. As such zero-out the buffer so that we don't end
-		 * up with stale data.
-		 *
-		 * Since the tracer is still enabled drvdata::buf
-		 * can't be NULL.
+		 * buffer. The trace buffer is cleared in tmc_etr_enable_hw(),
+		 * so we don't have to explicitly clear it. Also, since the
+		 * tracer is still enabled drvdata::buf can't be NULL.
 		 */
-		memset(drvdata->buf, 0, drvdata->size);
 		tmc_etr_enable_hw(drvdata);
 	} else {
 		/*
@@ -315,7 +555,7 @@ int tmc_read_unprepare_etr(struct tmc_drvdata *drvdata)
 		 */
 		vaddr = drvdata->vaddr;
 		paddr = drvdata->paddr;
-		drvdata->buf = NULL;
+		drvdata->buf = drvdata->vaddr = NULL;
 	}
 
 	drvdata->reading = false;

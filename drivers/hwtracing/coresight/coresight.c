@@ -371,31 +371,42 @@ struct coresight_device *coresight_get_sink(struct list_head *path)
 /**
  * _coresight_build_path - recursively build a path from a @csdev to a sink.
  * @csdev:	The device to start from.
+ * @sink:	The name of the sink this path should connect with.
  * @path:	The list to add devices to.
  *
- * The tree of Coresight device is traversed until an activated sink is
- * found.  From there the sink is added to the list along with all the
- * devices that led to that point - the end result is a list from source
- * to sink. In that list the source is the first device and the sink the
- * last one.
+ * The tree of Coresight device is traversed until an activated sink or
+ * the one specified by @sink is found.
+ * From there the sink is added to the list along with all the devices that
+ * led to that point - the end result is a list from source to sink. In that
+ * list the source is the first device and the sink the last one.
  */
 static int _coresight_build_path(struct coresight_device *csdev,
-				 struct list_head *path)
+				 const char *sink, struct list_head *path)
 {
 	int i;
 	bool found = false;
 	struct coresight_node *node;
-	struct coresight_connection *conn;
 
-	/* An activated sink has been found.  Enqueue the element */
-	if ((csdev->type == CORESIGHT_DEV_TYPE_SINK ||
-	     csdev->type == CORESIGHT_DEV_TYPE_LINKSINK) && csdev->activated)
-		goto out;
+	/*
+	 * First see if we are dealing with a sink.  If we have one check if
+	 * it was selected via sysFS or the perf cmd line.
+	 */
+	if (csdev->type == CORESIGHT_DEV_TYPE_SINK ||
+	    csdev->type == CORESIGHT_DEV_TYPE_LINKSINK) {
+		/* Activated via perf cmd line */
+		if (sink && !strcmp(dev_name(&csdev->dev), sink))
+			goto out;
+		/* Activatred via sysFS */
+		if (csdev->activated)
+			goto out;
+	}
 
 	/* Not a sink - recursively explore each port found on this element */
 	for (i = 0; i < csdev->nr_outport; i++) {
-		conn = &csdev->conns[i];
-		if (_coresight_build_path(conn->child_dev, path) == 0) {
+		struct coresight_device *child_dev = csdev->conns[i].child_dev;
+
+		if (child_dev &&
+		    _coresight_build_path(child_dev, sink, path) == 0) {
 			found = true;
 			break;
 		}
@@ -422,9 +433,11 @@ out:
 	return 0;
 }
 
-struct list_head *coresight_build_path(struct coresight_device *csdev)
+struct list_head *coresight_build_path(struct coresight_device *csdev,
+				       const char *sink)
 {
 	struct list_head *path;
+	int rc;
 
 	path = kzalloc(sizeof(struct list_head), GFP_KERNEL);
 	if (!path)
@@ -432,9 +445,10 @@ struct list_head *coresight_build_path(struct coresight_device *csdev)
 
 	INIT_LIST_HEAD(path);
 
-	if (_coresight_build_path(csdev, path)) {
+	rc = _coresight_build_path(csdev, sink, path);
+	if (rc) {
 		kfree(path);
-		path = NULL;
+		return ERR_PTR(rc);
 	}
 
 	return path;
@@ -506,9 +520,10 @@ int coresight_enable(struct coresight_device *csdev)
 	if (csdev->enable)
 		goto out;
 
-	path = coresight_build_path(csdev);
-	if (!path) {
+	path = coresight_build_path(csdev, NULL);
+	if (IS_ERR(path)) {
 		pr_err("building path(s) failed\n");
+		ret = PTR_ERR(path);
 		goto out;
 	}
 

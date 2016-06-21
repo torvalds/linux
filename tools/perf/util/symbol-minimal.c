@@ -344,7 +344,7 @@ int dso__load_sym(struct dso *dso, struct map *map __maybe_unused,
 	if (ret >= 0)
 		dso->is_64_bit = ret;
 
-	if (filename__read_build_id(ss->name, build_id, BUILD_ID_SIZE) > 0) {
+	if ((!dso->has_build_id) && (filename__read_build_id(ss->name, build_id, BUILD_ID_SIZE) > 0)) {
 		dso__set_build_id(dso, build_id);
 	}
 	return 0;
