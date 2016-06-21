@@ -84,6 +84,10 @@
 #define PCLK_HDMI_PHY		365
 
 /* hclk gates */
+#define HCLK_I2S0_8CH		442
+#define HCLK_I2S1_8CH		443
+#define HCLK_I2S2_2CH		444
+#define HCLK_SPDIF_8CH		445
 #define HCLK_VOP		452
 #define HCLK_NANDC		453
 #define HCLK_SDMMC		456
