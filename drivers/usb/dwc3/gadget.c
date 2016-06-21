@@ -607,24 +607,14 @@ static void dwc3_stop_active_transfer(struct dwc3 *dwc, u32 epnum, bool force);
 static void dwc3_remove_requests(struct dwc3 *dwc, struct dwc3_ep *dep)
 {
 	struct dwc3_request		*req;
-	struct dwc3_trb			*current_trb;
-	unsigned			transfer_in_flight;
 
-	if (dep->number > 1)
-		current_trb = &dep->trb_pool[dep->trb_enqueue];
-	else
-		current_trb = &dwc->ep0_trb[dep->trb_enqueue];
-	transfer_in_flight = current_trb->ctrl & DWC3_TRB_CTRL_HWO;
+	dwc3_stop_active_transfer(dwc, dep->number, true);
 
-	if (transfer_in_flight && !list_empty(&dep->started_list)) {
-		dwc3_stop_active_transfer(dwc, dep->number, true);
+	/* - giveback all requests to gadget driver */
+	while (!list_empty(&dep->started_list)) {
+		req = next_request(&dep->started_list);
 
-		/* - giveback all requests to gadget driver */
-		while (!list_empty(&dep->started_list)) {
-			req = next_request(&dep->started_list);
-
-			dwc3_gadget_giveback(dep, req, -ESHUTDOWN);
-		}
+		dwc3_gadget_giveback(dep, req, -ESHUTDOWN);
 	}
 
 	while (!list_empty(&dep->pending_list)) {
