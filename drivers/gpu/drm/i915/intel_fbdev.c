@@ -538,8 +538,7 @@ static const struct drm_fb_helper_funcs intel_fb_helper_funcs = {
 	.fb_probe = intelfb_create,
 };
 
-static void intel_fbdev_destroy(struct drm_device *dev,
-				struct intel_fbdev *ifbdev)
+static void intel_fbdev_destroy(struct intel_fbdev *ifbdev)
 {
 	/* We rely on the object-free to release the VMA pinning for
 	 * the info->screen_base mmaping. Leaking the VMA is simpler than
@@ -552,12 +551,14 @@ static void intel_fbdev_destroy(struct drm_device *dev,
 	drm_fb_helper_fini(&ifbdev->helper);
 
 	if (ifbdev->fb) {
-		mutex_lock(&dev->struct_mutex);
+		mutex_lock(&ifbdev->helper.dev->struct_mutex);
 		intel_unpin_fb_obj(&ifbdev->fb->base, BIT(DRM_ROTATE_0));
-		mutex_unlock(&dev->struct_mutex);
+		mutex_unlock(&ifbdev->helper.dev->struct_mutex);
 
 		drm_framebuffer_remove(&ifbdev->fb->base);
 	}
+
+	kfree(ifbdev);
 }
 
 /*
@@ -732,32 +733,44 @@ int intel_fbdev_init(struct drm_device *dev)
 
 static void intel_fbdev_initial_config(void *data, async_cookie_t cookie)
 {
-	struct drm_i915_private *dev_priv = data;
-	struct intel_fbdev *ifbdev = dev_priv->fbdev;
+	struct intel_fbdev *ifbdev = data;
 
 	/* Due to peculiar init order wrt to hpd handling this is separate. */
 	if (drm_fb_helper_initial_config(&ifbdev->helper,
 					 ifbdev->preferred_bpp))
-		intel_fbdev_fini(dev_priv->dev);
+		intel_fbdev_fini(ifbdev->helper.dev);
 }
 
 void intel_fbdev_initial_config_async(struct drm_device *dev)
 {
-	async_schedule(intel_fbdev_initial_config, to_i915(dev));
+	struct intel_fbdev *ifbdev = to_i915(dev)->fbdev;
+
+	ifbdev->cookie = async_schedule(intel_fbdev_initial_config, ifbdev);
+}
+
+static void intel_fbdev_sync(struct intel_fbdev *ifbdev)
+{
+	if (!ifbdev->cookie)
+		return;
+
+	/* Only serialises with all preceding async calls, hence +1 */
+	async_synchronize_cookie(ifbdev->cookie + 1);
+	ifbdev->cookie = 0;
 }
 
 void intel_fbdev_fini(struct drm_device *dev)
 {
 	struct drm_i915_private *dev_priv = dev->dev_private;
-	if (!dev_priv->fbdev)
+	struct intel_fbdev *ifbdev = dev_priv->fbdev;
+
+	if (!ifbdev)
 		return;
 
 	flush_work(&dev_priv->fbdev_suspend_work);
-
 	if (!current_is_async())
-		async_synchronize_full();
-	intel_fbdev_destroy(dev, dev_priv->fbdev);
-	kfree(dev_priv->fbdev);
+		intel_fbdev_sync(ifbdev);
+
+	intel_fbdev_destroy(ifbdev);
 	dev_priv->fbdev = NULL;
 }
 
