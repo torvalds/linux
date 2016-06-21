@@ -31,6 +31,9 @@
 
 #include "cesa.h"
 
+/* Limit of the crypto queue before reaching the backlog */
+#define CESA_CRYPTO_DEFAULT_MAX_QLEN 50
+
 static int allhwsupport = !IS_ENABLED(CONFIG_CRYPTO_DEV_MV_CESA);
 module_param_named(allhwsupport, allhwsupport, int, 0444);
 MODULE_PARM_DESC(allhwsupport, "Enable support for all hardware (even it if overlaps with the mv_cesa driver)");
@@ -416,7 +419,7 @@ static int mv_cesa_probe(struct platform_device *pdev)
 		return -ENOMEM;
 
 	spin_lock_init(&cesa->lock);
-	crypto_init_queue(&cesa->queue, 50);
+	crypto_init_queue(&cesa->queue, CESA_CRYPTO_DEFAULT_MAX_QLEN);
 	res = platform_get_resource_byname(pdev, IORESOURCE_MEM, "regs");
 	cesa->regs = devm_ioremap_resource(dev, res);
 	if (IS_ERR(cesa->regs))
