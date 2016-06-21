@@ -108,7 +108,9 @@ acpi_ex_add_table(u32 table_index,
 
 	/* Add the table to the namespace */
 
+	acpi_ex_exit_interpreter();
 	status = acpi_ns_load_table(table_index, parent_node);
+	acpi_ex_enter_interpreter();
 	if (ACPI_FAILURE(status)) {
 		acpi_ut_remove_reference(obj_desc);
 		*ddb_handle = NULL;
