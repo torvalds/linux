@@ -107,12 +107,6 @@ static bool trb_is_link(union xhci_trb *trb)
 	return TRB_TYPE_LINK_LE32(trb->link.control);
 }
 
-static int enqueue_is_link_trb(struct xhci_ring *ring)
-{
-	struct xhci_link_trb *link = &ring->enqueue->link;
-	return TRB_TYPE_LINK_LE32(link->control);
-}
-
 static bool last_trb_on_seg(struct xhci_segment *seg, union xhci_trb *trb)
 {
 	return trb == &seg->trbs[TRBS_PER_SEGMENT - 1];
@@ -2891,7 +2885,7 @@ static int prepare_ring(struct xhci_hcd *xhci, struct xhci_ring *ep_ring,
 		}
 	}
 
-	if (enqueue_is_link_trb(ep_ring)) {
+	if (trb_is_link(ep_ring->enqueue)) {
 		struct xhci_ring *ring = ep_ring;
 		union xhci_trb *next;
 
