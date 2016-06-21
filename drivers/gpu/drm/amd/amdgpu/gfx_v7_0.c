@@ -3473,7 +3473,7 @@ static void gfx_v7_0_exit_rlc_safe_mode(struct amdgpu_device *adev)
  *
  * Halt the RLC ME (MicroEngine) (CIK).
  */
-void gfx_v7_0_rlc_stop(struct amdgpu_device *adev)
+static void gfx_v7_0_rlc_stop(struct amdgpu_device *adev)
 {
 	WREG32(mmRLC_CNTL, 0);
 
