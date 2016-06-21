@@ -26,6 +26,7 @@ enum hidled_report_type {
 enum hidled_type {
 	RISO_KAGAKU,
 	DREAM_CHEEKY,
+	THINGM,
 };
 
 static unsigned const char riso_kagaku_tbl[] = {
@@ -198,6 +199,57 @@ static int dream_cheeky_init(struct hidled_device *ldev)
 	return hidled_send(ldev, buf);
 }
 
+static int _thingm_write(struct led_classdev *cdev, enum led_brightness br,
+			 u8 offset)
+{
+	struct hidled_led *led = to_hidled_led(cdev);
+	__u8 buf[MAX_REPORT_SIZE] = { [1] = 'c' };
+
+	buf[2] = led->rgb->red.cdev.brightness;
+	buf[3] = led->rgb->green.cdev.brightness;
+	buf[4] = led->rgb->blue.cdev.brightness;
+	buf[7] = led->rgb->num + offset;
+
+	return hidled_send(led->rgb->ldev, buf);
+}
+
+static int thingm_write_v1(struct led_classdev *cdev, enum led_brightness br)
+{
+	return _thingm_write(cdev, br, 0);
+}
+
+static int thingm_write(struct led_classdev *cdev, enum led_brightness br)
+{
+	return _thingm_write(cdev, br, 1);
+}
+
+static const struct hidled_config hidled_config_thingm_v1 = {
+	.name = "ThingM blink(1) v1",
+	.short_name = "thingm",
+	.max_brightness = 255,
+	.num_leds = 1,
+	.report_size = 9,
+	.report_type = RAW_REQUEST,
+	.report_id = 1,
+	.write = thingm_write_v1,
+};
+
+static int thingm_init(struct hidled_device *ldev)
+{
+	__u8 buf[MAX_REPORT_SIZE] = { [1] = 'v' };
+	int ret;
+
+	ret = hidled_recv(ldev, buf);
+	if (ret)
+		return ret;
+
+	/* Check for firmware major version 1 */
+	if (buf[3] == '1')
+		ldev->config = &hidled_config_thingm_v1;
+
+	return 0;
+}
+
 static const struct hidled_config hidled_configs[] = {
 	{
 		.type = RISO_KAGAKU,
@@ -221,6 +273,18 @@ static const struct hidled_config hidled_configs[] = {
 		.report_id = 0,
 		.init = dream_cheeky_init,
 		.write = dream_cheeky_write,
+	},
+	{
+		.type = THINGM,
+		.name = "ThingM blink(1)",
+		.short_name = "thingm",
+		.max_brightness = 255,
+		.num_leds = 2,
+		.report_size = 9,
+		.report_type = RAW_REQUEST,
+		.report_id = 1,
+		.init = thingm_init,
+		.write = thingm_write,
 	},
 };
 
@@ -325,6 +389,8 @@ static const struct hid_device_id hidled_table[] = {
 	  USB_DEVICE_ID_DREAM_CHEEKY_WN), .driver_data = DREAM_CHEEKY },
 	{ HID_USB_DEVICE(USB_VENDOR_ID_DREAM_CHEEKY,
 	  USB_DEVICE_ID_DREAM_CHEEKY_FA), .driver_data = DREAM_CHEEKY },
+	{ HID_USB_DEVICE(USB_VENDOR_ID_THINGM,
+	  USB_DEVICE_ID_BLINK1), .driver_data = THINGM },
 	{ }
 };
 MODULE_DEVICE_TABLE(hid, hidled_table);

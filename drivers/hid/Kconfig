@@ -393,9 +393,10 @@ config HID_LED
 	depends on HID
 	depends on LEDS_CLASS
 	---help---
-	Support for simple RGB LED devices. Currently supported are the
-	Riso Kagaku Webmail Notifier and the Dream Cheeky Webmail Notifier
-	and Friends Alert.
+	Support for simple RGB LED devices. Currently supported are:
+	- Riso Kagaku Webmail Notifier
+	- Dream Cheeky Webmail Notifier and Friends Alert
+	- ThingM blink(1)
 
 	To compile this driver as a module, choose M here: the
 	module will be called hid-led.
