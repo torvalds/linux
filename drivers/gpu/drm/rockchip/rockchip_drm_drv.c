@@ -775,23 +775,18 @@ static int rockchip_drm_bind(struct device *dev)
 {
 	struct drm_device *drm_dev;
 	struct rockchip_drm_private *private;
-	struct drm_connector *connector;
 	int ret;
 
 	drm_dev = drm_dev_alloc(&rockchip_drm_driver, dev);
 	if (!drm_dev)
 		return -ENOMEM;
 
-	ret = drm_dev_register(drm_dev, 0);
-	if (ret)
-		goto err_free;
-
 	dev_set_drvdata(dev, drm_dev);
 
 	private = devm_kzalloc(drm_dev->dev, sizeof(*private), GFP_KERNEL);
 	if (!private) {
 		ret = -ENOMEM;
-		goto err_unregister;
+		goto err_free;
 	}
 
 	mutex_init(&private->commit.lock);
@@ -816,12 +811,6 @@ static int rockchip_drm_bind(struct device *dev)
 	ret = component_bind_all(dev, drm_dev);
 	if (ret)
 		goto err_iommu_cleanup;
-
-	ret = drm_connector_register_all(drm_dev);
-	if (ret) {
-		dev_err(dev, "failed to register connectors\n");
-		goto err_unbind;
-	}
 
 	/* init kms poll for handling hpd */
 	drm_kms_helper_poll_init(drm_dev);
@@ -853,20 +842,23 @@ static int rockchip_drm_bind(struct device *dev)
 
 	drm_dev->mode_config.allow_fb_modifiers = true;
 
+	ret = drm_dev_register(drm_dev, 0);
+	if (ret)
+		goto err_fbdev_fini;
+
 	return 0;
+err_fbdev_fini:
+	rockchip_drm_fbdev_fini(drm_dev);
 err_vblank_cleanup:
 	drm_vblank_cleanup(drm_dev);
 err_kms_helper_poll_fini:
 	drm_kms_helper_poll_fini(drm_dev);
-err_unbind:
 	component_unbind_all(dev, drm_dev);
 err_iommu_cleanup:
 	rockchip_iommu_cleanup(drm_dev);
 err_config_cleanup:
 	drm_mode_config_cleanup(drm_dev);
 	drm_dev->dev_private = NULL;
-err_unregister:
-	drm_dev_unregister(drm_dev);
 err_free:
 	drm_dev_unref(drm_dev);
 	return ret;
@@ -875,7 +867,6 @@ err_free:
 static void rockchip_drm_unbind(struct device *dev)
 {
 	struct drm_device *drm_dev = dev_get_drvdata(dev);
-	struct rockchip_drm_private *private = drm_dev->dev_private;
 
 	rockchip_drm_fbdev_fini(drm_dev);
 	drm_vblank_cleanup(drm_dev);
