@@ -115,6 +115,35 @@ static int hidled_send(struct hidled_device *ldev, __u8 *buf)
 	return ret == ldev->config->report_size ? 0 : -EMSGSIZE;
 }
 
+/* reading data is supported for report type RAW_REQUEST only */
+static int hidled_recv(struct hidled_device *ldev, __u8 *buf)
+{
+	int ret;
+
+	if (ldev->config->report_type != RAW_REQUEST)
+		return -EINVAL;
+
+	buf[0] = ldev->config->report_id;
+
+	mutex_lock(&ldev->lock);
+
+	ret = hid_hw_raw_request(ldev->hdev, buf[0], buf,
+				 ldev->config->report_size,
+				 HID_FEATURE_REPORT,
+				 HID_REQ_SET_REPORT);
+	if (ret < 0)
+		goto err;
+
+	ret = hid_hw_raw_request(ldev->hdev, buf[0], buf,
+				 ldev->config->report_size,
+				 HID_FEATURE_REPORT,
+				 HID_REQ_GET_REPORT);
+err:
+	mutex_unlock(&ldev->lock);
+
+	return ret < 0 ? ret : 0;
+}
+
 static u8 riso_kagaku_index(struct hidled_rgb *rgb)
 {
 	enum led_brightness r, g, b;
