@@ -1089,7 +1089,7 @@ static void mvebu_mbus_resume(void)
 	}
 }
 
-struct syscore_ops mvebu_mbus_syscore_ops = {
+static struct syscore_ops mvebu_mbus_syscore_ops = {
 	.suspend	= mvebu_mbus_suspend,
 	.resume		= mvebu_mbus_resume,
 };
