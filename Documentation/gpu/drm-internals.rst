@@ -1,3 +1,4 @@
+=============
 DRM Internals
 =============
 
@@ -18,7 +19,7 @@ management, command submission & fencing, suspend/resume support, and
 DMA services.
 
 Driver Initialization
----------------------
+=====================
 
 At the core of every DRM driver is a :c:type:`struct drm_driver
 <drm_driver>` structure. Drivers typically statically initialize
@@ -36,7 +37,7 @@ then describe individual operations in details as they get used in later
 sections.
 
 Driver Information
-~~~~~~~~~~~~~~~~~~
+------------------
 
 Driver Features
 ^^^^^^^^^^^^^^^
@@ -131,7 +132,7 @@ kernel log at initialization time and passes it to userspace through the
 DRM_IOCTL_VERSION ioctl.
 
 Device Instance and Driver Handling
-~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+-----------------------------------
 
 .. kernel-doc:: drivers/gpu/drm/drm_drv.c
    :doc: driver instance overview
@@ -140,7 +141,7 @@ Device Instance and Driver Handling
    :export:
 
 Driver Load
-~~~~~~~~~~~
+-----------
 
 IRQ Registration
 ^^^^^^^^^^^^^^^^
@@ -221,7 +222,7 @@ other BARs, so leaving it mapped could cause undesired behaviour like
 hangs or memory corruption.
 
 Bus-specific Device Registration and PCI Support
-~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+------------------------------------------------
 
 A number of functions are provided to help with device registration. The
 functions deal with PCI and platform devices respectively and are only
@@ -236,7 +237,7 @@ drivers.
    :export:
 
 Memory management
------------------
+=================
 
 Modern Linux systems require large amount of graphics memory to store
 frame buffers, textures, vertices and other graphics-related data. Given
@@ -262,7 +263,7 @@ TTM, but has no video RAM management capabilities and is thus limited to
 UMA devices.
 
 The Translation Table Manager (TTM)
-~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+-----------------------------------
 
 TTM design background and information belongs here.
 
@@ -313,7 +314,7 @@ object, ttm_global_item_ref() is used to create an initial reference
 count for the TTM, which will call your initialization function.
 
 The Graphics Execution Manager (GEM)
-~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+------------------------------------
 
 The GEM design approach has resulted in a memory manager that doesn't
 provide full coverage of all (or even all common) use cases in its
@@ -576,7 +577,7 @@ available to the client. Such resource management should be abstracted
 from the client in libdrm.
 
 GEM Function Reference
-~~~~~~~~~~~~~~~~~~~~~~
+----------------------
 
 .. kernel-doc:: drivers/gpu/drm/drm_gem.c
    :export:
@@ -585,7 +586,7 @@ GEM Function Reference
    :internal:
 
 VMA Offset Manager
-~~~~~~~~~~~~~~~~~~
+------------------
 
 .. kernel-doc:: drivers/gpu/drm/drm_vma_manager.c
    :doc: vma offset manager
@@ -597,7 +598,7 @@ VMA Offset Manager
    :internal:
 
 PRIME Buffer Sharing
-~~~~~~~~~~~~~~~~~~~~
+--------------------
 
 PRIME is the cross device buffer sharing framework in drm, originally
 created for the OPTIMUS range of multi-gpu platforms. To userspace PRIME
@@ -648,13 +649,13 @@ PRIME Helper Functions
    :doc: PRIME Helpers
 
 PRIME Function References
-~~~~~~~~~~~~~~~~~~~~~~~~~
+-------------------------
 
 .. kernel-doc:: drivers/gpu/drm/drm_prime.c
    :export:
 
 DRM MM Range Allocator
-~~~~~~~~~~~~~~~~~~~~~~
+----------------------
 
 Overview
 ^^^^^^^^
@@ -669,7 +670,7 @@ LRU Scan/Eviction Support
    :doc: lru scan roaster
 
 DRM MM Range Allocator Function References
-~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+------------------------------------------
 
 .. kernel-doc:: drivers/gpu/drm/drm_mm.c
    :export:
@@ -678,7 +679,7 @@ DRM MM Range Allocator Function References
    :internal:
 
 CMA Helper Functions Reference
-~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+------------------------------
 
 .. kernel-doc:: drivers/gpu/drm/drm_gem_cma_helper.c
    :doc: cma helpers
@@ -690,7 +691,7 @@ CMA Helper Functions Reference
    :internal:
 
 Mode Setting
-------------
+============
 
 Drivers must initialize the mode setting core by calling
 :c:func:`drm_mode_config_init()` on the DRM device. The function
@@ -706,7 +707,7 @@ be setup by initializing the following fields.
    Mode setting functions.
 
 Display Modes Function Reference
-~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+--------------------------------
 
 .. kernel-doc:: include/drm/drm_modes.h
    :internal:
@@ -715,7 +716,7 @@ Display Modes Function Reference
    :export:
 
 Atomic Mode Setting Function Reference
-~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+--------------------------------------
 
 .. kernel-doc:: drivers/gpu/drm/drm_atomic.c
    :export:
@@ -724,7 +725,7 @@ Atomic Mode Setting Function Reference
    :internal:
 
 Frame Buffer Abstraction
-~~~~~~~~~~~~~~~~~~~~~~~~
+------------------------
 
 Frame buffers are abstract memory objects that provide a source of
 pixels to scanout to a CRTC. Applications explicitly request the
@@ -752,7 +753,7 @@ drivers can manually clean up a framebuffer at module unload time with
 :c:func:`drm_framebuffer_unregister_private()`.
 
 DRM Format Handling
-~~~~~~~~~~~~~~~~~~~
+-------------------
 
 .. kernel-doc:: include/drm/drm_fourcc.h
    :internal:
@@ -761,7 +762,7 @@ DRM Format Handling
    :export:
 
 Dumb Buffer Objects
-~~~~~~~~~~~~~~~~~~~
+-------------------
 
 The KMS API doesn't standardize backing storage object creation and
 leaves it to driver-specific ioctls. Furthermore actually creating a
@@ -805,7 +806,7 @@ attempted on some ARM embedded platforms. Such drivers really must have
 a hardware-specific ioctl to allocate suitable buffer objects.
 
 Output Polling
-~~~~~~~~~~~~~~
+--------------
 
 void (\*output_poll_changed)(struct drm_device \*dev);
 This operation notifies the driver that the status of one or more
@@ -814,14 +815,14 @@ connectors has changed. Drivers that use the fb helper can just call the
 operation.
 
 KMS Initialization and Cleanup
-------------------------------
+==============================
 
 A KMS device is abstracted and exposed as a set of planes, CRTCs,
 encoders and connectors. KMS drivers must thus create and initialize all
 those objects at load time after initializing mode setting.
 
 CRTCs (:c:type:`struct drm_crtc <drm_crtc>`)
-~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+--------------------------------------------
 
 A CRTC is an abstraction representing a part of the chip that contains a
 pointer to a scanout buffer. Therefore, the number of CRTCs available
@@ -842,7 +843,7 @@ structure, and registered with a call to :c:func:`drm_crtc_init()`
 with a pointer to CRTC functions.
 
 Planes (:c:type:`struct drm_plane <drm_plane>`)
-~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+-----------------------------------------------
 
 A plane represents an image source that can be blended with or overlayed
 on top of a CRTC during the scanout process. Planes are associated with
@@ -887,7 +888,7 @@ primary planes may make use of the helper functions described in ? to
 create and register a primary plane with standard capabilities.
 
 Encoders (:c:type:`struct drm_encoder <drm_encoder>`)
-~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+-----------------------------------------------------
 
 An encoder takes pixel data from a CRTC and converts it to a format
 suitable for any attached connectors. On some devices, it may be
@@ -927,7 +928,7 @@ compatibility layer when implemented) are responsible for attaching the
 encoders they want to use to a CRTC.
 
 Connectors (:c:type:`struct drm_connector <drm_connector>`)
-~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+-----------------------------------------------------------
 
 A connector is the final destination for pixel data on a device, and
 usually connects directly to an external display device like a monitor
@@ -1087,7 +1088,7 @@ can't detect the connection status, or failed connection status probes,
 should return connector_status_unknown.
 
 Cleanup
-~~~~~~~
+-------
 
 The DRM core manages its objects' lifetime. When an object is not needed
 anymore the core calls its destroy function, which must clean up and
@@ -1106,7 +1107,7 @@ Connectors state change detection must be cleanup up with a call to
 :c:func:`drm_kms_helper_poll_fini()`.
 
 Output discovery and initialization example
-~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+-------------------------------------------
 
 ::
 
@@ -1154,19 +1155,19 @@ the process is complete, the new connector is registered with sysfs to
 make its properties available to applications.
 
 KMS API Functions
-~~~~~~~~~~~~~~~~~
+-----------------
 
 .. kernel-doc:: drivers/gpu/drm/drm_crtc.c
    :export:
 
 KMS Data Structures
-~~~~~~~~~~~~~~~~~~~
+-------------------
 
 .. kernel-doc:: include/drm/drm_crtc.h
    :internal:
 
 KMS Locking
-~~~~~~~~~~~
+-----------
 
 .. kernel-doc:: drivers/gpu/drm/drm_modeset_lock.c
    :doc: kms locking
@@ -1178,7 +1179,7 @@ KMS Locking
    :export:
 
 Mode Setting Helper Functions
------------------------------
+=============================
 
 The plane, CRTC, encoder and connector functions provided by the drivers
 implement the DRM API. They're called by the DRM core and ioctl handlers
@@ -1214,7 +1215,7 @@ operations. To use it, a driver must provide bottom functions for all of
 the three KMS entities.
 
 Atomic Modeset Helper Functions Reference
-~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+-----------------------------------------
 
 Overview
 ^^^^^^^^
@@ -1241,7 +1242,7 @@ Atomic State Reset and Initialization
    :export:
 
 Modeset Helper Reference for Common Vtables
-~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+-------------------------------------------
 
 .. kernel-doc:: include/drm/drm_modeset_helper_vtables.h
    :internal:
@@ -1250,7 +1251,7 @@ Modeset Helper Reference for Common Vtables
    :doc: overview
 
 Legacy CRTC/Modeset Helper Functions Reference
-~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+----------------------------------------------
 
 .. kernel-doc:: drivers/gpu/drm/drm_crtc_helper.c
    :export:
@@ -1259,7 +1260,7 @@ Legacy CRTC/Modeset Helper Functions Reference
    :doc: overview
 
 Output Probing Helper Functions Reference
-~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+-----------------------------------------
 
 .. kernel-doc:: drivers/gpu/drm/drm_probe_helper.c
    :doc: output probing helper overview
@@ -1268,7 +1269,7 @@ Output Probing Helper Functions Reference
    :export:
 
 fbdev Helper Functions Reference
-~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+--------------------------------
 
 .. kernel-doc:: drivers/gpu/drm/drm_fb_helper.c
    :doc: fbdev helpers
@@ -1280,7 +1281,7 @@ fbdev Helper Functions Reference
    :internal:
 
 Framebuffer CMA Helper Functions Reference
-~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+------------------------------------------
 
 .. kernel-doc:: drivers/gpu/drm/drm_fb_cma_helper.c
    :doc: framebuffer cma helper functions
@@ -1289,7 +1290,7 @@ Framebuffer CMA Helper Functions Reference
    :export:
 
 Display Port Helper Functions Reference
-~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+---------------------------------------
 
 .. kernel-doc:: drivers/gpu/drm/drm_dp_helper.c
    :doc: dp helpers
@@ -1301,7 +1302,7 @@ Display Port Helper Functions Reference
    :export:
 
 Display Port Dual Mode Adaptor Helper Functions Reference
-~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+---------------------------------------------------------
 
 .. kernel-doc:: drivers/gpu/drm/drm_dp_dual_mode_helper.c
    :doc: dp dual mode helpers
@@ -1313,7 +1314,7 @@ Display Port Dual Mode Adaptor Helper Functions Reference
    :export:
 
 Display Port MST Helper Functions Reference
-~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+-------------------------------------------
 
 .. kernel-doc:: drivers/gpu/drm/drm_dp_mst_topology.c
    :doc: dp mst helper
@@ -1325,7 +1326,7 @@ Display Port MST Helper Functions Reference
    :export:
 
 MIPI DSI Helper Functions Reference
-~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+-----------------------------------
 
 .. kernel-doc:: drivers/gpu/drm/drm_mipi_dsi.c
    :doc: dsi helpers
@@ -1337,13 +1338,13 @@ MIPI DSI Helper Functions Reference
    :export:
 
 EDID Helper Functions Reference
-~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+-------------------------------
 
 .. kernel-doc:: drivers/gpu/drm/drm_edid.c
    :export:
 
 Rectangle Utilities Reference
-~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+-----------------------------
 
 .. kernel-doc:: include/drm/drm_rect.h
    :doc: rect utils
@@ -1355,7 +1356,7 @@ Rectangle Utilities Reference
    :export:
 
 Flip-work Helper Reference
-~~~~~~~~~~~~~~~~~~~~~~~~~~
+--------------------------
 
 .. kernel-doc:: include/drm/drm_flip_work.h
    :doc: flip utils
@@ -1367,7 +1368,7 @@ Flip-work Helper Reference
    :export:
 
 HDMI Infoframes Helper Reference
-~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+--------------------------------
 
 Strictly speaking this is not a DRM helper library but generally useable
 by any driver interfacing with HDMI outputs like v4l or alsa drivers.
@@ -1381,7 +1382,7 @@ libraries and hence is also included here.
    :export:
 
 Plane Helper Reference
-~~~~~~~~~~~~~~~~~~~~~~
+----------------------
 
 .. kernel-doc:: drivers/gpu/drm/drm_plane_helper.c
    :export:
@@ -1390,13 +1391,13 @@ Plane Helper Reference
    :doc: overview
 
 Tile group
-~~~~~~~~~~
+----------
 
 .. kernel-doc:: drivers/gpu/drm/drm_crtc.c
    :doc: Tile group
 
 Bridges
-~~~~~~~
+-------
 
 Overview
 ^^^^^^^^
@@ -1414,7 +1415,7 @@ Default bridge callback sequence
    :export:
 
 Panel Helper Reference
-~~~~~~~~~~~~~~~~~~~~~~
+----------------------
 
 .. kernel-doc:: include/drm/drm_panel.h
    :internal:
@@ -1426,7 +1427,7 @@ Panel Helper Reference
    :doc: drm panel
 
 Simple KMS Helper Reference
-~~~~~~~~~~~~~~~~~~~~~~~~~~~
+---------------------------
 
 .. kernel-doc:: include/drm/drm_simple_kms_helper.h
    :internal:
@@ -1438,7 +1439,7 @@ Simple KMS Helper Reference
    :doc: overview
 
 KMS Properties
---------------
+==============
 
 Drivers may need to expose additional parameters to applications than
 those described in the previous sections. KMS supports attaching
@@ -1526,7 +1527,7 @@ pointer to the target object, a pointer to the previously created
 property and an initial instance value.
 
 Existing KMS Properties
-~~~~~~~~~~~~~~~~~~~~~~~
+-----------------------
 
 The following table gives description of drm properties exposed by
 various modules/drivers.
@@ -1790,7 +1791,7 @@ various modules/drivers.
 +-------------------------------+----------------------+--------------------------------------------------------------------------------------------------------------------+-----------------------------------------------------------------------------------+------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------+---------------------------------------------------+--------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------+
 
 Vertical Blanking
------------------
+=================
 
 Vertical blanking plays a major role in graphics rendering. To achieve
 tear-free display, users must synchronize page flips and/or rendering to
@@ -1848,7 +1849,7 @@ with a call to :c:func:`drm_vblank_cleanup()` in the driver unload
 operation handler.
 
 Vertical Blanking and Interrupt Handling Functions Reference
-~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+------------------------------------------------------------
 
 .. kernel-doc:: drivers/gpu/drm/drm_irq.c
    :export:
@@ -1857,10 +1858,10 @@ Vertical Blanking and Interrupt Handling Functions Reference
    :functions: drm_crtc_vblank_waitqueue
 
 Open/Close, File Operations and IOCTLs
---------------------------------------
+======================================
 
 Open and Close
-~~~~~~~~~~~~~~
+--------------
 
 int (\*firstopen) (struct drm_device \*); void (\*lastclose) (struct
 drm_device \*); int (\*open) (struct drm_device \*, struct drm_file
@@ -1907,7 +1908,7 @@ state so that the vga console or an independent fbdev driver could take
 over.
 
 File Operations
-~~~~~~~~~~~~~~~
+---------------
 
 .. kernel-doc:: drivers/gpu/drm/drm_fops.c
    :doc: file operations
@@ -1916,7 +1917,7 @@ File Operations
    :export:
 
 IOCTLs
-~~~~~~
+------
 
 struct drm_ioctl_desc \*ioctls; int num_ioctls;
     Driver-specific ioctls descriptors table.
@@ -1965,7 +1966,7 @@ how the ioctl is allowed to be called.
    :export:
 
 Legacy Support Code
--------------------
+===================
 
 The section very briefly covers some of the old legacy support code
 which is only used by old DRM drivers which have done a so-called
@@ -1975,7 +1976,7 @@ command submission code. Do not use any of this in new and modern
 drivers.
 
 Legacy Suspend/Resume
-~~~~~~~~~~~~~~~~~~~~~
+---------------------
 
 The DRM core provides some suspend/resume code, but drivers wanting full
 suspend/resume support should provide save() and restore() functions.
@@ -1992,7 +1993,7 @@ through the :c:type:`struct device_driver <device_driver>`
 dev_pm_ops) and set these methods to NULL.
 
 Legacy DMA Services
-~~~~~~~~~~~~~~~~~~~
+-------------------
 
 This should cover how DMA mapping etc. is supported by the core. These
 functions are deprecated and should not be used.

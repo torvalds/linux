@@ -1,3 +1,4 @@
+===================
 Userland interfaces
 ===================
 
@@ -14,7 +15,7 @@ Cover generic ioctls and sysfs layout here. We only need high-level
 info, since man pages should cover the rest.
 
 Render nodes
-------------
+============
 
 DRM core provides multiple character-devices for user-space to use.
 Depending on which device is opened, user-space can perform a different
@@ -67,7 +68,7 @@ visible to user-space and accessible beyond open-file boundaries, they
 cannot support render nodes.
 
 VBlank event handling
----------------------
+=====================
 
 The DRM core exposes two vertical blank related ioctls:
 

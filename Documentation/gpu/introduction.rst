@@ -1,3 +1,4 @@
+============
 Introduction
 ============
 
@@ -16,7 +17,7 @@ found in current kernels.
 [Insert diagram of typical DRM stack here]
 
 Style Guidelines
-----------------
+================
 
 For consistency this documentation uses American English. Abbreviations
 are written as all-uppercase, for example: DRM, KMS, IOCTL, CRTC, and so
