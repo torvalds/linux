@@ -356,9 +356,9 @@ static int rxrpc_connect_exclusive(struct rxrpc_sock *rx,
 		return ret;
 	}
 
-	write_lock_bh(&rxrpc_connection_lock);
+	write_lock(&rxrpc_connection_lock);
 	list_add_tail(&conn->link, &rxrpc_connections);
-	write_unlock_bh(&rxrpc_connection_lock);
+	write_unlock(&rxrpc_connection_lock);
 
 	spin_lock(&trans->client_lock);
 	atomic_inc(&trans->usage);
@@ -677,9 +677,9 @@ rxrpc_incoming_connection(struct rxrpc_transport *trans, struct sk_buff *skb)
 
 	write_unlock_bh(&trans->conn_lock);
 
-	write_lock_bh(&rxrpc_connection_lock);
+	write_lock(&rxrpc_connection_lock);
 	list_add_tail(&conn->link, &rxrpc_connections);
-	write_unlock_bh(&rxrpc_connection_lock);
+	write_unlock(&rxrpc_connection_lock);
 
 	new = "new";
 
@@ -828,7 +828,7 @@ static void rxrpc_connection_reaper(struct work_struct *work)
 	now = ktime_get_seconds();
 	earliest = ULONG_MAX;
 
-	write_lock_bh(&rxrpc_connection_lock);
+	write_lock(&rxrpc_connection_lock);
 	list_for_each_entry_safe(conn, _p, &rxrpc_connections, link) {
 		_debug("reap CONN %d { u=%d,t=%ld }",
 		       conn->debug_id, atomic_read(&conn->usage),
@@ -838,7 +838,7 @@ static void rxrpc_connection_reaper(struct work_struct *work)
 			continue;
 
 		spin_lock(&conn->trans->client_lock);
-		write_lock(&conn->trans->conn_lock);
+		write_lock_bh(&conn->trans->conn_lock);
 		reap_time = conn->put_time + rxrpc_connection_expiry;
 
 		if (atomic_read(&conn->usage) > 0) {
@@ -860,10 +860,10 @@ static void rxrpc_connection_reaper(struct work_struct *work)
 			earliest = reap_time;
 		}
 
-		write_unlock(&conn->trans->conn_lock);
+		write_unlock_bh(&conn->trans->conn_lock);
 		spin_unlock(&conn->trans->client_lock);
 	}
-	write_unlock_bh(&rxrpc_connection_lock);
+	write_unlock(&rxrpc_connection_lock);
 
 	if (earliest != ULONG_MAX) {
 		_debug("reschedule reaper %ld", (long) earliest - now);
