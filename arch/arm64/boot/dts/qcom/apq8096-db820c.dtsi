@@ -17,6 +17,7 @@
 	aliases {
 		serial0 = &blsp2_uart1;
 		serial1 = &blsp2_uart2;
+		i2c0	= &blsp1_i2c2;
 	};
 
 	chosen {
@@ -39,5 +40,12 @@
 			pinctrl-0 = <&blsp2_uart2_4pins_default>;
 			pinctrl-1 = <&blsp2_uart2_4pins_sleep>;
 		};
+
+		i2c@07577000 {
+		/* On Low speed expansion */
+			label = "LS-I2C0";
+			status = "okay";
+		};
+
 	};
 };
