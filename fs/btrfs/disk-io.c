@@ -1146,7 +1146,7 @@ struct extent_buffer *btrfs_find_tree_block(struct btrfs_fs_info *fs_info,
 struct extent_buffer *btrfs_find_create_tree_block(struct btrfs_root *root,
 						 u64 bytenr)
 {
-	if (btrfs_test_is_dummy_root(root))
+	if (btrfs_is_testing(root->fs_info))
 		return alloc_test_extent_buffer(root->fs_info, bytenr,
 				root->nodesize);
 	return alloc_extent_buffer(root->fs_info, bytenr);
@@ -1330,7 +1330,6 @@ struct btrfs_root *btrfs_alloc_dummy_root(struct btrfs_fs_info *fs_info,
 	/* We don't use the stripesize in selftest, set it as sectorsize */
 	__setup_root(nodesize, sectorsize, sectorsize, root, fs_info,
 			BTRFS_ROOT_TREE_OBJECTID);
-	set_bit(BTRFS_ROOT_DUMMY_ROOT, &root->state);
 	root->alloc_bytenr = 0;
 
 	return root;

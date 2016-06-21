@@ -1744,7 +1744,7 @@ static void btrfs_set_bit_hook(struct inode *inode,
 		}
 
 		/* For sanity tests */
-		if (btrfs_test_is_dummy_root(root))
+		if (btrfs_is_testing(root->fs_info))
 			return;
 
 		__percpu_counter_add(&root->fs_info->delalloc_bytes, len,
@@ -1803,7 +1803,7 @@ static void btrfs_clear_bit_hook(struct inode *inode,
 			btrfs_delalloc_release_metadata(inode, len);
 
 		/* For sanity tests. */
-		if (btrfs_test_is_dummy_root(root))
+		if (btrfs_is_testing(root->fs_info))
 			return;
 
 		if (root->root_key.objectid != BTRFS_DATA_RELOC_TREE_OBJECTID
