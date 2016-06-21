@@ -76,12 +76,10 @@ exec_lookup(struct nv50_disp *disp, int head, int or, u32 ctrl,
 	mask |= 0x0001 << or;
 	mask |= 0x0100 << head;
 
-
 	list_for_each_entry(outp, &disp->base.outp, head) {
 		if ((outp->info.hasht & 0xff) == type &&
 		    (outp->info.hashm & mask) == mask) {
-			*data = nvbios_outp_match(bios, outp->info.hasht,
-							outp->info.hashm,
+			*data = nvbios_outp_match(bios, outp->info.hasht, mask,
 						  ver, hdr, cnt, len, info);
 			if (!*data)
 				return NULL;
