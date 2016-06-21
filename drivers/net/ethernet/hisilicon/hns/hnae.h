@@ -454,7 +454,6 @@ struct hnae_ae_ops {
 	int (*get_info)(struct hnae_handle *handle,
 			u8 *auto_neg, u16 *speed, u8 *duplex);
 	void (*toggle_ring_irq)(struct hnae_ring *ring, u32 val);
-	void (*toggle_queue_status)(struct hnae_queue *queue, u32 val);
 	void (*adjust_link)(struct hnae_handle *handle, int speed, int duplex);
 	int (*set_loopback)(struct hnae_handle *handle,
 			    enum hnae_loop loop_mode, int en);

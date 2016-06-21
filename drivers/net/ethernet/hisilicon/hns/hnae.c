@@ -400,7 +400,6 @@ int hnae_ae_register(struct hnae_ae_dev *hdev, struct module *owner)
 
 	if (!hdev->ops || !hdev->ops->get_handle ||
 	    !hdev->ops->toggle_ring_irq ||
-	    !hdev->ops->toggle_queue_status ||
 	    !hdev->ops->get_status || !hdev->ops->adjust_link)
 		return -EINVAL;
 

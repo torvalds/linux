@@ -247,12 +247,21 @@ static void hns_ae_set_tso_stats(struct hnae_handle *handle, int enable)
 static int hns_ae_start(struct hnae_handle *handle)
 {
 	int ret;
+	int k;
 	struct hns_mac_cb *mac_cb = hns_get_mac_cb(handle);
 
 	ret = hns_mac_vm_config_bc_en(mac_cb, 0, true);
 	if (ret)
 		return ret;
 
+	for (k = 0; k < handle->q_num; k++) {
+		if (AE_IS_VER1(mac_cb->dsaf_dev->dsaf_ver))
+			hns_rcb_int_clr_hw(handle->qs[k],
+					   RCB_INT_FLAG_TX | RCB_INT_FLAG_RX);
+		else
+			hns_rcbv2_int_clr_hw(handle->qs[k],
+					     RCB_INT_FLAG_TX | RCB_INT_FLAG_RX);
+	}
 	hns_ae_ring_enable_all(handle, 1);
 	msleep(100);
 
@@ -311,18 +320,6 @@ static void hns_aev2_toggle_ring_irq(struct hnae_ring *ring, u32 mask)
 		flag = RCB_INT_FLAG_RX;
 
 	hns_rcbv2_int_ctrl_hw(ring->q, flag, mask);
-}
-
-static void hns_ae_toggle_queue_status(struct hnae_queue *queue, u32 val)
-{
-	struct dsaf_device *dsaf_dev = hns_ae_get_dsaf_dev(queue->dev);
-
-	if (AE_IS_VER1(dsaf_dev->dsaf_ver))
-		hns_rcb_int_clr_hw(queue, RCB_INT_FLAG_TX | RCB_INT_FLAG_RX);
-	else
-		hns_rcbv2_int_clr_hw(queue, RCB_INT_FLAG_TX | RCB_INT_FLAG_RX);
-
-	hns_rcb_start(queue, val);
 }
 
 static int hns_ae_get_link_status(struct hnae_handle *handle)
@@ -808,7 +805,6 @@ static struct hnae_ae_ops hns_dsaf_ops = {
 	.stop = hns_ae_stop,
 	.reset = hns_ae_reset,
 	.toggle_ring_irq = hns_ae_toggle_ring_irq,
-	.toggle_queue_status = hns_ae_toggle_queue_status,
 	.get_status = hns_ae_get_link_status,
 	.get_info = hns_ae_get_mac_info,
 	.adjust_link = hns_ae_adjust_link,

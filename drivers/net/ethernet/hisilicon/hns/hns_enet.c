@@ -1200,7 +1200,7 @@ static int hns_nic_net_up(struct net_device *ndev)
 {
 	struct hns_nic_priv *priv = netdev_priv(ndev);
 	struct hnae_handle *h = priv->ae_handle;
-	int i, j, k;
+	int i, j;
 	int ret;
 
 	ret = hns_nic_init_irq(priv);
@@ -1214,9 +1214,6 @@ static int hns_nic_net_up(struct net_device *ndev)
 		if (ret)
 			goto out_has_some_queues;
 	}
-
-	for (k = 0; k < h->q_num; k++)
-		h->dev->ops->toggle_queue_status(h->qs[k], 1);
 
 	ret = h->dev->ops->set_mac_addr(h, ndev->dev_addr);
 	if (ret)
@@ -1237,8 +1234,6 @@ static int hns_nic_net_up(struct net_device *ndev)
 out_start_err:
 	netif_stop_queue(ndev);
 out_set_mac_addr_err:
-	for (k = 0; k < h->q_num; k++)
-		h->dev->ops->toggle_queue_status(h->qs[k], 0);
 out_has_some_queues:
 	for (j = i - 1; j >= 0; j--)
 		hns_nic_ring_close(ndev, j);
