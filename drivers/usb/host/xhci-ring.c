@@ -199,50 +199,42 @@ static void inc_enq(struct xhci_hcd *xhci, struct xhci_ring *ring,
 
 	chain = le32_to_cpu(ring->enqueue->generic.field[3]) & TRB_CHAIN;
 	/* If this is not event ring, there is one less usable TRB */
-	if (ring->type != TYPE_EVENT &&
-			!last_trb(xhci, ring, ring->enq_seg, ring->enqueue))
+	if (!last_trb(xhci, ring, ring->enq_seg, ring->enqueue))
 		ring->num_trbs_free--;
 	next = ++(ring->enqueue);
 
 	ring->enq_updates++;
-	/* Update the dequeue pointer further if that was a link TRB or we're at
-	 * the end of an event ring segment (which doesn't have link TRBS)
-	 */
+	/* Update the dequeue pointer further if that was a link TRB */
 	while (last_trb(xhci, ring, ring->enq_seg, next)) {
-		if (ring->type != TYPE_EVENT) {
-			/*
-			 * If the caller doesn't plan on enqueueing more
-			 * TDs before ringing the doorbell, then we
-			 * don't want to give the link TRB to the
-			 * hardware just yet.  We'll give the link TRB
-			 * back in prepare_ring() just before we enqueue
-			 * the TD at the top of the ring.
-			 */
-			if (!chain && !more_trbs_coming)
-				break;
 
-			/* If we're not dealing with 0.95 hardware or
-			 * isoc rings on AMD 0.96 host,
-			 * carry over the chain bit of the previous TRB
-			 * (which may mean the chain bit is cleared).
-			 */
-			if (!(ring->type == TYPE_ISOC &&
-					(xhci->quirks & XHCI_AMD_0x96_HOST))
-						&& !xhci_link_trb_quirk(xhci)) {
-				next->link.control &=
-					cpu_to_le32(~TRB_CHAIN);
-				next->link.control |=
-					cpu_to_le32(chain);
-			}
-			/* Give this link TRB to the hardware */
-			wmb();
-			next->link.control ^= cpu_to_le32(TRB_CYCLE);
+		/*
+		 * If the caller doesn't plan on enqueueing more TDs before
+		 * ringing the doorbell, then we don't want to give the link TRB
+		 * to the hardware just yet. We'll give the link TRB back in
+		 * prepare_ring() just before we enqueue the TD at the top of
+		 * the ring.
+		 */
+		if (!chain && !more_trbs_coming)
+			break;
 
-			/* Toggle the cycle bit after the last ring segment. */
-			if (last_trb_on_last_seg(xhci, ring, ring->enq_seg, next)) {
-				ring->cycle_state ^= 1;
-			}
+		/* If we're not dealing with 0.95 hardware or isoc rings on
+		 * AMD 0.96 host, carry over the chain bit of the previous TRB
+		 * (which may mean the chain bit is cleared).
+		 */
+		if (!(ring->type == TYPE_ISOC &&
+		      (xhci->quirks & XHCI_AMD_0x96_HOST)) &&
+		    !xhci_link_trb_quirk(xhci)) {
+			next->link.control &= cpu_to_le32(~TRB_CHAIN);
+			next->link.control |= cpu_to_le32(chain);
 		}
+		/* Give this link TRB to the hardware */
+		wmb();
+		next->link.control ^= cpu_to_le32(TRB_CYCLE);
+
+		/* Toggle the cycle bit after the last ring segment. */
+		if (last_trb_on_last_seg(xhci, ring, ring->enq_seg, next))
+			ring->cycle_state ^= 1;
+
 		ring->enq_seg = ring->enq_seg->next;
 		ring->enqueue = ring->enq_seg->trbs;
 		next = ring->enqueue;
