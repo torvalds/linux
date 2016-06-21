@@ -127,6 +127,9 @@ void perf_evlist__exit(struct perf_evlist *evlist)
 
 void perf_evlist__delete(struct perf_evlist *evlist)
 {
+	if (evlist == NULL)
+		return;
+
 	perf_evlist__munmap(evlist);
 	perf_evlist__close(evlist);
 	cpu_map__put(evlist->cpus);
