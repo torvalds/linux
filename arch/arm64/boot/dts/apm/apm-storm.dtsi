@@ -199,16 +199,6 @@
 				clock-output-names = "sdioclk";
 			};
 
-			qmlclk: qmlclk {
-				compatible = "apm,xgene-device-clock";
-				#clock-cells = <1>;
-				clocks = <&socplldiv2 0>;
-				clock-names = "qmlclk";
-				reg = <0x0 0x1703c000 0x0 0x1000>;
-				reg-names = "csr-reg";
-				clock-output-names = "qmlclk";
-			};
-
 			ethclk: ethclk {
 				compatible = "apm,xgene-device-clock";
 				#clock-cells = <1>;
