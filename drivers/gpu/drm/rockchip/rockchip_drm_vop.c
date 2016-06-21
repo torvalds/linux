@@ -1096,6 +1096,7 @@ static int vop_crtc_atomic_check(struct drm_crtc *crtc,
 	struct drm_device *dev = crtc->dev;
 	struct rockchip_crtc_state *s = to_rockchip_crtc_state(state);
 	struct vop *vop = to_vop(crtc);
+	const struct vop_data *vop_data = vop->data;
 	struct drm_plane *plane;
 	struct vop_zpos *pzpos;
 	int dsp_layer_sel = 0;
@@ -1133,6 +1134,15 @@ static int vop_crtc_atomic_check(struct drm_crtc *crtc,
 	}
 
 	sort(pzpos, cnt, sizeof(pzpos[0]), vop_zpos_cmp, NULL);
+
+	WARN_ON(vop_data->win_size < cnt);
+	for (i = 0; i < (vop_data->win_size - cnt); i++) {
+		dsp_layer_sel <<= 2;
+		/*
+		 * after sort, pzpos[0] is the top zpos layer.
+		 */
+		dsp_layer_sel |= pzpos[0].win_id;
+	}
 
 	for (i = 0; i < cnt; i++) {
 		struct vop_zpos *zpos = &pzpos[i];
