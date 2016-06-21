@@ -792,7 +792,7 @@ static struct tegra_periph_init_data periph_clks[] = {
 
 static struct tegra_periph_init_data gate_clks[] = {
 	GATE("rtc", "clk_32k", 4, TEGRA_PERIPH_ON_APB | TEGRA_PERIPH_NO_RESET, tegra_clk_rtc, 0),
-	GATE("timer", "clk_m", 5, 0, tegra_clk_timer, 0),
+	GATE("timer", "clk_m", 5, 0, tegra_clk_timer, CLK_IS_CRITICAL),
 	GATE("isp", "clk_m", 23, 0, tegra_clk_isp, 0),
 	GATE("vcp", "clk_m", 29, 0, tegra_clk_vcp, 0),
 	GATE("apbdma", "clk_m", 34, 0, tegra_clk_apbdma, 0),
