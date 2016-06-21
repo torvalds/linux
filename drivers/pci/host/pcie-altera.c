@@ -100,6 +100,10 @@ static bool altera_pcie_link_is_up(struct altera_pcie *pcie)
 static void altera_pcie_retrain(struct pci_dev *dev)
 {
 	u16 linkcap, linkstat;
+	struct altera_pcie *pcie = dev->bus->sysdata;
+
+	if (!altera_pcie_link_is_up(pcie))
+		return;
 
 	/*
 	 * Set the retrain bit if the PCIe rootport support > 2.5GB/s, but
