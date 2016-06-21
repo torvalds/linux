@@ -176,8 +176,8 @@ int gmc_v8_0_mc_wait_for_idle(struct amdgpu_device *adev)
 	return -1;
 }
 
-void gmc_v8_0_mc_stop(struct amdgpu_device *adev,
-		      struct amdgpu_mode_mc_save *save)
+static void gmc_v8_0_mc_stop(struct amdgpu_device *adev,
+			     struct amdgpu_mode_mc_save *save)
 {
 	u32 blackout;
 
@@ -199,8 +199,8 @@ void gmc_v8_0_mc_stop(struct amdgpu_device *adev,
 	udelay(100);
 }
 
-void gmc_v8_0_mc_resume(struct amdgpu_device *adev,
-			struct amdgpu_mode_mc_save *save)
+static void gmc_v8_0_mc_resume(struct amdgpu_device *adev,
+			       struct amdgpu_mode_mc_save *save)
 {
 	u32 tmp;
 
