@@ -144,11 +144,12 @@ test_READ:
 
 	retval = ioctl(fd, RTC_ALM_SET, &rtc_tm);
 	if (retval == -1) {
-		if (errno == ENOTTY) {
+		if (errno == EINVAL) {
 			fprintf(stderr,
 				"\n...Alarm IRQs not supported.\n");
 			goto test_PIE;
 		}
+
 		perror("RTC_ALM_SET ioctl");
 		exit(errno);
 	}
@@ -166,6 +167,12 @@ test_READ:
 	/* Enable alarm interrupts */
 	retval = ioctl(fd, RTC_AIE_ON, 0);
 	if (retval == -1) {
+		if (errno == EINVAL) {
+			fprintf(stderr,
+				"\n...Alarm IRQs not supported.\n");
+			goto test_PIE;
+		}
+
 		perror("RTC_AIE_ON ioctl");
 		exit(errno);
 	}
