@@ -2989,14 +2989,26 @@ static void intel_connector_info(struct seq_file *m,
 		seq_printf(m, "\tCEA rev: %d\n",
 			   connector->display_info.cea_rev);
 	}
-	if (intel_encoder) {
-		if (intel_encoder->type == INTEL_OUTPUT_DISPLAYPORT ||
-		    intel_encoder->type == INTEL_OUTPUT_EDP)
-			intel_dp_info(m, intel_connector);
-		else if (intel_encoder->type == INTEL_OUTPUT_HDMI)
-			intel_hdmi_info(m, intel_connector);
-		else if (intel_encoder->type == INTEL_OUTPUT_LVDS)
+
+	if (!intel_encoder || intel_encoder->type == INTEL_OUTPUT_DP_MST)
+		return;
+
+	switch (connector->connector_type) {
+	case DRM_MODE_CONNECTOR_DisplayPort:
+	case DRM_MODE_CONNECTOR_eDP:
+		intel_dp_info(m, intel_connector);
+		break;
+	case DRM_MODE_CONNECTOR_LVDS:
+		if (intel_encoder->type == INTEL_OUTPUT_LVDS)
 			intel_lvds_info(m, intel_connector);
+		break;
+	case DRM_MODE_CONNECTOR_HDMIA:
+		if (intel_encoder->type == INTEL_OUTPUT_HDMI ||
+		    intel_encoder->type == INTEL_OUTPUT_UNKNOWN)
+			intel_hdmi_info(m, intel_connector);
+		break;
+	default:
+		break;
 	}
 
 	seq_printf(m, "\tmodes:\n");
