@@ -907,7 +907,8 @@ int chsc_determine_channel_path_desc(struct chp_id chpid, int fmt, int rfmt,
 	struct chsc_scpd *scpd_area;
 	int ccode, ret;
 
-	if ((rfmt == 1) && !css_general_characteristics.fcs)
+	if ((rfmt == 1 || rfmt == 0) && c == 1 &&
+	    !css_general_characteristics.fcs)
 		return -EINVAL;
 	if ((rfmt == 2) && !css_general_characteristics.cib)
 		return -EINVAL;
@@ -966,7 +967,7 @@ int chsc_determine_fmt1_channel_path_desc(struct chp_id chpid,
 
 	spin_lock_irqsave(&chsc_page_lock, flags);
 	scpd_area = chsc_page;
-	ret = chsc_determine_channel_path_desc(chpid, 0, 0, 1, 0, scpd_area);
+	ret = chsc_determine_channel_path_desc(chpid, 0, 1, 1, 0, scpd_area);
 	if (ret)
 		goto out;
 	chsc_resp = (void *)&scpd_area->response;
