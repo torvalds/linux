@@ -587,6 +587,7 @@ void hns_ae_get_strings(struct hnae_handle *handle,
 	int idx;
 	struct hns_mac_cb *mac_cb;
 	struct hns_ppe_cb *ppe_cb;
+	struct dsaf_device *dsaf_dev = hns_ae_get_dsaf_dev(handle->dev);
 	u8 *p = data;
 	struct	hnae_vf_cb *vf_cb;
 
@@ -609,13 +610,14 @@ void hns_ae_get_strings(struct hnae_handle *handle,
 	p += ETH_GSTRING_LEN * hns_mac_get_sset_count(mac_cb, stringset);
 
 	if (mac_cb->mac_type == HNAE_PORT_SERVICE)
-		hns_dsaf_get_strings(stringset, p, port);
+		hns_dsaf_get_strings(stringset, p, port, dsaf_dev);
 }
 
 int hns_ae_get_sset_count(struct hnae_handle *handle, int stringset)
 {
 	u32 sset_count = 0;
 	struct hns_mac_cb *mac_cb;
+	struct dsaf_device *dsaf_dev = hns_ae_get_dsaf_dev(handle->dev);
 
 	assert(handle);
 
@@ -626,7 +628,7 @@ int hns_ae_get_sset_count(struct hnae_handle *handle, int stringset)
 	sset_count += hns_mac_get_sset_count(mac_cb, stringset);
 
 	if (mac_cb->mac_type == HNAE_PORT_SERVICE)
-		sset_count += hns_dsaf_get_sset_count(stringset);
+		sset_count += hns_dsaf_get_sset_count(dsaf_dev, stringset);
 
 	return sset_count;
 }

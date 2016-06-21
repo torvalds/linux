@@ -2096,11 +2096,24 @@ void hns_dsaf_fix_mac_mode(struct hns_mac_cb *mac_cb)
 	hns_dsaf_port_work_rate_cfg(dsaf_dev, mac_id, mode);
 }
 
+static u32 hns_dsaf_get_inode_prio_reg(int index)
+{
+	int base_index, offset;
+	u32 base_addr = DSAF_INODE_IN_PRIO_PAUSE_BASE_REG;
+
+	base_index = (index + 1) / DSAF_REG_PER_ZONE;
+	offset = (index + 1) % DSAF_REG_PER_ZONE;
+
+	return base_addr + DSAF_INODE_IN_PRIO_PAUSE_BASE_OFFSET * base_index +
+		DSAF_INODE_IN_PRIO_PAUSE_OFFSET * offset;
+}
+
 void hns_dsaf_update_stats(struct dsaf_device *dsaf_dev, u32 node_num)
 {
 	struct dsaf_hw_stats *hw_stats
 		= &dsaf_dev->hw_stats[node_num];
 	bool is_ver1 = AE_IS_VER1(dsaf_dev->dsaf_ver);
+	int i;
 	u32 reg_tmp;
 
 	hw_stats->pad_drop += dsaf_read_dev(dsaf_dev,
@@ -2135,6 +2148,18 @@ void hns_dsaf_update_stats(struct dsaf_device *dsaf_dev, u32 node_num)
 	hw_stats->stp_drop += dsaf_read_dev(dsaf_dev,
 		DSAF_INODE_IN_DATA_STP_DISC_0_REG + 0x80 * (u64)node_num);
 
+	/* pfc pause frame statistics stored in dsaf inode*/
+	if ((node_num < DSAF_SERVICE_NW_NUM) && !is_ver1) {
+		for (i = 0; i < DSAF_PRIO_NR; i++) {
+			reg_tmp = hns_dsaf_get_inode_prio_reg(i);
+			hw_stats->rx_pfc[i] += dsaf_read_dev(dsaf_dev,
+				reg_tmp + 0x4 * (u64)node_num);
+			hw_stats->tx_pfc[i] += dsaf_read_dev(dsaf_dev,
+				DSAF_XOD_XGE_PFC_PRIO_CNT_BASE_REG +
+				DSAF_XOD_XGE_PFC_PRIO_CNT_OFFSET * i +
+				0xF0 * (u64)node_num);
+		}
+	}
 	hw_stats->tx_pkts += dsaf_read_dev(dsaf_dev,
 		DSAF_XOD_RCVPKT_CNT_0_REG + 0x90 * (u64)node_num);
 }
@@ -2472,9 +2497,12 @@ void hns_dsaf_get_regs(struct dsaf_device *ddev, u32 port, void *data)
 		p[i] = 0xdddddddd;
 }
 
-static char *hns_dsaf_get_node_stats_strings(char *data, int node)
+static char *hns_dsaf_get_node_stats_strings(char *data, int node,
+					     struct dsaf_device *dsaf_dev)
 {
 	char *buff = data;
+	int i;
+	bool is_ver1 = AE_IS_VER1(dsaf_dev->dsaf_ver);
 
 	snprintf(buff, ETH_GSTRING_LEN, "innod%d_pad_drop_pkts", node);
 	buff = buff + ETH_GSTRING_LEN;
@@ -2502,6 +2530,18 @@ static char *hns_dsaf_get_node_stats_strings(char *data, int node)
 	buff = buff + ETH_GSTRING_LEN;
 	snprintf(buff, ETH_GSTRING_LEN, "innod%d_stp_drop_pkts", node);
 	buff = buff + ETH_GSTRING_LEN;
+	if ((node < DSAF_SERVICE_NW_NUM) && (!is_ver1)) {
+		for (i = 0; i < DSAF_PRIO_NR; i++) {
+			snprintf(buff, ETH_GSTRING_LEN,
+				 "inod%d_pfc_prio%d_pkts", node, i);
+			buff = buff + ETH_GSTRING_LEN;
+		}
+		for (i = 0; i < DSAF_PRIO_NR; i++) {
+			snprintf(buff, ETH_GSTRING_LEN,
+				 "onod%d_pfc_prio%d_pkts", node, i);
+			buff = buff + ETH_GSTRING_LEN;
+		}
+	}
 	snprintf(buff, ETH_GSTRING_LEN, "onnod%d_tx_pkts", node);
 	buff = buff + ETH_GSTRING_LEN;
 
@@ -2512,7 +2552,9 @@ static u64 *hns_dsaf_get_node_stats(struct dsaf_device *ddev, u64 *data,
 				    int node_num)
 {
 	u64 *p = data;
+	int i;
 	struct dsaf_hw_stats *hw_stats = &ddev->hw_stats[node_num];
+	bool is_ver1 = AE_IS_VER1(ddev->dsaf_ver);
 
 	p[0] = hw_stats->pad_drop;
 	p[1] = hw_stats->man_pkts;
@@ -2527,8 +2569,16 @@ static u64 *hns_dsaf_get_node_stats(struct dsaf_device *ddev, u64 *data,
 	p[10] = hw_stats->local_addr_false;
 	p[11] = hw_stats->vlan_drop;
 	p[12] = hw_stats->stp_drop;
-	p[13] = hw_stats->tx_pkts;
+	if ((node_num < DSAF_SERVICE_NW_NUM) && (!is_ver1)) {
+		for (i = 0; i < DSAF_PRIO_NR; i++) {
+			p[13 + i] = hw_stats->rx_pfc[i];
+			p[13 + i + DSAF_PRIO_NR] = hw_stats->tx_pfc[i];
+		}
+		p[29] = hw_stats->tx_pkts;
+		return &p[30];
+	}
 
+	p[13] = hw_stats->tx_pkts;
 	return &p[14];
 }
 
@@ -2556,11 +2606,16 @@ void hns_dsaf_get_stats(struct dsaf_device *ddev, u64 *data, int port)
  *@stringset: type of values in data
  *return dsaf string name count
  */
-int hns_dsaf_get_sset_count(int stringset)
+int hns_dsaf_get_sset_count(struct dsaf_device *dsaf_dev, int stringset)
 {
-	if (stringset == ETH_SS_STATS)
-		return DSAF_STATIC_NUM;
+	bool is_ver1 = AE_IS_VER1(dsaf_dev->dsaf_ver);
 
+	if (stringset == ETH_SS_STATS) {
+		if (is_ver1)
+			return DSAF_STATIC_NUM;
+		else
+			return DSAF_V2_STATIC_NUM;
+	}
 	return 0;
 }
 
@@ -2570,7 +2625,8 @@ int hns_dsaf_get_sset_count(int stringset)
  *@data:strings name value
  *@port:port index
  */
-void hns_dsaf_get_strings(int stringset, u8 *data, int port)
+void hns_dsaf_get_strings(int stringset, u8 *data, int port,
+			  struct dsaf_device *dsaf_dev)
 {
 	char *buff = (char *)data;
 	int node = port;
@@ -2579,11 +2635,11 @@ void hns_dsaf_get_strings(int stringset, u8 *data, int port)
 		return;
 
 	/* for ge/xge node info */
-	buff = hns_dsaf_get_node_stats_strings(buff, node);
+	buff = hns_dsaf_get_node_stats_strings(buff, node, dsaf_dev);
 
 	/* for ppe node info */
 	node = port + DSAF_PPE_INODE_BASE;
-	(void)hns_dsaf_get_node_stats_strings(buff, node);
+	(void)hns_dsaf_get_node_stats_strings(buff, node, dsaf_dev);
 }
 
 /**
