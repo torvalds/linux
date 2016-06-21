@@ -56,7 +56,7 @@ static inline int is_vcpu_stopped(struct kvm_vcpu *vcpu)
 
 static inline int is_vcpu_idle(struct kvm_vcpu *vcpu)
 {
-	return atomic_read(&vcpu->arch.sie_block->cpuflags) & CPUSTAT_WAIT;
+	return test_bit(vcpu->vcpu_id, vcpu->arch.local_int.float_int->idle_mask);
 }
 
 static inline int kvm_is_ucontrol(struct kvm *kvm)
@@ -251,6 +251,14 @@ int kvm_s390_handle_lpsw(struct kvm_vcpu *vcpu);
 int kvm_s390_handle_stctl(struct kvm_vcpu *vcpu);
 int kvm_s390_handle_lctl(struct kvm_vcpu *vcpu);
 int kvm_s390_handle_eb(struct kvm_vcpu *vcpu);
+
+/* implemented in vsie.c */
+int kvm_s390_handle_vsie(struct kvm_vcpu *vcpu);
+void kvm_s390_vsie_kick(struct kvm_vcpu *vcpu);
+void kvm_s390_vsie_gmap_notifier(struct gmap *gmap, unsigned long start,
+				 unsigned long end);
+void kvm_s390_vsie_init(struct kvm *kvm);
+void kvm_s390_vsie_destroy(struct kvm *kvm);
 
 /* implemented in sigp.c */
 int kvm_s390_handle_sigp(struct kvm_vcpu *vcpu);

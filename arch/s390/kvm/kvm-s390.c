@@ -21,6 +21,7 @@
 #include <linux/init.h>
 #include <linux/kvm.h>
 #include <linux/kvm_host.h>
+#include <linux/mman.h>
 #include <linux/module.h>
 #include <linux/random.h>
 #include <linux/slab.h>
@@ -98,6 +99,7 @@ struct kvm_stats_debugfs_item debugfs_entries[] = {
 	{ "instruction_stfl", VCPU_STAT(instruction_stfl) },
 	{ "instruction_tprot", VCPU_STAT(instruction_tprot) },
 	{ "instruction_sthyi", VCPU_STAT(instruction_sthyi) },
+	{ "instruction_sie", VCPU_STAT(instruction_sie) },
 	{ "instruction_sigp_sense", VCPU_STAT(instruction_sigp_sense) },
 	{ "instruction_sigp_sense_running", VCPU_STAT(instruction_sigp_sense_running) },
 	{ "instruction_sigp_external_call", VCPU_STAT(instruction_sigp_external_call) },
@@ -123,6 +125,11 @@ struct kvm_stats_debugfs_item debugfs_entries[] = {
 	{ NULL }
 };
 
+/* allow nested virtualization in KVM (if enabled by user space) */
+static int nested;
+module_param(nested, int, S_IRUGO);
+MODULE_PARM_DESC(nested, "Nested virtualization support");
+
 /* upper facilities limit for kvm */
 unsigned long kvm_s390_fac_list_mask[16] = {
 	0xffe6000000000000UL,
@@ -141,6 +148,7 @@ static DECLARE_BITMAP(kvm_s390_available_cpu_feat, KVM_S390_VM_CPU_FEAT_NR_BITS)
 static struct kvm_s390_vm_cpu_subfunc kvm_s390_available_subfunc;
 
 static struct gmap_notifier gmap_notifier;
+static struct gmap_notifier vsie_gmap_notifier;
 debug_info_t *kvm_s390_dbf;
 
 /* Section: not file related */
@@ -150,7 +158,8 @@ int kvm_arch_hardware_enable(void)
 	return 0;
 }
 
-static void kvm_gmap_notifier(struct gmap *gmap, unsigned long address);
+static void kvm_gmap_notifier(struct gmap *gmap, unsigned long start,
+			      unsigned long end);
 
 /*
  * This callback is executed during stop_machine(). All CPUs are therefore
@@ -172,6 +181,8 @@ static int kvm_clock_sync(struct notifier_block *notifier, unsigned long val,
 			vcpu->arch.sie_block->epoch -= *delta;
 			if (vcpu->arch.cputm_enabled)
 				vcpu->arch.cputm_start += *delta;
+			if (vcpu->arch.vsie_block)
+				vcpu->arch.vsie_block->epoch -= *delta;
 		}
 	}
 	return NOTIFY_OK;
@@ -184,7 +195,9 @@ static struct notifier_block kvm_clock_notifier = {
 int kvm_arch_hardware_setup(void)
 {
 	gmap_notifier.notifier_call = kvm_gmap_notifier;
-	gmap_register_ipte_notifier(&gmap_notifier);
+	gmap_register_pte_notifier(&gmap_notifier);
+	vsie_gmap_notifier.notifier_call = kvm_s390_vsie_gmap_notifier;
+	gmap_register_pte_notifier(&vsie_gmap_notifier);
 	atomic_notifier_chain_register(&s390_epoch_delta_notifier,
 				       &kvm_clock_notifier);
 	return 0;
@@ -192,7 +205,8 @@ int kvm_arch_hardware_setup(void)
 
 void kvm_arch_hardware_unsetup(void)
 {
-	gmap_unregister_ipte_notifier(&gmap_notifier);
+	gmap_unregister_pte_notifier(&gmap_notifier);
+	gmap_unregister_pte_notifier(&vsie_gmap_notifier);
 	atomic_notifier_chain_unregister(&s390_epoch_delta_notifier,
 					 &kvm_clock_notifier);
 }
@@ -250,6 +264,46 @@ static void kvm_s390_cpu_feat_init(void)
 
 	if (MACHINE_HAS_ESOP)
 		allow_cpu_feat(KVM_S390_VM_CPU_FEAT_ESOP);
+	/*
+	 * We need SIE support, ESOP (PROT_READ protection for gmap_shadow),
+	 * 64bit SCAO (SCA passthrough) and IDTE (for gmap_shadow unshadowing).
+	 */
+	if (!sclp.has_sief2 || !MACHINE_HAS_ESOP || !sclp.has_64bscao ||
+	    !test_facility(3) || !nested)
+		return;
+	allow_cpu_feat(KVM_S390_VM_CPU_FEAT_SIEF2);
+	if (sclp.has_64bscao)
+		allow_cpu_feat(KVM_S390_VM_CPU_FEAT_64BSCAO);
+	if (sclp.has_siif)
+		allow_cpu_feat(KVM_S390_VM_CPU_FEAT_SIIF);
+	if (sclp.has_gpere)
+		allow_cpu_feat(KVM_S390_VM_CPU_FEAT_GPERE);
+	if (sclp.has_gsls)
+		allow_cpu_feat(KVM_S390_VM_CPU_FEAT_GSLS);
+	if (sclp.has_ib)
+		allow_cpu_feat(KVM_S390_VM_CPU_FEAT_IB);
+	if (sclp.has_cei)
+		allow_cpu_feat(KVM_S390_VM_CPU_FEAT_CEI);
+	if (sclp.has_ibs)
+		allow_cpu_feat(KVM_S390_VM_CPU_FEAT_IBS);
+	/*
+	 * KVM_S390_VM_CPU_FEAT_SKEY: Wrong shadow of PTE.I bits will make
+	 * all skey handling functions read/set the skey from the PGSTE
+	 * instead of the real storage key.
+	 *
+	 * KVM_S390_VM_CPU_FEAT_CMMA: Wrong shadow of PTE.I bits will make
+	 * pages being detected as preserved although they are resident.
+	 *
+	 * KVM_S390_VM_CPU_FEAT_PFMFI: Wrong shadow of PTE.I bits will
+	 * have the same effect as for KVM_S390_VM_CPU_FEAT_SKEY.
+	 *
+	 * For KVM_S390_VM_CPU_FEAT_SKEY, KVM_S390_VM_CPU_FEAT_CMMA and
+	 * KVM_S390_VM_CPU_FEAT_PFMFI, all PTE.I and PGSTE bits have to be
+	 * correctly shadowed. We can do that for the PGSTE but not for PTE.I.
+	 *
+	 * KVM_S390_VM_CPU_FEAT_SIGPIF: Wrong SCB addresses in the SCA. We
+	 * cannot easily shadow the SCA because of the ipte lock.
+	 */
 }
 
 int kvm_arch_init(void *opaque)
@@ -530,20 +584,20 @@ static int kvm_s390_set_mem_control(struct kvm *kvm, struct kvm_device_attr *att
 		if (!new_limit)
 			return -EINVAL;
 
-		/* gmap_alloc takes last usable address */
+		/* gmap_create takes last usable address */
 		if (new_limit != KVM_S390_NO_MEM_LIMIT)
 			new_limit -= 1;
 
 		ret = -EBUSY;
 		mutex_lock(&kvm->lock);
 		if (!kvm->created_vcpus) {
-			/* gmap_alloc will round the limit up */
-			struct gmap *new = gmap_alloc(current->mm, new_limit);
+			/* gmap_create will round the limit up */
+			struct gmap *new = gmap_create(current->mm, new_limit);
 
 			if (!new) {
 				ret = -ENOMEM;
 			} else {
-				gmap_free(kvm->arch.gmap);
+				gmap_remove(kvm->arch.gmap);
 				new->private = kvm;
 				kvm->arch.gmap = new;
 				ret = 0;
@@ -1392,7 +1446,7 @@ int kvm_arch_init_vm(struct kvm *kvm, unsigned long type)
 		else
 			kvm->arch.mem_limit = min_t(unsigned long, TASK_MAX_SIZE,
 						    sclp.hamax + 1);
-		kvm->arch.gmap = gmap_alloc(current->mm, kvm->arch.mem_limit - 1);
+		kvm->arch.gmap = gmap_create(current->mm, kvm->arch.mem_limit - 1);
 		if (!kvm->arch.gmap)
 			goto out_err;
 		kvm->arch.gmap->private = kvm;
@@ -1404,6 +1458,7 @@ int kvm_arch_init_vm(struct kvm *kvm, unsigned long type)
 	kvm->arch.epoch = 0;
 
 	spin_lock_init(&kvm->arch.start_stop_lock);
+	kvm_s390_vsie_init(kvm);
 	KVM_EVENT(3, "vm 0x%pK created by pid %u", kvm, current->pid);
 
 	return 0;
@@ -1425,7 +1480,7 @@ void kvm_arch_vcpu_destroy(struct kvm_vcpu *vcpu)
 		sca_del_vcpu(vcpu);
 
 	if (kvm_is_ucontrol(vcpu->kvm))
-		gmap_free(vcpu->arch.gmap);
+		gmap_remove(vcpu->arch.gmap);
 
 	if (vcpu->kvm->arch.use_cmma)
 		kvm_s390_vcpu_unsetup_cmma(vcpu);
@@ -1458,16 +1513,17 @@ void kvm_arch_destroy_vm(struct kvm *kvm)
 	debug_unregister(kvm->arch.dbf);
 	free_page((unsigned long)kvm->arch.sie_page2);
 	if (!kvm_is_ucontrol(kvm))
-		gmap_free(kvm->arch.gmap);
+		gmap_remove(kvm->arch.gmap);
 	kvm_s390_destroy_adapters(kvm);
 	kvm_s390_clear_float_irqs(kvm);
+	kvm_s390_vsie_destroy(kvm);
 	KVM_EVENT(3, "vm 0x%pK destroyed", kvm);
 }
 
 /* Section: vcpu related */
 static int __kvm_ucontrol_vcpu_init(struct kvm_vcpu *vcpu)
 {
-	vcpu->arch.gmap = gmap_alloc(current->mm, -1UL);
+	vcpu->arch.gmap = gmap_create(current->mm, -1UL);
 	if (!vcpu->arch.gmap)
 		return -ENOMEM;
 	vcpu->arch.gmap->private = vcpu->kvm;
@@ -1717,7 +1773,7 @@ void kvm_arch_vcpu_load(struct kvm_vcpu *vcpu, int cpu)
 
 	save_access_regs(vcpu->arch.host_acrs);
 	restore_access_regs(vcpu->run->s.regs.acrs);
-	gmap_enable(vcpu->arch.gmap);
+	gmap_enable(vcpu->arch.enabled_gmap);
 	atomic_or(CPUSTAT_RUNNING, &vcpu->arch.sie_block->cpuflags);
 	if (vcpu->arch.cputm_enabled && !is_vcpu_idle(vcpu))
 		__start_cpu_timer_accounting(vcpu);
@@ -1730,7 +1786,8 @@ void kvm_arch_vcpu_put(struct kvm_vcpu *vcpu)
 	if (vcpu->arch.cputm_enabled && !is_vcpu_idle(vcpu))
 		__stop_cpu_timer_accounting(vcpu);
 	atomic_andnot(CPUSTAT_RUNNING, &vcpu->arch.sie_block->cpuflags);
-	gmap_disable(vcpu->arch.gmap);
+	vcpu->arch.enabled_gmap = gmap_get_enabled();
+	gmap_disable(vcpu->arch.enabled_gmap);
 
 	/* Save guest register state */
 	save_fpu_regs();
@@ -1779,7 +1836,8 @@ void kvm_arch_vcpu_postcreate(struct kvm_vcpu *vcpu)
 		vcpu->arch.gmap = vcpu->kvm->arch.gmap;
 		sca_add_vcpu(vcpu);
 	}
-
+	/* make vcpu_load load the right gmap on the first trigger */
+	vcpu->arch.enabled_gmap = vcpu->arch.gmap;
 }
 
 static void kvm_s390_vcpu_crypto_setup(struct kvm_vcpu *vcpu)
@@ -1976,16 +2034,25 @@ void kvm_s390_sync_request(int req, struct kvm_vcpu *vcpu)
 	kvm_s390_vcpu_request(vcpu);
 }
 
-static void kvm_gmap_notifier(struct gmap *gmap, unsigned long address)
+static void kvm_gmap_notifier(struct gmap *gmap, unsigned long start,
+			      unsigned long end)
 {
-	int i;
 	struct kvm *kvm = gmap->private;
 	struct kvm_vcpu *vcpu;
+	unsigned long prefix;
+	int i;
 
+	if (gmap_is_shadow(gmap))
+		return;
+	if (start >= 1UL << 31)
+		/* We are only interested in prefix pages */
+		return;
 	kvm_for_each_vcpu(i, vcpu, kvm) {
 		/* match against both prefix pages */
-		if (kvm_s390_get_prefix(vcpu) == (address & ~0x1000UL)) {
-			VCPU_EVENT(vcpu, 2, "gmap notifier for %lx", address);
+		prefix = kvm_s390_get_prefix(vcpu);
+		if (prefix <= end && start <= prefix + 2*PAGE_SIZE - 1) {
+			VCPU_EVENT(vcpu, 2, "gmap notifier for %lx-%lx",
+				   start, end);
 			kvm_s390_sync_request(KVM_REQ_MMU_RELOAD, vcpu);
 		}
 	}
@@ -2264,16 +2331,16 @@ retry:
 		return 0;
 	/*
 	 * We use MMU_RELOAD just to re-arm the ipte notifier for the
-	 * guest prefix page. gmap_ipte_notify will wait on the ptl lock.
+	 * guest prefix page. gmap_mprotect_notify will wait on the ptl lock.
 	 * This ensures that the ipte instruction for this request has
 	 * already finished. We might race against a second unmapper that
 	 * wants to set the blocking bit. Lets just retry the request loop.
 	 */
 	if (kvm_check_request(KVM_REQ_MMU_RELOAD, vcpu)) {
 		int rc;
-		rc = gmap_ipte_notify(vcpu->arch.gmap,
-				      kvm_s390_get_prefix(vcpu),
-				      PAGE_SIZE * 2);
+		rc = gmap_mprotect_notify(vcpu->arch.gmap,
+					  kvm_s390_get_prefix(vcpu),
+					  PAGE_SIZE * 2, PROT_WRITE);
 		if (rc)
 			return rc;
 		goto retry;

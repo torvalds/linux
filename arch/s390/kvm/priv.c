@@ -719,6 +719,7 @@ static const intercept_handler_t b2_handlers[256] = {
 	[0x10] = handle_set_prefix,
 	[0x11] = handle_store_prefix,
 	[0x12] = handle_store_cpu_address,
+	[0x14] = kvm_s390_handle_vsie,
 	[0x21] = handle_ipte_interlock,
 	[0x29] = handle_iske,
 	[0x2a] = handle_rrbe,

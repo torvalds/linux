@@ -8,6 +8,7 @@
 #include <linux/vmalloc.h>
 #include <linux/err.h>
 #include <asm/pgtable.h>
+#include <asm/gmap.h>
 #include "kvm-s390.h"
 #include "gaccess.h"
 #include <asm/switch_to.h>
@@ -945,4 +946,242 @@ int kvm_s390_check_low_addr_prot_real(struct kvm_vcpu *vcpu, unsigned long gra)
 	if (!ctlreg0.lap || !is_low_address(gra))
 		return 0;
 	return trans_exc(vcpu, PGM_PROTECTION, gra, 0, GACC_STORE, PROT_TYPE_LA);
+}
+
+/**
+ * kvm_s390_shadow_tables - walk the guest page table and create shadow tables
+ * @sg: pointer to the shadow guest address space structure
+ * @saddr: faulting address in the shadow gmap
+ * @pgt: pointer to the page table address result
+ * @fake: pgt references contiguous guest memory block, not a pgtable
+ */
+static int kvm_s390_shadow_tables(struct gmap *sg, unsigned long saddr,
+				  unsigned long *pgt, int *dat_protection,
+				  int *fake)
+{
+	struct gmap *parent;
+	union asce asce;
+	union vaddress vaddr;
+	unsigned long ptr;
+	int rc;
+
+	*fake = 0;
+	*dat_protection = 0;
+	parent = sg->parent;
+	vaddr.addr = saddr;
+	asce.val = sg->orig_asce;
+	ptr = asce.origin * 4096;
+	if (asce.r) {
+		*fake = 1;
+		asce.dt = ASCE_TYPE_REGION1;
+	}
+	switch (asce.dt) {
+	case ASCE_TYPE_REGION1:
+		if (vaddr.rfx01 > asce.tl && !asce.r)
+			return PGM_REGION_FIRST_TRANS;
+		break;
+	case ASCE_TYPE_REGION2:
+		if (vaddr.rfx)
+			return PGM_ASCE_TYPE;
+		if (vaddr.rsx01 > asce.tl)
+			return PGM_REGION_SECOND_TRANS;
+		break;
+	case ASCE_TYPE_REGION3:
+		if (vaddr.rfx || vaddr.rsx)
+			return PGM_ASCE_TYPE;
+		if (vaddr.rtx01 > asce.tl)
+			return PGM_REGION_THIRD_TRANS;
+		break;
+	case ASCE_TYPE_SEGMENT:
+		if (vaddr.rfx || vaddr.rsx || vaddr.rtx)
+			return PGM_ASCE_TYPE;
+		if (vaddr.sx01 > asce.tl)
+			return PGM_SEGMENT_TRANSLATION;
+		break;
+	}
+
+	switch (asce.dt) {
+	case ASCE_TYPE_REGION1: {
+		union region1_table_entry rfte;
+
+		if (*fake) {
+			/* offset in 16EB guest memory block */
+			ptr = ptr + ((unsigned long) vaddr.rsx << 53UL);
+			rfte.val = ptr;
+			goto shadow_r2t;
+		}
+		rc = gmap_read_table(parent, ptr + vaddr.rfx * 8, &rfte.val);
+		if (rc)
+			return rc;
+		if (rfte.i)
+			return PGM_REGION_FIRST_TRANS;
+		if (rfte.tt != TABLE_TYPE_REGION1)
+			return PGM_TRANSLATION_SPEC;
+		if (vaddr.rsx01 < rfte.tf || vaddr.rsx01 > rfte.tl)
+			return PGM_REGION_SECOND_TRANS;
+		if (sg->edat_level >= 1)
+			*dat_protection |= rfte.p;
+		ptr = rfte.rto << 12UL;
+shadow_r2t:
+		rc = gmap_shadow_r2t(sg, saddr, rfte.val, *fake);
+		if (rc)
+			return rc;
+		/* fallthrough */
+	}
+	case ASCE_TYPE_REGION2: {
+		union region2_table_entry rste;
+
+		if (*fake) {
+			/* offset in 8PB guest memory block */
+			ptr = ptr + ((unsigned long) vaddr.rtx << 42UL);
+			rste.val = ptr;
+			goto shadow_r3t;
+		}
+		rc = gmap_read_table(parent, ptr + vaddr.rsx * 8, &rste.val);
+		if (rc)
+			return rc;
+		if (rste.i)
+			return PGM_REGION_SECOND_TRANS;
+		if (rste.tt != TABLE_TYPE_REGION2)
+			return PGM_TRANSLATION_SPEC;
+		if (vaddr.rtx01 < rste.tf || vaddr.rtx01 > rste.tl)
+			return PGM_REGION_THIRD_TRANS;
+		if (sg->edat_level >= 1)
+			*dat_protection |= rste.p;
+		ptr = rste.rto << 12UL;
+shadow_r3t:
+		rste.p |= *dat_protection;
+		rc = gmap_shadow_r3t(sg, saddr, rste.val, *fake);
+		if (rc)
+			return rc;
+		/* fallthrough */
+	}
+	case ASCE_TYPE_REGION3: {
+		union region3_table_entry rtte;
+
+		if (*fake) {
+			/* offset in 4TB guest memory block */
+			ptr = ptr + ((unsigned long) vaddr.sx << 31UL);
+			rtte.val = ptr;
+			goto shadow_sgt;
+		}
+		rc = gmap_read_table(parent, ptr + vaddr.rtx * 8, &rtte.val);
+		if (rc)
+			return rc;
+		if (rtte.i)
+			return PGM_REGION_THIRD_TRANS;
+		if (rtte.tt != TABLE_TYPE_REGION3)
+			return PGM_TRANSLATION_SPEC;
+		if (rtte.cr && asce.p && sg->edat_level >= 2)
+			return PGM_TRANSLATION_SPEC;
+		if (rtte.fc && sg->edat_level >= 2) {
+			*dat_protection |= rtte.fc0.p;
+			*fake = 1;
+			ptr = rtte.fc1.rfaa << 31UL;
+			rtte.val = ptr;
+			goto shadow_sgt;
+		}
+		if (vaddr.sx01 < rtte.fc0.tf || vaddr.sx01 > rtte.fc0.tl)
+			return PGM_SEGMENT_TRANSLATION;
+		if (sg->edat_level >= 1)
+			*dat_protection |= rtte.fc0.p;
+		ptr = rtte.fc0.sto << 12UL;
+shadow_sgt:
+		rtte.fc0.p |= *dat_protection;
+		rc = gmap_shadow_sgt(sg, saddr, rtte.val, *fake);
+		if (rc)
+			return rc;
+		/* fallthrough */
+	}
+	case ASCE_TYPE_SEGMENT: {
+		union segment_table_entry ste;
+
+		if (*fake) {
+			/* offset in 2G guest memory block */
+			ptr = ptr + ((unsigned long) vaddr.sx << 20UL);
+			ste.val = ptr;
+			goto shadow_pgt;
+		}
+		rc = gmap_read_table(parent, ptr + vaddr.sx * 8, &ste.val);
+		if (rc)
+			return rc;
+		if (ste.i)
+			return PGM_SEGMENT_TRANSLATION;
+		if (ste.tt != TABLE_TYPE_SEGMENT)
+			return PGM_TRANSLATION_SPEC;
+		if (ste.cs && asce.p)
+			return PGM_TRANSLATION_SPEC;
+		*dat_protection |= ste.fc0.p;
+		if (ste.fc && sg->edat_level >= 1) {
+			*fake = 1;
+			ptr = ste.fc1.sfaa << 20UL;
+			ste.val = ptr;
+			goto shadow_pgt;
+		}
+		ptr = ste.fc0.pto << 11UL;
+shadow_pgt:
+		ste.fc0.p |= *dat_protection;
+		rc = gmap_shadow_pgt(sg, saddr, ste.val, *fake);
+		if (rc)
+			return rc;
+	}
+	}
+	/* Return the parent address of the page table */
+	*pgt = ptr;
+	return 0;
+}
+
+/**
+ * kvm_s390_shadow_fault - handle fault on a shadow page table
+ * @vcpu: virtual cpu
+ * @sg: pointer to the shadow guest address space structure
+ * @saddr: faulting address in the shadow gmap
+ *
+ * Returns: - 0 if the shadow fault was successfully resolved
+ *	    - > 0 (pgm exception code) on exceptions while faulting
+ *	    - -EAGAIN if the caller can retry immediately
+ *	    - -EFAULT when accessing invalid guest addresses
+ *	    - -ENOMEM if out of memory
+ */
+int kvm_s390_shadow_fault(struct kvm_vcpu *vcpu, struct gmap *sg,
+			  unsigned long saddr)
+{
+	union vaddress vaddr;
+	union page_table_entry pte;
+	unsigned long pgt;
+	int dat_protection, fake;
+	int rc;
+
+	down_read(&sg->mm->mmap_sem);
+	/*
+	 * We don't want any guest-2 tables to change - so the parent
+	 * tables/pointers we read stay valid - unshadowing is however
+	 * always possible - only guest_table_lock protects us.
+	 */
+	ipte_lock(vcpu);
+
+	rc = gmap_shadow_pgt_lookup(sg, saddr, &pgt, &dat_protection, &fake);
+	if (rc)
+		rc = kvm_s390_shadow_tables(sg, saddr, &pgt, &dat_protection,
+					    &fake);
+
+	vaddr.addr = saddr;
+	if (fake) {
+		/* offset in 1MB guest memory block */
+		pte.val = pgt + ((unsigned long) vaddr.px << 12UL);
+		goto shadow_page;
+	}
+	if (!rc)
+		rc = gmap_read_table(sg->parent, pgt + vaddr.px * 8, &pte.val);
+	if (!rc && pte.i)
+		rc = PGM_PAGE_TRANSLATION;
+	if (!rc && (pte.z || (pte.co && sg->edat_level < 1)))
+		rc = PGM_TRANSLATION_SPEC;
+shadow_page:
+	pte.p |= dat_protection;
+	if (!rc)
+		rc = gmap_shadow_page(sg, saddr, __pte(pte.val));
+	ipte_unlock(vcpu);
+	up_read(&sg->mm->mmap_sem);
+	return rc;
 }
