@@ -13,4 +13,14 @@ config NVME_TARGET
 	  To configure the NVMe target you probably want to use the nvmetcli
 	  tool from http://git.infradead.org/users/hch/nvmetcli.git.
 
+config NVME_TARGET_LOOP
+	tristate "NVMe loopback device support"
+	depends on BLK_DEV_NVME
+	select NVME_TARGET
+	select NVME_FABRICS
+	select SG_POOL
+	help
+	  This enables the NVMe loopback device support, which can be useful
+	  to test NVMe host and target side features.
+
 	  If unsure, say N.
