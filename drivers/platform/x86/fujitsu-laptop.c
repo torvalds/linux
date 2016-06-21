@@ -105,6 +105,8 @@
 #define LOGOLAMP_POWERON 0x2000
 #define LOGOLAMP_ALWAYS  0x4000
 #define RADIO_LED_ON	0x20
+#define ECO_LED	0x10000
+#define ECO_LED_ON	0x80000
 #endif
 
 /* Hotkey details */
@@ -166,6 +168,7 @@ struct fujitsu_hotkey_t {
 	int logolamp_registered;
 	int kblamps_registered;
 	int radio_led_registered;
+	int eco_led_registered;
 };
 
 static struct fujitsu_hotkey_t *fujitsu_hotkey;
@@ -201,6 +204,17 @@ static struct led_classdev radio_led = {
  .name = "fujitsu::radio_led",
  .brightness_get = radio_led_get,
  .brightness_set = radio_led_set
+};
+
+static enum led_brightness eco_led_get(struct led_classdev *cdev);
+static void eco_led_set(struct led_classdev *cdev,
+			       enum led_brightness brightness);
+
+static struct led_classdev eco_led = {
+ .name = "fujitsu::eco_led",
+ .max_brightness = 1,
+ .brightness_get = eco_led_get,
+ .brightness_set = eco_led_set
 };
 #endif
 
@@ -286,6 +300,18 @@ static void radio_led_set(struct led_classdev *cdev,
 		call_fext_func(FUNC_RFKILL, 0x5, RADIO_LED_ON, 0x0);
 }
 
+static void eco_led_set(struct led_classdev *cdev,
+				enum led_brightness brightness)
+{
+	int curr;
+
+	curr = call_fext_func(FUNC_LEDS, 0x2, ECO_LED, 0x0);
+	if (brightness)
+		call_fext_func(FUNC_LEDS, 0x1, ECO_LED, curr | ECO_LED_ON);
+	else
+		call_fext_func(FUNC_LEDS, 0x1, ECO_LED, curr & ~ECO_LED_ON);
+}
+
 static enum led_brightness logolamp_get(struct led_classdev *cdev)
 {
 	enum led_brightness brightness = LED_OFF;
@@ -317,6 +343,16 @@ static enum led_brightness radio_led_get(struct led_classdev *cdev)
 
 	if (call_fext_func(FUNC_RFKILL, 0x4, 0x0, 0x0) & RADIO_LED_ON)
 		brightness = LED_FULL;
+
+	return brightness;
+}
+
+static enum led_brightness eco_led_get(struct led_classdev *cdev)
+{
+	enum led_brightness brightness = LED_OFF;
+
+	if (call_fext_func(FUNC_LEDS, 0x2, ECO_LED, 0x0) & ECO_LED_ON)
+		brightness = cdev->max_brightness;
 
 	return brightness;
 }
@@ -934,6 +970,23 @@ static int acpi_fujitsu_hotkey_add(struct acpi_device *device)
 			       result);
 		}
 	}
+
+	/* Support for eco led is not always signaled in bit corresponding
+	 * to the bit used to control the led. According to the DSDT table,
+	 * bit 14 seems to indicate presence of said led as well.
+	 * Confirm by testing the status.
+	*/
+	if ((call_fext_func(FUNC_LEDS, 0x0, 0x0, 0x0) & BIT(14)) &&
+	   (call_fext_func(FUNC_LEDS, 0x2, ECO_LED, 0x0) != UNSUPPORTED_CMD)) {
+		result = led_classdev_register(&fujitsu->pf_device->dev,
+						&eco_led);
+		if (result == 0) {
+			fujitsu_hotkey->eco_led_registered = 1;
+		} else {
+			pr_err("Could not register LED handler for eco LED, error %i\n",
+			       result);
+		}
+	}
 #endif
 
 	return result;
@@ -963,6 +1016,9 @@ static int acpi_fujitsu_hotkey_remove(struct acpi_device *device)
 
 	if (fujitsu_hotkey->radio_led_registered)
 		led_classdev_unregister(&radio_led);
+
+	if (fujitsu_hotkey->eco_led_registered)
+		led_classdev_unregister(&eco_led);
 #endif
 
 	input_unregister_device(input);
