@@ -1,5 +1,3 @@
-#!/usr/bin/perl -w
-#
 # stackcollapse.py - format perf samples with one line per distinct call stack
 #
 # This script's output has two space-separated fields.  The first is a semicolon
