@@ -3308,7 +3308,7 @@ static void btrfs_end_buffer_write_sync(struct buffer_head *bh, int uptodate)
 		struct btrfs_device *device = (struct btrfs_device *)
 			bh->b_private;
 
-		btrfs_warn_rl_in_rcu(device->dev_root->fs_info,
+		btrfs_warn_rl_in_rcu(device->fs_info,
 				"lost page write due to IO error on %s",
 					  rcu_str_deref(device->name));
 		/* note, we don't set_buffer_write_io_error because we have
@@ -3453,7 +3453,7 @@ static int write_dev_supers(struct btrfs_device *device,
 			bh = __getblk(device->bdev, bytenr / 4096,
 				      BTRFS_SUPER_INFO_SIZE);
 			if (!bh) {
-				btrfs_err(device->dev_root->fs_info,
+				btrfs_err(device->fs_info,
 				    "couldn't get super buffer head for bytenr %llu",
 				    bytenr);
 				errors++;

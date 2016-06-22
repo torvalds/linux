@@ -367,7 +367,7 @@ static noinline void run_scheduled_bios(struct btrfs_device *device)
 	blk_start_plug(&plug);
 
 	bdi = blk_get_backing_dev_info(device->bdev);
-	fs_info = device->dev_root->fs_info;
+	fs_info = device->fs_info;
 	limit = btrfs_async_submit_limit(fs_info);
 	limit = limit * 2 / 3;
 
@@ -1179,7 +1179,7 @@ int btrfs_account_dev_extents_size(struct btrfs_device *device, u64 start,
 				   u64 end, u64 *length)
 {
 	struct btrfs_key key;
-	struct btrfs_root *root = device->dev_root;
+	struct btrfs_root *root = device->fs_info->dev_root;
 	struct btrfs_dev_extent *dev_extent;
 	struct btrfs_path *path;
 	u64 extent_end;
@@ -1262,7 +1262,7 @@ static int contains_pending_extent(struct btrfs_transaction *transaction,
 				   struct btrfs_device *device,
 				   u64 *start, u64 len)
 {
-	struct btrfs_fs_info *fs_info = device->dev_root->fs_info;
+	struct btrfs_fs_info *fs_info = device->fs_info;
 	struct extent_map *em;
 	struct list_head *search_list = &fs_info->pinned_chunks;
 	int ret = 0;
@@ -1338,8 +1338,8 @@ int find_free_dev_extent_start(struct btrfs_transaction *transaction,
 			       struct btrfs_device *device, u64 num_bytes,
 			       u64 search_start, u64 *start, u64 *len)
 {
+	struct btrfs_root *root = device->fs_info->dev_root;
 	struct btrfs_key key;
-	struct btrfs_root *root = device->dev_root;
 	struct btrfs_dev_extent *dev_extent;
 	struct btrfs_path *path;
 	u64 hole_size;
@@ -1508,9 +1508,9 @@ static int btrfs_free_dev_extent(struct btrfs_trans_handle *trans,
 			  struct btrfs_device *device,
 			  u64 start, u64 *dev_extent_len)
 {
+	struct btrfs_root *root = device->fs_info->dev_root;
 	int ret;
 	struct btrfs_path *path;
-	struct btrfs_root *root = device->dev_root;
 	struct btrfs_key key;
 	struct btrfs_key found_key;
 	struct extent_buffer *leaf = NULL;
@@ -1569,7 +1569,7 @@ static int btrfs_alloc_dev_extent(struct btrfs_trans_handle *trans,
 {
 	int ret;
 	struct btrfs_path *path;
-	struct btrfs_root *root = device->dev_root;
+	struct btrfs_root *root = device->fs_info->dev_root;
 	struct btrfs_dev_extent *extent;
 	struct extent_buffer *leaf;
 	struct btrfs_key key;
@@ -2387,7 +2387,7 @@ int btrfs_init_new_device(struct btrfs_fs_info *fs_info, char *device_path)
 	device->total_bytes = i_size_read(bdev->bd_inode);
 	device->disk_total_bytes = device->total_bytes;
 	device->commit_total_bytes = device->total_bytes;
-	device->dev_root = root->fs_info->dev_root;
+	device->fs_info = fs_info;
 	device->bdev = bdev;
 	device->in_fs_metadata = 1;
 	device->is_tgtdev_for_dev_replace = 0;
@@ -2596,7 +2596,7 @@ int btrfs_init_dev_replace_tgtdev(struct btrfs_root *root, char *device_path,
 	ASSERT(list_empty(&srcdev->resized_list));
 	device->commit_total_bytes = srcdev->commit_total_bytes;
 	device->commit_bytes_used = device->bytes_used;
-	device->dev_root = fs_info->dev_root;
+	device->fs_info = fs_info;
 	device->bdev = bdev;
 	device->in_fs_metadata = 1;
 	device->is_tgtdev_for_dev_replace = 1;
@@ -2624,7 +2624,7 @@ void btrfs_init_dev_replace_tgtdev_for_resume(struct btrfs_fs_info *fs_info,
 	tgtdev->io_width = fs_info->dev_root->sectorsize;
 	tgtdev->io_align = fs_info->dev_root->sectorsize;
 	tgtdev->sector_size = fs_info->dev_root->sectorsize;
-	tgtdev->dev_root = fs_info->dev_root;
+	tgtdev->fs_info = fs_info;
 	tgtdev->in_fs_metadata = 1;
 }
 
@@ -2638,7 +2638,7 @@ static noinline int btrfs_update_device(struct btrfs_trans_handle *trans,
 	struct extent_buffer *leaf;
 	struct btrfs_key key;
 
-	root = device->dev_root->fs_info->chunk_root;
+	root = device->fs_info->chunk_root;
 
 	path = btrfs_alloc_path();
 	if (!path)
@@ -2679,8 +2679,7 @@ out:
 int btrfs_grow_device(struct btrfs_trans_handle *trans,
 		      struct btrfs_device *device, u64 new_size)
 {
-	struct btrfs_super_block *super_copy =
-		device->dev_root->fs_info->super_copy;
+	struct btrfs_super_block *super_copy = device->fs_info->super_copy;
 	struct btrfs_fs_devices *fs_devices;
 	u64 old_total;
 	u64 diff;
@@ -2688,28 +2687,28 @@ int btrfs_grow_device(struct btrfs_trans_handle *trans,
 	if (!device->writeable)
 		return -EACCES;
 
-	lock_chunks(device->dev_root);
+	lock_chunks(device->fs_info->dev_root);
 	old_total = btrfs_super_total_bytes(super_copy);
 	diff = new_size - device->total_bytes;
 
 	if (new_size <= device->total_bytes ||
 	    device->is_tgtdev_for_dev_replace) {
-		unlock_chunks(device->dev_root);
+		unlock_chunks(device->fs_info->dev_root);
 		return -EINVAL;
 	}
 
-	fs_devices = device->dev_root->fs_info->fs_devices;
+	fs_devices = device->fs_info->fs_devices;
 
 	btrfs_set_super_total_bytes(super_copy, old_total + diff);
 	device->fs_devices->total_rw_bytes += diff;
 
 	btrfs_device_set_total_bytes(device, new_size);
 	btrfs_device_set_disk_total_bytes(device, new_size);
-	btrfs_clear_space_info_full(device->dev_root->fs_info);
+	btrfs_clear_space_info_full(device->fs_info);
 	if (list_empty(&device->resized_list))
 		list_add_tail(&device->resized_list,
 			      &fs_devices->resized_devices);
-	unlock_chunks(device->dev_root);
+	unlock_chunks(device->fs_info->dev_root);
 
 	return btrfs_update_device(trans, device);
 }
@@ -4356,7 +4355,7 @@ int btrfs_check_uuid_tree(struct btrfs_fs_info *fs_info)
 int btrfs_shrink_device(struct btrfs_device *device, u64 new_size)
 {
 	struct btrfs_trans_handle *trans;
-	struct btrfs_root *root = device->dev_root;
+	struct btrfs_root *root = device->fs_info->dev_root;
 	struct btrfs_dev_extent *dev_extent = NULL;
 	struct btrfs_path *path;
 	u64 length;
@@ -6884,7 +6883,7 @@ void btrfs_init_devices_late(struct btrfs_fs_info *fs_info)
 	while (fs_devices) {
 		mutex_lock(&fs_devices->device_list_mutex);
 		list_for_each_entry(device, &fs_devices->devices, dev_list)
-			device->dev_root = fs_info->dev_root;
+			device->fs_info = fs_info;
 		mutex_unlock(&fs_devices->device_list_mutex);
 
 		fs_devices = fs_devices->seed;
@@ -7060,7 +7059,7 @@ static void btrfs_dev_stat_print_on_error(struct btrfs_device *dev)
 {
 	if (!dev->dev_stats_valid)
 		return;
-	btrfs_err_rl_in_rcu(dev->dev_root->fs_info,
+	btrfs_err_rl_in_rcu(dev->fs_info,
 		"bdev %s errs: wr %u, rd %u, flush %u, corrupt %u, gen %u",
 			   rcu_str_deref(dev->name),
 			   btrfs_dev_stat_read(dev, BTRFS_DEV_STAT_WRITE_ERRS),
@@ -7080,7 +7079,7 @@ static void btrfs_dev_stat_print_on_load(struct btrfs_device *dev)
 	if (i == BTRFS_DEV_STAT_VALUES_MAX)
 		return; /* all values == 0, suppress message */
 
-	btrfs_info_in_rcu(dev->dev_root->fs_info,
+	btrfs_info_in_rcu(dev->fs_info,
 		"bdev %s errs: wr %u, rd %u, flush %u, corrupt %u, gen %u",
 	       rcu_str_deref(dev->name),
 	       btrfs_dev_stat_read(dev, BTRFS_DEV_STAT_WRITE_ERRS),

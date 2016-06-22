@@ -10853,7 +10853,7 @@ static int btrfs_trim_free_extents(struct btrfs_device *device,
 	ret = 0;
 
 	while (1) {
-		struct btrfs_fs_info *fs_info = device->dev_root->fs_info;
+		struct btrfs_fs_info *fs_info = device->fs_info;
 		struct btrfs_transaction *trans;
 		u64 bytes;
 

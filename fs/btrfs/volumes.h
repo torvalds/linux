@@ -51,8 +51,7 @@ struct btrfs_device {
 	struct list_head dev_list;
 	struct list_head dev_alloc_list;
 	struct btrfs_fs_devices *fs_devices;
-
-	struct btrfs_root *dev_root;
+	struct btrfs_fs_info *fs_info;
 
 	struct rcu_string *name;
 
