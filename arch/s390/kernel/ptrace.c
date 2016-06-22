@@ -822,6 +822,7 @@ long compat_arch_ptrace(struct task_struct *child, compat_long_t request,
 asmlinkage long do_syscall_trace_enter(struct pt_regs *regs)
 {
 	long ret = 0;
+	unsigned long mask = -1UL;
 
 	/* Do the secure computing check first. */
 	if (secure_computing()) {
@@ -849,9 +850,12 @@ asmlinkage long do_syscall_trace_enter(struct pt_regs *regs)
 	if (unlikely(test_thread_flag(TIF_SYSCALL_TRACEPOINT)))
 		trace_sys_enter(regs, regs->gprs[2]);
 
-	audit_syscall_entry(regs->gprs[2], regs->orig_gpr2,
-			    regs->gprs[3], regs->gprs[4],
-			    regs->gprs[5]);
+	if (is_compat_task())
+		mask = 0xffffffff;
+
+	audit_syscall_entry(regs->gprs[2], regs->orig_gpr2 & mask,
+			    regs->gprs[3] & mask, regs->gprs[4] & mask,
+			    regs->gprs[5] & mask);
 out:
 	return ret ?: regs->gprs[2];
 }
