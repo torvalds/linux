@@ -176,7 +176,6 @@ static int vc4_drm_bind(struct device *dev)
 {
 	struct platform_device *pdev = to_platform_device(dev);
 	struct drm_device *drm;
-	struct drm_connector *connector;
 	struct vc4_dev *vc4;
 	int ret = 0;
 
