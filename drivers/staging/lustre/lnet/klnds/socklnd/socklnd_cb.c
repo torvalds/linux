@@ -2008,13 +2008,6 @@ ksocknal_connect(struct ksock_route *route)
 		list_splice_init(&peer->ksnp_tx_queue, &zombies);
 	}
 
-#if 0	   /* irrelevant with only eager routes */
-	if (!route->ksnr_deleted) {
-		/* make this route least-favourite for re-selection */
-		list_del(&route->ksnr_list);
-		list_add_tail(&route->ksnr_list, &peer->ksnp_routes);
-	}
-#endif
 	write_unlock_bh(&ksocknal_data.ksnd_global_lock);
 
 	ksocknal_peer_failed(peer);
