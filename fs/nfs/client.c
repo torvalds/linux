@@ -367,8 +367,6 @@ nfs_found_client(const struct nfs_client_initdata *cl_init,
  */
 struct nfs_client *
 nfs_get_client(const struct nfs_client_initdata *cl_init,
-	       const struct rpc_timeout *timeparms,
-	       const char *ip_addr,
 	       rpc_authflavor_t authflavour)
 {
 	struct nfs_client *clp, *new = NULL;
@@ -399,7 +397,7 @@ nfs_get_client(const struct nfs_client_initdata *cl_init,
 					&nn->nfs_client_list);
 			spin_unlock(&nn->nfs_client_lock);
 			new->cl_flags = cl_init->init_flags;
-			return rpc_ops->init_client(new, timeparms, ip_addr);
+			return rpc_ops->init_client(new, cl_init);
 		}
 
 		spin_unlock(&nn->nfs_client_lock);
@@ -470,7 +468,7 @@ EXPORT_SYMBOL_GPL(nfs_init_timeout_values);
  * Create an RPC client handle
  */
 int nfs_create_rpc_client(struct nfs_client *clp,
-			  const struct rpc_timeout *timeparms,
+			  const struct nfs_client_initdata *cl_init,
 			  rpc_authflavor_t flavor)
 {
 	struct rpc_clnt		*clnt = NULL;
@@ -479,8 +477,9 @@ int nfs_create_rpc_client(struct nfs_client *clp,
 		.protocol	= clp->cl_proto,
 		.address	= (struct sockaddr *)&clp->cl_addr,
 		.addrsize	= clp->cl_addrlen,
-		.timeout	= timeparms,
+		.timeout	= cl_init->timeparms,
 		.servername	= clp->cl_hostname,
+		.nodename	= cl_init->nodename,
 		.program	= &nfs_program,
 		.version	= clp->rpc_ops->version,
 		.authflavor	= flavor,
@@ -591,14 +590,12 @@ EXPORT_SYMBOL_GPL(nfs_init_server_rpcclient);
  * nfs_init_client - Initialise an NFS2 or NFS3 client
  *
  * @clp: nfs_client to initialise
- * @timeparms: timeout parameters for underlying RPC transport
- * @ip_addr: IP presentation address (not used)
+ * @cl_init: Initialisation parameters
  *
  * Returns pointer to an NFS client, or an ERR_PTR value.
  */
 struct nfs_client *nfs_init_client(struct nfs_client *clp,
-		    const struct rpc_timeout *timeparms,
-		    const char *ip_addr)
+				   const struct nfs_client_initdata *cl_init)
 {
 	int error;
 
@@ -612,7 +609,7 @@ struct nfs_client *nfs_init_client(struct nfs_client *clp,
 	 * Create a client RPC handle for doing FSSTAT with UNIX auth only
 	 * - RFC 2623, sec 2.3.2
 	 */
-	error = nfs_create_rpc_client(clp, timeparms, RPC_AUTH_UNIX);
+	error = nfs_create_rpc_client(clp, cl_init, RPC_AUTH_UNIX);
 	if (error < 0)
 		goto error;
 	nfs_mark_client_ready(clp, NFS_CS_READY);
@@ -633,6 +630,7 @@ static int nfs_init_server(struct nfs_server *server,
 			   const struct nfs_parsed_mount_data *data,
 			   struct nfs_subversion *nfs_mod)
 {
+	struct rpc_timeout timeparms;
 	struct nfs_client_initdata cl_init = {
 		.hostname = data->nfs_server.hostname,
 		.addr = (const struct sockaddr *)&data->nfs_server.address,
@@ -640,8 +638,8 @@ static int nfs_init_server(struct nfs_server *server,
 		.nfs_mod = nfs_mod,
 		.proto = data->nfs_server.protocol,
 		.net = data->net,
+		.timeparms = &timeparms,
 	};
-	struct rpc_timeout timeparms;
 	struct nfs_client *clp;
 	int error;
 
@@ -653,7 +651,7 @@ static int nfs_init_server(struct nfs_server *server,
 		set_bit(NFS_CS_NORESVPORT, &cl_init.init_flags);
 
 	/* Allocate or find a client reference we can use */
-	clp = nfs_get_client(&cl_init, &timeparms, NULL, RPC_AUTH_UNIX);
+	clp = nfs_get_client(&cl_init, RPC_AUTH_UNIX);
 	if (IS_ERR(clp)) {
 		dprintk("<-- nfs_init_server() = error %ld\n", PTR_ERR(clp));
 		return PTR_ERR(clp);

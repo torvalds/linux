@@ -1596,9 +1596,8 @@ struct nfs_rpc_ops {
 	int (*have_delegation)(struct inode *, fmode_t);
 	int (*return_delegation)(struct inode *);
 	struct nfs_client *(*alloc_client) (const struct nfs_client_initdata *);
-	struct nfs_client *
-		(*init_client) (struct nfs_client *, const struct rpc_timeout *,
-				const char *);
+	struct nfs_client *(*init_client) (struct nfs_client *,
+				const struct nfs_client_initdata *);
 	void	(*free_client) (struct nfs_client *);
 	struct nfs_server *(*create_server)(struct nfs_mount_info *, struct nfs_subversion *);
 	struct nfs_server *(*clone_server)(struct nfs_server *, struct nfs_fh *,

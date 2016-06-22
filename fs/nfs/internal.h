@@ -66,13 +66,16 @@ struct nfs_clone_mount {
 
 struct nfs_client_initdata {
 	unsigned long init_flags;
-	const char *hostname;
-	const struct sockaddr *addr;
+	const char *hostname;			/* Hostname of the server */
+	const struct sockaddr *addr;		/* Address of the server */
+	const char *nodename;			/* Hostname of the client */
+	const char *ip_addr;			/* IP address of the client */
 	size_t addrlen;
 	struct nfs_subversion *nfs_mod;
 	int proto;
 	u32 minorversion;
 	struct net *net;
+	const struct rpc_timeout *timeparms;
 };
 
 /*
@@ -147,9 +150,8 @@ extern void nfs_umount(const struct nfs_mount_request *info);
 extern const struct rpc_program nfs_program;
 extern void nfs_clients_init(struct net *net);
 extern struct nfs_client *nfs_alloc_client(const struct nfs_client_initdata *);
-int nfs_create_rpc_client(struct nfs_client *, const struct rpc_timeout *, rpc_authflavor_t);
+int nfs_create_rpc_client(struct nfs_client *, const struct nfs_client_initdata *, rpc_authflavor_t);
 struct nfs_client *nfs_get_client(const struct nfs_client_initdata *,
-				  const struct rpc_timeout *, const char *,
 				  rpc_authflavor_t);
 int nfs_probe_fsinfo(struct nfs_server *server, struct nfs_fh *, struct nfs_fattr *);
 void nfs_server_insert_lists(struct nfs_server *);
@@ -338,8 +340,7 @@ nfs4_label_copy(struct nfs4_label *dst, struct nfs4_label *src)
 /* proc.c */
 void nfs_close_context(struct nfs_open_context *ctx, int is_sync);
 extern struct nfs_client *nfs_init_client(struct nfs_client *clp,
-			   const struct rpc_timeout *timeparms,
-			   const char *ip_addr);
+			   const struct nfs_client_initdata *);
 
 /* dir.c */
 extern void nfs_force_use_readdirplus(struct inode *dir);
@@ -521,8 +522,7 @@ extern ssize_t nfs_dreq_bytes_left(struct nfs_direct_req *dreq);
 /* nfs4proc.c */
 extern void __nfs4_read_done_cb(struct nfs_pgio_header *);
 extern struct nfs_client *nfs4_init_client(struct nfs_client *clp,
-			    const struct rpc_timeout *timeparms,
-			    const char *ip_addr);
+			    const struct nfs_client_initdata *);
 extern int nfs40_walk_client_list(struct nfs_client *clp,
 				struct nfs_client **result,
 				struct rpc_cred *cred);
