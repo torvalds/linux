@@ -87,6 +87,9 @@
 #define BM_CCM_ROOT_MUX		0x7000000
 #define BM_CCM_ROOT_ENABLE	0x10000000
 
+#define BM_SYS_COUNTER_CNTCR_FCR1 0x200
+#define BM_SYS_COUNTER_CNTCR_FCR0 0x100
+
 #define PFD_A_OFFSET		0xc0
 #define PFD_B_OFFSET		0xd0
 
@@ -693,6 +696,7 @@ static int imx7_pm_is_resume_from_lpsr(void)
 static int imx7_pm_enter(suspend_state_t state)
 {
 	unsigned int console_saved_reg[10] = {0};
+	u32 val;
 
 	if (!iram_tlb_base_addr) {
 		pr_warn("No IRAM/OCRAM memory allocated for suspend/resume \
@@ -700,6 +704,22 @@ static int imx7_pm_enter(suspend_state_t state)
 			 fsl,lpm-sram.\n");
 		return -EINVAL;
 	}
+
+	/*
+	 * arm_arch_timer driver requires system counter to be
+	 * a clock source with CLOCK_SOURCE_SUSPEND_NONSTOP flag
+	 * set, which means hardware system counter needs to keep
+	 * running during suspend, as the base clock for system
+	 * counter is 24MHz which will be disabled in STOP mode,
+	 * so we need to switch system counter's clock to alternate
+	 * (lower) clock, it is based on 32K, from block guide, there
+	 * is no special flow needs to be followed, system counter
+	 * hardware will handle the clock transition.
+	 */
+	val = readl_relaxed(system_counter_ctrl_base);
+	val &= ~BM_SYS_COUNTER_CNTCR_FCR0;
+	val |= BM_SYS_COUNTER_CNTCR_FCR1;
+	writel_relaxed(val, system_counter_ctrl_base);
 
 	switch (state) {
 	case PM_SUSPEND_STANDBY:
@@ -796,6 +816,12 @@ static int imx7_pm_enter(suspend_state_t state)
 	default:
 		return -EINVAL;
 	}
+
+	/* restore system counter's clock to base clock */
+	val = readl_relaxed(system_counter_ctrl_base);
+	val &= ~BM_SYS_COUNTER_CNTCR_FCR1;
+	val |= BM_SYS_COUNTER_CNTCR_FCR0;
+	writel_relaxed(val, system_counter_ctrl_base);
 
 	return 0;
 }
@@ -1126,17 +1152,17 @@ void __init imx7d_pm_init(void)
 		WARN_ON(!system_counter_cmp_base);
 
 		np = of_find_node_by_path(
-			"/soc/aips-bus@30400000/system-counter-ctrl@306c0000");
-		if (np)
-			system_counter_ctrl_base = of_iomap(np, 0);
-		WARN_ON(!system_counter_ctrl_base);
-
-		np = of_find_node_by_path(
 			"/soc/aips-bus@30000000/gpio@30200000");
 		if (np)
 			gpio1_base = of_iomap(np, 0);
 		WARN_ON(!gpio1_base);
 	}
+
+	np = of_find_node_by_path(
+		"/soc/aips-bus@30400000/system-counter-ctrl@306c0000");
+	if (np)
+		system_counter_ctrl_base = of_iomap(np, 0);
+	WARN_ON(!system_counter_ctrl_base);
 
 	if (imx_ddrc_get_ddr_type() == IMX_DDR_TYPE_LPDDR3
 		|| imx_ddrc_get_ddr_type() == IMX_DDR_TYPE_LPDDR2)
