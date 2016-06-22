@@ -230,7 +230,12 @@ struct altr_sdram_mc_data {
 #define ALTR_A10_ECC_INITCOMPLETEB      BIT(8)
 
 #define ALTR_A10_ECC_ERRINTEN_OFST      0x10
+#define ALTR_A10_ECC_ERRINTENS_OFST     0x14
+#define ALTR_A10_ECC_ERRINTENR_OFST     0x18
 #define ALTR_A10_ECC_SERRINTEN          BIT(0)
+
+#define ALTR_A10_ECC_INTMODE_OFST       0x1C
+#define ALTR_A10_ECC_INTMODE            BIT(0)
 
 #define ALTR_A10_ECC_INTSTAT_OFST       0x20
 #define ALTR_A10_ECC_SERRPENA           BIT(0)
@@ -279,6 +284,9 @@ struct altr_sdram_mc_data {
 
 /* Arria 10 OCRAM ECC Management Group Defines */
 #define ALTR_A10_OCRAM_ECC_EN_CTL       (BIT(1) | BIT(0))
+
+/* A10 ECC Controller memory initialization timeout */
+#define ALTR_A10_ECC_INIT_WATCHDOG_10US      10000
 
 struct altr_edac_device_dev;
 
