@@ -5733,15 +5733,12 @@ void intel_dp_mst_suspend(struct drm_device *dev)
 	/* disable MST */
 	for (i = 0; i < I915_MAX_PORTS; i++) {
 		struct intel_digital_port *intel_dig_port = dev_priv->hotplug.irq_port[i];
-		if (!intel_dig_port)
+
+		if (!intel_dig_port || !intel_dig_port->dp.can_mst)
 			continue;
 
-		if (intel_dig_port->base.type == INTEL_OUTPUT_DISPLAYPORT) {
-			if (!intel_dig_port->dp.can_mst)
-				continue;
-			if (intel_dig_port->dp.is_mst)
-				drm_dp_mst_topology_mgr_suspend(&intel_dig_port->dp.mst_mgr);
-		}
+		if (intel_dig_port->dp.is_mst)
+			drm_dp_mst_topology_mgr_suspend(&intel_dig_port->dp.mst_mgr);
 	}
 }
 
@@ -5752,18 +5749,13 @@ void intel_dp_mst_resume(struct drm_device *dev)
 
 	for (i = 0; i < I915_MAX_PORTS; i++) {
 		struct intel_digital_port *intel_dig_port = dev_priv->hotplug.irq_port[i];
-		if (!intel_dig_port)
+		int ret;
+
+		if (!intel_dig_port || !intel_dig_port->dp.can_mst)
 			continue;
-		if (intel_dig_port->base.type == INTEL_OUTPUT_DISPLAYPORT) {
-			int ret;
 
-			if (!intel_dig_port->dp.can_mst)
-				continue;
-
-			ret = drm_dp_mst_topology_mgr_resume(&intel_dig_port->dp.mst_mgr);
-			if (ret != 0) {
-				intel_dp_check_mst_status(&intel_dig_port->dp);
-			}
-		}
+		ret = drm_dp_mst_topology_mgr_resume(&intel_dig_port->dp.mst_mgr);
+		if (ret)
+			intel_dp_check_mst_status(&intel_dig_port->dp);
 	}
 }
