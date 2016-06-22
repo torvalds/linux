@@ -796,15 +796,17 @@ static int dprc_remove(struct fsl_mc_device *mc_dev)
 		dprc_teardown_irq(mc_dev);
 
 	device_for_each_child(&mc_dev->dev, NULL, __fsl_mc_device_remove);
-	dprc_cleanup_all_resource_pools(mc_dev);
-	error = dprc_close(mc_dev->mc_io, 0, mc_dev->mc_handle);
-	if (error < 0)
-		dev_err(&mc_dev->dev, "dprc_close() failed: %d\n", error);
 
 	if (dev_get_msi_domain(&mc_dev->dev)) {
 		fsl_mc_cleanup_irq_pool(mc_bus);
 		dev_set_msi_domain(&mc_dev->dev, NULL);
 	}
+
+	dprc_cleanup_all_resource_pools(mc_dev);
+
+	error = dprc_close(mc_dev->mc_io, 0, mc_dev->mc_handle);
+	if (error < 0)
+		dev_err(&mc_dev->dev, "dprc_close() failed: %d\n", error);
 
 	if (!fsl_mc_is_root_dprc(&mc_dev->dev)) {
 		fsl_destroy_mc_io(mc_dev->mc_io);
