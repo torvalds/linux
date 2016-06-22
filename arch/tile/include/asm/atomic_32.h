@@ -143,15 +143,15 @@ static inline void atomic64_##op(long long i, atomic64_t *v)	\
 {								\
 	_atomic64_fetch_##op(&v->counter, i);			\
 }								\
-static inline void atomic64_##op(long long i, atomic64_t *v)	\
+static inline long long atomic64_fetch_##op(long long i, atomic64_t *v)	\
 {								\
 	smp_mb();						\
 	return _atomic64_fetch_##op(&v->counter, i);		\
 }
 
-ATOMIC64_OP(and)
-ATOMIC64_OP(or)
-ATOMIC64_OP(xor)
+ATOMIC64_OPS(and)
+ATOMIC64_OPS(or)
+ATOMIC64_OPS(xor)
 
 #undef ATOMIC64_OPS
 
@@ -266,16 +266,16 @@ struct __get_user {
 	unsigned long val;
 	int err;
 };
-extern struct __get_user __atomic_cmpxchg(volatile int *p,
+extern struct __get_user __atomic32_cmpxchg(volatile int *p,
 					  int *lock, int o, int n);
-extern struct __get_user __atomic_xchg(volatile int *p, int *lock, int n);
-extern struct __get_user __atomic_xchg_add(volatile int *p, int *lock, int n);
-extern struct __get_user __atomic_xchg_add_unless(volatile int *p,
+extern struct __get_user __atomic32_xchg(volatile int *p, int *lock, int n);
+extern struct __get_user __atomic32_xchg_add(volatile int *p, int *lock, int n);
+extern struct __get_user __atomic32_xchg_add_unless(volatile int *p,
 						  int *lock, int o, int n);
-extern struct __get_user __atomic_fetch_or(volatile int *p, int *lock, int n);
-extern struct __get_user __atomic_fetch_and(volatile int *p, int *lock, int n);
-extern struct __get_user __atomic_fetch_andn(volatile int *p, int *lock, int n);
-extern struct __get_user __atomic_fetch_xor(volatile int *p, int *lock, int n);
+extern struct __get_user __atomic32_fetch_or(volatile int *p, int *lock, int n);
+extern struct __get_user __atomic32_fetch_and(volatile int *p, int *lock, int n);
+extern struct __get_user __atomic32_fetch_andn(volatile int *p, int *lock, int n);
+extern struct __get_user __atomic32_fetch_xor(volatile int *p, int *lock, int n);
 extern long long __atomic64_cmpxchg(volatile long long *p, int *lock,
 					long long o, long long n);
 extern long long __atomic64_xchg(volatile long long *p, int *lock, long long n);

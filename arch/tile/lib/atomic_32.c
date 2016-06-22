@@ -61,13 +61,13 @@ static inline int *__atomic_setup(volatile void *v)
 
 int _atomic_xchg(int *v, int n)
 {
-	return __atomic_xchg(v, __atomic_setup(v), n).val;
+	return __atomic32_xchg(v, __atomic_setup(v), n).val;
 }
 EXPORT_SYMBOL(_atomic_xchg);
 
 int _atomic_xchg_add(int *v, int i)
 {
-	return __atomic_xchg_add(v, __atomic_setup(v), i).val;
+	return __atomic32_xchg_add(v, __atomic_setup(v), i).val;
 }
 EXPORT_SYMBOL(_atomic_xchg_add);
 
@@ -78,37 +78,37 @@ int _atomic_xchg_add_unless(int *v, int a, int u)
 	 * to use the first argument consistently as the "old value"
 	 * in the assembly, as is done for _atomic_cmpxchg().
 	 */
-	return __atomic_xchg_add_unless(v, __atomic_setup(v), u, a).val;
+	return __atomic32_xchg_add_unless(v, __atomic_setup(v), u, a).val;
 }
 EXPORT_SYMBOL(_atomic_xchg_add_unless);
 
 int _atomic_cmpxchg(int *v, int o, int n)
 {
-	return __atomic_cmpxchg(v, __atomic_setup(v), o, n).val;
+	return __atomic32_cmpxchg(v, __atomic_setup(v), o, n).val;
 }
 EXPORT_SYMBOL(_atomic_cmpxchg);
 
 unsigned long _atomic_fetch_or(volatile unsigned long *p, unsigned long mask)
 {
-	return __atomic_fetch_or((int *)p, __atomic_setup(p), mask).val;
+	return __atomic32_fetch_or((int *)p, __atomic_setup(p), mask).val;
 }
 EXPORT_SYMBOL(_atomic_fetch_or);
 
 unsigned long _atomic_fetch_and(volatile unsigned long *p, unsigned long mask)
 {
-	return __atomic_fetch_and((int *)p, __atomic_setup(p), mask).val;
+	return __atomic32_fetch_and((int *)p, __atomic_setup(p), mask).val;
 }
 EXPORT_SYMBOL(_atomic_fetch_and);
 
 unsigned long _atomic_fetch_andn(volatile unsigned long *p, unsigned long mask)
 {
-	return __atomic_fetch_andn((int *)p, __atomic_setup(p), mask).val;
+	return __atomic32_fetch_andn((int *)p, __atomic_setup(p), mask).val;
 }
 EXPORT_SYMBOL(_atomic_fetch_andn);
 
 unsigned long _atomic_fetch_xor(volatile unsigned long *p, unsigned long mask)
 {
-	return __atomic_fetch_xor((int *)p, __atomic_setup(p), mask).val;
+	return __atomic32_fetch_xor((int *)p, __atomic_setup(p), mask).val;
 }
 EXPORT_SYMBOL(_atomic_fetch_xor);
 
