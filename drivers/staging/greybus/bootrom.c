@@ -17,6 +17,12 @@
 /* Timeout, in jiffies, within which the next request must be received */
 #define NEXT_REQ_TIMEOUT_MS	1000
 
+/*
+ * FIXME: Reduce this timeout once svc core handles parallel processing of
+ * events from the SVC, which are handled sequentially today.
+ */
+#define MODE_SWITCH_TIMEOUT_MS	10000
+
 enum next_request_type {
 	NEXT_REQ_FIRMWARE_SIZE,
 	NEXT_REQ_GET_FIRMWARE,
@@ -327,7 +333,7 @@ queue_work:
 	 * connection. As that can take some time, increase the timeout a bit.
 	 */
 	gb_bootrom_set_timeout(bootrom, NEXT_REQ_MODE_SWITCH,
-			       5 * NEXT_REQ_TIMEOUT_MS);
+			       MODE_SWITCH_TIMEOUT_MS);
 
 	return ret;
 }
