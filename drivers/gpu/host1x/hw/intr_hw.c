@@ -45,7 +45,7 @@ static irqreturn_t syncpt_thresh_isr(int irq, void *dev_id)
 {
 	struct host1x *host = dev_id;
 	unsigned long reg;
-	int i, id;
+	unsigned int i, id;
 
 	for (i = 0; i < DIV_ROUND_UP(host->info->nb_pts, 32); i++) {
 		reg = host1x_sync_readl(host,
@@ -62,7 +62,7 @@ static irqreturn_t syncpt_thresh_isr(int irq, void *dev_id)
 
 static void _host1x_intr_disable_all_syncpt_intrs(struct host1x *host)
 {
-	u32 i;
+	unsigned int i;
 
 	for (i = 0; i < DIV_ROUND_UP(host->info->nb_pts, 32); ++i) {
 		host1x_sync_writel(host, 0xffffffffu,
@@ -75,7 +75,8 @@ static void _host1x_intr_disable_all_syncpt_intrs(struct host1x *host)
 static int _host1x_intr_init_host_sync(struct host1x *host, u32 cpm,
 	void (*syncpt_thresh_work)(struct work_struct *))
 {
-	int i, err;
+	unsigned int i;
+	int err;
 
 	host1x_hw_intr_disable_all_syncpt_intrs(host);
 
@@ -127,7 +128,7 @@ static void _host1x_intr_disable_syncpt_intr(struct host1x *host, u32 id)
 
 static int _host1x_free_syncpt_irq(struct host1x *host)
 {
-	int i;
+	unsigned int i;
 
 	devm_free_irq(host->dev, host->intr_syncpt_irq, host);
 

@@ -90,13 +90,13 @@ struct host1x_intr_ops {
 };
 
 struct host1x_info {
-	int	nb_channels;		/* host1x: num channels supported */
-	int	nb_pts;			/* host1x: num syncpoints supported */
-	int	nb_bases;		/* host1x: num syncpoints supported */
-	int	nb_mlocks;		/* host1x: number of mlocks */
-	int	(*init)(struct host1x *); /* initialize per SoC ops */
-	int	sync_offset;
-	u64	dma_mask;		/* mask of addressable memory */
+	unsigned int nb_channels; /* host1x: number of channels supported */
+	unsigned int nb_pts; /* host1x: number of syncpoints supported */
+	unsigned int nb_bases; /* host1x: number of syncpoint bases supported */
+	unsigned int nb_mlocks; /* host1x: number of mlocks supported */
+	int (*init)(struct host1x *host1x); /* initialize per SoC ops */
+	unsigned int sync_offset; /* offset of syncpoint registers */
+	u64 dma_mask; /* mask of addressable memory */
 };
 
 struct host1x {

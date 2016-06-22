@@ -143,7 +143,8 @@ static void show_channel_gathers(struct output *o, struct host1x_cdma *cdma)
 	struct host1x_job *job;
 
 	list_for_each_entry(job, &cdma->sync_queue, list) {
-		int i;
+		unsigned int i;
+
 		host1x_debug_output(o, "\n%p: JOB, syncpt_id=%d, syncpt_val=%d, first_get=%08x, timeout=%d num_slots=%d, num_handles=%d\n",
 				    job, job->syncpt_id, job->syncpt_end,
 				    job->first_get, job->timeout,
@@ -290,19 +291,19 @@ static void host1x_debug_show_channel_fifo(struct host1x *host,
 
 static void host1x_debug_show_mlocks(struct host1x *host, struct output *o)
 {
-	int i;
+	unsigned int i;
 
 	host1x_debug_output(o, "---- mlocks ----\n");
 	for (i = 0; i < host1x_syncpt_nb_mlocks(host); i++) {
 		u32 owner =
 			host1x_sync_readl(host, HOST1X_SYNC_MLOCK_OWNER(i));
 		if (HOST1X_SYNC_MLOCK_OWNER_CH_OWNS_V(owner))
-			host1x_debug_output(o, "%d: locked by channel %d\n",
+			host1x_debug_output(o, "%u: locked by channel %u\n",
 				i, HOST1X_SYNC_MLOCK_OWNER_CHID_V(owner));
 		else if (HOST1X_SYNC_MLOCK_OWNER_CPU_OWNS_V(owner))
-			host1x_debug_output(o, "%d: locked by cpu\n", i);
+			host1x_debug_output(o, "%u: locked by cpu\n", i);
 		else
-			host1x_debug_output(o, "%d: unlocked\n", i);
+			host1x_debug_output(o, "%u: unlocked\n", i);
 	}
 	host1x_debug_output(o, "\n");
 }

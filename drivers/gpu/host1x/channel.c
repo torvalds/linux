@@ -83,7 +83,7 @@ EXPORT_SYMBOL(host1x_channel_put);
 struct host1x_channel *host1x_channel_request(struct device *dev)
 {
 	struct host1x *host = dev_get_drvdata(dev->parent);
-	int max_channels = host->info->nb_channels;
+	unsigned int max_channels = host->info->nb_channels;
 	struct host1x_channel *channel = NULL;
 	int index, err;
 

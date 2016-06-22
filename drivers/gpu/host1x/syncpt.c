@@ -110,7 +110,7 @@ EXPORT_SYMBOL(host1x_syncpt_incr_max);
 void host1x_syncpt_restore(struct host1x *host)
 {
 	struct host1x_syncpt *sp_base = host->syncpt;
-	u32 i;
+	unsigned int i;
 
 	for (i = 0; i < host1x_syncpt_nb_pts(host); i++)
 		host1x_hw_syncpt_restore(host, sp_base + i);
@@ -126,7 +126,7 @@ void host1x_syncpt_restore(struct host1x *host)
 void host1x_syncpt_save(struct host1x *host)
 {
 	struct host1x_syncpt *sp_base = host->syncpt;
-	u32 i;
+	unsigned int i;
 
 	for (i = 0; i < host1x_syncpt_nb_pts(host); i++) {
 		if (host1x_syncpt_client_managed(sp_base + i))
@@ -341,7 +341,7 @@ int host1x_syncpt_init(struct host1x *host)
 {
 	struct host1x_syncpt_base *bases;
 	struct host1x_syncpt *syncpt;
-	int i;
+	unsigned int i;
 
 	syncpt = devm_kzalloc(host->dev, sizeof(*syncpt) * host->info->nb_pts,
 			      GFP_KERNEL);
@@ -398,8 +398,9 @@ EXPORT_SYMBOL(host1x_syncpt_free);
 
 void host1x_syncpt_deinit(struct host1x *host)
 {
-	int i;
 	struct host1x_syncpt *sp = host->syncpt;
+	unsigned int i;
+
 	for (i = 0; i < host->info->nb_pts; i++, sp++)
 		kfree(sp->name);
 }
@@ -431,17 +432,17 @@ u32 host1x_syncpt_read(struct host1x_syncpt *sp)
 }
 EXPORT_SYMBOL(host1x_syncpt_read);
 
-int host1x_syncpt_nb_pts(struct host1x *host)
+unsigned int host1x_syncpt_nb_pts(struct host1x *host)
 {
 	return host->info->nb_pts;
 }
 
-int host1x_syncpt_nb_bases(struct host1x *host)
+unsigned int host1x_syncpt_nb_bases(struct host1x *host)
 {
 	return host->info->nb_bases;
 }
 
-int host1x_syncpt_nb_mlocks(struct host1x *host)
+unsigned int host1x_syncpt_nb_mlocks(struct host1x *host)
 {
 	return host->info->nb_mlocks;
 }

@@ -41,7 +41,7 @@ static void cdma_timeout_cpu_incr(struct host1x_cdma *cdma, u32 getptr,
 {
 	struct host1x *host1x = cdma_to_host1x(cdma);
 	struct push_buffer *pb = &cdma->push_buffer;
-	u32 i;
+	unsigned int i;
 
 	for (i = 0; i < syncpt_incrs; i++)
 		host1x_syncpt_incr(cdma->timeout.syncpt);

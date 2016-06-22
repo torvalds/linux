@@ -26,8 +26,9 @@
  */
 static void syncpt_restore(struct host1x_syncpt *sp)
 {
+	u32 min = host1x_syncpt_read_min(sp);
 	struct host1x *host = sp->host;
-	int min = host1x_syncpt_read_min(sp);
+
 	host1x_sync_writel(host, min, HOST1X_SYNC_SYNCPT(sp->id));
 }
 
