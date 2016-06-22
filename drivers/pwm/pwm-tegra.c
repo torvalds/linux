@@ -67,7 +67,7 @@ static int tegra_pwm_config(struct pwm_chip *chip, struct pwm_device *pwm,
 			    int duty_ns, int period_ns)
 {
 	struct tegra_pwm_chip *pc = to_tegra_pwm_chip(chip);
-	unsigned long long c;
+	unsigned long long c = duty_ns;
 	unsigned long rate, hz;
 	u32 val = 0;
 	int err;
@@ -77,7 +77,8 @@ static int tegra_pwm_config(struct pwm_chip *chip, struct pwm_device *pwm,
 	 * per (1 << PWM_DUTY_WIDTH) cycles and make sure to round to the
 	 * nearest integer during division.
 	 */
-	c = duty_ns * (1 << PWM_DUTY_WIDTH) + period_ns / 2;
+	c *= (1 << PWM_DUTY_WIDTH);
+	c += period_ns / 2;
 	do_div(c, period_ns);
 
 	val = (u32)c << PWM_DUTY_SHIFT;
