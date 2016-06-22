@@ -160,8 +160,7 @@ static void btrfs_io_bio_endio_readpage(struct btrfs_io_bio *bio, int err)
 	kfree(bio->csum_allocated);
 }
 
-static int __btrfs_lookup_bio_sums(struct btrfs_root *root,
-				   struct inode *inode, struct bio *bio,
+static int __btrfs_lookup_bio_sums(struct inode *inode, struct bio *bio,
 				   u64 logical_offset, u32 *dst, int dio)
 {
 	struct btrfs_fs_info *fs_info = btrfs_sb(inode->i_sb);
@@ -304,16 +303,14 @@ next:
 	return 0;
 }
 
-int btrfs_lookup_bio_sums(struct btrfs_root *root, struct inode *inode,
-			  struct bio *bio, u32 *dst)
+int btrfs_lookup_bio_sums(struct inode *inode, struct bio *bio, u32 *dst)
 {
-	return __btrfs_lookup_bio_sums(root, inode, bio, 0, dst, 0);
+	return __btrfs_lookup_bio_sums(inode, bio, 0, dst, 0);
 }
 
-int btrfs_lookup_bio_sums_dio(struct btrfs_root *root, struct inode *inode,
-			      struct bio *bio, u64 offset)
+int btrfs_lookup_bio_sums_dio(struct inode *inode, struct bio *bio, u64 offset)
 {
-	return __btrfs_lookup_bio_sums(root, inode, bio, offset, NULL, 1);
+	return __btrfs_lookup_bio_sums(inode, bio, offset, NULL, 1);
 }
 
 int btrfs_lookup_csums_range(struct btrfs_root *root, u64 start, u64 end,
@@ -436,8 +433,8 @@ fail:
 	return ret;
 }
 
-int btrfs_csum_one_bio(struct btrfs_root *root, struct inode *inode,
-		       struct bio *bio, u64 file_start, int contig)
+int btrfs_csum_one_bio(struct inode *inode, struct bio *bio,
+		       u64 file_start, int contig)
 {
 	struct btrfs_fs_info *fs_info = btrfs_sb(inode->i_sb);
 	struct btrfs_ordered_sum *sums;
@@ -543,12 +540,11 @@ int btrfs_csum_one_bio(struct btrfs_root *root, struct inode *inode,
  * This calls btrfs_truncate_item with the correct args based on the
  * overlap, and fixes up the key as required.
  */
-static noinline void truncate_one_csum(struct btrfs_root *root,
+static noinline void truncate_one_csum(struct btrfs_fs_info *fs_info,
 				       struct btrfs_path *path,
 				       struct btrfs_key *key,
 				       u64 bytenr, u64 len)
 {
-	struct btrfs_fs_info *fs_info = root->fs_info;
 	struct extent_buffer *leaf;
 	u16 csum_size = btrfs_super_csum_size(fs_info->super_copy);
 	u64 csum_end;
@@ -569,7 +565,7 @@ static noinline void truncate_one_csum(struct btrfs_root *root,
 		 */
 		u32 new_size = (bytenr - key->offset) >> blocksize_bits;
 		new_size *= csum_size;
-		btrfs_truncate_item(root, path, new_size, 1);
+		btrfs_truncate_item(fs_info, path, new_size, 1);
 	} else if (key->offset >= bytenr && csum_end > end_byte &&
 		   end_byte > key->offset) {
 		/*
@@ -581,7 +577,7 @@ static noinline void truncate_one_csum(struct btrfs_root *root,
 		u32 new_size = (csum_end - end_byte) >> blocksize_bits;
 		new_size *= csum_size;
 
-		btrfs_truncate_item(root, path, new_size, 0);
+		btrfs_truncate_item(fs_info, path, new_size, 0);
 
 		key->offset = end_byte;
 		btrfs_set_item_key_safe(fs_info, path, key);
@@ -698,7 +694,7 @@ int btrfs_del_csums(struct btrfs_trans_handle *trans,
 
 			key.offset = end_byte - 1;
 		} else {
-			truncate_one_csum(root, path, &key, bytenr, len);
+			truncate_one_csum(fs_info, path, &key, bytenr, len);
 			if (key.offset < bytenr)
 				break;
 		}
@@ -824,11 +820,11 @@ again:
 		u32 diff;
 		u32 free_space;
 
-		if (btrfs_leaf_free_space(root, leaf) <
+		if (btrfs_leaf_free_space(fs_info, leaf) <
 				 sizeof(struct btrfs_item) + csum_size * 2)
 			goto insert;
 
-		free_space = btrfs_leaf_free_space(root, leaf) -
+		free_space = btrfs_leaf_free_space(fs_info, leaf) -
 					 sizeof(struct btrfs_item) - csum_size;
 		tmp = sums->len - total_bytes;
 		tmp >>= fs_info->sb->s_blocksize_bits;
@@ -844,7 +840,7 @@ again:
 		diff /= csum_size;
 		diff *= csum_size;
 
-		btrfs_extend_item(root, path, diff);
+		btrfs_extend_item(fs_info, path, diff);
 		ret = 0;
 		goto csum;
 	}

@@ -3435,6 +3435,7 @@ static int wait_for_dest_dir_move(struct send_ctx *sctx,
 				  struct recorded_ref *parent_ref,
 				  const bool is_orphan)
 {
+	struct btrfs_fs_info *fs_info = sctx->parent_root->fs_info;
 	struct btrfs_path *path;
 	struct btrfs_key key;
 	struct btrfs_key di_key;
@@ -3463,8 +3464,8 @@ static int wait_for_dest_dir_move(struct send_ctx *sctx,
 		goto out;
 	}
 
-	di = btrfs_match_dir_item_name(sctx->parent_root, path,
-				       parent_ref->name, parent_ref->name_len);
+	di = btrfs_match_dir_item_name(fs_info, path, parent_ref->name,
+				       parent_ref->name_len);
 	if (!di) {
 		ret = 0;
 		goto out;

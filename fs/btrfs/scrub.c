@@ -1450,7 +1450,7 @@ static int scrub_submit_raid56_bio_wait(struct btrfs_fs_info *fs_info,
 	bio->bi_private = &done;
 	bio->bi_end_io = scrub_bio_wait_endio;
 
-	ret = raid56_parity_recover(fs_info->fs_root, bio, page->recover->bbio,
+	ret = raid56_parity_recover(fs_info, bio, page->recover->bbio,
 				    page->recover->map_length,
 				    page->mirror_num, 0);
 	if (ret)
@@ -2181,7 +2181,6 @@ static void scrub_missing_raid56_pages(struct scrub_block *sblock)
 {
 	struct scrub_ctx *sctx = sblock->sctx;
 	struct btrfs_fs_info *fs_info = sctx->fs_info;
-	struct btrfs_root *dev_root = fs_info->dev_root;
 	u64 length = sblock->page_count * PAGE_SIZE;
 	u64 logical = sblock->pagev[0]->logical;
 	struct btrfs_bio *bbio = NULL;
@@ -2214,7 +2213,7 @@ static void scrub_missing_raid56_pages(struct scrub_block *sblock)
 	bio->bi_private = sblock;
 	bio->bi_end_io = scrub_missing_raid56_end_io;
 
-	rbio = raid56_alloc_missing_rbio(dev_root, bio, bbio, length);
+	rbio = raid56_alloc_missing_rbio(fs_info, bio, bbio, length);
 	if (!rbio)
 		goto rbio_out;
 
@@ -2766,7 +2765,6 @@ static void scrub_parity_check_and_repair(struct scrub_parity *sparity)
 {
 	struct scrub_ctx *sctx = sparity->sctx;
 	struct btrfs_fs_info *fs_info = sctx->fs_info;
-	struct btrfs_root *dev_root = fs_info->dev_root;
 	struct bio *bio;
 	struct btrfs_raid_bio *rbio;
 	struct scrub_page *spage;
@@ -2792,7 +2790,7 @@ static void scrub_parity_check_and_repair(struct scrub_parity *sparity)
 	bio->bi_private = sparity;
 	bio->bi_end_io = scrub_parity_bio_endio;
 
-	rbio = raid56_parity_alloc_scrub_rbio(dev_root, bio, bbio,
+	rbio = raid56_parity_alloc_scrub_rbio(fs_info, bio, bbio,
 					      length, sparity->scrub_dev,
 					      sparity->dbitmap,
 					      sparity->nsectors);
@@ -3694,7 +3692,7 @@ int scrub_enumerate_chunks(struct scrub_ctx *sctx,
 		btrfs_dev_replace_unlock(&fs_info->dev_replace, 1);
 
 		if (ro_set)
-			btrfs_dec_block_group_ro(root, cache);
+			btrfs_dec_block_group_ro(cache);
 
 		/*
 		 * We might have prevented the cleaner kthread from deleting
@@ -3980,10 +3978,8 @@ int btrfs_scrub_dev(struct btrfs_fs_info *fs_info, u64 devid, u64 start,
 	return ret;
 }
 
-void btrfs_scrub_pause(struct btrfs_root *root)
+void btrfs_scrub_pause(struct btrfs_fs_info *fs_info)
 {
-	struct btrfs_fs_info *fs_info = root->fs_info;
-
 	mutex_lock(&fs_info->scrub_lock);
 	atomic_inc(&fs_info->scrub_pause_req);
 	while (atomic_read(&fs_info->scrubs_paused) !=
@@ -3997,10 +3993,8 @@ void btrfs_scrub_pause(struct btrfs_root *root)
 	mutex_unlock(&fs_info->scrub_lock);
 }
 
-void btrfs_scrub_continue(struct btrfs_root *root)
+void btrfs_scrub_continue(struct btrfs_fs_info *fs_info)
 {
-	struct btrfs_fs_info *fs_info = root->fs_info;
-
 	atomic_dec(&fs_info->scrub_pause_req);
 	wake_up(&fs_info->scrub_pause_wait);
 }
@@ -4049,10 +4043,9 @@ int btrfs_scrub_cancel_dev(struct btrfs_fs_info *fs_info,
 	return 0;
 }
 
-int btrfs_scrub_progress(struct btrfs_root *root, u64 devid,
+int btrfs_scrub_progress(struct btrfs_fs_info *fs_info, u64 devid,
 			 struct btrfs_scrub_progress *progress)
 {
-	struct btrfs_fs_info *fs_info = root->fs_info;
 	struct btrfs_device *dev;
 	struct scrub_ctx *sctx = NULL;
 

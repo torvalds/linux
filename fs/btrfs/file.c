@@ -129,10 +129,8 @@ static int __btrfs_add_inode_defrag(struct inode *inode,
 	return 0;
 }
 
-static inline int __need_auto_defrag(struct btrfs_root *root)
+static inline int __need_auto_defrag(struct btrfs_fs_info *fs_info)
 {
-	struct btrfs_fs_info *fs_info = root->fs_info;
-
 	if (!btrfs_test_opt(fs_info, AUTO_DEFRAG))
 		return 0;
 
@@ -155,7 +153,7 @@ int btrfs_add_inode_defrag(struct btrfs_trans_handle *trans,
 	u64 transid;
 	int ret;
 
-	if (!__need_auto_defrag(root))
+	if (!__need_auto_defrag(fs_info))
 		return 0;
 
 	if (test_bit(BTRFS_INODE_IN_DEFRAG, &BTRFS_I(inode)->runtime_flags))
@@ -200,10 +198,9 @@ static void btrfs_requeue_inode_defrag(struct inode *inode,
 				       struct inode_defrag *defrag)
 {
 	struct btrfs_fs_info *fs_info = btrfs_sb(inode->i_sb);
-	struct btrfs_root *root = BTRFS_I(inode)->root;
 	int ret;
 
-	if (!__need_auto_defrag(root))
+	if (!__need_auto_defrag(fs_info))
 		goto out;
 
 	/*
@@ -376,7 +373,7 @@ int btrfs_run_defrag_inodes(struct btrfs_fs_info *fs_info)
 			     &fs_info->fs_state))
 			break;
 
-		if (!__need_auto_defrag(fs_info->tree_root))
+		if (!__need_auto_defrag(fs_info))
 			break;
 
 		/* find an inode to defrag */
@@ -488,10 +485,9 @@ static void btrfs_drop_pages(struct page **pages, size_t num_pages)
  * this also makes the decision about creating an inline extent vs
  * doing real data extents, marking pages dirty and delalloc as required.
  */
-int btrfs_dirty_pages(struct btrfs_root *root, struct inode *inode,
-			     struct page **pages, size_t num_pages,
-			     loff_t pos, size_t write_bytes,
-			     struct extent_state **cached)
+int btrfs_dirty_pages(struct inode *inode, struct page **pages,
+		      size_t num_pages, loff_t pos, size_t write_bytes,
+		      struct extent_state **cached)
 {
 	struct btrfs_fs_info *fs_info = btrfs_sb(inode->i_sb);
 	int err = 0;
@@ -860,7 +856,7 @@ next_slot:
 			btrfs_mark_buffer_dirty(leaf);
 
 			if (update_refs && disk_bytenr > 0) {
-				ret = btrfs_inc_extent_ref(trans, root,
+				ret = btrfs_inc_extent_ref(trans, fs_info,
 						disk_bytenr, num_bytes, 0,
 						root->root_key.objectid,
 						new_key.objectid,
@@ -944,7 +940,7 @@ delete_extent_item:
 				extent_end = ALIGN(extent_end,
 						   fs_info->sectorsize);
 			} else if (update_refs && disk_bytenr > 0) {
-				ret = btrfs_free_extent(trans, root,
+				ret = btrfs_free_extent(trans, fs_info,
 						disk_bytenr, num_bytes, 0,
 						root->root_key.objectid,
 						key.objectid, key.offset -
@@ -1001,7 +997,7 @@ delete_extent_item:
 	if (!ret && replace_extent && leafs_visited == 1 &&
 	    (path->locks[0] == BTRFS_WRITE_LOCK_BLOCKING ||
 	     path->locks[0] == BTRFS_WRITE_LOCK) &&
-	    btrfs_leaf_free_space(root, leaf) >=
+	    btrfs_leaf_free_space(fs_info, leaf) >=
 	    sizeof(struct btrfs_item) + extent_item_size) {
 
 		key.objectid = ino;
@@ -1238,8 +1234,8 @@ again:
 						extent_end - split);
 		btrfs_mark_buffer_dirty(leaf);
 
-		ret = btrfs_inc_extent_ref(trans, root, bytenr, num_bytes, 0,
-					   root->root_key.objectid,
+		ret = btrfs_inc_extent_ref(trans, fs_info, bytenr, num_bytes,
+					   0, root->root_key.objectid,
 					   ino, orig_offset);
 		if (ret) {
 			btrfs_abort_transaction(trans, ret);
@@ -1272,7 +1268,7 @@ again:
 		extent_end = other_end;
 		del_slot = path->slots[0] + 1;
 		del_nr++;
-		ret = btrfs_free_extent(trans, root, bytenr, num_bytes,
+		ret = btrfs_free_extent(trans, fs_info, bytenr, num_bytes,
 					0, root->root_key.objectid,
 					ino, orig_offset);
 		if (ret) {
@@ -1292,7 +1288,7 @@ again:
 		key.offset = other_start;
 		del_slot = path->slots[0];
 		del_nr++;
-		ret = btrfs_free_extent(trans, root, bytenr, num_bytes,
+		ret = btrfs_free_extent(trans, fs_info, bytenr, num_bytes,
 					0, root->root_key.objectid,
 					ino, orig_offset);
 		if (ret) {
@@ -1698,9 +1694,8 @@ again:
 					fs_info->sectorsize);
 
 		if (copied > 0)
-			ret = btrfs_dirty_pages(root, inode, pages,
-						dirty_pages, pos, copied,
-						NULL);
+			ret = btrfs_dirty_pages(inode, pages, dirty_pages,
+						pos, copied, NULL);
 		if (need_unlock)
 			unlock_extent_cached(&BTRFS_I(inode)->io_tree,
 					     lockstart, lockend, &cached_state,
@@ -1732,7 +1727,7 @@ again:
 
 		balance_dirty_pages_ratelimited(inode->i_mapping);
 		if (dirty_pages < (fs_info->nodesize >> PAGE_SHIFT) + 1)
-			btrfs_btree_balance_dirty(root);
+			btrfs_btree_balance_dirty(fs_info);
 
 		pos += copied;
 		num_written += copied;
@@ -2519,7 +2514,7 @@ static int btrfs_punch_hole(struct inode *inode, loff_t offset, loff_t len)
 		goto out;
 	}
 
-	rsv = btrfs_alloc_block_rsv(root, BTRFS_BLOCK_RSV_TEMP);
+	rsv = btrfs_alloc_block_rsv(fs_info, BTRFS_BLOCK_RSV_TEMP);
 	if (!rsv) {
 		ret = -ENOMEM;
 		goto out_free;
@@ -2580,7 +2575,7 @@ static int btrfs_punch_hole(struct inode *inode, loff_t offset, loff_t len)
 		}
 
 		btrfs_end_transaction(trans, root);
-		btrfs_btree_balance_dirty(root);
+		btrfs_btree_balance_dirty(fs_info);
 
 		trans = btrfs_start_transaction(root, rsv_count);
 		if (IS_ERR(trans)) {
@@ -2648,10 +2643,10 @@ out_trans:
 	ret = btrfs_update_inode(trans, root, inode);
 	updated_inode = true;
 	btrfs_end_transaction(trans, root);
-	btrfs_btree_balance_dirty(root);
+	btrfs_btree_balance_dirty(fs_info);
 out_free:
 	btrfs_free_path(path);
-	btrfs_free_block_rsv(root, rsv);
+	btrfs_free_block_rsv(fs_info, rsv);
 out:
 	unlock_extent_cached(&BTRFS_I(inode)->io_tree, lockstart, lockend,
 			     &cached_state, GFP_NOFS);

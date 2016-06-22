@@ -208,10 +208,9 @@ int create_free_space_inode(struct btrfs_root *root,
 					 block_group->key.objectid);
 }
 
-int btrfs_check_trunc_cache_free_space(struct btrfs_root *root,
+int btrfs_check_trunc_cache_free_space(struct btrfs_fs_info *fs_info,
 				       struct btrfs_block_rsv *rsv)
 {
-	struct btrfs_fs_info *fs_info = root->fs_info;
 	u64 needed_bytes;
 	int ret;
 
@@ -1036,20 +1035,17 @@ fail:
 }
 
 static noinline_for_stack int
-write_pinned_extent_entries(struct btrfs_root *root,
+write_pinned_extent_entries(struct btrfs_fs_info *fs_info,
 			    struct btrfs_block_group_cache *block_group,
 			    struct btrfs_io_ctl *io_ctl,
 			    int *entries)
 {
-	struct btrfs_fs_info *fs_info;
 	u64 start, extent_start, extent_end, len;
 	struct extent_io_tree *unpin = NULL;
 	int ret;
 
 	if (!block_group)
 		return 0;
-
-	fs_info = block_group->fs_info;
 
 	/*
 	 * We want to add any pinned extents to our free space cache
@@ -1243,6 +1239,7 @@ static int __btrfs_write_out_cache(struct btrfs_root *root, struct inode *inode,
 				   struct btrfs_trans_handle *trans,
 				   struct btrfs_path *path, u64 offset)
 {
+	struct btrfs_fs_info *fs_info = root->fs_info;
 	struct extent_state *cached_state = NULL;
 	LIST_HEAD(bitmap_list);
 	int entries = 0;
@@ -1300,7 +1297,8 @@ static int __btrfs_write_out_cache(struct btrfs_root *root, struct inode *inode,
 	 * If this changes while we are working we'll get added back to
 	 * the dirty list and redo it.  No locking needed
 	 */
-	ret = write_pinned_extent_entries(root, block_group, io_ctl, &entries);
+	ret = write_pinned_extent_entries(fs_info, block_group,
+					  io_ctl, &entries);
 	if (ret)
 		goto out_nospc_locked;
 
@@ -1319,8 +1317,8 @@ static int __btrfs_write_out_cache(struct btrfs_root *root, struct inode *inode,
 	io_ctl_zero_remaining_pages(io_ctl);
 
 	/* Everything is written out, now we dirty the pages in the file. */
-	ret = btrfs_dirty_pages(root, inode, io_ctl->pages, io_ctl->num_pages,
-				0, i_size_read(inode), &cached_state);
+	ret = btrfs_dirty_pages(inode, io_ctl->pages, io_ctl->num_pages, 0,
+				i_size_read(inode), &cached_state);
 	if (ret)
 		goto out_nospc;
 
@@ -1994,7 +1992,7 @@ static bool use_bitmap(struct btrfs_free_space_ctl *ctl,
 	bool forced = false;
 
 #ifdef CONFIG_BTRFS_DEBUG
-	if (btrfs_should_fragment_free_space(fs_info->extent_root, block_group))
+	if (btrfs_should_fragment_free_space(block_group))
 		forced = true;
 #endif
 
@@ -3034,13 +3032,12 @@ setup_cluster_bitmap(struct btrfs_block_group_cache *block_group,
  * returns zero and sets up cluster if things worked out, otherwise
  * it returns -enospc
  */
-int btrfs_find_space_cluster(struct btrfs_root *root,
+int btrfs_find_space_cluster(struct btrfs_fs_info *fs_info,
 			     struct btrfs_block_group_cache *block_group,
 			     struct btrfs_free_cluster *cluster,
 			     u64 offset, u64 bytes, u64 empty_size)
 {
 	struct btrfs_free_space_ctl *ctl = block_group->free_space_ctl;
-	struct btrfs_fs_info *fs_info = block_group->fs_info;
 	struct btrfs_free_space *entry, *tmp;
 	LIST_HEAD(bitmaps);
 	u64 min_bytes;
@@ -3148,8 +3145,7 @@ static int do_trimming(struct btrfs_block_group_cache *block_group,
 	spin_unlock(&block_group->lock);
 	spin_unlock(&space_info->lock);
 
-	ret = btrfs_discard_extent(fs_info->extent_root,
-				   start, bytes, &trimmed);
+	ret = btrfs_discard_extent(fs_info, start, bytes, &trimmed);
 	if (!ret)
 		*total_trimmed += trimmed;
 

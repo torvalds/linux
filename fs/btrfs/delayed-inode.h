@@ -99,23 +99,24 @@ static inline void btrfs_init_delayed_root(
 }
 
 int btrfs_insert_delayed_dir_index(struct btrfs_trans_handle *trans,
-				   struct btrfs_root *root, const char *name,
-				   int name_len, struct inode *dir,
+				   struct btrfs_fs_info *fs_info,
+				   const char *name, int name_len,
+				   struct inode *dir,
 				   struct btrfs_disk_key *disk_key, u8 type,
 				   u64 index);
 
 int btrfs_delete_delayed_dir_index(struct btrfs_trans_handle *trans,
-				   struct btrfs_root *root, struct inode *dir,
-				   u64 index);
+				   struct btrfs_fs_info *fs_info,
+				   struct inode *dir, u64 index);
 
 int btrfs_inode_delayed_dir_index_count(struct inode *inode);
 
 int btrfs_run_delayed_items(struct btrfs_trans_handle *trans,
-			    struct btrfs_root *root);
+			    struct btrfs_fs_info *fs_info);
 int btrfs_run_delayed_items_nr(struct btrfs_trans_handle *trans,
-			       struct btrfs_root *root, int nr);
+			       struct btrfs_fs_info *fs_info, int nr);
 
-void btrfs_balance_delayed_items(struct btrfs_root *root);
+void btrfs_balance_delayed_items(struct btrfs_fs_info *fs_info);
 
 int btrfs_commit_inode_delayed_items(struct btrfs_trans_handle *trans,
 				     struct inode *inode);

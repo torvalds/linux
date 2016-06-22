@@ -969,8 +969,9 @@ static unsigned long rbio_nr_pages(unsigned long stripe_len, int nr_stripes)
  * allocation and initial setup for the btrfs_raid_bio.  Not
  * this does not allocate any pages for rbio->pages.
  */
-static struct btrfs_raid_bio *alloc_rbio(struct btrfs_root *root,
-			  struct btrfs_bio *bbio, u64 stripe_len)
+static struct btrfs_raid_bio *alloc_rbio(struct btrfs_fs_info *fs_info,
+					 struct btrfs_bio *bbio,
+					 u64 stripe_len)
 {
 	struct btrfs_raid_bio *rbio;
 	int nr_data = 0;
@@ -991,7 +992,7 @@ static struct btrfs_raid_bio *alloc_rbio(struct btrfs_root *root,
 	INIT_LIST_HEAD(&rbio->stripe_cache);
 	INIT_LIST_HEAD(&rbio->hash_list);
 	rbio->bbio = bbio;
-	rbio->fs_info = root->fs_info;
+	rbio->fs_info = fs_info;
 	rbio->stripe_len = stripe_len;
 	rbio->nr_pages = num_pages;
 	rbio->real_stripes = real_stripes;
@@ -1734,16 +1735,15 @@ static void btrfs_raid_unplug(struct blk_plug_cb *cb, bool from_schedule)
 /*
  * our main entry point for writes from the rest of the FS.
  */
-int raid56_parity_write(struct btrfs_root *root, struct bio *bio,
+int raid56_parity_write(struct btrfs_fs_info *fs_info, struct bio *bio,
 			struct btrfs_bio *bbio, u64 stripe_len)
 {
-	struct btrfs_fs_info *fs_info = root->fs_info;
 	struct btrfs_raid_bio *rbio;
 	struct btrfs_plug_cb *plug = NULL;
 	struct blk_plug_cb *cb;
 	int ret;
 
-	rbio = alloc_rbio(root, bbio, stripe_len);
+	rbio = alloc_rbio(fs_info, bbio, stripe_len);
 	if (IS_ERR(rbio)) {
 		btrfs_put_bbio(bbio);
 		return PTR_ERR(rbio);
@@ -2113,15 +2113,14 @@ cleanup:
  * so we assume the bio they send down corresponds to a failed part
  * of the drive.
  */
-int raid56_parity_recover(struct btrfs_root *root, struct bio *bio,
+int raid56_parity_recover(struct btrfs_fs_info *fs_info, struct bio *bio,
 			  struct btrfs_bio *bbio, u64 stripe_len,
 			  int mirror_num, int generic_io)
 {
-	struct btrfs_fs_info *fs_info = root->fs_info;
 	struct btrfs_raid_bio *rbio;
 	int ret;
 
-	rbio = alloc_rbio(root, bbio, stripe_len);
+	rbio = alloc_rbio(fs_info, bbio, stripe_len);
 	if (IS_ERR(rbio)) {
 		if (generic_io)
 			btrfs_put_bbio(bbio);
@@ -2203,16 +2202,15 @@ static void read_rebuild_work(struct btrfs_work *work)
  */
 
 struct btrfs_raid_bio *
-raid56_parity_alloc_scrub_rbio(struct btrfs_root *root, struct bio *bio,
+raid56_parity_alloc_scrub_rbio(struct btrfs_fs_info *fs_info, struct bio *bio,
 			       struct btrfs_bio *bbio, u64 stripe_len,
 			       struct btrfs_device *scrub_dev,
 			       unsigned long *dbitmap, int stripe_nsectors)
 {
-	struct btrfs_fs_info *fs_info = root->fs_info;
 	struct btrfs_raid_bio *rbio;
 	int i;
 
-	rbio = alloc_rbio(root, bbio, stripe_len);
+	rbio = alloc_rbio(fs_info, bbio, stripe_len);
 	if (IS_ERR(rbio))
 		return NULL;
 	bio_list_add(&rbio->bio_list, bio);
@@ -2653,12 +2651,12 @@ void raid56_parity_submit_scrub_rbio(struct btrfs_raid_bio *rbio)
 /* The following code is used for dev replace of a missing RAID 5/6 device. */
 
 struct btrfs_raid_bio *
-raid56_alloc_missing_rbio(struct btrfs_root *root, struct bio *bio,
+raid56_alloc_missing_rbio(struct btrfs_fs_info *fs_info, struct bio *bio,
 			  struct btrfs_bio *bbio, u64 length)
 {
 	struct btrfs_raid_bio *rbio;
 
-	rbio = alloc_rbio(root, bbio, length);
+	rbio = alloc_rbio(fs_info, bbio, length);
 	if (IS_ERR(rbio))
 		return NULL;
 
