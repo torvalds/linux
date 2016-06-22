@@ -7,6 +7,9 @@ struct nvkm_bios {
 	u32 size;
 	u8 *data;
 
+	u32 image0_size;
+	u32 imaged_addr;
+
 	u32 bmp_offset;
 	u32 bit_offset;
 

@@ -26,14 +26,23 @@
 #include <subdev/bios.h>
 #include <subdev/bios/bmp.h>
 #include <subdev/bios/bit.h>
+#include <subdev/bios/image.h>
 
 static bool
 nvbios_addr(struct nvkm_bios *bios, u32 *addr, u8 size)
 {
+	u32 p = *addr;
+
+	if (*addr > bios->image0_size && bios->imaged_addr) {
+		*addr -= bios->image0_size;
+		*addr += bios->imaged_addr;
+	}
+
 	if (unlikely(*addr + size >= bios->size)) {
-		nvkm_error(&bios->subdev, "OOB %d %08x\n", size, *addr);
+		nvkm_error(&bios->subdev, "OOB %d %08x %08x\n", size, p, *addr);
 		return false;
 	}
+
 	return true;
 }
 
@@ -134,8 +143,9 @@ int
 nvkm_bios_new(struct nvkm_device *device, int index, struct nvkm_bios **pbios)
 {
 	struct nvkm_bios *bios;
+	struct nvbios_image image;
 	struct bit_entry bit_i;
-	int ret;
+	int ret, idx = 0;
 
 	if (!(bios = *pbios = kzalloc(sizeof(*bios), GFP_KERNEL)))
 		return -ENOMEM;
@@ -144,6 +154,19 @@ nvkm_bios_new(struct nvkm_device *device, int index, struct nvkm_bios **pbios)
 	ret = nvbios_shadow(bios);
 	if (ret)
 		return ret;
+
+	/* Some tables have weird pointers that need adjustment before
+	 * they're dereferenced.  I'm not entirely sure why...
+	 */
+	if (nvbios_image(bios, idx++, &image)) {
+		bios->image0_size = image.size;
+		while (nvbios_image(bios, idx++, &image)) {
+			if (image.type == 0xe0) {
+				bios->imaged_addr = image.base;
+				break;
+			}
+		}
+	}
 
 	/* detect type of vbios we're dealing with */
 	bios->bmp_offset = nvbios_findstr(bios->data, bios->size,
