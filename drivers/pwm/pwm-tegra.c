@@ -26,6 +26,7 @@
 #include <linux/io.h>
 #include <linux/module.h>
 #include <linux/of.h>
+#include <linux/of_device.h>
 #include <linux/pwm.h>
 #include <linux/platform_device.h>
 #include <linux/slab.h>
@@ -37,6 +38,10 @@
 #define PWM_SCALE_WIDTH	13
 #define PWM_SCALE_SHIFT	0
 
+struct tegra_pwm_soc {
+	unsigned int num_channels;
+};
+
 struct tegra_pwm_chip {
 	struct pwm_chip chip;
 	struct device *dev;
@@ -45,6 +50,8 @@ struct tegra_pwm_chip {
 	struct reset_control*rst;
 
 	void __iomem *regs;
+
+	const struct tegra_pwm_soc *soc;
 };
 
 static inline struct tegra_pwm_chip *to_tegra_pwm_chip(struct pwm_chip *chip)
@@ -177,6 +184,7 @@ static int tegra_pwm_probe(struct platform_device *pdev)
 	if (!pwm)
 		return -ENOMEM;
 
+	pwm->soc = of_device_get_match_data(&pdev->dev);
 	pwm->dev = &pdev->dev;
 
 	r = platform_get_resource(pdev, IORESOURCE_MEM, 0);
@@ -202,7 +210,7 @@ static int tegra_pwm_probe(struct platform_device *pdev)
 	pwm->chip.dev = &pdev->dev;
 	pwm->chip.ops = &tegra_pwm_ops;
 	pwm->chip.base = -1;
-	pwm->chip.npwm = 4;
+	pwm->chip.npwm = pwm->soc->num_channels;
 
 	ret = pwmchip_add(&pwm->chip);
 	if (ret < 0) {
@@ -245,9 +253,17 @@ static int tegra_pwm_remove(struct platform_device *pdev)
 	return pwmchip_remove(&pc->chip);
 }
 
+static const struct tegra_pwm_soc tegra20_pwm_soc = {
+	.num_channels = 4,
+};
+
+static const struct tegra_pwm_soc tegra186_pwm_soc = {
+	.num_channels = 1,
+};
+
 static const struct of_device_id tegra_pwm_of_match[] = {
-	{ .compatible = "nvidia,tegra20-pwm" },
-	{ .compatible = "nvidia,tegra30-pwm" },
+	{ .compatible = "nvidia,tegra20-pwm", .data = &tegra20_pwm_soc },
+	{ .compatible = "nvidia,tegra186-pwm", .data = &tegra186_pwm_soc },
 	{ }
 };
 
