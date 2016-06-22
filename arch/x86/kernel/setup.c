@@ -113,6 +113,7 @@
 #include <asm/prom.h>
 #include <asm/microcode.h>
 #include <asm/mmu_context.h>
+#include <asm/kaslr.h>
 
 /*
  * max_low_pfn_mapped: highest direct mapped pfn under 4GB
@@ -941,6 +942,8 @@ void __init setup_arch(char **cmdline_p)
 #endif
 
 	x86_init.oem.arch_setup();
+
+	kernel_randomize_memory();
 
 	iomem_resource.end = (1ULL << boot_cpu_data.x86_phys_bits) - 1;
 	setup_memory_map();

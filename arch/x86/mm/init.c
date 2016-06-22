@@ -17,6 +17,7 @@
 #include <asm/proto.h>
 #include <asm/dma.h>		/* for MAX_DMA_PFN */
 #include <asm/microcode.h>
+#include <asm/kaslr.h>
 
 /*
  * We need to define the tracepoints somewhere, and tlb.c

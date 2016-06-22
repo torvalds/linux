@@ -732,11 +732,16 @@ void early_alloc_pgt_buf(void);
 #ifdef CONFIG_X86_64
 /* Realmode trampoline initialization. */
 extern pgd_t trampoline_pgd_entry;
-static inline void __meminit init_trampoline(void)
+static inline void __meminit init_trampoline_default(void)
 {
 	/* Default trampoline pgd value */
 	trampoline_pgd_entry = init_level4_pgt[pgd_index(__PAGE_OFFSET)];
 }
+# ifdef CONFIG_RANDOMIZE_MEMORY
+void __meminit init_trampoline(void);
+# else
+#  define init_trampoline init_trampoline_default
+# endif
 #else
 static inline void init_trampoline(void) { }
 #endif
