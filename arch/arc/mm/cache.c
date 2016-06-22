@@ -601,6 +601,40 @@ noinline void slc_op(phys_addr_t paddr, unsigned long sz, const int op)
 #endif
 }
 
+noinline static void slc_entire_op(const int op)
+{
+	unsigned int ctrl, r = ARC_REG_SLC_CTRL;
+
+	ctrl = read_aux_reg(r);
+
+	if (!(op & OP_FLUSH))		/* i.e. OP_INV */
+		ctrl &= ~SLC_CTRL_IM;	/* clear IM: Disable flush before Inv */
+	else
+		ctrl |= SLC_CTRL_IM;
+
+	write_aux_reg(r, ctrl);
+
+	write_aux_reg(ARC_REG_SLC_INVALIDATE, 1);
+
+	/* Important to wait for flush to complete */
+	while (read_aux_reg(r) & SLC_CTRL_BUSY);
+}
+
+static inline void arc_slc_disable(void)
+{
+	const int r = ARC_REG_SLC_CTRL;
+
+	slc_entire_op(OP_FLUSH_N_INV);
+	write_aux_reg(r, read_aux_reg(r) | SLC_CTRL_DIS);
+}
+
+static inline void arc_slc_enable(void)
+{
+	const int r = ARC_REG_SLC_CTRL;
+
+	write_aux_reg(r, read_aux_reg(r) & ~SLC_CTRL_DIS);
+}
+
 /***********************************************************
  * Exported APIs
  */
@@ -927,6 +961,14 @@ SYSCALL_DEFINE3(cacheflush, uint32_t, start, uint32_t, sz, uint32_t, flags)
 	return 0;
 }
 
+noinline void arc_ioc_setup(void)
+{
+	write_aux_reg(ARC_REG_IO_COH_AP0_BASE, 0x80000);
+	write_aux_reg(ARC_REG_IO_COH_AP0_SIZE, 0x11);
+	write_aux_reg(ARC_REG_IO_COH_PARTIAL, 1);
+	write_aux_reg(ARC_REG_IO_COH_ENABLE, 1);
+}
+
 void arc_cache_init(void)
 {
 	unsigned int __maybe_unused cpu = smp_processor_id();
@@ -989,30 +1031,14 @@ void arc_cache_init(void)
 		}
 	}
 
-	if (is_isa_arcv2() && l2_line_sz && !slc_enable) {
+	/* Note that SLC disable not formally supported till HS 3.0 */
+	if (is_isa_arcv2() && l2_line_sz && !slc_enable)
+		arc_slc_disable();
 
-		/* IM set : flush before invalidate */
-		write_aux_reg(ARC_REG_SLC_CTRL,
-			read_aux_reg(ARC_REG_SLC_CTRL) | SLC_CTRL_IM);
-
-		write_aux_reg(ARC_REG_SLC_INVALIDATE, 1);
-
-		/* Important to wait for flush to complete */
-		while (read_aux_reg(ARC_REG_SLC_CTRL) & SLC_CTRL_BUSY);
-		write_aux_reg(ARC_REG_SLC_CTRL,
-			read_aux_reg(ARC_REG_SLC_CTRL) | SLC_CTRL_DISABLE);
-	}
+	if (is_isa_arcv2() && ioc_enable)
+		arc_ioc_setup();
 
 	if (is_isa_arcv2() && ioc_enable) {
-		/* IO coherency base - 0x8z */
-		write_aux_reg(ARC_REG_IO_COH_AP0_BASE, 0x80000);
-		/* IO coherency aperture size - 512Mb: 0x8z-0xAz */
-		write_aux_reg(ARC_REG_IO_COH_AP0_SIZE, 0x11);
-		/* Enable partial writes */
-		write_aux_reg(ARC_REG_IO_COH_PARTIAL, 1);
-		/* Enable IO coherency */
-		write_aux_reg(ARC_REG_IO_COH_ENABLE, 1);
-
 		__dma_cache_wback_inv = __dma_cache_wback_inv_ioc;
 		__dma_cache_inv = __dma_cache_inv_ioc;
 		__dma_cache_wback = __dma_cache_wback_ioc;

@@ -92,8 +92,8 @@ extern unsigned long perip_base, perip_end;
 #define ARC_REG_SLC_RGN_END	0x916
 
 /* Bit val in SLC_CONTROL */
+#define SLC_CTRL_DIS		0x001
 #define SLC_CTRL_IM		0x040
-#define SLC_CTRL_DISABLE	0x001
 #define SLC_CTRL_BUSY		0x100
 #define SLC_CTRL_RGN_OP_INV	0x200
 
