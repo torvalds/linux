@@ -1501,7 +1501,6 @@ intel_dp_compute_config(struct intel_encoder *encoder,
 	if (HAS_PCH_SPLIT(dev) && !HAS_DDI(dev) && port != PORT_A)
 		pipe_config->has_pch_encoder = true;
 
-	pipe_config->has_dp_encoder = true;
 	pipe_config->has_drrs = false;
 	pipe_config->has_audio = intel_dp->has_audio && port != PORT_A;
 
@@ -2441,8 +2440,6 @@ static void intel_dp_get_config(struct intel_encoder *encoder,
 	if (!HAS_PCH_SPLIT(dev) && !IS_VALLEYVIEW(dev) &&
 	    !IS_CHERRYVIEW(dev) && tmp & DP_COLOR_RANGE_16_235)
 		pipe_config->limited_color_range = true;
-
-	pipe_config->has_dp_encoder = true;
 
 	pipe_config->lane_count =
 		((tmp & DP_PORT_WIDTH_MASK) >> DP_PORT_WIDTH_SHIFT) + 1;

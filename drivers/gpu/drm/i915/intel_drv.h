@@ -522,10 +522,6 @@ struct intel_crtc_state {
 	 */
 	bool limited_color_range;
 
-	/* DP has a bunch of special case unfortunately, so mark the pipe
-	 * accordingly. */
-	bool has_dp_encoder;
-
 	/* DSI has special cases */
 	bool has_dsi_encoder;
 
@@ -1197,6 +1193,14 @@ intel_crtc_has_type(const struct intel_crtc_state *crtc_state,
 		    enum intel_output_type type)
 {
 	return crtc_state->output_types & (1 << type);
+}
+static inline bool
+intel_crtc_has_dp_encoder(const struct intel_crtc_state *crtc_state)
+{
+	return crtc_state->output_types &
+		((1 << INTEL_OUTPUT_DISPLAYPORT) |
+		 (1 << INTEL_OUTPUT_DP_MST) |
+		 (1 << INTEL_OUTPUT_EDP));
 }
 static inline void
 intel_wait_for_vblank(struct drm_device *dev, int pipe)

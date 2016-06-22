@@ -834,7 +834,7 @@ static void ddi_dotclock_get(struct intel_crtc_state *pipe_config)
 	if (pipe_config->has_pch_encoder)
 		dotclock = intel_dotclock_calculate(pipe_config->port_clock,
 						    &pipe_config->fdi_m_n);
-	else if (pipe_config->has_dp_encoder)
+	else if (intel_crtc_has_dp_encoder(pipe_config))
 		dotclock = intel_dotclock_calculate(pipe_config->port_clock,
 						    &pipe_config->dp_m_n);
 	else if (pipe_config->has_hdmi_sink && pipe_config->pipe_bpp == 36)
@@ -2211,7 +2211,6 @@ void intel_ddi_get_config(struct intel_encoder *encoder,
 		break;
 	case TRANS_DDI_MODE_SELECT_DP_SST:
 	case TRANS_DDI_MODE_SELECT_DP_MST:
-		pipe_config->has_dp_encoder = true;
 		pipe_config->lane_count =
 			((temp & DDI_PORT_WIDTH_MASK) >> DDI_PORT_WIDTH_SHIFT) + 1;
 		intel_dp_get_m_n(intel_crtc, pipe_config);
