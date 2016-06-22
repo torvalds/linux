@@ -832,11 +832,11 @@ config HID_THINGM
 	tristate "ThingM blink(1) USB RGB LED"
 	depends on HID
 	depends on LEDS_CLASS
+	select HID_LED
 	---help---
-	Support for the ThingM blink(1) USB RGB LED. This driver registers a
-	Linux LED class instance, plus additional sysfs attributes to control
-	RGB colors, fade time and playing. The device is exposed through hidraw
-	to access other functions.
+	Support for the ThingM blink(1) USB RGB LED. This driver has been
+	merged into the generic hid led driver. Config symbol HID_THINGM
+	just selects HID_LED and will be removed soon.
 
 config HID_THRUSTMASTER
 	tristate "ThrustMaster devices support"
