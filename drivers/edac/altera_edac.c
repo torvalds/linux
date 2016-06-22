@@ -550,10 +550,10 @@ module_platform_driver(altr_edac_driver);
  * trigger testing are different for each memory.
  */
 
-const struct edac_device_prv_data ocramecc_data;
-const struct edac_device_prv_data l2ecc_data;
-const struct edac_device_prv_data a10_ocramecc_data;
-const struct edac_device_prv_data a10_l2ecc_data;
+static const struct edac_device_prv_data ocramecc_data;
+static const struct edac_device_prv_data l2ecc_data;
+static const struct edac_device_prv_data a10_ocramecc_data;
+static const struct edac_device_prv_data a10_l2ecc_data;
 
 static irqreturn_t altr_edac_device_handler(int irq, void *dev_id)
 {
@@ -907,7 +907,7 @@ static irqreturn_t altr_edac_a10_ecc_irq(int irq, void *dev_id)
 	return IRQ_NONE;
 }
 
-const struct edac_device_prv_data ocramecc_data = {
+static const struct edac_device_prv_data ocramecc_data = {
 	.setup = altr_check_ecc_deps,
 	.ce_clear_mask = (ALTR_OCR_ECC_EN | ALTR_OCR_ECC_SERR),
 	.ue_clear_mask = (ALTR_OCR_ECC_EN | ALTR_OCR_ECC_DERR),
@@ -923,7 +923,7 @@ const struct edac_device_prv_data ocramecc_data = {
 	.inject_fops = &altr_edac_device_inject_fops,
 };
 
-const struct edac_device_prv_data a10_ocramecc_data = {
+static const struct edac_device_prv_data a10_ocramecc_data = {
 	.setup = altr_check_ecc_deps,
 	.ce_clear_mask = ALTR_A10_ECC_SERRPENA,
 	.ue_clear_mask = ALTR_A10_ECC_DERRPENA,
@@ -1021,7 +1021,7 @@ static irqreturn_t altr_edac_a10_l2_irq(int irq, void *dev_id)
 	return IRQ_NONE;
 }
 
-const struct edac_device_prv_data l2ecc_data = {
+static const struct edac_device_prv_data l2ecc_data = {
 	.setup = altr_l2_check_deps,
 	.ce_clear_mask = 0,
 	.ue_clear_mask = 0,
@@ -1036,7 +1036,7 @@ const struct edac_device_prv_data l2ecc_data = {
 	.inject_fops = &altr_edac_device_inject_fops,
 };
 
-const struct edac_device_prv_data a10_l2ecc_data = {
+static const struct edac_device_prv_data a10_l2ecc_data = {
 	.setup = altr_l2_check_deps,
 	.ce_clear_mask = ALTR_A10_L2_ECC_SERR_CLR,
 	.ue_clear_mask = ALTR_A10_L2_ECC_MERR_CLR,
