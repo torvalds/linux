@@ -645,12 +645,12 @@ void octeon_free_device_mem(struct octeon_device *oct)
 {
 	u32 i;
 
-	for (i = 0; i < MAX_OCTEON_OUTPUT_QUEUES; i++) {
+	for (i = 0; i < MAX_OCTEON_OUTPUT_QUEUES(oct); i++) {
 		/* could check  mask as well */
 		vfree(oct->droq[i]);
 	}
 
-	for (i = 0; i < MAX_OCTEON_INSTR_QUEUES; i++) {
+	for (i = 0; i < MAX_OCTEON_INSTR_QUEUES(oct); i++) {
 		/* could check mask as well */
 		vfree(oct->instr_queue[i]);
 	}
@@ -734,7 +734,7 @@ struct octeon_device *octeon_allocate_device(u32 pci_id,
 	octeon_device[oct_idx] = oct;
 
 	oct->octeon_id = oct_idx;
-	snprintf((oct->device_name), sizeof(oct->device_name),
+	snprintf(oct->device_name, sizeof(oct->device_name),
 		 "LiquidIO%d", (oct->octeon_id));
 
 	return oct;
@@ -1157,8 +1157,8 @@ core_drv_init_err:
 int octeon_get_tx_qsize(struct octeon_device *oct, u32 q_no)
 
 {
-	if (oct && (q_no < MAX_OCTEON_INSTR_QUEUES) &&
-	    (oct->io_qmask.iq & (1UL << q_no)))
+	if (oct && (q_no < MAX_OCTEON_INSTR_QUEUES(oct)) &&
+	    (oct->io_qmask.iq & (1ULL << q_no)))
 		return oct->instr_queue[q_no]->max_count;
 
 	return -1;
@@ -1166,8 +1166,8 @@ int octeon_get_tx_qsize(struct octeon_device *oct, u32 q_no)
 
 int octeon_get_rx_qsize(struct octeon_device *oct, u32 q_no)
 {
-	if (oct && (q_no < MAX_OCTEON_OUTPUT_QUEUES) &&
-	    (oct->io_qmask.oq & (1UL << q_no)))
+	if (oct && (q_no < MAX_OCTEON_OUTPUT_QUEUES(oct)) &&
+	    (oct->io_qmask.oq & (1ULL << q_no)))
 		return oct->droq[q_no]->max_count;
 	return -1;
 }
@@ -1258,10 +1258,10 @@ void lio_pci_writeq(struct octeon_device *oct,
 int octeon_mem_access_ok(struct octeon_device *oct)
 {
 	u64 access_okay = 0;
+	u64 lmc0_reset_ctl;
 
 	/* Check to make sure a DDR interface is enabled */
-	u64 lmc0_reset_ctl = lio_pci_readq(oct, CN6XXX_LMC0_RESET_CTL);
-
+	lmc0_reset_ctl = lio_pci_readq(oct, CN6XXX_LMC0_RESET_CTL);
 	access_okay = (lmc0_reset_ctl & CN6XXX_LMC0_RESET_CTL_DDR3RST_MASK);
 
 	return access_okay ? 0 : 1;

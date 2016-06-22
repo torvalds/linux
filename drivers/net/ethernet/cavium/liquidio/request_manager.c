@@ -150,7 +150,7 @@ int octeon_init_instr_queue(struct octeon_device *oct,
 	/* Initialize the spinlock for this instruction queue */
 	spin_lock_init(&iq->lock);
 
-	oct->io_qmask.iq |= (1 << iq_no);
+	oct->io_qmask.iq |= (1ULL << iq_no);
 
 	/* Set the 32B/64B mode for each input queue */
 	oct->io_qmask.iq64B |= ((conf->instr_type == 64) << iq_no);
@@ -253,8 +253,8 @@ int lio_wait_for_instr_fetch(struct octeon_device *oct)
 		instr_cnt = 0;
 
 		/*for (i = 0; i < oct->num_iqs; i++) {*/
-		for (i = 0; i < MAX_OCTEON_INSTR_QUEUES; i++) {
-			if (!(oct->io_qmask.iq & (1UL << i)))
+		for (i = 0; i < MAX_OCTEON_INSTR_QUEUES(oct); i++) {
+			if (!(oct->io_qmask.iq & (1ULL << i)))
 				continue;
 			pending =
 			    atomic_read(&oct->

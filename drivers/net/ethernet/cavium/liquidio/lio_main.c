@@ -224,8 +224,8 @@ static void octeon_droq_bh(unsigned long pdev)
 		(struct octeon_device_priv *)oct->priv;
 
 	/* for (q_no = 0; q_no < oct->num_oqs; q_no++) { */
-	for (q_no = 0; q_no < MAX_OCTEON_OUTPUT_QUEUES; q_no++) {
-		if (!(oct->io_qmask.oq & (1UL << q_no)))
+	for (q_no = 0; q_no < MAX_OCTEON_OUTPUT_QUEUES(oct); q_no++) {
+		if (!(oct->io_qmask.oq & (1ULL << q_no)))
 			continue;
 		reschedule |= octeon_droq_process_packets(oct, oct->droq[q_no],
 							  MAX_PACKET_BUDGET);
@@ -245,8 +245,8 @@ static int lio_wait_for_oq_pkts(struct octeon_device *oct)
 	do {
 		pending_pkts = 0;
 
-		for (i = 0; i < MAX_OCTEON_OUTPUT_QUEUES; i++) {
-			if (!(oct->io_qmask.oq & (1UL << i)))
+		for (i = 0; i < MAX_OCTEON_OUTPUT_QUEUES(oct); i++) {
+			if (!(oct->io_qmask.oq & (1ULL << i)))
 				continue;
 			pkt_cnt += octeon_droq_check_hw_for_pkts(oct,
 								 oct->droq[i]);
@@ -396,10 +396,10 @@ static inline void pcierror_quiesce_device(struct octeon_device *oct)
 		dev_err(&oct->pci_dev->dev, "There were pending requests\n");
 
 	/* Force all requests waiting to be fetched by OCTEON to complete. */
-	for (i = 0; i < MAX_OCTEON_INSTR_QUEUES; i++) {
+	for (i = 0; i < MAX_OCTEON_INSTR_QUEUES(oct); i++) {
 		struct octeon_instr_queue *iq;
 
-		if (!(oct->io_qmask.iq & (1UL << i)))
+		if (!(oct->io_qmask.iq & (1ULL << i)))
 			continue;
 		iq = oct->instr_queue[i];
 
@@ -972,8 +972,9 @@ void liquidio_schedule_droq_pkt_handlers(struct octeon_device *oct)
 	struct octeon_droq *droq;
 
 	if (oct->int_status & OCT_DEV_INTR_PKT_DATA) {
-		for (oq_no = 0; oq_no < MAX_OCTEON_OUTPUT_QUEUES; oq_no++) {
-			if (!(oct->droq_intr & (1 << oq_no)))
+		for (oq_no = 0; oq_no < MAX_OCTEON_OUTPUT_QUEUES(oct);
+		     oq_no++) {
+			if (!(oct->droq_intr & (1ULL << oq_no)))
 				continue;
 
 			droq = oct->droq[oq_no];
@@ -1160,8 +1161,8 @@ static void octeon_destroy_resources(struct octeon_device *oct)
 	case OCT_DEV_DROQ_INIT_DONE:
 		/*atomic_set(&oct->status, OCT_DEV_DROQ_INIT_DONE);*/
 		mdelay(100);
-		for (i = 0; i < MAX_OCTEON_OUTPUT_QUEUES; i++) {
-			if (!(oct->io_qmask.oq & (1UL << i)))
+		for (i = 0; i < MAX_OCTEON_OUTPUT_QUEUES(oct); i++) {
+			if (!(oct->io_qmask.oq & (1ULL << i)))
 				continue;
 			octeon_delete_droq(oct, i);
 		}
@@ -1188,8 +1189,8 @@ static void octeon_destroy_resources(struct octeon_device *oct)
 
 		/* fallthrough */
 	case OCT_DEV_INSTR_QUEUE_INIT_DONE:
-		for (i = 0; i < MAX_OCTEON_INSTR_QUEUES; i++) {
-			if (!(oct->io_qmask.iq & (1UL << i)))
+		for (i = 0; i < MAX_OCTEON_INSTR_QUEUES(oct); i++) {
+			if (!(oct->io_qmask.iq & (1ULL << i)))
 				continue;
 			octeon_delete_instr_queue(oct, i);
 		}

@@ -528,8 +528,8 @@ lio_get_ethtool_stats(struct net_device *netdev,
 	struct octeon_device *oct_dev = lio->oct_dev;
 	int i = 0, j;
 
-	for (j = 0; j < MAX_OCTEON_INSTR_QUEUES; j++) {
-		if (!(oct_dev->io_qmask.iq & (1UL << j)))
+	for (j = 0; j < MAX_OCTEON_INSTR_QUEUES(oct); j++) {
+		if (!(oct_dev->io_qmask.iq & (1ULL << j)))
 			continue;
 		data[i++] =
 			CVM_CAST64(oct_dev->instr_queue[j]->stats.instr_posted);
@@ -556,8 +556,8 @@ lio_get_ethtool_stats(struct net_device *netdev,
 	}
 
 	/* for (j = 0; j < oct_dev->num_oqs; j++){ */
-	for (j = 0; j < MAX_OCTEON_OUTPUT_QUEUES; j++) {
-		if (!(oct_dev->io_qmask.oq & (1UL << j)))
+	for (j = 0; j < MAX_OCTEON_OUTPUT_QUEUES(oct); j++) {
+		if (!(oct_dev->io_qmask.oq & (1ULL << j)))
 			continue;
 		data[i++] = CVM_CAST64(oct_dev->droq[j]->stats.pkts_received);
 		data[i++] = CVM_CAST64(oct_dev->droq[j]->stats.bytes_received);
@@ -581,8 +581,8 @@ static void lio_get_strings(struct net_device *netdev, u32 stringset, u8 *data)
 	int num_iq_stats, num_oq_stats, i, j;
 
 	num_iq_stats = ARRAY_SIZE(oct_iq_stats_strings);
-	for (i = 0; i < MAX_OCTEON_INSTR_QUEUES; i++) {
-		if (!(oct_dev->io_qmask.iq & (1UL << i)))
+	for (i = 0; i < MAX_OCTEON_INSTR_QUEUES(oct); i++) {
+		if (!(oct_dev->io_qmask.iq & (1ULL << i)))
 			continue;
 		for (j = 0; j < num_iq_stats; j++) {
 			sprintf(data, "IQ%d %s", i, oct_iq_stats_strings[j]);
@@ -592,8 +592,8 @@ static void lio_get_strings(struct net_device *netdev, u32 stringset, u8 *data)
 
 	num_oq_stats = ARRAY_SIZE(oct_droq_stats_strings);
 	/* for (i = 0; i < oct_dev->num_oqs; i++) { */
-	for (i = 0; i < MAX_OCTEON_OUTPUT_QUEUES; i++) {
-		if (!(oct_dev->io_qmask.oq & (1UL << i)))
+	for (i = 0; i < MAX_OCTEON_OUTPUT_QUEUES(oct); i++) {
+		if (!(oct_dev->io_qmask.oq & (1ULL << i)))
 			continue;
 		for (j = 0; j < num_oq_stats; j++) {
 			sprintf(data, "OQ%d %s", i, oct_droq_stats_strings[j]);

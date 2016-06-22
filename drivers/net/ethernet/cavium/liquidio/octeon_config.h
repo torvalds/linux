@@ -37,7 +37,7 @@
 /* Maximum octeon devices defined as MAX_OCTEON_NICIF to support
  * multiple(<= MAX_OCTEON_NICIF) Miniports
  */
-#define   MAX_OCTEON_NICIF             32
+#define   MAX_OCTEON_NICIF             128
 #define   MAX_OCTEON_DEVICES           MAX_OCTEON_NICIF
 #define   MAX_OCTEON_LINKS	       MAX_OCTEON_NICIF
 #define   MAX_OCTEON_MULTICAST_ADDR    32
@@ -135,7 +135,7 @@
 #define CFG_GET_IS_SLI_BP_ON(cfg)                ((cfg)->misc.enable_sli_oq_bp)
 
 /* Max IOQs per OCTEON Link */
-#define MAX_IOQS_PER_NICIF              32
+#define MAX_IOQS_PER_NICIF              64
 
 enum lio_card_type {
 	LIO_210SV = 0, /* Two port, 66xx */
@@ -416,9 +416,11 @@ struct octeon_config {
 #define DISPATCH_LIST_SIZE                      BIT(OPCODE_MASK_BITS)
 
 /* Maximum number of Octeon Instruction (command) queues */
-#define MAX_OCTEON_INSTR_QUEUES         CN6XXX_MAX_INPUT_QUEUES
+#define MAX_OCTEON_INSTR_QUEUES(oct)         CN6XXX_MAX_INPUT_QUEUES
+/* Maximum number of Octeon Output queues */
+#define MAX_OCTEON_OUTPUT_QUEUES(oct)         CN6XXX_MAX_OUTPUT_QUEUES
 
-/* Maximum number of Octeon Instruction (command) queues */
-#define MAX_OCTEON_OUTPUT_QUEUES        CN6XXX_MAX_OUTPUT_QUEUES
+#define MAX_POSSIBLE_OCTEON_INSTR_QUEUES       CN6XXX_MAX_INPUT_QUEUES
+#define MAX_POSSIBLE_OCTEON_OUTPUT_QUEUES      CN6XXX_MAX_OUTPUT_QUEUES
 
 #endif /* __OCTEON_CONFIG_H__  */

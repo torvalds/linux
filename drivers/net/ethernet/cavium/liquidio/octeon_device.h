@@ -152,9 +152,9 @@ struct octeon_mmio {
 #define   MAX_OCTEON_MAPS    32
 
 struct octeon_io_enable {
-	u32 iq;
-	u32 oq;
-	u32 iq64B;
+	u64 iq;
+	u64 oq;
+	u64 iq64B;
 };
 
 struct octeon_reg_list {
@@ -325,7 +325,8 @@ struct octeon_device {
 	struct octeon_sc_buffer_pool	sc_buf_pool;
 
 	/** The input instruction queues */
-	struct octeon_instr_queue *instr_queue[MAX_OCTEON_INSTR_QUEUES];
+	struct octeon_instr_queue *instr_queue
+		[MAX_POSSIBLE_OCTEON_INSTR_QUEUES];
 
 	/** The doubly-linked list of instruction response */
 	struct octeon_response_list response_list[MAX_RESPONSE_LISTS];
@@ -333,7 +334,7 @@ struct octeon_device {
 	u32 num_oqs;
 
 	/** The DROQ output queues  */
-	struct octeon_droq *droq[MAX_OCTEON_OUTPUT_QUEUES];
+	struct octeon_droq *droq[MAX_POSSIBLE_OCTEON_OUTPUT_QUEUES];
 
 	struct octeon_io_enable io_qmask;
 
@@ -382,7 +383,7 @@ struct octeon_device {
 
 	struct cavium_wq dma_comp_wq;
 
-	struct cavium_wq check_db_wq[MAX_OCTEON_INSTR_QUEUES];
+	struct cavium_wq check_db_wq[MAX_POSSIBLE_OCTEON_INSTR_QUEUES];
 
 	struct cavium_wk nic_poll_work;
 
