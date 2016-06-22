@@ -169,8 +169,7 @@ static void s3c24xx_serial_stop_tx(struct uart_port *port)
 		return;
 
 	if (s3c24xx_serial_has_interrupt_mask(port))
-		__set_bit(S3C64XX_UINTM_TXD,
-			portaddrl(port, S3C64XX_UINTM));
+		s3c24xx_set_bit(port, S3C64XX_UINTM_TXD, S3C64XX_UINTM);
 	else
 		disable_irq_nosync(ourport->tx_irq);
 
@@ -235,8 +234,7 @@ static void enable_tx_dma(struct s3c24xx_uart_port *ourport)
 
 	/* Mask Tx interrupt */
 	if (s3c24xx_serial_has_interrupt_mask(port))
-		__set_bit(S3C64XX_UINTM_TXD,
-			  portaddrl(port, S3C64XX_UINTM));
+		s3c24xx_set_bit(port, S3C64XX_UINTM_TXD, S3C64XX_UINTM);
 	else
 		disable_irq_nosync(ourport->tx_irq);
 
@@ -269,8 +267,8 @@ static void enable_tx_pio(struct s3c24xx_uart_port *ourport)
 
 	/* Unmask Tx interrupt */
 	if (s3c24xx_serial_has_interrupt_mask(port))
-		__clear_bit(S3C64XX_UINTM_TXD,
-			    portaddrl(port, S3C64XX_UINTM));
+		s3c24xx_clear_bit(port, S3C64XX_UINTM_TXD,
+				  S3C64XX_UINTM);
 	else
 		enable_irq(ourport->tx_irq);
 
@@ -397,8 +395,8 @@ static void s3c24xx_serial_stop_rx(struct uart_port *port)
 	if (rx_enabled(port)) {
 		dbg("s3c24xx_serial_stop_rx: port=%p\n", port);
 		if (s3c24xx_serial_has_interrupt_mask(port))
-			__set_bit(S3C64XX_UINTM_RXD,
-				portaddrl(port, S3C64XX_UINTM));
+			s3c24xx_set_bit(port, S3C64XX_UINTM_RXD,
+					S3C64XX_UINTM);
 		else
 			disable_irq_nosync(ourport->rx_irq);
 		rx_enabled(port) = 0;
@@ -1069,7 +1067,7 @@ static int s3c64xx_serial_startup(struct uart_port *port)
 	spin_unlock_irqrestore(&port->lock, flags);
 
 	/* Enable Rx Interrupt */
-	__clear_bit(S3C64XX_UINTM_RXD, portaddrl(port, S3C64XX_UINTM));
+	s3c24xx_clear_bit(port, S3C64XX_UINTM_RXD, S3C64XX_UINTM);
 
 	dbg("s3c64xx_serial_startup ok\n");
 	return ret;
