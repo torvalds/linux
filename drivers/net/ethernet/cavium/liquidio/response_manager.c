@@ -54,6 +54,7 @@ int octeon_setup_response_list(struct octeon_device *oct)
 		spin_lock_init(&oct->response_list[i].lock);
 		atomic_set(&oct->response_list[i].pending_req_count, 0);
 	}
+	spin_lock_init(&oct->cmd_resp_wqlock);
 
 	oct->dma_comp_wq.wq = alloc_workqueue("dma-comp", WQ_MEM_RECLAIM, 0);
 	if (!oct->dma_comp_wq.wq) {
@@ -64,6 +65,7 @@ int octeon_setup_response_list(struct octeon_device *oct)
 	cwq = &oct->dma_comp_wq;
 	INIT_DELAYED_WORK(&cwq->wk.work, oct_poll_req_completion);
 	cwq->wk.ctxptr = oct;
+	oct->cmd_resp_state = OCT_DRV_ONLINE;
 	queue_delayed_work(cwq->wq, &cwq->wk.work, msecs_to_jiffies(100));
 
 	return ret;

@@ -383,6 +383,10 @@ struct octeon_device {
 
 	struct cavium_wq dma_comp_wq;
 
+	/** Lock for dma response list */
+	spinlock_t cmd_resp_wqlock;
+	u32 cmd_resp_state;
+
 	struct cavium_wq check_db_wq[MAX_POSSIBLE_OCTEON_INSTR_QUEUES];
 
 	struct cavium_wk nic_poll_work;
@@ -392,6 +396,8 @@ struct octeon_device {
 	void *priv;
 };
 
+#define  OCT_DRV_ONLINE 1
+#define  OCT_DRV_OFFLINE 2
 #define  OCTEON_CN6XXX(oct)           ((oct->chip_id == OCTEON_CN66XX) || \
 				       (oct->chip_id == OCTEON_CN68XX))
 #define CHIP_FIELD(oct, TYPE, field)             \
