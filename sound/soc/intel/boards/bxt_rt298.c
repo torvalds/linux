@@ -458,6 +458,7 @@ static struct platform_driver broxton_audio = {
 	.probe = broxton_audio_probe,
 	.driver = {
 		.name = "bxt_alc298s_i2s",
+		.pm = &snd_soc_pm_ops,
 	},
 };
 module_platform_driver(broxton_audio)
