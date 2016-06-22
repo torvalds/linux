@@ -376,15 +376,6 @@ static void nfs_direct_complete(struct nfs_direct_req *dreq, bool write)
 {
 	struct inode *inode = dreq->inode;
 
-	if (dreq->iocb && write) {
-		loff_t pos = dreq->iocb->ki_pos + dreq->count;
-
-		spin_lock(&inode->i_lock);
-		if (i_size_read(inode) < pos)
-			i_size_write(inode, pos);
-		spin_unlock(&inode->i_lock);
-	}
-
 	if (write)
 		nfs_zap_mapping(inode, inode->i_mapping);
 
@@ -1058,14 +1049,7 @@ ssize_t nfs_file_direct_write(struct kiocb *iocb, struct iov_iter *iter)
 	if (!result) {
 		result = nfs_direct_wait(dreq);
 		if (result > 0) {
-			struct inode *inode = mapping->host;
-
 			iocb->ki_pos = pos + result;
-			spin_lock(&inode->i_lock);
-			if (i_size_read(inode) < iocb->ki_pos)
-				i_size_write(inode, iocb->ki_pos);
-			spin_unlock(&inode->i_lock);
-
 			/* XXX: should check the generic_write_sync retval */
 			generic_write_sync(iocb, result);
 		}
