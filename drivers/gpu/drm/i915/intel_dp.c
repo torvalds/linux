@@ -4250,7 +4250,7 @@ intel_dp_long_pulse(struct intel_connector *intel_connector)
 	}
 
 	if (intel_encoder->type != INTEL_OUTPUT_EDP)
-		intel_encoder->type = INTEL_OUTPUT_DISPLAYPORT;
+		intel_encoder->type = INTEL_OUTPUT_DP;
 
 	intel_dp_probe_oui(intel_dp);
 
@@ -4326,7 +4326,7 @@ intel_dp_detect(struct drm_connector *connector, bool force)
 		/* MST devices are disconnected from a monitor POV */
 		intel_dp_unset_edid(intel_dp);
 		if (intel_encoder->type != INTEL_OUTPUT_EDP)
-			intel_encoder->type = INTEL_OUTPUT_DISPLAYPORT;
+			intel_encoder->type = INTEL_OUTPUT_DP;
 		return connector_status_disconnected;
 	}
 
@@ -4365,7 +4365,7 @@ intel_dp_force(struct drm_connector *connector)
 	intel_display_power_put(dev_priv, power_domain);
 
 	if (intel_encoder->type != INTEL_OUTPUT_EDP)
-		intel_encoder->type = INTEL_OUTPUT_DISPLAYPORT;
+		intel_encoder->type = INTEL_OUTPUT_DP;
 }
 
 static int intel_dp_get_modes(struct drm_connector *connector)
@@ -4678,7 +4678,7 @@ intel_dp_hpd_pulse(struct intel_digital_port *intel_dig_port, bool long_hpd)
 
 	if (intel_dig_port->base.type != INTEL_OUTPUT_EDP &&
 	    intel_dig_port->base.type != INTEL_OUTPUT_HDMI)
-		intel_dig_port->base.type = INTEL_OUTPUT_DISPLAYPORT;
+		intel_dig_port->base.type = INTEL_OUTPUT_DP;
 
 	if (long_hpd && intel_dig_port->base.type == INTEL_OUTPUT_EDP) {
 		/*
@@ -5694,7 +5694,7 @@ bool intel_dp_init(struct drm_device *dev,
 	intel_dig_port->dp.output_reg = output_reg;
 	intel_dig_port->max_lanes = 4;
 
-	intel_encoder->type = INTEL_OUTPUT_DISPLAYPORT;
+	intel_encoder->type = INTEL_OUTPUT_DP;
 	if (IS_CHERRYVIEW(dev)) {
 		if (port == PORT_D)
 			intel_encoder->crtc_mask = 1 << 2;

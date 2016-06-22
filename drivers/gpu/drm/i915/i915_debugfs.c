@@ -3774,7 +3774,7 @@ static int i9xx_pipe_crc_auto_source(struct drm_device *dev, enum pipe pipe,
 		case INTEL_OUTPUT_TVOUT:
 			*source = INTEL_PIPE_CRC_SOURCE_TV;
 			break;
-		case INTEL_OUTPUT_DISPLAYPORT:
+		case INTEL_OUTPUT_DP:
 		case INTEL_OUTPUT_EDP:
 			dig_port = enc_to_dig_port(&encoder->base);
 			switch (dig_port->port) {

@@ -713,7 +713,7 @@ hsw_get_dpll(struct intel_crtc *crtc, struct intel_crtc_state *crtc_state,
 		pll = intel_find_shared_dpll(crtc, crtc_state,
 					     DPLL_ID_WRPLL1, DPLL_ID_WRPLL2);
 
-	} else if (encoder->type == INTEL_OUTPUT_DISPLAYPORT ||
+	} else if (encoder->type == INTEL_OUTPUT_DP ||
 		   encoder->type == INTEL_OUTPUT_DP_MST ||
 		   encoder->type == INTEL_OUTPUT_EDP) {
 		enum intel_dpll_id pll_id;
@@ -1226,7 +1226,7 @@ skl_get_dpll(struct intel_crtc *crtc, struct intel_crtc_state *crtc_state,
 			 DPLL_CFGCR2_KDIV(wrpll_params.kdiv) |
 			 DPLL_CFGCR2_PDIV(wrpll_params.pdiv) |
 			 wrpll_params.central_freq;
-	} else if (encoder->type == INTEL_OUTPUT_DISPLAYPORT ||
+	} else if (encoder->type == INTEL_OUTPUT_DP ||
 		   encoder->type == INTEL_OUTPUT_DP_MST ||
 		   encoder->type == INTEL_OUTPUT_EDP) {
 		switch (crtc_state->port_clock / 2) {
@@ -1534,7 +1534,7 @@ bxt_get_dpll(struct intel_crtc *crtc, struct intel_crtc_state *crtc_state,
 		clk_div.m2_frac_en = clk_div.m2_frac != 0;
 
 		vco = best_clock.vco;
-	} else if (encoder->type == INTEL_OUTPUT_DISPLAYPORT ||
+	} else if (encoder->type == INTEL_OUTPUT_DP ||
 		   encoder->type == INTEL_OUTPUT_EDP) {
 		int i;
 

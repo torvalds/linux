@@ -159,7 +159,7 @@ enum intel_output_type {
 	INTEL_OUTPUT_LVDS = 4,
 	INTEL_OUTPUT_TVOUT = 5,
 	INTEL_OUTPUT_HDMI = 6,
-	INTEL_OUTPUT_DISPLAYPORT = 7,
+	INTEL_OUTPUT_DP = 7,
 	INTEL_OUTPUT_EDP = 8,
 	INTEL_OUTPUT_DSI = 9,
 	INTEL_OUTPUT_UNKNOWN = 10,
@@ -1198,7 +1198,7 @@ static inline bool
 intel_crtc_has_dp_encoder(const struct intel_crtc_state *crtc_state)
 {
 	return crtc_state->output_types &
-		((1 << INTEL_OUTPUT_DISPLAYPORT) |
+		((1 << INTEL_OUTPUT_DP) |
 		 (1 << INTEL_OUTPUT_DP_MST) |
 		 (1 << INTEL_OUTPUT_EDP));
 }

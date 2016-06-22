@@ -318,7 +318,7 @@ static void ddi_get_encoder_port(struct intel_encoder *intel_encoder,
 	default:
 		WARN(1, "Invalid DDI encoder type %d\n", intel_encoder->type);
 		/* fallthrough and treat as unknown */
-	case INTEL_OUTPUT_DISPLAYPORT:
+	case INTEL_OUTPUT_DP:
 	case INTEL_OUTPUT_EDP:
 	case INTEL_OUTPUT_HDMI:
 	case INTEL_OUTPUT_UNKNOWN:
@@ -482,7 +482,7 @@ void intel_prepare_ddi_buffer(struct intel_encoder *encoder)
 		ddi_translations = ddi_translations_edp;
 		size = n_edp_entries;
 		break;
-	case INTEL_OUTPUT_DISPLAYPORT:
+	case INTEL_OUTPUT_DP:
 	case INTEL_OUTPUT_HDMI:
 		ddi_translations = ddi_translations_dp;
 		size = n_dp_entries;
@@ -1068,7 +1068,7 @@ void intel_ddi_set_pipe_settings(struct drm_crtc *crtc)
 	int type = intel_encoder->type;
 	uint32_t temp;
 
-	if (type == INTEL_OUTPUT_DISPLAYPORT || type == INTEL_OUTPUT_EDP || type == INTEL_OUTPUT_DP_MST) {
+	if (type == INTEL_OUTPUT_DP || type == INTEL_OUTPUT_EDP || type == INTEL_OUTPUT_DP_MST) {
 		WARN_ON(transcoder_is_dsi(cpu_transcoder));
 
 		temp = TRANS_MSA_SYNC_CLK;
@@ -1182,7 +1182,7 @@ void intel_ddi_enable_transcoder_func(struct drm_crtc *crtc)
 		temp |= TRANS_DDI_MODE_SELECT_FDI;
 		temp |= (intel_crtc->config->fdi_lanes - 1) << 1;
 
-	} else if (type == INTEL_OUTPUT_DISPLAYPORT ||
+	} else if (type == INTEL_OUTPUT_DP ||
 		   type == INTEL_OUTPUT_EDP) {
 		struct intel_dp *intel_dp = enc_to_intel_dp(encoder);
 
@@ -1392,7 +1392,7 @@ static void skl_ddi_set_iboost(struct drm_i915_private *dev_priv,
 	dp_iboost = dev_priv->vbt.ddi_port_info[port].dp_boost_level;
 	hdmi_iboost = dev_priv->vbt.ddi_port_info[port].hdmi_boost_level;
 
-	if (type == INTEL_OUTPUT_DISPLAYPORT) {
+	if (type == INTEL_OUTPUT_DP) {
 		if (dp_iboost) {
 			iboost = dp_iboost;
 		} else {
@@ -1450,7 +1450,7 @@ static void bxt_ddi_vswing_sequence(struct drm_i915_private *dev_priv,
 	if (type == INTEL_OUTPUT_EDP && dev_priv->vbt.edp.low_vswing) {
 		n_entries = ARRAY_SIZE(bxt_ddi_translations_edp);
 		ddi_translations = bxt_ddi_translations_edp;
-	} else if (type == INTEL_OUTPUT_DISPLAYPORT
+	} else if (type == INTEL_OUTPUT_DP
 			|| type == INTEL_OUTPUT_EDP) {
 		n_entries = ARRAY_SIZE(bxt_ddi_translations_dp);
 		ddi_translations = bxt_ddi_translations_dp;
@@ -1624,7 +1624,7 @@ static void intel_ddi_pre_enable(struct intel_encoder *intel_encoder)
 
 	intel_ddi_clk_select(intel_encoder, crtc->config);
 
-	if (type == INTEL_OUTPUT_DISPLAYPORT || type == INTEL_OUTPUT_EDP) {
+	if (type == INTEL_OUTPUT_DP || type == INTEL_OUTPUT_EDP) {
 		struct intel_dp *intel_dp = enc_to_intel_dp(encoder);
 
 		intel_dp_set_link_params(intel_dp, crtc->config);
@@ -1669,7 +1669,7 @@ static void intel_ddi_post_disable(struct intel_encoder *intel_encoder)
 	if (wait)
 		intel_wait_ddi_buf_idle(dev_priv, port);
 
-	if (type == INTEL_OUTPUT_DISPLAYPORT || type == INTEL_OUTPUT_EDP) {
+	if (type == INTEL_OUTPUT_DP || type == INTEL_OUTPUT_EDP) {
 		struct intel_dp *intel_dp = enc_to_intel_dp(encoder);
 		intel_dp_sink_dpms(intel_dp, DRM_MODE_DPMS_OFF);
 		intel_edp_panel_vdd_on(intel_dp);
