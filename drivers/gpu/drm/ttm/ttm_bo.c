@@ -1287,6 +1287,7 @@ static int ttm_bo_force_list_clean(struct ttm_bo_device *bdev,
 {
 	struct ttm_mem_type_manager *man = &bdev->man[mem_type];
 	struct ttm_bo_global *glob = bdev->glob;
+	struct fence *fence;
 	int ret;
 
 	/*
@@ -1307,6 +1308,23 @@ static int ttm_bo_force_list_clean(struct ttm_bo_device *bdev,
 		spin_lock(&glob->lru_lock);
 	}
 	spin_unlock(&glob->lru_lock);
+
+	spin_lock(&man->move_lock);
+	fence = fence_get(man->move);
+	spin_unlock(&man->move_lock);
+
+	if (fence) {
+		ret = fence_wait(fence, false);
+		fence_put(fence);
+		if (ret) {
+			if (allow_errors) {
+				return ret;
+			} else {
+				pr_err("Cleanup eviction failed\n");
+			}
+		}
+	}
+
 	return 0;
 }
 
