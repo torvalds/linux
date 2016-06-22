@@ -1497,9 +1497,9 @@ static void pcibios_setup_phb_resources(struct pci_controller *hose,
 	res = &hose->io_resource;
 
 	if (!res->flags) {
-		pr_info("PCI: I/O resource not set for host"
-		       " bridge %s (domain %d)\n",
-		       hose->dn->full_name, hose->global_number);
+		pr_debug("PCI: I/O resource not set for host"
+			 " bridge %s (domain %d)\n",
+			 hose->dn->full_name, hose->global_number);
 	} else {
 		offset = pcibios_io_space_offset(hose);
 
