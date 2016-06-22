@@ -47,8 +47,6 @@
 #include "skeleton.dtsi"
 
 / {
-	compatible = "rockchip,rk3228";
-
 	interrupt-parent = <&gic>;
 
 	aliases {
