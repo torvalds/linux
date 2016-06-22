@@ -111,7 +111,7 @@ static struct platform_device_id fec_devtype[] = {
 				FEC_QUIRK_HAS_BUFDESC_EX | FEC_QUIRK_HAS_CSUM |
 				FEC_QUIRK_HAS_VLAN | FEC_QUIRK_HAS_AVB |
 				FEC_QUIRK_ERR007885 | FEC_QUIRK_BUG_CAPTURE |
-				FEC_QUIRK_HAS_RACC,
+				FEC_QUIRK_HAS_RACC | FEC_QUIRK_HAS_COALESCE,
 	}, {
 		/* sentinel */
 	}
@@ -2358,9 +2358,6 @@ static void fec_enet_itr_coal_set(struct net_device *ndev)
 	struct fec_enet_private *fep = netdev_priv(ndev);
 	int rx_itr, tx_itr;
 
-	if (!(fep->quirks & FEC_QUIRK_HAS_AVB))
-		return;
-
 	/* Must be greater than zero to avoid unpredictable behavior */
 	if (!fep->rx_time_itr || !fep->rx_pkts_itr ||
 	    !fep->tx_time_itr || !fep->tx_pkts_itr)
@@ -2383,10 +2380,12 @@ static void fec_enet_itr_coal_set(struct net_device *ndev)
 
 	writel(tx_itr, fep->hwp + FEC_TXIC0);
 	writel(rx_itr, fep->hwp + FEC_RXIC0);
-	writel(tx_itr, fep->hwp + FEC_TXIC1);
-	writel(rx_itr, fep->hwp + FEC_RXIC1);
-	writel(tx_itr, fep->hwp + FEC_TXIC2);
-	writel(rx_itr, fep->hwp + FEC_RXIC2);
+	if (fep->quirks & FEC_QUIRK_HAS_AVB) {
+		writel(tx_itr, fep->hwp + FEC_TXIC1);
+		writel(rx_itr, fep->hwp + FEC_RXIC1);
+		writel(tx_itr, fep->hwp + FEC_TXIC2);
+		writel(rx_itr, fep->hwp + FEC_RXIC2);
+	}
 }
 
 static int
@@ -2394,7 +2393,7 @@ fec_enet_get_coalesce(struct net_device *ndev, struct ethtool_coalesce *ec)
 {
 	struct fec_enet_private *fep = netdev_priv(ndev);
 
-	if (!(fep->quirks & FEC_QUIRK_HAS_AVB))
+	if (!(fep->quirks & FEC_QUIRK_HAS_COALESCE))
 		return -EOPNOTSUPP;
 
 	ec->rx_coalesce_usecs = fep->rx_time_itr;
@@ -2412,7 +2411,7 @@ fec_enet_set_coalesce(struct net_device *ndev, struct ethtool_coalesce *ec)
 	struct fec_enet_private *fep = netdev_priv(ndev);
 	unsigned int cycle;
 
-	if (!(fep->quirks & FEC_QUIRK_HAS_AVB))
+	if (!(fep->quirks & FEC_QUIRK_HAS_COALESCE))
 		return -EOPNOTSUPP;
 
 	if (ec->rx_max_coalesced_frames > 255) {
