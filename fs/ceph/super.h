@@ -246,7 +246,7 @@ struct ceph_dentry_info {
 	unsigned long lease_renew_after, lease_renew_from;
 	struct list_head lru;
 	struct dentry *dentry;
-	u64 time;
+	unsigned long time;
 	u64 offset;
 };
 

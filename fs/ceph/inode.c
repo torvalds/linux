@@ -1042,7 +1042,7 @@ static void update_dentry_lease(struct dentry *dentry,
 		goto out_unlock;
 
 	if (di->lease_gen == session->s_cap_gen &&
-	    time_before(ttl, dentry->d_time))
+	    time_before(ttl, di->time))
 		goto out_unlock;  /* we already have a newer lease. */
 
 	if (di->lease_session && di->lease_session != session)
@@ -1056,7 +1056,7 @@ static void update_dentry_lease(struct dentry *dentry,
 	di->lease_seq = le32_to_cpu(lease->seq);
 	di->lease_renew_after = half_ttl;
 	di->lease_renew_from = 0;
-	dentry->d_time = ttl;
+	di->time = ttl;
 out_unlock:
 	spin_unlock(&dentry->d_lock);
 	return;

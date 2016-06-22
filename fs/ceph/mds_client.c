@@ -3226,7 +3226,7 @@ static void handle_lease(struct ceph_mds_client *mdsc,
 				msecs_to_jiffies(le32_to_cpu(h->duration_ms));
 
 			di->lease_seq = seq;
-			dentry->d_time = di->lease_renew_from + duration;
+			di->time = di->lease_renew_from + duration;
 			di->lease_renew_after = di->lease_renew_from +
 				(duration >> 1);
 			di->lease_renew_from = 0;
@@ -3311,7 +3311,7 @@ void ceph_mdsc_lease_release(struct ceph_mds_client *mdsc, struct inode *inode,
 	if (!di || !di->lease_session ||
 	    di->lease_session->s_mds < 0 ||
 	    di->lease_gen != di->lease_session->s_cap_gen ||
-	    !time_before(jiffies, dentry->d_time)) {
+	    !time_before(jiffies, di->time)) {
 		dout("lease_release inode %p dentry %p -- "
 		     "no lease\n",
 		     inode, dentry);

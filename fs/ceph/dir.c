@@ -59,7 +59,7 @@ int ceph_init_dentry(struct dentry *dentry)
 
 	di->dentry = dentry;
 	di->lease_session = NULL;
-	dentry->d_time = jiffies;
+	di->time = jiffies;
 	/* avoid reordering d_fsdata setup so that the check above is safe */
 	smp_mb();
 	dentry->d_fsdata = di;
@@ -1124,7 +1124,7 @@ static int ceph_rename(struct inode *old_dir, struct dentry *old_dentry,
 void ceph_invalidate_dentry_lease(struct dentry *dentry)
 {
 	spin_lock(&dentry->d_lock);
-	dentry->d_time = jiffies;
+	ceph_dentry(dentry)->time = jiffies;
 	ceph_dentry(dentry)->lease_shared_gen = 0;
 	spin_unlock(&dentry->d_lock);
 }
@@ -1154,7 +1154,7 @@ static int dentry_lease_is_valid(struct dentry *dentry)
 		spin_unlock(&s->s_gen_ttl_lock);
 
 		if (di->lease_gen == gen &&
-		    time_before(jiffies, dentry->d_time) &&
+		    time_before(jiffies, di->time) &&
 		    time_before(jiffies, ttl)) {
 			valid = 1;
 			if (di->lease_renew_after &&
