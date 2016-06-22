@@ -7393,8 +7393,7 @@ static void vlv_prepare_pll(struct intel_crtc *crtc,
 
 	coreclk = vlv_dpio_read(dev_priv, pipe, VLV_PLL_DW7(pipe));
 	coreclk = (coreclk & 0x0000ff00) | 0x01c00000;
-	if (intel_crtc_has_type(crtc->config, INTEL_OUTPUT_DISPLAYPORT) ||
-	    intel_crtc_has_type(crtc->config, INTEL_OUTPUT_EDP))
+	if (intel_crtc_has_dp_encoder(crtc->config))
 		coreclk |= 0x01000000;
 	vlv_dpio_write(dev_priv, pipe, VLV_PLL_DW7(pipe), coreclk);
 
