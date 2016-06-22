@@ -113,11 +113,17 @@ static int tilcdc_commit(struct drm_device *dev,
 	 * current layout.
 	 */
 
+	/* Keep HW on while we commit the state. */
+	pm_runtime_get_sync(dev->dev);
+
 	drm_atomic_helper_commit_modeset_disables(dev, state);
 
 	drm_atomic_helper_commit_planes(dev, state, false);
 
 	drm_atomic_helper_commit_modeset_enables(dev, state);
+
+	/* Now HW should remain on if need becase the crtc is enabled */
+	pm_runtime_put_sync(dev->dev);
 
 	drm_atomic_helper_wait_for_vblanks(dev, state);
 
@@ -183,7 +189,7 @@ static int tilcdc_unload(struct drm_device *dev)
 {
 	struct tilcdc_drm_private *priv = dev->dev_private;
 
-	tilcdc_crtc_dpms(priv->crtc, DRM_MODE_DPMS_OFF);
+	tilcdc_crtc_disable(priv->crtc);
 
 	tilcdc_remove_external_encoders(dev);
 
