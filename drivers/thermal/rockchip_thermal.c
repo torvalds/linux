@@ -401,13 +401,15 @@ static u32 rk_tsadcv2_temp_to_code(struct chip_tsadc_table table,
 				   int temp)
 {
 	int high, low, mid;
+	u32 error = table.data_mask;
 
 	low = 0;
 	high = table.length - 1;
 	mid = (high + low) / 2;
 
+	/* Return mask code data when the temp is over table range */
 	if (temp < table.id[low].temp || temp > table.id[high].temp)
-		return 0;
+		goto exit;
 
 	while (low <= high) {
 		if (temp == table.id[mid].temp)
@@ -419,7 +421,11 @@ static u32 rk_tsadcv2_temp_to_code(struct chip_tsadc_table table,
 		mid = (low + high) / 2;
 	}
 
-	return 0;
+exit:
+	pr_err("%s: Invalid conversion table: code=%d, temperature=%d\n",
+	       __func__, error, temp);
+
+	return error;
 }
 
 static int rk_tsadcv2_code_to_temp(struct chip_tsadc_table table, u32 code,
@@ -469,7 +475,8 @@ static int rk_tsadcv2_code_to_temp(struct chip_tsadc_table table, u32 code,
 		}
 		break;
 	default:
-		pr_err("Invalid the conversion table\n");
+		pr_err("%s: Invalid the conversion table mode=%d\n",
+		       __func__, table.mode);
 	}
 
 	/*
@@ -649,7 +656,11 @@ static void rk_tsadcv2_alarm_temp(struct chip_tsadc_table table,
 {
 	u32 alarm_value, int_en;
 
+	/* Make sure the value is valid */
 	alarm_value = rk_tsadcv2_temp_to_code(table, temp);
+	if (alarm_value == table.data_mask)
+		return;
+
 	writel_relaxed(alarm_value & table.data_mask,
 		       regs + TSADCV2_COMP_INT(chn));
 
@@ -663,7 +674,11 @@ static void rk_tsadcv2_tshut_temp(struct chip_tsadc_table table,
 {
 	u32 tshut_value, val;
 
+	/* Make sure the value is valid */
 	tshut_value = rk_tsadcv2_temp_to_code(table, temp);
+	if (tshut_value == table.data_mask)
+		return;
+
 	writel_relaxed(tshut_value, regs + TSADCV2_COMP_SHUT(chn));
 
 	/* TSHUT will be valid */
