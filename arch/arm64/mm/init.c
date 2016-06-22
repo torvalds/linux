@@ -160,12 +160,10 @@ static void __init arm64_memory_present(void)
 static void __init arm64_memory_present(void)
 {
 	struct memblock_region *reg;
-	int nid = 0;
 
 	for_each_memblock(memory, reg) {
-#ifdef CONFIG_NUMA
-		nid = reg->nid;
-#endif
+		int nid = memblock_get_region_node(reg);
+
 		memory_present(nid, memblock_region_memory_base_pfn(reg),
 				memblock_region_memory_end_pfn(reg));
 	}
