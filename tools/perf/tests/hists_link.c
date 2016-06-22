@@ -84,7 +84,7 @@ static int add_hist_entries(struct perf_evlist *evlist, struct machine *machine)
 			if (machine__resolve(machine, &al, &sample) < 0)
 				goto out;
 
-			he = __hists__add_entry(hists, &al, NULL,
+			he = hists__add_entry(hists, &al, NULL,
 						NULL, NULL, &sample, true);
 			if (he == NULL) {
 				addr_location__put(&al);
@@ -103,7 +103,7 @@ static int add_hist_entries(struct perf_evlist *evlist, struct machine *machine)
 			if (machine__resolve(machine, &al, &sample) < 0)
 				goto out;
 
-			he = __hists__add_entry(hists, &al, NULL,
+			he = hists__add_entry(hists, &al, NULL,
 						NULL, NULL, &sample, true);
 			if (he == NULL) {
 				addr_location__put(&al);

@@ -11,14 +11,9 @@
 #include <linux/string.h>
 
 #define CMD_EXEC_PATH "--exec-path"
-#define CMD_PERF_DIR "--perf-dir="
-#define CMD_WORK_TREE "--work-tree="
 #define CMD_DEBUGFS_DIR "--debugfs-dir="
 
-#define PERF_DIR_ENVIRONMENT "PERF_DIR"
-#define PERF_WORK_TREE_ENVIRONMENT "PERF_WORK_TREE"
 #define EXEC_PATH_ENVIRONMENT "PERF_EXEC_PATH"
-#define DEFAULT_PERF_DIR_ENVIRONMENT ".perf"
 #define PERF_DEBUGFS_ENVIRONMENT "PERF_DEBUGFS_DIR"
 #define PERF_TRACEFS_ENVIRONMENT "PERF_TRACEFS_DIR"
 #define PERF_PAGER_ENVIRONMENT "PERF_PAGER"
@@ -32,7 +27,6 @@ int perf_config_int(const char *, const char *);
 u64 perf_config_u64(const char *, const char *);
 int perf_config_bool(const char *, const char *);
 int config_error_nonbool(const char *);
-const char *perf_config_dirname(const char *, const char *);
 const char *perf_etc_perfconfig(void);
 
 char *alias_lookup(const char *alias);
@@ -45,9 +39,6 @@ static inline int is_absolute_path(const char *path)
 	return path[0] == '/';
 }
 
-char *strip_path_suffix(const char *path, const char *suffix);
-
 char *mkpath(const char *fmt, ...) __attribute__((format (printf, 1, 2)));
-char *perf_path(const char *fmt, ...) __attribute__((format (printf, 1, 2)));
 
 #endif /* __PERF_CACHE_H */

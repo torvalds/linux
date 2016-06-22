@@ -310,16 +310,6 @@ static int formula_fprintf(struct hist_entry *he, struct hist_entry *pair,
 	return -1;
 }
 
-static int hists__add_entry(struct hists *hists,
-			    struct addr_location *al,
-			    struct perf_sample *sample)
-{
-	if (__hists__add_entry(hists, al, NULL, NULL, NULL,
-			       sample, true) != NULL)
-		return 0;
-	return -ENOMEM;
-}
-
 static int diff__process_sample_event(struct perf_tool *tool __maybe_unused,
 				      union perf_event *event,
 				      struct perf_sample *sample,
@@ -336,7 +326,7 @@ static int diff__process_sample_event(struct perf_tool *tool __maybe_unused,
 		return -1;
 	}
 
-	if (hists__add_entry(hists, &al, sample)) {
+	if (!hists__add_entry(hists, &al, NULL, NULL, NULL, sample, true)) {
 		pr_warning("problem incrementing symbol period, skipping event\n");
 		goto out_put;
 	}
