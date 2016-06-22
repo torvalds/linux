@@ -699,8 +699,10 @@ struct ib_qp *rvt_create_qp(struct ib_pd *ibpd,
 		 * initialization that is needed.
 		 */
 		priv = rdi->driver_f.qp_priv_alloc(rdi, qp, gfp);
-		if (!priv)
+		if (IS_ERR(priv)) {
+			ret = priv;
 			goto bail_qp;
+		}
 		qp->priv = priv;
 		qp->timeout_jiffies =
 			usecs_to_jiffies((4096UL * (1UL << qp->timeout)) /
