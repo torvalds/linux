@@ -415,6 +415,25 @@
 		status = "disabled";
 	};
 
+	gmac: ethernet@30200000 {
+		compatible = "rockchip,rk3228-gmac";
+		reg = <0x30200000 0x10000>;
+		interrupts = <GIC_SPI 24 IRQ_TYPE_LEVEL_HIGH>;
+		interrupt-names = "macirq";
+		clocks = <&cru SCLK_MAC>, <&cru SCLK_MAC_RX>,
+			<&cru SCLK_MAC_TX>, <&cru SCLK_MAC_REF>,
+			<&cru SCLK_MAC_REFOUT>, <&cru ACLK_GMAC>,
+			<&cru PCLK_GMAC>;
+		clock-names = "stmmaceth", "mac_clk_rx",
+			"mac_clk_tx", "clk_mac_ref",
+			"clk_mac_refout", "aclk_mac",
+			"pclk_mac";
+		resets = <&cru SRST_GMAC>;
+		reset-names = "stmmaceth";
+		rockchip,grf = <&grf>;
+		status = "disabled";
+	};
+
 	gic: interrupt-controller@32010000 {
 		compatible = "arm,gic-400";
 		interrupt-controller;
@@ -499,6 +518,10 @@
 			bias-disable;
 		};
 
+		pcfg_pull_none_drv_12ma: pcfg-pull-none-drv-12ma {
+			drive-strength = <12>;
+		};
+
 		emmc {
 			emmc_clk: emmc-clk {
 				rockchip,pins = <2 7 RK_FUNC_2 &pcfg_pull_none>;
@@ -517,6 +540,44 @@
 						<1 29 RK_FUNC_2 &pcfg_pull_none>,
 						<1 30 RK_FUNC_2 &pcfg_pull_none>,
 						<1 31 RK_FUNC_2 &pcfg_pull_none>;
+			};
+		};
+
+		gmac {
+			rgmii_pins: rgmii-pins {
+				rockchip,pins = <2 14 RK_FUNC_1 &pcfg_pull_none>,
+						<2 12 RK_FUNC_1 &pcfg_pull_none>,
+						<2 25 RK_FUNC_1 &pcfg_pull_none>,
+						<2 19 RK_FUNC_1 &pcfg_pull_none_drv_12ma>,
+						<2 18 RK_FUNC_1 &pcfg_pull_none_drv_12ma>,
+						<2 22 RK_FUNC_1 &pcfg_pull_none_drv_12ma>,
+						<2 23 RK_FUNC_1 &pcfg_pull_none_drv_12ma>,
+						<2 9 RK_FUNC_1 &pcfg_pull_none_drv_12ma>,
+						<2 13 RK_FUNC_1 &pcfg_pull_none_drv_12ma>,
+						<2 17 RK_FUNC_1 &pcfg_pull_none>,
+						<2 16 RK_FUNC_1 &pcfg_pull_none>,
+						<2 21 RK_FUNC_2 &pcfg_pull_none>,
+						<2 20 RK_FUNC_2 &pcfg_pull_none>,
+						<2 11 RK_FUNC_1 &pcfg_pull_none>,
+						<2 8 RK_FUNC_1 &pcfg_pull_none>;
+			};
+
+			rmii_pins: rmii-pins {
+				rockchip,pins = <2 14 RK_FUNC_1 &pcfg_pull_none>,
+						<2 12 RK_FUNC_1 &pcfg_pull_none>,
+						<2 25 RK_FUNC_1 &pcfg_pull_none>,
+						<2 19 RK_FUNC_1 &pcfg_pull_none_drv_12ma>,
+						<2 18 RK_FUNC_1 &pcfg_pull_none_drv_12ma>,
+						<2 13 RK_FUNC_1 &pcfg_pull_none_drv_12ma>,
+						<2 17 RK_FUNC_1 &pcfg_pull_none>,
+						<2 16 RK_FUNC_1 &pcfg_pull_none>,
+						<2 8 RK_FUNC_1 &pcfg_pull_none>,
+						<2 15 RK_FUNC_1 &pcfg_pull_none>;
+			};
+
+			phy_pins: phy-pins {
+				rockchip,pins = <2 14 RK_FUNC_2 &pcfg_pull_none>,
+						<2 8 RK_FUNC_2 &pcfg_pull_none>;
 			};
 		};
 
