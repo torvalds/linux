@@ -2774,6 +2774,8 @@ static int cxgb4vf_pci_probe(struct pci_dev *pdev,
 	 * Initialize SMP data synchronization resources.
 	 */
 	spin_lock_init(&adapter->stats_lock);
+	spin_lock_init(&adapter->mbox_lock);
+	INIT_LIST_HEAD(&adapter->mlist.list);
 
 	/*
 	 * Map our I/O registers in BAR0.
