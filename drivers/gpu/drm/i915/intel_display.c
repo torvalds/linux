@@ -530,26 +530,6 @@ needs_modeset(struct drm_crtc_state *state)
 	return drm_atomic_crtc_needs_modeset(state);
 }
 
-/**
- * Returns whether any output on the specified pipe is of the specified type
- */
-bool intel_pipe_has_type(struct intel_crtc *crtc, enum intel_output_type type)
-{
-	return crtc->config->output_types & (1 << type);
-}
-
-/**
- * Returns whether any output on the specified pipe will have the specified
- * type after a staged modeset is complete, i.e., the same as
- * intel_pipe_has_type() but looking at encoder->new_crtc instead of
- * encoder->crtc.
- */
-static bool intel_pipe_will_have_type(const struct intel_crtc_state *crtc_state,
-				      enum intel_output_type type)
-{
-	return crtc_state->output_types & (1 << type);
-}
-
 /*
  * Platform specific helpers to calculate the port PLL loopback- (clock.m),
  * and post-divider (clock.p) values, pre- (clock.vco) and post-divided fast
@@ -662,7 +642,7 @@ i9xx_select_p2_div(const struct intel_limit *limit,
 {
 	struct drm_device *dev = crtc_state->base.crtc->dev;
 
-	if (intel_pipe_will_have_type(crtc_state, INTEL_OUTPUT_LVDS)) {
+	if (intel_crtc_has_type(crtc_state, INTEL_OUTPUT_LVDS)) {
 		/*
 		 * For LVDS just rely on its current settings for dual-channel.
 		 * We haven't figured out how to reliably set up different
@@ -1620,9 +1600,10 @@ static int intel_num_dvo_pipes(struct drm_device *dev)
 	struct intel_crtc *crtc;
 	int count = 0;
 
-	for_each_intel_crtc(dev, crtc)
+	for_each_intel_crtc(dev, crtc) {
 		count += crtc->base.state->active &&
-			intel_pipe_has_type(crtc, INTEL_OUTPUT_DVO);
+			intel_crtc_has_type(crtc->config, INTEL_OUTPUT_DVO);
+	}
 
 	return count;
 }
@@ -1707,7 +1688,7 @@ static void i9xx_disable_pll(struct intel_crtc *crtc)
 
 	/* Disable DVO 2x clock on both PLLs if necessary */
 	if (IS_I830(dev) &&
-	    intel_pipe_has_type(crtc, INTEL_OUTPUT_DVO) &&
+	    intel_crtc_has_type(crtc->config, INTEL_OUTPUT_DVO) &&
 	    !intel_num_dvo_pipes(dev)) {
 		I915_WRITE(DPLL(PIPE_B),
 			   I915_READ(DPLL(PIPE_B)) & ~DPLL_DVO_2X_MODE);
@@ -1837,7 +1818,7 @@ static void ironlake_enable_pch_transcoder(struct drm_i915_private *dev_priv,
 		 * here for both 8bpc and 12bpc.
 		 */
 		val &= ~PIPECONF_BPC_MASK;
-		if (intel_pipe_has_type(intel_crtc, INTEL_OUTPUT_HDMI))
+		if (intel_crtc_has_type(intel_crtc->config, INTEL_OUTPUT_HDMI))
 			val |= PIPECONF_8BPC;
 		else
 			val |= pipeconf_val & PIPECONF_BPC_MASK;
@@ -1846,7 +1827,7 @@ static void ironlake_enable_pch_transcoder(struct drm_i915_private *dev_priv,
 	val &= ~TRANS_INTERLACE_MASK;
 	if ((pipeconf_val & PIPECONF_INTERLACE_MASK) == PIPECONF_INTERLACED_ILK)
 		if (HAS_PCH_IBX(dev_priv) &&
-		    intel_pipe_has_type(intel_crtc, INTEL_OUTPUT_SDVO))
+		    intel_crtc_has_type(intel_crtc->config, INTEL_OUTPUT_SDVO))
 			val |= TRANS_LEGACY_INTERLACED_ILK;
 		else
 			val |= TRANS_INTERLACED;
@@ -6667,7 +6648,7 @@ static int intel_crtc_compute_config(struct intel_crtc *crtc,
 	 * - LVDS dual channel mode
 	 * - Double wide pipe
 	 */
-	if ((intel_pipe_will_have_type(pipe_config, INTEL_OUTPUT_LVDS) &&
+	if ((intel_crtc_has_type(pipe_config, INTEL_OUTPUT_LVDS) &&
 	     intel_is_dual_link_lvds(dev)) || pipe_config->double_wide)
 		pipe_config->pipe_src_w &= ~1;
 
@@ -7178,7 +7159,7 @@ static void i9xx_update_pll_dividers(struct intel_crtc *crtc,
 	crtc_state->dpll_hw_state.fp0 = fp;
 
 	crtc->lowfreq_avail = false;
-	if (intel_pipe_will_have_type(crtc_state, INTEL_OUTPUT_LVDS) &&
+	if (intel_crtc_has_type(crtc_state, INTEL_OUTPUT_LVDS) &&
 	    reduced_clock) {
 		crtc_state->dpll_hw_state.fp1 = fp2;
 		crtc->lowfreq_avail = true;
@@ -7384,8 +7365,8 @@ static void vlv_prepare_pll(struct intel_crtc *crtc,
 
 	/* Set HBR and RBR LPF coefficients */
 	if (pipe_config->port_clock == 162000 ||
-	    intel_pipe_has_type(crtc, INTEL_OUTPUT_ANALOG) ||
-	    intel_pipe_has_type(crtc, INTEL_OUTPUT_HDMI))
+	    intel_crtc_has_type(crtc->config, INTEL_OUTPUT_ANALOG) ||
+	    intel_crtc_has_type(crtc->config, INTEL_OUTPUT_HDMI))
 		vlv_dpio_write(dev_priv, pipe, VLV_PLL_DW10(pipe),
 				 0x009f0003);
 	else
@@ -7412,8 +7393,8 @@ static void vlv_prepare_pll(struct intel_crtc *crtc,
 
 	coreclk = vlv_dpio_read(dev_priv, pipe, VLV_PLL_DW7(pipe));
 	coreclk = (coreclk & 0x0000ff00) | 0x01c00000;
-	if (intel_pipe_has_type(crtc, INTEL_OUTPUT_DISPLAYPORT) ||
-	    intel_pipe_has_type(crtc, INTEL_OUTPUT_EDP))
+	if (intel_crtc_has_type(crtc->config, INTEL_OUTPUT_DISPLAYPORT) ||
+	    intel_crtc_has_type(crtc->config, INTEL_OUTPUT_EDP))
 		coreclk |= 0x01000000;
 	vlv_dpio_write(dev_priv, pipe, VLV_PLL_DW7(pipe), coreclk);
 
@@ -7594,12 +7575,12 @@ static void i9xx_compute_dpll(struct intel_crtc *crtc,
 
 	i9xx_update_pll_dividers(crtc, crtc_state, reduced_clock);
 
-	is_sdvo = intel_pipe_will_have_type(crtc_state, INTEL_OUTPUT_SDVO) ||
-		intel_pipe_will_have_type(crtc_state, INTEL_OUTPUT_HDMI);
+	is_sdvo = intel_crtc_has_type(crtc_state, INTEL_OUTPUT_SDVO) ||
+		intel_crtc_has_type(crtc_state, INTEL_OUTPUT_HDMI);
 
 	dpll = DPLL_VGA_MODE_DIS;
 
-	if (intel_pipe_will_have_type(crtc_state, INTEL_OUTPUT_LVDS))
+	if (intel_crtc_has_type(crtc_state, INTEL_OUTPUT_LVDS))
 		dpll |= DPLLB_MODE_LVDS;
 	else
 		dpll |= DPLLB_MODE_DAC_SERIAL;
@@ -7642,7 +7623,7 @@ static void i9xx_compute_dpll(struct intel_crtc *crtc,
 
 	if (crtc_state->sdvo_tv_clock)
 		dpll |= PLL_REF_INPUT_TVCLKINBC;
-	else if (intel_pipe_will_have_type(crtc_state, INTEL_OUTPUT_LVDS) &&
+	else if (intel_crtc_has_type(crtc_state, INTEL_OUTPUT_LVDS) &&
 		 intel_panel_use_ssc(dev_priv))
 		dpll |= PLLB_REF_INPUT_SPREADSPECTRUMIN;
 	else
@@ -7671,7 +7652,7 @@ static void i8xx_compute_dpll(struct intel_crtc *crtc,
 
 	dpll = DPLL_VGA_MODE_DIS;
 
-	if (intel_pipe_will_have_type(crtc_state, INTEL_OUTPUT_LVDS)) {
+	if (intel_crtc_has_type(crtc_state, INTEL_OUTPUT_LVDS)) {
 		dpll |= (1 << (clock->p1 - 1)) << DPLL_FPA01_P1_POST_DIV_SHIFT;
 	} else {
 		if (clock->p1 == 2)
@@ -7682,10 +7663,10 @@ static void i8xx_compute_dpll(struct intel_crtc *crtc,
 			dpll |= PLL_P2_DIVIDE_BY_4;
 	}
 
-	if (!IS_I830(dev) && intel_pipe_will_have_type(crtc_state, INTEL_OUTPUT_DVO))
+	if (!IS_I830(dev) && intel_crtc_has_type(crtc_state, INTEL_OUTPUT_DVO))
 		dpll |= DPLL_DVO_2X_MODE;
 
-	if (intel_pipe_will_have_type(crtc_state, INTEL_OUTPUT_LVDS) &&
+	if (intel_crtc_has_type(crtc_state, INTEL_OUTPUT_LVDS) &&
 	    intel_panel_use_ssc(dev_priv))
 		dpll |= PLLB_REF_INPUT_SPREADSPECTRUMIN;
 	else
@@ -7715,7 +7696,7 @@ static void intel_set_pipe_timings(struct intel_crtc *intel_crtc)
 		crtc_vtotal -= 1;
 		crtc_vblank_end -= 1;
 
-		if (intel_pipe_has_type(intel_crtc, INTEL_OUTPUT_SDVO))
+		if (intel_crtc_has_type(intel_crtc->config, INTEL_OUTPUT_SDVO))
 			vsyncshift = (adjusted_mode->crtc_htotal - 1) / 2;
 		else
 			vsyncshift = adjusted_mode->crtc_hsync_start -
@@ -7894,7 +7875,7 @@ static void i9xx_set_pipeconf(struct intel_crtc *intel_crtc)
 
 	if (intel_crtc->config->base.adjusted_mode.flags & DRM_MODE_FLAG_INTERLACE) {
 		if (INTEL_INFO(dev)->gen < 4 ||
-		    intel_pipe_has_type(intel_crtc, INTEL_OUTPUT_SDVO))
+		    intel_crtc_has_type(intel_crtc->config, INTEL_OUTPUT_SDVO))
 			pipeconf |= PIPECONF_INTERLACE_W_FIELD_INDICATION;
 		else
 			pipeconf |= PIPECONF_INTERLACE_W_SYNC_SHIFT;
@@ -7920,14 +7901,14 @@ static int i8xx_crtc_compute_clock(struct intel_crtc *crtc,
 	memset(&crtc_state->dpll_hw_state, 0,
 	       sizeof(crtc_state->dpll_hw_state));
 
-	if (intel_pipe_will_have_type(crtc_state, INTEL_OUTPUT_LVDS)) {
+	if (intel_crtc_has_type(crtc_state, INTEL_OUTPUT_LVDS)) {
 		if (intel_panel_use_ssc(dev_priv)) {
 			refclk = dev_priv->vbt.lvds_ssc_freq;
 			DRM_DEBUG_KMS("using SSC reference clock of %d kHz\n", refclk);
 		}
 
 		limit = &intel_limits_i8xx_lvds;
-	} else if (intel_pipe_will_have_type(crtc_state, INTEL_OUTPUT_DVO)) {
+	} else if (intel_crtc_has_type(crtc_state, INTEL_OUTPUT_DVO)) {
 		limit = &intel_limits_i8xx_dvo;
 	} else {
 		limit = &intel_limits_i8xx_dac;
@@ -7956,7 +7937,7 @@ static int g4x_crtc_compute_clock(struct intel_crtc *crtc,
 	memset(&crtc_state->dpll_hw_state, 0,
 	       sizeof(crtc_state->dpll_hw_state));
 
-	if (intel_pipe_will_have_type(crtc_state, INTEL_OUTPUT_LVDS)) {
+	if (intel_crtc_has_type(crtc_state, INTEL_OUTPUT_LVDS)) {
 		if (intel_panel_use_ssc(dev_priv)) {
 			refclk = dev_priv->vbt.lvds_ssc_freq;
 			DRM_DEBUG_KMS("using SSC reference clock of %d kHz\n", refclk);
@@ -7966,10 +7947,10 @@ static int g4x_crtc_compute_clock(struct intel_crtc *crtc,
 			limit = &intel_limits_g4x_dual_channel_lvds;
 		else
 			limit = &intel_limits_g4x_single_channel_lvds;
-	} else if (intel_pipe_will_have_type(crtc_state, INTEL_OUTPUT_HDMI) ||
-		   intel_pipe_will_have_type(crtc_state, INTEL_OUTPUT_ANALOG)) {
+	} else if (intel_crtc_has_type(crtc_state, INTEL_OUTPUT_HDMI) ||
+		   intel_crtc_has_type(crtc_state, INTEL_OUTPUT_ANALOG)) {
 		limit = &intel_limits_g4x_hdmi;
-	} else if (intel_pipe_will_have_type(crtc_state, INTEL_OUTPUT_SDVO)) {
+	} else if (intel_crtc_has_type(crtc_state, INTEL_OUTPUT_SDVO)) {
 		limit = &intel_limits_g4x_sdvo;
 	} else {
 		/* The option is for other outputs */
@@ -7999,7 +7980,7 @@ static int pnv_crtc_compute_clock(struct intel_crtc *crtc,
 	memset(&crtc_state->dpll_hw_state, 0,
 	       sizeof(crtc_state->dpll_hw_state));
 
-	if (intel_pipe_will_have_type(crtc_state, INTEL_OUTPUT_LVDS)) {
+	if (intel_crtc_has_type(crtc_state, INTEL_OUTPUT_LVDS)) {
 		if (intel_panel_use_ssc(dev_priv)) {
 			refclk = dev_priv->vbt.lvds_ssc_freq;
 			DRM_DEBUG_KMS("using SSC reference clock of %d kHz\n", refclk);
@@ -8033,7 +8014,7 @@ static int i9xx_crtc_compute_clock(struct intel_crtc *crtc,
 	memset(&crtc_state->dpll_hw_state, 0,
 	       sizeof(crtc_state->dpll_hw_state));
 
-	if (intel_pipe_will_have_type(crtc_state, INTEL_OUTPUT_LVDS)) {
+	if (intel_crtc_has_type(crtc_state, INTEL_OUTPUT_LVDS)) {
 		if (intel_panel_use_ssc(dev_priv)) {
 			refclk = dev_priv->vbt.lvds_ssc_freq;
 			DRM_DEBUG_KMS("using SSC reference clock of %d kHz\n", refclk);
@@ -9034,7 +9015,7 @@ static int ironlake_crtc_compute_clock(struct intel_crtc *crtc,
 	if (!crtc_state->has_pch_encoder)
 		return 0;
 
-	if (intel_pipe_will_have_type(crtc_state, INTEL_OUTPUT_LVDS)) {
+	if (intel_crtc_has_type(crtc_state, INTEL_OUTPUT_LVDS)) {
 		if (intel_panel_use_ssc(dev_priv)) {
 			DRM_DEBUG_KMS("using SSC reference clock of %d kHz\n",
 				      dev_priv->vbt.lvds_ssc_freq);
@@ -9073,7 +9054,7 @@ static int ironlake_crtc_compute_clock(struct intel_crtc *crtc,
 		return -EINVAL;
 	}
 
-	if (intel_pipe_will_have_type(crtc_state, INTEL_OUTPUT_LVDS) &&
+	if (intel_crtc_has_type(crtc_state, INTEL_OUTPUT_LVDS) &&
 	    has_reduced_clock)
 		crtc->lowfreq_avail = true;
 
@@ -13265,7 +13246,7 @@ static void update_scanline_offset(struct intel_crtc *crtc)
 
 		crtc->scanline_offset = vtotal - 1;
 	} else if (HAS_DDI(dev) &&
-		   intel_pipe_has_type(crtc, INTEL_OUTPUT_HDMI)) {
+		   intel_crtc_has_type(crtc->config, INTEL_OUTPUT_HDMI)) {
 		crtc->scanline_offset = 2;
 	} else
 		crtc->scanline_offset = 1;

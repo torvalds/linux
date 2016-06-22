@@ -1192,7 +1192,12 @@ int intel_get_pipe_from_crtc_id(struct drm_device *dev, void *data,
 				struct drm_file *file_priv);
 enum transcoder intel_pipe_to_cpu_transcoder(struct drm_i915_private *dev_priv,
 					     enum pipe pipe);
-bool intel_pipe_has_type(struct intel_crtc *crtc, enum intel_output_type type);
+static inline bool
+intel_crtc_has_type(const struct intel_crtc_state *crtc_state,
+		    enum intel_output_type type)
+{
+	return crtc_state->output_types & (1 << type);
+}
 static inline void
 intel_wait_for_vblank(struct drm_device *dev, int pipe)
 {
