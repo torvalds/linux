@@ -29,13 +29,13 @@ static int tsens_get_temp(void *data, int *temp)
 	return tmdev->ops->get_temp(tmdev, s->id, temp);
 }
 
-static int tsens_get_trend(void *data, long *temp)
+static int tsens_get_trend(void *p, int trip, enum thermal_trend *trend)
 {
-	const struct tsens_sensor *s = data;
+	const struct tsens_sensor *s = p;
 	struct tsens_device *tmdev = s->tmdev;
 
 	if (tmdev->ops->get_trend)
-		return tmdev->ops->get_trend(tmdev, s->id, temp);
+		return  tmdev->ops->get_trend(tmdev, s->id, trend);
 
 	return -ENOTSUPP;
 }

@@ -17,6 +17,8 @@
 #define ONE_PT_CALIB2		0x2
 #define TWO_PT_CALIB		0x3
 
+#include <linux/thermal.h>
+
 struct tsens_device;
 
 struct tsens_sensor {
@@ -50,7 +52,7 @@ struct tsens_ops {
 	void (*disable)(struct tsens_device *);
 	int (*suspend)(struct tsens_device *);
 	int (*resume)(struct tsens_device *);
-	int (*get_trend)(struct tsens_device *, int, long *);
+	int (*get_trend)(struct tsens_device *, int, enum thermal_trend *);
 };
 
 /**
