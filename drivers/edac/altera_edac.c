@@ -1125,6 +1125,20 @@ static void altr_edac_a10_irq_handler(struct irq_desc *desc)
 	chained_irq_exit(chip, desc);
 }
 
+static int validate_parent_available(struct device_node *np)
+{
+	struct device_node *parent;
+	int ret = 0;
+
+	/* Ensure parent device is enabled if parent node exists */
+	parent = of_parse_phandle(np, "altr,ecc-parent", 0);
+	if (parent && !of_device_is_available(parent))
+		ret = -ENODEV;
+
+	of_node_put(parent);
+	return ret;
+}
+
 static int altr_edac_a10_device_add(struct altr_arria10_edac *edac,
 				    struct device_node *np)
 {
@@ -1144,6 +1158,9 @@ static int altr_edac_a10_device_add(struct altr_arria10_edac *edac,
 	/* Get driver specific data for this EDAC device */
 	prv = pdev_id->data;
 	if (IS_ERR_OR_NULL(prv))
+		return -ENODEV;
+
+	if (validate_parent_available(np))
 		return -ENODEV;
 
 	if (!devres_open_group(edac->dev, altr_edac_a10_device_add, GFP_KERNEL))
