@@ -462,6 +462,21 @@ static inline void __dc_entire_op(const int op)
 	__after_dc_op(op);
 }
 
+static inline void __dc_disable(void)
+{
+	const int r = ARC_REG_DC_CTRL;
+
+	__dc_entire_op(OP_FLUSH_N_INV);
+	write_aux_reg(r, read_aux_reg(r) | DC_CTRL_DIS);
+}
+
+static void __dc_enable(void)
+{
+	const int r = ARC_REG_DC_CTRL;
+
+	write_aux_reg(r, read_aux_reg(r) & ~DC_CTRL_DIS);
+}
+
 /* For kernel mappings cache operation: index is same as paddr */
 #define __dc_line_op_k(p, sz, op)	__dc_line_op(p, p, sz, op)
 
@@ -487,6 +502,8 @@ static inline void __dc_line_op(phys_addr_t paddr, unsigned long vaddr,
 #else
 
 #define __dc_entire_op(op)
+#define __dc_disable()
+#define __dc_enable()
 #define __dc_line_op(paddr, vaddr, sz, op)
 #define __dc_line_op_k(paddr, sz, op)
 
@@ -961,12 +978,41 @@ SYSCALL_DEFINE3(cacheflush, uint32_t, start, uint32_t, sz, uint32_t, flags)
 	return 0;
 }
 
+/*
+ * IO-Coherency (IOC) setup rules:
+ *
+ * 1. Needs to be at system level, so only once by Master core
+ *    Non-Masters need not be accessing caches at that time
+ *    - They are either HALT_ON_RESET and kick started much later or
+ *    - if run on reset, need to ensure that arc_platform_smp_wait_to_boot()
+ *      doesn't perturb caches or coherency unit
+ *
+ * 2. caches (L1 and SLC) need to be purged (flush+inv) before setting up IOC,
+ *    otherwise any straggler data might behave strangely post IOC enabling
+ *
+ * 3. All Caches need to be disabled when setting up IOC to elide any in-flight
+ *    Coherency transactions
+ */
 noinline void arc_ioc_setup(void)
 {
+	/* Flush + invalidate + disable L1 dcache */
+	__dc_disable();
+
+	/* Flush + invalidate SLC */
+	if (read_aux_reg(ARC_REG_SLC_BCR))
+		slc_entire_op(OP_FLUSH_N_INV);
+
+	/* IOC Aperture start: TDB: handle non default CONFIG_LINUX_LINK_BASE */
 	write_aux_reg(ARC_REG_IO_COH_AP0_BASE, 0x80000);
+
+	/* IOC Aperture size: TBD: handle different mem sizes, PAE... */
 	write_aux_reg(ARC_REG_IO_COH_AP0_SIZE, 0x11);
+
 	write_aux_reg(ARC_REG_IO_COH_PARTIAL, 1);
 	write_aux_reg(ARC_REG_IO_COH_ENABLE, 1);
+
+	/* Re-enable L1 dcache */
+	__dc_enable();
 }
 
 void arc_cache_init(void)

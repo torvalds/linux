@@ -67,7 +67,7 @@ extern unsigned long perip_base, perip_end;
 #define ARC_REG_IC_PTAG_HI	0x1F
 
 /* Bit val in IC_CTRL */
-#define IC_CTRL_CACHE_DISABLE   0x1
+#define IC_CTRL_DIS		0x1
 
 /* Data cache related Auxiliary registers */
 #define ARC_REG_DC_BCR		0x72	/* Build Config reg */
@@ -80,8 +80,9 @@ extern unsigned long perip_base, perip_end;
 #define ARC_REG_DC_PTAG_HI	0x5F
 
 /* Bit val in DC_CTRL */
-#define DC_CTRL_INV_MODE_FLUSH  0x40
-#define DC_CTRL_FLUSH_STATUS    0x100
+#define DC_CTRL_DIS		0x001
+#define DC_CTRL_INV_MODE_FLUSH	0x040
+#define DC_CTRL_FLUSH_STATUS	0x100
 
 /*System-level cache (L2 cache) related Auxiliary registers */
 #define ARC_REG_SLC_CFG		0x901
