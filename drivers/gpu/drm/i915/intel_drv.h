@@ -522,9 +522,6 @@ struct intel_crtc_state {
 	 */
 	bool limited_color_range;
 
-	/* DSI has special cases */
-	bool has_dsi_encoder;
-
 	/* Bitmask of encoder types (enum intel_output_type)
 	 * driven by the pipe.
 	 */

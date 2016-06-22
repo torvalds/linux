@@ -1959,7 +1959,7 @@ static void intel_enable_pipe(struct intel_crtc *crtc)
 	 * need the check.
 	 */
 	if (HAS_GMCH_DISPLAY(dev_priv))
-		if (crtc->config->has_dsi_encoder)
+		if (intel_crtc_has_type(crtc->config, INTEL_OUTPUT_DSI))
 			assert_dsi_pll_enabled(dev_priv);
 		else
 			assert_pll_enabled(dev_priv, pipe);
@@ -4829,7 +4829,7 @@ static void haswell_crtc_enable(struct drm_crtc *crtc)
 	if (intel_crtc_has_dp_encoder(intel_crtc->config))
 		intel_dp_set_m_n(intel_crtc, M1_N1);
 
-	if (!intel_crtc->config->has_dsi_encoder)
+	if (!transcoder_is_dsi(cpu_transcoder))
 		intel_set_pipe_timings(intel_crtc);
 
 	intel_set_pipe_src_size(intel_crtc);
@@ -4845,7 +4845,7 @@ static void haswell_crtc_enable(struct drm_crtc *crtc)
 				     &intel_crtc->config->fdi_m_n, NULL);
 	}
 
-	if (!intel_crtc->config->has_dsi_encoder)
+	if (!transcoder_is_dsi(cpu_transcoder))
 		haswell_set_pipeconf(crtc);
 
 	haswell_set_pipemisc(crtc);
@@ -4867,7 +4867,7 @@ static void haswell_crtc_enable(struct drm_crtc *crtc)
 	if (intel_crtc->config->has_pch_encoder)
 		dev_priv->display.fdi_link_train(crtc);
 
-	if (!intel_crtc->config->has_dsi_encoder)
+	if (!transcoder_is_dsi(cpu_transcoder))
 		intel_ddi_enable_pipe_clock(intel_crtc);
 
 	if (INTEL_INFO(dev)->gen >= 9)
@@ -4882,7 +4882,7 @@ static void haswell_crtc_enable(struct drm_crtc *crtc)
 	intel_color_load_luts(&pipe_config->base);
 
 	intel_ddi_set_pipe_settings(crtc);
-	if (!intel_crtc->config->has_dsi_encoder)
+	if (!transcoder_is_dsi(cpu_transcoder))
 		intel_ddi_enable_transcoder_func(crtc);
 
 	if (dev_priv->display.initial_watermarks != NULL)
@@ -4891,7 +4891,7 @@ static void haswell_crtc_enable(struct drm_crtc *crtc)
 		intel_update_watermarks(crtc);
 
 	/* XXX: Do the pipe assertions at the right place for BXT DSI. */
-	if (!intel_crtc->config->has_dsi_encoder)
+	if (!transcoder_is_dsi(cpu_transcoder))
 		intel_enable_pipe(intel_crtc);
 
 	if (intel_crtc->config->has_pch_encoder)
@@ -5024,13 +5024,13 @@ static void haswell_crtc_disable(struct drm_crtc *crtc)
 	assert_vblank_disabled(crtc);
 
 	/* XXX: Do the pipe assertions at the right place for BXT DSI. */
-	if (!intel_crtc->config->has_dsi_encoder)
+	if (!transcoder_is_dsi(cpu_transcoder))
 		intel_disable_pipe(intel_crtc);
 
 	if (intel_crtc->config->dp_encoder_is_mst)
 		intel_ddi_set_vc_payload_alloc(crtc, false);
 
-	if (!intel_crtc->config->has_dsi_encoder)
+	if (!transcoder_is_dsi(cpu_transcoder))
 		intel_ddi_disable_transcoder_func(dev_priv, cpu_transcoder);
 
 	if (INTEL_INFO(dev)->gen >= 9)
@@ -5038,7 +5038,7 @@ static void haswell_crtc_disable(struct drm_crtc *crtc)
 	else
 		ironlake_pfit_disable(intel_crtc, false);
 
-	if (!intel_crtc->config->has_dsi_encoder)
+	if (!transcoder_is_dsi(cpu_transcoder))
 		intel_ddi_disable_pipe_clock(intel_crtc);
 
 	for_each_encoder_on_crtc(dev, crtc, encoder)
@@ -6279,7 +6279,7 @@ static void i9xx_crtc_disable(struct drm_crtc *crtc)
 		if (encoder->post_disable)
 			encoder->post_disable(encoder);
 
-	if (!intel_crtc->config->has_dsi_encoder) {
+	if (!intel_crtc_has_type(intel_crtc->config, INTEL_OUTPUT_DSI)) {
 		if (IS_CHERRYVIEW(dev))
 			chv_disable_pll(dev_priv, pipe);
 		else if (IS_VALLEYVIEW(dev))
@@ -7278,7 +7278,7 @@ static void vlv_compute_dpll(struct intel_crtc *crtc,
 		pipe_config->dpll_hw_state.dpll |= DPLL_INTEGRATED_CRI_CLK_VLV;
 
 	/* DPLL not used with DSI, but still need the rest set up */
-	if (!pipe_config->has_dsi_encoder)
+	if (!intel_crtc_has_type(pipe_config, INTEL_OUTPUT_DSI))
 		pipe_config->dpll_hw_state.dpll |= DPLL_VCO_ENABLE |
 			DPLL_EXT_BUFFER_ENABLE_VLV;
 
@@ -7295,7 +7295,7 @@ static void chv_compute_dpll(struct intel_crtc *crtc,
 		pipe_config->dpll_hw_state.dpll |= DPLL_INTEGRATED_CRI_CLK_VLV;
 
 	/* DPLL not used with DSI, but still need the rest set up */
-	if (!pipe_config->has_dsi_encoder)
+	if (!intel_crtc_has_type(pipe_config, INTEL_OUTPUT_DSI))
 		pipe_config->dpll_hw_state.dpll |= DPLL_VCO_ENABLE;
 
 	pipe_config->dpll_hw_state.dpll_md =
@@ -9858,10 +9858,7 @@ static void skl_modeset_commit_cdclk(struct drm_atomic_state *old_state)
 static int haswell_crtc_compute_clock(struct intel_crtc *crtc,
 				      struct intel_crtc_state *crtc_state)
 {
-	struct intel_encoder *intel_encoder =
-		intel_ddi_get_crtc_new_encoder(crtc_state);
-
-	if (intel_encoder->type != INTEL_OUTPUT_DSI) {
+	if (!intel_crtc_has_type(crtc_state, INTEL_OUTPUT_DSI)) {
 		if (!intel_ddi_pll_select(crtc, crtc_state))
 			return -EINVAL;
 	}
@@ -10028,8 +10025,6 @@ static bool bxt_get_dsi_transcoder_state(struct intel_crtc *crtc,
 	enum transcoder cpu_transcoder;
 	u32 tmp;
 
-	pipe_config->has_dsi_encoder = false;
-
 	for_each_port_masked(port, BIT(PORT_A) | BIT(PORT_C)) {
 		if (port == PORT_A)
 			cpu_transcoder = TRANSCODER_DSI_A;
@@ -10061,11 +10056,10 @@ static bool bxt_get_dsi_transcoder_state(struct intel_crtc *crtc,
 			continue;
 
 		pipe_config->cpu_transcoder = cpu_transcoder;
-		pipe_config->has_dsi_encoder = true;
 		break;
 	}
 
-	return pipe_config->has_dsi_encoder;
+	return transcoder_is_dsi(pipe_config->cpu_transcoder);
 }
 
 static void haswell_get_ddi_port_state(struct intel_crtc *crtc,
@@ -10129,18 +10123,16 @@ static bool haswell_get_pipe_config(struct intel_crtc *crtc,
 
 	active = hsw_get_transcoder_state(crtc, pipe_config, &power_domain_mask);
 
-	if (IS_BROXTON(dev_priv)) {
-		bxt_get_dsi_transcoder_state(crtc, pipe_config,
-					     &power_domain_mask);
-		WARN_ON(active && pipe_config->has_dsi_encoder);
-		if (pipe_config->has_dsi_encoder)
-			active = true;
+	if (IS_BROXTON(dev_priv) &&
+	    bxt_get_dsi_transcoder_state(crtc, pipe_config, &power_domain_mask)) {
+		WARN_ON(active);
+		active = true;
 	}
 
 	if (!active)
 		goto out;
 
-	if (!pipe_config->has_dsi_encoder) {
+	if (!transcoder_is_dsi(pipe_config->cpu_transcoder)) {
 		haswell_get_ddi_port_state(crtc, pipe_config);
 		intel_get_pipe_timings(crtc, pipe_config);
 	}
@@ -12783,7 +12775,6 @@ intel_pipe_config_compare(struct drm_device *dev,
 	} else
 		PIPE_CONF_CHECK_M_N_ALT(dp_m_n, dp_m2_n2);
 
-	PIPE_CONF_CHECK_I(has_dsi_encoder);
 	PIPE_CONF_CHECK_X(output_types);
 
 	PIPE_CONF_CHECK_I(base.adjusted_mode.crtc_hdisplay);
