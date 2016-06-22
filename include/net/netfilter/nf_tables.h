@@ -798,7 +798,6 @@ struct nft_stats {
 };
 
 #define NFT_HOOK_OPS_MAX		2
-#define NFT_BASECHAIN_DISABLED		(1 << 0)
 
 /**
  *	struct nft_base_chain - nf_tables base chain
