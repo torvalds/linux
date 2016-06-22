@@ -142,7 +142,7 @@ static const __le64 iwl_ci_mask[][3] = {
 		cpu_to_le64(0x0)
 	},
 	{
-		cpu_to_le64(0xFFC0000000ULL),
+		cpu_to_le64(0xFE00000000ULL),
 		cpu_to_le64(0x0ULL),
 		cpu_to_le64(0x0ULL)
 	},
