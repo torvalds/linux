@@ -43,8 +43,12 @@
  * before. You also need to add a BUILD_BUG_ON in kernel_randomize_memory to
  * ensure that this order is correct and won't be changed.
  */
-static const unsigned long vaddr_start;
-static const unsigned long vaddr_end;
+static const unsigned long vaddr_start = __PAGE_OFFSET_BASE;
+static const unsigned long vaddr_end = VMALLOC_START;
+
+/* Default values */
+unsigned long page_offset_base = __PAGE_OFFSET_BASE;
+EXPORT_SYMBOL(page_offset_base);
 
 /*
  * Memory regions randomized by KASLR (except modules that use a separate logic
@@ -55,6 +59,7 @@ static __initdata struct kaslr_memory_region {
 	unsigned long *base;
 	unsigned long size_tb;
 } kaslr_regions[] = {
+	{ &page_offset_base, 64/* Maximum */ },
 };
 
 /* Get size in bytes used by the memory region */
@@ -77,12 +82,19 @@ void __init kernel_randomize_memory(void)
 {
 	size_t i;
 	unsigned long vaddr = vaddr_start;
-	unsigned long rand;
+	unsigned long rand, memory_tb;
 	struct rnd_state rand_state;
 	unsigned long remain_entropy;
 
 	if (!kaslr_memory_enabled())
 		return;
+
+	BUG_ON(kaslr_regions[0].base != &page_offset_base);
+	memory_tb = ((max_pfn << PAGE_SHIFT) >> TB_SHIFT);
+
+	/* Adapt phyiscal memory region size based on available memory */
+	if (memory_tb < kaslr_regions[0].size_tb)
+		kaslr_regions[0].size_tb = memory_tb;
 
 	/* Calculate entropy available between regions */
 	remain_entropy = vaddr_end - vaddr_start;
