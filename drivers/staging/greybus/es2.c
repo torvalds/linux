@@ -607,6 +607,47 @@ static void es2_cport_release(struct gb_host_device *hd, u16 cport_id)
 	ida_simple_remove(&hd->cport_id_map, cport_id);
 }
 
+static int cport_enable(struct gb_host_device *hd, u16 cport_id,
+			unsigned long flags)
+{
+	struct es2_ap_dev *es2 = hd_to_es2(hd);
+	struct usb_device *udev = es2->usb_dev;
+	struct gb_apb_request_cport_flags *req;
+	int ret;
+
+	req = kzalloc(sizeof(*req), GFP_KERNEL);
+	if (!req)
+		return -ENOMEM;
+
+	if (flags & GB_CONNECTION_FLAG_CONTROL)
+		req->flags |= GB_APB_CPORT_FLAG_CONTROL;
+	if (flags & GB_CONNECTION_FLAG_HIGH_PRIO)
+		req->flags |= GB_APB_CPORT_FLAG_HIGH_PRIO;
+
+	dev_dbg(&hd->dev, "%s - cport = %u, flags = %02x\n", __func__,
+			cport_id, req->flags);
+
+	ret = usb_control_msg(udev, usb_sndctrlpipe(udev, 0),
+				GB_APB_REQUEST_CPORT_FLAGS,
+				USB_DIR_OUT | USB_TYPE_VENDOR |
+				USB_RECIP_INTERFACE, cport_id, 0,
+				req, sizeof(*req), ES2_TIMEOUT);
+	if (ret != sizeof(*req)) {
+		dev_err(&udev->dev, "failed to set cport flags for port %d\n",
+				cport_id);
+		if (ret >= 0)
+			ret = -EIO;
+
+		goto out;
+	}
+
+	ret = 0;
+out:
+	kfree(req);
+
+	return ret;
+}
+
 static int cport_disable(struct gb_host_device *hd, u16 cport_id)
 {
 	int retval;
@@ -799,6 +840,7 @@ static struct gb_hd_driver es2_driver = {
 	.message_cancel			= message_cancel,
 	.cport_allocate			= es2_cport_allocate,
 	.cport_release			= es2_cport_release,
+	.cport_enable			= cport_enable,
 	.cport_disable			= cport_disable,
 	.latency_tag_enable		= latency_tag_enable,
 	.latency_tag_disable		= latency_tag_disable,

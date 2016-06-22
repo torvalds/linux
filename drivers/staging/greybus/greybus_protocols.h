@@ -225,6 +225,16 @@ struct gb_control_timesync_get_last_event_response {
 #define REQUEST_TIMESYNC_AUTHORITATIVE		0x0f
 #define REQUEST_TIMESYNC_GET_LAST_EVENT		0x10
 
+/* requests to set Greybus CPort flags */
+#define GB_APB_REQUEST_CPORT_FLAGS		0x11
+
+struct gb_apb_request_cport_flags {
+	u32	flags;
+#define GB_APB_CPORT_FLAG_CONTROL		0x01
+#define GB_APB_CPORT_FLAG_HIGH_PRIO		0x02
+} __packed;
+
+
 /* Firmware Download Protocol */
 
 /* Request Types */
