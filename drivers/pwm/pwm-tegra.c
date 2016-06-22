@@ -29,6 +29,7 @@
 #include <linux/pwm.h>
 #include <linux/platform_device.h>
 #include <linux/slab.h>
+#include <linux/reset.h>
 
 #define PWM_ENABLE	(1 << 31)
 #define PWM_DUTY_WIDTH	8
@@ -41,6 +42,7 @@ struct tegra_pwm_chip {
 	struct device *dev;
 
 	struct clk *clk;
+	struct reset_control*rst;
 
 	void __iomem *regs;
 };
@@ -187,6 +189,15 @@ static int tegra_pwm_probe(struct platform_device *pdev)
 	if (IS_ERR(pwm->clk))
 		return PTR_ERR(pwm->clk);
 
+	pwm->rst = devm_reset_control_get(&pdev->dev, "pwm");
+	if (IS_ERR(pwm->rst)) {
+		ret = PTR_ERR(pwm->rst);
+		dev_err(&pdev->dev, "Reset control is not found: %d\n", ret);
+		return ret;
+	}
+
+	reset_control_deassert(pwm->rst);
+
 	pwm->chip.dev = &pdev->dev;
 	pwm->chip.ops = &tegra_pwm_ops;
 	pwm->chip.base = -1;
@@ -195,6 +206,7 @@ static int tegra_pwm_probe(struct platform_device *pdev)
 	ret = pwmchip_add(&pwm->chip);
 	if (ret < 0) {
 		dev_err(&pdev->dev, "pwmchip_add() failed: %d\n", ret);
+		reset_control_assert(pwm->rst);
 		return ret;
 	}
 
@@ -205,9 +217,14 @@ static int tegra_pwm_remove(struct platform_device *pdev)
 {
 	struct tegra_pwm_chip *pc = platform_get_drvdata(pdev);
 	unsigned int i;
+	int err;
 
 	if (WARN_ON(!pc))
 		return -ENODEV;
+
+	err = clk_prepare_enable(pc->clk);
+	if (err < 0)
+		return err;
 
 	for (i = 0; i < pc->chip.npwm; i++) {
 		struct pwm_device *pwm = &pc->chip.pwms[i];
@@ -220,6 +237,9 @@ static int tegra_pwm_remove(struct platform_device *pdev)
 
 		clk_disable_unprepare(pc->clk);
 	}
+
+	reset_control_assert(pc->rst);
+	clk_disable_unprepare(pc->clk);
 
 	return pwmchip_remove(&pc->chip);
 }
