@@ -698,6 +698,7 @@ static void gb_timesync_ping(struct gb_timesync_svc *timesync_svc)
 
 	/* Have SVC generate a timesync ping */
 	timesync_svc->capture_ping = true;
+	timesync_svc->svc_ping_frame_time = 0;
 	ret = gb_svc_timesync_ping(svc, &timesync_svc->svc_ping_frame_time);
 	timesync_svc->capture_ping = false;
 	if (ret) {
@@ -709,6 +710,7 @@ static void gb_timesync_ping(struct gb_timesync_svc *timesync_svc)
 
 	/* Get the ping FrameTime from each APB/GPB */
 	hd = timesync_svc->timesync_hd->hd;
+	timesync_svc->timesync_hd->ping_frame_time = 0;
 	ret = hd->driver->timesync_get_last_event(hd,
 		&timesync_svc->timesync_hd->ping_frame_time);
 	if (ret)
@@ -717,6 +719,7 @@ static void gb_timesync_ping(struct gb_timesync_svc *timesync_svc)
 	list_for_each_entry(timesync_interface,
 			    &timesync_svc->interface_list, list) {
 		control = timesync_interface->interface->control;
+		timesync_interface->ping_frame_time = 0;
 		ping_frame_time = &timesync_interface->ping_frame_time;
 		ret = gb_control_timesync_get_last_event(control,
 							 ping_frame_time);
