@@ -69,6 +69,10 @@
 		serial4 = &uart5;
 		serial5 = &uart6;
 		serial6 = &uart7;
+		spi0 = &ecspi1;
+		spi1 = &ecspi2;
+		spi2 = &ecspi3;
+		spi3 = &ecspi4;
 	};
 
 	cpus {
@@ -608,6 +612,18 @@
 				status = "disabled";
 			};
 
+			ecspi4: ecspi@30630000 {
+				#address-cells = <1>;
+				#size-cells = <0>;
+				compatible = "fsl,imx7d-ecspi", "fsl,imx51-ecspi";
+				reg = <0x30630000 0x10000>;
+				interrupts = <GIC_SPI 34 IRQ_TYPE_LEVEL_HIGH>;
+				clocks = <&clks IMX7D_ECSPI4_ROOT_CLK>,
+					<&clks IMX7D_ECSPI4_ROOT_CLK>;
+				clock-names = "ipg", "per";
+				status = "disabled";
+			};
+
 			pwm1: pwm@30660000 {
 				compatible = "fsl,imx7d-pwm", "fsl,imx27-pwm";
 				reg = <0x30660000 0x10000>;
@@ -670,6 +686,42 @@
 			#size-cells = <1>;
 			reg = <0x30800000 0x400000>;
 			ranges;
+
+			ecspi1: ecspi@30820000 {
+				#address-cells = <1>;
+				#size-cells = <0>;
+				compatible = "fsl,imx7d-ecspi", "fsl,imx51-ecspi";
+				reg = <0x30820000 0x10000>;
+				interrupts = <GIC_SPI 31 IRQ_TYPE_LEVEL_HIGH>;
+				clocks = <&clks IMX7D_ECSPI1_ROOT_CLK>,
+					<&clks IMX7D_ECSPI1_ROOT_CLK>;
+				clock-names = "ipg", "per";
+				status = "disabled";
+			};
+
+			ecspi2: ecspi@30830000 {
+				#address-cells = <1>;
+				#size-cells = <0>;
+				compatible = "fsl,imx7d-ecspi", "fsl,imx51-ecspi";
+				reg = <0x30830000 0x10000>;
+				interrupts = <GIC_SPI 32 IRQ_TYPE_LEVEL_HIGH>;
+				clocks = <&clks IMX7D_ECSPI2_ROOT_CLK>,
+					<&clks IMX7D_ECSPI2_ROOT_CLK>;
+				clock-names = "ipg", "per";
+				status = "disabled";
+			};
+
+			ecspi3: ecspi@30840000 {
+				#address-cells = <1>;
+				#size-cells = <0>;
+				compatible = "fsl,imx7d-ecspi", "fsl,imx51-ecspi";
+				reg = <0x30840000 0x10000>;
+				interrupts = <GIC_SPI 33 IRQ_TYPE_LEVEL_HIGH>;
+				clocks = <&clks IMX7D_ECSPI3_ROOT_CLK>,
+					<&clks IMX7D_ECSPI3_ROOT_CLK>;
+				clock-names = "ipg", "per";
+				status = "disabled";
+			};
 
 			uart1: serial@30860000 {
 				compatible = "fsl,imx7d-uart",
