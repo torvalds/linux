@@ -465,7 +465,8 @@ phys_pmd_init(pmd_t *pmd_page, unsigned long paddr, unsigned long paddr_end,
 
 /*
  * Create PUD level page table mapping for physical addresses. The virtual
- * and physical address have to be aligned at this level.
+ * and physical address do not have to be aligned at this level. KASLR can
+ * randomize virtual addresses up to this level.
  * It returns the last physical address mapped.
  */
 static unsigned long __meminit
@@ -474,14 +475,18 @@ phys_pud_init(pud_t *pud_page, unsigned long paddr, unsigned long paddr_end,
 {
 	unsigned long pages = 0, paddr_next;
 	unsigned long paddr_last = paddr_end;
-	int i = pud_index(paddr);
+	unsigned long vaddr = (unsigned long)__va(paddr);
+	int i = pud_index(vaddr);
 
 	for (; i < PTRS_PER_PUD; i++, paddr = paddr_next) {
-		pud_t *pud = pud_page + pud_index(paddr);
+		pud_t *pud;
 		pmd_t *pmd;
 		pgprot_t prot = PAGE_KERNEL;
 
+		vaddr = (unsigned long)__va(paddr);
+		pud = pud_page + pud_index(vaddr);
 		paddr_next = (paddr & PUD_MASK) + PUD_SIZE;
+
 		if (paddr >= paddr_end) {
 			if (!after_bootmem &&
 			    !e820_any_mapped(paddr & PUD_MASK, paddr_next,
@@ -551,7 +556,7 @@ phys_pud_init(pud_t *pud_page, unsigned long paddr, unsigned long paddr_end,
 
 /*
  * Create page table mapping for the physical memory for specific physical
- * addresses. The virtual and physical addresses have to be aligned on PUD level
+ * addresses. The virtual and physical addresses have to be aligned on PMD level
  * down. It returns the last physical address mapped.
  */
 unsigned long __meminit
