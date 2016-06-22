@@ -77,6 +77,7 @@
  */
 #define FH_MEM_LOWER_BOUND                   (0x1000)
 #define FH_MEM_UPPER_BOUND                   (0x2000)
+#define TFH_MEM_LOWER_BOUND                  (0xA06000)
 
 /**
  * Keep-Warm (KW) buffer base address.
@@ -118,10 +119,17 @@
 #define FH_MEM_CBBC_16_19_UPPER_BOUND		(FH_MEM_LOWER_BOUND + 0xC00)
 #define FH_MEM_CBBC_20_31_LOWER_BOUND		(FH_MEM_LOWER_BOUND + 0xB20)
 #define FH_MEM_CBBC_20_31_UPPER_BOUND		(FH_MEM_LOWER_BOUND + 0xB80)
+/* a000 TFD table address, 64 bit */
+#define TFH_TFDQ_CBB_TABLE			(TFH_MEM_LOWER_BOUND + 0x1C00)
 
 /* Find TFD CB base pointer for given queue */
-static inline unsigned int FH_MEM_CBBC_QUEUE(unsigned int chnl)
+static inline unsigned int FH_MEM_CBBC_QUEUE(struct iwl_trans *trans,
+					     unsigned int chnl)
 {
+	if (trans->cfg->use_tfh) {
+		WARN_ON_ONCE(chnl >= 64);
+		return TFH_TFDQ_CBB_TABLE + 8 * chnl;
+	}
 	if (chnl < 16)
 		return FH_MEM_CBBC_0_15_LOWER_BOUND + 4 * chnl;
 	if (chnl < 20)
@@ -130,6 +138,36 @@ static inline unsigned int FH_MEM_CBBC_QUEUE(unsigned int chnl)
 	return FH_MEM_CBBC_20_31_LOWER_BOUND + 4 * (chnl - 20);
 }
 
+/* a000 configuration registers */
+
+/*
+ * TFH Configuration register.
+ *
+ * BIT fields:
+ *
+ * Bits 3:0:
+ * Define the maximum number of pending read requests.
+ * Maximum configration value allowed is 0xC
+ * Bits 9:8:
+ * Define the maximum transfer size. (64 / 128 / 256)
+ * Bit 10:
+ * When bit is set and transfer size is set to 128B, the TFH will enable
+ * reading chunks of more than 64B only if the read address is aligned to 128B.
+ * In case of DRAM read address which is not aligned to 128B, the TFH will
+ * enable transfer size which doesn't cross 64B DRAM address boundary.
+*/
+#define TFH_TRANSFER_MODE		(TFH_MEM_LOWER_BOUND + 0x1F40)
+#define TFH_TRANSFER_MAX_PENDING_REQ	0xc
+#define TFH_CHUNK_SIZE_128			BIT(8)
+#define TFH_CHUNK_SPLIT_MODE		BIT(10)
+/*
+ * Defines the offset address in dwords referring from the beginning of the
+ * Tx CMD which will be updated in DRAM.
+ * Note that the TFH offset address for Tx CMD update is always referring to
+ * the start of the TFD first TB.
+ * In case of a DRAM Tx CMD update the TFH will update PN and Key ID
+ */
+#define TFH_TXCMD_UPDATE_CFG		(TFH_MEM_LOWER_BOUND + 0x1F48)
 
 /**
  * Rx SRAM Control and Status Registers (RSCSR)

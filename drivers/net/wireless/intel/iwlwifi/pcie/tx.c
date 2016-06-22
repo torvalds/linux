@@ -70,6 +70,7 @@
  * Tx queue resumed.
  *
  ***************************************************/
+
 static int iwl_queue_space(const struct iwl_queue *q)
 {
 	unsigned int max;
@@ -575,8 +576,13 @@ static int iwl_pcie_txq_init(struct iwl_trans *trans, struct iwl_txq *txq,
 	 * Tell nic where to find circular buffer of Tx Frame Descriptors for
 	 * given Tx queue, and enable the DMA channel used for that queue.
 	 * Circular buffer (TFD queue in DRAM) physical base address */
-	iwl_write_direct32(trans, FH_MEM_CBBC_QUEUE(txq_id),
-			   txq->q.dma_addr >> 8);
+	if (trans->cfg->use_tfh)
+		iwl_write_direct64(trans,
+				   FH_MEM_CBBC_QUEUE(trans, txq_id),
+				   txq->q.dma_addr);
+	else
+		iwl_write_direct32(trans, FH_MEM_CBBC_QUEUE(trans, txq_id),
+				   txq->q.dma_addr >> 8);
 
 	return 0;
 }
@@ -783,9 +789,14 @@ void iwl_trans_pcie_tx_reset(struct iwl_trans *trans)
 	for (txq_id = 0; txq_id < trans->cfg->base_params->num_of_queues;
 	     txq_id++) {
 		struct iwl_txq *txq = &trans_pcie->txq[txq_id];
-
-		iwl_write_direct32(trans, FH_MEM_CBBC_QUEUE(txq_id),
-				   txq->q.dma_addr >> 8);
+		if (trans->cfg->use_tfh)
+			iwl_write_direct64(trans,
+					   FH_MEM_CBBC_QUEUE(trans, txq_id),
+					   txq->q.dma_addr);
+		else
+			iwl_write_direct32(trans,
+					   FH_MEM_CBBC_QUEUE(trans, txq_id),
+					   txq->q.dma_addr >> 8);
 		iwl_pcie_txq_unmap(trans, txq_id);
 		txq->q.read_ptr = 0;
 		txq->q.write_ptr = 0;
@@ -992,6 +1003,12 @@ int iwl_pcie_tx_init(struct iwl_trans *trans)
 			goto error;
 		}
 	}
+
+	if (trans->cfg->use_tfh)
+		iwl_write_direct32(trans, TFH_TRANSFER_MODE,
+				   TFH_TRANSFER_MAX_PENDING_REQ |
+				   TFH_CHUNK_SIZE_128 |
+				   TFH_CHUNK_SPLIT_MODE);
 
 	iwl_set_bits_prph(trans, SCD_GP_CTRL, SCD_GP_CTRL_AUTO_ACTIVE_MODE);
 	if (trans->cfg->base_params->num_of_queues > 20)

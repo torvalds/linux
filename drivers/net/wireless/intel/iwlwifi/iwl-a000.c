@@ -115,7 +115,8 @@ static const struct iwl_ht_params iwl_a000_ht_params = {
 	.apmg_not_supported = true,					\
 	.mq_rx_supported = true,					\
 	.vht_mu_mimo_supported = true,					\
-	.mac_addr_from_csr = true
+	.mac_addr_from_csr = true,					\
+	.use_tfh = true
 
 const struct iwl_cfg iwla000_2ac_cfg = {
 		.name = "Intel(R) Dual Band Wireless AC a000",

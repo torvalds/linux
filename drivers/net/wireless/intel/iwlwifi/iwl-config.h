@@ -365,7 +365,8 @@ struct iwl_cfg {
 	    mq_rx_supported:1,
 	    vht_mu_mimo_supported:1,
 	    rf_id:1,
-	    integrated:1;
+	    integrated:1,
+	    use_tfh:1;
 	u8 valid_tx_ant;
 	u8 valid_rx_ant;
 	u8 non_shared_ant;
