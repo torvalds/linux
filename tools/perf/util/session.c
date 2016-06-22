@@ -178,6 +178,8 @@ static void perf_session__delete_threads(struct perf_session *session)
 
 void perf_session__delete(struct perf_session *session)
 {
+	if (session == NULL)
+		return;
 	auxtrace__free(session);
 	auxtrace_index__free(&session->auxtrace_index);
 	perf_session__destroy_kernel_maps(session);

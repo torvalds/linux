@@ -1426,8 +1426,7 @@ static int kvm_events_live(struct perf_kvm_stat *kvm,
 	err = kvm_events_live_report(kvm);
 
 out:
-	if (kvm->session)
-		perf_session__delete(kvm->session);
+	perf_session__delete(kvm->session);
 	kvm->session = NULL;
 	perf_evlist__delete(kvm->evlist);
 

@@ -419,8 +419,7 @@ int cmd_buildid_cache(int argc, const char **argv,
 		pr_warning("Couldn't add %s\n", kcore_filename);
 
 out:
-	if (session)
-		perf_session__delete(session);
+	perf_session__delete(session);
 
 	return ret;
 }
