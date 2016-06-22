@@ -403,6 +403,7 @@ dtb-$(CONFIG_SOC_IMX7D) += \
 	imx7d-12x12-lpddr3-arm2-qspi.dtb \
 	imx7d-12x12-lpddr3-arm2-sai.dtb \
 	imx7d-12x12-lpddr3-arm2-mqs.dtb \
+	imx7d-12x12-lpddr3-arm2-pcie.dtb \
 	imx7d-19x19-lpddr2-arm2.dtb \
 	imx7d-sdb.dtb \
 	imx7d-sdb-epdc.dtb \
