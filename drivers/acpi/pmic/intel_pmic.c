@@ -216,7 +216,7 @@ static acpi_status intel_pmic_regs_handler(u32 function,
 		void *handler_context, void *region_context)
 {
 	struct intel_pmic_opregion *opregion = region_context;
-	int result;
+	int result = 0;
 
 	switch (address) {
 	case 0:
