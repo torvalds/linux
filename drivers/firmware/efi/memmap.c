@@ -140,6 +140,31 @@ int __init efi_memmap_init_late(phys_addr_t addr, unsigned long size)
 }
 
 /**
+ * efi_memmap_install - Install a new EFI memory map in efi.memmap
+ * @addr: Physical address of the memory map
+ * @nr_map: Number of entries in the memory map
+ *
+ * Unlike efi_memmap_init_*(), this function does not allow the caller
+ * to switch from early to late mappings. It simply uses the existing
+ * mapping function and installs the new memmap.
+ *
+ * Returns zero on success, a negative error code on failure.
+ */
+int __init efi_memmap_install(phys_addr_t addr, unsigned int nr_map)
+{
+	struct efi_memory_map_data data;
+
+	efi_memmap_unmap();
+
+	data.phys_map = addr;
+	data.size = efi.memmap.desc_size * nr_map;
+	data.desc_version = efi.memmap.desc_version;
+	data.desc_size = efi.memmap.desc_size;
+
+	return __efi_memmap_init(&data, efi.memmap.late);
+}
+
+/**
  * efi_memmap_split_count - Count number of additional EFI memmap entries
  * @md: EFI memory descriptor to split
  * @range: Address range (start, end) to split around
