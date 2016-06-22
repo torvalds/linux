@@ -468,12 +468,6 @@ static void vop_enable(struct drm_crtc *crtc)
 	if (vop->is_enabled)
 		return;
 
-	ret = pm_runtime_get_sync(vop->dev);
-	if (ret < 0) {
-		dev_err(vop->dev, "failed to get pm runtime: %d\n", ret);
-		return;
-	}
-
 	ret = clk_enable(vop->hclk);
 	if (ret < 0) {
 		dev_err(vop->dev, "failed to enable hclk - %d\n", ret);
@@ -490,6 +484,12 @@ static void vop_enable(struct drm_crtc *crtc)
 	if (ret < 0) {
 		dev_err(vop->dev, "failed to enable aclk - %d\n", ret);
 		goto err_disable_dclk;
+	}
+
+	ret = pm_runtime_get_sync(vop->dev);
+	if (ret < 0) {
+		dev_err(vop->dev, "failed to get pm runtime: %d\n", ret);
+		return;
 	}
 
 	/*
@@ -582,10 +582,10 @@ static void vop_crtc_disable(struct drm_crtc *crtc)
 	 */
 	rockchip_drm_dma_detach_device(vop->drm_dev, vop->dev);
 
+	pm_runtime_put(vop->dev);
 	clk_disable(vop->dclk);
 	clk_disable(vop->aclk);
 	clk_disable(vop->hclk);
-	pm_runtime_put(vop->dev);
 }
 
 static void vop_plane_destroy(struct drm_plane *plane)
