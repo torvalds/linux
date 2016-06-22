@@ -36,7 +36,7 @@ static bool fsl_mc_is_root_dprc(struct device *dev);
  */
 static int fsl_mc_bus_match(struct device *dev, struct device_driver *drv)
 {
-	const struct fsl_mc_device_match_id *id;
+	const struct fsl_mc_device_id *id;
 	struct fsl_mc_device *mc_dev = to_fsl_mc_device(dev);
 	struct fsl_mc_driver *mc_drv = to_fsl_mc_driver(drv);
 	bool found = false;
