@@ -579,10 +579,6 @@ void fsl_mc_device_remove(struct fsl_mc_device *mc_dev)
 
 	if (strcmp(mc_dev->obj_desc.type, "dprc") == 0) {
 		mc_bus = to_fsl_mc_bus(mc_dev);
-		if (mc_dev->mc_io) {
-			fsl_destroy_mc_io(mc_dev->mc_io);
-			mc_dev->mc_io = NULL;
-		}
 
 		if (fsl_mc_is_root_dprc(&mc_dev->dev)) {
 			if (atomic_read(&root_dprc_count) > 0)
@@ -810,6 +806,10 @@ static int fsl_mc_bus_remove(struct platform_device *pdev)
 		return -EINVAL;
 
 	fsl_mc_device_remove(mc->root_mc_bus_dev);
+
+	fsl_destroy_mc_io(mc->root_mc_bus_dev->mc_io);
+	mc->root_mc_bus_dev->mc_io = NULL;
+
 	dev_info(&pdev->dev, "Root MC bus device removed");
 	return 0;
 }
