@@ -796,23 +796,44 @@ struct oct_mdio_cmd {
 
 #define OCT_LINK_STATS_SIZE   (sizeof(struct oct_link_stats))
 
+/* intrmod: max. packet rate threshold */
+#define LIO_INTRMOD_MAXPKT_RATETHR	196608
+/* intrmod: min. packet rate threshold */
+#define LIO_INTRMOD_MINPKT_RATETHR	9216
+/* intrmod: max. packets to trigger interrupt */
+#define LIO_INTRMOD_RXMAXCNT_TRIGGER	384
+/* intrmod: min. packets to trigger interrupt */
+#define LIO_INTRMOD_RXMINCNT_TRIGGER	1
+/* intrmod: max. time to trigger interrupt */
+#define LIO_INTRMOD_RXMAXTMR_TRIGGER	128
+/* 66xx:intrmod: min. time to trigger interrupt
+ * (value of 1 is optimum for TCP_RR)
+ */
+#define LIO_INTRMOD_RXMINTMR_TRIGGER	1
+
+/* intrmod: max. packets to trigger interrupt */
+#define LIO_INTRMOD_TXMAXCNT_TRIGGER	64
+/* intrmod: min. packets to trigger interrupt */
+#define LIO_INTRMOD_TXMINCNT_TRIGGER	0
+
+/* intrmod: poll interval in seconds */
 #define LIO_INTRMOD_CHECK_INTERVAL  1
-#define LIO_INTRMOD_MAXPKT_RATETHR  196608 /* max pkt rate threshold */
-#define LIO_INTRMOD_MINPKT_RATETHR  9216   /* min pkt rate threshold */
-#define LIO_INTRMOD_MAXCNT_TRIGGER  384    /* max pkts to trigger interrupt */
-#define LIO_INTRMOD_MINCNT_TRIGGER  1      /* min pkts to trigger interrupt */
-#define LIO_INTRMOD_MAXTMR_TRIGGER  128    /* max time to trigger interrupt */
-#define LIO_INTRMOD_MINTMR_TRIGGER  32     /* min time to trigger interrupt */
 
 struct oct_intrmod_cfg {
-	u64 intrmod_enable;
-	u64 intrmod_check_intrvl;
-	u64 intrmod_maxpkt_ratethr;
-	u64 intrmod_minpkt_ratethr;
-	u64 intrmod_maxcnt_trigger;
-	u64 intrmod_maxtmr_trigger;
-	u64 intrmod_mincnt_trigger;
-	u64 intrmod_mintmr_trigger;
+	u64 rx_enable;
+	u64 tx_enable;
+	u64 check_intrvl;
+	u64 maxpkt_ratethr;
+	u64 minpkt_ratethr;
+	u64 rx_maxcnt_trigger;
+	u64 rx_mincnt_trigger;
+	u64 rx_maxtmr_trigger;
+	u64 rx_mintmr_trigger;
+	u64 tx_mincnt_trigger;
+	u64 tx_maxcnt_trigger;
+	u64 rx_frames;
+	u64 tx_frames;
+	u64 rx_usecs;
 };
 
 #define BASE_QUEUE_NOT_REQUESTED 65535
