@@ -72,12 +72,6 @@ static inline int btrfs_is_continuous_delayed_item(
 	return 0;
 }
 
-static inline struct btrfs_delayed_root *btrfs_get_delayed_root(
-							struct btrfs_root *root)
-{
-	return root->fs_info->delayed_root;
-}
-
 static struct btrfs_delayed_node *btrfs_get_delayed_node(struct inode *inode)
 {
 	struct btrfs_inode *btrfs_inode = BTRFS_I(inode);
@@ -1163,7 +1157,7 @@ static int __btrfs_run_delayed_items(struct btrfs_trans_handle *trans,
 	block_rsv = trans->block_rsv;
 	trans->block_rsv = &fs_info->delayed_block_rsv;
 
-	delayed_root = btrfs_get_delayed_root(root);
+	delayed_root = fs_info->delayed_root;
 
 	curr_node = btrfs_first_delayed_node(delayed_root);
 	while (curr_node && (!count || (count && nr--))) {
@@ -1390,11 +1384,9 @@ static int btrfs_wq_run_delayed_node(struct btrfs_delayed_root *delayed_root,
 	return 0;
 }
 
-void btrfs_assert_delayed_root_empty(struct btrfs_root *root)
+void btrfs_assert_delayed_root_empty(struct btrfs_fs_info *fs_info)
 {
-	struct btrfs_delayed_root *delayed_root;
-	delayed_root = btrfs_get_delayed_root(root);
-	WARN_ON(btrfs_first_delayed_node(delayed_root));
+	WARN_ON(btrfs_first_delayed_node(fs_info->delayed_root));
 }
 
 static int could_end_wait(struct btrfs_delayed_root *delayed_root, int seq)
@@ -1415,7 +1407,7 @@ void btrfs_balance_delayed_items(struct btrfs_root *root)
 	struct btrfs_delayed_root *delayed_root;
 	struct btrfs_fs_info *fs_info = root->fs_info;
 
-	delayed_root = btrfs_get_delayed_root(root);
+	delayed_root = fs_info->delayed_root;
 
 	if (atomic_read(&delayed_root->items) < BTRFS_DELAYED_BACKGROUND)
 		return;
@@ -1980,14 +1972,11 @@ void btrfs_kill_all_delayed_nodes(struct btrfs_root *root)
 	}
 }
 
-void btrfs_destroy_delayed_inodes(struct btrfs_root *root)
+void btrfs_destroy_delayed_inodes(struct btrfs_fs_info *fs_info)
 {
-	struct btrfs_delayed_root *delayed_root;
 	struct btrfs_delayed_node *curr_node, *prev_node;
 
-	delayed_root = btrfs_get_delayed_root(root);
-
-	curr_node = btrfs_first_delayed_node(delayed_root);
+	curr_node = btrfs_first_delayed_node(fs_info->delayed_root);
 	while (curr_node) {
 		__btrfs_kill_delayed_node(curr_node);
 

@@ -4587,8 +4587,8 @@ void btrfs_cleanup_one_transaction(struct btrfs_transaction *cur_trans,
 	cur_trans->state = TRANS_STATE_UNBLOCKED;
 	wake_up(&fs_info->transaction_wait);
 
-	btrfs_destroy_delayed_inodes(root);
-	btrfs_assert_delayed_root_empty(root);
+	btrfs_destroy_delayed_inodes(fs_info);
+	btrfs_assert_delayed_root_empty(fs_info);
 
 	btrfs_destroy_marked_extents(root, &cur_trans->dirty_pages,
 				     EXTENT_DIRTY);
@@ -4649,8 +4649,8 @@ static int btrfs_cleanup_transaction(struct btrfs_root *root)
 	}
 	spin_unlock(&fs_info->trans_lock);
 	btrfs_destroy_all_ordered_extents(fs_info);
-	btrfs_destroy_delayed_inodes(root);
-	btrfs_assert_delayed_root_empty(root);
+	btrfs_destroy_delayed_inodes(fs_info);
+	btrfs_assert_delayed_root_empty(fs_info);
 	btrfs_destroy_pinned_extent(root, fs_info->pinned_extents);
 	btrfs_destroy_all_delalloc_inodes(fs_info);
 	mutex_unlock(&fs_info->transaction_kthread_mutex);

@@ -2133,7 +2133,7 @@ int btrfs_commit_transaction(struct btrfs_trans_handle *trans,
 	 * make sure none of the code above managed to slip in a
 	 * delayed item
 	 */
-	btrfs_assert_delayed_root_empty(root);
+	btrfs_assert_delayed_root_empty(fs_info);
 
 	WARN_ON(cur_trans != trans->transaction);
 
