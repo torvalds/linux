@@ -17,11 +17,19 @@
 /* Timeout, in jiffies, within which the next request must be received */
 #define NEXT_REQ_TIMEOUT_J	msecs_to_jiffies(1000)
 
+enum next_request_type {
+	NEXT_REQ_FIRMWARE_SIZE,
+	NEXT_REQ_GET_FIRMWARE,
+	NEXT_REQ_READY_TO_BOOT,
+	NEXT_REQ_MODE_SWITCH,
+};
+
 struct gb_bootrom {
 	struct gb_connection	*connection;
 	const struct firmware	*fw;
 	u8			protocol_major;
 	u8			protocol_minor;
+	enum next_request_type	next_request;
 	struct delayed_work	dwork;
 	struct mutex		mutex; /* Protects bootrom->fw */
 };
@@ -40,14 +48,41 @@ static void gb_bootrom_timedout(struct work_struct *work)
 	struct delayed_work *dwork = to_delayed_work(work);
 	struct gb_bootrom *bootrom = container_of(dwork, struct gb_bootrom, dwork);
 	struct device *dev = &bootrom->connection->bundle->dev;
+	const char *reason;
 
-	dev_err(dev, "Timed out waiting for request from the Module\n");
+	switch (bootrom->next_request) {
+	case NEXT_REQ_FIRMWARE_SIZE:
+		reason = "Firmware Size Request";
+		break;
+	case NEXT_REQ_GET_FIRMWARE:
+		reason = "Get Firmware Request";
+		break;
+	case NEXT_REQ_READY_TO_BOOT:
+		reason = "Ready to Boot Request";
+		break;
+	case NEXT_REQ_MODE_SWITCH:
+		reason = "Interface Mode Switch";
+		break;
+	default:
+		reason = NULL;
+		dev_err(dev, "Invalid next-request: %u", bootrom->next_request);
+		break;
+	}
+
+	dev_err(dev, "Timed out waiting for %s from the Module\n", reason);
 
 	mutex_lock(&bootrom->mutex);
 	free_firmware(bootrom);
 	mutex_unlock(&bootrom->mutex);
 
 	/* TODO: Power-off Module ? */
+}
+
+static void gb_bootrom_set_timeout(struct gb_bootrom *bootrom,
+			enum next_request_type next, unsigned long timeout)
+{
+	bootrom->next_request = next;
+	schedule_delayed_work(&bootrom->dwork, timeout);
 }
 
 /*
@@ -175,7 +210,8 @@ unlock:
 
 queue_work:
 	/* Refresh timeout */
-	schedule_delayed_work(&bootrom->dwork, NEXT_REQ_TIMEOUT_J);
+	gb_bootrom_set_timeout(bootrom, NEXT_REQ_GET_FIRMWARE,
+			       NEXT_REQ_TIMEOUT_J);
 
 	return ret;
 }
@@ -188,6 +224,7 @@ static int gb_bootrom_get_firmware(struct gb_operation *op)
 	struct gb_bootrom_get_firmware_response *firmware_response;
 	struct device *dev = &op->connection->bundle->dev;
 	unsigned int offset, size;
+	enum next_request_type next_request;
 	int ret = 0;
 
 	/* Disable timeouts */
@@ -239,7 +276,12 @@ unlock:
 
 queue_work:
 	/* Refresh timeout */
-	schedule_delayed_work(&bootrom->dwork, NEXT_REQ_TIMEOUT_J);
+	if (!ret && (offset + size == fw->size))
+		next_request = NEXT_REQ_READY_TO_BOOT;
+	else
+		next_request = NEXT_REQ_GET_FIRMWARE;
+
+	gb_bootrom_set_timeout(bootrom, next_request, NEXT_REQ_TIMEOUT_J);
 
 	return ret;
 }
@@ -284,7 +326,8 @@ queue_work:
 	 * send a new hotplug request, which shall get rid of the bootrom
 	 * connection. As that can take some time, increase the timeout a bit.
 	 */
-	schedule_delayed_work(&bootrom->dwork, 5 * NEXT_REQ_TIMEOUT_J);
+	gb_bootrom_set_timeout(bootrom, NEXT_REQ_MODE_SWITCH,
+			       5 * NEXT_REQ_TIMEOUT_J);
 
 	return ret;
 }
@@ -403,7 +446,8 @@ static int gb_bootrom_probe(struct gb_bundle *bundle,
 	}
 
 	/* Refresh timeout */
-	schedule_delayed_work(&bootrom->dwork, NEXT_REQ_TIMEOUT_J);
+	gb_bootrom_set_timeout(bootrom, NEXT_REQ_FIRMWARE_SIZE,
+			       NEXT_REQ_TIMEOUT_J);
 
 	dev_dbg(&bundle->dev, "AP_READY sent\n");
 
