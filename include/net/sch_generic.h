@@ -75,13 +75,14 @@ struct Qdisc {
 	/*
 	 * For performance sake on SMP, we put highly modified fields at the end
 	 */
-	struct Qdisc		*next_sched ____cacheline_aligned_in_smp;
-	struct sk_buff		*gso_skb;
-	unsigned long		state;
+	struct sk_buff		*gso_skb ____cacheline_aligned_in_smp;
 	struct sk_buff_head	q;
 	struct gnet_stats_basic_packed bstats;
 	seqcount_t		running;
 	struct gnet_stats_queue	qstats;
+	unsigned long		state;
+	struct Qdisc            *next_sched;
+	struct sk_buff		*skb_bad_txq;
 	struct rcu_head		rcu_head;
 	int			padded;
 	atomic_t		refcnt;
