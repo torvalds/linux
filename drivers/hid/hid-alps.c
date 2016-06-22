@@ -98,8 +98,6 @@ struct u1_dev {
 	u32	sp_btn_cnt;
 };
 
-static struct u1_dev *priv;
-
 static int u1_read_write_register(struct hid_device *hdev, u32 address,
 	u8 *read_val, u8 write_val, bool read_flag)
 {
@@ -108,15 +106,9 @@ static int u1_read_write_register(struct hid_device *hdev, u32 address,
 	u8 *input;
 	u8 *readbuf;
 
-	input = kzalloc(sizeof(u8)*U1_FEATURE_REPORT_LEN, GFP_KERNEL);
+	input = kzalloc(U1_FEATURE_REPORT_LEN, GFP_KERNEL);
 	if (!input)
 		return -ENOMEM;
-
-	readbuf = kzalloc(sizeof(u8)*U1_FEATURE_REPORT_LEN, GFP_KERNEL);
-	if (!readbuf) {
-		kfree(input);
-		return -ENOMEM;
-	}
 
 	input[0] = U1_FEATURE_REPORT_ID;
 	if (read_flag) {
@@ -136,8 +128,8 @@ static int u1_read_write_register(struct hid_device *hdev, u32 address,
 
 	input[7] = check_sum;
 	ret = hid_hw_raw_request(hdev, U1_FEATURE_REPORT_ID, input,
-			sizeof(u8)*U1_FEATURE_REPORT_LEN, HID_FEATURE_REPORT,
-			HID_REQ_SET_REPORT);
+			U1_FEATURE_REPORT_LEN,
+			HID_FEATURE_REPORT, HID_REQ_SET_REPORT);
 
 	if (ret < 0) {
 		dev_err(&hdev->dev, "failed to read command (%d)\n", ret);
@@ -145,8 +137,14 @@ static int u1_read_write_register(struct hid_device *hdev, u32 address,
 	}
 
 	if (read_flag) {
+		readbuf = kzalloc(U1_FEATURE_REPORT_LEN, GFP_KERNEL);
+		if (!readbuf) {
+			kfree(input);
+			return -ENOMEM;
+		}
+
 		ret = hid_hw_raw_request(hdev, U1_FEATURE_REPORT_ID, readbuf,
-				sizeof(u8)*U1_FEATURE_REPORT_LEN,
+				U1_FEATURE_REPORT_LEN,
 				HID_FEATURE_REPORT, HID_REQ_GET_REPORT);
 
 		if (ret < 0) {
@@ -155,24 +153,23 @@ static int u1_read_write_register(struct hid_device *hdev, u32 address,
 		}
 
 		*read_val = readbuf[6];
+
+		kfree(readbuf);
 	}
 
-	kfree(input);
-	kfree(readbuf);
-	return 0;
+	ret = 0;
 
 exit:
 	kfree(input);
-	kfree(readbuf);
 	return ret;
 }
 
 static int alps_raw_event(struct hid_device *hdev,
 		struct hid_report *report, u8 *data, int size)
 {
-	int x[MAX_TOUCHES], y[MAX_TOUCHES], z[MAX_TOUCHES];
-	int i, left, right, middle;
-	short sp_x, sp_y, sp_z;
+	unsigned int x, y, z;
+	int i;
+	short sp_x, sp_y;
 	struct u1_dev *hdata = hid_get_drvdata(hdev);
 
 	switch (data[0]) {
@@ -182,16 +179,15 @@ static int alps_raw_event(struct hid_device *hdev,
 		break;
 	case U1_ABSOLUTE_REPORT_ID:
 		for (i = 0; i < MAX_TOUCHES; i++) {
-			x[i] = (data[3+(5*i)] | (data[4+(5*i)] << 8));
-			y[i] = (data[5+(5*i)] | (data[6+(5*i)] << 8));
-			z[i] = data[7+(5*i)] & 0x7F;
-			left = data[1] & 0x1;
-			right = (data[1] & 0x2) >> 1;
-			middle = (data[1] & 0x4) >> 2;
+			u8 *contact = &data[i * 5];
+
+			x = get_unaligned_le16(contact + 3);
+			y = get_unaligned_le16(contact + 5);
+			z = contact[7] & 0x7F;
 
 			input_mt_slot(hdata->input, i);
 
-			if (z[i] != 0) {
+			if (z != 0) {
 				input_mt_report_slot_state(hdata->input,
 					MT_TOOL_FINGER, 1);
 			} else {
@@ -200,42 +196,43 @@ static int alps_raw_event(struct hid_device *hdev,
 				break;
 			}
 
-			input_event(hdata->input, EV_ABS,
-				ABS_MT_POSITION_X, x[i]);
-			input_event(hdata->input, EV_ABS,
-				ABS_MT_POSITION_Y, y[i]);
-			input_event(hdata->input, EV_ABS,
-				ABS_MT_PRESSURE, z[i]);
+			input_report_abs(hdata->input, ABS_MT_POSITION_X, x);
+			input_report_abs(hdata->input, ABS_MT_POSITION_Y, y);
+			input_report_abs(hdata->input, ABS_MT_PRESSURE, z);
+
 		}
 
 		input_mt_sync_frame(hdata->input);
-		input_sync(hdata->input);
 
-		input_event(hdata->input, EV_KEY, BTN_LEFT, left);
-		input_event(hdata->input, EV_KEY, BTN_RIGHT, right);
-		input_event(hdata->input, EV_KEY, BTN_MIDDLE, middle);
+		input_report_key(hdata->input, BTN_LEFT,
+			data[1] & 0x1);
+		input_report_key(hdata->input, BTN_RIGHT,
+			(data[1] & 0x2));
+		input_report_key(hdata->input, BTN_MIDDLE,
+			(data[1] & 0x4));
+
+		input_sync(hdata->input);
 
 		return 1;
 
 	case U1_SP_ABSOLUTE_REPORT_ID:
-		sp_x = (data[2] | (data[3] << 8));
-		sp_y = (data[4] | (data[5] << 8));
-		sp_z = (data[6] | data[7]) & 0x7FFF;
-		left = data[1] & 0x1;
-		right = (data[1] & 0x2) >> 1;
-		middle = (data[1] & 0x4) >> 2;
+		sp_x = get_unaligned_le16(data+2);
+		sp_y = get_unaligned_le16(data+4);
 
 		sp_x = sp_x / 8;
 		sp_y = sp_y / 8;
 
-		input_event(priv->input2, EV_REL, REL_X, sp_x);
-		input_event(priv->input2, EV_REL, REL_Y, sp_y);
+		input_report_rel(hdata->input2, REL_X, sp_x);
+		input_report_rel(hdata->input2, REL_Y, sp_y);
 
-		input_event(priv->input2, EV_KEY, BTN_LEFT, left);
-		input_event(priv->input2, EV_KEY, BTN_RIGHT, right);
-		input_event(priv->input2, EV_KEY, BTN_MIDDLE, middle);
+		input_report_key(hdata->input2, BTN_LEFT,
+			data[1] & 0x1);
+		input_report_key(hdata->input2, BTN_RIGHT,
+			(data[1] & 0x2));
+		input_report_key(hdata->input2, BTN_MIDDLE,
+			(data[1] & 0x4));
 
-		input_sync(priv->input2);
+		input_sync(hdata->input2);
 
 		return 1;
 	}
@@ -264,15 +261,6 @@ static int alps_input_configured(struct hid_device *hdev, struct hid_input *hi)
 	struct u1_dev devInfo;
 	int ret;
 	int res_x, res_y, i;
-
-	/* Check device product ID */
-	switch (hdev->product) {
-	case HID_PRODUCT_ID_U1:
-	case HID_PRODUCT_ID_U1_DUAL:
-		break;
-	default:
-		return 0;
-	}
 
 	data->input = input;
 
@@ -393,20 +381,13 @@ static int alps_input_configured(struct hid_device *hdev, struct hid_input *hi)
 	/* Stick device initialization */
 	if (devInfo.dev_type & U1_DEVTYPE_SP_SUPPORT) {
 
-		priv = kzalloc(sizeof(struct u1_dev), GFP_KERNEL);
-		if (!priv) {
-			hid_device_io_stop(hdev);
-			hid_hw_close(hdev);
-			return -ENOMEM;
-		}
-
 		input2 = input_allocate_device();
 		if (!input2) {
 			input_free_device(input2);
 			goto exit;
 		}
 
-		priv->input2 = input2;
+		data->input2 = input2;
 
 		devInfo.dev_ctrl |= U1_SP_ABS_MODE;
 		ret = u1_read_write_register(hdev, ADDRESS_U1_DEV_CTRL_1,
@@ -444,7 +425,7 @@ static int alps_input_configured(struct hid_device *hdev, struct hid_input *hi)
 		__set_bit(INPUT_PROP_POINTER, input2->propbit);
 		__set_bit(INPUT_PROP_POINTING_STICK, input2->propbit);
 
-		if (input_register_device(priv->input2)) {
+		if (input_register_device(data->input2)) {
 			input_free_device(input2);
 			goto exit;
 		}
@@ -495,12 +476,11 @@ static int alps_probe(struct hid_device *hdev, const struct hid_device_id *id)
 static void alps_remove(struct hid_device *hdev)
 {
 	hid_hw_stop(hdev);
-	kfree(priv);
 }
 
 static const struct hid_device_id alps_id[] = {
 	{ HID_DEVICE(HID_BUS_ANY, HID_GROUP_ANY,
-		USB_VENDOR_ID_ALPS_JP, HID_ANY_ID) },
+		USB_VENDOR_ID_ALPS_JP, HID_DEVICE_ID_ALPS_U1_DUAL) },
 	{ }
 };
 MODULE_DEVICE_TABLE(hid, alps_id);
