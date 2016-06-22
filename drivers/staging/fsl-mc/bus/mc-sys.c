@@ -53,8 +53,20 @@
 #define MC_CMD_COMPLETION_POLLING_MIN_SLEEP_USECS    10
 #define MC_CMD_COMPLETION_POLLING_MAX_SLEEP_USECS    500
 
-#define MC_CMD_HDR_READ_CMDID(_hdr) \
-	((u16)mc_dec((_hdr), MC_CMD_HDR_CMDID_O, MC_CMD_HDR_CMDID_S))
+static enum mc_cmd_status mc_cmd_hdr_read_status(struct mc_command *cmd)
+{
+	struct mc_cmd_header *hdr = (struct mc_cmd_header *)&cmd->header;
+
+	return (enum mc_cmd_status)hdr->status;
+}
+
+static u16 mc_cmd_hdr_read_cmdid(struct mc_command *cmd)
+{
+	struct mc_cmd_header *hdr = (struct mc_cmd_header *)&cmd->header;
+	u16 cmd_id = le16_to_cpu(hdr->cmd_id);
+
+	return (cmd_id & MC_CMD_HDR_CMDID_MASK) >> MC_CMD_HDR_CMDID_SHIFT;
+}
 
 /**
  * Creates an MC I/O object
@@ -261,10 +273,11 @@ static inline void mc_write_command(struct mc_command __iomem *portal,
 
 	/* copy command parameters into the portal */
 	for (i = 0; i < MC_CMD_NUM_OF_PARAMS; i++)
-		writeq(cmd->params[i], &portal->params[i]);
+		__raw_writeq(cmd->params[i], &portal->params[i]);
+	__iowmb();
 
 	/* submit the command by writing the header */
-	writeq(cmd->header, &portal->header);
+	__raw_writeq(cmd->header, &portal->header);
 }
 
 /**
@@ -284,14 +297,17 @@ static inline enum mc_cmd_status mc_read_response(struct mc_command __iomem *
 	enum mc_cmd_status status;
 
 	/* Copy command response header from MC portal: */
-	resp->header = readq(&portal->header);
-	status = MC_CMD_HDR_READ_STATUS(resp->header);
+	__iormb();
+	resp->header = __raw_readq(&portal->header);
+	__iormb();
+	status = mc_cmd_hdr_read_status(resp);
 	if (status != MC_CMD_STATUS_OK)
 		return status;
 
 	/* Copy command response data from MC portal: */
 	for (i = 0; i < MC_CMD_NUM_OF_PARAMS; i++)
-		resp->params[i] = readq(&portal->params[i]);
+		resp->params[i] = __raw_readq(&portal->params[i]);
+	__iormb();
 
 	return status;
 }
@@ -331,10 +347,8 @@ static int mc_polling_wait_preemptible(struct fsl_mc_io *mc_io,
 			dev_dbg(mc_io->dev,
 				"MC command timed out (portal: %#llx, obj handle: %#x, command: %#x)\n",
 				 mc_io->portal_phys_addr,
-				 (unsigned int)
-					MC_CMD_HDR_READ_TOKEN(cmd->header),
-				 (unsigned int)
-					MC_CMD_HDR_READ_CMDID(cmd->header));
+				 (unsigned int)mc_cmd_hdr_read_token(cmd),
+				 (unsigned int)mc_cmd_hdr_read_cmdid(cmd));
 
 			return -ETIMEDOUT;
 		}
@@ -373,10 +387,8 @@ static int mc_polling_wait_atomic(struct fsl_mc_io *mc_io,
 			dev_dbg(mc_io->dev,
 				"MC command timed out (portal: %#llx, obj handle: %#x, command: %#x)\n",
 				 mc_io->portal_phys_addr,
-				 (unsigned int)
-					MC_CMD_HDR_READ_TOKEN(cmd->header),
-				 (unsigned int)
-					MC_CMD_HDR_READ_CMDID(cmd->header));
+				 (unsigned int)mc_cmd_hdr_read_token(cmd),
+				 (unsigned int)mc_cmd_hdr_read_cmdid(cmd));
 
 			return -ETIMEDOUT;
 		}
@@ -429,8 +441,8 @@ int mc_send_command(struct fsl_mc_io *mc_io, struct mc_command *cmd)
 		dev_dbg(mc_io->dev,
 			"MC command failed: portal: %#llx, obj handle: %#x, command: %#x, status: %s (%#x)\n",
 			 mc_io->portal_phys_addr,
-			 (unsigned int)MC_CMD_HDR_READ_TOKEN(cmd->header),
-			 (unsigned int)MC_CMD_HDR_READ_CMDID(cmd->header),
+			 (unsigned int)mc_cmd_hdr_read_token(cmd),
+			 (unsigned int)mc_cmd_hdr_read_cmdid(cmd),
 			 mc_status_to_string(status),
 			 (unsigned int)status);
 
