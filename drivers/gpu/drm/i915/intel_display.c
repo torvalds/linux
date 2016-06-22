@@ -11997,26 +11997,6 @@ static bool check_single_encoder_cloning(struct drm_atomic_state *state,
 	return true;
 }
 
-static bool check_encoder_cloning(struct drm_atomic_state *state,
-				  struct intel_crtc *crtc)
-{
-	struct intel_encoder *encoder;
-	struct drm_connector *connector;
-	struct drm_connector_state *connector_state;
-	int i;
-
-	for_each_connector_in_state(state, connector, connector_state, i) {
-		if (connector_state->crtc != &crtc->base)
-			continue;
-
-		encoder = to_intel_encoder(connector_state->best_encoder);
-		if (!check_single_encoder_cloning(state, crtc, encoder))
-			return false;
-	}
-
-	return true;
-}
-
 static int intel_crtc_atomic_check(struct drm_crtc *crtc,
 				   struct drm_crtc_state *crtc_state)
 {
@@ -12028,11 +12008,6 @@ static int intel_crtc_atomic_check(struct drm_crtc *crtc,
 	struct drm_atomic_state *state = crtc_state->state;
 	int ret;
 	bool mode_changed = needs_modeset(crtc_state);
-
-	if (mode_changed && !check_encoder_cloning(state, intel_crtc)) {
-		DRM_DEBUG_KMS("rejecting invalid cloning configuration\n");
-		return -EINVAL;
-	}
 
 	if (mode_changed && !crtc_state->active)
 		pipe_config->update_wm_post = true;
@@ -12471,6 +12446,11 @@ intel_modeset_pipe_config(struct drm_crtc *crtc,
 			continue;
 
 		encoder = to_intel_encoder(connector_state->best_encoder);
+
+		if (!check_single_encoder_cloning(state, to_intel_crtc(crtc), encoder)) {
+			DRM_DEBUG_KMS("rejecting invalid cloning configuration\n");
+			goto fail;
+		}
 
 		/*
 		 * Determine output_types before calling the .compute_config()
