@@ -49,6 +49,9 @@ temperature) and throttle appropriate devices.
 	.bind: bind the thermal zone device with a thermal cooling device.
 	.unbind: unbind the thermal zone device with a thermal cooling device.
 	.get_temp: get the current temperature of the thermal zone.
+	.set_trips: set the trip points window. Whenever the current temperature
+		    is updated, the trip points immediately below and above the
+		    current temperature are found.
 	.get_mode: get the current mode (enabled/disabled) of the thermal zone.
 	    - "enabled" means the kernel thermal management is enabled.
 	    - "disabled" will prevent kernel thermal driver action upon trip points
@@ -95,6 +98,10 @@ temperature) and throttle appropriate devices.
 			get_temp:	a pointer to a function that reads the
 					sensor temperature. This is mandatory
 					callback provided by sensor driver.
+			set_trips:      a pointer to a function that sets a
+					temperature window. When this window is
+					left the driver must inform the thermal
+					core via thermal_zone_device_update.
 			get_trend: 	a pointer to a function that reads the
 					sensor temperature trend.
 			set_emul_temp:	a pointer to a function that sets
