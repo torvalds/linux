@@ -1277,6 +1277,7 @@
 		clock-names = "aclk_vop", "dclk_vop", "hclk_vop";
 		resets = <&cru SRST_A_VOP1>, <&cru SRST_H_VOP1>, <&cru SRST_D_VOP1>;
 		reset-names = "axi", "ahb", "dclk";
+		power-domains = <&power RK3399_PD_VOPL>;
 		iommus = <&vopl_mmu>;
 		status = "disabled";
 
@@ -1313,6 +1314,7 @@
 		clock-names = "aclk_vop", "dclk_vop", "hclk_vop";
 		resets = <&cru SRST_A_VOP0>, <&cru SRST_H_VOP0>, <&cru SRST_D_VOP0>;
 		reset-names = "axi", "ahb", "dclk";
+		power-domains = <&power RK3399_PD_VOPB>;
 		iommus = <&vopb_mmu>;
 		status = "disabled";
 
