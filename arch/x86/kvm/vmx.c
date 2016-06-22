@@ -428,7 +428,6 @@ struct nested_vmx {
 	struct pi_desc *pi_desc;
 	bool pi_pending;
 	u16 posted_intr_nv;
-	u64 msr_ia32_feature_control;
 
 	struct hrtimer preemption_timer;
 	bool preemption_timer_expired;
@@ -612,6 +611,8 @@ struct vcpu_vmx {
 	bool guest_pkru_valid;
 	u32 guest_pkru;
 	u32 host_pkru;
+
+	u64 msr_ia32_feature_control;
 };
 
 enum segment_cache_field {
@@ -2970,9 +2971,7 @@ static int vmx_get_msr(struct kvm_vcpu *vcpu, struct msr_data *msr_info)
 		msr_info->data = vmcs_read64(GUEST_BNDCFGS);
 		break;
 	case MSR_IA32_FEATURE_CONTROL:
-		if (!nested_vmx_allowed(vcpu))
-			return 1;
-		msr_info->data = to_vmx(vcpu)->nested.msr_ia32_feature_control;
+		msr_info->data = to_vmx(vcpu)->msr_ia32_feature_control;
 		break;
 	case MSR_IA32_VMX_BASIC ... MSR_IA32_VMX_VMFUNC:
 		if (!nested_vmx_allowed(vcpu))
@@ -3064,10 +3063,10 @@ static int vmx_set_msr(struct kvm_vcpu *vcpu, struct msr_data *msr_info)
 		break;
 	case MSR_IA32_FEATURE_CONTROL:
 		if (!nested_vmx_allowed(vcpu) ||
-		    (to_vmx(vcpu)->nested.msr_ia32_feature_control &
+		    (to_vmx(vcpu)->msr_ia32_feature_control &
 		     FEATURE_CONTROL_LOCKED && !msr_info->host_initiated))
 			return 1;
-		vmx->nested.msr_ia32_feature_control = data;
+		vmx->msr_ia32_feature_control = data;
 		if (msr_info->host_initiated && data == 0)
 			vmx_leave_nested(vcpu);
 		break;
@@ -6939,7 +6938,7 @@ static int handle_vmon(struct kvm_vcpu *vcpu)
 		return 1;
 	}
 
-	if ((vmx->nested.msr_ia32_feature_control & VMXON_NEEDED_FEATURES)
+	if ((vmx->msr_ia32_feature_control & VMXON_NEEDED_FEATURES)
 			!= VMXON_NEEDED_FEATURES) {
 		kvm_inject_gp(vcpu, 0);
 		return 1;
