@@ -8105,7 +8105,8 @@ static int alloc_reserved_file_extent(struct btrfs_trans_handle *trans,
 			ins->objectid, ins->offset);
 		BUG();
 	}
-	trace_btrfs_reserved_extent_alloc(root, ins->objectid, ins->offset);
+	trace_btrfs_reserved_extent_alloc(fs_info->extent_root,
+					  ins->objectid, ins->offset);
 	return ret;
 }
 
