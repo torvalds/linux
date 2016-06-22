@@ -526,7 +526,8 @@ struct be_adapter {
 	spinlock_t mcc_lock;	/* For serializing mcc cmds to BE card */
 	spinlock_t mcc_cq_lock;
 
-	u16 cfg_num_qs;		/* configured via set-channels */
+	u16 cfg_num_rx_irqs;		/* configured via set-channels */
+	u16 cfg_num_tx_irqs;		/* configured via set-channels */
 	u16 num_evt_qs;
 	u16 num_msix_vec;
 	struct be_eq_obj eq_obj[MAX_EVT_QS];
@@ -652,14 +653,35 @@ struct be_adapter {
 #define be_if_cap_flags(adapter)	(adapter->res.if_cap_flags)
 #define be_max_pf_pool_rss_tables(adapter)	\
 				(adapter->pool_res.max_rss_tables)
+/* Max irqs avaialble for NIC */
+#define be_max_irqs(adapter)		\
+			(min_t(u16, be_max_nic_eqs(adapter), num_online_cpus()))
 
-static inline u16 be_max_qs(struct be_adapter *adapter)
+/* Max irqs *needed* for RX queues */
+static inline u16 be_max_rx_irqs(struct be_adapter *adapter)
 {
-	/* If no RSS, need atleast the one def RXQ */
+	/* If no RSS, need atleast one irq for def-RXQ */
 	u16 num = max_t(u16, be_max_rss(adapter), 1);
 
-	num = min(num, be_max_nic_eqs(adapter));
-	return min_t(u16, num, num_online_cpus());
+	return min_t(u16, num, be_max_irqs(adapter));
+}
+
+/* Max irqs *needed* for TX queues */
+static inline u16 be_max_tx_irqs(struct be_adapter *adapter)
+{
+	return min_t(u16, be_max_txqs(adapter), be_max_irqs(adapter));
+}
+
+/* Max irqs *needed* for combined queues */
+static inline u16 be_max_qp_irqs(struct be_adapter *adapter)
+{
+	return min(be_max_tx_irqs(adapter), be_max_rx_irqs(adapter));
+}
+
+/* Max irqs *needed* for RX and TX queues together */
+static inline u16 be_max_any_irqs(struct be_adapter *adapter)
+{
+	return max(be_max_tx_irqs(adapter), be_max_rx_irqs(adapter));
 }
 
 /* Is BE in pvid_tagging mode */

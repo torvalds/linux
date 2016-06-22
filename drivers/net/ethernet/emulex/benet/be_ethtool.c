@@ -1196,9 +1196,17 @@ static void be_get_channels(struct net_device *netdev,
 			    struct ethtool_channels *ch)
 {
 	struct be_adapter *adapter = netdev_priv(netdev);
+	u16 num_rx_irqs = max_t(u16, adapter->num_rss_qs, 1);
 
-	ch->combined_count = adapter->num_evt_qs;
-	ch->max_combined = be_max_qs(adapter);
+	/* num_tx_qs is always same as the number of irqs used for TX */
+	ch->combined_count = min(adapter->num_tx_qs, num_rx_irqs);
+	ch->rx_count = num_rx_irqs - ch->combined_count;
+	ch->tx_count = adapter->num_tx_qs - ch->combined_count;
+
+	ch->max_combined = be_max_qp_irqs(adapter);
+	/* The user must create atleast one combined channel */
+	ch->max_rx = be_max_rx_irqs(adapter) - 1;
+	ch->max_tx = be_max_tx_irqs(adapter) - 1;
 }
 
 static int be_set_channels(struct net_device  *netdev,
@@ -1207,11 +1215,22 @@ static int be_set_channels(struct net_device  *netdev,
 	struct be_adapter *adapter = netdev_priv(netdev);
 	int status;
 
-	if (ch->rx_count || ch->tx_count || ch->other_count ||
-	    !ch->combined_count || ch->combined_count > be_max_qs(adapter))
+	/* we support either only combined channels or a combination of
+	 * combined and either RX-only or TX-only channels.
+	 */
+	if (ch->other_count || !ch->combined_count ||
+	    (ch->rx_count && ch->tx_count))
 		return -EINVAL;
 
-	adapter->cfg_num_qs = ch->combined_count;
+	if (ch->combined_count > be_max_qp_irqs(adapter) ||
+	    (ch->rx_count &&
+	     (ch->rx_count + ch->combined_count) > be_max_rx_irqs(adapter)) ||
+	    (ch->tx_count &&
+	     (ch->tx_count + ch->combined_count) > be_max_tx_irqs(adapter)))
+		return -EINVAL;
+
+	adapter->cfg_num_rx_irqs = ch->combined_count + ch->rx_count;
+	adapter->cfg_num_tx_irqs = ch->combined_count + ch->tx_count;
 
 	status = be_update_queues(adapter);
 	return be_cmd_status(status);

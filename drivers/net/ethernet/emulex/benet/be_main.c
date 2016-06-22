@@ -2620,8 +2620,10 @@ static int be_evt_queues_create(struct be_adapter *adapter)
 	struct be_aic_obj *aic;
 	int i, rc;
 
+	/* need enough EQs to service both RX and TX queues */
 	adapter->num_evt_qs = min_t(u16, num_irqs(adapter),
-				    adapter->cfg_num_qs);
+				    max(adapter->cfg_num_rx_irqs,
+					adapter->cfg_num_tx_irqs));
 
 	for_all_evt_queues(adapter, eqo, i) {
 		int numa_node = dev_to_node(&adapter->pdev->dev);
@@ -2726,7 +2728,7 @@ static int be_tx_qs_create(struct be_adapter *adapter)
 	struct be_eq_obj *eqo;
 	int status, i;
 
-	adapter->num_tx_qs = min(adapter->num_evt_qs, be_max_txqs(adapter));
+	adapter->num_tx_qs = min(adapter->num_evt_qs, adapter->cfg_num_tx_irqs);
 
 	for_all_tx_queues(adapter, txo, i) {
 		cq = &txo->cq;
@@ -2784,11 +2786,11 @@ static int be_rx_cqs_create(struct be_adapter *adapter)
 	struct be_rx_obj *rxo;
 	int rc, i;
 
-	/* We can create as many RSS rings as there are EQs. */
-	adapter->num_rss_qs = adapter->num_evt_qs;
+	adapter->num_rss_qs =
+			min(adapter->num_evt_qs, adapter->cfg_num_rx_irqs);
 
 	/* We'll use RSS only if atleast 2 RSS rings are supported. */
-	if (adapter->num_rss_qs <= 1)
+	if (adapter->num_rss_qs < 2)
 		adapter->num_rss_qs = 0;
 
 	adapter->num_rx_qs = adapter->num_rss_qs + adapter->need_def_rxq;
@@ -3249,18 +3251,22 @@ static void be_msix_disable(struct be_adapter *adapter)
 
 static int be_msix_enable(struct be_adapter *adapter)
 {
-	int i, num_vec;
+	unsigned int i, num_vec, max_roce_eqs;
 	struct device *dev = &adapter->pdev->dev;
 
 	/* If RoCE is supported, program the max number of vectors that
 	 * could be used for NIC and RoCE, else, just program the number
 	 * we'll use initially.
 	 */
-	if (be_roce_supported(adapter))
-		num_vec = min_t(int, be_max_func_eqs(adapter),
-				2 * num_online_cpus());
-	else
-		num_vec = adapter->cfg_num_qs;
+	if (be_roce_supported(adapter)) {
+		max_roce_eqs =
+			be_max_func_eqs(adapter) - be_max_nic_eqs(adapter);
+		max_roce_eqs = min(max_roce_eqs, num_online_cpus());
+		num_vec = be_max_any_irqs(adapter) + max_roce_eqs;
+	} else {
+		num_vec = max(adapter->cfg_num_rx_irqs,
+			      adapter->cfg_num_tx_irqs);
+	}
 
 	for (i = 0; i < num_vec; i++)
 		adapter->msix_entries[i].entry = i;
@@ -4255,9 +4261,11 @@ static int be_get_resources(struct be_adapter *adapter)
 		 be_max_uc(adapter), be_max_mc(adapter),
 		 be_max_vlans(adapter));
 
-	/* Sanitize cfg_num_qs based on HW and platform limits */
-	adapter->cfg_num_qs = min_t(u16, netif_get_num_default_rss_queues(),
-				    be_max_qs(adapter));
+	/* Ensure RX and TX queues are created in pairs at init time */
+	adapter->cfg_num_rx_irqs =
+				min_t(u16, netif_get_num_default_rss_queues(),
+				      be_max_qp_irqs(adapter));
+	adapter->cfg_num_tx_irqs = adapter->cfg_num_rx_irqs;
 	return 0;
 }
 
@@ -4370,7 +4378,7 @@ static int be_if_create(struct be_adapter *adapter)
 	u32 cap_flags = be_if_cap_flags(adapter);
 	int status;
 
-	if (adapter->cfg_num_qs == 1)
+	if (adapter->cfg_num_rx_irqs == 1)
 		cap_flags &= ~(BE_IF_FLAGS_DEFQ_RSS | BE_IF_FLAGS_RSS);
 
 	en_flags &= cap_flags;
