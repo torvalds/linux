@@ -243,6 +243,7 @@ static inline void kpp_request_set_output(struct kpp_request *req,
 enum {
 	CRYPTO_KPP_SECRET_TYPE_UNKNOWN,
 	CRYPTO_KPP_SECRET_TYPE_DH,
+	CRYPTO_KPP_SECRET_TYPE_ECDH,
 };
 
 /**
