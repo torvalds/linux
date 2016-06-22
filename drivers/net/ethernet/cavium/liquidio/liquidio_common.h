@@ -736,10 +736,16 @@ struct nic_rx_stats {
 	u64 fw_err_pko;
 	u64 fw_err_link;
 	u64 fw_err_drop;
+
+	/* LRO */
 	u64 fw_lro_pkts;   /* Number of packets that are LROed      */
 	u64 fw_lro_octs;   /* Number of octets that are LROed       */
 	u64 fw_total_lro;  /* Number of LRO packets formed          */
 	u64 fw_lro_aborts; /* Number of times lRO of packet aborted */
+	u64 fw_lro_aborts_port;
+	u64 fw_lro_aborts_seq;
+	u64 fw_lro_aborts_tsval;
+	u64 fw_lro_aborts_timer;
 	/* intrmod: packet forward rate */
 	u64 fwd_rate;
 };
@@ -763,9 +769,13 @@ struct nic_tx_stats {
 	/* firmware stats */
 	u64 fw_total_sent;
 	u64 fw_total_fwd;
+	u64 fw_total_fwd_bytes;
 	u64 fw_err_pko;
 	u64 fw_err_link;
 	u64 fw_err_drop;
+	u64 fw_err_tso;
+	u64 fw_tso;		/* number of tso requests */
+	u64 fw_tso_fwd;		/* number of packets segmented in tso */
 };
 
 struct oct_link_stats {

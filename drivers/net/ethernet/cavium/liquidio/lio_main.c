@@ -72,6 +72,9 @@ MODULE_PARM_DESC(console_bitmask,
 
 #define DEFAULT_MSG_ENABLE (NETIF_MSG_DRV | NETIF_MSG_PROBE | NETIF_MSG_LINK)
 
+#define INCR_INSTRQUEUE_PKT_COUNT(octeon_dev_ptr, iq_no, field, count)  \
+	(octeon_dev_ptr->instr_queue[iq_no]->stats.field += count)
+
 static int debug = -1;
 module_param(debug, int, 0644);
 MODULE_PARM_DESC(debug, "NETIF_MSG debug bits");
@@ -682,13 +685,24 @@ static inline void txqs_start(struct net_device *netdev)
  */
 static inline void txqs_wake(struct net_device *netdev)
 {
+	struct lio *lio = GET_LIO(netdev);
+
 	if (netif_is_multiqueue(netdev)) {
 		int i;
 
-		for (i = 0; i < netdev->num_tx_queues; i++)
-			if (__netif_subqueue_stopped(netdev, i))
+		for (i = 0; i < netdev->num_tx_queues; i++) {
+			int qno = lio->linfo.txpciq[i %
+				(lio->linfo.num_txpciq)].s.q_no;
+
+			if (__netif_subqueue_stopped(netdev, i)) {
+				INCR_INSTRQUEUE_PKT_COUNT(lio->oct_dev, qno,
+							  tx_restart, 1);
 				netif_wake_subqueue(netdev, i);
+			}
+		}
 	} else {
+		INCR_INSTRQUEUE_PKT_COUNT(lio->oct_dev, lio->txq,
+					  tx_restart, 1);
 		netif_wake_queue(netdev);
 	}
 }
@@ -763,6 +777,8 @@ static inline int check_txq_status(struct lio *lio)
 				continue;
 			if (__netif_subqueue_stopped(lio->netdev, q)) {
 				wake_q(lio->netdev, q);
+				INCR_INSTRQUEUE_PKT_COUNT(lio->oct_dev, iq,
+							  tx_restart, 1);
 				ret_val++;
 			}
 		}
@@ -770,6 +786,8 @@ static inline int check_txq_status(struct lio *lio)
 		if (octnet_iq_is_full(lio->oct_dev, lio->txq))
 			return 0;
 		wake_q(lio->netdev, lio->txq);
+		INCR_INSTRQUEUE_PKT_COUNT(lio->oct_dev, lio->txq,
+					  tx_restart, 1);
 		ret_val = 1;
 	}
 	return ret_val;
@@ -981,10 +999,16 @@ static void update_txq_status(struct octeon_device *oct, int iq_num)
 		if (__netif_subqueue_stopped(netdev, iq->q_index) &&
 		    lio->linfo.link.s.link_up &&
 		    (!octnet_iq_is_full(oct, iq_num))) {
+			INCR_INSTRQUEUE_PKT_COUNT(lio->oct_dev, iq_num,
+						  tx_restart, 1);
 			netif_wake_subqueue(netdev, iq->q_index);
 		} else {
-			if (!octnet_iq_is_full(oct, lio->txq))
+			if (!octnet_iq_is_full(oct, lio->txq)) {
+				INCR_INSTRQUEUE_PKT_COUNT(lio->oct_dev,
+							  lio->txq,
+							  tx_restart, 1);
 				wake_q(netdev, lio->txq);
+			}
 		}
 	}
 }
@@ -1114,6 +1138,9 @@ static int liquidio_probe(struct pci_dev *pdev, const struct pci_device_id *ent)
 		liquidio_remove(pdev);
 		return -ENOMEM;
 	}
+
+	oct_dev->rx_pause = 1;
+	oct_dev->tx_pause = 1;
 
 	dev_dbg(&oct_dev->pci_dev->dev, "Device is ready\n");
 
@@ -1468,8 +1495,10 @@ static inline int check_txq_state(struct lio *lio, struct sk_buff *skb)
 	if (octnet_iq_is_full(lio->oct_dev, iq))
 		return 0;
 
-	if (__netif_subqueue_stopped(lio->netdev, q))
+	if (__netif_subqueue_stopped(lio->netdev, q)) {
+		INCR_INSTRQUEUE_PKT_COUNT(lio->oct_dev, iq, tx_restart, 1);
 		wake_q(lio->netdev, q);
+	}
 	return 1;
 }
 
@@ -2382,6 +2411,10 @@ void liquidio_link_ctrl_cmd_completion(void *nctrl_ptr)
 
 		break;
 
+	case OCTNET_CMD_SET_FLOW_CTL:
+		netif_info(lio, probe, lio->netdev, "Set RX/TX flow control parameters\n");
+		break;
+
 	default:
 		dev_err(&oct->pci_dev->dev, "%s Unknown cmd %d\n", __func__,
 			nctrl->ncmd.s.cmd);
@@ -2976,7 +3009,9 @@ static int liquidio_xmit(struct sk_buff *skb, struct net_device *netdev)
 	if (skb_shinfo(skb)->gso_size) {
 		tx_info->s.gso_size = skb_shinfo(skb)->gso_size;
 		tx_info->s.gso_segs = skb_shinfo(skb)->gso_segs;
+		stats->tx_gso++;
 	}
+
 	/* HW insert VLAN tag */
 	if (skb_vlan_tag_present(skb)) {
 		irh->priority = skb_vlan_tag_get(skb) >> 13;
@@ -2999,7 +3034,10 @@ static int liquidio_xmit(struct sk_buff *skb, struct net_device *netdev)
 
 	netif_trans_update(netdev);
 
-	stats->tx_done++;
+	if (skb_shinfo(skb)->gso_size)
+		stats->tx_done += skb_shinfo(skb)->gso_segs;
+	else
+		stats->tx_done++;
 	stats->tx_tot_bytes += skb->len;
 
 	return NETDEV_TX_OK;

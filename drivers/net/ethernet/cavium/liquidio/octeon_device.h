@@ -394,6 +394,12 @@ struct octeon_device {
 	struct cavium_wk console_poll_work[MAX_OCTEON_MAPS];
 
 	void *priv;
+
+	int rx_pause;
+	int tx_pause;
+
+	struct oct_link_stats link_stats; /*stastics from firmware*/
+
 };
 
 #define  OCT_DRV_ONLINE 1

@@ -30,6 +30,17 @@
 #include <linux/dma-mapping.h>
 #include <linux/ptp_clock_kernel.h>
 
+struct oct_nic_stats_resp {
+	u64     rh;
+	struct oct_link_stats stats;
+	u64     status;
+};
+
+struct oct_nic_stats_ctrl {
+	struct completion complete;
+	struct net_device *netdev;
+};
+
 /** LiquidIO per-interface network private data */
 struct lio {
 	/** State of the interface. Rx/Tx happens only in the RUNNING state.  */
