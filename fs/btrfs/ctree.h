@@ -519,7 +519,7 @@ struct btrfs_io_ctl {
 	void *cur, *orig;
 	struct page *page;
 	struct page **pages;
-	struct btrfs_root *root;
+	struct btrfs_fs_info *fs_info;
 	struct inode *inode;
 	unsigned long size;
 	int index;

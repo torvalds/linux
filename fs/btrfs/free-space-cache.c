@@ -303,7 +303,7 @@ static int readahead_cache(struct inode *inode)
 }
 
 static int io_ctl_init(struct btrfs_io_ctl *io_ctl, struct inode *inode,
-		       struct btrfs_root *root, int write)
+		       int write)
 {
 	int num_pages;
 	int check_crcs = 0;
@@ -325,7 +325,7 @@ static int io_ctl_init(struct btrfs_io_ctl *io_ctl, struct inode *inode,
 		return -ENOMEM;
 
 	io_ctl->num_pages = num_pages;
-	io_ctl->root = root;
+	io_ctl->fs_info = btrfs_sb(inode->i_sb);
 	io_ctl->check_crcs = check_crcs;
 	io_ctl->inode = inode;
 
@@ -448,7 +448,7 @@ static int io_ctl_check_generation(struct btrfs_io_ctl *io_ctl, u64 generation)
 
 	gen = io_ctl->cur;
 	if (le64_to_cpu(*gen) != generation) {
-		btrfs_err_rl(io_ctl->root->fs_info,
+		btrfs_err_rl(io_ctl->fs_info,
 			"space cache generation (%llu) does not match inode (%llu)",
 				*gen, generation);
 		io_ctl_unmap_page(io_ctl);
@@ -504,7 +504,7 @@ static int io_ctl_check_crc(struct btrfs_io_ctl *io_ctl, int index)
 			      PAGE_SIZE - offset);
 	btrfs_csum_final(crc, (u8 *)&crc);
 	if (val != crc) {
-		btrfs_err_rl(io_ctl->root->fs_info,
+		btrfs_err_rl(io_ctl->fs_info,
 			"csum mismatch on free space cache");
 		io_ctl_unmap_page(io_ctl);
 		return -EIO;
@@ -722,7 +722,7 @@ static int __load_free_space_cache(struct btrfs_root *root, struct inode *inode,
 	if (!num_entries)
 		return 0;
 
-	ret = io_ctl_init(&io_ctl, inode, root, 0);
+	ret = io_ctl_init(&io_ctl, inode, 0);
 	if (ret)
 		return ret;
 
@@ -1229,7 +1229,7 @@ static int __btrfs_write_out_cache(struct btrfs_root *root, struct inode *inode,
 		return -EIO;
 
 	WARN_ON(io_ctl->pages);
-	ret = io_ctl_init(io_ctl, inode, root, 1);
+	ret = io_ctl_init(io_ctl, inode, 1);
 	if (ret)
 		return ret;
 
