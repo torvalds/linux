@@ -102,10 +102,8 @@ out:
 
 void exit_probe_symbol_maps(void)
 {
-	if (host_machine) {
-		machine__delete(host_machine);
-		host_machine = NULL;
-	}
+	machine__delete(host_machine);
+	host_machine = NULL;
 	symbol__exit();
 }
 
