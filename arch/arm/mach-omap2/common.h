@@ -272,6 +272,7 @@ extern void omap_auxcoreboot_addr(u32 cpu_addr);
 extern u32 omap_read_auxcoreboot0(void);
 
 extern void omap4_cpu_die(unsigned int cpu);
+extern int omap4_cpu_kill(unsigned int cpu);
 
 extern const struct smp_operations omap4_smp_ops;
 
