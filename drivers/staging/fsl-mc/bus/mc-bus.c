@@ -24,8 +24,6 @@
 
 static struct kmem_cache *mc_dev_cache;
 
-static bool fsl_mc_is_root_dprc(struct device *dev);
-
 /**
  * fsl_mc_bus_match - device to driver matching callback
  * @dev: the MC object device structure to match against
@@ -247,19 +245,6 @@ static void fsl_mc_get_root_dprc(struct device *dev,
 	}
 }
 
-/**
- * fsl_mc_is_root_dprc - function to check if a given device is a root dprc
- */
-static bool fsl_mc_is_root_dprc(struct device *dev)
-{
-	struct device *root_dprc_dev;
-
-	fsl_mc_get_root_dprc(dev, &root_dprc_dev);
-	if (!root_dprc_dev)
-		return false;
-	return dev == root_dprc_dev;
-}
-
 static int get_dprc_attr(struct fsl_mc_io *mc_io,
 			 int container_id, struct dprc_attributes *attr)
 {
@@ -421,6 +406,19 @@ static int fsl_mc_device_get_mmio_regions(struct fsl_mc_device *mc_dev,
 error_cleanup_regions:
 	kfree(regions);
 	return error;
+}
+
+/**
+ * fsl_mc_is_root_dprc - function to check if a given device is a root dprc
+ */
+bool fsl_mc_is_root_dprc(struct device *dev)
+{
+	struct device *root_dprc_dev;
+
+	fsl_mc_get_root_dprc(dev, &root_dprc_dev);
+	if (!root_dprc_dev)
+		return false;
+	return dev == root_dprc_dev;
 }
 
 /**

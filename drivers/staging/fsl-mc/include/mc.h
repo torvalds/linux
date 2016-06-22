@@ -207,6 +207,8 @@ int __must_check fsl_mc_allocate_irqs(struct fsl_mc_device *mc_dev);
 
 void fsl_mc_free_irqs(struct fsl_mc_device *mc_dev);
 
+bool fsl_mc_is_root_dprc(struct device *dev);
+
 extern struct bus_type fsl_mc_bus_type;
 
 #endif /* _FSL_MC_H_ */
