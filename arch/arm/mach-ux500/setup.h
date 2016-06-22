@@ -21,8 +21,6 @@ void ux500_restart(enum reboot_mode mode, const char *cmd);
 
 extern void __init ux500_init_irq(void);
 
-extern struct device *ux500_soc_device_init(void);
-
 extern void ux500_cpu_die(unsigned int cpu);
 
 #endif /*  __ASM_ARCH_SETUP_H */

@@ -8,18 +8,17 @@
 #include <linux/kernel.h>
 #include <linux/init.h>
 #include <linux/io.h>
+#include <linux/module.h>
 #include <linux/random.h>
 #include <linux/slab.h>
+#include <linux/of.h>
+#include <linux/of_address.h>
 #include <linux/sys_soc.h>
 
 #include <asm/cputype.h>
 #include <asm/tlbflush.h>
 #include <asm/cacheflush.h>
 #include <asm/mach/map.h>
-
-#include "setup.h"
-
-#include "db8500-regs.h"
 
 /**
  * struct dbx500_asic_id - fields of the ASIC ID
@@ -157,27 +156,31 @@ static ssize_t ux500_get_process(struct device *dev,
 	return sprintf(buf, "%02xnm\n", dbx500_id.process);
 }
 
-static const char *db8500_read_soc_id(void)
+static const char *db8500_read_soc_id(struct device_node *backupram)
 {
+	void __iomem *base;
 	void __iomem *uid;
 	const char *retstr;
 
-	uid = ioremap(U8500_BB_UID_BASE, 0x20);
-	if (!uid)
+	base = of_iomap(backupram, 0);
+	if (!base)
 		return NULL;
+	uid = base + 0x1fc0;
+
 	/* Throw these device-specific numbers into the entropy pool */
 	add_device_randomness(uid, 0x14);
 	retstr = kasprintf(GFP_KERNEL, "%08x%08x%08x%08x%08x",
 			 readl((u32 *)uid+0),
 			 readl((u32 *)uid+1), readl((u32 *)uid+2),
 			 readl((u32 *)uid+3), readl((u32 *)uid+4));
-	iounmap(uid);
+	iounmap(base);
 	return retstr;
 }
 
-static void __init soc_info_populate(struct soc_device_attribute *soc_dev_attr)
+static void __init soc_info_populate(struct soc_device_attribute *soc_dev_attr,
+				     struct device_node *backupram)
 {
-	soc_dev_attr->soc_id   = db8500_read_soc_id();
+	soc_dev_attr->soc_id   = db8500_read_soc_id(backupram);
 	soc_dev_attr->machine  = ux500_get_machine();
 	soc_dev_attr->family   = ux500_get_family();
 	soc_dev_attr->revision = ux500_get_revision();
@@ -186,28 +189,34 @@ static void __init soc_info_populate(struct soc_device_attribute *soc_dev_attr)
 static const struct device_attribute ux500_soc_attr =
 	__ATTR(process,  S_IRUGO, ux500_get_process,  NULL);
 
-struct device * __init ux500_soc_device_init(void)
+static int __init ux500_soc_device_init(void)
 {
 	struct device *parent;
 	struct soc_device *soc_dev;
 	struct soc_device_attribute *soc_dev_attr;
+	struct device_node *backupram;
+
+	backupram = of_find_compatible_node(NULL, NULL, "ste,dbx500-backupram");
+	if (!backupram)
+		return 0;
 
 	ux500_setup_id();
 
 	soc_dev_attr = kzalloc(sizeof(*soc_dev_attr), GFP_KERNEL);
 	if (!soc_dev_attr)
-		return ERR_PTR(-ENOMEM);
+		return -ENOMEM;
 
-	soc_info_populate(soc_dev_attr);
+	soc_info_populate(soc_dev_attr, backupram);
 
 	soc_dev = soc_device_register(soc_dev_attr);
 	if (IS_ERR(soc_dev)) {
 	        kfree(soc_dev_attr);
-		return NULL;
+		return PTR_ERR(soc_dev);
 	}
 
 	parent = soc_device_to_device(soc_dev);
 	device_create_file(parent, &ux500_soc_attr);
 
-	return parent;
+	return 0;
 }
+subsys_initcall(ux500_soc_device_init);

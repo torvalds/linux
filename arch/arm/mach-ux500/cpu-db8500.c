@@ -88,15 +88,13 @@ static const struct of_device_id u8500_local_bus_nodes[] = {
 
 static void __init u8500_init_machine(void)
 {
-	struct device *parent = ux500_soc_device_init();
-
 	/* automatically probe child nodes of dbx5x0 devices */
 	if (of_machine_is_compatible("st-ericsson,u8540"))
 		of_platform_populate(NULL, u8500_local_bus_nodes,
-				     u8540_auxdata_lookup, parent);
+				     u8540_auxdata_lookup, NULL);
 	else
 		of_platform_populate(NULL, u8500_local_bus_nodes,
-				     u8500_auxdata_lookup, parent);
+				     u8500_auxdata_lookup, NULL);
 }
 
 static const char * stericsson_dt_platform_compat[] = {
