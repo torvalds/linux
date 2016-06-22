@@ -593,6 +593,9 @@ ieee80211_tx_h_select_key(struct ieee80211_tx_data *tx)
 	else if (tx->sta &&
 		 (key = rcu_dereference(tx->sta->ptk[tx->sta->ptk_idx])))
 		tx->key = key;
+	else if (ieee80211_is_group_privacy_action(tx->skb) &&
+		(key = rcu_dereference(tx->sdata->default_multicast_key)))
+		tx->key = key;
 	else if (ieee80211_is_mgmt(hdr->frame_control) &&
 		 is_multicast_ether_addr(hdr->addr1) &&
 		 ieee80211_is_robust_mgmt_frame(tx->skb) &&
@@ -625,7 +628,8 @@ ieee80211_tx_h_select_key(struct ieee80211_tx_data *tx)
 		case WLAN_CIPHER_SUITE_GCMP_256:
 			if (!ieee80211_is_data_present(hdr->frame_control) &&
 			    !ieee80211_use_mfp(hdr->frame_control, tx->sta,
-					       tx->skb))
+					       tx->skb) &&
+			    !ieee80211_is_group_privacy_action(tx->skb))
 				tx->key = NULL;
 			else
 				skip_hw = (tx->key->conf.flags &
