@@ -80,6 +80,12 @@ struct octeon_instr_queue {
 	/** A spinlock to protect access to the input ring.  */
 	spinlock_t lock;
 
+	/** A spinlock to protect while posting on the ring.  */
+	spinlock_t post_lock;
+
+	/** A spinlock to protect access to the input ring.*/
+	spinlock_t iq_flush_running_lock;
+
 	/** Flag that indicates if the queue uses 64 byte commands. */
 	u32 iqcmd_64B:1;
 
@@ -339,7 +345,7 @@ octeon_register_reqtype_free_fn(struct octeon_device *oct, int reqtype,
 
 int
 lio_process_iq_request_list(struct octeon_device *oct,
-			    struct octeon_instr_queue *iq);
+			    struct octeon_instr_queue *iq, u32 napi_budget);
 
 int octeon_send_command(struct octeon_device *oct, u32 iq_no,
 			u32 force_db, void *cmd, void *buf,
@@ -357,5 +363,7 @@ int octeon_send_soft_command(struct octeon_device *oct,
 int octeon_setup_iq(struct octeon_device *oct, int ifidx,
 		    int q_index, union oct_txpciq iq_no, u32 num_descs,
 		    void *app_ctx);
-
+int
+octeon_flush_iq(struct octeon_device *oct, struct octeon_instr_queue *iq,
+		u32 pending_thresh, u32 napi_budget);
 #endif				/* __OCTEON_IQ_H__ */

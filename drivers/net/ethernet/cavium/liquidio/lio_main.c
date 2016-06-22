@@ -365,7 +365,7 @@ static int wait_for_pending_requests(struct octeon_device *oct)
 				[OCTEON_ORDERED_SC_LIST].pending_req_count);
 		if (pcount)
 			schedule_timeout_uninterruptible(HZ / 10);
-		 else
+		else
 			break;
 	}
 
@@ -409,7 +409,7 @@ static inline void pcierror_quiesce_device(struct octeon_device *oct)
 			iq->octeon_read_index = iq->host_write_index;
 			iq->stats.instr_processed +=
 				atomic_read(&iq->instr_pending);
-			lio_process_iq_request_list(oct, iq);
+			lio_process_iq_request_list(oct, iq, 0);
 			spin_unlock_bh(&iq->lock);
 		}
 	}
@@ -959,6 +959,36 @@ static inline void update_link_status(struct net_device *netdev,
 	}
 }
 
+/* Runs in interrupt context. */
+static void update_txq_status(struct octeon_device *oct, int iq_num)
+{
+	struct net_device *netdev;
+	struct lio *lio;
+	struct octeon_instr_queue *iq = oct->instr_queue[iq_num];
+
+	/*octeon_update_iq_read_idx(oct, iq);*/
+
+	netdev = oct->props[iq->ifidx].netdev;
+
+	/* This is needed because the first IQ does not have
+	 * a netdev associated with it.
+	 */
+	if (!netdev)
+		return;
+
+	lio = GET_LIO(netdev);
+	if (netif_is_multiqueue(netdev)) {
+		if (__netif_subqueue_stopped(netdev, iq->q_index) &&
+		    lio->linfo.link.s.link_up &&
+		    (!octnet_iq_is_full(oct, iq_num))) {
+			netif_wake_subqueue(netdev, iq->q_index);
+		} else {
+			if (!octnet_iq_is_full(oct, lio->txq))
+				wake_q(netdev, lio->txq);
+		}
+	}
+}
+
 /**
  * \brief Droq packet processor sceduler
  * @param oct octeon device
@@ -1246,6 +1276,7 @@ static void liquidio_destroy_nic_device(struct octeon_device *oct, int ifidx)
 {
 	struct net_device *netdev = oct->props[ifidx].netdev;
 	struct lio *lio;
+	struct napi_struct *napi, *n;
 
 	if (!netdev) {
 		dev_err(&oct->pci_dev->dev, "%s No netdevice ptr for index %d\n",
@@ -1261,6 +1292,13 @@ static void liquidio_destroy_nic_device(struct octeon_device *oct, int ifidx)
 
 	if (atomic_read(&lio->ifstate) & LIO_IFSTATE_RUNNING)
 		txqs_stop(netdev);
+
+	if (oct->props[lio->ifidx].napi_enabled == 1) {
+		list_for_each_entry_safe(napi, n, &netdev->napi_list, dev_list)
+			napi_disable(napi);
+
+		oct->props[lio->ifidx].napi_enabled = 0;
+	}
 
 	if (atomic_read(&lio->ifstate) & LIO_IFSTATE_REGISTERED)
 		unregister_netdev(netdev);
@@ -1990,39 +2028,6 @@ static void liquidio_napi_drv_callback(void *arg)
 }
 
 /**
- * \brief Main NAPI poll function
- * @param droq octeon output queue
- * @param budget maximum number of items to process
- */
-static int liquidio_napi_do_rx(struct octeon_droq *droq, int budget)
-{
-	int work_done;
-	struct lio *lio = GET_LIO(droq->napi.dev);
-	struct octeon_device *oct = lio->oct_dev;
-
-	work_done = octeon_process_droq_poll_cmd(oct, droq->q_no,
-						 POLL_EVENT_PROCESS_PKTS,
-						 budget);
-	if (work_done < 0) {
-		netif_info(lio, rx_err, lio->netdev,
-			   "Receive work_done < 0, rxq:%d\n", droq->q_no);
-		goto octnet_napi_finish;
-	}
-
-	if (work_done > budget)
-		dev_err(&oct->pci_dev->dev, ">>>> %s work_done: %d budget: %d\n",
-			__func__, work_done, budget);
-
-	return work_done;
-
-octnet_napi_finish:
-	napi_complete(&droq->napi);
-	octeon_process_droq_poll_cmd(oct, droq->q_no, POLL_EVENT_ENABLE_INTR,
-				     0);
-	return 0;
-}
-
-/**
  * \brief Entry point for NAPI polling
  * @param napi NAPI structure
  * @param budget maximum number of items to process
@@ -2031,19 +2036,41 @@ static int liquidio_napi_poll(struct napi_struct *napi, int budget)
 {
 	struct octeon_droq *droq;
 	int work_done;
+	int tx_done = 0, iq_no;
+	struct octeon_instr_queue *iq;
+	struct octeon_device *oct;
 
 	droq = container_of(napi, struct octeon_droq, napi);
+	oct = droq->oct_dev;
+	iq_no = droq->q_no;
+	/* Handle Droq descriptors */
+	work_done = octeon_process_droq_poll_cmd(oct, droq->q_no,
+						 POLL_EVENT_PROCESS_PKTS,
+						 budget);
 
-	work_done = liquidio_napi_do_rx(droq, budget);
+	/* Flush the instruction queue */
+	iq = oct->instr_queue[iq_no];
+	if (iq) {
+		/* Process iq buffers with in the budget limits */
+		tx_done = octeon_flush_iq(oct, iq, 1, budget);
+		/* Update iq read-index rather than waiting for next interrupt.
+		 * Return back if tx_done is false.
+		 */
+		update_txq_status(oct, iq_no);
+		/*tx_done = (iq->flush_index == iq->octeon_read_index);*/
+	} else {
+		dev_err(&oct->pci_dev->dev, "%s:  iq (%d) num invalid\n",
+			__func__, iq_no);
+	}
 
-	if (work_done < budget) {
+	if ((work_done < budget) && (tx_done)) {
 		napi_complete(napi);
 		octeon_process_droq_poll_cmd(droq->oct_dev, droq->q_no,
 					     POLL_EVENT_ENABLE_INTR, 0);
 		return 0;
 	}
 
-	return work_done;
+	return (!tx_done) ? (budget) : (work_done);
 }
 
 /**
@@ -2177,6 +2204,14 @@ static inline void setup_tx_poll_fn(struct net_device *netdev)
 			   &lio->txq_status_wq.wk.work, msecs_to_jiffies(1));
 }
 
+static inline void cleanup_tx_poll_fn(struct net_device *netdev)
+{
+	struct lio *lio = GET_LIO(netdev);
+
+	cancel_delayed_work_sync(&lio->txq_status_wq.wk.work);
+	destroy_workqueue(lio->txq_status_wq.wq);
+}
+
 /**
  * \brief Net device open for LiquidIO
  * @param netdev network device
@@ -2187,17 +2222,22 @@ static int liquidio_open(struct net_device *netdev)
 	struct octeon_device *oct = lio->oct_dev;
 	struct napi_struct *napi, *n;
 
-	list_for_each_entry_safe(napi, n, &netdev->napi_list, dev_list)
-		napi_enable(napi);
+	if (oct->props[lio->ifidx].napi_enabled == 0) {
+		list_for_each_entry_safe(napi, n, &netdev->napi_list, dev_list)
+			napi_enable(napi);
+
+		oct->props[lio->ifidx].napi_enabled = 1;
+	}
 
 	oct_ptp_open(netdev);
 
 	ifstate_set(lio, LIO_IFSTATE_RUNNING);
+
 	setup_tx_poll_fn(netdev);
+
 	start_txq(netdev);
 
 	netif_info(lio, ifup, lio->netdev, "Interface Open, ready for traffic\n");
-	try_module_get(THIS_MODULE);
 
 	/* tell Octeon to start forwarding packets to host */
 	send_rx_ctrl_cmd(lio, 1);
@@ -2217,38 +2257,34 @@ static int liquidio_open(struct net_device *netdev)
  */
 static int liquidio_stop(struct net_device *netdev)
 {
-	struct napi_struct *napi, *n;
 	struct lio *lio = GET_LIO(netdev);
 	struct octeon_device *oct = lio->oct_dev;
 
-	netif_info(lio, ifdown, lio->netdev, "Stopping interface!\n");
+	ifstate_reset(lio, LIO_IFSTATE_RUNNING);
+
+	netif_tx_disable(netdev);
+
 	/* Inform that netif carrier is down */
+	netif_carrier_off(netdev);
 	lio->intf_open = 0;
 	lio->linfo.link.s.link_up = 0;
 	lio->link_changes++;
 
-	netif_carrier_off(netdev);
+	/* Pause for a moment and wait for Octeon to flush out (to the wire) any
+	 * egress packets that are in-flight.
+	 */
+	set_current_state(TASK_INTERRUPTIBLE);
+	schedule_timeout(msecs_to_jiffies(100));
 
-	/* tell Octeon to stop forwarding packets to host */
+	/* Now it should be safe to tell Octeon that nic interface is down. */
 	send_rx_ctrl_cmd(lio, 0);
 
-	cancel_delayed_work_sync(&lio->txq_status_wq.wk.work);
-	destroy_workqueue(lio->txq_status_wq.wq);
+	cleanup_tx_poll_fn(netdev);
 
 	if (lio->ptp_clock) {
 		ptp_clock_unregister(lio->ptp_clock);
 		lio->ptp_clock = NULL;
 	}
-
-	ifstate_reset(lio, LIO_IFSTATE_RUNNING);
-
-	/* This is a hack that allows DHCP to continue working. */
-	set_bit(__LINK_STATE_START, &lio->netdev->state);
-
-	list_for_each_entry_safe(napi, n, &netdev->napi_list, dev_list)
-		napi_disable(napi);
-
-	txqs_stop(netdev);
 
 	dev_info(&oct->pci_dev->dev, "%s interface is stopped\n", netdev->name);
 	module_put(THIS_MODULE);

@@ -496,8 +496,7 @@ u32 lio_cn6xxx_bar1_idx_read(struct octeon_device *oct, u32 idx)
 }
 
 u32
-lio_cn6xxx_update_read_index(struct octeon_device *oct __attribute__((unused)),
-			     struct octeon_instr_queue *iq)
+lio_cn6xxx_update_read_index(struct octeon_instr_queue *iq)
 {
 	u32 new_idx = readl(iq->inst_cnt_reg);
 

@@ -204,8 +204,7 @@ struct octeon_fn_list {
 	void (*bar1_idx_setup)(struct octeon_device *, u64, u32, int);
 	void (*bar1_idx_write)(struct octeon_device *, u32, u32);
 	u32 (*bar1_idx_read)(struct octeon_device *, u32);
-	u32 (*update_iq_read_idx)(struct octeon_device *,
-				  struct octeon_instr_queue *);
+	u32 (*update_iq_read_idx)(struct octeon_instr_queue *);
 
 	void (*enable_oq_pkt_time_intr)(struct octeon_device *, u32);
 	void (*disable_oq_pkt_time_intr)(struct octeon_device *, u32);
@@ -267,6 +266,7 @@ struct octdev_props {
 	/* Each interface in the Octeon device has a network
 	 * device pointer (used for OS specific calls).
 	 */
+	int    napi_enabled;
 	int    gmxport;
 	struct net_device *netdev;
 };
