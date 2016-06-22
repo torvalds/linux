@@ -733,7 +733,7 @@ static int fiji_hwmgr_backend_init(struct pp_hwmgr *hwmgr)
 		sys_info.info_id = CGS_SYSTEM_INFO_PCIE_GEN_INFO;
 		result = cgs_query_system_info(hwmgr->device, &sys_info);
 		if (result)
-			data->pcie_gen_cap = 0x30007;
+			data->pcie_gen_cap = AMDGPU_DEFAULT_PCIE_GEN_MASK;
 		else
 			data->pcie_gen_cap = (uint32_t)sys_info.value;
 		if (data->pcie_gen_cap & CAIL_PCIE_LINK_SPEED_SUPPORT_GEN3)
@@ -742,7 +742,7 @@ static int fiji_hwmgr_backend_init(struct pp_hwmgr *hwmgr)
 		sys_info.info_id = CGS_SYSTEM_INFO_PCIE_MLW;
 		result = cgs_query_system_info(hwmgr->device, &sys_info);
 		if (result)
-			data->pcie_lane_cap = 0x2f0000;
+			data->pcie_lane_cap = AMDGPU_DEFAULT_PCIE_MLW_MASK;
 		else
 			data->pcie_lane_cap = (uint32_t)sys_info.value;
 	} else {

@@ -1978,9 +1978,6 @@ retry:
 	return r;
 }
 
-#define AMDGPU_DEFAULT_PCIE_GEN_MASK 0x30007  /* gen: chipset 1/2, asic 1/2/3 */
-#define AMDGPU_DEFAULT_PCIE_MLW_MASK 0x2f0000 /* 1/2/4/8/16 lanes */
-
 void amdgpu_get_pcie_info(struct amdgpu_device *adev)
 {
 	u32 mask;
