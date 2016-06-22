@@ -431,6 +431,7 @@ int chp_update_desc(struct channel_path *chp)
 	 * hypervisors implement the required chsc commands.
 	 */
 	chsc_determine_fmt1_channel_path_desc(chp->chpid, &chp->desc_fmt1);
+	chsc_determine_fmt3_channel_path_desc(chp->chpid, &chp->desc_fmt3);
 	chsc_get_channel_measurement_chars(chp);
 
 	return 0;

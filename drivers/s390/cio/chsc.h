@@ -40,6 +40,11 @@ struct channel_path_desc_fmt1 {
 	u32 zeros[2];
 } __attribute__ ((packed));
 
+struct channel_path_desc_fmt3 {
+	struct channel_path_desc_fmt1 fmt1_desc;
+	u8 util_str[64];
+};
+
 struct channel_path;
 
 struct css_chsc_char {
@@ -151,6 +156,8 @@ int chsc_determine_fmt0_channel_path_desc(struct chp_id chpid,
 					  struct channel_path_desc_fmt0 *desc);
 int chsc_determine_fmt1_channel_path_desc(struct chp_id chpid,
 					  struct channel_path_desc_fmt1 *desc);
+int chsc_determine_fmt3_channel_path_desc(struct chp_id chpid,
+					  struct channel_path_desc_fmt3 *desc);
 void chsc_chp_online(struct chp_id chpid);
 void chsc_chp_offline(struct chp_id chpid);
 int chsc_get_channel_measurement_chars(struct channel_path *chp);

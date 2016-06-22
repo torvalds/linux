@@ -46,6 +46,7 @@ struct channel_path {
 	int state;
 	struct channel_path_desc_fmt0 desc;
 	struct channel_path_desc_fmt1 desc_fmt1;
+	struct channel_path_desc_fmt3 desc_fmt3;
 	/* Channel-measurement related stuff: */
 	int cmg;
 	int shared;
