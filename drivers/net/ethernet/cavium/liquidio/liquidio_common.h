@@ -482,15 +482,15 @@ struct octeon_instr_irh {
 	u64 opcode:4;
 	u64 rflag:1;
 	u64 subcode:7;
-	u64 len:3;
-	u64 rid:13;
-	u64 reserved:4;
+	u64 vlan:12;
+	u64 priority:3;
+	u64 reserved:5;
 	u64 ossp:32;             /* opcode/subcode specific parameters */
 #else
 	u64 ossp:32;             /* opcode/subcode specific parameters */
-	u64 reserved:4;
-	u64 rid:13;
-	u64 len:3;
+	u64 reserved:5;
+	u64 priority:3;
+	u64 vlan:12;
 	u64 subcode:7;
 	u64 rflag:1;
 	u64 opcode:4;
@@ -517,28 +517,27 @@ union octeon_rh {
 	struct {
 		u64 opcode:4;
 		u64 subcode:8;
-		u64 len:3;       /** additional 64-bit words */
-		u64 rid:13;      /** request id in response to pkt sent by host */
-		u64 reserved:4;
-		u64 ossp:32;     /** opcode/subcode specific parameters */
+		u64 len:3;     /** additional 64-bit words */
+		u64 reserved:17;
+		u64 ossp:32;   /** opcode/subcode specific parameters */
 	} r;
 	struct {
 		u64 opcode:4;
 		u64 subcode:8;
-		u64 len:3;       /** additional 64-bit words */
-		u64 rid:13;      /** request id in response to pkt sent by host */
-		u64 extra:24;
-		u64 link:8;
+		u64 len:3;     /** additional 64-bit words */
+		u64 extra:28;
+		u64 vlan:12;
+		u64 priority:3;
 		u64 csum_verified:3;     /** checksum verified. */
 		u64 has_hwtstamp:1;      /** Has hardware timestamp. 1 = yes. */
 	} r_dh;
 	struct {
 		u64 opcode:4;
 		u64 subcode:8;
-		u64 len:3;       /** additional 64-bit words */
-		u64 rid:13;      /** request id in response to pkt sent by host */
+		u64 len:3;     /** additional 64-bit words */
+		u64 reserved:11;
 		u64 num_gmx_ports:8;
-		u64 max_nic_ports:8;
+		u64 max_nic_ports:10;
 		u64 app_cap_flags:4;
 		u64 app_mode:16;
 	} r_core_drv_init;
@@ -554,8 +553,7 @@ union octeon_rh {
 	u64 u64;
 	struct {
 		u64 ossp:32;  /** opcode/subcode specific parameters */
-		u64 reserved:4;
-		u64 rid:13;   /** req id in response to pkt sent by host */
+		u64 reserved:17;
 		u64 len:3;    /** additional 64-bit words */
 		u64 subcode:8;
 		u64 opcode:4;
@@ -563,9 +561,9 @@ union octeon_rh {
 	struct {
 		u64 has_hwtstamp:1;      /** 1 = has hwtstamp */
 		u64 csum_verified:3;     /** checksum verified. */
-		u64 link:8;
-		u64 extra:24;
-		u64 rid:13;   /** req id in response to pkt sent by host */
+		u64 priority:3;
+		u64 vlan:12;
+		u64 extra:28;
 		u64 len:3;    /** additional 64-bit words */
 		u64 subcode:8;
 		u64 opcode:4;
@@ -573,9 +571,9 @@ union octeon_rh {
 	struct {
 		u64 app_mode:16;
 		u64 app_cap_flags:4;
-		u64 max_nic_ports:8;
+		u64 max_nic_ports:10;
 		u64 num_gmx_ports:8;
-		u64 rid:13;
+		u64 reserved:11;
 		u64 len:3;       /** additional 64-bit words */
 		u64 subcode:8;
 		u64 opcode:4;
