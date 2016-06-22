@@ -3535,6 +3535,7 @@ static int setup_nic_devices(struct octeon_device *octeon_dev)
 
 		/* Register ethtool support */
 		liquidio_set_ethtool_ops(netdev);
+		octeon_dev->priv_flags = 0x0;
 
 		if (netdev->features & NETIF_F_LRO)
 		liquidio_set_feature(netdev, OCTNET_CMD_LRO_ENABLE,

@@ -400,6 +400,8 @@ struct octeon_device {
 
 	struct oct_link_stats link_stats; /*stastics from firmware*/
 
+	/* private flags to control driver-specific features through ethtool */
+	u32 priv_flags;
 };
 
 #define  OCT_DRV_ONLINE 1
@@ -660,4 +662,17 @@ void *oct_get_config_info(struct octeon_device *oct, u16 card_type);
  */
 struct octeon_config *octeon_get_conf(struct octeon_device *oct);
 
+/* LiquidIO driver pivate flags */
+enum {
+	OCT_PRIV_FLAG_TX_BYTES = 0, /* Tx interrupts by pending byte count */
+};
+
+static inline void lio_set_priv_flag(struct octeon_device *octdev, u32 flag,
+				     u32 val)
+{
+	if (val)
+		octdev->priv_flags |= (0x1 << flag);
+	else
+		octdev->priv_flags &= ~(0x1 << flag);
+}
 #endif

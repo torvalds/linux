@@ -1683,6 +1683,23 @@ static void lio_get_regs(struct net_device *dev,
 	}
 }
 
+static u32 lio_get_priv_flags(struct net_device *netdev)
+{
+	struct lio *lio = GET_LIO(netdev);
+
+	return lio->oct_dev->priv_flags;
+}
+
+static int lio_set_priv_flags(struct net_device *netdev, u32 flags)
+{
+	struct lio *lio = GET_LIO(netdev);
+	bool intr_by_tx_bytes = !!(flags & (0x1 << OCT_PRIV_FLAG_TX_BYTES));
+
+	lio_set_priv_flag(lio->oct_dev, OCT_PRIV_FLAG_TX_BYTES,
+			  intr_by_tx_bytes);
+	return 0;
+}
+
 static const struct ethtool_ops lio_ethtool_ops = {
 	.get_settings		= lio_get_settings,
 	.get_link		= ethtool_op_get_link,
@@ -1704,6 +1721,8 @@ static const struct ethtool_ops lio_ethtool_ops = {
 	.set_settings		= lio_set_settings,
 	.get_coalesce		= lio_get_intr_coalesce,
 	.set_coalesce		= lio_set_intr_coalesce,
+	.get_priv_flags		= lio_get_priv_flags,
+	.set_priv_flags		= lio_set_priv_flags,
 	.get_ts_info		= lio_get_ts_info,
 };
 
