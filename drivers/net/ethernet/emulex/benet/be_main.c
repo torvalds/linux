@@ -3729,6 +3729,11 @@ static void be_vf_clear(struct be_adapter *adapter)
 
 		be_cmd_if_destroy(adapter, vf_cfg->if_handle, vf + 1);
 	}
+
+	if (BE3_chip(adapter))
+		be_cmd_set_hsw_config(adapter, 0, 0,
+				      adapter->if_handle,
+				      PORT_FWD_TYPE_PASSTHRU, 0);
 done:
 	kfree(adapter->vf_cfg);
 	adapter->num_vfs = 0;
@@ -4017,6 +4022,15 @@ static int be_vf_setup(struct be_adapter *adapter)
 			adapter->num_vfs = 0;
 			goto err;
 		}
+	}
+
+	if (BE3_chip(adapter)) {
+		/* On BE3, enable VEB only when SRIOV is enabled */
+		status = be_cmd_set_hsw_config(adapter, 0, 0,
+					       adapter->if_handle,
+					       PORT_FWD_TYPE_VEB, 0);
+		if (status)
+			goto err;
 	}
 
 	adapter->flags |= BE_FLAGS_SRIOV_ENABLED;
@@ -4563,6 +4577,15 @@ static int be_setup(struct be_adapter *adapter)
 	if (be_physfn(adapter))
 		be_cmd_set_logical_link_config(adapter,
 					       IFLA_VF_LINK_STATE_AUTO, 0);
+
+	/* BE3 EVB echoes broadcast/multicast packets back to PF's vport
+	 * confusing a linux bridge or OVS that it might be connected to.
+	 * Set the EVB to PASSTHRU mode which effectively disables the EVB
+	 * when SRIOV is not enabled.
+	 */
+	if (BE3_chip(adapter))
+		be_cmd_set_hsw_config(adapter, 0, 0, adapter->if_handle,
+				      PORT_FWD_TYPE_PASSTHRU, 0);
 
 	if (adapter->num_vfs)
 		be_vf_setup(adapter);
