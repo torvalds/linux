@@ -211,8 +211,11 @@ struct rockchip_thermal_data {
 
 #define TSADCV2_HIGHT_INT_DEBOUNCE_COUNT	4
 #define TSADCV2_HIGHT_TSHUT_DEBOUNCE_COUNT	4
-#define TSADCV2_AUTO_PERIOD_TIME		250 /* msec */
-#define TSADCV2_AUTO_PERIOD_HT_TIME		50  /* msec */
+#define TSADCV2_AUTO_PERIOD_TIME		250 /* 250ms */
+#define TSADCV2_AUTO_PERIOD_HT_TIME		50  /* 50ms */
+#define TSADCV3_AUTO_PERIOD_TIME		187500 /* 250ms */
+#define TSADCV3_AUTO_PERIOD_HT_TIME		37500  /* 50ms */
+
 #define TSADCV2_USER_INTER_PD_SOC		0x340 /* 13 clocks */
 
 #define GRF_SARADC_TESTBIT			0x0e644
@@ -547,6 +550,16 @@ static void rk_tsadcv3_initialize(struct regmap *grf, void __iomem *regs,
 		/* Set interleave value to workround ic time sync issue */
 		writel_relaxed(TSADCV2_USER_INTER_PD_SOC, regs +
 			       TSADCV2_USER_CON);
+
+		writel_relaxed(TSADCV2_AUTO_PERIOD_TIME,
+			       regs + TSADCV2_AUTO_PERIOD);
+		writel_relaxed(TSADCV2_HIGHT_INT_DEBOUNCE_COUNT,
+			       regs + TSADCV2_HIGHT_INT_DEBOUNCE);
+		writel_relaxed(TSADCV2_AUTO_PERIOD_HT_TIME,
+			       regs + TSADCV2_AUTO_PERIOD_HT);
+		writel_relaxed(TSADCV2_HIGHT_TSHUT_DEBOUNCE_COUNT,
+			       regs + TSADCV2_HIGHT_TSHUT_DEBOUNCE);
+
 	} else {
 		regmap_write(grf, GRF_TSADC_TESTBIT_L, GRF_TSADC_TSEN_PD_ON);
 		mdelay(10);
@@ -555,6 +568,15 @@ static void rk_tsadcv3_initialize(struct regmap *grf, void __iomem *regs,
 		regmap_write(grf, GRF_SARADC_TESTBIT, GRF_SARADC_TESTBIT_ON);
 		regmap_write(grf, GRF_TSADC_TESTBIT_H, GRF_TSADC_TESTBIT_H_ON);
 		usleep_range(90, 200); /* The spec note says at least 90 us */
+
+		writel_relaxed(TSADCV3_AUTO_PERIOD_TIME,
+			       regs + TSADCV2_AUTO_PERIOD);
+		writel_relaxed(TSADCV2_HIGHT_INT_DEBOUNCE_COUNT,
+			       regs + TSADCV2_HIGHT_INT_DEBOUNCE);
+		writel_relaxed(TSADCV3_AUTO_PERIOD_HT_TIME,
+			       regs + TSADCV2_AUTO_PERIOD_HT);
+		writel_relaxed(TSADCV2_HIGHT_TSHUT_DEBOUNCE_COUNT,
+			       regs + TSADCV2_HIGHT_TSHUT_DEBOUNCE);
 	}
 
 	if (tshut_polarity == TSHUT_HIGH_ACTIVE)
@@ -563,14 +585,6 @@ static void rk_tsadcv3_initialize(struct regmap *grf, void __iomem *regs,
 	else
 		writel_relaxed(0U & ~TSADCV2_AUTO_TSHUT_POLARITY_HIGH,
 			       regs + TSADCV2_AUTO_CON);
-
-	writel_relaxed(TSADCV2_AUTO_PERIOD_TIME, regs + TSADCV2_AUTO_PERIOD);
-	writel_relaxed(TSADCV2_HIGHT_INT_DEBOUNCE_COUNT,
-		       regs + TSADCV2_HIGHT_INT_DEBOUNCE);
-	writel_relaxed(TSADCV2_AUTO_PERIOD_HT_TIME,
-		       regs + TSADCV2_AUTO_PERIOD_HT);
-	writel_relaxed(TSADCV2_HIGHT_TSHUT_DEBOUNCE_COUNT,
-		       regs + TSADCV2_HIGHT_TSHUT_DEBOUNCE);
 }
 
 static void rk_tsadcv2_irq_ack(void __iomem *regs)
