@@ -100,6 +100,8 @@
 
 #define DEFAULT_TIMEOUT_INTERVAL	HZ
 
+#define DEFAULT_AUTOSUSPEND_DELAY	1000
+
 /* mostly device flags */
 #define FLAGS_BUSY		0
 #define FLAGS_FINAL		1
@@ -999,7 +1001,8 @@ static void omap_sham_finish_req(struct ahash_request *req, int err)
 	dd->flags &= ~(BIT(FLAGS_BUSY) | BIT(FLAGS_FINAL) | BIT(FLAGS_CPU) |
 			BIT(FLAGS_DMA_READY) | BIT(FLAGS_OUTPUT_READY));
 
-	pm_runtime_put(dd->dev);
+	pm_runtime_mark_last_busy(dd->dev);
+	pm_runtime_put_autosuspend(dd->dev);
 
 	if (req->base.complete)
 		req->base.complete(&req->base, err);
@@ -1945,6 +1948,9 @@ static int omap_sham_probe(struct platform_device *pdev)
 	}
 
 	dd->flags |= dd->pdata->flags;
+
+	pm_runtime_use_autosuspend(dev);
+	pm_runtime_set_autosuspend_delay(dev, DEFAULT_AUTOSUSPEND_DELAY);
 
 	pm_runtime_enable(dev);
 	pm_runtime_irq_safe(dev);
