@@ -656,20 +656,21 @@ static int amdgpu_cs_ib_vm_chunk(struct amdgpu_device *adev,
 
 	/* Only for UVD/VCE VM emulation */
 	if (ring->funcs->parse_cs) {
+		p->job->vm = NULL;
 		for (i = 0; i < p->job->num_ibs; i++) {
 			r = amdgpu_ring_parse_cs(ring, p, i);
 			if (r)
 				return r;
 		}
+	} else {
+		p->job->vm_pd_addr = amdgpu_bo_gpu_offset(vm->page_directory);
+
+		r = amdgpu_bo_vm_update_pte(p, vm);
+		if (r)
+			return r;
 	}
 
-	p->job->vm_pd_addr = amdgpu_bo_gpu_offset(vm->page_directory);
-
-	r = amdgpu_bo_vm_update_pte(p, vm);
-	if (!r)
-		amdgpu_cs_sync_rings(p);
-
-	return r;
+	return amdgpu_cs_sync_rings(p);
 }
 
 static int amdgpu_cs_handle_lockup(struct amdgpu_device *adev, int r)
