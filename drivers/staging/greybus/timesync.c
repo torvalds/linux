@@ -581,7 +581,8 @@ static size_t gb_timesync_log_frame_time(struct gb_timesync_svc *timesync_svc,
 	size_t off;
 
 	/* AP/SVC */
-	off = snprintf(buf, buflen, "timesync: ping-time ap=%llu %s=%llu ",
+	off = snprintf(buf, buflen, "%s frametime: ap=%llu %s=%llu ",
+		       greybus_bus_type.name,
 		       timesync_svc->ap_ping_frame_time, dev_name(&svc->dev),
 		       timesync_svc->svc_ping_frame_time);
 	len = buflen - off;
@@ -623,8 +624,8 @@ static size_t gb_timesync_log_frame_ktime(struct gb_timesync_svc *timesync_svc,
 	/* AP */
 	gb_timesync_to_timespec(timesync_svc, timesync_svc->ap_ping_frame_time,
 				&ts);
-	off = snprintf(buf, buflen, "timesync: ping-time ap=%lu.%lu ",
-		       ts.tv_sec, ts.tv_nsec);
+	off = snprintf(buf, buflen, "%s frametime: ap=%lu.%lu ",
+		       greybus_bus_type.name, ts.tv_sec, ts.tv_nsec);
 	len = buflen - off;
 	if (len >= buflen)
 		goto done;
