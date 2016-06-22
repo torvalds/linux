@@ -51,19 +51,6 @@ struct fsl_mc_driver {
 	container_of(_drv, struct fsl_mc_driver, driver)
 
 /**
- * struct fsl_mc_device_id - MC object device Id entry for driver matching
- * @vendor: vendor ID
- * @obj_type: MC object type
- *
- * Type of entries in the "device Id" table for MC object devices supported by
- * a MC object device driver. The last entry of the table has vendor set to 0x0
- */
-struct fsl_mc_device_id {
-	u16 vendor;
-	const char obj_type[16];
-};
-
-/**
  * enum fsl_mc_pool_type - Types of allocatable MC bus resources
  *
  * Entries in these enum are used as indices in the array of resource
