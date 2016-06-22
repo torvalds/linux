@@ -3652,7 +3652,7 @@ static inline void btrfs_bio_counter_dec(struct btrfs_fs_info *fs_info)
 
 /* reada.c */
 struct reada_control {
-	struct btrfs_root	*root;		/* tree to prefetch */
+	struct btrfs_fs_info	*fs_info;		/* tree to prefetch */
 	struct btrfs_key	key_start;
 	struct btrfs_key	key_end;	/* exclusive */
 	atomic_t		elems;

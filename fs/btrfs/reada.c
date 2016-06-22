@@ -544,17 +544,18 @@ static void reada_control_release(struct kref *kref)
 static int reada_add_block(struct reada_control *rc, u64 logical,
 			   struct btrfs_key *top, u64 generation)
 {
-	struct btrfs_root *root = rc->root;
+	struct btrfs_fs_info *fs_info = rc->fs_info;
 	struct reada_extent *re;
 	struct reada_extctl *rec;
 
-	re = reada_find_extent(root, logical, top); /* takes one ref */
+	/* takes one ref */
+	re = reada_find_extent(fs_info->tree_root, logical, top);
 	if (!re)
 		return -1;
 
 	rec = kzalloc(sizeof(*rec), GFP_KERNEL);
 	if (!rec) {
-		reada_extent_put(root->fs_info, re);
+		reada_extent_put(fs_info, re);
 		return -ENOMEM;
 	}
 
@@ -914,7 +915,7 @@ struct reada_control *btrfs_reada_add(struct btrfs_root *root,
 	if (!rc)
 		return ERR_PTR(-ENOMEM);
 
-	rc->root = root;
+	rc->fs_info = root->fs_info;
 	rc->key_start = *key_start;
 	rc->key_end = *key_end;
 	atomic_set(&rc->elems, 0);
@@ -942,7 +943,7 @@ struct reada_control *btrfs_reada_add(struct btrfs_root *root,
 int btrfs_reada_wait(void *handle)
 {
 	struct reada_control *rc = handle;
-	struct btrfs_fs_info *fs_info = rc->root->fs_info;
+	struct btrfs_fs_info *fs_info = rc->fs_info;
 
 	while (atomic_read(&rc->elems)) {
 		if (!atomic_read(&fs_info->reada_works_cnt))
@@ -963,7 +964,7 @@ int btrfs_reada_wait(void *handle)
 int btrfs_reada_wait(void *handle)
 {
 	struct reada_control *rc = handle;
-	struct btrfs_fs_info *fs_info = rc->root->fs_info;
+	struct btrfs_fs_info *fs_info = rc->fs_info;
 
 	while (atomic_read(&rc->elems)) {
 		if (!atomic_read(&fs_info->reada_works_cnt))
