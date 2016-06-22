@@ -69,8 +69,6 @@ enum {
  * @trsvcid:	network port used for host-controller communication.
  * @queue_size: Number of IO queue elements.
  * @nr_io_queues: Number of controller IO queues that will be established.
- * @tl_retry_count: Number of transport layer retries for a fabric queue before
- *		     kicking upper layer(s) error recovery.
  * @reconnect_delay: Time between two consecutive reconnect attempts.
  * @discovery_nqn: indicates if the subsysnqn is the well-known discovery NQN.
  * @kato:	Keep-alive timeout.
@@ -84,7 +82,6 @@ struct nvmf_ctrl_options {
 	char			*trsvcid;
 	size_t			queue_size;
 	unsigned int		nr_io_queues;
-	unsigned short		tl_retry_count;
 	unsigned int		reconnect_delay;
 	bool			discovery_nqn;
 	unsigned int		kato;

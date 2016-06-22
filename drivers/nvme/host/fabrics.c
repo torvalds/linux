@@ -503,7 +503,6 @@ static const match_table_t opt_tokens = {
 	{ NVMF_OPT_NQN,			"nqn=%s"		},
 	{ NVMF_OPT_QUEUE_SIZE,		"queue_size=%d"		},
 	{ NVMF_OPT_NR_IO_QUEUES,	"nr_io_queues=%d"	},
-	{ NVMF_OPT_TL_RETRY_COUNT,	"tl_retry_count=%d"	},
 	{ NVMF_OPT_RECONNECT_DELAY,	"reconnect_delay=%d"	},
 	{ NVMF_OPT_KATO,		"keep_alive_tmo=%d"	},
 	{ NVMF_OPT_HOSTNQN,		"hostnqn=%s"		},
@@ -521,7 +520,6 @@ static int nvmf_parse_options(struct nvmf_ctrl_options *opts,
 	/* Set defaults */
 	opts->queue_size = NVMF_DEF_QUEUE_SIZE;
 	opts->nr_io_queues = num_online_cpus();
-	opts->tl_retry_count = 2;
 	opts->reconnect_delay = NVMF_DEF_RECONNECT_DELAY;
 
 	options = o = kstrdup(buf, GFP_KERNEL);
@@ -604,18 +602,6 @@ static int nvmf_parse_options(struct nvmf_ctrl_options *opts,
 			}
 			opts->nr_io_queues = min_t(unsigned int,
 					num_online_cpus(), token);
-			break;
-		case NVMF_OPT_TL_RETRY_COUNT:
-			if (match_int(args, &token)) {
-				ret = -EINVAL;
-				goto out;
-			}
-			if (token < 0) {
-				pr_err("Invalid tl_retry_count %d\n", token);
-				ret = -EINVAL;
-				goto out;
-			}
-			opts->tl_retry_count = token;
 			break;
 		case NVMF_OPT_KATO:
 			if (match_int(args, &token)) {
