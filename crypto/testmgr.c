@@ -32,6 +32,7 @@
 #include <crypto/rng.h>
 #include <crypto/drbg.h>
 #include <crypto/akcipher.h>
+#include <crypto/kpp.h>
 
 #include "internal.h"
 
@@ -120,6 +121,11 @@ struct akcipher_test_suite {
 	unsigned int count;
 };
 
+struct kpp_test_suite {
+	struct kpp_testvec *vecs;
+	unsigned int count;
+};
+
 struct alg_test_desc {
 	const char *alg;
 	int (*test)(const struct alg_test_desc *desc, const char *driver,
@@ -134,6 +140,7 @@ struct alg_test_desc {
 		struct cprng_test_suite cprng;
 		struct drbg_test_suite drbg;
 		struct akcipher_test_suite akcipher;
+		struct kpp_test_suite kpp;
 	} suite;
 };
 
@@ -1777,6 +1784,133 @@ static int alg_test_drbg(const struct alg_test_desc *desc, const char *driver,
 
 }
 
+static int do_test_kpp(struct crypto_kpp *tfm, struct kpp_testvec *vec,
+		       const char *alg)
+{
+	struct kpp_request *req;
+	void *input_buf = NULL;
+	void *output_buf = NULL;
+	struct tcrypt_result result;
+	unsigned int out_len_max;
+	int err = -ENOMEM;
+	struct scatterlist src, dst;
+
+	req = kpp_request_alloc(tfm, GFP_KERNEL);
+	if (!req)
+		return err;
+
+	init_completion(&result.completion);
+
+	err = crypto_kpp_set_secret(tfm, vec->secret, vec->secret_size);
+	if (err < 0)
+		goto free_req;
+
+	out_len_max = crypto_kpp_maxsize(tfm);
+	output_buf = kzalloc(out_len_max, GFP_KERNEL);
+	if (!output_buf) {
+		err = -ENOMEM;
+		goto free_req;
+	}
+
+	/* Use appropriate parameter as base */
+	kpp_request_set_input(req, NULL, 0);
+	sg_init_one(&dst, output_buf, out_len_max);
+	kpp_request_set_output(req, &dst, out_len_max);
+	kpp_request_set_callback(req, CRYPTO_TFM_REQ_MAY_BACKLOG,
+				 tcrypt_complete, &result);
+
+	/* Compute public key */
+	err = wait_async_op(&result, crypto_kpp_generate_public_key(req));
+	if (err) {
+		pr_err("alg: %s: generate public key test failed. err %d\n",
+		       alg, err);
+		goto free_output;
+	}
+	/* Verify calculated public key */
+	if (memcmp(vec->expected_a_public, sg_virt(req->dst),
+		   vec->expected_a_public_size)) {
+		pr_err("alg: %s: generate public key test failed. Invalid output\n",
+		       alg);
+		err = -EINVAL;
+		goto free_output;
+	}
+
+	/* Calculate shared secret key by using counter part (b) public key. */
+	input_buf = kzalloc(vec->b_public_size, GFP_KERNEL);
+	if (!input_buf) {
+		err = -ENOMEM;
+		goto free_output;
+	}
+
+	memcpy(input_buf, vec->b_public, vec->b_public_size);
+	sg_init_one(&src, input_buf, vec->b_public_size);
+	sg_init_one(&dst, output_buf, out_len_max);
+	kpp_request_set_input(req, &src, vec->b_public_size);
+	kpp_request_set_output(req, &dst, out_len_max);
+	kpp_request_set_callback(req, CRYPTO_TFM_REQ_MAY_BACKLOG,
+				 tcrypt_complete, &result);
+	err = wait_async_op(&result, crypto_kpp_compute_shared_secret(req));
+	if (err) {
+		pr_err("alg: %s: compute shard secret test failed. err %d\n",
+		       alg, err);
+		goto free_all;
+	}
+	/*
+	 * verify shared secret from which the user will derive
+	 * secret key by executing whatever hash it has chosen
+	 */
+	if (memcmp(vec->expected_ss, sg_virt(req->dst),
+		   vec->expected_ss_size)) {
+		pr_err("alg: %s: compute shared secret test failed. Invalid output\n",
+		       alg);
+		err = -EINVAL;
+	}
+
+free_all:
+	kfree(input_buf);
+free_output:
+	kfree(output_buf);
+free_req:
+	kpp_request_free(req);
+	return err;
+}
+
+static int test_kpp(struct crypto_kpp *tfm, const char *alg,
+		    struct kpp_testvec *vecs, unsigned int tcount)
+{
+	int ret, i;
+
+	for (i = 0; i < tcount; i++) {
+		ret = do_test_kpp(tfm, vecs++, alg);
+		if (ret) {
+			pr_err("alg: %s: test failed on vector %d, err=%d\n",
+			       alg, i + 1, ret);
+			return ret;
+		}
+	}
+	return 0;
+}
+
+static int alg_test_kpp(const struct alg_test_desc *desc, const char *driver,
+			u32 type, u32 mask)
+{
+	struct crypto_kpp *tfm;
+	int err = 0;
+
+	tfm = crypto_alloc_kpp(driver, type | CRYPTO_ALG_INTERNAL, mask);
+	if (IS_ERR(tfm)) {
+		pr_err("alg: kpp: Failed to load tfm for %s: %ld\n",
+		       driver, PTR_ERR(tfm));
+		return PTR_ERR(tfm);
+	}
+	if (desc->suite.kpp.vecs)
+		err = test_kpp(tfm, desc->alg, desc->suite.kpp.vecs,
+			       desc->suite.kpp.count);
+
+	crypto_free_kpp(tfm);
+	return err;
+}
+
 static int do_test_rsa(struct crypto_akcipher *tfm,
 		       struct akcipher_testvec *vecs)
 {
@@ -2726,6 +2860,16 @@ static const struct alg_test_desc alg_test_descs[] = {
 					.vecs = deflate_decomp_tv_template,
 					.count = DEFLATE_DECOMP_TEST_VECTORS
 				}
+			}
+		}
+	}, {
+		.alg = "dh",
+		.test = alg_test_kpp,
+		.fips_allowed = 1,
+		.suite = {
+			.kpp = {
+				.vecs = dh_tv_template,
+				.count = DH_TEST_VECTORS
 			}
 		}
 	}, {
