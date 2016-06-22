@@ -44,11 +44,13 @@
  * ensure that this order is correct and won't be changed.
  */
 static const unsigned long vaddr_start = __PAGE_OFFSET_BASE;
-static const unsigned long vaddr_end = VMALLOC_START;
+static const unsigned long vaddr_end = VMEMMAP_START;
 
 /* Default values */
 unsigned long page_offset_base = __PAGE_OFFSET_BASE;
 EXPORT_SYMBOL(page_offset_base);
+unsigned long vmalloc_base = __VMALLOC_BASE;
+EXPORT_SYMBOL(vmalloc_base);
 
 /*
  * Memory regions randomized by KASLR (except modules that use a separate logic
@@ -60,6 +62,7 @@ static __initdata struct kaslr_memory_region {
 	unsigned long size_tb;
 } kaslr_regions[] = {
 	{ &page_offset_base, 64/* Maximum */ },
+	{ &vmalloc_base, VMALLOC_SIZE_TB },
 };
 
 /* Get size in bytes used by the memory region */
