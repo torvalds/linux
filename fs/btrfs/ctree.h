@@ -2888,9 +2888,6 @@ void btrfs_put_tree_mod_seq(struct btrfs_fs_info *fs_info,
 int btrfs_old_root_level(struct btrfs_root *root, u64 time_seq);
 
 /* root-item.c */
-int btrfs_find_root_ref(struct btrfs_root *tree_root,
-			struct btrfs_path *path,
-			u64 root_id, u64 ref_id);
 int btrfs_add_root_ref(struct btrfs_trans_handle *trans,
 		       struct btrfs_root *tree_root,
 		       u64 root_id, u64 ref_id, u64 dirid, u64 sequence,
