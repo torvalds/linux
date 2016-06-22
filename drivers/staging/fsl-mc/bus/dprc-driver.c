@@ -760,7 +760,12 @@ error_cleanup_msi_domain:
  */
 static void dprc_teardown_irq(struct fsl_mc_device *mc_dev)
 {
+	struct fsl_mc_device_irq *irq = mc_dev->irqs[0];
+
 	(void)disable_dprc_irq(mc_dev);
+
+	devm_free_irq(&mc_dev->dev, irq->msi_desc->irq, &mc_dev->dev);
+
 	fsl_mc_free_irqs(mc_dev);
 }
 
