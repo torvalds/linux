@@ -243,8 +243,6 @@ int tilcdc_crtc_page_flip(struct drm_crtc *crtc,
 
 	crtc->primary->fb = fb;
 
-	pm_runtime_get_sync(dev->dev);
-
 	spin_lock_irqsave(&tilcdc_crtc->irq_lock, flags);
 
 	if (crtc->hwmode.vrefresh && ktime_to_ns(tilcdc_crtc->last_vblank)) {
@@ -266,8 +264,6 @@ int tilcdc_crtc_page_flip(struct drm_crtc *crtc,
 	tilcdc_crtc->event = event;
 
 	spin_unlock_irqrestore(&tilcdc_crtc->irq_lock, flags);
-
-	pm_runtime_put_sync(dev->dev);
 
 	return 0;
 }
@@ -316,8 +312,6 @@ static void tilcdc_crtc_mode_set_nofb(struct drm_crtc *crtc)
 
 	if (WARN_ON(!fb))
 		return;
-
-	pm_runtime_get_sync(dev->dev);
 
 	/* Configure the Burst Size and fifo threshold of DMA: */
 	reg = tilcdc_read(dev, LCDC_DMA_CTRL_REG) & ~0x00000770;
@@ -466,8 +460,6 @@ static void tilcdc_crtc_mode_set_nofb(struct drm_crtc *crtc)
 	set_scanout(crtc, fb);
 
 	tilcdc_crtc_update_clk(crtc);
-
-	pm_runtime_put_sync(dev->dev);
 
 	crtc->hwmode = crtc->state->adjusted_mode;
 }
