@@ -232,10 +232,17 @@ DECLARE_LOAD_FUNC(sk_load_byte_msh);
 					     (((cond) & 0x3ff) << 16) |	      \
 					     (((dest) - (ctx->idx * 4)) &     \
 					      0xfffc))
-#define PPC_LI32(d, i)		do { PPC_LI(d, IMM_L(i));		      \
-		if ((u32)(uintptr_t)(i) >= 32768) {			      \
-			PPC_ADDIS(d, d, IMM_HA(i));			      \
+/* Sign-extended 32-bit immediate load */
+#define PPC_LI32(d, i)		do {					      \
+		if ((int)(uintptr_t)(i) >= -32768 &&			      \
+				(int)(uintptr_t)(i) < 32768)		      \
+			PPC_LI(d, i);					      \
+		else {							      \
+			PPC_LIS(d, IMM_H(i));				      \
+			if (IMM_L(i))					      \
+				PPC_ORI(d, d, IMM_L(i));		      \
 		} } while(0)
+
 #define PPC_LI64(d, i)		do {					      \
 		if (!((uintptr_t)(i) & 0xffffffff00000000ULL))		      \
 			PPC_LI32(d, i);					      \
