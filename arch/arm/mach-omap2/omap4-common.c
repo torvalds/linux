@@ -266,10 +266,11 @@ void __iomem *omap4_get_sar_ram_base(void)
 }
 
 /*
- * SAR RAM used to save and restore the HW
- * context in low power modes
+ * SAR RAM used to save and restore the HW context in low power modes.
+ * Note that we need to initialize this very early for kexec. See
+ * omap4_mpuss_early_init().
  */
-static int __init omap4_sar_ram_init(void)
+void __init omap4_sar_ram_init(void)
 {
 	unsigned long sar_base;
 
@@ -282,16 +283,13 @@ static int __init omap4_sar_ram_init(void)
 	else if (soc_is_omap54xx())
 		sar_base = OMAP54XX_SAR_RAM_BASE;
 	else
-		return -ENOMEM;
+		return;
 
 	/* Static mapping, never released */
 	sar_ram_base = ioremap(sar_base, SZ_16K);
 	if (WARN_ON(!sar_ram_base))
-		return -ENOMEM;
-
-	return 0;
+		return;
 }
-omap_early_initcall(omap4_sar_ram_init);
 
 static const struct of_device_id intc_match[] = {
 	{ .compatible = "ti,omap4-wugen-mpu", },
