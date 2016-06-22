@@ -16,7 +16,7 @@
 #include <linux/filter.h>
 #include <linux/if_vlan.h>
 
-#include "bpf_jit.h"
+#include "bpf_jit32.h"
 
 int bpf_jit_enable __read_mostly;
 
