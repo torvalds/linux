@@ -2464,7 +2464,7 @@ static inline bool _ieee80211_is_robust_mgmt_frame(struct ieee80211_hdr *hdr)
  */
 static inline bool ieee80211_is_robust_mgmt_frame(struct sk_buff *skb)
 {
-	if (skb->len < 25)
+	if (skb->len < IEEE80211_MIN_ACTION_SIZE)
 		return false;
 	return _ieee80211_is_robust_mgmt_frame((void *)skb->data);
 }
