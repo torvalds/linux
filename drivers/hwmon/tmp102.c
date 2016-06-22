@@ -47,6 +47,17 @@
 #define	TMP102_TLOW_REG			0x02
 #define	TMP102_THIGH_REG		0x03
 
+#define TMP102_CONFREG_MASK	(TMP102_CONF_SD | TMP102_CONF_TM | \
+				 TMP102_CONF_POL | TMP102_CONF_F0 | \
+				 TMP102_CONF_F1 | TMP102_CONF_OS | \
+				 TMP102_CONF_EM | TMP102_CONF_AL | \
+				 TMP102_CONF_CR0 | TMP102_CONF_CR1)
+
+#define TMP102_CONFIG_CLEAR	(TMP102_CONF_SD | TMP102_CONF_OS | \
+				 TMP102_CONF_CR0)
+#define TMP102_CONFIG_SET	(TMP102_CONF_TM | TMP102_CONF_EM | \
+				 TMP102_CONF_CR1)
+
 #define CONVERSION_TIME_MS		35	/* in milli-seconds */
 
 struct tmp102 {
@@ -167,9 +178,6 @@ static struct attribute *tmp102_attrs[] = {
 };
 ATTRIBUTE_GROUPS(tmp102);
 
-#define TMP102_CONFIG  (TMP102_CONF_TM | TMP102_CONF_EM | TMP102_CONF_CR1)
-#define TMP102_CONFIG_RD_ONLY (TMP102_CONF_R0 | TMP102_CONF_R1 | TMP102_CONF_AL)
-
 static const struct thermal_zone_of_device_ops tmp102_of_thermal_ops = {
 	.get_temp = tmp102_read_temp,
 };
@@ -210,25 +218,24 @@ static int tmp102_probe(struct i2c_client *client,
 		dev_err(dev, "error reading config register\n");
 		return status;
 	}
+
+	if ((status & ~TMP102_CONFREG_MASK) !=
+	    (TMP102_CONF_R0 | TMP102_CONF_R1)) {
+		dev_err(dev, "unexpected config register value\n");
+		return -ENODEV;
+	}
+
 	tmp102->config_orig = status;
 
 	devm_add_action(dev, tmp102_restore_config, tmp102);
 
-	status = i2c_smbus_write_word_swapped(client, TMP102_CONF_REG,
-					      TMP102_CONFIG);
+	status &= ~TMP102_CONFIG_CLEAR;
+	status |= TMP102_CONFIG_SET;
+
+	status = i2c_smbus_write_word_swapped(client, TMP102_CONF_REG, status);
 	if (status < 0) {
 		dev_err(dev, "error writing config register\n");
 		return status;
-	}
-	status = i2c_smbus_read_word_swapped(client, TMP102_CONF_REG);
-	if (status < 0) {
-		dev_err(dev, "error reading config register\n");
-		return status;
-	}
-	status &= ~TMP102_CONFIG_RD_ONLY;
-	if (status != TMP102_CONFIG) {
-		dev_err(dev, "config settings did not stick\n");
-		return -ENODEV;
 	}
 
 	mutex_init(&tmp102->lock);
