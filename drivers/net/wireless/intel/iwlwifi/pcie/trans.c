@@ -608,18 +608,10 @@ static int iwl_pcie_prepare_card_hw(struct iwl_trans *trans)
 /*
  * ucode
  */
-static int iwl_pcie_load_firmware_chunk(struct iwl_trans *trans, u32 dst_addr,
-				   dma_addr_t phy_addr, u32 byte_cnt)
+static void iwl_pcie_load_firmware_chunk_fh(struct iwl_trans *trans,
+					    u32 dst_addr, dma_addr_t phy_addr,
+					    u32 byte_cnt)
 {
-	struct iwl_trans_pcie *trans_pcie = IWL_TRANS_GET_PCIE_TRANS(trans);
-	unsigned long flags;
-	int ret;
-
-	trans_pcie->ucode_write_complete = false;
-
-	if (!iwl_trans_grab_nic_access(trans, &flags))
-		return -EIO;
-
 	iwl_write32(trans, FH_TCSR_CHNL_TX_CONFIG_REG(FH_SRVC_CHNL),
 		    FH_TCSR_TX_CONFIG_REG_VAL_DMA_CHNL_PAUSE);
 
@@ -642,7 +634,50 @@ static int iwl_pcie_load_firmware_chunk(struct iwl_trans *trans, u32 dst_addr,
 		    FH_TCSR_TX_CONFIG_REG_VAL_DMA_CHNL_ENABLE |
 		    FH_TCSR_TX_CONFIG_REG_VAL_DMA_CREDIT_DISABLE |
 		    FH_TCSR_TX_CONFIG_REG_VAL_CIRQ_HOST_ENDTFD);
+}
 
+static void iwl_pcie_load_firmware_chunk_tfh(struct iwl_trans *trans,
+					     u32 dst_addr, dma_addr_t phy_addr,
+					     u32 byte_cnt)
+{
+	/* Stop DMA channel */
+	iwl_write32(trans, TFH_SRV_DMA_CHNL0_CTRL, 0);
+
+	/* Configure SRAM address */
+	iwl_write32(trans, TFH_SRV_DMA_CHNL0_SRAM_ADDR,
+		    dst_addr);
+
+	/* Configure DRAM address - 64 bit */
+	iwl_write64(trans, TFH_SRV_DMA_CHNL0_DRAM_ADDR, phy_addr);
+
+	/* Configure byte count to transfer */
+	iwl_write32(trans, TFH_SRV_DMA_CHNL0_BC, byte_cnt);
+
+	/* Enable the DRAM2SRAM to start */
+	iwl_write32(trans, TFH_SRV_DMA_CHNL0_CTRL, TFH_SRV_DMA_SNOOP |
+						   TFH_SRV_DMA_TO_DRIVER |
+						   TFH_SRV_DMA_START);
+}
+
+static int iwl_pcie_load_firmware_chunk(struct iwl_trans *trans,
+					u32 dst_addr, dma_addr_t phy_addr,
+					u32 byte_cnt)
+{
+	struct iwl_trans_pcie *trans_pcie = IWL_TRANS_GET_PCIE_TRANS(trans);
+	unsigned long flags;
+	int ret;
+
+	trans_pcie->ucode_write_complete = false;
+
+	if (!iwl_trans_grab_nic_access(trans, &flags))
+		return -EIO;
+
+	if (trans->cfg->use_tfh)
+		iwl_pcie_load_firmware_chunk_tfh(trans, dst_addr, phy_addr,
+						 byte_cnt);
+	else
+		iwl_pcie_load_firmware_chunk_fh(trans, dst_addr, phy_addr,
+						byte_cnt);
 	iwl_trans_release_nic_access(trans, &flags);
 
 	ret = wait_event_timeout(trans_pcie->ucode_write_waitq,

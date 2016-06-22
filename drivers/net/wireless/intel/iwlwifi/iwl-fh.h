@@ -168,6 +168,35 @@ static inline unsigned int FH_MEM_CBBC_QUEUE(struct iwl_trans *trans,
  * In case of a DRAM Tx CMD update the TFH will update PN and Key ID
  */
 #define TFH_TXCMD_UPDATE_CFG		(TFH_MEM_LOWER_BOUND + 0x1F48)
+/*
+ * Controls TX DMA operation
+ *
+ * BIT fields:
+ *
+ * Bits 31:30: Enable the SRAM DMA channel.
+ * Turning on bit 31 will kick the SRAM2DRAM DMA.
+ * Note that the sram2dram may be enabled only after configuring the DRAM and
+ * SRAM addresses registers and the byte count register.
+ * Bits 25:24: Defines the interrupt target upon dram2sram transfer done. When
+ * set to 1 - interrupt is sent to the driver
+ * Bit 0: Indicates the snoop configuration
+*/
+#define TFH_SRV_DMA_CHNL0_CTRL	(TFH_MEM_LOWER_BOUND + 0x1F60)
+#define TFH_SRV_DMA_SNOOP	BIT(0)
+#define TFH_SRV_DMA_TO_DRIVER	BIT(24)
+#define TFH_SRV_DMA_START	BIT(31)
+
+/* Defines the DMA SRAM write start address to transfer a data block */
+#define TFH_SRV_DMA_CHNL0_SRAM_ADDR	(TFH_MEM_LOWER_BOUND + 0x1F64)
+
+/* Defines the 64bits DRAM start address to read the DMA data block from */
+#define TFH_SRV_DMA_CHNL0_DRAM_ADDR	(TFH_MEM_LOWER_BOUND + 0x1F68)
+
+/*
+ * Defines the number of bytes to transfer from DRAM to SRAM.
+ * Note that this register may be configured with non-dword aligned size.
+ */
+#define TFH_SRV_DMA_CHNL0_BC	(TFH_MEM_LOWER_BOUND + 0x1F70)
 
 /**
  * Rx SRAM Control and Status Registers (RSCSR)
