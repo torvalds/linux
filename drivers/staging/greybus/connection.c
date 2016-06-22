@@ -232,14 +232,15 @@ gb_connection_create_static(struct gb_host_device *hd, u16 hd_cport_id,
 					gb_request_handler_t handler)
 {
 	return _gb_connection_create(hd, hd_cport_id, NULL, NULL, 0, handler,
-					0);
+					GB_CONNECTION_FLAG_HIGH_PRIO);
 }
 
 struct gb_connection *
 gb_connection_create_control(struct gb_interface *intf)
 {
 	return _gb_connection_create(intf->hd, -1, intf, NULL, 0, NULL,
-					GB_CONNECTION_FLAG_CONTROL);
+					GB_CONNECTION_FLAG_CONTROL |
+					GB_CONNECTION_FLAG_HIGH_PRIO);
 }
 
 struct gb_connection *
