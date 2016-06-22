@@ -1392,7 +1392,6 @@ config NETFILTER_XT_MATCH_QUOTA2
 config NETFILTER_XT_MATCH_QUOTA2_LOG
 	bool '"quota2" Netfilter LOG support'
 	depends on NETFILTER_XT_MATCH_QUOTA2
-	depends on IP_NF_TARGET_ULOG=n    # not yes, not module, just no
 	default n
 	help
 	  This option allows `quota2' to log ONCE when a quota limit
