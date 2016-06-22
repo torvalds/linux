@@ -2672,7 +2672,7 @@ static long btrfs_ioctl_add_dev(struct btrfs_root *root, void __user *arg)
 	}
 
 	vol_args->name[BTRFS_PATH_NAME_MAX] = '\0';
-	ret = btrfs_init_new_device(root, vol_args->name);
+	ret = btrfs_init_new_device(root->fs_info, vol_args->name);
 
 	if (!ret)
 		btrfs_info(root->fs_info, "disk added %s",vol_args->name);

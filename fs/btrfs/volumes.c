@@ -2310,8 +2310,9 @@ error:
 	return ret;
 }
 
-int btrfs_init_new_device(struct btrfs_root *root, char *device_path)
+int btrfs_init_new_device(struct btrfs_fs_info *fs_info, char *device_path)
 {
+	struct btrfs_root *root = fs_info->dev_root;
 	struct request_queue *q;
 	struct btrfs_trans_handle *trans;
 	struct btrfs_device *device;
