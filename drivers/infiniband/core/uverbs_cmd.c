@@ -1747,7 +1747,7 @@ static int create_qp(struct ib_uverbs_file *file,
 	struct ib_srq			*srq = NULL;
 	struct ib_qp			*qp;
 	char				*buf;
-	struct ib_qp_init_attr		attr;
+	struct ib_qp_init_attr		attr = {};
 	struct ib_uverbs_ex_create_qp_resp resp;
 	int				ret;
 
