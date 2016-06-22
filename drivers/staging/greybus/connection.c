@@ -286,7 +286,8 @@ static int gb_connection_hd_cport_enable(struct gb_connection *connection)
 	if (!hd->driver->cport_enable)
 		return 0;
 
-	ret = hd->driver->cport_enable(hd, connection->hd_cport_id);
+	ret = hd->driver->cport_enable(hd, connection->hd_cport_id,
+					connection->flags);
 	if (ret) {
 		dev_err(&hd->dev, "%s: failed to enable host cport: %d\n",
 				connection->name, ret);
