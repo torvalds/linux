@@ -328,6 +328,7 @@ int btrfs_insert_inode_ref(struct btrfs_trans_handle *trans,
 			   const char *name, int name_len,
 			   u64 inode_objectid, u64 ref_objectid, u64 index)
 {
+	struct btrfs_fs_info *fs_info = root->fs_info;
 	struct btrfs_path *path;
 	struct btrfs_key key;
 	struct btrfs_inode_ref *ref;
@@ -384,7 +385,7 @@ out:
 	btrfs_free_path(path);
 
 	if (ret == -EMLINK) {
-		struct btrfs_super_block *disk_super = root->fs_info->super_copy;
+		struct btrfs_super_block *disk_super = fs_info->super_copy;
 		/* We ran out of space in the ref array. Need to
 		 * add an extended ref. */
 		if (btrfs_super_incompat_flags(disk_super)

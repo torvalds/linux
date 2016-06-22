@@ -451,12 +451,12 @@ int verify_dir_item(struct btrfs_root *root,
 		    struct extent_buffer *leaf,
 		    struct btrfs_dir_item *dir_item)
 {
+	struct btrfs_fs_info *fs_info = root->fs_info;
 	u16 namelen = BTRFS_NAME_LEN;
 	u8 type = btrfs_dir_type(leaf, dir_item);
 
 	if (type >= BTRFS_FT_MAX) {
-		btrfs_crit(root->fs_info, "invalid dir item type: %d",
-		       (int)type);
+		btrfs_crit(fs_info, "invalid dir item type: %d", (int)type);
 		return 1;
 	}
 
@@ -464,16 +464,16 @@ int verify_dir_item(struct btrfs_root *root,
 		namelen = XATTR_NAME_MAX;
 
 	if (btrfs_dir_name_len(leaf, dir_item) > namelen) {
-		btrfs_crit(root->fs_info, "invalid dir item name len: %u",
+		btrfs_crit(fs_info, "invalid dir item name len: %u",
 		       (unsigned)btrfs_dir_data_len(leaf, dir_item));
 		return 1;
 	}
 
 	/* BTRFS_MAX_XATTR_SIZE is the same for all dir items */
 	if ((btrfs_dir_data_len(leaf, dir_item) +
-	     btrfs_dir_name_len(leaf, dir_item)) > BTRFS_MAX_XATTR_SIZE(root->fs_info)) {
-		btrfs_crit(root->fs_info,
-			   "invalid dir item name + data len: %u + %u",
+	     btrfs_dir_name_len(leaf, dir_item)) >
+					BTRFS_MAX_XATTR_SIZE(fs_info)) {
+		btrfs_crit(fs_info, "invalid dir item name + data len: %u + %u",
 			   (unsigned)btrfs_dir_name_len(leaf, dir_item),
 			   (unsigned)btrfs_dir_data_len(leaf, dir_item));
 		return 1;

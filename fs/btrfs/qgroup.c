@@ -1019,7 +1019,7 @@ int btrfs_quota_disable(struct btrfs_trans_handle *trans,
 	list_del(&quota_root->dirty_list);
 
 	btrfs_tree_lock(quota_root->node);
-	clean_tree_block(trans, tree_root->fs_info, quota_root->node);
+	clean_tree_block(trans, fs_info, quota_root->node);
 	btrfs_tree_unlock(quota_root->node);
 	btrfs_free_tree_block(trans, quota_root, quota_root->node, 0, 1);
 
@@ -1192,7 +1192,7 @@ int btrfs_add_qgroup_relation(struct btrfs_trans_handle *trans,
 	}
 
 	spin_lock(&fs_info->qgroup_lock);
-	ret = add_relation_rb(quota_root->fs_info, src, dst);
+	ret = add_relation_rb(fs_info, src, dst);
 	if (ret < 0) {
 		spin_unlock(&fs_info->qgroup_lock);
 		goto out;
@@ -1340,7 +1340,7 @@ int btrfs_remove_qgroup(struct btrfs_trans_handle *trans,
 	}
 
 	spin_lock(&fs_info->qgroup_lock);
-	del_qgroup_rb(quota_root->fs_info, qgroupid);
+	del_qgroup_rb(fs_info, qgroupid);
 	spin_unlock(&fs_info->qgroup_lock);
 out:
 	mutex_unlock(&fs_info->qgroup_ioctl_lock);
@@ -1521,6 +1521,7 @@ int btrfs_qgroup_trace_leaf_items(struct btrfs_trans_handle *trans,
 				  struct btrfs_root *root,
 				  struct extent_buffer *eb)
 {
+	struct btrfs_fs_info *fs_info = root->fs_info;
 	int nr = btrfs_header_nritems(eb);
 	int i, extent_type, ret;
 	struct btrfs_key key;
@@ -1528,7 +1529,7 @@ int btrfs_qgroup_trace_leaf_items(struct btrfs_trans_handle *trans,
 	u64 bytenr, num_bytes;
 
 	/* We can be called directly from walk_up_proc() */
-	if (!test_bit(BTRFS_FS_QUOTA_ENABLED, &root->fs_info->flags))
+	if (!test_bit(BTRFS_FS_QUOTA_ENABLED, &fs_info->flags))
 		return 0;
 
 	for (i = 0; i < nr; i++) {
@@ -1550,8 +1551,8 @@ int btrfs_qgroup_trace_leaf_items(struct btrfs_trans_handle *trans,
 
 		num_bytes = btrfs_file_extent_disk_num_bytes(eb, fi);
 
-		ret = btrfs_qgroup_trace_extent(trans, root->fs_info,
-						bytenr, num_bytes, GFP_NOFS);
+		ret = btrfs_qgroup_trace_extent(trans, fs_info, bytenr,
+						num_bytes, GFP_NOFS);
 		if (ret)
 			return ret;
 	}
@@ -1625,6 +1626,7 @@ int btrfs_qgroup_trace_subtree(struct btrfs_trans_handle *trans,
 			       struct extent_buffer *root_eb,
 			       u64 root_gen, int root_level)
 {
+	struct btrfs_fs_info *fs_info = root->fs_info;
 	int ret = 0;
 	int level;
 	struct extent_buffer *eb = root_eb;
@@ -1633,7 +1635,7 @@ int btrfs_qgroup_trace_subtree(struct btrfs_trans_handle *trans,
 	BUG_ON(root_level < 0 || root_level > BTRFS_MAX_LEVEL);
 	BUG_ON(root_eb == NULL);
 
-	if (!test_bit(BTRFS_FS_QUOTA_ENABLED, &root->fs_info->flags))
+	if (!test_bit(BTRFS_FS_QUOTA_ENABLED, &fs_info->flags))
 		return 0;
 
 	if (!extent_buffer_uptodate(root_eb)) {
@@ -1698,9 +1700,10 @@ walk_down:
 			btrfs_set_lock_blocking_rw(eb, BTRFS_READ_LOCK);
 			path->locks[level] = BTRFS_READ_LOCK_BLOCKING;
 
-			ret = btrfs_qgroup_trace_extent(trans,
-					root->fs_info, child_bytenr,
-					root->fs_info->nodesize, GFP_NOFS);
+			ret = btrfs_qgroup_trace_extent(trans, fs_info,
+							child_bytenr,
+							fs_info->nodesize,
+							GFP_NOFS);
 			if (ret)
 				goto out;
 		}
@@ -2170,7 +2173,7 @@ int btrfs_qgroup_inherit(struct btrfs_trans_handle *trans,
 		}
 
 		rcu_read_lock();
-		level_size = srcroot->fs_info->nodesize;
+		level_size = fs_info->nodesize;
 		rcu_read_unlock();
 	}
 
@@ -2254,8 +2257,7 @@ int btrfs_qgroup_inherit(struct btrfs_trans_handle *trans,
 	i_qgroups = (u64 *)(inherit + 1);
 	for (i = 0; i < inherit->num_qgroups; ++i) {
 		if (*i_qgroups) {
-			ret = add_relation_rb(quota_root->fs_info, objectid,
-					      *i_qgroups);
+			ret = add_relation_rb(fs_info, objectid, *i_qgroups);
 			if (ret)
 				goto unlock;
 		}
@@ -2897,13 +2899,14 @@ int btrfs_qgroup_release_data(struct inode *inode, u64 start, u64 len)
 
 int btrfs_qgroup_reserve_meta(struct btrfs_root *root, int num_bytes)
 {
+	struct btrfs_fs_info *fs_info = root->fs_info;
 	int ret;
 
-	if (!test_bit(BTRFS_FS_QUOTA_ENABLED, &root->fs_info->flags) ||
+	if (!test_bit(BTRFS_FS_QUOTA_ENABLED, &fs_info->flags) ||
 	    !is_fstree(root->objectid) || num_bytes == 0)
 		return 0;
 
-	BUG_ON(num_bytes != round_down(num_bytes, root->fs_info->nodesize));
+	BUG_ON(num_bytes != round_down(num_bytes, fs_info->nodesize));
 	ret = qgroup_reserve(root, num_bytes);
 	if (ret < 0)
 		return ret;
@@ -2913,9 +2916,10 @@ int btrfs_qgroup_reserve_meta(struct btrfs_root *root, int num_bytes)
 
 void btrfs_qgroup_free_meta_all(struct btrfs_root *root)
 {
+	struct btrfs_fs_info *fs_info = root->fs_info;
 	int reserved;
 
-	if (!test_bit(BTRFS_FS_QUOTA_ENABLED, &root->fs_info->flags) ||
+	if (!test_bit(BTRFS_FS_QUOTA_ENABLED, &fs_info->flags) ||
 	    !is_fstree(root->objectid))
 		return;
 
@@ -2927,11 +2931,13 @@ void btrfs_qgroup_free_meta_all(struct btrfs_root *root)
 
 void btrfs_qgroup_free_meta(struct btrfs_root *root, int num_bytes)
 {
-	if (!test_bit(BTRFS_FS_QUOTA_ENABLED, &root->fs_info->flags) ||
+	struct btrfs_fs_info *fs_info = root->fs_info;
+
+	if (!test_bit(BTRFS_FS_QUOTA_ENABLED, &fs_info->flags) ||
 	    !is_fstree(root->objectid))
 		return;
 
-	BUG_ON(num_bytes != round_down(num_bytes, root->fs_info->nodesize));
+	BUG_ON(num_bytes != round_down(num_bytes, fs_info->nodesize));
 	WARN_ON(atomic_read(&root->qgroup_meta_rsv) < num_bytes);
 	atomic_sub(num_bytes, &root->qgroup_meta_rsv);
 	qgroup_free(root, num_bytes);

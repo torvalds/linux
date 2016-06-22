@@ -646,11 +646,12 @@ static struct btrfsic_dev_state *btrfsic_dev_state_hashtable_lookup(
 static int btrfsic_process_superblock(struct btrfsic_state *state,
 				      struct btrfs_fs_devices *fs_devices)
 {
-	int ret = 0;
+	struct btrfs_fs_info *fs_info = state->fs_info;
 	struct btrfs_super_block *selected_super;
 	struct list_head *dev_head = &fs_devices->devices;
 	struct btrfs_device *device;
 	struct btrfsic_dev_state *selected_dev_state = NULL;
+	int ret = 0;
 	int pass;
 
 	BUG_ON(NULL == state);
@@ -716,9 +717,8 @@ static int btrfsic_process_superblock(struct btrfsic_state *state,
 			break;
 		}
 
-		num_copies =
-		    btrfs_num_copies(state->fs_info,
-				     next_bytenr, state->metablock_size);
+		num_copies = btrfs_num_copies(fs_info, next_bytenr,
+					      state->metablock_size);
 		if (state->print_mask & BTRFSIC_PRINT_MASK_NUM_COPIES)
 			pr_info("num_copies(log_bytenr=%llu) = %d\n",
 			       next_bytenr, num_copies);
@@ -783,6 +783,7 @@ static int btrfsic_process_superblock_dev_mirror(
 		struct btrfsic_dev_state **selected_dev_state,
 		struct btrfs_super_block *selected_super)
 {
+	struct btrfs_fs_info *fs_info = state->fs_info;
 	struct btrfs_super_block *super_tmp;
 	u64 dev_bytenr;
 	struct buffer_head *bh;
@@ -832,7 +833,7 @@ static int btrfsic_process_superblock_dev_mirror(
 		superblock_tmp->never_written = 0;
 		superblock_tmp->mirror_num = 1 + superblock_mirror_num;
 		if (state->print_mask & BTRFSIC_PRINT_MASK_SUPERBLOCK_WRITE)
-			btrfs_info_in_rcu(device->fs_info,
+			btrfs_info_in_rcu(fs_info,
 				"new initial S-block (bdev %p, %s) @%llu (%s/%llu/%d)",
 				     superblock_bdev,
 				     rcu_str_deref(device->name), dev_bytenr,
@@ -887,9 +888,8 @@ static int btrfsic_process_superblock_dev_mirror(
 			break;
 		}
 
-		num_copies =
-		    btrfs_num_copies(state->fs_info,
-				     next_bytenr, state->metablock_size);
+		num_copies = btrfs_num_copies(fs_info, next_bytenr,
+					      state->metablock_size);
 		if (state->print_mask & BTRFSIC_PRINT_MASK_NUM_COPIES)
 			pr_info("num_copies(log_bytenr=%llu) = %d\n",
 			       next_bytenr, num_copies);
@@ -1254,6 +1254,7 @@ static int btrfsic_create_link_to_next_block(
 		struct btrfs_disk_key *disk_key,
 		u64 parent_generation)
 {
+	struct btrfs_fs_info *fs_info = state->fs_info;
 	struct btrfsic_block *next_block = NULL;
 	int ret;
 	struct btrfsic_block_link *l;
@@ -1262,9 +1263,8 @@ static int btrfsic_create_link_to_next_block(
 
 	*next_blockp = NULL;
 	if (0 == *num_copiesp) {
-		*num_copiesp =
-		    btrfs_num_copies(state->fs_info,
-				     next_bytenr, state->metablock_size);
+		*num_copiesp = btrfs_num_copies(fs_info, next_bytenr,
+						state->metablock_size);
 		if (state->print_mask & BTRFSIC_PRINT_MASK_NUM_COPIES)
 			pr_info("num_copies(log_bytenr=%llu) = %d\n",
 			       next_bytenr, *num_copiesp);
@@ -1390,13 +1390,14 @@ static int btrfsic_handle_extent_data(
 		struct btrfsic_block_data_ctx *block_ctx,
 		u32 item_offset, int force_iodone_flag)
 {
-	int ret;
+	struct btrfs_fs_info *fs_info = state->fs_info;
 	struct btrfs_file_extent_item file_extent_item;
 	u64 file_extent_item_offset;
 	u64 next_bytenr;
 	u64 num_bytes;
 	u64 generation;
 	struct btrfsic_block_link *l;
+	int ret;
 
 	file_extent_item_offset = offsetof(struct btrfs_leaf, items) +
 				  item_offset;
@@ -1456,9 +1457,8 @@ static int btrfsic_handle_extent_data(
 		else
 			chunk_len = num_bytes;
 
-		num_copies =
-		    btrfs_num_copies(state->fs_info,
-				     next_bytenr, state->datablock_size);
+		num_copies = btrfs_num_copies(fs_info, next_bytenr,
+					      state->datablock_size);
 		if (state->print_mask & BTRFSIC_PRINT_MASK_NUM_COPIES)
 			pr_info("num_copies(log_bytenr=%llu) = %d\n",
 			       next_bytenr, num_copies);
@@ -1533,13 +1533,14 @@ static int btrfsic_map_block(struct btrfsic_state *state, u64 bytenr, u32 len,
 			     struct btrfsic_block_data_ctx *block_ctx_out,
 			     int mirror_num)
 {
+	struct btrfs_fs_info *fs_info = state->fs_info;
 	int ret;
 	u64 length;
 	struct btrfs_bio *multi = NULL;
 	struct btrfs_device *device;
 
 	length = len;
-	ret = btrfs_map_block(state->fs_info, BTRFS_MAP_READ,
+	ret = btrfs_map_block(fs_info, BTRFS_MAP_READ,
 			      bytenr, &length, &multi, mirror_num);
 
 	if (ret) {
@@ -1731,6 +1732,7 @@ static void btrfsic_dump_database(struct btrfsic_state *state)
 static int btrfsic_test_for_metadata(struct btrfsic_state *state,
 				     char **datav, unsigned int num_pages)
 {
+	struct btrfs_fs_info *fs_info = state->fs_info;
 	struct btrfs_header *h;
 	u8 csum[BTRFS_CSUM_SIZE];
 	u32 crc = ~(u32)0;
@@ -1741,7 +1743,7 @@ static int btrfsic_test_for_metadata(struct btrfsic_state *state,
 	num_pages = state->metablock_size >> PAGE_SHIFT;
 	h = (struct btrfs_header *)datav[0];
 
-	if (memcmp(h->fsid, state->fs_info->fsid, BTRFS_UUID_SIZE))
+	if (memcmp(h->fsid, fs_info->fsid, BTRFS_UUID_SIZE))
 		return 1;
 
 	for (i = 0; i < num_pages; i++) {
@@ -2202,6 +2204,7 @@ static int btrfsic_process_written_superblock(
 		struct btrfsic_block *const superblock,
 		struct btrfs_super_block *const super_hdr)
 {
+	struct btrfs_fs_info *fs_info = state->fs_info;
 	int pass;
 
 	superblock->generation = btrfs_super_generation(super_hdr);
@@ -2275,9 +2278,8 @@ static int btrfsic_process_written_superblock(
 			break;
 		}
 
-		num_copies =
-		    btrfs_num_copies(state->fs_info,
-				     next_bytenr, BTRFS_SUPER_INFO_SIZE);
+		num_copies = btrfs_num_copies(fs_info, next_bytenr,
+					      BTRFS_SUPER_INFO_SIZE);
 		if (state->print_mask & BTRFSIC_PRINT_MASK_NUM_COPIES)
 			pr_info("num_copies(log_bytenr=%llu) = %d\n",
 			       next_bytenr, num_copies);
@@ -2699,14 +2701,14 @@ static void btrfsic_cmp_log_and_dev_bytenr(struct btrfsic_state *state,
 					   struct btrfsic_dev_state *dev_state,
 					   u64 dev_bytenr)
 {
+	struct btrfs_fs_info *fs_info = state->fs_info;
+	struct btrfsic_block_data_ctx block_ctx;
 	int num_copies;
 	int mirror_num;
-	int ret;
-	struct btrfsic_block_data_ctx block_ctx;
 	int match = 0;
+	int ret;
 
-	num_copies = btrfs_num_copies(state->fs_info,
-				      bytenr, state->metablock_size);
+	num_copies = btrfs_num_copies(fs_info, bytenr, state->metablock_size);
 
 	for (mirror_num = 1; mirror_num <= num_copies; mirror_num++) {
 		ret = btrfsic_map_block(state, bytenr, state->metablock_size,
@@ -2909,16 +2911,17 @@ int btrfsic_mount(struct btrfs_root *root,
 	int ret;
 	struct btrfsic_state *state;
 	struct list_head *dev_head = &fs_devices->devices;
+	struct btrfs_fs_info *fs_info = root->fs_info;
 	struct btrfs_device *device;
 
-	if (root->fs_info->nodesize & ((u64)PAGE_SIZE - 1)) {
+	if (fs_info->nodesize & ((u64)PAGE_SIZE - 1)) {
 		pr_info("btrfsic: cannot handle nodesize %d not being a multiple of PAGE_SIZE %ld!\n",
-		       root->fs_info->nodesize, PAGE_SIZE);
+		       fs_info->nodesize, PAGE_SIZE);
 		return -1;
 	}
-	if (root->fs_info->sectorsize & ((u64)PAGE_SIZE - 1)) {
+	if (fs_info->sectorsize & ((u64)PAGE_SIZE - 1)) {
 		pr_info("btrfsic: cannot handle sectorsize %d not being a multiple of PAGE_SIZE %ld!\n",
-		       root->fs_info->sectorsize, PAGE_SIZE);
+		       fs_info->sectorsize, PAGE_SIZE);
 		return -1;
 	}
 	state = kzalloc(sizeof(*state), GFP_KERNEL | __GFP_NOWARN | __GFP_REPEAT);
@@ -2940,8 +2943,8 @@ int btrfsic_mount(struct btrfs_root *root,
 	state->print_mask = print_mask;
 	state->include_extent_data = including_extent_data;
 	state->csum_size = 0;
-	state->metablock_size = root->fs_info->nodesize;
-	state->datablock_size = root->fs_info->sectorsize;
+	state->metablock_size = fs_info->nodesize;
+	state->datablock_size = fs_info->sectorsize;
 	INIT_LIST_HEAD(&state->all_blocks_list);
 	btrfsic_block_hashtable_init(&state->block_hashtable);
 	btrfsic_block_link_hashtable_init(&state->block_link_hashtable);

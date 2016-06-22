@@ -187,8 +187,8 @@ int btrfs_uuid_tree_rem(struct btrfs_trans_handle *trans,
 
 	ret = btrfs_search_slot(trans, uuid_root, &key, path, -1, 1);
 	if (ret < 0) {
-		btrfs_warn(uuid_root->fs_info,
-			   "error %d while searching for uuid item!", ret);
+		btrfs_warn(fs_info, "error %d while searching for uuid item!",
+			   ret);
 		goto out;
 	}
 	if (ret > 0) {
@@ -201,8 +201,7 @@ int btrfs_uuid_tree_rem(struct btrfs_trans_handle *trans,
 	offset = btrfs_item_ptr_offset(eb, slot);
 	item_size = btrfs_item_size_nr(eb, slot);
 	if (!IS_ALIGNED(item_size, sizeof(u64))) {
-		btrfs_warn(uuid_root->fs_info,
-			   "uuid item with illegal size %lu!",
+		btrfs_warn(fs_info, "uuid item with illegal size %lu!",
 			   (unsigned long)item_size);
 		ret = -ENOENT;
 		goto out;
