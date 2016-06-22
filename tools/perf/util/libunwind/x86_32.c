@@ -12,7 +12,13 @@
  */
 
 #define REMOTE_UNWIND_LIBUNWIND
+
+/* Define arch specific functions & regs for libunwind, should be
+ * defined before including "unwind.h"
+ */
 #define LIBUNWIND__ARCH_REG_ID(regnum) libunwind__x86_reg_id(regnum)
+#define LIBUNWIND__ARCH_REG_IP PERF_REG_X86_IP
+#define LIBUNWIND__ARCH_REG_SP PERF_REG_X86_SP
 
 #include "unwind.h"
 #include "debug.h"
