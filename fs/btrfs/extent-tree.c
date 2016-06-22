@@ -61,7 +61,7 @@ enum {
 };
 
 static int update_block_group(struct btrfs_trans_handle *trans,
-			      struct btrfs_root *root, u64 bytenr,
+			      struct btrfs_fs_info *fs_info, u64 bytenr,
 			      u64 num_bytes, int alloc);
 static int __btrfs_free_extent(struct btrfs_trans_handle *trans,
 				struct btrfs_root *root,
@@ -6182,11 +6182,10 @@ void btrfs_delalloc_release_space(struct inode *inode, u64 start, u64 len)
 }
 
 static int update_block_group(struct btrfs_trans_handle *trans,
-			      struct btrfs_root *root, u64 bytenr,
+			      struct btrfs_fs_info *info, u64 bytenr,
 			      u64 num_bytes, int alloc)
 {
 	struct btrfs_block_group_cache *cache = NULL;
-	struct btrfs_fs_info *info = root->fs_info;
 	u64 total = num_bytes;
 	u64 old_val;
 	u64 byte_in_group;
@@ -6227,7 +6226,7 @@ static int update_block_group(struct btrfs_trans_handle *trans,
 		spin_lock(&cache->space_info->lock);
 		spin_lock(&cache->lock);
 
-		if (btrfs_test_opt(root->fs_info, SPACE_CACHE) &&
+		if (btrfs_test_opt(info, SPACE_CACHE) &&
 		    cache->disk_cache_state < BTRFS_DC_CLEAR)
 			cache->disk_cache_state = BTRFS_DC_CLEAR;
 
@@ -7088,7 +7087,8 @@ static int __btrfs_free_extent(struct btrfs_trans_handle *trans,
 			goto out;
 		}
 
-		ret = update_block_group(trans, root, bytenr, num_bytes, 0);
+		ret = update_block_group(trans, root->fs_info, bytenr,
+					 num_bytes, 0);
 		if (ret) {
 			btrfs_abort_transaction(trans, ret);
 			goto out;
@@ -8104,7 +8104,7 @@ static int alloc_reserved_file_extent(struct btrfs_trans_handle *trans,
 	if (ret)
 		return ret;
 
-	ret = update_block_group(trans, root, ins->objectid, ins->offset, 1);
+	ret = update_block_group(trans, fs_info, ins->objectid, ins->offset, 1);
 	if (ret) { /* -ENOENT, logic error */
 		btrfs_err(fs_info, "update block group failed for %llu %llu",
 			ins->objectid, ins->offset);
@@ -8190,9 +8190,8 @@ static int alloc_reserved_tree_block(struct btrfs_trans_handle *trans,
 	if (ret)
 		return ret;
 
-	ret = update_block_group(trans, root, ins->objectid,
-				 root->fs_info->nodesize,
-				 1);
+	ret = update_block_group(trans, fs_info, ins->objectid,
+				 fs_info->nodesize, 1);
 	if (ret) { /* -ENOENT, logic error */
 		btrfs_err(fs_info, "update block group failed for %llu %llu",
 			ins->objectid, ins->offset);
@@ -9280,7 +9279,7 @@ int btrfs_drop_subtree(struct btrfs_trans_handle *trans,
 	return ret;
 }
 
-static u64 update_block_group_flags(struct btrfs_root *root, u64 flags)
+static u64 update_block_group_flags(struct btrfs_fs_info *fs_info, u64 flags)
 {
 	u64 num_devices;
 	u64 stripped;
@@ -9289,11 +9288,11 @@ static u64 update_block_group_flags(struct btrfs_root *root, u64 flags)
 	 * if restripe for this chunk_type is on pick target profile and
 	 * return, otherwise do the usual balance
 	 */
-	stripped = get_restripe_target(root->fs_info, flags);
+	stripped = get_restripe_target(fs_info, flags);
 	if (stripped)
 		return extended_to_chunk(stripped);
 
-	num_devices = root->fs_info->fs_devices->rw_devices;
+	num_devices = fs_info->fs_devices->rw_devices;
 
 	stripped = BTRFS_BLOCK_GROUP_RAID0 |
 		BTRFS_BLOCK_GROUP_RAID5 | BTRFS_BLOCK_GROUP_RAID6 |
@@ -9409,7 +9408,7 @@ again:
 	 * if we are changing raid levels, try to allocate a corresponding
 	 * block group with the new raid level.
 	 */
-	alloc_flags = update_block_group_flags(root, cache->flags);
+	alloc_flags = update_block_group_flags(root->fs_info, cache->flags);
 	if (alloc_flags != cache->flags) {
 		ret = do_chunk_alloc(trans, root, alloc_flags,
 				     CHUNK_ALLOC_FORCE);
@@ -9435,7 +9434,8 @@ again:
 	ret = inc_block_group_ro(cache, 0);
 out:
 	if (cache->flags & BTRFS_BLOCK_GROUP_SYSTEM) {
-		alloc_flags = update_block_group_flags(root, cache->flags);
+		alloc_flags = update_block_group_flags(root->fs_info,
+						       cache->flags);
 		lock_chunks(root->fs_info);
 		check_system_chunk(trans, root, alloc_flags);
 		unlock_chunks(root->fs_info);
