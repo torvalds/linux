@@ -27,6 +27,40 @@
 #include <subdev/bios/bmp.h>
 #include <subdev/bios/bit.h>
 
+static bool
+nvbios_addr(struct nvkm_bios *bios, u32 *addr, u8 size)
+{
+	if (unlikely(*addr + size >= bios->size)) {
+		nvkm_error(&bios->subdev, "OOB %d %08x\n", size, *addr);
+		return false;
+	}
+	return true;
+}
+
+u8
+nvbios_rd08(struct nvkm_bios *bios, u32 addr)
+{
+	if (likely(nvbios_addr(bios, &addr, 1)))
+		return bios->data[addr];
+	return 0x00;
+}
+
+u16
+nvbios_rd16(struct nvkm_bios *bios, u32 addr)
+{
+	if (likely(nvbios_addr(bios, &addr, 2)))
+		return get_unaligned_le16(&bios->data[addr]);
+	return 0x0000;
+}
+
+u32
+nvbios_rd32(struct nvkm_bios *bios, u32 addr)
+{
+	if (likely(nvbios_addr(bios, &addr, 4)))
+		return get_unaligned_le32(&bios->data[addr]);
+	return 0x00000000;
+}
+
 u8
 nvbios_checksum(const u8 *data, int size)
 {
