@@ -172,7 +172,7 @@ static unsigned int fq_codel_drop(struct Qdisc *sch, unsigned int max_packets,
 	do {
 		skb = dequeue_head(flow);
 		len += qdisc_pkt_len(skb);
-		mem += skb->truesize;
+		mem += get_codel_cb(skb)->mem_usage;
 		__qdisc_drop(skb, to_free);
 	} while (++i < max_packets && len < threshold);
 
@@ -216,7 +216,8 @@ static int fq_codel_enqueue(struct sk_buff *skb, struct Qdisc *sch,
 		flow->deficit = q->quantum;
 		flow->dropped = 0;
 	}
-	q->memory_usage += skb->truesize;
+	get_codel_cb(skb)->mem_usage = skb->truesize;
+	q->memory_usage += get_codel_cb(skb)->mem_usage;
 	memory_limited = q->memory_usage > q->memory_limit;
 	if (++sch->q.qlen <= sch->limit && !memory_limited)
 		return NET_XMIT_SUCCESS;
@@ -267,7 +268,7 @@ static struct sk_buff *dequeue_func(struct codel_vars *vars, void *ctx)
 	if (flow->head) {
 		skb = dequeue_head(flow);
 		q->backlogs[flow - q->flows] -= qdisc_pkt_len(skb);
-		q->memory_usage -= skb->truesize;
+		q->memory_usage -= get_codel_cb(skb)->mem_usage;
 		sch->q.qlen--;
 		sch->qstats.backlog -= qdisc_pkt_len(skb);
 	}
