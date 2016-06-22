@@ -486,9 +486,6 @@ static struct pwm_omap_dmtimer_pdata pwm_dmtimer_pdata = {
 
 static struct lirc_rx51_platform_data __maybe_unused rx51_lirc_data = {
 	.set_max_mpu_wakeup_lat = omap_pm_set_max_mpu_wakeup_lat,
-#if IS_ENABLED(CONFIG_OMAP_DM_TIMER)
-	.dmtimer = &pwm_dmtimer_pdata,
-#endif
 };
 
 static struct platform_device __maybe_unused rx51_lirc_device = {
