@@ -616,8 +616,8 @@ gk104_fifo_oneinit(struct nvkm_fifo *base)
 			}
 		}
 
-		nvkm_debug(subdev, "engine %2d: runlist %2d pbdma %2d\n",
-			   engn, runl, pbid);
+		nvkm_debug(subdev, "engine %2d: runlist %2d pbdma %2d (%s)\n",
+			   engn, runl, pbid, nvkm_subdev_name[engidx]);
 
 		fifo->engine[engn].engine = nvkm_device_engine(device, engidx);
 		fifo->engine[engn].runl = runl;
