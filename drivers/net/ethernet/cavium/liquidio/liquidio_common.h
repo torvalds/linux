@@ -214,6 +214,10 @@ static inline void add_sg_size(struct octeon_sg_entry *sg_entry,
 #define   OCTNET_CMD_VERBOSE_ENABLE   0x14
 #define   OCTNET_CMD_VERBOSE_DISABLE  0x15
 
+#define   OCTNET_CMD_ENABLE_VLAN_FILTER 0x16
+#define   OCTNET_CMD_ADD_VLAN_FILTER  0x17
+#define   OCTNET_CMD_DEL_VLAN_FILTER  0x18
+
 /* RX(packets coming from wire) Checksum verification flags */
 /* TCP/UDP csum */
 #define   CNNIC_L4SUM_VERIFIED             0x1
