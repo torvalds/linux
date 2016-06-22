@@ -92,9 +92,10 @@ out:
 }
 
 int btrfs_uuid_tree_add(struct btrfs_trans_handle *trans,
-			struct btrfs_root *uuid_root, u8 *uuid, u8 type,
+			struct btrfs_fs_info *fs_info, u8 *uuid, u8 type,
 			u64 subid_cpu)
 {
+	struct btrfs_root *uuid_root = fs_info->uuid_root;
 	int ret;
 	struct btrfs_path *path = NULL;
 	struct btrfs_key key;
@@ -138,7 +139,7 @@ int btrfs_uuid_tree_add(struct btrfs_trans_handle *trans,
 		offset = btrfs_item_ptr_offset(eb, slot);
 		offset += btrfs_item_size_nr(eb, slot) - sizeof(subid_le);
 	} else if (ret < 0) {
-		btrfs_warn(uuid_root->fs_info,
+		btrfs_warn(fs_info,
 			   "insert uuid item failed %d (0x%016llx, 0x%016llx) type %u!",
 			   ret, (unsigned long long)key.objectid,
 			   (unsigned long long)key.offset, type);
@@ -156,9 +157,10 @@ out:
 }
 
 int btrfs_uuid_tree_rem(struct btrfs_trans_handle *trans,
-			struct btrfs_root *uuid_root, u8 *uuid, u8 type,
+			struct btrfs_fs_info *fs_info, u8 *uuid, u8 type,
 			u64 subid)
 {
+	struct btrfs_root *uuid_root = fs_info->uuid_root;
 	int ret;
 	struct btrfs_path *path = NULL;
 	struct btrfs_key key;
@@ -250,7 +252,7 @@ static int btrfs_uuid_iter_rem(struct btrfs_root *uuid_root, u8 *uuid, u8 type,
 		goto out;
 	}
 
-	ret = btrfs_uuid_tree_rem(trans, uuid_root, uuid, type, subid);
+	ret = btrfs_uuid_tree_rem(trans, uuid_root->fs_info, uuid, type, subid);
 	btrfs_end_transaction(trans, uuid_root);
 
 out:

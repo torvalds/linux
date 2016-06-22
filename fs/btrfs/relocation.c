@@ -4306,9 +4306,9 @@ static void describe_relocation(struct btrfs_fs_info *fs_info,
 /*
  * function to relocate all extents in a block group.
  */
-int btrfs_relocate_block_group(struct btrfs_root *extent_root, u64 group_start)
+int btrfs_relocate_block_group(struct btrfs_fs_info *fs_info, u64 group_start)
 {
-	struct btrfs_fs_info *fs_info = extent_root->fs_info;
+	struct btrfs_root *extent_root = fs_info->extent_root;
 	struct reloc_control *rc;
 	struct inode *inode;
 	struct btrfs_path *path;

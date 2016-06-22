@@ -216,8 +216,9 @@ int btrfs_insert_root(struct btrfs_trans_handle *trans, struct btrfs_root *root,
 	return btrfs_insert_item(trans, root, key, item, sizeof(*item));
 }
 
-int btrfs_find_orphan_roots(struct btrfs_root *tree_root)
+int btrfs_find_orphan_roots(struct btrfs_fs_info *fs_info)
 {
+	struct btrfs_root *tree_root = fs_info->tree_root;
 	struct extent_buffer *leaf;
 	struct btrfs_path *path;
 	struct btrfs_key key;
@@ -358,11 +359,12 @@ out:
 }
 
 int btrfs_del_root_ref(struct btrfs_trans_handle *trans,
-		       struct btrfs_root *tree_root,
+		       struct btrfs_fs_info *fs_info,
 		       u64 root_id, u64 ref_id, u64 dirid, u64 *sequence,
 		       const char *name, int name_len)
 
 {
+	struct btrfs_root *tree_root = fs_info->tree_root;
 	struct btrfs_path *path;
 	struct btrfs_root_ref *ref;
 	struct extent_buffer *leaf;
@@ -429,10 +431,11 @@ out:
  * Will return 0, -ENOMEM, or anything from the CoW path
  */
 int btrfs_add_root_ref(struct btrfs_trans_handle *trans,
-		       struct btrfs_root *tree_root,
+		       struct btrfs_fs_info *fs_info,
 		       u64 root_id, u64 ref_id, u64 dirid, u64 sequence,
 		       const char *name, int name_len)
 {
+	struct btrfs_root *tree_root = fs_info->tree_root;
 	struct btrfs_key key;
 	int ret;
 	struct btrfs_path *path;

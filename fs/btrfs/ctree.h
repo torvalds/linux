@@ -2640,7 +2640,7 @@ int btrfs_setup_space_cache(struct btrfs_trans_handle *trans,
 int btrfs_extent_readonly(struct btrfs_root *root, u64 bytenr);
 int btrfs_free_block_groups(struct btrfs_fs_info *info);
 int btrfs_read_block_groups(struct btrfs_fs_info *info);
-int btrfs_can_relocate(struct btrfs_root *root, u64 bytenr);
+int btrfs_can_relocate(struct btrfs_fs_info *fs_info, u64 bytenr);
 int btrfs_make_block_group(struct btrfs_trans_handle *trans,
 			   struct btrfs_root *root, u64 bytes_used,
 			   u64 type, u64 chunk_objectid, u64 chunk_offset,
@@ -2649,7 +2649,7 @@ struct btrfs_trans_handle *btrfs_start_trans_remove_block_group(
 				struct btrfs_fs_info *fs_info,
 				const u64 chunk_offset);
 int btrfs_remove_block_group(struct btrfs_trans_handle *trans,
-			     struct btrfs_root *root, u64 group_start,
+			     struct btrfs_fs_info *fs_info, u64 group_start,
 			     struct extent_map *em);
 void btrfs_delete_unused_bgs(struct btrfs_fs_info *fs_info);
 void btrfs_get_block_group_trimming(struct btrfs_block_group_cache *cache);
@@ -2935,11 +2935,11 @@ int btrfs_old_root_level(struct btrfs_root *root, u64 time_seq);
 
 /* root-item.c */
 int btrfs_add_root_ref(struct btrfs_trans_handle *trans,
-		       struct btrfs_root *tree_root,
+		       struct btrfs_fs_info *fs_info,
 		       u64 root_id, u64 ref_id, u64 dirid, u64 sequence,
 		       const char *name, int name_len);
 int btrfs_del_root_ref(struct btrfs_trans_handle *trans,
-		       struct btrfs_root *tree_root,
+		       struct btrfs_fs_info *fs_info,
 		       u64 root_id, u64 ref_id, u64 dirid, u64 *sequence,
 		       const char *name, int name_len);
 int btrfs_del_root(struct btrfs_trans_handle *trans, struct btrfs_root *root,
@@ -2954,7 +2954,7 @@ int __must_check btrfs_update_root(struct btrfs_trans_handle *trans,
 int btrfs_find_root(struct btrfs_root *root, struct btrfs_key *search_key,
 		    struct btrfs_path *path, struct btrfs_root_item *root_item,
 		    struct btrfs_key *root_key);
-int btrfs_find_orphan_roots(struct btrfs_root *tree_root);
+int btrfs_find_orphan_roots(struct btrfs_fs_info *fs_info);
 void btrfs_set_root_node(struct btrfs_root_item *item,
 			 struct extent_buffer *node);
 void btrfs_check_and_init_root_item(struct btrfs_root_item *item);
@@ -2963,10 +2963,10 @@ void btrfs_update_root_times(struct btrfs_trans_handle *trans,
 
 /* uuid-tree.c */
 int btrfs_uuid_tree_add(struct btrfs_trans_handle *trans,
-			struct btrfs_root *uuid_root, u8 *uuid, u8 type,
+			struct btrfs_fs_info *fs_info, u8 *uuid, u8 type,
 			u64 subid);
 int btrfs_uuid_tree_rem(struct btrfs_trans_handle *trans,
-			struct btrfs_root *uuid_root, u8 *uuid, u8 type,
+			struct btrfs_fs_info *fs_info, u8 *uuid, u8 type,
 			u64 subid);
 int btrfs_uuid_tree_iterate(struct btrfs_fs_info *fs_info,
 			    int (*check_func)(struct btrfs_fs_info *, u8 *, u8,
@@ -3613,7 +3613,7 @@ static inline int btrfs_init_acl(struct btrfs_trans_handle *trans,
 #endif
 
 /* relocation.c */
-int btrfs_relocate_block_group(struct btrfs_root *root, u64 group_start);
+int btrfs_relocate_block_group(struct btrfs_fs_info *fs_info, u64 group_start);
 int btrfs_init_reloc_root(struct btrfs_trans_handle *trans,
 			  struct btrfs_root *root);
 int btrfs_update_reloc_root(struct btrfs_trans_handle *trans,

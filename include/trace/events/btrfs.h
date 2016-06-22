@@ -698,10 +698,10 @@ DEFINE_EVENT(btrfs_delayed_ref_head,  run_delayed_ref_head,
 
 DECLARE_EVENT_CLASS(btrfs__chunk,
 
-	TP_PROTO(struct btrfs_root *root, struct map_lookup *map,
+	TP_PROTO(struct btrfs_fs_info *fs_info, struct map_lookup *map,
 		 u64 offset, u64 size),
 
-	TP_ARGS(root, map, offset, size),
+	TP_ARGS(fs_info, map, offset, size),
 
 	TP_STRUCT__entry_btrfs(
 		__field(	int,  num_stripes		)
@@ -712,13 +712,13 @@ DECLARE_EVENT_CLASS(btrfs__chunk,
 		__field(	u64,  root_objectid		)
 	),
 
-	TP_fast_assign_btrfs(root->fs_info,
+	TP_fast_assign_btrfs(fs_info,
 		__entry->num_stripes	= map->num_stripes;
 		__entry->type		= map->type;
 		__entry->sub_stripes	= map->sub_stripes;
 		__entry->offset		= offset;
 		__entry->size		= size;
-		__entry->root_objectid	= root->root_key.objectid;
+		__entry->root_objectid	= fs_info->chunk_root->root_key.objectid;
 	),
 
 	TP_printk_btrfs("root = %llu(%s), offset = %llu, size = %llu, "
@@ -732,18 +732,18 @@ DECLARE_EVENT_CLASS(btrfs__chunk,
 
 DEFINE_EVENT(btrfs__chunk,  btrfs_chunk_alloc,
 
-	TP_PROTO(struct btrfs_root *root, struct map_lookup *map,
+	TP_PROTO(struct btrfs_fs_info *fs_info, struct map_lookup *map,
 		 u64 offset, u64 size),
 
-	TP_ARGS(root, map, offset, size)
+	TP_ARGS(fs_info, map, offset, size)
 );
 
 DEFINE_EVENT(btrfs__chunk,  btrfs_chunk_free,
 
-	TP_PROTO(struct btrfs_root *root, struct map_lookup *map,
+	TP_PROTO(struct btrfs_fs_info *fs_info, struct map_lookup *map,
 		 u64 offset, u64 size),
 
-	TP_ARGS(root, map, offset, size)
+	TP_ARGS(fs_info, map, offset, size)
 );
 
 TRACE_EVENT(btrfs_cow_block,

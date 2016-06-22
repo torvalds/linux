@@ -305,7 +305,7 @@ void __btrfs_panic(struct btrfs_fs_info *fs_info, const char *function,
 
 static void btrfs_put_super(struct super_block *sb)
 {
-	close_ctree(btrfs_sb(sb)->tree_root);
+	close_ctree(btrfs_sb(sb));
 }
 
 enum {
@@ -1173,7 +1173,7 @@ static int btrfs_fill_super(struct super_block *sb,
 	return 0;
 
 fail_close:
-	close_ctree(fs_info->tree_root);
+	close_ctree(fs_info);
 	return err;
 }
 
@@ -1784,7 +1784,7 @@ static int btrfs_remount(struct super_block *sb, int *flags, char *data)
 		btrfs_scrub_cancel(fs_info);
 		btrfs_pause_balance(fs_info);
 
-		ret = btrfs_commit_super(root);
+		ret = btrfs_commit_super(fs_info);
 		if (ret)
 			goto restore;
 	} else {
@@ -1901,9 +1901,10 @@ static inline void btrfs_descending_sort_devices(
  * The helper to calc the free space on the devices that can be used to store
  * file data.
  */
-static int btrfs_calc_avail_data_space(struct btrfs_root *root, u64 *free_bytes)
+static int btrfs_calc_avail_data_space(struct btrfs_fs_info *fs_info,
+				       u64 *free_bytes)
 {
-	struct btrfs_fs_info *fs_info = root->fs_info;
+	struct btrfs_root *root = fs_info->tree_root;
 	struct btrfs_device_info *devices_info;
 	struct btrfs_fs_devices *fs_devices = fs_info->fs_devices;
 	struct btrfs_device *device;
@@ -2137,7 +2138,7 @@ static int btrfs_statfs(struct dentry *dentry, struct kstatfs *buf)
 	spin_unlock(&block_rsv->lock);
 
 	buf->f_bavail = div_u64(total_free_data, factor);
-	ret = btrfs_calc_avail_data_space(fs_info->tree_root, &total_free_data);
+	ret = btrfs_calc_avail_data_space(fs_info, &total_free_data);
 	if (ret)
 		return ret;
 	buf->f_bavail += div_u64(total_free_data, factor);
