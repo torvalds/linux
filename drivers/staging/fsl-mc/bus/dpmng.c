@@ -67,6 +67,7 @@ int mc_get_version(struct fsl_mc_io *mc_io,
 
 	return 0;
 }
+EXPORT_SYMBOL(mc_get_version);
 
 /**
  * dpmng_get_container_id() - Get container ID associated with a given portal.
