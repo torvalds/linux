@@ -111,6 +111,32 @@
 	arm-supply = <&sw1a_reg>;
 };
 
+&ecspi3 {
+	fsl,spi-num-chipselects = <1>;
+	pinctrl-names = "default";
+	pinctrl-0 = <&pinctrl_ecspi3>;
+	cs-gpios = <&gpio5 9 GPIO_ACTIVE_HIGH>;
+	status = "okay";
+
+	tsc2046@0 {
+		compatible = "ti,tsc2046";
+		reg = <0>;
+		spi-max-frequency = <1000000>;
+		pinctrl-names ="default";
+		pinctrl-0 = <&pinctrl_tsc2046_pendown>;
+		interrupt-parent = <&gpio2>;
+		interrupts = <29 0>;
+		pendown-gpio = <&gpio2 29 GPIO_ACTIVE_HIGH>;
+		ti,x-min = /bits/ 16 <0>;
+		ti,x-max = /bits/ 16 <0>;
+		ti,y-min = /bits/ 16 <0>;
+		ti,y-max = /bits/ 16 <0>;
+		ti,pressure-max = /bits/ 16 <0>;
+		ti,x-plat-ohms = /bits/ 16 <400>;
+		wakeup-source;
+	};
+};
+
 &fec1 {
 	pinctrl-names = "default";
 	pinctrl-0 = <&pinctrl_enet1>;
@@ -363,6 +389,15 @@
 	pinctrl-0 = <&pinctrl_hog>;
 
 	imx7d-sdb {
+		pinctrl_ecspi3: ecspi3grp {
+			fsl,pins = <
+				MX7D_PAD_SAI2_TX_SYNC__ECSPI3_MISO	0x2
+				MX7D_PAD_SAI2_TX_BCLK__ECSPI3_MOSI	0x2
+				MX7D_PAD_SAI2_RX_DATA__ECSPI3_SCLK	0x2
+				MX7D_PAD_SD2_CD_B__GPIO5_IO9		0x59
+			>;
+		};
+
 		pinctrl_enet1: enet1grp {
 			fsl,pins = <
 				MX7D_PAD_GPIO1_IO10__ENET1_MDIO			0x3
@@ -471,6 +506,12 @@
 		pinctrl_pwm1: pwm1grp {
 			fsl,pins = <
 				MX7D_PAD_GPIO1_IO01__PWM1_OUT		0x110b0
+			>;
+		};
+
+		pinctrl_tsc2046_pendown: tsc2046_pendown {
+			fsl,pins = <
+				MX7D_PAD_EPDC_BDR1__GPIO2_IO29		0x59
 			>;
 		};
 
