@@ -3805,14 +3805,19 @@ static int octeon_device_init(struct octeon_device *octeon_dev)
 
 	dev_dbg(&octeon_dev->pci_dev->dev, "Waiting for DDR initialization...\n");
 
-	if (ddr_timeout == 0) {
-		dev_info(&octeon_dev->pci_dev->dev,
-			 "WAITING. Set ddr_timeout to non-zero value to proceed with initialization.\n");
-	}
+	if (ddr_timeout == 0)
+		dev_info(&octeon_dev->pci_dev->dev, "WAITING. Set ddr_timeout to non-zero value to proceed with initialization.\n");
 
 	schedule_timeout_uninterruptible(HZ * LIO_RESET_SECS);
 
 	/* Wait for the octeon to initialize DDR after the soft-reset. */
+	while (ddr_timeout == 0) {
+		set_current_state(TASK_INTERRUPTIBLE);
+		if (schedule_timeout(HZ / 10)) {
+			/* user probably pressed Control-C */
+			return 1;
+		}
+	}
 	ret = octeon_wait_for_ddr_init(octeon_dev, &ddr_timeout);
 	if (ret) {
 		dev_err(&octeon_dev->pci_dev->dev,
