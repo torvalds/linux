@@ -21,6 +21,7 @@
 #include <linux/sched.h>
 #include <linux/wait.h>
 #include <linux/pwm.h>
+#include <linux/of.h>
 
 #include <media/lirc.h>
 #include <media/lirc_dev.h>
@@ -478,6 +479,14 @@ static int lirc_rx51_remove(struct platform_device *dev)
 	return lirc_unregister_driver(lirc_rx51_driver.minor);
 }
 
+static const struct of_device_id lirc_rx51_match[] = {
+	{
+		.compatible = "nokia,n900-ir",
+	},
+	{},
+};
+MODULE_DEVICE_TABLE(of, lirc_rx51_match);
+
 struct platform_driver lirc_rx51_platform_driver = {
 	.probe		= lirc_rx51_probe,
 	.remove		= lirc_rx51_remove,
@@ -485,7 +494,7 @@ struct platform_driver lirc_rx51_platform_driver = {
 	.resume		= lirc_rx51_resume,
 	.driver		= {
 		.name	= DRIVER_NAME,
-		.owner	= THIS_MODULE,
+		.of_match_table = of_match_ptr(lirc_rx51_match),
 	},
 };
 module_platform_driver(lirc_rx51_platform_driver);
