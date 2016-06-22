@@ -1595,30 +1595,26 @@ void *nf_ct_alloc_hashtable(unsigned int *sizep, int nulls)
 }
 EXPORT_SYMBOL_GPL(nf_ct_alloc_hashtable);
 
-int nf_conntrack_set_hashsize(const char *val, struct kernel_param *kp)
+int nf_conntrack_hash_resize(unsigned int hashsize)
 {
-	int i, bucket, rc;
-	unsigned int hashsize, old_size;
+	int i, bucket;
+	unsigned int old_size;
 	struct hlist_nulls_head *hash, *old_hash;
 	struct nf_conntrack_tuple_hash *h;
 	struct nf_conn *ct;
 
-	if (current->nsproxy->net_ns != &init_net)
-		return -EOPNOTSUPP;
-
-	/* On boot, we can set this without any fancy locking. */
-	if (!nf_conntrack_htable_size)
-		return param_set_uint(val, kp);
-
-	rc = kstrtouint(val, 0, &hashsize);
-	if (rc)
-		return rc;
 	if (!hashsize)
 		return -EINVAL;
 
 	hash = nf_ct_alloc_hashtable(&hashsize, 1);
 	if (!hash)
 		return -ENOMEM;
+
+	old_size = nf_conntrack_htable_size;
+	if (old_size == hashsize) {
+		nf_ct_free_hashtable(hash, hashsize);
+		return 0;
+	}
 
 	local_bh_disable();
 	nf_conntrack_all_lock();
@@ -1654,6 +1650,25 @@ int nf_conntrack_set_hashsize(const char *val, struct kernel_param *kp)
 	synchronize_net();
 	nf_ct_free_hashtable(old_hash, old_size);
 	return 0;
+}
+
+int nf_conntrack_set_hashsize(const char *val, struct kernel_param *kp)
+{
+	unsigned int hashsize;
+	int rc;
+
+	if (current->nsproxy->net_ns != &init_net)
+		return -EOPNOTSUPP;
+
+	/* On boot, we can set this without any fancy locking. */
+	if (!nf_conntrack_htable_size)
+		return param_set_uint(val, kp);
+
+	rc = kstrtouint(val, 0, &hashsize);
+	if (rc)
+		return rc;
+
+	return nf_conntrack_hash_resize(hashsize);
 }
 EXPORT_SYMBOL_GPL(nf_conntrack_set_hashsize);
 
