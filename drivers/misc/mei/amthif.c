@@ -132,7 +132,7 @@ int mei_amthif_read(struct mei_device *dev, struct file *file,
 			return -ERESTARTSYS;
 
 		if (!mei_cl_is_connected(cl)) {
-			rets = -EBUSY;
+			rets = -ENODEV;
 			goto out;
 		}
 
