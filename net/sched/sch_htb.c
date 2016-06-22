@@ -117,7 +117,6 @@ struct htb_class {
 	 * Written often fields
 	 */
 	struct gnet_stats_basic_packed bstats;
-	struct gnet_stats_queue	qstats;
 	struct tc_htb_xstats	xstats;	/* our special stats */
 
 	/* token bucket parameters */
@@ -140,6 +139,8 @@ struct htb_class {
 	enum htb_cmode		cmode;		/* current mode of the class */
 	struct rb_node		pq_node;	/* node for event queue */
 	struct rb_node		node[TC_HTB_NUMPRIO];	/* node for self or feed tree */
+
+	unsigned int drops ____cacheline_aligned_in_smp;
 };
 
 struct htb_level {
@@ -595,7 +596,7 @@ static int htb_enqueue(struct sk_buff *skb, struct Qdisc *sch,
 					to_free)) != NET_XMIT_SUCCESS) {
 		if (net_xmit_drop_count(ret)) {
 			qdisc_qstats_drop(sch);
-			cl->qstats.drops++;
+			cl->drops++;
 		}
 		return ret;
 	} else {
@@ -1110,17 +1111,22 @@ static int
 htb_dump_class_stats(struct Qdisc *sch, unsigned long arg, struct gnet_dump *d)
 {
 	struct htb_class *cl = (struct htb_class *)arg;
+	struct gnet_stats_queue qs = {
+		.drops = cl->drops,
+	};
 	__u32 qlen = 0;
 
-	if (!cl->level && cl->un.leaf.q)
+	if (!cl->level && cl->un.leaf.q) {
 		qlen = cl->un.leaf.q->q.qlen;
+		qs.backlog = cl->un.leaf.q->qstats.backlog;
+	}
 	cl->xstats.tokens = PSCHED_NS2TICKS(cl->tokens);
 	cl->xstats.ctokens = PSCHED_NS2TICKS(cl->ctokens);
 
 	if (gnet_stats_copy_basic(qdisc_root_sleeping_running(sch),
 				  d, NULL, &cl->bstats) < 0 ||
 	    gnet_stats_copy_rate_est(d, NULL, &cl->rate_est) < 0 ||
-	    gnet_stats_copy_queue(d, NULL, &cl->qstats, qlen) < 0)
+	    gnet_stats_copy_queue(d, NULL, &qs, qlen) < 0)
 		return -1;
 
 	return gnet_stats_copy_app(d, &cl->xstats, sizeof(cl->xstats));
