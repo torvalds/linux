@@ -73,6 +73,11 @@ enum {
 	INTERFACE_MODE_RXAUI,
 	INTERFACE_MODE_QSGMII,
 	INTERFACE_MODE_AGL,
+	INTERFACE_MODE_XLAUI,
+	INTERFACE_MODE_XFI,
+	INTERFACE_MODE_10G_KR,
+	INTERFACE_MODE_40G_KR4,
+	INTERFACE_MODE_MIXED,
 };
 
 #define ARRAY_LENGTH(a) (sizeof(a) / sizeof((a)[0]))
@@ -195,8 +200,9 @@ static int lio_get_settings(struct net_device *netdev, struct ethtool_cmd *ecmd)
 
 	linfo = &lio->linfo;
 
-	if (linfo->link.s.interface == INTERFACE_MODE_XAUI ||
-	    linfo->link.s.interface == INTERFACE_MODE_RXAUI) {
+	if (linfo->link.s.if_mode == INTERFACE_MODE_XAUI ||
+	    linfo->link.s.if_mode == INTERFACE_MODE_RXAUI ||
+	    linfo->link.s.if_mode == INTERFACE_MODE_XFI) {
 		ecmd->port = PORT_FIBRE;
 		ecmd->supported =
 			(SUPPORTED_10000baseT_Full | SUPPORTED_FIBRE |
@@ -207,7 +213,8 @@ static int lio_get_settings(struct net_device *netdev, struct ethtool_cmd *ecmd)
 		ecmd->autoneg = AUTONEG_DISABLE;
 
 	} else {
-		dev_err(&oct->pci_dev->dev, "Unknown link interface reported\n");
+		dev_err(&oct->pci_dev->dev, "Unknown link interface reported %d\n",
+			linfo->link.s.if_mode);
 	}
 
 	if (linfo->link.s.link_up) {
@@ -1450,12 +1457,14 @@ static int lio_set_settings(struct net_device *netdev, struct ethtool_cmd *ecmd)
 						  ecmd->duplex != DUPLEX_FULL)))
 		return -EINVAL;
 
-	/* Ethtool Support is not provided for XAUI and RXAUI Interfaces
+	/* Ethtool Support is not provided for XAUI, RXAUI, and XFI Interfaces
 	 * as they operate at fixed Speed and Duplex settings
 	 */
-	if (linfo->link.s.interface == INTERFACE_MODE_XAUI ||
-	    linfo->link.s.interface == INTERFACE_MODE_RXAUI) {
-		dev_info(&oct->pci_dev->dev, "XAUI IFs settings cannot be modified.\n");
+	if (linfo->link.s.if_mode == INTERFACE_MODE_XAUI ||
+	    linfo->link.s.if_mode == INTERFACE_MODE_RXAUI ||
+	    linfo->link.s.if_mode == INTERFACE_MODE_XFI) {
+		dev_info(&oct->pci_dev->dev,
+			 "Autonegotiation, duplex and speed settings cannot be modified.\n");
 		return -EINVAL;
 	}
 

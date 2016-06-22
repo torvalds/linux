@@ -628,13 +628,13 @@ union oct_link_status {
 		u64 speed:16;
 		u64 link_up:1;
 		u64 autoneg:1;
-		u64 interface:4;
+		u64 if_mode:5;
 		u64 pause:1;
-		u64 reserved:17;
+		u64 reserved:16;
 #else
-		u64 reserved:17;
+		u64 reserved:16;
 		u64 pause:1;
-		u64 interface:4;
+		u64 if_mode:5;
 		u64 autoneg:1;
 		u64 link_up:1;
 		u64 speed:16;
