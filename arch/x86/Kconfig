@@ -2010,6 +2010,21 @@ config RANDOMIZE_MEMORY
 
 	   If unsure, say N.
 
+config RANDOMIZE_MEMORY_PHYSICAL_PADDING
+	hex "Physical memory mapping padding" if EXPERT
+	depends on RANDOMIZE_MEMORY
+	default "0xa" if MEMORY_HOTPLUG
+	default "0x0"
+	range 0x1 0x40 if MEMORY_HOTPLUG
+	range 0x0 0x40
+	---help---
+	   Define the padding in terabytes added to the existing physical
+	   memory size during kernel memory randomization. It is useful
+	   for memory hotplug support but reduces the entropy available for
+	   address randomization.
+
+	   If unsure, leave at the default value.
+
 config HOTPLUG_CPU
 	bool "Support for hot-pluggable CPUs"
 	depends on SMP
