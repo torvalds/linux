@@ -15,7 +15,7 @@
 #include "greybus.h"
 
 /* Timeout, in jiffies, within which the next request must be received */
-#define NEXT_REQ_TIMEOUT_J	msecs_to_jiffies(1000)
+#define NEXT_REQ_TIMEOUT_MS	1000
 
 enum next_request_type {
 	NEXT_REQ_FIRMWARE_SIZE,
@@ -82,7 +82,7 @@ static void gb_bootrom_set_timeout(struct gb_bootrom *bootrom,
 			enum next_request_type next, unsigned long timeout)
 {
 	bootrom->next_request = next;
-	schedule_delayed_work(&bootrom->dwork, timeout);
+	schedule_delayed_work(&bootrom->dwork, msecs_to_jiffies(timeout));
 }
 
 /*
@@ -211,7 +211,7 @@ unlock:
 queue_work:
 	/* Refresh timeout */
 	gb_bootrom_set_timeout(bootrom, NEXT_REQ_GET_FIRMWARE,
-			       NEXT_REQ_TIMEOUT_J);
+			       NEXT_REQ_TIMEOUT_MS);
 
 	return ret;
 }
@@ -281,7 +281,7 @@ queue_work:
 	else
 		next_request = NEXT_REQ_GET_FIRMWARE;
 
-	gb_bootrom_set_timeout(bootrom, next_request, NEXT_REQ_TIMEOUT_J);
+	gb_bootrom_set_timeout(bootrom, next_request, NEXT_REQ_TIMEOUT_MS);
 
 	return ret;
 }
@@ -327,7 +327,7 @@ queue_work:
 	 * connection. As that can take some time, increase the timeout a bit.
 	 */
 	gb_bootrom_set_timeout(bootrom, NEXT_REQ_MODE_SWITCH,
-			       5 * NEXT_REQ_TIMEOUT_J);
+			       5 * NEXT_REQ_TIMEOUT_MS);
 
 	return ret;
 }
@@ -447,7 +447,7 @@ static int gb_bootrom_probe(struct gb_bundle *bundle,
 
 	/* Refresh timeout */
 	gb_bootrom_set_timeout(bootrom, NEXT_REQ_FIRMWARE_SIZE,
-			       NEXT_REQ_TIMEOUT_J);
+			       NEXT_REQ_TIMEOUT_MS);
 
 	dev_dbg(&bundle->dev, "AP_READY sent\n");
 
