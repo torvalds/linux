@@ -30,11 +30,10 @@
 
 #include "octeon_config.h"
 
-#define LIQUIDIO_VERSION        "1.1.9"
-#define LIQUIDIO_MAJOR_VERSION  1
-#define LIQUIDIO_MINOR_VERSION  1
-#define LIQUIDIO_MICRO_VERSION  9
-
+#define LIQUIDIO_BASE_VERSION   "1.4"
+#define LIQUIDIO_MICRO_VERSION  ".1"
+#define LIQUIDIO_PACKAGE ""
+#define LIQUIDIO_VERSION  "1.4.1"
 #define CONTROL_IQ 0
 /** Tag types used by Octeon cores in its work. */
 enum octeon_tag_type {
@@ -712,6 +711,7 @@ struct liquidio_if_cfg_info {
 	u64 iqmask; /** mask for IQs enabled for  the port */
 	u64 oqmask; /** mask for OQs enabled for the port */
 	struct oct_link_info linfo; /** initial link information */
+	char   liquidio_firmware_version[32];
 };
 
 /** Stats for each NIC port in RX direction. */

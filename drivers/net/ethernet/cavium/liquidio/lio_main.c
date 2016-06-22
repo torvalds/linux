@@ -1375,6 +1375,7 @@ static int octeon_chip_specific_setup(struct octeon_device *oct)
 {
 	u32 dev_id, rev_id;
 	int ret = 1;
+	char *s;
 
 	pci_read_config_dword(oct->pci_dev, 0, &dev_id);
 	pci_read_config_dword(oct->pci_dev, 8, &rev_id);
@@ -1384,22 +1385,27 @@ static int octeon_chip_specific_setup(struct octeon_device *oct)
 	case OCTEON_CN68XX_PCIID:
 		oct->chip_id = OCTEON_CN68XX;
 		ret = lio_setup_cn68xx_octeon_device(oct);
+		s = "CN68XX";
 		break;
 
 	case OCTEON_CN66XX_PCIID:
 		oct->chip_id = OCTEON_CN66XX;
 		ret = lio_setup_cn66xx_octeon_device(oct);
+		s = "CN66XX";
 		break;
+
 	default:
+		s = "?";
 		dev_err(&oct->pci_dev->dev, "Unknown device found (dev_id: %x)\n",
 			dev_id);
 	}
 
 	if (!ret)
-		dev_info(&oct->pci_dev->dev, "CN68XX PASS%d.%d %s\n",
+		dev_info(&oct->pci_dev->dev, "%s PASS%d.%d %s Version: %s\n", s,
 			 OCTEON_MAJOR_REV(oct),
 			 OCTEON_MINOR_REV(oct),
-			 octeon_get_conf(oct)->card_name);
+			 octeon_get_conf(oct)->card_name,
+			 LIQUIDIO_VERSION);
 
 	return ret;
 }
@@ -1772,6 +1778,7 @@ static int load_firmware(struct octeon_device *oct)
 	if (ret) {
 		dev_err(&oct->pci_dev->dev, "Request firmware failed. Could not find file %s.\n.",
 			fw_name);
+		release_firmware(fw);
 		return ret;
 	}
 
@@ -1840,6 +1847,9 @@ static void if_cfg_callback(struct octeon_device *oct,
 		dev_err(&oct->pci_dev->dev, "nic if cfg instruction failed. Status: %llx\n",
 			CVM_CAST64(resp->status));
 	ACCESS_ONCE(ctx->cond) = 1;
+
+	snprintf(oct->fw_info.liquidio_firmware_version, 32, "%s",
+		 resp->cfg_info.liquidio_firmware_version);
 
 	/* This barrier is required to be sure that the response has been
 	 * written fully before waking up the handler
@@ -3635,6 +3645,7 @@ static void nic_starter(struct work_struct *work)
 static int octeon_device_init(struct octeon_device *octeon_dev)
 {
 	int j, ret;
+	char bootcmd[] = "\n";
 	struct octeon_device_priv *oct_priv =
 		(struct octeon_device_priv *)octeon_dev->priv;
 	atomic_set(&octeon_dev->status, OCT_DEV_BEGIN_STATE);
@@ -3766,6 +3777,9 @@ static int octeon_device_init(struct octeon_device *octeon_dev)
 		dev_err(&octeon_dev->pci_dev->dev, "Board not responding\n");
 		return 1;
 	}
+
+	/* Divert uboot to take commands from host instead. */
+	ret = octeon_console_send_cmd(octeon_dev, bootcmd, 50);
 
 	dev_dbg(&octeon_dev->pci_dev->dev, "Initializing consoles\n");
 	ret = octeon_init_consoles(octeon_dev);
