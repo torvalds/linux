@@ -21,12 +21,19 @@
 
 #define PMIC_POWER_OPREGION_ID		0x8d
 #define PMIC_THERMAL_OPREGION_ID	0x8c
+#define PMIC_REGS_OPREGION_ID		0x8f
+
+struct intel_pmic_regs_handler_ctx {
+	unsigned int val;
+	u16 addr;
+};
 
 struct intel_pmic_opregion {
 	struct mutex lock;
 	struct acpi_lpat_conversion_table *lpat_table;
 	struct regmap *regmap;
 	struct intel_pmic_opregion_data *data;
+	struct intel_pmic_regs_handler_ctx ctx;
 };
 
 static int pmic_get_reg_bit(int address, struct pmic_table *table,
@@ -204,6 +211,48 @@ static acpi_status intel_pmic_thermal_handler(u32 function,
 	return AE_OK;
 }
 
+static acpi_status intel_pmic_regs_handler(u32 function,
+		acpi_physical_address address, u32 bits, u64 *value64,
+		void *handler_context, void *region_context)
+{
+	struct intel_pmic_opregion *opregion = region_context;
+	int result;
+
+	switch (address) {
+	case 0:
+		return AE_OK;
+	case 1:
+		opregion->ctx.addr |= (*value64 & 0xff) << 8;
+		return AE_OK;
+	case 2:
+		opregion->ctx.addr |= *value64 & 0xff;
+		return AE_OK;
+	case 3:
+		opregion->ctx.val = *value64 & 0xff;
+		return AE_OK;
+	case 4:
+		if (*value64) {
+			result = regmap_write(opregion->regmap, opregion->ctx.addr,
+					      opregion->ctx.val);
+		} else {
+			result = regmap_read(opregion->regmap, opregion->ctx.addr,
+					     &opregion->ctx.val);
+			if (result == 0)
+				*value64 = opregion->ctx.val;
+		}
+		memset(&opregion->ctx, 0x00, sizeof(opregion->ctx));
+	}
+
+	if (result < 0) {
+		if (result == -EINVAL)
+			return AE_BAD_PARAMETER;
+		else
+			return AE_ERROR;
+	}
+
+	return AE_OK;
+}
+
 int intel_pmic_install_opregion_handler(struct device *dev, acpi_handle handle,
 					struct regmap *regmap,
 					struct intel_pmic_opregion_data *d)
@@ -243,11 +292,27 @@ int intel_pmic_install_opregion_handler(struct device *dev, acpi_handle handle,
 		acpi_remove_address_space_handler(handle, PMIC_POWER_OPREGION_ID,
 						  intel_pmic_power_handler);
 		ret = -ENODEV;
-		goto out_error;
+		goto out_remove_power_handler;
+	}
+
+	status = acpi_install_address_space_handler(handle,
+			PMIC_REGS_OPREGION_ID, intel_pmic_regs_handler, NULL,
+			opregion);
+	if (ACPI_FAILURE(status)) {
+		ret = -ENODEV;
+		goto out_remove_thermal_handler;
 	}
 
 	opregion->data = d;
 	return 0;
+
+out_remove_thermal_handler:
+	acpi_remove_address_space_handler(handle, PMIC_THERMAL_OPREGION_ID,
+					  intel_pmic_thermal_handler);
+
+out_remove_power_handler:
+	acpi_remove_address_space_handler(handle, PMIC_POWER_OPREGION_ID,
+					  intel_pmic_power_handler);
 
 out_error:
 	acpi_lpat_free_conversion_table(opregion->lpat_table);
