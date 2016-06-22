@@ -1180,12 +1180,6 @@ static void octeon_destroy_resources(struct octeon_device *oct)
 		if (oct->flags & LIO_FLAG_MSI_ENABLED)
 			pci_disable_msi(oct->pci_dev);
 
-		/* Soft reset the octeon device before exiting */
-		oct->fn_list.soft_reset(oct);
-
-		/* Disable the device, releasing the PCI INT */
-		pci_disable_device(oct->pci_dev);
-
 		/* fallthrough */
 	case OCT_DEV_IN_RESET:
 	case OCT_DEV_DROQ_INIT_DONE:
@@ -1232,11 +1226,18 @@ static void octeon_destroy_resources(struct octeon_device *oct)
 
 		/* fallthrough */
 	case OCT_DEV_PCI_MAP_DONE:
+
+		/* Soft reset the octeon device before exiting */
+		oct->fn_list.soft_reset(oct);
+
 		octeon_unmap_pci_barx(oct, 0);
 		octeon_unmap_pci_barx(oct, 1);
 
 		/* fallthrough */
 	case OCT_DEV_BEGIN_STATE:
+		/* Disable the device, releasing the PCI INT */
+		pci_disable_device(oct->pci_dev);
+
 		/* Nothing to be done here either */
 		break;
 	}                       /* end switch(oct->status) */
