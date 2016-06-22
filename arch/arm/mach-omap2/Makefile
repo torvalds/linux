@@ -8,7 +8,7 @@ ccflags-y := -I$(srctree)/$(src)/include \
 # Common support
 obj-y := id.o io.o control.o mux.o devices.o fb.o serial.o timer.o pm.o \
 	 common.o gpio.o dma.o wd_timer.o display.o i2c.o hdq1w.o omap_hwmod.o \
-	 omap_device.o sram.o drm.o
+	 omap_device.o omap-headsmp.o sram.o drm.o
 
 hwmod-common				= omap_hwmod.o omap_hwmod_reset.o \
 					  omap_hwmod_common_data.o
@@ -32,7 +32,7 @@ obj-$(CONFIG_SOC_HAS_OMAP2_SDRC)	+= sdrc.o
 
 # SMP support ONLY available for OMAP4
 
-smp-$(CONFIG_SMP)			+= omap-smp.o omap-headsmp.o
+smp-$(CONFIG_SMP)			+= omap-smp.o
 smp-$(CONFIG_HOTPLUG_CPU)		+= omap-hotplug.o
 omap-4-5-common				=  omap4-common.o omap-wakeupgen.o
 obj-$(CONFIG_ARCH_OMAP4)		+= $(omap-4-5-common) $(smp-y) sleep44xx.o
