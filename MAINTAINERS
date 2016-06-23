@@ -4665,7 +4665,7 @@ S:	Maintained
 F:	drivers/staging/fbtft/
 
 FCOE SUBSYSTEM (libfc, libfcoe, fcoe)
-M:	Vasu Dev <vasu.dev@intel.com>
+M:	Johannes Thumshirn <jth@kernel.org>
 L:	fcoe-devel@open-fcoe.org
 W:	www.Open-FCoE.org
 S:	Supported
