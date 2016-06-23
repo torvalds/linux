@@ -160,11 +160,9 @@ u32 host1x_syncpt_load(struct host1x_syncpt *sp)
  */
 u32 host1x_syncpt_load_wait_base(struct host1x_syncpt *sp)
 {
-	u32 val;
-
 	host1x_hw_syncpt_load_wait_base(sp->host, sp);
-	val = sp->base_val;
-	return val;
+
+	return sp->base_val;
 }
 
 /*
