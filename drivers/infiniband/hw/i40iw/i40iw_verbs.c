@@ -1973,18 +1973,6 @@ static ssize_t i40iw_show_rev(struct device *dev,
 }
 
 /**
- * i40iw_show_fw_ver
- */
-static ssize_t i40iw_show_fw_ver(struct device *dev,
-				 struct device_attribute *attr, char *buf)
-{
-	u32 firmware_version = I40IW_FW_VERSION;
-
-	return sprintf(buf, "%u.%u\n", firmware_version,
-		       (firmware_version & 0x000000ff));
-}
-
-/**
  * i40iw_show_hca
  */
 static ssize_t i40iw_show_hca(struct device *dev,
@@ -2004,13 +1992,11 @@ static ssize_t i40iw_show_board(struct device *dev,
 }
 
 static DEVICE_ATTR(hw_rev, S_IRUGO, i40iw_show_rev, NULL);
-static DEVICE_ATTR(fw_ver, S_IRUGO, i40iw_show_fw_ver, NULL);
 static DEVICE_ATTR(hca_type, S_IRUGO, i40iw_show_hca, NULL);
 static DEVICE_ATTR(board_id, S_IRUGO, i40iw_show_board, NULL);
 
 static struct device_attribute *i40iw_dev_attributes[] = {
 	&dev_attr_hw_rev,
-	&dev_attr_fw_ver,
 	&dev_attr_hca_type,
 	&dev_attr_board_id
 };
@@ -2427,6 +2413,15 @@ static const char * const i40iw_hw_stat_names[] = {
 		"iwRdmaInv"
 };
 
+static void i40iw_get_dev_fw_str(struct ib_device *dev, char *str,
+				 size_t str_len)
+{
+	u32 firmware_version = I40IW_FW_VERSION;
+
+	snprintf(str, str_len, "%u.%u", firmware_version,
+		       (firmware_version & 0x000000ff));
+}
+
 /**
  * i40iw_alloc_hw_stats - Allocate a hw stats structure
  * @ibdev: device pointer from stack
@@ -2650,6 +2645,7 @@ static struct i40iw_ib_device *i40iw_init_rdma_device(struct i40iw_device *iwdev
 	memcpy(iwibdev->ibdev.iwcm->ifname, netdev->name,
 	       sizeof(iwibdev->ibdev.iwcm->ifname));
 	iwibdev->ibdev.get_port_immutable   = i40iw_port_immutable;
+	iwibdev->ibdev.get_dev_fw_str       = i40iw_get_dev_fw_str;
 	iwibdev->ibdev.poll_cq = i40iw_poll_cq;
 	iwibdev->ibdev.req_notify_cq = i40iw_req_notify_cq;
 	iwibdev->ibdev.post_send = i40iw_post_send;

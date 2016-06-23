@@ -1081,9 +1081,10 @@ static void post_terminate(struct c4iw_qp *qhp, struct t4_cqe *err_cqe,
 	PDBG("%s qhp %p qid 0x%x tid %u\n", __func__, qhp, qhp->wq.sq.qid,
 	     qhp->ep->hwtid);
 
-	skb = alloc_skb(sizeof *wqe, gfp);
-	if (!skb)
+	skb = skb_dequeue(&qhp->ep->com.ep_skb_list);
+	if (WARN_ON(!skb))
 		return;
+
 	set_wr_txq(skb, CPL_PRIORITY_DATA, qhp->ep->txq_idx);
 
 	wqe = (struct fw_ri_wr *)__skb_put(skb, sizeof(*wqe));
@@ -1202,9 +1203,10 @@ static int rdma_fini(struct c4iw_dev *rhp, struct c4iw_qp *qhp,
 	PDBG("%s qhp %p qid 0x%x tid %u\n", __func__, qhp, qhp->wq.sq.qid,
 	     ep->hwtid);
 
-	skb = alloc_skb(sizeof *wqe, GFP_KERNEL);
-	if (!skb)
+	skb = skb_dequeue(&ep->com.ep_skb_list);
+	if (WARN_ON(!skb))
 		return -ENOMEM;
+
 	set_wr_txq(skb, CPL_PRIORITY_DATA, ep->txq_idx);
 
 	wqe = (struct fw_ri_wr *)__skb_put(skb, sizeof(*wqe));

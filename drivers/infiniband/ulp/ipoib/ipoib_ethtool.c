@@ -62,10 +62,8 @@ static void ipoib_get_drvinfo(struct net_device *netdev,
 {
 	struct ipoib_dev_priv *priv = netdev_priv(netdev);
 
-	snprintf(drvinfo->fw_version, sizeof(drvinfo->fw_version),
-		 "%d.%d.%d", (int)(priv->ca->attrs.fw_ver >> 32),
-		 (int)(priv->ca->attrs.fw_ver >> 16) & 0xffff,
-		 (int)priv->ca->attrs.fw_ver & 0xffff);
+	ib_get_device_fw_str(priv->ca, drvinfo->fw_version,
+			     sizeof(drvinfo->fw_version));
 
 	strlcpy(drvinfo->bus_info, dev_name(priv->ca->dma_device),
 		sizeof(drvinfo->bus_info));

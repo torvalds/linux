@@ -1174,6 +1174,8 @@ struct hfi1_devdata {
 
 /* 8051 firmware version helper */
 #define dc8051_ver(a, b) ((a) << 8 | (b))
+#define dc8051_ver_maj(a) ((a & 0xff00) >> 8)
+#define dc8051_ver_min(a)  (a & 0x00ff)
 
 /* f_put_tid types */
 #define PT_EXPECTED 0

@@ -104,6 +104,8 @@ enum {
 
 enum CPL_error {
 	CPL_ERR_NONE               = 0,
+	CPL_ERR_TCAM_PARITY        = 1,
+	CPL_ERR_TCAM_MISS          = 2,
 	CPL_ERR_TCAM_FULL          = 3,
 	CPL_ERR_BAD_LENGTH         = 15,
 	CPL_ERR_BAD_ROUTE          = 18,

@@ -317,7 +317,7 @@ static int qp_open(struct inode *inode, struct file *file)
 	idr_for_each(&qpd->devp->qpidr, count_idrs, &count);
 	spin_unlock_irq(&qpd->devp->lock);
 
-	qpd->bufsize = count * 128;
+	qpd->bufsize = count * 180;
 	qpd->buf = vmalloc(qpd->bufsize);
 	if (!qpd->buf) {
 		kfree(qpd);
