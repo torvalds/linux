@@ -479,7 +479,7 @@ static bool perf_top__handle_keypress(struct perf_top *top, int c)
 
 				fprintf(stderr, "\nAvailable events:");
 
-				evlist__for_each(top->evlist, top->sym_evsel)
+				evlist__for_each_entry(top->evlist, top->sym_evsel)
 					fprintf(stderr, "\n\t%d %s", top->sym_evsel->idx, perf_evsel__name(top->sym_evsel));
 
 				prompt_integer(&counter, "Enter details event counter");
@@ -490,7 +490,7 @@ static bool perf_top__handle_keypress(struct perf_top *top, int c)
 					sleep(1);
 					break;
 				}
-				evlist__for_each(top->evlist, top->sym_evsel)
+				evlist__for_each_entry(top->evlist, top->sym_evsel)
 					if (top->sym_evsel->idx == counter)
 						break;
 			} else
@@ -583,7 +583,7 @@ static void *display_thread_tui(void *arg)
 	 * Zooming in/out UIDs. For now juse use whatever the user passed
 	 * via --uid.
 	 */
-	evlist__for_each(top->evlist, pos) {
+	evlist__for_each_entry(top->evlist, pos) {
 		struct hists *hists = evsel__hists(pos);
 		hists->uid_filter_str = top->record_opts.target.uid_str;
 	}
@@ -888,7 +888,7 @@ static int perf_top__start_counters(struct perf_top *top)
 
 	perf_evlist__config(evlist, opts, &callchain_param);
 
-	evlist__for_each(evlist, counter) {
+	evlist__for_each_entry(evlist, counter) {
 try_again:
 		if (perf_evsel__open(counter, top->evlist->cpus,
 				     top->evlist->threads) < 0) {

@@ -2483,7 +2483,7 @@ static int trace__replay(struct trace *trace)
 		goto out;
 	}
 
-	evlist__for_each(session->evlist, evsel) {
+	evlist__for_each_entry(session->evlist, evsel) {
 		if (evsel->attr.type == PERF_TYPE_SOFTWARE &&
 		    (evsel->attr.config == PERF_COUNT_SW_PAGE_FAULTS_MAJ ||
 		     evsel->attr.config == PERF_COUNT_SW_PAGE_FAULTS_MIN ||
@@ -2714,7 +2714,7 @@ static void evlist__set_evsel_handler(struct perf_evlist *evlist, void *handler)
 {
 	struct perf_evsel *evsel;
 
-	evlist__for_each(evlist, evsel)
+	evlist__for_each_entry(evlist, evsel)
 		evsel->handler = handler;
 }
 

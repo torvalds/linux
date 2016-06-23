@@ -997,7 +997,7 @@ static int setup_events(struct ctf_writer *cw, struct perf_session *session)
 	struct perf_evsel *evsel;
 	int ret;
 
-	evlist__for_each(evlist, evsel) {
+	evlist__for_each_entry(evlist, evsel) {
 		ret = add_event(cw, evsel);
 		if (ret)
 			return ret;
@@ -1010,7 +1010,7 @@ static void cleanup_events(struct perf_session *session)
 	struct perf_evlist *evlist = session->evlist;
 	struct perf_evsel *evsel;
 
-	evlist__for_each(evlist, evsel) {
+	evlist__for_each_entry(evlist, evsel) {
 		struct evsel_priv *priv;
 
 		priv = evsel->priv;

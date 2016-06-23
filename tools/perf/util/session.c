@@ -83,7 +83,7 @@ static bool perf_session__has_comm_exec(struct perf_session *session)
 {
 	struct perf_evsel *evsel;
 
-	evlist__for_each(session->evlist, evsel) {
+	evlist__for_each_entry(session->evlist, evsel) {
 		if (evsel->attr.comm_exec)
 			return true;
 	}
@@ -1872,7 +1872,7 @@ bool perf_session__has_traces(struct perf_session *session, const char *msg)
 {
 	struct perf_evsel *evsel;
 
-	evlist__for_each(session->evlist, evsel) {
+	evlist__for_each_entry(session->evlist, evsel) {
 		if (evsel->attr.type == PERF_TYPE_TRACEPOINT)
 			return true;
 	}
@@ -1954,7 +1954,7 @@ struct perf_evsel *perf_session__find_first_evtype(struct perf_session *session,
 {
 	struct perf_evsel *pos;
 
-	evlist__for_each(session->evlist, pos) {
+	evlist__for_each_entry(session->evlist, pos) {
 		if (pos->attr.type == type)
 			return pos;
 	}
@@ -2109,7 +2109,7 @@ int perf_event__synthesize_id_index(struct perf_tool *tool,
 	max_nr = (UINT16_MAX - sizeof(struct id_index_event)) /
 		 sizeof(struct id_index_entry);
 
-	evlist__for_each(evlist, evsel)
+	evlist__for_each_entry(evlist, evsel)
 		nr += evsel->ids;
 
 	n = nr > max_nr ? max_nr : nr;
@@ -2122,7 +2122,7 @@ int perf_event__synthesize_id_index(struct perf_tool *tool,
 	ev->id_index.header.size = sz;
 	ev->id_index.nr = n;
 
-	evlist__for_each(evlist, evsel) {
+	evlist__for_each_entry(evlist, evsel) {
 		u32 j;
 
 		for (j = 0; j < evsel->ids; j++) {

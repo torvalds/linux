@@ -118,7 +118,7 @@ int test__backward_ring_buffer(int subtest __maybe_unused)
 	perf_evlist__config(evlist, &opts, NULL);
 
 	/* Set backward bit, ring buffer should be writing from end */
-	evlist__for_each(evlist, evsel)
+	evlist__for_each_entry(evlist, evsel)
 		evsel->attr.write_backward = 1;
 
 	err = perf_evlist__open(evlist);

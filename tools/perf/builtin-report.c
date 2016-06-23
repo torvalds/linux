@@ -361,7 +361,7 @@ static int perf_evlist__tty_browse_hists(struct perf_evlist *evlist,
 	struct perf_evsel *pos;
 
 	fprintf(stdout, "#\n# Total Lost Samples: %" PRIu64 "\n#\n", evlist->stats.total_lost_samples);
-	evlist__for_each(evlist, pos) {
+	evlist__for_each_entry(evlist, pos) {
 		struct hists *hists = evsel__hists(pos);
 		const char *evname = perf_evsel__name(pos);
 
@@ -478,7 +478,7 @@ static int report__collapse_hists(struct report *rep)
 
 	ui_progress__init(&prog, rep->nr_entries, "Merging related events...");
 
-	evlist__for_each(rep->session->evlist, pos) {
+	evlist__for_each_entry(rep->session->evlist, pos) {
 		struct hists *hists = evsel__hists(pos);
 
 		if (pos->idx == 0)
@@ -511,7 +511,7 @@ static void report__output_resort(struct report *rep)
 
 	ui_progress__init(&prog, rep->nr_entries, "Sorting events for output...");
 
-	evlist__for_each(rep->session->evlist, pos)
+	evlist__for_each_entry(rep->session->evlist, pos)
 		perf_evsel__output_resort(pos, &prog);
 
 	ui_progress__finish();
@@ -552,7 +552,7 @@ static int __cmd_report(struct report *rep)
 
 	report__warn_kptr_restrict(rep);
 
-	evlist__for_each(session->evlist, pos)
+	evlist__for_each_entry(session->evlist, pos)
 		rep->nr_entries += evsel__hists(pos)->nr_entries;
 
 	if (use_browser == 0) {
@@ -583,7 +583,7 @@ static int __cmd_report(struct report *rep)
 	 * might be changed during the collapse phase.
 	 */
 	rep->nr_entries = 0;
-	evlist__for_each(session->evlist, pos)
+	evlist__for_each_entry(session->evlist, pos)
 		rep->nr_entries += evsel__hists(pos)->nr_entries;
 
 	if (rep->nr_entries == 0) {

@@ -3199,7 +3199,7 @@ static int __perf_evlist__tui_browse_hists(struct perf_evlist *evlist,
 
 	ui_helpline__push("Press ESC to exit");
 
-	evlist__for_each(evlist, pos) {
+	evlist__for_each_entry(evlist, pos) {
 		const char *ev_name = perf_evsel__name(pos);
 		size_t line_len = strlen(ev_name) + 7;
 
@@ -3230,7 +3230,7 @@ single_entry:
 		struct perf_evsel *pos;
 
 		nr_entries = 0;
-		evlist__for_each(evlist, pos) {
+		evlist__for_each_entry(evlist, pos) {
 			if (perf_evsel__is_group_leader(pos))
 				nr_entries++;
 		}

@@ -369,7 +369,7 @@ static int perf_session__check_output_opt(struct perf_session *session)
 	if (!no_callchain) {
 		bool use_callchain = false;
 
-		evlist__for_each(session->evlist, evsel) {
+		evlist__for_each_entry(session->evlist, evsel) {
 			if (evsel->attr.sample_type & PERF_SAMPLE_CALLCHAIN) {
 				use_callchain = true;
 				break;
@@ -389,7 +389,7 @@ static int perf_session__check_output_opt(struct perf_session *session)
 
 		j = PERF_TYPE_TRACEPOINT;
 
-		evlist__for_each(session->evlist, evsel) {
+		evlist__for_each_entry(session->evlist, evsel) {
 			if (evsel->attr.type != j)
 				continue;
 
@@ -720,7 +720,7 @@ static int perf_evlist__max_name_len(struct perf_evlist *evlist)
 	struct perf_evsel *evsel;
 	int max = 0;
 
-	evlist__for_each(evlist, evsel) {
+	evlist__for_each_entry(evlist, evsel) {
 		int len = strlen(perf_evsel__name(evsel));
 
 		max = MAX(len, max);
@@ -945,7 +945,7 @@ static int process_attr(struct perf_tool *tool, union perf_event *event,
 	if (evsel->attr.type >= PERF_TYPE_MAX)
 		return 0;
 
-	evlist__for_each(evlist, pos) {
+	evlist__for_each_entry(evlist, pos) {
 		if (pos->attr.type == evsel->attr.type && pos != evsel)
 			return 0;
 	}
@@ -1671,7 +1671,7 @@ static int check_ev_match(char *dir_name, char *scriptname,
 			snprintf(evname, len + 1, "%s", p);
 
 			match = 0;
-			evlist__for_each(session->evlist, pos) {
+			evlist__for_each_entry(session->evlist, pos) {
 				if (!strcmp(perf_evsel__name(pos), evname)) {
 					match = 1;
 					break;
@@ -1873,7 +1873,7 @@ static int process_stat_round_event(struct perf_tool *tool __maybe_unused,
 	struct stat_round_event *round = &event->stat_round;
 	struct perf_evsel *counter;
 
-	evlist__for_each(session->evlist, counter) {
+	evlist__for_each_entry(session->evlist, counter) {
 		perf_stat_process_counter(&stat_config, counter);
 		process_stat(counter, round->time);
 	}

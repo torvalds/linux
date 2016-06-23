@@ -2199,7 +2199,7 @@ size_t perf_evlist__fprintf_nr_events(struct perf_evlist *evlist, FILE *fp)
 	struct perf_evsel *pos;
 	size_t ret = 0;
 
-	evlist__for_each(evlist, pos) {
+	evlist__for_each_entry(evlist, pos) {
 		ret += fprintf(fp, "%s stats:\n", perf_evsel__name(pos));
 		ret += events_stats__fprintf(&evsel__hists(pos)->stats, fp);
 	}
