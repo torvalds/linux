@@ -473,7 +473,7 @@ static int sdhci_msm_probe(struct platform_device *pdev)
 	msm_host->pclk = devm_clk_get(&pdev->dev, "iface");
 	if (IS_ERR(msm_host->pclk)) {
 		ret = PTR_ERR(msm_host->pclk);
-		dev_err(&pdev->dev, "Perpheral clk setup failed (%d)\n", ret);
+		dev_err(&pdev->dev, "Peripheral clk setup failed (%d)\n", ret);
 		goto bus_clk_disable;
 	}
 
