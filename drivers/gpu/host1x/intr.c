@@ -209,7 +209,7 @@ static void syncpt_thresh_work(struct work_struct *work)
 				host1x_syncpt_load(host->syncpt + id));
 }
 
-int host1x_intr_add_action(struct host1x *host, u32 id, u32 thresh,
+int host1x_intr_add_action(struct host1x *host, unsigned int id, u32 thresh,
 			   enum host1x_intr_action action, void *data,
 			   struct host1x_waitlist *waiter, void **ref)
 {
@@ -254,7 +254,7 @@ int host1x_intr_add_action(struct host1x *host, u32 id, u32 thresh,
 	return 0;
 }
 
-void host1x_intr_put_ref(struct host1x *host, u32 id, void *ref)
+void host1x_intr_put_ref(struct host1x *host, unsigned int id, void *ref)
 {
 	struct host1x_waitlist *waiter = ref;
 	struct host1x_syncpt *syncpt;
@@ -285,7 +285,7 @@ int host1x_intr_init(struct host1x *host, unsigned int irq_sync)
 		INIT_LIST_HEAD(&syncpt->intr.wait_head);
 		snprintf(syncpt->intr.thresh_irq_name,
 			 sizeof(syncpt->intr.thresh_irq_name),
-			 "host1x_sp_%02d", id);
+			 "host1x_sp_%02u", id);
 	}
 
 	host1x_intr_start(host);
@@ -338,7 +338,7 @@ void host1x_intr_stop(struct host1x *host)
 		if (!list_empty(&syncpt[id].intr.wait_head)) {
 			/* output diagnostics */
 			mutex_unlock(&host->intr_mutex);
-			pr_warn("%s cannot stop syncpt intr id=%d\n",
+			pr_warn("%s cannot stop syncpt intr id=%u\n",
 				__func__, id);
 			return;
 		}

@@ -161,7 +161,7 @@ static int do_waitchks(struct host1x_job *job, struct host1x *host,
 
 		if (host1x_syncpt_is_expired(sp, wait->thresh)) {
 			dev_dbg(host->dev,
-				"drop WAIT id %d (%s) thresh 0x%x, min 0x%x\n",
+				"drop WAIT id %u (%s) thresh 0x%x, min 0x%x\n",
 				wait->syncpt_id, sp->name, wait->thresh,
 				host1x_syncpt_read_min(sp));
 

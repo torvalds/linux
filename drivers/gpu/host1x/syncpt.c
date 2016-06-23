@@ -73,7 +73,7 @@ static struct host1x_syncpt *host1x_syncpt_alloc(struct host1x *host,
 			return NULL;
 	}
 
-	name = kasprintf(GFP_KERNEL, "%02d-%s", sp->id,
+	name = kasprintf(GFP_KERNEL, "%02u-%s", sp->id,
 			dev ? dev_name(dev) : NULL);
 	if (!name)
 		return NULL;
@@ -255,7 +255,7 @@ int host1x_syncpt_wait(struct host1x_syncpt *sp, u32 thresh, long timeout,
 		timeout -= check;
 		if (timeout && check_count <= MAX_STUCK_CHECK_COUNT) {
 			dev_warn(sp->host->dev,
-				"%s: syncpoint id %d (%s) stuck waiting %d, timeout=%ld\n",
+				"%s: syncpoint id %u (%s) stuck waiting %d, timeout=%ld\n",
 				 current->comm, sp->id, sp->name,
 				 thresh, timeout);
 
@@ -447,7 +447,7 @@ unsigned int host1x_syncpt_nb_mlocks(struct host1x *host)
 	return host->info->nb_mlocks;
 }
 
-struct host1x_syncpt *host1x_syncpt_get(struct host1x *host, u32 id)
+struct host1x_syncpt *host1x_syncpt_get(struct host1x *host, unsigned int id)
 {
 	if (host->info->nb_pts < id)
 		return NULL;

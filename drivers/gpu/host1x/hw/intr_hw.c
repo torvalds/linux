@@ -107,18 +107,21 @@ static int _host1x_intr_init_host_sync(struct host1x *host, u32 cpm,
 }
 
 static void _host1x_intr_set_syncpt_threshold(struct host1x *host,
-	u32 id, u32 thresh)
+					      unsigned int id,
+					      u32 thresh)
 {
 	host1x_sync_writel(host, thresh, HOST1X_SYNC_SYNCPT_INT_THRESH(id));
 }
 
-static void _host1x_intr_enable_syncpt_intr(struct host1x *host, u32 id)
+static void _host1x_intr_enable_syncpt_intr(struct host1x *host,
+					    unsigned int id)
 {
 	host1x_sync_writel(host, BIT_MASK(id),
 		HOST1X_SYNC_SYNCPT_THRESH_INT_ENABLE_CPU0(BIT_WORD(id)));
 }
 
-static void _host1x_intr_disable_syncpt_intr(struct host1x *host, u32 id)
+static void _host1x_intr_disable_syncpt_intr(struct host1x *host,
+					     unsigned int id)
 {
 	host1x_sync_writel(host, BIT_MASK(id),
 		HOST1X_SYNC_SYNCPT_THRESH_INT_DISABLE(BIT_WORD(id)));

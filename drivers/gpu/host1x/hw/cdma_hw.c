@@ -213,7 +213,7 @@ static void cdma_resume(struct host1x_cdma *cdma, u32 getptr)
 	u32 cmdproc_stop;
 
 	dev_dbg(host1x->dev,
-		"resuming channel (id %d, DMAGET restart = 0x%x)\n",
+		"resuming channel (id %u, DMAGET restart = 0x%x)\n",
 		ch->id, getptr);
 
 	cmdproc_stop = host1x_sync_readl(host1x, HOST1X_SYNC_CMDPROC_STOP);
@@ -277,7 +277,7 @@ static void cdma_timeout_handler(struct work_struct *work)
 		return;
 	}
 
-	dev_warn(host1x->dev, "%s: timeout: %d (%s), HW thresh %d, done %d\n",
+	dev_warn(host1x->dev, "%s: timeout: %u (%s), HW thresh %d, done %d\n",
 		__func__, cdma->timeout.syncpt->id, cdma->timeout.syncpt->name,
 		syncpt_val, cdma->timeout.syncpt_val);
 
@@ -291,7 +291,7 @@ static void cdma_timeout_handler(struct work_struct *work)
 /*
  * Init timeout resources
  */
-static int cdma_timeout_init(struct host1x_cdma *cdma, u32 syncpt_id)
+static int cdma_timeout_init(struct host1x_cdma *cdma, unsigned int syncpt)
 {
 	INIT_DELAYED_WORK(&cdma->timeout.wq, cdma_timeout_handler);
 	cdma->timeout.initialized = true;

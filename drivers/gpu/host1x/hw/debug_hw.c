@@ -191,7 +191,7 @@ static void host1x_debug_show_channel_cdma(struct host1x *host,
 	cbread = host1x_sync_readl(host, HOST1X_SYNC_CBREAD(ch->id));
 	cbstat = host1x_sync_readl(host, HOST1X_SYNC_CBSTAT(ch->id));
 
-	host1x_debug_output(o, "%d-%s: ", ch->id, dev_name(ch->dev));
+	host1x_debug_output(o, "%u-%s: ", ch->id, dev_name(ch->dev));
 
 	if (HOST1X_CHANNEL_DMACTRL_DMASTOP_V(dmactrl) ||
 	    !ch->cdma.push_buffer.mapped) {
@@ -237,7 +237,7 @@ static void host1x_debug_show_channel_fifo(struct host1x *host,
 	u32 val, rd_ptr, wr_ptr, start, end;
 	unsigned int data_count = 0;
 
-	host1x_debug_output(o, "%d: fifo:\n", ch->id);
+	host1x_debug_output(o, "%u: fifo:\n", ch->id);
 
 	val = host1x_ch_readl(ch, HOST1X_CHANNEL_FIFOSTAT);
 	host1x_debug_output(o, "FIFOSTAT %08x\n", val);

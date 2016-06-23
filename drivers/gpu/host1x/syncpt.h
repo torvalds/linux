@@ -37,7 +37,7 @@ struct host1x_syncpt_base {
 };
 
 struct host1x_syncpt {
-	int id;
+	unsigned int id;
 	atomic_t min_val;
 	atomic_t max_val;
 	u32 base_val;

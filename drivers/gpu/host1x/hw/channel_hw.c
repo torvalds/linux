@@ -75,7 +75,8 @@ static inline void synchronize_syncpt_base(struct host1x_job *job)
 {
 	struct host1x *host = dev_get_drvdata(job->channel->dev->parent);
 	struct host1x_syncpt *sp = host->syncpt + job->syncpt_id;
-	u32 id, value;
+	unsigned int id;
+	u32 value;
 
 	value = host1x_syncpt_read_max(sp);
 	id = sp->base->id;
