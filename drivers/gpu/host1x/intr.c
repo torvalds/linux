@@ -135,7 +135,7 @@ static void action_wakeup_interruptible(struct host1x_waitlist *waiter)
 
 typedef void (*action_handler)(struct host1x_waitlist *waiter);
 
-static action_handler action_handlers[HOST1X_INTR_ACTION_COUNT] = {
+static const action_handler action_handlers[HOST1X_INTR_ACTION_COUNT] = {
 	action_submit_complete,
 	action_wakeup,
 	action_wakeup_interruptible,
