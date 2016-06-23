@@ -245,6 +245,23 @@ void kvm_arch_commit_memory_region(struct kvm *kvm,
 	}
 }
 
+static inline void dump_handler(const char *symbol, void *start, void *end)
+{
+	u32 *p;
+
+	pr_debug("LEAF(%s)\n", symbol);
+
+	pr_debug("\t.set push\n");
+	pr_debug("\t.set noreorder\n");
+
+	for (p = start; p < (u32 *)end; ++p)
+		pr_debug("\t.word\t0x%08x\t\t# %p\n", *p, p);
+
+	pr_debug("\t.set\tpop\n");
+
+	pr_debug("\tEND(%s)\n", symbol);
+}
+
 struct kvm_vcpu *kvm_arch_vcpu_create(struct kvm *kvm, unsigned int id)
 {
 	int err, size;
@@ -308,6 +325,14 @@ struct kvm_vcpu *kvm_arch_vcpu_create(struct kvm *kvm, unsigned int id)
 	/* Guest entry routine */
 	vcpu->arch.vcpu_run = p;
 	p = kvm_mips_build_vcpu_run(p);
+
+	/* Dump the generated code */
+	pr_debug("#include <asm/asm.h>\n");
+	pr_debug("#include <asm/regdef.h>\n");
+	pr_debug("\n");
+	dump_handler("kvm_vcpu_run", vcpu->arch.vcpu_run, p);
+	dump_handler("kvm_gen_exc", gebase + 0x180, gebase + 0x200);
+	dump_handler("kvm_exit", gebase + 0x2000, vcpu->arch.vcpu_run);
 
 	/* Invalidate the icache for these ranges */
 	local_flush_icache_range((unsigned long)gebase,
