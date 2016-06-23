@@ -30,6 +30,9 @@
 #include <linux/acpi.h>
 #include <linux/slab.h>
 #include <linux/regulator/machine.h>
+#include <linux/workqueue.h>
+#include <linux/reboot.h>
+#include <linux/delay.h>
 #ifdef CONFIG_X86
 #include <asm/mpspec.h>
 #endif
@@ -468,6 +471,56 @@ static void acpi_device_remove_notify_handler(struct acpi_device *device)
 	else
 		acpi_remove_notify_handler(device->handle, ACPI_DEVICE_NOTIFY,
 					   acpi_device_notify);
+}
+
+/* Handle events targeting \_SB device (at present only graceful shutdown) */
+
+#define ACPI_SB_NOTIFY_SHUTDOWN_REQUEST 0x81
+#define ACPI_SB_INDICATE_INTERVAL	10000
+
+static void sb_notify_work(struct work_struct *dummy)
+{
+	acpi_handle sb_handle;
+
+	orderly_poweroff(true);
+
+	/*
+	 * After initiating graceful shutdown, the ACPI spec requires OSPM
+	 * to evaluate _OST method once every 10seconds to indicate that
+	 * the shutdown is in progress
+	 */
+	acpi_get_handle(NULL, "\\_SB", &sb_handle);
+	while (1) {
+		pr_info("Graceful shutdown in progress.\n");
+		acpi_evaluate_ost(sb_handle, ACPI_OST_EC_OSPM_SHUTDOWN,
+				ACPI_OST_SC_OS_SHUTDOWN_IN_PROGRESS, NULL);
+		msleep(ACPI_SB_INDICATE_INTERVAL);
+	}
+}
+
+static void acpi_sb_notify(acpi_handle handle, u32 event, void *data)
+{
+	static DECLARE_WORK(acpi_sb_work, sb_notify_work);
+
+	if (event == ACPI_SB_NOTIFY_SHUTDOWN_REQUEST) {
+		if (!work_busy(&acpi_sb_work))
+			schedule_work(&acpi_sb_work);
+	} else
+		pr_warn("event %x is not supported by \\_SB device\n", event);
+}
+
+static int __init acpi_setup_sb_notify_handler(void)
+{
+	acpi_handle sb_handle;
+
+	if (ACPI_FAILURE(acpi_get_handle(NULL, "\\_SB", &sb_handle)))
+		return -ENXIO;
+
+	if (ACPI_FAILURE(acpi_install_notify_handler(sb_handle, ACPI_DEVICE_NOTIFY,
+						acpi_sb_notify, NULL)))
+		return -EINVAL;
+
+	return 0;
 }
 
 /* --------------------------------------------------------------------------
@@ -1118,6 +1171,7 @@ static int __init acpi_init(void)
 	acpi_sleep_proc_init();
 	acpi_wakeup_device_init();
 	acpi_debugger_init();
+	acpi_setup_sb_notify_handler();
 	return 0;
 }
 
