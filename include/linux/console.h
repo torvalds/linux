@@ -28,6 +28,12 @@ struct tty_struct;
 #define VT100ID "\033[?1;2c"
 #define VT102ID "\033[?6c"
 
+/**
+ * struct consw - callbacks for consoles
+ *
+ * @con_scrolldelta: the contents of the console should be scrolled by @lines.
+ *		     Invoked by user. (optional)
+ */
 struct consw {
 	struct module *owner;
 	const char *(*con_startup)(void);
@@ -48,7 +54,7 @@ struct consw {
 	int     (*con_resize)(struct vc_data *, unsigned int, unsigned int,
 			       unsigned int);
 	int	(*con_set_palette)(struct vc_data *, const unsigned char *);
-	int	(*con_scrolldelta)(struct vc_data *, int);
+	void	(*con_scrolldelta)(struct vc_data *, int lines);
 	int	(*con_set_origin)(struct vc_data *);
 	void	(*con_save_screen)(struct vc_data *);
 	u8	(*con_build_attr)(struct vc_data *, u8, u8, u8, u8, u8, u8);

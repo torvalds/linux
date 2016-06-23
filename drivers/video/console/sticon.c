@@ -256,11 +256,6 @@ static int sticon_blank(struct vc_data *c, int blank, int mode_switch)
     return 1;
 }
 
-static int sticon_scrolldelta(struct vc_data *conp, int lines)
-{
-    return 0;
-}
-
 static u16 *sticon_screen_pos(struct vc_data *conp, int offset)
 {
     int line;
@@ -359,7 +354,6 @@ static const struct consw sti_con = {
 	.con_switch		= sticon_switch,
 	.con_blank		= sticon_blank,
 	.con_set_palette	= sticon_set_palette,
-	.con_scrolldelta	= sticon_scrolldelta,
 	.con_set_origin		= sticon_set_origin,
 	.con_save_screen	= sticon_save_screen, 
 	.con_build_attr		= sticon_build_attr,

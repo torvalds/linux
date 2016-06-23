@@ -579,12 +579,6 @@ static int newport_set_palette(struct vc_data *vc, const unsigned char *table)
 	return -EINVAL;
 }
 
-static int newport_scrolldelta(struct vc_data *vc, int lines)
-{
-	/* there is (nearly) no off-screen memory, so we can't scroll back */
-	return 0;
-}
-
 static int newport_scroll(struct vc_data *vc, int t, int b, int dir,
 			  int lines)
 {
@@ -735,7 +729,6 @@ const struct consw newport_con = {
 	.con_font_set	  = newport_font_set,
 	.con_font_default = newport_font_default,
 	.con_set_palette  = newport_set_palette,
-	.con_scrolldelta  = newport_scrolldelta,
 	.con_set_origin	  = DUMMY,
 	.con_save_screen  = DUMMY
 };

@@ -80,7 +80,7 @@ static void vgacon_deinit(struct vc_data *c);
 static void vgacon_cursor(struct vc_data *c, int mode);
 static int vgacon_switch(struct vc_data *c);
 static int vgacon_blank(struct vc_data *c, int blank, int mode_switch);
-static int vgacon_scrolldelta(struct vc_data *c, int lines);
+static void vgacon_scrolldelta(struct vc_data *c, int lines);
 static int vgacon_set_origin(struct vc_data *c);
 static void vgacon_save_screen(struct vc_data *c);
 static int vgacon_scroll(struct vc_data *c, int t, int b, int dir,
@@ -248,18 +248,18 @@ static void vgacon_restore_screen(struct vc_data *c)
 	}
 }
 
-static int vgacon_scrolldelta(struct vc_data *c, int lines)
+static void vgacon_scrolldelta(struct vc_data *c, int lines)
 {
 	int start, end, count, soff;
 
 	if (!lines) {
 		c->vc_visible_origin = c->vc_origin;
 		vga_set_mem_top(c);
-		return 1;
+		return;
 	}
 
 	if (!vgacon_scrollback)
-		return 1;
+		return;
 
 	if (!vgacon_scrollback_save) {
 		vgacon_cursor(c, CM_ERASE);
@@ -320,8 +320,6 @@ static int vgacon_scrolldelta(struct vc_data *c, int lines)
 			scr_memcpyw(d, s, diff * c->vc_size_row);
 	} else
 		vgacon_cursor(c, CM_MOVE);
-
-	return 1;
 }
 #else
 #define vgacon_scrollback_startup(...) do { } while (0)
@@ -334,7 +332,7 @@ static void vgacon_restore_screen(struct vc_data *c)
 		vgacon_scrolldelta(c, 0);
 }
 
-static int vgacon_scrolldelta(struct vc_data *c, int lines)
+static void vgacon_scrolldelta(struct vc_data *c, int lines)
 {
 	if (!lines)		/* Turn scrollback off */
 		c->vc_visible_origin = c->vc_origin;
@@ -362,7 +360,6 @@ static int vgacon_scrolldelta(struct vc_data *c, int lines)
 		c->vc_visible_origin = vga_vram_base + (p + ul) % we;
 	}
 	vga_set_mem_top(c);
-	return 1;
 }
 #endif /* CONFIG_VGACON_SOFT_SCROLLBACK */
 

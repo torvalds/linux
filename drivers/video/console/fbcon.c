@@ -171,7 +171,6 @@ static void fbcon_bmove(struct vc_data *vc, int sy, int sx, int dy, int dx,
 static int fbcon_switch(struct vc_data *vc);
 static int fbcon_blank(struct vc_data *vc, int blank, int mode_switch);
 static int fbcon_set_palette(struct vc_data *vc, const unsigned char *table);
-static int fbcon_scrolldelta(struct vc_data *vc, int lines);
 
 /*
  *  Internal routines
@@ -2765,7 +2764,7 @@ static void fbcon_invert_region(struct vc_data *vc, u16 * p, int cnt)
 	}
 }
 
-static int fbcon_scrolldelta(struct vc_data *vc, int lines)
+static void fbcon_scrolldelta(struct vc_data *vc, int lines)
 {
 	struct fb_info *info = registered_fb[con2fb_map[fg_console]];
 	struct fbcon_ops *ops = info->fbcon_par;
@@ -2774,9 +2773,9 @@ static int fbcon_scrolldelta(struct vc_data *vc, int lines)
 
 	if (softback_top) {
 		if (vc->vc_num != fg_console)
-			return 0;
+			return;
 		if (vc->vc_mode != KD_TEXT || !lines)
-			return 0;
+			return;
 		if (logo_shown >= 0) {
 			struct vc_data *conp2 = vc_cons[logo_shown].d;
 
@@ -2809,11 +2808,11 @@ static int fbcon_scrolldelta(struct vc_data *vc, int lines)
 		fbcon_cursor(vc, CM_ERASE | CM_SOFTBACK);
 		fbcon_redraw_softback(vc, disp, lines);
 		fbcon_cursor(vc, CM_DRAW | CM_SOFTBACK);
-		return 0;
+		return;
 	}
 
 	if (!scrollback_phys_max)
-		return -ENOSYS;
+		return;
 
 	scrollback_old = scrollback_current;
 	scrollback_current -= lines;
@@ -2822,10 +2821,10 @@ static int fbcon_scrolldelta(struct vc_data *vc, int lines)
 	else if (scrollback_current > scrollback_max)
 		scrollback_current = scrollback_max;
 	if (scrollback_current == scrollback_old)
-		return 0;
+		return;
 
 	if (fbcon_is_inactive(vc, info))
-		return 0;
+		return;
 
 	fbcon_cursor(vc, CM_ERASE);
 
@@ -2852,7 +2851,6 @@ static int fbcon_scrolldelta(struct vc_data *vc, int lines)
 
 	if (!scrollback_current)
 		fbcon_cursor(vc, CM_DRAW);
-	return 0;
 }
 
 static int fbcon_set_origin(struct vc_data *vc)

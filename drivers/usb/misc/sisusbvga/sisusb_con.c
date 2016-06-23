@@ -717,24 +717,22 @@ sisusbcon_blank(struct vc_data *c, int blank, int mode_switch)
 }
 
 /* interface routine */
-static int
+static void
 sisusbcon_scrolldelta(struct vc_data *c, int lines)
 {
 	struct sisusb_usb_data *sisusb;
 	int margin = c->vc_size_row * 4;
 	int ul, we, p, st;
 
-	/* The return value does not seem to be used */
-
 	sisusb = sisusb_get_sisusb_lock_and_check(c->vc_num);
 	if (!sisusb)
-		return 0;
+		return;
 
 	/* sisusb->lock is down */
 
 	if (sisusb_is_inactive(c, sisusb)) {
 		mutex_unlock(&sisusb->lock);
-		return 0;
+		return;
 	}
 
 	if (!lines)		/* Turn scrollback off */
@@ -774,8 +772,6 @@ sisusbcon_scrolldelta(struct vc_data *c, int lines)
 	sisusbcon_set_start_address(sisusb, c);
 
 	mutex_unlock(&sisusb->lock);
-
-	return 1;
 }
 
 /* Interface routine */
@@ -1433,7 +1429,6 @@ static const struct consw sisusb_dummy_con = {
 	.con_font_default =	SISUSBCONDUMMY,
 	.con_font_copy =	SISUSBCONDUMMY,
 	.con_set_palette =	SISUSBCONDUMMY,
-	.con_scrolldelta =	SISUSBCONDUMMY,
 };
 
 int

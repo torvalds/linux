@@ -505,11 +505,6 @@ static int mdacon_blank(struct vc_data *c, int blank, int mode_switch)
 	}
 }
 
-static int mdacon_scrolldelta(struct vc_data *c, int lines)
-{
-	return 0;
-}
-
 static void mdacon_cursor(struct vc_data *c, int mode)
 {
 	if (mode == CM_ERASE) {
@@ -578,7 +573,6 @@ static const struct consw mda_con = {
 	.con_switch =		mdacon_switch,
 	.con_blank =		mdacon_blank,
 	.con_set_palette =	mdacon_set_palette,
-	.con_scrolldelta =	mdacon_scrolldelta,
 	.con_build_attr =	mdacon_build_attr,
 	.con_invert_region =	mdacon_invert_region,
 };
