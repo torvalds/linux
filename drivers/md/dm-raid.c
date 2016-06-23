@@ -622,7 +622,15 @@ static struct raid_type *get_raid_type_by_ll(const int level, const int layout)
 static void rs_set_capacity(struct raid_set *rs)
 {
 	struct mddev *mddev = &rs->md;
+	struct md_rdev *rdev;
 	struct gendisk *gendisk = dm_disk(dm_table_get_md(rs->ti->table));
+
+	/*
+	 * raid10 sets rdev->sector to the device size, which
+	 * is unintended in case of out-of-place reshaping
+	 */
+	rdev_for_each(rdev, mddev)
+		rdev->sectors = mddev->dev_sectors;
 
 	set_capacity(gendisk, mddev->array_sectors);
 	revalidate_disk(gendisk);
