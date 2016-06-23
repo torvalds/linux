@@ -102,7 +102,7 @@ static const struct host1x_info host1x05_info = {
 	.dma_mask = DMA_BIT_MASK(34),
 };
 
-static struct of_device_id host1x_of_match[] = {
+static const struct of_device_id host1x_of_match[] = {
 	{ .compatible = "nvidia,tegra210-host1x", .data = &host1x05_info, },
 	{ .compatible = "nvidia,tegra124-host1x", .data = &host1x04_info, },
 	{ .compatible = "nvidia,tegra114-host1x", .data = &host1x02_info, },

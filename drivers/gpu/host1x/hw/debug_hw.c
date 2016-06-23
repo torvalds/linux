@@ -51,11 +51,10 @@ static unsigned int show_channel_command(struct output *o, u32 val)
 					    val >> 6 & 0x3ff,
 					    val >> 16 & 0xfff, mask);
 			return hweight8(mask);
-		} else {
-			host1x_debug_output(o, "SETCL(class=%03x)\n",
-					    val >> 6 & 0x3ff);
-			return 0;
 		}
+
+		host1x_debug_output(o, "SETCL(class=%03x)\n", val >> 6 & 0x3ff);
+		return 0;
 
 	case HOST1X_OPCODE_INCR:
 		host1x_debug_output(o, "INCR(offset=%03x, [",

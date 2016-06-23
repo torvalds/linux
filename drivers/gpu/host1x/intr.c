@@ -122,12 +122,14 @@ static void action_submit_complete(struct host1x_waitlist *waiter)
 static void action_wakeup(struct host1x_waitlist *waiter)
 {
 	wait_queue_head_t *wq = waiter->data;
+
 	wake_up(wq);
 }
 
 static void action_wakeup_interruptible(struct host1x_waitlist *waiter)
 {
 	wait_queue_head_t *wq = waiter->data;
+
 	wake_up_interruptible(wq);
 }
 

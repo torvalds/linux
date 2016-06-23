@@ -38,6 +38,7 @@ static void syncpt_restore(struct host1x_syncpt *sp)
 static void syncpt_restore_wait_base(struct host1x_syncpt *sp)
 {
 	struct host1x *host = sp->host;
+
 	host1x_sync_writel(host, sp->base_val,
 			   HOST1X_SYNC_SYNCPT_BASE(sp->id));
 }
@@ -48,6 +49,7 @@ static void syncpt_restore_wait_base(struct host1x_syncpt *sp)
 static void syncpt_read_wait_base(struct host1x_syncpt *sp)
 {
 	struct host1x *host = sp->host;
+
 	sp->base_val =
 		host1x_sync_readl(host, HOST1X_SYNC_SYNCPT_BASE(sp->id));
 }

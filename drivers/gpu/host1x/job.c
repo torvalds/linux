@@ -464,6 +464,7 @@ static inline int copy_gathers(struct host1x_job *job, struct device *dev)
 
 	for (i = 0; i < job->num_gathers; i++) {
 		struct host1x_job_gather *g = &job->gathers[i];
+
 		size += g->words * sizeof(u32);
 	}
 
@@ -514,6 +515,7 @@ int host1x_job_pin(struct host1x_job *job, struct device *dev)
 	bitmap_zero(waitchk_mask, host1x_syncpt_nb_pts(host));
 	for (i = 0; i < job->num_waitchk; i++) {
 		u32 syncpt_id = job->waitchk[i].syncpt_id;
+
 		if (syncpt_id < host1x_syncpt_nb_pts(host))
 			set_bit(syncpt_id, waitchk_mask);
 	}
@@ -571,6 +573,7 @@ void host1x_job_unpin(struct host1x_job *job)
 
 	for (i = 0; i < job->num_unpins; i++) {
 		struct host1x_job_unpin_data *unpin = &job->unpins[i];
+
 		host1x_bo_unpin(unpin->bo, unpin->sgt);
 		host1x_bo_put(unpin->bo);
 	}

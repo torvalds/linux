@@ -247,6 +247,7 @@ static void update_cdma_locked(struct host1x_cdma *cdma)
 		/* Pop push buffer slots */
 		if (job->num_slots) {
 			struct push_buffer *pb = &cdma->push_buffer;
+
 			host1x_pushbuffer_pop(pb, job->num_slots);
 			if (cdma->event == CDMA_EVENT_PUSH_BUFFER_SPACE)
 				signal = true;
@@ -342,9 +343,11 @@ void host1x_cdma_update_sync_queue(struct host1x_cdma *cdma,
 		syncpt_val += syncpt_incrs;
 	}
 
-	/* The following sumbits from the same client may be dependent on the
+	/*
+	 * The following sumbits from the same client may be dependent on the
 	 * failed submit and therefore they may fail. Force a small timeout
-	 * to make the queue cleanup faster */
+	 * to make the queue cleanup faster.
+	 */
 
 	list_for_each_entry_from(job, &cdma->sync_queue, list)
 		if (job->client == cdma->timeout.client)
@@ -410,6 +413,7 @@ int host1x_cdma_begin(struct host1x_cdma *cdma, struct host1x_job *job)
 		/* init state on first submit with timeout value */
 		if (!cdma->timeout.initialized) {
 			int err;
+
 			err = host1x_hw_cdma_timeout_init(host1x, cdma,
 							  job->syncpt_id);
 			if (err) {

@@ -146,6 +146,7 @@ void host1x_syncpt_save(struct host1x *host)
 u32 host1x_syncpt_load(struct host1x_syncpt *sp)
 {
 	u32 val;
+
 	val = host1x_hw_syncpt_load(sp->host, sp);
 	trace_host1x_syncpt_load_min(sp->id, val);
 
@@ -158,6 +159,7 @@ u32 host1x_syncpt_load(struct host1x_syncpt *sp)
 u32 host1x_syncpt_load_wait_base(struct host1x_syncpt *sp)
 {
 	u32 val;
+
 	host1x_hw_syncpt_load_wait_base(sp->host, sp);
 	val = sp->base_val;
 	return val;
@@ -279,6 +281,7 @@ bool host1x_syncpt_is_expired(struct host1x_syncpt *sp, u32 thresh)
 {
 	u32 current_val;
 	u32 future_val;
+
 	smp_rmb();
 	current_val = (u32)atomic_read(&sp->min_val);
 	future_val = (u32)atomic_read(&sp->max_val);
@@ -408,7 +411,7 @@ void host1x_syncpt_deinit(struct host1x *host)
 /*
  * Read max. It indicates how many operations there are in queue, either in
  * channel or in a software thread.
- * */
+ */
 u32 host1x_syncpt_read_max(struct host1x_syncpt *sp)
 {
 	smp_rmb();
