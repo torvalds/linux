@@ -429,9 +429,9 @@ void __init mem_init(void)
 	pr_cont("    vmalloc : 0x%16lx - 0x%16lx   (%6ld GB)\n",
 		MLG(VMALLOC_START, VMALLOC_END));
 	pr_cont("      .text : 0x%p" " - 0x%p" "   (%6ld KB)\n",
-		MLK_ROUNDUP(_text, __start_rodata));
+		MLK_ROUNDUP(_text, _etext));
 	pr_cont("    .rodata : 0x%p" " - 0x%p" "   (%6ld KB)\n",
-		MLK_ROUNDUP(__start_rodata, _etext));
+		MLK_ROUNDUP(__start_rodata, __init_begin));
 	pr_cont("      .init : 0x%p" " - 0x%p" "   (%6ld KB)\n",
 		MLK_ROUNDUP(__init_begin, __init_end));
 	pr_cont("      .data : 0x%p" " - 0x%p" "   (%6ld KB)\n",

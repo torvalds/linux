@@ -131,12 +131,13 @@ SECTIONS
 	}
 
 	. = ALIGN(SEGMENT_ALIGN);
-	RO_DATA(PAGE_SIZE)		/* everything from this point to */
-	EXCEPTION_TABLE(8)		/* _etext will be marked RO NX   */
+	_etext = .;			/* End of text section */
+
+	RO_DATA(PAGE_SIZE)		/* everything from this point to     */
+	EXCEPTION_TABLE(8)		/* __init_begin will be marked RO NX */
 	NOTES
 
 	. = ALIGN(SEGMENT_ALIGN);
-	_etext = .;			/* End of text and rodata section */
 	__init_begin = .;
 
 	INIT_TEXT_SECTION(8)
