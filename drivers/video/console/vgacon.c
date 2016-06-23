@@ -1421,7 +1421,6 @@ const struct consw vga_con = {
 	.con_putcs = DUMMY,
 	.con_cursor = vgacon_cursor,
 	.con_scroll = vgacon_scroll,
-	.con_bmove = DUMMY,
 	.con_switch = vgacon_switch,
 	.con_blank = vgacon_blank,
 	.con_font_set = vgacon_font_set,

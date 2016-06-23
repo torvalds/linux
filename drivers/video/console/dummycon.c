@@ -64,7 +64,6 @@ const struct consw dummy_con = {
     .con_putcs =	DUMMY,
     .con_cursor =	DUMMY,
     .con_scroll =	DUMMY,
-    .con_bmove =	DUMMY,
     .con_switch =	DUMMY,
     .con_blank =	DUMMY,
     .con_font_set =	DUMMY,

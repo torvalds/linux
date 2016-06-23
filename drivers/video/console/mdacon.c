@@ -444,38 +444,6 @@ static void mdacon_clear(struct vc_data *c, int y, int x,
 	}
 }
                         
-static void mdacon_bmove(struct vc_data *c, int sy, int sx, 
-			 int dy, int dx, int height, int width)
-{
-	u16 *src, *dest;
-
-	if (width <= 0 || height <= 0)
-		return;
-		
-	if (sx==0 && dx==0 && width==mda_num_columns) {
-		scr_memmovew(MDA_ADDR(0,dy), MDA_ADDR(0,sy), height*width*2);
-
-	} else if (dy < sy || (dy == sy && dx < sx)) {
-		src  = MDA_ADDR(sx, sy);
-		dest = MDA_ADDR(dx, dy);
-
-		for (; height > 0; height--) {
-			scr_memmovew(dest, src, width*2);
-			src  += mda_num_columns;
-			dest += mda_num_columns;
-		}
-	} else {
-		src  = MDA_ADDR(sx, sy+height-1);
-		dest = MDA_ADDR(dx, dy+height-1);
-
-		for (; height > 0; height--) {
-			scr_memmovew(dest, src, width*2);
-			src  -= mda_num_columns;
-			dest -= mda_num_columns;
-		}
-	}
-}
-
 static int mdacon_switch(struct vc_data *c)
 {
 	return 1;	/* redrawing needed */
@@ -564,7 +532,6 @@ static const struct consw mda_con = {
 	.con_putcs =		mdacon_putcs,
 	.con_cursor =		mdacon_cursor,
 	.con_scroll =		mdacon_scroll,
-	.con_bmove =		mdacon_bmove,
 	.con_switch =		mdacon_switch,
 	.con_blank =		mdacon_blank,
 	.con_build_attr =	mdacon_build_attr,

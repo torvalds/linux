@@ -673,34 +673,6 @@ static int newport_scroll(struct vc_data *vc, int t, int b, int dir,
 	return 1;
 }
 
-static void newport_bmove(struct vc_data *vc, int sy, int sx, int dy,
-			  int dx, int h, int w)
-{
-	short xs, ys, xe, ye, xoffs, yoffs;
-
-	xs = sx << 3;
-	xe = ((sx + w) << 3) - 1;
-	/*
-	 * as bmove is only used to move stuff around in the same line
-	 * (h == 1), we don't care about wrap arounds caused by topscan != 0
-	 */
-	ys = ((sy << 4) + topscan) & 0x3ff;
-	ye = (((sy + h) << 4) - 1 + topscan) & 0x3ff;
-	xoffs = (dx - sx) << 3;
-	yoffs = (dy - sy) << 4;
-	if (xoffs > 0) {
-		/* move to the right, exchange starting points */
-		swap(xe, xs);
-	}
-	newport_wait(npregs);
-	npregs->set.drawmode0 = (NPORT_DMODE0_S2S | NPORT_DMODE0_BLOCK |
-				 NPORT_DMODE0_DOSETUP | NPORT_DMODE0_STOPX
-				 | NPORT_DMODE0_STOPY);
-	npregs->set.xystarti = (xs << 16) | ys;
-	npregs->set.xyendi = (xe << 16) | ye;
-	npregs->go.xymove = (xoffs << 16) | yoffs;
-}
-
 static int newport_dummy(struct vc_data *c)
 {
 	return 0;
@@ -718,7 +690,6 @@ const struct consw newport_con = {
 	.con_putcs	  = newport_putcs,
 	.con_cursor	  = newport_cursor,
 	.con_scroll	  = newport_scroll,
-	.con_bmove 	  = newport_bmove,
 	.con_switch	  = newport_switch,
 	.con_blank	  = newport_blank,
 	.con_font_set	  = newport_font_set,

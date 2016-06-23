@@ -477,39 +477,6 @@ sisusbcon_clear(struct vc_data *c, int y, int x, int height, int width)
 	mutex_unlock(&sisusb->lock);
 }
 
-/* Interface routine */
-static void
-sisusbcon_bmove(struct vc_data *c, int sy, int sx,
-			 int dy, int dx, int height, int width)
-{
-	struct sisusb_usb_data *sisusb;
-	int cols, length;
-
-	if (width <= 0 || height <= 0)
-		return;
-
-	sisusb = sisusb_get_sisusb_lock_and_check(c->vc_num);
-	if (!sisusb)
-		return;
-
-	/* sisusb->lock is down */
-
-	cols = sisusb->sisusb_num_columns;
-
-	if (sisusb_is_inactive(c, sisusb)) {
-		mutex_unlock(&sisusb->lock);
-		return;
-	}
-
-	length = ((height * cols) - dx - (cols - width - dx)) * 2;
-
-
-	sisusb_copy_memory(sisusb, (unsigned char *)SISUSB_VADDR(dx, dy),
-				(long)SISUSB_HADDR(dx, dy), length);
-
-	mutex_unlock(&sisusb->lock);
-}
-
 /* interface routine */
 static int
 sisusbcon_switch(struct vc_data *c)
@@ -1371,7 +1338,6 @@ static const struct consw sisusb_con = {
 	.con_putcs =		sisusbcon_putcs,
 	.con_cursor =		sisusbcon_cursor,
 	.con_scroll =		sisusbcon_scroll,
-	.con_bmove =		sisusbcon_bmove,
 	.con_switch =		sisusbcon_switch,
 	.con_blank =		sisusbcon_blank,
 	.con_font_set =		sisusbcon_font_set,
@@ -1419,7 +1385,6 @@ static const struct consw sisusb_dummy_con = {
 	.con_putcs =		SISUSBCONDUMMY,
 	.con_cursor =		SISUSBCONDUMMY,
 	.con_scroll =		SISUSBCONDUMMY,
-	.con_bmove =		SISUSBCONDUMMY,
 	.con_switch =		SISUSBCONDUMMY,
 	.con_blank =		SISUSBCONDUMMY,
 	.con_font_set =		SISUSBCONDUMMY,

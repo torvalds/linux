@@ -177,22 +177,6 @@ static int sticon_scroll(struct vc_data *conp, int t, int b, int dir, int count)
     return 0;
 }
 
-static void sticon_bmove(struct vc_data *conp, int sy, int sx, 
-	int dy, int dx, int height, int width)
-{
-    if (!width || !height)
-	    return;
-#if 0
-    if (((sy <= p->cursor_y) && (p->cursor_y < sy+height) &&
-	(sx <= p->cursor_x) && (p->cursor_x < sx+width)) ||
-	((dy <= p->cursor_y) && (p->cursor_y < dy+height) &&
-	(dx <= p->cursor_x) && (p->cursor_x < dx+width)))
-		sticon_cursor(p, CM_ERASE /*|CM_SOFTBACK*/);
-#endif
-
-    sti_bmove(sticon_sti, sy, sx, dy, dx, height, width);
-}
-
 static void sticon_init(struct vc_data *c, int init)
 {
     struct sti_struct *sti = sticon_sti;
@@ -345,7 +329,6 @@ static const struct consw sti_con = {
 	.con_putcs		= sticon_putcs,
 	.con_cursor		= sticon_cursor,
 	.con_scroll		= sticon_scroll,
-	.con_bmove		= sticon_bmove,
 	.con_switch		= sticon_switch,
 	.con_blank		= sticon_blank,
 	.con_set_origin		= sticon_set_origin,
