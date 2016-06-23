@@ -581,10 +581,6 @@ static void *kvm_mips_build_ret_to_host(void *addr)
 	UASM_i_LW(&p, K1, offsetof(struct kvm_vcpu_arch, host_stack), K1);
 	uasm_i_addiu(&p, K1, K1, -(int)sizeof(struct pt_regs));
 
-	/* Restore host DDATA_LO */
-	UASM_i_LW(&p, K0, offsetof(struct pt_regs, cp0_epc), K1);
-	uasm_i_mtc0(&p, K0, C0_DDATA_LO);
-
 	/*
 	 * r2/v0 is the return code, shift it down by 2 (arithmetic)
 	 * to recover the err code
