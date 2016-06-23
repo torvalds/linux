@@ -3978,7 +3978,7 @@ static void set_palette(struct vc_data *vc)
 {
 	WARN_CONSOLE_UNLOCKED();
 
-	if (vc->vc_mode != KD_GRAPHICS)
+	if (vc->vc_mode != KD_GRAPHICS && vc->vc_sw->con_set_palette)
 		vc->vc_sw->con_set_palette(vc, color_table);
 }
 

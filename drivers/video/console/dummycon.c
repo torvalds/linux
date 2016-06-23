@@ -71,6 +71,5 @@ const struct consw dummy_con = {
     .con_font_get =	DUMMY,
     .con_font_default =	DUMMY,
     .con_font_copy =	DUMMY,
-    .con_set_palette =	DUMMY,
 };
 EXPORT_SYMBOL_GPL(dummy_con);

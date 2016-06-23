@@ -31,6 +31,7 @@ struct tty_struct;
 /**
  * struct consw - callbacks for consoles
  *
+ * @con_set_palette: sets the palette of the console to @table (optional)
  * @con_scrolldelta: the contents of the console should be scrolled by @lines.
  *		     Invoked by user. (optional)
  */
@@ -53,7 +54,8 @@ struct consw {
 	int	(*con_font_copy)(struct vc_data *, int);
 	int     (*con_resize)(struct vc_data *, unsigned int, unsigned int,
 			       unsigned int);
-	int	(*con_set_palette)(struct vc_data *, const unsigned char *);
+	void	(*con_set_palette)(struct vc_data *,
+			const unsigned char *table);
 	void	(*con_scrolldelta)(struct vc_data *, int lines);
 	int	(*con_set_origin)(struct vc_data *);
 	void	(*con_save_screen)(struct vc_data *);

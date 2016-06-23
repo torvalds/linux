@@ -595,7 +595,7 @@ sisusbcon_save_screen(struct vc_data *c)
 }
 
 /* interface routine */
-static int
+static void
 sisusbcon_set_palette(struct vc_data *c, const unsigned char *table)
 {
 	struct sisusb_usb_data *sisusb;
@@ -604,17 +604,17 @@ sisusbcon_set_palette(struct vc_data *c, const unsigned char *table)
 	/* Return value not used by vt */
 
 	if (!CON_IS_VISIBLE(c))
-		return -EINVAL;
+		return;
 
 	sisusb = sisusb_get_sisusb_lock_and_check(c->vc_num);
 	if (!sisusb)
-		return -EINVAL;
+		return;
 
 	/* sisusb->lock is down */
 
 	if (sisusb_is_inactive(c, sisusb)) {
 		mutex_unlock(&sisusb->lock);
-		return -EINVAL;
+		return;
 	}
 
 	for (i = j = 0; i < 16; i++) {
@@ -629,8 +629,6 @@ sisusbcon_set_palette(struct vc_data *c, const unsigned char *table)
 	}
 
 	mutex_unlock(&sisusb->lock);
-
-	return 0;
 }
 
 /* interface routine */
@@ -1428,7 +1426,6 @@ static const struct consw sisusb_dummy_con = {
 	.con_font_get =		SISUSBCONDUMMY,
 	.con_font_default =	SISUSBCONDUMMY,
 	.con_font_copy =	SISUSBCONDUMMY,
-	.con_set_palette =	SISUSBCONDUMMY,
 };
 
 int

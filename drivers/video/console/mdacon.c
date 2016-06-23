@@ -481,11 +481,6 @@ static int mdacon_switch(struct vc_data *c)
 	return 1;	/* redrawing needed */
 }
 
-static int mdacon_set_palette(struct vc_data *c, const unsigned char *table)
-{
-	return -EINVAL;
-}
-
 static int mdacon_blank(struct vc_data *c, int blank, int mode_switch)
 {
 	if (mda_type == TYPE_MDA) {
@@ -572,7 +567,6 @@ static const struct consw mda_con = {
 	.con_bmove =		mdacon_bmove,
 	.con_switch =		mdacon_switch,
 	.con_blank =		mdacon_blank,
-	.con_set_palette =	mdacon_set_palette,
 	.con_build_attr =	mdacon_build_attr,
 	.con_invert_region =	mdacon_invert_region,
 };

@@ -79,11 +79,6 @@ static const char *sticon_startup(void)
     return "STI console";
 }
 
-static int sticon_set_palette(struct vc_data *c, const unsigned char *table)
-{
-    return -EINVAL;
-}
-
 static void sticon_putc(struct vc_data *conp, int c, int ypos, int xpos)
 {
     int redraw_cursor = 0;
@@ -353,7 +348,6 @@ static const struct consw sti_con = {
 	.con_bmove		= sticon_bmove,
 	.con_switch		= sticon_switch,
 	.con_blank		= sticon_blank,
-	.con_set_palette	= sticon_set_palette,
 	.con_set_origin		= sticon_set_origin,
 	.con_save_screen	= sticon_save_screen, 
 	.con_build_attr		= sticon_build_attr,
