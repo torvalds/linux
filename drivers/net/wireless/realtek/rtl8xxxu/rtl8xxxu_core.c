@@ -5267,7 +5267,7 @@ static void rtl8xxxu_int_complete(struct urb *urb)
 		if (ret)
 			usb_unanchor_urb(urb);
 	} else {
-		dev_info(dev, "%s: Error %i\n", __func__, urb->status);
+		dev_dbg(dev, "%s: Error %i\n", __func__, urb->status);
 	}
 }
 
