@@ -335,6 +335,7 @@ struct fm10k_intfc {
 
 	/* UDP encapsulation port tracking information */
 	struct list_head vxlan_port;
+	struct list_head geneve_port;
 
 #ifdef CONFIG_DEBUG_FS
 	struct dentry *dbg_intfc;

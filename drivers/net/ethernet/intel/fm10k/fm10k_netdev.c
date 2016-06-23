@@ -387,7 +387,7 @@ static void fm10k_request_glort_range(struct fm10k_intfc *interface)
  * fm10k_free_udp_port_info
  * @interface: board private structure
  *
- * This function frees the entire vxlan_port list
+ * This function frees both geneve_port and vxlan_port structures
  **/
 static void fm10k_free_udp_port_info(struct fm10k_intfc *interface)
 {
@@ -395,6 +395,17 @@ static void fm10k_free_udp_port_info(struct fm10k_intfc *interface)
 
 	/* flush all entries from vxlan list */
 	port = list_first_entry_or_null(&interface->vxlan_port,
+					struct fm10k_udp_port, list);
+	while (port) {
+		list_del(&port->list);
+		kfree(port);
+		port = list_first_entry_or_null(&interface->vxlan_port,
+						struct fm10k_udp_port,
+						list);
+	}
+
+	/* flush all entries from geneve list */
+	port = list_first_entry_or_null(&interface->geneve_port,
 					struct fm10k_udp_port, list);
 	while (port) {
 		list_del(&port->list);
@@ -427,6 +438,13 @@ static void fm10k_restore_udp_port_info(struct fm10k_intfc *interface)
 	fm10k_write_reg(hw, FM10K_TUNNEL_CFG,
 			(port ? ntohs(port->port) : 0) |
 			(ETH_P_TEB << FM10K_TUNNEL_CFG_NVGRE_SHIFT));
+
+	port = list_first_entry_or_null(&interface->geneve_port,
+					struct fm10k_udp_port, list);
+
+	/* restore Geneve tunnel configuration register */
+	fm10k_write_reg(hw, FM10K_TUNNEL_CFG_GENEVE,
+			(port ? ntohs(port->port) : 0));
 }
 
 static struct fm10k_udp_port *
@@ -472,8 +490,8 @@ static void fm10k_insert_tunnel_port(struct list_head *ports,
  * @ti: Tunnel endpoint information
  *
  * This function is called when a new UDP tunnel port has been added.
- * Currently we only support VXLAN and only one port will actually be
- * offloaded due to hardware restrictions.
+ * Due to hardware restrictions, only one port per type can be offloaded at
+ * once.
  **/
 static void fm10k_udp_tunnel_add(struct net_device *dev,
 				 struct udp_tunnel_info *ti)
@@ -487,6 +505,9 @@ static void fm10k_udp_tunnel_add(struct net_device *dev,
 	switch (ti->type) {
 	case UDP_TUNNEL_TYPE_VXLAN:
 		fm10k_insert_tunnel_port(&interface->vxlan_port, ti);
+		break;
+	case UDP_TUNNEL_TYPE_GENEVE:
+		fm10k_insert_tunnel_port(&interface->geneve_port, ti);
 		break;
 	default:
 		return;
@@ -516,6 +537,9 @@ static void fm10k_udp_tunnel_del(struct net_device *dev,
 	switch (ti->type) {
 	case UDP_TUNNEL_TYPE_VXLAN:
 		port = fm10k_remove_tunnel_port(&interface->vxlan_port, ti);
+		break;
+	case UDP_TUNNEL_TYPE_GENEVE:
+		port = fm10k_remove_tunnel_port(&interface->geneve_port, ti);
 		break;
 	default:
 		return;
