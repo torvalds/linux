@@ -8,6 +8,7 @@
 #include <stdlib.h>
 #include "debug.h"
 #include "llvm-utils.h"
+#include "config.h"
 
 #define CLANG_BPF_CMD_DEFAULT_TEMPLATE				\
 		"$CLANG_EXEC -D__KERNEL__ -D__NR_CPUS__=$NR_CPUS "\

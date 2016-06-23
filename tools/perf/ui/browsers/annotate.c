@@ -8,6 +8,7 @@
 #include "../../util/sort.h"
 #include "../../util/symbol.h"
 #include "../../util/evsel.h"
+#include "../../util/config.h"
 #include <pthread.h>
 
 struct disasm_line_samples {

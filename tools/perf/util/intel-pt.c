@@ -39,6 +39,7 @@
 #include "auxtrace.h"
 #include "tsc.h"
 #include "intel-pt.h"
+#include "config.h"
 
 #include "intel-pt-decoder/intel-pt-log.h"
 #include "intel-pt-decoder/intel-pt-decoder.h"

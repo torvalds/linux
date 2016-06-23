@@ -22,7 +22,7 @@
 #include "perf.h"
 
 #include "util/annotate.h"
-#include "util/cache.h"
+#include "util/config.h"
 #include "util/color.h"
 #include "util/evlist.h"
 #include "util/evsel.h"
