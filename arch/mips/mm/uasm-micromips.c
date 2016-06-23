@@ -89,6 +89,8 @@ static struct insn insn_table_MM[] = {
 	{ insn_mfhi, M(mm_pool32a_op, 0, 0, 0, mm_mfhi32_op, mm_pool32axf_op), RS },
 	{ insn_mflo, M(mm_pool32a_op, 0, 0, 0, mm_mflo32_op, mm_pool32axf_op), RS },
 	{ insn_mtc0, M(mm_pool32a_op, 0, 0, 0, mm_mtc0_op, mm_pool32axf_op), RT | RS | RD },
+	{ insn_mthi, M(mm_pool32a_op, 0, 0, 0, mm_mthi32_op, mm_pool32axf_op), RS },
+	{ insn_mtlo, M(mm_pool32a_op, 0, 0, 0, mm_mtlo32_op, mm_pool32axf_op), RS },
 	{ insn_mul, M(mm_pool32a_op, 0, 0, 0, 0, mm_mul_op), RT | RS | RD },
 	{ insn_or, M(mm_pool32a_op, 0, 0, 0, 0, mm_or32_op), RT | RS | RD },
 	{ insn_ori, M(mm_ori32_op, 0, 0, 0, 0, 0), RT | RS | UIMM },
