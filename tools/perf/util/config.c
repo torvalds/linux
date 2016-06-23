@@ -26,6 +26,7 @@ static FILE *config_file;
 static const char *config_file_name;
 static int config_linenr;
 static int config_file_eof;
+static struct perf_config_set *config_set;
 
 const char *config_exclusive_filename;
 
@@ -478,51 +479,6 @@ static int perf_config_global(void)
 	return !perf_env_bool("PERF_CONFIG_NOGLOBAL", 0);
 }
 
-int perf_config(config_fn_t fn, void *data)
-{
-	int ret = -1;
-	const char *home = NULL;
-
-	/* Setting $PERF_CONFIG makes perf read _only_ the given config file. */
-	if (config_exclusive_filename)
-		return perf_config_from_file(fn, config_exclusive_filename, data);
-	if (perf_config_system() && !access(perf_etc_perfconfig(), R_OK)) {
-		if (perf_config_from_file(fn, perf_etc_perfconfig(), data) < 0)
-			goto out;
-	}
-
-	home = getenv("HOME");
-	if (perf_config_global() && home) {
-		char *user_config = strdup(mkpath("%s/.perfconfig", home));
-		struct stat st;
-
-		if (user_config == NULL) {
-			warning("Not enough memory to process %s/.perfconfig, "
-				"ignoring it.", home);
-			goto out;
-		}
-
-		if (stat(user_config, &st) < 0)
-			goto out_free;
-
-		if (st.st_uid && (st.st_uid != geteuid())) {
-			warning("File %s not owned by current user or root, "
-				"ignoring it.", user_config);
-			goto out_free;
-		}
-
-		if (!st.st_size)
-			goto out_free;
-
-		ret = perf_config_from_file(fn, user_config, data);
-
-out_free:
-		free(user_config);
-	}
-out:
-	return ret;
-}
-
 static struct perf_config_section *find_section(struct list_head *sections,
 						const char *section_name)
 {
@@ -704,6 +660,52 @@ struct perf_config_set *perf_config_set__new(void)
 	}
 
 	return set;
+}
+
+int perf_config(config_fn_t fn, void *data)
+{
+	int ret = 0;
+	char key[BUFSIZ];
+	struct perf_config_section *section;
+	struct perf_config_item *item;
+
+	if (config_set == NULL)
+		return -1;
+
+	perf_config_set__for_each_entry(config_set, section, item) {
+		char *value = item->value;
+
+		if (value) {
+			scnprintf(key, sizeof(key), "%s.%s",
+				  section->name, item->name);
+			ret = fn(key, value, data);
+			if (ret < 0) {
+				pr_err("Error: wrong config key-value pair %s=%s\n",
+				       key, value);
+				break;
+			}
+		}
+	}
+
+	return ret;
+}
+
+void perf_config__init(void)
+{
+	if (config_set == NULL)
+		config_set = perf_config_set__new();
+}
+
+void perf_config__exit(void)
+{
+	perf_config_set__delete(config_set);
+	config_set = NULL;
+}
+
+void perf_config__refresh(void)
+{
+	perf_config__exit();
+	perf_config__init();
 }
 
 static void perf_config_item__delete(struct perf_config_item *item)
