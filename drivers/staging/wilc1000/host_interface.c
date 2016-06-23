@@ -1237,17 +1237,14 @@ static s32 Handle_RcvdNtwrkInfo(struct wilc_vif *vif,
 		}
 
 		for (i = 0; i < hif_drv->usr_scan_req.rcvd_ch_cnt; i++) {
-			if ((hif_drv->usr_scan_req.net_info[i].bssid) &&
-			    (pstrNetworkInfo->bssid)) {
-				if (memcmp(hif_drv->usr_scan_req.net_info[i].bssid,
-					   pstrNetworkInfo->bssid, 6) == 0) {
-					if (pstrNetworkInfo->rssi <= hif_drv->usr_scan_req.net_info[i].rssi) {
-						goto done;
-					} else {
-						hif_drv->usr_scan_req.net_info[i].rssi = pstrNetworkInfo->rssi;
-						bNewNtwrkFound = false;
-						break;
-					}
+			if (memcmp(hif_drv->usr_scan_req.net_info[i].bssid,
+				   pstrNetworkInfo->bssid, 6) == 0) {
+				if (pstrNetworkInfo->rssi <= hif_drv->usr_scan_req.net_info[i].rssi) {
+					goto done;
+				} else {
+					hif_drv->usr_scan_req.net_info[i].rssi = pstrNetworkInfo->rssi;
+					bNewNtwrkFound = false;
+					break;
 				}
 			}
 		}
@@ -1256,20 +1253,17 @@ static s32 Handle_RcvdNtwrkInfo(struct wilc_vif *vif,
 			if (hif_drv->usr_scan_req.rcvd_ch_cnt < MAX_NUM_SCANNED_NETWORKS) {
 				hif_drv->usr_scan_req.net_info[hif_drv->usr_scan_req.rcvd_ch_cnt].rssi = pstrNetworkInfo->rssi;
 
-				if (hif_drv->usr_scan_req.net_info[hif_drv->usr_scan_req.rcvd_ch_cnt].bssid &&
-				    pstrNetworkInfo->bssid) {
-					memcpy(hif_drv->usr_scan_req.net_info[hif_drv->usr_scan_req.rcvd_ch_cnt].bssid,
-					       pstrNetworkInfo->bssid, 6);
+				memcpy(hif_drv->usr_scan_req.net_info[hif_drv->usr_scan_req.rcvd_ch_cnt].bssid,
+				       pstrNetworkInfo->bssid, 6);
 
-					hif_drv->usr_scan_req.rcvd_ch_cnt++;
+				hif_drv->usr_scan_req.rcvd_ch_cnt++;
 
-					pstrNetworkInfo->new_network = true;
-					pJoinParams = host_int_ParseJoinBssParam(pstrNetworkInfo);
+				pstrNetworkInfo->new_network = true;
+				pJoinParams = host_int_ParseJoinBssParam(pstrNetworkInfo);
 
-					hif_drv->usr_scan_req.scan_result(SCAN_EVENT_NETWORK_FOUND, pstrNetworkInfo,
-									  hif_drv->usr_scan_req.arg,
-									  pJoinParams);
-				}
+				hif_drv->usr_scan_req.scan_result(SCAN_EVENT_NETWORK_FOUND, pstrNetworkInfo,
+								  hif_drv->usr_scan_req.arg,
+								  pJoinParams);
 			}
 		} else {
 			pstrNetworkInfo->new_network = false;
