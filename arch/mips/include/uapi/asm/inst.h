@@ -376,6 +376,7 @@ enum mm_32axf_minor_op {
 	mm_jalrhb_op = 0x07c,
 	mm_tlbwi_op = 0x08d,
 	mm_tlbwr_op = 0x0cd,
+	mm_di_op = 0x11d,
 	mm_jalrs_op = 0x13c,
 	mm_jalrshb_op = 0x17c,
 	mm_sync_op = 0x1ad,

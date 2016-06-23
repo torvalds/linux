@@ -59,6 +59,7 @@ static struct insn insn_table_MM[] = {
 	{ insn_ctcmsa, M(mm_pool32s_op, 0, msa_ctc_op, 0, 0, mm_32s_elm_op), RD | RE },
 	{ insn_daddu, 0, 0 },
 	{ insn_daddiu, 0, 0 },
+	{ insn_di, M(mm_pool32a_op, 0, 0, 0, mm_di_op, mm_pool32axf_op), RS },
 	{ insn_divu, M(mm_pool32a_op, 0, 0, 0, mm_divu_op, mm_pool32axf_op), RT | RS },
 	{ insn_dmfc0, 0, 0 },
 	{ insn_dmtc0, 0, 0 },
