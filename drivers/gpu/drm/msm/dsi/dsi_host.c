@@ -1605,13 +1605,6 @@ static int dsi_host_parse_dt(struct msm_dsi_host *msm_host)
 	struct device_node *endpoint, *device_node;
 	int ret;
 
-	ret = of_property_read_u32(np, "qcom,dsi-host-index", &msm_host->id);
-	if (ret) {
-		dev_err(dev, "%s: host index not specified, ret=%d\n",
-			__func__, ret);
-		return ret;
-	}
-
 	/*
 	 * Get the endpoint of the output port of the DSI host. In our case,
 	 * this is mapped to port number with reg = 1. Don't return an error if
@@ -1659,6 +1652,25 @@ err:
 	return ret;
 }
 
+static int dsi_host_get_id(struct msm_dsi_host *msm_host)
+{
+	struct platform_device *pdev = msm_host->pdev;
+	const struct msm_dsi_config *cfg = msm_host->cfg_hnd->cfg;
+	struct resource *res;
+	int i;
+
+	res = platform_get_resource_byname(pdev, IORESOURCE_MEM, "dsi_ctrl");
+	if (!res)
+		return -EINVAL;
+
+	for (i = 0; i < cfg->num_dsi; i++) {
+		if (cfg->io_start[i] == res->start)
+			return i;
+	}
+
+	return -EINVAL;
+}
+
 int msm_dsi_host_init(struct msm_dsi *msm_dsi)
 {
 	struct msm_dsi_host *msm_host = NULL;
@@ -1692,6 +1704,13 @@ int msm_dsi_host_init(struct msm_dsi *msm_dsi)
 	if (!msm_host->cfg_hnd) {
 		ret = -EINVAL;
 		pr_err("%s: get config failed\n", __func__);
+		goto fail;
+	}
+
+	msm_host->id = dsi_host_get_id(msm_host);
+	if (msm_host->id < 0) {
+		ret = msm_host->id;
+		pr_err("%s: unable to identify DSI host index\n", __func__);
 		goto fail;
 	}
 
