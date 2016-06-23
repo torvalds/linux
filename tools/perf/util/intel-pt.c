@@ -1234,7 +1234,7 @@ static int intel_pt_sample(struct intel_pt_queue *ptq)
 	if (!(state->type & INTEL_PT_BRANCH))
 		return 0;
 
-	if (pt->synth_opts.callchain)
+	if (pt->synth_opts.callchain || pt->synth_opts.thread_stack)
 		thread_stack__event(ptq->thread, ptq->flags, state->from_ip,
 				    state->to_ip, ptq->insn_len,
 				    state->trace_nr);
@@ -2137,6 +2137,9 @@ int intel_pt_process_auxtrace_info(union perf_event *event,
 			pt->synth_opts.branches = false;
 			pt->synth_opts.callchain = true;
 		}
+		if (session->itrace_synth_opts)
+			pt->synth_opts.thread_stack =
+				session->itrace_synth_opts->thread_stack;
 	}
 
 	if (pt->synth_opts.log)
