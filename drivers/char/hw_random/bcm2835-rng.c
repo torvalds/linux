@@ -70,6 +70,7 @@ static struct hwrng bcm2835_rng_ops = {
 static const struct of_device_id bcm2835_rng_of_match[] = {
 	{ .compatible = "brcm,bcm2835-rng"},
 	{ .compatible = "brcm,bcm-nsp-rng", .data = nsp_rng_init},
+	{ .compatible = "brcm,bcm5301x-rng", .data = nsp_rng_init},
 	{},
 };
 

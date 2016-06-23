@@ -90,7 +90,7 @@ config HW_RANDOM_BCM63XX
 
 config HW_RANDOM_BCM2835
 	tristate "Broadcom BCM2835 Random Number Generator support"
-	depends on ARCH_BCM2835 || ARCH_BCM_NSP
+	depends on ARCH_BCM2835 || ARCH_BCM_NSP || ARCH_BCM_5301X
 	default HW_RANDOM
 	---help---
 	  This driver provides kernel-side support for the Random Number
