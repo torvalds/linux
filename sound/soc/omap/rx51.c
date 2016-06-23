@@ -33,7 +33,6 @@
 #include <sound/pcm.h>
 #include <sound/soc.h>
 #include <linux/platform_data/asoc-ti-mcbsp.h>
-#include "../codecs/tpa6130a2.h"
 
 #include <asm/mach-types.h>
 
@@ -164,19 +163,6 @@ static int rx51_spk_event(struct snd_soc_dapm_widget *w,
 	return 0;
 }
 
-static int rx51_hp_event(struct snd_soc_dapm_widget *w,
-			 struct snd_kcontrol *k, int event)
-{
-	struct snd_soc_codec *codec = snd_soc_dapm_to_codec(w->dapm);
-
-	if (SND_SOC_DAPM_EVENT_ON(event))
-		tpa6130a2_stereo_enable(codec, 1);
-	else
-		tpa6130a2_stereo_enable(codec, 0);
-
-	return 0;
-}
-
 static int rx51_get_input(struct snd_kcontrol *kcontrol,
 			  struct snd_ctl_elem_value *ucontrol)
 {
@@ -235,7 +221,7 @@ static struct snd_soc_jack_gpio rx51_av_jack_gpios[] = {
 static const struct snd_soc_dapm_widget aic34_dapm_widgets[] = {
 	SND_SOC_DAPM_SPK("Ext Spk", rx51_spk_event),
 	SND_SOC_DAPM_MIC("DMic", NULL),
-	SND_SOC_DAPM_HP("Headphone Jack", rx51_hp_event),
+	SND_SOC_DAPM_HP("Headphone Jack", NULL),
 	SND_SOC_DAPM_MIC("HS Mic", NULL),
 	SND_SOC_DAPM_LINE("FM Transmitter", NULL),
 	SND_SOC_DAPM_SPK("Earphone", NULL),
@@ -246,10 +232,13 @@ static const struct snd_soc_dapm_route audio_map[] = {
 	{"Ext Spk", NULL, "HPROUT"},
 	{"Ext Spk", NULL, "HPLCOM"},
 	{"Ext Spk", NULL, "HPRCOM"},
-	{"Headphone Jack", NULL, "LLOUT"},
-	{"Headphone Jack", NULL, "RLOUT"},
 	{"FM Transmitter", NULL, "LLOUT"},
 	{"FM Transmitter", NULL, "RLOUT"},
+
+	{"Headphone Jack", NULL, "TPA6130A2 HPLEFT"},
+	{"Headphone Jack", NULL, "TPA6130A2 HPRIGHT"},
+	{"TPA6130A2 LEFTIN", NULL, "LLOUT"},
+	{"TPA6130A2 RIGHTIN", NULL, "RLOUT"},
 
 	{"DMic Rate 64", NULL, "DMic"},
 	{"DMic", NULL, "Mic Bias"},
