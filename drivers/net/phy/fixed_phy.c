@@ -48,12 +48,12 @@ static struct fixed_mdio_bus platform_fmb = {
 	.phys = LIST_HEAD_INIT(platform_fmb.phys),
 };
 
-static int fixed_phy_update_regs(struct fixed_phy *fp)
+static void fixed_phy_update_regs(struct fixed_phy *fp)
 {
 	if (gpio_is_valid(fp->link_gpio))
 		fp->status.link = !!gpio_get_value_cansleep(fp->link_gpio);
 
-	return swphy_update_regs(fp->regs, &fp->status);
+	swphy_update_regs(fp->regs, &fp->status);
 }
 
 static int fixed_mdio_read(struct mii_bus *bus, int phy_addr, int reg_num)
@@ -160,6 +160,10 @@ int fixed_phy_add(unsigned int irq, int phy_addr,
 	struct fixed_mdio_bus *fmb = &platform_fmb;
 	struct fixed_phy *fp;
 
+	ret = swphy_validate_state(status);
+	if (ret < 0)
+		return ret;
+
 	fp = kzalloc(sizeof(*fp), GFP_KERNEL);
 	if (!fp)
 		return -ENOMEM;
@@ -180,17 +184,12 @@ int fixed_phy_add(unsigned int irq, int phy_addr,
 			goto err_regs;
 	}
 
-	ret = fixed_phy_update_regs(fp);
-	if (ret)
-		goto err_gpio;
+	fixed_phy_update_regs(fp);
 
 	list_add_tail(&fp->node, &fmb->phys);
 
 	return 0;
 
-err_gpio:
-	if (gpio_is_valid(fp->link_gpio))
-		gpio_free(fp->link_gpio);
 err_regs:
 	kfree(fp);
 	return ret;

@@ -3,6 +3,7 @@
 
 struct fixed_phy_status;
 
-int swphy_update_regs(u16 *regs, const struct fixed_phy_status *state);
+int swphy_validate_state(const struct fixed_phy_status *state);
+void swphy_update_regs(u16 *regs, const struct fixed_phy_status *state);
 
 #endif

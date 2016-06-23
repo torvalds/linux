@@ -87,6 +87,29 @@ static int swphy_decode_speed(int speed)
 }
 
 /**
+ * swphy_validate_state - validate the software phy status
+ * @state: software phy status
+ *
+ * This checks that we can represent the state stored in @state can be
+ * represented in the emulated MII registers.  Returns 0 if it can,
+ * otherwise returns -EINVAL.
+ */
+int swphy_validate_state(const struct fixed_phy_status *state)
+{
+	int err;
+
+	if (state->link) {
+		err = swphy_decode_speed(state->speed);
+		if (err < 0) {
+			pr_warn("swphy: unknown speed\n");
+			return -EINVAL;
+		}
+	}
+	return 0;
+}
+EXPORT_SYMBOL_GPL(swphy_validate_state);
+
+/**
  * swphy_update_regs - update MII register array with fixed phy state
  * @regs: array of 32 registers to update
  * @state: fixed phy status
@@ -94,7 +117,7 @@ static int swphy_decode_speed(int speed)
  * Update the array of MII registers with the fixed phy link, speed,
  * duplex and pause mode settings.
  */
-int swphy_update_regs(u16 *regs, const struct fixed_phy_status *state)
+void swphy_update_regs(u16 *regs, const struct fixed_phy_status *state)
 {
 	int speed_index, duplex_index;
 	u16 bmsr = BMSR_ANEGCAPABLE;
@@ -103,10 +126,8 @@ int swphy_update_regs(u16 *regs, const struct fixed_phy_status *state)
 	u16 lpa = 0;
 
 	speed_index = swphy_decode_speed(state->speed);
-	if (speed_index < 0) {
-		pr_warn("swphy: unknown speed\n");
-		return -EINVAL;
-	}
+	if (WARN_ON(speed_index < 0))
+		return;
 
 	duplex_index = state->duplex ? SWMII_DUPLEX_FULL : SWMII_DUPLEX_HALF;
 
@@ -133,7 +154,5 @@ int swphy_update_regs(u16 *regs, const struct fixed_phy_status *state)
 	regs[MII_BMCR] = bmcr;
 	regs[MII_LPA] = lpa;
 	regs[MII_STAT1000] = lpagb;
-
-	return 0;
 }
 EXPORT_SYMBOL_GPL(swphy_update_regs);
