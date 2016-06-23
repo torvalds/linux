@@ -1870,11 +1870,11 @@ static int sdhci_card_busy(struct mmc_host *mmc)
 	u32 present_state;
 
 	sdhci_runtime_pm_get(host);
-	/* Check whether DAT[3:0] is 0000 */
+	/* Check whether DAT[0] is 0 */
 	present_state = sdhci_readl(host, SDHCI_PRESENT_STATE);
 	sdhci_runtime_pm_put(host);
 
-	return !(present_state & SDHCI_DATA_LVL_MASK);
+	return !(present_state & SDHCI_DATA_0_LVL_MASK);
 }
 
 static int sdhci_prepare_hs400_tuning(struct mmc_host *mmc, struct mmc_ios *ios)
