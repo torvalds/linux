@@ -2550,7 +2550,7 @@ static size_t thread__dump_stats(struct thread_trace *ttrace,
 	printed += fprintf(fp, "                               (msec)    (msec)    (msec)    (msec)        (%%)\n");
 	printed += fprintf(fp, "   --------------- -------- --------- --------- --------- ---------     ------\n");
 
-	resort_rb__for_each(nd, syscall_stats) {
+	resort_rb__for_each_entry(nd, syscall_stats) {
 		struct stats *stats = syscall_stats_entry->stats;
 		if (stats) {
 			double min = (double)(stats->min) / NSEC_PER_MSEC;
@@ -2627,7 +2627,7 @@ static size_t trace__fprintf_thread_summary(struct trace *trace, FILE *fp)
 		return 0;
 	}
 
-	resort_rb__for_each(nd, threads)
+	resort_rb__for_each_entry(nd, threads)
 		printed += trace__fprintf_thread(fp, threads_entry->thread, trace);
 
 	resort_rb__delete(threads);
