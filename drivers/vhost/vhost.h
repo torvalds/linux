@@ -55,6 +55,25 @@ struct vhost_log {
 	u64 len;
 };
 
+#define START(node) ((node)->start)
+#define LAST(node) ((node)->last)
+
+struct vhost_umem_node {
+	struct rb_node rb;
+	struct list_head link;
+	__u64 start;
+	__u64 last;
+	__u64 size;
+	__u64 userspace_addr;
+	__u64 flags_padding;
+	__u64 __subtree_last;
+};
+
+struct vhost_umem {
+	struct rb_root umem_tree;
+	struct list_head umem_list;
+};
+
 /* The virtqueue structure describes a queue attached to a device. */
 struct vhost_virtqueue {
 	struct vhost_dev *dev;
@@ -103,7 +122,7 @@ struct vhost_virtqueue {
 	struct iovec *indirect;
 	struct vring_used_elem *heads;
 	/* Protected by virtqueue mutex. */
-	struct vhost_memory *memory;
+	struct vhost_umem *umem;
 	void *private_data;
 	u64 acked_features;
 	/* Log write descriptors */
@@ -121,7 +140,6 @@ struct vhost_virtqueue {
 };
 
 struct vhost_dev {
-	struct vhost_memory *memory;
 	struct mm_struct *mm;
 	struct mutex mutex;
 	struct vhost_virtqueue **vqs;
@@ -130,14 +148,15 @@ struct vhost_dev {
 	struct eventfd_ctx *log_ctx;
 	struct llist_head work_list;
 	struct task_struct *worker;
+	struct vhost_umem *umem;
 };
 
 void vhost_dev_init(struct vhost_dev *, struct vhost_virtqueue **vqs, int nvqs);
 long vhost_dev_set_owner(struct vhost_dev *dev);
 bool vhost_dev_has_owner(struct vhost_dev *dev);
 long vhost_dev_check_owner(struct vhost_dev *);
-struct vhost_memory *vhost_dev_reset_owner_prepare(void);
-void vhost_dev_reset_owner(struct vhost_dev *, struct vhost_memory *);
+struct vhost_umem *vhost_dev_reset_owner_prepare(void);
+void vhost_dev_reset_owner(struct vhost_dev *, struct vhost_umem *);
 void vhost_dev_cleanup(struct vhost_dev *, bool locked);
 void vhost_dev_stop(struct vhost_dev *);
 long vhost_dev_ioctl(struct vhost_dev *, unsigned int ioctl, void __user *argp);
