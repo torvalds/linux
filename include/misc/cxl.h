@@ -220,4 +220,52 @@ void cxl_perst_reloads_same_image(struct cxl_afu *afu,
  */
 ssize_t cxl_read_adapter_vpd(struct pci_dev *dev, void *buf, size_t count);
 
+/*
+ * AFU driver ops allow an AFU driver to create their own events to pass to
+ * userspace through the file descriptor as a simpler alternative to overriding
+ * the read() and poll() calls that works with the generic cxl events. These
+ * events are given priority over the generic cxl events, so they will be
+ * delivered first if multiple types of events are pending.
+ *
+ * The AFU driver must call cxl_context_events_pending() to notify the cxl
+ * driver that new events are ready to be delivered for a specific context.
+ * cxl_context_events_pending() will adjust the current count of AFU driver
+ * events for this context, and wake up anyone waiting on the context wait
+ * queue.
+ *
+ * The cxl driver will then call fetch_event() to get a structure defining
+ * the size and address of the driver specific event data. The cxl driver
+ * will build a cxl header with type and process_element fields filled in,
+ * and header.size set to sizeof(struct cxl_event_header) + data_size.
+ * The total size of the event is limited to CXL_READ_MIN_SIZE (4K).
+ *
+ * fetch_event() is called with a spin lock held, so it must not sleep.
+ *
+ * The cxl driver will then deliver the event to userspace, and finally
+ * call event_delivered() to return the status of the operation, identified
+ * by cxl context and AFU driver event data pointers.
+ *   0        Success
+ *   -EFAULT  copy_to_user() has failed
+ *   -EINVAL  Event data pointer is NULL, or event size is greater than
+ *            CXL_READ_MIN_SIZE.
+ */
+struct cxl_afu_driver_ops {
+	struct cxl_event_afu_driver_reserved *(*fetch_event) (
+						struct cxl_context *ctx);
+	void (*event_delivered) (struct cxl_context *ctx,
+				 struct cxl_event_afu_driver_reserved *event,
+				 int rc);
+};
+
+/*
+ * Associate the above driver ops with a specific context.
+ * Reset the current count of AFU driver events.
+ */
+void cxl_set_driver_ops(struct cxl_context *ctx,
+			struct cxl_afu_driver_ops *ops);
+
+/* Notify cxl driver that new events are ready to be delivered for context */
+void cxl_context_events_pending(struct cxl_context *ctx,
+				unsigned int new_events);
+
 #endif /* _MISC_CXL_H */

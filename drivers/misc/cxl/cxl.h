@@ -24,6 +24,7 @@
 #include <asm/reg.h>
 #include <misc/cxl-base.h>
 
+#include <misc/cxl.h>
 #include <uapi/misc/cxl.h>
 
 extern uint cxl_verbose;
@@ -34,7 +35,7 @@ extern uint cxl_verbose;
  * Bump version each time a user API change is made, whether it is
  * backwards compatible ot not.
  */
-#define CXL_API_VERSION 2
+#define CXL_API_VERSION 3
 #define CXL_API_VERSION_COMPATIBLE 1
 
 /*
@@ -527,6 +528,10 @@ struct cxl_context {
 	bool pending_irq;
 	bool pending_fault;
 	bool pending_afu_err;
+
+	/* Used by AFU drivers for driver specific event delivery */
+	struct cxl_afu_driver_ops *afu_driver_ops;
+	atomic_t afu_driver_events;
 
 	struct rcu_head rcu;
 };
