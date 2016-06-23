@@ -339,6 +339,15 @@ static irqreturn_t w8001_interrupt(struct serio *serio,
 		w8001->idx = 0;
 		parse_multi_touch(w8001);
 		break;
+
+	default:
+		/*
+		 * ThinkPad X60 Tablet PC (pen only device) sometimes
+		 * sends invalid data packets that are larger than
+		 * W8001_PKTLEN_TPCPEN. Let's start over again.
+		 */
+		if (!w8001->touch_dev && w8001->idx > W8001_PKTLEN_TPCPEN - 1)
+			w8001->idx = 0;
 	}
 
 	return IRQ_HANDLED;
