@@ -59,14 +59,13 @@ int tioclinux(struct tty_struct *tty, unsigned long arg);
 #ifdef CONFIG_CONSOLE_TRANSLATIONS
 /* consolemap.c */
 
-struct unimapinit;
 struct unipair;
 
 int con_set_trans_old(unsigned char __user * table);
 int con_get_trans_old(unsigned char __user * table);
 int con_set_trans_new(unsigned short __user * table);
 int con_get_trans_new(unsigned short __user * table);
-int con_clear_unimap(struct vc_data *vc, struct unimapinit *ui);
+int con_clear_unimap(struct vc_data *vc);
 int con_set_unimap(struct vc_data *vc, ushort ct, struct unipair __user *list);
 int con_get_unimap(struct vc_data *vc, ushort ct, ushort __user *uct, struct unipair __user *list);
 int con_set_default_unimap(struct vc_data *vc);
@@ -92,7 +91,7 @@ static inline int con_get_trans_new(unsigned short __user *table)
 {
 	return -EINVAL;
 }
-static inline int con_clear_unimap(struct vc_data *vc, struct unimapinit *ui)
+static inline int con_clear_unimap(struct vc_data *vc)
 {
 	return 0;
 }
