@@ -347,17 +347,15 @@ void *kvm_mips_build_exception(void *addr, void *handler)
 	memset(labels, 0, sizeof(labels));
 	memset(relocs, 0, sizeof(relocs));
 
-	/* Save guest k0 */
-	uasm_i_mtc0(&p, K0, scratch_tmp[0], scratch_tmp[1]);
-	uasm_i_ehb(&p);
+	/* Save guest k1 into scratch register */
+	uasm_i_mtc0(&p, K1, scratch_tmp[0], scratch_tmp[1]);
 
-	/* Get EBASE */
-	uasm_i_mfc0(&p, K0, C0_EBASE);
-	/* Get rid of CPUNum */
-	uasm_i_srl(&p, K0, K0, 10);
-	uasm_i_sll(&p, K0, K0, 10);
-	/* Save k1 @ offset 0x3000 */
-	UASM_i_SW(&p, K1, 0x3000, K0);
+	/* Get the VCPU pointer from the VCPU scratch register */
+	uasm_i_mfc0(&p, K1, scratch_vcpu[0], scratch_vcpu[1]);
+	uasm_i_addiu(&p, K1, K1, offsetof(struct kvm_vcpu, arch));
+
+	/* Save guest k0 into VCPU structure */
+	UASM_i_SW(&p, K0, offsetof(struct kvm_vcpu_arch, gprs[K0]), K1);
 
 	/* Branch to the common handler */
 	uasm_il_b(&p, &r, label_exit_common);
@@ -395,11 +393,12 @@ void *kvm_mips_build_exit(void *addr)
 	/*
 	 * Generic Guest exception handler. We end up here when the guest
 	 * does something that causes a trap to kernel mode.
+	 *
+	 * Both k0/k1 registers will have already been saved (k0 into the vcpu
+	 * structure, and k1 into the scratch_tmp register).
+	 *
+	 * The k1 register will already contain the kvm_vcpu_arch pointer.
 	 */
-
-	/* Get the VCPU pointer from the scratch register */
-	uasm_i_mfc0(&p, K1, scratch_vcpu[0], scratch_vcpu[1]);
-	uasm_i_addiu(&p, K1, K1, offsetof(struct kvm_vcpu, arch));
 
 	/* Start saving Guest context to VCPU */
 	for (i = 0; i < 32; ++i) {
@@ -416,15 +415,9 @@ void *kvm_mips_build_exit(void *addr)
 	uasm_i_mflo(&p, T0);
 	UASM_i_SW(&p, T0, offsetof(struct kvm_vcpu_arch, lo), K1);
 
-	/* Finally save guest k0/k1 to VCPU */
+	/* Finally save guest k1 to VCPU */
+	uasm_i_ehb(&p);
 	uasm_i_mfc0(&p, T0, scratch_tmp[0], scratch_tmp[1]);
-	UASM_i_SW(&p, T0, offsetof(struct kvm_vcpu_arch, gprs[K0]), K1);
-
-	/* Get GUEST k1 and save it in VCPU */
-	uasm_i_addiu(&p, T1, ZERO, ~0x2ff);
-	uasm_i_mfc0(&p, T0, C0_EBASE);
-	uasm_i_and(&p, T0, T0, T1);
-	UASM_i_LW(&p, T0, 0x3000, T0);
 	UASM_i_SW(&p, T0, offsetof(struct kvm_vcpu_arch, gprs[K1]), K1);
 
 	/* Now that context has been saved, we can use other registers */
