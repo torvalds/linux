@@ -393,18 +393,21 @@ void *kvm_mips_build_exit(void *addr)
 	UASM_i_LW(&p, K0, uasm_rel_lo((long)&ebase), K0);
 	uasm_i_mtc0(&p, K0, C0_EBASE);
 
-	/*
-	 * If FPU is enabled, save FCR31 and clear it so that later ctc1's don't
-	 * trigger FPE for pending exceptions.
-	 */
-	uasm_i_lui(&p, AT, ST0_CU1 >> 16);
-	uasm_i_and(&p, V1, V0, AT);
-	uasm_il_beqz(&p, &r, V1, label_fpu_1);
-	 uasm_i_nop(&p);
-	uasm_i_cfc1(&p, T0, 31);
-	uasm_i_sw(&p, T0, offsetof(struct kvm_vcpu_arch, fpu.fcr31), K1);
-	uasm_i_ctc1(&p, ZERO, 31);
-	uasm_l_fpu_1(&l, p);
+	if (raw_cpu_has_fpu) {
+		/*
+		 * If FPU is enabled, save FCR31 and clear it so that later
+		 * ctc1's don't trigger FPE for pending exceptions.
+		 */
+		uasm_i_lui(&p, AT, ST0_CU1 >> 16);
+		uasm_i_and(&p, V1, V0, AT);
+		uasm_il_beqz(&p, &r, V1, label_fpu_1);
+		 uasm_i_nop(&p);
+		uasm_i_cfc1(&p, T0, 31);
+		uasm_i_sw(&p, T0, offsetof(struct kvm_vcpu_arch, fpu.fcr31),
+			  K1);
+		uasm_i_ctc1(&p, ZERO, 31);
+		uasm_l_fpu_1(&l, p);
+	}
 
 #ifdef CONFIG_CPU_HAS_MSA
 	/*
