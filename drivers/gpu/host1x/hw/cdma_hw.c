@@ -220,7 +220,7 @@ static void cdma_resume(struct host1x_cdma *cdma, u32 getptr)
 		ch->id, getptr);
 
 	cmdproc_stop = host1x_sync_readl(host1x, HOST1X_SYNC_CMDPROC_STOP);
-	cmdproc_stop &= ~(BIT(ch->id));
+	cmdproc_stop &= ~BIT(ch->id);
 	host1x_sync_writel(host1x, cmdproc_stop, HOST1X_SYNC_CMDPROC_STOP);
 
 	cdma->torndown = false;
