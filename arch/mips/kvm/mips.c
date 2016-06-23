@@ -247,8 +247,8 @@ void kvm_arch_commit_memory_region(struct kvm *kvm,
 
 struct kvm_vcpu *kvm_arch_vcpu_create(struct kvm *kvm, unsigned int id)
 {
-	int err, size, offset;
-	void *gebase;
+	int err, size;
+	void *gebase, *p;
 	int i;
 
 	struct kvm_vcpu *vcpu = kzalloc(sizeof(struct kvm_vcpu), GFP_KERNEL);
@@ -286,41 +286,28 @@ struct kvm_vcpu *kvm_arch_vcpu_create(struct kvm *kvm, unsigned int id)
 	/* Save new ebase */
 	vcpu->arch.guest_ebase = gebase;
 
-	/* Copy L1 Guest Exception handler to correct offset */
+	/* Build guest exception vectors dynamically in unmapped memory */
 
 	/* TLB Refill, EXL = 0 */
-	memcpy(gebase, mips32_exception,
-	       mips32_exceptionEnd - mips32_exception);
+	kvm_mips_build_exception(gebase);
 
 	/* General Exception Entry point */
-	memcpy(gebase + 0x180, mips32_exception,
-	       mips32_exceptionEnd - mips32_exception);
+	kvm_mips_build_exception(gebase + 0x180);
 
 	/* For vectored interrupts poke the exception code @ all offsets 0-7 */
 	for (i = 0; i < 8; i++) {
 		kvm_debug("L1 Vectored handler @ %p\n",
 			  gebase + 0x200 + (i * VECTORSPACING));
-		memcpy(gebase + 0x200 + (i * VECTORSPACING), mips32_exception,
-		       mips32_exceptionEnd - mips32_exception);
+		kvm_mips_build_exception(gebase + 0x200 + i * VECTORSPACING);
 	}
 
-	/* General handler, relocate to unmapped space for sanity's sake */
-	offset = 0x2000;
-	kvm_debug("Installing KVM Exception handlers @ %p, %#x bytes\n",
-		  gebase + offset,
-		  mips32_GuestExceptionEnd - mips32_GuestException);
+	/* General exit handler */
+	p = gebase + 0x2000;
+	p = kvm_mips_build_exit(p);
 
-	memcpy(gebase + offset, mips32_GuestException,
-	       mips32_GuestExceptionEnd - mips32_GuestException);
-
-#ifdef MODULE
-	offset += mips32_GuestExceptionEnd - mips32_GuestException;
-	memcpy(gebase + offset, (char *)__kvm_mips_vcpu_run,
-	       __kvm_mips_vcpu_run_end - (char *)__kvm_mips_vcpu_run);
-	vcpu->arch.vcpu_run = gebase + offset;
-#else
-	vcpu->arch.vcpu_run = __kvm_mips_vcpu_run;
-#endif
+	/* Guest entry routine */
+	vcpu->arch.vcpu_run = p;
+	p = kvm_mips_build_vcpu_run(p);
 
 	/* Invalidate the icache for these ranges */
 	local_flush_icache_range((unsigned long)gebase,

@@ -533,8 +533,12 @@ int kvm_mips_emulation_init(struct kvm_mips_callbacks **install_callbacks);
 /* Debug: dump vcpu state */
 int kvm_arch_vcpu_dump_regs(struct kvm_vcpu *vcpu);
 
-/* Trampoline ASM routine to start running in "Guest" context */
-extern int __kvm_mips_vcpu_run(struct kvm_run *run, struct kvm_vcpu *vcpu);
+extern int kvm_mips_handle_exit(struct kvm_run *run, struct kvm_vcpu *vcpu);
+
+/* Building of entry/exception code */
+void *kvm_mips_build_vcpu_run(void *addr);
+void *kvm_mips_build_exception(void *addr);
+void *kvm_mips_build_exit(void *addr);
 
 /* FPU/MSA context management */
 void __kvm_save_fpu(struct kvm_vcpu_arch *vcpu);
