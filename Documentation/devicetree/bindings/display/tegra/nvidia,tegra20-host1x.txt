@@ -208,6 +208,7 @@ of the following host1x client modules:
     See ../clocks/clock-bindings.txt for details.
   - clock-names: Must include the following entries:
     - sor: clock input for the SOR hardware
+    - source: source clock for the SOR clock
     - parent: input for the pixel clock
     - dp: reference clock for the SOR clock
     - safe: safe reference for the SOR clock during power up
