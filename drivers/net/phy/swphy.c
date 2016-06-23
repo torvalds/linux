@@ -20,6 +20,8 @@
 
 #include "swphy.h"
 
+#define MII_REGS_NUM 29
+
 struct swmii_regs {
 	u16 bmcr;
 	u16 bmsr;
@@ -110,14 +112,13 @@ int swphy_validate_state(const struct fixed_phy_status *state)
 EXPORT_SYMBOL_GPL(swphy_validate_state);
 
 /**
- * swphy_update_regs - update MII register array with fixed phy state
- * @regs: array of 32 registers to update
+ * swphy_read_reg - return a MII register from the fixed phy state
+ * @reg: MII register
  * @state: fixed phy status
  *
- * Update the array of MII registers with the fixed phy link, speed,
- * duplex and pause mode settings.
+ * Return the MII @reg register generated from the fixed phy state @state.
  */
-void swphy_update_regs(u16 *regs, const struct fixed_phy_status *state)
+int swphy_read_reg(int reg, const struct fixed_phy_status *state)
 {
 	int speed_index, duplex_index;
 	u16 bmsr = BMSR_ANEGCAPABLE;
@@ -125,9 +126,12 @@ void swphy_update_regs(u16 *regs, const struct fixed_phy_status *state)
 	u16 lpagb = 0;
 	u16 lpa = 0;
 
+	if (reg > MII_REGS_NUM)
+		return -1;
+
 	speed_index = swphy_decode_speed(state->speed);
 	if (WARN_ON(speed_index < 0))
-		return;
+		return 0;
 
 	duplex_index = state->duplex ? SWMII_DUPLEX_FULL : SWMII_DUPLEX_HALF;
 
@@ -147,12 +151,29 @@ void swphy_update_regs(u16 *regs, const struct fixed_phy_status *state)
 			lpa |= LPA_PAUSE_ASYM;
 	}
 
-	regs[MII_PHYSID1] = 0;
-	regs[MII_PHYSID2] = 0;
+	switch (reg) {
+	case MII_BMCR:
+		return bmcr;
+	case MII_BMSR:
+		return bmsr;
+	case MII_PHYSID1:
+	case MII_PHYSID2:
+		return 0;
+	case MII_LPA:
+		return lpa;
+	case MII_STAT1000:
+		return lpagb;
 
-	regs[MII_BMSR] = bmsr;
-	regs[MII_BMCR] = bmcr;
-	regs[MII_LPA] = lpa;
-	regs[MII_STAT1000] = lpagb;
+	/*
+	 * We do not support emulating Clause 45 over Clause 22 register
+	 * reads.  Return an error instead of bogus data.
+	 */
+	case MII_MMD_CTRL:
+	case MII_MMD_DATA:
+		return -1;
+
+	default:
+		return 0xffff;
+	}
 }
-EXPORT_SYMBOL_GPL(swphy_update_regs);
+EXPORT_SYMBOL_GPL(swphy_read_reg);

@@ -26,8 +26,6 @@
 
 #include "swphy.h"
 
-#define MII_REGS_NUM 29
-
 struct fixed_mdio_bus {
 	struct mii_bus *mii_bus;
 	struct list_head phys;
@@ -35,7 +33,6 @@ struct fixed_mdio_bus {
 
 struct fixed_phy {
 	int addr;
-	u16 regs[MII_REGS_NUM];
 	struct phy_device *phydev;
 	struct fixed_phy_status status;
 	int (*link_update)(struct net_device *, struct fixed_phy_status *);
@@ -48,12 +45,10 @@ static struct fixed_mdio_bus platform_fmb = {
 	.phys = LIST_HEAD_INIT(platform_fmb.phys),
 };
 
-static void fixed_phy_update_regs(struct fixed_phy *fp)
+static void fixed_phy_update(struct fixed_phy *fp)
 {
 	if (gpio_is_valid(fp->link_gpio))
 		fp->status.link = !!gpio_get_value_cansleep(fp->link_gpio);
-
-	swphy_update_regs(fp->regs, &fp->status);
 }
 
 static int fixed_mdio_read(struct mii_bus *bus, int phy_addr, int reg_num)
@@ -61,29 +56,15 @@ static int fixed_mdio_read(struct mii_bus *bus, int phy_addr, int reg_num)
 	struct fixed_mdio_bus *fmb = bus->priv;
 	struct fixed_phy *fp;
 
-	if (reg_num >= MII_REGS_NUM)
-		return -1;
-
-	/* We do not support emulating Clause 45 over Clause 22 register reads
-	 * return an error instead of bogus data.
-	 */
-	switch (reg_num) {
-	case MII_MMD_CTRL:
-	case MII_MMD_DATA:
-		return -1;
-	default:
-		break;
-	}
-
 	list_for_each_entry(fp, &fmb->phys, node) {
 		if (fp->addr == phy_addr) {
 			/* Issue callback if user registered it. */
 			if (fp->link_update) {
 				fp->link_update(fp->phydev->attached_dev,
 						&fp->status);
-				fixed_phy_update_regs(fp);
+				fixed_phy_update(fp);
 			}
-			return fp->regs[reg_num];
+			return swphy_read_reg(reg_num, &fp->status);
 		}
 	}
 
@@ -143,7 +124,7 @@ int fixed_phy_update_state(struct phy_device *phydev,
 			_UPD(pause);
 			_UPD(asym_pause);
 #undef _UPD
-			fixed_phy_update_regs(fp);
+			fixed_phy_update(fp);
 			return 0;
 		}
 	}
@@ -168,8 +149,6 @@ int fixed_phy_add(unsigned int irq, int phy_addr,
 	if (!fp)
 		return -ENOMEM;
 
-	memset(fp->regs, 0xFF,  sizeof(fp->regs[0]) * MII_REGS_NUM);
-
 	if (irq != PHY_POLL)
 		fmb->mii_bus->irq[phy_addr] = irq;
 
@@ -184,7 +163,7 @@ int fixed_phy_add(unsigned int irq, int phy_addr,
 			goto err_regs;
 	}
 
-	fixed_phy_update_regs(fp);
+	fixed_phy_update(fp);
 
 	list_add_tail(&fp->node, &fmb->phys);
 
