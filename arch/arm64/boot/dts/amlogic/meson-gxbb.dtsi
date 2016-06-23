@@ -315,6 +315,12 @@
 			#address-cells = <2>;
 			#size-cells = <2>;
 			ranges = <0x0 0x0 0x0 0xc883c000 0x0 0x2000>;
+
+			clkc: clock-controller@0 {
+				compatible = "amlogic,gxbb-clkc";
+				#clock-cells = <1>;
+				reg = <0x0 0x0 0x0 0x3db>;
+			};
 		};
 
 		apb: apb@d0000000 {
