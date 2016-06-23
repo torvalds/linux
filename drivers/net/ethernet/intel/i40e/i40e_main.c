@@ -7916,7 +7916,6 @@ static int i40e_config_rss_aq(struct i40e_vsi *vsi, const u8 *seed,
 	u8 *rss_lut;
 	int ret, i;
 
-	memset(&rss_key, 0, sizeof(rss_key));
 	memcpy(&rss_key, seed, sizeof(rss_key));
 
 	rss_lut = kzalloc(pf->rss_table_size, GFP_KERNEL);
