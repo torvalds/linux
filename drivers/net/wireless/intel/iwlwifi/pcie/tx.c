@@ -348,13 +348,13 @@ static void iwl_pcie_tfd_unmap(struct iwl_trans *trans,
 			       struct iwl_cmd_meta *meta,
 			       struct iwl_tfd *tfd)
 {
-	int i;
-	int num_tbs;
+	struct iwl_trans_pcie *trans_pcie = IWL_TRANS_GET_PCIE_TRANS(trans);
+	int i, num_tbs;
 
 	/* Sanity check on number of chunks */
 	num_tbs = iwl_pcie_tfd_get_num_tbs(tfd);
 
-	if (num_tbs >= IWL_NUM_OF_TBS) {
+	if (num_tbs >= trans_pcie->max_tbs) {
 		IWL_ERR(trans, "Too many chunks: %i\n", num_tbs);
 		/* @todo issue fatal error, it is quite serious situation */
 		return;
@@ -363,7 +363,7 @@ static void iwl_pcie_tfd_unmap(struct iwl_trans *trans,
 	/* first TB is never freed - it's the bidirectional DMA data */
 
 	for (i = 1; i < num_tbs; i++) {
-		if (meta->flags & BIT(i + CMD_TB_BITMAP_POS))
+		if (meta->tbs & BIT(i))
 			dma_unmap_page(trans->dev,
 				       iwl_pcie_tfd_tb_get_addr(tfd, i),
 				       iwl_pcie_tfd_tb_get_len(tfd, i),
@@ -423,6 +423,7 @@ static void iwl_pcie_txq_free_tfd(struct iwl_trans *trans, struct iwl_txq *txq)
 static int iwl_pcie_txq_build_tfd(struct iwl_trans *trans, struct iwl_txq *txq,
 				  dma_addr_t addr, u16 len, bool reset)
 {
+	struct iwl_trans_pcie *trans_pcie = IWL_TRANS_GET_PCIE_TRANS(trans);
 	struct iwl_queue *q;
 	struct iwl_tfd *tfd, *tfd_tmp;
 	u32 num_tbs;
@@ -437,9 +438,9 @@ static int iwl_pcie_txq_build_tfd(struct iwl_trans *trans, struct iwl_txq *txq,
 	num_tbs = iwl_pcie_tfd_get_num_tbs(tfd);
 
 	/* Each TFD can point to a maximum 20 Tx buffers */
-	if (num_tbs >= IWL_NUM_OF_TBS) {
+	if (num_tbs >= trans_pcie->max_tbs) {
 		IWL_ERR(trans, "Error can not send more than %d chunks\n",
-			IWL_NUM_OF_TBS);
+			trans_pcie->max_tbs);
 		return -EINVAL;
 	}
 
@@ -1640,8 +1641,7 @@ static int iwl_pcie_enqueue_hcmd(struct iwl_trans *trans,
 		iwl_pcie_txq_build_tfd(trans, txq, phys_addr, cmdlen[i], false);
 	}
 
-	BUILD_BUG_ON(IWL_NUM_OF_TBS + CMD_TB_BITMAP_POS >
-		     sizeof(out_meta->flags) * BITS_PER_BYTE);
+	BUILD_BUG_ON(IWL_TFH_NUM_TBS > sizeof(out_meta->tbs) * BITS_PER_BYTE);
 	out_meta->flags = cmd->flags;
 	if (WARN_ON_ONCE(txq->entries[idx].free_buf))
 		kzfree(txq->entries[idx].free_buf);
@@ -1953,7 +1953,7 @@ static int iwl_fill_data_tbs(struct iwl_trans *trans, struct sk_buff *skb,
 		tb_idx = iwl_pcie_txq_build_tfd(trans, txq, tb_phys,
 						skb_frag_size(frag), false);
 
-		out_meta->flags |= BIT(tb_idx + CMD_TB_BITMAP_POS);
+		out_meta->tbs |= BIT(tb_idx);
 	}
 
 	trace_iwlwifi_dev_tx(trans->dev, skb,
@@ -2247,7 +2247,7 @@ int iwl_trans_pcie_tx(struct iwl_trans *trans, struct sk_buff *skb,
 	}
 
 	if (skb_is_nonlinear(skb) &&
-	    skb_shinfo(skb)->nr_frags > IWL_PCIE_MAX_FRAGS &&
+	    skb_shinfo(skb)->nr_frags > IWL_PCIE_MAX_FRAGS(trans_pcie) &&
 	    __skb_linearize(skb))
 		return -ENOMEM;
 

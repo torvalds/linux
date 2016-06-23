@@ -49,7 +49,7 @@
  * be needed for potential data in the SKB's head. The remaining ones can
  * be used for frags.
  */
-#define IWL_PCIE_MAX_FRAGS (IWL_NUM_OF_TBS - 3)
+#define IWL_PCIE_MAX_FRAGS(x) (x->max_tbs - 3)
 
 /*
  * RX related structures and functions
@@ -192,6 +192,7 @@ struct iwl_cmd_meta {
 	/* only for SYNC commands, iff the reply skb is wanted */
 	struct iwl_host_cmd *source;
 	u32 flags;
+	u32 tbs;
 };
 
 /*
@@ -391,6 +392,7 @@ struct iwl_trans_pcie {
 	unsigned int cmd_q_wdg_timeout;
 	u8 n_no_reclaim_cmds;
 	u8 no_reclaim_cmds[MAX_NO_RECLAIM_CMDS];
+	u8 max_tbs;
 
 	enum iwl_amsdu_size rx_buf_size;
 	bool bc_table_dword;
