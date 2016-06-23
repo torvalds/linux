@@ -471,7 +471,7 @@ static void ath9k_hw_init_defaults(struct ath_hw *ah)
 		ah->tx_trig_level = (AR_FTRIG_512B >> AR_FTRIG_S);
 }
 
-static int ath9k_hw_init_macaddr(struct ath_hw *ah)
+static void ath9k_hw_init_macaddr(struct ath_hw *ah)
 {
 	struct ath_common *common = ath9k_hw_common(ah);
 	int i;
@@ -480,7 +480,7 @@ static int ath9k_hw_init_macaddr(struct ath_hw *ah)
 
 	/* MAC address may already be loaded via ath9k_platform_data */
 	if (is_valid_ether_addr(common->macaddr))
-		return 0;
+		return;
 
 	for (i = 0; i < 3; i++) {
 		eeval = ah->eep_ops->get_eeprom(ah, EEP_MAC[i]);
@@ -489,7 +489,7 @@ static int ath9k_hw_init_macaddr(struct ath_hw *ah)
 	}
 
 	if (is_valid_ether_addr(common->macaddr))
-		return 0;
+		return;
 
 	ath_err(common, "eeprom contains invalid mac address: %pM\n",
 		common->macaddr);
@@ -498,7 +498,7 @@ static int ath9k_hw_init_macaddr(struct ath_hw *ah)
 	ath_err(common, "random mac address will be used: %pM\n",
 		common->macaddr);
 
-	return 0;
+	return;
 }
 
 static int ath9k_hw_post_init(struct ath_hw *ah)
@@ -637,12 +637,7 @@ static int __ath9k_hw_init(struct ath_hw *ah)
 	if (r)
 		return r;
 
-	r = ath9k_hw_init_macaddr(ah);
-	if (r) {
-		ath_err(common, "Failed to initialize MAC address\n");
-		return r;
-	}
-
+	ath9k_hw_init_macaddr(ah);
 	ath9k_hw_init_hang_checks(ah);
 
 	common->state = ATH_HW_INITIALIZED;
