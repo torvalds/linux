@@ -1309,6 +1309,9 @@ static int bgmac_open(struct net_device *net_dev)
 	phy_start(bgmac->phy_dev);
 
 	netif_carrier_on(net_dev);
+
+	netif_start_queue(net_dev);
+
 	return 0;
 }
 
