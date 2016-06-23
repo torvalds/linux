@@ -53,6 +53,8 @@ static struct insn insn_table_MM[] = {
 	{ insn_bltzl, 0, 0 },
 	{ insn_bne, M(mm_bne32_op, 0, 0, 0, 0, 0), RT | RS | BIMM },
 	{ insn_cache, M(mm_pool32b_op, 0, 0, mm_cache_func, 0, 0), RT | RS | SIMM },
+	{ insn_cfc1, M(mm_pool32f_op, 0, 0, 0, mm_cfc1_op, mm_32f_73_op), RT | RS },
+	{ insn_ctc1, M(mm_pool32f_op, 0, 0, 0, mm_ctc1_op, mm_32f_73_op), RT | RS },
 	{ insn_daddu, 0, 0 },
 	{ insn_daddiu, 0, 0 },
 	{ insn_divu, M(mm_pool32a_op, 0, 0, 0, mm_divu_op, mm_pool32axf_op), RT | RS },
@@ -166,13 +168,15 @@ static void build_insn(u32 **buf, enum opcode opc, ...)
 	op = ip->match;
 	va_start(ap, opc);
 	if (ip->fields & RS) {
-		if (opc == insn_mfc0 || opc == insn_mtc0)
+		if (opc == insn_mfc0 || opc == insn_mtc0 ||
+		    opc == insn_cfc1 || opc == insn_ctc1)
 			op |= build_rt(va_arg(ap, u32));
 		else
 			op |= build_rs(va_arg(ap, u32));
 	}
 	if (ip->fields & RT) {
-		if (opc == insn_mfc0 || opc == insn_mtc0)
+		if (opc == insn_mfc0 || opc == insn_mtc0 ||
+		    opc == insn_cfc1 || opc == insn_ctc1)
 			op |= build_rs(va_arg(ap, u32));
 		else
 			op |= build_rt(va_arg(ap, u32));

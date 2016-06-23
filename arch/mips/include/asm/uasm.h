@@ -104,6 +104,8 @@ Ip_u1s2(_bltz);
 Ip_u1s2(_bltzl);
 Ip_u1u2s3(_bne);
 Ip_u2s3u1(_cache);
+Ip_u1u2(_cfc1);
+Ip_u1u2(_ctc1);
 Ip_u2u1s3(_daddiu);
 Ip_u3u1u2(_daddu);
 Ip_u2u1msbu3(_dins);
