@@ -623,7 +623,6 @@ ssize_t nfs_file_write(struct kiocb *iocb, struct iov_iter *from)
 	struct inode *inode = file_inode(file);
 	unsigned long written = 0;
 	ssize_t result;
-	size_t count = iov_iter_count(from);
 
 	result = nfs_key_timeout_notify(file, inode);
 	if (result)
@@ -633,9 +632,8 @@ ssize_t nfs_file_write(struct kiocb *iocb, struct iov_iter *from)
 		return nfs_file_direct_write(iocb, from);
 
 	dprintk("NFS: write(%pD2, %zu@%Ld)\n",
-		file, count, (long long) iocb->ki_pos);
+		file, iov_iter_count(from), (long long) iocb->ki_pos);
 
-	result = -EBUSY;
 	if (IS_SWAPFILE(inode))
 		goto out_swapfile;
 	/*
@@ -647,28 +645,33 @@ ssize_t nfs_file_write(struct kiocb *iocb, struct iov_iter *from)
 			goto out;
 	}
 
-	result = count;
-	if (!count)
+	inode_lock(inode);
+	result = generic_write_checks(iocb, from);
+	if (result > 0) {
+		current->backing_dev_info = inode_to_bdi(inode);
+		result = generic_perform_write(file, from, iocb->ki_pos);
+		current->backing_dev_info = NULL;
+	}
+	inode_unlock(inode);
+	if (result <= 0)
 		goto out;
 
-	result = generic_file_write_iter(iocb, from);
-	if (result > 0)
-		written = result;
+	written = generic_write_sync(iocb, result);
+	iocb->ki_pos += written;
 
 	/* Return error values */
-	if (result >= 0 && nfs_need_check_write(file, inode)) {
+	if (nfs_need_check_write(file, inode)) {
 		int err = vfs_fsync(file, 0);
 		if (err < 0)
 			result = err;
 	}
-	if (result > 0)
-		nfs_add_stats(inode, NFSIOS_NORMALWRITTENBYTES, written);
+	nfs_add_stats(inode, NFSIOS_NORMALWRITTENBYTES, written);
 out:
 	return result;
 
 out_swapfile:
 	printk(KERN_INFO "NFS: attempt to write to active swap file!\n");
-	goto out;
+	return -EBUSY;
 }
 EXPORT_SYMBOL_GPL(nfs_file_write);
 
