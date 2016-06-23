@@ -2850,8 +2850,9 @@ static int raid_ctr(struct dm_target *ti, unsigned argc, char **argv)
 			set_bit(RT_FLAG_KEEP_RS_FROZEN, &rs->runtime_flags);
 		}
 
+		/* Create new superblocks and bitmaps, if any */
 		if (rs->md.raid_disks < rs->raid_disks)
-			set_bit(MD_ARRAY_FIRST_USE, &mddev->flags);
+			set_bit(RT_FLAG_UPDATE_SBS, &rs->runtime_flags);
 
 		rs_set_cur(rs);
 		rs_setup_recovery(rs, MaxSector);
