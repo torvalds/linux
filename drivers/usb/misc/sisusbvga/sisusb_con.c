@@ -370,7 +370,6 @@ static void
 sisusbcon_putc(struct vc_data *c, int ch, int y, int x)
 {
 	struct sisusb_usb_data *sisusb;
-	ssize_t written;
 
 	sisusb = sisusb_get_sisusb_lock_and_check(c->vc_num);
 	if (!sisusb)
@@ -384,7 +383,7 @@ sisusbcon_putc(struct vc_data *c, int ch, int y, int x)
 
 
 	sisusb_copy_memory(sisusb, (char *)SISUSB_VADDR(x, y),
-				(long)SISUSB_HADDR(x, y), 2, &written);
+				(long)SISUSB_HADDR(x, y), 2);
 
 	mutex_unlock(&sisusb->lock);
 }
@@ -395,7 +394,6 @@ sisusbcon_putcs(struct vc_data *c, const unsigned short *s,
 		         int count, int y, int x)
 {
 	struct sisusb_usb_data *sisusb;
-	ssize_t written;
 	u16 *dest;
 	int i;
 
@@ -420,7 +418,7 @@ sisusbcon_putcs(struct vc_data *c, const unsigned short *s,
 	}
 
 	sisusb_copy_memory(sisusb, (char *)SISUSB_VADDR(x, y),
-				(long)SISUSB_HADDR(x, y), count * 2, &written);
+				(long)SISUSB_HADDR(x, y), count * 2);
 
 	mutex_unlock(&sisusb->lock);
 }
@@ -431,7 +429,6 @@ sisusbcon_clear(struct vc_data *c, int y, int x, int height, int width)
 {
 	struct sisusb_usb_data *sisusb;
 	u16 eattr = c->vc_video_erase_char;
-	ssize_t written;
 	int i, length, cols;
 	u16 *dest;
 
@@ -475,7 +472,7 @@ sisusbcon_clear(struct vc_data *c, int y, int x, int height, int width)
 
 
 	sisusb_copy_memory(sisusb, (unsigned char *)SISUSB_VADDR(x, y),
-				(long)SISUSB_HADDR(x, y), length, &written);
+				(long)SISUSB_HADDR(x, y), length);
 
 	mutex_unlock(&sisusb->lock);
 }
@@ -486,7 +483,6 @@ sisusbcon_bmove(struct vc_data *c, int sy, int sx,
 			 int dy, int dx, int height, int width)
 {
 	struct sisusb_usb_data *sisusb;
-	ssize_t written;
 	int cols, length;
 
 	if (width <= 0 || height <= 0)
@@ -509,7 +505,7 @@ sisusbcon_bmove(struct vc_data *c, int sy, int sx,
 
 
 	sisusb_copy_memory(sisusb, (unsigned char *)SISUSB_VADDR(dx, dy),
-				(long)SISUSB_HADDR(dx, dy), length, &written);
+				(long)SISUSB_HADDR(dx, dy), length);
 
 	mutex_unlock(&sisusb->lock);
 }
@@ -519,7 +515,6 @@ static int
 sisusbcon_switch(struct vc_data *c)
 {
 	struct sisusb_usb_data *sisusb;
-	ssize_t written;
 	int length;
 
 	/* Returnvalue 0 means we have fully restored screen,
@@ -559,7 +554,7 @@ sisusbcon_switch(struct vc_data *c)
 
 	sisusb_copy_memory(sisusb, (unsigned char *)c->vc_origin,
 				(long)SISUSB_HADDR(0, 0),
-				length, &written);
+				length);
 
 	mutex_unlock(&sisusb->lock);
 
@@ -644,7 +639,6 @@ sisusbcon_blank(struct vc_data *c, int blank, int mode_switch)
 {
 	struct sisusb_usb_data *sisusb;
 	u8 sr1, cr17, pmreg, cr63;
-	ssize_t written;
 	int ret = 0;
 
 	sisusb = sisusb_get_sisusb_lock_and_check(c->vc_num);
@@ -672,7 +666,7 @@ sisusbcon_blank(struct vc_data *c, int blank, int mode_switch)
 				(unsigned char *)c->vc_origin,
 				(u32)(sisusb->vrambase +
 					(c->vc_origin - sisusb->scrbuf)),
-				c->vc_screenbuf_size, &written);
+				c->vc_screenbuf_size);
 		sisusb->con_blanked = 1;
 		ret = 1;
 		break;
@@ -860,7 +854,6 @@ sisusbcon_scroll_area(struct vc_data *c, struct sisusb_usb_data *sisusb,
 	int cols = sisusb->sisusb_num_columns;
 	int length = ((b - t) * cols) * 2;
 	u16 eattr = c->vc_video_erase_char;
-	ssize_t written;
 
 	/* sisusb->lock is down */
 
@@ -890,7 +883,7 @@ sisusbcon_scroll_area(struct vc_data *c, struct sisusb_usb_data *sisusb,
 	}
 
 	sisusb_copy_memory(sisusb, (char *)SISUSB_VADDR(0, t),
-				(long)SISUSB_HADDR(0, t), length, &written);
+				(long)SISUSB_HADDR(0, t), length);
 
 	mutex_unlock(&sisusb->lock);
 
@@ -903,7 +896,6 @@ sisusbcon_scroll(struct vc_data *c, int t, int b, int dir, int lines)
 {
 	struct sisusb_usb_data *sisusb;
 	u16 eattr = c->vc_video_erase_char;
-	ssize_t written;
 	int copyall = 0;
 	unsigned long oldorigin;
 	unsigned int delta = lines * c->vc_size_row;
@@ -996,18 +988,18 @@ sisusbcon_scroll(struct vc_data *c, int t, int b, int dir, int lines)
 		sisusb_copy_memory(sisusb,
 			(char *)c->vc_origin,
 			(u32)(sisusb->vrambase + originoffset),
-			c->vc_screenbuf_size, &written);
+			c->vc_screenbuf_size);
 	else if (dir == SM_UP)
 		sisusb_copy_memory(sisusb,
 			(char *)c->vc_origin + c->vc_screenbuf_size - delta,
 			(u32)sisusb->vrambase + originoffset +
 					c->vc_screenbuf_size - delta,
-			delta, &written);
+			delta);
 	else
 		sisusb_copy_memory(sisusb,
 			(char *)c->vc_origin,
 			(u32)(sisusb->vrambase + originoffset),
-			delta, &written);
+			delta);
 
 	c->vc_scr_end = c->vc_origin + c->vc_screenbuf_size;
 	c->vc_visible_origin = c->vc_origin;
