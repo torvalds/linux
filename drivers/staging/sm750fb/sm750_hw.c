@@ -212,7 +212,8 @@ int hw_sm750_output_setMode(struct lynxfb_output *output,
 	return ret;
 }
 
-int hw_sm750_crtc_checkMode(struct lynxfb_crtc *crtc, struct fb_var_screeninfo *var)
+int hw_sm750_crtc_checkMode(struct lynxfb_crtc *crtc,
+			    struct fb_var_screeninfo *var)
 {
 	struct sm750_dev *sm750_dev;
 	struct lynxfb_par *par = container_of(crtc, struct lynxfb_par, crtc);
@@ -280,11 +281,13 @@ int hw_sm750_crtc_setMode(struct lynxfb_crtc *crtc,
 	modparm.horizontal_display_end = var->xres;
 	modparm.horizontal_sync_width = var->hsync_len;
 	modparm.horizontal_sync_start = var->xres + var->right_margin;
-	modparm.horizontal_total = var->xres + var->left_margin + var->right_margin + var->hsync_len;
+	modparm.horizontal_total = var->xres + var->left_margin +
+				   var->right_margin + var->hsync_len;
 	modparm.vertical_display_end = var->yres;
 	modparm.vertical_sync_height = var->vsync_len;
 	modparm.vertical_sync_start = var->yres + var->lower_margin;
-	modparm.vertical_total = var->yres + var->upper_margin + var->lower_margin + var->vsync_len;
+	modparm.vertical_total = var->yres + var->upper_margin +
+				 var->lower_margin + var->vsync_len;
 
 	/* choose pll */
 	if (crtc->channel != sm750_secondary)
@@ -413,7 +416,9 @@ int hw_sm750_setBLANK(struct lynxfb_output *output, int blank)
 {
 	unsigned int dpms, pps, crtdb;
 
-	dpms = pps = crtdb = 0;
+	dpms = 0;
+	pps = 0;
+	crtdb = 0;
 
 	switch (blank) {
 	case FB_BLANK_UNBLANK:
