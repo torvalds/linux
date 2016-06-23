@@ -2,7 +2,8 @@ BCM2835 Random number generator
 
 Required properties:
 
-- compatible : should be "brcm,bcm2835-rng"  or "brcm,bcm-nsp-rng"
+- compatible : should be "brcm,bcm2835-rng"  or "brcm,bcm-nsp-rng" or
+  "brcm,bcm5301x-rng"
 - reg : Specifies base physical address and size of the registers.
 
 Example:
