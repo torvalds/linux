@@ -742,9 +742,10 @@ copy_from_user(void *to, const void __user *from, unsigned long n)
 	 * case, and do only runtime checking for non-constant sizes.
 	 */
 
-	if (likely(sz < 0 || sz >= n))
+	if (likely(sz < 0 || sz >= n)) {
+		check_object_size(to, n, false);
 		n = _copy_from_user(to, from, n);
-	else if(__builtin_constant_p(n))
+	} else if (__builtin_constant_p(n))
 		copy_from_user_overflow();
 	else
 		__copy_from_user_overflow(sz, n);
@@ -762,9 +763,10 @@ copy_to_user(void __user *to, const void *from, unsigned long n)
 	might_fault();
 
 	/* See the comment in copy_from_user() above. */
-	if (likely(sz < 0 || sz >= n))
+	if (likely(sz < 0 || sz >= n)) {
+		check_object_size(from, n, true);
 		n = _copy_to_user(to, from, n);
-	else if(__builtin_constant_p(n))
+	} else if (__builtin_constant_p(n))
 		copy_to_user_overflow();
 	else
 		__copy_to_user_overflow(sz, n);
