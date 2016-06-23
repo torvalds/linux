@@ -489,6 +489,30 @@ struct qed_common_ops {
 				      struct qed_chain *p_chain);
 
 /**
+ * @brief get_coalesce - Get coalesce parameters in usec
+ *
+ * @param cdev
+ * @param rx_coal - Rx coalesce value in usec
+ * @param tx_coal - Tx coalesce value in usec
+ *
+ */
+	void (*get_coalesce)(struct qed_dev *cdev, u16 *rx_coal, u16 *tx_coal);
+
+/**
+ * @brief set_coalesce - Configure Rx coalesce value in usec
+ *
+ * @param cdev
+ * @param rx_coal - Rx coalesce value in usec
+ * @param tx_coal - Tx coalesce value in usec
+ * @param qid - Queue index
+ * @param sb_id - Status Block Id
+ *
+ * @return 0 on success, error otherwise.
+ */
+	int (*set_coalesce)(struct qed_dev *cdev, u16 rx_coal, u16 tx_coal,
+			    u8 qid, u16 sb_id);
+
+/**
  * @brief set_led - Configure LED mode
  *
  * @param cdev
