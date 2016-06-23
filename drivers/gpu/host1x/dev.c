@@ -63,13 +63,13 @@ u32 host1x_ch_readl(struct host1x_channel *ch, u32 r)
 }
 
 static const struct host1x_info host1x01_info = {
-	.nb_channels	= 8,
-	.nb_pts		= 32,
-	.nb_mlocks	= 16,
-	.nb_bases	= 8,
-	.init		= host1x01_init,
-	.sync_offset	= 0x3000,
-	.dma_mask	= DMA_BIT_MASK(32),
+	.nb_channels = 8,
+	.nb_pts = 32,
+	.nb_mlocks = 16,
+	.nb_bases = 8,
+	.init = host1x01_init,
+	.sync_offset = 0x3000,
+	.dma_mask = DMA_BIT_MASK(32),
 };
 
 static const struct host1x_info host1x02_info = {

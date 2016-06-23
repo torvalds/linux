@@ -40,8 +40,7 @@ enum {
 
 static unsigned int show_channel_command(struct output *o, u32 val)
 {
-	unsigned mask;
-	unsigned subop;
+	unsigned int mask, subop;
 
 	switch (val >> 28) {
 	case HOST1X_OPCODE_SETCLASS:
@@ -200,14 +199,13 @@ static void host1x_debug_show_channel_cdma(struct host1x *host,
 
 	if (HOST1X_SYNC_CBSTAT_CBCLASS_V(cbstat) == HOST1X_CLASS_HOST1X &&
 	    HOST1X_SYNC_CBSTAT_CBOFFSET_V(cbstat) ==
-	    HOST1X_UCLASS_WAIT_SYNCPT)
+			HOST1X_UCLASS_WAIT_SYNCPT)
 		host1x_debug_output(o, "waiting on syncpt %d val %d\n",
 				    cbread >> 24, cbread & 0xffffff);
 	else if (HOST1X_SYNC_CBSTAT_CBCLASS_V(cbstat) ==
-	   HOST1X_CLASS_HOST1X &&
-	   HOST1X_SYNC_CBSTAT_CBOFFSET_V(cbstat) ==
-	   HOST1X_UCLASS_WAIT_SYNCPT_BASE) {
-
+				HOST1X_CLASS_HOST1X &&
+		 HOST1X_SYNC_CBSTAT_CBOFFSET_V(cbstat) ==
+				HOST1X_UCLASS_WAIT_SYNCPT_BASE) {
 		base = (cbread >> 16) & 0xff;
 		baseval =
 			host1x_sync_readl(host, HOST1X_SYNC_SYNCPT_BASE(base));
@@ -293,6 +291,7 @@ static void host1x_debug_show_mlocks(struct host1x *host, struct output *o)
 	unsigned int i;
 
 	host1x_debug_output(o, "---- mlocks ----\n");
+
 	for (i = 0; i < host1x_syncpt_nb_mlocks(host); i++) {
 		u32 owner =
 			host1x_sync_readl(host, HOST1X_SYNC_MLOCK_OWNER(i));
@@ -304,6 +303,7 @@ static void host1x_debug_show_mlocks(struct host1x *host, struct output *o)
 		else
 			host1x_debug_output(o, "%u: unlocked\n", i);
 	}
+
 	host1x_debug_output(o, "\n");
 }
 

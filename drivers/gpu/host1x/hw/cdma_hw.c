@@ -58,6 +58,7 @@ static void cdma_timeout_cpu_incr(struct host1x_cdma *cdma, u32 getptr,
 			&pb->phys, getptr);
 		getptr = (getptr + 8) & (pb->size_bytes - 1);
 	}
+
 	wmb();
 }
 
@@ -162,12 +163,14 @@ static void cdma_stop(struct host1x_cdma *cdma)
 	struct host1x_channel *ch = cdma_to_channel(cdma);
 
 	mutex_lock(&cdma->lock);
+
 	if (cdma->running) {
 		host1x_cdma_wait_locked(cdma, CDMA_EVENT_SYNC_QUEUE_EMPTY);
 		host1x_ch_writel(ch, HOST1X_CHANNEL_DMACTRL_DMASTOP,
 				 HOST1X_CHANNEL_DMACTRL);
 		cdma->running = false;
 	}
+
 	mutex_unlock(&cdma->lock);
 }
 
@@ -231,13 +234,10 @@ static void cdma_resume(struct host1x_cdma *cdma, u32 getptr)
  */
 static void cdma_timeout_handler(struct work_struct *work)
 {
+	u32 prev_cmdproc, cmdproc_stop, syncpt_val;
 	struct host1x_cdma *cdma;
 	struct host1x *host1x;
 	struct host1x_channel *ch;
-
-	u32 syncpt_val;
-
-	u32 prev_cmdproc, cmdproc_stop;
 
 	cdma = container_of(to_delayed_work(work), struct host1x_cdma,
 			    timeout.wq);
@@ -278,8 +278,8 @@ static void cdma_timeout_handler(struct work_struct *work)
 	}
 
 	dev_warn(host1x->dev, "%s: timeout: %u (%s), HW thresh %d, done %d\n",
-		__func__, cdma->timeout.syncpt->id, cdma->timeout.syncpt->name,
-		syncpt_val, cdma->timeout.syncpt_val);
+		 __func__, cdma->timeout.syncpt->id, cdma->timeout.syncpt->name,
+		 syncpt_val, cdma->timeout.syncpt_val);
 
 	/* stop HW, resetting channel/module */
 	host1x_hw_cdma_freeze(host1x, cdma);
@@ -306,6 +306,7 @@ static void cdma_timeout_destroy(struct host1x_cdma *cdma)
 {
 	if (cdma->timeout.initialized)
 		cancel_delayed_work(&cdma->timeout.wq);
+
 	cdma->timeout.initialized = false;
 }
 

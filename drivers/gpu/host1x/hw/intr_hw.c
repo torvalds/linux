@@ -72,8 +72,9 @@ static void _host1x_intr_disable_all_syncpt_intrs(struct host1x *host)
 	}
 }
 
-static int _host1x_intr_init_host_sync(struct host1x *host, u32 cpm,
-	void (*syncpt_thresh_work)(struct work_struct *))
+static int
+_host1x_intr_init_host_sync(struct host1x *host, u32 cpm,
+			    void (*syncpt_thresh_work)(struct work_struct *))
 {
 	unsigned int i;
 	int err;
@@ -137,6 +138,7 @@ static int _host1x_free_syncpt_irq(struct host1x *host)
 
 	for (i = 0; i < host->info->nb_pts; i++)
 		cancel_work_sync(&host->syncpt[i].intr.work);
+
 	return 0;
 }
 
