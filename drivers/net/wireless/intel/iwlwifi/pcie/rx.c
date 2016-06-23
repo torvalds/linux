@@ -161,13 +161,6 @@ static inline __le32 iwl_pcie_dma_addr2rbd_ptr(dma_addr_t dma_addr)
 	return cpu_to_le32((u32)(dma_addr >> 8));
 }
 
-static void iwl_pcie_write_prph_64_no_grab(struct iwl_trans *trans, u64 ofs,
-					   u64 val)
-{
-	iwl_write_prph_no_grab(trans, ofs, val & 0xffffffff);
-	iwl_write_prph_no_grab(trans, ofs + 4, val >> 32);
-}
-
 /*
  * iwl_pcie_rx_stop - stops the Rx DMA
  */
@@ -817,17 +810,17 @@ static void iwl_pcie_rx_mq_hw_init(struct iwl_trans *trans)
 
 	for (i = 0; i < trans->num_rx_queues; i++) {
 		/* Tell device where to find RBD free table in DRAM */
-		iwl_pcie_write_prph_64_no_grab(trans,
-					       RFH_Q_FRBDCB_BA_LSB(i),
-					       trans_pcie->rxq[i].bd_dma);
+		iwl_write_prph64_no_grab(trans,
+					 RFH_Q_FRBDCB_BA_LSB(i),
+					 trans_pcie->rxq[i].bd_dma);
 		/* Tell device where to find RBD used table in DRAM */
-		iwl_pcie_write_prph_64_no_grab(trans,
-					       RFH_Q_URBDCB_BA_LSB(i),
-					       trans_pcie->rxq[i].used_bd_dma);
+		iwl_write_prph64_no_grab(trans,
+					 RFH_Q_URBDCB_BA_LSB(i),
+					 trans_pcie->rxq[i].used_bd_dma);
 		/* Tell device where in DRAM to update its Rx status */
-		iwl_pcie_write_prph_64_no_grab(trans,
-					       RFH_Q_URBD_STTS_WPTR_LSB(i),
-					       trans_pcie->rxq[i].rb_stts_dma);
+		iwl_write_prph64_no_grab(trans,
+					 RFH_Q_URBD_STTS_WPTR_LSB(i),
+					 trans_pcie->rxq[i].rb_stts_dma);
 		/* Reset device indice tables */
 		iwl_write_prph_no_grab(trans, RFH_Q_FRBDCB_WIDX(i), 0);
 		iwl_write_prph_no_grab(trans, RFH_Q_FRBDCB_RIDX(i), 0);

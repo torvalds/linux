@@ -51,6 +51,14 @@ void iwl_write32(struct iwl_trans *trans, u32 ofs, u32 val)
 }
 IWL_EXPORT_SYMBOL(iwl_write32);
 
+void iwl_write64(struct iwl_trans *trans, u64 ofs, u64 val)
+{
+	trace_iwlwifi_dev_iowrite64(trans->dev, ofs, val);
+	iwl_trans_write32(trans, ofs, val & 0xffffffff);
+	iwl_trans_write32(trans, ofs + 4, val >> 32);
+}
+IWL_EXPORT_SYMBOL(iwl_write64);
+
 u32 iwl_read32(struct iwl_trans *trans, u32 ofs)
 {
 	u32 val = iwl_trans_read32(trans, ofs);
@@ -102,6 +110,17 @@ void iwl_write_direct32(struct iwl_trans *trans, u32 reg, u32 value)
 }
 IWL_EXPORT_SYMBOL(iwl_write_direct32);
 
+void iwl_write_direct64(struct iwl_trans *trans, u64 reg, u64 value)
+{
+	unsigned long flags;
+
+	if (iwl_trans_grab_nic_access(trans, &flags)) {
+		iwl_write64(trans, reg, value);
+		iwl_trans_release_nic_access(trans, &flags);
+	}
+}
+IWL_EXPORT_SYMBOL(iwl_write_direct64);
+
 int iwl_poll_direct_bit(struct iwl_trans *trans, u32 addr, u32 mask,
 			int timeout)
 {
@@ -132,6 +151,14 @@ void iwl_write_prph_no_grab(struct iwl_trans *trans, u32 ofs, u32 val)
 	iwl_trans_write_prph(trans, ofs, val);
 }
 IWL_EXPORT_SYMBOL(iwl_write_prph_no_grab);
+
+void iwl_write_prph64_no_grab(struct iwl_trans *trans, u64 ofs, u64 val)
+{
+	trace_iwlwifi_dev_iowrite_prph64(trans->dev, ofs, val);
+	iwl_write_prph_no_grab(trans, ofs, val & 0xffffffff);
+	iwl_write_prph_no_grab(trans, ofs + 4, val >> 32);
+}
+IWL_EXPORT_SYMBOL(iwl_write_prph64_no_grab);
 
 u32 iwl_read_prph(struct iwl_trans *trans, u32 ofs)
 {
