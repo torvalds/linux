@@ -24,6 +24,8 @@
 #include <linux/of.h>
 #include <linux/gpio.h>
 
+#include "swphy.h"
+
 #define MII_REGS_NUM 29
 
 struct fixed_mdio_bus {
@@ -48,101 +50,10 @@ static struct fixed_mdio_bus platform_fmb = {
 
 static int fixed_phy_update_regs(struct fixed_phy *fp)
 {
-	u16 bmsr = BMSR_ANEGCAPABLE;
-	u16 bmcr = 0;
-	u16 lpagb = 0;
-	u16 lpa = 0;
-
 	if (gpio_is_valid(fp->link_gpio))
 		fp->status.link = !!gpio_get_value_cansleep(fp->link_gpio);
 
-	if (fp->status.duplex) {
-		switch (fp->status.speed) {
-		case 1000:
-			bmsr |= BMSR_ESTATEN;
-			break;
-		case 100:
-			bmsr |= BMSR_100FULL;
-			break;
-		case 10:
-			bmsr |= BMSR_10FULL;
-			break;
-		default:
-			break;
-		}
-	} else {
-		switch (fp->status.speed) {
-		case 1000:
-			bmsr |= BMSR_ESTATEN;
-			break;
-		case 100:
-			bmsr |= BMSR_100HALF;
-			break;
-		case 10:
-			bmsr |= BMSR_10HALF;
-			break;
-		default:
-			break;
-		}
-	}
-
-	if (fp->status.link) {
-		bmsr |= BMSR_LSTATUS | BMSR_ANEGCOMPLETE;
-
-		if (fp->status.duplex) {
-			bmcr |= BMCR_FULLDPLX;
-
-			switch (fp->status.speed) {
-			case 1000:
-				bmcr |= BMCR_SPEED1000;
-				lpagb |= LPA_1000FULL;
-				break;
-			case 100:
-				bmcr |= BMCR_SPEED100;
-				lpa |= LPA_100FULL;
-				break;
-			case 10:
-				lpa |= LPA_10FULL;
-				break;
-			default:
-				pr_warn("fixed phy: unknown speed\n");
-				return -EINVAL;
-			}
-		} else {
-			switch (fp->status.speed) {
-			case 1000:
-				bmcr |= BMCR_SPEED1000;
-				lpagb |= LPA_1000HALF;
-				break;
-			case 100:
-				bmcr |= BMCR_SPEED100;
-				lpa |= LPA_100HALF;
-				break;
-			case 10:
-				lpa |= LPA_10HALF;
-				break;
-			default:
-				pr_warn("fixed phy: unknown speed\n");
-			return -EINVAL;
-			}
-		}
-
-		if (fp->status.pause)
-			lpa |= LPA_PAUSE_CAP;
-
-		if (fp->status.asym_pause)
-			lpa |= LPA_PAUSE_ASYM;
-	}
-
-	fp->regs[MII_PHYSID1] = 0;
-	fp->regs[MII_PHYSID2] = 0;
-
-	fp->regs[MII_BMSR] = bmsr;
-	fp->regs[MII_BMCR] = bmcr;
-	fp->regs[MII_LPA] = lpa;
-	fp->regs[MII_STAT1000] = lpagb;
-
-	return 0;
+	return swphy_update_regs(fp->regs, &fp->status);
 }
 
 static int fixed_mdio_read(struct mii_bus *bus, int phy_addr, int reg_num)
