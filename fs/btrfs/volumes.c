@@ -870,6 +870,11 @@ static void btrfs_close_one_device(struct btrfs_device *device)
 	if (device->missing)
 		fs_devices->missing_devices--;
 
+	if (device->bdev && device->writeable) {
+		sync_blockdev(device->bdev);
+		invalidate_bdev(device->bdev);
+	}
+
 	new_device = btrfs_alloc_device(NULL, &device->devid,
 					device->uuid);
 	BUG_ON(IS_ERR(new_device)); /* -ENOMEM */
