@@ -579,7 +579,8 @@ int qsfp_dump(struct hfi1_pportdata *ppd, char *buf, int len)
 
 	if (ppd->qsfp_info.cache_valid) {
 		if (QSFP_IS_CU(cache[QSFP_MOD_TECH_OFFS]))
-			sprintf(lenstr, "%dM ", cache[QSFP_MOD_LEN_OFFS]);
+			snprintf(lenstr, sizeof(lenstr), "%dM ",
+				 cache[QSFP_MOD_LEN_OFFS]);
 
 		power_byte = cache[QSFP_MOD_PWR_OFFS];
 		sofar += scnprintf(buf + sofar, len - sofar, "PWR:%.3sW\n",

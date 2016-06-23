@@ -3876,12 +3876,12 @@ static int cma_iboe_join_multicast(struct rdma_id_private *id_priv,
 	gid_type = id_priv->cma_dev->default_gid_type[id_priv->id.port_num -
 		   rdma_start_port(id_priv->cma_dev->device)];
 	if (addr->sa_family == AF_INET) {
-		if (gid_type == IB_GID_TYPE_ROCE_UDP_ENCAP)
+		if (gid_type == IB_GID_TYPE_ROCE_UDP_ENCAP) {
+			mc->multicast.ib->rec.hop_limit = IPV6_DEFAULT_HOPLIMIT;
 			err = cma_igmp_send(ndev, &mc->multicast.ib->rec.mgid,
 					    true);
-		if (!err) {
-			mc->igmp_joined = true;
-			mc->multicast.ib->rec.hop_limit = IPV6_DEFAULT_HOPLIMIT;
+			if (!err)
+				mc->igmp_joined = true;
 		}
 	} else {
 		if (gid_type == IB_GID_TYPE_ROCE_UDP_ENCAP)
