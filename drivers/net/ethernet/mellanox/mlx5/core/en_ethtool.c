@@ -198,6 +198,8 @@ static int mlx5e_get_sset_count(struct net_device *dev, int sset)
 		       MLX5E_NUM_RQ_STATS(priv) +
 		       MLX5E_NUM_SQ_STATS(priv) +
 		       MLX5E_NUM_PFC_COUNTERS(priv);
+	case ETH_SS_PRIV_FLAGS:
+		return ARRAY_SIZE(mlx5e_priv_flags);
 	/* fallthrough */
 	default:
 		return -EOPNOTSUPP;
@@ -272,9 +274,12 @@ static void mlx5e_get_strings(struct net_device *dev,
 			      uint32_t stringset, uint8_t *data)
 {
 	struct mlx5e_priv *priv = netdev_priv(dev);
+	int i;
 
 	switch (stringset) {
 	case ETH_SS_PRIV_FLAGS:
+		for (i = 0; i < ARRAY_SIZE(mlx5e_priv_flags); i++)
+			strcpy(data + i * ETH_GSTRING_LEN, mlx5e_priv_flags[i]);
 		break;
 
 	case ETH_SS_TEST:
@@ -1272,6 +1277,58 @@ static int mlx5e_get_module_eeprom(struct net_device *netdev,
 	return 0;
 }
 
+typedef int (*mlx5e_pflag_handler)(struct net_device *netdev, bool enable);
+
+static int set_pflag_nop(struct net_device *netdev, bool enable)
+{
+	return 0;
+}
+
+static int mlx5e_handle_pflag(struct net_device *netdev,
+			      u32 wanted_flags,
+			      enum mlx5e_priv_flag flag,
+			      mlx5e_pflag_handler pflag_handler)
+{
+	struct mlx5e_priv *priv = netdev_priv(netdev);
+	bool enable = !!(wanted_flags & flag);
+	u32 changes = wanted_flags ^ priv->pflags;
+	int err;
+
+	if (!(changes & flag))
+		return 0;
+
+	err = pflag_handler(netdev, enable);
+	if (err) {
+		netdev_err(netdev, "%s private flag 0x%x failed err %d\n",
+			   enable ? "Enable" : "Disable", flag, err);
+		return err;
+	}
+
+	MLX5E_SET_PRIV_FLAG(priv, flag, enable);
+	return 0;
+}
+
+static int mlx5e_set_priv_flags(struct net_device *netdev, u32 pflags)
+{
+	struct mlx5e_priv *priv = netdev_priv(netdev);
+	int err;
+
+	mutex_lock(&priv->state_lock);
+
+	err = mlx5e_handle_pflag(netdev, pflags, MLX5E_PFLAG_NOP,
+				 set_pflag_nop);
+
+	mutex_unlock(&priv->state_lock);
+	return err ? -EINVAL : 0;
+}
+
+static u32 mlx5e_get_priv_flags(struct net_device *netdev)
+{
+	struct mlx5e_priv *priv = netdev_priv(netdev);
+
+	return priv->pflags;
+}
+
 const struct ethtool_ops mlx5e_ethtool_ops = {
 	.get_drvinfo       = mlx5e_get_drvinfo,
 	.get_link          = ethtool_op_get_link,
@@ -1301,4 +1358,6 @@ const struct ethtool_ops mlx5e_ethtool_ops = {
 	.set_wol	   = mlx5e_set_wol,
 	.get_module_info   = mlx5e_get_module_info,
 	.get_module_eeprom = mlx5e_get_module_eeprom,
+	.get_priv_flags    = mlx5e_get_priv_flags,
+	.set_priv_flags    = mlx5e_set_priv_flags
 };

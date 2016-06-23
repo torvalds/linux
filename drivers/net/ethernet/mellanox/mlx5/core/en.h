@@ -144,6 +144,22 @@ struct mlx5e_umr_wqe {
 	struct mlx5_wqe_data_seg       data;
 };
 
+static const char mlx5e_priv_flags[][ETH_GSTRING_LEN] = {
+	"nop",
+};
+
+enum mlx5e_priv_flag {
+	MLX5E_PFLAG_NOP = (1 << 0),
+};
+
+#define MLX5E_SET_PRIV_FLAG(priv, pflag, enable)    \
+	do {                                        \
+		if (enable)                         \
+			priv->pflags |= pflag;      \
+		else                                \
+			priv->pflags &= ~pflag;     \
+	} while (0)
+
 #ifdef CONFIG_MLX5_CORE_EN_DCB
 #define MLX5E_MAX_BW_ALLOC 100 /* Max percentage of BW allocation */
 #define MLX5E_MIN_BW_ALLOC 1   /* Min percentage of BW allocation */
@@ -543,6 +559,7 @@ struct mlx5e_priv {
 	struct work_struct         set_rx_mode_work;
 	struct delayed_work        update_stats_work;
 
+	u32                        pflags;
 	struct mlx5_core_dev      *mdev;
 	struct net_device         *netdev;
 	struct mlx5e_stats         stats;
