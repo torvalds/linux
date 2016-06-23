@@ -1404,9 +1404,9 @@ static int polaris10_populate_all_memory_levels(struct pp_hwmgr *hwmgr)
 			return result;
 	}
 
-	/* in order to prevent MC activity from stutter mode to push DPM up.
+	/* In order to prevent MC activity from stutter mode to push DPM up,
 	 * the UVD change complements this by putting the MCLK in
-	 * a higher state by default such that we are not effected by
+	 * a higher state by default such that we are not affected by
 	 * up threshold or and MCLK DPM latency.
 	 */
 	levels[0].ActivityLevel = 0x1f;
