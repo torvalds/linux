@@ -651,6 +651,12 @@ static int tilcdc_bind(struct device *dev)
 
 static void tilcdc_unbind(struct device *dev)
 {
+	struct drm_device *ddev = dev_get_drvdata(dev);
+
+	/* Check if a subcomponent has already triggered the unloading. */
+	if (!ddev->dev_private)
+		return;
+
 	drm_put_dev(dev_get_drvdata(dev));
 }
 
@@ -683,17 +689,15 @@ static int tilcdc_pdev_probe(struct platform_device *pdev)
 
 static int tilcdc_pdev_remove(struct platform_device *pdev)
 {
-	struct drm_device *ddev = dev_get_drvdata(&pdev->dev);
-	struct tilcdc_drm_private *priv = ddev->dev_private;
+	int ret;
 
-	/* Check if a subcomponent has already triggered the unloading. */
-	if (!priv)
-		return 0;
-
-	if (priv->is_componentized)
-		component_master_del(&pdev->dev, &tilcdc_comp_ops);
-	else
+	ret = tilcdc_get_external_components(&pdev->dev, NULL);
+	if (ret < 0)
+		return ret;
+	else if (ret == 0)
 		drm_put_dev(platform_get_drvdata(pdev));
+	else
+		component_master_del(&pdev->dev, &tilcdc_comp_ops);
 
 	return 0;
 }
