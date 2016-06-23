@@ -256,7 +256,7 @@ static int tpa6130a2_probe(struct i2c_client *client,
 		if (ret < 0) {
 			dev_err(dev, "Failed to request power GPIO (%d)\n",
 				data->power_gpio);
-			goto err_gpio;
+			return ret;
 		}
 		gpio_direction_output(data->power_gpio, 0);
 	}
@@ -277,12 +277,12 @@ static int tpa6130a2_probe(struct i2c_client *client,
 	if (IS_ERR(data->supply)) {
 		ret = PTR_ERR(data->supply);
 		dev_err(dev, "Failed to request supply: %d\n", ret);
-		goto err_gpio;
+		return ret;
 	}
 
 	ret = tpa6130a2_power(data, true);
 	if (ret != 0)
-		goto err_gpio;
+		return ret;
 
 
 	/* Read version */
@@ -294,13 +294,10 @@ static int tpa6130a2_probe(struct i2c_client *client,
 	/* Disable the chip */
 	ret = tpa6130a2_power(data, false);
 	if (ret != 0)
-		goto err_gpio;
+		return ret;
 
 	return devm_snd_soc_register_component(&client->dev,
 			&tpa6130a2_component_driver, NULL, 0);
-
-err_gpio:
-	return ret;
 }
 
 static const struct i2c_device_id tpa6130a2_id[] = {
