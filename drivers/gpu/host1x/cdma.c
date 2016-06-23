@@ -96,12 +96,12 @@ fail:
  */
 static void host1x_pushbuffer_push(struct push_buffer *pb, u32 op1, u32 op2)
 {
-	u32 pos = pb->pos;
-	u32 *p = (u32 *)((void *)pb->mapped + pos);
-	WARN_ON(pos == pb->fence);
+	u32 *p = (u32 *)((void *)pb->mapped + pb->pos);
+
+	WARN_ON(pb->pos == pb->fence);
 	*(p++) = op1;
 	*(p++) = op2;
-	pb->pos = (pos + 8) & (pb->size_bytes - 1);
+	pb->pos = (pb->pos + 8) & (pb->size_bytes - 1);
 }
 
 /*
