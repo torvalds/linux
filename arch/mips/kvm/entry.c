@@ -55,7 +55,6 @@
 #define C0_CAUSE	13, 0
 #define C0_EPC		14, 0
 #define C0_EBASE	15, 1
-#define C0_CONFIG3	16, 3
 #define C0_CONFIG5	16, 5
 #define C0_DDATA_LO	28, 3
 #define C0_ERROREPC	30, 0
@@ -409,25 +408,21 @@ void *kvm_mips_build_exit(void *addr)
 		uasm_l_fpu_1(&l, p);
 	}
 
-#ifdef CONFIG_CPU_HAS_MSA
-	/*
-	 * If MSA is enabled, save MSACSR and clear it so that later
-	 * instructions don't trigger MSAFPE for pending exceptions.
-	 */
-	uasm_i_mfc0(&p, T0, C0_CONFIG3);
-	uasm_i_ext(&p, T0, T0, 28, 1); /* MIPS_CONF3_MSAP */
-	uasm_il_beqz(&p, &r, T0, label_msa_1);
-	 uasm_i_nop(&p);
-	uasm_i_mfc0(&p, T0, C0_CONFIG5);
-	uasm_i_ext(&p, T0, T0, 27, 1); /* MIPS_CONF5_MSAEN */
-	uasm_il_beqz(&p, &r, T0, label_msa_1);
-	 uasm_i_nop(&p);
-	uasm_i_cfcmsa(&p, T0, MSA_CSR);
-	uasm_i_sw(&p, T0, offsetof(struct kvm_vcpu_arch, fpu.msacsr),
-		  K1);
-	uasm_i_ctcmsa(&p, MSA_CSR, ZERO);
-	uasm_l_msa_1(&l, p);
-#endif
+	if (cpu_has_msa) {
+		/*
+		 * If MSA is enabled, save MSACSR and clear it so that later
+		 * instructions don't trigger MSAFPE for pending exceptions.
+		 */
+		uasm_i_mfc0(&p, T0, C0_CONFIG5);
+		uasm_i_ext(&p, T0, T0, 27, 1); /* MIPS_CONF5_MSAEN */
+		uasm_il_beqz(&p, &r, T0, label_msa_1);
+		 uasm_i_nop(&p);
+		uasm_i_cfcmsa(&p, T0, MSA_CSR);
+		uasm_i_sw(&p, T0, offsetof(struct kvm_vcpu_arch, fpu.msacsr),
+			  K1);
+		uasm_i_ctcmsa(&p, MSA_CSR, ZERO);
+		uasm_l_msa_1(&l, p);
+	}
 
 	/* Now that the new EBASE has been loaded, unset BEV and KSU_USER */
 	uasm_i_addiu(&p, AT, ZERO, ~(ST0_EXL | KSU_USER | ST0_IE));
