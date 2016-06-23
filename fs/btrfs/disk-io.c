@@ -101,7 +101,7 @@ int __init btrfs_end_io_wq_init(void)
 	btrfs_end_io_wq_cache = kmem_cache_create("btrfs_end_io_wq",
 					sizeof(struct btrfs_end_io_wq),
 					0,
-					SLAB_RECLAIM_ACCOUNT | SLAB_MEM_SPREAD,
+					SLAB_MEM_SPREAD,
 					NULL);
 	if (!btrfs_end_io_wq_cache)
 		return -ENOMEM;
