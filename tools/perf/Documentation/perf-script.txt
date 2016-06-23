@@ -170,7 +170,12 @@ OPTIONS
 	Trace decoding. The flags are "bcrosyiABEx" which stand for branch,
 	call, return, conditional, system, asynchronous, interrupt,
 	transaction abort, trace begin, trace end, and in transaction,
-	respectively.
+	respectively. Known combinations of flags are printed more nicely e.g.
+	"call" for "bc", "return" for "br", "jcc" for "bo", "jmp" for "b",
+	"int" for "bci", "iret" for "bri", "syscall" for "bcs", "sysret" for "brs",
+	"async" for "by", "hw int" for "bcyi", "tx abrt" for "bA", "tr strt" for "bB",
+	"tr end" for "bE". However the "x" flag will be display separately in those
+	cases e.g. "jcc     (x)" for a condition branch within a transaction.
 
 	Finally, a user may not set fields to none for all event types.
 	i.e., -F "" is not allowed.

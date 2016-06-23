@@ -606,12 +606,41 @@ static void print_sample_bts(struct perf_sample *sample,
 	printf("\n");
 }
 
+static struct {
+	u32 flags;
+	const char *name;
+} sample_flags[] = {
+	{PERF_IP_FLAG_BRANCH | PERF_IP_FLAG_CALL, "call"},
+	{PERF_IP_FLAG_BRANCH | PERF_IP_FLAG_RETURN, "return"},
+	{PERF_IP_FLAG_BRANCH | PERF_IP_FLAG_CONDITIONAL, "jcc"},
+	{PERF_IP_FLAG_BRANCH, "jmp"},
+	{PERF_IP_FLAG_BRANCH | PERF_IP_FLAG_CALL | PERF_IP_FLAG_INTERRUPT, "int"},
+	{PERF_IP_FLAG_BRANCH | PERF_IP_FLAG_RETURN | PERF_IP_FLAG_INTERRUPT, "iret"},
+	{PERF_IP_FLAG_BRANCH | PERF_IP_FLAG_CALL | PERF_IP_FLAG_SYSCALLRET, "syscall"},
+	{PERF_IP_FLAG_BRANCH | PERF_IP_FLAG_RETURN | PERF_IP_FLAG_SYSCALLRET, "sysret"},
+	{PERF_IP_FLAG_BRANCH | PERF_IP_FLAG_ASYNC, "async"},
+	{PERF_IP_FLAG_BRANCH | PERF_IP_FLAG_CALL | PERF_IP_FLAG_ASYNC |	PERF_IP_FLAG_INTERRUPT, "hw int"},
+	{PERF_IP_FLAG_BRANCH | PERF_IP_FLAG_TX_ABORT, "tx abrt"},
+	{PERF_IP_FLAG_BRANCH | PERF_IP_FLAG_TRACE_BEGIN, "tr strt"},
+	{PERF_IP_FLAG_BRANCH | PERF_IP_FLAG_TRACE_END, "tr end"},
+	{0, NULL}
+};
+
 static void print_sample_flags(u32 flags)
 {
 	const char *chars = PERF_IP_FLAG_CHARS;
 	const int n = strlen(PERF_IP_FLAG_CHARS);
+	bool in_tx = flags & PERF_IP_FLAG_IN_TX;
+	const char *name = NULL;
 	char str[33];
 	int i, pos = 0;
+
+	for (i = 0; sample_flags[i].name ; i++) {
+		if (sample_flags[i].flags == (flags & ~PERF_IP_FLAG_IN_TX)) {
+			name = sample_flags[i].name;
+			break;
+		}
+	}
 
 	for (i = 0; i < n; i++, flags >>= 1) {
 		if (flags & 1)
@@ -622,7 +651,11 @@ static void print_sample_flags(u32 flags)
 			str[pos++] = '?';
 	}
 	str[pos] = 0;
-	printf("  %-4s ", str);
+
+	if (name)
+		printf("  %-7s%4s ", name, in_tx ? "(x)" : "");
+	else
+		printf("  %-11s ", str);
 }
 
 struct printer_data {
