@@ -1482,7 +1482,6 @@ static void set_mode(struct vc_data *vc, int on_off)
 					clr_kbd(vc, decckm);
 				break;
 			case 3:	/* 80/132 mode switch unimplemented */
-				vc->vc_deccolm = on_off;
 #if 0
 				vc_resize(deccolm ? 132 : 80, vc->vc_rows);
 				/* this alone does not suffice; some user mode

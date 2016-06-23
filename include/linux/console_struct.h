@@ -106,7 +106,6 @@ struct vc_data {
 	unsigned int	vc_decawm	: 1;	/* Autowrap Mode */
 	unsigned int	vc_deccm	: 1;	/* Cursor Visible */
 	unsigned int	vc_decim	: 1;	/* Insert Mode */
-	unsigned int	vc_deccolm	: 1;	/* 80/132 Column Mode */
 	/* attribute flags */
 	unsigned int	vc_intensity	: 2;	/* 0=half-bright, 1=normal, 2=bold */
 	unsigned int    vc_italic:1;
