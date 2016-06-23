@@ -524,10 +524,10 @@ static int mlx5e_get_coalesce(struct net_device *netdev,
 	if (!MLX5_CAP_GEN(priv->mdev, cq_moderation))
 		return -ENOTSUPP;
 
-	coal->rx_coalesce_usecs       = priv->params.rx_cq_moderation_usec;
-	coal->rx_max_coalesced_frames = priv->params.rx_cq_moderation_pkts;
-	coal->tx_coalesce_usecs       = priv->params.tx_cq_moderation_usec;
-	coal->tx_max_coalesced_frames = priv->params.tx_cq_moderation_pkts;
+	coal->rx_coalesce_usecs       = priv->params.rx_cq_moderation.usec;
+	coal->rx_max_coalesced_frames = priv->params.rx_cq_moderation.pkts;
+	coal->tx_coalesce_usecs       = priv->params.tx_cq_moderation.usec;
+	coal->tx_max_coalesced_frames = priv->params.tx_cq_moderation.pkts;
 
 	return 0;
 }
@@ -545,10 +545,11 @@ static int mlx5e_set_coalesce(struct net_device *netdev,
 		return -ENOTSUPP;
 
 	mutex_lock(&priv->state_lock);
-	priv->params.tx_cq_moderation_usec = coal->tx_coalesce_usecs;
-	priv->params.tx_cq_moderation_pkts = coal->tx_max_coalesced_frames;
-	priv->params.rx_cq_moderation_usec = coal->rx_coalesce_usecs;
-	priv->params.rx_cq_moderation_pkts = coal->rx_max_coalesced_frames;
+
+	priv->params.tx_cq_moderation.usec = coal->tx_coalesce_usecs;
+	priv->params.tx_cq_moderation.pkts = coal->tx_max_coalesced_frames;
+	priv->params.rx_cq_moderation.usec = coal->rx_coalesce_usecs;
+	priv->params.rx_cq_moderation.pkts = coal->rx_max_coalesced_frames;
 
 	if (!test_bit(MLX5E_STATE_OPENED, &priv->state))
 		goto out;
@@ -1279,9 +1280,37 @@ static int mlx5e_get_module_eeprom(struct net_device *netdev,
 
 typedef int (*mlx5e_pflag_handler)(struct net_device *netdev, bool enable);
 
-static int set_pflag_nop(struct net_device *netdev, bool enable)
+static int set_pflag_rx_cqe_based_moder(struct net_device *netdev, bool enable)
 {
-	return 0;
+	struct mlx5e_priv *priv = netdev_priv(netdev);
+	struct mlx5_core_dev *mdev = priv->mdev;
+	bool rx_mode_changed;
+	u8 rx_cq_period_mode;
+	int err = 0;
+	bool reset;
+
+	rx_cq_period_mode = enable ?
+		MLX5_CQ_PERIOD_MODE_START_FROM_CQE :
+		MLX5_CQ_PERIOD_MODE_START_FROM_EQE;
+	rx_mode_changed = rx_cq_period_mode != priv->params.rx_cq_period_mode;
+
+	if (rx_cq_period_mode == MLX5_CQ_PERIOD_MODE_START_FROM_CQE &&
+	    !MLX5_CAP_GEN(mdev, cq_period_start_from_cqe))
+		return -ENOTSUPP;
+
+	if (!rx_mode_changed)
+		return 0;
+
+	reset = test_bit(MLX5E_STATE_OPENED, &priv->state);
+	if (reset)
+		mlx5e_close_locked(netdev);
+
+	mlx5e_set_rx_cq_mode_params(&priv->params, rx_cq_period_mode);
+
+	if (reset)
+		err = mlx5e_open_locked(netdev);
+
+	return err;
 }
 
 static int mlx5e_handle_pflag(struct net_device *netdev,
@@ -1315,8 +1344,9 @@ static int mlx5e_set_priv_flags(struct net_device *netdev, u32 pflags)
 
 	mutex_lock(&priv->state_lock);
 
-	err = mlx5e_handle_pflag(netdev, pflags, MLX5E_PFLAG_NOP,
-				 set_pflag_nop);
+	err = mlx5e_handle_pflag(netdev, pflags,
+				 MLX5E_PFLAG_RX_CQE_BASED_MODER,
+				 set_pflag_rx_cqe_based_moder);
 
 	mutex_unlock(&priv->state_lock);
 	return err ? -EINVAL : 0;

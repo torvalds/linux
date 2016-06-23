@@ -55,6 +55,7 @@ struct mlx5e_cq_param {
 	u32                        cqc[MLX5_ST_SZ_DW(cqc)];
 	struct mlx5_wq_param       wq;
 	u16                        eq_ix;
+	u8                         cq_period_mode;
 };
 
 struct mlx5e_channel_param {
@@ -896,6 +897,7 @@ static int mlx5e_enable_cq(struct mlx5e_cq *cq, struct mlx5e_cq_param *param)
 
 	mlx5_vector2eqn(mdev, param->eq_ix, &eqn, &irqn_not_used);
 
+	MLX5_SET(cqc,   cqc, cq_period_mode, param->cq_period_mode);
 	MLX5_SET(cqc,   cqc, c_eqn,         eqn);
 	MLX5_SET(cqc,   cqc, uar_page,      mcq->uar->index);
 	MLX5_SET(cqc,   cqc, log_page_size, cq->wq_ctrl.buf.page_shift -
@@ -925,8 +927,7 @@ static void mlx5e_disable_cq(struct mlx5e_cq *cq)
 static int mlx5e_open_cq(struct mlx5e_channel *c,
 			 struct mlx5e_cq_param *param,
 			 struct mlx5e_cq *cq,
-			 u16 moderation_usecs,
-			 u16 moderation_frames)
+			 struct mlx5e_cq_moder moderation)
 {
 	int err;
 	struct mlx5e_priv *priv = c->priv;
@@ -942,8 +943,8 @@ static int mlx5e_open_cq(struct mlx5e_channel *c,
 
 	if (MLX5_CAP_GEN(mdev, cq_moderation))
 		mlx5_core_modify_cq_moderation(mdev, &cq->mcq,
-					       moderation_usecs,
-					       moderation_frames);
+					       moderation.usec,
+					       moderation.pkts);
 	return 0;
 
 err_destroy_cq:
@@ -972,8 +973,7 @@ static int mlx5e_open_tx_cqs(struct mlx5e_channel *c,
 
 	for (tc = 0; tc < c->num_tc; tc++) {
 		err = mlx5e_open_cq(c, &cparam->tx_cq, &c->sq[tc].cq,
-				    priv->params.tx_cq_moderation_usec,
-				    priv->params.tx_cq_moderation_pkts);
+				    priv->params.tx_cq_moderation);
 		if (err)
 			goto err_close_tx_cqs;
 	}
@@ -1110,6 +1110,7 @@ static int mlx5e_open_channel(struct mlx5e_priv *priv, int ix,
 			      struct mlx5e_channel_param *cparam,
 			      struct mlx5e_channel **cp)
 {
+	struct mlx5e_cq_moder icosq_cq_moder = {0, 0};
 	struct net_device *netdev = priv->netdev;
 	int cpu = mlx5e_get_cpu(priv, ix);
 	struct mlx5e_channel *c;
@@ -1133,7 +1134,7 @@ static int mlx5e_open_channel(struct mlx5e_priv *priv, int ix,
 
 	netif_napi_add(netdev, &c->napi, mlx5e_napi_poll, 64);
 
-	err = mlx5e_open_cq(c, &cparam->icosq_cq, &c->icosq.cq, 0, 0);
+	err = mlx5e_open_cq(c, &cparam->icosq_cq, &c->icosq.cq, icosq_cq_moder);
 	if (err)
 		goto err_napi_del;
 
@@ -1142,8 +1143,7 @@ static int mlx5e_open_channel(struct mlx5e_priv *priv, int ix,
 		goto err_close_icosq_cq;
 
 	err = mlx5e_open_cq(c, &cparam->rx_cq, &c->rq.cq,
-			    priv->params.rx_cq_moderation_usec,
-			    priv->params.rx_cq_moderation_pkts);
+			    priv->params.rx_cq_moderation);
 	if (err)
 		goto err_close_tx_cqs;
 
@@ -1308,6 +1308,8 @@ static void mlx5e_build_rx_cq_param(struct mlx5e_priv *priv,
 	}
 
 	mlx5e_build_common_cq_param(priv, param);
+
+	param->cq_period_mode = priv->params.rx_cq_period_mode;
 }
 
 static void mlx5e_build_tx_cq_param(struct mlx5e_priv *priv,
@@ -1318,6 +1320,8 @@ static void mlx5e_build_tx_cq_param(struct mlx5e_priv *priv,
 	MLX5_SET(cqc, cqc, log_cq_size, priv->params.log_sq_size);
 
 	mlx5e_build_common_cq_param(priv, param);
+
+	param->cq_period_mode = MLX5_CQ_PERIOD_MODE_START_FROM_EQE;
 }
 
 static void mlx5e_build_ico_cq_param(struct mlx5e_priv *priv,
@@ -1329,6 +1333,8 @@ static void mlx5e_build_ico_cq_param(struct mlx5e_priv *priv,
 	MLX5_SET(cqc, cqc, log_cq_size, log_wq_size);
 
 	mlx5e_build_common_cq_param(priv, param);
+
+	param->cq_period_mode = MLX5_CQ_PERIOD_MODE_START_FROM_EQE;
 }
 
 static void mlx5e_build_icosq_param(struct mlx5e_priv *priv,
@@ -2856,6 +2862,20 @@ static bool cqe_compress_heuristic(u32 link_speed, u32 pci_bw)
 		(pci_bw < 40000) && (pci_bw < link_speed));
 }
 
+void mlx5e_set_rx_cq_mode_params(struct mlx5e_params *params, u8 cq_period_mode)
+{
+	params->rx_cq_period_mode = cq_period_mode;
+
+	params->rx_cq_moderation.pkts =
+		MLX5E_PARAMS_DEFAULT_RX_CQ_MODERATION_PKTS;
+	params->rx_cq_moderation.usec =
+			MLX5E_PARAMS_DEFAULT_RX_CQ_MODERATION_USEC;
+
+	if (cq_period_mode == MLX5_CQ_PERIOD_MODE_START_FROM_CQE)
+		params->rx_cq_moderation.usec =
+			MLX5E_PARAMS_DEFAULT_RX_CQ_MODERATION_USEC_FROM_CQE;
+}
+
 static void mlx5e_build_netdev_priv(struct mlx5_core_dev *mdev,
 				    struct net_device *netdev,
 				    int num_channels)
@@ -2908,13 +2928,13 @@ static void mlx5e_build_netdev_priv(struct mlx5_core_dev *mdev,
 
 	priv->params.min_rx_wqes = mlx5_min_rx_wqes(priv->params.rq_wq_type,
 					    BIT(priv->params.log_rq_size));
-	priv->params.rx_cq_moderation_usec =
-		MLX5E_PARAMS_DEFAULT_RX_CQ_MODERATION_USEC;
-	priv->params.rx_cq_moderation_pkts =
-		MLX5E_PARAMS_DEFAULT_RX_CQ_MODERATION_PKTS;
-	priv->params.tx_cq_moderation_usec =
+
+	mlx5e_set_rx_cq_mode_params(&priv->params,
+				    MLX5_CQ_PERIOD_MODE_START_FROM_EQE);
+
+	priv->params.tx_cq_moderation.usec =
 		MLX5E_PARAMS_DEFAULT_TX_CQ_MODERATION_USEC;
-	priv->params.tx_cq_moderation_pkts =
+	priv->params.tx_cq_moderation.pkts =
 		MLX5E_PARAMS_DEFAULT_TX_CQ_MODERATION_PKTS;
 	priv->params.tx_max_inline         = mlx5e_get_max_inline_cap(mdev);
 	priv->params.num_tc                = 1;
@@ -2928,6 +2948,10 @@ static void mlx5e_build_netdev_priv(struct mlx5_core_dev *mdev,
 
 	priv->params.lro_wqe_sz            =
 		MLX5E_PARAMS_DEFAULT_LRO_WQE_SZ;
+
+	/* Initialize pflags */
+	MLX5E_SET_PRIV_FLAG(priv, MLX5E_PFLAG_RX_CQE_BASED_MODER,
+			    priv->params.rx_cq_period_mode == MLX5_CQ_PERIOD_MODE_START_FROM_CQE);
 
 	priv->mdev                         = mdev;
 	priv->netdev                       = netdev;
