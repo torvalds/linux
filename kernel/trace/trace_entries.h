@@ -322,3 +322,26 @@ FTRACE_ENTRY(branch, trace_branch,
 	FILTER_OTHER
 );
 
+
+FTRACE_ENTRY(hwlat, hwlat_entry,
+
+	TRACE_HWLAT,
+
+	F_STRUCT(
+		__field(	u64,			duration	)
+		__field(	u64,			outer_duration	)
+		__field_struct( struct timespec,	timestamp	)
+		__field_desc(	long,	timestamp,	tv_sec		)
+		__field_desc(	long,	timestamp,	tv_nsec		)
+		__field(	unsigned int,		seqnum		)
+	),
+
+	F_printk("cnt:%u\tts:%010lu.%010lu\tinner:%llu\touter:%llu\n",
+		 __entry->seqnum,
+		 __entry->tv_sec,
+		 __entry->tv_nsec,
+		 __entry->duration,
+		 __entry->outer_duration),
+
+	FILTER_OTHER
+);
