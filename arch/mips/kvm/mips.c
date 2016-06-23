@@ -1775,6 +1775,10 @@ static int __init kvm_mips_init(void)
 {
 	int ret;
 
+	ret = kvm_mips_entry_setup();
+	if (ret)
+		return ret;
+
 	ret = kvm_init(NULL, sizeof(struct kvm_vcpu), 0, THIS_MODULE);
 
 	if (ret)
