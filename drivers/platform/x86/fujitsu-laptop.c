@@ -136,7 +136,7 @@
 #ifdef CONFIG_FUJITSU_LAPTOP_DEBUG
 #define vdbg_printk(a_dbg_level, format, arg...) \
 	do { if (dbg_level & a_dbg_level) \
-		printk(FUJLAPTOP_DEBUG "%s: " format, __func__ , ## arg); \
+		printk(KERN_DEBUG pr_fmt("%s: " format), __func__, ## arg); \
 	} while (0)
 #else
 #define vdbg_printk(a_dbg_level, format, arg...) \
