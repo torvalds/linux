@@ -38,13 +38,18 @@ NB: To be clear, if voltage-table is provided, then the device will be used
 in Voltage Table Mode.  If no voltage-table is provided, then the device will
 be used in Continuous Voltage Mode.
 
+Optional properties:
+--------------------
+- enable-gpios:		GPIO to use to enable/disable the regulator
+
 Any property defined as part of the core regulator binding can also be used.
 (See: ../regulator/regulator.txt)
 
-Continuous Voltage Example:
+Continuous Voltage With Enable GPIO Example:
 	pwm_regulator {
 		compatible = "pwm-regulator;
 		pwms = <&pwm1 0 8448 0>;
+		enable-gpios = <&gpio0 23 GPIO_ACTIVE_HIGH>;
 		regulator-min-microvolt = <1016000>;
 		regulator-max-microvolt = <1114000>;
 		regulator-name = "vdd_logic";
