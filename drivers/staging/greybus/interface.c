@@ -872,59 +872,27 @@ void gb_interface_disable(struct gb_interface *intf)
 	intf->enabled = false;
 }
 
-/*
- * Enable TimeSync on an Interface control connection.
- *
- * Locking: Takes and releases the interface mutex.
- */
+/* Enable TimeSync on an Interface control connection. */
 int gb_interface_timesync_enable(struct gb_interface *intf, u8 count,
 				 u64 frame_time, u32 strobe_delay, u32 refclk)
 {
-	int ret = -ENODEV;
-
-	mutex_lock(&intf->mutex);
-	if (intf->enabled) {
-		ret = gb_control_timesync_enable(intf->control, count,
-						 frame_time, strobe_delay,
-						 refclk);
-	}
-	mutex_unlock(&intf->mutex);
-	return ret;
+	return gb_control_timesync_enable(intf->control, count,
+					  frame_time, strobe_delay,
+					  refclk);
 }
 
-/*
- * Disable TimeSync on an Interface control connection.
- *
- * Locking: Takes and releases the interface mutex.
- */
+/* Disable TimeSync on an Interface control connection. */
 int gb_interface_timesync_disable(struct gb_interface *intf)
 {
-	int ret = -ENODEV;
-
-	mutex_lock(&intf->mutex);
-	if (intf->enabled)
-		ret = gb_control_timesync_disable(intf->control);
-	mutex_unlock(&intf->mutex);
-	return ret;
+	return gb_control_timesync_disable(intf->control);
 }
 
-/*
- * Transmit the Authoritative FrameTime via an Interface control connection.
- *
- * Locking: Takes and releases the interface mutex.
- */
+/* Transmit the Authoritative FrameTime via an Interface control connection. */
 int gb_interface_timesync_authoritative(struct gb_interface *intf,
 					u64 *frame_time)
 {
-	int ret = -ENODEV;
-
-	mutex_lock(&intf->mutex);
-	if (intf->enabled) {
-		ret = gb_control_timesync_authoritative(intf->control,
-							frame_time);
-	}
-	mutex_unlock(&intf->mutex);
-	return ret;
+	return gb_control_timesync_authoritative(intf->control,
+						frame_time);
 }
 
 /* Register an interface. */
