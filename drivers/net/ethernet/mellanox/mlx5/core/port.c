@@ -222,6 +222,18 @@ int mlx5_set_port_proto(struct mlx5_core_dev *dev, u32 proto_admin,
 }
 EXPORT_SYMBOL_GPL(mlx5_set_port_proto);
 
+/* This function should be used after setting a port register only */
+void mlx5_toggle_port_link(struct mlx5_core_dev *dev)
+{
+	enum mlx5_port_status ps;
+
+	mlx5_query_port_admin_status(dev, &ps);
+	mlx5_set_port_admin_status(dev, MLX5_PORT_DOWN);
+	if (ps == MLX5_PORT_UP)
+		mlx5_set_port_admin_status(dev, MLX5_PORT_UP);
+}
+EXPORT_SYMBOL_GPL(mlx5_toggle_port_link);
+
 int mlx5_set_port_admin_status(struct mlx5_core_dev *dev,
 			       enum mlx5_port_status status)
 {
