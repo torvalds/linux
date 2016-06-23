@@ -34,6 +34,11 @@
  */
 #define HVC_SET_VECTORS 1
 
+/*
+ * HVC_SOFT_RESTART - CPU soft reset, used by the cpu_soft_restart routine.
+ */
+#define HVC_SOFT_RESTART 2
+
 #define BOOT_CPU_MODE_EL1	(0xe11)
 #define BOOT_CPU_MODE_EL2	(0xe12)
 
