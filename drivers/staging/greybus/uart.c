@@ -674,6 +674,7 @@ static int set_serial_info(struct gb_tty *gb_tty,
 static int wait_serial_change(struct gb_tty *gb_tty, unsigned long arg)
 {
 	int retval = 0;
+	unsigned long flags;
 	DECLARE_WAITQUEUE(wait, current);
 	struct async_icount old;
 	struct async_icount new;
@@ -682,11 +683,11 @@ static int wait_serial_change(struct gb_tty *gb_tty, unsigned long arg)
 		return -EINVAL;
 
 	do {
-		spin_lock_irq(&gb_tty->read_lock);
+		spin_lock_irqsave(&gb_tty->read_lock, flags);
 		old = gb_tty->oldcount;
 		new = gb_tty->iocount;
 		gb_tty->oldcount = new;
-		spin_unlock_irq(&gb_tty->read_lock);
+		spin_unlock_irqrestore(&gb_tty->read_lock, flags);
 
 		if ((arg & TIOCM_DSR) && (old.dsr != new.dsr))
 			break;
