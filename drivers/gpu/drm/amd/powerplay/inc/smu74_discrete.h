@@ -270,7 +270,8 @@ struct SMU74_Discrete_DpmTable {
 	uint8_t                             BootPhases;
 
 	uint8_t                             VRHotLevel;
-	uint8_t                             Reserved1[3];
+	uint8_t                             LdoRefSel;
+	uint8_t                             Reserved1[2];
 	uint16_t                            FanStartTemperature;
 	uint16_t                            FanStopTemperature;
 	uint16_t                            MaxVoltage;
