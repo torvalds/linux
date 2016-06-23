@@ -1950,6 +1950,12 @@ static int fm10k_probe(struct pci_dev *pdev, const struct pci_device_id *ent)
 	struct fm10k_intfc *interface;
 	int err;
 
+	if (pdev->error_state != pci_channel_io_normal) {
+		dev_err(&pdev->dev,
+			"PCI device still in an error state. Unable to load...\n");
+		return -EIO;
+	}
+
 	err = pci_enable_device_mem(pdev);
 	if (err) {
 		dev_err(&pdev->dev,
