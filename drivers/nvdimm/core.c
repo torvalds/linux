@@ -601,7 +601,8 @@ int nd_integrity_init(struct gendisk *disk, unsigned long meta_size)
 	if (meta_size == 0)
 		return 0;
 
-	bi.profile = NULL;
+	memset(&bi, 0, sizeof(bi));
+
 	bi.tuple_size = meta_size;
 	bi.tag_size = meta_size;
 
