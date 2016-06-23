@@ -496,11 +496,12 @@ static void message_cancel(struct gb_message *message)
 	struct gb_host_device *hd = message->operation->connection->hd;
 	struct es2_ap_dev *es2 = hd_to_es2(hd);
 	struct urb *urb;
+	unsigned long flags;
 	int i;
 
 	might_sleep();
 
-	spin_lock_irq(&es2->cport_out_urb_lock);
+	spin_lock_irqsave(&es2->cport_out_urb_lock, flags);
 	urb = message->hcpriv;
 
 	/* Prevent dynamically allocated urb from being deallocated. */
@@ -513,14 +514,14 @@ static void message_cancel(struct gb_message *message)
 			break;
 		}
 	}
-	spin_unlock_irq(&es2->cport_out_urb_lock);
+	spin_unlock_irqrestore(&es2->cport_out_urb_lock, flags);
 
 	usb_kill_urb(urb);
 
 	if (i < NUM_CPORT_OUT_URB) {
-		spin_lock_irq(&es2->cport_out_urb_lock);
+		spin_lock_irqsave(&es2->cport_out_urb_lock, flags);
 		es2->cport_out_urb_cancelled[i] = false;
-		spin_unlock_irq(&es2->cport_out_urb_lock);
+		spin_unlock_irqrestore(&es2->cport_out_urb_lock, flags);
 	}
 
 	usb_free_urb(urb);
