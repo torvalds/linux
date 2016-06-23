@@ -195,6 +195,7 @@ struct mlx5e_params {
 #ifdef CONFIG_MLX5_CORE_EN_DCB
 	struct ieee_ets ets;
 #endif
+	bool rx_am_enabled;
 };
 
 struct mlx5e_tstamp {
@@ -213,6 +214,7 @@ struct mlx5e_tstamp {
 enum {
 	MLX5E_RQ_STATE_POST_WQES_ENABLE,
 	MLX5E_RQ_STATE_UMR_WQE_IN_PROGRESS,
+	MLX5E_RQ_STATE_AM,
 };
 
 struct mlx5e_cq {
@@ -220,6 +222,7 @@ struct mlx5e_cq {
 	struct mlx5_cqwq           wq;
 
 	/* data path - accessed per napi poll */
+	u16                        event_ctr;
 	struct napi_struct        *napi;
 	struct mlx5_core_cq        mcq;
 	struct mlx5e_channel      *channel;
@@ -247,6 +250,30 @@ struct mlx5e_dma_info {
 	dma_addr_t	addr;
 };
 
+struct mlx5e_rx_am_stats {
+	int ppms; /* packets per msec */
+	int epms; /* events per msec */
+};
+
+struct mlx5e_rx_am_sample {
+	ktime_t		time;
+	unsigned int	pkt_ctr;
+	u16		event_ctr;
+};
+
+struct mlx5e_rx_am { /* Adaptive Moderation */
+	u8					state;
+	struct mlx5e_rx_am_stats		prev_stats;
+	struct mlx5e_rx_am_sample		start_sample;
+	struct work_struct			work;
+	u8					profile_ix;
+	u8					mode;
+	u8					tune_state;
+	u8					steps_right;
+	u8					steps_left;
+	u8					tired;
+};
+
 struct mlx5e_rq {
 	/* data path */
 	struct mlx5_wq_ll      wq;
@@ -266,6 +293,8 @@ struct mlx5e_rq {
 
 	unsigned long          state;
 	int                    ix;
+
+	struct mlx5e_rx_am     am; /* Adaptive Moderation */
 
 	/* control */
 	struct mlx5_wq_ctrl    wq_ctrl;
@@ -636,6 +665,10 @@ void mlx5e_free_rx_linear_mpwqe(struct mlx5e_rq *rq,
 void mlx5e_free_rx_fragmented_mpwqe(struct mlx5e_rq *rq,
 				    struct mlx5e_mpw_info *wi);
 struct mlx5_cqe64 *mlx5e_get_cqe(struct mlx5e_cq *cq);
+
+void mlx5e_rx_am(struct mlx5e_rq *rq);
+void mlx5e_rx_am_work(struct work_struct *work);
+struct mlx5e_cq_moder mlx5e_am_get_def_profile(u8 rx_cq_period_mode);
 
 void mlx5e_update_stats(struct mlx5e_priv *priv);
 
