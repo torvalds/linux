@@ -1102,6 +1102,36 @@ int amdgpu_set_powergating_state(struct amdgpu_device *adev,
 	return r;
 }
 
+int amdgpu_wait_for_idle(struct amdgpu_device *adev,
+			 enum amd_ip_block_type block_type)
+{
+	int i, r;
+
+	for (i = 0; i < adev->num_ip_blocks; i++) {
+		if (adev->ip_blocks[i].type == block_type) {
+			r = adev->ip_blocks[i].funcs->wait_for_idle((void *)adev);
+			if (r)
+				return r;
+			break;
+		}
+	}
+	return 0;
+
+}
+
+bool amdgpu_is_idle(struct amdgpu_device *adev,
+		    enum amd_ip_block_type block_type)
+{
+	int i;
+
+	for (i = 0; i < adev->num_ip_blocks; i++) {
+		if (adev->ip_blocks[i].type == block_type)
+			return adev->ip_blocks[i].funcs->is_idle((void *)adev);
+	}
+	return true;
+
+}
+
 const struct amdgpu_ip_block_version * amdgpu_get_ip_block(
 					struct amdgpu_device *adev,
 					enum amd_ip_block_type type)

@@ -187,6 +187,10 @@ int amdgpu_set_clockgating_state(struct amdgpu_device *adev,
 int amdgpu_set_powergating_state(struct amdgpu_device *adev,
 				  enum amd_ip_block_type block_type,
 				  enum amd_powergating_state state);
+int amdgpu_wait_for_idle(struct amdgpu_device *adev,
+			 enum amd_ip_block_type block_type);
+bool amdgpu_is_idle(struct amdgpu_device *adev,
+		    enum amd_ip_block_type block_type);
 
 struct amdgpu_ip_block_version {
 	enum amd_ip_block_type type;
