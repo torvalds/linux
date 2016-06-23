@@ -278,12 +278,7 @@ static void notify_update(struct vc_data *vc)
  */
 
 #define IS_FG(vc)	((vc)->vc_num == fg_console)
-
-#ifdef VT_BUF_VRAM_ONLY
-#define DO_UPDATE(vc)	0
-#else
 #define DO_UPDATE(vc)	(CON_IS_VISIBLE(vc) && !console_blanked)
-#endif
 
 static inline unsigned short *screenpos(struct vc_data *vc, int offset, int viewed)
 {
@@ -349,7 +344,6 @@ static void scrdown(struct vc_data *vc, unsigned int t, unsigned int b, int nr)
 
 static void do_update_region(struct vc_data *vc, unsigned long start, int count)
 {
-#ifndef VT_BUF_VRAM_ONLY
 	unsigned int xx, yy, offset;
 	u16 *p;
 
@@ -390,7 +384,6 @@ static void do_update_region(struct vc_data *vc, unsigned long start, int count)
 			start = vc->vc_sw->con_getxy(vc, start, NULL, NULL);
 		}
 	}
-#endif
 }
 
 void update_region(struct vc_data *vc, unsigned long start, int count)
@@ -413,7 +406,6 @@ static u8 build_attr(struct vc_data *vc, u8 _color, u8 _intensity, u8 _blink,
 		return vc->vc_sw->con_build_attr(vc, _color, _intensity,
 		       _blink, _underline, _reverse, _italic);
 
-#ifndef VT_BUF_VRAM_ONLY
 /*
  * ++roman: I completely changed the attribute format for monochrome
  * mode (!can_do_color). The formerly used MDA (monochrome display
@@ -448,9 +440,6 @@ static u8 build_attr(struct vc_data *vc, u8 _color, u8 _intensity, u8 _blink,
 		a <<= 1;
 	return a;
 	}
-#else
-	return 0;
-#endif
 }
 
 static void update_attr(struct vc_data *vc)
@@ -470,10 +459,9 @@ void invert_screen(struct vc_data *vc, int offset, int count, int viewed)
 
 	count /= 2;
 	p = screenpos(vc, offset, viewed);
-	if (vc->vc_sw->con_invert_region)
+	if (vc->vc_sw->con_invert_region) {
 		vc->vc_sw->con_invert_region(vc, p, count);
-#ifndef VT_BUF_VRAM_ONLY
-	else {
+	} else {
 		u16 *q = p;
 		int cnt = count;
 		u16 a;
@@ -501,7 +489,7 @@ void invert_screen(struct vc_data *vc, int offset, int count, int viewed)
 			}
 		}
 	}
-#endif
+
 	if (DO_UPDATE(vc))
 		do_update_region(vc, (unsigned long) p, count);
 	notify_update(vc);
@@ -2178,14 +2166,10 @@ static int is_double_width(uint32_t ucs)
 /* acquires console_lock */
 static int do_con_write(struct tty_struct *tty, const unsigned char *buf, int count)
 {
-#ifdef VT_BUF_VRAM_ONLY
-#define FLUSH do { } while(0);
-#else
 #define FLUSH if (draw_x >= 0) { \
 	vc->vc_sw->con_putcs(vc, (u16 *)draw_from, (u16 *)draw_to - (u16 *)draw_from, vc->vc_y, draw_x); \
 	draw_x = -1; \
 	}
-#endif
 
 	int c, tc, ok, n = 0, draw_x = -1;
 	unsigned int currcons;
