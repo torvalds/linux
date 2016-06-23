@@ -29,6 +29,17 @@ config PINCTRL_CHERRYVIEW
 	  Cherryview/Braswell pinctrl driver provides an interface that
 	  allows configuring of SoC pins and using them as GPIOs.
 
+config PINCTRL_MERRIFIELD
+	tristate "Intel Merrifield pinctrl driver"
+	depends on X86_INTEL_MID
+	select PINMUX
+	select PINCONF
+	select GENERIC_PINCONF
+	help
+	  Merrifield Family-Level Interface Shim (FLIS) driver provides an
+	  interface that allows configuring of SoC pins and using them as
+	  GPIOs.
+
 config PINCTRL_INTEL
 	tristate
 	select PINMUX
