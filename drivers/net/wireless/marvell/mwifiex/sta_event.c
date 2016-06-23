@@ -40,8 +40,8 @@
  *      - Erases current SSID and BSSID information
  *      - Sends a disconnect event to upper layers/applications.
  */
-void
-mwifiex_reset_connect_state(struct mwifiex_private *priv, u16 reason_code)
+void mwifiex_reset_connect_state(struct mwifiex_private *priv, u16 reason_code,
+				 bool from_ap)
 {
 	struct mwifiex_adapter *adapter = priv->adapter;
 
@@ -140,7 +140,7 @@ mwifiex_reset_connect_state(struct mwifiex_private *priv, u16 reason_code)
 	if (priv->bss_mode == NL80211_IFTYPE_STATION ||
 	    priv->bss_mode == NL80211_IFTYPE_P2P_CLIENT) {
 		cfg80211_disconnected(priv->netdev, reason_code, NULL, 0,
-				      false, GFP_KERNEL);
+				      !from_ap, GFP_KERNEL);
 	}
 	eth_zero_addr(priv->cfg_bssid);
 
@@ -574,7 +574,7 @@ int mwifiex_process_sta_event(struct mwifiex_private *priv)
 		if (priv->media_connected) {
 			reason_code =
 				le16_to_cpu(*(__le16 *)adapter->event_body);
-			mwifiex_reset_connect_state(priv, reason_code);
+			mwifiex_reset_connect_state(priv, reason_code, true);
 		}
 		break;
 
@@ -589,7 +589,7 @@ int mwifiex_process_sta_event(struct mwifiex_private *priv)
 		if (priv->media_connected) {
 			reason_code =
 				le16_to_cpu(*(__le16 *)adapter->event_body);
-			mwifiex_reset_connect_state(priv, reason_code);
+			mwifiex_reset_connect_state(priv, reason_code, true);
 		}
 		break;
 
@@ -599,7 +599,7 @@ int mwifiex_process_sta_event(struct mwifiex_private *priv)
 		if (priv->media_connected) {
 			reason_code =
 				le16_to_cpu(*(__le16 *)adapter->event_body);
-			mwifiex_reset_connect_state(priv, reason_code);
+			mwifiex_reset_connect_state(priv, reason_code, true);
 		}
 		break;
 

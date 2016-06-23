@@ -526,10 +526,12 @@ static void mwifiex_fw_dpc(const struct firmware *firmware, void *context)
 	fw.fw_buf = (u8 *) adapter->firmware->data;
 	fw.fw_len = adapter->firmware->size;
 
-	if (adapter->if_ops.dnld_fw)
+	if (adapter->if_ops.dnld_fw) {
 		ret = adapter->if_ops.dnld_fw(adapter, &fw);
-	else
+	} else {
 		ret = mwifiex_dnld_fw(adapter, &fw);
+	}
+
 	if (ret == -1)
 		goto err_dnld_fw;
 

@@ -609,23 +609,21 @@ static ssize_t ath10k_write_simulate_fw_crash(struct file *file,
 	char buf[32];
 	int ret;
 
-	mutex_lock(&ar->conf_mutex);
-
 	simple_write_to_buffer(buf, sizeof(buf) - 1, ppos, user_buf, count);
 
 	/* make sure that buf is null terminated */
 	buf[sizeof(buf) - 1] = 0;
 
+	/* drop the possible '\n' from the end */
+	if (buf[count - 1] == '\n')
+		buf[count - 1] = 0;
+
+	mutex_lock(&ar->conf_mutex);
+
 	if (ar->state != ATH10K_STATE_ON &&
 	    ar->state != ATH10K_STATE_RESTARTED) {
 		ret = -ENETDOWN;
 		goto exit;
-	}
-
-	/* drop the possible '\n' from the end */
-	if (buf[count - 1] == '\n') {
-		buf[count - 1] = 0;
-		count--;
 	}
 
 	if (!strcmp(buf, "soft")) {
@@ -2127,6 +2125,7 @@ static ssize_t ath10k_write_btcoex(struct file *file,
 	size_t buf_size;
 	int ret;
 	bool val;
+	u32 pdev_param;
 
 	buf_size = min(count, (sizeof(buf) - 1));
 	if (copy_from_user(buf, ubuf, buf_size))
@@ -2150,14 +2149,25 @@ static ssize_t ath10k_write_btcoex(struct file *file,
 		goto exit;
 	}
 
+	pdev_param = ar->wmi.pdev_param->enable_btcoex;
+	if (test_bit(ATH10K_FW_FEATURE_BTCOEX_PARAM,
+		     ar->running_fw->fw_file.fw_features)) {
+		ret = ath10k_wmi_pdev_set_param(ar, pdev_param, val);
+		if (ret) {
+			ath10k_warn(ar, "failed to enable btcoex: %d\n", ret);
+			ret = count;
+			goto exit;
+		}
+	} else {
+		ath10k_info(ar, "restarting firmware due to btcoex change");
+		queue_work(ar->workqueue, &ar->restart_work);
+	}
+
 	if (val)
 		set_bit(ATH10K_FLAG_BTCOEX, &ar->dev_flags);
 	else
 		clear_bit(ATH10K_FLAG_BTCOEX, &ar->dev_flags);
 
-	ath10k_info(ar, "restarting firmware due to btcoex change");
-
-	queue_work(ar->workqueue, &ar->restart_work);
 	ret = count;
 
 exit:

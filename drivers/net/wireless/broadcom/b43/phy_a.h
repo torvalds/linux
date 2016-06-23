@@ -101,26 +101,4 @@ u32 b43_ofdmtab_read32(struct b43_wldev *dev, u16 table, u16 offset);
 void b43_ofdmtab_write32(struct b43_wldev *dev, u16 table,
 			 u16 offset, u32 value);
 
-
-struct b43_phy_a {
-	/* Pointer to the table used to convert a
-	 * TSSI value to dBm-Q5.2 */
-	const s8 *tssi2dbm;
-	/* Target idle TSSI */
-	int tgt_idle_tssi;
-	/* Current idle TSSI */
-	int cur_idle_tssi;//FIXME value currently not set
-
-	/* A-PHY TX Power control value. */
-	u16 txpwr_offset;
-
-	//TODO lots of missing stuff
-};
-
-/**
- * b43_phy_inita - Lowlevel A-PHY init routine.
- * This is _only_ used by the G-PHY code.
- */
-void b43_phy_inita(struct b43_wldev *dev);
-
 #endif /* LINUX_B43_PHY_A_H_ */

@@ -272,7 +272,7 @@ int mwifiex_handle_uap_rx_forward(struct mwifiex_private *priv,
 int mwifiex_uap_recv_packet(struct mwifiex_private *priv,
 			    struct sk_buff *skb)
 {
-	struct mwifiex_adapter *adapter = adapter;
+	struct mwifiex_adapter *adapter = priv->adapter;
 	struct mwifiex_sta_node *src_node;
 	struct ethhdr *p_ethhdr;
 	struct sk_buff *skb_uap;

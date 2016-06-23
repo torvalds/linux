@@ -1281,7 +1281,7 @@ int mwifiex_ret_802_11_ad_hoc(struct mwifiex_private *priv,
 	if (result) {
 		mwifiex_dbg(priv->adapter, ERROR, "ADHOC_RESP: failed\n");
 		if (priv->media_connected)
-			mwifiex_reset_connect_state(priv, result);
+			mwifiex_reset_connect_state(priv, result, true);
 
 		memset(&priv->curr_bss_params.bss_descriptor,
 		       0x00, sizeof(struct mwifiex_bssdescriptor));

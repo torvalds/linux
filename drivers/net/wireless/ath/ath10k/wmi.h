@@ -3447,6 +3447,7 @@ struct wmi_pdev_param_map {
 	u32 wapi_mbssid_offset;
 	u32 arp_srcaddr;
 	u32 arp_dstaddr;
+	u32 enable_btcoex;
 };
 
 #define WMI_PDEV_PARAM_UNSUPPORTED 0
@@ -3760,6 +3761,9 @@ enum wmi_10_4_pdev_param {
 	WMI_10_4_PDEV_PARAM_ATF_OBSS_NOISE_SCH,
 	WMI_10_4_PDEV_PARAM_ATF_OBSS_NOISE_SCALING_FACTOR,
 	WMI_10_4_PDEV_PARAM_CUST_TXPOWER_SCALE,
+	WMI_10_4_PDEV_PARAM_ATF_DYNAMIC_ENABLE,
+	WMI_10_4_PDEV_PARAM_ATF_SSID_GROUP_POLICY,
+	WMI_10_4_PDEV_PARAM_ENABLE_BTCOEX,
 };
 
 struct wmi_pdev_set_param_cmd {

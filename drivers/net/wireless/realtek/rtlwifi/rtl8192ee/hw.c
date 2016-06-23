@@ -2102,20 +2102,22 @@ static void _rtl92ee_read_adapter_info(struct ieee80211_hw *hw)
 	u8 hwinfo[HWSET_MAX_SIZE];
 	u16 eeprom_id;
 
-	if (rtlefuse->epromtype == EEPROM_BOOT_EFUSE) {
+	switch (rtlefuse->epromtype) {
+	case EEPROM_BOOT_EFUSE:
 		rtl_efuse_shadow_map_update(hw);
+		break;
 
-		memcpy(hwinfo, &rtlefuse->efuse_map[EFUSE_INIT_MAP][0],
-		       HWSET_MAX_SIZE);
-	} else if (rtlefuse->epromtype == EEPROM_93C46) {
+	case EEPROM_93C46:
 		RT_TRACE(rtlpriv, COMP_ERR, DBG_EMERG,
 			 "RTL819X Not boot from eeprom, check it !!");
 		return;
-	} else {
+
+	default:
 		RT_TRACE(rtlpriv, COMP_ERR, DBG_EMERG,
 			 "boot from neither eeprom nor efuse, check it !!");
 		return;
 	}
+	memcpy(hwinfo, &rtlefuse->efuse_map[EFUSE_INIT_MAP][0], HWSET_MAX_SIZE);
 
 	RT_PRINT_DATA(rtlpriv, COMP_INIT, DBG_DMESG, "MAP\n",
 		      hwinfo, HWSET_MAX_SIZE);

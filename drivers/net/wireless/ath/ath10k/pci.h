@@ -234,6 +234,12 @@ struct ath10k_pci {
 
 	const struct ath10k_bus_ops *bus_ops;
 
+	/* Chip specific pci reset routine used to do a safe reset */
+	int (*pci_soft_reset)(struct ath10k *ar);
+
+	/* Chip specific pci full reset function */
+	int (*pci_hard_reset)(struct ath10k *ar);
+
 	/* Keep this entry in the last, memory for struct ath10k_ahb is
 	 * allocated (ahb support enabled case) in the continuation of
 	 * this struct.
