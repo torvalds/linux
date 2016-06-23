@@ -265,7 +265,7 @@ static inline void dump_handler(const char *symbol, void *start, void *end)
 struct kvm_vcpu *kvm_arch_vcpu_create(struct kvm *kvm, unsigned int id)
 {
 	int err, size;
-	void *gebase, *p;
+	void *gebase, *p, *handler;
 	int i;
 
 	struct kvm_vcpu *vcpu = kzalloc(sizeof(struct kvm_vcpu), GFP_KERNEL);
@@ -304,22 +304,24 @@ struct kvm_vcpu *kvm_arch_vcpu_create(struct kvm *kvm, unsigned int id)
 	vcpu->arch.guest_ebase = gebase;
 
 	/* Build guest exception vectors dynamically in unmapped memory */
+	handler = gebase + 0x2000;
 
 	/* TLB Refill, EXL = 0 */
-	kvm_mips_build_exception(gebase);
+	kvm_mips_build_exception(gebase, handler);
 
 	/* General Exception Entry point */
-	kvm_mips_build_exception(gebase + 0x180);
+	kvm_mips_build_exception(gebase + 0x180, handler);
 
 	/* For vectored interrupts poke the exception code @ all offsets 0-7 */
 	for (i = 0; i < 8; i++) {
 		kvm_debug("L1 Vectored handler @ %p\n",
 			  gebase + 0x200 + (i * VECTORSPACING));
-		kvm_mips_build_exception(gebase + 0x200 + i * VECTORSPACING);
+		kvm_mips_build_exception(gebase + 0x200 + i * VECTORSPACING,
+					 handler);
 	}
 
 	/* General exit handler */
-	p = gebase + 0x2000;
+	p = handler;
 	p = kvm_mips_build_exit(p);
 
 	/* Guest entry routine */
