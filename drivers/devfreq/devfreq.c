@@ -552,6 +552,7 @@ struct devfreq *devfreq_add_device(struct device *dev,
 	devfreq->profile = profile;
 	strncpy(devfreq->governor_name, governor_name, DEVFREQ_NAME_LEN);
 	devfreq->previous_freq = profile->initial_freq;
+	devfreq->last_status.current_frequency = profile->initial_freq;
 	devfreq->data = data;
 	devfreq->nb.notifier_call = devfreq_notifier_call;
 
@@ -561,22 +562,21 @@ struct devfreq *devfreq_add_device(struct device *dev,
 		mutex_lock(&devfreq->lock);
 	}
 
-	devfreq->trans_table =	devm_kzalloc(dev, sizeof(unsigned int) *
-						devfreq->profile->max_state *
-						devfreq->profile->max_state,
-						GFP_KERNEL);
-	devfreq->time_in_state = devm_kzalloc(dev, sizeof(unsigned long) *
-						devfreq->profile->max_state,
-						GFP_KERNEL);
-	devfreq->last_stat_updated = jiffies;
-
 	dev_set_name(&devfreq->dev, "%s", dev_name(dev));
 	err = device_register(&devfreq->dev);
 	if (err) {
-		put_device(&devfreq->dev);
 		mutex_unlock(&devfreq->lock);
 		goto err_out;
 	}
+
+	devfreq->trans_table =	devm_kzalloc(&devfreq->dev, sizeof(unsigned int) *
+						devfreq->profile->max_state *
+						devfreq->profile->max_state,
+						GFP_KERNEL);
+	devfreq->time_in_state = devm_kzalloc(&devfreq->dev, sizeof(unsigned long) *
+						devfreq->profile->max_state,
+						GFP_KERNEL);
+	devfreq->last_stat_updated = jiffies;
 
 	srcu_init_notifier_head(&devfreq->transition_notifier_list);
 
@@ -603,7 +603,6 @@ struct devfreq *devfreq_add_device(struct device *dev,
 err_init:
 	list_del(&devfreq->node);
 	device_unregister(&devfreq->dev);
-	kfree(devfreq);
 err_out:
 	return ERR_PTR(err);
 }
@@ -621,7 +620,6 @@ int devfreq_remove_device(struct devfreq *devfreq)
 		return -EINVAL;
 
 	device_unregister(&devfreq->dev);
-	put_device(&devfreq->dev);
 
 	return 0;
 }
