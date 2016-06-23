@@ -2466,6 +2466,10 @@ static __init void tegra210_periph_clk_init(void __iomem *clk_base,
 					1, 2);
 	clks[TEGRA210_CLK_XUSB_SS_DIV2] = clk;
 
+	clk = tegra_clk_register_periph_fixed("sor_safe", "pll_p", 0, clk_base,
+					      1, 17, 222);
+	clks[TEGRA210_CLK_SOR_SAFE] = clk;
+
 	clk = tegra_clk_register_periph_fixed("dpaux", "sor_safe", 0, clk_base,
 					      1, 17, 181);
 	clks[TEGRA210_CLK_DPAUX] = clk;
@@ -2473,10 +2477,6 @@ static __init void tegra210_periph_clk_init(void __iomem *clk_base,
 	clk = tegra_clk_register_periph_fixed("dpaux1", "sor_safe", 0, clk_base,
 					      1, 17, 207);
 	clks[TEGRA210_CLK_DPAUX1] = clk;
-
-	clk = tegra_clk_register_periph_fixed("sor_safe", "pll_p", 0, clk_base,
-					      1, 17, 222);
-	clks[TEGRA210_CLK_SOR_SAFE] = clk;
 
 	/* pll_d_dsi_out */
 	clk = clk_register_gate(NULL, "pll_d_dsi_out", "pll_d_out0", 0,
