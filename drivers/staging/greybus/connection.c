@@ -150,6 +150,7 @@ _gb_connection_create(struct gb_host_device *hd, int hd_cport_id,
 				unsigned long flags)
 {
 	struct gb_connection *connection;
+	unsigned long irqflags;
 	int ret;
 
 	mutex_lock(&gb_connection_mutex);
@@ -200,7 +201,7 @@ _gb_connection_create(struct gb_host_device *hd, int hd_cport_id,
 
 	gb_connection_init_name(connection);
 
-	spin_lock_irq(&gb_connections_lock);
+	spin_lock_irqsave(&gb_connections_lock, irqflags);
 	list_add(&connection->hd_links, &hd->connections);
 
 	if (bundle)
@@ -208,7 +209,7 @@ _gb_connection_create(struct gb_host_device *hd, int hd_cport_id,
 	else
 		INIT_LIST_HEAD(&connection->bundle_links);
 
-	spin_unlock_irq(&gb_connections_lock);
+	spin_unlock_irqrestore(&gb_connections_lock, irqflags);
 
 	mutex_unlock(&gb_connection_mutex);
 
@@ -571,7 +572,7 @@ static int gb_connection_ping(struct gb_connection *connection)
  * DISCONNECTING.
  */
 static void gb_connection_cancel_operations(struct gb_connection *connection,
-						int errno)
+						int errno, unsigned long flags)
 	__must_hold(&connection->lock)
 {
 	struct gb_operation *operation;
@@ -580,7 +581,7 @@ static void gb_connection_cancel_operations(struct gb_connection *connection,
 		operation = list_last_entry(&connection->operations,
 						struct gb_operation, links);
 		gb_operation_get(operation);
-		spin_unlock_irq(&connection->lock);
+		spin_unlock_irqrestore(&connection->lock, flags);
 
 		if (gb_operation_is_incoming(operation))
 			gb_operation_cancel_incoming(operation, errno);
@@ -589,7 +590,7 @@ static void gb_connection_cancel_operations(struct gb_connection *connection,
 
 		gb_operation_put(operation);
 
-		spin_lock_irq(&connection->lock);
+		spin_lock_irqsave(&connection->lock, flags);
 	}
 }
 
@@ -600,7 +601,7 @@ static void gb_connection_cancel_operations(struct gb_connection *connection,
  */
 static void
 gb_connection_flush_incoming_operations(struct gb_connection *connection,
-						int errno)
+						int errno, unsigned long flags)
 	__must_hold(&connection->lock)
 {
 	struct gb_operation *operation;
@@ -620,13 +621,13 @@ gb_connection_flush_incoming_operations(struct gb_connection *connection,
 		if (!incoming)
 			break;
 
-		spin_unlock_irq(&connection->lock);
+		spin_unlock_irqrestore(&connection->lock, flags);
 
 		/* FIXME: flush, not cancel? */
 		gb_operation_cancel_incoming(operation, errno);
 		gb_operation_put(operation);
 
-		spin_lock_irq(&connection->lock);
+		spin_lock_irqsave(&connection->lock, flags);
 	}
 }
 
@@ -642,6 +643,7 @@ gb_connection_flush_incoming_operations(struct gb_connection *connection,
  */
 static int _gb_connection_enable(struct gb_connection *connection, bool rx)
 {
+	unsigned long flags;
 	int ret;
 
 	/* Handle ENABLED_TX -> ENABLED transitions. */
@@ -649,9 +651,9 @@ static int _gb_connection_enable(struct gb_connection *connection, bool rx)
 		if (!(connection->handler && rx))
 			return 0;
 
-		spin_lock_irq(&connection->lock);
+		spin_lock_irqsave(&connection->lock, flags);
 		connection->state = GB_CONNECTION_STATE_ENABLED;
-		spin_unlock_irq(&connection->lock);
+		spin_unlock_irqrestore(&connection->lock, flags);
 
 		return 0;
 	}
@@ -668,12 +670,12 @@ static int _gb_connection_enable(struct gb_connection *connection, bool rx)
 	if (ret)
 		goto err_svc_connection_destroy;
 
-	spin_lock_irq(&connection->lock);
+	spin_lock_irqsave(&connection->lock, flags);
 	if (connection->handler && rx)
 		connection->state = GB_CONNECTION_STATE_ENABLED;
 	else
 		connection->state = GB_CONNECTION_STATE_ENABLED_TX;
-	spin_unlock_irq(&connection->lock);
+	spin_unlock_irqrestore(&connection->lock, flags);
 
 	ret = gb_connection_control_connected(connection);
 	if (ret)
@@ -684,10 +686,10 @@ static int _gb_connection_enable(struct gb_connection *connection, bool rx)
 err_control_disconnecting:
 	gb_connection_control_disconnecting(connection);
 
-	spin_lock_irq(&connection->lock);
+	spin_lock_irqsave(&connection->lock, flags);
 	connection->state = GB_CONNECTION_STATE_DISCONNECTING;
-	gb_connection_cancel_operations(connection, -ESHUTDOWN);
-	spin_unlock_irq(&connection->lock);
+	gb_connection_cancel_operations(connection, -ESHUTDOWN, flags);
+	spin_unlock_irqrestore(&connection->lock, flags);
 
 	/* Transmit queue should already be empty. */
 	gb_connection_hd_cport_flush(connection);
@@ -753,16 +755,18 @@ EXPORT_SYMBOL_GPL(gb_connection_enable_tx);
 
 void gb_connection_disable_rx(struct gb_connection *connection)
 {
+	unsigned long flags;
+
 	mutex_lock(&connection->mutex);
 
-	spin_lock_irq(&connection->lock);
+	spin_lock_irqsave(&connection->lock, flags);
 	if (connection->state != GB_CONNECTION_STATE_ENABLED) {
-		spin_unlock_irq(&connection->lock);
+		spin_unlock_irqrestore(&connection->lock, flags);
 		goto out_unlock;
 	}
 	connection->state = GB_CONNECTION_STATE_ENABLED_TX;
-	gb_connection_flush_incoming_operations(connection, -ESHUTDOWN);
-	spin_unlock_irq(&connection->lock);
+	gb_connection_flush_incoming_operations(connection, -ESHUTDOWN, flags);
+	spin_unlock_irqrestore(&connection->lock, flags);
 
 	trace_gb_connection_disable(connection);
 
@@ -785,6 +789,8 @@ void gb_connection_mode_switch_complete(struct gb_connection *connection)
 
 void gb_connection_disable(struct gb_connection *connection)
 {
+	unsigned long flags;
+
 	mutex_lock(&connection->mutex);
 
 	if (connection->state == GB_CONNECTION_STATE_DISABLED)
@@ -794,10 +800,10 @@ void gb_connection_disable(struct gb_connection *connection)
 
 	gb_connection_control_disconnecting(connection);
 
-	spin_lock_irq(&connection->lock);
+	spin_lock_irqsave(&connection->lock, flags);
 	connection->state = GB_CONNECTION_STATE_DISCONNECTING;
-	gb_connection_cancel_operations(connection, -ESHUTDOWN);
-	spin_unlock_irq(&connection->lock);
+	gb_connection_cancel_operations(connection, -ESHUTDOWN, flags);
+	spin_unlock_irqrestore(&connection->lock, flags);
 
 	gb_connection_hd_cport_flush(connection);
 
@@ -824,6 +830,8 @@ EXPORT_SYMBOL_GPL(gb_connection_disable);
 /* Disable a connection without communicating with the remote end. */
 void gb_connection_disable_forced(struct gb_connection *connection)
 {
+	unsigned long flags;
+
 	mutex_lock(&connection->mutex);
 
 	if (connection->state == GB_CONNECTION_STATE_DISABLED)
@@ -831,10 +839,10 @@ void gb_connection_disable_forced(struct gb_connection *connection)
 
 	trace_gb_connection_disable(connection);
 
-	spin_lock_irq(&connection->lock);
+	spin_lock_irqsave(&connection->lock, flags);
 	connection->state = GB_CONNECTION_STATE_DISABLED;
-	gb_connection_cancel_operations(connection, -ESHUTDOWN);
-	spin_unlock_irq(&connection->lock);
+	gb_connection_cancel_operations(connection, -ESHUTDOWN, flags);
+	spin_unlock_irqrestore(&connection->lock, flags);
 
 	gb_connection_hd_cport_flush(connection);
 	gb_connection_hd_cport_features_disable(connection);
@@ -849,6 +857,8 @@ EXPORT_SYMBOL_GPL(gb_connection_disable_forced);
 /* Caller must have disabled the connection before destroying it. */
 void gb_connection_destroy(struct gb_connection *connection)
 {
+	unsigned long flags;
+
 	if (!connection)
 		return;
 
@@ -857,10 +867,10 @@ void gb_connection_destroy(struct gb_connection *connection)
 
 	mutex_lock(&gb_connection_mutex);
 
-	spin_lock_irq(&gb_connections_lock);
+	spin_lock_irqsave(&gb_connections_lock, flags);
 	list_del(&connection->bundle_links);
 	list_del(&connection->hd_links);
-	spin_unlock_irq(&gb_connections_lock);
+	spin_unlock_irqrestore(&gb_connections_lock, flags);
 
 	destroy_workqueue(connection->wq);
 
