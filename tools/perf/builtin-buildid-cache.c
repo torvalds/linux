@@ -209,7 +209,7 @@ static int build_id_cache__purge_path(const char *pathname)
 	if (err)
 		goto out;
 
-	strlist__for_each(pos, list) {
+	strlist__for_each_entry(pos, list) {
 		err = build_id_cache__remove_s(pos->s);
 		pr_debug("Removing %s %s: %s\n", pos->s, pathname,
 			 err ? "FAIL" : "Ok");
@@ -343,7 +343,7 @@ int cmd_buildid_cache(int argc, const char **argv,
 	if (add_name_list_str) {
 		list = strlist__new(add_name_list_str, NULL);
 		if (list) {
-			strlist__for_each(pos, list)
+			strlist__for_each_entry(pos, list)
 				if (build_id_cache__add_file(pos->s)) {
 					if (errno == EEXIST) {
 						pr_debug("%s already in the cache\n",
@@ -361,7 +361,7 @@ int cmd_buildid_cache(int argc, const char **argv,
 	if (remove_name_list_str) {
 		list = strlist__new(remove_name_list_str, NULL);
 		if (list) {
-			strlist__for_each(pos, list)
+			strlist__for_each_entry(pos, list)
 				if (build_id_cache__remove_file(pos->s)) {
 					if (errno == ENOENT) {
 						pr_debug("%s wasn't in the cache\n",
@@ -379,7 +379,7 @@ int cmd_buildid_cache(int argc, const char **argv,
 	if (purge_name_list_str) {
 		list = strlist__new(purge_name_list_str, NULL);
 		if (list) {
-			strlist__for_each(pos, list)
+			strlist__for_each_entry(pos, list)
 				if (build_id_cache__purge_path(pos->s)) {
 					if (errno == ENOENT) {
 						pr_debug("%s wasn't in the cache\n",
@@ -400,7 +400,7 @@ int cmd_buildid_cache(int argc, const char **argv,
 	if (update_name_list_str) {
 		list = strlist__new(update_name_list_str, NULL);
 		if (list) {
-			strlist__for_each(pos, list)
+			strlist__for_each_entry(pos, list)
 				if (build_id_cache__update_file(pos->s)) {
 					if (errno == ENOENT) {
 						pr_debug("%s wasn't in the cache\n",

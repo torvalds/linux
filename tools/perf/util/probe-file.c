@@ -178,7 +178,7 @@ static struct strlist *__probe_file__get_namelist(int fd, bool include_group)
 	if (!rawlist)
 		return NULL;
 	sl = strlist__new(NULL, NULL);
-	strlist__for_each(ent, rawlist) {
+	strlist__for_each_entry(ent, rawlist) {
 		ret = parse_probe_trace_command(ent->s, &tev);
 		if (ret < 0)
 			break;
@@ -281,7 +281,7 @@ int probe_file__get_events(int fd, struct strfilter *filter,
 	if (!namelist)
 		return -ENOENT;
 
-	strlist__for_each(ent, namelist) {
+	strlist__for_each_entry(ent, namelist) {
 		p = strchr(ent->s, ':');
 		if ((p && strfilter__compare(filter, p + 1)) ||
 		    strfilter__compare(filter, ent->s)) {
@@ -299,7 +299,7 @@ int probe_file__del_strlist(int fd, struct strlist *namelist)
 	int ret = 0;
 	struct str_node *ent;
 
-	strlist__for_each(ent, namelist) {
+	strlist__for_each_entry(ent, namelist) {
 		ret = __del_trace_probe_event(fd, ent);
 		if (ret < 0)
 			break;
@@ -612,7 +612,7 @@ static int probe_cache_entry__write(struct probe_cache_entry *entry, int fd)
 	if (ret < (int)iov[1].iov_len + 2)
 		goto rollback;
 
-	strlist__for_each(snode, entry->tevlist) {
+	strlist__for_each_entry(snode, entry->tevlist) {
 		iov[0].iov_base = (void *)snode->s;
 		iov[0].iov_len = strlen(snode->s);
 		iov[1].iov_base = (void *)"\n"; iov[1].iov_len = 1;
