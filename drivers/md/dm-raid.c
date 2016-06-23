@@ -2772,10 +2772,10 @@ static int raid_ctr(struct dm_target *ti, unsigned argc, char **argv)
 			return -EINVAL;
 		}
 		rs_setup_recovery(rs, 0);
-	} else if (rs_is_reshaping(rs)) {
-		/* Have to reject size change request during reshape */
+	} else if (rs_is_recovering(rs) || rs_is_reshaping(rs)) {
+		/* Have to reject size change request during recovery/reshape */
 		if (calculated_dev_sectors != rs->dev[0].rdev.sectors) {
-			ti->error = "Can't resize a reshaping raid set";
+			ti->error = "Can't resize a recovering/reshaping raid set";
 			return -EPERM;
 		}
 		/* skip setup rs */
