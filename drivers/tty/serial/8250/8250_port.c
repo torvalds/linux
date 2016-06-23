@@ -1861,7 +1861,6 @@ static int serial8250_default_handle_irq(struct uart_port *port)
  */
 static int exar_handle_irq(struct uart_port *port)
 {
-	unsigned char int0, int1, int2, int3;
 	unsigned int iir = serial_port_in(port, UART_IIR);
 	int ret;
 
@@ -1869,10 +1868,10 @@ static int exar_handle_irq(struct uart_port *port)
 
 	if ((port->type == PORT_XR17V35X) ||
 	   (port->type == PORT_XR17D15X)) {
-		int0 = serial_port_in(port, 0x80);
-		int1 = serial_port_in(port, 0x81);
-		int2 = serial_port_in(port, 0x82);
-		int3 = serial_port_in(port, 0x83);
+		serial_port_in(port, 0x80);
+		serial_port_in(port, 0x81);
+		serial_port_in(port, 0x82);
+		serial_port_in(port, 0x83);
 	}
 
 	return ret;
@@ -1994,8 +1993,6 @@ static void wait_for_xmitr(struct uart_8250_port *up, int bits)
 
 	/* Wait up to 1s for flow control if necessary */
 	if (up->port.flags & UPF_CONS_FLOW) {
-		unsigned int tmout;
-
 		for (tmout = 1000000; tmout; tmout--) {
 			unsigned int msr = serial_in(up, UART_MSR);
 			up->msr_saved_flags |= msr & MSR_SAVE_FLAGS;
