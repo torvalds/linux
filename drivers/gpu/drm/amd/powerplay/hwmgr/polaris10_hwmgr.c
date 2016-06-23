@@ -1805,6 +1805,7 @@ static int polaris10_populate_clock_stretcher_data_table(struct pp_hwmgr *hwmgr)
 		data->smc_state_table.Sclk_voltageOffset[i] = volt_offset;
 	}
 
+	data->smc_state_table.LdoRefSel = (table_info->cac_dtp_table->ucCKS_LDO_REFSEL != 0) ? table_info->cac_dtp_table->ucCKS_LDO_REFSEL : 6;
 	/* Populate CKS Lookup Table */
 	if (stretch_amount == 1 || stretch_amount == 2 || stretch_amount == 5)
 		stretch_amount2 = 0;
@@ -2486,6 +2487,8 @@ int polaris10_enable_dpm_tasks(struct pp_hwmgr *hwmgr)
 	tmp_result = polaris10_enable_vrhot_gpio_interrupt(hwmgr);
 	PP_ASSERT_WITH_CODE((0 == tmp_result),
 			"Failed to enable VR hot GPIO interrupt!", result = tmp_result);
+
+	smum_send_msg_to_smc(hwmgr->smumgr, (PPSMC_Msg)PPSMC_HasDisplay);
 
 	tmp_result = polaris10_enable_sclk_control(hwmgr);
 	PP_ASSERT_WITH_CODE((0 == tmp_result),
@@ -4359,6 +4362,15 @@ static int polaris10_notify_link_speed_change_after_state_change(
 	return 0;
 }
 
+static int polaris10_notify_smc_display(struct pp_hwmgr *hwmgr)
+{
+	struct polaris10_hwmgr *data = (struct polaris10_hwmgr *)(hwmgr->backend);
+
+	smum_send_msg_to_smc_with_parameter(hwmgr->smumgr,
+		(PPSMC_Msg)PPSMC_MSG_SetVBITimeout, data->frame_time_x2);
+	return (smum_send_msg_to_smc(hwmgr->smumgr, (PPSMC_Msg)PPSMC_HasDisplay) == 0) ?  0 : -EINVAL;
+}
+
 static int polaris10_set_power_state_tasks(struct pp_hwmgr *hwmgr, const void *input)
 {
 	int tmp_result, result = 0;
@@ -4407,6 +4419,11 @@ static int polaris10_set_power_state_tasks(struct pp_hwmgr *hwmgr, const void *i
 			"Failed to program memory timing parameters!",
 			result = tmp_result);
 
+	tmp_result = polaris10_notify_smc_display(hwmgr);
+	PP_ASSERT_WITH_CODE((0 == tmp_result),
+			"Failed to notify smc display settings!",
+			result = tmp_result);
+
 	tmp_result = polaris10_unfreeze_sclk_mclk_dpm(hwmgr);
 	PP_ASSERT_WITH_CODE((0 == tmp_result),
 			"Failed to unfreeze SCLK MCLK DPM!",
@@ -4441,6 +4458,7 @@ static int polaris10_set_max_fan_pwm_output(struct pp_hwmgr *hwmgr, uint16_t us_
 			PPSMC_MSG_SetFanPwmMax, us_max_fan_pwm);
 }
 
+
 int polaris10_notify_smc_display_change(struct pp_hwmgr *hwmgr, bool has_display)
 {
 	PPSMC_Msg msg = has_display ? (PPSMC_Msg)PPSMC_HasDisplay : (PPSMC_Msg)PPSMC_NoDisplay;
@@ -4460,8 +4478,6 @@ int polaris10_notify_smc_display_config_after_ps_adjustment(struct pp_hwmgr *hwm
 
 	if (num_active_displays > 1)  /* to do && (pHwMgr->pPECI->displayConfiguration.bMultiMonitorInSync != TRUE)) */
 		polaris10_notify_smc_display_change(hwmgr, false);
-	else
-		polaris10_notify_smc_display_change(hwmgr, true);
 
 	return 0;
 }
@@ -4502,6 +4518,8 @@ int polaris10_program_display_gap(struct pp_hwmgr *hwmgr)
 	frame_time_in_us = 1000000 / refresh_rate;
 
 	pre_vbi_time_in_us = frame_time_in_us - 200 - mode_info.vblank_time_us;
+	data->frame_time_x2 = frame_time_in_us * 2 / 100;
+
 	display_gap2 = pre_vbi_time_in_us * (ref_clock / 100);
 
 	cgs_write_ind_register(hwmgr->device, CGS_IND_REG__SMC, ixCG_DISPLAY_GAP_CNTL2, display_gap2);
@@ -4509,8 +4527,6 @@ int polaris10_program_display_gap(struct pp_hwmgr *hwmgr)
 	cgs_write_ind_register(hwmgr->device, CGS_IND_REG__SMC, data->soft_regs_start + offsetof(SMU74_SoftRegisters, PreVBlankGap), 0x64);
 
 	cgs_write_ind_register(hwmgr->device, CGS_IND_REG__SMC, data->soft_regs_start + offsetof(SMU74_SoftRegisters, VBlankTimeout), (frame_time_in_us - pre_vbi_time_in_us));
-
-	polaris10_notify_smc_display_change(hwmgr, num_active_displays != 0);
 
 	return 0;
 }
@@ -4623,7 +4639,7 @@ int polaris10_upload_mc_firmware(struct pp_hwmgr *hwmgr)
 		return 0;
 	}
 
-	data->need_long_memory_training = true;
+	data->need_long_memory_training = false;
 
 /*
  *	PPMCME_FirmwareDescriptorEntry *pfd = NULL;
