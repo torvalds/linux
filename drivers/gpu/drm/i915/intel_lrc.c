@@ -2016,12 +2016,90 @@ lrc_setup_hws(struct intel_engine_cs *engine,
 	return 0;
 }
 
+static int
+logical_ring_init(struct intel_engine_cs *engine)
+{
+	struct i915_gem_context *dctx = engine->i915->kernel_context;
+	int ret;
+
+	ret = i915_cmd_parser_init_ring(engine);
+	if (ret)
+		goto error;
+
+	ret = execlists_context_deferred_alloc(dctx, engine);
+	if (ret)
+		goto error;
+
+	/* As this is the default context, always pin it */
+	ret = intel_lr_context_pin(dctx, engine);
+	if (ret) {
+		DRM_ERROR("Failed to pin context for %s: %d\n",
+			  engine->name, ret);
+		goto error;
+	}
+
+	/* And setup the hardware status page. */
+	ret = lrc_setup_hws(engine, dctx->engine[engine->id].state);
+	if (ret) {
+		DRM_ERROR("Failed to set up hws %s: %d\n", engine->name, ret);
+		goto error;
+	}
+
+	return 0;
+
+error:
+	intel_logical_ring_cleanup(engine);
+	return ret;
+}
+
+static int logical_render_ring_init(struct intel_engine_cs *engine)
+{
+	struct drm_i915_private *dev_priv = engine->i915;
+	int ret;
+
+	if (HAS_L3_DPF(dev_priv))
+		engine->irq_keep_mask |= GT_RENDER_L3_PARITY_ERROR_INTERRUPT;
+
+	/* Override some for render ring. */
+	if (INTEL_GEN(dev_priv) >= 9)
+		engine->init_hw = gen9_init_render_ring;
+	else
+		engine->init_hw = gen8_init_render_ring;
+	engine->init_context = gen8_init_rcs_context;
+	engine->cleanup = intel_fini_pipe_control;
+	engine->emit_flush = gen8_emit_flush_render;
+	engine->emit_request = gen8_emit_request_render;
+
+	ret = intel_init_pipe_control(engine);
+	if (ret)
+		return ret;
+
+	ret = intel_init_workaround_bb(engine);
+	if (ret) {
+		/*
+		 * We continue even if we fail to initialize WA batch
+		 * because we only expect rare glitches but nothing
+		 * critical to prevent us from using GPU
+		 */
+		DRM_ERROR("WA batch buffer initialization failed: %d\n",
+			  ret);
+	}
+
+	ret = logical_ring_init(engine);
+	if (ret) {
+		lrc_destroy_wa_ctx_obj(engine);
+	}
+
+	return ret;
+}
+
 static const struct logical_ring_info {
 	const char *name;
 	unsigned exec_id;
 	unsigned guc_id;
 	u32 mmio_base;
 	unsigned irq_shift;
+	int (*init)(struct intel_engine_cs *engine);
 } logical_rings[] = {
 	[RCS] = {
 		.name = "render ring",
@@ -2029,6 +2107,7 @@ static const struct logical_ring_info {
 		.guc_id = GUC_RENDER_ENGINE,
 		.mmio_base = RENDER_RING_BASE,
 		.irq_shift = GEN8_RCS_IRQ_SHIFT,
+		.init = logical_render_ring_init,
 	},
 	[BCS] = {
 		.name = "blitter ring",
@@ -2036,6 +2115,7 @@ static const struct logical_ring_info {
 		.guc_id = GUC_BLITTER_ENGINE,
 		.mmio_base = BLT_RING_BASE,
 		.irq_shift = GEN8_BCS_IRQ_SHIFT,
+		.init = logical_ring_init,
 	},
 	[VCS] = {
 		.name = "bsd ring",
@@ -2043,6 +2123,7 @@ static const struct logical_ring_info {
 		.guc_id = GUC_VIDEO_ENGINE,
 		.mmio_base = GEN6_BSD_RING_BASE,
 		.irq_shift = GEN8_VCS1_IRQ_SHIFT,
+		.init = logical_ring_init,
 	},
 	[VCS2] = {
 		.name = "bsd2 ring",
@@ -2050,6 +2131,7 @@ static const struct logical_ring_info {
 		.guc_id = GUC_VIDEO_ENGINE2,
 		.mmio_base = GEN8_BSD2_RING_BASE,
 		.irq_shift = GEN8_VCS2_IRQ_SHIFT,
+		.init = logical_ring_init,
 	},
 	[VECS] = {
 		.name = "video enhancement ring",
@@ -2057,14 +2139,14 @@ static const struct logical_ring_info {
 		.guc_id = GUC_VIDEOENHANCE_ENGINE,
 		.mmio_base = VEBOX_RING_BASE,
 		.irq_shift = GEN8_VECS_IRQ_SHIFT,
+		.init = logical_ring_init,
 	},
 };
 
 static struct intel_engine_cs *
-logical_ring_setup(struct drm_device *dev, enum intel_engine_id id)
+logical_ring_setup(struct drm_i915_private *dev_priv, enum intel_engine_id id)
 {
 	const struct logical_ring_info *info = &logical_rings[id];
-	struct drm_i915_private *dev_priv = to_i915(dev);
 	struct intel_engine_cs *engine = &dev_priv->engine[id];
 	enum forcewake_domains fw_domains;
 
@@ -2107,169 +2189,62 @@ logical_ring_setup(struct drm_device *dev, enum intel_engine_id id)
 	logical_ring_default_irqs(engine, info->irq_shift);
 
 	intel_engine_init_hangcheck(engine);
-	i915_gem_batch_pool_init(dev, &engine->batch_pool);
+	i915_gem_batch_pool_init(dev_priv->dev, &engine->batch_pool);
 
 	return engine;
-}
-
-static int
-logical_ring_init(struct intel_engine_cs *engine)
-{
-	struct i915_gem_context *dctx = engine->i915->kernel_context;
-	int ret;
-
-	ret = i915_cmd_parser_init_ring(engine);
-	if (ret)
-		goto error;
-
-	ret = execlists_context_deferred_alloc(dctx, engine);
-	if (ret)
-		goto error;
-
-	/* As this is the default context, always pin it */
-	ret = intel_lr_context_pin(dctx, engine);
-	if (ret) {
-		DRM_ERROR("Failed to pin context for %s: %d\n",
-			  engine->name, ret);
-		goto error;
-	}
-
-	/* And setup the hardware status page. */
-	ret = lrc_setup_hws(engine, dctx->engine[engine->id].state);
-	if (ret) {
-		DRM_ERROR("Failed to set up hws %s: %d\n", engine->name, ret);
-		goto error;
-	}
-
-	return 0;
-
-error:
-	intel_logical_ring_cleanup(engine);
-	return ret;
-}
-
-static int logical_render_ring_init(struct drm_device *dev)
-{
-	struct intel_engine_cs *engine = logical_ring_setup(dev, RCS);
-	int ret;
-
-	if (HAS_L3_DPF(dev))
-		engine->irq_keep_mask |= GT_RENDER_L3_PARITY_ERROR_INTERRUPT;
-
-	/* Override some for render ring. */
-	if (INTEL_INFO(dev)->gen >= 9)
-		engine->init_hw = gen9_init_render_ring;
-	else
-		engine->init_hw = gen8_init_render_ring;
-	engine->init_context = gen8_init_rcs_context;
-	engine->cleanup = intel_fini_pipe_control;
-	engine->emit_flush = gen8_emit_flush_render;
-	engine->emit_request = gen8_emit_request_render;
-
-	ret = intel_init_pipe_control(engine);
-	if (ret)
-		return ret;
-
-	ret = intel_init_workaround_bb(engine);
-	if (ret) {
-		/*
-		 * We continue even if we fail to initialize WA batch
-		 * because we only expect rare glitches but nothing
-		 * critical to prevent us from using GPU
-		 */
-		DRM_ERROR("WA batch buffer initialization failed: %d\n",
-			  ret);
-	}
-
-	ret = logical_ring_init(engine);
-	if (ret) {
-		lrc_destroy_wa_ctx_obj(engine);
-	}
-
-	return ret;
-}
-
-static int logical_bsd_ring_init(struct drm_device *dev)
-{
-	struct intel_engine_cs *engine = logical_ring_setup(dev, VCS);
-
-	return logical_ring_init(engine);
-}
-
-static int logical_bsd2_ring_init(struct drm_device *dev)
-{
-	struct intel_engine_cs *engine = logical_ring_setup(dev, VCS2);
-
-	return logical_ring_init(engine);
-}
-
-static int logical_blt_ring_init(struct drm_device *dev)
-{
-	struct intel_engine_cs *engine = logical_ring_setup(dev, BCS);
-
-	return logical_ring_init(engine);
-}
-
-static int logical_vebox_ring_init(struct drm_device *dev)
-{
-	struct intel_engine_cs *engine = logical_ring_setup(dev, VECS);
-
-	return logical_ring_init(engine);
 }
 
 /**
  * intel_logical_rings_init() - allocate, populate and init the Engine Command Streamers
  * @dev: DRM device.
  *
- * This function inits the engines for an Execlists submission style (the equivalent in the
- * legacy ringbuffer submission world would be i915_gem_init_engines). It does it only for
- * those engines that are present in the hardware.
+ * This function inits the engines for an Execlists submission style (the
+ * equivalent in the legacy ringbuffer submission world would be
+ * i915_gem_init_engines). It does it only for those engines that are present in
+ * the hardware.
  *
  * Return: non-zero if the initialization failed.
  */
 int intel_logical_rings_init(struct drm_device *dev)
 {
 	struct drm_i915_private *dev_priv = dev->dev_private;
+	unsigned int mask = 0;
+	unsigned int i;
 	int ret;
 
-	ret = logical_render_ring_init(dev);
-	if (ret)
-		return ret;
+	WARN_ON(INTEL_INFO(dev_priv)->ring_mask &
+		GENMASK(sizeof(mask) * BITS_PER_BYTE - 1, I915_NUM_ENGINES));
 
-	if (HAS_BSD(dev)) {
-		ret = logical_bsd_ring_init(dev);
+	for (i = 0; i < ARRAY_SIZE(logical_rings); i++) {
+		if (!HAS_ENGINE(dev_priv, i))
+			continue;
+
+		if (!logical_rings[i].init)
+			continue;
+
+		ret = logical_rings[i].init(logical_ring_setup(dev_priv, i));
 		if (ret)
-			goto cleanup_render_ring;
+			goto cleanup;
+
+		mask |= ENGINE_MASK(i);
 	}
 
-	if (HAS_BLT(dev)) {
-		ret = logical_blt_ring_init(dev);
-		if (ret)
-			goto cleanup_bsd_ring;
-	}
-
-	if (HAS_VEBOX(dev)) {
-		ret = logical_vebox_ring_init(dev);
-		if (ret)
-			goto cleanup_blt_ring;
-	}
-
-	if (HAS_BSD2(dev)) {
-		ret = logical_bsd2_ring_init(dev);
-		if (ret)
-			goto cleanup_vebox_ring;
+	/*
+	 * Catch failures to update logical_rings table when the new engines
+	 * are added to the driver by a warning and disabling the forgotten
+	 * engines.
+	 */
+	if (WARN_ON(mask != INTEL_INFO(dev_priv)->ring_mask)) {
+		struct intel_device_info *info =
+			(struct intel_device_info *)&dev_priv->info;
+		info->ring_mask = mask;
 	}
 
 	return 0;
 
-cleanup_vebox_ring:
-	intel_logical_ring_cleanup(&dev_priv->engine[VECS]);
-cleanup_blt_ring:
-	intel_logical_ring_cleanup(&dev_priv->engine[BCS]);
-cleanup_bsd_ring:
-	intel_logical_ring_cleanup(&dev_priv->engine[VCS]);
-cleanup_render_ring:
-	intel_logical_ring_cleanup(&dev_priv->engine[RCS]);
+cleanup:
+	for (i = 0; i < I915_NUM_ENGINES; i++)
+		intel_logical_ring_cleanup(&dev_priv->engine[i]);
 
 	return ret;
 }

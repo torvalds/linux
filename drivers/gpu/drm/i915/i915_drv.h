@@ -2759,17 +2759,22 @@ struct drm_i915_cmd_table {
 #define IS_GEN8(dev)	(INTEL_INFO(dev)->gen_mask & BIT(7))
 #define IS_GEN9(dev)	(INTEL_INFO(dev)->gen_mask & BIT(8))
 
-#define RENDER_RING		(1<<RCS)
-#define BSD_RING		(1<<VCS)
-#define BLT_RING		(1<<BCS)
-#define VEBOX_RING		(1<<VECS)
-#define BSD2_RING		(1<<VCS2)
-#define ALL_ENGINES		(~0)
+#define ENGINE_MASK(id)	BIT(id)
+#define RENDER_RING	ENGINE_MASK(RCS)
+#define BSD_RING	ENGINE_MASK(VCS)
+#define BLT_RING	ENGINE_MASK(BCS)
+#define VEBOX_RING	ENGINE_MASK(VECS)
+#define BSD2_RING	ENGINE_MASK(VCS2)
+#define ALL_ENGINES	(~0)
 
-#define HAS_BSD(dev)		(INTEL_INFO(dev)->ring_mask & BSD_RING)
-#define HAS_BSD2(dev)		(INTEL_INFO(dev)->ring_mask & BSD2_RING)
-#define HAS_BLT(dev)		(INTEL_INFO(dev)->ring_mask & BLT_RING)
-#define HAS_VEBOX(dev)		(INTEL_INFO(dev)->ring_mask & VEBOX_RING)
+#define HAS_ENGINE(dev_priv, id) \
+	(INTEL_INFO(dev_priv)->ring_mask & ENGINE_MASK(id))
+
+#define HAS_BSD(dev_priv)	HAS_ENGINE(dev_priv, VCS)
+#define HAS_BSD2(dev_priv)	HAS_ENGINE(dev_priv, VCS2)
+#define HAS_BLT(dev_priv)	HAS_ENGINE(dev_priv, BCS)
+#define HAS_VEBOX(dev_priv)	HAS_ENGINE(dev_priv, VECS)
+
 #define HAS_LLC(dev)		(INTEL_INFO(dev)->has_llc)
 #define HAS_SNOOP(dev)		(INTEL_INFO(dev)->has_snoop)
 #define HAS_EDRAM(dev)		(__I915__(dev)->edram_cap & EDRAM_ENABLED)
