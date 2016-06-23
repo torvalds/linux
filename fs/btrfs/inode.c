@@ -1822,6 +1822,10 @@ static void btrfs_clear_bit_hook(struct inode *inode,
 /*
  * extent_io.c merge_bio_hook, this must check the chunk tree to make sure
  * we don't create bios that span stripes or chunks
+ *
+ * return 1 if page cannot be merged to bio
+ * return 0 if page can be merged to bio
+ * return error otherwise
  */
 int btrfs_merge_bio_hook(int rw, struct page *page, unsigned long offset,
 			 size_t size, struct bio *bio,
@@ -1840,8 +1844,8 @@ int btrfs_merge_bio_hook(int rw, struct page *page, unsigned long offset,
 	map_length = length;
 	ret = btrfs_map_block(root->fs_info, rw, logical,
 			      &map_length, NULL, 0);
-	/* Will always return 0 with map_multi == NULL */
-	BUG_ON(ret < 0);
+	if (ret < 0)
+		return ret;
 	if (map_length < length + size)
 		return 1;
 	return 0;

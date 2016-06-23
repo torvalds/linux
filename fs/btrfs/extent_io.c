@@ -2756,7 +2756,6 @@ static int merge_bio(int rw, struct extent_io_tree *tree, struct page *page,
 	if (tree->ops && tree->ops->merge_bio_hook)
 		ret = tree->ops->merge_bio_hook(rw, page, offset, size, bio,
 						bio_flags);
-	BUG_ON(ret < 0);
 	return ret;
 
 }
