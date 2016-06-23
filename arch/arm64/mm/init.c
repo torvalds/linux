@@ -387,8 +387,8 @@ void __init mem_init(void)
 		  MLM(MODULES_VADDR, MODULES_END),
 		  MLG(VMALLOC_START, VMALLOC_END),
 		  MLK_ROUNDUP(__init_begin, __init_end),
-		  MLK_ROUNDUP(_text, __start_rodata),
-		  MLK_ROUNDUP(__start_rodata, _etext),
+		  MLK_ROUNDUP(_text, _etext),
+		  MLK_ROUNDUP(__start_rodata, __init_begin),
 		  MLK_ROUNDUP(_sdata, _edata),
 #ifdef CONFIG_SPARSEMEM_VMEMMAP
 		  MLG(VMEMMAP_START,
