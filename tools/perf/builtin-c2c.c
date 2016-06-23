@@ -1015,6 +1015,20 @@ MEAN_ENTRY(mean_rmt_entry,  rmt_hitm);
 MEAN_ENTRY(mean_lcl_entry,  lcl_hitm);
 MEAN_ENTRY(mean_load_entry, load);
 
+static int
+cpucnt_entry(struct perf_hpp_fmt *fmt __maybe_unused, struct perf_hpp *hpp,
+	     struct hist_entry *he)
+{
+	struct c2c_hist_entry *c2c_he;
+	int width = c2c_width(fmt, hpp, he->hists);
+	char buf[10];
+
+	c2c_he = container_of(he, struct c2c_hist_entry, he);
+
+	scnprintf(buf, 10, "%d", bitmap_weight(c2c_he->cpuset, c2c.cpus_cnt));
+	return scnprintf(hpp->buf, hpp->size, "%*s", width, buf);
+}
+
 #define HEADER_LOW(__h)			\
 	{				\
 		.line[1] = {		\
@@ -1341,6 +1355,14 @@ static struct c2c_dimension dim_mean_load = {
 	.width		= 8,
 };
 
+static struct c2c_dimension dim_cpucnt = {
+	.header		= HEADER_BOTH("cpu", "cnt"),
+	.name		= "cpucnt",
+	.cmp		= empty_cmp,
+	.entry		= cpucnt_entry,
+	.width		= 8,
+};
+
 static struct c2c_dimension *dimensions[] = {
 	&dim_dcacheline,
 	&dim_offset,
@@ -1378,6 +1400,7 @@ static struct c2c_dimension *dimensions[] = {
 	&dim_mean_rmt,
 	&dim_mean_lcl,
 	&dim_mean_load,
+	&dim_cpucnt,
 	NULL,
 };
 
