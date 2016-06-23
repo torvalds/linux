@@ -121,7 +121,11 @@ static struct insn insn_table[] = {
 	{ insn_mthc0,  M(cop0_op, mthc0_op, 0, 0, 0, 0),  RT | RD | SET},
 	{ insn_mthi,  M(spec_op, 0, 0, 0, 0, mthi_op), RS },
 	{ insn_mtlo,  M(spec_op, 0, 0, 0, 0, mtlo_op), RS },
+#ifndef CONFIG_CPU_MIPSR6
 	{ insn_mul, M(spec2_op, 0, 0, 0, 0, mul_op), RS | RT | RD},
+#else
+	{ insn_mul, M(spec_op, 0, 0, 0, mult_mul_op, mult_op), RS | RT | RD},
+#endif
 	{ insn_ori,  M(ori_op, 0, 0, 0, 0, 0),	RS | RT | UIMM },
 	{ insn_or,  M(spec_op, 0, 0, 0, 0, or_op),  RS | RT | RD },
 #ifndef CONFIG_CPU_MIPSR6

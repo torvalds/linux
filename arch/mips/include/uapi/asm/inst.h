@@ -93,6 +93,50 @@ enum spec3_op {
 };
 
 /*
+ * Bits 10-6 minor opcode for r6 spec mult/div encodings
+ */
+enum mult_op {
+	mult_mult_op = 0x0,
+	mult_mul_op = 0x2,
+	mult_muh_op = 0x3,
+};
+enum multu_op {
+	multu_multu_op = 0x0,
+	multu_mulu_op = 0x2,
+	multu_muhu_op = 0x3,
+};
+enum div_op {
+	div_div_op = 0x0,
+	div_div6_op = 0x2,
+	div_mod_op = 0x3,
+};
+enum divu_op {
+	divu_divu_op = 0x0,
+	divu_divu6_op = 0x2,
+	divu_modu_op = 0x3,
+};
+enum dmult_op {
+	dmult_dmult_op = 0x0,
+	dmult_dmul_op = 0x2,
+	dmult_dmuh_op = 0x3,
+};
+enum dmultu_op {
+	dmultu_dmultu_op = 0x0,
+	dmultu_dmulu_op = 0x2,
+	dmultu_dmuhu_op = 0x3,
+};
+enum ddiv_op {
+	ddiv_ddiv_op = 0x0,
+	ddiv_ddiv6_op = 0x2,
+	ddiv_dmod_op = 0x3,
+};
+enum ddivu_op {
+	ddivu_ddivu_op = 0x0,
+	ddivu_ddivu6_op = 0x2,
+	ddivu_dmodu_op = 0x3,
+};
+
+/*
  * rt field of bcond opcodes.
  */
 enum rt_op {
