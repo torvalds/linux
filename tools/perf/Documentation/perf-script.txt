@@ -177,6 +177,10 @@ OPTIONS
 	"tr end" for "bE". However the "x" flag will be display separately in those
 	cases e.g. "jcc     (x)" for a condition branch within a transaction.
 
+	The callindent field is synthesized and may have a value when
+	Instruction Trace decoding. For calls and returns, it will display the
+	name of the symbol indented with spaces to reflect the stack depth.
+
 	Finally, a user may not set fields to none for all event types.
 	i.e., -F "" is not allowed.
 

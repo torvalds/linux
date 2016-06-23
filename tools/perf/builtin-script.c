@@ -21,6 +21,7 @@
 #include "util/cpumap.h"
 #include "util/thread_map.h"
 #include "util/stat.h"
+#include "util/thread-stack.h"
 #include <linux/bitmap.h>
 #include <linux/stringify.h>
 #include "asm/bug.h"
@@ -63,6 +64,7 @@ enum perf_output_field {
 	PERF_OUTPUT_DATA_SRC	    = 1U << 17,
 	PERF_OUTPUT_WEIGHT	    = 1U << 18,
 	PERF_OUTPUT_BPF_OUTPUT	    = 1U << 19,
+	PERF_OUTPUT_CALLINDENT	    = 1U << 20,
 };
 
 struct output_option {
@@ -89,6 +91,7 @@ struct output_option {
 	{.str = "data_src", .field = PERF_OUTPUT_DATA_SRC},
 	{.str = "weight",   .field = PERF_OUTPUT_WEIGHT},
 	{.str = "bpf-output",   .field = PERF_OUTPUT_BPF_OUTPUT},
+	{.str = "callindent", .field = PERF_OUTPUT_CALLINDENT},
 };
 
 /* default set to maintain compatibility with current format */
@@ -562,6 +565,62 @@ static void print_sample_addr(struct perf_sample *sample,
 	}
 }
 
+static void print_sample_callindent(struct perf_sample *sample,
+				    struct perf_evsel *evsel,
+				    struct thread *thread,
+				    struct addr_location *al)
+{
+	struct perf_event_attr *attr = &evsel->attr;
+	size_t depth = thread_stack__depth(thread);
+	struct addr_location addr_al;
+	const char *name = NULL;
+	static int spacing;
+	int len = 0;
+	u64 ip = 0;
+
+	/*
+	 * The 'return' has already been popped off the stack so the depth has
+	 * to be adjusted to match the 'call'.
+	 */
+	if (thread->ts && sample->flags & PERF_IP_FLAG_RETURN)
+		depth += 1;
+
+	if (sample->flags & (PERF_IP_FLAG_CALL | PERF_IP_FLAG_TRACE_BEGIN)) {
+		if (sample_addr_correlates_sym(attr)) {
+			thread__resolve(thread, &addr_al, sample);
+			if (addr_al.sym)
+				name = addr_al.sym->name;
+			else
+				ip = sample->addr;
+		} else {
+			ip = sample->addr;
+		}
+	} else if (sample->flags & (PERF_IP_FLAG_RETURN | PERF_IP_FLAG_TRACE_END)) {
+		if (al->sym)
+			name = al->sym->name;
+		else
+			ip = sample->ip;
+	}
+
+	if (name)
+		len = printf("%*s%s", (int)depth * 4, "", name);
+	else if (ip)
+		len = printf("%*s%16" PRIx64, (int)depth * 4, "", ip);
+
+	if (len < 0)
+		return;
+
+	/*
+	 * Try to keep the output length from changing frequently so that the
+	 * output lines up more nicely.
+	 */
+	if (len > spacing || (len && len < spacing - 52))
+		spacing = round_up(len + 4, 32);
+
+	if (len < spacing)
+		printf("%*s", spacing - len, "");
+}
+
 static void print_sample_bts(struct perf_sample *sample,
 			     struct perf_evsel *evsel,
 			     struct thread *thread,
@@ -569,6 +628,9 @@ static void print_sample_bts(struct perf_sample *sample,
 {
 	struct perf_event_attr *attr = &evsel->attr;
 	bool print_srcline_last = false;
+
+	if (PRINT_FIELD(CALLINDENT))
+		print_sample_callindent(sample, evsel, thread, al);
 
 	/* print branch_from information */
 	if (PRINT_FIELD(IP)) {
@@ -2053,7 +2115,8 @@ int cmd_script(int argc, const char **argv, const char *prefix __maybe_unused)
 		     "comma separated output fields prepend with 'type:'. "
 		     "Valid types: hw,sw,trace,raw. "
 		     "Fields: comm,tid,pid,time,cpu,event,trace,ip,sym,dso,"
-		     "addr,symoff,period,iregs,brstack,brstacksym,flags", parse_output_fields),
+		     "addr,symoff,period,iregs,brstack,brstacksym,flags,"
+		     "callindent", parse_output_fields),
 	OPT_BOOLEAN('a', "all-cpus", &system_wide,
 		    "system-wide collection from all CPUs"),
 	OPT_STRING('S', "symbols", &symbol_conf.sym_list_str, "symbol[,symbol...]",
@@ -2291,6 +2354,9 @@ int cmd_script(int argc, const char **argv, const char *prefix __maybe_unused)
 
 	script.session = session;
 	script__setup_sample_type(&script);
+
+	if (output[PERF_TYPE_HARDWARE].fields & PERF_OUTPUT_CALLINDENT)
+		itrace_synth_opts.thread_stack = true;
 
 	session->itrace_synth_opts = &itrace_synth_opts;
 
