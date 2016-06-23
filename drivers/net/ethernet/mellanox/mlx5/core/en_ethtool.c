@@ -702,6 +702,8 @@ static int mlx5e_get_link_ksettings(struct net_device *netdev,
 	u32 eth_proto_admin;
 	u32 eth_proto_lp;
 	u32 eth_proto_oper;
+	u8 an_disable_admin;
+	u8 an_status;
 	int err;
 
 	err = mlx5_query_port_ptys(mdev, out, sizeof(out), MLX5_PTYS_EN, 1);
@@ -712,10 +714,12 @@ static int mlx5e_get_link_ksettings(struct net_device *netdev,
 		goto err_query_ptys;
 	}
 
-	eth_proto_cap   = MLX5_GET(ptys_reg, out, eth_proto_capability);
-	eth_proto_admin = MLX5_GET(ptys_reg, out, eth_proto_admin);
-	eth_proto_oper  = MLX5_GET(ptys_reg, out, eth_proto_oper);
-	eth_proto_lp    = MLX5_GET(ptys_reg, out, eth_proto_lp_advertise);
+	eth_proto_cap    = MLX5_GET(ptys_reg, out, eth_proto_capability);
+	eth_proto_admin  = MLX5_GET(ptys_reg, out, eth_proto_admin);
+	eth_proto_oper   = MLX5_GET(ptys_reg, out, eth_proto_oper);
+	eth_proto_lp     = MLX5_GET(ptys_reg, out, eth_proto_lp_advertise);
+	an_disable_admin = MLX5_GET(ptys_reg, out, an_disable_admin);
+	an_status        = MLX5_GET(ptys_reg, out, an_status);
 
 	ethtool_link_ksettings_zero_link_mode(link_ksettings, supported);
 	ethtool_link_ksettings_zero_link_mode(link_ksettings, advertising);
@@ -728,6 +732,18 @@ static int mlx5e_get_link_ksettings(struct net_device *netdev,
 
 	link_ksettings->base.port = get_connector_port(eth_proto_oper);
 	get_lp_advertising(eth_proto_lp, link_ksettings);
+
+	if (an_status == MLX5_AN_COMPLETE)
+		ethtool_link_ksettings_add_link_mode(link_ksettings,
+						     lp_advertising, Autoneg);
+
+	link_ksettings->base.autoneg = an_disable_admin ? AUTONEG_DISABLE :
+							  AUTONEG_ENABLE;
+	ethtool_link_ksettings_add_link_mode(link_ksettings, supported,
+					     Autoneg);
+	if (!an_disable_admin)
+		ethtool_link_ksettings_add_link_mode(link_ksettings,
+						     advertising, Autoneg);
 
 err_query_ptys:
 	return err;
@@ -764,9 +780,14 @@ static int mlx5e_set_link_ksettings(struct net_device *netdev,
 {
 	struct mlx5e_priv *priv    = netdev_priv(netdev);
 	struct mlx5_core_dev *mdev = priv->mdev;
-	u32 link_modes;
-	u32 speed;
 	u32 eth_proto_cap, eth_proto_admin;
+	bool an_changes = false;
+	u8 an_disable_admin;
+	u8 an_disable_cap;
+	bool an_disable;
+	u32 link_modes;
+	u8 an_status;
+	u32 speed;
 	int err;
 
 	speed = link_ksettings->base.speed;
@@ -797,10 +818,17 @@ static int mlx5e_set_link_ksettings(struct net_device *netdev,
 		goto out;
 	}
 
-	if (link_modes == eth_proto_admin)
+	mlx5_query_port_autoneg(mdev, MLX5_PTYS_EN, &an_status,
+				&an_disable_cap, &an_disable_admin);
+
+	an_disable = link_ksettings->base.autoneg == AUTONEG_DISABLE;
+	an_changes = ((!an_disable && an_disable_admin) ||
+		      (an_disable && !an_disable_admin));
+
+	if (!an_changes && link_modes == eth_proto_admin)
 		goto out;
 
-	mlx5_set_port_proto(mdev, link_modes, MLX5_PTYS_EN);
+	mlx5_set_port_ptys(mdev, an_disable, link_modes, MLX5_PTYS_EN);
 	mlx5_toggle_port_link(mdev);
 
 out:
