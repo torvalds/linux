@@ -527,6 +527,9 @@ static int ath9k_init_soc_platform(struct ath_softc *sc)
 			return ret;
 	}
 
+	if (pdata->led_active_high)
+		ah->config.led_active_high = true;
+
 	if (pdata->tx_gain_buffalo)
 		ah->config.tx_gain_buffalo = true;
 
