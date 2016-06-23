@@ -391,4 +391,12 @@ exit:
 }
 EXPORT_SYMBOL_GPL(pinconf_generic_dt_node_to_map);
 
+void pinconf_generic_dt_free_map(struct pinctrl_dev *pctldev,
+				 struct pinctrl_map *map,
+				 unsigned num_maps)
+{
+	pinctrl_utils_free_map(pctldev, map, num_maps);
+}
+EXPORT_SYMBOL_GPL(pinconf_generic_dt_free_map);
+
 #endif
