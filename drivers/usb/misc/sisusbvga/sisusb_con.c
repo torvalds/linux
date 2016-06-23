@@ -570,7 +570,7 @@ sisusbcon_set_palette(struct vc_data *c, const unsigned char *table)
 
 	/* Return value not used by vt */
 
-	if (!CON_IS_VISIBLE(c))
+	if (!con_is_visible(c))
 		return;
 
 	sisusb = sisusb_get_sisusb_lock_and_check(c->vc_num);
@@ -1226,7 +1226,7 @@ sisusbcon_do_font_op(struct sisusb_usb_data *sisusb, int set, int slot,
 			struct vc_data *vc = vc_cons[i].d;
 
 			if (vc && vc->vc_sw == &sisusb_con) {
-				if (CON_IS_VISIBLE(vc)) {
+				if (con_is_visible(vc)) {
 					vc->vc_sw->con_cursor(vc, CM_DRAW);
 				}
 				vc->vc_font.height = fh;

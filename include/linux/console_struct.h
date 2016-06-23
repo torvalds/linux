@@ -168,6 +168,9 @@ extern void vc_SAK(struct work_struct *work);
 
 #define CUR_DEFAULT CUR_UNDERLINE
 
-#define CON_IS_VISIBLE(conp) (*conp->vc_display_fg == conp)
+static inline bool con_is_visible(const struct vc_data *vc)
+{
+	return *vc->vc_display_fg == vc;
+}
 
 #endif /* _LINUX_CONSOLE_STRUCT_H */
