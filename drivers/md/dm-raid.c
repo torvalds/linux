@@ -616,13 +616,10 @@ static struct raid_type *get_raid_type_by_ll(const int level, const int layout)
 static void rs_set_capacity(struct raid_set *rs)
 {
 	struct mddev *mddev = &rs->md;
+	struct gendisk *gendisk = dm_disk(dm_table_get_md(rs->ti->table));
 
-	if (rs->ti->len != mddev->array_sectors) {
-		struct gendisk *gendisk = dm_disk(dm_table_get_md(rs->ti->table));
-
-		set_capacity(gendisk, mddev->array_sectors);
-		revalidate_disk(gendisk);
-	}
+	set_capacity(gendisk, mddev->array_sectors);
+	revalidate_disk(gendisk);
 }
 
 /*
