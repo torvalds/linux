@@ -224,8 +224,8 @@ static struct notifier_block bcm2836_arm_irqchip_cpu_notifier = {
 };
 
 #ifdef CONFIG_ARM
-int __init bcm2836_smp_boot_secondary(unsigned int cpu,
-				      struct task_struct *idle)
+static int __init bcm2836_smp_boot_secondary(unsigned int cpu,
+					     struct task_struct *idle)
 {
 	unsigned long secondary_startup_phys =
 		(unsigned long)virt_to_phys((void *)secondary_startup);
