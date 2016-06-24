@@ -90,11 +90,9 @@ static const struct mdio_platform_data default_pdata = {
 struct davinci_mdio_data {
 	struct mdio_platform_data pdata;
 	struct davinci_mdio_regs __iomem *regs;
-	spinlock_t	lock;
 	struct clk	*clk;
 	struct device	*dev;
 	struct mii_bus	*bus;
-	bool		suspended;
 	unsigned long	access_time; /* jiffies */
 	/* Indicates that driver shouldn't modify phy_mask in case
 	 * if MDIO bus is registered from DT.
@@ -225,13 +223,6 @@ static int davinci_mdio_read(struct mii_bus *bus, int phy_id, int phy_reg)
 	if (phy_reg & ~PHY_REG_MASK || phy_id & ~PHY_ID_MASK)
 		return -EINVAL;
 
-	spin_lock(&data->lock);
-
-	if (data->suspended) {
-		spin_unlock(&data->lock);
-		return -ENODEV;
-	}
-
 	reg = (USERACCESS_GO | USERACCESS_READ | (phy_reg << 21) |
 	       (phy_id << 16));
 
@@ -255,8 +246,6 @@ static int davinci_mdio_read(struct mii_bus *bus, int phy_id, int phy_reg)
 		break;
 	}
 
-	spin_unlock(&data->lock);
-
 	return ret;
 }
 
@@ -269,13 +258,6 @@ static int davinci_mdio_write(struct mii_bus *bus, int phy_id,
 
 	if (phy_reg & ~PHY_REG_MASK || phy_id & ~PHY_ID_MASK)
 		return -EINVAL;
-
-	spin_lock(&data->lock);
-
-	if (data->suspended) {
-		spin_unlock(&data->lock);
-		return -ENODEV;
-	}
 
 	reg = (USERACCESS_GO | USERACCESS_WRITE | (phy_reg << 21) |
 		   (phy_id << 16) | (phy_data & USERACCESS_DATA));
@@ -294,8 +276,6 @@ static int davinci_mdio_write(struct mii_bus *bus, int phy_id,
 			continue;
 		break;
 	}
-
-	spin_unlock(&data->lock);
 
 	return 0;
 }
@@ -364,7 +344,6 @@ static int davinci_mdio_probe(struct platform_device *pdev)
 
 	dev_set_drvdata(dev, data);
 	data->dev = dev;
-	spin_lock_init(&data->lock);
 
 	res = platform_get_resource(pdev, IORESOURCE_MEM, 0);
 	data->regs = devm_ioremap_resource(dev, res);
@@ -426,16 +405,11 @@ static int davinci_mdio_suspend(struct device *dev)
 	struct davinci_mdio_data *data = dev_get_drvdata(dev);
 	u32 ctrl;
 
-	spin_lock(&data->lock);
-
 	/* shutdown the scan state machine */
 	ctrl = __raw_readl(&data->regs->control);
 	ctrl &= ~CONTROL_ENABLE;
 	__raw_writel(ctrl, &data->regs->control);
 	wait_for_idle(data);
-
-	data->suspended = true;
-	spin_unlock(&data->lock);
 
 	/* Select sleep pin state */
 	pinctrl_pm_select_sleep_state(dev);
@@ -450,12 +424,8 @@ static int davinci_mdio_resume(struct device *dev)
 	/* Select default pin state */
 	pinctrl_pm_select_default_state(dev);
 
-	spin_lock(&data->lock);
 	/* restart the scan state machine */
 	__davinci_mdio_reset(data);
-
-	data->suspended = false;
-	spin_unlock(&data->lock);
 
 	return 0;
 }
