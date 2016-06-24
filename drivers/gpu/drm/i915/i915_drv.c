@@ -1042,7 +1042,8 @@ i915_pci_remove(struct pci_dev *pdev)
 {
 	struct drm_device *dev = pci_get_drvdata(pdev);
 
-	drm_put_dev(dev);
+	i915_driver_unload(dev);
+	drm_dev_unref(dev);
 }
 
 static int i915_pm_suspend(struct device *dev)
@@ -1748,7 +1749,6 @@ static struct drm_driver driver = {
 	.driver_features =
 	    DRIVER_HAVE_IRQ | DRIVER_IRQ_SHARED | DRIVER_GEM | DRIVER_PRIME |
 	    DRIVER_RENDER | DRIVER_MODESET,
-	.unload = i915_driver_unload,
 	.open = i915_driver_open,
 	.lastclose = i915_driver_lastclose,
 	.preclose = i915_driver_preclose,
