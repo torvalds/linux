@@ -906,13 +906,8 @@ static irqreturn_t nvt_cir_isr(int irq, void *data)
 	if (status & CIR_IRSTS_RFO)
 		nvt_handle_rx_fifo_overrun(nvt);
 
-	if (status & CIR_IRSTS_RTR) {
+	else if (status & (CIR_IRSTS_RTR | CIR_IRSTS_PE)) {
 		/* We only do rx if not tx'ing */
-		if (nvt_cir_tx_inactive(nvt))
-			nvt_get_rx_ir_data(nvt);
-	}
-
-	if (status & CIR_IRSTS_PE) {
 		if (nvt_cir_tx_inactive(nvt))
 			nvt_get_rx_ir_data(nvt);
 	}
