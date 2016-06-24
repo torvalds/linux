@@ -131,7 +131,7 @@ static int pmic_thermal_aux(struct intel_pmic_opregion *opregion, int reg,
 }
 
 static int pmic_thermal_pen(struct intel_pmic_opregion *opregion, int reg,
-			    u32 function, u64 *value)
+			    int bit, u32 function, u64 *value)
 {
 	struct intel_pmic_opregion_data *d = opregion->data;
 	struct regmap *regmap = opregion->regmap;
@@ -140,12 +140,12 @@ static int pmic_thermal_pen(struct intel_pmic_opregion *opregion, int reg,
 		return -ENXIO;
 
 	if (function == ACPI_READ)
-		return d->get_policy(regmap, reg, value);
+		return d->get_policy(regmap, reg, bit, value);
 
 	if (*value != 0 && *value != 1)
 		return -EINVAL;
 
-	return d->update_policy(regmap, reg, *value);
+	return d->update_policy(regmap, reg, bit, *value);
 }
 
 static bool pmic_thermal_is_temp(int address)
@@ -170,13 +170,13 @@ static acpi_status intel_pmic_thermal_handler(u32 function,
 {
 	struct intel_pmic_opregion *opregion = region_context;
 	struct intel_pmic_opregion_data *d = opregion->data;
-	int reg, result;
+	int reg, bit, result;
 
 	if (bits != 32 || !value64)
 		return AE_BAD_PARAMETER;
 
 	result = pmic_get_reg_bit(address, d->thermal_table,
-				  d->thermal_table_count, &reg, NULL);
+				  d->thermal_table_count, &reg, &bit);
 	if (result == -ENOENT)
 		return AE_BAD_PARAMETER;
 
@@ -187,7 +187,8 @@ static acpi_status intel_pmic_thermal_handler(u32 function,
 	else if (pmic_thermal_is_aux(address))
 		result = pmic_thermal_aux(opregion, reg, function, value64);
 	else if (pmic_thermal_is_pen(address))
-		result = pmic_thermal_pen(opregion, reg, function, value64);
+		result = pmic_thermal_pen(opregion, reg, bit,
+						function, value64);
 	else
 		result = -EINVAL;
 
