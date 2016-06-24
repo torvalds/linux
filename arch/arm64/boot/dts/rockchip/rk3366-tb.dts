@@ -222,6 +222,15 @@
 		#clock-cells = <0>;
 	};
 
+	vbus_host: vbus-host-regulator {
+		compatible = "regulator-fixed";
+		enable-active-high;
+		gpio = <&gpio0 16 GPIO_ACTIVE_HIGH>;
+		pinctrl-names = "default";
+		pinctrl-0 = <&host_vbus_drv>;
+		regulator-name = "vbus_host";
+	};
+
 	vcc_phy: vcc-phy-regulator {
 		compatible = "regulator-fixed";
 		enable-active-high;
@@ -807,8 +816,8 @@
 	status = "okay";
 };
 
-&u2phy {
-	vbus_host-gpio = <&gpio0 16 GPIO_ACTIVE_HIGH>;
+&u2phy_host {
+	phy-supply = <&vbus_host>;
 };
 
 &dwc_control_usb {
