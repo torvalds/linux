@@ -167,6 +167,10 @@ static const struct resource imx31_audmux_res[] __initconst = {
 	DEFINE_RES_MEM(MX31_AUDMUX_BASE_ADDR, SZ_16K),
 };
 
+static const struct resource imx31_rnga_res[] __initconst = {
+	DEFINE_RES_MEM(MX31_RNGA_BASE_ADDR, SZ_16K),
+};
+
 void __init imx31_soc_init(void)
 {
 	int to_version = mx31_revision() >> 4;
@@ -195,6 +199,8 @@ void __init imx31_soc_init(void)
 
 	platform_device_register_simple("imx31-audmux", 0, imx31_audmux_res,
 					ARRAY_SIZE(imx31_audmux_res));
+	platform_device_register_simple("mxc_rnga", -1, imx31_rnga_res,
+					ARRAY_SIZE(imx31_rnga_res));
 }
 #endif /* ifdef CONFIG_SOC_IMX31 */
 
