@@ -341,6 +341,7 @@ static void intel_dvo_destroy(struct drm_connector *connector)
 static const struct drm_connector_funcs intel_dvo_connector_funcs = {
 	.dpms = drm_atomic_helper_connector_dpms,
 	.detect = intel_dvo_detect,
+	.early_unregister = intel_connector_unregister,
 	.destroy = intel_dvo_destroy,
 	.fill_modes = drm_helper_probe_single_connector_modes,
 	.atomic_get_property = intel_connector_atomic_get_property,
@@ -447,7 +448,6 @@ void intel_dvo_init(struct drm_device *dev)
 	intel_encoder->compute_config = intel_dvo_compute_config;
 	intel_encoder->pre_enable = intel_dvo_pre_enable;
 	intel_connector->get_hw_state = intel_dvo_connector_get_hw_state;
-	intel_connector->unregister = intel_connector_unregister;
 
 	/* Now, try to find a controller */
 	for (i = 0; i < ARRAY_SIZE(intel_dvo_devices); i++) {

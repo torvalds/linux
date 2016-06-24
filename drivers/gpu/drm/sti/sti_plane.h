@@ -11,8 +11,6 @@
 #include <drm/drm_atomic_helper.h>
 #include <drm/drm_plane_helper.h>
 
-extern struct drm_plane_funcs sti_plane_helpers_funcs;
-
 #define to_sti_plane(x) container_of(x, struct sti_plane, drm_plane)
 
 #define STI_PLANE_TYPE_SHIFT 8
@@ -83,6 +81,11 @@ const char *sti_plane_to_str(struct sti_plane *plane);
 void sti_plane_update_fps(struct sti_plane *plane,
 			  bool new_frame,
 			  bool new_field);
+
+int sti_plane_set_property(struct drm_plane *drm_plane,
+			   struct drm_property *property,
+			   uint64_t val);
+
 void sti_plane_init_property(struct sti_plane *plane,
 			     enum drm_plane_type type);
 #endif

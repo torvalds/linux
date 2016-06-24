@@ -626,6 +626,7 @@ static int vop_plane_atomic_check(struct drm_plane *plane,
 
 	ret = drm_plane_helper_check_update(plane, crtc, state->fb,
 					    src, dest, &clip,
+					    state->rotation,
 					    min_scale,
 					    max_scale,
 					    true, true, &visible);

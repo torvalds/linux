@@ -55,6 +55,26 @@ struct sti_compositor_data stih416_compositor_data = {
 	},
 };
 
+int sti_compositor_debufs_init(struct sti_compositor *compo,
+			       struct drm_minor *minor)
+{
+	int ret = 0, i;
+
+	for (i = 0; compo->vid[i]; i++) {
+		ret = vid_debugfs_init(compo->vid[i], minor);
+		if (ret)
+			return ret;
+	}
+
+	for (i = 0; compo->mixer[i]; i++) {
+		ret = sti_mixer_debugfs_init(compo->mixer[i], minor);
+		if (ret)
+			return ret;
+	}
+
+	return 0;
+}
+
 static int sti_compositor_bind(struct device *dev,
 			       struct device *master,
 			       void *data)

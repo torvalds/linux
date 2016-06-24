@@ -866,6 +866,33 @@ static const struct drm_plane_helper_funcs sti_gdp_helpers_funcs = {
 	.atomic_disable = sti_gdp_atomic_disable,
 };
 
+static void sti_gdp_destroy(struct drm_plane *drm_plane)
+{
+	DRM_DEBUG_DRIVER("\n");
+
+	drm_plane_helper_disable(drm_plane);
+	drm_plane_cleanup(drm_plane);
+}
+
+static int sti_gdp_late_register(struct drm_plane *drm_plane)
+{
+	struct sti_plane *plane = to_sti_plane(drm_plane);
+	struct sti_gdp *gdp = to_sti_gdp(plane);
+
+	return gdp_debugfs_init(gdp, drm_plane->dev->primary);
+}
+
+struct drm_plane_funcs sti_gdp_plane_helpers_funcs = {
+	.update_plane = drm_atomic_helper_update_plane,
+	.disable_plane = drm_atomic_helper_disable_plane,
+	.destroy = sti_gdp_destroy,
+	.set_property = sti_plane_set_property,
+	.reset = drm_atomic_helper_plane_reset,
+	.atomic_duplicate_state = drm_atomic_helper_plane_duplicate_state,
+	.atomic_destroy_state = drm_atomic_helper_plane_destroy_state,
+	.late_register = sti_gdp_late_register,
+};
+
 struct drm_plane *sti_gdp_create(struct drm_device *drm_dev,
 				 struct device *dev, int desc,
 				 void __iomem *baseaddr,
@@ -892,7 +919,7 @@ struct drm_plane *sti_gdp_create(struct drm_device *drm_dev,
 
 	res = drm_universal_plane_init(drm_dev, &gdp->plane.drm_plane,
 				       possible_crtcs,
-				       &sti_plane_helpers_funcs,
+				       &sti_gdp_plane_helpers_funcs,
 				       gdp_supported_formats,
 				       ARRAY_SIZE(gdp_supported_formats),
 				       type, NULL);
@@ -904,9 +931,6 @@ struct drm_plane *sti_gdp_create(struct drm_device *drm_dev,
 	drm_plane_helper_add(&gdp->plane.drm_plane, &sti_gdp_helpers_funcs);
 
 	sti_plane_init_property(&gdp->plane, type);
-
-	if (gdp_debugfs_init(gdp, drm_dev->primary))
-		DRM_ERROR("GDP debugfs setup failed\n");
 
 	return &gdp->plane.drm_plane;
 

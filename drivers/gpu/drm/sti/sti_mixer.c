@@ -181,7 +181,7 @@ static struct drm_info_list mixer1_debugfs_files[] = {
 	{ "mixer_aux", mixer_dbg_show, 0, NULL },
 };
 
-static int mixer_debugfs_init(struct sti_mixer *mixer, struct drm_minor *minor)
+int sti_mixer_debugfs_init(struct sti_mixer *mixer, struct drm_minor *minor)
 {
 	unsigned int i;
 	struct drm_info_list *mixer_debugfs_files;
@@ -392,9 +392,6 @@ struct sti_mixer *sti_mixer_create(struct device *dev,
 
 	DRM_DEBUG_DRIVER("%s created. Regs=%p\n",
 			 sti_mixer_to_str(mixer), mixer->regs);
-
-	if (mixer_debugfs_init(mixer, drm_dev->primary))
-		DRM_ERROR("MIXER debugfs setup failed\n");
 
 	return mixer;
 }

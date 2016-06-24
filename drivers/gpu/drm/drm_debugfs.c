@@ -46,11 +46,8 @@
 
 static const struct drm_info_list drm_debugfs_list[] = {
 	{"name", drm_name_info, 0},
-	{"vm", drm_vm_info, 0},
 	{"clients", drm_clients_info, 0},
-	{"bufs", drm_bufs_info, 0},
 	{"gem_names", drm_gem_name_info, DRIVER_GEM},
-	{"vma", drm_vma_info, 0},
 };
 #define DRM_DEBUGFS_ENTRIES ARRAY_SIZE(drm_debugfs_list)
 

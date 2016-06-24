@@ -211,14 +211,7 @@ static int arcpgu_probe(struct platform_device *pdev)
 	if (ret)
 		goto err_unload;
 
-	ret = drm_connector_register_all(drm);
-	if (ret)
-		goto err_unregister;
-
 	return 0;
-
-err_unregister:
-	drm_dev_unregister(drm);
 
 err_unload:
 	arcpgu_unload(drm);
@@ -233,7 +226,6 @@ static int arcpgu_remove(struct platform_device *pdev)
 {
 	struct drm_device *drm = platform_get_drvdata(pdev);
 
-	drm_connector_unregister_all(drm);
 	drm_dev_unregister(drm);
 	arcpgu_unload(drm);
 	drm_dev_unref(drm);

@@ -6,7 +6,6 @@ config DRM_MEDIATEK
 	select DRM_KMS_HELPER
 	select DRM_MIPI_DSI
 	select DRM_PANEL
-	select IOMMU_DMA
 	select MEMORY
 	select MTK_SMI
 	help

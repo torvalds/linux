@@ -226,8 +226,28 @@ static int sti_atomic_commit(struct drm_device *drm,
 	return 0;
 }
 
+static void sti_output_poll_changed(struct drm_device *ddev)
+{
+	struct sti_private *private = ddev->dev_private;
+
+	if (!ddev->mode_config.num_connector)
+		return;
+
+	if (private->fbdev) {
+		drm_fbdev_cma_hotplug_event(private->fbdev);
+		return;
+	}
+
+	private->fbdev = drm_fbdev_cma_init(ddev, 32,
+					    ddev->mode_config.num_crtc,
+					    ddev->mode_config.num_connector);
+	if (IS_ERR(private->fbdev))
+		private->fbdev = NULL;
+}
+
 static const struct drm_mode_config_funcs sti_mode_config_funcs = {
 	.fb_create = drm_fb_cma_create,
+	.output_poll_changed = sti_output_poll_changed,
 	.atomic_check = drm_atomic_helper_check,
 	.atomic_commit = sti_atomic_commit,
 };
@@ -248,45 +268,6 @@ static void sti_mode_config_init(struct drm_device *dev)
 	dev->mode_config.funcs = &sti_mode_config_funcs;
 }
 
-static int sti_load(struct drm_device *dev, unsigned long flags)
-{
-	struct sti_private *private;
-	int ret;
-
-	private = kzalloc(sizeof(*private), GFP_KERNEL);
-	if (!private) {
-		DRM_ERROR("Failed to allocate private\n");
-		return -ENOMEM;
-	}
-	dev->dev_private = (void *)private;
-	private->drm_dev = dev;
-
-	mutex_init(&private->commit.lock);
-	INIT_WORK(&private->commit.work, sti_atomic_work);
-
-	drm_mode_config_init(dev);
-	drm_kms_helper_poll_init(dev);
-
-	sti_mode_config_init(dev);
-
-	ret = component_bind_all(dev->dev, dev);
-	if (ret) {
-		drm_kms_helper_poll_fini(dev);
-		drm_mode_config_cleanup(dev);
-		kfree(private);
-		return ret;
-	}
-
-	drm_mode_config_reset(dev);
-
-	drm_helper_disable_unused_functions(dev);
-	drm_fbdev_cma_init(dev, 32,
-			   dev->mode_config.num_crtc,
-			   dev->mode_config.num_connector);
-
-	return 0;
-}
-
 static const struct file_operations sti_driver_fops = {
 	.owner = THIS_MODULE,
 	.open = drm_open,
@@ -303,7 +284,6 @@ static const struct file_operations sti_driver_fops = {
 static struct drm_driver sti_driver = {
 	.driver_features = DRIVER_HAVE_IRQ | DRIVER_MODESET |
 	    DRIVER_GEM | DRIVER_PRIME | DRIVER_ATOMIC,
-	.load = sti_load,
 	.gem_free_object_unlocked = drm_gem_cma_free_object,
 	.gem_vm_ops = &drm_gem_cma_vm_ops,
 	.dumb_create = drm_gem_cma_dumb_create,
@@ -340,14 +320,88 @@ static int compare_of(struct device *dev, void *data)
 	return dev->of_node == data;
 }
 
+static int sti_init(struct drm_device *ddev)
+{
+	struct sti_private *private;
+
+	private = kzalloc(sizeof(*private), GFP_KERNEL);
+	if (!private)
+		return -ENOMEM;
+
+	ddev->dev_private = (void *)private;
+	dev_set_drvdata(ddev->dev, ddev);
+	private->drm_dev = ddev;
+
+	mutex_init(&private->commit.lock);
+	INIT_WORK(&private->commit.work, sti_atomic_work);
+
+	drm_mode_config_init(ddev);
+
+	sti_mode_config_init(ddev);
+
+	drm_kms_helper_poll_init(ddev);
+
+	return 0;
+}
+
+static void sti_cleanup(struct drm_device *ddev)
+{
+	struct sti_private *private = ddev->dev_private;
+
+	if (private->fbdev) {
+		drm_fbdev_cma_fini(private->fbdev);
+		private->fbdev = NULL;
+	}
+
+	drm_kms_helper_poll_fini(ddev);
+	drm_vblank_cleanup(ddev);
+	kfree(private);
+	ddev->dev_private = NULL;
+}
+
 static int sti_bind(struct device *dev)
 {
-	return drm_platform_init(&sti_driver, to_platform_device(dev));
+	struct drm_device *ddev;
+	int ret;
+
+	ddev = drm_dev_alloc(&sti_driver, dev);
+	if (!ddev)
+		return -ENOMEM;
+
+	ddev->platformdev = to_platform_device(dev);
+
+	ret = sti_init(ddev);
+	if (ret)
+		goto err_drm_dev_unref;
+
+	ret = component_bind_all(ddev->dev, ddev);
+	if (ret)
+		goto err_cleanup;
+
+	ret = drm_dev_register(ddev, 0);
+	if (ret)
+		goto err_register;
+
+	drm_mode_config_reset(ddev);
+
+	return 0;
+
+err_register:
+	drm_mode_config_cleanup(ddev);
+err_cleanup:
+	sti_cleanup(ddev);
+err_drm_dev_unref:
+	drm_dev_unref(ddev);
+	return ret;
 }
 
 static void sti_unbind(struct device *dev)
 {
-	drm_put_dev(dev_get_drvdata(dev));
+	struct drm_device *ddev = dev_get_drvdata(dev);
+
+	drm_dev_unregister(ddev);
+	sti_cleanup(ddev);
+	drm_dev_unref(ddev);
 }
 
 static const struct component_master_ops sti_ops = {

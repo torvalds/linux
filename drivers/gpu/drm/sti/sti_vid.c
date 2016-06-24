@@ -123,7 +123,7 @@ static struct drm_info_list vid_debugfs_files[] = {
 	{ "vid", vid_dbg_show, 0, NULL },
 };
 
-static int vid_debugfs_init(struct sti_vid *vid, struct drm_minor *minor)
+int vid_debugfs_init(struct sti_vid *vid, struct drm_minor *minor)
 {
 	unsigned int i;
 
@@ -219,9 +219,6 @@ struct sti_vid *sti_vid_create(struct device *dev, struct drm_device *drm_dev,
 	vid->id = id;
 
 	sti_vid_init(vid);
-
-	if (vid_debugfs_init(vid, drm_dev->primary))
-		DRM_ERROR("VID debugfs setup failed\n");
 
 	return vid;
 }

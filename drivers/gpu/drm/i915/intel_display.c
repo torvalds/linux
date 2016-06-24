@@ -14102,6 +14102,7 @@ intel_check_primary_plane(struct drm_plane *plane,
 
 	return drm_plane_helper_check_update(plane, crtc, fb, &state->src,
 					     &state->dst, &state->clip,
+					     state->base.rotation,
 					     min_scale, max_scale,
 					     can_position, true,
 					     &state->visible);
@@ -14293,6 +14294,7 @@ intel_check_cursor_plane(struct drm_plane *plane,
 
 	ret = drm_plane_helper_check_update(plane, crtc, fb, &state->src,
 					    &state->dst, &state->clip,
+					    state->base.rotation,
 					    DRM_PLANE_HELPER_NO_SCALING,
 					    DRM_PLANE_HELPER_NO_SCALING,
 					    true, true, &state->visible);
@@ -16217,22 +16219,19 @@ void intel_modeset_gem_init(struct drm_device *dev)
 	intel_backlight_register(dev);
 }
 
-void intel_connector_unregister(struct intel_connector *intel_connector)
+void intel_connector_unregister(struct drm_connector *connector)
 {
-	struct drm_connector *connector = &intel_connector->base;
+	struct intel_connector *intel_connector = to_intel_connector(connector);
 
+	intel_backlight_device_unregister(intel_connector);
 	intel_panel_destroy_backlight(connector);
-	drm_connector_unregister(connector);
 }
 
 void intel_modeset_cleanup(struct drm_device *dev)
 {
 	struct drm_i915_private *dev_priv = dev->dev_private;
-	struct intel_connector *connector;
 
 	intel_disable_gt_powersave(dev_priv);
-
-	intel_backlight_unregister(dev);
 
 	/*
 	 * Interrupts and polling as the first thing to avoid creating havoc.
@@ -16254,9 +16253,7 @@ void intel_modeset_cleanup(struct drm_device *dev)
 	/* flush any delayed tasks or pending work */
 	flush_scheduled_work();
 
-	/* destroy the backlight and sysfs files before encoders/connectors */
-	for_each_intel_connector(dev, connector)
-		connector->unregister(connector);
+	drm_connector_unregister_all(dev);
 
 	drm_mode_config_cleanup(dev);
 

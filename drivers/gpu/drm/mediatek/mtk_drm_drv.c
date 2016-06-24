@@ -280,8 +280,6 @@ static int mtk_drm_bind(struct device *dev)
 	if (!drm)
 		return -ENOMEM;
 
-	drm_dev_set_unique(drm, dev_name(dev));
-
 	drm->dev_private = private;
 	private->drm = drm;
 
@@ -293,14 +291,8 @@ static int mtk_drm_bind(struct device *dev)
 	if (ret < 0)
 		goto err_deinit;
 
-	ret = drm_connector_register_all(drm);
-	if (ret < 0)
-		goto err_unregister;
-
 	return 0;
 
-err_unregister:
-	drm_dev_unregister(drm);
 err_deinit:
 	mtk_drm_kms_deinit(drm);
 err_free:
@@ -455,7 +447,6 @@ static int mtk_drm_remove(struct platform_device *pdev)
 	struct drm_device *drm = private->drm;
 	int i;
 
-	drm_connector_unregister_all(drm);
 	drm_dev_unregister(drm);
 	mtk_drm_kms_deinit(drm);
 	drm_dev_unref(drm);

@@ -278,7 +278,6 @@ static int rcar_du_remove(struct platform_device *pdev)
 	struct rcar_du_device *rcdu = platform_get_drvdata(pdev);
 	struct drm_device *ddev = rcdu->ddev;
 
-	drm_connector_unregister_all(ddev);
 	drm_dev_unregister(ddev);
 
 	if (rcdu->fbdev)
@@ -320,8 +319,6 @@ static int rcar_du_probe(struct platform_device *pdev)
 	if (!ddev)
 		return -ENOMEM;
 
-	drm_dev_set_unique(ddev, dev_name(&pdev->dev));
-
 	rcdu->ddev = ddev;
 	ddev->dev_private = rcdu;
 
@@ -358,10 +355,6 @@ static int rcar_du_probe(struct platform_device *pdev)
 	 */
 	ret = drm_dev_register(ddev, 0);
 	if (ret)
-		goto error;
-
-	ret = drm_connector_register_all(ddev);
-	if (ret < 0)
 		goto error;
 
 	DRM_INFO("Device %s probed\n", dev_name(&pdev->dev));
