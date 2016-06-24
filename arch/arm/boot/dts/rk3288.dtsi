@@ -972,6 +972,32 @@
 		};
 	};
 
+	gpu: gpu@ffa30000 {
+		compatible = "arm,malit764",
+			     "arm,malit76x",
+			     "arm,malit7xx",
+			     "arm,mali-midgard";
+		reg = <0xffa30000 0x10000>;
+		interrupts = <GIC_SPI 6 IRQ_TYPE_LEVEL_HIGH>,
+			     <GIC_SPI 7 IRQ_TYPE_LEVEL_HIGH>,
+			     <GIC_SPI 8 IRQ_TYPE_LEVEL_HIGH>;
+		interrupt-names = "JOB", "MMU", "GPU";
+		clocks = <&cru ACLK_GPU>;
+		clock-names = "clk_mali";
+		operating-points = <
+			/* KHz uV */
+			600000 1250000
+			/* 500000 1200000 - See crosbug.com/p/33857 */
+			400000 1100000
+			300000 1000000
+			200000 950000
+			100000 950000
+		>;
+		#cooling-cells = <2>; /* min followed by max */
+		power-domains = <&power RK3288_PD_GPU>;
+		status = "disabled";
+	};
+
 	gic: interrupt-controller@ffc01000 {
 		compatible = "arm,gic-400";
 		interrupt-controller;
