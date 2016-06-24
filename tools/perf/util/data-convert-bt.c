@@ -1304,13 +1304,14 @@ static int convert__config(const char *var, const char *value, void *cb)
 	return 0;
 }
 
-int bt_convert__perf2ctf(const char *input, const char *path, bool force)
+int bt_convert__perf2ctf(const char *input, const char *path,
+			 struct perf_data_convert_opts *opts)
 {
 	struct perf_session *session;
 	struct perf_data_file file = {
 		.path = input,
 		.mode = PERF_DATA_MODE_READ,
-		.force = force,
+		.force = opts->force,
 	};
 	struct convert c = {
 		.tool = {
