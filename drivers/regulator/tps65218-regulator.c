@@ -180,8 +180,12 @@ static int tps65218_pmic_set_suspend_disable(struct regulator_dev *dev)
 	if (rid < TPS65218_DCDC_1 || rid > TPS65218_LDO_1)
 		return -EINVAL;
 
-	if (!tps->info[rid]->strobe)
-		return -EINVAL;
+	if (!tps->info[rid]->strobe) {
+		if (rid == TPS65218_DCDC_3)
+			tps->info[rid]->strobe = 3;
+		else
+			return -EINVAL;
+	}
 
 	return tps65218_set_bits(tps, dev->desc->bypass_reg,
 				 dev->desc->bypass_mask,
