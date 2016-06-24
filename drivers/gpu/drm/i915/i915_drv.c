@@ -3465,7 +3465,7 @@ static int __init i915_init(void)
 
 	if (!(driver.driver_features & DRIVER_MODESET)) {
 		/* Silently fail loading to not upset userspace. */
-		DRM_DEBUG_DRIVER("KMS and UMS disabled.\n");
+		DRM_DEBUG_DRIVER("KMS disabled.\n");
 		return 0;
 	}
 
