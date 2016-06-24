@@ -3677,8 +3677,10 @@ int i915_gpu_idle(struct drm_device *dev)
 	struct intel_engine_cs *engine;
 	int ret;
 
-	/* Flush everything onto the inactive list. */
 	for_each_engine(engine, dev_priv) {
+		if (engine->last_context == NULL)
+			continue;
+
 		if (!i915.enable_execlists) {
 			struct drm_i915_gem_request *req;
 
