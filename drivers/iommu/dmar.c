@@ -1167,8 +1167,6 @@ static int qi_check_fault(struct intel_iommu *iommu, int index)
 				(unsigned long long)qi->desc[index].high);
 			memcpy(&qi->desc[index], &qi->desc[wait_index],
 					sizeof(struct qi_desc));
-			__iommu_flush_cache(iommu, &qi->desc[index],
-					sizeof(struct qi_desc));
 			writel(DMA_FSTS_IQE, iommu->reg + DMAR_FSTS_REG);
 			return -EINVAL;
 		}
@@ -1242,9 +1240,6 @@ restart:
 	wait_desc.high = virt_to_phys(&qi->desc_status[wait_index]);
 
 	hw[wait_index] = wait_desc;
-
-	__iommu_flush_cache(iommu, &hw[index], sizeof(struct qi_desc));
-	__iommu_flush_cache(iommu, &hw[wait_index], sizeof(struct qi_desc));
 
 	qi->free_head = (qi->free_head + 2) % QI_LENGTH;
 	qi->free_cnt -= 2;
