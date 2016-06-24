@@ -141,6 +141,36 @@ FUNC_VALUE_SET(s64)
 FUNC_VALUE_SET(u64)
 __FUNC_VALUE_SET(u64_hex, u64)
 
+static int string_set_value(struct bt_ctf_field *field, const char *string);
+static __maybe_unused int
+value_set_string(struct ctf_writer *cw, struct bt_ctf_event *event,
+		 const char *name, const char *string)
+{
+	struct bt_ctf_field_type *type = cw->data.string;
+	struct bt_ctf_field *field;
+	int ret = 0;
+
+	field = bt_ctf_field_create(type);
+	if (!field) {
+		pr_err("failed to create a field %s\n", name);
+		return -1;
+	}
+
+	ret = string_set_value(field, string);
+	if (ret) {
+		pr_err("failed to set value %s\n", name);
+		goto err_put_field;
+	}
+
+	ret = bt_ctf_event_set_payload(event, name, field);
+	if (ret)
+		pr_err("failed to set payload %s\n", name);
+
+err_put_field:
+	bt_ctf_field_put(field);
+	return ret;
+}
+
 static struct bt_ctf_field_type*
 get_tracepoint_field_type(struct ctf_writer *cw, struct format_field *field)
 {
