@@ -1249,35 +1249,18 @@ intel_dp_aux_fini(struct intel_dp *intel_dp)
 	kfree(intel_dp->aux.name);
 }
 
-static int
+static void
 intel_dp_aux_init(struct intel_dp *intel_dp, struct intel_connector *connector)
 {
 	struct intel_digital_port *intel_dig_port = dp_to_dig_port(intel_dp);
 	enum port port = intel_dig_port->port;
-	int ret;
 
 	intel_aux_reg_init(intel_dp);
+	drm_dp_aux_init(&intel_dp->aux);
 
+	/* Failure to allocate our preferred name is not critical */
 	intel_dp->aux.name = kasprintf(GFP_KERNEL, "DPDDC-%c", port_name(port));
-	if (!intel_dp->aux.name)
-		return -ENOMEM;
-
-	intel_dp->aux.dev = connector->base.kdev;
 	intel_dp->aux.transfer = intel_dp_aux_transfer;
-
-	DRM_DEBUG_KMS("registering %s bus for %s\n",
-		      intel_dp->aux.name,
-		      connector->base.kdev->kobj.name);
-
-	ret = drm_dp_aux_register(&intel_dp->aux);
-	if (ret < 0) {
-		DRM_ERROR("drm_dp_aux_register() for %s failed (%d)\n",
-			  intel_dp->aux.name, ret);
-		kfree(intel_dp->aux.name);
-		return ret;
-	}
-
-	return 0;
 }
 
 static int
@@ -4520,6 +4503,20 @@ done:
 	return 0;
 }
 
+static int
+intel_dp_connector_register(struct drm_connector *connector)
+{
+	struct intel_dp *intel_dp = intel_attached_dp(connector);
+
+	i915_debugfs_connector_add(connector);
+
+	DRM_DEBUG_KMS("registering %s bus for %s\n",
+		      intel_dp->aux.name, connector->kdev->kobj.name);
+
+	intel_dp->aux.dev = connector->kdev;
+	return drm_dp_aux_register(&intel_dp->aux);
+}
+
 static void
 intel_dp_connector_unregister(struct drm_connector *connector)
 {
@@ -4648,6 +4645,7 @@ static const struct drm_connector_funcs intel_dp_connector_funcs = {
 	.fill_modes = drm_helper_probe_single_connector_modes,
 	.set_property = intel_dp_set_property,
 	.atomic_get_property = intel_connector_atomic_get_property,
+	.late_register = intel_dp_connector_register,
 	.early_unregister = intel_dp_connector_unregister,
 	.destroy = intel_dp_connector_destroy,
 	.atomic_destroy_state = drm_atomic_helper_connector_destroy_state,
@@ -5515,7 +5513,7 @@ intel_dp_init_connector(struct intel_digital_port *intel_dig_port,
 	struct drm_device *dev = intel_encoder->base.dev;
 	struct drm_i915_private *dev_priv = dev->dev_private;
 	enum port port = intel_dig_port->port;
-	int type, ret;
+	int type;
 
 	if (WARN(intel_dig_port->max_lanes < 1,
 		 "Not enough lanes (%d) for DP on port %c\n",
@@ -5574,6 +5572,8 @@ intel_dp_init_connector(struct intel_digital_port *intel_dig_port,
 	connector->interlace_allowed = true;
 	connector->doublescan_allowed = 0;
 
+	intel_dp_aux_init(intel_dp, intel_connector);
+
 	INIT_DELAYED_WORK(&intel_dp->panel_vdd_work,
 			  edp_panel_vdd_work);
 
@@ -5608,10 +5608,6 @@ intel_dp_init_connector(struct intel_digital_port *intel_dig_port,
 		BUG();
 	}
 
-	ret = intel_dp_aux_init(intel_dp, intel_connector);
-	if (ret)
-		goto fail;
-
 	/* init MST on ports that can support it */
 	if (HAS_DP_MST(dev) &&
 	    (port == PORT_B || port == PORT_C || port == PORT_D))
@@ -5634,8 +5630,6 @@ intel_dp_init_connector(struct intel_digital_port *intel_dig_port,
 		u32 temp = I915_READ(PEG_BAND_GAP_DATA);
 		I915_WRITE(PEG_BAND_GAP_DATA, (temp & ~0xf) | 0xd);
 	}
-
-	i915_debugfs_connector_add(connector);
 
 	return true;
 

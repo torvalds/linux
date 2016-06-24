@@ -477,9 +477,11 @@ static void intel_dp_register_mst_connector(struct drm_connector *connector)
 {
 	struct intel_connector *intel_connector = to_intel_connector(connector);
 	struct drm_device *dev = connector->dev;
+
 	drm_modeset_lock_all(dev);
 	intel_connector_add_to_fbdev(intel_connector);
 	drm_modeset_unlock_all(dev);
+
 	drm_connector_register(&intel_connector->base);
 }
 
