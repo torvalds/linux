@@ -406,8 +406,8 @@ static int davinci_mdio_remove(struct platform_device *pdev)
 	return 0;
 }
 
-#ifdef CONFIG_PM_SLEEP
-static int davinci_mdio_suspend(struct device *dev)
+#ifdef CONFIG_PM
+static int davinci_mdio_runtime_suspend(struct device *dev)
 {
 	struct davinci_mdio_data *data = dev_get_drvdata(dev);
 	u32 ctrl;
@@ -417,6 +417,28 @@ static int davinci_mdio_suspend(struct device *dev)
 	ctrl &= ~CONTROL_ENABLE;
 	__raw_writel(ctrl, &data->regs->control);
 	wait_for_idle(data);
+
+	return 0;
+}
+
+static int davinci_mdio_runtime_resume(struct device *dev)
+{
+	struct davinci_mdio_data *data = dev_get_drvdata(dev);
+
+	davinci_mdio_enable(data);
+	return 0;
+}
+#endif
+
+#ifdef CONFIG_PM_SLEEP
+static int davinci_mdio_suspend(struct device *dev)
+{
+	struct davinci_mdio_data *data = dev_get_drvdata(dev);
+	int ret = 0;
+
+	ret = pm_runtime_force_suspend(dev);
+	if (ret < 0)
+		return ret;
 
 	/* Select sleep pin state */
 	pinctrl_pm_select_sleep_state(dev);
@@ -431,14 +453,15 @@ static int davinci_mdio_resume(struct device *dev)
 	/* Select default pin state */
 	pinctrl_pm_select_default_state(dev);
 
-	/* restart the scan state machine */
-	davinci_mdio_enable(data);
+	pm_runtime_force_resume(dev);
 
 	return 0;
 }
 #endif
 
 static const struct dev_pm_ops davinci_mdio_pm_ops = {
+	SET_RUNTIME_PM_OPS(davinci_mdio_runtime_suspend,
+			   davinci_mdio_runtime_resume, NULL)
 	SET_LATE_SYSTEM_SLEEP_PM_OPS(davinci_mdio_suspend, davinci_mdio_resume)
 };
 
