@@ -922,7 +922,8 @@ static int dm_table_determine_type(struct dm_table *t)
 	if (bio_based) {
 		/* We must use this table as bio-based */
 		t->type = DM_TYPE_BIO_BASED;
-		if (dm_table_supports_dax(t))
+		if (dm_table_supports_dax(t) ||
+		    (list_empty(devices) && live_md_type == DM_TYPE_DAX_BIO_BASED))
 			t->type = DM_TYPE_DAX_BIO_BASED;
 		return 0;
 	}
