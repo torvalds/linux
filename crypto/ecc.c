@@ -966,7 +966,7 @@ out:
 	return ret;
 }
 
-int ecdh_shared_secret(unsigned int curve_id, unsigned int ndigits,
+int crypto_ecdh_shared_secret(unsigned int curve_id, unsigned int ndigits,
 		       const u8 *private_key, unsigned int private_key_len,
 		       const u8 *public_key, unsigned int public_key_len,
 		       u8 *secret, unsigned int secret_len)

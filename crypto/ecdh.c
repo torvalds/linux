@@ -79,7 +79,7 @@ static int ecdh_compute_value(struct kpp_request *req)
 		if (copied != 2 * nbytes)
 			return -EINVAL;
 
-		ret = ecdh_shared_secret(ctx->curve_id, ctx->ndigits,
+		ret = crypto_ecdh_shared_secret(ctx->curve_id, ctx->ndigits,
 					 (const u8 *)ctx->private_key, nbytes,
 					 (const u8 *)ctx->public_key, 2 * nbytes,
 					 (u8 *)ctx->shared_secret, nbytes);

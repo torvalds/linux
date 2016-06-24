@@ -60,7 +60,7 @@ int ecdh_make_pub_key(const unsigned int curve_id, unsigned int ndigits,
 		      u8 *public_key, unsigned int public_key_len);
 
 /**
- * ecdh_shared_secret() - Compute a shared secret
+ * crypto_ecdh_shared_secret() - Compute a shared secret
  *
  * @curve_id:		id representing the curve to use
  * @private_key:	private key of part A
@@ -70,13 +70,13 @@ int ecdh_make_pub_key(const unsigned int curve_id, unsigned int ndigits,
  * @secret:		buffer for storing the calculated shared secret
  * @secret_len:		length of the secret buffer
  *
- * Note: It is recommended that you hash the result of ecdh_shared_secret
+ * Note: It is recommended that you hash the result of crypto_ecdh_shared_secret
  * before using it for symmetric encryption or HMAC.
  *
  * Returns 0 if the shared secret was generated successfully, a negative value
  * if an error occurred.
  */
-int ecdh_shared_secret(unsigned int curve_id, unsigned int ndigits,
+int crypto_ecdh_shared_secret(unsigned int curve_id, unsigned int ndigits,
 		       const u8 *private_key, unsigned int private_key_len,
 		       const u8 *public_key, unsigned int public_key_len,
 		       u8 *secret, unsigned int secret_len);
