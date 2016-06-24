@@ -872,6 +872,8 @@ struct i915_gem_context {
 	u32 user_handle;
 #define CONTEXT_NO_ZEROMAP		(1<<0)
 
+	u32 ggtt_alignment;
+
 	struct intel_context {
 		struct drm_i915_gem_object *state;
 		struct intel_ringbuffer *ringbuf;

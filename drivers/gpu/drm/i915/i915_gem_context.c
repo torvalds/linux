@@ -268,6 +268,8 @@ __create_hw_context(struct drm_device *dev,
 	list_add_tail(&ctx->link, &dev_priv->context_list);
 	ctx->i915 = dev_priv;
 
+	ctx->ggtt_alignment = get_context_alignment(dev_priv);
+
 	if (dev_priv->hw_context_size) {
 		struct drm_i915_gem_object *obj =
 				i915_gem_alloc_context_obj(dev, dev_priv->hw_context_size);
@@ -451,26 +453,6 @@ int i915_gem_context_init(struct drm_device *dev)
 		return PTR_ERR(ctx);
 	}
 
-	if (!i915.enable_execlists && ctx->engine[RCS].state) {
-		int ret;
-
-		/* We may need to do things with the shrinker which
-		 * require us to immediately switch back to the default
-		 * context. This can cause a problem as pinning the
-		 * default context also requires GTT space which may not
-		 * be available. To avoid this we always pin the default
-		 * context.
-		 */
-		ret = i915_gem_obj_ggtt_pin(ctx->engine[RCS].state,
-					    get_context_alignment(dev_priv), 0);
-		if (ret) {
-			DRM_ERROR("Failed to pinned default global context (error %d)\n",
-				  ret);
-			i915_gem_context_unreference(ctx);
-			return ret;
-		}
-	}
-
 	dev_priv->kernel_context = ctx;
 
 	DRM_DEBUG_DRIVER("%s context support initialized\n",
@@ -506,9 +488,6 @@ void i915_gem_context_fini(struct drm_device *dev)
 	struct i915_gem_context *dctx = dev_priv->kernel_context;
 
 	lockdep_assert_held(&dev->struct_mutex);
-
-	if (!i915.enable_execlists && dctx->engine[RCS].state)
-		i915_gem_object_ggtt_unpin(dctx->engine[RCS].state);
 
 	i915_gem_context_unreference(dctx);
 	dev_priv->kernel_context = NULL;
@@ -759,7 +738,7 @@ static int do_rcs_switch(struct drm_i915_gem_request *req)
 
 	/* Trying to pin first makes error handling easier. */
 	ret = i915_gem_obj_ggtt_pin(to->engine[RCS].state,
-				    get_context_alignment(engine->i915),
+				    to->ggtt_alignment,
 				    0);
 	if (ret)
 		return ret;

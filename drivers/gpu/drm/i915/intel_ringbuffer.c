@@ -2321,6 +2321,47 @@ intel_ringbuffer_free(struct intel_ringbuffer *ring)
 	kfree(ring);
 }
 
+static int intel_ring_context_pin(struct i915_gem_context *ctx,
+				  struct intel_engine_cs *engine)
+{
+	struct intel_context *ce = &ctx->engine[engine->id];
+	int ret;
+
+	lockdep_assert_held(&ctx->i915->dev->struct_mutex);
+
+	if (ce->pin_count++)
+		return 0;
+
+	if (ce->state) {
+		ret = i915_gem_obj_ggtt_pin(ce->state, ctx->ggtt_alignment, 0);
+		if (ret)
+			goto error;
+	}
+
+	i915_gem_context_reference(ctx);
+	return 0;
+
+error:
+	ce->pin_count = 0;
+	return ret;
+}
+
+static void intel_ring_context_unpin(struct i915_gem_context *ctx,
+				     struct intel_engine_cs *engine)
+{
+	struct intel_context *ce = &ctx->engine[engine->id];
+
+	lockdep_assert_held(&ctx->i915->dev->struct_mutex);
+
+	if (--ce->pin_count)
+		return;
+
+	if (ce->state)
+		i915_gem_object_ggtt_unpin(ce->state);
+
+	i915_gem_context_unreference(ctx);
+}
+
 static int intel_init_ring_buffer(struct drm_device *dev,
 				  struct intel_engine_cs *engine)
 {
@@ -2340,6 +2381,17 @@ static int intel_init_ring_buffer(struct drm_device *dev,
 	       sizeof(engine->semaphore.sync_seqno));
 
 	init_waitqueue_head(&engine->irq_queue);
+
+	/* We may need to do things with the shrinker which
+	 * require us to immediately switch back to the default
+	 * context. This can cause a problem as pinning the
+	 * default context also requires GTT space which may not
+	 * be available. To avoid this we always pin the default
+	 * context.
+	 */
+	ret = intel_ring_context_pin(dev_priv->kernel_context, engine);
+	if (ret)
+		goto error;
 
 	ringbuf = intel_engine_create_ringbuffer(engine, 32 * PAGE_SIZE);
 	if (IS_ERR(ringbuf)) {
@@ -2408,6 +2460,9 @@ void intel_cleanup_engine(struct intel_engine_cs *engine)
 
 	i915_cmd_parser_fini_ring(engine);
 	i915_gem_batch_pool_fini(&engine->batch_pool);
+
+	intel_ring_context_unpin(dev_priv->kernel_context, engine);
+
 	engine->i915 = NULL;
 }
 
