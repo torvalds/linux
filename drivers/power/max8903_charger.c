@@ -211,26 +211,22 @@ static int max8903_probe(struct platform_device *pdev)
 	}
 
 	if (pdata->dc_valid) {
-		if (pdata->dok && gpio_is_valid(pdata->dok) &&
-				pdata->dcm && gpio_is_valid(pdata->dcm)) {
+		if (pdata->dok && gpio_is_valid(pdata->dok)) {
 			gpio = pdata->dok; /* PULL_UPed Interrupt */
 			ta_in = gpio_get_value(gpio) ? 0 : 1;
+		} else {
+			dev_err(dev, "When DC is wired, DOK should be wired as well.\n");
+			return -EINVAL;
+		}
+	}
 
+	if (pdata->dcm) {
+		if (gpio_is_valid(pdata->dcm)) {
 			gpio = pdata->dcm; /* Output */
 			gpio_set_value(gpio, ta_in);
 		} else {
-			dev_err(dev, "When DC is wired, DOK and DCM should"
-					" be wired as well.\n");
+			dev_err(dev, "Invalid pin: dcm.\n");
 			return -EINVAL;
-		}
-	} else {
-		if (pdata->dcm) {
-			if (gpio_is_valid(pdata->dcm))
-				gpio_set_value(pdata->dcm, 0);
-			else {
-				dev_err(dev, "Invalid pin: dcm.\n");
-				return -EINVAL;
-			}
 		}
 	}
 
