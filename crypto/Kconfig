@@ -704,6 +704,22 @@ config CRYPTO_SHA1_MB
 	  lanes remain unfilled, a flush operation will be initiated to
 	  process the crypto jobs, adding a slight latency.
 
+config CRYPTO_SHA256_MB
+	tristate "SHA256 digest algorithm (x86_64 Multi-Buffer, Experimental)"
+	depends on X86 && 64BIT
+	select CRYPTO_SHA256
+	select CRYPTO_HASH
+	select CRYPTO_MCRYPTD
+	help
+	  SHA-256 secure hash standard (FIPS 180-1/DFIPS 180-2) implemented
+	  using multi-buffer technique.  This algorithm computes on
+	  multiple data lanes concurrently with SIMD instructions for
+	  better throughput.  It should not be enabled by default but
+	  used when there is significant amount of work to keep the keep
+	  the data lanes filled to get performance benefit.  If the data
+	  lanes remain unfilled, a flush operation will be initiated to
+	  process the crypto jobs, adding a slight latency.
+
 config CRYPTO_SHA256
 	tristate "SHA224 and SHA256 digest algorithm"
 	select CRYPTO_HASH
