@@ -753,7 +753,7 @@ int ttm_bo_pipeline_move(struct ttm_buffer_object *bo,
 		 */
 
 		spin_lock(&from->move_lock);
-		if (!from->move || fence_is_later(from->move, fence)) {
+		if (!from->move || fence_is_later(fence, from->move)) {
 			fence_put(from->move);
 			from->move = fence_get(fence);
 		}
