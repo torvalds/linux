@@ -1501,6 +1501,7 @@ out:
 static const struct drm_connector_funcs intel_tv_connector_funcs = {
 	.dpms = drm_atomic_helper_connector_dpms,
 	.detect = intel_tv_detect,
+	.late_register = intel_connector_register,
 	.early_unregister = intel_connector_unregister,
 	.destroy = intel_tv_destroy,
 	.set_property = intel_tv_set_property,

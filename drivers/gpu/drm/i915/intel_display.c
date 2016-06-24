@@ -16314,8 +16314,21 @@ void intel_modeset_gem_init(struct drm_device *dev)
 			c->state->plane_mask &= ~(1 << drm_plane_index(c->primary));
 		}
 	}
+}
 
-	intel_backlight_register(dev);
+int intel_connector_register(struct drm_connector *connector)
+{
+	struct intel_connector *intel_connector = to_intel_connector(connector);
+	int ret;
+
+	ret = intel_backlight_device_register(intel_connector);
+	if (ret)
+		goto err;
+
+	return 0;
+
+err:
+	return ret;
 }
 
 void intel_connector_unregister(struct drm_connector *connector)

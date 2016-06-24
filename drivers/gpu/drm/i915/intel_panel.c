@@ -1163,7 +1163,7 @@ static const struct backlight_ops intel_backlight_device_ops = {
 	.get_brightness = intel_backlight_device_get_brightness,
 };
 
-static int intel_backlight_device_register(struct intel_connector *connector)
+int intel_backlight_device_register(struct intel_connector *connector)
 {
 	struct intel_panel *panel = &connector->panel;
 	struct backlight_properties props;
@@ -1224,11 +1224,6 @@ void intel_backlight_device_unregister(struct intel_connector *connector)
 		backlight_device_unregister(panel->backlight.device);
 		panel->backlight.device = NULL;
 	}
-}
-#else /* CONFIG_BACKLIGHT_CLASS_DEVICE */
-static int intel_backlight_device_register(struct intel_connector *connector)
-{
-	return 0;
 }
 #endif /* CONFIG_BACKLIGHT_CLASS_DEVICE */
 
@@ -1808,12 +1803,4 @@ void intel_panel_fini(struct intel_panel *panel)
 	if (panel->downclock_mode)
 		drm_mode_destroy(intel_connector->base.dev,
 				panel->downclock_mode);
-}
-
-void intel_backlight_register(struct drm_device *dev)
-{
-	struct intel_connector *connector;
-
-	for_each_intel_connector(dev, connector)
-		intel_backlight_device_register(connector);
 }

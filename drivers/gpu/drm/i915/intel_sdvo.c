@@ -2181,6 +2181,11 @@ static int
 intel_sdvo_connector_register(struct drm_connector *connector)
 {
 	struct intel_sdvo *sdvo = intel_attached_sdvo(connector);
+	int ret;
+
+	ret = intel_connector_register(connector);
+	if (ret)
+		return ret;
 
 	return sysfs_create_link(&connector->kdev->kobj,
 				 &sdvo->ddc.dev.kobj,
