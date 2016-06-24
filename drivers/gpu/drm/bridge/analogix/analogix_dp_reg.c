@@ -75,7 +75,11 @@ void analogix_dp_init_analog_param(struct analogix_dp_device *dp)
 	writel(reg, dp->reg_base + ANALOGIX_DP_ANALOG_CTL_2);
 
 	if (dp->plat_data && (dp->plat_data->dev_type == ROCKCHIP_DP)) {
-		writel(REF_CLK_24M, dp->reg_base + ANALOGIX_DP_PLL_REG_1);
+		reg = REF_CLK_24M;
+		if (dp->plat_data->subdev_type == RK3288_DP)
+			reg ^= REF_CLK_MASK;
+
+		writel(reg, dp->reg_base + ANALOGIX_DP_PLL_REG_1);
 		writel(0x95, dp->reg_base + ANALOGIX_DP_PLL_REG_2);
 		writel(0x40, dp->reg_base + ANALOGIX_DP_PLL_REG_3);
 		writel(0x58, dp->reg_base + ANALOGIX_DP_PLL_REG_4);

@@ -938,23 +938,9 @@ int analogix_dp_get_modes(struct drm_connector *connector)
 		num_modes += drm_panel_get_modes(dp->plat_data->panel);
 
 	if (dp->plat_data->get_modes)
-		num_modes += dp->plat_data->get_modes(dp->plat_data);
+		num_modes += dp->plat_data->get_modes(dp->plat_data, connector);
 
 	return num_modes;
-}
-
-static enum drm_mode_status
-analogix_dp_mode_valid(struct drm_connector *connector,
-		       struct drm_display_mode *mode)
-{
-	struct analogix_dp_device *dp = to_dp(connector);
-	enum drm_mode_status status = MODE_OK;
-
-	if (dp->plat_data->mode_valid)
-		status = dp->plat_data->mode_valid(dp->plat_data, connector,
-						   mode);
-
-	return status;
 }
 
 static struct drm_encoder *
@@ -968,7 +954,6 @@ analogix_dp_best_encoder(struct drm_connector *connector)
 static const struct drm_connector_helper_funcs analogix_dp_connector_helper_funcs = {
 	.get_modes = analogix_dp_get_modes,
 	.best_encoder = analogix_dp_best_encoder,
-	.mode_valid = analogix_dp_mode_valid,
 };
 
 enum drm_connector_status
@@ -1224,7 +1209,7 @@ static int analogix_dp_dt_parse_pdata(struct analogix_dp_device *dp)
 	switch (dp->plat_data->dev_type) {
 	case ROCKCHIP_DP:
 		/*
-		 * Like ROCKCHIP DisplayPort TRM indicate that "Main link
+		 * Like Rockchip DisplayPort TRM indicate that "Main link
 		 * containing 4 physical lanes of 2.7/1.62 Gbps/lane".
 		 */
 		video_info->max_link_rate = 0x0A;

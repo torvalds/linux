@@ -36,16 +36,16 @@
 
 #define to_dp(nm)	container_of(nm, struct rockchip_dp_device, nm)
 
-enum rockchip_dp_chip_type {
-	RK3288_DP,
-	RK3399_EDP,
-};
-
+/**
+ * struct rockchip_dp_chip_data - splite the grf setting of kind of chips
+ * @lcdsel_grf_reg: grf register offset of lcdc select
+ * @lcdsel_big: reg value of selecting vop big for eDP
+ * @lcdsel_lit: reg value of selecting vop little for eDP
+ */
 struct rockchip_dp_chip_data {
 	u32	lcdsel_grf_reg;
 	u32	lcdsel_big;
 	u32	lcdsel_lit;
-	u32	lcdsel_mask;
 	u32	chip_type;
 };
 
@@ -102,10 +102,8 @@ static int rockchip_dp_powerdown(struct analogix_dp_plat_data *plat_data)
 	return 0;
 }
 
-static enum drm_mode_status
-rockchip_dp_mode_valid(struct analogix_dp_plat_data *plat_data,
-		       struct drm_connector *connector,
-		       struct drm_display_mode *mode)
+static int rockchip_dp_get_modes(struct analogix_dp_plat_data *plat_data,
+				 struct drm_connector *connector)
 {
 	struct drm_display_info *di = &connector->display_info;
 
@@ -117,7 +115,7 @@ rockchip_dp_mode_valid(struct analogix_dp_plat_data *plat_data,
 		di->bpc = 8;
 	}
 
-	return MODE_OK;
+	return 0;
 }
 
 static bool
@@ -125,6 +123,7 @@ rockchip_dp_drm_encoder_mode_fixup(struct drm_encoder *encoder,
 				   const struct drm_display_mode *mode,
 				   struct drm_display_mode *adjusted_mode)
 {
+	/* do nothing */
 	return true;
 }
 
@@ -146,9 +145,9 @@ static void rockchip_dp_drm_encoder_enable(struct drm_encoder *encoder)
 		return;
 
 	if (ret)
-		val = dp->data->lcdsel_lit | dp->data->lcdsel_mask;
+		val = dp->data->lcdsel_lit;
 	else
-		val = dp->data->lcdsel_big | dp->data->lcdsel_mask;
+		val = dp->data->lcdsel_big;
 
 	dev_dbg(dp->dev, "vop %s output to dp\n", (ret) ? "LIT" : "BIG");
 
@@ -166,11 +165,11 @@ static void rockchip_dp_drm_encoder_nop(struct drm_encoder *encoder)
 
 static int
 rockchip_dp_drm_encoder_atomic_check(struct drm_encoder *encoder,
-				     struct drm_crtc_state *crtc_state,
-				     struct drm_connector_state *conn_state)
+				      struct drm_crtc_state *crtc_state,
+				      struct drm_connector_state *conn_state)
 {
-	struct rockchip_dp_device *dp = to_dp(encoder);
 	struct rockchip_crtc_state *s = to_rockchip_crtc_state(crtc_state);
+	struct rockchip_dp_device *dp = to_dp(encoder);
 	int ret;
 
 	/*
@@ -201,6 +200,7 @@ rockchip_dp_drm_encoder_atomic_check(struct drm_encoder *encoder,
 		s->output_mode = ROCKCHIP_OUT_MODE_AAAA;
 		break;
 	}
+
 	s->output_type = DRM_MODE_CONNECTOR_eDP;
 
 	return 0;
@@ -320,9 +320,10 @@ static int rockchip_dp_bind(struct device *dev, struct device *master,
 	dp->plat_data.encoder = &dp->encoder;
 
 	dp->plat_data.dev_type = ROCKCHIP_DP;
+	dp->plat_data.subdev_type = dp_data->chip_type;
 	dp->plat_data.power_on = rockchip_dp_poweron;
 	dp->plat_data.power_off = rockchip_dp_powerdown;
-	dp->plat_data.mode_valid = rockchip_dp_mode_valid;
+	dp->plat_data.get_modes = rockchip_dp_get_modes;
 
 	return analogix_dp_bind(dev, dp->drm_dev, &dp->plat_data);
 }
@@ -395,35 +396,24 @@ static int rockchip_dp_remove(struct platform_device *pdev)
 	return 0;
 }
 
-#ifdef CONFIG_PM_SLEEP
-static int rockchip_dp_suspend(struct device *dev)
-{
-	return analogix_dp_suspend(dev);
-}
-
-static int rockchip_dp_resume(struct device *dev)
-{
-	return analogix_dp_resume(dev);
-}
-#endif
-
 static const struct dev_pm_ops rockchip_dp_pm_ops = {
-	SET_SYSTEM_SLEEP_PM_OPS(rockchip_dp_suspend, rockchip_dp_resume)
+#ifdef CONFIG_PM_SLEEP
+	.suspend = analogix_dp_suspend,
+	.resume_early = analogix_dp_resume,
+#endif
 };
 
 static const struct rockchip_dp_chip_data rk3399_edp = {
 	.lcdsel_grf_reg = 0x6250,
-	.lcdsel_big = 0,
-	.lcdsel_lit = BIT(5),
-	.lcdsel_mask = BIT(21),
+	.lcdsel_big = 0 | BIT(21),
+	.lcdsel_lit = BIT(5) | BIT(21),
 	.chip_type = RK3399_EDP,
 };
 
 static const struct rockchip_dp_chip_data rk3288_dp = {
 	.lcdsel_grf_reg = 0x025c,
-	.lcdsel_big = 0,
-	.lcdsel_lit = BIT(5),
-	.lcdsel_mask = BIT(21),
+	.lcdsel_big = 0 | BIT(21),
+	.lcdsel_lit = BIT(5) | BIT(21),
 	.chip_type = RK3288_DP,
 };
 

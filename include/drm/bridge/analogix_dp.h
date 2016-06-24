@@ -18,8 +18,14 @@ enum analogix_dp_devtype {
 	ROCKCHIP_DP,
 };
 
+enum analogix_dp_sub_devtype {
+	RK3288_DP,
+	RK3399_EDP,
+};
+
 struct analogix_dp_plat_data {
 	enum analogix_dp_devtype dev_type;
+	enum analogix_dp_sub_devtype subdev_type;
 	struct drm_panel *panel;
 	struct drm_encoder *encoder;
 	struct drm_connector *connector;
@@ -28,11 +34,8 @@ struct analogix_dp_plat_data {
 	int (*power_off)(struct analogix_dp_plat_data *);
 	int (*attach)(struct analogix_dp_plat_data *, struct drm_bridge *,
 		      struct drm_connector *);
-	int (*get_modes)(struct analogix_dp_plat_data *);
-
-	enum drm_mode_status (*mode_valid)(struct analogix_dp_plat_data *,
-					   struct drm_connector *,
-					   struct drm_display_mode *);
+	int (*get_modes)(struct analogix_dp_plat_data *,
+			 struct drm_connector *);
 };
 
 int analogix_dp_resume(struct device *dev);
