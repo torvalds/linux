@@ -89,22 +89,20 @@ static inline int arp_packet_match(const struct arphdr *arphdr,
 	__be32 src_ipaddr, tgt_ipaddr;
 	long ret;
 
-#define FWINV(bool, invflg) ((bool) ^ !!(arpinfo->invflags & (invflg)))
-
-	if (FWINV((arphdr->ar_op & arpinfo->arpop_mask) != arpinfo->arpop,
-		  ARPT_INV_ARPOP))
+	if (NF_INVF(arpinfo, ARPT_INV_ARPOP,
+		    (arphdr->ar_op & arpinfo->arpop_mask) != arpinfo->arpop))
 		return 0;
 
-	if (FWINV((arphdr->ar_hrd & arpinfo->arhrd_mask) != arpinfo->arhrd,
-		  ARPT_INV_ARPHRD))
+	if (NF_INVF(arpinfo, ARPT_INV_ARPHRD,
+		    (arphdr->ar_hrd & arpinfo->arhrd_mask) != arpinfo->arhrd))
 		return 0;
 
-	if (FWINV((arphdr->ar_pro & arpinfo->arpro_mask) != arpinfo->arpro,
-		  ARPT_INV_ARPPRO))
+	if (NF_INVF(arpinfo, ARPT_INV_ARPPRO,
+		    (arphdr->ar_pro & arpinfo->arpro_mask) != arpinfo->arpro))
 		return 0;
 
-	if (FWINV((arphdr->ar_hln & arpinfo->arhln_mask) != arpinfo->arhln,
-		  ARPT_INV_ARPHLN))
+	if (NF_INVF(arpinfo, ARPT_INV_ARPHLN,
+		    (arphdr->ar_hln & arpinfo->arhln_mask) != arpinfo->arhln))
 		return 0;
 
 	src_devaddr = arpptr;
@@ -115,31 +113,32 @@ static inline int arp_packet_match(const struct arphdr *arphdr,
 	arpptr += dev->addr_len;
 	memcpy(&tgt_ipaddr, arpptr, sizeof(u32));
 
-	if (FWINV(arp_devaddr_compare(&arpinfo->src_devaddr, src_devaddr, dev->addr_len),
-		  ARPT_INV_SRCDEVADDR) ||
-	    FWINV(arp_devaddr_compare(&arpinfo->tgt_devaddr, tgt_devaddr, dev->addr_len),
-		  ARPT_INV_TGTDEVADDR))
+	if (NF_INVF(arpinfo, ARPT_INV_SRCDEVADDR,
+		    arp_devaddr_compare(&arpinfo->src_devaddr, src_devaddr,
+					dev->addr_len)) ||
+	    NF_INVF(arpinfo, ARPT_INV_TGTDEVADDR,
+		    arp_devaddr_compare(&arpinfo->tgt_devaddr, tgt_devaddr,
+					dev->addr_len)))
 		return 0;
 
-	if (FWINV((src_ipaddr & arpinfo->smsk.s_addr) != arpinfo->src.s_addr,
-		  ARPT_INV_SRCIP) ||
-	    FWINV(((tgt_ipaddr & arpinfo->tmsk.s_addr) != arpinfo->tgt.s_addr),
-		  ARPT_INV_TGTIP))
+	if (NF_INVF(arpinfo, ARPT_INV_SRCIP,
+		    (src_ipaddr & arpinfo->smsk.s_addr) != arpinfo->src.s_addr) ||
+	    NF_INVF(arpinfo, ARPT_INV_TGTIP,
+		    (tgt_ipaddr & arpinfo->tmsk.s_addr) != arpinfo->tgt.s_addr))
 		return 0;
 
 	/* Look for ifname matches.  */
 	ret = ifname_compare(indev, arpinfo->iniface, arpinfo->iniface_mask);
 
-	if (FWINV(ret != 0, ARPT_INV_VIA_IN))
+	if (NF_INVF(arpinfo, ARPT_INV_VIA_IN, ret != 0))
 		return 0;
 
 	ret = ifname_compare(outdev, arpinfo->outiface, arpinfo->outiface_mask);
 
-	if (FWINV(ret != 0, ARPT_INV_VIA_OUT))
+	if (NF_INVF(arpinfo, ARPT_INV_VIA_OUT, ret != 0))
 		return 0;
 
 	return 1;
-#undef FWINV
 }
 
 static inline int arp_checkentry(const struct arpt_arp *arp)

@@ -115,8 +115,6 @@ extern unsigned int ebt_do_table(struct sk_buff *skb,
 				 const struct nf_hook_state *state,
 				 struct ebt_table *table);
 
-/* Used in the kernel match() functions */
-#define FWINV(bool,invflg) ((bool) ^ !!(info->invflags & invflg))
 /* True if the hook mask denotes that the rule is in a base chain,
  * used in the check() functions */
 #define BASE_CHAIN (par->hook_mask & (1 << NF_BR_NUMHOOKS))

@@ -58,32 +58,31 @@ ip_packet_match(const struct iphdr *ip,
 {
 	unsigned long ret;
 
-#define FWINV(bool, invflg) ((bool) ^ !!(ipinfo->invflags & (invflg)))
-
-	if (FWINV((ip->saddr&ipinfo->smsk.s_addr) != ipinfo->src.s_addr,
-		  IPT_INV_SRCIP) ||
-	    FWINV((ip->daddr&ipinfo->dmsk.s_addr) != ipinfo->dst.s_addr,
-		  IPT_INV_DSTIP))
+	if (NF_INVF(ipinfo, IPT_INV_SRCIP,
+		    (ip->saddr & ipinfo->smsk.s_addr) != ipinfo->src.s_addr) ||
+	    NF_INVF(ipinfo, IPT_INV_DSTIP,
+		    (ip->daddr & ipinfo->dmsk.s_addr) != ipinfo->dst.s_addr))
 		return false;
 
 	ret = ifname_compare_aligned(indev, ipinfo->iniface, ipinfo->iniface_mask);
 
-	if (FWINV(ret != 0, IPT_INV_VIA_IN))
+	if (NF_INVF(ipinfo, IPT_INV_VIA_IN, ret != 0))
 		return false;
 
 	ret = ifname_compare_aligned(outdev, ipinfo->outiface, ipinfo->outiface_mask);
 
-	if (FWINV(ret != 0, IPT_INV_VIA_OUT))
+	if (NF_INVF(ipinfo, IPT_INV_VIA_OUT, ret != 0))
 		return false;
 
 	/* Check specific protocol */
 	if (ipinfo->proto &&
-	    FWINV(ip->protocol != ipinfo->proto, IPT_INV_PROTO))
+	    NF_INVF(ipinfo, IPT_INV_PROTO, ip->protocol != ipinfo->proto))
 		return false;
 
 	/* If we have a fragment rule but the packet is not a fragment
 	 * then we return zero */
-	if (FWINV((ipinfo->flags&IPT_F_FRAG) && !isfrag, IPT_INV_FRAG))
+	if (NF_INVF(ipinfo, IPT_INV_FRAG,
+		    (ipinfo->flags & IPT_F_FRAG) && !isfrag))
 		return false;
 
 	return true;
@@ -122,7 +121,6 @@ static inline bool unconditional(const struct ipt_entry *e)
 
 	return e->target_offset == sizeof(struct ipt_entry) &&
 	       memcmp(&e->ip, &uncond, sizeof(uncond)) == 0;
-#undef FWINV
 }
 
 /* for const-correctness */
