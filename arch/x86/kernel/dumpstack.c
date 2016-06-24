@@ -80,7 +80,7 @@ print_ftrace_graph_addr(unsigned long addr, void *data,
 static inline int valid_stack_ptr(struct task_struct *task,
 			void *p, unsigned int size, void *end)
 {
-	void *t = task_thread_info(task);
+	void *t = task_stack_page(task);
 	if (end) {
 		if (p < end && p >= (end-THREAD_SIZE))
 			return 1;
