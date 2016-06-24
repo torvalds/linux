@@ -1134,6 +1134,7 @@ static const struct x86_cpu_id rapl_ids[] __initconst = {
 	RAPL_CPU(INTEL_FAM6_SANDYBRIDGE_X,	rapl_defaults_core),
 
 	RAPL_CPU(INTEL_FAM6_IVYBRIDGE,		rapl_defaults_core),
+	RAPL_CPU(INTEL_FAM6_IVYBRIDGE_X,	rapl_defaults_core),
 
 	RAPL_CPU(INTEL_FAM6_HASWELL_CORE,	rapl_defaults_core),
 	RAPL_CPU(INTEL_FAM6_HASWELL_ULT,	rapl_defaults_core),
