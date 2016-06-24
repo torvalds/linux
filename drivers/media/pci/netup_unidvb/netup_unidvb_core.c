@@ -975,7 +975,7 @@ wq_create_err:
 	kfree(ndev);
 dev_alloc_err:
 	dev_err(&pci_dev->dev,
-		"%s(): failed to initizalize device\n", __func__);
+		"%s(): failed to initialize device\n", __func__);
 	return -EIO;
 }
 
