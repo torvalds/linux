@@ -1403,7 +1403,6 @@ static void i915_driver_register(struct drm_i915_private *dev_priv)
 	if (drm_dev_register(dev, 0) == 0) {
 		i915_debugfs_register(dev_priv);
 		i915_setup_sysfs(dev);
-		intel_modeset_register(dev_priv);
 	} else
 		DRM_ERROR("Failed to register driver for userspace access!\n");
 
@@ -1440,7 +1439,6 @@ static void i915_driver_unregister(struct drm_i915_private *dev_priv)
 	acpi_video_unregister();
 	intel_opregion_unregister(dev_priv);
 
-	intel_modeset_unregister(dev_priv);
 	i915_teardown_sysfs(dev_priv->dev);
 	i915_debugfs_unregister(dev_priv);
 	drm_dev_unregister(dev_priv->dev);
