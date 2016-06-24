@@ -2397,6 +2397,8 @@ static void adv7842_log_infoframes(struct v4l2_subdev *sd)
 		log_infoframe(sd, &cri[i]);
 }
 
+#if 0
+/* Let's keep it here for now, as it could be useful for debug */
 static const char * const prim_mode_txt[] = {
 	"SDP",
 	"Component",
@@ -2415,6 +2417,7 @@ static const char * const prim_mode_txt[] = {
 	"Reserved",
 	"Reserved",
 };
+#endif
 
 static int adv7842_sdp_log_status(struct v4l2_subdev *sd)
 {
