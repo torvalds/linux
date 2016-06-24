@@ -65,6 +65,7 @@ static int cmd_data_convert(int argc, const char **argv,
 		OPT_STRING(0, "to-ctf", &to_ctf, NULL, "Convert to CTF format"),
 #endif
 		OPT_BOOLEAN('f', "force", &opts.force, "don't complain, do it"),
+		OPT_BOOLEAN(0, "all", &opts.all, "Convert all events"),
 		OPT_END()
 	};
 
