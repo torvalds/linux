@@ -1587,12 +1587,11 @@ void intel_dsi_init(struct drm_device *dev)
 	connector->display_info.height_mm = fixed_mode->height_mm;
 
 	intel_panel_init(&intel_connector->panel, fixed_mode, NULL);
+	intel_panel_setup_backlight(connector, INVALID_PIPE);
 
 	intel_dsi_add_properties(intel_connector);
 
 	drm_connector_register(connector);
-
-	intel_panel_setup_backlight(connector, INVALID_PIPE);
 
 	return;
 

@@ -1120,6 +1120,7 @@ out:
 	mutex_unlock(&dev->mode_config.mutex);
 
 	intel_panel_init(&intel_connector->panel, fixed_mode, downclock_mode);
+	intel_panel_setup_backlight(connector, INVALID_PIPE);
 
 	lvds_encoder->is_dual_link = compute_is_dual_link_lvds(lvds_encoder);
 	DRM_DEBUG_KMS("detected %s-link lvds configuration\n",
@@ -1133,8 +1134,6 @@ out:
 		lvds_connector->lid_notifier.notifier_call = NULL;
 	}
 	drm_connector_register(connector);
-
-	intel_panel_setup_backlight(connector, INVALID_PIPE);
 
 	return;
 
