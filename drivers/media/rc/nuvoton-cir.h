@@ -117,22 +117,9 @@ struct nvt_dev {
 	/* rx settings */
 	bool learning_enabled;
 
-	/* for study */
-	u8 study_state;
 	/* carrier period = 1 / frequency */
 	u32 carrier;
 };
-
-/* study states */
-#define ST_STUDY_NONE      0x0
-#define ST_STUDY_START     0x1
-#define ST_STUDY_CARRIER   0x2
-#define ST_STUDY_ALL_RECV  0x4
-
-/* receive states */
-#define ST_RX_WAIT_7F		0x1
-#define ST_RX_WAIT_HEAD		0x2
-#define ST_RX_WAIT_SILENT_END	0x4
 
 /* send states */
 #define ST_TX_NONE	0x0

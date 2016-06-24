@@ -865,7 +865,7 @@ static bool nvt_cir_tx_inactive(struct nvt_dev *nvt)
 static irqreturn_t nvt_cir_isr(int irq, void *data)
 {
 	struct nvt_dev *nvt = data;
-	u8 status, iren, cur_state;
+	u8 status, iren;
 	unsigned long flags;
 
 	nvt_dbg_verbose("%s firing", __func__);
@@ -907,7 +907,6 @@ static irqreturn_t nvt_cir_isr(int irq, void *data)
 		nvt_handle_rx_fifo_overrun(nvt);
 
 	if (status & CIR_IRSTS_RTR) {
-		/* FIXME: add code for study/learn mode */
 		/* We only do rx if not tx'ing */
 		if (nvt_cir_tx_inactive(nvt))
 			nvt_get_rx_ir_data(nvt);
@@ -916,11 +915,6 @@ static irqreturn_t nvt_cir_isr(int irq, void *data)
 	if (status & CIR_IRSTS_PE) {
 		if (nvt_cir_tx_inactive(nvt))
 			nvt_get_rx_ir_data(nvt);
-
-		cur_state = nvt->study_state;
-
-		if (cur_state == ST_STUDY_NONE)
-			nvt_clear_cir_fifo(nvt);
 	}
 
 	spin_unlock_irqrestore(&nvt->nvt_lock, flags);
@@ -1191,9 +1185,6 @@ static int nvt_suspend(struct pnp_dev *pdev, pm_message_t state)
 	spin_unlock_irqrestore(&nvt->tx.lock, flags);
 
 	spin_lock_irqsave(&nvt->nvt_lock, flags);
-
-	/* zero out misc state tracking */
-	nvt->study_state = ST_STUDY_NONE;
 
 	/* disable all CIR interrupts */
 	nvt_cir_reg_write(nvt, 0, CIR_IREN);
