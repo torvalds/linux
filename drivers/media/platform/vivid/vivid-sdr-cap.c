@@ -51,8 +51,6 @@ static const struct vivid_format formats[] = {
 	},
 };
 
-static const unsigned int NUM_FORMATS = ARRAY_SIZE(formats);
-
 static const struct v4l2_frequency_band bands_adc[] = {
 	{
 		.tuner = 0,

@@ -36,8 +36,7 @@
 /* timeperframe: min/max and default */
 static const struct v4l2_fract
 	tpf_min     = {.numerator = 1,		.denominator = FPS_MAX},
-	tpf_max     = {.numerator = FPS_MAX,	.denominator = 1},
-	tpf_default = {.numerator = 1,		.denominator = 30};
+	tpf_max     = {.numerator = FPS_MAX,	.denominator = 1};
 
 static const struct vivid_fmt formats_ovl[] = {
 	{
