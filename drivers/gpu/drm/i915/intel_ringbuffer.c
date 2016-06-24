@@ -2338,6 +2338,16 @@ static int intel_ring_context_pin(struct i915_gem_context *ctx,
 			goto error;
 	}
 
+	/* The kernel context is only used as a placeholder for flushing the
+	 * active context. It is never used for submitting user rendering and
+	 * as such never requires the golden render context, and so we can skip
+	 * emitting it when we switch to the kernel context. This is required
+	 * as during eviction we cannot allocate and pin the renderstate in
+	 * order to initialise the context.
+	 */
+	if (ctx == ctx->i915->kernel_context)
+		ce->initialised = true;
+
 	i915_gem_context_reference(ctx);
 	return 0;
 

@@ -472,13 +472,17 @@ void i915_gem_context_lost(struct drm_i915_private *dev_priv)
 			i915_gem_context_unpin(engine->last_context, engine);
 			engine->last_context = NULL;
 		}
-
-		/* Force the GPU state to be reinitialised on enabling */
-		dev_priv->kernel_context->engine[engine->id].initialised =
-			engine->init_context == NULL;
 	}
 
-	/* Force the GPU state to be reinitialised on enabling */
+	/* Force the GPU state to be restored on enabling */
+	if (!i915.enable_execlists) {
+		for_each_engine(engine, dev_priv) {
+			struct intel_context *kce =
+				&dev_priv->kernel_context->engine[engine->id];
+
+			kce->initialised = true;
+		}
+	}
 	dev_priv->kernel_context->remap_slice = ALL_L3_SLICES(dev_priv);
 }
 
