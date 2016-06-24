@@ -2046,7 +2046,7 @@ struct drm_i915_private {
 
 static inline struct drm_i915_private *to_i915(const struct drm_device *dev)
 {
-	return dev->dev_private;
+	return container_of(dev, struct drm_i915_private, drm);
 }
 
 static inline struct drm_i915_private *dev_to_i915(struct device *dev)
@@ -2622,7 +2622,7 @@ struct drm_i915_cmd_table {
 #define INTEL_DEVID(p)	(INTEL_INFO(p)->device_id)
 
 #define REVID_FOREVER		0xff
-#define INTEL_REVID(p)	(__I915__(p)->dev->pdev->revision)
+#define INTEL_REVID(p)	(__I915__(p)->drm.pdev->revision)
 
 #define GEN_FOREVER (0)
 /*
@@ -3501,7 +3501,7 @@ i915_gem_context_lookup(struct drm_i915_file_private *file_priv, u32 id)
 {
 	struct i915_gem_context *ctx;
 
-	lockdep_assert_held(&file_priv->dev_priv->dev->struct_mutex);
+	lockdep_assert_held(&file_priv->dev_priv->drm.struct_mutex);
 
 	ctx = idr_find(&file_priv->context_idr, id);
 	if (!ctx)
@@ -3517,7 +3517,7 @@ static inline void i915_gem_context_reference(struct i915_gem_context *ctx)
 
 static inline void i915_gem_context_unreference(struct i915_gem_context *ctx)
 {
-	lockdep_assert_held(&ctx->i915->dev->struct_mutex);
+	lockdep_assert_held(&ctx->i915->drm.struct_mutex);
 	kref_put(&ctx->ref, i915_gem_context_free);
 }
 
@@ -3593,7 +3593,7 @@ void i915_gem_shrinker_cleanup(struct drm_i915_private *dev_priv);
 /* i915_gem_tiling.c */
 static inline bool i915_gem_object_needs_bit17_swizzle(struct drm_i915_gem_object *obj)
 {
-	struct drm_i915_private *dev_priv = obj->base.dev->dev_private;
+	struct drm_i915_private *dev_priv = to_i915(obj->base.dev);
 
 	return dev_priv->mm.bit_6_swizzle_x == I915_BIT_6_SWIZZLE_9_10_17 &&
 		obj->tiling_mode != I915_TILING_NONE;
