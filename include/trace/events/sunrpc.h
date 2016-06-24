@@ -553,7 +553,7 @@ TRACE_EVENT(svc_xprt_do_enqueue,
 		__entry->pid, show_svc_xprt_flags(__entry->flags))
 );
 
-TRACE_EVENT(svc_xprt_dequeue,
+DECLARE_EVENT_CLASS(svc_xprt_event,
 	TP_PROTO(struct svc_xprt *xprt),
 
 	TP_ARGS(xprt),
@@ -581,6 +581,14 @@ TRACE_EVENT(svc_xprt_dequeue,
 			(struct sockaddr *)__get_dynamic_array(addr) : NULL,
 		show_svc_xprt_flags(__entry->flags))
 );
+
+DEFINE_EVENT(svc_xprt_event, svc_xprt_dequeue,
+	TP_PROTO(struct svc_xprt *xprt),
+	TP_ARGS(xprt));
+
+DEFINE_EVENT(svc_xprt_event, svc_xprt_no_write_space,
+	TP_PROTO(struct svc_xprt *xprt),
+	TP_ARGS(xprt));
 
 TRACE_EVENT(svc_wake_up,
 	TP_PROTO(int pid),
