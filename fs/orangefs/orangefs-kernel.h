@@ -587,8 +587,8 @@ int service_operation(struct orangefs_kernel_op_s *op,
 
 #define fill_default_sys_attrs(sys_attr, type, mode)			\
 do {									\
-	sys_attr.owner = from_kuid(current_user_ns(), current_fsuid()); \
-	sys_attr.group = from_kgid(current_user_ns(), current_fsgid()); \
+	sys_attr.owner = from_kuid(&init_user_ns, current_fsuid()); \
+	sys_attr.group = from_kgid(&init_user_ns, current_fsgid()); \
 	sys_attr.perms = ORANGEFS_util_translate_mode(mode);		\
 	sys_attr.mtime = 0;						\
 	sys_attr.atime = 0;						\

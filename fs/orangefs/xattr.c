@@ -79,8 +79,8 @@ ssize_t orangefs_inode_getxattr(struct inode *inode, const char *name,
 		return -EINVAL;
 	}
 
-	fsuid = from_kuid(current_user_ns(), current_fsuid());
-	fsgid = from_kgid(current_user_ns(), current_fsgid());
+	fsuid = from_kuid(&init_user_ns, current_fsuid());
+	fsgid = from_kgid(&init_user_ns, current_fsgid());
 
 	gossip_debug(GOSSIP_XATTR_DEBUG,
 		     "getxattr on inode %pU, name %s "
