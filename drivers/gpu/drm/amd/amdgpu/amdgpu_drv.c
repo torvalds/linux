@@ -536,7 +536,7 @@ static struct drm_driver kms_driver = {
 	.driver_features =
 	    DRIVER_USE_AGP |
 	    DRIVER_HAVE_IRQ | DRIVER_IRQ_SHARED | DRIVER_GEM |
-	    DRIVER_PRIME | DRIVER_RENDER,
+	    DRIVER_PRIME | DRIVER_RENDER | DRIVER_MODESET,
 	.dev_priv_size = 0,
 	.load = amdgpu_driver_load_kms,
 	.open = amdgpu_driver_open_kms,
@@ -611,7 +611,6 @@ static int __init amdgpu_init(void)
 	DRM_INFO("amdgpu kernel modesetting enabled.\n");
 	driver = &kms_driver;
 	pdriver = &amdgpu_kms_pci_driver;
-	driver->driver_features |= DRIVER_MODESET;
 	driver->num_ioctls = amdgpu_max_kms_ioctl;
 	amdgpu_register_atpx_handler();
 	/* let modprobe override vga console setting */
