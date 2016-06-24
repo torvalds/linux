@@ -111,11 +111,7 @@ struct nvt_dev {
 	u8 chip_minor;
 
 	/* hardware features */
-	bool hw_learning_capable;
 	bool hw_tx_capable;
-
-	/* rx settings */
-	bool learning_enabled;
 
 	/* carrier period = 1 / frequency */
 	u32 carrier;
