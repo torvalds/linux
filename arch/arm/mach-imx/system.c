@@ -34,24 +34,18 @@
 
 static void __iomem *wdog_base;
 static struct clk *wdog_clk;
+static int wcr_enable = (1 << 2);
 
 /*
  * Reset the system. It is called by machine_restart().
  */
 void mxc_restart(enum reboot_mode mode, const char *cmd)
 {
-	unsigned int wcr_enable;
-
 	if (!wdog_base)
 		goto reset_fallback;
 
 	if (!IS_ERR(wdog_clk))
 		clk_enable(wdog_clk);
-
-	if (cpu_is_mx1())
-		wcr_enable = (1 << 0);
-	else
-		wcr_enable = (1 << 2);
 
 	/* Assert SRS signal */
 	imx_writew(wcr_enable, wdog_base);
@@ -88,6 +82,14 @@ void __init mxc_arch_reset_init(void __iomem *base)
 	else
 		clk_prepare(wdog_clk);
 }
+
+#ifdef CONFIG_SOC_IMX1
+void __init imx1_reset_init(void __iomem *base)
+{
+	wcr_enable = (1 << 0);
+	mxc_arch_reset_init(base);
+}
+#endif
 
 #ifdef CONFIG_CACHE_L2X0
 void __init imx_init_l2cache(void)
