@@ -2261,8 +2261,8 @@ static bool do_idling(struct drm_i915_private *dev_priv)
 
 	if (unlikely(ggtt->do_idle_maps)) {
 		dev_priv->mm.interruptible = false;
-		if (i915_gpu_idle(dev_priv->dev)) {
-			DRM_ERROR("Couldn't idle GPU\n");
+		if (i915_gem_wait_for_idle(dev_priv)) {
+			DRM_ERROR("Failed to wait for idle; VT'd may hang.\n");
 			/* Wait a bit, in hopes it avoids the hang */
 			udelay(10);
 		}
