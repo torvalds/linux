@@ -56,6 +56,7 @@ static int cmd_data_convert(int argc, const char **argv,
 	const char *to_ctf     = NULL;
 	struct perf_data_convert_opts opts = {
 		.force = false,
+		.all = false,
 	};
 	const struct option options[] = {
 		OPT_INCR('v', "verbose", &verbose, "be more verbose"),
