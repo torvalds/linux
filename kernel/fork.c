@@ -148,18 +148,18 @@ static inline void free_task_struct(struct task_struct *tsk)
 }
 #endif
 
-void __weak arch_release_thread_info(struct thread_info *ti)
+void __weak arch_release_thread_stack(unsigned long *stack)
 {
 }
 
-#ifndef CONFIG_ARCH_THREAD_INFO_ALLOCATOR
+#ifndef CONFIG_ARCH_THREAD_STACK_ALLOCATOR
 
 /*
  * Allocate pages if THREAD_SIZE is >= PAGE_SIZE, otherwise use a
  * kmemcache based allocator.
  */
 # if THREAD_SIZE >= PAGE_SIZE
-static struct thread_info *alloc_thread_info_node(struct task_struct *tsk,
+static unsigned long *alloc_thread_stack_node(struct task_struct *tsk,
 						  int node)
 {
 	struct page *page = alloc_kmem_pages_node(node, THREADINFO_GFP,
@@ -172,33 +172,33 @@ static struct thread_info *alloc_thread_info_node(struct task_struct *tsk,
 	return page ? page_address(page) : NULL;
 }
 
-static inline void free_thread_info(struct thread_info *ti)
+static inline void free_thread_stack(unsigned long *stack)
 {
-	struct page *page = virt_to_page(ti);
+	struct page *page = virt_to_page(stack);
 
 	memcg_kmem_update_page_stat(page, MEMCG_KERNEL_STACK,
 				    -(1 << THREAD_SIZE_ORDER));
 	__free_kmem_pages(page, THREAD_SIZE_ORDER);
 }
 # else
-static struct kmem_cache *thread_info_cache;
+static struct kmem_cache *thread_stack_cache;
 
-static struct thread_info *alloc_thread_info_node(struct task_struct *tsk,
+static struct thread_info *alloc_thread_stack_node(struct task_struct *tsk,
 						  int node)
 {
-	return kmem_cache_alloc_node(thread_info_cache, THREADINFO_GFP, node);
+	return kmem_cache_alloc_node(thread_stack_cache, THREADINFO_GFP, node);
 }
 
-static void free_thread_info(struct thread_info *ti)
+static void free_stack(unsigned long *stack)
 {
-	kmem_cache_free(thread_info_cache, ti);
+	kmem_cache_free(thread_stack_cache, stack);
 }
 
-void thread_info_cache_init(void)
+void thread_stack_cache_init(void)
 {
-	thread_info_cache = kmem_cache_create("thread_info", THREAD_SIZE,
+	thread_stack_cache = kmem_cache_create("thread_stack", THREAD_SIZE,
 					      THREAD_SIZE, 0, NULL);
-	BUG_ON(thread_info_cache == NULL);
+	BUG_ON(thread_stack_cache == NULL);
 }
 # endif
 #endif
@@ -221,9 +221,9 @@ struct kmem_cache *vm_area_cachep;
 /* SLAB cache for mm_struct structures (tsk->mm) */
 static struct kmem_cache *mm_cachep;
 
-static void account_kernel_stack(struct thread_info *ti, int account)
+static void account_kernel_stack(unsigned long *stack, int account)
 {
-	struct zone *zone = page_zone(virt_to_page(ti));
+	struct zone *zone = page_zone(virt_to_page(stack));
 
 	mod_zone_page_state(zone, NR_KERNEL_STACK, account);
 }
@@ -231,8 +231,8 @@ static void account_kernel_stack(struct thread_info *ti, int account)
 void free_task(struct task_struct *tsk)
 {
 	account_kernel_stack(tsk->stack, -1);
-	arch_release_thread_info(tsk->stack);
-	free_thread_info(tsk->stack);
+	arch_release_thread_stack(tsk->stack);
+	free_thread_stack(tsk->stack);
 	rt_mutex_debug_task_free(tsk);
 	ftrace_graph_exit_task(tsk);
 	put_seccomp_filter(tsk);
@@ -343,7 +343,7 @@ void set_task_stack_end_magic(struct task_struct *tsk)
 static struct task_struct *dup_task_struct(struct task_struct *orig, int node)
 {
 	struct task_struct *tsk;
-	struct thread_info *ti;
+	unsigned long *stack;
 	int err;
 
 	if (node == NUMA_NO_NODE)
@@ -352,15 +352,15 @@ static struct task_struct *dup_task_struct(struct task_struct *orig, int node)
 	if (!tsk)
 		return NULL;
 
-	ti = alloc_thread_info_node(tsk, node);
-	if (!ti)
+	stack = alloc_thread_stack_node(tsk, node);
+	if (!stack)
 		goto free_tsk;
 
 	err = arch_dup_task_struct(tsk, orig);
 	if (err)
-		goto free_ti;
+		goto free_stack;
 
-	tsk->stack = ti;
+	tsk->stack = stack;
 #ifdef CONFIG_SECCOMP
 	/*
 	 * We must handle setting up seccomp filters once we're under
@@ -392,14 +392,14 @@ static struct task_struct *dup_task_struct(struct task_struct *orig, int node)
 	tsk->task_frag.page = NULL;
 	tsk->wake_q.next = NULL;
 
-	account_kernel_stack(ti, 1);
+	account_kernel_stack(stack, 1);
 
 	kcov_task_init(tsk);
 
 	return tsk;
 
-free_ti:
-	free_thread_info(ti);
+free_stack:
+	free_thread_stack(stack);
 free_tsk:
 	free_task_struct(tsk);
 	return NULL;
