@@ -120,6 +120,7 @@ enum ctype {
 	CT_USERCOPY_STACK_FRAME_TO,
 	CT_USERCOPY_STACK_FRAME_FROM,
 	CT_USERCOPY_STACK_BEYOND,
+	CT_USERCOPY_KERNEL,
 };
 
 static char* cp_name[] = {
@@ -171,6 +172,7 @@ static char* cp_type[] = {
 	"USERCOPY_STACK_FRAME_TO",
 	"USERCOPY_STACK_FRAME_FROM",
 	"USERCOPY_STACK_BEYOND",
+	"USERCOPY_KERNEL",
 };
 
 static struct jprobe lkdtm;
@@ -489,6 +491,35 @@ static noinline void do_usercopy_stack(bool to_user, bool bad_frame)
 			pr_warn("copy_from_user failed, but lacked Oops\n");
 			goto free_user;
 		}
+	}
+
+free_user:
+	vm_munmap(user_addr, PAGE_SIZE);
+}
+
+static void do_usercopy_kernel(void)
+{
+	unsigned long user_addr;
+
+	user_addr = vm_mmap(NULL, 0, PAGE_SIZE,
+			    PROT_READ | PROT_WRITE | PROT_EXEC,
+			    MAP_ANONYMOUS | MAP_PRIVATE, 0);
+	if (user_addr >= TASK_SIZE) {
+		pr_warn("Failed to allocate user memory\n");
+		return;
+	}
+
+	pr_info("attempting good copy_to_user from kernel rodata\n");
+	if (copy_to_user((void __user *)user_addr, test_text,
+			 sizeof(test_text))) {
+		pr_warn("copy_to_user failed unexpectedly?!\n");
+		goto free_user;
+	}
+
+	pr_info("attempting bad copy_to_user from kernel text\n");
+	if (copy_to_user((void __user *)user_addr, vm_mmap, PAGE_SIZE)) {
+		pr_warn("copy_to_user failed, but lacked Oops\n");
+		goto free_user;
 	}
 
 free_user:
@@ -956,6 +987,9 @@ static void lkdtm_do_action(enum ctype which)
 		break;
 	case CT_USERCOPY_STACK_BEYOND:
 		do_usercopy_stack(true, false);
+		break;
+	case CT_USERCOPY_KERNEL:
+		do_usercopy_kernel();
 		break;
 	case CT_NONE:
 	default:
