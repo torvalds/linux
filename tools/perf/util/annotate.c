@@ -1676,11 +1676,6 @@ int symbol__tty_annotate(struct symbol *sym, struct map *map,
 	return 0;
 }
 
-int hist_entry__annotate(struct hist_entry *he, size_t privsize)
-{
-	return symbol__annotate(he->ms.sym, he->ms.map, privsize);
-}
-
 bool ui__has_annotation(void)
 {
 	return use_browser == 1 && perf_hpp_list.sym;
