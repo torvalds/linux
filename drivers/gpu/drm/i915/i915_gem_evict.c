@@ -183,9 +183,11 @@ none:
 	if (pass++ == 0) {
 		struct drm_i915_private *dev_priv = to_i915(dev);
 
-		ret = switch_to_pinned_context(dev_priv);
-		if (ret)
-			return ret;
+		if (i915_is_ggtt(vm)) {
+			ret = switch_to_pinned_context(dev_priv);
+			if (ret)
+				return ret;
+		}
 
 		ret = i915_gem_wait_for_idle(dev_priv);
 		if (ret)
@@ -300,9 +302,11 @@ int i915_gem_evict_vm(struct i915_address_space *vm, bool do_idle)
 	if (do_idle) {
 		struct drm_i915_private *dev_priv = to_i915(vm->dev);
 
-		ret = switch_to_pinned_context(dev_priv);
-		if (ret)
-			return ret;
+		if (i915_is_ggtt(vm)) {
+			ret = switch_to_pinned_context(dev_priv);
+			if (ret)
+				return ret;
+		}
 
 		ret = i915_gem_wait_for_idle(dev_priv);
 		if (ret)
