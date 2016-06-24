@@ -1,1 +1,1 @@
-obj-$(CONFIG_XILINX_VDMA) += xilinx_vdma.o
+obj-$(CONFIG_XILINX_DMA) += xilinx_dma.o
