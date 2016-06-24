@@ -480,10 +480,8 @@ static void nvt_cir_wake_ldev_init(struct nvt_dev *nvt)
 
 	nvt_set_ioaddr(nvt, &nvt->cir_wake_addr);
 
-	nvt_cr_write(nvt, nvt->cir_wake_irq, CR_CIR_IRQ_RSRC);
-
-	nvt_dbg("CIR Wake initialized, base io port address: 0x%lx, irq: %d",
-		nvt->cir_wake_addr, nvt->cir_wake_irq);
+	nvt_dbg("CIR Wake initialized, base io port address: 0x%lx",
+		nvt->cir_wake_addr);
 }
 
 /* clear out the hardware's cir rx fifo */
@@ -997,51 +995,6 @@ static irqreturn_t nvt_cir_isr(int irq, void *data)
 	return IRQ_HANDLED;
 }
 
-/* Interrupt service routine for CIR Wake */
-static irqreturn_t nvt_cir_wake_isr(int irq, void *data)
-{
-	u8 status, iren, val;
-	struct nvt_dev *nvt = data;
-	unsigned long flags;
-
-	nvt_dbg_wake("%s firing", __func__);
-
-	spin_lock_irqsave(&nvt->nvt_lock, flags);
-
-	status = nvt_cir_wake_reg_read(nvt, CIR_WAKE_IRSTS);
-	iren = nvt_cir_wake_reg_read(nvt, CIR_WAKE_IREN);
-
-	/* IRQ may be shared with CIR, therefore check for each
-	 * status bit whether the related interrupt source is enabled
-	 */
-	if (!(status & iren)) {
-		spin_unlock_irqrestore(&nvt->nvt_lock, flags);
-		return IRQ_NONE;
-	}
-
-	if (status & CIR_WAKE_IRSTS_IR_PENDING)
-		nvt_clear_cir_wake_fifo(nvt);
-
-	nvt_cir_wake_reg_write(nvt, status, CIR_WAKE_IRSTS);
-	nvt_cir_wake_reg_write(nvt, 0, CIR_WAKE_IRSTS);
-
-	if ((status & CIR_WAKE_IRSTS_PE) &&
-	    (nvt->wake_state == ST_WAKE_START)) {
-		while (nvt_cir_wake_reg_read(nvt, CIR_WAKE_RD_FIFO_ONLY_IDX)) {
-			val = nvt_cir_wake_reg_read(nvt, CIR_WAKE_RD_FIFO_ONLY);
-			nvt_dbg("setting wake up key: 0x%x", val);
-		}
-
-		nvt_cir_wake_reg_write(nvt, 0, CIR_WAKE_IREN);
-		nvt->wake_state = ST_WAKE_FINISH;
-	}
-
-	spin_unlock_irqrestore(&nvt->nvt_lock, flags);
-
-	nvt_dbg_wake("%s done", __func__);
-	return IRQ_HANDLED;
-}
-
 static void nvt_disable_cir(struct nvt_dev *nvt)
 {
 	unsigned long flags;
@@ -1145,8 +1098,6 @@ static int nvt_probe(struct pnp_dev *pdev, const struct pnp_device_id *dev_id)
 	nvt->cir_irq  = pnp_irq(pdev, 0);
 
 	nvt->cir_wake_addr = pnp_port_start(pdev, 1);
-	/* irq is always shared between cir and cir wake */
-	nvt->cir_wake_irq  = nvt->cir_irq;
 
 	nvt->cr_efir = CR_EFIR;
 	nvt->cr_efdr = CR_EFDR;
@@ -1220,11 +1171,6 @@ static int nvt_probe(struct pnp_dev *pdev, const struct pnp_device_id *dev_id)
 
 	if (!devm_request_region(&pdev->dev, nvt->cir_wake_addr,
 			    CIR_IOREG_LENGTH, NVT_DRIVER_NAME "-wake"))
-		goto exit_unregister_device;
-
-	if (devm_request_irq(&pdev->dev, nvt->cir_wake_irq,
-			     nvt_cir_wake_isr, IRQF_SHARED,
-			     NVT_DRIVER_NAME "-wake", (void *)nvt))
 		goto exit_unregister_device;
 
 	ret = device_create_file(&rdev->dev, &dev_attr_wakeup_data);

@@ -104,7 +104,6 @@ struct nvt_dev {
 	unsigned long cir_addr;
 	unsigned long cir_wake_addr;
 	int cir_irq;
-	int cir_wake_irq;
 
 	enum nvt_chip_ver chip_ver;
 	/* hardware id */
