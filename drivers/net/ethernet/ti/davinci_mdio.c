@@ -436,7 +436,6 @@ static int davinci_mdio_suspend(struct device *dev)
 
 	data->suspended = true;
 	spin_unlock(&data->lock);
-	pm_runtime_put_sync(data->dev);
 
 	/* Select sleep pin state */
 	pinctrl_pm_select_sleep_state(dev);
@@ -450,8 +449,6 @@ static int davinci_mdio_resume(struct device *dev)
 
 	/* Select default pin state */
 	pinctrl_pm_select_default_state(dev);
-
-	pm_runtime_get_sync(data->dev);
 
 	spin_lock(&data->lock);
 	/* restart the scan state machine */
