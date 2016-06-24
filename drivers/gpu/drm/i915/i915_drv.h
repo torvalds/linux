@@ -2894,16 +2894,13 @@ struct drm_i915_cmd_table {
 
 #include "i915_trace.h"
 
-extern const struct drm_ioctl_desc i915_ioctls[];
-extern int i915_max_ioctl;
-
 extern int i915_suspend_switcheroo(struct drm_device *dev, pm_message_t state);
 extern int i915_resume_switcheroo(struct drm_device *dev);
 
 int intel_sanitize_enable_ppgtt(struct drm_i915_private *dev_priv,
 			       	int enable_ppgtt);
 
-/* i915_dma.c */
+/* i915_drv.c */
 void __printf(3, 4)
 __i915_printk(struct drm_i915_private *dev_priv, const char *level,
 	      const char *fmt, ...);
@@ -2911,16 +2908,6 @@ __i915_printk(struct drm_i915_private *dev_priv, const char *level,
 #define i915_report_error(dev_priv, fmt, ...)				   \
 	__i915_printk(dev_priv, KERN_ERR, fmt, ##__VA_ARGS__)
 
-extern int i915_driver_load(struct pci_dev *pdev,
-			    const struct pci_device_id *ent,
-			    struct drm_driver *driver);
-extern int i915_driver_unload(struct drm_device *);
-extern int i915_driver_open(struct drm_device *dev, struct drm_file *file);
-extern void i915_driver_lastclose(struct drm_device * dev);
-extern void i915_driver_preclose(struct drm_device *dev,
-				 struct drm_file *file);
-extern void i915_driver_postclose(struct drm_device *dev,
-				  struct drm_file *file);
 #ifdef CONFIG_COMPAT
 extern long i915_compat_ioctl(struct file *filp, unsigned int cmd,
 			      unsigned long arg);
@@ -3751,7 +3738,6 @@ extern void intel_init_pch_refclk(struct drm_device *dev);
 extern void intel_set_rps(struct drm_i915_private *dev_priv, u8 val);
 extern void intel_set_memory_cxsr(struct drm_i915_private *dev_priv,
 				  bool enable);
-extern void intel_detect_pch(struct drm_device *dev);
 
 extern bool i915_semaphore_is_enabled(struct drm_i915_private *dev_priv);
 int i915_reg_read_ioctl(struct drm_device *dev, void *data,

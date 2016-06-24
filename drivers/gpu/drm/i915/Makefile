@@ -101,9 +101,6 @@ i915-y += dvo_ch7017.o \
 # virtual gpu code
 i915-y += i915_vgpu.o
 
-# legacy horrors
-i915-y += i915_dma.o
-
 ifeq ($(CONFIG_DRM_I915_GVT),y)
 i915-y += intel_gvt.o
 include $(src)/gvt/Makefile
