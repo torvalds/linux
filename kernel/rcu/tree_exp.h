@@ -516,6 +516,33 @@ static void rcu_exp_wait_wake(struct rcu_state *rsp, unsigned long s)
 	mutex_unlock(&rsp->exp_wake_mutex);
 }
 
+/*
+ * Given an rcu_state pointer and a smp_call_function() handler, kick
+ * off the specified flavor of expedited grace period.
+ */
+static void _synchronize_rcu_expedited(struct rcu_state *rsp,
+				       smp_call_func_t func)
+{
+	unsigned long s;
+
+	/* If expedited grace periods are prohibited, fall back to normal. */
+	if (rcu_gp_is_normal()) {
+		wait_rcu_gp(rsp->call);
+		return;
+	}
+
+	/* Take a snapshot of the sequence number.  */
+	s = rcu_exp_gp_seq_snap(rsp);
+	if (exp_funnel_lock(rsp, s))
+		return;  /* Someone else did our work for us. */
+
+	/* Initialize the rcu_node tree in preparation for the wait. */
+	sync_rcu_exp_select_cpus(rsp, func);
+
+	/* Wait and clean up, including waking everyone. */
+	rcu_exp_wait_wake(rsp, s);
+}
+
 /**
  * synchronize_sched_expedited - Brute-force RCU-sched grace period
  *
@@ -534,29 +561,13 @@ static void rcu_exp_wait_wake(struct rcu_state *rsp, unsigned long s)
  */
 void synchronize_sched_expedited(void)
 {
-	unsigned long s;
 	struct rcu_state *rsp = &rcu_sched_state;
 
 	/* If only one CPU, this is automatically a grace period. */
 	if (rcu_blocking_is_gp())
 		return;
 
-	/* If expedited grace periods are prohibited, fall back to normal. */
-	if (rcu_gp_is_normal()) {
-		wait_rcu_gp(call_rcu_sched);
-		return;
-	}
-
-	/* Take a snapshot of the sequence number.  */
-	s = rcu_exp_gp_seq_snap(rsp);
-	if (exp_funnel_lock(rsp, s))
-		return;  /* Someone else did our work for us. */
-
-	/* Initialize the rcu_node tree in preparation for the wait. */
-	sync_rcu_exp_select_cpus(rsp, sync_sched_exp_handler);
-
-	/* Wait and clean up, including waking everyone. */
-	rcu_exp_wait_wake(rsp, s);
+	_synchronize_rcu_expedited(rsp, sync_sched_exp_handler);
 }
 EXPORT_SYMBOL_GPL(synchronize_sched_expedited);
 
@@ -620,23 +631,8 @@ static void sync_rcu_exp_handler(void *info)
 void synchronize_rcu_expedited(void)
 {
 	struct rcu_state *rsp = rcu_state_p;
-	unsigned long s;
 
-	/* If expedited grace periods are prohibited, fall back to normal. */
-	if (rcu_gp_is_normal()) {
-		wait_rcu_gp(call_rcu);
-		return;
-	}
-
-	s = rcu_exp_gp_seq_snap(rsp);
-	if (exp_funnel_lock(rsp, s))
-		return;  /* Someone else did our work for us. */
-
-	/* Initialize the rcu_node tree in preparation for the wait. */
-	sync_rcu_exp_select_cpus(rsp, sync_rcu_exp_handler);
-
-	/* Wait for ->blkd_tasks lists to drain, then wake everyone up. */
-	rcu_exp_wait_wake(rsp, s);
+	_synchronize_rcu_expedited(rsp, sync_rcu_exp_handler);
 }
 EXPORT_SYMBOL_GPL(synchronize_rcu_expedited);
 
