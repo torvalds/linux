@@ -1972,7 +1972,6 @@ static void sci_break_ctl(struct uart_port *port, int break_state)
 static int sci_startup(struct uart_port *port)
 {
 	struct sci_port *s = to_sci_port(port);
-	unsigned long flags;
 	int ret;
 
 	dev_dbg(port->dev, "%s(%d)\n", __func__, port->line);
@@ -1982,11 +1981,6 @@ static int sci_startup(struct uart_port *port)
 		return ret;
 
 	sci_request_dma(port);
-
-	spin_lock_irqsave(&port->lock, flags);
-	sci_start_tx(port);
-	sci_start_rx(port);
-	spin_unlock_irqrestore(&port->lock, flags);
 
 	return 0;
 }
