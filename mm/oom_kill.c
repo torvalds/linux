@@ -478,6 +478,7 @@ static bool __oom_reap_task(struct task_struct *tsk)
 	mm = p->mm;
 	if (!atomic_inc_not_zero(&mm->mm_users)) {
 		task_unlock(p);
+		mm = NULL;
 		goto unlock_oom;
 	}
 
