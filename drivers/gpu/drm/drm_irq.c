@@ -1588,12 +1588,6 @@ static int drm_queue_vblank_event(struct drm_device *dev, unsigned int pipe,
 
 	seq = drm_vblank_count_and_time(dev, pipe, &now);
 
-	if ((vblwait->request.type & _DRM_VBLANK_NEXTONMISS) &&
-	    (seq - vblwait->request.sequence) <= (1 << 23)) {
-		vblwait->request.sequence = seq + 1;
-		vblwait->reply.sequence = vblwait->request.sequence;
-	}
-
 	DRM_DEBUG("event on vblank count %d, current %d, crtc %u\n",
 		  vblwait->request.sequence, seq, pipe);
 
@@ -1690,16 +1684,16 @@ int drm_wait_vblank(struct drm_device *dev, void *data,
 		goto done;
 	}
 
+	if ((flags & _DRM_VBLANK_NEXTONMISS) &&
+	    (seq - vblwait->request.sequence) <= (1 << 23)) {
+		vblwait->request.sequence = seq + 1;
+	}
+
 	if (flags & _DRM_VBLANK_EVENT) {
 		/* must hold on to the vblank ref until the event fires
 		 * drm_vblank_put will be called asynchronously
 		 */
 		return drm_queue_vblank_event(dev, pipe, vblwait, file_priv);
-	}
-
-	if ((flags & _DRM_VBLANK_NEXTONMISS) &&
-	    (seq - vblwait->request.sequence) <= (1<<23)) {
-		vblwait->request.sequence = seq + 1;
 	}
 
 	DRM_DEBUG("waiting on vblank count %d, crtc %u\n",
