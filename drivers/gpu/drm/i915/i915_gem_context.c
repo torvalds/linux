@@ -476,6 +476,18 @@ void i915_gem_context_lost(struct drm_i915_private *dev_priv)
 
 	/* Force the GPU state to be restored on enabling */
 	if (!i915.enable_execlists) {
+		struct i915_gem_context *ctx;
+
+		list_for_each_entry(ctx, &dev_priv->context_list, link) {
+			if (!i915_gem_context_is_default(ctx))
+				continue;
+
+			for_each_engine(engine, dev_priv)
+				ctx->engine[engine->id].initialised = false;
+
+			ctx->remap_slice = ALL_L3_SLICES(dev_priv);
+		}
+
 		for_each_engine(engine, dev_priv) {
 			struct intel_context *kce =
 				&dev_priv->kernel_context->engine[engine->id];
@@ -483,7 +495,6 @@ void i915_gem_context_lost(struct drm_i915_private *dev_priv)
 			kce->initialised = true;
 		}
 	}
-	dev_priv->kernel_context->remap_slice = ALL_L3_SLICES(dev_priv);
 }
 
 void i915_gem_context_fini(struct drm_device *dev)
