@@ -1756,10 +1756,6 @@ static struct drm_driver driver = {
 	.postclose = i915_driver_postclose,
 	.set_busid = drm_pci_set_busid,
 
-#if defined(CONFIG_DEBUG_FS)
-	.debugfs_init = i915_debugfs_init,
-	.debugfs_cleanup = i915_debugfs_cleanup,
-#endif
 	.gem_free_object = i915_gem_free_object,
 	.gem_vm_ops = &i915_gem_vm_ops,
 

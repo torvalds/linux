@@ -3603,12 +3603,14 @@ int i915_verify_lists(struct drm_device *dev);
 #endif
 
 /* i915_debugfs.c */
-int i915_debugfs_init(struct drm_minor *minor);
-void i915_debugfs_cleanup(struct drm_minor *minor);
 #ifdef CONFIG_DEBUG_FS
+int i915_debugfs_register(struct drm_i915_private *dev_priv);
+void i915_debugfs_unregister(struct drm_i915_private *dev_priv);
 int i915_debugfs_connector_add(struct drm_connector *connector);
 void intel_display_crc_init(struct drm_device *dev);
 #else
+static inline int i915_debugfs_register(struct drm_i915_private *) {return 0;}
+static inline void i915_debugfs_unregister(struct drm_i915_private *) {}
 static inline int i915_debugfs_connector_add(struct drm_connector *connector)
 { return 0; }
 static inline void intel_display_crc_init(struct drm_device *dev) {}

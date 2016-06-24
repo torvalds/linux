@@ -5508,8 +5508,9 @@ void intel_display_crc_init(struct drm_device *dev)
 	}
 }
 
-int i915_debugfs_init(struct drm_minor *minor)
+int i915_debugfs_register(struct drm_i915_private *dev_priv)
 {
+	struct drm_minor *minor = dev_priv->dev->primary;
 	int ret, i;
 
 	ret = i915_forcewake_create(minor->debugfs_root, minor);
@@ -5535,8 +5536,9 @@ int i915_debugfs_init(struct drm_minor *minor)
 					minor->debugfs_root, minor);
 }
 
-void i915_debugfs_cleanup(struct drm_minor *minor)
+void i915_debugfs_unregister(struct drm_i915_private *dev_priv)
 {
+	struct drm_minor *minor = dev_priv->dev->primary;
 	int i;
 
 	drm_debugfs_remove_files(i915_debugfs_list,
