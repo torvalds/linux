@@ -336,15 +336,15 @@ static int rcar_du_probe(struct platform_device *pdev)
 	 * disabled for all CRTCs.
 	 */
 	ret = drm_vblank_init(ddev, (1 << rcdu->info->num_crtcs) - 1);
-	if (ret < 0) {
-		dev_err(&pdev->dev, "failed to initialize vblank\n");
+	if (ret < 0)
 		goto error;
-	}
 
 	/* DRM/KMS objects */
 	ret = rcar_du_modeset_init(rcdu);
 	if (ret < 0) {
-		dev_err(&pdev->dev, "failed to initialize DRM/KMS (%d)\n", ret);
+		if (ret != -EPROBE_DEFER)
+			dev_err(&pdev->dev,
+				"failed to initialize DRM/KMS (%d)\n", ret);
 		goto error;
 	}
 
