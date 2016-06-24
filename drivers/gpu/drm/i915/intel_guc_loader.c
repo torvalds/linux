@@ -87,7 +87,7 @@ static void direct_interrupts_to_host(struct drm_i915_private *dev_priv)
 	struct intel_engine_cs *engine;
 	int irqs;
 
-	/* tell all command streamers NOT to forward interrupts and vblank to GuC */
+	/* tell all command streamers NOT to forward interrupts or vblank to GuC */
 	irqs = _MASKED_FIELD(GFX_FORWARD_VBLANK_MASK, GFX_FORWARD_VBLANK_NEVER);
 	irqs |= _MASKED_BIT_DISABLE(GFX_INTERRUPT_STEERING);
 	for_each_engine(engine, dev_priv)
@@ -105,9 +105,8 @@ static void direct_interrupts_to_guc(struct drm_i915_private *dev_priv)
 	int irqs;
 	u32 tmp;
 
-	/* tell all command streamers to forward interrupts and vblank to GuC */
-	irqs = _MASKED_FIELD(GFX_FORWARD_VBLANK_MASK, GFX_FORWARD_VBLANK_ALWAYS);
-	irqs |= _MASKED_BIT_ENABLE(GFX_INTERRUPT_STEERING);
+	/* tell all command streamers to forward interrupts (but not vblank) to GuC */
+	irqs = _MASKED_BIT_ENABLE(GFX_INTERRUPT_STEERING);
 	for_each_engine(engine, dev_priv)
 		I915_WRITE(RING_MODE_GEN7(engine), irqs);
 
