@@ -768,8 +768,11 @@
 		#address-cells = <1>;
 		#size-cells = <1>;
 
-		u2phy: usb2-phy {
+		u2phy: usb2-phy@700 {
 			compatible = "rockchip,rk3366-usb2phy";
+			reg = <0x700 0x2c>;
+			clocks = <&cru SCLK_OTG_PHY0>;
+			clock-names = "phyclk";
 			#clock-cells = <0>;
 			clock-output-names = "sclk_otgphy0_480m";
 
@@ -1626,6 +1629,14 @@
 					<0 22 RK_FUNC_2 &pcfg_pull_none>;
 			};
 		};
+
+		usb2 {
+			host_vbus_drv: host-vbus-drv {
+				rockchip,pins =
+					<0 16 RK_FUNC_GPIO &pcfg_pull_none>;
+			};
+		};
+
 	};
 
 	gpu: gpu@ffa30000 {
