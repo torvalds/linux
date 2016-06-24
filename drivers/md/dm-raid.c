@@ -1312,6 +1312,13 @@ static int parse_raid_params(struct raid_set *rs, struct dm_arg_set *as,
 		return -EINVAL;
 	}
 
+	if (test_bit(__CTR_FLAG_REBUILD, &rs->ctr_flags) &&
+	    (test_bit(__CTR_FLAG_SYNC, &rs->ctr_flags) ||
+	     test_bit(__CTR_FLAG_NOSYNC, &rs->ctr_flags))) {
+		rs->ti->error = "sync/nosync and rebuild are mutually exclusive";
+		return -EINVAL;
+	}
+
 	if (write_mostly >= rs->md.raid_disks) {
 		rs->ti->error = "Can't set all raid1 devices to write_mostly";
 		return -EINVAL;
@@ -2776,7 +2783,9 @@ static int raid_ctr(struct dm_target *ti, unsigned argc, char **argv)
 	} else if (rs_is_recovering(rs) || rs_is_reshaping(rs)) {
 		/* Have to reject size change request during recovery/reshape */
 		if (calculated_dev_sectors != rs->dev[0].rdev.sectors) {
-			ti->error = "Can't resize a recovering/reshaping raid set";
+			ti->error = rs_is_recovering(rs) ?
+				    "Can't resize a recovering raid set" :
+				    "Can't resize a reshaping raid set";
 			r = -EPERM;
 			goto bad;
 		}
@@ -2863,8 +2872,12 @@ static int raid_ctr(struct dm_target *ti, unsigned argc, char **argv)
 		rs_setup_recovery(rs, MaxSector);
 	} else {
 		rs_set_cur(rs);
-		rs_setup_recovery(rs, test_bit(__CTR_FLAG_SYNC, &rs->ctr_flags) ?
-				      0 : calculated_dev_sectors);
+		if (test_bit(__CTR_FLAG_REBUILD, &rs->ctr_flags)) {
+			rs_setup_recovery(rs, MaxSector);
+			set_bit(RT_FLAG_UPDATE_SBS, &rs->runtime_flags);
+		} else
+			rs_setup_recovery(rs, test_bit(__CTR_FLAG_SYNC, &rs->ctr_flags) ?
+					      0 : calculated_dev_sectors);
 	}
 
 	/* If constructor requested it, change data and new_data offsets */
