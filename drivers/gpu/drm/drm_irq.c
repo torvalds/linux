@@ -532,7 +532,7 @@ int drm_irq_uninstall(struct drm_device *dev)
 
 	/*
 	 * Wake up any waiters so they don't hang. This is just to paper over
-	 * isssues for UMS drivers which aren't in full control of their
+	 * issues for UMS drivers which aren't in full control of their
 	 * vblank/irq handling. KMS drivers must ensure that vblanks are all
 	 * disabled when uninstalling the irq handler.
 	 */
@@ -594,7 +594,7 @@ int drm_control(struct drm_device *dev, void *data,
 		return 0;
 	if (drm_core_check_feature(dev, DRIVER_MODESET))
 		return 0;
-	/* UMS was only ever support on pci devices. */
+	/* UMS was only ever supported on pci devices. */
 	if (WARN_ON(!dev->pdev))
 		return -EINVAL;
 
