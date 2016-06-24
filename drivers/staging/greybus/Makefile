@@ -18,6 +18,7 @@ gb-gbphy-y := gbphy.o
 # Prefix all modules with gb-
 gb-vibrator-y := vibrator.o
 gb-power-supply-y := power_supply.o
+gb-log-y := log.o
 gb-loopback-y := loopback.o
 gb-light-y := light.o
 gb-raw-y := raw.o
@@ -46,6 +47,7 @@ obj-m += greybus.o
 obj-m += gb-gbphy.o
 obj-m += gb-vibrator.o
 obj-m += gb-power-supply.o
+obj-m += gb-log.o
 obj-m += gb-loopback.o
 obj-m += gb-light.o
 obj-m += gb-hid.o

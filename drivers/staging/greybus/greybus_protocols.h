@@ -2136,5 +2136,19 @@ struct gb_audio_send_data_request {
 	__u8	data[0];
 } __packed;
 
+
+/* Log */
+
+/* operations */
+#define GB_LOG_TYPE_SEND_LOG	0x02
+
+/* length */
+#define GB_LOG_MAX_LEN		1024
+
+struct gb_log_send_log_request {
+	__le16	len;
+	__u8    msg[0];
+} __packed;
+
 #endif /* __GREYBUS_PROTOCOLS_H */
 
