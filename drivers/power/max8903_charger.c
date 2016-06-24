@@ -304,10 +304,8 @@ static int max8903_probe(struct platform_device *pdev)
 	}
 
 	data = devm_kzalloc(dev, sizeof(struct max8903_data), GFP_KERNEL);
-	if (data == NULL) {
-		dev_err(dev, "Cannot allocate memory.\n");
+	if (!data)
 		return -ENOMEM;
-	}
 
 	data->pdata = pdev->dev.platform_data;
 	data->dev = dev;
