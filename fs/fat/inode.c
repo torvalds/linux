@@ -1726,7 +1726,7 @@ int fat_fill_super(struct super_block *sb, void *data, int silent, int isvfat,
 	sbi->dir_entries = bpb.fat_dir_entries;
 	if (sbi->dir_entries & (sbi->dir_per_block - 1)) {
 		if (!silent)
-			fat_msg(sb, KERN_ERR, "bogus directory-entries per block"
+			fat_msg(sb, KERN_ERR, "bogus number of directory entries"
 			       " (%u)", sbi->dir_entries);
 		goto out_invalid;
 	}
