@@ -431,43 +431,11 @@ static void svc_write_space(struct sock *sk)
 
 static int svc_tcp_has_wspace(struct svc_xprt *xprt)
 {
-	struct svc_sock *svsk =	container_of(xprt, struct svc_sock, sk_xprt);
-	struct svc_serv *serv = svsk->sk_xprt.xpt_server;
-	int required;
+	struct svc_sock *svsk = container_of(xprt, struct svc_sock, sk_xprt);
 
 	if (test_bit(XPT_LISTENER, &xprt->xpt_flags))
 		return 1;
-	required = atomic_read(&xprt->xpt_reserved) + serv->sv_max_mesg;
-	if (sk_stream_wspace(svsk->sk_sk) >= required ||
-	    (sk_stream_min_wspace(svsk->sk_sk) == 0 &&
-	     atomic_read(&xprt->xpt_reserved) == 0))
-		return 1;
-	set_bit(SOCK_NOSPACE, &svsk->sk_sock->flags);
-	return 0;
-}
-
-static void svc_tcp_write_space(struct sock *sk)
-{
-	struct svc_sock *svsk = (struct svc_sock *)(sk->sk_user_data);
-	struct socket *sock = sk->sk_socket;
-
-	if (!svsk)
-		return;
-
-	if (!sk_stream_is_writeable(sk) || !sock)
-		return;
-	if (svc_tcp_has_wspace(&svsk->sk_xprt)) {
-		clear_bit(SOCK_NOSPACE, &sock->flags);
-		svc_write_space(sk);
-	}
-}
-
-static void svc_tcp_adjust_wspace(struct svc_xprt *xprt)
-{
-	struct svc_sock *svsk = container_of(xprt, struct svc_sock, sk_xprt);
-
-	if (svc_tcp_has_wspace(xprt))
-		clear_bit(SOCK_NOSPACE, &svsk->sk_sock->flags);
+	return !test_bit(SOCK_NOSPACE, &svsk->sk_sock->flags);
 }
 
 /*
@@ -1272,7 +1240,6 @@ static struct svc_xprt_ops svc_tcp_ops = {
 	.xpo_has_wspace = svc_tcp_has_wspace,
 	.xpo_accept = svc_tcp_accept,
 	.xpo_secure_port = svc_sock_secure_port,
-	.xpo_adjust_wspace = svc_tcp_adjust_wspace,
 };
 
 static struct svc_xprt_class svc_tcp_class = {
@@ -1313,7 +1280,7 @@ static void svc_tcp_init(struct svc_sock *svsk, struct svc_serv *serv)
 		dprintk("setting up TCP socket for reading\n");
 		sk->sk_state_change = svc_tcp_state_change;
 		sk->sk_data_ready = svc_data_ready;
-		sk->sk_write_space = svc_tcp_write_space;
+		sk->sk_write_space = svc_write_space;
 
 		svsk->sk_reclen = 0;
 		svsk->sk_tcplen = 0;
@@ -1383,14 +1350,8 @@ static struct svc_sock *svc_setup_socket(struct svc_serv *serv,
 	/* Initialize the socket */
 	if (sock->type == SOCK_DGRAM)
 		svc_udp_init(svsk, serv);
-	else {
-		/* initialise setting must have enough space to
-		 * receive and respond to one request.
-		 */
-		svc_sock_setbufsize(svsk->sk_sock, 4 * serv->sv_max_mesg,
-					4 * serv->sv_max_mesg);
+	else
 		svc_tcp_init(svsk, serv);
-	}
 
 	dprintk("svc: svc_setup_socket created %p (inet %p)\n",
 				svsk, svsk->sk_sk);
