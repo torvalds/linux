@@ -757,8 +757,6 @@ static void nvt_process_rx_ir_data(struct nvt_dev *nvt)
 
 	nvt_dbg_verbose("Processing buffer of len %d", nvt->pkts);
 
-	init_ir_raw_event(&rawir);
-
 	for (i = 0; i < nvt->pkts; i++) {
 		sample = nvt->buf[i];
 
