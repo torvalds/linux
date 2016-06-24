@@ -1099,7 +1099,6 @@ static int gbcodec_write(struct snd_soc_codec *codec, unsigned int reg,
 		return 0;
 
 	BUG_ON(reg >= GBCODEC_REG_COUNT);
-		return 0;
 
 	gbcodec_reg[reg] = value;
 	dev_dbg(codec->dev, "reg[%d] = 0x%x\n", reg, value);
