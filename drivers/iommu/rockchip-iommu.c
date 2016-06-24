@@ -1034,6 +1034,7 @@ static int rk_iommu_probe(struct platform_device *pdev)
 	struct device *dev = &pdev->dev;
 	struct rk_iommu *iommu;
 	struct resource *res;
+	int num_res = pdev->num_resources;
 	int i;
 
 	iommu = devm_kzalloc(dev, sizeof(*iommu), GFP_KERNEL);
@@ -1043,12 +1044,13 @@ static int rk_iommu_probe(struct platform_device *pdev)
 	platform_set_drvdata(pdev, iommu);
 	iommu->dev = dev;
 	iommu->num_mmu = 0;
-	iommu->bases = devm_kzalloc(dev, sizeof(*iommu->bases) * iommu->num_mmu,
+
+	iommu->bases = devm_kzalloc(dev, sizeof(*iommu->bases) * num_res,
 				    GFP_KERNEL);
 	if (!iommu->bases)
 		return -ENOMEM;
 
-	for (i = 0; i < pdev->num_resources; i++) {
+	for (i = 0; i < num_res; i++) {
 		res = platform_get_resource(pdev, IORESOURCE_MEM, i);
 		if (!res)
 			continue;
