@@ -46,6 +46,21 @@ static void dwmac1000_core_init(struct mac_device_info *hw, int mtu)
 	if (mtu > 2000)
 		value |= GMAC_CONTROL_JE;
 
+	if (hw->ps) {
+		value |= GMAC_CONTROL_TE;
+
+		if (hw->ps == SPEED_1000) {
+			value &= ~GMAC_CONTROL_PS;
+		} else {
+			value |= GMAC_CONTROL_PS;
+
+			if (hw->ps == SPEED_10)
+				value &= ~GMAC_CONTROL_FES;
+			else
+				value |= GMAC_CONTROL_FES;
+		}
+	}
+
 	writel(value, ioaddr + GMAC_CONTROL);
 
 	/* Mask GMAC interrupts */

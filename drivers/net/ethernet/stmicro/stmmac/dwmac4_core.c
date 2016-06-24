@@ -32,6 +32,21 @@ static void dwmac4_core_init(struct mac_device_info *hw, int mtu)
 	if (mtu > 2000)
 		value |= GMAC_CONFIG_JE;
 
+	if (hw->ps) {
+		value |= GMAC_CONFIG_TE;
+
+		if (hw->ps == SPEED_1000) {
+			value &= ~GMAC_CONFIG_PS;
+		} else {
+			value |= GMAC_CONFIG_PS;
+
+			if (hw->ps == SPEED_10)
+				value &= ~GMAC_CONFIG_FES;
+			else
+				value |= GMAC_CONFIG_FES;
+		}
+	}
+
 	writel(value, ioaddr + GMAC_CONFIG);
 
 	/* Mask GMAC interrupts */

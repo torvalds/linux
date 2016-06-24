@@ -531,6 +531,7 @@ struct mac_device_info {
 	unsigned int rx_csum;
 	unsigned int pcs;
 	unsigned int pmt;
+	unsigned int ps;
 };
 
 struct mac_device_info *dwmac1000_setup(void __iomem *ioaddr, int mcbins,

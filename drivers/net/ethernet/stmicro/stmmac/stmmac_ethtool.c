@@ -380,7 +380,8 @@ static int stmmac_ethtool_setsettings(struct net_device *dev,
 		spin_lock(&priv->lock);
 
 		if (priv->hw->mac->pcs_ctrl_ane)
-			priv->hw->mac->pcs_ctrl_ane(priv->ioaddr, 1, 0, 0);
+			priv->hw->mac->pcs_ctrl_ane(priv->ioaddr, 1,
+						    priv->hw->ps, 0);
 
 		spin_unlock(&priv->lock);
 
