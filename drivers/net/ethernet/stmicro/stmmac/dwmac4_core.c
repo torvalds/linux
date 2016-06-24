@@ -17,6 +17,7 @@
 #include <linux/slab.h>
 #include <linux/ethtool.h>
 #include <linux/io.h>
+#include "stmmac_pcs.h"
 #include "dwmac4.h"
 
 static void dwmac4_core_init(struct mac_device_info *hw, int mtu)
@@ -190,39 +191,53 @@ static void dwmac4_flow_ctrl(struct mac_device_info *hw, unsigned int duplex,
 	}
 }
 
-static void dwmac4_ctrl_ane(struct mac_device_info *hw, bool restart)
+static void dwmac4_ctrl_ane(void __iomem *ioaddr, bool ane, bool srgmi_ral,
+			    bool loopback)
 {
-	void __iomem *ioaddr = hw->pcsr;
-
-	/* auto negotiation enable and External Loopback enable */
-	u32 value = GMAC_AN_CTRL_ANE | GMAC_AN_CTRL_ELE;
-
-	if (restart)
-		value |= GMAC_AN_CTRL_RAN;
-
-	writel(value, ioaddr + GMAC_AN_CTRL);
+	dwmac_ctrl_ane(ioaddr, GMAC_PCS_BASE, ane, srgmi_ral, loopback);
 }
 
-static void dwmac4_get_adv(struct mac_device_info *hw, struct rgmii_adv *adv)
+static void dwmac4_rane(void __iomem *ioaddr, bool restart)
 {
-	void __iomem *ioaddr = hw->pcsr;
-	u32 value = readl(ioaddr + GMAC_AN_ADV);
+	dwmac_rane(ioaddr, GMAC_PCS_BASE, restart);
+}
 
-	if (value & GMAC_AN_FD)
-		adv->duplex = DUPLEX_FULL;
-	if (value & GMAC_AN_HD)
-		adv->duplex |= DUPLEX_HALF;
+static void dwmac4_get_adv_lp(void __iomem *ioaddr, struct rgmii_adv *adv)
+{
+	dwmac_get_adv_lp(ioaddr, GMAC_PCS_BASE, adv);
+}
 
-	adv->pause = (value & GMAC_AN_PSE_MASK) >> GMAC_AN_PSE_SHIFT;
+/* RGMII or SMII interface */
+static void dwmac4_phystatus(void __iomem *ioaddr, struct stmmac_extra_stats *x)
+{
+	u32 status;
 
-	value = readl(ioaddr + GMAC_AN_LPA);
+	status = readl(ioaddr + GMAC_PHYIF_CONTROL_STATUS);
+	x->irq_rgmii_n++;
 
-	if (value & GMAC_AN_FD)
-		adv->lp_duplex = DUPLEX_FULL;
-	if (value & GMAC_AN_HD)
-		adv->lp_duplex = DUPLEX_HALF;
+	/* Check the link status */
+	if (status & GMAC_PHYIF_CTRLSTATUS_LNKSTS) {
+		int speed_value;
 
-	adv->lp_pause = (value & GMAC_AN_PSE_MASK) >> GMAC_AN_PSE_SHIFT;
+		x->pcs_link = 1;
+
+		speed_value = ((status & GMAC_PHYIF_CTRLSTATUS_SPEED) >>
+			       GMAC_PHYIF_CTRLSTATUS_SPEED_SHIFT);
+		if (speed_value == GMAC_PHYIF_CTRLSTATUS_SPEED_125)
+			x->pcs_speed = SPEED_1000;
+		else if (speed_value == GMAC_PHYIF_CTRLSTATUS_SPEED_25)
+			x->pcs_speed = SPEED_100;
+		else
+			x->pcs_speed = SPEED_10;
+
+		x->pcs_duplex = (status & GMAC_PHYIF_CTRLSTATUS_LNKMOD_MASK);
+
+		pr_info("Link is Up - %d/%s\n", (int)x->pcs_speed,
+			x->pcs_duplex ? "Full" : "Half");
+	} else {
+		x->pcs_link = 0;
+		pr_info("Link is Down\n");
+	}
 }
 
 static int dwmac4_irq_status(struct mac_device_info *hw,
@@ -248,11 +263,6 @@ static int dwmac4_irq_status(struct mac_device_info *hw,
 		x->irq_receive_pmt_irq_n++;
 	}
 
-	if ((intr_status & pcs_ane_irq) || (intr_status & pcs_link_irq)) {
-		readl(ioaddr + GMAC_AN_STATUS);
-		x->irq_pcs_ane_n++;
-	}
-
 	mtl_int_qx_status = readl(ioaddr + MTL_INT_STATUS);
 	/* Check MTL Interrupt: Currently only one queue is used: Q0. */
 	if (mtl_int_qx_status & MTL_INT_Q0) {
@@ -266,6 +276,10 @@ static int dwmac4_irq_status(struct mac_device_info *hw,
 			ret = CORE_IRQ_MTL_RX_OVERFLOW;
 		}
 	}
+
+	dwmac_pcs_isr(ioaddr, GMAC_PCS_BASE, intr_status, x);
+	if (intr_status & PCS_RGSMIIIS_IRQ)
+		dwmac4_phystatus(ioaddr, x);
 
 	return ret;
 }
@@ -363,8 +377,9 @@ static const struct stmmac_ops dwmac4_ops = {
 	.pmt = dwmac4_pmt,
 	.set_umac_addr = dwmac4_set_umac_addr,
 	.get_umac_addr = dwmac4_get_umac_addr,
-	.ctrl_ane = dwmac4_ctrl_ane,
-	.get_adv = dwmac4_get_adv,
+	.pcs_ctrl_ane = dwmac4_ctrl_ane,
+	.pcs_rane = dwmac4_rane,
+	.pcs_get_adv_lp = dwmac4_get_adv_lp,
 	.debug = dwmac4_debug,
 	.set_filter = dwmac4_set_filter,
 };

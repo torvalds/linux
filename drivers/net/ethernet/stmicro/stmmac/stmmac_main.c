@@ -1714,8 +1714,8 @@ static int stmmac_hw_setup(struct net_device *dev, bool init_ptp)
 		priv->hw->dma->rx_watchdog(priv->ioaddr, MAX_DMA_RIWT);
 	}
 
-	if (priv->pcs && priv->hw->mac->ctrl_ane)
-		priv->hw->mac->ctrl_ane(priv->hw, 0);
+	if (priv->pcs && priv->hw->mac->pcs_ctrl_ane)
+		priv->hw->mac->pcs_ctrl_ane(priv->hw, 1, 0, 0);
 
 	/*  set TX ring length */
 	if (priv->hw->dma->set_tx_ring_len)
@@ -2808,6 +2808,14 @@ static irqreturn_t stmmac_interrupt(int irq, void *dev_id)
 				priv->hw->dma->set_rx_tail_ptr(priv->ioaddr,
 							priv->rx_tail_addr,
 							STMMAC_CHAN0);
+		}
+
+		/* PCS link status */
+		if (priv->pcs) {
+			if (priv->xstats.pcs_link)
+				netif_carrier_on(dev);
+			else
+				netif_carrier_off(dev);
 		}
 	}
 
