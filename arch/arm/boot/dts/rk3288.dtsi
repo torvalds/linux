@@ -281,6 +281,7 @@
 		interrupts = <GIC_SPI 35 IRQ_TYPE_LEVEL_HIGH>;
 		reg = <0xff0f0000 0x4000>;
 		status = "disabled";
+		supports-emmc;
 	};
 
 	saradc: saradc@ff100000 {
