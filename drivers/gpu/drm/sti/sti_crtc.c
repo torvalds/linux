@@ -331,6 +331,17 @@ void sti_crtc_disable_vblank(struct drm_device *drm_dev, unsigned int pipe)
 	}
 }
 
+static int sti_crtc_late_register(struct drm_crtc *crtc)
+{
+	struct sti_mixer *mixer = to_sti_mixer(crtc);
+	struct sti_compositor *compo = dev_get_drvdata(mixer->dev);
+
+	if (drm_crtc_index(crtc) == 0)
+		return sti_compositor_debufs_init(compo, crtc->dev->primary);
+
+	return 0;
+}
+
 static const struct drm_crtc_funcs sti_crtc_funcs = {
 	.set_config = drm_atomic_helper_set_config,
 	.page_flip = drm_atomic_helper_page_flip,
@@ -339,6 +350,7 @@ static const struct drm_crtc_funcs sti_crtc_funcs = {
 	.reset = drm_atomic_helper_crtc_reset,
 	.atomic_duplicate_state = drm_atomic_helper_crtc_duplicate_state,
 	.atomic_destroy_state = drm_atomic_helper_crtc_destroy_state,
+	.late_register = sti_crtc_late_register,
 };
 
 bool sti_crtc_is_main(struct drm_crtc *crtc)

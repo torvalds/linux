@@ -24,34 +24,6 @@
 #include "sun4i_layer.h"
 #include "sun4i_tcon.h"
 
-static int sun4i_drv_connector_plug_all(struct drm_device *drm)
-{
-	struct drm_connector *connector, *failed;
-	int ret;
-
-	mutex_lock(&drm->mode_config.mutex);
-	list_for_each_entry(connector, &drm->mode_config.connector_list, head) {
-		ret = drm_connector_register(connector);
-		if (ret) {
-			failed = connector;
-			goto err;
-		}
-	}
-	mutex_unlock(&drm->mode_config.mutex);
-	return 0;
-
-err:
-	list_for_each_entry(connector, &drm->mode_config.connector_list, head) {
-		if (failed == connector)
-			break;
-
-		drm_connector_unregister(connector);
-	}
-	mutex_unlock(&drm->mode_config.mutex);
-
-	return ret;
-}
-
 static int sun4i_drv_enable_vblank(struct drm_device *drm, unsigned int pipe)
 {
 	struct sun4i_drv *drv = drm->dev_private;
@@ -135,10 +107,6 @@ static int sun4i_drv_bind(struct device *dev)
 	if (!drm)
 		return -ENOMEM;
 
-	ret = drm_dev_set_unique(drm, dev_name(drm->dev));
-	if (ret)
-		goto free_drm;
-
 	drv = devm_kzalloc(dev, sizeof(*drv), GFP_KERNEL);
 	if (!drv) {
 		ret = -ENOMEM;
@@ -187,14 +155,8 @@ static int sun4i_drv_bind(struct device *dev)
 	if (ret)
 		goto free_drm;
 
-	ret = sun4i_drv_connector_plug_all(drm);
-	if (ret)
-		goto unregister_drm;
-
 	return 0;
 
-unregister_drm:
-	drm_dev_unregister(drm);
 free_drm:
 	drm_dev_unref(drm);
 	return ret;

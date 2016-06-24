@@ -708,8 +708,6 @@ static int drm_dp_i2c_xfer(struct i2c_adapter *adapter, struct i2c_msg *msgs,
 
 	memset(&msg, 0, sizeof(msg));
 
-	mutex_lock(&aux->hw_mutex);
-
 	for (i = 0; i < num; i++) {
 		msg.address = msgs[i].addr;
 		drm_dp_i2c_msg_set_request(&msg, &msgs[i]);
@@ -764,8 +762,6 @@ static int drm_dp_i2c_xfer(struct i2c_adapter *adapter, struct i2c_msg *msgs,
 	msg.size = 0;
 	(void)drm_dp_i2c_do_msg(aux, &msg);
 
-	mutex_unlock(&aux->hw_mutex);
-
 	return err;
 }
 
@@ -774,9 +770,54 @@ static const struct i2c_algorithm drm_dp_i2c_algo = {
 	.master_xfer = drm_dp_i2c_xfer,
 };
 
+static struct drm_dp_aux *i2c_to_aux(struct i2c_adapter *i2c)
+{
+	return container_of(i2c, struct drm_dp_aux, ddc);
+}
+
+static void lock_bus(struct i2c_adapter *i2c, unsigned int flags)
+{
+	mutex_lock(&i2c_to_aux(i2c)->hw_mutex);
+}
+
+static int trylock_bus(struct i2c_adapter *i2c, unsigned int flags)
+{
+	return mutex_trylock(&i2c_to_aux(i2c)->hw_mutex);
+}
+
+static void unlock_bus(struct i2c_adapter *i2c, unsigned int flags)
+{
+	mutex_unlock(&i2c_to_aux(i2c)->hw_mutex);
+}
+
+/**
+ * drm_dp_aux_init() - minimally initialise an aux channel
+ * @aux: DisplayPort AUX channel
+ *
+ * If you need to use the drm_dp_aux's i2c adapter prior to registering it
+ * with the outside world, call drm_dp_aux_init() first. You must still
+ * call drm_dp_aux_register() once the connector has been registered to
+ * allow userspace access to the auxiliary DP channel.
+ */
+void drm_dp_aux_init(struct drm_dp_aux *aux)
+{
+	mutex_init(&aux->hw_mutex);
+
+	aux->ddc.algo = &drm_dp_i2c_algo;
+	aux->ddc.algo_data = aux;
+	aux->ddc.retries = 3;
+
+	aux->ddc.lock_bus = lock_bus;
+	aux->ddc.trylock_bus = trylock_bus;
+	aux->ddc.unlock_bus = unlock_bus;
+}
+EXPORT_SYMBOL(drm_dp_aux_init);
+
 /**
  * drm_dp_aux_register() - initialise and register aux channel
  * @aux: DisplayPort AUX channel
+ *
+ * Automatically calls drm_dp_aux_init() if this hasn't been done yet.
  *
  * Returns 0 on success or a negative error code on failure.
  */
@@ -784,11 +825,8 @@ int drm_dp_aux_register(struct drm_dp_aux *aux)
 {
 	int ret;
 
-	mutex_init(&aux->hw_mutex);
-
-	aux->ddc.algo = &drm_dp_i2c_algo;
-	aux->ddc.algo_data = aux;
-	aux->ddc.retries = 3;
+	if (!aux->ddc.algo)
+		drm_dp_aux_init(aux);
 
 	aux->ddc.class = I2C_CLASS_DDC;
 	aux->ddc.owner = THIS_MODULE;

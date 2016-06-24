@@ -1246,7 +1246,6 @@ static void intel_aux_reg_init(struct intel_dp *intel_dp)
 static void
 intel_dp_aux_fini(struct intel_dp *intel_dp)
 {
-	drm_dp_aux_unregister(&intel_dp->aux);
 	kfree(intel_dp->aux.name);
 }
 
@@ -1279,15 +1278,6 @@ intel_dp_aux_init(struct intel_dp *intel_dp, struct intel_connector *connector)
 	}
 
 	return 0;
-}
-
-static void
-intel_dp_connector_unregister(struct intel_connector *intel_connector)
-{
-	struct intel_dp *intel_dp = intel_attached_dp(&intel_connector->base);
-
-	intel_dp_aux_fini(intel_dp);
-	intel_connector_unregister(intel_connector);
 }
 
 static int
@@ -4531,6 +4521,13 @@ done:
 }
 
 static void
+intel_dp_connector_unregister(struct drm_connector *connector)
+{
+	drm_dp_aux_unregister(&intel_attached_dp(connector)->aux);
+	intel_connector_unregister(connector);
+}
+
+static void
 intel_dp_connector_destroy(struct drm_connector *connector)
 {
 	struct intel_connector *intel_connector = to_intel_connector(connector);
@@ -4570,6 +4567,9 @@ void intel_dp_encoder_destroy(struct drm_encoder *encoder)
 			intel_dp->edp_notifier.notifier_call = NULL;
 		}
 	}
+
+	intel_dp_aux_fini(intel_dp);
+
 	drm_encoder_cleanup(encoder);
 	kfree(intel_dig_port);
 }
@@ -4648,6 +4648,7 @@ static const struct drm_connector_funcs intel_dp_connector_funcs = {
 	.fill_modes = drm_helper_probe_single_connector_modes,
 	.set_property = intel_dp_set_property,
 	.atomic_get_property = intel_connector_atomic_get_property,
+	.early_unregister = intel_dp_connector_unregister,
 	.destroy = intel_dp_connector_destroy,
 	.atomic_destroy_state = drm_atomic_helper_connector_destroy_state,
 	.atomic_duplicate_state = drm_atomic_helper_connector_duplicate_state,
@@ -5583,7 +5584,6 @@ intel_dp_init_connector(struct intel_digital_port *intel_dig_port,
 		intel_connector->get_hw_state = intel_ddi_connector_get_hw_state;
 	else
 		intel_connector->get_hw_state = intel_connector_get_hw_state;
-	intel_connector->unregister = intel_dp_connector_unregister;
 
 	/* Set up the hotplug pin. */
 	switch (port) {

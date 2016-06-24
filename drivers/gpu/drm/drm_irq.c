@@ -994,10 +994,10 @@ static void send_vblank_event(struct drm_device *dev,
 	e->event.tv_sec = now->tv_sec;
 	e->event.tv_usec = now->tv_usec;
 
-	drm_send_event_locked(dev, &e->base);
-
 	trace_drm_vblank_event_delivered(e->base.pid, e->pipe,
 					 e->event.sequence);
+
+	drm_send_event_locked(dev, &e->base);
 }
 
 /**

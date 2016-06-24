@@ -105,6 +105,7 @@ static int drm_simple_kms_plane_atomic_check(struct drm_plane *plane,
 	ret = drm_plane_helper_check_update(plane, &pipe->crtc,
 					    plane_state->fb,
 					    &src, &dest, &clip,
+					    plane_state->rotation,
 					    DRM_PLANE_HELPER_NO_SCALING,
 					    DRM_PLANE_HELPER_NO_SCALING,
 					    false, true, &visible);

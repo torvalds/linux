@@ -243,14 +243,6 @@ struct intel_connector {
 	 * and active (i.e. dpms ON state). */
 	bool (*get_hw_state)(struct intel_connector *);
 
-	/*
-	 * Removes all interfaces through which the connector is accessible
-	 * - like sysfs, debugfs entries -, so that no new operations can be
-	 * started on the connector. Also makes sure all currently pending
-	 * operations finish before returing.
-	 */
-	void (*unregister)(struct intel_connector *);
-
 	/* Panel info for eDP and LVDS */
 	struct intel_panel panel;
 
@@ -1514,7 +1506,14 @@ extern struct drm_display_mode *intel_find_panel_downclock(
 				struct drm_display_mode *fixed_mode,
 				struct drm_connector *connector);
 void intel_backlight_register(struct drm_device *dev);
-void intel_backlight_unregister(struct drm_device *dev);
+
+#if IS_ENABLED(CONFIG_BACKLIGHT_CLASS_DEVICE)
+void intel_backlight_device_unregister(struct intel_connector *connector);
+#else /* CONFIG_BACKLIGHT_CLASS_DEVICE */
+static inline void intel_backlight_device_unregister(struct intel_connector *connector)
+{
+}
+#endif /* CONFIG_BACKLIGHT_CLASS_DEVICE */
 
 
 /* intel_psr.c */

@@ -232,6 +232,9 @@ static void __drm_helper_disable_unused_functions(struct drm_device *dev)
  */
 void drm_helper_disable_unused_functions(struct drm_device *dev)
 {
+	if (drm_core_check_feature(dev, DRIVER_ATOMIC))
+		DRM_ERROR("Called for atomic driver, this is not what you want.\n");
+
 	drm_modeset_lock_all(dev);
 	__drm_helper_disable_unused_functions(dev);
 	drm_modeset_unlock_all(dev);

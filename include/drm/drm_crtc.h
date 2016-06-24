@@ -44,6 +44,7 @@ struct drm_file;
 struct drm_clip_rect;
 struct device_node;
 struct fence;
+struct edid;
 
 struct drm_mode_object {
 	uint32_t id;
@@ -704,6 +705,32 @@ struct drm_crtc_funcs {
 				   const struct drm_crtc_state *state,
 				   struct drm_property *property,
 				   uint64_t *val);
+
+	/**
+	 * @late_register:
+	 *
+	 * This optional hook can be used to register additional userspace
+	 * interfaces attached to the crtc like debugfs interfaces.
+	 * It is called late in the driver load sequence from drm_dev_register().
+	 * Everything added from this callback should be unregistered in
+	 * the early_unregister callback.
+	 *
+	 * Returns:
+	 *
+	 * 0 on success, or a negative error code on failure.
+	 */
+	int (*late_register)(struct drm_crtc *crtc);
+
+	/**
+	 * @early_unregister:
+	 *
+	 * This optional hook should be used to unregister the additional
+	 * userspace interfaces attached to the crtc from
+	 * late_unregister(). It is called from drm_dev_unregister(),
+	 * early in the driver unload sequence to disable userspace access
+	 * before data structures are torndown.
+	 */
+	void (*early_unregister)(struct drm_crtc *crtc);
 };
 
 /**
@@ -957,6 +984,33 @@ struct drm_connector_funcs {
 			     uint64_t val);
 
 	/**
+	 * @late_register:
+	 *
+	 * This optional hook can be used to register additional userspace
+	 * interfaces attached to the connector, light backlight control, i2c,
+	 * DP aux or similar interfaces. It is called late in the driver load
+	 * sequence from drm_connector_register() when registering all the
+	 * core drm connector interfaces. Everything added from this callback
+	 * should be unregistered in the early_unregister callback.
+	 *
+	 * Returns:
+	 *
+	 * 0 on success, or a negative error code on failure.
+	 */
+	int (*late_register)(struct drm_connector *connector);
+
+	/**
+	 * @early_unregister:
+	 *
+	 * This optional hook should be used to unregister the additional
+	 * userspace interfaces attached to the connector from
+	 * late_unregister(). It is called from drm_connector_unregister(),
+	 * early in the driver unload sequence to disable userspace access
+	 * before data structures are torndown.
+	 */
+	void (*early_unregister)(struct drm_connector *connector);
+
+	/**
 	 * @destroy:
 	 *
 	 * Clean up connector resources. This is called at driver unload time
@@ -1100,6 +1154,32 @@ struct drm_encoder_funcs {
 	 * hotplugged in DRM.
 	 */
 	void (*destroy)(struct drm_encoder *encoder);
+
+	/**
+	 * @late_register:
+	 *
+	 * This optional hook can be used to register additional userspace
+	 * interfaces attached to the encoder like debugfs interfaces.
+	 * It is called late in the driver load sequence from drm_dev_register().
+	 * Everything added from this callback should be unregistered in
+	 * the early_unregister callback.
+	 *
+	 * Returns:
+	 *
+	 * 0 on success, or a negative error code on failure.
+	 */
+	int (*late_register)(struct drm_encoder *encoder);
+
+	/**
+	 * @early_unregister:
+	 *
+	 * This optional hook should be used to unregister the additional
+	 * userspace interfaces attached to the encoder from
+	 * late_unregister(). It is called from drm_dev_unregister(),
+	 * early in the driver unload sequence to disable userspace access
+	 * before data structures are torndown.
+	 */
+	void (*early_unregister)(struct drm_encoder *encoder);
 };
 
 #define DRM_CONNECTOR_MAX_ENCODER 3
@@ -1166,6 +1246,7 @@ struct drm_encoder {
  * @interlace_allowed: can this connector handle interlaced modes?
  * @doublescan_allowed: can this connector handle doublescan?
  * @stereo_allowed: can this connector handle stereo modes?
+ * @registered: is this connector exposed (registered) with userspace?
  * @modes: modes available on this connector (from fill_modes() + user)
  * @status: one of the drm_connector_status enums (connected, not, or unknown)
  * @probed_modes: list of modes derived directly from the display
@@ -1222,6 +1303,7 @@ struct drm_connector {
 	bool interlace_allowed;
 	bool doublescan_allowed;
 	bool stereo_allowed;
+	bool registered;
 	struct list_head modes; /* list of modes on this connector */
 
 	enum drm_connector_status status;
@@ -1541,6 +1623,31 @@ struct drm_plane_funcs {
 				   const struct drm_plane_state *state,
 				   struct drm_property *property,
 				   uint64_t *val);
+	/**
+	 * @late_register:
+	 *
+	 * This optional hook can be used to register additional userspace
+	 * interfaces attached to the plane like debugfs interfaces.
+	 * It is called late in the driver load sequence from drm_dev_register().
+	 * Everything added from this callback should be unregistered in
+	 * the early_unregister callback.
+	 *
+	 * Returns:
+	 *
+	 * 0 on success, or a negative error code on failure.
+	 */
+	int (*late_register)(struct drm_plane *plane);
+
+	/**
+	 * @early_unregister:
+	 *
+	 * This optional hook should be used to unregister the additional
+	 * userspace interfaces attached to the plane from
+	 * late_unregister(). It is called from drm_dev_unregister(),
+	 * early in the driver unload sequence to disable userspace access
+	 * before data structures are torndown.
+	 */
+	void (*early_unregister)(struct drm_plane *plane);
 };
 
 enum drm_plane_type {
@@ -2467,12 +2574,10 @@ static inline uint32_t drm_crtc_mask(struct drm_crtc *crtc)
 	return 1 << drm_crtc_index(crtc);
 }
 
-extern void drm_connector_ida_init(void);
-extern void drm_connector_ida_destroy(void);
-extern int drm_connector_init(struct drm_device *dev,
-			      struct drm_connector *connector,
-			      const struct drm_connector_funcs *funcs,
-			      int connector_type);
+int drm_connector_init(struct drm_device *dev,
+		       struct drm_connector *connector,
+		       const struct drm_connector_funcs *funcs,
+		       int connector_type);
 int drm_connector_register(struct drm_connector *connector);
 void drm_connector_unregister(struct drm_connector *connector);
 
@@ -2485,22 +2590,6 @@ static inline unsigned drm_connector_index(struct drm_connector *connector)
 /* helpers to {un}register all connectors from sysfs for device */
 extern int drm_connector_register_all(struct drm_device *dev);
 extern void drm_connector_unregister_all(struct drm_device *dev);
-
-extern int drm_bridge_add(struct drm_bridge *bridge);
-extern void drm_bridge_remove(struct drm_bridge *bridge);
-extern struct drm_bridge *of_drm_find_bridge(struct device_node *np);
-extern int drm_bridge_attach(struct drm_device *dev, struct drm_bridge *bridge);
-
-bool drm_bridge_mode_fixup(struct drm_bridge *bridge,
-			const struct drm_display_mode *mode,
-			struct drm_display_mode *adjusted_mode);
-void drm_bridge_disable(struct drm_bridge *bridge);
-void drm_bridge_post_disable(struct drm_bridge *bridge);
-void drm_bridge_mode_set(struct drm_bridge *bridge,
-			struct drm_display_mode *mode,
-			struct drm_display_mode *adjusted_mode);
-void drm_bridge_pre_enable(struct drm_bridge *bridge);
-void drm_bridge_enable(struct drm_bridge *bridge);
 
 extern __printf(5, 6)
 int drm_encoder_init(struct drm_device *dev,
@@ -2563,14 +2652,8 @@ static inline unsigned int drm_plane_index(struct drm_plane *plane)
 }
 extern struct drm_plane * drm_plane_from_index(struct drm_device *dev, int idx);
 extern void drm_plane_force_disable(struct drm_plane *plane);
-extern int drm_plane_check_pixel_format(const struct drm_plane *plane,
-					u32 format);
 extern void drm_crtc_get_hv_timing(const struct drm_display_mode *mode,
 				   int *hdisplay, int *vdisplay);
-extern int drm_crtc_check_viewport(const struct drm_crtc *crtc,
-				   int x, int y,
-				   const struct drm_display_mode *mode,
-				   const struct drm_framebuffer *fb);
 
 extern void drm_encoder_cleanup(struct drm_encoder *encoder);
 
@@ -2581,16 +2664,6 @@ extern const char *drm_get_dvi_i_subconnector_name(int val);
 extern const char *drm_get_dvi_i_select_name(int val);
 extern const char *drm_get_tv_subconnector_name(int val);
 extern const char *drm_get_tv_select_name(int val);
-extern void drm_fb_release(struct drm_file *file_priv);
-extern void drm_property_destroy_user_blobs(struct drm_device *dev,
-                                            struct drm_file *file_priv);
-extern bool drm_probe_ddc(struct i2c_adapter *adapter);
-extern struct edid *drm_get_edid(struct drm_connector *connector,
-				 struct i2c_adapter *adapter);
-extern struct edid *drm_get_edid_switcheroo(struct drm_connector *connector,
-					    struct i2c_adapter *adapter);
-extern struct edid *drm_edid_duplicate(const struct edid *edid);
-extern int drm_add_edid_modes(struct drm_connector *connector, struct edid *edid);
 extern void drm_mode_config_init(struct drm_device *dev);
 extern void drm_mode_config_reset(struct drm_device *dev);
 extern void drm_mode_config_cleanup(struct drm_device *dev);
@@ -2612,13 +2685,6 @@ static inline bool drm_property_type_is(struct drm_property *property,
 	if (property->flags & DRM_MODE_PROP_EXTENDED_TYPE)
 		return (property->flags & DRM_MODE_PROP_EXTENDED_TYPE) == type;
 	return property->flags & type;
-}
-
-static inline bool drm_property_type_valid(struct drm_property *property)
-{
-	if (property->flags & DRM_MODE_PROP_EXTENDED_TYPE)
-		return !(property->flags & DRM_MODE_PROP_LEGACY_TYPE);
-	return !!(property->flags & DRM_MODE_PROP_LEGACY_TYPE);
 }
 
 extern int drm_object_property_set_value(struct drm_mode_object *obj,
@@ -2678,86 +2744,15 @@ extern int drm_mode_create_scaling_mode_property(struct drm_device *dev);
 extern int drm_mode_create_aspect_ratio_property(struct drm_device *dev);
 extern int drm_mode_create_dirty_info_property(struct drm_device *dev);
 extern int drm_mode_create_suggested_offset_properties(struct drm_device *dev);
-extern bool drm_property_change_valid_get(struct drm_property *property,
-					 uint64_t value, struct drm_mode_object **ref);
-extern void drm_property_change_valid_put(struct drm_property *property,
-		struct drm_mode_object *ref);
 
 extern int drm_mode_connector_attach_encoder(struct drm_connector *connector,
 					     struct drm_encoder *encoder);
 extern int drm_mode_crtc_set_gamma_size(struct drm_crtc *crtc,
 					 int gamma_size);
-extern struct drm_mode_object *drm_mode_object_find(struct drm_device *dev,
-		uint32_t id, uint32_t type);
-void drm_mode_object_reference(struct drm_mode_object *obj);
-void drm_mode_object_unreference(struct drm_mode_object *obj);
 
-/* IOCTLs */
-extern int drm_mode_getresources(struct drm_device *dev,
-				 void *data, struct drm_file *file_priv);
-extern int drm_mode_getplane_res(struct drm_device *dev, void *data,
-				   struct drm_file *file_priv);
-extern int drm_mode_getcrtc(struct drm_device *dev,
-			    void *data, struct drm_file *file_priv);
-extern int drm_mode_getconnector(struct drm_device *dev,
-			      void *data, struct drm_file *file_priv);
 extern int drm_mode_set_config_internal(struct drm_mode_set *set);
-extern int drm_mode_setcrtc(struct drm_device *dev,
-			    void *data, struct drm_file *file_priv);
-extern int drm_mode_getplane(struct drm_device *dev,
-			       void *data, struct drm_file *file_priv);
-extern int drm_mode_setplane(struct drm_device *dev,
-			       void *data, struct drm_file *file_priv);
-extern int drm_mode_cursor_ioctl(struct drm_device *dev,
-				void *data, struct drm_file *file_priv);
-extern int drm_mode_cursor2_ioctl(struct drm_device *dev,
-				void *data, struct drm_file *file_priv);
-extern int drm_mode_addfb(struct drm_device *dev,
-			  void *data, struct drm_file *file_priv);
-extern int drm_mode_addfb2(struct drm_device *dev,
-			   void *data, struct drm_file *file_priv);
+
 extern uint32_t drm_mode_legacy_fb_format(uint32_t bpp, uint32_t depth);
-extern int drm_mode_rmfb(struct drm_device *dev,
-			 void *data, struct drm_file *file_priv);
-extern int drm_mode_getfb(struct drm_device *dev,
-			  void *data, struct drm_file *file_priv);
-extern int drm_mode_dirtyfb_ioctl(struct drm_device *dev,
-				  void *data, struct drm_file *file_priv);
-
-extern int drm_mode_getproperty_ioctl(struct drm_device *dev,
-				      void *data, struct drm_file *file_priv);
-extern int drm_mode_getblob_ioctl(struct drm_device *dev,
-				  void *data, struct drm_file *file_priv);
-extern int drm_mode_createblob_ioctl(struct drm_device *dev,
-				     void *data, struct drm_file *file_priv);
-extern int drm_mode_destroyblob_ioctl(struct drm_device *dev,
-				      void *data, struct drm_file *file_priv);
-extern int drm_mode_connector_property_set_ioctl(struct drm_device *dev,
-					      void *data, struct drm_file *file_priv);
-extern int drm_mode_getencoder(struct drm_device *dev,
-			       void *data, struct drm_file *file_priv);
-extern int drm_mode_gamma_get_ioctl(struct drm_device *dev,
-				    void *data, struct drm_file *file_priv);
-extern int drm_mode_gamma_set_ioctl(struct drm_device *dev,
-				    void *data, struct drm_file *file_priv);
-extern u8 drm_match_cea_mode(const struct drm_display_mode *to_match);
-extern enum hdmi_picture_aspect drm_get_cea_aspect_ratio(const u8 video_code);
-extern bool drm_detect_hdmi_monitor(struct edid *edid);
-extern bool drm_detect_monitor_audio(struct edid *edid);
-extern bool drm_rgb_quant_range_selectable(struct edid *edid);
-extern int drm_mode_page_flip_ioctl(struct drm_device *dev,
-				    void *data, struct drm_file *file_priv);
-extern int drm_add_modes_noedid(struct drm_connector *connector,
-				int hdisplay, int vdisplay);
-extern void drm_set_preferred_mode(struct drm_connector *connector,
-				   int hpref, int vpref);
-
-extern int drm_edid_header_is_valid(const u8 *raw_edid);
-extern bool drm_edid_block_valid(u8 *raw_edid, int block, bool print_bad_edid,
-				 bool *edid_corrupt);
-extern bool drm_edid_is_valid(struct edid *edid);
-extern void drm_edid_get_monitor_name(struct edid *edid, char *name,
-				      int buflen);
 
 extern struct drm_tile_group *drm_mode_create_tile_group(struct drm_device *dev,
 							 char topology[8]);
@@ -2765,25 +2760,10 @@ extern struct drm_tile_group *drm_mode_get_tile_group(struct drm_device *dev,
 					       char topology[8]);
 extern void drm_mode_put_tile_group(struct drm_device *dev,
 				   struct drm_tile_group *tg);
-struct drm_display_mode *drm_mode_find_dmt(struct drm_device *dev,
-					   int hsize, int vsize, int fresh,
-					   bool rb);
 
-extern int drm_mode_create_dumb_ioctl(struct drm_device *dev,
-				      void *data, struct drm_file *file_priv);
-extern int drm_mode_mmap_dumb_ioctl(struct drm_device *dev,
-				    void *data, struct drm_file *file_priv);
-extern int drm_mode_destroy_dumb_ioctl(struct drm_device *dev,
-				      void *data, struct drm_file *file_priv);
-extern int drm_mode_obj_get_properties_ioctl(struct drm_device *dev, void *data,
-					     struct drm_file *file_priv);
-extern int drm_mode_obj_set_property_ioctl(struct drm_device *dev, void *data,
-					   struct drm_file *file_priv);
 extern int drm_mode_plane_set_obj_prop(struct drm_plane *plane,
 				       struct drm_property *property,
 				       uint64_t value);
-extern int drm_mode_atomic_ioctl(struct drm_device *dev,
-				 void *data, struct drm_file *file_priv);
 
 extern struct drm_property *drm_mode_create_rotation_property(struct drm_device *dev,
 							      unsigned int supported_rotations);
@@ -2794,6 +2774,10 @@ extern void drm_crtc_enable_color_mgmt(struct drm_crtc *crtc,
 				       bool has_ctm,
 				       uint gamma_lut_size);
 /* Helpers */
+struct drm_mode_object *drm_mode_object_find(struct drm_device *dev,
+					     uint32_t id, uint32_t type);
+void drm_mode_object_reference(struct drm_mode_object *obj);
+void drm_mode_object_unreference(struct drm_mode_object *obj);
 
 static inline struct drm_plane *drm_plane_find(struct drm_device *dev,
 		uint32_t id)
@@ -2958,5 +2942,51 @@ assert_drm_connector_list_read_locked(struct drm_mode_config *mode_config)
 					  struct drm_framebuffer, head);	\
 	     &fb->head != (&(dev)->mode_config.fb_list);			\
 	     fb = list_next_entry(fb, head))
+
+/* drm_edid.c */
+bool drm_probe_ddc(struct i2c_adapter *adapter);
+struct edid *drm_get_edid(struct drm_connector *connector,
+			  struct i2c_adapter *adapter);
+struct edid *drm_get_edid_switcheroo(struct drm_connector *connector,
+				     struct i2c_adapter *adapter);
+struct edid *drm_edid_duplicate(const struct edid *edid);
+int drm_add_edid_modes(struct drm_connector *connector, struct edid *edid);
+
+u8 drm_match_cea_mode(const struct drm_display_mode *to_match);
+enum hdmi_picture_aspect drm_get_cea_aspect_ratio(const u8 video_code);
+bool drm_detect_hdmi_monitor(struct edid *edid);
+bool drm_detect_monitor_audio(struct edid *edid);
+bool drm_rgb_quant_range_selectable(struct edid *edid);
+int drm_add_modes_noedid(struct drm_connector *connector,
+			 int hdisplay, int vdisplay);
+void drm_set_preferred_mode(struct drm_connector *connector,
+			    int hpref, int vpref);
+
+int drm_edid_header_is_valid(const u8 *raw_edid);
+bool drm_edid_block_valid(u8 *raw_edid, int block, bool print_bad_edid,
+			  bool *edid_corrupt);
+bool drm_edid_is_valid(struct edid *edid);
+void drm_edid_get_monitor_name(struct edid *edid, char *name,
+			       int buflen);
+struct drm_display_mode *drm_mode_find_dmt(struct drm_device *dev,
+					   int hsize, int vsize, int fresh,
+					   bool rb);
+
+/* drm_bridge.c */
+extern int drm_bridge_add(struct drm_bridge *bridge);
+extern void drm_bridge_remove(struct drm_bridge *bridge);
+extern struct drm_bridge *of_drm_find_bridge(struct device_node *np);
+extern int drm_bridge_attach(struct drm_device *dev, struct drm_bridge *bridge);
+
+bool drm_bridge_mode_fixup(struct drm_bridge *bridge,
+			const struct drm_display_mode *mode,
+			struct drm_display_mode *adjusted_mode);
+void drm_bridge_disable(struct drm_bridge *bridge);
+void drm_bridge_post_disable(struct drm_bridge *bridge);
+void drm_bridge_mode_set(struct drm_bridge *bridge,
+			struct drm_display_mode *mode,
+			struct drm_display_mode *adjusted_mode);
+void drm_bridge_pre_enable(struct drm_bridge *bridge);
+void drm_bridge_enable(struct drm_bridge *bridge);
 
 #endif /* __DRM_CRTC_H__ */

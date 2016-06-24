@@ -1070,7 +1070,6 @@ nouveau_drm_init(void)
 	driver_pci = driver_stub;
 	driver_pci.set_busid = drm_pci_set_busid;
 	driver_platform = driver_stub;
-	driver_platform.set_busid = drm_platform_set_busid;
 
 	nouveau_display_options();
 
