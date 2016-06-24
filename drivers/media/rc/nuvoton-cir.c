@@ -139,11 +139,7 @@ static inline void nvt_cir_reg_write(struct nvt_dev *nvt, u8 val, u8 offset)
 /* read val from cir config register */
 static u8 nvt_cir_reg_read(struct nvt_dev *nvt, u8 offset)
 {
-	u8 val;
-
-	val = inb(nvt->cir_addr + offset);
-
-	return val;
+	return inb(nvt->cir_addr + offset);
 }
 
 /* write val to cir wake register */
@@ -156,11 +152,7 @@ static inline void nvt_cir_wake_reg_write(struct nvt_dev *nvt,
 /* read val from cir wake config register */
 static u8 nvt_cir_wake_reg_read(struct nvt_dev *nvt, u8 offset)
 {
-	u8 val;
-
-	val = inb(nvt->cir_wake_addr + offset);
-
-	return val;
+	return inb(nvt->cir_wake_addr + offset);
 }
 
 /* don't override io address if one is set already */
@@ -487,9 +479,7 @@ static void nvt_cir_wake_ldev_init(struct nvt_dev *nvt)
 /* clear out the hardware's cir rx fifo */
 static void nvt_clear_cir_fifo(struct nvt_dev *nvt)
 {
-	u8 val;
-
-	val = nvt_cir_reg_read(nvt, CIR_FIFOCON);
+	u8 val = nvt_cir_reg_read(nvt, CIR_FIFOCON);
 	nvt_cir_reg_write(nvt, val | CIR_FIFOCON_RXFIFOCLR, CIR_FIFOCON);
 }
 
