@@ -227,13 +227,6 @@ i915_l3_write(struct file *filp, struct kobject *kobj,
 		}
 	}
 
-	ret = i915_gpu_idle(drm_dev);
-	if (ret) {
-		kfree(temp);
-		mutex_unlock(&drm_dev->struct_mutex);
-		return ret;
-	}
-
 	/* TODO: Ideally we really want a GPU reset here to make sure errors
 	 * aren't propagated. Since I cannot find a stable way to reset the GPU
 	 * at this point it is left as a TODO.
