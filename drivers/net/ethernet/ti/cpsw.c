@@ -2563,8 +2563,6 @@ static int cpsw_suspend(struct device *dev)
 			cpsw_ndo_stop(ndev);
 	}
 
-	pm_runtime_put_sync(&pdev->dev);
-
 	/* Select sleep pin state */
 	pinctrl_pm_select_sleep_state(&pdev->dev);
 
@@ -2576,8 +2574,6 @@ static int cpsw_resume(struct device *dev)
 	struct platform_device	*pdev = to_platform_device(dev);
 	struct net_device	*ndev = platform_get_drvdata(pdev);
 	struct cpsw_priv	*priv = netdev_priv(ndev);
-
-	pm_runtime_get_sync(&pdev->dev);
 
 	/* Select default pin state */
 	pinctrl_pm_select_default_state(&pdev->dev);
