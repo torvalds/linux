@@ -28,7 +28,6 @@
  */
 
 #include <linux/acpi.h>
-#include <linux/console.h>
 #include <linux/device.h>
 #include <linux/oom.h>
 #include <linux/module.h>
@@ -1592,6 +1591,9 @@ int i915_driver_load(struct pci_dev *pdev, const struct pci_device_id *ent)
 	struct drm_i915_private *dev_priv;
 	int ret;
 
+	if (i915.nuclear_pageflip)
+		driver.driver_features |= DRIVER_ATOMIC;
+
 	ret = -ENOMEM;
 	dev_priv = kzalloc(sizeof(*dev_priv), GFP_KERNEL);
 	if (dev_priv)
@@ -3018,50 +3020,3 @@ static struct drm_driver driver = {
 	.minor = DRIVER_MINOR,
 	.patchlevel = DRIVER_PATCHLEVEL,
 };
-
-static int __init i915_init(void)
-{
-	extern struct pci_driver i915_pci_driver;
-
-	/*
-	 * Enable KMS by default, unless explicitly overriden by
-	 * either the i915.modeset prarameter or by the
-	 * vga_text_mode_force boot option.
-	 */
-
-	if (i915.modeset == 0)
-		driver.driver_features &= ~DRIVER_MODESET;
-
-	if (vgacon_text_force() && i915.modeset == -1)
-		driver.driver_features &= ~DRIVER_MODESET;
-
-	if (!(driver.driver_features & DRIVER_MODESET)) {
-		/* Silently fail loading to not upset userspace. */
-		DRM_DEBUG_DRIVER("KMS disabled.\n");
-		return 0;
-	}
-
-	if (i915.nuclear_pageflip)
-		driver.driver_features |= DRIVER_ATOMIC;
-
-	return drm_pci_init(&driver, &i915_pci_driver);
-}
-
-static void __exit i915_exit(void)
-{
-	extern struct pci_driver i915_pci_driver;
-
-	if (!(driver.driver_features & DRIVER_MODESET))
-		return; /* Never loaded a driver. */
-
-	drm_pci_exit(&driver, &i915_pci_driver);
-}
-
-module_init(i915_init);
-module_exit(i915_exit);
-
-MODULE_AUTHOR("Tungsten Graphics, Inc.");
-MODULE_AUTHOR("Intel Corporation");
-
-MODULE_DESCRIPTION(DRIVER_DESC);
-MODULE_LICENSE("GPL and additional rights");

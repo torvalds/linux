@@ -22,6 +22,7 @@
  *
  */
 
+#include <linux/console.h>
 #include <linux/vgaarb.h>
 #include <linux/vga_switcheroo.h>
 
@@ -452,10 +453,52 @@ static void i915_pci_remove(struct pci_dev *pdev)
 
 extern const struct dev_pm_ops i915_pm_ops;
 
-struct pci_driver i915_pci_driver = {
+static struct pci_driver i915_pci_driver = {
 	.name = DRIVER_NAME,
 	.id_table = pciidlist,
 	.probe = i915_pci_probe,
 	.remove = i915_pci_remove,
 	.driver.pm = &i915_pm_ops,
 };
+
+static int __init i915_init(void)
+{
+	bool use_kms = true;
+
+	/*
+	 * Enable KMS by default, unless explicitly overriden by
+	 * either the i915.modeset prarameter or by the
+	 * vga_text_mode_force boot option.
+	 */
+
+	if (i915.modeset == 0)
+		use_kms = false;
+
+	if (vgacon_text_force() && i915.modeset == -1)
+		use_kms = false;
+
+	if (!use_kms) {
+		/* Silently fail loading to not upset userspace. */
+		DRM_DEBUG_DRIVER("KMS disabled.\n");
+		return 0;
+	}
+
+	return pci_register_driver(&i915_pci_driver);
+}
+
+static void __exit i915_exit(void)
+{
+	if (!i915_pci_driver.driver.owner)
+		return;
+
+	pci_unregister_driver(&i915_pci_driver);
+}
+
+module_init(i915_init);
+module_exit(i915_exit);
+
+MODULE_AUTHOR("Tungsten Graphics, Inc.");
+MODULE_AUTHOR("Intel Corporation");
+
+MODULE_DESCRIPTION(DRIVER_DESC);
+MODULE_LICENSE("GPL and additional rights");
