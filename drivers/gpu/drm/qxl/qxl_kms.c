@@ -310,10 +310,6 @@ int qxl_driver_load(struct drm_device *dev, unsigned long flags)
 	struct qxl_device *qdev;
 	int r;
 
-	/* require kms */
-	if (!drm_core_check_feature(dev, DRIVER_MODESET))
-		return -ENODEV;
-
 	qdev = kzalloc(sizeof(struct qxl_device), GFP_KERNEL);
 	if (qdev == NULL)
 		return -ENOMEM;
