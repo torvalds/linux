@@ -806,9 +806,6 @@ static void nvt_get_rx_ir_data(struct nvt_dev *nvt)
 
 	/* Get count of how many bytes to read from RX FIFO */
 	fifocount = nvt_cir_reg_read(nvt, CIR_RXFCONT);
-	/* if we get 0xff, probably means the logical dev is disabled */
-	if (fifocount == 0xff)
-		return;
 
 	nvt_dbg("attempting to fetch %u bytes from hw rx fifo", fifocount);
 
