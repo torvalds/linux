@@ -905,7 +905,7 @@ static void raise_barrier(struct r10conf *conf, int force)
 
 	/* Now wait for all pending IO to complete */
 	wait_event_lock_irq(conf->wait_barrier,
-			    !conf->nr_pending && conf->barrier < RESYNC_DEPTH,
+			    !atomic_read(&conf->nr_pending) && conf->barrier < RESYNC_DEPTH,
 			    conf->resync_lock);
 
 	spin_unlock_irq(&conf->resync_lock);
@@ -936,23 +936,23 @@ static void wait_barrier(struct r10conf *conf)
 		 */
 		wait_event_lock_irq(conf->wait_barrier,
 				    !conf->barrier ||
-				    (conf->nr_pending &&
+				    (atomic_read(&conf->nr_pending) &&
 				     current->bio_list &&
 				     !bio_list_empty(current->bio_list)),
 				    conf->resync_lock);
 		conf->nr_waiting--;
+		if (!conf->nr_waiting)
+			wake_up(&conf->wait_barrier);
 	}
-	conf->nr_pending++;
+	atomic_inc(&conf->nr_pending);
 	spin_unlock_irq(&conf->resync_lock);
 }
 
 static void allow_barrier(struct r10conf *conf)
 {
-	unsigned long flags;
-	spin_lock_irqsave(&conf->resync_lock, flags);
-	conf->nr_pending--;
-	spin_unlock_irqrestore(&conf->resync_lock, flags);
-	wake_up(&conf->wait_barrier);
+	if ((atomic_dec_and_test(&conf->nr_pending)) ||
+			(conf->array_freeze_pending))
+		wake_up(&conf->wait_barrier);
 }
 
 static void freeze_array(struct r10conf *conf, int extra)
@@ -970,13 +970,15 @@ static void freeze_array(struct r10conf *conf, int extra)
 	 * we continue.
 	 */
 	spin_lock_irq(&conf->resync_lock);
+	conf->array_freeze_pending++;
 	conf->barrier++;
 	conf->nr_waiting++;
 	wait_event_lock_irq_cmd(conf->wait_barrier,
-				conf->nr_pending == conf->nr_queued+extra,
+				atomic_read(&conf->nr_pending) == conf->nr_queued+extra,
 				conf->resync_lock,
 				flush_pending_writes(conf));
 
+	conf->array_freeze_pending--;
 	spin_unlock_irq(&conf->resync_lock);
 }
 
@@ -3542,6 +3544,7 @@ static struct r10conf *setup_conf(struct mddev *mddev)
 
 	spin_lock_init(&conf->resync_lock);
 	init_waitqueue_head(&conf->wait_barrier);
+	atomic_set(&conf->nr_pending, 0);
 
 	conf->thread = md_register_thread(raid10d, mddev, "raid10");
 	if (!conf->thread)
