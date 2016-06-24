@@ -15551,6 +15551,16 @@ void intel_modeset_init_hw(struct drm_device *dev)
 	intel_enable_gt_powersave(dev_priv);
 }
 
+void intel_modeset_register(struct drm_i915_private *dev_priv)
+{
+	drm_connector_register_all(dev_priv->dev);
+}
+
+void intel_modeset_unregister(struct drm_i915_private *dev_priv)
+{
+	drm_connector_unregister_all(dev_priv->dev);
+}
+
 /*
  * Calculate what we think the watermarks should be for the state we've read
  * out of the hardware and then immediately program those watermarks so that
@@ -16364,8 +16374,6 @@ void intel_modeset_cleanup(struct drm_device *dev)
 
 	/* flush any delayed tasks or pending work */
 	flush_scheduled_work();
-
-	drm_connector_unregister_all(dev);
 
 	drm_mode_config_cleanup(dev);
 

@@ -1398,6 +1398,7 @@ static void i915_driver_register(struct drm_i915_private *dev_priv)
 		I915_WRITE(vgtif_reg(display_ready), VGT_DRV_DISPLAY_READY);
 
 	i915_setup_sysfs(dev);
+	intel_modeset_register(dev_priv);
 
 	if (INTEL_INFO(dev_priv)->num_pipes) {
 		/* Must be done after probing outputs */
@@ -1430,6 +1431,7 @@ static void i915_driver_unregister(struct drm_i915_private *dev_priv)
 	intel_gpu_ips_teardown();
 	acpi_video_unregister();
 	intel_opregion_unregister(dev_priv);
+	intel_modeset_unregister(dev_priv);
 	i915_teardown_sysfs(dev_priv->dev);
 	i915_gem_shrinker_cleanup(dev_priv);
 }

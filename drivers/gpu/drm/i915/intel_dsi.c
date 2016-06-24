@@ -1592,8 +1592,6 @@ void intel_dsi_init(struct drm_device *dev)
 
 	intel_dsi_add_properties(intel_connector);
 
-	drm_connector_register(connector);
-
 	return;
 
 err:

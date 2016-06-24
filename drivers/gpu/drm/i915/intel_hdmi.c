@@ -1915,7 +1915,6 @@ void intel_hdmi_init_connector(struct intel_digital_port *intel_dig_port,
 	intel_hdmi_add_properties(intel_hdmi, connector);
 
 	intel_connector_attach_encoder(intel_connector, intel_encoder);
-	drm_connector_register(connector);
 	intel_hdmi->attached_connector = intel_connector;
 
 	/* For G4X desktop chip, PEG_BAND_GAP_DATA 3:0 must first be written
