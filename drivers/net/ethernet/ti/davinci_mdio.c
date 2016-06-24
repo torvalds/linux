@@ -356,14 +356,10 @@ static int davinci_mdio_probe(struct platform_device *pdev)
 	data->bus->parent	= dev;
 	data->bus->priv		= data;
 
-	pm_runtime_enable(&pdev->dev);
-	pm_runtime_get_sync(&pdev->dev);
 	data->clk = devm_clk_get(dev, "fck");
 	if (IS_ERR(data->clk)) {
 		dev_err(dev, "failed to get device clock\n");
-		ret = PTR_ERR(data->clk);
-		data->clk = NULL;
-		goto bail_out;
+		return PTR_ERR(data->clk);
 	}
 
 	dev_set_drvdata(dev, data);
@@ -372,10 +368,11 @@ static int davinci_mdio_probe(struct platform_device *pdev)
 
 	res = platform_get_resource(pdev, IORESOURCE_MEM, 0);
 	data->regs = devm_ioremap_resource(dev, res);
-	if (IS_ERR(data->regs)) {
-		ret = PTR_ERR(data->regs);
-		goto bail_out;
-	}
+	if (IS_ERR(data->regs))
+		return PTR_ERR(data->regs);
+
+	pm_runtime_enable(&pdev->dev);
+	pm_runtime_get_sync(&pdev->dev);
 
 	/* register the mii bus
 	 * Create PHYs from DT only in case if PHY child nodes are explicitly
