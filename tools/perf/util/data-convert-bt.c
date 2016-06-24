@@ -70,6 +70,8 @@ struct ctf_writer {
 		struct bt_ctf_field_type *array[6];
 	} data;
 	struct bt_ctf_event_class	*comm_class;
+	struct bt_ctf_event_class	*exit_class;
+	struct bt_ctf_event_class	*fork_class;
 };
 
 struct convert {
@@ -812,6 +814,21 @@ __FUNC_PROCESS_NON_SAMPLE(comm,
 	__NON_SAMPLE_SET_FIELD(comm, u32, tid);
 	__NON_SAMPLE_SET_FIELD(comm, string, comm);
 )
+__FUNC_PROCESS_NON_SAMPLE(fork,
+	__NON_SAMPLE_SET_FIELD(fork, u32, pid);
+	__NON_SAMPLE_SET_FIELD(fork, u32, ppid);
+	__NON_SAMPLE_SET_FIELD(fork, u32, tid);
+	__NON_SAMPLE_SET_FIELD(fork, u32, ptid);
+	__NON_SAMPLE_SET_FIELD(fork, u64, time);
+)
+
+__FUNC_PROCESS_NON_SAMPLE(exit,
+	__NON_SAMPLE_SET_FIELD(fork, u32, pid);
+	__NON_SAMPLE_SET_FIELD(fork, u32, ppid);
+	__NON_SAMPLE_SET_FIELD(fork, u32, tid);
+	__NON_SAMPLE_SET_FIELD(fork, u32, ptid);
+	__NON_SAMPLE_SET_FIELD(fork, u64, time);
+)
 #undef __NON_SAMPLE_SET_FIELD
 #undef __FUNC_PROCESS_NON_SAMPLE
 
@@ -1127,6 +1144,22 @@ __FUNC_ADD_NON_SAMPLE_EVENT_CLASS(comm,
 	__NON_SAMPLE_ADD_FIELD(string, comm);
 )
 
+__FUNC_ADD_NON_SAMPLE_EVENT_CLASS(fork,
+	__NON_SAMPLE_ADD_FIELD(u32, pid);
+	__NON_SAMPLE_ADD_FIELD(u32, ppid);
+	__NON_SAMPLE_ADD_FIELD(u32, tid);
+	__NON_SAMPLE_ADD_FIELD(u32, ptid);
+	__NON_SAMPLE_ADD_FIELD(u64, time);
+)
+
+__FUNC_ADD_NON_SAMPLE_EVENT_CLASS(exit,
+	__NON_SAMPLE_ADD_FIELD(u32, pid);
+	__NON_SAMPLE_ADD_FIELD(u32, ppid);
+	__NON_SAMPLE_ADD_FIELD(u32, tid);
+	__NON_SAMPLE_ADD_FIELD(u32, ptid);
+	__NON_SAMPLE_ADD_FIELD(u64, time);
+)
+
 #undef __NON_SAMPLE_ADD_FIELD
 #undef __FUNC_ADD_NON_SAMPLE_EVENT_CLASS
 
@@ -1136,6 +1169,12 @@ static int setup_non_sample_events(struct ctf_writer *cw,
 	int ret;
 
 	ret = add_comm_event(cw);
+	if (ret)
+		return ret;
+	ret = add_exit_event(cw);
+	if (ret)
+		return ret;
+	ret = add_fork_event(cw);
 	if (ret)
 		return ret;
 	return 0;
@@ -1436,8 +1475,11 @@ int bt_convert__perf2ctf(const char *input, const char *path,
 	struct ctf_writer *cw = &c.writer;
 	int err = -1;
 
-	if (opts->all)
+	if (opts->all) {
 		c.tool.comm = process_comm_event;
+		c.tool.exit = process_exit_event;
+		c.tool.fork = process_fork_event;
+	}
 
 	perf_config(convert__config, &c);
 
