@@ -67,7 +67,7 @@
 #include <asm/byteorder.h>
 #include <linux/hardirq.h>
 #include <asm/fpu/api.h>
-#include "sha_mb_ctx.h"
+#include "sha1_mb_ctx.h"
 
 #define FLUSH_INTERVAL 1000 /* in usec */
 

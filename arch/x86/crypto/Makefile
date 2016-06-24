@@ -49,7 +49,7 @@ endif
 ifeq ($(avx2_supported),yes)
 	obj-$(CONFIG_CRYPTO_CAMELLIA_AESNI_AVX2_X86_64) += camellia-aesni-avx2.o
 	obj-$(CONFIG_CRYPTO_SERPENT_AVX2_X86_64) += serpent-avx2.o
-	obj-$(CONFIG_CRYPTO_SHA1_MB) += sha-mb/
+	obj-$(CONFIG_CRYPTO_SHA1_MB) += sha1-mb/
 	obj-$(CONFIG_CRYPTO_SHA256_MB) += sha256-mb/
 endif
 

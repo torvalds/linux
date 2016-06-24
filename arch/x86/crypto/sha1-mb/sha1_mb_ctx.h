@@ -1,5 +1,5 @@
 /*
- * Initialization code for multi buffer SHA1 algorithm for AVX2
+ * Header file for multi buffer SHA context
  *
  * This file is provided under a dual BSD/GPLv2 license.  When using or
  * redistributing this file, you may do so under either license.
@@ -51,14 +51,86 @@
  * OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  */
 
-#include "sha_mb_mgr.h"
+#ifndef _SHA_MB_CTX_INTERNAL_H
+#define _SHA_MB_CTX_INTERNAL_H
 
-void sha1_mb_mgr_init_avx2(struct sha1_mb_mgr *state)
-{
-	unsigned int j;
-	state->unused_lanes = 0xF76543210ULL;
-	for (j = 0; j < 8; j++) {
-		state->lens[j] = 0xFFFFFFFF;
-		state->ldata[j].job_in_lane = NULL;
-	}
-}
+#include "sha1_mb_mgr.h"
+
+#define HASH_UPDATE          0x00
+#define HASH_FIRST           0x01
+#define HASH_LAST            0x02
+#define HASH_ENTIRE          0x03
+#define HASH_DONE	     0x04
+#define HASH_FINAL	     0x08
+
+#define HASH_CTX_STS_IDLE       0x00
+#define HASH_CTX_STS_PROCESSING 0x01
+#define HASH_CTX_STS_LAST       0x02
+#define HASH_CTX_STS_COMPLETE   0x04
+
+enum hash_ctx_error {
+	HASH_CTX_ERROR_NONE               =  0,
+	HASH_CTX_ERROR_INVALID_FLAGS      = -1,
+	HASH_CTX_ERROR_ALREADY_PROCESSING = -2,
+	HASH_CTX_ERROR_ALREADY_COMPLETED  = -3,
+
+#ifdef HASH_CTX_DEBUG
+	HASH_CTX_ERROR_DEBUG_DIGEST_MISMATCH = -4,
+#endif
+};
+
+
+#define hash_ctx_user_data(ctx)  ((ctx)->user_data)
+#define hash_ctx_digest(ctx)     ((ctx)->job.result_digest)
+#define hash_ctx_processing(ctx) ((ctx)->status & HASH_CTX_STS_PROCESSING)
+#define hash_ctx_complete(ctx)   ((ctx)->status == HASH_CTX_STS_COMPLETE)
+#define hash_ctx_status(ctx)     ((ctx)->status)
+#define hash_ctx_error(ctx)      ((ctx)->error)
+#define hash_ctx_init(ctx) \
+	do { \
+		(ctx)->error = HASH_CTX_ERROR_NONE; \
+		(ctx)->status = HASH_CTX_STS_COMPLETE; \
+	} while (0)
+
+
+/* Hash Constants and Typedefs */
+#define SHA1_DIGEST_LENGTH          5
+#define SHA1_LOG2_BLOCK_SIZE        6
+
+#define SHA1_PADLENGTHFIELD_SIZE    8
+
+#ifdef SHA_MB_DEBUG
+#define assert(expr) \
+do { \
+	if (unlikely(!(expr))) { \
+		printk(KERN_ERR "Assertion failed! %s,%s,%s,line=%d\n", \
+		#expr, __FILE__, __func__, __LINE__); \
+	} \
+} while (0)
+#else
+#define assert(expr) do {} while (0)
+#endif
+
+struct sha1_ctx_mgr {
+	struct sha1_mb_mgr mgr;
+};
+
+/* typedef struct sha1_ctx_mgr sha1_ctx_mgr; */
+
+struct sha1_hash_ctx {
+	/* Must be at struct offset 0 */
+	struct job_sha1       job;
+	/* status flag */
+	int status;
+	/* error flag */
+	int error;
+
+	uint32_t	total_length;
+	const void	*incoming_buffer;
+	uint32_t	incoming_buffer_length;
+	uint8_t		partial_block_buffer[SHA1_BLOCK_SIZE * 2];
+	uint32_t	partial_block_buffer_length;
+	void		*user_data;
+};
+
+#endif
