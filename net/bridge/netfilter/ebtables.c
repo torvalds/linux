@@ -130,7 +130,6 @@ ebt_basic_match(const struct ebt_entry *e, const struct sk_buff *skb,
 	const struct ethhdr *h = eth_hdr(skb);
 	const struct net_bridge_port *p;
 	__be16 ethproto;
-	int verdict, i;
 
 	if (skb_vlan_tag_present(skb))
 		ethproto = htons(ETH_P_8021Q);
@@ -157,19 +156,15 @@ ebt_basic_match(const struct ebt_entry *e, const struct sk_buff *skb,
 		return 1;
 
 	if (e->bitmask & EBT_SOURCEMAC) {
-		verdict = 0;
-		for (i = 0; i < 6; i++)
-			verdict |= (h->h_source[i] ^ e->sourcemac[i]) &
-			   e->sourcemsk[i];
-		if (FWINV2(verdict != 0, EBT_ISOURCE))
+		if (FWINV2(!ether_addr_equal_masked(h->h_source,
+						    e->sourcemac, e->sourcemsk),
+			   EBT_ISOURCE))
 			return 1;
 	}
 	if (e->bitmask & EBT_DESTMAC) {
-		verdict = 0;
-		for (i = 0; i < 6; i++)
-			verdict |= (h->h_dest[i] ^ e->destmac[i]) &
-			   e->destmsk[i];
-		if (FWINV2(verdict != 0, EBT_IDEST))
+		if (FWINV2(!ether_addr_equal_masked(h->h_dest,
+						    e->destmac, e->destmsk),
+			   EBT_IDEST))
 			return 1;
 	}
 	return 0;

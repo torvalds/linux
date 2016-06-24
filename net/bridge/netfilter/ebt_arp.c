@@ -65,7 +65,6 @@ ebt_arp_mt(const struct sk_buff *skb, struct xt_action_param *par)
 	if (info->bitmask & (EBT_ARP_SRC_MAC | EBT_ARP_DST_MAC)) {
 		const unsigned char *mp;
 		unsigned char _mac[ETH_ALEN];
-		uint8_t verdict, i;
 
 		if (ah->ar_hln != ETH_ALEN || ah->ar_hrd != htons(ARPHRD_ETHER))
 			return false;
@@ -74,11 +73,9 @@ ebt_arp_mt(const struct sk_buff *skb, struct xt_action_param *par)
 						sizeof(_mac), &_mac);
 			if (mp == NULL)
 				return false;
-			verdict = 0;
-			for (i = 0; i < 6; i++)
-				verdict |= (mp[i] ^ info->smaddr[i]) &
-				       info->smmsk[i];
-			if (FWINV(verdict != 0, EBT_ARP_SRC_MAC))
+			if (FWINV(!ether_addr_equal_masked(mp, info->smaddr,
+							   info->smmsk),
+				  EBT_ARP_SRC_MAC))
 				return false;
 		}
 
@@ -88,11 +85,9 @@ ebt_arp_mt(const struct sk_buff *skb, struct xt_action_param *par)
 						sizeof(_mac), &_mac);
 			if (mp == NULL)
 				return false;
-			verdict = 0;
-			for (i = 0; i < 6; i++)
-				verdict |= (mp[i] ^ info->dmaddr[i]) &
-					info->dmmsk[i];
-			if (FWINV(verdict != 0, EBT_ARP_DST_MAC))
+			if (FWINV(!ether_addr_equal_masked(mp, info->dmaddr,
+							   info->dmmsk),
+				  EBT_ARP_DST_MAC))
 				return false;
 		}
 	}
