@@ -1905,8 +1905,31 @@ static int cpsw_set_pauseparam(struct net_device *ndev,
 	priv->tx_pause = pause->tx_pause ? true : false;
 
 	for_each_slave(priv, _cpsw_adjust_link, priv, &link);
-
 	return 0;
+}
+
+static int cpsw_ethtool_op_begin(struct net_device *ndev)
+{
+	struct cpsw_priv *priv = netdev_priv(ndev);
+	int ret;
+
+	ret = pm_runtime_get_sync(&priv->pdev->dev);
+	if (ret < 0) {
+		cpsw_err(priv, drv, "ethtool begin failed %d\n", ret);
+		pm_runtime_put_noidle(&priv->pdev->dev);
+	}
+
+	return ret;
+}
+
+static void cpsw_ethtool_op_complete(struct net_device *ndev)
+{
+	struct cpsw_priv *priv = netdev_priv(ndev);
+	int ret;
+
+	ret = pm_runtime_put(&priv->pdev->dev);
+	if (ret < 0)
+		cpsw_err(priv, drv, "ethtool complete failed %d\n", ret);
 }
 
 static const struct ethtool_ops cpsw_ethtool_ops = {
@@ -1928,6 +1951,8 @@ static const struct ethtool_ops cpsw_ethtool_ops = {
 	.set_wol	= cpsw_set_wol,
 	.get_regs_len	= cpsw_get_regs_len,
 	.get_regs	= cpsw_get_regs,
+	.begin		= cpsw_ethtool_op_begin,
+	.complete	= cpsw_ethtool_op_complete,
 };
 
 static void cpsw_slave_init(struct cpsw_slave *slave, struct cpsw_priv *priv,
