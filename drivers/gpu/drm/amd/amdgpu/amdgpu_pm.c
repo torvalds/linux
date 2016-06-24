@@ -270,30 +270,28 @@ static ssize_t amdgpu_set_pp_force_state(struct device *dev,
 	struct drm_device *ddev = dev_get_drvdata(dev);
 	struct amdgpu_device *adev = ddev->dev_private;
 	enum amd_pm_state_type state = 0;
-	long idx;
+	unsigned long idx;
 	int ret;
 
 	if (strlen(buf) == 1)
 		adev->pp_force_state_enabled = false;
-	else {
-		ret = kstrtol(buf, 0, &idx);
+	else if (adev->pp_enabled) {
+		struct pp_states_info data;
 
-		if (ret) {
+		ret = kstrtoul(buf, 0, &idx);
+		if (ret || idx >= ARRAY_SIZE(data.states)) {
 			count = -EINVAL;
 			goto fail;
 		}
 
-		if (adev->pp_enabled) {
-			struct pp_states_info data;
-			amdgpu_dpm_get_pp_num_states(adev, &data);
-			state = data.states[idx];
-			/* only set user selected power states */
-			if (state != POWER_STATE_TYPE_INTERNAL_BOOT &&
-				state != POWER_STATE_TYPE_DEFAULT) {
-				amdgpu_dpm_dispatch_task(adev,
-						AMD_PP_EVENT_ENABLE_USER_STATE, &state, NULL);
-				adev->pp_force_state_enabled = true;
-			}
+		amdgpu_dpm_get_pp_num_states(adev, &data);
+		state = data.states[idx];
+		/* only set user selected power states */
+		if (state != POWER_STATE_TYPE_INTERNAL_BOOT &&
+		    state != POWER_STATE_TYPE_DEFAULT) {
+			amdgpu_dpm_dispatch_task(adev,
+					AMD_PP_EVENT_ENABLE_USER_STATE, &state, NULL);
+			adev->pp_force_state_enabled = true;
 		}
 	}
 fail:
