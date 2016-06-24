@@ -69,6 +69,7 @@ struct ctf_writer {
 		};
 		struct bt_ctf_field_type *array[6];
 	} data;
+	struct bt_ctf_event_class	*comm_class;
 };
 
 struct convert {
@@ -763,6 +764,57 @@ static int process_sample_event(struct perf_tool *tool,
 	return cs ? 0 : -1;
 }
 
+#define __NON_SAMPLE_SET_FIELD(_name, _type, _field) 	\
+do {							\
+	ret = value_set_##_type(cw, event, #_field, _event->_name._field);\
+	if (ret)					\
+		return -1;				\
+} while(0)
+
+#define __FUNC_PROCESS_NON_SAMPLE(_name, body) 	\
+static int process_##_name##_event(struct perf_tool *tool,	\
+				   union perf_event *_event,	\
+				   struct perf_sample *sample,	\
+				   struct machine *machine)	\
+{								\
+	struct convert *c = container_of(tool, struct convert, tool);\
+	struct ctf_writer *cw = &c->writer;			\
+	struct bt_ctf_event_class *event_class = cw->_name##_class;\
+	struct bt_ctf_event *event;				\
+	struct ctf_stream *cs;					\
+	int ret;						\
+								\
+	c->non_sample_count++;					\
+	c->events_size += _event->header.size;			\
+	event = bt_ctf_event_create(event_class);		\
+	if (!event) {						\
+		pr_err("Failed to create an CTF event\n");	\
+		return -1;					\
+	}							\
+								\
+	bt_ctf_clock_set_time(cw->clock, sample->time);		\
+	body							\
+	cs = ctf_stream(cw, 0);					\
+	if (cs) {						\
+		if (is_flush_needed(cs))			\
+			ctf_stream__flush(cs);			\
+								\
+		cs->count++;					\
+		bt_ctf_stream_append_event(cs->stream, event);	\
+	}							\
+	bt_ctf_event_put(event);				\
+								\
+	return perf_event__process_##_name(tool, _event, sample, machine);\
+}
+
+__FUNC_PROCESS_NON_SAMPLE(comm,
+	__NON_SAMPLE_SET_FIELD(comm, u32, pid);
+	__NON_SAMPLE_SET_FIELD(comm, u32, tid);
+	__NON_SAMPLE_SET_FIELD(comm, string, comm);
+)
+#undef __NON_SAMPLE_SET_FIELD
+#undef __FUNC_PROCESS_NON_SAMPLE
+
 /* If dup < 0, add a prefix. Else, add _dupl_X suffix. */
 static char *change_name(char *name, char *orig_name, int dup)
 {
@@ -1034,6 +1086,58 @@ static int setup_events(struct ctf_writer *cw, struct perf_session *session)
 		if (ret)
 			return ret;
 	}
+	return 0;
+}
+
+#define __NON_SAMPLE_ADD_FIELD(t, n)						\
+	do {							\
+		pr2("  field '%s'\n", #n);			\
+		if (bt_ctf_event_class_add_field(event_class, cw->data.t, #n)) {\
+			pr_err("Failed to add field '%s';\n", #n);\
+			return -1;				\
+		}						\
+	} while(0)
+
+#define __FUNC_ADD_NON_SAMPLE_EVENT_CLASS(_name, body) 		\
+static int add_##_name##_event(struct ctf_writer *cw)		\
+{								\
+	struct bt_ctf_event_class *event_class;			\
+	int ret;						\
+								\
+	pr("Adding "#_name" event\n");				\
+	event_class = bt_ctf_event_class_create("perf_" #_name);\
+	if (!event_class)					\
+		return -1;					\
+	body							\
+								\
+	ret = bt_ctf_stream_class_add_event_class(cw->stream_class, event_class);\
+	if (ret) {						\
+		pr("Failed to add event class '"#_name"' into stream.\n");\
+		return ret;					\
+	}							\
+								\
+	cw->_name##_class = event_class;			\
+	bt_ctf_event_class_put(event_class);			\
+	return 0;						\
+}
+
+__FUNC_ADD_NON_SAMPLE_EVENT_CLASS(comm,
+	__NON_SAMPLE_ADD_FIELD(u32, pid);
+	__NON_SAMPLE_ADD_FIELD(u32, tid);
+	__NON_SAMPLE_ADD_FIELD(string, comm);
+)
+
+#undef __NON_SAMPLE_ADD_FIELD
+#undef __FUNC_ADD_NON_SAMPLE_EVENT_CLASS
+
+static int setup_non_sample_events(struct ctf_writer *cw,
+				   struct perf_session *session __maybe_unused)
+{
+	int ret;
+
+	ret = add_comm_event(cw);
+	if (ret)
+		return ret;
 	return 0;
 }
 
@@ -1332,6 +1436,9 @@ int bt_convert__perf2ctf(const char *input, const char *path,
 	struct ctf_writer *cw = &c.writer;
 	int err = -1;
 
+	if (opts->all)
+		c.tool.comm = process_comm_event;
+
 	perf_config(convert__config, &c);
 
 	/* CTF writer */
@@ -1354,6 +1461,9 @@ int bt_convert__perf2ctf(const char *input, const char *path,
 
 	/* CTF events setup */
 	if (setup_events(cw, session))
+		goto free_session;
+
+	if (opts->all && setup_non_sample_events(cw, session))
 		goto free_session;
 
 	if (setup_streams(cw, session))
