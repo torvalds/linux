@@ -52,8 +52,17 @@
 #define GMAC_TX_FLOW_CTRL_PT_SHIFT	16
 
 /*  MAC Interrupt bitmap*/
+#define GMAC_INT_RGSMIIS		BIT(0)
+#define GMAC_INT_PCS_LINK		BIT(1)
+#define GMAC_INT_PCS_ANE		BIT(2)
+#define GMAC_INT_PCS_PHYIS		BIT(3)
 #define GMAC_INT_PMT_EN			BIT(4)
 #define GMAC_INT_LPI_EN			BIT(5)
+
+#define	GMAC_PCS_IRQ_DEFAULT	(GMAC_INT_RGSMIIS | GMAC_INT_PCS_LINK |	\
+				 GMAC_INT_PCS_ANE)
+
+#define	GMAC_INT_DEFAULT_MASK	GMAC_INT_PMT_EN
 
 enum dwmac4_irq_status {
 	time_stamp_irq = 0x00001000,

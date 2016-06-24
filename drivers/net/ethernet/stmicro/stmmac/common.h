@@ -529,6 +529,8 @@ struct mac_device_info {
 	int unicast_filter_entries;
 	int mcast_bits_log2;
 	unsigned int rx_csum;
+	unsigned int pcs;
+	unsigned int pmt;
 };
 
 struct mac_device_info *dwmac1000_setup(void __iomem *ioaddr, int mcbins,

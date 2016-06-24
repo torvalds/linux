@@ -276,7 +276,8 @@ static int stmmac_ethtool_getsettings(struct net_device *dev,
 	struct phy_device *phy = priv->phydev;
 	int rc;
 
-	if ((priv->pcs & STMMAC_PCS_RGMII) || (priv->pcs & STMMAC_PCS_SGMII)) {
+	if (priv->hw->pcs & STMMAC_PCS_RGMII ||
+	    priv->hw->pcs & STMMAC_PCS_SGMII) {
 		struct rgmii_adv adv;
 
 		if (!priv->xstats.pcs_link) {
@@ -361,7 +362,8 @@ static int stmmac_ethtool_setsettings(struct net_device *dev,
 	struct phy_device *phy = priv->phydev;
 	int rc;
 
-	if ((priv->pcs & STMMAC_PCS_RGMII) || (priv->pcs & STMMAC_PCS_SGMII)) {
+	if (priv->hw->pcs & STMMAC_PCS_RGMII ||
+	    priv->hw->pcs & STMMAC_PCS_SGMII) {
 		u32 mask = ADVERTISED_Autoneg | ADVERTISED_Pause;
 
 		/* Only support ANE */
@@ -457,7 +459,7 @@ stmmac_get_pauseparam(struct net_device *netdev,
 	pause->rx_pause = 0;
 	pause->tx_pause = 0;
 
-	if (priv->pcs && priv->hw->mac->pcs_get_adv_lp) {
+	if (priv->hw->pcs && priv->hw->mac->pcs_get_adv_lp) {
 		struct rgmii_adv adv_lp;
 
 		pause->autoneg = 1;
@@ -487,7 +489,7 @@ stmmac_set_pauseparam(struct net_device *netdev,
 	struct phy_device *phy = priv->phydev;
 	int new_pause = FLOW_OFF;
 
-	if (priv->pcs && priv->hw->mac->pcs_get_adv_lp) {
+	if (priv->hw->pcs && priv->hw->mac->pcs_get_adv_lp) {
 		struct rgmii_adv adv_lp;
 
 		pause->autoneg = 1;
@@ -507,6 +509,7 @@ stmmac_set_pauseparam(struct net_device *netdev,
 
 	priv->flow_ctrl = new_pause;
 	phy->autoneg = pause->autoneg;
+
 	if (phy->autoneg) {
 		if (netif_running(netdev))
 			return phy_start_aneg(phy);

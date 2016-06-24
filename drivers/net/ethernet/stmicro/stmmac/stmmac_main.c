@@ -285,8 +285,9 @@ bool stmmac_eee_init(struct stmmac_priv *priv)
 	/* Using PCS we cannot dial with the phy registers at this stage
 	 * so we do not support extra feature like EEE.
 	 */
-	if ((priv->pcs == STMMAC_PCS_RGMII) || (priv->pcs == STMMAC_PCS_TBI) ||
-	    (priv->pcs == STMMAC_PCS_RTBI))
+	if ((priv->hw->pcs == STMMAC_PCS_RGMII) ||
+	    (priv->hw->pcs == STMMAC_PCS_TBI) ||
+	    (priv->hw->pcs == STMMAC_PCS_RTBI))
 		goto out;
 
 	/* MAC core supports the EEE feature. */
@@ -799,10 +800,10 @@ static void stmmac_check_pcs_mode(struct stmmac_priv *priv)
 		    (interface == PHY_INTERFACE_MODE_RGMII_RXID) ||
 		    (interface == PHY_INTERFACE_MODE_RGMII_TXID)) {
 			pr_debug("STMMAC: PCS RGMII support enable\n");
-			priv->pcs = STMMAC_PCS_RGMII;
+			priv->hw->pcs = STMMAC_PCS_RGMII;
 		} else if (interface == PHY_INTERFACE_MODE_SGMII) {
 			pr_debug("STMMAC: PCS SGMII support enable\n");
-			priv->pcs = STMMAC_PCS_SGMII;
+			priv->hw->pcs = STMMAC_PCS_SGMII;
 		}
 	}
 }
@@ -1714,7 +1715,7 @@ static int stmmac_hw_setup(struct net_device *dev, bool init_ptp)
 		priv->hw->dma->rx_watchdog(priv->ioaddr, MAX_DMA_RIWT);
 	}
 
-	if (priv->pcs && priv->hw->mac->pcs_ctrl_ane)
+	if (priv->hw->pcs && priv->hw->mac->pcs_ctrl_ane)
 		priv->hw->mac->pcs_ctrl_ane(priv->hw, 1, 0, 0);
 
 	/*  set TX ring length */
@@ -1748,8 +1749,9 @@ static int stmmac_open(struct net_device *dev)
 
 	stmmac_check_ether_addr(priv);
 
-	if (priv->pcs != STMMAC_PCS_RGMII && priv->pcs != STMMAC_PCS_TBI &&
-	    priv->pcs != STMMAC_PCS_RTBI) {
+	if (priv->hw->pcs != STMMAC_PCS_RGMII &&
+	    priv->hw->pcs != STMMAC_PCS_TBI &&
+	    priv->hw->pcs != STMMAC_PCS_RTBI) {
 		ret = stmmac_init_phy(dev);
 		if (ret) {
 			pr_err("%s: Cannot attach to PHY (error: %d)\n",
@@ -2811,7 +2813,7 @@ static irqreturn_t stmmac_interrupt(int irq, void *dev_id)
 		}
 
 		/* PCS link status */
-		if (priv->pcs) {
+		if (priv->hw->pcs) {
 			if (priv->xstats.pcs_link)
 				netif_carrier_on(dev);
 			else
@@ -3138,6 +3140,7 @@ static int stmmac_hw_init(struct stmmac_priv *priv)
 		 */
 		priv->plat->enh_desc = priv->dma_cap.enh_desc;
 		priv->plat->pmt = priv->dma_cap.pmt_remote_wake_up;
+		priv->hw->pmt = priv->plat->pmt;
 
 		/* TXCOE doesn't work in thresh DMA mode */
 		if (priv->plat->force_thresh_dma_mode)
@@ -3333,8 +3336,9 @@ int stmmac_dvr_probe(struct device *device,
 
 	stmmac_check_pcs_mode(priv);
 
-	if (priv->pcs != STMMAC_PCS_RGMII && priv->pcs != STMMAC_PCS_TBI &&
-	    priv->pcs != STMMAC_PCS_RTBI) {
+	if (priv->hw->pcs != STMMAC_PCS_RGMII  &&
+	    priv->hw->pcs != STMMAC_PCS_TBI &&
+	    priv->hw->pcs != STMMAC_PCS_RTBI) {
 		/* MDIO bus Registration */
 		ret = stmmac_mdio_register(ndev);
 		if (ret < 0) {
@@ -3384,8 +3388,9 @@ int stmmac_dvr_remove(struct device *dev)
 		reset_control_assert(priv->stmmac_rst);
 	clk_disable_unprepare(priv->pclk);
 	clk_disable_unprepare(priv->stmmac_clk);
-	if (priv->pcs != STMMAC_PCS_RGMII && priv->pcs != STMMAC_PCS_TBI &&
-	    priv->pcs != STMMAC_PCS_RTBI)
+	if (priv->hw->pcs != STMMAC_PCS_RGMII &&
+	    priv->hw->pcs != STMMAC_PCS_TBI &&
+	    priv->hw->pcs != STMMAC_PCS_RTBI)
 		stmmac_mdio_unregister(ndev);
 	free_netdev(ndev);
 

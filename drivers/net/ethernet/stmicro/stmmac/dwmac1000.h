@@ -38,16 +38,26 @@
 #define GMAC_WAKEUP_FILTER	0x00000028	/* Wake-up Frame Filter */
 
 #define GMAC_INT_STATUS		0x00000038	/* interrupt status register */
-enum dwmac1000_irq_status {
-	lpiis_irq = 0x400,
-	time_stamp_irq = 0x0200,
-	mmc_rx_csum_offload_irq = 0x0080,
-	mmc_tx_irq = 0x0040,
-	mmc_rx_irq = 0x0020,
-	mmc_irq = 0x0010,
-	pmt_irq = 0x0008,
-};
-#define GMAC_INT_MASK		0x0000003c	/* interrupt mask register */
+#define GMAC_INT_STATUS_PMT	BIT(3)
+#define GMAC_INT_STATUS_MMCIS	BIT(4)
+#define GMAC_INT_STATUS_MMCRIS	BIT(5)
+#define GMAC_INT_STATUS_MMCTIS	BIT(6)
+#define GMAC_INT_STATUS_MMCCSUM	BIT(7)
+#define GMAC_INT_STATUS_TSTAMP	BIT(9)
+#define GMAC_INT_STATUS_LPIIS	BIT(10)
+
+/* interrupt mask register */
+#define	GMAC_INT_MASK		0x0000003c
+#define	GMAC_INT_DISABLE_RGMII		BIT(0)
+#define	GMAC_INT_DISABLE_PCSLINK	BIT(1)
+#define	GMAC_INT_DISABLE_PCSAN		BIT(2)
+#define	GMAC_INT_DISABLE_PMT		BIT(3)
+#define	GMAC_INT_DISABLE_TIMESTAMP	BIT(9)
+#define	GMAC_INT_DISABLE_PCS	(GMAC_INT_DISABLE_RGMII | \
+				 GMAC_INT_DISABLE_PCSLINK | \
+				 GMAC_INT_DISABLE_PCSAN)
+#define	GMAC_INT_DEFAULT_MASK	(GMAC_INT_DISABLE_TIMESTAMP | \
+				 GMAC_INT_DISABLE_PCS)
 
 /* PMT Control and Status */
 #define GMAC_PMT		0x0000002c

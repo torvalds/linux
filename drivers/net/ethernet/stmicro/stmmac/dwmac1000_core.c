@@ -37,7 +37,10 @@ static void dwmac1000_core_init(struct mac_device_info *hw, int mtu)
 {
 	void __iomem *ioaddr = hw->pcsr;
 	u32 value = readl(ioaddr + GMAC_CONTROL);
+
+	/* Configure GMAC core */
 	value |= GMAC_CORE_INIT;
+
 	if (mtu > 1500)
 		value |= GMAC_CONTROL_2K;
 	if (mtu > 2000)
@@ -46,7 +49,14 @@ static void dwmac1000_core_init(struct mac_device_info *hw, int mtu)
 	writel(value, ioaddr + GMAC_CONTROL);
 
 	/* Mask GMAC interrupts */
-	writel(0x207, ioaddr + GMAC_INT_MASK);
+	value = GMAC_INT_DEFAULT_MASK;
+
+	if (hw->pmt)
+		value &= ~GMAC_INT_DISABLE_PMT;
+	if (hw->pcs)
+		value &= ~GMAC_INT_DISABLE_PCS;
+
+	writel(value, ioaddr + GMAC_INT_MASK);
 
 #ifdef STMMAC_VLAN_TAG_USED
 	/* Tag detection without filtering */
@@ -283,20 +293,20 @@ static int dwmac1000_irq_status(struct mac_device_info *hw,
 	int ret = 0;
 
 	/* Not used events (e.g. MMC interrupts) are not handled. */
-	if ((intr_status & mmc_tx_irq))
+	if ((intr_status & GMAC_INT_STATUS_MMCTIS))
 		x->mmc_tx_irq_n++;
-	if (unlikely(intr_status & mmc_rx_irq))
+	if (unlikely(intr_status & GMAC_INT_STATUS_MMCRIS))
 		x->mmc_rx_irq_n++;
-	if (unlikely(intr_status & mmc_rx_csum_offload_irq))
+	if (unlikely(intr_status & GMAC_INT_STATUS_MMCCSUM))
 		x->mmc_rx_csum_offload_irq_n++;
-	if (unlikely(intr_status & pmt_irq)) {
+	if (unlikely(intr_status & GMAC_INT_DISABLE_PMT)) {
 		/* clear the PMT bits 5 and 6 by reading the PMT status reg */
 		readl(ioaddr + GMAC_PMT);
 		x->irq_receive_pmt_irq_n++;
 	}
 
-	/* MAC trx/rx EEE LPI entry/exit interrupts */
-	if (intr_status & lpiis_irq) {
+	/* MAC tx/rx EEE LPI entry/exit interrupts */
+	if (intr_status & GMAC_INT_STATUS_LPIIS) {
 		/* Clean LPI interrupt by reading the Reg 12 */
 		ret = readl(ioaddr + LPI_CTRL_STATUS);
 
