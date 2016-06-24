@@ -889,7 +889,7 @@ static struct iommu_domain *rk_iommu_domain_alloc(unsigned type)
 	struct platform_device *pdev;
 	struct device *iommu_dev;
 
-	if (type != IOMMU_DOMAIN_UNMANAGED)
+	if (type != IOMMU_DOMAIN_UNMANAGED && type != IOMMU_DOMAIN_DMA)
 		return NULL;
 
 	/* Register a pdev per domain, so DMA API can base on this *dev
@@ -906,8 +906,8 @@ static struct iommu_domain *rk_iommu_domain_alloc(unsigned type)
 
 	rk_domain->pdev = pdev;
 
-	/* To init the iovad which is required by iommu_dma_init_domain() */
-	if (iommu_get_dma_cookie(&rk_domain->domain))
+	if (type == IOMMU_DOMAIN_DMA &&
+	    iommu_get_dma_cookie(&rk_domain->domain))
 		goto err_unreg_pdev;
 
 	/*
@@ -933,12 +933,17 @@ static struct iommu_domain *rk_iommu_domain_alloc(unsigned type)
 	spin_lock_init(&rk_domain->dt_lock);
 	INIT_LIST_HEAD(&rk_domain->iommus);
 
+	rk_domain->domain.geometry.aperture_start = 0;
+	rk_domain->domain.geometry.aperture_end   = DMA_BIT_MASK(32);
+	rk_domain->domain.geometry.force_aperture = true;
+
 	return &rk_domain->domain;
 
 err_free_dt:
 	free_page((unsigned long)rk_domain->dt);
 err_put_cookie:
-	iommu_put_dma_cookie(&rk_domain->domain);
+	if (type == IOMMU_DOMAIN_DMA)
+		iommu_put_dma_cookie(&rk_domain->domain);
 err_unreg_pdev:
 	platform_device_unregister(pdev);
 
@@ -967,7 +972,8 @@ static void rk_iommu_domain_free(struct iommu_domain *domain)
 			 SPAGE_SIZE, DMA_TO_DEVICE);
 	free_page((unsigned long)rk_domain->dt);
 
-	iommu_put_dma_cookie(&rk_domain->domain);
+	if (domain->type == IOMMU_DOMAIN_DMA)
+		iommu_put_dma_cookie(&rk_domain->domain);
 
 	platform_device_unregister(rk_domain->pdev);
 }
