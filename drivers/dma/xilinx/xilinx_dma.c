@@ -2353,7 +2353,9 @@ static int xilinx_dma_chan_probe(struct xilinx_dma_device *xdev,
 	if (!has_dre)
 		xdev->common.copy_align = fls(width - 1);
 
-	if (of_device_is_compatible(node, "xlnx,axi-vdma-mm2s-channel")) {
+	if (of_device_is_compatible(node, "xlnx,axi-vdma-mm2s-channel") ||
+	    of_device_is_compatible(node, "xlnx,axi-dma-mm2s-channel") ||
+	    of_device_is_compatible(node, "xlnx,axi-cdma-channel")) {
 		chan->direction = DMA_MEM_TO_DEV;
 		chan->id = chan_id;
 		chan->tdest = chan_id;
@@ -2367,7 +2369,9 @@ static int xilinx_dma_chan_probe(struct xilinx_dma_device *xdev,
 				chan->flush_on_fsync = true;
 		}
 	} else if (of_device_is_compatible(node,
-					    "xlnx,axi-vdma-s2mm-channel")) {
+					   "xlnx,axi-vdma-s2mm-channel") ||
+		   of_device_is_compatible(node,
+					   "xlnx,axi-dma-s2mm-channel")) {
 		chan->direction = DMA_DEV_TO_MEM;
 		chan->id = chan_id;
 		chan->tdest = chan_id - xdev->nr_channels;

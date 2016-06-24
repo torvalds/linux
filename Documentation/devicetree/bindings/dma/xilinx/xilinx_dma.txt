@@ -50,8 +50,12 @@ Optional properties for VDMA:
 	{3}, flush s2mm channel
 
 Required child node properties:
-- compatible: It should be either "xlnx,axi-vdma-mm2s-channel" or
+- compatible:
+	For VDMA: It should be either "xlnx,axi-vdma-mm2s-channel" or
 	"xlnx,axi-vdma-s2mm-channel".
+	For CDMA: It should be "xlnx,axi-cdma-channel".
+	For AXIDMA: It should be either "xlnx,axi-dma-mm2s-channel" or
+	"xlnx,axi-dma-s2mm-channel".
 - interrupts: Should contain per channel VDMA interrupts.
 - xlnx,datawidth: Should contain the stream data width, take values
 	{32,64...1024}.
