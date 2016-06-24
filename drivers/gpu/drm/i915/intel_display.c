@@ -2046,15 +2046,6 @@ static void intel_disable_pipe(struct intel_crtc *crtc)
 		intel_wait_for_pipe_off(crtc);
 }
 
-static bool need_vtd_wa(struct drm_device *dev)
-{
-#ifdef CONFIG_INTEL_IOMMU
-	if (INTEL_INFO(dev)->gen >= 6 && intel_iommu_gfx_mapped)
-		return true;
-#endif
-	return false;
-}
-
 static unsigned int intel_tile_size(const struct drm_i915_private *dev_priv)
 {
 	return IS_GEN2(dev_priv) ? 2048 : 4096;
@@ -2236,7 +2227,7 @@ intel_pin_and_fence_fb_obj(struct drm_framebuffer *fb,
 	 * we should always have valid PTE following the scanout preventing
 	 * the VT-d warning.
 	 */
-	if (need_vtd_wa(dev) && alignment < 256 * 1024)
+	if (intel_scanout_needs_vtd_wa(dev_priv) && alignment < 256 * 1024)
 		alignment = 256 * 1024;
 
 	/*

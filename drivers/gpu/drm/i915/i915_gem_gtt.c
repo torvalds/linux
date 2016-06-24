@@ -3119,7 +3119,7 @@ static int gen8_gmch_probe(struct i915_ggtt *ggtt)
 	ggtt->base.unbind_vma = ggtt_unbind_vma;
 	ggtt->base.insert_page = gen8_ggtt_insert_page;
 	ggtt->base.clear_range = nop_clear_range;
-	if (!USES_FULL_PPGTT(dev_priv))
+	if (!USES_FULL_PPGTT(dev_priv) || intel_scanout_needs_vtd_wa(dev_priv))
 		ggtt->base.clear_range = gen8_ggtt_clear_range;
 
 	ggtt->base.insert_entries = gen8_ggtt_insert_entries;
