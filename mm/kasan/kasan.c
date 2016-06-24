@@ -508,7 +508,7 @@ void kasan_slab_alloc(struct kmem_cache *cache, void *object, gfp_t flags)
 	kasan_kmalloc(cache, object, cache->object_size, flags);
 }
 
-void kasan_poison_slab_free(struct kmem_cache *cache, void *object)
+static void kasan_poison_slab_free(struct kmem_cache *cache, void *object)
 {
 	unsigned long size = cache->object_size;
 	unsigned long rounded_up_size = round_up(size, KASAN_SHADOW_SCALE_SIZE);
@@ -626,7 +626,7 @@ void kasan_krealloc(const void *object, size_t size, gfp_t flags)
 		kasan_kmalloc(page->slab_cache, object, size, flags);
 }
 
-void kasan_kfree(void *ptr)
+void kasan_poison_kfree(void *ptr)
 {
 	struct page *page;
 
@@ -636,7 +636,7 @@ void kasan_kfree(void *ptr)
 		kasan_poison_shadow(ptr, PAGE_SIZE << compound_order(page),
 				KASAN_FREE_PAGE);
 	else
-		kasan_slab_free(page->slab_cache, ptr);
+		kasan_poison_slab_free(page->slab_cache, ptr);
 }
 
 void kasan_kfree_large(const void *ptr)
