@@ -552,8 +552,6 @@ static void intel_fbdev_destroy(struct drm_device *dev,
 	drm_fb_helper_fini(&ifbdev->helper);
 
 	if (ifbdev->fb) {
-		drm_framebuffer_unregister_private(&ifbdev->fb->base);
-
 		mutex_lock(&dev->struct_mutex);
 		intel_unpin_fb_obj(&ifbdev->fb->base, BIT(DRM_ROTATE_0));
 		mutex_unlock(&dev->struct_mutex);

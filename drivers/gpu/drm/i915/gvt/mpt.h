@@ -1,5 +1,5 @@
 /*
- * Copyright(c) 2011-2015 Intel Corporation. All rights reserved.
+ * Copyright(c) 2011-2016 Intel Corporation. All rights reserved.
  *
  * Permission is hereby granted, free of charge, to any person obtaining a
  * copy of this software and associated documentation files (the "Software"),
@@ -21,13 +21,29 @@
  * SOFTWARE.
  */
 
-#ifndef _I915_VGPU_H_
-#define _I915_VGPU_H_
+#ifndef _GVT_MPT_H_
+#define _GVT_MPT_H_
 
-#include "i915_pvinfo.h"
+/**
+ * DOC: Hypervisor Service APIs for GVT-g Core Logic
+ *
+ * This is the glue layer between specific hypervisor MPT modules and GVT-g core
+ * logic. Each kind of hypervisor MPT module provides a collection of function
+ * callbacks and will be attached to GVT host when the driver is loading.
+ * GVT-g core logic will call these APIs to request specific services from
+ * hypervisor.
+ */
 
-void i915_check_vgpu(struct drm_i915_private *dev_priv);
-int intel_vgt_balloon(struct drm_i915_private *dev_priv);
-void intel_vgt_deballoon(struct drm_i915_private *dev_priv);
+/**
+ * intel_gvt_hypervisor_detect_host - check if GVT-g is running within
+ * hypervisor host/privilged domain
+ *
+ * Returns:
+ * Zero on success, -ENODEV if current kernel is running inside a VM
+ */
+static inline int intel_gvt_hypervisor_detect_host(void)
+{
+	return intel_gvt_host.mpt->detect_host();
+}
 
-#endif /* _I915_VGPU_H_ */
+#endif /* _GVT_MPT_H_ */

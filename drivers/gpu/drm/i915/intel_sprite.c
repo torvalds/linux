@@ -166,6 +166,20 @@ void intel_pipe_update_end(struct intel_crtc *crtc, struct intel_flip_work *work
 
 	trace_i915_pipe_update_end(crtc, end_vbl_count, scanline_end);
 
+	/* We're still in the vblank-evade critical section, this can't race.
+	 * Would be slightly nice to just grab the vblank count and arm the
+	 * event outside of the critical section - the spinlock might spin for a
+	 * while ... */
+	if (crtc->base.state->event) {
+		WARN_ON(drm_crtc_vblank_get(&crtc->base) != 0);
+
+		spin_lock(&crtc->base.dev->event_lock);
+		drm_crtc_arm_vblank_event(&crtc->base, crtc->base.state->event);
+		spin_unlock(&crtc->base.dev->event_lock);
+
+		crtc->base.state->event = NULL;
+	}
+
 	local_irq_enable();
 
 	if (crtc->debug.start_vbl_count &&

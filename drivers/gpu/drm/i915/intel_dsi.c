@@ -1172,6 +1172,12 @@ static void intel_dsi_prepare(struct intel_encoder *intel_encoder)
 	if (intel_dsi->clock_stop)
 		tmp |= CLOCKSTOP;
 
+	if (IS_BROXTON(dev_priv)) {
+		tmp |= BXT_DPHY_DEFEATURE_EN;
+		if (!is_cmd_mode(intel_dsi))
+			tmp |= BXT_DEFEATURE_DPI_FIFO_CTR;
+	}
+
 	for_each_dsi_port(port, intel_dsi->ports) {
 		I915_WRITE(MIPI_DSI_FUNC_PRG(port), val);
 

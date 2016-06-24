@@ -2574,6 +2574,10 @@ static int i915_guc_info(struct seq_file *m, void *data)
 
 	mutex_unlock(&dev->struct_mutex);
 
+	seq_printf(m, "Doorbell map:\n");
+	seq_printf(m, "\t%*pb\n", GUC_MAX_DOORBELLS, guc.doorbell_bitmap);
+	seq_printf(m, "Doorbell next cacheline: 0x%x\n\n", guc.db_cacheline);
+
 	seq_printf(m, "GuC total action count: %llu\n", guc.action_count);
 	seq_printf(m, "GuC action failure count: %u\n", guc.action_fail);
 	seq_printf(m, "GuC last action command: 0x%x\n", guc.action_cmd);
@@ -5306,6 +5310,10 @@ static int i915_sseu_status(struct seq_file *m, void *unused)
 		   INTEL_INFO(dev)->eu_total);
 	seq_printf(m, "  Available EU Per Subslice: %u\n",
 		   INTEL_INFO(dev)->eu_per_subslice);
+	seq_printf(m, "  Has Pooled EU: %s\n", yesno(HAS_POOLED_EU(dev)));
+	if (HAS_POOLED_EU(dev))
+		seq_printf(m, "  Min EU in pool: %u\n",
+			   INTEL_INFO(dev)->min_eu_in_pool);
 	seq_printf(m, "  Has Slice Power Gating: %s\n",
 		   yesno(INTEL_INFO(dev)->has_slice_pg));
 	seq_printf(m, "  Has Subslice Power Gating: %s\n",

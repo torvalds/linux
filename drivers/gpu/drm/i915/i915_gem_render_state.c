@@ -94,6 +94,7 @@ free_gem:
 
 static int render_state_setup(struct render_state *so)
 {
+	struct drm_device *dev = so->obj->base.dev;
 	const struct intel_renderstate_rodata *rodata = so->rodata;
 	unsigned int i = 0, reloc_index = 0;
 	struct page *page;
@@ -134,6 +135,33 @@ static int render_state_setup(struct render_state *so)
 		OUT_BATCH(d, i, MI_NOOP);
 
 	so->aux_batch_offset = i * sizeof(u32);
+
+	if (HAS_POOLED_EU(dev)) {
+		/*
+		 * We always program 3x6 pool config but depending upon which
+		 * subslice is disabled HW drops down to appropriate config
+		 * shown below.
+		 *
+		 * In the below table 2x6 config always refers to
+		 * fused-down version, native 2x6 is not available and can
+		 * be ignored
+		 *
+		 * SNo  subslices config                eu pool configuration
+		 * -----------------------------------------------------------
+		 * 1    3 subslices enabled (3x6)  -    0x00777000  (9+9)
+		 * 2    ss0 disabled (2x6)         -    0x00777000  (3+9)
+		 * 3    ss1 disabled (2x6)         -    0x00770000  (6+6)
+		 * 4    ss2 disabled (2x6)         -    0x00007000  (9+3)
+		 */
+		u32 eu_pool_config = 0x00777000;
+
+		OUT_BATCH(d, i, GEN9_MEDIA_POOL_STATE);
+		OUT_BATCH(d, i, GEN9_MEDIA_POOL_ENABLE);
+		OUT_BATCH(d, i, eu_pool_config);
+		OUT_BATCH(d, i, 0);
+		OUT_BATCH(d, i, 0);
+		OUT_BATCH(d, i, 0);
+	}
 
 	OUT_BATCH(d, i, MI_BATCH_BUFFER_END);
 	so->aux_batch_size = (i * sizeof(u32)) - so->aux_batch_offset;

@@ -1,5 +1,5 @@
 /*
- * Copyright(c) 2011-2015 Intel Corporation. All rights reserved.
+ * Copyright(c) 2011-2016 Intel Corporation. All rights reserved.
  *
  * Permission is hereby granted, free of charge, to any person obtaining a
  * copy of this software and associated documentation files (the "Software"),
@@ -21,13 +21,14 @@
  * SOFTWARE.
  */
 
-#ifndef _I915_VGPU_H_
-#define _I915_VGPU_H_
+#ifndef __GVT_DEBUG_H__
+#define __GVT_DEBUG_H__
 
-#include "i915_pvinfo.h"
+#define gvt_dbg_core(fmt, args...) \
+	DRM_DEBUG_DRIVER("gvt: core: "fmt, ##args)
 
-void i915_check_vgpu(struct drm_i915_private *dev_priv);
-int intel_vgt_balloon(struct drm_i915_private *dev_priv);
-void intel_vgt_deballoon(struct drm_i915_private *dev_priv);
+/*
+ * Other GVT debug stuff will be introduced in the GVT device model patches.
+ */
 
-#endif /* _I915_VGPU_H_ */
+#endif

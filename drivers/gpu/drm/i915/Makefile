@@ -104,6 +104,11 @@ i915-y += i915_vgpu.o
 # legacy horrors
 i915-y += i915_dma.o
 
+ifeq ($(CONFIG_DRM_I915_GVT),y)
+i915-y += intel_gvt.o
+include $(src)/gvt/Makefile
+endif
+
 obj-$(CONFIG_DRM_I915)  += i915.o
 
 CFLAGS_i915_trace_points.o := -I$(src)

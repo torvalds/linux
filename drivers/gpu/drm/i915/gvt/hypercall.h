@@ -1,5 +1,5 @@
 /*
- * Copyright(c) 2011-2015 Intel Corporation. All rights reserved.
+ * Copyright(c) 2011-2016 Intel Corporation. All rights reserved.
  *
  * Permission is hereby granted, free of charge, to any person obtaining a
  * copy of this software and associated documentation files (the "Software"),
@@ -21,13 +21,18 @@
  * SOFTWARE.
  */
 
-#ifndef _I915_VGPU_H_
-#define _I915_VGPU_H_
+#ifndef _GVT_HYPERCALL_H_
+#define _GVT_HYPERCALL_H_
 
-#include "i915_pvinfo.h"
+/*
+ * Specific GVT-g MPT modules function collections. Currently GVT-g supports
+ * both Xen and KVM by providing dedicated hypervisor-related MPT modules.
+ */
+struct intel_gvt_mpt {
+	int (*detect_host)(void);
+};
 
-void i915_check_vgpu(struct drm_i915_private *dev_priv);
-int intel_vgt_balloon(struct drm_i915_private *dev_priv);
-void intel_vgt_deballoon(struct drm_i915_private *dev_priv);
+extern struct intel_gvt_mpt xengt_mpt;
+extern struct intel_gvt_mpt kvmgt_mpt;
 
-#endif /* _I915_VGPU_H_ */
+#endif /* _GVT_HYPERCALL_H_ */

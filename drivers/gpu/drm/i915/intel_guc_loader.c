@@ -425,9 +425,13 @@ int intel_guc_setup(struct drm_device *dev)
 	if (!i915.enable_guc_loading) {
 		err = 0;
 		goto fail;
-	} else if (fw_path == NULL || *fw_path == '\0') {
-		if (*fw_path == '\0')
-			DRM_INFO("No GuC firmware known for this platform\n");
+	} else if (fw_path == NULL) {
+		/* Device is known to have no uCode (e.g. no GuC) */
+		err = -ENXIO;
+		goto fail;
+	} else if (*fw_path == '\0') {
+		/* Device has a GuC but we don't know what f/w to load? */
+		DRM_INFO("No GuC firmware known for this platform\n");
 		err = -ENODEV;
 		goto fail;
 	}
@@ -449,7 +453,7 @@ int intel_guc_setup(struct drm_device *dev)
 		intel_guc_fw_status_repr(guc_fw->guc_fw_fetch_status),
 		intel_guc_fw_status_repr(guc_fw->guc_fw_load_status));
 
-	err = i915_guc_submission_init(dev);
+	err = i915_guc_submission_init(dev_priv);
 	if (err)
 		goto fail;
 
@@ -488,10 +492,7 @@ int intel_guc_setup(struct drm_device *dev)
 		intel_guc_fw_status_repr(guc_fw->guc_fw_load_status));
 
 	if (i915.enable_guc_submission) {
-		/* The execbuf_client will be recreated. Release it first. */
-		i915_guc_submission_disable(dev);
-
-		err = i915_guc_submission_enable(dev);
+		err = i915_guc_submission_enable(dev_priv);
 		if (err)
 			goto fail;
 		direct_interrupts_to_guc(dev_priv);
@@ -504,8 +505,8 @@ fail:
 		guc_fw->guc_fw_load_status = GUC_FIRMWARE_FAIL;
 
 	direct_interrupts_to_host(dev_priv);
-	i915_guc_submission_disable(dev);
-	i915_guc_submission_fini(dev);
+	i915_guc_submission_disable(dev_priv);
+	i915_guc_submission_fini(dev_priv);
 
 	/*
 	 * We've failed to load the firmware :(
@@ -524,18 +525,20 @@ fail:
 		ret = 0;
 	}
 
-	if (err == 0)
+	if (err == 0 && !HAS_GUC_UCODE(dev))
+		;	/* Don't mention the GuC! */
+	else if (err == 0)
 		DRM_INFO("GuC firmware load skipped\n");
-	else if (ret == -EIO)
-		DRM_ERROR("GuC firmware load failed: %d\n", err);
-	else
+	else if (ret != -EIO)
 		DRM_INFO("GuC firmware load failed: %d\n", err);
+	else
+		DRM_ERROR("GuC firmware load failed: %d\n", err);
 
 	if (i915.enable_guc_submission) {
 		if (fw_path == NULL)
 			DRM_INFO("GuC submission without firmware not supported\n");
 		if (ret == 0)
-			DRM_INFO("Falling back to execlist mode\n");
+			DRM_INFO("Falling back from GuC submission to execlist mode\n");
 		else
 			DRM_ERROR("GuC init failed: %d\n", ret);
 	}
@@ -730,8 +733,8 @@ void intel_guc_fini(struct drm_device *dev)
 
 	mutex_lock(&dev->struct_mutex);
 	direct_interrupts_to_host(dev_priv);
-	i915_guc_submission_disable(dev);
-	i915_guc_submission_fini(dev);
+	i915_guc_submission_disable(dev_priv);
+	i915_guc_submission_fini(dev_priv);
 
 	if (guc_fw->guc_fw_obj)
 		drm_gem_object_unreference(&guc_fw->guc_fw_obj->base);

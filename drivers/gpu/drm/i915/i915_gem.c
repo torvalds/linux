@@ -54,10 +54,31 @@ static bool cpu_cache_is_coherent(struct drm_device *dev,
 
 static bool cpu_write_needs_clflush(struct drm_i915_gem_object *obj)
 {
+	if (obj->base.write_domain == I915_GEM_DOMAIN_CPU)
+		return false;
+
 	if (!cpu_cache_is_coherent(obj->base.dev, obj->cache_level))
 		return true;
 
 	return obj->pin_display;
+}
+
+static int
+insert_mappable_node(struct drm_i915_private *i915,
+                     struct drm_mm_node *node, u32 size)
+{
+	memset(node, 0, sizeof(*node));
+	return drm_mm_insert_node_in_range_generic(&i915->ggtt.base.mm, node,
+						   size, 0, 0, 0,
+						   i915->ggtt.mappable_end,
+						   DRM_MM_SEARCH_DEFAULT,
+						   DRM_MM_CREATE_DEFAULT);
+}
+
+static void
+remove_mappable_node(struct drm_mm_node *node)
+{
+	drm_mm_remove_node(node);
 }
 
 /* some bookkeeping */
@@ -409,6 +430,9 @@ i915_gem_dumb_create(struct drm_file *file,
 
 /**
  * Creates a new mm object and returns a handle to it.
+ * @dev: drm device pointer
+ * @data: ioctl data blob
+ * @file: drm file pointer
  */
 int
 i915_gem_create_ioctl(struct drm_device *dev, void *data,
@@ -585,6 +609,142 @@ shmem_pread_slow(struct page *page, int shmem_page_offset, int page_length,
 	return ret ? - EFAULT : 0;
 }
 
+static inline unsigned long
+slow_user_access(struct io_mapping *mapping,
+		 uint64_t page_base, int page_offset,
+		 char __user *user_data,
+		 unsigned long length, bool pwrite)
+{
+	void __iomem *ioaddr;
+	void *vaddr;
+	uint64_t unwritten;
+
+	ioaddr = io_mapping_map_wc(mapping, page_base, PAGE_SIZE);
+	/* We can use the cpu mem copy function because this is X86. */
+	vaddr = (void __force *)ioaddr + page_offset;
+	if (pwrite)
+		unwritten = __copy_from_user(vaddr, user_data, length);
+	else
+		unwritten = __copy_to_user(user_data, vaddr, length);
+
+	io_mapping_unmap(ioaddr);
+	return unwritten;
+}
+
+static int
+i915_gem_gtt_pread(struct drm_device *dev,
+		   struct drm_i915_gem_object *obj, uint64_t size,
+		   uint64_t data_offset, uint64_t data_ptr)
+{
+	struct drm_i915_private *dev_priv = dev->dev_private;
+	struct i915_ggtt *ggtt = &dev_priv->ggtt;
+	struct drm_mm_node node;
+	char __user *user_data;
+	uint64_t remain;
+	uint64_t offset;
+	int ret;
+
+	ret = i915_gem_obj_ggtt_pin(obj, 0, PIN_MAPPABLE);
+	if (ret) {
+		ret = insert_mappable_node(dev_priv, &node, PAGE_SIZE);
+		if (ret)
+			goto out;
+
+		ret = i915_gem_object_get_pages(obj);
+		if (ret) {
+			remove_mappable_node(&node);
+			goto out;
+		}
+
+		i915_gem_object_pin_pages(obj);
+	} else {
+		node.start = i915_gem_obj_ggtt_offset(obj);
+		node.allocated = false;
+		ret = i915_gem_object_put_fence(obj);
+		if (ret)
+			goto out_unpin;
+	}
+
+	ret = i915_gem_object_set_to_gtt_domain(obj, false);
+	if (ret)
+		goto out_unpin;
+
+	user_data = u64_to_user_ptr(data_ptr);
+	remain = size;
+	offset = data_offset;
+
+	mutex_unlock(&dev->struct_mutex);
+	if (likely(!i915.prefault_disable)) {
+		ret = fault_in_multipages_writeable(user_data, remain);
+		if (ret) {
+			mutex_lock(&dev->struct_mutex);
+			goto out_unpin;
+		}
+	}
+
+	while (remain > 0) {
+		/* Operation in this page
+		 *
+		 * page_base = page offset within aperture
+		 * page_offset = offset within page
+		 * page_length = bytes to copy for this page
+		 */
+		u32 page_base = node.start;
+		unsigned page_offset = offset_in_page(offset);
+		unsigned page_length = PAGE_SIZE - page_offset;
+		page_length = remain < page_length ? remain : page_length;
+		if (node.allocated) {
+			wmb();
+			ggtt->base.insert_page(&ggtt->base,
+					       i915_gem_object_get_dma_address(obj, offset >> PAGE_SHIFT),
+					       node.start,
+					       I915_CACHE_NONE, 0);
+			wmb();
+		} else {
+			page_base += offset & PAGE_MASK;
+		}
+		/* This is a slow read/write as it tries to read from
+		 * and write to user memory which may result into page
+		 * faults, and so we cannot perform this under struct_mutex.
+		 */
+		if (slow_user_access(ggtt->mappable, page_base,
+				     page_offset, user_data,
+				     page_length, false)) {
+			ret = -EFAULT;
+			break;
+		}
+
+		remain -= page_length;
+		user_data += page_length;
+		offset += page_length;
+	}
+
+	mutex_lock(&dev->struct_mutex);
+	if (ret == 0 && (obj->base.read_domains & I915_GEM_DOMAIN_GTT) == 0) {
+		/* The user has modified the object whilst we tried
+		 * reading from it, and we now have no idea what domain
+		 * the pages should be in. As we have just been touching
+		 * them directly, flush everything back to the GTT
+		 * domain.
+		 */
+		ret = i915_gem_object_set_to_gtt_domain(obj, false);
+	}
+
+out_unpin:
+	if (node.allocated) {
+		wmb();
+		ggtt->base.clear_range(&ggtt->base,
+				       node.start, node.size,
+				       true);
+		i915_gem_object_unpin_pages(obj);
+		remove_mappable_node(&node);
+	} else {
+		i915_gem_object_ggtt_unpin(obj);
+	}
+out:
+	return ret;
+}
+
 static int
 i915_gem_shmem_pread(struct drm_device *dev,
 		     struct drm_i915_gem_object *obj,
@@ -599,6 +759,9 @@ i915_gem_shmem_pread(struct drm_device *dev,
 	int prefaulted = 0;
 	int needs_clflush = 0;
 	struct sg_page_iter sg_iter;
+
+	if (!obj->base.filp)
+		return -ENODEV;
 
 	user_data = u64_to_user_ptr(args->data_ptr);
 	remain = args->size;
@@ -672,6 +835,9 @@ out:
 
 /**
  * Reads data from the object referenced by handle.
+ * @dev: drm device pointer
+ * @data: ioctl data blob
+ * @file: drm file pointer
  *
  * On error, the contents of *data are undefined.
  */
@@ -708,17 +874,14 @@ i915_gem_pread_ioctl(struct drm_device *dev, void *data,
 		goto out;
 	}
 
-	/* prime objects have no backing filp to GEM pread/pwrite
-	 * pages from.
-	 */
-	if (!obj->base.filp) {
-		ret = -EINVAL;
-		goto out;
-	}
-
 	trace_i915_gem_object_pread(obj, args->offset, args->size);
 
 	ret = i915_gem_shmem_pread(dev, obj, args, file);
+
+	/* pread for non shmem backed objects */
+	if (ret == -EFAULT || ret == -ENODEV)
+		ret = i915_gem_gtt_pread(dev, obj, args->size,
+					args->offset, args->data_ptr);
 
 out:
 	drm_gem_object_unreference(&obj->base);
@@ -753,60 +916,99 @@ fast_user_write(struct io_mapping *mapping,
 /**
  * This is the fast pwrite path, where we copy the data directly from the
  * user into the GTT, uncached.
+ * @dev: drm device pointer
+ * @obj: i915 gem object
+ * @args: pwrite arguments structure
+ * @file: drm file pointer
  */
 static int
-i915_gem_gtt_pwrite_fast(struct drm_device *dev,
+i915_gem_gtt_pwrite_fast(struct drm_i915_private *i915,
 			 struct drm_i915_gem_object *obj,
 			 struct drm_i915_gem_pwrite *args,
 			 struct drm_file *file)
 {
-	struct drm_i915_private *dev_priv = to_i915(dev);
-	struct i915_ggtt *ggtt = &dev_priv->ggtt;
-	ssize_t remain;
-	loff_t offset, page_base;
+	struct i915_ggtt *ggtt = &i915->ggtt;
+	struct drm_device *dev = obj->base.dev;
+	struct drm_mm_node node;
+	uint64_t remain, offset;
 	char __user *user_data;
-	int page_offset, page_length, ret;
+	int ret;
+	bool hit_slow_path = false;
+
+	if (obj->tiling_mode != I915_TILING_NONE)
+		return -EFAULT;
 
 	ret = i915_gem_obj_ggtt_pin(obj, 0, PIN_MAPPABLE | PIN_NONBLOCK);
-	if (ret)
-		goto out;
+	if (ret) {
+		ret = insert_mappable_node(i915, &node, PAGE_SIZE);
+		if (ret)
+			goto out;
+
+		ret = i915_gem_object_get_pages(obj);
+		if (ret) {
+			remove_mappable_node(&node);
+			goto out;
+		}
+
+		i915_gem_object_pin_pages(obj);
+	} else {
+		node.start = i915_gem_obj_ggtt_offset(obj);
+		node.allocated = false;
+		ret = i915_gem_object_put_fence(obj);
+		if (ret)
+			goto out_unpin;
+	}
 
 	ret = i915_gem_object_set_to_gtt_domain(obj, true);
 	if (ret)
 		goto out_unpin;
 
-	ret = i915_gem_object_put_fence(obj);
-	if (ret)
-		goto out_unpin;
+	intel_fb_obj_invalidate(obj, ORIGIN_GTT);
+	obj->dirty = true;
 
 	user_data = u64_to_user_ptr(args->data_ptr);
+	offset = args->offset;
 	remain = args->size;
-
-	offset = i915_gem_obj_ggtt_offset(obj) + args->offset;
-
-	intel_fb_obj_invalidate(obj, ORIGIN_GTT);
-
-	while (remain > 0) {
+	while (remain) {
 		/* Operation in this page
 		 *
 		 * page_base = page offset within aperture
 		 * page_offset = offset within page
 		 * page_length = bytes to copy for this page
 		 */
-		page_base = offset & PAGE_MASK;
-		page_offset = offset_in_page(offset);
-		page_length = remain;
-		if ((page_offset + remain) > PAGE_SIZE)
-			page_length = PAGE_SIZE - page_offset;
-
+		u32 page_base = node.start;
+		unsigned page_offset = offset_in_page(offset);
+		unsigned page_length = PAGE_SIZE - page_offset;
+		page_length = remain < page_length ? remain : page_length;
+		if (node.allocated) {
+			wmb(); /* flush the write before we modify the GGTT */
+			ggtt->base.insert_page(&ggtt->base,
+					       i915_gem_object_get_dma_address(obj, offset >> PAGE_SHIFT),
+					       node.start, I915_CACHE_NONE, 0);
+			wmb(); /* flush modifications to the GGTT (insert_page) */
+		} else {
+			page_base += offset & PAGE_MASK;
+		}
 		/* If we get a fault while copying data, then (presumably) our
 		 * source page isn't available.  Return the error and we'll
 		 * retry in the slow path.
+		 * If the object is non-shmem backed, we retry again with the
+		 * path that handles page fault.
 		 */
 		if (fast_user_write(ggtt->mappable, page_base,
 				    page_offset, user_data, page_length)) {
-			ret = -EFAULT;
-			goto out_flush;
+			hit_slow_path = true;
+			mutex_unlock(&dev->struct_mutex);
+			if (slow_user_access(ggtt->mappable,
+					     page_base,
+					     page_offset, user_data,
+					     page_length, true)) {
+				ret = -EFAULT;
+				mutex_lock(&dev->struct_mutex);
+				goto out_flush;
+			}
+
+			mutex_lock(&dev->struct_mutex);
 		}
 
 		remain -= page_length;
@@ -815,9 +1017,31 @@ i915_gem_gtt_pwrite_fast(struct drm_device *dev,
 	}
 
 out_flush:
+	if (hit_slow_path) {
+		if (ret == 0 &&
+		    (obj->base.read_domains & I915_GEM_DOMAIN_GTT) == 0) {
+			/* The user has modified the object whilst we tried
+			 * reading from it, and we now have no idea what domain
+			 * the pages should be in. As we have just been touching
+			 * them directly, flush everything back to the GTT
+			 * domain.
+			 */
+			ret = i915_gem_object_set_to_gtt_domain(obj, false);
+		}
+	}
+
 	intel_fb_obj_flush(obj, false, ORIGIN_GTT);
 out_unpin:
-	i915_gem_object_ggtt_unpin(obj);
+	if (node.allocated) {
+		wmb();
+		ggtt->base.clear_range(&ggtt->base,
+				       node.start, node.size,
+				       true);
+		i915_gem_object_unpin_pages(obj);
+		remove_mappable_node(&node);
+	} else {
+		i915_gem_object_ggtt_unpin(obj);
+	}
 out:
 	return ret;
 }
@@ -1016,6 +1240,9 @@ out:
 
 /**
  * Writes data to the object referenced by handle.
+ * @dev: drm device
+ * @data: ioctl data blob
+ * @file: drm file
  *
  * On error, the contents of the buffer that were to be modified are undefined.
  */
@@ -1062,14 +1289,6 @@ i915_gem_pwrite_ioctl(struct drm_device *dev, void *data,
 		goto out;
 	}
 
-	/* prime objects have no backing filp to GEM pread/pwrite
-	 * pages from.
-	 */
-	if (!obj->base.filp) {
-		ret = -EINVAL;
-		goto out;
-	}
-
 	trace_i915_gem_object_pwrite(obj, args->offset, args->size);
 
 	ret = -EFAULT;
@@ -1079,20 +1298,20 @@ i915_gem_pwrite_ioctl(struct drm_device *dev, void *data,
 	 * pread/pwrite currently are reading and writing from the CPU
 	 * perspective, requiring manual detiling by the client.
 	 */
-	if (obj->tiling_mode == I915_TILING_NONE &&
-	    obj->base.write_domain != I915_GEM_DOMAIN_CPU &&
-	    cpu_write_needs_clflush(obj)) {
-		ret = i915_gem_gtt_pwrite_fast(dev, obj, args, file);
+	if (!obj->base.filp || cpu_write_needs_clflush(obj)) {
+		ret = i915_gem_gtt_pwrite_fast(dev_priv, obj, args, file);
 		/* Note that the gtt paths might fail with non-page-backed user
 		 * pointers (e.g. gtt mappings when moving data between
 		 * textures). Fallback to the shmem path in that case. */
 	}
 
-	if (ret == -EFAULT || ret == -ENOSPC) {
+	if (ret == -EFAULT) {
 		if (obj->phys_handle)
 			ret = i915_gem_phys_pwrite(obj, args, file);
-		else
+		else if (obj->base.filp)
 			ret = i915_gem_shmem_pwrite(dev, obj, args, file);
+		else
+			ret = -ENODEV;
 	}
 
 out:
@@ -1213,6 +1432,7 @@ static int __i915_spin_request(struct drm_i915_gem_request *req, int state)
  * @req: duh!
  * @interruptible: do an interruptible wait (normally yes)
  * @timeout: in - how long to wait (NULL forever); out - how much time remaining
+ * @rps: RPS client
  *
  * Note: It is of utmost importance that the passed in seqno and reset_counter
  * values have been read by the caller in an smp safe manner. Where read-side
@@ -1446,6 +1666,7 @@ __i915_gem_request_retire__upto(struct drm_i915_gem_request *req)
 /**
  * Waits for a request to be signaled, and cleans up the
  * request and object lists appropriately for that event.
+ * @req: request to wait on
  */
 int
 i915_wait_request(struct drm_i915_gem_request *req)
@@ -1472,6 +1693,8 @@ i915_wait_request(struct drm_i915_gem_request *req)
 /**
  * Ensures that all rendering to the object has completed and the object is
  * safe to unbind from the GTT or access from the CPU.
+ * @obj: i915 gem object
+ * @readonly: waiting for read access or write
  */
 int
 i915_gem_object_wait_rendering(struct drm_i915_gem_object *obj,
@@ -1589,6 +1812,9 @@ static struct intel_rps_client *to_rps_client(struct drm_file *file)
 /**
  * Called when user space prepares to use an object with the CPU, either
  * through the mmap ioctl's mapping or a GTT mapping.
+ * @dev: drm device
+ * @data: ioctl data blob
+ * @file: drm file
  */
 int
 i915_gem_set_domain_ioctl(struct drm_device *dev, void *data,
@@ -1652,6 +1878,9 @@ unlock:
 
 /**
  * Called when user space has done writes to this buffer
+ * @dev: drm device
+ * @data: ioctl data blob
+ * @file: drm file
  */
 int
 i915_gem_sw_finish_ioctl(struct drm_device *dev, void *data,
@@ -1682,8 +1911,11 @@ unlock:
 }
 
 /**
- * Maps the contents of an object, returning the address it is mapped
- * into.
+ * i915_gem_mmap_ioctl - Maps the contents of an object, returning the address
+ *			 it is mapped to.
+ * @dev: drm device
+ * @data: ioctl data blob
+ * @file: drm file
  *
  * While the mapping holds a reference on the contents of the object, it doesn't
  * imply a ref on the object itself.
@@ -2001,7 +2233,10 @@ i915_gem_get_gtt_size(struct drm_device *dev, uint32_t size, int tiling_mode)
 
 /**
  * i915_gem_get_gtt_alignment - return required GTT alignment for an object
- * @obj: object to check
+ * @dev: drm device
+ * @size: object size
+ * @tiling_mode: tiling mode
+ * @fenced: is fenced alignemned required or not
  *
  * Return the required GTT alignment for an object, taking into account
  * potential fence register mapping.
@@ -2951,6 +3186,7 @@ void i915_gem_reset(struct drm_device *dev)
 
 /**
  * This function clears the request list as sequence numbers are passed.
+ * @engine: engine to retire requests on
  */
 void
 i915_gem_retire_requests_ring(struct intel_engine_cs *engine)
@@ -3074,6 +3310,7 @@ i915_gem_idle_work_handler(struct work_struct *work)
  * Ensures that an object will eventually get non-busy by flushing any required
  * write domains, emitting any outstanding lazy request and retiring and
  * completed requests.
+ * @obj: object to flush
  */
 static int
 i915_gem_object_flush_active(struct drm_i915_gem_object *obj)
@@ -3099,7 +3336,9 @@ i915_gem_object_flush_active(struct drm_i915_gem_object *obj)
 
 /**
  * i915_gem_wait_ioctl - implements DRM_IOCTL_I915_GEM_WAIT
- * @DRM_IOCTL_ARGS: standard ioctl arguments
+ * @dev: drm device pointer
+ * @data: ioctl data blob
+ * @file: drm file pointer
  *
  * Returns 0 if successful, else an error is returned with the remaining time in
  * the timeout parameter.
@@ -3489,6 +3728,11 @@ static bool i915_gem_valid_gtt_space(struct i915_vma *vma,
 /**
  * Finds free space in the GTT aperture and binds the object or a view of it
  * there.
+ * @obj: object to bind
+ * @vm: address space to bind into
+ * @ggtt_view: global gtt view if applicable
+ * @alignment: requested alignment
+ * @flags: mask of PIN_* flags to use
  */
 static struct i915_vma *
 i915_gem_object_bind_to_vm(struct drm_i915_gem_object *obj,
@@ -3746,6 +3990,8 @@ i915_gem_object_flush_cpu_write_domain(struct drm_i915_gem_object *obj)
 
 /**
  * Moves a single object to the GTT read, and possibly write domain.
+ * @obj: object to act on
+ * @write: ask for write access or read only
  *
  * This function returns when the move is complete, including waiting on
  * flushes to occur.
@@ -3817,6 +4063,8 @@ i915_gem_object_set_to_gtt_domain(struct drm_i915_gem_object *obj, bool write)
 
 /**
  * Changes the cache-level of an object across all VMA.
+ * @obj: object to act on
+ * @cache_level: new cache level to set for the object
  *
  * After this function returns, the object will be in the new cache-level
  * across all GTT and the contents of the backing storage will be coherent,
@@ -3926,9 +4174,7 @@ out:
 	 * object is now coherent at its new cache level (with respect
 	 * to the access domain).
 	 */
-	if (obj->cache_dirty &&
-	    obj->base.write_domain != I915_GEM_DOMAIN_CPU &&
-	    cpu_write_needs_clflush(obj)) {
+	if (obj->cache_dirty && cpu_write_needs_clflush(obj)) {
 		if (i915_gem_clflush_object(obj, true))
 			i915_gem_chipset_flush(to_i915(obj->base.dev));
 	}
@@ -4098,6 +4344,8 @@ i915_gem_object_unpin_from_display_plane(struct drm_i915_gem_object *obj,
 
 /**
  * Moves a single object to the CPU read, and possibly write domain.
+ * @obj: object to act on
+ * @write: requesting write or read-only access
  *
  * This function returns when the move is complete, including waiting on
  * flushes to occur.
@@ -4886,11 +5134,9 @@ i915_gem_init_hw(struct drm_device *dev)
 	intel_mocs_init_l3cc_table(dev);
 
 	/* We can't enable contexts until all firmware is loaded */
-	if (HAS_GUC(dev)) {
-		ret = intel_guc_setup(dev);
-		if (ret)
-			goto out;
-	}
+	ret = intel_guc_setup(dev);
+	if (ret)
+		goto out;
 
 	/*
 	 * Increment the next seqno by 0x100 so we have a visible break

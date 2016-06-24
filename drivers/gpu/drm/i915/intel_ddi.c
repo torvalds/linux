@@ -1342,6 +1342,14 @@ bool intel_ddi_get_hw_state(struct intel_encoder *encoder,
 	DRM_DEBUG_KMS("No pipe for ddi port %c found\n", port_name(port));
 
 out:
+	if (ret && IS_BROXTON(dev_priv)) {
+		tmp = I915_READ(BXT_PHY_CTL(port));
+		if ((tmp & (BXT_PHY_LANE_POWERDOWN_ACK |
+			    BXT_PHY_LANE_ENABLED)) != BXT_PHY_LANE_ENABLED)
+			DRM_ERROR("Port %c enabled but PHY powered down? "
+				  "(PHY_CTL %08x)\n", port_name(port), tmp);
+	}
+
 	intel_display_power_put(dev_priv, power_domain);
 
 	return ret;
@@ -1742,9 +1750,11 @@ static void intel_disable_ddi(struct intel_encoder *intel_encoder)
 	}
 }
 
-static bool broxton_phy_is_enabled(struct drm_i915_private *dev_priv,
-				   enum dpio_phy phy)
+bool bxt_ddi_phy_is_enabled(struct drm_i915_private *dev_priv,
+			    enum dpio_phy phy)
 {
+	enum port port;
+
 	if (!(I915_READ(BXT_P_CR_GT_DISP_PWRON) & GT_DISPLAY_POWER_ON(phy)))
 		return false;
 
@@ -1770,38 +1780,48 @@ static bool broxton_phy_is_enabled(struct drm_i915_private *dev_priv,
 		return false;
 	}
 
+	for_each_port_masked(port,
+			     phy == DPIO_PHY0 ? BIT(PORT_B) | BIT(PORT_C) :
+						BIT(PORT_A)) {
+		u32 tmp = I915_READ(BXT_PHY_CTL(port));
+
+		if (tmp & BXT_PHY_CMNLANE_POWERDOWN_ACK) {
+			DRM_DEBUG_DRIVER("DDI PHY %d powered, but common lane "
+					 "for port %c powered down "
+					 "(PHY_CTL %08x)\n",
+					 phy, port_name(port), tmp);
+
+			return false;
+		}
+	}
+
 	return true;
 }
 
-static u32 broxton_get_grc(struct drm_i915_private *dev_priv, enum dpio_phy phy)
+static u32 bxt_get_grc(struct drm_i915_private *dev_priv, enum dpio_phy phy)
 {
 	u32 val = I915_READ(BXT_PORT_REF_DW6(phy));
 
 	return (val & GRC_CODE_MASK) >> GRC_CODE_SHIFT;
 }
 
-static void broxton_phy_wait_grc_done(struct drm_i915_private *dev_priv,
-				      enum dpio_phy phy)
+static void bxt_phy_wait_grc_done(struct drm_i915_private *dev_priv,
+				  enum dpio_phy phy)
 {
 	if (wait_for(I915_READ(BXT_PORT_REF_DW3(phy)) & GRC_DONE, 10))
 		DRM_ERROR("timeout waiting for PHY%d GRC\n", phy);
 }
 
-static bool broxton_phy_verify_state(struct drm_i915_private *dev_priv,
-				     enum dpio_phy phy);
-
-static void broxton_phy_init(struct drm_i915_private *dev_priv,
-			     enum dpio_phy phy)
+void bxt_ddi_phy_init(struct drm_i915_private *dev_priv, enum dpio_phy phy)
 {
-	enum port port;
-	u32 ports, val;
+	u32 val;
 
-	if (broxton_phy_is_enabled(dev_priv, phy)) {
+	if (bxt_ddi_phy_is_enabled(dev_priv, phy)) {
 		/* Still read out the GRC value for state verification */
 		if (phy == DPIO_PHY0)
-			dev_priv->bxt_phy_grc = broxton_get_grc(dev_priv, phy);
+			dev_priv->bxt_phy_grc = bxt_get_grc(dev_priv, phy);
 
-		if (broxton_phy_verify_state(dev_priv, phy)) {
+		if (bxt_ddi_phy_verify_state(dev_priv, phy)) {
 			DRM_DEBUG_DRIVER("DDI PHY %d already enabled, "
 					 "won't reprogram it\n", phy);
 
@@ -1810,8 +1830,6 @@ static void broxton_phy_init(struct drm_i915_private *dev_priv,
 
 		DRM_DEBUG_DRIVER("DDI PHY %d enabled with invalid state, "
 				 "force reprogramming it\n", phy);
-	} else {
-		DRM_DEBUG_DRIVER("DDI PHY %d not enabled, enabling it\n", phy);
 	}
 
 	val = I915_READ(BXT_P_CR_GT_DISP_PWRON);
@@ -1829,28 +1847,6 @@ static void broxton_phy_init(struct drm_i915_private *dev_priv,
 	if (wait_for_us(((I915_READ(BXT_PORT_CL1CM_DW0(phy)) &
 		(PHY_RESERVED | PHY_POWER_GOOD)) == PHY_POWER_GOOD), 100)) {
 		DRM_ERROR("timeout during PHY%d power on\n", phy);
-	}
-
-	if (phy == DPIO_PHY0)
-		ports = BIT(PORT_B) | BIT(PORT_C);
-	else
-		ports = BIT(PORT_A);
-
-	for_each_port_masked(port, ports) {
-		int lane;
-
-		for (lane = 0; lane < 4; lane++) {
-			val = I915_READ(BXT_PORT_TX_DW14_LN(port, lane));
-			/*
-			 * Note that on CHV this flag is called UPAR, but has
-			 * the same function.
-			 */
-			val &= ~LATENCY_OPTIM;
-			if (lane != 1)
-				val |= LATENCY_OPTIM;
-
-			I915_WRITE(BXT_PORT_TX_DW14_LN(port, lane), val);
-		}
 	}
 
 	/* Program PLL Rcomp code offset */
@@ -1899,10 +1895,7 @@ static void broxton_phy_init(struct drm_i915_private *dev_priv,
 		 * the corresponding calibrated value from PHY1, and disable
 		 * the automatic calibration on PHY0.
 		 */
-		broxton_phy_wait_grc_done(dev_priv, DPIO_PHY1);
-
-		val = dev_priv->bxt_phy_grc = broxton_get_grc(dev_priv,
-							      DPIO_PHY1);
+		val = dev_priv->bxt_phy_grc = bxt_get_grc(dev_priv, DPIO_PHY1);
 		grc_code = val << GRC_CODE_FAST_SHIFT |
 			   val << GRC_CODE_SLOW_SHIFT |
 			   val;
@@ -1912,31 +1905,16 @@ static void broxton_phy_init(struct drm_i915_private *dev_priv,
 		val |= GRC_DIS | GRC_RDY_OVRD;
 		I915_WRITE(BXT_PORT_REF_DW8(DPIO_PHY0), val);
 	}
-	/*
-	 * During PHY1 init delay waiting for GRC calibration to finish, since
-	 * it can happen in parallel with the subsequent PHY0 init.
-	 */
 
 	val = I915_READ(BXT_PHY_CTL_FAMILY(phy));
 	val |= COMMON_RESET_DIS;
 	I915_WRITE(BXT_PHY_CTL_FAMILY(phy), val);
+
+	if (phy == DPIO_PHY1)
+		bxt_phy_wait_grc_done(dev_priv, DPIO_PHY1);
 }
 
-void broxton_ddi_phy_init(struct drm_i915_private *dev_priv)
-{
-	/* Enable PHY1 first since it provides Rcomp for PHY0 */
-	broxton_phy_init(dev_priv, DPIO_PHY1);
-	broxton_phy_init(dev_priv, DPIO_PHY0);
-
-	/*
-	 * If BIOS enabled only PHY0 and not PHY1, we skipped waiting for the
-	 * PHY1 GRC calibration to finish, so wait for it here.
-	 */
-	broxton_phy_wait_grc_done(dev_priv, DPIO_PHY1);
-}
-
-static void broxton_phy_uninit(struct drm_i915_private *dev_priv,
-			       enum dpio_phy phy)
+void bxt_ddi_phy_uninit(struct drm_i915_private *dev_priv, enum dpio_phy phy)
 {
 	uint32_t val;
 
@@ -1947,12 +1925,6 @@ static void broxton_phy_uninit(struct drm_i915_private *dev_priv,
 	val = I915_READ(BXT_P_CR_GT_DISP_PWRON);
 	val &= ~GT_DISPLAY_POWER_ON(phy);
 	I915_WRITE(BXT_P_CR_GT_DISP_PWRON, val);
-}
-
-void broxton_ddi_phy_uninit(struct drm_i915_private *dev_priv)
-{
-	broxton_phy_uninit(dev_priv, DPIO_PHY1);
-	broxton_phy_uninit(dev_priv, DPIO_PHY0);
 }
 
 static bool __printf(6, 7)
@@ -1982,11 +1954,9 @@ __phy_reg_verify_state(struct drm_i915_private *dev_priv, enum dpio_phy phy,
 	return false;
 }
 
-static bool broxton_phy_verify_state(struct drm_i915_private *dev_priv,
-				     enum dpio_phy phy)
+bool bxt_ddi_phy_verify_state(struct drm_i915_private *dev_priv,
+			      enum dpio_phy phy)
 {
-	enum port port;
-	u32 ports;
 	uint32_t mask;
 	bool ok;
 
@@ -1994,26 +1964,10 @@ static bool broxton_phy_verify_state(struct drm_i915_private *dev_priv,
 	__phy_reg_verify_state(dev_priv, phy, reg, mask, exp, fmt,	\
 			       ## __VA_ARGS__)
 
-	/* We expect the PHY to be always enabled */
-	if (!broxton_phy_is_enabled(dev_priv, phy))
+	if (!bxt_ddi_phy_is_enabled(dev_priv, phy))
 		return false;
 
 	ok = true;
-
-	if (phy == DPIO_PHY0)
-		ports = BIT(PORT_B) | BIT(PORT_C);
-	else
-		ports = BIT(PORT_A);
-
-	for_each_port_masked(port, ports) {
-		int lane;
-
-		for (lane = 0; lane < 4; lane++)
-			ok &= _CHK(BXT_PORT_TX_DW14_LN(port, lane),
-				    LATENCY_OPTIM,
-				    lane != 1 ? LATENCY_OPTIM : 0,
-				    "BXT_PORT_TX_DW14_LN(%d, %d)", port, lane);
-	}
 
 	/* PLL Rcomp code offset */
 	ok &= _CHK(BXT_PORT_CL1CM_DW9(phy),
@@ -2058,11 +2012,65 @@ static bool broxton_phy_verify_state(struct drm_i915_private *dev_priv,
 #undef _CHK
 }
 
-void broxton_ddi_phy_verify_state(struct drm_i915_private *dev_priv)
+static uint8_t
+bxt_ddi_phy_calc_lane_lat_optim_mask(struct intel_encoder *encoder,
+				     struct intel_crtc_state *pipe_config)
 {
-	if (!broxton_phy_verify_state(dev_priv, DPIO_PHY0) ||
-	    !broxton_phy_verify_state(dev_priv, DPIO_PHY1))
-		i915_report_error(dev_priv, "DDI PHY state mismatch\n");
+	switch (pipe_config->lane_count) {
+	case 1:
+		return 0;
+	case 2:
+		return BIT(2) | BIT(0);
+	case 4:
+		return BIT(3) | BIT(2) | BIT(0);
+	default:
+		MISSING_CASE(pipe_config->lane_count);
+
+		return 0;
+	}
+}
+
+static void bxt_ddi_pre_pll_enable(struct intel_encoder *encoder)
+{
+	struct intel_digital_port *dport = enc_to_dig_port(&encoder->base);
+	struct drm_i915_private *dev_priv = to_i915(dport->base.base.dev);
+	enum port port = dport->port;
+	struct intel_crtc *intel_crtc = to_intel_crtc(encoder->base.crtc);
+	int lane;
+
+	for (lane = 0; lane < 4; lane++) {
+		u32 val = I915_READ(BXT_PORT_TX_DW14_LN(port, lane));
+
+		/*
+		 * Note that on CHV this flag is called UPAR, but has
+		 * the same function.
+		 */
+		val &= ~LATENCY_OPTIM;
+		if (intel_crtc->config->lane_lat_optim_mask & BIT(lane))
+			val |= LATENCY_OPTIM;
+
+		I915_WRITE(BXT_PORT_TX_DW14_LN(port, lane), val);
+	}
+}
+
+static uint8_t
+bxt_ddi_phy_get_lane_lat_optim_mask(struct intel_encoder *encoder)
+{
+	struct intel_digital_port *dport = enc_to_dig_port(&encoder->base);
+	struct drm_i915_private *dev_priv = to_i915(dport->base.base.dev);
+	enum port port = dport->port;
+	int lane;
+	uint8_t mask;
+
+	mask = 0;
+	for (lane = 0; lane < 4; lane++) {
+		u32 val = I915_READ(BXT_PORT_TX_DW14_LN(port, lane));
+
+		if (val & LATENCY_OPTIM)
+			mask |= BIT(lane);
+	}
+
+	return mask;
 }
 
 void intel_ddi_prepare_link_retrain(struct intel_dp *intel_dp)
@@ -2236,13 +2244,19 @@ void intel_ddi_get_config(struct intel_encoder *encoder,
 	}
 
 	intel_ddi_clock_get(encoder, pipe_config);
+
+	if (IS_BROXTON(dev_priv))
+		pipe_config->lane_lat_optim_mask =
+			bxt_ddi_phy_get_lane_lat_optim_mask(encoder);
 }
 
 static bool intel_ddi_compute_config(struct intel_encoder *encoder,
 				     struct intel_crtc_state *pipe_config)
 {
+	struct drm_i915_private *dev_priv = encoder->base.dev->dev_private;
 	int type = encoder->type;
 	int port = intel_ddi_get_encoder_port(encoder);
+	int ret;
 
 	WARN(type == INTEL_OUTPUT_UNKNOWN, "compute_config() on unknown output!\n");
 
@@ -2250,9 +2264,17 @@ static bool intel_ddi_compute_config(struct intel_encoder *encoder,
 		pipe_config->cpu_transcoder = TRANSCODER_EDP;
 
 	if (type == INTEL_OUTPUT_HDMI)
-		return intel_hdmi_compute_config(encoder, pipe_config);
+		ret = intel_hdmi_compute_config(encoder, pipe_config);
 	else
-		return intel_dp_compute_config(encoder, pipe_config);
+		ret = intel_dp_compute_config(encoder, pipe_config);
+
+	if (IS_BROXTON(dev_priv) && ret)
+		pipe_config->lane_lat_optim_mask =
+			bxt_ddi_phy_calc_lane_lat_optim_mask(encoder,
+							     pipe_config);
+
+	return ret;
+
 }
 
 static const struct drm_encoder_funcs intel_ddi_funcs = {
@@ -2351,6 +2373,8 @@ void intel_ddi_init(struct drm_device *dev, enum port port)
 
 	intel_encoder->compute_config = intel_ddi_compute_config;
 	intel_encoder->enable = intel_enable_ddi;
+	if (IS_BROXTON(dev_priv))
+		intel_encoder->pre_pll_enable = bxt_ddi_pre_pll_enable;
 	intel_encoder->pre_enable = intel_ddi_pre_enable;
 	intel_encoder->disable = intel_disable_ddi;
 	intel_encoder->post_disable = intel_ddi_post_disable;

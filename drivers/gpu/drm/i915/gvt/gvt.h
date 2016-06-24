@@ -1,5 +1,5 @@
 /*
- * Copyright(c) 2011-2015 Intel Corporation. All rights reserved.
+ * Copyright(c) 2011-2016 Intel Corporation. All rights reserved.
  *
  * Permission is hereby granted, free of charge, to any person obtaining a
  * copy of this software and associated documentation files (the "Software"),
@@ -21,13 +21,49 @@
  * SOFTWARE.
  */
 
-#ifndef _I915_VGPU_H_
-#define _I915_VGPU_H_
+#ifndef _GVT_H_
+#define _GVT_H_
 
-#include "i915_pvinfo.h"
+#include "debug.h"
+#include "hypercall.h"
 
-void i915_check_vgpu(struct drm_i915_private *dev_priv);
-int intel_vgt_balloon(struct drm_i915_private *dev_priv);
-void intel_vgt_deballoon(struct drm_i915_private *dev_priv);
+#define GVT_MAX_VGPU 8
 
-#endif /* _I915_VGPU_H_ */
+enum {
+	INTEL_GVT_HYPERVISOR_XEN = 0,
+	INTEL_GVT_HYPERVISOR_KVM,
+};
+
+struct intel_gvt_host {
+	bool initialized;
+	int hypervisor_type;
+	struct intel_gvt_mpt *mpt;
+};
+
+extern struct intel_gvt_host intel_gvt_host;
+
+/* Describe per-platform limitations. */
+struct intel_gvt_device_info {
+	u32 max_support_vgpus;
+	/* This data structure will grow bigger in GVT device model patches */
+};
+
+struct intel_vgpu {
+	struct intel_gvt *gvt;
+	int id;
+	unsigned long handle; /* vGPU handle used by hypervisor MPT modules */
+};
+
+struct intel_gvt {
+	struct mutex lock;
+	bool initialized;
+
+	struct drm_i915_private *dev_priv;
+	struct idr vgpu_idr;	/* vGPU IDR pool */
+
+	struct intel_gvt_device_info device_info;
+};
+
+#include "mpt.h"
+
+#endif

@@ -295,6 +295,10 @@ __create_hw_context(struct drm_device *dev,
 	ctx->remap_slice = ALL_L3_SLICES(dev_priv);
 
 	ctx->hang_stats.ban_period_seconds = DRM_I915_CTX_BAN_PERIOD;
+	ctx->ring_size = 4 * PAGE_SIZE;
+	ctx->desc_template = GEN8_CTX_ADDRESSING_MODE(dev_priv) <<
+			     GEN8_CTX_ADDRESSING_MODE_SHIFT;
+	ATOMIC_INIT_NOTIFIER_HEAD(&ctx->status_notifier);
 
 	return ctx;
 
@@ -336,6 +340,40 @@ i915_gem_create_context(struct drm_device *dev,
 
 	trace_i915_context_create(ctx);
 
+	return ctx;
+}
+
+/**
+ * i915_gem_context_create_gvt - create a GVT GEM context
+ * @dev: drm device *
+ *
+ * This function is used to create a GVT specific GEM context.
+ *
+ * Returns:
+ * pointer to i915_gem_context on success, error pointer if failed
+ *
+ */
+struct i915_gem_context *
+i915_gem_context_create_gvt(struct drm_device *dev)
+{
+	struct i915_gem_context *ctx;
+	int ret;
+
+	if (!IS_ENABLED(CONFIG_DRM_I915_GVT))
+		return ERR_PTR(-ENODEV);
+
+	ret = i915_mutex_lock_interruptible(dev);
+	if (ret)
+		return ERR_PTR(ret);
+
+	ctx = i915_gem_create_context(dev, NULL);
+	if (IS_ERR(ctx))
+		goto out;
+
+	ctx->execlists_force_single_submission = true;
+	ctx->ring_size = 512 * PAGE_SIZE; /* Max ring buffer size */
+out:
+	mutex_unlock(&dev->struct_mutex);
 	return ctx;
 }
 

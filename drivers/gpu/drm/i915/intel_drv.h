@@ -571,6 +571,12 @@ struct intel_crtc_state {
 
 	uint8_t lane_count;
 
+	/*
+	 * Used by platforms having DP/HDMI PHY with programmable lane
+	 * latency optimization.
+	 */
+	uint8_t lane_lat_optim_mask;
+
 	/* Panel fitter controls for gen2-gen4 + VLV */
 	struct {
 		u32 control;
@@ -1252,11 +1258,14 @@ void intel_prepare_reset(struct drm_i915_private *dev_priv);
 void intel_finish_reset(struct drm_i915_private *dev_priv);
 void hsw_enable_pc8(struct drm_i915_private *dev_priv);
 void hsw_disable_pc8(struct drm_i915_private *dev_priv);
-void broxton_init_cdclk(struct drm_i915_private *dev_priv);
-void broxton_uninit_cdclk(struct drm_i915_private *dev_priv);
-void broxton_ddi_phy_init(struct drm_i915_private *dev_priv);
-void broxton_ddi_phy_uninit(struct drm_i915_private *dev_priv);
-void broxton_ddi_phy_verify_state(struct drm_i915_private *dev_priv);
+void bxt_init_cdclk(struct drm_i915_private *dev_priv);
+void bxt_uninit_cdclk(struct drm_i915_private *dev_priv);
+void bxt_ddi_phy_init(struct drm_i915_private *dev_priv, enum dpio_phy phy);
+void bxt_ddi_phy_uninit(struct drm_i915_private *dev_priv, enum dpio_phy phy);
+bool bxt_ddi_phy_is_enabled(struct drm_i915_private *dev_priv,
+			    enum dpio_phy phy);
+bool bxt_ddi_phy_verify_state(struct drm_i915_private *dev_priv,
+			      enum dpio_phy phy);
 void gen9_sanitize_dc_state(struct drm_i915_private *dev_priv);
 void bxt_enable_dc9(struct drm_i915_private *dev_priv);
 void bxt_disable_dc9(struct drm_i915_private *dev_priv);
@@ -1414,11 +1423,15 @@ static inline void intel_fbdev_restore_mode(struct drm_device *dev)
 void intel_fbc_choose_crtc(struct drm_i915_private *dev_priv,
 			   struct drm_atomic_state *state);
 bool intel_fbc_is_active(struct drm_i915_private *dev_priv);
-void intel_fbc_pre_update(struct intel_crtc *crtc);
+void intel_fbc_pre_update(struct intel_crtc *crtc,
+			  struct intel_crtc_state *crtc_state,
+			  struct intel_plane_state *plane_state);
 void intel_fbc_post_update(struct intel_crtc *crtc);
 void intel_fbc_init(struct drm_i915_private *dev_priv);
 void intel_fbc_init_pipe_state(struct drm_i915_private *dev_priv);
-void intel_fbc_enable(struct intel_crtc *crtc);
+void intel_fbc_enable(struct intel_crtc *crtc,
+		      struct intel_crtc_state *crtc_state,
+		      struct intel_plane_state *plane_state);
 void intel_fbc_disable(struct intel_crtc *crtc);
 void intel_fbc_global_disable(struct drm_i915_private *dev_priv);
 void intel_fbc_invalidate(struct drm_i915_private *dev_priv,

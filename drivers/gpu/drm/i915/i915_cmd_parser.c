@@ -737,7 +737,7 @@ static void fini_hash_table(struct intel_engine_cs *engine)
 
 /**
  * i915_cmd_parser_init_ring() - set cmd parser related fields for a ringbuffer
- * @ring: the ringbuffer to initialize
+ * @engine: the engine to initialize
  *
  * Optionally initializes fields related to batch buffer command parsing in the
  * struct intel_engine_cs based on whether the platform requires software
@@ -830,7 +830,7 @@ int i915_cmd_parser_init_ring(struct intel_engine_cs *engine)
 
 /**
  * i915_cmd_parser_fini_ring() - clean up cmd parser related fields
- * @ring: the ringbuffer to clean up
+ * @engine: the engine to clean up
  *
  * Releases any resources related to command parsing that may have been
  * initialized for the specified ring.
@@ -1024,7 +1024,7 @@ unpin_src:
 
 /**
  * i915_needs_cmd_parser() - should a given ring use software command parsing?
- * @ring: the ring in question
+ * @engine: the engine in question
  *
  * Only certain platforms require software batch buffer command parsing, and
  * only when enabled via module parameter.
@@ -1176,7 +1176,7 @@ static bool check_cmd(const struct intel_engine_cs *engine,
 
 /**
  * i915_parse_cmds() - parse a submitted batch buffer for privilege violations
- * @ring: the ring on which the batch is to execute
+ * @engine: the engine on which the batch is to execute
  * @batch_obj: the batch buffer in question
  * @shadow_batch_obj: copy of the batch buffer in question
  * @batch_start_offset: byte offset in the batch at which execution starts
@@ -1281,6 +1281,7 @@ int i915_parse_cmds(struct intel_engine_cs *engine,
 
 /**
  * i915_cmd_parser_get_version() - get the cmd parser version number
+ * @dev_priv: i915 device private
  *
  * The cmd parser maintains a simple increasing integer version number suitable
  * for passing to userspace clients to determine what operations are permitted.
