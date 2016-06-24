@@ -1660,7 +1660,7 @@
 			status = "disabled";
 
 			davinci_mdio: mdio@48485000 {
-				compatible = "ti,davinci_mdio";
+				compatible = "ti,cpsw-mdio","ti,davinci_mdio";
 				#address-cells = <1>;
 				#size-cells = <0>;
 				ti,hwmods = "davinci_mdio";
