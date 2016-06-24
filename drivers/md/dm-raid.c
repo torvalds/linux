@@ -300,7 +300,7 @@ static struct arg_name_flag {
 	{ CTR_FLAG_MIN_RECOVERY_RATE, "min_recovery_rate"},
 	{ CTR_FLAG_MAX_RECOVERY_RATE, "max_recovery_rate"},
 	{ CTR_FLAG_MAX_WRITE_BEHIND, "max_write_behind"},
-	{ CTR_FLAG_WRITE_MOSTLY, "writemostly"},
+	{ CTR_FLAG_WRITE_MOSTLY, "write_mostly"},
 	{ CTR_FLAG_STRIPE_CACHE, "stripe_cache"},
 	{ CTR_FLAG_REGION_SIZE, "region_size"},
 	{ CTR_FLAG_RAID10_COPIES, "raid10_copies"},
