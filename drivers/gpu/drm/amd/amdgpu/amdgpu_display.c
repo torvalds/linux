@@ -220,19 +220,17 @@ int amdgpu_crtc_page_flip(struct drm_crtc *crtc,
 
 	r = amdgpu_bo_pin_restricted(new_rbo, AMDGPU_GEM_DOMAIN_VRAM, 0, 0, &base);
 	if (unlikely(r != 0)) {
-		amdgpu_bo_unreserve(new_rbo);
 		r = -EINVAL;
 		DRM_ERROR("failed to pin new rbo buffer before flip\n");
-		goto cleanup;
+		goto unreserve;
 	}
 
 	r = reservation_object_get_fences_rcu(new_rbo->tbo.resv, &work->excl,
 					      &work->shared_count,
 					      &work->shared);
 	if (unlikely(r != 0)) {
-		amdgpu_bo_unreserve(new_rbo);
 		DRM_ERROR("failed to get fences for buffer\n");
-		goto cleanup;
+		goto unpin;
 	}
 
 	amdgpu_bo_get_tiling_flags(new_rbo, &tiling_flags);
@@ -275,9 +273,11 @@ pflip_cleanup:
 		DRM_ERROR("failed to reserve new rbo in error path\n");
 		goto cleanup;
 	}
+unpin:
 	if (unlikely(amdgpu_bo_unpin(new_rbo) != 0)) {
 		DRM_ERROR("failed to unpin new rbo in error path\n");
 	}
+unreserve:
 	amdgpu_bo_unreserve(new_rbo);
 
 cleanup:
