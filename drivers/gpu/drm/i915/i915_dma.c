@@ -1075,9 +1075,10 @@ static void i915_workqueues_cleanup(struct drm_i915_private *dev_priv)
  * function hooks not requiring accessing the device.
  */
 static int i915_driver_init_early(struct drm_i915_private *dev_priv,
-				  struct drm_device *dev,
-				  struct intel_device_info *info)
+				  const struct pci_device_id *ent)
 {
+	const struct intel_device_info *match_info =
+		(struct intel_device_info *)ent->driver_data;
 	struct intel_device_info *device_info;
 	int ret = 0;
 
@@ -1086,8 +1087,8 @@ static int i915_driver_init_early(struct drm_i915_private *dev_priv,
 
 	/* Setup the write-once "constant" device info */
 	device_info = (struct intel_device_info *)&dev_priv->info;
-	memcpy(device_info, info, sizeof(dev_priv->info));
-	device_info->device_id = dev->pdev->device;
+	memcpy(device_info, match_info, sizeof(*device_info));
+	device_info->device_id = dev_priv->drm.pdev->device;
 
 	BUG_ON(device_info->gen > sizeof(device_info->gen_mask) * BITS_PER_BYTE);
 	device_info->gen_mask = BIT(device_info->gen - 1);
@@ -1113,18 +1114,18 @@ static int i915_driver_init_early(struct drm_i915_private *dev_priv,
 		goto err_workqueues;
 
 	/* This must be called before any calls to HAS_PCH_* */
-	intel_detect_pch(dev);
+	intel_detect_pch(&dev_priv->drm);
 
-	intel_pm_setup(dev);
+	intel_pm_setup(&dev_priv->drm);
 	intel_init_dpio(dev_priv);
 	intel_power_domains_init(dev_priv);
 	intel_irq_init(dev_priv);
 	intel_init_display_hooks(dev_priv);
 	intel_init_clock_gating_hooks(dev_priv);
 	intel_init_audio_hooks(dev_priv);
-	i915_gem_load_init(dev);
+	i915_gem_load_init(&dev_priv->drm);
 
-	intel_display_crc_init(dev);
+	intel_display_crc_init(&dev_priv->drm);
 
 	i915_dump_device_info(dev_priv);
 
@@ -1132,7 +1133,7 @@ static int i915_driver_init_early(struct drm_i915_private *dev_priv,
 	 * very first ones. Almost everything should work, except for maybe
 	 * suspend/resume. And we don't implement workarounds that affect only
 	 * pre-production machines. */
-	if (IS_HSW_EARLY_SDV(dev))
+	if (IS_HSW_EARLY_SDV(dev_priv))
 		DRM_INFO("This is an early pre-production Haswell machine. "
 			 "It may not be fully functional.\n");
 
@@ -1390,6 +1391,7 @@ static void i915_driver_register(struct drm_i915_private *dev_priv)
 	struct drm_device *dev = dev_priv->dev;
 
 	i915_gem_shrinker_init(dev_priv);
+
 	/*
 	 * Notify a valid surface after modesetting,
 	 * when running inside a VM.
@@ -1397,9 +1399,13 @@ static void i915_driver_register(struct drm_i915_private *dev_priv)
 	if (intel_vgpu_active(dev_priv))
 		I915_WRITE(vgtif_reg(display_ready), VGT_DRV_DISPLAY_READY);
 
-	i915_debugfs_register(dev_priv);
-	i915_setup_sysfs(dev);
-	intel_modeset_register(dev_priv);
+	/* Reveal our presence to userspace */
+	if (drm_dev_register(dev, 0) == 0) {
+		i915_debugfs_register(dev_priv);
+		i915_setup_sysfs(dev);
+		intel_modeset_register(dev_priv);
+	} else
+		DRM_ERROR("Failed to register driver for userspace access!\n");
 
 	if (INTEL_INFO(dev_priv)->num_pipes) {
 		/* Must be done after probing outputs */
@@ -1449,24 +1455,38 @@ static void i915_driver_unregister(struct drm_i915_private *dev_priv)
  *   - allocate initial config memory
  *   - setup the DRM framebuffer with the allocated memory
  */
-int i915_driver_load(struct drm_device *dev, unsigned long flags)
+int i915_driver_load(struct pci_dev *pdev,
+		     const struct pci_device_id *ent,
+		     struct drm_driver *driver)
 {
 	struct drm_i915_private *dev_priv;
-	int ret = 0;
+	int ret;
 
+	ret = -ENOMEM;
 	dev_priv = kzalloc(sizeof(*dev_priv), GFP_KERNEL);
-	if (dev_priv == NULL)
-		return -ENOMEM;
+	if (dev_priv)
+		ret = drm_dev_init(&dev_priv->drm, driver, &pdev->dev);
+	if (ret) {
+		dev_printk(KERN_ERR, &pdev->dev,
+			   "[" DRM_NAME ":%s] allocation failed\n", __func__);
+		kfree(dev_priv);
+		return ret;
+	}
 
-	dev->dev_private = dev_priv;
 	/* Must be set before calling __i915_printk */
-	dev_priv->dev = dev;
+	dev_priv->drm.pdev = pdev;
+	dev_priv->drm.dev_private = dev_priv;
+	dev_priv->dev = &dev_priv->drm;
 
-	ret = i915_driver_init_early(dev_priv, dev,
-				     (struct intel_device_info *)flags);
-
-	if (ret < 0)
+	ret = pci_enable_device(pdev);
+	if (ret)
 		goto out_free_priv;
+
+	pci_set_drvdata(pdev, &dev_priv->drm);
+
+	ret = i915_driver_init_early(dev_priv, ent);
+	if (ret < 0)
+		goto out_pci_disable;
 
 	intel_runtime_pm_get(dev_priv);
 
@@ -1483,13 +1503,14 @@ int i915_driver_load(struct drm_device *dev, unsigned long flags)
 	 * of the i915_driver_init_/i915_driver_register functions according
 	 * to the role/effect of the given init step.
 	 */
-	if (INTEL_INFO(dev)->num_pipes) {
-		ret = drm_vblank_init(dev, INTEL_INFO(dev)->num_pipes);
+	if (INTEL_INFO(dev_priv)->num_pipes) {
+		ret = drm_vblank_init(dev_priv->dev,
+				      INTEL_INFO(dev_priv)->num_pipes);
 		if (ret)
 			goto out_cleanup_hw;
 	}
 
-	ret = i915_load_modeset_init(dev);
+	ret = i915_load_modeset_init(dev_priv->dev);
 	if (ret < 0)
 		goto out_cleanup_vblank;
 
@@ -1502,7 +1523,7 @@ int i915_driver_load(struct drm_device *dev, unsigned long flags)
 	return 0;
 
 out_cleanup_vblank:
-	drm_vblank_cleanup(dev);
+	drm_vblank_cleanup(dev_priv->dev);
 out_cleanup_hw:
 	i915_driver_cleanup_hw(dev_priv);
 out_cleanup_mmio:
@@ -1510,11 +1531,11 @@ out_cleanup_mmio:
 out_runtime_pm_put:
 	intel_runtime_pm_put(dev_priv);
 	i915_driver_cleanup_early(dev_priv);
+out_pci_disable:
+	pci_disable_device(pdev);
 out_free_priv:
 	i915_load_error(dev_priv, "Device initialization failed (%d)\n", ret);
-
-	kfree(dev_priv);
-
+	drm_dev_unref(&dev_priv->drm);
 	return ret;
 }
 
@@ -1579,7 +1600,6 @@ int i915_driver_unload(struct drm_device *dev)
 	intel_display_power_put(dev_priv, POWER_DOMAIN_INIT);
 
 	i915_driver_cleanup_early(dev_priv);
-	kfree(dev_priv);
 
 	return 0;
 }

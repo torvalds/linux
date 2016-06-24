@@ -1733,6 +1733,8 @@ struct intel_wm_config {
 };
 
 struct drm_i915_private {
+	struct drm_device drm;
+
 	struct drm_device *dev;
 	struct kmem_cache *objects;
 	struct kmem_cache *vmas;
@@ -2909,7 +2911,9 @@ __i915_printk(struct drm_i915_private *dev_priv, const char *level,
 #define i915_report_error(dev_priv, fmt, ...)				   \
 	__i915_printk(dev_priv, KERN_ERR, fmt, ##__VA_ARGS__)
 
-extern int i915_driver_load(struct drm_device *, unsigned long flags);
+extern int i915_driver_load(struct pci_dev *pdev,
+			    const struct pci_device_id *ent,
+			    struct drm_driver *driver);
 extern int i915_driver_unload(struct drm_device *);
 extern int i915_driver_open(struct drm_device *dev, struct drm_file *file);
 extern void i915_driver_lastclose(struct drm_device * dev);
