@@ -1240,12 +1240,15 @@ static u32 frac_times1e6(u32 N, u32 D)
 *        and rounded. For calc used formula: 16*10^(prescaleGain[dB]/20).
 *
 */
+#if 0
+/* Currently, unused as we lack support for analog TV */
 static const u16 nicam_presc_table_val[43] = {
 	1, 1, 1, 1, 2, 2, 2, 2, 3, 3, 3, 4, 4,
 	5, 5, 6, 6, 7, 8, 9, 10, 11, 13, 14, 16,
 	18, 20, 23, 25, 28, 32, 36, 40, 45,
 	51, 57, 64, 71, 80, 90, 101, 113, 127
 };
+#endif
 
 /*============================================================================*/
 /*==                        END HELPER FUNCTIONS                            ==*/
