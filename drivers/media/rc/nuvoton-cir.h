@@ -117,8 +117,6 @@ struct nvt_dev {
 	/* rx settings */
 	bool learning_enabled;
 
-	/* track cir wake state */
-	u8 wake_state;
 	/* for study */
 	u8 study_state;
 	/* carrier period = 1 / frequency */
@@ -130,11 +128,6 @@ struct nvt_dev {
 #define ST_STUDY_START     0x1
 #define ST_STUDY_CARRIER   0x2
 #define ST_STUDY_ALL_RECV  0x4
-
-/* wake states */
-#define ST_WAKE_NONE	0x0
-#define ST_WAKE_START	0x1
-#define ST_WAKE_FINISH	0x2
 
 /* receive states */
 #define ST_RX_WAIT_7F		0x1

@@ -1206,7 +1206,6 @@ static int nvt_suspend(struct pnp_dev *pdev, pm_message_t state)
 
 	/* zero out misc state tracking */
 	nvt->study_state = ST_STUDY_NONE;
-	nvt->wake_state = ST_WAKE_NONE;
 
 	/* disable all CIR interrupts */
 	nvt_cir_reg_write(nvt, 0, CIR_IREN);
