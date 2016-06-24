@@ -14633,11 +14633,8 @@ int intel_get_pipe_from_crtc_id(struct drm_device *dev, void *data,
 	struct intel_crtc *crtc;
 
 	drmmode_crtc = drm_crtc_find(dev, pipe_from_crtc_id->crtc_id);
-
-	if (!drmmode_crtc) {
-		DRM_ERROR("no such CRTC id\n");
+	if (!drmmode_crtc)
 		return -ENOENT;
-	}
 
 	crtc = to_intel_crtc(drmmode_crtc);
 	pipe_from_crtc_id->pipe = crtc->pipe;
