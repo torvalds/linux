@@ -875,6 +875,7 @@ EXPORT_SYMBOL_GPL(svc_recv);
  */
 void svc_drop(struct svc_rqst *rqstp)
 {
+	trace_svc_drop(rqstp);
 	dprintk("svc: xprt %p dropped request\n", rqstp->rq_xprt);
 	svc_xprt_release(rqstp);
 }
@@ -1152,6 +1153,7 @@ static void svc_revisit(struct cache_deferred_req *dreq, int too_many)
 		spin_unlock(&xprt->xpt_lock);
 		dprintk("revisit canceled\n");
 		svc_xprt_put(xprt);
+		trace_svc_drop_deferred(dr);
 		kfree(dr);
 		return;
 	}
@@ -1209,6 +1211,7 @@ static struct cache_deferred_req *svc_defer(struct cache_req *req)
 	set_bit(RQ_DROPME, &rqstp->rq_flags);
 
 	dr->handle.revisit = svc_revisit;
+	trace_svc_defer(rqstp);
 	return &dr->handle;
 }
 
@@ -1249,6 +1252,7 @@ static struct svc_deferred_req *svc_deferred_dequeue(struct svc_xprt *xprt)
 				struct svc_deferred_req,
 				handle.recent);
 		list_del_init(&dr->handle.recent);
+		trace_svc_revisit_deferred(dr);
 	} else
 		clear_bit(XPT_DEFERRED, &xprt->xpt_flags);
 	spin_unlock(&xprt->xpt_lock);

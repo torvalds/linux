@@ -473,6 +473,39 @@ TRACE_EVENT(svc_recv,
 			show_rqstp_flags(__entry->flags))
 );
 
+DECLARE_EVENT_CLASS(svc_rqst_event,
+
+	TP_PROTO(struct svc_rqst *rqst),
+
+	TP_ARGS(rqst),
+
+	TP_STRUCT__entry(
+		__field(__be32, xid)
+		__field(unsigned long, flags)
+		__dynamic_array(unsigned char, addr, rqst->rq_addrlen)
+	),
+
+	TP_fast_assign(
+		__entry->xid = rqst->rq_xid;
+		__entry->flags = rqst->rq_flags;
+		memcpy(__get_dynamic_array(addr),
+			&rqst->rq_addr, rqst->rq_addrlen);
+	),
+
+	TP_printk("addr=%pIScp rq_xid=0x%x flags=%s",
+		(struct sockaddr *)__get_dynamic_array(addr),
+		be32_to_cpu(__entry->xid),
+		show_rqstp_flags(__entry->flags))
+);
+
+DEFINE_EVENT(svc_rqst_event, svc_defer,
+	TP_PROTO(struct svc_rqst *rqst),
+	TP_ARGS(rqst));
+
+DEFINE_EVENT(svc_rqst_event, svc_drop,
+	TP_PROTO(struct svc_rqst *rqst),
+	TP_ARGS(rqst));
+
 DECLARE_EVENT_CLASS(svc_rqst_status,
 
 	TP_PROTO(struct svc_rqst *rqst, int status),
@@ -636,6 +669,34 @@ TRACE_EVENT(svc_handle_xprt,
 			(struct sockaddr *)__get_dynamic_array(addr) : NULL,
 		__entry->len, show_svc_xprt_flags(__entry->flags))
 );
+
+
+DECLARE_EVENT_CLASS(svc_deferred_event,
+	TP_PROTO(struct svc_deferred_req *dr),
+
+	TP_ARGS(dr),
+
+	TP_STRUCT__entry(
+		__field(__be32, xid)
+		__dynamic_array(unsigned char, addr, dr->addrlen)
+	),
+
+	TP_fast_assign(
+		__entry->xid = *(__be32 *)(dr->args + (dr->xprt_hlen>>2));
+		memcpy(__get_dynamic_array(addr), &dr->addr, dr->addrlen);
+	),
+
+	TP_printk("addr=%pIScp xid=0x%x",
+		(struct sockaddr *)__get_dynamic_array(addr),
+		be32_to_cpu(__entry->xid))
+);
+
+DEFINE_EVENT(svc_deferred_event, svc_drop_deferred,
+	TP_PROTO(struct svc_deferred_req *dr),
+	TP_ARGS(dr));
+DEFINE_EVENT(svc_deferred_event, svc_revisit_deferred,
+	TP_PROTO(struct svc_deferred_req *dr),
+	TP_ARGS(dr));
 #endif /* _TRACE_SUNRPC_H */
 
 #include <trace/define_trace.h>
