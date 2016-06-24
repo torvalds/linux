@@ -752,10 +752,8 @@ static int i915_getparam(struct drm_device *dev, void *data,
 		return -EINVAL;
 	}
 
-	if (copy_to_user(param->value, &value, sizeof(int))) {
-		DRM_ERROR("copy_to_user failed\n");
+	if (put_user(value, param->value))
 		return -EFAULT;
-	}
 
 	return 0;
 }
