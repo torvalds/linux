@@ -44,6 +44,7 @@ struct inet_diag_entry {
 	u16 dport;
 	u16 family;
 	u16 userlocks;
+	u32 ifindex;
 };
 
 static DEFINE_MUTEX(inet_diag_table_mutex);
@@ -571,6 +572,14 @@ static int inet_diag_bc_run(const struct nlattr *_bc,
 			yes = 0;
 			break;
 		}
+		case INET_DIAG_BC_DEV_COND: {
+			u32 ifindex;
+
+			ifindex = *((const u32 *)(op + 1));
+			if (ifindex != entry->ifindex)
+				yes = 0;
+			break;
+		}
 		}
 
 		if (yes) {
@@ -613,6 +622,7 @@ int inet_diag_bc_sk(const struct nlattr *bc, struct sock *sk)
 	entry_fill_addrs(&entry, sk);
 	entry.sport = inet->inet_num;
 	entry.dport = ntohs(inet->inet_dport);
+	entry.ifindex = sk->sk_bound_dev_if;
 	entry.userlocks = sk_fullsock(sk) ? sk->sk_userlocks : 0;
 
 	return inet_diag_bc_run(bc, &entry);
@@ -636,6 +646,17 @@ static int valid_cc(const void *bc, int len, int cc)
 	return 0;
 }
 
+/* data is u32 ifindex */
+static bool valid_devcond(const struct inet_diag_bc_op *op, int len,
+			  int *min_len)
+{
+	/* Check ifindex space. */
+	*min_len += sizeof(u32);
+	if (len < *min_len)
+		return false;
+
+	return true;
+}
 /* Validate an inet_diag_hostcond. */
 static bool valid_hostcond(const struct inet_diag_bc_op *op, int len,
 			   int *min_len)
@@ -698,6 +719,10 @@ static int inet_diag_bc_audit(const void *bytecode, int bytecode_len)
 		case INET_DIAG_BC_S_COND:
 		case INET_DIAG_BC_D_COND:
 			if (!valid_hostcond(bc, len, &min_len))
+				return -EINVAL;
+			break;
+		case INET_DIAG_BC_DEV_COND:
+			if (!valid_devcond(bc, len, &min_len))
 				return -EINVAL;
 			break;
 		case INET_DIAG_BC_S_GE:
