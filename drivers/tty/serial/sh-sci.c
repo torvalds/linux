@@ -2156,6 +2156,11 @@ static void sci_reset(struct uart_port *port)
 	sci_clear_SCxSR(port,
 			SCxSR_RDxF_CLEAR(port) & SCxSR_ERROR_CLEAR(port) &
 			SCxSR_BREAK_CLEAR(port));
+	if (sci_getreg(port, SCLSR)->size) {
+		status = serial_port_in(port, SCLSR);
+		status &= ~(SCLSR_TO | SCLSR_ORER);
+		serial_port_out(port, SCLSR, status);
+	}
 }
 
 static void sci_set_termios(struct uart_port *port, struct ktermios *termios,

@@ -105,6 +105,7 @@ enum {
 #define SCFCR_LOOP	BIT(0)	/* Loopback Test */
 
 /* SCLSR (Line Status Register) on (H)SCIF */
+#define SCLSR_TO	BIT(2)	/* Timeout */
 #define SCLSR_ORER	BIT(0)	/* Overrun Error */
 
 /* SCSPTR (Serial Port Register), optional */
