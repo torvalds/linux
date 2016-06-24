@@ -1611,9 +1611,12 @@ static void svc_sock_detach(struct svc_xprt *xprt)
 	dprintk("svc: svc_sock_detach(%p)\n", svsk);
 
 	/* put back the old socket callbacks */
+	lock_sock(sk);
 	sk->sk_state_change = svsk->sk_ostate;
 	sk->sk_data_ready = svsk->sk_odata;
 	sk->sk_write_space = svsk->sk_owspace;
+	sk->sk_user_data = NULL;
+	release_sock(sk);
 
 	wq = sk_sleep(sk);
 	if (sunrpc_waitqueue_active(wq))
