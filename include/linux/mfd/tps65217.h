@@ -257,6 +257,7 @@ struct tps65217 {
 	unsigned long id;
 	struct regulator_desc desc[TPS65217_NUM_REGULATOR];
 	struct regmap *regmap;
+	u8 *strobes;
 };
 
 static inline struct tps65217 *dev_to_tps65217(struct device *dev)
