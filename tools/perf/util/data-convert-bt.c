@@ -77,6 +77,7 @@ struct convert {
 
 	u64			events_size;
 	u64			events_count;
+	u64			non_sample_count;
 
 	/* Ordered events configured queue size. */
 	u64			queue_size;
@@ -1369,9 +1370,14 @@ int bt_convert__perf2ctf(const char *input, const char *path,
 		file.path, path);
 
 	fprintf(stderr,
-		"[ perf data convert: Converted and wrote %.3f MB (%" PRIu64 " samples) ]\n",
+		"[ perf data convert: Converted and wrote %.3f MB (%" PRIu64 " samples",
 		(double) c.events_size / 1024.0 / 1024.0,
 		c.events_count);
+
+	if (!c.non_sample_count)
+		fprintf(stderr, ") ]\n");
+	else
+		fprintf(stderr, ", %" PRIu64 " non-samples) ]\n", c.non_sample_count);
 
 	cleanup_events(session);
 	perf_session__delete(session);
