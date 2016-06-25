@@ -77,6 +77,34 @@ static void try_bulk_dequeue_skb(struct Qdisc *q,
 	skb->next = NULL;
 }
 
+/* This variant of try_bulk_dequeue_skb() makes sure
+ * all skbs in the chain are for the same txq
+ */
+static void try_bulk_dequeue_skb_slow(struct Qdisc *q,
+				      struct sk_buff *skb,
+				      int *packets)
+{
+	int mapping = skb_get_queue_mapping(skb);
+	struct sk_buff *nskb;
+	int cnt = 0;
+
+	do {
+		nskb = q->dequeue(q);
+		if (!nskb)
+			break;
+		if (unlikely(skb_get_queue_mapping(nskb) != mapping)) {
+			q->skb_bad_txq = nskb;
+			qdisc_qstats_backlog_inc(q, nskb);
+			q->q.qlen++;
+			break;
+		}
+		skb->next = nskb;
+		skb = nskb;
+	} while (++cnt < 8);
+	(*packets) += cnt;
+	skb->next = NULL;
+}
+
 /* Note that dequeue_skb can possibly return a SKB list (via skb->next).
  * A requeued skb (via q->gso_skb) can also be a SKB list.
  */
@@ -87,8 +115,9 @@ static struct sk_buff *dequeue_skb(struct Qdisc *q, bool *validate,
 	const struct netdev_queue *txq = q->dev_queue;
 
 	*packets = 1;
-	*validate = true;
 	if (unlikely(skb)) {
+		/* skb in gso_skb were already validated */
+		*validate = false;
 		/* check the reason of requeuing without tx lock first */
 		txq = skb_get_tx_queue(txq->dev, skb);
 		if (!netif_xmit_frozen_or_stopped(txq)) {
@@ -97,15 +126,30 @@ static struct sk_buff *dequeue_skb(struct Qdisc *q, bool *validate,
 			q->q.qlen--;
 		} else
 			skb = NULL;
-		/* skb in gso_skb were already validated */
-		*validate = false;
-	} else {
-		if (!(q->flags & TCQ_F_ONETXQUEUE) ||
-		    !netif_xmit_frozen_or_stopped(txq)) {
-			skb = q->dequeue(q);
-			if (skb && qdisc_may_bulk(q))
-				try_bulk_dequeue_skb(q, skb, txq, packets);
+		return skb;
+	}
+	*validate = true;
+	skb = q->skb_bad_txq;
+	if (unlikely(skb)) {
+		/* check the reason of requeuing without tx lock first */
+		txq = skb_get_tx_queue(txq->dev, skb);
+		if (!netif_xmit_frozen_or_stopped(txq)) {
+			q->skb_bad_txq = NULL;
+			qdisc_qstats_backlog_dec(q, skb);
+			q->q.qlen--;
+			goto bulk;
 		}
+		return NULL;
+	}
+	if (!(q->flags & TCQ_F_ONETXQUEUE) ||
+	    !netif_xmit_frozen_or_stopped(txq))
+		skb = q->dequeue(q);
+	if (skb) {
+bulk:
+		if (qdisc_may_bulk(q))
+			try_bulk_dequeue_skb(q, skb, txq, packets);
+		else
+			try_bulk_dequeue_skb_slow(q, skb, packets);
 	}
 	return skb;
 }
@@ -348,9 +392,10 @@ EXPORT_SYMBOL(netif_carrier_off);
    cheaper.
  */
 
-static int noop_enqueue(struct sk_buff *skb, struct Qdisc *qdisc)
+static int noop_enqueue(struct sk_buff *skb, struct Qdisc *qdisc,
+			struct sk_buff **to_free)
 {
-	kfree_skb(skb);
+	__qdisc_drop(skb, to_free);
 	return NET_XMIT_CN;
 }
 
@@ -439,7 +484,8 @@ static inline struct sk_buff_head *band2list(struct pfifo_fast_priv *priv,
 	return priv->q + band;
 }
 
-static int pfifo_fast_enqueue(struct sk_buff *skb, struct Qdisc *qdisc)
+static int pfifo_fast_enqueue(struct sk_buff *skb, struct Qdisc *qdisc,
+			      struct sk_buff **to_free)
 {
 	if (skb_queue_len(&qdisc->q) < qdisc_dev(qdisc)->tx_queue_len) {
 		int band = prio2band[skb->priority & TC_PRIO_MAX];
@@ -451,7 +497,7 @@ static int pfifo_fast_enqueue(struct sk_buff *skb, struct Qdisc *qdisc)
 		return __qdisc_enqueue_tail(skb, qdisc, list);
 	}
 
-	return qdisc_drop(skb, qdisc);
+	return qdisc_drop(skb, qdisc, to_free);
 }
 
 static struct sk_buff *pfifo_fast_dequeue(struct Qdisc *qdisc)
@@ -622,11 +668,14 @@ void qdisc_reset(struct Qdisc *qdisc)
 	if (ops->reset)
 		ops->reset(qdisc);
 
+	kfree_skb(qdisc->skb_bad_txq);
+	qdisc->skb_bad_txq = NULL;
+
 	if (qdisc->gso_skb) {
 		kfree_skb_list(qdisc->gso_skb);
 		qdisc->gso_skb = NULL;
-		qdisc->q.qlen = 0;
 	}
+	qdisc->q.qlen = 0;
 }
 EXPORT_SYMBOL(qdisc_reset);
 
@@ -665,6 +714,7 @@ void qdisc_destroy(struct Qdisc *qdisc)
 	dev_put(qdisc_dev(qdisc));
 
 	kfree_skb_list(qdisc->gso_skb);
+	kfree_skb(qdisc->skb_bad_txq);
 	/*
 	 * gen_estimator est_timer() might access qdisc->q.lock,
 	 * wait a RCU grace period before freeing qdisc.

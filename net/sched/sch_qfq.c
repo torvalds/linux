@@ -1217,7 +1217,8 @@ static struct qfq_aggregate *qfq_choose_next_agg(struct qfq_sched *q)
 	return agg;
 }
 
-static int qfq_enqueue(struct sk_buff *skb, struct Qdisc *sch)
+static int qfq_enqueue(struct sk_buff *skb, struct Qdisc *sch,
+		       struct sk_buff **to_free)
 {
 	struct qfq_sched *q = qdisc_priv(sch);
 	struct qfq_class *cl;
@@ -1240,11 +1241,11 @@ static int qfq_enqueue(struct sk_buff *skb, struct Qdisc *sch)
 				     qdisc_pkt_len(skb));
 		if (err) {
 			cl->qstats.drops++;
-			return qdisc_drop(skb, sch);
+			return qdisc_drop(skb, sch, to_free);
 		}
 	}
 
-	err = qdisc_enqueue(skb, cl->qdisc);
+	err = qdisc_enqueue(skb, cl->qdisc, to_free);
 	if (unlikely(err != NET_XMIT_SUCCESS)) {
 		pr_debug("qfq_enqueue: enqueue failed %d\n", err);
 		if (net_xmit_drop_count(err)) {
