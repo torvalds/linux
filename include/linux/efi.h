@@ -536,7 +536,22 @@ typedef efi_status_t efi_query_variable_store_t(u32 attributes,
 void efi_native_runtime_setup(void);
 
 /*
- *  EFI Configuration Table and GUID definitions
+ * EFI Configuration Table and GUID definitions
+ *
+ * These should be formatted roughly like the ones in the UEFI SPEC has
+ * them.  It makes them easier to grep for, and they look the same when
+ * you're staring at them.  Here's the guide:
+ *
+ * GUID: 12345678-1234-1234-1234-123456789012
+ * Spec:
+ *      #define EFI_SOME_PROTOCOL_GUID \
+ *        {0x12345678,0x1234,0x1234,\
+ *          {0x12,0x34,0x12,0x34,0x56,0x78,0x90,0x12}}
+ * Here:
+ *	#define SOME_PROTOCOL_GUID \
+ *		EFI_GUID(0x12345678, 0x1234,  0x1234, \
+ *			 0x12, 0x34, 0x12, 0x34, 0x56, 0x78, 0x90, 0x12)
+ *      ^ tab   ^tab    ^ space
  */
 #define NULL_GUID \
 	EFI_GUID(0x00000000, 0x0000, 0x0000, \
