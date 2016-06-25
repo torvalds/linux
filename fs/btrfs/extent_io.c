@@ -4892,18 +4892,25 @@ struct extent_buffer *alloc_extent_buffer(struct btrfs_fs_info *fs_info,
 	int uptodate = 1;
 	int ret;
 
+	if (!IS_ALIGNED(start, fs_info->tree_root->sectorsize)) {
+		btrfs_err(fs_info, "bad tree block start %llu", start);
+		return ERR_PTR(-EINVAL);
+	}
+
 	eb = find_extent_buffer(fs_info, start);
 	if (eb)
 		return eb;
 
 	eb = __alloc_extent_buffer(fs_info, start, len);
 	if (!eb)
-		return NULL;
+		return ERR_PTR(-ENOMEM);
 
 	for (i = 0; i < num_pages; i++, index++) {
 		p = find_or_create_page(mapping, index, GFP_NOFS|__GFP_NOFAIL);
-		if (!p)
+		if (!p) {
+			exists = ERR_PTR(-ENOMEM);
 			goto free_eb;
+		}
 
 		spin_lock(&mapping->private_lock);
 		if (PagePrivate(p)) {
@@ -4948,8 +4955,10 @@ struct extent_buffer *alloc_extent_buffer(struct btrfs_fs_info *fs_info,
 		set_bit(EXTENT_BUFFER_UPTODATE, &eb->bflags);
 again:
 	ret = radix_tree_preload(GFP_NOFS);
-	if (ret)
+	if (ret) {
+		exists = ERR_PTR(ret);
 		goto free_eb;
+	}
 
 	spin_lock(&fs_info->buffer_lock);
 	ret = radix_tree_insert(&fs_info->buffer_radix,

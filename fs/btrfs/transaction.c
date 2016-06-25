@@ -1311,11 +1311,6 @@ int btrfs_defrag_root(struct btrfs_root *root)
 	return ret;
 }
 
-/* Bisesctability fixup, remove in 4.8 */
-#ifndef btrfs_std_error
-#define btrfs_std_error btrfs_handle_fs_error
-#endif
-
 /*
  * Do all special snapshot related qgroup dirty hack.
  *
@@ -1385,7 +1380,7 @@ static int qgroup_account_snapshot(struct btrfs_trans_handle *trans,
 	switch_commit_roots(trans->transaction, fs_info);
 	ret = btrfs_write_and_wait_transaction(trans, src);
 	if (ret)
-		btrfs_std_error(fs_info, ret,
+		btrfs_handle_fs_error(fs_info, ret,
 			"Error while writing out transaction for qgroup");
 
 out:

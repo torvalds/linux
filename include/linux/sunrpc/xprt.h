@@ -297,6 +297,7 @@ struct xprt_create {
 	size_t			addrlen;
 	const char		*servername;
 	struct svc_xprt		*bc_xprt;	/* NFSv4.1 backchannel */
+	struct rpc_xprt_switch	*bc_xps;
 	unsigned int		flags;
 };
 

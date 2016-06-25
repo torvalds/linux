@@ -999,7 +999,7 @@ static int polaris10_get_dependency_volt_by_clk(struct pp_hwmgr *hwmgr,
 				vddci = phm_find_closest_vddci(&(data->vddci_voltage_table),
 						(dep_table->entries[i].vddc -
 								(uint16_t)data->vddc_vddci_delta));
-				*voltage |= (vddci * VOLTAGE_SCALE) <<	VDDCI_SHIFT;
+				*voltage |= (vddci * VOLTAGE_SCALE) << VDDCI_SHIFT;
 			}
 
 			if (POLARIS10_VOLTAGE_CONTROL_NONE == data->mvdd_control)
@@ -3520,10 +3520,11 @@ static int polaris10_get_pp_table_entry_callback_func(struct pp_hwmgr *hwmgr,
 	ATOM_Tonga_State *state_entry = (ATOM_Tonga_State *)state;
 	ATOM_Tonga_POWERPLAYTABLE *powerplay_table =
 			(ATOM_Tonga_POWERPLAYTABLE *)pp_table;
-	ATOM_Tonga_SCLK_Dependency_Table *sclk_dep_table =
-			(ATOM_Tonga_SCLK_Dependency_Table *)
+	PPTable_Generic_SubTable_Header *sclk_dep_table =
+			(PPTable_Generic_SubTable_Header *)
 			(((unsigned long)powerplay_table) +
 				le16_to_cpu(powerplay_table->usSclkDependencyTableOffset));
+
 	ATOM_Tonga_MCLK_Dependency_Table *mclk_dep_table =
 			(ATOM_Tonga_MCLK_Dependency_Table *)
 			(((unsigned long)powerplay_table) +
@@ -3575,7 +3576,11 @@ static int polaris10_get_pp_table_entry_callback_func(struct pp_hwmgr *hwmgr,
 	/* Performance levels are arranged from low to high. */
 	performance_level->memory_clock = mclk_dep_table->entries
 			[state_entry->ucMemoryClockIndexLow].ulMclk;
-	performance_level->engine_clock = sclk_dep_table->entries
+	if (sclk_dep_table->ucRevId == 0)
+		performance_level->engine_clock = ((ATOM_Tonga_SCLK_Dependency_Table *)sclk_dep_table)->entries
+			[state_entry->ucEngineClockIndexLow].ulSclk;
+	else if (sclk_dep_table->ucRevId == 1)
+		performance_level->engine_clock = ((ATOM_Polaris_SCLK_Dependency_Table *)sclk_dep_table)->entries
 			[state_entry->ucEngineClockIndexLow].ulSclk;
 	performance_level->pcie_gen = get_pcie_gen_support(data->pcie_gen_cap,
 			state_entry->ucPCIEGenLow);
@@ -3586,8 +3591,14 @@ static int polaris10_get_pp_table_entry_callback_func(struct pp_hwmgr *hwmgr,
 			[polaris10_power_state->performance_level_count++]);
 	performance_level->memory_clock = mclk_dep_table->entries
 			[state_entry->ucMemoryClockIndexHigh].ulMclk;
-	performance_level->engine_clock = sclk_dep_table->entries
+
+	if (sclk_dep_table->ucRevId == 0)
+		performance_level->engine_clock = ((ATOM_Tonga_SCLK_Dependency_Table *)sclk_dep_table)->entries
 			[state_entry->ucEngineClockIndexHigh].ulSclk;
+	else if (sclk_dep_table->ucRevId == 1)
+		performance_level->engine_clock = ((ATOM_Polaris_SCLK_Dependency_Table *)sclk_dep_table)->entries
+			[state_entry->ucEngineClockIndexHigh].ulSclk;
+
 	performance_level->pcie_gen = get_pcie_gen_support(data->pcie_gen_cap,
 			state_entry->ucPCIEGenHigh);
 	performance_level->pcie_lane = get_pcie_lane_support(data->pcie_lane_cap,
@@ -3645,7 +3656,6 @@ static int polaris10_get_pp_table_entry(struct pp_hwmgr *hwmgr,
 		switch (state->classification.ui_label) {
 		case PP_StateUILabel_Performance:
 			data->use_pcie_performance_levels = true;
-
 			for (i = 0; i < ps->performance_level_count; i++) {
 				if (data->pcie_gen_performance.max <
 						ps->performance_levels[i].pcie_gen)
@@ -3661,7 +3671,6 @@ static int polaris10_get_pp_table_entry(struct pp_hwmgr *hwmgr,
 						ps->performance_levels[i].pcie_lane)
 					data->pcie_lane_performance.max =
 							ps->performance_levels[i].pcie_lane;
-
 				if (data->pcie_lane_performance.min >
 						ps->performance_levels[i].pcie_lane)
 					data->pcie_lane_performance.min =
@@ -4187,12 +4196,9 @@ int polaris10_update_samu_dpm(struct pp_hwmgr *hwmgr, bool bgate)
 {
 	struct polaris10_hwmgr *data = (struct polaris10_hwmgr *)(hwmgr->backend);
 	uint32_t mm_boot_level_offset, mm_boot_level_value;
-	struct phm_ppt_v1_information *table_info =
-			(struct phm_ppt_v1_information *)(hwmgr->pptable);
 
 	if (!bgate) {
-		data->smc_state_table.SamuBootLevel =
-				(uint8_t) (table_info->mm_dep_table->count - 1);
+		data->smc_state_table.SamuBootLevel = 0;
 		mm_boot_level_offset = data->dpm_table_start +
 				offsetof(SMU74_Discrete_DpmTable, SamuBootLevel);
 		mm_boot_level_offset /= 4;

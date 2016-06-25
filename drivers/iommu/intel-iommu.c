@@ -3222,17 +3222,24 @@ static int __init init_dmars(void)
 			}
 		}
 
-		iommu_flush_write_buffer(iommu);
-		iommu_set_root_entry(iommu);
-		iommu->flush.flush_context(iommu, 0, 0, 0, DMA_CCMD_GLOBAL_INVL);
-		iommu->flush.flush_iotlb(iommu, 0, 0, 0, DMA_TLB_GLOBAL_FLUSH);
-
 		if (!ecap_pass_through(iommu->ecap))
 			hw_pass_through = 0;
 #ifdef CONFIG_INTEL_IOMMU_SVM
 		if (pasid_enabled(iommu))
 			intel_svm_alloc_pasid_tables(iommu);
 #endif
+	}
+
+	/*
+	 * Now that qi is enabled on all iommus, set the root entry and flush
+	 * caches. This is required on some Intel X58 chipsets, otherwise the
+	 * flush_context function will loop forever and the boot hangs.
+	 */
+	for_each_active_iommu(iommu, drhd) {
+		iommu_flush_write_buffer(iommu);
+		iommu_set_root_entry(iommu);
+		iommu->flush.flush_context(iommu, 0, 0, 0, DMA_CCMD_GLOBAL_INVL);
+		iommu->flush.flush_iotlb(iommu, 0, 0, 0, DMA_TLB_GLOBAL_FLUSH);
 	}
 
 	if (iommu_pass_through)
