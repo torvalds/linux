@@ -419,6 +419,11 @@ extern void nfs_end_io_write(struct inode *inode);
 extern void nfs_start_io_direct(struct inode *inode);
 extern void nfs_end_io_direct(struct inode *inode);
 
+static inline bool nfs_file_io_is_buffered(struct nfs_inode *nfsi)
+{
+	return test_bit(NFS_INO_ODIRECT, &nfsi->flags) == 0;
+}
+
 /* namespace.c */
 #define NFS_PATH_CANONICAL 1
 extern char *nfs_path(char **p, struct dentry *dentry,
