@@ -2524,28 +2524,6 @@ dwceqos_get_stats64(struct net_device *ndev, struct rtnl_link_stats64 *s)
 	return s;
 }
 
-static int
-dwceqos_get_settings(struct net_device *ndev, struct ethtool_cmd *ecmd)
-{
-	struct phy_device *phydev = ndev->phydev;
-
-	if (!phydev)
-		return -ENODEV;
-
-	return phy_ethtool_gset(phydev, ecmd);
-}
-
-static int
-dwceqos_set_settings(struct net_device *ndev, struct ethtool_cmd *ecmd)
-{
-	struct phy_device *phydev = ndev->phydev;
-
-	if (!phydev)
-		return -ENODEV;
-
-	return phy_ethtool_sset(phydev, ecmd);
-}
-
 static void
 dwceqos_get_drvinfo(struct net_device *ndev, struct ethtool_drvinfo *ed)
 {
@@ -2764,8 +2742,6 @@ static void dwceqos_set_msglevel(struct net_device *ndev, u32 msglevel)
 }
 
 static struct ethtool_ops dwceqos_ethtool_ops = {
-	.get_settings   = dwceqos_get_settings,
-	.set_settings   = dwceqos_set_settings,
 	.get_drvinfo    = dwceqos_get_drvinfo,
 	.get_link       = ethtool_op_get_link,
 	.get_pauseparam = dwceqos_get_pauseparam,
@@ -2779,6 +2755,8 @@ static struct ethtool_ops dwceqos_ethtool_ops = {
 	.set_eee        = dwceqos_set_eee,
 	.get_msglevel   = dwceqos_get_msglevel,
 	.set_msglevel   = dwceqos_set_msglevel,
+	.get_link_ksettings = phy_ethtool_get_link_ksettings,
+	.set_link_ksettings = phy_ethtool_set_link_ksettings,
 };
 
 static struct net_device_ops netdev_ops = {
