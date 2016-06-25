@@ -299,6 +299,7 @@ ENTRY(secondary_startup_64)
 	pushq	$__KERNEL_CS	# set correct cs
 	pushq	%rax		# target address in negative space
 	lretq
+ENDPROC(secondary_startup_64)
 
 #include "verify_cpu.S"
 
