@@ -133,20 +133,8 @@ static ssize_t nfs4_copy_file_range(struct file *file_in, loff_t pos_in,
 				    struct file *file_out, loff_t pos_out,
 				    size_t count, unsigned int flags)
 {
-	struct inode *in_inode = file_inode(file_in);
-	struct inode *out_inode = file_inode(file_out);
-	int ret;
-
-	if (in_inode == out_inode)
+	if (file_inode(file_in) == file_inode(file_out))
 		return -EINVAL;
-
-	/* flush any pending writes */
-	ret = nfs_sync_inode(in_inode);
-	if (ret)
-		return ret;
-	ret = nfs_sync_inode(out_inode);
-	if (ret)
-		return ret;
 
 	return nfs42_proc_copy(file_in, pos_in, file_out, pos_out, count);
 }

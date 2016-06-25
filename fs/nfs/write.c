@@ -1913,6 +1913,24 @@ out_mark_dirty:
 EXPORT_SYMBOL_GPL(nfs_write_inode);
 
 /*
+ * Wrapper for filemap_write_and_wait_range()
+ *
+ * Needed for pNFS in order to ensure data becomes visible to the
+ * client.
+ */
+int nfs_filemap_write_and_wait_range(struct address_space *mapping,
+		loff_t lstart, loff_t lend)
+{
+	int ret;
+
+	ret = filemap_write_and_wait_range(mapping, lstart, lend);
+	if (ret == 0)
+		ret = pnfs_sync_inode(mapping->host, true);
+	return ret;
+}
+EXPORT_SYMBOL_GPL(nfs_filemap_write_and_wait_range);
+
+/*
  * flush the inode to disk.
  */
 int nfs_wb_all(struct inode *inode)

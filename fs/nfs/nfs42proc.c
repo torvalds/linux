@@ -156,8 +156,17 @@ static ssize_t _nfs42_proc_copy(struct file *src, loff_t pos_src,
 	if (status)
 		return status;
 
+	status = nfs_filemap_write_and_wait_range(file_inode(src)->i_mapping,
+			pos_src, pos_src + (loff_t)count - 1);
+	if (status)
+		return status;
+
 	status = nfs4_set_rw_stateid(&args.dst_stateid, dst_lock->open_context,
 				     dst_lock, FMODE_WRITE);
+	if (status)
+		return status;
+
+	status = nfs_sync_inode(dst_inode);
 	if (status)
 		return status;
 
