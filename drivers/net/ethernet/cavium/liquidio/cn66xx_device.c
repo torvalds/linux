@@ -367,7 +367,8 @@ void lio_cn6xxx_enable_io_queues(struct octeon_device *oct)
 
 void lio_cn6xxx_disable_io_queues(struct octeon_device *oct)
 {
-	u32 mask, i, loop = HZ;
+	int i;
+	u32 mask, loop = HZ;
 	u32 d32;
 
 	/* Reset the Enable bits for Input Queues. */
@@ -376,7 +377,7 @@ void lio_cn6xxx_disable_io_queues(struct octeon_device *oct)
 	octeon_write_csr(oct, CN6XXX_SLI_PKT_INSTR_ENB, mask);
 
 	/* Wait until hardware indicates that the queues are out of reset. */
-	mask = oct->io_qmask.iq;
+	mask = (u32)oct->io_qmask.iq;
 	d32 = octeon_read_csr(oct, CN6XXX_SLI_PORT_IN_RST_IQ);
 	while (((d32 & mask) != mask) && loop--) {
 		d32 = octeon_read_csr(oct, CN6XXX_SLI_PORT_IN_RST_IQ);
@@ -384,8 +385,8 @@ void lio_cn6xxx_disable_io_queues(struct octeon_device *oct)
 	}
 
 	/* Reset the doorbell register for each Input queue. */
-	for (i = 0; i < MAX_OCTEON_INSTR_QUEUES; i++) {
-		if (!(oct->io_qmask.iq & (1UL << i)))
+	for (i = 0; i < MAX_OCTEON_INSTR_QUEUES(oct); i++) {
+		if (!(oct->io_qmask.iq & (1ULL << i)))
 			continue;
 		octeon_write_csr(oct, CN6XXX_SLI_IQ_DOORBELL(i), 0xFFFFFFFF);
 		d32 = octeon_read_csr(oct, CN6XXX_SLI_IQ_DOORBELL(i));
@@ -398,7 +399,7 @@ void lio_cn6xxx_disable_io_queues(struct octeon_device *oct)
 
 	/* Wait until hardware indicates that the queues are out of reset. */
 	loop = HZ;
-	mask = oct->io_qmask.oq;
+	mask = (u32)oct->io_qmask.oq;
 	d32 = octeon_read_csr(oct, CN6XXX_SLI_PORT_IN_RST_OQ);
 	while (((d32 & mask) != mask) && loop--) {
 		d32 = octeon_read_csr(oct, CN6XXX_SLI_PORT_IN_RST_OQ);
@@ -408,8 +409,8 @@ void lio_cn6xxx_disable_io_queues(struct octeon_device *oct)
 
 	/* Reset the doorbell register for each Output queue. */
 	/* for (i = 0; i < oct->num_oqs; i++) { */
-	for (i = 0; i < MAX_OCTEON_OUTPUT_QUEUES; i++) {
-		if (!(oct->io_qmask.oq & (1UL << i)))
+	for (i = 0; i < MAX_OCTEON_OUTPUT_QUEUES(oct); i++) {
+		if (!(oct->io_qmask.oq & (1ULL << i)))
 			continue;
 		octeon_write_csr(oct, CN6XXX_SLI_OQ_PKTS_CREDIT(i), 0xFFFFFFFF);
 		d32 = octeon_read_csr(oct, CN6XXX_SLI_OQ_PKTS_CREDIT(i));
@@ -429,16 +430,16 @@ void lio_cn6xxx_disable_io_queues(struct octeon_device *oct)
 
 void lio_cn6xxx_reinit_regs(struct octeon_device *oct)
 {
-	u32 i;
+	int i;
 
-	for (i = 0; i < MAX_OCTEON_INSTR_QUEUES; i++) {
-		if (!(oct->io_qmask.iq & (1UL << i)))
+	for (i = 0; i < MAX_OCTEON_INSTR_QUEUES(oct); i++) {
+		if (!(oct->io_qmask.iq & (1ULL << i)))
 			continue;
 		oct->fn_list.setup_iq_regs(oct, i);
 	}
 
-	for (i = 0; i < MAX_OCTEON_OUTPUT_QUEUES; i++) {
-		if (!(oct->io_qmask.oq & (1UL << i)))
+	for (i = 0; i < MAX_OCTEON_OUTPUT_QUEUES(oct); i++) {
+		if (!(oct->io_qmask.oq & (1ULL << i)))
 			continue;
 		oct->fn_list.setup_oq_regs(oct, i);
 	}
@@ -450,8 +451,8 @@ void lio_cn6xxx_reinit_regs(struct octeon_device *oct)
 	oct->fn_list.enable_io_queues(oct);
 
 	/* for (i = 0; i < oct->num_oqs; i++) { */
-	for (i = 0; i < MAX_OCTEON_OUTPUT_QUEUES; i++) {
-		if (!(oct->io_qmask.oq & (1UL << i)))
+	for (i = 0; i < MAX_OCTEON_OUTPUT_QUEUES(oct); i++) {
+		if (!(oct->io_qmask.oq & (1ULL << i)))
 			continue;
 		writel(oct->droq[i]->max_count, oct->droq[i]->pkts_credit_reg);
 	}
@@ -495,8 +496,7 @@ u32 lio_cn6xxx_bar1_idx_read(struct octeon_device *oct, u32 idx)
 }
 
 u32
-lio_cn6xxx_update_read_index(struct octeon_device *oct __attribute__((unused)),
-			     struct octeon_instr_queue *iq)
+lio_cn6xxx_update_read_index(struct octeon_instr_queue *iq)
 {
 	u32 new_idx = readl(iq->inst_cnt_reg);
 
@@ -557,7 +557,8 @@ lio_cn6xxx_process_pcie_error_intr(struct octeon_device *oct, u64 intr64)
 int lio_cn6xxx_process_droq_intr_regs(struct octeon_device *oct)
 {
 	struct octeon_droq *droq;
-	u32 oq_no, pkt_count, droq_time_mask, droq_mask, droq_int_enb;
+	int oq_no;
+	u32 pkt_count, droq_time_mask, droq_mask, droq_int_enb;
 	u32 droq_cnt_enb, droq_cnt_mask;
 
 	droq_cnt_enb = octeon_read_csr(oct, CN6XXX_SLI_PKT_CNT_INT_ENB);
@@ -573,8 +574,8 @@ int lio_cn6xxx_process_droq_intr_regs(struct octeon_device *oct)
 	oct->droq_intr = 0;
 
 	/* for (oq_no = 0; oq_no < oct->num_oqs; oq_no++) { */
-	for (oq_no = 0; oq_no < MAX_OCTEON_OUTPUT_QUEUES; oq_no++) {
-		if (!(droq_mask & (1 << oq_no)))
+	for (oq_no = 0; oq_no < MAX_OCTEON_OUTPUT_QUEUES(oct); oq_no++) {
+		if (!(droq_mask & (1ULL << oq_no)))
 			continue;
 
 		droq = oct->droq[oq_no];

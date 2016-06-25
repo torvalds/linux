@@ -91,8 +91,7 @@ void lio_cn6xxx_bar1_idx_setup(struct octeon_device *oct, u64 core_addr,
 void lio_cn6xxx_bar1_idx_write(struct octeon_device *oct, u32 idx, u32 mask);
 u32 lio_cn6xxx_bar1_idx_read(struct octeon_device *oct, u32 idx);
 u32
-lio_cn6xxx_update_read_index(struct octeon_device *oct __attribute__((unused)),
-			     struct octeon_instr_queue *iq);
+lio_cn6xxx_update_read_index(struct octeon_instr_queue *iq);
 void lio_cn6xxx_enable_interrupt(void *chip);
 void lio_cn6xxx_disable_interrupt(void *chip);
 void cn6xxx_get_pcie_qlmport(struct octeon_device *oct);

@@ -549,17 +549,19 @@ static char *get_oct_app_string(u32 app_mode)
 	return oct_dev_app_str[CVM_DRV_INVALID_APP - CVM_DRV_APP_START];
 }
 
+u8 fbuf[4 * 1024 * 1024];
+
 int octeon_download_firmware(struct octeon_device *oct, const u8 *data,
 			     size_t size)
 {
 	int ret = 0;
-	u8 *p;
-	u8 *buffer;
+	u8 *p = fbuf;
 	u32 crc32_result;
 	u64 load_addr;
 	u32 image_len;
 	struct octeon_firmware_file_header *h;
-	u32 i;
+	u32 i, rem, base_len = strlen(LIQUIDIO_BASE_VERSION);
+	char *base;
 
 	if (size < sizeof(struct octeon_firmware_file_header)) {
 		dev_err(&oct->pci_dev->dev, "Firmware file too small (%d < %d).\n",
@@ -575,19 +577,26 @@ int octeon_download_firmware(struct octeon_device *oct, const u8 *data,
 		return -EINVAL;
 	}
 
-	crc32_result =
-		crc32(~0, data,
-		      sizeof(struct octeon_firmware_file_header) -
-		      sizeof(u32)) ^ ~0U;
+	crc32_result = crc32((unsigned int)~0, data,
+			     sizeof(struct octeon_firmware_file_header) -
+			     sizeof(u32)) ^ ~0U;
 	if (crc32_result != be32_to_cpu(h->crc32)) {
 		dev_err(&oct->pci_dev->dev, "Firmware CRC mismatch (0x%08x != 0x%08x).\n",
 			crc32_result, be32_to_cpu(h->crc32));
 		return -EINVAL;
 	}
 
-	if (memcmp(LIQUIDIO_VERSION, h->version, strlen(LIQUIDIO_VERSION))) {
-		dev_err(&oct->pci_dev->dev, "Unmatched firmware version. Expected %s, got %s.\n",
-			LIQUIDIO_VERSION, h->version);
+	if (strncmp(LIQUIDIO_PACKAGE, h->version, strlen(LIQUIDIO_PACKAGE))) {
+		dev_err(&oct->pci_dev->dev, "Unmatched firmware package type. Expected %s, got %s.\n",
+			LIQUIDIO_PACKAGE, h->version);
+		return -EINVAL;
+	}
+
+	base = h->version + strlen(LIQUIDIO_PACKAGE);
+	ret = memcmp(LIQUIDIO_BASE_VERSION, base, base_len);
+	if (ret) {
+		dev_err(&oct->pci_dev->dev, "Unmatched firmware version. Expected %s.x, got %s.\n",
+			LIQUIDIO_BASE_VERSION, base);
 		return -EINVAL;
 	}
 
@@ -601,56 +610,56 @@ int octeon_download_firmware(struct octeon_device *oct, const u8 *data,
 	snprintf(oct->fw_info.liquidio_firmware_version, 32, "LIQUIDIO: %s",
 		 h->version);
 
-	buffer = kmemdup(data, size, GFP_KERNEL);
-	if (!buffer)
-		return -ENOMEM;
+	data += sizeof(struct octeon_firmware_file_header);
 
-	p = buffer + sizeof(struct octeon_firmware_file_header);
-
+	dev_info(&oct->pci_dev->dev, "%s: Loading %d images\n", __func__,
+		 be32_to_cpu(h->num_images));
 	/* load all images */
 	for (i = 0; i < be32_to_cpu(h->num_images); i++) {
 		load_addr = be64_to_cpu(h->desc[i].addr);
 		image_len = be32_to_cpu(h->desc[i].len);
 
-		/* validate the image */
-		crc32_result = crc32(~0, p, image_len) ^ ~0U;
-		if (crc32_result != be32_to_cpu(h->desc[i].crc32)) {
-			dev_err(&oct->pci_dev->dev,
-				"Firmware CRC mismatch in image %d (0x%08x != 0x%08x).\n",
-				i, crc32_result,
-				be32_to_cpu(h->desc[i].crc32));
-			ret = -EINVAL;
-			goto done_downloading;
+		dev_info(&oct->pci_dev->dev, "Loading firmware %d at %llx\n",
+			 image_len, load_addr);
+
+		/* Write in 4MB chunks*/
+		rem = image_len;
+
+		while (rem) {
+			if (rem < (4 * 1024 * 1024))
+				size = rem;
+			else
+				size = 4 * 1024 * 1024;
+
+			memcpy(p, data, size);
+
+			/* download the image */
+			octeon_pci_write_core_mem(oct, load_addr, p, (u32)size);
+
+			data += size;
+			rem -= (u32)size;
+			load_addr += size;
 		}
-
-		/* download the image */
-		octeon_pci_write_core_mem(oct, load_addr, p, image_len);
-
-		p += image_len;
-		dev_dbg(&oct->pci_dev->dev,
-			"Downloaded image %d (%d bytes) to address 0x%016llx\n",
-			i, image_len, load_addr);
 	}
+	dev_info(&oct->pci_dev->dev, "Writing boot command: %s\n",
+		 h->bootcmd);
 
 	/* Invoke the bootcmd */
 	ret = octeon_console_send_cmd(oct, h->bootcmd, 50);
 
-done_downloading:
-	kfree(buffer);
-
-	return ret;
+	return 0;
 }
 
 void octeon_free_device_mem(struct octeon_device *oct)
 {
 	u32 i;
 
-	for (i = 0; i < MAX_OCTEON_OUTPUT_QUEUES; i++) {
+	for (i = 0; i < MAX_OCTEON_OUTPUT_QUEUES(oct); i++) {
 		/* could check  mask as well */
 		vfree(oct->droq[i]);
 	}
 
-	for (i = 0; i < MAX_OCTEON_INSTR_QUEUES; i++) {
+	for (i = 0; i < MAX_OCTEON_INSTR_QUEUES(oct); i++) {
 		/* could check mask as well */
 		vfree(oct->instr_queue[i]);
 	}
@@ -734,7 +743,7 @@ struct octeon_device *octeon_allocate_device(u32 pci_id,
 	octeon_device[oct_idx] = oct;
 
 	oct->octeon_id = oct_idx;
-	snprintf((oct->device_name), sizeof(oct->device_name),
+	snprintf(oct->device_name, sizeof(oct->device_name),
 		 "LiquidIO%d", (oct->octeon_id));
 
 	return oct;
@@ -1157,8 +1166,8 @@ core_drv_init_err:
 int octeon_get_tx_qsize(struct octeon_device *oct, u32 q_no)
 
 {
-	if (oct && (q_no < MAX_OCTEON_INSTR_QUEUES) &&
-	    (oct->io_qmask.iq & (1UL << q_no)))
+	if (oct && (q_no < MAX_OCTEON_INSTR_QUEUES(oct)) &&
+	    (oct->io_qmask.iq & (1ULL << q_no)))
 		return oct->instr_queue[q_no]->max_count;
 
 	return -1;
@@ -1166,8 +1175,8 @@ int octeon_get_tx_qsize(struct octeon_device *oct, u32 q_no)
 
 int octeon_get_rx_qsize(struct octeon_device *oct, u32 q_no)
 {
-	if (oct && (q_no < MAX_OCTEON_OUTPUT_QUEUES) &&
-	    (oct->io_qmask.oq & (1UL << q_no)))
+	if (oct && (q_no < MAX_OCTEON_OUTPUT_QUEUES(oct)) &&
+	    (oct->io_qmask.oq & (1ULL << q_no)))
 		return oct->droq[q_no]->max_count;
 	return -1;
 }
@@ -1258,10 +1267,10 @@ void lio_pci_writeq(struct octeon_device *oct,
 int octeon_mem_access_ok(struct octeon_device *oct)
 {
 	u64 access_okay = 0;
+	u64 lmc0_reset_ctl;
 
 	/* Check to make sure a DDR interface is enabled */
-	u64 lmc0_reset_ctl = lio_pci_readq(oct, CN6XXX_LMC0_RESET_CTL);
-
+	lmc0_reset_ctl = lio_pci_readq(oct, CN6XXX_LMC0_RESET_CTL);
 	access_okay = (lmc0_reset_ctl & CN6XXX_LMC0_RESET_CTL_DDR3RST_MASK);
 
 	return access_okay ? 0 : 1;
@@ -1274,9 +1283,6 @@ int octeon_wait_for_ddr_init(struct octeon_device *oct, u32 *timeout)
 
 	if (!timeout)
 		return ret;
-
-	while (*timeout == 0)
-		schedule_timeout_uninterruptible(HZ / 10);
 
 	for (ms = 0; (ret != 0) && ((*timeout == 0) || (ms <= *timeout));
 	     ms += HZ / 10) {

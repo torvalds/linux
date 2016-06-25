@@ -65,6 +65,10 @@ struct oct_iq_stats {
 	u64 tx_iq_busy;/**< Numof times this iq was found to be full. */
 	u64 tx_dropped;/**< Numof pkts dropped dueto xmitpath errors. */
 	u64 tx_tot_bytes;/**< Total count of bytes sento to network. */
+	u64 tx_gso;  /* count of tso */
+	u64 tx_dmamap_fail;
+	u64 tx_restart;
+	/*u64 tx_timeout_count;*/
 };
 
 #define OCT_IQ_STATS_SIZE   (sizeof(struct oct_iq_stats))
@@ -79,6 +83,12 @@ struct octeon_instr_queue {
 
 	/** A spinlock to protect access to the input ring.  */
 	spinlock_t lock;
+
+	/** A spinlock to protect while posting on the ring.  */
+	spinlock_t post_lock;
+
+	/** A spinlock to protect access to the input ring.*/
+	spinlock_t iq_flush_running_lock;
 
 	/** Flag that indicates if the queue uses 64 byte commands. */
 	u32 iqcmd_64B:1;
@@ -244,7 +254,7 @@ union octeon_instr_64B {
 
 /** The size of each buffer in soft command buffer pool
  */
-#define  SOFT_COMMAND_BUFFER_SIZE	1024
+#define  SOFT_COMMAND_BUFFER_SIZE	1536
 
 struct octeon_soft_command {
 	/** Soft command buffer info. */
@@ -282,7 +292,7 @@ struct octeon_soft_command {
 
 /** Maximum number of buffers to allocate into soft command buffer pool
  */
-#define  MAX_SOFT_COMMAND_BUFFERS	16
+#define  MAX_SOFT_COMMAND_BUFFERS	256
 
 /** Head of a soft command buffer pool.
  */
@@ -339,7 +349,7 @@ octeon_register_reqtype_free_fn(struct octeon_device *oct, int reqtype,
 
 int
 lio_process_iq_request_list(struct octeon_device *oct,
-			    struct octeon_instr_queue *iq);
+			    struct octeon_instr_queue *iq, u32 napi_budget);
 
 int octeon_send_command(struct octeon_device *oct, u32 iq_no,
 			u32 force_db, void *cmd, void *buf,
@@ -357,5 +367,7 @@ int octeon_send_soft_command(struct octeon_device *oct,
 int octeon_setup_iq(struct octeon_device *oct, int ifidx,
 		    int q_index, union oct_txpciq iq_no, u32 num_descs,
 		    void *app_ctx);
-
+int
+octeon_flush_iq(struct octeon_device *oct, struct octeon_instr_queue *iq,
+		u32 pending_thresh, u32 napi_budget);
 #endif				/* __OCTEON_IQ_H__ */

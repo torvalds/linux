@@ -171,20 +171,36 @@ octnet_send_nic_ctrl_pkt(struct octeon_device *oct,
 	int retval;
 	struct octeon_soft_command *sc = NULL;
 
+	spin_lock_bh(&oct->cmd_resp_wqlock);
+	/* Allow only rx ctrl command to stop traffic on the chip
+	 * during offline operations
+	 */
+	if ((oct->cmd_resp_state == OCT_DRV_OFFLINE) &&
+	    (nctrl->ncmd.s.cmd != OCTNET_CMD_RX_CTL)) {
+		spin_unlock_bh(&oct->cmd_resp_wqlock);
+		dev_err(&oct->pci_dev->dev,
+			"%s cmd:%d not processed since driver offline\n",
+			__func__, nctrl->ncmd.s.cmd);
+		return -1;
+	}
+
 	sc = octnic_alloc_ctrl_pkt_sc(oct, nctrl);
 	if (!sc) {
 		dev_err(&oct->pci_dev->dev, "%s soft command alloc failed\n",
 			__func__);
+		spin_unlock_bh(&oct->cmd_resp_wqlock);
 		return -1;
 	}
 
 	retval = octeon_send_soft_command(oct, sc);
 	if (retval == IQ_SEND_FAILED) {
 		octeon_free_soft_command(oct, sc);
-		dev_err(&oct->pci_dev->dev, "%s soft command send failed status: %x\n",
-			__func__, retval);
+		dev_err(&oct->pci_dev->dev, "%s soft command:%d send failed status: %x\n",
+			__func__, nctrl->ncmd.s.cmd, retval);
+		spin_unlock_bh(&oct->cmd_resp_wqlock);
 		return -1;
 	}
 
+	spin_unlock_bh(&oct->cmd_resp_wqlock);
 	return retval;
 }

@@ -152,9 +152,9 @@ struct octeon_mmio {
 #define   MAX_OCTEON_MAPS    32
 
 struct octeon_io_enable {
-	u32 iq;
-	u32 oq;
-	u32 iq64B;
+	u64 iq;
+	u64 oq;
+	u64 iq64B;
 };
 
 struct octeon_reg_list {
@@ -204,8 +204,7 @@ struct octeon_fn_list {
 	void (*bar1_idx_setup)(struct octeon_device *, u64, u32, int);
 	void (*bar1_idx_write)(struct octeon_device *, u32, u32);
 	u32 (*bar1_idx_read)(struct octeon_device *, u32);
-	u32 (*update_iq_read_idx)(struct octeon_device *,
-				  struct octeon_instr_queue *);
+	u32 (*update_iq_read_idx)(struct octeon_instr_queue *);
 
 	void (*enable_oq_pkt_time_intr)(struct octeon_device *, u32);
 	void (*disable_oq_pkt_time_intr)(struct octeon_device *, u32);
@@ -267,6 +266,7 @@ struct octdev_props {
 	/* Each interface in the Octeon device has a network
 	 * device pointer (used for OS specific calls).
 	 */
+	int    napi_enabled;
 	int    gmxport;
 	struct net_device *netdev;
 };
@@ -325,7 +325,8 @@ struct octeon_device {
 	struct octeon_sc_buffer_pool	sc_buf_pool;
 
 	/** The input instruction queues */
-	struct octeon_instr_queue *instr_queue[MAX_OCTEON_INSTR_QUEUES];
+	struct octeon_instr_queue *instr_queue
+		[MAX_POSSIBLE_OCTEON_INSTR_QUEUES];
 
 	/** The doubly-linked list of instruction response */
 	struct octeon_response_list response_list[MAX_RESPONSE_LISTS];
@@ -333,7 +334,7 @@ struct octeon_device {
 	u32 num_oqs;
 
 	/** The DROQ output queues  */
-	struct octeon_droq *droq[MAX_OCTEON_OUTPUT_QUEUES];
+	struct octeon_droq *droq[MAX_POSSIBLE_OCTEON_OUTPUT_QUEUES];
 
 	struct octeon_io_enable io_qmask;
 
@@ -382,15 +383,29 @@ struct octeon_device {
 
 	struct cavium_wq dma_comp_wq;
 
-	struct cavium_wq check_db_wq[MAX_OCTEON_INSTR_QUEUES];
+	/** Lock for dma response list */
+	spinlock_t cmd_resp_wqlock;
+	u32 cmd_resp_state;
+
+	struct cavium_wq check_db_wq[MAX_POSSIBLE_OCTEON_INSTR_QUEUES];
 
 	struct cavium_wk nic_poll_work;
 
 	struct cavium_wk console_poll_work[MAX_OCTEON_MAPS];
 
 	void *priv;
+
+	int rx_pause;
+	int tx_pause;
+
+	struct oct_link_stats link_stats; /*stastics from firmware*/
+
+	/* private flags to control driver-specific features through ethtool */
+	u32 priv_flags;
 };
 
+#define  OCT_DRV_ONLINE 1
+#define  OCT_DRV_OFFLINE 2
 #define  OCTEON_CN6XXX(oct)           ((oct->chip_id == OCTEON_CN66XX) || \
 				       (oct->chip_id == OCTEON_CN68XX))
 #define CHIP_FIELD(oct, TYPE, field)             \
@@ -647,4 +662,17 @@ void *oct_get_config_info(struct octeon_device *oct, u16 card_type);
  */
 struct octeon_config *octeon_get_conf(struct octeon_device *oct);
 
+/* LiquidIO driver pivate flags */
+enum {
+	OCT_PRIV_FLAG_TX_BYTES = 0, /* Tx interrupts by pending byte count */
+};
+
+static inline void lio_set_priv_flag(struct octeon_device *octdev, u32 flag,
+				     u32 val)
+{
+	if (val)
+		octdev->priv_flags |= (0x1 << flag);
+	else
+		octdev->priv_flags &= ~(0x1 << flag);
+}
 #endif

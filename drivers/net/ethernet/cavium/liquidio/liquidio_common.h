@@ -30,11 +30,10 @@
 
 #include "octeon_config.h"
 
-#define LIQUIDIO_VERSION        "1.1.9"
-#define LIQUIDIO_MAJOR_VERSION  1
-#define LIQUIDIO_MINOR_VERSION  1
-#define LIQUIDIO_MICRO_VERSION  9
-
+#define LIQUIDIO_BASE_VERSION   "1.4"
+#define LIQUIDIO_MICRO_VERSION  ".1"
+#define LIQUIDIO_PACKAGE ""
+#define LIQUIDIO_VERSION  "1.4.1"
 #define CONTROL_IQ 0
 /** Tag types used by Octeon cores in its work. */
 enum octeon_tag_type {
@@ -213,6 +212,10 @@ static inline void add_sg_size(struct octeon_sg_entry *sg_entry,
 #define   OCTNET_CMD_IPSECV2_AH_ESP_CTL 0x13
 #define   OCTNET_CMD_VERBOSE_ENABLE   0x14
 #define   OCTNET_CMD_VERBOSE_DISABLE  0x15
+
+#define   OCTNET_CMD_ENABLE_VLAN_FILTER 0x16
+#define   OCTNET_CMD_ADD_VLAN_FILTER  0x17
+#define   OCTNET_CMD_DEL_VLAN_FILTER  0x18
 
 /* RX(packets coming from wire) Checksum verification flags */
 /* TCP/UDP csum */
@@ -482,15 +485,15 @@ struct octeon_instr_irh {
 	u64 opcode:4;
 	u64 rflag:1;
 	u64 subcode:7;
-	u64 len:3;
-	u64 rid:13;
-	u64 reserved:4;
+	u64 vlan:12;
+	u64 priority:3;
+	u64 reserved:5;
 	u64 ossp:32;             /* opcode/subcode specific parameters */
 #else
 	u64 ossp:32;             /* opcode/subcode specific parameters */
-	u64 reserved:4;
-	u64 rid:13;
-	u64 len:3;
+	u64 reserved:5;
+	u64 priority:3;
+	u64 vlan:12;
 	u64 subcode:7;
 	u64 rflag:1;
 	u64 opcode:4;
@@ -517,28 +520,27 @@ union octeon_rh {
 	struct {
 		u64 opcode:4;
 		u64 subcode:8;
-		u64 len:3;       /** additional 64-bit words */
-		u64 rid:13;      /** request id in response to pkt sent by host */
-		u64 reserved:4;
-		u64 ossp:32;     /** opcode/subcode specific parameters */
+		u64 len:3;     /** additional 64-bit words */
+		u64 reserved:17;
+		u64 ossp:32;   /** opcode/subcode specific parameters */
 	} r;
 	struct {
 		u64 opcode:4;
 		u64 subcode:8;
-		u64 len:3;       /** additional 64-bit words */
-		u64 rid:13;      /** request id in response to pkt sent by host */
-		u64 extra:24;
-		u64 link:8;
+		u64 len:3;     /** additional 64-bit words */
+		u64 extra:28;
+		u64 vlan:12;
+		u64 priority:3;
 		u64 csum_verified:3;     /** checksum verified. */
 		u64 has_hwtstamp:1;      /** Has hardware timestamp. 1 = yes. */
 	} r_dh;
 	struct {
 		u64 opcode:4;
 		u64 subcode:8;
-		u64 len:3;       /** additional 64-bit words */
-		u64 rid:13;      /** request id in response to pkt sent by host */
+		u64 len:3;     /** additional 64-bit words */
+		u64 reserved:11;
 		u64 num_gmx_ports:8;
-		u64 max_nic_ports:8;
+		u64 max_nic_ports:10;
 		u64 app_cap_flags:4;
 		u64 app_mode:16;
 	} r_core_drv_init;
@@ -554,8 +556,7 @@ union octeon_rh {
 	u64 u64;
 	struct {
 		u64 ossp:32;  /** opcode/subcode specific parameters */
-		u64 reserved:4;
-		u64 rid:13;   /** req id in response to pkt sent by host */
+		u64 reserved:17;
 		u64 len:3;    /** additional 64-bit words */
 		u64 subcode:8;
 		u64 opcode:4;
@@ -563,9 +564,9 @@ union octeon_rh {
 	struct {
 		u64 has_hwtstamp:1;      /** 1 = has hwtstamp */
 		u64 csum_verified:3;     /** checksum verified. */
-		u64 link:8;
-		u64 extra:24;
-		u64 rid:13;   /** req id in response to pkt sent by host */
+		u64 priority:3;
+		u64 vlan:12;
+		u64 extra:28;
 		u64 len:3;    /** additional 64-bit words */
 		u64 subcode:8;
 		u64 opcode:4;
@@ -573,9 +574,9 @@ union octeon_rh {
 	struct {
 		u64 app_mode:16;
 		u64 app_cap_flags:4;
-		u64 max_nic_ports:8;
+		u64 max_nic_ports:10;
 		u64 num_gmx_ports:8;
-		u64 rid:13;
+		u64 reserved:11;
 		u64 len:3;       /** additional 64-bit words */
 		u64 subcode:8;
 		u64 opcode:4;
@@ -627,13 +628,13 @@ union oct_link_status {
 		u64 speed:16;
 		u64 link_up:1;
 		u64 autoneg:1;
-		u64 interface:4;
+		u64 if_mode:5;
 		u64 pause:1;
-		u64 reserved:17;
+		u64 reserved:16;
 #else
-		u64 reserved:17;
+		u64 reserved:16;
 		u64 pause:1;
-		u64 interface:4;
+		u64 if_mode:5;
 		u64 autoneg:1;
 		u64 link_up:1;
 		u64 speed:16;
@@ -710,6 +711,7 @@ struct liquidio_if_cfg_info {
 	u64 iqmask; /** mask for IQs enabled for  the port */
 	u64 oqmask; /** mask for OQs enabled for the port */
 	struct oct_link_info linfo; /** initial link information */
+	char   liquidio_firmware_version[32];
 };
 
 /** Stats for each NIC port in RX direction. */
@@ -734,10 +736,16 @@ struct nic_rx_stats {
 	u64 fw_err_pko;
 	u64 fw_err_link;
 	u64 fw_err_drop;
+
+	/* LRO */
 	u64 fw_lro_pkts;   /* Number of packets that are LROed      */
 	u64 fw_lro_octs;   /* Number of octets that are LROed       */
 	u64 fw_total_lro;  /* Number of LRO packets formed          */
 	u64 fw_lro_aborts; /* Number of times lRO of packet aborted */
+	u64 fw_lro_aborts_port;
+	u64 fw_lro_aborts_seq;
+	u64 fw_lro_aborts_tsval;
+	u64 fw_lro_aborts_timer;
 	/* intrmod: packet forward rate */
 	u64 fwd_rate;
 };
@@ -761,9 +769,13 @@ struct nic_tx_stats {
 	/* firmware stats */
 	u64 fw_total_sent;
 	u64 fw_total_fwd;
+	u64 fw_total_fwd_bytes;
 	u64 fw_err_pko;
 	u64 fw_err_link;
 	u64 fw_err_drop;
+	u64 fw_err_tso;
+	u64 fw_tso;		/* number of tso requests */
+	u64 fw_tso_fwd;		/* number of packets segmented in tso */
 };
 
 struct oct_link_stats {
@@ -794,23 +806,44 @@ struct oct_mdio_cmd {
 
 #define OCT_LINK_STATS_SIZE   (sizeof(struct oct_link_stats))
 
+/* intrmod: max. packet rate threshold */
+#define LIO_INTRMOD_MAXPKT_RATETHR	196608
+/* intrmod: min. packet rate threshold */
+#define LIO_INTRMOD_MINPKT_RATETHR	9216
+/* intrmod: max. packets to trigger interrupt */
+#define LIO_INTRMOD_RXMAXCNT_TRIGGER	384
+/* intrmod: min. packets to trigger interrupt */
+#define LIO_INTRMOD_RXMINCNT_TRIGGER	1
+/* intrmod: max. time to trigger interrupt */
+#define LIO_INTRMOD_RXMAXTMR_TRIGGER	128
+/* 66xx:intrmod: min. time to trigger interrupt
+ * (value of 1 is optimum for TCP_RR)
+ */
+#define LIO_INTRMOD_RXMINTMR_TRIGGER	1
+
+/* intrmod: max. packets to trigger interrupt */
+#define LIO_INTRMOD_TXMAXCNT_TRIGGER	64
+/* intrmod: min. packets to trigger interrupt */
+#define LIO_INTRMOD_TXMINCNT_TRIGGER	0
+
+/* intrmod: poll interval in seconds */
 #define LIO_INTRMOD_CHECK_INTERVAL  1
-#define LIO_INTRMOD_MAXPKT_RATETHR  196608 /* max pkt rate threshold */
-#define LIO_INTRMOD_MINPKT_RATETHR  9216   /* min pkt rate threshold */
-#define LIO_INTRMOD_MAXCNT_TRIGGER  384    /* max pkts to trigger interrupt */
-#define LIO_INTRMOD_MINCNT_TRIGGER  1      /* min pkts to trigger interrupt */
-#define LIO_INTRMOD_MAXTMR_TRIGGER  128    /* max time to trigger interrupt */
-#define LIO_INTRMOD_MINTMR_TRIGGER  32     /* min time to trigger interrupt */
 
 struct oct_intrmod_cfg {
-	u64 intrmod_enable;
-	u64 intrmod_check_intrvl;
-	u64 intrmod_maxpkt_ratethr;
-	u64 intrmod_minpkt_ratethr;
-	u64 intrmod_maxcnt_trigger;
-	u64 intrmod_maxtmr_trigger;
-	u64 intrmod_mincnt_trigger;
-	u64 intrmod_mintmr_trigger;
+	u64 rx_enable;
+	u64 tx_enable;
+	u64 check_intrvl;
+	u64 maxpkt_ratethr;
+	u64 minpkt_ratethr;
+	u64 rx_maxcnt_trigger;
+	u64 rx_mincnt_trigger;
+	u64 rx_maxtmr_trigger;
+	u64 rx_mintmr_trigger;
+	u64 tx_mincnt_trigger;
+	u64 tx_maxcnt_trigger;
+	u64 rx_frames;
+	u64 tx_frames;
+	u64 rx_usecs;
 };
 
 #define BASE_QUEUE_NOT_REQUESTED 65535

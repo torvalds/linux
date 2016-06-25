@@ -51,7 +51,7 @@ struct iq_post_status {
 };
 
 static void check_db_timeout(struct work_struct *work);
-static void  __check_db_timeout(struct octeon_device *oct, unsigned long iq_no);
+static void  __check_db_timeout(struct octeon_device *oct, u64 iq_no);
 
 static void (*reqtype_free_fn[MAX_OCTEON_DEVICES][REQTYPE_LAST + 1]) (void *);
 
@@ -149,8 +149,11 @@ int octeon_init_instr_queue(struct octeon_device *oct,
 
 	/* Initialize the spinlock for this instruction queue */
 	spin_lock_init(&iq->lock);
+	spin_lock_init(&iq->post_lock);
 
-	oct->io_qmask.iq |= (1 << iq_no);
+	spin_lock_init(&iq->iq_flush_running_lock);
+
+	oct->io_qmask.iq |= (1ULL << iq_no);
 
 	/* Set the 32B/64B mode for each input queue */
 	oct->io_qmask.iq64B |= ((conf->instr_type == 64) << iq_no);
@@ -253,8 +256,8 @@ int lio_wait_for_instr_fetch(struct octeon_device *oct)
 		instr_cnt = 0;
 
 		/*for (i = 0; i < oct->num_iqs; i++) {*/
-		for (i = 0; i < MAX_OCTEON_INSTR_QUEUES; i++) {
-			if (!(oct->io_qmask.iq & (1UL << i)))
+		for (i = 0; i < MAX_OCTEON_INSTR_QUEUES(oct); i++) {
+			if (!(oct->io_qmask.iq & (1ULL << i)))
 				continue;
 			pending =
 			    atomic_read(&oct->
@@ -391,13 +394,13 @@ __add_to_request_list(struct octeon_instr_queue *iq,
 
 int
 lio_process_iq_request_list(struct octeon_device *oct,
-			    struct octeon_instr_queue *iq)
+			    struct octeon_instr_queue *iq, u32 napi_budget)
 {
 	int reqtype;
 	void *buf;
 	u32 old = iq->flush_index;
 	u32 inst_count = 0;
-	unsigned pkts_compl = 0, bytes_compl = 0;
+	unsigned int pkts_compl = 0, bytes_compl = 0;
 	struct octeon_soft_command *sc;
 	struct octeon_instr_irh *irh;
 
@@ -457,6 +460,9 @@ lio_process_iq_request_list(struct octeon_device *oct,
  skip_this:
 		inst_count++;
 		INCR_INDEX_BY1(old, iq->max_count);
+
+		if ((napi_budget) && (inst_count >= napi_budget))
+			break;
 	}
 	if (bytes_compl)
 		octeon_report_tx_completion_to_bql(iq->app_ctx, pkts_compl,
@@ -466,38 +472,63 @@ lio_process_iq_request_list(struct octeon_device *oct,
 	return inst_count;
 }
 
-static inline void
-update_iq_indices(struct octeon_device *oct, struct octeon_instr_queue *iq)
+/* Can only be called from process context */
+int
+octeon_flush_iq(struct octeon_device *oct, struct octeon_instr_queue *iq,
+		u32 pending_thresh, u32 napi_budget)
 {
 	u32 inst_processed = 0;
+	u32 tot_inst_processed = 0;
+	int tx_done = 1;
 
-	/* Calculate how many commands Octeon has read and move the read index
-	 * accordingly.
-	 */
-	iq->octeon_read_index = oct->fn_list.update_iq_read_idx(oct, iq);
+	if (!spin_trylock(&iq->iq_flush_running_lock))
+		return tx_done;
 
-	/* Move the NORESPONSE requests to the per-device completion list. */
-	if (iq->flush_index != iq->octeon_read_index)
-		inst_processed = lio_process_iq_request_list(oct, iq);
+	spin_lock_bh(&iq->lock);
 
-	if (inst_processed) {
-		atomic_sub(inst_processed, &iq->instr_pending);
-		iq->stats.instr_processed += inst_processed;
-	}
-}
+	iq->octeon_read_index = oct->fn_list.update_iq_read_idx(iq);
 
-static void
-octeon_flush_iq(struct octeon_device *oct, struct octeon_instr_queue *iq,
-		u32 pending_thresh)
-{
 	if (atomic_read(&iq->instr_pending) >= (s32)pending_thresh) {
-		spin_lock_bh(&iq->lock);
-		update_iq_indices(oct, iq);
-		spin_unlock_bh(&iq->lock);
+		do {
+			/* Process any outstanding IQ packets. */
+			if (iq->flush_index == iq->octeon_read_index)
+				break;
+
+			if (napi_budget)
+				inst_processed = lio_process_iq_request_list
+					(oct, iq,
+					 napi_budget - tot_inst_processed);
+			else
+				inst_processed =
+					lio_process_iq_request_list(oct, iq, 0);
+
+			if (inst_processed) {
+				atomic_sub(inst_processed, &iq->instr_pending);
+				iq->stats.instr_processed += inst_processed;
+			}
+
+			tot_inst_processed += inst_processed;
+			inst_processed = 0;
+
+		} while (tot_inst_processed < napi_budget);
+
+		if (napi_budget && (tot_inst_processed >= napi_budget))
+			tx_done = 0;
 	}
+
+	iq->last_db_time = jiffies;
+
+	spin_unlock_bh(&iq->lock);
+
+	spin_unlock(&iq->iq_flush_running_lock);
+
+	return tx_done;
 }
 
-static void __check_db_timeout(struct octeon_device *oct, unsigned long iq_no)
+/* Process instruction queue after timeout.
+ * This routine gets called from a workqueue or when removing the module.
+ */
+static void __check_db_timeout(struct octeon_device *oct, u64 iq_no)
 {
 	struct octeon_instr_queue *iq;
 	u64 next_time;
@@ -508,24 +539,17 @@ static void __check_db_timeout(struct octeon_device *oct, unsigned long iq_no)
 	if (!iq)
 		return;
 
+	/* return immediately, if no work pending */
+	if (!atomic_read(&iq->instr_pending))
+		return;
 	/* If jiffies - last_db_time < db_timeout do nothing  */
 	next_time = iq->last_db_time + iq->db_timeout;
 	if (!time_after(jiffies, (unsigned long)next_time))
 		return;
 	iq->last_db_time = jiffies;
 
-	/* Get the lock and prevent tasklets. This routine gets called from
-	 * the poll thread. Instructions can now be posted in tasklet context
-	 */
-	spin_lock_bh(&iq->lock);
-	if (iq->fill_cnt != 0)
-		ring_doorbell(oct, iq);
-
-	spin_unlock_bh(&iq->lock);
-
 	/* Flush the instruction queue */
-	if (iq->do_auto_flush)
-		octeon_flush_iq(oct, iq, 1);
+	octeon_flush_iq(oct, iq, 1, 0);
 }
 
 /* Called by the Poll thread at regular intervals to check the instruction
@@ -550,7 +574,10 @@ octeon_send_command(struct octeon_device *oct, u32 iq_no,
 	struct iq_post_status st;
 	struct octeon_instr_queue *iq = oct->instr_queue[iq_no];
 
-	spin_lock_bh(&iq->lock);
+	/* Get the lock and prevent other tasks and tx interrupt handler from
+	 * running.
+	 */
+	spin_lock_bh(&iq->post_lock);
 
 	st = __post_command2(oct, iq, force_db, cmd);
 
@@ -566,10 +593,13 @@ octeon_send_command(struct octeon_device *oct, u32 iq_no,
 		INCR_INSTRQUEUE_PKT_COUNT(oct, iq_no, instr_dropped, 1);
 	}
 
-	spin_unlock_bh(&iq->lock);
+	spin_unlock_bh(&iq->post_lock);
 
-	if (iq->do_auto_flush)
-		octeon_flush_iq(oct, iq, 2);
+	/* This is only done here to expedite packets being flushed
+	 * for cases where there are no IQ completion interrupts.
+	 */
+	/*if (iq->do_auto_flush)*/
+	/*	octeon_flush_iq(oct, iq, 2, 0);*/
 
 	return st.status;
 }
