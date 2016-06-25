@@ -750,28 +750,10 @@ static const struct net_device_ops hix5hd2_netdev_ops = {
 	.ndo_set_mac_address	= hix5hd2_net_set_mac_address,
 };
 
-static int hix5hd2_get_settings(struct net_device *net_dev,
-				struct ethtool_cmd *cmd)
-{
-	if (!net_dev->phydev)
-		return -ENODEV;
-
-	return phy_ethtool_gset(net_dev->phydev, cmd);
-}
-
-static int hix5hd2_set_settings(struct net_device *net_dev,
-				struct ethtool_cmd *cmd)
-{
-	if (!net_dev->phydev)
-		return -ENODEV;
-
-	return phy_ethtool_sset(net_dev->phydev, cmd);
-}
-
 static struct ethtool_ops hix5hd2_ethtools_ops = {
 	.get_link		= ethtool_op_get_link,
-	.get_settings		= hix5hd2_get_settings,
-	.set_settings		= hix5hd2_set_settings,
+	.get_link_ksettings     = phy_ethtool_get_link_ksettings,
+	.set_link_ksettings     = phy_ethtool_set_link_ksettings,
 };
 
 static int hix5hd2_mdio_wait_ready(struct mii_bus *bus)
