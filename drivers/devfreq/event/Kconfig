@@ -14,7 +14,7 @@ menuconfig PM_DEVFREQ_EVENT
 if PM_DEVFREQ_EVENT
 
 config DEVFREQ_EVENT_EXYNOS_NOCP
-	bool "EXYNOS NoC (Network On Chip) Probe DEVFREQ event Driver"
+	tristate "EXYNOS NoC (Network On Chip) Probe DEVFREQ event Driver"
 	depends on ARCH_EXYNOS
 	select PM_OPP
 	help
