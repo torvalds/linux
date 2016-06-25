@@ -147,7 +147,7 @@ static int sxgbe_get_eee(struct net_device *dev,
 	edata->eee_active = priv->eee_active;
 	edata->tx_lpi_timer = priv->tx_lpi_timer;
 
-	return phy_ethtool_get_eee(priv->phydev, edata);
+	return phy_ethtool_get_eee(dev->phydev, edata);
 }
 
 static int sxgbe_set_eee(struct net_device *dev,
@@ -172,7 +172,7 @@ static int sxgbe_set_eee(struct net_device *dev,
 		priv->tx_lpi_timer = edata->tx_lpi_timer;
 	}
 
-	return phy_ethtool_set_eee(priv->phydev, edata);
+	return phy_ethtool_set_eee(dev->phydev, edata);
 }
 
 static void sxgbe_getdrvinfo(struct net_device *dev,
@@ -185,20 +185,16 @@ static void sxgbe_getdrvinfo(struct net_device *dev,
 static int sxgbe_getsettings(struct net_device *dev,
 			     struct ethtool_cmd *cmd)
 {
-	struct sxgbe_priv_data *priv = netdev_priv(dev);
-
-	if (priv->phydev)
-		return phy_ethtool_gset(priv->phydev, cmd);
+	if (dev->phydev)
+		return phy_ethtool_gset(dev->phydev, cmd);
 
 	return -EOPNOTSUPP;
 }
 
 static int sxgbe_setsettings(struct net_device *dev, struct ethtool_cmd *cmd)
 {
-	struct sxgbe_priv_data *priv = netdev_priv(dev);
-
-	if (priv->phydev)
-		return phy_ethtool_sset(priv->phydev, cmd);
+	if (dev->phydev)
+		return phy_ethtool_sset(dev->phydev, cmd);
 
 	return -EOPNOTSUPP;
 }
@@ -255,7 +251,7 @@ static void sxgbe_get_ethtool_stats(struct net_device *dev,
 	char *p;
 
 	if (priv->eee_enabled) {
-		int val = phy_get_eee_err(priv->phydev);
+		int val = phy_get_eee_err(dev->phydev);
 
 		if (val)
 			priv->xstats.eee_wakeup_error_n = val;
