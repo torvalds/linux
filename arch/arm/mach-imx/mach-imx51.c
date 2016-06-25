@@ -54,6 +54,8 @@ static void __init imx51_dt_init(void)
 	imx_src_init();
 
 	of_platform_populate(NULL, of_default_bus_match_table, NULL, NULL);
+
+	imx_aips_allow_unprivileged_access("fsl,imx51-aipstz");
 }
 
 static void __init imx51_init_late(void)
