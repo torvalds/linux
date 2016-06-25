@@ -183,13 +183,13 @@ static inline void free_thread_stack(unsigned long *stack)
 # else
 static struct kmem_cache *thread_stack_cache;
 
-static struct thread_info *alloc_thread_stack_node(struct task_struct *tsk,
+static unsigned long *alloc_thread_stack_node(struct task_struct *tsk,
 						  int node)
 {
 	return kmem_cache_alloc_node(thread_stack_cache, THREADINFO_GFP, node);
 }
 
-static void free_stack(unsigned long *stack)
+static void free_thread_stack(unsigned long *stack)
 {
 	kmem_cache_free(thread_stack_cache, stack);
 }
