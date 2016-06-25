@@ -228,5 +228,20 @@ extern void radix__vmemmap_remove_mapping(unsigned long start,
 
 extern int radix__map_kernel_page(unsigned long ea, unsigned long pa,
 				 pgprot_t flags, unsigned int psz);
+
+static inline unsigned long radix__get_tree_size(void)
+{
+	unsigned long rts_field;
+	/*
+	 * we support 52 bits, hence 52-31 = 21, 0b10101
+	 * RTS encoding details
+	 * bits 0 - 3 of rts -> bits 6 - 8 unsigned long
+	 * bits 4 - 5 of rts -> bits 62 - 63 of unsigned long
+	 */
+	rts_field = (0x5UL << 5); /* 6 - 8 bits */
+	rts_field |= (0x2UL << 61);
+
+	return rts_field;
+}
 #endif /* __ASSEMBLY__ */
 #endif
