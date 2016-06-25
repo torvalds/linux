@@ -4694,12 +4694,12 @@ static int __btrfs_alloc_chunk(struct btrfs_trans_handle *trans,
 
 	if (type & BTRFS_BLOCK_GROUP_RAID5) {
 		raid_stripe_len = find_raid56_stripe_len(ndevs - 1,
-				 btrfs_super_stripesize(info->super_copy));
+						extent_root->stripesize);
 		data_stripes = num_stripes - 1;
 	}
 	if (type & BTRFS_BLOCK_GROUP_RAID6) {
 		raid_stripe_len = find_raid56_stripe_len(ndevs - 2,
-				 btrfs_super_stripesize(info->super_copy));
+						extent_root->stripesize);
 		data_stripes = num_stripes - 2;
 	}
 

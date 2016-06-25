@@ -68,7 +68,7 @@ int btrfs_init_test_fs(void)
 	if (IS_ERR(test_mnt)) {
 		printk(KERN_ERR "btrfs: cannot mount test file system\n");
 		unregister_filesystem(&test_type);
-		return ret;
+		return PTR_ERR(test_mnt);
 	}
 	return 0;
 }
