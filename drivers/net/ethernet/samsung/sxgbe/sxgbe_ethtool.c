@@ -182,23 +182,6 @@ static void sxgbe_getdrvinfo(struct net_device *dev,
 	strlcpy(info->version, DRV_VERSION, sizeof(info->version));
 }
 
-static int sxgbe_getsettings(struct net_device *dev,
-			     struct ethtool_cmd *cmd)
-{
-	if (dev->phydev)
-		return phy_ethtool_gset(dev->phydev, cmd);
-
-	return -EOPNOTSUPP;
-}
-
-static int sxgbe_setsettings(struct net_device *dev, struct ethtool_cmd *cmd)
-{
-	if (dev->phydev)
-		return phy_ethtool_sset(dev->phydev, cmd);
-
-	return -EOPNOTSUPP;
-}
-
 static u32 sxgbe_getmsglevel(struct net_device *dev)
 {
 	struct sxgbe_priv_data *priv = netdev_priv(dev);
@@ -495,8 +478,6 @@ static int sxgbe_get_regs_len(struct net_device *dev)
 
 static const struct ethtool_ops sxgbe_ethtool_ops = {
 	.get_drvinfo = sxgbe_getdrvinfo,
-	.get_settings = sxgbe_getsettings,
-	.set_settings = sxgbe_setsettings,
 	.get_msglevel = sxgbe_getmsglevel,
 	.set_msglevel = sxgbe_setmsglevel,
 	.get_link = ethtool_op_get_link,
@@ -512,6 +493,8 @@ static const struct ethtool_ops sxgbe_ethtool_ops = {
 	.get_regs_len = sxgbe_get_regs_len,
 	.get_eee = sxgbe_get_eee,
 	.set_eee = sxgbe_set_eee,
+	.get_link_ksettings = phy_ethtool_get_link_ksettings,
+	.set_link_ksettings = phy_ethtool_set_link_ksettings,
 };
 
 void sxgbe_set_ethtool_ops(struct net_device *netdev)
