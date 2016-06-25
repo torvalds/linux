@@ -708,11 +708,13 @@ static bool __init_or_module initcall_blacklisted(initcall_t fn)
 {
 	struct blacklist_entry *entry;
 	char fn_name[KSYM_SYMBOL_LEN];
+	unsigned long addr;
 
 	if (list_empty(&blacklisted_initcalls))
 		return false;
 
-	sprint_symbol_no_offset(fn_name, (unsigned long)fn);
+	addr = (unsigned long) dereference_function_descriptor(fn);
+	sprint_symbol_no_offset(fn_name, addr);
 
 	list_for_each_entry(entry, &blacklisted_initcalls, next) {
 		if (!strcmp(fn_name, entry->buf)) {
