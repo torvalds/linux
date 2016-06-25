@@ -269,7 +269,11 @@ static loff_t _nfs42_proc_llseek(struct file *filep,
 	if (status)
 		return status;
 
-	nfs_wb_all(inode);
+	status = nfs_filemap_write_and_wait_range(inode->i_mapping,
+			offset, LLONG_MAX);
+	if (status)
+		return status;
+
 	status = nfs4_call_sync(server->client, server, &msg,
 				&args.seq_args, &res.seq_res, 0);
 	if (status == -ENOTSUPP)
