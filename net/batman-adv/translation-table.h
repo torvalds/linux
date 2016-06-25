@@ -59,4 +59,7 @@ bool batadv_tt_add_temporary_global_entry(struct batadv_priv *bat_priv,
 bool batadv_tt_global_is_isolated(struct batadv_priv *bat_priv,
 				  const u8 *addr, unsigned short vid);
 
+int batadv_tt_cache_init(void);
+void batadv_tt_cache_destroy(void);
+
 #endif /* _NET_BATMAN_ADV_TRANSLATION_TABLE_H_ */
