@@ -21,6 +21,8 @@ if STAGING_MEDIA
 # Please keep them in alphabetic order
 source "drivers/staging/media/bcm2048/Kconfig"
 
+source "drivers/staging/media/cec/Kconfig"
+
 source "drivers/staging/media/cxd2099/Kconfig"
 
 source "drivers/staging/media/davinci_vpfe/Kconfig"
