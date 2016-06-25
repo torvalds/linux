@@ -816,6 +816,7 @@ void rtl8723e_dm_watchdog(struct ieee80211_hw *hw)
 	if (ppsc->p2p_ps_info.p2p_ps_mode)
 		fw_ps_awake = false;
 
+	spin_lock(&rtlpriv->locks.rf_ps_lock);
 	if ((ppsc->rfpwr_state == ERFON) &&
 	    ((!fw_current_inpsmode) && fw_ps_awake) &&
 	    (!ppsc->rfchange_inprogress)) {
@@ -829,6 +830,7 @@ void rtl8723e_dm_watchdog(struct ieee80211_hw *hw)
 		rtl8723e_dm_bt_coexist(hw);
 		rtl8723e_dm_check_edca_turbo(hw);
 	}
+	spin_unlock(&rtlpriv->locks.rf_ps_lock);
 	if (rtlpriv->btcoexist.init_set)
 		rtl_write_byte(rtlpriv, 0x76e, 0xc);
 }
