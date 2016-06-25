@@ -1480,4 +1480,55 @@ efi_status_t efi_setup_gop(efi_system_table_t *sys_table_arg,
 			   unsigned long size);
 
 bool efi_runtime_disabled(void);
+extern void efi_call_virt_check_flags(unsigned long flags, const char *call);
+
+/*
+ * Arch code can implement the following three template macros, avoiding
+ * reptition for the void/non-void return cases of {__,}efi_call_virt():
+ *
+ *  * arch_efi_call_virt_setup()
+ *
+ *    Sets up the environment for the call (e.g. switching page tables,
+ *    allowing kernel-mode use of floating point, if required).
+ *
+ *  * arch_efi_call_virt()
+ *
+ *    Performs the call. The last expression in the macro must be the call
+ *    itself, allowing the logic to be shared by the void and non-void
+ *    cases.
+ *
+ *  * arch_efi_call_virt_teardown()
+ *
+ *    Restores the usual kernel environment once the call has returned.
+ */
+
+#define efi_call_virt_pointer(p, f, args...)				\
+({									\
+	efi_status_t __s;						\
+	unsigned long __flags;						\
+									\
+	arch_efi_call_virt_setup();					\
+									\
+	local_save_flags(__flags);					\
+	__s = arch_efi_call_virt(p, f, args);				\
+	efi_call_virt_check_flags(__flags, __stringify(f));		\
+									\
+	arch_efi_call_virt_teardown();					\
+									\
+	__s;								\
+})
+
+#define __efi_call_virt_pointer(p, f, args...)				\
+({									\
+	unsigned long __flags;						\
+									\
+	arch_efi_call_virt_setup();					\
+									\
+	local_save_flags(__flags);					\
+	arch_efi_call_virt(p, f, args);					\
+	efi_call_virt_check_flags(__flags, __stringify(f));		\
+									\
+	arch_efi_call_virt_teardown();					\
+})
+
 #endif /* _LINUX_EFI_H */

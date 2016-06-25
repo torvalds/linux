@@ -41,10 +41,9 @@ extern unsigned long asmlinkage efi_call_phys(void *, ...);
 /*
  * Wrap all the virtual calls in a way that forces the parameters on the stack.
  */
-#define arch_efi_call_virt(f, args...)					\
+#define arch_efi_call_virt(p, f, args...)				\
 ({									\
-	((efi_##f##_t __attribute__((regparm(0)))*)			\
-		efi.systab->runtime->f)(args);				\
+	((efi_##f##_t __attribute__((regparm(0)))*) p->f)(args);	\
 })
 
 #define efi_ioremap(addr, size, type, attr)	ioremap_cache(addr, size)
@@ -81,8 +80,8 @@ struct efi_scratch {
 	}								\
 })
 
-#define arch_efi_call_virt(f, args...)					\
-	efi_call((void *)efi.systab->runtime->f, args)			\
+#define arch_efi_call_virt(p, f, args...)				\
+	efi_call((void *)p->f, args)					\
 
 #define arch_efi_call_virt_teardown()					\
 ({									\

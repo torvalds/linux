@@ -23,10 +23,10 @@ int efi_create_mapping(struct mm_struct *mm, efi_memory_desc_t *md);
 	efi_virtmap_load();						\
 })
 
-#define arch_efi_call_virt(f, args...)					\
+#define arch_efi_call_virt(p, f, args...)				\
 ({									\
 	efi_##f##_t *__f;						\
-	__f = efi.systab->runtime->f;					\
+	__f = p->f;							\
 	__f(args);							\
 })
 
