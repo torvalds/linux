@@ -285,7 +285,7 @@ int sst_dsp_register_poll(struct sst_dsp *ctx, u32 offset, u32 mask,
 	}
 
 	reg = sst_dsp_shim_read_unlocked(ctx, offset);
-	dev_info(ctx->dev, "FW Poll Status: reg=%#x %s %s\n", reg, operation,
+	dev_dbg(ctx->dev, "FW Poll Status: reg=%#x %s %s\n", reg, operation,
 			(time < timeout) ? "successful" : "timedout");
 	ret = time < timeout ? 0 : -ETIME;
 
