@@ -372,7 +372,7 @@ static bool rs_is_reshapable(struct raid_set *rs)
 /* Return true, if raid set in @rs is recovering */
 static bool rs_is_recovering(struct raid_set *rs)
 {
-	return rs->md.recovery_cp != MaxSector;
+	return rs->md.recovery_cp < rs->dev[0].rdev.sectors;
 }
 
 /* Return true, if raid set in @rs is reshaping */
@@ -3532,7 +3532,7 @@ static int raid_preresume(struct dm_target *ti)
 
 	rs_set_capacity(rs);
 
-	/* Check for any reshape request and region size change unless new raid set */
+	/* Check for any reshape request unless new raid set */
 	if (test_and_clear_bit(RT_FLAG_RESHAPE_RS, &rs->runtime_flags)) {
 		/* Initiate a reshape. */
 		mddev_lock_nointr(mddev);
