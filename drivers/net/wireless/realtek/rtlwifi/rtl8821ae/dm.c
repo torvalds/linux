@@ -843,7 +843,7 @@ static void rtl8821ae_dm_dig(struct ieee80211_hw *hw)
 				dm_digtable->rssi_val_min + offset;
 
 		RT_TRACE(rtlpriv, COMP_DIG, DBG_LOUD,
-			 "dm_digtable->rssi_val_min=0x%x,dm_digtable->rx_gain_max = 0x%x",
+			 "dm_digtable->rssi_val_min=0x%x,dm_digtable->rx_gain_max = 0x%x\n",
 			 dm_digtable->rssi_val_min,
 			 dm_digtable->rx_gain_max);
 		if (rtlpriv->dm.one_entry_only) {
@@ -2682,9 +2682,9 @@ static void rtl8821ae_dm_check_edca_turbo(struct ieee80211_hw *hw)
 	bool b_edca_turbo_on = false;
 
 	RT_TRACE(rtlpriv, COMP_TURBO, DBG_LOUD,
-		 "rtl8821ae_dm_check_edca_turbo=====>");
+		 "rtl8821ae_dm_check_edca_turbo=====>\n");
 	RT_TRACE(rtlpriv, COMP_TURBO, DBG_LOUD,
-		 "Orginial BE PARAM: 0x%x\n",
+		 "Original BE PARAM: 0x%x\n",
 		 rtl_read_dword(rtlpriv, DM_REG_EDCA_BE_11N));
 
 	if (rtlpriv->dm.dbginfo.num_non_be_pkt > 0x100)

@@ -3117,7 +3117,7 @@ static void _rtl8821ae_read_adapter_info(struct ieee80211_hw *hw, bool b_pseudo_
 
 	case EEPROM_93C46:
 		RT_TRACE(rtlpriv, COMP_ERR, DBG_EMERG,
-			 "RTL819X Not boot from eeprom, check it !!");
+			 "RTL819X Not boot from eeprom, check it !!\n");
 		return;
 
 	default:
@@ -3140,7 +3140,7 @@ static void _rtl8821ae_read_adapter_info(struct ieee80211_hw *hw, bool b_pseudo_
 
 	if (rtlefuse->autoload_failflag) {
 		RT_TRACE(rtlpriv, COMP_ERR, DBG_EMERG,
-			 "RTL8812AE autoload_failflag, check it !!");
+			 "RTL8812AE autoload_failflag, check it !!\n");
 		return;
 	}
 
@@ -3836,7 +3836,7 @@ void rtl8821ae_update_hal_rate_tbl(struct ieee80211_hw *hw,
 		rtl8821ae_update_hal_rate_mask(hw, sta, rssi_level);
 	else
 		/*RT_TRACE(rtlpriv, COMP_RATR,DBG_LOUD,
-			   "rtl8821ae_update_hal_rate_tbl() Error! 8821ae FW RA Only");*/
+			   "rtl8821ae_update_hal_rate_tbl() Error! 8821ae FW RA Only\n");*/
 		rtl8821ae_update_hal_rate_table(hw, sta);
 }
 

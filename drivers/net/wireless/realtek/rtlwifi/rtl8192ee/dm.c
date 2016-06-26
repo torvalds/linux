@@ -983,7 +983,7 @@ static bool _rtl92ee_dm_ra_state_check(struct ieee80211_hw *hw,
 		break;
 	default:
 		RT_TRACE(rtlpriv, COMP_RATR, DBG_DMESG,
-			 "wrong rssi level setting %d !", *ratr_state);
+			 "wrong rssi level setting %d !\n", *ratr_state);
 		break;
 	}
 

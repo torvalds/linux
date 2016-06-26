@@ -1645,7 +1645,7 @@ static void _rtl8723e_read_adapter_info(struct ieee80211_hw *hw,
 
 	case EEPROM_93C46:
 		RT_TRACE(rtlpriv, COMP_ERR, DBG_EMERG,
-			 "RTL819X Not boot from eeprom, check it !!");
+			 "RTL819X Not boot from eeprom, check it !!\n");
 		return;
 
 	default:

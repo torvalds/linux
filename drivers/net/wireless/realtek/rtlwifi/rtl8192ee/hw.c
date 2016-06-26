@@ -2109,12 +2109,12 @@ static void _rtl92ee_read_adapter_info(struct ieee80211_hw *hw)
 
 	case EEPROM_93C46:
 		RT_TRACE(rtlpriv, COMP_ERR, DBG_EMERG,
-			 "RTL819X Not boot from eeprom, check it !!");
+			 "RTL819X Not boot from eeprom, check it !!\n");
 		return;
 
 	default:
 		RT_TRACE(rtlpriv, COMP_ERR, DBG_EMERG,
-			 "boot from neither eeprom nor efuse, check it !!");
+			 "boot from neither eeprom nor efuse, check it !!\n");
 		return;
 	}
 	memcpy(hwinfo, &rtlefuse->efuse_map[EFUSE_INIT_MAP][0], HWSET_MAX_SIZE);
