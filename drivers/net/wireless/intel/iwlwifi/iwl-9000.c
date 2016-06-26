@@ -156,8 +156,8 @@ const struct iwl_cfg iwl9260_2ac_cfg = {
 	.max_ht_ampdu_exponent = IEEE80211_HT_MAX_AMPDU_64K,
 };
 
-const struct iwl_cfg iwl9000_2ac_cfg = {
-	.name = "Intel(R) Dual Band Wireless AC 9000",
+const struct iwl_cfg iwl9460_2ac_cfg = {
+	.name = "Intel(R) Dual Band Wireless AC 9460",
 	.fw_name_pre = IWL9000_FW_PRE,
 	IWL_DEVICE_9000,
 	.ht_params = &iwl9000_ht_params,
