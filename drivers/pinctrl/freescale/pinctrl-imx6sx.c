@@ -1,4 +1,7 @@
 /*
+ * Freescale imx6sx pinctrl driver
+ *
+ * Author: Anson Huang <Anson.Huang@freescale.com>
  * Copyright (C) 2014 Freescale Semiconductor, Inc.
  *
  * This program is free software; you can redistribute it and/or modify
@@ -9,7 +12,6 @@
 #include <linux/err.h>
 #include <linux/init.h>
 #include <linux/io.h>
-#include <linux/module.h>
 #include <linux/of.h>
 #include <linux/of_device.h>
 #include <linux/pinctrl/pinctrl.h>
@@ -394,13 +396,3 @@ static int __init imx6sx_pinctrl_init(void)
 	return platform_driver_register(&imx6sx_pinctrl_driver);
 }
 arch_initcall(imx6sx_pinctrl_init);
-
-static void __exit imx6sx_pinctrl_exit(void)
-{
-	platform_driver_unregister(&imx6sx_pinctrl_driver);
-}
-module_exit(imx6sx_pinctrl_exit);
-
-MODULE_AUTHOR("Anson Huang <Anson.Huang@freescale.com>");
-MODULE_DESCRIPTION("Freescale imx6sx pinctrl driver");
-MODULE_LICENSE("GPL v2");
