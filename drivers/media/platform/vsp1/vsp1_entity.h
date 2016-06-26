@@ -14,7 +14,7 @@
 #define __VSP1_ENTITY_H__
 
 #include <linux/list.h>
-#include <linux/spinlock.h>
+#include <linux/mutex.h>
 
 #include <media/v4l2-subdev.h>
 
@@ -96,6 +96,8 @@ struct vsp1_entity {
 
 	struct v4l2_subdev subdev;
 	struct v4l2_subdev_pad_config *config;
+
+	struct mutex lock;	/* Protects the pad config */
 };
 
 static inline struct vsp1_entity *to_vsp1_entity(struct v4l2_subdev *subdev)

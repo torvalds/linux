@@ -124,10 +124,15 @@ static int lut_set_format(struct v4l2_subdev *subdev,
 	struct vsp1_lut *lut = to_lut(subdev);
 	struct v4l2_subdev_pad_config *config;
 	struct v4l2_mbus_framefmt *format;
+	int ret = 0;
+
+	mutex_lock(&lut->entity.lock);
 
 	config = vsp1_entity_get_pad_config(&lut->entity, cfg, fmt->which);
-	if (!config)
-		return -EINVAL;
+	if (!config) {
+		ret = -EINVAL;
+		goto done;
+	}
 
 	/* Default to YUV if the requested format is not supported. */
 	if (fmt->format.code != MEDIA_BUS_FMT_ARGB8888_1X32 &&
@@ -140,7 +145,7 @@ static int lut_set_format(struct v4l2_subdev *subdev,
 	if (fmt->pad == LUT_PAD_SOURCE) {
 		/* The LUT output format can't be modified. */
 		fmt->format = *format;
-		return 0;
+		goto done;
 	}
 
 	format->code = fmt->format.code;
@@ -158,7 +163,9 @@ static int lut_set_format(struct v4l2_subdev *subdev,
 					    LUT_PAD_SOURCE);
 	*format = fmt->format;
 
-	return 0;
+done:
+	mutex_unlock(&lut->entity.lock);
+	return ret;
 }
 
 /* -----------------------------------------------------------------------------

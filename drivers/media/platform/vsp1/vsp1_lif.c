@@ -66,10 +66,15 @@ static int lif_set_format(struct v4l2_subdev *subdev,
 	struct vsp1_lif *lif = to_lif(subdev);
 	struct v4l2_subdev_pad_config *config;
 	struct v4l2_mbus_framefmt *format;
+	int ret = 0;
+
+	mutex_lock(&lif->entity.lock);
 
 	config = vsp1_entity_get_pad_config(&lif->entity, cfg, fmt->which);
-	if (!config)
-		return -EINVAL;
+	if (!config) {
+		ret = -EINVAL;
+		goto done;
+	}
 
 	/* Default to YUV if the requested format is not supported. */
 	if (fmt->format.code != MEDIA_BUS_FMT_ARGB8888_1X32 &&
@@ -83,7 +88,7 @@ static int lif_set_format(struct v4l2_subdev *subdev,
 		 * format.
 		 */
 		fmt->format = *format;
-		return 0;
+		goto done;
 	}
 
 	format->code = fmt->format.code;
@@ -101,7 +106,9 @@ static int lif_set_format(struct v4l2_subdev *subdev,
 					    LIF_PAD_SOURCE);
 	*format = fmt->format;
 
-	return 0;
+done:
+	mutex_unlock(&lif->entity.lock);
+	return ret;
 }
 
 static const struct v4l2_subdev_pad_ops lif_pad_ops = {
