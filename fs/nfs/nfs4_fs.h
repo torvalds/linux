@@ -185,6 +185,7 @@ struct nfs4_state {
 struct nfs4_exception {
 	struct nfs4_state *state;
 	struct inode *inode;
+	nfs4_stateid *stateid;
 	long timeout;
 	unsigned char delay : 1,
 		      recovering : 1,
