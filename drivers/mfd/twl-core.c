@@ -631,7 +631,7 @@ add_numbered_child(unsigned mod_no, const char *name, int num,
 		status = platform_device_add_data(pdev, pdata, pdata_len);
 		if (status < 0) {
 			dev_dbg(&pdev->dev, "can't add platform_data\n");
-			goto err;
+			goto put_device;
 		}
 	}
 
@@ -644,21 +644,22 @@ add_numbered_child(unsigned mod_no, const char *name, int num,
 		status = platform_device_add_resources(pdev, r, irq1 ? 2 : 1);
 		if (status < 0) {
 			dev_dbg(&pdev->dev, "can't add irqs\n");
-			goto err;
+			goto put_device;
 		}
 	}
 
 	status = platform_device_add(pdev);
-	if (status == 0)
-		device_init_wakeup(&pdev->dev, can_wakeup);
+	if (status)
+		goto put_device;
 
-err:
-	if (status < 0) {
-		platform_device_put(pdev);
-		dev_err(&twl->client->dev, "can't add %s dev\n", name);
-		return ERR_PTR(status);
-	}
+	device_init_wakeup(&pdev->dev, can_wakeup);
+
 	return &pdev->dev;
+
+put_device:
+	platform_device_put(pdev);
+	dev_err(&twl->client->dev, "failed to add device %s\n", name);
+	return ERR_PTR(status);
 }
 
 static inline struct device *add_child(unsigned mod_no, const char *name,
