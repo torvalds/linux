@@ -138,8 +138,10 @@ void machine__exit(struct machine *machine)
 
 void machine__delete(struct machine *machine)
 {
-	machine__exit(machine);
-	free(machine);
+	if (machine) {
+		machine__exit(machine);
+		free(machine);
+	}
 }
 
 void machines__init(struct machines *machines)

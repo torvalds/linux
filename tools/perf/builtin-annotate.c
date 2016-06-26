@@ -236,7 +236,7 @@ static int __cmd_annotate(struct perf_annotate *ann)
 		perf_session__fprintf_dsos(session, stdout);
 
 	total_nr_samples = 0;
-	evlist__for_each(session->evlist, pos) {
+	evlist__for_each_entry(session->evlist, pos) {
 		struct hists *hists = evsel__hists(pos);
 		u32 nr_samples = hists->stats.nr_events[PERF_RECORD_SAMPLE];
 

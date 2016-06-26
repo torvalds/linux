@@ -102,10 +102,8 @@ out:
 
 void exit_probe_symbol_maps(void)
 {
-	if (host_machine) {
-		machine__delete(host_machine);
-		host_machine = NULL;
-	}
+	machine__delete(host_machine);
+	host_machine = NULL;
 	symbol__exit();
 }
 
@@ -898,7 +896,7 @@ static int __show_line_range(struct line_range *lr, const char *module,
 			goto end;
 	}
 
-	intlist__for_each(ln, lr->line_list) {
+	intlist__for_each_entry(ln, lr->line_list) {
 		for (; ln->i > l; l++) {
 			ret = show_one_line(fp, l - lr->offset);
 			if (ret < 0)
@@ -982,7 +980,7 @@ static int show_available_vars_at(struct debuginfo *dinfo,
 		zfree(&vl->point.symbol);
 		nvars = 0;
 		if (vl->vars) {
-			strlist__for_each(node, vl->vars) {
+			strlist__for_each_entry(node, vl->vars) {
 				var = strchr(node->s, '\t') + 1;
 				if (strfilter__compare(_filter, var)) {
 					fprintf(stdout, "\t\t%s\n", node->s);
@@ -2335,7 +2333,7 @@ static int __show_perf_probe_events(int fd, bool is_kprobe,
 	if (!rawlist)
 		return -ENOMEM;
 
-	strlist__for_each(ent, rawlist) {
+	strlist__for_each_entry(ent, rawlist) {
 		ret = parse_probe_trace_command(ent->s, &tev);
 		if (ret >= 0) {
 			if (!filter_probe_trace_event(&tev, filter))

@@ -72,7 +72,7 @@ static int add_hist_entries(struct perf_evlist *evlist, struct machine *machine)
 	 * However the second evsel also has a collapsed entry for
 	 * "bash [libc] malloc" so total 9 entries will be in the tree.
 	 */
-	evlist__for_each(evlist, evsel) {
+	evlist__for_each_entry(evlist, evsel) {
 		struct hists *hists = evsel__hists(evsel);
 
 		for (k = 0; k < ARRAY_SIZE(fake_common_samples); k++) {
@@ -301,7 +301,7 @@ int test__hists_link(int subtest __maybe_unused)
 	if (err < 0)
 		goto out;
 
-	evlist__for_each(evlist, evsel) {
+	evlist__for_each_entry(evlist, evsel) {
 		hists = evsel__hists(evsel);
 		hists__collapse_resort(hists, NULL);
 

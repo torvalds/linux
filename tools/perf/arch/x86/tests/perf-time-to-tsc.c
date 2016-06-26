@@ -154,10 +154,6 @@ next_event:
 	err = 0;
 
 out_err:
-	if (evlist) {
-		perf_evlist__disable(evlist);
-		perf_evlist__delete(evlist);
-	}
-
+	perf_evlist__delete(evlist);
 	return err;
 }

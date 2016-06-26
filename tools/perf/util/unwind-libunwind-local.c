@@ -462,7 +462,8 @@ static int access_mem(unw_addr_space_t __maybe_unused as,
 		return 0;
 	}
 
-	ret = perf_reg_value(&start, &ui->sample->user_regs, PERF_REG_SP);
+	ret = perf_reg_value(&start, &ui->sample->user_regs,
+			     LIBUNWIND__ARCH_REG_SP);
 	if (ret)
 		return ret;
 
@@ -621,7 +622,8 @@ static int get_entries(struct unwind_info *ui, unwind_entry_cb_t cb,
 	unw_cursor_t c;
 	int ret, i = 0;
 
-	ret = perf_reg_value(&val, &ui->sample->user_regs, PERF_REG_IP);
+	ret = perf_reg_value(&val, &ui->sample->user_regs,
+			     LIBUNWIND__ARCH_REG_IP);
 	if (ret)
 		return ret;
 

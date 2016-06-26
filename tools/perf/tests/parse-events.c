@@ -32,7 +32,7 @@ static int test__checkevent_tracepoint_multi(struct perf_evlist *evlist)
 	TEST_ASSERT_VAL("wrong number of entries", evlist->nr_entries > 1);
 	TEST_ASSERT_VAL("wrong number of groups", 0 == evlist->nr_groups);
 
-	evlist__for_each(evlist, evsel) {
+	evlist__for_each_entry(evlist, evsel) {
 		TEST_ASSERT_VAL("wrong type",
 			PERF_TYPE_TRACEPOINT == evsel->attr.type);
 		TEST_ASSERT_VAL("wrong sample_type",
@@ -207,7 +207,7 @@ test__checkevent_tracepoint_multi_modifier(struct perf_evlist *evlist)
 
 	TEST_ASSERT_VAL("wrong number of entries", evlist->nr_entries > 1);
 
-	evlist__for_each(evlist, evsel) {
+	evlist__for_each_entry(evlist, evsel) {
 		TEST_ASSERT_VAL("wrong exclude_user",
 				!evsel->attr.exclude_user);
 		TEST_ASSERT_VAL("wrong exclude_kernel",

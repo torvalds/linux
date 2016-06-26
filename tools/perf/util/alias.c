@@ -1,4 +1,5 @@
 #include "cache.h"
+#include "config.h"
 
 static const char *alias_key;
 static char *alias_val;

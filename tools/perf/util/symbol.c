@@ -1626,7 +1626,7 @@ static int find_matching_kcore(struct map *map, char *dir, size_t dir_sz)
 	if (!dirs)
 		return -1;
 
-	strlist__for_each(nd, dirs) {
+	strlist__for_each_entry(nd, dirs) {
 		scnprintf(kallsyms_filename, sizeof(kallsyms_filename),
 			  "%s/%s/kallsyms", dir, nd->s);
 		if (!validate_kcore_addresses(kallsyms_filename, map)) {

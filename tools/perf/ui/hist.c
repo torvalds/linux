@@ -766,7 +766,7 @@ int perf_hpp__setup_hists_formats(struct perf_hpp_list *list,
 	if (!symbol_conf.report_hierarchy)
 		return 0;
 
-	evlist__for_each(evlist, evsel) {
+	evlist__for_each_entry(evlist, evsel) {
 		hists = evsel__hists(evsel);
 
 		perf_hpp_list__for_each_sort_list(list, fmt) {

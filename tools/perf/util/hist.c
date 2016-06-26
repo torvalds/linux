@@ -79,7 +79,7 @@ void hists__calc_col_len(struct hists *hists, struct hist_entry *h)
 
 	len = thread__comm_len(h->thread);
 	if (hists__new_col_len(hists, HISTC_COMM, len))
-		hists__set_col_len(hists, HISTC_THREAD, len + 6);
+		hists__set_col_len(hists, HISTC_THREAD, len + 8);
 
 	if (h->ms.map) {
 		len = dso__name_len(h->ms.map->dso);
@@ -2199,7 +2199,7 @@ size_t perf_evlist__fprintf_nr_events(struct perf_evlist *evlist, FILE *fp)
 	struct perf_evsel *pos;
 	size_t ret = 0;
 
-	evlist__for_each(evlist, pos) {
+	evlist__for_each_entry(evlist, pos) {
 		ret += fprintf(fp, "%s stats:\n", perf_evsel__name(pos));
 		ret += events_stats__fprintf(&evsel__hists(pos)->stats, fp);
 	}

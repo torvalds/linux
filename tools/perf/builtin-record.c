@@ -13,6 +13,7 @@
 #include "util/util.h"
 #include <subcmd/parse-options.h>
 #include "util/parse-events.h"
+#include "util/config.h"
 
 #include "util/callchain.h"
 #include "util/cgroup.h"
@@ -352,7 +353,7 @@ static int record__open(struct record *rec)
 
 	perf_evlist__config(evlist, opts, &callchain_param);
 
-	evlist__for_each(evlist, pos) {
+	evlist__for_each_entry(evlist, pos) {
 try_again:
 		if (perf_evsel__open(pos, pos->cpus, pos->threads) < 0) {
 			if (perf_evsel__fallback(pos, errno, msg, sizeof(msg))) {

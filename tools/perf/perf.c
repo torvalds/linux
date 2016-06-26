@@ -10,7 +10,7 @@
 
 #include "util/env.h"
 #include <subcmd/exec-cmd.h>
-#include "util/cache.h"
+#include "util/config.h"
 #include "util/quote.h"
 #include <subcmd/run-command.h>
 #include "util/parse-events.h"
@@ -355,6 +355,7 @@ static int run_builtin(struct cmd_struct *p, int argc, const char **argv)
 
 	perf_env__set_cmdline(&perf_env, argc, argv);
 	status = p->fn(argc, argv, prefix);
+	perf_config__exit();
 	exit_browser(status);
 	perf_env__exit(&perf_env);
 	bpf__clear();
@@ -522,6 +523,7 @@ int main(int argc, const char **argv)
 
 	srandom(time(NULL));
 
+	perf_config__init();
 	perf_config(perf_default_config, NULL);
 	set_buildid_dir(NULL);
 

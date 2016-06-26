@@ -126,7 +126,7 @@ int test__basic_mmap(int subtest __maybe_unused)
 	}
 
 	err = 0;
-	evlist__for_each(evlist, evsel) {
+	evlist__for_each_entry(evlist, evsel) {
 		if (nr_events[evsel->idx] != expected_nr_events[evsel->idx]) {
 			pr_debug("expected %d %s events, got %d\n",
 				 expected_nr_events[evsel->idx],

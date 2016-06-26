@@ -79,8 +79,8 @@ static int hist_entry__thread_snprintf(struct hist_entry *he, char *bf,
 {
 	const char *comm = thread__comm_str(he->thread);
 
-	width = max(7U, width) - 6;
-	return repsep_snprintf(bf, size, "%5d:%-*.*s", he->thread->tid,
+	width = max(7U, width) - 8;
+	return repsep_snprintf(bf, size, "%7d:%-*.*s", he->thread->tid,
 			       width, width, comm ?: "");
 }
 
@@ -95,7 +95,7 @@ static int hist_entry__thread_filter(struct hist_entry *he, int type, const void
 }
 
 struct sort_entry sort_thread = {
-	.se_header	= "  Pid:Command",
+	.se_header	= "    Pid:Command",
 	.se_cmp		= sort__thread_cmp,
 	.se_snprintf	= hist_entry__thread_snprintf,
 	.se_filter	= hist_entry__thread_filter,
@@ -2069,7 +2069,7 @@ static struct perf_evsel *find_evsel(struct perf_evlist *evlist, char *event_nam
 	}
 
 	full_name = !!strchr(event_name, ':');
-	evlist__for_each(evlist, pos) {
+	evlist__for_each_entry(evlist, pos) {
 		/* case 2 */
 		if (full_name && !strcmp(pos->name, event_name))
 			return pos;
@@ -2125,7 +2125,7 @@ static int add_all_dynamic_fields(struct perf_evlist *evlist, bool raw_trace,
 	int ret;
 	struct perf_evsel *evsel;
 
-	evlist__for_each(evlist, evsel) {
+	evlist__for_each_entry(evlist, evsel) {
 		if (evsel->attr.type != PERF_TYPE_TRACEPOINT)
 			continue;
 
@@ -2143,7 +2143,7 @@ static int add_all_matching_fields(struct perf_evlist *evlist,
 	struct perf_evsel *evsel;
 	struct format_field *field;
 
-	evlist__for_each(evlist, evsel) {
+	evlist__for_each_entry(evlist, evsel) {
 		if (evsel->attr.type != PERF_TYPE_TRACEPOINT)
 			continue;
 
@@ -2456,7 +2456,7 @@ static const char *get_default_sort_order(struct perf_evlist *evlist)
 	if (evlist == NULL)
 		goto out_no_evlist;
 
-	evlist__for_each(evlist, evsel) {
+	evlist__for_each_entry(evlist, evsel) {
 		if (evsel->attr.type != PERF_TYPE_TRACEPOINT) {
 			use_trace = false;
 			break;

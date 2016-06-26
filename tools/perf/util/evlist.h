@@ -251,70 +251,70 @@ void perf_evlist__to_front(struct perf_evlist *evlist,
 			   struct perf_evsel *move_evsel);
 
 /**
- * __evlist__for_each - iterate thru all the evsels
+ * __evlist__for_each_entry - iterate thru all the evsels
  * @list: list_head instance to iterate
  * @evsel: struct evsel iterator
  */
-#define __evlist__for_each(list, evsel) \
+#define __evlist__for_each_entry(list, evsel) \
         list_for_each_entry(evsel, list, node)
 
 /**
- * evlist__for_each - iterate thru all the evsels
+ * evlist__for_each_entry - iterate thru all the evsels
  * @evlist: evlist instance to iterate
  * @evsel: struct evsel iterator
  */
-#define evlist__for_each(evlist, evsel) \
-	__evlist__for_each(&(evlist)->entries, evsel)
+#define evlist__for_each_entry(evlist, evsel) \
+	__evlist__for_each_entry(&(evlist)->entries, evsel)
 
 /**
- * __evlist__for_each_continue - continue iteration thru all the evsels
+ * __evlist__for_each_entry_continue - continue iteration thru all the evsels
  * @list: list_head instance to iterate
  * @evsel: struct evsel iterator
  */
-#define __evlist__for_each_continue(list, evsel) \
+#define __evlist__for_each_entry_continue(list, evsel) \
         list_for_each_entry_continue(evsel, list, node)
 
 /**
- * evlist__for_each_continue - continue iteration thru all the evsels
+ * evlist__for_each_entry_continue - continue iteration thru all the evsels
  * @evlist: evlist instance to iterate
  * @evsel: struct evsel iterator
  */
-#define evlist__for_each_continue(evlist, evsel) \
-	__evlist__for_each_continue(&(evlist)->entries, evsel)
+#define evlist__for_each_entry_continue(evlist, evsel) \
+	__evlist__for_each_entry_continue(&(evlist)->entries, evsel)
 
 /**
- * __evlist__for_each_reverse - iterate thru all the evsels in reverse order
+ * __evlist__for_each_entry_reverse - iterate thru all the evsels in reverse order
  * @list: list_head instance to iterate
  * @evsel: struct evsel iterator
  */
-#define __evlist__for_each_reverse(list, evsel) \
+#define __evlist__for_each_entry_reverse(list, evsel) \
         list_for_each_entry_reverse(evsel, list, node)
 
 /**
- * evlist__for_each_reverse - iterate thru all the evsels in reverse order
+ * evlist__for_each_entry_reverse - iterate thru all the evsels in reverse order
  * @evlist: evlist instance to iterate
  * @evsel: struct evsel iterator
  */
-#define evlist__for_each_reverse(evlist, evsel) \
-	__evlist__for_each_reverse(&(evlist)->entries, evsel)
+#define evlist__for_each_entry_reverse(evlist, evsel) \
+	__evlist__for_each_entry_reverse(&(evlist)->entries, evsel)
 
 /**
- * __evlist__for_each_safe - safely iterate thru all the evsels
+ * __evlist__for_each_entry_safe - safely iterate thru all the evsels
  * @list: list_head instance to iterate
  * @tmp: struct evsel temp iterator
  * @evsel: struct evsel iterator
  */
-#define __evlist__for_each_safe(list, tmp, evsel) \
+#define __evlist__for_each_entry_safe(list, tmp, evsel) \
         list_for_each_entry_safe(evsel, tmp, list, node)
 
 /**
- * evlist__for_each_safe - safely iterate thru all the evsels
+ * evlist__for_each_entry_safe - safely iterate thru all the evsels
  * @evlist: evlist instance to iterate
  * @evsel: struct evsel iterator
  * @tmp: struct evsel temp iterator
  */
-#define evlist__for_each_safe(evlist, tmp, evsel) \
-	__evlist__for_each_safe(&(evlist)->entries, tmp, evsel)
+#define evlist__for_each_entry_safe(evlist, tmp, evsel) \
+	__evlist__for_each_entry_safe(&(evlist)->entries, tmp, evsel)
 
 void perf_evlist__set_tracking_event(struct perf_evlist *evlist,
 				     struct perf_evsel *tracking_evsel);
