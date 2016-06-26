@@ -141,17 +141,16 @@ struct rxrpc_security {
 	int (*init_connection_security)(struct rxrpc_connection *);
 
 	/* prime a connection's packet security */
-	void (*prime_packet_security)(struct rxrpc_connection *);
+	int (*prime_packet_security)(struct rxrpc_connection *);
 
 	/* impose security on a packet */
-	int (*secure_packet)(const struct rxrpc_call *,
+	int (*secure_packet)(struct rxrpc_call *,
 			     struct sk_buff *,
 			     size_t,
 			     void *);
 
 	/* verify the security on a received packet */
-	int (*verify_packet)(const struct rxrpc_call *, struct sk_buff *,
-			     u32 *);
+	int (*verify_packet)(struct rxrpc_call *, struct sk_buff *, u32 *);
 
 	/* issue a challenge */
 	int (*issue_challenge)(struct rxrpc_connection *);
@@ -399,6 +398,7 @@ struct rxrpc_call {
 	struct sk_buff_head	rx_oos_queue;	/* packets received out of sequence */
 	struct sk_buff		*tx_pending;	/* Tx socket buffer being filled */
 	wait_queue_head_t	tx_waitq;	/* wait for Tx window space to become available */
+	__be32			crypto_buf[2];	/* Temporary packet crypto buffer */
 	unsigned long		user_call_ID;	/* user-defined call ID */
 	unsigned long		creation_jif;	/* time of call creation */
 	unsigned long		flags;
