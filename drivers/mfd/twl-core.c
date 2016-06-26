@@ -622,11 +622,8 @@ add_numbered_child(unsigned mod_no, const char *name, int num,
 	twl = &twl_priv->twl_modules[sid];
 
 	pdev = platform_device_alloc(name, num);
-	if (!pdev) {
-		dev_dbg(&twl->client->dev, "can't alloc dev\n");
-		status = -ENOMEM;
-		goto err;
-	}
+	if (!pdev)
+		return ERR_PTR(-ENOMEM);
 
 	pdev->dev.parent = &twl->client->dev;
 
