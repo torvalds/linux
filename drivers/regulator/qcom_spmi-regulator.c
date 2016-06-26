@@ -1050,6 +1050,8 @@ static struct regulator_ops spmi_vs_ops = {
 	.set_pull_down		= spmi_regulator_common_set_pull_down,
 	.set_soft_start		= spmi_regulator_common_set_soft_start,
 	.set_over_current_protection = spmi_regulator_vs_ocp,
+	.set_mode		= spmi_regulator_common_set_mode,
+	.get_mode		= spmi_regulator_common_get_mode,
 };
 
 static struct regulator_ops spmi_boost_ops = {
