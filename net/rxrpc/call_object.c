@@ -31,6 +31,8 @@ unsigned int rxrpc_max_call_lifetime = 60 * HZ;
 unsigned int rxrpc_dead_call_expiry = 2 * HZ;
 
 const char *const rxrpc_call_states[NR__RXRPC_CALL_STATES] = {
+	[RXRPC_CALL_UNINITIALISED]		= "Uninit",
+	[RXRPC_CALL_CLIENT_AWAIT_CONN]		= "ClWtConn",
 	[RXRPC_CALL_CLIENT_SEND_REQUEST]	= "ClSndReq",
 	[RXRPC_CALL_CLIENT_AWAIT_REPLY]		= "ClAwtRpl",
 	[RXRPC_CALL_CLIENT_RECV_REPLY]		= "ClRcvRpl",
@@ -71,7 +73,7 @@ static unsigned long rxrpc_call_hashfunc(
 	u32		call_id,
 	u32		epoch,
 	u16		service_id,
-	sa_family_t	proto,
+	sa_family_t	family,
 	void		*localptr,
 	unsigned int	addr_size,
 	const u8	*peer_addr)
@@ -92,7 +94,7 @@ static unsigned long rxrpc_call_hashfunc(
 	key += (cid & RXRPC_CIDMASK) >> RXRPC_CIDSHIFT;
 	key += cid & RXRPC_CHANNELMASK;
 	key += in_clientflag;
-	key += proto;
+	key += family;
 	/* Step through the peer address in 16-bit portions for speed */
 	for (i = 0, p = (const u16 *)peer_addr; i < addr_size >> 1; i++, p++)
 		key += *p;
@@ -109,7 +111,7 @@ static void rxrpc_call_hash_add(struct rxrpc_call *call)
 	unsigned int addr_size = 0;
 
 	_enter("");
-	switch (call->proto) {
+	switch (call->family) {
 	case AF_INET:
 		addr_size = sizeof(call->peer_ip.ipv4_addr);
 		break;
@@ -121,8 +123,8 @@ static void rxrpc_call_hash_add(struct rxrpc_call *call)
 	}
 	key = rxrpc_call_hashfunc(call->in_clientflag, call->cid,
 				  call->call_id, call->epoch,
-				  call->service_id, call->proto,
-				  call->conn->trans->local, addr_size,
+				  call->service_id, call->family,
+				  call->conn->params.local, addr_size,
 				  call->peer_ip.ipv6_addr);
 	/* Store the full key in the call */
 	call->hash_key = key;
@@ -151,7 +153,7 @@ static void rxrpc_call_hash_del(struct rxrpc_call *call)
 struct rxrpc_call *rxrpc_find_call_hash(
 	struct rxrpc_host_header *hdr,
 	void		*localptr,
-	sa_family_t	proto,
+	sa_family_t	family,
 	const void	*peer_addr)
 {
 	unsigned long key;
@@ -161,7 +163,7 @@ struct rxrpc_call *rxrpc_find_call_hash(
 	u8 in_clientflag = hdr->flags & RXRPC_CLIENT_INITIATED;
 
 	_enter("");
-	switch (proto) {
+	switch (family) {
 	case AF_INET:
 		addr_size = sizeof(call->peer_ip.ipv4_addr);
 		break;
@@ -174,7 +176,7 @@ struct rxrpc_call *rxrpc_find_call_hash(
 
 	key = rxrpc_call_hashfunc(in_clientflag, hdr->cid, hdr->callNumber,
 				  hdr->epoch, hdr->serviceId,
-				  proto, localptr, addr_size,
+				  family, localptr, addr_size,
 				  peer_addr);
 	hash_for_each_possible_rcu(rxrpc_call_hash, call, hash_node, key) {
 		if (call->hash_key == key &&
@@ -182,7 +184,7 @@ struct rxrpc_call *rxrpc_find_call_hash(
 		    call->cid == hdr->cid &&
 		    call->in_clientflag == in_clientflag &&
 		    call->service_id == hdr->serviceId &&
-		    call->proto == proto &&
+		    call->family == family &&
 		    call->local == localptr &&
 		    memcmp(call->peer_ip.ipv6_addr, peer_addr,
 			   addr_size) == 0 &&
@@ -261,6 +263,7 @@ static struct rxrpc_call *rxrpc_alloc_call(gfp_t gfp)
 		    (unsigned long) call);
 	INIT_WORK(&call->destroyer, &rxrpc_destroy_call);
 	INIT_WORK(&call->processor, &rxrpc_process_call);
+	INIT_LIST_HEAD(&call->link);
 	INIT_LIST_HEAD(&call->accept_link);
 	skb_queue_head_init(&call->rx_queue);
 	skb_queue_head_init(&call->rx_oos_queue);
@@ -269,7 +272,6 @@ static struct rxrpc_call *rxrpc_alloc_call(gfp_t gfp)
 	rwlock_init(&call->state_lock);
 	atomic_set(&call->usage, 1);
 	call->debug_id = atomic_inc_return(&rxrpc_debug_id);
-	call->state = RXRPC_CALL_CLIENT_SEND_REQUEST;
 
 	memset(&call->sock_node, 0xed, sizeof(call->sock_node));
 
@@ -282,66 +284,77 @@ static struct rxrpc_call *rxrpc_alloc_call(gfp_t gfp)
 }
 
 /*
- * allocate a new client call and attempt to get a connection slot for it
+ * Allocate a new client call.
  */
-static struct rxrpc_call *rxrpc_alloc_client_call(
-	struct rxrpc_sock *rx,
-	struct rxrpc_transport *trans,
-	struct rxrpc_conn_bundle *bundle,
-	gfp_t gfp)
+static struct rxrpc_call *rxrpc_alloc_client_call(struct rxrpc_sock *rx,
+						  struct sockaddr_rxrpc *srx,
+						  gfp_t gfp)
 {
 	struct rxrpc_call *call;
-	int ret;
 
 	_enter("");
 
-	ASSERT(rx != NULL);
-	ASSERT(trans != NULL);
-	ASSERT(bundle != NULL);
+	ASSERT(rx->local != NULL);
 
 	call = rxrpc_alloc_call(gfp);
 	if (!call)
 		return ERR_PTR(-ENOMEM);
+	call->state = RXRPC_CALL_CLIENT_AWAIT_CONN;
 
 	sock_hold(&rx->sk);
 	call->socket = rx;
 	call->rx_data_post = 1;
 
-	ret = rxrpc_connect_call(rx, trans, bundle, call, gfp);
-	if (ret < 0) {
-		kmem_cache_free(rxrpc_call_jar, call);
-		return ERR_PTR(ret);
-	}
-
 	/* Record copies of information for hashtable lookup */
-	call->proto = rx->proto;
-	call->local = trans->local;
-	switch (call->proto) {
+	call->family = rx->family;
+	call->local = rx->local;
+	switch (call->family) {
 	case AF_INET:
-		call->peer_ip.ipv4_addr =
-			trans->peer->srx.transport.sin.sin_addr.s_addr;
+		call->peer_ip.ipv4_addr = srx->transport.sin.sin_addr.s_addr;
 		break;
 	case AF_INET6:
 		memcpy(call->peer_ip.ipv6_addr,
-		       trans->peer->srx.transport.sin6.sin6_addr.in6_u.u6_addr8,
+		       srx->transport.sin6.sin6_addr.in6_u.u6_addr8,
 		       sizeof(call->peer_ip.ipv6_addr));
 		break;
 	}
-	call->epoch = call->conn->epoch;
-	call->service_id = call->conn->service_id;
-	call->in_clientflag = call->conn->in_clientflag;
-	/* Add the new call to the hashtable */
-	rxrpc_call_hash_add(call);
 
-	spin_lock(&call->conn->trans->peer->lock);
-	hlist_add_head(&call->error_link, &call->conn->trans->peer->error_targets);
-	spin_unlock(&call->conn->trans->peer->lock);
-
-	call->lifetimer.expires = jiffies + rxrpc_max_call_lifetime;
-	add_timer(&call->lifetimer);
+	call->service_id = srx->srx_service;
+	call->in_clientflag = 0;
 
 	_leave(" = %p", call);
 	return call;
+}
+
+/*
+ * Begin client call.
+ */
+static int rxrpc_begin_client_call(struct rxrpc_call *call,
+				   struct rxrpc_conn_parameters *cp,
+				   struct sockaddr_rxrpc *srx,
+				   gfp_t gfp)
+{
+	int ret;
+
+	/* Set up or get a connection record and set the protocol parameters,
+	 * including channel number and call ID.
+	 */
+	ret = rxrpc_connect_call(call, cp, srx, gfp);
+	if (ret < 0)
+		return ret;
+
+	call->state = RXRPC_CALL_CLIENT_SEND_REQUEST;
+
+	/* Add the new call to the hashtable */
+	rxrpc_call_hash_add(call);
+
+	spin_lock(&call->conn->params.peer->lock);
+	hlist_add_head(&call->error_link, &call->conn->params.peer->error_targets);
+	spin_unlock(&call->conn->params.peer->lock);
+
+	call->lifetimer.expires = jiffies + rxrpc_max_call_lifetime;
+	add_timer(&call->lifetimer);
+	return 0;
 }
 
 /*
@@ -349,24 +362,24 @@ static struct rxrpc_call *rxrpc_alloc_client_call(
  * - called in process context with IRQs enabled
  */
 struct rxrpc_call *rxrpc_new_client_call(struct rxrpc_sock *rx,
-					 struct rxrpc_transport *trans,
-					 struct rxrpc_conn_bundle *bundle,
+					 struct rxrpc_conn_parameters *cp,
+					 struct sockaddr_rxrpc *srx,
 					 unsigned long user_call_ID,
 					 gfp_t gfp)
 {
 	struct rxrpc_call *call, *xcall;
 	struct rb_node *parent, **pp;
+	int ret;
 
-	_enter("%p,%d,%d,%lx",
-	       rx, trans->debug_id, bundle ? bundle->debug_id : -1,
-	       user_call_ID);
+	_enter("%p,%lx", rx, user_call_ID);
 
-	call = rxrpc_alloc_client_call(rx, trans, bundle, gfp);
+	call = rxrpc_alloc_client_call(rx, srx, gfp);
 	if (IS_ERR(call)) {
 		_leave(" = %ld", PTR_ERR(call));
 		return call;
 	}
 
+	/* Publish the call, even though it is incompletely set up as yet */
 	call->user_call_ID = user_call_ID;
 	__set_bit(RXRPC_CALL_HAS_USERID, &call->flags);
 
@@ -396,10 +409,28 @@ struct rxrpc_call *rxrpc_new_client_call(struct rxrpc_sock *rx,
 	list_add_tail(&call->link, &rxrpc_calls);
 	write_unlock_bh(&rxrpc_call_lock);
 
+	ret = rxrpc_begin_client_call(call, cp, srx, gfp);
+	if (ret < 0)
+		goto error;
+
 	_net("CALL new %d on CONN %d", call->debug_id, call->conn->debug_id);
 
 	_leave(" = %p [new]", call);
 	return call;
+
+error:
+	write_lock(&rx->call_lock);
+	rb_erase(&call->sock_node, &rx->calls);
+	write_unlock(&rx->call_lock);
+	rxrpc_put_call(call);
+
+	write_lock_bh(&rxrpc_call_lock);
+	list_del(&call->link);
+	write_unlock_bh(&rxrpc_call_lock);
+
+	rxrpc_put_call(call);
+	_leave(" = %d", ret);
+	return ERR_PTR(ret);
 
 	/* We unexpectedly found the user ID in the list after taking
 	 * the call_lock.  This shouldn't happen unless the user races
@@ -419,8 +450,9 @@ found_user_ID_now_present:
  */
 struct rxrpc_call *rxrpc_incoming_call(struct rxrpc_sock *rx,
 				       struct rxrpc_connection *conn,
-				       struct rxrpc_host_header *hdr)
+				       struct sk_buff *skb)
 {
+	struct rxrpc_skb_priv *sp = rxrpc_skb(skb);
 	struct rxrpc_call *call, *candidate;
 	struct rb_node **p, *parent;
 	u32 call_id;
@@ -433,13 +465,13 @@ struct rxrpc_call *rxrpc_incoming_call(struct rxrpc_sock *rx,
 	if (!candidate)
 		return ERR_PTR(-EBUSY);
 
-	candidate->socket = rx;
-	candidate->conn = conn;
-	candidate->cid = hdr->cid;
-	candidate->call_id = hdr->callNumber;
-	candidate->channel = hdr->cid & RXRPC_CHANNELMASK;
-	candidate->rx_data_post = 0;
-	candidate->state = RXRPC_CALL_SERVER_ACCEPTING;
+	candidate->socket	= rx;
+	candidate->conn		= conn;
+	candidate->cid		= sp->hdr.cid;
+	candidate->call_id	= sp->hdr.callNumber;
+	candidate->channel	= sp->hdr.cid & RXRPC_CHANNELMASK;
+	candidate->rx_data_post	= 0;
+	candidate->state	= RXRPC_CALL_SERVER_ACCEPTING;
 	if (conn->security_ix > 0)
 		candidate->state = RXRPC_CALL_SERVER_SECURING;
 
@@ -448,7 +480,7 @@ struct rxrpc_call *rxrpc_incoming_call(struct rxrpc_sock *rx,
 	/* set the channel for this call */
 	call = conn->channels[candidate->channel];
 	_debug("channel[%u] is %p", candidate->channel, call);
-	if (call && call->call_id == hdr->callNumber) {
+	if (call && call->call_id == sp->hdr.callNumber) {
 		/* already set; must've been a duplicate packet */
 		_debug("extant call [%d]", call->state);
 		ASSERTCMP(call->conn, ==, conn);
@@ -486,7 +518,7 @@ struct rxrpc_call *rxrpc_incoming_call(struct rxrpc_sock *rx,
 
 	/* check the call number isn't duplicate */
 	_debug("check dup");
-	call_id = hdr->callNumber;
+	call_id = sp->hdr.callNumber;
 	p = &conn->calls.rb_node;
 	parent = NULL;
 	while (*p) {
@@ -512,36 +544,36 @@ struct rxrpc_call *rxrpc_incoming_call(struct rxrpc_sock *rx,
 	rb_insert_color(&call->conn_node, &conn->calls);
 	conn->channels[call->channel] = call;
 	sock_hold(&rx->sk);
-	atomic_inc(&conn->usage);
+	rxrpc_get_connection(conn);
 	write_unlock_bh(&conn->lock);
 
-	spin_lock(&conn->trans->peer->lock);
-	hlist_add_head(&call->error_link, &conn->trans->peer->error_targets);
-	spin_unlock(&conn->trans->peer->lock);
+	spin_lock(&conn->params.peer->lock);
+	hlist_add_head(&call->error_link, &conn->params.peer->error_targets);
+	spin_unlock(&conn->params.peer->lock);
 
 	write_lock_bh(&rxrpc_call_lock);
 	list_add_tail(&call->link, &rxrpc_calls);
 	write_unlock_bh(&rxrpc_call_lock);
 
 	/* Record copies of information for hashtable lookup */
-	call->proto = rx->proto;
-	call->local = conn->trans->local;
-	switch (call->proto) {
+	call->family = rx->family;
+	call->local = conn->params.local;
+	switch (call->family) {
 	case AF_INET:
 		call->peer_ip.ipv4_addr =
-			conn->trans->peer->srx.transport.sin.sin_addr.s_addr;
+			conn->params.peer->srx.transport.sin.sin_addr.s_addr;
 		break;
 	case AF_INET6:
 		memcpy(call->peer_ip.ipv6_addr,
-		       conn->trans->peer->srx.transport.sin6.sin6_addr.in6_u.u6_addr8,
+		       conn->params.peer->srx.transport.sin6.sin6_addr.in6_u.u6_addr8,
 		       sizeof(call->peer_ip.ipv6_addr));
 		break;
 	default:
 		break;
 	}
-	call->epoch = conn->epoch;
-	call->service_id = conn->service_id;
-	call->in_clientflag = conn->in_clientflag;
+	call->epoch = conn->proto.epoch;
+	call->service_id = conn->params.service_id;
+	call->in_clientflag = conn->proto.in_clientflag;
 	/* Add the new call to the hashtable */
 	rxrpc_call_hash_add(call);
 
@@ -609,40 +641,13 @@ void rxrpc_release_call(struct rxrpc_call *call)
 	write_unlock_bh(&rx->call_lock);
 
 	/* free up the channel for reuse */
-	spin_lock(&conn->trans->client_lock);
+	spin_lock(&conn->channel_lock);
 	write_lock_bh(&conn->lock);
 	write_lock(&call->state_lock);
 
-	if (conn->channels[call->channel] == call)
-		conn->channels[call->channel] = NULL;
+	rxrpc_disconnect_call(call);
 
-	if (conn->out_clientflag && conn->bundle) {
-		conn->avail_calls++;
-		switch (conn->avail_calls) {
-		case 1:
-			list_move_tail(&conn->bundle_link,
-				       &conn->bundle->avail_conns);
-		case 2 ... RXRPC_MAXCALLS - 1:
-			ASSERT(conn->channels[0] == NULL ||
-			       conn->channels[1] == NULL ||
-			       conn->channels[2] == NULL ||
-			       conn->channels[3] == NULL);
-			break;
-		case RXRPC_MAXCALLS:
-			list_move_tail(&conn->bundle_link,
-				       &conn->bundle->unused_conns);
-			ASSERT(conn->channels[0] == NULL &&
-			       conn->channels[1] == NULL &&
-			       conn->channels[2] == NULL &&
-			       conn->channels[3] == NULL);
-			break;
-		default:
-			pr_err("conn->avail_calls=%d\n", conn->avail_calls);
-			BUG();
-		}
-	}
-
-	spin_unlock(&conn->trans->client_lock);
+	spin_unlock(&conn->channel_lock);
 
 	if (call->state < RXRPC_CALL_COMPLETE &&
 	    call->state != RXRPC_CALL_CLIENT_FINAL_ACK) {
@@ -811,9 +816,9 @@ static void rxrpc_cleanup_call(struct rxrpc_call *call)
 	}
 
 	if (call->conn) {
-		spin_lock(&call->conn->trans->peer->lock);
+		spin_lock(&call->conn->params.peer->lock);
 		hlist_del_init(&call->error_link);
-		spin_unlock(&call->conn->trans->peer->lock);
+		spin_unlock(&call->conn->params.peer->lock);
 
 		write_lock_bh(&call->conn->lock);
 		rb_erase(&call->conn_node, &call->conn->calls);

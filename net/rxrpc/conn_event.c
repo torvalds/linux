@@ -88,14 +88,14 @@ static int rxrpc_abort_connection(struct rxrpc_connection *conn,
 
 	rxrpc_abort_calls(conn, RXRPC_CALL_LOCALLY_ABORTED, abort_code);
 
-	msg.msg_name	= &conn->trans->peer->srx.transport;
-	msg.msg_namelen	= conn->trans->peer->srx.transport_len;
+	msg.msg_name	= &conn->params.peer->srx.transport;
+	msg.msg_namelen	= conn->params.peer->srx.transport_len;
 	msg.msg_control	= NULL;
 	msg.msg_controllen = 0;
 	msg.msg_flags	= 0;
 
-	whdr.epoch	= htonl(conn->epoch);
-	whdr.cid	= htonl(conn->cid);
+	whdr.epoch	= htonl(conn->proto.epoch);
+	whdr.cid	= htonl(conn->proto.cid);
 	whdr.callNumber	= 0;
 	whdr.seq	= 0;
 	whdr.type	= RXRPC_PACKET_TYPE_ABORT;
@@ -103,7 +103,7 @@ static int rxrpc_abort_connection(struct rxrpc_connection *conn,
 	whdr.userStatus	= 0;
 	whdr.securityIndex = conn->security_ix;
 	whdr._rsvd	= 0;
-	whdr.serviceId	= htons(conn->service_id);
+	whdr.serviceId	= htons(conn->params.service_id);
 
 	word		= htonl(conn->local_abort);
 
@@ -118,7 +118,7 @@ static int rxrpc_abort_connection(struct rxrpc_connection *conn,
 	whdr.serial = htonl(serial);
 	_proto("Tx CONN ABORT %%%u { %d }", serial, conn->local_abort);
 
-	ret = kernel_sendmsg(conn->trans->local->socket, &msg, iov, 2, len);
+	ret = kernel_sendmsg(conn->params.local->socket, &msg, iov, 2, len);
 	if (ret < 0) {
 		_debug("sendmsg failed: %d", ret);
 		return -EAGAIN;
@@ -220,7 +220,7 @@ static void rxrpc_secure_connection(struct rxrpc_connection *conn)
 
 	ASSERT(conn->security_ix != 0);
 
-	if (!conn->key) {
+	if (!conn->params.key) {
 		_debug("set up security");
 		ret = rxrpc_init_server_conn_security(conn);
 		switch (ret) {
@@ -263,7 +263,7 @@ void rxrpc_process_connection(struct work_struct *work)
 
 	_enter("{%d}", conn->debug_id);
 
-	atomic_inc(&conn->usage);
+	rxrpc_get_connection(conn);
 
 	if (test_and_clear_bit(RXRPC_CONN_CHALLENGE, &conn->events)) {
 		rxrpc_secure_connection(conn);

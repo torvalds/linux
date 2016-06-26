@@ -187,7 +187,7 @@ static void rxrpc_resend(struct rxrpc_call *call)
 
 			_proto("Tx DATA %%%u { #%d }",
 			       sp->hdr.serial, sp->hdr.seq);
-			if (rxrpc_send_packet(call->conn->trans, txb) < 0) {
+			if (rxrpc_send_data_packet(call->conn, txb) < 0) {
 				stop = true;
 				sp->resend_at = jiffies + 3;
 			} else {
@@ -545,7 +545,7 @@ static void rxrpc_extract_ackinfo(struct rxrpc_call *call, struct sk_buff *skb,
 
 	mtu = min(ntohl(ackinfo.rxMTU), ntohl(ackinfo.maxMTU));
 
-	peer = call->conn->trans->peer;
+	peer = call->conn->params.peer;
 	if (mtu < peer->maxdata) {
 		spin_lock_bh(&peer->lock);
 		peer->maxdata = mtu;
@@ -836,13 +836,13 @@ void rxrpc_process_call(struct work_struct *work)
 
 	/* there's a good chance we're going to have to send a message, so set
 	 * one up in advance */
-	msg.msg_name	= &call->conn->trans->peer->srx.transport;
-	msg.msg_namelen	= call->conn->trans->peer->srx.transport_len;
+	msg.msg_name	= &call->conn->params.peer->srx.transport;
+	msg.msg_namelen	= call->conn->params.peer->srx.transport_len;
 	msg.msg_control	= NULL;
 	msg.msg_controllen = 0;
 	msg.msg_flags	= 0;
 
-	whdr.epoch	= htonl(call->conn->epoch);
+	whdr.epoch	= htonl(call->conn->proto.epoch);
 	whdr.cid	= htonl(call->cid);
 	whdr.callNumber	= htonl(call->call_id);
 	whdr.seq	= 0;
@@ -1151,8 +1151,8 @@ send_ACK_with_skew:
 	ack.maxSkew = htons(atomic_read(&call->conn->hi_serial) -
 			    ntohl(ack.serial));
 send_ACK:
-	mtu = call->conn->trans->peer->if_mtu;
-	mtu -= call->conn->trans->peer->hdrsize;
+	mtu = call->conn->params.peer->if_mtu;
+	mtu -= call->conn->params.peer->hdrsize;
 	ackinfo.maxMTU	= htonl(mtu);
 	ackinfo.rwind	= htonl(rxrpc_rx_window_size);
 
@@ -1206,7 +1206,7 @@ send_message_2:
 		len += iov[1].iov_len;
 	}
 
-	ret = kernel_sendmsg(call->conn->trans->local->socket,
+	ret = kernel_sendmsg(call->conn->params.local->socket,
 			     &msg, iov, ioc, len);
 	if (ret < 0) {
 		_debug("sendmsg failed: %d", ret);
@@ -1264,7 +1264,7 @@ maybe_reschedule:
 	if (call->state >= RXRPC_CALL_COMPLETE &&
 	    !list_empty(&call->accept_link)) {
 		_debug("X unlinking once-pending call %p { e=%lx f=%lx c=%x }",
-		       call, call->events, call->flags, call->conn->cid);
+		       call, call->events, call->flags, call->conn->proto.cid);
 
 		read_lock_bh(&call->state_lock);
 		if (!test_bit(RXRPC_CALL_RELEASED, &call->flags) &&
@@ -1282,7 +1282,7 @@ error:
 	 * this means there's a race between clearing the flag and setting the
 	 * work pending bit and the work item being processed again */
 	if (call->events && !work_pending(&call->processor)) {
-		_debug("jumpstart %x", call->conn->cid);
+		_debug("jumpstart %x", call->conn->proto.cid);
 		rxrpc_queue_call(call);
 	}
 

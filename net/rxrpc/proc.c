@@ -46,7 +46,7 @@ static void rxrpc_call_seq_stop(struct seq_file *seq, void *v)
 
 static int rxrpc_call_seq_show(struct seq_file *seq, void *v)
 {
-	struct rxrpc_transport *trans;
+	struct rxrpc_connection *conn;
 	struct rxrpc_call *call;
 	char lbuff[4 + 4 + 4 + 4 + 5 + 1], rbuff[4 + 4 + 4 + 4 + 5 + 1];
 
@@ -59,25 +59,28 @@ static int rxrpc_call_seq_show(struct seq_file *seq, void *v)
 	}
 
 	call = list_entry(v, struct rxrpc_call, link);
-	trans = call->conn->trans;
 
 	sprintf(lbuff, "%pI4:%u",
-		&trans->local->srx.transport.sin.sin_addr,
-		ntohs(trans->local->srx.transport.sin.sin_port));
+		&call->local->srx.transport.sin.sin_addr,
+		ntohs(call->local->srx.transport.sin.sin_port));
 
-	sprintf(rbuff, "%pI4:%u",
-		&trans->peer->srx.transport.sin.sin_addr,
-		ntohs(trans->peer->srx.transport.sin.sin_port));
+	conn = call->conn;
+	if (conn)
+		sprintf(rbuff, "%pI4:%u",
+			&conn->params.peer->srx.transport.sin.sin_addr,
+			ntohs(conn->params.peer->srx.transport.sin.sin_port));
+	else
+		strcpy(rbuff, "no_connection");
 
 	seq_printf(seq,
 		   "UDP   %-22.22s %-22.22s %4x %08x %08x %s %3u"
 		   " %-8.8s %08x %lx\n",
 		   lbuff,
 		   rbuff,
-		   call->conn->service_id,
+		   call->service_id,
 		   call->cid,
 		   call->call_id,
-		   call->conn->in_clientflag ? "Svc" : "Clt",
+		   call->in_clientflag ? "Svc" : "Clt",
 		   atomic_read(&call->usage),
 		   rxrpc_call_states[call->state],
 		   call->remote_abort ?: call->local_abort,
@@ -129,7 +132,6 @@ static void rxrpc_connection_seq_stop(struct seq_file *seq, void *v)
 static int rxrpc_connection_seq_show(struct seq_file *seq, void *v)
 {
 	struct rxrpc_connection *conn;
-	struct rxrpc_transport *trans;
 	char lbuff[4 + 4 + 4 + 4 + 5 + 1], rbuff[4 + 4 + 4 + 4 + 5 + 1];
 
 	if (v == &rxrpc_connections) {
@@ -142,28 +144,27 @@ static int rxrpc_connection_seq_show(struct seq_file *seq, void *v)
 	}
 
 	conn = list_entry(v, struct rxrpc_connection, link);
-	trans = conn->trans;
 
 	sprintf(lbuff, "%pI4:%u",
-		&trans->local->srx.transport.sin.sin_addr,
-		ntohs(trans->local->srx.transport.sin.sin_port));
+		&conn->params.local->srx.transport.sin.sin_addr,
+		ntohs(conn->params.local->srx.transport.sin.sin_port));
 
 	sprintf(rbuff, "%pI4:%u",
-		&trans->peer->srx.transport.sin.sin_addr,
-		ntohs(trans->peer->srx.transport.sin.sin_port));
+		&conn->params.peer->srx.transport.sin.sin_addr,
+		ntohs(conn->params.peer->srx.transport.sin.sin_port));
 
 	seq_printf(seq,
 		   "UDP   %-22.22s %-22.22s %4x %08x %08x %s %3u"
 		   " %s %08x %08x %08x\n",
 		   lbuff,
 		   rbuff,
-		   conn->service_id,
-		   conn->cid,
+		   conn->params.service_id,
+		   conn->proto.cid,
 		   conn->call_counter,
-		   conn->in_clientflag ? "Svc" : "Clt",
+		   rxrpc_conn_is_service(conn) ? "Svc" : "Clt",
 		   atomic_read(&conn->usage),
 		   rxrpc_conn_states[conn->state],
-		   key_serial(conn->key),
+		   key_serial(conn->params.key),
 		   atomic_read(&conn->serial),
 		   atomic_read(&conn->hi_serial));
 

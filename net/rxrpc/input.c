@@ -360,7 +360,7 @@ void rxrpc_fast_process_packet(struct rxrpc_call *call, struct sk_buff *skb)
 	case RXRPC_PACKET_TYPE_BUSY:
 		_proto("Rx BUSY %%%u", sp->hdr.serial);
 
-		if (call->conn->out_clientflag)
+		if (rxrpc_conn_is_service(call->conn))
 			goto protocol_error;
 
 		write_lock_bh(&call->state_lock);
@@ -533,7 +533,7 @@ static void rxrpc_post_packet_to_call(struct rxrpc_call *call,
 	case RXRPC_CALL_COMPLETE:
 	case RXRPC_CALL_CLIENT_FINAL_ACK:
 		/* complete server call */
-		if (call->conn->in_clientflag)
+		if (rxrpc_conn_is_service(call->conn))
 			goto dead_call;
 		/* resend last packet of a completed call */
 		_debug("final ack again");
@@ -560,7 +560,7 @@ static void rxrpc_post_packet_to_call(struct rxrpc_call *call,
 dead_call:
 	if (sp->hdr.type != RXRPC_PACKET_TYPE_ABORT) {
 		skb->priority = RX_CALL_DEAD;
-		rxrpc_reject_packet(call->conn->trans->local, skb);
+		rxrpc_reject_packet(call->conn->params.local, skb);
 		goto unlock;
 	}
 free_unlock:
@@ -580,7 +580,7 @@ static void rxrpc_post_packet_to_conn(struct rxrpc_connection *conn,
 {
 	_enter("%p,%p", conn, skb);
 
-	atomic_inc(&conn->usage);
+	rxrpc_get_connection(conn);
 	skb_queue_tail(&conn->rx_queue, skb);
 	rxrpc_queue_conn(conn);
 }
@@ -628,27 +628,20 @@ int rxrpc_extract_header(struct rxrpc_skb_priv *sp, struct sk_buff *skb)
 }
 
 static struct rxrpc_connection *rxrpc_conn_from_local(struct rxrpc_local *local,
-					       struct sk_buff *skb,
-					       struct rxrpc_skb_priv *sp)
+						      struct sk_buff *skb)
 {
 	struct rxrpc_peer *peer;
-	struct rxrpc_transport *trans;
 	struct rxrpc_connection *conn;
 	struct sockaddr_rxrpc srx;
 
 	rxrpc_get_addr_from_skb(local, skb, &srx);
 	rcu_read_lock();
 	peer = rxrpc_lookup_peer_rcu(local, &srx);
-	if (IS_ERR(peer))
+	if (!peer)
 		goto cant_find_peer;
 
-	trans = rxrpc_find_transport(local, peer);
+	conn = rxrpc_find_connection(local, peer, skb);
 	rcu_read_unlock();
-	if (!trans)
-		goto cant_find_conn;
-
-	conn = rxrpc_find_connection(trans, &sp->hdr);
-	rxrpc_put_transport(trans);
 	if (!conn)
 		goto cant_find_conn;
 
@@ -739,7 +732,7 @@ void rxrpc_data_ready(struct sock *sk)
 		 * old-fashioned way doesn't really hurt */
 		struct rxrpc_connection *conn;
 
-		conn = rxrpc_conn_from_local(local, skb, sp);
+		conn = rxrpc_conn_from_local(local, skb);
 		if (!conn)
 			goto cant_route_call;
 

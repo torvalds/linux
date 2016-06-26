@@ -97,7 +97,7 @@ static int rxrpc_validate_address(struct rxrpc_sock *rx,
 	    srx->transport_len > len)
 		return -EINVAL;
 
-	if (srx->transport.family != rx->proto)
+	if (srx->transport.family != rx->family)
 		return -EAFNOSUPPORT;
 
 	switch (srx->transport.family) {
@@ -224,39 +224,6 @@ static int rxrpc_listen(struct socket *sock, int backlog)
 	return ret;
 }
 
-/*
- * find a transport by address
- */
-struct rxrpc_transport *rxrpc_name_to_transport(struct rxrpc_sock *rx,
-						struct sockaddr *addr,
-						int addr_len, int flags,
-						gfp_t gfp)
-{
-	struct sockaddr_rxrpc *srx = (struct sockaddr_rxrpc *) addr;
-	struct rxrpc_transport *trans;
-	struct rxrpc_peer *peer;
-
-	_enter("%p,%p,%d,%d", rx, addr, addr_len, flags);
-
-	ASSERT(rx->local != NULL);
-
-	if (rx->srx.transport_type != srx->transport_type)
-		return ERR_PTR(-ESOCKTNOSUPPORT);
-	if (rx->srx.transport.family != srx->transport.family)
-		return ERR_PTR(-EAFNOSUPPORT);
-
-	/* find a remote transport endpoint from the local one */
-	peer = rxrpc_lookup_peer(rx->local, srx, gfp);
-	if (IS_ERR(peer))
-		return ERR_CAST(peer);
-
-	/* find a transport */
-	trans = rxrpc_get_transport(rx->local, peer, gfp);
-	rxrpc_put_peer(peer);
-	_leave(" = %p", trans);
-	return trans;
-}
-
 /**
  * rxrpc_kernel_begin_call - Allow a kernel service to begin a call
  * @sock: The socket on which to make the call
@@ -277,39 +244,32 @@ struct rxrpc_call *rxrpc_kernel_begin_call(struct socket *sock,
 					   unsigned long user_call_ID,
 					   gfp_t gfp)
 {
-	struct rxrpc_conn_bundle *bundle;
-	struct rxrpc_transport *trans;
+	struct rxrpc_conn_parameters cp;
 	struct rxrpc_call *call;
 	struct rxrpc_sock *rx = rxrpc_sk(sock->sk);
+	int ret;
 
 	_enter(",,%x,%lx", key_serial(key), user_call_ID);
 
-	lock_sock(&rx->sk);
+	ret = rxrpc_validate_address(rx, srx, sizeof(*srx));
+	if (ret < 0)
+		return ERR_PTR(ret);
 
-	trans = rxrpc_name_to_transport(rx, (struct sockaddr *)srx,
-					sizeof(*srx), 0, gfp);
-	if (IS_ERR(trans)) {
-		call = ERR_CAST(trans);
-		trans = NULL;
-		goto out_notrans;
-	}
+	lock_sock(&rx->sk);
 
 	if (!key)
 		key = rx->key;
 	if (key && !key->payload.data[0])
 		key = NULL; /* a no-security key */
 
-	bundle = rxrpc_get_bundle(rx, trans, key, srx->srx_service, gfp);
-	if (IS_ERR(bundle)) {
-		call = ERR_CAST(bundle);
-		goto out;
-	}
+	memset(&cp, 0, sizeof(cp));
+	cp.local		= rx->local;
+	cp.key			= key;
+	cp.security_level	= 0;
+	cp.exclusive		= false;
+	cp.service_id		= srx->srx_service;
+	call = rxrpc_new_client_call(rx, &cp, srx, user_call_ID, gfp);
 
-	call = rxrpc_new_client_call(rx, trans, bundle, user_call_ID, gfp);
-	rxrpc_put_bundle(trans, bundle);
-out:
-	rxrpc_put_transport(trans);
-out_notrans:
 	release_sock(&rx->sk);
 	_leave(" = %p", call);
 	return call;
@@ -487,7 +447,7 @@ static int rxrpc_setsockopt(struct socket *sock, int level, int optname,
 			ret = -EISCONN;
 			if (rx->sk.sk_state != RXRPC_UNBOUND)
 				goto error;
-			set_bit(RXRPC_SOCK_EXCLUSIVE_CONN, &rx->flags);
+			rx->exclusive = true;
 			goto success;
 
 		case RXRPC_SECURITY_KEY:
@@ -600,7 +560,7 @@ static int rxrpc_create(struct net *net, struct socket *sock, int protocol,
 	sk->sk_destruct		= rxrpc_sock_destructor;
 
 	rx = rxrpc_sk(sk);
-	rx->proto = protocol;
+	rx->family = protocol;
 	rx->calls = RB_ROOT;
 
 	INIT_LIST_HEAD(&rx->listen_link);
@@ -662,16 +622,8 @@ static int rxrpc_release_sock(struct sock *sk)
 	flush_workqueue(rxrpc_workqueue);
 	rxrpc_purge_queue(&sk->sk_receive_queue);
 
-	if (rx->conn) {
-		rxrpc_put_connection(rx->conn);
-		rx->conn = NULL;
-	}
-
-	if (rx->local) {
-		rxrpc_put_local(rx->local);
-		rx->local = NULL;
-	}
-
+	rxrpc_put_local(rx->local);
+	rx->local = NULL;
 	key_put(rx->key);
 	rx->key = NULL;
 	key_put(rx->securities);
@@ -836,7 +788,6 @@ static void __exit af_rxrpc_exit(void)
 	proto_unregister(&rxrpc_proto);
 	rxrpc_destroy_all_calls();
 	rxrpc_destroy_all_connections();
-	rxrpc_destroy_all_transports();
 
 	ASSERTCMP(atomic_read(&rxrpc_n_skbs), ==, 0);
 
@@ -856,6 +807,8 @@ static void __exit af_rxrpc_exit(void)
 	_debug("synchronise RCU");
 	rcu_barrier();
 	_debug("destroy locals");
+	ASSERT(idr_is_empty(&rxrpc_client_conn_ids));
+	idr_destroy(&rxrpc_client_conn_ids);
 	rxrpc_destroy_all_locals();
 
 	remove_proc_entry("rxrpc_conns", init_net.proc_net);

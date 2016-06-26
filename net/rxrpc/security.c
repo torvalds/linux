@@ -76,7 +76,7 @@ int rxrpc_init_client_conn_security(struct rxrpc_connection *conn)
 {
 	const struct rxrpc_security *sec;
 	struct rxrpc_key_token *token;
-	struct key *key = conn->key;
+	struct key *key = conn->params.key;
 	int ret;
 
 	_enter("{%d},{%x}", conn->debug_id, key_serial(key));
@@ -113,7 +113,7 @@ int rxrpc_init_client_conn_security(struct rxrpc_connection *conn)
 int rxrpc_init_server_conn_security(struct rxrpc_connection *conn)
 {
 	const struct rxrpc_security *sec;
-	struct rxrpc_local *local = conn->trans->local;
+	struct rxrpc_local *local = conn->params.local;
 	struct rxrpc_sock *rx;
 	struct key *key;
 	key_ref_t kref;
@@ -121,7 +121,7 @@ int rxrpc_init_server_conn_security(struct rxrpc_connection *conn)
 
 	_enter("");
 
-	sprintf(kdesc, "%u:%u", conn->service_id, conn->security_ix);
+	sprintf(kdesc, "%u:%u", conn->params.service_id, conn->security_ix);
 
 	sec = rxrpc_security_lookup(conn->security_ix);
 	if (!sec) {
@@ -132,7 +132,7 @@ int rxrpc_init_server_conn_security(struct rxrpc_connection *conn)
 	/* find the service */
 	read_lock_bh(&local->services_lock);
 	list_for_each_entry(rx, &local->services, listen_link) {
-		if (rx->srx.srx_service == conn->service_id)
+		if (rx->srx.srx_service == conn->params.service_id)
 			goto found_service;
 	}
 

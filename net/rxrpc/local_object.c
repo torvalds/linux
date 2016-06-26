@@ -80,7 +80,8 @@ static struct rxrpc_local *rxrpc_alloc_local(const struct sockaddr_rxrpc *srx)
 		skb_queue_head_init(&local->accept_queue);
 		skb_queue_head_init(&local->reject_queue);
 		skb_queue_head_init(&local->event_queue);
-		mutex_init(&local->conn_lock);
+		local->client_conns = RB_ROOT;
+		spin_lock_init(&local->client_conns_lock);
 		spin_lock_init(&local->lock);
 		rwlock_init(&local->services_lock);
 		local->debug_id = atomic_inc_return(&rxrpc_debug_id);
@@ -209,7 +210,7 @@ struct rxrpc_local *rxrpc_lookup_local(const struct sockaddr_rxrpc *srx)
 		 * bind the transport socket may still fail if we're attempting
 		 * to use a local address that the dying object is still using.
 		 */
-		if (!atomic_inc_not_zero(&local->usage)) {
+		if (!rxrpc_get_local_maybe(local)) {
 			cursor = cursor->next;
 			list_del_init(&local->link);
 			break;
@@ -294,6 +295,7 @@ static void rxrpc_local_destroyer(struct rxrpc_local *local)
 	list_del_init(&local->link);
 	mutex_unlock(&rxrpc_local_mutex);
 
+	ASSERT(RB_EMPTY_ROOT(&local->client_conns));
 	ASSERT(list_empty(&local->services));
 
 	if (socket) {

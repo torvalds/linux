@@ -35,7 +35,8 @@ static int rxrpc_send_data(struct rxrpc_sock *rx,
 static int rxrpc_sendmsg_cmsg(struct msghdr *msg,
 			      unsigned long *user_call_ID,
 			      enum rxrpc_command *command,
-			      u32 *abort_code)
+			      u32 *abort_code,
+			      bool *_exclusive)
 {
 	struct cmsghdr *cmsg;
 	bool got_user_ID = false;
@@ -93,6 +94,11 @@ static int rxrpc_sendmsg_cmsg(struct msghdr *msg,
 				return -EINVAL;
 			break;
 
+		case RXRPC_EXCLUSIVE_CALL:
+			*_exclusive = true;
+			if (len != 0)
+				return -EINVAL;
+			break;
 		default:
 			return -EINVAL;
 		}
@@ -131,13 +137,11 @@ static void rxrpc_send_abort(struct rxrpc_call *call, u32 abort_code)
  */
 static struct rxrpc_call *
 rxrpc_new_client_call_for_sendmsg(struct rxrpc_sock *rx, struct msghdr *msg,
-				  unsigned long user_call_ID)
+				  unsigned long user_call_ID, bool exclusive)
 {
-	struct rxrpc_conn_bundle *bundle;
-	struct rxrpc_transport *trans;
+	struct rxrpc_conn_parameters cp;
 	struct rxrpc_call *call;
 	struct key *key;
-	long ret;
 
 	DECLARE_SOCKADDR(struct sockaddr_rxrpc *, srx, msg->msg_name);
 
@@ -146,39 +150,20 @@ rxrpc_new_client_call_for_sendmsg(struct rxrpc_sock *rx, struct msghdr *msg,
 	if (!msg->msg_name)
 		return ERR_PTR(-EDESTADDRREQ);
 
-	trans = rxrpc_name_to_transport(rx, msg->msg_name, msg->msg_namelen, 0,
-					GFP_KERNEL);
-	if (IS_ERR(trans)) {
-		ret = PTR_ERR(trans);
-		goto out;
-	}
-
 	key = rx->key;
 	if (key && !rx->key->payload.data[0])
 		key = NULL;
-	bundle = rxrpc_get_bundle(rx, trans, key, srx->srx_service, GFP_KERNEL);
-	if (IS_ERR(bundle)) {
-		ret = PTR_ERR(bundle);
-		goto out_trans;
-	}
 
-	call = rxrpc_new_client_call(rx, trans, bundle, user_call_ID,
-				     GFP_KERNEL);
-	rxrpc_put_bundle(trans, bundle);
-	rxrpc_put_transport(trans);
-	if (IS_ERR(call)) {
-		ret = PTR_ERR(call);
-		goto out_trans;
-	}
+	memset(&cp, 0, sizeof(cp));
+	cp.local		= rx->local;
+	cp.key			= rx->key;
+	cp.security_level	= rx->min_sec_level;
+	cp.exclusive		= rx->exclusive | exclusive;
+	cp.service_id		= srx->srx_service;
+	call = rxrpc_new_client_call(rx, &cp, srx, user_call_ID, GFP_KERNEL);
 
 	_leave(" = %p\n", call);
 	return call;
-
-out_trans:
-	rxrpc_put_transport(trans);
-out:
-	_leave(" = %ld", ret);
-	return ERR_PTR(ret);
 }
 
 /*
@@ -191,12 +176,14 @@ int rxrpc_do_sendmsg(struct rxrpc_sock *rx, struct msghdr *msg, size_t len)
 	enum rxrpc_command cmd;
 	struct rxrpc_call *call;
 	unsigned long user_call_ID = 0;
+	bool exclusive = false;
 	u32 abort_code = 0;
 	int ret;
 
 	_enter("");
 
-	ret = rxrpc_sendmsg_cmsg(msg, &user_call_ID, &cmd, &abort_code);
+	ret = rxrpc_sendmsg_cmsg(msg, &user_call_ID, &cmd, &abort_code,
+				 &exclusive);
 	if (ret < 0)
 		return ret;
 
@@ -214,7 +201,8 @@ int rxrpc_do_sendmsg(struct rxrpc_sock *rx, struct msghdr *msg, size_t len)
 	if (!call) {
 		if (cmd != RXRPC_CMD_SEND_DATA)
 			return -EBADSLT;
-		call = rxrpc_new_client_call_for_sendmsg(rx, msg, user_call_ID);
+		call = rxrpc_new_client_call_for_sendmsg(rx, msg, user_call_ID,
+							 exclusive);
 		if (IS_ERR(call))
 			return PTR_ERR(call);
 	}
@@ -319,7 +307,7 @@ EXPORT_SYMBOL(rxrpc_kernel_abort_call);
 /*
  * send a packet through the transport endpoint
  */
-int rxrpc_send_packet(struct rxrpc_transport *trans, struct sk_buff *skb)
+int rxrpc_send_data_packet(struct rxrpc_connection *conn, struct sk_buff *skb)
 {
 	struct kvec iov[1];
 	struct msghdr msg;
@@ -330,30 +318,30 @@ int rxrpc_send_packet(struct rxrpc_transport *trans, struct sk_buff *skb)
 	iov[0].iov_base = skb->head;
 	iov[0].iov_len = skb->len;
 
-	msg.msg_name = &trans->peer->srx.transport.sin;
-	msg.msg_namelen = sizeof(trans->peer->srx.transport.sin);
+	msg.msg_name = &conn->params.peer->srx.transport;
+	msg.msg_namelen = conn->params.peer->srx.transport_len;
 	msg.msg_control = NULL;
 	msg.msg_controllen = 0;
 	msg.msg_flags = 0;
 
 	/* send the packet with the don't fragment bit set if we currently
 	 * think it's small enough */
-	if (skb->len - sizeof(struct rxrpc_wire_header) < trans->peer->maxdata) {
-		down_read(&trans->local->defrag_sem);
+	if (skb->len - sizeof(struct rxrpc_wire_header) < conn->params.peer->maxdata) {
+		down_read(&conn->params.local->defrag_sem);
 		/* send the packet by UDP
 		 * - returns -EMSGSIZE if UDP would have to fragment the packet
 		 *   to go out of the interface
 		 *   - in which case, we'll have processed the ICMP error
 		 *     message and update the peer record
 		 */
-		ret = kernel_sendmsg(trans->local->socket, &msg, iov, 1,
+		ret = kernel_sendmsg(conn->params.local->socket, &msg, iov, 1,
 				     iov[0].iov_len);
 
-		up_read(&trans->local->defrag_sem);
+		up_read(&conn->params.local->defrag_sem);
 		if (ret == -EMSGSIZE)
 			goto send_fragmentable;
 
-		_leave(" = %d [%u]", ret, trans->peer->maxdata);
+		_leave(" = %d [%u]", ret, conn->params.peer->maxdata);
 		return ret;
 	}
 
@@ -361,21 +349,28 @@ send_fragmentable:
 	/* attempt to send this message with fragmentation enabled */
 	_debug("send fragment");
 
-	down_write(&trans->local->defrag_sem);
-	opt = IP_PMTUDISC_DONT;
-	ret = kernel_setsockopt(trans->local->socket, SOL_IP, IP_MTU_DISCOVER,
-				(char *) &opt, sizeof(opt));
-	if (ret == 0) {
-		ret = kernel_sendmsg(trans->local->socket, &msg, iov, 1,
-				     iov[0].iov_len);
+	down_write(&conn->params.local->defrag_sem);
 
-		opt = IP_PMTUDISC_DO;
-		kernel_setsockopt(trans->local->socket, SOL_IP,
-				  IP_MTU_DISCOVER, (char *) &opt, sizeof(opt));
+	switch (conn->params.local->srx.transport.family) {
+	case AF_INET:
+		opt = IP_PMTUDISC_DONT;
+		ret = kernel_setsockopt(conn->params.local->socket,
+					SOL_IP, IP_MTU_DISCOVER,
+					(char *)&opt, sizeof(opt));
+		if (ret == 0) {
+			ret = kernel_sendmsg(conn->params.local->socket, &msg, iov, 1,
+					     iov[0].iov_len);
+
+			opt = IP_PMTUDISC_DO;
+			kernel_setsockopt(conn->params.local->socket, SOL_IP,
+					  IP_MTU_DISCOVER,
+					  (char *)&opt, sizeof(opt));
+		}
+		break;
 	}
 
-	up_write(&trans->local->defrag_sem);
-	_leave(" = %d [frag %u]", ret, trans->peer->maxdata);
+	up_write(&conn->params.local->defrag_sem);
+	_leave(" = %d [frag %u]", ret, conn->params.peer->maxdata);
 	return ret;
 }
 
@@ -487,7 +482,7 @@ static void rxrpc_queue_packet(struct rxrpc_call *call, struct sk_buff *skb,
 	if (try_to_del_timer_sync(&call->ack_timer) >= 0) {
 		/* the packet may be freed by rxrpc_process_call() before this
 		 * returns */
-		ret = rxrpc_send_packet(call->conn->trans, skb);
+		ret = rxrpc_send_data_packet(call->conn, skb);
 		_net("sent skb %p", skb);
 	} else {
 		_debug("failed to delete ACK timer");
@@ -573,7 +568,7 @@ static int rxrpc_send_data(struct rxrpc_sock *rx,
 					goto maybe_error;
 			}
 
-			max = call->conn->trans->peer->maxdata;
+			max = call->conn->params.peer->maxdata;
 			max -= call->conn->security_size;
 			max &= ~(call->conn->size_align - 1UL);
 
@@ -664,7 +659,7 @@ static int rxrpc_send_data(struct rxrpc_sock *rx,
 
 			seq = atomic_inc_return(&call->sequence);
 
-			sp->hdr.epoch	= conn->epoch;
+			sp->hdr.epoch	= conn->proto.epoch;
 			sp->hdr.cid	= call->cid;
 			sp->hdr.callNumber = call->call_id;
 			sp->hdr.seq	= seq;

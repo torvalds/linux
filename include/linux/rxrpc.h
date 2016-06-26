@@ -35,7 +35,7 @@ struct sockaddr_rxrpc {
  */
 #define RXRPC_SECURITY_KEY		1	/* [clnt] set client security key */
 #define RXRPC_SECURITY_KEYRING		2	/* [srvr] set ring of server security keys */
-#define RXRPC_EXCLUSIVE_CONNECTION	3	/* [clnt] use exclusive RxRPC connection */
+#define RXRPC_EXCLUSIVE_CONNECTION	3	/* Deprecated; use RXRPC_EXCLUSIVE_CALL instead */
 #define RXRPC_MIN_SECURITY_LEVEL	4	/* minimum security level */
 
 /*
@@ -52,6 +52,7 @@ struct sockaddr_rxrpc {
 #define RXRPC_LOCAL_ERROR	7	/* -r: local error generated [terminal] */
 #define RXRPC_NEW_CALL		8	/* -r: [Service] new incoming call notification */
 #define RXRPC_ACCEPT		9	/* s-: [Service] accept request */
+#define RXRPC_EXCLUSIVE_CALL	10	/* s-: Call should be on exclusive connection */
 
 /*
  * RxRPC security levels

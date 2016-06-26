@@ -74,7 +74,6 @@ static int rxrpc_accept_incoming_call(struct rxrpc_local *local,
 				      struct sockaddr_rxrpc *srx)
 {
 	struct rxrpc_connection *conn;
-	struct rxrpc_transport *trans;
 	struct rxrpc_skb_priv *sp, *nsp;
 	struct rxrpc_peer *peer;
 	struct rxrpc_call *call;
@@ -96,29 +95,21 @@ static int rxrpc_accept_incoming_call(struct rxrpc_local *local,
 	notification->mark = RXRPC_SKB_MARK_NEW_CALL;
 
 	peer = rxrpc_lookup_peer(local, srx, GFP_NOIO);
-	if (IS_ERR(peer)) {
+	if (!peer) {
 		_debug("no peer");
 		ret = -EBUSY;
 		goto error;
 	}
 
-	trans = rxrpc_get_transport(local, peer, GFP_NOIO);
+	conn = rxrpc_incoming_connection(local, peer, skb);
 	rxrpc_put_peer(peer);
-	if (IS_ERR(trans)) {
-		_debug("no trans");
-		ret = -EBUSY;
-		goto error;
-	}
-
-	conn = rxrpc_incoming_connection(trans, &sp->hdr);
-	rxrpc_put_transport(trans);
 	if (IS_ERR(conn)) {
 		_debug("no conn");
 		ret = PTR_ERR(conn);
 		goto error;
 	}
 
-	call = rxrpc_incoming_call(rx, conn, &sp->hdr);
+	call = rxrpc_incoming_call(rx, conn, skb);
 	rxrpc_put_connection(conn);
 	if (IS_ERR(call)) {
 		_debug("no call");
@@ -141,7 +132,7 @@ static int rxrpc_accept_incoming_call(struct rxrpc_local *local,
 			_debug("await conn sec");
 			list_add_tail(&call->accept_link, &rx->secureq);
 			call->conn->state = RXRPC_CONN_SERVER_CHALLENGING;
-			atomic_inc(&call->conn->usage);
+			rxrpc_get_connection(call->conn);
 			set_bit(RXRPC_CONN_CHALLENGE, &call->conn->events);
 			rxrpc_queue_conn(call->conn);
 		} else {
