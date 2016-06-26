@@ -801,6 +801,7 @@ void cec_received_msg(struct cec_adapter *adap, struct cec_msg *msg)
 
 			/* We got a reply */
 			msg->sequence = dst->sequence;
+			msg->tx_status = dst->tx_status;
 			dst_reply = dst->reply;
 			*dst = *msg;
 			dst->reply = dst_reply;
