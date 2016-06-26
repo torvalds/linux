@@ -1430,6 +1430,7 @@ struct ext4_sb_info {
 	unsigned short *s_mb_offsets;
 	unsigned int *s_mb_maxs;
 	unsigned int s_group_info_size;
+	unsigned int s_mb_free_pending;
 
 	/* tunables */
 	unsigned long s_stripe;
