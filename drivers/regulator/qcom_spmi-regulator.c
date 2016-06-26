@@ -1440,6 +1440,7 @@ static const struct spmi_regulator_data pm8941_regulators[] = {
 	{ "s1", 0x1400, "vdd_s1", },
 	{ "s2", 0x1700, "vdd_s2", },
 	{ "s3", 0x1a00, "vdd_s3", },
+	{ "s4", 0xa000, },
 	{ "l1", 0x4000, "vdd_l1_l3", },
 	{ "l2", 0x4100, "vdd_l2_lvs_1_2_3", },
 	{ "l3", 0x4200, "vdd_l1_l3", },
