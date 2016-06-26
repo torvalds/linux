@@ -280,7 +280,7 @@ struct iwl_pcie_first_tb_buf {
  */
 struct iwl_txq {
 	struct iwl_queue q;
-	struct iwl_tfd *tfds;
+	void *tfds;
 	struct iwl_pcie_first_tb_buf *first_tb_bufs;
 	dma_addr_t first_tb_dma;
 	struct iwl_pcie_txq_entry *entries;
@@ -393,6 +393,7 @@ struct iwl_trans_pcie {
 	u8 n_no_reclaim_cmds;
 	u8 no_reclaim_cmds[MAX_NO_RECLAIM_CMDS];
 	u8 max_tbs;
+	u16 tfd_size;
 
 	enum iwl_amsdu_size rx_buf_size;
 	bool bc_table_dword;
@@ -489,9 +490,21 @@ void iwl_trans_pcie_reclaim(struct iwl_trans *trans, int txq_id, int ssn,
 			    struct sk_buff_head *skbs);
 void iwl_trans_pcie_tx_reset(struct iwl_trans *trans);
 
-static inline u16 iwl_pcie_tfd_tb_get_len(struct iwl_tfd *tfd, u8 idx)
+static inline u16 iwl_pcie_tfd_tb_get_len(struct iwl_trans *trans, void *tfd,
+					  u8 idx)
 {
-	struct iwl_tfd_tb *tb = &tfd->tbs[idx];
+	struct iwl_tfd *tfd_fh;
+	struct iwl_tfd_tb *tb;
+
+	if (trans->cfg->use_tfh) {
+		struct iwl_tfh_tfd *tfd_fh = (void *)tfd;
+		struct iwl_tfh_tb *tb = &tfd_fh->tbs[idx];
+
+		return le16_to_cpu(tb->tb_len);
+	}
+
+	tfd_fh = (void *)tfd;
+	tb = &tfd_fh->tbs[idx];
 
 	return le16_to_cpu(tb->hi_n_len) >> 4;
 }

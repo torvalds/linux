@@ -2437,15 +2437,14 @@ err:
 }
 #endif /*CONFIG_IWLWIFI_DEBUGFS */
 
-static u32 iwl_trans_pcie_get_cmdlen(struct iwl_trans *trans,
-				     struct iwl_tfd *tfd)
+static u32 iwl_trans_pcie_get_cmdlen(struct iwl_trans *trans, void *tfd)
 {
 	struct iwl_trans_pcie *trans_pcie = IWL_TRANS_GET_PCIE_TRANS(trans);
 	u32 cmdlen = 0;
 	int i;
 
 	for (i = 0; i < trans_pcie->max_tbs; i++)
-		cmdlen += iwl_pcie_tfd_tb_get_len(tfd, i);
+		cmdlen += iwl_pcie_tfd_tb_get_len(trans, tfd, i);
 
 	return cmdlen;
 }
@@ -2733,7 +2732,8 @@ static struct iwl_trans_dump_data
 		u8 idx = get_cmd_index(&cmdq->q, ptr);
 		u32 caplen, cmdlen;
 
-		cmdlen = iwl_trans_pcie_get_cmdlen(trans, &cmdq->tfds[ptr]);
+		cmdlen = iwl_trans_pcie_get_cmdlen(trans, cmdq->tfds +
+						   trans_pcie->tfd_size * ptr);
 		caplen = min_t(u32, TFD_MAX_PAYLOAD_SIZE, cmdlen);
 
 		if (cmdlen) {
@@ -2876,10 +2876,14 @@ struct iwl_trans *iwl_trans_pcie_alloc(struct pci_dev *pdev,
 	else
 		addr_size = 36;
 
-	if (cfg->use_tfh)
+	if (cfg->use_tfh) {
 		trans_pcie->max_tbs = IWL_TFH_NUM_TBS;
-	else
+		trans_pcie->tfd_size = sizeof(struct iwl_tfh_tb);
+
+	} else {
 		trans_pcie->max_tbs = IWL_NUM_OF_TBS;
+		trans_pcie->tfd_size = sizeof(struct iwl_tfd);
+	}
 	trans->max_skb_frags = IWL_PCIE_MAX_FRAGS(trans_pcie);
 
 	pci_set_master(pdev);
