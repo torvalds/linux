@@ -60,6 +60,7 @@ obj-$(CONFIG_PANEL)             += panel.o
 
 lkdtm-$(CONFIG_LKDTM)		+= lkdtm_core.o
 lkdtm-$(CONFIG_LKDTM)		+= lkdtm_rodata_objcopy.o
+lkdtm-$(CONFIG_LKDTM)		+= lkdtm_usercopy.o
 
 OBJCOPYFLAGS :=
 OBJCOPYFLAGS_lkdtm_rodata_objcopy.o := \
