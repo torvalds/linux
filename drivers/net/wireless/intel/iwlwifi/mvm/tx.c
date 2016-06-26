@@ -1100,9 +1100,13 @@ static void iwl_mvm_check_ratid_empty(struct iwl_mvm *mvm,
 		IWL_DEBUG_TX_QUEUES(mvm,
 				    "Can continue DELBA flow ssn = next_recl = %d\n",
 				    tid_data->next_reclaimed);
-		iwl_mvm_disable_txq(mvm, tid_data->txq_id,
-				    vif->hw_queue[tid_to_mac80211_ac[tid]], tid,
-				    CMD_ASYNC);
+		if (!iwl_mvm_is_dqa_supported(mvm)) {
+			u8 mac80211_ac = tid_to_mac80211_ac[tid];
+
+			iwl_mvm_disable_txq(mvm, tid_data->txq_id,
+					    vif->hw_queue[mac80211_ac], tid,
+					    CMD_ASYNC);
+		}
 		tid_data->state = IWL_AGG_OFF;
 		ieee80211_stop_tx_ba_cb_irqsafe(vif, sta->addr, tid);
 		break;
