@@ -184,8 +184,6 @@ static char* cpoint_name;
 static char* cpoint_type;
 static int cpoint_count = DEFAULT_COUNT;
 static int recur_count = REC_NUM_DEFAULT;
-static int alloc_size = 1024;
-static size_t cache_size;
 
 static enum cname cpoint = CN_INVALID;
 static enum ctype cptype = CT_NONE;
@@ -194,6 +192,8 @@ static DEFINE_SPINLOCK(count_lock);
 static DEFINE_SPINLOCK(lock_me_up);
 
 static u8 data_area[EXEC_SIZE];
+
+static size_t cache_size = 1024;
 static struct kmem_cache *bad_cache;
 
 static const unsigned char test_text[] = "This is a test.\n";
@@ -210,9 +210,6 @@ MODULE_PARM_DESC(cpoint_type, " Crash Point Type, action to be taken on "\
 module_param(cpoint_count, int, 0644);
 MODULE_PARM_DESC(cpoint_count, " Crash Point Count, number of times the "\
 				"crash point is to be hit to trigger action");
-module_param(alloc_size, int, 0644);
-MODULE_PARM_DESC(alloc_size, " Size of allocation for user copy tests "\
-			     "(from 1 to PAGE_SIZE)");
 
 static unsigned int jp_do_irq(unsigned int irq)
 {
@@ -441,7 +438,7 @@ static noinline void do_usercopy_stack(bool to_user, bool bad_frame)
 
 	/* This is a pointer to outside our current stack frame. */
 	if (bad_frame) {
-		bad_stack = do_usercopy_stack_callee(alloc_size);
+		bad_stack = do_usercopy_stack_callee((uintptr_t)bad_stack);
 	} else {
 		/* Put start address just inside stack. */
 		bad_stack = task_stack_page(current) + THREAD_SIZE;
@@ -530,7 +527,7 @@ static void do_usercopy_heap_size(bool to_user)
 {
 	unsigned long user_addr;
 	unsigned char *one, *two;
-	size_t size = clamp_t(int, alloc_size, 1, PAGE_SIZE);
+	size_t size = 1024;
 
 	one = kmalloc(size, GFP_KERNEL);
 	two = kmalloc(size, GFP_KERNEL);
@@ -564,8 +561,7 @@ static void do_usercopy_heap_size(bool to_user)
 		}
 	} else {
 		pr_info("attempting good copy_from_user of correct size\n");
-		if (copy_from_user(one, (void __user *)user_addr,
-				   size)) {
+		if (copy_from_user(one, (void __user *)user_addr, size)) {
 			pr_warn("copy_from_user failed unexpectedly?!\n");
 			goto free_user;
 		}
@@ -1284,7 +1280,6 @@ static int __init lkdtm_module_init(void)
 	ro_after_init |= 0xAA;
 
 	/* Prepare cache that lacks SLAB_USERCOPY flag. */
-	cache_size = clamp_t(int, alloc_size, 1, PAGE_SIZE);
 	bad_cache = kmem_cache_create("lkdtm-no-usercopy", cache_size, 0,
 				      0, NULL);
 
