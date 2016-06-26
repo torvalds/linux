@@ -227,4 +227,10 @@
 #define MAX_ALT				2
 #define MAX_PMU_COUNTERS		6
 
+int isa207_get_constraint(u64 event, unsigned long *maskp, unsigned long *valp);
+int isa207_compute_mmcr(u64 event[], int n_ev,
+				unsigned int hwc[], unsigned long mmcr[],
+				struct perf_event *pevents[]);
+void isa207_disable_pmc(unsigned int pmc, unsigned long mmcr[]);
+
 #endif
