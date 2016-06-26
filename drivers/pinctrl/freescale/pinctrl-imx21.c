@@ -9,7 +9,7 @@
  * (at your option) any later version.
  */
 
-#include <linux/module.h>
+#include <linux/init.h>
 #include <linux/of.h>
 #include <linux/platform_device.h>
 #include <linux/pinctrl/pinctrl.h>
@@ -333,8 +333,4 @@ static struct platform_driver imx21_pinctrl_driver = {
 		.of_match_table	= imx21_pinctrl_of_match,
 	},
 };
-module_platform_driver_probe(imx21_pinctrl_driver, imx21_pinctrl_probe);
-
-MODULE_AUTHOR("Alexander Shiyan <shc_work@mail.ru>");
-MODULE_DESCRIPTION("Freescale i.MX21 pinctrl driver");
-MODULE_LICENSE("GPL");
+builtin_platform_driver_probe(imx21_pinctrl_driver, imx21_pinctrl_probe);
