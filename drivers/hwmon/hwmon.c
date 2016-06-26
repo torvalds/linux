@@ -372,6 +372,20 @@ static const char * const hwmon_humidity_attr_templates[] = {
 	[hwmon_humidity_fault] = "humidity%d_fault",
 };
 
+static const char * const hwmon_fan_attr_templates[] = {
+	[hwmon_fan_input] = "fan%d_input",
+	[hwmon_fan_label] = "fan%d_label",
+	[hwmon_fan_min] = "fan%d_min",
+	[hwmon_fan_max] = "fan%d_max",
+	[hwmon_fan_div] = "fan%d_div",
+	[hwmon_fan_pulses] = "fan%d_pulses",
+	[hwmon_fan_target] = "fan%d_target",
+	[hwmon_fan_alarm] = "fan%d_alarm",
+	[hwmon_fan_min_alarm] = "fan%d_min_alarm",
+	[hwmon_fan_max_alarm] = "fan%d_max_alarm",
+	[hwmon_fan_fault] = "fan%d_fault",
+};
+
 static const char * const *__templates[] = {
 	[hwmon_chip] = hwmon_chip_attr_templates,
 	[hwmon_temp] = hwmon_temp_attr_templates,
@@ -380,6 +394,7 @@ static const char * const *__templates[] = {
 	[hwmon_power] = hwmon_power_attr_templates,
 	[hwmon_energy] = hwmon_energy_attr_templates,
 	[hwmon_humidity] = hwmon_humidity_attr_templates,
+	[hwmon_fan] = hwmon_fan_attr_templates,
 };
 
 static const int __templates_size[] = {
@@ -390,6 +405,7 @@ static const int __templates_size[] = {
 	[hwmon_power] = ARRAY_SIZE(hwmon_power_attr_templates),
 	[hwmon_energy] = ARRAY_SIZE(hwmon_energy_attr_templates),
 	[hwmon_humidity] = ARRAY_SIZE(hwmon_humidity_attr_templates),
+	[hwmon_fan] = ARRAY_SIZE(hwmon_fan_attr_templates),
 };
 
 static int hwmon_num_channel_attrs(const struct hwmon_channel_info *info)
