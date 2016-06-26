@@ -44,9 +44,6 @@
 #include <linux/slab.h>
 #include <scsi/scsi_cmnd.h>
 #include <linux/debugfs.h>
-#include <linux/vmalloc.h>
-#include <linux/mman.h>
-#include <asm/cacheflush.h>
 
 #ifdef CONFIG_IDE
 #include <linux/ide.h>
@@ -67,7 +64,6 @@
 #define REC_NUM_DEFAULT ((THREAD_SIZE / REC_STACK_SIZE) * 2)
 
 #define DEFAULT_COUNT 10
-#define EXEC_SIZE 64
 
 enum cname {
 	CN_INVALID,
@@ -190,11 +186,6 @@ static enum ctype cptype = CT_NONE;
 static int count = DEFAULT_COUNT;
 static DEFINE_SPINLOCK(count_lock);
 static DEFINE_SPINLOCK(lock_me_up);
-
-static u8 data_area[EXEC_SIZE];
-
-static const unsigned long rodata = 0xAA55AA55;
-static unsigned long ro_after_init __ro_after_init = 0x55AA5500;
 
 module_param(recur_count, int, 0644);
 MODULE_PARM_DESC(recur_count, " Recursion level for the stack overflow test");
@@ -348,18 +339,6 @@ static int recursive_loop(int remaining)
 		return recursive_loop(remaining - 1);
 }
 
-static void do_nothing(void)
-{
-	return;
-}
-
-/* Must immediately follow do_nothing for size calculuations to work out. */
-static void do_overwritten(void)
-{
-	pr_info("do_overwritten wasn't overwritten!\n");
-	return;
-}
-
 static noinline void corrupt_stack(void)
 {
 	/* Use default char array length that triggers stack protection. */
@@ -367,38 +346,6 @@ static noinline void corrupt_stack(void)
 
 	memset((void *)data, 0, 64);
 }
-
-static noinline void execute_location(void *dst, bool write)
-{
-	void (*func)(void) = dst;
-
-	pr_info("attempting ok execution at %p\n", do_nothing);
-	do_nothing();
-
-	if (write) {
-		memcpy(dst, do_nothing, EXEC_SIZE);
-		flush_icache_range((unsigned long)dst,
-				   (unsigned long)dst + EXEC_SIZE);
-	}
-	pr_info("attempting bad execution at %p\n", func);
-	func();
-}
-
-static void execute_user_location(void *dst)
-{
-	/* Intentionally crossing kernel/user memory boundary. */
-	void (*func)(void) = dst;
-
-	pr_info("attempting ok execution at %p\n", do_nothing);
-	do_nothing();
-
-	if (copy_to_user((void __user *)dst, do_nothing, EXEC_SIZE))
-		return;
-	flush_icache_range((unsigned long)dst, (unsigned long)dst + EXEC_SIZE);
-	pr_info("attempting bad execution at %p\n", func);
-	func();
-}
-
 
 static void lkdtm_do_action(enum ctype which)
 {
@@ -577,116 +524,35 @@ static void lkdtm_do_action(enum ctype which)
 		schedule();
 		break;
 	case CT_EXEC_DATA:
-		execute_location(data_area, true);
+		lkdtm_EXEC_DATA();
 		break;
-	case CT_EXEC_STACK: {
-		u8 stack_area[EXEC_SIZE];
-		execute_location(stack_area, true);
+	case CT_EXEC_STACK:
+		lkdtm_EXEC_STACK();
 		break;
-	}
-	case CT_EXEC_KMALLOC: {
-		u32 *kmalloc_area = kmalloc(EXEC_SIZE, GFP_KERNEL);
-		execute_location(kmalloc_area, true);
-		kfree(kmalloc_area);
+	case CT_EXEC_KMALLOC:
+		lkdtm_EXEC_KMALLOC();
 		break;
-	}
-	case CT_EXEC_VMALLOC: {
-		u32 *vmalloc_area = vmalloc(EXEC_SIZE);
-		execute_location(vmalloc_area, true);
-		vfree(vmalloc_area);
+	case CT_EXEC_VMALLOC:
+		lkdtm_EXEC_VMALLOC();
 		break;
-	}
 	case CT_EXEC_RODATA:
-		execute_location(lkdtm_rodata_do_nothing, false);
+		lkdtm_EXEC_RODATA();
 		break;
-	case CT_EXEC_USERSPACE: {
-		unsigned long user_addr;
-
-		user_addr = vm_mmap(NULL, 0, PAGE_SIZE,
-				    PROT_READ | PROT_WRITE | PROT_EXEC,
-				    MAP_ANONYMOUS | MAP_PRIVATE, 0);
-		if (user_addr >= TASK_SIZE) {
-			pr_warn("Failed to allocate user memory\n");
-			return;
-		}
-		execute_user_location((void *)user_addr);
-		vm_munmap(user_addr, PAGE_SIZE);
+	case CT_EXEC_USERSPACE:
+		lkdtm_EXEC_USERSPACE();
 		break;
-	}
-	case CT_ACCESS_USERSPACE: {
-		unsigned long user_addr, tmp = 0;
-		unsigned long *ptr;
-
-		user_addr = vm_mmap(NULL, 0, PAGE_SIZE,
-				    PROT_READ | PROT_WRITE | PROT_EXEC,
-				    MAP_ANONYMOUS | MAP_PRIVATE, 0);
-		if (user_addr >= TASK_SIZE) {
-			pr_warn("Failed to allocate user memory\n");
-			return;
-		}
-
-		if (copy_to_user((void __user *)user_addr, &tmp, sizeof(tmp))) {
-			pr_warn("copy_to_user failed\n");
-			vm_munmap(user_addr, PAGE_SIZE);
-			return;
-		}
-
-		ptr = (unsigned long *)user_addr;
-
-		pr_info("attempting bad read at %p\n", ptr);
-		tmp = *ptr;
-		tmp += 0xc0dec0de;
-
-		pr_info("attempting bad write at %p\n", ptr);
-		*ptr = tmp;
-
-		vm_munmap(user_addr, PAGE_SIZE);
-
+	case CT_ACCESS_USERSPACE:
+		lkdtm_ACCESS_USERSPACE();
 		break;
-	}
-	case CT_WRITE_RO: {
-		/* Explicitly cast away "const" for the test. */
-		unsigned long *ptr = (unsigned long *)&rodata;
-
-		pr_info("attempting bad rodata write at %p\n", ptr);
-		*ptr ^= 0xabcd1234;
-
+	case CT_WRITE_RO:
+		lkdtm_WRITE_RO();
 		break;
-	}
-	case CT_WRITE_RO_AFTER_INIT: {
-		unsigned long *ptr = &ro_after_init;
-
-		/*
-		 * Verify we were written to during init. Since an Oops
-		 * is considered a "success", a failure is to just skip the
-		 * real test.
-		 */
-		if ((*ptr & 0xAA) != 0xAA) {
-			pr_info("%p was NOT written during init!?\n", ptr);
-			break;
-		}
-
-		pr_info("attempting bad ro_after_init write at %p\n", ptr);
-		*ptr ^= 0xabcd1234;
-
+	case CT_WRITE_RO_AFTER_INIT:
+		lkdtm_WRITE_RO_AFTER_INIT();
 		break;
-	}
-	case CT_WRITE_KERN: {
-		size_t size;
-		unsigned char *ptr;
-
-		size = (unsigned long)do_overwritten -
-		       (unsigned long)do_nothing;
-		ptr = (unsigned char *)do_overwritten;
-
-		pr_info("attempting bad %zu byte write at %p\n", size, ptr);
-		memcpy(ptr, (unsigned char *)do_nothing, size);
-		flush_icache_range((unsigned long)ptr,
-				   (unsigned long)(ptr + size));
-
-		do_overwritten();
+	case CT_WRITE_KERN:
+		lkdtm_WRITE_KERN();
 		break;
-	}
 	case CT_ATOMIC_UNDERFLOW: {
 		atomic_t under = ATOMIC_INIT(INT_MIN);
 
@@ -1024,10 +890,8 @@ static int __init lkdtm_module_init(void)
 	int i;
 
 	/* Handle test-specific initialization. */
+	lkdtm_perms_init();
 	lkdtm_usercopy_init();
-
-	/* Make sure we can write to __ro_after_init values during __init */
-	ro_after_init |= 0xAA;
 
 	/* Register debugfs interface */
 	lkdtm_debugfs_root = debugfs_create_dir("provoke-crash", NULL);
