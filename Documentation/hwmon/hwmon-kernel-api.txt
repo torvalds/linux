@@ -168,6 +168,7 @@ It contains following fields:
   * hwmon_energy	Energy sensor
   * hwmon_humidity	Humidity sensor
   * hwmon_fan		Fan speed sensor
+  * hwmon_pwm		PWM control
 
 * config: Pointer to a 0-terminated list of configuration values for each
   sensor of the given type. Each value is a combination of bit values
@@ -230,6 +231,7 @@ HWMON_P_xxxx	Power attributes, for use with hwmon_power.
 HWMON_E_xxxx	Energy attributes, for use with hwmon_energy.
 HWMON_H_xxxx	Humidity attributes, for use with hwmon_humidity.
 HWMON_F_xxxx	Fan speed attributes, for use with hwmon_fan.
+HWMON_PWM_xxxx	PWM control attributes, for use with hwmon_pwm.
 
 Driver callback functions
 -------------------------

@@ -386,6 +386,13 @@ static const char * const hwmon_fan_attr_templates[] = {
 	[hwmon_fan_fault] = "fan%d_fault",
 };
 
+static const char * const hwmon_pwm_attr_templates[] = {
+	[hwmon_pwm_input] = "pwm%d",
+	[hwmon_pwm_enable] = "pwm%d_enable",
+	[hwmon_pwm_mode] = "pwm%d_mode",
+	[hwmon_pwm_freq] = "pwm%d_freq",
+};
+
 static const char * const *__templates[] = {
 	[hwmon_chip] = hwmon_chip_attr_templates,
 	[hwmon_temp] = hwmon_temp_attr_templates,
@@ -395,6 +402,7 @@ static const char * const *__templates[] = {
 	[hwmon_energy] = hwmon_energy_attr_templates,
 	[hwmon_humidity] = hwmon_humidity_attr_templates,
 	[hwmon_fan] = hwmon_fan_attr_templates,
+	[hwmon_pwm] = hwmon_pwm_attr_templates,
 };
 
 static const int __templates_size[] = {
@@ -406,6 +414,7 @@ static const int __templates_size[] = {
 	[hwmon_energy] = ARRAY_SIZE(hwmon_energy_attr_templates),
 	[hwmon_humidity] = ARRAY_SIZE(hwmon_humidity_attr_templates),
 	[hwmon_fan] = ARRAY_SIZE(hwmon_fan_attr_templates),
+	[hwmon_pwm] = ARRAY_SIZE(hwmon_pwm_attr_templates),
 };
 
 static int hwmon_num_channel_attrs(const struct hwmon_channel_info *info)

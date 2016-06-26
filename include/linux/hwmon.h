@@ -28,6 +28,7 @@ enum hwmon_sensor_types {
 	hwmon_energy,
 	hwmon_humidity,
 	hwmon_fan,
+	hwmon_pwm,
 };
 
 enum hwmon_chip_attributes {
@@ -271,6 +272,18 @@ enum hwmon_fan_attributes {
 #define HWMON_F_MIN_ALARM		BIT(hwmon_fan_min_alarm)
 #define HWMON_F_MAX_ALARM		BIT(hwmon_fan_max_alarm)
 #define HWMON_F_FAULT			BIT(hwmon_fan_fault)
+
+enum hwmon_pwm_attributes {
+	hwmon_pwm_input,
+	hwmon_pwm_enable,
+	hwmon_pwm_mode,
+	hwmon_pwm_freq,
+};
+
+#define HWMON_PWM_INPUT			BIT(hwmon_pwm_input)
+#define HWMON_PWM_ENABLE		BIT(hwmon_pwm_enable)
+#define HWMON_PWM_MODE			BIT(hwmon_pwm_mode)
+#define HWMON_PWM_FREQ			BIT(hwmon_pwm_freq)
 
 /**
  * struct hwmon_ops - hwmon device operations
