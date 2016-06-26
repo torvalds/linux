@@ -43,7 +43,7 @@
 /dts-v1/;
 
 #include <dt-bindings/input/input.h>
-#include "imx7s.dtsi"
+#include "imx7d.dtsi"
 
 / {
 	model = "Freescale i.MX7 SabreSD Board";
