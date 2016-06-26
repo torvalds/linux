@@ -127,16 +127,17 @@ static struct device_type ulpi_dev_type = {
  *
  * Registers a driver with the ULPI bus.
  */
-int ulpi_register_driver(struct ulpi_driver *drv)
+int __ulpi_register_driver(struct ulpi_driver *drv, struct module *module)
 {
 	if (!drv->probe)
 		return -EINVAL;
 
+	drv->driver.owner = module;
 	drv->driver.bus = &ulpi_bus;
 
 	return driver_register(&drv->driver);
 }
-EXPORT_SYMBOL_GPL(ulpi_register_driver);
+EXPORT_SYMBOL_GPL(__ulpi_register_driver);
 
 /**
  * ulpi_unregister_driver - unregister a driver with the ULPI bus
