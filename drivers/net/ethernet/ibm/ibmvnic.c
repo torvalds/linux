@@ -2121,7 +2121,7 @@ static void handle_error_info_rsp(union ibmvnic_crq *crq,
 				  struct ibmvnic_adapter *adapter)
 {
 	struct device *dev = &adapter->vdev->dev;
-	struct ibmvnic_error_buff *error_buff;
+	struct ibmvnic_error_buff *error_buff, *tmp;
 	unsigned long flags;
 	bool found = false;
 	int i;
@@ -2133,7 +2133,7 @@ static void handle_error_info_rsp(union ibmvnic_crq *crq,
 	}
 
 	spin_lock_irqsave(&adapter->error_list_lock, flags);
-	list_for_each_entry(error_buff, &adapter->errors, list)
+	list_for_each_entry_safe(error_buff, tmp, &adapter->errors, list)
 		if (error_buff->error_id == crq->request_error_rsp.error_id) {
 			found = true;
 			list_del(&error_buff->list);
@@ -3141,14 +3141,14 @@ static void handle_request_ras_comp_num_rsp(union ibmvnic_crq *crq,
 
 static void ibmvnic_free_inflight(struct ibmvnic_adapter *adapter)
 {
-	struct ibmvnic_inflight_cmd *inflight_cmd;
+	struct ibmvnic_inflight_cmd *inflight_cmd, *tmp1;
 	struct device *dev = &adapter->vdev->dev;
-	struct ibmvnic_error_buff *error_buff;
+	struct ibmvnic_error_buff *error_buff, *tmp2;
 	unsigned long flags;
 	unsigned long flags2;
 
 	spin_lock_irqsave(&adapter->inflight_lock, flags);
-	list_for_each_entry(inflight_cmd, &adapter->inflight, list) {
+	list_for_each_entry_safe(inflight_cmd, tmp1, &adapter->inflight, list) {
 		switch (inflight_cmd->crq.generic.cmd) {
 		case LOGIN:
 			dma_unmap_single(dev, adapter->login_buf_token,
@@ -3165,8 +3165,8 @@ static void ibmvnic_free_inflight(struct ibmvnic_adapter *adapter)
 			break;
 		case REQUEST_ERROR_INFO:
 			spin_lock_irqsave(&adapter->error_list_lock, flags2);
-			list_for_each_entry(error_buff, &adapter->errors,
-					    list) {
+			list_for_each_entry_safe(error_buff, tmp2,
+						 &adapter->errors, list) {
 				dma_unmap_single(dev, error_buff->dma,
 						 error_buff->len,
 						 DMA_FROM_DEVICE);
