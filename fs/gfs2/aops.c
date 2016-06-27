@@ -140,6 +140,32 @@ static int gfs2_writepage(struct page *page, struct writeback_control *wbc)
 	return nobh_writepage(page, gfs2_get_block_noalloc, wbc);
 }
 
+/* This is the same as calling block_write_full_page, but it also
+ * writes pages outside of i_size
+ */
+int gfs2_write_full_page(struct page *page, get_block_t *get_block,
+			 struct writeback_control *wbc)
+{
+	struct inode * const inode = page->mapping->host;
+	loff_t i_size = i_size_read(inode);
+	const pgoff_t end_index = i_size >> PAGE_SHIFT;
+	unsigned offset;
+
+	/*
+	 * The page straddles i_size.  It must be zeroed out on each and every
+	 * writepage invocation because it may be mmapped.  "A file is mapped
+	 * in multiples of the page size.  For a file that is not a multiple of
+	 * the  page size, the remaining memory is zeroed when mapped, and
+	 * writes to that region are not written out to the file."
+	 */
+	offset = i_size & (PAGE_SIZE-1);
+	if (page->index == end_index && offset)
+		zero_user_segment(page, offset, PAGE_SIZE);
+
+	return __block_write_full_page(inode, page, get_block, wbc,
+				       end_buffer_async_write);
+}
+
 /**
  * __gfs2_jdata_writepage - The core of jdata writepage
  * @page: The page to write
@@ -165,7 +191,7 @@ static int __gfs2_jdata_writepage(struct page *page, struct writeback_control *w
 		}
 		gfs2_page_add_databufs(ip, page, 0, sdp->sd_vfs->s_blocksize-1);
 	}
-	return block_write_full_page(page, gfs2_get_block_noalloc, wbc);
+	return gfs2_write_full_page(page, gfs2_get_block_noalloc, wbc);
 }
 
 /**
@@ -180,27 +206,20 @@ static int __gfs2_jdata_writepage(struct page *page, struct writeback_control *w
 static int gfs2_jdata_writepage(struct page *page, struct writeback_control *wbc)
 {
 	struct inode *inode = page->mapping->host;
+	struct gfs2_inode *ip = GFS2_I(inode);
 	struct gfs2_sbd *sdp = GFS2_SB(inode);
 	int ret;
-	int done_trans = 0;
 
-	if (PageChecked(page)) {
-		if (wbc->sync_mode != WB_SYNC_ALL)
-			goto out_ignore;
-		ret = gfs2_trans_begin(sdp, RES_DINODE + 1, 0);
-		if (ret)
-			goto out_ignore;
-		done_trans = 1;
-	}
-	ret = gfs2_writepage_common(page, wbc);
-	if (ret > 0)
-		ret = __gfs2_jdata_writepage(page, wbc);
-	if (done_trans)
-		gfs2_trans_end(sdp);
+	if (gfs2_assert_withdraw(sdp, gfs2_glock_is_held_excl(ip->i_gl)))
+		goto out;
+	if (PageChecked(page) || current->journal_info)
+		goto out_ignore;
+	ret = __gfs2_jdata_writepage(page, wbc);
 	return ret;
 
 out_ignore:
 	redirty_page_for_writepage(wbc, page);
+out:
 	unlock_page(page);
 	return 0;
 }
