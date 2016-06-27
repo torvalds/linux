@@ -1,5 +1,5 @@
 /*
- * Copyright (C) 2005 - 2015 Emulex
+ * Copyright (C) 2005 - 2016 Broadcom
  * All rights reserved.
  *
  * This program is free software; you can redistribute it and/or
@@ -2620,8 +2620,10 @@ static int be_evt_queues_create(struct be_adapter *adapter)
 	struct be_aic_obj *aic;
 	int i, rc;
 
+	/* need enough EQs to service both RX and TX queues */
 	adapter->num_evt_qs = min_t(u16, num_irqs(adapter),
-				    adapter->cfg_num_qs);
+				    max(adapter->cfg_num_rx_irqs,
+					adapter->cfg_num_tx_irqs));
 
 	for_all_evt_queues(adapter, eqo, i) {
 		int numa_node = dev_to_node(&adapter->pdev->dev);
@@ -2726,7 +2728,7 @@ static int be_tx_qs_create(struct be_adapter *adapter)
 	struct be_eq_obj *eqo;
 	int status, i;
 
-	adapter->num_tx_qs = min(adapter->num_evt_qs, be_max_txqs(adapter));
+	adapter->num_tx_qs = min(adapter->num_evt_qs, adapter->cfg_num_tx_irqs);
 
 	for_all_tx_queues(adapter, txo, i) {
 		cq = &txo->cq;
@@ -2784,11 +2786,11 @@ static int be_rx_cqs_create(struct be_adapter *adapter)
 	struct be_rx_obj *rxo;
 	int rc, i;
 
-	/* We can create as many RSS rings as there are EQs. */
-	adapter->num_rss_qs = adapter->num_evt_qs;
+	adapter->num_rss_qs =
+			min(adapter->num_evt_qs, adapter->cfg_num_rx_irqs);
 
 	/* We'll use RSS only if atleast 2 RSS rings are supported. */
-	if (adapter->num_rss_qs <= 1)
+	if (adapter->num_rss_qs < 2)
 		adapter->num_rss_qs = 0;
 
 	adapter->num_rx_qs = adapter->num_rss_qs + adapter->need_def_rxq;
@@ -3249,18 +3251,22 @@ static void be_msix_disable(struct be_adapter *adapter)
 
 static int be_msix_enable(struct be_adapter *adapter)
 {
-	int i, num_vec;
+	unsigned int i, num_vec, max_roce_eqs;
 	struct device *dev = &adapter->pdev->dev;
 
-	/* If RoCE is supported, program the max number of NIC vectors that
-	 * may be configured via set-channels, along with vectors needed for
-	 * RoCe. Else, just program the number we'll use initially.
+	/* If RoCE is supported, program the max number of vectors that
+	 * could be used for NIC and RoCE, else, just program the number
+	 * we'll use initially.
 	 */
-	if (be_roce_supported(adapter))
-		num_vec = min_t(int, 2 * be_max_eqs(adapter),
-				2 * num_online_cpus());
-	else
-		num_vec = adapter->cfg_num_qs;
+	if (be_roce_supported(adapter)) {
+		max_roce_eqs =
+			be_max_func_eqs(adapter) - be_max_nic_eqs(adapter);
+		max_roce_eqs = min(max_roce_eqs, num_online_cpus());
+		num_vec = be_max_any_irqs(adapter) + max_roce_eqs;
+	} else {
+		num_vec = max(adapter->cfg_num_rx_irqs,
+			      adapter->cfg_num_tx_irqs);
+	}
 
 	for (i = 0; i < num_vec; i++)
 		adapter->msix_entries[i].entry = i;
@@ -3723,6 +3729,11 @@ static void be_vf_clear(struct be_adapter *adapter)
 
 		be_cmd_if_destroy(adapter, vf_cfg->if_handle, vf + 1);
 	}
+
+	if (BE3_chip(adapter))
+		be_cmd_set_hsw_config(adapter, 0, 0,
+				      adapter->if_handle,
+				      PORT_FWD_TYPE_PASSTHRU, 0);
 done:
 	kfree(adapter->vf_cfg);
 	adapter->num_vfs = 0;
@@ -4013,6 +4024,15 @@ static int be_vf_setup(struct be_adapter *adapter)
 		}
 	}
 
+	if (BE3_chip(adapter)) {
+		/* On BE3, enable VEB only when SRIOV is enabled */
+		status = be_cmd_set_hsw_config(adapter, 0, 0,
+					       adapter->if_handle,
+					       PORT_FWD_TYPE_VEB, 0);
+		if (status)
+			goto err;
+	}
+
 	adapter->flags |= BE_FLAGS_SRIOV_ENABLED;
 	return 0;
 err:
@@ -4219,16 +4239,13 @@ static int be_get_resources(struct be_adapter *adapter)
 	struct be_resources res = {0};
 	int status;
 
-	if (BEx_chip(adapter)) {
-		BEx_get_resources(adapter, &res);
-		adapter->res = res;
-	}
-
 	/* For Lancer, SH etc read per-function resource limits from FW.
 	 * GET_FUNC_CONFIG returns per function guaranteed limits.
 	 * GET_PROFILE_CONFIG returns PCI-E related limits PF-pool limits
 	 */
-	if (!BEx_chip(adapter)) {
+	if (BEx_chip(adapter)) {
+		BEx_get_resources(adapter, &res);
+	} else {
 		status = be_cmd_get_func_config(adapter, &res);
 		if (status)
 			return status;
@@ -4237,12 +4254,12 @@ static int be_get_resources(struct be_adapter *adapter)
 		if (res.max_rss_qs && res.max_rss_qs == res.max_rx_qs &&
 		    !(res.if_cap_flags & BE_IF_FLAGS_DEFQ_RSS))
 			res.max_rss_qs -= 1;
-
-		/* If RoCE may be enabled stash away half the EQs for RoCE */
-		if (be_roce_supported(adapter))
-			res.max_evt_qs /= 2;
-		adapter->res = res;
 	}
+
+	/* If RoCE is supported stash away half the EQs for RoCE */
+	res.max_nic_evt_qs = be_roce_supported(adapter) ?
+				res.max_evt_qs / 2 : res.max_evt_qs;
+	adapter->res = res;
 
 	/* If FW supports RSS default queue, then skip creating non-RSS
 	 * queue for non-IP traffic.
@@ -4252,15 +4269,17 @@ static int be_get_resources(struct be_adapter *adapter)
 
 	dev_info(dev, "Max: txqs %d, rxqs %d, rss %d, eqs %d, vfs %d\n",
 		 be_max_txqs(adapter), be_max_rxqs(adapter),
-		 be_max_rss(adapter), be_max_eqs(adapter),
+		 be_max_rss(adapter), be_max_nic_eqs(adapter),
 		 be_max_vfs(adapter));
 	dev_info(dev, "Max: uc-macs %d, mc-macs %d, vlans %d\n",
 		 be_max_uc(adapter), be_max_mc(adapter),
 		 be_max_vlans(adapter));
 
-	/* Sanitize cfg_num_qs based on HW and platform limits */
-	adapter->cfg_num_qs = min_t(u16, netif_get_num_default_rss_queues(),
-				    be_max_qs(adapter));
+	/* Ensure RX and TX queues are created in pairs at init time */
+	adapter->cfg_num_rx_irqs =
+				min_t(u16, netif_get_num_default_rss_queues(),
+				      be_max_qp_irqs(adapter));
+	adapter->cfg_num_tx_irqs = adapter->cfg_num_rx_irqs;
 	return 0;
 }
 
@@ -4373,7 +4392,7 @@ static int be_if_create(struct be_adapter *adapter)
 	u32 cap_flags = be_if_cap_flags(adapter);
 	int status;
 
-	if (adapter->cfg_num_qs == 1)
+	if (adapter->cfg_num_rx_irqs == 1)
 		cap_flags &= ~(BE_IF_FLAGS_DEFQ_RSS | BE_IF_FLAGS_RSS);
 
 	en_flags &= cap_flags;
@@ -4558,6 +4577,15 @@ static int be_setup(struct be_adapter *adapter)
 	if (be_physfn(adapter))
 		be_cmd_set_logical_link_config(adapter,
 					       IFLA_VF_LINK_STATE_AUTO, 0);
+
+	/* BE3 EVB echoes broadcast/multicast packets back to PF's vport
+	 * confusing a linux bridge or OVS that it might be connected to.
+	 * Set the EVB to PASSTHRU mode which effectively disables the EVB
+	 * when SRIOV is not enabled.
+	 */
+	if (BE3_chip(adapter))
+		be_cmd_set_hsw_config(adapter, 0, 0, adapter->if_handle,
+				      PORT_FWD_TYPE_PASSTHRU, 0);
 
 	if (adapter->num_vfs)
 		be_vf_setup(adapter);

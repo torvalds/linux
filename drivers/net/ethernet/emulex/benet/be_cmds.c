@@ -1,5 +1,5 @@
 /*
- * Copyright (C) 2005 - 2015 Emulex
+ * Copyright (C) 2005 - 2016 Broadcom
  * All rights reserved.
  *
  * This program is free software; you can redistribute it and/or
@@ -86,6 +86,11 @@ static struct be_cmd_priv_map cmd_priv_map[] = {
 		OPCODE_LOWLEVEL_SET_LOOPBACK_MODE,
 		CMD_SUBSYSTEM_LOWLEVEL,
 		BE_PRIV_DEVCFG | BE_PRIV_DEVSEC
+	},
+	{
+		OPCODE_COMMON_SET_HSW_CONFIG,
+		CMD_SUBSYSTEM_COMMON,
+		BE_PRIV_DEVCFG | BE_PRIV_VHADM
 	},
 };
 
@@ -3850,6 +3855,10 @@ int be_cmd_set_hsw_config(struct be_adapter *adapter, u16 pvid,
 	void *ctxt;
 	int status;
 
+	if (!be_cmd_allowed(adapter, OPCODE_COMMON_SET_HSW_CONFIG,
+			    CMD_SUBSYSTEM_COMMON))
+		return -EPERM;
+
 	spin_lock_bh(&adapter->mcc_lock);
 
 	wrb = wrb_from_mccq(adapter);
@@ -3871,7 +3880,7 @@ int be_cmd_set_hsw_config(struct be_adapter *adapter, u16 pvid,
 		AMAP_SET_BITS(struct amap_set_hsw_context, pvid_valid, ctxt, 1);
 		AMAP_SET_BITS(struct amap_set_hsw_context, pvid, ctxt, pvid);
 	}
-	if (!BEx_chip(adapter) && hsw_mode) {
+	if (hsw_mode) {
 		AMAP_SET_BITS(struct amap_set_hsw_context, interface_id,
 			      ctxt, adapter->hba_port_num);
 		AMAP_SET_BITS(struct amap_set_hsw_context, pport, ctxt, 1);
