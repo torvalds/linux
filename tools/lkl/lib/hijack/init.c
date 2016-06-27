@@ -25,7 +25,7 @@
 #include <lkl_host.h>
 
 #include "xlate.h"
-#include "../virtio_net_tap.h"
+#include "../virtio_net_linux_fdnet.h"
 
 #define __USE_GNU
 #include <dlfcn.h>
@@ -170,11 +170,11 @@ static void mount_cmds_exec(char *_cmds, int (*callback)(char*))
 	free(cmds);
 }
 
-void fixup_netdev_tap_ops(void)
+void fixup_netdev_linux_fdnet_ops(void)
 {
 	/* It's okay if this is NULL, because then netdev close will
 	 * fall back onto an uncloseable implementation. */
-	lkl_netdev_tap_ops.eventfd = dlsym(RTLD_NEXT, "eventfd");
+	lkl_netdev_linux_fdnet_ops.eventfd = dlsym(RTLD_NEXT, "eventfd");
 }
 
 void __attribute__((constructor(102)))
@@ -197,7 +197,7 @@ hijack_init(void)
 	char *arp_entries = getenv("LKL_HIJACK_NET_ARP");
 
 	/* Must be run before lkl_netdev_tap_create */
-	fixup_netdev_tap_ops();
+	fixup_netdev_linux_fdnet_ops();
 
 	if (tap) {
 		fprintf(stderr,

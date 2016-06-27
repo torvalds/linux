@@ -12,6 +12,7 @@ lkl-y += virtio.o
 lkl-y += dbg.o
 lkl-y += dbg_handler.o
 lkl-$(CONFIG_AUTO_LKL_POSIX_HOST) += virtio_net.o
+lkl-$(CONFIG_AUTO_LKL_POSIX_HOST) += virtio_net_linux_fdnet.o
 lkl-$(CONFIG_AUTO_LKL_POSIX_HOST) += virtio_net_tap.o
 lkl-$(CONFIG_AUTO_LKL_VIRTIO_NET_DPDK) += virtio_net_dpdk.o
 lkl-$(CONFIG_AUTO_LKL_VIRTIO_NET_VDE) += virtio_net_vde.o
