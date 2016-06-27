@@ -5813,24 +5813,6 @@ static int mvpp2_ioctl(struct net_device *dev, struct ifreq *ifr, int cmd)
 
 /* Ethtool methods */
 
-/* Get settings (phy address, speed) for ethtools */
-static int mvpp2_ethtool_get_settings(struct net_device *dev,
-				      struct ethtool_cmd *cmd)
-{
-	if (!dev->phydev)
-		return -ENODEV;
-	return phy_ethtool_gset(dev->phydev, cmd);
-}
-
-/* Set settings (phy address, speed) for ethtools */
-static int mvpp2_ethtool_set_settings(struct net_device *dev,
-				      struct ethtool_cmd *cmd)
-{
-	if (!dev->phydev)
-		return -ENODEV;
-	return phy_ethtool_sset(dev->phydev, cmd);
-}
-
 /* Set interrupt coalescing for ethtools */
 static int mvpp2_ethtool_set_coalesce(struct net_device *dev,
 				      struct ethtool_coalesce *c)
@@ -5965,13 +5947,13 @@ static const struct net_device_ops mvpp2_netdev_ops = {
 
 static const struct ethtool_ops mvpp2_eth_tool_ops = {
 	.get_link	= ethtool_op_get_link,
-	.get_settings	= mvpp2_ethtool_get_settings,
-	.set_settings	= mvpp2_ethtool_set_settings,
 	.set_coalesce	= mvpp2_ethtool_set_coalesce,
 	.get_coalesce	= mvpp2_ethtool_get_coalesce,
 	.get_drvinfo	= mvpp2_ethtool_get_drvinfo,
 	.get_ringparam	= mvpp2_ethtool_get_ringparam,
 	.set_ringparam	= mvpp2_ethtool_set_ringparam,
+	.get_link_ksettings = phy_ethtool_get_link_ksettings,
+	.set_link_ksettings = phy_ethtool_set_link_ksettings,
 };
 
 /* Driver initialization */
