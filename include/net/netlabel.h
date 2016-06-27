@@ -226,6 +226,9 @@ struct netlbl_lsm_secattr {
  * @doi_getdef: returns a reference to a DOI
  * @doi_putdef: releases a reference of a DOI
  * @doi_walk: enumerate the DOI list
+ * @sock_getattr: retrieve the socket's attr
+ * @sock_setattr: set the socket's attr
+ * @sock_delattr: remove the socket's attr
  *
  * Description:
  * This structure is filled out by the CALIPSO engine and passed
@@ -243,6 +246,12 @@ struct netlbl_calipso_ops {
 	int (*doi_walk)(u32 *skip_cnt,
 			int (*callback)(struct calipso_doi *doi_def, void *arg),
 			void *cb_arg);
+	int (*sock_getattr)(struct sock *sk,
+			    struct netlbl_lsm_secattr *secattr);
+	int (*sock_setattr)(struct sock *sk,
+			    const struct calipso_doi *doi_def,
+			    const struct netlbl_lsm_secattr *secattr);
+	void (*sock_delattr)(struct sock *sk);
 };
 
 /*

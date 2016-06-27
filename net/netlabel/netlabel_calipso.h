@@ -128,5 +128,10 @@ void calipso_doi_putdef(struct calipso_doi *doi_def);
 int calipso_doi_walk(u32 *skip_cnt,
 		     int (*callback)(struct calipso_doi *doi_def, void *arg),
 		     void *cb_arg);
+int calipso_sock_getattr(struct sock *sk, struct netlbl_lsm_secattr *secattr);
+int calipso_sock_setattr(struct sock *sk,
+			 const struct calipso_doi *doi_def,
+			 const struct netlbl_lsm_secattr *secattr);
+void calipso_sock_delattr(struct sock *sk);
 
 #endif

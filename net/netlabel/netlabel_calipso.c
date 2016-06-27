@@ -514,3 +514,67 @@ int calipso_doi_walk(u32 *skip_cnt,
 		ret_val = ops->doi_walk(skip_cnt, callback, cb_arg);
 	return ret_val;
 }
+
+/**
+ * calipso_sock_getattr - Get the security attributes from a sock
+ * @sk: the sock
+ * @secattr: the security attributes
+ *
+ * Description:
+ * Query @sk to see if there is a CALIPSO option attached to the sock and if
+ * there is return the CALIPSO security attributes in @secattr.  This function
+ * requires that @sk be locked, or privately held, but it does not do any
+ * locking itself.  Returns zero on success and negative values on failure.
+ *
+ */
+int calipso_sock_getattr(struct sock *sk, struct netlbl_lsm_secattr *secattr)
+{
+	int ret_val = -ENOMSG;
+	const struct netlbl_calipso_ops *ops = netlbl_calipso_ops_get();
+
+	if (ops)
+		ret_val = ops->sock_getattr(sk, secattr);
+	return ret_val;
+}
+
+/**
+ * calipso_sock_setattr - Add a CALIPSO option to a socket
+ * @sk: the socket
+ * @doi_def: the CALIPSO DOI to use
+ * @secattr: the specific security attributes of the socket
+ *
+ * Description:
+ * Set the CALIPSO option on the given socket using the DOI definition and
+ * security attributes passed to the function.  This function requires
+ * exclusive access to @sk, which means it either needs to be in the
+ * process of being created or locked.  Returns zero on success and negative
+ * values on failure.
+ *
+ */
+int calipso_sock_setattr(struct sock *sk,
+			 const struct calipso_doi *doi_def,
+			 const struct netlbl_lsm_secattr *secattr)
+{
+	int ret_val = -ENOMSG;
+	const struct netlbl_calipso_ops *ops = netlbl_calipso_ops_get();
+
+	if (ops)
+		ret_val = ops->sock_setattr(sk, doi_def, secattr);
+	return ret_val;
+}
+
+/**
+ * calipso_sock_delattr - Delete the CALIPSO option from a socket
+ * @sk: the socket
+ *
+ * Description:
+ * Removes the CALIPSO option from a socket, if present.
+ *
+ */
+void calipso_sock_delattr(struct sock *sk)
+{
+	const struct netlbl_calipso_ops *ops = netlbl_calipso_ops_get();
+
+	if (ops)
+		ops->sock_delattr(sk);
+}

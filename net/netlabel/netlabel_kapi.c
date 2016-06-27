@@ -37,12 +37,14 @@
 #include <net/ipv6.h>
 #include <net/netlabel.h>
 #include <net/cipso_ipv4.h>
+#include <net/calipso.h>
 #include <asm/bug.h>
 #include <linux/atomic.h>
 
 #include "netlabel_domainhash.h"
 #include "netlabel_unlabeled.h"
 #include "netlabel_cipso_v4.h"
+#include "netlabel_calipso.h"
 #include "netlabel_user.h"
 #include "netlabel_mgmt.h"
 #include "netlabel_addrlist.h"
@@ -521,6 +523,7 @@ int netlbl_catmap_walk(struct netlbl_lsm_catmap *catmap, u32 offset)
 
 	return -ENOENT;
 }
+EXPORT_SYMBOL(netlbl_catmap_walk);
 
 /**
  * netlbl_catmap_walkrng - Find the end of a string of set bits
@@ -656,6 +659,7 @@ int netlbl_catmap_setbit(struct netlbl_lsm_catmap **catmap,
 
 	return 0;
 }
+EXPORT_SYMBOL(netlbl_catmap_setbit);
 
 /**
  * netlbl_catmap_setrng - Set a range of bits in a LSM secattr catmap
@@ -870,9 +874,21 @@ int netlbl_sock_setattr(struct sock *sk,
 		break;
 #if IS_ENABLED(CONFIG_IPV6)
 	case AF_INET6:
-		/* since we don't support any IPv6 labeling protocols right
-		 * now we can optimize everything away until we do */
-		ret_val = 0;
+		switch (dom_entry->def.type) {
+		case NETLBL_NLTYPE_ADDRSELECT:
+			ret_val = -EDESTADDRREQ;
+			break;
+		case NETLBL_NLTYPE_CALIPSO:
+			ret_val = calipso_sock_setattr(sk,
+						       dom_entry->def.calipso,
+						       secattr);
+			break;
+		case NETLBL_NLTYPE_UNLABELED:
+			ret_val = 0;
+			break;
+		default:
+			ret_val = -ENOENT;
+		}
 		break;
 #endif /* IPv6 */
 	default:
@@ -899,6 +915,11 @@ void netlbl_sock_delattr(struct sock *sk)
 	case AF_INET:
 		cipso_v4_sock_delattr(sk);
 		break;
+#if IS_ENABLED(CONFIG_IPV6)
+	case AF_INET6:
+		calipso_sock_delattr(sk);
+		break;
+#endif /* IPv6 */
 	}
 }
 
@@ -925,7 +946,7 @@ int netlbl_sock_getattr(struct sock *sk,
 		break;
 #if IS_ENABLED(CONFIG_IPV6)
 	case AF_INET6:
-		ret_val = -ENOMSG;
+		ret_val = calipso_sock_getattr(sk, secattr);
 		break;
 #endif /* IPv6 */
 	default:
@@ -953,6 +974,9 @@ int netlbl_conn_setattr(struct sock *sk,
 {
 	int ret_val;
 	struct sockaddr_in *addr4;
+#if IS_ENABLED(CONFIG_IPV6)
+	struct sockaddr_in6 *addr6;
+#endif
 	struct netlbl_dommap_def *entry;
 
 	rcu_read_lock();
@@ -973,7 +997,7 @@ int netlbl_conn_setattr(struct sock *sk,
 		case NETLBL_NLTYPE_UNLABELED:
 			/* just delete the protocols we support for right now
 			 * but we could remove other protocols if needed */
-			cipso_v4_sock_delattr(sk);
+			netlbl_sock_delattr(sk);
 			ret_val = 0;
 			break;
 		default:
@@ -982,9 +1006,27 @@ int netlbl_conn_setattr(struct sock *sk,
 		break;
 #if IS_ENABLED(CONFIG_IPV6)
 	case AF_INET6:
-		/* since we don't support any IPv6 labeling protocols right
-		 * now we can optimize everything away until we do */
-		ret_val = 0;
+		addr6 = (struct sockaddr_in6 *)addr;
+		entry = netlbl_domhsh_getentry_af6(secattr->domain,
+						   &addr6->sin6_addr);
+		if (entry == NULL) {
+			ret_val = -ENOENT;
+			goto conn_setattr_return;
+		}
+		switch (entry->type) {
+		case NETLBL_NLTYPE_CALIPSO:
+			ret_val = calipso_sock_setattr(sk,
+						       entry->calipso, secattr);
+			break;
+		case NETLBL_NLTYPE_UNLABELED:
+			/* just delete the protocols we support for right now
+			 * but we could remove other protocols if needed */
+			netlbl_sock_delattr(sk);
+			ret_val = 0;
+			break;
+		default:
+			ret_val = -ENOENT;
+		}
 		break;
 #endif /* IPv6 */
 	default:
