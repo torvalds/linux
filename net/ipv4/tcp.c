@@ -3026,8 +3026,18 @@ static void __tcp_alloc_md5sig_pool(void)
 		return;
 
 	for_each_possible_cpu(cpu) {
+		void *scratch = per_cpu(tcp_md5sig_pool, cpu).scratch;
 		struct ahash_request *req;
 
+		if (!scratch) {
+			scratch = kmalloc_node(sizeof(union tcp_md5sum_block) +
+					       sizeof(struct tcphdr),
+					       GFP_KERNEL,
+					       cpu_to_node(cpu));
+			if (!scratch)
+				return;
+			per_cpu(tcp_md5sig_pool, cpu).scratch = scratch;
+		}
 		if (per_cpu(tcp_md5sig_pool, cpu).md5_req)
 			continue;
 
