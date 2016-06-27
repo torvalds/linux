@@ -3694,8 +3694,8 @@ extern int intel_opregion_notify_adapter(struct drm_i915_private *dev_priv,
 extern int intel_opregion_get_panel_type(struct drm_i915_private *dev_priv);
 #else
 static inline int intel_opregion_setup(struct drm_i915_private *dev) { return 0; }
-static inline void intel_opregion_init(struct drm_i915_private *dev) { }
-static inline void intel_opregion_fini(struct drm_i915_private *dev) { }
+static inline void intel_opregion_register(struct drm_i915_private *dev_priv) { }
+static inline void intel_opregion_unregister(struct drm_i915_private *dev_priv) { }
 static inline void intel_opregion_asle_intr(struct drm_i915_private *dev_priv)
 {
 }
