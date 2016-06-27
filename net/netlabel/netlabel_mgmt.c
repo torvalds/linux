@@ -674,6 +674,15 @@ static int netlbl_mgmt_protocols(struct sk_buff *skb,
 			goto protocols_return;
 		protos_sent++;
 	}
+#if IS_ENABLED(CONFIG_IPV6)
+	if (protos_sent == 2) {
+		if (netlbl_mgmt_protocols_cb(skb,
+					     cb,
+					     NETLBL_NLTYPE_CALIPSO) < 0)
+			goto protocols_return;
+		protos_sent++;
+	}
+#endif
 
 protocols_return:
 	cb->args[0] = protos_sent;

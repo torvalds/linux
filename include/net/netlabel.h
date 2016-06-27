@@ -40,6 +40,7 @@
 #include <linux/atomic.h>
 
 struct cipso_v4_doi;
+struct calipso_doi;
 
 /*
  * NetLabel - A management interface for maintaining network packet label
@@ -94,6 +95,8 @@ struct cipso_v4_doi;
 #define NETLBL_NLTYPE_UNLABELED_NAME    "NLBL_UNLBL"
 #define NETLBL_NLTYPE_ADDRSELECT        6
 #define NETLBL_NLTYPE_ADDRSELECT_NAME   "NLBL_ADRSEL"
+#define NETLBL_NLTYPE_CALIPSO           7
+#define NETLBL_NLTYPE_CALIPSO_NAME      "NLBL_CALIPSO"
 
 /*
  * NetLabel - Kernel API for accessing the network packet label mappings.
@@ -214,6 +217,23 @@ struct netlbl_lsm_secattr {
 		} mls;
 		u32 secid;
 	} attr;
+};
+
+/**
+ * struct netlbl_calipso_ops - NetLabel CALIPSO operations
+ * @doi_add: add a CALIPSO DOI
+ * @doi_free: free a CALIPSO DOI
+ *
+ * Description:
+ * This structure is filled out by the CALIPSO engine and passed
+ * to the NetLabel core via a call to netlbl_calipso_ops_register().
+ * It enables the CALIPSO engine (and hence IPv6) to be compiled
+ * as a module.
+ */
+struct netlbl_calipso_ops {
+	int (*doi_add)(struct calipso_doi *doi_def,
+		       struct netlbl_audit *audit_info);
+	void (*doi_free)(struct calipso_doi *doi_def);
 };
 
 /*
@@ -597,5 +617,8 @@ static inline struct audit_buffer *netlbl_audit_start(int type,
 	return NULL;
 }
 #endif /* CONFIG_NETLABEL */
+
+const struct netlbl_calipso_ops *
+netlbl_calipso_ops_register(const struct netlbl_calipso_ops *ops);
 
 #endif /* _NETLABEL_H */

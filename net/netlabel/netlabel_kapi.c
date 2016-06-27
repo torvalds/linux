@@ -1170,6 +1170,7 @@ struct audit_buffer *netlbl_audit_start(int type,
 {
 	return netlbl_audit_start_common(type, audit_info);
 }
+EXPORT_SYMBOL(netlbl_audit_start);
 
 /*
  * Setup Functions
