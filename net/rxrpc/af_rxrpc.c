@@ -807,8 +807,7 @@ static void __exit af_rxrpc_exit(void)
 	_debug("synchronise RCU");
 	rcu_barrier();
 	_debug("destroy locals");
-	ASSERT(idr_is_empty(&rxrpc_client_conn_ids));
-	idr_destroy(&rxrpc_client_conn_ids);
+	rxrpc_destroy_client_conn_ids();
 	rxrpc_destroy_all_locals();
 
 	remove_proc_entry("rxrpc_conns", init_net.proc_net);

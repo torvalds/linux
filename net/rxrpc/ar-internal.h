@@ -541,6 +541,7 @@ extern struct idr rxrpc_client_conn_ids;
 
 int rxrpc_get_client_connection_id(struct rxrpc_connection *, gfp_t);
 void rxrpc_put_client_connection_id(struct rxrpc_connection *);
+void rxrpc_destroy_client_conn_ids(void);
 
 /*
  * conn_event.c

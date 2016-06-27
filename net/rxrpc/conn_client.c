@@ -92,3 +92,22 @@ void rxrpc_put_client_connection_id(struct rxrpc_connection *conn)
 		spin_unlock(&rxrpc_conn_id_lock);
 	}
 }
+
+/*
+ * Destroy the client connection ID tree.
+ */
+void rxrpc_destroy_client_conn_ids(void)
+{
+	struct rxrpc_connection *conn;
+	int id;
+
+	if (!idr_is_empty(&rxrpc_client_conn_ids)) {
+		idr_for_each_entry(&rxrpc_client_conn_ids, conn, id) {
+			pr_err("AF_RXRPC: Leaked client conn %p {%d}\n",
+			       conn, atomic_read(&conn->usage));
+		}
+		BUG();
+	}
+
+	idr_destroy(&rxrpc_client_conn_ids);
+}
