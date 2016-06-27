@@ -51,6 +51,7 @@ struct netlbl_dommap_def {
 	union {
 		struct netlbl_domaddr_map *addrsel;
 		struct cipso_v4_doi *cipso;
+		struct calipso_doi *calipso;
 	};
 };
 #define netlbl_domhsh_addr4_entry(iter) \

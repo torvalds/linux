@@ -37,10 +37,12 @@
 #include <linux/slab.h>
 #include <net/netlabel.h>
 #include <net/cipso_ipv4.h>
+#include <net/calipso.h>
 #include <asm/bug.h>
 
 #include "netlabel_mgmt.h"
 #include "netlabel_addrlist.h"
+#include "netlabel_calipso.h"
 #include "netlabel_domainhash.h"
 #include "netlabel_user.h"
 
@@ -223,6 +225,7 @@ static void netlbl_domhsh_audit_add(struct netlbl_dom_map *entry,
 {
 	struct audit_buffer *audit_buf;
 	struct cipso_v4_doi *cipsov4 = NULL;
+	struct calipso_doi *calipso = NULL;
 	u32 type;
 
 	audit_buf = netlbl_audit_start_common(AUDIT_MAC_MAP_ADD, audit_info);
@@ -241,12 +244,14 @@ static void netlbl_domhsh_audit_add(struct netlbl_dom_map *entry,
 			struct netlbl_domaddr6_map *map6;
 			map6 = netlbl_domhsh_addr6_entry(addr6);
 			type = map6->def.type;
+			calipso = map6->def.calipso;
 			netlbl_af6list_audit_addr(audit_buf, 0, NULL,
 						  &addr6->addr, &addr6->mask);
 #endif /* IPv6 */
 		} else {
 			type = entry->def.type;
 			cipsov4 = entry->def.cipso;
+			calipso = entry->def.calipso;
 		}
 		switch (type) {
 		case NETLBL_NLTYPE_UNLABELED:
@@ -257,6 +262,12 @@ static void netlbl_domhsh_audit_add(struct netlbl_dom_map *entry,
 			audit_log_format(audit_buf,
 					 " nlbl_protocol=cipsov4 cipso_doi=%u",
 					 cipsov4->doi);
+			break;
+		case NETLBL_NLTYPE_CALIPSO:
+			BUG_ON(calipso == NULL);
+			audit_log_format(audit_buf,
+					 " nlbl_protocol=calipso calipso_doi=%u",
+					 calipso->doi);
 			break;
 		}
 		audit_log_format(audit_buf, " res=%u", result == 0 ? 1 : 0);
@@ -291,12 +302,18 @@ static int netlbl_domhsh_validate(const struct netlbl_dom_map *entry)
 
 	switch (entry->def.type) {
 	case NETLBL_NLTYPE_UNLABELED:
-		if (entry->def.cipso != NULL || entry->def.addrsel != NULL)
+		if (entry->def.cipso != NULL || entry->def.calipso != NULL ||
+		    entry->def.addrsel != NULL)
 			return -EINVAL;
 		break;
 	case NETLBL_NLTYPE_CIPSOV4:
 		if (entry->family != AF_INET ||
 		    entry->def.cipso == NULL)
+			return -EINVAL;
+		break;
+	case NETLBL_NLTYPE_CALIPSO:
+		if (entry->family != AF_INET6 ||
+		    entry->def.calipso == NULL)
 			return -EINVAL;
 		break;
 	case NETLBL_NLTYPE_ADDRSELECT:
@@ -320,6 +337,12 @@ static int netlbl_domhsh_validate(const struct netlbl_dom_map *entry)
 			map6 = netlbl_domhsh_addr6_entry(iter6);
 			switch (map6->def.type) {
 			case NETLBL_NLTYPE_UNLABELED:
+				if (map6->def.calipso != NULL)
+					return -EINVAL;
+				break;
+			case NETLBL_NLTYPE_CALIPSO:
+				if (map6->def.calipso == NULL)
+					return -EINVAL;
 				break;
 			default:
 				return -EINVAL;
@@ -599,6 +622,10 @@ int netlbl_domhsh_remove_entry(struct netlbl_dom_map *entry,
 	if (ret_val == 0) {
 		struct netlbl_af4list *iter4;
 		struct netlbl_domaddr4_map *map4;
+#if IS_ENABLED(CONFIG_IPV6)
+		struct netlbl_af6list *iter6;
+		struct netlbl_domaddr6_map *map6;
+#endif /* IPv6 */
 
 		switch (entry->def.type) {
 		case NETLBL_NLTYPE_ADDRSELECT:
@@ -607,12 +634,22 @@ int netlbl_domhsh_remove_entry(struct netlbl_dom_map *entry,
 				map4 = netlbl_domhsh_addr4_entry(iter4);
 				cipso_v4_doi_putdef(map4->def.cipso);
 			}
-			/* no need to check the IPv6 list since we currently
-			 * support only unlabeled protocols for IPv6 */
+#if IS_ENABLED(CONFIG_IPV6)
+			netlbl_af6list_foreach_rcu(iter6,
+					     &entry->def.addrsel->list6) {
+				map6 = netlbl_domhsh_addr6_entry(iter6);
+				calipso_doi_putdef(map6->def.calipso);
+			}
+#endif /* IPv6 */
 			break;
 		case NETLBL_NLTYPE_CIPSOV4:
 			cipso_v4_doi_putdef(entry->def.cipso);
 			break;
+#if IS_ENABLED(CONFIG_IPV6)
+		case NETLBL_NLTYPE_CALIPSO:
+			calipso_doi_putdef(entry->def.calipso);
+			break;
+#endif /* IPv6 */
 		}
 		call_rcu(&entry->rcu, netlbl_domhsh_free_entry);
 	}

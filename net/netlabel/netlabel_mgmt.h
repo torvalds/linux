@@ -223,6 +223,9 @@ enum {
 	NLBL_MGMT_A_FAMILY,
 	/* (NLA_U16)
 	 * The address family */
+	NLBL_MGMT_A_CLPDOI,
+	/* (NLA_U32)
+	 * the CALIPSO DOI value */
 	__NLBL_MGMT_A_MAX,
 };
 #define NLBL_MGMT_A_MAX (__NLBL_MGMT_A_MAX - 1)

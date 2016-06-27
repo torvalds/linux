@@ -41,8 +41,10 @@
 #include <net/ipv6.h>
 #include <net/netlabel.h>
 #include <net/cipso_ipv4.h>
+#include <net/calipso.h>
 #include <linux/atomic.h>
 
+#include "netlabel_calipso.h"
 #include "netlabel_domainhash.h"
 #include "netlabel_user.h"
 #include "netlabel_mgmt.h"
@@ -73,6 +75,7 @@ static const struct nla_policy netlbl_mgmt_genl_policy[NLBL_MGMT_A_MAX + 1] = {
 	[NLBL_MGMT_A_VERSION] = { .type = NLA_U32 },
 	[NLBL_MGMT_A_CV4DOI] = { .type = NLA_U32 },
 	[NLBL_MGMT_A_FAMILY] = { .type = NLA_U16 },
+	[NLBL_MGMT_A_CLPDOI] = { .type = NLA_U32 },
 };
 
 /*
@@ -96,6 +99,9 @@ static int netlbl_mgmt_add_common(struct genl_info *info,
 	int ret_val = -EINVAL;
 	struct netlbl_domaddr_map *addrmap = NULL;
 	struct cipso_v4_doi *cipsov4 = NULL;
+#if IS_ENABLED(CONFIG_IPV6)
+	struct calipso_doi *calipso = NULL;
+#endif
 	u32 tmp_val;
 	struct netlbl_dom_map *entry = kzalloc(sizeof(*entry), GFP_KERNEL);
 
@@ -137,6 +143,19 @@ static int netlbl_mgmt_add_common(struct genl_info *info,
 		entry->family = AF_INET;
 		entry->def.cipso = cipsov4;
 		break;
+#if IS_ENABLED(CONFIG_IPV6)
+	case NETLBL_NLTYPE_CALIPSO:
+		if (!info->attrs[NLBL_MGMT_A_CLPDOI])
+			goto add_free_domain;
+
+		tmp_val = nla_get_u32(info->attrs[NLBL_MGMT_A_CLPDOI]);
+		calipso = calipso_doi_getdef(tmp_val);
+		if (calipso == NULL)
+			goto add_free_domain;
+		entry->family = AF_INET6;
+		entry->def.calipso = calipso;
+		break;
+#endif /* IPv6 */
 	default:
 		goto add_free_domain;
 	}
@@ -232,6 +251,8 @@ static int netlbl_mgmt_add_common(struct genl_info *info,
 		map->list.mask = *mask;
 		map->list.valid = 1;
 		map->def.type = entry->def.type;
+		if (calipso)
+			map->def.calipso = calipso;
 
 		ret_val = netlbl_af6list_add(&map->list, &addrmap->list6);
 		if (ret_val != 0) {
@@ -255,6 +276,9 @@ add_free_addrmap:
 	kfree(addrmap);
 add_doi_put_def:
 	cipso_v4_doi_putdef(cipsov4);
+#if IS_ENABLED(CONFIG_IPV6)
+	calipso_doi_putdef(calipso);
+#endif
 add_free_domain:
 	kfree(entry->domain);
 add_free_entry:
@@ -357,6 +381,15 @@ static int netlbl_mgmt_listentry(struct sk_buff *skb,
 			if (ret_val != 0)
 				return ret_val;
 
+			switch (map6->def.type) {
+			case NETLBL_NLTYPE_CALIPSO:
+				ret_val = nla_put_u32(skb, NLBL_MGMT_A_CLPDOI,
+						      map6->def.calipso->doi);
+				if (ret_val != 0)
+					return ret_val;
+				break;
+			}
+
 			nla_nest_end(skb, nla_b);
 		}
 #endif /* IPv6 */
@@ -364,14 +397,24 @@ static int netlbl_mgmt_listentry(struct sk_buff *skb,
 		nla_nest_end(skb, nla_a);
 		break;
 	case NETLBL_NLTYPE_UNLABELED:
-		ret_val = nla_put_u32(skb,NLBL_MGMT_A_PROTOCOL,entry->def.type);
+		ret_val = nla_put_u32(skb, NLBL_MGMT_A_PROTOCOL,
+				      entry->def.type);
 		break;
 	case NETLBL_NLTYPE_CIPSOV4:
-		ret_val = nla_put_u32(skb,NLBL_MGMT_A_PROTOCOL,entry->def.type);
+		ret_val = nla_put_u32(skb, NLBL_MGMT_A_PROTOCOL,
+				      entry->def.type);
 		if (ret_val != 0)
 			return ret_val;
 		ret_val = nla_put_u32(skb, NLBL_MGMT_A_CV4DOI,
 				      entry->def.cipso->doi);
+		break;
+	case NETLBL_NLTYPE_CALIPSO:
+		ret_val = nla_put_u32(skb, NLBL_MGMT_A_PROTOCOL,
+				      entry->def.type);
+		if (ret_val != 0)
+			return ret_val;
+		ret_val = nla_put_u32(skb, NLBL_MGMT_A_CLPDOI,
+				      entry->def.calipso->doi);
 		break;
 	}
 
