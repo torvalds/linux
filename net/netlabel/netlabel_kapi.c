@@ -72,7 +72,7 @@ int netlbl_cfg_map_del(const char *domain,
 		       struct netlbl_audit *audit_info)
 {
 	if (addr == NULL && mask == NULL) {
-		return netlbl_domhsh_remove(domain, audit_info);
+		return netlbl_domhsh_remove(domain, family, audit_info);
 	} else if (addr != NULL && mask != NULL) {
 		switch (family) {
 		case AF_INET:
@@ -119,6 +119,7 @@ int netlbl_cfg_unlbl_map_add(const char *domain,
 		if (entry->domain == NULL)
 			goto cfg_unlbl_map_add_failure;
 	}
+	entry->family = family;
 
 	if (addr == NULL && mask == NULL)
 		entry->def.type = NETLBL_NLTYPE_UNLABELED;
@@ -345,6 +346,7 @@ int netlbl_cfg_cipsov4_map_add(u32 doi,
 	entry = kzalloc(sizeof(*entry), GFP_ATOMIC);
 	if (entry == NULL)
 		goto out_entry;
+	entry->family = AF_INET;
 	if (domain != NULL) {
 		entry->domain = kstrdup(domain, GFP_ATOMIC);
 		if (entry->domain == NULL)
@@ -773,7 +775,7 @@ int netlbl_sock_setattr(struct sock *sk,
 	struct netlbl_dom_map *dom_entry;
 
 	rcu_read_lock();
-	dom_entry = netlbl_domhsh_getentry(secattr->domain);
+	dom_entry = netlbl_domhsh_getentry(secattr->domain, family);
 	if (dom_entry == NULL) {
 		ret_val = -ENOENT;
 		goto socket_setattr_return;

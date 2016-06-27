@@ -72,6 +72,7 @@ static const struct nla_policy netlbl_mgmt_genl_policy[NLBL_MGMT_A_MAX + 1] = {
 	[NLBL_MGMT_A_PROTOCOL] = { .type = NLA_U32 },
 	[NLBL_MGMT_A_VERSION] = { .type = NLA_U32 },
 	[NLBL_MGMT_A_CV4DOI] = { .type = NLA_U32 },
+	[NLBL_MGMT_A_FAMILY] = { .type = NLA_U16 },
 };
 
 /*
@@ -119,6 +120,11 @@ static int netlbl_mgmt_add_common(struct genl_info *info,
 
 	switch (entry->def.type) {
 	case NETLBL_NLTYPE_UNLABELED:
+		if (info->attrs[NLBL_MGMT_A_FAMILY])
+			entry->family =
+				nla_get_u16(info->attrs[NLBL_MGMT_A_FAMILY]);
+		else
+			entry->family = AF_UNSPEC;
 		break;
 	case NETLBL_NLTYPE_CIPSOV4:
 		if (!info->attrs[NLBL_MGMT_A_CV4DOI])
@@ -128,11 +134,16 @@ static int netlbl_mgmt_add_common(struct genl_info *info,
 		cipsov4 = cipso_v4_doi_getdef(tmp_val);
 		if (cipsov4 == NULL)
 			goto add_free_domain;
+		entry->family = AF_INET;
 		entry->def.cipso = cipsov4;
 		break;
 	default:
 		goto add_free_domain;
 	}
+
+	if ((entry->family == AF_INET && info->attrs[NLBL_MGMT_A_IPV6ADDR]) ||
+	    (entry->family == AF_INET6 && info->attrs[NLBL_MGMT_A_IPV4ADDR]))
+		goto add_doi_put_def;
 
 	if (info->attrs[NLBL_MGMT_A_IPV4ADDR]) {
 		struct in_addr *addr;
@@ -178,6 +189,7 @@ static int netlbl_mgmt_add_common(struct genl_info *info,
 			goto add_free_addrmap;
 		}
 
+		entry->family = AF_INET;
 		entry->def.type = NETLBL_NLTYPE_ADDRSELECT;
 		entry->def.addrsel = addrmap;
 #if IS_ENABLED(CONFIG_IPV6)
@@ -227,6 +239,7 @@ static int netlbl_mgmt_add_common(struct genl_info *info,
 			goto add_free_addrmap;
 		}
 
+		entry->family = AF_INET6;
 		entry->def.type = NETLBL_NLTYPE_ADDRSELECT;
 		entry->def.addrsel = addrmap;
 #endif /* IPv6 */
@@ -277,6 +290,10 @@ static int netlbl_mgmt_listentry(struct sk_buff *skb,
 		if (ret_val != 0)
 			return ret_val;
 	}
+
+	ret_val = nla_put_u16(skb, NLBL_MGMT_A_FAMILY, entry->family);
+	if (ret_val != 0)
+		return ret_val;
 
 	switch (entry->def.type) {
 	case NETLBL_NLTYPE_ADDRSELECT:
@@ -418,7 +435,7 @@ static int netlbl_mgmt_remove(struct sk_buff *skb, struct genl_info *info)
 	netlbl_netlink_auditinfo(skb, &audit_info);
 
 	domain = nla_data(info->attrs[NLBL_MGMT_A_DOMAIN]);
-	return netlbl_domhsh_remove(domain, &audit_info);
+	return netlbl_domhsh_remove(domain, AF_UNSPEC, &audit_info);
 }
 
 /**
@@ -536,7 +553,7 @@ static int netlbl_mgmt_removedef(struct sk_buff *skb, struct genl_info *info)
 
 	netlbl_netlink_auditinfo(skb, &audit_info);
 
-	return netlbl_domhsh_remove_default(&audit_info);
+	return netlbl_domhsh_remove_default(AF_UNSPEC, &audit_info);
 }
 
 /**
@@ -556,6 +573,12 @@ static int netlbl_mgmt_listdef(struct sk_buff *skb, struct genl_info *info)
 	struct sk_buff *ans_skb = NULL;
 	void *data;
 	struct netlbl_dom_map *entry;
+	u16 family;
+
+	if (info->attrs[NLBL_MGMT_A_FAMILY])
+		family = nla_get_u16(info->attrs[NLBL_MGMT_A_FAMILY]);
+	else
+		family = AF_INET;
 
 	ans_skb = nlmsg_new(NLMSG_DEFAULT_SIZE, GFP_KERNEL);
 	if (ans_skb == NULL)
@@ -566,7 +589,7 @@ static int netlbl_mgmt_listdef(struct sk_buff *skb, struct genl_info *info)
 		goto listdef_failure;
 
 	rcu_read_lock();
-	entry = netlbl_domhsh_getentry(NULL);
+	entry = netlbl_domhsh_getentry(NULL, family);
 	if (entry == NULL) {
 		ret_val = -ENOENT;
 		goto listdef_failure_lock;

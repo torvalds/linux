@@ -70,6 +70,7 @@ struct netlbl_domaddr6_map {
 
 struct netlbl_dom_map {
 	char *domain;
+	u16 family;
 	struct netlbl_dommap_def def;
 
 	u32 valid;
@@ -91,9 +92,10 @@ int netlbl_domhsh_remove_af4(const char *domain,
 			     const struct in_addr *addr,
 			     const struct in_addr *mask,
 			     struct netlbl_audit *audit_info);
-int netlbl_domhsh_remove(const char *domain, struct netlbl_audit *audit_info);
-int netlbl_domhsh_remove_default(struct netlbl_audit *audit_info);
-struct netlbl_dom_map *netlbl_domhsh_getentry(const char *domain);
+int netlbl_domhsh_remove(const char *domain, u16 family,
+			 struct netlbl_audit *audit_info);
+int netlbl_domhsh_remove_default(u16 family, struct netlbl_audit *audit_info);
+struct netlbl_dom_map *netlbl_domhsh_getentry(const char *domain, u16 family);
 struct netlbl_dommap_def *netlbl_domhsh_getentry_af4(const char *domain,
 						     __be32 addr);
 #if IS_ENABLED(CONFIG_IPV6)
