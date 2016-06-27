@@ -1913,9 +1913,8 @@ static int polaris10_populate_vr_config(struct pp_hwmgr *hwmgr,
 	if (POLARIS10_VOLTAGE_CONTROL_BY_SVID2 == data->mvdd_control) {
 		config = VR_SVI2_PLANE_2;
 		table->VRConfig |= (config << VRCONF_MVDD_SHIFT);
-	} else if (POLARIS10_VOLTAGE_CONTROL_BY_GPIO == data->mvdd_control) {
-		config = VR_SMIO_PATTERN_2;
-		table->VRConfig |= (config << VRCONF_MVDD_SHIFT);
+		cgs_write_ind_register(hwmgr->device, CGS_IND_REG__SMC, data->soft_regs_start +
+			offsetof(SMU74_SoftRegisters, AllowMvddSwitch), 0x1);
 	} else {
 		config = VR_STATIC_VOLTAGE;
 		table->VRConfig |= (config << VRCONF_MVDD_SHIFT);
