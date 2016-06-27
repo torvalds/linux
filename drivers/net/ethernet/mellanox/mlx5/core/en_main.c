@@ -580,7 +580,7 @@ static int mlx5e_create_sq(struct mlx5e_channel *c,
 	void *sqc_wq = MLX5_ADDR_OF(sqc, sqc, wq);
 	int err;
 
-	err = mlx5_alloc_map_uar(mdev, &sq->uar, true);
+	err = mlx5_alloc_map_uar(mdev, &sq->uar, !!MLX5_CAP_GEN(mdev, bf));
 	if (err)
 		return err;
 
