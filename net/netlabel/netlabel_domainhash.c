@@ -725,6 +725,72 @@ remove_af4_failure:
 	return -ENOENT;
 }
 
+#if IS_ENABLED(CONFIG_IPV6)
+/**
+ * netlbl_domhsh_remove_af6 - Removes an address selector entry
+ * @domain: the domain
+ * @addr: IPv6 address
+ * @mask: IPv6 address mask
+ * @audit_info: NetLabel audit information
+ *
+ * Description:
+ * Removes an individual address selector from a domain mapping and potentially
+ * the entire mapping if it is empty.  Returns zero on success, negative values
+ * on failure.
+ *
+ */
+int netlbl_domhsh_remove_af6(const char *domain,
+			     const struct in6_addr *addr,
+			     const struct in6_addr *mask,
+			     struct netlbl_audit *audit_info)
+{
+	struct netlbl_dom_map *entry_map;
+	struct netlbl_af6list *entry_addr;
+	struct netlbl_af4list *iter4;
+	struct netlbl_af6list *iter6;
+	struct netlbl_domaddr6_map *entry;
+
+	rcu_read_lock();
+
+	if (domain)
+		entry_map = netlbl_domhsh_search(domain, AF_INET6);
+	else
+		entry_map = netlbl_domhsh_search_def(domain, AF_INET6);
+	if (entry_map == NULL ||
+	    entry_map->def.type != NETLBL_NLTYPE_ADDRSELECT)
+		goto remove_af6_failure;
+
+	spin_lock(&netlbl_domhsh_lock);
+	entry_addr = netlbl_af6list_remove(addr, mask,
+					   &entry_map->def.addrsel->list6);
+	spin_unlock(&netlbl_domhsh_lock);
+
+	if (entry_addr == NULL)
+		goto remove_af6_failure;
+	netlbl_af4list_foreach_rcu(iter4, &entry_map->def.addrsel->list4)
+		goto remove_af6_single_addr;
+	netlbl_af6list_foreach_rcu(iter6, &entry_map->def.addrsel->list6)
+		goto remove_af6_single_addr;
+	/* the domain mapping is empty so remove it from the mapping table */
+	netlbl_domhsh_remove_entry(entry_map, audit_info);
+
+remove_af6_single_addr:
+	rcu_read_unlock();
+	/* yick, we can't use call_rcu here because we don't have a rcu head
+	 * pointer but hopefully this should be a rare case so the pause
+	 * shouldn't be a problem */
+	synchronize_rcu();
+	entry = netlbl_domhsh_addr6_entry(entry_addr);
+	calipso_doi_putdef(entry->def.calipso);
+	kfree(entry);
+	return 0;
+
+remove_af6_failure:
+	rcu_read_unlock();
+	return -ENOENT;
+}
+#endif /* IPv6 */
+
 /**
  * netlbl_domhsh_remove - Removes an entry from the domain hash table
  * @domain: the domain to remove

@@ -93,6 +93,10 @@ int netlbl_domhsh_remove_af4(const char *domain,
 			     const struct in_addr *addr,
 			     const struct in_addr *mask,
 			     struct netlbl_audit *audit_info);
+int netlbl_domhsh_remove_af6(const char *domain,
+			     const struct in6_addr *addr,
+			     const struct in6_addr *mask,
+			     struct netlbl_audit *audit_info);
 int netlbl_domhsh_remove(const char *domain, u16 family,
 			 struct netlbl_audit *audit_info);
 int netlbl_domhsh_remove_default(u16 family, struct netlbl_audit *audit_info);
@@ -102,6 +106,10 @@ struct netlbl_dommap_def *netlbl_domhsh_getentry_af4(const char *domain,
 #if IS_ENABLED(CONFIG_IPV6)
 struct netlbl_dommap_def *netlbl_domhsh_getentry_af6(const char *domain,
 						   const struct in6_addr *addr);
+int netlbl_domhsh_remove_af6(const char *domain,
+			     const struct in6_addr *addr,
+			     const struct in6_addr *mask,
+			     struct netlbl_audit *audit_info);
 #endif /* IPv6 */
 
 int netlbl_domhsh_walk(u32 *skip_bkt,

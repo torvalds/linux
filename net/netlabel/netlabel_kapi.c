@@ -80,6 +80,11 @@ int netlbl_cfg_map_del(const char *domain,
 		case AF_INET:
 			return netlbl_domhsh_remove_af4(domain, addr, mask,
 							audit_info);
+#if IS_ENABLED(CONFIG_IPV6)
+		case AF_INET6:
+			return netlbl_domhsh_remove_af6(domain, addr, mask,
+							audit_info);
+#endif /* IPv6 */
 		default:
 			return -EPFNOSUPPORT;
 		}
@@ -401,6 +406,139 @@ out_domain:
 out_entry:
 	cipso_v4_doi_putdef(doi_def);
 	return ret_val;
+}
+
+/**
+ * netlbl_cfg_calipso_add - Add a new CALIPSO DOI definition
+ * @doi_def: CALIPSO DOI definition
+ * @audit_info: NetLabel audit information
+ *
+ * Description:
+ * Add a new CALIPSO DOI definition as defined by @doi_def.  Returns zero on
+ * success and negative values on failure.
+ *
+ */
+int netlbl_cfg_calipso_add(struct calipso_doi *doi_def,
+			   struct netlbl_audit *audit_info)
+{
+#if IS_ENABLED(CONFIG_IPV6)
+	return calipso_doi_add(doi_def, audit_info);
+#else /* IPv6 */
+	return -ENOSYS;
+#endif /* IPv6 */
+}
+
+/**
+ * netlbl_cfg_calipso_del - Remove an existing CALIPSO DOI definition
+ * @doi: CALIPSO DOI
+ * @audit_info: NetLabel audit information
+ *
+ * Description:
+ * Remove an existing CALIPSO DOI definition matching @doi.  Returns zero on
+ * success and negative values on failure.
+ *
+ */
+void netlbl_cfg_calipso_del(u32 doi, struct netlbl_audit *audit_info)
+{
+#if IS_ENABLED(CONFIG_IPV6)
+	calipso_doi_remove(doi, audit_info);
+#endif /* IPv6 */
+}
+
+/**
+ * netlbl_cfg_calipso_map_add - Add a new CALIPSO DOI mapping
+ * @doi: the CALIPSO DOI
+ * @domain: the domain mapping to add
+ * @addr: IP address
+ * @mask: IP address mask
+ * @audit_info: NetLabel audit information
+ *
+ * Description:
+ * Add a new NetLabel/LSM domain mapping for the given CALIPSO DOI to the
+ * NetLabel subsystem.  A @domain value of NULL adds a new default domain
+ * mapping.  Returns zero on success, negative values on failure.
+ *
+ */
+int netlbl_cfg_calipso_map_add(u32 doi,
+			       const char *domain,
+			       const struct in6_addr *addr,
+			       const struct in6_addr *mask,
+			       struct netlbl_audit *audit_info)
+{
+#if IS_ENABLED(CONFIG_IPV6)
+	int ret_val = -ENOMEM;
+	struct calipso_doi *doi_def;
+	struct netlbl_dom_map *entry;
+	struct netlbl_domaddr_map *addrmap = NULL;
+	struct netlbl_domaddr6_map *addrinfo = NULL;
+
+	doi_def = calipso_doi_getdef(doi);
+	if (doi_def == NULL)
+		return -ENOENT;
+
+	entry = kzalloc(sizeof(*entry), GFP_ATOMIC);
+	if (entry == NULL)
+		goto out_entry;
+	entry->family = AF_INET6;
+	if (domain != NULL) {
+		entry->domain = kstrdup(domain, GFP_ATOMIC);
+		if (entry->domain == NULL)
+			goto out_domain;
+	}
+
+	if (addr == NULL && mask == NULL) {
+		entry->def.calipso = doi_def;
+		entry->def.type = NETLBL_NLTYPE_CALIPSO;
+	} else if (addr != NULL && mask != NULL) {
+		addrmap = kzalloc(sizeof(*addrmap), GFP_ATOMIC);
+		if (addrmap == NULL)
+			goto out_addrmap;
+		INIT_LIST_HEAD(&addrmap->list4);
+		INIT_LIST_HEAD(&addrmap->list6);
+
+		addrinfo = kzalloc(sizeof(*addrinfo), GFP_ATOMIC);
+		if (addrinfo == NULL)
+			goto out_addrinfo;
+		addrinfo->def.calipso = doi_def;
+		addrinfo->def.type = NETLBL_NLTYPE_CALIPSO;
+		addrinfo->list.addr = *addr;
+		addrinfo->list.addr.s6_addr32[0] &= mask->s6_addr32[0];
+		addrinfo->list.addr.s6_addr32[1] &= mask->s6_addr32[1];
+		addrinfo->list.addr.s6_addr32[2] &= mask->s6_addr32[2];
+		addrinfo->list.addr.s6_addr32[3] &= mask->s6_addr32[3];
+		addrinfo->list.mask = *mask;
+		addrinfo->list.valid = 1;
+		ret_val = netlbl_af6list_add(&addrinfo->list, &addrmap->list6);
+		if (ret_val != 0)
+			goto cfg_calipso_map_add_failure;
+
+		entry->def.addrsel = addrmap;
+		entry->def.type = NETLBL_NLTYPE_ADDRSELECT;
+	} else {
+		ret_val = -EINVAL;
+		goto out_addrmap;
+	}
+
+	ret_val = netlbl_domhsh_add(entry, audit_info);
+	if (ret_val != 0)
+		goto cfg_calipso_map_add_failure;
+
+	return 0;
+
+cfg_calipso_map_add_failure:
+	kfree(addrinfo);
+out_addrinfo:
+	kfree(addrmap);
+out_addrmap:
+	kfree(entry->domain);
+out_domain:
+	kfree(entry);
+out_entry:
+	calipso_doi_putdef(doi_def);
+	return ret_val;
+#else /* IPv6 */
+	return -ENOSYS;
+#endif /* IPv6 */
 }
 
 /*

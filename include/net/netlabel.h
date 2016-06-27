@@ -445,6 +445,14 @@ int netlbl_cfg_cipsov4_map_add(u32 doi,
 			       const struct in_addr *addr,
 			       const struct in_addr *mask,
 			       struct netlbl_audit *audit_info);
+int netlbl_cfg_calipso_add(struct calipso_doi *doi_def,
+			   struct netlbl_audit *audit_info);
+void netlbl_cfg_calipso_del(u32 doi, struct netlbl_audit *audit_info);
+int netlbl_cfg_calipso_map_add(u32 doi,
+			       const char *domain,
+			       const struct in6_addr *addr,
+			       const struct in6_addr *mask,
+			       struct netlbl_audit *audit_info);
 /*
  * LSM security attribute operations
  */
@@ -557,6 +565,24 @@ static inline int netlbl_cfg_cipsov4_map_add(u32 doi,
 					     const char *domain,
 					     const struct in_addr *addr,
 					     const struct in_addr *mask,
+					     struct netlbl_audit *audit_info)
+{
+	return -ENOSYS;
+}
+static inline int netlbl_cfg_calipso_add(struct calipso_doi *doi_def,
+					 struct netlbl_audit *audit_info)
+{
+	return -ENOSYS;
+}
+static inline void netlbl_cfg_calipso_del(u32 doi,
+					  struct netlbl_audit *audit_info)
+{
+	return;
+}
+static inline int netlbl_cfg_calipso_map_add(u32 doi,
+					     const char *domain,
+					     const struct in6_addr *addr,
+					     const struct in6_addr *mask,
 					     struct netlbl_audit *audit_info)
 {
 	return -ENOSYS;
