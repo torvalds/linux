@@ -5090,10 +5090,10 @@ static void rtl8723bu_handle_c2h(struct rtl8xxxu_priv *priv,
 	}
 }
 
-int rtl8xxxu_parse_rxdesc16(struct rtl8xxxu_priv *priv, struct sk_buff *skb,
-			    struct ieee80211_rx_status *rx_status)
+int rtl8xxxu_parse_rxdesc16(struct rtl8xxxu_priv *priv, struct sk_buff *skb)
 {
 	struct ieee80211_hw *hw = priv->hw;
+	struct ieee80211_rx_status *rx_status = IEEE80211_SKB_RXCB(skb);
 	struct rtl8xxxu_rxdesc16 *rx_desc =
 		(struct rtl8xxxu_rxdesc16 *)skb->data;
 	struct rtl8723au_phy_stats *phy_stats;
@@ -5143,10 +5143,10 @@ int rtl8xxxu_parse_rxdesc16(struct rtl8xxxu_priv *priv, struct sk_buff *skb,
 	return RX_TYPE_DATA_PKT;
 }
 
-int rtl8xxxu_parse_rxdesc24(struct rtl8xxxu_priv *priv, struct sk_buff *skb,
-			    struct ieee80211_rx_status *rx_status)
+int rtl8xxxu_parse_rxdesc24(struct rtl8xxxu_priv *priv, struct sk_buff *skb)
 {
 	struct ieee80211_hw *hw = priv->hw;
+	struct ieee80211_rx_status *rx_status = IEEE80211_SKB_RXCB(skb);
 	struct rtl8xxxu_rxdesc24 *rx_desc =
 		(struct rtl8xxxu_rxdesc24 *)skb->data;
 	struct rtl8723au_phy_stats *phy_stats;
@@ -5211,13 +5211,12 @@ static void rtl8xxxu_rx_complete(struct urb *urb)
 	struct ieee80211_hw *hw = rx_urb->hw;
 	struct rtl8xxxu_priv *priv = hw->priv;
 	struct sk_buff *skb = (struct sk_buff *)urb->context;
-	struct ieee80211_rx_status *rx_status = IEEE80211_SKB_RXCB(skb);
 	struct device *dev = &priv->udev->dev;
 
 	skb_put(skb, urb->actual_length);
 
 	if (urb->status == 0) {
-		priv->fops->parse_rx_desc(priv, skb, rx_status);
+		priv->fops->parse_rx_desc(priv, skb);
 
 		skb = NULL;
 		rx_urb->urb.context = NULL;

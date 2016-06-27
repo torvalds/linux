@@ -1315,8 +1315,7 @@ struct rtl8xxxu_fileops {
 	void (*phy_init_antenna_selection) (struct rtl8xxxu_priv *priv);
 	void (*phy_iq_calibrate) (struct rtl8xxxu_priv *priv);
 	void (*config_channel) (struct ieee80211_hw *hw);
-	int (*parse_rx_desc) (struct rtl8xxxu_priv *priv, struct sk_buff *skb,
-			      struct ieee80211_rx_status *rx_status);
+	int (*parse_rx_desc) (struct rtl8xxxu_priv *priv, struct sk_buff *skb);
 	void (*init_aggregation) (struct rtl8xxxu_priv *priv);
 	void (*init_statistics) (struct rtl8xxxu_priv *priv);
 	void (*enable_rf) (struct rtl8xxxu_priv *priv);
@@ -1412,10 +1411,8 @@ void rtl8xxxu_gen2_report_connect(struct rtl8xxxu_priv *priv,
 void rtl8xxxu_gen1_enable_rf(struct rtl8xxxu_priv *priv);
 void rtl8xxxu_gen1_disable_rf(struct rtl8xxxu_priv *priv);
 void rtl8xxxu_gen2_disable_rf(struct rtl8xxxu_priv *priv);
-int rtl8xxxu_parse_rxdesc16(struct rtl8xxxu_priv *priv, struct sk_buff *skb,
-			    struct ieee80211_rx_status *rx_status);
-int rtl8xxxu_parse_rxdesc24(struct rtl8xxxu_priv *priv, struct sk_buff *skb,
-			    struct ieee80211_rx_status *rx_status);
+int rtl8xxxu_parse_rxdesc16(struct rtl8xxxu_priv *priv, struct sk_buff *skb);
+int rtl8xxxu_parse_rxdesc24(struct rtl8xxxu_priv *priv, struct sk_buff *skb);
 int rtl8xxxu_gen2_channel_to_group(int channel);
 bool rtl8xxxu_gen2_simularity_compare(struct rtl8xxxu_priv *priv,
 				      int result[][8], int c1, int c2);
