@@ -46,6 +46,14 @@
  *
  *   If using CALIPSO_MAP_PASS no additional attributes are required.
  *
+ * o REMOVE:
+ *   Sent by an application to remove a specific DOI mapping table from the
+ *   CALIPSO system.
+ *
+ *   Required attributes:
+ *
+ *     NLBL_CALIPSO_A_DOI
+ *
  * o LIST:
  *   Sent by an application to list the details of a DOI definition.  On
  *   success the kernel should send a response using the following format.
@@ -114,6 +122,7 @@ static inline int netlbl_calipso_genl_init(void)
 int calipso_doi_add(struct calipso_doi *doi_def,
 		    struct netlbl_audit *audit_info);
 void calipso_doi_free(struct calipso_doi *doi_def);
+int calipso_doi_remove(u32 doi, struct netlbl_audit *audit_info);
 struct calipso_doi *calipso_doi_getdef(u32 doi);
 void calipso_doi_putdef(struct calipso_doi *doi_def);
 int calipso_doi_walk(u32 *skip_cnt,

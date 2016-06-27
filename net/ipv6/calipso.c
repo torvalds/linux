@@ -163,6 +163,53 @@ static void calipso_doi_free_rcu(struct rcu_head *entry)
 }
 
 /**
+ * calipso_doi_remove - Remove an existing DOI from the CALIPSO protocol engine
+ * @doi: the DOI value
+ * @audit_secid: the LSM secid to use in the audit message
+ *
+ * Description:
+ * Removes a DOI definition from the CALIPSO engine.  The NetLabel routines will
+ * be called to release their own LSM domain mappings as well as our own
+ * domain list.  Returns zero on success and negative values on failure.
+ *
+ */
+static int calipso_doi_remove(u32 doi, struct netlbl_audit *audit_info)
+{
+	int ret_val;
+	struct calipso_doi *doi_def;
+	struct audit_buffer *audit_buf;
+
+	spin_lock(&calipso_doi_list_lock);
+	doi_def = calipso_doi_search(doi);
+	if (!doi_def) {
+		spin_unlock(&calipso_doi_list_lock);
+		ret_val = -ENOENT;
+		goto doi_remove_return;
+	}
+	if (!atomic_dec_and_test(&doi_def->refcount)) {
+		spin_unlock(&calipso_doi_list_lock);
+		ret_val = -EBUSY;
+		goto doi_remove_return;
+	}
+	list_del_rcu(&doi_def->list);
+	spin_unlock(&calipso_doi_list_lock);
+
+	call_rcu(&doi_def->rcu, calipso_doi_free_rcu);
+	ret_val = 0;
+
+doi_remove_return:
+	audit_buf = netlbl_audit_start(AUDIT_MAC_CALIPSO_DEL, audit_info);
+	if (audit_buf) {
+		audit_log_format(audit_buf,
+				 " calipso_doi=%u res=%u",
+				 doi, ret_val == 0 ? 1 : 0);
+		audit_log_end(audit_buf);
+	}
+
+	return ret_val;
+}
+
+/**
  * calipso_doi_getdef - Returns a reference to a valid DOI definition
  * @doi: the DOI value
  *
@@ -253,6 +300,7 @@ doi_walk_return:
 static const struct netlbl_calipso_ops ops = {
 	.doi_add          = calipso_doi_add,
 	.doi_free         = calipso_doi_free,
+	.doi_remove       = calipso_doi_remove,
 	.doi_getdef       = calipso_doi_getdef,
 	.doi_putdef       = calipso_doi_putdef,
 	.doi_walk         = calipso_doi_walk,
