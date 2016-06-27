@@ -3879,6 +3879,19 @@ static int skl_update_pipe_wm(struct drm_crtc_state *cstate,
 	return 0;
 }
 
+static uint32_t
+pipes_modified(struct drm_atomic_state *state)
+{
+	struct drm_crtc *crtc;
+	struct drm_crtc_state *cstate;
+	uint32_t i, ret = 0;
+
+	for_each_crtc_in_state(state, crtc, cstate, i)
+		ret |= drm_crtc_mask(crtc);
+
+	return ret;
+}
+
 static int
 skl_compute_ddb(struct drm_atomic_state *state)
 {
@@ -3887,7 +3900,7 @@ skl_compute_ddb(struct drm_atomic_state *state)
 	struct intel_atomic_state *intel_state = to_intel_atomic_state(state);
 	struct intel_crtc *intel_crtc;
 	struct skl_ddb_allocation *ddb = &intel_state->wm_results.ddb;
-	unsigned realloc_pipes = dev_priv->active_crtcs;
+	uint32_t realloc_pipes = pipes_modified(state);
 	int ret;
 
 	/*
