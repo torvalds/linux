@@ -105,11 +105,11 @@ static void mlx5e_update_sw_counters(struct mlx5e_priv *priv)
 
 		s->rx_packets	+= rq_stats->packets;
 		s->rx_bytes	+= rq_stats->bytes;
-		s->lro_packets	+= rq_stats->lro_packets;
-		s->lro_bytes	+= rq_stats->lro_bytes;
+		s->rx_lro_packets += rq_stats->lro_packets;
+		s->rx_lro_bytes	+= rq_stats->lro_bytes;
 		s->rx_csum_none	+= rq_stats->csum_none;
-		s->rx_csum_sw	+= rq_stats->csum_sw;
-		s->rx_csum_inner += rq_stats->csum_inner;
+		s->rx_csum_complete += rq_stats->csum_complete;
+		s->rx_csum_unnecessary_inner += rq_stats->csum_unnecessary_inner;
 		s->rx_wqe_err   += rq_stats->wqe_err;
 		s->rx_mpwqe_filler += rq_stats->mpwqe_filler;
 		s->rx_mpwqe_frag   += rq_stats->mpwqe_frag;
@@ -122,24 +122,23 @@ static void mlx5e_update_sw_counters(struct mlx5e_priv *priv)
 
 			s->tx_packets		+= sq_stats->packets;
 			s->tx_bytes		+= sq_stats->bytes;
-			s->tso_packets		+= sq_stats->tso_packets;
-			s->tso_bytes		+= sq_stats->tso_bytes;
-			s->tso_inner_packets	+= sq_stats->tso_inner_packets;
-			s->tso_inner_bytes	+= sq_stats->tso_inner_bytes;
+			s->tx_tso_packets	+= sq_stats->tso_packets;
+			s->tx_tso_bytes		+= sq_stats->tso_bytes;
+			s->tx_tso_inner_packets	+= sq_stats->tso_inner_packets;
+			s->tx_tso_inner_bytes	+= sq_stats->tso_inner_bytes;
 			s->tx_queue_stopped	+= sq_stats->stopped;
 			s->tx_queue_wake	+= sq_stats->wake;
 			s->tx_queue_dropped	+= sq_stats->dropped;
-			s->tx_csum_inner	+= sq_stats->csum_offload_inner;
-			tx_offload_none		+= sq_stats->csum_offload_none;
+			s->tx_csum_partial_inner += sq_stats->csum_partial_inner;
+			tx_offload_none		+= sq_stats->csum_none;
 		}
 	}
 
 	/* Update calculated offload counters */
-	s->tx_csum_offload = s->tx_packets - tx_offload_none - s->tx_csum_inner;
-	s->rx_csum_good    = s->rx_packets - s->rx_csum_none -
-			     s->rx_csum_sw;
+	s->tx_csum_partial = s->tx_packets - tx_offload_none - s->tx_csum_partial_inner;
+	s->rx_csum_unnecessary = s->rx_packets - s->rx_csum_none - s->rx_csum_complete;
 
-	s->link_down_events = MLX5_GET(ppcnt_reg,
+	s->link_down_events_phy = MLX5_GET(ppcnt_reg,
 				priv->stats.pport.phy_counters,
 				counter_set.phys_layer_cntrs.link_down_events);
 }
