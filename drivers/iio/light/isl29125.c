@@ -44,6 +44,9 @@
 #define ISL29125_MODE_B 0x3
 #define ISL29125_MODE_RGB 0x5
 
+#define ISL29125_SENSING_RANGE_0 5722   /* 375 lux full range */
+#define ISL29125_SENSING_RANGE_1 152590 /* 10k lux full range */
+
 #define ISL29125_MODE_RANGE BIT(3)
 
 #define ISL29125_STATUS_CONV BIT(1)
@@ -139,9 +142,9 @@ static int isl29125_read_raw(struct iio_dev *indio_dev,
 	case IIO_CHAN_INFO_SCALE:
 		*val = 0;
 		if (data->conf1 & ISL29125_MODE_RANGE)
-			*val2 = 152590; /* 10k lux full range */
+			*val2 = ISL29125_SENSING_RANGE_1; /*10k lux full range*/
 		else
-			*val2 = 5722; /* 375 lux full range */
+			*val2 = ISL29125_SENSING_RANGE_0; /*375 lux full range*/
 		return IIO_VAL_INT_PLUS_MICRO;
 	}
 	return -EINVAL;
@@ -157,9 +160,9 @@ static int isl29125_write_raw(struct iio_dev *indio_dev,
 	case IIO_CHAN_INFO_SCALE:
 		if (val != 0)
 			return -EINVAL;
-		if (val2 == 152590)
+		if (val2 == ISL29125_SENSING_RANGE_1)
 			data->conf1 |= ISL29125_MODE_RANGE;
-		else if (val2 == 5722)
+		else if (val2 == ISL29125_SENSING_RANGE_0)
 			data->conf1 &= ~ISL29125_MODE_RANGE;
 		else
 			return -EINVAL;
