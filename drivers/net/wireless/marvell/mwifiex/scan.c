@@ -1960,6 +1960,7 @@ static void mwifiex_check_next_scan_command(struct mwifiex_private *priv)
 				    "info: notifying scan done\n");
 			cfg80211_scan_done(priv->scan_request, 0);
 			priv->scan_request = NULL;
+			priv->scan_aborting = false;
 		} else {
 			priv->scan_aborting = false;
 			mwifiex_dbg(adapter, INFO,
@@ -1981,6 +1982,7 @@ static void mwifiex_check_next_scan_command(struct mwifiex_private *priv)
 					    "info: aborting scan\n");
 				cfg80211_scan_done(priv->scan_request, 1);
 				priv->scan_request = NULL;
+				priv->scan_aborting = false;
 			} else {
 				priv->scan_aborting = false;
 				mwifiex_dbg(adapter, INFO,
@@ -2022,6 +2024,7 @@ void mwifiex_cancel_scan(struct mwifiex_adapter *adapter)
 					    "info: aborting scan\n");
 				cfg80211_scan_done(priv->scan_request, 1);
 				priv->scan_request = NULL;
+				priv->scan_aborting = false;
 			}
 		}
 	}
