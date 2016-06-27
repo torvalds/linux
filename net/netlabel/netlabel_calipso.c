@@ -578,3 +578,43 @@ void calipso_sock_delattr(struct sock *sk)
 	if (ops)
 		ops->sock_delattr(sk);
 }
+
+/**
+ * calipso_req_setattr - Add a CALIPSO option to a connection request socket
+ * @req: the connection request socket
+ * @doi_def: the CALIPSO DOI to use
+ * @secattr: the specific security attributes of the socket
+ *
+ * Description:
+ * Set the CALIPSO option on the given socket using the DOI definition and
+ * security attributes passed to the function.  Returns zero on success and
+ * negative values on failure.
+ *
+ */
+int calipso_req_setattr(struct request_sock *req,
+			const struct calipso_doi *doi_def,
+			const struct netlbl_lsm_secattr *secattr)
+{
+	int ret_val = -ENOMSG;
+	const struct netlbl_calipso_ops *ops = netlbl_calipso_ops_get();
+
+	if (ops)
+		ret_val = ops->req_setattr(req, doi_def, secattr);
+	return ret_val;
+}
+
+/**
+ * calipso_req_delattr - Delete the CALIPSO option from a request socket
+ * @reg: the request socket
+ *
+ * Description:
+ * Removes the CALIPSO option from a request socket, if present.
+ *
+ */
+void calipso_req_delattr(struct request_sock *req)
+{
+	const struct netlbl_calipso_ops *ops = netlbl_calipso_ops_get();
+
+	if (ops)
+		ops->req_delattr(req);
+}

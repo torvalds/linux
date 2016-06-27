@@ -1053,12 +1053,13 @@ int netlbl_req_setattr(struct request_sock *req,
 {
 	int ret_val;
 	struct netlbl_dommap_def *entry;
+	struct inet_request_sock *ireq = inet_rsk(req);
 
 	rcu_read_lock();
 	switch (req->rsk_ops->family) {
 	case AF_INET:
 		entry = netlbl_domhsh_getentry_af4(secattr->domain,
-						   inet_rsk(req)->ir_rmt_addr);
+						   ireq->ir_rmt_addr);
 		if (entry == NULL) {
 			ret_val = -ENOENT;
 			goto req_setattr_return;
@@ -1069,9 +1070,7 @@ int netlbl_req_setattr(struct request_sock *req,
 						       entry->cipso, secattr);
 			break;
 		case NETLBL_NLTYPE_UNLABELED:
-			/* just delete the protocols we support for right now
-			 * but we could remove other protocols if needed */
-			cipso_v4_req_delattr(req);
+			netlbl_req_delattr(req);
 			ret_val = 0;
 			break;
 		default:
@@ -1080,9 +1079,24 @@ int netlbl_req_setattr(struct request_sock *req,
 		break;
 #if IS_ENABLED(CONFIG_IPV6)
 	case AF_INET6:
-		/* since we don't support any IPv6 labeling protocols right
-		 * now we can optimize everything away until we do */
-		ret_val = 0;
+		entry = netlbl_domhsh_getentry_af6(secattr->domain,
+						   &ireq->ir_v6_rmt_addr);
+		if (entry == NULL) {
+			ret_val = -ENOENT;
+			goto req_setattr_return;
+		}
+		switch (entry->type) {
+		case NETLBL_NLTYPE_CALIPSO:
+			ret_val = calipso_req_setattr(req,
+						      entry->calipso, secattr);
+			break;
+		case NETLBL_NLTYPE_UNLABELED:
+			netlbl_req_delattr(req);
+			ret_val = 0;
+			break;
+		default:
+			ret_val = -ENOENT;
+		}
 		break;
 #endif /* IPv6 */
 	default:
@@ -1108,6 +1122,11 @@ void netlbl_req_delattr(struct request_sock *req)
 	case AF_INET:
 		cipso_v4_req_delattr(req);
 		break;
+#if IS_ENABLED(CONFIG_IPV6)
+	case AF_INET6:
+		calipso_req_delattr(req);
+		break;
+#endif /* IPv6 */
 	}
 }
 

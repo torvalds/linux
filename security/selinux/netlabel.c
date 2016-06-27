@@ -284,7 +284,7 @@ int selinux_netlbl_inet_conn_request(struct request_sock *req, u16 family)
 	int rc;
 	struct netlbl_lsm_secattr secattr;
 
-	if (family != PF_INET)
+	if (family != PF_INET && family != PF_INET6)
 		return 0;
 
 	netlbl_secattr_init(&secattr);

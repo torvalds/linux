@@ -889,6 +889,90 @@ done:
 	txopt_put(txopts);
 }
 
+/* request sock functions.
+ */
+
+/**
+ * calipso_req_setattr - Add a CALIPSO option to a connection request socket
+ * @req: the connection request socket
+ * @doi_def: the CALIPSO DOI to use
+ * @secattr: the specific security attributes of the socket
+ *
+ * Description:
+ * Set the CALIPSO option on the given socket using the DOI definition and
+ * security attributes passed to the function.  Returns zero on success and
+ * negative values on failure.
+ *
+ */
+static int calipso_req_setattr(struct request_sock *req,
+			       const struct calipso_doi *doi_def,
+			       const struct netlbl_lsm_secattr *secattr)
+{
+	struct ipv6_txoptions *txopts;
+	struct inet_request_sock *req_inet = inet_rsk(req);
+	struct ipv6_opt_hdr *old, *new;
+	struct sock *sk = sk_to_full_sk(req_to_sk(req));
+
+	if (req_inet->ipv6_opt && req_inet->ipv6_opt->hopopt)
+		old = req_inet->ipv6_opt->hopopt;
+	else
+		old = NULL;
+
+	new = calipso_opt_insert(old, doi_def, secattr);
+	if (IS_ERR(new))
+		return PTR_ERR(new);
+
+	txopts = ipv6_renew_options_kern(sk, req_inet->ipv6_opt, IPV6_HOPOPTS,
+					 new, new ? ipv6_optlen(new) : 0);
+
+	kfree(new);
+
+	if (IS_ERR(txopts))
+		return PTR_ERR(txopts);
+
+	txopts = xchg(&req_inet->ipv6_opt, txopts);
+	if (txopts) {
+		atomic_sub(txopts->tot_len, &sk->sk_omem_alloc);
+		txopt_put(txopts);
+	}
+
+	return 0;
+}
+
+/**
+ * calipso_req_delattr - Delete the CALIPSO option from a request socket
+ * @reg: the request socket
+ *
+ * Description:
+ * Removes the CALIPSO option from a request socket, if present.
+ *
+ */
+static void calipso_req_delattr(struct request_sock *req)
+{
+	struct inet_request_sock *req_inet = inet_rsk(req);
+	struct ipv6_opt_hdr *new;
+	struct ipv6_txoptions *txopts;
+	struct sock *sk = sk_to_full_sk(req_to_sk(req));
+
+	if (!req_inet->ipv6_opt || !req_inet->ipv6_opt->hopopt)
+		return;
+
+	if (calipso_opt_del(req_inet->ipv6_opt->hopopt, &new))
+		return; /* Nothing to do */
+
+	txopts = ipv6_renew_options_kern(sk, req_inet->ipv6_opt, IPV6_HOPOPTS,
+					 new, new ? ipv6_optlen(new) : 0);
+
+	if (!IS_ERR(txopts)) {
+		txopts = xchg(&req_inet->ipv6_opt, txopts);
+		if (txopts) {
+			atomic_sub(txopts->tot_len, &sk->sk_omem_alloc);
+			txopt_put(txopts);
+		}
+	}
+	kfree(new);
+}
+
 static const struct netlbl_calipso_ops ops = {
 	.doi_add          = calipso_doi_add,
 	.doi_free         = calipso_doi_free,
@@ -899,6 +983,8 @@ static const struct netlbl_calipso_ops ops = {
 	.sock_getattr     = calipso_sock_getattr,
 	.sock_setattr     = calipso_sock_setattr,
 	.sock_delattr     = calipso_sock_delattr,
+	.req_setattr      = calipso_req_setattr,
+	.req_delattr      = calipso_req_delattr,
 };
 
 /**

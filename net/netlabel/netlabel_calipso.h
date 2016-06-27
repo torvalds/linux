@@ -133,5 +133,9 @@ int calipso_sock_setattr(struct sock *sk,
 			 const struct calipso_doi *doi_def,
 			 const struct netlbl_lsm_secattr *secattr);
 void calipso_sock_delattr(struct sock *sk);
+int calipso_req_setattr(struct request_sock *req,
+			const struct calipso_doi *doi_def,
+			const struct netlbl_lsm_secattr *secattr);
+void calipso_req_delattr(struct request_sock *req);
 
 #endif

@@ -229,6 +229,8 @@ struct netlbl_lsm_secattr {
  * @sock_getattr: retrieve the socket's attr
  * @sock_setattr: set the socket's attr
  * @sock_delattr: remove the socket's attr
+ * @req_setattr: set the req socket's attr
+ * @req_delattr: remove the req socket's attr
  *
  * Description:
  * This structure is filled out by the CALIPSO engine and passed
@@ -252,6 +254,10 @@ struct netlbl_calipso_ops {
 			    const struct calipso_doi *doi_def,
 			    const struct netlbl_lsm_secattr *secattr);
 	void (*sock_delattr)(struct sock *sk);
+	int (*req_setattr)(struct request_sock *req,
+			   const struct calipso_doi *doi_def,
+			   const struct netlbl_lsm_secattr *secattr);
+	void (*req_delattr)(struct request_sock *req);
 };
 
 /*
