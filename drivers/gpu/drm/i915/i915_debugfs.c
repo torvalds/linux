@@ -1602,6 +1602,7 @@ static int gen6_drpc_info(struct seq_file *m)
 	struct drm_device *dev = node->minor->dev;
 	struct drm_i915_private *dev_priv = to_i915(dev);
 	u32 rpmodectl1, gt_core_status, rcctl1, rc6vids = 0;
+	u32 gen9_powergate_enable = 0, gen9_powergate_status = 0;
 	unsigned forcewake_count;
 	int count = 0, ret;
 
@@ -1629,6 +1630,10 @@ static int gen6_drpc_info(struct seq_file *m)
 
 	rpmodectl1 = I915_READ(GEN6_RP_CONTROL);
 	rcctl1 = I915_READ(GEN6_RC_CONTROL);
+	if (INTEL_INFO(dev)->gen >= 9) {
+		gen9_powergate_enable = I915_READ(GEN9_PG_ENABLE);
+		gen9_powergate_status = I915_READ(GEN9_PWRGT_DOMAIN_STATUS);
+	}
 	mutex_unlock(&dev->struct_mutex);
 	mutex_lock(&dev_priv->rps.hw_lock);
 	sandybridge_pcode_read(dev_priv, GEN6_PCODE_READ_RC6VIDS, &rc6vids);
@@ -1647,6 +1652,12 @@ static int gen6_drpc_info(struct seq_file *m)
 		   yesno(rcctl1 & GEN6_RC_CTL_RC1e_ENABLE));
 	seq_printf(m, "RC6 Enabled: %s\n",
 		   yesno(rcctl1 & GEN6_RC_CTL_RC6_ENABLE));
+	if (INTEL_INFO(dev)->gen >= 9) {
+		seq_printf(m, "Render Well Gating Enabled: %s\n",
+			yesno(gen9_powergate_enable & GEN9_RENDER_PG_ENABLE));
+		seq_printf(m, "Media Well Gating Enabled: %s\n",
+			yesno(gen9_powergate_enable & GEN9_MEDIA_PG_ENABLE));
+	}
 	seq_printf(m, "Deep RC6 Enabled: %s\n",
 		   yesno(rcctl1 & GEN6_RC_CTL_RC6p_ENABLE));
 	seq_printf(m, "Deepest RC6 Enabled: %s\n",
@@ -1675,6 +1686,14 @@ static int gen6_drpc_info(struct seq_file *m)
 
 	seq_printf(m, "Core Power Down: %s\n",
 		   yesno(gt_core_status & GEN6_CORE_CPD_STATE_MASK));
+	if (INTEL_INFO(dev)->gen >= 9) {
+		seq_printf(m, "Render Power Well: %s\n",
+			(gen9_powergate_status &
+			 GEN9_PWRGT_RENDER_STATUS_MASK) ? "Up" : "Down");
+		seq_printf(m, "Media Power Well: %s\n",
+			(gen9_powergate_status &
+			 GEN9_PWRGT_MEDIA_STATUS_MASK) ? "Up" : "Down");
+	}
 
 	/* Not exactly sure what this is */
 	seq_printf(m, "RC6 \"Locked to RPn\" residency since boot: %u\n",
@@ -1692,7 +1711,7 @@ static int gen6_drpc_info(struct seq_file *m)
 		   GEN6_DECODE_RC6_VID(((rc6vids >> 8) & 0xff)));
 	seq_printf(m, "RC6++ voltage: %dmV\n",
 		   GEN6_DECODE_RC6_VID(((rc6vids >> 16) & 0xff)));
-	return 0;
+	return i915_forcewake_domains(m, NULL);
 }
 
 static int i915_drpc_info(struct seq_file *m, void *unused)

@@ -6960,6 +6960,9 @@ enum {
 #define  ECOBUS					_MMIO(0xa180)
 #define    FORCEWAKE_MT_ENABLE			(1<<5)
 #define  VLV_SPAREG2H				_MMIO(0xA194)
+#define  GEN9_PWRGT_DOMAIN_STATUS		_MMIO(0xA2A0)
+#define   GEN9_PWRGT_MEDIA_STATUS_MASK		(1 << 0)
+#define   GEN9_PWRGT_RENDER_STATUS_MASK		(1 << 1)
 
 #define  GTFIFODBG				_MMIO(0x120000)
 #define    GT_FIFO_SBDEDICATE_FREE_ENTRY_CHV	(0x1f << 20)
