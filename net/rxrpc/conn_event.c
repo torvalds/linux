@@ -266,12 +266,8 @@ void rxrpc_process_connection(struct work_struct *work)
 
 	_enter("{%d}", conn->debug_id);
 
-	rxrpc_get_connection(conn);
-
-	if (test_and_clear_bit(RXRPC_CONN_EV_CHALLENGE, &conn->events)) {
+	if (test_and_clear_bit(RXRPC_CONN_EV_CHALLENGE, &conn->events))
 		rxrpc_secure_connection(conn);
-		rxrpc_put_connection(conn);
-	}
 
 	/* go through the conn-level event packets, releasing the ref on this
 	 * connection that each one has when we've finished with it */
@@ -286,7 +282,6 @@ void rxrpc_process_connection(struct work_struct *work)
 			goto requeue_and_leave;
 		case -ECONNABORTED:
 		default:
-			rxrpc_put_connection(conn);
 			rxrpc_free_skb(skb);
 			break;
 		}
@@ -304,7 +299,6 @@ requeue_and_leave:
 protocol_error:
 	if (rxrpc_abort_connection(conn, -ret, abort_code) < 0)
 		goto requeue_and_leave;
-	rxrpc_put_connection(conn);
 	rxrpc_free_skb(skb);
 	_leave(" [EPROTO]");
 	goto out;

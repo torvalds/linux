@@ -584,10 +584,17 @@ static inline void rxrpc_get_connection(struct rxrpc_connection *conn)
 	atomic_inc(&conn->usage);
 }
 
+static inline
+struct rxrpc_connection *rxrpc_get_connection_maybe(struct rxrpc_connection *conn)
+{
+	return atomic_inc_not_zero(&conn->usage) ? conn : NULL;
+}
 
 static inline void rxrpc_queue_conn(struct rxrpc_connection *conn)
 {
-	rxrpc_queue_work(&conn->processor);
+	if (rxrpc_get_connection_maybe(conn) &&
+	    !rxrpc_queue_work(&conn->processor))
+		rxrpc_put_connection(conn);
 }
 
 /*

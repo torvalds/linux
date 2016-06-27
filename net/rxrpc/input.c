@@ -580,7 +580,6 @@ static void rxrpc_post_packet_to_conn(struct rxrpc_connection *conn,
 {
 	_enter("%p,%p", conn, skb);
 
-	rxrpc_get_connection(conn);
 	skb_queue_tail(&conn->rx_queue, skb);
 	rxrpc_queue_conn(conn);
 }
