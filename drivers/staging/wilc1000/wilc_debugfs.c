@@ -102,35 +102,16 @@ static struct wilc_debugfs_info_t debugfs_info[] = {
 static int __init wilc_debugfs_init(void)
 {
 	int i;
-
-	struct dentry *debugfs_files;
 	struct wilc_debugfs_info_t *info;
 
 	wilc_dir = debugfs_create_dir("wilc_wifi", NULL);
-	if (wilc_dir ==  ERR_PTR(-ENODEV)) {
-		/* it's not error. the debugfs is just not being enabled. */
-		printk("ERR, kernel has built without debugfs support\n");
-		return 0;
-	}
-
-	if (!wilc_dir) {
-		printk("ERR, debugfs create dir\n");
-		return -1;
-	}
-
 	for (i = 0; i < ARRAY_SIZE(debugfs_info); i++) {
 		info = &debugfs_info[i];
-		debugfs_files = debugfs_create_file(info->name,
-						    info->perm,
-						    wilc_dir,
-						    &info->data,
-						    &info->fops);
-
-		if (!debugfs_files) {
-			printk("ERR fail to create the debugfs file, %s\n", info->name);
-			debugfs_remove_recursive(wilc_dir);
-			return -1;
-		}
+		debugfs_create_file(info->name,
+				    info->perm,
+				    wilc_dir,
+				    &info->data,
+				    &info->fops);
 	}
 	return 0;
 }
