@@ -399,9 +399,9 @@ struct rxrpc_connection *rxrpc_incoming_connection(struct rxrpc_local *local,
 	candidate->params.service_id	= sp->hdr.serviceId;
 	candidate->security_ix		= sp->hdr.securityIndex;
 	candidate->out_clientflag	= 0;
-	candidate->state		= RXRPC_CONN_SERVER;
+	candidate->state		= RXRPC_CONN_SERVICE;
 	if (candidate->params.service_id)
-		candidate->state	= RXRPC_CONN_SERVER_UNSECURED;
+		candidate->state	= RXRPC_CONN_SERVICE_UNSECURED;
 
 	write_lock_bh(&peer->conn_lock);
 

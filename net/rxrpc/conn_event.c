@@ -195,8 +195,8 @@ static int rxrpc_process_event(struct rxrpc_connection *conn,
 		read_lock_bh(&conn->lock);
 		spin_lock(&conn->state_lock);
 
-		if (conn->state == RXRPC_CONN_SERVER_CHALLENGING) {
-			conn->state = RXRPC_CONN_SERVER;
+		if (conn->state == RXRPC_CONN_SERVICE_CHALLENGING) {
+			conn->state = RXRPC_CONN_SERVICE;
 			for (loop = 0; loop < RXRPC_MAXCALLS; loop++)
 				rxrpc_call_is_secure(conn->channels[loop]);
 		}
@@ -268,7 +268,7 @@ void rxrpc_process_connection(struct work_struct *work)
 
 	rxrpc_get_connection(conn);
 
-	if (test_and_clear_bit(RXRPC_CONN_CHALLENGE, &conn->events)) {
+	if (test_and_clear_bit(RXRPC_CONN_EV_CHALLENGE, &conn->events)) {
 		rxrpc_secure_connection(conn);
 		rxrpc_put_connection(conn);
 	}

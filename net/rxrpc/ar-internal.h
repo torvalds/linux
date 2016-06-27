@@ -254,6 +254,35 @@ struct rxrpc_conn_parameters {
 };
 
 /*
+ * Bits in the connection flags.
+ */
+enum rxrpc_conn_flag {
+	RXRPC_CONN_HAS_IDR,		/* Has a client conn ID assigned */
+};
+
+/*
+ * Events that can be raised upon a connection.
+ */
+enum rxrpc_conn_event {
+	RXRPC_CONN_EV_CHALLENGE,	/* Send challenge packet */
+};
+
+/*
+ * The connection protocol state.
+ */
+enum rxrpc_conn_proto_state {
+	RXRPC_CONN_UNUSED,		/* Connection not yet attempted */
+	RXRPC_CONN_CLIENT,		/* Client connection */
+	RXRPC_CONN_SERVICE_UNSECURED,	/* Service unsecured connection */
+	RXRPC_CONN_SERVICE_CHALLENGING,	/* Service challenging for security */
+	RXRPC_CONN_SERVICE,		/* Service secured connection */
+	RXRPC_CONN_REMOTELY_ABORTED,	/* Conn aborted by peer */
+	RXRPC_CONN_LOCALLY_ABORTED,	/* Conn aborted locally */
+	RXRPC_CONN_NETWORK_ERROR,	/* Conn terminated by network error */
+	RXRPC_CONN__NR_STATES
+};
+
+/*
  * RxRPC connection definition
  * - matched by { local, peer, epoch, conn_id, direction }
  * - each connection can only handle four simultaneous calls
@@ -279,23 +308,12 @@ struct rxrpc_connection {
 	struct crypto_skcipher	*cipher;	/* encryption handle */
 	struct rxrpc_crypt	csum_iv;	/* packet checksum base */
 	unsigned long		flags;
-#define RXRPC_CONN_HAS_IDR	0		/* - Has a client conn ID assigned */
 	unsigned long		events;
-#define RXRPC_CONN_CHALLENGE	0		/* send challenge packet */
 	unsigned long		put_time;	/* Time at which last put */
 	rwlock_t		lock;		/* access lock */
 	spinlock_t		state_lock;	/* state-change lock */
 	atomic_t		usage;
-	enum {					/* current state of connection */
-		RXRPC_CONN_UNUSED,		/* - connection not yet attempted */
-		RXRPC_CONN_CLIENT,		/* - client connection */
-		RXRPC_CONN_SERVER_UNSECURED,	/* - server unsecured connection */
-		RXRPC_CONN_SERVER_CHALLENGING,	/* - server challenging for security */
-		RXRPC_CONN_SERVER,		/* - server secured connection */
-		RXRPC_CONN_REMOTELY_ABORTED,	/* - conn aborted by peer */
-		RXRPC_CONN_LOCALLY_ABORTED,	/* - conn aborted locally */
-		RXRPC_CONN_NETWORK_ERROR,	/* - conn terminated by network error */
-	} state;
+	enum rxrpc_conn_proto_state state : 8;	/* current state of connection */
 	u32			local_abort;	/* local abort code */
 	u32			remote_abort;	/* remote abort code */
 	int			error;		/* local error incurred */

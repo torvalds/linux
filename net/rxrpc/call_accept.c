@@ -128,12 +128,12 @@ static int rxrpc_accept_incoming_call(struct rxrpc_local *local,
 
 		spin_lock(&call->conn->state_lock);
 		if (sp->hdr.securityIndex > 0 &&
-		    call->conn->state == RXRPC_CONN_SERVER_UNSECURED) {
+		    call->conn->state == RXRPC_CONN_SERVICE_UNSECURED) {
 			_debug("await conn sec");
 			list_add_tail(&call->accept_link, &rx->secureq);
-			call->conn->state = RXRPC_CONN_SERVER_CHALLENGING;
+			call->conn->state = RXRPC_CONN_SERVICE_CHALLENGING;
 			rxrpc_get_connection(call->conn);
-			set_bit(RXRPC_CONN_CHALLENGE, &call->conn->events);
+			set_bit(RXRPC_CONN_EV_CHALLENGE, &call->conn->events);
 			rxrpc_queue_conn(call->conn);
 		} else {
 			_debug("conn ready");

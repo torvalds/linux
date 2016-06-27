@@ -14,15 +14,15 @@
 #include <net/af_rxrpc.h>
 #include "ar-internal.h"
 
-static const char *const rxrpc_conn_states[] = {
-	[RXRPC_CONN_UNUSED]		= "Unused  ",
-	[RXRPC_CONN_CLIENT]		= "Client  ",
-	[RXRPC_CONN_SERVER_UNSECURED]	= "SvUnsec ",
-	[RXRPC_CONN_SERVER_CHALLENGING]	= "SvChall ",
-	[RXRPC_CONN_SERVER]		= "SvSecure",
-	[RXRPC_CONN_REMOTELY_ABORTED]	= "RmtAbort",
-	[RXRPC_CONN_LOCALLY_ABORTED]	= "LocAbort",
-	[RXRPC_CONN_NETWORK_ERROR]	= "NetError",
+static const char *const rxrpc_conn_states[RXRPC_CONN__NR_STATES] = {
+	[RXRPC_CONN_UNUSED]			= "Unused  ",
+	[RXRPC_CONN_CLIENT]			= "Client  ",
+	[RXRPC_CONN_SERVICE_UNSECURED]		= "SvUnsec ",
+	[RXRPC_CONN_SERVICE_CHALLENGING]	= "SvChall ",
+	[RXRPC_CONN_SERVICE]			= "SvSecure",
+	[RXRPC_CONN_REMOTELY_ABORTED]		= "RmtAbort",
+	[RXRPC_CONN_LOCALLY_ABORTED]		= "LocAbort",
+	[RXRPC_CONN_NETWORK_ERROR]		= "NetError",
 };
 
 /*
