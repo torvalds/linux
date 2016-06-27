@@ -4405,6 +4405,40 @@ void rtl8xxxu_gen2_report_connect(struct rtl8xxxu_priv *priv,
 	rtl8xxxu_gen2_h2c_cmd(priv, &h2c, sizeof(h2c.media_status_rpt));
 }
 
+void rtl8xxxu_gen1_init_aggregation(struct rtl8xxxu_priv *priv)
+{
+	u8 agg_ctrl, usb_spec, page_thresh;
+
+	usb_spec = rtl8xxxu_read8(priv, REG_USB_SPECIAL_OPTION);
+	usb_spec &= ~USB_SPEC_USB_AGG_ENABLE;
+
+	agg_ctrl = rtl8xxxu_read8(priv, REG_TRXDMA_CTRL);
+	agg_ctrl &= ~TRXDMA_CTRL_RXDMA_AGG_EN;
+
+	agg_ctrl |= TRXDMA_CTRL_RXDMA_AGG_EN;
+
+	rtl8xxxu_write8(priv, REG_TRXDMA_CTRL, agg_ctrl);
+	rtl8xxxu_write8(priv, REG_USB_SPECIAL_OPTION, usb_spec);
+
+	/*
+	 * The number of packets we can take looks to be buffer size / 512
+	 * which matches the 512 byte rounding we have to do when de-muxing
+	 * the packets.
+	 *
+	 * Sample numbers from the vendor driver:
+	 * USB High-Speed mode values:
+	 *   RxAggBlockCount = 8 : 512 byte unit
+	 *   RxAggBlockTimeout = 6
+	 *   RxAggPageCount = 48 : 128 byte unit
+	 *   RxAggPageTimeout = 4 or 6 (absolute time 34ms/(2^6))
+	 */
+
+	page_thresh = (priv->fops->rx_agg_buf_size / 512);
+	rtl8xxxu_write8(priv, REG_RXDMA_AGG_PG_TH, page_thresh);
+	rtl8xxxu_write8(priv, REG_USB_DMA_AGG_TO, 4);
+	priv->rx_buf_aggregation = 1;
+}
+
 static void rtl8xxxu_set_basic_rates(struct rtl8xxxu_priv *priv, u32 rate_cfg)
 {
 	u32 val32;
