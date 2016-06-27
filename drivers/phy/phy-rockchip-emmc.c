@@ -88,15 +88,36 @@ static int rockchip_emmc_phy_power(struct phy *phy, bool on_off)
 	unsigned int caldone;
 	unsigned int dllrdy;
 	unsigned int freqsel = PHYCTRL_FREQSEL_200M;
+	unsigned long rate;
 	unsigned long timeout;
 
-	if (rk_phy->emmcclk != NULL) {
-		unsigned long rate = clk_get_rate(rk_phy->emmcclk);
+	/*
+	 * Keep phyctrl_pdb and phyctrl_endll low to allow
+	 * initialization of CALIO state M/C DFFs
+	 */
+	regmap_write(rk_phy->reg_base,
+		     rk_phy->reg_offset + GRF_EMMCPHY_CON6,
+		     HIWORD_UPDATE(PHYCTRL_PDB_PWR_OFF,
+				   PHYCTRL_PDB_MASK,
+				   PHYCTRL_PDB_SHIFT));
+	regmap_write(rk_phy->reg_base,
+		     rk_phy->reg_offset + GRF_EMMCPHY_CON6,
+		     HIWORD_UPDATE(PHYCTRL_ENDLL_DISABLE,
+				   PHYCTRL_ENDLL_MASK,
+				   PHYCTRL_ENDLL_SHIFT));
+
+	/* Already finish power_off above */
+	if (on_off == PHYCTRL_PDB_PWR_OFF)
+		return 0;
+
+	rate = clk_get_rate(rk_phy->emmcclk);
+
+	if (rate != 0) {
 		unsigned long ideal_rate;
 		unsigned long diff;
 
 		switch (rate) {
-		case 0 ... 74999999:
+		case 1 ... 74999999:
 			ideal_rate = 50000000;
 			freqsel = PHYCTRL_FREQSEL_50M;
 			break;
@@ -125,25 +146,6 @@ static int rockchip_emmc_phy_power(struct phy *phy, bool on_off)
 		if ((rate > 50000000 && diff > 15000000) || (rate > 200000000))
 			dev_warn(&phy->dev, "Unsupported rate: %lu\n", rate);
 	}
-
-	/*
-	 * Keep phyctrl_pdb and phyctrl_endll low to allow
-	 * initialization of CALIO state M/C DFFs
-	 */
-	regmap_write(rk_phy->reg_base,
-		     rk_phy->reg_offset + GRF_EMMCPHY_CON6,
-		     HIWORD_UPDATE(PHYCTRL_PDB_PWR_OFF,
-				   PHYCTRL_PDB_MASK,
-				   PHYCTRL_PDB_SHIFT));
-	regmap_write(rk_phy->reg_base,
-		     rk_phy->reg_offset + GRF_EMMCPHY_CON6,
-		     HIWORD_UPDATE(PHYCTRL_ENDLL_DISABLE,
-				   PHYCTRL_ENDLL_MASK,
-				   PHYCTRL_ENDLL_SHIFT));
-
-	/* Already finish power_off above */
-	if (on_off == PHYCTRL_PDB_PWR_OFF)
-		return 0;
 
 	/*
 	 * According to the user manual, calpad calibration
@@ -183,6 +185,19 @@ static int rockchip_emmc_phy_power(struct phy *phy, bool on_off)
 		     HIWORD_UPDATE(PHYCTRL_ENDLL_ENABLE,
 				   PHYCTRL_ENDLL_MASK,
 				   PHYCTRL_ENDLL_SHIFT));
+
+	/*
+	 * We turned on the DLL even though the rate was 0 because we the
+	 * clock might be turned on later.  ...but we can't wait for the DLL
+	 * to lock when the rate is 0 because it will never lock with no
+	 * input clock.
+	 *
+	 * Technically we should be checking the lock later when the clock
+	 * is turned on, but for now we won't.
+	 */
+	if (rate == 0)
+		return 0;
+
 	/*
 	 * After enabling analog DLL circuits docs say that we need 10.2 us if
 	 * our source clock is at 50 MHz and that lock time scales linearly
