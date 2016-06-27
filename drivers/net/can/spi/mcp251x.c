@@ -1145,8 +1145,11 @@ static int mcp251x_can_probe(struct spi_device *spi)
 
 	/* Here is OK to not lock the MCP, no one knows about it yet */
 	ret = mcp251x_hw_probe(spi);
-	if (ret)
+	if (ret) {
+		if (ret == -ENODEV)
+			dev_err(&spi->dev, "Cannot initialize MCP%x. Wrong wiring?\n", priv->model);
 		goto error_probe;
+	}
 
 	mcp251x_hw_sleep(spi);
 
@@ -1156,6 +1159,7 @@ static int mcp251x_can_probe(struct spi_device *spi)
 
 	devm_can_led_init(net);
 
+	netdev_info(net, "MCP%x successfully initialized.\n", priv->model);
 	return 0;
 
 error_probe:
@@ -1168,6 +1172,7 @@ out_clk:
 out_free:
 	free_candev(net);
 
+	dev_err(&spi->dev, "Probe failed, err=%d\n", -ret);
 	return ret;
 }
 

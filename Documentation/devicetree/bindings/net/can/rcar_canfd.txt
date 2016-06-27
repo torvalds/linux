@@ -32,6 +32,12 @@ below properties.
 - assigned-clocks: phandle of canfd clock.
 - assigned-clock-rates: maximum frequency of this clock.
 
+Optional property:
+The controller can operate in either CAN FD only mode (default) or
+Classical CAN only mode. The mode is global to both the channels. In order to
+enable the later, define the following optional property.
+ - renesas,no-can-fd: puts the controller in Classical CAN only mode.
+
 Example
 -------
 
@@ -63,12 +69,13 @@ SoC common .dtsi file:
 
 Board specific .dts file:
 
-E.g. below enables Channel 1 alone in the board.
+E.g. below enables Channel 1 alone in the board in Classical CAN only mode.
 
 &canfd {
-        pinctrl-0 = <&canfd1_pins>;
-        pinctrl-names = "default";
-        status = "okay";
+	pinctrl-0 = <&canfd1_pins>;
+	pinctrl-names = "default";
+	renesas,no-can-fd;
+	status = "okay";
 
 	channel1 {
 		status = "okay";
@@ -79,9 +86,9 @@ E.g. below enables Channel 0 alone in the board using External clock
 as fCAN clock.
 
 &canfd {
-        pinctrl-0 = <&canfd0_pins &can_clk_pins>;
-        pinctrl-names = "default";
-        status = "okay";
+	pinctrl-0 = <&canfd0_pins &can_clk_pins>;
+	pinctrl-names = "default";
+	status = "okay";
 
 	channel0 {
 		status = "okay";
