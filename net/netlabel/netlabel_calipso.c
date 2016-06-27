@@ -700,3 +700,41 @@ int calipso_skbuff_delattr(struct sk_buff *skb)
 		ret_val = ops->skbuff_delattr(skb);
 	return ret_val;
 }
+
+/**
+ * calipso_cache_invalidate - Invalidates the current CALIPSO cache
+ *
+ * Description:
+ * Invalidates and frees any entries in the CALIPSO cache.  Returns zero on
+ * success and negative values on failure.
+ *
+ */
+void calipso_cache_invalidate(void)
+{
+	const struct netlbl_calipso_ops *ops = netlbl_calipso_ops_get();
+
+	if (ops)
+		ops->cache_invalidate();
+}
+
+/**
+ * calipso_cache_add - Add an entry to the CALIPSO cache
+ * @calipso_ptr: the CALIPSO option
+ * @secattr: the packet's security attributes
+ *
+ * Description:
+ * Add a new entry into the CALIPSO label mapping cache.
+ * Returns zero on success, negative values on failure.
+ *
+ */
+int calipso_cache_add(const unsigned char *calipso_ptr,
+		      const struct netlbl_lsm_secattr *secattr)
+
+{
+	int ret_val = -ENOMSG;
+	const struct netlbl_calipso_ops *ops = netlbl_calipso_ops_get();
+
+	if (ops)
+		ret_val = ops->cache_add(calipso_ptr, secattr);
+	return ret_val;
+}

@@ -1281,11 +1281,15 @@ void netlbl_skbuff_err(struct sk_buff *skb, u16 family, int error, int gateway)
 void netlbl_cache_invalidate(void)
 {
 	cipso_v4_cache_invalidate();
+#if IS_ENABLED(CONFIG_IPV6)
+	calipso_cache_invalidate();
+#endif /* IPv6 */
 }
 
 /**
  * netlbl_cache_add - Add an entry to a NetLabel protocol cache
  * @skb: the packet
+ * @family: the family
  * @secattr: the packet's security attributes
  *
  * Description:
@@ -1294,7 +1298,7 @@ void netlbl_cache_invalidate(void)
  * values on error.
  *
  */
-int netlbl_cache_add(const struct sk_buff *skb,
+int netlbl_cache_add(const struct sk_buff *skb, u16 family,
 		     const struct netlbl_lsm_secattr *secattr)
 {
 	unsigned char *ptr;
@@ -1302,10 +1306,20 @@ int netlbl_cache_add(const struct sk_buff *skb,
 	if ((secattr->flags & NETLBL_SECATTR_CACHE) == 0)
 		return -ENOMSG;
 
-	ptr = cipso_v4_optptr(skb);
-	if (ptr)
-		return cipso_v4_cache_add(ptr, secattr);
-
+	switch (family) {
+	case AF_INET:
+		ptr = cipso_v4_optptr(skb);
+		if (ptr)
+			return cipso_v4_cache_add(ptr, secattr);
+		break;
+#if IS_ENABLED(CONFIG_IPV6)
+	case AF_INET6:
+		ptr = calipso_optptr(skb);
+		if (ptr)
+			return calipso_cache_add(ptr, secattr);
+		break;
+#endif /* IPv6 */
+	}
 	return -ENOMSG;
 }
 

@@ -235,6 +235,8 @@ struct netlbl_lsm_secattr {
  * @skbuff_optptr: find option in packet
  * @skbuff_setattr: set the skbuff's attr
  * @skbuff_delattr: remove the skbuff's attr
+ * @cache_invalidate: invalidate cache
+ * @cache_add: add cache entry
  *
  * Description:
  * This structure is filled out by the CALIPSO engine and passed
@@ -269,6 +271,9 @@ struct netlbl_calipso_ops {
 			      const struct calipso_doi *doi_def,
 			      const struct netlbl_lsm_secattr *secattr);
 	int (*skbuff_delattr)(struct sk_buff *skb);
+	void (*cache_invalidate)(void);
+	int (*cache_add)(const unsigned char *calipso_ptr,
+			 const struct netlbl_lsm_secattr *secattr);
 };
 
 /*
@@ -494,7 +499,7 @@ void netlbl_skbuff_err(struct sk_buff *skb, u16 family, int error, int gateway);
  * LSM label mapping cache operations
  */
 void netlbl_cache_invalidate(void);
-int netlbl_cache_add(const struct sk_buff *skb,
+int netlbl_cache_add(const struct sk_buff *skb, u16 family,
 		     const struct netlbl_lsm_secattr *secattr);
 
 /*
@@ -647,7 +652,7 @@ static inline void netlbl_cache_invalidate(void)
 {
 	return;
 }
-static inline int netlbl_cache_add(const struct sk_buff *skb,
+static inline int netlbl_cache_add(const struct sk_buff *skb, u16 family,
 				   const struct netlbl_lsm_secattr *secattr)
 {
 	return 0;

@@ -144,5 +144,8 @@ int calipso_skbuff_setattr(struct sk_buff *skb,
 			   const struct calipso_doi *doi_def,
 			   const struct netlbl_lsm_secattr *secattr);
 int calipso_skbuff_delattr(struct sk_buff *skb);
+void calipso_cache_invalidate(void);
+int calipso_cache_add(const unsigned char *calipso_ptr,
+		      const struct netlbl_lsm_secattr *secattr);
 
 #endif

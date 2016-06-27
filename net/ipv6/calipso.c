@@ -72,6 +72,255 @@
 static DEFINE_SPINLOCK(calipso_doi_list_lock);
 static LIST_HEAD(calipso_doi_list);
 
+/* Label mapping cache */
+int calipso_cache_enabled = 1;
+int calipso_cache_bucketsize = 10;
+#define CALIPSO_CACHE_BUCKETBITS     7
+#define CALIPSO_CACHE_BUCKETS        BIT(CALIPSO_CACHE_BUCKETBITS)
+#define CALIPSO_CACHE_REORDERLIMIT   10
+struct calipso_map_cache_bkt {
+	spinlock_t lock;
+	u32 size;
+	struct list_head list;
+};
+
+struct calipso_map_cache_entry {
+	u32 hash;
+	unsigned char *key;
+	size_t key_len;
+
+	struct netlbl_lsm_cache *lsm_data;
+
+	u32 activity;
+	struct list_head list;
+};
+
+static struct calipso_map_cache_bkt *calipso_cache;
+
+/* Label Mapping Cache Functions
+ */
+
+/**
+ * calipso_cache_entry_free - Frees a cache entry
+ * @entry: the entry to free
+ *
+ * Description:
+ * This function frees the memory associated with a cache entry including the
+ * LSM cache data if there are no longer any users, i.e. reference count == 0.
+ *
+ */
+static void calipso_cache_entry_free(struct calipso_map_cache_entry *entry)
+{
+	if (entry->lsm_data)
+		netlbl_secattr_cache_free(entry->lsm_data);
+	kfree(entry->key);
+	kfree(entry);
+}
+
+/**
+ * calipso_map_cache_hash - Hashing function for the CALIPSO cache
+ * @key: the hash key
+ * @key_len: the length of the key in bytes
+ *
+ * Description:
+ * The CALIPSO tag hashing function.  Returns a 32-bit hash value.
+ *
+ */
+static u32 calipso_map_cache_hash(const unsigned char *key, u32 key_len)
+{
+	return jhash(key, key_len, 0);
+}
+
+/**
+ * calipso_cache_init - Initialize the CALIPSO cache
+ *
+ * Description:
+ * Initializes the CALIPSO label mapping cache, this function should be called
+ * before any of the other functions defined in this file.  Returns zero on
+ * success, negative values on error.
+ *
+ */
+static int __init calipso_cache_init(void)
+{
+	u32 iter;
+
+	calipso_cache = kcalloc(CALIPSO_CACHE_BUCKETS,
+				sizeof(struct calipso_map_cache_bkt),
+				GFP_KERNEL);
+	if (!calipso_cache)
+		return -ENOMEM;
+
+	for (iter = 0; iter < CALIPSO_CACHE_BUCKETS; iter++) {
+		spin_lock_init(&calipso_cache[iter].lock);
+		calipso_cache[iter].size = 0;
+		INIT_LIST_HEAD(&calipso_cache[iter].list);
+	}
+
+	return 0;
+}
+
+/**
+ * calipso_cache_invalidate - Invalidates the current CALIPSO cache
+ *
+ * Description:
+ * Invalidates and frees any entries in the CALIPSO cache.  Returns zero on
+ * success and negative values on failure.
+ *
+ */
+static void calipso_cache_invalidate(void)
+{
+	struct calipso_map_cache_entry *entry, *tmp_entry;
+	u32 iter;
+
+	for (iter = 0; iter < CALIPSO_CACHE_BUCKETS; iter++) {
+		spin_lock_bh(&calipso_cache[iter].lock);
+		list_for_each_entry_safe(entry,
+					 tmp_entry,
+					 &calipso_cache[iter].list, list) {
+			list_del(&entry->list);
+			calipso_cache_entry_free(entry);
+		}
+		calipso_cache[iter].size = 0;
+		spin_unlock_bh(&calipso_cache[iter].lock);
+	}
+}
+
+/**
+ * calipso_cache_check - Check the CALIPSO cache for a label mapping
+ * @key: the buffer to check
+ * @key_len: buffer length in bytes
+ * @secattr: the security attribute struct to use
+ *
+ * Description:
+ * This function checks the cache to see if a label mapping already exists for
+ * the given key.  If there is a match then the cache is adjusted and the
+ * @secattr struct is populated with the correct LSM security attributes.  The
+ * cache is adjusted in the following manner if the entry is not already the
+ * first in the cache bucket:
+ *
+ *  1. The cache entry's activity counter is incremented
+ *  2. The previous (higher ranking) entry's activity counter is decremented
+ *  3. If the difference between the two activity counters is geater than
+ *     CALIPSO_CACHE_REORDERLIMIT the two entries are swapped
+ *
+ * Returns zero on success, -ENOENT for a cache miss, and other negative values
+ * on error.
+ *
+ */
+static int calipso_cache_check(const unsigned char *key,
+			       u32 key_len,
+			       struct netlbl_lsm_secattr *secattr)
+{
+	u32 bkt;
+	struct calipso_map_cache_entry *entry;
+	struct calipso_map_cache_entry *prev_entry = NULL;
+	u32 hash;
+
+	if (!calipso_cache_enabled)
+		return -ENOENT;
+
+	hash = calipso_map_cache_hash(key, key_len);
+	bkt = hash & (CALIPSO_CACHE_BUCKETS - 1);
+	spin_lock_bh(&calipso_cache[bkt].lock);
+	list_for_each_entry(entry, &calipso_cache[bkt].list, list) {
+		if (entry->hash == hash &&
+		    entry->key_len == key_len &&
+		    memcmp(entry->key, key, key_len) == 0) {
+			entry->activity += 1;
+			atomic_inc(&entry->lsm_data->refcount);
+			secattr->cache = entry->lsm_data;
+			secattr->flags |= NETLBL_SECATTR_CACHE;
+			secattr->type = NETLBL_NLTYPE_CALIPSO;
+			if (!prev_entry) {
+				spin_unlock_bh(&calipso_cache[bkt].lock);
+				return 0;
+			}
+
+			if (prev_entry->activity > 0)
+				prev_entry->activity -= 1;
+			if (entry->activity > prev_entry->activity &&
+			    entry->activity - prev_entry->activity >
+			    CALIPSO_CACHE_REORDERLIMIT) {
+				__list_del(entry->list.prev, entry->list.next);
+				__list_add(&entry->list,
+					   prev_entry->list.prev,
+					   &prev_entry->list);
+			}
+
+			spin_unlock_bh(&calipso_cache[bkt].lock);
+			return 0;
+		}
+		prev_entry = entry;
+	}
+	spin_unlock_bh(&calipso_cache[bkt].lock);
+
+	return -ENOENT;
+}
+
+/**
+ * calipso_cache_add - Add an entry to the CALIPSO cache
+ * @calipso_ptr: the CALIPSO option
+ * @secattr: the packet's security attributes
+ *
+ * Description:
+ * Add a new entry into the CALIPSO label mapping cache.  Add the new entry to
+ * head of the cache bucket's list, if the cache bucket is out of room remove
+ * the last entry in the list first.  It is important to note that there is
+ * currently no checking for duplicate keys.  Returns zero on success,
+ * negative values on failure.  The key stored starts at calipso_ptr + 2,
+ * i.e. the type and length bytes are not stored, this corresponds to
+ * calipso_ptr[1] bytes of data.
+ *
+ */
+static int calipso_cache_add(const unsigned char *calipso_ptr,
+			     const struct netlbl_lsm_secattr *secattr)
+{
+	int ret_val = -EPERM;
+	u32 bkt;
+	struct calipso_map_cache_entry *entry = NULL;
+	struct calipso_map_cache_entry *old_entry = NULL;
+	u32 calipso_ptr_len;
+
+	if (!calipso_cache_enabled || calipso_cache_bucketsize <= 0)
+		return 0;
+
+	calipso_ptr_len = calipso_ptr[1];
+
+	entry = kzalloc(sizeof(*entry), GFP_ATOMIC);
+	if (!entry)
+		return -ENOMEM;
+	entry->key = kmemdup(calipso_ptr + 2, calipso_ptr_len, GFP_ATOMIC);
+	if (!entry->key) {
+		ret_val = -ENOMEM;
+		goto cache_add_failure;
+	}
+	entry->key_len = calipso_ptr_len;
+	entry->hash = calipso_map_cache_hash(calipso_ptr, calipso_ptr_len);
+	atomic_inc(&secattr->cache->refcount);
+	entry->lsm_data = secattr->cache;
+
+	bkt = entry->hash & (CALIPSO_CACHE_BUCKETS - 1);
+	spin_lock_bh(&calipso_cache[bkt].lock);
+	if (calipso_cache[bkt].size < calipso_cache_bucketsize) {
+		list_add(&entry->list, &calipso_cache[bkt].list);
+		calipso_cache[bkt].size += 1;
+	} else {
+		old_entry = list_entry(calipso_cache[bkt].list.prev,
+				       struct calipso_map_cache_entry, list);
+		list_del(&old_entry->list);
+		list_add(&entry->list, &calipso_cache[bkt].list);
+		calipso_cache_entry_free(old_entry);
+	}
+	spin_unlock_bh(&calipso_cache[bkt].lock);
+
+	return 0;
+
+cache_add_failure:
+	if (entry)
+		calipso_cache_entry_free(entry);
+	return ret_val;
+}
+
 /* DOI List Functions
  */
 
@@ -789,6 +1038,9 @@ static int calipso_opt_getattr(const unsigned char *calipso,
 	if (cat_len + 8 > len)
 		return -EINVAL;
 
+	if (calipso_cache_check(calipso + 2, calipso[1], secattr) == 0)
+		return 0;
+
 	doi = get_unaligned_be32(calipso + 2);
 	rcu_read_lock();
 	doi_def = calipso_doi_search(doi);
@@ -1191,6 +1443,8 @@ static const struct netlbl_calipso_ops ops = {
 	.skbuff_optptr    = calipso_skbuff_optptr,
 	.skbuff_setattr   = calipso_skbuff_setattr,
 	.skbuff_delattr   = calipso_skbuff_delattr,
+	.cache_invalidate = calipso_cache_invalidate,
+	.cache_add        = calipso_cache_add
 };
 
 /**
@@ -1203,11 +1457,17 @@ static const struct netlbl_calipso_ops ops = {
  */
 int __init calipso_init(void)
 {
-	netlbl_calipso_ops_register(&ops);
-	return 0;
+	int ret_val;
+
+	ret_val = calipso_cache_init();
+	if (!ret_val)
+		netlbl_calipso_ops_register(&ops);
+	return ret_val;
 }
 
 void calipso_exit(void)
 {
 	netlbl_calipso_ops_register(NULL);
+	calipso_cache_invalidate();
+	kfree(calipso_cache);
 }

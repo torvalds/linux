@@ -62,6 +62,12 @@ struct calipso_doi {
 	struct rcu_head rcu;
 };
 
+/*
+ * Sysctl Variables
+ */
+extern int calipso_cache_enabled;
+extern int calipso_cache_bucketsize;
+
 #ifdef CONFIG_NETLABEL
 int __init calipso_init(void);
 void calipso_exit(void);

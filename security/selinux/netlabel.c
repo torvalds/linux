@@ -54,6 +54,7 @@
  *
  */
 static int selinux_netlbl_sidlookup_cached(struct sk_buff *skb,
+					   u16 family,
 					   struct netlbl_lsm_secattr *secattr,
 					   u32 *sid)
 {
@@ -63,7 +64,7 @@ static int selinux_netlbl_sidlookup_cached(struct sk_buff *skb,
 	if (rc == 0 &&
 	    (secattr->flags & NETLBL_SECATTR_CACHEABLE) &&
 	    (secattr->flags & NETLBL_SECATTR_CACHE))
-		netlbl_cache_add(skb, secattr);
+		netlbl_cache_add(skb, family, secattr);
 
 	return rc;
 }
@@ -214,7 +215,8 @@ int selinux_netlbl_skbuff_getsid(struct sk_buff *skb,
 	netlbl_secattr_init(&secattr);
 	rc = netlbl_skbuff_getattr(skb, family, &secattr);
 	if (rc == 0 && secattr.flags != NETLBL_SECATTR_NONE)
-		rc = selinux_netlbl_sidlookup_cached(skb, &secattr, sid);
+		rc = selinux_netlbl_sidlookup_cached(skb, family,
+						     &secattr, sid);
 	else
 		*sid = SECSID_NULL;
 	*type = secattr.type;
@@ -382,7 +384,8 @@ int selinux_netlbl_sock_rcv_skb(struct sk_security_struct *sksec,
 	netlbl_secattr_init(&secattr);
 	rc = netlbl_skbuff_getattr(skb, family, &secattr);
 	if (rc == 0 && secattr.flags != NETLBL_SECATTR_NONE)
-		rc = selinux_netlbl_sidlookup_cached(skb, &secattr, &nlbl_sid);
+		rc = selinux_netlbl_sidlookup_cached(skb, family,
+						     &secattr, &nlbl_sid);
 	else
 		nlbl_sid = SECINITSID_UNLABELED;
 	netlbl_secattr_destroy(&secattr);
