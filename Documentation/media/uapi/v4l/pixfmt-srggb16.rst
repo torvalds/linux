@@ -1,21 +1,28 @@
 .. -*- coding: utf-8; mode: rst -*-
 
-.. _V4L2-PIX-FMT-SBGGR16:
+.. _V4L2-PIX-FMT-SRGGB16:
+.. _v4l2-pix-fmt-sbggr16:
+.. _v4l2-pix-fmt-sgbrg16:
+.. _v4l2-pix-fmt-sgrbg16:
 
-*****************************
-V4L2_PIX_FMT_SBGGR16 ('BYR2')
-*****************************
 
-Bayer RGB format
+***************************************************************************************************************************
+V4L2_PIX_FMT_SRGGB16 ('RG16'), V4L2_PIX_FMT_SGRBG16 ('GR16'), V4L2_PIX_FMT_SGBRG16 ('GB16'), V4L2_PIX_FMT_SBGGR16 ('BYR2'),
+***************************************************************************************************************************
+
+
+16-bit Bayer formats
 
 
 Description
 ===========
 
-This format is similar to
-:ref:`V4L2_PIX_FMT_SBGGR8 <V4L2-PIX-FMT-SBGGR8>`, except each pixel
-has a depth of 16 bits. The least significant byte is stored at lower
-memory addresses (little-endian).
+These four pixel formats are raw sRGB / Bayer formats with 16 bits per
+sample. Each sample is stored in a 16-bit word. Each n-pixel row contains
+n/2 green samples and n/2 blue or red samples, with alternating red and blue
+rows. Bytes are stored in memory in little endian order. They are
+conventionally described as GRGR... BGBG..., RGRG... GBGB..., etc. Below is
+an example of one of these formats:
 
 **Byte Order.**
 Each cell is one byte.
