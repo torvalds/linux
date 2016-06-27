@@ -1747,6 +1747,7 @@ ieee80211_process_tdls_channel_switch_resp(struct ieee80211_sub_if_data *sdata,
 		goto out;
 	}
 
+	ret = 0;
 call_drv:
 	drv_tdls_recv_channel_switch(sdata->local, sdata, &params);
 
