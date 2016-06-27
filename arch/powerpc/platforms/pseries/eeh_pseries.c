@@ -615,29 +615,50 @@ static int pseries_eeh_configure_bridge(struct eeh_pe *pe)
 {
 	int config_addr;
 	int ret;
+	/* Waiting 0.2s maximum before skipping configuration */
+	int max_wait = 200;
 
 	/* Figure out the PE address */
 	config_addr = pe->config_addr;
 	if (pe->addr)
 		config_addr = pe->addr;
 
-	/* Use new configure-pe function, if supported */
-	if (ibm_configure_pe != RTAS_UNKNOWN_SERVICE) {
-		ret = rtas_call(ibm_configure_pe, 3, 1, NULL,
-				config_addr, BUID_HI(pe->phb->buid),
-				BUID_LO(pe->phb->buid));
-	} else if (ibm_configure_bridge != RTAS_UNKNOWN_SERVICE) {
-		ret = rtas_call(ibm_configure_bridge, 3, 1, NULL,
-				config_addr, BUID_HI(pe->phb->buid),
-				BUID_LO(pe->phb->buid));
-	} else {
-		return -EFAULT;
+	while (max_wait > 0) {
+		/* Use new configure-pe function, if supported */
+		if (ibm_configure_pe != RTAS_UNKNOWN_SERVICE) {
+			ret = rtas_call(ibm_configure_pe, 3, 1, NULL,
+					config_addr, BUID_HI(pe->phb->buid),
+					BUID_LO(pe->phb->buid));
+		} else if (ibm_configure_bridge != RTAS_UNKNOWN_SERVICE) {
+			ret = rtas_call(ibm_configure_bridge, 3, 1, NULL,
+					config_addr, BUID_HI(pe->phb->buid),
+					BUID_LO(pe->phb->buid));
+		} else {
+			return -EFAULT;
+		}
+
+		if (!ret)
+			return ret;
+
+		/*
+		 * If RTAS returns a delay value that's above 100ms, cut it
+		 * down to 100ms in case firmware made a mistake.  For more
+		 * on how these delay values work see rtas_busy_delay_time
+		 */
+		if (ret > RTAS_EXTENDED_DELAY_MIN+2 &&
+		    ret <= RTAS_EXTENDED_DELAY_MAX)
+			ret = RTAS_EXTENDED_DELAY_MIN+2;
+
+		max_wait -= rtas_busy_delay_time(ret);
+
+		if (max_wait < 0)
+			break;
+
+		rtas_busy_delay(ret);
 	}
 
-	if (ret)
-		pr_warn("%s: Unable to configure bridge PHB#%d-PE#%x (%d)\n",
-			__func__, pe->phb->global_number, pe->addr, ret);
-
+	pr_warn("%s: Unable to configure bridge PHB#%d-PE#%x (%d)\n",
+		__func__, pe->phb->global_number, pe->addr, ret);
 	return ret;
 }
 

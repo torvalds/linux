@@ -994,6 +994,23 @@ void pcibios_set_master(struct pci_dev *dev)
 	/* No special bus mastering setup handling */
 }
 
+#ifdef CONFIG_PCI_IOV
+int pcibios_add_device(struct pci_dev *dev)
+{
+	struct pci_dev *pdev;
+
+	/* Add sriov arch specific initialization here.
+	 * Copy dev_archdata from PF to VF
+	 */
+	if (dev->is_virtfn) {
+		pdev = dev->physfn;
+		memcpy(&dev->dev.archdata, &pdev->dev.archdata,
+		       sizeof(struct dev_archdata));
+	}
+	return 0;
+}
+#endif /* CONFIG_PCI_IOV */
+
 static int __init pcibios_init(void)
 {
 	pci_dfl_cache_line_size = 64 >> 2;
