@@ -1251,7 +1251,7 @@ static int mwifiex_reg_mem_ioctl_reg_rw(struct mwifiex_private *priv,
 {
 	u16 cmd_no;
 
-	switch (le32_to_cpu(reg_rw->type)) {
+	switch (reg_rw->type) {
 	case MWIFIEX_REG_MAC:
 		cmd_no = HostCmd_CMD_MAC_REG_ACCESS;
 		break;
@@ -1286,9 +1286,9 @@ mwifiex_reg_write(struct mwifiex_private *priv, u32 reg_type,
 {
 	struct mwifiex_ds_reg_rw reg_rw;
 
-	reg_rw.type = cpu_to_le32(reg_type);
-	reg_rw.offset = cpu_to_le32(reg_offset);
-	reg_rw.value = cpu_to_le32(reg_value);
+	reg_rw.type = reg_type;
+	reg_rw.offset = reg_offset;
+	reg_rw.value = reg_value;
 
 	return mwifiex_reg_mem_ioctl_reg_rw(priv, &reg_rw, HostCmd_ACT_GEN_SET);
 }
@@ -1306,14 +1306,14 @@ mwifiex_reg_read(struct mwifiex_private *priv, u32 reg_type,
 	int ret;
 	struct mwifiex_ds_reg_rw reg_rw;
 
-	reg_rw.type = cpu_to_le32(reg_type);
-	reg_rw.offset = cpu_to_le32(reg_offset);
+	reg_rw.type = reg_type;
+	reg_rw.offset = reg_offset;
 	ret = mwifiex_reg_mem_ioctl_reg_rw(priv, &reg_rw, HostCmd_ACT_GEN_GET);
 
 	if (ret)
 		goto done;
 
-	*value = le32_to_cpu(reg_rw.value);
+	*value = reg_rw.value;
 
 done:
 	return ret;
@@ -1332,15 +1332,16 @@ mwifiex_eeprom_read(struct mwifiex_private *priv, u16 offset, u16 bytes,
 	int ret;
 	struct mwifiex_ds_read_eeprom rd_eeprom;
 
-	rd_eeprom.offset = cpu_to_le16((u16) offset);
-	rd_eeprom.byte_count = cpu_to_le16((u16) bytes);
+	rd_eeprom.offset =  offset;
+	rd_eeprom.byte_count = bytes;
 
 	/* Send request to firmware */
 	ret = mwifiex_send_cmd(priv, HostCmd_CMD_802_11_EEPROM_ACCESS,
 			       HostCmd_ACT_GEN_GET, 0, &rd_eeprom, true);
 
 	if (!ret)
-		memcpy(value, rd_eeprom.value, MAX_EEPROM_DATA);
+		memcpy(value, rd_eeprom.value, min((u16)MAX_EEPROM_DATA,
+		       rd_eeprom.byte_count));
 	return ret;
 }
 

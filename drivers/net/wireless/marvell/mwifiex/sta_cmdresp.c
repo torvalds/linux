@@ -786,45 +786,44 @@ static int mwifiex_ret_reg_access(u16 type, struct host_cmd_ds_command *resp,
 	switch (type) {
 	case HostCmd_CMD_MAC_REG_ACCESS:
 		r.mac = &resp->params.mac_reg;
-		reg_rw->offset = cpu_to_le32((u32) le16_to_cpu(r.mac->offset));
-		reg_rw->value = r.mac->value;
+		reg_rw->offset = (u32) le16_to_cpu(r.mac->offset);
+		reg_rw->value = le32_to_cpu(r.mac->value);
 		break;
 	case HostCmd_CMD_BBP_REG_ACCESS:
 		r.bbp = &resp->params.bbp_reg;
-		reg_rw->offset = cpu_to_le32((u32) le16_to_cpu(r.bbp->offset));
-		reg_rw->value = cpu_to_le32((u32) r.bbp->value);
+		reg_rw->offset = (u32) le16_to_cpu(r.bbp->offset);
+		reg_rw->value = (u32) r.bbp->value;
 		break;
 
 	case HostCmd_CMD_RF_REG_ACCESS:
 		r.rf = &resp->params.rf_reg;
-		reg_rw->offset = cpu_to_le32((u32) le16_to_cpu(r.rf->offset));
-		reg_rw->value = cpu_to_le32((u32) r.bbp->value);
+		reg_rw->offset = (u32) le16_to_cpu(r.rf->offset);
+		reg_rw->value = (u32) r.bbp->value;
 		break;
 	case HostCmd_CMD_PMIC_REG_ACCESS:
 		r.pmic = &resp->params.pmic_reg;
-		reg_rw->offset = cpu_to_le32((u32) le16_to_cpu(r.pmic->offset));
-		reg_rw->value = cpu_to_le32((u32) r.pmic->value);
+		reg_rw->offset = (u32) le16_to_cpu(r.pmic->offset);
+		reg_rw->value = (u32) r.pmic->value;
 		break;
 	case HostCmd_CMD_CAU_REG_ACCESS:
 		r.rf = &resp->params.rf_reg;
-		reg_rw->offset = cpu_to_le32((u32) le16_to_cpu(r.rf->offset));
-		reg_rw->value = cpu_to_le32((u32) r.rf->value);
+		reg_rw->offset = (u32) le16_to_cpu(r.rf->offset);
+		reg_rw->value = (u32) r.rf->value;
 		break;
 	case HostCmd_CMD_802_11_EEPROM_ACCESS:
 		r.eeprom = &resp->params.eeprom;
-		pr_debug("info: EEPROM read len=%x\n", r.eeprom->byte_count);
-		if (le16_to_cpu(eeprom->byte_count) <
-		    le16_to_cpu(r.eeprom->byte_count)) {
-			eeprom->byte_count = cpu_to_le16(0);
+		pr_debug("info: EEPROM read len=%x\n",
+				le16_to_cpu(r.eeprom->byte_count));
+		if (eeprom->byte_count < le16_to_cpu(r.eeprom->byte_count)) {
+			eeprom->byte_count = 0;
 			pr_debug("info: EEPROM read length is too big\n");
 			return -1;
 		}
-		eeprom->offset = r.eeprom->offset;
-		eeprom->byte_count = r.eeprom->byte_count;
-		if (le16_to_cpu(eeprom->byte_count) > 0)
+		eeprom->offset = le16_to_cpu(r.eeprom->offset);
+		eeprom->byte_count = le16_to_cpu(r.eeprom->byte_count);
+		if (eeprom->byte_count > 0)
 			memcpy(&eeprom->value, &r.eeprom->value,
-			       le16_to_cpu(r.eeprom->byte_count));
-
+			       min((u16)MAX_EEPROM_DATA, eeprom->byte_count));
 		break;
 	default:
 		return -1;
