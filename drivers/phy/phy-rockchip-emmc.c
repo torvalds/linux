@@ -206,8 +206,18 @@ static int rockchip_emmc_phy_power(struct phy *phy, bool on_off)
 	 * per the math: 10.2 us * (50000000 Hz / 100000 Hz) => 5.1 ms
 	 * Hopefully we won't be running at 100 kHz, but we should still make
 	 * sure we wait long enough.
+	 *
+	 * NOTE: There appear to be corner cases where the DLL seems to take
+	 * extra long to lock for reasons that aren't understood.  In some
+	 * extreme cases we've seen it take up to over 10ms (!).  We'll be
+	 * generous and give it 50ms.  We still busy wait here because:
+	 * - In most cases it should be super fast.
+	 * - This is not called lots during normal operation so it shouldn't
+	 *   be a power or performance problem to busy wait.  We expect it
+	 *   only at boot / resume.  In both cases, eMMC is probably on the
+	 *   critical path so busy waiting a little extra time should be OK.
 	 */
-	timeout = jiffies + msecs_to_jiffies(10);
+	timeout = jiffies + msecs_to_jiffies(50);
 	do {
 		udelay(1);
 
