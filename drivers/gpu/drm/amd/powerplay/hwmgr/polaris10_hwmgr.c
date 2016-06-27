@@ -2924,6 +2924,31 @@ static int polaris10_set_private_data_based_on_pptable(struct pp_hwmgr *hwmgr)
 	return 0;
 }
 
+int polaris10_patch_voltage_workaround(struct pp_hwmgr *hwmgr)
+{
+	struct phm_ppt_v1_information *table_info =
+		       (struct phm_ppt_v1_information *)(hwmgr->pptable);
+	struct phm_ppt_v1_clock_voltage_dependency_table *dep_mclk_table =
+			table_info->vdd_dep_on_mclk;
+	struct phm_ppt_v1_voltage_lookup_table *lookup_table =
+			table_info->vddc_lookup_table;
+	uint32_t i;
+
+	if (hwmgr->chip_id == CHIP_POLARIS10 && hwmgr->hw_revision == 0xC7) {
+		if (lookup_table->entries[dep_mclk_table->entries[dep_mclk_table->count-1].vddInd].us_vdd >= 1000)
+			return 0;
+
+		for (i = 0; i < lookup_table->count; i++) {
+			if (lookup_table->entries[i].us_vdd < 0xff01 && lookup_table->entries[i].us_vdd >= 1000) {
+				dep_mclk_table->entries[dep_mclk_table->count-1].vddInd = (uint8_t) i;
+				return 0;
+			}
+		}
+	}
+	return 0;
+}
+
+
 int polaris10_hwmgr_backend_init(struct pp_hwmgr *hwmgr)
 {
 	struct polaris10_hwmgr *data = (struct polaris10_hwmgr *)(hwmgr->backend);
@@ -3001,6 +3026,7 @@ int polaris10_hwmgr_backend_init(struct pp_hwmgr *hwmgr)
 
 	polaris10_set_features_platform_caps(hwmgr);
 
+	polaris10_patch_voltage_workaround(hwmgr);
 	polaris10_init_dpm_defaults(hwmgr);
 
 	/* Get leakage voltage based on leakage ID. */
