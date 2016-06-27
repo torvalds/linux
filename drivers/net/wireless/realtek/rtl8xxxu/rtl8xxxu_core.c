@@ -44,6 +44,7 @@
 
 int rtl8xxxu_debug = RTL8XXXU_DEBUG_EFUSE;
 static bool rtl8xxxu_ht40_2g;
+static bool rtl8xxxu_dma_aggregation;
 
 MODULE_AUTHOR("Jes Sorensen <Jes.Sorensen@redhat.com>");
 MODULE_DESCRIPTION("RTL8XXXu USB mac80211 Wireless LAN Driver");
@@ -62,6 +63,8 @@ module_param_named(debug, rtl8xxxu_debug, int, 0600);
 MODULE_PARM_DESC(debug, "Set debug mask");
 module_param_named(ht40_2g, rtl8xxxu_ht40_2g, bool, 0600);
 MODULE_PARM_DESC(ht40_2g, "Enable HT40 support on the 2.4GHz band");
+module_param_named(dma_aggregation, rtl8xxxu_dma_aggregation, bool, 0600);
+MODULE_PARM_DESC(dma_aggregation, "Enable DMA packet aggregation");
 
 #define USB_VENDOR_ID_REALTEK		0x0bda
 #define RTL8XXXU_RX_URBS		32
@@ -4411,14 +4414,18 @@ void rtl8xxxu_gen1_init_aggregation(struct rtl8xxxu_priv *priv)
 
 	usb_spec = rtl8xxxu_read8(priv, REG_USB_SPECIAL_OPTION);
 	usb_spec &= ~USB_SPEC_USB_AGG_ENABLE;
+	rtl8xxxu_write8(priv, REG_USB_SPECIAL_OPTION, usb_spec);
 
 	agg_ctrl = rtl8xxxu_read8(priv, REG_TRXDMA_CTRL);
 	agg_ctrl &= ~TRXDMA_CTRL_RXDMA_AGG_EN;
 
-	agg_ctrl |= TRXDMA_CTRL_RXDMA_AGG_EN;
+	if (!rtl8xxxu_dma_aggregation) {
+		rtl8xxxu_write8(priv, REG_TRXDMA_CTRL, agg_ctrl);
+		return;
+	}
 
+	agg_ctrl |= TRXDMA_CTRL_RXDMA_AGG_EN;
 	rtl8xxxu_write8(priv, REG_TRXDMA_CTRL, agg_ctrl);
-	rtl8xxxu_write8(priv, REG_USB_SPECIAL_OPTION, usb_spec);
 
 	/*
 	 * The number of packets we can take looks to be buffer size / 512
