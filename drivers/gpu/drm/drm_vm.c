@@ -80,7 +80,7 @@ static pgprot_t drm_dma_prot(uint32_t map_type, struct vm_area_struct *vma)
 	pgprot_t tmp = vm_get_page_prot(vma->vm_flags);
 
 #if defined(__powerpc__) && defined(CONFIG_NOT_COHERENT_CACHE)
-	tmp |= _PAGE_NO_CACHE;
+	tmp = pgprot_noncached_wc(tmp);
 #endif
 	return tmp;
 }
@@ -593,7 +593,7 @@ static int drm_mmap_locked(struct file *filp, struct vm_area_struct *vma)
 			 * pages and mappings in fault()
 			 */
 #if defined(__powerpc__)
-			pgprot_val(vma->vm_page_prot) |= _PAGE_NO_CACHE;
+			vma->vm_page_prot = pgprot_noncached(vma->vm_page_prot);
 #endif
 			vma->vm_ops = &drm_vm_ops;
 			break;
