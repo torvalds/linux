@@ -238,7 +238,7 @@ static int i8k_get_fan_speed(int fan)
 /*
  * Read the fan type.
  */
-static int i8k_get_fan_type(int fan)
+static int _i8k_get_fan_type(int fan)
 {
 	struct smm_regs regs = { .eax = I8K_SMM_GET_FAN_TYPE, };
 
@@ -247,6 +247,17 @@ static int i8k_get_fan_type(int fan)
 
 	regs.ebx = fan & 0xff;
 	return i8k_smm(&regs) ? : regs.eax & 0xff;
+}
+
+static int i8k_get_fan_type(int fan)
+{
+	/* I8K_SMM_GET_FAN_TYPE SMM call is expensive, so cache values */
+	static int types[2] = { INT_MIN, INT_MIN };
+
+	if (types[fan] == INT_MIN)
+		types[fan] = _i8k_get_fan_type(fan);
+
+	return types[fan];
 }
 
 /*
@@ -782,13 +793,17 @@ static int __init i8k_init_hwmon(void)
 	if (err >= 0)
 		i8k_hwmon_flags |= I8K_HWMON_HAVE_TEMP4;
 
-	/* First fan attributes, if fan type is OK */
-	err = i8k_get_fan_type(0);
+	/* First fan attributes, if fan status or type is OK */
+	err = i8k_get_fan_status(0);
+	if (err < 0)
+		err = i8k_get_fan_type(0);
 	if (err >= 0)
 		i8k_hwmon_flags |= I8K_HWMON_HAVE_FAN1;
 
-	/* Second fan attributes, if fan type is OK */
-	err = i8k_get_fan_type(1);
+	/* Second fan attributes, if fan status or type is OK */
+	err = i8k_get_fan_status(1);
+	if (err < 0)
+		err = i8k_get_fan_type(1);
 	if (err >= 0)
 		i8k_hwmon_flags |= I8K_HWMON_HAVE_FAN2;
 

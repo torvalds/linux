@@ -1535,7 +1535,7 @@ int amdgpu_device_init(struct amdgpu_device *adev,
 	/* Post card if necessary */
 	if (!amdgpu_card_posted(adev) ||
 	    (adev->virtualization.is_virtual &&
-	     !adev->virtualization.caps & AMDGPU_VIRT_CAPS_SRIOV_EN)) {
+	     !(adev->virtualization.caps & AMDGPU_VIRT_CAPS_SRIOV_EN))) {
 		if (!adev->bios) {
 			dev_err(adev->dev, "Card not posted and no BIOS - ignoring\n");
 			return -EINVAL;

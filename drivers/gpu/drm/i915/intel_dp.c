@@ -4977,9 +4977,6 @@ intel_dp_hpd_pulse(struct intel_digital_port *intel_dig_port, bool long_hpd)
 	intel_display_power_get(dev_priv, power_domain);
 
 	if (long_hpd) {
-		/* indicate that we need to restart link training */
-		intel_dp->train_set_valid = false;
-
 		intel_dp_long_pulse(intel_dp->attached_connector);
 		if (intel_dp->is_mst)
 			ret = IRQ_HANDLED;

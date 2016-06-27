@@ -160,9 +160,8 @@ redo:
 	process_tb = early_alloc_pgtable(1UL << PRTB_SIZE_SHIFT);
 	/*
 	 * Fill in the process table.
-	 * we support 52 bits, hence 52-28 = 24, 11000
 	 */
-	rts_field = 3ull << PPC_BITLSHIFT(2);
+	rts_field = radix__get_tree_size();
 	process_tb->prtb0 = cpu_to_be64(rts_field | __pa(init_mm.pgd) | RADIX_PGD_INDEX_SIZE);
 	/*
 	 * Fill in the partition table. We are suppose to use effective address
@@ -176,10 +175,8 @@ redo:
 static void __init radix_init_partition_table(void)
 {
 	unsigned long rts_field;
-	/*
-	 * we support 52 bits, hence 52-28 = 24, 11000
-	 */
-	rts_field = 3ull << PPC_BITLSHIFT(2);
+
+	rts_field = radix__get_tree_size();
 
 	BUILD_BUG_ON_MSG((PATB_SIZE_SHIFT > 24), "Partition table size too large.");
 	partition_tb = early_alloc_pgtable(1UL << PATB_SIZE_SHIFT);

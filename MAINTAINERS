@@ -2776,9 +2776,9 @@ F:	include/net/caif/
 F:	net/caif/
 
 CALGARY x86-64 IOMMU
-M:	Muli Ben-Yehuda <muli@il.ibm.com>
-M:	"Jon D. Mason" <jdmason@kudzu.us>
-L:	discuss@x86-64.org
+M:	Muli Ben-Yehuda <mulix@mulix.org>
+M:	Jon Mason <jdmason@kudzu.us>
+L:	iommu@lists.linux-foundation.org
 S:	Maintained
 F:	arch/x86/kernel/pci-calgary_64.c
 F:	arch/x86/kernel/tce_64.c

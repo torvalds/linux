@@ -5342,6 +5342,11 @@ int read_extent_buffer_to_user(struct extent_buffer *eb, void __user *dstv,
 	return ret;
 }
 
+/*
+ * return 0 if the item is found within a page.
+ * return 1 if the item spans two pages.
+ * return -EINVAL otherwise.
+ */
 int map_private_extent_buffer(struct extent_buffer *eb, unsigned long start,
 			       unsigned long min_len, char **map,
 			       unsigned long *map_start,
@@ -5356,7 +5361,7 @@ int map_private_extent_buffer(struct extent_buffer *eb, unsigned long start,
 		PAGE_SHIFT;
 
 	if (i != end_i)
-		return -EINVAL;
+		return 1;
 
 	if (i == 0) {
 		offset = start_offset;
