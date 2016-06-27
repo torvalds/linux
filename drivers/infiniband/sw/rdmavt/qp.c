@@ -369,8 +369,8 @@ static int alloc_qpn(struct rvt_dev_info *rdi, struct rvt_qpn_table *qpt,
 			/* wrap to first map page, invert bit 0 */
 			offset = qpt->incr | ((offset & 1) ^ 1);
 		}
-		/* there can be no bits at shift and below */
-		WARN_ON(offset & (rdi->dparms.qos_shift - 1));
+		/* there can be no set bits in low-order QoS bits */
+		WARN_ON(offset & (BIT(rdi->dparms.qos_shift) - 1));
 		qpn = mk_qpn(qpt, map, offset);
 	}
 
@@ -576,12 +576,6 @@ static void rvt_reset_qp(struct rvt_dev_info *rdi, struct rvt_qp *qp,
 	qp->s_ssn = 1;
 	qp->s_lsn = 0;
 	qp->s_mig_state = IB_MIG_MIGRATED;
-	if (qp->s_ack_queue)
-		memset(
-			qp->s_ack_queue,
-			0,
-			rvt_max_atomic(rdi) *
-				sizeof(*qp->s_ack_queue));
 	qp->r_head_ack_queue = 0;
 	qp->s_tail_ack_queue = 0;
 	qp->s_num_rd_atomic = 0;
@@ -705,8 +699,10 @@ struct ib_qp *rvt_create_qp(struct ib_pd *ibpd,
 		 * initialization that is needed.
 		 */
 		priv = rdi->driver_f.qp_priv_alloc(rdi, qp, gfp);
-		if (!priv)
+		if (IS_ERR(priv)) {
+			ret = priv;
 			goto bail_qp;
+		}
 		qp->priv = priv;
 		qp->timeout_jiffies =
 			usecs_to_jiffies((4096UL * (1UL << qp->timeout)) /

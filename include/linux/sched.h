@@ -3007,7 +3007,7 @@ static inline int object_is_on_stack(void *obj)
 	return (obj >= stack) && (obj < (stack + THREAD_SIZE));
 }
 
-extern void thread_info_cache_init(void);
+extern void thread_stack_cache_init(void);
 
 #ifdef CONFIG_DEBUG_STACK_USAGE
 static inline unsigned long stack_not_used(struct task_struct *p)

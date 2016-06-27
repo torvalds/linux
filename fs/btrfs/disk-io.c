@@ -2806,7 +2806,7 @@ int open_ctree(struct super_block *sb,
 
 	nodesize = btrfs_super_nodesize(disk_super);
 	sectorsize = btrfs_super_sectorsize(disk_super);
-	stripesize = btrfs_super_stripesize(disk_super);
+	stripesize = sectorsize;
 	fs_info->dirty_metadata_batch = nodesize * (1 + ilog2(nr_cpu_ids));
 	fs_info->delalloc_batch = sectorsize * 512 * (1 + ilog2(nr_cpu_ids));
 
@@ -4133,9 +4133,7 @@ static int btrfs_check_super_valid(struct btrfs_fs_info *fs_info,
 		       btrfs_super_bytes_used(sb));
 		ret = -EINVAL;
 	}
-	if (!is_power_of_2(btrfs_super_stripesize(sb)) ||
-		((btrfs_super_stripesize(sb) != sectorsize) &&
-			(btrfs_super_stripesize(sb) != 4096))) {
+	if (!is_power_of_2(btrfs_super_stripesize(sb))) {
 		btrfs_err(fs_info, "invalid stripesize %u",
 		       btrfs_super_stripesize(sb));
 		ret = -EINVAL;
