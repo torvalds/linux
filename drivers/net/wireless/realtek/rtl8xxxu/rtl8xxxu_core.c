@@ -5048,6 +5048,7 @@ static void rtl8xxxu_rx_urb_work(struct work_struct *work)
 int rtl8xxxu_parse_rxdesc16(struct rtl8xxxu_priv *priv, struct sk_buff *skb,
 			    struct ieee80211_rx_status *rx_status)
 {
+	struct ieee80211_hw *hw = priv->hw;
 	struct rtl8xxxu_rxdesc16 *rx_desc =
 		(struct rtl8xxxu_rxdesc16 *)skb->data;
 	struct rtl8723au_phy_stats *phy_stats;
@@ -5058,6 +5059,8 @@ int rtl8xxxu_parse_rxdesc16(struct rtl8xxxu_priv *priv, struct sk_buff *skb,
 
 	for (i = 0; i < (sizeof(struct rtl8xxxu_rxdesc16) / sizeof(u32)); i++)
 		_rx_desc[i] = le32_to_cpu(_rx_desc_le[i]);
+
+	memset(rx_status, 0, sizeof(struct ieee80211_rx_status));
 
 	skb_pull(skb, sizeof(struct rtl8xxxu_rxdesc16));
 
@@ -5088,12 +5091,16 @@ int rtl8xxxu_parse_rxdesc16(struct rtl8xxxu_priv *priv, struct sk_buff *skb,
 		rx_status->rate_idx = rx_desc->rxmcs;
 	}
 
+	rx_status->freq = hw->conf.chandef.chan->center_freq;
+	rx_status->band = hw->conf.chandef.chan->band;
+
 	return RX_TYPE_DATA_PKT;
 }
 
 int rtl8xxxu_parse_rxdesc24(struct rtl8xxxu_priv *priv, struct sk_buff *skb,
 			    struct ieee80211_rx_status *rx_status)
 {
+	struct ieee80211_hw *hw = priv->hw;
 	struct rtl8xxxu_rxdesc24 *rx_desc =
 		(struct rtl8xxxu_rxdesc24 *)skb->data;
 	struct rtl8723au_phy_stats *phy_stats;
@@ -5104,6 +5111,8 @@ int rtl8xxxu_parse_rxdesc24(struct rtl8xxxu_priv *priv, struct sk_buff *skb,
 
 	for (i = 0; i < (sizeof(struct rtl8xxxu_rxdesc24) / sizeof(u32)); i++)
 		_rx_desc[i] = le32_to_cpu(_rx_desc_le[i]);
+
+	memset(rx_status, 0, sizeof(struct ieee80211_rx_status));
 
 	skb_pull(skb, sizeof(struct rtl8xxxu_rxdesc24));
 
@@ -5139,6 +5148,9 @@ int rtl8xxxu_parse_rxdesc24(struct rtl8xxxu_priv *priv, struct sk_buff *skb,
 	} else {
 		rx_status->rate_idx = rx_desc->rxmcs;
 	}
+
+	rx_status->freq = hw->conf.chandef.chan->center_freq;
+	rx_status->band = hw->conf.chandef.chan->band;
 
 	return RX_TYPE_DATA_PKT;
 }
@@ -5202,12 +5214,7 @@ static void rtl8xxxu_rx_complete(struct urb *urb)
 	skb_put(skb, urb->actual_length);
 
 	if (urb->status == 0) {
-		memset(rx_status, 0, sizeof(struct ieee80211_rx_status));
-
 		rx_type = priv->fops->parse_rx_desc(priv, skb, rx_status);
-
-		rx_status->freq = hw->conf.chandef.chan->center_freq;
-		rx_status->band = hw->conf.chandef.chan->band;
 
 		if (rx_type == RX_TYPE_DATA_PKT)
 			ieee80211_rx_irqsafe(hw, skb);
