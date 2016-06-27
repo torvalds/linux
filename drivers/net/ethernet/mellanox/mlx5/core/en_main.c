@@ -244,7 +244,7 @@ static void mlx5e_async_event(struct mlx5_core_dev *mdev, void *vpriv,
 {
 	struct mlx5e_priv *priv = vpriv;
 
-	if (!test_bit(MLX5E_STATE_ASYNC_EVENTS_ENABLE, &priv->state))
+	if (!test_bit(MLX5E_STATE_ASYNC_EVENTS_ENABLED, &priv->state))
 		return;
 
 	switch (event) {
@@ -260,12 +260,12 @@ static void mlx5e_async_event(struct mlx5_core_dev *mdev, void *vpriv,
 
 static void mlx5e_enable_async_events(struct mlx5e_priv *priv)
 {
-	set_bit(MLX5E_STATE_ASYNC_EVENTS_ENABLE, &priv->state);
+	set_bit(MLX5E_STATE_ASYNC_EVENTS_ENABLED, &priv->state);
 }
 
 static void mlx5e_disable_async_events(struct mlx5e_priv *priv)
 {
-	clear_bit(MLX5E_STATE_ASYNC_EVENTS_ENABLE, &priv->state);
+	clear_bit(MLX5E_STATE_ASYNC_EVENTS_ENABLED, &priv->state);
 	synchronize_irq(mlx5_get_msix_vec(priv->mdev, MLX5_EQ_VEC_ASYNC));
 }
 
