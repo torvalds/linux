@@ -312,6 +312,7 @@ int amdgpu_vm_grab_id(struct amdgpu_vm *vm, struct amdgpu_ring *ring,
 
 	id->pd_gpu_addr = *vm_pd_addr;
 
+	id->current_gpu_reset_count = atomic_read(&adev->gpu_reset_counter);
 	list_move_tail(&id->list, &adev->vm_manager.ids_lru);
 	atomic64_set(&id->owner, vm->client_id);
 	vm->ids[ring->idx] = id;
