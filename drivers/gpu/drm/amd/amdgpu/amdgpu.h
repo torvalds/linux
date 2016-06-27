@@ -897,6 +897,8 @@ struct amdgpu_vm_id {
 	/* last flushed PD/PT update */
 	struct fence		*flushed_updates;
 
+	uint32_t                current_gpu_reset_count;
+
 	uint32_t		gds_base;
 	uint32_t		gds_size;
 	uint32_t		gws_base;

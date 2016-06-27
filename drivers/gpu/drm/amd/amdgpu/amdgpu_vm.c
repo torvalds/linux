@@ -255,6 +255,8 @@ int amdgpu_vm_grab_id(struct amdgpu_vm *vm, struct amdgpu_ring *ring,
 		/* Check all the prerequisites to using this VMID */
 		if (!id)
 			continue;
+		if (id->current_gpu_reset_count != atomic_read(&adev->gpu_reset_counter))
+			continue;
 
 		if (atomic64_read(&id->owner) != vm->client_id)
 			continue;
@@ -278,6 +280,7 @@ int amdgpu_vm_grab_id(struct amdgpu_vm *vm, struct amdgpu_ring *ring,
 		if (r)
 			goto error;
 
+		id->current_gpu_reset_count = atomic_read(&adev->gpu_reset_counter);
 		list_move_tail(&id->list, &adev->vm_manager.ids_lru);
 		vm->ids[ring->idx] = id;
 
