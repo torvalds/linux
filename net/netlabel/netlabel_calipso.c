@@ -124,6 +124,65 @@ static int netlbl_calipso_add(struct sk_buff *skb, struct genl_info *info)
 	return ret_val;
 }
 
+/**
+ * netlbl_calipso_list - Handle a LIST message
+ * @skb: the NETLINK buffer
+ * @info: the Generic NETLINK info block
+ *
+ * Description:
+ * Process a user generated LIST message and respond accordingly.
+ * Returns zero on success and negative values on error.
+ *
+ */
+static int netlbl_calipso_list(struct sk_buff *skb, struct genl_info *info)
+{
+	int ret_val;
+	struct sk_buff *ans_skb = NULL;
+	void *data;
+	u32 doi;
+	struct calipso_doi *doi_def;
+
+	if (!info->attrs[NLBL_CALIPSO_A_DOI]) {
+		ret_val = -EINVAL;
+		goto list_failure;
+	}
+
+	doi = nla_get_u32(info->attrs[NLBL_CALIPSO_A_DOI]);
+
+	doi_def = calipso_doi_getdef(doi);
+	if (!doi_def) {
+		ret_val = -EINVAL;
+		goto list_failure;
+	}
+
+	ans_skb = nlmsg_new(NLMSG_DEFAULT_SIZE, GFP_KERNEL);
+	if (!ans_skb) {
+		ret_val = -ENOMEM;
+		goto list_failure_put;
+	}
+	data = genlmsg_put_reply(ans_skb, info, &netlbl_calipso_gnl_family,
+				 0, NLBL_CALIPSO_C_LIST);
+	if (!data) {
+		ret_val = -ENOMEM;
+		goto list_failure_put;
+	}
+
+	ret_val = nla_put_u32(ans_skb, NLBL_CALIPSO_A_MTYPE, doi_def->type);
+	if (ret_val != 0)
+		goto list_failure_put;
+
+	calipso_doi_putdef(doi_def);
+
+	genlmsg_end(ans_skb, data);
+	return genlmsg_reply(ans_skb, info);
+
+list_failure_put:
+	calipso_doi_putdef(doi_def);
+list_failure:
+	kfree_skb(ans_skb);
+	return ret_val;
+}
+
 /* NetLabel Generic NETLINK Command Definitions
  */
 
@@ -133,6 +192,13 @@ static const struct genl_ops netlbl_calipso_ops[] = {
 	.flags = GENL_ADMIN_PERM,
 	.policy = calipso_genl_policy,
 	.doit = netlbl_calipso_add,
+	.dumpit = NULL,
+	},
+	{
+	.cmd = NLBL_CALIPSO_C_LIST,
+	.flags = 0,
+	.policy = calipso_genl_policy,
+	.doit = netlbl_calipso_list,
 	.dumpit = NULL,
 	},
 };
@@ -213,4 +279,40 @@ void calipso_doi_free(struct calipso_doi *doi_def)
 
 	if (ops)
 		ops->doi_free(doi_def);
+}
+
+/**
+ * calipso_doi_getdef - Returns a reference to a valid DOI definition
+ * @doi: the DOI value
+ *
+ * Description:
+ * Searches for a valid DOI definition and if one is found it is returned to
+ * the caller.  Otherwise NULL is returned.  The caller must ensure that
+ * calipso_doi_putdef() is called when the caller is done.
+ *
+ */
+struct calipso_doi *calipso_doi_getdef(u32 doi)
+{
+	struct calipso_doi *ret_val = NULL;
+	const struct netlbl_calipso_ops *ops = netlbl_calipso_ops_get();
+
+	if (ops)
+		ret_val = ops->doi_getdef(doi);
+	return ret_val;
+}
+
+/**
+ * calipso_doi_putdef - Releases a reference for the given DOI definition
+ * @doi_def: the DOI definition
+ *
+ * Description:
+ * Releases a DOI definition reference obtained from calipso_doi_getdef().
+ *
+ */
+void calipso_doi_putdef(struct calipso_doi *doi_def)
+{
+	const struct netlbl_calipso_ops *ops = netlbl_calipso_ops_get();
+
+	if (ops)
+		ops->doi_putdef(doi_def);
 }

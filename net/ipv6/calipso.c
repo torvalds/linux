@@ -144,9 +144,77 @@ static void calipso_doi_free(struct calipso_doi *doi_def)
 	kfree(doi_def);
 }
 
+/**
+ * calipso_doi_free_rcu - Frees a DOI definition via the RCU pointer
+ * @entry: the entry's RCU field
+ *
+ * Description:
+ * This function is designed to be used as a callback to the call_rcu()
+ * function so that the memory allocated to the DOI definition can be released
+ * safely.
+ *
+ */
+static void calipso_doi_free_rcu(struct rcu_head *entry)
+{
+	struct calipso_doi *doi_def;
+
+	doi_def = container_of(entry, struct calipso_doi, rcu);
+	calipso_doi_free(doi_def);
+}
+
+/**
+ * calipso_doi_getdef - Returns a reference to a valid DOI definition
+ * @doi: the DOI value
+ *
+ * Description:
+ * Searches for a valid DOI definition and if one is found it is returned to
+ * the caller.  Otherwise NULL is returned.  The caller must ensure that
+ * calipso_doi_putdef() is called when the caller is done.
+ *
+ */
+static struct calipso_doi *calipso_doi_getdef(u32 doi)
+{
+	struct calipso_doi *doi_def;
+
+	rcu_read_lock();
+	doi_def = calipso_doi_search(doi);
+	if (!doi_def)
+		goto doi_getdef_return;
+	if (!atomic_inc_not_zero(&doi_def->refcount))
+		doi_def = NULL;
+
+doi_getdef_return:
+	rcu_read_unlock();
+	return doi_def;
+}
+
+/**
+ * calipso_doi_putdef - Releases a reference for the given DOI definition
+ * @doi_def: the DOI definition
+ *
+ * Description:
+ * Releases a DOI definition reference obtained from calipso_doi_getdef().
+ *
+ */
+static void calipso_doi_putdef(struct calipso_doi *doi_def)
+{
+	if (!doi_def)
+		return;
+
+	if (!atomic_dec_and_test(&doi_def->refcount))
+		return;
+	spin_lock(&calipso_doi_list_lock);
+	list_del_rcu(&doi_def->list);
+	spin_unlock(&calipso_doi_list_lock);
+
+	call_rcu(&doi_def->rcu, calipso_doi_free_rcu);
+}
+
 static const struct netlbl_calipso_ops ops = {
 	.doi_add          = calipso_doi_add,
 	.doi_free         = calipso_doi_free,
+	.doi_getdef       = calipso_doi_getdef,
+	.doi_putdef       = calipso_doi_putdef,
 };
 
 /**

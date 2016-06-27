@@ -46,6 +46,23 @@
  *
  *   If using CALIPSO_MAP_PASS no additional attributes are required.
  *
+ * o LIST:
+ *   Sent by an application to list the details of a DOI definition.  On
+ *   success the kernel should send a response using the following format.
+ *
+ *   Required attributes:
+ *
+ *     NLBL_CALIPSO_A_DOI
+ *
+ *   The valid response message format depends on the type of the DOI mapping,
+ *   the defined formats are shown below.
+ *
+ *   Required attributes:
+ *
+ *     NLBL_CALIPSO_A_MTYPE
+ *
+ *   If using CALIPSO_MAP_PASS no additional attributes are required.
+ *
  */
 
 /* NetLabel CALIPSO commands */
@@ -86,5 +103,7 @@ static inline int netlbl_calipso_genl_init(void)
 int calipso_doi_add(struct calipso_doi *doi_def,
 		    struct netlbl_audit *audit_info);
 void calipso_doi_free(struct calipso_doi *doi_def);
+struct calipso_doi *calipso_doi_getdef(u32 doi);
+void calipso_doi_putdef(struct calipso_doi *doi_def);
 
 #endif
