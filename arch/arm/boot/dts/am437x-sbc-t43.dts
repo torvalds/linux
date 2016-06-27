@@ -145,7 +145,7 @@
 	pinctrl-0 = <&dss_pinctrl_default>;
 
 	port {
-		dpi_lcd_out: endpoint@0 {
+		dpi_lcd_out: endpoint {
 			remote-endpoint = <&lcd_in>;
 			data-lines = <24>;
 		};
