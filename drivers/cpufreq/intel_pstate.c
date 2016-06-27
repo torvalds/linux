@@ -1596,9 +1596,9 @@ static struct cpufreq_driver intel_pstate_driver = {
 	.name		= "intel_pstate",
 };
 
-static int __initdata no_load;
-static int __initdata no_hwp;
-static int __initdata hwp_only;
+static int no_load __initdata;
+static int no_hwp __initdata;
+static int hwp_only __initdata;
 static unsigned int force_load;
 
 static int intel_pstate_msrs_not_valid(void)
