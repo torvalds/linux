@@ -132,9 +132,9 @@ rb_find_range(struct perf_evlist *evlist,
 	return backward_rb_find_range(data, mask, head, start, end);
 }
 
-static int record__mmap_read(struct record *rec, int idx)
+static int record__mmap_read(struct record *rec, struct perf_evlist *evlist, int idx)
 {
-	struct perf_mmap *md = &rec->evlist->mmap[idx];
+	struct perf_mmap *md = &evlist->mmap[idx];
 	u64 head = perf_mmap__read_head(md);
 	u64 old = md->prev;
 	u64 end = head, start = old;
@@ -143,7 +143,7 @@ static int record__mmap_read(struct record *rec, int idx)
 	void *buf;
 	int rc = 0;
 
-	if (rb_find_range(rec->evlist, data, md->mask, head,
+	if (rb_find_range(evlist, data, md->mask, head,
 			  old, &start, &end))
 		return -1;
 
@@ -157,7 +157,7 @@ static int record__mmap_read(struct record *rec, int idx)
 		WARN_ONCE(1, "failed to keep up with mmap data. (warn only once)\n");
 
 		md->prev = head;
-		perf_evlist__mmap_consume(rec->evlist, idx);
+		perf_evlist__mmap_consume(evlist, idx);
 		return 0;
 	}
 
@@ -182,7 +182,7 @@ static int record__mmap_read(struct record *rec, int idx)
 	}
 
 	md->prev = head;
-	perf_evlist__mmap_consume(rec->evlist, idx);
+	perf_evlist__mmap_consume(evlist, idx);
 out:
 	return rc;
 }
@@ -498,17 +498,20 @@ static struct perf_event_header finished_round_event = {
 	.type = PERF_RECORD_FINISHED_ROUND,
 };
 
-static int record__mmap_read_all(struct record *rec)
+static int record__mmap_read_evlist(struct record *rec, struct perf_evlist *evlist)
 {
 	u64 bytes_written = rec->bytes_written;
 	int i;
 	int rc = 0;
 
-	for (i = 0; i < rec->evlist->nr_mmaps; i++) {
-		struct auxtrace_mmap *mm = &rec->evlist->mmap[i].auxtrace_mmap;
+	if (!evlist)
+		return 0;
 
-		if (rec->evlist->mmap[i].base) {
-			if (record__mmap_read(rec, i) != 0) {
+	for (i = 0; i < evlist->nr_mmaps; i++) {
+		struct auxtrace_mmap *mm = &evlist->mmap[i].auxtrace_mmap;
+
+		if (evlist->mmap[i].base) {
+			if (record__mmap_read(rec, evlist, i) != 0) {
 				rc = -1;
 				goto out;
 			}
@@ -530,6 +533,17 @@ static int record__mmap_read_all(struct record *rec)
 
 out:
 	return rc;
+}
+
+static int record__mmap_read_all(struct record *rec)
+{
+	int err;
+
+	err = record__mmap_read_evlist(rec, rec->evlist);
+	if (err)
+		return err;
+
+	return err;
 }
 
 static void record__init_features(struct record *rec)
