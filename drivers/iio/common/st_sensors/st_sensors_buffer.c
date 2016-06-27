@@ -24,30 +24,29 @@
 
 static int st_sensors_get_buffer_element(struct iio_dev *indio_dev, u8 *buf)
 {
-	int i, len;
-	int total = 0;
+	int i;
 	struct st_sensor_data *sdata = iio_priv(indio_dev);
 	unsigned int num_data_channels = sdata->num_data_channels;
 
-	for (i = 0; i < num_data_channels; i++) {
-		unsigned int bytes_to_read;
+	for_each_set_bit(i, indio_dev->active_scan_mask, num_data_channels) {
+		const struct iio_chan_spec *channel = &indio_dev->channels[i];
+		unsigned int bytes_to_read = channel->scan_type.realbits >> 3;
+		unsigned int storage_bytes =
+			channel->scan_type.storagebits >> 3;
 
-		if (test_bit(i, indio_dev->active_scan_mask)) {
-			bytes_to_read = indio_dev->channels[i].scan_type.storagebits >> 3;
-			len = sdata->tf->read_multiple_byte(&sdata->tb,
-				sdata->dev, indio_dev->channels[i].address,
-				bytes_to_read,
-				buf + total, sdata->multiread_bit);
+		buf = PTR_ALIGN(buf, storage_bytes);
+		if (sdata->tf->read_multiple_byte(&sdata->tb, sdata->dev,
+						  channel->address,
+						  bytes_to_read, buf,
+						  sdata->multiread_bit) <
+		    bytes_to_read)
+			return -EIO;
 
-			if (len < bytes_to_read)
-				return -EIO;
-
-			/* Advance the buffer pointer */
-			total += len;
-		}
+		/* Advance the buffer pointer */
+		buf += storage_bytes;
 	}
 
-	return total;
+	return 0;
 }
 
 irqreturn_t st_sensors_trigger_handler(int irq, void *p)

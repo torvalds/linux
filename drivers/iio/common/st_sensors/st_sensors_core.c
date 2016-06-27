@@ -490,7 +490,7 @@ static int st_sensors_read_axis_data(struct iio_dev *indio_dev,
 	int err;
 	u8 *outdata;
 	struct st_sensor_data *sdata = iio_priv(indio_dev);
-	unsigned int byte_for_channel = ch->scan_type.storagebits >> 3;
+	unsigned int byte_for_channel = ch->scan_type.realbits >> 3;
 
 	outdata = kmalloc(byte_for_channel, GFP_KERNEL);
 	if (!outdata)
