@@ -210,11 +210,52 @@ static void calipso_doi_putdef(struct calipso_doi *doi_def)
 	call_rcu(&doi_def->rcu, calipso_doi_free_rcu);
 }
 
+/**
+ * calipso_doi_walk - Iterate through the DOI definitions
+ * @skip_cnt: skip past this number of DOI definitions, updated
+ * @callback: callback for each DOI definition
+ * @cb_arg: argument for the callback function
+ *
+ * Description:
+ * Iterate over the DOI definition list, skipping the first @skip_cnt entries.
+ * For each entry call @callback, if @callback returns a negative value stop
+ * 'walking' through the list and return.  Updates the value in @skip_cnt upon
+ * return.  Returns zero on success, negative values on failure.
+ *
+ */
+static int calipso_doi_walk(u32 *skip_cnt,
+			    int (*callback)(struct calipso_doi *doi_def,
+					    void *arg),
+			    void *cb_arg)
+{
+	int ret_val = -ENOENT;
+	u32 doi_cnt = 0;
+	struct calipso_doi *iter_doi;
+
+	rcu_read_lock();
+	list_for_each_entry_rcu(iter_doi, &calipso_doi_list, list)
+		if (atomic_read(&iter_doi->refcount) > 0) {
+			if (doi_cnt++ < *skip_cnt)
+				continue;
+			ret_val = callback(iter_doi, cb_arg);
+			if (ret_val < 0) {
+				doi_cnt--;
+				goto doi_walk_return;
+			}
+		}
+
+doi_walk_return:
+	rcu_read_unlock();
+	*skip_cnt = doi_cnt;
+	return ret_val;
+}
+
 static const struct netlbl_calipso_ops ops = {
 	.doi_add          = calipso_doi_add,
 	.doi_free         = calipso_doi_free,
 	.doi_getdef       = calipso_doi_getdef,
 	.doi_putdef       = calipso_doi_putdef,
+	.doi_walk         = calipso_doi_walk,
 };
 
 /**

@@ -46,6 +46,13 @@
 #include "netlabel_mgmt.h"
 #include "netlabel_domainhash.h"
 
+/* Argument struct for calipso_doi_walk() */
+struct netlbl_calipso_doiwalk_arg {
+	struct netlink_callback *nl_cb;
+	struct sk_buff *skb;
+	u32 seq;
+};
+
 /* NetLabel Generic NETLINK CALIPSO family */
 static struct genl_family netlbl_calipso_gnl_family = {
 	.id = GENL_ID_GENERATE,
@@ -183,6 +190,73 @@ list_failure:
 	return ret_val;
 }
 
+/**
+ * netlbl_calipso_listall_cb - calipso_doi_walk() callback for LISTALL
+ * @doi_def: the CALIPSO DOI definition
+ * @arg: the netlbl_calipso_doiwalk_arg structure
+ *
+ * Description:
+ * This function is designed to be used as a callback to the
+ * calipso_doi_walk() function for use in generating a response for a LISTALL
+ * message.  Returns the size of the message on success, negative values on
+ * failure.
+ *
+ */
+static int netlbl_calipso_listall_cb(struct calipso_doi *doi_def, void *arg)
+{
+	int ret_val = -ENOMEM;
+	struct netlbl_calipso_doiwalk_arg *cb_arg = arg;
+	void *data;
+
+	data = genlmsg_put(cb_arg->skb, NETLINK_CB(cb_arg->nl_cb->skb).portid,
+			   cb_arg->seq, &netlbl_calipso_gnl_family,
+			   NLM_F_MULTI, NLBL_CALIPSO_C_LISTALL);
+	if (!data)
+		goto listall_cb_failure;
+
+	ret_val = nla_put_u32(cb_arg->skb, NLBL_CALIPSO_A_DOI, doi_def->doi);
+	if (ret_val != 0)
+		goto listall_cb_failure;
+	ret_val = nla_put_u32(cb_arg->skb,
+			      NLBL_CALIPSO_A_MTYPE,
+			      doi_def->type);
+	if (ret_val != 0)
+		goto listall_cb_failure;
+
+	genlmsg_end(cb_arg->skb, data);
+	return 0;
+
+listall_cb_failure:
+	genlmsg_cancel(cb_arg->skb, data);
+	return ret_val;
+}
+
+/**
+ * netlbl_calipso_listall - Handle a LISTALL message
+ * @skb: the NETLINK buffer
+ * @cb: the NETLINK callback
+ *
+ * Description:
+ * Process a user generated LISTALL message and respond accordingly.  Returns
+ * zero on success and negative values on error.
+ *
+ */
+static int netlbl_calipso_listall(struct sk_buff *skb,
+				  struct netlink_callback *cb)
+{
+	struct netlbl_calipso_doiwalk_arg cb_arg;
+	u32 doi_skip = cb->args[0];
+
+	cb_arg.nl_cb = cb;
+	cb_arg.skb = skb;
+	cb_arg.seq = cb->nlh->nlmsg_seq;
+
+	calipso_doi_walk(&doi_skip, netlbl_calipso_listall_cb, &cb_arg);
+
+	cb->args[0] = doi_skip;
+	return skb->len;
+}
+
 /* NetLabel Generic NETLINK Command Definitions
  */
 
@@ -200,6 +274,13 @@ static const struct genl_ops netlbl_calipso_ops[] = {
 	.policy = calipso_genl_policy,
 	.doit = netlbl_calipso_list,
 	.dumpit = NULL,
+	},
+	{
+	.cmd = NLBL_CALIPSO_C_LISTALL,
+	.flags = 0,
+	.policy = calipso_genl_policy,
+	.doit = NULL,
+	.dumpit = netlbl_calipso_listall,
 	},
 };
 
@@ -315,4 +396,29 @@ void calipso_doi_putdef(struct calipso_doi *doi_def)
 
 	if (ops)
 		ops->doi_putdef(doi_def);
+}
+
+/**
+ * calipso_doi_walk - Iterate through the DOI definitions
+ * @skip_cnt: skip past this number of DOI definitions, updated
+ * @callback: callback for each DOI definition
+ * @cb_arg: argument for the callback function
+ *
+ * Description:
+ * Iterate over the DOI definition list, skipping the first @skip_cnt entries.
+ * For each entry call @callback, if @callback returns a negative value stop
+ * 'walking' through the list and return.  Updates the value in @skip_cnt upon
+ * return.  Returns zero on success, negative values on failure.
+ *
+ */
+int calipso_doi_walk(u32 *skip_cnt,
+		     int (*callback)(struct calipso_doi *doi_def, void *arg),
+		     void *cb_arg)
+{
+	int ret_val = -ENOMSG;
+	const struct netlbl_calipso_ops *ops = netlbl_calipso_ops_get();
+
+	if (ops)
+		ret_val = ops->doi_walk(skip_cnt, callback, cb_arg);
+	return ret_val;
 }

@@ -225,6 +225,7 @@ struct netlbl_lsm_secattr {
  * @doi_free: free a CALIPSO DOI
  * @doi_getdef: returns a reference to a DOI
  * @doi_putdef: releases a reference of a DOI
+ * @doi_walk: enumerate the DOI list
  *
  * Description:
  * This structure is filled out by the CALIPSO engine and passed
@@ -238,6 +239,9 @@ struct netlbl_calipso_ops {
 	void (*doi_free)(struct calipso_doi *doi_def);
 	struct calipso_doi *(*doi_getdef)(u32 doi);
 	void (*doi_putdef)(struct calipso_doi *doi_def);
+	int (*doi_walk)(u32 *skip_cnt,
+			int (*callback)(struct calipso_doi *doi_def, void *arg),
+			void *cb_arg);
 };
 
 /*
