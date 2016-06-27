@@ -111,6 +111,7 @@ enum ctype {
 };
 
 static char* cp_name[] = {
+	"INVALID",
 	"INT_HARDWARE_ENTRY",
 	"INT_HW_IRQ_EN",
 	"INT_TASKLET_ENTRY",
@@ -123,6 +124,7 @@ static char* cp_name[] = {
 };
 
 static char* cp_type[] = {
+	"NONE",
 	"PANIC",
 	"BUG",
 	"WARNING",
@@ -257,7 +259,7 @@ static enum ctype parse_cp_type(const char *what, size_t count)
 
 	for (i = 0; i < ARRAY_SIZE(cp_type); i++) {
 		if (!strcmp(what, cp_type[i]))
-			return i + 1;
+			return i;
 	}
 
 	return CT_NONE;
@@ -266,9 +268,9 @@ static enum ctype parse_cp_type(const char *what, size_t count)
 static const char *cp_type_to_str(enum ctype type)
 {
 	if (type == CT_NONE || type < 0 || type > ARRAY_SIZE(cp_type))
-		return "None";
+		return "NONE";
 
-	return cp_type[type - 1];
+	return cp_type[type];
 }
 
 static const char *cp_name_to_str(enum cname name)
@@ -276,7 +278,7 @@ static const char *cp_name_to_str(enum cname name)
 	if (name == CN_INVALID || name < 0 || name > ARRAY_SIZE(cp_name))
 		return "INVALID";
 
-	return cp_name[name - 1];
+	return cp_name[name];
 }
 
 
@@ -304,9 +306,13 @@ static int lkdtm_parse_commandline(void)
 	if (cptype == CT_NONE)
 		return -EINVAL;
 
+	/* Refuse INVALID as a selectable crashpoint name. */
+	if (!strcmp(cpoint_name, "INVALID"))
+		return -EINVAL;
+
 	for (i = 0; i < ARRAY_SIZE(cp_name); i++) {
 		if (!strcmp(cpoint_name, cp_name[i])) {
-			cpoint = i + 1;
+			cpoint = i;
 			return 0;
 		}
 	}
