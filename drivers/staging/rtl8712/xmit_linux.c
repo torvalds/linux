@@ -91,7 +91,8 @@ void r8712_set_qos(struct pkt_file *ppktfile, struct pkt_attrib *pattrib)
 	} else {
 		/* "When priority processing of data frames is supported,
 		 * a STA's SME should send EAPOL-Key frames at the highest
-		 * priority." */
+		 * priority."
+		 */
 
 		if (pattrib->ether_type == 0x888e)
 			UserPriority = 7;
@@ -162,16 +163,16 @@ int r8712_xmit_entry(_pkt *pkt, struct  net_device *pnetdev)
 	struct _adapter *padapter = netdev_priv(pnetdev);
 	struct xmit_priv *pxmitpriv = &(padapter->xmitpriv);
 
-	if (!r8712_if_up(padapter)) {
+	if (!r8712_if_up(padapter))
 		goto _xmit_entry_drop;
-	}
+
 	pxmitframe = r8712_alloc_xmitframe(pxmitpriv);
-	if (!pxmitframe) {
+	if (!pxmitframe)
 		goto _xmit_entry_drop;
-	}
-	if ((!r8712_update_attrib(padapter, pkt, &pxmitframe->attrib))) {
+
+	if ((!r8712_update_attrib(padapter, pkt, &pxmitframe->attrib)))
 		goto _xmit_entry_drop;
-	}
+
 	padapter->ledpriv.LedControlHandler(padapter, LED_CTL_TX);
 	pxmitframe->pkt = pkt;
 	if (r8712_pre_xmit(padapter, pxmitframe)) {
