@@ -182,6 +182,12 @@ extern int extcon_register_notifier(struct extcon_dev *edev, unsigned int id,
 				    struct notifier_block *nb);
 extern int extcon_unregister_notifier(struct extcon_dev *edev, unsigned int id,
 				    struct notifier_block *nb);
+extern int devm_extcon_register_notifier(struct device *dev,
+				struct extcon_dev *edev, unsigned int id,
+				struct notifier_block *nb);
+extern void devm_extcon_unregister_notifier(struct device *dev,
+				struct extcon_dev *edev, unsigned int id,
+				struct notifier_block *nb);
 
 /*
  * Following API get the extcon device from devicetree.
@@ -272,6 +278,17 @@ static inline int extcon_unregister_notifier(struct extcon_dev *edev,
 {
 	return 0;
 }
+
+static inline int devm_extcon_register_notifier(struct device *dev,
+				struct extcon_dev *edev, unsigned int id,
+				struct notifier_block *nb)
+{
+	return -ENOSYS;
+}
+
+static inline  void devm_extcon_unregister_notifier(struct device *dev,
+				struct extcon_dev *edev, unsigned int id,
+				struct notifier_block *nb) { }
 
 static inline struct extcon_dev *extcon_get_edev_by_phandle(struct device *dev,
 							    int index)
