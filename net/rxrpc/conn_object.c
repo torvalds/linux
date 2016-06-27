@@ -542,7 +542,7 @@ void rxrpc_disconnect_call(struct rxrpc_call *call)
 
 	spin_lock(&conn->channel_lock);
 
-	if (conn->channels[chan] == call) {
+	if (rcu_access_pointer(conn->channels[chan]) == call) {
 		rcu_assign_pointer(conn->channels[chan], NULL);
 		atomic_inc(&conn->avail_chans);
 		wake_up(&conn->channel_wq);
@@ -580,9 +580,12 @@ void rxrpc_put_connection(struct rxrpc_connection *conn)
 /*
  * destroy a virtual connection
  */
-static void rxrpc_destroy_connection(struct rxrpc_connection *conn)
+static void rxrpc_destroy_connection(struct rcu_head *rcu)
 {
-	_enter("%p{%d}", conn, atomic_read(&conn->usage));
+	struct rxrpc_connection *conn =
+		container_of(rcu, struct rxrpc_connection, rcu);
+
+	_enter("{%d,u=%d}", conn->debug_id, atomic_read(&conn->usage));
 
 	ASSERTCMP(atomic_read(&conn->usage), ==, 0);
 
@@ -677,7 +680,8 @@ static void rxrpc_connection_reaper(struct work_struct *work)
 		list_del_init(&conn->link);
 
 		ASSERTCMP(atomic_read(&conn->usage), ==, 0);
-		rxrpc_destroy_connection(conn);
+		skb_queue_purge(&conn->rx_queue);
+		call_rcu(&conn->rcu, rxrpc_destroy_connection);
 	}
 
 	_leave("");
@@ -689,11 +693,30 @@ static void rxrpc_connection_reaper(struct work_struct *work)
  */
 void __exit rxrpc_destroy_all_connections(void)
 {
+	struct rxrpc_connection *conn, *_p;
+	bool leak = false;
+
 	_enter("");
 
 	rxrpc_connection_expiry = 0;
 	cancel_delayed_work(&rxrpc_connection_reap);
 	rxrpc_queue_delayed_work(&rxrpc_connection_reap, 0);
+	flush_workqueue(rxrpc_workqueue);
+
+	write_lock(&rxrpc_connection_lock);
+	list_for_each_entry_safe(conn, _p, &rxrpc_connections, link) {
+		pr_err("AF_RXRPC: Leaked conn %p {%d}\n",
+		       conn, atomic_read(&conn->usage));
+		leak = true;
+	}
+	write_unlock(&rxrpc_connection_lock);
+	BUG_ON(leak);
+
+	/* Make sure the local and peer records pinned by any dying connections
+	 * are released.
+	 */
+	rcu_barrier();
+	rxrpc_destroy_client_conn_ids();
 
 	_leave("");
 }

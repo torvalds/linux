@@ -198,7 +198,10 @@ static int rxrpc_process_event(struct rxrpc_connection *conn,
 		if (conn->state == RXRPC_CONN_SERVICE_CHALLENGING) {
 			conn->state = RXRPC_CONN_SERVICE;
 			for (loop = 0; loop < RXRPC_MAXCALLS; loop++)
-				rxrpc_call_is_secure(conn->channels[loop]);
+				rxrpc_call_is_secure(
+					rcu_dereference_protected(
+						conn->channels[loop],
+						lockdep_is_held(&conn->lock)));
 		}
 
 		spin_unlock(&conn->state_lock);

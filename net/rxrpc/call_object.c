@@ -480,7 +480,8 @@ struct rxrpc_call *rxrpc_incoming_call(struct rxrpc_sock *rx,
 	write_lock_bh(&conn->lock);
 
 	/* set the channel for this call */
-	call = conn->channels[candidate->channel];
+	call = rcu_dereference_protected(conn->channels[candidate->channel],
+					 lockdep_is_held(&conn->lock));
 	_debug("channel[%u] is %p", candidate->channel, call);
 	if (call && call->call_id == sp->hdr.callNumber) {
 		/* already set; must've been a duplicate packet */
@@ -544,7 +545,7 @@ struct rxrpc_call *rxrpc_incoming_call(struct rxrpc_sock *rx,
 	candidate = NULL;
 	rb_link_node(&call->conn_node, parent, p);
 	rb_insert_color(&call->conn_node, &conn->calls);
-	conn->channels[call->channel] = call;
+	rcu_assign_pointer(conn->channels[call->channel], call);
 	sock_hold(&rx->sk);
 	rxrpc_get_connection(conn);
 	write_unlock_bh(&conn->lock);
@@ -795,6 +796,17 @@ void __rxrpc_put_call(struct rxrpc_call *call)
 }
 
 /*
+ * Final call destruction under RCU.
+ */
+static void rxrpc_rcu_destroy_call(struct rcu_head *rcu)
+{
+	struct rxrpc_call *call = container_of(rcu, struct rxrpc_call, rcu);
+
+	rxrpc_purge_queue(&call->rx_queue);
+	kmem_cache_free(rxrpc_call_jar, call);
+}
+
+/*
  * clean up a call
  */
 static void rxrpc_cleanup_call(struct rxrpc_call *call)
@@ -849,7 +861,7 @@ static void rxrpc_cleanup_call(struct rxrpc_call *call)
 	rxrpc_purge_queue(&call->rx_queue);
 	ASSERT(skb_queue_empty(&call->rx_oos_queue));
 	sock_put(&call->socket->sk);
-	kmem_cache_free(rxrpc_call_jar, call);
+	call_rcu(&call->rcu, rxrpc_rcu_destroy_call);
 }
 
 /*

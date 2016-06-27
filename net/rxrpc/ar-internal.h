@@ -292,9 +292,10 @@ struct rxrpc_connection {
 	struct rxrpc_conn_parameters params;
 
 	spinlock_t		channel_lock;
-	struct rxrpc_call	*channels[RXRPC_MAXCALLS]; /* active calls */
+	struct rxrpc_call __rcu	*channels[RXRPC_MAXCALLS]; /* active calls */
 	wait_queue_head_t	channel_wq;	/* queue to wait for channel to become available */
 
+	struct rcu_head		rcu;
 	struct work_struct	processor;	/* connection event processor */
 	union {
 		struct rb_node	client_node;	/* Node in local->client_conns */
@@ -398,6 +399,7 @@ enum rxrpc_call_state {
  * - matched by { connection, call_id }
  */
 struct rxrpc_call {
+	struct rcu_head		rcu;
 	struct rxrpc_connection	*conn;		/* connection carrying call */
 	struct rxrpc_sock	*socket;	/* socket responsible */
 	struct timer_list	lifetimer;	/* lifetime remaining on call */
