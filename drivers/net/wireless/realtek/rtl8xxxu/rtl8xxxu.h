@@ -135,7 +135,8 @@ struct rtl8xxxu_rxdesc16 {
 
 	u32 seq:12;
 	u32 frag:4;
-	u32 nextpktlen:14;
+	u32 pkt_cnt:8;
+	u32 reserved:6;
 	u32 nextind:1;
 	u32 reserved0:1;
 
@@ -198,7 +199,8 @@ struct rtl8xxxu_rxdesc16 {
 
 	u32 reserved0:1;
 	u32 nextind:1;
-	u32 nextpktlen:14;
+	u32 reserved:6;
+	u32 pkt_cnt:8;
 	u32 frag:4;
 	u32 seq:12;
 
