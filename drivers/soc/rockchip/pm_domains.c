@@ -736,11 +736,11 @@ static const struct rockchip_pmu_info rk3399_pmu = {
 	.idle_offset = 0x64,
 	.ack_offset = 0x68,
 
-	.core_pwrcnt_offset = 0x9c,
-	.gpu_pwrcnt_offset = 0xa4,
+	.core_pwrcnt_offset = 0xac,
+	.gpu_pwrcnt_offset = 0xac,
 
-	.core_power_transition_time = 24,
-	.gpu_power_transition_time = 24,
+	.core_power_transition_time = 6, /* 0.25us */
+	.gpu_power_transition_time = 6, /* 0.25us */
 
 	.num_domains = ARRAY_SIZE(rk3399_pm_domains),
 	.domain_info = rk3399_pm_domains,
