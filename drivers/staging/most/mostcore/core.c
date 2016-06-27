@@ -1468,10 +1468,8 @@ static void most_read_completion(struct mbo *mbo)
 		return;
 	}
 
-	if (atomic_sub_and_test(1, &c->mbo_nq_level)) {
-		pr_info("WARN: rx device out of buffers\n");
+	if (atomic_sub_and_test(1, &c->mbo_nq_level))
 		c->is_starving = 1;
-	}
 
 	if (c->aim0.refs && c->aim0.ptr->rx_completion &&
 	    c->aim0.ptr->rx_completion(mbo) == 0)
