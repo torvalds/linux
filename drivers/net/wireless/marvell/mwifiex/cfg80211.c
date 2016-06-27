@@ -3316,6 +3316,7 @@ static int mwifiex_cfg80211_suspend(struct wiphy *wiphy,
 	struct mwifiex_private *sta_priv =
 			mwifiex_get_priv(adapter, MWIFIEX_BSS_ROLE_STA);
 
+	sta_priv->scan_aborting = true;
 	for (i = 0; i < adapter->priv_num; i++) {
 		priv = adapter->priv[i];
 		mwifiex_abort_cac(priv);
@@ -3344,19 +3345,21 @@ static int mwifiex_cfg80211_suspend(struct wiphy *wiphy,
 	if (!wowlan) {
 		mwifiex_dbg(adapter, ERROR,
 			    "None of the WOWLAN triggers enabled\n");
-		return 0;
+		ret = 0;
+		goto done;
 	}
 
 	if (!sta_priv->media_connected && !wowlan->nd_config) {
 		mwifiex_dbg(adapter, ERROR,
 			    "Can not configure WOWLAN in disconnected state\n");
-		return 0;
+		ret = 0;
+		goto done;
 	}
 
 	ret = mwifiex_set_mef_filter(sta_priv, wowlan);
 	if (ret) {
 		mwifiex_dbg(adapter, ERROR, "Failed to set MEF filter\n");
-		return ret;
+		goto done;
 	}
 
 	memset(&hs_cfg, 0, sizeof(hs_cfg));
@@ -3379,12 +3382,11 @@ static int mwifiex_cfg80211_suspend(struct wiphy *wiphy,
 	hs_cfg.gap = adapter->hs_cfg.gap;
 	ret = mwifiex_set_hs_params(sta_priv, HostCmd_ACT_GEN_SET,
 				    MWIFIEX_SYNC_CMD, &hs_cfg);
-	if (ret) {
-		mwifiex_dbg(adapter, ERROR,
-			    "Failed to set HS params\n");
-		return ret;
-	}
+	if (ret)
+		mwifiex_dbg(adapter, ERROR, "Failed to set HS params\n");
 
+done:
+	sta_priv->scan_aborting = false;
 	return ret;
 }
 

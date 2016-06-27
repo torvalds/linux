@@ -1896,7 +1896,8 @@ mwifiex_active_scan_req_for_passive_chan(struct mwifiex_private *priv)
 	u8 id = 0;
 	struct mwifiex_user_scan_cfg  *user_scan_cfg;
 
-	if (adapter->active_scan_triggered || !priv->scan_request) {
+	if (adapter->active_scan_triggered || !priv->scan_request ||
+	    priv->scan_aborting) {
 		adapter->active_scan_triggered = false;
 		return 0;
 	}
