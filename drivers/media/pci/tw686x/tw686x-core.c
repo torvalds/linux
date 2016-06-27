@@ -91,7 +91,7 @@ static int tw686x_dma_mode_set(const char *val, struct kernel_param *kp)
 }
 module_param_call(dma_mode, tw686x_dma_mode_set, tw686x_dma_mode_get,
 		  &dma_mode, S_IRUGO|S_IWUSR);
-MODULE_PARM_DESC(dma_mode, "DMA operation mode");
+MODULE_PARM_DESC(dma_mode, "DMA operation mode (memcpy/contig/sg, default=memcpy)");
 
 void tw686x_disable_channel(struct tw686x_dev *dev, unsigned int channel)
 {
