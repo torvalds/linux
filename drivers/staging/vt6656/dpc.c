@@ -75,15 +75,15 @@ int vnt_rx_data(struct vnt_private *priv, struct vnt_rcb *ptr_rcb,
 
 	skb_data = (u8 *)skb->data;
 
-	rx_sts = skb_data+4;
-	rx_rate = skb_data+5;
+	rx_sts = skb_data + 4;
+	rx_rate = skb_data + 5;
 
 	/* real Frame Size = USBframe_size -4WbkStatus - 4RxStatus */
 	/* -8TSF - 4RSR - 4SQ3 - ?Padding */
 
 	/* if SQ3 the range is 24~27, if no SQ3 the range is 20~23 */
 
-	pay_load_len = (u16 *) (skb_data + 6);
+	pay_load_len = (u16 *)(skb_data + 6);
 
 	/*Fix hardware bug => PLCP_Length error */
 	if (((bytes_received - (*pay_load_len)) > 27) ||
