@@ -110,7 +110,7 @@
 		pinctrl-0 = <&backlight_pins>;
 	};
 
-	pwm11: dmtimer-pwm@11 {
+	pwm11: dmtimer-pwm {
 		compatible = "ti,omap-dmtimer-pwm";
 		ti,timers = <&timer11>;
 		#pwm-cells = <3>;
@@ -121,7 +121,7 @@
 		reset-gpios = <&gpio6 14 GPIO_ACTIVE_LOW>;
 	};
 
-	tv0: connector@1 {
+	tv0: connector {
 		compatible = "svideo-connector";
 		label = "tv";
 
@@ -142,14 +142,14 @@
 
 			port@0 {
 				reg = <0>;
-				opa_in: endpoint@0 {
+				opa_in: endpoint {
 					remote-endpoint = <&venc_out>;
 				};
 			};
 
 			port@1 {
 				reg = <1>;
-				opa_out: endpoint@0 {
+				opa_out: endpoint {
 					remote-endpoint = <&tv_connector_in>;
 				};
 			};
