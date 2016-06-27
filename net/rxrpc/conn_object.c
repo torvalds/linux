@@ -46,10 +46,8 @@ static struct rxrpc_connection *rxrpc_alloc_connection(gfp_t gfp)
 		init_waitqueue_head(&conn->channel_wq);
 		INIT_WORK(&conn->processor, &rxrpc_process_connection);
 		INIT_LIST_HEAD(&conn->link);
-		conn->calls = RB_ROOT;
 		skb_queue_head_init(&conn->rx_queue);
 		conn->security = &rxrpc_no_security;
-		rwlock_init(&conn->lock);
 		spin_lock_init(&conn->state_lock);
 		atomic_set(&conn->usage, 1);
 		conn->debug_id = atomic_inc_return(&rxrpc_debug_id);
@@ -60,39 +58,6 @@ static struct rxrpc_connection *rxrpc_alloc_connection(gfp_t gfp)
 
 	_leave(" = %p{%d}", conn, conn ? conn->debug_id : 0);
 	return conn;
-}
-
-/*
- * add a call to a connection's call-by-ID tree
- */
-static void rxrpc_add_call_ID_to_conn(struct rxrpc_connection *conn,
-				      struct rxrpc_call *call)
-{
-	struct rxrpc_call *xcall;
-	struct rb_node *parent, **p;
-	u32 call_id;
-
-	write_lock_bh(&conn->lock);
-
-	call_id = call->call_id;
-	p = &conn->calls.rb_node;
-	parent = NULL;
-	while (*p) {
-		parent = *p;
-		xcall = rb_entry(parent, struct rxrpc_call, conn_node);
-
-		if (call_id < xcall->call_id)
-			p = &(*p)->rb_left;
-		else if (call_id > xcall->call_id)
-			p = &(*p)->rb_right;
-		else
-			BUG();
-	}
-
-	rb_link_node(&call->conn_node, parent, p);
-	rb_insert_color(&call->conn_node, &conn->calls);
-
-	write_unlock_bh(&conn->lock);
 }
 
 /*
@@ -277,12 +242,12 @@ found_channel:
 	call->channel	= chan;
 	call->epoch	= conn->proto.epoch;
 	call->cid	= conn->proto.cid | chan;
-	call->call_id	= ++conn->call_counter;
-	rcu_assign_pointer(conn->channels[chan], call);
+	call->call_id	= ++conn->channels[chan].call_counter;
+	conn->channels[chan].call_id = call->call_id;
+	rcu_assign_pointer(conn->channels[chan].call, call);
 
 	_net("CONNECT call %d on conn %d", call->debug_id, conn->debug_id);
 
-	rxrpc_add_call_ID_to_conn(conn, call);
 	spin_unlock(&conn->channel_lock);
 	rxrpc_put_peer(cp->peer);
 	cp->peer = NULL;
@@ -326,7 +291,7 @@ found_extant_conn:
 	spin_lock(&conn->channel_lock);
 
 	for (chan = 0; chan < RXRPC_MAXCALLS; chan++)
-		if (!conn->channels[chan])
+		if (!conn->channels[chan].call)
 			goto found_channel;
 	BUG();
 
@@ -531,28 +496,47 @@ found:
 
 /*
  * Disconnect a call and clear any channel it occupies when that call
+ * terminates.  The caller must hold the channel_lock and must release the
+ * call's ref on the connection.
+ */
+void __rxrpc_disconnect_call(struct rxrpc_call *call)
+{
+	struct rxrpc_connection *conn = call->conn;
+	struct rxrpc_channel *chan = &conn->channels[call->channel];
+
+	_enter("%d,%d", conn->debug_id, call->channel);
+
+	if (rcu_access_pointer(chan->call) == call) {
+		/* Save the result of the call so that we can repeat it if necessary
+		 * through the channel, whilst disposing of the actual call record.
+		 */
+		chan->last_result = call->local_abort;
+		smp_wmb();
+		chan->last_call = chan->call_id;
+		chan->call_id = chan->call_counter;
+
+		rcu_assign_pointer(chan->call, NULL);
+		atomic_inc(&conn->avail_chans);
+		wake_up(&conn->channel_wq);
+	}
+
+	_leave("");
+}
+
+/*
+ * Disconnect a call and clear any channel it occupies when that call
  * terminates.
  */
 void rxrpc_disconnect_call(struct rxrpc_call *call)
 {
 	struct rxrpc_connection *conn = call->conn;
-	unsigned chan = call->channel;
-
-	_enter("%d,%d", conn->debug_id, call->channel);
 
 	spin_lock(&conn->channel_lock);
-
-	if (rcu_access_pointer(conn->channels[chan]) == call) {
-		rcu_assign_pointer(conn->channels[chan], NULL);
-		atomic_inc(&conn->avail_chans);
-		wake_up(&conn->channel_wq);
-	}
-
+	__rxrpc_disconnect_call(call);
 	spin_unlock(&conn->channel_lock);
 
 	call->conn = NULL;
 	rxrpc_put_connection(conn);
-	_leave("");
 }
 
 /*
@@ -591,7 +575,6 @@ static void rxrpc_destroy_connection(struct rcu_head *rcu)
 
 	_net("DESTROY CONN %d", conn->debug_id);
 
-	ASSERT(RB_EMPTY_ROOT(&conn->calls));
 	rxrpc_purge_queue(&conn->rx_queue);
 
 	conn->security->clear(conn);

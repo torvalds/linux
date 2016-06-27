@@ -456,8 +456,7 @@ struct rxrpc_call *rxrpc_incoming_call(struct rxrpc_sock *rx,
 {
 	struct rxrpc_skb_priv *sp = rxrpc_skb(skb);
 	struct rxrpc_call *call, *candidate;
-	struct rb_node **p, *parent;
-	u32 call_id;
+	u32 call_id, chan;
 
 	_enter(",%d", conn->debug_id);
 
@@ -467,21 +466,23 @@ struct rxrpc_call *rxrpc_incoming_call(struct rxrpc_sock *rx,
 	if (!candidate)
 		return ERR_PTR(-EBUSY);
 
+	chan = sp->hdr.cid & RXRPC_CHANNELMASK;
 	candidate->socket	= rx;
 	candidate->conn		= conn;
 	candidate->cid		= sp->hdr.cid;
 	candidate->call_id	= sp->hdr.callNumber;
-	candidate->channel	= sp->hdr.cid & RXRPC_CHANNELMASK;
+	candidate->channel	= chan;
 	candidate->rx_data_post	= 0;
 	candidate->state	= RXRPC_CALL_SERVER_ACCEPTING;
 	if (conn->security_ix > 0)
 		candidate->state = RXRPC_CALL_SERVER_SECURING;
 
-	write_lock_bh(&conn->lock);
+	spin_lock(&conn->channel_lock);
 
 	/* set the channel for this call */
-	call = rcu_dereference_protected(conn->channels[candidate->channel],
-					 lockdep_is_held(&conn->lock));
+	call = rcu_dereference_protected(conn->channels[chan].call,
+					 lockdep_is_held(&conn->channel_lock));
+
 	_debug("channel[%u] is %p", candidate->channel, call);
 	if (call && call->call_id == sp->hdr.callNumber) {
 		/* already set; must've been a duplicate packet */
@@ -510,9 +511,9 @@ struct rxrpc_call *rxrpc_incoming_call(struct rxrpc_sock *rx,
 		       call->debug_id, rxrpc_call_states[call->state]);
 
 		if (call->state >= RXRPC_CALL_COMPLETE) {
-			conn->channels[call->channel] = NULL;
+			__rxrpc_disconnect_call(call);
 		} else {
-			write_unlock_bh(&conn->lock);
+			spin_unlock(&conn->channel_lock);
 			kmem_cache_free(rxrpc_call_jar, candidate);
 			_leave(" = -EBUSY");
 			return ERR_PTR(-EBUSY);
@@ -522,33 +523,22 @@ struct rxrpc_call *rxrpc_incoming_call(struct rxrpc_sock *rx,
 	/* check the call number isn't duplicate */
 	_debug("check dup");
 	call_id = sp->hdr.callNumber;
-	p = &conn->calls.rb_node;
-	parent = NULL;
-	while (*p) {
-		parent = *p;
-		call = rb_entry(parent, struct rxrpc_call, conn_node);
 
-		/* The tree is sorted in order of the __be32 value without
-		 * turning it into host order.
-		 */
-		if (call_id < call->call_id)
-			p = &(*p)->rb_left;
-		else if (call_id > call->call_id)
-			p = &(*p)->rb_right;
-		else
-			goto old_call;
-	}
+	/* We just ignore calls prior to the current call ID.  Terminated calls
+	 * are handled via the connection.
+	 */
+	if (call_id <= conn->channels[chan].call_counter)
+		goto old_call; /* TODO: Just drop packet */
 
 	/* make the call available */
 	_debug("new call");
 	call = candidate;
 	candidate = NULL;
-	rb_link_node(&call->conn_node, parent, p);
-	rb_insert_color(&call->conn_node, &conn->calls);
-	rcu_assign_pointer(conn->channels[call->channel], call);
+	conn->channels[chan].call_counter = call_id;
+	rcu_assign_pointer(conn->channels[chan].call, call);
 	sock_hold(&rx->sk);
 	rxrpc_get_connection(conn);
-	write_unlock_bh(&conn->lock);
+	spin_unlock(&conn->channel_lock);
 
 	spin_lock(&conn->params.peer->lock);
 	hlist_add_head(&call->error_link, &conn->params.peer->error_targets);
@@ -588,19 +578,19 @@ struct rxrpc_call *rxrpc_incoming_call(struct rxrpc_sock *rx,
 	return call;
 
 extant_call:
-	write_unlock_bh(&conn->lock);
+	spin_unlock(&conn->channel_lock);
 	kmem_cache_free(rxrpc_call_jar, candidate);
 	_leave(" = %p {%d} [extant]", call, call ? call->debug_id : -1);
 	return call;
 
 aborted_call:
-	write_unlock_bh(&conn->lock);
+	spin_unlock(&conn->channel_lock);
 	kmem_cache_free(rxrpc_call_jar, candidate);
 	_leave(" = -ECONNABORTED");
 	return ERR_PTR(-ECONNABORTED);
 
 old_call:
-	write_unlock_bh(&conn->lock);
+	spin_unlock(&conn->channel_lock);
 	kmem_cache_free(rxrpc_call_jar, candidate);
 	_leave(" = -ECONNRESET [old]");
 	return ERR_PTR(-ECONNRESET);
@@ -648,8 +638,7 @@ void rxrpc_release_call(struct rxrpc_call *call)
 	write_unlock_bh(&rx->call_lock);
 
 	/* free up the channel for reuse */
-	write_lock_bh(&conn->lock);
-	write_lock(&call->state_lock);
+	write_lock_bh(&call->state_lock);
 
 	if (call->state < RXRPC_CALL_COMPLETE &&
 	    call->state != RXRPC_CALL_CLIENT_FINAL_ACK) {
@@ -657,10 +646,7 @@ void rxrpc_release_call(struct rxrpc_call *call)
 		call->state = RXRPC_CALL_LOCALLY_ABORTED;
 		call->local_abort = RX_CALL_DEAD;
 	}
-	write_unlock(&call->state_lock);
-
-	rb_erase(&call->conn_node, &conn->calls);
-	write_unlock_bh(&conn->lock);
+	write_unlock_bh(&call->state_lock);
 
 	rxrpc_disconnect_call(call);
 

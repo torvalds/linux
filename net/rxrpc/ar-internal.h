@@ -292,7 +292,14 @@ struct rxrpc_connection {
 	struct rxrpc_conn_parameters params;
 
 	spinlock_t		channel_lock;
-	struct rxrpc_call __rcu	*channels[RXRPC_MAXCALLS]; /* active calls */
+
+	struct rxrpc_channel {
+		struct rxrpc_call __rcu	*call;		/* Active call */
+		u32			call_id;	/* ID of current call */
+		u32			call_counter;	/* Call ID counter */
+		u32			last_call;	/* ID of last call */
+		u32			last_result;	/* Result of last call (0/abort) */
+	} channels[RXRPC_MAXCALLS];
 	wait_queue_head_t	channel_wq;	/* queue to wait for channel to become available */
 
 	struct rcu_head		rcu;
@@ -302,7 +309,6 @@ struct rxrpc_connection {
 		struct rb_node	service_node;	/* Node in peer->service_conns */
 	};
 	struct list_head	link;		/* link in master connection list */
-	struct rb_root		calls;		/* calls on this connection */
 	struct sk_buff_head	rx_queue;	/* received conn-level packets */
 	const struct rxrpc_security *security;	/* applied security module */
 	struct key		*server_key;	/* security for this service */
@@ -311,7 +317,6 @@ struct rxrpc_connection {
 	unsigned long		flags;
 	unsigned long		events;
 	unsigned long		put_time;	/* Time at which last put */
-	rwlock_t		lock;		/* access lock */
 	spinlock_t		state_lock;	/* state-change lock */
 	atomic_t		usage;
 	enum rxrpc_conn_proto_state state : 8;	/* current state of connection */
@@ -319,7 +324,6 @@ struct rxrpc_connection {
 	u32			remote_abort;	/* remote abort code */
 	int			error;		/* local error incurred */
 	int			debug_id;	/* debug ID for printks */
-	unsigned int		call_counter;	/* call ID counter */
 	atomic_t		serial;		/* packet serial number counter */
 	atomic_t		hi_serial;	/* highest serial number received */
 	atomic_t		avail_chans;	/* number of channels available */
@@ -412,7 +416,6 @@ struct rxrpc_call {
 	struct hlist_node	error_link;	/* link in error distribution list */
 	struct list_head	accept_link;	/* calls awaiting acceptance */
 	struct rb_node		sock_node;	/* node in socket call tree */
-	struct rb_node		conn_node;	/* node in connection call tree */
 	struct sk_buff_head	rx_queue;	/* received packets */
 	struct sk_buff_head	rx_oos_queue;	/* packets received out of sequence */
 	struct sk_buff		*tx_pending;	/* Tx socket buffer being filled */
@@ -564,6 +567,7 @@ int rxrpc_connect_call(struct rxrpc_call *, struct rxrpc_conn_parameters *,
 struct rxrpc_connection *rxrpc_find_connection(struct rxrpc_local *,
 					       struct rxrpc_peer *,
 					       struct sk_buff *);
+void __rxrpc_disconnect_call(struct rxrpc_call *);
 void rxrpc_disconnect_call(struct rxrpc_call *);
 void rxrpc_put_connection(struct rxrpc_connection *);
 void __exit rxrpc_destroy_all_connections(void);

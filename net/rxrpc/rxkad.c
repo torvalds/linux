@@ -767,14 +767,10 @@ static int rxkad_respond_to_challenge(struct rxrpc_connection *conn,
 	resp.kvno			= htonl(token->kad->kvno);
 	resp.ticket_len			= htonl(token->kad->ticket_len);
 
-	resp.encrypted.call_id[0] =
-		htonl(conn->channels[0] ? conn->channels[0]->call_id : 0);
-	resp.encrypted.call_id[1] =
-		htonl(conn->channels[1] ? conn->channels[1]->call_id : 0);
-	resp.encrypted.call_id[2] =
-		htonl(conn->channels[2] ? conn->channels[2]->call_id : 0);
-	resp.encrypted.call_id[3] =
-		htonl(conn->channels[3] ? conn->channels[3]->call_id : 0);
+	resp.encrypted.call_id[0] = htonl(conn->channels[0].call_counter);
+	resp.encrypted.call_id[1] = htonl(conn->channels[1].call_counter);
+	resp.encrypted.call_id[2] = htonl(conn->channels[2].call_counter);
+	resp.encrypted.call_id[3] = htonl(conn->channels[3].call_counter);
 
 	/* calculate the response checksum and then do the encryption */
 	rxkad_calc_response_checksum(&resp);
@@ -991,7 +987,7 @@ static int rxkad_verify_response(struct rxrpc_connection *conn,
 	void *ticket;
 	u32 abort_code, version, kvno, ticket_len, level;
 	__be32 csum;
-	int ret;
+	int ret, i;
 
 	_enter("{%d,%x}", conn->debug_id, key_serial(conn->server_key));
 
@@ -1054,11 +1050,26 @@ static int rxkad_verify_response(struct rxrpc_connection *conn,
 	if (response.encrypted.checksum != csum)
 		goto protocol_error_free;
 
-	if (ntohl(response.encrypted.call_id[0]) > INT_MAX ||
-	    ntohl(response.encrypted.call_id[1]) > INT_MAX ||
-	    ntohl(response.encrypted.call_id[2]) > INT_MAX ||
-	    ntohl(response.encrypted.call_id[3]) > INT_MAX)
-		goto protocol_error_free;
+	spin_lock(&conn->channel_lock);
+	for (i = 0; i < RXRPC_MAXCALLS; i++) {
+		struct rxrpc_call *call;
+		u32 call_id = ntohl(response.encrypted.call_id[i]);
+
+		if (call_id > INT_MAX)
+			goto protocol_error_unlock;
+
+		if (call_id < conn->channels[i].call_counter)
+			goto protocol_error_unlock;
+		if (call_id > conn->channels[i].call_counter) {
+			call = rcu_dereference_protected(
+				conn->channels[i].call,
+				lockdep_is_held(&conn->channel_lock));
+			if (call && call->state < RXRPC_CALL_COMPLETE)
+				goto protocol_error_unlock;
+			conn->channels[i].call_counter = call_id;
+		}
+	}
+	spin_unlock(&conn->channel_lock);
 
 	abort_code = RXKADOUTOFSEQUENCE;
 	if (ntohl(response.encrypted.inc_nonce) != conn->security_nonce + 1)
@@ -1083,6 +1094,8 @@ static int rxkad_verify_response(struct rxrpc_connection *conn,
 	_leave(" = 0");
 	return 0;
 
+protocol_error_unlock:
+	spin_unlock(&conn->channel_lock);
 protocol_error_free:
 	kfree(ticket);
 protocol_error:
