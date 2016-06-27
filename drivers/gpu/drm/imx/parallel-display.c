@@ -35,6 +35,7 @@ struct imx_parallel_display {
 	u32 bus_format;
 	struct drm_display_mode mode;
 	struct drm_panel *panel;
+	struct drm_bridge *bridge;
 };
 
 static inline struct imx_parallel_display *con_to_imxpd(struct drm_connector *c)
@@ -181,15 +182,29 @@ static int imx_pd_register(struct drm_device *drm,
 	drm_encoder_init(drm, encoder, &imx_pd_encoder_funcs,
 			 DRM_MODE_ENCODER_NONE, NULL);
 
-	drm_connector_helper_add(&imxpd->connector,
-			&imx_pd_connector_helper_funcs);
-	drm_connector_init(drm, &imxpd->connector, &imx_pd_connector_funcs,
-			   DRM_MODE_CONNECTOR_VGA);
+	if (!imxpd->bridge) {
+		drm_connector_helper_add(&imxpd->connector,
+				&imx_pd_connector_helper_funcs);
+		drm_connector_init(drm, &imxpd->connector,
+				   &imx_pd_connector_funcs,
+				   DRM_MODE_CONNECTOR_VGA);
+	}
 
 	if (imxpd->panel)
 		drm_panel_attach(imxpd->panel, &imxpd->connector);
 
-	drm_mode_connector_attach_encoder(&imxpd->connector, encoder);
+	if (imxpd->bridge) {
+		imxpd->bridge->encoder = encoder;
+		encoder->bridge = imxpd->bridge;
+		ret = drm_bridge_attach(drm, imxpd->bridge);
+		if (ret < 0) {
+			dev_err(imxpd->dev, "failed to attach bridge: %d\n",
+				ret);
+			return ret;
+		}
+	} else {
+		drm_mode_connector_attach_encoder(&imxpd->connector, encoder);
+	}
 
 	return 0;
 }
@@ -232,13 +247,30 @@ static int imx_pd_bind(struct device *dev, struct device *master, void *data)
 		struct device_node *remote;
 
 		remote = of_graph_get_remote_port_parent(ep);
-		of_node_put(ep);
-		if (remote) {
-			imxpd->panel = of_drm_find_panel(remote);
-			of_node_put(remote);
+		if (!remote) {
+			dev_warn(dev, "endpoint %s not connected\n",
+				 ep->full_name);
+			of_node_put(ep);
+			return -ENODEV;
 		}
-		if (!imxpd->panel)
+		of_node_put(ep);
+
+		imxpd->panel = of_drm_find_panel(remote);
+		if (imxpd->panel) {
+			dev_dbg(dev, "found panel %s\n", remote->full_name);
+		} else {
+			imxpd->bridge = of_drm_find_bridge(remote);
+			if (imxpd->bridge)
+				dev_dbg(dev, "found bridge %s\n",
+					remote->full_name);
+		}
+		if (!imxpd->panel && !imxpd->bridge) {
+			dev_dbg(dev, "waiting for panel or bridge %s\n",
+				remote->full_name);
+			of_node_put(remote);
 			return -EPROBE_DEFER;
+		}
+		of_node_put(remote);
 	}
 
 	imxpd->dev = dev;
