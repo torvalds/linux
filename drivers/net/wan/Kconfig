@@ -291,6 +291,17 @@ config FSL_UCC_HDLC
 	  To compile this driver as a module, choose M here: the
 	  module will be called fsl_ucc_hdlc.
 
+config SLIC_DS26522
+	tristate "Slic Maxim ds26522 card support"
+	depends on SPI
+	depends on FSL_SOC || ARCH_MXC || ARCH_LAYERSCAPE
+	help
+	  This module initializes and configures the slic maxim card
+	  in T1 or E1 mode.
+
+	  To compile this driver as a module, choose M here: the
+	  module will be called slic_ds26522.
+
 config DSCC4_PCISYNC
 	bool "Etinc PCISYNC features"
 	depends on DSCC4
