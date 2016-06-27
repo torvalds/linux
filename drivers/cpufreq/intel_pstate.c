@@ -1377,7 +1377,7 @@ static const struct x86_cpu_id intel_pstate_cpu_ids[] = {
 };
 MODULE_DEVICE_TABLE(x86cpu, intel_pstate_cpu_ids);
 
-static const struct x86_cpu_id intel_pstate_cpu_oob_ids[] = {
+static const struct x86_cpu_id intel_pstate_cpu_oob_ids[] __initconst = {
 	ICPU(INTEL_FAM6_BROADWELL_XEON_D, core_params),
 	{}
 };
@@ -1599,9 +1599,9 @@ static struct cpufreq_driver intel_pstate_driver = {
 static int no_load __initdata;
 static int no_hwp __initdata;
 static int hwp_only __initdata;
-static unsigned int force_load;
+static unsigned int force_load __initdata;
 
-static int intel_pstate_msrs_not_valid(void)
+static int __init intel_pstate_msrs_not_valid(void)
 {
 	if (!pstate_funcs.get_max() ||
 	    !pstate_funcs.get_min() ||
@@ -1611,7 +1611,7 @@ static int intel_pstate_msrs_not_valid(void)
 	return 0;
 }
 
-static void copy_pid_params(struct pstate_adjust_policy *policy)
+static void __init copy_pid_params(struct pstate_adjust_policy *policy)
 {
 	pid_params.sample_rate_ms = policy->sample_rate_ms;
 	pid_params.sample_rate_ns = pid_params.sample_rate_ms * NSEC_PER_MSEC;
@@ -1622,7 +1622,7 @@ static void copy_pid_params(struct pstate_adjust_policy *policy)
 	pid_params.setpoint = policy->setpoint;
 }
 
-static void copy_cpu_funcs(struct pstate_funcs *funcs)
+static void __init copy_cpu_funcs(struct pstate_funcs *funcs)
 {
 	pstate_funcs.get_max   = funcs->get_max;
 	pstate_funcs.get_max_physical = funcs->get_max_physical;
@@ -1637,7 +1637,7 @@ static void copy_cpu_funcs(struct pstate_funcs *funcs)
 
 #ifdef CONFIG_ACPI
 
-static bool intel_pstate_no_acpi_pss(void)
+static bool __init intel_pstate_no_acpi_pss(void)
 {
 	int i;
 
@@ -1666,7 +1666,7 @@ static bool intel_pstate_no_acpi_pss(void)
 	return true;
 }
 
-static bool intel_pstate_has_acpi_ppc(void)
+static bool __init intel_pstate_has_acpi_ppc(void)
 {
 	int i;
 
@@ -1694,7 +1694,7 @@ struct hw_vendor_info {
 };
 
 /* Hardware vendor-specific info that has its own power management modes */
-static struct hw_vendor_info vendor_info[] = {
+static struct hw_vendor_info vendor_info[] __initdata = {
 	{1, "HP    ", "ProLiant", PSS},
 	{1, "ORACLE", "X4-2    ", PPC},
 	{1, "ORACLE", "X4-2L   ", PPC},
@@ -1713,7 +1713,7 @@ static struct hw_vendor_info vendor_info[] = {
 	{0, "", ""},
 };
 
-static bool intel_pstate_platform_pwr_mgmt_exists(void)
+static bool __init intel_pstate_platform_pwr_mgmt_exists(void)
 {
 	struct acpi_table_header hdr;
 	struct hw_vendor_info *v_info;
