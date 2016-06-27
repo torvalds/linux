@@ -79,6 +79,14 @@ static enum ppi_nr arch_timer_uses_ppi = VIRT_PPI;
 static bool arch_timer_c3stop;
 static bool arch_timer_mem_use_virtual;
 
+static bool evtstrm_enable = IS_ENABLED(CONFIG_ARM_ARCH_TIMER_EVTSTREAM);
+
+static int __init early_evtstrm_cfg(char *buf)
+{
+	return strtobool(buf, &evtstrm_enable);
+}
+early_param("clocksource.arm_arch_timer.evtstrm", early_evtstrm_cfg);
+
 /*
  * Architected system timer support.
  */
@@ -372,7 +380,7 @@ static int arch_timer_setup(struct clock_event_device *clk)
 		enable_percpu_irq(arch_timer_ppi[PHYS_NONSECURE_PPI], 0);
 
 	arch_counter_set_user_access();
-	if (IS_ENABLED(CONFIG_ARM_ARCH_TIMER_EVTSTREAM))
+	if (evtstrm_enable)
 		arch_timer_configure_evtstream();
 
 	return 0;
