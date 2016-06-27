@@ -246,8 +246,7 @@ static int s5pv210_target(struct cpufreq_policy *policy, unsigned int index)
 	new_freq = s5pv210_freq_table[index].frequency;
 
 	/* Finding current running level index */
-	priv_index = cpufreq_frequency_table_target(policy, old_freq,
-						    CPUFREQ_RELATION_H);
+	priv_index = cpufreq_table_find_index_h(policy, old_freq);
 
 	arm_volt = dvs_conf[index].arm_volt;
 	int_volt = dvs_conf[index].int_volt;

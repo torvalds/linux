@@ -91,8 +91,8 @@ static unsigned int amd_powersave_bias_target(struct cpufreq_policy *policy,
 		else {
 			unsigned int index;
 
-			index = cpufreq_frequency_table_target(policy,
-				policy->cur - 1, CPUFREQ_RELATION_H);
+			index = cpufreq_table_find_index_h(policy,
+							   policy->cur - 1);
 			freq_next = policy->freq_table[index].frequency;
 		}
 
