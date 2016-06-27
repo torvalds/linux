@@ -1190,7 +1190,7 @@ static unsigned long long irtl_2_usec(unsigned long long irtl)
 	if (!irtl)
 		return 0;
 
-	ns = irtl_ns_units[(irtl >> 10) & 0x3];
+	ns = irtl_ns_units[(irtl >> 10) & 0x7];
 
 	return div64_u64((irtl & 0x3FF) * ns, 1000);
 }
