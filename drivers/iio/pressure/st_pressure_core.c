@@ -196,6 +196,10 @@
  * See LPS22HB datasheet:
  * http://www2.st.com/resource/en/datasheet/lps22hb.pdf
  */
+
+/* LPS22HB temperature sensitivity */
+#define ST_PRESS_LPS22HB_LSB_PER_CELSIUS	100UL
+
 #define ST_PRESS_LPS22HB_WAI_EXP		0xb1
 #define ST_PRESS_LPS22HB_ODR_ADDR		0x10
 #define ST_PRESS_LPS22HB_ODR_MASK		0x70
@@ -307,7 +311,22 @@ static const struct iio_chan_spec st_press_lps22hb_channels[] = {
 		.info_mask_shared_by_all = BIT(IIO_CHAN_INFO_SAMP_FREQ),
 		.modified = 0,
 	},
-	IIO_CHAN_SOFT_TIMESTAMP(1)
+	{
+		.type = IIO_TEMP,
+		.address = ST_TEMP_1_OUT_L_ADDR,
+		.scan_index = 1,
+		.scan_type = {
+			.sign = 's',
+			.realbits = 16,
+			.storagebits = 16,
+			.endianness = IIO_LE,
+		},
+		.info_mask_separate =
+			BIT(IIO_CHAN_INFO_RAW) |
+			BIT(IIO_CHAN_INFO_SCALE),
+		.info_mask_shared_by_all = BIT(IIO_CHAN_INFO_SAMP_FREQ),
+	},
+	IIO_CHAN_SOFT_TIMESTAMP(2)
 };
 
 static const struct st_sensor_settings st_press_sensors_settings[] = {
@@ -494,12 +513,13 @@ static const struct st_sensor_settings st_press_sensors_settings[] = {
 		.fs = {
 			.fs_avl = {
 				/*
-				 * Sensitivity values as defined in table 3 of
-				 * LPS22HB datasheet.
+				 * Pressure and temperature sensitivity values
+				 * as defined in table 3 of LPS22HB datasheet.
 				 */
 				[0] = {
 					.num = ST_PRESS_FS_AVL_1260MB,
 					.gain = ST_PRESS_KPASCAL_NANO_SCALE,
+					.gain2 = ST_PRESS_LPS22HB_LSB_PER_CELSIUS,
 				},
 			},
 		},
