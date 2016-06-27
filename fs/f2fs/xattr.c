@@ -447,7 +447,7 @@ static int __f2fs_setxattr(struct inode *inode, int index,
 	int found, newsize;
 	size_t len;
 	__u32 new_hsize;
-	int error = -ENOMEM;
+	int error = 0;
 
 	if (name == NULL)
 		return -EINVAL;
@@ -465,7 +465,7 @@ static int __f2fs_setxattr(struct inode *inode, int index,
 
 	base_addr = read_all_xattrs(inode, ipage);
 	if (!base_addr)
-		goto exit;
+		return -ENOMEM;
 
 	/* find entry with wanted name. */
 	here = __find_xattr(base_addr, index, len, name);
