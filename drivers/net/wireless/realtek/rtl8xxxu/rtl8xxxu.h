@@ -1247,6 +1247,7 @@ struct rtl8xxxu_priv {
 	u32 ep_tx_normal_queue:1;
 	u32 ep_tx_low_queue:1;
 	u32 has_xtalk:1;
+	u32 rx_buf_aggregation:1;
 	u8 xtalk;
 	unsigned int pipe_interrupt;
 	unsigned int pipe_in;
@@ -1330,6 +1331,7 @@ struct rtl8xxxu_fileops {
 	void (*report_connect) (struct rtl8xxxu_priv *priv,
 				u8 macid, bool connect);
 	int writeN_block_size;
+	int rx_agg_buf_size;
 	char tx_desc_size;
 	char rx_desc_size;
 	char has_s0s1;

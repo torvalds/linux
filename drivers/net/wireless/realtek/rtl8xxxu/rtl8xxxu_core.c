@@ -64,8 +64,6 @@ module_param_named(ht40_2g, rtl8xxxu_ht40_2g, bool, 0600);
 MODULE_PARM_DESC(ht40_2g, "Enable HT40 support on the 2.4GHz band");
 
 #define USB_VENDOR_ID_REALTEK		0x0bda
-/* Minimum IEEE80211_MAX_FRAME_LEN */
-#define RTL_RX_BUFFER_SIZE		IEEE80211_MAX_FRAME_LEN
 #define RTL8XXXU_RX_URBS		32
 #define RTL8XXXU_RX_URB_PENDING_WATER	8
 #define RTL8XXXU_TX_URBS		64
@@ -5271,12 +5269,19 @@ cleanup:
 static int rtl8xxxu_submit_rx_urb(struct rtl8xxxu_priv *priv,
 				  struct rtl8xxxu_rx_urb *rx_urb)
 {
+	struct rtl8xxxu_fileops *fops = priv->fops;
 	struct sk_buff *skb;
 	int skb_size;
 	int ret, rx_desc_sz;
 
-	rx_desc_sz = priv->fops->rx_desc_size;
-	skb_size = rx_desc_sz + RTL_RX_BUFFER_SIZE;
+	rx_desc_sz = fops->rx_desc_size;
+
+	if (priv->rx_buf_aggregation && fops->rx_agg_buf_size)
+		skb_size = fops->rx_agg_buf_size;
+	else
+		skb_size = IEEE80211_MAX_FRAME_LEN;
+	skb_size += rx_desc_sz;
+
 	skb = __netdev_alloc_skb(NULL, skb_size, GFP_KERNEL);
 	if (!skb)
 		return -ENOMEM;
