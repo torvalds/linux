@@ -122,7 +122,7 @@ pte_t __init_refok *pte_alloc_one_kernel(struct mm_struct *mm,
 	pte_t *pte;
 
 	if (likely(mem_init_done)) {
-		pte = (pte_t *) __get_free_page(GFP_KERNEL | __GFP_REPEAT);
+		pte = (pte_t *) __get_free_page(GFP_KERNEL);
 	} else {
 		pte = (pte_t *) alloc_bootmem_low_pages(PAGE_SIZE);
 #if 0

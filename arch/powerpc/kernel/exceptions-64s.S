@@ -1399,11 +1399,12 @@ END_MMU_FTR_SECTION_IFCLR(MMU_FTR_RADIX)
 	lwz	r9,PACA_EXSLB+EX_CCR(r13)	/* get saved CR */
 
 	mtlr	r10
-BEGIN_MMU_FTR_SECTION
-	b	2f
-END_MMU_FTR_SECTION_IFSET(MMU_FTR_RADIX)
 	andi.	r10,r12,MSR_RI	/* check for unrecoverable exception */
+BEGIN_MMU_FTR_SECTION
 	beq-	2f
+FTR_SECTION_ELSE
+	b	2f
+ALT_MMU_FTR_SECTION_END_IFCLR(MMU_FTR_RADIX)
 
 .machine	push
 .machine	"power4"

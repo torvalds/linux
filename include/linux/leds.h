@@ -42,15 +42,16 @@ struct led_classdev {
 #define LED_UNREGISTERING	(1 << 1)
 	/* Upper 16 bits reflect control information */
 #define LED_CORE_SUSPENDRESUME	(1 << 16)
-#define LED_BLINK_ONESHOT	(1 << 17)
-#define LED_BLINK_ONESHOT_STOP	(1 << 18)
-#define LED_BLINK_INVERT	(1 << 19)
-#define LED_BLINK_BRIGHTNESS_CHANGE (1 << 20)
-#define LED_BLINK_DISABLE	(1 << 21)
-#define LED_SYSFS_DISABLE	(1 << 22)
-#define LED_DEV_CAP_FLASH	(1 << 23)
-#define LED_HW_PLUGGABLE	(1 << 24)
-#define LED_PANIC_INDICATOR	(1 << 25)
+#define LED_BLINK_SW		(1 << 17)
+#define LED_BLINK_ONESHOT	(1 << 18)
+#define LED_BLINK_ONESHOT_STOP	(1 << 19)
+#define LED_BLINK_INVERT	(1 << 20)
+#define LED_BLINK_BRIGHTNESS_CHANGE (1 << 21)
+#define LED_BLINK_DISABLE	(1 << 22)
+#define LED_SYSFS_DISABLE	(1 << 23)
+#define LED_DEV_CAP_FLASH	(1 << 24)
+#define LED_HW_PLUGGABLE	(1 << 25)
+#define LED_PANIC_INDICATOR	(1 << 26)
 
 	/* Set LED brightness level
 	 * Must not sleep. Use brightness_set_blocking for drivers
@@ -72,8 +73,8 @@ struct led_classdev {
 	 * and if both are zero then a sensible default should be chosen.
 	 * The call should adjust the timings in that case and if it can't
 	 * match the values specified exactly.
-	 * Deactivate blinking again when the brightness is set to a fixed
-	 * value via the brightness_set() callback.
+	 * Deactivate blinking again when the brightness is set to LED_OFF
+	 * via the brightness_set() callback.
 	 */
 	int		(*blink_set)(struct led_classdev *led_cdev,
 				     unsigned long *delay_on,

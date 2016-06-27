@@ -1383,7 +1383,7 @@ static void postinit_cleanup(struct hfi1_devdata *dd)
 static int init_one(struct pci_dev *pdev, const struct pci_device_id *ent)
 {
 	int ret = 0, j, pidx, initfail;
-	struct hfi1_devdata *dd = NULL;
+	struct hfi1_devdata *dd = ERR_PTR(-EINVAL);
 	struct hfi1_pportdata *ppd;
 
 	/* First, lock the non-writable module parameters */
