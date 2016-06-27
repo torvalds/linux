@@ -150,7 +150,6 @@ _gb_connection_create(struct gb_host_device *hd, int hd_cport_id,
 				unsigned long flags)
 {
 	struct gb_connection *connection;
-	unsigned long irqflags;
 	int ret;
 
 	mutex_lock(&gb_connection_mutex);
@@ -201,7 +200,7 @@ _gb_connection_create(struct gb_host_device *hd, int hd_cport_id,
 
 	gb_connection_init_name(connection);
 
-	spin_lock_irqsave(&gb_connections_lock, irqflags);
+	spin_lock_irq(&gb_connections_lock);
 	list_add(&connection->hd_links, &hd->connections);
 
 	if (bundle)
@@ -209,7 +208,7 @@ _gb_connection_create(struct gb_host_device *hd, int hd_cport_id,
 	else
 		INIT_LIST_HEAD(&connection->bundle_links);
 
-	spin_unlock_irqrestore(&gb_connections_lock, irqflags);
+	spin_unlock_irq(&gb_connections_lock);
 
 	mutex_unlock(&gb_connection_mutex);
 
@@ -852,8 +851,6 @@ EXPORT_SYMBOL_GPL(gb_connection_disable_forced);
 /* Caller must have disabled the connection before destroying it. */
 void gb_connection_destroy(struct gb_connection *connection)
 {
-	unsigned long flags;
-
 	if (!connection)
 		return;
 
@@ -862,10 +859,10 @@ void gb_connection_destroy(struct gb_connection *connection)
 
 	mutex_lock(&gb_connection_mutex);
 
-	spin_lock_irqsave(&gb_connections_lock, flags);
+	spin_lock_irq(&gb_connections_lock);
 	list_del(&connection->bundle_links);
 	list_del(&connection->hd_links);
-	spin_unlock_irqrestore(&gb_connections_lock, flags);
+	spin_unlock_irq(&gb_connections_lock);
 
 	destroy_workqueue(connection->wq);
 
