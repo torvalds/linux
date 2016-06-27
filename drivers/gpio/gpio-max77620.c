@@ -123,7 +123,10 @@ static int max77620_gpio_get(struct gpio_chip *gc, unsigned int offset)
 		return ret;
 	}
 
-	return !!(val & MAX77620_CNFG_GPIO_INPUT_VAL_MASK);
+	if  (val & MAX77620_CNFG_GPIO_DIR_MASK)
+		return !!(val & MAX77620_CNFG_GPIO_INPUT_VAL_MASK);
+	else
+		return !!(val & MAX77620_CNFG_GPIO_OUTPUT_VAL_MASK);
 }
 
 static int max77620_gpio_dir_output(struct gpio_chip *gc, unsigned int offset,
