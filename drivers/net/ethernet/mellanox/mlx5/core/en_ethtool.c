@@ -184,7 +184,9 @@ static unsigned long mlx5e_query_pfc_combined(struct mlx5e_priv *priv)
 #define MLX5E_NUM_SQ_STATS(priv) \
 	(NUM_SQ_STATS * priv->params.num_channels * priv->params.num_tc * \
 	 test_bit(MLX5E_STATE_OPENED, &priv->state))
-#define MLX5E_NUM_PFC_COUNTERS(priv) hweight8(mlx5e_query_pfc_combined(priv))
+#define MLX5E_NUM_PFC_COUNTERS(priv) \
+	(hweight8(mlx5e_query_pfc_combined(priv)) * \
+	 NUM_PPORT_PER_PRIO_PFC_COUNTERS)
 
 static int mlx5e_get_sset_count(struct net_device *dev, int sset)
 {
