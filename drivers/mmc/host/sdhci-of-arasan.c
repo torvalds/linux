@@ -77,7 +77,6 @@ struct sdhci_arasan_soc_ctl_map {
  * @host:		Pointer to the main SDHCI host structure.
  * @clk_ahb:		Pointer to the AHB clock
  * @phy:		Pointer to the generic phy
- * @phy_on:		True if the PHY is turned on.
  * @sdcardclk_hw:	Struct for the clock we might provide to a PHY.
  * @sdcardclk:		Pointer to normal 'struct clock' for sdcardclk_hw.
  * @soc_ctl_base:	Pointer to regmap for syscon for soc_ctl registers.
@@ -87,7 +86,6 @@ struct sdhci_arasan_data {
 	struct sdhci_host *host;
 	struct clk	*clk_ahb;
 	struct phy	*phy;
-	bool		phy_on;
 
 	struct clk_hw	sdcardclk_hw;
 	struct clk      *sdcardclk;
@@ -170,10 +168,12 @@ static void sdhci_arasan_set_clock(struct sdhci_host *host, unsigned int clock)
 {
 	struct sdhci_pltfm_host *pltfm_host = sdhci_priv(host);
 	struct sdhci_arasan_data *sdhci_arasan = sdhci_pltfm_priv(pltfm_host);
+	bool ctrl_phy = false;
 
-	if (sdhci_arasan->phy_on && !IS_ERR(sdhci_arasan->phy)) {
-		sdhci_arasan->phy_on = false;
+	if (clock > MMC_HIGH_52_MAX_DTR && (!IS_ERR(sdhci_arasan->phy)))
+		ctrl_phy = true;
 
+	if (ctrl_phy) {
 		spin_unlock_irq(&host->lock);
 		phy_power_off(sdhci_arasan->phy);
 		spin_lock_irq(&host->lock);
@@ -181,9 +181,7 @@ static void sdhci_arasan_set_clock(struct sdhci_host *host, unsigned int clock)
 
 	sdhci_set_clock(host, clock);
 
-	if (host->mmc->actual_clock && !IS_ERR(sdhci_arasan->phy)) {
-		sdhci_arasan->phy_on = true;
-
+	if (ctrl_phy) {
 		spin_unlock_irq(&host->lock);
 		phy_power_on(sdhci_arasan->phy);
 		spin_lock_irq(&host->lock);
@@ -549,6 +547,12 @@ static int sdhci_arasan_probe(struct platform_device *pdev)
 			goto unreg_clk;
 		}
 
+		ret = phy_power_on(sdhci_arasan->phy);
+		if (ret < 0) {
+			dev_err(&pdev->dev, "phy_power_on err.\n");
+			goto err_phy_power;
+		}
+
 		host->mmc_host_ops.hs400_enhanced_strobe =
 					sdhci_arasan_hs400_enhanced_strobe;
 	}
@@ -560,6 +564,9 @@ static int sdhci_arasan_probe(struct platform_device *pdev)
 	return 0;
 
 err_add_host:
+	if (!IS_ERR(sdhci_arasan->phy))
+		phy_power_off(sdhci_arasan->phy);
+err_phy_power:
 	if (!IS_ERR(sdhci_arasan->phy))
 		phy_exit(sdhci_arasan->phy);
 unreg_clk:
