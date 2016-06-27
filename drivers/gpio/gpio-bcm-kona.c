@@ -551,11 +551,11 @@ static void bcm_kona_gpio_reset(struct bcm_kona_gpio *kona_gpio)
 	/* disable interrupts and clear status */
 	for (i = 0; i < kona_gpio->num_bank; i++) {
 		/* Unlock the entire bank first */
-		bcm_kona_gpio_write_lock_regs(kona_gpio, i, UNLOCK_CODE);
+		bcm_kona_gpio_write_lock_regs(reg_base, i, UNLOCK_CODE);
 		writel(0xffffffff, reg_base + GPIO_INT_MASK(i));
 		writel(0xffffffff, reg_base + GPIO_INT_STATUS(i));
 		/* Now re-lock the bank */
-		bcm_kona_gpio_write_lock_regs(kona_gpio, i, LOCK_CODE);
+		bcm_kona_gpio_write_lock_regs(reg_base, i, LOCK_CODE);
 	}
 }
 

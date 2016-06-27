@@ -1581,7 +1581,7 @@ int l2tp_tunnel_create(struct net *net, int fd, int version, u32 tunnel_id, u32 
 	/* Mark socket as an encapsulation socket. See net/ipv4/udp.c */
 	tunnel->encap = encap;
 	if (encap == L2TP_ENCAPTYPE_UDP) {
-		struct udp_tunnel_sock_cfg udp_cfg;
+		struct udp_tunnel_sock_cfg udp_cfg = { };
 
 		udp_cfg.sk_user_data = tunnel;
 		udp_cfg.encap_type = UDP_ENCAP_L2TPINUDP;

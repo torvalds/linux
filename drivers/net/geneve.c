@@ -310,15 +310,15 @@ static int geneve_udp_encap_recv(struct sock *sk, struct sk_buff *skb)
 
 	/* Need Geneve and inner Ethernet header to be present */
 	if (unlikely(!pskb_may_pull(skb, GENEVE_BASE_HLEN)))
-		goto error;
+		goto drop;
 
 	/* Return packets with reserved bits set */
 	geneveh = geneve_hdr(skb);
 	if (unlikely(geneveh->ver != GENEVE_VER))
-		goto error;
+		goto drop;
 
 	if (unlikely(geneveh->proto_type != htons(ETH_P_TEB)))
-		goto error;
+		goto drop;
 
 	opts_len = geneveh->opt_len * 4;
 	if (iptunnel_pull_header(skb, GENEVE_BASE_HLEN + opts_len,
@@ -336,10 +336,6 @@ drop:
 	/* Consume bad packet */
 	kfree_skb(skb);
 	return 0;
-
-error:
-	/* Let the UDP layer deal with the skb */
-	return 1;
 }
 
 static struct socket *geneve_create_sock(struct net *net, bool ipv6,
@@ -998,6 +994,17 @@ static netdev_tx_t geneve_xmit(struct sk_buff *skb, struct net_device *dev)
 	return geneve_xmit_skb(skb, dev, info);
 }
 
+static int geneve_change_mtu(struct net_device *dev, int new_mtu)
+{
+	/* GENEVE overhead is not fixed, so we can't enforce a more
+	 * precise max MTU.
+	 */
+	if (new_mtu < 68 || new_mtu > IP_MAX_MTU)
+		return -EINVAL;
+	dev->mtu = new_mtu;
+	return 0;
+}
+
 static int geneve_fill_metadata_dst(struct net_device *dev, struct sk_buff *skb)
 {
 	struct ip_tunnel_info *info = skb_tunnel_info(skb);
@@ -1042,7 +1049,7 @@ static const struct net_device_ops geneve_netdev_ops = {
 	.ndo_stop		= geneve_stop,
 	.ndo_start_xmit		= geneve_xmit,
 	.ndo_get_stats64	= ip_tunnel_get_stats64,
-	.ndo_change_mtu		= eth_change_mtu,
+	.ndo_change_mtu		= geneve_change_mtu,
 	.ndo_validate_addr	= eth_validate_addr,
 	.ndo_set_mac_address	= eth_mac_addr,
 	.ndo_fill_metadata_dst	= geneve_fill_metadata_dst,
@@ -1349,11 +1356,21 @@ struct net_device *geneve_dev_create_fb(struct net *net, const char *name,
 
 	err = geneve_configure(net, dev, &geneve_remote_unspec,
 			       0, 0, 0, htons(dst_port), true);
-	if (err) {
-		free_netdev(dev);
-		return ERR_PTR(err);
-	}
+	if (err)
+		goto err;
+
+	/* openvswitch users expect packet sizes to be unrestricted,
+	 * so set the largest MTU we can.
+	 */
+	err = geneve_change_mtu(dev, IP_MAX_MTU);
+	if (err)
+		goto err;
+
 	return dev;
+
+ err:
+	free_netdev(dev);
+	return ERR_PTR(err);
 }
 EXPORT_SYMBOL_GPL(geneve_dev_create_fb);
 
