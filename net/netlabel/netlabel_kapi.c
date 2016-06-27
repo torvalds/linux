@@ -1147,13 +1147,17 @@ int netlbl_skbuff_setattr(struct sk_buff *skb,
 {
 	int ret_val;
 	struct iphdr *hdr4;
+#if IS_ENABLED(CONFIG_IPV6)
+	struct ipv6hdr *hdr6;
+#endif
 	struct netlbl_dommap_def *entry;
 
 	rcu_read_lock();
 	switch (family) {
 	case AF_INET:
 		hdr4 = ip_hdr(skb);
-		entry = netlbl_domhsh_getentry_af4(secattr->domain,hdr4->daddr);
+		entry = netlbl_domhsh_getentry_af4(secattr->domain,
+						   hdr4->daddr);
 		if (entry == NULL) {
 			ret_val = -ENOENT;
 			goto skbuff_setattr_return;
@@ -1174,9 +1178,26 @@ int netlbl_skbuff_setattr(struct sk_buff *skb,
 		break;
 #if IS_ENABLED(CONFIG_IPV6)
 	case AF_INET6:
-		/* since we don't support any IPv6 labeling protocols right
-		 * now we can optimize everything away until we do */
-		ret_val = 0;
+		hdr6 = ipv6_hdr(skb);
+		entry = netlbl_domhsh_getentry_af6(secattr->domain,
+						   &hdr6->daddr);
+		if (entry == NULL) {
+			ret_val = -ENOENT;
+			goto skbuff_setattr_return;
+		}
+		switch (entry->type) {
+		case NETLBL_NLTYPE_CALIPSO:
+			ret_val = calipso_skbuff_setattr(skb, entry->calipso,
+							 secattr);
+			break;
+		case NETLBL_NLTYPE_UNLABELED:
+			/* just delete the protocols we support for right now
+			 * but we could remove other protocols if needed */
+			ret_val = calipso_skbuff_delattr(skb);
+			break;
+		default:
+			ret_val = -ENOENT;
+		}
 		break;
 #endif /* IPv6 */
 	default:
@@ -1215,6 +1236,9 @@ int netlbl_skbuff_getattr(const struct sk_buff *skb,
 		break;
 #if IS_ENABLED(CONFIG_IPV6)
 	case AF_INET6:
+		ptr = calipso_optptr(skb);
+		if (ptr && calipso_getattr(ptr, secattr) == 0)
+			return 0;
 		break;
 #endif /* IPv6 */
 	}

@@ -618,3 +618,85 @@ void calipso_req_delattr(struct request_sock *req)
 	if (ops)
 		ops->req_delattr(req);
 }
+
+/**
+ * calipso_optptr - Find the CALIPSO option in the packet
+ * @skb: the packet
+ *
+ * Description:
+ * Parse the packet's IP header looking for a CALIPSO option.  Returns a pointer
+ * to the start of the CALIPSO option on success, NULL if one if not found.
+ *
+ */
+unsigned char *calipso_optptr(const struct sk_buff *skb)
+{
+	unsigned char *ret_val = NULL;
+	const struct netlbl_calipso_ops *ops = netlbl_calipso_ops_get();
+
+	if (ops)
+		ret_val = ops->skbuff_optptr(skb);
+	return ret_val;
+}
+
+/**
+ * calipso_getattr - Get the security attributes from a memory block.
+ * @calipso: the CALIPSO option
+ * @secattr: the security attributes
+ *
+ * Description:
+ * Inspect @calipso and return the security attributes in @secattr.
+ * Returns zero on success and negative values on failure.
+ *
+ */
+int calipso_getattr(const unsigned char *calipso,
+		    struct netlbl_lsm_secattr *secattr)
+{
+	int ret_val = -ENOMSG;
+	const struct netlbl_calipso_ops *ops = netlbl_calipso_ops_get();
+
+	if (ops)
+		ret_val = ops->opt_getattr(calipso, secattr);
+	return ret_val;
+}
+
+/**
+ * calipso_skbuff_setattr - Set the CALIPSO option on a packet
+ * @skb: the packet
+ * @doi_def: the CALIPSO DOI to use
+ * @secattr: the security attributes
+ *
+ * Description:
+ * Set the CALIPSO option on the given packet based on the security attributes.
+ * Returns a pointer to the IP header on success and NULL on failure.
+ *
+ */
+int calipso_skbuff_setattr(struct sk_buff *skb,
+			   const struct calipso_doi *doi_def,
+			   const struct netlbl_lsm_secattr *secattr)
+{
+	int ret_val = -ENOMSG;
+	const struct netlbl_calipso_ops *ops = netlbl_calipso_ops_get();
+
+	if (ops)
+		ret_val = ops->skbuff_setattr(skb, doi_def, secattr);
+	return ret_val;
+}
+
+/**
+ * calipso_skbuff_delattr - Delete any CALIPSO options from a packet
+ * @skb: the packet
+ *
+ * Description:
+ * Removes any and all CALIPSO options from the given packet.  Returns zero on
+ * success, negative values on failure.
+ *
+ */
+int calipso_skbuff_delattr(struct sk_buff *skb)
+{
+	int ret_val = -ENOMSG;
+	const struct netlbl_calipso_ops *ops = netlbl_calipso_ops_get();
+
+	if (ops)
+		ret_val = ops->skbuff_delattr(skb);
+	return ret_val;
+}

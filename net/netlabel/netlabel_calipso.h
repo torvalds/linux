@@ -137,5 +137,12 @@ int calipso_req_setattr(struct request_sock *req,
 			const struct calipso_doi *doi_def,
 			const struct netlbl_lsm_secattr *secattr);
 void calipso_req_delattr(struct request_sock *req);
+unsigned char *calipso_optptr(const struct sk_buff *skb);
+int calipso_getattr(const unsigned char *calipso,
+		    struct netlbl_lsm_secattr *secattr);
+int calipso_skbuff_setattr(struct sk_buff *skb,
+			   const struct calipso_doi *doi_def,
+			   const struct netlbl_lsm_secattr *secattr);
+int calipso_skbuff_delattr(struct sk_buff *skb);
 
 #endif

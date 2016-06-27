@@ -5063,6 +5063,15 @@ static unsigned int selinux_ipv4_output(void *priv,
 	return selinux_ip_output(skb, PF_INET);
 }
 
+#if defined(CONFIG_IPV6) || defined(CONFIG_IPV6_MODULE)
+static unsigned int selinux_ipv6_output(void *priv,
+					struct sk_buff *skb,
+					const struct nf_hook_state *state)
+{
+	return selinux_ip_output(skb, PF_INET6);
+}
+#endif	/* IPV6 */
+
 static unsigned int selinux_ip_postroute_compat(struct sk_buff *skb,
 						int ifindex,
 						u16 family)
@@ -6295,6 +6304,12 @@ static struct nf_hook_ops selinux_nf_ops[] = {
 		.hook =		selinux_ipv6_forward,
 		.pf =		NFPROTO_IPV6,
 		.hooknum =	NF_INET_FORWARD,
+		.priority =	NF_IP6_PRI_SELINUX_FIRST,
+	},
+	{
+		.hook =		selinux_ipv6_output,
+		.pf =		NFPROTO_IPV6,
+		.hooknum =	NF_INET_LOCAL_OUT,
 		.priority =	NF_IP6_PRI_SELINUX_FIRST,
 	},
 #endif	/* IPV6 */
