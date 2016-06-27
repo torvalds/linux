@@ -783,7 +783,6 @@ static int sur40_vidioc_enum_fmt(struct file *file, void *priv,
 {
 	if (f->index != 0)
 		return -EINVAL;
-	strlcpy(f->description, "8-bit greyscale", sizeof(f->description));
 	f->pixelformat = V4L2_PIX_FMT_GREY;
 	f->flags = 0;
 	return 0;
