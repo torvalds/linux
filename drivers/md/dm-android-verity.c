@@ -109,6 +109,14 @@ static inline bool is_eng(void)
 	return !strncmp(buildvariant, typeeng, sizeof(typeeng));
 }
 
+static inline bool is_userdebug(void)
+{
+	static const char typeuserdebug[]  = "userdebug";
+
+	return !strncmp(buildvariant, typeuserdebug, sizeof(typeuserdebug));
+}
+
+
 static int table_extract_mpi_array(struct public_key_signature *pks,
 				const void *data, size_t len)
 {
@@ -499,19 +507,6 @@ const char *find_dt_value(const char *name)
 	return value;
 }
 
-static bool is_unlocked(void)
-{
-	static const char unlocked[]  = "orange";
-	static const char verified_boot_prop[] = "verifiedbootstate";
-	const char *value;
-
-	value = find_dt_value(verified_boot_prop);
-	if (!value)
-		value = verifiedbootstate;
-
-	return !strncmp(value, unlocked, sizeof(unlocked) - 1);
-}
-
 static int verity_mode(void)
 {
 	static const char enforcing[] = "enforcing";
@@ -531,7 +526,7 @@ static int verify_header(struct android_metadata_header *header)
 {
 	int retval = -EINVAL;
 
-	if (is_unlocked() && le32_to_cpu(header->magic_number) ==
+	if (is_userdebug() && le32_to_cpu(header->magic_number) ==
 		VERITY_METADATA_MAGIC_DISABLE) {
 		retval = VERITY_STATE_DISABLE;
 		return retval;
