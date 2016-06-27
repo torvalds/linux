@@ -321,6 +321,47 @@ doi_walk_return:
 }
 
 /**
+ * calipso_validate - Validate a CALIPSO option
+ * @skb: the packet
+ * @option: the start of the option
+ *
+ * Description:
+ * This routine is called to validate a CALIPSO option.
+ * If the option is valid then %true is returned, otherwise
+ * %false is returned.
+ *
+ * The caller should have already checked that the length of the
+ * option (including the TLV header) is >= 10 and that the catmap
+ * length is consistent with the option length.
+ *
+ * We leave checks on the level and categories to the socket layer.
+ */
+bool calipso_validate(const struct sk_buff *skb, const unsigned char *option)
+{
+	struct calipso_doi *doi_def;
+	bool ret_val;
+	u16 crc, len = option[1] + 2;
+	static const u8 zero[2];
+
+	/* The original CRC runs over the option including the TLV header
+	 * with the CRC-16 field (at offset 8) zeroed out. */
+	crc = crc_ccitt(0xffff, option, 8);
+	crc = crc_ccitt(crc, zero, sizeof(zero));
+	if (len > 10)
+		crc = crc_ccitt(crc, option + 10, len - 10);
+	crc = ~crc;
+	if (option[8] != (crc & 0xff) || option[9] != ((crc >> 8) & 0xff))
+		return false;
+
+	rcu_read_lock();
+	doi_def = calipso_doi_search(get_unaligned_be32(option + 2));
+	ret_val = !!doi_def;
+	rcu_read_unlock();
+
+	return ret_val;
+}
+
+/**
  * calipso_map_cat_hton - Perform a category mapping from host to network
  * @doi_def: the DOI definition
  * @secattr: the security attributes

@@ -65,6 +65,7 @@ struct calipso_doi {
 #ifdef CONFIG_NETLABEL
 int __init calipso_init(void);
 void calipso_exit(void);
+bool calipso_validate(const struct sk_buff *skb, const unsigned char *option);
 #else
 static inline int __init calipso_init(void)
 {
@@ -73,6 +74,11 @@ static inline int __init calipso_init(void)
 
 static inline void calipso_exit(void)
 {
+}
+static inline bool calipso_validate(const struct sk_buff *skb,
+				    const unsigned char *option)
+{
+	return true;
 }
 #endif /* CONFIG_NETLABEL */
 
