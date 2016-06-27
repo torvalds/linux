@@ -126,26 +126,6 @@ struct extcon_dev {
 	struct device_attribute *d_attrs_muex;
 };
 
-/**
- * struct extcon_cable - An internal data for each cable of extcon device.
- * @edev:		The extcon device
- * @cable_index:	Index of this cable in the edev
- * @attr_g:		Attribute group for the cable
- * @attr_name:		"name" sysfs entry
- * @attr_state:		"state" sysfs entry
- * @attrs:		Array pointing to attr_name and attr_state for attr_g
- */
-struct extcon_cable {
-	struct extcon_dev *edev;
-	int cable_index;
-
-	struct attribute_group attr_g;
-	struct device_attribute attr_name;
-	struct device_attribute attr_state;
-
-	struct attribute *attrs[3]; /* to be fed to attr_g.attrs */
-};
-
 #if IS_ENABLED(CONFIG_EXTCON)
 
 /*
