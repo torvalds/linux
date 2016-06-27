@@ -33,7 +33,7 @@
 #define STRING_SIZE	80
 
 static struct class *most_class;
-static struct device *class_glue_dir;
+static struct device *core_dev;
 static struct ida mdev_id;
 static int dummy_num_buffers;
 
@@ -1877,22 +1877,19 @@ static int __init most_init(void)
 		goto exit_class;
 	}
 
-	class_glue_dir =
-		device_create(most_class, NULL, 0, NULL, "mostcore");
-	if (IS_ERR(class_glue_dir)) {
-		err = PTR_ERR(class_glue_dir);
+	core_dev = device_create(most_class, NULL, 0, NULL, "mostcore");
+	if (IS_ERR(core_dev)) {
+		err = PTR_ERR(core_dev);
 		goto exit_driver;
 	}
 
-	most_aim_kset =
-		kset_create_and_add("aims", NULL, &class_glue_dir->kobj);
+	most_aim_kset = kset_create_and_add("aims", NULL, &core_dev->kobj);
 	if (!most_aim_kset) {
 		err = -ENOMEM;
 		goto exit_class_container;
 	}
 
-	most_inst_kset =
-		kset_create_and_add("devices", NULL, &class_glue_dir->kobj);
+	most_inst_kset = kset_create_and_add("devices", NULL, &core_dev->kobj);
 	if (!most_inst_kset) {
 		err = -ENOMEM;
 		goto exit_driver_kset;
