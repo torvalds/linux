@@ -595,7 +595,7 @@ static void rxrpc_post_packet_to_local(struct rxrpc_local *local,
 	_enter("%p,%p", local, skb);
 
 	skb_queue_tail(&local->event_queue, skb);
-	rxrpc_queue_work(&local->processor);
+	rxrpc_queue_local(local);
 }
 
 /*

@@ -35,7 +35,6 @@ struct rxrpc_crypt {
 	queue_delayed_work(rxrpc_workqueue, (WS), (D))
 
 #define rxrpc_queue_call(CALL)	rxrpc_queue_work(&(CALL)->processor)
-#define rxrpc_queue_conn(CONN)	rxrpc_queue_work(&(CONN)->processor)
 
 struct rxrpc_connection;
 
@@ -566,6 +565,12 @@ static inline void rxrpc_get_connection(struct rxrpc_connection *conn)
 	atomic_inc(&conn->usage);
 }
 
+
+static inline void rxrpc_queue_conn(struct rxrpc_connection *conn)
+{
+	rxrpc_queue_work(&conn->processor);
+}
+
 /*
  * input.c
  */
@@ -616,6 +621,11 @@ static inline void rxrpc_put_local(struct rxrpc_local *local)
 {
 	if (local && atomic_dec_and_test(&local->usage))
 		__rxrpc_put_local(local);
+}
+
+static inline void rxrpc_queue_local(struct rxrpc_local *local)
+{
+	rxrpc_queue_work(&local->processor);
 }
 
 /*

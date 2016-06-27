@@ -318,7 +318,7 @@ void rxrpc_reject_packet(struct rxrpc_local *local, struct sk_buff *skb)
 	CHECK_SLAB_OKAY(&local->usage);
 
 	skb_queue_tail(&local->reject_queue, skb);
-	rxrpc_queue_work(&local->processor);
+	rxrpc_queue_local(local);
 }
 
 /*
