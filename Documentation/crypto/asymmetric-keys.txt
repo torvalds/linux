@@ -340,6 +340,17 @@ Several restriction methods are available:
      signing key. The ca_keys kernel parameter also affects which keys are used
      for signature verification.
 
+ (3) Restrict using a separate key or keyring
+
+     - Option string used with KEYCTL_RESTRICT_KEYRING:
+       - "key_or_keyring:<key or keyring serial number>"
+
+     Whenever a key link is requested, the link will only succeed if the key
+     being linked is signed by one of the designated keys. This key may be
+     specified directly by providing a serial number for one asymmetric key, or
+     a group of keys may be searched for the signing key by providing the
+     serial number for a keyring.
+
 In all of these cases, if the signing key is found the signature of the key to
 be linked will be verified using the signing key.  The requested key is added
 to the keyring only if the signature is successfully verified.  -ENOKEY is

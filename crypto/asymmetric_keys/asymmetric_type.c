@@ -475,6 +475,11 @@ static struct key_restriction *asymmetric_restriction_alloc(
 static struct key_restriction *asymmetric_lookup_restriction(
 	const char *restriction)
 {
+	char *restrict_method;
+	char *parse_buf;
+	char *next;
+	struct key_restriction *ret = ERR_PTR(-EINVAL);
+
 	if (strcmp("builtin_trusted", restriction) == 0)
 		return asymmetric_restriction_alloc(
 			restrict_link_by_builtin_trusted, NULL);
@@ -483,7 +488,35 @@ static struct key_restriction *asymmetric_lookup_restriction(
 		return asymmetric_restriction_alloc(
 			restrict_link_by_builtin_and_secondary_trusted, NULL);
 
-	return ERR_PTR(-EINVAL);
+	parse_buf = kstrndup(restriction, PAGE_SIZE, GFP_KERNEL);
+	if (!parse_buf)
+		return ERR_PTR(-ENOMEM);
+
+	next = parse_buf;
+	restrict_method = strsep(&next, ":");
+
+	if ((strcmp(restrict_method, "key_or_keyring") == 0) && next) {
+		key_serial_t serial;
+		struct key *key;
+
+		if (kstrtos32(next, 0, &serial) < 0)
+			goto out;
+
+		key = key_lookup(serial);
+		if (IS_ERR(key)) {
+			ret = ERR_CAST(key);
+			goto out;
+		}
+
+		ret = asymmetric_restriction_alloc(
+			restrict_link_by_key_or_keyring, key);
+		if (IS_ERR(ret))
+			key_put(key);
+	}
+
+out:
+	kfree(parse_buf);
+	return ret;
 }
 
 struct key_type key_type_asymmetric = {
