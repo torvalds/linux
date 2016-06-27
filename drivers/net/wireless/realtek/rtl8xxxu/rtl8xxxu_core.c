@@ -4410,7 +4410,7 @@ void rtl8xxxu_gen2_report_connect(struct rtl8xxxu_priv *priv,
 
 void rtl8xxxu_gen1_init_aggregation(struct rtl8xxxu_priv *priv)
 {
-	u8 agg_ctrl, usb_spec, page_thresh;
+	u8 agg_ctrl, usb_spec, page_thresh, timeout;
 
 	usb_spec = rtl8xxxu_read8(priv, REG_USB_SPECIAL_OPTION);
 	usb_spec &= ~USB_SPEC_USB_AGG_ENABLE;
@@ -4442,7 +4442,14 @@ void rtl8xxxu_gen1_init_aggregation(struct rtl8xxxu_priv *priv)
 
 	page_thresh = (priv->fops->rx_agg_buf_size / 512);
 	rtl8xxxu_write8(priv, REG_RXDMA_AGG_PG_TH, page_thresh);
-	rtl8xxxu_write8(priv, REG_USB_DMA_AGG_TO, 4);
+	/*
+	 * REG_RXDMA_AGG_PG_TH + 1 seems to be the timeout register on
+	 * gen2 chips and rtl8188eu. The rtl8723au seems unhappy if we
+	 * don't set it, so better set both.
+	 */
+	timeout = 4;
+	rtl8xxxu_write8(priv, REG_RXDMA_AGG_PG_TH + 1, timeout);
+	rtl8xxxu_write8(priv, REG_USB_DMA_AGG_TO, timeout);
 	priv->rx_buf_aggregation = 1;
 }
 
