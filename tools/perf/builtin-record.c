@@ -342,6 +342,40 @@ int auxtrace_record__snapshot_start(struct auxtrace_record *itr __maybe_unused)
 
 #endif
 
+static int record__mmap_evlist(struct record *rec,
+			       struct perf_evlist *evlist)
+{
+	struct record_opts *opts = &rec->opts;
+	char msg[512];
+
+	if (perf_evlist__mmap_ex(evlist, opts->mmap_pages, false,
+				 opts->auxtrace_mmap_pages,
+				 opts->auxtrace_snapshot_mode) < 0) {
+		if (errno == EPERM) {
+			pr_err("Permission error mapping pages.\n"
+			       "Consider increasing "
+			       "/proc/sys/kernel/perf_event_mlock_kb,\n"
+			       "or try again with a smaller value of -m/--mmap_pages.\n"
+			       "(current value: %u,%u)\n",
+			       opts->mmap_pages, opts->auxtrace_mmap_pages);
+			return -errno;
+		} else {
+			pr_err("failed to mmap with %d (%s)\n", errno,
+				strerror_r(errno, msg, sizeof(msg)));
+			if (errno)
+				return -errno;
+			else
+				return -EINVAL;
+		}
+	}
+	return 0;
+}
+
+static int record__mmap(struct record *rec)
+{
+	return record__mmap_evlist(rec, rec->evlist);
+}
+
 static int record__open(struct record *rec)
 {
 	char msg[512];
@@ -378,27 +412,9 @@ try_again:
 		goto out;
 	}
 
-	if (perf_evlist__mmap_ex(evlist, opts->mmap_pages, false,
-				 opts->auxtrace_mmap_pages,
-				 opts->auxtrace_snapshot_mode) < 0) {
-		if (errno == EPERM) {
-			pr_err("Permission error mapping pages.\n"
-			       "Consider increasing "
-			       "/proc/sys/kernel/perf_event_mlock_kb,\n"
-			       "or try again with a smaller value of -m/--mmap_pages.\n"
-			       "(current value: %u,%u)\n",
-			       opts->mmap_pages, opts->auxtrace_mmap_pages);
-			rc = -errno;
-		} else {
-			pr_err("failed to mmap with %d (%s)\n", errno,
-				strerror_r(errno, msg, sizeof(msg)));
-			if (errno)
-				rc = -errno;
-			else
-				rc = -EINVAL;
-		}
+	rc = record__mmap(rec);
+	if (rc)
 		goto out;
-	}
 
 	session->evlist = evlist;
 	perf_session__set_id_hdr_size(session);
