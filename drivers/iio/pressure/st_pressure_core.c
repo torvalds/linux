@@ -213,6 +213,8 @@
 #define ST_PRESS_LPS22HB_DRDY_IRQ_INT2_MASK	0x08
 #define ST_PRESS_LPS22HB_IHL_IRQ_ADDR		0x12
 #define ST_PRESS_LPS22HB_IHL_IRQ_MASK		0x80
+#define ST_PRESS_LPS22HB_OD_IRQ_ADDR		0x12
+#define ST_PRESS_LPS22HB_OD_IRQ_MASK		0x40
 #define ST_PRESS_LPS22HB_MULTIREAD_BIT		true
 
 static const struct iio_chan_spec st_press_1_channels[] = {
@@ -511,6 +513,9 @@ static const struct st_sensor_settings st_press_sensors_settings[] = {
 			.mask_int2 = ST_PRESS_LPS22HB_DRDY_IRQ_INT2_MASK,
 			.addr_ihl = ST_PRESS_LPS22HB_IHL_IRQ_ADDR,
 			.mask_ihl = ST_PRESS_LPS22HB_IHL_IRQ_MASK,
+			.addr_od = ST_PRESS_LPS22HB_OD_IRQ_ADDR,
+			.mask_od = ST_PRESS_LPS22HB_OD_IRQ_MASK,
+			.addr_stat_drdy = ST_SENSORS_DEFAULT_STAT_ADDR,
 		},
 		.multi_read_bit = ST_PRESS_LPS22HB_MULTIREAD_BIT,
 	},
