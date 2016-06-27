@@ -282,9 +282,9 @@ struct cpu_defaults {
 static inline int32_t get_target_pstate_use_performance(struct cpudata *cpu);
 static inline int32_t get_target_pstate_use_cpu_load(struct cpudata *cpu);
 
-static struct pstate_adjust_policy pid_params;
-static struct pstate_funcs pstate_funcs;
-static int hwp_active;
+static struct pstate_adjust_policy pid_params __read_mostly;
+static struct pstate_funcs pstate_funcs __read_mostly;
+static int hwp_active __read_mostly;
 
 #ifdef CONFIG_ACPI
 static bool acpi_ppc;
