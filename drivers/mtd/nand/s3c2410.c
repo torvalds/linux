@@ -180,7 +180,7 @@ struct s3c2410_nand_info {
 
 	enum s3c_cpu_type		cpu_type;
 
-#ifdef CONFIG_CPU_FREQ
+#ifdef CONFIG_ARM_S3C24XX_CPUFREQ
 	struct notifier_block	freq_transition;
 #endif
 };
@@ -701,7 +701,7 @@ static void s3c2440_nand_write_buf(struct mtd_info *mtd, const u_char *buf,
 
 /* cpufreq driver support */
 
-#ifdef CONFIG_CPU_FREQ
+#ifdef CONFIG_ARM_S3C24XX_CPUFREQ
 
 static int s3c2410_nand_cpufreq_transition(struct notifier_block *nb,
 					  unsigned long val, void *data)
