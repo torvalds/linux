@@ -1249,6 +1249,7 @@ int netlbl_skbuff_getattr(const struct sk_buff *skb,
 /**
  * netlbl_skbuff_err - Handle a LSM error on a sk_buff
  * @skb: the packet
+ * @family: the family
  * @error: the error code
  * @gateway: true if host is acting as a gateway, false otherwise
  *
@@ -1258,10 +1259,14 @@ int netlbl_skbuff_getattr(const struct sk_buff *skb,
  * according to the packet's labeling protocol.
  *
  */
-void netlbl_skbuff_err(struct sk_buff *skb, int error, int gateway)
+void netlbl_skbuff_err(struct sk_buff *skb, u16 family, int error, int gateway)
 {
-	if (cipso_v4_optptr(skb))
-		cipso_v4_error(skb, error, gateway);
+	switch (family) {
+	case AF_INET:
+		if (cipso_v4_optptr(skb))
+			cipso_v4_error(skb, error, gateway);
+		break;
+	}
 }
 
 /**

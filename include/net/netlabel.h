@@ -488,7 +488,7 @@ int netlbl_skbuff_setattr(struct sk_buff *skb,
 int netlbl_skbuff_getattr(const struct sk_buff *skb,
 			  u16 family,
 			  struct netlbl_lsm_secattr *secattr);
-void netlbl_skbuff_err(struct sk_buff *skb, int error, int gateway);
+void netlbl_skbuff_err(struct sk_buff *skb, u16 family, int error, int gateway);
 
 /*
  * LSM label mapping cache operations

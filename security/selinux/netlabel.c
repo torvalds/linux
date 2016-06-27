@@ -151,9 +151,9 @@ void selinux_netlbl_cache_invalidate(void)
  * present on the packet, NetLabel is smart enough to only act when it should.
  *
  */
-void selinux_netlbl_err(struct sk_buff *skb, int error, int gateway)
+void selinux_netlbl_err(struct sk_buff *skb, u16 family, int error, int gateway)
 {
-	netlbl_skbuff_err(skb, error, gateway);
+	netlbl_skbuff_err(skb, family, error, gateway);
 }
 
 /**
@@ -405,7 +405,7 @@ int selinux_netlbl_sock_rcv_skb(struct sk_security_struct *sksec,
 		return 0;
 
 	if (nlbl_sid != SECINITSID_UNLABELED)
-		netlbl_skbuff_err(skb, rc, 0);
+		netlbl_skbuff_err(skb, family, rc, 0);
 	return rc;
 }
 

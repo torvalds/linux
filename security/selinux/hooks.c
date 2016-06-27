@@ -4603,13 +4603,13 @@ static int selinux_socket_sock_rcv_skb(struct sock *sk, struct sk_buff *skb)
 		err = selinux_inet_sys_rcv_skb(sock_net(sk), skb->skb_iif,
 					       addrp, family, peer_sid, &ad);
 		if (err) {
-			selinux_netlbl_err(skb, err, 0);
+			selinux_netlbl_err(skb, family, err, 0);
 			return err;
 		}
 		err = avc_has_perm(sk_sid, peer_sid, SECCLASS_PEER,
 				   PEER__RECV, &ad);
 		if (err) {
-			selinux_netlbl_err(skb, err, 0);
+			selinux_netlbl_err(skb, family, err, 0);
 			return err;
 		}
 	}
@@ -4977,7 +4977,7 @@ static unsigned int selinux_ip_forward(struct sk_buff *skb,
 		err = selinux_inet_sys_rcv_skb(dev_net(indev), indev->ifindex,
 					       addrp, family, peer_sid, &ad);
 		if (err) {
-			selinux_netlbl_err(skb, err, 1);
+			selinux_netlbl_err(skb, family, err, 1);
 			return NF_DROP;
 		}
 	}
