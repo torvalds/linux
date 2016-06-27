@@ -686,10 +686,21 @@ perf_event__synth_time_conv(const struct perf_event_mmap_page *pc __maybe_unused
 	return 0;
 }
 
+static const struct perf_event_mmap_page *
+perf_evlist__pick_pc(struct perf_evlist *evlist)
+{
+	if (evlist && evlist->mmap && evlist->mmap[0].base)
+		return evlist->mmap[0].base;
+	return NULL;
+}
+
 static const struct perf_event_mmap_page *record__pick_pc(struct record *rec)
 {
-	if (rec->evlist && rec->evlist->mmap && rec->evlist->mmap[0].base)
-		return rec->evlist->mmap[0].base;
+	const struct perf_event_mmap_page *pc;
+
+	pc = perf_evlist__pick_pc(rec->evlist);
+	if (pc)
+		return pc;
 	return NULL;
 }
 
