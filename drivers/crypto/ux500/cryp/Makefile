@@ -4,9 +4,9 @@
 # * License terms: GNU General Public License (GPL) version 2  */
 
 ifdef CONFIG_CRYPTO_DEV_UX500_DEBUG
-CFLAGS_cryp_core.o := -DDEBUG -O0
-CFLAGS_cryp.o := -DDEBUG -O0
-CFLAGS_cryp_irq.o := -DDEBUG -O0
+CFLAGS_cryp_core.o := -DDEBUG
+CFLAGS_cryp.o := -DDEBUG
+CFLAGS_cryp_irq.o := -DDEBUG
 endif
 
 obj-$(CONFIG_CRYPTO_DEV_UX500_CRYP) += ux500_cryp.o
