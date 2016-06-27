@@ -703,8 +703,9 @@ static int mv_chan_memcpy_self_test(struct mv_xor_chan *mv_chan)
 		goto free_resources;
 	}
 
-	src_dma = dma_map_page(dma_chan->device->dev, virt_to_page(src), 0,
-				 PAGE_SIZE, DMA_TO_DEVICE);
+	src_dma = dma_map_page(dma_chan->device->dev, virt_to_page(src),
+			       (size_t)src & ~PAGE_MASK, PAGE_SIZE,
+			       DMA_TO_DEVICE);
 	unmap->addr[0] = src_dma;
 
 	ret = dma_mapping_error(dma_chan->device->dev, src_dma);
@@ -714,8 +715,9 @@ static int mv_chan_memcpy_self_test(struct mv_xor_chan *mv_chan)
 	}
 	unmap->to_cnt = 1;
 
-	dest_dma = dma_map_page(dma_chan->device->dev, virt_to_page(dest), 0,
-				  PAGE_SIZE, DMA_FROM_DEVICE);
+	dest_dma = dma_map_page(dma_chan->device->dev, virt_to_page(dest),
+				(size_t)dest & ~PAGE_MASK, PAGE_SIZE,
+				DMA_FROM_DEVICE);
 	unmap->addr[1] = dest_dma;
 
 	ret = dma_mapping_error(dma_chan->device->dev, dest_dma);
