@@ -57,6 +57,7 @@
 #include "hard-interface.h"
 #include "multicast.h"
 #include "network-coding.h"
+#include "originator.h"
 #include "packet.h"
 #include "send.h"
 #include "sysfs.h"
@@ -377,6 +378,8 @@ dropped:
 dropped_freed:
 	batadv_inc_counter(bat_priv, BATADV_CNT_TX_DROPPED);
 end:
+	if (mcast_single_orig)
+		batadv_orig_node_put(mcast_single_orig);
 	if (primary_if)
 		batadv_hardif_put(primary_if);
 	return NETDEV_TX_OK;
