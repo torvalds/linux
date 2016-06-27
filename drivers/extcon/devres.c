@@ -37,6 +37,19 @@ static void devm_extcon_dev_unreg(struct device *dev, void *res)
 	extcon_dev_unregister(*(struct extcon_dev **)res);
 }
 
+struct extcon_dev_notifier_devres {
+	struct extcon_dev *edev;
+	unsigned int id;
+	struct notifier_block *nb;
+};
+
+static void devm_extcon_dev_notifier_unreg(struct device *dev, void *res)
+{
+	struct extcon_dev_notifier_devres *this = res;
+
+	extcon_unregister_notifier(this->edev, this->id, this->nb);
+}
+
 /**
  * devm_extcon_dev_allocate - Allocate managed extcon device
  * @dev:		device owning the extcon device being created
@@ -141,3 +154,63 @@ void devm_extcon_dev_unregister(struct device *dev, struct extcon_dev *edev)
 			       devm_extcon_dev_match, edev));
 }
 EXPORT_SYMBOL_GPL(devm_extcon_dev_unregister);
+
+/**
+ * devm_extcon_register_notifier() - Resource-managed extcon_register_notifier()
+ * @dev:	device to allocate extcon device
+ * @edev:	the extcon device that has the external connecotr.
+ * @id:		the unique id of each external connector in extcon enumeration.
+ * @nb:		a notifier block to be registered.
+ *
+ * This function manages automatically the notifier of extcon device using
+ * device resource management and simplify the control of unregistering
+ * the notifier of extcon device.
+ *
+ * Note that the second parameter given to the callback of nb (val) is
+ * "old_state", not the current state. The current state can be retrieved
+ * by looking at the third pameter (edev pointer)'s state value.
+ *
+ * Returns 0 if success or negaive error number if failure.
+ */
+int devm_extcon_register_notifier(struct device *dev, struct extcon_dev *edev,
+				unsigned int id, struct notifier_block *nb)
+{
+	struct extcon_dev_notifier_devres *ptr;
+	int ret;
+
+	ptr = devres_alloc(devm_extcon_dev_notifier_unreg, sizeof(*ptr),
+				GFP_KERNEL);
+	if (!ptr)
+		return -ENOMEM;
+
+	ret = extcon_register_notifier(edev, id, nb);
+	if (ret) {
+		devres_free(ptr);
+		return ret;
+	}
+
+	ptr->edev = edev;
+	ptr->id = id;
+	ptr->nb = nb;
+	devres_add(dev, ptr);
+
+	return 0;
+}
+EXPORT_SYMBOL(devm_extcon_register_notifier);
+
+/**
+ * devm_extcon_unregister_notifier()
+			- Resource-managed extcon_unregister_notifier()
+ * @dev:	device to allocate extcon device
+ * @edev:	the extcon device that has the external connecotr.
+ * @id:		the unique id of each external connector in extcon enumeration.
+ * @nb:		a notifier block to be registered.
+ */
+void devm_extcon_unregister_notifier(struct device *dev,
+				struct extcon_dev *edev, unsigned int id,
+				struct notifier_block *nb)
+{
+	WARN_ON(devres_release(dev, devm_extcon_dev_notifier_unreg,
+			       devm_extcon_dev_match, edev));
+}
+EXPORT_SYMBOL(devm_extcon_unregister_notifier);
