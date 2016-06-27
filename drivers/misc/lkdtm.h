@@ -1,6 +1,13 @@
 #ifndef __LKDTM_H
 #define __LKDTM_H
 
+/* lkdtm_heap.c */
+void lkdtm_OVERWRITE_ALLOCATION(void);
+void lkdtm_WRITE_AFTER_FREE(void);
+void lkdtm_READ_AFTER_FREE(void);
+void lkdtm_WRITE_BUDDY_AFTER_FREE(void);
+void lkdtm_READ_BUDDY_AFTER_FREE(void);
+
 /* lkdtm_perms.c */
 void __init lkdtm_perms_init(void);
 void lkdtm_WRITE_RO(void);
