@@ -2401,6 +2401,68 @@ static ssize_t amdgpu_debugfs_regs_smc_write(struct file *f, const char __user *
 	return result;
 }
 
+static ssize_t amdgpu_debugfs_gca_config_read(struct file *f, char __user *buf,
+					size_t size, loff_t *pos)
+{
+	struct amdgpu_device *adev = f->f_inode->i_private;
+	ssize_t result = 0;
+	int r;
+	uint32_t *config, no_regs = 0;
+
+	if (size & 0x3 || *pos & 0x3)
+		return -EINVAL;
+
+	config = kmalloc(256 * sizeof(*config), GFP_KERNEL);
+	if (!config)
+		return -ENOMEM;
+
+	/* version, increment each time something is added */
+	config[no_regs++] = 0;
+	config[no_regs++] = adev->gfx.config.max_shader_engines;
+	config[no_regs++] = adev->gfx.config.max_tile_pipes;
+	config[no_regs++] = adev->gfx.config.max_cu_per_sh;
+	config[no_regs++] = adev->gfx.config.max_sh_per_se;
+	config[no_regs++] = adev->gfx.config.max_backends_per_se;
+	config[no_regs++] = adev->gfx.config.max_texture_channel_caches;
+	config[no_regs++] = adev->gfx.config.max_gprs;
+	config[no_regs++] = adev->gfx.config.max_gs_threads;
+	config[no_regs++] = adev->gfx.config.max_hw_contexts;
+	config[no_regs++] = adev->gfx.config.sc_prim_fifo_size_frontend;
+	config[no_regs++] = adev->gfx.config.sc_prim_fifo_size_backend;
+	config[no_regs++] = adev->gfx.config.sc_hiz_tile_fifo_size;
+	config[no_regs++] = adev->gfx.config.sc_earlyz_tile_fifo_size;
+	config[no_regs++] = adev->gfx.config.num_tile_pipes;
+	config[no_regs++] = adev->gfx.config.backend_enable_mask;
+	config[no_regs++] = adev->gfx.config.mem_max_burst_length_bytes;
+	config[no_regs++] = adev->gfx.config.mem_row_size_in_kb;
+	config[no_regs++] = adev->gfx.config.shader_engine_tile_size;
+	config[no_regs++] = adev->gfx.config.num_gpus;
+	config[no_regs++] = adev->gfx.config.multi_gpu_tile_size;
+	config[no_regs++] = adev->gfx.config.mc_arb_ramcfg;
+	config[no_regs++] = adev->gfx.config.gb_addr_config;
+	config[no_regs++] = adev->gfx.config.num_rbs;
+
+	while (size && (*pos < no_regs * 4)) {
+		uint32_t value;
+
+		value = config[*pos >> 2];
+		r = put_user(value, (uint32_t *)buf);
+		if (r) {
+			kfree(config);
+			return r;
+		}
+
+		result += 4;
+		buf += 4;
+		*pos += 4;
+		size -= 4;
+	}
+
+	kfree(config);
+	return result;
+}
+
+
 static const struct file_operations amdgpu_debugfs_regs_fops = {
 	.owner = THIS_MODULE,
 	.read = amdgpu_debugfs_regs_read,
@@ -2426,11 +2488,18 @@ static const struct file_operations amdgpu_debugfs_regs_smc_fops = {
 	.llseek = default_llseek
 };
 
+static const struct file_operations amdgpu_debugfs_gca_config_fops = {
+	.owner = THIS_MODULE,
+	.read = amdgpu_debugfs_gca_config_read,
+	.llseek = default_llseek
+};
+
 static const struct file_operations *debugfs_regs[] = {
 	&amdgpu_debugfs_regs_fops,
 	&amdgpu_debugfs_regs_didt_fops,
 	&amdgpu_debugfs_regs_pcie_fops,
 	&amdgpu_debugfs_regs_smc_fops,
+	&amdgpu_debugfs_gca_config_fops,
 };
 
 static const char *debugfs_regs_names[] = {
@@ -2438,6 +2507,7 @@ static const char *debugfs_regs_names[] = {
 	"amdgpu_regs_didt",
 	"amdgpu_regs_pcie",
 	"amdgpu_regs_smc",
+	"amdgpu_gca_config",
 };
 
 static int amdgpu_debugfs_regs_init(struct amdgpu_device *adev)
