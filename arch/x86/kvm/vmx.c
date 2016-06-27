@@ -10829,9 +10829,9 @@ static inline int u64_shl_div_u64(u64 a, unsigned int shift,
 static int vmx_set_hv_timer(struct kvm_vcpu *vcpu, u64 guest_deadline_tsc)
 {
 	struct vcpu_vmx *vmx = to_vmx(vcpu);
-	u64 tscl = rdtsc(), delta_tsc;
-
-	delta_tsc = guest_deadline_tsc - kvm_read_l1_tsc(vcpu, tscl);
+	u64 tscl = rdtsc();
+	u64 guest_tscl = kvm_read_l1_tsc(vcpu, tscl);
+	u64 delta_tsc = max(guest_deadline_tsc, guest_tscl) - guest_tscl;
 
 	/* Convert to host delta tsc if tsc scaling is enabled */
 	if (vcpu->arch.tsc_scaling_ratio != kvm_default_tsc_scaling_ratio &&
