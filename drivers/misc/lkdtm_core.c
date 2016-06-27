@@ -51,11 +51,6 @@
 
 #include "lkdtm.h"
 
-#define DEFAULT_COUNT 10
-
-static int count = DEFAULT_COUNT;
-static DEFINE_SPINLOCK(count_lock);
-
 enum cname {
 	CN_INVALID,
 	CN_INT_HARDWARE_ENTRY,
@@ -169,10 +164,13 @@ static struct jprobe lkdtm;
 static int lkdtm_parse_commandline(void);
 static void lkdtm_handler(void);
 
+#define DEFAULT_COUNT 10
 static char* cpoint_name;
 static char* cpoint_type;
 static int cpoint_count = DEFAULT_COUNT;
 static int recur_count = -1;
+static int crash_count = DEFAULT_COUNT;
+static DEFINE_SPINLOCK(crash_count_lock);
 
 static enum cname cpoint = CN_INVALID;
 static enum ctype cptype = CT_NONE;
@@ -290,9 +288,9 @@ static int lkdtm_parse_commandline(void)
 	if (cpoint_count < 1 || recur_count < 1)
 		return -EINVAL;
 
-	spin_lock_irqsave(&count_lock, flags);
-	count = cpoint_count;
-	spin_unlock_irqrestore(&count_lock, flags);
+	spin_lock_irqsave(&crash_count_lock, flags);
+	crash_count = cpoint_count;
+	spin_unlock_irqrestore(&crash_count_lock, flags);
 
 	/* No special parameters */
 	if (!cpoint_type && !cpoint_name)
@@ -447,16 +445,16 @@ static void lkdtm_handler(void)
 	unsigned long flags;
 	bool do_it = false;
 
-	spin_lock_irqsave(&count_lock, flags);
-	count--;
+	spin_lock_irqsave(&crash_count_lock, flags);
+	crash_count--;
 	pr_info("Crash point %s of type %s hit, trigger in %d rounds\n",
-		cp_name_to_str(cpoint), cp_type_to_str(cptype), count);
+		cp_name_to_str(cpoint), cp_type_to_str(cptype), crash_count);
 
-	if (count == 0) {
+	if (crash_count == 0) {
 		do_it = true;
-		count = cpoint_count;
+		crash_count = cpoint_count;
 	}
-	spin_unlock_irqrestore(&count_lock, flags);
+	spin_unlock_irqrestore(&crash_count_lock, flags);
 
 	if (do_it)
 		lkdtm_do_action(cptype);
