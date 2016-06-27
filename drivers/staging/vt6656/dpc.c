@@ -34,7 +34,7 @@
 #include "rf.h"
 
 int vnt_rx_data(struct vnt_private *priv, struct vnt_rcb *ptr_rcb,
-	unsigned long bytes_received)
+		unsigned long bytes_received)
 {
 	struct ieee80211_hw *hw = priv->hw;
 	struct ieee80211_supported_band *sband;
@@ -87,10 +87,10 @@ int vnt_rx_data(struct vnt_private *priv, struct vnt_rcb *ptr_rcb,
 
 	/*Fix hardware bug => PLCP_Length error */
 	if (((bytes_received - (*pay_load_len)) > 27) ||
-		((bytes_received - (*pay_load_len)) < 24) ||
-			(bytes_received < (*pay_load_len))) {
+	    ((bytes_received - (*pay_load_len)) < 24) ||
+	    (bytes_received < (*pay_load_len))) {
 		dev_dbg(&priv->usb->dev, "Wrong PLCP Length %x\n",
-							*pay_load_len);
+			*pay_load_len);
 		return false;
 	}
 
