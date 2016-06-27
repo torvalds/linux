@@ -3282,6 +3282,7 @@ snd_soc_dapm_new_control(struct snd_soc_dapm_context *dapm,
 	mutex_unlock(&dapm->card->dapm_mutex);
 	return w;
 }
+EXPORT_SYMBOL_GPL(snd_soc_dapm_new_control);
 
 struct snd_soc_dapm_widget *
 snd_soc_dapm_new_control_unlocked(struct snd_soc_dapm_context *dapm,
