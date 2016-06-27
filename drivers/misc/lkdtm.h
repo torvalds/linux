@@ -1,6 +1,23 @@
 #ifndef __LKDTM_H
 #define __LKDTM_H
 
+/* lkdtm_bugs.c */
+void __init lkdtm_bugs_init(int *recur_param);
+void lkdtm_PANIC(void);
+void lkdtm_BUG(void);
+void lkdtm_WARNING(void);
+void lkdtm_EXCEPTION(void);
+void lkdtm_LOOP(void);
+void lkdtm_OVERFLOW(void);
+void lkdtm_CORRUPT_STACK(void);
+void lkdtm_UNALIGNED_LOAD_STORE_WRITE(void);
+void lkdtm_SOFTLOCKUP(void);
+void lkdtm_HARDLOCKUP(void);
+void lkdtm_SPINLOCKUP(void);
+void lkdtm_HUNG_TASK(void);
+void lkdtm_ATOMIC_UNDERFLOW(void);
+void lkdtm_ATOMIC_OVERFLOW(void);
+
 /* lkdtm_heap.c */
 void lkdtm_OVERWRITE_ALLOCATION(void);
 void lkdtm_WRITE_AFTER_FREE(void);

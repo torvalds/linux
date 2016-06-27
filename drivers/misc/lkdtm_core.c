@@ -51,19 +51,10 @@
 
 #include "lkdtm.h"
 
-/*
- * Make sure our attempts to over run the kernel stack doesn't trigger
- * a compiler warning when CONFIG_FRAME_WARN is set. Then make sure we
- * recurse past the end of THREAD_SIZE by default.
- */
-#if defined(CONFIG_FRAME_WARN) && (CONFIG_FRAME_WARN > 0)
-#define REC_STACK_SIZE (CONFIG_FRAME_WARN / 2)
-#else
-#define REC_STACK_SIZE (THREAD_SIZE / 8)
-#endif
-#define REC_NUM_DEFAULT ((THREAD_SIZE / REC_STACK_SIZE) * 2)
-
 #define DEFAULT_COUNT 10
+
+static int count = DEFAULT_COUNT;
+static DEFINE_SPINLOCK(count_lock);
 
 enum cname {
 	CN_INVALID,
@@ -179,13 +170,10 @@ static void lkdtm_handler(void);
 static char* cpoint_name;
 static char* cpoint_type;
 static int cpoint_count = DEFAULT_COUNT;
-static int recur_count = REC_NUM_DEFAULT;
+static int recur_count = -1;
 
 static enum cname cpoint = CN_INVALID;
 static enum ctype cptype = CT_NONE;
-static int count = DEFAULT_COUNT;
-static DEFINE_SPINLOCK(count_lock);
-static DEFINE_SPINLOCK(lock_me_up);
 
 module_param(recur_count, int, 0644);
 MODULE_PARM_DESC(recur_count, " Recursion level for the stack overflow test");
@@ -327,63 +315,33 @@ static int lkdtm_parse_commandline(void)
 	return -EINVAL;
 }
 
-static int recursive_loop(int remaining)
-{
-	char buf[REC_STACK_SIZE];
-
-	/* Make sure compiler does not optimize this away. */
-	memset(buf, (remaining & 0xff) | 0x1, REC_STACK_SIZE);
-	if (!remaining)
-		return 0;
-	else
-		return recursive_loop(remaining - 1);
-}
-
-static noinline void corrupt_stack(void)
-{
-	/* Use default char array length that triggers stack protection. */
-	char data[8];
-
-	memset((void *)data, 0, 64);
-}
-
 static void lkdtm_do_action(enum ctype which)
 {
 	switch (which) {
 	case CT_PANIC:
-		panic("dumptest");
+		lkdtm_PANIC();
 		break;
 	case CT_BUG:
-		BUG();
+		lkdtm_BUG();
 		break;
 	case CT_WARNING:
-		WARN_ON(1);
+		lkdtm_WARNING();
 		break;
 	case CT_EXCEPTION:
-		*((int *) 0) = 0;
+		lkdtm_EXCEPTION();
 		break;
 	case CT_LOOP:
-		for (;;)
-			;
+		lkdtm_LOOP();
 		break;
 	case CT_OVERFLOW:
-		(void) recursive_loop(recur_count);
+		lkdtm_OVERFLOW();
 		break;
 	case CT_CORRUPT_STACK:
-		corrupt_stack();
+		lkdtm_CORRUPT_STACK();
 		break;
-	case CT_UNALIGNED_LOAD_STORE_WRITE: {
-		static u8 data[5] __attribute__((aligned(4))) = {1, 2,
-				3, 4, 5};
-		u32 *p;
-		u32 val = 0x12345678;
-
-		p = (u32 *)(data + 1);
-		if (*p == 0)
-			val = 0x87654321;
-		*p = val;
-		 break;
-	}
+	case CT_UNALIGNED_LOAD_STORE_WRITE:
+		lkdtm_UNALIGNED_LOAD_STORE_WRITE();
+		break;
 	case CT_OVERWRITE_ALLOCATION:
 		lkdtm_OVERWRITE_ALLOCATION();
 		break;
@@ -400,24 +358,16 @@ static void lkdtm_do_action(enum ctype which)
 		lkdtm_READ_BUDDY_AFTER_FREE();
 		break;
 	case CT_SOFTLOCKUP:
-		preempt_disable();
-		for (;;)
-			cpu_relax();
+		lkdtm_SOFTLOCKUP();
 		break;
 	case CT_HARDLOCKUP:
-		local_irq_disable();
-		for (;;)
-			cpu_relax();
+		lkdtm_HARDLOCKUP();
 		break;
 	case CT_SPINLOCKUP:
-		/* Must be called twice to trigger. */
-		spin_lock(&lock_me_up);
-		/* Let sparse know we intended to exit holding the lock. */
-		__release(&lock_me_up);
+		lkdtm_SPINLOCKUP();
 		break;
 	case CT_HUNG_TASK:
-		set_current_state(TASK_UNINTERRUPTIBLE);
-		schedule();
+		lkdtm_HUNG_TASK();
 		break;
 	case CT_EXEC_DATA:
 		lkdtm_EXEC_DATA();
@@ -449,29 +399,12 @@ static void lkdtm_do_action(enum ctype which)
 	case CT_WRITE_KERN:
 		lkdtm_WRITE_KERN();
 		break;
-	case CT_ATOMIC_UNDERFLOW: {
-		atomic_t under = ATOMIC_INIT(INT_MIN);
-
-		pr_info("attempting good atomic increment\n");
-		atomic_inc(&under);
-		atomic_dec(&under);
-
-		pr_info("attempting bad atomic underflow\n");
-		atomic_dec(&under);
+	case CT_ATOMIC_UNDERFLOW:
+		lkdtm_ATOMIC_UNDERFLOW();
 		break;
-	}
-	case CT_ATOMIC_OVERFLOW: {
-		atomic_t over = ATOMIC_INIT(INT_MAX);
-
-		pr_info("attempting good atomic decrement\n");
-		atomic_dec(&over);
-		atomic_inc(&over);
-
-		pr_info("attempting bad atomic overflow\n");
-		atomic_inc(&over);
-
-		return;
-	}
+	case CT_ATOMIC_OVERFLOW:
+		lkdtm_ATOMIC_OVERFLOW();
+		break;
 	case CT_USERCOPY_HEAP_SIZE_TO:
 		lkdtm_USERCOPY_HEAP_SIZE_TO();
 		break;
@@ -786,6 +719,7 @@ static int __init lkdtm_module_init(void)
 	int i;
 
 	/* Handle test-specific initialization. */
+	lkdtm_bugs_init(&recur_count);
 	lkdtm_perms_init();
 	lkdtm_usercopy_init();
 
