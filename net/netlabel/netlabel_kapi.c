@@ -728,6 +728,76 @@ int netlbl_catmap_setlong(struct netlbl_lsm_catmap **catmap,
 	return 0;
 }
 
+/* Bitmap functions
+ */
+
+/**
+ * netlbl_bitmap_walk - Walk a bitmap looking for a bit
+ * @bitmap: the bitmap
+ * @bitmap_len: length in bits
+ * @offset: starting offset
+ * @state: if non-zero, look for a set (1) bit else look for a cleared (0) bit
+ *
+ * Description:
+ * Starting at @offset, walk the bitmap from left to right until either the
+ * desired bit is found or we reach the end.  Return the bit offset, -1 if
+ * not found, or -2 if error.
+ */
+int netlbl_bitmap_walk(const unsigned char *bitmap, u32 bitmap_len,
+		       u32 offset, u8 state)
+{
+	u32 bit_spot;
+	u32 byte_offset;
+	unsigned char bitmask;
+	unsigned char byte;
+
+	byte_offset = offset / 8;
+	byte = bitmap[byte_offset];
+	bit_spot = offset;
+	bitmask = 0x80 >> (offset % 8);
+
+	while (bit_spot < bitmap_len) {
+		if ((state && (byte & bitmask) == bitmask) ||
+		    (state == 0 && (byte & bitmask) == 0))
+			return bit_spot;
+
+		bit_spot++;
+		bitmask >>= 1;
+		if (bitmask == 0) {
+			byte = bitmap[++byte_offset];
+			bitmask = 0x80;
+		}
+	}
+
+	return -1;
+}
+EXPORT_SYMBOL(netlbl_bitmap_walk);
+
+/**
+ * netlbl_bitmap_setbit - Sets a single bit in a bitmap
+ * @bitmap: the bitmap
+ * @bit: the bit
+ * @state: if non-zero, set the bit (1) else clear the bit (0)
+ *
+ * Description:
+ * Set a single bit in the bitmask.  Returns zero on success, negative values
+ * on error.
+ */
+void netlbl_bitmap_setbit(unsigned char *bitmap, u32 bit, u8 state)
+{
+	u32 byte_spot;
+	u8 bitmask;
+
+	/* gcc always rounds to zero when doing integer division */
+	byte_spot = bit / 8;
+	bitmask = 0x80 >> (bit % 8);
+	if (state)
+		bitmap[byte_spot] |= bitmask;
+	else
+		bitmap[byte_spot] &= ~bitmask;
+}
+EXPORT_SYMBOL(netlbl_bitmap_setbit);
+
 /*
  * LSM Functions
  */

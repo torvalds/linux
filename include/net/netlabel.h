@@ -434,6 +434,12 @@ int netlbl_catmap_setlong(struct netlbl_lsm_catmap **catmap,
 			  unsigned long bitmap,
 			  gfp_t flags);
 
+/* Bitmap functions
+ */
+int netlbl_bitmap_walk(const unsigned char *bitmap, u32 bitmap_len,
+		       u32 offset, u8 state);
+void netlbl_bitmap_setbit(unsigned char *bitmap, u32 bit, u8 state);
+
 /*
  * LSM protocol operations (NetLabel LSM/kernel API)
  */
