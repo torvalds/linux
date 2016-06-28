@@ -507,6 +507,9 @@ static void setup_sgmii_internal_phy(struct fman_mac *memac,
 {
 	u16 tmp_reg16;
 
+	if (WARN_ON(!memac->pcsphy))
+		return;
+
 	/* SGMII mode */
 	tmp_reg16 = IF_MODE_SGMII_EN;
 	if (!fixed_link)
