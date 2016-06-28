@@ -1584,9 +1584,14 @@ static void gfx_v7_0_tiling_mode_table_init(struct amdgpu_device *adev)
  * broadcast to all SEs or SHs (CIK).
  */
 static void gfx_v7_0_select_se_sh(struct amdgpu_device *adev,
-				  u32 se_num, u32 sh_num)
+				  u32 se_num, u32 sh_num, u32 instance)
 {
-	u32 data = GRBM_GFX_INDEX__INSTANCE_BROADCAST_WRITES_MASK;
+	u32 data;
+
+	if (instance == 0xffffffff)
+		data = REG_SET_FIELD(0, GRBM_GFX_INDEX, INSTANCE_BROADCAST_WRITES, 1);
+	else
+		data = REG_SET_FIELD(0, GRBM_GFX_INDEX, INSTANCE_INDEX, instance);
 
 	if ((se_num == 0xffffffff) && (sh_num == 0xffffffff))
 		data |= GRBM_GFX_INDEX__SH_BROADCAST_WRITES_MASK |
@@ -1660,13 +1665,13 @@ static void gfx_v7_0_setup_rb(struct amdgpu_device *adev)
 	mutex_lock(&adev->grbm_idx_mutex);
 	for (i = 0; i < adev->gfx.config.max_shader_engines; i++) {
 		for (j = 0; j < adev->gfx.config.max_sh_per_se; j++) {
-			gfx_v7_0_select_se_sh(adev, i, j);
+			gfx_v7_0_select_se_sh(adev, i, j, 0xffffffff);
 			data = gfx_v7_0_get_rb_active_bitmap(adev);
 			active_rbs |= data << ((i * adev->gfx.config.max_sh_per_se + j) *
 					       rb_bitmap_width_per_sh);
 		}
 	}
-	gfx_v7_0_select_se_sh(adev, 0xffffffff, 0xffffffff);
+	gfx_v7_0_select_se_sh(adev, 0xffffffff, 0xffffffff, 0xffffffff);
 	mutex_unlock(&adev->grbm_idx_mutex);
 
 	adev->gfx.config.backend_enable_mask = active_rbs;
@@ -1747,7 +1752,7 @@ static void gfx_v7_0_gpu_init(struct amdgpu_device *adev)
 	 * making sure that the following register writes will be broadcasted
 	 * to all the shaders
 	 */
-	gfx_v7_0_select_se_sh(adev, 0xffffffff, 0xffffffff);
+	gfx_v7_0_select_se_sh(adev, 0xffffffff, 0xffffffff, 0xffffffff);
 
 	/* XXX SH_MEM regs */
 	/* where to put LDS, scratch, GPUVM in FSA64 space */
@@ -3381,7 +3386,7 @@ static void gfx_v7_0_wait_for_rlc_serdes(struct amdgpu_device *adev)
 	mutex_lock(&adev->grbm_idx_mutex);
 	for (i = 0; i < adev->gfx.config.max_shader_engines; i++) {
 		for (j = 0; j < adev->gfx.config.max_sh_per_se; j++) {
-			gfx_v7_0_select_se_sh(adev, i, j);
+			gfx_v7_0_select_se_sh(adev, i, j, 0xffffffff);
 			for (k = 0; k < adev->usec_timeout; k++) {
 				if (RREG32(mmRLC_SERDES_CU_MASTER_BUSY) == 0)
 					break;
@@ -3389,7 +3394,7 @@ static void gfx_v7_0_wait_for_rlc_serdes(struct amdgpu_device *adev)
 			}
 		}
 	}
-	gfx_v7_0_select_se_sh(adev, 0xffffffff, 0xffffffff);
+	gfx_v7_0_select_se_sh(adev, 0xffffffff, 0xffffffff, 0xffffffff);
 	mutex_unlock(&adev->grbm_idx_mutex);
 
 	mask = RLC_SERDES_NONCU_MASTER_BUSY__SE_MASTER_BUSY_MASK |
@@ -3549,7 +3554,7 @@ static int gfx_v7_0_rlc_resume(struct amdgpu_device *adev)
 	WREG32(mmRLC_LB_CNTR_MAX, 0x00008000);
 
 	mutex_lock(&adev->grbm_idx_mutex);
-	gfx_v7_0_select_se_sh(adev, 0xffffffff, 0xffffffff);
+	gfx_v7_0_select_se_sh(adev, 0xffffffff, 0xffffffff, 0xffffffff);
 	WREG32(mmRLC_LB_INIT_CU_MASK, 0xffffffff);
 	WREG32(mmRLC_LB_PARAMS, 0x00600408);
 	WREG32(mmRLC_LB_CNTL, 0x80000004);
@@ -3589,7 +3594,7 @@ static void gfx_v7_0_enable_cgcg(struct amdgpu_device *adev, bool enable)
 		tmp = gfx_v7_0_halt_rlc(adev);
 
 		mutex_lock(&adev->grbm_idx_mutex);
-		gfx_v7_0_select_se_sh(adev, 0xffffffff, 0xffffffff);
+		gfx_v7_0_select_se_sh(adev, 0xffffffff, 0xffffffff, 0xffffffff);
 		WREG32(mmRLC_SERDES_WR_CU_MASTER_MASK, 0xffffffff);
 		WREG32(mmRLC_SERDES_WR_NONCU_MASTER_MASK, 0xffffffff);
 		tmp2 = RLC_SERDES_WR_CTRL__BPM_ADDR_MASK |
@@ -3640,7 +3645,7 @@ static void gfx_v7_0_enable_mgcg(struct amdgpu_device *adev, bool enable)
 		tmp = gfx_v7_0_halt_rlc(adev);
 
 		mutex_lock(&adev->grbm_idx_mutex);
-		gfx_v7_0_select_se_sh(adev, 0xffffffff, 0xffffffff);
+		gfx_v7_0_select_se_sh(adev, 0xffffffff, 0xffffffff, 0xffffffff);
 		WREG32(mmRLC_SERDES_WR_CU_MASTER_MASK, 0xffffffff);
 		WREG32(mmRLC_SERDES_WR_NONCU_MASTER_MASK, 0xffffffff);
 		data = RLC_SERDES_WR_CTRL__BPM_ADDR_MASK |
@@ -3691,7 +3696,7 @@ static void gfx_v7_0_enable_mgcg(struct amdgpu_device *adev, bool enable)
 		tmp = gfx_v7_0_halt_rlc(adev);
 
 		mutex_lock(&adev->grbm_idx_mutex);
-		gfx_v7_0_select_se_sh(adev, 0xffffffff, 0xffffffff);
+		gfx_v7_0_select_se_sh(adev, 0xffffffff, 0xffffffff, 0xffffffff);
 		WREG32(mmRLC_SERDES_WR_CU_MASTER_MASK, 0xffffffff);
 		WREG32(mmRLC_SERDES_WR_NONCU_MASTER_MASK, 0xffffffff);
 		data = RLC_SERDES_WR_CTRL__BPM_ADDR_MASK | RLC_SERDES_WR_CTRL__MGCG_OVERRIDE_1_MASK;
@@ -5072,7 +5077,7 @@ static void gfx_v7_0_get_cu_info(struct amdgpu_device *adev)
 			mask = 1;
 			ao_bitmap = 0;
 			counter = 0;
-			gfx_v7_0_select_se_sh(adev, i, j);
+			gfx_v7_0_select_se_sh(adev, i, j, 0xffffffff);
 			if (i < 4 && j < 2)
 				gfx_v7_0_set_user_cu_inactive_bitmap(
 					adev, disable_masks[i * 2 + j]);
@@ -5091,7 +5096,7 @@ static void gfx_v7_0_get_cu_info(struct amdgpu_device *adev)
 			ao_cu_mask |= (ao_bitmap << (i * 16 + j * 8));
 		}
 	}
-	gfx_v7_0_select_se_sh(adev, 0xffffffff, 0xffffffff);
+	gfx_v7_0_select_se_sh(adev, 0xffffffff, 0xffffffff, 0xffffffff);
 	mutex_unlock(&adev->grbm_idx_mutex);
 
 	cu_info->number = active_cu_number;
