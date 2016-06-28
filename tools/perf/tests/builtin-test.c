@@ -214,6 +214,10 @@ static struct test generic_tests[] = {
 		.func = test__backward_ring_buffer,
 	},
 	{
+		.desc = "Test cpu map print",
+		.func = test__cpu_map_print,
+	},
+	{
 		.func = NULL,
 	},
 };
