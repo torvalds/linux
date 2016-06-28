@@ -1569,6 +1569,7 @@ struct dentry *__d_alloc(struct super_block *sb, const struct qstr *name)
 {
 	struct dentry *dentry;
 	char *dname;
+	int err;
 
 	dentry = kmem_cache_alloc(dentry_cache, GFP_KERNEL);
 	if (!dentry)
@@ -1626,6 +1627,16 @@ struct dentry *__d_alloc(struct super_block *sb, const struct qstr *name)
 	INIT_HLIST_NODE(&dentry->d_u.d_alias);
 	INIT_LIST_HEAD(&dentry->d_child);
 	d_set_d_op(dentry, dentry->d_sb->s_d_op);
+
+	if (dentry->d_op && dentry->d_op->d_init) {
+		err = dentry->d_op->d_init(dentry);
+		if (err) {
+			if (dname_external(dentry))
+				kfree(external_name(dentry));
+			kmem_cache_free(dentry_cache, dentry);
+			return NULL;
+		}
+	}
 
 	this_cpu_inc(nr_dentry);
 

@@ -15,6 +15,7 @@ prototypes:
 	int (*d_compare)(const struct dentry *, const struct dentry *,
 			unsigned int, const char *, const struct qstr *);
 	int (*d_delete)(struct dentry *);
+	int (*d_init)(struct dentry *);
 	void (*d_release)(struct dentry *);
 	void (*d_iput)(struct dentry *, struct inode *);
 	char *(*d_dname)((struct dentry *dentry, char *buffer, int buflen);
@@ -30,6 +31,7 @@ d_weak_revalidate:no		no		yes	 	no
 d_hash		no		no		no		maybe
 d_compare:	yes		no		no		maybe
 d_delete:	no		yes		no		no
+d_init:	no		no		yes		no
 d_release:	no		no		yes		no
 d_prune:        no              yes             no              no
 d_iput:		no		no		yes		no
