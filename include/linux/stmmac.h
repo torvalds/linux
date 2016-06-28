@@ -141,5 +141,6 @@ struct plat_stmmacenet_data {
 	struct stmmac_axi *axi;
 	int has_gmac4;
 	bool tso_en;
+	int mac_port_sel_speed;
 };
 #endif
