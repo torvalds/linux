@@ -1733,8 +1733,7 @@ ARM/TANGO ARCHITECTURE
 M:	Marc Gonzalez <marc_gonzalez@sigmadesigns.com>
 L:	linux-arm-kernel@lists.infradead.org
 S:	Maintained
-F:	arch/arm/mach-tango/
-F:	arch/arm/boot/dts/tango*
+N:	tango
 
 ARM/TECHNOLOGIC SYSTEMS TS7250 MACHINE SUPPORT
 M:	Lennert Buytenhek <kernel@wantstofly.org>
