@@ -1540,8 +1540,6 @@ static int __init tegra_pmc_early_init(void)
 			pr_err("failed to get PMC registers\n");
 			return -ENXIO;
 		}
-
-		pmc->soc = match->data;
 	}
 
 	pmc->base = ioremap_nocache(regs.start, resource_size(&regs));
@@ -1553,6 +1551,8 @@ static int __init tegra_pmc_early_init(void)
 	mutex_init(&pmc->powergates_lock);
 
 	if (np) {
+		pmc->soc = match->data;
+
 		/* Create a bit-map of the available and valid partitions */
 		for (i = 0; i < pmc->soc->num_powergates; i++)
 			if (pmc->soc->powergates[i])
