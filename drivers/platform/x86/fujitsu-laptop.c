@@ -846,6 +846,7 @@ static int acpi_fujitsu_hotkey_add(struct acpi_device *device)
 	set_bit(fujitsu->keycode3, input->keybit);
 	set_bit(fujitsu->keycode4, input->keybit);
 	set_bit(fujitsu->keycode5, input->keybit);
+	set_bit(KEY_TOUCHPAD_TOGGLE, input->keybit);
 	set_bit(KEY_UNKNOWN, input->keybit);
 
 	error = input_register_device(input);
@@ -1048,6 +1049,19 @@ static void acpi_fujitsu_hotkey_notify(struct acpi_device *device, u32 event)
 					  keycode_r);
 				}
 			}
+		}
+
+		/* On some models (first seen on the Skylake-based Lifebook
+		 * E736/E746/E756), the touchpad toggle hotkey (Fn+F4) is
+		 * handled in software; its state is queried using FUNC_RFKILL
+		 */
+		if ((fujitsu_hotkey->rfkill_supported & BIT(26)) &&
+		    (call_fext_func(FUNC_RFKILL, 0x1, 0x0, 0x0) & BIT(26))) {
+			keycode = KEY_TOUCHPAD_TOGGLE;
+			input_report_key(input, keycode, 1);
+			input_sync(input);
+			input_report_key(input, keycode, 0);
+			input_sync(input);
 		}
 
 		break;
