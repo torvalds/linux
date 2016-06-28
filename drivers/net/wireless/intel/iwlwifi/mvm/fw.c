@@ -1027,9 +1027,10 @@ static int iwl_mvm_sar_init(struct iwl_mvm *mvm)
 {
 	struct iwl_mvm_sar_table sar_table;
 	struct iwl_dev_tx_power_cmd cmd = {
-		.v2.set_mode = cpu_to_le32(IWL_TX_POWER_MODE_SET_CHAINS),
+		.v3.v2.set_mode = cpu_to_le32(IWL_TX_POWER_MODE_SET_CHAINS),
 	};
 	int ret, i, j, idx;
+	int len = sizeof(cmd);
 
 	/* we can't do anything with the table if the FW doesn't support it */
 	if (!fw_has_api(&mvm->fw->ucode_capa,
@@ -1038,6 +1039,9 @@ static int iwl_mvm_sar_init(struct iwl_mvm *mvm)
 				"FW doesn't support per-chain TX power settings.\n");
 		return 0;
 	}
+
+	if (!fw_has_capa(&mvm->fw->ucode_capa, IWL_UCODE_TLV_CAPA_TX_POWER_ACK))
+		len = sizeof(cmd.v3);
 
 	ret = iwl_mvm_sar_get_table(mvm, &sar_table);
 	if (ret < 0) {
@@ -1060,15 +1064,14 @@ static int iwl_mvm_sar_init(struct iwl_mvm *mvm)
 		IWL_DEBUG_RADIO(mvm, "  Chain[%d]:\n", i);
 		for (j = 0; j < IWL_NUM_SUB_BANDS; j++) {
 			idx = (i * IWL_NUM_SUB_BANDS) + j;
-			cmd.per_chain_restriction[i][j] =
+			cmd.v3.per_chain_restriction[i][j] =
 				cpu_to_le16(sar_table.values[idx]);
 			IWL_DEBUG_RADIO(mvm, "    Band[%d] = %d * .125dBm\n",
 					j, sar_table.values[idx]);
 		}
 	}
 
-	ret = iwl_mvm_send_cmd_pdu(mvm, REDUCE_TX_POWER_CMD, 0,
-				   sizeof(cmd), &cmd);
+	ret = iwl_mvm_send_cmd_pdu(mvm, REDUCE_TX_POWER_CMD, 0, len, &cmd);
 	if (ret)
 		IWL_ERR(mvm, "failed to set per-chain TX power: %d\n", ret);
 

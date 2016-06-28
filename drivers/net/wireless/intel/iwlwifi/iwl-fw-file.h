@@ -328,6 +328,9 @@ typedef unsigned int __bitwise__ iwl_ucode_tlv_capa_t;
  * @IWL_UCODE_TLV_CAPA_EXTEND_SHARED_MEM_CFG: support getting more shared
  *	memory addresses from the firmware.
  * @IWL_UCODE_TLV_CAPA_LQM_SUPPORT: supports Link Quality Measurement
+ * @IWL_UCODE_TLV_CAPA_TX_POWER_ACK: reduced TX power API has larger
+ *	command size (command version 4) that supports toggling ACK TX
+ *	power reduction.
  *
  * @NUM_IWL_UCODE_TLV_CAPA: number of bits used
  */
@@ -368,6 +371,7 @@ enum iwl_ucode_tlv_capa {
 	IWL_UCODE_TLV_CAPA_USNIFFER_UNIFIED		= (__force iwl_ucode_tlv_capa_t)77,
 	IWL_UCODE_TLV_CAPA_EXTEND_SHARED_MEM_CFG	= (__force iwl_ucode_tlv_capa_t)80,
 	IWL_UCODE_TLV_CAPA_LQM_SUPPORT			= (__force iwl_ucode_tlv_capa_t)81,
+	IWL_UCODE_TLV_CAPA_TX_POWER_ACK			= (__force iwl_ucode_tlv_capa_t)84,
 
 	NUM_IWL_UCODE_TLV_CAPA
 #ifdef __CHECKER__
