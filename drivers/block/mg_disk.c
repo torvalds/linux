@@ -1015,7 +1015,7 @@ probe_err_7:
 probe_err_6:
 	blk_cleanup_queue(host->breq);
 probe_err_5:
-	unregister_blkdev(MG_DISK_MAJ, MG_DISK_NAME);
+	unregister_blkdev(host->major, MG_DISK_NAME);
 probe_err_4:
 	if (!prv_data->use_polling)
 		free_irq(host->irq, host);
