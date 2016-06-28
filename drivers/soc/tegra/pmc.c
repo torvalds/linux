@@ -1550,27 +1550,29 @@ static int __init tegra_pmc_early_init(void)
 		return -ENXIO;
 	}
 
-	/* Create a bit-map of the available and valid partitions */
-	for (i = 0; i < pmc->soc->num_powergates; i++)
-		if (pmc->soc->powergates[i])
-			set_bit(i, pmc->powergates_available);
-
 	mutex_init(&pmc->powergates_lock);
 
-	/*
-	 * Invert the interrupt polarity if a PMC device tree node exists and
-	 * contains the nvidia,invert-interrupt property.
-	 */
-	invert = of_property_read_bool(np, "nvidia,invert-interrupt");
+	if (np) {
+		/* Create a bit-map of the available and valid partitions */
+		for (i = 0; i < pmc->soc->num_powergates; i++)
+			if (pmc->soc->powergates[i])
+				set_bit(i, pmc->powergates_available);
 
-	value = tegra_pmc_readl(PMC_CNTRL);
+		/*
+		 * Invert the interrupt polarity if a PMC device tree node
+		 * exists and contains the nvidia,invert-interrupt property.
+		 */
+		invert = of_property_read_bool(np, "nvidia,invert-interrupt");
 
-	if (invert)
-		value |= PMC_CNTRL_INTR_POLARITY;
-	else
-		value &= ~PMC_CNTRL_INTR_POLARITY;
+		value = tegra_pmc_readl(PMC_CNTRL);
 
-	tegra_pmc_writel(value, PMC_CNTRL);
+		if (invert)
+			value |= PMC_CNTRL_INTR_POLARITY;
+		else
+			value &= ~PMC_CNTRL_INTR_POLARITY;
+
+		tegra_pmc_writel(value, PMC_CNTRL);
+	}
 
 	return 0;
 }
