@@ -676,16 +676,6 @@ static int s3c64xx_spi_prepare_message(struct spi_master *master,
 	struct spi_device *spi = msg->spi;
 	struct s3c64xx_spi_csinfo *cs = spi->controller_data;
 
-	/* If Master's(controller) state differs from that needed by Slave */
-	if (sdd->cur_speed != spi->max_speed_hz
-			|| sdd->cur_mode != spi->mode
-			|| sdd->cur_bpw != spi->bits_per_word) {
-		sdd->cur_bpw = spi->bits_per_word;
-		sdd->cur_speed = spi->max_speed_hz;
-		sdd->cur_mode = spi->mode;
-		s3c64xx_spi_config(sdd);
-	}
-
 	/* Configure feedback delay */
 	writel(cs->fb_delay & 0x3, sdd->regs + S3C64XX_SPI_FB_CLK);
 
@@ -712,6 +702,7 @@ static int s3c64xx_spi_transfer_one(struct spi_master *master,
 	if (bpw != sdd->cur_bpw || speed != sdd->cur_speed) {
 		sdd->cur_bpw = bpw;
 		sdd->cur_speed = speed;
+		sdd->cur_mode = spi->mode;
 		s3c64xx_spi_config(sdd);
 	}
 
