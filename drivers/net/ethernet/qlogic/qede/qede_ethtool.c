@@ -430,11 +430,13 @@ static int qede_get_coalesce(struct net_device *dev,
 			     struct ethtool_coalesce *coal)
 {
 	struct qede_dev *edev = netdev_priv(dev);
+	u16 rxc, txc;
 
 	memset(coal, 0, sizeof(struct ethtool_coalesce));
-	edev->ops->common->get_coalesce(edev->cdev,
-					(u16 *)&coal->rx_coalesce_usecs,
-					(u16 *)&coal->tx_coalesce_usecs);
+	edev->ops->common->get_coalesce(edev->cdev, &rxc, &txc);
+
+	coal->rx_coalesce_usecs = rxc;
+	coal->tx_coalesce_usecs = txc;
 
 	return 0;
 }
