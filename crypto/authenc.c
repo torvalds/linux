@@ -206,7 +206,6 @@ static int crypto_authenc_encrypt(struct aead_request *req)
 	struct scatterlist *src, *dst;
 	int err;
 
-	sg_init_table(areq_ctx->src, 2);
 	src = scatterwalk_ffwd(areq_ctx->src, req->src, req->assoclen);
 	dst = src;
 
@@ -215,7 +214,6 @@ static int crypto_authenc_encrypt(struct aead_request *req)
 		if (err)
 			return err;
 
-		sg_init_table(areq_ctx->dst, 2);
 		dst = scatterwalk_ffwd(areq_ctx->dst, req->dst, req->assoclen);
 	}
 
@@ -251,14 +249,11 @@ static int crypto_authenc_decrypt_tail(struct aead_request *req,
 	if (crypto_memneq(ihash, ahreq->result, authsize))
 		return -EBADMSG;
 
-	sg_init_table(areq_ctx->src, 2);
 	src = scatterwalk_ffwd(areq_ctx->src, req->src, req->assoclen);
 	dst = src;
 
-	if (req->src != req->dst) {
-		sg_init_table(areq_ctx->dst, 2);
+	if (req->src != req->dst)
 		dst = scatterwalk_ffwd(areq_ctx->dst, req->dst, req->assoclen);
-	}
 
 	ablkcipher_request_set_tfm(abreq, ctx->enc);
 	ablkcipher_request_set_callback(abreq, aead_request_flags(req),
