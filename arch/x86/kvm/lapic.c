@@ -1366,27 +1366,35 @@ void kvm_lapic_expired_hv_timer(struct kvm_vcpu *vcpu)
 }
 EXPORT_SYMBOL_GPL(kvm_lapic_expired_hv_timer);
 
+static bool start_hv_tscdeadline(struct kvm_lapic *apic)
+{
+	u64 tscdeadline = apic->lapic_timer.tscdeadline;
+
+	if (atomic_read(&apic->lapic_timer.pending) ||
+		kvm_x86_ops->set_hv_timer(apic->vcpu, tscdeadline)) {
+		if (apic->lapic_timer.hv_timer_in_use)
+			cancel_hv_tscdeadline(apic);
+	} else {
+		apic->lapic_timer.hv_timer_in_use = true;
+		hrtimer_cancel(&apic->lapic_timer.timer);
+
+		/* In case the sw timer triggered in the window */
+		if (atomic_read(&apic->lapic_timer.pending))
+			cancel_hv_tscdeadline(apic);
+	}
+	trace_kvm_hv_timer_state(apic->vcpu->vcpu_id,
+			apic->lapic_timer.hv_timer_in_use);
+	return apic->lapic_timer.hv_timer_in_use;
+}
+
 void kvm_lapic_switch_to_hv_timer(struct kvm_vcpu *vcpu)
 {
 	struct kvm_lapic *apic = vcpu->arch.apic;
 
 	WARN_ON(apic->lapic_timer.hv_timer_in_use);
 
-	if (apic_lvtt_tscdeadline(apic) &&
-	    !atomic_read(&apic->lapic_timer.pending)) {
-		u64 tscdeadline = apic->lapic_timer.tscdeadline;
-
-		if (!kvm_x86_ops->set_hv_timer(vcpu, tscdeadline)) {
-			apic->lapic_timer.hv_timer_in_use = true;
-			hrtimer_cancel(&apic->lapic_timer.timer);
-
-			/* In case the sw timer triggered in the window */
-			if (atomic_read(&apic->lapic_timer.pending))
-				cancel_hv_tscdeadline(apic);
-		}
-		trace_kvm_hv_timer_state(vcpu->vcpu_id,
-				apic->lapic_timer.hv_timer_in_use);
-	}
+	if (apic_lvtt_tscdeadline(apic))
+		start_hv_tscdeadline(apic);
 }
 EXPORT_SYMBOL_GPL(kvm_lapic_switch_to_hv_timer);
 
@@ -1453,15 +1461,7 @@ static void start_apic_timer(struct kvm_lapic *apic)
 			   ktime_to_ns(ktime_add_ns(now,
 					apic->lapic_timer.period)));
 	} else if (apic_lvtt_tscdeadline(apic)) {
-		/* lapic timer in tsc deadline mode */
-		u64 tscdeadline = apic->lapic_timer.tscdeadline;
-
-		if (kvm_x86_ops->set_hv_timer &&
-		    !kvm_x86_ops->set_hv_timer(apic->vcpu, tscdeadline)) {
-			apic->lapic_timer.hv_timer_in_use = true;
-			trace_kvm_hv_timer_state(apic->vcpu->vcpu_id,
-					apic->lapic_timer.hv_timer_in_use);
-		} else
+		if (!(kvm_x86_ops->set_hv_timer && start_hv_tscdeadline(apic)))
 			start_sw_tscdeadline(apic);
 	}
 }
