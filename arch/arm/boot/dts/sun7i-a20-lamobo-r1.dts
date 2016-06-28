@@ -110,13 +110,67 @@
 &gmac {
 	pinctrl-names = "default";
 	pinctrl-0 = <&gmac_pins_rgmii_a>;
-	phy = <&phy1>;
 	phy-mode = "rgmii";
 	phy-supply = <&reg_gmac_3v3>;
 	status = "okay";
 
-	phy1: ethernet-phy@1 {
-		reg = <1>;
+	fixed-link {
+		speed = <1000>;
+		full-duplex;
+	};
+
+	mdio {
+		compatible = "snps,dwmac-mdio";
+		#address-cells = <1>;
+		#size-cells = <0>;
+
+		switch: ethernet-switch@1e {
+			compatible = "brcm,bcm53125";
+			reg = <30>;
+			#address-cells = <1>;
+			#size-cells = <0>;
+
+			ports {
+				#address-cells = <1>;
+				#size-cells = <0>;
+
+				port0: port@0 {
+					reg = <0>;
+					label = "lan2";
+				};
+
+				port1: port@1 {
+					reg = <1>;
+					label = "lan3";
+				};
+
+				port2: port@2 {
+					reg = <2>;
+					label = "lan4";
+				};
+
+				port3: port@3 {
+					reg = <3>;
+					label = "wan";
+				};
+
+				port4: port@4 {
+					reg = <4>;
+					label = "lan1";
+				};
+
+				port8: port@8 {
+					reg = <8>;
+					label = "cpu";
+					ethernet = <&gmac>;
+					phy-mode = "rgmii";
+					fixed-link {
+						speed = <1000>;
+						full-duplex;
+					};
+				};
+			};
+		};
 	};
 };
 
