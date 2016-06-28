@@ -595,6 +595,10 @@ S:	Odd Fixes
 L:	linux-alpha@vger.kernel.org
 F:	arch/alpha/
 
+ALPS PS/2 TOUCHPAD DRIVER
+R:	Pali Rohár <pali.rohar@gmail.com>
+F:	drivers/input/mouse/alps.*
+
 ALTERA MAILBOX DRIVER
 M:	Ley Foon Tan <lftan@altera.com>
 L:	nios2-dev@lists.rocketboards.org (moderated for non-subscribers)
