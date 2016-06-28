@@ -15,11 +15,6 @@
 /* MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the             */
 /* GNU General Public License for more details.                              */
 /*                                                                           */
-/* You should have received a copy of the GNU General Public License         */
-/* along with this program; if not, write to the Free Software               */
-/* Foundation, Inc., 59 Temple Place, Suite 330, Boston, MA  02111-1307  USA */
-/*                                                                           */
-/*                                                                           */
 /* This file contains structures and definitions for IBM RPA (RS/6000        */
 /* platform architecture) implementation of the SRP (SCSI RDMA Protocol)     */
 /* standard.  SRP is used on IBM iSeries and pSeries platforms to send SCSI  */
@@ -93,7 +88,7 @@ struct viosrp_crq {
 };
 
 /* MADs are Management requests above and beyond the IUs defined in the SRP
- * standard.  
+ * standard.
  */
 enum viosrp_mad_types {
 	VIOSRP_EMPTY_IU_TYPE = 0x01,
@@ -131,7 +126,7 @@ enum viosrp_capability_flag {
 	CAP_LIST_DATA = 0x08,
 };
 
-/* 
+/*
  * Common MAD header
  */
 struct mad_common {
@@ -146,7 +141,7 @@ struct mad_common {
  * client to the server.  There is no way for the server to send
  * an asynchronous message back to the client.  The Empty IU is used
  * to hang out a meaningless request to the server so that it can respond
- * asynchrouously with something like a SCSI AER 
+ * asynchrouously with something like a SCSI AER
  */
 struct viosrp_empty_iu {
 	struct mad_common common;
@@ -189,7 +184,7 @@ struct mad_migration_cap {
 	__be32 ecl;
 };
 
-struct capabilities{
+struct capabilities {
 	__be32 flags;
 	char name[SRP_MAX_LOC_LEN];
 	char loc[SRP_MAX_LOC_LEN];
