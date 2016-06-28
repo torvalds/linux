@@ -254,7 +254,20 @@ struct fbtft_par {
 	struct timespec update_time;
 	bool bgr;
 	void *extra;
+#if defined(CONFIG_MACH_MESON8B_ODROIDC)
+	void __iomem *regrd_gpiox;
+	void __iomem *regwr_gpiox;
+	void __iomem *regrd_gpioy;
+	void __iomem *regwr_gpioy;
+#endif
 };
+
+#if defined(CONFIG_MACH_MESON8B_ODROIDC)
+	#define	ODROIDC1_GPIOX_REGIN	0xC1108038
+	#define	ODROIDC1_GPIOX_REGOUT	0xC1108034
+	#define	ODROIDC1_GPIOY_REGIN	0xC1108044
+	#define	ODROIDC1_GPIOY_REGOUT	0xC1108040
+#endif
 
 #define NUMARGS(...)  (sizeof((int[]){__VA_ARGS__})/sizeof(int))
 

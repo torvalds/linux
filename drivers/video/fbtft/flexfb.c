@@ -490,6 +490,19 @@ static int flexfb_probe_common(struct spi_device *sdev, struct platform_device *
 	if (!nobacklight)
 		par->fbtftops.register_backlight = fbtft_register_backlight;
 
+#if defined(CONFIG_MACH_MESON8B_ODROIDC)
+	par->regrd_gpiox = ioremap(ODROIDC1_GPIOX_REGIN, 4);
+	par->regwr_gpiox = ioremap(ODROIDC1_GPIOX_REGOUT, 4);
+
+	par->regrd_gpioy = ioremap(ODROIDC1_GPIOY_REGIN, 4);
+	par->regwr_gpioy = ioremap(ODROIDC1_GPIOY_REGOUT, 4);
+
+	if ((par->regrd_gpiox == NULL) || (par->regwr_gpiox == NULL) ||
+	    (par->regrd_gpioy == NULL) || (par->regwr_gpioy == NULL)) {
+		pr_err("%s : ioremap gpio x/y register error!\n", __func__);
+		goto out_release;
+	}
+#endif
 	ret = fbtft_register_framebuffer(info);
 	if (ret < 0)
 		goto out_release;
@@ -512,6 +525,12 @@ static int flexfb_remove_common(struct device *dev, struct fb_info *info)
 	if (par)
 		fbtft_par_dbg(DEBUG_DRIVER_INIT_FUNCTIONS, par,
 			"%s()\n", __func__);
+#if defined(CONFIG_MACH_MESON8B_ODROIDC)
+	if (par->regrd_gpiox)	iounmap(par->regrd_gpiox);
+	if (par->regwr_gpiox)	iounmap(par->regwr_gpiox);
+	if (par->regrd_gpioy)	iounmap(par->regrd_gpioy);
+	if (par->regwr_gpioy)	iounmap(par->regwr_gpioy);
+#endif
 	fbtft_unregister_framebuffer(info);
 	fbtft_framebuffer_release(info);
 
