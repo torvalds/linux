@@ -549,6 +549,9 @@ int tegra_powergate_sequence_power_up(unsigned int id, struct clk *clk,
 	struct tegra_powergate pg;
 	int err;
 
+	if (!tegra_powergate_is_available(id))
+		return -EINVAL;
+
 	pg.id = id;
 	pg.clks = &clk;
 	pg.num_clks = 1;
