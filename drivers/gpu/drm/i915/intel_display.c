@@ -9440,8 +9440,8 @@ static void hsw_disable_lcpll(struct drm_i915_private *dev_priv,
 		val |= LCPLL_CD_SOURCE_FCLK;
 		I915_WRITE(LCPLL_CTL, val);
 
-		if (wait_for_atomic_us(I915_READ(LCPLL_CTL) &
-				       LCPLL_CD_SOURCE_FCLK_DONE, 1))
+		if (wait_for_us(I915_READ(LCPLL_CTL) &
+				LCPLL_CD_SOURCE_FCLK_DONE, 1))
 			DRM_ERROR("Switching to FCLK failed\n");
 
 		val = I915_READ(LCPLL_CTL);
@@ -9514,8 +9514,8 @@ static void hsw_restore_lcpll(struct drm_i915_private *dev_priv)
 		val &= ~LCPLL_CD_SOURCE_FCLK;
 		I915_WRITE(LCPLL_CTL, val);
 
-		if (wait_for_atomic_us((I915_READ(LCPLL_CTL) &
-					LCPLL_CD_SOURCE_FCLK_DONE) == 0, 1))
+		if (wait_for_us((I915_READ(LCPLL_CTL) &
+				 LCPLL_CD_SOURCE_FCLK_DONE) == 0, 1))
 			DRM_ERROR("Switching back to LCPLL failed\n");
 	}
 
