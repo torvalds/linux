@@ -465,7 +465,7 @@ static int intel_th_output_attributes(struct gth_device *gth)
 }
 
 /**
- * intel_th_gth_disable() - enable tracing to an output device
+ * intel_th_gth_disable() - disable tracing to an output device
  * @thdev:	GTH device
  * @output:	output device's descriptor
  *
