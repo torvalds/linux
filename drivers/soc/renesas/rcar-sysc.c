@@ -402,12 +402,25 @@ early_initcall(rcar_sysc_pd_init);
 
 void __init rcar_sysc_init(phys_addr_t base, u32 syscier)
 {
+	u32 syscimr;
+
 	if (!rcar_sysc_pd_init())
 		return;
 
 	rcar_sysc_base = ioremap_nocache(base, PAGE_SIZE);
 
-	/* enable all interrupt sources, but do not use interrupt handler */
+	/*
+	 * Mask all interrupt sources to prevent the CPU from receiving them.
+	 * Make sure not to clear reserved bits that were set before.
+	 */
+	syscimr = ioread32(rcar_sysc_base + SYSCIMR);
+	syscimr |= syscier;
+	pr_debug("%s: syscimr = 0x%08x\n", __func__, syscimr);
+	iowrite32(syscimr, rcar_sysc_base + SYSCIMR);
+
+	/*
+	 * SYSC needs all interrupt sources enabled to control power.
+	 */
+	pr_debug("%s: syscier = 0x%08x\n", __func__, syscier);
 	iowrite32(syscier, rcar_sysc_base + SYSCIER);
-	iowrite32(0, rcar_sysc_base + SYSCIMR);
 }
