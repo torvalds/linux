@@ -1969,6 +1969,13 @@ int amdgpu_gpu_reset(struct amdgpu_device *adev)
 	}
 
 retry:
+	/* Disable fb access */
+	if (adev->mode_info.num_crtc) {
+		struct amdgpu_mode_mc_save save;
+		amdgpu_display_stop_mc_access(adev, &save);
+		amdgpu_wait_for_idle(adev, AMD_IP_BLOCK_TYPE_GMC);
+	}
+
 	r = amdgpu_asic_reset(adev);
 	/* post card */
 	amdgpu_atom_asic_init(adev->mode_info.atom_context);
