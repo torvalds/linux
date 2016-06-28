@@ -584,7 +584,7 @@ char result[8][64];
 struct ahash_request *req[8];
 struct tcrypt_result tresult[8];
 char *xbuf[8][XBUFSIZE];
-cycles_t start[8], end[8], mid;
+unsigned long start[8], end[8], mid;
 
 static void test_mb_ahash_speed(const char *algo, unsigned int sec,
 					struct hash_speed *speed)
@@ -593,6 +593,7 @@ static void test_mb_ahash_speed(const char *algo, unsigned int sec,
 	void *hash_buff;
 	int ret = -ENOMEM;
 	struct crypto_ahash *tfm;
+	unsigned long cycles;
 
 	tfm = crypto_alloc_ahash(algo, 0, 0);
 	if (IS_ERR(tfm)) {
@@ -667,10 +668,9 @@ static void test_mb_ahash_speed(const char *algo, unsigned int sec,
 			end[k] = get_cycles();
 		}
 
-		printk("\nBlock: %lld cycles (%lld cycles/byte), %d bytes\n",
-			(s64) (end[7]-start[0])/1,
-			(s64) (end[7]-start[0])/(8*speed[i].blen),
-			8*speed[i].blen);
+		cycles = end[7] - start[0];
+		printk("\nBlock: %6lu cycles (%4lu cycles/byte)\n",
+		       cycles, cycles / (8 * speed[i].blen));
 	}
 	ret = 0;
 
