@@ -382,18 +382,6 @@ static void adv7511_csc_rgb_full2limit(struct v4l2_subdev *sd, bool enable)
 	}
 }
 
-static void adv7511_set_IT_content_AVI_InfoFrame(struct v4l2_subdev *sd)
-{
-	struct adv7511_state *state = get_adv7511_state(sd);
-	if (state->dv_timings.bt.flags & V4L2_DV_FL_IS_CE_VIDEO) {
-		/* CE format, not IT  */
-		adv7511_wr_and_or(sd, 0x57, 0x7f, 0x00);
-	} else {
-		/* IT format */
-		adv7511_wr_and_or(sd, 0x57, 0x7f, 0x80);
-	}
-}
-
 static int adv7511_set_rgb_quantization_mode(struct v4l2_subdev *sd, struct v4l2_ctrl *ctrl)
 {
 	switch (ctrl->val) {
@@ -1067,9 +1055,6 @@ static int adv7511_s_dv_timings(struct v4l2_subdev *sd,
 
 	/* update quantization range based on new dv_timings */
 	adv7511_set_rgb_quantization_mode(sd, state->rgb_quantization_range_ctrl);
-
-	/* update AVI infoframe */
-	adv7511_set_IT_content_AVI_InfoFrame(sd);
 
 	return 0;
 }
