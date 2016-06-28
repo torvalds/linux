@@ -442,17 +442,27 @@ static rlim_t get_fd_limit(void)
 	return limit;
 }
 
+static rlim_t fd_limit;
+
+/*
+ * Used only by tests/dso-data.c to reset the environment
+ * for tests. I dont expect we should change this during
+ * standard runtime.
+ */
+void reset_fd_limit(void)
+{
+	fd_limit = 0;
+}
+
 static bool may_cache_fd(void)
 {
-	static rlim_t limit;
+	if (!fd_limit)
+		fd_limit = get_fd_limit();
 
-	if (!limit)
-		limit = get_fd_limit();
-
-	if (limit == RLIM_INFINITY)
+	if (fd_limit == RLIM_INFINITY)
 		return true;
 
-	return limit > (rlim_t) dso__data_open_cnt;
+	return fd_limit > (rlim_t) dso__data_open_cnt;
 }
 
 /*

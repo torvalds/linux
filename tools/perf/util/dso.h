@@ -360,4 +360,6 @@ enum dso_type dso__type(struct dso *dso, struct machine *machine);
 
 int dso__strerror_load(struct dso *dso, char *buf, size_t buflen);
 
+void reset_fd_limit(void);
+
 #endif /* __PERF_DSO */
