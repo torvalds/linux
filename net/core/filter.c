@@ -150,6 +150,12 @@ static u64 __get_raw_cpu_id(u64 ctx, u64 a, u64 x, u64 r4, u64 r5)
 	return raw_smp_processor_id();
 }
 
+static const struct bpf_func_proto bpf_get_raw_smp_processor_id_proto = {
+	.func		= __get_raw_cpu_id,
+	.gpl_only	= false,
+	.ret_type	= RET_INTEGER,
+};
+
 static u32 convert_skb_access(int skb_field, int dst_reg, int src_reg,
 			      struct bpf_insn *insn_buf)
 {
@@ -2037,7 +2043,7 @@ sk_filter_func_proto(enum bpf_func_id func_id)
 	case BPF_FUNC_get_prandom_u32:
 		return &bpf_get_prandom_u32_proto;
 	case BPF_FUNC_get_smp_processor_id:
-		return &bpf_get_smp_processor_id_proto;
+		return &bpf_get_raw_smp_processor_id_proto;
 	case BPF_FUNC_tail_call:
 		return &bpf_tail_call_proto;
 	case BPF_FUNC_ktime_get_ns:
@@ -2086,6 +2092,8 @@ tc_cls_act_func_proto(enum bpf_func_id func_id)
 		return &bpf_get_route_realm_proto;
 	case BPF_FUNC_perf_event_output:
 		return bpf_get_event_output_proto();
+	case BPF_FUNC_get_smp_processor_id:
+		return &bpf_get_smp_processor_id_proto;
 	default:
 		return sk_filter_func_proto(func_id);
 	}
