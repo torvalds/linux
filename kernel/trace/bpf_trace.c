@@ -199,17 +199,17 @@ static u64 bpf_perf_event_read(u64 r1, u64 index, u64 r3, u64 r4, u64 r5)
 		return -E2BIG;
 
 	ee = READ_ONCE(array->ptrs[index]);
-	if (unlikely(!ee))
+	if (!ee)
 		return -ENOENT;
 
 	event = ee->event;
+	if (unlikely(event->attr.type != PERF_TYPE_HARDWARE &&
+		     event->attr.type != PERF_TYPE_RAW))
+		return -EINVAL;
+
 	/* make sure event is local and doesn't have pmu::count */
 	if (event->oncpu != smp_processor_id() ||
 	    event->pmu->count)
-		return -EINVAL;
-
-	if (unlikely(event->attr.type != PERF_TYPE_HARDWARE &&
-		     event->attr.type != PERF_TYPE_RAW))
 		return -EINVAL;
 
 	/*
@@ -251,7 +251,7 @@ static u64 bpf_perf_event_output(u64 r1, u64 r2, u64 flags, u64 r4, u64 size)
 		return -E2BIG;
 
 	ee = READ_ONCE(array->ptrs[index]);
-	if (unlikely(!ee))
+	if (!ee)
 		return -ENOENT;
 
 	event = ee->event;
@@ -354,18 +354,12 @@ static const struct bpf_func_proto *kprobe_prog_func_proto(enum bpf_func_id func
 static bool kprobe_prog_is_valid_access(int off, int size, enum bpf_access_type type,
 					enum bpf_reg_type *reg_type)
 {
-	/* check bounds */
 	if (off < 0 || off >= sizeof(struct pt_regs))
 		return false;
-
-	/* only read is allowed */
 	if (type != BPF_READ)
 		return false;
-
-	/* disallow misaligned access */
 	if (off % size != 0)
 		return false;
-
 	return true;
 }
 
