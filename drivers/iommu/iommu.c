@@ -34,8 +34,8 @@
 #include <trace/events/iommu.h>
 
 static struct kset *iommu_group_kset;
-static struct ida iommu_group_ida;
-static struct mutex iommu_group_mutex;
+static DEFINE_IDA(iommu_group_ida);
+static DEFINE_MUTEX(iommu_group_mutex);
 
 struct iommu_callback_data {
 	const struct iommu_ops *ops;
@@ -1483,9 +1483,6 @@ static int __init iommu_init(void)
 {
 	iommu_group_kset = kset_create_and_add("iommu_groups",
 					       NULL, kernel_kobj);
-	ida_init(&iommu_group_ida);
-	mutex_init(&iommu_group_mutex);
-
 	BUG_ON(!iommu_group_kset);
 
 	return 0;
