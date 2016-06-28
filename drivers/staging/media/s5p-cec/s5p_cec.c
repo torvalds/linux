@@ -39,10 +39,9 @@ MODULE_PARM_DESC(debug, "debug level (0-2)");
 static int s5p_cec_adap_enable(struct cec_adapter *adap, bool enable)
 {
 	struct s5p_cec_dev *cec = adap->priv;
-	int ret;
 
 	if (enable) {
-		ret = pm_runtime_get_sync(cec->dev);
+		pm_runtime_get_sync(cec->dev);
 
 		s5p_cec_reset(cec);
 
