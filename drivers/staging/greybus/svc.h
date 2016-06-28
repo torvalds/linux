@@ -42,8 +42,6 @@ struct gb_svc {
 	u8 protocol_major;
 	u8 protocol_minor;
 
-	struct input_dev        *input;
-	char                    *input_phys;
 	struct gb_svc_watchdog	*watchdog;
 
 	struct dentry *debugfs_dentry;

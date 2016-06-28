@@ -8,12 +8,9 @@
  */
 
 #include <linux/debugfs.h>
-#include <linux/input.h>
 #include <linux/workqueue.h>
 
 #include "greybus.h"
-
-#define SVC_KEY_ARA_BUTTON	KEY_A
 
 #define SVC_INTF_EJECT_TIMEOUT		9000
 #define SVC_INTF_ACTIVATE_TIMEOUT	6000
@@ -887,13 +884,6 @@ static int gb_svc_hello(struct gb_operation *op)
 		return ret;
 	}
 
-	ret = input_register_device(svc->input);
-	if (ret) {
-		dev_err(&svc->dev, "failed to register input: %d\n", ret);
-		device_del(&svc->dev);
-		return ret;
-	}
-
 	ret = gb_svc_watchdog_create(svc);
 	if (ret) {
 		dev_err(&svc->dev, "failed to create watchdog: %d\n", ret);
@@ -913,7 +903,6 @@ static int gb_svc_hello(struct gb_operation *op)
 
 err_unregister_device:
 	gb_svc_watchdog_destroy(svc);
-	input_unregister_device(svc->input);
 	device_del(&svc->dev);
 	return ret;
 }
@@ -1160,53 +1149,6 @@ static int gb_svc_intf_reset_recv(struct gb_operation *op)
 	return 0;
 }
 
-static int gb_svc_key_code_map(struct gb_svc *svc, u16 key_code, u16 *code)
-{
-	switch (key_code) {
-	case GB_KEYCODE_ARA:
-		*code = SVC_KEY_ARA_BUTTON;
-		break;
-	default:
-		dev_warn(&svc->dev, "unknown keycode received: %u\n", key_code);
-		return -EINVAL;
-	}
-
-	return 0;
-}
-
-static int gb_svc_key_event_recv(struct gb_operation *op)
-{
-	struct gb_svc *svc = gb_connection_get_data(op->connection);
-	struct gb_message *request = op->request;
-	struct gb_svc_key_event_request *key;
-	u16 code;
-	u8 event;
-	int ret;
-
-	if (request->payload_size < sizeof(*key)) {
-		dev_warn(&svc->dev, "short key request received (%zu < %zu)\n",
-			 request->payload_size, sizeof(*key));
-		return -EINVAL;
-	}
-
-	key = request->payload;
-
-	ret = gb_svc_key_code_map(svc, le16_to_cpu(key->key_code), &code);
-	if (ret < 0)
-		return ret;
-
-	event = key->key_event;
-	if ((event != GB_SVC_KEY_PRESSED) && (event != GB_SVC_KEY_RELEASED)) {
-		dev_warn(&svc->dev, "unknown key event received: %u\n", event);
-		return -EINVAL;
-	}
-
-	input_report_key(svc->input, code, (event == GB_SVC_KEY_PRESSED));
-	input_sync(svc->input);
-
-	return 0;
-}
-
 static int gb_svc_module_inserted_recv(struct gb_operation *op)
 {
 	struct gb_svc *svc = gb_connection_get_data(op->connection);
@@ -1314,8 +1256,6 @@ static int gb_svc_request_handler(struct gb_operation *op)
 		return ret;
 	case GB_SVC_TYPE_INTF_RESET:
 		return gb_svc_intf_reset_recv(op);
-	case GB_SVC_TYPE_KEY_EVENT:
-		return gb_svc_key_event_recv(op);
 	case GB_SVC_TYPE_MODULE_INSERTED:
 		return gb_svc_module_inserted_recv(op);
 	case GB_SVC_TYPE_MODULE_REMOVED:
@@ -1328,34 +1268,6 @@ static int gb_svc_request_handler(struct gb_operation *op)
 	}
 }
 
-static struct input_dev *gb_svc_input_create(struct gb_svc *svc)
-{
-	struct input_dev *input_dev;
-
-	input_dev = input_allocate_device();
-	if (!input_dev)
-		return ERR_PTR(-ENOMEM);
-
-	input_dev->name = dev_name(&svc->dev);
-	svc->input_phys = kasprintf(GFP_KERNEL, "greybus-%s/input0",
-				    input_dev->name);
-	if (!svc->input_phys)
-		goto err_free_input;
-
-	input_dev->phys = svc->input_phys;
-	input_dev->dev.parent = &svc->dev;
-
-	input_set_drvdata(input_dev, svc);
-
-	input_set_capability(input_dev, EV_KEY, SVC_KEY_ARA_BUTTON);
-
-	return input_dev;
-
-err_free_input:
-	input_free_device(input_dev);
-	return ERR_PTR(-ENOMEM);
-}
-
 static void gb_svc_release(struct device *dev)
 {
 	struct gb_svc *svc = to_gb_svc(dev);
@@ -1364,7 +1276,6 @@ static void gb_svc_release(struct device *dev)
 		gb_connection_destroy(svc->connection);
 	ida_destroy(&svc->device_id_map);
 	destroy_workqueue(svc->wq);
-	kfree(svc->input_phys);
 	kfree(svc);
 }
 
@@ -1400,27 +1311,18 @@ struct gb_svc *gb_svc_create(struct gb_host_device *hd)
 	svc->state = GB_SVC_STATE_RESET;
 	svc->hd = hd;
 
-	svc->input = gb_svc_input_create(svc);
-	if (IS_ERR(svc->input)) {
-		dev_err(&svc->dev, "failed to create input device: %ld\n",
-			PTR_ERR(svc->input));
-		goto err_put_device;
-	}
-
 	svc->connection = gb_connection_create_static(hd, GB_SVC_CPORT_ID,
 						gb_svc_request_handler);
 	if (IS_ERR(svc->connection)) {
 		dev_err(&svc->dev, "failed to create connection: %ld\n",
 				PTR_ERR(svc->connection));
-		goto err_free_input;
+		goto err_put_device;
 	}
 
 	gb_connection_set_data(svc->connection, svc);
 
 	return svc;
 
-err_free_input:
-	input_free_device(svc->input);
 err_put_device:
 	put_device(&svc->dev);
 	return NULL;
@@ -1459,14 +1361,12 @@ void gb_svc_del(struct gb_svc *svc)
 	gb_connection_disable_rx(svc->connection);
 
 	/*
-	 * The SVC device and input device may have been registered
-	 * from the request handler.
+	 * The SVC device may have been registered from the request handler.
 	 */
 	if (device_is_registered(&svc->dev)) {
 		gb_timesync_svc_remove(svc);
 		gb_svc_debugfs_exit(svc);
 		gb_svc_watchdog_destroy(svc);
-		input_unregister_device(svc->input);
 		device_del(&svc->dev);
 	}
 
