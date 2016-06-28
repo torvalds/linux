@@ -41,6 +41,7 @@
 #include <asm/stacktrace.h>
 #include <asm/exception.h>
 #include <asm/system_misc.h>
+#include <asm/sysreg.h>
 
 static const char *handler[]= {
 	"Synchronous Abort",
@@ -425,6 +426,65 @@ asmlinkage void __exception do_undefinstr(struct pt_regs *regs)
 		return;
 
 	force_signal_inject(SIGILL, ILL_ILLOPC, regs, 0);
+}
+
+void cpu_enable_cache_maint_trap(void *__unused)
+{
+	config_sctlr_el1(SCTLR_EL1_UCI, 0);
+}
+
+#define __user_cache_maint(insn, address, res)			\
+	asm volatile (						\
+		"1:	" insn ", %1\n"				\
+		"	mov	%w0, #0\n"			\
+		"2:\n"						\
+		"	.pushsection .fixup,\"ax\"\n"		\
+		"	.align	2\n"				\
+		"3:	mov	%w0, %w2\n"			\
+		"	b	2b\n"				\
+		"	.popsection\n"				\
+		_ASM_EXTABLE(1b, 3b)				\
+		: "=r" (res)					\
+		: "r" (address), "i" (-EFAULT) )
+
+asmlinkage void __exception do_sysinstr(unsigned int esr, struct pt_regs *regs)
+{
+	unsigned long address;
+	int ret;
+
+	/* if this is a write with: Op0=1, Op2=1, Op1=3, CRn=7 */
+	if ((esr & 0x01fffc01) == 0x0012dc00) {
+		int rt = (esr >> 5) & 0x1f;
+		int crm = (esr >> 1) & 0x0f;
+
+		address = (rt == 31) ? 0 : regs->regs[rt];
+
+		switch (crm) {
+		case 11:		/* DC CVAU, gets promoted */
+			__user_cache_maint("dc civac", address, ret);
+			break;
+		case 10:		/* DC CVAC, gets promoted */
+			__user_cache_maint("dc civac", address, ret);
+			break;
+		case 14:		/* DC CIVAC */
+			__user_cache_maint("dc civac", address, ret);
+			break;
+		case 5:			/* IC IVAU */
+			__user_cache_maint("ic ivau", address, ret);
+			break;
+		default:
+			force_signal_inject(SIGILL, ILL_ILLOPC, regs, 0);
+			return;
+		}
+	} else {
+		force_signal_inject(SIGILL, ILL_ILLOPC, regs, 0);
+		return;
+	}
+
+	if (ret)
+		arm64_notify_segfault(regs, address);
+	else
+		regs->pc += 4;
 }
 
 long compat_arm_syscall(struct pt_regs *regs);
