@@ -27,5 +27,6 @@ DT_MACHINE_START(IMX27_DT, "Freescale i.MX27 (Device Tree Support)")
 	.map_io		= mx27_map_io,
 	.init_early	= imx27_init_early,
 	.init_irq	= mx27_init_irq,
+	.init_late	= imx27_pm_init,
 	.dt_compat	= imx27_dt_board_compat,
 MACHINE_END
