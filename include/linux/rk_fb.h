@@ -223,10 +223,10 @@ enum {
 
 //display data format
 enum data_format {
-	ARGB888,
-	RGB888,
+	ARGB888,/*don't update and insert other format*/
+	RGB888, /*don't update and insert other format*/
+	RGB565, /*don't update and insert other format*/
 	BGR888,
-	RGB565,
 	XRGB888,
 	XBGR888,
 	ABGR888,
