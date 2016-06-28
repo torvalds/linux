@@ -1961,28 +1961,6 @@ static ssize_t touchpad_show(struct device *dev,
 }
 static DEVICE_ATTR_RW(touchpad);
 
-static ssize_t position_show(struct device *dev,
-			     struct device_attribute *attr, char *buf)
-{
-	struct toshiba_acpi_dev *toshiba = dev_get_drvdata(dev);
-	u32 xyval, zval, tmp;
-	u16 x, y, z;
-	int ret;
-
-	xyval = zval = 0;
-	ret = toshiba_accelerometer_get(toshiba, &xyval, &zval);
-	if (ret < 0)
-		return ret;
-
-	x = xyval & HCI_ACCEL_MASK;
-	tmp = xyval >> HCI_MISC_SHIFT;
-	y = tmp & HCI_ACCEL_MASK;
-	z = zval & HCI_ACCEL_MASK;
-
-	return sprintf(buf, "%d %d %d\n", x, y, z);
-}
-static DEVICE_ATTR_RO(position);
-
 static ssize_t usb_sleep_charge_show(struct device *dev,
 				     struct device_attribute *attr, char *buf)
 {
@@ -2353,7 +2331,6 @@ static struct attribute *toshiba_attributes[] = {
 	&dev_attr_available_kbd_modes.attr,
 	&dev_attr_kbd_backlight_timeout.attr,
 	&dev_attr_touchpad.attr,
-	&dev_attr_position.attr,
 	&dev_attr_usb_sleep_charge.attr,
 	&dev_attr_sleep_functions_on_battery.attr,
 	&dev_attr_usb_rapid_charge.attr,
@@ -2380,8 +2357,6 @@ static umode_t toshiba_sysfs_is_visible(struct kobject *kobj,
 		exists = (drv->kbd_mode == SCI_KBD_MODE_AUTO) ? true : false;
 	else if (attr == &dev_attr_touchpad.attr)
 		exists = (drv->touchpad_supported) ? true : false;
-	else if (attr == &dev_attr_position.attr)
-		exists = (drv->accelerometer_supported) ? true : false;
 	else if (attr == &dev_attr_usb_sleep_charge.attr)
 		exists = (drv->usb_sleep_charge_supported) ? true : false;
 	else if (attr == &dev_attr_sleep_functions_on_battery.attr)
