@@ -215,6 +215,10 @@
 	};
 };
 
+&panel {
+	power-supply = <&vcc_lcd>;
+};
+
 &pinctrl {
 	lcd {
 		lcd_en: lcd-en  {
