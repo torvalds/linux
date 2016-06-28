@@ -133,6 +133,10 @@ void apply_alternatives(void *start, size_t length);
 #define _ALTERNATIVE_CFG(insn1, insn2, cap, cfg, ...)	\
 	alternative_insn insn1, insn2, cap, IS_ENABLED(cfg)
 
+.macro user_alt, label, oldinstr, newinstr, cond
+9999:	alternative_insn "\oldinstr", "\newinstr", \cond
+	_ASM_EXTABLE 9999b, \label
+.endm
 
 /*
  * Generate the assembly for UAO alternatives with exception table entries.
