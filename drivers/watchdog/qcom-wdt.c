@@ -24,6 +24,7 @@ enum wdt_reg {
 	WDT_RST,
 	WDT_EN,
 	WDT_STS,
+	WDT_BARK_TIME,
 	WDT_BITE_TIME,
 };
 
@@ -31,6 +32,7 @@ static const u32 reg_offset_data_apcs_tmr[] = {
 	[WDT_RST] = 0x38,
 	[WDT_EN] = 0x40,
 	[WDT_STS] = 0x44,
+	[WDT_BARK_TIME] = 0x4C,
 	[WDT_BITE_TIME] = 0x5C,
 };
 
@@ -38,6 +40,7 @@ static const u32 reg_offset_data_kpss[] = {
 	[WDT_RST] = 0x4,
 	[WDT_EN] = 0x8,
 	[WDT_STS] = 0xC,
+	[WDT_BARK_TIME] = 0x10,
 	[WDT_BITE_TIME] = 0x14,
 };
 
@@ -66,6 +69,7 @@ static int qcom_wdt_start(struct watchdog_device *wdd)
 
 	writel(0, wdt_addr(wdt, WDT_EN));
 	writel(1, wdt_addr(wdt, WDT_RST));
+	writel(wdd->timeout * wdt->rate, wdt_addr(wdt, WDT_BARK_TIME));
 	writel(wdd->timeout * wdt->rate, wdt_addr(wdt, WDT_BITE_TIME));
 	writel(1, wdt_addr(wdt, WDT_EN));
 	return 0;
@@ -108,6 +112,7 @@ static int qcom_wdt_restart(struct watchdog_device *wdd, unsigned long action,
 
 	writel(0, wdt_addr(wdt, WDT_EN));
 	writel(1, wdt_addr(wdt, WDT_RST));
+	writel(timeout, wdt_addr(wdt, WDT_BARK_TIME));
 	writel(timeout, wdt_addr(wdt, WDT_BITE_TIME));
 	writel(1, wdt_addr(wdt, WDT_EN));
 
