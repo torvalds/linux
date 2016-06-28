@@ -146,22 +146,6 @@ struct extcon_cable {
 	struct attribute *attrs[3]; /* to be fed to attr_g.attrs */
 };
 
-/**
- * struct extcon_specific_cable_nb - An internal data for
- *				     extcon_register_interest().
- * @user_nb:		user provided notifier block for events from
- *			a specific cable.
- * @cable_index:	the target cable.
- * @edev:		the target extcon device.
- * @previous_value:	the saved previous event value.
- */
-struct extcon_specific_cable_nb {
-	struct notifier_block *user_nb;
-	int cable_index;
-	struct extcon_dev *edev;
-	unsigned long previous_value;
-};
-
 #if IS_ENABLED(CONFIG_EXTCON)
 
 /*
@@ -207,23 +191,6 @@ extern int extcon_get_cable_state_(struct extcon_dev *edev, unsigned int id);
 extern int extcon_set_cable_state_(struct extcon_dev *edev, unsigned int id,
 				   bool cable_state);
 
-extern int extcon_get_cable_state(struct extcon_dev *edev,
-				  const char *cable_name);
-extern int extcon_set_cable_state(struct extcon_dev *edev,
-				  const char *cable_name, bool cable_state);
-
-/*
- * Following APIs are for notifiees (those who want to be notified)
- * to register a callback for events from a specific cable of the extcon.
- * Notifiees are the connected device drivers wanting to get notified by
- * a specific external port of a connection device.
- */
-extern int extcon_register_interest(struct extcon_specific_cable_nb *obj,
-				    const char *extcon_name,
-				    const char *cable_name,
-				    struct notifier_block *nb);
-extern int extcon_unregister_interest(struct extcon_specific_cable_nb *nb);
-
 /*
  * Following APIs are to monitor every action of a notifier.
  * Registrar gets notified for every external port of a connection device.
@@ -245,6 +212,7 @@ extern struct extcon_dev *extcon_get_edev_by_phandle(struct device *dev,
 
 /* Following API to get information of extcon device */
 extern const char *extcon_get_edev_name(struct extcon_dev *edev);
+
 
 #else /* CONFIG_EXTCON */
 static inline int extcon_dev_register(struct extcon_dev *edev)
@@ -306,18 +274,6 @@ static inline int extcon_set_cable_state_(struct extcon_dev *edev,
 	return 0;
 }
 
-static inline int extcon_get_cable_state(struct extcon_dev *edev,
-			const char *cable_name)
-{
-	return 0;
-}
-
-static inline int extcon_set_cable_state(struct extcon_dev *edev,
-			const char *cable_name, int state)
-{
-	return 0;
-}
-
 static inline struct extcon_dev *extcon_get_extcon_dev(const char *extcon_name)
 {
 	return NULL;
@@ -337,24 +293,34 @@ static inline int extcon_unregister_notifier(struct extcon_dev *edev,
 	return 0;
 }
 
-static inline int extcon_register_interest(struct extcon_specific_cable_nb *obj,
-					   const char *extcon_name,
-					   const char *cable_name,
-					   struct notifier_block *nb)
-{
-	return 0;
-}
-
-static inline int extcon_unregister_interest(struct extcon_specific_cable_nb
-						    *obj)
-{
-	return 0;
-}
-
 static inline struct extcon_dev *extcon_get_edev_by_phandle(struct device *dev,
 							    int index)
 {
 	return ERR_PTR(-ENODEV);
 }
 #endif /* CONFIG_EXTCON */
+
+/*
+ * Following structure and API are deprecated. EXTCON remains the function
+ * definition to prevent the build break.
+ */
+struct extcon_specific_cable_nb {
+       struct notifier_block *user_nb;
+       int cable_index;
+       struct extcon_dev *edev;
+       unsigned long previous_value;
+};
+
+static inline int extcon_register_interest(struct extcon_specific_cable_nb *obj,
+			const char *extcon_name, const char *cable_name,
+			struct notifier_block *nb)
+{
+	return -EINVAL;
+}
+
+static inline int extcon_unregister_interest(struct extcon_specific_cable_nb
+						    *obj)
+{
+	return -EINVAL;
+}
 #endif /* __LINUX_EXTCON_H__ */
