@@ -663,7 +663,7 @@ intel_dp_aux_wait_done(struct intel_dp *intel_dp, bool has_aux_irq)
 		done = wait_event_timeout(dev_priv->gmbus_wait_queue, C,
 					  msecs_to_jiffies_timeout(10));
 	else
-		done = wait_for_atomic(C, 10) == 0;
+		done = wait_for(C, 10) == 0;
 	if (!done)
 		DRM_ERROR("dp aux hw did not signal timeout (has irq: %i)!\n",
 			  has_aux_irq);
