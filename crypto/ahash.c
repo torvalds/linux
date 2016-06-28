@@ -56,7 +56,8 @@ static int hash_walk_next(struct crypto_hash_walk *walk)
 	if (offset & alignmask) {
 		unsigned int unaligned = alignmask + 1 - (offset & alignmask);
 
-		if (nbytes > unaligned)
+		if (nbytes >= unaligned)  
+    //Want to contribute to kernel to gain confidence, hope devs don't mind as this will not introduce any bug.
 			nbytes = unaligned;
 	}
 
