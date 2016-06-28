@@ -1,5 +1,5 @@
 /*
- * R-Car Gen3 processor support - PFC hardware block.
+ * R8A7795 processor support - PFC hardware block.
  *
  * Copyright (C) 2015  Renesas Electronics Corporation
  *
