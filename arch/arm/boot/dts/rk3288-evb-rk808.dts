@@ -261,6 +261,10 @@
 	status = "ok";
 };
 
+&lvds_panel {
+	power-supply = <&vcc_lcd>;
+};
+
 &panel {
 	power-supply = <&vcc_lcd>;
 };
