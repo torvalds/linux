@@ -1504,6 +1504,8 @@ static int __init tegra_pmc_early_init(void)
 	bool invert;
 	u32 value;
 
+	mutex_init(&pmc->powergates_lock);
+
 	np = of_find_matching_node_and_match(NULL, tegra_pmc_match, &match);
 	if (!np) {
 		/*
@@ -1547,8 +1549,6 @@ static int __init tegra_pmc_early_init(void)
 		pr_err("failed to map PMC registers\n");
 		return -ENXIO;
 	}
-
-	mutex_init(&pmc->powergates_lock);
 
 	if (np) {
 		pmc->soc = match->data;
