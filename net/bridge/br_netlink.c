@@ -1234,7 +1234,7 @@ static int br_fill_info(struct sk_buff *skb, const struct net_device *brdev)
 	return 0;
 }
 
-static size_t br_get_linkxstats_size(const struct net_device *dev)
+static size_t bridge_get_linkxstats_size(const struct net_device *dev)
 {
 	struct net_bridge *br = netdev_priv(dev);
 	struct net_bridge_vlan_group *vg;
@@ -1254,8 +1254,30 @@ static size_t br_get_linkxstats_size(const struct net_device *dev)
 	       nla_total_size(0);
 }
 
-static int br_fill_linkxstats(struct sk_buff *skb, const struct net_device *dev,
-			      int *prividx)
+static size_t brport_get_linkxstats_size(const struct net_device *dev)
+{
+	return nla_total_size(0);
+}
+
+static size_t br_get_linkxstats_size(const struct net_device *dev, int attr)
+{
+	size_t retsize = 0;
+
+	switch (attr) {
+	case IFLA_STATS_LINK_XSTATS:
+		retsize = bridge_get_linkxstats_size(dev);
+		break;
+	case IFLA_STATS_LINK_XSTATS_SLAVE:
+		retsize = brport_get_linkxstats_size(dev);
+		break;
+	}
+
+	return retsize;
+}
+
+static int bridge_fill_linkxstats(struct sk_buff *skb,
+				  const struct net_device *dev,
+				  int *prividx)
 {
 	struct net_bridge *br = netdev_priv(dev);
 	struct net_bridge_vlan_group *vg;
@@ -1296,6 +1318,37 @@ nla_put_failure:
 	*prividx = vl_idx;
 
 	return -EMSGSIZE;
+}
+
+static int brport_fill_linkxstats(struct sk_buff *skb,
+				  const struct net_device *dev,
+				  int *prividx)
+{
+	struct nlattr *nest;
+
+	nest = nla_nest_start(skb, LINK_XSTATS_TYPE_BRIDGE);
+	if (!nest)
+		return -EMSGSIZE;
+	nla_nest_end(skb, nest);
+
+	return 0;
+}
+
+static int br_fill_linkxstats(struct sk_buff *skb, const struct net_device *dev,
+			      int *prividx, int attr)
+{
+	int ret = -EINVAL;
+
+	switch (attr) {
+	case IFLA_STATS_LINK_XSTATS:
+		ret = bridge_fill_linkxstats(skb, dev, prividx);
+		break;
+	case IFLA_STATS_LINK_XSTATS_SLAVE:
+		ret = brport_fill_linkxstats(skb, dev, prividx);
+		break;
+	}
+
+	return ret;
 }
 
 static struct rtnl_af_ops br_af_ops __read_mostly = {

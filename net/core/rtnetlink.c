@@ -3519,7 +3519,32 @@ static int rtnl_fill_statsinfo(struct sk_buff *skb, struct net_device *dev,
 			if (!attr)
 				goto nla_put_failure;
 
-			err = ops->fill_linkxstats(skb, dev, prividx);
+			err = ops->fill_linkxstats(skb, dev, prividx, *idxattr);
+			nla_nest_end(skb, attr);
+			if (err)
+				goto nla_put_failure;
+			*idxattr = 0;
+		}
+	}
+
+	if (stats_attr_valid(filter_mask, IFLA_STATS_LINK_XSTATS_SLAVE,
+			     *idxattr)) {
+		const struct rtnl_link_ops *ops = NULL;
+		const struct net_device *master;
+
+		master = netdev_master_upper_dev_get(dev);
+		if (master)
+			ops = master->rtnl_link_ops;
+		if (ops && ops->fill_linkxstats) {
+			int err;
+
+			*idxattr = IFLA_STATS_LINK_XSTATS_SLAVE;
+			attr = nla_nest_start(skb,
+					      IFLA_STATS_LINK_XSTATS_SLAVE);
+			if (!attr)
+				goto nla_put_failure;
+
+			err = ops->fill_linkxstats(skb, dev, prividx, *idxattr);
 			nla_nest_end(skb, attr);
 			if (err)
 				goto nla_put_failure;
@@ -3555,10 +3580,31 @@ static size_t if_nlmsg_stats_size(const struct net_device *dev,
 
 	if (stats_attr_valid(filter_mask, IFLA_STATS_LINK_XSTATS, 0)) {
 		const struct rtnl_link_ops *ops = dev->rtnl_link_ops;
+		int attr = IFLA_STATS_LINK_XSTATS;
 
 		if (ops && ops->get_linkxstats_size) {
-			size += nla_total_size(ops->get_linkxstats_size(dev));
+			size += nla_total_size(ops->get_linkxstats_size(dev,
+									attr));
 			/* for IFLA_STATS_LINK_XSTATS */
+			size += nla_total_size(0);
+		}
+	}
+
+	if (stats_attr_valid(filter_mask, IFLA_STATS_LINK_XSTATS_SLAVE, 0)) {
+		struct net_device *_dev = (struct net_device *)dev;
+		const struct rtnl_link_ops *ops = NULL;
+		const struct net_device *master;
+
+		/* netdev_master_upper_dev_get can't take const */
+		master = netdev_master_upper_dev_get(_dev);
+		if (master)
+			ops = master->rtnl_link_ops;
+		if (ops && ops->get_linkxstats_size) {
+			int attr = IFLA_STATS_LINK_XSTATS_SLAVE;
+
+			size += nla_total_size(ops->get_linkxstats_size(dev,
+									attr));
+			/* for IFLA_STATS_LINK_XSTATS_SLAVE */
 			size += nla_total_size(0);
 		}
 	}
