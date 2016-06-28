@@ -1228,6 +1228,14 @@ static int tegra_pmc_probe(struct platform_device *pdev)
 	struct resource *res;
 	int err;
 
+	/*
+	 * Early initialisation should have configured an initial
+	 * register mapping and setup the soc data pointer. If these
+	 * are not valid then something went badly wrong!
+	 */
+	if (WARN_ON(!pmc->base || !pmc->soc))
+		return -ENODEV;
+
 	err = tegra_pmc_parse_dt(pmc, pdev->dev.of_node);
 	if (err < 0)
 		return err;
