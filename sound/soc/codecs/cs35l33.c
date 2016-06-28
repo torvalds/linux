@@ -1195,7 +1195,7 @@ static int cs35l33_i2c_probe(struct i2c_client *i2c_client,
 		dev_err(&i2c_client->dev,
 			"Failed to enable core supplies: %d\n",
 			ret);
-		goto err_irq;
+		return ret;
 	}
 
 	if (cs35l33->reset_gpio)
@@ -1251,7 +1251,7 @@ static int cs35l33_i2c_probe(struct i2c_client *i2c_client,
 	if (ret < 0) {
 		dev_err(&i2c_client->dev, "%s: Register codec failed\n",
 			__func__);
-		goto err_irq;
+		goto err_enable;
 	}
 
 	return 0;
@@ -1259,8 +1259,6 @@ static int cs35l33_i2c_probe(struct i2c_client *i2c_client,
 err_enable:
 	regulator_bulk_disable(cs35l33->num_core_supplies,
 			       cs35l33->core_supplies);
-err_irq:
-	free_irq(i2c_client->irq, cs35l33);
 
 	return ret;
 }
@@ -1277,7 +1275,6 @@ static int cs35l33_i2c_remove(struct i2c_client *client)
 	pm_runtime_disable(&client->dev);
 	regulator_bulk_disable(cs35l33->num_core_supplies,
 		cs35l33->core_supplies);
-	free_irq(client->irq, cs35l33);
 
 	return 0;
 }
