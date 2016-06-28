@@ -31,6 +31,8 @@
 #include <linux/linux_logo.h>
 #include <linux/dma-mapping.h>
 #include <linux/regulator/consumer.h>
+#include <linux/of_address.h>
+#include <linux/memblock.h>
 
 #include "bmp_helper.h"
 
@@ -4135,9 +4137,28 @@ bool is_prmry_rk_lcdc_registered(void)
 		return false;
 }
 
-__weak phys_addr_t uboot_logo_base;
-__weak phys_addr_t uboot_logo_size;
-__weak phys_addr_t uboot_logo_offset;
+phys_addr_t uboot_logo_base;
+phys_addr_t uboot_logo_size;
+phys_addr_t uboot_logo_offset;
+
+static int __init rockchip_uboot_mem_late_init(void)
+{
+	int err;
+
+	if (uboot_logo_size) {
+		void *start = phys_to_virt(uboot_logo_base);
+		void *end = phys_to_virt(uboot_logo_base + uboot_logo_size);
+
+		err = memblock_free(uboot_logo_base, uboot_logo_size);
+		if (err < 0)
+			pr_err("%s: freeing memblock failed: %d\n",
+			       __func__, err);
+		free_reserved_area(start, end, -1, "logo");
+	}
+	return 0;
+}
+
+late_initcall(rockchip_uboot_mem_late_init);
 
 int rk_fb_register(struct rk_lcdc_driver *dev_drv,
 		   struct rk_lcdc_win *win, int id)
@@ -4301,8 +4322,7 @@ int rk_fb_register(struct rk_lcdc_driver *dev_drv,
 				start += PAGE_SIZE;
 				i++;
 			}
-			vaddr = vmap(pages, nr_pages, VM_MAP,
-				     pgprot_writecombine(PAGE_KERNEL));
+			vaddr = vmap(pages, nr_pages, VM_MAP, PAGE_KERNEL);
 			if (!vaddr) {
 				pr_err("failed to vmap phy addr 0x%lx\n",
 				       (long)(uboot_logo_base +
@@ -4376,8 +4396,7 @@ int rk_fb_register(struct rk_lcdc_driver *dev_drv,
 				start += PAGE_SIZE;
 				i++;
 			}
-			vaddr = vmap(pages, nr_pages, VM_MAP,
-				     pgprot_writecombine(PAGE_KERNEL));
+			vaddr = vmap(pages, nr_pages, VM_MAP, PAGE_KERNEL);
 			if (!vaddr) {
 				pr_err("failed to vmap phy addr 0x%x\n",
 				       start);
@@ -4479,7 +4498,8 @@ static int rk_fb_probe(struct platform_device *pdev)
 {
 	struct rk_fb *rk_fb = NULL;
 	struct device_node *np = pdev->dev.of_node;
-	u32 mode;
+	u32 mode, ret;
+	struct device_node *node;
 
 	if (!np) {
 		dev_err(&pdev->dev, "Missing device tree node.\n");
@@ -4520,6 +4540,27 @@ static int rk_fb_probe(struct platform_device *pdev)
 		dev_info(&pdev->dev, "rk fb ion client create success!\n");
 	}
 #endif
+
+	node = of_parse_phandle(np, "memory-region", 0);
+	if (node) {
+		struct resource r;
+
+		ret = of_address_to_resource(node, 0, &r);
+		if (ret)
+			return ret;
+
+		if (uboot_logo_on) {
+			uboot_logo_base = r.start;
+			uboot_logo_size = resource_size(&r);
+
+			if (uboot_logo_size > SZ_16M)
+				uboot_logo_offset = SZ_16M;
+			else
+				uboot_logo_offset = 0;
+		}
+		pr_info("logo: base=0x%llx, size=0x%llx, offset=0x%llx\n",
+			uboot_logo_base, uboot_logo_size, uboot_logo_offset);
+	}
 
 	fb_pdev = pdev;
 	dev_info(&pdev->dev, "rockchip framebuffer driver probe\n");
