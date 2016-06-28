@@ -48,8 +48,6 @@ endif
 
 endif
 
-cflags-$(CONFIG_ARC_DW2_UNWIND)		+= -fasynchronous-unwind-tables
-
 # By default gcc 4.8 generates dwarf4 which kernel unwinder can't grok
 ifeq ($(atleast_gcc48),y)
 cflags-$(CONFIG_ARC_DW2_UNWIND)		+= -gdwarf-2
