@@ -608,12 +608,12 @@ static void test_mb_ahash_speed(const char *algo, unsigned int sec,
 
 		req[i] = ahash_request_alloc(tfm, GFP_KERNEL);
 		if (!req[i]) {
-			printk(KERN_ERR "alg: hash: Failed to allocate "
-				"request for %s\n", algo);
+			pr_err("alg: hash: Failed to allocate request for %s\n",
+			       algo);
 			goto out_noreq;
 		}
 		ahash_request_set_callback(req[i], CRYPTO_TFM_REQ_MAY_BACKLOG,
-				tcrypt_complete, &tresult[i]);
+					   tcrypt_complete, &tresult[i]);
 
 		hash_buff = xbuf[i][0];
 		memcpy(hash_buff, ptext, 4096);
@@ -621,15 +621,14 @@ static void test_mb_ahash_speed(const char *algo, unsigned int sec,
 
 	j = 0;
 
-	printk(KERN_INFO "\ntesting speed of %s (%s)\n", algo,
-				get_driver_name(crypto_ahash, tfm));
+	pr_err("\ntesting speed of %s (%s)\n", algo,
+	       get_driver_name(crypto_ahash, tfm));
 
 	for (i = 0; speed[i].blen != 0; i++) {
 		if (speed[i].blen > TVMEMSIZE * PAGE_SIZE) {
-			printk(KERN_ERR
-				"template (%u) too big for tvmem (%lu)\n",
-					speed[i].blen, TVMEMSIZE * PAGE_SIZE);
-		goto out;
+			pr_err("template (%u) too big for tvmem (%lu)\n",
+			       speed[i].blen, TVMEMSIZE * PAGE_SIZE);
+			goto out;
 		}
 
 		if (speed[i].klen)
@@ -637,13 +636,12 @@ static void test_mb_ahash_speed(const char *algo, unsigned int sec,
 
 		for (k = 0; k < 8; ++k) {
 			sg_init_one(&sg[k][0], (void *) xbuf[k][0],
-						speed[i].blen);
+				    speed[i].blen);
 			ahash_request_set_crypt(req[k], sg[k],
 						result[k], speed[i].blen);
 		}
 
-		printk(KERN_INFO "test%3u "
-			"(%5u byte blocks,%5u bytes per update,%4u updates): ",
+		pr_err("test%3u (%5u byte blocks,%5u bytes per update,%4u updates): ",
 			i, speed[i].blen, speed[i].plen,
 			speed[i].blen / speed[i].plen);
 
@@ -653,9 +651,8 @@ static void test_mb_ahash_speed(const char *algo, unsigned int sec,
 			if (ret == -EBUSY || ret == -EINPROGRESS)
 				continue;
 			if (ret) {
-				printk(KERN_ERR
-				"alg (%s) something wrong, ret = %d ...\n",
-								algo, ret);
+				pr_err("alg (%s) something wrong, ret = %d ...\n",
+				       algo, ret);
 				goto out;
 			}
 		}
@@ -664,11 +661,9 @@ static void test_mb_ahash_speed(const char *algo, unsigned int sec,
 		for (k = 0; k < 8; ++k) {
 			struct tcrypt_result *tr = &tresult[k];
 
-			ret = wait_for_completion_interruptible
-						(&tr->completion);
+			ret = wait_for_completion_interruptible(&tr->completion);
 			if (ret)
-				printk(KERN_ERR
-				"alg(%s): hash: digest failed\n", algo);
+				pr_err("alg(%s): hash: digest failed\n", algo);
 			end[k] = get_cycles();
 		}
 
