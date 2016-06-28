@@ -45,6 +45,11 @@
 / {
 	compatible = "rockchip,android", "rockchip,rk3399";
 
+	aliases {
+		lcdc0 = &vopb_rk_fb;
+		lcdc1 = &vopl_rk_fb;
+	};
+
 	chosen {
 		bootargs = "earlycon=uart8250,mmio32,0xff1a0000";
 	};
@@ -85,6 +90,11 @@
 			reusable;
 			size = <0x0 0x8000000>;
 			linux,cma-default;
+		};
+		/* reg = <0x0 0x0 0x0 0x0> will be updated by uboot */
+		rockchip_logo: rockchip-logo@00000000 {
+			compatible = "rockchip,fb-logo";
+			reg = <0x0 0x0 0x0 0x0>;
 		};
 	};
 
@@ -235,6 +245,8 @@
 		status = "okay";
 		compatible = "rockchip,rk-fb";
 		rockchip,disp-mode = <DUAL>;
+		rockchip,uboot-logo-on = <1>;
+		memory-region = <&rockchip_logo>;
 	};
 
 	rk_screen: screen {
