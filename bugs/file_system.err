@@ -1,0 +1,9 @@
+I might find a bug in file_system 
+  when i 'cd //' and 'pwd'  the computer display '//'
+  
+  then i 'cd ~' and 'pwd' the computer display '//home/wangyang'
+  the PS1 is also display '//home/wangyang'
+  
+  this bug find in centos ubuntu and mac 
+  
+  
