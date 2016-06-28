@@ -618,6 +618,30 @@ static ssize_t multicast_startup_query_interval_store(
 	return store_bridge_parm(d, buf, len, set_startup_query_interval);
 }
 static DEVICE_ATTR_RW(multicast_startup_query_interval);
+
+static ssize_t multicast_stats_enabled_show(struct device *d,
+					    struct device_attribute *attr,
+					    char *buf)
+{
+	struct net_bridge *br = to_bridge(d);
+
+	return sprintf(buf, "%u\n", br->multicast_stats_enabled);
+}
+
+static int set_stats_enabled(struct net_bridge *br, unsigned long val)
+{
+	br->multicast_stats_enabled = !!val;
+	return 0;
+}
+
+static ssize_t multicast_stats_enabled_store(struct device *d,
+					     struct device_attribute *attr,
+					     const char *buf,
+					     size_t len)
+{
+	return store_bridge_parm(d, buf, len, set_stats_enabled);
+}
+static DEVICE_ATTR_RW(multicast_stats_enabled);
 #endif
 #if IS_ENABLED(CONFIG_BRIDGE_NETFILTER)
 static ssize_t nf_call_iptables_show(
@@ -784,6 +808,7 @@ static struct attribute *bridge_attrs[] = {
 	&dev_attr_multicast_query_interval.attr,
 	&dev_attr_multicast_query_response_interval.attr,
 	&dev_attr_multicast_startup_query_interval.attr,
+	&dev_attr_multicast_stats_enabled.attr,
 #endif
 #if IS_ENABLED(CONFIG_BRIDGE_NETFILTER)
 	&dev_attr_nf_call_iptables.attr,

@@ -104,8 +104,16 @@ static int br_dev_init(struct net_device *dev)
 		return -ENOMEM;
 
 	err = br_vlan_init(br);
-	if (err)
+	if (err) {
 		free_percpu(br->stats);
+		return err;
+	}
+
+	err = br_multicast_init_stats(br);
+	if (err) {
+		free_percpu(br->stats);
+		br_vlan_flush(br);
+	}
 	br_set_lockdep_class(dev);
 
 	return err;

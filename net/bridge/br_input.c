@@ -60,6 +60,9 @@ static int br_pass_frame_up(struct sk_buff *skb)
 	skb = br_handle_vlan(br, vg, skb);
 	if (!skb)
 		return NET_RX_DROP;
+	/* update the multicast stats if the packet is IGMP/MLD */
+	br_multicast_count(br, NULL, skb->protocol, br_multicast_igmp_type(skb),
+			   BR_MCAST_DIR_TX);
 
 	return NF_HOOK(NFPROTO_BRIDGE, NF_BR_LOCAL_IN,
 		       dev_net(indev), NULL, skb, indev, NULL,
