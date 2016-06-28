@@ -6,4 +6,7 @@ I might find a bug in file_system
   
   this bug find in centos ubuntu and mac 
   
-  
+  #我肯发现了一个文件系统的bug
+  #当我 输入命令 'cd //' 的时候 , linux显示我当前的工作目录是'//'
+  #当我 输入命令 'cd ~' 后 ,linux显示我的工作目录是'//home/wangyang'
+  #并且  PS1  显示的并不是我的主目录 ~ 而是 '//home/wangyang'
