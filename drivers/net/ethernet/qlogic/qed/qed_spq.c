@@ -213,19 +213,15 @@ static int qed_spq_hw_post(struct qed_hwfn *p_hwfn,
 	SET_FIELD(db.params, CORE_DB_DATA_AGG_VAL_SEL,
 		  DQ_XCM_CORE_SPQ_PROD_CMD);
 	db.agg_flags = DQ_XCM_CORE_DQ_CF_CMD;
-
-	/* validate producer is up to-date */
-	rmb();
-
 	db.spq_prod = cpu_to_le16(qed_chain_get_prod_idx(p_chain));
 
-	/* do not reorder */
-	barrier();
+	/* make sure the SPQE is updated before the doorbell */
+	wmb();
 
 	DOORBELL(p_hwfn, qed_db_addr(p_spq->cid, DQ_DEMS_LEGACY), *(u32 *)&db);
 
 	/* make sure doorbell is rang */
-	mmiowb();
+	wmb();
 
 	DP_VERBOSE(p_hwfn, QED_MSG_SPQ,
 		   "Doorbelled [0x%08x, CID 0x%08x] with Flags: %02x agg_params: %02x, prod: %04x\n",
