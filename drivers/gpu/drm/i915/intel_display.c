@@ -8447,16 +8447,16 @@ static void lpt_reset_fdi_mphy(struct drm_i915_private *dev_priv)
 	tmp |= FDI_MPHY_IOSFSB_RESET_CTL;
 	I915_WRITE(SOUTH_CHICKEN2, tmp);
 
-	if (wait_for_atomic_us(I915_READ(SOUTH_CHICKEN2) &
-			       FDI_MPHY_IOSFSB_RESET_STATUS, 100))
+	if (wait_for_us(I915_READ(SOUTH_CHICKEN2) &
+			FDI_MPHY_IOSFSB_RESET_STATUS, 100))
 		DRM_ERROR("FDI mPHY reset assert timeout\n");
 
 	tmp = I915_READ(SOUTH_CHICKEN2);
 	tmp &= ~FDI_MPHY_IOSFSB_RESET_CTL;
 	I915_WRITE(SOUTH_CHICKEN2, tmp);
 
-	if (wait_for_atomic_us((I915_READ(SOUTH_CHICKEN2) &
-				FDI_MPHY_IOSFSB_RESET_STATUS) == 0, 100))
+	if (wait_for_us((I915_READ(SOUTH_CHICKEN2) &
+			 FDI_MPHY_IOSFSB_RESET_STATUS) == 0, 100))
 		DRM_ERROR("FDI mPHY reset de-assert timeout\n");
 }
 
