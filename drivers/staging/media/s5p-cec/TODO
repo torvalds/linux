@@ -1,0 +1,3 @@
+There's nothing wrong on this driver, except that it depends on
+the media staging core, that it is currently at staging. So,
+this should be kept here while the core is not promoted.
