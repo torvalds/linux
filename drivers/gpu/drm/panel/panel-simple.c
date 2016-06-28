@@ -1019,6 +1019,29 @@ static const struct panel_desc lg_lb070wv8 = {
 	.bus_format = MEDIA_BUS_FMT_RGB888_1X7X4_SPWG,
 };
 
+static const struct drm_display_mode lg_lp079qx1_sp0v_mode = {
+	.clock = 200000,
+	.hdisplay = 1536,
+	.hsync_start = 1536 + 12,
+	.hsync_end = 1536 + 12 + 16,
+	.htotal = 1536 + 12 + 16 + 48,
+	.vdisplay = 2048,
+	.vsync_start = 2048 + 8,
+	.vsync_end = 2048 + 8 + 4,
+	.vtotal = 2048 + 8 + 4 + 8,
+	.vrefresh = 60,
+	.flags = DRM_MODE_FLAG_NVSYNC | DRM_MODE_FLAG_NHSYNC,
+};
+
+static const struct panel_desc lg_lp079qx1_sp0v = {
+	.modes = &lg_lp079qx1_sp0v_mode,
+	.num_modes = 1,
+	.size = {
+		.width = 129,
+		.height = 171,
+	},
+};
+
 static const struct drm_display_mode lg_lp097qx1_spa1_mode = {
 	.clock = 205210,
 	.hdisplay = 2048,
@@ -1525,6 +1548,9 @@ static const struct of_device_id platform_of_match[] = {
 	}, {
 		.compatible = "lg,lb070wv8",
 		.data = &lg_lb070wv8,
+	}, {
+		.compatible = "lg,lp079qx1-sp0v",
+		.data = &lg_lp079qx1_sp0v,
 	}, {
 		.compatible = "lg,lp097qx1-spa1",
 		.data = &lg_lp097qx1_spa1,
