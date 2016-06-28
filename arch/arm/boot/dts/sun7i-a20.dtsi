@@ -232,6 +232,7 @@
 		pll3x2: pll3x2_clk {
 			#clock-cells = <0>;
 			compatible = "fixed-factor-clock";
+			clocks = <&pll3>;
 			clock-div = <1>;
 			clock-mult = <2>;
 			clock-output-names = "pll3-2x";
@@ -273,6 +274,7 @@
 		pll7x2: pll7x2_clk {
 			#clock-cells = <0>;
 			compatible = "fixed-factor-clock";
+			clocks = <&pll7>;
 			clock-div = <1>;
 			clock-mult = <2>;
 			clock-output-names = "pll7-2x";
