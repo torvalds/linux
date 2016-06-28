@@ -1463,7 +1463,8 @@ static inline u64 cfq_cfqq_slice_usage(struct cfq_queue *cfqq,
 		 * a single request on seeky media and cause lots of seek time
 		 * and group will never know it.
 		 */
-		slice_used = max_t(u64, (now - cfqq->dispatch_start), 1);
+		slice_used = max_t(u64, (now - cfqq->dispatch_start),
+					jiffies_to_nsecs(1));
 	} else {
 		slice_used = now - cfqq->slice_start;
 		if (slice_used > cfqq->allocated_slice) {
