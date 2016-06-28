@@ -365,7 +365,6 @@ static int cs35l33_set_bias_level(struct snd_soc_codec *codec,
 				  enum snd_soc_bias_level level)
 {
 	unsigned int val;
-	struct snd_soc_dapm_context *dapm = snd_soc_codec_get_dapm(codec);
 	struct cs35l33_private *priv = snd_soc_codec_get_drvdata(codec);
 
 	switch (level) {
@@ -391,8 +390,6 @@ static int cs35l33_set_bias_level(struct snd_soc_codec *codec,
 	default:
 		return -EINVAL;
 	}
-
-	dapm->bias_level = level;
 
 	return 0;
 }
