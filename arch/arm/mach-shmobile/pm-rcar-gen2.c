@@ -37,11 +37,7 @@
 
 static void __init rcar_gen2_sysc_init(u32 syscier)
 {
-	void __iomem *base = rcar_sysc_init(0xe6180000);
-
-	/* enable all interrupt sources, but do not use interrupt handler */
-	iowrite32(syscier, base + SYSCIER);
-	iowrite32(0, base + SYSCIMR);
+	rcar_sysc_init(0xe6180000, syscier);
 }
 
 #else /* CONFIG_SMP */

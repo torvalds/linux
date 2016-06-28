@@ -400,10 +400,14 @@ out_put:
 }
 early_initcall(rcar_sysc_pd_init);
 
-void __iomem * __init rcar_sysc_init(phys_addr_t base)
+void __init rcar_sysc_init(phys_addr_t base, u32 syscier)
 {
-	if (rcar_sysc_pd_init())
-		rcar_sysc_base = ioremap_nocache(base, PAGE_SIZE);
+	if (!rcar_sysc_pd_init())
+		return;
 
-	return rcar_sysc_base;
+	rcar_sysc_base = ioremap_nocache(base, PAGE_SIZE);
+
+	/* enable all interrupt sources, but do not use interrupt handler */
+	iowrite32(syscier, rcar_sysc_base + SYSCIER);
+	iowrite32(0, rcar_sysc_base + SYSCIMR);
 }
