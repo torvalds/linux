@@ -40,6 +40,9 @@ Optional Board Specific Properties:
 
 - cs-gpios: should specify GPIOs used for chipselects (see spi-bus.txt)
 
+- no-cs-readback: the CS line is disconnected, therefore the device should not
+  operate based on CS signalling.
+
 SPI Controller specific data in SPI slave nodes:
 
 - The spi slave nodes should provide the following information which is required
