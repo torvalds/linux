@@ -487,10 +487,14 @@ static int netem_enqueue(struct sk_buff *skb, struct Qdisc *sch,
 		skb = segs;
 		segs = segs->next;
 
-		if (!(skb = skb_unshare(skb, GFP_ATOMIC)) ||
-		    (skb->ip_summed == CHECKSUM_PARTIAL &&
-		     skb_checksum_help(skb))) {
-			rc = qdisc_drop(skb, sch, to_free);
+		skb = skb_unshare(skb, GFP_ATOMIC);
+		if (unlikely(!skb)) {
+			qdisc_qstats_drop(sch);
+			goto finish_segs;
+		}
+		if (skb->ip_summed == CHECKSUM_PARTIAL &&
+		    skb_checksum_help(skb)) {
+			qdisc_drop(skb, sch, to_free);
 			goto finish_segs;
 		}
 
