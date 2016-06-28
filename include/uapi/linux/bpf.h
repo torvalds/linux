@@ -313,6 +313,20 @@ enum bpf_func_id {
 	 */
 	BPF_FUNC_skb_get_tunnel_opt,
 	BPF_FUNC_skb_set_tunnel_opt,
+
+	/**
+	 * bpf_skb_change_proto(skb, proto, flags)
+	 * Change protocol of the skb. Currently supported is
+	 * v4 -> v6, v6 -> v4 transitions. The helper will also
+	 * resize the skb. eBPF program is expected to fill the
+	 * new headers via skb_store_bytes and lX_csum_replace.
+	 * @skb: pointer to skb
+	 * @proto: new skb->protocol type
+	 * @flags: reserved
+	 * Return: 0 on success or negative error
+	 */
+	BPF_FUNC_skb_change_proto,
+
 	__BPF_FUNC_MAX_ID,
 };
 
