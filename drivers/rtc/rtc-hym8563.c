@@ -213,9 +213,6 @@ static int hym8563_rtc_read_alarm(struct device *dev, struct rtc_wkalrm *alm)
 					-1 :
 					bcd2bin(buf[3] & HYM8563_WEEKDAY_MASK);
 
-	alm_tm->tm_mon = -1;
-	alm_tm->tm_year = -1;
-
 	ret = i2c_smbus_read_byte_data(client, HYM8563_CTL2);
 	if (ret < 0)
 		return ret;

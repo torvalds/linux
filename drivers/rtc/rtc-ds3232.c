@@ -197,12 +197,6 @@ static int ds3232_read_alarm(struct device *dev, struct rtc_wkalrm *alarm)
 	alarm->time.tm_hour = bcd2bin(buf[2] & 0x7F);
 	alarm->time.tm_mday = bcd2bin(buf[3] & 0x7F);
 
-	alarm->time.tm_mon = -1;
-	alarm->time.tm_year = -1;
-	alarm->time.tm_wday = -1;
-	alarm->time.tm_yday = -1;
-	alarm->time.tm_isdst = -1;
-
 	alarm->enabled = !!(control & DS3232_REG_CR_A1IE);
 	alarm->pending = !!(stat & DS3232_REG_SR_A1F);
 

@@ -210,10 +210,7 @@ static int rv8803_get_alarm(struct device *dev, struct rtc_wkalrm *alrm)
 	alrm->time.tm_sec  = 0;
 	alrm->time.tm_min  = bcd2bin(alarmvals[0] & 0x7f);
 	alrm->time.tm_hour = bcd2bin(alarmvals[1] & 0x3f);
-	alrm->time.tm_wday = -1;
 	alrm->time.tm_mday = bcd2bin(alarmvals[2] & 0x3f);
-	alrm->time.tm_mon  = -1;
-	alrm->time.tm_year = -1;
 
 	alrm->enabled = !!(rv8803->ctrl & RV8803_CTRL_AIE);
 	alrm->pending = (flags & RV8803_FLAG_AF) && alrm->enabled;
