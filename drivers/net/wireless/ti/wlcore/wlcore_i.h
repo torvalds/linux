@@ -472,6 +472,7 @@ struct wl12xx_vif {
 
 	/* update rate conrol */
 	enum ieee80211_sta_rx_bandwidth rc_update_bw;
+	struct ieee80211_sta_ht_cap rc_ht_cap;
 	struct work_struct rc_update_work;
 
 	/*
