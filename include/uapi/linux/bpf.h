@@ -327,6 +327,15 @@ enum bpf_func_id {
 	 */
 	BPF_FUNC_skb_change_proto,
 
+	/**
+	 * bpf_skb_change_type(skb, type)
+	 * Change packet type of skb.
+	 * @skb: pointer to skb
+	 * @type: new skb->pkt_type type
+	 * Return: 0 on success or negative error
+	 */
+	BPF_FUNC_skb_change_type,
+
 	__BPF_FUNC_MAX_ID,
 };
 
