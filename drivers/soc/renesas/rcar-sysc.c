@@ -164,15 +164,6 @@ static bool rcar_sysc_power_is_off(const struct rcar_sysc_ch *sysc_ch)
 	return false;
 }
 
-void __iomem *rcar_sysc_init(phys_addr_t base)
-{
-	rcar_sysc_base = ioremap_nocache(base, PAGE_SIZE);
-	if (!rcar_sysc_base)
-		panic("unable to ioremap R-Car SYSC hardware block\n");
-
-	return rcar_sysc_base;
-}
-
 struct rcar_sysc_pd {
 	struct generic_pm_domain genpd;
 	struct rcar_sysc_ch ch;
@@ -328,6 +319,9 @@ static int __init rcar_sysc_pd_init(void)
 	unsigned int i;
 	int error;
 
+	if (rcar_sysc_base)
+		return 0;
+
 	np = of_find_matching_node_and_match(NULL, rcar_sysc_matches, &match);
 	if (!np)
 		return -ENODEV;
@@ -405,3 +399,11 @@ out_put:
 	return error;
 }
 early_initcall(rcar_sysc_pd_init);
+
+void __iomem * __init rcar_sysc_init(phys_addr_t base)
+{
+	if (rcar_sysc_pd_init())
+		rcar_sysc_base = ioremap_nocache(base, PAGE_SIZE);
+
+	return rcar_sysc_base;
+}
