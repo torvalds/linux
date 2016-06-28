@@ -1,0 +1,7 @@
+AU Optronics Corporation 10.1" WSVGA TFT LCD panel
+
+Required properties:
+- compatible: should be "auo,b101ew05"
+
+This binding is compatible with the simple-panel binding, which is specified
+in simple-panel.txt in this directory.
