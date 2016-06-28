@@ -1540,6 +1540,7 @@ static int __init tegra_pmc_early_init(void)
 		 */
 		if (of_address_to_resource(np, 0, &regs) < 0) {
 			pr_err("failed to get PMC registers\n");
+			of_node_put(np);
 			return -ENXIO;
 		}
 	}
@@ -1547,6 +1548,7 @@ static int __init tegra_pmc_early_init(void)
 	pmc->base = ioremap_nocache(regs.start, resource_size(&regs));
 	if (!pmc->base) {
 		pr_err("failed to map PMC registers\n");
+		of_node_put(np);
 		return -ENXIO;
 	}
 
@@ -1572,6 +1574,8 @@ static int __init tegra_pmc_early_init(void)
 			value &= ~PMC_CNTRL_INTR_POLARITY;
 
 		tegra_pmc_writel(value, PMC_CNTRL);
+
+		of_node_put(np);
 	}
 
 	return 0;
