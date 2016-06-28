@@ -106,7 +106,7 @@ static unsigned int v4l2_fmt_to_pxp_fmt(u32 v4l2_pix_fmt)
 	u32 pxp_fmt = 0;
 
 	if (v4l2_pix_fmt == V4L2_PIX_FMT_RGB24)
-		pxp_fmt = PXP_PIX_FMT_RGB24;
+		pxp_fmt = PXP_PIX_FMT_RGB32;
 	else if (v4l2_pix_fmt == V4L2_PIX_FMT_RGB565)
 		pxp_fmt = PXP_PIX_FMT_RGB565;
 	else if (v4l2_pix_fmt == V4L2_PIX_FMT_RGB555)
@@ -478,7 +478,7 @@ static int pxp_s_output(struct file *file, void *fh,
 	pxp->pxp_conf.out_param.width = fmt->width;
 	pxp->pxp_conf.out_param.height = fmt->height;
 	if (fmt->pixelformat == V4L2_PIX_FMT_RGB24)
-		pxp->pxp_conf.out_param.pixel_fmt = PXP_PIX_FMT_RGB24;
+		pxp->pxp_conf.out_param.pixel_fmt = PXP_PIX_FMT_RGB32;
 	else
 		pxp->pxp_conf.out_param.pixel_fmt = PXP_PIX_FMT_RGB565;
 
