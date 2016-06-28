@@ -63,7 +63,6 @@
 #include <asm/unistd.h>
 #include <linux/security.h>
 #include <linux/list.h>
-#include <linux/tty.h>
 #include <linux/binfmts.h>
 #include <linux/highmem.h>
 #include <linux/syscalls.h>
