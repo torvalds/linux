@@ -44,10 +44,58 @@ static void __init print_machine_type(void)
 	_sclp_print_early(mach_str);
 }
 
+static void __init u16_to_decimal(char *str, u16 val)
+{
+	int div = 1;
+
+	while (div * 10 <= val)
+		div *= 10;
+	while (div) {
+		*str++ = '0' + val / div;
+		val %= div;
+		div /= 10;
+	}
+	*str = '\0';
+}
+
+static void __init print_missing_facilities(void)
+{
+	static char als_str[80] __initdata = "Missing facilities: ";
+	unsigned long val;
+	char val_str[6];
+	int i, j, first;
+
+	first = 1;
+	for (i = 0; i < ARRAY_SIZE(als); i++) {
+		val = ~S390_lowcore.stfle_fac_list[i] & als[i];
+		for (j = 0; j < BITS_PER_LONG; j++) {
+			if (!(val & (1UL << (BITS_PER_LONG - 1 - j))))
+				continue;
+			if (!first)
+				strcat(als_str, ",");
+			/*
+			 * Make sure we stay within one line. Consider that
+			 * each facility bit adds up to five characters and
+			 * z/VM adds a four character prefix.
+			 */
+			if (strlen(als_str) > 70) {
+				_sclp_print_early(als_str);
+				*als_str = '\0';
+			}
+			u16_to_decimal(val_str, i * BITS_PER_LONG + j);
+			strcat(als_str, val_str);
+			first = 0;
+		}
+	}
+	_sclp_print_early(als_str);
+	_sclp_print_early("See Principles of Operations for facility bits");
+}
+
 static void __init facility_mismatch(void)
 {
 	_sclp_print_early("The Linux kernel requires more recent processor hardware");
 	print_machine_type();
+	print_missing_facilities();
 	disabled_wait(0x8badcccc);
 }
 
