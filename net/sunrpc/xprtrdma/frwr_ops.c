@@ -73,31 +73,6 @@
 # define RPCDBG_FACILITY	RPCDBG_TRANS
 #endif
 
-static struct workqueue_struct *frwr_recovery_wq;
-
-#define FRWR_RECOVERY_WQ_FLAGS		(WQ_UNBOUND | WQ_MEM_RECLAIM)
-
-int
-frwr_alloc_recovery_wq(void)
-{
-	frwr_recovery_wq = alloc_workqueue("frwr_recovery",
-					   FRWR_RECOVERY_WQ_FLAGS, 0);
-	return !frwr_recovery_wq ? -ENOMEM : 0;
-}
-
-void
-frwr_destroy_recovery_wq(void)
-{
-	struct workqueue_struct *wq;
-
-	if (!frwr_recovery_wq)
-		return;
-
-	wq = frwr_recovery_wq;
-	frwr_recovery_wq = NULL;
-	destroy_workqueue(wq);
-}
-
 static int
 __frwr_init(struct rpcrdma_mw *r, struct ib_pd *pd, unsigned int depth)
 {
@@ -168,8 +143,14 @@ __frwr_reset_mr(struct rpcrdma_ia *ia, struct rpcrdma_mw *r)
 	return 0;
 }
 
+/* Reset of a single FRMR. Generate a fresh rkey by replacing the MR.
+ *
+ * There's no recovery if this fails. The FRMR is abandoned, but
+ * remains in rb_all. It will be cleaned up when the transport is
+ * destroyed.
+ */
 static void
-__frwr_reset_and_unmap(struct rpcrdma_mw *mw)
+frwr_op_recover_mr(struct rpcrdma_mw *mw)
 {
 	struct rpcrdma_xprt *r_xprt = mw->mw_xprt;
 	struct rpcrdma_ia *ia = &r_xprt->rx_ia;
@@ -177,35 +158,15 @@ __frwr_reset_and_unmap(struct rpcrdma_mw *mw)
 
 	rc = __frwr_reset_mr(ia, mw);
 	ib_dma_unmap_sg(ia->ri_device, mw->mw_sg, mw->mw_nents, mw->mw_dir);
-	if (rc)
+	if (rc) {
+		pr_err("rpcrdma: FRMR reset status %d, %p orphaned\n",
+		       rc, mw);
+		r_xprt->rx_stats.mrs_orphaned++;
 		return;
+	}
+
 	rpcrdma_put_mw(r_xprt, mw);
-}
-
-/* Deferred reset of a single FRMR. Generate a fresh rkey by
- * replacing the MR.
- *
- * There's no recovery if this fails. The FRMR is abandoned, but
- * remains in rb_all. It will be cleaned up when the transport is
- * destroyed.
- */
-static void
-__frwr_recovery_worker(struct work_struct *work)
-{
-	struct rpcrdma_mw *r = container_of(work, struct rpcrdma_mw,
-					    mw_work);
-
-	__frwr_reset_and_unmap(r);
-}
-
-/* A broken MR was discovered in a context that can't sleep.
- * Defer recovery to the recovery worker.
- */
-static void
-__frwr_queue_recovery(struct rpcrdma_mw *r)
-{
-	INIT_WORK(&r->mw_work, __frwr_recovery_worker);
-	queue_work(frwr_recovery_wq, &r->mw_work);
+	r_xprt->rx_stats.mrs_recovered++;
 }
 
 static int
@@ -401,7 +362,7 @@ frwr_op_map(struct rpcrdma_xprt *r_xprt, struct rpcrdma_mr_seg *seg,
 	seg1->rl_mw = NULL;
 	do {
 		if (mw)
-			__frwr_queue_recovery(mw);
+			rpcrdma_defer_mr_recovery(mw);
 		mw = rpcrdma_get_mw(r_xprt);
 		if (!mw)
 			return -ENOMEM;
@@ -483,12 +444,11 @@ out_mapmr_err:
 	pr_err("rpcrdma: failed to map mr %p (%u/%u)\n",
 	       frmr->fr_mr, n, mw->mw_nents);
 	rc = n < 0 ? n : -EIO;
-	__frwr_queue_recovery(mw);
+	rpcrdma_defer_mr_recovery(mw);
 	return rc;
 
 out_senderr:
-	pr_err("rpcrdma: ib_post_send status %i\n", rc);
-	__frwr_queue_recovery(mw);
+	rpcrdma_defer_mr_recovery(mw);
 	return rc;
 }
 
@@ -627,9 +587,9 @@ frwr_op_unmap_safe(struct rpcrdma_xprt *r_xprt, struct rpcrdma_req *req,
 		mw = seg->rl_mw;
 
 		if (sync)
-			__frwr_reset_and_unmap(mw);
+			frwr_op_recover_mr(mw);
 		else
-			__frwr_queue_recovery(mw);
+			rpcrdma_defer_mr_recovery(mw);
 
 		i += seg->mr_nsegs;
 		seg->mr_nsegs = 0;
@@ -641,9 +601,6 @@ static void
 frwr_op_destroy(struct rpcrdma_buffer *buf)
 {
 	struct rpcrdma_mw *r;
-
-	/* Ensure stale MWs for "buf" are no longer in flight */
-	flush_workqueue(frwr_recovery_wq);
 
 	while (!list_empty(&buf->rb_all)) {
 		r = list_entry(buf->rb_all.next, struct rpcrdma_mw, mw_all);
@@ -657,6 +614,7 @@ const struct rpcrdma_memreg_ops rpcrdma_frwr_memreg_ops = {
 	.ro_map				= frwr_op_map,
 	.ro_unmap_sync			= frwr_op_unmap_sync,
 	.ro_unmap_safe			= frwr_op_unmap_safe,
+	.ro_recover_mr			= frwr_op_recover_mr,
 	.ro_open			= frwr_op_open,
 	.ro_maxpages			= frwr_op_maxpages,
 	.ro_init			= frwr_op_init,

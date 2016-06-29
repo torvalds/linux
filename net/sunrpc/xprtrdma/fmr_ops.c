@@ -19,13 +19,6 @@
  * verb (fmr_op_unmap).
  */
 
-/* Transport recovery
- *
- * After a transport reconnect, fmr_op_map re-uses the MR already
- * allocated for the RPC, but generates a fresh rkey then maps the
- * MR again. This process is synchronous.
- */
-
 #include "xprt_rdma.h"
 
 #if IS_ENABLED(CONFIG_SUNRPC_DEBUG)
@@ -40,30 +33,6 @@ enum {
 	RPCRDMA_FMR_ACCESS_FLAGS	= IB_ACCESS_REMOTE_WRITE |
 					  IB_ACCESS_REMOTE_READ,
 };
-
-static struct workqueue_struct *fmr_recovery_wq;
-
-#define FMR_RECOVERY_WQ_FLAGS		(WQ_UNBOUND)
-
-int
-fmr_alloc_recovery_wq(void)
-{
-	fmr_recovery_wq = alloc_workqueue("fmr_recovery", WQ_UNBOUND, 0);
-	return !fmr_recovery_wq ? -ENOMEM : 0;
-}
-
-void
-fmr_destroy_recovery_wq(void)
-{
-	struct workqueue_struct *wq;
-
-	if (!fmr_recovery_wq)
-		return;
-
-	wq = fmr_recovery_wq;
-	fmr_recovery_wq = NULL;
-	destroy_workqueue(wq);
-}
 
 static int
 __fmr_init(struct rpcrdma_mw *mw, struct ib_pd *pd)
@@ -116,37 +85,21 @@ __fmr_unmap(struct rpcrdma_mw *mw)
 }
 
 static void
-__fmr_dma_unmap(struct rpcrdma_mw *mw)
-{
-	struct rpcrdma_xprt *r_xprt = mw->mw_xprt;
-
-	ib_dma_unmap_sg(r_xprt->rx_ia.ri_device,
-			mw->mw_sg, mw->mw_nents, mw->mw_dir);
-	rpcrdma_put_mw(r_xprt, mw);
-}
-
-static void
-__fmr_reset_and_unmap(struct rpcrdma_mw *mw)
-{
-	int rc;
-
-	/* ORDER */
-	rc = __fmr_unmap(mw);
-	if (rc) {
-		pr_warn("rpcrdma: ib_unmap_fmr status %d, fmr %p orphaned\n",
-			rc, mw);
-		return;
-	}
-	__fmr_dma_unmap(mw);
-}
-
-static void
 __fmr_release(struct rpcrdma_mw *r)
 {
+	LIST_HEAD(unmap_list);
 	int rc;
 
 	kfree(r->fmr.fm_physaddrs);
 	kfree(r->mw_sg);
+
+	/* In case this one was left mapped, try to unmap it
+	 * to prevent dealloc_fmr from failing with EBUSY
+	 */
+	rc = __fmr_unmap(r);
+	if (rc)
+		pr_err("rpcrdma: final ib_unmap_fmr for %p failed %i\n",
+		       r, rc);
 
 	rc = ib_dealloc_fmr(r->fmr.fm_mr);
 	if (rc)
@@ -154,27 +107,33 @@ __fmr_release(struct rpcrdma_mw *r)
 		       r, rc);
 }
 
-/* Deferred reset of a single FMR. Generate a fresh rkey by
- * replacing the MR. There's no recovery if this fails.
+/* Reset of a single FMR.
+ *
+ * There's no recovery if this fails. The FMR is abandoned, but
+ * remains in rb_all. It will be cleaned up when the transport is
+ * destroyed.
  */
 static void
-__fmr_recovery_worker(struct work_struct *work)
+fmr_op_recover_mr(struct rpcrdma_mw *mw)
 {
-	struct rpcrdma_mw *mw = container_of(work, struct rpcrdma_mw,
-					     mw_work);
+	struct rpcrdma_xprt *r_xprt = mw->mw_xprt;
+	int rc;
 
-	__fmr_reset_and_unmap(mw);
-	return;
-}
+	/* ORDER: invalidate first */
+	rc = __fmr_unmap(mw);
 
-/* A broken MR was discovered in a context that can't sleep.
- * Defer recovery to the recovery worker.
- */
-static void
-__fmr_queue_recovery(struct rpcrdma_mw *mw)
-{
-	INIT_WORK(&mw->mw_work, __fmr_recovery_worker);
-	queue_work(fmr_recovery_wq, &mw->mw_work);
+	/* ORDER: then DMA unmap */
+	ib_dma_unmap_sg(r_xprt->rx_ia.ri_device,
+			mw->mw_sg, mw->mw_nents, mw->mw_dir);
+	if (rc) {
+		pr_err("rpcrdma: FMR reset status %d, %p orphaned\n",
+		       rc, mw);
+		r_xprt->rx_stats.mrs_orphaned++;
+		return;
+	}
+
+	rpcrdma_put_mw(r_xprt, mw);
+	r_xprt->rx_stats.mrs_recovered++;
 }
 
 static int
@@ -245,16 +204,11 @@ fmr_op_map(struct rpcrdma_xprt *r_xprt, struct rpcrdma_mr_seg *seg,
 
 	mw = seg1->rl_mw;
 	seg1->rl_mw = NULL;
-	if (!mw) {
-		mw = rpcrdma_get_mw(r_xprt);
-		if (!mw)
-			return -ENOMEM;
-	} else {
-		/* this is a retransmit; generate a fresh rkey */
-		rc = __fmr_unmap(mw);
-		if (rc)
-			return rc;
-	}
+	if (mw)
+		rpcrdma_defer_mr_recovery(mw);
+	mw = rpcrdma_get_mw(r_xprt);
+	if (!mw)
+		return -ENOMEM;
 
 	pageoff = offset_in_page(seg1->mr_offset);
 	seg1->mr_offset -= pageoff;	/* start of page */
@@ -309,7 +263,7 @@ out_maperr:
 	pr_err("rpcrdma: ib_map_phys_fmr %u@0x%llx+%i (%d) status %i\n",
 	       len, (unsigned long long)dma_pages[0],
 	       pageoff, mw->mw_nents, rc);
-	__fmr_dma_unmap(mw);
+	rpcrdma_defer_mr_recovery(mw);
 	return rc;
 }
 
@@ -332,7 +286,7 @@ fmr_op_unmap_sync(struct rpcrdma_xprt *r_xprt, struct rpcrdma_req *req)
 	/* ORDER: Invalidate all of the req's MRs first
 	 *
 	 * ib_unmap_fmr() is slow, so use a single call instead
-	 * of one call per mapped MR.
+	 * of one call per mapped FMR.
 	 */
 	for (i = 0, nchunks = req->rl_nchunks; nchunks; nchunks--) {
 		seg = &req->rl_segments[i];
@@ -344,7 +298,7 @@ fmr_op_unmap_sync(struct rpcrdma_xprt *r_xprt, struct rpcrdma_req *req)
 	}
 	rc = ib_unmap_fmr(&unmap_list);
 	if (rc)
-		pr_warn("%s: ib_unmap_fmr failed (%i)\n", __func__, rc);
+		goto out_reset;
 
 	/* ORDER: Now DMA unmap all of the req's MRs, and return
 	 * them to the free MW list.
@@ -354,7 +308,9 @@ fmr_op_unmap_sync(struct rpcrdma_xprt *r_xprt, struct rpcrdma_req *req)
 		mw = seg->rl_mw;
 
 		list_del_init(&mw->fmr.fm_mr->list);
-		__fmr_dma_unmap(mw);
+		ib_dma_unmap_sg(r_xprt->rx_ia.ri_device,
+				mw->mw_sg, mw->mw_nents, mw->mw_dir);
+		rpcrdma_put_mw(r_xprt, mw);
 
 		i += seg->mr_nsegs;
 		seg->mr_nsegs = 0;
@@ -362,6 +318,20 @@ fmr_op_unmap_sync(struct rpcrdma_xprt *r_xprt, struct rpcrdma_req *req)
 	}
 
 	req->rl_nchunks = 0;
+	return;
+
+out_reset:
+	pr_err("rpcrdma: ib_unmap_fmr failed (%i)\n", rc);
+
+	for (i = 0, nchunks = req->rl_nchunks; nchunks; nchunks--) {
+		seg = &req->rl_segments[i];
+		mw = seg->rl_mw;
+
+		list_del_init(&mw->fmr.fm_mr->list);
+		fmr_op_recover_mr(mw);
+
+		i += seg->mr_nsegs;
+	}
 }
 
 /* Use a slow, safe mechanism to invalidate all memory regions
@@ -380,9 +350,9 @@ fmr_op_unmap_safe(struct rpcrdma_xprt *r_xprt, struct rpcrdma_req *req,
 		mw = seg->rl_mw;
 
 		if (sync)
-			__fmr_reset_and_unmap(mw);
+			fmr_op_recover_mr(mw);
 		else
-			__fmr_queue_recovery(mw);
+			rpcrdma_defer_mr_recovery(mw);
 
 		i += seg->mr_nsegs;
 		seg->mr_nsegs = 0;
@@ -407,6 +377,7 @@ const struct rpcrdma_memreg_ops rpcrdma_fmr_memreg_ops = {
 	.ro_map				= fmr_op_map,
 	.ro_unmap_sync			= fmr_op_unmap_sync,
 	.ro_unmap_safe			= fmr_op_unmap_safe,
+	.ro_recover_mr			= fmr_op_recover_mr,
 	.ro_open			= fmr_op_open,
 	.ro_maxpages			= fmr_op_maxpages,
 	.ro_init			= fmr_op_init,

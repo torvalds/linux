@@ -245,7 +245,6 @@ struct rpcrdma_mw {
 		struct rpcrdma_fmr	fmr;
 		struct rpcrdma_frmr	frmr;
 	};
-	struct work_struct	mw_work;
 	struct rpcrdma_xprt	*mw_xprt;
 	struct list_head	mw_all;
 };
@@ -341,6 +340,10 @@ struct rpcrdma_buffer {
 	struct list_head	rb_allreqs;
 
 	u32			rb_bc_max_requests;
+
+	spinlock_t		rb_recovery_lock; /* protect rb_stale_mrs */
+	struct list_head	rb_stale_mrs;
+	struct delayed_work	rb_recovery_worker;
 };
 #define rdmab_to_ia(b) (&container_of((b), struct rpcrdma_xprt, rx_buf)->rx_ia)
 
@@ -387,6 +390,8 @@ struct rpcrdma_stats {
 	unsigned long		bad_reply_count;
 	unsigned long		nomsg_call_count;
 	unsigned long		bcall_count;
+	unsigned long		mrs_recovered;
+	unsigned long		mrs_orphaned;
 };
 
 /*
@@ -400,6 +405,7 @@ struct rpcrdma_memreg_ops {
 					 struct rpcrdma_req *);
 	void		(*ro_unmap_safe)(struct rpcrdma_xprt *,
 					 struct rpcrdma_req *, bool);
+	void		(*ro_recover_mr)(struct rpcrdma_mw *);
 	int		(*ro_open)(struct rpcrdma_ia *,
 				   struct rpcrdma_ep *,
 				   struct rpcrdma_create_data_internal *);
@@ -477,15 +483,14 @@ void rpcrdma_buffer_put(struct rpcrdma_req *);
 void rpcrdma_recv_buffer_get(struct rpcrdma_req *);
 void rpcrdma_recv_buffer_put(struct rpcrdma_rep *);
 
+void rpcrdma_defer_mr_recovery(struct rpcrdma_mw *);
+
 struct rpcrdma_regbuf *rpcrdma_alloc_regbuf(struct rpcrdma_ia *,
 					    size_t, gfp_t);
 void rpcrdma_free_regbuf(struct rpcrdma_ia *,
 			 struct rpcrdma_regbuf *);
 
 int rpcrdma_ep_post_extra_recv(struct rpcrdma_xprt *, unsigned int);
-
-int frwr_alloc_recovery_wq(void);
-void frwr_destroy_recovery_wq(void);
 
 int rpcrdma_alloc_wq(void);
 void rpcrdma_destroy_wq(void);
