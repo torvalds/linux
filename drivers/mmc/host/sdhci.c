@@ -938,6 +938,29 @@ static bool sdhci_needs_reset(struct sdhci_host *host, struct mmc_request *mrq)
 		 (host->quirks & SDHCI_QUIRK_RESET_AFTER_REQUEST)));
 }
 
+static void __sdhci_finish_mrq(struct sdhci_host *host, struct mmc_request *mrq)
+{
+	int i;
+
+	for (i = 0; i < SDHCI_MAX_MRQS; i++) {
+		if (host->mrqs_done[i] == mrq) {
+			WARN_ON(1);
+			return;
+		}
+	}
+
+	for (i = 0; i < SDHCI_MAX_MRQS; i++) {
+		if (!host->mrqs_done[i]) {
+			host->mrqs_done[i] = mrq;
+			break;
+		}
+	}
+
+	WARN_ON(i >= SDHCI_MAX_MRQS);
+
+	tasklet_schedule(&host->finish_tasklet);
+}
+
 static void sdhci_finish_mrq(struct sdhci_host *host, struct mmc_request *mrq)
 {
 	if (host->cmd && host->cmd->mrq == mrq)
@@ -952,7 +975,7 @@ static void sdhci_finish_mrq(struct sdhci_host *host, struct mmc_request *mrq)
 	if (sdhci_needs_reset(host, mrq))
 		host->pending_reset = true;
 
-	tasklet_schedule(&host->finish_tasklet);
+	__sdhci_finish_mrq(host, mrq);
 }
 
 static void sdhci_finish_data(struct sdhci_host *host)
@@ -1440,8 +1463,6 @@ static void sdhci_request(struct mmc_host *mmc, struct mmc_request *mrq)
 
 	spin_lock_irqsave(&host->lock, flags);
 
-	WARN_ON(host->mrq != NULL);
-
 	sdhci_led_activate(host);
 
 	/*
@@ -1454,8 +1475,6 @@ static void sdhci_request(struct mmc_host *mmc, struct mmc_request *mrq)
 			mrq->stop = NULL;
 		}
 	}
-
-	host->mrq = mrq;
 
 	if (!present || host->flags & SDHCI_DEVICE_DEAD) {
 		mrq->cmd->error = -ENOMEDIUM;
@@ -1993,13 +2012,13 @@ static int sdhci_execute_tuning(struct mmc_host *mmc, u32 opcode)
 		cmd.flags = MMC_RSP_R1 | MMC_CMD_ADTC;
 		cmd.retries = 0;
 		cmd.data = NULL;
+		cmd.mrq = &mrq;
 		cmd.error = 0;
 
 		if (tuning_loop_counter-- == 0)
 			break;
 
 		mrq.cmd = &cmd;
-		host->mrq = &mrq;
 
 		/*
 		 * In response to CMD19, the card sends 64 bytes of tuning
@@ -2029,7 +2048,6 @@ static int sdhci_execute_tuning(struct mmc_host *mmc, u32 opcode)
 		sdhci_send_command(host, &cmd);
 
 		host->cmd = NULL;
-		host->mrq = NULL;
 
 		spin_unlock_irqrestore(&host->lock, flags);
 		/* Wait for Buffer Read Ready interrupt */
@@ -2230,26 +2248,26 @@ static const struct mmc_host_ops sdhci_ops = {
  *                                                                           *
 \*****************************************************************************/
 
-static void sdhci_tasklet_finish(unsigned long param)
+static bool sdhci_request_done(struct sdhci_host *host)
 {
-	struct sdhci_host *host;
 	unsigned long flags;
 	struct mmc_request *mrq;
-
-	host = (struct sdhci_host*)param;
+	int i;
 
 	spin_lock_irqsave(&host->lock, flags);
 
-        /*
-         * If this tasklet gets rescheduled while running, it will
-         * be run again afterwards but without any active request.
-         */
-	if (!host->mrq) {
-		spin_unlock_irqrestore(&host->lock, flags);
-		return;
+	for (i = 0; i < SDHCI_MAX_MRQS; i++) {
+		mrq = host->mrqs_done[i];
+		if (mrq) {
+			host->mrqs_done[i] = NULL;
+			break;
+		}
 	}
 
-	mrq = host->mrq;
+	if (!mrq) {
+		spin_unlock_irqrestore(&host->lock, flags);
+		return true;
+	}
 
 	sdhci_del_timer(host, mrq);
 
@@ -2287,14 +2305,23 @@ static void sdhci_tasklet_finish(unsigned long param)
 		host->pending_reset = false;
 	}
 
-	host->mrq = NULL;
-
-	sdhci_led_deactivate(host);
+	if (!sdhci_has_requests(host))
+		sdhci_led_deactivate(host);
 
 	mmiowb();
 	spin_unlock_irqrestore(&host->lock, flags);
 
 	mmc_request_done(host->mmc, mrq);
+
+	return false;
+}
+
+static void sdhci_tasklet_finish(unsigned long param)
+{
+	struct sdhci_host *host = (struct sdhci_host *)param;
+
+	while (!sdhci_request_done(host))
+		;
 }
 
 static void sdhci_timeout_timer(unsigned long data)
