@@ -408,9 +408,6 @@ static void tw686x_set_framerate(struct tw686x_video_channel *vc,
 {
 	unsigned int i;
 
-	if (vc->fps == fps)
-		return;
-
 	i = tw686x_fps_idx(fps, TW686X_MAX_FPS(vc->video_standard));
 	reg_write(vc->dev, VIDEO_FIELD_CTRL[vc->ch], fps_map[i]);
 	vc->fps = tw686x_real_fps(i, TW686X_MAX_FPS(vc->video_standard));
@@ -813,6 +810,12 @@ static int tw686x_s_std(struct file *file, void *priv, v4l2_std_id id)
 	ret = tw686x_g_fmt_vid_cap(file, priv, &f);
 	if (!ret)
 		tw686x_s_fmt_vid_cap(file, priv, &f);
+
+	/*
+	 * Frame decimation depends on the chosen standard,
+	 * so reset it to the current value.
+	 */
+	tw686x_set_framerate(vc, vc->fps);
 	return 0;
 }
 
@@ -880,6 +883,40 @@ static int tw686x_g_std(struct file *file, void *priv, v4l2_std_id *id)
 
 	*id = vc->video_standard;
 	return 0;
+}
+
+static int tw686x_g_parm(struct file *file, void *priv,
+			 struct v4l2_streamparm *sp)
+{
+	struct tw686x_video_channel *vc = video_drvdata(file);
+	struct v4l2_captureparm *cp = &sp->parm.capture;
+
+	if (sp->type != V4L2_BUF_TYPE_VIDEO_CAPTURE)
+		return -EINVAL;
+	sp->parm.capture.readbuffers = 3;
+
+	cp->capability = V4L2_CAP_TIMEPERFRAME;
+	cp->timeperframe.numerator = 1;
+	cp->timeperframe.denominator = vc->fps;
+	return 0;
+}
+
+static int tw686x_s_parm(struct file *file, void *priv,
+			 struct v4l2_streamparm *sp)
+{
+	struct tw686x_video_channel *vc = video_drvdata(file);
+	struct v4l2_captureparm *cp = &sp->parm.capture;
+	unsigned int denominator = cp->timeperframe.denominator;
+	unsigned int numerator = cp->timeperframe.numerator;
+	unsigned int fps;
+
+	if (vb2_is_busy(&vc->vidq))
+		return -EBUSY;
+
+	fps = (!numerator || !denominator) ? 0 : denominator / numerator;
+	if (vc->fps != fps)
+		tw686x_set_framerate(vc, fps);
+	return tw686x_g_parm(file, priv, sp);
 }
 
 static int tw686x_enum_fmt_vid_cap(struct file *file, void *priv,
@@ -967,6 +1004,9 @@ static const struct v4l2_ioctl_ops tw686x_video_ioctl_ops = {
 	.vidioc_querystd		= tw686x_querystd,
 	.vidioc_g_std			= tw686x_g_std,
 	.vidioc_s_std			= tw686x_s_std,
+
+	.vidioc_g_parm			= tw686x_g_parm,
+	.vidioc_s_parm			= tw686x_s_parm,
 
 	.vidioc_enum_input		= tw686x_enum_input,
 	.vidioc_g_input			= tw686x_g_input,
