@@ -590,7 +590,6 @@ static int dlpar_memory_remove_by_index(u32 drc_index, struct property *prop)
 
 static int dlpar_add_lmb_memory(struct of_drconf_cell *lmb)
 {
-	struct memory_block *mem_block;
 	unsigned long block_sz;
 	int nid, rc;
 
@@ -606,19 +605,6 @@ static int dlpar_add_lmb_memory(struct of_drconf_cell *lmb)
 
 	/* Register this block of memory */
 	rc = memblock_add(lmb->base_addr, block_sz);
-	if (rc) {
-		remove_memory(nid, lmb->base_addr, block_sz);
-		return rc;
-	}
-
-	mem_block = lmb_to_memblock(lmb);
-	if (!mem_block) {
-		remove_memory(nid, lmb->base_addr, block_sz);
-		return -EINVAL;
-	}
-
-	rc = device_online(&mem_block->dev);
-	put_device(&mem_block->dev);
 	if (rc) {
 		remove_memory(nid, lmb->base_addr, block_sz);
 		return rc;
