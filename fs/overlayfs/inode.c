@@ -121,16 +121,18 @@ int ovl_permission(struct inode *inode, int mask)
 
 		err = vfs_getattr(&realpath, &stat);
 		if (err)
-			return err;
+			goto out_dput;
 
+		err = -ESTALE;
 		if ((stat.mode ^ inode->i_mode) & S_IFMT)
-			return -ESTALE;
+			goto out_dput;
 
 		inode->i_mode = stat.mode;
 		inode->i_uid = stat.uid;
 		inode->i_gid = stat.gid;
 
-		return generic_permission(inode, mask);
+		err = generic_permission(inode, mask);
+		goto out_dput;
 	}
 
 	/* Careful in RCU walk mode */
