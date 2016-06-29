@@ -173,6 +173,13 @@ void amdgpu_vm_move_pt_bos_in_lru(struct amdgpu_device *adev,
 	spin_unlock(&glob->lru_lock);
 }
 
+static bool amdgpu_vm_is_gpu_reset(struct amdgpu_device *adev,
+			      struct amdgpu_vm_id *id)
+{
+	return id->current_gpu_reset_count !=
+		atomic_read(&adev->gpu_reset_counter) ? true : false;
+}
+
 /**
  * amdgpu_vm_grab_id - allocate the next free VMID
  *
@@ -256,7 +263,7 @@ int amdgpu_vm_grab_id(struct amdgpu_vm *vm, struct amdgpu_ring *ring,
 		/* Check all the prerequisites to using this VMID */
 		if (!id)
 			continue;
-		if (id->current_gpu_reset_count != atomic_read(&adev->gpu_reset_counter))
+		if (amdgpu_vm_is_gpu_reset(adev, id))
 			continue;
 
 		if (atomic64_read(&id->owner) != vm->client_id)
