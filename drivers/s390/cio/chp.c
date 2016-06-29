@@ -384,6 +384,28 @@ static ssize_t chp_chid_external_show(struct device *dev,
 }
 static DEVICE_ATTR(chid_external, 0444, chp_chid_external_show, NULL);
 
+static ssize_t util_string_read(struct file *filp, struct kobject *kobj,
+				struct bin_attribute *attr, char *buf,
+				loff_t off, size_t count)
+{
+	struct channel_path *chp = to_channelpath(kobj_to_dev(kobj));
+	ssize_t rc;
+
+	mutex_lock(&chp->lock);
+	rc = memory_read_from_buffer(buf, count, &off, chp->desc_fmt3.util_str,
+				     sizeof(chp->desc_fmt3.util_str));
+	mutex_unlock(&chp->lock);
+
+	return rc;
+}
+static BIN_ATTR_RO(util_string,
+		   sizeof(((struct channel_path_desc_fmt3 *)0)->util_str));
+
+static struct bin_attribute *chp_bin_attrs[] = {
+	&bin_attr_util_string,
+	NULL,
+};
+
 static struct attribute *chp_attrs[] = {
 	&dev_attr_status.attr,
 	&dev_attr_configure.attr,
@@ -396,6 +418,7 @@ static struct attribute *chp_attrs[] = {
 };
 static struct attribute_group chp_attr_group = {
 	.attrs = chp_attrs,
+	.bin_attrs = chp_bin_attrs,
 };
 static const struct attribute_group *chp_attr_groups[] = {
 	&chp_attr_group,
