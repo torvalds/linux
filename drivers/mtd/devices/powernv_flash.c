@@ -95,7 +95,7 @@ static int powernv_flash_async_op(struct mtd_info *mtd, enum flash_op op,
 		return -EIO;
 	}
 
-	rc = be64_to_cpu(msg.params[1]);
+	rc = opal_get_async_rc(msg);
 	if (rc == OPAL_SUCCESS) {
 		rc = 0;
 		if (retlen)

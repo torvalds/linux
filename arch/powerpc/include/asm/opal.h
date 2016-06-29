@@ -282,6 +282,14 @@ extern int opal_error_code(int rc);
 
 ssize_t opal_msglog_copy(char *to, loff_t pos, size_t count);
 
+static inline int opal_get_async_rc(struct opal_msg msg)
+{
+	if (msg.msg_type != OPAL_MSG_ASYNC_COMP)
+		return OPAL_PARAMETER;
+	else
+		return be64_to_cpu(msg.params[1]);
+}
+
 #endif /* __ASSEMBLY__ */
 
 #endif /* _ASM_POWERPC_OPAL_H */
