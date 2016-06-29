@@ -496,9 +496,6 @@ static int acpi_irq_get_penalty(int irq)
 {
 	int penalty = 0;
 
-	if (irq < ACPI_MAX_ISA_IRQS)
-		penalty += acpi_isa_irq_penalty[irq];
-
 	/*
 	* Penalize IRQ used by ACPI SCI. If ACPI SCI pin attributes conflict
 	* with PCI IRQ attributes, mark ACPI SCI as ISA_ALWAYS so it won't be
@@ -512,6 +509,9 @@ static int acpi_irq_get_penalty(int irq)
 		else
 			penalty += PIRQ_PENALTY_PCI_USING;
 	}
+
+	if (irq < ACPI_MAX_ISA_IRQS)
+		return penalty + acpi_isa_irq_penalty[irq];
 
 	penalty += acpi_irq_pci_sharing_penalty(irq);
 	return penalty;
