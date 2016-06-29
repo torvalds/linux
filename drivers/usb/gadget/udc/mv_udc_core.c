@@ -129,7 +129,7 @@ static int process_ep_req(struct mv_udc *udc, int index,
 {
 	struct mv_dtd	*curr_dtd;
 	struct mv_dqh	*curr_dqh;
-	int td_complete, actual, remaining_length;
+	int actual, remaining_length;
 	int i, direction;
 	int retval = 0;
 	u32 errors;
@@ -139,7 +139,6 @@ static int process_ep_req(struct mv_udc *udc, int index,
 	direction = index % 2;
 
 	curr_dtd = curr_req->head;
-	td_complete = 0;
 	actual = curr_req->req.length;
 
 	for (i = 0; i < curr_req->dtd_count; i++) {
@@ -412,10 +411,7 @@ static int req_to_dtd(struct mv_req *req)
 	unsigned count;
 	int is_last, is_first = 1;
 	struct mv_dtd *dtd, *last_dtd = NULL;
-	struct mv_udc *udc;
 	dma_addr_t dma;
-
-	udc = req->ep->udc;
 
 	do {
 		dtd = build_dtd(req, &count, &dma, &is_last);
@@ -567,7 +563,7 @@ static int  mv_ep_disable(struct usb_ep *_ep)
 	struct mv_udc *udc;
 	struct mv_ep *ep;
 	struct mv_dqh *dqh;
-	u32 bit_pos, epctrlx, direction;
+	u32 epctrlx, direction;
 	unsigned long flags;
 
 	ep = container_of(_ep, struct mv_ep, ep);
@@ -582,7 +578,6 @@ static int  mv_ep_disable(struct usb_ep *_ep)
 	spin_lock_irqsave(&udc->lock, flags);
 
 	direction = ep_dir(ep);
-	bit_pos = 1 << ((direction == EP_DIR_OUT ? 0 : 16) + ep->ep_num);
 
 	/* Reset the max packet length and the interrupt on Setup */
 	dqh->max_packet_length = 0;
