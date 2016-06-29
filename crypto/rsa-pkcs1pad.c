@@ -111,40 +111,48 @@ static int pkcs1pad_set_pub_key(struct crypto_akcipher *tfm, const void *key,
 		unsigned int keylen)
 {
 	struct pkcs1pad_ctx *ctx = akcipher_tfm_ctx(tfm);
-	int err, size;
+	int err;
+
+	ctx->key_size = 0;
 
 	err = crypto_akcipher_set_pub_key(ctx->child, key, keylen);
+	if (err)
+		return err;
 
-	if (!err) {
-		/* Find out new modulus size from rsa implementation */
-		size = crypto_akcipher_maxsize(ctx->child);
+	/* Find out new modulus size from rsa implementation */
+	err = crypto_akcipher_maxsize(ctx->child);
+	if (err < 0)
+		return err;
 
-		ctx->key_size = size > 0 ? size : 0;
-		if (size <= 0)
-			err = size;
-	}
+	if (err > PAGE_SIZE)
+		return -ENOTSUPP;
 
-	return err;
+	ctx->key_size = err;
+	return 0;
 }
 
 static int pkcs1pad_set_priv_key(struct crypto_akcipher *tfm, const void *key,
 		unsigned int keylen)
 {
 	struct pkcs1pad_ctx *ctx = akcipher_tfm_ctx(tfm);
-	int err, size;
+	int err;
+
+	ctx->key_size = 0;
 
 	err = crypto_akcipher_set_priv_key(ctx->child, key, keylen);
+	if (err)
+		return err;
 
-	if (!err) {
-		/* Find out new modulus size from rsa implementation */
-		size = crypto_akcipher_maxsize(ctx->child);
+	/* Find out new modulus size from rsa implementation */
+	err = crypto_akcipher_maxsize(ctx->child);
+	if (err < 0)
+		return err;
 
-		ctx->key_size = size > 0 ? size : 0;
-		if (size <= 0)
-			err = size;
-	}
+	if (err > PAGE_SIZE)
+		return -ENOTSUPP;
 
-	return err;
+	ctx->key_size = err;
+	return 0;
 }
 
 static int pkcs1pad_get_max_size(struct crypto_akcipher *tfm)
@@ -246,9 +254,6 @@ static int pkcs1pad_encrypt(struct akcipher_request *req)
 		req->dst_len = ctx->key_size;
 		return -EOVERFLOW;
 	}
-
-	if (ctx->key_size > PAGE_SIZE)
-		return -ENOTSUPP;
 
 	/*
 	 * Replace both input and output to add the padding in the input and
@@ -367,9 +372,6 @@ static int pkcs1pad_decrypt(struct akcipher_request *req)
 	if (!ctx->key_size || req->src_len != ctx->key_size)
 		return -EINVAL;
 
-	if (ctx->key_size > PAGE_SIZE)
-		return -ENOTSUPP;
-
 	/* Reuse input buffer, output to a new buffer */
 	req_ctx->child_req.src = req->src;
 	req_ctx->child_req.src_len = req->src_len;
@@ -419,9 +421,6 @@ static int pkcs1pad_sign(struct akcipher_request *req)
 		req->dst_len = ctx->key_size;
 		return -EOVERFLOW;
 	}
-
-	if (ctx->key_size > PAGE_SIZE)
-		return -ENOTSUPP;
 
 	/*
 	 * Replace both input and output to add the padding in the input and
@@ -559,9 +558,6 @@ static int pkcs1pad_verify(struct akcipher_request *req)
 
 	if (!ctx->key_size || req->src_len < ctx->key_size)
 		return -EINVAL;
-
-	if (ctx->key_size > PAGE_SIZE)
-		return -ENOTSUPP;
 
 	/* Reuse input buffer, output to a new buffer */
 	req_ctx->child_req.src = req->src;
