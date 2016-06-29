@@ -178,6 +178,8 @@ int64_t opal_dump_ack(uint32_t dump_id);
 int64_t opal_dump_resend_notification(void);
 
 int64_t opal_get_msg(uint64_t buffer, uint64_t size);
+int64_t opal_write_oppanel_async(uint64_t token, oppanel_line_t *lines,
+					uint64_t num_lines);
 int64_t opal_check_completion(uint64_t buffer, uint64_t size, uint64_t token);
 int64_t opal_sync_host_reboot(void);
 int64_t opal_get_param(uint64_t token, uint32_t param_id, uint64_t buffer,
