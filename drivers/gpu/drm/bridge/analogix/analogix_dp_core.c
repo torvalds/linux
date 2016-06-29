@@ -938,7 +938,7 @@ int analogix_dp_get_modes(struct drm_connector *connector)
 		num_modes += drm_panel_get_modes(dp->plat_data->panel);
 
 	if (dp->plat_data->get_modes)
-		num_modes += dp->plat_data->get_modes(dp->plat_data);
+		num_modes += dp->plat_data->get_modes(dp->plat_data, connector);
 
 	return num_modes;
 }
