@@ -444,10 +444,11 @@ int nfc_llcp_send_connect(struct nfc_llcp_sock *sock)
 
 	skb_queue_tail(&local->tx_queue, skb);
 
-	return 0;
+	err = 0;
 
 error_tlv:
-	pr_err("error %d\n", err);
+	if (err)
+		pr_err("error %d\n", err);
 
 	kfree(service_name_tlv);
 	kfree(miux_tlv);
@@ -495,10 +496,11 @@ int nfc_llcp_send_cc(struct nfc_llcp_sock *sock)
 
 	skb_queue_tail(&local->tx_queue, skb);
 
-	return 0;
+	err = 0;
 
 error_tlv:
-	pr_err("error %d\n", err);
+	if (err)
+		pr_err("error %d\n", err);
 
 	kfree(miux_tlv);
 	kfree(rw_tlv);
