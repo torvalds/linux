@@ -1351,6 +1351,19 @@ static struct pci_driver genwqe_driver = {
 };
 
 /**
+ * genwqe_devnode() - Set default access mode for genwqe devices.
+ *
+ * Default mode should be rw for everybody. Do not change default
+ * device name.
+ */
+static char *genwqe_devnode(struct device *dev, umode_t *mode)
+{
+	if (mode)
+		*mode = 0666;
+	return NULL;
+}
+
+/**
  * genwqe_init_module() - Driver registration and initialization
  */
 static int __init genwqe_init_module(void)
@@ -1362,6 +1375,8 @@ static int __init genwqe_init_module(void)
 		pr_err("[%s] create class failed\n", __func__);
 		return -ENOMEM;
 	}
+
+	class_genwqe->devnode = genwqe_devnode;
 
 	debugfs_genwqe = debugfs_create_dir(GENWQE_DEVNAME, NULL);
 	if (!debugfs_genwqe) {
