@@ -399,8 +399,10 @@ static int vmw_stdu_bind_fb(struct vmw_private *dev_priv,
 
 	WARN_ON_ONCE(!stdu->defined);
 
-	if (!vfb->dmabuf && new_fb->width == mode->hdisplay &&
-	    new_fb->height == mode->vdisplay)
+	new_vfbs = (vfb->dmabuf) ? NULL : vmw_framebuffer_to_vfbs(new_fb);
+
+	if (new_vfbs && new_vfbs->surface->base_size.width == mode->hdisplay &&
+	    new_vfbs->surface->base_size.height == mode->vdisplay)
 		new_content_type = SAME_AS_DISPLAY;
 	else if (vfb->dmabuf)
 		new_content_type = SEPARATE_DMA;
@@ -444,7 +446,6 @@ static int vmw_stdu_bind_fb(struct vmw_private *dev_priv,
 			content_srf.mip_levels[0]     = 1;
 			content_srf.multisample_count = 0;
 		} else {
-			new_vfbs = vmw_framebuffer_to_vfbs(new_fb);
 			content_srf = *new_vfbs->surface;
 		}
 
@@ -464,7 +465,6 @@ static int vmw_stdu_bind_fb(struct vmw_private *dev_priv,
 			return ret;
 		}
 	} else if (new_content_type == SAME_AS_DISPLAY) {
-		new_vfbs = vmw_framebuffer_to_vfbs(new_fb);
 		new_display_srf = vmw_surface_reference(new_vfbs->surface);
 	}
 
