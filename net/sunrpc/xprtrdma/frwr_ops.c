@@ -99,6 +99,50 @@ frwr_destroy_recovery_wq(void)
 }
 
 static int
+__frwr_init(struct rpcrdma_mw *r, struct ib_pd *pd, unsigned int depth)
+{
+	struct rpcrdma_frmr *f = &r->frmr;
+	int rc;
+
+	f->fr_mr = ib_alloc_mr(pd, IB_MR_TYPE_MEM_REG, depth);
+	if (IS_ERR(f->fr_mr))
+		goto out_mr_err;
+
+	r->mw_sg = kcalloc(depth, sizeof(*r->mw_sg), GFP_KERNEL);
+	if (!r->mw_sg)
+		goto out_list_err;
+
+	sg_init_table(r->mw_sg, depth);
+	init_completion(&f->fr_linv_done);
+	return 0;
+
+out_mr_err:
+	rc = PTR_ERR(f->fr_mr);
+	dprintk("RPC:       %s: ib_alloc_mr status %i\n",
+		__func__, rc);
+	return rc;
+
+out_list_err:
+	rc = -ENOMEM;
+	dprintk("RPC:       %s: sg allocation failure\n",
+		__func__);
+	ib_dereg_mr(f->fr_mr);
+	return rc;
+}
+
+static void
+__frwr_release(struct rpcrdma_mw *r)
+{
+	int rc;
+
+	rc = ib_dereg_mr(r->frmr.fr_mr);
+	if (rc)
+		pr_err("rpcrdma: final ib_dereg_mr for %p returned %i\n",
+		       r, rc);
+	kfree(r->mw_sg);
+}
+
+static int
 __frwr_reset_mr(struct rpcrdma_ia *ia, struct rpcrdma_mw *r)
 {
 	struct rpcrdma_frmr *f = &r->frmr;
@@ -162,52 +206,6 @@ __frwr_queue_recovery(struct rpcrdma_mw *r)
 {
 	INIT_WORK(&r->mw_work, __frwr_recovery_worker);
 	queue_work(frwr_recovery_wq, &r->mw_work);
-}
-
-static int
-__frwr_init(struct rpcrdma_mw *r, struct ib_pd *pd, unsigned int depth)
-{
-	struct rpcrdma_frmr *f = &r->frmr;
-	int rc;
-
-	f->fr_mr = ib_alloc_mr(pd, IB_MR_TYPE_MEM_REG, depth);
-	if (IS_ERR(f->fr_mr))
-		goto out_mr_err;
-
-	r->mw_sg = kcalloc(depth, sizeof(*r->mw_sg), GFP_KERNEL);
-	if (!r->mw_sg)
-		goto out_list_err;
-
-	sg_init_table(r->mw_sg, depth);
-
-	init_completion(&f->fr_linv_done);
-
-	return 0;
-
-out_mr_err:
-	rc = PTR_ERR(f->fr_mr);
-	dprintk("RPC:       %s: ib_alloc_mr status %i\n",
-		__func__, rc);
-	return rc;
-
-out_list_err:
-	rc = -ENOMEM;
-	dprintk("RPC:       %s: sg allocation failure\n",
-		__func__);
-	ib_dereg_mr(f->fr_mr);
-	return rc;
-}
-
-static void
-__frwr_release(struct rpcrdma_mw *r)
-{
-	int rc;
-
-	rc = ib_dereg_mr(r->frmr.fr_mr);
-	if (rc)
-		dprintk("RPC:       %s: ib_dereg_mr status %i\n",
-			__func__, rc);
-	kfree(r->mw_sg);
 }
 
 static int

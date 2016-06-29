@@ -35,6 +35,12 @@
 /* Maximum scatter/gather per FMR */
 #define RPCRDMA_MAX_FMR_SGES	(64)
 
+/* Access mode of externally registered pages */
+enum {
+	RPCRDMA_FMR_ACCESS_FLAGS	= IB_ACCESS_REMOTE_WRITE |
+					  IB_ACCESS_REMOTE_READ,
+};
+
 static struct workqueue_struct *fmr_recovery_wq;
 
 #define FMR_RECOVERY_WQ_FLAGS		(WQ_UNBOUND)
@@ -60,6 +66,44 @@ fmr_destroy_recovery_wq(void)
 }
 
 static int
+__fmr_init(struct rpcrdma_mw *mw, struct ib_pd *pd)
+{
+	static struct ib_fmr_attr fmr_attr = {
+		.max_pages	= RPCRDMA_MAX_FMR_SGES,
+		.max_maps	= 1,
+		.page_shift	= PAGE_SHIFT
+	};
+
+	mw->fmr.physaddrs = kcalloc(RPCRDMA_MAX_FMR_SGES,
+				    sizeof(u64), GFP_KERNEL);
+	if (!mw->fmr.physaddrs)
+		goto out_free;
+
+	mw->mw_sg = kcalloc(RPCRDMA_MAX_FMR_SGES,
+			    sizeof(*mw->mw_sg), GFP_KERNEL);
+	if (!mw->mw_sg)
+		goto out_free;
+
+	sg_init_table(mw->mw_sg, RPCRDMA_MAX_FMR_SGES);
+
+	mw->fmr.fmr = ib_alloc_fmr(pd, RPCRDMA_FMR_ACCESS_FLAGS,
+				   &fmr_attr);
+	if (IS_ERR(mw->fmr.fmr))
+		goto out_fmr_err;
+
+	return 0;
+
+out_fmr_err:
+	dprintk("RPC:       %s: ib_alloc_fmr returned %ld\n", __func__,
+		PTR_ERR(mw->fmr.fmr));
+
+out_free:
+	kfree(mw->mw_sg);
+	kfree(mw->fmr.physaddrs);
+	return -ENOMEM;
+}
+
+static int
 __fmr_unmap(struct rpcrdma_mw *mw)
 {
 	LIST_HEAD(l);
@@ -69,6 +113,30 @@ __fmr_unmap(struct rpcrdma_mw *mw)
 	rc = ib_unmap_fmr(&l);
 	list_del_init(&mw->fmr.fmr->list);
 	return rc;
+}
+
+static void
+__fmr_dma_unmap(struct rpcrdma_xprt *r_xprt, struct rpcrdma_mr_seg *seg)
+{
+	struct ib_device *device = r_xprt->rx_ia.ri_device;
+	int nsegs = seg->mr_nsegs;
+
+	while (nsegs--)
+		rpcrdma_unmap_one(device, seg++);
+}
+
+static void
+__fmr_release(struct rpcrdma_mw *r)
+{
+	int rc;
+
+	kfree(r->fmr.physaddrs);
+	kfree(r->mw_sg);
+
+	rc = ib_dealloc_fmr(r->fmr.fmr);
+	if (rc)
+		pr_err("rpcrdma: final ib_dealloc_fmr for %p returned %i\n",
+		       r, rc);
 }
 
 /* Deferred reset of a single FMR. Generate a fresh rkey by
@@ -119,12 +187,6 @@ static int
 fmr_op_init(struct rpcrdma_xprt *r_xprt)
 {
 	struct rpcrdma_buffer *buf = &r_xprt->rx_buf;
-	int mr_access_flags = IB_ACCESS_REMOTE_WRITE | IB_ACCESS_REMOTE_READ;
-	struct ib_fmr_attr fmr_attr = {
-		.max_pages	= RPCRDMA_MAX_FMR_SGES,
-		.max_maps	= 1,
-		.page_shift	= PAGE_SHIFT
-	};
 	struct ib_pd *pd = r_xprt->rx_ia.ri_pd;
 	struct rpcrdma_mw *r;
 	int i, rc;
@@ -138,35 +200,22 @@ fmr_op_init(struct rpcrdma_xprt *r_xprt)
 	i *= buf->rb_max_requests;	/* one set for each RPC slot */
 	dprintk("RPC:       %s: initalizing %d FMRs\n", __func__, i);
 
-	rc = -ENOMEM;
 	while (i--) {
 		r = kzalloc(sizeof(*r), GFP_KERNEL);
 		if (!r)
-			goto out;
+			return -ENOMEM;
 
-		r->fmr.physaddrs = kmalloc(RPCRDMA_MAX_FMR_SGES *
-					   sizeof(u64), GFP_KERNEL);
-		if (!r->fmr.physaddrs)
-			goto out_free;
-
-		r->fmr.fmr = ib_alloc_fmr(pd, mr_access_flags, &fmr_attr);
-		if (IS_ERR(r->fmr.fmr))
-			goto out_fmr_err;
+		rc = __fmr_init(r, pd);
+		if (rc) {
+			kfree(r);
+			return rc;
+		}
 
 		r->mw_xprt = r_xprt;
 		list_add(&r->mw_list, &buf->rb_mws);
 		list_add(&r->mw_all, &buf->rb_all);
 	}
 	return 0;
-
-out_fmr_err:
-	rc = PTR_ERR(r->fmr.fmr);
-	dprintk("RPC:       %s: ib_alloc_fmr status %i\n", __func__, rc);
-	kfree(r->fmr.physaddrs);
-out_free:
-	kfree(r);
-out:
-	return rc;
 }
 
 /* Use the ib_map_phys_fmr() verb to register a memory region
@@ -233,16 +282,6 @@ out_maperr:
 	while (i--)
 		rpcrdma_unmap_one(device, --seg);
 	return rc;
-}
-
-static void
-__fmr_dma_unmap(struct rpcrdma_xprt *r_xprt, struct rpcrdma_mr_seg *seg)
-{
-	struct ib_device *device = r_xprt->rx_ia.ri_device;
-	int nsegs = seg->mr_nsegs;
-
-	while (nsegs--)
-		rpcrdma_unmap_one(device, seg++);
 }
 
 /* Invalidate all memory regions that were registered for "req".
@@ -337,18 +376,11 @@ static void
 fmr_op_destroy(struct rpcrdma_buffer *buf)
 {
 	struct rpcrdma_mw *r;
-	int rc;
 
 	while (!list_empty(&buf->rb_all)) {
 		r = list_entry(buf->rb_all.next, struct rpcrdma_mw, mw_all);
 		list_del(&r->mw_all);
-		kfree(r->fmr.physaddrs);
-
-		rc = ib_dealloc_fmr(r->fmr.fmr);
-		if (rc)
-			dprintk("RPC:       %s: ib_dealloc_fmr failed %i\n",
-				__func__, rc);
-
+		__fmr_release(r);
 		kfree(r);
 	}
 }
