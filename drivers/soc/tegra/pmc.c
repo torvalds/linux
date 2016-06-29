@@ -738,7 +738,7 @@ err:
 }
 
 static int tegra_powergate_of_get_resets(struct tegra_powergate *pg,
-					 struct device_node *np)
+					 struct device_node *np, bool off)
 {
 	struct reset_control *rst;
 	unsigned int i, count;
@@ -756,6 +756,16 @@ static int tegra_powergate_of_get_resets(struct tegra_powergate *pg,
 		pg->resets[i] = of_reset_control_get_by_index(np, i);
 		if (IS_ERR(pg->resets[i])) {
 			err = PTR_ERR(pg->resets[i]);
+			goto error;
+		}
+
+		if (off)
+			err = reset_control_assert(pg->resets[i]);
+		else
+			err = reset_control_deassert(pg->resets[i]);
+
+		if (err) {
+			reset_control_put(pg->resets[i]);
 			goto error;
 		}
 	}
@@ -798,13 +808,13 @@ static void tegra_powergate_add(struct tegra_pmc *pmc, struct device_node *np)
 	pg->genpd.power_on = tegra_genpd_power_on;
 	pg->pmc = pmc;
 
+	off = !tegra_powergate_is_powered(pg->id);
+
 	if (tegra_powergate_of_get_clks(pg, np))
 		goto set_available;
 
-	if (tegra_powergate_of_get_resets(pg, np))
+	if (tegra_powergate_of_get_resets(pg, np, off))
 		goto remove_clks;
-
-	off = !tegra_powergate_is_powered(pg->id);
 
 	pm_genpd_init(&pg->genpd, NULL, off);
 
