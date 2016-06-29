@@ -277,6 +277,25 @@ thus active by default. However, by indexing the code with
 one of these tools, and according to the cocci file used,
 spatch could proceed the entire code base more quickly.
 
+ SmPL patch specific options
+~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+
+SmPL patches can have their own requirements for options passed
+to Coccinelle. SmPL patch specific options can be provided by
+providing them at the top of the SmPL patch, for instance:
+
+// Options: --no-includes --include-headers
+
+ SmPL patch Coccinelle requirements
+~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+
+As Coccinelle features get added some more advanced SmPL patches
+may require newer versions of Coccinelle. If an SmPL patch requires
+at least a version of Coccinelle, this can be specified as follows,
+as an example if requiring at least Coccinelle >= 1.0.5:
+
+// Requires: 1.0.5
+
  Proposing new semantic patches
 ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 
