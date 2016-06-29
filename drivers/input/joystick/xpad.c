@@ -1200,6 +1200,9 @@ static int xpad_probe(struct usb_interface *intf, const struct usb_device_id *id
 	int ep_irq_in_idx;
 	int i, error;
 
+	if (intf->cur_altsetting->desc.bNumEndpoints != 2)
+		return -ENODEV;
+
 	for (i = 0; xpad_device[i].idVendor; i++) {
 		if ((le16_to_cpu(udev->descriptor.idVendor) == xpad_device[i].idVendor) &&
 		    (le16_to_cpu(udev->descriptor.idProduct) == xpad_device[i].idProduct))
