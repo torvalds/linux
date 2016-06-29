@@ -2884,6 +2884,12 @@ static int gen6_ring_flush(struct drm_i915_gem_request *req,
 	return 0;
 }
 
+static void intel_ring_default_vfuncs(struct drm_i915_private *dev_priv,
+				      struct intel_engine_cs *engine)
+{
+	engine->write_tail = ring_write_tail;
+}
+
 int intel_init_render_ring_buffer(struct drm_device *dev)
 {
 	struct drm_i915_private *dev_priv = dev->dev_private;
@@ -2896,6 +2902,8 @@ int intel_init_render_ring_buffer(struct drm_device *dev)
 	engine->exec_id = I915_EXEC_RENDER;
 	engine->hw_id = 0;
 	engine->mmio_base = RENDER_RING_BASE;
+
+	intel_ring_default_vfuncs(dev_priv, engine);
 
 	if (INTEL_GEN(dev_priv) >= 8) {
 		if (i915_semaphore_is_enabled(dev_priv)) {
@@ -2988,7 +2996,6 @@ int intel_init_render_ring_buffer(struct drm_device *dev)
 		}
 		engine->irq_enable_mask = I915_USER_INTERRUPT;
 	}
-	engine->write_tail = ring_write_tail;
 
 	if (IS_HASWELL(dev_priv))
 		engine->dispatch_execbuffer = hsw_ring_dispatch_execbuffer;
@@ -3047,7 +3054,8 @@ int intel_init_bsd_ring_buffer(struct drm_device *dev)
 	engine->exec_id = I915_EXEC_BSD;
 	engine->hw_id = 1;
 
-	engine->write_tail = ring_write_tail;
+	intel_ring_default_vfuncs(dev_priv, engine);
+
 	if (INTEL_GEN(dev_priv) >= 6) {
 		engine->mmio_base = GEN6_BSD_RING_BASE;
 		/* gen6 bsd needs a special wa for tail updates */
@@ -3125,9 +3133,10 @@ int intel_init_bsd2_ring_buffer(struct drm_device *dev)
 	engine->id = VCS2;
 	engine->exec_id = I915_EXEC_BSD;
 	engine->hw_id = 4;
-
-	engine->write_tail = ring_write_tail;
 	engine->mmio_base = GEN8_BSD2_RING_BASE;
+
+	intel_ring_default_vfuncs(dev_priv, engine);
+
 	engine->flush = gen6_bsd_ring_flush;
 	engine->add_request = gen6_add_request;
 	engine->irq_seqno_barrier = gen6_seqno_barrier;
@@ -3158,9 +3167,10 @@ int intel_init_blt_ring_buffer(struct drm_device *dev)
 	engine->id = BCS;
 	engine->exec_id = I915_EXEC_BLT;
 	engine->hw_id = 2;
-
 	engine->mmio_base = BLT_RING_BASE;
-	engine->write_tail = ring_write_tail;
+
+	intel_ring_default_vfuncs(dev_priv, engine);
+
 	engine->flush = gen6_ring_flush;
 	engine->add_request = gen6_add_request;
 	engine->irq_seqno_barrier = gen6_seqno_barrier;
@@ -3218,9 +3228,10 @@ int intel_init_vebox_ring_buffer(struct drm_device *dev)
 	engine->id = VECS;
 	engine->exec_id = I915_EXEC_VEBOX;
 	engine->hw_id = 3;
-
 	engine->mmio_base = VEBOX_RING_BASE;
-	engine->write_tail = ring_write_tail;
+
+	intel_ring_default_vfuncs(dev_priv, engine);
+
 	engine->flush = gen6_ring_flush;
 	engine->add_request = gen6_add_request;
 	engine->irq_seqno_barrier = gen6_seqno_barrier;
