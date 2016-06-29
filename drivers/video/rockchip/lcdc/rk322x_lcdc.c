@@ -1453,13 +1453,6 @@ static int vop_win_0_1_reg_update(struct rk_lcdc_driver *dev_drv, int win_id)
 		val = V_WIN0_HS_FACTOR_CBR(win->scale_cbcr_x) |
 		    V_WIN0_VS_FACTOR_CBR(win->scale_cbcr_y);
 		vop_writel(vop_dev, WIN0_SCL_FACTOR_CBR + off, val);
-		if (win->alpha_en == 1) {
-			vop_alpha_cfg(dev_drv, win_id);
-		} else {
-			val = V_WIN0_SRC_ALPHA_EN(0);
-			vop_msk_reg(vop_dev, WIN0_SRC_ALPHA_CTRL + off, val);
-		}
-
 	} else {
 		val = V_WIN0_EN(win->state);
 		vop_msk_reg(vop_dev, WIN0_CTRL0 + off, val);
@@ -1593,13 +1586,6 @@ static int vop_win_2_3_reg_update(struct rk_lcdc_driver *dev_drv, int win_id)
 			val = V_WIN2_MST3_EN(0);
 			vop_msk_reg(vop_dev, WIN2_CTRL0 + off, val);
 		}
-
-		if (win->alpha_en == 1) {
-			vop_alpha_cfg(dev_drv, win_id);
-		} else {
-			val = V_WIN2_SRC_ALPHA_EN(0);
-			vop_msk_reg(vop_dev, WIN2_SRC_ALPHA_CTRL + off, val);
-		}
 	} else {
 		val = V_WIN2_EN(win->state) | V_WIN2_MST0_EN(0) |
 		    V_WIN2_MST1_EN(0) | V_WIN2_MST2_EN(0) | V_WIN2_MST3_EN(0);
@@ -1644,13 +1630,6 @@ static int vop_hwc_reg_update(struct rk_lcdc_driver *dev_drv, int win_id)
 		val = V_HWC_DSP_XST(win->area[0].dsp_stx) |
 		    V_HWC_DSP_YST(win->area[0].dsp_sty);
 		vop_msk_reg(vop_dev, HWC_DSP_ST, val);
-
-		if (win->alpha_en == 1) {
-			vop_alpha_cfg(dev_drv, win_id);
-		} else {
-			val = V_WIN2_SRC_ALPHA_EN(0);
-			vop_msk_reg(vop_dev, HWC_SRC_ALPHA_CTRL, val);
-		}
 	} else {
 		val = V_HWC_EN(win->state);
 		vop_msk_reg(vop_dev, HWC_CTRL0, val);
@@ -4140,6 +4119,7 @@ static int vop_config_done(struct rk_lcdc_driver *dev_drv)
 	vop_msk_reg(vop_dev, SYS_CTRL, V_VOP_STANDBY_EN(vop_dev->standby));
 	for (i = 0; i < dev_drv->lcdc_win_num; i++) {
 		win = dev_drv->win[i];
+		vop_alpha_cfg(dev_drv, i);
 		fbdc_en |= win->area[0].fbdc_en;
 		if ((win->state == 0) && (win->last_state == 1)) {
 			switch (win->id) {
