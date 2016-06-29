@@ -15,4 +15,7 @@ config SUNXI_CCU_GATE
 config SUNXI_CCU_MUX
 	bool
 
+config SUNXI_CCU_PHASE
+	bool
+
 endif
