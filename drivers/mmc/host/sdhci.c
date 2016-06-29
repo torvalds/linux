@@ -428,8 +428,6 @@ static void sdhci_transfer_pio(struct sdhci_host *host)
 {
 	u32 mask;
 
-	BUG_ON(!host->data);
-
 	if (host->blocks == 0)
 		return;
 
@@ -929,8 +927,6 @@ static void sdhci_finish_data(struct sdhci_host *host)
 {
 	struct mmc_data *data;
 
-	BUG_ON(!host->data);
-
 	data = host->data;
 	host->data = NULL;
 
@@ -1059,8 +1055,6 @@ EXPORT_SYMBOL_GPL(sdhci_send_command);
 static void sdhci_finish_command(struct sdhci_host *host)
 {
 	int i;
-
-	BUG_ON(host->cmd == NULL);
 
 	if (host->cmd->flags & MMC_RSP_PRESENT) {
 		if (host->cmd->flags & MMC_RSP_136) {
@@ -2279,8 +2273,6 @@ static void sdhci_timeout_timer(unsigned long data)
 
 static void sdhci_cmd_irq(struct sdhci_host *host, u32 intmask, u32 *mask)
 {
-	BUG_ON(intmask == 0);
-
 	if (!host->cmd) {
 		pr_err("%s: Got command interrupt 0x%08x even though no command operation was in progress.\n",
 		       mmc_hostname(host->mmc), (unsigned)intmask);
@@ -2361,7 +2353,6 @@ static void sdhci_adma_show_error(struct sdhci_host *host) { }
 static void sdhci_data_irq(struct sdhci_host *host, u32 intmask)
 {
 	u32 command;
-	BUG_ON(intmask == 0);
 
 	/* CMD19 generates _only_ Buffer Read Ready interrupt */
 	if (intmask & SDHCI_INT_DATA_AVAIL) {
