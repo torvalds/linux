@@ -35,7 +35,6 @@
 
 static struct kset *iommu_group_kset;
 static DEFINE_IDA(iommu_group_ida);
-static DEFINE_MUTEX(iommu_group_mutex);
 
 struct iommu_callback_data {
 	const struct iommu_ops *ops;
@@ -144,9 +143,7 @@ static void iommu_group_release(struct kobject *kobj)
 	if (group->iommu_data_release)
 		group->iommu_data_release(group->iommu_data);
 
-	mutex_lock(&iommu_group_mutex);
-	ida_remove(&iommu_group_ida, group->id);
-	mutex_unlock(&iommu_group_mutex);
+	ida_simple_remove(&iommu_group_ida, group->id);
 
 	if (group->default_domain)
 		iommu_domain_free(group->default_domain);
@@ -186,26 +183,17 @@ struct iommu_group *iommu_group_alloc(void)
 	INIT_LIST_HEAD(&group->devices);
 	BLOCKING_INIT_NOTIFIER_HEAD(&group->notifier);
 
-	mutex_lock(&iommu_group_mutex);
-
-again:
-	if (unlikely(0 == ida_pre_get(&iommu_group_ida, GFP_KERNEL))) {
+	ret = ida_simple_get(&iommu_group_ida, 0, 0, GFP_KERNEL);
+	if (ret < 0) {
 		kfree(group);
-		mutex_unlock(&iommu_group_mutex);
-		return ERR_PTR(-ENOMEM);
+		return ERR_PTR(ret);
 	}
-
-	if (-EAGAIN == ida_get_new(&iommu_group_ida, &group->id))
-		goto again;
-
-	mutex_unlock(&iommu_group_mutex);
+	group->id = ret;
 
 	ret = kobject_init_and_add(&group->kobj, &iommu_group_ktype,
 				   NULL, "%d", group->id);
 	if (ret) {
-		mutex_lock(&iommu_group_mutex);
-		ida_remove(&iommu_group_ida, group->id);
-		mutex_unlock(&iommu_group_mutex);
+		ida_simple_remove(&iommu_group_ida, group->id);
 		kfree(group);
 		return ERR_PTR(ret);
 	}
