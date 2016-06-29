@@ -2216,6 +2216,14 @@ static void ath10k_pci_fw_crashed_clear(struct ath10k *ar)
 	ath10k_pci_write32(ar, FW_INDICATOR_ADDRESS, val);
 }
 
+static bool ath10k_pci_has_device_gone(struct ath10k *ar)
+{
+	u32 val;
+
+	val = ath10k_pci_read32(ar, FW_INDICATOR_ADDRESS);
+	return (val == 0xffffffff);
+}
+
 /* this function effectively clears target memory controller assert line */
 static void ath10k_pci_warm_reset_si0(struct ath10k *ar)
 {
@@ -2747,6 +2755,9 @@ static irqreturn_t ath10k_pci_interrupt_handler(int irq, void *arg)
 	struct ath10k *ar = arg;
 	struct ath10k_pci *ar_pci = ath10k_pci_priv(ar);
 	int ret;
+
+	if (ath10k_pci_has_device_gone(ar))
+		return IRQ_NONE;
 
 	ret = ath10k_pci_force_wake(ar);
 	if (ret) {
