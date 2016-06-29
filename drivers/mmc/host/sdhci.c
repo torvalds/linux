@@ -986,9 +986,9 @@ static void sdhci_finish_mrq(struct sdhci_host *host, struct mmc_request *mrq)
 
 static void sdhci_finish_data(struct sdhci_host *host)
 {
-	struct mmc_data *data;
+	struct mmc_command *data_cmd = host->data_cmd;
+	struct mmc_data *data = host->data;
 
-	data = host->data;
 	host->data = NULL;
 	host->data_cmd = NULL;
 
@@ -1022,7 +1022,8 @@ static void sdhci_finish_data(struct sdhci_host *host)
 		 * upon error conditions.
 		 */
 		if (data->error) {
-			sdhci_do_reset(host, SDHCI_RESET_CMD);
+			if (!host->cmd || host->cmd == data_cmd)
+				sdhci_do_reset(host, SDHCI_RESET_CMD);
 			sdhci_do_reset(host, SDHCI_RESET_DATA);
 		}
 
@@ -2305,8 +2306,10 @@ static bool sdhci_request_done(struct sdhci_host *host)
 
 		/* Spec says we should do both at the same time, but Ricoh
 		   controllers do not like that. */
-		sdhci_do_reset(host, SDHCI_RESET_CMD);
-		sdhci_do_reset(host, SDHCI_RESET_DATA);
+		if (!host->cmd)
+			sdhci_do_reset(host, SDHCI_RESET_CMD);
+		if (!host->data_cmd)
+			sdhci_do_reset(host, SDHCI_RESET_DATA);
 
 		host->pending_reset = false;
 	}
