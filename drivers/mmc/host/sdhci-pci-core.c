@@ -1760,11 +1760,12 @@ static void sdhci_pci_remove_slot(struct sdhci_pci_slot *slot)
 
 static void sdhci_pci_runtime_pm_allow(struct device *dev)
 {
-	pm_runtime_put_noidle(dev);
-	pm_runtime_allow(dev);
+	pm_suspend_ignore_children(dev, 1);
 	pm_runtime_set_autosuspend_delay(dev, 50);
 	pm_runtime_use_autosuspend(dev);
-	pm_suspend_ignore_children(dev, 1);
+	pm_runtime_allow(dev);
+	/* Stay active until mmc core scans for a card */
+	pm_runtime_put_noidle(dev);
 }
 
 static void sdhci_pci_runtime_pm_forbid(struct device *dev)
