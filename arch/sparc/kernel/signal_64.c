@@ -234,6 +234,17 @@ do_sigsegv:
 	goto out;
 }
 
+/* Checks if the fp is valid.  We always build rt signal frames which
+ * are 16-byte aligned, therefore we can always enforce that the
+ * restore frame has that property as well.
+ */
+static bool invalid_frame_pointer(void __user *fp)
+{
+	if (((unsigned long) fp) & 15)
+		return true;
+	return false;
+}
+
 struct rt_signal_frame {
 	struct sparc_stackf	ss;
 	siginfo_t		info;
@@ -246,8 +257,8 @@ struct rt_signal_frame {
 
 void do_rt_sigreturn(struct pt_regs *regs)
 {
+	unsigned long tpc, tnpc, tstate, ufp;
 	struct rt_signal_frame __user *sf;
-	unsigned long tpc, tnpc, tstate;
 	__siginfo_fpu_t __user *fpu_save;
 	__siginfo_rwin_t __user *rwin_save;
 	sigset_t set;
@@ -261,10 +272,16 @@ void do_rt_sigreturn(struct pt_regs *regs)
 		(regs->u_regs [UREG_FP] + STACK_BIAS);
 
 	/* 1. Make sure we are not getting garbage from the user */
-	if (((unsigned long) sf) & 3)
+	if (invalid_frame_pointer(sf))
 		goto segv;
 
-	err = get_user(tpc, &sf->regs.tpc);
+	if (get_user(ufp, &sf->regs.u_regs[UREG_FP]))
+		goto segv;
+
+	if ((ufp + STACK_BIAS) & 0x7)
+		goto segv;
+
+	err = __get_user(tpc, &sf->regs.tpc);
 	err |= __get_user(tnpc, &sf->regs.tnpc);
 	if (test_thread_flag(TIF_32BIT)) {
 		tpc &= 0xffffffff;
@@ -306,14 +323,6 @@ void do_rt_sigreturn(struct pt_regs *regs)
 	return;
 segv:
 	force_sig(SIGSEGV, current);
-}
-
-/* Checks if the fp is valid */
-static int invalid_frame_pointer(void __user *fp)
-{
-	if (((unsigned long) fp) & 15)
-		return 1;
-	return 0;
 }
 
 static inline void __user *get_sigframe(struct ksignal *ksig, struct pt_regs *regs, unsigned long framesize)

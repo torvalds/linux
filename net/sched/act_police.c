@@ -239,6 +239,8 @@ override:
 	police->tcfp_t_c = ktime_get_ns();
 	police->tcf_index = parm->index ? parm->index :
 		tcf_hash_new_index(tn);
+	police->tcf_tm.install = jiffies;
+	police->tcf_tm.lastuse = jiffies;
 	h = tcf_hash(police->tcf_index, POL_TAB_MASK);
 	spin_lock_bh(&hinfo->lock);
 	hlist_add_head(&police->tcf_head, &hinfo->htab[h]);
@@ -268,6 +270,7 @@ static int tcf_act_police(struct sk_buff *skb, const struct tc_action *a,
 	spin_lock(&police->tcf_lock);
 
 	bstats_update(&police->tcf_bstats, skb);
+	tcf_lastuse_update(&police->tcf_tm);
 
 	if (police->tcfp_ewma_rate &&
 	    police->tcf_rate_est.bps >= police->tcfp_ewma_rate) {
@@ -327,6 +330,7 @@ tcf_act_police_dump(struct sk_buff *skb, struct tc_action *a, int bind, int ref)
 		.refcnt = police->tcf_refcnt - ref,
 		.bindcnt = police->tcf_bindcnt - bind,
 	};
+	struct tcf_t t;
 
 	if (police->rate_present)
 		psched_ratecfg_getrate(&opt.rate, &police->rate);
@@ -340,6 +344,13 @@ tcf_act_police_dump(struct sk_buff *skb, struct tc_action *a, int bind, int ref)
 	if (police->tcfp_ewma_rate &&
 	    nla_put_u32(skb, TCA_POLICE_AVRATE, police->tcfp_ewma_rate))
 		goto nla_put_failure;
+
+	t.install = jiffies_to_clock_t(jiffies - police->tcf_tm.install);
+	t.lastuse = jiffies_to_clock_t(jiffies - police->tcf_tm.lastuse);
+	t.expires = jiffies_to_clock_t(police->tcf_tm.expires);
+	if (nla_put_64bit(skb, TCA_POLICE_TM, sizeof(t), &t, TCA_POLICE_PAD))
+		goto nla_put_failure;
+
 	return skb->len;
 
 nla_put_failure:

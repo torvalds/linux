@@ -20,6 +20,7 @@
 #define RN5T618_OTPVER			0x01
 #define RN5T618_IODAC			0x02
 #define RN5T618_VINDAC			0x03
+#define RN5T618_OUT32KEN		0x05
 #define RN5T618_CPUCNT			0x06
 #define RN5T618_PSWR			0x07
 #define RN5T618_PONHIS			0x09
@@ -38,6 +39,7 @@
 #define RN5T618_DC1_SLOT		0x16
 #define RN5T618_DC2_SLOT		0x17
 #define RN5T618_DC3_SLOT		0x18
+#define RN5T618_DC4_SLOT		0x19
 #define RN5T618_LDO1_SLOT		0x1b
 #define RN5T618_LDO2_SLOT		0x1c
 #define RN5T618_LDO3_SLOT		0x1d
@@ -54,12 +56,16 @@
 #define RN5T618_DC2CTL2			0x2f
 #define RN5T618_DC3CTL			0x30
 #define RN5T618_DC3CTL2			0x31
+#define RN5T618_DC4CTL			0x32
+#define RN5T618_DC4CTL2			0x33
 #define RN5T618_DC1DAC			0x36
 #define RN5T618_DC2DAC			0x37
 #define RN5T618_DC3DAC			0x38
+#define RN5T618_DC4DAC			0x39
 #define RN5T618_DC1DAC_SLP		0x3b
 #define RN5T618_DC2DAC_SLP		0x3c
 #define RN5T618_DC3DAC_SLP		0x3d
+#define RN5T618_DC4DAC_SLP		0x3e
 #define RN5T618_DCIREN			0x40
 #define RN5T618_DCIRQ			0x41
 #define RN5T618_DCIRMON			0x42
@@ -211,6 +217,7 @@ enum {
 	RN5T618_DCDC1,
 	RN5T618_DCDC2,
 	RN5T618_DCDC3,
+	RN5T618_DCDC4,
 	RN5T618_LDO1,
 	RN5T618_LDO2,
 	RN5T618_LDO3,
@@ -221,8 +228,14 @@ enum {
 	RN5T618_REG_NUM,
 };
 
+enum {
+	RN5T567 = 0,
+	RN5T618,
+};
+
 struct rn5t618 {
 	struct regmap *regmap;
+	long variant;
 };
 
 #endif /* __LINUX_MFD_RN5T618_H */

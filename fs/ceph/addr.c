@@ -276,8 +276,10 @@ static void finish_read(struct ceph_osd_request *req)
 	for (i = 0; i < num_pages; i++) {
 		struct page *page = osd_data->pages[i];
 
-		if (rc < 0 && rc != -ENOENT)
+		if (rc < 0 && rc != -ENOENT) {
+			ceph_fscache_readpage_cancel(inode, page);
 			goto unlock;
+		}
 		if (bytes < (int)PAGE_SIZE) {
 			/* zero (remainder of) page */
 			int s = bytes < 0 ? 0 : bytes;
@@ -534,8 +536,6 @@ static int writepage_nounlock(struct page *page, struct writeback_control *wbc)
 	if (writeback_stat >
 	    CONGESTION_ON_THRESH(fsc->mount_options->congestion_kb))
 		set_bdi_congested(&fsc->backing_dev_info, BLK_RW_ASYNC);
-
-	ceph_readpage_to_fscache(inode, page);
 
 	set_page_writeback(page);
 	err = ceph_osdc_writepages(osdc, ceph_vino(inode),
