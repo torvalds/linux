@@ -906,12 +906,12 @@ static void sdhci_set_transfer_mode(struct sdhci_host *host,
 		 * If we are sending CMD23, CMD12 never gets sent
 		 * on successful completion (so no Auto-CMD12).
 		 */
-		if (!host->mrq->sbc && (host->flags & SDHCI_AUTO_CMD12) &&
+		if (!cmd->mrq->sbc && (host->flags & SDHCI_AUTO_CMD12) &&
 		    (cmd->opcode != SD_IO_RW_EXTENDED))
 			mode |= SDHCI_TRNS_AUTO_CMD12;
-		else if (host->mrq->sbc && (host->flags & SDHCI_AUTO_CMD23)) {
+		else if (cmd->mrq->sbc && (host->flags & SDHCI_AUTO_CMD23)) {
 			mode |= SDHCI_TRNS_AUTO_CMD23;
-			sdhci_writel(host, host->mrq->sbc->arg, SDHCI_ARGUMENT2);
+			sdhci_writel(host, cmd->mrq->sbc->arg, SDHCI_ARGUMENT2);
 		}
 	}
 
@@ -954,7 +954,7 @@ static void sdhci_finish_data(struct sdhci_host *host)
 	 */
 	if (data->stop &&
 	    (data->error ||
-	     !host->mrq->sbc)) {
+	     !data->mrq->sbc)) {
 
 		/*
 		 * The controller needs a reset of internal state machines
@@ -990,7 +990,7 @@ void sdhci_send_command(struct sdhci_host *host, struct mmc_command *cmd)
 
 	/* We shouldn't wait for data inihibit for stop commands, even
 	   though they might use busy signaling */
-	if (host->mrq->data && (cmd == host->mrq->data->stop))
+	if (cmd->mrq->data && (cmd == cmd->mrq->data->stop))
 		mask &= ~SDHCI_DATA_INHIBIT;
 
 	while (sdhci_readl(host, SDHCI_PRESENT_STATE) & mask) {
@@ -1100,8 +1100,8 @@ static void sdhci_finish_command(struct sdhci_host *host)
 	}
 
 	/* Finished CMD23, now send actual command. */
-	if (cmd == host->mrq->sbc) {
-		sdhci_send_command(host, host->mrq->cmd);
+	if (cmd == cmd->mrq->sbc) {
+		sdhci_send_command(host, cmd->mrq->cmd);
 	} else {
 
 		/* Processed actual command. */
@@ -1408,7 +1408,7 @@ static void sdhci_request(struct mmc_host *mmc, struct mmc_request *mrq)
 	host->mrq = mrq;
 
 	if (!present || host->flags & SDHCI_DEVICE_DEAD) {
-		host->mrq->cmd->error = -ENOMEDIUM;
+		mrq->cmd->error = -ENOMEDIUM;
 		tasklet_schedule(&host->finish_tasklet);
 	} else {
 		if (mrq->sbc && !(host->flags & SDHCI_AUTO_CMD23))
