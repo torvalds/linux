@@ -239,16 +239,14 @@ static void alloc_init_pud(pgd_t *pgd, unsigned long addr, unsigned long end,
 	pud_clear_fixmap();
 }
 
-/*
- * Create the page directory entries and any necessary page tables for the
- * mapping specified by 'md'.
- */
-static void init_pgd(pgd_t *pgd, phys_addr_t phys, unsigned long virt,
-				    phys_addr_t size, pgprot_t prot,
-				    phys_addr_t (*pgtable_alloc)(void),
-				    bool allow_block_mappings)
+static void __create_pgd_mapping(pgd_t *pgdir, phys_addr_t phys,
+				 unsigned long virt, phys_addr_t size,
+				 pgprot_t prot,
+				 phys_addr_t (*pgtable_alloc)(void),
+				 bool allow_block_mappings)
 {
 	unsigned long addr, length, end, next;
+	pgd_t *pgd = pgd_offset_raw(pgdir, virt);
 
 	/*
 	 * If the virtual and physical address don't have the same offset
@@ -278,16 +276,6 @@ static phys_addr_t late_pgtable_alloc(void)
 	/* Ensure the zeroed page is visible to the page table walker */
 	dsb(ishst);
 	return __pa(ptr);
-}
-
-static void __create_pgd_mapping(pgd_t *pgdir, phys_addr_t phys,
-				 unsigned long virt, phys_addr_t size,
-				 pgprot_t prot,
-				 phys_addr_t (*alloc)(void),
-				 bool allow_block_mappings)
-{
-	init_pgd(pgd_offset_raw(pgdir, virt), phys, virt, size, prot, alloc,
-		 allow_block_mappings);
 }
 
 /*
