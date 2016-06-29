@@ -196,8 +196,7 @@ rpcrdma_tail_pullup(struct xdr_buf *buf)
  * MR when they can.
  */
 static int
-rpcrdma_convert_kvec(struct kvec *vec, struct rpcrdma_mr_seg *seg,
-		     int n, int nsegs)
+rpcrdma_convert_kvec(struct kvec *vec, struct rpcrdma_mr_seg *seg, int n)
 {
 	size_t page_offset;
 	u32 remaining;
@@ -206,7 +205,7 @@ rpcrdma_convert_kvec(struct kvec *vec, struct rpcrdma_mr_seg *seg,
 	base = vec->iov_base;
 	page_offset = offset_in_page(base);
 	remaining = vec->iov_len;
-	while (remaining && n < nsegs) {
+	while (remaining && n < RPCRDMA_MAX_SEGS) {
 		seg[n].mr_page = NULL;
 		seg[n].mr_offset = base;
 		seg[n].mr_len = min_t(u32, PAGE_SIZE - page_offset, remaining);
@@ -230,23 +229,23 @@ rpcrdma_convert_kvec(struct kvec *vec, struct rpcrdma_mr_seg *seg,
 
 static int
 rpcrdma_convert_iovs(struct xdr_buf *xdrbuf, unsigned int pos,
-	enum rpcrdma_chunktype type, struct rpcrdma_mr_seg *seg, int nsegs)
+	enum rpcrdma_chunktype type, struct rpcrdma_mr_seg *seg)
 {
-	int len, n = 0, p;
-	int page_base;
+	int len, n, p, page_base;
 	struct page **ppages;
 
+	n = 0;
 	if (pos == 0) {
-		n = rpcrdma_convert_kvec(&xdrbuf->head[0], seg, n, nsegs);
-		if (n == nsegs)
-			return -EIO;
+		n = rpcrdma_convert_kvec(&xdrbuf->head[0], seg, n);
+		if (n == RPCRDMA_MAX_SEGS)
+			goto out_overflow;
 	}
 
 	len = xdrbuf->page_len;
 	ppages = xdrbuf->pages + (xdrbuf->page_base >> PAGE_SHIFT);
 	page_base = xdrbuf->page_base & ~PAGE_MASK;
 	p = 0;
-	while (len && n < nsegs) {
+	while (len && n < RPCRDMA_MAX_SEGS) {
 		if (!ppages[p]) {
 			/* alloc the pagelist for receiving buffer */
 			ppages[p] = alloc_page(GFP_ATOMIC);
@@ -257,7 +256,7 @@ rpcrdma_convert_iovs(struct xdr_buf *xdrbuf, unsigned int pos,
 		seg[n].mr_offset = (void *)(unsigned long) page_base;
 		seg[n].mr_len = min_t(u32, PAGE_SIZE - page_base, len);
 		if (seg[n].mr_len > PAGE_SIZE)
-			return -EIO;
+			goto out_overflow;
 		len -= seg[n].mr_len;
 		++n;
 		++p;
@@ -265,8 +264,8 @@ rpcrdma_convert_iovs(struct xdr_buf *xdrbuf, unsigned int pos,
 	}
 
 	/* Message overflows the seg array */
-	if (len && n == nsegs)
-		return -EIO;
+	if (len && n == RPCRDMA_MAX_SEGS)
+		goto out_overflow;
 
 	/* When encoding the read list, the tail is always sent inline */
 	if (type == rpcrdma_readch)
@@ -277,12 +276,16 @@ rpcrdma_convert_iovs(struct xdr_buf *xdrbuf, unsigned int pos,
 		 * xdr pad bytes, saving the server an RDMA operation. */
 		if (xdrbuf->tail[0].iov_len < 4 && xprt_rdma_pad_optimize)
 			return n;
-		n = rpcrdma_convert_kvec(&xdrbuf->tail[0], seg, n, nsegs);
-		if (n == nsegs)
-			return -EIO;
+		n = rpcrdma_convert_kvec(&xdrbuf->tail[0], seg, n);
+		if (n == RPCRDMA_MAX_SEGS)
+			goto out_overflow;
 	}
 
 	return n;
+
+out_overflow:
+	pr_err("rpcrdma: segment array overflow\n");
+	return -EIO;
 }
 
 static inline __be32 *
@@ -310,7 +313,7 @@ rpcrdma_encode_read_list(struct rpcrdma_xprt *r_xprt,
 			 struct rpcrdma_req *req, struct rpc_rqst *rqst,
 			 __be32 *iptr, enum rpcrdma_chunktype rtype)
 {
-	struct rpcrdma_mr_seg *seg = req->rl_nextseg;
+	struct rpcrdma_mr_seg *seg;
 	struct rpcrdma_mw *mw;
 	unsigned int pos;
 	int n, nsegs;
@@ -323,8 +326,8 @@ rpcrdma_encode_read_list(struct rpcrdma_xprt *r_xprt,
 	pos = rqst->rq_snd_buf.head[0].iov_len;
 	if (rtype == rpcrdma_areadch)
 		pos = 0;
-	nsegs = rpcrdma_convert_iovs(&rqst->rq_snd_buf, pos, rtype, seg,
-				     RPCRDMA_MAX_SEGS - req->rl_nchunks);
+	seg = req->rl_segments;
+	nsegs = rpcrdma_convert_iovs(&rqst->rq_snd_buf, pos, rtype, seg);
 	if (nsegs < 0)
 		return ERR_PTR(nsegs);
 
@@ -349,11 +352,9 @@ rpcrdma_encode_read_list(struct rpcrdma_xprt *r_xprt,
 			mw->mw_handle, n < nsegs ? "more" : "last");
 
 		r_xprt->rx_stats.read_chunk_count++;
-		req->rl_nchunks++;
 		seg += n;
 		nsegs -= n;
 	} while (nsegs);
-	req->rl_nextseg = seg;
 
 	/* Finish Read list */
 	*iptr++ = xdr_zero;	/* Next item not present */
@@ -377,7 +378,7 @@ rpcrdma_encode_write_list(struct rpcrdma_xprt *r_xprt, struct rpcrdma_req *req,
 			  struct rpc_rqst *rqst, __be32 *iptr,
 			  enum rpcrdma_chunktype wtype)
 {
-	struct rpcrdma_mr_seg *seg = req->rl_nextseg;
+	struct rpcrdma_mr_seg *seg;
 	struct rpcrdma_mw *mw;
 	int n, nsegs, nchunks;
 	__be32 *segcount;
@@ -387,10 +388,10 @@ rpcrdma_encode_write_list(struct rpcrdma_xprt *r_xprt, struct rpcrdma_req *req,
 		return iptr;
 	}
 
+	seg = req->rl_segments;
 	nsegs = rpcrdma_convert_iovs(&rqst->rq_rcv_buf,
 				     rqst->rq_rcv_buf.head[0].iov_len,
-				     wtype, seg,
-				     RPCRDMA_MAX_SEGS - req->rl_nchunks);
+				     wtype, seg);
 	if (nsegs < 0)
 		return ERR_PTR(nsegs);
 
@@ -414,12 +415,10 @@ rpcrdma_encode_write_list(struct rpcrdma_xprt *r_xprt, struct rpcrdma_req *req,
 
 		r_xprt->rx_stats.write_chunk_count++;
 		r_xprt->rx_stats.total_rdma_request += seg->mr_len;
-		req->rl_nchunks++;
 		nchunks++;
 		seg   += n;
 		nsegs -= n;
 	} while (nsegs);
-	req->rl_nextseg = seg;
 
 	/* Update count of segments in this Write chunk */
 	*segcount = cpu_to_be32(nchunks);
@@ -446,7 +445,7 @@ rpcrdma_encode_reply_chunk(struct rpcrdma_xprt *r_xprt,
 			   struct rpcrdma_req *req, struct rpc_rqst *rqst,
 			   __be32 *iptr, enum rpcrdma_chunktype wtype)
 {
-	struct rpcrdma_mr_seg *seg = req->rl_nextseg;
+	struct rpcrdma_mr_seg *seg;
 	struct rpcrdma_mw *mw;
 	int n, nsegs, nchunks;
 	__be32 *segcount;
@@ -456,8 +455,8 @@ rpcrdma_encode_reply_chunk(struct rpcrdma_xprt *r_xprt,
 		return iptr;
 	}
 
-	nsegs = rpcrdma_convert_iovs(&rqst->rq_rcv_buf, 0, wtype, seg,
-				     RPCRDMA_MAX_SEGS - req->rl_nchunks);
+	seg = req->rl_segments;
+	nsegs = rpcrdma_convert_iovs(&rqst->rq_rcv_buf, 0, wtype, seg);
 	if (nsegs < 0)
 		return ERR_PTR(nsegs);
 
@@ -481,12 +480,10 @@ rpcrdma_encode_reply_chunk(struct rpcrdma_xprt *r_xprt,
 
 		r_xprt->rx_stats.reply_chunk_count++;
 		r_xprt->rx_stats.total_rdma_request += seg->mr_len;
-		req->rl_nchunks++;
 		nchunks++;
 		seg   += n;
 		nsegs -= n;
 	} while (nsegs);
-	req->rl_nextseg = seg;
 
 	/* Update count of segments in the Reply chunk */
 	*segcount = cpu_to_be32(nchunks);
@@ -656,8 +653,6 @@ rpcrdma_marshal_req(struct rpc_rqst *rqst)
 	 * send a Call message with a Position Zero Read chunk and a
 	 * regular Read chunk at the same time.
 	 */
-	req->rl_nchunks = 0;
-	req->rl_nextseg = req->rl_segments;
 	iptr = headerp->rm_body.rm_chunks;
 	iptr = rpcrdma_encode_read_list(r_xprt, req, rqst, iptr, rtype);
 	if (IS_ERR(iptr))

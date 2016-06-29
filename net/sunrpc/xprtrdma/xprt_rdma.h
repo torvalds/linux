@@ -171,22 +171,13 @@ rdmab_to_msg(struct rpcrdma_regbuf *rb)
  *   o recv buffer (posted to provider)
  *   o ib_sge (also donated to provider)
  *   o status of reply (length, success or not)
- *   o bookkeeping state to get run by tasklet (list, etc)
+ *   o bookkeeping state to get run by reply handler (list, etc)
  *
- * These are allocated during initialization, per-transport instance;
- * however, the tasklet execution list itself is global, as it should
- * always be pretty short.
+ * These are allocated during initialization, per-transport instance.
  *
  * N of these are associated with a transport instance, and stored in
  * struct rpcrdma_buffer. N is the max number of outstanding requests.
  */
-
-#define RPCRDMA_MAX_DATA_SEGS	((1 * 1024 * 1024) / PAGE_SIZE)
-
-/* data segments + head/tail for Call + head/tail for Reply */
-#define RPCRDMA_MAX_SEGS 	(RPCRDMA_MAX_DATA_SEGS + 4)
-
-struct rpcrdma_buffer;
 
 struct rpcrdma_rep {
 	struct ib_cqe		rr_cqe;
@@ -267,12 +258,17 @@ struct rpcrdma_mw {
  * of iovs for send operations. The reason is that the iovs passed to
  * ib_post_{send,recv} must not be modified until the work request
  * completes.
- *
- * NOTES:
- *   o RPCRDMA_MAX_SEGS is the max number of addressible chunk elements we
- *     marshal. The number needed varies depending on the iov lists that
- *     are passed to us and the memory registration mode we are in.
  */
+
+/* Maximum number of page-sized "segments" per chunk list to be
+ * registered or invalidated. Must handle a Reply chunk:
+ */
+enum {
+	RPCRDMA_MAX_IOV_SEGS	= 3,
+	RPCRDMA_MAX_DATA_SEGS	= ((1 * 1024 * 1024) / PAGE_SIZE) + 1,
+	RPCRDMA_MAX_SEGS	= RPCRDMA_MAX_DATA_SEGS +
+				  RPCRDMA_MAX_IOV_SEGS,
+};
 
 struct rpcrdma_mr_seg {		/* chunk descriptors */
 	u32		mr_len;		/* length of chunk or segment */
@@ -282,10 +278,10 @@ struct rpcrdma_mr_seg {		/* chunk descriptors */
 
 #define RPCRDMA_MAX_IOVS	(2)
 
+struct rpcrdma_buffer;
 struct rpcrdma_req {
 	struct list_head	rl_free;
 	unsigned int		rl_niovs;
-	unsigned int		rl_nchunks;
 	unsigned int		rl_connect_cookie;
 	struct rpc_task		*rl_task;
 	struct rpcrdma_buffer	*rl_buffer;
@@ -293,13 +289,13 @@ struct rpcrdma_req {
 	struct ib_sge		rl_send_iov[RPCRDMA_MAX_IOVS];
 	struct rpcrdma_regbuf	*rl_rdmabuf;
 	struct rpcrdma_regbuf	*rl_sendbuf;
-	struct list_head	rl_registered;	/* registered segments */
-	struct rpcrdma_mr_seg	rl_segments[RPCRDMA_MAX_SEGS];
-	struct rpcrdma_mr_seg	*rl_nextseg;
 
 	struct ib_cqe		rl_cqe;
 	struct list_head	rl_all;
 	bool			rl_backchannel;
+
+	struct list_head	rl_registered;	/* registered segments */
+	struct rpcrdma_mr_seg	rl_segments[RPCRDMA_MAX_SEGS];
 };
 
 static inline struct rpcrdma_req *
