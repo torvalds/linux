@@ -30,7 +30,7 @@ else
 	NPROC="$J"
 fi
 
-FLAGS="--very-quiet $SPFLAGS"
+FLAGS="--very-quiet"
 
 # spatch only allows include directories with the syntax "-I include"
 # while gcc also allows "-Iinclude" and "-include include"
@@ -105,6 +105,9 @@ kill_running() {
 		kill ${SPATCH_PID[$i]} 2>/dev/null
 	done
 }
+
+# You can override heuristics with SPFLAGS, these must always go last
+OPTIONS="$OPTIONS $SPFLAGS"
 
 coccinelle () {
     COCCI="$1"

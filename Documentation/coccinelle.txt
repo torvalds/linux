@@ -146,7 +146,8 @@ MODE variable explained above.
 ~~~~~~~~~~~~~~~~~~
 
 Additional flags can be passed to spatch through the SPFLAGS
-variable.
+variable. This works as Coccinelle respects the last flags
+given to it when options are in conflict.
 
     make SPFLAGS=--use-glimpse coccicheck
     make SPFLAGS=--use-idutils coccicheck
