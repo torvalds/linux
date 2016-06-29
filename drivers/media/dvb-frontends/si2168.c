@@ -745,7 +745,8 @@ MODULE_DEVICE_TABLE(i2c, si2168_id_table);
 
 static struct i2c_driver si2168_driver = {
 	.driver = {
-		.name	= "si2168",
+		.name                = "si2168",
+		.suppress_bind_attrs = true,
 	},
 	.probe		= si2168_probe,
 	.remove		= si2168_remove,
