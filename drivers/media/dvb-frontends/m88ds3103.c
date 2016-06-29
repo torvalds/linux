@@ -605,9 +605,6 @@ static int m88ds3103_set_frontend(struct dvb_frontend *fe)
 
 	s32tmp = 0x10000 * (tuner_frequency - c->frequency);
 	s32tmp = DIV_ROUND_CLOSEST(s32tmp, dev->mclk_khz);
-	if (s32tmp < 0)
-		s32tmp += 0x10000;
-
 	buf[0] = (s32tmp >> 0) & 0xff;
 	buf[1] = (s32tmp >> 8) & 0xff;
 	ret = regmap_bulk_write(dev->regmap, 0x5e, buf, 2);
