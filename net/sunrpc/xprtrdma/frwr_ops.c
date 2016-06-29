@@ -438,6 +438,7 @@ frwr_op_map(struct rpcrdma_xprt *r_xprt, struct rpcrdma_mr_seg *seg,
 out_dmamap_err:
 	pr_err("rpcrdma: failed to dma map sg %p sg_nents %u\n",
 	       mw->mw_sg, mw->mw_nents);
+	rpcrdma_defer_mr_recovery(mw);
 	return -ENOMEM;
 
 out_mapmr_err:
