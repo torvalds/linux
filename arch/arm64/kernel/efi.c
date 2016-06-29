@@ -65,6 +65,20 @@ int __init efi_create_mapping(struct mm_struct *mm, efi_memory_desc_t *md)
 	bool allow_block_mappings = (md->type != EFI_RUNTIME_SERVICES_CODE &&
 				     md->type != EFI_RUNTIME_SERVICES_DATA);
 
+	if (!PAGE_ALIGNED(md->phys_addr) ||
+	    !PAGE_ALIGNED(md->num_pages << EFI_PAGE_SHIFT)) {
+		/*
+		 * If the end address of this region is not aligned to page
+		 * size, the mapping is rounded up, and may end up sharing a
+		 * page frame with the next UEFI memory region. If we create
+		 * a block entry now, we may need to split it again when mapping
+		 * the next region, and support for that is going to be removed
+		 * from the MMU routines. So avoid block mappings altogether in
+		 * that case.
+		 */
+		allow_block_mappings = false;
+	}
+
 	create_pgd_mapping(mm, md->phys_addr, md->virt_addr,
 			   md->num_pages << EFI_PAGE_SHIFT,
 			   __pgprot(prot_val | PTE_NG), allow_block_mappings);
