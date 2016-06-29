@@ -232,8 +232,8 @@ struct rpcrdma_frmr {
 };
 
 struct rpcrdma_fmr {
-	struct ib_fmr		*fmr;
-	u64			*physaddrs;
+	struct ib_fmr		*fm_mr;
+	u64			*fm_physaddrs;
 };
 
 struct rpcrdma_mw {
