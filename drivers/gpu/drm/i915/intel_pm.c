@@ -4973,14 +4973,15 @@ static void intel_print_rc6_info(struct drm_i915_private *dev_priv, u32 mode)
 			mode = 0;
 	}
 	if (HAS_RC6p(dev_priv))
-		DRM_DEBUG_KMS("Enabling RC6 states: RC6 %s RC6p %s RC6pp %s\n",
-			      onoff(mode & GEN6_RC_CTL_RC6_ENABLE),
-			      onoff(mode & GEN6_RC_CTL_RC6p_ENABLE),
-			      onoff(mode & GEN6_RC_CTL_RC6pp_ENABLE));
+		DRM_DEBUG_DRIVER("Enabling RC6 states: "
+				 "RC6 %s RC6p %s RC6pp %s\n",
+				 onoff(mode & GEN6_RC_CTL_RC6_ENABLE),
+				 onoff(mode & GEN6_RC_CTL_RC6p_ENABLE),
+				 onoff(mode & GEN6_RC_CTL_RC6pp_ENABLE));
 
 	else
-		DRM_DEBUG_KMS("Enabling RC6 states: RC6 %s\n",
-			      onoff(mode & GEN6_RC_CTL_RC6_ENABLE));
+		DRM_DEBUG_DRIVER("Enabling RC6 states: RC6 %s\n",
+				 onoff(mode & GEN6_RC_CTL_RC6_ENABLE));
 }
 
 static bool bxt_check_bios_rc6_setup(struct drm_i915_private *dev_priv)
@@ -4990,7 +4991,7 @@ static bool bxt_check_bios_rc6_setup(struct drm_i915_private *dev_priv)
 	unsigned long rc6_ctx_base;
 
 	if (!(I915_READ(RC6_LOCATION) & RC6_CTX_IN_DRAM)) {
-		DRM_DEBUG_KMS("RC6 Base location not set properly.\n");
+		DRM_DEBUG_DRIVER("RC6 Base location not set properly.\n");
 		enable_rc6 = false;
 	}
 
@@ -5002,7 +5003,7 @@ static bool bxt_check_bios_rc6_setup(struct drm_i915_private *dev_priv)
 	if (!((rc6_ctx_base >= ggtt->stolen_reserved_base) &&
 	      (rc6_ctx_base + PAGE_SIZE <= ggtt->stolen_reserved_base +
 					ggtt->stolen_reserved_size))) {
-		DRM_DEBUG_KMS("RC6 Base address not as expected.\n");
+		DRM_DEBUG_DRIVER("RC6 Base address not as expected.\n");
 		enable_rc6 = false;
 	}
 
@@ -5010,7 +5011,7 @@ static bool bxt_check_bios_rc6_setup(struct drm_i915_private *dev_priv)
 	      ((I915_READ(PWRCTX_MAXCNT_VCSUNIT0) & IDLE_TIME_MASK) > 1) &&
 	      ((I915_READ(PWRCTX_MAXCNT_BCSUNIT) & IDLE_TIME_MASK) > 1) &&
 	      ((I915_READ(PWRCTX_MAXCNT_VECSUNIT) & IDLE_TIME_MASK) > 1))) {
-		DRM_DEBUG_KMS("Engine Idle wait time not set properly.\n");
+		DRM_DEBUG_DRIVER("Engine Idle wait time not set properly.\n");
 		enable_rc6 = false;
 	}
 
@@ -5018,7 +5019,7 @@ static bool bxt_check_bios_rc6_setup(struct drm_i915_private *dev_priv)
 					    GEN6_RC_CTL_HW_ENABLE)) &&
 	    ((I915_READ(GEN6_RC_CONTROL) & GEN6_RC_CTL_HW_ENABLE) ||
 	     !(I915_READ(GEN6_RC_STATE) & RC6_STATE))) {
-		DRM_DEBUG_KMS("HW/SW RC6 is not enabled by BIOS.\n");
+		DRM_DEBUG_DRIVER("HW/SW RC6 is not enabled by BIOS.\n");
 		enable_rc6 = false;
 	}
 
@@ -5050,8 +5051,9 @@ int sanitize_rc6_option(struct drm_i915_private *dev_priv, int enable_rc6)
 			mask = INTEL_RC6_ENABLE;
 
 		if ((enable_rc6 & mask) != enable_rc6)
-			DRM_DEBUG_KMS("Adjusting RC6 mask to %d (requested %d, valid %d)\n",
-				      enable_rc6 & mask, enable_rc6, mask);
+			DRM_DEBUG_DRIVER("Adjusting RC6 mask to %d "
+					 "(requested %d, valid %d)\n",
+					 enable_rc6 & mask, enable_rc6, mask);
 
 		return enable_rc6 & mask;
 	}
