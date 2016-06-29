@@ -2250,6 +2250,9 @@ mwifiex_cfg80211_connect(struct wiphy *wiphy, struct net_device *dev,
 		return -EALREADY;
 	}
 
+	if (priv->scan_block)
+		priv->scan_block = false;
+
 	if (adapter->surprise_removed || adapter->is_cmd_timedout) {
 		mwifiex_dbg(adapter, ERROR,
 			    "%s: Ignore connection.\t"
@@ -2467,6 +2470,9 @@ mwifiex_cfg80211_scan(struct wiphy *wiphy,
 			    "cmd: Scan already in process..\n");
 		return -EBUSY;
 	}
+
+	if (!priv->wdev.current_bss && priv->scan_block)
+		priv->scan_block = false;
 
 	if (!mwifiex_stop_bg_scan(priv))
 		cfg80211_sched_scan_stopped_rtnl(priv->wdev.wiphy);
