@@ -855,6 +855,7 @@ static int amdgpu_cs_submit(struct amdgpu_cs_parser *p,
 	p->fence = fence_get(fence);
 	cs->out.handle = amdgpu_ctx_add_fence(p->ctx, ring, fence);
 	job->uf_sequence = cs->out.handle;
+	amdgpu_job_free_resources(job);
 
 	trace_amdgpu_cs_ioctl(job);
 	amd_sched_entity_push_job(&job->base);

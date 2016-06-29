@@ -79,7 +79,7 @@ int amdgpu_job_alloc_with_ib(struct amdgpu_device *adev, unsigned size,
 	return r;
 }
 
-static void amdgpu_job_free_resources(struct amdgpu_job *job)
+void amdgpu_job_free_resources(struct amdgpu_job *job)
 {
 	struct fence *f;
 	unsigned i;
@@ -127,6 +127,7 @@ int amdgpu_job_submit(struct amdgpu_job *job, struct amdgpu_ring *ring,
 	job->owner = owner;
 	job->ctx = entity->fence_context;
 	*f = fence_get(fence);
+	amdgpu_job_free_resources(job);
 	amd_sched_entity_push_job(&job->base);
 
 	return 0;
@@ -179,7 +180,6 @@ static struct fence *amdgpu_job_run(struct amd_sched_job *sched_job)
 
 err:
 	job->fence = fence;
-	amdgpu_job_free_resources(job);
 	return fence;
 }
 
