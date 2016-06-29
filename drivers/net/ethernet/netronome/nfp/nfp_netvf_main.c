@@ -124,11 +124,11 @@ static int nfp_netvf_pci_probe(struct pci_dev *pdev,
 	 * first NFP_NET_CFG_BAR_SZ of the BAR.  This keeps the code
 	 * the identical for PF and VF drivers.
 	 */
-	ctrl_bar = ioremap_nocache(pci_resource_start(pdev, NFP_NET_CRTL_BAR),
+	ctrl_bar = ioremap_nocache(pci_resource_start(pdev, NFP_NET_CTRL_BAR),
 				   NFP_NET_CFG_BAR_SZ);
 	if (!ctrl_bar) {
 		dev_err(&pdev->dev,
-			"Failed to map resource %d\n", NFP_NET_CRTL_BAR);
+			"Failed to map resource %d\n", NFP_NET_CTRL_BAR);
 		err = -EIO;
 		goto err_pci_regions;
 	}
