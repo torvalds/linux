@@ -159,7 +159,7 @@ static char* cp_type[] = {
 	"USERCOPY_KERNEL",
 };
 
-static struct jprobe lkdtm;
+static struct jprobe lkdtm_jprobe;
 
 static int lkdtm_parse_commandline(void);
 static void lkdtm_handler(void);
@@ -172,8 +172,8 @@ static int recur_count = -1;
 static int crash_count = DEFAULT_COUNT;
 static DEFINE_SPINLOCK(crash_count_lock);
 
-static enum cname cpoint = CN_INVALID;
-static enum ctype cptype = CT_NONE;
+static enum cname lkdtm_crashpoint = CN_INVALID;
+static enum ctype lkdtm_crashtype = CT_NONE;
 
 module_param(recur_count, int, 0644);
 MODULE_PARM_DESC(recur_count, " Recursion level for the stack overflow test");
@@ -300,8 +300,8 @@ static int lkdtm_parse_commandline(void)
 	if (!cpoint_type || !cpoint_name)
 		return -EINVAL;
 
-	cptype = parse_cp_type(cpoint_type, strlen(cpoint_type));
-	if (cptype == CT_NONE)
+	lkdtm_crashtype = parse_cp_type(cpoint_type, strlen(cpoint_type));
+	if (lkdtm_crashtype == CT_NONE)
 		return -EINVAL;
 
 	/* Refuse INVALID as a selectable crashpoint name. */
@@ -310,7 +310,7 @@ static int lkdtm_parse_commandline(void)
 
 	for (i = 0; i < ARRAY_SIZE(cp_name); i++) {
 		if (!strcmp(cpoint_name, cp_name[i])) {
-			cpoint = i;
+			lkdtm_crashpoint = i;
 			return 0;
 		}
 	}
@@ -448,7 +448,8 @@ static void lkdtm_handler(void)
 	spin_lock_irqsave(&crash_count_lock, flags);
 	crash_count--;
 	pr_info("Crash point %s of type %s hit, trigger in %d rounds\n",
-		cp_name_to_str(cpoint), cp_type_to_str(cptype), crash_count);
+		cp_name_to_str(lkdtm_crashpoint),
+		cp_type_to_str(lkdtm_crashtype), crash_count);
 
 	if (crash_count == 0) {
 		do_it = true;
@@ -457,53 +458,53 @@ static void lkdtm_handler(void)
 	spin_unlock_irqrestore(&crash_count_lock, flags);
 
 	if (do_it)
-		lkdtm_do_action(cptype);
+		lkdtm_do_action(lkdtm_crashtype);
 }
 
 static int lkdtm_register_cpoint(enum cname which)
 {
 	int ret;
 
-	cpoint = CN_INVALID;
-	if (lkdtm.entry != NULL)
-		unregister_jprobe(&lkdtm);
+	lkdtm_crashpoint = CN_INVALID;
+	if (lkdtm_jprobe.entry != NULL)
+		unregister_jprobe(&lkdtm_jprobe);
 
 	switch (which) {
 	case CN_DIRECT:
-		lkdtm_do_action(cptype);
+		lkdtm_do_action(lkdtm_crashtype);
 		return 0;
 	case CN_INT_HARDWARE_ENTRY:
-		lkdtm.kp.symbol_name = "do_IRQ";
-		lkdtm.entry = (kprobe_opcode_t*) jp_do_irq;
+		lkdtm_jprobe.kp.symbol_name = "do_IRQ";
+		lkdtm_jprobe.entry = (kprobe_opcode_t*) jp_do_irq;
 		break;
 	case CN_INT_HW_IRQ_EN:
-		lkdtm.kp.symbol_name = "handle_IRQ_event";
-		lkdtm.entry = (kprobe_opcode_t*) jp_handle_irq_event;
+		lkdtm_jprobe.kp.symbol_name = "handle_IRQ_event";
+		lkdtm_jprobe.entry = (kprobe_opcode_t*) jp_handle_irq_event;
 		break;
 	case CN_INT_TASKLET_ENTRY:
-		lkdtm.kp.symbol_name = "tasklet_action";
-		lkdtm.entry = (kprobe_opcode_t*) jp_tasklet_action;
+		lkdtm_jprobe.kp.symbol_name = "tasklet_action";
+		lkdtm_jprobe.entry = (kprobe_opcode_t*) jp_tasklet_action;
 		break;
 	case CN_FS_DEVRW:
-		lkdtm.kp.symbol_name = "ll_rw_block";
-		lkdtm.entry = (kprobe_opcode_t*) jp_ll_rw_block;
+		lkdtm_jprobe.kp.symbol_name = "ll_rw_block";
+		lkdtm_jprobe.entry = (kprobe_opcode_t*) jp_ll_rw_block;
 		break;
 	case CN_MEM_SWAPOUT:
-		lkdtm.kp.symbol_name = "shrink_inactive_list";
-		lkdtm.entry = (kprobe_opcode_t*) jp_shrink_inactive_list;
+		lkdtm_jprobe.kp.symbol_name = "shrink_inactive_list";
+		lkdtm_jprobe.entry = (kprobe_opcode_t*) jp_shrink_inactive_list;
 		break;
 	case CN_TIMERADD:
-		lkdtm.kp.symbol_name = "hrtimer_start";
-		lkdtm.entry = (kprobe_opcode_t*) jp_hrtimer_start;
+		lkdtm_jprobe.kp.symbol_name = "hrtimer_start";
+		lkdtm_jprobe.entry = (kprobe_opcode_t*) jp_hrtimer_start;
 		break;
 	case CN_SCSI_DISPATCH_CMD:
-		lkdtm.kp.symbol_name = "scsi_dispatch_cmd";
-		lkdtm.entry = (kprobe_opcode_t*) jp_scsi_dispatch_cmd;
+		lkdtm_jprobe.kp.symbol_name = "scsi_dispatch_cmd";
+		lkdtm_jprobe.entry = (kprobe_opcode_t*) jp_scsi_dispatch_cmd;
 		break;
 	case CN_IDE_CORE_CP:
 #ifdef CONFIG_IDE
-		lkdtm.kp.symbol_name = "generic_ide_ioctl";
-		lkdtm.entry = (kprobe_opcode_t*) jp_generic_ide_ioctl;
+		lkdtm_jprobe.kp.symbol_name = "generic_ide_ioctl";
+		lkdtm_jprobe.entry = (kprobe_opcode_t*) jp_generic_ide_ioctl;
 #else
 		pr_info("Crash point not available\n");
 		return -EINVAL;
@@ -514,10 +515,10 @@ static int lkdtm_register_cpoint(enum cname which)
 		return -EINVAL;
 	}
 
-	cpoint = which;
-	if ((ret = register_jprobe(&lkdtm)) < 0) {
+	lkdtm_crashpoint = which;
+	if ((ret = register_jprobe(&lkdtm_jprobe)) < 0) {
 		pr_info("Couldn't register jprobe\n");
-		cpoint = CN_INVALID;
+		lkdtm_crashpoint = CN_INVALID;
 	}
 
 	return ret;
@@ -543,10 +544,10 @@ static ssize_t do_register_entry(enum cname which, struct file *f,
 	buf[count] = '\0';
 	strim(buf);
 
-	cptype = parse_cp_type(buf, count);
+	lkdtm_crashtype = parse_cp_type(buf, count);
 	free_page((unsigned long) buf);
 
-	if (cptype == CT_NONE)
+	if (lkdtm_crashtype == CT_NONE)
 		return -EINVAL;
 
 	err = lkdtm_register_cpoint(which);
@@ -755,10 +756,10 @@ static int __init lkdtm_module_init(void)
 		goto out_err;
 	}
 
-	if (cpoint != CN_INVALID && cptype != CT_NONE) {
-		ret = lkdtm_register_cpoint(cpoint);
+	if (lkdtm_crashpoint != CN_INVALID && lkdtm_crashtype != CT_NONE) {
+		ret = lkdtm_register_cpoint(lkdtm_crashpoint);
 		if (ret < 0) {
-			pr_info("Invalid crash point %d\n", cpoint);
+			pr_info("Invalid crash point %d\n", lkdtm_crashpoint);
 			goto out_err;
 		}
 		pr_info("Crash point %s of type %s registered\n",
@@ -781,7 +782,7 @@ static void __exit lkdtm_module_exit(void)
 	/* Handle test-specific clean-up. */
 	lkdtm_usercopy_exit();
 
-	unregister_jprobe(&lkdtm);
+	unregister_jprobe(&lkdtm_jprobe);
 	pr_info("Crash point unregistered\n");
 }
 
