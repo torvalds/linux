@@ -129,7 +129,7 @@ static int dh_compute_value(struct kpp_request *req)
 	if (ret)
 		goto err_free_base;
 
-	ret = mpi_write_to_sgl(val, req->dst, &req->dst_len, &sign);
+	ret = mpi_write_to_sgl(val, req->dst, req->dst_len, &sign);
 	if (ret)
 		goto err_free_base;
 

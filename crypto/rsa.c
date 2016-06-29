@@ -108,7 +108,7 @@ static int rsa_enc(struct akcipher_request *req)
 	if (ret)
 		goto err_free_m;
 
-	ret = mpi_write_to_sgl(c, req->dst, &req->dst_len, &sign);
+	ret = mpi_write_to_sgl(c, req->dst, req->dst_len, &sign);
 	if (ret)
 		goto err_free_m;
 
@@ -147,7 +147,7 @@ static int rsa_dec(struct akcipher_request *req)
 	if (ret)
 		goto err_free_c;
 
-	ret = mpi_write_to_sgl(m, req->dst, &req->dst_len, &sign);
+	ret = mpi_write_to_sgl(m, req->dst, req->dst_len, &sign);
 	if (ret)
 		goto err_free_c;
 
@@ -185,7 +185,7 @@ static int rsa_sign(struct akcipher_request *req)
 	if (ret)
 		goto err_free_m;
 
-	ret = mpi_write_to_sgl(s, req->dst, &req->dst_len, &sign);
+	ret = mpi_write_to_sgl(s, req->dst, req->dst_len, &sign);
 	if (ret)
 		goto err_free_m;
 
@@ -226,7 +226,7 @@ static int rsa_verify(struct akcipher_request *req)
 	if (ret)
 		goto err_free_s;
 
-	ret = mpi_write_to_sgl(m, req->dst, &req->dst_len, &sign);
+	ret = mpi_write_to_sgl(m, req->dst, req->dst_len, &sign);
 	if (ret)
 		goto err_free_s;
 
