@@ -1054,21 +1054,24 @@ EXPORT_SYMBOL_GPL(sdhci_send_command);
 
 static void sdhci_finish_command(struct sdhci_host *host)
 {
+	struct mmc_command *cmd = host->cmd;
 	int i;
 
-	if (host->cmd->flags & MMC_RSP_PRESENT) {
-		if (host->cmd->flags & MMC_RSP_136) {
+	host->cmd = NULL;
+
+	if (cmd->flags & MMC_RSP_PRESENT) {
+		if (cmd->flags & MMC_RSP_136) {
 			/* CRC is stripped so we need to do some shifting. */
 			for (i = 0;i < 4;i++) {
-				host->cmd->resp[i] = sdhci_readl(host,
+				cmd->resp[i] = sdhci_readl(host,
 					SDHCI_RESPONSE + (3-i)*4) << 8;
 				if (i != 3)
-					host->cmd->resp[i] |=
+					cmd->resp[i] |=
 						sdhci_readb(host,
 						SDHCI_RESPONSE + (3-i)*4-1);
 			}
 		} else {
-			host->cmd->resp[0] = sdhci_readl(host, SDHCI_RESPONSE);
+			cmd->resp[0] = sdhci_readl(host, SDHCI_RESPONSE);
 		}
 	}
 
@@ -1082,21 +1085,19 @@ static void sdhci_finish_command(struct sdhci_host *host)
 	 *       feature so there might be some problems with older
 	 *       controllers.
 	 */
-	if (host->cmd->flags & MMC_RSP_BUSY) {
-		if (host->cmd->data) {
+	if (cmd->flags & MMC_RSP_BUSY) {
+		if (cmd->data) {
 			DBG("Cannot wait for busy signal when also doing a data transfer");
 		} else if (!(host->quirks & SDHCI_QUIRK_NO_BUSY_IRQ) &&
 			   !host->busy_handle) {
 			/* Mark that command complete before busy is ended */
 			host->busy_handle = 1;
-			host->cmd = NULL;
 			return;
 		}
 	}
 
 	/* Finished CMD23, now send actual command. */
-	if (host->cmd == host->mrq->sbc) {
-		host->cmd = NULL;
+	if (cmd == host->mrq->sbc) {
 		sdhci_send_command(host, host->mrq->cmd);
 	} else {
 
@@ -1104,10 +1105,8 @@ static void sdhci_finish_command(struct sdhci_host *host)
 		if (host->data && host->data_early)
 			sdhci_finish_data(host);
 
-		if (!host->cmd->data)
+		if (!cmd->data)
 			tasklet_schedule(&host->finish_tasklet);
-
-		host->cmd = NULL;
 	}
 }
 
