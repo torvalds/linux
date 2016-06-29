@@ -559,10 +559,8 @@ static int i2c_nuvoton_probe(struct i2c_client *client,
 	 *   TPM_INTF_INT_LEVEL_LOW | TPM_INTF_DATA_AVAIL_INT
 	 * The IRQ should be set in the i2c_board_info (which is done
 	 * automatically in of_i2c_register_devices, for device tree users */
-	chip->flags |= TPM_CHIP_FLAG_IRQ;
 	priv->irq = client->irq;
-
-	if (chip->flags & TPM_CHIP_FLAG_IRQ) {
+	if (client->irq) {
 		dev_dbg(dev, "%s() priv->irq\n", __func__);
 		rc = devm_request_irq(dev, client->irq,
 				      i2c_nuvoton_int_handler,
@@ -572,9 +570,9 @@ static int i2c_nuvoton_probe(struct i2c_client *client,
 		if (rc) {
 			dev_err(dev, "%s() Unable to request irq: %d for use\n",
 				__func__, priv->irq);
-			chip->flags &= ~TPM_CHIP_FLAG_IRQ;
 			priv->irq = 0;
 		} else {
+			chip->flags |= TPM_CHIP_FLAG_IRQ;
 			/* Clear any pending interrupt */
 			i2c_nuvoton_ready(chip);
 			/* - wait for TPM_STS==0xA0 (stsValid, commandReady) */
