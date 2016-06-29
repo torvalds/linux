@@ -383,32 +383,19 @@ struct ak8975_data {
 };
 
 /* Enable attached power regulator if any. */
-static int ak8975_power_on(struct i2c_client *client)
+static int ak8975_power_on(const struct ak8975_data *data)
 {
-	const struct iio_dev *indio_dev = i2c_get_clientdata(client);
-	struct ak8975_data *data = iio_priv(indio_dev);
 	int ret;
 
-	data->vdd = devm_regulator_get(&client->dev, "vdd");
-	if (IS_ERR(data->vdd)) {
-		ret = PTR_ERR(data->vdd);
-	} else {
-		ret = regulator_enable(data->vdd);
-	}
+	ret = regulator_enable(data->vdd);
 	if (ret) {
-		dev_warn(&client->dev,
+		dev_warn(&data->client->dev,
 			 "Failed to enable specified Vdd supply\n");
 		return ret;
 	}
-
-	data->vid = devm_regulator_get(&client->dev, "vid");
-	if (IS_ERR(data->vid)) {
-		ret = PTR_ERR(data->vid);
-	} else {
-		ret = regulator_enable(data->vid);
-	}
+	ret = regulator_enable(data->vid);
 	if (ret) {
-		dev_warn(&client->dev,
+		dev_warn(&data->client->dev,
 			 "Failed to enable specified Vid supply\n");
 		return ret;
 	}
@@ -416,11 +403,8 @@ static int ak8975_power_on(struct i2c_client *client)
 }
 
 /* Disable attached power regulator if any. */
-static void ak8975_power_off(const struct i2c_client *client)
+static void ak8975_power_off(const struct ak8975_data *data)
 {
-	const struct iio_dev *indio_dev = i2c_get_clientdata(client);
-	const struct ak8975_data *data = iio_priv(indio_dev);
-
 	regulator_disable(data->vid);
 	regulator_disable(data->vdd);
 }
@@ -937,7 +921,15 @@ static int ak8975_probe(struct i2c_client *client,
 
 	data->def = &ak_def_array[chipset];
 
-	err = ak8975_power_on(client);
+	/* Fetch the regulators */
+	data->vdd = devm_regulator_get(&client->dev, "vdd");
+	if (IS_ERR(data->vdd))
+		return PTR_ERR(data->vdd);
+	data->vid = devm_regulator_get(&client->dev, "vid");
+	if (IS_ERR(data->vid))
+		return PTR_ERR(data->vid);
+
+	err = ak8975_power_on(data);
 	if (err)
 		return err;
 
@@ -982,17 +974,18 @@ static int ak8975_probe(struct i2c_client *client,
 cleanup_buffer:
 	iio_triggered_buffer_cleanup(indio_dev);
 power_off:
-	ak8975_power_off(client);
+	ak8975_power_off(data);
 	return err;
 }
 
 static int ak8975_remove(struct i2c_client *client)
 {
 	struct iio_dev *indio_dev = i2c_get_clientdata(client);
+	struct ak8975_data *data = iio_priv(indio_dev);
 
 	iio_device_unregister(indio_dev);
 	iio_triggered_buffer_cleanup(indio_dev);
-	ak8975_power_off(client);
+	ak8975_power_off(data);
 
 	return 0;
 }
