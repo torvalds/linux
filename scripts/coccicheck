@@ -1,9 +1,10 @@
 #!/bin/bash
-
+# Linux kernel coccicheck
+#
+# Read Documentation/coccinelle.txt
 #
 # This script requires at least spatch
 # version 1.0.0-rc11.
-#
 
 DIR="$(dirname $(readlink -f $0))/.."
 SPATCH="`which ${SPATCH:=spatch}`"

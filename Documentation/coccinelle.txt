@@ -38,6 +38,15 @@ as a regular user, and install it with
 
         sudo make install
 
+ Supplemental documentation
+~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+
+For supplemental documentation refer to the wiki:
+
+https://bottest.wiki.kernel.org/coccicheck
+
+The wiki documentation always refers to the linux-next version of the script.
+
  Using Coccinelle on the Linux kernel
 ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 
