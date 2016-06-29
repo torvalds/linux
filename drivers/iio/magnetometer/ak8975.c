@@ -379,6 +379,7 @@ struct ak8975_data {
 	u8			cntl_cache;
 	struct iio_mount_matrix orientation;
 	struct regulator	*vdd;
+	struct regulator	*vid;
 };
 
 /* Enable attached power regulator if any. */
@@ -399,6 +400,19 @@ static int ak8975_power_on(struct i2c_client *client)
 			 "Failed to enable specified Vdd supply\n");
 		return ret;
 	}
+
+	data->vid = devm_regulator_get(&client->dev, "vid");
+	if (IS_ERR(data->vid)) {
+		ret = PTR_ERR(data->vid);
+	} else {
+		ret = regulator_enable(data->vid);
+	}
+	if (ret) {
+		dev_warn(&client->dev,
+			 "Failed to enable specified Vid supply\n");
+		return ret;
+	}
+	return 0;
 }
 
 /* Disable attached power regulator if any. */
@@ -407,6 +421,7 @@ static void ak8975_power_off(const struct i2c_client *client)
 	const struct iio_dev *indio_dev = i2c_get_clientdata(client);
 	const struct ak8975_data *data = iio_priv(indio_dev);
 
+	regulator_disable(data->vid);
 	regulator_disable(data->vdd);
 }
 
