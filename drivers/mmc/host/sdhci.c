@@ -1733,6 +1733,8 @@ static int sdhci_start_signal_voltage_switch(struct mmc_host *mmc,
 
 	switch (ios->signal_voltage) {
 	case MMC_SIGNAL_VOLTAGE_330:
+		if (!(host->flags & SDHCI_SIGNALING_330))
+			return -EINVAL;
 		/* Set 1.8V Signal Enable in the Host Control2 register to 0 */
 		ctrl &= ~SDHCI_CTRL_VDD_180;
 		sdhci_writew(host, ctrl, SDHCI_HOST_CONTROL2);
@@ -1759,6 +1761,8 @@ static int sdhci_start_signal_voltage_switch(struct mmc_host *mmc,
 
 		return -EAGAIN;
 	case MMC_SIGNAL_VOLTAGE_180:
+		if (!(host->flags & SDHCI_SIGNALING_180))
+			return -EINVAL;
 		if (!IS_ERR(mmc->supply.vqmmc)) {
 			ret = regulator_set_voltage(mmc->supply.vqmmc,
 					1700000, 1950000);
@@ -1790,6 +1794,8 @@ static int sdhci_start_signal_voltage_switch(struct mmc_host *mmc,
 
 		return -EAGAIN;
 	case MMC_SIGNAL_VOLTAGE_120:
+		if (!(host->flags & SDHCI_SIGNALING_120))
+			return -EINVAL;
 		if (!IS_ERR(mmc->supply.vqmmc)) {
 			ret = regulator_set_voltage(mmc->supply.vqmmc, 1100000,
 						    1300000);
@@ -2798,6 +2804,8 @@ struct sdhci_host *sdhci_alloc_host(struct device *dev,
 	host->mmc_host_ops = sdhci_ops;
 	mmc->ops = &host->mmc_host_ops;
 
+	host->flags = SDHCI_SIGNALING_330;
+
 	return host;
 }
 
@@ -3256,6 +3264,15 @@ int sdhci_setup_host(struct sdhci_host *host)
 		ret = -ENODEV;
 		goto unreg;
 	}
+
+	if ((mmc->caps & (MMC_CAP_UHS_SDR12 | MMC_CAP_UHS_SDR25 |
+			  MMC_CAP_UHS_SDR50 | MMC_CAP_UHS_SDR104 |
+			  MMC_CAP_UHS_DDR50 | MMC_CAP_1_8V_DDR)) ||
+	    (mmc->caps2 & (MMC_CAP2_HS200_1_8V_SDR | MMC_CAP2_HS400_1_8V)))
+		host->flags |= SDHCI_SIGNALING_180;
+
+	if (mmc->caps2 & MMC_CAP2_HSX00_1_2V)
+		host->flags |= SDHCI_SIGNALING_120;
 
 	spin_lock_init(&host->lock);
 
