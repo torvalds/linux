@@ -45,7 +45,6 @@ static unsigned int debug_quirks2;
 
 static void sdhci_finish_data(struct sdhci_host *);
 
-static void sdhci_finish_command(struct sdhci_host *);
 static void sdhci_enable_preset_value(struct sdhci_host *host, bool enable);
 
 static void sdhci_dumpregs(struct sdhci_host *host)
@@ -1076,6 +1075,28 @@ static void sdhci_finish_command(struct sdhci_host *host)
 			}
 		} else {
 			host->cmd->resp[0] = sdhci_readl(host, SDHCI_RESPONSE);
+		}
+	}
+
+	/*
+	 * The host can send and interrupt when the busy state has
+	 * ended, allowing us to wait without wasting CPU cycles.
+	 * The busy signal uses DAT0 so this is similar to waiting
+	 * for data to complete.
+	 *
+	 * Note: The 1.0 specification is a bit ambiguous about this
+	 *       feature so there might be some problems with older
+	 *       controllers.
+	 */
+	if (host->cmd->flags & MMC_RSP_BUSY) {
+		if (host->cmd->data) {
+			DBG("Cannot wait for busy signal when also doing a data transfer");
+		} else if (!(host->quirks & SDHCI_QUIRK_NO_BUSY_IRQ) &&
+			   !host->busy_handle) {
+			/* Mark that command complete before busy is ended */
+			host->busy_handle = 1;
+			host->cmd = NULL;
+			return;
 		}
 	}
 
@@ -2295,33 +2316,10 @@ static void sdhci_cmd_irq(struct sdhci_host *host, u32 intmask, u32 *mask)
 		return;
 	}
 
-	/*
-	 * The host can send and interrupt when the busy state has
-	 * ended, allowing us to wait without wasting CPU cycles.
-	 * Unfortunately this is overloaded on the "data complete"
-	 * interrupt, so we need to take some care when handling
-	 * it.
-	 *
-	 * Note: The 1.0 specification is a bit ambiguous about this
-	 *       feature so there might be some problems with older
-	 *       controllers.
-	 */
-	if (host->cmd->flags & MMC_RSP_BUSY) {
-		if (host->cmd->data)
-			DBG("Cannot wait for busy signal when also doing a data transfer");
-		else if (!(host->quirks & SDHCI_QUIRK_NO_BUSY_IRQ)
-				&& !host->busy_handle) {
-			/* Mark that command complete before busy is ended */
-			host->busy_handle = 1;
-			return;
-		}
-
-		/* The controller does not support the end-of-busy IRQ,
-		 * fall through and take the SDHCI_INT_RESPONSE */
-	} else if ((host->quirks2 & SDHCI_QUIRK2_STOP_WITH_TC) &&
-		   host->cmd->opcode == MMC_STOP_TRANSMISSION && !host->data) {
+	if ((host->quirks2 & SDHCI_QUIRK2_STOP_WITH_TC) &&
+	    !(host->cmd->flags & MMC_RSP_BUSY) && !host->data &&
+	    host->cmd->opcode == MMC_STOP_TRANSMISSION)
 		*mask &= ~SDHCI_INT_DATA_END;
-	}
 
 	if (intmask & SDHCI_INT_RESPONSE)
 		sdhci_finish_command(host);
@@ -2395,7 +2393,7 @@ static void sdhci_data_irq(struct sdhci_host *host, u32 intmask)
 				 * sure we do things in the proper order.
 				 */
 				if (host->busy_handle)
-					sdhci_finish_command(host);
+					tasklet_schedule(&host->finish_tasklet);
 				else
 					host->busy_handle = 1;
 				return;
