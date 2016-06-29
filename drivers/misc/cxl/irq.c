@@ -260,9 +260,6 @@ int afu_allocate_irqs(struct cxl_context *ctx, u32 count)
 	else
 		alloc_count = count + 1;
 
-	/* Initialize the list head to hold irq names */
-	INIT_LIST_HEAD(&ctx->irq_names);
-
 	if ((rc = cxl_ops->alloc_irq_ranges(&ctx->irqs, ctx->afu->adapter,
 							alloc_count)))
 		return rc;
