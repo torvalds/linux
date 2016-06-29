@@ -1287,22 +1287,14 @@ static int gp2ap020a00f_read_raw(struct iio_dev *indio_dev,
 	struct gp2ap020a00f_data *data = iio_priv(indio_dev);
 	int err = -EINVAL;
 
-	mutex_lock(&data->lock);
-
-	switch (mask) {
-	case IIO_CHAN_INFO_RAW:
-		if (iio_buffer_enabled(indio_dev)) {
-			err = -EBUSY;
-			goto error_unlock;
-		}
+	if (mask == IIO_CHAN_INFO_RAW) {
+		err = iio_device_claim_direct_mode(indio_dev);
+		if (err)
+			return err;
 
 		err = gp2ap020a00f_read_channel(data, chan, val);
-		break;
+		iio_device_release_direct_mode(indio_dev);
 	}
-
-error_unlock:
-	mutex_unlock(&data->lock);
-
 	return err < 0 ? err : IIO_VAL_INT;
 }
 

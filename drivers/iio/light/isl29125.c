@@ -50,7 +50,6 @@
 
 struct isl29125_data {
 	struct i2c_client *client;
-	struct mutex lock;
 	u8 conf1;
 	u16 buffer[8]; /* 3x 16-bit, padding, 8 bytes timestamp */
 };
@@ -128,11 +127,11 @@ static int isl29125_read_raw(struct iio_dev *indio_dev,
 
 	switch (mask) {
 	case IIO_CHAN_INFO_RAW:
-		if (iio_buffer_enabled(indio_dev))
-			return -EBUSY;
-		mutex_lock(&data->lock);
+		ret = iio_device_claim_direct_mode(indio_dev);
+		if (ret)
+			return ret;
 		ret = isl29125_read_data(data, chan->scan_index);
-		mutex_unlock(&data->lock);
+		iio_device_release_direct_mode(indio_dev);
 		if (ret < 0)
 			return ret;
 		*val = ret;
@@ -259,7 +258,6 @@ static int isl29125_probe(struct i2c_client *client,
 	data = iio_priv(indio_dev);
 	i2c_set_clientdata(client, indio_dev);
 	data->client = client;
-	mutex_init(&data->lock);
 
 	indio_dev->dev.parent = &client->dev;
 	indio_dev->info = &isl29125_info;

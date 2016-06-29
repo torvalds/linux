@@ -1,21 +1,21 @@
 /*
- * mma8452.c - Support for following Freescale 3-axis accelerometers:
+ * mma8452.c - Support for following Freescale / NXP 3-axis accelerometers:
  *
- * MMA8451Q (14 bit)
- * MMA8452Q (12 bit)
- * MMA8453Q (10 bit)
- * MMA8652FC (12 bit)
- * MMA8653FC (10 bit)
- * FXLS8471Q (14 bit)
+ * device name	digital output	7-bit I2C slave address (pin selectable)
+ * ---------------------------------------------------------------------
+ * MMA8451Q	14 bit		0x1c / 0x1d
+ * MMA8452Q	12 bit		0x1c / 0x1d
+ * MMA8453Q	10 bit		0x1c / 0x1d
+ * MMA8652FC	12 bit		0x1d
+ * MMA8653FC	10 bit		0x1d
+ * FXLS8471Q	14 bit		0x1e / 0x1d / 0x1c / 0x1f
  *
- * Copyright 2015 Martin Kepplinger <martin.kepplinger@theobroma-systems.com>
+ * Copyright 2015 Martin Kepplinger <martink@posteo.de>
  * Copyright 2014 Peter Meerwald <pmeerw@pmeerw.net>
  *
  * This file is subject to the terms and conditions of version 2 of
  * the GNU General Public License.  See the file COPYING in the main
  * directory of this archive for more details.
- *
- * 7-bit I2C slave address 0x1c/0x1d (pin selectable)
  *
  * TODO: orientation events
  */
@@ -108,7 +108,7 @@ struct mma8452_data {
 };
 
 /**
- * struct mma_chip_info - chip specific data for Freescale's accelerometers
+ * struct mma_chip_info - chip specific data
  * @chip_id:			WHO_AM_I register's value
  * @channels:			struct iio_chan_spec matching the device's
  *				capabilities
@@ -1693,5 +1693,5 @@ static struct i2c_driver mma8452_driver = {
 module_i2c_driver(mma8452_driver);
 
 MODULE_AUTHOR("Peter Meerwald <pmeerw@pmeerw.net>");
-MODULE_DESCRIPTION("Freescale MMA8452 accelerometer driver");
+MODULE_DESCRIPTION("Freescale / NXP MMA8452 accelerometer driver");
 MODULE_LICENSE("GPL");

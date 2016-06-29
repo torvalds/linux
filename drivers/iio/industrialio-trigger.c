@@ -64,6 +64,8 @@ static struct attribute *iio_trig_dev_attrs[] = {
 };
 ATTRIBUTE_GROUPS(iio_trig_dev);
 
+static struct iio_trigger *__iio_trigger_find_by_name(const char *name);
+
 int iio_trigger_register(struct iio_trigger *trig_info)
 {
 	int ret;
@@ -86,11 +88,19 @@ int iio_trigger_register(struct iio_trigger *trig_info)
 
 	/* Add to list of available triggers held by the IIO core */
 	mutex_lock(&iio_trigger_list_lock);
+	if (__iio_trigger_find_by_name(trig_info->name)) {
+		pr_err("Duplicate trigger name '%s'\n", trig_info->name);
+		ret = -EEXIST;
+		goto error_device_del;
+	}
 	list_add_tail(&trig_info->list, &iio_trigger_list);
 	mutex_unlock(&iio_trigger_list_lock);
 
 	return 0;
 
+error_device_del:
+	mutex_unlock(&iio_trigger_list_lock);
+	device_del(&trig_info->dev);
 error_unregister_id:
 	ida_simple_remove(&iio_trigger_ida, trig_info->id);
 	return ret;
@@ -108,6 +118,18 @@ void iio_trigger_unregister(struct iio_trigger *trig_info)
 	device_del(&trig_info->dev);
 }
 EXPORT_SYMBOL(iio_trigger_unregister);
+
+/* Search for trigger by name, assuming iio_trigger_list_lock held */
+static struct iio_trigger *__iio_trigger_find_by_name(const char *name)
+{
+	struct iio_trigger *iter;
+
+	list_for_each_entry(iter, &iio_trigger_list, list)
+		if (!strcmp(iter->name, name))
+			return iter;
+
+	return NULL;
+}
 
 static struct iio_trigger *iio_trigger_find_by_name(const char *name,
 						    size_t len)
