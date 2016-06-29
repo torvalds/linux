@@ -570,6 +570,7 @@ rpcrdma_marshal_req(struct rpc_rqst *rqst)
 	struct rpcrdma_req *req = rpcr_to_rdmar(rqst);
 	enum rpcrdma_chunktype rtype, wtype;
 	struct rpcrdma_msg *headerp;
+	bool ddp_allowed;
 	ssize_t hdrlen;
 	size_t rpclen;
 	__be32 *iptr;
@@ -586,6 +587,13 @@ rpcrdma_marshal_req(struct rpc_rqst *rqst)
 	headerp->rm_credit = cpu_to_be32(r_xprt->rx_buf.rb_max_requests);
 	headerp->rm_type = rdma_msg;
 
+	/* When the ULP employs a GSS flavor that guarantees integrity
+	 * or privacy, direct data placement of individual data items
+	 * is not allowed.
+	 */
+	ddp_allowed = !(rqst->rq_cred->cr_auth->au_flags &
+						RPCAUTH_AUTH_DATATOUCH);
+
 	/*
 	 * Chunks needed for results?
 	 *
@@ -597,7 +605,7 @@ rpcrdma_marshal_req(struct rpc_rqst *rqst)
 	 */
 	if (rpcrdma_results_inline(r_xprt, rqst))
 		wtype = rpcrdma_noch;
-	else if (rqst->rq_rcv_buf.flags & XDRBUF_READ)
+	else if (ddp_allowed && rqst->rq_rcv_buf.flags & XDRBUF_READ)
 		wtype = rpcrdma_writech;
 	else
 		wtype = rpcrdma_replych;
@@ -620,7 +628,7 @@ rpcrdma_marshal_req(struct rpc_rqst *rqst)
 		rtype = rpcrdma_noch;
 		rpcrdma_inline_pullup(rqst);
 		rpclen = rqst->rq_svec[0].iov_len;
-	} else if (rqst->rq_snd_buf.flags & XDRBUF_WRITE) {
+	} else if (ddp_allowed && rqst->rq_snd_buf.flags & XDRBUF_WRITE) {
 		rtype = rpcrdma_readch;
 		rpclen = rqst->rq_svec[0].iov_len;
 		rpclen += rpcrdma_tail_pullup(&rqst->rq_snd_buf);
