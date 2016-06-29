@@ -843,7 +843,7 @@ static enum dma_status tegra_dma_tx_status(struct dma_chan *dc,
 		}
 	}
 
-	dev_dbg(tdc2dev(tdc), "cookie %d does not found\n", cookie);
+	dev_dbg(tdc2dev(tdc), "cookie %d not found\n", cookie);
 	spin_unlock_irqrestore(&tdc->lock, flags);
 	return ret;
 }
