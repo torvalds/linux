@@ -34,6 +34,17 @@ enum {
 					  IB_ACCESS_REMOTE_READ,
 };
 
+bool
+fmr_is_supported(struct rpcrdma_ia *ia)
+{
+	if (!ia->ri_device->alloc_fmr) {
+		pr_info("rpcrdma: 'fmr' mode is not supported by device %s\n",
+			ia->ri_device->name);
+		return false;
+	}
+	return true;
+}
+
 static int
 __fmr_init(struct rpcrdma_mw *mw, struct ib_pd *pd)
 {
