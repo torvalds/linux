@@ -2892,10 +2892,16 @@ static void intel_ring_default_vfuncs(struct drm_i915_private *dev_priv,
 	engine->get_seqno = ring_get_seqno;
 	engine->set_seqno = ring_set_seqno;
 
-	if (INTEL_GEN(dev_priv) >= 6) {
+	if (INTEL_GEN(dev_priv) >= 8) {
+		engine->dispatch_execbuffer = gen8_ring_dispatch_execbuffer;
+		engine->add_request = gen6_add_request;
+		engine->irq_seqno_barrier = gen6_seqno_barrier;
+	} else if (INTEL_GEN(dev_priv) >= 6) {
+		engine->dispatch_execbuffer = gen6_ring_dispatch_execbuffer;
 		engine->add_request = gen6_add_request;
 		engine->irq_seqno_barrier = gen6_seqno_barrier;
 	} else {
+		engine->dispatch_execbuffer = i965_dispatch_execbuffer;
 		engine->add_request = i9xx_add_request;
 	}
 
@@ -3004,15 +3010,9 @@ int intel_init_render_ring_buffer(struct drm_device *dev)
 
 	if (IS_HASWELL(dev_priv))
 		engine->dispatch_execbuffer = hsw_ring_dispatch_execbuffer;
-	else if (IS_GEN8(dev_priv))
-		engine->dispatch_execbuffer = gen8_ring_dispatch_execbuffer;
-	else if (INTEL_GEN(dev_priv) >= 6)
-		engine->dispatch_execbuffer = gen6_ring_dispatch_execbuffer;
-	else if (INTEL_GEN(dev_priv) >= 4)
-		engine->dispatch_execbuffer = i965_dispatch_execbuffer;
 	else if (IS_I830(dev_priv) || IS_845G(dev_priv))
 		engine->dispatch_execbuffer = i830_dispatch_execbuffer;
-	else
+	else if (INTEL_GEN(dev_priv) <= 3)
 		engine->dispatch_execbuffer = i915_dispatch_execbuffer;
 	engine->init_hw = init_render_ring;
 	engine->cleanup = render_ring_cleanup;
@@ -3070,8 +3070,6 @@ int intel_init_bsd_ring_buffer(struct drm_device *dev)
 		if (INTEL_GEN(dev_priv) >= 8) {
 			engine->irq_enable_mask =
 				GT_RENDER_USER_INTERRUPT << GEN8_VCS1_IRQ_SHIFT;
-			engine->dispatch_execbuffer =
-				gen8_ring_dispatch_execbuffer;
 			if (i915_semaphore_is_enabled(dev_priv)) {
 				engine->semaphore.sync_to = gen8_ring_sync;
 				engine->semaphore.signal = gen8_xcs_signal;
@@ -3079,8 +3077,6 @@ int intel_init_bsd_ring_buffer(struct drm_device *dev)
 			}
 		} else {
 			engine->irq_enable_mask = GT_BSD_USER_INTERRUPT;
-			engine->dispatch_execbuffer =
-				gen6_ring_dispatch_execbuffer;
 			if (i915_semaphore_is_enabled(dev_priv)) {
 				engine->semaphore.sync_to = gen6_ring_sync;
 				engine->semaphore.signal = gen6_signal;
@@ -3104,7 +3100,6 @@ int intel_init_bsd_ring_buffer(struct drm_device *dev)
 		} else {
 			engine->irq_enable_mask = I915_BSD_USER_INTERRUPT;
 		}
-		engine->dispatch_execbuffer = i965_dispatch_execbuffer;
 	}
 
 	return intel_init_ring_buffer(dev, engine);
@@ -3129,8 +3124,6 @@ int intel_init_bsd2_ring_buffer(struct drm_device *dev)
 	engine->flush = gen6_bsd_ring_flush;
 	engine->irq_enable_mask =
 			GT_RENDER_USER_INTERRUPT << GEN8_VCS2_IRQ_SHIFT;
-	engine->dispatch_execbuffer =
-			gen8_ring_dispatch_execbuffer;
 	if (i915_semaphore_is_enabled(dev_priv)) {
 		engine->semaphore.sync_to = gen8_ring_sync;
 		engine->semaphore.signal = gen8_xcs_signal;
@@ -3157,7 +3150,6 @@ int intel_init_blt_ring_buffer(struct drm_device *dev)
 	if (INTEL_GEN(dev_priv) >= 8) {
 		engine->irq_enable_mask =
 			GT_RENDER_USER_INTERRUPT << GEN8_BCS_IRQ_SHIFT;
-		engine->dispatch_execbuffer = gen8_ring_dispatch_execbuffer;
 		if (i915_semaphore_is_enabled(dev_priv)) {
 			engine->semaphore.sync_to = gen8_ring_sync;
 			engine->semaphore.signal = gen8_xcs_signal;
@@ -3165,7 +3157,6 @@ int intel_init_blt_ring_buffer(struct drm_device *dev)
 		}
 	} else {
 		engine->irq_enable_mask = GT_BLT_USER_INTERRUPT;
-		engine->dispatch_execbuffer = gen6_ring_dispatch_execbuffer;
 		if (i915_semaphore_is_enabled(dev_priv)) {
 			engine->semaphore.signal = gen6_signal;
 			engine->semaphore.sync_to = gen6_ring_sync;
@@ -3210,7 +3201,6 @@ int intel_init_vebox_ring_buffer(struct drm_device *dev)
 	if (INTEL_GEN(dev_priv) >= 8) {
 		engine->irq_enable_mask =
 			GT_RENDER_USER_INTERRUPT << GEN8_VECS_IRQ_SHIFT;
-		engine->dispatch_execbuffer = gen8_ring_dispatch_execbuffer;
 		if (i915_semaphore_is_enabled(dev_priv)) {
 			engine->semaphore.sync_to = gen8_ring_sync;
 			engine->semaphore.signal = gen8_xcs_signal;
@@ -3220,7 +3210,6 @@ int intel_init_vebox_ring_buffer(struct drm_device *dev)
 		engine->irq_enable_mask = PM_VEBOX_USER_INTERRUPT;
 		engine->irq_get = hsw_vebox_get_irq;
 		engine->irq_put = hsw_vebox_put_irq;
-		engine->dispatch_execbuffer = gen6_ring_dispatch_execbuffer;
 		if (i915_semaphore_is_enabled(dev_priv)) {
 			engine->semaphore.sync_to = gen6_ring_sync;
 			engine->semaphore.signal = gen6_signal;
