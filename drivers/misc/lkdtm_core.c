@@ -51,6 +51,11 @@
 
 #include "lkdtm.h"
 
+#define DEFAULT_COUNT 10
+
+static int lkdtm_parse_commandline(void);
+static void lkdtm_handler(void);
+
 enum cname {
 	CN_INVALID,
 	CN_INT_HARDWARE_ENTRY,
@@ -159,29 +164,30 @@ static char* cp_type[] = {
 	"USERCOPY_KERNEL",
 };
 
+/* Global jprobe entry and crashtype. */
 static struct jprobe lkdtm_jprobe;
-
-static int lkdtm_parse_commandline(void);
-static void lkdtm_handler(void);
-
-#define DEFAULT_COUNT 10
-static char* cpoint_name;
-static char* cpoint_type;
-static int cpoint_count = DEFAULT_COUNT;
-static int recur_count = -1;
-static int crash_count = DEFAULT_COUNT;
-static DEFINE_SPINLOCK(crash_count_lock);
-
 static enum cname lkdtm_crashpoint = CN_INVALID;
 static enum ctype lkdtm_crashtype = CT_NONE;
 
+/* Global crash counter and spinlock. */
+static int crash_count = DEFAULT_COUNT;
+static DEFINE_SPINLOCK(crash_count_lock);
+
+/* Module parameters */
+static int recur_count = -1;
 module_param(recur_count, int, 0644);
 MODULE_PARM_DESC(recur_count, " Recursion level for the stack overflow test");
+
+static char* cpoint_name;
 module_param(cpoint_name, charp, 0444);
 MODULE_PARM_DESC(cpoint_name, " Crash Point, where kernel is to be crashed");
+
+static char* cpoint_type;
 module_param(cpoint_type, charp, 0444);
 MODULE_PARM_DESC(cpoint_type, " Crash Point Type, action to be taken on "\
 				"hitting the crash point");
+
+static int cpoint_count = DEFAULT_COUNT;
 module_param(cpoint_count, int, 0644);
 MODULE_PARM_DESC(cpoint_count, " Crash Point Count, number of times the "\
 				"crash point is to be hit to trigger action");
