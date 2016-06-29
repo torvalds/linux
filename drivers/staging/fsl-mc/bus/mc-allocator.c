@@ -281,7 +281,7 @@ int __must_check fsl_mc_portal_allocate(struct fsl_mc_device *mc_dev,
 	if (mc_dev->flags & FSL_MC_IS_DPRC) {
 		mc_bus_dev = mc_dev;
 	} else {
-		if (WARN_ON(mc_dev->dev.parent->bus != &fsl_mc_bus_type))
+		if (WARN_ON(!dev_is_fsl_mc(mc_dev->dev.parent)))
 			return error;
 
 		mc_bus_dev = to_fsl_mc_device(mc_dev->dev.parent);
@@ -420,7 +420,7 @@ int __must_check fsl_mc_object_allocate(struct fsl_mc_device *mc_dev,
 	if (WARN_ON(mc_dev->flags & FSL_MC_IS_DPRC))
 		goto error;
 
-	if (WARN_ON(mc_dev->dev.parent->bus != &fsl_mc_bus_type))
+	if (WARN_ON(!dev_is_fsl_mc(mc_dev->dev.parent)))
 		goto error;
 
 	if (WARN_ON(pool_type == FSL_MC_POOL_DPMCP))
@@ -678,7 +678,7 @@ static int fsl_mc_allocator_probe(struct fsl_mc_device *mc_dev)
 		return -EINVAL;
 
 	mc_bus_dev = to_fsl_mc_device(mc_dev->dev.parent);
-	if (WARN_ON(mc_bus_dev->dev.bus != &fsl_mc_bus_type))
+	if (WARN_ON(!dev_is_fsl_mc(&mc_bus_dev->dev)))
 		return -EINVAL;
 
 	mc_bus = to_fsl_mc_bus(mc_bus_dev);

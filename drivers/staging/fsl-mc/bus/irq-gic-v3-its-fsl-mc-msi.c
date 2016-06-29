@@ -35,7 +35,7 @@ static int its_fsl_mc_msi_prepare(struct irq_domain *msi_domain,
 	struct fsl_mc_device *mc_bus_dev;
 	struct msi_domain_info *msi_info;
 
-	if (WARN_ON(dev->bus != &fsl_mc_bus_type))
+	if (WARN_ON(!dev_is_fsl_mc(dev)))
 		return -EINVAL;
 
 	mc_bus_dev = to_fsl_mc_device(dev);

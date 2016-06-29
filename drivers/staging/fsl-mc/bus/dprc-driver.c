@@ -649,7 +649,7 @@ static int dprc_probe(struct fsl_mc_device *mc_dev)
 		/*
 		 * This is a child DPRC:
 		 */
-		if (WARN_ON(parent_dev->bus != &fsl_mc_bus_type))
+		if (WARN_ON(!dev_is_fsl_mc(parent_dev)))
 			return -EINVAL;
 
 		if (WARN_ON(mc_dev->obj_desc.region_count == 0))
@@ -681,7 +681,7 @@ static int dprc_probe(struct fsl_mc_device *mc_dev)
 		 */
 		struct irq_domain *mc_msi_domain;
 
-		if (WARN_ON(parent_dev->bus == &fsl_mc_bus_type))
+		if (WARN_ON(dev_is_fsl_mc(parent_dev)))
 			return -EINVAL;
 
 		error = fsl_mc_find_msi_domain(parent_dev,

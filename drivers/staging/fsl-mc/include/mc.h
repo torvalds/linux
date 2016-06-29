@@ -166,6 +166,13 @@ struct fsl_mc_device {
 #define to_fsl_mc_device(_dev) \
 	container_of(_dev, struct fsl_mc_device, dev)
 
+#ifdef CONFIG_FSL_MC_BUS
+#define dev_is_fsl_mc(_dev) ((_dev)->bus == &fsl_mc_bus_type)
+#else
+/* If fsl-mc bus is not present device cannot belong to fsl-mc bus */
+#define dev_is_fsl_mc(_dev) (0)
+#endif
+
 /*
  * module_fsl_mc_driver() - Helper macro for drivers that don't do
  * anything special in module init/exit.  This eliminates a lot of
