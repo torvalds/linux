@@ -49,7 +49,7 @@ static void __ath10k_htt_tx_txq_recalc(struct ieee80211_hw *hw,
 				       struct ieee80211_txq *txq)
 {
 	struct ath10k *ar = hw->priv;
-	struct ath10k_sta *arsta = (void *)txq->sta->drv_priv;
+	struct ath10k_sta *arsta;
 	struct ath10k_vif *arvif = (void *)txq->vif->drv_priv;
 	unsigned long frame_cnt;
 	unsigned long byte_cnt;
@@ -67,10 +67,12 @@ static void __ath10k_htt_tx_txq_recalc(struct ieee80211_hw *hw,
 	if (ar->htt.tx_q_state.mode != HTT_TX_MODE_SWITCH_PUSH_PULL)
 		return;
 
-	if (txq->sta)
+	if (txq->sta) {
+		arsta = (void *)txq->sta->drv_priv;
 		peer_id = arsta->peer_id;
-	else
+	} else {
 		peer_id = arvif->peer_id;
+	}
 
 	tid = txq->tid;
 	bit = BIT(peer_id % 32);
@@ -733,16 +735,18 @@ static u8 ath10k_htt_tx_get_vdev_id(struct ath10k *ar, struct sk_buff *skb)
 {
 	struct ieee80211_tx_info *info = IEEE80211_SKB_CB(skb);
 	struct ath10k_skb_cb *cb = ATH10K_SKB_CB(skb);
-	struct ath10k_vif *arvif = (void *)cb->vif->drv_priv;
+	struct ath10k_vif *arvif;
 
-	if (info->flags & IEEE80211_TX_CTL_TX_OFFCHAN)
+	if (info->flags & IEEE80211_TX_CTL_TX_OFFCHAN) {
 		return ar->scan.vdev_id;
-	else if (cb->vif)
+	} else if (cb->vif) {
+		arvif = (void *)cb->vif->drv_priv;
 		return arvif->vdev_id;
-	else if (ar->monitor_started)
+	} else if (ar->monitor_started) {
 		return ar->monitor_vdev_id;
-	else
+	} else {
 		return 0;
+	}
 }
 
 static u8 ath10k_htt_tx_get_tid(struct sk_buff *skb, bool is_eth)

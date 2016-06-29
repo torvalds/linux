@@ -81,10 +81,11 @@ int ath10k_txrx_tx_unref(struct ath10k_htt *htt,
 
 	skb_cb = ATH10K_SKB_CB(msdu);
 	txq = skb_cb->txq;
-	artxq = (void *)txq->drv_priv;
 
-	if (txq)
+	if (txq) {
+		artxq = (void *)txq->drv_priv;
 		artxq->num_fw_queued--;
+	}
 
 	ath10k_htt_tx_free_msdu_id(htt, tx_done->msdu_id);
 	ath10k_htt_tx_dec_pending(htt);
