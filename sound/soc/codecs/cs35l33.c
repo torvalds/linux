@@ -862,7 +862,7 @@ static const struct regmap_config cs35l33_regmap = {
 	.use_single_rw = true,
 };
 
-static int cs35l33_runtime_resume(struct device *dev)
+static int __maybe_unused cs35l33_runtime_resume(struct device *dev)
 {
 	struct cs35l33_private *cs35l33 = dev_get_drvdata(dev);
 	int ret;
@@ -902,7 +902,7 @@ err:
 	return ret;
 }
 
-static int cs35l33_runtime_suspend(struct device *dev)
+static int __maybe_unused cs35l33_runtime_suspend(struct device *dev)
 {
 	struct cs35l33_private *cs35l33 = dev_get_drvdata(dev);
 
