@@ -705,7 +705,6 @@ static int cvm_oct_probe(struct platform_device *pdev)
 	if ((pow_send_group != -1)) {
 		struct net_device *dev;
 
-		pr_info("\tConfiguring device for POW only access\n");
 		dev = alloc_etherdev(sizeof(struct octeon_ethernet));
 		if (dev) {
 			/* Initialize the device private structure. */
