@@ -158,6 +158,14 @@ static struct page *alloc_image_page(gfp_t gfp_mask)
 	return page;
 }
 
+static void recycle_safe_page(void *page_address)
+{
+	struct linked_page *lp = page_address;
+
+	lp->next = safe_pages_list;
+	safe_pages_list = lp;
+}
+
 /**
  *	free_image_page - free page represented by @addr, allocated with
  *	get_image_page (page flags set by it must be cleared)
@@ -851,6 +859,34 @@ struct nosave_region {
 };
 
 static LIST_HEAD(nosave_regions);
+
+static void recycle_zone_bm_rtree(struct mem_zone_bm_rtree *zone)
+{
+	struct rtree_node *node;
+
+	list_for_each_entry(node, &zone->nodes, list)
+		recycle_safe_page(node->data);
+
+	list_for_each_entry(node, &zone->leaves, list)
+		recycle_safe_page(node->data);
+}
+
+static void memory_bm_recycle(struct memory_bitmap *bm)
+{
+	struct mem_zone_bm_rtree *zone;
+	struct linked_page *p_list;
+
+	list_for_each_entry(zone, &bm->zones, list)
+		recycle_zone_bm_rtree(zone);
+
+	p_list = bm->p_list;
+	while (p_list) {
+		struct linked_page *lp = p_list;
+
+		p_list = lp->next;
+		recycle_safe_page(lp);
+	}
+}
 
 /**
  *	register_nosave_region - register a range of page frames the contents
@@ -2542,9 +2578,9 @@ void snapshot_write_finalize(struct snapshot_handle *handle)
 	/* Restore page key for data page (s390 only). */
 	page_key_write(handle->buffer);
 	page_key_free();
-	/* Free only if we have loaded the image entirely */
+	/* Do that only if we have loaded the image entirely */
 	if (handle->cur > 1 && handle->cur > nr_meta_pages + nr_copy_pages) {
-		memory_bm_free(&orig_bm, PG_UNSAFE_CLEAR);
+		memory_bm_recycle(&orig_bm);
 		free_highmem_data();
 	}
 }
