@@ -1213,10 +1213,6 @@ void amdgpu_ring_insert_nop(struct amdgpu_ring *ring, uint32_t count);
 void amdgpu_ring_generic_pad_ib(struct amdgpu_ring *ring, struct amdgpu_ib *ib);
 void amdgpu_ring_commit(struct amdgpu_ring *ring);
 void amdgpu_ring_undo(struct amdgpu_ring *ring);
-unsigned amdgpu_ring_backup(struct amdgpu_ring *ring,
-			    uint32_t **data);
-int amdgpu_ring_restore(struct amdgpu_ring *ring,
-			unsigned size, uint32_t *data);
 int amdgpu_ring_init(struct amdgpu_device *adev, struct amdgpu_ring *ring,
 		     unsigned ring_size, u32 nop, u32 align_mask,
 		     struct amdgpu_irq_src *irq_src, unsigned irq_type,

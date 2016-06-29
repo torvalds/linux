@@ -1926,11 +1926,6 @@ int amdgpu_resume_kms(struct drm_device *dev, bool resume, bool fbcon)
  */
 int amdgpu_gpu_reset(struct amdgpu_device *adev)
 {
-	unsigned ring_sizes[AMDGPU_MAX_RINGS];
-	uint32_t *ring_data[AMDGPU_MAX_RINGS];
-
-	bool saved = false;
-
 	int i, r;
 	int resched;
 
@@ -1955,19 +1950,6 @@ int amdgpu_gpu_reset(struct amdgpu_device *adev)
 	amdgpu_atombios_scratch_regs_save(adev);
 	r = amdgpu_suspend(adev);
 
-	for (i = 0; i < AMDGPU_MAX_RINGS; ++i) {
-		struct amdgpu_ring *ring = adev->rings[i];
-		if (!ring)
-			continue;
-
-		ring_sizes[i] = amdgpu_ring_backup(ring, &ring_data[i]);
-		if (ring_sizes[i]) {
-			saved = true;
-			dev_info(adev->dev, "Saved %d dwords of commands "
-				 "on ring %d.\n", ring_sizes[i], i);
-		}
-	}
-
 retry:
 	/* Disable fb access */
 	if (adev->mode_info.num_crtc) {
@@ -1990,11 +1972,8 @@ retry:
 		r = amdgpu_ib_ring_tests(adev);
 		if (r) {
 			dev_err(adev->dev, "ib ring test failed (%d).\n", r);
-			if (saved) {
-				saved = false;
-				r = amdgpu_suspend(adev);
-				goto retry;
-			}
+			r = amdgpu_suspend(adev);
+			goto retry;
 		}
 
 		for (i = 0; i < AMDGPU_MAX_RINGS; ++i) {
@@ -2003,16 +1982,12 @@ retry:
 				continue;
 			amd_sched_job_recovery(&ring->sched);
 			kthread_unpark(ring->sched.thread);
-			kfree(ring_data[i]);
-			ring_sizes[i] = 0;
-			ring_data[i] = NULL;
 		}
 	} else {
 		dev_err(adev->dev, "asic resume failed (%d).\n", r);
 		for (i = 0; i < AMDGPU_MAX_RINGS; ++i) {
 			if (adev->rings[i]) {
 				kthread_unpark(adev->rings[i]->sched.thread);
-				kfree(ring_data[i]);
 			}
 		}
 	}
