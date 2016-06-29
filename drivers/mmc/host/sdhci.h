@@ -490,8 +490,8 @@ struct sdhci_host {
 
 	struct timer_list timer;	/* Timer for timeouts */
 
-	u32 caps;		/* Alternative CAPABILITY_0 */
-	u32 caps1;		/* Alternative CAPABILITY_1 */
+	u32 caps;		/* CAPABILITY_0 */
+	u32 caps1;		/* CAPABILITY_1 */
 
 	unsigned int            ocr_avail_sdio;	/* OCR bit masks */
 	unsigned int            ocr_avail_sd;
