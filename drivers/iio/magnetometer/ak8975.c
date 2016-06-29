@@ -389,17 +389,16 @@ static int ak8975_power_on(struct i2c_client *client)
 	int ret;
 
 	data->vdd = devm_regulator_get(&client->dev, "vdd");
-	if (IS_ERR_OR_NULL(data->vdd)) {
+	if (IS_ERR(data->vdd)) {
 		ret = PTR_ERR(data->vdd);
-		if (ret == -ENODEV)
-			ret = 0;
 	} else {
 		ret = regulator_enable(data->vdd);
 	}
-
-	if (ret)
-		dev_err(&client->dev, "failed to enable Vdd supply: %d\n", ret);
-	return ret;
+	if (ret) {
+		dev_warn(&client->dev,
+			 "Failed to enable specified Vdd supply\n");
+		return ret;
+	}
 }
 
 /* Disable attached power regulator if any. */
@@ -408,8 +407,7 @@ static void ak8975_power_off(const struct i2c_client *client)
 	const struct iio_dev *indio_dev = i2c_get_clientdata(client);
 	const struct ak8975_data *data = iio_priv(indio_dev);
 
-	if (!IS_ERR_OR_NULL(data->vdd))
-		regulator_disable(data->vdd);
+	regulator_disable(data->vdd);
 }
 
 /*
