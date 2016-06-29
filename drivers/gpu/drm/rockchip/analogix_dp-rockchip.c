@@ -64,6 +64,7 @@ struct rockchip_dp_device {
 	struct drm_display_mode  mode;
 
 	struct clk               *pclk;
+	struct clk               *grfclk;
 	struct regmap            *grf;
 	struct reset_control     *rst;
 
@@ -160,11 +161,17 @@ static void rockchip_dp_drm_encoder_enable(struct drm_encoder *encoder)
 
 	dev_dbg(dp->dev, "vop %s output to dp\n", (ret) ? "LIT" : "BIG");
 
-	ret = regmap_write(dp->grf, dp->data->lcdsel_grf_reg, val);
-	if (ret != 0) {
-		dev_err(dp->dev, "Could not write to GRF: %d\n", ret);
+	ret = clk_prepare_enable(dp->grfclk);
+	if (ret < 0) {
+		dev_err(dp->dev, "failed to enable grfclk %d\n", ret);
 		return;
 	}
+
+	ret = regmap_write(dp->grf, dp->data->lcdsel_grf_reg, val);
+	if (ret != 0)
+		dev_err(dp->dev, "Could not write to GRF: %d\n", ret);
+
+	clk_disable_unprepare(dp->grfclk);
 }
 
 static void rockchip_dp_drm_encoder_nop(struct drm_encoder *encoder)
@@ -232,6 +239,16 @@ static int rockchip_dp_init(struct rockchip_dp_device *dp)
 	if (IS_ERR(dp->grf)) {
 		dev_err(dev, "failed to get rockchip,grf property\n");
 		return PTR_ERR(dp->grf);
+	}
+
+	dp->grfclk = devm_clk_get(dev, "grf");
+	if (PTR_ERR(dp->grfclk) == -ENOENT) {
+		dp->grfclk = NULL;
+	} else if (PTR_ERR(dp->grfclk) == -EPROBE_DEFER) {
+		return -EPROBE_DEFER;
+	} else if (IS_ERR(dp->grfclk)) {
+		dev_err(dev, "failed to get grf clock\n");
+		return PTR_ERR(dp->grfclk);
 	}
 
 	dp->pclk = devm_clk_get(dev, "pclk");
