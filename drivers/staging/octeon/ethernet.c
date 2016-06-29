@@ -237,7 +237,6 @@ static int cvm_oct_common_change_mtu(struct net_device *dev, int new_mtu)
 {
 	struct octeon_ethernet *priv = netdev_priv(dev);
 	int interface = INTERFACE(priv->port);
-	int index = INDEX(priv->port);
 #if defined(CONFIG_VLAN_8021Q) || defined(CONFIG_VLAN_8021Q_MODULE)
 	int vlan_bytes = 4;
 #else
@@ -259,6 +258,7 @@ static int cvm_oct_common_change_mtu(struct net_device *dev, int new_mtu)
 	if ((interface < 2) &&
 	    (cvmx_helper_interface_get_mode(interface) !=
 		CVMX_HELPER_INTERFACE_MODE_SPI)) {
+		int index = INDEX(priv->port);
 		/* Add ethernet header and FCS, and VLAN if configured. */
 		int max_packet = new_mtu + 14 + 4 + vlan_bytes;
 
@@ -300,12 +300,12 @@ static void cvm_oct_common_set_multicast_list(struct net_device *dev)
 	union cvmx_gmxx_prtx_cfg gmx_cfg;
 	struct octeon_ethernet *priv = netdev_priv(dev);
 	int interface = INTERFACE(priv->port);
-	int index = INDEX(priv->port);
 
 	if ((interface < 2) &&
 	    (cvmx_helper_interface_get_mode(interface) !=
 		CVMX_HELPER_INTERFACE_MODE_SPI)) {
 		union cvmx_gmxx_rxx_adr_ctl control;
+		int index = INDEX(priv->port);
 
 		control.u64 = 0;
 		control.s.bcst = 1;	/* Allow broadcast MAC addresses */
@@ -352,7 +352,6 @@ static int cvm_oct_set_mac_filter(struct net_device *dev)
 	struct octeon_ethernet *priv = netdev_priv(dev);
 	union cvmx_gmxx_prtx_cfg gmx_cfg;
 	int interface = INTERFACE(priv->port);
-	int index = INDEX(priv->port);
 
 	if ((interface < 2) &&
 	    (cvmx_helper_interface_get_mode(interface) !=
@@ -360,6 +359,7 @@ static int cvm_oct_set_mac_filter(struct net_device *dev)
 		int i;
 		u8 *ptr = dev->dev_addr;
 		u64 mac = 0;
+		int index = INDEX(priv->port);
 
 		for (i = 0; i < 6; i++)
 			mac = (mac << 8) | (u64)ptr[i];
