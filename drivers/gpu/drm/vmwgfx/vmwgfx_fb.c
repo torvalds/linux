@@ -517,28 +517,6 @@ static int vmw_fb_kms_framebuffer(struct fb_info *info)
 
 	par->set_fb = &vfb->base;
 
-	if (!par->bo_ptr) {
-		/*
-		 * Pin before mapping. Since we don't know in what placement
-		 * to pin, call into KMS to do it for us.
-		 */
-		ret = vfb->pin(vfb);
-		if (ret) {
-			DRM_ERROR("Could not pin the fbdev framebuffer.\n");
-			return ret;
-		}
-
-		ret = ttm_bo_kmap(&par->vmw_bo->base, 0,
-				  par->vmw_bo->base.num_pages, &par->map);
-		if (ret) {
-			vfb->unpin(vfb);
-			DRM_ERROR("Could not map the fbdev framebuffer.\n");
-			return ret;
-		}
-
-		par->bo_ptr = ttm_kmap_obj_virtual(&par->map, &par->bo_iowrite);
-	}
-
 	return 0;
 }
 
@@ -600,6 +578,31 @@ static int vmw_fb_set_par(struct fb_info *info)
 	ret = drm_mode_set_config_internal(&set);
 	if (ret)
 		goto out_unlock;
+
+	if (!par->bo_ptr) {
+		struct vmw_framebuffer *vfb = vmw_framebuffer_to_vfb(set.fb);
+
+		/*
+		 * Pin before mapping. Since we don't know in what placement
+		 * to pin, call into KMS to do it for us.
+		 */
+		ret = vfb->pin(vfb);
+		if (ret) {
+			DRM_ERROR("Could not pin the fbdev framebuffer.\n");
+			return ret;
+		}
+
+		ret = ttm_bo_kmap(&par->vmw_bo->base, 0,
+				  par->vmw_bo->base.num_pages, &par->map);
+		if (ret) {
+			vfb->unpin(vfb);
+			DRM_ERROR("Could not map the fbdev framebuffer.\n");
+			return ret;
+		}
+
+		par->bo_ptr = ttm_kmap_obj_virtual(&par->map, &par->bo_iowrite);
+	}
+
 
 	vmw_fb_dirty_mark(par, par->fb_x, par->fb_y,
 			  par->set_fb->width, par->set_fb->height);
