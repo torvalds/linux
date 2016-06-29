@@ -103,7 +103,6 @@ struct ceph_fs_client {
 
 #ifdef CONFIG_CEPH_FSCACHE
 	struct fscache_cookie *fscache;
-	struct workqueue_struct *revalidate_wq;
 #endif
 };
 
@@ -360,8 +359,7 @@ struct ceph_inode_info {
 
 #ifdef CONFIG_CEPH_FSCACHE
 	struct fscache_cookie *fscache;
-	u32 i_fscache_gen; /* sequence, for delayed fscache validate */
-	struct work_struct i_revalidate_work;
+	u32 i_fscache_gen;
 #endif
 	struct inode vfs_inode; /* at end */
 };

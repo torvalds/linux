@@ -3582,6 +3582,46 @@ int scrub_enumerate_chunks(struct scrub_ctx *sctx,
 		 */
 		scrub_pause_on(fs_info);
 		ret = btrfs_inc_block_group_ro(root, cache);
+		if (!ret && is_dev_replace) {
+			/*
+			 * If we are doing a device replace wait for any tasks
+			 * that started dellaloc right before we set the block
+			 * group to RO mode, as they might have just allocated
+			 * an extent from it or decided they could do a nocow
+			 * write. And if any such tasks did that, wait for their
+			 * ordered extents to complete and then commit the
+			 * current transaction, so that we can later see the new
+			 * extent items in the extent tree - the ordered extents
+			 * create delayed data references (for cow writes) when
+			 * they complete, which will be run and insert the
+			 * corresponding extent items into the extent tree when
+			 * we commit the transaction they used when running
+			 * inode.c:btrfs_finish_ordered_io(). We later use
+			 * the commit root of the extent tree to find extents
+			 * to copy from the srcdev into the tgtdev, and we don't
+			 * want to miss any new extents.
+			 */
+			btrfs_wait_block_group_reservations(cache);
+			btrfs_wait_nocow_writers(cache);
+			ret = btrfs_wait_ordered_roots(fs_info, -1,
+						       cache->key.objectid,
+						       cache->key.offset);
+			if (ret > 0) {
+				struct btrfs_trans_handle *trans;
+
+				trans = btrfs_join_transaction(root);
+				if (IS_ERR(trans))
+					ret = PTR_ERR(trans);
+				else
+					ret = btrfs_commit_transaction(trans,
+								       root);
+				if (ret) {
+					scrub_pause_off(fs_info);
+					btrfs_put_block_group(cache);
+					break;
+				}
+			}
+		}
 		scrub_pause_off(fs_info);
 
 		if (ret == 0) {
@@ -3602,9 +3642,11 @@ int scrub_enumerate_chunks(struct scrub_ctx *sctx,
 			break;
 		}
 
+		btrfs_dev_replace_lock(&fs_info->dev_replace, 1);
 		dev_replace->cursor_right = found_key.offset + length;
 		dev_replace->cursor_left = found_key.offset;
 		dev_replace->item_needs_writeback = 1;
+		btrfs_dev_replace_unlock(&fs_info->dev_replace, 1);
 		ret = scrub_chunk(sctx, scrub_dev, chunk_offset, length,
 				  found_key.offset, cache, is_dev_replace);
 
@@ -3639,6 +3681,11 @@ int scrub_enumerate_chunks(struct scrub_ctx *sctx,
 		atomic_set(&sctx->wr_ctx.flush_all_writes, 0);
 
 		scrub_pause_off(fs_info);
+
+		btrfs_dev_replace_lock(&fs_info->dev_replace, 1);
+		dev_replace->cursor_left = dev_replace->cursor_right;
+		dev_replace->item_needs_writeback = 1;
+		btrfs_dev_replace_unlock(&fs_info->dev_replace, 1);
 
 		if (ro_set)
 			btrfs_dec_block_group_ro(root, cache);
@@ -3677,9 +3724,6 @@ int scrub_enumerate_chunks(struct scrub_ctx *sctx,
 			ret = -ENOMEM;
 			break;
 		}
-
-		dev_replace->cursor_left = dev_replace->cursor_right;
-		dev_replace->item_needs_writeback = 1;
 skip:
 		key.offset = found_key.offset + length;
 		btrfs_release_path(path);

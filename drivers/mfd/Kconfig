@@ -852,13 +852,14 @@ config MFD_RK808
 	  including interrupts, RTC, LDO & DCDC regulators, and onkey.
 
 config MFD_RN5T618
-	tristate "Ricoh RN5T5618 PMIC"
+	tristate "Ricoh RN5T567/618 PMIC"
 	depends on I2C
+	depends on OF
 	select MFD_CORE
 	select REGMAP_I2C
 	help
-	  Say yes here to add support for the Ricoh RN5T618 PMIC. This
-	  driver provides common support for accessing the device,
+	  Say yes here to add support for the Ricoh RN5T567 or R5T618 PMIC.
+	  This driver provides common support for accessing the device,
 	  additional drivers must be enabled in order to use the
 	  functionality of the device.
 

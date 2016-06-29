@@ -515,7 +515,7 @@ static int map_try_harder(struct vfio_domain *domain, dma_addr_t iova,
 			  unsigned long pfn, long npage, int prot)
 {
 	long i;
-	int ret;
+	int ret = 0;
 
 	for (i = 0; i < npage; i++, pfn++, iova += PAGE_SIZE) {
 		ret = iommu_map(domain->domain, iova,

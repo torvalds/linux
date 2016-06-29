@@ -1681,6 +1681,14 @@ static __net_init int inet_init_net(struct net *net)
 	 */
 	net->ipv4.ping_group_range.range[0] = make_kgid(&init_user_ns, 1);
 	net->ipv4.ping_group_range.range[1] = make_kgid(&init_user_ns, 0);
+
+	/* Default values for sysctl-controlled parameters.
+	 * We set them here, in case sysctl is not compiled.
+	 */
+	net->ipv4.sysctl_ip_default_ttl = IPDEFTTL;
+	net->ipv4.sysctl_ip_dynaddr = 0;
+	net->ipv4.sysctl_ip_early_demux = 1;
+
 	return 0;
 }
 

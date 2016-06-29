@@ -29,7 +29,6 @@
 
 #include <mach/hardware.h>
 #include <mach/platform.h>
-#include <mach/irqs.h>
 
 #define LPC32XX_GPIO_P3_INP_STATE		_GPREG(0x000)
 #define LPC32XX_GPIO_P3_OUTP_SET		_GPREG(0x004)
@@ -371,61 +370,16 @@ static int lpc32xx_gpio_request(struct gpio_chip *chip, unsigned pin)
 
 static int lpc32xx_gpio_to_irq_p01(struct gpio_chip *chip, unsigned offset)
 {
-	return IRQ_LPC32XX_P0_P1_IRQ;
-}
-
-static const char lpc32xx_gpio_to_irq_gpio_p3_table[] = {
-	IRQ_LPC32XX_GPIO_00,
-	IRQ_LPC32XX_GPIO_01,
-	IRQ_LPC32XX_GPIO_02,
-	IRQ_LPC32XX_GPIO_03,
-	IRQ_LPC32XX_GPIO_04,
-	IRQ_LPC32XX_GPIO_05,
-};
-
-static int lpc32xx_gpio_to_irq_gpio_p3(struct gpio_chip *chip, unsigned offset)
-{
-	if (offset < ARRAY_SIZE(lpc32xx_gpio_to_irq_gpio_p3_table))
-		return lpc32xx_gpio_to_irq_gpio_p3_table[offset];
 	return -ENXIO;
 }
 
-static const char lpc32xx_gpio_to_irq_gpi_p3_table[] = {
-	IRQ_LPC32XX_GPI_00,
-	IRQ_LPC32XX_GPI_01,
-	IRQ_LPC32XX_GPI_02,
-	IRQ_LPC32XX_GPI_03,
-	IRQ_LPC32XX_GPI_04,
-	IRQ_LPC32XX_GPI_05,
-	IRQ_LPC32XX_GPI_06,
-	IRQ_LPC32XX_GPI_07,
-	IRQ_LPC32XX_GPI_08,
-	IRQ_LPC32XX_GPI_09,
-	-ENXIO, /* 10 */
-	-ENXIO, /* 11 */
-	-ENXIO, /* 12 */
-	-ENXIO, /* 13 */
-	-ENXIO, /* 14 */
-	-ENXIO, /* 15 */
-	-ENXIO, /* 16 */
-	-ENXIO, /* 17 */
-	-ENXIO, /* 18 */
-	IRQ_LPC32XX_GPI_19,
-	-ENXIO, /* 20 */
-	-ENXIO, /* 21 */
-	-ENXIO, /* 22 */
-	-ENXIO, /* 23 */
-	-ENXIO, /* 24 */
-	-ENXIO, /* 25 */
-	-ENXIO, /* 26 */
-	-ENXIO, /* 27 */
-	IRQ_LPC32XX_GPI_28,
-};
+static int lpc32xx_gpio_to_irq_gpio_p3(struct gpio_chip *chip, unsigned offset)
+{
+	return -ENXIO;
+}
 
 static int lpc32xx_gpio_to_irq_gpi_p3(struct gpio_chip *chip, unsigned offset)
 {
-	if (offset < ARRAY_SIZE(lpc32xx_gpio_to_irq_gpi_p3_table))
-		return lpc32xx_gpio_to_irq_gpi_p3_table[offset];
 	return -ENXIO;
 }
 

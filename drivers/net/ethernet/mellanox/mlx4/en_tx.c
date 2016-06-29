@@ -726,11 +726,11 @@ netdev_tx_t mlx4_en_xmit(struct sk_buff *skb, struct net_device *dev)
 	bool inline_ok;
 	u32 ring_cons;
 
-	if (!priv->port_up)
-		goto tx_drop;
-
 	tx_ind = skb_get_queue_mapping(skb);
 	ring = priv->tx_ring[tx_ind];
+
+	if (!priv->port_up)
+		goto tx_drop;
 
 	/* fetch ring->cons far ahead before needing it to avoid stall */
 	ring_cons = ACCESS_ONCE(ring->cons);
@@ -1030,7 +1030,7 @@ tx_drop_unmap:
 
 tx_drop:
 	dev_kfree_skb_any(skb);
-	priv->stats.tx_dropped++;
+	ring->tx_dropped++;
 	return NETDEV_TX_OK;
 }
 

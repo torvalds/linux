@@ -449,7 +449,7 @@ static void intel_pstate_init_acpi_perf_limits(struct cpufreq_policy *policy)
 		cpu->acpi_perf_data.states[0].core_frequency =
 					policy->cpuinfo.max_freq / 1000;
 	cpu->valid_pss_table = true;
-	pr_info("_PPC limits will be enforced\n");
+	pr_debug("_PPC limits will be enforced\n");
 
 	return;
 

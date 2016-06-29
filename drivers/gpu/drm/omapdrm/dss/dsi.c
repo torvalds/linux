@@ -1180,15 +1180,6 @@ static int dsi_regulator_init(struct platform_device *dsidev)
 		return PTR_ERR(vdds_dsi);
 	}
 
-	if (regulator_can_change_voltage(vdds_dsi)) {
-		r = regulator_set_voltage(vdds_dsi, 1800000, 1800000);
-		if (r) {
-			devm_regulator_put(vdds_dsi);
-			DSSERR("can't set the DSI regulator voltage\n");
-			return r;
-		}
-	}
-
 	dsi->vdds_dsi_reg = vdds_dsi;
 
 	return 0;
