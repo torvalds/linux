@@ -12,6 +12,7 @@ config CLK_RENESAS_CPG_MSTP
 	default y if ARCH_R8A7779
 	default y if ARCH_R8A7790
 	default y if ARCH_R8A7791
+	default y if ARCH_R8A7792
 	default y if ARCH_R8A7793
 	default y if ARCH_R8A7794
 	default y if ARCH_SH73A0
