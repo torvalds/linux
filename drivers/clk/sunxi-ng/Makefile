@@ -10,4 +10,5 @@ obj-$(CONFIG_SUNXI_CCU_MUX)	+= ccu_mux.o
 obj-$(CONFIG_SUNXI_CCU_PHASE)	+= ccu_phase.o
 
 # Multi-factor clocks
+obj-$(CONFIG_SUNXI_CCU_NK)	+= ccu_nk.o
 obj-$(CONFIG_SUNXI_CCU_MP)	+= ccu_mp.o

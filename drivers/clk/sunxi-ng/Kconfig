@@ -24,6 +24,10 @@ config SUNXI_CCU_PHASE
 
 # Multi-factor clocks
 
+config SUNXI_CCU_NK
+	bool
+	select SUNXI_CCU_GATE
+
 config SUNXI_CCU_MP
 	bool
 	select SUNXI_CCU_GATE
