@@ -1027,6 +1027,8 @@ static void sdhci_finish_data(struct sdhci_host *host)
 			sdhci_do_reset(host, SDHCI_RESET_DATA);
 		}
 
+		/* Avoid triggering warning in sdhci_send_command() */
+		host->cmd = NULL;
 		sdhci_send_command(host, data->stop);
 	} else {
 		sdhci_finish_mrq(host, data->mrq);
