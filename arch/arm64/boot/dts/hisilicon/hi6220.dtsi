@@ -955,7 +955,6 @@
 			clocks = <&media_ctrl HI6220_G3D_CLK>,
 				 <&media_ctrl HI6220_G3D_PCLK>;
 			clock-names = "clk_g3d", "pclk_g3d";
-			G3D_PD_VDD-supply  = <&g3d_vdd>;
 			mali_def_freq = <500>;
 			pclk_freq = <144>;
 			dfs_steps = <2>;
