@@ -489,8 +489,8 @@ struct qed_dev {
 
 	u32				int_mode;
 	enum qed_coalescing_mode	int_coalescing_mode;
-	u8				rx_coalesce_usecs;
-	u8				tx_coalesce_usecs;
+	u16				rx_coalesce_usecs;
+	u16				tx_coalesce_usecs;
 
 	/* Start Bar offset of first hwfn */
 	void __iomem			*regview;
