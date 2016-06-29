@@ -1449,7 +1449,9 @@ int ieee80211_txq_setup_flows(struct ieee80211_local *local)
 	local->cvars = kcalloc(fq->flows_cnt, sizeof(local->cvars[0]),
 			       GFP_KERNEL);
 	if (!local->cvars) {
+		spin_lock_bh(&fq->lock);
 		fq_reset(fq, fq_skb_free_func);
+		spin_unlock_bh(&fq->lock);
 		return -ENOMEM;
 	}
 
@@ -1469,7 +1471,9 @@ void ieee80211_txq_teardown_flows(struct ieee80211_local *local)
 	kfree(local->cvars);
 	local->cvars = NULL;
 
+	spin_lock_bh(&fq->lock);
 	fq_reset(fq, fq_skb_free_func);
+	spin_unlock_bh(&fq->lock);
 }
 
 struct sk_buff *ieee80211_tx_dequeue(struct ieee80211_hw *hw,
