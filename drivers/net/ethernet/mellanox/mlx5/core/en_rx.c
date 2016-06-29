@@ -689,7 +689,7 @@ static inline void mlx5e_handle_csum(struct net_device *netdev,
 	if (is_first_ethertype_ip(skb)) {
 		skb->ip_summed = CHECKSUM_COMPLETE;
 		skb->csum = csum_unfold((__force __sum16)cqe->check_sum);
-		rq->stats.csum_sw++;
+		rq->stats.csum_complete++;
 		return;
 	}
 
@@ -699,7 +699,7 @@ static inline void mlx5e_handle_csum(struct net_device *netdev,
 		if (cqe_is_tunneled(cqe)) {
 			skb->csum_level = 1;
 			skb->encapsulation = 1;
-			rq->stats.csum_inner++;
+			rq->stats.csum_unnecessary_inner++;
 		}
 		return;
 	}
