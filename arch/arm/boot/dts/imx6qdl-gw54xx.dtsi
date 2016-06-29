@@ -453,6 +453,17 @@
 	status = "okay";
 };
 
+&wdog1 {
+	status = "disabled";
+};
+
+&wdog2 {
+	pinctrl-names = "default";
+	pinctrl-0 = <&pinctrl_wdog>;
+	fsl,ext-reset-output;
+	status = "okay";
+};
+
 &iomuxc {
 	imx6qdl-gw54xx {
 		pinctrl_audmux: audmuxgrp {
@@ -652,6 +663,12 @@
 				MX6QDL_PAD_SD3_DAT3__SD3_DATA3		0x170f9
 				MX6QDL_PAD_SD3_DAT5__GPIO7_IO00		0x170f9 /* CD */
 				MX6QDL_PAD_NANDF_CS1__SD3_VSELECT	0x170f9
+			>;
+		};
+
+		pinctrl_wdog: wdoggrp {
+			fsl,pins = <
+				MX6QDL_PAD_SD1_DAT3__WDOG2_B		0x1b0b0
 			>;
 		};
 	};
