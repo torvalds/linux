@@ -303,6 +303,14 @@
 
 #define FH_UCODE_LOAD_STATUS		(0x1AF0)
 #define CSR_UCODE_LOAD_STATUS_ADDR	(0x1E70)
+
+/*
+ * Replacing FH_UCODE_LOAD_STATUS
+ * This register is writen by driver and is read by uCode during boot flow.
+ * Note this address is cleared after MAC reset.
+ */
+#define UREG_UCODE_LOAD_STATUS		(0xa05c40)
+
 enum secure_load_status_reg {
 	LMPM_CPU_UCODE_LOADING_STARTED			= 0x00000001,
 	LMPM_CPU_HDRS_LOADING_COMPLETED			= 0x00000003,

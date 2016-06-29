@@ -77,7 +77,6 @@
  */
 #define FH_MEM_LOWER_BOUND                   (0x1000)
 #define FH_MEM_UPPER_BOUND                   (0x2000)
-#define TFH_MEM_LOWER_BOUND                  (0xA06000)
 
 /**
  * Keep-Warm (KW) buffer base address.
@@ -120,7 +119,7 @@
 #define FH_MEM_CBBC_20_31_LOWER_BOUND		(FH_MEM_LOWER_BOUND + 0xB20)
 #define FH_MEM_CBBC_20_31_UPPER_BOUND		(FH_MEM_LOWER_BOUND + 0xB80)
 /* a000 TFD table address, 64 bit */
-#define TFH_TFDQ_CBB_TABLE			(TFH_MEM_LOWER_BOUND + 0x1C00)
+#define TFH_TFDQ_CBB_TABLE			(0x1C00)
 
 /* Find TFD CB base pointer for given queue */
 static inline unsigned int FH_MEM_CBBC_QUEUE(struct iwl_trans *trans,
@@ -156,7 +155,7 @@ static inline unsigned int FH_MEM_CBBC_QUEUE(struct iwl_trans *trans,
  * In case of DRAM read address which is not aligned to 128B, the TFH will
  * enable transfer size which doesn't cross 64B DRAM address boundary.
 */
-#define TFH_TRANSFER_MODE		(TFH_MEM_LOWER_BOUND + 0x1F40)
+#define TFH_TRANSFER_MODE		(0x1F40)
 #define TFH_TRANSFER_MAX_PENDING_REQ	0xc
 #define TFH_CHUNK_SIZE_128			BIT(8)
 #define TFH_CHUNK_SPLIT_MODE		BIT(10)
@@ -167,7 +166,7 @@ static inline unsigned int FH_MEM_CBBC_QUEUE(struct iwl_trans *trans,
  * the start of the TFD first TB.
  * In case of a DRAM Tx CMD update the TFH will update PN and Key ID
  */
-#define TFH_TXCMD_UPDATE_CFG		(TFH_MEM_LOWER_BOUND + 0x1F48)
+#define TFH_TXCMD_UPDATE_CFG		(0x1F48)
 /*
  * Controls TX DMA operation
  *
@@ -181,22 +180,22 @@ static inline unsigned int FH_MEM_CBBC_QUEUE(struct iwl_trans *trans,
  * set to 1 - interrupt is sent to the driver
  * Bit 0: Indicates the snoop configuration
 */
-#define TFH_SRV_DMA_CHNL0_CTRL	(TFH_MEM_LOWER_BOUND + 0x1F60)
+#define TFH_SRV_DMA_CHNL0_CTRL	(0x1F60)
 #define TFH_SRV_DMA_SNOOP	BIT(0)
 #define TFH_SRV_DMA_TO_DRIVER	BIT(24)
 #define TFH_SRV_DMA_START	BIT(31)
 
 /* Defines the DMA SRAM write start address to transfer a data block */
-#define TFH_SRV_DMA_CHNL0_SRAM_ADDR	(TFH_MEM_LOWER_BOUND + 0x1F64)
+#define TFH_SRV_DMA_CHNL0_SRAM_ADDR	(0x1F64)
 
 /* Defines the 64bits DRAM start address to read the DMA data block from */
-#define TFH_SRV_DMA_CHNL0_DRAM_ADDR	(TFH_MEM_LOWER_BOUND + 0x1F68)
+#define TFH_SRV_DMA_CHNL0_DRAM_ADDR	(0x1F68)
 
 /*
  * Defines the number of bytes to transfer from DRAM to SRAM.
  * Note that this register may be configured with non-dword aligned size.
  */
-#define TFH_SRV_DMA_CHNL0_BC	(TFH_MEM_LOWER_BOUND + 0x1F70)
+#define TFH_SRV_DMA_CHNL0_BC	(0x1F70)
 
 /**
  * Rx SRAM Control and Status Registers (RSCSR)
