@@ -69,39 +69,63 @@
 })
 
 #define wait_for(COND, MS)	  	_wait_for((COND), (MS) * 1000, 1000)
-#define wait_for_us(COND, US)	  	_wait_for((COND), (US), 1)
 
 /* If CONFIG_PREEMPT_COUNT is disabled, in_atomic() always reports false. */
 #if defined(CONFIG_DRM_I915_DEBUG) && defined(CONFIG_PREEMPT_COUNT)
-# define _WAIT_FOR_ATOMIC_CHECK WARN_ON_ONCE(!in_atomic())
+# define _WAIT_FOR_ATOMIC_CHECK(ATOMIC) WARN_ON_ONCE((ATOMIC) && !in_atomic())
 #else
-# define _WAIT_FOR_ATOMIC_CHECK do { } while (0)
+# define _WAIT_FOR_ATOMIC_CHECK(ATOMIC) do { } while (0)
 #endif
 
-#define _wait_for_atomic(COND, US) ({ \
-	unsigned long end__; \
-	int ret__ = 0; \
-	_WAIT_FOR_ATOMIC_CHECK; \
+#define _wait_for_atomic(COND, US, ATOMIC) \
+({ \
+	int cpu, ret, timeout = (US) * 1000; \
+	u64 base; \
+	_WAIT_FOR_ATOMIC_CHECK(ATOMIC); \
 	BUILD_BUG_ON((US) > 50000); \
-	end__ = (local_clock() >> 10) + (US) + 1; \
-	while (!(COND)) { \
-		if (time_after((unsigned long)(local_clock() >> 10), end__)) { \
-			/* Unlike the regular wait_for(), this atomic variant \
-			 * cannot be preempted (and we'll just ignore the issue\
-			 * of irq interruptions) and so we know that no time \
-			 * has passed since the last check of COND and can \
-			 * immediately report the timeout. \
-			 */ \
-			ret__ = -ETIMEDOUT; \
+	if (!(ATOMIC)) { \
+		preempt_disable(); \
+		cpu = smp_processor_id(); \
+	} \
+	base = local_clock(); \
+	for (;;) { \
+		u64 now = local_clock(); \
+		if (!(ATOMIC)) \
+			preempt_enable(); \
+		if (COND) { \
+			ret = 0; \
+			break; \
+		} \
+		if (now - base >= timeout) { \
+			ret = -ETIMEDOUT; \
 			break; \
 		} \
 		cpu_relax(); \
+		if (!(ATOMIC)) { \
+			preempt_disable(); \
+			if (unlikely(cpu != smp_processor_id())) { \
+				timeout -= now - base; \
+				cpu = smp_processor_id(); \
+				base = local_clock(); \
+			} \
+		} \
 	} \
+	ret; \
+})
+
+#define wait_for_us(COND, US) \
+({ \
+	int ret__; \
+	BUILD_BUG_ON(!__builtin_constant_p(US)); \
+	if ((US) > 10) \
+		ret__ = _wait_for((COND), (US), 10); \
+	else \
+		ret__ = _wait_for_atomic((COND), (US), 0); \
 	ret__; \
 })
 
-#define wait_for_atomic(COND, MS)	_wait_for_atomic((COND), (MS) * 1000)
-#define wait_for_atomic_us(COND, US)	_wait_for_atomic((COND), (US))
+#define wait_for_atomic(COND, MS)	_wait_for_atomic((COND), (MS) * 1000, 1)
+#define wait_for_atomic_us(COND, US)	_wait_for_atomic((COND), (US), 1)
 
 #define KHz(x) (1000 * (x))
 #define MHz(x) KHz(1000 * (x))
