@@ -1007,3 +1007,8 @@ const struct ixgbevf_info ixgbevf_X550EM_x_vf_hv_info = {
 	.mac = ixgbe_mac_X550EM_x_vf,
 	.mac_ops = &ixgbevf_hv_mac_ops,
 };
+
+const struct ixgbevf_info ixgbevf_x550em_a_vf_info = {
+	.mac = ixgbe_mac_x550em_a_vf,
+	.mac_ops = &ixgbevf_mac_ops,
+};

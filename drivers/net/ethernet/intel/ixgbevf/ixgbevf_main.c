@@ -70,6 +70,7 @@ static const struct ixgbevf_info *ixgbevf_info_tbl[] = {
 	[board_X550_vf_hv]	= &ixgbevf_X550_vf_hv_info,
 	[board_X550EM_x_vf]	= &ixgbevf_X550EM_x_vf_info,
 	[board_X550EM_x_vf_hv]	= &ixgbevf_X550EM_x_vf_hv_info,
+	[board_x550em_a_vf]	= &ixgbevf_x550em_a_vf_info,
 };
 
 /* ixgbevf_pci_tbl - PCI Device ID Table
@@ -89,6 +90,7 @@ static const struct pci_device_id ixgbevf_pci_tbl[] = {
 	{PCI_VDEVICE(INTEL, IXGBE_DEV_ID_X550_VF_HV), board_X550_vf_hv },
 	{PCI_VDEVICE(INTEL, IXGBE_DEV_ID_X550EM_X_VF), board_X550EM_x_vf },
 	{PCI_VDEVICE(INTEL, IXGBE_DEV_ID_X550EM_X_VF_HV), board_X550EM_x_vf_hv},
+	{PCI_VDEVICE(INTEL, IXGBE_DEV_ID_X550EM_A_VF), board_x550em_a_vf },
 	/* required last entry */
 	{0, }
 };
