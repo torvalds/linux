@@ -3126,20 +3126,18 @@ int intel_init_bsd_ring_buffer(struct drm_device *dev)
 		if (IS_GEN6(dev_priv))
 			engine->write_tail = gen6_bsd_ring_write_tail;
 		engine->flush = gen6_bsd_ring_flush;
-		if (INTEL_GEN(dev_priv) >= 8) {
+		if (INTEL_GEN(dev_priv) >= 8)
 			engine->irq_enable_mask =
 				GT_RENDER_USER_INTERRUPT << GEN8_VCS1_IRQ_SHIFT;
-		} else {
+		else
 			engine->irq_enable_mask = GT_BSD_USER_INTERRUPT;
-		}
 	} else {
 		engine->mmio_base = BSD_RING_BASE;
 		engine->flush = bsd_ring_flush;
-		if (IS_GEN5(dev_priv)) {
+		if (IS_GEN5(dev_priv))
 			engine->irq_enable_mask = ILK_BSD_USER_INTERRUPT;
-		} else {
+		else
 			engine->irq_enable_mask = I915_BSD_USER_INTERRUPT;
-		}
 	}
 
 	return intel_init_ring_buffer(dev, engine);
@@ -3182,12 +3180,11 @@ int intel_init_blt_ring_buffer(struct drm_device *dev)
 	intel_ring_default_vfuncs(dev_priv, engine);
 
 	engine->flush = gen6_ring_flush;
-	if (INTEL_GEN(dev_priv) >= 8) {
+	if (INTEL_GEN(dev_priv) >= 8)
 		engine->irq_enable_mask =
 			GT_RENDER_USER_INTERRUPT << GEN8_BCS_IRQ_SHIFT;
-	} else {
+	else
 		engine->irq_enable_mask = GT_BLT_USER_INTERRUPT;
-	}
 
 	return intel_init_ring_buffer(dev, engine);
 }
