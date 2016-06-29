@@ -629,7 +629,7 @@
 		reg-names = "hcd", "fpci", "ipfs";
 
 		interrupts = <GIC_SPI 39 IRQ_TYPE_LEVEL_HIGH>,
-			     <GIC_SPI 49 IRQ_TYPE_LEVEL_HIGH>;
+			     <GIC_SPI 40 IRQ_TYPE_LEVEL_HIGH>;
 
 		clocks = <&tegra_car TEGRA210_CLK_XUSB_HOST>,
 			 <&tegra_car TEGRA210_CLK_XUSB_HOST_SRC>,
