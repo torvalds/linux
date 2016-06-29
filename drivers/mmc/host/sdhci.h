@@ -490,6 +490,7 @@ struct sdhci_host {
 	struct tasklet_struct finish_tasklet;	/* Tasklet structures */
 
 	struct timer_list timer;	/* Timer for timeouts */
+	struct timer_list data_timer;	/* Timer for data timeouts */
 
 	u32 caps;		/* CAPABILITY_0 */
 	u32 caps1;		/* CAPABILITY_1 */

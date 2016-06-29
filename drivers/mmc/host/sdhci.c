@@ -1003,6 +1003,23 @@ static void sdhci_finish_data(struct sdhci_host *host)
 	}
 }
 
+static void sdhci_mod_timer(struct sdhci_host *host, struct mmc_request *mrq,
+			    unsigned long timeout)
+{
+	if (sdhci_data_line_cmd(mrq->cmd))
+		mod_timer(&host->data_timer, timeout);
+	else
+		mod_timer(&host->timer, timeout);
+}
+
+static void sdhci_del_timer(struct sdhci_host *host, struct mmc_request *mrq)
+{
+	if (sdhci_data_line_cmd(mrq->cmd))
+		del_timer(&host->data_timer);
+	else
+		del_timer(&host->timer);
+}
+
 void sdhci_send_command(struct sdhci_host *host, struct mmc_command *cmd)
 {
 	int flags;
@@ -1044,7 +1061,7 @@ void sdhci_send_command(struct sdhci_host *host, struct mmc_command *cmd)
 		timeout += DIV_ROUND_UP(cmd->busy_timeout, 1000) * HZ + HZ;
 	else
 		timeout += 10 * HZ;
-	mod_timer(&host->timer, timeout);
+	sdhci_mod_timer(host, cmd->mrq, timeout);
 
 	host->cmd = cmd;
 	if (sdhci_data_line_cmd(cmd)) {
@@ -2232,9 +2249,9 @@ static void sdhci_tasklet_finish(unsigned long param)
 		return;
 	}
 
-	del_timer(&host->timer);
-
 	mrq = host->mrq;
+
+	sdhci_del_timer(host, mrq);
 
 	/*
 	 * Always unmap the data buffers if they were mapped by
@@ -2289,7 +2306,30 @@ static void sdhci_timeout_timer(unsigned long data)
 
 	spin_lock_irqsave(&host->lock, flags);
 
-	if (host->mrq) {
+	if (host->cmd && !sdhci_data_line_cmd(host->cmd)) {
+		pr_err("%s: Timeout waiting for hardware cmd interrupt.\n",
+		       mmc_hostname(host->mmc));
+		sdhci_dumpregs(host);
+
+		host->cmd->error = -ETIMEDOUT;
+		sdhci_finish_mrq(host, host->cmd->mrq);
+	}
+
+	mmiowb();
+	spin_unlock_irqrestore(&host->lock, flags);
+}
+
+static void sdhci_timeout_data_timer(unsigned long data)
+{
+	struct sdhci_host *host;
+	unsigned long flags;
+
+	host = (struct sdhci_host *)data;
+
+	spin_lock_irqsave(&host->lock, flags);
+
+	if (host->data || host->data_cmd ||
+	    (host->cmd && sdhci_data_line_cmd(host->cmd))) {
 		pr_err("%s: Timeout waiting for hardware interrupt.\n",
 		       mmc_hostname(host->mmc));
 		sdhci_dumpregs(host);
@@ -2297,13 +2337,12 @@ static void sdhci_timeout_timer(unsigned long data)
 		if (host->data) {
 			host->data->error = -ETIMEDOUT;
 			sdhci_finish_data(host);
+		} else if (host->data_cmd) {
+			host->data_cmd->error = -ETIMEDOUT;
+			sdhci_finish_mrq(host, host->data_cmd->mrq);
 		} else {
-			if (host->cmd)
-				host->cmd->error = -ETIMEDOUT;
-			else
-				host->mrq->cmd->error = -ETIMEDOUT;
-
-			sdhci_finish_mrq(host, host->mrq);
+			host->cmd->error = -ETIMEDOUT;
+			sdhci_finish_mrq(host, host->cmd->mrq);
 		}
 	}
 
@@ -3432,6 +3471,8 @@ int __sdhci_add_host(struct sdhci_host *host)
 		sdhci_tasklet_finish, (unsigned long)host);
 
 	setup_timer(&host->timer, sdhci_timeout_timer, (unsigned long)host);
+	setup_timer(&host->data_timer, sdhci_timeout_data_timer,
+		    (unsigned long)host);
 
 	init_waitqueue_head(&host->buf_ready_int);
 
@@ -3541,6 +3582,7 @@ void sdhci_remove_host(struct sdhci_host *host, int dead)
 	free_irq(host->irq, host);
 
 	del_timer_sync(&host->timer);
+	del_timer_sync(&host->data_timer);
 
 	tasklet_kill(&host->finish_tasklet);
 
