@@ -2884,6 +2884,22 @@ static int gen6_ring_flush(struct drm_i915_gem_request *req,
 	return 0;
 }
 
+static void intel_ring_init_semaphores(struct drm_i915_private *dev_priv,
+				       struct intel_engine_cs *engine)
+{
+	if (!i915_semaphore_is_enabled(dev_priv))
+		return;
+
+	if (INTEL_GEN(dev_priv) >= 8) {
+		engine->semaphore.sync_to = gen8_ring_sync;
+		engine->semaphore.signal = gen8_xcs_signal;
+		GEN8_RING_SEMAPHORE_INIT(engine);
+	} else if (INTEL_GEN(dev_priv) >= 6) {
+		engine->semaphore.sync_to = gen6_ring_sync;
+		engine->semaphore.signal = gen6_signal;
+	}
+}
+
 static void intel_ring_default_vfuncs(struct drm_i915_private *dev_priv,
 				      struct intel_engine_cs *engine)
 {
@@ -2921,6 +2937,8 @@ static void intel_ring_default_vfuncs(struct drm_i915_private *dev_priv,
 		engine->irq_get = i8xx_ring_get_irq;
 		engine->irq_put = i8xx_ring_put_irq;
 	}
+
+	intel_ring_init_semaphores(dev_priv, engine);
 }
 
 int intel_init_render_ring_buffer(struct drm_device *dev)
@@ -2962,9 +2980,7 @@ int intel_init_render_ring_buffer(struct drm_device *dev)
 		engine->irq_enable_mask = GT_RENDER_USER_INTERRUPT;
 		if (i915_semaphore_is_enabled(dev_priv)) {
 			WARN_ON(!dev_priv->semaphore_obj);
-			engine->semaphore.sync_to = gen8_ring_sync;
 			engine->semaphore.signal = gen8_rcs_signal;
-			GEN8_RING_SEMAPHORE_INIT(engine);
 		}
 	} else if (INTEL_GEN(dev_priv) >= 6) {
 		engine->init_context = intel_rcs_ctx_init;
@@ -2973,8 +2989,6 @@ int intel_init_render_ring_buffer(struct drm_device *dev)
 			engine->flush = gen6_render_ring_flush;
 		engine->irq_enable_mask = GT_RENDER_USER_INTERRUPT;
 		if (i915_semaphore_is_enabled(dev_priv)) {
-			engine->semaphore.sync_to = gen6_ring_sync;
-			engine->semaphore.signal = gen6_signal;
 			/*
 			 * The current semaphore is only applied on pre-gen8
 			 * platform.  And there is no VCS2 ring on the pre-gen8
@@ -3070,16 +3084,9 @@ int intel_init_bsd_ring_buffer(struct drm_device *dev)
 		if (INTEL_GEN(dev_priv) >= 8) {
 			engine->irq_enable_mask =
 				GT_RENDER_USER_INTERRUPT << GEN8_VCS1_IRQ_SHIFT;
-			if (i915_semaphore_is_enabled(dev_priv)) {
-				engine->semaphore.sync_to = gen8_ring_sync;
-				engine->semaphore.signal = gen8_xcs_signal;
-				GEN8_RING_SEMAPHORE_INIT(engine);
-			}
 		} else {
 			engine->irq_enable_mask = GT_BSD_USER_INTERRUPT;
 			if (i915_semaphore_is_enabled(dev_priv)) {
-				engine->semaphore.sync_to = gen6_ring_sync;
-				engine->semaphore.signal = gen6_signal;
 				engine->semaphore.mbox.wait[RCS] = MI_SEMAPHORE_SYNC_VR;
 				engine->semaphore.mbox.wait[VCS] = MI_SEMAPHORE_SYNC_INVALID;
 				engine->semaphore.mbox.wait[BCS] = MI_SEMAPHORE_SYNC_VB;
@@ -3124,11 +3131,6 @@ int intel_init_bsd2_ring_buffer(struct drm_device *dev)
 	engine->flush = gen6_bsd_ring_flush;
 	engine->irq_enable_mask =
 			GT_RENDER_USER_INTERRUPT << GEN8_VCS2_IRQ_SHIFT;
-	if (i915_semaphore_is_enabled(dev_priv)) {
-		engine->semaphore.sync_to = gen8_ring_sync;
-		engine->semaphore.signal = gen8_xcs_signal;
-		GEN8_RING_SEMAPHORE_INIT(engine);
-	}
 
 	return intel_init_ring_buffer(dev, engine);
 }
@@ -3150,16 +3152,9 @@ int intel_init_blt_ring_buffer(struct drm_device *dev)
 	if (INTEL_GEN(dev_priv) >= 8) {
 		engine->irq_enable_mask =
 			GT_RENDER_USER_INTERRUPT << GEN8_BCS_IRQ_SHIFT;
-		if (i915_semaphore_is_enabled(dev_priv)) {
-			engine->semaphore.sync_to = gen8_ring_sync;
-			engine->semaphore.signal = gen8_xcs_signal;
-			GEN8_RING_SEMAPHORE_INIT(engine);
-		}
 	} else {
 		engine->irq_enable_mask = GT_BLT_USER_INTERRUPT;
 		if (i915_semaphore_is_enabled(dev_priv)) {
-			engine->semaphore.signal = gen6_signal;
-			engine->semaphore.sync_to = gen6_ring_sync;
 			/*
 			 * The current semaphore is only applied on pre-gen8
 			 * platform.  And there is no VCS2 ring on the pre-gen8
@@ -3201,18 +3196,11 @@ int intel_init_vebox_ring_buffer(struct drm_device *dev)
 	if (INTEL_GEN(dev_priv) >= 8) {
 		engine->irq_enable_mask =
 			GT_RENDER_USER_INTERRUPT << GEN8_VECS_IRQ_SHIFT;
-		if (i915_semaphore_is_enabled(dev_priv)) {
-			engine->semaphore.sync_to = gen8_ring_sync;
-			engine->semaphore.signal = gen8_xcs_signal;
-			GEN8_RING_SEMAPHORE_INIT(engine);
-		}
 	} else {
 		engine->irq_enable_mask = PM_VEBOX_USER_INTERRUPT;
 		engine->irq_get = hsw_vebox_get_irq;
 		engine->irq_put = hsw_vebox_put_irq;
 		if (i915_semaphore_is_enabled(dev_priv)) {
-			engine->semaphore.sync_to = gen6_ring_sync;
-			engine->semaphore.signal = gen6_signal;
 			engine->semaphore.mbox.wait[RCS] = MI_SEMAPHORE_SYNC_VER;
 			engine->semaphore.mbox.wait[VCS] = MI_SEMAPHORE_SYNC_VEV;
 			engine->semaphore.mbox.wait[BCS] = MI_SEMAPHORE_SYNC_VEB;
