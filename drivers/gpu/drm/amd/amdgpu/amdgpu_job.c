@@ -89,21 +89,23 @@ static void amdgpu_job_free_resources(struct amdgpu_job *job)
 
 	for (i = 0; i < job->num_ibs; ++i)
 		amdgpu_ib_free(job->adev, &job->ibs[i], f);
-	fence_put(job->fence);
-
-	amdgpu_sync_free(&job->sync);
 }
 
 void amdgpu_job_free_cb(struct amd_sched_job *s_job)
 {
 	struct amdgpu_job *job = container_of(s_job, struct amdgpu_job, base);
 
+	fence_put(job->fence);
+	amdgpu_sync_free(&job->sync);
 	kfree(job);
 }
 
 void amdgpu_job_free(struct amdgpu_job *job)
 {
 	amdgpu_job_free_resources(job);
+
+	fence_put(job->fence);
+	amdgpu_sync_free(&job->sync);
 	kfree(job);
 }
 
