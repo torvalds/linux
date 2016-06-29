@@ -470,6 +470,7 @@ static int acpi_irq_pci_sharing_penalty(int irq)
 {
 	struct acpi_pci_link *link;
 	int penalty = 0;
+	int i;
 
 	list_for_each_entry(link, &acpi_link_list, list) {
 		/*
@@ -478,18 +479,14 @@ static int acpi_irq_pci_sharing_penalty(int irq)
 		 */
 		if (link->irq.active && link->irq.active == irq)
 			penalty += PIRQ_PENALTY_PCI_USING;
-		else {
-			int i;
 
-			/*
-			 * If a link is inactive, penalize the IRQs it
-			 * might use, but not as severely.
-			 */
-			for (i = 0; i < link->irq.possible_count; i++)
-				if (link->irq.possible[i] == irq)
-					penalty += PIRQ_PENALTY_PCI_POSSIBLE /
-						link->irq.possible_count;
-		}
+		/*
+		 * penalize the IRQs PCI might use, but not as severely.
+		 */
+		for (i = 0; i < link->irq.possible_count; i++)
+			if (link->irq.possible[i] == irq)
+				penalty += PIRQ_PENALTY_PCI_POSSIBLE /
+					link->irq.possible_count;
 	}
 
 	return penalty;
