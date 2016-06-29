@@ -62,18 +62,6 @@ struct  intel_hw_status_page {
 	(i915_gem_obj_ggtt_offset(dev_priv->semaphore_obj) + \
 	 GEN8_SEMAPHORE_OFFSET(from, (__ring)->id))
 
-#define GEN8_RING_SEMAPHORE_INIT(e) do { \
-	if (!dev_priv->semaphore_obj) { \
-		break; \
-	} \
-	(e)->semaphore.signal_ggtt[RCS] = GEN8_SIGNAL_OFFSET((e), RCS); \
-	(e)->semaphore.signal_ggtt[VCS] = GEN8_SIGNAL_OFFSET((e), VCS); \
-	(e)->semaphore.signal_ggtt[BCS] = GEN8_SIGNAL_OFFSET((e), BCS); \
-	(e)->semaphore.signal_ggtt[VECS] = GEN8_SIGNAL_OFFSET((e), VECS); \
-	(e)->semaphore.signal_ggtt[VCS2] = GEN8_SIGNAL_OFFSET((e), VCS2); \
-	(e)->semaphore.signal_ggtt[(e)->id] = MI_SEMAPHORE_SYNC_INVALID; \
-	} while(0)
-
 enum intel_ring_hangcheck_action {
 	HANGCHECK_IDLE = 0,
 	HANGCHECK_WAIT,

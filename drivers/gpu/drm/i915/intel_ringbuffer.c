@@ -2888,7 +2888,7 @@ static void intel_ring_init_semaphores(struct drm_i915_private *dev_priv,
 				       struct intel_engine_cs *engine)
 {
 	struct drm_i915_gem_object *obj;
-	int ret;
+	int ret, i;
 
 	if (!i915_semaphore_is_enabled(dev_priv))
 		return;
@@ -2915,9 +2915,21 @@ static void intel_ring_init_semaphores(struct drm_i915_private *dev_priv,
 		return;
 
 	if (INTEL_GEN(dev_priv) >= 8) {
+		u64 offset = i915_gem_obj_ggtt_offset(dev_priv->semaphore_obj);
+
 		engine->semaphore.sync_to = gen8_ring_sync;
 		engine->semaphore.signal = gen8_xcs_signal;
-		GEN8_RING_SEMAPHORE_INIT(engine);
+
+		for (i = 0; i < I915_NUM_ENGINES; i++) {
+			u64 ring_offset;
+
+			if (i != engine->id)
+				ring_offset = offset + GEN8_SEMAPHORE_OFFSET(engine->id, i);
+			else
+				ring_offset = MI_SEMAPHORE_SYNC_INVALID;
+
+			engine->semaphore.signal_ggtt[i] = ring_offset;
+		}
 	} else if (INTEL_GEN(dev_priv) >= 6) {
 		engine->semaphore.sync_to = gen6_ring_sync;
 		engine->semaphore.signal = gen6_signal;
