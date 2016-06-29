@@ -1506,12 +1506,13 @@ int __i915_wait_request(struct drm_i915_gem_request *req,
 
 		/* We need to check whether any gpu reset happened in between
 		 * the request being submitted and now. If a reset has occurred,
-		 * the request is effectively complete (we either are in the
-		 * process of or have discarded the rendering and completely
-		 * reset the GPU. The results of the request are lost and we
-		 * are free to continue on with the original operation.
+		 * the seqno will have been advance past ours and our request
+		 * is complete. If we are in the process of handling a reset,
+		 * the request is effectively complete as the rendering will
+		 * be discarded, but we need to return in order to drop the
+		 * struct_mutex.
 		 */
-		if (req->reset_counter != i915_reset_counter(&dev_priv->gpu_error)) {
+		if (i915_reset_in_progress(&dev_priv->gpu_error)) {
 			ret = 0;
 			break;
 		}
@@ -1685,7 +1686,7 @@ i915_wait_request(struct drm_i915_gem_request *req)
 		return ret;
 
 	/* If the GPU hung, we want to keep the requests to find the guilty. */
-	if (req->reset_counter == i915_reset_counter(&dev_priv->gpu_error))
+	if (!i915_reset_in_progress(&dev_priv->gpu_error))
 		__i915_gem_request_retire__upto(req);
 
 	return 0;
@@ -1746,7 +1747,7 @@ i915_gem_object_retire_request(struct drm_i915_gem_object *obj,
 	else if (obj->last_write_req == req)
 		i915_gem_object_retire__write(obj);
 
-	if (req->reset_counter == i915_reset_counter(&req->i915->gpu_error))
+	if (!i915_reset_in_progress(&req->i915->gpu_error))
 		__i915_gem_request_retire__upto(req);
 }
 
@@ -3021,7 +3022,6 @@ __i915_gem_request_alloc(struct intel_engine_cs *engine,
 	kref_init(&req->ref);
 	req->i915 = dev_priv;
 	req->engine = engine;
-	req->reset_counter = reset_counter;
 	req->ctx  = ctx;
 	i915_gem_context_reference(req->ctx);
 
