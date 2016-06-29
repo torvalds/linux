@@ -794,7 +794,7 @@ drop:
 }
 
 static int mtk_poll_rx(struct napi_struct *napi, int budget,
-		       struct mtk_eth *eth, u32 rx_intr)
+		       struct mtk_eth *eth)
 {
 	struct mtk_rx_ring *ring = &eth->rx_ring;
 	int idx = ring->calc_idx;
@@ -882,7 +882,7 @@ release_desc:
 	}
 
 	if (done < budget)
-		mtk_w32(eth, rx_intr, MTK_QMTK_INT_STATUS);
+		mtk_w32(eth, MTK_RX_DONE_INT, MTK_QMTK_INT_STATUS);
 
 	return done;
 }
@@ -967,28 +967,26 @@ static int mtk_poll_tx(struct mtk_eth *eth, int budget, bool *tx_again)
 static int mtk_poll(struct napi_struct *napi, int budget)
 {
 	struct mtk_eth *eth = container_of(napi, struct mtk_eth, rx_napi);
-	u32 status, status2, mask, tx_intr, rx_intr, status_intr;
+	u32 status, status2, mask;
 	int tx_done, rx_done;
 	bool tx_again = false;
 
 	status = mtk_r32(eth, MTK_QMTK_INT_STATUS);
 	status2 = mtk_r32(eth, MTK_INT_STATUS2);
-	tx_intr = MTK_TX_DONE_INT;
-	rx_intr = MTK_RX_DONE_INT;
-	status_intr = (MTK_GDM1_AF | MTK_GDM2_AF);
 	tx_done = 0;
 	rx_done = 0;
 	tx_again = 0;
 
-	if (status & tx_intr)
+	if (status & MTK_TX_DONE_INT)
 		tx_done = mtk_poll_tx(eth, budget, &tx_again);
 
-	if (status & rx_intr)
-		rx_done = mtk_poll_rx(napi, budget, eth, rx_intr);
+	if (status & MTK_RX_DONE_INT)
+		rx_done = mtk_poll_rx(napi, budget, eth);
 
-	if (unlikely(status2 & status_intr)) {
+	if (unlikely(status2 & (MTK_GDM1_AF | MTK_GDM2_AF))) {
 		mtk_stats_update(eth);
-		mtk_w32(eth, status_intr, MTK_INT_STATUS2);
+		mtk_w32(eth, (MTK_GDM1_AF | MTK_GDM2_AF),
+			MTK_INT_STATUS2);
 	}
 
 	if (unlikely(netif_msg_intr(eth))) {
@@ -1006,7 +1004,7 @@ static int mtk_poll(struct napi_struct *napi, int budget)
 		return budget;
 
 	napi_complete(napi);
-	mtk_irq_enable(eth, tx_intr | rx_intr);
+	mtk_irq_enable(eth, MTK_RX_DONE_INT | MTK_RX_DONE_INT);
 
 	return rx_done;
 }
