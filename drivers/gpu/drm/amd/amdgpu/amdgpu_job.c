@@ -91,7 +91,6 @@ static void amdgpu_job_free_resources(struct amdgpu_job *job)
 		amdgpu_ib_free(job->adev, &job->ibs[i], f);
 	fence_put(job->fence);
 
-	amdgpu_bo_unref(&job->uf_bo);
 	amdgpu_sync_free(&job->sync);
 }
 

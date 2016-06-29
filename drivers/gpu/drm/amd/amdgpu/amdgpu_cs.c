@@ -216,11 +216,8 @@ int amdgpu_cs_parser_init(struct amdgpu_cs_parser *p, void *data)
 	if (ret)
 		goto free_all_kdata;
 
-	if (p->uf_entry.robj) {
-		p->job->uf_bo = amdgpu_bo_ref(p->uf_entry.robj);
-		p->job->uf_offset = uf_offset;
-	}
-
+	if (p->uf_entry.robj)
+		p->job->uf_addr = uf_offset;
 	kfree(chunk_array);
 	return 0;
 
@@ -502,6 +499,9 @@ static int amdgpu_cs_parser_bos(struct amdgpu_cs_parser *p,
 		}
 	}
 
+	if (p->uf_entry.robj)
+		p->job->uf_addr += amdgpu_bo_gpu_offset(p->uf_entry.robj);
+
 error_validate:
 	if (r) {
 		amdgpu_vm_move_pt_bos_in_lru(p->adev, &fpriv->vm);
@@ -767,7 +767,7 @@ static int amdgpu_cs_ib_fill(struct amdgpu_device *adev,
 	}
 
 	/* UVD & VCE fw doesn't support user fences */
-	if (parser->job->uf_bo && (
+	if (parser->job->uf_addr && (
 	    parser->job->ring->type == AMDGPU_RING_TYPE_UVD ||
 	    parser->job->ring->type == AMDGPU_RING_TYPE_VCE))
 		return -EINVAL;
