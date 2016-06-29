@@ -250,14 +250,14 @@ static int s5p_cec_runtime_resume(struct device *dev)
 	return 0;
 }
 
-static int s5p_cec_suspend(struct device *dev)
+static int __maybe_unused s5p_cec_suspend(struct device *dev)
 {
 	if (pm_runtime_suspended(dev))
 		return 0;
 	return s5p_cec_runtime_suspend(dev);
 }
 
-static int s5p_cec_resume(struct device *dev)
+static int __maybe_unused s5p_cec_resume(struct device *dev)
 {
 	if (pm_runtime_suspended(dev))
 		return 0;
