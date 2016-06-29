@@ -22,4 +22,11 @@ config SUNXI_CCU_MUX
 config SUNXI_CCU_PHASE
 	bool
 
+# Multi-factor clocks
+
+config SUNXI_CCU_MP
+	bool
+	select SUNXI_CCU_GATE
+	select SUNXI_CCU_MUX
+
 endif
