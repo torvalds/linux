@@ -50,30 +50,28 @@ void fimc_m2m_job_finish(struct fimc_ctx *ctx, int vb_state)
 	src_vb = v4l2_m2m_src_buf_remove(ctx->fh.m2m_ctx);
 	dst_vb = v4l2_m2m_dst_buf_remove(ctx->fh.m2m_ctx);
 
-	if (src_vb && dst_vb) {
+	if (src_vb)
 		v4l2_m2m_buf_done(src_vb, vb_state);
+	if (dst_vb)
 		v4l2_m2m_buf_done(dst_vb, vb_state);
+	if (src_vb && dst_vb)
 		v4l2_m2m_job_finish(ctx->fimc_dev->m2m.m2m_dev,
 				    ctx->fh.m2m_ctx);
-	}
 }
 
 /* Complete the transaction which has been scheduled for execution. */
-static int fimc_m2m_shutdown(struct fimc_ctx *ctx)
+static void fimc_m2m_shutdown(struct fimc_ctx *ctx)
 {
 	struct fimc_dev *fimc = ctx->fimc_dev;
-	int ret;
 
 	if (!fimc_m2m_pending(fimc))
-		return 0;
+		return;
 
 	fimc_ctx_state_set(FIMC_CTX_SHUT, ctx);
 
-	ret = wait_event_timeout(fimc->irq_queue,
-			   !fimc_ctx_state_is_set(FIMC_CTX_SHUT, ctx),
-			   FIMC_SHUTDOWN_TIMEOUT);
-
-	return ret == 0 ? -ETIMEDOUT : ret;
+	wait_event_timeout(fimc->irq_queue,
+			!fimc_ctx_state_is_set(FIMC_CTX_SHUT, ctx),
+			FIMC_SHUTDOWN_TIMEOUT);
 }
 
 static int start_streaming(struct vb2_queue *q, unsigned int count)
@@ -88,12 +86,10 @@ static int start_streaming(struct vb2_queue *q, unsigned int count)
 static void stop_streaming(struct vb2_queue *q)
 {
 	struct fimc_ctx *ctx = q->drv_priv;
-	int ret;
 
-	ret = fimc_m2m_shutdown(ctx);
-	if (ret == -ETIMEDOUT)
-		fimc_m2m_job_finish(ctx, VB2_BUF_STATE_ERROR);
 
+	fimc_m2m_shutdown(ctx);
+	fimc_m2m_job_finish(ctx, VB2_BUF_STATE_ERROR);
 	pm_runtime_put(&ctx->fimc_dev->pdev->dev);
 }
 
