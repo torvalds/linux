@@ -46,7 +46,7 @@ fmr_is_supported(struct rpcrdma_ia *ia)
 }
 
 static int
-__fmr_init(struct rpcrdma_mw *mw, struct ib_pd *pd)
+fmr_op_init_mr(struct rpcrdma_ia *ia, struct rpcrdma_mw *mw)
 {
 	static struct ib_fmr_attr fmr_attr = {
 		.max_pages	= RPCRDMA_MAX_FMR_SGES,
@@ -66,7 +66,7 @@ __fmr_init(struct rpcrdma_mw *mw, struct ib_pd *pd)
 
 	sg_init_table(mw->mw_sg, RPCRDMA_MAX_FMR_SGES);
 
-	mw->fmr.fm_mr = ib_alloc_fmr(pd, RPCRDMA_FMR_ACCESS_FLAGS,
+	mw->fmr.fm_mr = ib_alloc_fmr(ia->ri_pd, RPCRDMA_FMR_ACCESS_FLAGS,
 				     &fmr_attr);
 	if (IS_ERR(mw->fmr.fm_mr))
 		goto out_fmr_err;
@@ -96,7 +96,7 @@ __fmr_unmap(struct rpcrdma_mw *mw)
 }
 
 static void
-__fmr_release(struct rpcrdma_mw *r)
+fmr_op_release_mr(struct rpcrdma_mw *r)
 {
 	LIST_HEAD(unmap_list);
 	int rc;
@@ -116,13 +116,11 @@ __fmr_release(struct rpcrdma_mw *r)
 	if (rc)
 		pr_err("rpcrdma: final ib_dealloc_fmr for %p returned %i\n",
 		       r, rc);
+
+	kfree(r);
 }
 
 /* Reset of a single FMR.
- *
- * There's no recovery if this fails. The FMR is abandoned, but
- * remains in rb_all. It will be cleaned up when the transport is
- * destroyed.
  */
 static void
 fmr_op_recover_mr(struct rpcrdma_mw *mw)
@@ -164,41 +162,6 @@ fmr_op_maxpages(struct rpcrdma_xprt *r_xprt)
 {
 	return min_t(unsigned int, RPCRDMA_MAX_DATA_SEGS,
 		     RPCRDMA_MAX_HDR_SEGS * RPCRDMA_MAX_FMR_SGES);
-}
-
-static int
-fmr_op_init(struct rpcrdma_xprt *r_xprt)
-{
-	struct rpcrdma_buffer *buf = &r_xprt->rx_buf;
-	struct ib_pd *pd = r_xprt->rx_ia.ri_pd;
-	struct rpcrdma_mw *r;
-	int i, rc;
-
-	spin_lock_init(&buf->rb_mwlock);
-	INIT_LIST_HEAD(&buf->rb_mws);
-	INIT_LIST_HEAD(&buf->rb_all);
-
-	i = max_t(int, RPCRDMA_MAX_DATA_SEGS / RPCRDMA_MAX_FMR_SGES, 1);
-	i += 2;				/* head + tail */
-	i *= buf->rb_max_requests;	/* one set for each RPC slot */
-	dprintk("RPC:       %s: initalizing %d FMRs\n", __func__, i);
-
-	while (i--) {
-		r = kzalloc(sizeof(*r), GFP_KERNEL);
-		if (!r)
-			return -ENOMEM;
-
-		rc = __fmr_init(r, pd);
-		if (rc) {
-			kfree(r);
-			return rc;
-		}
-
-		r->mw_xprt = r_xprt;
-		list_add(&r->mw_list, &buf->rb_mws);
-		list_add(&r->mw_all, &buf->rb_all);
-	}
-	return 0;
 }
 
 /* Use the ib_map_phys_fmr() verb to register a memory region
@@ -374,19 +337,6 @@ fmr_op_unmap_safe(struct rpcrdma_xprt *r_xprt, struct rpcrdma_req *req,
 	}
 }
 
-static void
-fmr_op_destroy(struct rpcrdma_buffer *buf)
-{
-	struct rpcrdma_mw *r;
-
-	while (!list_empty(&buf->rb_all)) {
-		r = list_entry(buf->rb_all.next, struct rpcrdma_mw, mw_all);
-		list_del(&r->mw_all);
-		__fmr_release(r);
-		kfree(r);
-	}
-}
-
 const struct rpcrdma_memreg_ops rpcrdma_fmr_memreg_ops = {
 	.ro_map				= fmr_op_map,
 	.ro_unmap_sync			= fmr_op_unmap_sync,
@@ -394,7 +344,7 @@ const struct rpcrdma_memreg_ops rpcrdma_fmr_memreg_ops = {
 	.ro_recover_mr			= fmr_op_recover_mr,
 	.ro_open			= fmr_op_open,
 	.ro_maxpages			= fmr_op_maxpages,
-	.ro_init			= fmr_op_init,
-	.ro_destroy			= fmr_op_destroy,
+	.ro_init_mr			= fmr_op_init_mr,
+	.ro_release_mr			= fmr_op_release_mr,
 	.ro_displayname			= "fmr",
 };

@@ -91,12 +91,13 @@ out_not_supported:
 }
 
 static int
-__frwr_init(struct rpcrdma_mw *r, struct ib_pd *pd, unsigned int depth)
+frwr_op_init_mr(struct rpcrdma_ia *ia, struct rpcrdma_mw *r)
 {
+	unsigned int depth = ia->ri_max_frmr_depth;
 	struct rpcrdma_frmr *f = &r->frmr;
 	int rc;
 
-	f->fr_mr = ib_alloc_mr(pd, IB_MR_TYPE_MEM_REG, depth);
+	f->fr_mr = ib_alloc_mr(ia->ri_pd, IB_MR_TYPE_MEM_REG, depth);
 	if (IS_ERR(f->fr_mr))
 		goto out_mr_err;
 
@@ -123,7 +124,7 @@ out_list_err:
 }
 
 static void
-__frwr_release(struct rpcrdma_mw *r)
+frwr_op_release_mr(struct rpcrdma_mw *r)
 {
 	int rc;
 
@@ -132,6 +133,7 @@ __frwr_release(struct rpcrdma_mw *r)
 		pr_err("rpcrdma: final ib_dereg_mr for %p returned %i\n",
 		       r, rc);
 	kfree(r->mw_sg);
+	kfree(r);
 }
 
 static int
@@ -317,45 +319,6 @@ frwr_wc_localinv_wake(struct ib_cq *cq, struct ib_wc *wc)
 	if (wc->status != IB_WC_SUCCESS)
 		__frwr_sendcompletion_flush(wc, frmr, "localinv");
 	complete_all(&frmr->fr_linv_done);
-}
-
-static int
-frwr_op_init(struct rpcrdma_xprt *r_xprt)
-{
-	struct rpcrdma_buffer *buf = &r_xprt->rx_buf;
-	unsigned int depth = r_xprt->rx_ia.ri_max_frmr_depth;
-	struct ib_pd *pd = r_xprt->rx_ia.ri_pd;
-	int i;
-
-	spin_lock_init(&buf->rb_mwlock);
-	INIT_LIST_HEAD(&buf->rb_mws);
-	INIT_LIST_HEAD(&buf->rb_all);
-
-	i = max_t(int, RPCRDMA_MAX_DATA_SEGS / depth, 1);
-	i += 2;				/* head + tail */
-	i *= buf->rb_max_requests;	/* one set for each RPC slot */
-	dprintk("RPC:       %s: initalizing %d FRMRs\n", __func__, i);
-
-	while (i--) {
-		struct rpcrdma_mw *r;
-		int rc;
-
-		r = kzalloc(sizeof(*r), GFP_KERNEL);
-		if (!r)
-			return -ENOMEM;
-
-		rc = __frwr_init(r, pd, depth);
-		if (rc) {
-			kfree(r);
-			return rc;
-		}
-
-		r->mw_xprt = r_xprt;
-		list_add(&r->mw_list, &buf->rb_mws);
-		list_add(&r->mw_all, &buf->rb_all);
-	}
-
-	return 0;
 }
 
 /* Post a REG_MR Work Request to register a memory region
@@ -618,19 +581,6 @@ frwr_op_unmap_safe(struct rpcrdma_xprt *r_xprt, struct rpcrdma_req *req,
 	}
 }
 
-static void
-frwr_op_destroy(struct rpcrdma_buffer *buf)
-{
-	struct rpcrdma_mw *r;
-
-	while (!list_empty(&buf->rb_all)) {
-		r = list_entry(buf->rb_all.next, struct rpcrdma_mw, mw_all);
-		list_del(&r->mw_all);
-		__frwr_release(r);
-		kfree(r);
-	}
-}
-
 const struct rpcrdma_memreg_ops rpcrdma_frwr_memreg_ops = {
 	.ro_map				= frwr_op_map,
 	.ro_unmap_sync			= frwr_op_unmap_sync,
@@ -638,7 +588,7 @@ const struct rpcrdma_memreg_ops rpcrdma_frwr_memreg_ops = {
 	.ro_recover_mr			= frwr_op_recover_mr,
 	.ro_open			= frwr_op_open,
 	.ro_maxpages			= frwr_op_maxpages,
-	.ro_init			= frwr_op_init,
-	.ro_destroy			= frwr_op_destroy,
+	.ro_init_mr			= frwr_op_init_mr,
+	.ro_release_mr			= frwr_op_release_mr,
 	.ro_displayname			= "frwr",
 };

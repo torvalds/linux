@@ -339,6 +339,7 @@ struct rpcrdma_buffer {
 	spinlock_t		rb_recovery_lock; /* protect rb_stale_mrs */
 	struct list_head	rb_stale_mrs;
 	struct delayed_work	rb_recovery_worker;
+	struct delayed_work	rb_refresh_worker;
 };
 #define rdmab_to_ia(b) (&container_of((b), struct rpcrdma_xprt, rx_buf)->rx_ia)
 
@@ -387,6 +388,7 @@ struct rpcrdma_stats {
 	unsigned long		bcall_count;
 	unsigned long		mrs_recovered;
 	unsigned long		mrs_orphaned;
+	unsigned long		mrs_allocated;
 };
 
 /*
@@ -405,8 +407,9 @@ struct rpcrdma_memreg_ops {
 				   struct rpcrdma_ep *,
 				   struct rpcrdma_create_data_internal *);
 	size_t		(*ro_maxpages)(struct rpcrdma_xprt *);
-	int		(*ro_init)(struct rpcrdma_xprt *);
-	void		(*ro_destroy)(struct rpcrdma_buffer *);
+	int		(*ro_init_mr)(struct rpcrdma_ia *,
+				      struct rpcrdma_mw *);
+	void		(*ro_release_mr)(struct rpcrdma_mw *);
 	const char	*ro_displayname;
 };
 
