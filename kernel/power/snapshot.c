@@ -74,6 +74,22 @@ void __init hibernate_image_size_init(void)
  */
 struct pbe *restore_pblist;
 
+/* struct linked_page is used to build chains of pages */
+
+#define LINKED_PAGE_DATA_SIZE	(PAGE_SIZE - sizeof(void *))
+
+struct linked_page {
+	struct linked_page *next;
+	char data[LINKED_PAGE_DATA_SIZE];
+} __packed;
+
+/*
+ * List of "safe" pages (ie. pages that were not used by the image kernel
+ * before hibernation) that may be used as temporary storage for image kernel
+ * memory contents.
+ */
+static struct linked_page *safe_pages_list;
+
 /* Pointer to an auxiliary buffer (1 page) */
 static void *buffer;
 
@@ -113,9 +129,21 @@ static void *get_image_page(gfp_t gfp_mask, int safe_needed)
 	return res;
 }
 
+static void *__get_safe_page(gfp_t gfp_mask)
+{
+	if (safe_pages_list) {
+		void *ret = safe_pages_list;
+
+		safe_pages_list = safe_pages_list->next;
+		memset(ret, 0, PAGE_SIZE);
+		return ret;
+	}
+	return get_image_page(gfp_mask, PG_SAFE);
+}
+
 unsigned long get_safe_page(gfp_t gfp_mask)
 {
-	return (unsigned long)get_image_page(gfp_mask, PG_SAFE);
+	return (unsigned long)__get_safe_page(gfp_mask);
 }
 
 static struct page *alloc_image_page(gfp_t gfp_mask)
@@ -149,15 +177,6 @@ static inline void free_image_page(void *addr, int clear_nosave_free)
 
 	__free_page(page);
 }
-
-/* struct linked_page is used to build chains of pages */
-
-#define LINKED_PAGE_DATA_SIZE	(PAGE_SIZE - sizeof(void *))
-
-struct linked_page {
-	struct linked_page *next;
-	char data[LINKED_PAGE_DATA_SIZE];
-} __packed;
 
 static inline void
 free_list_of_pages(struct linked_page *list, int clear_page_nosave)
@@ -208,7 +227,8 @@ static void *chain_alloc(struct chain_allocator *ca, unsigned int size)
 	if (LINKED_PAGE_DATA_SIZE - ca->used_space < size) {
 		struct linked_page *lp;
 
-		lp = get_image_page(ca->gfp_mask, ca->safe_needed);
+		lp = ca->safe_needed ? __get_safe_page(ca->gfp_mask) :
+					get_image_page(ca->gfp_mask, PG_ANY);
 		if (!lp)
 			return NULL;
 
@@ -2104,11 +2124,6 @@ static int unpack_orig_pfns(unsigned long *buf, struct memory_bitmap *bm)
 	return 0;
 }
 
-/* List of "safe" pages that may be used to store data loaded from the suspend
- * image
- */
-static struct linked_page *safe_pages_list;
-
 #ifdef CONFIG_HIGHMEM
 /* struct highmem_pbe is used for creating the list of highmem pages that
  * should be restored atomically during the resume from disk, because the page
@@ -2334,7 +2349,7 @@ static int
 prepare_image(struct memory_bitmap *new_bm, struct memory_bitmap *bm)
 {
 	unsigned int nr_pages, nr_highmem;
-	struct linked_page *sp_list, *lp;
+	struct linked_page *lp;
 	int error;
 
 	/* If there is no highmem, the buffer will not be necessary */
@@ -2362,9 +2377,9 @@ prepare_image(struct memory_bitmap *new_bm, struct memory_bitmap *bm)
 	 * NOTE: This way we make sure there will be enough safe pages for the
 	 * chain_alloc() in get_buffer().  It is a bit wasteful, but
 	 * nr_copy_pages cannot be greater than 50% of the memory anyway.
+	 *
+	 * nr_copy_pages cannot be less than allocated_unsafe_pages too.
 	 */
-	sp_list = NULL;
-	/* nr_copy_pages cannot be lesser than allocated_unsafe_pages */
 	nr_pages = nr_copy_pages - nr_highmem - allocated_unsafe_pages;
 	nr_pages = DIV_ROUND_UP(nr_pages, PBES_PER_LINKED_PAGE);
 	while (nr_pages > 0) {
@@ -2373,12 +2388,11 @@ prepare_image(struct memory_bitmap *new_bm, struct memory_bitmap *bm)
 			error = -ENOMEM;
 			goto Free;
 		}
-		lp->next = sp_list;
-		sp_list = lp;
+		lp->next = safe_pages_list;
+		safe_pages_list = lp;
 		nr_pages--;
 	}
 	/* Preallocate memory for the image */
-	safe_pages_list = NULL;
 	nr_pages = nr_copy_pages - nr_highmem - allocated_unsafe_pages;
 	while (nr_pages > 0) {
 		lp = (struct linked_page *)get_zeroed_page(GFP_ATOMIC);
@@ -2395,12 +2409,6 @@ prepare_image(struct memory_bitmap *new_bm, struct memory_bitmap *bm)
 		swsusp_set_page_forbidden(virt_to_page(lp));
 		swsusp_set_page_free(virt_to_page(lp));
 		nr_pages--;
-	}
-	/* Free the reserved safe pages so that chain_alloc() can use them */
-	while (sp_list) {
-		lp = sp_list->next;
-		free_image_page(sp_list, PG_UNSAFE_CLEAR);
-		sp_list = lp;
 	}
 	return 0;
 
@@ -2490,6 +2498,8 @@ int snapshot_write_next(struct snapshot_handle *handle)
 		error = load_header(buffer);
 		if (error)
 			return error;
+
+		safe_pages_list = NULL;
 
 		error = memory_bm_create(&copy_bm, GFP_ATOMIC, PG_ANY);
 		if (error)
