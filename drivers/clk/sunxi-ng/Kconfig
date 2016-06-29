@@ -49,4 +49,17 @@ config SUNXI_CCU_MP
 	select SUNXI_CCU_GATE
 	select SUNXI_CCU_MUX
 
+# SoC Drivers
+
+config SUN8I_H3_CCU
+	bool "Support for the Allwinner H3 CCU"
+	select SUNXI_CCU_DIV
+	select SUNXI_CCU_NK
+	select SUNXI_CCU_NKM
+	select SUNXI_CCU_NKMP
+	select SUNXI_CCU_NM
+	select SUNXI_CCU_MP
+	select SUNXI_CCU_PHASE
+	default ARCH_SUN8I
+
 endif
