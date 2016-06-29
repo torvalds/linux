@@ -56,6 +56,71 @@
 static int lkdtm_parse_commandline(void);
 static void lkdtm_handler(void);
 
+/* jprobe entry point handlers. */
+static unsigned int jp_do_irq(unsigned int irq)
+{
+	lkdtm_handler();
+	jprobe_return();
+	return 0;
+}
+
+static irqreturn_t jp_handle_irq_event(unsigned int irq,
+				       struct irqaction *action)
+{
+	lkdtm_handler();
+	jprobe_return();
+	return 0;
+}
+
+static void jp_tasklet_action(struct softirq_action *a)
+{
+	lkdtm_handler();
+	jprobe_return();
+}
+
+static void jp_ll_rw_block(int rw, int nr, struct buffer_head *bhs[])
+{
+	lkdtm_handler();
+	jprobe_return();
+}
+
+struct scan_control;
+
+static unsigned long jp_shrink_inactive_list(unsigned long max_scan,
+					     struct zone *zone,
+					     struct scan_control *sc)
+{
+	lkdtm_handler();
+	jprobe_return();
+	return 0;
+}
+
+static int jp_hrtimer_start(struct hrtimer *timer, ktime_t tim,
+			    const enum hrtimer_mode mode)
+{
+	lkdtm_handler();
+	jprobe_return();
+	return 0;
+}
+
+static int jp_scsi_dispatch_cmd(struct scsi_cmnd *cmd)
+{
+	lkdtm_handler();
+	jprobe_return();
+	return 0;
+}
+
+#ifdef CONFIG_IDE
+static int jp_generic_ide_ioctl(ide_drive_t *drive, struct file *file,
+			struct block_device *bdev, unsigned int cmd,
+			unsigned long arg)
+{
+	lkdtm_handler();
+	jprobe_return();
+	return 0;
+}
+#endif
+
 enum cname {
 	CN_INVALID,
 	CN_INT_HARDWARE_ENTRY,
@@ -191,70 +256,6 @@ static int cpoint_count = DEFAULT_COUNT;
 module_param(cpoint_count, int, 0644);
 MODULE_PARM_DESC(cpoint_count, " Crash Point Count, number of times the "\
 				"crash point is to be hit to trigger action");
-
-static unsigned int jp_do_irq(unsigned int irq)
-{
-	lkdtm_handler();
-	jprobe_return();
-	return 0;
-}
-
-static irqreturn_t jp_handle_irq_event(unsigned int irq,
-				       struct irqaction *action)
-{
-	lkdtm_handler();
-	jprobe_return();
-	return 0;
-}
-
-static void jp_tasklet_action(struct softirq_action *a)
-{
-	lkdtm_handler();
-	jprobe_return();
-}
-
-static void jp_ll_rw_block(int rw, int nr, struct buffer_head *bhs[])
-{
-	lkdtm_handler();
-	jprobe_return();
-}
-
-struct scan_control;
-
-static unsigned long jp_shrink_inactive_list(unsigned long max_scan,
-					     struct zone *zone,
-					     struct scan_control *sc)
-{
-	lkdtm_handler();
-	jprobe_return();
-	return 0;
-}
-
-static int jp_hrtimer_start(struct hrtimer *timer, ktime_t tim,
-			    const enum hrtimer_mode mode)
-{
-	lkdtm_handler();
-	jprobe_return();
-	return 0;
-}
-
-static int jp_scsi_dispatch_cmd(struct scsi_cmnd *cmd)
-{
-	lkdtm_handler();
-	jprobe_return();
-	return 0;
-}
-
-#ifdef CONFIG_IDE
-static int jp_generic_ide_ioctl(ide_drive_t *drive, struct file *file,
-			struct block_device *bdev, unsigned int cmd,
-			unsigned long arg)
-{
-	lkdtm_handler();
-	jprobe_return();
-	return 0;
-}
-#endif
 
 /* Return the crashpoint number or NONE if the name is invalid */
 static enum ctype parse_cp_type(const char *what, size_t count)
