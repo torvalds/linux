@@ -28,6 +28,11 @@ config SUNXI_CCU_NK
 	bool
 	select SUNXI_CCU_GATE
 
+config SUNXI_CCU_NKM
+	bool
+	select RATIONAL
+	select SUNXI_CCU_GATE
+
 config SUNXI_CCU_NM
 	bool
 	select RATIONAL
