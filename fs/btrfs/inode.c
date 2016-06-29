@@ -5159,10 +5159,17 @@ void btrfs_evict_inode(struct inode *inode)
 	struct btrfs_root *root = BTRFS_I(inode)->root;
 	struct btrfs_block_rsv *rsv, *global_rsv;
 	int steal_from_global = 0;
-	u64 min_size = btrfs_calc_trunc_metadata_size(root, 1);
+	u64 min_size;
 	int ret;
 
 	trace_btrfs_inode_evict(inode);
+
+	if (!root) {
+		kmem_cache_free(btrfs_inode_cachep, BTRFS_I(inode));
+		return;
+	}
+
+	min_size = btrfs_calc_trunc_metadata_size(root, 1);
 
 	evict_inode_truncate_pages(inode);
 
