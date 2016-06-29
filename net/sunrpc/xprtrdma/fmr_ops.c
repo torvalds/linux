@@ -219,7 +219,7 @@ fmr_op_map(struct rpcrdma_xprt *r_xprt, struct rpcrdma_mr_seg *seg,
 		rpcrdma_defer_mr_recovery(mw);
 	mw = rpcrdma_get_mw(r_xprt);
 	if (!mw)
-		return -ENOMEM;
+		return -ENOBUFS;
 
 	pageoff = offset_in_page(seg1->mr_offset);
 	seg1->mr_offset -= pageoff;	/* start of page */
@@ -269,14 +269,14 @@ out_dmamap_err:
 	pr_err("rpcrdma: failed to dma map sg %p sg_nents %u\n",
 	       mw->mw_sg, mw->mw_nents);
 	rpcrdma_defer_mr_recovery(mw);
-	return -ENOMEM;
+	return -EIO;
 
 out_maperr:
 	pr_err("rpcrdma: ib_map_phys_fmr %u@0x%llx+%i (%d) status %i\n",
 	       len, (unsigned long long)dma_pages[0],
 	       pageoff, mw->mw_nents, rc);
 	rpcrdma_defer_mr_recovery(mw);
-	return rc;
+	return -EIO;
 }
 
 /* Invalidate all memory regions that were registered for "req".

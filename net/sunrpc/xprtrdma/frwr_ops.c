@@ -382,7 +382,7 @@ frwr_op_map(struct rpcrdma_xprt *r_xprt, struct rpcrdma_mr_seg *seg,
 			rpcrdma_defer_mr_recovery(mw);
 		mw = rpcrdma_get_mw(r_xprt);
 		if (!mw)
-			return -ENOMEM;
+			return -ENOBUFS;
 	} while (mw->frmr.fr_state != FRMR_IS_INVALID);
 	frmr = &mw->frmr;
 	frmr->fr_state = FRMR_IS_VALID;
@@ -456,18 +456,18 @@ out_dmamap_err:
 	pr_err("rpcrdma: failed to dma map sg %p sg_nents %u\n",
 	       mw->mw_sg, mw->mw_nents);
 	rpcrdma_defer_mr_recovery(mw);
-	return -ENOMEM;
+	return -EIO;
 
 out_mapmr_err:
 	pr_err("rpcrdma: failed to map mr %p (%u/%u)\n",
 	       frmr->fr_mr, n, mw->mw_nents);
-	rc = n < 0 ? n : -EIO;
 	rpcrdma_defer_mr_recovery(mw);
-	return rc;
+	return -EIO;
 
 out_senderr:
+	pr_err("rpcrdma: FRMR registration ib_post_send returned %i\n", rc);
 	rpcrdma_defer_mr_recovery(mw);
-	return rc;
+	return -ENOTCONN;
 }
 
 static struct ib_send_wr *
@@ -569,7 +569,8 @@ unmap:
 	return;
 
 reset_mrs:
-	pr_warn("%s: ib_post_send failed %i\n", __func__, rc);
+	pr_err("rpcrdma: FRMR invalidate ib_post_send returned %i\n", rc);
+	rdma_disconnect(ia->ri_id);
 
 	/* Find and reset the MRs in the LOCAL_INV WRs that did not
 	 * get posted. This is synchronous, and slow.

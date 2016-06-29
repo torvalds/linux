@@ -558,7 +558,6 @@ out_sendbuf:
 
 out_fail:
 	rpcrdma_buffer_put(req);
-	r_xprt->rx_stats.failed_marshal_count++;
 	return NULL;
 }
 
@@ -590,8 +589,19 @@ xprt_rdma_free(void *buffer)
 	rpcrdma_buffer_put(req);
 }
 
-/*
+/**
+ * xprt_rdma_send_request - marshal and send an RPC request
+ * @task: RPC task with an RPC message in rq_snd_buf
+ *
+ * Return values:
+ *        0:	The request has been sent
+ * ENOTCONN:	Caller needs to invoke connect logic then call again
+ *  ENOBUFS:	Call again later to send the request
+ *      EIO:	A permanent error occurred. The request was not sent,
+ *		and don't try it again
+ *
  * send_request invokes the meat of RPC RDMA. It must do the following:
+ *
  *  1.  Marshal the RPC request into an RPC RDMA request, which means
  *	putting a header in front of data, and creating IOVs for RDMA
  *	from those in the request.
@@ -600,7 +610,6 @@ xprt_rdma_free(void *buffer)
  *	the request (rpcrdma_ep_post).
  *  4.  No partial sends are possible in the RPC-RDMA protocol (as in UDP).
  */
-
 static int
 xprt_rdma_send_request(struct rpc_task *task)
 {
@@ -630,11 +639,12 @@ xprt_rdma_send_request(struct rpc_task *task)
 	return 0;
 
 failed_marshal:
-	r_xprt->rx_stats.failed_marshal_count++;
 	dprintk("RPC:       %s: rpcrdma_marshal_req failed, status %i\n",
 		__func__, rc);
 	if (rc == -EIO)
-		return -EIO;
+		r_xprt->rx_stats.failed_marshal_count++;
+	if (rc != -ENOTCONN)
+		return rc;
 drop_connection:
 	xprt_disconnect_done(xprt);
 	return -ENOTCONN;	/* implies disconnect */
