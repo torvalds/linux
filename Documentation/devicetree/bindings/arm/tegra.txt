@@ -33,6 +33,8 @@ board-specific compatible values:
   toradex,apalis_t30
   toradex,apalis_t30-eval
   toradex,colibri_t20-512
+  toradex,colibri_t30
+  toradex,colibri_t30-eval-v3
   toradex,iris
 
 Trusted Foundations
