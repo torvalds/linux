@@ -881,6 +881,12 @@ static void sdhci_prepare_data(struct sdhci_host *host, struct mmc_command *cmd)
 	sdhci_writew(host, data->blocks, SDHCI_BLOCK_COUNT);
 }
 
+static inline bool sdhci_auto_cmd12(struct sdhci_host *host,
+				    struct mmc_request *mrq)
+{
+	return !mrq->sbc && (host->flags & SDHCI_AUTO_CMD12);
+}
+
 static void sdhci_set_transfer_mode(struct sdhci_host *host,
 	struct mmc_command *cmd)
 {
@@ -911,7 +917,7 @@ static void sdhci_set_transfer_mode(struct sdhci_host *host,
 		 * If we are sending CMD23, CMD12 never gets sent
 		 * on successful completion (so no Auto-CMD12).
 		 */
-		if (!cmd->mrq->sbc && (host->flags & SDHCI_AUTO_CMD12) &&
+		if (sdhci_auto_cmd12(host, cmd->mrq) &&
 		    (cmd->opcode != SD_IO_RW_EXTENDED))
 			mode |= SDHCI_TRNS_AUTO_CMD12;
 		else if (cmd->mrq->sbc && (host->flags & SDHCI_AUTO_CMD23)) {
@@ -1469,7 +1475,7 @@ static void sdhci_request(struct mmc_host *mmc, struct mmc_request *mrq)
 	 * Ensure we don't send the STOP for non-SET_BLOCK_COUNTED
 	 * requests if Auto-CMD12 is enabled.
 	 */
-	if (!mrq->sbc && (host->flags & SDHCI_AUTO_CMD12)) {
+	if (sdhci_auto_cmd12(host, mrq)) {
 		if (mrq->stop) {
 			mrq->data->stop = NULL;
 			mrq->stop = NULL;
