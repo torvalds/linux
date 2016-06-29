@@ -2685,7 +2685,7 @@ static int polaris10_get_evv_voltages(struct pp_hwmgr *hwmgr)
 {
 	struct polaris10_hwmgr *data = (struct polaris10_hwmgr *)(hwmgr->backend);
 	uint16_t vv_id;
-	uint16_t vddc = 0;
+	uint32_t vddc = 0;
 	uint16_t i, j;
 	uint32_t sclk = 0;
 	struct phm_ppt_v1_information *table_info =
@@ -2716,8 +2716,9 @@ static int polaris10_get_evv_voltages(struct pp_hwmgr *hwmgr)
 						continue);
 
 
-			/* need to make sure vddc is less than 2v or else, it could burn the ASIC. */
-			PP_ASSERT_WITH_CODE((vddc < 2000 && vddc != 0),
+			/* need to make sure vddc is less than 2v or else, it could burn the ASIC.
+			 * real voltage level in unit of 0.01mv */
+			PP_ASSERT_WITH_CODE((vddc < 200000 && vddc != 0),
 					"Invalid VDDC value", result = -EINVAL;);
 
 			/* the voltage should not be zero nor equal to leakage ID */
