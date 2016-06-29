@@ -819,13 +819,8 @@ static enum dma_status tegra_dma_tx_status(struct dma_chan *dc,
 	/* Check on wait_ack desc status */
 	list_for_each_entry(dma_desc, &tdc->free_dma_desc, node) {
 		if (dma_desc->txd.cookie == cookie) {
-			residual =  dma_desc->bytes_requested -
-					(dma_desc->bytes_transferred %
-						dma_desc->bytes_requested);
-			dma_set_residue(txstate, residual);
 			ret = dma_desc->dma_status;
-			spin_unlock_irqrestore(&tdc->lock, flags);
-			return ret;
+			goto found;
 		}
 	}
 
@@ -833,17 +828,22 @@ static enum dma_status tegra_dma_tx_status(struct dma_chan *dc,
 	list_for_each_entry(sg_req, &tdc->pending_sg_req, node) {
 		dma_desc = sg_req->dma_desc;
 		if (dma_desc->txd.cookie == cookie) {
-			residual =  dma_desc->bytes_requested -
-					(dma_desc->bytes_transferred %
-						dma_desc->bytes_requested);
-			dma_set_residue(txstate, residual);
 			ret = dma_desc->dma_status;
-			spin_unlock_irqrestore(&tdc->lock, flags);
-			return ret;
+			goto found;
 		}
 	}
 
 	dev_dbg(tdc2dev(tdc), "cookie %d not found\n", cookie);
+	dma_desc = NULL;
+
+found:
+	if (dma_desc) {
+		residual = dma_desc->bytes_requested -
+			   (dma_desc->bytes_transferred %
+			    dma_desc->bytes_requested);
+		dma_set_residue(txstate, residual);
+	}
+
 	spin_unlock_irqrestore(&tdc->lock, flags);
 	return ret;
 }
