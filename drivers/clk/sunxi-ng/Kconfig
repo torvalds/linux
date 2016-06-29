@@ -12,4 +12,7 @@ config SUNXI_CCU_FRAC
 config SUNXI_CCU_GATE
 	bool
 
+config SUNXI_CCU_MUX
+	bool
+
 endif
