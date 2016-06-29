@@ -101,6 +101,10 @@ fmr_op_release_mr(struct rpcrdma_mw *r)
 	LIST_HEAD(unmap_list);
 	int rc;
 
+	/* Ensure MW is not on any rl_registered list */
+	if (!list_empty(&r->mw_list))
+		list_del(&r->mw_list);
+
 	kfree(r->fmr.fm_physaddrs);
 	kfree(r->mw_sg);
 
@@ -176,17 +180,13 @@ fmr_op_maxpages(struct rpcrdma_xprt *r_xprt)
  */
 static int
 fmr_op_map(struct rpcrdma_xprt *r_xprt, struct rpcrdma_mr_seg *seg,
-	   int nsegs, bool writing)
+	   int nsegs, bool writing, struct rpcrdma_mw **out)
 {
 	struct rpcrdma_mr_seg *seg1 = seg;
 	int len, pageoff, i, rc;
 	struct rpcrdma_mw *mw;
 	u64 *dma_pages;
 
-	mw = seg1->rl_mw;
-	seg1->rl_mw = NULL;
-	if (mw)
-		rpcrdma_defer_mr_recovery(mw);
 	mw = rpcrdma_get_mw(r_xprt);
 	if (!mw)
 		return -ENOBUFS;
@@ -230,11 +230,11 @@ fmr_op_map(struct rpcrdma_xprt *r_xprt, struct rpcrdma_mr_seg *seg,
 	if (rc)
 		goto out_maperr;
 
-	seg1->rl_mw = mw;
-	seg1->mr_rkey = mw->fmr.fm_mr->rkey;
-	seg1->mr_base = dma_pages[0] + pageoff;
-	seg1->mr_nsegs = mw->mw_nents;
-	seg1->mr_len = len;
+	mw->mw_handle = mw->fmr.fm_mr->rkey;
+	mw->mw_length = len;
+	mw->mw_offset = dma_pages[0] + pageoff;
+
+	*out = mw;
 	return mw->mw_nents;
 
 out_dmamap_err:
@@ -255,13 +255,13 @@ out_maperr:
  *
  * Sleeps until it is safe for the host CPU to access the
  * previously mapped memory regions.
+ *
+ * Caller ensures that req->rl_registered is not empty.
  */
 static void
 fmr_op_unmap_sync(struct rpcrdma_xprt *r_xprt, struct rpcrdma_req *req)
 {
-	struct rpcrdma_mr_seg *seg;
-	unsigned int i, nchunks;
-	struct rpcrdma_mw *mw;
+	struct rpcrdma_mw *mw, *tmp;
 	LIST_HEAD(unmap_list);
 	int rc;
 
@@ -272,14 +272,8 @@ fmr_op_unmap_sync(struct rpcrdma_xprt *r_xprt, struct rpcrdma_req *req)
 	 * ib_unmap_fmr() is slow, so use a single call instead
 	 * of one call per mapped FMR.
 	 */
-	for (i = 0, nchunks = req->rl_nchunks; nchunks; nchunks--) {
-		seg = &req->rl_segments[i];
-		mw = seg->rl_mw;
-
+	list_for_each_entry(mw, &req->rl_registered, mw_list)
 		list_add_tail(&mw->fmr.fm_mr->list, &unmap_list);
-
-		i += seg->mr_nsegs;
-	}
 	rc = ib_unmap_fmr(&unmap_list);
 	if (rc)
 		goto out_reset;
@@ -287,34 +281,22 @@ fmr_op_unmap_sync(struct rpcrdma_xprt *r_xprt, struct rpcrdma_req *req)
 	/* ORDER: Now DMA unmap all of the req's MRs, and return
 	 * them to the free MW list.
 	 */
-	for (i = 0, nchunks = req->rl_nchunks; nchunks; nchunks--) {
-		seg = &req->rl_segments[i];
-		mw = seg->rl_mw;
-
+	list_for_each_entry_safe(mw, tmp, &req->rl_registered, mw_list) {
+		list_del_init(&mw->mw_list);
 		list_del_init(&mw->fmr.fm_mr->list);
 		ib_dma_unmap_sg(r_xprt->rx_ia.ri_device,
 				mw->mw_sg, mw->mw_nents, mw->mw_dir);
 		rpcrdma_put_mw(r_xprt, mw);
-
-		i += seg->mr_nsegs;
-		seg->mr_nsegs = 0;
-		seg->rl_mw = NULL;
 	}
 
-	req->rl_nchunks = 0;
 	return;
 
 out_reset:
 	pr_err("rpcrdma: ib_unmap_fmr failed (%i)\n", rc);
 
-	for (i = 0, nchunks = req->rl_nchunks; nchunks; nchunks--) {
-		seg = &req->rl_segments[i];
-		mw = seg->rl_mw;
-
+	list_for_each_entry_safe(mw, tmp, &req->rl_registered, mw_list) {
 		list_del_init(&mw->fmr.fm_mr->list);
 		fmr_op_recover_mr(mw);
-
-		i += seg->mr_nsegs;
 	}
 }
 
@@ -325,22 +307,17 @@ static void
 fmr_op_unmap_safe(struct rpcrdma_xprt *r_xprt, struct rpcrdma_req *req,
 		  bool sync)
 {
-	struct rpcrdma_mr_seg *seg;
 	struct rpcrdma_mw *mw;
-	unsigned int i;
 
-	for (i = 0; req->rl_nchunks; req->rl_nchunks--) {
-		seg = &req->rl_segments[i];
-		mw = seg->rl_mw;
+	while (!list_empty(&req->rl_registered)) {
+		mw = list_first_entry(&req->rl_registered,
+				      struct rpcrdma_mw, mw_list);
+		list_del_init(&mw->mw_list);
 
 		if (sync)
 			fmr_op_recover_mr(mw);
 		else
 			rpcrdma_defer_mr_recovery(mw);
-
-		i += seg->mr_nsegs;
-		seg->mr_nsegs = 0;
-		seg->rl_mw = NULL;
 	}
 }
 

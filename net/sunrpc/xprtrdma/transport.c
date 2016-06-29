@@ -619,6 +619,9 @@ xprt_rdma_send_request(struct rpc_task *task)
 	struct rpcrdma_xprt *r_xprt = rpcx_to_rdmax(xprt);
 	int rc = 0;
 
+	/* On retransmit, remove any previously registered chunks */
+	r_xprt->rx_ia.ri_ops->ro_unmap_safe(r_xprt, req, false);
+
 	rc = rpcrdma_marshal_req(rqst);
 	if (rc < 0)
 		goto failed_marshal;

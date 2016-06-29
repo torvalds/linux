@@ -286,11 +286,11 @@ rpcrdma_convert_iovs(struct xdr_buf *xdrbuf, unsigned int pos,
 }
 
 static inline __be32 *
-xdr_encode_rdma_segment(__be32 *iptr, struct rpcrdma_mr_seg *seg)
+xdr_encode_rdma_segment(__be32 *iptr, struct rpcrdma_mw *mw)
 {
-	*iptr++ = cpu_to_be32(seg->mr_rkey);
-	*iptr++ = cpu_to_be32(seg->mr_len);
-	return xdr_encode_hyper(iptr, seg->mr_base);
+	*iptr++ = cpu_to_be32(mw->mw_handle);
+	*iptr++ = cpu_to_be32(mw->mw_length);
+	return xdr_encode_hyper(iptr, mw->mw_offset);
 }
 
 /* XDR-encode the Read list. Supports encoding a list of read
@@ -311,6 +311,7 @@ rpcrdma_encode_read_list(struct rpcrdma_xprt *r_xprt,
 			 __be32 *iptr, enum rpcrdma_chunktype rtype)
 {
 	struct rpcrdma_mr_seg *seg = req->rl_nextseg;
+	struct rpcrdma_mw *mw;
 	unsigned int pos;
 	int n, nsegs;
 
@@ -328,9 +329,11 @@ rpcrdma_encode_read_list(struct rpcrdma_xprt *r_xprt,
 		return ERR_PTR(nsegs);
 
 	do {
-		n = r_xprt->rx_ia.ri_ops->ro_map(r_xprt, seg, nsegs, false);
+		n = r_xprt->rx_ia.ri_ops->ro_map(r_xprt, seg, nsegs,
+						 false, &mw);
 		if (n < 0)
 			return ERR_PTR(n);
+		list_add(&mw->mw_list, &req->rl_registered);
 
 		*iptr++ = xdr_one;	/* item present */
 
@@ -338,13 +341,12 @@ rpcrdma_encode_read_list(struct rpcrdma_xprt *r_xprt,
 		 * have the same "position".
 		 */
 		*iptr++ = cpu_to_be32(pos);
-		iptr = xdr_encode_rdma_segment(iptr, seg);
+		iptr = xdr_encode_rdma_segment(iptr, mw);
 
-		dprintk("RPC: %5u %s: read segment pos %u "
-			"%d@0x%016llx:0x%08x (%s)\n",
+		dprintk("RPC: %5u %s: pos %u %u@0x%016llx:0x%08x (%s)\n",
 			rqst->rq_task->tk_pid, __func__, pos,
-			seg->mr_len, (unsigned long long)seg->mr_base,
-			seg->mr_rkey, n < nsegs ? "more" : "last");
+			mw->mw_length, (unsigned long long)mw->mw_offset,
+			mw->mw_handle, n < nsegs ? "more" : "last");
 
 		r_xprt->rx_stats.read_chunk_count++;
 		req->rl_nchunks++;
@@ -376,6 +378,7 @@ rpcrdma_encode_write_list(struct rpcrdma_xprt *r_xprt, struct rpcrdma_req *req,
 			  enum rpcrdma_chunktype wtype)
 {
 	struct rpcrdma_mr_seg *seg = req->rl_nextseg;
+	struct rpcrdma_mw *mw;
 	int n, nsegs, nchunks;
 	__be32 *segcount;
 
@@ -396,17 +399,18 @@ rpcrdma_encode_write_list(struct rpcrdma_xprt *r_xprt, struct rpcrdma_req *req,
 
 	nchunks = 0;
 	do {
-		n = r_xprt->rx_ia.ri_ops->ro_map(r_xprt, seg, nsegs, true);
+		n = r_xprt->rx_ia.ri_ops->ro_map(r_xprt, seg, nsegs,
+						 true, &mw);
 		if (n < 0)
 			return ERR_PTR(n);
+		list_add(&mw->mw_list, &req->rl_registered);
 
-		iptr = xdr_encode_rdma_segment(iptr, seg);
+		iptr = xdr_encode_rdma_segment(iptr, mw);
 
-		dprintk("RPC: %5u %s: write segment "
-			"%d@0x016%llx:0x%08x (%s)\n",
+		dprintk("RPC: %5u %s: %u@0x016%llx:0x%08x (%s)\n",
 			rqst->rq_task->tk_pid, __func__,
-			seg->mr_len, (unsigned long long)seg->mr_base,
-			seg->mr_rkey, n < nsegs ? "more" : "last");
+			mw->mw_length, (unsigned long long)mw->mw_offset,
+			mw->mw_handle, n < nsegs ? "more" : "last");
 
 		r_xprt->rx_stats.write_chunk_count++;
 		r_xprt->rx_stats.total_rdma_request += seg->mr_len;
@@ -443,6 +447,7 @@ rpcrdma_encode_reply_chunk(struct rpcrdma_xprt *r_xprt,
 			   __be32 *iptr, enum rpcrdma_chunktype wtype)
 {
 	struct rpcrdma_mr_seg *seg = req->rl_nextseg;
+	struct rpcrdma_mw *mw;
 	int n, nsegs, nchunks;
 	__be32 *segcount;
 
@@ -461,17 +466,18 @@ rpcrdma_encode_reply_chunk(struct rpcrdma_xprt *r_xprt,
 
 	nchunks = 0;
 	do {
-		n = r_xprt->rx_ia.ri_ops->ro_map(r_xprt, seg, nsegs, true);
+		n = r_xprt->rx_ia.ri_ops->ro_map(r_xprt, seg, nsegs,
+						 true, &mw);
 		if (n < 0)
 			return ERR_PTR(n);
+		list_add(&mw->mw_list, &req->rl_registered);
 
-		iptr = xdr_encode_rdma_segment(iptr, seg);
+		iptr = xdr_encode_rdma_segment(iptr, mw);
 
-		dprintk("RPC: %5u %s: reply segment "
-			"%d@0x%016llx:0x%08x (%s)\n",
+		dprintk("RPC: %5u %s: %u@0x%016llx:0x%08x (%s)\n",
 			rqst->rq_task->tk_pid, __func__,
-			seg->mr_len, (unsigned long long)seg->mr_base,
-			seg->mr_rkey, n < nsegs ? "more" : "last");
+			mw->mw_length, (unsigned long long)mw->mw_offset,
+			mw->mw_handle, n < nsegs ? "more" : "last");
 
 		r_xprt->rx_stats.reply_chunk_count++;
 		r_xprt->rx_stats.total_rdma_request += seg->mr_len;
@@ -690,10 +696,7 @@ rpcrdma_marshal_req(struct rpc_rqst *rqst)
 out_overflow:
 	pr_err("rpcrdma: send overflow: hdrlen %zd rpclen %zu %s/%s\n",
 		hdrlen, rpclen, transfertypes[rtype], transfertypes[wtype]);
-	/* Terminate this RPC. Chunks registered above will be
-	 * released by xprt_release -> xprt_rmda_free .
-	 */
-	return -EIO;
+	iptr = ERR_PTR(-EIO);
 
 out_unmap:
 	r_xprt->rx_ia.ri_ops->ro_unmap_safe(r_xprt, req, false);
@@ -705,15 +708,13 @@ out_unmap:
  * RDMA'd by server. See map at rpcrdma_create_chunks()! :-)
  */
 static int
-rpcrdma_count_chunks(struct rpcrdma_rep *rep, unsigned int max, int wrchunk, __be32 **iptrp)
+rpcrdma_count_chunks(struct rpcrdma_rep *rep, int wrchunk, __be32 **iptrp)
 {
 	unsigned int i, total_len;
 	struct rpcrdma_write_chunk *cur_wchunk;
 	char *base = (char *)rdmab_to_msg(rep->rr_rdmabuf);
 
 	i = be32_to_cpu(**iptrp);
-	if (i > max)
-		return -1;
 	cur_wchunk = (struct rpcrdma_write_chunk *) (*iptrp + 1);
 	total_len = 0;
 	while (i--) {
@@ -960,14 +961,13 @@ rpcrdma_reply_handler(struct rpcrdma_rep *rep)
 		    (headerp->rm_body.rm_chunks[1] == xdr_zero &&
 		     headerp->rm_body.rm_chunks[2] != xdr_zero) ||
 		    (headerp->rm_body.rm_chunks[1] != xdr_zero &&
-		     req->rl_nchunks == 0))
+		     list_empty(&req->rl_registered)))
 			goto badheader;
 		if (headerp->rm_body.rm_chunks[1] != xdr_zero) {
 			/* count any expected write chunks in read reply */
 			/* start at write chunk array count */
 			iptr = &headerp->rm_body.rm_chunks[2];
-			rdmalen = rpcrdma_count_chunks(rep,
-						req->rl_nchunks, 1, &iptr);
+			rdmalen = rpcrdma_count_chunks(rep, 1, &iptr);
 			/* check for validity, and no reply chunk after */
 			if (rdmalen < 0 || *iptr++ != xdr_zero)
 				goto badheader;
@@ -997,11 +997,11 @@ rpcrdma_reply_handler(struct rpcrdma_rep *rep)
 		if (headerp->rm_body.rm_chunks[0] != xdr_zero ||
 		    headerp->rm_body.rm_chunks[1] != xdr_zero ||
 		    headerp->rm_body.rm_chunks[2] != xdr_one ||
-		    req->rl_nchunks == 0)
+		    list_empty(&req->rl_registered))
 			goto badheader;
 		iptr = (__be32 *)((unsigned char *)headerp +
 							RPCRDMA_HDRLEN_MIN);
-		rdmalen = rpcrdma_count_chunks(rep, req->rl_nchunks, 0, &iptr);
+		rdmalen = rpcrdma_count_chunks(rep, 0, &iptr);
 		if (rdmalen < 0)
 			goto badheader;
 		r_xprt->rx_stats.total_rdma_reply += rdmalen;
@@ -1014,14 +1014,9 @@ rpcrdma_reply_handler(struct rpcrdma_rep *rep)
 
 badheader:
 	default:
-		dprintk("%s: invalid rpcrdma reply header (type %d):"
-				" chunks[012] == %d %d %d"
-				" expected chunks <= %d\n",
-				__func__, be32_to_cpu(headerp->rm_type),
-				headerp->rm_body.rm_chunks[0],
-				headerp->rm_body.rm_chunks[1],
-				headerp->rm_body.rm_chunks[2],
-				req->rl_nchunks);
+		dprintk("RPC: %5u %s: invalid rpcrdma reply (type %u)\n",
+			rqst->rq_task->tk_pid, __func__,
+			be32_to_cpu(headerp->rm_type));
 		status = -EIO;
 		r_xprt->rx_stats.bad_reply_count++;
 		break;
@@ -1035,7 +1030,7 @@ out:
 	 * control: waking the next RPC waits until this RPC has
 	 * relinquished all its Send Queue entries.
 	 */
-	if (req->rl_nchunks)
+	if (!list_empty(&req->rl_registered))
 		r_xprt->rx_ia.ri_ops->ro_unmap_sync(r_xprt, req);
 
 	spin_lock_bh(&xprt->transport_lock);
