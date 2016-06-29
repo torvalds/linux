@@ -125,17 +125,16 @@ __frwr_reset_mr(struct rpcrdma_ia *ia, struct rpcrdma_mw *r)
 }
 
 static void
-__frwr_reset_and_unmap(struct rpcrdma_xprt *r_xprt, struct rpcrdma_mw *mw)
+__frwr_reset_and_unmap(struct rpcrdma_mw *mw)
 {
+	struct rpcrdma_xprt *r_xprt = mw->mw_xprt;
 	struct rpcrdma_ia *ia = &r_xprt->rx_ia;
-	struct rpcrdma_frmr *f = &mw->frmr;
 	int rc;
 
 	rc = __frwr_reset_mr(ia, mw);
-	ib_dma_unmap_sg(ia->ri_device, f->fr_sg, f->fr_nents, f->fr_dir);
+	ib_dma_unmap_sg(ia->ri_device, mw->mw_sg, mw->mw_nents, mw->mw_dir);
 	if (rc)
 		return;
-
 	rpcrdma_put_mw(r_xprt, mw);
 }
 
@@ -152,8 +151,7 @@ __frwr_recovery_worker(struct work_struct *work)
 	struct rpcrdma_mw *r = container_of(work, struct rpcrdma_mw,
 					    mw_work);
 
-	__frwr_reset_and_unmap(r->mw_xprt, r);
-	return;
+	__frwr_reset_and_unmap(r);
 }
 
 /* A broken MR was discovered in a context that can't sleep.
@@ -167,8 +165,7 @@ __frwr_queue_recovery(struct rpcrdma_mw *r)
 }
 
 static int
-__frwr_init(struct rpcrdma_mw *r, struct ib_pd *pd, struct ib_device *device,
-	    unsigned int depth)
+__frwr_init(struct rpcrdma_mw *r, struct ib_pd *pd, unsigned int depth)
 {
 	struct rpcrdma_frmr *f = &r->frmr;
 	int rc;
@@ -177,11 +174,11 @@ __frwr_init(struct rpcrdma_mw *r, struct ib_pd *pd, struct ib_device *device,
 	if (IS_ERR(f->fr_mr))
 		goto out_mr_err;
 
-	f->fr_sg = kcalloc(depth, sizeof(*f->fr_sg), GFP_KERNEL);
-	if (!f->fr_sg)
+	r->mw_sg = kcalloc(depth, sizeof(*r->mw_sg), GFP_KERNEL);
+	if (!r->mw_sg)
 		goto out_list_err;
 
-	sg_init_table(f->fr_sg, depth);
+	sg_init_table(r->mw_sg, depth);
 
 	init_completion(&f->fr_linv_done);
 
@@ -210,7 +207,7 @@ __frwr_release(struct rpcrdma_mw *r)
 	if (rc)
 		dprintk("RPC:       %s: ib_dereg_mr status %i\n",
 			__func__, rc);
-	kfree(r->frmr.fr_sg);
+	kfree(r->mw_sg);
 }
 
 static int
@@ -350,7 +347,6 @@ static int
 frwr_op_init(struct rpcrdma_xprt *r_xprt)
 {
 	struct rpcrdma_buffer *buf = &r_xprt->rx_buf;
-	struct ib_device *device = r_xprt->rx_ia.ri_device;
 	unsigned int depth = r_xprt->rx_ia.ri_max_frmr_depth;
 	struct ib_pd *pd = r_xprt->rx_ia.ri_pd;
 	int i;
@@ -372,7 +368,7 @@ frwr_op_init(struct rpcrdma_xprt *r_xprt)
 		if (!r)
 			return -ENOMEM;
 
-		rc = __frwr_init(r, pd, device, depth);
+		rc = __frwr_init(r, pd, depth);
 		if (rc) {
 			kfree(r);
 			return rc;
@@ -386,7 +382,7 @@ frwr_op_init(struct rpcrdma_xprt *r_xprt)
 	return 0;
 }
 
-/* Post a FAST_REG Work Request to register a memory region
+/* Post a REG_MR Work Request to register a memory region
  * for remote access via RDMA READ or RDMA WRITE.
  */
 static int
@@ -394,8 +390,6 @@ frwr_op_map(struct rpcrdma_xprt *r_xprt, struct rpcrdma_mr_seg *seg,
 	    int nsegs, bool writing)
 {
 	struct rpcrdma_ia *ia = &r_xprt->rx_ia;
-	struct ib_device *device = ia->ri_device;
-	enum dma_data_direction direction = rpcrdma_data_dir(writing);
 	struct rpcrdma_mr_seg *seg1 = seg;
 	struct rpcrdma_mw *mw;
 	struct rpcrdma_frmr *frmr;
@@ -421,15 +415,14 @@ frwr_op_map(struct rpcrdma_xprt *r_xprt, struct rpcrdma_mr_seg *seg,
 
 	if (nsegs > ia->ri_max_frmr_depth)
 		nsegs = ia->ri_max_frmr_depth;
-
 	for (i = 0; i < nsegs;) {
 		if (seg->mr_page)
-			sg_set_page(&frmr->fr_sg[i],
+			sg_set_page(&mw->mw_sg[i],
 				    seg->mr_page,
 				    seg->mr_len,
 				    offset_in_page(seg->mr_offset));
 		else
-			sg_set_buf(&frmr->fr_sg[i], seg->mr_offset,
+			sg_set_buf(&mw->mw_sg[i], seg->mr_offset,
 				   seg->mr_len);
 
 		++seg;
@@ -440,26 +433,20 @@ frwr_op_map(struct rpcrdma_xprt *r_xprt, struct rpcrdma_mr_seg *seg,
 		    offset_in_page((seg-1)->mr_offset + (seg-1)->mr_len))
 			break;
 	}
-	frmr->fr_nents = i;
-	frmr->fr_dir = direction;
+	mw->mw_nents = i;
+	mw->mw_dir = rpcrdma_data_dir(writing);
 
-	dma_nents = ib_dma_map_sg(device, frmr->fr_sg, frmr->fr_nents, direction);
-	if (!dma_nents) {
-		pr_err("RPC:       %s: failed to dma map sg %p sg_nents %u\n",
-		       __func__, frmr->fr_sg, frmr->fr_nents);
-		return -ENOMEM;
-	}
+	dma_nents = ib_dma_map_sg(ia->ri_device,
+				  mw->mw_sg, mw->mw_nents, mw->mw_dir);
+	if (!dma_nents)
+		goto out_dmamap_err;
 
-	n = ib_map_mr_sg(mr, frmr->fr_sg, frmr->fr_nents, NULL, PAGE_SIZE);
-	if (unlikely(n != frmr->fr_nents)) {
-		pr_err("RPC:       %s: failed to map mr %p (%u/%u)\n",
-		       __func__, frmr->fr_mr, n, frmr->fr_nents);
-		rc = n < 0 ? n : -EINVAL;
-		goto out_senderr;
-	}
+	n = ib_map_mr_sg(mr, mw->mw_sg, mw->mw_nents, NULL, PAGE_SIZE);
+	if (unlikely(n != mw->mw_nents))
+		goto out_mapmr_err;
 
 	dprintk("RPC:       %s: Using frmr %p to map %u segments (%u bytes)\n",
-		__func__, mw, frmr->fr_nents, mr->length);
+		__func__, mw, mw->mw_nents, mr->length);
 
 	key = (u8)(mr->rkey & 0x000000FF);
 	ib_update_fast_reg_key(mr, ++key);
@@ -484,13 +471,25 @@ frwr_op_map(struct rpcrdma_xprt *r_xprt, struct rpcrdma_mr_seg *seg,
 	seg1->rl_mw = mw;
 	seg1->mr_rkey = mr->rkey;
 	seg1->mr_base = mr->iova;
-	seg1->mr_nsegs = frmr->fr_nents;
+	seg1->mr_nsegs = mw->mw_nents;
 	seg1->mr_len = mr->length;
 
-	return frmr->fr_nents;
+	return mw->mw_nents;
+
+out_dmamap_err:
+	pr_err("rpcrdma: failed to dma map sg %p sg_nents %u\n",
+	       mw->mw_sg, mw->mw_nents);
+	return -ENOMEM;
+
+out_mapmr_err:
+	pr_err("rpcrdma: failed to map mr %p (%u/%u)\n",
+	       frmr->fr_mr, n, mw->mw_nents);
+	rc = n < 0 ? n : -EIO;
+	__frwr_queue_recovery(mw);
+	return rc;
 
 out_senderr:
-	dprintk("RPC:       %s: ib_post_send status %i\n", __func__, rc);
+	pr_err("rpcrdma: ib_post_send status %i\n", rc);
 	__frwr_queue_recovery(mw);
 	return rc;
 }
@@ -582,8 +581,8 @@ unmap:
 		mw = seg->rl_mw;
 		seg->rl_mw = NULL;
 
-		ib_dma_unmap_sg(ia->ri_device, f->fr_sg, f->fr_nents,
-				f->fr_dir);
+		ib_dma_unmap_sg(ia->ri_device,
+				mw->mw_sg, mw->mw_nents, mw->mw_dir);
 		rpcrdma_put_mw(r_xprt, mw);
 
 		i += seg->mr_nsegs;
@@ -630,7 +629,7 @@ frwr_op_unmap_safe(struct rpcrdma_xprt *r_xprt, struct rpcrdma_req *req,
 		mw = seg->rl_mw;
 
 		if (sync)
-			__frwr_reset_and_unmap(r_xprt, mw);
+			__frwr_reset_and_unmap(mw);
 		else
 			__frwr_queue_recovery(mw);
 

@@ -221,9 +221,6 @@ enum rpcrdma_frmr_state {
 };
 
 struct rpcrdma_frmr {
-	struct scatterlist		*fr_sg;
-	int				fr_nents;
-	enum dma_data_direction		fr_dir;
 	struct ib_mr			*fr_mr;
 	struct ib_cqe			fr_cqe;
 	enum rpcrdma_frmr_state		fr_state;
@@ -240,13 +237,16 @@ struct rpcrdma_fmr {
 };
 
 struct rpcrdma_mw {
+	struct list_head	mw_list;
+	struct scatterlist	*mw_sg;
+	int			mw_nents;
+	enum dma_data_direction	mw_dir;
 	union {
 		struct rpcrdma_fmr	fmr;
 		struct rpcrdma_frmr	frmr;
 	};
 	struct work_struct	mw_work;
 	struct rpcrdma_xprt	*mw_xprt;
-	struct list_head	mw_list;
 	struct list_head	mw_all;
 };
 
