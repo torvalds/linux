@@ -903,14 +903,6 @@ static int iwl_pcie_load_cpu_sections(struct iwl_trans *trans,
 			return ret;
 	}
 
-	if (trans->cfg->device_family == IWL_DEVICE_FAMILY_8000)
-		iwl_set_bits_prph(trans,
-				  CSR_UCODE_LOAD_STATUS_ADDR,
-				  (LMPM_CPU_UCODE_LOADING_COMPLETED |
-				   LMPM_CPU_HDRS_LOADING_COMPLETED |
-				   LMPM_CPU_UCODE_LOADING_STARTED) <<
-					shift_param);
-
 	*first_ucode_section = last_read_idx;
 
 	return 0;
