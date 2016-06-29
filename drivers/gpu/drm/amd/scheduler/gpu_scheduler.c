@@ -32,6 +32,7 @@
 
 static bool amd_sched_entity_is_ready(struct amd_sched_entity *entity);
 static void amd_sched_wakeup(struct amd_gpu_scheduler *sched);
+static void amd_sched_process_job(struct fence *f, struct fence_cb *cb);
 
 struct kmem_cache *sched_fence_slab;
 atomic_t sched_fence_slab_ref = ATOMIC_INIT(0);
@@ -390,6 +391,38 @@ void amd_sched_hw_job_reset(struct amd_gpu_scheduler *sched)
 		if (fence_remove_callback(s_job->s_fence->parent, &s_job->s_fence->cb)) {
 			fence_put(s_job->s_fence->parent);
 			s_job->s_fence->parent = NULL;
+		}
+	}
+	spin_unlock(&sched->job_list_lock);
+}
+
+void amd_sched_job_recovery(struct amd_gpu_scheduler *sched)
+{
+	struct amd_sched_job *s_job;
+	int r;
+
+	spin_lock(&sched->job_list_lock);
+	s_job = list_first_entry_or_null(&sched->ring_mirror_list,
+					 struct amd_sched_job, node);
+	if (s_job)
+		schedule_delayed_work(&s_job->work_tdr, sched->timeout);
+
+	list_for_each_entry(s_job, &sched->ring_mirror_list, node) {
+		struct amd_sched_fence *s_fence = s_job->s_fence;
+		struct fence *fence = sched->ops->run_job(s_job);
+		if (fence) {
+			s_fence->parent = fence_get(fence);
+			r = fence_add_callback(fence, &s_fence->cb,
+					       amd_sched_process_job);
+			if (r == -ENOENT)
+				amd_sched_process_job(fence, &s_fence->cb);
+			else if (r)
+				DRM_ERROR("fence add callback failed (%d)\n",
+					  r);
+			fence_put(fence);
+		} else {
+			DRM_ERROR("Failed to run job!\n");
+			amd_sched_process_job(NULL, &s_fence->cb);
 		}
 	}
 	spin_unlock(&sched->job_list_lock);
