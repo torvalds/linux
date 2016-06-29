@@ -3026,8 +3026,8 @@ int tonga_init_smc_table(struct pp_hwmgr *hwmgr)
 
 	reg_value = 0;
 	if ((0 == reg_value) &&
-		(0 == atomctrl_get_pp_assign_pin(hwmgr,
-			VDDC_VRHOT_GPIO_PINID, &gpio_pin_assignment))) {
+		(atomctrl_get_pp_assign_pin(hwmgr, VDDC_VRHOT_GPIO_PINID,
+						&gpio_pin_assignment))) {
 		table->VRHotGpio = gpio_pin_assignment.uc_gpio_pin_bit_shift;
 		phm_cap_set(hwmgr->platform_descriptor.platformCaps,
 			PHM_PlatformCaps_RegulatorHot);
@@ -3040,8 +3040,8 @@ int tonga_init_smc_table(struct pp_hwmgr *hwmgr)
 	/* ACDC Switch GPIO */
 	reg_value = 0;
 	if ((0 == reg_value) &&
-		(0 == atomctrl_get_pp_assign_pin(hwmgr,
-			PP_AC_DC_SWITCH_GPIO_PINID, &gpio_pin_assignment))) {
+		(atomctrl_get_pp_assign_pin(hwmgr, PP_AC_DC_SWITCH_GPIO_PINID,
+						&gpio_pin_assignment))) {
 		table->AcDcGpio = gpio_pin_assignment.uc_gpio_pin_bit_shift;
 		phm_cap_set(hwmgr->platform_descriptor.platformCaps,
 			PHM_PlatformCaps_AutomaticDCTransition);
@@ -3063,8 +3063,7 @@ int tonga_init_smc_table(struct pp_hwmgr *hwmgr)
 	}
 
 	reg_value = 0;
-	if ((0 == reg_value) &&
-		(0 == atomctrl_get_pp_assign_pin(hwmgr,
+	if ((0 == reg_value) && (atomctrl_get_pp_assign_pin(hwmgr,
 			THERMAL_INT_OUTPUT_GPIO_PINID, &gpio_pin_assignment))) {
 		phm_cap_set(hwmgr->platform_descriptor.platformCaps,
 			PHM_PlatformCaps_ThermalOutGPIO);
@@ -4570,7 +4569,7 @@ int tonga_hwmgr_backend_init(struct pp_hwmgr *hwmgr)
 	* if ucGPIO_ID=VDDC_PCC_GPIO_PINID in GPIO_LUTable,
 	* Peak Current Control feature is enabled and we should program PCC HW register
 	*/
-	if (0 == atomctrl_get_pp_assign_pin(hwmgr, VDDC_PCC_GPIO_PINID, &gpio_pin_assignment)) {
+	if (atomctrl_get_pp_assign_pin(hwmgr, VDDC_PCC_GPIO_PINID, &gpio_pin_assignment)) {
 		uint32_t temp_reg = cgs_read_ind_register(hwmgr->device,
 										CGS_IND_REG__SMC, ixCNB_PWRMGT_CNTL);
 
