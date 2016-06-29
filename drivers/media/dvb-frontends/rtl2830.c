@@ -922,7 +922,8 @@ MODULE_DEVICE_TABLE(i2c, rtl2830_id_table);
 
 static struct i2c_driver rtl2830_driver = {
 	.driver = {
-		.name	= "rtl2830",
+		.name			= "rtl2830",
+		.suppress_bind_attrs	= true,
 	},
 	.probe		= rtl2830_probe,
 	.remove		= rtl2830_remove,
