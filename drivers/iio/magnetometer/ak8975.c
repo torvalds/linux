@@ -33,6 +33,7 @@
 #include <linux/of_gpio.h>
 #include <linux/acpi.h>
 #include <linux/regulator/consumer.h>
+#include <linux/pm_runtime.h>
 
 #include <linux/iio/iio.h>
 #include <linux/iio/sysfs.h>
@@ -692,6 +693,8 @@ static int ak8975_read_axis(struct iio_dev *indio_dev, int index, int *val)
 	u16 buff;
 	int ret;
 
+	pm_runtime_get_sync(&data->client->dev);
+
 	mutex_lock(&data->lock);
 
 	ret = ak8975_start_read_axis(data, client);
@@ -705,6 +708,9 @@ static int ak8975_read_axis(struct iio_dev *indio_dev, int index, int *val)
 		goto exit;
 
 	mutex_unlock(&data->lock);
+
+	pm_runtime_mark_last_busy(&data->client->dev);
+	pm_runtime_put_autosuspend(&data->client->dev);
 
 	/* Swap bytes and convert to valid range. */
 	buff = le16_to_cpu(buff);
@@ -975,6 +981,18 @@ static int ak8975_probe(struct i2c_client *client,
 		goto cleanup_buffer;
 	}
 
+	/* Enable runtime PM */
+	pm_runtime_get_noresume(&client->dev);
+	pm_runtime_set_active(&client->dev);
+	pm_runtime_enable(&client->dev);
+	/*
+	 * The device comes online in 500us, so add two orders of magnitude
+	 * of delay before autosuspending: 50 ms.
+	 */
+	pm_runtime_set_autosuspend_delay(&client->dev, 50);
+	pm_runtime_use_autosuspend(&client->dev);
+	pm_runtime_put(&client->dev);
+
 	return 0;
 
 cleanup_buffer:
@@ -989,6 +1007,9 @@ static int ak8975_remove(struct i2c_client *client)
 	struct iio_dev *indio_dev = i2c_get_clientdata(client);
 	struct ak8975_data *data = iio_priv(indio_dev);
 
+	pm_runtime_get_sync(&client->dev);
+	pm_runtime_put_noidle(&client->dev);
+	pm_runtime_disable(&client->dev);
 	iio_device_unregister(indio_dev);
 	iio_triggered_buffer_cleanup(indio_dev);
 	ak8975_set_mode(data, POWER_DOWN);
@@ -996,6 +1017,56 @@ static int ak8975_remove(struct i2c_client *client)
 
 	return 0;
 }
+
+#ifdef CONFIG_PM
+static int ak8975_runtime_suspend(struct device *dev)
+{
+	struct i2c_client *client = to_i2c_client(dev);
+	struct iio_dev *indio_dev = i2c_get_clientdata(client);
+	struct ak8975_data *data = iio_priv(indio_dev);
+	int ret;
+
+	/* Set the device in power down if it wasn't already */
+	ret = ak8975_set_mode(data, POWER_DOWN);
+	if (ret < 0) {
+		dev_err(&client->dev, "Error in setting power-down mode\n");
+		return ret;
+	}
+	/* Next cut the regulators */
+	ak8975_power_off(data);
+
+	return 0;
+}
+
+static int ak8975_runtime_resume(struct device *dev)
+{
+	struct i2c_client *client = to_i2c_client(dev);
+	struct iio_dev *indio_dev = i2c_get_clientdata(client);
+	struct ak8975_data *data = iio_priv(indio_dev);
+	int ret;
+
+	/* Take up the regulators */
+	ak8975_power_on(data);
+	/*
+	 * We come up in powered down mode, the reading routines will
+	 * put us in the mode to read values later.
+	 */
+	ret = ak8975_set_mode(data, POWER_DOWN);
+	if (ret < 0) {
+		dev_err(&client->dev, "Error in setting power-down mode\n");
+		return ret;
+	}
+
+	return 0;
+}
+#endif /* CONFIG_PM */
+
+static const struct dev_pm_ops ak8975_dev_pm_ops = {
+	SET_SYSTEM_SLEEP_PM_OPS(pm_runtime_force_suspend,
+				pm_runtime_force_resume)
+	SET_RUNTIME_PM_OPS(ak8975_runtime_suspend,
+			   ak8975_runtime_resume, NULL)
+};
 
 static const struct i2c_device_id ak8975_id[] = {
 	{"ak8975", AK8975},
@@ -1024,6 +1095,7 @@ MODULE_DEVICE_TABLE(of, ak8975_of_match);
 static struct i2c_driver ak8975_driver = {
 	.driver = {
 		.name	= "ak8975",
+		.pm = &ak8975_dev_pm_ops,
 		.of_match_table = of_match_ptr(ak8975_of_match),
 		.acpi_match_table = ACPI_PTR(ak_acpi_match),
 	},
