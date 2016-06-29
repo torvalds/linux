@@ -185,37 +185,36 @@ static int pkcs1pad_encrypt_sign_complete(struct akcipher_request *req, int err)
 	struct crypto_akcipher *tfm = crypto_akcipher_reqtfm(req);
 	struct pkcs1pad_ctx *ctx = akcipher_tfm_ctx(tfm);
 	struct pkcs1pad_request *req_ctx = akcipher_request_ctx(req);
-	size_t pad_len = ctx->key_size - req_ctx->child_req.dst_len;
-	size_t chunk_len, pad_left;
-	struct sg_mapping_iter miter;
+	unsigned int pad_len;
+	unsigned int len;
+	u8 *out_buf;
 
-	if (!err) {
-		if (pad_len) {
-			sg_miter_start(&miter, req->dst,
-					sg_nents_for_len(req->dst, pad_len),
-					SG_MITER_ATOMIC | SG_MITER_TO_SG);
+	if (err)
+		goto out;
 
-			pad_left = pad_len;
-			while (pad_left) {
-				sg_miter_next(&miter);
+	len = req_ctx->child_req.dst_len;
+	pad_len = ctx->key_size - len;
 
-				chunk_len = min(miter.length, pad_left);
-				memset(miter.addr, 0, chunk_len);
-				pad_left -= chunk_len;
-			}
+	/* Four billion to one */
+	if (likely(!pad_len))
+		goto out;
 
-			sg_miter_stop(&miter);
-		}
+	out_buf = kzalloc(ctx->key_size, GFP_ATOMIC);
+	err = -ENOMEM;
+	if (!out_buf)
+		goto out;
 
-		sg_pcopy_from_buffer(req->dst,
-				sg_nents_for_len(req->dst, ctx->key_size),
-				req_ctx->out_buf, req_ctx->child_req.dst_len,
-				pad_len);
-	}
+	sg_copy_to_buffer(req->dst, sg_nents_for_len(req->dst, len),
+			  out_buf + pad_len, len);
+	sg_copy_from_buffer(req->dst,
+			    sg_nents_for_len(req->dst, ctx->key_size),
+			    out_buf, ctx->key_size);
+	kzfree(out_buf);
+
+out:
 	req->dst_len = ctx->key_size;
 
 	kfree(req_ctx->in_buf);
-	kzfree(req_ctx->out_buf);
 
 	return err;
 }
@@ -255,15 +254,6 @@ static int pkcs1pad_encrypt(struct akcipher_request *req)
 		return -EOVERFLOW;
 	}
 
-	/*
-	 * Replace both input and output to add the padding in the input and
-	 * the potential missing leading zeros in the output.
-	 */
-	req_ctx->child_req.src = req_ctx->in_sg;
-	req_ctx->child_req.src_len = ctx->key_size - 1;
-	req_ctx->child_req.dst = req_ctx->out_sg;
-	req_ctx->child_req.dst_len = ctx->key_size;
-
 	req_ctx->in_buf = kmalloc(ctx->key_size - 1 - req->src_len,
 				  GFP_KERNEL);
 	if (!req_ctx->in_buf)
@@ -290,6 +280,10 @@ static int pkcs1pad_encrypt(struct akcipher_request *req)
 	akcipher_request_set_tfm(&req_ctx->child_req, ctx->child);
 	akcipher_request_set_callback(&req_ctx->child_req, req->base.flags,
 			pkcs1pad_encrypt_sign_complete_cb, req);
+
+	/* Reuse output buffer */
+	akcipher_request_set_crypt(&req_ctx->child_req, req_ctx->in_sg,
+				   req->dst, ctx->key_size - 1, req->dst_len);
 
 	err = crypto_akcipher_encrypt(&req_ctx->child_req);
 	if (err != -EINPROGRESS &&
@@ -372,12 +366,6 @@ static int pkcs1pad_decrypt(struct akcipher_request *req)
 	if (!ctx->key_size || req->src_len != ctx->key_size)
 		return -EINVAL;
 
-	/* Reuse input buffer, output to a new buffer */
-	req_ctx->child_req.src = req->src;
-	req_ctx->child_req.src_len = req->src_len;
-	req_ctx->child_req.dst = req_ctx->out_sg;
-	req_ctx->child_req.dst_len = ctx->key_size ;
-
 	req_ctx->out_buf = kmalloc(ctx->key_size, GFP_KERNEL);
 	if (!req_ctx->out_buf)
 		return -ENOMEM;
@@ -388,6 +376,11 @@ static int pkcs1pad_decrypt(struct akcipher_request *req)
 	akcipher_request_set_tfm(&req_ctx->child_req, ctx->child);
 	akcipher_request_set_callback(&req_ctx->child_req, req->base.flags,
 			pkcs1pad_decrypt_complete_cb, req);
+
+	/* Reuse input buffer, output to a new buffer */
+	akcipher_request_set_crypt(&req_ctx->child_req, req->src,
+				   req_ctx->out_sg, req->src_len,
+				   ctx->key_size);
 
 	err = crypto_akcipher_decrypt(&req_ctx->child_req);
 	if (err != -EINPROGRESS &&
@@ -422,15 +415,6 @@ static int pkcs1pad_sign(struct akcipher_request *req)
 		return -EOVERFLOW;
 	}
 
-	/*
-	 * Replace both input and output to add the padding in the input and
-	 * the potential missing leading zeros in the output.
-	 */
-	req_ctx->child_req.src = req_ctx->in_sg;
-	req_ctx->child_req.src_len = ctx->key_size - 1;
-	req_ctx->child_req.dst = req_ctx->out_sg;
-	req_ctx->child_req.dst_len = ctx->key_size;
-
 	req_ctx->in_buf = kmalloc(ctx->key_size - 1 - req->src_len,
 				  GFP_KERNEL);
 	if (!req_ctx->in_buf)
@@ -447,18 +431,13 @@ static int pkcs1pad_sign(struct akcipher_request *req)
 	pkcs1pad_sg_set_buf(req_ctx->in_sg, req_ctx->in_buf,
 			ctx->key_size - 1 - req->src_len, req->src);
 
-	req_ctx->out_buf = kmalloc(ctx->key_size, GFP_KERNEL);
-	if (!req_ctx->out_buf) {
-		kfree(req_ctx->in_buf);
-		return -ENOMEM;
-	}
-
-	pkcs1pad_sg_set_buf(req_ctx->out_sg, req_ctx->out_buf,
-			ctx->key_size, NULL);
-
 	akcipher_request_set_tfm(&req_ctx->child_req, ctx->child);
 	akcipher_request_set_callback(&req_ctx->child_req, req->base.flags,
 			pkcs1pad_encrypt_sign_complete_cb, req);
+
+	/* Reuse output buffer */
+	akcipher_request_set_crypt(&req_ctx->child_req, req_ctx->in_sg,
+				   req->dst, ctx->key_size - 1, req->dst_len);
 
 	err = crypto_akcipher_sign(&req_ctx->child_req);
 	if (err != -EINPROGRESS &&
@@ -559,12 +538,6 @@ static int pkcs1pad_verify(struct akcipher_request *req)
 	if (!ctx->key_size || req->src_len < ctx->key_size)
 		return -EINVAL;
 
-	/* Reuse input buffer, output to a new buffer */
-	req_ctx->child_req.src = req->src;
-	req_ctx->child_req.src_len = req->src_len;
-	req_ctx->child_req.dst = req_ctx->out_sg;
-	req_ctx->child_req.dst_len = ctx->key_size;
-
 	req_ctx->out_buf = kmalloc(ctx->key_size, GFP_KERNEL);
 	if (!req_ctx->out_buf)
 		return -ENOMEM;
@@ -575,6 +548,11 @@ static int pkcs1pad_verify(struct akcipher_request *req)
 	akcipher_request_set_tfm(&req_ctx->child_req, ctx->child);
 	akcipher_request_set_callback(&req_ctx->child_req, req->base.flags,
 			pkcs1pad_verify_complete_cb, req);
+
+	/* Reuse input buffer, output to a new buffer */
+	akcipher_request_set_crypt(&req_ctx->child_req, req->src,
+				   req_ctx->out_sg, req->src_len,
+				   ctx->key_size);
 
 	err = crypto_akcipher_verify(&req_ctx->child_req);
 	if (err != -EINPROGRESS &&
