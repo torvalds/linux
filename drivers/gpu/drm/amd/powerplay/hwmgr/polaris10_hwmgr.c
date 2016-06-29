@@ -1473,7 +1473,7 @@ static int polaris10_populate_smc_acpi_level(struct pp_hwmgr *hwmgr,
 
 	/* Get MinVoltage and Frequency from DPM0,
 	 * already converted to SMC_UL */
-	sclk_frequency = data->dpm_table.sclk_table.dpm_levels[0].value;
+	sclk_frequency = data->vbios_boot_state.sclk_bootup_value;
 	result = polaris10_get_dependency_volt_by_clk(hwmgr,
 			table_info->vdd_dep_on_sclk,
 			sclk_frequency,
@@ -1509,8 +1509,7 @@ static int polaris10_populate_smc_acpi_level(struct pp_hwmgr *hwmgr,
 
 
 	/* Get MinVoltage and Frequency from DPM0, already converted to SMC_UL */
-	table->MemoryACPILevel.MclkFrequency =
-			data->dpm_table.mclk_table.dpm_levels[0].value;
+	table->MemoryACPILevel.MclkFrequency = data->vbios_boot_state.mclk_bootup_value;
 	result = polaris10_get_dependency_volt_by_clk(hwmgr,
 			table_info->vdd_dep_on_mclk,
 			table->MemoryACPILevel.MclkFrequency,
