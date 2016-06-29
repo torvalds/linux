@@ -517,6 +517,42 @@ static int acpi_irq_get_penalty(int irq)
 	return penalty;
 }
 
+int __init acpi_irq_penalty_init(void)
+{
+	struct acpi_pci_link *link;
+	int i;
+
+	/*
+	 * Update penalties to facilitate IRQ balancing.
+	 */
+	list_for_each_entry(link, &acpi_link_list, list) {
+
+		/*
+		 * reflect the possible and active irqs in the penalty table --
+		 * useful for breaking ties.
+		 */
+		if (link->irq.possible_count) {
+			int penalty =
+			    PIRQ_PENALTY_PCI_POSSIBLE /
+			    link->irq.possible_count;
+
+			for (i = 0; i < link->irq.possible_count; i++) {
+				if (link->irq.possible[i] < ACPI_MAX_ISA_IRQS)
+					acpi_isa_irq_penalty[link->irq.
+							 possible[i]] +=
+					    penalty;
+			}
+
+		} else if (link->irq.active &&
+				(link->irq.active < ACPI_MAX_ISA_IRQS)) {
+			acpi_isa_irq_penalty[link->irq.active] +=
+			    PIRQ_PENALTY_PCI_POSSIBLE;
+		}
+	}
+
+	return 0;
+}
+
 static int acpi_irq_balance = -1;	/* 0: static, 1: balance */
 
 static int acpi_pci_link_allocate(struct acpi_pci_link *link)
