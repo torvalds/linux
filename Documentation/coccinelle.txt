@@ -189,6 +189,60 @@ work.
 
 DEBUG_FILE support is only supported when using coccinelle >= 1.2.
 
+ .cocciconfig support
+~~~~~~~~~~~~~~~~~~~~~~
+
+Coccinelle supports reading .cocciconfig for default Coccinelle options that
+should be used every time spatch is spawned, the order of precedence for
+variables for .cocciconfig is as follows:
+
+  o Your current user's home directory is processed first
+  o Your directory from which spatch is called is processed next
+  o The directory provided with the --dir option is processed last, if used
+
+Since coccicheck runs through make, it naturally runs from the kernel
+proper dir, as such the second rule above would be implied for picking up a
+.cocciconfig when using 'make coccicheck'.
+
+'make coccicheck' also supports using M= targets.If you do not supply
+any M= target, it is assumed you want to target the entire kernel.
+The kernel coccicheck script has:
+
+    if [ "$KBUILD_EXTMOD" = "" ] ; then
+        OPTIONS="--dir $srctree $COCCIINCLUDE"
+    else
+        OPTIONS="--dir $KBUILD_EXTMOD $COCCIINCLUDE"
+    fi
+
+KBUILD_EXTMOD is set when an explicit target with M= is used. For both cases
+the spatch --dir argument is used, as such third rule applies when whether M=
+is used or not, and when M= is used the target directory can have its own
+.cocciconfig file. When M= is not passed as an argument to coccicheck the
+target directory is the same as the directory from where spatch was called.
+
+If not using the kernel's coccicheck target, keep the above precedence
+order logic of .cocciconfig reading. If using the kernel's coccicheck target,
+override any of the kernel's .coccicheck's settings using SPFLAGS.
+
+We help Coccinelle when used against Linux with a set of sensible defaults
+options for Linux with our own Linux .cocciconfig. This hints to coccinelle
+git can be used for 'git grep' queries over coccigrep. A timeout of 200
+seconds should suffice for now.
+
+The options picked up by coccinelle when reading a .cocciconfig do not appear
+as arguments to spatch processes running on your system, to confirm what
+options will be used by Coccinelle run:
+
+      spatch --print-options-only
+
+You can override with your own preferred index option by using SPFLAGS. Take
+note that when there are conflicting options Coccinelle takes precedence for
+the last options passed. Using .cocciconfig is possible to use idutils, however
+given the order of precedence followed by Coccinelle, since the kernel now
+carries its own .cocciconfig, you will need to use SPFLAGS to use idutils if
+desired. See below section "Additional flags" for more details on how to use
+idutils.
+
  Additional flags
 ~~~~~~~~~~~~~~~~~~
 
@@ -197,7 +251,23 @@ variable. This works as Coccinelle respects the last flags
 given to it when options are in conflict.
 
     make SPFLAGS=--use-glimpse coccicheck
+
+Coccinelle supports idutils as well but requires coccinelle >= 1.0.6.
+When no ID file is specified coccinelle assumes your ID database file
+is in the file .id-utils.index on the top level of the kernel, coccinelle
+carries a script scripts/idutils_index.sh which creates the database with
+
+    mkid -i C --output .id-utils.index
+
+If you have another database filename you can also just symlink with this
+name.
+
     make SPFLAGS=--use-idutils coccicheck
+
+Alternatively you can specify the database filename explicitly, for
+instance:
+
+    make SPFLAGS="--use-idutils /full-path/to/ID" coccicheck
 
 See spatch --help to learn more about spatch options.
 
