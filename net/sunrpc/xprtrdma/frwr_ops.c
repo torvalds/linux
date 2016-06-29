@@ -411,6 +411,8 @@ frwr_op_map(struct rpcrdma_xprt *r_xprt, struct rpcrdma_mr_seg *seg,
 	}
 	mw->mw_nents = i;
 	mw->mw_dir = rpcrdma_data_dir(writing);
+	if (i == 0)
+		goto out_dmamap_err;
 
 	dma_nents = ib_dma_map_sg(ia->ri_device,
 				  mw->mw_sg, mw->mw_nents, mw->mw_dir);

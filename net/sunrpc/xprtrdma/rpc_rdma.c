@@ -329,7 +329,7 @@ rpcrdma_encode_read_list(struct rpcrdma_xprt *r_xprt,
 
 	do {
 		n = r_xprt->rx_ia.ri_ops->ro_map(r_xprt, seg, nsegs, false);
-		if (n <= 0)
+		if (n < 0)
 			return ERR_PTR(n);
 
 		*iptr++ = xdr_one;	/* item present */
@@ -397,7 +397,7 @@ rpcrdma_encode_write_list(struct rpcrdma_xprt *r_xprt, struct rpcrdma_req *req,
 	nchunks = 0;
 	do {
 		n = r_xprt->rx_ia.ri_ops->ro_map(r_xprt, seg, nsegs, true);
-		if (n <= 0)
+		if (n < 0)
 			return ERR_PTR(n);
 
 		iptr = xdr_encode_rdma_segment(iptr, seg);
@@ -462,7 +462,7 @@ rpcrdma_encode_reply_chunk(struct rpcrdma_xprt *r_xprt,
 	nchunks = 0;
 	do {
 		n = r_xprt->rx_ia.ri_ops->ro_map(r_xprt, seg, nsegs, true);
-		if (n <= 0)
+		if (n < 0)
 			return ERR_PTR(n);
 
 		iptr = xdr_encode_rdma_segment(iptr, seg);
