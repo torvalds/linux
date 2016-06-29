@@ -283,6 +283,7 @@ struct i40e_pf {
 #endif /* I40E_FCOE */
 	u16 num_lan_qps;           /* num lan queues this PF has set up */
 	u16 num_lan_msix;          /* num queue vectors for the base PF vsi */
+	u16 num_fdsb_msix;         /* num queue vectors for sideband Fdir */
 	u16 num_iwarp_msix;        /* num of iwarp vectors for this PF */
 	int iwarp_base_vector;
 	int queues_left;           /* queues left unclaimed */
