@@ -775,6 +775,21 @@ static int cxl_afu_descriptor_looks_ok(struct cxl_afu *afu)
 		}
 	}
 
+	if ((afu->modes_supported & ~CXL_MODE_DEDICATED) && afu->max_procs_virtualised == 0) {
+		/*
+		 * We could also check this for the dedicated process model
+		 * since the architecture indicates it should be set to 1, but
+		 * in that case we ignore the value and I'd rather not risk
+		 * breaking any existing dedicated process AFUs that left it as
+		 * 0 (not that I'm aware of any). It is clearly an error for an
+		 * AFU directed AFU to set this to 0, and would have previously
+		 * triggered a bug resulting in the maximum not being enforced
+		 * at all since idr_alloc treats 0 as no maximum.
+		 */
+		dev_err(&afu->dev, "AFU does not support any processes\n");
+		return -EINVAL;
+	}
+
 	return 0;
 }
 
