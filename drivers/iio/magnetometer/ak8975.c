@@ -991,6 +991,7 @@ static int ak8975_remove(struct i2c_client *client)
 
 	iio_device_unregister(indio_dev);
 	iio_triggered_buffer_cleanup(indio_dev);
+	ak8975_set_mode(data, POWER_DOWN);
 	ak8975_power_off(data);
 
 	return 0;
