@@ -791,7 +791,8 @@ befs_fill_super(struct super_block *sb, void *data, int silent)
 	 */ 
 	blocksize = sb_min_blocksize(sb, 1024);
 	if (!blocksize) {
-		befs_error(sb, "unable to set blocksize");
+		if (!silent)
+			befs_error(sb, "unable to set blocksize");
 		goto unacquire_priv_sbp;
 	}
 
