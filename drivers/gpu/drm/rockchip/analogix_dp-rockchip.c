@@ -329,37 +329,32 @@ static int rockchip_dp_probe(struct platform_device *pdev)
 {
 	struct device *dev = &pdev->dev;
 	struct device_node *panel_node, *port, *endpoint;
+	struct drm_panel *panel = NULL;
 	struct rockchip_dp_device *dp;
-	struct drm_panel *panel;
 
 	port = of_graph_get_port_by_id(dev->of_node, 1);
-	if (!port) {
-		dev_err(dev, "can't find output port\n");
-		return -EINVAL;
-	}
+	if (port) {
+		endpoint = of_get_child_by_name(port, "endpoint");
+		of_node_put(port);
+		if (!endpoint) {
+			dev_err(dev, "no output endpoint found\n");
+			return -EINVAL;
+		}
 
-	endpoint = of_get_child_by_name(port, "endpoint");
-	of_node_put(port);
-	if (!endpoint) {
-		dev_err(dev, "no output endpoint found\n");
-		return -EINVAL;
-	}
+		panel_node = of_graph_get_remote_port_parent(endpoint);
+		of_node_put(endpoint);
+		if (!panel_node) {
+			dev_err(dev, "no output node found\n");
+			return -EINVAL;
+		}
 
-	panel_node = of_graph_get_remote_port_parent(endpoint);
-	of_node_put(endpoint);
-	if (!panel_node) {
-		dev_err(dev, "no output node found\n");
-		return -EINVAL;
-	}
-
-	panel = of_drm_find_panel(panel_node);
-	if (!panel) {
-		DRM_ERROR("failed to find panel\n");
+		panel = of_drm_find_panel(panel_node);
 		of_node_put(panel_node);
-		return -EPROBE_DEFER;
+		if (!panel) {
+			DRM_ERROR("failed to find panel\n");
+			return -EPROBE_DEFER;
+		}
 	}
-
-	of_node_put(panel_node);
 
 	dp = devm_kzalloc(dev, sizeof(*dp), GFP_KERNEL);
 	if (!dp)
