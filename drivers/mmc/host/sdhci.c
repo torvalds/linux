@@ -2841,6 +2841,38 @@ static int sdhci_set_dma_mask(struct sdhci_host *host)
 	return ret;
 }
 
+void __sdhci_read_caps(struct sdhci_host *host, u16 *ver, u32 *caps, u32 *caps1)
+{
+	u16 v;
+
+	if (host->read_caps)
+		return;
+
+	host->read_caps = true;
+
+	if (debug_quirks)
+		host->quirks = debug_quirks;
+
+	if (debug_quirks2)
+		host->quirks2 = debug_quirks2;
+
+	sdhci_do_reset(host, SDHCI_RESET_ALL);
+
+	v = ver ? *ver : sdhci_readw(host, SDHCI_HOST_VERSION);
+	host->version = (v & SDHCI_SPEC_VER_MASK) >> SDHCI_SPEC_VER_SHIFT;
+
+	if (host->quirks & SDHCI_QUIRK_MISSING_CAPS)
+		return;
+
+	host->caps = caps ? *caps : sdhci_readl(host, SDHCI_CAPABILITIES);
+
+	if (host->version < SDHCI_SPEC_300)
+		return;
+
+	host->caps1 = caps1 ? *caps1 : sdhci_readl(host, SDHCI_CAPABILITIES_1);
+}
+EXPORT_SYMBOL_GPL(__sdhci_read_caps);
+
 int sdhci_setup_host(struct sdhci_host *host)
 {
 	struct mmc_host *mmc;
@@ -2856,27 +2888,13 @@ int sdhci_setup_host(struct sdhci_host *host)
 
 	mmc = host->mmc;
 
-	if (debug_quirks)
-		host->quirks = debug_quirks;
-	if (debug_quirks2)
-		host->quirks2 = debug_quirks2;
+	sdhci_read_caps(host);
 
 	override_timeout_clk = host->timeout_clk;
 
-	sdhci_do_reset(host, SDHCI_RESET_ALL);
-
-	host->version = sdhci_readw(host, SDHCI_HOST_VERSION);
-	host->version = (host->version & SDHCI_SPEC_VER_MASK)
-				>> SDHCI_SPEC_VER_SHIFT;
 	if (host->version > SDHCI_SPEC_300) {
 		pr_err("%s: Unknown controller version (%d). You may experience problems.\n",
 		       mmc_hostname(mmc), host->version);
-	}
-
-	if (!(host->quirks & SDHCI_QUIRK_MISSING_CAPS)) {
-		host->caps = sdhci_readl(host, SDHCI_CAPABILITIES);
-		if (host->version >= SDHCI_SPEC_300)
-			host->caps1 = sdhci_readl(host, SDHCI_CAPABILITIES_1);
 	}
 
 	if (host->quirks & SDHCI_QUIRK_FORCE_DMA)
