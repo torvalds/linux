@@ -706,6 +706,13 @@ static int vmw_driver_load(struct drm_device *dev, unsigned long chipset)
 			vmw_read(dev_priv,
 				 SVGA_REG_SUGGESTED_GBOBJECT_MEM_SIZE_KB);
 
+		/*
+		 * Workaround for low memory 2D VMs to compensate for the
+		 * allocation taken by fbdev
+		 */
+		if (!(dev_priv->capabilities & SVGA_CAP_3D))
+			mem_size *= 2;
+
 		dev_priv->max_mob_pages = mem_size * 1024 / PAGE_SIZE;
 		dev_priv->prim_bb_mem =
 			vmw_read(dev_priv,
