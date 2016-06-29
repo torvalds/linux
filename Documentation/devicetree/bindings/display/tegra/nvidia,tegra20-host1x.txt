@@ -226,9 +226,9 @@ of the following host1x client modules:
   - nvidia,dpaux: phandle to a DispayPort AUX interface
 
 - dpaux: DisplayPort AUX interface
-  - compatible: For Tegra124, must contain "nvidia,tegra124-dpaux".  Otherwise,
-    must contain '"nvidia,<chip>-dpaux", "nvidia,tegra124-dpaux"', where
-    <chip> is tegra132.
+  - compatible : Should contain one of the following:
+    - "nvidia,tegra124-dpaux": for Tegra124 and Tegra132
+    - "nvidia,tegra210-dpaux": for Tegra210
   - reg: Physical base address and length of the controller's registers.
   - interrupts: The interrupt outputs from the controller.
   - clocks: Must contain an entry for each entry in clock-names.
