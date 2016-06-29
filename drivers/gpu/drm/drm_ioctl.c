@@ -759,7 +759,7 @@ EXPORT_SYMBOL(drm_ioctl);
  * shouldn't be used by any drivers.
  *
  * Returns:
- * True if the @nr corresponds to a DRM core ioctl numer, false otherwise.
+ * True if the @nr corresponds to a DRM core ioctl number, false otherwise.
  */
 bool drm_ioctl_flags(unsigned int nr, unsigned int *flags)
 {
