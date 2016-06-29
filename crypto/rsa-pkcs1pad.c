@@ -103,7 +103,7 @@ struct pkcs1pad_inst_ctx {
 struct pkcs1pad_request {
 	struct akcipher_request child_req;
 
-	struct scatterlist in_sg[3], out_sg[2];
+	struct scatterlist in_sg[2], out_sg[1];
 	uint8_t *in_buf, *out_buf;
 };
 
@@ -163,19 +163,10 @@ static int pkcs1pad_get_max_size(struct crypto_akcipher *tfm)
 static void pkcs1pad_sg_set_buf(struct scatterlist *sg, void *buf, size_t len,
 		struct scatterlist *next)
 {
-	int nsegs = next ? 1 : 0;
+	int nsegs = next ? 2 : 1;
 
-	if (offset_in_page(buf) + len <= PAGE_SIZE) {
-		nsegs += 1;
-		sg_init_table(sg, nsegs);
-		sg_set_buf(sg, buf, len);
-	} else {
-		nsegs += 2;
-		sg_init_table(sg, nsegs);
-		sg_set_buf(sg + 0, buf, PAGE_SIZE - offset_in_page(buf));
-		sg_set_buf(sg + 1, buf + PAGE_SIZE - offset_in_page(buf),
-				offset_in_page(buf) + len - PAGE_SIZE);
-	}
+	sg_init_table(sg, nsegs);
+	sg_set_buf(sg, buf, len);
 
 	if (next)
 		sg_chain(sg, nsegs, next);
