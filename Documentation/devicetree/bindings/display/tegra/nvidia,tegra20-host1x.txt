@@ -241,6 +241,12 @@ of the following host1x client modules:
   - reset-names: Must include the following entries:
     - dpaux
   - vdd-supply: phandle of a supply that powers the DisplayPort link
+  - i2c-bus: Subnode where I2C slave devices are listed. This subnode
+    must be always present. If there are no I2C slave devices, an empty
+    node should be added. See ../../i2c/i2c.txt for more information.
+
+  See ../pinctrl/nvidia,tegra124-dpaux-padctl.txt for information
+  regarding the DPAUX pad controller bindings.
 
 Example:
 
