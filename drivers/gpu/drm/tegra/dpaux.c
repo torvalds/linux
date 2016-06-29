@@ -267,6 +267,53 @@ static irqreturn_t tegra_dpaux_irq(int irq, void *data)
 	return ret;
 }
 
+static void tegra_dpaux_pad_power_down(struct tegra_dpaux *dpaux)
+{
+	u32 value = tegra_dpaux_readl(dpaux, DPAUX_HYBRID_SPARE);
+
+	value |= DPAUX_HYBRID_SPARE_PAD_POWER_DOWN;
+
+	tegra_dpaux_writel(dpaux, value, DPAUX_HYBRID_SPARE);
+}
+
+static void tegra_dpaux_pad_power_up(struct tegra_dpaux *dpaux)
+{
+	u32 value = tegra_dpaux_readl(dpaux, DPAUX_HYBRID_SPARE);
+
+	value &= ~DPAUX_HYBRID_SPARE_PAD_POWER_DOWN;
+
+	tegra_dpaux_writel(dpaux, value, DPAUX_HYBRID_SPARE);
+}
+
+static int tegra_dpaux_pad_config(struct tegra_dpaux *dpaux, unsigned function)
+{
+	u32 value;
+
+	switch (function) {
+	case DPAUX_HYBRID_PADCTL_MODE_AUX:
+		value = DPAUX_HYBRID_PADCTL_AUX_CMH(2) |
+			DPAUX_HYBRID_PADCTL_AUX_DRVZ(4) |
+			DPAUX_HYBRID_PADCTL_AUX_DRVI(0x18) |
+			DPAUX_HYBRID_PADCTL_AUX_INPUT_RCV |
+			DPAUX_HYBRID_PADCTL_MODE_AUX;
+		break;
+
+	case DPAUX_HYBRID_PADCTL_MODE_I2C:
+		value = DPAUX_HYBRID_PADCTL_I2C_SDA_INPUT_RCV |
+			DPAUX_HYBRID_PADCTL_I2C_SCL_INPUT_RCV |
+			DPAUX_HYBRID_PADCTL_MODE_I2C;
+		break;
+
+	default:
+		return -ENOTSUPP;
+	}
+
+	tegra_dpaux_writel(dpaux, value, DPAUX_HYBRID_PADCTL);
+	tegra_dpaux_pad_power_up(dpaux);
+
+	return 0;
+}
+
 static int tegra_dpaux_probe(struct platform_device *pdev)
 {
 	struct tegra_dpaux *dpaux;
@@ -372,15 +419,9 @@ static int tegra_dpaux_probe(struct platform_device *pdev)
 	 * is no possibility to perform the I2C mode configuration in the
 	 * HDMI path.
 	 */
-	value = tegra_dpaux_readl(dpaux, DPAUX_HYBRID_SPARE);
-	value &= ~DPAUX_HYBRID_SPARE_PAD_POWER_DOWN;
-	tegra_dpaux_writel(dpaux, value, DPAUX_HYBRID_SPARE);
-
-	value = tegra_dpaux_readl(dpaux, DPAUX_HYBRID_PADCTL);
-	value = DPAUX_HYBRID_PADCTL_I2C_SDA_INPUT_RCV |
-		DPAUX_HYBRID_PADCTL_I2C_SCL_INPUT_RCV |
-		DPAUX_HYBRID_PADCTL_MODE_I2C;
-	tegra_dpaux_writel(dpaux, value, DPAUX_HYBRID_PADCTL);
+	err = tegra_dpaux_pad_config(dpaux, DPAUX_HYBRID_PADCTL_MODE_I2C);
+	if (err < 0)
+		return err;
 
 	/* enable and clear all interrupts */
 	value = DPAUX_INTR_AUX_DONE | DPAUX_INTR_IRQ_EVENT |
@@ -408,12 +449,9 @@ assert_reset:
 static int tegra_dpaux_remove(struct platform_device *pdev)
 {
 	struct tegra_dpaux *dpaux = platform_get_drvdata(pdev);
-	u32 value;
 
 	/* make sure pads are powered down when not in use */
-	value = tegra_dpaux_readl(dpaux, DPAUX_HYBRID_SPARE);
-	value |= DPAUX_HYBRID_SPARE_PAD_POWER_DOWN;
-	tegra_dpaux_writel(dpaux, value, DPAUX_HYBRID_SPARE);
+	tegra_dpaux_pad_power_down(dpaux);
 
 	drm_dp_aux_unregister(&dpaux->aux);
 
@@ -538,30 +576,15 @@ enum drm_connector_status drm_dp_aux_detect(struct drm_dp_aux *aux)
 int drm_dp_aux_enable(struct drm_dp_aux *aux)
 {
 	struct tegra_dpaux *dpaux = to_dpaux(aux);
-	u32 value;
 
-	value = DPAUX_HYBRID_PADCTL_AUX_CMH(2) |
-		DPAUX_HYBRID_PADCTL_AUX_DRVZ(4) |
-		DPAUX_HYBRID_PADCTL_AUX_DRVI(0x18) |
-		DPAUX_HYBRID_PADCTL_AUX_INPUT_RCV |
-		DPAUX_HYBRID_PADCTL_MODE_AUX;
-	tegra_dpaux_writel(dpaux, value, DPAUX_HYBRID_PADCTL);
-
-	value = tegra_dpaux_readl(dpaux, DPAUX_HYBRID_SPARE);
-	value &= ~DPAUX_HYBRID_SPARE_PAD_POWER_DOWN;
-	tegra_dpaux_writel(dpaux, value, DPAUX_HYBRID_SPARE);
-
-	return 0;
+	return tegra_dpaux_pad_config(dpaux, DPAUX_HYBRID_PADCTL_MODE_AUX);
 }
 
 int drm_dp_aux_disable(struct drm_dp_aux *aux)
 {
 	struct tegra_dpaux *dpaux = to_dpaux(aux);
-	u32 value;
 
-	value = tegra_dpaux_readl(dpaux, DPAUX_HYBRID_SPARE);
-	value |= DPAUX_HYBRID_SPARE_PAD_POWER_DOWN;
-	tegra_dpaux_writel(dpaux, value, DPAUX_HYBRID_SPARE);
+	tegra_dpaux_pad_power_down(dpaux);
 
 	return 0;
 }
