@@ -1,5 +1,6 @@
 config MEDIA_CEC
 	tristate "CEC API (EXPERIMENTAL)"
+	depends on MEDIA_SUPPORT
 	select MEDIA_CEC_EDID
 	---help---
 	  Enable the CEC API.
