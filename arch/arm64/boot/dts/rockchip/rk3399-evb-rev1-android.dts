@@ -67,13 +67,12 @@
 &vopb_rk_fb {
 	status = "okay";
 	power_ctr: power_ctr {
-		/*rockchip,debug = <0>;
+		rockchip,debug = <0>;
 		lcd_en: lcd-en {
 			rockchip,power_type = <GPIO>;
-			gpios = <&gpio1 13 GPIO_ACTIVE_HIGH>;//GPIO_C6 = 22
+			gpios = <&gpio1 13 GPIO_ACTIVE_HIGH>;
 			rockchip,delay = <10>;
 		};
-		*/
 
 		/*lcd_cs: lcd-cs {
 			rockchip,power_type = <GPIO>;
