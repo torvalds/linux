@@ -1014,7 +1014,6 @@ void sdhci_send_command(struct sdhci_host *host, struct mmc_command *cmd)
 	mod_timer(&host->timer, timeout);
 
 	host->cmd = cmd;
-	host->busy_handle = 0;
 	if (cmd->data || cmd->flags & MMC_RSP_BUSY) {
 		WARN_ON(host->data_cmd);
 		host->data_cmd = cmd;
@@ -1094,9 +1093,8 @@ static void sdhci_finish_command(struct sdhci_host *host)
 		if (cmd->data) {
 			DBG("Cannot wait for busy signal when also doing a data transfer");
 		} else if (!(host->quirks & SDHCI_QUIRK_NO_BUSY_IRQ) &&
-			   !host->busy_handle) {
-			/* Mark that command complete before busy is ended */
-			host->busy_handle = 1;
+			   cmd == host->data_cmd) {
+			/* Command complete before busy is ended */
 			return;
 		}
 	}
@@ -2393,10 +2391,10 @@ static void sdhci_data_irq(struct sdhci_host *host, u32 intmask)
 				 * before the command completed, so make
 				 * sure we do things in the proper order.
 				 */
-				if (host->busy_handle)
-					tasklet_schedule(&host->finish_tasklet);
-				else
-					host->busy_handle = 1;
+				if (host->cmd == data_cmd)
+					return;
+
+				tasklet_schedule(&host->finish_tasklet);
 				return;
 			}
 		}
