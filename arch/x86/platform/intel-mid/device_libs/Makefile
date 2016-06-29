@@ -1,3 +1,5 @@
+# Family-Level Interface Shim (FLIS)
+obj-$(subst m,y,$(CONFIG_PINCTRL_MERRIFIELD)) += platform_mrfld_pinctrl.o
 # IPC Devices
 obj-y += platform_ipc.o
 obj-$(subst m,y,$(CONFIG_MFD_INTEL_MSIC)) += platform_msic.o
