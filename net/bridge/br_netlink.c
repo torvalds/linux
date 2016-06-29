@@ -1273,7 +1273,7 @@ static int br_fill_linkxstats(struct sk_buff *skb, const struct net_device *dev,
 		struct bridge_vlan_xstats vxi;
 		struct br_vlan_stats stats;
 
-		if (vl_idx++ < *prividx)
+		if (++vl_idx < *prividx)
 			continue;
 		memset(&vxi, 0, sizeof(vxi));
 		vxi.vid = v->vid;
