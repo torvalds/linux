@@ -182,17 +182,11 @@ rockchip_dp_drm_encoder_atomic_check(struct drm_encoder *encoder,
 	int ret;
 
 	/*
-	 * FIXME(Yakir): driver should configure the CRTC output video
-	 * mode with the display information which indicated the monitor
-	 * support colorimetry.
-	 *
-	 * But don't know why the CRTC driver seems could only output the
-	 * RGBaaa rightly. For example, if connect the "innolux,n116bge"
-	 * eDP screen, EDID would indicated that screen only accepted the
-	 * 6bpc mode. But if I configure CRTC to RGB666 output, then eDP
-	 * screen would show a blue picture (RGB888 show a green picture).
-	 * But if I configure CTRC to RGBaaa, and eDP driver still keep
-	 * RGB666 input video mode, then screen would works prefect.
+	 * The hardware IC designed that VOP must output the RGB10 video
+	 * format to eDP controller, and if eDP panel only support RGB8,
+	 * then eDP controller should cut down the video data, not via VOP
+	 * controller, that's why we need to hardcode the VOP output mode
+	 * to RGA10 here.
 	 */
 
 	s->output_mode = ROCKCHIP_OUT_MODE_AAAA;
