@@ -109,6 +109,11 @@ static void sdhci_dumpregs(struct sdhci_host *host)
  *                                                                           *
 \*****************************************************************************/
 
+static inline bool sdhci_data_line_cmd(struct mmc_command *cmd)
+{
+	return cmd->data || cmd->flags & MMC_RSP_BUSY;
+}
+
 static void sdhci_set_card_detection(struct sdhci_host *host, bool enable)
 {
 	u32 present;
@@ -744,7 +749,7 @@ static void sdhci_prepare_data(struct sdhci_host *host, struct mmc_command *cmd)
 	u8 ctrl;
 	struct mmc_data *data = cmd->data;
 
-	if (data || (cmd->flags & MMC_RSP_BUSY))
+	if (sdhci_data_line_cmd(cmd))
 		sdhci_set_timeout(host, cmd);
 
 	if (!data)
@@ -1013,7 +1018,7 @@ void sdhci_send_command(struct sdhci_host *host, struct mmc_command *cmd)
 	timeout = 10;
 
 	mask = SDHCI_CMD_INHIBIT;
-	if ((cmd->data != NULL) || (cmd->flags & MMC_RSP_BUSY))
+	if (sdhci_data_line_cmd(cmd))
 		mask |= SDHCI_DATA_INHIBIT;
 
 	/* We shouldn't wait for data inihibit for stop commands, even
@@ -1042,7 +1047,7 @@ void sdhci_send_command(struct sdhci_host *host, struct mmc_command *cmd)
 	mod_timer(&host->timer, timeout);
 
 	host->cmd = cmd;
-	if (cmd->data || cmd->flags & MMC_RSP_BUSY) {
+	if (sdhci_data_line_cmd(cmd)) {
 		WARN_ON(host->data_cmd);
 		host->data_cmd = cmd;
 	}
