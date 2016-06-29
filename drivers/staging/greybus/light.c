@@ -1221,6 +1221,8 @@ static int gb_lights_probe(struct gb_bundle *bundle,
 	if (!glights)
 		return -ENOMEM;
 
+	mutex_init(&glights->lights_lock);
+
 	connection = gb_connection_create(bundle, le16_to_cpu(cport_desc->id),
 					  gb_lights_request_handler);
 	if (IS_ERR(connection)) {
@@ -1230,8 +1232,6 @@ static int gb_lights_probe(struct gb_bundle *bundle,
 
 	glights->connection = connection;
 	gb_connection_set_data(connection, glights);
-
-	mutex_init(&glights->lights_lock);
 
 	greybus_set_drvdata(bundle, glights);
 
