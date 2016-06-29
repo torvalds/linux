@@ -1,3 +1,12 @@
 config SUNXI_CCU
 	bool "Clock support for Allwinner SoCs"
 	default ARCH_SUNXI
+
+if SUNXI_CCU
+
+# Base clock types
+
+config SUNXI_CCU_FRAC
+	bool
+
+endif
