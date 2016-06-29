@@ -157,6 +157,26 @@ semantic patch as shown in the previous section.
 The "report" mode is the default. You can select another one with the
 MODE variable explained above.
 
+ Debugging Coccinelle SmPL patches
+~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+
+Using coccicheck is best as it provides in the spatch command line
+include options matching the options used when we compile the kernel.
+You can learn what these options are by using V=1, you could then
+manually run Coccinelle with debug options added.
+
+Alternatively you can debug running Coccinelle against SmPL patches
+by asking for stderr to be redirected to stderr, by default stderr
+is redirected to /dev/null, if you'd like to capture stderr you
+can specify the DEBUG_FILE="file.txt" option to coccicheck. For
+instance:
+
+    rm -f cocci.err
+    make coccicheck COCCI=scripts/coccinelle/free/kfree.cocci MODE=report DEBUG_FILE=cocci.err
+    cat cocci.err
+
+DEBUG_FILE support is only supported when using coccinelle >= 1.2.
+
  Additional flags
 ~~~~~~~~~~~~~~~~~~
 

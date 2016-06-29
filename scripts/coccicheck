@@ -96,7 +96,15 @@ run_cmd_parmap() {
 	if [ $VERBOSE -ne 0 ] ; then
 		echo "Running ($NPROC in parallel): $@"
 	fi
-	$@ 2>/dev/null
+	if [ "$DEBUG_FILE" != "/dev/null" -a "$DEBUG_FILE" != "" ]; then
+		if [ -f $DEBUG_FILE ]; then
+			echo "Debug file $DEBUG_FILE exists, bailing"
+			exit
+		fi
+	else
+		DEBUG_FILE="/dev/null"
+	fi
+	$@ 2>$DEBUG_FILE
 	if [[ $? -ne 0 ]]; then
 		echo "coccicheck failed"
 		exit $?
