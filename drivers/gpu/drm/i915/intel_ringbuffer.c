@@ -2887,6 +2887,30 @@ static int gen6_ring_flush(struct drm_i915_gem_request *req,
 static void intel_ring_init_semaphores(struct drm_i915_private *dev_priv,
 				       struct intel_engine_cs *engine)
 {
+	struct drm_i915_gem_object *obj;
+	int ret;
+
+	if (!i915_semaphore_is_enabled(dev_priv))
+		return;
+
+	if (INTEL_GEN(dev_priv) >= 8 && !dev_priv->semaphore_obj) {
+		obj = i915_gem_object_create(dev_priv->dev, 4096);
+		if (IS_ERR(obj)) {
+			DRM_ERROR("Failed to allocate semaphore bo. Disabling semaphores\n");
+			i915.semaphores = 0;
+		} else {
+			i915_gem_object_set_cache_level(obj, I915_CACHE_LLC);
+			ret = i915_gem_obj_ggtt_pin(obj, 0, PIN_NONBLOCK);
+			if (ret != 0) {
+				drm_gem_object_unreference(&obj->base);
+				DRM_ERROR("Failed to pin semaphore bo. Disabling semaphores\n");
+				i915.semaphores = 0;
+			} else {
+				dev_priv->semaphore_obj = obj;
+			}
+		}
+	}
+
 	if (!i915_semaphore_is_enabled(dev_priv))
 		return;
 
@@ -2957,31 +2981,12 @@ int intel_init_render_ring_buffer(struct drm_device *dev)
 	intel_ring_default_vfuncs(dev_priv, engine);
 
 	if (INTEL_GEN(dev_priv) >= 8) {
-		if (i915_semaphore_is_enabled(dev_priv)) {
-			obj = i915_gem_object_create(dev, 4096);
-			if (IS_ERR(obj)) {
-				DRM_ERROR("Failed to allocate semaphore bo. Disabling semaphores\n");
-				i915.semaphores = 0;
-			} else {
-				i915_gem_object_set_cache_level(obj, I915_CACHE_LLC);
-				ret = i915_gem_obj_ggtt_pin(obj, 0, PIN_NONBLOCK);
-				if (ret != 0) {
-					drm_gem_object_unreference(&obj->base);
-					DRM_ERROR("Failed to pin semaphore bo. Disabling semaphores\n");
-					i915.semaphores = 0;
-				} else
-					dev_priv->semaphore_obj = obj;
-			}
-		}
-
 		engine->init_context = intel_rcs_ctx_init;
 		engine->add_request = gen8_render_add_request;
 		engine->flush = gen8_render_ring_flush;
 		engine->irq_enable_mask = GT_RENDER_USER_INTERRUPT;
-		if (i915_semaphore_is_enabled(dev_priv)) {
-			WARN_ON(!dev_priv->semaphore_obj);
+		if (i915_semaphore_is_enabled(dev_priv))
 			engine->semaphore.signal = gen8_rcs_signal;
-		}
 	} else if (INTEL_GEN(dev_priv) >= 6) {
 		engine->init_context = intel_rcs_ctx_init;
 		engine->flush = gen7_render_ring_flush;
