@@ -42,6 +42,13 @@ config ARCH_BERLIN
 	help
 	  This enables support for Marvell Berlin SoC Family
 
+config ARCH_BRCMSTB
+	bool "Broadcom Set-Top-Box SoCs"
+	select BRCMSTB_L2_IRQ
+	select GENERIC_IRQ_CHIP
+	help
+	  This enables support for Broadcom's ARMv8 Set Top Box SoCs
+
 config ARCH_EXYNOS
 	bool "ARMv8 based Samsung Exynos SoC family"
 	select COMMON_CLK_SAMSUNG
