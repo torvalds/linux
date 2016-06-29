@@ -28,6 +28,7 @@
 #define TW686X_INPUTS_PER_CH		4
 #define TW686X_VIDEO_WIDTH		720
 #define TW686X_VIDEO_HEIGHT(id)		((id & V4L2_STD_525_60) ? 480 : 576)
+#define TW686X_MAX_FPS(id)		((id & V4L2_STD_525_60) ? 30 : 25)
 
 #define TW686X_MAX_SG_ENTRY_SIZE	4096
 #define TW686X_MAX_SG_DESC_COUNT	256 /* PAL 720x576 needs 203 4-KB pages */
@@ -340,53 +341,79 @@ static const struct tw686x_dma_ops sg_dma_ops = {
 	.field		= V4L2_FIELD_SEQ_TB,
 };
 
-static unsigned int tw686x_fields_map(v4l2_std_id std, unsigned int fps)
+static const unsigned int fps_map[15] = {
+	/*
+	 * bit 31 enables selecting the field control register
+	 * bits 0-29 are a bitmask with fields that will be output.
+	 * For NTSC (and PAL-M, PAL-60), all 30 bits are used.
+	 * For other PAL standards, only the first 25 bits are used.
+	 */
+	0x00000000, /* output all fields */
+	0x80000006, /* 2 fps (60Hz), 2 fps (50Hz) */
+	0x80018006, /* 4 fps (60Hz), 4 fps (50Hz) */
+	0x80618006, /* 6 fps (60Hz), 6 fps (50Hz) */
+	0x81818186, /* 8 fps (60Hz), 8 fps (50Hz) */
+	0x86186186, /* 10 fps (60Hz), 8 fps (50Hz) */
+	0x86619866, /* 12 fps (60Hz), 10 fps (50Hz) */
+	0x86666666, /* 14 fps (60Hz), 12 fps (50Hz) */
+	0x9999999e, /* 16 fps (60Hz), 14 fps (50Hz) */
+	0x99e6799e, /* 18 fps (60Hz), 16 fps (50Hz) */
+	0x9e79e79e, /* 20 fps (60Hz), 16 fps (50Hz) */
+	0x9e7e7e7e, /* 22 fps (60Hz), 18 fps (50Hz) */
+	0x9fe7f9fe, /* 24 fps (60Hz), 20 fps (50Hz) */
+	0x9ffe7ffe, /* 26 fps (60Hz), 22 fps (50Hz) */
+	0x9ffffffe, /* 28 fps (60Hz), 24 fps (50Hz) */
+};
+
+static unsigned int tw686x_real_fps(unsigned int index, unsigned int max_fps)
 {
-	static const unsigned int map[15] = {
-		0x00000000, 0x00000001, 0x00004001, 0x00104001, 0x00404041,
-		0x01041041, 0x01104411, 0x01111111, 0x04444445, 0x04511445,
-		0x05145145, 0x05151515, 0x05515455, 0x05551555, 0x05555555
-	};
+	unsigned long mask;
 
-	static const unsigned int std_625_50[26] = {
-		0, 1, 1, 2,  3,  3,  4,  4,  5,  5,  6,  7,  7,
-		   8, 8, 9, 10, 10, 11, 11, 12, 13, 13, 14, 14, 0
-	};
+	if (!index || index >= ARRAY_SIZE(fps_map))
+		return max_fps;
 
-	static const unsigned int std_525_60[31] = {
-		0, 1, 1, 1, 2,  2,  3,  3,  4,  4,  5,  5,  6,  6, 7, 7,
-		   8, 8, 9, 9, 10, 10, 11, 11, 12, 12, 13, 13, 14, 0, 0
-	};
+	mask = GENMASK(max_fps - 1, 0);
+	return hweight_long(fps_map[index] & mask);
+}
 
-	unsigned int i;
+static unsigned int tw686x_fps_idx(unsigned int fps, unsigned int max_fps)
+{
+	unsigned int idx, real_fps;
+	int delta;
 
-	if (std & V4L2_STD_525_60) {
-		if (fps >= ARRAY_SIZE(std_525_60))
-			fps = 30;
-		i = std_525_60[fps];
-	} else {
-		if (fps >= ARRAY_SIZE(std_625_50))
-			fps = 25;
-		i = std_625_50[fps];
-	}
+	/* First guess */
+	idx = (12 + 15 * fps) / max_fps;
 
-	return map[i];
+	/* Minimal possible framerate is 2 frames per second */
+	if (!idx)
+		return 1;
+
+	/* Check if the difference is bigger than abs(1) and adjust */
+	real_fps = tw686x_real_fps(idx, max_fps);
+	delta = real_fps - fps;
+	if (delta < -1)
+		idx++;
+	else if (delta > 1)
+		idx--;
+
+	/* Max framerate */
+	if (idx >= 15)
+		return 0;
+
+	return idx;
 }
 
 static void tw686x_set_framerate(struct tw686x_video_channel *vc,
 				 unsigned int fps)
 {
-	unsigned int map;
+	unsigned int i;
 
 	if (vc->fps == fps)
 		return;
 
-	map = tw686x_fields_map(vc->video_standard, fps) << 1;
-	map |= map << 1;
-	if (map > 0)
-		map |= BIT(31);
-	reg_write(vc->dev, VIDEO_FIELD_CTRL[vc->ch], map);
-	vc->fps = fps;
+	i = tw686x_fps_idx(fps, TW686X_MAX_FPS(vc->video_standard));
+	reg_write(vc->dev, VIDEO_FIELD_CTRL[vc->ch], fps_map[i]);
+	vc->fps = tw686x_real_fps(i, TW686X_MAX_FPS(vc->video_standard));
 }
 
 static const struct tw686x_format *format_by_fourcc(unsigned int fourcc)
