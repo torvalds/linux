@@ -2895,6 +2895,23 @@ static void intel_ring_default_vfuncs(struct drm_i915_private *dev_priv,
 	} else {
 		engine->add_request = i9xx_add_request;
 	}
+
+	if (INTEL_GEN(dev_priv) >= 8) {
+		engine->irq_get = gen8_ring_get_irq;
+		engine->irq_put = gen8_ring_put_irq;
+	} else if (INTEL_GEN(dev_priv) >= 6) {
+		engine->irq_get = gen6_ring_get_irq;
+		engine->irq_put = gen6_ring_put_irq;
+	} else if (INTEL_GEN(dev_priv) >= 5) {
+		engine->irq_get = gen5_ring_get_irq;
+		engine->irq_put = gen5_ring_put_irq;
+	} else if (INTEL_GEN(dev_priv) >= 3) {
+		engine->irq_get = i9xx_ring_get_irq;
+		engine->irq_put = i9xx_ring_put_irq;
+	} else {
+		engine->irq_get = i8xx_ring_get_irq;
+		engine->irq_put = i8xx_ring_put_irq;
+	}
 }
 
 int intel_init_render_ring_buffer(struct drm_device *dev)
@@ -2933,8 +2950,6 @@ int intel_init_render_ring_buffer(struct drm_device *dev)
 		engine->init_context = intel_rcs_ctx_init;
 		engine->add_request = gen8_render_add_request;
 		engine->flush = gen8_render_ring_flush;
-		engine->irq_get = gen8_ring_get_irq;
-		engine->irq_put = gen8_ring_put_irq;
 		engine->irq_enable_mask = GT_RENDER_USER_INTERRUPT;
 		engine->get_seqno = ring_get_seqno;
 		engine->set_seqno = ring_set_seqno;
@@ -2949,8 +2964,6 @@ int intel_init_render_ring_buffer(struct drm_device *dev)
 		engine->flush = gen7_render_ring_flush;
 		if (IS_GEN6(dev_priv))
 			engine->flush = gen6_render_ring_flush;
-		engine->irq_get = gen6_ring_get_irq;
-		engine->irq_put = gen6_ring_put_irq;
 		engine->irq_enable_mask = GT_RENDER_USER_INTERRUPT;
 		engine->get_seqno = ring_get_seqno;
 		engine->set_seqno = ring_set_seqno;
@@ -2980,8 +2993,6 @@ int intel_init_render_ring_buffer(struct drm_device *dev)
 		engine->flush = gen4_render_ring_flush;
 		engine->get_seqno = pc_render_get_seqno;
 		engine->set_seqno = pc_render_set_seqno;
-		engine->irq_get = gen5_ring_get_irq;
-		engine->irq_put = gen5_ring_put_irq;
 		engine->irq_enable_mask = GT_RENDER_USER_INTERRUPT |
 					GT_RENDER_PIPECTL_NOTIFY_INTERRUPT;
 	} else {
@@ -2991,13 +3002,6 @@ int intel_init_render_ring_buffer(struct drm_device *dev)
 			engine->flush = gen4_render_ring_flush;
 		engine->get_seqno = ring_get_seqno;
 		engine->set_seqno = ring_set_seqno;
-		if (IS_GEN2(dev_priv)) {
-			engine->irq_get = i8xx_ring_get_irq;
-			engine->irq_put = i8xx_ring_put_irq;
-		} else {
-			engine->irq_get = i9xx_ring_get_irq;
-			engine->irq_put = i9xx_ring_put_irq;
-		}
 		engine->irq_enable_mask = I915_USER_INTERRUPT;
 	}
 
@@ -3071,8 +3075,6 @@ int intel_init_bsd_ring_buffer(struct drm_device *dev)
 		if (INTEL_GEN(dev_priv) >= 8) {
 			engine->irq_enable_mask =
 				GT_RENDER_USER_INTERRUPT << GEN8_VCS1_IRQ_SHIFT;
-			engine->irq_get = gen8_ring_get_irq;
-			engine->irq_put = gen8_ring_put_irq;
 			engine->dispatch_execbuffer =
 				gen8_ring_dispatch_execbuffer;
 			if (i915_semaphore_is_enabled(dev_priv)) {
@@ -3082,8 +3084,6 @@ int intel_init_bsd_ring_buffer(struct drm_device *dev)
 			}
 		} else {
 			engine->irq_enable_mask = GT_BSD_USER_INTERRUPT;
-			engine->irq_get = gen6_ring_get_irq;
-			engine->irq_put = gen6_ring_put_irq;
 			engine->dispatch_execbuffer =
 				gen6_ring_dispatch_execbuffer;
 			if (i915_semaphore_is_enabled(dev_priv)) {
@@ -3108,12 +3108,8 @@ int intel_init_bsd_ring_buffer(struct drm_device *dev)
 		engine->set_seqno = ring_set_seqno;
 		if (IS_GEN5(dev_priv)) {
 			engine->irq_enable_mask = ILK_BSD_USER_INTERRUPT;
-			engine->irq_get = gen5_ring_get_irq;
-			engine->irq_put = gen5_ring_put_irq;
 		} else {
 			engine->irq_enable_mask = I915_BSD_USER_INTERRUPT;
-			engine->irq_get = i9xx_ring_get_irq;
-			engine->irq_put = i9xx_ring_put_irq;
 		}
 		engine->dispatch_execbuffer = i965_dispatch_execbuffer;
 	}
@@ -3143,8 +3139,6 @@ int intel_init_bsd2_ring_buffer(struct drm_device *dev)
 	engine->set_seqno = ring_set_seqno;
 	engine->irq_enable_mask =
 			GT_RENDER_USER_INTERRUPT << GEN8_VCS2_IRQ_SHIFT;
-	engine->irq_get = gen8_ring_get_irq;
-	engine->irq_put = gen8_ring_put_irq;
 	engine->dispatch_execbuffer =
 			gen8_ring_dispatch_execbuffer;
 	if (i915_semaphore_is_enabled(dev_priv)) {
@@ -3176,8 +3170,6 @@ int intel_init_blt_ring_buffer(struct drm_device *dev)
 	if (INTEL_GEN(dev_priv) >= 8) {
 		engine->irq_enable_mask =
 			GT_RENDER_USER_INTERRUPT << GEN8_BCS_IRQ_SHIFT;
-		engine->irq_get = gen8_ring_get_irq;
-		engine->irq_put = gen8_ring_put_irq;
 		engine->dispatch_execbuffer = gen8_ring_dispatch_execbuffer;
 		if (i915_semaphore_is_enabled(dev_priv)) {
 			engine->semaphore.sync_to = gen8_ring_sync;
@@ -3186,8 +3178,6 @@ int intel_init_blt_ring_buffer(struct drm_device *dev)
 		}
 	} else {
 		engine->irq_enable_mask = GT_BLT_USER_INTERRUPT;
-		engine->irq_get = gen6_ring_get_irq;
-		engine->irq_put = gen6_ring_put_irq;
 		engine->dispatch_execbuffer = gen6_ring_dispatch_execbuffer;
 		if (i915_semaphore_is_enabled(dev_priv)) {
 			engine->semaphore.signal = gen6_signal;
@@ -3236,8 +3226,6 @@ int intel_init_vebox_ring_buffer(struct drm_device *dev)
 	if (INTEL_GEN(dev_priv) >= 8) {
 		engine->irq_enable_mask =
 			GT_RENDER_USER_INTERRUPT << GEN8_VECS_IRQ_SHIFT;
-		engine->irq_get = gen8_ring_get_irq;
-		engine->irq_put = gen8_ring_put_irq;
 		engine->dispatch_execbuffer = gen8_ring_dispatch_execbuffer;
 		if (i915_semaphore_is_enabled(dev_priv)) {
 			engine->semaphore.sync_to = gen8_ring_sync;
