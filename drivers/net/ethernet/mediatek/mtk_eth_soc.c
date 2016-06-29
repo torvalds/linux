@@ -332,8 +332,6 @@ static inline void mtk_irq_disable(struct mtk_eth *eth, u32 mask)
 
 	val = mtk_r32(eth, MTK_QDMA_INT_MASK);
 	mtk_w32(eth, val & ~mask, MTK_QDMA_INT_MASK);
-	/* flush write */
-	mtk_r32(eth, MTK_QDMA_INT_MASK);
 }
 
 static inline void mtk_irq_enable(struct mtk_eth *eth, u32 mask)
@@ -342,8 +340,6 @@ static inline void mtk_irq_enable(struct mtk_eth *eth, u32 mask)
 
 	val = mtk_r32(eth, MTK_QDMA_INT_MASK);
 	mtk_w32(eth, val | mask, MTK_QDMA_INT_MASK);
-	/* flush write */
-	mtk_r32(eth, MTK_QDMA_INT_MASK);
 }
 
 static int mtk_set_mac_address(struct net_device *dev, void *p)
