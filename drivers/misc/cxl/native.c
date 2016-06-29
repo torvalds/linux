@@ -189,7 +189,7 @@ int cxl_alloc_spa(struct cxl_afu *afu)
 	unsigned spa_size;
 
 	/* Work out how many pages to allocate */
-	afu->native->spa_order = 0;
+	afu->native->spa_order = -1;
 	do {
 		afu->native->spa_order++;
 		spa_size = (1 << afu->native->spa_order) * PAGE_SIZE;
