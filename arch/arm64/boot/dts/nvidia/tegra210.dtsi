@@ -35,6 +35,26 @@
 			resets = <&tegra_car 207>;
 			reset-names = "dpaux";
 			status = "disabled";
+
+			state_dpaux1_aux: pinmux-aux {
+				groups = "dpaux-io";
+				function = "aux";
+			};
+
+			state_dpaux1_i2c: pinmux-i2c {
+				groups = "dpaux-io";
+				function = "i2c";
+			};
+
+			state_dpaux1_off: pinmux-off {
+				groups = "dpaux-io";
+				function = "off";
+			};
+
+			i2c-bus {
+				#address-cells = <1>;
+				#size-cells = <0>;
+			};
 		};
 
 		vi@54080000 {
@@ -154,6 +174,10 @@
 			clock-names = "sor", "parent", "dp", "safe";
 			resets = <&tegra_car 182>;
 			reset-names = "sor";
+			pinctrl-0 = <&state_dpaux_aux>;
+			pinctrl-1 = <&state_dpaux_i2c>;
+			pinctrl-2 = <&state_dpaux_off>;
+			pinctrl-names = "aux", "i2c", "off";
 			status = "disabled";
 		};
 
@@ -168,6 +192,10 @@
 			clock-names = "sor", "parent", "dp", "safe";
 			resets = <&tegra_car 183>;
 			reset-names = "sor";
+			pinctrl-0 = <&state_dpaux1_aux>;
+			pinctrl-1 = <&state_dpaux1_i2c>;
+			pinctrl-2 = <&state_dpaux1_off>;
+			pinctrl-names = "aux", "i2c", "off";
 			status = "disabled";
 		};
 
@@ -181,6 +209,26 @@
 			resets = <&tegra_car 181>;
 			reset-names = "dpaux";
 			status = "disabled";
+
+			state_dpaux_aux: pinmux-aux {
+				groups = "dpaux-io";
+				function = "aux";
+			};
+
+			state_dpaux_i2c: pinmux-i2c {
+				groups = "dpaux-io";
+				function = "i2c";
+			};
+
+			state_dpaux_off: pinmux-off {
+				groups = "dpaux-io";
+				function = "off";
+			};
+
+			i2c-bus {
+				#address-cells = <1>;
+				#size-cells = <0>;
+			};
 		};
 
 		isp@54600000 {
@@ -478,6 +526,9 @@
 		reset-names = "i2c";
 		dmas = <&apbdma 26>, <&apbdma 26>;
 		dma-names = "rx", "tx";
+		pinctrl-0 = <&state_dpaux1_i2c>;
+		pinctrl-1 = <&state_dpaux1_off>;
+		pinctrl-names = "default", "idle";
 		status = "disabled";
 	};
 
@@ -508,6 +559,9 @@
 		reset-names = "i2c";
 		dmas = <&apbdma 30>, <&apbdma 30>;
 		dma-names = "rx", "tx";
+		pinctrl-0 = <&state_dpaux_i2c>;
+		pinctrl-1 = <&state_dpaux_off>;
+		pinctrl-names = "default", "idle";
 		status = "disabled";
 	};
 
