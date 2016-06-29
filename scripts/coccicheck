@@ -32,6 +32,27 @@ fi
 
 FLAGS="--very-quiet"
 
+# You can use SPFLAGS to append extra arguments to coccicheck or override any
+# heuristics done in this file as Coccinelle accepts the last options when
+# options conflict.
+#
+# A good example for use of SPFLAGS is if you want to debug your cocci script,
+# you can for instance use the following:
+#
+# $ export COCCI=scripts/coccinelle/misc/irqf_oneshot.cocci
+# $ make coccicheck MODE=report DEBUG_FILE="all.err" SPFLAGS="--profile --show-trying" M=./drivers/mfd/arizona-irq.c
+#
+# "--show-trying" should show you what rule is being processed as it goes to
+# stdout, you do not need a debug file for that. The profile output will be
+# be sent to stdout, if you provide a DEBUG_FILE the profiling data can be
+# inspected there.
+#
+# --profile will not output if --very-quiet is used, so avoid it.
+echo $SPFLAGS | egrep -e "--profile|--show-trying" 2>&1 > /dev/null
+if [ $? -eq 0 ]; then
+	FLAGS="--quiet"
+fi
+
 # spatch only allows include directories with the syntax "-I include"
 # while gcc also allows "-Iinclude" and "-include include"
 COCCIINCLUDE=${LINUXINCLUDE//-I/-I }
