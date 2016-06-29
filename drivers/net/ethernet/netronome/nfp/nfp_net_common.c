@@ -1845,13 +1845,14 @@ void nfp_net_coalesce_write_cfg(struct nfp_net *nn)
 }
 
 /**
- * nfp_net_write_mac_addr() - Write mac address to device registers
+ * nfp_net_write_mac_addr() - Write mac address to the device control BAR
  * @nn:      NFP Net device to reconfigure
- * @mac:     Six-byte MAC address to be written
  *
- * We do a bit of byte swapping dance because firmware is LE.
+ * Writes the MAC address from the netdev to the device control BAR.  Does not
+ * perform the required reconfig.  We do a bit of byte swapping dance because
+ * firmware is LE.
  */
-static void nfp_net_write_mac_addr(struct nfp_net *nn, const u8 *mac)
+static void nfp_net_write_mac_addr(struct nfp_net *nn)
 {
 	nn_writel(nn, NFP_NET_CFG_MACADDR + 0,
 		  get_unaligned_be32(nn->netdev->dev_addr));
@@ -1952,7 +1953,7 @@ static int __nfp_net_set_config_and_enable(struct nfp_net *nn)
 	nn_writeq(nn, NFP_NET_CFG_RXRS_ENABLE, nn->num_rx_rings == 64 ?
 		  0xffffffffffffffffULL : ((u64)1 << nn->num_rx_rings) - 1);
 
-	nfp_net_write_mac_addr(nn, nn->netdev->dev_addr);
+	nfp_net_write_mac_addr(nn);
 
 	nn_writel(nn, NFP_NET_CFG_MTU, nn->netdev->mtu);
 	nn_writel(nn, NFP_NET_CFG_FLBUFSZ, nn->fl_bufsz);
@@ -2739,7 +2740,7 @@ int nfp_net_netdev_init(struct net_device *netdev)
 	nn->cap = nn_readl(nn, NFP_NET_CFG_CAP);
 	nn->max_mtu = nn_readl(nn, NFP_NET_CFG_MAX_MTU);
 
-	nfp_net_write_mac_addr(nn, nn->netdev->dev_addr);
+	nfp_net_write_mac_addr(nn);
 
 	/* Set default MTU and Freelist buffer size */
 	if (nn->max_mtu < NFP_NET_DEFAULT_MTU)
