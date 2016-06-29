@@ -68,7 +68,6 @@ struct rpcrdma_ia {
 	struct ib_device	*ri_device;
 	struct rdma_cm_id 	*ri_id;
 	struct ib_pd		*ri_pd;
-	struct ib_mr		*ri_dma_mr;
 	struct completion	ri_done;
 	int			ri_async_rc;
 	unsigned int		ri_max_frmr_depth;
@@ -269,8 +268,7 @@ struct rpcrdma_mw {
  * NOTES:
  *   o RPCRDMA_MAX_SEGS is the max number of addressible chunk elements we
  *     marshal. The number needed varies depending on the iov lists that
- *     are passed to us, the memory registration mode we are in, and if
- *     physical addressing is used, the layout.
+ *     are passed to us and the memory registration mode we are in.
  */
 
 struct rpcrdma_mr_seg {		/* chunk descriptors */
@@ -417,7 +415,6 @@ struct rpcrdma_memreg_ops {
 
 extern const struct rpcrdma_memreg_ops rpcrdma_fmr_memreg_ops;
 extern const struct rpcrdma_memreg_ops rpcrdma_frwr_memreg_ops;
-extern const struct rpcrdma_memreg_ops rpcrdma_physical_memreg_ops;
 
 /*
  * RPCRDMA transport -- encapsulates the structures above for
