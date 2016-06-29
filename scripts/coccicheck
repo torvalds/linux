@@ -7,6 +7,11 @@
 
 SPATCH="`which ${SPATCH:=spatch}`"
 
+if [ ! -x "$SPATCH" ]; then
+    echo 'spatch is part of the Coccinelle project and is available at http://coccinelle.lip6.fr/'
+    exit 1
+fi
+
 trap kill_running SIGTERM SIGINT
 declare -a SPATCH_PID
 
@@ -49,11 +54,6 @@ fi
 
 if [ "$KBUILD_EXTMOD" != "" ] ; then
     OPTIONS="--patch $srctree $OPTIONS"
-fi
-
-if [ ! -x "$SPATCH" ]; then
-    echo 'spatch is part of the Coccinelle project and is available at http://coccinelle.lip6.fr/'
-    exit 1
 fi
 
 if [ "$MODE" = "" ] ; then
