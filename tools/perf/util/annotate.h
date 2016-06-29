@@ -48,6 +48,7 @@ struct ins {
 
 bool ins__is_jump(const struct ins *ins);
 bool ins__is_call(const struct ins *ins);
+bool ins__is_ret(const struct ins *ins);
 int ins__scnprintf(struct ins *ins, char *bf, size_t size, struct ins_operands *ops);
 
 struct annotation;
@@ -155,8 +156,6 @@ int symbol__alloc_hist(struct symbol *sym);
 void symbol__annotate_zero_histograms(struct symbol *sym);
 
 int symbol__annotate(struct symbol *sym, struct map *map, size_t privsize);
-
-int hist_entry__annotate(struct hist_entry *he, size_t privsize);
 
 int symbol__annotate_init(struct map *map, struct symbol *sym);
 int symbol__annotate_printf(struct symbol *sym, struct map *map,

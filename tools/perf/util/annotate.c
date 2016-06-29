@@ -354,6 +354,15 @@ static struct ins_ops nop_ops = {
 	.scnprintf = nop__scnprintf,
 };
 
+static struct ins_ops ret_ops = {
+	.scnprintf = ins__raw_scnprintf,
+};
+
+bool ins__is_ret(const struct ins *ins)
+{
+	return ins->ops == &ret_ops;
+}
+
 static struct ins instructions[] = {
 	{ .name = "add",   .ops  = &mov_ops, },
 	{ .name = "addl",  .ops  = &mov_ops, },
@@ -444,6 +453,7 @@ static struct ins instructions[] = {
 	{ .name = "xadd",  .ops  = &mov_ops, },
 	{ .name = "xbeginl", .ops  = &jump_ops, },
 	{ .name = "xbeginq", .ops  = &jump_ops, },
+	{ .name = "retq",  .ops  = &ret_ops, },
 };
 
 static int ins__key_cmp(const void *name, const void *insp)
@@ -1674,11 +1684,6 @@ int symbol__tty_annotate(struct symbol *sym, struct map *map,
 	disasm__purge(&symbol__annotation(sym)->src->source);
 
 	return 0;
-}
-
-int hist_entry__annotate(struct hist_entry *he, size_t privsize)
-{
-	return symbol__annotate(he->ms.sym, he->ms.map, privsize);
 }
 
 bool ui__has_annotation(void)
