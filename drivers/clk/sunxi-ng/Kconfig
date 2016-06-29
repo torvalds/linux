@@ -9,4 +9,7 @@ if SUNXI_CCU
 config SUNXI_CCU_FRAC
 	bool
 
+config SUNXI_CCU_GATE
+	bool
+
 endif
