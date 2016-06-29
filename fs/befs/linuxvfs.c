@@ -633,10 +633,6 @@ befs_nls2utf(struct super_block *sb, const char *in,
 	return -EILSEQ;
 }
 
-/**
- * Use the
- *
- */
 enum {
 	Opt_uid, Opt_gid, Opt_charset, Opt_debug, Opt_err,
 };
