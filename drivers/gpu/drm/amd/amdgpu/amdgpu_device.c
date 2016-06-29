@@ -1936,9 +1936,6 @@ int amdgpu_gpu_reset(struct amdgpu_device *adev)
 
 	atomic_inc(&adev->gpu_reset_counter);
 
-	/* evict vram memory */
-	amdgpu_bo_evict_vram(adev);
-
 	/* block scheduler */
 	for (i = 0; i < AMDGPU_MAX_RINGS; ++i) {
 		struct amdgpu_ring *ring = adev->rings[i];
