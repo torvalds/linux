@@ -55,6 +55,16 @@ static int afu_control(struct cxl_afu *afu, u64 command, u64 clear,
 		cpu_relax();
 		AFU_Cntl = cxl_p2n_read(afu, CXL_AFU_Cntl_An);
 	};
+
+	if (AFU_Cntl & CXL_AFU_Cntl_An_RA) {
+		/*
+		 * Workaround for a bug in the XSL used in the Mellanox CX4
+		 * that fails to clear the RA bit after an AFU reset,
+		 * preventing subsequent AFU resets from working.
+		 */
+		cxl_p2n_write(afu, CXL_AFU_Cntl_An, AFU_Cntl & ~CXL_AFU_Cntl_An_RA);
+	}
+
 	pr_devel("AFU command complete: %llx\n", command);
 	afu->enabled = enabled;
 out:
