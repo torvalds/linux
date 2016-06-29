@@ -475,6 +475,7 @@ static int inv_mpu_probe(struct i2c_client *client,
 		st->plat_data =
 			*(struct mpu_platform_data *)dev_get_platdata(&client->dev);
 
+	st->irq = client->irq;
 	st->plat_read = inv_i2c_read;
 	st->plat_single_write = inv_i2c_single_write;
 	st->secondary_read = inv_i2c_secondary_read;
@@ -515,7 +516,6 @@ static int inv_mpu_probe(struct i2c_client *client,
 		pr_err("configure ring buffer fail\n");
 		goto out_free;
 	}
-	st->irq = client->irq;
 	st->dev = &client->dev;
 	result = inv_mpu_probe_trigger(indio_dev);
 	if (result) {
