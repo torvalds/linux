@@ -6,6 +6,10 @@ if SUNXI_CCU
 
 # Base clock types
 
+config SUNXI_CCU_DIV
+	bool
+	select SUNXI_CCU_MUX
+
 config SUNXI_CCU_FRAC
 	bool
 
