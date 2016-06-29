@@ -269,6 +269,49 @@ errout:
 	return err;
 }
 
+static int rule_exists(struct fib_rules_ops *ops, struct fib_rule_hdr *frh,
+		       struct nlattr **tb, struct fib_rule *rule)
+{
+	struct fib_rule *r;
+
+	list_for_each_entry(r, &ops->rules_list, list) {
+		if (r->action != rule->action)
+			continue;
+
+		if (r->table != rule->table)
+			continue;
+
+		if (r->pref != rule->pref)
+			continue;
+
+		if (memcmp(r->iifname, rule->iifname, IFNAMSIZ))
+			continue;
+
+		if (memcmp(r->oifname, rule->oifname, IFNAMSIZ))
+			continue;
+
+		if (r->mark != rule->mark)
+			continue;
+
+		if (r->mark_mask != rule->mark_mask)
+			continue;
+
+		if (r->tun_id != rule->tun_id)
+			continue;
+
+		if (r->fr_net != rule->fr_net)
+			continue;
+
+		if (r->l3mdev != rule->l3mdev)
+			continue;
+
+		if (!ops->compare(r, frh, tb))
+			continue;
+		return 1;
+	}
+	return 0;
+}
+
 int fib_nl_newrule(struct sk_buff *skb, struct nlmsghdr *nlh)
 {
 	struct net *net = sock_net(skb->sk);
@@ -385,6 +428,12 @@ int fib_nl_newrule(struct sk_buff *skb, struct nlmsghdr *nlh)
 
 	if (rule->l3mdev && rule->table)
 		goto errout_free;
+
+	if ((nlh->nlmsg_flags & NLM_F_EXCL) &&
+	    rule_exists(ops, frh, tb, rule)) {
+		err = -EEXIST;
+		goto errout_free;
+	}
 
 	err = ops->configure(rule, skb, frh, tb);
 	if (err < 0)
