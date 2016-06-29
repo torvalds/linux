@@ -1116,8 +1116,9 @@ static int m88ds3103_diseqc_send_master_cmd(struct dvb_frontend *fe,
 	#define SEND_MASTER_CMD_TIMEOUT 120
 	timeout = jiffies + msecs_to_jiffies(SEND_MASTER_CMD_TIMEOUT);
 
-	/* DiSEqC message typical period is 54 ms */
-	usleep_range(50000, 54000);
+	/* DiSEqC message period is 13.5 ms per byte */
+	utmp = diseqc_cmd->msg_len * 13500;
+	usleep_range(utmp - 4000, utmp);
 
 	for (utmp = 1; !time_after(jiffies, timeout) && utmp;) {
 		ret = regmap_read(dev->regmap, 0xa1, &utmp);
