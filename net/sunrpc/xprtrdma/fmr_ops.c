@@ -116,13 +116,28 @@ __fmr_unmap(struct rpcrdma_mw *mw)
 }
 
 static void
-__fmr_dma_unmap(struct rpcrdma_xprt *r_xprt, struct rpcrdma_mr_seg *seg)
+__fmr_dma_unmap(struct rpcrdma_mw *mw)
 {
-	struct ib_device *device = r_xprt->rx_ia.ri_device;
-	int nsegs = seg->mr_nsegs;
+	struct rpcrdma_xprt *r_xprt = mw->mw_xprt;
 
-	while (nsegs--)
-		rpcrdma_unmap_one(device, seg++);
+	ib_dma_unmap_sg(r_xprt->rx_ia.ri_device,
+			mw->mw_sg, mw->mw_nents, mw->mw_dir);
+	rpcrdma_put_mw(r_xprt, mw);
+}
+
+static void
+__fmr_reset_and_unmap(struct rpcrdma_mw *mw)
+{
+	int rc;
+
+	/* ORDER */
+	rc = __fmr_unmap(mw);
+	if (rc) {
+		pr_warn("rpcrdma: ib_unmap_fmr status %d, fmr %p orphaned\n",
+			rc, mw);
+		return;
+	}
+	__fmr_dma_unmap(mw);
 }
 
 static void
@@ -146,11 +161,9 @@ static void
 __fmr_recovery_worker(struct work_struct *work)
 {
 	struct rpcrdma_mw *mw = container_of(work, struct rpcrdma_mw,
-					    mw_work);
-	struct rpcrdma_xprt *r_xprt = mw->mw_xprt;
+					     mw_work);
 
-	__fmr_unmap(mw);
-	rpcrdma_put_mw(r_xprt, mw);
+	__fmr_reset_and_unmap(mw);
 	return;
 }
 
@@ -225,12 +238,10 @@ static int
 fmr_op_map(struct rpcrdma_xprt *r_xprt, struct rpcrdma_mr_seg *seg,
 	   int nsegs, bool writing)
 {
-	struct rpcrdma_ia *ia = &r_xprt->rx_ia;
-	struct ib_device *device = ia->ri_device;
-	enum dma_data_direction direction = rpcrdma_data_dir(writing);
 	struct rpcrdma_mr_seg *seg1 = seg;
 	int len, pageoff, i, rc;
 	struct rpcrdma_mw *mw;
+	u64 *dma_pages;
 
 	mw = seg1->rl_mw;
 	seg1->rl_mw = NULL;
@@ -252,8 +263,14 @@ fmr_op_map(struct rpcrdma_xprt *r_xprt, struct rpcrdma_mr_seg *seg,
 	if (nsegs > RPCRDMA_MAX_FMR_SGES)
 		nsegs = RPCRDMA_MAX_FMR_SGES;
 	for (i = 0; i < nsegs;) {
-		rpcrdma_map_one(device, seg, direction);
-		mw->fmr.fm_physaddrs[i] = seg->mr_dma;
+		if (seg->mr_page)
+			sg_set_page(&mw->mw_sg[i],
+				    seg->mr_page,
+				    seg->mr_len,
+				    offset_in_page(seg->mr_offset));
+		else
+			sg_set_buf(&mw->mw_sg[i], seg->mr_offset,
+				   seg->mr_len);
 		len += seg->mr_len;
 		++seg;
 		++i;
@@ -262,25 +279,37 @@ fmr_op_map(struct rpcrdma_xprt *r_xprt, struct rpcrdma_mr_seg *seg,
 		    offset_in_page((seg-1)->mr_offset + (seg-1)->mr_len))
 			break;
 	}
+	mw->mw_nents = i;
+	mw->mw_dir = rpcrdma_data_dir(writing);
 
-	rc = ib_map_phys_fmr(mw->fmr.fm_mr, mw->fmr.fm_physaddrs,
-			     i, seg1->mr_dma);
+	if (!ib_dma_map_sg(r_xprt->rx_ia.ri_device,
+			   mw->mw_sg, mw->mw_nents, mw->mw_dir))
+		goto out_dmamap_err;
+
+	for (i = 0, dma_pages = mw->fmr.fm_physaddrs; i < mw->mw_nents; i++)
+		dma_pages[i] = sg_dma_address(&mw->mw_sg[i]);
+	rc = ib_map_phys_fmr(mw->fmr.fm_mr, dma_pages, mw->mw_nents,
+			     dma_pages[0]);
 	if (rc)
 		goto out_maperr;
 
 	seg1->rl_mw = mw;
 	seg1->mr_rkey = mw->fmr.fm_mr->rkey;
-	seg1->mr_base = seg1->mr_dma + pageoff;
-	seg1->mr_nsegs = i;
+	seg1->mr_base = dma_pages[0] + pageoff;
+	seg1->mr_nsegs = mw->mw_nents;
 	seg1->mr_len = len;
-	return i;
+	return mw->mw_nents;
+
+out_dmamap_err:
+	pr_err("rpcrdma: failed to dma map sg %p sg_nents %u\n",
+	       mw->mw_sg, mw->mw_nents);
+	return -ENOMEM;
 
 out_maperr:
-	dprintk("RPC:       %s: ib_map_phys_fmr %u@0x%llx+%i (%d) status %i\n",
-		__func__, len, (unsigned long long)seg1->mr_dma,
-		pageoff, i, rc);
-	while (i--)
-		rpcrdma_unmap_one(device, --seg);
+	pr_err("rpcrdma: ib_map_phys_fmr %u@0x%llx+%i (%d) status %i\n",
+	       len, (unsigned long long)dma_pages[0],
+	       pageoff, mw->mw_nents, rc);
+	__fmr_dma_unmap(mw);
 	return rc;
 }
 
@@ -325,8 +354,7 @@ fmr_op_unmap_sync(struct rpcrdma_xprt *r_xprt, struct rpcrdma_req *req)
 		mw = seg->rl_mw;
 
 		list_del_init(&mw->fmr.fm_mr->list);
-		__fmr_dma_unmap(r_xprt, seg);
-		rpcrdma_put_mw(r_xprt, seg->rl_mw);
+		__fmr_dma_unmap(mw);
 
 		i += seg->mr_nsegs;
 		seg->mr_nsegs = 0;
@@ -338,11 +366,6 @@ fmr_op_unmap_sync(struct rpcrdma_xprt *r_xprt, struct rpcrdma_req *req)
 
 /* Use a slow, safe mechanism to invalidate all memory regions
  * that were registered for "req".
- *
- * In the asynchronous case, DMA unmapping occurs first here
- * because the rpcrdma_mr_seg is released immediately after this
- * call. It's contents won't be available in __fmr_dma_unmap later.
- * FIXME.
  */
 static void
 fmr_op_unmap_safe(struct rpcrdma_xprt *r_xprt, struct rpcrdma_req *req,
@@ -356,15 +379,10 @@ fmr_op_unmap_safe(struct rpcrdma_xprt *r_xprt, struct rpcrdma_req *req,
 		seg = &req->rl_segments[i];
 		mw = seg->rl_mw;
 
-		if (sync) {
-			/* ORDER */
-			__fmr_unmap(mw);
-			__fmr_dma_unmap(r_xprt, seg);
-			rpcrdma_put_mw(r_xprt, mw);
-		} else {
-			__fmr_dma_unmap(r_xprt, seg);
+		if (sync)
+			__fmr_reset_and_unmap(mw);
+		else
 			__fmr_queue_recovery(mw);
-		}
 
 		i += seg->mr_nsegs;
 		seg->mr_nsegs = 0;
