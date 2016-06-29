@@ -36,6 +36,8 @@
 
 #define RK3288_GRF_SOC_CON6		0x25c
 #define RK3288_EDP_LCDC_SEL		BIT(5)
+#define RK3399_GRF_SOC_CON20		0x6250
+#define RK3399_EDP_LCDC_SEL		BIT(5)
 
 #define HIWORD_UPDATE(val, mask)	(val | (mask) << 16)
 
@@ -159,6 +161,8 @@ rockchip_dp_drm_encoder_atomic_check(struct drm_encoder *encoder,
 				      struct drm_connector_state *conn_state)
 {
 	struct rockchip_crtc_state *s = to_rockchip_crtc_state(crtc_state);
+	struct rockchip_dp_device *dp = to_dp(encoder);
+	int ret;
 
 	/*
 	 * FIXME(Yakir): driver should configure the CRTC output video
@@ -173,8 +177,19 @@ rockchip_dp_drm_encoder_atomic_check(struct drm_encoder *encoder,
 	 * But if I configure CTRC to RGBaaa, and eDP driver still keep
 	 * RGB666 input video mode, then screen would works prefect.
 	 */
+
 	s->output_mode = ROCKCHIP_OUT_MODE_AAAA;
 	s->output_type = DRM_MODE_CONNECTOR_eDP;
+	if (dp->data->chip_type == RK3399_EDP) {
+		/*
+		 * For RK3399, VOP Lit must code the out mode to RGB888,
+		 * VOP Big must code the out mode to RGB10.
+		 */
+		ret = drm_of_encoder_active_endpoint_id(dp->dev->of_node,
+							encoder);
+		if (ret > 0)
+			s->output_mode = ROCKCHIP_OUT_MODE_P888;
+	}
 
 	return 0;
 }
@@ -378,6 +393,13 @@ static const struct dev_pm_ops rockchip_dp_pm_ops = {
 #endif
 };
 
+static const struct rockchip_dp_chip_data rk3399_edp = {
+	.lcdsel_grf_reg = RK3399_GRF_SOC_CON20,
+	.lcdsel_big = HIWORD_UPDATE(0, RK3399_EDP_LCDC_SEL),
+	.lcdsel_lit = HIWORD_UPDATE(RK3399_EDP_LCDC_SEL, RK3399_EDP_LCDC_SEL),
+	.chip_type = RK3399_EDP,
+};
+
 static const struct rockchip_dp_chip_data rk3288_dp = {
 	.lcdsel_grf_reg = RK3288_GRF_SOC_CON6,
 	.lcdsel_big = HIWORD_UPDATE(0, RK3288_EDP_LCDC_SEL),
@@ -387,6 +409,7 @@ static const struct rockchip_dp_chip_data rk3288_dp = {
 
 static const struct of_device_id rockchip_dp_dt_ids[] = {
 	{.compatible = "rockchip,rk3288-dp", .data = &rk3288_dp },
+	{.compatible = "rockchip,rk3399-edp", .data = &rk3399_edp },
 	{}
 };
 MODULE_DEVICE_TABLE(of, rockchip_dp_dt_ids);

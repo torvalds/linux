@@ -2,7 +2,8 @@ Rockchip RK3288 specific extensions to the Analogix Display Port
 ================================
 
 Required properties:
-- compatible: "rockchip,rk3288-edp";
+- compatible: "rockchip,rk3288-edp",
+	      "rockchip,rk3399-edp";
 
 - reg: physical base address of the controller and length
 
