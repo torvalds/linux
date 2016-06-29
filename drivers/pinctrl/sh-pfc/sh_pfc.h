@@ -257,6 +257,7 @@ extern const struct sh_pfc_soc_info r8a7778_pinmux_info;
 extern const struct sh_pfc_soc_info r8a7779_pinmux_info;
 extern const struct sh_pfc_soc_info r8a7790_pinmux_info;
 extern const struct sh_pfc_soc_info r8a7791_pinmux_info;
+extern const struct sh_pfc_soc_info r8a7792_pinmux_info;
 extern const struct sh_pfc_soc_info r8a7793_pinmux_info;
 extern const struct sh_pfc_soc_info r8a7794_pinmux_info;
 extern const struct sh_pfc_soc_info r8a7795_pinmux_info;
@@ -401,19 +402,27 @@ extern const struct sh_pfc_soc_info shx3_pinmux_info;
 	PORT_GP_CFG_1(bank, 15, fn, sfx, cfg)
 #define PORT_GP_16(bank, fn, sfx)	PORT_GP_CFG_16(bank, fn, sfx, 0)
 
-#define PORT_GP_CFG_18(bank, fn, sfx, cfg)				\
+#define PORT_GP_CFG_17(bank, fn, sfx, cfg)				\
 	PORT_GP_CFG_16(bank, fn, sfx, cfg),				\
-	PORT_GP_CFG_1(bank, 16, fn, sfx, cfg),				\
+	PORT_GP_CFG_1(bank, 16, fn, sfx, cfg)
+#define PORT_GP_17(bank, fn, sfx)	PORT_GP_CFG_17(bank, fn, sfx, 0)
+
+#define PORT_GP_CFG_18(bank, fn, sfx, cfg)				\
+	PORT_GP_CFG_17(bank, fn, sfx, cfg),				\
 	PORT_GP_CFG_1(bank, 17, fn, sfx, cfg)
 #define PORT_GP_18(bank, fn, sfx)	PORT_GP_CFG_18(bank, fn, sfx, 0)
 
-#define PORT_GP_CFG_26(bank, fn, sfx, cfg)				\
+#define PORT_GP_CFG_23(bank, fn, sfx, cfg)				\
 	PORT_GP_CFG_18(bank, fn, sfx, cfg),				\
 	PORT_GP_CFG_1(bank, 18, fn, sfx, cfg),				\
 	PORT_GP_CFG_1(bank, 19, fn, sfx, cfg),				\
 	PORT_GP_CFG_1(bank, 20, fn, sfx, cfg),				\
 	PORT_GP_CFG_1(bank, 21, fn, sfx, cfg),				\
-	PORT_GP_CFG_1(bank, 22, fn, sfx, cfg),				\
+	PORT_GP_CFG_1(bank, 22, fn, sfx, cfg)
+#define PORT_GP_23(bank, fn, sfx)	PORT_GP_CFG_23(bank, fn, sfx, 0)
+
+#define PORT_GP_CFG_26(bank, fn, sfx, cfg)				\
+	PORT_GP_CFG_23(bank, fn, sfx, cfg),				\
 	PORT_GP_CFG_1(bank, 23, fn, sfx, cfg),				\
 	PORT_GP_CFG_1(bank, 24, fn, sfx, cfg),				\
 	PORT_GP_CFG_1(bank, 25, fn, sfx, cfg)
@@ -425,9 +434,13 @@ extern const struct sh_pfc_soc_info shx3_pinmux_info;
 	PORT_GP_CFG_1(bank, 27, fn, sfx, cfg)
 #define PORT_GP_28(bank, fn, sfx)	PORT_GP_CFG_28(bank, fn, sfx, 0)
 
-#define PORT_GP_CFG_30(bank, fn, sfx, cfg)				\
+#define PORT_GP_CFG_29(bank, fn, sfx, cfg)				\
 	PORT_GP_CFG_28(bank, fn, sfx, cfg),				\
-	PORT_GP_CFG_1(bank, 28, fn, sfx, cfg),				\
+	PORT_GP_CFG_1(bank, 28, fn, sfx, cfg)
+#define PORT_GP_29(bank, fn, sfx)	PORT_GP_CFG_29(bank, fn, sfx, 0)
+
+#define PORT_GP_CFG_30(bank, fn, sfx, cfg)				\
+	PORT_GP_CFG_29(bank, fn, sfx, cfg),				\
 	PORT_GP_CFG_1(bank, 29, fn, sfx, cfg)
 #define PORT_GP_30(bank, fn, sfx)	PORT_GP_CFG_30(bank, fn, sfx, 0)
 
