@@ -94,11 +94,26 @@ To enable verbose messages set the V= variable, for example:
 
    make coccicheck MODE=report V=1
 
+ Coccinelle parallelization
+~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+
 By default, coccicheck tries to run as parallel as possible. To change
 the parallelism, set the J= variable. For example, to run across 4 CPUs:
 
    make coccicheck MODE=report J=4
 
+As of Coccinelle 1.0.2 Coccinelle uses Ocaml parmap for parallelization,
+if support for this is detected you will benefit from parmap parallelization.
+
+When parmap is enabled coccicheck will enable dynamic load balancing by using
+'--chunksize 1' argument, this ensures we keep feeding threads with work
+one by one, so that we avoid the situation where most work gets done by only
+a few threads. With dynamic load balancing, if a thread finishes early we keep
+feeding it more work.
+
+When parmap is enabled, if an error occurs in Coccinelle, this error
+value is propagated back, the return value of the 'make coccicheck'
+captures this return value.
 
  Using Coccinelle with a single semantic patch
 ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~

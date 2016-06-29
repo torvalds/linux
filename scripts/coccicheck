@@ -12,8 +12,8 @@ if [ ! -x "$SPATCH" ]; then
     exit 1
 fi
 
-trap kill_running SIGTERM SIGINT
-declare -a SPATCH_PID
+USE_JOBS="no"
+$SPATCH --help | grep "\-\-jobs" > /dev/null && USE_JOBS="yes"
 
 # The verbosity may be set by the environmental parameter V=
 # as for example with 'make V=1 coccicheck'
@@ -56,6 +56,16 @@ if [ "$KBUILD_EXTMOD" != "" ] ; then
     OPTIONS="--patch $srctree $OPTIONS"
 fi
 
+# You can override by using SPFLAGS
+if [ "$USE_JOBS" = "no" ]; then
+	trap kill_running SIGTERM SIGINT
+	declare -a SPATCH_PID
+elif [ "$NPROC" != "1" ]; then
+	# Using 0 should work as well, refer to _SC_NPROCESSORS_ONLN use on
+	# https://github.com/rdicosmo/parmap/blob/master/setcore_stubs.c
+	OPTIONS="$OPTIONS --jobs $NPROC --chunksize 1"
+fi
+
 if [ "$MODE" = "" ] ; then
     if [ "$ONLINE" = "0" ] ; then
 	echo 'You have not explicitly specified the mode to use. Using default "report" mode.'
@@ -82,7 +92,18 @@ if [ "$ONLINE" = "0" ] ; then
     echo ''
 fi
 
-run_cmd() {
+run_cmd_parmap() {
+	if [ $VERBOSE -ne 0 ] ; then
+		echo "Running ($NPROC in parallel): $@"
+	fi
+	$@ 2>/dev/null
+	if [[ $? -ne 0 ]]; then
+		echo "coccicheck failed"
+		exit $?
+	fi
+}
+
+run_cmd_old() {
 	local i
 	if [ $VERBOSE -ne 0 ] ; then
 		echo "Running ($NPROC in parallel): $@"
@@ -95,6 +116,14 @@ run_cmd() {
 		fi
 	done
 	wait
+}
+
+run_cmd() {
+	if [ "$USE_JOBS" = "yes" ]; then
+		run_cmd_parmap $@
+	else
+		run_cmd_old $@
+	fi
 }
 
 kill_running() {
