@@ -80,9 +80,6 @@ EXPORT_SYMBOL(agp_special_page);
 
 void MMU_init(void);
 
-/* XXX should be in current.h  -- paulus */
-extern struct task_struct *current_set[NR_CPUS];
-
 /*
  * this tells the system to map all of ram with the segregs
  * (i.e. page tables) instead of the bats.
