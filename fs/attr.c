@@ -266,6 +266,14 @@ int notify_change(struct dentry * dentry, struct iattr * attr, struct inode **de
 	    !kgid_has_mapping(inode->i_sb->s_user_ns, attr->ia_gid))
 		return -EOVERFLOW;
 
+	/* Don't allow modifications of files with invalid uids or
+	 * gids unless those uids & gids are being made valid.
+	 */
+	if (!(ia_valid & ATTR_UID) && !uid_valid(inode->i_uid))
+		return -EOVERFLOW;
+	if (!(ia_valid & ATTR_GID) && !gid_valid(inode->i_gid))
+		return -EOVERFLOW;
+
 	error = security_inode_setattr(dentry, attr);
 	if (error)
 		return error;
