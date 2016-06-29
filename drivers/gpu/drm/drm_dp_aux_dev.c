@@ -355,8 +355,7 @@ int drm_dp_aux_dev_init(void)
 
 	drm_dp_aux_dev_class = class_create(THIS_MODULE, "drm_dp_aux_dev");
 	if (IS_ERR(drm_dp_aux_dev_class)) {
-		res = PTR_ERR(drm_dp_aux_dev_class);
-		goto out;
+		return PTR_ERR(drm_dp_aux_dev_class);
 	}
 	drm_dp_aux_dev_class->dev_groups = drm_dp_aux_groups;
 
