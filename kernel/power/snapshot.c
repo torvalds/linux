@@ -2019,44 +2019,8 @@ int snapshot_read_next(struct snapshot_handle *handle)
 	return PAGE_SIZE;
 }
 
-/**
- *	mark_unsafe_pages - mark the pages that cannot be used for storing
- *	the image during resume, because they conflict with the pages that
- *	had been used before suspend
- */
-
-static int mark_unsafe_pages(struct memory_bitmap *bm)
-{
-	struct zone *zone;
-	unsigned long pfn, max_zone_pfn;
-
-	/* Clear page flags */
-	for_each_populated_zone(zone) {
-		max_zone_pfn = zone_end_pfn(zone);
-		for (pfn = zone->zone_start_pfn; pfn < max_zone_pfn; pfn++)
-			if (pfn_valid(pfn))
-				swsusp_unset_page_free(pfn_to_page(pfn));
-	}
-
-	/* Mark pages that correspond to the "original" pfns as "unsafe" */
-	memory_bm_position_reset(bm);
-	do {
-		pfn = memory_bm_next_pfn(bm);
-		if (likely(pfn != BM_END_OF_MAP)) {
-			if (likely(pfn_valid(pfn)))
-				swsusp_set_page_free(pfn_to_page(pfn));
-			else
-				return -EFAULT;
-		}
-	} while (pfn != BM_END_OF_MAP);
-
-	allocated_unsafe_pages = 0;
-
-	return 0;
-}
-
-static void
-duplicate_memory_bitmap(struct memory_bitmap *dst, struct memory_bitmap *src)
+static void duplicate_memory_bitmap(struct memory_bitmap *dst,
+				    struct memory_bitmap *src)
 {
 	unsigned long pfn;
 
@@ -2066,6 +2030,30 @@ duplicate_memory_bitmap(struct memory_bitmap *dst, struct memory_bitmap *src)
 		memory_bm_set_bit(dst, pfn);
 		pfn = memory_bm_next_pfn(src);
 	}
+}
+
+/**
+ *	mark_unsafe_pages - mark the pages that cannot be used for storing
+ *	the image during resume, because they conflict with the pages that
+ *	had been used before suspend
+ */
+
+static void mark_unsafe_pages(struct memory_bitmap *bm)
+{
+	unsigned long pfn;
+
+	/* Clear the "free"/"unsafe" bit for all PFNs */
+	memory_bm_position_reset(free_pages_map);
+	pfn = memory_bm_next_pfn(free_pages_map);
+	while (pfn != BM_END_OF_MAP) {
+		memory_bm_clear_current(free_pages_map);
+		pfn = memory_bm_next_pfn(free_pages_map);
+	}
+
+	/* Mark pages that correspond to the "original" PFNs as "unsafe" */
+	duplicate_memory_bitmap(free_pages_map, bm);
+
+	allocated_unsafe_pages = 0;
 }
 
 static int check_header(struct swsusp_info *info)
@@ -2115,7 +2103,7 @@ static int unpack_orig_pfns(unsigned long *buf, struct memory_bitmap *bm)
 		/* Extract and buffer page key for data page (s390 only). */
 		page_key_memorize(buf + j);
 
-		if (memory_bm_pfn_present(bm, buf[j]))
+		if (pfn_valid(buf[j]) && memory_bm_pfn_present(bm, buf[j]))
 			memory_bm_set_bit(bm, buf[j]);
 		else
 			return -EFAULT;
@@ -2357,9 +2345,7 @@ prepare_image(struct memory_bitmap *new_bm, struct memory_bitmap *bm)
 	buffer = NULL;
 
 	nr_highmem = count_highmem_image_pages(bm);
-	error = mark_unsafe_pages(bm);
-	if (error)
-		goto Free;
+	mark_unsafe_pages(bm);
 
 	error = memory_bm_create(new_bm, GFP_ATOMIC, PG_SAFE);
 	if (error)
