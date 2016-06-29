@@ -61,7 +61,7 @@ static void tick_do_update_jiffies64(ktime_t now)
 	if (delta.tv64 < tick_period.tv64)
 		return;
 
-	/* Reevalute with jiffies_lock held */
+	/* Reevaluate with jiffies_lock held */
 	write_seqlock(&jiffies_lock);
 
 	delta = ktime_sub(now, last_jiffies_update);
@@ -117,7 +117,7 @@ static void tick_sched_do_timer(ktime_t now)
 	/*
 	 * Check if the do_timer duty was dropped. We don't care about
 	 * concurrency: This happens only when the cpu in charge went
-	 * into a long sleep. If two cpus happen to assign themself to
+	 * into a long sleep. If two cpus happen to assign themselves to
 	 * this duty, then the jiffies update is still serialized by
 	 * jiffies_lock.
 	 */
@@ -571,7 +571,7 @@ static ktime_t tick_nohz_start_idle(struct tick_sched *ts)
  * @last_update_time: variable to store update time in. Do not update
  * counters if NULL.
  *
- * Return the cummulative idle time (since boot) for a given
+ * Return the cumulative idle time (since boot) for a given
  * CPU, in microseconds.
  *
  * This time is measured via accounting rather than sampling,
@@ -612,7 +612,7 @@ EXPORT_SYMBOL_GPL(get_cpu_idle_time_us);
  * @last_update_time: variable to store update time in. Do not update
  * counters if NULL.
  *
- * Return the cummulative iowait time (since boot) for a given
+ * Return the cumulative iowait time (since boot) for a given
  * CPU, in microseconds.
  *
  * This time is measured via accounting rather than sampling,
@@ -733,7 +733,7 @@ static ktime_t tick_nohz_stop_sched_tick(struct tick_sched *ts,
 	 * do_timer() never invoked. Keep track of the fact that it
 	 * was the one which had the do_timer() duty last. If this cpu
 	 * is the one which had the do_timer() duty last, we limit the
-	 * sleep time to the timekeeping max_deferement value.
+	 * sleep time to the timekeeping max_deferment value.
 	 * Otherwise we can sleep as long as we want.
 	 */
 	delta = timekeeping_max_deferment();
