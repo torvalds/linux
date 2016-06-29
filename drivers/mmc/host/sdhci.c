@@ -935,6 +935,15 @@ static bool sdhci_needs_reset(struct sdhci_host *host, struct mmc_request *mrq)
 
 static void sdhci_finish_mrq(struct sdhci_host *host, struct mmc_request *mrq)
 {
+	if (host->cmd && host->cmd->mrq == mrq)
+		host->cmd = NULL;
+
+	if (host->data_cmd && host->data_cmd->mrq == mrq)
+		host->data_cmd = NULL;
+
+	if (host->data && host->data->mrq == mrq)
+		host->data = NULL;
+
 	if (sdhci_needs_reset(host, mrq))
 		host->pending_reset = true;
 
@@ -2240,9 +2249,6 @@ static void sdhci_tasklet_finish(unsigned long param)
 	}
 
 	host->mrq = NULL;
-	host->cmd = NULL;
-	host->data = NULL;
-	host->data_cmd = NULL;
 
 	sdhci_led_deactivate(host);
 
