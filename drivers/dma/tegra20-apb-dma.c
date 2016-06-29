@@ -811,7 +811,7 @@ static enum dma_status tegra_dma_tx_status(struct dma_chan *dc,
 	unsigned int residual;
 
 	ret = dma_cookie_status(dc, cookie, txstate);
-	if (ret == DMA_COMPLETE || !txstate)
+	if (ret == DMA_COMPLETE)
 		return ret;
 
 	spin_lock_irqsave(&tdc->lock, flags);
@@ -837,7 +837,7 @@ static enum dma_status tegra_dma_tx_status(struct dma_chan *dc,
 	dma_desc = NULL;
 
 found:
-	if (dma_desc) {
+	if (dma_desc && txstate) {
 		residual = dma_desc->bytes_requested -
 			   (dma_desc->bytes_transferred %
 			    dma_desc->bytes_requested);
