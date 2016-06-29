@@ -341,11 +341,14 @@ static int tegra_dpaux_probe(struct platform_device *pdev)
 		return -ENXIO;
 	}
 
-	dpaux->rst = devm_reset_control_get(&pdev->dev, "dpaux");
-	if (IS_ERR(dpaux->rst)) {
-		dev_err(&pdev->dev, "failed to get reset control: %ld\n",
-			PTR_ERR(dpaux->rst));
-		return PTR_ERR(dpaux->rst);
+	if (!pdev->dev.pm_domain) {
+		dpaux->rst = devm_reset_control_get(&pdev->dev, "dpaux");
+		if (IS_ERR(dpaux->rst)) {
+			dev_err(&pdev->dev,
+				"failed to get reset control: %ld\n",
+				PTR_ERR(dpaux->rst));
+			return PTR_ERR(dpaux->rst);
+		}
 	}
 
 	dpaux->clk = devm_clk_get(&pdev->dev, NULL);
@@ -362,7 +365,8 @@ static int tegra_dpaux_probe(struct platform_device *pdev)
 		return err;
 	}
 
-	reset_control_deassert(dpaux->rst);
+	if (dpaux->rst)
+		reset_control_deassert(dpaux->rst);
 
 	dpaux->clk_parent = devm_clk_get(&pdev->dev, "parent");
 	if (IS_ERR(dpaux->clk_parent)) {
@@ -440,7 +444,9 @@ static int tegra_dpaux_probe(struct platform_device *pdev)
 disable_parent_clk:
 	clk_disable_unprepare(dpaux->clk_parent);
 assert_reset:
-	reset_control_assert(dpaux->rst);
+	if (dpaux->rst)
+		reset_control_assert(dpaux->rst);
+
 	clk_disable_unprepare(dpaux->clk);
 
 	return err;
@@ -462,7 +468,10 @@ static int tegra_dpaux_remove(struct platform_device *pdev)
 	cancel_work_sync(&dpaux->work);
 
 	clk_disable_unprepare(dpaux->clk_parent);
-	reset_control_assert(dpaux->rst);
+
+	if (dpaux->rst)
+		reset_control_assert(dpaux->rst);
+
 	clk_disable_unprepare(dpaux->clk);
 
 	return 0;
