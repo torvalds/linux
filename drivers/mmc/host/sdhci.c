@@ -929,6 +929,7 @@ static void sdhci_finish_data(struct sdhci_host *host)
 
 	data = host->data;
 	host->data = NULL;
+	host->data_cmd = NULL;
 
 	if ((host->flags & (SDHCI_REQ_USE_DMA | SDHCI_USE_ADMA)) ==
 	    (SDHCI_REQ_USE_DMA | SDHCI_USE_ADMA))
@@ -1014,6 +1015,10 @@ void sdhci_send_command(struct sdhci_host *host, struct mmc_command *cmd)
 
 	host->cmd = cmd;
 	host->busy_handle = 0;
+	if (cmd->data || cmd->flags & MMC_RSP_BUSY) {
+		WARN_ON(host->data_cmd);
+		host->data_cmd = cmd;
+	}
 
 	sdhci_prepare_data(host, cmd);
 
@@ -2224,6 +2229,7 @@ static void sdhci_tasklet_finish(unsigned long param)
 	host->mrq = NULL;
 	host->cmd = NULL;
 	host->data = NULL;
+	host->data_cmd = NULL;
 
 	sdhci_led_deactivate(host);
 
@@ -2365,14 +2371,19 @@ static void sdhci_data_irq(struct sdhci_host *host, u32 intmask)
 	}
 
 	if (!host->data) {
+		struct mmc_command *data_cmd = host->data_cmd;
+
+		if (data_cmd)
+			host->data_cmd = NULL;
+
 		/*
 		 * The "data complete" interrupt is also used to
 		 * indicate that a busy state has ended. See comment
 		 * above in sdhci_cmd_irq().
 		 */
-		if (host->cmd && (host->cmd->flags & MMC_RSP_BUSY)) {
+		if (data_cmd && (data_cmd->flags & MMC_RSP_BUSY)) {
 			if (intmask & SDHCI_INT_DATA_TIMEOUT) {
-				host->cmd->error = -ETIMEDOUT;
+				data_cmd->error = -ETIMEDOUT;
 				tasklet_schedule(&host->finish_tasklet);
 				return;
 			}
@@ -2447,7 +2458,7 @@ static void sdhci_data_irq(struct sdhci_host *host, u32 intmask)
 		}
 
 		if (intmask & SDHCI_INT_DATA_END) {
-			if (host->cmd) {
+			if (host->cmd == host->data_cmd) {
 				/*
 				 * Data managed to finish before the
 				 * command completed. Make sure we do
