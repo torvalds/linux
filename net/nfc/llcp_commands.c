@@ -438,12 +438,9 @@ int nfc_llcp_send_connect(struct nfc_llcp_sock *sock)
 		goto error_tlv;
 	}
 
-	if (service_name_tlv != NULL)
-		skb = llcp_add_tlv(skb, service_name_tlv,
-				   service_name_tlv_length);
-
-	skb = llcp_add_tlv(skb, miux_tlv, miux_tlv_length);
-	skb = llcp_add_tlv(skb, rw_tlv, rw_tlv_length);
+	llcp_add_tlv(skb, service_name_tlv, service_name_tlv_length);
+	llcp_add_tlv(skb, miux_tlv, miux_tlv_length);
+	llcp_add_tlv(skb, rw_tlv, rw_tlv_length);
 
 	skb_queue_tail(&local->tx_queue, skb);
 
@@ -493,8 +490,8 @@ int nfc_llcp_send_cc(struct nfc_llcp_sock *sock)
 		goto error_tlv;
 	}
 
-	skb = llcp_add_tlv(skb, miux_tlv, miux_tlv_length);
-	skb = llcp_add_tlv(skb, rw_tlv, rw_tlv_length);
+	llcp_add_tlv(skb, miux_tlv, miux_tlv_length);
+	llcp_add_tlv(skb, rw_tlv, rw_tlv_length);
 
 	skb_queue_tail(&local->tx_queue, skb);
 
