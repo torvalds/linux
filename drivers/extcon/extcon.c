@@ -224,7 +224,7 @@ static ssize_t cable_state_show(struct device *dev,
  * Note that the notifier provides which bits are changed in the state
  * variable with the val parameter (second) to the callback.
  */
-int extcon_update_state(struct extcon_dev *edev, u32 mask, u32 state)
+static int extcon_update_state(struct extcon_dev *edev, u32 mask, u32 state)
 {
 	char name_buf[120];
 	char state_buf[120];
@@ -300,24 +300,6 @@ int extcon_update_state(struct extcon_dev *edev, u32 mask, u32 state)
 
 	return 0;
 }
-EXPORT_SYMBOL_GPL(extcon_update_state);
-
-/**
- * extcon_set_state() - Set the cable attach states of the extcon device.
- * @edev:	the extcon device
- * @state:	new cable attach status for @edev
- *
- * Note that notifier provides which bits are changed in the state
- * variable with the val parameter (second) to the callback.
- */
-int extcon_set_state(struct extcon_dev *edev, u32 state)
-{
-	if (!edev)
-		return -EINVAL;
-
-	return extcon_update_state(edev, 0xffffffff, state);
-}
-EXPORT_SYMBOL_GPL(extcon_set_state);
 
 /**
  * extcon_get_cable_state_() - Get the status of a specific cable.
