@@ -1035,6 +1035,8 @@ static int check_map_func_compatibility(struct bpf_map *map, int func_id)
 		if (func_id != BPF_FUNC_get_stackid)
 			goto error;
 		break;
+	case BPF_MAP_TYPE_CGROUP_ARRAY:
+		goto error;
 	default:
 		break;
 	}
