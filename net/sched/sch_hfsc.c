@@ -882,7 +882,7 @@ qdisc_peek_len(struct Qdisc *sch)
 	unsigned int len;
 
 	skb = sch->ops->peek(sch);
-	if (skb == NULL) {
+	if (unlikely(skb == NULL)) {
 		qdisc_warn_nonwc("qdisc_peek_len", sch);
 		return 0;
 	}
