@@ -1218,7 +1218,6 @@ static void assert_chv_phy_status(struct drm_i915_private *dev_priv)
 	u32 phy_control = dev_priv->chv_phy_control;
 	u32 phy_status = 0;
 	u32 phy_status_mask = 0xffffffff;
-	u32 tmp;
 
 	/*
 	 * The BIOS can leave the PHY is some weird state
@@ -1306,10 +1305,14 @@ static void assert_chv_phy_status(struct drm_i915_private *dev_priv)
 	 * The PHY may be busy with some initial calibration and whatnot,
 	 * so the power state can take a while to actually change.
 	 */
-	if (wait_for((tmp = I915_READ(DISPLAY_PHY_STATUS) & phy_status_mask) == phy_status, 10))
-		WARN(phy_status != tmp,
-		     "Unexpected PHY_STATUS 0x%08x, expected 0x%08x (PHY_CONTROL=0x%08x)\n",
-		     tmp, phy_status, dev_priv->chv_phy_control);
+	if (intel_wait_for_register(dev_priv,
+				    DISPLAY_PHY_STATUS,
+				    phy_status_mask,
+				    phy_status,
+				    10))
+		DRM_ERROR("Unexpected PHY_STATUS 0x%08x, expected 0x%08x (PHY_CONTROL=0x%08x)\n",
+			  I915_READ(DISPLAY_PHY_STATUS) & phy_status_mask,
+			   phy_status, dev_priv->chv_phy_control);
 }
 
 #undef BITS_SET
