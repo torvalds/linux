@@ -14,6 +14,7 @@
 #include "musb_core.h"
 #include "musb_debug.h"
 #include "cppi_dma.h"
+#include "davinci.h"
 
 
 /* CPPI DMA status 7-mar-2006:
