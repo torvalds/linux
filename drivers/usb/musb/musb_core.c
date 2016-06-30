@@ -1588,9 +1588,7 @@ irqreturn_t musb_interrupt(struct musb *musb)
 
 	devctl = musb_readb(musb->mregs, MUSB_DEVCTL);
 
-	dev_dbg(musb->controller, "** IRQ %s usb%04x tx%04x rx%04x\n",
-		is_host_active(musb) ? "host" : "peripheral",
-		musb->int_usb, musb->int_tx, musb->int_rx);
+	trace_musb_isr(musb);
 
 	/**
 	 * According to Mentor Graphics' documentation, flowchart on page 98,

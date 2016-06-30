@@ -128,6 +128,27 @@ DEFINE_EVENT(musb_regl, musb_writel,
 	TP_ARGS(caller, addr, offset, data)
 );
 
+TRACE_EVENT(musb_isr,
+	TP_PROTO(struct musb *musb),
+	TP_ARGS(musb),
+	TP_STRUCT__entry(
+		__string(name, dev_name(musb->controller))
+		__field(u8, int_usb)
+		__field(u16, int_tx)
+		__field(u16, int_rx)
+	),
+	TP_fast_assign(
+		__assign_str(name, dev_name(musb->controller));
+		__entry->int_usb = musb->int_usb;
+		__entry->int_tx = musb->int_tx;
+		__entry->int_rx = musb->int_rx;
+	),
+	TP_printk("%s: usb %02x, tx %04x, rx %04x",
+		__get_str(name), __entry->int_usb,
+		__entry->int_tx, __entry->int_rx
+	)
+);
+
 #endif /* __MUSB_TRACE_H */
 
 /* this part has to be here */
