@@ -19,7 +19,6 @@
 #include "hw.h"
 
 const struct ath10k_hw_regs qca988x_regs = {
-	.rtc_state_cold_reset_mask	= 0x00000400,
 	.rtc_soc_base_address		= 0x00004000,
 	.rtc_wmac_base_address		= 0x00005000,
 	.soc_core_base_address		= 0x00009000,
@@ -46,7 +45,6 @@ const struct ath10k_hw_regs qca988x_regs = {
 };
 
 const struct ath10k_hw_regs qca6174_regs = {
-	.rtc_state_cold_reset_mask		= 0x00002000,
 	.rtc_soc_base_address			= 0x00000800,
 	.rtc_wmac_base_address			= 0x00001000,
 	.soc_core_base_address			= 0x0003a000,
@@ -73,7 +71,6 @@ const struct ath10k_hw_regs qca6174_regs = {
 };
 
 const struct ath10k_hw_regs qca99x0_regs = {
-	.rtc_state_cold_reset_mask		= 0x00000400,
 	.rtc_soc_base_address			= 0x00080000,
 	.rtc_wmac_base_address			= 0x00000000,
 	.soc_core_base_address			= 0x00082000,
