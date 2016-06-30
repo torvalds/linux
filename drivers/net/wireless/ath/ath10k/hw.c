@@ -165,6 +165,15 @@ const struct ath10k_hw_values qca99x0_values = {
 	.ce_desc_meta_data_lsb		= 4,
 };
 
+const struct ath10k_hw_values qca9888_values = {
+	.rtc_state_val_on		= 3,
+	.ce_count			= 12,
+	.msi_assign_ce_max		= 12,
+	.num_target_ce_config_wlan	= 10,
+	.ce_desc_meta_data_mask		= 0xFFF0,
+	.ce_desc_meta_data_lsb		= 4,
+};
+
 const struct ath10k_hw_values qca4019_values = {
 	.ce_count                       = 12,
 	.num_target_ce_config_wlan      = 10,
