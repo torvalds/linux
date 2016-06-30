@@ -11,14 +11,10 @@
 / {
 	mipi_dsi_reset: mipi-dsi-reset {
 		compatible = "gpio-reset";
-		reset-gpios = <&gpio1 4 GPIO_ACTIVE_LOW>;
+		reset-gpios = <&gpio6 15 GPIO_ACTIVE_LOW>;
 		reset-delay-us = <1000>;
 		#reset-cells = <0>;
 	};
-};
-
-&fec2 {
-	status = "disabled";
 };
 
 &lcdif {
@@ -27,7 +23,7 @@
 
 &mipi_dsi {
 	pinctrl-names = "default";
-	pinctrl-0 = <&pinctrl_enet2_epdc0_en>;
+	pinctrl-0 = <&pinctrl_mipi_dsi_reset>;
 	lcd_panel = "TRULY-WVGA-TFT3P5581E";
 	resets = <&mipi_dsi_reset>;
 	status = "okay";
