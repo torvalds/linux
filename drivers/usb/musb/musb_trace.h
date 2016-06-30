@@ -25,6 +25,9 @@
 #include <linux/tracepoint.h>
 #include <linux/usb.h>
 #include "musb_core.h"
+#ifdef CONFIG_USB_TI_CPPI41_DMA
+#include "cppi_dma.h"
+#endif
 
 #define MUSB_MSG_MAX   500
 
@@ -287,6 +290,73 @@ DEFINE_EVENT(musb_req, musb_req_deq,
 	TP_PROTO(struct musb_request *req),
 	TP_ARGS(req)
 );
+
+#ifdef CONFIG_USB_TI_CPPI41_DMA
+DECLARE_EVENT_CLASS(musb_cppi41,
+	TP_PROTO(struct cppi41_dma_channel *ch),
+	TP_ARGS(ch),
+	TP_STRUCT__entry(
+		__field(struct cppi41_dma_channel *, ch)
+		__string(name, dev_name(ch->hw_ep->musb->controller))
+		__field(u8, hwep)
+		__field(u8, port)
+		__field(u8, is_tx)
+		__field(u32, len)
+		__field(u32, prog_len)
+		__field(u32, xferred)
+	),
+	TP_fast_assign(
+		__entry->ch = ch;
+		__assign_str(name, dev_name(ch->hw_ep->musb->controller));
+		__entry->hwep = ch->hw_ep->epnum;
+		__entry->port = ch->port_num;
+		__entry->is_tx = ch->is_tx;
+		__entry->len = ch->total_len;
+		__entry->prog_len = ch->prog_len;
+		__entry->xferred = ch->transferred;
+	),
+	TP_printk("%s: %p, hwep%d ch%d%s, prog_len %d, len %d/%d",
+			__get_str(name), __entry->ch, __entry->hwep,
+			__entry->port, __entry->is_tx ? "tx" : "rx",
+			__entry->prog_len, __entry->xferred, __entry->len
+	)
+);
+
+DEFINE_EVENT(musb_cppi41, musb_cppi41_done,
+	TP_PROTO(struct cppi41_dma_channel *ch),
+	TP_ARGS(ch)
+);
+
+DEFINE_EVENT(musb_cppi41, musb_cppi41_gb,
+	TP_PROTO(struct cppi41_dma_channel *ch),
+	TP_ARGS(ch)
+);
+
+DEFINE_EVENT(musb_cppi41, musb_cppi41_config,
+	TP_PROTO(struct cppi41_dma_channel *ch),
+	TP_ARGS(ch)
+);
+
+DEFINE_EVENT(musb_cppi41, musb_cppi41_cont,
+	TP_PROTO(struct cppi41_dma_channel *ch),
+	TP_ARGS(ch)
+);
+
+DEFINE_EVENT(musb_cppi41, musb_cppi41_alloc,
+	TP_PROTO(struct cppi41_dma_channel *ch),
+	TP_ARGS(ch)
+);
+
+DEFINE_EVENT(musb_cppi41, musb_cppi41_abort,
+	TP_PROTO(struct cppi41_dma_channel *ch),
+	TP_ARGS(ch)
+);
+
+DEFINE_EVENT(musb_cppi41, musb_cppi41_free,
+	TP_PROTO(struct cppi41_dma_channel *ch),
+	TP_ARGS(ch)
+);
+#endif /* CONFIG_USB_TI_CPPI41_DMA */
 
 #endif /* __MUSB_TRACE_H */
 
