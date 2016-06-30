@@ -99,6 +99,8 @@ static int gbaudio_map_widgetname(struct gbaudio_module_info *module,
 		if (!strncmp(widget->name, name, NAME_SIZE))
 			return widget->id;
 	}
+	dev_warn(module->dev, "%s: missing in modules widgets list\n", name);
+
 	return -EINVAL;
 }
 
