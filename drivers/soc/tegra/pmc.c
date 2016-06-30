@@ -792,16 +792,19 @@ error:
 static void tegra_powergate_add(struct tegra_pmc *pmc, struct device_node *np)
 {
 	struct tegra_powergate *pg;
+	int id, err;
 	bool off;
-	int id;
 
 	pg = kzalloc(sizeof(*pg), GFP_KERNEL);
 	if (!pg)
-		goto error;
+		return;
 
 	id = tegra_powergate_lookup(pmc, np->name);
-	if (id < 0)
+	if (id < 0) {
+		dev_err(pmc->dev, "powergate lookup failed for %s: %d\n",
+			np->name, id);
 		goto free_mem;
+	}
 
 	/*
 	 * Clear the bit for this powergate so it cannot be managed
@@ -817,16 +820,28 @@ static void tegra_powergate_add(struct tegra_pmc *pmc, struct device_node *np)
 
 	off = !tegra_powergate_is_powered(pg->id);
 
-	if (tegra_powergate_of_get_clks(pg, np))
+	err = tegra_powergate_of_get_clks(pg, np);
+	if (err < 0) {
+		dev_err(pmc->dev, "failed to get clocks for %s: %d\n",
+			np->name, err);
 		goto set_available;
+	}
 
-	if (tegra_powergate_of_get_resets(pg, np, off))
+	err = tegra_powergate_of_get_resets(pg, np, off);
+	if (err < 0) {
+		dev_err(pmc->dev, "failed to get resets for %s: %d\n",
+			np->name, err);
 		goto remove_clks;
+	}
 
 	pm_genpd_init(&pg->genpd, NULL, off);
 
-	if (of_genpd_add_provider_simple(np, &pg->genpd))
+	err = of_genpd_add_provider_simple(np, &pg->genpd);
+	if (err < 0) {
+		dev_err(pmc->dev, "failed to add genpd provider for %s: %d\n",
+			np->name, err);
 		goto remove_resets;
+	}
 
 	dev_dbg(pmc->dev, "added power domain %s\n", pg->genpd.name);
 
@@ -849,9 +864,6 @@ set_available:
 
 free_mem:
 	kfree(pg);
-
-error:
-	dev_err(pmc->dev, "failed to create power domain for %s\n", np->name);
 }
 
 static void tegra_powergate_init(struct tegra_pmc *pmc)
