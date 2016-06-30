@@ -98,6 +98,7 @@ static void amd_sched_fence_free(struct rcu_head *rcu)
 	struct fence *f = container_of(rcu, struct fence, rcu);
 	struct amd_sched_fence *fence = to_amd_sched_fence(f);
 
+	fence_put(fence->parent);
 	kmem_cache_free(sched_fence_slab, fence);
 }
 

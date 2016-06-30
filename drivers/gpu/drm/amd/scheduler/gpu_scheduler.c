@@ -516,6 +516,7 @@ static int amd_sched_main(void *param)
 		fence = sched->ops->run_job(sched_job);
 		amd_sched_fence_scheduled(s_fence);
 		if (fence) {
+			s_fence->parent = fence_get(fence);
 			r = fence_add_callback(fence, &s_fence->cb,
 					       amd_sched_process_job);
 			if (r == -ENOENT)
