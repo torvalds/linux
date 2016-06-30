@@ -150,20 +150,6 @@ extern struct extcon_dev *devm_extcon_dev_allocate(struct device *dev,
 extern void devm_extcon_dev_free(struct device *dev, struct extcon_dev *edev);
 
 /*
- * get/set/update_state access the 32b encoded state value, which represents
- * states of all possible cables of the multistate port. For example, if one
- * calls extcon_set_state(edev, 0x7), it may mean that all the three cables
- * are attached to the port.
- */
-static inline u32 extcon_get_state(struct extcon_dev *edev)
-{
-	return edev->state;
-}
-
-extern int extcon_set_state(struct extcon_dev *edev, u32 state);
-extern int extcon_update_state(struct extcon_dev *edev, u32 mask, u32 state);
-
-/*
  * get/set_cable_state access each bit of the 32b encoded state value.
  * They are used to access the status of each cable based on the cable id.
  */
@@ -231,22 +217,6 @@ static inline struct extcon_dev *devm_extcon_dev_allocate(struct device *dev,
 }
 
 static inline void devm_extcon_dev_free(struct extcon_dev *edev) { }
-
-static inline u32 extcon_get_state(struct extcon_dev *edev)
-{
-	return 0;
-}
-
-static inline int extcon_set_state(struct extcon_dev *edev, u32 state)
-{
-	return 0;
-}
-
-static inline int extcon_update_state(struct extcon_dev *edev, u32 mask,
-				       u32 state)
-{
-	return 0;
-}
 
 static inline int extcon_get_cable_state_(struct extcon_dev *edev,
 					  unsigned int id)
