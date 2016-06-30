@@ -25,4 +25,10 @@ int gb_fw_download_request_handler(struct gb_operation *op);
 int gb_fw_download_connection_init(struct gb_connection *connection);
 void gb_fw_download_connection_exit(struct gb_connection *connection);
 
+/* CAP Protocol specific functions */
+int cap_init(void);
+void cap_exit(void);
+int gb_cap_connection_init(struct gb_connection *connection);
+void gb_cap_connection_exit(struct gb_connection *connection);
+
 #endif /* __FIRMWARE_H */

@@ -17,6 +17,7 @@ struct gb_fw_core {
 	struct gb_connection	*download_connection;
 	struct gb_connection	*mgmt_connection;
 	struct gb_connection	*spi_connection;
+	struct gb_connection	*cap_connection;
 };
 
 struct gb_connection *to_fw_mgmt_connection(struct device *dev)
@@ -135,6 +136,24 @@ static int gb_fw_core_probe(struct gb_bundle *bundle,
 			}
 
 			break;
+		case GREYBUS_PROTOCOL_AUTHENTICATION:
+			/* Disallow multiple CAP CPorts */
+			if (fw_core->cap_connection) {
+				dev_err(&bundle->dev, "multiple Authentication CPorts found\n");
+				ret = -EINVAL;
+				goto err_destroy_connections;
+			}
+
+			connection = gb_connection_create(bundle, cport_id,
+							  NULL);
+			if (IS_ERR(connection)) {
+				dev_err(&bundle->dev, "failed to create Authentication connection (%ld)\n",
+					PTR_ERR(connection));
+			} else {
+				fw_core->cap_connection = connection;
+			}
+
+			break;
 		default:
 			dev_err(&bundle->dev, "invalid protocol id (0x%02x)\n",
 				protocol_id);
@@ -168,6 +187,15 @@ static int gb_fw_core_probe(struct gb_bundle *bundle,
 		fw_core->spi_connection = NULL;
 	}
 
+	ret = gb_cap_connection_init(fw_core->cap_connection);
+	if (ret) {
+		/* We may still be able to work with the Interface */
+		dev_err(&bundle->dev, "failed to initialize CAP connection, disable it (%d)\n",
+			ret);
+		gb_connection_destroy(fw_core->cap_connection);
+		fw_core->cap_connection = NULL;
+	}
+
 	ret = gb_fw_mgmt_connection_init(fw_core->mgmt_connection);
 	if (ret) {
 		/* We may still be able to work with the Interface */
@@ -181,10 +209,12 @@ static int gb_fw_core_probe(struct gb_bundle *bundle,
 	return 0;
 
 err_exit_connections:
+	gb_cap_connection_exit(fw_core->cap_connection);
 	gb_fw_spi_connection_exit(fw_core->spi_connection);
 	gb_fw_download_connection_exit(fw_core->download_connection);
 err_destroy_connections:
 	gb_connection_destroy(fw_core->mgmt_connection);
+	gb_connection_destroy(fw_core->cap_connection);
 	gb_connection_destroy(fw_core->spi_connection);
 	gb_connection_destroy(fw_core->download_connection);
 	kfree(fw_core);
@@ -197,10 +227,12 @@ static void gb_fw_core_disconnect(struct gb_bundle *bundle)
 	struct gb_fw_core *fw_core = greybus_get_drvdata(bundle);
 
 	gb_fw_mgmt_connection_exit(fw_core->mgmt_connection);
+	gb_cap_connection_exit(fw_core->cap_connection);
 	gb_fw_spi_connection_exit(fw_core->spi_connection);
 	gb_fw_download_connection_exit(fw_core->download_connection);
 
 	gb_connection_destroy(fw_core->mgmt_connection);
+	gb_connection_destroy(fw_core->cap_connection);
 	gb_connection_destroy(fw_core->spi_connection);
 	gb_connection_destroy(fw_core->download_connection);
 
@@ -229,19 +261,32 @@ static int fw_core_init(void)
 		return ret;
 	}
 
-	ret = greybus_register(&gb_fw_core_driver);
+	ret = cap_init();
 	if (ret) {
-		fw_mgmt_exit();
-		return ret;
+		pr_err("Failed to initialize component authentication core (%d)\n",
+		       ret);
+		goto fw_mgmt_exit;
 	}
 
+	ret = greybus_register(&gb_fw_core_driver);
+	if (ret)
+		goto cap_exit;
+
 	return 0;
+
+cap_exit:
+	cap_exit();
+fw_mgmt_exit:
+	fw_mgmt_exit();
+
+	return ret;
 }
 module_init(fw_core_init);
 
 static void __exit fw_core_exit(void)
 {
 	greybus_deregister(&gb_fw_core_driver);
+	cap_exit();
 	fw_mgmt_exit();
 }
 module_exit(fw_core_exit);

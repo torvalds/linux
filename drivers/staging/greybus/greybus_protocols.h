@@ -345,6 +345,43 @@ struct gb_fw_mgmt_backend_fw_updated_request {
 /* firmware management backend firmware updated response has no payload */
 
 
+/* Component Authentication Protocol (CAP) */
+
+/* Request Types */
+#define GB_CAP_TYPE_GET_ENDPOINT_UID	0x01
+#define GB_CAP_TYPE_GET_IMS_CERTIFICATE	0x02
+#define GB_CAP_TYPE_AUTHENTICATE	0x03
+
+/* CAP get endpoint uid request has no payload */
+struct gb_cap_get_endpoint_uid_response {
+	__u8			uid[8];
+} __packed;
+
+/* CAP get endpoint ims certificate request/response */
+struct gb_cap_get_ims_certificate_request {
+	__le32			certificate_class;
+	__le32			certificate_id;
+} __packed;
+
+struct gb_cap_get_ims_certificate_response {
+	__u8			result_code;
+	__u8			certificate[0];
+} __packed;
+
+/* CAP authenticate request/response */
+struct gb_cap_authenticate_request {
+	__le32			auth_type;
+	__u8			uid[8];
+	__u8			challenge[32];
+} __packed;
+
+struct gb_cap_authenticate_response {
+	__u8			result_code;
+	__u8			response[64];
+	__u8			signature[0];
+} __packed;
+
+
 /* Bootrom Protocol */
 
 /* Version of the Greybus bootrom protocol we support */
