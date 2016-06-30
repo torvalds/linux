@@ -929,7 +929,10 @@ void intel_logical_ring_stop(struct intel_engine_cs *engine)
 
 	/* TODO: Is this correct with Execlists enabled? */
 	I915_WRITE_MODE(engine, _MASKED_BIT_ENABLE(STOP_RING));
-	if (wait_for((I915_READ_MODE(engine) & MODE_IDLE) != 0, 1000)) {
+	if (intel_wait_for_register(dev_priv,
+				    RING_MI_MODE(engine->mmio_base),
+				    MODE_IDLE, MODE_IDLE,
+				    1000)) {
 		DRM_ERROR("%s :timed out trying to stop ring\n", engine->name);
 		return;
 	}
