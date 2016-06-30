@@ -719,14 +719,13 @@ select_insn:
 
 		if (unlikely(index >= array->map.max_entries))
 			goto out;
-
 		if (unlikely(tail_call_cnt > MAX_TAIL_CALL_CNT))
 			goto out;
 
 		tail_call_cnt++;
 
 		prog = READ_ONCE(array->ptrs[index]);
-		if (unlikely(!prog))
+		if (!prog)
 			goto out;
 
 		/* ARG1 at this point is guaranteed to point to CTX from

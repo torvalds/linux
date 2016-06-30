@@ -150,6 +150,12 @@ static u64 __get_raw_cpu_id(u64 ctx, u64 a, u64 x, u64 r4, u64 r5)
 	return raw_smp_processor_id();
 }
 
+static const struct bpf_func_proto bpf_get_raw_smp_processor_id_proto = {
+	.func		= __get_raw_cpu_id,
+	.gpl_only	= false,
+	.ret_type	= RET_INTEGER,
+};
+
 static u32 convert_skb_access(int skb_field, int dst_reg, int src_reg,
 			      struct bpf_insn *insn_buf)
 {
@@ -1777,6 +1783,224 @@ const struct bpf_func_proto bpf_skb_vlan_pop_proto = {
 };
 EXPORT_SYMBOL_GPL(bpf_skb_vlan_pop_proto);
 
+static int bpf_skb_generic_push(struct sk_buff *skb, u32 off, u32 len)
+{
+	/* Caller already did skb_cow() with len as headroom,
+	 * so no need to do it here.
+	 */
+	skb_push(skb, len);
+	memmove(skb->data, skb->data + len, off);
+	memset(skb->data + off, 0, len);
+
+	/* No skb_postpush_rcsum(skb, skb->data + off, len)
+	 * needed here as it does not change the skb->csum
+	 * result for checksum complete when summing over
+	 * zeroed blocks.
+	 */
+	return 0;
+}
+
+static int bpf_skb_generic_pop(struct sk_buff *skb, u32 off, u32 len)
+{
+	/* skb_ensure_writable() is not needed here, as we're
+	 * already working on an uncloned skb.
+	 */
+	if (unlikely(!pskb_may_pull(skb, off + len)))
+		return -ENOMEM;
+
+	skb_postpull_rcsum(skb, skb->data + off, len);
+	memmove(skb->data + len, skb->data, off);
+	__skb_pull(skb, len);
+
+	return 0;
+}
+
+static int bpf_skb_net_hdr_push(struct sk_buff *skb, u32 off, u32 len)
+{
+	bool trans_same = skb->transport_header == skb->network_header;
+	int ret;
+
+	/* There's no need for __skb_push()/__skb_pull() pair to
+	 * get to the start of the mac header as we're guaranteed
+	 * to always start from here under eBPF.
+	 */
+	ret = bpf_skb_generic_push(skb, off, len);
+	if (likely(!ret)) {
+		skb->mac_header -= len;
+		skb->network_header -= len;
+		if (trans_same)
+			skb->transport_header = skb->network_header;
+	}
+
+	return ret;
+}
+
+static int bpf_skb_net_hdr_pop(struct sk_buff *skb, u32 off, u32 len)
+{
+	bool trans_same = skb->transport_header == skb->network_header;
+	int ret;
+
+	/* Same here, __skb_push()/__skb_pull() pair not needed. */
+	ret = bpf_skb_generic_pop(skb, off, len);
+	if (likely(!ret)) {
+		skb->mac_header += len;
+		skb->network_header += len;
+		if (trans_same)
+			skb->transport_header = skb->network_header;
+	}
+
+	return ret;
+}
+
+static int bpf_skb_proto_4_to_6(struct sk_buff *skb)
+{
+	const u32 len_diff = sizeof(struct ipv6hdr) - sizeof(struct iphdr);
+	u32 off = skb->network_header - skb->mac_header;
+	int ret;
+
+	ret = skb_cow(skb, len_diff);
+	if (unlikely(ret < 0))
+		return ret;
+
+	ret = bpf_skb_net_hdr_push(skb, off, len_diff);
+	if (unlikely(ret < 0))
+		return ret;
+
+	if (skb_is_gso(skb)) {
+		/* SKB_GSO_UDP stays as is. SKB_GSO_TCPV4 needs to
+		 * be changed into SKB_GSO_TCPV6.
+		 */
+		if (skb_shinfo(skb)->gso_type & SKB_GSO_TCPV4) {
+			skb_shinfo(skb)->gso_type &= ~SKB_GSO_TCPV4;
+			skb_shinfo(skb)->gso_type |=  SKB_GSO_TCPV6;
+		}
+
+		/* Due to IPv6 header, MSS needs to be downgraded. */
+		skb_shinfo(skb)->gso_size -= len_diff;
+		/* Header must be checked, and gso_segs recomputed. */
+		skb_shinfo(skb)->gso_type |= SKB_GSO_DODGY;
+		skb_shinfo(skb)->gso_segs = 0;
+	}
+
+	skb->protocol = htons(ETH_P_IPV6);
+	skb_clear_hash(skb);
+
+	return 0;
+}
+
+static int bpf_skb_proto_6_to_4(struct sk_buff *skb)
+{
+	const u32 len_diff = sizeof(struct ipv6hdr) - sizeof(struct iphdr);
+	u32 off = skb->network_header - skb->mac_header;
+	int ret;
+
+	ret = skb_unclone(skb, GFP_ATOMIC);
+	if (unlikely(ret < 0))
+		return ret;
+
+	ret = bpf_skb_net_hdr_pop(skb, off, len_diff);
+	if (unlikely(ret < 0))
+		return ret;
+
+	if (skb_is_gso(skb)) {
+		/* SKB_GSO_UDP stays as is. SKB_GSO_TCPV6 needs to
+		 * be changed into SKB_GSO_TCPV4.
+		 */
+		if (skb_shinfo(skb)->gso_type & SKB_GSO_TCPV6) {
+			skb_shinfo(skb)->gso_type &= ~SKB_GSO_TCPV6;
+			skb_shinfo(skb)->gso_type |=  SKB_GSO_TCPV4;
+		}
+
+		/* Due to IPv4 header, MSS can be upgraded. */
+		skb_shinfo(skb)->gso_size += len_diff;
+		/* Header must be checked, and gso_segs recomputed. */
+		skb_shinfo(skb)->gso_type |= SKB_GSO_DODGY;
+		skb_shinfo(skb)->gso_segs = 0;
+	}
+
+	skb->protocol = htons(ETH_P_IP);
+	skb_clear_hash(skb);
+
+	return 0;
+}
+
+static int bpf_skb_proto_xlat(struct sk_buff *skb, __be16 to_proto)
+{
+	__be16 from_proto = skb->protocol;
+
+	if (from_proto == htons(ETH_P_IP) &&
+	      to_proto == htons(ETH_P_IPV6))
+		return bpf_skb_proto_4_to_6(skb);
+
+	if (from_proto == htons(ETH_P_IPV6) &&
+	      to_proto == htons(ETH_P_IP))
+		return bpf_skb_proto_6_to_4(skb);
+
+	return -ENOTSUPP;
+}
+
+static u64 bpf_skb_change_proto(u64 r1, u64 r2, u64 flags, u64 r4, u64 r5)
+{
+	struct sk_buff *skb = (struct sk_buff *) (long) r1;
+	__be16 proto = (__force __be16) r2;
+	int ret;
+
+	if (unlikely(flags))
+		return -EINVAL;
+
+	/* General idea is that this helper does the basic groundwork
+	 * needed for changing the protocol, and eBPF program fills the
+	 * rest through bpf_skb_store_bytes(), bpf_lX_csum_replace()
+	 * and other helpers, rather than passing a raw buffer here.
+	 *
+	 * The rationale is to keep this minimal and without a need to
+	 * deal with raw packet data. F.e. even if we would pass buffers
+	 * here, the program still needs to call the bpf_lX_csum_replace()
+	 * helpers anyway. Plus, this way we keep also separation of
+	 * concerns, since f.e. bpf_skb_store_bytes() should only take
+	 * care of stores.
+	 *
+	 * Currently, additional options and extension header space are
+	 * not supported, but flags register is reserved so we can adapt
+	 * that. For offloads, we mark packet as dodgy, so that headers
+	 * need to be verified first.
+	 */
+	ret = bpf_skb_proto_xlat(skb, proto);
+	bpf_compute_data_end(skb);
+	return ret;
+}
+
+static const struct bpf_func_proto bpf_skb_change_proto_proto = {
+	.func		= bpf_skb_change_proto,
+	.gpl_only	= false,
+	.ret_type	= RET_INTEGER,
+	.arg1_type	= ARG_PTR_TO_CTX,
+	.arg2_type	= ARG_ANYTHING,
+	.arg3_type	= ARG_ANYTHING,
+};
+
+static u64 bpf_skb_change_type(u64 r1, u64 r2, u64 r3, u64 r4, u64 r5)
+{
+	struct sk_buff *skb = (struct sk_buff *) (long) r1;
+	u32 pkt_type = r2;
+
+	/* We only allow a restricted subset to be changed for now. */
+	if (unlikely(skb->pkt_type > PACKET_OTHERHOST ||
+		     pkt_type > PACKET_OTHERHOST))
+		return -EINVAL;
+
+	skb->pkt_type = pkt_type;
+	return 0;
+}
+
+static const struct bpf_func_proto bpf_skb_change_type_proto = {
+	.func		= bpf_skb_change_type,
+	.gpl_only	= false,
+	.ret_type	= RET_INTEGER,
+	.arg1_type	= ARG_PTR_TO_CTX,
+	.arg2_type	= ARG_ANYTHING,
+};
+
 bool bpf_helper_changes_skb_data(void *func)
 {
 	if (func == bpf_skb_vlan_push)
@@ -1784,6 +2008,8 @@ bool bpf_helper_changes_skb_data(void *func)
 	if (func == bpf_skb_vlan_pop)
 		return true;
 	if (func == bpf_skb_store_bytes)
+		return true;
+	if (func == bpf_skb_change_proto)
 		return true;
 	if (func == bpf_l3_csum_replace)
 		return true;
@@ -2037,7 +2263,7 @@ sk_filter_func_proto(enum bpf_func_id func_id)
 	case BPF_FUNC_get_prandom_u32:
 		return &bpf_get_prandom_u32_proto;
 	case BPF_FUNC_get_smp_processor_id:
-		return &bpf_get_smp_processor_id_proto;
+		return &bpf_get_raw_smp_processor_id_proto;
 	case BPF_FUNC_tail_call:
 		return &bpf_tail_call_proto;
 	case BPF_FUNC_ktime_get_ns:
@@ -2072,6 +2298,10 @@ tc_cls_act_func_proto(enum bpf_func_id func_id)
 		return &bpf_skb_vlan_push_proto;
 	case BPF_FUNC_skb_vlan_pop:
 		return &bpf_skb_vlan_pop_proto;
+	case BPF_FUNC_skb_change_proto:
+		return &bpf_skb_change_proto_proto;
+	case BPF_FUNC_skb_change_type:
+		return &bpf_skb_change_type_proto;
 	case BPF_FUNC_skb_get_tunnel_key:
 		return &bpf_skb_get_tunnel_key_proto;
 	case BPF_FUNC_skb_set_tunnel_key:
@@ -2086,6 +2316,8 @@ tc_cls_act_func_proto(enum bpf_func_id func_id)
 		return &bpf_get_route_realm_proto;
 	case BPF_FUNC_perf_event_output:
 		return bpf_get_event_output_proto();
+	case BPF_FUNC_get_smp_processor_id:
+		return &bpf_get_smp_processor_id_proto;
 	default:
 		return sk_filter_func_proto(func_id);
 	}
