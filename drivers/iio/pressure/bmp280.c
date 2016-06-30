@@ -24,6 +24,7 @@
 #include <linux/iio/iio.h>
 #include <linux/iio/sysfs.h>
 #include <linux/gpio/consumer.h>
+#include <linux/regulator/consumer.h>
 
 /* BMP280 specific registers */
 #define BMP280_REG_HUMIDITY_LSB		0xFE
@@ -124,6 +125,9 @@ struct bmp280_data {
 	struct mutex lock;
 	struct regmap *regmap;
 	const struct bmp280_chip_info *chip_info;
+	struct regulator *vddd;
+	struct regulator *vdda;
+	unsigned int start_up_time; /* in milliseconds */
 
 	/* log of base 2 of oversampling rate */
 	u8 oversampling_press;
@@ -1047,12 +1051,14 @@ static int bmp280_probe(struct i2c_client *client,
 		data->chip_info = &bmp180_chip_info;
 		data->oversampling_press = ilog2(8);
 		data->oversampling_temp = ilog2(1);
+		data->start_up_time = 10;
 		break;
 	case BMP280_CHIP_ID:
 		indio_dev->num_channels = 2;
 		data->chip_info = &bmp280_chip_info;
 		data->oversampling_press = ilog2(16);
 		data->oversampling_temp = ilog2(2);
+		data->start_up_time = 2;
 		break;
 	case BME280_CHIP_ID:
 		indio_dev->num_channels = 3;
@@ -1060,10 +1066,36 @@ static int bmp280_probe(struct i2c_client *client,
 		data->oversampling_press = ilog2(16);
 		data->oversampling_humid = ilog2(16);
 		data->oversampling_temp = ilog2(2);
+		data->start_up_time = 2;
 		break;
 	default:
 		return -EINVAL;
 	}
+
+	/* Bring up regulators */
+	data->vddd = devm_regulator_get(&client->dev, "vddd");
+	if (IS_ERR(data->vddd)) {
+		dev_err(&client->dev, "failed to get VDDD regulator\n");
+		return PTR_ERR(data->vddd);
+	}
+	ret = regulator_enable(data->vddd);
+	if (ret) {
+		dev_err(&client->dev, "failed to enable VDDD regulator\n");
+		return ret;
+	}
+	data->vdda = devm_regulator_get(&client->dev, "vdda");
+	if (IS_ERR(data->vdda)) {
+		dev_err(&client->dev, "failed to get VDDA regulator\n");
+		ret = PTR_ERR(data->vddd);
+		goto out_disable_vddd;
+	}
+	ret = regulator_enable(data->vdda);
+	if (ret) {
+		dev_err(&client->dev, "failed to enable VDDA regulator\n");
+		goto out_disable_vddd;
+	}
+	/* Wait to make sure we started up properly */
+	mdelay(data->start_up_time);
 
 	/* Bring chip out of reset if there is an assigned GPIO line */
 	gpiod = devm_gpiod_get(&client->dev, "reset", GPIOD_OUT_HIGH);
@@ -1077,7 +1109,8 @@ static int bmp280_probe(struct i2c_client *client,
 					data->chip_info->regmap_config);
 	if (IS_ERR(data->regmap)) {
 		dev_err(&client->dev, "failed to allocate register map\n");
-		return PTR_ERR(data->regmap);
+		ret = PTR_ERR(data->regmap);
+		goto out_disable_vdda;
 	}
 
 	ret = regmap_read(data->regmap, BMP280_REG_ID, &chip_id);
@@ -1086,14 +1119,38 @@ static int bmp280_probe(struct i2c_client *client,
 	if (chip_id != id->driver_data) {
 		dev_err(&client->dev, "bad chip id.  expected %lx got %x\n",
 			id->driver_data, chip_id);
-		return -EINVAL;
+		ret = -EINVAL;
+		goto out_disable_vdda;
 	}
 
 	ret = data->chip_info->chip_config(data);
 	if (ret < 0)
-		return ret;
+		goto out_disable_vdda;
 
-	return devm_iio_device_register(&client->dev, indio_dev);
+	i2c_set_clientdata(client, indio_dev);
+
+	ret = iio_device_register(indio_dev);
+	if (ret)
+		goto out_disable_vdda;
+
+	return 0;
+
+out_disable_vdda:
+	regulator_disable(data->vdda);
+out_disable_vddd:
+	regulator_disable(data->vddd);
+	return ret;
+}
+
+static int bmp280_remove(struct i2c_client *client)
+{
+	struct iio_dev *indio_dev = i2c_get_clientdata(client);
+	struct bmp280_data *data = iio_priv(indio_dev);
+
+	iio_device_unregister(indio_dev);
+	regulator_disable(data->vdda);
+	regulator_disable(data->vddd);
+	return 0;
 }
 
 static const struct acpi_device_id bmp280_acpi_match[] = {
@@ -1134,6 +1191,7 @@ static struct i2c_driver bmp280_driver = {
 		.of_match_table = of_match_ptr(bmp280_of_match),
 	},
 	.probe		= bmp280_probe,
+	.remove		= bmp280_remove,
 	.id_table	= bmp280_id,
 };
 module_i2c_driver(bmp280_driver);
