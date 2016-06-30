@@ -95,7 +95,7 @@ void xen_setup_runstate_info(int cpu)
 	area.addr.v = &per_cpu(xen_runstate, cpu);
 
 	if (HYPERVISOR_vcpu_op(VCPUOP_register_runstate_memory_area,
-			       cpu, &area))
+			       xen_vcpu_nr(cpu), &area))
 		BUG();
 }
 

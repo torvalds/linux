@@ -228,7 +228,8 @@ static void xen_vcpu_setup(int cpu)
 	   hypervisor has no unregister variant and this hypercall does not
 	   allow to over-write info.mfn and info.offset.
 	 */
-	err = HYPERVISOR_vcpu_op(VCPUOP_register_vcpu_info, cpu, &info);
+	err = HYPERVISOR_vcpu_op(VCPUOP_register_vcpu_info, xen_vcpu_nr(cpu),
+				 &info);
 
 	if (err) {
 		printk(KERN_DEBUG "register_vcpu_info failed: err=%d\n", err);
@@ -252,10 +253,11 @@ void xen_vcpu_restore(void)
 
 	for_each_possible_cpu(cpu) {
 		bool other_cpu = (cpu != smp_processor_id());
-		bool is_up = HYPERVISOR_vcpu_op(VCPUOP_is_up, cpu, NULL);
+		bool is_up = HYPERVISOR_vcpu_op(VCPUOP_is_up, xen_vcpu_nr(cpu),
+						NULL);
 
 		if (other_cpu && is_up &&
-		    HYPERVISOR_vcpu_op(VCPUOP_down, cpu, NULL))
+		    HYPERVISOR_vcpu_op(VCPUOP_down, xen_vcpu_nr(cpu), NULL))
 			BUG();
 
 		xen_setup_runstate_info(cpu);
@@ -264,7 +266,7 @@ void xen_vcpu_restore(void)
 			xen_vcpu_setup(cpu);
 
 		if (other_cpu && is_up &&
-		    HYPERVISOR_vcpu_op(VCPUOP_up, cpu, NULL))
+		    HYPERVISOR_vcpu_op(VCPUOP_up, xen_vcpu_nr(cpu), NULL))
 			BUG();
 	}
 }

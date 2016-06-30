@@ -177,7 +177,8 @@ static void xen_percpu_init(void)
 	info.mfn = virt_to_gfn(vcpup);
 	info.offset = xen_offset_in_page(vcpup);
 
-	err = HYPERVISOR_vcpu_op(VCPUOP_register_vcpu_info, cpu, &info);
+	err = HYPERVISOR_vcpu_op(VCPUOP_register_vcpu_info, xen_vcpu_nr(cpu),
+				 &info);
 	BUG_ON(err);
 	per_cpu(xen_vcpu, cpu) = vcpup;
 
