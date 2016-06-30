@@ -1820,7 +1820,9 @@ void vlv_wait_port_ready(struct drm_i915_private *dev_priv,
 		BUG();
 	}
 
-	if (wait_for((I915_READ(dpll_reg) & port_mask) == expected_mask, 1000))
+	if (intel_wait_for_register(dev_priv,
+				    dpll_reg, port_mask, expected_mask,
+				    1000))
 		WARN(1, "timed out waiting for port %c ready: got 0x%x, expected 0x%x\n",
 		     port_name(dport->port), I915_READ(dpll_reg) & port_mask, expected_mask);
 }
