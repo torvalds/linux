@@ -856,7 +856,11 @@ static void skl_ddi_pll_enable(struct drm_i915_private *dev_priv,
 	I915_WRITE(regs[pll->id].ctl,
 		   I915_READ(regs[pll->id].ctl) | LCPLL_PLL_ENABLE);
 
-	if (wait_for(I915_READ(DPLL_STATUS) & DPLL_LOCK(pll->id), 5))
+	if (intel_wait_for_register(dev_priv,
+				    DPLL_STATUS,
+				    DPLL_LOCK(pll->id),
+				    DPLL_LOCK(pll->id),
+				    5))
 		DRM_ERROR("DPLL %d not locked\n", pll->id);
 }
 
