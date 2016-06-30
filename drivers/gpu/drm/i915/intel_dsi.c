@@ -160,8 +160,10 @@ static ssize_t intel_dsi_host_transfer(struct mipi_dsi_host *host,
 
 	/* note: this is never true for reads */
 	if (packet.payload_length) {
-
-		if (wait_for((I915_READ(MIPI_GEN_FIFO_STAT(port)) & data_mask) == 0, 50))
+		if (intel_wait_for_register(dev_priv,
+					    MIPI_GEN_FIFO_STAT(port),
+					    data_mask, 0,
+					    50))
 			DRM_ERROR("Timeout waiting for HS/LP DATA FIFO !full\n");
 
 		write_data(dev_priv, data_reg, packet.payload,
