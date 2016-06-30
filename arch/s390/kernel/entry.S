@@ -163,6 +163,16 @@ _PIF_WORK	= (_PIF_PER_TRAP)
 	.endm
 
 	.section .kprobes.text, "ax"
+.Ldummy:
+	/*
+	 * This nop exists only in order to avoid that __switch_to starts at
+	 * the beginning of the kprobes text section. In that case we would
+	 * have several symbols at the same address. E.g. objdump would take
+	 * an arbitrary symbol name when disassembling this code.
+	 * With the added nop in between the __switch_to symbol is unique
+	 * again.
+	 */
+	nop	0
 
 /*
  * Scheduler resume function, called by switch_to
