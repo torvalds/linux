@@ -768,12 +768,18 @@ static void skl_set_power_well(struct drm_i915_private *dev_priv,
 
 	if (check_fuse_status) {
 		if (power_well->data == SKL_DISP_PW_1) {
-			if (wait_for((I915_READ(SKL_FUSE_STATUS) &
-				SKL_FUSE_PG1_DIST_STATUS), 1))
+			if (intel_wait_for_register(dev_priv,
+						    SKL_FUSE_STATUS,
+						    SKL_FUSE_PG1_DIST_STATUS,
+						    SKL_FUSE_PG1_DIST_STATUS,
+						    1))
 				DRM_ERROR("PG1 distributing status timeout\n");
 		} else if (power_well->data == SKL_DISP_PW_2) {
-			if (wait_for((I915_READ(SKL_FUSE_STATUS) &
-				SKL_FUSE_PG2_DIST_STATUS), 1))
+			if (intel_wait_for_register(dev_priv,
+						    SKL_FUSE_STATUS,
+						    SKL_FUSE_PG2_DIST_STATUS,
+						    SKL_FUSE_PG2_DIST_STATUS,
+						    1))
 				DRM_ERROR("PG2 distributing status timeout\n");
 		}
 	}
