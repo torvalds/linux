@@ -1702,7 +1702,6 @@ static int _deassert_hardreset(struct omap_hwmod *oh, const char *name)
 {
 	struct omap_hwmod_rst_info ohri;
 	int ret = -EINVAL;
-	int hwsup = 0;
 
 	if (!oh)
 		return -EINVAL;
@@ -1720,7 +1719,7 @@ static int _deassert_hardreset(struct omap_hwmod *oh, const char *name)
 		 * might not be completed. The clockdomain can be set
 		 * in HW_AUTO only when the module become ready.
 		 */
-		hwsup = clkdm_in_hwsup(oh->clkdm);
+		clkdm_deny_idle(oh->clkdm);
 		ret = clkdm_hwmod_enable(oh->clkdm, oh);
 		if (ret) {
 			WARN(1, "omap_hwmod: %s: could not enable clockdomain %s: %d\n",
@@ -1747,8 +1746,7 @@ static int _deassert_hardreset(struct omap_hwmod *oh, const char *name)
 		 * Set the clockdomain to HW_AUTO, assuming that the
 		 * previous state was HW_AUTO.
 		 */
-		if (hwsup)
-			clkdm_allow_idle(oh->clkdm);
+		clkdm_allow_idle(oh->clkdm);
 
 		clkdm_hwmod_disable(oh->clkdm, oh);
 	}
@@ -2102,7 +2100,6 @@ static int _enable_preprogram(struct omap_hwmod *oh)
 static int _enable(struct omap_hwmod *oh)
 {
 	int r;
-	int hwsup = 0;
 
 	pr_debug("omap_hwmod: %s: enabling\n", oh->name);
 
@@ -2162,8 +2159,7 @@ static int _enable(struct omap_hwmod *oh)
 		 * completely the module. The clockdomain can be set
 		 * in HW_AUTO only when the module become ready.
 		 */
-		hwsup = clkdm_in_hwsup(oh->clkdm) &&
-			!clkdm_missing_idle_reporting(oh->clkdm);
+		clkdm_deny_idle(oh->clkdm);
 		r = clkdm_hwmod_enable(oh->clkdm, oh);
 		if (r) {
 			WARN(1, "omap_hwmod: %s: could not enable clockdomain %s: %d\n",
@@ -2183,14 +2179,10 @@ static int _enable(struct omap_hwmod *oh)
 
 	r = (soc_ops.wait_target_ready) ? soc_ops.wait_target_ready(oh) :
 		-EINVAL;
-	if (!r) {
-		/*
-		 * Set the clockdomain to HW_AUTO only if the target is ready,
-		 * assuming that the previous state was HW_AUTO
-		 */
-		if (oh->clkdm && hwsup)
-			clkdm_allow_idle(oh->clkdm);
+	if (oh->clkdm)
+		clkdm_allow_idle(oh->clkdm);
 
+	if (!r) {
 		oh->_state = _HWMOD_STATE_ENABLED;
 
 		/* Access the sysconfig only if the target is ready */
@@ -2244,6 +2236,9 @@ static int _idle(struct omap_hwmod *oh)
 		_idle_sysc(oh);
 	_del_initiator_dep(oh, mpu_oh);
 
+	if (oh->clkdm)
+		clkdm_deny_idle(oh->clkdm);
+
 	if (oh->flags & HWMOD_BLOCK_WFI)
 		cpu_idle_poll_ctrl(false);
 	if (soc_ops.disable_module)
@@ -2256,8 +2251,10 @@ static int _idle(struct omap_hwmod *oh)
 	 * transition to complete properly.
 	 */
 	_disable_clocks(oh);
-	if (oh->clkdm)
+	if (oh->clkdm) {
+		clkdm_allow_idle(oh->clkdm);
 		clkdm_hwmod_disable(oh->clkdm, oh);
+	}
 
 	/* Mux pins for device idle if populated */
 	if (oh->mux && oh->mux->pads_dynamic) {
