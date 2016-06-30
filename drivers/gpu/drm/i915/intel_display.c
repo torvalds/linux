@@ -1545,7 +1545,11 @@ static void _vlv_enable_pll(struct intel_crtc *crtc,
 	POSTING_READ(DPLL(pipe));
 	udelay(150);
 
-	if (wait_for(((I915_READ(DPLL(pipe)) & DPLL_LOCK_VLV) == DPLL_LOCK_VLV), 1))
+	if (intel_wait_for_register(dev_priv,
+				    DPLL(pipe),
+				    DPLL_LOCK_VLV,
+				    DPLL_LOCK_VLV,
+				    1))
 		DRM_ERROR("DPLL %d failed to lock\n", pipe);
 }
 
