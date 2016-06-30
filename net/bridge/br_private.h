@@ -75,6 +75,12 @@ struct bridge_mcast_querier {
 	struct br_ip addr;
 	struct net_bridge_port __rcu	*port;
 };
+
+/* IGMP/MLD statistics */
+struct bridge_mcast_stats {
+	struct br_mcast_stats mstats;
+	struct u64_stats_sync syncp;
+};
 #endif
 
 struct br_vlan_stats {
@@ -229,6 +235,7 @@ struct net_bridge_port
 	struct bridge_mcast_own_query	ip6_own_query;
 #endif /* IS_ENABLED(CONFIG_IPV6) */
 	unsigned char			multicast_router;
+	struct bridge_mcast_stats	__percpu *mcast_stats;
 	struct timer_list		multicast_router_timer;
 	struct hlist_head		mglist;
 	struct hlist_node		rlist;
@@ -315,6 +322,7 @@ struct net_bridge
 	u8				multicast_querier:1;
 	u8				multicast_query_use_ifaddr:1;
 	u8				has_ipv6_addr:1;
+	u8				multicast_stats_enabled:1;
 
 	u32				hash_elasticity;
 	u32				hash_max;
@@ -337,6 +345,7 @@ struct net_bridge
 	struct bridge_mcast_other_query	ip4_other_query;
 	struct bridge_mcast_own_query	ip4_own_query;
 	struct bridge_mcast_querier	ip4_querier;
+	struct bridge_mcast_stats	__percpu *mcast_stats;
 #if IS_ENABLED(CONFIG_IPV6)
 	struct bridge_mcast_other_query	ip6_other_query;
 	struct bridge_mcast_own_query	ip6_own_query;
@@ -543,7 +552,7 @@ int br_multicast_rcv(struct net_bridge *br, struct net_bridge_port *port,
 		     struct sk_buff *skb, u16 vid);
 struct net_bridge_mdb_entry *br_mdb_get(struct net_bridge *br,
 					struct sk_buff *skb, u16 vid);
-void br_multicast_add_port(struct net_bridge_port *port);
+int br_multicast_add_port(struct net_bridge_port *port);
 void br_multicast_del_port(struct net_bridge_port *port);
 void br_multicast_enable_port(struct net_bridge_port *port);
 void br_multicast_disable_port(struct net_bridge_port *port);
@@ -576,6 +585,12 @@ void br_mdb_notify(struct net_device *dev, struct net_bridge_port *port,
 		   struct br_ip *group, int type, u8 flags);
 void br_rtr_notify(struct net_device *dev, struct net_bridge_port *port,
 		   int type);
+void br_multicast_count(struct net_bridge *br, const struct net_bridge_port *p,
+			__be16 proto, u8 type, u8 dir);
+int br_multicast_init_stats(struct net_bridge *br);
+void br_multicast_get_stats(const struct net_bridge *br,
+			    const struct net_bridge_port *p,
+			    struct br_mcast_stats *dest);
 
 #define mlock_dereference(X, br) \
 	rcu_dereference_protected(X, lockdep_is_held(&br->multicast_lock))
@@ -623,6 +638,11 @@ static inline bool br_multicast_querier_exists(struct net_bridge *br,
 		return false;
 	}
 }
+
+static inline int br_multicast_igmp_type(const struct sk_buff *skb)
+{
+	return BR_INPUT_SKB_CB(skb)->igmp;
+}
 #else
 static inline int br_multicast_rcv(struct net_bridge *br,
 				   struct net_bridge_port *port,
@@ -638,8 +658,9 @@ static inline struct net_bridge_mdb_entry *br_mdb_get(struct net_bridge *br,
 	return NULL;
 }
 
-static inline void br_multicast_add_port(struct net_bridge_port *port)
+static inline int br_multicast_add_port(struct net_bridge_port *port)
 {
+	return 0;
 }
 
 static inline void br_multicast_del_port(struct net_bridge_port *port)
@@ -694,6 +715,22 @@ static inline void br_mdb_init(void)
 }
 static inline void br_mdb_uninit(void)
 {
+}
+
+static inline void br_multicast_count(struct net_bridge *br,
+				      const struct net_bridge_port *p,
+				      __be16 proto, u8 type, u8 dir)
+{
+}
+
+static inline int br_multicast_init_stats(struct net_bridge *br)
+{
+	return 0;
+}
+
+static inline int br_multicast_igmp_type(const struct sk_buff *skb)
+{
+	return 0;
 }
 #endif
 

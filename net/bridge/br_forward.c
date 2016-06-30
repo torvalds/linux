@@ -198,8 +198,10 @@ static void br_flood(struct net_bridge *br, struct sk_buff *skb,
 					   struct sk_buff *skb),
 		     bool unicast)
 {
-	struct net_bridge_port *p;
+	u8 igmp_type = br_multicast_igmp_type(skb);
+	__be16 proto = skb->protocol;
 	struct net_bridge_port *prev;
+	struct net_bridge_port *p;
 
 	prev = NULL;
 
@@ -218,6 +220,9 @@ static void br_flood(struct net_bridge *br, struct sk_buff *skb,
 		prev = maybe_deliver(prev, p, skb, __packet_hook);
 		if (IS_ERR(prev))
 			goto out;
+		if (prev == p)
+			br_multicast_count(p->br, p, proto, igmp_type,
+					   BR_MCAST_DIR_TX);
 	}
 
 	if (!prev)
@@ -257,9 +262,12 @@ static void br_multicast_flood(struct net_bridge_mdb_entry *mdst,
 					struct sk_buff *skb))
 {
 	struct net_device *dev = BR_INPUT_SKB_CB(skb)->brdev;
+	u8 igmp_type = br_multicast_igmp_type(skb);
 	struct net_bridge *br = netdev_priv(dev);
 	struct net_bridge_port *prev = NULL;
 	struct net_bridge_port_group *p;
+	__be16 proto = skb->protocol;
+
 	struct hlist_node *rp;
 
 	rp = rcu_dereference(hlist_first_rcu(&br->router_list));
@@ -277,6 +285,9 @@ static void br_multicast_flood(struct net_bridge_mdb_entry *mdst,
 		prev = maybe_deliver(prev, port, skb, __packet_hook);
 		if (IS_ERR(prev))
 			goto out;
+		if (prev == port)
+			br_multicast_count(port->br, port, proto, igmp_type,
+					   BR_MCAST_DIR_TX);
 
 		if ((unsigned long)lport >= (unsigned long)port)
 			p = rcu_dereference(p->next);
