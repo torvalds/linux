@@ -435,7 +435,7 @@ static int gb_camera_configure_streams(struct gb_camera *gcam,
 	*flags = resp->flags;
 	*num_streams = resp->num_streams;
 
-	for (i = 0; i < nstreams; ++i) {
+	for (i = 0; i < resp->num_streams; ++i) {
 		struct gb_camera_stream_config_response *cfg = &resp->config[i];
 
 		streams[i].width = le16_to_cpu(cfg->width);
