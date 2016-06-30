@@ -21,10 +21,10 @@
 #include "cxl.h"
 #include "trace.h"
 
-static int afu_control(struct cxl_afu *afu, u64 command,
+static int afu_control(struct cxl_afu *afu, u64 command, u64 clear,
 		       u64 result, u64 mask, bool enabled)
 {
-	u64 AFU_Cntl = cxl_p2n_read(afu, CXL_AFU_Cntl_An);
+	u64 AFU_Cntl;
 	unsigned long timeout = jiffies + (HZ * CXL_TIMEOUT);
 	int rc = 0;
 
@@ -33,7 +33,8 @@ static int afu_control(struct cxl_afu *afu, u64 command,
 
 	trace_cxl_afu_ctrl(afu, command);
 
-	cxl_p2n_write(afu, CXL_AFU_Cntl_An, AFU_Cntl | command);
+	AFU_Cntl = cxl_p2n_read(afu, CXL_AFU_Cntl_An);
+	cxl_p2n_write(afu, CXL_AFU_Cntl_An, (AFU_Cntl & ~clear) | command);
 
 	AFU_Cntl = cxl_p2n_read(afu, CXL_AFU_Cntl_An);
 	while ((AFU_Cntl & mask) != result) {
@@ -67,7 +68,7 @@ static int afu_enable(struct cxl_afu *afu)
 {
 	pr_devel("AFU enable request\n");
 
-	return afu_control(afu, CXL_AFU_Cntl_An_E,
+	return afu_control(afu, CXL_AFU_Cntl_An_E, 0,
 			   CXL_AFU_Cntl_An_ES_Enabled,
 			   CXL_AFU_Cntl_An_ES_MASK, true);
 }
@@ -76,7 +77,8 @@ int cxl_afu_disable(struct cxl_afu *afu)
 {
 	pr_devel("AFU disable request\n");
 
-	return afu_control(afu, 0, CXL_AFU_Cntl_An_ES_Disabled,
+	return afu_control(afu, 0, CXL_AFU_Cntl_An_E,
+			   CXL_AFU_Cntl_An_ES_Disabled,
 			   CXL_AFU_Cntl_An_ES_MASK, false);
 }
 
@@ -85,7 +87,7 @@ static int native_afu_reset(struct cxl_afu *afu)
 {
 	pr_devel("AFU reset request\n");
 
-	return afu_control(afu, CXL_AFU_Cntl_An_RA,
+	return afu_control(afu, CXL_AFU_Cntl_An_RA, 0,
 			   CXL_AFU_Cntl_An_RS_Complete | CXL_AFU_Cntl_An_ES_Disabled,
 			   CXL_AFU_Cntl_An_RS_MASK | CXL_AFU_Cntl_An_ES_MASK,
 			   false);
@@ -595,7 +597,33 @@ static int deactivate_afu_directed(struct cxl_afu *afu)
 	cxl_sysfs_afu_m_remove(afu);
 	cxl_chardev_afu_remove(afu);
 
-	cxl_ops->afu_reset(afu);
+	/*
+	 * The CAIA section 2.2.1 indicates that the procedure for starting and
+	 * stopping an AFU in AFU directed mode is AFU specific, which is not
+	 * ideal since this code is generic and with one exception has no
+	 * knowledge of the AFU. This is in contrast to the procedure for
+	 * disabling a dedicated process AFU, which is documented to just
+	 * require a reset. The architecture does indicate that both an AFU
+	 * reset and an AFU disable should result in the AFU being disabled and
+	 * we do both followed by a PSL purge for safety.
+	 *
+	 * Notably we used to have some issues with the disable sequence on PSL
+	 * cards, which is why we ended up using this heavy weight procedure in
+	 * the first place, however a bug was discovered that had rendered the
+	 * disable operation ineffective, so it is conceivable that was the
+	 * sole explanation for those difficulties. Careful regression testing
+	 * is recommended if anyone attempts to remove or reorder these
+	 * operations.
+	 *
+	 * The XSL on the Mellanox CX4 behaves a little differently from the
+	 * PSL based cards and will time out an AFU reset if the AFU is still
+	 * enabled. That card is special in that we do have a means to identify
+	 * it from this code, so in that case we skip the reset and just use a
+	 * disable/purge to avoid the timeout and corresponding noise in the
+	 * kernel log.
+	 */
+	if (afu->adapter->native->sl_ops->needs_reset_before_disable)
+		cxl_ops->afu_reset(afu);
 	cxl_afu_disable(afu);
 	cxl_psl_purge(afu);
 
@@ -735,6 +763,22 @@ static int native_attach_process(struct cxl_context *ctx, bool kernel,
 
 static inline int detach_process_native_dedicated(struct cxl_context *ctx)
 {
+	/*
+	 * The CAIA section 2.1.1 indicates that we need to do an AFU reset to
+	 * stop the AFU in dedicated mode (we therefore do not make that
+	 * optional like we do in the afu directed path). It does not indicate
+	 * that we need to do an explicit disable (which should occur
+	 * implicitly as part of the reset) or purge, but we do these as well
+	 * to be on the safe side.
+	 *
+	 * Notably we used to have some issues with the disable sequence
+	 * (before the sequence was spelled out in the architecture) which is
+	 * why we were so heavy weight in the first place, however a bug was
+	 * discovered that had rendered the disable operation ineffective, so
+	 * it is conceivable that was the sole explanation for those
+	 * difficulties. Point is, we should be careful and do some regression
+	 * testing if we ever attempt to remove any part of this procedure.
+	 */
 	cxl_ops->afu_reset(ctx->afu);
 	cxl_afu_disable(ctx->afu);
 	cxl_psl_purge(ctx->afu);

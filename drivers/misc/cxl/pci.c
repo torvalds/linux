@@ -1309,6 +1309,7 @@ static const struct cxl_service_layer_ops psl_ops = {
 	.write_timebase_ctrl = write_timebase_ctrl_psl,
 	.timebase_read = timebase_read_psl,
 	.capi_mode = OPAL_PHB_CAPI_MODE_CAPI,
+	.needs_reset_before_disable = true,
 };
 
 static const struct cxl_service_layer_ops xsl_ops = {
