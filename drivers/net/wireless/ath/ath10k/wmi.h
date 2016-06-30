@@ -4340,12 +4340,24 @@ struct wmi_10_4_peer_stats {
 } __packed;
 
 struct wmi_10_4_peer_extd_stats {
-	struct wmi_10_4_peer_stats common;
 	struct wmi_mac_addr peer_macaddr;
 	__le32 inactive_time;
 	__le32 peer_chain_rssi;
 	__le32 rx_duration;
 	__le32 reserved[10];
+} __packed;
+
+struct wmi_10_4_bss_bcn_stats {
+	__le32 vdev_id;
+	__le32 bss_bcns_dropped;
+	__le32 bss_bcn_delivered;
+} __packed;
+
+struct wmi_10_4_bss_bcn_filter_stats {
+	__le32 bcns_dropped;
+	__le32 bcns_delivered;
+	__le32 active_filters;
+	struct wmi_10_4_bss_bcn_stats bss_stats;
 } __packed;
 
 struct wmi_10_2_pdev_ext_stats {

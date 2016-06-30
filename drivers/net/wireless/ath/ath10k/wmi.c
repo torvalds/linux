@@ -2926,6 +2926,7 @@ static int ath10k_wmi_10_4_op_pull_fw_stats(struct ath10k *ar,
 	u32 num_pdev_ext_stats;
 	u32 num_vdev_stats;
 	u32 num_peer_stats;
+	u32 num_bcnflt_stats;
 	u32 stats_id;
 	int i;
 
@@ -2936,6 +2937,7 @@ static int ath10k_wmi_10_4_op_pull_fw_stats(struct ath10k *ar,
 	num_pdev_ext_stats = __le32_to_cpu(ev->num_pdev_ext_stats);
 	num_vdev_stats = __le32_to_cpu(ev->num_vdev_stats);
 	num_peer_stats = __le32_to_cpu(ev->num_peer_stats);
+	num_bcnflt_stats = __le32_to_cpu(ev->num_bcnflt_stats);
 	stats_id = __le32_to_cpu(ev->stats_id);
 
 	for (i = 0; i < num_pdev_stats; i++) {
@@ -2976,30 +2978,55 @@ static int ath10k_wmi_10_4_op_pull_fw_stats(struct ath10k *ar,
 	/* fw doesn't implement vdev stats */
 
 	for (i = 0; i < num_peer_stats; i++) {
-		const struct wmi_10_4_peer_extd_stats *src;
+		const struct wmi_10_4_peer_stats *src;
 		struct ath10k_fw_stats_peer *dst;
-		int stats_len;
-		bool extd_peer_stats = !!(stats_id & WMI_10_4_STAT_PEER_EXTD);
-
-		if (extd_peer_stats)
-			stats_len = sizeof(struct wmi_10_4_peer_extd_stats);
-		else
-			stats_len = sizeof(struct wmi_10_4_peer_stats);
 
 		src = (void *)skb->data;
-		if (!skb_pull(skb, stats_len))
+		if (!skb_pull(skb, sizeof(*src)))
 			return -EPROTO;
 
 		dst = kzalloc(sizeof(*dst), GFP_ATOMIC);
 		if (!dst)
 			continue;
 
-		ath10k_wmi_10_4_pull_peer_stats(&src->common, dst);
-		/* FIXME: expose 10.4 specific values */
-		if (extd_peer_stats)
-			dst->rx_duration = __le32_to_cpu(src->rx_duration);
-
+		ath10k_wmi_10_4_pull_peer_stats(src, dst);
 		list_add_tail(&dst->list, &stats->peers);
+	}
+
+	for (i = 0; i < num_bcnflt_stats; i++) {
+		const struct wmi_10_4_bss_bcn_filter_stats *src;
+
+		src = (void *)skb->data;
+		if (!skb_pull(skb, sizeof(*src)))
+			return -EPROTO;
+
+		/* FIXME: expose values to userspace
+		 *
+		 * Note: Even though this loop seems to do nothing it is
+		 * required to parse following sub-structures properly.
+		 */
+	}
+
+	if ((stats_id & WMI_10_4_STAT_PEER_EXTD) == 0)
+		return 0;
+
+	stats->extended = true;
+
+	for (i = 0; i < num_peer_stats; i++) {
+		const struct wmi_10_4_peer_extd_stats *src;
+		struct ath10k_fw_extd_stats_peer *dst;
+
+		src = (void *)skb->data;
+		if (!skb_pull(skb, sizeof(*src)))
+			return -EPROTO;
+
+		dst = kzalloc(sizeof(*dst), GFP_ATOMIC);
+		if (!dst)
+			continue;
+
+		ether_addr_copy(dst->peer_macaddr, src->peer_macaddr.addr);
+		dst->rx_duration = __le32_to_cpu(src->rx_duration);
+		list_add_tail(&dst->list, &stats->peers_extd);
 	}
 
 	return 0;
