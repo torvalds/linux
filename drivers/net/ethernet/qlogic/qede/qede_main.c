@@ -485,6 +485,24 @@ static bool qede_pkt_req_lin(struct qede_dev *edev, struct sk_buff *skb,
 }
 #endif
 
+static inline void qede_update_tx_producer(struct qede_tx_queue *txq)
+{
+	/* wmb makes sure that the BDs data is updated before updating the
+	 * producer, otherwise FW may read old data from the BDs.
+	 */
+	wmb();
+	barrier();
+	writel(txq->tx_db.raw, txq->doorbell_addr);
+
+	/* mmiowb is needed to synchronize doorbell writes from more than one
+	 * processor. It guarantees that the write arrives to the device before
+	 * the queue lock is released and another start_xmit is called (possibly
+	 * on another CPU). Without this barrier, the next doorbell can bypass
+	 * this doorbell. This is applicable to IA64/Altix systems.
+	 */
+	mmiowb();
+}
+
 /* Main transmit function */
 static
 netdev_tx_t qede_start_xmit(struct sk_buff *skb,
@@ -543,6 +561,7 @@ netdev_tx_t qede_start_xmit(struct sk_buff *skb,
 	if (unlikely(dma_mapping_error(&edev->pdev->dev, mapping))) {
 		DP_NOTICE(edev, "SKB mapping failed\n");
 		qede_free_failed_tx_pkt(edev, txq, first_bd, 0, false);
+		qede_update_tx_producer(txq);
 		return NETDEV_TX_OK;
 	}
 	nbd++;
@@ -657,6 +676,7 @@ netdev_tx_t qede_start_xmit(struct sk_buff *skb,
 		if (rc) {
 			qede_free_failed_tx_pkt(edev, txq, first_bd, nbd,
 						data_split);
+			qede_update_tx_producer(txq);
 			return NETDEV_TX_OK;
 		}
 
@@ -681,6 +701,7 @@ netdev_tx_t qede_start_xmit(struct sk_buff *skb,
 		if (rc) {
 			qede_free_failed_tx_pkt(edev, txq, first_bd, nbd,
 						data_split);
+			qede_update_tx_producer(txq);
 			return NETDEV_TX_OK;
 		}
 	}
@@ -701,20 +722,8 @@ netdev_tx_t qede_start_xmit(struct sk_buff *skb,
 	txq->tx_db.data.bd_prod =
 		cpu_to_le16(qed_chain_get_prod_idx(&txq->tx_pbl));
 
-	/* wmb makes sure that the BDs data is updated before updating the
-	 * producer, otherwise FW may read old data from the BDs.
-	 */
-	wmb();
-	barrier();
-	writel(txq->tx_db.raw, txq->doorbell_addr);
-
-	/* mmiowb is needed to synchronize doorbell writes from more than one
-	 * processor. It guarantees that the write arrives to the device before
-	 * the queue lock is released and another start_xmit is called (possibly
-	 * on another CPU). Without this barrier, the next doorbell can bypass
-	 * this doorbell. This is applicable to IA64/Altix systems.
-	 */
-	mmiowb();
+	if (!skb->xmit_more || netif_tx_queue_stopped(netdev_txq))
+		qede_update_tx_producer(txq);
 
 	if (unlikely(qed_chain_get_elem_left(&txq->tx_pbl)
 		      < (MAX_SKB_FRAGS + 1))) {
