@@ -626,32 +626,6 @@ int rxrpc_extract_header(struct rxrpc_skb_priv *sp, struct sk_buff *skb)
 	return 0;
 }
 
-static struct rxrpc_connection *rxrpc_conn_from_local(struct rxrpc_local *local,
-						      struct sk_buff *skb)
-{
-	struct rxrpc_peer *peer;
-	struct rxrpc_connection *conn;
-	struct sockaddr_rxrpc srx;
-
-	rxrpc_get_addr_from_skb(local, skb, &srx);
-	rcu_read_lock();
-	peer = rxrpc_lookup_peer_rcu(local, &srx);
-	if (!peer)
-		goto cant_find_peer;
-
-	conn = rxrpc_find_connection(local, peer, skb);
-	rcu_read_unlock();
-	if (!conn)
-		goto cant_find_conn;
-
-	return conn;
-
-cant_find_peer:
-	rcu_read_unlock();
-cant_find_conn:
-	return NULL;
-}
-
 /*
  * handle data received on the local endpoint
  * - may be called in interrupt context
@@ -731,7 +705,9 @@ void rxrpc_data_ready(struct sock *sk)
 		 * old-fashioned way doesn't really hurt */
 		struct rxrpc_connection *conn;
 
-		conn = rxrpc_conn_from_local(local, skb);
+		rcu_read_lock();
+		conn = rxrpc_find_connection(local, skb);
+		rcu_read_unlock();
 		if (!conn)
 			goto cant_route_call;
 

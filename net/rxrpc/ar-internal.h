@@ -564,7 +564,6 @@ void rxrpc_extract_conn_params(struct rxrpc_conn_proto *,
 			       struct rxrpc_local *, struct sk_buff *);
 struct rxrpc_connection *rxrpc_alloc_connection(gfp_t);
 struct rxrpc_connection *rxrpc_find_connection(struct rxrpc_local *,
-					       struct rxrpc_peer *,
 					       struct sk_buff *);
 void __rxrpc_disconnect_call(struct rxrpc_call *);
 void rxrpc_disconnect_call(struct rxrpc_call *);
@@ -768,8 +767,6 @@ static inline void rxrpc_sysctl_exit(void) {}
 /*
  * utils.c
  */
-void rxrpc_get_addr_from_skb(struct rxrpc_local *, const struct sk_buff *,
-			     struct sockaddr_rxrpc *);
 int rxrpc_extract_addr_from_skb(struct sockaddr_rxrpc *, struct sk_buff *);
 
 /*
