@@ -408,6 +408,7 @@ static int tegra_powergate_power_up(struct tegra_powergate *pg,
 disable_clks:
 	tegra_powergate_disable_clocks(pg);
 	usleep_range(10, 20);
+
 powergate_off:
 	tegra_powergate_set(pg->id, false);
 
@@ -445,6 +446,7 @@ assert_resets:
 	usleep_range(10, 20);
 	tegra_powergate_reset_deassert(pg);
 	usleep_range(10, 20);
+
 disable_clks:
 	tegra_powergate_disable_clocks(pg);
 
@@ -735,6 +737,7 @@ static int tegra_powergate_of_get_clks(struct tegra_powergate *pg,
 err:
 	while (i--)
 		clk_put(pg->clks[i]);
+
 	kfree(pg->clks);
 
 	return err;
@@ -780,6 +783,7 @@ static int tegra_powergate_of_get_resets(struct tegra_powergate *pg,
 error:
 	while (i--)
 		reset_control_put(pg->resets[i]);
+
 	kfree(pg->resets);
 
 	return err;
@@ -831,11 +835,13 @@ static void tegra_powergate_add(struct tegra_pmc *pmc, struct device_node *np)
 remove_resets:
 	while (pg->num_resets--)
 		reset_control_put(pg->resets[pg->num_resets]);
+
 	kfree(pg->resets);
 
 remove_clks:
 	while (pg->num_clks--)
 		clk_put(pg->clks[pg->num_clks]);
+
 	kfree(pg->clks);
 
 set_available:
