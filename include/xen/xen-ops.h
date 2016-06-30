@@ -9,6 +9,12 @@
 
 DECLARE_PER_CPU(struct vcpu_info *, xen_vcpu);
 
+DECLARE_PER_CPU(int, xen_vcpu_id);
+static inline int xen_vcpu_nr(int cpu)
+{
+	return per_cpu(xen_vcpu_id, cpu);
+}
+
 void xen_arch_pre_suspend(void);
 void xen_arch_post_suspend(int suspend_cancelled);
 

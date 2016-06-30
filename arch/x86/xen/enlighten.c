@@ -59,6 +59,7 @@
 #include <asm/xen/pci.h>
 #include <asm/xen/hypercall.h>
 #include <asm/xen/hypervisor.h>
+#include <asm/xen/cpuid.h>
 #include <asm/fixmap.h>
 #include <asm/processor.h>
 #include <asm/proto.h>
@@ -117,6 +118,10 @@ DEFINE_PER_CPU(struct vcpu_info *, xen_vcpu);
  * overrides the default per_cpu(xen_vcpu, cpu) value.
  */
 DEFINE_PER_CPU(struct vcpu_info, xen_vcpu_info);
+
+/* Linux <-> Xen vCPU id mapping */
+DEFINE_PER_CPU(int, xen_vcpu_id) = -1;
+EXPORT_PER_CPU_SYMBOL(xen_vcpu_id);
 
 enum xen_domain_type xen_domain_type = XEN_NATIVE;
 EXPORT_SYMBOL_GPL(xen_domain_type);
@@ -1137,8 +1142,11 @@ void xen_setup_vcpu_info_placement(void)
 {
 	int cpu;
 
-	for_each_possible_cpu(cpu)
+	for_each_possible_cpu(cpu) {
+		/* Set up direct vCPU id mapping for PV guests. */
+		per_cpu(xen_vcpu_id, cpu) = cpu;
 		xen_vcpu_setup(cpu);
+	}
 
 	/* xen_vcpu_setup managed to place the vcpu_info within the
 	 * percpu area for all cpus, so make use of it. Note that for
@@ -1729,6 +1737,9 @@ asmlinkage __visible void __init xen_start_kernel(void)
 #endif
 	xen_raw_console_write("about to get started...\n");
 
+	/* Let's presume PV guests always boot on vCPU with id 0. */
+	per_cpu(xen_vcpu_id, 0) = 0;
+
 	xen_setup_runstate_info(0);
 
 	xen_efi_init();
@@ -1797,6 +1808,12 @@ static void __init init_hvm_pv_info(void)
 
 	xen_setup_features();
 
+	cpuid(base + 4, &eax, &ebx, &ecx, &edx);
+	if (eax & XEN_HVM_CPUID_VCPU_ID_PRESENT)
+		this_cpu_write(xen_vcpu_id, ebx);
+	else
+		this_cpu_write(xen_vcpu_id, smp_processor_id());
+
 	pv_info.name = "Xen HVM";
 
 	xen_domain_type = XEN_HVM_DOMAIN;
@@ -1808,6 +1825,10 @@ static int xen_hvm_cpu_notify(struct notifier_block *self, unsigned long action,
 	int cpu = (long)hcpu;
 	switch (action) {
 	case CPU_UP_PREPARE:
+		if (cpu_acpi_id(cpu) != U32_MAX)
+			per_cpu(xen_vcpu_id, cpu) = cpu_acpi_id(cpu);
+		else
+			per_cpu(xen_vcpu_id, cpu) = cpu;
 		xen_vcpu_setup(cpu);
 		if (xen_have_vector_callback) {
 			if (xen_feature(XENFEAT_hvm_safe_pvclock))
