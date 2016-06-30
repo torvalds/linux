@@ -1522,6 +1522,7 @@ int symbol__annotate_printf(struct symbol *sym, struct map *map,
 	const char *d_filename;
 	const char *evsel_name = perf_evsel__name(evsel);
 	struct annotation *notes = symbol__annotation(sym);
+	struct sym_hist *h = annotation__histogram(notes, evsel->idx);
 	struct disasm_line *pos, *queue = NULL;
 	u64 start = map__rip_2objdump(map, sym->start);
 	int printed = 2, queue_len = 0;
@@ -1544,8 +1545,8 @@ int symbol__annotate_printf(struct symbol *sym, struct map *map,
 	if (perf_evsel__is_group_event(evsel))
 		width *= evsel->nr_members;
 
-	graph_dotted_len = printf(" %-*.*s|	Source code & Disassembly of %s for %s\n",
-	       width, width, "Percent", d_filename, evsel_name);
+	graph_dotted_len = printf(" %-*.*s|	Source code & Disassembly of %s for %s (%" PRIu64 " samples)\n",
+	       width, width, "Percent", d_filename, evsel_name, h->sum);
 
 	printf("%-*.*s----\n",
 	       graph_dotted_len, graph_dotted_len, graph_dotted_line);
