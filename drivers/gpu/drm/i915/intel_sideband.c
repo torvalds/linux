@@ -240,8 +240,9 @@ void intel_sbi_write(struct drm_i915_private *dev_priv, u16 reg, u32 value,
 
 	WARN_ON(!mutex_is_locked(&dev_priv->sb_lock));
 
-	if (wait_for((I915_READ(SBI_CTL_STAT) & SBI_BUSY) == 0,
-				100)) {
+	if (intel_wait_for_register(dev_priv,
+				    SBI_CTL_STAT, SBI_BUSY, 0,
+				    100)) {
 		DRM_ERROR("timeout waiting for SBI to become ready\n");
 		return;
 	}
