@@ -801,7 +801,13 @@ static bool msdc_cmd_done(struct msdc_host *host, int events,
 	}
 
 	if (!sbc_error && !(events & MSDC_INT_CMDRDY)) {
-		msdc_reset_hw(host);
+		if (cmd->opcode != MMC_SEND_TUNING_BLOCK &&
+		    cmd->opcode != MMC_SEND_TUNING_BLOCK_HS200)
+			/*
+			 * should not clear fifo/interrupt as the tune data
+			 * may have alreay come.
+			 */
+			msdc_reset_hw(host);
 		if (events & MSDC_INT_RSPCRCERR) {
 			cmd->error = -EILSEQ;
 			host->error |= REQ_CMD_EIO;
@@ -885,7 +891,11 @@ static void msdc_start_command(struct msdc_host *host,
 static void msdc_cmd_next(struct msdc_host *host,
 		struct mmc_request *mrq, struct mmc_command *cmd)
 {
-	if (cmd->error || (mrq->sbc && mrq->sbc->error))
+	if ((cmd->error &&
+	    !(cmd->error == -EILSEQ &&
+	      (cmd->opcode == MMC_SEND_TUNING_BLOCK ||
+	       cmd->opcode == MMC_SEND_TUNING_BLOCK_HS200))) ||
+	    (mrq->sbc && mrq->sbc->error))
 		msdc_request_done(host, mrq);
 	else if (cmd == mrq->sbc)
 		msdc_start_command(host, mrq, mrq->cmd);
