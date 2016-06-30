@@ -98,6 +98,8 @@ static void init_device_info(struct intel_gvt *gvt)
 	if (IS_BROADWELL(gvt->dev_priv) || IS_SKYLAKE(gvt->dev_priv)) {
 		info->max_support_vgpus = 8;
 		info->mmio_size = 2 * 1024 * 1024;
+		info->cfg_space_size = 256;
+		info->mmio_bar = 0;
 	}
 }
 
@@ -117,6 +119,7 @@ void intel_gvt_clean_device(struct drm_i915_private *dev_priv)
 		return;
 
 	intel_gvt_clean_mmio_info(gvt);
+	intel_gvt_free_firmware(gvt);
 
 	gvt->initialized = false;
 }
@@ -158,7 +161,15 @@ int intel_gvt_init_device(struct drm_i915_private *dev_priv)
 	if (ret)
 		return ret;
 
+	ret = intel_gvt_load_firmware(gvt);
+	if (ret)
+		goto out_clean_mmio_info;
+
 	gvt_dbg_core("gvt device creation is done\n");
 	gvt->initialized = true;
 	return 0;
+
+out_clean_mmio_info:
+	intel_gvt_clean_mmio_info(gvt);
+	return ret;
 }

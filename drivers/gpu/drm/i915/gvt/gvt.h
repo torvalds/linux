@@ -56,6 +56,8 @@ extern struct intel_gvt_host intel_gvt_host;
 struct intel_gvt_device_info {
 	u32 max_support_vgpus;
 	u32 mmio_size;
+	u32 cfg_space_size;
+	u32 mmio_bar;
 };
 
 /* GM resources owned by a vGPU */
@@ -100,6 +102,12 @@ struct intel_gvt_mmio {
 	DECLARE_HASHTABLE(mmio_info_table, INTEL_GVT_MMIO_HASH_BITS);
 };
 
+struct intel_gvt_firmware {
+	void *cfg_space;
+	void *mmio;
+	bool firmware_loaded;
+};
+
 struct intel_gvt {
 	struct mutex lock;
 	bool initialized;
@@ -111,7 +119,11 @@ struct intel_gvt {
 	struct intel_gvt_gm gm;
 	struct intel_gvt_fence fence;
 	struct intel_gvt_mmio mmio;
+	struct intel_gvt_firmware firmware;
 };
+
+void intel_gvt_free_firmware(struct intel_gvt *gvt);
+int intel_gvt_load_firmware(struct intel_gvt *gvt);
 
 /* Aperture/GM space definitions for GVT device */
 #define gvt_aperture_sz(gvt)	  (gvt->dev_priv->ggtt.mappable_end)
