@@ -486,8 +486,10 @@ static void test_mb_ahash_speed(const char *algo, unsigned int sec,
 
 		for (k = 0; k < 8; k++) {
 			ret = crypto_ahash_digest(data[k].req);
-			if (ret == -EINPROGRESS)
+			if (ret == -EINPROGRESS) {
+				ret = 0;
 				continue;
+			}
 
 			if (ret)
 				break;
