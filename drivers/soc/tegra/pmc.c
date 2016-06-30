@@ -834,6 +834,9 @@ static void tegra_powergate_add(struct tegra_pmc *pmc, struct device_node *np)
 		goto remove_clks;
 	}
 
+	if (!IS_ENABLED(CONFIG_PM_GENERIC_DOMAINS))
+		goto power_on_cleanup;
+
 	pm_genpd_init(&pg->genpd, NULL, off);
 
 	err = of_genpd_add_provider_simple(np, &pg->genpd);
@@ -846,6 +849,10 @@ static void tegra_powergate_add(struct tegra_pmc *pmc, struct device_node *np)
 	dev_dbg(pmc->dev, "added power domain %s\n", pg->genpd.name);
 
 	return;
+
+power_on_cleanup:
+	if (off)
+		WARN_ON(tegra_powergate_power_up(pg, true));
 
 remove_resets:
 	while (pg->num_resets--)
@@ -866,11 +873,18 @@ free_mem:
 	kfree(pg);
 }
 
-static void tegra_powergate_init(struct tegra_pmc *pmc)
+static void tegra_powergate_init(struct tegra_pmc *pmc,
+				 struct device_node *parent)
 {
 	struct device_node *np, *child;
+	unsigned int i;
 
-	np = of_get_child_by_name(pmc->dev->of_node, "powergates");
+	/* Create a bitmap of the available and valid partitions */
+	for (i = 0; i < pmc->soc->num_powergates; i++)
+		if (pmc->soc->powergates[i])
+			set_bit(i, pmc->powergates_available);
+
+	np = of_get_child_by_name(parent, "powergates");
 	if (!np)
 		return;
 
@@ -1291,8 +1305,6 @@ static int tegra_pmc_probe(struct platform_device *pdev)
 		return err;
 	}
 
-	tegra_powergate_init(pmc);
-
 	mutex_lock(&pmc->powergates_lock);
 	iounmap(pmc->base);
 	pmc->base = base;
@@ -1526,7 +1538,6 @@ static int __init tegra_pmc_early_init(void)
 	const struct of_device_id *match;
 	struct device_node *np;
 	struct resource regs;
-	unsigned int i;
 	bool invert;
 	u32 value;
 
@@ -1581,10 +1592,7 @@ static int __init tegra_pmc_early_init(void)
 	if (np) {
 		pmc->soc = match->data;
 
-		/* Create a bit-map of the available and valid partitions */
-		for (i = 0; i < pmc->soc->num_powergates; i++)
-			if (pmc->soc->powergates[i])
-				set_bit(i, pmc->powergates_available);
+		tegra_powergate_init(pmc, np);
 
 		/*
 		 * Invert the interrupt polarity if a PMC device tree node
