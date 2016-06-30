@@ -440,6 +440,11 @@ static int mwifiex_pcie_disable_host_int(struct mwifiex_adapter *adapter)
 	return 0;
 }
 
+static void mwifiex_pcie_disable_host_int_noerr(struct mwifiex_adapter *adapter)
+{
+	WARN_ON(mwifiex_pcie_disable_host_int(adapter));
+}
+
 /*
  * This function enables the host interrupt.
  *
@@ -2946,6 +2951,7 @@ static struct mwifiex_if_ops pcie_ops = {
 	.register_dev =			mwifiex_register_dev,
 	.unregister_dev =		mwifiex_unregister_dev,
 	.enable_int =			mwifiex_pcie_enable_host_int,
+	.disable_int =			mwifiex_pcie_disable_host_int_noerr,
 	.process_int_status =		mwifiex_process_int_status,
 	.host_to_card =			mwifiex_pcie_host_to_card,
 	.wakeup =			mwifiex_pm_wakeup_card,
