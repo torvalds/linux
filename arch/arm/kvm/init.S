@@ -112,6 +112,21 @@ __do_hyp_init:
 
 	eret
 
+	@ r0 : stub vectors address
+ENTRY(__kvm_hyp_reset)
+	/* We're now in idmap, disable MMU */
+	mrc	p15, 4, r1, c1, c0, 0	@ HSCTLR
+	ldr	r2, =(HSCTLR_M | HSCTLR_A | HSCTLR_C | HSCTLR_I)
+	bic	r1, r1, r2
+	mcr	p15, 4, r1, c1, c0, 0	@ HSCTLR
+
+	/* Install stub vectors */
+	mcr	p15, 4, r0, c12, c0, 0	@ HVBAR
+	isb
+
+	eret
+ENDPROC(__kvm_hyp_reset)
+
 	.ltorg
 
 	.globl __kvm_hyp_init_end

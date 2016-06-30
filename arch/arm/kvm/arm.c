@@ -1074,7 +1074,8 @@ static void cpu_hyp_reinit(void)
 static void cpu_hyp_reset(void)
 {
 	if (!is_kernel_in_hyp_mode())
-		__cpu_reset_hyp_mode(kvm_get_idmap_start());
+		__cpu_reset_hyp_mode(hyp_default_vectors,
+				     kvm_get_idmap_start());
 }
 
 static void _kvm_arch_hardware_enable(void *discard)
