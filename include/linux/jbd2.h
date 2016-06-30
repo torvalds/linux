@@ -1046,6 +1046,12 @@ struct journal_s
 #endif
 };
 
+#define jbd2_might_wait_for_commit(j) \
+	do { \
+		rwsem_acquire(&j->j_trans_commit_map, 0, 0, _THIS_IP_); \
+		rwsem_release(&j->j_trans_commit_map, 1, _THIS_IP_); \
+	} while (0)
+
 /* journal feature predicate functions */
 #define JBD2_FEATURE_COMPAT_FUNCS(name, flagname) \
 static inline bool jbd2_has_feature_##name(journal_t *j) \

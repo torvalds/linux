@@ -182,6 +182,8 @@ static int add_transaction_credits(journal_t *journal, int blocks,
 	int needed;
 	int total = blocks + rsv_blocks;
 
+	jbd2_might_wait_for_commit(journal);
+
 	/*
 	 * If the current transaction is locked down for commit, wait
 	 * for the lock to be released.
@@ -694,6 +696,8 @@ EXPORT_SYMBOL(jbd2_journal_restart);
 void jbd2_journal_lock_updates(journal_t *journal)
 {
 	DEFINE_WAIT(wait);
+
+	jbd2_might_wait_for_commit(journal);
 
 	write_lock(&journal->j_state_lock);
 	++journal->j_barrier_count;
