@@ -3140,7 +3140,7 @@ static void dasd_setup_queue(struct dasd_block *block)
 	blk_queue_logical_block_size(block->request_queue,
 				     block->bp_block);
 	blk_queue_max_hw_sectors(block->request_queue, max);
-	blk_queue_max_segments(block->request_queue, -1L);
+	blk_queue_max_segments(block->request_queue, USHRT_MAX);
 	/* with page sized segments we can translate each segement into
 	 * one idaw/tidaw
 	 */
