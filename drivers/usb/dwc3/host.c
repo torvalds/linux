@@ -23,7 +23,48 @@ int dwc3_host_init(struct dwc3 *dwc)
 {
 	struct property_entry	props[2];
 	struct platform_device	*xhci;
-	int			ret;
+	int			ret, irq;
+	struct resource		*res;
+	struct platform_device	*dwc3_pdev = to_platform_device(dwc->dev);
+
+	irq = platform_get_irq_byname(dwc3_pdev, "host");
+	if (irq == -EPROBE_DEFER)
+		return irq;
+
+	if (irq <= 0) {
+		irq = platform_get_irq_byname(dwc3_pdev, "dwc_usb3");
+		if (irq == -EPROBE_DEFER)
+			return irq;
+
+		if (irq <= 0) {
+			irq = platform_get_irq(dwc3_pdev, 0);
+			if (irq <= 0) {
+				if (irq != -EPROBE_DEFER) {
+					dev_err(dwc->dev,
+						"missing host IRQ\n");
+				}
+				if (!irq)
+					irq = -EINVAL;
+				return irq;
+			} else {
+				res = platform_get_resource(dwc3_pdev,
+							    IORESOURCE_IRQ, 0);
+			}
+		} else {
+			res = platform_get_resource_byname(dwc3_pdev,
+							   IORESOURCE_IRQ,
+							   "dwc_usb3");
+		}
+
+	} else {
+		res = platform_get_resource_byname(dwc3_pdev, IORESOURCE_IRQ,
+						   "host");
+	}
+
+	dwc->xhci_resources[1].start = irq;
+	dwc->xhci_resources[1].end = irq;
+	dwc->xhci_resources[1].flags = res->flags;
+	dwc->xhci_resources[1].name = res->name;
 
 	xhci = platform_device_alloc("xhci-hcd", PLATFORM_DEVID_AUTO);
 	if (!xhci) {
