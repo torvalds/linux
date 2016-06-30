@@ -68,6 +68,10 @@
 /* Unicast Filter MAC Address Register - High */
 #define MTK_GDMA_MAC_ADRH(x)	(0x50C + (x * 0x1000))
 
+/* PDMA Interrupt grouping registers */
+#define MTK_PDMA_INT_GRP1	0xa50
+#define MTK_PDMA_INT_GRP2	0xa54
+
 /* QDMA TX Queue Configuration Registers */
 #define MTK_QTX_CFG(x)		(0x1800 + (x * 0x10))
 #define QDMA_RES_THRES		4
@@ -124,6 +128,11 @@
 #define MTK_RX_DONE_INT		(MTK_RX_DONE_INT0 | MTK_RX_DONE_INT1)
 #define MTK_TX_DONE_INT		(MTK_TX_DONE_INT0 | MTK_TX_DONE_INT1 | \
 				 MTK_TX_DONE_INT2 | MTK_TX_DONE_INT3)
+
+/* QDMA Interrupt grouping registers */
+#define MTK_QDMA_INT_GRP1	0x1a20
+#define MTK_QDMA_INT_GRP2	0x1a24
+#define MTK_RLS_DONE_INT	BIT(0)
 
 /* QDMA Interrupt Status Register */
 #define MTK_QDMA_INT_MASK	0x1A1C
@@ -356,7 +365,8 @@ struct mtk_rx_ring {
  * @dma_refcnt:		track how many netdevs are using the DMA engine
  * @tx_ring:		Pointer to the memore holding info about the TX ring
  * @rx_ring:		Pointer to the memore holding info about the RX ring
- * @rx_napi:		The NAPI struct
+ * @tx_napi:		The TX NAPI struct
+ * @rx_napi:		The RX NAPI struct
  * @scratch_ring:	Newer SoCs need memory for a second HW managed TX ring
  * @phy_scratch_ring:	physical address of scratch_ring
  * @scratch_head:	The scratch memory that scratch_ring points to.
@@ -373,10 +383,11 @@ struct mtk_eth {
 	void __iomem			*base;
 	struct reset_control		*rstc;
 	spinlock_t			page_lock;
+	spinlock_t			irq_lock;
 	struct net_device		dummy_dev;
 	struct net_device		*netdev[MTK_MAX_DEVS];
 	struct mtk_mac			*mac[MTK_MAX_DEVS];
-	int				irq;
+	int				irq[3];
 	u32				msg_enable;
 	unsigned long			sysclk;
 	struct regmap			*ethsys;
@@ -384,6 +395,7 @@ struct mtk_eth {
 	atomic_t			dma_refcnt;
 	struct mtk_tx_ring		tx_ring;
 	struct mtk_rx_ring		rx_ring;
+	struct napi_struct		tx_napi;
 	struct napi_struct		rx_napi;
 	struct mtk_tx_dma		*scratch_ring;
 	dma_addr_t			phy_scratch_ring;
