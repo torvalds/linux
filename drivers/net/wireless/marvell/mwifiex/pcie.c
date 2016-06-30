@@ -2841,20 +2841,20 @@ static void mwifiex_pcie_get_fw_name(struct mwifiex_adapter *adapter)
 		version &= 0x7;
 		switch (revision_id) {
 		case PCIE8997_V2:
-			if (version == CHIP_VER_PCIEUSB)
-				strcpy(adapter->fw_name,
-				       PCIEUSB8997_FW_NAME_V2);
-			else
+			if (version == CHIP_VER_PCIEUART)
 				strcpy(adapter->fw_name,
 				       PCIEUART8997_FW_NAME_V2);
-			break;
-		case PCIE8997_Z:
-			if (version == CHIP_VER_PCIEUSB)
-				strcpy(adapter->fw_name,
-				       PCIEUSB8997_FW_NAME_Z);
 			else
 				strcpy(adapter->fw_name,
+				       PCIEUSB8997_FW_NAME_V2);
+			break;
+		case PCIE8997_Z:
+			if (version == CHIP_VER_PCIEUART)
+				strcpy(adapter->fw_name,
 				       PCIEUART8997_FW_NAME_Z);
+			else
+				strcpy(adapter->fw_name,
+				       PCIEUSB8997_FW_NAME_Z);
 			break;
 		default:
 			strcpy(adapter->fw_name, PCIE8997_DEFAULT_FW_NAME);
