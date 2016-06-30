@@ -26,7 +26,7 @@
  * We directly use the kernel VA for the HYP, as we can directly share
  * the mapping (HTTBR "covers" TTBR1).
  */
-#define KERN_TO_HYP(kva)	(kva)
+#define kern_hyp_va(kva)	(kva)
 
 /*
  * KVM_MMU_CACHE_MIN_PAGES is the number of stage2 page table translation levels.

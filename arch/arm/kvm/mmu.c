@@ -506,9 +506,9 @@ void free_hyp_pgds(void)
 	if (hyp_pgd) {
 		unmap_hyp_range(hyp_pgd, hyp_idmap_start, PAGE_SIZE);
 		for (addr = PAGE_OFFSET; virt_addr_valid(addr); addr += PGDIR_SIZE)
-			unmap_hyp_range(hyp_pgd, KERN_TO_HYP(addr), PGDIR_SIZE);
+			unmap_hyp_range(hyp_pgd, kern_hyp_va(addr), PGDIR_SIZE);
 		for (addr = VMALLOC_START; is_vmalloc_addr((void*)addr); addr += PGDIR_SIZE)
-			unmap_hyp_range(hyp_pgd, KERN_TO_HYP(addr), PGDIR_SIZE);
+			unmap_hyp_range(hyp_pgd, kern_hyp_va(addr), PGDIR_SIZE);
 
 		free_pages((unsigned long)hyp_pgd, hyp_pgd_order);
 		hyp_pgd = NULL;
@@ -670,8 +670,8 @@ int create_hyp_mappings(void *from, void *to, pgprot_t prot)
 {
 	phys_addr_t phys_addr;
 	unsigned long virt_addr;
-	unsigned long start = KERN_TO_HYP((unsigned long)from);
-	unsigned long end = KERN_TO_HYP((unsigned long)to);
+	unsigned long start = kern_hyp_va((unsigned long)from);
+	unsigned long end = kern_hyp_va((unsigned long)to);
 
 	if (is_kernel_in_hyp_mode())
 		return 0;
@@ -705,8 +705,8 @@ int create_hyp_mappings(void *from, void *to, pgprot_t prot)
  */
 int create_hyp_io_mappings(void *from, void *to, phys_addr_t phys_addr)
 {
-	unsigned long start = KERN_TO_HYP((unsigned long)from);
-	unsigned long end = KERN_TO_HYP((unsigned long)to);
+	unsigned long start = kern_hyp_va((unsigned long)from);
+	unsigned long end = kern_hyp_va((unsigned long)to);
 
 	if (is_kernel_in_hyp_mode())
 		return 0;
@@ -1711,10 +1711,10 @@ int kvm_mmu_init(void)
 
 	kvm_info("IDMAP page: %lx\n", hyp_idmap_start);
 	kvm_info("HYP VA range: %lx:%lx\n",
-		 KERN_TO_HYP(PAGE_OFFSET), KERN_TO_HYP(~0UL));
+		 kern_hyp_va(PAGE_OFFSET), kern_hyp_va(~0UL));
 
-	if (hyp_idmap_start >= KERN_TO_HYP(PAGE_OFFSET) &&
-	    hyp_idmap_start <  KERN_TO_HYP(~0UL)) {
+	if (hyp_idmap_start >= kern_hyp_va(PAGE_OFFSET) &&
+	    hyp_idmap_start <  kern_hyp_va(~0UL)) {
 		/*
 		 * The idmap page is intersecting with the VA space,
 		 * it is not safe to continue further.
