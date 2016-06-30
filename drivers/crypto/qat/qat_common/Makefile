@@ -2,6 +2,7 @@ $(obj)/qat_rsapubkey-asn1.o: $(obj)/qat_rsapubkey-asn1.c \
 			     $(obj)/qat_rsapubkey-asn1.h
 $(obj)/qat_rsaprivkey-asn1.o: $(obj)/qat_rsaprivkey-asn1.c \
 			      $(obj)/qat_rsaprivkey-asn1.h
+$(obj)/qat_asym_algs.o: $(obj)/qat_rsapubkey-asn1.h $(obj)/qat_rsaprivkey-asn1.h
 
 clean-files += qat_rsapubkey-asn1.c qat_rsapubkey-asn1.h
 clean-files += qat_rsaprivkey-asn1.c qat_rsapvivkey-asn1.h
