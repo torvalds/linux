@@ -132,14 +132,3 @@ int kvm_reset_vcpu(struct kvm_vcpu *vcpu)
 	/* Reset timer */
 	return kvm_timer_vcpu_reset(vcpu, cpu_vtimer_irq);
 }
-
-unsigned long kvm_hyp_reset_entry(void)
-{
-	/*
-	 * KVM is running with merged page tables, which don't have the
-	 * trampoline page mapped. We know the idmap is still mapped,
-	 * but can't be called into directly. Use
-	 * __extended_idmap_trampoline to do the call.
-	 */
-	return (unsigned long)kvm_ksym_ref(__extended_idmap_trampoline);
-}
