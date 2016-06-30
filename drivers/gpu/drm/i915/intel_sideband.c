@@ -221,8 +221,11 @@ u32 intel_sbi_read(struct drm_i915_private *dev_priv, u16 reg,
 		value = SBI_CTL_DEST_MPHY | SBI_CTL_OP_IORD;
 	I915_WRITE(SBI_CTL_STAT, value | SBI_BUSY);
 
-	if (wait_for((I915_READ(SBI_CTL_STAT) & (SBI_BUSY | SBI_RESPONSE_FAIL)) == 0,
-				100)) {
+	if (intel_wait_for_register(dev_priv,
+				    SBI_CTL_STAT,
+				    SBI_BUSY | SBI_RESPONSE_FAIL,
+				    0,
+				    100)) {
 		DRM_ERROR("timeout waiting for SBI to complete read transaction\n");
 		return 0;
 	}
