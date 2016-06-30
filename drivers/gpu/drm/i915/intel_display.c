@@ -1910,7 +1910,11 @@ static void lpt_enable_pch_transcoder(struct drm_i915_private *dev_priv,
 		val |= TRANS_PROGRESSIVE;
 
 	I915_WRITE(LPT_TRANSCONF, val);
-	if (wait_for(I915_READ(LPT_TRANSCONF) & TRANS_STATE_ENABLE, 100))
+	if (intel_wait_for_register(dev_priv,
+				    LPT_TRANSCONF,
+				    TRANS_STATE_ENABLE,
+				    TRANS_STATE_ENABLE,
+				    100))
 		DRM_ERROR("Failed to enable PCH transcoder\n");
 }
 
