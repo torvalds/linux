@@ -223,14 +223,9 @@ static int tcf_bpf_init_from_efd(struct nlattr **tb, struct tcf_bpf_cfg *cfg)
 
 	bpf_fd = nla_get_u32(tb[TCA_ACT_BPF_FD]);
 
-	fp = bpf_prog_get(bpf_fd);
+	fp = bpf_prog_get_type(bpf_fd, BPF_PROG_TYPE_SCHED_ACT);
 	if (IS_ERR(fp))
 		return PTR_ERR(fp);
-
-	if (fp->type != BPF_PROG_TYPE_SCHED_ACT) {
-		bpf_prog_put(fp);
-		return -EINVAL;
-	}
 
 	if (tb[TCA_ACT_BPF_NAME]) {
 		name = kmemdup(nla_data(tb[TCA_ACT_BPF_NAME]),

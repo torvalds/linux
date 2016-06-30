@@ -657,7 +657,7 @@ int bpf_prog_new_fd(struct bpf_prog *prog)
 				O_RDWR | O_CLOEXEC);
 }
 
-static struct bpf_prog *__bpf_prog_get(struct fd f)
+static struct bpf_prog *____bpf_prog_get(struct fd f)
 {
 	if (!f.file)
 		return ERR_PTR(-EBADF);
@@ -678,24 +678,35 @@ struct bpf_prog *bpf_prog_inc(struct bpf_prog *prog)
 	return prog;
 }
 
-/* called by sockets/tracing/seccomp before attaching program to an event
- * pairs with bpf_prog_put()
- */
-struct bpf_prog *bpf_prog_get(u32 ufd)
+static struct bpf_prog *__bpf_prog_get(u32 ufd, enum bpf_prog_type *type)
 {
 	struct fd f = fdget(ufd);
 	struct bpf_prog *prog;
 
-	prog = __bpf_prog_get(f);
+	prog = ____bpf_prog_get(f);
 	if (IS_ERR(prog))
 		return prog;
+	if (type && prog->type != *type) {
+		prog = ERR_PTR(-EINVAL);
+		goto out;
+	}
 
 	prog = bpf_prog_inc(prog);
+out:
 	fdput(f);
-
 	return prog;
 }
-EXPORT_SYMBOL_GPL(bpf_prog_get);
+
+struct bpf_prog *bpf_prog_get(u32 ufd)
+{
+	return __bpf_prog_get(ufd, NULL);
+}
+
+struct bpf_prog *bpf_prog_get_type(u32 ufd, enum bpf_prog_type type)
+{
+	return __bpf_prog_get(ufd, &type);
+}
+EXPORT_SYMBOL_GPL(bpf_prog_get_type);
 
 /* last field in 'union bpf_attr' used by this command */
 #define	BPF_PROG_LOAD_LAST_FIELD kern_version

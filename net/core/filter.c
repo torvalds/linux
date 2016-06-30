@@ -1301,21 +1301,10 @@ int sk_reuseport_attach_filter(struct sock_fprog *fprog, struct sock *sk)
 
 static struct bpf_prog *__get_bpf(u32 ufd, struct sock *sk)
 {
-	struct bpf_prog *prog;
-
 	if (sock_flag(sk, SOCK_FILTER_LOCKED))
 		return ERR_PTR(-EPERM);
 
-	prog = bpf_prog_get(ufd);
-	if (IS_ERR(prog))
-		return prog;
-
-	if (prog->type != BPF_PROG_TYPE_SOCKET_FILTER) {
-		bpf_prog_put(prog);
-		return ERR_PTR(-EINVAL);
-	}
-
-	return prog;
+	return bpf_prog_get_type(ufd, BPF_PROG_TYPE_SOCKET_FILTER);
 }
 
 int sk_attach_bpf(u32 ufd, struct sock *sk)

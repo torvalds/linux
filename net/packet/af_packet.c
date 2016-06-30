@@ -1588,13 +1588,9 @@ static int fanout_set_data_ebpf(struct packet_sock *po, char __user *data,
 	if (copy_from_user(&fd, data, len))
 		return -EFAULT;
 
-	new = bpf_prog_get(fd);
+	new = bpf_prog_get_type(fd, BPF_PROG_TYPE_SOCKET_FILTER);
 	if (IS_ERR(new))
 		return PTR_ERR(new);
-	if (new->type != BPF_PROG_TYPE_SOCKET_FILTER) {
-		bpf_prog_put(new);
-		return -EINVAL;
-	}
 
 	__fanout_set_data_bpf(po->fanout, new);
 	return 0;
