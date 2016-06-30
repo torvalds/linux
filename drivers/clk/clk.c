@@ -591,6 +591,13 @@ static void clk_core_unprepare(struct clk_core *core)
 	clk_core_unprepare(core->parent);
 }
 
+static void clk_core_unprepare_lock(struct clk_core *core)
+{
+	clk_prepare_lock();
+	clk_core_unprepare(core);
+	clk_prepare_unlock();
+}
+
 /**
  * clk_unprepare - undo preparation of a clock source
  * @clk: the clk being unprepared
@@ -607,9 +614,7 @@ void clk_unprepare(struct clk *clk)
 	if (IS_ERR_OR_NULL(clk))
 		return;
 
-	clk_prepare_lock();
-	clk_core_unprepare(clk->core);
-	clk_prepare_unlock();
+	clk_core_unprepare_lock(clk->core);
 }
 EXPORT_SYMBOL_GPL(clk_unprepare);
 
@@ -645,6 +650,17 @@ static int clk_core_prepare(struct clk_core *core)
 	return 0;
 }
 
+static int clk_core_prepare_lock(struct clk_core *core)
+{
+	int ret;
+
+	clk_prepare_lock();
+	ret = clk_core_prepare(core);
+	clk_prepare_unlock();
+
+	return ret;
+}
+
 /**
  * clk_prepare - prepare a clock source
  * @clk: the clk being prepared
@@ -659,16 +675,10 @@ static int clk_core_prepare(struct clk_core *core)
  */
 int clk_prepare(struct clk *clk)
 {
-	int ret;
-
 	if (!clk)
 		return 0;
 
-	clk_prepare_lock();
-	ret = clk_core_prepare(clk->core);
-	clk_prepare_unlock();
-
-	return ret;
+	return clk_core_prepare_lock(clk->core);
 }
 EXPORT_SYMBOL_GPL(clk_prepare);
 
@@ -698,6 +708,15 @@ static void clk_core_disable(struct clk_core *core)
 	clk_core_disable(core->parent);
 }
 
+static void clk_core_disable_lock(struct clk_core *core)
+{
+	unsigned long flags;
+
+	flags = clk_enable_lock();
+	clk_core_disable(core);
+	clk_enable_unlock(flags);
+}
+
 /**
  * clk_disable - gate a clock
  * @clk: the clk being gated
@@ -712,14 +731,10 @@ static void clk_core_disable(struct clk_core *core)
  */
 void clk_disable(struct clk *clk)
 {
-	unsigned long flags;
-
 	if (IS_ERR_OR_NULL(clk))
 		return;
 
-	flags = clk_enable_lock();
-	clk_core_disable(clk->core);
-	clk_enable_unlock(flags);
+	clk_core_disable_lock(clk->core);
 }
 EXPORT_SYMBOL_GPL(clk_disable);
 
@@ -758,6 +773,18 @@ static int clk_core_enable(struct clk_core *core)
 	return 0;
 }
 
+static int clk_core_enable_lock(struct clk_core *core)
+{
+	unsigned long flags;
+	int ret;
+
+	flags = clk_enable_lock();
+	ret = clk_core_enable(core);
+	clk_enable_unlock(flags);
+
+	return ret;
+}
+
 /**
  * clk_enable - ungate a clock
  * @clk: the clk being ungated
@@ -773,19 +800,33 @@ static int clk_core_enable(struct clk_core *core)
  */
 int clk_enable(struct clk *clk)
 {
-	unsigned long flags;
-	int ret;
-
 	if (!clk)
 		return 0;
 
-	flags = clk_enable_lock();
-	ret = clk_core_enable(clk->core);
-	clk_enable_unlock(flags);
+	return clk_core_enable_lock(clk->core);
+}
+EXPORT_SYMBOL_GPL(clk_enable);
+
+static int clk_core_prepare_enable(struct clk_core *core)
+{
+	int ret;
+
+	ret = clk_core_prepare_lock(core);
+	if (ret)
+		return ret;
+
+	ret = clk_core_enable_lock(core);
+	if (ret)
+		clk_core_unprepare_lock(core);
 
 	return ret;
 }
-EXPORT_SYMBOL_GPL(clk_enable);
+
+static void clk_core_disable_unprepare(struct clk_core *core)
+{
+	clk_core_disable_lock(core);
+	clk_core_unprepare_lock(core);
+}
 
 static int clk_core_round_rate_nolock(struct clk_core *core,
 				      struct clk_rate_request *req)
