@@ -9578,7 +9578,7 @@ static void hsw_disable_lcpll(struct drm_i915_private *dev_priv,
 	I915_WRITE(LCPLL_CTL, val);
 	POSTING_READ(LCPLL_CTL);
 
-	if (wait_for((I915_READ(LCPLL_CTL) & LCPLL_PLL_LOCK) == 0, 1))
+	if (intel_wait_for_register(dev_priv, LCPLL_CTL, LCPLL_PLL_LOCK, 0, 1))
 		DRM_ERROR("LCPLL still locked\n");
 
 	val = hsw_read_dcomp(dev_priv);
