@@ -1594,8 +1594,17 @@ hfsc_enqueue(struct sk_buff *skb, struct Qdisc *sch, struct sk_buff **to_free)
 		return err;
 	}
 
-	if (cl->qdisc->q.qlen == 1)
+	if (cl->qdisc->q.qlen == 1) {
 		set_active(cl, qdisc_pkt_len(skb));
+		/*
+		 * If this is the first packet, isolate the head so an eventual
+		 * head drop before the first dequeue operation has no chance
+		 * to invalidate the deadline.
+		 */
+		if (cl->cl_flags & HFSC_RSC)
+			cl->qdisc->ops->peek(cl->qdisc);
+
+	}
 
 	qdisc_qstats_backlog_inc(sch, skb);
 	sch->q.qlen++;
