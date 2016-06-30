@@ -381,6 +381,20 @@ static void amd_sched_job_timedout(struct work_struct *work)
 	job->sched->ops->timedout_job(job);
 }
 
+void amd_sched_hw_job_reset(struct amd_gpu_scheduler *sched)
+{
+	struct amd_sched_job *s_job;
+
+	spin_lock(&sched->job_list_lock);
+	list_for_each_entry_reverse(s_job, &sched->ring_mirror_list, node) {
+		if (fence_remove_callback(s_job->s_fence->parent, &s_job->s_fence->cb)) {
+			fence_put(s_job->s_fence->parent);
+			s_job->s_fence->parent = NULL;
+		}
+	}
+	spin_unlock(&sched->job_list_lock);
+}
+
 /**
  * Submit a job to the job queue
  *
