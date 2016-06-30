@@ -349,19 +349,13 @@ static inline int ptr_ring_init(struct ptr_ring *r, int size, gfp_t gfp)
 	return 0;
 }
 
-static inline int ptr_ring_resize(struct ptr_ring *r, int size, gfp_t gfp,
-				  void (*destroy)(void *))
+static inline void **__ptr_ring_swap_queue(struct ptr_ring *r, void **queue,
+					   int size, gfp_t gfp,
+					   void (*destroy)(void *))
 {
-	unsigned long flags;
 	int producer = 0;
-	void **queue = __ptr_ring_init_queue_alloc(size, gfp);
 	void **old;
 	void *ptr;
-
-	if (!queue)
-		return -ENOMEM;
-
-	spin_lock_irqsave(&(r)->producer_lock, flags);
 
 	while ((ptr = ptr_ring_consume(r)))
 		if (producer < size)
@@ -375,11 +369,70 @@ static inline int ptr_ring_resize(struct ptr_ring *r, int size, gfp_t gfp,
 	old = r->queue;
 	r->queue = queue;
 
+	return old;
+}
+
+static inline int ptr_ring_resize(struct ptr_ring *r, int size, gfp_t gfp,
+				  void (*destroy)(void *))
+{
+	unsigned long flags;
+	void **queue = __ptr_ring_init_queue_alloc(size, gfp);
+	void **old;
+
+	if (!queue)
+		return -ENOMEM;
+
+	spin_lock_irqsave(&(r)->producer_lock, flags);
+
+	old = __ptr_ring_swap_queue(r, queue, size, gfp, destroy);
+
 	spin_unlock_irqrestore(&(r)->producer_lock, flags);
 
 	kfree(old);
 
 	return 0;
+}
+
+static inline int ptr_ring_resize_multiple(struct ptr_ring **rings, int nrings,
+					   int size,
+					   gfp_t gfp, void (*destroy)(void *))
+{
+	unsigned long flags;
+	void ***queues;
+	int i;
+
+	queues = kmalloc(nrings * sizeof *queues, gfp);
+	if (!queues)
+		goto noqueues;
+
+	for (i = 0; i < nrings; ++i) {
+		queues[i] = __ptr_ring_init_queue_alloc(size, gfp);
+		if (!queues[i])
+			goto nomem;
+	}
+
+	for (i = 0; i < nrings; ++i) {
+		spin_lock_irqsave(&(rings[i])->producer_lock, flags);
+		queues[i] = __ptr_ring_swap_queue(rings[i], queues[i],
+						  size, gfp, destroy);
+		spin_unlock_irqrestore(&(rings[i])->producer_lock, flags);
+	}
+
+	for (i = 0; i < nrings; ++i)
+		kfree(queues[i]);
+
+	kfree(queues);
+
+	return 0;
+
+nomem:
+	while (--i >= 0)
+		kfree(queues[i]);
+
+	kfree(queues);
+
+noqueues:
+	return -ENOMEM;
 }
 
 static inline void ptr_ring_cleanup(struct ptr_ring *r, void (*destroy)(void *))
