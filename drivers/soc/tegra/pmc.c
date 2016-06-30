@@ -837,6 +837,18 @@ static void tegra_powergate_add(struct tegra_pmc *pmc, struct device_node *np)
 	if (!IS_ENABLED(CONFIG_PM_GENERIC_DOMAINS))
 		goto power_on_cleanup;
 
+	/*
+	 * FIXME: If XHCI is enabled for Tegra, then power-up the XUSB
+	 * host and super-speed partitions. Once the XHCI driver
+	 * manages the partitions itself this code can be removed. Note
+	 * that we don't register these partitions with the genpd core
+	 * to avoid it from powering down the partitions as they appear
+	 * to be unused.
+	 */
+	if (IS_ENABLED(CONFIG_USB_XHCI_TEGRA) &&
+	    (id == TEGRA_POWERGATE_XUSBA || id == TEGRA_POWERGATE_XUSBC))
+		goto power_on_cleanup;
+
 	pm_genpd_init(&pg->genpd, NULL, off);
 
 	err = of_genpd_add_provider_simple(np, &pg->genpd);
