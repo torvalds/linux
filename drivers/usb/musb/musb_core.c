@@ -102,6 +102,7 @@
 #include <linux/usb.h>
 
 #include "musb_core.h"
+#include "musb_trace.h"
 
 #define TA_WAIT_BCON(m) max_t(int, (m)->a_wait_bcon, OTG_TIME_A_WAIT_BCON)
 
@@ -258,31 +259,43 @@ static u32 musb_default_busctl_offset(u8 epnum, u16 offset)
 
 static u8 musb_default_readb(const void __iomem *addr, unsigned offset)
 {
-	return __raw_readb(addr + offset);
+	u8 data =  __raw_readb(addr + offset);
+
+	trace_musb_readb(__builtin_return_address(0), addr, offset, data);
+	return data;
 }
 
 static void musb_default_writeb(void __iomem *addr, unsigned offset, u8 data)
 {
+	trace_musb_writeb(__builtin_return_address(0), addr, offset, data);
 	__raw_writeb(data, addr + offset);
 }
 
 static u16 musb_default_readw(const void __iomem *addr, unsigned offset)
 {
-	return __raw_readw(addr + offset);
+	u16 data = __raw_readw(addr + offset);
+
+	trace_musb_readw(__builtin_return_address(0), addr, offset, data);
+	return data;
 }
 
 static void musb_default_writew(void __iomem *addr, unsigned offset, u16 data)
 {
+	trace_musb_writew(__builtin_return_address(0), addr, offset, data);
 	__raw_writew(data, addr + offset);
 }
 
 static u32 musb_default_readl(const void __iomem *addr, unsigned offset)
 {
-	return __raw_readl(addr + offset);
+	u32 data = __raw_readl(addr + offset);
+
+	trace_musb_readl(__builtin_return_address(0), addr, offset, data);
+	return data;
 }
 
 static void musb_default_writel(void __iomem *addr, unsigned offset, u32 data)
 {
+	trace_musb_writel(__builtin_return_address(0), addr, offset, data);
 	__raw_writel(data, addr + offset);
 }
 

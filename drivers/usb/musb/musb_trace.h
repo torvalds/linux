@@ -41,6 +41,93 @@ TRACE_EVENT(musb_log,
 	TP_printk("%s: %s", __get_str(name), __get_str(msg))
 );
 
+DECLARE_EVENT_CLASS(musb_regb,
+	TP_PROTO(void *caller, const void *addr, unsigned int offset, u8 data),
+	TP_ARGS(caller, addr, offset, data),
+	TP_STRUCT__entry(
+		__field(void *, caller)
+		__field(const void *, addr)
+		__field(unsigned int, offset)
+		__field(u8, data)
+	),
+	TP_fast_assign(
+		__entry->caller = caller;
+		__entry->addr = addr;
+		__entry->offset = offset;
+		__entry->data = data;
+	),
+	TP_printk("%pS: %p + %04x: %02x",
+		__entry->caller, __entry->addr, __entry->offset, __entry->data)
+);
+
+DEFINE_EVENT(musb_regb, musb_readb,
+	TP_PROTO(void *caller, const void *addr, unsigned int offset, u8 data),
+	TP_ARGS(caller, addr, offset, data)
+);
+
+DEFINE_EVENT(musb_regb, musb_writeb,
+	TP_PROTO(void *caller, const void *addr, unsigned int offset, u8 data),
+	TP_ARGS(caller, addr, offset, data)
+);
+
+DECLARE_EVENT_CLASS(musb_regw,
+	TP_PROTO(void *caller, const void *addr, unsigned int offset, u16 data),
+	TP_ARGS(caller, addr, offset, data),
+	TP_STRUCT__entry(
+		__field(void *, caller)
+		__field(const void *, addr)
+		__field(unsigned int, offset)
+		__field(u16, data)
+	),
+	TP_fast_assign(
+		__entry->caller = caller;
+		__entry->addr = addr;
+		__entry->offset = offset;
+		__entry->data = data;
+	),
+	TP_printk("%pS: %p + %04x: %04x",
+		__entry->caller, __entry->addr, __entry->offset, __entry->data)
+);
+
+DEFINE_EVENT(musb_regw, musb_readw,
+	TP_PROTO(void *caller, const void *addr, unsigned int offset, u16 data),
+	TP_ARGS(caller, addr, offset, data)
+);
+
+DEFINE_EVENT(musb_regw, musb_writew,
+	TP_PROTO(void *caller, const void *addr, unsigned int offset, u16 data),
+	TP_ARGS(caller, addr, offset, data)
+);
+
+DECLARE_EVENT_CLASS(musb_regl,
+	TP_PROTO(void *caller, const void *addr, unsigned int offset, u32 data),
+	TP_ARGS(caller, addr, offset, data),
+	TP_STRUCT__entry(
+		__field(void *, caller)
+		__field(const void *, addr)
+		__field(unsigned int, offset)
+		__field(u32, data)
+	),
+	TP_fast_assign(
+		__entry->caller = caller;
+		__entry->addr = addr;
+		__entry->offset = offset;
+		__entry->data = data;
+	),
+	TP_printk("%pS: %p + %04x: %08x",
+		__entry->caller, __entry->addr, __entry->offset, __entry->data)
+);
+
+DEFINE_EVENT(musb_regl, musb_readl,
+	TP_PROTO(void *caller, const void *addr, unsigned int offset, u32 data),
+	TP_ARGS(caller, addr, offset, data)
+);
+
+DEFINE_EVENT(musb_regl, musb_writel,
+	TP_PROTO(void *caller, const void *addr, unsigned int offset, u32 data),
+	TP_ARGS(caller, addr, offset, data)
+);
+
 #endif /* __MUSB_TRACE_H */
 
 /* this part has to be here */
