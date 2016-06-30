@@ -2696,9 +2696,11 @@ static void gen6_bsd_ring_write_tail(struct intel_engine_cs *engine,
 	I915_WRITE64(GEN6_BSD_RNCID, 0x0);
 
 	/* Wait for the ring not to be idle, i.e. for it to wake up. */
-	if (wait_for((I915_READ(GEN6_BSD_SLEEP_PSMI_CONTROL) &
-		      GEN6_BSD_SLEEP_INDICATOR) == 0,
-		     50))
+	if (intel_wait_for_register(dev_priv,
+				    GEN6_BSD_SLEEP_PSMI_CONTROL,
+				    GEN6_BSD_SLEEP_INDICATOR,
+				    0,
+				    50))
 		DRM_ERROR("timed out waiting for the BSD ring to wake up\n");
 
 	/* Now that the ring is fully powered up, update the tail */
