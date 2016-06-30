@@ -2684,34 +2684,38 @@ static void gen6_bsd_ring_write_tail(struct intel_engine_cs *engine,
 {
 	struct drm_i915_private *dev_priv = engine->i915;
 
+	intel_uncore_forcewake_get(dev_priv, FORCEWAKE_ALL);
+
        /* Every tail move must follow the sequence below */
 
 	/* Disable notification that the ring is IDLE. The GT
 	 * will then assume that it is busy and bring it out of rc6.
 	 */
-	I915_WRITE(GEN6_BSD_SLEEP_PSMI_CONTROL,
-		   _MASKED_BIT_ENABLE(GEN6_BSD_SLEEP_MSG_DISABLE));
+	I915_WRITE_FW(GEN6_BSD_SLEEP_PSMI_CONTROL,
+		      _MASKED_BIT_ENABLE(GEN6_BSD_SLEEP_MSG_DISABLE));
 
 	/* Clear the context id. Here be magic! */
-	I915_WRITE64(GEN6_BSD_RNCID, 0x0);
+	I915_WRITE64_FW(GEN6_BSD_RNCID, 0x0);
 
 	/* Wait for the ring not to be idle, i.e. for it to wake up. */
-	if (intel_wait_for_register(dev_priv,
-				    GEN6_BSD_SLEEP_PSMI_CONTROL,
-				    GEN6_BSD_SLEEP_INDICATOR,
-				    0,
-				    50))
+	if (intel_wait_for_register_fw(dev_priv,
+				       GEN6_BSD_SLEEP_PSMI_CONTROL,
+				       GEN6_BSD_SLEEP_INDICATOR,
+				       0,
+				       50))
 		DRM_ERROR("timed out waiting for the BSD ring to wake up\n");
 
 	/* Now that the ring is fully powered up, update the tail */
-	I915_WRITE_TAIL(engine, value);
-	POSTING_READ(RING_TAIL(engine->mmio_base));
+	I915_WRITE_FW(RING_TAIL(engine->mmio_base), value);
+	POSTING_READ_FW(RING_TAIL(engine->mmio_base));
 
 	/* Let the ring send IDLE messages to the GT again,
 	 * and so let it sleep to conserve power when idle.
 	 */
-	I915_WRITE(GEN6_BSD_SLEEP_PSMI_CONTROL,
-		   _MASKED_BIT_DISABLE(GEN6_BSD_SLEEP_MSG_DISABLE));
+	I915_WRITE_FW(GEN6_BSD_SLEEP_PSMI_CONTROL,
+		      _MASKED_BIT_DISABLE(GEN6_BSD_SLEEP_MSG_DISABLE));
+
+	intel_uncore_forcewake_put(dev_priv, FORCEWAKE_ALL);
 }
 
 static int gen6_bsd_ring_flush(struct drm_i915_gem_request *req,
