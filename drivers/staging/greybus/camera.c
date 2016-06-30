@@ -468,7 +468,8 @@ static int gb_camera_configure_streams(struct gb_camera *gcam,
 			memset(req, 0, sizeof(*req));
 			gb_operation_sync(gcam->connection,
 					  GB_CAMERA_TYPE_CONFIGURE_STREAMS,
-					  req, req_size, resp, resp_size);
+					  req, sizeof(*req),
+					  resp, sizeof(*resp));
 			*flags = 0;
 			*num_streams = 0;
 			goto done;
