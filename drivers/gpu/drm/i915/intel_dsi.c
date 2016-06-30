@@ -279,7 +279,9 @@ static int dpi_send_cmd(struct intel_dsi *intel_dsi, u32 cmd, bool hs,
 	I915_WRITE(MIPI_DPI_CONTROL(port), cmd);
 
 	mask = SPL_PKT_SENT_INTERRUPT;
-	if (wait_for((I915_READ(MIPI_INTR_STAT(port)) & mask) == mask, 100))
+	if (intel_wait_for_register(dev_priv,
+				    MIPI_INTR_STAT(port), mask, mask,
+				    100))
 		DRM_ERROR("Video mode command 0x%08x send failed.\n", cmd);
 
 	return 0;
