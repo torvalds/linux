@@ -227,6 +227,14 @@ int kbase_platform_early_init(void)
 
 /*---------------------------------------------------------------------------*/
 
+void kbase_platform_rk_shutdown(struct kbase_device *kbdev)
+{
+	I("to make vdd_gpu enabled for turning off pd_gpu in pm_framework.");
+	rk_pm_enable_regulator(kbdev);
+}
+
+/*---------------------------------------------------------------------------*/
+
 static int rk_pm_enable_regulator(struct kbase_device *kbdev)
 {
 	int ret = 0;

@@ -3813,6 +3813,14 @@ static int kbase_platform_device_remove(struct platform_device *pdev)
 	return 0;
 }
 
+extern void kbase_platform_rk_shutdown(struct kbase_device *kbdev);
+static void kbase_platform_device_shutdown(struct platform_device *pdev)
+{
+	struct kbase_device *kbdev = to_kbase_device(&pdev->dev);
+
+	kbase_platform_rk_shutdown(kbdev);
+}
+
 static int kbase_platform_device_probe(struct platform_device *pdev)
 {
 	struct kbase_device *kbdev;
@@ -4214,6 +4222,7 @@ MODULE_DEVICE_TABLE(of, kbase_dt_ids);
 static struct platform_driver kbase_platform_driver = {
 	.probe = kbase_platform_device_probe,
 	.remove = kbase_platform_device_remove,
+	.shutdown = kbase_platform_device_shutdown,
 	.driver = {
 		   .name = kbase_drv_name,
 		   .owner = THIS_MODULE,
