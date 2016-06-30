@@ -98,6 +98,26 @@ static void mlx5e_update_carrier_work(struct work_struct *work)
 	mutex_unlock(&priv->state_lock);
 }
 
+static void mlx5e_tx_timeout_work(struct work_struct *work)
+{
+	struct mlx5e_priv *priv = container_of(work, struct mlx5e_priv,
+					       tx_timeout_work);
+	int err;
+
+	rtnl_lock();
+	mutex_lock(&priv->state_lock);
+	if (!test_bit(MLX5E_STATE_OPENED, &priv->state))
+		goto unlock;
+	mlx5e_close_locked(priv->netdev);
+	err = mlx5e_open_locked(priv->netdev);
+	if (err)
+		netdev_err(priv->netdev, "mlx5e_open_locked failed recovering from a tx_timeout, err(%d).\n",
+			   err);
+unlock:
+	mutex_unlock(&priv->state_lock);
+	rtnl_unlock();
+}
+
 static void mlx5e_update_sw_counters(struct mlx5e_priv *priv)
 {
 	struct mlx5e_sw_stats *s = &priv->stats.sw;
@@ -2609,6 +2629,29 @@ static netdev_features_t mlx5e_features_check(struct sk_buff *skb,
 	return features;
 }
 
+static void mlx5e_tx_timeout(struct net_device *dev)
+{
+	struct mlx5e_priv *priv = netdev_priv(dev);
+	bool sched_work = false;
+	int i;
+
+	netdev_err(dev, "TX timeout detected\n");
+
+	for (i = 0; i < priv->params.num_channels * priv->params.num_tc; i++) {
+		struct mlx5e_sq *sq = priv->txq_to_sq_map[i];
+
+		if (!netif_tx_queue_stopped(netdev_get_tx_queue(dev, i)))
+			continue;
+		sched_work = true;
+		set_bit(MLX5E_SQ_STATE_TX_TIMEOUT, &sq->state);
+		netdev_err(dev, "TX timeout on queue: %d, SQ: 0x%x, CQ: 0x%x, SQ Cons: 0x%x SQ Prod: 0x%x\n",
+			   i, sq->sqn, sq->cq.mcq.cqn, sq->cc, sq->pc);
+	}
+
+	if (sched_work && test_bit(MLX5E_STATE_OPENED, &priv->state))
+		schedule_work(&priv->tx_timeout_work);
+}
+
 static const struct net_device_ops mlx5e_netdev_ops_basic = {
 	.ndo_open                = mlx5e_open,
 	.ndo_stop                = mlx5e_close,
@@ -2626,6 +2669,7 @@ static const struct net_device_ops mlx5e_netdev_ops_basic = {
 #ifdef CONFIG_RFS_ACCEL
 	.ndo_rx_flow_steer	 = mlx5e_rx_flow_steer,
 #endif
+	.ndo_tx_timeout          = mlx5e_tx_timeout,
 };
 
 static const struct net_device_ops mlx5e_netdev_ops_sriov = {
@@ -2655,6 +2699,7 @@ static const struct net_device_ops mlx5e_netdev_ops_sriov = {
 	.ndo_get_vf_config       = mlx5e_get_vf_config,
 	.ndo_set_vf_link_state   = mlx5e_set_vf_link_state,
 	.ndo_get_vf_stats        = mlx5e_get_vf_stats,
+	.ndo_tx_timeout          = mlx5e_tx_timeout,
 };
 
 static int mlx5e_check_required_hca_cap(struct mlx5_core_dev *mdev)
@@ -2857,6 +2902,7 @@ static void mlx5e_build_netdev_priv(struct mlx5_core_dev *mdev,
 
 	INIT_WORK(&priv->update_carrier_work, mlx5e_update_carrier_work);
 	INIT_WORK(&priv->set_rx_mode_work, mlx5e_set_rx_mode_work);
+	INIT_WORK(&priv->tx_timeout_work, mlx5e_tx_timeout_work);
 	INIT_DELAYED_WORK(&priv->update_stats_work, mlx5e_update_stats_work);
 }
 

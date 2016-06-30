@@ -539,6 +539,7 @@ struct mlx5e_priv {
 	struct workqueue_struct    *wq;
 	struct work_struct         update_carrier_work;
 	struct work_struct         set_rx_mode_work;
+	struct work_struct         tx_timeout_work;
 	struct delayed_work        update_stats_work;
 
 	struct mlx5_core_dev      *mdev;
