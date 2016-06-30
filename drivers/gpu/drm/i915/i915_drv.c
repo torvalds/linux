@@ -2588,8 +2588,7 @@ static int vlv_wait_for_gt_wells(struct drm_i915_private *dev_priv,
 
 	mask = VLV_GTLC_PW_MEDIA_STATUS_MASK | VLV_GTLC_PW_RENDER_STATUS_MASK;
 	val = wait_for_on ? mask : 0;
-#define COND ((I915_READ(VLV_GTLC_PW_STATUS) & mask) == val)
-	if (COND)
+	if ((I915_READ(VLV_GTLC_PW_STATUS) & mask) == val)
 		return 0;
 
 	DRM_DEBUG_KMS("waiting for GT wells to go %s (%08x)\n",
@@ -2600,13 +2599,14 @@ static int vlv_wait_for_gt_wells(struct drm_i915_private *dev_priv,
 	 * RC6 transitioning can be delayed up to 2 msec (see
 	 * valleyview_enable_rps), use 3 msec for safety.
 	 */
-	err = wait_for(COND, 3);
+	err = intel_wait_for_register(dev_priv,
+				      VLV_GTLC_PW_STATUS, mask, val,
+				      3);
 	if (err)
 		DRM_ERROR("timeout waiting for GT wells to go %s\n",
 			  onoff(wait_for_on));
 
 	return err;
-#undef COND
 }
 
 static void vlv_check_no_gt_access(struct drm_i915_private *dev_priv)
