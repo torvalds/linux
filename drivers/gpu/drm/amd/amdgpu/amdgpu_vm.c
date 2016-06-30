@@ -385,7 +385,8 @@ int amdgpu_vm_flush(struct amdgpu_ring *ring, struct amdgpu_job *job)
 	    amdgpu_vm_ring_has_compute_vm_bug(ring)))
 		amdgpu_ring_emit_pipeline_sync(ring);
 
-	if (ring->funcs->emit_vm_flush && job->vm_needs_flush) {
+	if (ring->funcs->emit_vm_flush && (job->vm_needs_flush ||
+	    amdgpu_vm_is_gpu_reset(adev, id))) {
 		struct fence *fence;
 
 		trace_amdgpu_vm_flush(job->vm_pd_addr, ring->idx, job->vm_id);
