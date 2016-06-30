@@ -385,17 +385,16 @@ retry_ipi:
 				mask_ofl_ipi &= ~mask;
 				continue;
 			}
-			/* Failed, raced with offline. */
+			/* Failed, raced with CPU hotplug operation. */
 			raw_spin_lock_irqsave_rcu_node(rnp, flags);
-			if (cpu_online(cpu) &&
+			if ((rnp->qsmaskinitnext & mask) &&
 			    (rnp->expmask & mask)) {
+				/* Online, so delay for a bit and try again. */
 				raw_spin_unlock_irqrestore_rcu_node(rnp, flags);
 				schedule_timeout_uninterruptible(1);
-				if (cpu_online(cpu) &&
-				    (rnp->expmask & mask))
-					goto retry_ipi;
-				raw_spin_lock_irqsave_rcu_node(rnp, flags);
+				goto retry_ipi;
 			}
+			/* CPU really is offline, so we can ignore it. */
 			if (!(rnp->expmask & mask))
 				mask_ofl_ipi &= ~mask;
 			raw_spin_unlock_irqrestore_rcu_node(rnp, flags);
