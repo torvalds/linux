@@ -1707,8 +1707,11 @@ static void mlx5e_netdev_set_tcs(struct net_device *netdev)
 
 	netdev_set_num_tc(netdev, ntc);
 
+	/* Map netdev TCs to offset 0
+	 * We have our own UP to TXQ mapping for QoS
+	 */
 	for (tc = 0; tc < ntc; tc++)
-		netdev_set_tc_queue(netdev, tc, nch, tc * nch);
+		netdev_set_tc_queue(netdev, tc, nch, 0);
 }
 
 int mlx5e_open_locked(struct net_device *netdev)
