@@ -53,6 +53,7 @@ struct adc_jack_cond {
  *			milli-seconds after the interrupt occurs. You may
  *			describe such delays with @handling_delay_ms, which
  *			is rounded-off by jiffies.
+ * @wakeup_source:	flag to wake up the system for extcon events.
  */
 struct adc_jack_pdata {
 	const char *name;
@@ -65,6 +66,7 @@ struct adc_jack_pdata {
 
 	unsigned long irq_flags;
 	unsigned long handling_delay_ms; /* in ms */
+	bool wakeup_source;
 };
 
 #endif /* _EXTCON_ADC_JACK_H */
