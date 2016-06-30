@@ -1880,7 +1880,9 @@ static void ironlake_enable_pch_transcoder(struct drm_i915_private *dev_priv,
 		val |= TRANS_PROGRESSIVE;
 
 	I915_WRITE(reg, val | TRANS_ENABLE);
-	if (wait_for(I915_READ(reg) & TRANS_STATE_ENABLE, 100))
+	if (intel_wait_for_register(dev_priv,
+				    reg, TRANS_STATE_ENABLE, TRANS_STATE_ENABLE,
+				    100))
 		DRM_ERROR("failed to enable transcoder %c\n", pipe_name(pipe));
 }
 
