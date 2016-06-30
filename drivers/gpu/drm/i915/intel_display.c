@@ -1937,7 +1937,9 @@ static void ironlake_disable_pch_transcoder(struct drm_i915_private *dev_priv,
 	val &= ~TRANS_ENABLE;
 	I915_WRITE(reg, val);
 	/* wait for PCH transcoder off, transcoder state */
-	if (wait_for((I915_READ(reg) & TRANS_STATE_ENABLE) == 0, 50))
+	if (intel_wait_for_register(dev_priv,
+				    reg, TRANS_STATE_ENABLE, 0,
+				    50))
 		DRM_ERROR("failed to disable transcoder %c\n", pipe_name(pipe));
 
 	if (HAS_PCH_CPT(dev)) {
