@@ -182,12 +182,7 @@ static const char *rcu_torture_writer_state_getname(void)
 	return rcu_torture_writer_state_names[i];
 }
 
-#if defined(MODULE) || defined(CONFIG_RCU_TORTURE_TEST_RUNNABLE)
-#define RCUTORTURE_RUNNABLE_INIT 1
-#else
-#define RCUTORTURE_RUNNABLE_INIT 0
-#endif
-static int torture_runnable = RCUTORTURE_RUNNABLE_INIT;
+static int torture_runnable = IS_ENABLED(MODULE);
 module_param(torture_runnable, int, 0444);
 MODULE_PARM_DESC(torture_runnable, "Start rcutorture at boot");
 
@@ -1476,7 +1471,7 @@ static int rcu_torture_barrier_cbs(void *arg)
 			break;
 		/*
 		 * The above smp_load_acquire() ensures barrier_phase load
-		 * is ordered before the folloiwng ->call().
+		 * is ordered before the following ->call().
 		 */
 		local_irq_disable(); /* Just to test no-irq call_rcu(). */
 		cur_ops->call(&rcu, rcu_torture_barrier_cbf);

@@ -517,6 +517,7 @@ config SRCU
 config TASKS_RCU
 	bool
 	default n
+	depends on !UML
 	select SRCU
 	help
 	  This option enables a task-based RCU implementation that uses
