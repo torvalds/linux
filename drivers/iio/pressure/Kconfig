@@ -7,23 +7,32 @@ menu "Pressure sensors"
 
 config BMP280
 	tristate "Bosch Sensortec BMP180/BMP280 pressure sensor I2C driver"
-	depends on I2C
+	depends on (I2C || SPI_MASTER)
 	depends on !(BMP085_I2C=y || BMP085_I2C=m)
+	depends on !(BMP085_SPI=y || BMP085_SPI=m)
 	select REGMAP
 	select BMP280_I2C if (I2C)
+	select BMP280_SPI if (SPI_MASTER)
 	help
 	  Say yes here to build support for Bosch Sensortec BMP180 and BMP280
 	  pressure and temperature sensors. Also supports the BE280 with
 	  an additional humidity sensor channel.
 
-	  To compile this driver as a module, choose M here: the modules
-	  will be called bmp280-i2c and bmp280.
+	  To compile this driver as a module, choose M here: the core module
+	  will be called bmp280 and you will also get bmp280-i2c for I2C
+	  and/or bmp280-spi for SPI support.
 
 config BMP280_I2C
 	tristate
 	depends on BMP280
 	depends on I2C
 	select REGMAP_I2C
+
+config BMP280_SPI
+	tristate
+	depends on BMP280
+	depends on SPI_MASTER
+	select REGMAP
 
 config HID_SENSOR_PRESS
 	depends on HID_SENSOR_HUB
