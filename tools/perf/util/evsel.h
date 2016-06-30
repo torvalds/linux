@@ -435,4 +435,6 @@ typedef int (*attr__fprintf_f)(FILE *, const char *, const char *, void *);
 int perf_event_attr__fprintf(FILE *fp, struct perf_event_attr *attr,
 			     attr__fprintf_f attr__fprintf, void *priv);
 
+char *perf_evsel__env_arch(struct perf_evsel *evsel);
+
 #endif /* __PERF_EVSEL_H */
