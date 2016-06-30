@@ -323,6 +323,17 @@ static void rds_tcp_conn_free(void *arg)
 	kmem_cache_free(rds_tcp_conn_slab, tc);
 }
 
+static bool list_has_conn(struct list_head *list, struct rds_connection *conn)
+{
+	struct rds_tcp_connection *tc, *_tc;
+
+	list_for_each_entry_safe(tc, _tc, list, t_tcp_node) {
+		if (tc->t_cpath->cp_conn == conn)
+			return true;
+	}
+	return false;
+}
+
 static void rds_tcp_destroy_conns(void)
 {
 	struct rds_tcp_connection *tc, *_tc;
@@ -330,8 +341,10 @@ static void rds_tcp_destroy_conns(void)
 
 	/* avoid calling conn_destroy with irqs off */
 	spin_lock_irq(&rds_tcp_conn_lock);
-	list_splice(&rds_tcp_conn_list, &tmp_list);
-	INIT_LIST_HEAD(&rds_tcp_conn_list);
+	list_for_each_entry_safe(tc, _tc, &rds_tcp_conn_list, t_tcp_node) {
+		if (!list_has_conn(&tmp_list, tc->t_cpath->cp_conn))
+			list_move_tail(&tc->t_tcp_node, &tmp_list);
+	}
 	spin_unlock_irq(&rds_tcp_conn_lock);
 
 	list_for_each_entry_safe(tc, _tc, &tmp_list, t_tcp_node)
@@ -491,10 +504,30 @@ static struct pernet_operations rds_tcp_net_ops = {
 	.size = sizeof(struct rds_tcp_net),
 };
 
+/* explicitly send a RST on each socket, thereby releasing any socket refcnts
+ * that may otherwise hold up netns deletion.
+ */
+static void rds_tcp_conn_paths_destroy(struct rds_connection *conn)
+{
+	struct rds_conn_path *cp;
+	struct rds_tcp_connection *tc;
+	int i;
+	struct sock *sk;
+
+	for (i = 0; i < RDS_MPATH_WORKERS; i++) {
+		cp = &conn->c_path[i];
+		tc = cp->cp_transport_data;
+		if (!tc->t_sock)
+			continue;
+		sk = tc->t_sock->sk;
+		sk->sk_prot->disconnect(sk, 0);
+		tcp_done(sk);
+	}
+}
+
 static void rds_tcp_kill_sock(struct net *net)
 {
 	struct rds_tcp_connection *tc, *_tc;
-	struct sock *sk;
 	LIST_HEAD(tmp_list);
 	struct rds_tcp_net *rtn = net_generic(net, rds_tcp_netid);
 
@@ -507,13 +540,12 @@ static void rds_tcp_kill_sock(struct net *net)
 
 		if (net != c_net || !tc->t_sock)
 			continue;
-		list_move_tail(&tc->t_tcp_node, &tmp_list);
+		if (!list_has_conn(&tmp_list, tc->t_cpath->cp_conn))
+			list_move_tail(&tc->t_tcp_node, &tmp_list);
 	}
 	spin_unlock_irq(&rds_tcp_conn_lock);
 	list_for_each_entry_safe(tc, _tc, &tmp_list, t_tcp_node) {
-		sk = tc->t_sock->sk;
-		sk->sk_prot->disconnect(sk, 0);
-		tcp_done(sk);
+		rds_tcp_conn_paths_destroy(tc->t_cpath->cp_conn);
 		rds_conn_destroy(tc->t_cpath->cp_conn);
 	}
 }
