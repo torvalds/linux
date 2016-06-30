@@ -326,6 +326,7 @@ struct msdc_host {
 	unsigned char timing;
 	bool vqmmc_enabled;
 	u32 hs400_ds_delay;
+	bool hs400_mode;	/* current eMMC will run at hs400 mode */
 	struct msdc_save_para save_para; /* used when gate HCLK */
 };
 
@@ -1402,9 +1403,11 @@ static int msdc_execute_tuning(struct mmc_host *mmc, u32 opcode)
 		dev_err(host->dev, "Tune response fail!\n");
 		return ret;
 	}
-	ret = msdc_tune_data(mmc, opcode);
-	if (ret == -EIO)
-		dev_err(host->dev, "Tune data fail!\n");
+	if (host->hs400_mode == false) {
+		ret = msdc_tune_data(mmc, opcode);
+		if (ret == -EIO)
+			dev_err(host->dev, "Tune data fail!\n");
+	}
 
 	return ret;
 }
@@ -1412,6 +1415,7 @@ static int msdc_execute_tuning(struct mmc_host *mmc, u32 opcode)
 static int msdc_prepare_hs400_tuning(struct mmc_host *mmc, struct mmc_ios *ios)
 {
 	struct msdc_host *host = mmc_priv(mmc);
+	host->hs400_mode = true;
 
 	writel(host->hs400_ds_delay, host->base + PAD_DS_TUNE);
 	return 0;
