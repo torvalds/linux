@@ -297,24 +297,24 @@ int rds_tcp_recv(struct rds_connection *conn)
 void rds_tcp_data_ready(struct sock *sk)
 {
 	void (*ready)(struct sock *sk);
-	struct rds_connection *conn;
+	struct rds_conn_path *cp;
 	struct rds_tcp_connection *tc;
 
 	rdsdebug("data ready sk %p\n", sk);
 
 	read_lock_bh(&sk->sk_callback_lock);
-	conn = sk->sk_user_data;
-	if (!conn) { /* check for teardown race */
+	cp = sk->sk_user_data;
+	if (!cp) { /* check for teardown race */
 		ready = sk->sk_data_ready;
 		goto out;
 	}
 
-	tc = conn->c_transport_data;
+	tc = cp->cp_transport_data;
 	ready = tc->t_orig_data_ready;
 	rds_tcp_stats_inc(s_tcp_data_ready_calls);
 
-	if (rds_tcp_read_sock(conn, GFP_ATOMIC) == -ENOMEM)
-		queue_delayed_work(rds_wq, &conn->c_recv_w, 0);
+	if (rds_tcp_read_sock(cp->cp_conn, GFP_ATOMIC) == -ENOMEM)
+		queue_delayed_work(rds_wq, &cp->cp_recv_w, 0);
 out:
 	read_unlock_bh(&sk->sk_callback_lock);
 	ready(sk);

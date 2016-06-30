@@ -41,16 +41,16 @@
 void rds_tcp_state_change(struct sock *sk)
 {
 	void (*state_change)(struct sock *sk);
-	struct rds_connection *conn;
+	struct rds_conn_path *cp;
 	struct rds_tcp_connection *tc;
 
 	read_lock_bh(&sk->sk_callback_lock);
-	conn = sk->sk_user_data;
-	if (!conn) {
+	cp = sk->sk_user_data;
+	if (!cp) {
 		state_change = sk->sk_state_change;
 		goto out;
 	}
-	tc = conn->c_transport_data;
+	tc = cp->cp_transport_data;
 	state_change = tc->t_orig_state_change;
 
 	rdsdebug("sock %p state_change to %d\n", tc->t_sock, sk->sk_state);
@@ -61,12 +61,11 @@ void rds_tcp_state_change(struct sock *sk)
 	case TCP_SYN_RECV:
 		break;
 	case TCP_ESTABLISHED:
-		rds_connect_path_complete(&conn->c_path[0],
-					  RDS_CONN_CONNECTING);
+		rds_connect_path_complete(cp, RDS_CONN_CONNECTING);
 		break;
 	case TCP_CLOSE_WAIT:
 	case TCP_CLOSE:
-		rds_conn_drop(conn);
+		rds_conn_path_drop(cp);
 	default:
 		break;
 	}
@@ -81,6 +80,7 @@ int rds_tcp_conn_connect(struct rds_connection *conn)
 	struct sockaddr_in src, dest;
 	int ret;
 	struct rds_tcp_connection *tc = conn->c_transport_data;
+	struct rds_conn_path *cp = &conn->c_path[0];
 
 	mutex_lock(&tc->t_conn_path_lock);
 
@@ -114,7 +114,7 @@ int rds_tcp_conn_connect(struct rds_connection *conn)
 	 * once we call connect() we can start getting callbacks and they
 	 * own the socket
 	 */
-	rds_tcp_set_callbacks(sock, conn);
+	rds_tcp_set_callbacks(sock, cp);
 	ret = sock->ops->connect(sock, (struct sockaddr *)&dest, sizeof(dest),
 				 O_NONBLOCK);
 

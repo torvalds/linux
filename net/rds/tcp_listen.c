@@ -79,6 +79,7 @@ int rds_tcp_accept_one(struct socket *sock)
 	struct inet_sock *inet;
 	struct rds_tcp_connection *rs_tcp = NULL;
 	int conn_state;
+	struct rds_conn_path *cp;
 
 	if (!sock) /* module unload or netns delete in progress */
 		return -ENETUNREACH;
@@ -120,6 +121,7 @@ int rds_tcp_accept_one(struct socket *sock)
 	 * rds_tcp_state_change() will do that cleanup
 	 */
 	rs_tcp = (struct rds_tcp_connection *)conn->c_transport_data;
+	cp = &conn->c_path[0];
 	rds_conn_transition(conn, RDS_CONN_DOWN, RDS_CONN_CONNECTING);
 	mutex_lock(&rs_tcp->t_conn_path_lock);
 	conn_state = rds_conn_state(conn);
@@ -136,16 +138,14 @@ int rds_tcp_accept_one(struct socket *sock)
 		    !conn->c_path[0].cp_outgoing) {
 			goto rst_nsk;
 		} else {
-			rds_tcp_reset_callbacks(new_sock, conn);
+			rds_tcp_reset_callbacks(new_sock, cp);
 			conn->c_path[0].cp_outgoing = 0;
 			/* rds_connect_path_complete() marks RDS_CONN_UP */
-			rds_connect_path_complete(&conn->c_path[0],
-						  RDS_CONN_RESETTING);
+			rds_connect_path_complete(cp, RDS_CONN_RESETTING);
 		}
 	} else {
-		rds_tcp_set_callbacks(new_sock, conn);
-		rds_connect_path_complete(&conn->c_path[0],
-					  RDS_CONN_CONNECTING);
+		rds_tcp_set_callbacks(new_sock, cp);
+		rds_connect_path_complete(cp, RDS_CONN_CONNECTING);
 	}
 	new_sock = NULL;
 	ret = 0;

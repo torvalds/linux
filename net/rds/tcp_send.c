@@ -178,27 +178,27 @@ static int rds_tcp_is_acked(struct rds_message *rm, uint64_t ack)
 void rds_tcp_write_space(struct sock *sk)
 {
 	void (*write_space)(struct sock *sk);
-	struct rds_connection *conn;
+	struct rds_conn_path *cp;
 	struct rds_tcp_connection *tc;
 
 	read_lock_bh(&sk->sk_callback_lock);
-	conn = sk->sk_user_data;
-	if (!conn) {
+	cp = sk->sk_user_data;
+	if (!cp) {
 		write_space = sk->sk_write_space;
 		goto out;
 	}
 
-	tc = conn->c_transport_data;
+	tc = cp->cp_transport_data;
 	rdsdebug("write_space for tc %p\n", tc);
 	write_space = tc->t_orig_write_space;
 	rds_tcp_stats_inc(s_tcp_write_space_calls);
 
 	rdsdebug("tcp una %u\n", rds_tcp_snd_una(tc));
 	tc->t_last_seen_una = rds_tcp_snd_una(tc);
-	rds_send_drop_acked(conn, rds_tcp_snd_una(tc), rds_tcp_is_acked);
+	rds_send_path_drop_acked(cp, rds_tcp_snd_una(tc), rds_tcp_is_acked);
 
 	if ((atomic_read(&sk->sk_wmem_alloc) << 1) <= sk->sk_sndbuf)
-		queue_delayed_work(rds_wq, &conn->c_send_w, 0);
+		queue_delayed_work(rds_wq, &cp->cp_send_w, 0);
 
 out:
 	read_unlock_bh(&sk->sk_callback_lock);

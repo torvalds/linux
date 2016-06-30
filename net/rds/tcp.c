@@ -136,9 +136,9 @@ void rds_tcp_restore_callbacks(struct socket *sock,
  * from being called while it isn't set.
  */
 void rds_tcp_reset_callbacks(struct socket *sock,
-			     struct rds_connection *conn)
+			     struct rds_conn_path *cp)
 {
-	struct rds_tcp_connection *tc = conn->c_transport_data;
+	struct rds_tcp_connection *tc = cp->cp_transport_data;
 	struct socket *osock = tc->t_sock;
 
 	if (!osock)
@@ -148,8 +148,8 @@ void rds_tcp_reset_callbacks(struct socket *sock,
 	 * We have an outstanding SYN to this peer, which may
 	 * potentially have transitioned to the RDS_CONN_UP state,
 	 * so we must quiesce any send threads before resetting
-	 * c_transport_data. We quiesce these threads by setting
-	 * c_state to something other than RDS_CONN_UP, and then
+	 * cp_transport_data. We quiesce these threads by setting
+	 * cp_state to something other than RDS_CONN_UP, and then
 	 * waiting for any existing threads in rds_send_xmit to
 	 * complete release_in_xmit(). (Subsequent threads entering
 	 * rds_send_xmit() will bail on !rds_conn_up().
@@ -164,8 +164,8 @@ void rds_tcp_reset_callbacks(struct socket *sock,
 	 * RDS_CONN_RESETTTING, to ensure that rds_tcp_state_change
 	 * cannot mark rds_conn_path_up() in the window before lock_sock()
 	 */
-	atomic_set(&conn->c_state, RDS_CONN_RESETTING);
-	wait_event(conn->c_waitq, !test_bit(RDS_IN_XMIT, &conn->c_flags));
+	atomic_set(&cp->cp_state, RDS_CONN_RESETTING);
+	wait_event(cp->cp_waitq, !test_bit(RDS_IN_XMIT, &cp->cp_flags));
 	lock_sock(osock->sk);
 	/* reset receive side state for rds_tcp_data_recv() for osock  */
 	if (tc->t_tinc) {
@@ -186,11 +186,12 @@ void rds_tcp_reset_callbacks(struct socket *sock,
 	release_sock(osock->sk);
 	sock_release(osock);
 newsock:
-	rds_send_path_reset(&conn->c_path[0]);
+	rds_send_path_reset(cp);
 	lock_sock(sock->sk);
 	write_lock_bh(&sock->sk->sk_callback_lock);
 	tc->t_sock = sock;
-	sock->sk->sk_user_data = conn;
+	tc->t_cpath = cp;
+	sock->sk->sk_user_data = cp;
 	sock->sk->sk_data_ready = rds_tcp_data_ready;
 	sock->sk->sk_write_space = rds_tcp_write_space;
 	sock->sk->sk_state_change = rds_tcp_state_change;
@@ -203,9 +204,9 @@ newsock:
  * above rds_tcp_reset_callbacks for notes about synchronization
  * with data path
  */
-void rds_tcp_set_callbacks(struct socket *sock, struct rds_connection *conn)
+void rds_tcp_set_callbacks(struct socket *sock, struct rds_conn_path *cp)
 {
-	struct rds_tcp_connection *tc = conn->c_transport_data;
+	struct rds_tcp_connection *tc = cp->cp_transport_data;
 
 	rdsdebug("setting sock %p callbacks to tc %p\n", sock, tc);
 	write_lock_bh(&sock->sk->sk_callback_lock);
@@ -221,12 +222,12 @@ void rds_tcp_set_callbacks(struct socket *sock, struct rds_connection *conn)
 		sock->sk->sk_data_ready = sock->sk->sk_user_data;
 
 	tc->t_sock = sock;
-	tc->t_cpath = &conn->c_path[0];
+	tc->t_cpath = cp;
 	tc->t_orig_data_ready = sock->sk->sk_data_ready;
 	tc->t_orig_write_space = sock->sk->sk_write_space;
 	tc->t_orig_state_change = sock->sk->sk_state_change;
 
-	sock->sk->sk_user_data = conn;
+	sock->sk->sk_user_data = cp;
 	sock->sk->sk_data_ready = rds_tcp_data_ready;
 	sock->sk->sk_write_space = rds_tcp_write_space;
 	sock->sk->sk_state_change = rds_tcp_state_change;
