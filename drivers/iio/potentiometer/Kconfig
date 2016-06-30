@@ -10,7 +10,7 @@ config DS1803
 	depends on I2C
 	help
 	  Say yes here to build support for the Maxim Integrated DS1803
-	  digital potentiomenter chip.
+	  digital potentiometer chip.
 
 	  To compile this driver as a module, choose M here: the
 	  module will be called ds1803.
@@ -39,7 +39,7 @@ config MCP4131
 	  MCP4241, MCP4242,
 	  MCP4251, MCP4252,
 	  MCP4261, MCP4262,
-	  digital potentiomenter chips.
+	  digital potentiometer chips.
 
 	  To compile this driver as a module, choose M here: the
 	  module will be called mcp4131.
@@ -53,7 +53,7 @@ config MCP4531
 	  MCP4551, MCP4552, MCP4561, MCP4562,
 	  MCP4631, MCP4632, MCP4641, MCP4642,
 	  MCP4651, MCP4652, MCP4661, MCP4662
-	  digital potentiomenter chips.
+	  digital potentiometer chips.
 
 	  To compile this driver as a module, choose M here: the
 	  module will be called mcp4531.
