@@ -591,14 +591,20 @@ static void intel_psr_work(struct work_struct *work)
 	 * and be ready for re-enable.
 	 */
 	if (HAS_DDI(dev_priv)) {
-		if (wait_for((I915_READ(EDP_PSR_STATUS_CTL) &
-			      EDP_PSR_STATUS_STATE_MASK) == 0, 50)) {
+		if (intel_wait_for_register(dev_priv,
+					    EDP_PSR_STATUS_CTL,
+					    EDP_PSR_STATUS_STATE_MASK,
+					    0,
+					    50)) {
 			DRM_ERROR("Timed out waiting for PSR Idle for re-enable\n");
 			return;
 		}
 	} else {
-		if (wait_for((I915_READ(VLV_PSRSTAT(pipe)) &
-			      VLV_EDP_PSR_IN_TRANS) == 0, 1)) {
+		if (intel_wait_for_register(dev_priv,
+					    VLV_PSRSTAT(pipe),
+					    VLV_EDP_PSR_IN_TRANS,
+					    0,
+					    1)) {
 			DRM_ERROR("Timed out waiting for PSR Idle for re-enable\n");
 			return;
 		}
