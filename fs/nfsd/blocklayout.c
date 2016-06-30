@@ -290,7 +290,7 @@ out_free_buf:
 	return error;
 }
 
-#define NFSD_MDS_PR_KEY		0x0100000000000000
+#define NFSD_MDS_PR_KEY		0x0100000000000000ULL
 
 /*
  * We use the client ID as a unique key for the reservations.

@@ -140,7 +140,7 @@ int rds_tcp_accept_one(struct socket *sock)
 			conn->c_path[0].cp_outgoing = 0;
 			/* rds_connect_path_complete() marks RDS_CONN_UP */
 			rds_connect_path_complete(&conn->c_path[0],
-						  RDS_CONN_DISCONNECTING);
+						  RDS_CONN_RESETTING);
 		}
 	} else {
 		rds_tcp_set_callbacks(new_sock, conn);

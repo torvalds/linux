@@ -71,9 +71,7 @@ EXPORT_SYMBOL(simple_lookup);
 
 int dcache_dir_open(struct inode *inode, struct file *file)
 {
-	static struct qstr cursor_name = QSTR_INIT(".", 1);
-
-	file->private_data = d_alloc(file->f_path.dentry, &cursor_name);
+	file->private_data = d_alloc_cursor(file->f_path.dentry);
 
 	return file->private_data ? 0 : -ENOMEM;
 }

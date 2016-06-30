@@ -1933,17 +1933,17 @@ int setup_intlist(struct intlist **list, const char *list_str,
 static bool symbol__read_kptr_restrict(void)
 {
 	bool value = false;
+	FILE *fp = fopen("/proc/sys/kernel/kptr_restrict", "r");
 
-	if (geteuid() != 0) {
-		FILE *fp = fopen("/proc/sys/kernel/kptr_restrict", "r");
-		if (fp != NULL) {
-			char line[8];
+	if (fp != NULL) {
+		char line[8];
 
-			if (fgets(line, sizeof(line), fp) != NULL)
-				value = atoi(line) != 0;
+		if (fgets(line, sizeof(line), fp) != NULL)
+			value = (geteuid() != 0) ?
+					(atoi(line) != 0) :
+					(atoi(line) == 2);
 
-			fclose(fp);
-		}
+		fclose(fp);
 	}
 
 	return value;

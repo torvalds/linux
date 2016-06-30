@@ -105,6 +105,9 @@ static void mlx5e_vxlan_add_port(struct work_struct *work)
 	struct mlx5e_vxlan *vxlan;
 	int err;
 
+	if (mlx5e_vxlan_lookup_port(priv, port))
+		goto free_work;
+
 	if (mlx5e_vxlan_core_add_port_cmd(priv->mdev, port))
 		goto free_work;
 

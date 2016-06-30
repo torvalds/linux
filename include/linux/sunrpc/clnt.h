@@ -137,8 +137,6 @@ struct rpc_create_args {
 #define RPC_CLNT_CREATE_NO_RETRANS_TIMEOUT	(1UL << 9)
 
 struct rpc_clnt *rpc_create(struct rpc_create_args *args);
-struct rpc_clnt *rpc_create_xprt(struct rpc_create_args *args,
-					struct rpc_xprt *xprt);
 struct rpc_clnt	*rpc_bind_new_program(struct rpc_clnt *,
 				const struct rpc_program *, u32);
 struct rpc_clnt *rpc_clone_client(struct rpc_clnt *);

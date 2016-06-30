@@ -2015,7 +2015,7 @@ static void nfp_net_open_stack(struct nfp_net *nn)
 
 	netif_tx_wake_all_queues(nn->netdev);
 
-	enable_irq(nn->irq_entries[NFP_NET_CFG_LSC].vector);
+	enable_irq(nn->irq_entries[NFP_NET_IRQ_LSC_IDX].vector);
 	nfp_net_read_link_status(nn);
 }
 
@@ -2044,7 +2044,7 @@ static int nfp_net_netdev_open(struct net_device *netdev)
 				      NFP_NET_IRQ_LSC_IDX, nn->lsc_handler);
 	if (err)
 		goto err_free_exn;
-	disable_irq(nn->irq_entries[NFP_NET_CFG_LSC].vector);
+	disable_irq(nn->irq_entries[NFP_NET_IRQ_LSC_IDX].vector);
 
 	nn->rx_rings = kcalloc(nn->num_rx_rings, sizeof(*nn->rx_rings),
 			       GFP_KERNEL);
@@ -2133,7 +2133,7 @@ static void nfp_net_close_stack(struct nfp_net *nn)
 {
 	unsigned int r;
 
-	disable_irq(nn->irq_entries[NFP_NET_CFG_LSC].vector);
+	disable_irq(nn->irq_entries[NFP_NET_IRQ_LSC_IDX].vector);
 	netif_carrier_off(nn->netdev);
 	nn->link_up = false;
 

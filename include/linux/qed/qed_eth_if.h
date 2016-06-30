@@ -49,6 +49,7 @@ struct qed_start_vport_params {
 	bool drop_ttl0;
 	u8 vport_id;
 	u16 mtu;
+	bool clear_stats;
 };
 
 struct qed_stop_rxq_params {

@@ -61,6 +61,7 @@ struct kvm_stats_debugfs_item debugfs_entries[] = {
 	{ "exit_external_request", VCPU_STAT(exit_external_request) },
 	{ "exit_external_interrupt", VCPU_STAT(exit_external_interrupt) },
 	{ "exit_instruction", VCPU_STAT(exit_instruction) },
+	{ "exit_pei", VCPU_STAT(exit_pei) },
 	{ "exit_program_interruption", VCPU_STAT(exit_program_interruption) },
 	{ "exit_instr_and_program_int", VCPU_STAT(exit_instr_and_program) },
 	{ "halt_successful_poll", VCPU_STAT(halt_successful_poll) },
@@ -657,7 +658,7 @@ static int kvm_s390_set_processor(struct kvm *kvm, struct kvm_device_attr *attr)
 		kvm->arch.model.cpuid = proc->cpuid;
 		lowest_ibc = sclp.ibc >> 16 & 0xfff;
 		unblocked_ibc = sclp.ibc & 0xfff;
-		if (lowest_ibc) {
+		if (lowest_ibc && proc->ibc) {
 			if (proc->ibc > unblocked_ibc)
 				kvm->arch.model.ibc = unblocked_ibc;
 			else if (proc->ibc < lowest_ibc)

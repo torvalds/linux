@@ -1,6 +1,6 @@
 all:
 
-all: ring virtio_ring_0_9 virtio_ring_poll virtio_ring_inorder ptr_ring
+all: ring virtio_ring_0_9 virtio_ring_poll virtio_ring_inorder ptr_ring noring
 
 CFLAGS += -Wall
 CFLAGS += -pthread -O2 -ggdb
@@ -17,6 +17,7 @@ virtio_ring_0_9: virtio_ring_0_9.o main.o
 virtio_ring_poll: virtio_ring_poll.o main.o
 virtio_ring_inorder: virtio_ring_inorder.o main.o
 ptr_ring: ptr_ring.o main.o
+noring: noring.o main.o
 clean:
 	-rm main.o
 	-rm ring.o ring
@@ -24,5 +25,6 @@ clean:
 	-rm virtio_ring_poll.o virtio_ring_poll
 	-rm virtio_ring_inorder.o virtio_ring_inorder
 	-rm ptr_ring.o ptr_ring
+	-rm noring.o noring
 
 .PHONY: all clean

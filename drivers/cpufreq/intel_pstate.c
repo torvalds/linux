@@ -372,26 +372,9 @@ static bool intel_pstate_get_ppc_enable_status(void)
 	return acpi_ppc;
 }
 
-/*
- * The max target pstate ratio is a 8 bit value in both PLATFORM_INFO MSR and
- * in TURBO_RATIO_LIMIT MSR, which pstate driver stores in max_pstate and
- * max_turbo_pstate fields. The PERF_CTL MSR contains 16 bit value for P state
- * ratio, out of it only high 8 bits are used. For example 0x1700 is setting
- * target ratio 0x17. The _PSS control value stores in a format which can be
- * directly written to PERF_CTL MSR. But in intel_pstate driver this shift
- * occurs during write to PERF_CTL (E.g. for cores core_set_pstate()).
- * This function converts the _PSS control value to intel pstate driver format
- * for comparison and assignment.
- */
-static int convert_to_native_pstate_format(struct cpudata *cpu, int index)
-{
-	return cpu->acpi_perf_data.states[index].control >> 8;
-}
-
 static void intel_pstate_init_acpi_perf_limits(struct cpufreq_policy *policy)
 {
 	struct cpudata *cpu;
-	int turbo_pss_ctl;
 	int ret;
 	int i;
 
@@ -441,11 +424,10 @@ static void intel_pstate_init_acpi_perf_limits(struct cpufreq_policy *policy)
 	 * max frequency, which will cause a reduced performance as
 	 * this driver uses real max turbo frequency as the max
 	 * frequency. So correct this frequency in _PSS table to
-	 * correct max turbo frequency based on the turbo ratio.
+	 * correct max turbo frequency based on the turbo state.
 	 * Also need to convert to MHz as _PSS freq is in MHz.
 	 */
-	turbo_pss_ctl = convert_to_native_pstate_format(cpu, 0);
-	if (turbo_pss_ctl > cpu->pstate.max_pstate)
+	if (!limits->turbo_disabled)
 		cpu->acpi_perf_data.states[0].core_frequency =
 					policy->cpuinfo.max_freq / 1000;
 	cpu->valid_pss_table = true;
