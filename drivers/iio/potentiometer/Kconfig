@@ -49,8 +49,10 @@ config MCP4531
 	depends on I2C
 	help
 	  Say yes here to build support for the Microchip
-	  MCP4531, MCP4532, MCP4551, MCP4552,
-	  MCP4631, MCP4632, MCP4651, MCP4652
+	  MCP4531, MCP4532, MCP4541, MCP4542,
+	  MCP4551, MCP4552, MCP4561, MCP4562,
+	  MCP4631, MCP4632, MCP4641, MCP4642,
+	  MCP4651, MCP4652, MCP4661, MCP4662
 	  digital potentiomenter chips.
 
 	  To compile this driver as a module, choose M here: the
