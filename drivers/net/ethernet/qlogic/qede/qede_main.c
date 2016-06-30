@@ -1474,7 +1474,7 @@ alloc_skb:
 		}
 
 		/* Copy data into SKB */
-		if (len + pad <= QEDE_RX_HDR_SIZE) {
+		if (len + pad <= edev->rx_copybreak) {
 			memcpy(skb_put(skb, len),
 			       page_address(data) + pad +
 				sw_rx_data->page_offset, len);
@@ -2519,6 +2519,7 @@ static int __qede_probe(struct pci_dev *pdev, u32 dp_module, u8 dp_level,
 
 	INIT_DELAYED_WORK(&edev->sp_task, qede_sp_task);
 	mutex_init(&edev->qede_lock);
+	edev->rx_copybreak = QEDE_RX_HDR_SIZE;
 
 	DP_INFO(edev, "Ending successfully qede probe\n");
 

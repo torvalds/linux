@@ -143,6 +143,8 @@ struct qede_dev {
 	struct mutex			qede_lock;
 	u32				state; /* Protected by qede_lock */
 	u16				rx_buf_size;
+	u32				rx_copybreak;
+
 	/* L2 header size + 2*VLANs (8 bytes) + LLC SNAP (8 bytes) */
 #define ETH_OVERHEAD			(ETH_HLEN + 8 + 8)
 	/* Max supported alignment is 256 (8 shift)
@@ -333,6 +335,7 @@ void qede_recycle_rx_bd_ring(struct qede_rx_queue *rxq, struct qede_dev *edev,
 #define NUM_TX_BDS_MIN		128
 #define NUM_TX_BDS_DEF		NUM_TX_BDS_MAX
 
+#define QEDE_MIN_PKT_LEN	64
 #define QEDE_RX_HDR_SIZE	256
 #define	for_each_rss(i) for (i = 0; i < edev->num_rss; i++)
 
