@@ -229,18 +229,12 @@ struct rxrpc_peer {
  * Keys for matching a connection.
  */
 struct rxrpc_conn_proto {
-	unsigned long		hash_key;
-	struct rxrpc_local	*local;		/* Representation of local endpoint */
-	u32			epoch;		/* epoch of this connection */
-	u32			cid;		/* connection ID */
-	u8			in_clientflag;	/* RXRPC_CLIENT_INITIATED if we are server */
-	u8			addr_size;	/* Size of the address */
-	sa_family_t		family;		/* Transport protocol */
-	__be16			port;		/* Peer UDP/UDP6 port */
-	union {					/* Peer address */
-		struct in_addr	ipv4_addr;
-		struct in6_addr	ipv6_addr;
-		u32		raw_addr[0];
+	union {
+		struct {
+			u32	epoch;		/* epoch of this connection */
+			u32	cid;		/* connection ID */
+		};
+		u64		index_key;
 	};
 };
 
@@ -584,7 +578,7 @@ static inline bool rxrpc_conn_is_client(const struct rxrpc_connection *conn)
 
 static inline bool rxrpc_conn_is_service(const struct rxrpc_connection *conn)
 {
-	return conn->proto.in_clientflag;
+	return !rxrpc_conn_is_client(conn);
 }
 
 static inline void rxrpc_get_connection(struct rxrpc_connection *conn)

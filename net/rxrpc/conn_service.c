@@ -70,10 +70,8 @@ struct rxrpc_connection *rxrpc_incoming_connection(struct rxrpc_local *local,
 		return ERR_PTR(-ENOMEM);
 	}
 
-	candidate->proto.local		= local;
 	candidate->proto.epoch		= sp->hdr.epoch;
 	candidate->proto.cid		= sp->hdr.cid & RXRPC_CIDMASK;
-	candidate->proto.in_clientflag	= RXRPC_CLIENT_INITIATED;
 	candidate->params.local		= local;
 	candidate->params.peer		= peer;
 	candidate->params.service_id	= sp->hdr.serviceId;

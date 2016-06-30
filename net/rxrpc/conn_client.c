@@ -132,21 +132,10 @@ rxrpc_alloc_client_connection(struct rxrpc_conn_parameters *cp, gfp_t gfp)
 	}
 
 	conn->params		= *cp;
-	conn->proto.local	= cp->local;
 	conn->proto.epoch	= rxrpc_epoch;
 	conn->proto.cid		= 0;
-	conn->proto.in_clientflag = 0;
-	conn->proto.family	= cp->peer->srx.transport.family;
 	conn->out_clientflag	= RXRPC_CLIENT_INITIATED;
 	conn->state		= RXRPC_CONN_CLIENT;
-
-	switch (conn->proto.family) {
-	case AF_INET:
-		conn->proto.addr_size = sizeof(conn->proto.ipv4_addr);
-		conn->proto.ipv4_addr = cp->peer->srx.transport.sin.sin_addr;
-		conn->proto.port = cp->peer->srx.transport.sin.sin_port;
-		break;
-	}
 
 	ret = rxrpc_get_client_connection_id(conn, gfp);
 	if (ret < 0)

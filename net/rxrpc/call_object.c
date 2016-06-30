@@ -566,7 +566,7 @@ struct rxrpc_call *rxrpc_incoming_call(struct rxrpc_sock *rx,
 	}
 	call->epoch = conn->proto.epoch;
 	call->service_id = conn->params.service_id;
-	call->in_clientflag = conn->proto.in_clientflag;
+	call->in_clientflag = RXRPC_CLIENT_INITIATED;
 	/* Add the new call to the hashtable */
 	rxrpc_call_hash_add(call);
 
