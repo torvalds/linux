@@ -603,16 +603,13 @@ struct ib_mw *c4iw_alloc_mw(struct ib_pd *pd, enum ib_mw_type type,
 
 	mhp->dereg_skb = alloc_skb(SGE_MAX_WR_LEN, GFP_KERNEL);
 	if (!mhp->dereg_skb) {
-		kfree(mhp);
-		return ERR_PTR(-ENOMEM);
+		ret = -ENOMEM;
+		goto free_mhp;
 	}
 
 	ret = allocate_window(&rhp->rdev, &stag, php->pdid);
-	if (ret) {
-		kfree(mhp->dereg_skb);
-		kfree(mhp);
-		return ERR_PTR(ret);
-	}
+	if (ret)
+		goto free_skb;
 	mhp->rhp = rhp;
 	mhp->attr.pdid = php->pdid;
 	mhp->attr.type = FW_RI_STAG_MW;
@@ -620,13 +617,19 @@ struct ib_mw *c4iw_alloc_mw(struct ib_pd *pd, enum ib_mw_type type,
 	mmid = (stag) >> 8;
 	mhp->ibmw.rkey = stag;
 	if (insert_handle(rhp, &rhp->mmidr, mhp, mmid)) {
-		deallocate_window(&rhp->rdev, mhp->attr.stag, mhp->dereg_skb);
-		kfree(mhp->dereg_skb);
-		kfree(mhp);
-		return ERR_PTR(-ENOMEM);
+		ret = -ENOMEM;
+		goto dealloc_win;
 	}
 	PDBG("%s mmid 0x%x mhp %p stag 0x%x\n", __func__, mmid, mhp, stag);
 	return &(mhp->ibmw);
+
+dealloc_win:
+	deallocate_window(&rhp->rdev, mhp->attr.stag, mhp->dereg_skb);
+free_skb:
+	kfree_skb(mhp->dereg_skb);
+free_mhp:
+	kfree(mhp);
+	return ERR_PTR(ret);
 }
 
 int c4iw_dealloc_mw(struct ib_mw *mw)
@@ -640,6 +643,7 @@ int c4iw_dealloc_mw(struct ib_mw *mw)
 	mmid = (mw->rkey) >> 8;
 	remove_handle(rhp, &rhp->mmidr, mmid);
 	deallocate_window(&rhp->rdev, mhp->attr.stag, mhp->dereg_skb);
+	kfree_skb(mhp->dereg_skb);
 	kfree(mhp);
 	PDBG("%s ib_mw %p mmid 0x%x ptr %p\n", __func__, mw, mmid, mhp);
 	return 0;
