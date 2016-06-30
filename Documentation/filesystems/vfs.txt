@@ -938,6 +938,8 @@ struct dentry_operations {
 	char *(*d_dname)(struct dentry *, char *, int);
 	struct vfsmount *(*d_automount)(struct path *);
 	int (*d_manage)(struct dentry *, bool);
+	struct dentry *(*d_real)(struct dentry *, const struct inode *,
+				 unsigned int);
 };
 
   d_revalidate: called when the VFS needs to revalidate a dentry. This
@@ -1059,6 +1061,24 @@ struct dentry_operations {
 
 	This function is only used if DCACHE_MANAGE_TRANSIT is set on the
 	dentry being transited from.
+
+  d_real: overlay/union type filesystems implement this method to return one of
+	the underlying dentries hidden by the overlay.  It is used in three
+	different modes:
+
+	Called from open it may need to copy-up the file depending on the
+	supplied open flags.  This mode is selected with a non-zero flags
+	argument.  In this mode the d_real method can return an error.
+
+	Called from file_dentry() it returns the real dentry matching the inode
+	argument.  The real dentry may be from a lower layer already copied up,
+	but still referenced from the file.  This mode is selected with a
+	non-NULL inode argument.  This will always succeed.
+
+	With NULL inode and zero flags the topmost real underlying dentry is
+	returned.  This will always succeed.
+
+	This method is never called with both non-NULL inode and non-zero flags.
 
 Example :
 

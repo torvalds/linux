@@ -20,6 +20,8 @@ prototypes:
 	char *(*d_dname)((struct dentry *dentry, char *buffer, int buflen);
 	struct vfsmount *(*d_automount)(struct path *path);
 	int (*d_manage)(struct dentry *, bool);
+	struct dentry *(*d_real)(struct dentry *, const struct inode *,
+				 unsigned int);
 
 locking rules:
 		rename_lock	->d_lock	may block	rcu-walk
@@ -34,6 +36,7 @@ d_iput:		no		no		yes		no
 d_dname:	no		no		no		no
 d_automount:	no		no		yes		no
 d_manage:	no		no		yes (ref-walk)	maybe
+d_real		no		no		yes 		no
 
 --------------------------- inode_operations --------------------------- 
 prototypes:
