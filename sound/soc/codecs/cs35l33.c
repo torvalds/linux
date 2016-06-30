@@ -1176,11 +1176,7 @@ static int cs35l33_i2c_probe(struct i2c_client *i2c_client,
 	/* We could issue !RST or skip it based on AMP topology */
 	cs35l33->reset_gpio = devm_gpiod_get_optional(&i2c_client->dev,
 			"reset-gpios", GPIOD_OUT_HIGH);
-
-	if (PTR_ERR(cs35l33->reset_gpio) == -ENOENT) {
-		dev_warn(&i2c_client->dev,
-			"%s WARNING: No reset gpio assigned\n", __func__);
-	} else if (IS_ERR(cs35l33->reset_gpio)) {
+	if (IS_ERR(cs35l33->reset_gpio)) {
 		dev_err(&i2c_client->dev, "%s ERROR: Can't get reset GPIO\n",
 			__func__);
 		return PTR_ERR(cs35l33->reset_gpio);
