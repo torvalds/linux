@@ -1697,7 +1697,7 @@ static int ath10k_core_init_firmware_features(struct ath10k *ar)
 		case ATH10K_FW_WMI_OP_VERSION_10_4:
 		case ATH10K_FW_WMI_OP_VERSION_UNSET:
 		case ATH10K_FW_WMI_OP_VERSION_MAX:
-			WARN_ON(1);
+			ath10k_err(ar, "htt op version not found from fw meta data");
 			return -EINVAL;
 		}
 	}
