@@ -12,6 +12,16 @@
 
 #include <sound/soc.h>
 
+struct asoc_simple_dai {
+	const char *name;
+	unsigned int sysclk;
+	int slots;
+	int slot_width;
+	unsigned int tx_slot_mask;
+	unsigned int rx_slot_mask;
+	struct clk *clk;
+};
+
 int asoc_simple_card_parse_daifmt(struct device *dev,
 				  struct device_node *node,
 				  struct device_node *codec,

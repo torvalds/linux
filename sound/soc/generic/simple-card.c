@@ -308,48 +308,6 @@ asoc_simple_card_sub_parse_of(struct device_node *np,
 	return 0;
 }
 
-static int asoc_simple_card_parse_daifmt(struct device_node *node,
-					 struct simple_card_data *priv,
-					 struct device_node *codec,
-					 char *prefix, int idx)
-{
-	struct snd_soc_dai_link *dai_link = simple_priv_to_link(priv, idx);
-	struct device *dev = simple_priv_to_dev(priv);
-	struct device_node *bitclkmaster = NULL;
-	struct device_node *framemaster = NULL;
-	unsigned int daifmt;
-
-	daifmt = snd_soc_of_parse_daifmt(node, prefix,
-					 &bitclkmaster, &framemaster);
-	daifmt &= ~SND_SOC_DAIFMT_MASTER_MASK;
-
-	if (strlen(prefix) && !bitclkmaster && !framemaster) {
-		/*
-		 * No dai-link level and master setting was not found from
-		 * sound node level, revert back to legacy DT parsing and
-		 * take the settings from codec node.
-		 */
-		dev_dbg(dev, "Revert to legacy daifmt parsing\n");
-
-		daifmt = snd_soc_of_parse_daifmt(codec, NULL, NULL, NULL) |
-			(daifmt & ~SND_SOC_DAIFMT_CLOCK_MASK);
-	} else {
-		if (codec == bitclkmaster)
-			daifmt |= (codec == framemaster) ?
-				SND_SOC_DAIFMT_CBM_CFM : SND_SOC_DAIFMT_CBM_CFS;
-		else
-			daifmt |= (codec == framemaster) ?
-				SND_SOC_DAIFMT_CBS_CFM : SND_SOC_DAIFMT_CBS_CFS;
-	}
-
-	dai_link->dai_fmt = daifmt;
-
-	of_node_put(bitclkmaster);
-	of_node_put(framemaster);
-
-	return 0;
-}
-
 static int asoc_simple_card_dai_link_of(struct device_node *node,
 					struct simple_card_data *priv,
 					int idx,
@@ -386,8 +344,8 @@ static int asoc_simple_card_dai_link_of(struct device_node *node,
 		goto dai_link_of_err;
 	}
 
-	ret = asoc_simple_card_parse_daifmt(node, priv,
-					    codec, prefix, idx);
+	ret = asoc_simple_card_parse_daifmt(dev, node, codec,
+					    prefix, &dai_link->dai_fmt);
 	if (ret < 0)
 		goto dai_link_of_err;
 
