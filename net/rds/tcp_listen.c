@@ -121,7 +121,7 @@ int rds_tcp_accept_one(struct socket *sock)
 	 */
 	rs_tcp = (struct rds_tcp_connection *)conn->c_transport_data;
 	rds_conn_transition(conn, RDS_CONN_DOWN, RDS_CONN_CONNECTING);
-	mutex_lock(&rs_tcp->t_conn_lock);
+	mutex_lock(&rs_tcp->t_conn_path_lock);
 	conn_state = rds_conn_state(conn);
 	if (conn_state != RDS_CONN_CONNECTING && conn_state != RDS_CONN_UP)
 		goto rst_nsk;
@@ -156,7 +156,7 @@ rst_nsk:
 	ret = 0;
 out:
 	if (rs_tcp)
-		mutex_unlock(&rs_tcp->t_conn_lock);
+		mutex_unlock(&rs_tcp->t_conn_path_lock);
 	if (new_sock)
 		sock_release(new_sock);
 	return ret;

@@ -221,7 +221,7 @@ void rds_tcp_set_callbacks(struct socket *sock, struct rds_connection *conn)
 		sock->sk->sk_data_ready = sock->sk->sk_user_data;
 
 	tc->t_sock = sock;
-	tc->conn = conn;
+	tc->t_cpath = &conn->c_path[0];
 	tc->t_orig_data_ready = sock->sk->sk_data_ready;
 	tc->t_orig_write_space = sock->sk->sk_write_space;
 	tc->t_orig_state_change = sock->sk->sk_state_change;
@@ -284,24 +284,29 @@ static int rds_tcp_laddr_check(struct net *net, __be32 addr)
 static int rds_tcp_conn_alloc(struct rds_connection *conn, gfp_t gfp)
 {
 	struct rds_tcp_connection *tc;
+	int i;
 
-	tc = kmem_cache_alloc(rds_tcp_conn_slab, gfp);
-	if (!tc)
-		return -ENOMEM;
+	for (i = 0; i < RDS_MPATH_WORKERS; i++) {
+		tc = kmem_cache_alloc(rds_tcp_conn_slab, gfp);
+		if (!tc)
+			return -ENOMEM;
 
-	mutex_init(&tc->t_conn_lock);
-	tc->t_sock = NULL;
-	tc->t_tinc = NULL;
-	tc->t_tinc_hdr_rem = sizeof(struct rds_header);
-	tc->t_tinc_data_rem = 0;
+		mutex_init(&tc->t_conn_path_lock);
+		tc->t_sock = NULL;
+		tc->t_tinc = NULL;
+		tc->t_tinc_hdr_rem = sizeof(struct rds_header);
+		tc->t_tinc_data_rem = 0;
 
-	conn->c_transport_data = tc;
+		conn->c_path[i].cp_transport_data = tc;
+		tc->t_cpath = &conn->c_path[i];
 
-	spin_lock_irq(&rds_tcp_conn_lock);
-	list_add_tail(&tc->t_tcp_node, &rds_tcp_conn_list);
-	spin_unlock_irq(&rds_tcp_conn_lock);
+		spin_lock_irq(&rds_tcp_conn_lock);
+		list_add_tail(&tc->t_tcp_node, &rds_tcp_conn_list);
+		spin_unlock_irq(&rds_tcp_conn_lock);
+		rdsdebug("rds_conn_path [%d] tc %p\n", i,
+			 conn->c_path[i].cp_transport_data);
+	}
 
-	rdsdebug("alloced tc %p\n", conn->c_transport_data);
 	return 0;
 }
 
@@ -330,7 +335,7 @@ static void rds_tcp_destroy_conns(void)
 	spin_unlock_irq(&rds_tcp_conn_lock);
 
 	list_for_each_entry_safe(tc, _tc, &tmp_list, t_tcp_node)
-		rds_conn_destroy(tc->conn);
+		rds_conn_destroy(tc->t_cpath->cp_conn);
 }
 
 static void rds_tcp_exit(void);
@@ -498,7 +503,7 @@ static void rds_tcp_kill_sock(struct net *net)
 	flush_work(&rtn->rds_tcp_accept_w);
 	spin_lock_irq(&rds_tcp_conn_lock);
 	list_for_each_entry_safe(tc, _tc, &rds_tcp_conn_list, t_tcp_node) {
-		struct net *c_net = read_pnet(&tc->conn->c_net);
+		struct net *c_net = read_pnet(&tc->t_cpath->cp_conn->c_net);
 
 		if (net != c_net || !tc->t_sock)
 			continue;
@@ -509,7 +514,7 @@ static void rds_tcp_kill_sock(struct net *net)
 		sk = tc->t_sock->sk;
 		sk->sk_prot->disconnect(sk, 0);
 		tcp_done(sk);
-		rds_conn_destroy(tc->conn);
+		rds_conn_destroy(tc->t_cpath->cp_conn);
 	}
 }
 
@@ -547,12 +552,13 @@ static void rds_tcp_sysctl_reset(struct net *net)
 
 	spin_lock_irq(&rds_tcp_conn_lock);
 	list_for_each_entry_safe(tc, _tc, &rds_tcp_conn_list, t_tcp_node) {
-		struct net *c_net = read_pnet(&tc->conn->c_net);
+		struct net *c_net = read_pnet(&tc->t_cpath->cp_conn->c_net);
 
 		if (net != c_net || !tc->t_sock)
 			continue;
 
-		rds_conn_drop(tc->conn); /* reconnect with new parameters */
+		/* reconnect with new parameters */
+		rds_conn_path_drop(tc->t_cpath);
 	}
 	spin_unlock_irq(&rds_tcp_conn_lock);
 }
