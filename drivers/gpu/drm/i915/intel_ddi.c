@@ -1808,7 +1808,10 @@ static u32 bxt_get_grc(struct drm_i915_private *dev_priv, enum dpio_phy phy)
 static void bxt_phy_wait_grc_done(struct drm_i915_private *dev_priv,
 				  enum dpio_phy phy)
 {
-	if (wait_for(I915_READ(BXT_PORT_REF_DW3(phy)) & GRC_DONE, 10))
+	if (intel_wait_for_register(dev_priv,
+				    BXT_PORT_REF_DW3(phy),
+				    GRC_DONE, GRC_DONE,
+				    10))
 		DRM_ERROR("timeout waiting for PHY%d GRC\n", phy);
 }
 
