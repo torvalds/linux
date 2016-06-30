@@ -26,16 +26,7 @@
  * We directly use the kernel VA for the HYP, as we can directly share
  * the mapping (HTTBR "covers" TTBR1).
  */
-#define HYP_PAGE_OFFSET_MASK	UL(~0)
-#define HYP_PAGE_OFFSET		PAGE_OFFSET
 #define KERN_TO_HYP(kva)	(kva)
-
-/*
- * Our virtual mapping for the boot-time MMU-enable code. Must be
- * shared across all the page-tables. Conveniently, we use the vectors
- * page, where no kernel data will ever be shared with HYP.
- */
-#define TRAMPOLINE_VA		UL(CONFIG_VECTORS_BASE)
 
 /*
  * KVM_MMU_CACHE_MIN_PAGES is the number of stage2 page table translation levels.

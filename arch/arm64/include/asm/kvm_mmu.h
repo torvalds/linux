@@ -72,16 +72,6 @@
 #define HYP_PAGE_OFFSET_HIGH_MASK	((UL(1) << VA_BITS) - 1)
 #define HYP_PAGE_OFFSET_LOW_MASK	((UL(1) << (VA_BITS - 1)) - 1)
 
-/* Temporary compat define */
-#define HYP_PAGE_OFFSET_MASK		HYP_PAGE_OFFSET_HIGH_MASK
-
-/*
- * Our virtual mapping for the idmap-ed MMU-enable code. Must be
- * shared across all the page-tables. Conveniently, we use the last
- * possible page, where no kernel mapping will ever exist.
- */
-#define TRAMPOLINE_VA		(HYP_PAGE_OFFSET_MASK & PAGE_MASK)
-
 #ifdef __ASSEMBLY__
 
 #include <asm/alternative.h>
