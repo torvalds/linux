@@ -27,6 +27,9 @@
 #include <linux/iio/sysfs.h>
 #include <linux/gpio/consumer.h>
 #include <linux/regulator/consumer.h>
+#include <linux/interrupt.h>
+#include <linux/irq.h> /* For irq_get_irq_data() */
+#include <linux/completion.h>
 
 #include "bmp280.h"
 
@@ -34,6 +37,8 @@ struct bmp280_data {
 	struct device *dev;
 	struct mutex lock;
 	struct regmap *regmap;
+	struct completion done;
+	bool use_eoc;
 	const struct bmp280_chip_info *chip_info;
 	struct regulator *vddd;
 	struct regulator *vdda;
@@ -595,16 +600,32 @@ static int bmp180_measure(struct bmp280_data *data, u8 ctrl_meas)
 	unsigned int delay_us;
 	unsigned int ctrl;
 
+	if (data->use_eoc)
+		init_completion(&data->done);
+
 	ret = regmap_write(data->regmap, BMP280_REG_CTRL_MEAS, ctrl_meas);
 	if (ret)
 		return ret;
 
-	if (ctrl_meas == BMP180_MEAS_TEMP)
-		delay_us = 4500;
-	else
-		delay_us = conversion_time_max[data->oversampling_press];
+	if (data->use_eoc) {
+		/*
+		 * If we have a completion interrupt, use it, wait up to
+		 * 100ms. The longest conversion time listed is 76.5 ms for
+		 * advanced resolution mode.
+		 */
+		ret = wait_for_completion_timeout(&data->done,
+						  1 + msecs_to_jiffies(100));
+		if (!ret)
+			dev_err(data->dev, "timeout waiting for completion\n");
+	} else {
+		if (ctrl_meas == BMP180_MEAS_TEMP)
+			delay_us = 4500;
+		else
+			delay_us =
+				conversion_time_max[data->oversampling_press];
 
-	usleep_range(delay_us, delay_us + 1000);
+		usleep_range(delay_us, delay_us + 1000);
+	}
 
 	ret = regmap_read(data->regmap, BMP280_REG_CTRL_MEAS, &ctrl);
 	if (ret)
@@ -846,10 +867,51 @@ static const struct bmp280_chip_info bmp180_chip_info = {
 	.read_press = bmp180_read_press,
 };
 
+static irqreturn_t bmp085_eoc_irq(int irq, void *d)
+{
+	struct bmp280_data *data = d;
+
+	complete(&data->done);
+
+	return IRQ_HANDLED;
+}
+
+static int bmp085_fetch_eoc_irq(struct device *dev,
+				const char *name,
+				int irq,
+				struct bmp280_data *data)
+{
+	unsigned long irq_trig;
+	int ret;
+
+	irq_trig = irqd_get_trigger_type(irq_get_irq_data(irq));
+	if (irq_trig != IRQF_TRIGGER_RISING) {
+		dev_err(dev, "non-rising trigger given for EOC interrupt, "
+			"trying to enforce it\n");
+		irq_trig = IRQF_TRIGGER_RISING;
+	}
+	ret = devm_request_threaded_irq(dev,
+			irq,
+			bmp085_eoc_irq,
+			NULL,
+			irq_trig,
+			name,
+			data);
+	if (ret) {
+		/* Bail out without IRQ but keep the driver in place */
+		dev_err(dev, "unable to request DRDY IRQ\n");
+		return 0;
+	}
+
+	data->use_eoc = true;
+	return 0;
+}
+
 int bmp280_common_probe(struct device *dev,
 			struct regmap *regmap,
 			unsigned int chip,
-			const char *name)
+			const char *name,
+			int irq)
 {
 	int ret;
 	struct iio_dev *indio_dev;
@@ -947,6 +1009,17 @@ int bmp280_common_probe(struct device *dev,
 		goto out_disable_vdda;
 
 	dev_set_drvdata(dev, indio_dev);
+
+	/*
+	 * Attempt to grab an optional EOC IRQ - only the BMP085 has this
+	 * however as it happens, the BMP085 shares the chip ID of BMP180
+	 * so we look for an IRQ if we have that.
+	 */
+	if (irq > 0 || (chip_id  == BMP180_CHIP_ID)) {
+		ret = bmp085_fetch_eoc_irq(dev, name, irq, data);
+		if (ret)
+			goto out_disable_vdda;
+	}
 
 	ret = iio_device_register(indio_dev);
 	if (ret)

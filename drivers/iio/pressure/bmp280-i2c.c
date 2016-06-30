@@ -33,7 +33,8 @@ static int bmp280_i2c_probe(struct i2c_client *client,
 	return bmp280_common_probe(&client->dev,
 				   regmap,
 				   id->driver_data,
-				   id->name);
+				   id->name,
+				   client->irq);
 }
 
 static int bmp280_i2c_remove(struct i2c_client *client)
