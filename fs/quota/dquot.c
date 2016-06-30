@@ -841,6 +841,9 @@ struct dquot *dqget(struct super_block *sb, struct kqid qid)
 	unsigned int hashent = hashfn(sb, qid);
 	struct dquot *dquot, *empty = NULL;
 
+	if (!qid_has_mapping(sb->s_user_ns, qid))
+		return ERR_PTR(-EINVAL);
+
         if (!sb_has_quota_active(sb, qid.type))
 		return ERR_PTR(-ESRCH);
 we_slept:
