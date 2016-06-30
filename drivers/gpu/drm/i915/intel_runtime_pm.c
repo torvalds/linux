@@ -703,8 +703,11 @@ static void skl_set_power_well(struct drm_i915_private *dev_priv,
 
 	switch (power_well->data) {
 	case SKL_DISP_PW_1:
-		if (wait_for((I915_READ(SKL_FUSE_STATUS) &
-			SKL_FUSE_PG0_DIST_STATUS), 1)) {
+		if (intel_wait_for_register(dev_priv,
+					    SKL_FUSE_STATUS,
+					    SKL_FUSE_PG0_DIST_STATUS,
+					    SKL_FUSE_PG0_DIST_STATUS,
+					    1)) {
 			DRM_ERROR("PG0 not enabled\n");
 			return;
 		}
