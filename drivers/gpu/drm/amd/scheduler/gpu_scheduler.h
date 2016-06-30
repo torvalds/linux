@@ -151,5 +151,5 @@ void amd_sched_fence_finished(struct amd_sched_fence *fence);
 int amd_sched_job_init(struct amd_sched_job *job,
 		       struct amd_gpu_scheduler *sched,
 		       struct amd_sched_entity *entity,
-		       void *owner, struct fence **fence);
+		       void *owner);
 #endif

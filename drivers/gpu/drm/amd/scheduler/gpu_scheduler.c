@@ -403,7 +403,7 @@ void amd_sched_entity_push_job(struct amd_sched_job *sched_job)
 int amd_sched_job_init(struct amd_sched_job *job,
 		       struct amd_gpu_scheduler *sched,
 		       struct amd_sched_entity *entity,
-		       void *owner, struct fence **fence)
+		       void *owner)
 {
 	job->sched = sched;
 	job->s_entity = entity;
@@ -415,8 +415,6 @@ int amd_sched_job_init(struct amd_sched_job *job,
 	INIT_LIST_HEAD(&job->node);
 	INIT_DELAYED_WORK(&job->work_tdr, amd_sched_job_timedout);
 
-	if (fence)
-		*fence = &job->s_fence->finished;
 	return 0;
 }
 

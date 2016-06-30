@@ -836,15 +836,13 @@ static int amdgpu_cs_submit(struct amdgpu_cs_parser *p,
 {
 	struct amdgpu_ring *ring = p->job->ring;
 	struct amd_sched_entity *entity = &p->ctx->rings[ring->idx].entity;
-	struct fence *fence;
 	struct amdgpu_job *job;
 	int r;
 
 	job = p->job;
 	p->job = NULL;
 
-	r = amd_sched_job_init(&job->base, &ring->sched,
-			       entity, p->filp, &fence);
+	r = amd_sched_job_init(&job->base, &ring->sched, entity, p->filp);
 	if (r) {
 		amdgpu_job_free(job);
 		return r;
@@ -852,8 +850,8 @@ static int amdgpu_cs_submit(struct amdgpu_cs_parser *p,
 
 	job->owner = p->filp;
 	job->ctx = entity->fence_context;
-	p->fence = fence_get(fence);
-	cs->out.handle = amdgpu_ctx_add_fence(p->ctx, ring, fence);
+	p->fence = fence_get(&job->base.s_fence->finished);
+	cs->out.handle = amdgpu_ctx_add_fence(p->ctx, ring, p->fence);
 	job->uf_sequence = cs->out.handle;
 	amdgpu_job_free_resources(job);
 
