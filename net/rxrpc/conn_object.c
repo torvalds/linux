@@ -508,7 +508,9 @@ struct rxrpc_connection *rxrpc_find_connection(struct rxrpc_local *local,
 		}
 	} else {
 		conn = idr_find(&rxrpc_client_conn_ids, cid >> RXRPC_CIDSHIFT);
-		if (conn && conn->proto.epoch == epoch)
+		if (conn &&
+		    conn->proto.epoch == epoch &&
+		    conn->params.peer == peer)
 			goto found;
 	}
 
