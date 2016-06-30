@@ -340,8 +340,10 @@ static bool valleyview_crt_detect_hotplug(struct drm_connector *connector)
 
 	I915_WRITE(crt->adpa_reg, adpa);
 
-	if (wait_for((I915_READ(crt->adpa_reg) & ADPA_CRT_HOTPLUG_FORCE_TRIGGER) == 0,
-		     1000)) {
+	if (intel_wait_for_register(dev_priv,
+				    crt->adpa_reg,
+				    ADPA_CRT_HOTPLUG_FORCE_TRIGGER, 0,
+				    1000)) {
 		DRM_DEBUG_KMS("timed out waiting for FORCE_TRIGGER");
 		I915_WRITE(crt->adpa_reg, save_adpa);
 	}
