@@ -298,15 +298,16 @@ gmbus_wait_idle(struct drm_i915_private *dev_priv)
 {
 	int ret;
 
-#define C ((I915_READ_NOTRACE(GMBUS2) & GMBUS_ACTIVE) == 0)
-
 	if (!HAS_GMBUS_IRQ(dev_priv))
-		return wait_for(C, 10);
+		return intel_wait_for_register(dev_priv,
+					       GMBUS2, GMBUS_ACTIVE, 0,
+					       10);
 
 	/* Important: The hw handles only the first bit, so set only one! */
 	I915_WRITE(GMBUS4, GMBUS_IDLE_EN);
 
-	ret = wait_event_timeout(dev_priv->gmbus_wait_queue, C,
+	ret = wait_event_timeout(dev_priv->gmbus_wait_queue,
+				 (I915_READ_NOTRACE(GMBUS2) & GMBUS_ACTIVE) == 0,
 				 msecs_to_jiffies_timeout(10));
 
 	I915_WRITE(GMBUS4, 0);
@@ -315,7 +316,6 @@ gmbus_wait_idle(struct drm_i915_private *dev_priv)
 		return 0;
 	else
 		return -ETIMEDOUT;
-#undef C
 }
 
 static int
