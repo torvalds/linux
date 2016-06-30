@@ -274,7 +274,8 @@ static int fsl_asrc_prepare_io_buffer(struct fsl_asrc_pair *pair,
 		word_size = 2;
 
 	if (buf_len < word_size * pair->channels * wm ||
-	    buf_len > ASRC_DMA_BUFFER_SIZE) {
+	    buf_len > ASRC_DMA_BUFFER_SIZE ||
+	    (dir == OUT && buf_len < word_size * pair->channels * last_period_size)) {
 		pair_err("%sput buffer size is error: [%d]\n",
 				DIR_STR(dir), buf_len);
 		return -EINVAL;
@@ -557,7 +558,9 @@ static long fsl_asrc_ioctl_config_pair(struct fsl_asrc_pair *pair,
 	m2m->rate[IN] = config.input_sample_rate;
 	m2m->rate[OUT] = config.output_sample_rate;
 
-	if (m2m->rate[OUT] > m2m->rate[IN])
+	if (m2m->rate[OUT] >= m2m->rate[IN] * 8)
+		m2m->last_period_size = (m2m->rate[OUT] / m2m->rate[IN]) * 5;
+	else if (m2m->rate[OUT] > m2m->rate[IN])
 		m2m->last_period_size = ASRC_OUTPUT_LAST_SAMPLE_MAX;
 	else
 		m2m->last_period_size = ASRC_OUTPUT_LAST_SAMPLE;
@@ -852,14 +855,6 @@ static int fsl_asrc_close(struct inode *inode, struct file *file)
 	struct fsl_asrc *asrc_priv = pair->asrc_priv;
 	struct device *dev = &asrc_priv->pdev->dev;
 	unsigned long lock_flags;
-	int i;
-
-	/* Make sure we have clear the pointer */
-	spin_lock_irqsave(&asrc_priv->lock, lock_flags);
-	for (i = 0; i < ASRC_PAIR_MAX_NUM; i++)
-		if (asrc_priv->pair[i] == pair)
-			asrc_priv->pair[i] = NULL;
-	spin_unlock_irqrestore(&asrc_priv->lock, lock_flags);
 
 	if (m2m->asrc_active) {
 		m2m->asrc_active = 0;

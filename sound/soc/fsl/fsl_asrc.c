@@ -513,6 +513,7 @@ static int fsl_asrc_dai_hw_params(struct snd_pcm_substream *substream,
 		return ret;
 	}
 
+	asrc_priv->pair_streams |= BIT(substream->stream);
 	pair->config = &config;
 
 	if (width == 16)
@@ -561,11 +562,15 @@ static int fsl_asrc_dai_hw_params(struct snd_pcm_substream *substream,
 static int fsl_asrc_dai_hw_free(struct snd_pcm_substream *substream,
 				struct snd_soc_dai *dai)
 {
+	struct fsl_asrc *asrc_priv = snd_soc_dai_get_drvdata(dai);
 	struct snd_pcm_runtime *runtime = substream->runtime;
 	struct fsl_asrc_pair *pair = runtime->private_data;
 
-	if (pair)
-		fsl_asrc_release_pair(pair);
+	if (asrc_priv->pair_streams & BIT(substream->stream)) {
+		if (pair)
+			fsl_asrc_release_pair(pair);
+		asrc_priv->pair_streams &= ~BIT(substream->stream);
+	}
 
 	return 0;
 }
