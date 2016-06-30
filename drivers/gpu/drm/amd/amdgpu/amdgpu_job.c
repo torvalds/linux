@@ -178,6 +178,8 @@ static struct fence *amdgpu_job_run(struct amd_sched_job *sched_job)
 	}
 
 err:
+	/* if gpu reset, hw fence will be replaced here */
+	fence_put(job->fence);
 	job->fence = fence;
 	return fence;
 }
