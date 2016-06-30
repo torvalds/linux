@@ -4465,7 +4465,9 @@ void hsw_enable_ips(struct intel_crtc *crtc)
 		 * and don't wait for vblanks until the end of crtc_enable, then
 		 * the HW state readout code will complain that the expected
 		 * IPS_CTL value is not the one we read. */
-		if (wait_for(I915_READ_NOTRACE(IPS_CTL) & IPS_ENABLE, 50))
+		if (intel_wait_for_register(dev_priv,
+					    IPS_CTL, IPS_ENABLE, IPS_ENABLE,
+					    50))
 			DRM_ERROR("Timed out waiting for IPS enable\n");
 	}
 }
