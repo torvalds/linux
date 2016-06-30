@@ -1709,6 +1709,21 @@ int kvm_mmu_init(void)
 	 */
 	BUG_ON((hyp_idmap_start ^ (hyp_idmap_end - 1)) & PAGE_MASK);
 
+	kvm_info("IDMAP page: %lx\n", hyp_idmap_start);
+	kvm_info("HYP VA range: %lx:%lx\n",
+		 KERN_TO_HYP(PAGE_OFFSET), KERN_TO_HYP(~0UL));
+
+	if (hyp_idmap_start >= KERN_TO_HYP(PAGE_OFFSET) &&
+	    hyp_idmap_start <  KERN_TO_HYP(~0UL)) {
+		/*
+		 * The idmap page is intersecting with the VA space,
+		 * it is not safe to continue further.
+		 */
+		kvm_err("IDMAP intersecting with HYP VA, unable to continue\n");
+		err = -EINVAL;
+		goto out;
+	}
+
 	hyp_pgd = (pgd_t *)__get_free_pages(GFP_KERNEL | __GFP_ZERO, hyp_pgd_order);
 	if (!hyp_pgd) {
 		kvm_err("Hyp mode PGD not allocated\n");
