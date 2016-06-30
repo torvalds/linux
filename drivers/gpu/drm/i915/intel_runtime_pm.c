@@ -1340,7 +1340,11 @@ static void chv_dpio_cmn_power_well_enable(struct drm_i915_private *dev_priv,
 	vlv_set_power_well(dev_priv, power_well, true);
 
 	/* Poll for phypwrgood signal */
-	if (wait_for(I915_READ(DISPLAY_PHY_STATUS) & PHY_POWERGOOD(phy), 1))
+	if (intel_wait_for_register(dev_priv,
+				    DISPLAY_PHY_STATUS,
+				    PHY_POWERGOOD(phy),
+				    PHY_POWERGOOD(phy),
+				    1))
 		DRM_ERROR("Display PHY %d is not power up\n", phy);
 
 	mutex_lock(&dev_priv->sb_lock);
