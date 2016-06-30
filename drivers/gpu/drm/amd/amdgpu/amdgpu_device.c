@@ -1947,7 +1947,8 @@ int amdgpu_gpu_reset(struct amdgpu_device *adev)
 			continue;
 		kthread_park(ring->sched.thread);
 	}
-
+	/* after all hw jobs are reset, hw fence is meaningless, so force_completion */
+	amdgpu_fence_driver_force_completion(adev);
 
 	/* save scratch */
 	amdgpu_atombios_scratch_regs_save(adev);
@@ -2005,7 +2006,7 @@ retry:
 			}
 		}
 	} else {
-		amdgpu_fence_driver_force_completion(adev);
+		dev_err(adev->dev, "asic resume failed (%d).\n", r);
 		for (i = 0; i < AMDGPU_MAX_RINGS; ++i) {
 			if (adev->rings[i]) {
 				kthread_unpark(adev->rings[i]->sched.thread);
