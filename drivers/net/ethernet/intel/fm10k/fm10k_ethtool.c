@@ -983,9 +983,10 @@ void fm10k_write_reta(struct fm10k_intfc *interface, const u32 *indir)
 		/* generate a new table if we weren't given one */
 		for (j = 0; j < 4; j++) {
 			if (indir)
-				n = indir[i + j];
+				n = indir[4 * i + j];
 			else
-				n = ethtool_rxfh_indir_default(i + j, rss_i);
+				n = ethtool_rxfh_indir_default(4 * i + j,
+							       rss_i);
 
 			table[j] = n;
 		}

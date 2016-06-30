@@ -56,7 +56,7 @@ static int __init fm10k_init_module(void)
 	pr_info("%s\n", fm10k_copyright);
 
 	/* create driver workqueue */
-	fm10k_workqueue = create_workqueue("fm10k");
+	fm10k_workqueue = alloc_workqueue("fm10k", WQ_MEM_RECLAIM, 0);
 
 	fm10k_dbg_init();
 
@@ -77,7 +77,6 @@ static void __exit fm10k_exit_module(void)
 	fm10k_dbg_exit();
 
 	/* destroy driver workqueue */
-	flush_workqueue(fm10k_workqueue);
 	destroy_workqueue(fm10k_workqueue);
 }
 module_exit(fm10k_exit_module);
@@ -272,7 +271,7 @@ static bool fm10k_add_rx_frag(struct fm10k_rx_buffer *rx_buffer,
 #if (PAGE_SIZE < 8192)
 	unsigned int truesize = FM10K_RX_BUFSZ;
 #else
-	unsigned int truesize = SKB_DATA_ALIGN(size);
+	unsigned int truesize = ALIGN(size, 512);
 #endif
 	unsigned int pull_len;
 
