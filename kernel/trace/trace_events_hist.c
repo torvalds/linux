@@ -1500,9 +1500,9 @@ static void hist_unregister_trigger(char *glob, struct event_trigger_ops *ops,
 
 static void hist_unreg_all(struct trace_event_file *file)
 {
-	struct event_trigger_data *test;
+	struct event_trigger_data *test, *n;
 
-	list_for_each_entry_rcu(test, &file->triggers, list) {
+	list_for_each_entry_safe(test, n, &file->triggers, list) {
 		if (test->cmd_ops->trigger_type == ETT_EVENT_HIST) {
 			list_del_rcu(&test->list);
 			trace_event_trigger_enable_disable(file, 0);
@@ -1699,9 +1699,9 @@ hist_enable_get_trigger_ops(char *cmd, char *param)
 
 static void hist_enable_unreg_all(struct trace_event_file *file)
 {
-	struct event_trigger_data *test;
+	struct event_trigger_data *test, *n;
 
-	list_for_each_entry_rcu(test, &file->triggers, list) {
+	list_for_each_entry_safe(test, n, &file->triggers, list) {
 		if (test->cmd_ops->trigger_type == ETT_HIST_ENABLE) {
 			list_del_rcu(&test->list);
 			update_cond_flag(file);
