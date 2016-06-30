@@ -186,7 +186,10 @@ static ssize_t intel_dsi_host_transfer(struct mipi_dsi_host *host,
 	/* ->rx_len is set only for reads */
 	if (msg->rx_len) {
 		data_mask = GEN_READ_DATA_AVAIL;
-		if (wait_for((I915_READ(MIPI_INTR_STAT(port)) & data_mask) == data_mask, 50))
+		if (intel_wait_for_register(dev_priv,
+					    MIPI_INTR_STAT(port),
+					    data_mask, data_mask,
+					    50))
 			DRM_ERROR("Timeout waiting for read data.\n");
 
 		read_data(dev_priv, data_reg, msg->rx_buf, msg->rx_len);
