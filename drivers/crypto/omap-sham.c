@@ -1334,7 +1334,7 @@ static struct ahash_alg algs_sha1_md5[] = {
 	.halg.base	= {
 		.cra_name		= "sha1",
 		.cra_driver_name	= "omap-sha1",
-		.cra_priority		= 100,
+		.cra_priority		= 400,
 		.cra_flags		= CRYPTO_ALG_TYPE_AHASH |
 						CRYPTO_ALG_KERN_DRIVER_ONLY |
 						CRYPTO_ALG_ASYNC |
@@ -1357,7 +1357,7 @@ static struct ahash_alg algs_sha1_md5[] = {
 	.halg.base	= {
 		.cra_name		= "md5",
 		.cra_driver_name	= "omap-md5",
-		.cra_priority		= 100,
+		.cra_priority		= 400,
 		.cra_flags		= CRYPTO_ALG_TYPE_AHASH |
 						CRYPTO_ALG_KERN_DRIVER_ONLY |
 						CRYPTO_ALG_ASYNC |
@@ -1381,7 +1381,7 @@ static struct ahash_alg algs_sha1_md5[] = {
 	.halg.base	= {
 		.cra_name		= "hmac(sha1)",
 		.cra_driver_name	= "omap-hmac-sha1",
-		.cra_priority		= 100,
+		.cra_priority		= 400,
 		.cra_flags		= CRYPTO_ALG_TYPE_AHASH |
 						CRYPTO_ALG_KERN_DRIVER_ONLY |
 						CRYPTO_ALG_ASYNC |
@@ -1406,7 +1406,7 @@ static struct ahash_alg algs_sha1_md5[] = {
 	.halg.base	= {
 		.cra_name		= "hmac(md5)",
 		.cra_driver_name	= "omap-hmac-md5",
-		.cra_priority		= 100,
+		.cra_priority		= 400,
 		.cra_flags		= CRYPTO_ALG_TYPE_AHASH |
 						CRYPTO_ALG_KERN_DRIVER_ONLY |
 						CRYPTO_ALG_ASYNC |
@@ -1434,7 +1434,7 @@ static struct ahash_alg algs_sha224_sha256[] = {
 	.halg.base	= {
 		.cra_name		= "sha224",
 		.cra_driver_name	= "omap-sha224",
-		.cra_priority		= 100,
+		.cra_priority		= 400,
 		.cra_flags		= CRYPTO_ALG_TYPE_AHASH |
 						CRYPTO_ALG_ASYNC |
 						CRYPTO_ALG_NEED_FALLBACK,
@@ -1456,7 +1456,7 @@ static struct ahash_alg algs_sha224_sha256[] = {
 	.halg.base	= {
 		.cra_name		= "sha256",
 		.cra_driver_name	= "omap-sha256",
-		.cra_priority		= 100,
+		.cra_priority		= 400,
 		.cra_flags		= CRYPTO_ALG_TYPE_AHASH |
 						CRYPTO_ALG_ASYNC |
 						CRYPTO_ALG_NEED_FALLBACK,
@@ -1479,7 +1479,7 @@ static struct ahash_alg algs_sha224_sha256[] = {
 	.halg.base	= {
 		.cra_name		= "hmac(sha224)",
 		.cra_driver_name	= "omap-hmac-sha224",
-		.cra_priority		= 100,
+		.cra_priority		= 400,
 		.cra_flags		= CRYPTO_ALG_TYPE_AHASH |
 						CRYPTO_ALG_ASYNC |
 						CRYPTO_ALG_NEED_FALLBACK,
@@ -1503,7 +1503,7 @@ static struct ahash_alg algs_sha224_sha256[] = {
 	.halg.base	= {
 		.cra_name		= "hmac(sha256)",
 		.cra_driver_name	= "omap-hmac-sha256",
-		.cra_priority		= 100,
+		.cra_priority		= 400,
 		.cra_flags		= CRYPTO_ALG_TYPE_AHASH |
 						CRYPTO_ALG_ASYNC |
 						CRYPTO_ALG_NEED_FALLBACK,
@@ -1529,7 +1529,7 @@ static struct ahash_alg algs_sha384_sha512[] = {
 	.halg.base	= {
 		.cra_name		= "sha384",
 		.cra_driver_name	= "omap-sha384",
-		.cra_priority		= 100,
+		.cra_priority		= 400,
 		.cra_flags		= CRYPTO_ALG_TYPE_AHASH |
 						CRYPTO_ALG_ASYNC |
 						CRYPTO_ALG_NEED_FALLBACK,
@@ -1551,7 +1551,7 @@ static struct ahash_alg algs_sha384_sha512[] = {
 	.halg.base	= {
 		.cra_name		= "sha512",
 		.cra_driver_name	= "omap-sha512",
-		.cra_priority		= 100,
+		.cra_priority		= 400,
 		.cra_flags		= CRYPTO_ALG_TYPE_AHASH |
 						CRYPTO_ALG_ASYNC |
 						CRYPTO_ALG_NEED_FALLBACK,
@@ -1574,7 +1574,7 @@ static struct ahash_alg algs_sha384_sha512[] = {
 	.halg.base	= {
 		.cra_name		= "hmac(sha384)",
 		.cra_driver_name	= "omap-hmac-sha384",
-		.cra_priority		= 100,
+		.cra_priority		= 400,
 		.cra_flags		= CRYPTO_ALG_TYPE_AHASH |
 						CRYPTO_ALG_ASYNC |
 						CRYPTO_ALG_NEED_FALLBACK,
@@ -1598,7 +1598,7 @@ static struct ahash_alg algs_sha384_sha512[] = {
 	.halg.base	= {
 		.cra_name		= "hmac(sha512)",
 		.cra_driver_name	= "omap-hmac-sha512",
-		.cra_priority		= 100,
+		.cra_priority		= 400,
 		.cra_flags		= CRYPTO_ALG_TYPE_AHASH |
 						CRYPTO_ALG_ASYNC |
 						CRYPTO_ALG_NEED_FALLBACK,
