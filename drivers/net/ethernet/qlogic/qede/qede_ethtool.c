@@ -37,6 +37,7 @@ static const struct {
 } qede_rqstats_arr[] = {
 	QEDE_RQSTAT(rx_hw_errors),
 	QEDE_RQSTAT(rx_alloc_errors),
+	QEDE_RQSTAT(rx_ip_frags),
 };
 
 #define QEDE_NUM_RQSTATS ARRAY_SIZE(qede_rqstats_arr)

@@ -235,6 +235,7 @@ struct qede_rx_queue {
 
 	u64			rx_hw_errors;
 	u64			rx_alloc_errors;
+	u64			rx_ip_frags;
 };
 
 union db_prod {

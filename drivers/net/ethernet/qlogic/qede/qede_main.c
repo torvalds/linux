@@ -1348,6 +1348,20 @@ static u8 qede_check_csum(u16 flag)
 		return qede_check_tunn_csum(flag);
 }
 
+static bool qede_pkt_is_ip_fragmented(struct eth_fast_path_rx_reg_cqe *cqe,
+				      u16 flag)
+{
+	u8 tun_pars_flg = cqe->tunnel_pars_flags.flags;
+
+	if ((tun_pars_flg & (ETH_TUNNEL_PARSING_FLAGS_IPV4_FRAGMENT_MASK <<
+			     ETH_TUNNEL_PARSING_FLAGS_IPV4_FRAGMENT_SHIFT)) ||
+	    (flag & (PARSING_AND_ERR_FLAGS_IPV4FRAG_MASK <<
+		     PARSING_AND_ERR_FLAGS_IPV4FRAG_SHIFT)))
+		return true;
+
+	return false;
+}
+
 static int qede_rx_int(struct qede_fastpath *fp, int budget)
 {
 	struct qede_dev *edev = fp->edev;
@@ -1426,6 +1440,12 @@ static int qede_rx_int(struct qede_fastpath *fp, int budget)
 
 		csum_flag = qede_check_csum(parse_flag);
 		if (unlikely(csum_flag == QEDE_CSUM_ERROR)) {
+			if (qede_pkt_is_ip_fragmented(&cqe->fast_path_regular,
+						      parse_flag)) {
+				rxq->rx_ip_frags++;
+				goto alloc_skb;
+			}
+
 			DP_NOTICE(edev,
 				  "CQE in CONS = %u has error, flags = %x, dropping incoming packet\n",
 				  sw_comp_cons, parse_flag);
@@ -1434,6 +1454,7 @@ static int qede_rx_int(struct qede_fastpath *fp, int budget)
 			goto next_cqe;
 		}
 
+alloc_skb:
 		skb = netdev_alloc_skb(edev->ndev, QEDE_RX_HDR_SIZE);
 		if (unlikely(!skb)) {
 			DP_NOTICE(edev,
