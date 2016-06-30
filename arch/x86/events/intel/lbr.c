@@ -323,7 +323,7 @@ static inline u64 rdlbr_to(unsigned int idx)
 {
 	u64 val;
 
-	rdmsrl(x86_pmu.lbr_from + idx, val);
+	rdmsrl(x86_pmu.lbr_to + idx, val);
 
 	return val;
 }
