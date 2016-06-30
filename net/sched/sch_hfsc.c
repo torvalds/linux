@@ -940,7 +940,7 @@ static void
 hfsc_change_fsc(struct hfsc_class *cl, struct tc_service_curve *fsc)
 {
 	sc2isc(fsc, &cl->cl_fsc);
-	rtsc_init(&cl->cl_virtual, &cl->cl_fsc, cl->cl_vt, cl->cl_total);
+	rtsc_init(&cl->cl_virtual, &cl->cl_fsc, cl->cl_vtoff + cl->cl_vt, cl->cl_total);
 	cl->cl_flags |= HFSC_FSC;
 }
 
