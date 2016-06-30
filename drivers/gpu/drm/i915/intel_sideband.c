@@ -256,8 +256,11 @@ void intel_sbi_write(struct drm_i915_private *dev_priv, u16 reg, u32 value,
 		tmp = SBI_CTL_DEST_MPHY | SBI_CTL_OP_IOWR;
 	I915_WRITE(SBI_CTL_STAT, SBI_BUSY | tmp);
 
-	if (wait_for((I915_READ(SBI_CTL_STAT) & (SBI_BUSY | SBI_RESPONSE_FAIL)) == 0,
-				100)) {
+	if (intel_wait_for_register(dev_priv,
+				    SBI_CTL_STAT,
+				    SBI_BUSY | SBI_RESPONSE_FAIL,
+				    0,
+				    100)) {
 		DRM_ERROR("timeout waiting for SBI to complete write transaction\n");
 		return;
 	}
