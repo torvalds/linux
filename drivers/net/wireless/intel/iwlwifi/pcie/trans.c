@@ -1950,6 +1950,48 @@ static void iwl_trans_pcie_block_txq_ptrs(struct iwl_trans *trans, bool block)
 
 #define IWL_FLUSH_WAIT_MS	2000
 
+void iwl_trans_pcie_log_scd_error(struct iwl_trans *trans, struct iwl_txq *txq)
+{
+	struct iwl_trans_pcie *trans_pcie = IWL_TRANS_GET_PCIE_TRANS(trans);
+	u32 scd_sram_addr;
+	u8 buf[16];
+	int cnt;
+
+	IWL_ERR(trans, "Current SW read_ptr %d write_ptr %d\n",
+		txq->q.read_ptr, txq->q.write_ptr);
+
+	scd_sram_addr = trans_pcie->scd_base_addr +
+			SCD_TX_STTS_QUEUE_OFFSET(txq->q.id);
+	iwl_trans_read_mem_bytes(trans, scd_sram_addr, buf, sizeof(buf));
+
+	iwl_print_hex_error(trans, buf, sizeof(buf));
+
+	for (cnt = 0; cnt < FH_TCSR_CHNL_NUM; cnt++)
+		IWL_ERR(trans, "FH TRBs(%d) = 0x%08x\n", cnt,
+			iwl_read_direct32(trans, FH_TX_TRB_REG(cnt)));
+
+	for (cnt = 0; cnt < trans->cfg->base_params->num_of_queues; cnt++) {
+		u32 status = iwl_read_prph(trans, SCD_QUEUE_STATUS_BITS(cnt));
+		u8 fifo = (status >> SCD_QUEUE_STTS_REG_POS_TXF) & 0x7;
+		bool active = !!(status & BIT(SCD_QUEUE_STTS_REG_POS_ACTIVE));
+		u32 tbl_dw =
+			iwl_trans_read_mem32(trans, trans_pcie->scd_base_addr +
+					     SCD_TRANS_TBL_OFFSET_QUEUE(cnt));
+
+		if (cnt & 0x1)
+			tbl_dw = (tbl_dw & 0xFFFF0000) >> 16;
+		else
+			tbl_dw = tbl_dw & 0x0000FFFF;
+
+		IWL_ERR(trans,
+			"Q %d is %sactive and mapped to fifo %d ra_tid 0x%04x [%d,%d]\n",
+			cnt, active ? "" : "in", fifo, tbl_dw,
+			iwl_read_prph(trans, SCD_QUEUE_RDPTR(cnt)) &
+				(TFD_QUEUE_SIZE_MAX - 1),
+			iwl_read_prph(trans, SCD_QUEUE_WRPTR(cnt)));
+	}
+}
+
 static int iwl_trans_pcie_wait_txq_empty(struct iwl_trans *trans, u32 txq_bm)
 {
 	struct iwl_trans_pcie *trans_pcie = IWL_TRANS_GET_PCIE_TRANS(trans);
@@ -1957,8 +1999,6 @@ static int iwl_trans_pcie_wait_txq_empty(struct iwl_trans *trans, u32 txq_bm)
 	struct iwl_queue *q;
 	int cnt;
 	unsigned long now = jiffies;
-	u32 scd_sram_addr;
-	u8 buf[16];
 	int ret = 0;
 
 	/* waiting for all the tx frames complete might take a while */
@@ -1998,42 +2038,8 @@ static int iwl_trans_pcie_wait_txq_empty(struct iwl_trans *trans, u32 txq_bm)
 		IWL_DEBUG_TX_QUEUES(trans, "Queue %d is now empty.\n", cnt);
 	}
 
-	if (!ret)
-		return 0;
-
-	IWL_ERR(trans, "Current SW read_ptr %d write_ptr %d\n",
-		txq->q.read_ptr, txq->q.write_ptr);
-
-	scd_sram_addr = trans_pcie->scd_base_addr +
-			SCD_TX_STTS_QUEUE_OFFSET(txq->q.id);
-	iwl_trans_read_mem_bytes(trans, scd_sram_addr, buf, sizeof(buf));
-
-	iwl_print_hex_error(trans, buf, sizeof(buf));
-
-	for (cnt = 0; cnt < FH_TCSR_CHNL_NUM; cnt++)
-		IWL_ERR(trans, "FH TRBs(%d) = 0x%08x\n", cnt,
-			iwl_read_direct32(trans, FH_TX_TRB_REG(cnt)));
-
-	for (cnt = 0; cnt < trans->cfg->base_params->num_of_queues; cnt++) {
-		u32 status = iwl_read_prph(trans, SCD_QUEUE_STATUS_BITS(cnt));
-		u8 fifo = (status >> SCD_QUEUE_STTS_REG_POS_TXF) & 0x7;
-		bool active = !!(status & BIT(SCD_QUEUE_STTS_REG_POS_ACTIVE));
-		u32 tbl_dw =
-			iwl_trans_read_mem32(trans, trans_pcie->scd_base_addr +
-					     SCD_TRANS_TBL_OFFSET_QUEUE(cnt));
-
-		if (cnt & 0x1)
-			tbl_dw = (tbl_dw & 0xFFFF0000) >> 16;
-		else
-			tbl_dw = tbl_dw & 0x0000FFFF;
-
-		IWL_ERR(trans,
-			"Q %d is %sactive and mapped to fifo %d ra_tid 0x%04x [%d,%d]\n",
-			cnt, active ? "" : "in", fifo, tbl_dw,
-			iwl_read_prph(trans, SCD_QUEUE_RDPTR(cnt)) &
-				(TFD_QUEUE_SIZE_MAX - 1),
-			iwl_read_prph(trans, SCD_QUEUE_WRPTR(cnt)));
-	}
+	if (ret)
+		iwl_trans_pcie_log_scd_error(trans, txq);
 
 	return ret;
 }
