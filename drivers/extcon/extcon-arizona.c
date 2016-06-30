@@ -1149,10 +1149,13 @@ static irqreturn_t arizona_jackdet(int irq, void *data)
 					 info->micd_ranges[i].key, 0);
 		input_sync(info->input);
 
-		ret = extcon_update_state(info->edev, 0xffffffff, 0);
-		if (ret != 0)
-			dev_err(arizona->dev, "Removal report failed: %d\n",
-				ret);
+		for (i = 0; i < ARRAY_SIZE(arizona_cable) - 1; i++) {
+			ret = extcon_set_cable_state_(info->edev,
+					arizona_cable[i], false);
+			if (ret != 0)
+				dev_err(arizona->dev,
+					"Removal report failed: %d\n", ret);
+		}
 
 		regmap_update_bits(arizona->regmap,
 				   ARIZONA_JACK_DETECT_DEBOUNCE,
