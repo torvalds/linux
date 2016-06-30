@@ -132,12 +132,8 @@ config SUNXI_RSB
 	  with various RSB based devices, such as AXP223, AXP8XX PMICs,
 	  and AC100/AC200 ICs.
 
-# TODO: This uses pm_clk_*() symbols that aren't exported in v4.7 and hence
-# the driver will fail to build as a module. However there are patches to
-# address that queued for v4.8, so this can be turned into a tristate symbol
-# after v4.8-rc1.
 config TEGRA_ACONNECT
-	bool "Tegra ACONNECT Bus Driver"
+	tristate "Tegra ACONNECT Bus Driver"
 	depends on ARCH_TEGRA_210_SOC
 	depends on OF && PM
 	select PM_CLK
