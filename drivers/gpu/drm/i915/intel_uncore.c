@@ -1609,13 +1609,74 @@ static int gen6_reset_engines(struct drm_i915_private *dev_priv,
 	return ret;
 }
 
-static int wait_for_register_fw(struct drm_i915_private *dev_priv,
-				i915_reg_t reg,
-				const u32 mask,
-				const u32 value,
-				const unsigned long timeout_ms)
+/**
+ * intel_wait_for_register_fw - wait until register matches expected state
+ * @dev_priv: the i915 device
+ * @reg: the register to read
+ * @mask: mask to apply to register value
+ * @value: expected value
+ * @timeout_ms: timeout in millisecond
+ *
+ * This routine waits until the target register @reg contains the expected
+ * @value after applying the @mask, i.e. it waits until
+ *   (I915_READ_FW(@reg) & @mask) == @value
+ * Otherwise, the wait will timeout after @timeout_ms milliseconds.
+ *
+ * Note that this routine assumes the caller holds forcewake asserted, it is
+ * not suitable for very long waits. See intel_wait_for_register() if you
+ * wish to wait without holding forcewake for the duration (i.e. you expect
+ * the wait to be slow).
+ *
+ * Returns 0 if the register matches the desired condition, or -ETIMEOUT.
+ */
+int intel_wait_for_register_fw(struct drm_i915_private *dev_priv,
+			       i915_reg_t reg,
+			       const u32 mask,
+			       const u32 value,
+			       const unsigned long timeout_ms)
 {
-	return wait_for((I915_READ_FW(reg) & mask) == value, timeout_ms);
+#define done ((I915_READ_FW(reg) & mask) == value)
+	int ret = wait_for_us(done, 2);
+	if (ret)
+		ret = wait_for(done, timeout_ms);
+	return ret;
+#undef done
+}
+
+/**
+ * intel_wait_for_register - wait until register matches expected state
+ * @dev_priv: the i915 device
+ * @reg: the register to read
+ * @mask: mask to apply to register value
+ * @value: expected value
+ * @timeout_ms: timeout in millisecond
+ *
+ * This routine waits until the target register @reg contains the expected
+ * @value after applying the @mask, i.e. it waits until
+ *   (I915_READ(@reg) & @mask) == @value
+ * Otherwise, the wait will timeout after @timeout_ms milliseconds.
+ *
+ * Returns 0 if the register matches the desired condition, or -ETIMEOUT.
+ */
+int intel_wait_for_register(struct drm_i915_private *dev_priv,
+			    i915_reg_t reg,
+			    const u32 mask,
+			    const u32 value,
+			    const unsigned long timeout_ms)
+{
+
+	unsigned fw =
+		intel_uncore_forcewake_for_reg(dev_priv, reg, FW_REG_READ);
+	int ret;
+
+	intel_uncore_forcewake_get(dev_priv, fw);
+	ret = wait_for_us((I915_READ_FW(reg) & mask) == value, 2);
+	intel_uncore_forcewake_put(dev_priv, fw);
+	if (ret)
+		ret = wait_for((I915_READ_NOTRACE(reg) & mask) == value,
+			       timeout_ms);
+
+	return ret;
 }
 
 static int gen8_request_engine_reset(struct intel_engine_cs *engine)
@@ -1626,11 +1687,11 @@ static int gen8_request_engine_reset(struct intel_engine_cs *engine)
 	I915_WRITE_FW(RING_RESET_CTL(engine->mmio_base),
 		      _MASKED_BIT_ENABLE(RESET_CTL_REQUEST_RESET));
 
-	ret = wait_for_register_fw(dev_priv,
-				   RING_RESET_CTL(engine->mmio_base),
-				   RESET_CTL_READY_TO_RESET,
-				   RESET_CTL_READY_TO_RESET,
-				   700);
+	ret = intel_wait_for_register_fw(dev_priv,
+					 RING_RESET_CTL(engine->mmio_base),
+					 RESET_CTL_READY_TO_RESET,
+					 RESET_CTL_READY_TO_RESET,
+					 700);
 	if (ret)
 		DRM_ERROR("%s: reset request timeout\n", engine->name);
 
