@@ -4486,7 +4486,9 @@ void hsw_disable_ips(struct intel_crtc *crtc)
 		WARN_ON(sandybridge_pcode_write(dev_priv, DISPLAY_IPS_CONTROL, 0));
 		mutex_unlock(&dev_priv->rps.hw_lock);
 		/* wait for pcode to finish disabling IPS, which may take up to 42ms */
-		if (wait_for((I915_READ(IPS_CTL) & IPS_ENABLE) == 0, 42))
+		if (intel_wait_for_register(dev_priv,
+					    IPS_CTL, IPS_ENABLE, 0,
+					    42))
 			DRM_ERROR("Timed out waiting for IPS disable\n");
 	} else {
 		I915_WRITE(IPS_CTL, 0);
