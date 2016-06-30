@@ -359,7 +359,8 @@ static void sync_rcu_exp_select_cpus(struct rcu_state *rsp,
 			struct rcu_dynticks *rdtp = &per_cpu(rcu_dynticks, cpu);
 
 			if (raw_smp_processor_id() == cpu ||
-			    !(atomic_add_return(0, &rdtp->dynticks) & 0x1))
+			    !(atomic_add_return(0, &rdtp->dynticks) & 0x1) ||
+			    !(rnp->qsmaskinitnext & rdp->grpmask))
 				mask_ofl_test |= rdp->grpmask;
 		}
 		mask_ofl_ipi = rnp->expmask & ~mask_ofl_test;
