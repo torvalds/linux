@@ -7,9 +7,10 @@
 #include <linux/list.h>
 #include <linux/errno.h>
 #include <linux/dmapool.h>
+#include <linux/dmaengine.h>
 
-#include "musb_dma.h"
 #include "musb_core.h"
+#include "musb_dma.h"
 
 /* CPPI RX/TX state RAM */
 
@@ -122,5 +123,25 @@ struct cppi {
 
 /* CPPI IRQ handler */
 extern irqreturn_t cppi_interrupt(int, void *);
+
+struct cppi41_dma_channel {
+	struct dma_channel channel;
+	struct cppi41_dma_controller *controller;
+	struct musb_hw_ep *hw_ep;
+	struct dma_chan *dc;
+	dma_cookie_t cookie;
+	u8 port_num;
+	u8 is_tx;
+	u8 is_allocated;
+	u8 usb_toggle;
+
+	dma_addr_t buf_addr;
+	u32 total_len;
+	u32 prog_len;
+	u32 transferred;
+	u32 packet_sz;
+	struct list_head tx_check;
+	int tx_zlp;
+};
 
 #endif				/* end of ifndef _CPPI_DMA_H_ */

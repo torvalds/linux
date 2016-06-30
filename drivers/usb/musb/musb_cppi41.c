@@ -5,6 +5,7 @@
 #include <linux/platform_device.h>
 #include <linux/of.h>
 
+#include "cppi_dma.h"
 #include "musb_core.h"
 
 #define RNDIS_REG(x) (0x80 + ((x - 1) * 4))
@@ -21,26 +22,6 @@
 #define USB_CTRL_RX_MODE	0x74
 #define USB_CTRL_AUTOREQ	0xd0
 #define USB_TDOWN		0xd8
-
-struct cppi41_dma_channel {
-	struct dma_channel channel;
-	struct cppi41_dma_controller *controller;
-	struct musb_hw_ep *hw_ep;
-	struct dma_chan *dc;
-	dma_cookie_t cookie;
-	u8 port_num;
-	u8 is_tx;
-	u8 is_allocated;
-	u8 usb_toggle;
-
-	dma_addr_t buf_addr;
-	u32 total_len;
-	u32 prog_len;
-	u32 transferred;
-	u32 packet_sz;
-	struct list_head tx_check;
-	int tx_zlp;
-};
 
 #define MUSB_DMA_NUM_CHANNELS 15
 
