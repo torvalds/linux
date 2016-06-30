@@ -1,0 +1,76 @@
+.. -*- coding: utf-8; mode: rst -*-
+
+.. _vidioc-g-std:
+
+********************************
+ioctl VIDIOC_G_STD, VIDIOC_S_STD
+********************************
+
+*man VIDIOC_G_STD(2)*
+
+VIDIOC_S_STD
+Query or select the video standard of the current input
+
+
+Synopsis
+========
+
+.. c:function:: int ioctl( int fd, int request, v4l2_std_id *argp )
+
+.. c:function:: int ioctl( int fd, int request, const v4l2_std_id *argp )
+
+Arguments
+=========
+
+``fd``
+    File descriptor returned by :ref:`open() <func-open>`.
+
+``request``
+    VIDIOC_G_STD, VIDIOC_S_STD
+
+``argp``
+
+
+Description
+===========
+
+To query and select the current video standard applications use the
+``VIDIOC_G_STD`` and ``VIDIOC_S_STD`` ioctls which take a pointer to a
+:ref:`v4l2_std_id <v4l2-std-id>` type as argument. ``VIDIOC_G_STD``
+can return a single flag or a set of flags as in struct
+:ref:`v4l2_standard <v4l2-standard>` field ``id``. The flags must be
+unambiguous such that they appear in only one enumerated
+:c:type:`struct v4l2_standard` structure.
+
+``VIDIOC_S_STD`` accepts one or more flags, being a write-only ioctl it
+does not return the actual new standard as ``VIDIOC_G_STD`` does. When
+no flags are given or the current input does not support the requested
+standard the driver returns an EINVAL error code. When the standard set
+is ambiguous drivers may return EINVAL or choose any of the requested
+standards. If the current input or output does not support standard
+video timings (e.g. if :ref:`VIDIOC_ENUMINPUT <vidioc-enuminput>`
+does not set the ``V4L2_IN_CAP_STD`` flag), then ENODATA error code is
+returned.
+
+
+Return Value
+============
+
+On success 0 is returned, on error -1 and the ``errno`` variable is set
+appropriately. The generic error codes are described at the
+:ref:`Generic Error Codes <gen-errors>` chapter.
+
+EINVAL
+    The ``VIDIOC_S_STD`` parameter was unsuitable.
+
+ENODATA
+    Standard video timings are not supported for this input or output.
+
+
+.. ------------------------------------------------------------------------------
+.. This file was automatically converted from DocBook-XML with the dbxml
+.. library (https://github.com/return42/sphkerneldoc). The origin XML comes
+.. from the linux kernel, refer to:
+..
+.. * https://github.com/torvalds/linux/tree/master/Documentation/DocBook
+.. ------------------------------------------------------------------------------

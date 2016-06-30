@@ -1,0 +1,31 @@
+.. -*- coding: utf-8; mode: rst -*-
+
+.. _effect:
+
+************************
+Effect Devices Interface
+************************
+
+    **Note**
+
+    This interface has been be suspended from the V4L2 API implemented
+    in Linux 2.6 until we have more experience with effect device
+    interfaces.
+
+A V4L2 video effect device can do image effects, filtering, or combine
+two or more images or image streams. For example video transitions or
+wipes. Applications send data to be processed and receive the result
+data either with :ref:`read() <func-read>` and
+:ref:`write() <func-write>` functions, or through the streaming I/O
+mechanism.
+
+[to do]
+
+
+.. ------------------------------------------------------------------------------
+.. This file was automatically converted from DocBook-XML with the dbxml
+.. library (https://github.com/return42/sphkerneldoc). The origin XML comes
+.. from the linux kernel, refer to:
+..
+.. * https://github.com/torvalds/linux/tree/master/Documentation/DocBook
+.. ------------------------------------------------------------------------------

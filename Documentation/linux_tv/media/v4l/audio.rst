@@ -1,0 +1,97 @@
+.. -*- coding: utf-8; mode: rst -*-
+
+.. _audio:
+
+************************
+Audio Inputs and Outputs
+************************
+
+Audio inputs and outputs are physical connectors of a device. Video
+capture devices have inputs, output devices have outputs, zero or more
+each. Radio devices have no audio inputs or outputs. They have exactly
+one tuner which in fact *is* an audio source, but this API associates
+tuners with video inputs or outputs only, and radio devices have none of
+these. [1]_ A connector on a TV card to loop back the received audio
+signal to a sound card is not considered an audio output.
+
+Audio and video inputs and outputs are associated. Selecting a video
+source also selects an audio source. This is most evident when the video
+and audio source is a tuner. Further audio connectors can combine with
+more than one video input or output. Assumed two composite video inputs
+and two audio inputs exist, there may be up to four valid combinations.
+The relation of video and audio connectors is defined in the
+``audioset`` field of the respective struct
+:ref:`v4l2_input <v4l2-input>` or struct
+:ref:`v4l2_output <v4l2-output>`, where each bit represents the index
+number, starting at zero, of one audio input or output.
+
+To learn about the number and attributes of the available inputs and
+outputs applications can enumerate them with the
+:ref:`VIDIOC_ENUMAUDIO <vidioc-enumaudio>` and
+:ref:`VIDIOC_ENUMAUDOUT <vidioc-enumaudioout>` ioctl, respectively.
+The struct :ref:`v4l2_audio <v4l2-audio>` returned by the
+``VIDIOC_ENUMAUDIO`` ioctl also contains signal status information
+applicable when the current audio input is queried.
+
+The :ref:`VIDIOC_G_AUDIO <vidioc-g-audio>` and
+:ref:`VIDIOC_G_AUDOUT <vidioc-g-audioout>` ioctls report the current
+audio input and output, respectively. Note that, unlike
+:ref:`VIDIOC_G_INPUT <vidioc-g-input>` and
+:ref:`VIDIOC_G_OUTPUT <vidioc-g-output>` these ioctls return a
+structure as ``VIDIOC_ENUMAUDIO`` and ``VIDIOC_ENUMAUDOUT`` do, not just
+an index.
+
+To select an audio input and change its properties applications call the
+:ref:`VIDIOC_S_AUDIO <vidioc-g-audio>` ioctl. To select an audio
+output (which presently has no changeable properties) applications call
+the :ref:`VIDIOC_S_AUDOUT <vidioc-g-audioout>` ioctl.
+
+Drivers must implement all audio input ioctls when the device has
+multiple selectable audio inputs, all audio output ioctls when the
+device has multiple selectable audio outputs. When the device has any
+audio inputs or outputs the driver must set the ``V4L2_CAP_AUDIO`` flag
+in the struct :ref:`v4l2_capability <v4l2-capability>` returned by
+the :ref:`VIDIOC_QUERYCAP <vidioc-querycap>` ioctl.
+
+
+.. code-block:: c
+
+    struct v4l2_audio audio;
+
+    memset(&audio, 0, sizeof(audio));
+
+    if (-1 == ioctl(fd, VIDIOC_G_AUDIO, &audio)) {
+        perror("VIDIOC_G_AUDIO");
+        exit(EXIT_FAILURE);
+    }
+
+    printf("Current input: %s\\n", audio.name);
+
+
+.. code-block:: c
+
+    struct v4l2_audio audio;
+
+    memset(&audio, 0, sizeof(audio)); /* clear audio.mode, audio.reserved */
+
+    audio.index = 0;
+
+    if (-1 == ioctl(fd, VIDIOC_S_AUDIO, &audio)) {
+        perror("VIDIOC_S_AUDIO");
+        exit(EXIT_FAILURE);
+    }
+
+.. [1]
+   Actually struct :ref:`v4l2_audio <v4l2-audio>` ought to have a
+   ``tuner`` field like struct :ref:`v4l2_input <v4l2-input>`, not
+   only making the API more consistent but also permitting radio devices
+   with multiple tuners.
+
+
+.. ------------------------------------------------------------------------------
+.. This file was automatically converted from DocBook-XML with the dbxml
+.. library (https://github.com/return42/sphkerneldoc). The origin XML comes
+.. from the linux kernel, refer to:
+..
+.. * https://github.com/torvalds/linux/tree/master/Documentation/DocBook
+.. ------------------------------------------------------------------------------

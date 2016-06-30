@@ -1,0 +1,32 @@
+.. -*- coding: utf-8; mode: rst -*-
+
+.. _V4L2-PIX-FMT-SBGGR10ALAW8:
+
+***********************************************************************************************************************************************
+V4L2_PIX_FMT_SBGGR10ALAW8 ('aBA8'), V4L2_PIX_FMT_SGBRG10ALAW8 ('aGA8'), V4L2_PIX_FMT_SGRBG10ALAW8 ('agA8'), V4L2_PIX_FMT_SRGGB10ALAW8 ('aRA8'),
+***********************************************************************************************************************************************
+
+*man V4L2_PIX_FMT_SBGGR10ALAW8(2)*
+
+V4L2_PIX_FMT_SGBRG10ALAW8
+V4L2_PIX_FMT_SGRBG10ALAW8
+V4L2_PIX_FMT_SRGGB10ALAW8
+10-bit Bayer formats compressed to 8 bits
+
+
+Description
+===========
+
+These four pixel formats are raw sRGB / Bayer formats with 10 bits per
+color compressed to 8 bits each, using the A-LAW algorithm. Each color
+component consumes 8 bits of memory. In other respects this format is
+similar to :ref:`V4L2-PIX-FMT-SRGGB8`.
+
+
+.. ------------------------------------------------------------------------------
+.. This file was automatically converted from DocBook-XML with the dbxml
+.. library (https://github.com/return42/sphkerneldoc). The origin XML comes
+.. from the linux kernel, refer to:
+..
+.. * https://github.com/torvalds/linux/tree/master/Documentation/DocBook
+.. ------------------------------------------------------------------------------
