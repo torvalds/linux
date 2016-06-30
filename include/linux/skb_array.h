@@ -151,12 +151,12 @@ static inline int skb_array_init(struct skb_array *a, int size, gfp_t gfp)
 	return ptr_ring_init(&a->ring, size, gfp);
 }
 
-void __skb_array_destroy_skb(void *ptr)
+static void __skb_array_destroy_skb(void *ptr)
 {
 	kfree_skb(ptr);
 }
 
-int skb_array_resize(struct skb_array *a, int size, gfp_t gfp)
+static inline int skb_array_resize(struct skb_array *a, int size, gfp_t gfp)
 {
 	return ptr_ring_resize(&a->ring, size, gfp, __skb_array_destroy_skb);
 }
