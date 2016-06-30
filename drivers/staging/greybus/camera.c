@@ -432,6 +432,9 @@ static int gb_camera_configure_streams(struct gb_camera *gcam,
 		goto done;
 	}
 
+	*flags = resp->flags;
+	*num_streams = resp->num_streams;
+
 	for (i = 0; i < nstreams; ++i) {
 		struct gb_camera_stream_config_response *cfg = &resp->config[i];
 
@@ -451,11 +454,8 @@ static int gb_camera_configure_streams(struct gb_camera *gcam,
 	}
 
 	if ((resp->flags & GB_CAMERA_CONFIGURE_STREAMS_ADJUSTED) ||
-	    (*flags & GB_CAMERA_CONFIGURE_STREAMS_TEST_ONLY)) {
-		*flags = resp->flags;
-		*num_streams = resp->num_streams;
+	    (req->flags & GB_CAMERA_CONFIGURE_STREAMS_TEST_ONLY))
 		goto done;
-	}
 
 	if (gcam->state == GB_CAMERA_STATE_CONFIGURED) {
 		gb_camera_teardown_data_connection(gcam);
@@ -469,14 +469,13 @@ static int gb_camera_configure_streams(struct gb_camera *gcam,
 			gb_operation_sync(gcam->connection,
 					  GB_CAMERA_TYPE_CONFIGURE_STREAMS,
 					  req, req_size, resp, resp_size);
+			*flags = 0;
+			*num_streams = 0;
 			goto done;
 		}
 
 		gcam->state = GB_CAMERA_STATE_CONFIGURED;
 	}
-
-	*flags = resp->flags;
-	*num_streams = resp->num_streams;
 
 done:
 	mutex_unlock(&gcam->mutex);
