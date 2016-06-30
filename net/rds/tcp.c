@@ -329,11 +329,8 @@ static void rds_tcp_destroy_conns(void)
 	INIT_LIST_HEAD(&rds_tcp_conn_list);
 	spin_unlock_irq(&rds_tcp_conn_lock);
 
-	list_for_each_entry_safe(tc, _tc, &tmp_list, t_tcp_node) {
-		if (tc->conn->c_passive)
-			rds_conn_destroy(tc->conn->c_passive);
+	list_for_each_entry_safe(tc, _tc, &tmp_list, t_tcp_node)
 		rds_conn_destroy(tc->conn);
-	}
 }
 
 static void rds_tcp_exit(void);
@@ -512,8 +509,6 @@ static void rds_tcp_kill_sock(struct net *net)
 		sk = tc->t_sock->sk;
 		sk->sk_prot->disconnect(sk, 0);
 		tcp_done(sk);
-		if (tc->conn->c_passive)
-			rds_conn_destroy(tc->conn->c_passive);
 		rds_conn_destroy(tc->conn);
 	}
 }
