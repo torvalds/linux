@@ -212,6 +212,82 @@ DEFINE_EVENT(musb_urb, musb_urb_deq,
 	TP_ARGS(musb, urb)
 );
 
+DECLARE_EVENT_CLASS(musb_req,
+	TP_PROTO(struct musb_request *req),
+	TP_ARGS(req),
+	TP_STRUCT__entry(
+		__field(struct usb_request *, req)
+		__field(u8, is_tx)
+		__field(u8, epnum)
+		__field(int, status)
+		__field(unsigned int, buf_len)
+		__field(unsigned int, actual_len)
+		__field(unsigned int, zero)
+		__field(unsigned int, short_not_ok)
+		__field(unsigned int, no_interrupt)
+	),
+	TP_fast_assign(
+		__entry->req = &req->request;
+		__entry->is_tx = req->tx;
+		__entry->epnum = req->epnum;
+		__entry->status = req->request.status;
+		__entry->buf_len = req->request.length;
+		__entry->actual_len = req->request.actual;
+		__entry->zero = req->request.zero;
+		__entry->short_not_ok = req->request.short_not_ok;
+		__entry->no_interrupt = req->request.no_interrupt;
+	),
+	TP_printk("%p, ep%d %s, %s%s%s, len %d/%d, status %d",
+			__entry->req, __entry->epnum,
+			__entry->is_tx ? "tx/IN" : "rx/OUT",
+			__entry->zero ? "Z" : "z",
+			__entry->short_not_ok ? "S" : "s",
+			__entry->no_interrupt ? "I" : "i",
+			__entry->actual_len, __entry->buf_len,
+			__entry->status
+	)
+);
+
+DEFINE_EVENT(musb_req, musb_req_gb,
+	TP_PROTO(struct musb_request *req),
+	TP_ARGS(req)
+);
+
+DEFINE_EVENT(musb_req, musb_req_tx,
+	TP_PROTO(struct musb_request *req),
+	TP_ARGS(req)
+);
+
+DEFINE_EVENT(musb_req, musb_req_rx,
+	TP_PROTO(struct musb_request *req),
+	TP_ARGS(req)
+);
+
+DEFINE_EVENT(musb_req, musb_req_alloc,
+	TP_PROTO(struct musb_request *req),
+	TP_ARGS(req)
+);
+
+DEFINE_EVENT(musb_req, musb_req_free,
+	TP_PROTO(struct musb_request *req),
+	TP_ARGS(req)
+);
+
+DEFINE_EVENT(musb_req, musb_req_start,
+	TP_PROTO(struct musb_request *req),
+	TP_ARGS(req)
+);
+
+DEFINE_EVENT(musb_req, musb_req_enq,
+	TP_PROTO(struct musb_request *req),
+	TP_ARGS(req)
+);
+
+DEFINE_EVENT(musb_req, musb_req_deq,
+	TP_PROTO(struct musb_request *req),
+	TP_ARGS(req)
+);
+
 #endif /* __MUSB_TRACE_H */
 
 /* this part has to be here */

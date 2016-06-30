@@ -44,6 +44,7 @@
 #include <linux/slab.h>
 
 #include "musb_core.h"
+#include "musb_trace.h"
 
 
 /* ----------------------------------------------------------------------- */
@@ -167,15 +168,7 @@ __acquires(ep->musb->lock)
 	if (!dma_mapping_error(&musb->g.dev, request->dma))
 		unmap_dma_buffer(req, musb);
 
-	if (request->status == 0)
-		musb_dbg(musb, "%s done request %p,  %d/",
-				ep->end_point.name, request,
-				req->request.actual, req->request.length);
-	else
-		musb_dbg(musb, "%s request %p, %d/%d fault %d",
-				ep->end_point.name, request,
-				req->request.actual, req->request.length,
-				request->status);
+	trace_musb_req_gb(req);
 	usb_gadget_giveback_request(&req->ep->end_point, &req->request);
 	spin_lock(&musb->lock);
 	ep->busy = busy;
@@ -449,6 +442,7 @@ void musb_g_tx(struct musb *musb, u8 epnum)
 	req = next_request(musb_ep);
 	request = &req->request;
 
+	trace_musb_req_tx(req);
 	csr = musb_readw(epio, MUSB_TXCSR);
 	musb_dbg(musb, "<== %s, txcsr %04x", musb_ep->end_point.name, csr);
 
@@ -847,6 +841,7 @@ void musb_g_rx(struct musb *musb, u8 epnum)
 	if (!req)
 		return;
 
+	trace_musb_req_rx(req);
 	request = &req->request;
 
 	csr = musb_readw(epio, MUSB_RXCSR);
@@ -891,11 +886,6 @@ void musb_g_rx(struct musb *musb, u8 epnum)
 			MUSB_RXCSR_P_WZC_BITS | csr);
 
 		request->actual += musb_ep->dma->actual_len;
-
-		musb_dbg(musb, "RXCSR%d %04x, dma off, %04x, len %zu, req %p",
-			epnum, csr,
-			musb_readw(epio, MUSB_RXCSR),
-			musb_ep->dma->actual_len, request);
 
 #if defined(CONFIG_USB_INVENTRA_DMA) || defined(CONFIG_USB_TUSB_OMAP_DMA) || \
 	defined(CONFIG_USB_UX500_DMA)
@@ -1194,6 +1184,7 @@ struct usb_request *musb_alloc_request(struct usb_ep *ep, gfp_t gfp_flags)
 	request->epnum = musb_ep->current_epnum;
 	request->ep = musb_ep;
 
+	trace_musb_req_alloc(request);
 	return &request->request;
 }
 
@@ -1203,7 +1194,10 @@ struct usb_request *musb_alloc_request(struct usb_ep *ep, gfp_t gfp_flags)
  */
 void musb_free_request(struct usb_ep *ep, struct usb_request *req)
 {
-	kfree(to_musb_request(req));
+	struct musb_request *request = to_musb_request(req);
+
+	trace_musb_req_free(request);
+	kfree(request);
 }
 
 static LIST_HEAD(buffers);
@@ -1220,10 +1214,7 @@ struct free_record {
  */
 void musb_ep_restart(struct musb *musb, struct musb_request *req)
 {
-	musb_dbg(musb, "<== %s request %p len %u on hw_ep%d",
-		req->tx ? "TX/IN" : "RX/OUT",
-		&req->request, req->request.length, req->epnum);
-
+	trace_musb_req_start(req);
 	musb_ep_select(musb->mregs, req->epnum);
 	if (req->tx)
 		txstate(musb, req);
@@ -1254,7 +1245,7 @@ static int musb_gadget_queue(struct usb_ep *ep, struct usb_request *req,
 	if (request->ep != musb_ep)
 		return -EINVAL;
 
-	musb_dbg(musb, "<== to %s request=%p", ep->name, req);
+	trace_musb_req_enq(request);
 
 	/* request is mine now... */
 	request->request.actual = 0;
@@ -1296,8 +1287,10 @@ static int musb_gadget_dequeue(struct usb_ep *ep, struct usb_request *request)
 	int			status = 0;
 	struct musb		*musb = musb_ep->musb;
 
-	if (!ep || !request || to_musb_request(request)->ep != musb_ep)
+	if (!ep || !request || req->ep != musb_ep)
 		return -EINVAL;
+
+	trace_musb_req_deq(req);
 
 	spin_lock_irqsave(&musb->lock, flags);
 
