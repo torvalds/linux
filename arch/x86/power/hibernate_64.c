@@ -19,6 +19,7 @@
 #include <asm/mtrr.h>
 #include <asm/sections.h>
 #include <asm/suspend.h>
+#include <asm/tlbflush.h>
 
 /* Defined in hibernate_asm_64.S */
 extern asmlinkage __visible int restore_image(void);
@@ -28,6 +29,7 @@ extern asmlinkage __visible int restore_image(void);
  * kernel's text (this value is passed in the image header).
  */
 unsigned long restore_jump_address __visible;
+unsigned long jump_address_phys;
 
 /*
  * Value of the cr3 register from before the hibernation (this value is passed
@@ -37,7 +39,43 @@ unsigned long restore_cr3 __visible;
 
 pgd_t *temp_level4_pgt __visible;
 
-void *relocated_restore_code __visible;
+unsigned long relocated_restore_code __visible;
+
+static int set_up_temporary_text_mapping(void)
+{
+	pmd_t *pmd;
+	pud_t *pud;
+
+	/*
+	 * The new mapping only has to cover the page containing the image
+	 * kernel's entry point (jump_address_phys), because the switch over to
+	 * it is carried out by relocated code running from a page allocated
+	 * specifically for this purpose and covered by the identity mapping, so
+	 * the temporary kernel text mapping is only needed for the final jump.
+	 * Moreover, in that mapping the virtual address of the image kernel's
+	 * entry point must be the same as its virtual address in the image
+	 * kernel (restore_jump_address), so the image kernel's
+	 * restore_registers() code doesn't find itself in a different area of
+	 * the virtual address space after switching over to the original page
+	 * tables used by the image kernel.
+	 */
+	pud = (pud_t *)get_safe_page(GFP_ATOMIC);
+	if (!pud)
+		return -ENOMEM;
+
+	pmd = (pmd_t *)get_safe_page(GFP_ATOMIC);
+	if (!pmd)
+		return -ENOMEM;
+
+	set_pmd(pmd + pmd_index(restore_jump_address),
+		__pmd((jump_address_phys & PMD_MASK) | __PAGE_KERNEL_LARGE_EXEC));
+	set_pud(pud + pud_index(restore_jump_address),
+		__pud(__pa(pmd) | _KERNPG_TABLE));
+	set_pgd(temp_level4_pgt + pgd_index(restore_jump_address),
+		__pgd(__pa(pud) | _KERNPG_TABLE));
+
+	return 0;
+}
 
 static void *alloc_pgt_page(void *context)
 {
@@ -59,9 +97,10 @@ static int set_up_temporary_mappings(void)
 	if (!temp_level4_pgt)
 		return -ENOMEM;
 
-	/* It is safe to reuse the original kernel mapping */
-	set_pgd(temp_level4_pgt + pgd_index(__START_KERNEL_map),
-		init_level4_pgt[pgd_index(__START_KERNEL_map)]);
+	/* Prepare a temporary mapping for the kernel text */
+	result = set_up_temporary_text_mapping();
+	if (result)
+		return result;
 
 	/* Set up the direct mapping from scratch */
 	for (i = 0; i < nr_pfn_mapped; i++) {
@@ -78,19 +117,50 @@ static int set_up_temporary_mappings(void)
 	return 0;
 }
 
+static int relocate_restore_code(void)
+{
+	pgd_t *pgd;
+	pud_t *pud;
+
+	relocated_restore_code = get_safe_page(GFP_ATOMIC);
+	if (!relocated_restore_code)
+		return -ENOMEM;
+
+	memcpy((void *)relocated_restore_code, &core_restore_code, PAGE_SIZE);
+
+	/* Make the page containing the relocated code executable */
+	pgd = (pgd_t *)__va(read_cr3()) + pgd_index(relocated_restore_code);
+	pud = pud_offset(pgd, relocated_restore_code);
+	if (pud_large(*pud)) {
+		set_pud(pud, __pud(pud_val(*pud) & ~_PAGE_NX));
+	} else {
+		pmd_t *pmd = pmd_offset(pud, relocated_restore_code);
+
+		if (pmd_large(*pmd)) {
+			set_pmd(pmd, __pmd(pmd_val(*pmd) & ~_PAGE_NX));
+		} else {
+			pte_t *pte = pte_offset_kernel(pmd, relocated_restore_code);
+
+			set_pte(pte, __pte(pte_val(*pte) & ~_PAGE_NX));
+		}
+	}
+	__flush_tlb_all();
+
+	return 0;
+}
+
 int swsusp_arch_resume(void)
 {
 	int error;
 
 	/* We have got enough memory and from now on we cannot recover */
-	if ((error = set_up_temporary_mappings()))
+	error = set_up_temporary_mappings();
+	if (error)
 		return error;
 
-	relocated_restore_code = (void *)get_safe_page(GFP_ATOMIC);
-	if (!relocated_restore_code)
-		return -ENOMEM;
-	memcpy(relocated_restore_code, &core_restore_code,
-	       &restore_registers - &core_restore_code);
+	error = relocate_restore_code();
+	if (error)
+		return error;
 
 	restore_image();
 	return 0;
@@ -109,11 +179,12 @@ int pfn_is_nosave(unsigned long pfn)
 
 struct restore_data_record {
 	unsigned long jump_address;
+	unsigned long jump_address_phys;
 	unsigned long cr3;
 	unsigned long magic;
 };
 
-#define RESTORE_MAGIC	0x0123456789ABCDEFUL
+#define RESTORE_MAGIC	0x123456789ABCDEF0UL
 
 /**
  *	arch_hibernation_header_save - populate the architecture specific part
@@ -126,7 +197,8 @@ int arch_hibernation_header_save(void *addr, unsigned int max_size)
 
 	if (max_size < sizeof(struct restore_data_record))
 		return -EOVERFLOW;
-	rdr->jump_address = restore_jump_address;
+	rdr->jump_address = (unsigned long)&restore_registers;
+	rdr->jump_address_phys = __pa_symbol(&restore_registers);
 	rdr->cr3 = restore_cr3;
 	rdr->magic = RESTORE_MAGIC;
 	return 0;
@@ -142,6 +214,7 @@ int arch_hibernation_header_restore(void *addr)
 	struct restore_data_record *rdr = addr;
 
 	restore_jump_address = rdr->jump_address;
+	jump_address_phys = rdr->jump_address_phys;
 	restore_cr3 = rdr->cr3;
 	return (rdr->magic == RESTORE_MAGIC) ? 0 : -EINVAL;
 }
