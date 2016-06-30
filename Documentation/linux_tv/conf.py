@@ -25,7 +25,7 @@ kernel_doc_mode = "kernel-doc"
 # ------------------------------------------------------------------------------
 
 project   = u'LINUX MEDIA INFRASTRUCTURE API'
-copyright = u'2009-2015 : LinuxTV Developers'
+copyright = u'2009-2016 : LinuxTV Developers'
 author    = u'The LinuxTV Developers'
 
 # The version info for the project you're documenting, acts as replacement for

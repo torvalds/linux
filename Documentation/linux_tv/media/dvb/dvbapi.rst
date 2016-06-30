@@ -1,5 +1,7 @@
 .. -*- coding: utf-8; mode: rst -*-
 
+.. include:: <isonum.txt>
+
 .. _dvbapi:
 
 #############
@@ -41,9 +43,9 @@ Revision and Copyright
 :address:   m.chehab@samsung.com
 :contrib:   Ported document to Docbook XML.
 
-**Copyright** 2002, 2003 : Convergence GmbH
+**Copyright** |copy| 2002, 2003 : Convergence GmbH
 
-**Copyright** 2009-2015 : Mauro Carvalho Chehab
+**Copyright** |copy| 2009-2016 : Mauro Carvalho Chehab
 
 :revision: 2.1.0 / 2015-05-29 (*mcc*)
 

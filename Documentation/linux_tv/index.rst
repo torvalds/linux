@@ -1,10 +1,12 @@
 .. -*- coding: utf-8; mode: rst -*-
 
+.. include:: <isonum.txt>
+
 ##############################
 LINUX MEDIA INFRASTRUCTURE API
 ##############################
 
-**Copyright** 2009-2015 : LinuxTV Developers
+**Copyright** |copy| 2009-2016 : LinuxTV Developers
 
 Permission is granted to copy, distribute and/or modify this document
 under the terms of the GNU Free Documentation License, Version 1.1 or
