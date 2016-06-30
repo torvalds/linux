@@ -234,8 +234,11 @@ static void bxt_disable_dsi_pll(struct intel_encoder *encoder)
 	 * PLL lock should deassert within 200us.
 	 * Wait up to 1ms before timing out.
 	 */
-	if (wait_for((I915_READ(BXT_DSI_PLL_ENABLE)
-					& BXT_DSI_PLL_LOCKED) == 0, 1))
+	if (intel_wait_for_register(dev_priv,
+				    BXT_DSI_PLL_ENABLE,
+				    BXT_DSI_PLL_LOCKED,
+				    0,
+				    1))
 		DRM_ERROR("Timeout waiting for PLL lock deassertion\n");
 }
 
