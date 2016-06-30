@@ -305,6 +305,7 @@ struct mlx5e_sq_dma {
 enum {
 	MLX5E_SQ_STATE_WAKE_TXQ_ENABLE,
 	MLX5E_SQ_STATE_BF_ENABLE,
+	MLX5E_SQ_STATE_TX_TIMEOUT,
 };
 
 struct mlx5e_ico_wqe_info {
@@ -589,6 +590,7 @@ void mlx5e_cq_error_event(struct mlx5_core_cq *mcq, enum mlx5_event event);
 int mlx5e_napi_poll(struct napi_struct *napi, int budget);
 bool mlx5e_poll_tx_cq(struct mlx5e_cq *cq, int napi_budget);
 int mlx5e_poll_rx_cq(struct mlx5e_cq *cq, int budget);
+void mlx5e_free_tx_descs(struct mlx5e_sq *sq);
 
 void mlx5e_handle_rx_cqe(struct mlx5e_rq *rq, struct mlx5_cqe64 *cqe);
 void mlx5e_handle_rx_cqe_mpwrq(struct mlx5e_rq *rq, struct mlx5_cqe64 *cqe);

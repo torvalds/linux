@@ -39,6 +39,13 @@
 #include "eswitch.h"
 #include "vxlan.h"
 
+enum {
+	MLX5_EN_QP_FLUSH_TIMEOUT_MS	= 5000,
+	MLX5_EN_QP_FLUSH_MSLEEP_QUANT	= 20,
+	MLX5_EN_QP_FLUSH_MAX_ITER	= MLX5_EN_QP_FLUSH_TIMEOUT_MS /
+					  MLX5_EN_QP_FLUSH_MSLEEP_QUANT,
+};
+
 struct mlx5e_rq_param {
 	u32                        rqc[MLX5_ST_SZ_DW(rqc)];
 	struct mlx5_wq_param       wq;
@@ -782,6 +789,9 @@ static inline void netif_tx_disable_queue(struct netdev_queue *txq)
 
 static void mlx5e_close_sq(struct mlx5e_sq *sq)
 {
+	int tout = 0;
+	int err;
+
 	if (sq->txq) {
 		clear_bit(MLX5E_SQ_STATE_WAKE_TXQ_ENABLE, &sq->state);
 		/* prevent netif_tx_wake_queue */
@@ -792,15 +802,24 @@ static void mlx5e_close_sq(struct mlx5e_sq *sq)
 		if (mlx5e_sq_has_room_for(sq, 1))
 			mlx5e_send_nop(sq, true);
 
-		mlx5e_modify_sq(sq, MLX5_SQC_STATE_RDY, MLX5_SQC_STATE_ERR);
+		err = mlx5e_modify_sq(sq, MLX5_SQC_STATE_RDY,
+				      MLX5_SQC_STATE_ERR);
+		if (err)
+			set_bit(MLX5E_SQ_STATE_TX_TIMEOUT, &sq->state);
 	}
 
-	while (sq->cc != sq->pc) /* wait till sq is empty */
-		msleep(20);
+	/* wait till sq is empty, unless a TX timeout occurred on this SQ */
+	while (sq->cc != sq->pc &&
+	       !test_bit(MLX5E_SQ_STATE_TX_TIMEOUT, &sq->state)) {
+		msleep(MLX5_EN_QP_FLUSH_MSLEEP_QUANT);
+		if (tout++ > MLX5_EN_QP_FLUSH_MAX_ITER)
+			set_bit(MLX5E_SQ_STATE_TX_TIMEOUT, &sq->state);
+	}
 
 	/* avoid destroying sq before mlx5e_poll_tx_cq() is done with it */
 	napi_synchronize(&sq->channel->napi);
 
+	mlx5e_free_tx_descs(sq);
 	mlx5e_disable_sq(sq);
 	mlx5e_destroy_sq(sq);
 }
