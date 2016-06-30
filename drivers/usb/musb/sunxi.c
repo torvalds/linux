@@ -354,13 +354,13 @@ static void sunxi_musb_disable(struct musb *musb)
 	clear_bit(SUNXI_MUSB_FL_ENABLED, &glue->flags);
 }
 
-struct dma_controller *sunxi_musb_dma_controller_create(struct musb *musb,
-						    void __iomem *base)
+static struct dma_controller *
+sunxi_musb_dma_controller_create(struct musb *musb, void __iomem *base)
 {
 	return NULL;
 }
 
-void sunxi_musb_dma_controller_destroy(struct dma_controller *c)
+static void sunxi_musb_dma_controller_destroy(struct dma_controller *c)
 {
 }
 
