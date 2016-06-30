@@ -1598,7 +1598,9 @@ static void _chv_enable_pll(struct intel_crtc *crtc,
 	I915_WRITE(DPLL(pipe), pipe_config->dpll_hw_state.dpll);
 
 	/* Check PLL is locked */
-	if (wait_for(((I915_READ(DPLL(pipe)) & DPLL_LOCK_VLV) == DPLL_LOCK_VLV), 1))
+	if (intel_wait_for_register(dev_priv,
+				    DPLL(pipe), DPLL_LOCK_VLV, DPLL_LOCK_VLV,
+				    1))
 		DRM_ERROR("PLL %d failed to lock\n", pipe);
 }
 
