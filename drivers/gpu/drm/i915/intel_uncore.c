@@ -1553,20 +1553,16 @@ static int ironlake_do_reset(struct drm_i915_private *dev_priv,
 static int gen6_hw_domain_reset(struct drm_i915_private *dev_priv,
 				u32 hw_domain_mask)
 {
-	int ret;
-
 	/* GEN6_GDRST is not in the gt power well, no need to check
 	 * for fifo space for the write or forcewake the chip for
 	 * the read
 	 */
 	__raw_i915_write32(dev_priv, GEN6_GDRST, hw_domain_mask);
 
-#define ACKED ((__raw_i915_read32(dev_priv, GEN6_GDRST) & hw_domain_mask) == 0)
 	/* Spin waiting for the device to ack the reset requests */
-	ret = wait_for(ACKED, 500);
-#undef ACKED
-
-	return ret;
+	return intel_wait_for_register_fw(dev_priv,
+					  GEN6_GDRST, hw_domain_mask, 0,
+					  500);
 }
 
 /**
