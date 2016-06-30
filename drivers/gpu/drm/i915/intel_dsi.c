@@ -679,8 +679,9 @@ static void intel_dsi_clear_device_ready(struct intel_encoder *encoder)
 		/* Wait till Clock lanes are in LP-00 state for MIPI Port A
 		 * only. MIPI Port C has no similar bit for checking
 		 */
-		if (wait_for(((I915_READ(port_ctrl) & AFE_LATCHOUT)
-						== 0x00000), 30))
+		if (intel_wait_for_register(dev_priv,
+					    port_ctrl, AFE_LATCHOUT, 0,
+					    30))
 			DRM_ERROR("DSI LP not going Low\n");
 
 		/* Disable MIPI PHY transparent latch */
