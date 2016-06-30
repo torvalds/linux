@@ -1441,15 +1441,15 @@ static int hist_register_trigger(char *glob, struct event_trigger_ops *ops,
 		goto out;
 	}
 
+	if (hist_data->attrs->pause)
+		data->paused = true;
+
 	if (named_data) {
 		destroy_hist_data(data->private_data);
 		data->private_data = named_data->private_data;
 		set_named_trigger_data(data, named_data);
 		data->ops = &event_hist_trigger_named_ops;
 	}
-
-	if (hist_data->attrs->pause)
-		data->paused = true;
 
 	if (data->ops->init) {
 		ret = data->ops->init(data->ops, data);
