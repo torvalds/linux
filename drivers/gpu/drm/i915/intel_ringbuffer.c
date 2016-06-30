@@ -515,8 +515,9 @@ static void intel_ring_setup_status_page(struct intel_engine_cs *engine)
 		I915_WRITE(reg,
 			   _MASKED_BIT_ENABLE(INSTPM_TLB_INVALIDATE |
 					      INSTPM_SYNC_FLUSH));
-		if (wait_for((I915_READ(reg) & INSTPM_SYNC_FLUSH) == 0,
-			     1000))
+		if (intel_wait_for_register(dev_priv,
+					    reg, INSTPM_SYNC_FLUSH, 0,
+					    1000))
 			DRM_ERROR("%s: wait for SyncFlush to complete for TLB invalidation timed out\n",
 				  engine->name);
 	}
