@@ -124,7 +124,9 @@ static void i8xx_fbc_deactivate(struct drm_i915_private *dev_priv)
 	I915_WRITE(FBC_CONTROL, fbc_ctl);
 
 	/* Wait for compressing bit to clear */
-	if (wait_for((I915_READ(FBC_STATUS) & FBC_STAT_COMPRESSING) == 0, 10)) {
+	if (intel_wait_for_register(dev_priv,
+				    FBC_STATUS, FBC_STAT_COMPRESSING, 0,
+				    10)) {
 		DRM_DEBUG_KMS("FBC idle timed out\n");
 		return;
 	}
