@@ -778,6 +778,20 @@ update_vf(struct hfsc_class *cl, unsigned int len, u64 cur_time)
 		else
 			go_passive = 0;
 
+		/* update vt */
+		cl->cl_vt = rtsc_y2x(&cl->cl_virtual, cl->cl_total)
+			    - cl->cl_vtoff + cl->cl_vtadj;
+
+		/*
+		 * if vt of the class is smaller than cvtmin,
+		 * the class was skipped in the past due to non-fit.
+		 * if so, we need to adjust vtadj.
+		 */
+		if (cl->cl_vt < cl->cl_parent->cl_cvtmin) {
+			cl->cl_vtadj += cl->cl_parent->cl_cvtmin - cl->cl_vt;
+			cl->cl_vt = cl->cl_parent->cl_cvtmin;
+		}
+
 		if (go_passive) {
 			/* no more active child, going passive */
 
@@ -794,25 +808,10 @@ update_vf(struct hfsc_class *cl, unsigned int len, u64 cur_time)
 			continue;
 		}
 
-		/*
-		 * update vt and f
-		 */
-		cl->cl_vt = rtsc_y2x(&cl->cl_virtual, cl->cl_total)
-			    - cl->cl_vtoff + cl->cl_vtadj;
-
-		/*
-		 * if vt of the class is smaller than cvtmin,
-		 * the class was skipped in the past due to non-fit.
-		 * if so, we need to adjust vtadj.
-		 */
-		if (cl->cl_vt < cl->cl_parent->cl_cvtmin) {
-			cl->cl_vtadj += cl->cl_parent->cl_cvtmin - cl->cl_vt;
-			cl->cl_vt = cl->cl_parent->cl_cvtmin;
-		}
-
 		/* update the vt tree */
 		vttree_update(cl);
 
+		/* update f */
 		if (cl->cl_flags & HFSC_USC) {
 			cl->cl_myf = cl->cl_myfadj + rtsc_y2x(&cl->cl_ulimit,
 							      cl->cl_total);
