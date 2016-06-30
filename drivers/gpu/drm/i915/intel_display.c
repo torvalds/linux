@@ -5721,7 +5721,9 @@ static void
 skl_dpll0_disable(struct drm_i915_private *dev_priv)
 {
 	I915_WRITE(LCPLL1_CTL, I915_READ(LCPLL1_CTL) & ~LCPLL_PLL_ENABLE);
-	if (wait_for(!(I915_READ(LCPLL1_CTL) & LCPLL_PLL_LOCK), 1))
+	if (intel_wait_for_register(dev_priv,
+				   LCPLL1_CTL, LCPLL_PLL_LOCK, 0,
+				   1))
 		DRM_ERROR("Couldn't disable DPLL0\n");
 
 	dev_priv->cdclk_pll.vco = 0;
