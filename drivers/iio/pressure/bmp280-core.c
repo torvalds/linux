@@ -30,6 +30,7 @@
 #include <linux/interrupt.h>
 #include <linux/irq.h> /* For irq_get_irq_data() */
 #include <linux/completion.h>
+#include <linux/pm_runtime.h>
 
 #include "bmp280.h"
 
@@ -336,6 +337,7 @@ static int bmp280_read_raw(struct iio_dev *indio_dev,
 	int ret;
 	struct bmp280_data *data = iio_priv(indio_dev);
 
+	pm_runtime_get_sync(data->dev);
 	mutex_lock(&data->lock);
 
 	switch (mask) {
@@ -380,6 +382,8 @@ static int bmp280_read_raw(struct iio_dev *indio_dev,
 	}
 
 	mutex_unlock(&data->lock);
+	pm_runtime_mark_last_busy(data->dev);
+	pm_runtime_put_autosuspend(data->dev);
 
 	return ret;
 }
@@ -444,6 +448,7 @@ static int bmp280_write_raw(struct iio_dev *indio_dev,
 
 	switch (mask) {
 	case IIO_CHAN_INFO_OVERSAMPLING_RATIO:
+		pm_runtime_get_sync(data->dev);
 		mutex_lock(&data->lock);
 		switch (chan->type) {
 		case IIO_HUMIDITYRELATIVE:
@@ -460,6 +465,8 @@ static int bmp280_write_raw(struct iio_dev *indio_dev,
 			break;
 		}
 		mutex_unlock(&data->lock);
+		pm_runtime_mark_last_busy(data->dev);
+		pm_runtime_put_autosuspend(data->dev);
 		break;
 	default:
 		return -EINVAL;
@@ -1021,12 +1028,29 @@ int bmp280_common_probe(struct device *dev,
 			goto out_disable_vdda;
 	}
 
+	/* Enable runtime PM */
+	pm_runtime_get_noresume(dev);
+	pm_runtime_set_active(dev);
+	pm_runtime_enable(dev);
+	/*
+	 * Set autosuspend to two orders of magnitude larger than the
+	 * start-up time.
+	 */
+	pm_runtime_set_autosuspend_delay(dev, data->start_up_time *100);
+	pm_runtime_use_autosuspend(dev);
+	pm_runtime_put(dev);
+
 	ret = iio_device_register(indio_dev);
 	if (ret)
-		goto out_disable_vdda;
+		goto out_runtime_pm_disable;
+
 
 	return 0;
 
+out_runtime_pm_disable:
+	pm_runtime_get_sync(data->dev);
+	pm_runtime_put_noidle(data->dev);
+	pm_runtime_disable(data->dev);
 out_disable_vdda:
 	regulator_disable(data->vdda);
 out_disable_vddd:
@@ -1041,11 +1065,50 @@ int bmp280_common_remove(struct device *dev)
 	struct bmp280_data *data = iio_priv(indio_dev);
 
 	iio_device_unregister(indio_dev);
+	pm_runtime_get_sync(data->dev);
+	pm_runtime_put_noidle(data->dev);
+	pm_runtime_disable(data->dev);
 	regulator_disable(data->vdda);
 	regulator_disable(data->vddd);
 	return 0;
 }
 EXPORT_SYMBOL(bmp280_common_remove);
+
+#ifdef CONFIG_PM
+static int bmp280_runtime_suspend(struct device *dev)
+{
+	struct bmp280_data *data = dev_get_drvdata(dev);
+	int ret;
+
+	ret = regulator_disable(data->vdda);
+	if (ret)
+		return ret;
+	return regulator_disable(data->vddd);
+}
+
+static int bmp280_runtime_resume(struct device *dev)
+{
+	struct bmp280_data *data = dev_get_drvdata(dev);
+	int ret;
+
+	ret = regulator_enable(data->vddd);
+	if (ret)
+		return ret;
+	ret = regulator_enable(data->vdda);
+	if (ret)
+		return ret;
+	msleep(data->start_up_time);
+	return data->chip_info->chip_config(data);
+}
+#endif /* CONFIG_PM */
+
+const struct dev_pm_ops bmp280_dev_pm_ops = {
+	SET_SYSTEM_SLEEP_PM_OPS(pm_runtime_force_suspend,
+				pm_runtime_force_resume)
+	SET_RUNTIME_PM_OPS(bmp280_runtime_suspend,
+			   bmp280_runtime_resume, NULL)
+};
+EXPORT_SYMBOL(bmp280_dev_pm_ops);
 
 MODULE_AUTHOR("Vlad Dogaru <vlad.dogaru@intel.com>");
 MODULE_DESCRIPTION("Driver for Bosch Sensortec BMP180/BMP280 pressure and temperature sensor");

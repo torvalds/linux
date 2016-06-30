@@ -78,6 +78,7 @@ static struct i2c_driver bmp280_i2c_driver = {
 		.name	= "bmp280",
 		.acpi_match_table = ACPI_PTR(bmp280_acpi_i2c_match),
 		.of_match_table = of_match_ptr(bmp280_of_i2c_match),
+		.pm = &bmp280_dev_pm_ops,
 	},
 	.probe		= bmp280_i2c_probe,
 	.remove		= bmp280_i2c_remove,
