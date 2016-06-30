@@ -482,27 +482,6 @@ static void unmap_hyp_range(pgd_t *pgdp, phys_addr_t start, u64 size)
 }
 
 /**
- * free_boot_hyp_pgd - free HYP boot page tables
- *
- * Free the HYP boot page tables. The bounce page is also freed.
- */
-void free_boot_hyp_pgd(void)
-{
-	mutex_lock(&kvm_hyp_pgd_mutex);
-
-	if (boot_hyp_pgd) {
-		unmap_hyp_range(boot_hyp_pgd, hyp_idmap_start, PAGE_SIZE);
-		free_pages((unsigned long)boot_hyp_pgd, hyp_pgd_order);
-		boot_hyp_pgd = NULL;
-	}
-
-	if (hyp_pgd)
-		unmap_hyp_range(hyp_pgd, hyp_idmap_start, PAGE_SIZE);
-
-	mutex_unlock(&kvm_hyp_pgd_mutex);
-}
-
-/**
  * free_hyp_pgds - free Hyp-mode page tables
  *
  * Assumes hyp_pgd is a page table used strictly in Hyp-mode and
@@ -516,11 +495,16 @@ void free_hyp_pgds(void)
 {
 	unsigned long addr;
 
-	free_boot_hyp_pgd();
-
 	mutex_lock(&kvm_hyp_pgd_mutex);
 
+	if (boot_hyp_pgd) {
+		unmap_hyp_range(boot_hyp_pgd, hyp_idmap_start, PAGE_SIZE);
+		free_pages((unsigned long)boot_hyp_pgd, hyp_pgd_order);
+		boot_hyp_pgd = NULL;
+	}
+
 	if (hyp_pgd) {
+		unmap_hyp_range(hyp_pgd, hyp_idmap_start, PAGE_SIZE);
 		for (addr = PAGE_OFFSET; virt_addr_valid(addr); addr += PGDIR_SIZE)
 			unmap_hyp_range(hyp_pgd, KERN_TO_HYP(addr), PGDIR_SIZE);
 		for (addr = VMALLOC_START; is_vmalloc_addr((void*)addr); addr += PGDIR_SIZE)
