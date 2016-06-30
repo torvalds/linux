@@ -1124,8 +1124,9 @@ static void intel_wait_for_pipe_off(struct intel_crtc *crtc)
 		i915_reg_t reg = PIPECONF(cpu_transcoder);
 
 		/* Wait for the Pipe State to go off */
-		if (wait_for((I915_READ(reg) & I965_PIPECONF_ACTIVE) == 0,
-			     100))
+		if (intel_wait_for_register(dev_priv,
+					    reg, I965_PIPECONF_ACTIVE, 0,
+					    100))
 			WARN(1, "pipe_off wait timed out\n");
 	} else {
 		/* Wait for the display line to settle */
