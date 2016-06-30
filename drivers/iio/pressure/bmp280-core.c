@@ -16,6 +16,7 @@
 #define pr_fmt(fmt) "bmp280: " fmt
 
 #include <linux/device.h>
+#include <linux/module.h>
 #include <linux/regmap.h>
 #include <linux/delay.h>
 #include <linux/iio/iio.h>
@@ -955,6 +956,7 @@ out_disable_vddd:
 	regulator_disable(data->vddd);
 	return ret;
 }
+EXPORT_SYMBOL(bmp280_common_probe);
 
 int bmp280_common_remove(struct device *dev)
 {
@@ -966,3 +968,8 @@ int bmp280_common_remove(struct device *dev)
 	regulator_disable(data->vddd);
 	return 0;
 }
+EXPORT_SYMBOL(bmp280_common_remove);
+
+MODULE_AUTHOR("Vlad Dogaru <vlad.dogaru@intel.com>");
+MODULE_DESCRIPTION("Driver for Bosch Sensortec BMP180/BMP280 pressure and temperature sensor");
+MODULE_LICENSE("GPL v2");
