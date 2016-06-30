@@ -332,6 +332,7 @@ static int mlx5e_create_rq(struct mlx5e_channel *c,
 		}
 		rq->handle_rx_cqe = mlx5e_handle_rx_cqe_mpwrq;
 		rq->alloc_wqe = mlx5e_alloc_rx_mpwqe;
+		rq->dealloc_wqe = mlx5e_dealloc_rx_mpwqe;
 
 		rq->mpwqe_stride_sz = BIT(priv->params.mpwqe_log_stride_sz);
 		rq->mpwqe_num_strides = BIT(priv->params.mpwqe_log_num_strides);
@@ -347,6 +348,7 @@ static int mlx5e_create_rq(struct mlx5e_channel *c,
 		}
 		rq->handle_rx_cqe = mlx5e_handle_rx_cqe;
 		rq->alloc_wqe = mlx5e_alloc_rx_wqe;
+		rq->dealloc_wqe = mlx5e_dealloc_rx_wqe;
 
 		rq->wqe_sz = (priv->params.lro_en) ?
 				priv->params.lro_wqe_sz :
@@ -552,17 +554,25 @@ err_destroy_rq:
 
 static void mlx5e_close_rq(struct mlx5e_rq *rq)
 {
+	int tout = 0;
+	int err;
+
 	clear_bit(MLX5E_RQ_STATE_POST_WQES_ENABLE, &rq->state);
 	napi_synchronize(&rq->channel->napi); /* prevent mlx5e_post_rx_wqes */
 
-	mlx5e_modify_rq_state(rq, MLX5_RQC_STATE_RDY, MLX5_RQC_STATE_ERR);
-	while (!mlx5_wq_ll_is_empty(&rq->wq))
-		msleep(20);
+	err = mlx5e_modify_rq_state(rq, MLX5_RQC_STATE_RDY, MLX5_RQC_STATE_ERR);
+	while (!mlx5_wq_ll_is_empty(&rq->wq) && !err &&
+	       tout++ < MLX5_EN_QP_FLUSH_MAX_ITER)
+		msleep(MLX5_EN_QP_FLUSH_MSLEEP_QUANT);
+
+	if (err || tout == MLX5_EN_QP_FLUSH_MAX_ITER)
+		set_bit(MLX5E_RQ_STATE_FLUSH_TIMEOUT, &rq->state);
 
 	/* avoid destroying rq before mlx5e_poll_rx_cq() is done with it */
 	napi_synchronize(&rq->channel->napi);
 
 	mlx5e_disable_rq(rq);
+	mlx5e_free_rx_descs(rq);
 	mlx5e_destroy_rq(rq);
 }
 

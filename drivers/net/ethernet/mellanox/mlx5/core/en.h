@@ -191,6 +191,7 @@ struct mlx5e_tstamp {
 enum {
 	MLX5E_RQ_STATE_POST_WQES_ENABLE,
 	MLX5E_RQ_STATE_UMR_WQE_IN_PROGRESS,
+	MLX5E_RQ_STATE_FLUSH_TIMEOUT,
 };
 
 struct mlx5e_cq {
@@ -220,6 +221,8 @@ typedef void (*mlx5e_fp_handle_rx_cqe)(struct mlx5e_rq *rq,
 typedef int (*mlx5e_fp_alloc_wqe)(struct mlx5e_rq *rq, struct mlx5e_rx_wqe *wqe,
 				  u16 ix);
 
+typedef void (*mlx5e_fp_dealloc_wqe)(struct mlx5e_rq *rq, u16 ix);
+
 struct mlx5e_dma_info {
 	struct page	*page;
 	dma_addr_t	addr;
@@ -241,6 +244,7 @@ struct mlx5e_rq {
 	struct mlx5e_cq        cq;
 	mlx5e_fp_handle_rx_cqe handle_rx_cqe;
 	mlx5e_fp_alloc_wqe     alloc_wqe;
+	mlx5e_fp_dealloc_wqe   dealloc_wqe;
 
 	unsigned long          state;
 	int                    ix;
@@ -592,12 +596,15 @@ int mlx5e_napi_poll(struct napi_struct *napi, int budget);
 bool mlx5e_poll_tx_cq(struct mlx5e_cq *cq, int napi_budget);
 int mlx5e_poll_rx_cq(struct mlx5e_cq *cq, int budget);
 void mlx5e_free_tx_descs(struct mlx5e_sq *sq);
+void mlx5e_free_rx_descs(struct mlx5e_rq *rq);
 
 void mlx5e_handle_rx_cqe(struct mlx5e_rq *rq, struct mlx5_cqe64 *cqe);
 void mlx5e_handle_rx_cqe_mpwrq(struct mlx5e_rq *rq, struct mlx5_cqe64 *cqe);
 bool mlx5e_post_rx_wqes(struct mlx5e_rq *rq);
 int mlx5e_alloc_rx_wqe(struct mlx5e_rq *rq, struct mlx5e_rx_wqe *wqe, u16 ix);
 int mlx5e_alloc_rx_mpwqe(struct mlx5e_rq *rq, struct mlx5e_rx_wqe *wqe, u16 ix);
+void mlx5e_dealloc_rx_wqe(struct mlx5e_rq *rq, u16 ix);
+void mlx5e_dealloc_rx_mpwqe(struct mlx5e_rq *rq, u16 ix);
 void mlx5e_post_rx_fragmented_mpwqe(struct mlx5e_rq *rq);
 void mlx5e_complete_rx_linear_mpwqe(struct mlx5e_rq *rq,
 				    struct mlx5_cqe64 *cqe,
