@@ -1961,8 +1961,8 @@ struct mwifiex_ie_types_btcoex_scan_time {
 	struct mwifiex_ie_types_header header;
 	u8 coex_scan;
 	u8 reserved;
-	u16 min_scan_time;
-	u16 max_scan_time;
+	__le16 min_scan_time;
+	__le16 max_scan_time;
 } __packed;
 
 struct mwifiex_ie_types_btcoex_aggr_win_size {
