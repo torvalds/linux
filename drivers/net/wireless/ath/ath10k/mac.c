@@ -2956,7 +2956,7 @@ static int ath10k_update_channel_list(struct ath10k *ar)
 			if (channel->flags & IEEE80211_CHAN_DISABLED)
 				continue;
 
-			ch->allow_ht   = true;
+			ch->allow_ht = true;
 
 			/* FIXME: when should we really allow VHT? */
 			ch->allow_vht = true;
