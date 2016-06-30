@@ -749,6 +749,7 @@ remove_finished_td:
 		/* Doesn't matter what we pass for status, since the core will
 		 * just overwrite it (because the URB has been unlinked).
 		 */
+		ep_ring = xhci_urb_to_transfer_ring(xhci, cur_td->urb);
 		if (ep_ring && cur_td->bounce_seg)
 			xhci_unmap_td_bounce_buffer(xhci, ep_ring, cur_td);
 		xhci_giveback_urb_in_irq(xhci, cur_td, 0);
