@@ -65,6 +65,9 @@ MODULE_FIRMWARE(I915_SKL_GUC_UCODE);
 #define I915_BXT_GUC_UCODE "i915/bxt_guc_ver8_7.bin"
 MODULE_FIRMWARE(I915_BXT_GUC_UCODE);
 
+#define I915_KBL_GUC_UCODE "i915/kbl_guc_ver9_14.bin"
+MODULE_FIRMWARE(I915_KBL_GUC_UCODE);
+
 /* User-friendly representation of an enum */
 const char *intel_guc_fw_status_repr(enum intel_guc_fw_status status)
 {
@@ -698,6 +701,10 @@ void intel_guc_init(struct drm_device *dev)
 		fw_path = I915_BXT_GUC_UCODE;
 		guc_fw->guc_fw_major_wanted = 8;
 		guc_fw->guc_fw_minor_wanted = 7;
+	} else if (IS_KABYLAKE(dev)) {
+		fw_path = I915_KBL_GUC_UCODE;
+		guc_fw->guc_fw_major_wanted = 9;
+		guc_fw->guc_fw_minor_wanted = 14;
 	} else {
 		fw_path = "";	/* unknown device */
 	}
