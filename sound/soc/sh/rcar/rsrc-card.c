@@ -20,6 +20,7 @@
 #include <sound/jack.h>
 #include <sound/soc.h>
 #include <sound/soc-dai.h>
+#include <sound/simple_card_utils.h>
 
 struct rsrc_card_of_data {
 	const char *prefix;
@@ -155,38 +156,6 @@ static int rsrc_card_be_hw_params_fixup(struct snd_soc_pcm_runtime *rtd,
 	if (priv->convert_channels)
 		channels->min =
 		channels->max = priv->convert_channels;
-
-	return 0;
-}
-
-static int rsrc_card_parse_daifmt(struct device_node *node,
-				  struct device_node *codec,
-				  struct rsrc_card_priv *priv,
-				  struct snd_soc_dai_link *dai_link,
-				  unsigned int *retfmt)
-{
-	struct device_node *bitclkmaster = NULL;
-	struct device_node *framemaster = NULL;
-	unsigned int daifmt;
-
-	daifmt = snd_soc_of_parse_daifmt(node, NULL,
-					 &bitclkmaster, &framemaster);
-	daifmt &= ~SND_SOC_DAIFMT_MASTER_MASK;
-
-	if (!bitclkmaster && !framemaster)
-		return -EINVAL;
-
-	if (codec == bitclkmaster)
-		daifmt |= (codec == framemaster) ?
-			SND_SOC_DAIFMT_CBM_CFM : SND_SOC_DAIFMT_CBM_CFS;
-	else
-		daifmt |= (codec == framemaster) ?
-			SND_SOC_DAIFMT_CBS_CFM : SND_SOC_DAIFMT_CBS_CFS;
-
-	of_node_put(bitclkmaster);
-	of_node_put(framemaster);
-
-	*retfmt = daifmt;
 
 	return 0;
 }
@@ -358,6 +327,7 @@ static int rsrc_card_dai_sub_link_of(struct device_node *node,
 static int rsrc_card_dai_link_of(struct device_node *node,
 				 struct rsrc_card_priv *priv)
 {
+	struct device *dev = rsrc_priv_to_dev(priv);
 	struct snd_soc_dai_link *dai_link;
 	struct device_node *np;
 	unsigned int daifmt = 0;
@@ -370,8 +340,8 @@ static int rsrc_card_dai_link_of(struct device_node *node,
 		dai_link = rsrc_priv_to_link(priv, i);
 
 		if (strcmp(np->name, "codec") == 0) {
-			ret = rsrc_card_parse_daifmt(node, np, priv,
-						     dai_link, &daifmt);
+			ret = asoc_simple_card_parse_daifmt(dev, node, np,
+							    NULL, &daifmt);
 			if (ret < 0)
 				return ret;
 			break;
