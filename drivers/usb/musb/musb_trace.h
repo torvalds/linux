@@ -23,6 +23,7 @@
 
 #include <linux/types.h>
 #include <linux/tracepoint.h>
+#include <linux/usb.h>
 #include "musb_core.h"
 
 #define MUSB_MSG_MAX   500
@@ -147,6 +148,68 @@ TRACE_EVENT(musb_isr,
 		__get_str(name), __entry->int_usb,
 		__entry->int_tx, __entry->int_rx
 	)
+);
+
+DECLARE_EVENT_CLASS(musb_urb,
+	TP_PROTO(struct musb *musb, struct urb *urb),
+	TP_ARGS(musb, urb),
+	TP_STRUCT__entry(
+		__string(name, dev_name(musb->controller))
+		__field(struct urb *, urb)
+		__field(unsigned int, pipe)
+		__field(int, status)
+		__field(unsigned int, flag)
+		__field(u32, buf_len)
+		__field(u32, actual_len)
+	),
+	TP_fast_assign(
+		__assign_str(name, dev_name(musb->controller));
+		__entry->urb = urb;
+		__entry->pipe = urb->pipe;
+		__entry->status = urb->status;
+		__entry->flag = urb->transfer_flags;
+		__entry->buf_len = urb->transfer_buffer_length;
+		__entry->actual_len = urb->actual_length;
+	),
+	TP_printk("%s: %p, dev%d ep%d%s, flag 0x%x, len %d/%d, status %d",
+			__get_str(name), __entry->urb,
+			usb_pipedevice(__entry->pipe),
+			usb_pipeendpoint(__entry->pipe),
+			usb_pipein(__entry->pipe) ? "in" : "out",
+			__entry->flag,
+			__entry->actual_len, __entry->buf_len,
+			__entry->status
+	)
+);
+
+DEFINE_EVENT(musb_urb, musb_urb_start,
+	TP_PROTO(struct musb *musb, struct urb *urb),
+	TP_ARGS(musb, urb)
+);
+
+DEFINE_EVENT(musb_urb, musb_urb_gb,
+	TP_PROTO(struct musb *musb, struct urb *urb),
+	TP_ARGS(musb, urb)
+);
+
+DEFINE_EVENT(musb_urb, musb_urb_rx,
+	TP_PROTO(struct musb *musb, struct urb *urb),
+	TP_ARGS(musb, urb)
+);
+
+DEFINE_EVENT(musb_urb, musb_urb_tx,
+	TP_PROTO(struct musb *musb, struct urb *urb),
+	TP_ARGS(musb, urb)
+);
+
+DEFINE_EVENT(musb_urb, musb_urb_enq,
+	TP_PROTO(struct musb *musb, struct urb *urb),
+	TP_ARGS(musb, urb)
+);
+
+DEFINE_EVENT(musb_urb, musb_urb_deq,
+	TP_PROTO(struct musb *musb, struct urb *urb),
+	TP_ARGS(musb, urb)
 );
 
 #endif /* __MUSB_TRACE_H */

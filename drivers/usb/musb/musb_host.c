@@ -44,6 +44,7 @@
 
 #include "musb_core.h"
 #include "musb_host.h"
+#include "musb_trace.h"
 
 /* MUSB HOST status 22-mar-2006
  *
@@ -225,8 +226,6 @@ musb_start_urb(struct musb *musb, int is_in, struct musb_qh *qh)
 	void			*buf = urb->transfer_buffer;
 	u32			offset = 0;
 	struct musb_hw_ep	*hw_ep = qh->hw_ep;
-	unsigned		pipe = urb->pipe;
-	u8			address = usb_pipedevice(pipe);
 	int			epnum = hw_ep->epnum;
 
 	/* initialize software qh state */
@@ -254,16 +253,7 @@ musb_start_urb(struct musb *musb, int is_in, struct musb_qh *qh)
 		len = urb->transfer_buffer_length - urb->actual_length;
 	}
 
-	musb_dbg(musb, "qh %p urb %p dev%d ep%d%s%s, hw_ep %d, %p/%d",
-			qh, urb, address, qh->epnum,
-			is_in ? "in" : "out",
-			({char *s; switch (qh->type) {
-			case USB_ENDPOINT_XFER_CONTROL:	s = ""; break;
-			case USB_ENDPOINT_XFER_BULK:	s = "-bulk"; break;
-			case USB_ENDPOINT_XFER_ISOC:	s = "-iso"; break;
-			default:			s = "-intr"; break;
-			} s; }),
-			epnum, buf + offset, len);
+	trace_musb_urb_start(musb, urb);
 
 	/* Configure endpoint */
 	musb_ep_set_qh(hw_ep, is_in, qh);
@@ -314,13 +304,7 @@ static void musb_giveback(struct musb *musb, struct urb *urb, int status)
 __releases(musb->lock)
 __acquires(musb->lock)
 {
-	musb_dbg(musb, "complete %p %pF (%d), dev%d ep%d%s, %d/%d",
-			urb, urb->complete, status,
-			usb_pipedevice(urb->pipe),
-			usb_pipeendpoint(urb->pipe),
-			usb_pipein(urb->pipe) ? "in" : "out",
-			urb->actual_length, urb->transfer_buffer_length
-			);
+	trace_musb_urb_gb(musb, urb);
 
 	usb_hcd_unlink_urb_from_ep(musb->hcd, urb);
 	spin_unlock(&musb->lock);
@@ -1296,6 +1280,7 @@ void musb_host_tx(struct musb *musb, u8 epnum)
 
 	pipe = urb->pipe;
 	dma = is_dma_capable() ? hw_ep->tx_channel : NULL;
+	trace_musb_urb_tx(musb, urb);
 	musb_dbg(musb, "OUT/TX%d end, csr %04x%s", epnum, tx_csr,
 			dma ? ", dma" : "");
 
@@ -1853,9 +1838,7 @@ void musb_host_rx(struct musb *musb, u8 epnum)
 
 	pipe = urb->pipe;
 
-	musb_dbg(musb, "<== hw %d rxcsr %04x, urb actual %d (+dma %zu)",
-		epnum, rx_csr, urb->actual_length,
-		dma ? dma->actual_len : 0);
+	trace_musb_urb_rx(musb, urb);
 
 	/* check for errors, concurrent stall & unlink is not really
 	 * handled yet! */
@@ -2208,6 +2191,8 @@ static int musb_urb_enqueue(
 	if (!is_host_active(musb) || !musb->is_active)
 		return -ENODEV;
 
+	trace_musb_urb_enq(musb, urb);
+
 	spin_lock_irqsave(&musb->lock, flags);
 	ret = usb_hcd_link_urb_to_ep(hcd, urb);
 	qh = ret ? NULL : hep->hcpriv;
@@ -2444,10 +2429,7 @@ static int musb_urb_dequeue(struct usb_hcd *hcd, struct urb *urb, int status)
 	int			is_in  = usb_pipein(urb->pipe);
 	int			ret;
 
-	musb_dbg(musb, "urb=%p, dev%d ep%d%s", urb,
-			usb_pipedevice(urb->pipe),
-			usb_pipeendpoint(urb->pipe),
-			is_in ? "in" : "out");
+	trace_musb_urb_deq(musb, urb);
 
 	spin_lock_irqsave(&musb->lock, flags);
 	ret = usb_hcd_check_unlink_urb(hcd, urb, status);
