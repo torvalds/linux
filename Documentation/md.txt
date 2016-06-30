@@ -602,7 +602,7 @@ These currently include
 
   stripe_cache_size  (currently raid5 only)
       number of entries in the stripe cache.  This is writable, but
-      there are upper and lower limits (32768, 16).  Default is 128.
+      there are upper and lower limits (32768, 17).  Default is 256.
   strip_cache_active (currently raid5 only)
       number of active entries in the stripe cache
   preread_bypass_threshold (currently raid5 only)
