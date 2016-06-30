@@ -621,7 +621,7 @@ static int sun4i_i2s_probe(struct platform_device *pdev)
 	if (IS_ERR(i2s->regmap)) {
 		dev_err(&pdev->dev, "Regmap initialisation failed\n");
 		return PTR_ERR(i2s->regmap);
-	};
+	}
 
 	i2s->mod_clk = devm_clk_get(&pdev->dev, "mod");
 	if (IS_ERR(i2s->mod_clk)) {
