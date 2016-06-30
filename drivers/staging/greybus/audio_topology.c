@@ -53,7 +53,7 @@ static struct gbaudio_module_info *find_gb_module(
 }
 
 static const char *gbaudio_map_controlid(struct gbaudio_module_info *module,
-					   __u8 control_id, __u8 index)
+					 __u8 control_id, __u8 index)
 {
 	struct gbaudio_control *control;
 
@@ -77,8 +77,23 @@ static const char *gbaudio_map_controlid(struct gbaudio_module_info *module,
 	return NULL;
 }
 
+static int gbaudio_map_controlname(struct gbaudio_module_info *module,
+				   const char *name)
+{
+	struct gbaudio_control *control;
+
+	list_for_each_entry(control, &module->ctl_list, list) {
+		if (!strncmp(control->name, name, NAME_SIZE))
+			return control->id;
+	}
+
+	dev_warn(module->dev, "%s: missing in modules controls list\n", name);
+
+	return -EINVAL;
+}
+
 static int gbaudio_map_wcontrolname(struct gbaudio_module_info *module,
-					  const char *name)
+				    const char *name)
 {
 	struct gbaudio_control *control;
 
@@ -92,7 +107,7 @@ static int gbaudio_map_wcontrolname(struct gbaudio_module_info *module,
 }
 
 static int gbaudio_map_widgetname(struct gbaudio_module_info *module,
-					  const char *name)
+				  const char *name)
 {
 	struct gbaudio_widget *widget;
 	list_for_each_entry(widget, &module->widget_list, list) {
@@ -105,7 +120,7 @@ static int gbaudio_map_widgetname(struct gbaudio_module_info *module,
 }
 
 static const char *gbaudio_map_widgetid(struct gbaudio_module_info *module,
-					  __u8 widget_id)
+					__u8 widget_id)
 {
 	struct gbaudio_widget *widget;
 
@@ -114,6 +129,27 @@ static const char *gbaudio_map_widgetid(struct gbaudio_module_info *module,
 			return widget->name;
 	}
 	return NULL;
+}
+
+const char **gb_generate_enum_strings(struct gbaudio_module_info *gb,
+				      struct gb_audio_enumerated *gbenum)
+{
+	const char **strings;
+	int i;
+	__u8 *data;
+
+	strings = devm_kzalloc(gb->dev, sizeof(char *) * gbenum->items,
+			       GFP_KERNEL);
+	data = gbenum->names;
+
+	for (i = 0; i < gbenum->items; i++) {
+		strings[i] = (const char *)data;
+		while (*data != '\0')
+			data++;
+		data++;
+	}
+
+	return strings;
 }
 
 static int gbcodec_mixer_ctl_info(struct snd_kcontrol *kcontrol,
@@ -473,60 +509,288 @@ static int gbaudio_validate_kcontrol_count(struct gb_audio_widget *w)
 	return ret;
 }
 
+static int gbcodec_enum_ctl_get(struct snd_kcontrol *kcontrol,
+				struct snd_ctl_elem_value *ucontrol)
+{
+	int ret, ctl_id;
+	struct snd_soc_codec *codec = snd_kcontrol_chip(kcontrol);
+	struct soc_enum *e = (struct soc_enum *)kcontrol->private_value;
+	struct gb_audio_ctl_elem_value gbvalue;
+	struct gbaudio_module_info *module;
+	struct gbaudio_codec_info *gb = snd_soc_codec_get_drvdata(codec);
+
+	module = find_gb_module(gb, kcontrol->id.name);
+	if (!module)
+		return -EINVAL;
+
+	ctl_id = gbaudio_map_controlname(module, kcontrol->id.name);
+	if (ctl_id < 0)
+		return -EINVAL;
+
+	ret = gb_audio_gb_get_control(module->mgmt_connection, ctl_id,
+				      GB_AUDIO_INVALID_INDEX, &gbvalue);
+	if (ret) {
+		dev_err_ratelimited(codec->dev, "%d:Error in %s for %s\n", ret,
+				    __func__, kcontrol->id.name);
+		return ret;
+	}
+
+	ucontrol->value.enumerated.item[0] = gbvalue.value.enumerated_item[0];
+	if (e->shift_l != e->shift_r)
+		ucontrol->value.enumerated.item[1] =
+			gbvalue.value.enumerated_item[1];
+
+	return 0;
+}
+
+static int gbcodec_enum_ctl_put(struct snd_kcontrol *kcontrol,
+				struct snd_ctl_elem_value *ucontrol)
+{
+	int ret, ctl_id;
+	struct snd_soc_codec *codec = snd_kcontrol_chip(kcontrol);
+	struct soc_enum *e = (struct soc_enum *)kcontrol->private_value;
+	struct gb_audio_ctl_elem_value gbvalue;
+	struct gbaudio_module_info *module;
+	struct gbaudio_codec_info *gb = snd_soc_codec_get_drvdata(codec);
+
+	module = find_gb_module(gb, kcontrol->id.name);
+	if (!module)
+		return -EINVAL;
+
+	ctl_id = gbaudio_map_controlname(module, kcontrol->id.name);
+	if (ctl_id < 0)
+		return -EINVAL;
+
+	if (ucontrol->value.enumerated.item[0] > e->max - 1)
+		return -EINVAL;
+	gbvalue.value.enumerated_item[0] = ucontrol->value.enumerated.item[0];
+
+	if (e->shift_l != e->shift_r) {
+		if (ucontrol->value.enumerated.item[1] > e->max - 1)
+			return -EINVAL;
+		gbvalue.value.enumerated_item[1] =
+			ucontrol->value.enumerated.item[1];
+	}
+
+	ret = gb_audio_gb_set_control(module->mgmt_connection, ctl_id,
+				      GB_AUDIO_INVALID_INDEX, &gbvalue);
+	if (ret) {
+		dev_err_ratelimited(codec->dev, "%d:Error in %s for %s\n", ret,
+				    __func__, kcontrol->id.name);
+	}
+
+	return ret;
+}
+
+static int gbaudio_tplg_create_enum_kctl(struct gbaudio_module_info *gb,
+					 struct snd_kcontrol_new *kctl,
+					 struct gb_audio_control *ctl)
+{
+	struct soc_enum *gbe;
+	struct gb_audio_enumerated *gb_enum;
+	int i;
+
+	gbe = devm_kzalloc(gb->dev, sizeof(*gbe), GFP_KERNEL);
+	if (!gbe)
+		return -ENOMEM;
+
+	gb_enum = &ctl->info.value.enumerated;
+
+	/* since count=1, and reg is dummy */
+	gbe->max = gb_enum->items;
+	gbe->texts = gb_generate_enum_strings(gb, gb_enum);
+
+	/* debug enum info */
+	dev_dbg(gb->dev, "Max:%d, name_length:%d\n", gb_enum->items,
+		 gb_enum->names_length);
+	for (i = 0; i < gb_enum->items; i++)
+		dev_dbg(gb->dev, "src[%d]: %s\n", i, gbe->texts[i]);
+
+	*kctl = (struct snd_kcontrol_new)
+		SOC_ENUM_EXT(ctl->name, *gbe, gbcodec_enum_ctl_get,
+			     gbcodec_enum_ctl_put);
+	return 0;
+}
+
 static int gbaudio_tplg_create_kcontrol(struct gbaudio_module_info *gb,
 					struct snd_kcontrol_new *kctl,
 					struct gb_audio_control *ctl)
 {
+	int ret = 0;
 	struct gbaudio_ctl_pvt *ctldata;
 
 	switch (ctl->iface) {
 	case SNDRV_CTL_ELEM_IFACE_MIXER:
-		ctldata = devm_kzalloc(gb->dev, sizeof(struct gbaudio_ctl_pvt),
-				       GFP_KERNEL);
-		if (!ctldata)
-			return -ENOMEM;
-		ctldata->ctl_id = ctl->id;
-		ctldata->data_cport = ctl->data_cport;
-		ctldata->access = ctl->access;
-		ctldata->vcount = ctl->count_values;
-		ctldata->info = &ctl->info;
-		*kctl = (struct snd_kcontrol_new)
-			SOC_MIXER_GB(ctl->name, ctl->count, ctldata);
-		ctldata = NULL;
+		switch (ctl->info.type) {
+		case GB_AUDIO_CTL_ELEM_TYPE_ENUMERATED:
+			ret = gbaudio_tplg_create_enum_kctl(gb, kctl, ctl);
+			break;
+		default:
+			ctldata = devm_kzalloc(gb->dev,
+					       sizeof(struct gbaudio_ctl_pvt),
+					       GFP_KERNEL);
+			if (!ctldata)
+				return -ENOMEM;
+			ctldata->ctl_id = ctl->id;
+			ctldata->data_cport = ctl->data_cport;
+			ctldata->access = ctl->access;
+			ctldata->vcount = ctl->count_values;
+			ctldata->info = &ctl->info;
+			*kctl = (struct snd_kcontrol_new)
+				SOC_MIXER_GB(ctl->name, ctl->count, ctldata);
+			ctldata = NULL;
+			break;
+		}
 		break;
 	default:
 		return -EINVAL;
 	}
 
 	dev_dbg(gb->dev, "%s:%d control created\n", ctl->name, ctl->id);
+	return ret;
+}
+
+static int gbcodec_enum_dapm_ctl_get(struct snd_kcontrol *kcontrol,
+				     struct snd_ctl_elem_value *ucontrol)
+{
+	int ret, ctl_id;
+	struct snd_soc_dapm_widget_list *wlist = snd_kcontrol_chip(kcontrol);
+	struct snd_soc_dapm_widget *widget = wlist->widgets[0];
+	struct gbaudio_module_info *module;
+	struct gb_audio_ctl_elem_value gbvalue;
+	struct snd_soc_codec *codec = widget->codec;
+	struct gbaudio_codec_info *gb = snd_soc_codec_get_drvdata(codec);
+	struct soc_enum *e = (struct soc_enum *)kcontrol->private_value;
+
+	module = find_gb_module(gb, kcontrol->id.name);
+	if (!module)
+		return -EINVAL;
+
+	ctl_id = gbaudio_map_wcontrolname(module, kcontrol->id.name);
+	if (ctl_id < 0)
+		return -EINVAL;
+
+	ret = gb_audio_gb_get_control(module->mgmt_connection, ctl_id,
+				      GB_AUDIO_INVALID_INDEX, &gbvalue);
+	if (ret) {
+		dev_err_ratelimited(codec->dev, "%d:Error in %s for %s\n", ret,
+				    __func__, kcontrol->id.name);
+		return ret;
+	}
+
+	ucontrol->value.enumerated.item[0] = gbvalue.value.enumerated_item[0];
+	if (e->shift_l != e->shift_r)
+		ucontrol->value.enumerated.item[1] =
+			gbvalue.value.enumerated_item[1];
+
 	return 0;
 }
 
-static const char * const gbtexts[] = {"Stereo", "Left", "Right"};
+static int gbcodec_enum_dapm_ctl_put(struct snd_kcontrol *kcontrol,
+				     struct snd_ctl_elem_value *ucontrol)
+{
+	int ret, wi, ctl_id;
+	unsigned int val, mux, change;
+	unsigned int mask;
+	struct snd_soc_dapm_widget_list *wlist = snd_kcontrol_chip(kcontrol);
+	struct snd_soc_dapm_widget *widget = wlist->widgets[0];
+	struct gb_audio_ctl_elem_value gbvalue;
+	struct gbaudio_module_info *module;
+	struct snd_soc_codec *codec = widget->codec;
+	struct gbaudio_codec_info *gb = snd_soc_codec_get_drvdata(codec);
+	struct soc_enum *e = (struct soc_enum *)kcontrol->private_value;
 
-static const SOC_ENUM_SINGLE_DECL(
-	module_apb1_rx_enum, GBCODEC_APB1_MUX_REG, 0, gbtexts);
+	if (ucontrol->value.enumerated.item[0] > e->max - 1)
+		return -EINVAL;
 
-static const SOC_ENUM_SINGLE_DECL(
-	module_mic_enum, GBCODEC_APB1_MUX_REG, 4, gbtexts);
+	module = find_gb_module(gb, kcontrol->id.name);
+	if (!module)
+		return -EINVAL;
+
+	ctl_id = gbaudio_map_wcontrolname(module, kcontrol->id.name);
+	if (ctl_id < 0)
+		return -EINVAL;
+
+	change = 0;
+	ret = gb_audio_gb_get_control(module->mgmt_connection, ctl_id,
+				      GB_AUDIO_INVALID_INDEX, &gbvalue);
+	if (ret) {
+		dev_err_ratelimited(codec->dev, "%d:Error in %s for %s\n", ret,
+				    __func__, kcontrol->id.name);
+		return ret;
+	}
+
+	mux = ucontrol->value.enumerated.item[0];
+	val = mux << e->shift_l;
+	mask = e->mask << e->shift_l;
+
+	if (gbvalue.value.enumerated_item[0] !=
+	    ucontrol->value.enumerated.item[0]) {
+		change = 1;
+		gbvalue.value.enumerated_item[0] =
+			ucontrol->value.enumerated.item[0];
+	}
+
+	if (e->shift_l != e->shift_r) {
+		if (ucontrol->value.enumerated.item[1] > e->max - 1)
+			return -EINVAL;
+		val |= ucontrol->value.enumerated.item[1] << e->shift_r;
+		mask |= e->mask << e->shift_r;
+		if (gbvalue.value.enumerated_item[1] !=
+		    ucontrol->value.enumerated.item[1]) {
+			change = 1;
+			gbvalue.value.enumerated_item[1] =
+				ucontrol->value.enumerated.item[1];
+		}
+	}
+
+	if (change) {
+		ret = gb_audio_gb_set_control(module->mgmt_connection, ctl_id,
+					      GB_AUDIO_INVALID_INDEX, &gbvalue);
+		if (ret) {
+			dev_err_ratelimited(codec->dev,
+					    "%d:Error in %s for %s\n", ret,
+					    __func__, kcontrol->id.name);
+		}
+		for (wi = 0; wi < wlist->num_widgets; wi++) {
+			widget = wlist->widgets[wi];
+
+			widget->value = val;
+			widget->dapm->update = NULL;
+			snd_soc_dapm_mux_update_power(widget, kcontrol, mux, e);
+		}
+	}
+
+	return change;
+}
 
 static int gbaudio_tplg_create_enum_ctl(struct gbaudio_module_info *gb,
 					struct snd_kcontrol_new *kctl,
 					struct gb_audio_control *ctl)
 {
-	switch (ctl->id) {
-	case 8:
-		*kctl = (struct snd_kcontrol_new)
-			SOC_DAPM_ENUM(ctl->name, module_apb1_rx_enum);
-		break;
-	case 9:
-		*kctl = (struct snd_kcontrol_new)
-			SOC_DAPM_ENUM(ctl->name, module_mic_enum);
-		break;
-	default:
-		return -EINVAL;
-	}
+	struct soc_enum *gbe;
+	struct gb_audio_enumerated *gb_enum;
+	int i;
 
+	gbe = devm_kzalloc(gb->dev, sizeof(*gbe), GFP_KERNEL);
+	if (!gbe)
+		return -ENOMEM;
+
+	gb_enum = &ctl->info.value.enumerated;
+
+	/* since count=1, and reg is dummy */
+	gbe->max = gb_enum->items;
+	gbe->texts = gb_generate_enum_strings(gb, gb_enum);
+
+	/* debug enum info */
+	dev_dbg(gb->dev, "Max:%d, name_length:%d\n", gb_enum->items,
+		 gb_enum->names_length);
+	for (i = 0; i < gb_enum->items; i++)
+		dev_dbg(gb->dev, "src[%d]: %s\n", i, gbe->texts[i]);
+
+	*kctl = (struct snd_kcontrol_new)
+		SOC_DAPM_ENUM_EXT(ctl->name, *gbe, gbcodec_enum_dapm_ctl_get,
+				  gbcodec_enum_dapm_ctl_put);
 	return 0;
 }
 
@@ -672,10 +936,18 @@ static int gbaudio_tplg_create_widget(struct gbaudio_module_info *module,
 		control->name = curr->name;
 		control->wname = w->name;
 
-		if (curr->info.type == GB_AUDIO_CTL_ELEM_TYPE_ENUMERATED)
+		if (curr->info.type == GB_AUDIO_CTL_ELEM_TYPE_ENUMERATED) {
+			struct gb_audio_enumerated *gbenum =
+				&curr->info.value.enumerated;
+
+			csize = offsetof(struct gb_audio_control, info);
+			csize += offsetof(struct gb_audio_ctl_elem_info, value);
+			csize += offsetof(struct gb_audio_enumerated, names);
+			csize += gbenum->names_length;
 			control->texts = (const char * const *)
-				curr->info.value.enumerated.names;
-		csize = sizeof(struct gb_audio_control);
+				gb_generate_enum_strings(module, gbenum);
+		} else
+			csize = sizeof(struct gb_audio_control);
 		*w_size += csize;
 		curr = (void *)curr + csize;
 		list_add(&control->list, &module->widget_ctl_list);
@@ -810,10 +1082,18 @@ static int gbaudio_tplg_process_kcontrols(struct gbaudio_module_info *module,
 		snprintf(curr->name, NAME_SIZE, "GB %d %s", module->dev_id,
 			 temp_name);
 		control->name = curr->name;
-		if (curr->info.type == GB_AUDIO_CTL_ELEM_TYPE_ENUMERATED)
+		if (curr->info.type == GB_AUDIO_CTL_ELEM_TYPE_ENUMERATED) {
+			struct gb_audio_enumerated *gbenum =
+				&curr->info.value.enumerated;
+
+			csize = offsetof(struct gb_audio_control, info);
+			csize += offsetof(struct gb_audio_ctl_elem_info, value);
+			csize += offsetof(struct gb_audio_enumerated, names);
+			csize += gbenum->names_length;
 			control->texts = (const char * const *)
-				curr->info.value.enumerated.names;
-		csize = sizeof(struct gb_audio_control);
+				gb_generate_enum_strings(module, gbenum);
+		} else
+			csize = sizeof(struct gb_audio_control);
 
 		list_add(&control->list, &module->ctl_list);
 		dev_dbg(module->dev, "%d:%s created of type %d\n", curr->id,
