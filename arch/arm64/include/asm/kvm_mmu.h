@@ -90,12 +90,32 @@
 /*
  * Convert a kernel VA into a HYP VA.
  * reg: VA to be converted.
+ *
+ * This generates the following sequences:
+ * - High mask:
+ *		and x0, x0, #HYP_PAGE_OFFSET_HIGH_MASK
+ *		nop
+ * - Low mask:
+ *		and x0, x0, #HYP_PAGE_OFFSET_HIGH_MASK
+ *		and x0, x0, #HYP_PAGE_OFFSET_LOW_MASK
+ * - VHE:
+ *		nop
+ *		nop
+ *
+ * The "low mask" version works because the mask is a strict subset of
+ * the "high mask", hence performing the first mask for nothing.
+ * Should be completely invisible on any viable CPU.
  */
 .macro kern_hyp_va	reg
-alternative_if_not ARM64_HAS_VIRT_HOST_EXTN	
-	and	\reg, \reg, #HYP_PAGE_OFFSET_MASK
+alternative_if_not ARM64_HAS_VIRT_HOST_EXTN
+	and     \reg, \reg, #HYP_PAGE_OFFSET_HIGH_MASK
 alternative_else
 	nop
+alternative_endif
+alternative_if_not ARM64_HYP_OFFSET_LOW
+	nop
+alternative_else
+	and     \reg, \reg, #HYP_PAGE_OFFSET_LOW_MASK
 alternative_endif
 .endm
 
@@ -107,7 +127,23 @@ alternative_endif
 #include <asm/mmu_context.h>
 #include <asm/pgtable.h>
 
-#define KERN_TO_HYP(kva)	((unsigned long)kva & HYP_PAGE_OFFSET_MASK)
+static inline unsigned long __kern_hyp_va(unsigned long v)
+{
+	asm volatile(ALTERNATIVE("and %0, %0, %1",
+				 "nop",
+				 ARM64_HAS_VIRT_HOST_EXTN)
+		     : "+r" (v)
+		     : "i" (HYP_PAGE_OFFSET_HIGH_MASK));
+	asm volatile(ALTERNATIVE("nop",
+				 "and %0, %0, %1",
+				 ARM64_HYP_OFFSET_LOW)
+		     : "+r" (v)
+		     : "i" (HYP_PAGE_OFFSET_LOW_MASK));
+	return v;
+}
+
+#define kern_hyp_va(v) 	(typeof(v))(__kern_hyp_va((unsigned long)(v)))
+#define KERN_TO_HYP(v)	kern_hyp_va(v)
 
 /*
  * We currently only support a 40bit IPA.

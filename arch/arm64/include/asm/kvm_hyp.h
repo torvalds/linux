@@ -25,17 +25,6 @@
 
 #define __hyp_text __section(.hyp.text) notrace
 
-static inline unsigned long __kern_hyp_va(unsigned long v)
-{
-	asm volatile(ALTERNATIVE("and %0, %0, %1",
-				 "nop",
-				 ARM64_HAS_VIRT_HOST_EXTN)
-		     : "+r" (v) : "i" (HYP_PAGE_OFFSET_MASK));
-	return v;
-}
-
-#define kern_hyp_va(v) (typeof(v))(__kern_hyp_va((unsigned long)(v)))
-
 #define read_sysreg_elx(r,nvh,vh)					\
 	({								\
 		u64 reg;						\
