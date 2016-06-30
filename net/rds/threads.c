@@ -152,8 +152,9 @@ void rds_connect_worker(struct work_struct *work)
 	int ret;
 
 	clear_bit(RDS_RECONNECT_PENDING, &cp->cp_flags);
-	if (rds_conn_path_transition(cp, RDS_CONN_DOWN, RDS_CONN_CONNECTING)) {
-		ret = conn->c_trans->conn_connect(conn);
+	ret = rds_conn_path_transition(cp, RDS_CONN_DOWN, RDS_CONN_CONNECTING);
+	if (ret) {
+		ret = conn->c_trans->conn_path_connect(cp);
 		rdsdebug("conn %p for %pI4 to %pI4 dispatched, ret %d\n",
 			conn, &conn->c_laddr, &conn->c_faddr, ret);
 

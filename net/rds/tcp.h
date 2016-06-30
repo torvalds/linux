@@ -13,7 +13,7 @@ struct rds_tcp_connection {
 	struct list_head	t_tcp_node;
 	struct rds_conn_path	*t_cpath;
 	/* t_conn_path_lock synchronizes the connection establishment between
-	 * rds_tcp_accept_one and rds_tcp_conn_connect
+	 * rds_tcp_accept_one and rds_tcp_conn_path_connect
 	 */
 	struct mutex		t_conn_path_lock;
 	struct socket		*t_sock;
@@ -60,7 +60,7 @@ extern struct rds_transport rds_tcp_transport;
 void rds_tcp_accept_work(struct sock *sk);
 
 /* tcp_connect.c */
-int rds_tcp_conn_connect(struct rds_connection *conn);
+int rds_tcp_conn_path_connect(struct rds_conn_path *cp);
 void rds_tcp_conn_path_shutdown(struct rds_conn_path *conn);
 void rds_tcp_state_change(struct sock *sk);
 

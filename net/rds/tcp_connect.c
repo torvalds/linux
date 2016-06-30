@@ -74,17 +74,17 @@ out:
 	state_change(sk);
 }
 
-int rds_tcp_conn_connect(struct rds_connection *conn)
+int rds_tcp_conn_path_connect(struct rds_conn_path *cp)
 {
 	struct socket *sock = NULL;
 	struct sockaddr_in src, dest;
 	int ret;
-	struct rds_tcp_connection *tc = conn->c_transport_data;
-	struct rds_conn_path *cp = &conn->c_path[0];
+	struct rds_connection *conn = cp->cp_conn;
+	struct rds_tcp_connection *tc = cp->cp_transport_data;
 
 	mutex_lock(&tc->t_conn_path_lock);
 
-	if (rds_conn_up(conn)) {
+	if (rds_conn_path_up(cp)) {
 		mutex_unlock(&tc->t_conn_path_lock);
 		return 0;
 	}
@@ -118,6 +118,7 @@ int rds_tcp_conn_connect(struct rds_connection *conn)
 	ret = sock->ops->connect(sock, (struct sockaddr *)&dest, sizeof(dest),
 				 O_NONBLOCK);
 
+	cp->cp_outgoing = 1;
 	rdsdebug("connect to address %pI4 returned %d\n", &conn->c_faddr, ret);
 	if (ret == -EINPROGRESS)
 		ret = 0;
@@ -125,7 +126,7 @@ int rds_tcp_conn_connect(struct rds_connection *conn)
 		rds_tcp_keepalive(sock);
 		sock = NULL;
 	} else {
-		rds_tcp_restore_callbacks(sock, conn->c_transport_data);
+		rds_tcp_restore_callbacks(sock, cp->cp_transport_data);
 	}
 
 out:
