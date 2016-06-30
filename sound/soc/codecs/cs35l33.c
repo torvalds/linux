@@ -1219,7 +1219,7 @@ static int cs35l33_i2c_probe(struct i2c_client *i2c_client,
 	}
 
 	dev_info(&i2c_client->dev,
-		 "Cirrus Logic CS35L33, Revision: %02X\n", ret & 0xFF);
+		 "Cirrus Logic CS35L33, Revision: %02X\n", reg & 0xFF);
 
 	ret = regmap_register_patch(cs35l33->regmap,
 			cs35l33_patch, ARRAY_SIZE(cs35l33_patch));
