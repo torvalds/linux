@@ -55,6 +55,7 @@
 #include <xen/xen.h>
 #include <xen/events.h>
 #include <xen/evtchn.h>
+#include <xen/xen-ops.h>
 #include <asm/xen/hypervisor.h>
 
 struct per_user_data {
@@ -456,7 +457,7 @@ static long evtchn_ioctl(struct file *file,
 			break;
 
 		bind_virq.virq = bind.virq;
-		bind_virq.vcpu = 0;
+		bind_virq.vcpu = xen_vcpu_nr(0);
 		rc = HYPERVISOR_event_channel_op(EVTCHNOP_bind_virq,
 						 &bind_virq);
 		if (rc != 0)
