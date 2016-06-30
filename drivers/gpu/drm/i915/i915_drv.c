@@ -2568,13 +2568,15 @@ static int vlv_allow_gt_wake(struct drm_i915_private *dev_priv, bool allow)
 	I915_WRITE(VLV_GTLC_WAKE_CTRL, val);
 	POSTING_READ(VLV_GTLC_WAKE_CTRL);
 
-#define COND (!!(I915_READ(VLV_GTLC_PW_STATUS) & VLV_GTLC_ALLOWWAKEACK) == \
-	      allow)
-	err = wait_for(COND, 1);
+	err = intel_wait_for_register(dev_priv,
+				      VLV_GTLC_PW_STATUS,
+				      VLV_GTLC_ALLOWWAKEACK,
+				      allow,
+				      1);
 	if (err)
 		DRM_ERROR("timeout disabling GT waking\n");
+
 	return err;
-#undef COND
 }
 
 static int vlv_wait_for_gt_wells(struct drm_i915_private *dev_priv,
