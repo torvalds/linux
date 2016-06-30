@@ -347,8 +347,7 @@ int kvm_perf_teardown(void);
 
 struct kvm_vcpu *kvm_mpidr_to_vcpu(struct kvm *kvm, unsigned long mpidr);
 
-static inline void __cpu_init_hyp_mode(phys_addr_t boot_pgd_ptr,
-				       phys_addr_t pgd_ptr,
+static inline void __cpu_init_hyp_mode(phys_addr_t pgd_ptr,
 				       unsigned long hyp_stack_ptr,
 				       unsigned long vector_ptr)
 {
@@ -360,8 +359,7 @@ static inline void __cpu_init_hyp_mode(phys_addr_t boot_pgd_ptr,
 }
 
 void __kvm_hyp_teardown(void);
-static inline void __cpu_reset_hyp_mode(phys_addr_t boot_pgd_ptr,
-					phys_addr_t phys_idmap_start)
+static inline void __cpu_reset_hyp_mode(phys_addr_t phys_idmap_start)
 {
 	kvm_call_hyp(__kvm_hyp_teardown, phys_idmap_start);
 }

@@ -1038,7 +1038,6 @@ long kvm_arch_vm_ioctl(struct file *filp,
 
 static void cpu_init_hyp_mode(void *dummy)
 {
-	phys_addr_t boot_pgd_ptr;
 	phys_addr_t pgd_ptr;
 	unsigned long hyp_stack_ptr;
 	unsigned long stack_page;
@@ -1047,13 +1046,12 @@ static void cpu_init_hyp_mode(void *dummy)
 	/* Switch from the HYP stub to our own HYP init vector */
 	__hyp_set_vectors(kvm_get_idmap_vector());
 
-	boot_pgd_ptr = kvm_mmu_get_boot_httbr();
 	pgd_ptr = kvm_mmu_get_httbr();
 	stack_page = __this_cpu_read(kvm_arm_hyp_stack_page);
 	hyp_stack_ptr = stack_page + PAGE_SIZE;
 	vector_ptr = (unsigned long)kvm_ksym_ref(__kvm_hyp_vector);
 
-	__cpu_init_hyp_mode(boot_pgd_ptr, pgd_ptr, hyp_stack_ptr, vector_ptr);
+	__cpu_init_hyp_mode(pgd_ptr, hyp_stack_ptr, vector_ptr);
 	__cpu_init_stage2();
 
 	kvm_arm_init_debug();
@@ -1075,15 +1073,8 @@ static void cpu_hyp_reinit(void)
 
 static void cpu_hyp_reset(void)
 {
-	phys_addr_t boot_pgd_ptr;
-	phys_addr_t phys_idmap_start;
-
-	if (!is_kernel_in_hyp_mode()) {
-		boot_pgd_ptr = kvm_mmu_get_boot_httbr();
-		phys_idmap_start = kvm_get_idmap_start();
-
-		__cpu_reset_hyp_mode(boot_pgd_ptr, phys_idmap_start);
-	}
+	if (!is_kernel_in_hyp_mode())
+		__cpu_reset_hyp_mode(kvm_get_idmap_start());
 }
 
 static void _kvm_arch_hardware_enable(void *discard)
