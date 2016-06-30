@@ -398,9 +398,9 @@ static bool intel_crt_detect_hotplug(struct drm_connector *connector)
 					      CRT_HOTPLUG_FORCE_DETECT,
 					      CRT_HOTPLUG_FORCE_DETECT);
 		/* wait for FORCE_DETECT to go off */
-		if (wait_for((I915_READ(PORT_HOTPLUG_EN) &
-			      CRT_HOTPLUG_FORCE_DETECT) == 0,
-			     1000))
+		if (intel_wait_for_register(dev_priv, PORT_HOTPLUG_EN,
+					    CRT_HOTPLUG_FORCE_DETECT, 0,
+					    1000))
 			DRM_DEBUG_KMS("timed out waiting for FORCE_DETECT to go off");
 	}
 
