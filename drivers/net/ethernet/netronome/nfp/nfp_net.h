@@ -63,7 +63,7 @@
 #define NFP_NET_POLL_TIMEOUT	5
 
 /* Bar allocation */
-#define NFP_NET_CRTL_BAR	0
+#define NFP_NET_CTRL_BAR	0
 #define NFP_NET_Q0_BAR		2
 #define NFP_NET_Q1_BAR		4	/* OBSOLETE */
 
