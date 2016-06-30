@@ -166,8 +166,8 @@
 		rockchip,grf = <&grf>;
 		iommu_enabled = <1>;
 		reg = <0x0 0xff650000 0x0 0x800>;
-		interrupts = <GIC_SPI 113 IRQ_TYPE_LEVEL_HIGH>,
-			<GIC_SPI 114 IRQ_TYPE_LEVEL_HIGH>;
+		interrupts = <GIC_SPI 113 IRQ_TYPE_LEVEL_HIGH 0>,
+			<GIC_SPI 114 IRQ_TYPE_LEVEL_HIGH 0>;
 		interrupt-names = "irq_dec", "irq_enc";
 		clocks = <&cru ACLK_VCODEC>, <&cru HCLK_VCODEC>;
 		clock-names = "aclk_vcodec", "hclk_vcodec";
@@ -182,7 +182,7 @@
 		dbgname = "vpu";
 		compatible = "rockchip,vpu_mmu";
 		reg = <0x0 0xff650800 0x0 0x40>;
-		interrupts = <GIC_SPI 115 IRQ_TYPE_LEVEL_HIGH>;
+		interrupts = <GIC_SPI 115 IRQ_TYPE_LEVEL_HIGH 0>;
 		interrupt-names = "vpu_mmu";
 	};
 
@@ -191,7 +191,7 @@
 		rockchip,grf = <&grf>;
 		iommu_enabled = <1>;
 		reg = <0x0 0xff660000 0x0 0x400>;
-		interrupts = <GIC_SPI 116 IRQ_TYPE_LEVEL_HIGH>;
+		interrupts = <GIC_SPI 116 IRQ_TYPE_LEVEL_HIGH 0>;
 		interrupt-names = "irq_dec";
 		clocks = <&cru ACLK_VDU>, <&cru HCLK_VDU>,<&cru SCLK_VDU_CA>,<&cru SCLK_VDU_CORE>;
 		clock-names = "aclk_vcodec", "hclk_vcodec", "clk_cabac", "clk_core";
@@ -207,7 +207,7 @@
 		compatible = "rockchip,vdec_mmu";
 		reg = <0x0 0xff660480 0x0 0x40>,
 		      <0x0 0xff6604c0 0x0 0x40>;
-		interrupts = <GIC_SPI 117 IRQ_TYPE_LEVEL_HIGH>;
+		interrupts = <GIC_SPI 117 IRQ_TYPE_LEVEL_HIGH 0>;
 		interrupt-names = "vdec_mmu";
 	};
 
@@ -215,7 +215,7 @@
 		compatible = "rockchip,iep";
 		iommu_enabled = <1>;
 		reg = <0x0 0xff670000 0x0 0x800>;
-		interrupts = <GIC_SPI 42 IRQ_TYPE_LEVEL_HIGH>;
+		interrupts = <GIC_SPI 42 IRQ_TYPE_LEVEL_HIGH 0>;
 		clocks = <&cru ACLK_IEP>, <&cru HCLK_IEP>;
 		clock-names = "aclk_iep", "hclk_iep";
 		power-domains = <&power RK3399_PD_IEP>;
@@ -226,7 +226,7 @@
 		dbgname = "iep";
 		compatible = "rockchip,iep_mmu";
 		reg = <0x0 0xff670800 0x0 0x40>;
-		interrupts = <GIC_SPI 42 IRQ_TYPE_LEVEL_HIGH>;
+		interrupts = <GIC_SPI 42 IRQ_TYPE_LEVEL_HIGH 0>;
 		interrupt-names = "iep_mmu";
 	};
 
@@ -234,7 +234,7 @@
 		compatible = "rockchip,rga2";
 		dev_mode = <1>;
 		reg = <0x0 0xff680000 0x0 0x1000>;
-		interrupts = <GIC_SPI 55 IRQ_TYPE_LEVEL_HIGH>;
+		interrupts = <GIC_SPI 55 IRQ_TYPE_LEVEL_HIGH 0>;
 		clocks = <&cru ACLK_RGA>, <&cru HCLK_RGA>, <&cru SCLK_RGA_CORE>;
 		clock-names = "aclk_rga", "hclk_rga", "clk_rga";
 		power-domains = <&power RK3399_PD_RGA>;
@@ -259,7 +259,7 @@
 		compatible = "rockchip,rk3399-lcdc";
 		rockchip,prop = <PRMRY>;
 		reg = <0x0 0xff900000 0x0 0x3efc>;
-		interrupts = <GIC_SPI 118 IRQ_TYPE_LEVEL_HIGH>;
+		interrupts = <GIC_SPI 118 IRQ_TYPE_LEVEL_HIGH 0>;
 		clocks = <&cru ACLK_VOP0>, <&cru DCLK_VOP0>, <&cru HCLK_VOP0>;
 		clock-names = "aclk_lcdc", "dclk_lcdc", "hclk_lcdc";
 		resets = <&cru SRST_A_VOP0>, <&cru SRST_H_VOP0>, <&cru SRST_D_VOP0>;
@@ -275,7 +275,7 @@
 		dbgname = "vop";
 		compatible = "rockchip,vopb_mmu";
 		reg = <0x0 0xff903f00 0x0 0x100>;
-		interrupts = <GIC_SPI 118 IRQ_TYPE_LEVEL_HIGH>;
+		interrupts = <GIC_SPI 118 IRQ_TYPE_LEVEL_HIGH 0>;
 		interrupt-names = "vopb_mmu";
 	};
 
@@ -284,7 +284,7 @@
 		compatible = "rockchip,rk3399-lcdc";
 		rockchip,prop = <EXTEND>;
 		reg = <0x0 0xff8f0000 0x0 0x3efc>;
-		interrupts = <GIC_SPI 119 IRQ_TYPE_LEVEL_HIGH>;
+		interrupts = <GIC_SPI 119 IRQ_TYPE_LEVEL_HIGH 0>;
 		clocks = <&cru ACLK_VOP1>, <&cru DCLK_VOP1>, <&cru HCLK_VOP1>;
 		clock-names = "aclk_lcdc", "dclk_lcdc", "hclk_lcdc";
 		resets = <&cru SRST_A_VOP1>, <&cru SRST_H_VOP1>, <&cru SRST_D_VOP1>;
@@ -300,14 +300,14 @@
 		dbgname = "vop";
 		compatible = "rockchip,vopl_mmu";
 		reg = <0x0 0xff8f3f00 0x0 0x100>;
-		interrupts = <GIC_SPI 119 IRQ_TYPE_LEVEL_HIGH>;
+		interrupts = <GIC_SPI 119 IRQ_TYPE_LEVEL_HIGH 0>;
 		interrupt-names = "vopl_mmu";
 	};
 
 	isp0: isp@ff910000 {
 		compatible = "rockchip,rk3399-isp", "rockchip,isp";
 		reg = <0x0 0xff910000 0x0 0x10000>;
-		interrupts = <GIC_SPI 43 IRQ_TYPE_LEVEL_HIGH>;
+		interrupts = <GIC_SPI 43 IRQ_TYPE_LEVEL_HIGH 0>;
 		clocks =
 			<&cru SCLK_CIF_OUT>, <&cru SCLK_CIF_OUT>,
 			<&cru SCLK_DPHY_TX1RX1_CFG>, <&cru SCLK_MIPIDPHY_REF>,
@@ -346,14 +346,14 @@
 		compatible = "rockchip,isp0_mmu";
 		reg = <0x0 0xff914000 0x0  0x100>,
 		      <0x0 0xff915000 0x0  0x100>;
-		interrupts = <GIC_SPI 43 IRQ_TYPE_LEVEL_HIGH>;
+		interrupts = <GIC_SPI 43 IRQ_TYPE_LEVEL_HIGH 0>;
 		interrupt-names = "isp0_mmu";
 	};
 
 	isp1: isp@ff920000 {
 		compatible = "rockchip,rk3399-isp", "rockchip,isp";
 		reg = <0x0 0xff920000 0x0 0x10000>;
-		interrupts = <GIC_SPI 44 IRQ_TYPE_LEVEL_HIGH>;
+		interrupts = <GIC_SPI 44 IRQ_TYPE_LEVEL_HIGH 0>;
 		clocks =
 			<&cru ACLK_ISP1_NOC>, <&cru ACLK_ISP1_WRAPPER>,
 			<&cru HCLK_ISP1_NOC>, <&cru HCLK_ISP1_WRAPPER>,
@@ -394,7 +394,7 @@
 		compatible = "rockchip,isp1_mmu";
 		reg = <0x0 0xff924000 0x0  0x100>,
 		      <0x0 0xff925000 0x0  0x100>;
-		interrupts = <GIC_SPI 44 IRQ_TYPE_LEVEL_HIGH>;
+		interrupts = <GIC_SPI 44 IRQ_TYPE_LEVEL_HIGH 0>;
 		interrupt-names = "isp1_mmu";
 	};
 
@@ -402,8 +402,8 @@
 		status = "disabled";
 		compatible = "rockchip,rk3399-hdmi";
 		reg = <0x0 0xff940000 0x0 0x20000>;
-		interrupts = <GIC_SPI 23 IRQ_TYPE_LEVEL_HIGH>,
-			     <GIC_SPI 24 IRQ_TYPE_LEVEL_HIGH>;
+		interrupts = <GIC_SPI 23 IRQ_TYPE_LEVEL_HIGH 0>,
+			     <GIC_SPI 24 IRQ_TYPE_LEVEL_HIGH 0>;
 		clocks = <&cru PCLK_HDMI_CTRL>,
 			 <&cru HCLK_HDCP>,
 			 <&cru SCLK_HDMI_CEC>,
@@ -428,7 +428,7 @@
 		rockchip,prop = <0>;
 		rockchip,grf = <&grf>;
 		reg = <0x0 0xff960000 0x0 0x8000>;
-		interrupts = <GIC_SPI 45 IRQ_TYPE_LEVEL_HIGH>;
+		interrupts = <GIC_SPI 45 IRQ_TYPE_LEVEL_HIGH 0>;
 		clocks = <&cru SCLK_MIPIDPHY_REF>, <&cru PCLK_MIPI_DSI0>, <&cru SCLK_MIPIDPHY_CFG>;
 		clock-names = "clk_mipi_24m", "pclk_mipi_dsi", "mipi_dphy_cfg";
 		power-domains = <&power RK3399_PD_VIO>;
@@ -440,7 +440,7 @@
 		rockchip,prop = <1>;
 		rockchip,grf = <&grf>;
 		reg = <0x0 0xff968000 0x0 0x8000>;
-		interrupts = <GIC_SPI 46 IRQ_TYPE_LEVEL_HIGH>;
+		interrupts = <GIC_SPI 46 IRQ_TYPE_LEVEL_HIGH 0>;
 		clocks = <&cru SCLK_MIPIDPHY_REF>, <&cru PCLK_MIPI_DSI1>, <&cru SCLK_MIPIDPHY_CFG>;
 		clock-names = "clk_mipi_24m", "pclk_mipi_dsi", "mipi_dphy_cfg";
 		power-domains = <&power RK3399_PD_VIO>;
@@ -451,7 +451,7 @@
 		compatible = "rockchip,rk3399-edp-fb";
 		reg = <0x0 0xff970000 0x0 0x8000>;
 		rockchip,grf = <&grf>;
-		interrupts = <GIC_SPI 10 IRQ_TYPE_LEVEL_HIGH>;
+		interrupts = <GIC_SPI 10 IRQ_TYPE_LEVEL_HIGH 0>;
 		clocks = <&cru PCLK_EDP>, <&cru PCLK_EDP_CTRL>;
 		clock-names = "clk_edp", "pclk_edp";
 		resets = <&cru SRST_P_EDP_CTRL>;

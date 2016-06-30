@@ -615,7 +615,7 @@
 &pwm3 {
 	status = "disabled";
 
-	interrupts = <GIC_SPI 61 IRQ_TYPE_LEVEL_HIGH>;
+	interrupts = <GIC_SPI 61 IRQ_TYPE_LEVEL_HIGH 0>;
 	compatible = "rockchip,remotectl-pwm";
 	remote_pwm_id = <3>;
 	handle_cpu_id = <0>;
