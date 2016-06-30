@@ -174,7 +174,10 @@ static ssize_t intel_dsi_host_transfer(struct mipi_dsi_host *host,
 		I915_WRITE(MIPI_INTR_STAT(port), GEN_READ_DATA_AVAIL);
 	}
 
-	if (wait_for((I915_READ(MIPI_GEN_FIFO_STAT(port)) & ctrl_mask) == 0, 50)) {
+	if (intel_wait_for_register(dev_priv,
+				    MIPI_GEN_FIFO_STAT(port),
+				    ctrl_mask, 0,
+				    50)) {
 		DRM_ERROR("Timeout waiting for HS/LP CTRL FIFO !full\n");
 	}
 
