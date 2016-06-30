@@ -646,6 +646,30 @@
 				resets = <&tegra_car 198>;
 				#power-domain-cells = <0>;
 			};
+
+			pd_xusbss: xusba {
+				clocks = <&tegra_car TEGRA210_CLK_XUSB_SS>;
+				clock-names = "xusb-ss";
+				resets = <&tegra_car TEGRA210_CLK_XUSB_SS>;
+				reset-names = "xusb-ss";
+				#power-domain-cells = <0>;
+			};
+
+			pd_xusbdev: xusbb {
+				clocks = <&tegra_car TEGRA210_CLK_XUSB_DEV>;
+				clock-names = "xusb-dev";
+				resets = <&tegra_car 95>;
+				reset-names = "xusb-dev";
+				#power-domain-cells = <0>;
+			};
+
+			pd_xusbhost: xusbc {
+				clocks = <&tegra_car TEGRA210_CLK_XUSB_HOST>;
+				clock-names = "xusb-host";
+				resets = <&tegra_car TEGRA210_CLK_XUSB_HOST>;
+				reset-names = "xusb-host";
+				#power-domain-cells = <0>;
+			};
 		};
 	};
 
