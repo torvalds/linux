@@ -322,6 +322,13 @@ static void __init xen_smp_prepare_boot_cpu(void)
 		xen_filter_cpu_maps();
 		xen_setup_vcpu_info_placement();
 	}
+
+	/*
+	 * Setup vcpu_info for boot CPU.
+	 */
+	if (xen_hvm_domain())
+		xen_vcpu_setup(0);
+
 	/*
 	 * The alternative logic (which patches the unlock/lock) runs before
 	 * the smp bootup up code is activated. Hence we need to set this up

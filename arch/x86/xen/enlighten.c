@@ -184,7 +184,7 @@ static void clamp_max_cpus(void)
 #endif
 }
 
-static void xen_vcpu_setup(int cpu)
+void xen_vcpu_setup(int cpu)
 {
 	struct vcpu_register_vcpu_info info;
 	int err;
