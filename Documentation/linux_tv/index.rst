@@ -12,7 +12,7 @@ Permission is granted to copy, distribute and/or modify this document
 under the terms of the GNU Free Documentation License, Version 1.1 or
 any later version published by the Free Software Foundation. A copy of
 the license is included in the chapter entitled "GNU Free Documentation
-License"
+License".
 
 
 ============
@@ -21,8 +21,8 @@ Introduction
 
 This document covers the Linux Kernel to Userspace API's used by video
 and radio streaming devices, including video cameras, analog and digital
-TV receiver cards, AM/FM receiver cards, streaming capture and output
-devices, codec devices and remote controllers.
+TV receiver cards, AM/FM receiver cards, Software Defined Radio (SDR),
+streaming capture and output devices, codec devices and remote controllers.
 
 A typical media device hardware is shown at
 :ref:`typical_media_device`.
@@ -36,21 +36,17 @@ A typical media device hardware is shown at
 
     Typical Media Device
 
-    Typical Media Device Block Diagram
-
-
-
 The media infrastructure API was designed to control such devices. It is
 divided into four parts.
 
-The first part covers radio, video capture and output, cameras, analog
-TV devices and codecs.
+The first part covers radio, video capture and output,
+cameras, analog TV devices and codecs.
 
 The second part covers the API used for digital TV and Internet
 reception via one of the several digital tv standards. While it is
 called as DVB API, in fact it covers several different video standards
-including DVB-T/T2, DVB-S/S2, DVB-C, ATSC, ISDB-T, ISDB-S,etc. The
-complete list of supported standards can be found at
+including DVB-T/T2, DVB-S/S2, DVB-C, ATSC, ISDB-T, ISDB-S, DTMB, etc.
+The complete list of supported standards can be found at
 :ref:`fe-delivery-system-t`.
 
 The third part covers the Remote Controller API.
@@ -97,6 +93,3 @@ etc, please mail to:
   =========
 
   * :ref:`genindex`
-
-.. todolist::
-
