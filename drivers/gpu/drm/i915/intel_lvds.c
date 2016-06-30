@@ -253,7 +253,7 @@ static void intel_disable_lvds(struct intel_encoder *encoder)
 	}
 
 	I915_WRITE(ctl_reg, I915_READ(ctl_reg) & ~POWER_TARGET_ON);
-	if (wait_for((I915_READ(stat_reg) & PP_ON) == 0, 1000))
+	if (intel_wait_for_register(dev_priv, stat_reg, PP_ON, 0, 1000))
 		DRM_ERROR("timed out waiting for panel to power off\n");
 
 	I915_WRITE(lvds_encoder->reg, I915_READ(lvds_encoder->reg) & ~LVDS_PORT_EN);
