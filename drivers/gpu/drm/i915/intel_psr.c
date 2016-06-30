@@ -501,8 +501,11 @@ static void vlv_psr_disable(struct intel_dp *intel_dp)
 
 	if (dev_priv->psr.active) {
 		/* Put VLV PSR back to PSR_state 0 that is PSR Disabled. */
-		if (wait_for((I915_READ(VLV_PSRSTAT(intel_crtc->pipe)) &
-			      VLV_EDP_PSR_IN_TRANS) == 0, 1))
+		if (intel_wait_for_register(dev_priv,
+					    VLV_PSRSTAT(intel_crtc->pipe),
+					    VLV_EDP_PSR_IN_TRANS,
+					    0,
+					    1))
 			WARN(1, "PSR transition took longer than expected\n");
 
 		val = I915_READ(VLV_PSRCTL(intel_crtc->pipe));
