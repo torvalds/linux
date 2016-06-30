@@ -145,7 +145,6 @@ struct mlx5e_umr_wqe {
 
 #ifdef CONFIG_MLX5_CORE_EN_DCB
 #define MLX5E_MAX_BW_ALLOC 100 /* Max percentage of BW allocation */
-#define MLX5E_MIN_BW_ALLOC 1   /* Min percentage of BW allocation */
 #endif
 
 struct mlx5e_params {
