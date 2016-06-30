@@ -130,7 +130,6 @@ struct hfsc_class {
 	struct rb_node vt_node;		/* parent's vt_tree member */
 	struct rb_root cf_tree;		/* active children sorted by cl_f */
 	struct rb_node cf_node;		/* parent's cf_heap member */
-	struct list_head dlist;		/* drop list member */
 
 	u64	cl_total;		/* total work in bytes */
 	u64	cl_cumul;		/* cumulative work in bytes done by
@@ -177,8 +176,6 @@ struct hfsc_sched {
 	struct hfsc_class root;			/* root class */
 	struct Qdisc_class_hash clhash;		/* class hash */
 	struct rb_root eligible;		/* eligible tree */
-	struct list_head droplist;		/* active leaf class list (for
-						   dropping) */
 	struct qdisc_watchdog watchdog;		/* watchdog timer */
 };
 
@@ -858,7 +855,6 @@ set_active(struct hfsc_class *cl, unsigned int len)
 	if (cl->cl_flags & HFSC_FSC)
 		init_vf(cl, len);
 
-	list_add_tail(&cl->dlist, &cl->sched->droplist);
 }
 
 static void
@@ -866,8 +862,6 @@ set_passive(struct hfsc_class *cl)
 {
 	if (cl->cl_flags & HFSC_RSC)
 		eltree_remove(cl);
-
-	list_del(&cl->dlist);
 
 	/*
 	 * vttree is now handled in update_vf() so that update_vf(cl, 0, 0)
@@ -1443,7 +1437,6 @@ hfsc_init_qdisc(struct Qdisc *sch, struct nlattr *opt)
 	if (err < 0)
 		return err;
 	q->eligible = RB_ROOT;
-	INIT_LIST_HEAD(&q->droplist);
 
 	q->root.cl_common.classid = sch->handle;
 	q->root.refcnt  = 1;
@@ -1527,7 +1520,6 @@ hfsc_reset_qdisc(struct Qdisc *sch)
 			hfsc_reset_class(cl);
 	}
 	q->eligible = RB_ROOT;
-	INIT_LIST_HEAD(&q->droplist);
 	qdisc_watchdog_cancel(&q->watchdog);
 	sch->qstats.backlog = 0;
 	sch->q.qlen = 0;
