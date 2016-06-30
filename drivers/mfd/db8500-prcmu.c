@@ -3024,20 +3024,13 @@ static const struct mfd_cell common_prcmu_devs[] = {
 };
 
 static const struct mfd_cell db8500_prcmu_devs[] = {
-	{
-		.name = "db8500-prcmu-regulators",
-		.of_compatible = "stericsson,db8500-prcmu-regulator",
-		.platform_data = &db8500_regulators,
-		.pdata_size = sizeof(db8500_regulators),
-	},
-	{
-		.name = "cpuidle-dbx500",
-		.of_compatible = "stericsson,cpuidle-dbx500",
-	},
-	{
-		.name = "db8500-thermal",
-		.of_compatible = "stericsson,db8500-thermal",
-	},
+	OF_MFD_CELL("db8500-prcmu-regulators", NULL,
+		    &db8500_regulators, sizeof(db8500_regulators), 0,
+		    "stericsson,db8500-prcmu-regulator"),
+	OF_MFD_CELL("cpuidle-dbx500",
+		    NULL, NULL, 0, 0, "stericsson,cpuidle-dbx500"),
+	OF_MFD_CELL("db8500-thermal",
+		    NULL, NULL, 0, 0, "stericsson,db8500-thermal"),
 };
 
 static int db8500_prcmu_register_ab8500(struct device *parent)
