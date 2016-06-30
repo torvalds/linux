@@ -492,13 +492,12 @@ void free_boot_hyp_pgd(void)
 
 	if (boot_hyp_pgd) {
 		unmap_hyp_range(boot_hyp_pgd, hyp_idmap_start, PAGE_SIZE);
-		unmap_hyp_range(boot_hyp_pgd, TRAMPOLINE_VA, PAGE_SIZE);
 		free_pages((unsigned long)boot_hyp_pgd, hyp_pgd_order);
 		boot_hyp_pgd = NULL;
 	}
 
 	if (hyp_pgd)
-		unmap_hyp_range(hyp_pgd, TRAMPOLINE_VA, PAGE_SIZE);
+		unmap_hyp_range(hyp_pgd, hyp_idmap_start, PAGE_SIZE);
 
 	mutex_unlock(&kvm_hyp_pgd_mutex);
 }
@@ -1691,7 +1690,7 @@ phys_addr_t kvm_mmu_get_boot_httbr(void)
 	if (__kvm_cpu_uses_extended_idmap())
 		return virt_to_phys(merged_hyp_pgd);
 	else
-		return virt_to_phys(boot_hyp_pgd);
+		return virt_to_phys(hyp_pgd);
 }
 
 phys_addr_t kvm_get_idmap_vector(void)
@@ -1702,6 +1701,22 @@ phys_addr_t kvm_get_idmap_vector(void)
 phys_addr_t kvm_get_idmap_start(void)
 {
 	return hyp_idmap_start;
+}
+
+static int kvm_map_idmap_text(pgd_t *pgd)
+{
+	int err;
+
+	/* Create the idmap in the boot page tables */
+	err = 	__create_hyp_mappings(pgd,
+				      hyp_idmap_start, hyp_idmap_end,
+				      __phys_to_pfn(hyp_idmap_start),
+				      PAGE_HYP_EXEC);
+	if (err)
+		kvm_err("Failed to idmap %lx-%lx\n",
+			hyp_idmap_start, hyp_idmap_end);
+
+	return err;
 }
 
 int kvm_mmu_init(void)
@@ -1719,27 +1734,25 @@ int kvm_mmu_init(void)
 	BUG_ON((hyp_idmap_start ^ (hyp_idmap_end - 1)) & PAGE_MASK);
 
 	hyp_pgd = (pgd_t *)__get_free_pages(GFP_KERNEL | __GFP_ZERO, hyp_pgd_order);
-	boot_hyp_pgd = (pgd_t *)__get_free_pages(GFP_KERNEL | __GFP_ZERO, hyp_pgd_order);
-
-	if (!hyp_pgd || !boot_hyp_pgd) {
+	if (!hyp_pgd) {
 		kvm_err("Hyp mode PGD not allocated\n");
 		err = -ENOMEM;
 		goto out;
 	}
 
-	/* Create the idmap in the boot page tables */
-	err = 	__create_hyp_mappings(boot_hyp_pgd,
-				      hyp_idmap_start, hyp_idmap_end,
-				      __phys_to_pfn(hyp_idmap_start),
-				      PAGE_HYP_EXEC);
-
-	if (err) {
-		kvm_err("Failed to idmap %lx-%lx\n",
-			hyp_idmap_start, hyp_idmap_end);
-		goto out;
-	}
-
 	if (__kvm_cpu_uses_extended_idmap()) {
+		boot_hyp_pgd = (pgd_t *)__get_free_pages(GFP_KERNEL | __GFP_ZERO,
+							 hyp_pgd_order);
+		if (!boot_hyp_pgd) {
+			kvm_err("Hyp boot PGD not allocated\n");
+			err = -ENOMEM;
+			goto out;
+		}
+
+		err = kvm_map_idmap_text(boot_hyp_pgd);
+		if (err)
+			goto out;
+
 		merged_hyp_pgd = (pgd_t *)__get_free_page(GFP_KERNEL | __GFP_ZERO);
 		if (!merged_hyp_pgd) {
 			kvm_err("Failed to allocate extra HYP pgd\n");
@@ -1747,29 +1760,10 @@ int kvm_mmu_init(void)
 		}
 		__kvm_extend_hypmap(boot_hyp_pgd, hyp_pgd, merged_hyp_pgd,
 				    hyp_idmap_start);
-		return 0;
-	}
-
-	/* Map the very same page at the trampoline VA */
-	err = 	__create_hyp_mappings(boot_hyp_pgd,
-				      TRAMPOLINE_VA, TRAMPOLINE_VA + PAGE_SIZE,
-				      __phys_to_pfn(hyp_idmap_start),
-				      PAGE_HYP_EXEC);
-	if (err) {
-		kvm_err("Failed to map trampoline @%lx into boot HYP pgd\n",
-			TRAMPOLINE_VA);
-		goto out;
-	}
-
-	/* Map the same page again into the runtime page tables */
-	err = 	__create_hyp_mappings(hyp_pgd,
-				      TRAMPOLINE_VA, TRAMPOLINE_VA + PAGE_SIZE,
-				      __phys_to_pfn(hyp_idmap_start),
-				      PAGE_HYP_EXEC);
-	if (err) {
-		kvm_err("Failed to map trampoline @%lx into runtime HYP pgd\n",
-			TRAMPOLINE_VA);
-		goto out;
+	} else {
+		err = kvm_map_idmap_text(hyp_pgd);
+		if (err)
+			goto out;
 	}
 
 	return 0;

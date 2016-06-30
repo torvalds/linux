@@ -133,30 +133,13 @@ int kvm_reset_vcpu(struct kvm_vcpu *vcpu)
 	return kvm_timer_vcpu_reset(vcpu, cpu_vtimer_irq);
 }
 
-extern char __hyp_idmap_text_start[];
-
 unsigned long kvm_hyp_reset_entry(void)
 {
-	if (!__kvm_cpu_uses_extended_idmap()) {
-		unsigned long offset;
-
-		/*
-		 * Find the address of __kvm_hyp_reset() in the trampoline page.
-		 * This is present in the running page tables, and the boot page
-		 * tables, so we call the code here to start the trampoline
-		 * dance in reverse.
-		 */
-		offset = (unsigned long)__kvm_hyp_reset
-			 - ((unsigned long)__hyp_idmap_text_start & PAGE_MASK);
-
-		return TRAMPOLINE_VA + offset;
-	} else {
-		/*
-		 * KVM is running with merged page tables, which don't have the
-		 * trampoline page mapped. We know the idmap is still mapped,
-		 * but can't be called into directly. Use
-		 * __extended_idmap_trampoline to do the call.
-		 */
-		return (unsigned long)kvm_ksym_ref(__extended_idmap_trampoline);
-	}
+	/*
+	 * KVM is running with merged page tables, which don't have the
+	 * trampoline page mapped. We know the idmap is still mapped,
+	 * but can't be called into directly. Use
+	 * __extended_idmap_trampoline to do the call.
+	 */
+	return (unsigned long)kvm_ksym_ref(__extended_idmap_trampoline);
 }
