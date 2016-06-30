@@ -487,6 +487,7 @@ static void ade_crtc_enable(struct drm_crtc *crtc)
 	ade_set_medianoc_qos(acrtc);
 	ade_display_enable(acrtc);
 	ade_dump_regs(ctx->base);
+	drm_crtc_vblank_on(crtc);
 	acrtc->enable = true;
 }
 
@@ -498,6 +499,7 @@ static void ade_crtc_disable(struct drm_crtc *crtc)
 	if (!acrtc->enable)
 		return;
 
+	drm_crtc_vblank_off(crtc);
 	ade_power_down(ctx);
 	acrtc->enable = false;
 }
