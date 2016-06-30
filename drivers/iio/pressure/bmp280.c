@@ -18,6 +18,7 @@
 #include <linux/module.h>
 #include <linux/i2c.h>
 #include <linux/acpi.h>
+#include <linux/of.h>
 #include <linux/regmap.h>
 #include <linux/delay.h>
 #include <linux/iio/iio.h>
@@ -1094,6 +1095,19 @@ static const struct acpi_device_id bmp280_acpi_match[] = {
 };
 MODULE_DEVICE_TABLE(acpi, bmp280_acpi_match);
 
+#ifdef CONFIG_OF
+static const struct of_device_id bmp280_of_match[] = {
+	{ .compatible = "bosch,bme280", .data = (void *)BME280_CHIP_ID },
+	{ .compatible = "bosch,bmp280", .data = (void *)BMP280_CHIP_ID },
+	{ .compatible = "bosch,bmp180", .data = (void *)BMP180_CHIP_ID },
+	{ .compatible = "bosch,bmp085", .data = (void *)BMP180_CHIP_ID },
+	{ },
+};
+MODULE_DEVICE_TABLE(of, bmp280_of_match);
+#else
+#define bmp280_of_match NULL
+#endif
+
 static const struct i2c_device_id bmp280_id[] = {
 	{"bmp280", BMP280_CHIP_ID },
 	{"bmp180", BMP180_CHIP_ID },
@@ -1107,6 +1121,7 @@ static struct i2c_driver bmp280_driver = {
 	.driver = {
 		.name	= "bmp280",
 		.acpi_match_table = ACPI_PTR(bmp280_acpi_match),
+		.of_match_table = of_match_ptr(bmp280_of_match),
 	},
 	.probe		= bmp280_probe,
 	.id_table	= bmp280_id,
