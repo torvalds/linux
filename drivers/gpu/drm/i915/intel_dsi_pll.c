@@ -489,7 +489,11 @@ static void bxt_enable_dsi_pll(struct intel_encoder *encoder,
 	I915_WRITE(BXT_DSI_PLL_ENABLE, val);
 
 	/* Timeout and fail if PLL not locked */
-	if (wait_for(I915_READ(BXT_DSI_PLL_ENABLE) & BXT_DSI_PLL_LOCKED, 1)) {
+	if (intel_wait_for_register(dev_priv,
+				    BXT_DSI_PLL_ENABLE,
+				    BXT_DSI_PLL_LOCKED,
+				    BXT_DSI_PLL_LOCKED,
+				    1)) {
 		DRM_ERROR("Timed out waiting for DSI PLL to lock\n");
 		return;
 	}
