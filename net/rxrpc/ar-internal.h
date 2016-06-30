@@ -258,6 +258,8 @@ struct rxrpc_conn_parameters {
  */
 enum rxrpc_conn_flag {
 	RXRPC_CONN_HAS_IDR,		/* Has a client conn ID assigned */
+	RXRPC_CONN_IN_SERVICE_CONNS,	/* Conn is in peer->service_conns */
+	RXRPC_CONN_IN_CLIENT_CONNS,	/* Conn is in local->client_conns */
 };
 
 /*
@@ -544,10 +546,10 @@ void __exit rxrpc_destroy_all_calls(void);
  */
 extern struct idr rxrpc_client_conn_ids;
 
-void rxrpc_put_client_connection_id(struct rxrpc_connection *);
 void rxrpc_destroy_client_conn_ids(void);
 int rxrpc_connect_call(struct rxrpc_call *, struct rxrpc_conn_parameters *,
 		       struct sockaddr_rxrpc *, gfp_t);
+void rxrpc_unpublish_client_conn(struct rxrpc_connection *);
 
 /*
  * conn_event.c
@@ -609,6 +611,7 @@ static inline void rxrpc_queue_conn(struct rxrpc_connection *conn)
 struct rxrpc_connection *rxrpc_incoming_connection(struct rxrpc_local *,
 						   struct sockaddr_rxrpc *,
 						   struct sk_buff *);
+void rxrpc_unpublish_service_conn(struct rxrpc_connection *);
 
 /*
  * input.c

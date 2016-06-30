@@ -49,7 +49,10 @@ struct rxrpc_connection *rxrpc_alloc_connection(gfp_t gfp)
 		skb_queue_head_init(&conn->rx_queue);
 		conn->security = &rxrpc_no_security;
 		spin_lock_init(&conn->state_lock);
-		atomic_set(&conn->usage, 1);
+		/* We maintain an extra ref on the connection whilst it is
+		 * on the rxrpc_connections list.
+		 */
+		atomic_set(&conn->usage, 2);
 		conn->debug_id = atomic_inc_return(&rxrpc_debug_id);
 		atomic_set(&conn->avail_chans, RXRPC_MAXCALLS);
 		conn->size_align = 4;
@@ -111,7 +114,7 @@ struct rxrpc_connection *rxrpc_find_connection(struct rxrpc_local *local,
 	return NULL;
 
 found:
-	rxrpc_get_connection(conn);
+	conn = rxrpc_get_connection_maybe(conn);
 	read_unlock_bh(&peer->conn_lock);
 	_leave(" = %p", conn);
 	return conn;
@@ -173,10 +176,10 @@ void rxrpc_put_connection(struct rxrpc_connection *conn)
 	_enter("%p{u=%d,d=%d}",
 	       conn, atomic_read(&conn->usage), conn->debug_id);
 
-	ASSERTCMP(atomic_read(&conn->usage), >, 0);
+	ASSERTCMP(atomic_read(&conn->usage), >, 1);
 
 	conn->put_time = ktime_get_seconds();
-	if (atomic_dec_and_test(&conn->usage)) {
+	if (atomic_dec_return(&conn->usage) == 1) {
 		_debug("zombie");
 		rxrpc_queue_delayed_work(&rxrpc_connection_reap, 0);
 	}
@@ -216,59 +219,41 @@ static void rxrpc_destroy_connection(struct rcu_head *rcu)
 static void rxrpc_connection_reaper(struct work_struct *work)
 {
 	struct rxrpc_connection *conn, *_p;
-	struct rxrpc_peer *peer;
-	unsigned long now, earliest, reap_time;
+	unsigned long reap_older_than, earliest, put_time, now;
 
 	LIST_HEAD(graveyard);
 
 	_enter("");
 
 	now = ktime_get_seconds();
+	reap_older_than =  now - rxrpc_connection_expiry;
 	earliest = ULONG_MAX;
 
 	write_lock(&rxrpc_connection_lock);
 	list_for_each_entry_safe(conn, _p, &rxrpc_connections, link) {
-		_debug("reap CONN %d { u=%d,t=%ld }",
-		       conn->debug_id, atomic_read(&conn->usage),
-		       (long) now - (long) conn->put_time);
-
-		if (likely(atomic_read(&conn->usage) > 0))
+		ASSERTCMP(atomic_read(&conn->usage), >, 0);
+		if (likely(atomic_read(&conn->usage) > 1))
 			continue;
 
-		if (rxrpc_conn_is_client(conn)) {
-			struct rxrpc_local *local = conn->params.local;
-			spin_lock(&local->client_conns_lock);
-			reap_time = conn->put_time + rxrpc_connection_expiry;
-
-			if (atomic_read(&conn->usage) > 0) {
-				;
-			} else if (reap_time <= now) {
-				list_move_tail(&conn->link, &graveyard);
-				rxrpc_put_client_connection_id(conn);
-				rb_erase(&conn->client_node,
-					 &local->client_conns);
-			} else if (reap_time < earliest) {
-				earliest = reap_time;
-			}
-
-			spin_unlock(&local->client_conns_lock);
-		} else {
-			peer = conn->params.peer;
-			write_lock_bh(&peer->conn_lock);
-			reap_time = conn->put_time + rxrpc_connection_expiry;
-
-			if (atomic_read(&conn->usage) > 0) {
-				;
-			} else if (reap_time <= now) {
-				list_move_tail(&conn->link, &graveyard);
-				rb_erase(&conn->service_node,
-					 &peer->service_conns);
-			} else if (reap_time < earliest) {
-				earliest = reap_time;
-			}
-
-			write_unlock_bh(&peer->conn_lock);
+		put_time = READ_ONCE(conn->put_time);
+		if (time_after(put_time, reap_older_than)) {
+			if (time_before(put_time, earliest))
+				earliest = put_time;
+			continue;
 		}
+
+		/* The usage count sits at 1 whilst the object is unused on the
+		 * list; we reduce that to 0 to make the object unavailable.
+		 */
+		if (atomic_cmpxchg(&conn->usage, 1, 0) != 1)
+			continue;
+
+		if (rxrpc_conn_is_client(conn))
+			rxrpc_unpublish_client_conn(conn);
+		else
+			rxrpc_unpublish_service_conn(conn);
+
+		list_move_tail(&conn->link, &graveyard);
 	}
 	write_unlock(&rxrpc_connection_lock);
 
@@ -279,7 +264,6 @@ static void rxrpc_connection_reaper(struct work_struct *work)
 					 (earliest - now) * HZ);
 	}
 
-	/* then destroy all those pulled out */
 	while (!list_empty(&graveyard)) {
 		conn = list_entry(graveyard.next, struct rxrpc_connection,
 				  link);

@@ -104,10 +104,12 @@ struct rxrpc_connection *rxrpc_incoming_connection(struct rxrpc_local *local,
 	}
 
 	/* we can now add the new candidate to the list */
+	set_bit(RXRPC_CONN_IN_SERVICE_CONNS, &candidate->flags);
+	rb_link_node(&candidate->service_node, p, pp);
+	rb_insert_color(&candidate->service_node, &peer->service_conns);
+attached:
 	conn = candidate;
 	candidate = NULL;
-	rb_link_node(&conn->service_node, p, pp);
-	rb_insert_color(&conn->service_node, &peer->service_conns);
 	rxrpc_get_peer(peer);
 	rxrpc_get_local(local);
 
@@ -128,11 +130,19 @@ success:
 
 	/* we found the connection in the list immediately */
 found_extant_connection:
+	if (!rxrpc_get_connection_maybe(conn)) {
+		set_bit(RXRPC_CONN_IN_SERVICE_CONNS, &candidate->flags);
+		rb_replace_node(&conn->service_node,
+				&candidate->service_node,
+				&peer->service_conns);
+		clear_bit(RXRPC_CONN_IN_SERVICE_CONNS, &conn->flags);
+		goto attached;
+	}
+
 	if (sp->hdr.securityIndex != conn->security_ix) {
 		read_unlock_bh(&peer->conn_lock);
-		goto security_mismatch;
+		goto security_mismatch_put;
 	}
-	rxrpc_get_connection(conn);
 	read_unlock_bh(&peer->conn_lock);
 	goto success;
 
@@ -147,8 +157,24 @@ found_extant_second:
 	kfree(candidate);
 	goto success;
 
+security_mismatch_put:
+	rxrpc_put_connection(conn);
 security_mismatch:
 	kfree(candidate);
 	_leave(" = -EKEYREJECTED");
 	return ERR_PTR(-EKEYREJECTED);
+}
+
+/*
+ * Remove the service connection from the peer's tree, thereby removing it as a
+ * target for incoming packets.
+ */
+void rxrpc_unpublish_service_conn(struct rxrpc_connection *conn)
+{
+	struct rxrpc_peer *peer = conn->params.peer;
+
+	write_lock_bh(&peer->conn_lock);
+	if (test_and_clear_bit(RXRPC_CONN_IN_SERVICE_CONNS, &conn->flags))
+		rb_erase(&conn->service_node, &peer->service_conns);
+	write_unlock_bh(&peer->conn_lock);
 }

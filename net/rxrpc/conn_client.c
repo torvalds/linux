@@ -84,7 +84,7 @@ error:
 /*
  * Release a connection ID for a client connection from the global pool.
  */
-void rxrpc_put_client_connection_id(struct rxrpc_connection *conn)
+static void rxrpc_put_client_connection_id(struct rxrpc_connection *conn)
 {
 	if (test_bit(RXRPC_CONN_HAS_IDR, &conn->flags)) {
 		spin_lock(&rxrpc_conn_id_lock);
@@ -278,11 +278,12 @@ int rxrpc_connect_call(struct rxrpc_call *call,
 	 * lock before dropping the client conn lock.
 	 */
 	_debug("new conn");
+	set_bit(RXRPC_CONN_IN_CLIENT_CONNS, &candidate->flags);
+	rb_link_node(&candidate->client_node, parent, pp);
+	rb_insert_color(&candidate->client_node, &local->client_conns);
+attached:
 	conn = candidate;
 	candidate = NULL;
-
-	rb_link_node(&conn->client_node, parent, pp);
-	rb_insert_color(&conn->client_node, &local->client_conns);
 
 	atomic_set(&conn->avail_chans, RXRPC_MAXCALLS - 1);
 	spin_lock(&conn->channel_lock);
@@ -307,13 +308,22 @@ found_channel:
 	_leave(" = %p {u=%d}", conn, atomic_read(&conn->usage));
 	return 0;
 
-	/* We found a suitable connection already in existence.  Discard any
-	 * candidate we may have allocated, and try to get a channel on this
-	 * one.
+	/* We found a potentially suitable connection already in existence.  If
+	 * we can reuse it (ie. its usage count hasn't been reduced to 0 by the
+	 * reaper), discard any candidate we may have allocated, and try to get
+	 * a channel on this one, otherwise we have to replace it.
 	 */
 found_extant_conn:
 	_debug("found conn");
-	rxrpc_get_connection(conn);
+	if (!rxrpc_get_connection_maybe(conn)) {
+		set_bit(RXRPC_CONN_IN_CLIENT_CONNS, &candidate->flags);
+		rb_replace_node(&conn->client_node,
+				&candidate->client_node,
+				&local->client_conns);
+		clear_bit(RXRPC_CONN_IN_CLIENT_CONNS, &conn->flags);
+		goto attached;
+	}
+
 	spin_unlock(&local->client_conns_lock);
 
 	rxrpc_put_connection(candidate);
@@ -356,4 +366,20 @@ interrupted:
 	cp->peer = NULL;
 	_leave(" = -ERESTARTSYS");
 	return -ERESTARTSYS;
+}
+
+/*
+ * Remove a client connection from the local endpoint's tree, thereby removing
+ * it as a target for reuse for new client calls.
+ */
+void rxrpc_unpublish_client_conn(struct rxrpc_connection *conn)
+{
+	struct rxrpc_local *local = conn->params.local;
+
+	spin_lock(&local->client_conns_lock);
+	if (test_and_clear_bit(RXRPC_CONN_IN_CLIENT_CONNS, &conn->flags))
+		rb_erase(&conn->client_node, &local->client_conns);
+	spin_unlock(&local->client_conns_lock);
+
+	rxrpc_put_client_connection_id(conn);
 }
