@@ -1238,6 +1238,7 @@ rcu_torture_stats_print(void)
 	long pipesummary[RCU_TORTURE_PIPE_LEN + 1] = { 0 };
 	long batchsummary[RCU_TORTURE_PIPE_LEN + 1] = { 0 };
 	static unsigned long rtcv_snap = ULONG_MAX;
+	struct task_struct *wtp;
 
 	for_each_possible_cpu(cpu) {
 		for (i = 0; i < RCU_TORTURE_PIPE_LEN + 1; i++) {
@@ -1312,10 +1313,12 @@ rcu_torture_stats_print(void)
 
 		rcutorture_get_gp_data(cur_ops->ttype,
 				       &flags, &gpnum, &completed);
-		pr_alert("??? Writer stall state %s(%d) g%lu c%lu f%#x\n",
+		wtp = READ_ONCE(writer_task);
+		pr_alert("??? Writer stall state %s(%d) g%lu c%lu f%#x ->state %#lx\n",
 			 rcu_torture_writer_state_getname(),
 			 rcu_torture_writer_state,
-			 gpnum, completed, flags);
+			 gpnum, completed, flags,
+			 wtp == NULL ? ~0UL : wtp->state);
 		show_rcu_gp_kthreads();
 		rcu_ftrace_dump(DUMP_ALL);
 	}
