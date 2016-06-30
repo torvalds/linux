@@ -157,22 +157,17 @@ static int get_burstcount(struct tpm_chip *chip)
 	struct tpm_tis_data *priv = dev_get_drvdata(&chip->dev);
 	unsigned long stop;
 	int burstcnt, rc;
-	u8 value;
+	u32 value;
 
 	/* wait for burstcount */
 	/* which timeout value, spec has 2 answers (c & d) */
 	stop = jiffies + chip->timeout_d;
 	do {
-		rc = tpm_tis_read8(priv, TPM_STS(priv->locality) + 1, &value);
+		rc = tpm_tis_read32(priv, TPM_STS(priv->locality), &value);
 		if (rc < 0)
 			return rc;
 
-		burstcnt = value;
-		rc = tpm_tis_read8(priv, TPM_STS(priv->locality) + 2, &value);
-		if (rc < 0)
-			return rc;
-
-		burstcnt += value << 8;
+		burstcnt = (value >> 8) & 0xFFFF;
 		if (burstcnt)
 			return burstcnt;
 		msleep(TPM_TIMEOUT);
