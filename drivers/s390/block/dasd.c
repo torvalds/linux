@@ -3121,6 +3121,7 @@ static int dasd_alloc_queue(struct dasd_block *block)
  */
 static void dasd_setup_queue(struct dasd_block *block)
 {
+	struct request_queue *q = block->request_queue;
 	int max;
 
 	if (block->base->features & DASD_FEATURE_USERAW) {
@@ -3135,17 +3136,16 @@ static void dasd_setup_queue(struct dasd_block *block)
 	} else {
 		max = block->base->discipline->max_blocks << block->s2b_shift;
 	}
-	queue_flag_set_unlocked(QUEUE_FLAG_NONROT, block->request_queue);
-	block->request_queue->limits.max_dev_sectors = max;
-	blk_queue_logical_block_size(block->request_queue,
-				     block->bp_block);
-	blk_queue_max_hw_sectors(block->request_queue, max);
-	blk_queue_max_segments(block->request_queue, USHRT_MAX);
+	queue_flag_set_unlocked(QUEUE_FLAG_NONROT, q);
+	q->limits.max_dev_sectors = max;
+	blk_queue_logical_block_size(q, block->bp_block);
+	blk_queue_max_hw_sectors(q, max);
+	blk_queue_max_segments(q, USHRT_MAX);
 	/* with page sized segments we can translate each segement into
 	 * one idaw/tidaw
 	 */
-	blk_queue_max_segment_size(block->request_queue, PAGE_SIZE);
-	blk_queue_segment_boundary(block->request_queue, PAGE_SIZE - 1);
+	blk_queue_max_segment_size(q, PAGE_SIZE);
+	blk_queue_segment_boundary(q, PAGE_SIZE - 1);
 }
 
 /*
