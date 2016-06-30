@@ -5418,7 +5418,9 @@ static void bxt_de_pll_disable(struct drm_i915_private *dev_priv)
 	I915_WRITE(BXT_DE_PLL_ENABLE, 0);
 
 	/* Timeout 200us */
-	if (wait_for((I915_READ(BXT_DE_PLL_ENABLE) & BXT_DE_PLL_LOCK) == 0, 1))
+	if (intel_wait_for_register(dev_priv,
+				    BXT_DE_PLL_ENABLE, BXT_DE_PLL_LOCK, 0,
+				    1))
 		DRM_ERROR("timeout waiting for DE PLL unlock\n");
 
 	dev_priv->cdclk_pll.vco = 0;
