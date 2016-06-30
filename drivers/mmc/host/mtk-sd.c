@@ -287,6 +287,11 @@ struct msdc_save_para {
 	u32 emmc50_cfg0;
 };
 
+struct msdc_tune_para {
+	u32 iocon;
+	u32 pad_tune;
+};
+
 struct msdc_delay_phase {
 	u8 maxlen;
 	u8 start;
@@ -328,6 +333,8 @@ struct msdc_host {
 	u32 hs400_ds_delay;
 	bool hs400_mode;	/* current eMMC will run at hs400 mode */
 	struct msdc_save_para save_para; /* used when gate HCLK */
+	struct msdc_tune_para def_tune_para; /* default tune setting */
+	struct msdc_tune_para saved_tune_para; /* tune result of CMD21/CMD19 */
 };
 
 static void sdr_set_bits(void __iomem *reg, u32 bs)
@@ -582,6 +589,18 @@ static void msdc_set_mclk(struct msdc_host *host, unsigned char timing, u32 hz)
 	/* need because clk changed. */
 	msdc_set_timeout(host, host->timeout_ns, host->timeout_clks);
 	sdr_set_bits(host->base + MSDC_INTEN, flags);
+
+	/*
+	 * mmc_select_hs400() will drop to 50Mhz and High speed mode,
+	 * tune result of hs200/200Mhz is not suitable for 50Mhz
+	 */
+	if (host->sclk <= 52000000) {
+		writel(host->def_tune_para.iocon, host->base + MSDC_IOCON);
+		writel(host->def_tune_para.pad_tune, host->base + MSDC_PAD_TUNE);
+	} else {
+		writel(host->saved_tune_para.iocon, host->base + MSDC_IOCON);
+		writel(host->saved_tune_para.pad_tune, host->base + MSDC_PAD_TUNE);
+	}
 
 	dev_dbg(host->dev, "sclk: %d, timing: %d\n", host->sclk, timing);
 }
@@ -1159,6 +1178,8 @@ static void msdc_init_hw(struct msdc_host *host)
 	/* Configure to default data timeout */
 	sdr_set_field(host->base + SDC_CFG, SDC_CFG_DTOC, 3);
 
+	host->def_tune_para.iocon = readl(host->base + MSDC_IOCON);
+	host->def_tune_para.pad_tune = readl(host->base + MSDC_PAD_TUNE);
 	dev_dbg(host->dev, "init hardware done!");
 }
 
@@ -1409,6 +1430,8 @@ static int msdc_execute_tuning(struct mmc_host *mmc, u32 opcode)
 			dev_err(host->dev, "Tune data fail!\n");
 	}
 
+	host->saved_tune_para.iocon = readl(host->base + MSDC_IOCON);
+	host->saved_tune_para.pad_tune = readl(host->base + MSDC_PAD_TUNE);
 	return ret;
 }
 
