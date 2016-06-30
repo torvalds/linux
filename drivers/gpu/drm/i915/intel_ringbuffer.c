@@ -529,7 +529,11 @@ static bool stop_ring(struct intel_engine_cs *engine)
 
 	if (!IS_GEN2(dev_priv)) {
 		I915_WRITE_MODE(engine, _MASKED_BIT_ENABLE(STOP_RING));
-		if (wait_for((I915_READ_MODE(engine) & MODE_IDLE) != 0, 1000)) {
+		if (intel_wait_for_register(dev_priv,
+					    RING_MI_MODE(engine->mmio_base),
+					    MODE_IDLE,
+					    MODE_IDLE,
+					    1000)) {
 			DRM_ERROR("%s : timed out trying to stop ring\n",
 				  engine->name);
 			/* Sometimes we observe that the idle flag is not
