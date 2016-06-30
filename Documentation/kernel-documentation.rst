@@ -107,6 +107,92 @@ Here are some specific guidelines for the kernel documentation:
   the order as encountered."), having the higher levels the same overall makes
   it easier to follow the documents.
 
+list tables
+-----------
+
+We recommend the use of *list table* formats. The *list table* formats are
+double-stage lists. Compared to the ASCII-art they might not be as
+comfortable for 
+readers of the text files. Their advantage is that they are easy to
+create or modify and that the diff of a modification is much more meaningful,
+because it is limited to the modified content.
+
+The ``flat-table`` is a double-stage list similar to the ``list-table`` with
+some additional features:
+
+* column-span: with the role ``cspan`` a cell can be extended through
+  additional columns
+
+* row-span: with the role ``rspan`` a cell can be extended through
+  additional rows
+
+* auto span rightmost cell of a table row over the missing cells on the right
+  side of that table-row.  With Option ``:fill-cells:`` this behavior can
+  changed from *auto span* to *auto fill*, which automatically inserts (empty)
+  cells instead of spanning the last cell.
+
+options:
+
+* ``:header-rows:``   [int] count of header rows
+* ``:stub-columns:``  [int] count of stub columns
+* ``:widths:``        [[int] [int] ... ] widths of columns
+* ``:fill-cells:``    instead of auto-spanning missing cells, insert missing cells
+
+roles:
+
+* ``:cspan:`` [int] additional columns (*morecols*)
+* ``:rspan:`` [int] additional rows (*morerows*)
+
+The example below shows how to use this markup.  The first level of the staged
+list is the *table-row*. In the *table-row* there is only one markup allowed,
+the list of the cells in this *table-row*. Exceptions are *comments* ( ``..`` )
+and *targets* (e.g. a ref to ``:ref:`last row <last row>``` / :ref:`last row
+<last row>`).
+
+.. code-block:: rst
+
+   .. flat-table:: table title
+      :widths: 2 1 1 3
+
+      * - head col 1
+        - head col 2
+        - head col 3
+        - head col 4
+
+      * - column 1
+        - field 1.1
+        - field 1.2 with autospan
+
+      * - column 2
+        - field 2.1
+        - :rspan:`1` :cspan:`1` field 2.2 - 3.3
+
+      * .. _`last row`:
+
+        - column 3
+
+Rendered as:
+
+   .. flat-table:: table title
+      :widths: 2 1 1 3
+
+      * - head col 1
+        - head col 2
+        - head col 3
+        - head col 4
+
+      * - column 1
+        - field 1.1
+        - field 1.2 with autospan
+
+      * - column 2
+        - field 2.1
+        - :rspan:`1` :cspan:`1` field 2.2 - 3.3
+
+      * .. _`last row`:
+
+        - column 3
+
 
 Including kernel-doc comments
 =============================
