@@ -365,8 +365,11 @@ static void hsw_set_power_well(struct drm_i915_private *dev_priv,
 
 		if (!is_enabled) {
 			DRM_DEBUG_KMS("Enabling power well\n");
-			if (wait_for((I915_READ(HSW_PWR_WELL_DRIVER) &
-				      HSW_PWR_WELL_STATE_ENABLED), 20))
+			if (intel_wait_for_register(dev_priv,
+						    HSW_PWR_WELL_DRIVER,
+						    HSW_PWR_WELL_STATE_ENABLED,
+						    HSW_PWR_WELL_STATE_ENABLED,
+						    20))
 				DRM_ERROR("Timeout enabling power well\n");
 			hsw_power_well_post_enable(dev_priv);
 		}
