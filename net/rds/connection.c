@@ -355,9 +355,7 @@ void rds_conn_shutdown(struct rds_conn_path *cp)
 	rcu_read_lock();
 	if (!hlist_unhashed(&conn->c_hash_node)) {
 		rcu_read_unlock();
-		if (conn->c_trans->t_type != RDS_TRANS_TCP ||
-		    cp->cp_outgoing == 1)
-			rds_queue_reconnect(cp);
+		rds_queue_reconnect(cp);
 	} else {
 		rcu_read_unlock();
 	}

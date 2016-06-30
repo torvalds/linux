@@ -125,6 +125,11 @@ void rds_queue_reconnect(struct rds_conn_path *cp)
 	  conn, &conn->c_laddr, &conn->c_faddr,
 	  cp->cp_reconnect_jiffies);
 
+	/* let peer with smaller addr initiate reconnect, to avoid duels */
+	if (conn->c_trans->t_type == RDS_TRANS_TCP &&
+	    conn->c_laddr > conn->c_faddr)
+		return;
+
 	set_bit(RDS_RECONNECT_PENDING, &cp->cp_flags);
 	if (cp->cp_reconnect_jiffies == 0) {
 		cp->cp_reconnect_jiffies = rds_sysctl_reconnect_min_jiffies;
