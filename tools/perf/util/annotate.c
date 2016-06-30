@@ -1528,7 +1528,7 @@ int symbol__annotate_printf(struct symbol *sym, struct map *map,
 	int more = 0;
 	u64 len;
 	int width = 8;
-	int namelen, evsel_name_len, graph_dotted_len;
+	int graph_dotted_len;
 
 	filename = strdup(dso->long_name);
 	if (!filename)
@@ -1540,17 +1540,14 @@ int symbol__annotate_printf(struct symbol *sym, struct map *map,
 		d_filename = basename(filename);
 
 	len = symbol__size(sym);
-	namelen = strlen(d_filename);
-	evsel_name_len = strlen(evsel_name);
 
 	if (perf_evsel__is_group_event(evsel))
 		width *= evsel->nr_members;
 
-	printf(" %-*.*s|	Source code & Disassembly of %s for %s\n",
+	graph_dotted_len = printf(" %-*.*s|	Source code & Disassembly of %s for %s\n",
 	       width, width, "Percent", d_filename, evsel_name);
 
-	graph_dotted_len = width + namelen + evsel_name_len;
-	printf("-%-*.*s-----------------------------------------\n",
+	printf("%-*.*s----\n",
 	       graph_dotted_len, graph_dotted_len, graph_dotted_line);
 
 	if (verbose)
