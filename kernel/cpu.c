@@ -889,6 +889,7 @@ void notify_cpu_starting(unsigned int cpu)
 	struct cpuhp_cpu_state *st = per_cpu_ptr(&cpuhp_state, cpu);
 	enum cpuhp_state target = min((int)st->target, CPUHP_AP_ONLINE);
 
+	rcu_cpu_starting(cpu);  /* All CPU_STARTING notifiers can use RCU. */
 	while (st->state < target) {
 		struct cpuhp_step *step;
 

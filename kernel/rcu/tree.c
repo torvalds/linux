@@ -3792,8 +3792,6 @@ rcu_init_percpu_data(int cpu, struct rcu_state *rsp)
 	rnp = rdp->mynode;
 	mask = rdp->grpmask;
 	raw_spin_lock_rcu_node(rnp);		/* irqs already disabled. */
-	rnp->qsmaskinitnext |= mask;
-	rnp->expmaskinitnext |= mask;
 	if (!rdp->beenonline)
 		WRITE_ONCE(rsp->ncpus, READ_ONCE(rsp->ncpus) + 1);
 	rdp->beenonline = true;	 /* We have now been online. */
@@ -3858,6 +3856,32 @@ int rcutree_dead_cpu(unsigned int cpu)
 		do_nocb_deferred_wakeup(per_cpu_ptr(rsp->rda, cpu));
 	}
 	return 0;
+}
+
+/*
+ * Mark the specified CPU as being online so that subsequent grace periods
+ * (both expedited and normal) will wait on it.  Note that this means that
+ * incoming CPUs are not allowed to use RCU read-side critical sections
+ * until this function is called.  Failing to observe this restriction
+ * will result in lockdep splats.
+ */
+void rcu_cpu_starting(unsigned int cpu)
+{
+	unsigned long flags;
+	unsigned long mask;
+	struct rcu_data *rdp;
+	struct rcu_node *rnp;
+	struct rcu_state *rsp;
+
+	for_each_rcu_flavor(rsp) {
+		rdp = this_cpu_ptr(rsp->rda);
+		rnp = rdp->mynode;
+		mask = rdp->grpmask;
+		raw_spin_lock_irqsave_rcu_node(rnp, flags);
+		rnp->qsmaskinitnext |= mask;
+		rnp->expmaskinitnext |= mask;
+		raw_spin_unlock_irqrestore_rcu_node(rnp, flags);
+	}
 }
 
 #ifdef CONFIG_HOTPLUG_CPU
@@ -4209,8 +4233,10 @@ void __init rcu_init(void)
 	 * or the scheduler are operational.
 	 */
 	pm_notifier(rcu_pm_notify, 0);
-	for_each_online_cpu(cpu)
+	for_each_online_cpu(cpu) {
 		rcutree_prepare_cpu(cpu);
+		rcu_cpu_starting(cpu);
+	}
 }
 
 #include "tree_exp.h"

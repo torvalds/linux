@@ -334,6 +334,7 @@ void rcu_sched_qs(void);
 void rcu_bh_qs(void);
 void rcu_check_callbacks(int user);
 void rcu_report_dead(unsigned int cpu);
+void rcu_cpu_starting(unsigned int cpu);
 
 #ifndef CONFIG_TINY_RCU
 void rcu_end_inkernel_boot(void);
