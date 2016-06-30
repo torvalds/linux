@@ -144,12 +144,13 @@ out:
  * callbacks to those set by TCP.  Our callbacks won't execute again once we
  * hold the sock lock.
  */
-void rds_tcp_conn_shutdown(struct rds_connection *conn)
+void rds_tcp_conn_path_shutdown(struct rds_conn_path *cp)
 {
-	struct rds_tcp_connection *tc = conn->c_transport_data;
+	struct rds_tcp_connection *tc = cp->cp_transport_data;
 	struct socket *sock = tc->t_sock;
 
-	rdsdebug("shutting down conn %p tc %p sock %p\n", conn, tc, sock);
+	rdsdebug("shutting down conn %p tc %p sock %p\n",
+		 cp->cp_conn, tc, sock);
 
 	if (sock) {
 		sock->ops->shutdown(sock, RCV_SHUTDOWN | SEND_SHUTDOWN);

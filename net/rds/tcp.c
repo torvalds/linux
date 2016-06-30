@@ -340,14 +340,14 @@ static void rds_tcp_exit(void);
 
 struct rds_transport rds_tcp_transport = {
 	.laddr_check		= rds_tcp_laddr_check,
-	.xmit_prepare		= rds_tcp_xmit_prepare,
-	.xmit_complete		= rds_tcp_xmit_complete,
+	.xmit_path_prepare	= rds_tcp_xmit_path_prepare,
+	.xmit_path_complete	= rds_tcp_xmit_path_complete,
 	.xmit			= rds_tcp_xmit,
 	.recv			= rds_tcp_recv,
 	.conn_alloc		= rds_tcp_conn_alloc,
 	.conn_free		= rds_tcp_conn_free,
 	.conn_connect		= rds_tcp_conn_connect,
-	.conn_shutdown		= rds_tcp_conn_shutdown,
+	.conn_path_shutdown	= rds_tcp_conn_path_shutdown,
 	.inc_copy_to_user	= rds_tcp_inc_copy_to_user,
 	.inc_free		= rds_tcp_inc_free,
 	.stats_info_copy	= rds_tcp_stats_info_copy,

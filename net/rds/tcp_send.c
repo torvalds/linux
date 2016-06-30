@@ -49,16 +49,16 @@ static void rds_tcp_cork(struct socket *sock, int val)
 	set_fs(oldfs);
 }
 
-void rds_tcp_xmit_prepare(struct rds_connection *conn)
+void rds_tcp_xmit_path_prepare(struct rds_conn_path *cp)
 {
-	struct rds_tcp_connection *tc = conn->c_transport_data;
+	struct rds_tcp_connection *tc = cp->cp_transport_data;
 
 	rds_tcp_cork(tc->t_sock, 1);
 }
 
-void rds_tcp_xmit_complete(struct rds_connection *conn)
+void rds_tcp_xmit_path_complete(struct rds_conn_path *cp)
 {
-	struct rds_tcp_connection *tc = conn->c_transport_data;
+	struct rds_tcp_connection *tc = cp->cp_transport_data;
 
 	rds_tcp_cork(tc->t_sock, 0);
 }

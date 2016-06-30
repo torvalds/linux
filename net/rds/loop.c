@@ -156,7 +156,7 @@ static int rds_loop_conn_connect(struct rds_connection *conn)
 	return 0;
 }
 
-static void rds_loop_conn_shutdown(struct rds_connection *conn)
+static void rds_loop_conn_path_shutdown(struct rds_conn_path *cp)
 {
 }
 
@@ -189,7 +189,7 @@ struct rds_transport rds_loop_transport = {
 	.conn_alloc		= rds_loop_conn_alloc,
 	.conn_free		= rds_loop_conn_free,
 	.conn_connect		= rds_loop_conn_connect,
-	.conn_shutdown		= rds_loop_conn_shutdown,
+	.conn_path_shutdown	= rds_loop_conn_path_shutdown,
 	.inc_copy_to_user	= rds_message_inc_copy_to_user,
 	.inc_free		= rds_loop_inc_free,
 	.t_name			= "loopback",

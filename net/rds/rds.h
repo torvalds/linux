@@ -455,11 +455,8 @@ struct rds_transport {
 	int (*conn_alloc)(struct rds_connection *conn, gfp_t gfp);
 	void (*conn_free)(void *data);
 	int (*conn_connect)(struct rds_connection *conn);
-	void (*conn_shutdown)(struct rds_connection *conn);
 	void (*conn_path_shutdown)(struct rds_conn_path *conn);
-	void (*xmit_prepare)(struct rds_connection *conn);
 	void (*xmit_path_prepare)(struct rds_conn_path *cp);
-	void (*xmit_complete)(struct rds_connection *conn);
 	void (*xmit_path_complete)(struct rds_conn_path *cp);
 	int (*xmit)(struct rds_connection *conn, struct rds_message *rm,
 		    unsigned int hdr_off, unsigned int sg, unsigned int off);

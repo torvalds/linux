@@ -326,10 +326,7 @@ void rds_conn_shutdown(struct rds_conn_path *cp)
 		wait_event(cp->cp_waitq,
 			   !test_bit(RDS_RECV_REFILL, &cp->cp_flags));
 
-		if (!conn->c_trans->t_mp_capable)
-			conn->c_trans->conn_shutdown(conn);
-		else
-			conn->c_trans->conn_path_shutdown(cp);
+		conn->c_trans->conn_path_shutdown(cp);
 		rds_conn_path_reset(cp);
 
 		if (!rds_conn_path_transition(cp, RDS_CONN_DISCONNECTING,
