@@ -36,18 +36,6 @@ static inline unsigned long __kern_hyp_va(unsigned long v)
 
 #define kern_hyp_va(v) (typeof(v))(__kern_hyp_va((unsigned long)(v)))
 
-static inline unsigned long __hyp_kern_va(unsigned long v)
-{
-	u64 offset = PAGE_OFFSET - HYP_PAGE_OFFSET;
-	asm volatile(ALTERNATIVE("add %0, %0, %1",
-				 "nop",
-				 ARM64_HAS_VIRT_HOST_EXTN)
-		     : "+r" (v) : "r" (offset));
-	return v;
-}
-
-#define hyp_kern_va(v) (typeof(v))(__hyp_kern_va((unsigned long)(v)))
-
 #define read_sysreg_elx(r,nvh,vh)					\
 	({								\
 		u64 reg;						\

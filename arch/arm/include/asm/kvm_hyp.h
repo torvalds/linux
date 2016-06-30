@@ -26,7 +26,6 @@
 #define __hyp_text __section(.hyp.text) notrace
 
 #define kern_hyp_va(v) (v)
-#define hyp_kern_va(v) (v)
 
 #define __ACCESS_CP15(CRn, Op1, CRm, Op2)	\
 	"mrc", "mcr", __stringify(p15, Op1, %0, CRn, CRm, Op2), u32
