@@ -203,7 +203,7 @@ void rds_recv_worker(struct work_struct *work)
 	int ret;
 
 	if (rds_conn_path_state(cp) == RDS_CONN_UP) {
-		ret = cp->cp_conn->c_trans->recv(cp->cp_conn);
+		ret = cp->cp_conn->c_trans->recv_path(cp);
 		rdsdebug("conn %p ret %d\n", cp->cp_conn, ret);
 		switch (ret) {
 		case -EAGAIN:

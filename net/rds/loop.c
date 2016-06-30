@@ -102,7 +102,7 @@ static void rds_loop_inc_free(struct rds_incoming *inc)
 }
 
 /* we need to at least give the thread something to succeed */
-static int rds_loop_recv(struct rds_connection *conn)
+static int rds_loop_recv_path(struct rds_conn_path *cp)
 {
 	return 0;
 }
@@ -185,7 +185,7 @@ void rds_loop_exit(void)
  */
 struct rds_transport rds_loop_transport = {
 	.xmit			= rds_loop_xmit,
-	.recv			= rds_loop_recv,
+	.recv_path		= rds_loop_recv_path,
 	.conn_alloc		= rds_loop_conn_alloc,
 	.conn_free		= rds_loop_conn_free,
 	.conn_connect		= rds_loop_conn_connect,

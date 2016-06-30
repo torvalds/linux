@@ -462,7 +462,7 @@ struct rds_transport {
 		    unsigned int hdr_off, unsigned int sg, unsigned int off);
 	int (*xmit_rdma)(struct rds_connection *conn, struct rm_rdma_op *op);
 	int (*xmit_atomic)(struct rds_connection *conn, struct rm_atomic_op *op);
-	int (*recv)(struct rds_connection *conn);
+	int (*recv_path)(struct rds_conn_path *cp);
 	int (*inc_copy_to_user)(struct rds_incoming *inc, struct iov_iter *to);
 	void (*inc_free)(struct rds_incoming *inc);
 

@@ -354,7 +354,7 @@ void rds_ib_mr_cqe_handler(struct rds_ib_connection *ic, struct ib_wc *wc);
 /* ib_recv.c */
 int rds_ib_recv_init(void);
 void rds_ib_recv_exit(void);
-int rds_ib_recv(struct rds_connection *conn);
+int rds_ib_recv_path(struct rds_conn_path *conn);
 int rds_ib_recv_alloc_caches(struct rds_ib_connection *ic);
 void rds_ib_recv_free_caches(struct rds_ib_connection *ic);
 void rds_ib_recv_refill(struct rds_connection *conn, int prefill, gfp_t gfp);
