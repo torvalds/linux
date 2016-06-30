@@ -3186,8 +3186,8 @@ static void raid_status(struct dm_target *ti, status_type_t type,
 		sync_action = decipher_sync_action(&rs->md);
 
 		/* HM FIXME: do we want another state char for raid0? It shows 'D' or 'A' now */
-		for (i = 0; i < rs->raid_disks; i++)
-			DMEMIT(__raid_dev_status(&rs->dev[i].rdev, array_in_sync));
+		rdev_for_each(rdev, mddev)
+			DMEMIT(__raid_dev_status(rdev, array_in_sync));
 
 		/*
 		 * In-sync/Reshape ratio:
