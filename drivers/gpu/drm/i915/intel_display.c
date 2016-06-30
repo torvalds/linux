@@ -9633,7 +9633,9 @@ static void hsw_restore_lcpll(struct drm_i915_private *dev_priv)
 	val &= ~LCPLL_PLL_DISABLE;
 	I915_WRITE(LCPLL_CTL, val);
 
-	if (wait_for(I915_READ(LCPLL_CTL) & LCPLL_PLL_LOCK, 5))
+	if (intel_wait_for_register(dev_priv,
+				    LCPLL_CTL, LCPLL_PLL_LOCK, LCPLL_PLL_LOCK,
+				    5))
 		DRM_ERROR("LCPLL not locked yet\n");
 
 	if (val & LCPLL_CD_SOURCE_FCLK) {
