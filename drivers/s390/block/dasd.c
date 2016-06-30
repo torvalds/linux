@@ -3178,7 +3178,9 @@ static int dasd_alloc_queue(struct dasd_block *block)
  */
 static void dasd_setup_queue(struct dasd_block *block)
 {
+	unsigned int logical_block_size = block->bp_block;
 	struct request_queue *q = block->request_queue;
+	unsigned int max_bytes, max_discard_sectors;
 	int max;
 
 	if (block->base->features & DASD_FEATURE_USERAW) {
@@ -3195,7 +3197,7 @@ static void dasd_setup_queue(struct dasd_block *block)
 	}
 	queue_flag_set_unlocked(QUEUE_FLAG_NONROT, q);
 	q->limits.max_dev_sectors = max;
-	blk_queue_logical_block_size(q, block->bp_block);
+	blk_queue_logical_block_size(q, logical_block_size);
 	blk_queue_max_hw_sectors(q, max);
 	blk_queue_max_segments(q, USHRT_MAX);
 	/* with page sized segments we can translate each segement into
@@ -3203,6 +3205,21 @@ static void dasd_setup_queue(struct dasd_block *block)
 	 */
 	blk_queue_max_segment_size(q, PAGE_SIZE);
 	blk_queue_segment_boundary(q, PAGE_SIZE - 1);
+
+	/* Only activate blocklayer discard support for devices that support it */
+	if (block->base->features & DASD_FEATURE_DISCARD) {
+		q->limits.discard_granularity = logical_block_size;
+		q->limits.discard_alignment = PAGE_SIZE;
+
+		/* Calculate max_discard_sectors and make it PAGE aligned */
+		max_bytes = USHRT_MAX * logical_block_size;
+		max_bytes = ALIGN(max_bytes, PAGE_SIZE) - PAGE_SIZE;
+		max_discard_sectors = max_bytes / logical_block_size;
+
+		blk_queue_max_discard_sectors(q, max_discard_sectors);
+		blk_queue_max_write_zeroes_sectors(q, max_discard_sectors);
+		queue_flag_set_unlocked(QUEUE_FLAG_DISCARD, q);
+	}
 }
 
 /*
