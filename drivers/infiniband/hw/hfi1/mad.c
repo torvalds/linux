@@ -588,7 +588,6 @@ static int __subn_get_opa_portinfo(struct opa_smp *smp, u32 am, u8 *data,
 
 	pi->port_phys_conf = (ppd->port_type & 0xf);
 
-#if PI_LED_ENABLE_SUP
 	pi->port_states.ledenable_offlinereason = ppd->neighbor_normal << 4;
 	pi->port_states.ledenable_offlinereason |=
 		ppd->is_sm_config_started << 5;
@@ -602,11 +601,6 @@ static int __subn_get_opa_portinfo(struct opa_smp *smp, u32 am, u8 *data,
 	pi->port_states.ledenable_offlinereason |= is_beaconing_active << 6;
 	pi->port_states.ledenable_offlinereason |=
 		ppd->offline_disabled_reason;
-#else
-	pi->port_states.offline_reason = ppd->neighbor_normal << 4;
-	pi->port_states.offline_reason |= ppd->is_sm_config_started << 5;
-	pi->port_states.offline_reason |= ppd->offline_disabled_reason;
-#endif /* PI_LED_ENABLE_SUP */
 
 	pi->port_states.portphysstate_portstate =
 		(hfi1_ibphys_portstate(ppd) << 4) | state;
@@ -1752,17 +1746,11 @@ static int __subn_get_opa_psi(struct opa_smp *smp, u32 am, u8 *data,
 	if (start_of_sm_config && (lstate == IB_PORT_INIT))
 		ppd->is_sm_config_started = 1;
 
-#if PI_LED_ENABLE_SUP
 	psi->port_states.ledenable_offlinereason = ppd->neighbor_normal << 4;
 	psi->port_states.ledenable_offlinereason |=
 		ppd->is_sm_config_started << 5;
 	psi->port_states.ledenable_offlinereason |=
 		ppd->offline_disabled_reason;
-#else
-	psi->port_states.offline_reason = ppd->neighbor_normal << 4;
-	psi->port_states.offline_reason |= ppd->is_sm_config_started << 5;
-	psi->port_states.offline_reason |= ppd->offline_disabled_reason;
-#endif /* PI_LED_ENABLE_SUP */
 
 	psi->port_states.portphysstate_portstate =
 		(hfi1_ibphys_portstate(ppd) << 4) | (lstate & 0xf);
