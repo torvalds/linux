@@ -37,6 +37,7 @@ extern "C" {
 #define DRM_VC4_MMAP_BO                           0x04
 #define DRM_VC4_CREATE_SHADER_BO                  0x05
 #define DRM_VC4_GET_HANG_STATE                    0x06
+#define DRM_VC4_GET_PARAM                         0x07
 
 #define DRM_IOCTL_VC4_SUBMIT_CL           DRM_IOWR(DRM_COMMAND_BASE + DRM_VC4_SUBMIT_CL, struct drm_vc4_submit_cl)
 #define DRM_IOCTL_VC4_WAIT_SEQNO          DRM_IOWR(DRM_COMMAND_BASE + DRM_VC4_WAIT_SEQNO, struct drm_vc4_wait_seqno)
@@ -45,6 +46,7 @@ extern "C" {
 #define DRM_IOCTL_VC4_MMAP_BO             DRM_IOWR(DRM_COMMAND_BASE + DRM_VC4_MMAP_BO, struct drm_vc4_mmap_bo)
 #define DRM_IOCTL_VC4_CREATE_SHADER_BO    DRM_IOWR(DRM_COMMAND_BASE + DRM_VC4_CREATE_SHADER_BO, struct drm_vc4_create_shader_bo)
 #define DRM_IOCTL_VC4_GET_HANG_STATE      DRM_IOWR(DRM_COMMAND_BASE + DRM_VC4_GET_HANG_STATE, struct drm_vc4_get_hang_state)
+#define DRM_IOCTL_VC4_GET_PARAM           DRM_IOWR(DRM_COMMAND_BASE + DRM_VC4_GET_PARAM, struct drm_vc4_get_param)
 
 struct drm_vc4_submit_rcl_surface {
 	__u32 hindex; /* Handle index, or ~0 if not present. */
@@ -278,6 +280,16 @@ struct drm_vc4_get_hang_state {
 
 	/* Pad that we may save more registers into in the future. */
 	__u32 pad[16];
+};
+
+#define DRM_VC4_PARAM_V3D_IDENT0		0
+#define DRM_VC4_PARAM_V3D_IDENT1		1
+#define DRM_VC4_PARAM_V3D_IDENT2		2
+
+struct drm_vc4_get_param {
+	__u32 param;
+	__u32 pad;
+	__u64 value;
 };
 
 #if defined(__cplusplus)

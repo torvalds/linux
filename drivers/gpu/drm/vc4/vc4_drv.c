@@ -14,6 +14,7 @@
 #include <linux/module.h>
 #include <linux/of_platform.h>
 #include <linux/platform_device.h>
+#include <linux/pm_runtime.h>
 #include "drm_fb_cma_helper.h"
 
 #include "uapi/drm/vc4_drm.h"
@@ -41,6 +42,46 @@ void __iomem *vc4_ioremap_regs(struct platform_device *dev, int index)
 	}
 
 	return map;
+}
+
+static int vc4_get_param_ioctl(struct drm_device *dev, void *data,
+			       struct drm_file *file_priv)
+{
+	struct vc4_dev *vc4 = to_vc4_dev(dev);
+	struct drm_vc4_get_param *args = data;
+	int ret;
+
+	if (args->pad != 0)
+		return -EINVAL;
+
+	switch (args->param) {
+	case DRM_VC4_PARAM_V3D_IDENT0:
+		ret = pm_runtime_get_sync(&vc4->v3d->pdev->dev);
+		if (ret)
+			return ret;
+		args->value = V3D_READ(V3D_IDENT0);
+		pm_runtime_put(&vc4->v3d->pdev->dev);
+		break;
+	case DRM_VC4_PARAM_V3D_IDENT1:
+		ret = pm_runtime_get_sync(&vc4->v3d->pdev->dev);
+		if (ret)
+			return ret;
+		args->value = V3D_READ(V3D_IDENT1);
+		pm_runtime_put(&vc4->v3d->pdev->dev);
+		break;
+	case DRM_VC4_PARAM_V3D_IDENT2:
+		ret = pm_runtime_get_sync(&vc4->v3d->pdev->dev);
+		if (ret)
+			return ret;
+		args->value = V3D_READ(V3D_IDENT2);
+		pm_runtime_put(&vc4->v3d->pdev->dev);
+		break;
+	default:
+		DRM_DEBUG("Unknown parameter %d\n", args->param);
+		return -EINVAL;
+	}
+
+	return 0;
 }
 
 static void vc4_lastclose(struct drm_device *dev)
@@ -74,6 +115,7 @@ static const struct drm_ioctl_desc vc4_drm_ioctls[] = {
 	DRM_IOCTL_DEF_DRV(VC4_CREATE_SHADER_BO, vc4_create_shader_bo_ioctl, DRM_RENDER_ALLOW),
 	DRM_IOCTL_DEF_DRV(VC4_GET_HANG_STATE, vc4_get_hang_state_ioctl,
 			  DRM_ROOT_ONLY),
+	DRM_IOCTL_DEF_DRV(VC4_GET_PARAM, vc4_get_param_ioctl, DRM_RENDER_ALLOW),
 };
 
 static struct drm_driver vc4_drm_driver = {
