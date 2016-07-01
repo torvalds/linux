@@ -876,7 +876,7 @@ static void mlx5e_modify_tirs_hash(struct mlx5e_priv *priv, void *in, int inlen)
 	mlx5e_build_tir_ctx_hash(tirc, priv);
 
 	for (i = 0; i < MLX5E_NUM_INDIR_TIRS; i++)
-		mlx5_core_modify_tir(mdev, priv->indir_tirn[i], in, inlen);
+		mlx5_core_modify_tir(mdev, priv->indir_tir[i].tirn, in, inlen);
 }
 
 static int mlx5e_set_rxfh(struct net_device *dev, const u32 *indir,

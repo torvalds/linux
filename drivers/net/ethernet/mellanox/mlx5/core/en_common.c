@@ -36,6 +36,27 @@
  * Global resources are common to all the netdevices crated on the same nic.
  */
 
+int mlx5e_create_tir(struct mlx5_core_dev *mdev,
+		     struct mlx5e_tir *tir, u32 *in, int inlen)
+{
+	int err;
+
+	err = mlx5_core_create_tir(mdev, in, inlen, &tir->tirn);
+	if (err)
+		return err;
+
+	list_add(&tir->list, &mdev->mlx5e_res.td.tirs_list);
+
+	return 0;
+}
+
+void mlx5e_destroy_tir(struct mlx5_core_dev *mdev,
+		       struct mlx5e_tir *tir)
+{
+	mlx5_core_destroy_tir(mdev, tir->tirn);
+	list_del(&tir->list);
+}
+
 static int mlx5e_create_mkey(struct mlx5_core_dev *mdev, u32 pdn,
 			     struct mlx5_core_mkey *mkey)
 {
@@ -89,6 +110,8 @@ int mlx5e_create_mdev_resources(struct mlx5_core_dev *mdev)
 		goto err_dealloc_transport_domain;
 	}
 
+	INIT_LIST_HEAD(&mdev->mlx5e_res.td.tirs_list);
+
 	return 0;
 
 err_dealloc_transport_domain:
@@ -109,4 +132,29 @@ void mlx5e_destroy_mdev_resources(struct mlx5_core_dev *mdev)
 	mlx5_core_dealloc_transport_domain(mdev, res->td.tdn);
 	mlx5_core_dealloc_pd(mdev, res->pdn);
 	mlx5_unmap_free_uar(mdev, &res->cq_uar);
+}
+
+int mlx5e_refresh_tirs_self_loopback_enable(struct mlx5_core_dev *mdev)
+{
+	struct mlx5e_tir *tir;
+	void *in;
+	int inlen;
+	int err;
+
+	inlen = MLX5_ST_SZ_BYTES(modify_tir_in);
+	in = mlx5_vzalloc(inlen);
+	if (!in)
+		return -ENOMEM;
+
+	MLX5_SET(modify_tir_in, in, bitmask.self_lb_en, 1);
+
+	list_for_each_entry(tir, &mdev->mlx5e_res.td.tirs_list, list) {
+		err = mlx5_core_modify_tir(mdev, tir->tirn, in, inlen);
+		if (err)
+			return err;
+	}
+
+	kvfree(in);
+
+	return 0;
 }

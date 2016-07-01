@@ -93,14 +93,14 @@ static enum mlx5e_traffic_types arfs_get_tt(enum arfs_type type)
 static int arfs_disable(struct mlx5e_priv *priv)
 {
 	struct mlx5_flow_destination dest;
-	u32 *tirn = priv->indir_tirn;
+	struct mlx5e_tir *tir = priv->indir_tir;
 	int err = 0;
 	int tt;
 	int i;
 
 	dest.type = MLX5_FLOW_DESTINATION_TYPE_TIR;
 	for (i = 0; i < ARFS_NUM_TYPES; i++) {
-		dest.tir_num = tirn[i];
+		dest.tir_num = tir[i].tirn;
 		tt = arfs_get_tt(i);
 		/* Modify ttc rules destination to bypass the aRFS tables*/
 		err = mlx5_modify_rule_destination(priv->fs.ttc.rules[tt],
@@ -176,7 +176,7 @@ static int arfs_add_default_rule(struct mlx5e_priv *priv,
 	struct arfs_table *arfs_t = &priv->fs.arfs.arfs_tables[type];
 	struct mlx5_flow_destination dest;
 	u8 match_criteria_enable = 0;
-	u32 *tirn = priv->indir_tirn;
+	struct mlx5e_tir *tir = priv->indir_tir;
 	u32 *match_criteria;
 	u32 *match_value;
 	int err = 0;
@@ -192,16 +192,16 @@ static int arfs_add_default_rule(struct mlx5e_priv *priv,
 	dest.type = MLX5_FLOW_DESTINATION_TYPE_TIR;
 	switch (type) {
 	case ARFS_IPV4_TCP:
-		dest.tir_num = tirn[MLX5E_TT_IPV4_TCP];
+		dest.tir_num = tir[MLX5E_TT_IPV4_TCP].tirn;
 		break;
 	case ARFS_IPV4_UDP:
-		dest.tir_num = tirn[MLX5E_TT_IPV4_UDP];
+		dest.tir_num = tir[MLX5E_TT_IPV4_UDP].tirn;
 		break;
 	case ARFS_IPV6_TCP:
-		dest.tir_num = tirn[MLX5E_TT_IPV6_TCP];
+		dest.tir_num = tir[MLX5E_TT_IPV6_TCP].tirn;
 		break;
 	case ARFS_IPV6_UDP:
-		dest.tir_num = tirn[MLX5E_TT_IPV6_UDP];
+		dest.tir_num = tir[MLX5E_TT_IPV6_UDP].tirn;
 		break;
 	default:
 		err = -EINVAL;
