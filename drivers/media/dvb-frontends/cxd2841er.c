@@ -1768,8 +1768,13 @@ static void cxd2841er_read_signal_strength(struct dvb_frontend *fe)
 	case SYS_DVBC_ANNEX_A:
 		strength = cxd2841er_read_agc_gain_t_t2(priv,
 							p->delivery_system);
-		p->strength.stat[0].scale = FE_SCALE_RELATIVE;
-		p->strength.stat[0].uvalue = strength;
+		p->strength.stat[0].scale = FE_SCALE_DECIBEL;
+		/*
+		 * Formula was empirically determinated via linear regression,
+		 * using frequencies: 175 MHz, 410 MHz and 800 MHz, and a
+		 * stream modulated with QAM64
+		 */
+		p->strength.stat[0].uvalue = ((s32)strength) * 4045 / 1000 - 85224;
 		break;
 	case SYS_ISDBT:
 		strength = 65535 - cxd2841er_read_agc_gain_i(
