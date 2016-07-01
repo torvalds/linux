@@ -81,8 +81,8 @@ enum {
 			    MC_ADDR_CHANGE | \
 			    PROMISC_CHANGE)
 
-int  esw_create_offloads_fdb_table(struct mlx5_eswitch *esw, int nvports);
-void esw_destroy_offloads_fdb_table(struct mlx5_eswitch *esw);
+int esw_offloads_init(struct mlx5_eswitch *esw, int nvports);
+void esw_offloads_cleanup(struct mlx5_eswitch *esw, int nvports);
 
 static int arm_vport_context_events_cmd(struct mlx5_core_dev *dev, u16 vport,
 					u32 events_mask)
@@ -1561,7 +1561,7 @@ int mlx5_eswitch_enable_sriov(struct mlx5_eswitch *esw, int nvfs, int mode)
 	if (mode == SRIOV_LEGACY)
 		err = esw_create_legacy_fdb_table(esw, nvfs + 1);
 	else
-		err = esw_create_offloads_fdb_table(esw, nvfs + 1);
+		err = esw_offloads_init(esw, nvfs + 1);
 	if (err)
 		goto abort;
 
@@ -1581,6 +1581,7 @@ abort:
 void mlx5_eswitch_disable_sriov(struct mlx5_eswitch *esw)
 {
 	struct esw_mc_addr *mc_promisc;
+	int nvports;
 	int i;
 
 	if (!esw || !MLX5_CAP_GEN(esw->dev, vport_group_manager) ||
@@ -1591,6 +1592,7 @@ void mlx5_eswitch_disable_sriov(struct mlx5_eswitch *esw)
 		 esw->enabled_vports, esw->mode);
 
 	mc_promisc = esw->mc_promisc;
+	nvports = esw->enabled_vports;
 
 	for (i = 0; i < esw->total_vports; i++)
 		esw_disable_vport(esw, i);
@@ -1600,8 +1602,8 @@ void mlx5_eswitch_disable_sriov(struct mlx5_eswitch *esw)
 
 	if (esw->mode == SRIOV_LEGACY)
 		esw_destroy_legacy_fdb_table(esw);
-	else
-		esw_destroy_offloads_fdb_table(esw);
+	else if (esw->mode == SRIOV_OFFLOADS)
+		esw_offloads_cleanup(esw, nvports);
 
 	esw->mode = SRIOV_NONE;
 	/* VPORT 0 (PF) must be enabled back with non-sriov configuration */
