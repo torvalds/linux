@@ -144,6 +144,7 @@ struct mlx5_eswitch_fdb {
 		struct offloads_fdb {
 			struct mlx5_flow_group *send_to_vport_grp;
 			struct mlx5_flow_group *miss_grp;
+			struct mlx5_flow_rule  *miss_rule;
 		} offloads;
 	};
 };

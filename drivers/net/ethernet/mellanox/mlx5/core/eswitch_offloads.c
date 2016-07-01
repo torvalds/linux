@@ -38,6 +38,39 @@
 #include "mlx5_core.h"
 #include "eswitch.h"
 
+static int esw_add_fdb_miss_rule(struct mlx5_eswitch *esw)
+{
+	struct mlx5_flow_destination dest;
+	struct mlx5_flow_rule *flow_rule = NULL;
+	u32 *match_v, *match_c;
+	int err = 0;
+
+	match_v = kzalloc(MLX5_ST_SZ_BYTES(fte_match_param), GFP_KERNEL);
+	match_c = kzalloc(MLX5_ST_SZ_BYTES(fte_match_param), GFP_KERNEL);
+	if (!match_v || !match_c) {
+		esw_warn(esw->dev, "FDB: Failed to alloc match parameters\n");
+		err = -ENOMEM;
+		goto out;
+	}
+
+	dest.type = MLX5_FLOW_DESTINATION_TYPE_VPORT;
+	dest.vport_num = 0;
+
+	flow_rule = mlx5_add_flow_rule(esw->fdb_table.fdb, 0, match_c, match_v,
+				       MLX5_FLOW_CONTEXT_ACTION_FWD_DEST, 0, &dest);
+	if (IS_ERR(flow_rule)) {
+		err = PTR_ERR(flow_rule);
+		esw_warn(esw->dev,  "FDB: Failed to add miss flow rule err %d\n", err);
+		goto out;
+	}
+
+	esw->fdb_table.offloads.miss_rule = flow_rule;
+out:
+	kfree(match_v);
+	kfree(match_c);
+	return err;
+}
+
 #define MAX_PF_SQ 256
 
 int esw_create_offloads_fdb_table(struct mlx5_eswitch *esw, int nvports)
@@ -110,8 +143,14 @@ int esw_create_offloads_fdb_table(struct mlx5_eswitch *esw, int nvports)
 	}
 	esw->fdb_table.offloads.miss_grp = g;
 
+	err = esw_add_fdb_miss_rule(esw);
+	if (err)
+		goto miss_rule_err;
+
 	return 0;
 
+miss_rule_err:
+	mlx5_destroy_flow_group(esw->fdb_table.offloads.miss_grp);
 miss_err:
 	mlx5_destroy_flow_group(esw->fdb_table.offloads.send_to_vport_grp);
 send_vport_err:
@@ -128,6 +167,7 @@ void esw_destroy_offloads_fdb_table(struct mlx5_eswitch *esw)
 		return;
 
 	esw_debug(esw->dev, "Destroy offloads FDB Table\n");
+	mlx5_del_flow_rule(esw->fdb_table.offloads.miss_rule);
 	mlx5_destroy_flow_group(esw->fdb_table.offloads.send_to_vport_grp);
 	mlx5_destroy_flow_group(esw->fdb_table.offloads.miss_grp);
 
