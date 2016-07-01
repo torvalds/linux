@@ -506,6 +506,7 @@ struct drm_i915_error_state {
 		bool valid;
 		/* Software tracked state */
 		bool waiting;
+		int num_waiters;
 		int hangcheck_score;
 		enum intel_ring_hangcheck_action hangcheck_action;
 		int num_requests;
@@ -550,6 +551,12 @@ struct drm_i915_error_state {
 			u32 seqno;
 			u32 tail;
 		} *requests;
+
+		struct drm_i915_error_waiter {
+			char comm[TASK_COMM_LEN];
+			pid_t pid;
+			u32 seqno;
+		} *waiters;
 
 		struct {
 			u32 gfx_mode;
@@ -1429,7 +1436,7 @@ struct i915_gpu_error {
 #define I915_STOP_RING_ALLOW_WARN      (1 << 30)
 
 	/* For missed irq/seqno simulation. */
-	unsigned int test_irq_rings;
+	unsigned long test_irq_rings;
 };
 
 enum modeset_restore {
@@ -3064,7 +3071,6 @@ ibx_disable_display_interrupt(struct drm_i915_private *dev_priv, uint32_t bits)
 	ibx_display_interrupt_update(dev_priv, bits, 0);
 }
 
-
 /* i915_gem.c */
 int i915_gem_create_ioctl(struct drm_device *dev, void *data,
 			  struct drm_file *file_priv);
@@ -3973,6 +3979,36 @@ static inline void i915_trace_irq_get(struct intel_engine_cs *engine,
 {
 	if (engine->trace_irq_req == NULL && engine->irq_get(engine))
 		i915_gem_request_assign(&engine->trace_irq_req, req);
+}
+
+static inline bool __i915_request_irq_complete(struct drm_i915_gem_request *req)
+{
+	/* Ensure our read of the seqno is coherent so that we
+	 * do not "miss an interrupt" (i.e. if this is the last
+	 * request and the seqno write from the GPU is not visible
+	 * by the time the interrupt fires, we will see that the
+	 * request is incomplete and go back to sleep awaiting
+	 * another interrupt that will never come.)
+	 *
+	 * Strictly, we only need to do this once after an interrupt,
+	 * but it is easier and safer to do it every time the waiter
+	 * is woken.
+	 */
+	if (i915_gem_request_completed(req, false))
+		return true;
+
+	/* We need to check whether any gpu reset happened in between
+	 * the request being submitted and now. If a reset has occurred,
+	 * the seqno will have been advance past ours and our request
+	 * is complete. If we are in the process of handling a reset,
+	 * the request is effectively complete as the rendering will
+	 * be discarded, but we need to return in order to drop the
+	 * struct_mutex.
+	 */
+	if (i915_reset_in_progress(&req->i915->gpu_error))
+		return true;
+
+	return false;
 }
 
 #endif

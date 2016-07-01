@@ -463,6 +463,18 @@ int i915_error_state_to_str(struct drm_i915_error_state_buf *m,
 			}
 		}
 
+		if (error->ring[i].num_waiters) {
+			err_printf(m, "%s --- %d waiters\n",
+				   dev_priv->engine[i].name,
+				   error->ring[i].num_waiters);
+			for (j = 0; j < error->ring[i].num_waiters; j++) {
+				err_printf(m, " seqno 0x%08x for %s [%d]\n",
+					   error->ring[i].waiters[j].seqno,
+					   error->ring[i].waiters[j].comm,
+					   error->ring[i].waiters[j].pid);
+			}
+		}
+
 		if ((obj = error->ring[i].ringbuffer)) {
 			err_printf(m, "%s --- ringbuffer = 0x%08x\n",
 				   dev_priv->engine[i].name,
@@ -605,8 +617,9 @@ static void i915_error_state_free(struct kref *error_ref)
 		i915_error_object_free(error->ring[i].ringbuffer);
 		i915_error_object_free(error->ring[i].hws_page);
 		i915_error_object_free(error->ring[i].ctx);
-		kfree(error->ring[i].requests);
 		i915_error_object_free(error->ring[i].wa_ctx);
+		kfree(error->ring[i].requests);
+		kfree(error->ring[i].waiters);
 	}
 
 	i915_error_object_free(error->semaphore_obj);
@@ -892,6 +905,48 @@ static void gen6_record_semaphore_state(struct drm_i915_private *dev_priv,
 	}
 }
 
+static void engine_record_waiters(struct intel_engine_cs *engine,
+				  struct drm_i915_error_ring *ering)
+{
+	struct intel_breadcrumbs *b = &engine->breadcrumbs;
+	struct drm_i915_error_waiter *waiter;
+	struct rb_node *rb;
+	int count;
+
+	ering->num_waiters = 0;
+	ering->waiters = NULL;
+
+	spin_lock(&b->lock);
+	count = 0;
+	for (rb = rb_first(&b->waiters); rb != NULL; rb = rb_next(rb))
+		count++;
+	spin_unlock(&b->lock);
+
+	waiter = NULL;
+	if (count)
+		waiter = kmalloc_array(count,
+				       sizeof(struct drm_i915_error_waiter),
+				       GFP_ATOMIC);
+	if (!waiter)
+		return;
+
+	ering->waiters = waiter;
+
+	spin_lock(&b->lock);
+	for (rb = rb_first(&b->waiters); rb; rb = rb_next(rb)) {
+		struct intel_wait *w = container_of(rb, typeof(*w), node);
+
+		strcpy(waiter->comm, w->tsk->comm);
+		waiter->pid = w->tsk->pid;
+		waiter->seqno = w->seqno;
+		waiter++;
+
+		if (++ering->num_waiters == count)
+			break;
+	}
+	spin_unlock(&b->lock);
+}
+
 static void i915_record_ring_state(struct drm_i915_private *dev_priv,
 				   struct drm_i915_error_state *error,
 				   struct intel_engine_cs *engine,
@@ -926,7 +981,7 @@ static void i915_record_ring_state(struct drm_i915_private *dev_priv,
 		ering->instdone = I915_READ(GEN2_INSTDONE);
 	}
 
-	ering->waiting = waitqueue_active(&engine->irq_queue);
+	ering->waiting = intel_engine_has_waiter(engine);
 	ering->instpm = I915_READ(RING_INSTPM(engine->mmio_base));
 	ering->acthd = intel_ring_get_active_head(engine);
 	ering->seqno = engine->get_seqno(engine);
@@ -1032,6 +1087,7 @@ static void i915_gem_record_rings(struct drm_i915_private *dev_priv,
 		error->ring[i].valid = true;
 
 		i915_record_ring_state(dev_priv, error, engine, &error->ring[i]);
+		engine_record_waiters(engine, &error->ring[i]);
 
 		request = i915_gem_find_active_request(engine);
 		if (request) {

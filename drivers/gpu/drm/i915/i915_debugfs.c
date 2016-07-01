@@ -788,10 +788,22 @@ static int i915_gem_request_info(struct seq_file *m, void *data)
 static void i915_ring_seqno_info(struct seq_file *m,
 				 struct intel_engine_cs *engine)
 {
+	struct intel_breadcrumbs *b = &engine->breadcrumbs;
+	struct rb_node *rb;
+
 	seq_printf(m, "Current sequence (%s): %x\n",
 		   engine->name, engine->get_seqno(engine));
 	seq_printf(m, "Current user interrupts (%s): %x\n",
 		   engine->name, READ_ONCE(engine->user_interrupts));
+
+	spin_lock(&b->lock);
+	for (rb = rb_first(&b->waiters); rb; rb = rb_next(rb)) {
+		struct intel_wait *w = container_of(rb, typeof(*w), node);
+
+		seq_printf(m, "Waiting (%s): %s [%d] on %x\n",
+			   engine->name, w->tsk->comm, w->tsk->pid, w->seqno);
+	}
+	spin_unlock(&b->lock);
 }
 
 static int i915_gem_seqno_info(struct seq_file *m, void *data)
@@ -1428,6 +1440,8 @@ static int i915_hangcheck_info(struct seq_file *m, void *unused)
 			   engine->hangcheck.seqno,
 			   seqno[id],
 			   engine->last_submitted_seqno);
+		seq_printf(m, "\twaiters? %d\n",
+			   intel_engine_has_waiter(engine));
 		seq_printf(m, "\tuser interrupts = %x [current %x]\n",
 			   engine->hangcheck.user_interrupts,
 			   READ_ONCE(engine->user_interrupts));
@@ -2415,7 +2429,7 @@ static int count_irq_waiters(struct drm_i915_private *i915)
 	int count = 0;
 
 	for_each_engine(engine, i915)
-		count += engine->irq_refcount;
+		count += intel_engine_has_waiter(engine);
 
 	return count;
 }

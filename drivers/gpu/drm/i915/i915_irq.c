@@ -976,13 +976,10 @@ static void ironlake_rps_change_irq_handler(struct drm_i915_private *dev_priv)
 
 static void notify_ring(struct intel_engine_cs *engine)
 {
-	if (!intel_engine_initialized(engine))
-		return;
-
-	trace_i915_gem_request_notify(engine);
-	engine->user_interrupts++;
-
-	wake_up_all(&engine->irq_queue);
+	if (intel_engine_wakeup(engine)) {
+		trace_i915_gem_request_notify(engine);
+		engine->user_interrupts++;
+	}
 }
 
 static void vlv_c0_read(struct drm_i915_private *dev_priv,
@@ -1063,7 +1060,7 @@ static bool any_waiters(struct drm_i915_private *dev_priv)
 	struct intel_engine_cs *engine;
 
 	for_each_engine(engine, dev_priv)
-		if (engine->irq_refcount)
+		if (intel_engine_has_waiter(engine))
 			return true;
 
 	return false;
@@ -3074,13 +3071,14 @@ static unsigned kick_waiters(struct intel_engine_cs *engine)
 
 	if (engine->hangcheck.user_interrupts == user_interrupts &&
 	    !test_and_set_bit(engine->id, &i915->gpu_error.missed_irq_rings)) {
-		if (!(i915->gpu_error.test_irq_rings & intel_engine_flag(engine)))
+		if (!test_bit(engine->id, &i915->gpu_error.test_irq_rings))
 			DRM_ERROR("Hangcheck timer elapsed... %s idle\n",
 				  engine->name);
 		else
 			DRM_INFO("Fake missed irq on %s\n",
 				 engine->name);
-		wake_up_all(&engine->irq_queue);
+
+		intel_engine_enable_fake_irq(engine);
 	}
 
 	return user_interrupts;
@@ -3124,7 +3122,7 @@ static void i915_hangcheck_elapsed(struct work_struct *work)
 	intel_uncore_arm_unclaimed_mmio_detection(dev_priv);
 
 	for_each_engine_id(engine, dev_priv, id) {
-		bool busy = waitqueue_active(&engine->irq_queue);
+		bool busy = intel_engine_has_waiter(engine);
 		u64 acthd;
 		u32 seqno;
 		unsigned user_interrupts;

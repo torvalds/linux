@@ -148,6 +148,32 @@ struct intel_engine_cs {
 	struct intel_ringbuffer *buffer;
 	struct list_head buffers;
 
+	/* Rather than have every client wait upon all user interrupts,
+	 * with the herd waking after every interrupt and each doing the
+	 * heavyweight seqno dance, we delegate the task (of being the
+	 * bottom-half of the user interrupt) to the first client. After
+	 * every interrupt, we wake up one client, who does the heavyweight
+	 * coherent seqno read and either goes back to sleep (if incomplete),
+	 * or wakes up all the completed clients in parallel, before then
+	 * transferring the bottom-half status to the next client in the queue.
+	 *
+	 * Compared to walking the entire list of waiters in a single dedicated
+	 * bottom-half, we reduce the latency of the first waiter by avoiding
+	 * a context switch, but incur additional coherent seqno reads when
+	 * following the chain of request breadcrumbs. Since it is most likely
+	 * that we have a single client waiting on each seqno, then reducing
+	 * the overhead of waking that client is much preferred.
+	 */
+	struct intel_breadcrumbs {
+		spinlock_t lock; /* protects the lists of requests */
+		struct rb_root waiters; /* sorted by retirement, priority */
+		struct intel_wait *first_wait; /* oldest waiter by retirement */
+		struct task_struct *tasklet; /* bh for user interrupts */
+		struct timer_list fake_irq; /* used after a missed interrupt */
+		bool irq_enabled;
+		bool rpm_wakelock;
+	} breadcrumbs;
+
 	/*
 	 * A pool of objects to use as shadow copies of client batch buffers
 	 * when the command parser is enabled. Prevents the client from
@@ -295,8 +321,6 @@ struct intel_engine_cs {
 	unsigned user_interrupts;
 
 	bool gpu_caches_dirty;
-
-	wait_queue_head_t irq_queue;
 
 	struct i915_gem_context *last_context;
 
@@ -482,5 +506,56 @@ static inline u32 intel_hws_seqno_address(struct intel_engine_cs *engine)
 {
 	return engine->status_page.gfx_addr + I915_GEM_HWS_INDEX_ADDR;
 }
+
+/* intel_breadcrumbs.c -- user interrupt bottom-half for waiters */
+struct intel_wait {
+	struct rb_node node;
+	struct task_struct *tsk;
+	u32 seqno;
+};
+
+int intel_engine_init_breadcrumbs(struct intel_engine_cs *engine);
+
+static inline void intel_wait_init(struct intel_wait *wait, u32 seqno)
+{
+	wait->tsk = current;
+	wait->seqno = seqno;
+}
+
+static inline bool intel_wait_complete(const struct intel_wait *wait)
+{
+	return RB_EMPTY_NODE(&wait->node);
+}
+
+bool intel_engine_add_wait(struct intel_engine_cs *engine,
+			   struct intel_wait *wait);
+void intel_engine_remove_wait(struct intel_engine_cs *engine,
+			      struct intel_wait *wait);
+
+static inline bool intel_engine_has_waiter(struct intel_engine_cs *engine)
+{
+	return READ_ONCE(engine->breadcrumbs.tasklet);
+}
+
+static inline bool intel_engine_wakeup(struct intel_engine_cs *engine)
+{
+	bool wakeup = false;
+	struct task_struct *tsk = READ_ONCE(engine->breadcrumbs.tasklet);
+	/* Note that for this not to dangerously chase a dangling pointer,
+	 * the caller is responsible for ensure that the task remain valid for
+	 * wake_up_process() i.e. that the RCU grace period cannot expire.
+	 *
+	 * Also note that tsk is likely to be in !TASK_RUNNING state so an
+	 * early test for tsk->state != TASK_RUNNING before wake_up_process()
+	 * is unlikely to be beneficial.
+	 */
+	if (tsk)
+		wakeup = wake_up_process(tsk);
+	return wakeup;
+}
+
+void intel_engine_enable_fake_irq(struct intel_engine_cs *engine);
+void intel_engine_fini_breadcrumbs(struct intel_engine_cs *engine);
+unsigned int intel_kick_waiters(struct drm_i915_private *i915);
 
 #endif /* _INTEL_RINGBUFFER_H_ */

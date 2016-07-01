@@ -2394,7 +2394,9 @@ static int intel_init_ring_buffer(struct drm_device *dev,
 	memset(engine->semaphore.sync_seqno, 0,
 	       sizeof(engine->semaphore.sync_seqno));
 
-	init_waitqueue_head(&engine->irq_queue);
+	ret = intel_engine_init_breadcrumbs(engine);
+	if (ret)
+		goto error;
 
 	/* We may need to do things with the shrinker which
 	 * require us to immediately switch back to the default
@@ -2474,6 +2476,7 @@ void intel_cleanup_engine(struct intel_engine_cs *engine)
 
 	i915_cmd_parser_fini_ring(engine);
 	i915_gem_batch_pool_fini(&engine->batch_pool);
+	intel_engine_fini_breadcrumbs(engine);
 
 	intel_ring_context_unpin(dev_priv->kernel_context, engine);
 
@@ -2676,6 +2679,13 @@ void intel_ring_init_seqno(struct intel_engine_cs *engine, u32 seqno)
 	engine->last_submitted_seqno = seqno;
 
 	engine->hangcheck.seqno = seqno;
+
+	/* After manually advancing the seqno, fake the interrupt in case
+	 * there are any waiters for that seqno.
+	 */
+	rcu_read_lock();
+	intel_engine_wakeup(engine);
+	rcu_read_unlock();
 }
 
 static void gen6_bsd_ring_write_tail(struct intel_engine_cs *engine,

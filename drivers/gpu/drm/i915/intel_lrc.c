@@ -1961,6 +1961,8 @@ void intel_logical_ring_cleanup(struct intel_engine_cs *engine)
 	i915_cmd_parser_fini_ring(engine);
 	i915_gem_batch_pool_fini(&engine->batch_pool);
 
+	intel_engine_fini_breadcrumbs(engine);
+
 	if (engine->status_page.obj) {
 		i915_gem_object_unpin_map(engine->status_page.obj);
 		engine->status_page.obj = NULL;
@@ -1998,7 +2000,6 @@ logical_ring_default_irqs(struct intel_engine_cs *engine, unsigned shift)
 {
 	engine->irq_enable_mask = GT_RENDER_USER_INTERRUPT << shift;
 	engine->irq_keep_mask = GT_CONTEXT_SWITCH_INTERRUPT << shift;
-	init_waitqueue_head(&engine->irq_queue);
 }
 
 static int
@@ -2024,6 +2025,10 @@ logical_ring_init(struct intel_engine_cs *engine)
 {
 	struct i915_gem_context *dctx = engine->i915->kernel_context;
 	int ret;
+
+	ret = intel_engine_init_breadcrumbs(engine);
+	if (ret)
+		goto error;
 
 	ret = i915_cmd_parser_init_ring(engine);
 	if (ret)
