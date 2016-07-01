@@ -1750,7 +1750,6 @@ static void cxd2841er_read_signal_strength(struct dvb_frontend *fe)
 
 	dev_dbg(&priv->i2c->dev, "%s()\n", __func__);
 	switch (p->delivery_system) {
-	case SYS_DVBC_ANNEX_A:
 	case SYS_DVBC_ANNEX_B:
 	case SYS_DVBC_ANNEX_C:
 		strength = 65535 - cxd2841er_read_agc_gain_c(
@@ -1766,6 +1765,12 @@ static void cxd2841er_read_signal_strength(struct dvb_frontend *fe)
 		/* Formula was empirically determinated @ 410 MHz */
 		p->strength.stat[0].uvalue = ((s32)strength) * 366 / 100 - 89520;
 		break;	/* Code moved out of the function */
+	case SYS_DVBC_ANNEX_A:
+		strength = cxd2841er_read_agc_gain_t_t2(priv,
+							p->delivery_system);
+		p->strength.stat[0].scale = FE_SCALE_RELATIVE;
+		p->strength.stat[0].uvalue = strength;
+		break;
 	case SYS_ISDBT:
 		strength = 65535 - cxd2841er_read_agc_gain_i(
 				priv, p->delivery_system);
