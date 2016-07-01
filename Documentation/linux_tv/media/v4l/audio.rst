@@ -30,16 +30,16 @@ outputs applications can enumerate them with the
 :ref:`VIDIOC_ENUMAUDIO <vidioc-enumaudio>` and
 :ref:`VIDIOC_ENUMAUDOUT <vidioc-enumaudioout>` ioctl, respectively.
 The struct :ref:`v4l2_audio <v4l2-audio>` returned by the
-``VIDIOC_ENUMAUDIO`` ioctl also contains signal status information
-applicable when the current audio input is queried.
+:ref:`VIDIOC_ENUMAUDIO <vidioc-enumaudio>` ioctl also contains signal
+:status information applicable when the current audio input is queried.
 
 The :ref:`VIDIOC_G_AUDIO <vidioc-g-audio>` and
 :ref:`VIDIOC_G_AUDOUT <vidioc-g-audioout>` ioctls report the current
 audio input and output, respectively. Note that, unlike
 :ref:`VIDIOC_G_INPUT <vidioc-g-input>` and
 :ref:`VIDIOC_G_OUTPUT <vidioc-g-output>` these ioctls return a
-structure as ``VIDIOC_ENUMAUDIO`` and ``VIDIOC_ENUMAUDOUT`` do, not just
-an index.
+structure as :ref:`VIDIOC_ENUMAUDIO <vidioc-enumaudio>` and
+:ref:`VIDIOC_ENUMAUDOUT <vidioc-enumaudioout>` do, not just an index.
 
 To select an audio input and change its properties applications call the
 :ref:`VIDIOC_S_AUDIO <vidioc-g-audio>` ioctl. To select an audio
