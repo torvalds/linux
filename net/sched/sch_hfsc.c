@@ -130,7 +130,6 @@ struct hfsc_class {
 	struct rb_node vt_node;		/* parent's vt_tree member */
 	struct rb_root cf_tree;		/* active children sorted by cl_f */
 	struct rb_node cf_node;		/* parent's cf_heap member */
-	struct list_head dlist;		/* drop list member */
 
 	u64	cl_total;		/* total work in bytes */
 	u64	cl_cumul;		/* cumulative work in bytes done by
@@ -177,8 +176,6 @@ struct hfsc_sched {
 	struct hfsc_class root;			/* root class */
 	struct Qdisc_class_hash clhash;		/* class hash */
 	struct rb_root eligible;		/* eligible tree */
-	struct list_head droplist;		/* active leaf class list (for
-						   dropping) */
 	struct qdisc_watchdog watchdog;		/* watchdog timer */
 };
 
@@ -781,6 +778,20 @@ update_vf(struct hfsc_class *cl, unsigned int len, u64 cur_time)
 		else
 			go_passive = 0;
 
+		/* update vt */
+		cl->cl_vt = rtsc_y2x(&cl->cl_virtual, cl->cl_total)
+			    - cl->cl_vtoff + cl->cl_vtadj;
+
+		/*
+		 * if vt of the class is smaller than cvtmin,
+		 * the class was skipped in the past due to non-fit.
+		 * if so, we need to adjust vtadj.
+		 */
+		if (cl->cl_vt < cl->cl_parent->cl_cvtmin) {
+			cl->cl_vtadj += cl->cl_parent->cl_cvtmin - cl->cl_vt;
+			cl->cl_vt = cl->cl_parent->cl_cvtmin;
+		}
+
 		if (go_passive) {
 			/* no more active child, going passive */
 
@@ -797,25 +808,10 @@ update_vf(struct hfsc_class *cl, unsigned int len, u64 cur_time)
 			continue;
 		}
 
-		/*
-		 * update vt and f
-		 */
-		cl->cl_vt = rtsc_y2x(&cl->cl_virtual, cl->cl_total)
-			    - cl->cl_vtoff + cl->cl_vtadj;
-
-		/*
-		 * if vt of the class is smaller than cvtmin,
-		 * the class was skipped in the past due to non-fit.
-		 * if so, we need to adjust vtadj.
-		 */
-		if (cl->cl_vt < cl->cl_parent->cl_cvtmin) {
-			cl->cl_vtadj += cl->cl_parent->cl_cvtmin - cl->cl_vt;
-			cl->cl_vt = cl->cl_parent->cl_cvtmin;
-		}
-
 		/* update the vt tree */
 		vttree_update(cl);
 
+		/* update f */
 		if (cl->cl_flags & HFSC_USC) {
 			cl->cl_myf = cl->cl_myfadj + rtsc_y2x(&cl->cl_ulimit,
 							      cl->cl_total);
@@ -858,7 +854,6 @@ set_active(struct hfsc_class *cl, unsigned int len)
 	if (cl->cl_flags & HFSC_FSC)
 		init_vf(cl, len);
 
-	list_add_tail(&cl->dlist, &cl->sched->droplist);
 }
 
 static void
@@ -866,8 +861,6 @@ set_passive(struct hfsc_class *cl)
 {
 	if (cl->cl_flags & HFSC_RSC)
 		eltree_remove(cl);
-
-	list_del(&cl->dlist);
 
 	/*
 	 * vttree is now handled in update_vf() so that update_vf(cl, 0, 0)
@@ -882,7 +875,7 @@ qdisc_peek_len(struct Qdisc *sch)
 	unsigned int len;
 
 	skb = sch->ops->peek(sch);
-	if (skb == NULL) {
+	if (unlikely(skb == NULL)) {
 		qdisc_warn_nonwc("qdisc_peek_len", sch);
 		return 0;
 	}
@@ -947,7 +940,7 @@ static void
 hfsc_change_fsc(struct hfsc_class *cl, struct tc_service_curve *fsc)
 {
 	sc2isc(fsc, &cl->cl_fsc);
-	rtsc_init(&cl->cl_virtual, &cl->cl_fsc, cl->cl_vt, cl->cl_total);
+	rtsc_init(&cl->cl_virtual, &cl->cl_fsc, cl->cl_vtoff + cl->cl_vt, cl->cl_total);
 	cl->cl_flags |= HFSC_FSC;
 }
 
@@ -1443,7 +1436,6 @@ hfsc_init_qdisc(struct Qdisc *sch, struct nlattr *opt)
 	if (err < 0)
 		return err;
 	q->eligible = RB_ROOT;
-	INIT_LIST_HEAD(&q->droplist);
 
 	q->root.cl_common.classid = sch->handle;
 	q->root.refcnt  = 1;
@@ -1527,7 +1519,6 @@ hfsc_reset_qdisc(struct Qdisc *sch)
 			hfsc_reset_class(cl);
 	}
 	q->eligible = RB_ROOT;
-	INIT_LIST_HEAD(&q->droplist);
 	qdisc_watchdog_cancel(&q->watchdog);
 	sch->qstats.backlog = 0;
 	sch->q.qlen = 0;
@@ -1594,8 +1585,17 @@ hfsc_enqueue(struct sk_buff *skb, struct Qdisc *sch, struct sk_buff **to_free)
 		return err;
 	}
 
-	if (cl->qdisc->q.qlen == 1)
+	if (cl->qdisc->q.qlen == 1) {
 		set_active(cl, qdisc_pkt_len(skb));
+		/*
+		 * If this is the first packet, isolate the head so an eventual
+		 * head drop before the first dequeue operation has no chance
+		 * to invalidate the deadline.
+		 */
+		if (cl->cl_flags & HFSC_RSC)
+			cl->qdisc->ops->peek(cl->qdisc);
+
+	}
 
 	qdisc_qstats_backlog_inc(sch, skb);
 	sch->q.qlen++;
