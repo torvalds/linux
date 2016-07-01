@@ -12349,37 +12349,6 @@ u8 hfi1_ibphys_portstate(struct hfi1_pportdata *ppd)
 	return ib_pstate;
 }
 
-/*
- * Read/modify/write ASIC_QSFP register bits as selected by mask
- * data: 0 or 1 in the positions depending on what needs to be written
- * dir: 0 for read, 1 for write
- * mask: select by setting
- *      I2CCLK  (bit 0)
- *      I2CDATA (bit 1)
- */
-u64 hfi1_gpio_mod(struct hfi1_devdata *dd, u32 target, u32 data, u32 dir,
-		  u32 mask)
-{
-	u64 qsfp_oe, target_oe;
-
-	target_oe = target ? ASIC_QSFP2_OE : ASIC_QSFP1_OE;
-	if (mask) {
-		/* We are writing register bits, so lock access */
-		dir &= mask;
-		data &= mask;
-
-		qsfp_oe = read_csr(dd, target_oe);
-		qsfp_oe = (qsfp_oe & ~(u64)mask) | (u64)dir;
-		write_csr(dd, target_oe, qsfp_oe);
-	}
-	/* We are exclusively reading bits here, but it is unlikely
-	 * we'll get valid data when we set the direction of the pin
-	 * in the same call, so read should call this function again
-	 * to get valid data
-	 */
-	return read_csr(dd, target ? ASIC_QSFP2_IN : ASIC_QSFP1_IN);
-}
-
 #define CLEAR_STATIC_RATE_CONTROL_SMASK(r) \
 (r &= ~SEND_CTXT_CHECK_ENABLE_DISALLOW_PBC_STATIC_RATE_CONTROL_SMASK)
 

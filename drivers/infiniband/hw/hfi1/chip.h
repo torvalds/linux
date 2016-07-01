@@ -1338,8 +1338,6 @@ struct hfi1_message_header *hfi1_get_msgheader(
 				struct hfi1_devdata *dd, __le32 *rhf_addr);
 int hfi1_get_base_kinfo(struct hfi1_ctxtdata *rcd,
 			struct hfi1_ctxt_info *kinfo);
-u64 hfi1_gpio_mod(struct hfi1_devdata *dd, u32 target, u32 data, u32 dir,
-		  u32 mask);
 int hfi1_init_ctxt(struct send_context *sc);
 void hfi1_put_tid(struct hfi1_devdata *dd, u32 index,
 		  u32 type, unsigned long pa, u16 order);
