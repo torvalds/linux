@@ -1410,6 +1410,12 @@ struct i915_gpu_error {
 #define I915_WEDGED			(1 << 31)
 
 	/**
+	 * Waitqueue to signal when a hang is detected. Used to for waiters
+	 * to release the struct_mutex for the reset to procede.
+	 */
+	wait_queue_head_t wait_queue;
+
+	/**
 	 * Waitqueue to signal when the reset has completed. Used by clients
 	 * that wait for dev_priv->mm.wedged to settle.
 	 */

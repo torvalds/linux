@@ -1455,6 +1455,7 @@ int __i915_wait_request(struct drm_i915_gem_request *req,
 	const bool irq_test_in_progress =
 		ACCESS_ONCE(dev_priv->gpu_error.test_irq_rings) & intel_engine_flag(engine);
 	int state = interruptible ? TASK_INTERRUPTIBLE : TASK_UNINTERRUPTIBLE;
+	DEFINE_WAIT(reset);
 	DEFINE_WAIT(wait);
 	unsigned long timeout_expire;
 	s64 before = 0; /* Only to silence a compiler warning. */
@@ -1499,6 +1500,7 @@ int __i915_wait_request(struct drm_i915_gem_request *req,
 		goto out;
 	}
 
+	add_wait_queue(&dev_priv->gpu_error.wait_queue, &reset);
 	for (;;) {
 		struct timer_list timer;
 
@@ -1557,6 +1559,8 @@ int __i915_wait_request(struct drm_i915_gem_request *req,
 			destroy_timer_on_stack(&timer);
 		}
 	}
+	remove_wait_queue(&dev_priv->gpu_error.wait_queue, &reset);
+
 	if (!irq_test_in_progress)
 		engine->irq_put(engine);
 
@@ -5287,6 +5291,7 @@ i915_gem_load_init(struct drm_device *dev)
 			  i915_gem_retire_work_handler);
 	INIT_DELAYED_WORK(&dev_priv->mm.idle_work,
 			  i915_gem_idle_work_handler);
+	init_waitqueue_head(&dev_priv->gpu_error.wait_queue);
 	init_waitqueue_head(&dev_priv->gpu_error.reset_queue);
 
 	dev_priv->relative_constants_mode = I915_EXEC_CONSTANTS_REL_GENERAL;
