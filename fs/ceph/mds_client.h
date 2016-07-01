@@ -385,10 +385,6 @@ extern void ceph_mdsc_destroy(struct ceph_fs_client *fsc);
 
 extern void ceph_mdsc_sync(struct ceph_mds_client *mdsc);
 
-extern void ceph_mdsc_lease_release(struct ceph_mds_client *mdsc,
-				    struct inode *inode,
-				    struct dentry *dn);
-
 extern void ceph_invalidate_dir_request(struct ceph_mds_request *req);
 extern int ceph_alloc_readdir_reply_buffer(struct ceph_mds_request *req,
 					   struct inode *dir);
