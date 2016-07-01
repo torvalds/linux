@@ -1313,6 +1313,22 @@ static int do_test(const char *alg, u32 type, u32 mask, int m)
 		ret += tcrypt_test("hmac(crc32)");
 		break;
 
+	case 111:
+		ret += tcrypt_test("hmac(sha3-224)");
+		break;
+
+	case 112:
+		ret += tcrypt_test("hmac(sha3-256)");
+		break;
+
+	case 113:
+		ret += tcrypt_test("hmac(sha3-384)");
+		break;
+
+	case 114:
+		ret += tcrypt_test("hmac(sha3-512)");
+		break;
+
 	case 150:
 		ret += tcrypt_test("ansi_cprng");
 		break;
