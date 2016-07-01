@@ -266,7 +266,7 @@ static int dma_memcpy_channels[] = {
 			COH901318_CX_CTRL_DDMA_LEGACY | \
 			COH901318_CX_CTRL_PRDD_SOURCE)
 
-const struct coh_dma_channel chan_config[U300_DMA_CHANNELS] = {
+static const struct coh_dma_channel chan_config[U300_DMA_CHANNELS] = {
 	{
 		.number = U300_DMA_MSL_TX_0,
 		.name = "MSL TX 0",
@@ -2803,13 +2803,13 @@ static struct platform_driver coh901318_driver = {
 	},
 };
 
-int __init coh901318_init(void)
+static int __init coh901318_init(void)
 {
 	return platform_driver_probe(&coh901318_driver, coh901318_probe);
 }
 subsys_initcall(coh901318_init);
 
-void __exit coh901318_exit(void)
+static void __exit coh901318_exit(void)
 {
 	platform_driver_unregister(&coh901318_driver);
 }
