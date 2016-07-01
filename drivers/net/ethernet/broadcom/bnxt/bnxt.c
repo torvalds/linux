@@ -5295,12 +5295,19 @@ static int bnxt_open(struct net_device *dev)
 	struct bnxt *bp = netdev_priv(dev);
 	int rc = 0;
 
-	rc = bnxt_hwrm_func_reset(bp);
-	if (rc) {
-		netdev_err(bp->dev, "hwrm chip reset failure rc: %x\n",
-			   rc);
-		rc = -1;
-		return rc;
+	if (!test_bit(BNXT_STATE_FN_RST_DONE, &bp->state)) {
+		rc = bnxt_hwrm_func_reset(bp);
+		if (rc) {
+			netdev_err(bp->dev, "hwrm chip reset failure rc: %x\n",
+				   rc);
+			rc = -EBUSY;
+			return rc;
+		}
+		/* Do func_reset during the 1st PF open only to prevent killing
+		 * the VFs when the PF is brought down and up.
+		 */
+		if (BNXT_PF(bp))
+			set_bit(BNXT_STATE_FN_RST_DONE, &bp->state);
 	}
 	return __bnxt_open_nic(bp, true, true);
 }
@@ -6676,6 +6683,7 @@ static pci_ers_result_t bnxt_io_error_detected(struct pci_dev *pdev,
 					       pci_channel_state_t state)
 {
 	struct net_device *netdev = pci_get_drvdata(pdev);
+	struct bnxt *bp = netdev_priv(netdev);
 
 	netdev_info(netdev, "PCI I/O error detected\n");
 
@@ -6690,6 +6698,8 @@ static pci_ers_result_t bnxt_io_error_detected(struct pci_dev *pdev,
 	if (netif_running(netdev))
 		bnxt_close(netdev);
 
+	/* So that func_reset will be done during slot_reset */
+	clear_bit(BNXT_STATE_FN_RST_DONE, &bp->state);
 	pci_disable_device(pdev);
 	rtnl_unlock();
 
