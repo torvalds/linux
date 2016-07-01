@@ -1683,6 +1683,9 @@ int hfi1_register_ib_device(struct hfi1_devdata *dd)
 	dd->verbs_dev.rdi.dparms.nports = dd->num_pports;
 	dd->verbs_dev.rdi.dparms.npkeys = hfi1_get_npkeys(dd);
 
+	/* post send table */
+	dd->verbs_dev.rdi.post_parms = hfi1_post_parms;
+
 	ppd = dd->pport;
 	for (i = 0; i < dd->num_pports; i++, ppd++)
 		rvt_init_port(&dd->verbs_dev.rdi,

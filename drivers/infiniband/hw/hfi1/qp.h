@@ -54,6 +54,8 @@
 
 extern unsigned int hfi1_qp_table_size;
 
+extern const struct rvt_operation_params hfi1_post_parms[];
+
 /*
  * free_ahg - clear ahg from QP
  */
