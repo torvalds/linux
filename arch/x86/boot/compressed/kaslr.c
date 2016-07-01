@@ -285,6 +285,7 @@ static bool mem_avoid_overlap(struct mem_vector *img,
 		if (mem_overlaps(img, &mem_avoid[i]) &&
 		    mem_avoid[i].start < earliest) {
 			*overlap = mem_avoid[i];
+			earliest = overlap->start;
 			is_overlapping = true;
 		}
 	}
@@ -299,6 +300,7 @@ static bool mem_avoid_overlap(struct mem_vector *img,
 
 		if (mem_overlaps(img, &avoid) && (avoid.start < earliest)) {
 			*overlap = avoid;
+			earliest = overlap->start;
 			is_overlapping = true;
 		}
 
