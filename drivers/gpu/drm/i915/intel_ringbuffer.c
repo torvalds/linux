@@ -665,7 +665,9 @@ int intel_init_pipe_control(struct intel_engine_cs *engine)
 
 	WARN_ON(engine->scratch.obj);
 
-	obj = i915_gem_object_create(engine->i915->dev, 4096);
+	obj = i915_gem_object_create_stolen(engine->i915->dev, 4096);
+	if (!obj)
+		obj = i915_gem_object_create(engine->i915->dev, 4096);
 	if (IS_ERR(obj)) {
 		DRM_ERROR("Failed to allocate scratch page\n");
 		ret = PTR_ERR(obj);
