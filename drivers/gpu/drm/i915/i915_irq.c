@@ -1264,8 +1264,7 @@ static void ivybridge_parity_error_irq_handler(struct drm_i915_private *dev_priv
 static void ilk_gt_irq_handler(struct drm_i915_private *dev_priv,
 			       u32 gt_iir)
 {
-	if (gt_iir &
-	    (GT_RENDER_USER_INTERRUPT | GT_RENDER_PIPECTL_NOTIFY_INTERRUPT))
+	if (gt_iir & GT_RENDER_USER_INTERRUPT)
 		notify_ring(&dev_priv->engine[RCS]);
 	if (gt_iir & ILK_BSD_USER_INTERRUPT)
 		notify_ring(&dev_priv->engine[VCS]);
@@ -1274,9 +1273,7 @@ static void ilk_gt_irq_handler(struct drm_i915_private *dev_priv,
 static void snb_gt_irq_handler(struct drm_i915_private *dev_priv,
 			       u32 gt_iir)
 {
-
-	if (gt_iir &
-	    (GT_RENDER_USER_INTERRUPT | GT_RENDER_PIPECTL_NOTIFY_INTERRUPT))
+	if (gt_iir & GT_RENDER_USER_INTERRUPT)
 		notify_ring(&dev_priv->engine[RCS]);
 	if (gt_iir & GT_BSD_USER_INTERRUPT)
 		notify_ring(&dev_priv->engine[VCS]);
@@ -3601,8 +3598,7 @@ static void gen5_gt_irq_postinstall(struct drm_device *dev)
 
 	gt_irqs |= GT_RENDER_USER_INTERRUPT;
 	if (IS_GEN5(dev)) {
-		gt_irqs |= GT_RENDER_PIPECTL_NOTIFY_INTERRUPT |
-			   ILK_BSD_USER_INTERRUPT;
+		gt_irqs |= ILK_BSD_USER_INTERRUPT;
 	} else {
 		gt_irqs |= GT_BLT_USER_INTERRUPT | GT_BSD_USER_INTERRUPT;
 	}

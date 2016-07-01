@@ -1593,67 +1593,22 @@ gen6_ring_sync(struct drm_i915_gem_request *waiter_req,
 	return 0;
 }
 
-#define PIPE_CONTROL_FLUSH(ring__, addr__)					\
-do {									\
-	intel_ring_emit(ring__, GFX_OP_PIPE_CONTROL(4) | PIPE_CONTROL_QW_WRITE |		\
-		 PIPE_CONTROL_DEPTH_STALL);				\
-	intel_ring_emit(ring__, (addr__) | PIPE_CONTROL_GLOBAL_GTT);			\
-	intel_ring_emit(ring__, 0);							\
-	intel_ring_emit(ring__, 0);							\
-} while (0)
-
-static int
-pc_render_add_request(struct drm_i915_gem_request *req)
+static void
+gen5_seqno_barrier(struct intel_engine_cs *ring)
 {
-	struct intel_engine_cs *engine = req->engine;
-	u32 addr = engine->status_page.gfx_addr +
-		(I915_GEM_HWS_INDEX << MI_STORE_DWORD_INDEX_SHIFT);
-	u32 scratch_addr = addr;
-	int ret;
-
-	/* For Ironlake, MI_USER_INTERRUPT was deprecated and apparently
-	 * incoherent with writes to memory, i.e. completely fubar,
-	 * so we need to use PIPE_NOTIFY instead.
+	/* MI_STORE are internally buffered by the GPU and not flushed
+	 * either by MI_FLUSH or SyncFlush or any other combination of
+	 * MI commands.
 	 *
-	 * However, we also need to workaround the qword write
-	 * incoherence by flushing the 6 PIPE_NOTIFY buffers out to
-	 * memory before requesting an interrupt.
+	 * "Only the submission of the store operation is guaranteed.
+	 * The write result will be complete (coherent) some time later
+	 * (this is practically a finite period but there is no guaranteed
+	 * latency)."
+	 *
+	 * Empirically, we observe that we need a delay of at least 75us to
+	 * be sure that the seqno write is visible by the CPU.
 	 */
-	ret = intel_ring_begin(req, 32);
-	if (ret)
-		return ret;
-
-	intel_ring_emit(engine,
-			GFX_OP_PIPE_CONTROL(4) |
-			PIPE_CONTROL_QW_WRITE |
-			PIPE_CONTROL_WRITE_FLUSH |
-			PIPE_CONTROL_TEXTURE_CACHE_INVALIDATE);
-	intel_ring_emit(engine, addr | PIPE_CONTROL_GLOBAL_GTT);
-	intel_ring_emit(engine, req->seqno);
-	intel_ring_emit(engine, 0);
-	PIPE_CONTROL_FLUSH(engine, scratch_addr);
-	scratch_addr += 2 * CACHELINE_BYTES; /* write to separate cachelines */
-	PIPE_CONTROL_FLUSH(engine, scratch_addr);
-	scratch_addr += 2 * CACHELINE_BYTES;
-	PIPE_CONTROL_FLUSH(engine, scratch_addr);
-	scratch_addr += 2 * CACHELINE_BYTES;
-	PIPE_CONTROL_FLUSH(engine, scratch_addr);
-	scratch_addr += 2 * CACHELINE_BYTES;
-	PIPE_CONTROL_FLUSH(engine, scratch_addr);
-	scratch_addr += 2 * CACHELINE_BYTES;
-	PIPE_CONTROL_FLUSH(engine, scratch_addr);
-
-	intel_ring_emit(engine,
-			GFX_OP_PIPE_CONTROL(4) | PIPE_CONTROL_QW_WRITE |
-			PIPE_CONTROL_WRITE_FLUSH |
-			PIPE_CONTROL_TEXTURE_CACHE_INVALIDATE |
-			PIPE_CONTROL_NOTIFY);
-	intel_ring_emit(engine, addr | PIPE_CONTROL_GLOBAL_GTT);
-	intel_ring_emit(engine, req->seqno);
-	intel_ring_emit(engine, 0);
-	__intel_ring_advance(engine);
-
-	return 0;
+	usleep_range(125, 250);
 }
 
 static void
@@ -2964,6 +2919,7 @@ static void intel_ring_init_irq(struct drm_i915_private *dev_priv,
 	} else if (INTEL_GEN(dev_priv) >= 5) {
 		engine->irq_get = gen5_ring_get_irq;
 		engine->irq_put = gen5_ring_put_irq;
+		engine->irq_seqno_barrier = gen5_seqno_barrier;
 	} else if (INTEL_GEN(dev_priv) >= 3) {
 		engine->irq_get = i9xx_ring_get_irq;
 		engine->irq_put = i9xx_ring_put_irq;
@@ -3012,11 +2968,12 @@ int intel_init_render_ring_buffer(struct drm_device *dev)
 
 	intel_ring_default_vfuncs(dev_priv, engine);
 
+	engine->irq_enable_mask = GT_RENDER_USER_INTERRUPT;
+
 	if (INTEL_GEN(dev_priv) >= 8) {
 		engine->init_context = intel_rcs_ctx_init;
 		engine->add_request = gen8_render_add_request;
 		engine->flush = gen8_render_ring_flush;
-		engine->irq_enable_mask = GT_RENDER_USER_INTERRUPT;
 		if (i915_semaphore_is_enabled(dev_priv))
 			engine->semaphore.signal = gen8_rcs_signal;
 	} else if (INTEL_GEN(dev_priv) >= 6) {
@@ -3024,12 +2981,8 @@ int intel_init_render_ring_buffer(struct drm_device *dev)
 		engine->flush = gen7_render_ring_flush;
 		if (IS_GEN6(dev_priv))
 			engine->flush = gen6_render_ring_flush;
-		engine->irq_enable_mask = GT_RENDER_USER_INTERRUPT;
 	} else if (IS_GEN5(dev_priv)) {
-		engine->add_request = pc_render_add_request;
 		engine->flush = gen4_render_ring_flush;
-		engine->irq_enable_mask = GT_RENDER_USER_INTERRUPT |
-					GT_RENDER_PIPECTL_NOTIFY_INTERRUPT;
 	} else {
 		if (INTEL_GEN(dev_priv) < 4)
 			engine->flush = gen2_render_ring_flush;
@@ -3048,7 +3001,7 @@ int intel_init_render_ring_buffer(struct drm_device *dev)
 	if (ret)
 		return ret;
 
-	if (INTEL_GEN(dev_priv) >= 5) {
+	if (INTEL_GEN(dev_priv) >= 6) {
 		ret = intel_init_pipe_control(engine, 4096);
 		if (ret)
 			return ret;
