@@ -1402,6 +1402,30 @@ static void cxl_pci_remove_adapter(struct cxl *adapter)
 	device_unregister(&adapter->dev);
 }
 
+#define CXL_MAX_PCIEX_PARENT 2
+
+static int cxl_slot_is_switched(struct pci_dev *dev)
+{
+	struct device_node *np;
+	int depth = 0;
+	const __be32 *prop;
+
+	if (!(np = pci_device_to_OF_node(dev))) {
+		pr_err("cxl: np = NULL\n");
+		return -ENODEV;
+	}
+	of_node_get(np);
+	while (np) {
+		np = of_get_next_parent(np);
+		prop = of_get_property(np, "device_type", NULL);
+		if (!prop || strcmp((char *)prop, "pciex"))
+			break;
+		depth++;
+	}
+	of_node_put(np);
+	return (depth > CXL_MAX_PCIEX_PARENT);
+}
+
 static int cxl_probe(struct pci_dev *dev, const struct pci_device_id *id)
 {
 	struct cxl *adapter;
@@ -1410,6 +1434,11 @@ static int cxl_probe(struct pci_dev *dev, const struct pci_device_id *id)
 
 	if (cxl_pci_is_vphb_device(dev)) {
 		dev_dbg(&dev->dev, "cxl_init_adapter: Ignoring cxl vphb device\n");
+		return -ENODEV;
+	}
+
+	if (cxl_slot_is_switched(dev)) {
+		dev_info(&dev->dev, "Ignoring card on incompatible PCI slot\n");
 		return -ENODEV;
 	}
 
