@@ -44,6 +44,7 @@
 #include <linux/mlx5/vport.h>
 #include <linux/mlx5/transobj.h>
 #include <linux/rhashtable.h>
+#include <net/switchdev.h>
 #include "wq.h"
 #include "mlx5_core.h"
 #include "en_stats.h"
@@ -815,5 +816,32 @@ void mlx5e_destroy_tir(struct mlx5_core_dev *mdev,
 int mlx5e_create_mdev_resources(struct mlx5_core_dev *mdev);
 void mlx5e_destroy_mdev_resources(struct mlx5_core_dev *mdev);
 int mlx5e_refresh_tirs_self_loopback_enable(struct mlx5_core_dev *mdev);
+
+struct mlx5_eswitch_rep;
+int mlx5e_vport_rep_load(struct mlx5_eswitch *esw,
+			 struct mlx5_eswitch_rep *rep);
+void mlx5e_vport_rep_unload(struct mlx5_eswitch *esw,
+			    struct mlx5_eswitch_rep *rep);
+int mlx5e_nic_rep_load(struct mlx5_eswitch *esw, struct mlx5_eswitch_rep *rep);
+void mlx5e_nic_rep_unload(struct mlx5_eswitch *esw,
+			  struct mlx5_eswitch_rep *rep);
+int mlx5e_add_sqs_fwd_rules(struct mlx5e_priv *priv);
+void mlx5e_remove_sqs_fwd_rules(struct mlx5e_priv *priv);
+int mlx5e_attr_get(struct net_device *dev, struct switchdev_attr *attr);
+
+int mlx5e_create_direct_rqts(struct mlx5e_priv *priv);
+void mlx5e_destroy_rqt(struct mlx5e_priv *priv, struct mlx5e_rqt *rqt);
+int mlx5e_create_direct_tirs(struct mlx5e_priv *priv);
+void mlx5e_destroy_direct_tirs(struct mlx5e_priv *priv);
+int mlx5e_create_tises(struct mlx5e_priv *priv);
+void mlx5e_cleanup_nic_tx(struct mlx5e_priv *priv);
+int mlx5e_close(struct net_device *netdev);
+int mlx5e_open(struct net_device *netdev);
+void mlx5e_update_stats_work(struct work_struct *work);
+void *mlx5e_create_netdev(struct mlx5_core_dev *mdev,
+			  const struct mlx5e_profile *profile, void *ppriv);
+void mlx5e_destroy_netdev(struct mlx5_core_dev *mdev, struct mlx5e_priv *priv);
+struct rtnl_link_stats64 *
+mlx5e_get_stats(struct net_device *dev, struct rtnl_link_stats64 *stats);
 
 #endif /* __MLX5_EN_H__ */

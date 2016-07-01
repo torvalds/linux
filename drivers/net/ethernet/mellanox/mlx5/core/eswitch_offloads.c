@@ -38,7 +38,7 @@
 #include "mlx5_core.h"
 #include "eswitch.h"
 
-struct mlx5_flow_rule *
+static struct mlx5_flow_rule *
 mlx5_eswitch_add_send_to_vport_rule(struct mlx5_eswitch *esw, int vport, u32 sqn)
 {
 	struct mlx5_flow_destination dest;
@@ -75,6 +75,63 @@ out:
 	kfree(match_v);
 	kfree(match_c);
 	return flow_rule;
+}
+
+void mlx5_eswitch_sqs2vport_stop(struct mlx5_eswitch *esw,
+				 struct mlx5_eswitch_rep *rep)
+{
+	struct mlx5_esw_sq *esw_sq, *tmp;
+
+	if (esw->mode != SRIOV_OFFLOADS)
+		return;
+
+	list_for_each_entry_safe(esw_sq, tmp, &rep->vport_sqs_list, list) {
+		mlx5_del_flow_rule(esw_sq->send_to_vport_rule);
+		list_del(&esw_sq->list);
+		kfree(esw_sq);
+	}
+}
+
+int mlx5_eswitch_sqs2vport_start(struct mlx5_eswitch *esw,
+				 struct mlx5_eswitch_rep *rep,
+				 u16 *sqns_array, int sqns_num)
+{
+	struct mlx5_flow_rule *flow_rule;
+	struct mlx5_esw_sq *esw_sq;
+	int vport;
+	int err;
+	int i;
+
+	if (esw->mode != SRIOV_OFFLOADS)
+		return 0;
+
+	vport = rep->vport == 0 ?
+		FDB_UPLINK_VPORT : rep->vport;
+
+	for (i = 0; i < sqns_num; i++) {
+		esw_sq = kzalloc(sizeof(*esw_sq), GFP_KERNEL);
+		if (!esw_sq) {
+			err = -ENOMEM;
+			goto out_err;
+		}
+
+		/* Add re-inject rule to the PF/representor sqs */
+		flow_rule = mlx5_eswitch_add_send_to_vport_rule(esw,
+								vport,
+								sqns_array[i]);
+		if (IS_ERR(flow_rule)) {
+			err = PTR_ERR(flow_rule);
+			kfree(esw_sq);
+			goto out_err;
+		}
+		esw_sq->send_to_vport_rule = flow_rule;
+		list_add(&esw_sq->list, &rep->vport_sqs_list);
+	}
+	return 0;
+
+out_err:
+	mlx5_eswitch_sqs2vport_stop(esw, rep);
+	return err;
 }
 
 static int esw_add_fdb_miss_rule(struct mlx5_eswitch *esw)
@@ -347,6 +404,8 @@ static int esw_offloads_start(struct mlx5_eswitch *esw)
 
 int esw_offloads_init(struct mlx5_eswitch *esw, int nvports)
 {
+	struct mlx5_eswitch_rep *rep;
+	int vport;
 	int err;
 
 	err = esw_create_offloads_fdb_table(esw, nvports);
@@ -361,7 +420,25 @@ int esw_offloads_init(struct mlx5_eswitch *esw, int nvports)
 	if (err)
 		goto create_fg_err;
 
+	for (vport = 0; vport < nvports; vport++) {
+		rep = &esw->offloads.vport_reps[vport];
+		if (!rep->valid)
+			continue;
+
+		err = rep->load(esw, rep);
+		if (err)
+			goto err_reps;
+	}
 	return 0;
+
+err_reps:
+	for (vport--; vport >= 0; vport--) {
+		rep = &esw->offloads.vport_reps[vport];
+		if (!rep->valid)
+			continue;
+		rep->unload(esw, rep);
+	}
+	esw_destroy_vport_rx_group(esw);
 
 create_fg_err:
 	esw_destroy_offloads_table(esw);
@@ -385,6 +462,16 @@ static int esw_offloads_stop(struct mlx5_eswitch *esw)
 
 void esw_offloads_cleanup(struct mlx5_eswitch *esw, int nvports)
 {
+	struct mlx5_eswitch_rep *rep;
+	int vport;
+
+	for (vport = 0; vport < nvports; vport++) {
+		rep = &esw->offloads.vport_reps[vport];
+		if (!rep->valid)
+			continue;
+		rep->unload(esw, rep);
+	}
+
 	esw_destroy_vport_rx_group(esw);
 	esw_destroy_offloads_table(esw);
 	esw_destroy_offloads_fdb_table(esw);
@@ -460,6 +547,7 @@ void mlx5_eswitch_register_vport_rep(struct mlx5_eswitch *esw,
 	memcpy(&offloads->vport_reps[rep->vport], rep,
 	       sizeof(struct mlx5_eswitch_rep));
 
+	INIT_LIST_HEAD(&offloads->vport_reps[rep->vport].vport_sqs_list);
 	offloads->vport_reps[rep->vport].valid = true;
 }
 
@@ -467,6 +555,12 @@ void mlx5_eswitch_unregister_vport_rep(struct mlx5_eswitch *esw,
 				       int vport)
 {
 	struct mlx5_esw_offload *offloads = &esw->offloads;
+	struct mlx5_eswitch_rep *rep;
+
+	rep = &offloads->vport_reps[vport];
+
+	if (esw->mode == SRIOV_OFFLOADS && esw->vports[vport].enabled)
+		rep->unload(esw, rep);
 
 	offloads->vport_reps[vport].valid = false;
 }

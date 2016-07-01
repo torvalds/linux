@@ -47,6 +47,8 @@
 #define MLX5_L2_ADDR_HASH_SIZE (BIT(BITS_PER_BYTE))
 #define MLX5_L2_ADDR_HASH(addr) (addr[5])
 
+#define FDB_UPLINK_VPORT 0xffff
+
 /* L2 -mac address based- hash helpers */
 struct l2addr_node {
 	struct hlist_node hlist;
@@ -156,10 +158,20 @@ enum {
 	SRIOV_OFFLOADS
 };
 
+struct mlx5_esw_sq {
+	struct mlx5_flow_rule	*send_to_vport_rule;
+	struct list_head	 list;
+};
 
 struct mlx5_eswitch_rep {
+	int		       (*load)(struct mlx5_eswitch *esw,
+				       struct mlx5_eswitch_rep *rep);
+	void		       (*unload)(struct mlx5_eswitch *esw,
+					 struct mlx5_eswitch_rep *rep);
 	u16		       vport;
+	struct mlx5_flow_rule *vport_rx_rule;
 	void		      *priv_data;
+	struct list_head       vport_sqs_list;
 	bool		       valid;
 };
 
@@ -208,11 +220,15 @@ int mlx5_eswitch_get_vport_config(struct mlx5_eswitch *esw,
 int mlx5_eswitch_get_vport_stats(struct mlx5_eswitch *esw,
 				 int vport,
 				 struct ifla_vf_stats *vf_stats);
-struct mlx5_flow_rule *
-mlx5_eswitch_add_send_to_vport_rule(struct mlx5_eswitch *esw, int vport, u32 sqn);
 
 struct mlx5_flow_rule *
 mlx5_eswitch_create_vport_rx_rule(struct mlx5_eswitch *esw, int vport, u32 tirn);
+
+int mlx5_eswitch_sqs2vport_start(struct mlx5_eswitch *esw,
+				 struct mlx5_eswitch_rep *rep,
+				 u16 *sqns_array, int sqns_num);
+void mlx5_eswitch_sqs2vport_stop(struct mlx5_eswitch *esw,
+				 struct mlx5_eswitch_rep *rep);
 
 int mlx5_devlink_eswitch_mode_set(struct devlink *devlink, u16 mode);
 int mlx5_devlink_eswitch_mode_get(struct devlink *devlink, u16 *mode);
