@@ -683,6 +683,7 @@ static const struct of_device_id axi_dmac_of_match_table[] = {
 	{ .compatible = "adi,axi-dmac-1.00.a" },
 	{ },
 };
+MODULE_DEVICE_TABLE(of, axi_dmac_of_match_table);
 
 static struct platform_driver axi_dmac_driver = {
 	.driver = {
