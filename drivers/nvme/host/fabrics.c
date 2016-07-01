@@ -88,6 +88,10 @@ static void nvmf_host_destroy(struct kref *ref)
 {
 	struct nvmf_host *host = container_of(ref, struct nvmf_host, ref);
 
+	mutex_lock(&nvmf_hosts_mutex);
+	list_del(&host->list);
+	mutex_unlock(&nvmf_hosts_mutex);
+
 	kfree(host);
 }
 
