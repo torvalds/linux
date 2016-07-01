@@ -924,7 +924,7 @@ static long camsys_ioctl_compat(struct file *filp, unsigned int cmd, unsigned
 			of_property_read_u32(vpu_node,
 				"iommu_enabled", &vpu_iommu_enabled);
 			of_property_read_u32(camsys_dev->pdev->dev.of_node,
-				"rockchip,isp,iommu_enable", &iommu_enabled);
+				"rockchip,isp,iommu-enable", &iommu_enabled);
 			of_node_put(vpu_node);
 			if (iommu_enabled != vpu_iommu_enabled) {
 				camsys_err(
@@ -1132,7 +1132,7 @@ static long camsys_ioctl(struct file *filp, unsigned int cmd, unsigned long arg)
 			of_property_read_u32(vpu_node,
 				"iommu_enabled", &vpu_iommu_enabled);
 			of_property_read_u32(camsys_dev->pdev->dev.of_node,
-				"rockchip,isp,iommu_enable", &iommu_enabled);
+				"rockchip,isp,iommu-enable", &iommu_enabled);
 			of_node_put(vpu_node);
 			if (iommu_enabled != vpu_iommu_enabled) {
 				camsys_err(

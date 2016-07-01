@@ -270,7 +270,7 @@ static int camsys_mrv_iommu_cb(void *ptr, camsys_sysctrl_t *devctl)
 	camsys_dev_t *camsys_dev = (camsys_dev_t *)ptr;
 
 	of_property_read_u32(camsys_dev->pdev->dev.of_node,
-		"rockchip,isp,iommu_enable", &iommu_enabled);
+		"rockchip,isp,iommu-enable", &iommu_enabled);
 	if (iommu_enabled != 1) {
 		camsys_err("isp iommu have not been enabled!\n");
 		ret = -1;
@@ -388,6 +388,7 @@ static int camsys_mrv_clkin_cb(void *ptr, unsigned int on)
 				clk_prepare_enable(clk->pclk_dphytxrx);
 
 				clk_prepare_enable(clk->pclkin_isp);
+				clk_prepare_enable(clk->cif_clk_out);
 			} else{
 				clk_set_rate(clk->clk_isp0, isp_clk);
 				clk_prepare_enable(clk->hclk_isp0_noc);
@@ -424,7 +425,6 @@ static int camsys_mrv_clkin_cb(void *ptr, unsigned int on)
 				clk_disable_unprepare(clk->pclk_dphy_ref);
 
 				clk_disable_unprepare(clk->pclkin_isp);
-
 			} else{
 				clk_disable_unprepare(clk->hclk_isp0_noc);
 				clk_disable_unprepare(clk->hclk_isp0_wrapper);
@@ -751,7 +751,14 @@ int camsys_mrv_probe_cb(struct platform_device *pdev, camsys_dev_t *camsys_dev)
 {
 	int err = 0;
 	camsys_mrv_clk_t *mrv_clk = NULL;
-	const char *compatible = NULL;
+	struct resource register_res;
+
+	err = of_address_to_resource(pdev->dev.of_node, 0, &register_res);
+	if (err < 0) {
+		camsys_err(
+			"Get register resource from %s platform device failed!",
+			pdev->name);
+	}
 
 	err = request_irq(camsys_dev->irq.irq_id, camsys_mrv_irq,
 					IRQF_SHARED, CAMSYS_MARVIN_IRQNAME,
@@ -809,68 +816,76 @@ int camsys_mrv_probe_cb(struct platform_device *pdev, camsys_dev_t *camsys_dev)
 	} else if (CHIP_TYPE == 3399) {
 
 		pm_runtime_enable(&pdev->dev);
-		mrv_clk->hclk_isp0_noc	   =
-			devm_clk_get(&pdev->dev, "hclk_isp0_noc");
-		mrv_clk->hclk_isp0_wrapper =
-			devm_clk_get(&pdev->dev, "hclk_isp0_wrapper");
-		mrv_clk->aclk_isp0_noc	   =
-			devm_clk_get(&pdev->dev, "aclk_isp0_noc");
-		mrv_clk->aclk_isp0_wrapper =
-			devm_clk_get(&pdev->dev, "aclk_isp0_wrapper");
-		mrv_clk->clk_isp0		   =
-			devm_clk_get(&pdev->dev, "clk_isp0");
+		if (register_res.start == 0xff920000) {
+			mrv_clk->hclk_isp1_noc	   =
+				devm_clk_get(&pdev->dev, "hclk_isp1_noc");
+			mrv_clk->hclk_isp1_wrapper =
+				devm_clk_get(&pdev->dev, "hclk_isp1_wrapper");
+			mrv_clk->aclk_isp1_noc	   =
+				devm_clk_get(&pdev->dev, "aclk_isp1_noc");
+			mrv_clk->aclk_isp1_wrapper =
+				devm_clk_get(&pdev->dev, "aclk_isp1_wrapper");
+			mrv_clk->clk_isp1		   =
+				devm_clk_get(&pdev->dev, "clk_isp1");
+			mrv_clk->pclkin_isp 	   =
+				devm_clk_get(&pdev->dev, "pclk_isp1");
+			mrv_clk->pclk_dphytxrx	   =
+				devm_clk_get(&pdev->dev, "pclk_dphytxrx");
+		}
+		else
+		{
+			mrv_clk->hclk_isp0_noc	   =
+				devm_clk_get(&pdev->dev, "hclk_isp0_noc");
+			mrv_clk->hclk_isp0_wrapper =
+				devm_clk_get(&pdev->dev, "hclk_isp0_wrapper");
+			mrv_clk->aclk_isp0_noc	   =
+				devm_clk_get(&pdev->dev, "aclk_isp0_noc");
+			mrv_clk->aclk_isp0_wrapper =
+				devm_clk_get(&pdev->dev, "aclk_isp0_wrapper");
+			mrv_clk->clk_isp0		   =
+				devm_clk_get(&pdev->dev, "clk_isp0");
+			mrv_clk->pclk_dphyrx	   =
+				devm_clk_get(&pdev->dev, "pclk_dphyrx");
+		}
 		mrv_clk->cif_clk_out	   =
 			devm_clk_get(&pdev->dev, "clk_cif_out");
 		mrv_clk->cif_clk_pll	   =
 			devm_clk_get(&pdev->dev, "clk_cif_pll");
-		mrv_clk->pclk_dphyrx	   =
-			devm_clk_get(&pdev->dev, "pclk_dphyrx");
 		mrv_clk->pclk_dphy_ref	   =
 			devm_clk_get(&pdev->dev, "pclk_dphy_ref");
-
-		mrv_clk->hclk_isp1_noc	   =
-			devm_clk_get(&pdev->dev, "hclk_isp1_noc");
-		mrv_clk->hclk_isp1_wrapper =
-			devm_clk_get(&pdev->dev, "hclk_isp1_wrapper");
-		mrv_clk->aclk_isp1_noc	   =
-			devm_clk_get(&pdev->dev, "aclk_isp1_noc");
-		mrv_clk->aclk_isp1_wrapper =
-			devm_clk_get(&pdev->dev, "aclk_isp1_wrapper");
-		mrv_clk->pclkin_isp        =
-			devm_clk_get(&pdev->dev, "pclk_isp1");
-
-		mrv_clk->clk_isp1		   =
-			devm_clk_get(&pdev->dev, "clk_isp1");
-		mrv_clk->pclk_dphytxrx	   =
-			devm_clk_get(&pdev->dev, "pclk_dphytxrx");
-
-		if (IS_ERR_OR_NULL(mrv_clk->hclk_isp0_noc)       ||
-			IS_ERR_OR_NULL(mrv_clk->hclk_isp0_wrapper)   ||
-			IS_ERR_OR_NULL(mrv_clk->aclk_isp0_noc)       ||
-			IS_ERR_OR_NULL(mrv_clk->aclk_isp0_wrapper)   ||
-			IS_ERR_OR_NULL(mrv_clk->clk_isp0)            ||
-			IS_ERR_OR_NULL(mrv_clk->cif_clk_out)		 ||
-			IS_ERR_OR_NULL(mrv_clk->cif_clk_pll)         ||
-			IS_ERR_OR_NULL(mrv_clk->pclk_dphyrx)) {
-			camsys_err("Get %s clock resouce failed!\n",
-				miscdev_name);
-			err = -EINVAL;
-			goto clk_failed;
+		if (register_res.start == 0xff920000) {
+			if (IS_ERR_OR_NULL(mrv_clk->hclk_isp1_noc)       ||
+				IS_ERR_OR_NULL(mrv_clk->hclk_isp1_wrapper)   ||
+				IS_ERR_OR_NULL(mrv_clk->aclk_isp1_noc)       ||
+				IS_ERR_OR_NULL(mrv_clk->aclk_isp1_wrapper)   ||
+				IS_ERR_OR_NULL(mrv_clk->clk_isp1)            ||
+				IS_ERR_OR_NULL(mrv_clk->cif_clk_out)         ||
+				IS_ERR_OR_NULL(mrv_clk->cif_clk_pll)         ||
+				IS_ERR_OR_NULL(mrv_clk->pclkin_isp)          ||
+				IS_ERR_OR_NULL(mrv_clk->pclk_dphytxrx)) {
+				camsys_err("Get %s clock resouce failed!\n",
+					miscdev_name);
+				err = -EINVAL;
+				goto clk_failed;
+			}
 		}
-
-		err = of_property_read_string(pdev->dev.of_node,
-			"compatible", &compatible);
-		if (err < 0) {
-			camsys_err("get compatible failed!");
-		} else {
-			camsys_trace(1, "compatible is %s\n", compatible);
+		else
+		{
+			if (IS_ERR_OR_NULL(mrv_clk->hclk_isp0_noc)       ||
+				IS_ERR_OR_NULL(mrv_clk->hclk_isp0_wrapper)   ||
+				IS_ERR_OR_NULL(mrv_clk->aclk_isp0_noc)       ||
+				IS_ERR_OR_NULL(mrv_clk->aclk_isp0_wrapper)   ||
+				IS_ERR_OR_NULL(mrv_clk->clk_isp0)            ||
+				IS_ERR_OR_NULL(mrv_clk->cif_clk_out)         ||
+				IS_ERR_OR_NULL(mrv_clk->cif_clk_pll)         ||
+				IS_ERR_OR_NULL(mrv_clk->pclk_dphyrx)) {
+				camsys_err("Get %s clock resouce failed!\n",
+					miscdev_name);
+				err = -EINVAL;
+				goto clk_failed;
+			}
 		}
-		if (strstr(compatible, "isp1")) {
-			clk_set_rate(mrv_clk->clk_isp1, 210000000);
-		} else{
-			clk_set_rate(mrv_clk->clk_isp0, 210000000);
-		}
-
+	clk_set_rate(mrv_clk->clk_isp0, 210000000);
 	} else{
 		mrv_clk->pd_isp		  =
 			devm_clk_get(&pdev->dev, "pd_isp");
@@ -891,11 +906,11 @@ int camsys_mrv_probe_cb(struct platform_device *pdev, camsys_dev_t *camsys_dev)
 		mrv_clk->clk_mipi_24m =
 			devm_clk_get(&pdev->dev, "clk_mipi_24m");
 
-		if (IS_ERR_OR_NULL(mrv_clk->pd_isp)		 ||
-			IS_ERR_OR_NULL(mrv_clk->aclk_isp)	 ||
-			IS_ERR_OR_NULL(mrv_clk->hclk_isp)	 ||
-			IS_ERR_OR_NULL(mrv_clk->isp)		 ||
-			IS_ERR_OR_NULL(mrv_clk->isp_jpe)	 ||
+		if (IS_ERR_OR_NULL(mrv_clk->pd_isp)      ||
+			IS_ERR_OR_NULL(mrv_clk->aclk_isp)    ||
+			IS_ERR_OR_NULL(mrv_clk->hclk_isp)    ||
+			IS_ERR_OR_NULL(mrv_clk->isp)         ||
+			IS_ERR_OR_NULL(mrv_clk->isp_jpe)     ||
 			IS_ERR_OR_NULL(mrv_clk->pclkin_isp)  ||
 			IS_ERR_OR_NULL(mrv_clk->cif_clk_out) ||
 			IS_ERR_OR_NULL(mrv_clk->clk_mipi_24m)) {
@@ -929,7 +944,7 @@ int camsys_mrv_probe_cb(struct platform_device *pdev, camsys_dev_t *camsys_dev)
 	camsys_dev->miscdev.fops = &camsys_fops;
 
 	if (CHIP_TYPE == 3399) {
-		if (strstr(compatible, "isp1")) {
+		if (register_res.start == 0xff920000) {
 			camsys_dev->miscdev.name = "camsys_marvin1";
 			camsys_dev->miscdev.nodename = "camsys_marvin1";
 		}

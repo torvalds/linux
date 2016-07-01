@@ -134,8 +134,10 @@
 		1) support rk3368-sheep kernel ver4.4.
 *v0.0x21.2:
 		1) support rk3399.
+*v0.0x21.3:
+		1) some modifications.
 */
-#define CAMSYS_DRIVER_VERSION                   KERNEL_VERSION(0, 0x21, 2)
+#define CAMSYS_DRIVER_VERSION                   KERNEL_VERSION(0, 0x21, 3)
 
 #define CAMSYS_PLATFORM_DRV_NAME                "RockChip-CamSys"
 #define CAMSYS_PLATFORM_MARVIN_NAME             "Platform_MarvinDev"
@@ -304,7 +306,7 @@ typedef struct camsys_dev_s {
 static inline camsys_extdev_t *camsys_find_extdev(
 unsigned int dev_id, camsys_dev_t *camsys_dev)
 {
-	camsys_extdev_t *extdev;
+	camsys_extdev_t *extdev = NULL;
 
 	if (!list_empty(&camsys_dev->extdevs.list)) {
 		list_for_each_entry(extdev,
