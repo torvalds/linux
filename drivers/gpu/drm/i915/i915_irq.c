@@ -3072,9 +3072,6 @@ static unsigned kick_waiters(struct intel_engine_cs *engine)
 		if (!test_bit(engine->id, &i915->gpu_error.test_irq_rings))
 			DRM_ERROR("Hangcheck timer elapsed... %s idle\n",
 				  engine->name);
-		else
-			DRM_INFO("Fake missed irq on %s\n",
-				 engine->name);
 
 		intel_engine_enable_fake_irq(engine);
 	}
