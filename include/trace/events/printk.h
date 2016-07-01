@@ -16,6 +16,14 @@ TRACE_EVENT(console,
 	),
 
 	TP_fast_assign(
+		/*
+		 * Each trace entry is printed in a new line.
+		 * If the msg finishes with '\n', cut it off
+		 * to avoid blank lines in the trace.
+		 */
+		if ((len > 0) && (text[len-1] == '\n'))
+			len -= 1;
+
 		memcpy(__get_str(msg), text, len);
 		__get_str(msg)[len] = 0;
 	),
