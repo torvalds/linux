@@ -67,7 +67,10 @@ OPTIONS
 
 -l::
 --list[=[GROUP:]EVENT]::
-	List up current probe events. This can also accept filtering patterns of event names.
+	List up current probe events. This can also accept filtering patterns of
+	event names.
+	When this is used with --cache, perf shows all cached probes instead of
+	the live probes.
 
 -L::
 --line=::
@@ -110,8 +113,9 @@ OPTIONS
 	adding and removal operations.
 
 --cache::
-	Cache the probes (with --add option). Any events which successfully added
+	(With --add) Cache the probes. Any events which successfully added
 	are also stored in the cache file.
+	(With --list) Show cached probes.
 
 --max-probes=NUM::
 	Set the maximum number of probe points for an event. Default is 128.

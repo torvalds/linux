@@ -165,8 +165,7 @@ retry:
 	return NULL;
 }
 
-static char *build_id_cache__linkname(const char *sbuild_id, char *bf,
-				      size_t size)
+char *build_id_cache__linkname(const char *sbuild_id, char *bf, size_t size)
 {
 	char *tmp = bf;
 	int ret = asnprintf(&bf, size, "%s/.build-id/%.2s/%s", buildid_dir,
@@ -174,6 +173,36 @@ static char *build_id_cache__linkname(const char *sbuild_id, char *bf,
 	if (ret < 0 || (tmp && size < (unsigned int)ret))
 		return NULL;
 	return bf;
+}
+
+char *build_id_cache__origname(const char *sbuild_id)
+{
+	char *linkname;
+	char buf[PATH_MAX];
+	char *ret = NULL, *p;
+	size_t offs = 5;	/* == strlen("../..") */
+
+	linkname = build_id_cache__linkname(sbuild_id, NULL, 0);
+	if (!linkname)
+		return NULL;
+
+	if (readlink(linkname, buf, PATH_MAX) < 0)
+		goto out;
+	/* The link should be "../..<origpath>/<sbuild_id>" */
+	p = strrchr(buf, '/');	/* Cut off the "/<sbuild_id>" */
+	if (p && (p > buf + offs)) {
+		*p = '\0';
+		if (buf[offs + 1] == '[')
+			offs++;	/*
+				 * This is a DSO name, like [kernel.kallsyms].
+				 * Skip the first '/', since this is not the
+				 * cache of a regular file.
+				 */
+		ret = strdup(buf + offs);	/* Skip "../..[/]" */
+	}
+out:
+	free(linkname);
+	return ret;
 }
 
 static const char *build_id_cache__basename(bool is_kallsyms, bool is_vdso)
@@ -385,6 +414,81 @@ int dsos__hit_all(struct perf_session *session)
 void disable_buildid_cache(void)
 {
 	no_buildid_cache = true;
+}
+
+static bool lsdir_bid_head_filter(const char *name __maybe_unused,
+				  struct dirent *d __maybe_unused)
+{
+	return (strlen(d->d_name) == 2) &&
+		isxdigit(d->d_name[0]) && isxdigit(d->d_name[1]);
+}
+
+static bool lsdir_bid_tail_filter(const char *name __maybe_unused,
+				  struct dirent *d __maybe_unused)
+{
+	int i = 0;
+	while (isxdigit(d->d_name[i]) && i < SBUILD_ID_SIZE - 3)
+		i++;
+	return (i == SBUILD_ID_SIZE - 3) && (d->d_name[i] == '\0');
+}
+
+struct strlist *build_id_cache__list_all(void)
+{
+	struct strlist *toplist, *linklist = NULL, *bidlist;
+	struct str_node *nd, *nd2;
+	char *topdir, *linkdir = NULL;
+	char sbuild_id[SBUILD_ID_SIZE];
+
+	/* Open the top-level directory */
+	if (asprintf(&topdir, "%s/.build-id/", buildid_dir) < 0)
+		return NULL;
+
+	bidlist = strlist__new(NULL, NULL);
+	if (!bidlist)
+		goto out;
+
+	toplist = lsdir(topdir, lsdir_bid_head_filter);
+	if (!toplist) {
+		pr_debug("Error in lsdir(%s): %d\n", topdir, errno);
+		/* If there is no buildid cache, return an empty list */
+		if (errno == ENOENT)
+			goto out;
+		goto err_out;
+	}
+
+	strlist__for_each_entry(nd, toplist) {
+		if (asprintf(&linkdir, "%s/%s", topdir, nd->s) < 0)
+			goto err_out;
+		/* Open the lower-level directory */
+		linklist = lsdir(linkdir, lsdir_bid_tail_filter);
+		if (!linklist) {
+			pr_debug("Error in lsdir(%s): %d\n", linkdir, errno);
+			goto err_out;
+		}
+		strlist__for_each_entry(nd2, linklist) {
+			if (snprintf(sbuild_id, SBUILD_ID_SIZE, "%s%s",
+				     nd->s, nd2->s) != SBUILD_ID_SIZE - 1)
+				goto err_out;
+			if (strlist__add(bidlist, sbuild_id) < 0)
+				goto err_out;
+		}
+		strlist__delete(linklist);
+		zfree(&linkdir);
+	}
+
+out_free:
+	strlist__delete(toplist);
+out:
+	free(topdir);
+
+	return bidlist;
+
+err_out:
+	strlist__delete(linklist);
+	zfree(&linkdir);
+	strlist__delete(bidlist);
+	bidlist = NULL;
+	goto out_free;
 }
 
 char *build_id_cache__cachedir(const char *sbuild_id, const char *name,

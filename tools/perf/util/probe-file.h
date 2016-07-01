@@ -42,4 +42,5 @@ struct probe_cache_entry *probe_cache__find(struct probe_cache *pcache,
 					    struct perf_probe_event *pev);
 struct probe_cache_entry *probe_cache__find_by_name(struct probe_cache *pcache,
 					const char *group, const char *event);
+int probe_cache__show_all_caches(struct strfilter *filter);
 #endif

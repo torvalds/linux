@@ -367,9 +367,16 @@ static int probe_cache__open(struct probe_cache *pcache, const char *target)
 {
 	char cpath[PATH_MAX];
 	char sbuildid[SBUILD_ID_SIZE];
-	char *dir_name;
+	char *dir_name = NULL;
 	bool is_kallsyms = !target;
 	int ret, fd;
+
+	if (target && build_id_cache__cached(target)) {
+		/* This is a cached buildid */
+		strncpy(sbuildid, target, SBUILD_ID_SIZE);
+		dir_name = build_id_cache__linkname(sbuildid, NULL, 0);
+		goto found;
+	}
 
 	if (target)
 		ret = filename__sprintf_build_id(target, sbuildid);
@@ -394,8 +401,11 @@ static int probe_cache__open(struct probe_cache *pcache, const char *target)
 
 	dir_name = build_id_cache__cachedir(sbuildid, target, is_kallsyms,
 					    false);
-	if (!dir_name)
+found:
+	if (!dir_name) {
+		pr_debug("Failed to get cache from %s\n", target);
 		return -ENOMEM;
+	}
 
 	snprintf(cpath, PATH_MAX, "%s/probes", dir_name);
 	fd = open(cpath, O_CREAT | O_RDWR, 0644);
@@ -672,4 +682,56 @@ int probe_cache__commit(struct probe_cache *pcache)
 	}
 out:
 	return ret;
+}
+
+static int probe_cache__show_entries(struct probe_cache *pcache,
+				     struct strfilter *filter)
+{
+	struct probe_cache_entry *entry;
+	char buf[128], *ptr;
+
+	list_for_each_entry(entry, &pcache->entries, node) {
+		if (entry->pev.event) {
+			ptr = buf;
+			snprintf(buf, 128, "%s:%s",
+				 entry->pev.group, entry->pev.event);
+		} else
+			ptr = entry->spev;
+		if (strfilter__compare(filter, ptr))
+			printf("%s\n", entry->spev);
+	}
+	return 0;
+}
+
+/* Show all cached probes */
+int probe_cache__show_all_caches(struct strfilter *filter)
+{
+	struct probe_cache *pcache;
+	struct strlist *bidlist;
+	struct str_node *nd;
+	char *buf = strfilter__string(filter);
+
+	pr_debug("list cache with filter: %s\n", buf);
+	free(buf);
+
+	bidlist = build_id_cache__list_all();
+	if (!bidlist) {
+		pr_debug("Failed to get buildids: %d\n", errno);
+		return -EINVAL;
+	}
+	strlist__for_each_entry(nd, bidlist) {
+		pcache = probe_cache__new(nd->s);
+		if (!pcache)
+			continue;
+		if (!list_empty(&pcache->entries)) {
+			buf = build_id_cache__origname(nd->s);
+			printf("%s (%s):\n", buf, nd->s);
+			free(buf);
+			probe_cache__show_entries(pcache, filter);
+		}
+		probe_cache__delete(pcache);
+	}
+	strlist__delete(bidlist);
+
+	return 0;
 }
