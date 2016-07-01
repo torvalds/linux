@@ -146,7 +146,7 @@ static bool __intel_engine_add_wait(struct intel_engine_cs *engine,
 	first = true;
 	parent = NULL;
 	completed = NULL;
-	seqno = engine->get_seqno(engine);
+	seqno = intel_engine_get_seqno(engine);
 
 	 /* If the request completed before we managed to grab the spinlock,
 	  * return now before adding ourselves to the rbtree. We let the
@@ -296,7 +296,7 @@ void intel_engine_remove_wait(struct intel_engine_cs *engine,
 			 * the first_waiter. This is undesirable if that
 			 * waiter is a high priority task.
 			 */
-			u32 seqno = engine->get_seqno(engine);
+			u32 seqno = intel_engine_get_seqno(engine);
 
 			while (i915_seqno_passed(seqno, to_wait(next)->seqno)) {
 				struct rb_node *n = rb_next(next);

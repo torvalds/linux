@@ -1783,16 +1783,6 @@ static int gen8_emit_flush_render(struct drm_i915_gem_request *request,
 	return 0;
 }
 
-static u32 gen8_get_seqno(struct intel_engine_cs *engine)
-{
-	return intel_read_status_page(engine, I915_GEM_HWS_INDEX);
-}
-
-static void gen8_set_seqno(struct intel_engine_cs *engine, u32 seqno)
-{
-	intel_write_status_page(engine, I915_GEM_HWS_INDEX, seqno);
-}
-
 static void bxt_a_seqno_barrier(struct intel_engine_cs *engine)
 {
 	/*
@@ -1805,14 +1795,6 @@ static void bxt_a_seqno_barrier(struct intel_engine_cs *engine)
 	 * bxt_a_set_seqno(), where we also do a clflush after the write. So
 	 * this clflush in practice becomes an invalidate operation.
 	 */
-	intel_flush_status_page(engine, I915_GEM_HWS_INDEX);
-}
-
-static void bxt_a_set_seqno(struct intel_engine_cs *engine, u32 seqno)
-{
-	intel_write_status_page(engine, I915_GEM_HWS_INDEX, seqno);
-
-	/* See bxt_a_get_seqno() explaining the reason for the clflush. */
 	intel_flush_status_page(engine, I915_GEM_HWS_INDEX);
 }
 
@@ -1841,7 +1823,7 @@ static int gen8_emit_request(struct drm_i915_gem_request *request)
 				intel_hws_seqno_address(request->engine) |
 				MI_FLUSH_DW_USE_GTT);
 	intel_logical_ring_emit(ringbuf, 0);
-	intel_logical_ring_emit(ringbuf, i915_gem_request_get_seqno(request));
+	intel_logical_ring_emit(ringbuf, request->seqno);
 	intel_logical_ring_emit(ringbuf, MI_USER_INTERRUPT);
 	intel_logical_ring_emit(ringbuf, MI_NOOP);
 	return intel_logical_ring_advance_and_submit(request);
@@ -1987,12 +1969,8 @@ logical_ring_default_vfuncs(struct intel_engine_cs *engine)
 	engine->irq_get = gen8_logical_ring_get_irq;
 	engine->irq_put = gen8_logical_ring_put_irq;
 	engine->emit_bb_start = gen8_emit_bb_start;
-	engine->get_seqno = gen8_get_seqno;
-	engine->set_seqno = gen8_set_seqno;
-	if (IS_BXT_REVID(engine->i915, 0, BXT_REVID_A1)) {
+	if (IS_BXT_REVID(engine->i915, 0, BXT_REVID_A1))
 		engine->irq_seqno_barrier = bxt_a_seqno_barrier;
-		engine->set_seqno = bxt_a_set_seqno;
-	}
 }
 
 static inline void

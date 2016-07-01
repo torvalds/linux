@@ -662,7 +662,7 @@ static int i915_gem_pageflip_info(struct seq_file *m, void *data)
 					   engine->name,
 					   i915_gem_request_get_seqno(work->flip_queued_req),
 					   dev_priv->next_seqno,
-					   engine->get_seqno(engine),
+					   intel_engine_get_seqno(engine),
 					   i915_gem_request_completed(work->flip_queued_req));
 			} else
 				seq_printf(m, "Flip not associated with any ring\n");
@@ -792,7 +792,7 @@ static void i915_ring_seqno_info(struct seq_file *m,
 	struct rb_node *rb;
 
 	seq_printf(m, "Current sequence (%s): %x\n",
-		   engine->name, engine->get_seqno(engine));
+		   engine->name, intel_engine_get_seqno(engine));
 	seq_printf(m, "Current user interrupts (%s): %x\n",
 		   engine->name, READ_ONCE(engine->user_interrupts));
 
@@ -1420,7 +1420,7 @@ static int i915_hangcheck_info(struct seq_file *m, void *unused)
 
 	for_each_engine_id(engine, dev_priv, id) {
 		acthd[id] = intel_ring_get_active_head(engine);
-		seqno[id] = engine->get_seqno(engine);
+		seqno[id] = intel_engine_get_seqno(engine);
 	}
 
 	i915_get_extra_instdone(dev_priv, instdone);

@@ -207,9 +207,6 @@ struct intel_engine_cs {
 	 * monotonic, even if not coherent.
 	 */
 	void		(*irq_seqno_barrier)(struct intel_engine_cs *ring);
-	u32		(*get_seqno)(struct intel_engine_cs *ring);
-	void		(*set_seqno)(struct intel_engine_cs *ring,
-				     u32 seqno);
 	int		(*dispatch_execbuffer)(struct drm_i915_gem_request *req,
 					       u64 offset, u32 length,
 					       unsigned dispatch_flags);
@@ -485,6 +482,10 @@ int intel_init_blt_ring_buffer(struct drm_device *dev);
 int intel_init_vebox_ring_buffer(struct drm_device *dev);
 
 u64 intel_ring_get_active_head(struct intel_engine_cs *engine);
+static inline u32 intel_engine_get_seqno(struct intel_engine_cs *engine)
+{
+	return intel_read_status_page(engine, I915_GEM_HWS_INDEX);
+}
 
 int init_workarounds_ring(struct intel_engine_cs *engine);
 

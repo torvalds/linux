@@ -558,7 +558,7 @@ TRACE_EVENT(i915_gem_request_notify,
 	    TP_fast_assign(
 			   __entry->dev = engine->i915->dev->primary->index;
 			   __entry->ring = engine->id;
-			   __entry->seqno = engine->get_seqno(engine);
+			   __entry->seqno = intel_engine_get_seqno(engine);
 			   ),
 
 	    TP_printk("dev=%u, ring=%u, seqno=%u",

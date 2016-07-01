@@ -2952,7 +2952,7 @@ static int semaphore_passed(struct intel_engine_cs *engine)
 	if (signaller->hangcheck.deadlock >= I915_NUM_ENGINES)
 		return -1;
 
-	if (i915_seqno_passed(signaller->get_seqno(signaller), seqno))
+	if (i915_seqno_passed(intel_engine_get_seqno(signaller), seqno))
 		return 1;
 
 	/* cursory check for an unkickable deadlock */
@@ -3140,7 +3140,7 @@ static void i915_hangcheck_elapsed(struct work_struct *work)
 			engine->irq_seqno_barrier(engine);
 
 		acthd = intel_ring_get_active_head(engine);
-		seqno = engine->get_seqno(engine);
+		seqno = intel_engine_get_seqno(engine);
 
 		/* Reset stuck interrupts between batch advances */
 		user_interrupts = 0;
