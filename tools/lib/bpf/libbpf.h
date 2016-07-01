@@ -19,7 +19,7 @@ enum libbpf_errno {
 	LIBBPF_ERRNO__LIBELF = __LIBBPF_ERRNO__START,
 	LIBBPF_ERRNO__FORMAT,	/* BPF object format invalid */
 	LIBBPF_ERRNO__KVERSION,	/* Incorrect or no 'version' section */
-	LIBBPF_ERRNO__ENDIAN,	/* Endian missmatch */
+	LIBBPF_ERRNO__ENDIAN,	/* Endian mismatch */
 	LIBBPF_ERRNO__INTERNAL,	/* Internal error in libbpf */
 	LIBBPF_ERRNO__RELOC,	/* Relocation failed */
 	LIBBPF_ERRNO__LOAD,	/* Load program failure for unknown reason */

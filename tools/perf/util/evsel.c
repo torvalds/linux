@@ -2422,3 +2422,10 @@ int perf_evsel__open_strerror(struct perf_evsel *evsel, struct target *target,
 			 err, strerror_r(err, sbuf, sizeof(sbuf)),
 			 perf_evsel__name(evsel));
 }
+
+char *perf_evsel__env_arch(struct perf_evsel *evsel)
+{
+	if (evsel && evsel->evlist && evsel->evlist->env)
+		return evsel->evlist->env->arch;
+	return NULL;
+}

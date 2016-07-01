@@ -1,12 +1,19 @@
 #include <sys/types.h>
 #include <unistd.h>
+#include <sys/prctl.h>
 #include "tests.h"
 #include "thread_map.h"
 #include "debug.h"
 
+#define NAME	(const char *) "perf"
+#define NAMEUL	(unsigned long) NAME
+
 int test__thread_map(int subtest __maybe_unused)
 {
 	struct thread_map *map;
+
+	TEST_ASSERT_VAL("failed to set process name",
+			!prctl(PR_SET_NAME, NAMEUL, 0, 0, 0));
 
 	/* test map on current pid */
 	map = thread_map__new_by_pid(getpid());
@@ -19,7 +26,7 @@ int test__thread_map(int subtest __maybe_unused)
 			thread_map__pid(map, 0) == getpid());
 	TEST_ASSERT_VAL("wrong comm",
 			thread_map__comm(map, 0) &&
-			!strcmp(thread_map__comm(map, 0), "perf"));
+			!strcmp(thread_map__comm(map, 0), NAME));
 	TEST_ASSERT_VAL("wrong refcnt",
 			atomic_read(&map->refcnt) == 1);
 	thread_map__put(map);
@@ -51,7 +58,7 @@ static int process_event(struct perf_tool *tool __maybe_unused,
 
 	TEST_ASSERT_VAL("wrong nr",   map->nr == 1);
 	TEST_ASSERT_VAL("wrong pid",  map->entries[0].pid == (u64) getpid());
-	TEST_ASSERT_VAL("wrong comm", !strcmp(map->entries[0].comm, "perf"));
+	TEST_ASSERT_VAL("wrong comm", !strcmp(map->entries[0].comm, NAME));
 
 	threads = thread_map__new_event(&event->thread_map);
 	TEST_ASSERT_VAL("failed to alloc map", threads);
@@ -61,7 +68,7 @@ static int process_event(struct perf_tool *tool __maybe_unused,
 			thread_map__pid(threads, 0) == getpid());
 	TEST_ASSERT_VAL("wrong comm",
 			thread_map__comm(threads, 0) &&
-			!strcmp(thread_map__comm(threads, 0), "perf"));
+			!strcmp(thread_map__comm(threads, 0), NAME));
 	TEST_ASSERT_VAL("wrong refcnt",
 			atomic_read(&threads->refcnt) == 1);
 	thread_map__put(threads);
@@ -71,6 +78,9 @@ static int process_event(struct perf_tool *tool __maybe_unused,
 int test__thread_map_synthesize(int subtest __maybe_unused)
 {
 	struct thread_map *threads;
+
+	TEST_ASSERT_VAL("failed to set process name",
+			!prctl(PR_SET_NAME, NAMEUL, 0, 0, 0));
 
 	/* test map on current pid */
 	threads = thread_map__new_by_pid(getpid());

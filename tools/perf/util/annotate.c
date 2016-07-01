@@ -1522,13 +1522,14 @@ int symbol__annotate_printf(struct symbol *sym, struct map *map,
 	const char *d_filename;
 	const char *evsel_name = perf_evsel__name(evsel);
 	struct annotation *notes = symbol__annotation(sym);
+	struct sym_hist *h = annotation__histogram(notes, evsel->idx);
 	struct disasm_line *pos, *queue = NULL;
 	u64 start = map__rip_2objdump(map, sym->start);
 	int printed = 2, queue_len = 0;
 	int more = 0;
 	u64 len;
 	int width = 8;
-	int namelen, evsel_name_len, graph_dotted_len;
+	int graph_dotted_len;
 
 	filename = strdup(dso->long_name);
 	if (!filename)
@@ -1540,17 +1541,14 @@ int symbol__annotate_printf(struct symbol *sym, struct map *map,
 		d_filename = basename(filename);
 
 	len = symbol__size(sym);
-	namelen = strlen(d_filename);
-	evsel_name_len = strlen(evsel_name);
 
 	if (perf_evsel__is_group_event(evsel))
 		width *= evsel->nr_members;
 
-	printf(" %-*.*s|	Source code & Disassembly of %s for %s\n",
-	       width, width, "Percent", d_filename, evsel_name);
+	graph_dotted_len = printf(" %-*.*s|	Source code & Disassembly of %s for %s (%" PRIu64 " samples)\n",
+	       width, width, "Percent", d_filename, evsel_name, h->sum);
 
-	graph_dotted_len = width + namelen + evsel_name_len;
-	printf("-%-*.*s-----------------------------------------\n",
+	printf("%-*.*s----\n",
 	       graph_dotted_len, graph_dotted_len, graph_dotted_line);
 
 	if (verbose)
