@@ -216,48 +216,50 @@ befs_readdir(struct file *file, struct dir_context *ctx)
 	befs_debug(sb, "---> %s name %pD, inode %ld, ctx->pos %lld",
 		  __func__, file, inode->i_ino, ctx->pos);
 
-more:
-	result = befs_btree_read(sb, ds, ctx->pos, BEFS_NAME_LEN + 1,
-				 keybuf, &keysize, &value);
+	while (1) {
+		result = befs_btree_read(sb, ds, ctx->pos, BEFS_NAME_LEN + 1,
+					 keybuf, &keysize, &value);
 
-	if (result == BEFS_ERR) {
-		befs_debug(sb, "<--- %s ERROR", __func__);
-		befs_error(sb, "IO error reading %pD (inode %lu)",
-			   file, inode->i_ino);
-		return -EIO;
-
-	} else if (result == BEFS_BT_END) {
-		befs_debug(sb, "<--- %s END", __func__);
-		return 0;
-
-	} else if (result == BEFS_BT_EMPTY) {
-		befs_debug(sb, "<--- %s Empty directory", __func__);
-		return 0;
-	}
-
-	/* Convert to NLS */
-	if (BEFS_SB(sb)->nls) {
-		char *nlsname;
-		int nlsnamelen;
-		result =
-		    befs_utf2nls(sb, keybuf, keysize, &nlsname, &nlsnamelen);
-		if (result < 0) {
+		if (result == BEFS_ERR) {
 			befs_debug(sb, "<--- %s ERROR", __func__);
-			return result;
+			befs_error(sb, "IO error reading %pD (inode %lu)",
+				   file, inode->i_ino);
+			return -EIO;
+
+		} else if (result == BEFS_BT_END) {
+			befs_debug(sb, "<--- %s END", __func__);
+			return 0;
+
+		} else if (result == BEFS_BT_EMPTY) {
+			befs_debug(sb, "<--- %s Empty directory", __func__);
+			return 0;
 		}
-		if (!dir_emit(ctx, nlsname, nlsnamelen,
-				 (ino_t) value, DT_UNKNOWN)) {
+
+		/* Convert to NLS */
+		if (BEFS_SB(sb)->nls) {
+			char *nlsname;
+			int nlsnamelen;
+
+			result =
+			    befs_utf2nls(sb, keybuf, keysize, &nlsname,
+					 &nlsnamelen);
+			if (result < 0) {
+				befs_debug(sb, "<--- %s ERROR", __func__);
+				return result;
+			}
+			if (!dir_emit(ctx, nlsname, nlsnamelen,
+				      (ino_t) value, DT_UNKNOWN)) {
+				kfree(nlsname);
+				return 0;
+			}
 			kfree(nlsname);
-			return 0;
+		} else {
+			if (!dir_emit(ctx, keybuf, keysize,
+				      (ino_t) value, DT_UNKNOWN))
+				return 0;
 		}
-		kfree(nlsname);
-	} else {
-		if (!dir_emit(ctx, keybuf, keysize,
-				 (ino_t) value, DT_UNKNOWN))
-			return 0;
+		ctx->pos++;
 	}
-	ctx->pos++;
-	goto more;
 }
 
 static struct inode *
