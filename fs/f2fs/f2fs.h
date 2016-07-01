@@ -1136,30 +1136,23 @@ static inline void f2fs_i_blocks_write(struct inode *, blkcnt_t, bool);
 static inline bool inc_valid_block_count(struct f2fs_sb_info *sbi,
 				 struct inode *inode, blkcnt_t *count)
 {
-	block_t	valid_block_count;
-
-	spin_lock(&sbi->stat_lock);
 #ifdef CONFIG_F2FS_FAULT_INJECTION
-	if (time_to_inject(FAULT_BLOCK)) {
-		spin_unlock(&sbi->stat_lock);
+	if (time_to_inject(FAULT_BLOCK))
 		return false;
-	}
 #endif
-	valid_block_count =
-		sbi->total_valid_block_count + (block_t)(*count);
-	if (unlikely(valid_block_count > sbi->user_block_count)) {
-		*count = sbi->user_block_count - sbi->total_valid_block_count;
+	spin_lock(&sbi->stat_lock);
+	sbi->total_valid_block_count += (block_t)(*count);
+	if (unlikely(sbi->total_valid_block_count > sbi->user_block_count)) {
+		*count -= sbi->total_valid_block_count - sbi->user_block_count;
+		sbi->total_valid_block_count = sbi->user_block_count;
 		if (!*count) {
 			spin_unlock(&sbi->stat_lock);
 			return false;
 		}
 	}
-	/* *count can be recalculated */
-	f2fs_i_blocks_write(inode, *count, true);
-	sbi->total_valid_block_count =
-		sbi->total_valid_block_count + (block_t)(*count);
 	spin_unlock(&sbi->stat_lock);
 
+	f2fs_i_blocks_write(inode, *count, true);
 	percpu_counter_add(&sbi->alloc_valid_block_count, (*count));
 	return true;
 }
@@ -1171,9 +1164,9 @@ static inline void dec_valid_block_count(struct f2fs_sb_info *sbi,
 	spin_lock(&sbi->stat_lock);
 	f2fs_bug_on(sbi, sbi->total_valid_block_count < (block_t) count);
 	f2fs_bug_on(sbi, inode->i_blocks < count);
-	f2fs_i_blocks_write(inode, count, false);
 	sbi->total_valid_block_count -= (block_t)count;
 	spin_unlock(&sbi->stat_lock);
+	f2fs_i_blocks_write(inode, count, false);
 }
 
 static inline void inc_page_count(struct f2fs_sb_info *sbi, int count_type)
