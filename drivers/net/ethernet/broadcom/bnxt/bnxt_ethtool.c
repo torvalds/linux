@@ -1094,8 +1094,26 @@ static int bnxt_flash_firmware(struct net_device *dev,
 	case BNX_DIR_TYPE_BOOTCODE_2:
 		code_type = CODE_BOOT;
 		break;
+	case BNX_DIR_TYPE_CHIMP_PATCH:
+		code_type = CODE_CHIMP_PATCH;
+		break;
 	case BNX_DIR_TYPE_APE_FW:
 		code_type = CODE_MCTP_PASSTHRU;
+		break;
+	case BNX_DIR_TYPE_APE_PATCH:
+		code_type = CODE_APE_PATCH;
+		break;
+	case BNX_DIR_TYPE_KONG_FW:
+		code_type = CODE_KONG_FW;
+		break;
+	case BNX_DIR_TYPE_KONG_PATCH:
+		code_type = CODE_KONG_PATCH;
+		break;
+	case BNX_DIR_TYPE_BONO_FW:
+		code_type = CODE_BONO_FW;
+		break;
+	case BNX_DIR_TYPE_BONO_PATCH:
+		code_type = CODE_BONO_PATCH;
 		break;
 	default:
 		netdev_err(dev, "Unsupported directory entry type: %u\n",
@@ -1151,6 +1169,8 @@ static bool bnxt_dir_type_is_ape_bin_format(u16 dir_type)
 	case BNX_DIR_TYPE_APE_PATCH:
 	case BNX_DIR_TYPE_KONG_FW:
 	case BNX_DIR_TYPE_KONG_PATCH:
+	case BNX_DIR_TYPE_BONO_FW:
+	case BNX_DIR_TYPE_BONO_PATCH:
 		return true;
 	}
 
