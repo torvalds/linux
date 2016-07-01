@@ -253,6 +253,7 @@ struct pool {
 	struct bio_list deferred_flush_bios;
 	struct list_head prepared_mappings;
 	struct list_head prepared_discards;
+	struct list_head prepared_discards_pt2;
 	struct list_head active_thins;
 
 	struct dm_deferred_set *shared_read_ds;
@@ -269,6 +270,7 @@ struct pool {
 
 	process_mapping_fn process_prepared_mapping;
 	process_mapping_fn process_prepared_discard;
+	process_mapping_fn process_prepared_discard_pt2;
 
 	struct dm_bio_prison_cell **cell_sort_array;
 };
@@ -1001,7 +1003,8 @@ static void process_prepared_discard_no_passdown(struct dm_thin_new_mapping *m)
 
 /*----------------------------------------------------------------*/
 
-static void passdown_double_checking_shared_status(struct dm_thin_new_mapping *m)
+static void passdown_double_checking_shared_status(struct dm_thin_new_mapping *m,
+						   struct bio *discard_parent)
 {
 	/*
 	 * We've already unmapped this range of blocks, but before we
@@ -1014,7 +1017,7 @@ static void passdown_double_checking_shared_status(struct dm_thin_new_mapping *m
 	dm_block_t b = m->data_block, e, end = m->data_block + m->virt_end - m->virt_begin;
 	struct discard_op op;
 
-	begin_discard(&op, tc, m->bio);
+	begin_discard(&op, tc, discard_parent);
 	while (b != end) {
 		/* find start of unmapped run */
 		for (; b < end; b++) {
@@ -1049,27 +1052,100 @@ out:
 	end_discard(&op, r);
 }
 
-static void process_prepared_discard_passdown(struct dm_thin_new_mapping *m)
+static void queue_passdown_pt2(struct dm_thin_new_mapping *m)
+{
+	unsigned long flags;
+	struct pool *pool = m->tc->pool;
+
+	spin_lock_irqsave(&pool->lock, flags);
+	list_add_tail(&m->list, &pool->prepared_discards_pt2);
+	spin_unlock_irqrestore(&pool->lock, flags);
+	wake_worker(pool);
+}
+
+static void passdown_endio(struct bio *bio)
+{
+	/*
+	 * It doesn't matter if the passdown discard failed, we still want
+	 * to unmap (we ignore err).
+	 */
+	queue_passdown_pt2(bio->bi_private);
+}
+
+static void process_prepared_discard_passdown_pt1(struct dm_thin_new_mapping *m)
+{
+	int r;
+	struct thin_c *tc = m->tc;
+	struct pool *pool = tc->pool;
+	struct bio *discard_parent;
+	dm_block_t data_end = m->data_block + (m->virt_end - m->virt_begin);
+
+	/*
+	 * Only this thread allocates blocks, so we can be sure that the
+	 * newly unmapped blocks will not be allocated before the end of
+	 * the function.
+	 */
+	r = dm_thin_remove_range(tc->td, m->virt_begin, m->virt_end);
+	if (r) {
+		metadata_operation_failed(pool, "dm_thin_remove_range", r);
+		bio_io_error(m->bio);
+		cell_defer_no_holder(tc, m->cell);
+		mempool_free(m, pool->mapping_pool);
+		return;
+	}
+
+	discard_parent = bio_alloc(GFP_NOIO, 1);
+	if (!discard_parent) {
+		DMWARN("%s: unable to allocate top level discard bio for passdown. Skipping passdown.",
+		       dm_device_name(tc->pool->pool_md));
+		queue_passdown_pt2(m);
+
+	} else {
+		discard_parent->bi_end_io = passdown_endio;
+		discard_parent->bi_private = m;
+
+		if (m->maybe_shared)
+			passdown_double_checking_shared_status(m, discard_parent);
+		else {
+			struct discard_op op;
+
+			begin_discard(&op, tc, discard_parent);
+			r = issue_discard(&op, m->data_block, data_end);
+			end_discard(&op, r);
+		}
+	}
+
+	/*
+	 * Increment the unmapped blocks.  This prevents a race between the
+	 * passdown io and reallocation of freed blocks.
+	 */
+	r = dm_pool_inc_data_range(pool->pmd, m->data_block, data_end);
+	if (r) {
+		metadata_operation_failed(pool, "dm_pool_inc_data_range", r);
+		bio_io_error(m->bio);
+		cell_defer_no_holder(tc, m->cell);
+		mempool_free(m, pool->mapping_pool);
+		return;
+	}
+}
+
+static void process_prepared_discard_passdown_pt2(struct dm_thin_new_mapping *m)
 {
 	int r;
 	struct thin_c *tc = m->tc;
 	struct pool *pool = tc->pool;
 
-	r = dm_thin_remove_range(tc->td, m->virt_begin, m->virt_end);
+	/*
+	 * The passdown has completed, so now we can decrement all those
+	 * unmapped blocks.
+	 */
+	r = dm_pool_dec_data_range(pool->pmd, m->data_block,
+				   m->data_block + (m->virt_end - m->virt_begin));
 	if (r) {
-		metadata_operation_failed(pool, "dm_thin_remove_range", r);
+		metadata_operation_failed(pool, "dm_pool_dec_data_range", r);
 		bio_io_error(m->bio);
-
-	} else if (m->maybe_shared) {
-		passdown_double_checking_shared_status(m);
-
-	} else {
-		struct discard_op op;
-		begin_discard(&op, tc, m->bio);
-		r = issue_discard(&op, m->data_block,
-				  m->data_block + (m->virt_end - m->virt_begin));
-		end_discard(&op, r);
-	}
+	} else
+		bio_endio(m->bio);
 
 	cell_defer_no_holder(tc, m->cell);
 	mempool_free(m, pool->mapping_pool);
@@ -2215,6 +2291,8 @@ static void do_worker(struct work_struct *ws)
 	throttle_work_update(&pool->throttle);
 	process_prepared(pool, &pool->prepared_discards, &pool->process_prepared_discard);
 	throttle_work_update(&pool->throttle);
+	process_prepared(pool, &pool->prepared_discards_pt2, &pool->process_prepared_discard_pt2);
+	throttle_work_update(&pool->throttle);
 	process_deferred_bios(pool);
 	throttle_work_complete(&pool->throttle);
 }
@@ -2343,7 +2421,8 @@ static void set_discard_callbacks(struct pool *pool)
 
 	if (passdown_enabled(pt)) {
 		pool->process_discard_cell = process_discard_cell_passdown;
-		pool->process_prepared_discard = process_prepared_discard_passdown;
+		pool->process_prepared_discard = process_prepared_discard_passdown_pt1;
+		pool->process_prepared_discard_pt2 = process_prepared_discard_passdown_pt2;
 	} else {
 		pool->process_discard_cell = process_discard_cell_no_passdown;
 		pool->process_prepared_discard = process_prepared_discard_no_passdown;
@@ -2830,6 +2909,7 @@ static struct pool *pool_create(struct mapped_device *pool_md,
 	bio_list_init(&pool->deferred_flush_bios);
 	INIT_LIST_HEAD(&pool->prepared_mappings);
 	INIT_LIST_HEAD(&pool->prepared_discards);
+	INIT_LIST_HEAD(&pool->prepared_discards_pt2);
 	INIT_LIST_HEAD(&pool->active_thins);
 	pool->low_water_triggered = false;
 	pool->suspended = true;
