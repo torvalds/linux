@@ -476,7 +476,7 @@ static void rxrpc_process_jumbo_packet(struct rxrpc_call *call,
 		sp->hdr.seq	+= 1;
 		sp->hdr.serial	+= 1;
 		sp->hdr.flags	= jhdr.flags;
-		sp->hdr._rsvd	= jhdr._rsvd;
+		sp->hdr._rsvd	= ntohs(jhdr._rsvd);
 
 		_proto("Rx DATA Jumbo %%%u", sp->hdr.serial - 1);
 
