@@ -485,6 +485,24 @@ static bool qede_pkt_req_lin(struct qede_dev *edev, struct sk_buff *skb,
 }
 #endif
 
+static inline void qede_update_tx_producer(struct qede_tx_queue *txq)
+{
+	/* wmb makes sure that the BDs data is updated before updating the
+	 * producer, otherwise FW may read old data from the BDs.
+	 */
+	wmb();
+	barrier();
+	writel(txq->tx_db.raw, txq->doorbell_addr);
+
+	/* mmiowb is needed to synchronize doorbell writes from more than one
+	 * processor. It guarantees that the write arrives to the device before
+	 * the queue lock is released and another start_xmit is called (possibly
+	 * on another CPU). Without this barrier, the next doorbell can bypass
+	 * this doorbell. This is applicable to IA64/Altix systems.
+	 */
+	mmiowb();
+}
+
 /* Main transmit function */
 static
 netdev_tx_t qede_start_xmit(struct sk_buff *skb,
@@ -543,6 +561,7 @@ netdev_tx_t qede_start_xmit(struct sk_buff *skb,
 	if (unlikely(dma_mapping_error(&edev->pdev->dev, mapping))) {
 		DP_NOTICE(edev, "SKB mapping failed\n");
 		qede_free_failed_tx_pkt(edev, txq, first_bd, 0, false);
+		qede_update_tx_producer(txq);
 		return NETDEV_TX_OK;
 	}
 	nbd++;
@@ -657,6 +676,7 @@ netdev_tx_t qede_start_xmit(struct sk_buff *skb,
 		if (rc) {
 			qede_free_failed_tx_pkt(edev, txq, first_bd, nbd,
 						data_split);
+			qede_update_tx_producer(txq);
 			return NETDEV_TX_OK;
 		}
 
@@ -681,6 +701,7 @@ netdev_tx_t qede_start_xmit(struct sk_buff *skb,
 		if (rc) {
 			qede_free_failed_tx_pkt(edev, txq, first_bd, nbd,
 						data_split);
+			qede_update_tx_producer(txq);
 			return NETDEV_TX_OK;
 		}
 	}
@@ -701,20 +722,8 @@ netdev_tx_t qede_start_xmit(struct sk_buff *skb,
 	txq->tx_db.data.bd_prod =
 		cpu_to_le16(qed_chain_get_prod_idx(&txq->tx_pbl));
 
-	/* wmb makes sure that the BDs data is updated before updating the
-	 * producer, otherwise FW may read old data from the BDs.
-	 */
-	wmb();
-	barrier();
-	writel(txq->tx_db.raw, txq->doorbell_addr);
-
-	/* mmiowb is needed to synchronize doorbell writes from more than one
-	 * processor. It guarantees that the write arrives to the device before
-	 * the queue lock is released and another start_xmit is called (possibly
-	 * on another CPU). Without this barrier, the next doorbell can bypass
-	 * this doorbell. This is applicable to IA64/Altix systems.
-	 */
-	mmiowb();
+	if (!skb->xmit_more || netif_tx_queue_stopped(netdev_txq))
+		qede_update_tx_producer(txq);
 
 	if (unlikely(qed_chain_get_elem_left(&txq->tx_pbl)
 		      < (MAX_SKB_FRAGS + 1))) {
@@ -1348,6 +1357,20 @@ static u8 qede_check_csum(u16 flag)
 		return qede_check_tunn_csum(flag);
 }
 
+static bool qede_pkt_is_ip_fragmented(struct eth_fast_path_rx_reg_cqe *cqe,
+				      u16 flag)
+{
+	u8 tun_pars_flg = cqe->tunnel_pars_flags.flags;
+
+	if ((tun_pars_flg & (ETH_TUNNEL_PARSING_FLAGS_IPV4_FRAGMENT_MASK <<
+			     ETH_TUNNEL_PARSING_FLAGS_IPV4_FRAGMENT_SHIFT)) ||
+	    (flag & (PARSING_AND_ERR_FLAGS_IPV4FRAG_MASK <<
+		     PARSING_AND_ERR_FLAGS_IPV4FRAG_SHIFT)))
+		return true;
+
+	return false;
+}
+
 static int qede_rx_int(struct qede_fastpath *fp, int budget)
 {
 	struct qede_dev *edev = fp->edev;
@@ -1426,6 +1449,12 @@ static int qede_rx_int(struct qede_fastpath *fp, int budget)
 
 		csum_flag = qede_check_csum(parse_flag);
 		if (unlikely(csum_flag == QEDE_CSUM_ERROR)) {
+			if (qede_pkt_is_ip_fragmented(&cqe->fast_path_regular,
+						      parse_flag)) {
+				rxq->rx_ip_frags++;
+				goto alloc_skb;
+			}
+
 			DP_NOTICE(edev,
 				  "CQE in CONS = %u has error, flags = %x, dropping incoming packet\n",
 				  sw_comp_cons, parse_flag);
@@ -1434,6 +1463,7 @@ static int qede_rx_int(struct qede_fastpath *fp, int budget)
 			goto next_cqe;
 		}
 
+alloc_skb:
 		skb = netdev_alloc_skb(edev->ndev, QEDE_RX_HDR_SIZE);
 		if (unlikely(!skb)) {
 			DP_NOTICE(edev,
@@ -1444,7 +1474,7 @@ static int qede_rx_int(struct qede_fastpath *fp, int budget)
 		}
 
 		/* Copy data into SKB */
-		if (len + pad <= QEDE_RX_HDR_SIZE) {
+		if (len + pad <= edev->rx_copybreak) {
 			memcpy(skb_put(skb, len),
 			       page_address(data) + pad +
 				sw_rx_data->page_offset, len);
@@ -1576,56 +1606,49 @@ next_cqe: /* don't consume bd rx buffer */
 
 static int qede_poll(struct napi_struct *napi, int budget)
 {
-	int work_done = 0;
 	struct qede_fastpath *fp = container_of(napi, struct qede_fastpath,
-						 napi);
+						napi);
 	struct qede_dev *edev = fp->edev;
+	int rx_work_done = 0;
+	u8 tc;
 
-	while (1) {
-		u8 tc;
+	for (tc = 0; tc < edev->num_tc; tc++)
+		if (qede_txq_has_work(&fp->txqs[tc]))
+			qede_tx_int(edev, &fp->txqs[tc]);
 
-		for (tc = 0; tc < edev->num_tc; tc++)
-			if (qede_txq_has_work(&fp->txqs[tc]))
-				qede_tx_int(edev, &fp->txqs[tc]);
-
-		if (qede_has_rx_work(fp->rxq)) {
-			work_done += qede_rx_int(fp, budget - work_done);
-
-			/* must not complete if we consumed full budget */
-			if (work_done >= budget)
-				break;
-		}
+	rx_work_done = qede_has_rx_work(fp->rxq) ?
+			qede_rx_int(fp, budget) : 0;
+	if (rx_work_done < budget) {
+		qed_sb_update_sb_idx(fp->sb_info);
+		/* *_has_*_work() reads the status block,
+		 * thus we need to ensure that status block indices
+		 * have been actually read (qed_sb_update_sb_idx)
+		 * prior to this check (*_has_*_work) so that
+		 * we won't write the "newer" value of the status block
+		 * to HW (if there was a DMA right after
+		 * qede_has_rx_work and if there is no rmb, the memory
+		 * reading (qed_sb_update_sb_idx) may be postponed
+		 * to right before *_ack_sb). In this case there
+		 * will never be another interrupt until there is
+		 * another update of the status block, while there
+		 * is still unhandled work.
+		 */
+		rmb();
 
 		/* Fall out from the NAPI loop if needed */
-		if (!(qede_has_rx_work(fp->rxq) || qede_has_tx_work(fp))) {
-			qed_sb_update_sb_idx(fp->sb_info);
-			/* *_has_*_work() reads the status block,
-			 * thus we need to ensure that status block indices
-			 * have been actually read (qed_sb_update_sb_idx)
-			 * prior to this check (*_has_*_work) so that
-			 * we won't write the "newer" value of the status block
-			 * to HW (if there was a DMA right after
-			 * qede_has_rx_work and if there is no rmb, the memory
-			 * reading (qed_sb_update_sb_idx) may be postponed
-			 * to right before *_ack_sb). In this case there
-			 * will never be another interrupt until there is
-			 * another update of the status block, while there
-			 * is still unhandled work.
-			 */
-			rmb();
+		if (!(qede_has_rx_work(fp->rxq) ||
+		      qede_has_tx_work(fp))) {
+			napi_complete(napi);
 
-			if (!(qede_has_rx_work(fp->rxq) ||
-			      qede_has_tx_work(fp))) {
-				napi_complete(napi);
-				/* Update and reenable interrupts */
-				qed_sb_ack(fp->sb_info, IGU_INT_ENABLE,
-					   1 /*update*/);
-				break;
-			}
+			/* Update and reenable interrupts */
+			qed_sb_ack(fp->sb_info, IGU_INT_ENABLE,
+				   1 /*update*/);
+		} else {
+			rx_work_done = budget;
 		}
 	}
 
-	return work_done;
+	return rx_work_done;
 }
 
 static irqreturn_t qede_msix_fp_int(int irq, void *fp_cookie)
@@ -2496,6 +2519,7 @@ static int __qede_probe(struct pci_dev *pdev, u32 dp_module, u8 dp_level,
 
 	INIT_DELAYED_WORK(&edev->sp_task, qede_sp_task);
 	mutex_init(&edev->qede_lock);
+	edev->rx_copybreak = QEDE_RX_HDR_SIZE;
 
 	DP_INFO(edev, "Ending successfully qede probe\n");
 
