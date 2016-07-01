@@ -1313,8 +1313,7 @@ static int init_render_ring(struct intel_engine_cs *engine)
 	if (IS_GEN(dev_priv, 6, 7))
 		I915_WRITE(INSTPM, _MASKED_BIT_ENABLE(INSTPM_FORCE_ORDERING));
 
-	if (HAS_L3_DPF(dev_priv))
-		I915_WRITE_IMR(engine, ~GT_PARITY_ERROR(dev_priv));
+	I915_WRITE_IMR(engine, ~engine->irq_keep_mask);
 
 	return init_workarounds_ring(engine);
 }
@@ -1729,12 +1728,9 @@ gen6_irq_enable(struct intel_engine_cs *engine)
 {
 	struct drm_i915_private *dev_priv = engine->i915;
 
-	if (HAS_L3_DPF(dev_priv) && engine->id == RCS)
-		I915_WRITE_IMR(engine,
-			       ~(engine->irq_enable_mask |
-				 GT_PARITY_ERROR(dev_priv)));
-	else
-		I915_WRITE_IMR(engine, ~engine->irq_enable_mask);
+	I915_WRITE_IMR(engine,
+		       ~(engine->irq_enable_mask |
+			 engine->irq_keep_mask));
 	gen5_enable_gt_irq(dev_priv, engine->irq_enable_mask);
 }
 
@@ -1743,10 +1739,7 @@ gen6_irq_disable(struct intel_engine_cs *engine)
 {
 	struct drm_i915_private *dev_priv = engine->i915;
 
-	if (HAS_L3_DPF(dev_priv) && engine->id == RCS)
-		I915_WRITE_IMR(engine, ~GT_PARITY_ERROR(dev_priv));
-	else
-		I915_WRITE_IMR(engine, ~0);
+	I915_WRITE_IMR(engine, ~engine->irq_keep_mask);
 	gen5_disable_gt_irq(dev_priv, engine->irq_enable_mask);
 }
 
@@ -1773,12 +1766,9 @@ gen8_irq_enable(struct intel_engine_cs *engine)
 {
 	struct drm_i915_private *dev_priv = engine->i915;
 
-	if (HAS_L3_DPF(dev_priv) && engine->id == RCS)
-		I915_WRITE_IMR(engine,
-			       ~(engine->irq_enable_mask |
-				 GT_RENDER_L3_PARITY_ERROR_INTERRUPT));
-	else
-		I915_WRITE_IMR(engine, ~engine->irq_enable_mask);
+	I915_WRITE_IMR(engine,
+		       ~(engine->irq_enable_mask |
+			 engine->irq_keep_mask));
 	POSTING_READ_FW(RING_IMR(engine->mmio_base));
 }
 
@@ -1787,11 +1777,7 @@ gen8_irq_disable(struct intel_engine_cs *engine)
 {
 	struct drm_i915_private *dev_priv = engine->i915;
 
-	if (HAS_L3_DPF(dev_priv) && engine->id == RCS)
-		I915_WRITE_IMR(engine,
-			       ~GT_RENDER_L3_PARITY_ERROR_INTERRUPT);
-	else
-		I915_WRITE_IMR(engine, ~0);
+	I915_WRITE_IMR(engine, ~engine->irq_keep_mask);
 }
 
 static int
@@ -2872,6 +2858,8 @@ int intel_init_render_ring_buffer(struct drm_device *dev)
 	intel_ring_default_vfuncs(dev_priv, engine);
 
 	engine->irq_enable_mask = GT_RENDER_USER_INTERRUPT;
+	if (HAS_L3_DPF(dev_priv))
+		engine->irq_keep_mask = GT_RENDER_L3_PARITY_ERROR_INTERRUPT;
 
 	if (INTEL_GEN(dev_priv) >= 8) {
 		engine->init_context = intel_rcs_ctx_init;

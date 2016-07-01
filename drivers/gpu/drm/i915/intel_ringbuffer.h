@@ -190,7 +190,8 @@ struct intel_engine_cs {
 	struct i915_ctx_workarounds wa_ctx;
 
 	bool		irq_posted;
-	u32		irq_enable_mask;	/* bitmask to enable ring interrupt */
+	u32             irq_keep_mask; /* always keep these interrupts */
+	u32		irq_enable_mask; /* bitmask to enable ring interrupt */
 	void		(*irq_enable)(struct intel_engine_cs *ring);
 	void		(*irq_disable)(struct intel_engine_cs *ring);
 
@@ -287,7 +288,6 @@ struct intel_engine_cs {
 	unsigned int idle_lite_restore_wa;
 	bool disable_lite_restore_wa;
 	u32 ctx_desc_template;
-	u32             irq_keep_mask; /* bitmask for interrupts that should not be masked */
 	int		(*emit_request)(struct drm_i915_gem_request *request);
 	int		(*emit_flush)(struct drm_i915_gem_request *request,
 				      u32 invalidate_domains,
