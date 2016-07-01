@@ -401,6 +401,10 @@
 	status = "okay";
 };
 
+&vpu {
+	status = "okay";
+};
+
 &vop_mmu {
 	status = "okay";
 };
