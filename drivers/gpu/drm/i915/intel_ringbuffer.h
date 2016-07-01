@@ -471,8 +471,8 @@ void intel_ring_init_seqno(struct intel_engine_cs *engine, u32 seqno);
 int intel_ring_flush_all_caches(struct drm_i915_gem_request *req);
 int intel_ring_invalidate_all_caches(struct drm_i915_gem_request *req);
 
+int intel_init_pipe_control(struct intel_engine_cs *engine, int size);
 void intel_fini_pipe_control(struct intel_engine_cs *engine);
-int intel_init_pipe_control(struct intel_engine_cs *engine);
 
 int intel_init_render_ring_buffer(struct drm_device *dev);
 int intel_init_bsd_ring_buffer(struct drm_device *dev);

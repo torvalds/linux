@@ -658,16 +658,16 @@ void intel_fini_pipe_control(struct intel_engine_cs *engine)
 	engine->scratch.obj = NULL;
 }
 
-int intel_init_pipe_control(struct intel_engine_cs *engine)
+int intel_init_pipe_control(struct intel_engine_cs *engine, int size)
 {
 	struct drm_i915_gem_object *obj;
 	int ret;
 
 	WARN_ON(engine->scratch.obj);
 
-	obj = i915_gem_object_create_stolen(engine->i915->dev, 4096);
+	obj = i915_gem_object_create_stolen(engine->i915->dev, size);
 	if (!obj)
-		obj = i915_gem_object_create(engine->i915->dev, 4096);
+		obj = i915_gem_object_create(engine->i915->dev, size);
 	if (IS_ERR(obj)) {
 		DRM_ERROR("Failed to allocate scratch page\n");
 		ret = PTR_ERR(obj);
@@ -3002,7 +3002,6 @@ int intel_init_render_ring_buffer(struct drm_device *dev)
 {
 	struct drm_i915_private *dev_priv = dev->dev_private;
 	struct intel_engine_cs *engine = &dev_priv->engine[RCS];
-	struct drm_i915_gem_object *obj;
 	int ret;
 
 	engine->name = "render ring";
@@ -3045,31 +3044,16 @@ int intel_init_render_ring_buffer(struct drm_device *dev)
 	engine->init_hw = init_render_ring;
 	engine->cleanup = render_ring_cleanup;
 
-	/* Workaround batchbuffer to combat CS tlb bug. */
-	if (HAS_BROKEN_CS_TLB(dev_priv)) {
-		obj = i915_gem_object_create(dev, I830_WA_SIZE);
-		if (IS_ERR(obj)) {
-			DRM_ERROR("Failed to allocate batch bo\n");
-			return PTR_ERR(obj);
-		}
-
-		ret = i915_gem_obj_ggtt_pin(obj, 0, 0);
-		if (ret != 0) {
-			drm_gem_object_unreference(&obj->base);
-			DRM_ERROR("Failed to ping batch bo\n");
-			return ret;
-		}
-
-		engine->scratch.obj = obj;
-		engine->scratch.gtt_offset = i915_gem_obj_ggtt_offset(obj);
-	}
-
 	ret = intel_init_ring_buffer(dev, engine);
 	if (ret)
 		return ret;
 
 	if (INTEL_GEN(dev_priv) >= 5) {
-		ret = intel_init_pipe_control(engine);
+		ret = intel_init_pipe_control(engine, 4096);
+		if (ret)
+			return ret;
+	} else if (HAS_BROKEN_CS_TLB(dev_priv)) {
+		ret = intel_init_pipe_control(engine, I830_WA_SIZE);
 		if (ret)
 			return ret;
 	}

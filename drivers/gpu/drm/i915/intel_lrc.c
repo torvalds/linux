@@ -2056,7 +2056,7 @@ static int logical_render_ring_init(struct intel_engine_cs *engine)
 	engine->emit_flush = gen8_emit_flush_render;
 	engine->emit_request = gen8_emit_request_render;
 
-	ret = intel_init_pipe_control(engine);
+	ret = intel_init_pipe_control(engine, 4096);
 	if (ret)
 		return ret;
 
