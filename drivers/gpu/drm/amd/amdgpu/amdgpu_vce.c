@@ -36,7 +36,7 @@
 #include "cikd.h"
 
 /* 1 second timeout */
-#define VCE_IDLE_TIMEOUT_MS	1000
+#define VCE_IDLE_TIMEOUT	msecs_to_jiffies(1000)
 
 /* Firmware Names */
 #ifdef CONFIG_DRM_AMDGPU_CIK
@@ -310,8 +310,7 @@ static void amdgpu_vce_idle_work_handler(struct work_struct *work)
 			amdgpu_asic_set_vce_clocks(adev, 0, 0);
 		}
 	} else {
-		schedule_delayed_work(&adev->vce.idle_work,
-				      msecs_to_jiffies(VCE_IDLE_TIMEOUT_MS));
+		schedule_delayed_work(&adev->vce.idle_work, VCE_IDLE_TIMEOUT);
 	}
 }
 
@@ -324,17 +323,12 @@ static void amdgpu_vce_idle_work_handler(struct work_struct *work)
  */
 static void amdgpu_vce_note_usage(struct amdgpu_device *adev)
 {
-	bool streams_changed = false;
 	bool set_clocks = !cancel_delayed_work_sync(&adev->vce.idle_work);
+
 	set_clocks &= schedule_delayed_work(&adev->vce.idle_work,
-					    msecs_to_jiffies(VCE_IDLE_TIMEOUT_MS));
+					    VCE_IDLE_TIMEOUT);
 
-	if (adev->pm.dpm_enabled) {
-		/* XXX figure out if the streams changed */
-		streams_changed = false;
-	}
-
-	if (set_clocks || streams_changed) {
+	if (set_clocks) {
 		if (adev->pm.dpm_enabled) {
 			amdgpu_dpm_enable_vce(adev, true);
 		} else {
@@ -357,6 +351,7 @@ void amdgpu_vce_free_handles(struct amdgpu_device *adev, struct drm_file *filp)
 	int i, r;
 	for (i = 0; i < AMDGPU_MAX_VCE_HANDLES; ++i) {
 		uint32_t handle = atomic_read(&adev->vce.handles[i]);
+
 		if (!handle || adev->vce.filp[i] != filp)
 			continue;
 
@@ -648,7 +643,7 @@ int amdgpu_vce_ring_parse_cs(struct amdgpu_cs_parser *p, uint32_t ib_idx)
 		}
 
 		switch (cmd) {
-		case 0x00000001: // session
+		case 0x00000001: /* session */
 			handle = amdgpu_get_ib_value(p, ib_idx, idx + 2);
 			session_idx = amdgpu_vce_validate_handle(p, handle,
 								 &allocated);
@@ -657,12 +652,12 @@ int amdgpu_vce_ring_parse_cs(struct amdgpu_cs_parser *p, uint32_t ib_idx)
 			size = &p->adev->vce.img_size[session_idx];
 			break;
 
-		case 0x00000002: // task info
+		case 0x00000002: /* task info */
 			fb_idx = amdgpu_get_ib_value(p, ib_idx, idx + 6);
 			bs_idx = amdgpu_get_ib_value(p, ib_idx, idx + 7);
 			break;
 
-		case 0x01000001: // create
+		case 0x01000001: /* create */
 			created = true;
 			if (!allocated) {
 				DRM_ERROR("Handle already in use!\n");
@@ -675,16 +670,16 @@ int amdgpu_vce_ring_parse_cs(struct amdgpu_cs_parser *p, uint32_t ib_idx)
 				8 * 3 / 2;
 			break;
 
-		case 0x04000001: // config extension
-		case 0x04000002: // pic control
-		case 0x04000005: // rate control
-		case 0x04000007: // motion estimation
-		case 0x04000008: // rdo
-		case 0x04000009: // vui
-		case 0x05000002: // auxiliary buffer
+		case 0x04000001: /* config extension */
+		case 0x04000002: /* pic control */
+		case 0x04000005: /* rate control */
+		case 0x04000007: /* motion estimation */
+		case 0x04000008: /* rdo */
+		case 0x04000009: /* vui */
+		case 0x05000002: /* auxiliary buffer */
 			break;
 
-		case 0x03000001: // encode
+		case 0x03000001: /* encode */
 			r = amdgpu_vce_cs_reloc(p, ib_idx, idx + 10, idx + 9,
 						*size, 0);
 			if (r)
@@ -696,18 +691,18 @@ int amdgpu_vce_ring_parse_cs(struct amdgpu_cs_parser *p, uint32_t ib_idx)
 				goto out;
 			break;
 
-		case 0x02000001: // destroy
+		case 0x02000001: /* destroy */
 			destroyed = true;
 			break;
 
-		case 0x05000001: // context buffer
+		case 0x05000001: /* context buffer */
 			r = amdgpu_vce_cs_reloc(p, ib_idx, idx + 3, idx + 2,
 						*size * 2, 0);
 			if (r)
 				goto out;
 			break;
 
-		case 0x05000004: // video bitstream buffer
+		case 0x05000004: /* video bitstream buffer */
 			tmp = amdgpu_get_ib_value(p, ib_idx, idx + 4);
 			r = amdgpu_vce_cs_reloc(p, ib_idx, idx + 3, idx + 2,
 						tmp, bs_idx);
@@ -715,7 +710,7 @@ int amdgpu_vce_ring_parse_cs(struct amdgpu_cs_parser *p, uint32_t ib_idx)
 				goto out;
 			break;
 
-		case 0x05000005: // feedback buffer
+		case 0x05000005: /* feedback buffer */
 			r = amdgpu_vce_cs_reloc(p, ib_idx, idx + 3, idx + 2,
 						4096, fb_idx);
 			if (r)
