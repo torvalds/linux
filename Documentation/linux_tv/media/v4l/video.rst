@@ -17,8 +17,8 @@ outputs applications can enumerate them with the
 :ref:`VIDIOC_ENUMINPUT <vidioc-enuminput>` and
 :ref:`VIDIOC_ENUMOUTPUT <vidioc-enumoutput>` ioctl, respectively. The
 struct :ref:`v4l2_input <v4l2-input>` returned by the
-``VIDIOC_ENUMINPUT`` ioctl also contains signal status information
-applicable when the current video input is queried.
+:ref:`VIDIOC_ENUMINPUT <vidioc-enuminput>` ioctl also contains signal
+:status information applicable when the current video input is queried.
 
 The :ref:`VIDIOC_G_INPUT <vidioc-g-input>` and
 :ref:`VIDIOC_G_OUTPUT <vidioc-g-output>` ioctls return the index of
