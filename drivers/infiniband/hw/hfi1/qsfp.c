@@ -243,7 +243,7 @@ int qsfp_write(struct hfi1_pportdata *ppd, u32 target, int addr, void *bp,
 
 /*
  * Perform a stand-alone single QSFP write.  Acquire the resource, do the
- * read, then release the resource.
+ * write, then release the resource.
  */
 int one_qsfp_write(struct hfi1_pportdata *ppd, u32 target, int addr, void *bp,
 		   int len)
