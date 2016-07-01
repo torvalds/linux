@@ -134,6 +134,7 @@ struct hnae_handle *hns_ae_get_handle(struct hnae_ae_dev *dev,
 	ae_handle->phy_dev = vf_cb->mac_cb->phy_dev;
 	ae_handle->if_support = vf_cb->mac_cb->if_support;
 	ae_handle->port_type = vf_cb->mac_cb->mac_type;
+	ae_handle->media_type = vf_cb->mac_cb->media_type;
 	ae_handle->dport_id = port_id;
 
 	return ae_handle;

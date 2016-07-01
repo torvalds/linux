@@ -363,6 +363,14 @@ enum hnae_port_type {
 	HNAE_PORT_DEBUG
 };
 
+/* mac media type */
+enum hnae_media_type {
+	HNAE_MEDIA_TYPE_UNKNOWN = 0,
+	HNAE_MEDIA_TYPE_FIBER,
+	HNAE_MEDIA_TYPE_COPPER,
+	HNAE_MEDIA_TYPE_BACKPLANE,
+};
+
 /* This struct defines the operation on the handle.
  *
  * get_handle(): (mandatory)
@@ -525,6 +533,7 @@ struct hnae_handle {
 	u32 eport_id;
 	u32 dport_id;	/* v2 tx bd should fill the dport_id */
 	enum hnae_port_type port_type;
+	enum hnae_media_type media_type;
 	struct list_head node;    /* list to hnae_ae_dev->handle_list */
 	struct hnae_buf_ops *bops; /* operation for the buffer */
 	struct hnae_queue **qs;  /* array base of all queues */

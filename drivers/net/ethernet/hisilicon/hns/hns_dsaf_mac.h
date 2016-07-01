@@ -335,6 +335,7 @@ struct hns_mac_cb {
 	u64 txpkt_for_led;
 	u64 rxpkt_for_led;
 	enum hnae_port_type mac_type;
+	enum hnae_media_type media_type;
 	phy_interface_t phy_if;
 	enum hnae_loop loop_mode;
 
