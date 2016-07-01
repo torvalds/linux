@@ -365,6 +365,12 @@ static int i915_getparam(struct drm_device *dev, void *data,
 	case I915_PARAM_HAS_EXEC_SOFTPIN:
 		value = 1;
 		break;
+	case I915_PARAM_HAS_POOLED_EU:
+		value = HAS_POOLED_EU(dev);
+		break;
+	case I915_PARAM_MIN_EU_IN_POOL:
+		value = INTEL_INFO(dev)->min_eu_in_pool;
+		break;
 	default:
 		DRM_DEBUG("Unknown parameter %d\n", param->param);
 		return -EINVAL;
