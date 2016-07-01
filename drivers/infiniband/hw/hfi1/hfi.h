@@ -1947,4 +1947,55 @@ static inline u32 qsfp_resource(struct hfi1_devdata *dd)
 
 int hfi1_tempsense_rd(struct hfi1_devdata *dd, struct hfi1_temp *temp);
 
+#define DD_DEV_ENTRY(dd)       __string(dev, dev_name(&(dd)->pcidev->dev))
+#define DD_DEV_ASSIGN(dd)      __assign_str(dev, dev_name(&(dd)->pcidev->dev))
+
+#define packettype_name(etype) { RHF_RCV_TYPE_##etype, #etype }
+#define show_packettype(etype)                  \
+__print_symbolic(etype,                         \
+	packettype_name(EXPECTED),              \
+	packettype_name(EAGER),                 \
+	packettype_name(IB),                    \
+	packettype_name(ERROR),                 \
+	packettype_name(BYPASS))
+
+#define ib_opcode_name(opcode) { IB_OPCODE_##opcode, #opcode  }
+#define show_ib_opcode(opcode)                             \
+__print_symbolic(opcode,                                   \
+	ib_opcode_name(RC_SEND_FIRST),                     \
+	ib_opcode_name(RC_SEND_MIDDLE),                    \
+	ib_opcode_name(RC_SEND_LAST),                      \
+	ib_opcode_name(RC_SEND_LAST_WITH_IMMEDIATE),       \
+	ib_opcode_name(RC_SEND_ONLY),                      \
+	ib_opcode_name(RC_SEND_ONLY_WITH_IMMEDIATE),       \
+	ib_opcode_name(RC_RDMA_WRITE_FIRST),               \
+	ib_opcode_name(RC_RDMA_WRITE_MIDDLE),              \
+	ib_opcode_name(RC_RDMA_WRITE_LAST),                \
+	ib_opcode_name(RC_RDMA_WRITE_LAST_WITH_IMMEDIATE), \
+	ib_opcode_name(RC_RDMA_WRITE_ONLY),                \
+	ib_opcode_name(RC_RDMA_WRITE_ONLY_WITH_IMMEDIATE), \
+	ib_opcode_name(RC_RDMA_READ_REQUEST),              \
+	ib_opcode_name(RC_RDMA_READ_RESPONSE_FIRST),       \
+	ib_opcode_name(RC_RDMA_READ_RESPONSE_MIDDLE),      \
+	ib_opcode_name(RC_RDMA_READ_RESPONSE_LAST),        \
+	ib_opcode_name(RC_RDMA_READ_RESPONSE_ONLY),        \
+	ib_opcode_name(RC_ACKNOWLEDGE),                    \
+	ib_opcode_name(RC_ATOMIC_ACKNOWLEDGE),             \
+	ib_opcode_name(RC_COMPARE_SWAP),                   \
+	ib_opcode_name(RC_FETCH_ADD),                      \
+	ib_opcode_name(UC_SEND_FIRST),                     \
+	ib_opcode_name(UC_SEND_MIDDLE),                    \
+	ib_opcode_name(UC_SEND_LAST),                      \
+	ib_opcode_name(UC_SEND_LAST_WITH_IMMEDIATE),       \
+	ib_opcode_name(UC_SEND_ONLY),                      \
+	ib_opcode_name(UC_SEND_ONLY_WITH_IMMEDIATE),       \
+	ib_opcode_name(UC_RDMA_WRITE_FIRST),               \
+	ib_opcode_name(UC_RDMA_WRITE_MIDDLE),              \
+	ib_opcode_name(UC_RDMA_WRITE_LAST),                \
+	ib_opcode_name(UC_RDMA_WRITE_LAST_WITH_IMMEDIATE), \
+	ib_opcode_name(UC_RDMA_WRITE_ONLY),                \
+	ib_opcode_name(UC_RDMA_WRITE_ONLY_WITH_IMMEDIATE), \
+	ib_opcode_name(UD_SEND_ONLY),                      \
+	ib_opcode_name(UD_SEND_ONLY_WITH_IMMEDIATE),       \
+	ib_opcode_name(CNP))
 #endif                          /* _HFI1_KERNEL_H */

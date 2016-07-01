@@ -1047,7 +1047,7 @@ void hfi1_rc_timeout(unsigned long arg)
 		ibp->rvp.n_rc_timeouts++;
 		qp->s_flags &= ~RVT_S_TIMER;
 		del_timer(&qp->s_timer);
-		trace_hfi1_rc_timeout(qp, qp->s_last_psn + 1);
+		trace_hfi1_timeout(qp, qp->s_last_psn + 1);
 		restart_rc(qp, qp->s_last_psn + 1, 1);
 		hfi1_schedule_send(qp);
 	}
@@ -1171,7 +1171,7 @@ void hfi1_rc_send_complete(struct rvt_qp *qp, struct hfi1_ib_header *hdr)
 	 * If we were waiting for sends to complete before re-sending,
 	 * and they are now complete, restart sending.
 	 */
-	trace_hfi1_rc_sendcomplete(qp, psn);
+	trace_hfi1_sendcomplete(qp, psn);
 	if (qp->s_flags & RVT_S_WAIT_PSN &&
 	    cmp_psn(qp->s_sending_psn, qp->s_sending_hpsn) > 0) {
 		qp->s_flags &= ~RVT_S_WAIT_PSN;
@@ -1567,7 +1567,7 @@ static void rc_rcv_resp(struct hfi1_ibport *ibp,
 
 	spin_lock_irqsave(&qp->s_lock, flags);
 
-	trace_hfi1_rc_ack(qp, psn);
+	trace_hfi1_ack(qp, psn);
 
 	/* Ignore invalid responses. */
 	smp_read_barrier_depends(); /* see post_one_send */
@@ -1782,7 +1782,7 @@ static noinline int rc_rcv_error(struct hfi1_other_headers *ohdr, void *data,
 	u8 i, prev;
 	int old_req;
 
-	trace_hfi1_rc_rcv_error(qp, psn);
+	trace_hfi1_rcv_error(qp, psn);
 	if (diff > 0) {
 		/*
 		 * Packet sequence error.
