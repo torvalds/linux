@@ -10,7 +10,9 @@ Video for Linux Two API Specification
 **Revision 4.5**
 
 .. toctree::
+    :numbered:
     :maxdepth: 1
+    :caption: Table of Contents
 
     common
     pixfmt
