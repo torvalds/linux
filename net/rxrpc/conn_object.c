@@ -70,7 +70,7 @@ static void rxrpc_add_call_ID_to_conn(struct rxrpc_connection *conn,
 {
 	struct rxrpc_call *xcall;
 	struct rb_node *parent, **p;
-	__be32 call_id;
+	u32 call_id;
 
 	write_lock_bh(&conn->lock);
 
@@ -347,8 +347,7 @@ struct rxrpc_connection *rxrpc_incoming_connection(struct rxrpc_local *local,
 	struct rxrpc_skb_priv *sp = rxrpc_skb(skb);
 	struct rb_node *p, **pp;
 	const char *new = "old";
-	__be32 epoch;
-	u32 cid;
+	u32 epoch, cid;
 
 	_enter("");
 
