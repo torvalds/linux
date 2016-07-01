@@ -528,7 +528,8 @@ static noinline int check_support(struct rvt_dev_info *rdi, int verb)
 							 post_send),
 					   rvt_post_send))
 			if (!rdi->driver_f.schedule_send ||
-			    !rdi->driver_f.do_send)
+			    !rdi->driver_f.do_send ||
+			    !rdi->post_parms)
 				return -EINVAL;
 		break;
 
