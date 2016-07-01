@@ -438,7 +438,7 @@ config MTD_NAND_FSL_ELBC
 
 config MTD_NAND_FSL_IFC
 	tristate "NAND support for Freescale IFC controller"
-	depends on MTD_NAND && FSL_SOC
+	depends on MTD_NAND && (FSL_SOC || ARCH_LAYERSCAPE)
 	select FSL_IFC
 	select MEMORY
 	help
