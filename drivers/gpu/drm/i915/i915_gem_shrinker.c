@@ -265,6 +265,8 @@ i915_gem_shrinker_count(struct shrinker *shrinker, struct shrink_control *sc)
 	if (!i915_gem_shrinker_lock(dev, &unlock))
 		return 0;
 
+	i915_gem_retire_requests(dev_priv);
+
 	count = 0;
 	list_for_each_entry(obj, &dev_priv->mm.unbound_list, global_list)
 		if (can_release_pages(obj))
