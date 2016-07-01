@@ -211,7 +211,6 @@ befs_readdir(struct file *file, struct dir_context *ctx)
 	befs_off_t value;
 	int result;
 	size_t keysize;
-	unsigned char d_type;
 	char keybuf[BEFS_NAME_LEN + 1];
 
 	befs_debug(sb, "---> %s name %pD, inode %ld, ctx->pos %lld",
@@ -236,8 +235,6 @@ more:
 		return 0;
 	}
 
-	d_type = DT_UNKNOWN;
-
 	/* Convert to NLS */
 	if (BEFS_SB(sb)->nls) {
 		char *nlsname;
@@ -249,14 +246,14 @@ more:
 			return result;
 		}
 		if (!dir_emit(ctx, nlsname, nlsnamelen,
-				 (ino_t) value, d_type)) {
+				 (ino_t) value, DT_UNKNOWN)) {
 			kfree(nlsname);
 			return 0;
 		}
 		kfree(nlsname);
 	} else {
 		if (!dir_emit(ctx, keybuf, keysize,
-				 (ino_t) value, d_type))
+				 (ino_t) value, DT_UNKNOWN))
 			return 0;
 	}
 	ctx->pos++;
