@@ -1656,6 +1656,21 @@ static int cxd2841er_read_snr_i(struct cxd2841er_priv *priv, u32 *snr)
 	return 0;
 }
 
+static u16 cxd2841er_read_agc_gain_c(struct cxd2841er_priv *priv,
+					u8 delsys)
+{
+	u8 data[2];
+
+	cxd2841er_write_reg(
+		priv, I2C_SLVT, 0x00, 0x40);
+	cxd2841er_read_regs(priv, I2C_SLVT, 0x49, data, 2);
+	dev_dbg(&priv->i2c->dev,
+			"%s(): AGC value=%u\n",
+			__func__, (((u16)data[0] & 0x0F) << 8) |
+			(u16)(data[1] & 0xFF));
+	return ((((u16)data[0] & 0x0F) << 8) | (u16)(data[1] & 0xFF)) << 4;
+}
+
 static u16 cxd2841er_read_agc_gain_t_t2(struct cxd2841er_priv *priv,
 					u8 delsys)
 {
@@ -1735,6 +1750,14 @@ static void cxd2841er_read_signal_strength(struct dvb_frontend *fe)
 
 	dev_dbg(&priv->i2c->dev, "%s()\n", __func__);
 	switch (p->delivery_system) {
+	case SYS_DVBC_ANNEX_A:
+	case SYS_DVBC_ANNEX_B:
+	case SYS_DVBC_ANNEX_C:
+		strength = 65535 - cxd2841er_read_agc_gain_c(
+				priv, p->delivery_system);
+		p->strength.stat[0].scale = FE_SCALE_RELATIVE;
+		p->strength.stat[0].uvalue = strength;
+		break;
 	case SYS_DVBT:
 	case SYS_DVBT2:
 		strength = cxd2841er_read_agc_gain_t_t2(priv,
