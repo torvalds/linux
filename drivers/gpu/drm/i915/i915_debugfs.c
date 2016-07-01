@@ -663,7 +663,7 @@ static int i915_gem_pageflip_info(struct seq_file *m, void *data)
 					   i915_gem_request_get_seqno(work->flip_queued_req),
 					   dev_priv->next_seqno,
 					   engine->get_seqno(engine),
-					   i915_gem_request_completed(work->flip_queued_req, true));
+					   i915_gem_request_completed(work->flip_queued_req));
 			} else
 				seq_printf(m, "Flip not associated with any ring\n");
 			seq_printf(m, "Flip queued on frame %d, (was ready on frame %d), now %d\n",

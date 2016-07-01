@@ -1375,9 +1375,9 @@ static bool busywait_stop(unsigned long timeout, unsigned cpu)
 	return this_cpu != cpu;
 }
 
-static bool __i915_spin_request(struct drm_i915_gem_request *req, int state)
+bool __i915_spin_request(const struct drm_i915_gem_request *req,
+			 int state, unsigned long timeout_us)
 {
-	unsigned long timeout;
 	unsigned cpu;
 
 	/* When waiting for high frequency requests, e.g. during synchronous
@@ -1390,19 +1390,15 @@ static bool __i915_spin_request(struct drm_i915_gem_request *req, int state)
 	 * takes to sleep on a request, on the order of a microsecond.
 	 */
 
-	/* Only spin if we know the GPU is processing this request */
-	if (!i915_gem_request_started(req, true))
-		return false;
-
-	timeout = local_clock_us(&cpu) + 5;
+	timeout_us += local_clock_us(&cpu);
 	do {
-		if (i915_gem_request_completed(req, true))
+		if (i915_gem_request_completed(req))
 			return true;
 
 		if (signal_pending_state(state, current))
 			break;
 
-		if (busywait_stop(timeout, cpu))
+		if (busywait_stop(timeout_us, cpu))
 			break;
 
 		cpu_relax_lowlatency();
@@ -1445,7 +1441,7 @@ int __i915_wait_request(struct drm_i915_gem_request *req,
 	if (list_empty(&req->list))
 		return 0;
 
-	if (i915_gem_request_completed(req, true))
+	if (i915_gem_request_completed(req))
 		return 0;
 
 	timeout_remain = MAX_SCHEDULE_TIMEOUT;
@@ -1470,7 +1466,7 @@ int __i915_wait_request(struct drm_i915_gem_request *req,
 		gen6_rps_boost(req->i915, rps, req->emitted_jiffies);
 
 	/* Optimistic spin for the next ~jiffie before touching IRQs */
-	if (__i915_spin_request(req, state))
+	if (i915_spin_request(req, state, 5))
 		goto complete;
 
 	set_current_state(state);
@@ -1517,6 +1513,10 @@ wakeup:
 		 * reset in order to drop the struct_mutex.
 		 */
 		if (__i915_request_irq_complete(req))
+			break;
+
+		/* Only spin if we know the GPU is processing this request */
+		if (i915_spin_request(req, state, 2))
 			break;
 	}
 	remove_wait_queue(&req->i915->gpu_error.wait_queue, &reset);
@@ -3055,8 +3055,16 @@ i915_gem_find_active_request(struct intel_engine_cs *engine)
 {
 	struct drm_i915_gem_request *request;
 
+	/* We are called by the error capture and reset at a random
+	 * point in time. In particular, note that neither is crucially
+	 * ordered with an interrupt. After a hang, the GPU is dead and we
+	 * assume that no more writes can happen (we waited long enough for
+	 * all writes that were in transaction to be flushed) - adding an
+	 * extra delay for a recent interrupt is pointless. Hence, we do
+	 * not need an engine->irq_seqno_barrier() before the seqno reads.
+	 */
 	list_for_each_entry(request, &engine->request_list, list) {
-		if (i915_gem_request_completed(request, false))
+		if (i915_gem_request_completed(request))
 			continue;
 
 		return request;
@@ -3188,7 +3196,7 @@ i915_gem_retire_requests_ring(struct intel_engine_cs *engine)
 					   struct drm_i915_gem_request,
 					   list);
 
-		if (!i915_gem_request_completed(request, true))
+		if (!i915_gem_request_completed(request))
 			break;
 
 		i915_gem_request_retire(request);
@@ -3212,7 +3220,7 @@ i915_gem_retire_requests_ring(struct intel_engine_cs *engine)
 	}
 
 	if (unlikely(engine->trace_irq_req &&
-		     i915_gem_request_completed(engine->trace_irq_req, true))) {
+		     i915_gem_request_completed(engine->trace_irq_req))) {
 		engine->irq_put(engine);
 		i915_gem_request_assign(&engine->trace_irq_req, NULL);
 	}
@@ -3310,7 +3318,7 @@ i915_gem_object_flush_active(struct drm_i915_gem_object *obj)
 		if (req == NULL)
 			continue;
 
-		if (i915_gem_request_completed(req, true))
+		if (i915_gem_request_completed(req))
 			i915_gem_object_retire__read(obj, i);
 	}
 
@@ -3418,7 +3426,7 @@ __i915_gem_object_sync(struct drm_i915_gem_object *obj,
 	if (to == from)
 		return 0;
 
-	if (i915_gem_request_completed(from_req, true))
+	if (i915_gem_request_completed(from_req))
 		return 0;
 
 	if (!i915_semaphore_is_enabled(to_i915(obj->base.dev))) {

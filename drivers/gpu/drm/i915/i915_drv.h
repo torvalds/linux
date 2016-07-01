@@ -3287,22 +3287,25 @@ i915_seqno_passed(uint32_t seq1, uint32_t seq2)
 	return (int32_t)(seq1 - seq2) >= 0;
 }
 
-static inline bool i915_gem_request_started(struct drm_i915_gem_request *req,
-					   bool lazy_coherency)
+static inline bool i915_gem_request_started(const struct drm_i915_gem_request *req)
 {
-	if (!lazy_coherency && req->engine->irq_seqno_barrier)
-		req->engine->irq_seqno_barrier(req->engine);
 	return i915_seqno_passed(req->engine->get_seqno(req->engine),
 				 req->previous_seqno);
 }
 
-static inline bool i915_gem_request_completed(struct drm_i915_gem_request *req,
-					      bool lazy_coherency)
+static inline bool i915_gem_request_completed(const struct drm_i915_gem_request *req)
 {
-	if (!lazy_coherency && req->engine->irq_seqno_barrier)
-		req->engine->irq_seqno_barrier(req->engine);
 	return i915_seqno_passed(req->engine->get_seqno(req->engine),
 				 req->seqno);
+}
+
+bool __i915_spin_request(const struct drm_i915_gem_request *request,
+			 int state, unsigned long timeout_us);
+static inline bool i915_spin_request(const struct drm_i915_gem_request *request,
+				     int state, unsigned long timeout_us)
+{
+	return (i915_gem_request_started(request) &&
+		__i915_spin_request(request, state, timeout_us));
 }
 
 int __must_check i915_gem_get_seqno(struct drm_i915_private *dev_priv, u32 *seqno);
@@ -3983,6 +3986,8 @@ static inline void i915_trace_irq_get(struct intel_engine_cs *engine,
 
 static inline bool __i915_request_irq_complete(struct drm_i915_gem_request *req)
 {
+	struct intel_engine_cs *engine = req->engine;
+
 	/* Ensure our read of the seqno is coherent so that we
 	 * do not "miss an interrupt" (i.e. if this is the last
 	 * request and the seqno write from the GPU is not visible
@@ -3994,7 +3999,10 @@ static inline bool __i915_request_irq_complete(struct drm_i915_gem_request *req)
 	 * but it is easier and safer to do it every time the waiter
 	 * is woken.
 	 */
-	if (i915_gem_request_completed(req, false))
+	if (engine->irq_seqno_barrier)
+		engine->irq_seqno_barrier(engine);
+
+	if (i915_gem_request_completed(req))
 		return true;
 
 	/* We need to check whether any gpu reset happened in between

@@ -11628,7 +11628,7 @@ static bool __pageflip_stall_check_cs(struct drm_i915_private *dev_priv,
 	vblank = intel_crtc_get_vblank_counter(intel_crtc);
 	if (work->flip_ready_vblank == 0) {
 		if (work->flip_queued_req &&
-		    !i915_gem_request_completed(work->flip_queued_req, true))
+		    !i915_gem_request_completed(work->flip_queued_req))
 			return false;
 
 		work->flip_ready_vblank = vblank;
