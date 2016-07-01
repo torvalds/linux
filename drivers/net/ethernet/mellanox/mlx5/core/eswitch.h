@@ -155,6 +155,10 @@ enum {
 	SRIOV_OFFLOADS
 };
 
+struct mlx5_esw_offload {
+	struct mlx5_flow_table *ft_offloads;
+};
+
 struct mlx5_eswitch {
 	struct mlx5_core_dev    *dev;
 	struct mlx5_l2_table    l2_table;
@@ -169,6 +173,7 @@ struct mlx5_eswitch {
 	 */
 	struct mutex            state_lock;
 	struct esw_mc_addr      *mc_promisc;
+	struct mlx5_esw_offload offloads;
 	int                     mode;
 };
 
