@@ -496,6 +496,27 @@ int hfi1_user_sdma_free_queues(struct hfi1_filedata *fd)
 	return 0;
 }
 
+static u8 dlid_to_selector(u16 dlid)
+{
+	static u8 mapping[256];
+	static int initialized;
+	static u8 next;
+	int hash;
+
+	if (!initialized) {
+		memset(mapping, 0xFF, 256);
+		initialized = 1;
+	}
+
+	hash = ((dlid >> 8) ^ dlid) & 0xFF;
+	if (mapping[hash] == 0xFF) {
+		mapping[hash] = next;
+		next = (next + 1) & 0x7F;
+	}
+
+	return mapping[hash];
+}
+
 int hfi1_user_sdma_process_request(struct file *fp, struct iovec *iovec,
 				   unsigned long dim, unsigned long *count)
 {
@@ -511,6 +532,8 @@ int hfi1_user_sdma_process_request(struct file *fp, struct iovec *iovec,
 	struct user_sdma_request *req;
 	u8 opcode, sc, vl;
 	int req_queued = 0;
+	u16 dlid;
+	u8 selector;
 
 	if (iovec[idx].iov_len < sizeof(info) + sizeof(req->hdr)) {
 		hfi1_cdbg(
@@ -686,9 +709,13 @@ int hfi1_user_sdma_process_request(struct file *fp, struct iovec *iovec,
 		idx++;
 	}
 
+	dlid = be16_to_cpu(req->hdr.lrh[1]);
+	selector = dlid_to_selector(dlid);
+
 	/* Have to select the engine */
 	req->sde = sdma_select_engine_vl(dd,
-					 (u32)(uctxt->ctxt + fd->subctxt),
+					 (u32)(uctxt->ctxt + fd->subctxt +
+					       selector),
 					 vl);
 	if (!req->sde || !sdma_running(req->sde)) {
 		ret = -ECOMM;
