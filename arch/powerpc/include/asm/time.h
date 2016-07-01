@@ -146,7 +146,7 @@ static inline void set_tb(unsigned int upper, unsigned int lower)
  * in auto-reload mode.  The problem is PIT stops counting when it
  * hits zero.  If it would wrap, we could use it just like a decrementer.
  */
-static inline unsigned int get_dec(void)
+static inline u64 get_dec(void)
 {
 #if defined(CONFIG_40x)
 	return (mfspr(SPRN_PIT));
@@ -160,10 +160,10 @@ static inline unsigned int get_dec(void)
  * in when the decrementer generates its interrupt: on the 1 to 0
  * transition for Book E/4xx, but on the 0 to -1 transition for others.
  */
-static inline void set_dec(int val)
+static inline void set_dec(u64 val)
 {
 #if defined(CONFIG_40x)
-	mtspr(SPRN_PIT, val);
+	mtspr(SPRN_PIT, (u32) val);
 #else
 #ifndef CONFIG_BOOKE
 	--val;
