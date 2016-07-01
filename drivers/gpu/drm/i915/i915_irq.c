@@ -3135,10 +3135,10 @@ static void i915_hangcheck_elapsed(struct work_struct *work)
 	intel_uncore_arm_unclaimed_mmio_detection(dev_priv);
 
 	for_each_engine_id(engine, dev_priv, id) {
+		bool busy = waitqueue_active(&engine->irq_queue);
 		u64 acthd;
 		u32 seqno;
 		unsigned user_interrupts;
-		bool busy = true;
 
 		semaphore_clear_deadlocks(dev_priv);
 
@@ -3161,12 +3161,11 @@ static void i915_hangcheck_elapsed(struct work_struct *work)
 		if (engine->hangcheck.seqno == seqno) {
 			if (ring_idle(engine, seqno)) {
 				engine->hangcheck.action = HANGCHECK_IDLE;
-				if (waitqueue_active(&engine->irq_queue)) {
+				if (busy) {
 					/* Safeguard against driver failure */
 					user_interrupts = kick_waiters(engine);
 					engine->hangcheck.score += BUSY;
-				} else
-					busy = false;
+				}
 			} else {
 				/* We always increment the hangcheck score
 				 * if the ring is busy and still processing
@@ -3240,9 +3239,8 @@ static void i915_hangcheck_elapsed(struct work_struct *work)
 		goto out;
 	}
 
+	/* Reset timer in case GPU hangs without another request being added */
 	if (busy_count)
-		/* Reset timer case chip hangs without another request
-		 * being added */
 		i915_queue_hangcheck(dev_priv);
 
 out:

@@ -1532,6 +1532,15 @@ int __i915_wait_request(struct drm_i915_gem_request *req,
 			break;
 		}
 
+		/* Ensure that even if the GPU hangs, we get woken up.
+		 *
+		 * However, note that if no one is waiting, we never notice
+		 * a gpu hang. Eventually, we will have to wait for a resource
+		 * held by the GPU and so trigger a hangcheck. In the most
+		 * pathological case, this will be upon memory starvation!
+		 */
+		i915_queue_hangcheck(dev_priv);
+
 		timer.function = NULL;
 		if (timeout || missed_irq(dev_priv, engine)) {
 			unsigned long expire;
@@ -2919,8 +2928,6 @@ void __i915_add_request(struct drm_i915_gem_request *request,
 	/* Not allowed to fail! */
 	WARN(ret, "emit|add_request failed: %d!\n", ret);
 
-	i915_queue_hangcheck(engine->i915);
-
 	queue_delayed_work(dev_priv->wq,
 			   &dev_priv->mm.retire_work,
 			   round_jiffies_up_relative(HZ));
@@ -3264,8 +3271,8 @@ i915_gem_retire_requests(struct drm_i915_private *dev_priv)
 
 	if (idle)
 		mod_delayed_work(dev_priv->wq,
-				   &dev_priv->mm.idle_work,
-				   msecs_to_jiffies(100));
+				 &dev_priv->mm.idle_work,
+				 msecs_to_jiffies(100));
 
 	return idle;
 }
