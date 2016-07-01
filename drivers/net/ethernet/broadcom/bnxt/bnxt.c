@@ -3414,7 +3414,8 @@ static int bnxt_hwrm_vnic_cfg(struct bnxt *bp, u16 vnic_id)
 	bnxt_hwrm_cmd_hdr_init(bp, &req, HWRM_VNIC_CFG, -1, -1);
 	/* Only RSS support for now TBD: COS & LB */
 	req.enables = cpu_to_le32(VNIC_CFG_REQ_ENABLES_DFLT_RING_GRP |
-				  VNIC_CFG_REQ_ENABLES_RSS_RULE);
+				  VNIC_CFG_REQ_ENABLES_RSS_RULE |
+				  VNIC_CFG_REQ_ENABLES_MRU);
 	req.rss_rule = cpu_to_le16(vnic->fw_rss_cos_lb_ctx);
 	req.cos_rule = cpu_to_le16(0xffff);
 	if (vnic->flags & BNXT_VNIC_RSS_FLAG)
