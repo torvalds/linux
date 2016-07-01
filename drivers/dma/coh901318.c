@@ -1280,6 +1280,7 @@ struct coh901318_desc {
 struct coh901318_base {
 	struct device *dev;
 	void __iomem *virtbase;
+	unsigned int irq;
 	struct coh901318_pool pool;
 	struct powersave pm;
 	struct dma_device dma_slave;
@@ -2680,6 +2681,8 @@ static int __init coh901318_probe(struct platform_device *pdev)
 	if (err)
 		return err;
 
+	base->irq = irq;
+
 	err = coh901318_pool_create(&base->pool, &pdev->dev,
 				    sizeof(struct coh901318_lli),
 				    32);
@@ -2759,6 +2762,8 @@ static int __init coh901318_probe(struct platform_device *pdev)
 static int coh901318_remove(struct platform_device *pdev)
 {
 	struct coh901318_base *base = platform_get_drvdata(pdev);
+
+	devm_free_irq(&pdev->dev, base->irq, base);
 
 	of_dma_controller_free(pdev->dev.of_node);
 	dma_async_device_unregister(&base->dma_memcpy);
