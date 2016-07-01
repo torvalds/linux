@@ -173,7 +173,7 @@ struct intel_engine_cs {
 		struct intel_wait *first_wait; /* oldest waiter by retirement */
 		struct task_struct *tasklet; /* bh for user interrupts */
 		struct task_struct *signaler; /* used for fence signalling */
-		void *first_signal;
+		struct drm_i915_gem_request *first_signal;
 		struct timer_list fake_irq; /* used after a missed interrupt */
 		bool irq_enabled;
 		bool rpm_wakelock;
@@ -519,6 +519,11 @@ struct intel_wait {
 	u32 seqno;
 };
 
+struct intel_signal_node {
+	struct rb_node node;
+	struct intel_wait wait;
+};
+
 int intel_engine_init_breadcrumbs(struct intel_engine_cs *engine);
 
 static inline void intel_wait_init(struct intel_wait *wait, u32 seqno)
@@ -536,7 +541,7 @@ bool intel_engine_add_wait(struct intel_engine_cs *engine,
 			   struct intel_wait *wait);
 void intel_engine_remove_wait(struct intel_engine_cs *engine,
 			      struct intel_wait *wait);
-int intel_engine_enable_signaling(struct drm_i915_gem_request *request);
+void intel_engine_enable_signaling(struct drm_i915_gem_request *request);
 
 static inline bool intel_engine_has_waiter(struct intel_engine_cs *engine)
 {

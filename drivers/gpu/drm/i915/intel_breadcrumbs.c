@@ -356,35 +356,29 @@ out_unlock:
 	spin_unlock(&b->lock);
 }
 
-struct signal {
-	struct rb_node node;
-	struct intel_wait wait;
-	struct drm_i915_gem_request *request;
-};
-
-static bool signal_complete(struct signal *signal)
+static bool signal_complete(struct drm_i915_gem_request *request)
 {
-	if (!signal)
+	if (!request)
 		return false;
 
 	/* If another process served as the bottom-half it may have already
 	 * signalled that this wait is already completed.
 	 */
-	if (intel_wait_complete(&signal->wait))
+	if (intel_wait_complete(&request->signaling.wait))
 		return true;
 
 	/* Carefully check if the request is complete, giving time for the
 	 * seqno to be visible or if the GPU hung.
 	 */
-	if (__i915_request_irq_complete(signal->request))
+	if (__i915_request_irq_complete(request))
 		return true;
 
 	return false;
 }
 
-static struct signal *to_signal(struct rb_node *rb)
+static struct drm_i915_gem_request *to_signaler(struct rb_node *rb)
 {
-	return container_of(rb, struct signal, node);
+	return container_of(rb, struct drm_i915_gem_request, signaling.node);
 }
 
 static void signaler_set_rtpriority(void)
@@ -398,7 +392,7 @@ static int intel_breadcrumbs_signaler(void *arg)
 {
 	struct intel_engine_cs *engine = arg;
 	struct intel_breadcrumbs *b = &engine->breadcrumbs;
-	struct signal *signal;
+	struct drm_i915_gem_request *request;
 
 	/* Install ourselves with high priority to reduce signalling latency */
 	signaler_set_rtpriority();
@@ -414,14 +408,13 @@ static int intel_breadcrumbs_signaler(void *arg)
 		 * need to wait for a new interrupt from the GPU or for
 		 * a new client.
 		 */
-		signal = READ_ONCE(b->first_signal);
-		if (signal_complete(signal)) {
+		request = READ_ONCE(b->first_signal);
+		if (signal_complete(request)) {
 			/* Wake up all other completed waiters and select the
 			 * next bottom-half for the next user interrupt.
 			 */
-			intel_engine_remove_wait(engine, &signal->wait);
-
-			i915_gem_request_unreference(signal->request);
+			intel_engine_remove_wait(engine,
+						 &request->signaling.wait);
 
 			/* Find the next oldest signal. Note that as we have
 			 * not been holding the lock, another client may
@@ -430,12 +423,15 @@ static int intel_breadcrumbs_signaler(void *arg)
 			 * the oldest before picking the next one.
 			 */
 			spin_lock(&b->lock);
-			if (signal == b->first_signal)
-				b->first_signal = rb_next(&signal->node);
-			rb_erase(&signal->node, &b->signals);
+			if (request == b->first_signal) {
+				struct rb_node *rb =
+					rb_next(&request->signaling.node);
+				b->first_signal = rb ? to_signaler(rb) : NULL;
+			}
+			rb_erase(&request->signaling.node, &b->signals);
 			spin_unlock(&b->lock);
 
-			kfree(signal);
+			i915_gem_request_unreference(request);
 		} else {
 			if (kthread_should_stop())
 				break;
@@ -448,22 +444,25 @@ static int intel_breadcrumbs_signaler(void *arg)
 	return 0;
 }
 
-int intel_engine_enable_signaling(struct drm_i915_gem_request *request)
+void intel_engine_enable_signaling(struct drm_i915_gem_request *request)
 {
 	struct intel_engine_cs *engine = request->engine;
 	struct intel_breadcrumbs *b = &engine->breadcrumbs;
 	struct rb_node *parent, **p;
-	struct signal *signal;
 	bool first, wakeup;
 
-	signal = kmalloc(sizeof(*signal), GFP_ATOMIC);
-	if (unlikely(!signal))
-		return -ENOMEM;
+	if (unlikely(READ_ONCE(request->signaling.wait.tsk)))
+		return;
 
-	signal->wait.tsk = b->signaler;
-	signal->wait.seqno = request->seqno;
+	spin_lock(&b->lock);
+	if (unlikely(request->signaling.wait.tsk)) {
+		wakeup = false;
+		goto unlock;
+	}
 
-	signal->request = i915_gem_request_reference(request);
+	request->signaling.wait.tsk = b->signaler;
+	request->signaling.wait.seqno = request->seqno;
+	i915_gem_request_reference(request);
 
 	/* First add ourselves into the list of waiters, but register our
 	 * bottom-half as the signaller thread. As per usual, only the oldest
@@ -473,36 +472,35 @@ int intel_engine_enable_signaling(struct drm_i915_gem_request *request)
 	 * If we are the oldest waiter, enable the irq (after which we
 	 * must double check that the seqno did not complete).
 	 */
-	wakeup = intel_engine_add_wait(engine, &signal->wait);
+	wakeup = __intel_engine_add_wait(engine, &request->signaling.wait);
 
 	/* Now insert ourselves into the retirement ordered list of signals
 	 * on this engine. We track the oldest seqno as that will be the
 	 * first signal to complete.
 	 */
-	spin_lock(&b->lock);
 	parent = NULL;
 	first = true;
 	p = &b->signals.rb_node;
 	while (*p) {
 		parent = *p;
-		if (i915_seqno_passed(signal->wait.seqno,
-				      to_signal(parent)->wait.seqno)) {
+		if (i915_seqno_passed(request->seqno,
+				      to_signaler(parent)->seqno)) {
 			p = &parent->rb_right;
 			first = false;
 		} else {
 			p = &parent->rb_left;
 		}
 	}
-	rb_link_node(&signal->node, parent, p);
-	rb_insert_color(&signal->node, &b->signals);
+	rb_link_node(&request->signaling.node, parent, p);
+	rb_insert_color(&request->signaling.node, &b->signals);
 	if (first)
-		smp_store_mb(b->first_signal, signal);
+		smp_store_mb(b->first_signal, request);
+
+unlock:
 	spin_unlock(&b->lock);
 
 	if (wakeup)
 		wake_up_process(b->signaler);
-
-	return 0;
 }
 
 int intel_engine_init_breadcrumbs(struct intel_engine_cs *engine)
