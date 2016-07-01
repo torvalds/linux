@@ -66,11 +66,19 @@ u32 hv_end_read(struct hv_ring_buffer_info *rbi)
  *	   arrived.
  */
 
-static bool hv_need_to_signal(u32 old_write, struct hv_ring_buffer_info *rbi)
+static bool hv_need_to_signal(u32 old_write, struct hv_ring_buffer_info *rbi,
+			      enum hv_signal_policy policy)
 {
 	virt_mb();
 	if (READ_ONCE(rbi->ring_buffer->interrupt_mask))
 		return false;
+
+	/*
+	 * When the client wants to control signaling,
+	 * we only honour the host interrupt mask.
+	 */
+	if (policy == HV_SIGNAL_POLICY_EXPLICIT)
+		return true;
 
 	/* check interrupt_mask before read_index */
 	virt_rmb();
@@ -264,7 +272,8 @@ void hv_ringbuffer_cleanup(struct hv_ring_buffer_info *ring_info)
 
 /* Write to the ring buffer. */
 int hv_ringbuffer_write(struct hv_ring_buffer_info *outring_info,
-		    struct kvec *kv_list, u32 kv_count, bool *signal, bool lock)
+		    struct kvec *kv_list, u32 kv_count, bool *signal, bool lock,
+		    enum hv_signal_policy policy)
 {
 	int i = 0;
 	u32 bytes_avail_towrite;
@@ -326,7 +335,7 @@ int hv_ringbuffer_write(struct hv_ring_buffer_info *outring_info,
 	if (lock)
 		spin_unlock_irqrestore(&outring_info->ring_lock, flags);
 
-	*signal = hv_need_to_signal(old_write, outring_info);
+	*signal = hv_need_to_signal(old_write, outring_info, policy);
 	return 0;
 }
 

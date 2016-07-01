@@ -426,6 +426,8 @@ static void vmbus_process_offer(struct vmbus_channel *newchannel)
 	}
 
 	dev_type = hv_get_dev_type(&newchannel->offermsg.offer.if_type);
+	if (dev_type == HV_NIC)
+		set_channel_signal_state(newchannel, HV_SIGNAL_POLICY_EXPLICIT);
 
 	init_vp_index(newchannel, dev_type);
 

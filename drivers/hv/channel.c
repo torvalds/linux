@@ -650,7 +650,7 @@ int vmbus_sendpacket_ctl(struct vmbus_channel *channel, void *buffer,
 	bufferlist[2].iov_len = (packetlen_aligned - packetlen);
 
 	ret = hv_ringbuffer_write(&channel->outbound, bufferlist, num_vecs,
-				  &signal, lock);
+				  &signal, lock, channel->signal_policy);
 
 	/*
 	 * Signalling the host is conditional on many factors:
@@ -670,11 +670,6 @@ int vmbus_sendpacket_ctl(struct vmbus_channel *channel, void *buffer,
 	 * it looks the host side's hvsock implementation has a throttling
 	 * mechanism which can hurt the performance otherwise.
 	 */
-
-	if (channel->signal_policy)
-		signal = true;
-	else
-		kick_q = true;
 
 	if (((ret == 0) && kick_q && signal) ||
 	    (ret && !is_hvsock_channel(channel)))
@@ -768,7 +763,7 @@ int vmbus_sendpacket_pagebuffer_ctl(struct vmbus_channel *channel,
 	bufferlist[2].iov_len = (packetlen_aligned - packetlen);
 
 	ret = hv_ringbuffer_write(&channel->outbound, bufferlist, 3,
-				  &signal, lock);
+				  &signal, lock, channel->signal_policy);
 
 	/*
 	 * Signalling the host is conditional on many factors:
@@ -785,11 +780,6 @@ int vmbus_sendpacket_pagebuffer_ctl(struct vmbus_channel *channel,
 	 * even if we may not have written anything. This is a rare
 	 * enough condition that it should not matter.
 	 */
-
-	if (channel->signal_policy)
-		signal = true;
-	else
-		kick_q = true;
 
 	if (((ret == 0) && kick_q && signal) || (ret))
 		vmbus_setevent(channel);
@@ -852,7 +842,7 @@ int vmbus_sendpacket_mpb_desc(struct vmbus_channel *channel,
 	bufferlist[2].iov_len = (packetlen_aligned - packetlen);
 
 	ret = hv_ringbuffer_write(&channel->outbound, bufferlist, 3,
-				  &signal, lock);
+				  &signal, lock, channel->signal_policy);
 
 	if (ret == 0 && signal)
 		vmbus_setevent(channel);
@@ -917,7 +907,7 @@ int vmbus_sendpacket_multipagebuffer(struct vmbus_channel *channel,
 	bufferlist[2].iov_len = (packetlen_aligned - packetlen);
 
 	ret = hv_ringbuffer_write(&channel->outbound, bufferlist, 3,
-				  &signal, lock);
+				  &signal, lock, channel->signal_policy);
 
 	if (ret == 0 && signal)
 		vmbus_setevent(channel);
