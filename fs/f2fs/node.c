@@ -1080,15 +1080,15 @@ static int read_node_page(struct page *page, int rw)
 		.encrypted_page = NULL,
 	};
 
+	if (PageUptodate(page))
+		return LOCKED_PAGE;
+
 	get_node_info(sbi, page->index, &ni);
 
 	if (unlikely(ni.blk_addr == NULL_ADDR)) {
 		ClearPageUptodate(page);
 		return -ENOENT;
 	}
-
-	if (PageUptodate(page))
-		return LOCKED_PAGE;
 
 	fio.new_blkaddr = fio.old_blkaddr = ni.blk_addr;
 	return f2fs_submit_page_bio(&fio);
