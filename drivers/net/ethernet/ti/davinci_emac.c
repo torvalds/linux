@@ -485,41 +485,6 @@ static void emac_get_drvinfo(struct net_device *ndev,
 }
 
 /**
- * emac_get_settings - Get EMAC settings
- * @ndev: The DaVinci EMAC network adapter
- * @ecmd: ethtool command
- *
- * Executes ethool get command
- *
- */
-static int emac_get_settings(struct net_device *ndev,
-			     struct ethtool_cmd *ecmd)
-{
-	if (ndev->phydev)
-		return phy_ethtool_gset(ndev->phydev, ecmd);
-	else
-		return -EOPNOTSUPP;
-
-}
-
-/**
- * emac_set_settings - Set EMAC settings
- * @ndev: The DaVinci EMAC network adapter
- * @ecmd: ethtool command
- *
- * Executes ethool set command
- *
- */
-static int emac_set_settings(struct net_device *ndev, struct ethtool_cmd *ecmd)
-{
-	if (ndev->phydev)
-		return phy_ethtool_sset(ndev->phydev, ecmd);
-	else
-		return -EOPNOTSUPP;
-
-}
-
-/**
  * emac_get_coalesce - Get interrupt coalesce settings for this device
  * @ndev : The DaVinci EMAC network adapter
  * @coal : ethtool coalesce settings structure
@@ -622,12 +587,12 @@ static int emac_set_coalesce(struct net_device *ndev,
  */
 static const struct ethtool_ops ethtool_ops = {
 	.get_drvinfo = emac_get_drvinfo,
-	.get_settings = emac_get_settings,
-	.set_settings = emac_set_settings,
 	.get_link = ethtool_op_get_link,
 	.get_coalesce = emac_get_coalesce,
 	.set_coalesce =  emac_set_coalesce,
 	.get_ts_info = ethtool_op_get_ts_info,
+	.get_link_ksettings = phy_ethtool_get_link_ksettings,
+	.set_link_ksettings = phy_ethtool_set_link_ksettings,
 };
 
 /**
