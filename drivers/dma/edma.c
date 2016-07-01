@@ -2393,6 +2393,17 @@ err_reg1:
 	return ret;
 }
 
+static void edma_cleanupp_vchan(struct dma_device *dmadev)
+{
+	struct edma_chan *echan, *_echan;
+
+	list_for_each_entry_safe(echan, _echan,
+			&dmadev->channels, vchan.chan.device_node) {
+		list_del(&echan->vchan.chan.device_node);
+		tasklet_kill(&echan->vchan.task);
+	}
+}
+
 static int edma_remove(struct platform_device *pdev)
 {
 	struct device *dev = &pdev->dev;
@@ -2400,6 +2411,8 @@ static int edma_remove(struct platform_device *pdev)
 
 	devm_free_irq(dev, ecc->ccint, ecc);
 	devm_free_irq(dev, ecc->ccerrint, ecc);
+
+	edma_cleanupp_vchan(&ecc->dma_slave);
 
 	if (dev->of_node)
 		of_dma_controller_free(dev->of_node);
