@@ -1,6 +1,6 @@
 .. -*- coding: utf-8; mode: rst -*-
 
-.. _vidioc-g-enc-index:
+.. _VIDIOC_G_ENC_INDEX:
 
 ************************
 ioctl VIDIOC_G_ENC_INDEX

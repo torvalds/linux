@@ -1,6 +1,6 @@
 .. -*- coding: utf-8; mode: rst -*-
 
-.. _vidioc-expbuf:
+.. _VIDIOC_EXPBUF:
 
 *******************
 ioctl VIDIOC_EXPBUF
@@ -35,7 +35,7 @@ This ioctl is an extension to the :ref:`memory mapping <mmap>` I/O
 method, therefore it is available only for ``V4L2_MEMORY_MMAP`` buffers.
 It can be used to export a buffer as a DMABUF file at any time after
 buffers have been allocated with the
-:ref:`VIDIOC_REQBUFS <vidioc-reqbufs>` ioctl.
+:ref:`VIDIOC_REQBUFS <VIDIOC_REQBUFS>` ioctl.
 
 To export a buffer, applications fill struct
 :ref:`v4l2_exportbuffer <v4l2-exportbuffer>`. The ``type`` field is
@@ -43,7 +43,7 @@ set to the same buffer type as was previously used with struct
 :ref:`v4l2_requestbuffers <v4l2-requestbuffers>` ``type``.
 Applications must also set the ``index`` field. Valid index numbers
 range from zero to the number of buffers allocated with
-:ref:`VIDIOC_REQBUFS <vidioc-reqbufs>` (struct
+:ref:`VIDIOC_REQBUFS <VIDIOC_REQBUFS>` (struct
 :ref:`v4l2_requestbuffers <v4l2-requestbuffers>` ``count``) minus
 one. For the multi-planar API, applications set the ``plane`` field to
 the index of the plane to be exported. Valid planes range from zero to
@@ -142,8 +142,8 @@ Examples
        -  Number of the buffer, set by the application. This field is only
           used for :ref:`memory mapping <mmap>` I/O and can range from
           zero to the number of buffers allocated with the
-          :ref:`VIDIOC_REQBUFS <vidioc-reqbufs>` and/or
-          :ref:`VIDIOC_CREATE_BUFS <vidioc-create-bufs>` ioctls.
+          :ref:`VIDIOC_REQBUFS <VIDIOC_REQBUFS>` and/or
+          :ref:`VIDIOC_CREATE_BUFS <VIDIOC_CREATE_BUFS>` ioctls.
 
     -  .. row 3
 

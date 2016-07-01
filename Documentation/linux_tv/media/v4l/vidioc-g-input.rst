@@ -1,6 +1,6 @@
 .. -*- coding: utf-8; mode: rst -*-
 
-.. _vidioc-g-input:
+.. _VIDIOC_G_INPUT:
 
 ************************************
 ioctl VIDIOC_G_INPUT, VIDIOC_S_INPUT
@@ -47,7 +47,7 @@ applications must select an input before querying or negotiating any
 other parameters.
 
 Information about video inputs is available using the
-:ref:`VIDIOC_ENUMINPUT <vidioc-enuminput>` ioctl.
+:ref:`VIDIOC_ENUMINPUT <VIDIOC_ENUMINPUT>` ioctl.
 
 
 Return Value

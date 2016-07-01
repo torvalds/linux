@@ -9,10 +9,10 @@ Streaming I/O (Memory Mapping)
 Input and output devices support this I/O method when the
 ``V4L2_CAP_STREAMING`` flag in the ``capabilities`` field of struct
 :ref:`v4l2_capability <v4l2-capability>` returned by the
-:ref:`VIDIOC_QUERYCAP <vidioc-querycap>` ioctl is set. There are two
+:ref:`VIDIOC_QUERYCAP <VIDIOC_QUERYCAP>` ioctl is set. There are two
 streaming methods, to determine if the memory mapping flavor is
 supported applications must call the
-:ref:`VIDIOC_REQBUFS <vidioc-reqbufs>` ioctl.
+:ref:`VIDIOC_REQBUFS <VIDIOC_REQBUFS>` ioctl.
 
 Streaming is an I/O method where only pointers to buffers are exchanged
 between application and driver, the data itself is not copied. Memory
@@ -29,7 +29,7 @@ a different type of data. To access different sets at the same time
 different file descriptors must be used. [1]_
 
 To allocate device buffers applications call the
-:ref:`VIDIOC_REQBUFS <vidioc-reqbufs>` ioctl with the desired number
+:ref:`VIDIOC_REQBUFS <VIDIOC_REQBUFS>` ioctl with the desired number
 of buffers and buffer type, for example ``V4L2_BUF_TYPE_VIDEO_CAPTURE``.
 This ioctl can also be used to change the number of buffers or to free
 the allocated memory, provided none of the buffers are still mapped.
@@ -37,7 +37,7 @@ the allocated memory, provided none of the buffers are still mapped.
 Before applications can access the buffers they must map them into their
 address space with the :ref:`mmap() <func-mmap>` function. The
 location of the buffers in device memory can be determined with the
-:ref:`VIDIOC_QUERYBUF <vidioc-querybuf>` ioctl. In the single-planar
+:ref:`VIDIOC_QUERYBUF <VIDIOC_QUERYBUF>` ioctl. In the single-planar
 API case, the ``m.offset`` and ``length`` returned in a struct
 :ref:`v4l2_buffer <v4l2-buffer>` are passed as sixth and second
 parameter to the :c:func:`mmap()` function. When using the
@@ -227,10 +227,10 @@ when the application runs out of free buffers, it must wait until an
 empty buffer can be dequeued and reused.
 
 To enqueue and dequeue a buffer applications use the
-:ref:`VIDIOC_QBUF <vidioc-qbuf>` and
-:ref:`VIDIOC_DQBUF <vidioc-qbuf>` ioctl. The status of a buffer being
+:ref:`VIDIOC_QBUF <VIDIOC_QBUF>` and
+:ref:`VIDIOC_DQBUF <VIDIOC_QBUF>` ioctl. The status of a buffer being
 mapped, enqueued, full or empty can be determined at any time using the
-:ref:`VIDIOC_QUERYBUF <vidioc-querybuf>` ioctl. Two methods exist to
+:ref:`VIDIOC_QUERYBUF <VIDIOC_QUERYBUF>` ioctl. Two methods exist to
 suspend execution of the application until one or more buffers can be
 dequeued. By default ``VIDIOC_DQBUF`` blocks when no buffer is in the
 outgoing queue. When the ``O_NONBLOCK`` flag was given to the
@@ -240,8 +240,8 @@ immediately with an EAGAIN error code when no buffer is available. The
 are always available.
 
 To start and stop capturing or output applications call the
-:ref:`VIDIOC_STREAMON <vidioc-streamon>` and
-:ref:`VIDIOC_STREAMOFF <vidioc-streamon>` ioctl. Note
+:ref:`VIDIOC_STREAMON <VIDIOC_STREAMON>` and
+:ref:`VIDIOC_STREAMOFF <VIDIOC_STREAMON>` ioctl. Note
 ``VIDIOC_STREAMOFF`` removes all buffers from both queues as a side
 effect. Since there is no notion of doing anything "now" on a
 multitasking system, if an application needs to synchronize with another
@@ -258,7 +258,7 @@ the :c:func:`mmap()`, :c:func:`munmap()`, :c:func:`select()` and
 
 .. [1]
    One could use one file descriptor and set the buffer type field
-   accordingly when calling :ref:`VIDIOC_QBUF <vidioc-qbuf>` etc.,
+   accordingly when calling :ref:`VIDIOC_QBUF <VIDIOC_QBUF>` etc.,
    but it makes the :c:func:`select()` function ambiguous. We also
    like the clean approach of one file descriptor per logical stream.
    Video overlay for example is also a logical stream, although the CPU

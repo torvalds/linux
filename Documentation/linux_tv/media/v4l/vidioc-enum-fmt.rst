@@ -1,6 +1,6 @@
 .. -*- coding: utf-8; mode: rst -*-
 
-.. _vidioc-enum-fmt:
+.. _VIDIOC_ENUM_FMT:
 
 *********************
 ioctl VIDIOC_ENUM_FMT

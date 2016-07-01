@@ -1,6 +1,6 @@
 .. -*- coding: utf-8; mode: rst -*-
 
-.. _vidioc-g-ctrl:
+.. _VIDIOC_G_CTRL:
 
 **********************************
 ioctl VIDIOC_G_CTRL, VIDIOC_S_CTRL
@@ -48,9 +48,9 @@ actual new value. If the ``value`` is inappropriate for the control
 EINVAL error code is returned as well.
 
 These ioctls work only with user controls. For other control classes the
-:ref:`VIDIOC_G_EXT_CTRLS <vidioc-g-ext-ctrls>`,
-:ref:`VIDIOC_S_EXT_CTRLS <vidioc-g-ext-ctrls>` or
-:ref:`VIDIOC_TRY_EXT_CTRLS <vidioc-g-ext-ctrls>` must be used.
+:ref:`VIDIOC_G_EXT_CTRLS <VIDIOC_G_EXT_CTRLS>`,
+:ref:`VIDIOC_S_EXT_CTRLS <VIDIOC_G_EXT_CTRLS>` or
+:ref:`VIDIOC_TRY_EXT_CTRLS <VIDIOC_G_EXT_CTRLS>` must be used.
 
 
 .. _v4l2-control:
@@ -90,7 +90,7 @@ EINVAL
     The struct :ref:`v4l2_control <v4l2-control>` ``id`` is invalid
     or the ``value`` is inappropriate for the given control (i.e. if a
     menu item is selected that is not supported by the driver according
-    to :ref:`VIDIOC_QUERYMENU <vidioc-queryctrl>`).
+    to :ref:`VIDIOC_QUERYMENU <VIDIOC_QUERYCTRL>`).
 
 ERANGE
     The struct :ref:`v4l2_control <v4l2-control>` ``value`` is out of

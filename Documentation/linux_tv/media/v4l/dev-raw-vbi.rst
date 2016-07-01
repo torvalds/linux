@@ -28,7 +28,7 @@ applies to both input and output devices.
 To address the problems of finding related video and VBI devices VBI
 capturing and output is also available as device function under
 ``/dev/video``. To capture or output raw VBI data with these devices
-applications must call the :ref:`VIDIOC_S_FMT <vidioc-g-fmt>` ioctl.
+applications must call the :ref:`VIDIOC_S_FMT <VIDIOC_G_FMT>` ioctl.
 Accessed as ``/dev/vbi``, raw VBI capturing or output is the default
 device function.
 
@@ -40,7 +40,7 @@ Devices supporting the raw VBI capturing or output API set the
 ``V4L2_CAP_VBI_CAPTURE`` or ``V4L2_CAP_VBI_OUTPUT`` flags, respectively,
 in the ``capabilities`` field of struct
 :ref:`v4l2_capability <v4l2-capability>` returned by the
-:ref:`VIDIOC_QUERYCAP <vidioc-querycap>` ioctl. At least one of the
+:ref:`VIDIOC_QUERYCAP <VIDIOC_QUERYCAP>` ioctl. At least one of the
 read/write, streaming or asynchronous I/O methods must be supported. VBI
 devices may or may not have a tuner or modulator.
 
@@ -71,7 +71,7 @@ parameters and then checking if the actual parameters are suitable.
 To query the current raw VBI capture parameters applications set the
 ``type`` field of a struct :ref:`v4l2_format <v4l2-format>` to
 ``V4L2_BUF_TYPE_VBI_CAPTURE`` or ``V4L2_BUF_TYPE_VBI_OUTPUT``, and call
-the :ref:`VIDIOC_G_FMT <vidioc-g-fmt>` ioctl with a pointer to this
+the :ref:`VIDIOC_G_FMT <VIDIOC_G_FMT>` ioctl with a pointer to this
 structure. Drivers fill the struct
 :ref:`v4l2_vbi_format <v4l2-vbi-format>` ``vbi`` member of the
 ``fmt`` union.
@@ -80,7 +80,7 @@ To request different parameters applications set the ``type`` field of a
 struct :ref:`v4l2_format <v4l2-format>` as above and initialize all
 fields of the struct :ref:`v4l2_vbi_format <v4l2-vbi-format>`
 ``vbi`` member of the ``fmt`` union, or better just modify the results
-of ``VIDIOC_G_FMT``, and call the :ref:`VIDIOC_S_FMT <vidioc-g-fmt>`
+of ``VIDIOC_G_FMT``, and call the :ref:`VIDIOC_S_FMT <VIDIOC_G_FMT>`
 ioctl with a pointer to this structure. Drivers return an EINVAL error
 code only when the given parameters are ambiguous, otherwise they modify
 the parameters according to the hardware capabilities and return the
@@ -91,7 +91,7 @@ happen for instance when the video and VBI areas to capture would
 overlap, or when the driver supports multiple opens and another process
 already requested VBI capturing or output. Anyway, applications must
 expect other resource allocation points which may return EBUSY, at the
-:ref:`VIDIOC_STREAMON <vidioc-streamon>` ioctl and the first read(),
+:ref:`VIDIOC_STREAMON <VIDIOC_STREAMON>` ioctl and the first read(),
 write() and select() call.
 
 VBI devices must implement both the ``VIDIOC_G_FMT`` and
@@ -339,7 +339,7 @@ A VBI device may support :ref:`read/write <rw>` and/or streaming
 The latter bears the possibility of synchronizing video and VBI data by
 using buffer timestamps.
 
-Remember the :ref:`VIDIOC_STREAMON <vidioc-streamon>` ioctl and the
+Remember the :ref:`VIDIOC_STREAMON <VIDIOC_STREAMON>` ioctl and the
 first read(), write() and select() call can be resource allocation
 points returning an EBUSY error code if the required hardware resources
 are temporarily unavailable, for example the device is already in use by

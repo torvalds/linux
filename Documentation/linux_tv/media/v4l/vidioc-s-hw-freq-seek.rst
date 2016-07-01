@@ -1,6 +1,6 @@
 .. -*- coding: utf-8; mode: rst -*-
 
-.. _vidioc-s-hw-freq-seek:
+.. _VIDIOC_S_HW_FREQ_SEEK:
 
 ***************************
 ioctl VIDIOC_S_HW_FREQ_SEEK
@@ -43,10 +43,10 @@ to tell the driver to search a specific band. If the struct
 :ref:`v4l2_tuner <v4l2-tuner>` ``capability`` field has the
 ``V4L2_TUNER_CAP_HWSEEK_PROG_LIM`` flag set, these values must fall
 within one of the bands returned by
-:ref:`VIDIOC_ENUM_FREQ_BANDS <vidioc-enum-freq-bands>`. If the
+:ref:`VIDIOC_ENUM_FREQ_BANDS <VIDIOC_ENUM_FREQ_BANDS>`. If the
 ``V4L2_TUNER_CAP_HWSEEK_PROG_LIM`` flag is not set, then these values
 must exactly match those of one of the bands returned by
-:ref:`VIDIOC_ENUM_FREQ_BANDS <vidioc-enum-freq-bands>`. If the
+:ref:`VIDIOC_ENUM_FREQ_BANDS <VIDIOC_ENUM_FREQ_BANDS>`. If the
 current frequency of the tuner does not fall within the selected band it
 will be clamped to fit in the band before the seek is started.
 

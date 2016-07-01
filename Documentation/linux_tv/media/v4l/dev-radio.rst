@@ -21,7 +21,7 @@ Devices supporting the radio interface set the ``V4L2_CAP_RADIO`` and
 ``V4L2_CAP_TUNER`` or ``V4L2_CAP_MODULATOR`` flag in the
 ``capabilities`` field of struct
 :ref:`v4l2_capability <v4l2-capability>` returned by the
-:ref:`VIDIOC_QUERYCAP <vidioc-querycap>` ioctl. Other combinations of
+:ref:`VIDIOC_QUERYCAP <VIDIOC_QUERYCAP>` ioctl. Other combinations of
 capability flags are reserved for future extensions.
 
 
@@ -47,8 +47,8 @@ discussed in :ref:`tuner`) with index number zero to select the radio
 frequency and to determine if a monaural or FM stereo program is
 received/emitted. Drivers switch automatically between AM and FM
 depending on the selected frequency. The
-:ref:`VIDIOC_G_TUNER <vidioc-g-tuner>` or
-:ref:`VIDIOC_G_MODULATOR <vidioc-g-modulator>` ioctl reports the
+:ref:`VIDIOC_G_TUNER <VIDIOC_G_TUNER>` or
+:ref:`VIDIOC_G_MODULATOR <VIDIOC_G_MODULATOR>` ioctl reports the
 supported frequency range.
 
 

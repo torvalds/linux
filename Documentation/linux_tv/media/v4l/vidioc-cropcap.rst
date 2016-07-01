@@ -1,6 +1,6 @@
 .. -*- coding: utf-8; mode: rst -*-
 
-.. _vidioc-cropcap:
+.. _VIDIOC_CROPCAP:
 
 ********************
 ioctl VIDIOC_CROPCAP

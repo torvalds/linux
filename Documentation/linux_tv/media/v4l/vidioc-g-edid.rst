@@ -1,6 +1,6 @@
 .. -*- coding: utf-8; mode: rst -*-
 
-.. _vidioc-g-edid:
+.. _VIDIOC_G_EDID:
 
 ******************************************************************************
 ioctl VIDIOC_G_EDID, VIDIOC_S_EDID, VIDIOC_SUBDEV_G_EDID, VIDIOC_SUBDEV_S_EDID
@@ -44,8 +44,8 @@ with subdevice nodes (/dev/v4l-subdevX) or with video nodes
 
 When used with video nodes the ``pad`` field represents the input (for
 video capture devices) or output (for video output devices) index as is
-returned by :ref:`VIDIOC_ENUMINPUT <vidioc-enuminput>` and
-:ref:`VIDIOC_ENUMOUTPUT <vidioc-enumoutput>` respectively. When used
+returned by :ref:`VIDIOC_ENUMINPUT <VIDIOC_ENUMINPUT>` and
+:ref:`VIDIOC_ENUMOUTPUT <VIDIOC_ENUMOUTPUT>` respectively. When used
 with subdevice nodes the ``pad`` field represents the input or output
 pad of the subdevice. If there is no EDID support for the given ``pad``
 value, then the EINVAL error code will be returned.
@@ -105,8 +105,8 @@ EDID is no longer available.
 
        -  Pad for which to get/set the EDID blocks. When used with a video
           device node the pad represents the input or output index as
-          returned by :ref:`VIDIOC_ENUMINPUT <vidioc-enuminput>` and
-          :ref:`VIDIOC_ENUMOUTPUT <vidioc-enumoutput>` respectively.
+          returned by :ref:`VIDIOC_ENUMINPUT <VIDIOC_ENUMINPUT>` and
+          :ref:`VIDIOC_ENUMOUTPUT <VIDIOC_ENUMOUTPUT>` respectively.
 
     -  .. row 2
 

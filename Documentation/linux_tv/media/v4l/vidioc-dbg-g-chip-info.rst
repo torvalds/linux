@@ -1,6 +1,6 @@
 .. -*- coding: utf-8; mode: rst -*-
 
-.. _vidioc-dbg-g-chip-info:
+.. _VIDIOC_DBG_G_CHIP_INFO:
 
 ****************************
 ioctl VIDIOC_DBG_G_CHIP_INFO

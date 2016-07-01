@@ -1,6 +1,6 @@
 .. -*- coding: utf-8; mode: rst -*-
 
-.. _vidioc-g-fbuf:
+.. _VIDIOC_G_FBUF:
 
 **********************************
 ioctl VIDIOC_G_FBUF, VIDIOC_S_FBUF
@@ -39,7 +39,7 @@ to get and set the framebuffer parameters for a
 :ref:`Video Overlay <overlay>` or :ref:`Video Output Overlay <osd>`
 (OSD). The type of overlay is implied by the device type (capture or
 output device) and can be determined with the
-:ref:`VIDIOC_QUERYCAP <vidioc-querycap>` ioctl. One ``/dev/videoN``
+:ref:`VIDIOC_QUERYCAP <VIDIOC_QUERYCAP>` ioctl. One ``/dev/videoN``
 device must not support both kinds of overlay.
 
 The V4L2 API distinguishes destructive and non-destructive overlays. A
@@ -202,7 +202,7 @@ destructive video overlay.
 
        -  Drivers and applications shall ignore this field. If applicable,
           the field order is selected with the
-          :ref:`VIDIOC_S_FMT <vidioc-g-fmt>` ioctl, using the ``field``
+          :ref:`VIDIOC_S_FMT <VIDIOC_G_FMT>` ioctl, using the ``field``
           field of struct :ref:`v4l2_window <v4l2-window>`.
 
     -  .. row 13
@@ -396,12 +396,12 @@ destructive video overlay.
        -  If this flag is set for a video capture device, then the driver
           will set the initial overlay size to cover the full framebuffer
           size, otherwise the existing overlay size (as set by
-          :ref:`VIDIOC_S_FMT <vidioc-g-fmt>`) will be used. Only one
+          :ref:`VIDIOC_S_FMT <VIDIOC_G_FMT>`) will be used. Only one
           video capture driver (bttv) supports this flag. The use of this
           flag for capture devices is deprecated. There is no way to detect
           which drivers support this flag, so the only reliable method of
           setting the overlay size is through
-          :ref:`VIDIOC_S_FMT <vidioc-g-fmt>`. If this flag is set for a
+          :ref:`VIDIOC_S_FMT <VIDIOC_G_FMT>`. If this flag is set for a
           video output device, then the video output overlay window is
           relative to the top-left corner of the framebuffer and restricted
           to the size of the framebuffer. If it is cleared, then the video
@@ -415,14 +415,14 @@ destructive video overlay.
 
        -  Use chroma-keying. The chroma-key color is determined by the
           ``chromakey`` field of struct :ref:`v4l2_window <v4l2-window>`
-          and negotiated with the :ref:`VIDIOC_S_FMT <vidioc-g-fmt>`
+          and negotiated with the :ref:`VIDIOC_S_FMT <VIDIOC_G_FMT>`
           ioctl, see :ref:`overlay` and :ref:`osd`.
 
     -  .. row 4
 
        -  :cspan:`2` There are no flags to enable clipping using a list of
           clip rectangles or a bitmap. These methods are negotiated with the
-          :ref:`VIDIOC_S_FMT <vidioc-g-fmt>` ioctl, see :ref:`overlay`
+          :ref:`VIDIOC_S_FMT <VIDIOC_G_FMT>` ioctl, see :ref:`overlay`
           and :ref:`osd`.
 
     -  .. row 5
@@ -447,7 +447,7 @@ destructive video overlay.
           + video pixel * (255 - alpha)) / 255. The alpha value is
           determined by the ``global_alpha`` field of struct
           :ref:`v4l2_window <v4l2-window>` and negotiated with the
-          :ref:`VIDIOC_S_FMT <vidioc-g-fmt>` ioctl, see :ref:`overlay`
+          :ref:`VIDIOC_S_FMT <VIDIOC_G_FMT>` ioctl, see :ref:`overlay`
           and :ref:`osd`.
 
     -  .. row 7
@@ -471,7 +471,7 @@ destructive video overlay.
        -  Use source chroma-keying. The source chroma-key color is
           determined by the ``chromakey`` field of struct
           :ref:`v4l2_window <v4l2-window>` and negotiated with the
-          :ref:`VIDIOC_S_FMT <vidioc-g-fmt>` ioctl, see :ref:`overlay`
+          :ref:`VIDIOC_S_FMT <VIDIOC_G_FMT>` ioctl, see :ref:`overlay`
           and :ref:`osd`. Both chroma-keying are mutual exclusive to each
           other, so same ``chromakey`` field of struct
           :ref:`v4l2_window <v4l2-window>` is being used.

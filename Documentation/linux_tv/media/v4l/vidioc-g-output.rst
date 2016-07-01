@@ -1,6 +1,6 @@
 .. -*- coding: utf-8; mode: rst -*-
 
-.. _vidioc-g-output:
+.. _VIDIOC_G_OUTPUT:
 
 **************************************
 ioctl VIDIOC_G_OUTPUT, VIDIOC_S_OUTPUT
@@ -48,7 +48,7 @@ effects applications must select an output before querying or
 negotiating any other parameters.
 
 Information about video outputs is available using the
-:ref:`VIDIOC_ENUMOUTPUT <vidioc-enumoutput>` ioctl.
+:ref:`VIDIOC_ENUMOUTPUT <VIDIOC_ENUMOUTPUT>` ioctl.
 
 
 Return Value

@@ -14,15 +14,15 @@ previously exported for a different or the same device (known as the
 importer role), or both. This section describes the DMABUF importer role
 API in V4L2.
 
-Refer to :ref:`DMABUF exporting <vidioc-expbuf>` for details about
+Refer to :ref:`DMABUF exporting <VIDIOC_EXPBUF>` for details about
 exporting V4L2 buffers as DMABUF file descriptors.
 
 Input and output devices support the streaming I/O method when the
 ``V4L2_CAP_STREAMING`` flag in the ``capabilities`` field of struct
 :ref:`v4l2_capability <v4l2-capability>` returned by the
-:ref:`VIDIOC_QUERYCAP <vidioc-querycap>` ioctl is set. Whether
+:ref:`VIDIOC_QUERYCAP <VIDIOC_QUERYCAP>` ioctl is set. Whether
 importing DMA buffers through DMABUF file descriptors is supported is
-determined by calling the :ref:`VIDIOC_REQBUFS <vidioc-reqbufs>`
+determined by calling the :ref:`VIDIOC_REQBUFS <VIDIOC_REQBUFS>`
 ioctl with the memory type set to ``V4L2_MEMORY_DMABUF``.
 
 This I/O method is dedicated to sharing DMA buffers between different
@@ -34,7 +34,7 @@ such file descriptor are exchanged. The descriptors and meta-information
 are passed in struct :ref:`v4l2_buffer <v4l2-buffer>` (or in struct
 :ref:`v4l2_plane <v4l2-plane>` in the multi-planar API case). The
 driver must be switched into DMABUF I/O mode by calling the
-:ref:`VIDIOC_REQBUFS <vidioc-reqbufs>` with the desired buffer type.
+:ref:`VIDIOC_REQBUFS <VIDIOC_REQBUFS>` with the desired buffer type.
 
 
 .. code-block:: c
@@ -56,7 +56,7 @@ driver must be switched into DMABUF I/O mode by calling the
     }
 
 The buffer (plane) file descriptor is passed on the fly with the
-:ref:`VIDIOC_QBUF <vidioc-qbuf>` ioctl. In case of multiplanar
+:ref:`VIDIOC_QBUF <VIDIOC_QBUF>` ioctl. In case of multiplanar
 buffers, every plane can be associated with a different DMABUF
 descriptor. Although buffers are commonly cycled, applications can pass
 a different DMABUF descriptor at each ``VIDIOC_QBUF`` call.
@@ -112,11 +112,11 @@ a different DMABUF descriptor at each ``VIDIOC_QBUF`` call.
     }
 
 Captured or displayed buffers are dequeued with the
-:ref:`VIDIOC_DQBUF <vidioc-qbuf>` ioctl. The driver can unlock the
+:ref:`VIDIOC_DQBUF <VIDIOC_QBUF>` ioctl. The driver can unlock the
 buffer at any time between the completion of the DMA and this ioctl. The
 memory is also unlocked when
-:ref:`VIDIOC_STREAMOFF <vidioc-streamon>` is called,
-:ref:`VIDIOC_REQBUFS <vidioc-reqbufs>`, or when the device is closed.
+:ref:`VIDIOC_STREAMOFF <VIDIOC_STREAMON>` is called,
+:ref:`VIDIOC_REQBUFS <VIDIOC_REQBUFS>`, or when the device is closed.
 
 For capturing applications it is customary to enqueue a number of empty
 buffers, to start capturing and enter the read loop. Here the
@@ -134,8 +134,8 @@ immediately with an EAGAIN error code when no buffer is available. The
 functions are always available.
 
 To start and stop capturing or displaying applications call the
-:ref:`VIDIOC_STREAMON <vidioc-streamon>` and
-:ref:`VIDIOC_STREAMOFF <vidioc-streamon>` ioctls. Note that
+:ref:`VIDIOC_STREAMON <VIDIOC_STREAMON>` and
+:ref:`VIDIOC_STREAMOFF <VIDIOC_STREAMON>` ioctls. Note that
 ``VIDIOC_STREAMOFF`` removes all buffers from both queues and unlocks
 all buffers as a side effect. Since there is no notion of doing anything
 "now" on a multitasking system, if an application needs to synchronize

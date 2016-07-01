@@ -22,7 +22,7 @@ Devices supporting the SDR receiver interface set the
 ``V4L2_CAP_SDR_CAPTURE`` and ``V4L2_CAP_TUNER`` flag in the
 ``capabilities`` field of struct
 :ref:`v4l2_capability <v4l2-capability>` returned by the
-:ref:`VIDIOC_QUERYCAP <vidioc-querycap>` ioctl. That flag means the
+:ref:`VIDIOC_QUERYCAP <VIDIOC_QUERYCAP>` ioctl. That flag means the
 device has an Analog to Digital Converter (ADC), which is a mandatory
 element for the SDR receiver.
 
@@ -30,7 +30,7 @@ Devices supporting the SDR transmitter interface set the
 ``V4L2_CAP_SDR_OUTPUT`` and ``V4L2_CAP_MODULATOR`` flag in the
 ``capabilities`` field of struct
 :ref:`v4l2_capability <v4l2-capability>` returned by the
-:ref:`VIDIOC_QUERYCAP <vidioc-querycap>` ioctl. That flag means the
+:ref:`VIDIOC_QUERYCAP <VIDIOC_QUERYCAP>` ioctl. That flag means the
 device has an Digital to Analog Converter (DAC), which is a mandatory
 element for the SDR transmitter.
 
@@ -52,7 +52,7 @@ radio frequency. The tuner index of the RF tuner (if any) must always
 follow the SDR tuner index. Normally the SDR tuner is #0 and the RF
 tuner is #1.
 
-The :ref:`VIDIOC_S_HW_FREQ_SEEK <vidioc-s-hw-freq-seek>` ioctl is
+The :ref:`VIDIOC_S_HW_FREQ_SEEK <VIDIOC_S_HW_FREQ_SEEK>` ioctl is
 not supported.
 
 
@@ -63,7 +63,7 @@ The SDR device uses the :ref:`format <format>` ioctls to select the
 capture and output format. Both the sampling resolution and the data
 streaming format are bound to that selectable format. In addition to the
 basic :ref:`format <format>` ioctls, the
-:ref:`VIDIOC_ENUM_FMT <vidioc-enum-fmt>` ioctl must be supported as
+:ref:`VIDIOC_ENUM_FMT <VIDIOC_ENUM_FMT>` ioctl must be supported as
 well.
 
 To use the :ref:`format <format>` ioctls applications set the ``type``

@@ -1,6 +1,6 @@
 .. -*- coding: utf-8; mode: rst -*-
 
-.. _vidioc-g-jpegcomp:
+.. _VIDIOC_G_JPEGCOMP:
 
 ******************************************
 ioctl VIDIOC_G_JPEGCOMP, VIDIOC_S_JPEGCOMP

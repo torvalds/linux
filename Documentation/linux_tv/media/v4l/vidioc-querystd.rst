@@ -1,6 +1,6 @@
 .. -*- coding: utf-8; mode: rst -*-
 
-.. _vidioc-querystd:
+.. _VIDIOC_QUERYSTD:
 
 *********************
 ioctl VIDIOC_QUERYSTD

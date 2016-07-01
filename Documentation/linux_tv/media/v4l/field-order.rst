@@ -48,7 +48,7 @@ All video capture and output devices must report the current field
 order. Some drivers may permit the selection of a different order, to
 this end applications initialize the ``field`` field of struct
 :ref:`v4l2_pix_format <v4l2-pix-format>` before calling the
-:ref:`VIDIOC_S_FMT <vidioc-g-fmt>` ioctl. If this is not desired it
+:ref:`VIDIOC_S_FMT <VIDIOC_G_FMT>` ioctl. If this is not desired it
 should have the value ``V4L2_FIELD_ANY`` (0).
 
 
@@ -73,8 +73,8 @@ should have the value ``V4L2_FIELD_ANY`` (0).
           size, and return the actual field order. Drivers must never return
           ``V4L2_FIELD_ANY``. If multiple field orders are possible the
           driver must choose one of the possible field orders during
-          :ref:`VIDIOC_S_FMT <vidioc-g-fmt>` or
-          :ref:`VIDIOC_TRY_FMT <vidioc-g-fmt>`. struct
+          :ref:`VIDIOC_S_FMT <VIDIOC_G_FMT>` or
+          :ref:`VIDIOC_TRY_FMT <VIDIOC_G_FMT>`. struct
           :ref:`v4l2_buffer <v4l2-buffer>` ``field`` can never be
           ``V4L2_FIELD_ANY``.
 

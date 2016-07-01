@@ -1,6 +1,6 @@
 .. -*- coding: utf-8; mode: rst -*-
 
-.. _vidioc-querybuf:
+.. _VIDIOC_QUERYBUF:
 
 *********************
 ioctl VIDIOC_QUERYBUF
@@ -33,7 +33,7 @@ Description
 
 This ioctl is part of the :ref:`streaming <mmap>` I/O method. It can
 be used to query the status of a buffer at any time after buffers have
-been allocated with the :ref:`VIDIOC_REQBUFS <vidioc-reqbufs>` ioctl.
+been allocated with the :ref:`VIDIOC_REQBUFS <VIDIOC_REQBUFS>` ioctl.
 
 Applications set the ``type`` field of a struct
 :ref:`v4l2_buffer <v4l2-buffer>` to the same buffer type as was
@@ -41,7 +41,7 @@ previously used with struct :ref:`v4l2_format <v4l2-format>` ``type``
 and struct :ref:`v4l2_requestbuffers <v4l2-requestbuffers>` ``type``,
 and the ``index`` field. Valid index numbers range from zero to the
 number of buffers allocated with
-:ref:`VIDIOC_REQBUFS <vidioc-reqbufs>` (struct
+:ref:`VIDIOC_REQBUFS <VIDIOC_REQBUFS>` (struct
 :ref:`v4l2_requestbuffers <v4l2-requestbuffers>` ``count``) minus
 one. The ``reserved`` and ``reserved2`` fields must be set to 0. When
 using the :ref:`multi-planar API <planar-apis>`, the ``m.planes``

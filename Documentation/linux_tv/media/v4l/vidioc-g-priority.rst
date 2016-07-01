@@ -1,6 +1,6 @@
 .. -*- coding: utf-8; mode: rst -*-
 
-.. _vidioc-g-priority:
+.. _VIDIOC_G_PRIORITY:
 
 ******************************************
 ioctl VIDIOC_G_PRIORITY, VIDIOC_S_PRIORITY

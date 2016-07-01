@@ -1,6 +1,6 @@
 .. -*- coding: utf-8; mode: rst -*-
 
-.. _vidioc-enuminput:
+.. _VIDIOC_ENUMINPUT:
 
 **********************
 ioctl VIDIOC_ENUMINPUT

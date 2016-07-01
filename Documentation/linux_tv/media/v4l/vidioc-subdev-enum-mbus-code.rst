@@ -1,6 +1,6 @@
 .. -*- coding: utf-8; mode: rst -*-
 
-.. _vidioc-subdev-enum-mbus-code:
+.. _VIDIOC_SUBDEV_ENUM_MBUS_CODE:
 
 **********************************
 ioctl VIDIOC_SUBDEV_ENUM_MBUS_CODE
@@ -43,7 +43,7 @@ one until EINVAL is returned.
 
 Available media bus formats may depend on the current 'try' formats at
 other pads of the sub-device, as well as on the current active links.
-See :ref:`VIDIOC_SUBDEV_G_FMT <vidioc-subdev-g-fmt>` for more
+See :ref:`VIDIOC_SUBDEV_G_FMT <VIDIOC_SUBDEV_G_FMT>` for more
 information about the try formats.
 
 

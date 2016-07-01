@@ -1,6 +1,6 @@
 .. -*- coding: utf-8; mode: rst -*-
 
-.. _vidioc-enum-freq-bands:
+.. _VIDIOC_ENUM_FREQ_BANDS:
 
 ****************************
 ioctl VIDIOC_ENUM_FREQ_BANDS

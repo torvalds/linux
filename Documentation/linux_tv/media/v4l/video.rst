@@ -14,17 +14,17 @@ Radio devices have no video inputs or outputs.
 
 To learn about the number and attributes of the available inputs and
 outputs applications can enumerate them with the
-:ref:`VIDIOC_ENUMINPUT <vidioc-enuminput>` and
-:ref:`VIDIOC_ENUMOUTPUT <vidioc-enumoutput>` ioctl, respectively. The
+:ref:`VIDIOC_ENUMINPUT <VIDIOC_ENUMINPUT>` and
+:ref:`VIDIOC_ENUMOUTPUT <VIDIOC_ENUMOUTPUT>` ioctl, respectively. The
 struct :ref:`v4l2_input <v4l2-input>` returned by the
-:ref:`VIDIOC_ENUMINPUT <vidioc-enuminput>` ioctl also contains signal
+:ref:`VIDIOC_ENUMINPUT <VIDIOC_ENUMINPUT>` ioctl also contains signal
 :status information applicable when the current video input is queried.
 
-The :ref:`VIDIOC_G_INPUT <vidioc-g-input>` and
-:ref:`VIDIOC_G_OUTPUT <vidioc-g-output>` ioctls return the index of
+The :ref:`VIDIOC_G_INPUT <VIDIOC_G_INPUT>` and
+:ref:`VIDIOC_G_OUTPUT <VIDIOC_G_OUTPUT>` ioctls return the index of
 the current video input or output. To select a different input or output
-applications call the :ref:`VIDIOC_S_INPUT <vidioc-g-input>` and
-:ref:`VIDIOC_S_OUTPUT <vidioc-g-output>` ioctls. Drivers must
+applications call the :ref:`VIDIOC_S_INPUT <VIDIOC_G_INPUT>` and
+:ref:`VIDIOC_S_OUTPUT <VIDIOC_G_OUTPUT>` ioctls. Drivers must
 implement all the input ioctls when the device has one or more inputs,
 all the output ioctls when the device has one or more outputs.
 

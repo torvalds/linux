@@ -85,8 +85,8 @@ enough. Again, the behavior when the driver runs out of free buffers
 depends on the discarding policy.
 
 Applications can get and set the number of buffers used internally by
-the driver with the :ref:`VIDIOC_G_PARM <vidioc-g-parm>` and
-:ref:`VIDIOC_S_PARM <vidioc-g-parm>` ioctls. They are optional,
+the driver with the :ref:`VIDIOC_G_PARM <VIDIOC_G_PARM>` and
+:ref:`VIDIOC_S_PARM <VIDIOC_G_PARM>` ioctls. They are optional,
 however. The discarding policy is not reported and cannot be changed.
 For minimum requirements see :ref:`devices`.
 

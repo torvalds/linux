@@ -1,6 +1,6 @@
 .. -*- coding: utf-8; mode: rst -*-
 
-.. _vidioc-subdev-enum-frame-size:
+.. _VIDIOC_SUBDEV_ENUM_FRAME_SIZE:
 
 ***********************************
 ioctl VIDIOC_SUBDEV_ENUM_FRAME_SIZE
@@ -34,7 +34,7 @@ Description
 This ioctl allows applications to enumerate all frame sizes supported by
 a sub-device on the given pad for the given media bus format. Supported
 formats can be retrieved with the
-:ref:`VIDIOC_SUBDEV_ENUM_MBUS_CODE <vidioc-subdev-enum-mbus-code>`
+:ref:`VIDIOC_SUBDEV_ENUM_MBUS_CODE <VIDIOC_SUBDEV_ENUM_MBUS_CODE>`
 ioctl.
 
 To enumerate frame sizes applications initialize the ``pad``, ``which``
@@ -52,13 +52,13 @@ Not all possible sizes in given [minimum, maximum] ranges need to be
 supported. For instance, a scaler that uses a fixed-point scaling ratio
 might not be able to produce every frame size between the minimum and
 maximum values. Applications must use the
-:ref:`VIDIOC_SUBDEV_S_FMT <vidioc-subdev-g-fmt>` ioctl to try the
+:ref:`VIDIOC_SUBDEV_S_FMT <VIDIOC_SUBDEV_G_FMT>` ioctl to try the
 sub-device for an exact supported frame size.
 
 Available frame sizes may depend on the current 'try' formats at other
 pads of the sub-device, as well as on the current active links and the
 current values of V4L2 controls. See
-:ref:`VIDIOC_SUBDEV_G_FMT <vidioc-subdev-g-fmt>` for more
+:ref:`VIDIOC_SUBDEV_G_FMT <VIDIOC_SUBDEV_G_FMT>` for more
 information about try formats.
 
 

@@ -1,6 +1,6 @@
 .. -*- coding: utf-8; mode: rst -*-
 
-.. _vidioc-enumaudioout:
+.. _VIDIOC_ENUMAUDIOOUT:
 
 ***********************
 ioctl VIDIOC_ENUMAUDOUT
@@ -42,7 +42,7 @@ zero, incrementing by one until the driver returns EINVAL.
 Note connectors on a TV card to loop back the received audio signal to a
 sound card are not audio outputs in this sense.
 
-See :ref:`vidioc-g-audioout` for a description of struct
+See :ref:`VIDIOC_G_AUDIOout` for a description of struct
 :ref:`v4l2_audioout <v4l2-audioout>`.
 
 

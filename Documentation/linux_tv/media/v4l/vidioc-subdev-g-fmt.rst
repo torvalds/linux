@@ -1,6 +1,6 @@
 .. -*- coding: utf-8; mode: rst -*-
 
-.. _vidioc-subdev-g-fmt:
+.. _VIDIOC_SUBDEV_G_FMT:
 
 **********************************************
 ioctl VIDIOC_SUBDEV_G_FMT, VIDIOC_SUBDEV_S_FMT

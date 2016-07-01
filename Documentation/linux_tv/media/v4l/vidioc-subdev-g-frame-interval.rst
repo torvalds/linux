@@ -1,6 +1,6 @@
 .. -*- coding: utf-8; mode: rst -*-
 
-.. _vidioc-subdev-g-frame-interval:
+.. _VIDIOC_SUBDEV_G_FRAME_INTERVAL:
 
 ********************************************************************
 ioctl VIDIOC_SUBDEV_G_FRAME_INTERVAL, VIDIOC_SUBDEV_S_FRAME_INTERVAL

@@ -239,7 +239,7 @@ VIDEO_STOP
 DESCRIPTION
 
 This ioctl is for DVB devices only. To control a V4L2 decoder use the
-V4L2 :ref:`VIDIOC_DECODER_CMD <vidioc-decoder-cmd>` instead.
+V4L2 :ref:`VIDIOC_DECODER_CMD <VIDIOC_DECODER_CMD>` instead.
 
 This ioctl call asks the Video Device to stop playing the current
 stream. Depending on the input parameter, the screen can be blanked out
@@ -302,7 +302,7 @@ VIDEO_PLAY
 DESCRIPTION
 
 This ioctl is for DVB devices only. To control a V4L2 decoder use the
-V4L2 :ref:`VIDIOC_DECODER_CMD <vidioc-decoder-cmd>` instead.
+V4L2 :ref:`VIDIOC_DECODER_CMD <VIDIOC_DECODER_CMD>` instead.
 
 This ioctl call asks the Video Device to start playing a video stream
 from the selected source.
@@ -348,7 +348,7 @@ VIDEO_FREEZE
 DESCRIPTION
 
 This ioctl is for DVB devices only. To control a V4L2 decoder use the
-V4L2 :ref:`VIDIOC_DECODER_CMD <vidioc-decoder-cmd>` instead.
+V4L2 :ref:`VIDIOC_DECODER_CMD <VIDIOC_DECODER_CMD>` instead.
 
 This ioctl call suspends the live video stream being played. Decoding
 and playing are frozen. It is then possible to restart the decoding and
@@ -398,7 +398,7 @@ VIDEO_CONTINUE
 DESCRIPTION
 
 This ioctl is for DVB devices only. To control a V4L2 decoder use the
-V4L2 :ref:`VIDIOC_DECODER_CMD <vidioc-decoder-cmd>` instead.
+V4L2 :ref:`VIDIOC_DECODER_CMD <VIDIOC_DECODER_CMD>` instead.
 
 This ioctl call restarts decoding and playing processes of the video
 stream which was played before a call to VIDEO_FREEZE was made.
@@ -763,7 +763,7 @@ VIDEO_GET_EVENT
 DESCRIPTION
 
 This ioctl is for DVB devices only. To get events from a V4L2 decoder
-use the V4L2 :ref:`VIDIOC_DQEVENT <vidioc-dqevent>` ioctl instead.
+use the V4L2 :ref:`VIDIOC_DQEVENT <VIDIOC_DQEVENT>` ioctl instead.
 
 This ioctl call returns an event of type video_event if available. If
 an event is not available, the behavior depends on whether the device is
@@ -844,11 +844,11 @@ DESCRIPTION
 
 This ioctl is obsolete. Do not use in new drivers. For V4L2 decoders
 this ioctl has been replaced by the
-:ref:`VIDIOC_DECODER_CMD <vidioc-decoder-cmd>` ioctl.
+:ref:`VIDIOC_DECODER_CMD <VIDIOC_DECODER_CMD>` ioctl.
 
 This ioctl commands the decoder. The ``video_command`` struct is a
 subset of the ``v4l2_decoder_cmd`` struct, so refer to the
-:ref:`VIDIOC_DECODER_CMD <vidioc-decoder-cmd>` documentation for
+:ref:`VIDIOC_DECODER_CMD <VIDIOC_DECODER_CMD>` documentation for
 more information.
 
 SYNOPSIS
@@ -900,11 +900,11 @@ DESCRIPTION
 
 This ioctl is obsolete. Do not use in new drivers. For V4L2 decoders
 this ioctl has been replaced by the
-:ref:`VIDIOC_TRY_DECODER_CMD <vidioc-decoder-cmd>` ioctl.
+:ref:`VIDIOC_TRY_DECODER_CMD <VIDIOC_DECODER_CMD>` ioctl.
 
 This ioctl tries a decoder command. The ``video_command`` struct is a
 subset of the ``v4l2_decoder_cmd`` struct, so refer to the
-:ref:`VIDIOC_TRY_DECODER_CMD <vidioc-decoder-cmd>` documentation
+:ref:`VIDIOC_TRY_DECODER_CMD <VIDIOC_DECODER_CMD>` documentation
 for more information.
 
 SYNOPSIS

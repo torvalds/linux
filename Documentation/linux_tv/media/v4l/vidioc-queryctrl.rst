@@ -1,6 +1,6 @@
 .. -*- coding: utf-8; mode: rst -*-
 
-.. _vidioc-queryctrl:
+.. _VIDIOC_QUERYCTRL:
 
 ***************************************************************
 ioctl VIDIOC_QUERYCTRL, VIDIOC_QUERY_EXT_CTRL, VIDIOC_QUERYMENU
@@ -566,10 +566,10 @@ See also the examples in :ref:`control`.
           the string must be (minimum + N * step) characters long for N ≥ 0.
           These lengths do not include the terminating zero, so in order to
           pass a string of length 8 to
-          :ref:`VIDIOC_S_EXT_CTRLS <vidioc-g-ext-ctrls>` you need to
+          :ref:`VIDIOC_S_EXT_CTRLS <VIDIOC_G_EXT_CTRLS>` you need to
           set the ``size`` field of struct
           :ref:`v4l2_ext_control <v4l2-ext-control>` to 9. For
-          :ref:`VIDIOC_G_EXT_CTRLS <vidioc-g-ext-ctrls>` you can set
+          :ref:`VIDIOC_G_EXT_CTRLS <VIDIOC_G_EXT_CTRLS>` you can set
           the ``size`` field to ``maximum`` + 1. Which character encoding is
           used will depend on the string control itself and should be part
           of the control documentation.

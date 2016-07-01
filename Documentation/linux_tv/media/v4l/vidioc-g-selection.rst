@@ -1,6 +1,6 @@
 .. -*- coding: utf-8; mode: rst -*-
 
-.. _vidioc-g-selection:
+.. _VIDIOC_G_SELECTION:
 
 ********************************************
 ioctl VIDIOC_G_SELECTION, VIDIOC_S_SELECTION

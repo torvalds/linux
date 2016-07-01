@@ -86,7 +86,7 @@ Revision History
 
 :revision: 4.5 / 2015-10-29 (*rr*)
 
-Extend vidioc-g-ext-ctrls;. Replace ctrl_class with a new union with
+Extend VIDIOC_G_EXT_CTRLS;. Replace ctrl_class with a new union with
 ctrl_class and which. Which is used to select the current value of the
 control or the default value.
 

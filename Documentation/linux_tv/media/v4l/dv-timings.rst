@@ -24,14 +24,14 @@ standards.
 
 To enumerate and query the attributes of the DV timings supported by a
 device applications use the
-:ref:`VIDIOC_ENUM_DV_TIMINGS <vidioc-enum-dv-timings>` and
-:ref:`VIDIOC_DV_TIMINGS_CAP <vidioc-dv-timings-cap>` ioctls. To set
+:ref:`VIDIOC_ENUM_DV_TIMINGS <VIDIOC_ENUM_DV_TIMINGS>` and
+:ref:`VIDIOC_DV_TIMINGS_CAP <VIDIOC_DV_TIMINGS_CAP>` ioctls. To set
 DV timings for the device applications use the
-:ref:`VIDIOC_S_DV_TIMINGS <vidioc-g-dv-timings>` ioctl and to get
+:ref:`VIDIOC_S_DV_TIMINGS <VIDIOC_G_DV_TIMINGS>` ioctl and to get
 current DV timings they use the
-:ref:`VIDIOC_G_DV_TIMINGS <vidioc-g-dv-timings>` ioctl. To detect
+:ref:`VIDIOC_G_DV_TIMINGS <VIDIOC_G_DV_TIMINGS>` ioctl. To detect
 the DV timings as seen by the video receiver applications use the
-:ref:`VIDIOC_QUERY_DV_TIMINGS <vidioc-query-dv-timings>` ioctl.
+:ref:`VIDIOC_QUERY_DV_TIMINGS <VIDIOC_QUERY_DV_TIMINGS>` ioctl.
 
 Applications can make use of the :ref:`input-capabilities` and
 :ref:`output-capabilities` flags to determine whether the digital

@@ -1,6 +1,6 @@
 .. -*- coding: utf-8; mode: rst -*-
 
-.. _vidioc-g-crop:
+.. _VIDIOC_G_CROP:
 
 **********************************
 ioctl VIDIOC_G_CROP, VIDIOC_S_CROP
@@ -66,7 +66,7 @@ vertical scaling factor.
 Finally the driver programs the hardware with the actual cropping and
 image parameters. ``VIDIOC_S_CROP`` is a write-only ioctl, it does not
 return the actual parameters. To query them applications must call
-``VIDIOC_G_CROP`` and :ref:`VIDIOC_G_FMT <vidioc-g-fmt>`. When the
+``VIDIOC_G_CROP`` and :ref:`VIDIOC_G_FMT <VIDIOC_G_FMT>`. When the
 parameters are unsuitable the application may modify the cropping or
 image parameters and repeat the cycle until satisfactory parameters have
 been negotiated.

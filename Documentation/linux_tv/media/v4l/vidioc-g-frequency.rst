@@ -1,6 +1,6 @@
 .. -*- coding: utf-8; mode: rst -*-
 
-.. _vidioc-g-frequency:
+.. _VIDIOC_G_FREQUENCY:
 
 ********************************************
 ioctl VIDIOC_G_FREQUENCY, VIDIOC_S_FREQUENCY

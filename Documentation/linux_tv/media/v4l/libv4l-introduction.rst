@@ -91,17 +91,17 @@ and to enhance the image quality.
 
 In most cases, libv4l2 just passes the calls directly through to the
 v4l2 driver, intercepting the calls to
-:ref:`VIDIOC_TRY_FMT <vidioc-g-fmt>`,
-:ref:`VIDIOC_G_FMT <vidioc-g-fmt>`
-:ref:`VIDIOC_S_FMT <vidioc-g-fmt>`
-:ref:`VIDIOC_ENUM_FRAMESIZES <vidioc-enum-framesizes>` and
-:ref:`VIDIOC_ENUM_FRAMEINTERVALS <vidioc-enum-frameintervals>` in
+:ref:`VIDIOC_TRY_FMT <VIDIOC_G_FMT>`,
+:ref:`VIDIOC_G_FMT <VIDIOC_G_FMT>`
+:ref:`VIDIOC_S_FMT <VIDIOC_G_FMT>`
+:ref:`VIDIOC_ENUM_FRAMESIZES <VIDIOC_ENUM_FRAMESIZES>` and
+:ref:`VIDIOC_ENUM_FRAMEINTERVALS <VIDIOC_ENUM_FRAMEINTERVALS>` in
 order to emulate the formats
 :ref:`V4L2_PIX_FMT_BGR24 <V4L2-PIX-FMT-BGR24>`,
 :ref:`V4L2_PIX_FMT_RGB24 <V4L2-PIX-FMT-RGB24>`,
 :ref:`V4L2_PIX_FMT_YUV420 <V4L2-PIX-FMT-YUV420>`, and
 :ref:`V4L2_PIX_FMT_YVU420 <V4L2-PIX-FMT-YVU420>`, if they aren't
-available in the driver. :ref:`VIDIOC_ENUM_FMT <vidioc-enum-fmt>`
+available in the driver. :ref:`VIDIOC_ENUM_FMT <VIDIOC_ENUM_FMT>`
 keeps enumerating the hardware supported formats, plus the emulated
 formats offered by libv4l at the end.
 

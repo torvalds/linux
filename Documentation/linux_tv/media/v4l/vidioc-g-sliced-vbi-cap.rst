@@ -1,6 +1,6 @@
 .. -*- coding: utf-8; mode: rst -*-
 
-.. _vidioc-g-sliced-vbi-cap:
+.. _VIDIOC_G_SLICED_VBI_CAP:
 
 *****************************
 ioctl VIDIOC_G_SLICED_VBI_CAP
@@ -134,7 +134,7 @@ to write-read, in Linux 2.6.19.
           given line may be limited. For example on PAL line 16 the hardware
           may be able to look for a VPS or Teletext signal, but not both at
           the same time. Applications can learn about these limits using the
-          :ref:`VIDIOC_S_FMT <vidioc-g-fmt>` ioctl as described in
+          :ref:`VIDIOC_S_FMT <VIDIOC_G_FMT>` ioctl as described in
           :ref:`sliced`.
 
     -  .. row 10

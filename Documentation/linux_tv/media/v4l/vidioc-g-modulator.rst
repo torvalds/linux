@@ -1,6 +1,6 @@
 .. -*- coding: utf-8; mode: rst -*-
 
-.. _vidioc-g-modulator:
+.. _VIDIOC_G_MODULATOR:
 
 ********************************************
 ioctl VIDIOC_G_MODULATOR, VIDIOC_S_MODULATOR
@@ -57,7 +57,7 @@ initialized to zero. The term 'modulator' means SDR transmitter in this
 context.
 
 To change the radio frequency the
-:ref:`VIDIOC_S_FREQUENCY <vidioc-g-frequency>` ioctl is available.
+:ref:`VIDIOC_S_FREQUENCY <VIDIOC_G_FREQUENCY>` ioctl is available.
 
 
 .. _v4l2-modulator:

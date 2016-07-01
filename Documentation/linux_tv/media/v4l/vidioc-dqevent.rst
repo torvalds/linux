@@ -1,6 +1,6 @@
 .. -*- coding: utf-8; mode: rst -*-
 
-.. _vidioc-dqevent:
+.. _VIDIOC_DQEVENT:
 
 ********************
 ioctl VIDIOC_DQEVENT
@@ -226,8 +226,8 @@ call.
           :ref:`v4l2_control <v4l2-control>`.
 
           If the event is generated due to a call to
-          :ref:`VIDIOC_S_CTRL <vidioc-g-ctrl>` or
-          :ref:`VIDIOC_S_EXT_CTRLS <vidioc-g-ext-ctrls>`, then the
+          :ref:`VIDIOC_S_CTRL <VIDIOC_G_CTRL>` or
+          :ref:`VIDIOC_S_EXT_CTRLS <VIDIOC_G_EXT_CTRLS>`, then the
           event will *not* be sent to the file handle that called the ioctl
           function. This prevents nasty feedback loops. If you *do* want to
           get the event, then set the ``V4L2_EVENT_SUB_FL_ALLOW_FEEDBACK``
@@ -363,7 +363,7 @@ call.
 
        -  The 32-bit value of the control for 32-bit control types. This is
           0 for string controls since the value of a string cannot be passed
-          using :ref:`VIDIOC_DQEVENT <vidioc-dqevent>`.
+          using :ref:`VIDIOC_DQEVENT <VIDIOC_DQEVENT>`.
 
     -  .. row 5
 

@@ -21,7 +21,7 @@ Sliced VBI capture and output devices are accessed through the same
 character special files as raw VBI devices. When a driver supports both
 interfaces, the default function of a ``/dev/vbi`` device is *raw* VBI
 capturing or output, and the sliced VBI function is only available after
-calling the :ref:`VIDIOC_S_FMT <vidioc-g-fmt>` ioctl as defined
+calling the :ref:`VIDIOC_S_FMT <VIDIOC_G_FMT>` ioctl as defined
 below. Likewise a ``/dev/video`` device may support the sliced VBI API,
 however the default function here is video capturing or output.
 Different file descriptors must be used to pass raw and sliced VBI data
@@ -35,7 +35,7 @@ Devices supporting the sliced VBI capturing or output API set the
 ``V4L2_CAP_SLICED_VBI_CAPTURE`` or ``V4L2_CAP_SLICED_VBI_OUTPUT`` flag
 respectively, in the ``capabilities`` field of struct
 :ref:`v4l2_capability <v4l2-capability>` returned by the
-:ref:`VIDIOC_QUERYCAP <vidioc-querycap>` ioctl. At least one of the
+:ref:`VIDIOC_QUERYCAP <VIDIOC_QUERYCAP>` ioctl. At least one of the
 read/write, streaming or asynchronous :ref:`I/O methods <io>` must be
 supported. Sliced VBI devices may have a tuner or modulator.
 
@@ -57,10 +57,10 @@ Sliced VBI Format Negotiation
 
 To find out which data services are supported by the hardware
 applications can call the
-:ref:`VIDIOC_G_SLICED_VBI_CAP <vidioc-g-sliced-vbi-cap>` ioctl.
+:ref:`VIDIOC_G_SLICED_VBI_CAP <VIDIOC_G_SLICED_VBI_CAP>` ioctl.
 All drivers implementing the sliced VBI interface must support this
 ioctl. The results may differ from those of the
-:ref:`VIDIOC_S_FMT <vidioc-g-fmt>` ioctl when the number of VBI
+:ref:`VIDIOC_S_FMT <VIDIOC_G_FMT>` ioctl when the number of VBI
 lines the hardware can capture or output per frame, or the number of
 services it can identify on a given line are limited. For example on PAL
 line 16 the hardware may be able to look for a VPS or Teletext signal,
@@ -70,13 +70,13 @@ To determine the currently selected services applications set the
 ``type`` field of struct :ref:`v4l2_format <v4l2-format>` to
 ``V4L2_BUF_TYPE_SLICED_VBI_CAPTURE`` or
 ``V4L2_BUF_TYPE_SLICED_VBI_OUTPUT``, and the
-:ref:`VIDIOC_G_FMT <vidioc-g-fmt>` ioctl fills the ``fmt.sliced``
+:ref:`VIDIOC_G_FMT <VIDIOC_G_FMT>` ioctl fills the ``fmt.sliced``
 member, a struct
 :ref:`v4l2_sliced_vbi_format <v4l2-sliced-vbi-format>`.
 
 Applications can request different parameters by initializing or
 modifying the ``fmt.sliced`` member and calling the
-:ref:`VIDIOC_S_FMT <vidioc-g-fmt>` ioctl with a pointer to the
+:ref:`VIDIOC_S_FMT <VIDIOC_G_FMT>` ioctl with a pointer to the
 :c:type:`struct v4l2_format` structure.
 
 The sliced VBI API is more complicated than the raw VBI API because the
@@ -90,12 +90,12 @@ array according to hardware capabilities. Only if more precise control
 is needed should the programmer set the ``service_lines`` array
 explicitly.
 
-The :ref:`VIDIOC_S_FMT <vidioc-g-fmt>` ioctl modifies the parameters
+The :ref:`VIDIOC_S_FMT <VIDIOC_G_FMT>` ioctl modifies the parameters
 according to hardware capabilities. When the driver allocates resources
 at this point, it may return an EBUSY error code if the required
 resources are temporarily unavailable. Other resource allocation points
 which may return EBUSY can be the
-:ref:`VIDIOC_STREAMON <vidioc-streamon>` ioctl and the first
+:ref:`VIDIOC_STREAMON <VIDIOC_STREAMON>` ioctl and the first
 :ref:`read() <func-read>`, :ref:`write() <func-write>` and
 :ref:`select() <func-select>` call.
 
@@ -117,8 +117,8 @@ which may return EBUSY can be the
        -  :cspan:`2`
 
           If ``service_set`` is non-zero when passed with
-          :ref:`VIDIOC_S_FMT <vidioc-g-fmt>` or
-          :ref:`VIDIOC_TRY_FMT <vidioc-g-fmt>`, the ``service_lines``
+          :ref:`VIDIOC_S_FMT <VIDIOC_G_FMT>` or
+          :ref:`VIDIOC_TRY_FMT <VIDIOC_G_FMT>`, the ``service_lines``
           array will be filled by the driver according to the services
           specified in this field. For example, if ``service_set`` is
           initialized with ``V4L2_SLICED_TELETEXT_B | V4L2_SLICED_WSS_625``,
@@ -224,8 +224,8 @@ which may return EBUSY can be the
        -  :cspan:`2` Maximum number of bytes passed by one
           :ref:`read() <func-read>` or :ref:`write() <func-write>` call,
           and the buffer size in bytes for the
-          :ref:`VIDIOC_QBUF <vidioc-qbuf>` and
-          :ref:`VIDIOC_DQBUF <vidioc-qbuf>` ioctl. Drivers set this field
+          :ref:`VIDIOC_QBUF <VIDIOC_QBUF>` and
+          :ref:`VIDIOC_DQBUF <VIDIOC_QBUF>` ioctl. Drivers set this field
           to the size of struct
           :ref:`v4l2_sliced_vbi_data <v4l2-sliced-vbi-data>` times the
           number of non-zero elements in the returned ``service_lines``
@@ -340,11 +340,11 @@ Drivers may return an EINVAL error code when applications attempt to
 read or write data without prior format negotiation, after switching the
 video standard (which may invalidate the negotiated VBI parameters) and
 after switching the video input (which may change the video standard as
-a side effect). The :ref:`VIDIOC_S_FMT <vidioc-g-fmt>` ioctl may
+a side effect). The :ref:`VIDIOC_S_FMT <VIDIOC_G_FMT>` ioctl may
 return an EBUSY error code when applications attempt to change the
 format while i/o is in progress (between a
-:ref:`VIDIOC_STREAMON <vidioc-streamon>` and
-:ref:`VIDIOC_STREAMOFF <vidioc-streamon>` call, and after the first
+:ref:`VIDIOC_STREAMON <VIDIOC_STREAMON>` and
+:ref:`VIDIOC_STREAMOFF <VIDIOC_STREAMON>` call, and after the first
 :ref:`read() <func-read>` or :ref:`write() <func-write>` call).
 
 
@@ -428,12 +428,12 @@ of one video frame. The ``id`` of unused
 
 Packets are always passed in ascending line number order, without
 duplicate line numbers. The :ref:`write() <func-write>` function and
-the :ref:`VIDIOC_QBUF <vidioc-qbuf>` ioctl must return an EINVAL
+the :ref:`VIDIOC_QBUF <VIDIOC_QBUF>` ioctl must return an EINVAL
 error code when applications violate this rule. They must also return an
 EINVAL error code when applications pass an incorrect field or line
 number, or a combination of ``field``, ``line`` and ``id`` which has not
-been negotiated with the :ref:`VIDIOC_G_FMT <vidioc-g-fmt>` or
-:ref:`VIDIOC_S_FMT <vidioc-g-fmt>` ioctl. When the line numbers are
+been negotiated with the :ref:`VIDIOC_G_FMT <VIDIOC_G_FMT>` or
+:ref:`VIDIOC_S_FMT <VIDIOC_G_FMT>` ioctl. When the line numbers are
 unknown the driver must pass the packets in transmitted order. The
 driver can insert empty packets with ``id`` set to zero anywhere in the
 packet array.

@@ -14,7 +14,7 @@ Video input devices can have one or more tuners demodulating a RF
 signal. Each tuner is associated with one or more video inputs,
 depending on the number of RF connectors on the tuner. The ``type``
 field of the respective struct :ref:`v4l2_input <v4l2-input>`
-returned by the :ref:`VIDIOC_ENUMINPUT <vidioc-enuminput>` ioctl is
+returned by the :ref:`VIDIOC_ENUMINPUT <VIDIOC_ENUMINPUT>` ioctl is
 set to ``V4L2_INPUT_TYPE_TUNER`` and its ``tuner`` field contains the
 index number of the tuner.
 
@@ -22,8 +22,8 @@ Radio input devices have exactly one tuner with index zero, no video
 inputs.
 
 To query and change tuner properties applications use the
-:ref:`VIDIOC_G_TUNER <vidioc-g-tuner>` and
-:ref:`VIDIOC_S_TUNER <vidioc-g-tuner>` ioctls, respectively. The
+:ref:`VIDIOC_G_TUNER <VIDIOC_G_TUNER>` and
+:ref:`VIDIOC_S_TUNER <VIDIOC_G_TUNER>` ioctls, respectively. The
 struct :ref:`v4l2_tuner <v4l2-tuner>` returned by ``VIDIOC_G_TUNER``
 also contains signal status information applicable when the tuner of the
 current video or radio input is queried. Note that ``VIDIOC_S_TUNER``
@@ -31,7 +31,7 @@ does not switch the current tuner, when there is more than one at all.
 The tuner is solely determined by the current video input. Drivers must
 support both ioctls and set the ``V4L2_CAP_TUNER`` flag in the struct
 :ref:`v4l2_capability <v4l2-capability>` returned by the
-:ref:`VIDIOC_QUERYCAP <vidioc-querycap>` ioctl when the device has
+:ref:`VIDIOC_QUERYCAP <VIDIOC_QUERYCAP>` ioctl when the device has
 one or more tuners.
 
 
@@ -44,7 +44,7 @@ set or video recorder. Each modulator is associated with one or more
 video outputs, depending on the number of RF connectors on the
 modulator. The ``type`` field of the respective struct
 :ref:`v4l2_output <v4l2-output>` returned by the
-:ref:`VIDIOC_ENUMOUTPUT <vidioc-enumoutput>` ioctl is set to
+:ref:`VIDIOC_ENUMOUTPUT <VIDIOC_ENUMOUTPUT>` ioctl is set to
 ``V4L2_OUTPUT_TYPE_MODULATOR`` and its ``modulator`` field contains the
 index number of the modulator.
 
@@ -55,18 +55,18 @@ A video or radio device cannot support both a tuner and a modulator. Two
 separate device nodes will have to be used for such hardware, one that
 supports the tuner functionality and one that supports the modulator
 functionality. The reason is a limitation with the
-:ref:`VIDIOC_S_FREQUENCY <vidioc-g-frequency>` ioctl where you
+:ref:`VIDIOC_S_FREQUENCY <VIDIOC_G_FREQUENCY>` ioctl where you
 cannot specify whether the frequency is for a tuner or a modulator.
 
 To query and change modulator properties applications use the
-:ref:`VIDIOC_G_MODULATOR <vidioc-g-modulator>` and
-:ref:`VIDIOC_S_MODULATOR <vidioc-g-modulator>` ioctl. Note that
+:ref:`VIDIOC_G_MODULATOR <VIDIOC_G_MODULATOR>` and
+:ref:`VIDIOC_S_MODULATOR <VIDIOC_G_MODULATOR>` ioctl. Note that
 ``VIDIOC_S_MODULATOR`` does not switch the current modulator, when there
 is more than one at all. The modulator is solely determined by the
 current video output. Drivers must support both ioctls and set the
 ``V4L2_CAP_MODULATOR`` flag in the struct
 :ref:`v4l2_capability <v4l2-capability>` returned by the
-:ref:`VIDIOC_QUERYCAP <vidioc-querycap>` ioctl when the device has
+:ref:`VIDIOC_QUERYCAP <VIDIOC_QUERYCAP>` ioctl when the device has
 one or more modulators.
 
 
@@ -74,8 +74,8 @@ Radio Frequency
 ===============
 
 To get and set the tuner or modulator radio frequency applications use
-the :ref:`VIDIOC_G_FREQUENCY <vidioc-g-frequency>` and
-:ref:`VIDIOC_S_FREQUENCY <vidioc-g-frequency>` ioctl which both take
+the :ref:`VIDIOC_G_FREQUENCY <VIDIOC_G_FREQUENCY>` and
+:ref:`VIDIOC_S_FREQUENCY <VIDIOC_G_FREQUENCY>` ioctl which both take
 a pointer to a struct :ref:`v4l2_frequency <v4l2-frequency>`. These
 ioctls are used for TV and radio devices alike. Drivers must support
 both ioctls when the tuner or modulator ioctls are supported, or when

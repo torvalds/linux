@@ -8,7 +8,7 @@ Streaming Parameters
 
 Streaming parameters are intended to optimize the video capture process
 as well as I/O. Presently applications can request a high quality
-capture mode with the :ref:`VIDIOC_S_PARM <vidioc-g-parm>` ioctl.
+capture mode with the :ref:`VIDIOC_S_PARM <VIDIOC_G_PARM>` ioctl.
 
 The current video standard determines a nominal number of frames per
 second. If less than this number of frames is to be captured or output,
@@ -23,8 +23,8 @@ internally by a driver in read/write mode. For implications see the
 section discussing the :ref:`read() <func-read>` function.
 
 To get and set the streaming parameters applications call the
-:ref:`VIDIOC_G_PARM <vidioc-g-parm>` and
-:ref:`VIDIOC_S_PARM <vidioc-g-parm>` ioctl, respectively. They take
+:ref:`VIDIOC_G_PARM <VIDIOC_G_PARM>` and
+:ref:`VIDIOC_S_PARM <VIDIOC_G_PARM>` ioctl, respectively. They take
 a pointer to a struct :ref:`v4l2_streamparm <v4l2-streamparm>`, which
 contains a union holding separate parameters for input and output
 devices.

@@ -1,6 +1,6 @@
 .. -*- coding: utf-8; mode: rst -*-
 
-.. _vidioc-log-status:
+.. _VIDIOC_LOG_STATUS:
 
 ***********************
 ioctl VIDIOC_LOG_STATUS

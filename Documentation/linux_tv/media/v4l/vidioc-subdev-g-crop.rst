@@ -1,6 +1,6 @@
 .. -*- coding: utf-8; mode: rst -*-
 
-.. _vidioc-subdev-g-crop:
+.. _VIDIOC_SUBDEV_G_CROP:
 
 ************************************************
 ioctl VIDIOC_SUBDEV_G_CROP, VIDIOC_SUBDEV_S_CROP
@@ -38,7 +38,7 @@ Description
 
     This is an :ref:`obsolete <obsolete>` interface and may be removed
     in the future. It is superseded by
-    :ref:`the selection API <vidioc-subdev-g-selection>`.
+    :ref:`the selection API <VIDIOC_SUBDEV_G_SELECTION>`.
 
 To retrieve the current crop rectangle applications set the ``pad``
 field of a struct :ref:`v4l2_subdev_crop <v4l2-subdev-crop>` to the

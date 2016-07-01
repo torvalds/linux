@@ -98,8 +98,8 @@ application address space, preferably at address ``start``. This latter
 address is a hint only, and is usually specified as 0.
 
 Suitable length and offset parameters are queried with the
-:ref:`VIDIOC_QUERYBUF <vidioc-querybuf>` ioctl. Buffers must be
-allocated with the :ref:`VIDIOC_REQBUFS <vidioc-reqbufs>` ioctl
+:ref:`VIDIOC_QUERYBUF <VIDIOC_QUERYBUF>` ioctl. Buffers must be
+allocated with the :ref:`VIDIOC_REQBUFS <VIDIOC_REQBUFS>` ioctl
 before they can be queried.
 
 To unmap buffers the :ref:`munmap() <func-munmap>` function is used.
@@ -125,7 +125,7 @@ EINVAL
     The ``flags`` or ``prot`` value is not supported.
 
     No buffers have been allocated with the
-    :ref:`VIDIOC_REQBUFS <vidioc-reqbufs>` ioctl.
+    :ref:`VIDIOC_REQBUFS <VIDIOC_REQBUFS>` ioctl.
 
 ENOMEM
     Not enough physical or virtual memory was available to complete the

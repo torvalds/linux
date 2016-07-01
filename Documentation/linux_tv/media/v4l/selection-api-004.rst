@@ -4,7 +4,7 @@
 Configuration
 *************
 
-Applications can use the :ref:`selection API <vidioc-g-selection>` to
+Applications can use the :ref:`selection API <VIDIOC_G_SELECTION>` to
 select an area in a video signal or a buffer, and to query for default
 settings and hardware limits.
 

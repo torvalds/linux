@@ -86,7 +86,7 @@ Pad-level Formats
 
 Image formats are typically negotiated on video capture and output
 devices using the format and
-:ref:`selection <vidioc-subdev-g-selection>` ioctls. The driver is
+:ref:`selection <VIDIOC_SUBDEV_G_SELECTION>` ioctls. The driver is
 responsible for configuring every block in the video pipeline according
 to the requested format at the pipeline input and/or output.
 
@@ -118,18 +118,18 @@ every point in the pipeline explicitly.
 Drivers that implement the :ref:`media API <media-controller-intro>`
 can expose pad-level image format configuration to applications. When
 they do, applications can use the
-:ref:`VIDIOC_SUBDEV_G_FMT <vidioc-subdev-g-fmt>` and
-:ref:`VIDIOC_SUBDEV_S_FMT <vidioc-subdev-g-fmt>` ioctls. to
+:ref:`VIDIOC_SUBDEV_G_FMT <VIDIOC_SUBDEV_G_FMT>` and
+:ref:`VIDIOC_SUBDEV_S_FMT <VIDIOC_SUBDEV_G_FMT>` ioctls. to
 negotiate formats on a per-pad basis.
 
 Applications are responsible for configuring coherent parameters on the
 whole pipeline and making sure that connected pads have compatible
 formats. The pipeline is checked for formats mismatch at
-:ref:`VIDIOC_STREAMON <vidioc-streamon>` time, and an EPIPE error
+:ref:`VIDIOC_STREAMON <VIDIOC_STREAMON>` time, and an EPIPE error
 code is then returned if the configuration is invalid.
 
 Pad-level image format configuration support can be tested by calling
-the :ref:`VIDIOC_SUBDEV_G_FMT <vidioc-subdev-g-fmt>` ioctl on pad
+the :ref:`VIDIOC_SUBDEV_G_FMT <VIDIOC_SUBDEV_G_FMT>` ioctl on pad
 0. If the driver returns an EINVAL error code pad-level format
 configuration is not supported by the sub-device.
 
@@ -146,8 +146,8 @@ formats enumeration only. A format negotiation mechanism is required.
 Central to the format negotiation mechanism are the get/set format
 operations. When called with the ``which`` argument set to
 ``V4L2_SUBDEV_FORMAT_TRY``, the
-:ref:`VIDIOC_SUBDEV_G_FMT <vidioc-subdev-g-fmt>` and
-:ref:`VIDIOC_SUBDEV_S_FMT <vidioc-subdev-g-fmt>` ioctls operate on
+:ref:`VIDIOC_SUBDEV_G_FMT <VIDIOC_SUBDEV_G_FMT>` and
+:ref:`VIDIOC_SUBDEV_S_FMT <VIDIOC_SUBDEV_G_FMT>` ioctls operate on
 a set of formats parameters that are not connected to the hardware
 configuration. Modifying those 'try' formats leaves the device state
 untouched (this applies to both the software state stored in the driver
@@ -155,14 +155,14 @@ and the hardware state stored in the device itself).
 
 While not kept as part of the device state, try formats are stored in
 the sub-device file handles. A
-:ref:`VIDIOC_SUBDEV_G_FMT <vidioc-subdev-g-fmt>` call will return
+:ref:`VIDIOC_SUBDEV_G_FMT <VIDIOC_SUBDEV_G_FMT>` call will return
 the last try format set *on the same sub-device file handle*. Several
 applications querying the same sub-device at the same time will thus not
 interact with each other.
 
 To find out whether a particular format is supported by the device,
 applications use the
-:ref:`VIDIOC_SUBDEV_S_FMT <vidioc-subdev-g-fmt>` ioctl. Drivers
+:ref:`VIDIOC_SUBDEV_S_FMT <VIDIOC_SUBDEV_G_FMT>` ioctl. Drivers
 verify and, if needed, change the requested ``format`` based on device
 requirements and return the possibly modified value. Applications can
 then choose to try a different format or accept the returned value and
@@ -171,7 +171,7 @@ continue.
 Formats returned by the driver during a negotiation iteration are
 guaranteed to be supported by the device. In particular, drivers
 guarantee that a returned format will not be further changed if passed
-to an :ref:`VIDIOC_SUBDEV_S_FMT <vidioc-subdev-g-fmt>` call as-is
+to an :ref:`VIDIOC_SUBDEV_S_FMT <VIDIOC_SUBDEV_G_FMT>` call as-is
 (as long as external parameters, such as formats on other pads or links'
 configuration are not changed).
 
@@ -353,7 +353,7 @@ struct :ref:`v4l2_rect <v4l2-rect>`.
 Scaling support is optional. When supported by a subdev, the crop
 rectangle on the subdev's sink pad is scaled to the size configured
 using the
-:ref:`VIDIOC_SUBDEV_S_SELECTION <vidioc-subdev-g-selection>` IOCTL
+:ref:`VIDIOC_SUBDEV_S_SELECTION <VIDIOC_SUBDEV_G_SELECTION>` IOCTL
 using ``V4L2_SEL_TGT_COMPOSE`` selection target on the same pad. If the
 subdev supports scaling but not composing, the top and left values are
 not used and must always be set to zero.

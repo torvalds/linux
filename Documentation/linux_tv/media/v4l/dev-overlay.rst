@@ -20,7 +20,7 @@ Video overlay devices are accessed through the same character special
 files as :ref:`video capture <capture>` devices. Note the default
 function of a ``/dev/video`` device is video capturing. The overlay
 function is only available after calling the
-:ref:`VIDIOC_S_FMT <vidioc-g-fmt>` ioctl.
+:ref:`VIDIOC_S_FMT <VIDIOC_G_FMT>` ioctl.
 
 The driver may support simultaneous overlay and capturing using the
 read/write and streaming I/O methods. If so, operation at the nominal
@@ -41,7 +41,7 @@ Querying Capabilities
 Devices supporting the video overlay interface set the
 ``V4L2_CAP_VIDEO_OVERLAY`` flag in the ``capabilities`` field of struct
 :ref:`v4l2_capability <v4l2-capability>` returned by the
-:ref:`VIDIOC_QUERYCAP <vidioc-querycap>` ioctl. The overlay I/O
+:ref:`VIDIOC_QUERYCAP <VIDIOC_QUERYCAP>` ioctl. The overlay I/O
 method specified below must be supported. Tuners and audio inputs are
 optional.
 
@@ -63,8 +63,8 @@ Setup
 Before overlay can commence applications must program the driver with
 frame buffer parameters, namely the address and size of the frame buffer
 and the image format, for example RGB 5:6:5. The
-:ref:`VIDIOC_G_FBUF <vidioc-g-fbuf>` and
-:ref:`VIDIOC_S_FBUF <vidioc-g-fbuf>` ioctls are available to get and
+:ref:`VIDIOC_G_FBUF <VIDIOC_G_FBUF>` and
+:ref:`VIDIOC_S_FBUF <VIDIOC_G_FBUF>` ioctls are available to get and
 set these parameters, respectively. The ``VIDIOC_S_FBUF`` ioctl is
 privileged because it allows to set up DMA into physical memory,
 bypassing the memory protection mechanisms of the kernel. Only the
@@ -101,8 +101,8 @@ A driver may support any (or none) of five clipping/blending methods:
 When simultaneous capturing and overlay is supported and the hardware
 prohibits different image and frame buffer formats, the format requested
 first takes precedence. The attempt to capture
-(:ref:`VIDIOC_S_FMT <vidioc-g-fmt>`) or overlay
-(:ref:`VIDIOC_S_FBUF <vidioc-g-fbuf>`) may fail with an EBUSY error
+(:ref:`VIDIOC_S_FMT <VIDIOC_G_FMT>`) or overlay
+(:ref:`VIDIOC_S_FBUF <VIDIOC_G_FBUF>`) may fail with an EBUSY error
 code or return accordingly modified parameters..
 
 
@@ -121,17 +121,17 @@ its position over the graphics surface and the clipping to be applied.
 To get the current parameters applications set the ``type`` field of a
 struct :ref:`v4l2_format <v4l2-format>` to
 ``V4L2_BUF_TYPE_VIDEO_OVERLAY`` and call the
-:ref:`VIDIOC_G_FMT <vidioc-g-fmt>` ioctl. The driver fills the
+:ref:`VIDIOC_G_FMT <VIDIOC_G_FMT>` ioctl. The driver fills the
 :c:type:`struct v4l2_window` substructure named ``win``. It is not
 possible to retrieve a previously programmed clipping list or bitmap.
 
 To program the overlay window applications set the ``type`` field of a
 struct :ref:`v4l2_format <v4l2-format>` to
 ``V4L2_BUF_TYPE_VIDEO_OVERLAY``, initialize the ``win`` substructure and
-call the :ref:`VIDIOC_S_FMT <vidioc-g-fmt>` ioctl. The driver
+call the :ref:`VIDIOC_S_FMT <VIDIOC_G_FMT>` ioctl. The driver
 adjusts the parameters against hardware limits and returns the actual
 parameters as ``VIDIOC_G_FMT`` does. Like ``VIDIOC_S_FMT``, the
-:ref:`VIDIOC_TRY_FMT <vidioc-g-fmt>` ioctl can be used to learn
+:ref:`VIDIOC_TRY_FMT <VIDIOC_G_FMT>` ioctl can be used to learn
 about driver capabilities without actually changing driver state. Unlike
 ``VIDIOC_S_FMT`` this also works after the overlay has been enabled.
 
@@ -142,7 +142,7 @@ of the cropping rectangle. For more information see :ref:`crop`.
 When simultaneous capturing and overlay is supported and the hardware
 prohibits different image and window sizes, the size requested first
 takes precedence. The attempt to capture or overlay as well
-(:ref:`VIDIOC_S_FMT <vidioc-g-fmt>`) may fail with an EBUSY error
+(:ref:`VIDIOC_S_FMT <VIDIOC_G_FMT>`) may fail with an EBUSY error
 code or return accordingly modified parameters.
 
 
@@ -154,7 +154,7 @@ struct v4l2_window
 ``struct v4l2_rect w``
     Size and position of the window relative to the top, left corner of
     the frame buffer defined with
-    :ref:`VIDIOC_S_FBUF <vidioc-g-fbuf>`. The window can extend the
+    :ref:`VIDIOC_S_FBUF <VIDIOC_G_FBUF>`. The window can extend the
     frame buffer width and height, the ``x`` and ``y`` coordinates can
     be negative, and it can lie completely outside the frame buffer. The
     driver clips the window accordingly, or if that is not possible,
@@ -169,7 +169,7 @@ struct v4l2_window
 
 ``__u32 chromakey``
     When chroma-keying has been negotiated with
-    :ref:`VIDIOC_S_FBUF <vidioc-g-fbuf>` applications set this field
+    :ref:`VIDIOC_S_FBUF <VIDIOC_G_FBUF>` applications set this field
     to the desired pixel value for the chroma key. The format is the
     same as the pixel format of the framebuffer (struct
     :ref:`v4l2_framebuffer <v4l2-framebuffer>` ``fmt.pixelformat``
@@ -179,7 +179,7 @@ struct v4l2_window
 
 ``struct v4l2_clip * clips``
     When chroma-keying has *not* been negotiated and
-    :ref:`VIDIOC_G_FBUF <vidioc-g-fbuf>` indicated this capability,
+    :ref:`VIDIOC_G_FBUF <VIDIOC_G_FBUF>` indicated this capability,
     applications can set this field to point to an array of clipping
     rectangles.
 
@@ -192,7 +192,7 @@ applications should merge adjacent rectangles. Whether this must create
 x-y or y-x bands, or the order of rectangles, is not defined. When clip
 lists are not supported the driver ignores this field. Its contents
 after calling
-!ri!:ref:`VIDIOC_S_FMT <vidioc-g-fmt>`
+!ri!:ref:`VIDIOC_S_FMT <VIDIOC_G_FMT>`
 are undefined.
 
 ``__u32 clipcount``
@@ -204,7 +204,7 @@ are undefined.
 
 ``void * bitmap``
     When chroma-keying has *not* been negotiated and
-    :ref:`VIDIOC_G_FBUF <vidioc-g-fbuf>` indicated this capability,
+    :ref:`VIDIOC_G_FBUF <VIDIOC_G_FBUF>` indicated this capability,
     applications can set this field to point to a clipping bit mask.
 
 It must be of the same size as the window, ``w.width`` and ``w.height``.
@@ -220,7 +220,7 @@ bits like:
 where ``0`` ≤ x < ``w.width`` and ``0`` ≤ y <``w.height``. [2]_
 
 When a clipping bit mask is not supported the driver ignores this field,
-its contents after calling :ref:`VIDIOC_S_FMT <vidioc-g-fmt>` are
+its contents after calling :ref:`VIDIOC_S_FMT <VIDIOC_G_FMT>` are
 undefined. When a bit mask is supported but no clipping is desired this
 field must be set to ``NULL``.
 
@@ -234,12 +234,12 @@ exceeded are undefined. [3]_
     The global alpha value used to blend the framebuffer with video
     images, if global alpha blending has been negotiated
     (``V4L2_FBUF_FLAG_GLOBAL_ALPHA``, see
-    :ref:`VIDIOC_S_FBUF <vidioc-g-fbuf>`,
+    :ref:`VIDIOC_S_FBUF <VIDIOC_G_FBUF>`,
     :ref:`framebuffer-flags`).
 
 Note this field was added in Linux 2.6.23, extending the structure.
 However the
-!ri!:ref:`VIDIOC_G/S/TRY_FMT <vidioc-g-fmt>`
+!ri!:ref:`VIDIOC_G/S/TRY_FMT <VIDIOC_G_FMT>`
 ioctls, which take a pointer to a
 !ri!:ref:`v4l2_format <v4l2-format>`
 parent structure with padding bytes at the end, are not affected.
@@ -289,7 +289,7 @@ Enabling Overlay
 ================
 
 To start or stop the frame buffer overlay applications call the
-:ref:`VIDIOC_OVERLAY <vidioc-overlay>` ioctl.
+:ref:`VIDIOC_OVERLAY <VIDIOC_OVERLAY>` ioctl.
 
 .. [1]
    A common application of two file descriptors is the XFree86

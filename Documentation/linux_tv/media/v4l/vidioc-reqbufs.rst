@@ -1,6 +1,6 @@
 .. -*- coding: utf-8; mode: rst -*-
 
-.. _vidioc-reqbufs:
+.. _VIDIOC_REQBUFS:
 
 ********************
 ioctl VIDIOC_REQBUFS
@@ -62,7 +62,7 @@ Applications can call ``VIDIOC_REQBUFS`` again to change the number of
 buffers, however this cannot succeed when any buffers are still mapped.
 A ``count`` value of zero frees all buffers, after aborting or finishing
 any DMA in progress, an implicit
-:ref:`VIDIOC_STREAMOFF <vidioc-streamon>`.
+:ref:`VIDIOC_STREAMOFF <VIDIOC_STREAMON>`.
 
 
 .. _v4l2-requestbuffers:

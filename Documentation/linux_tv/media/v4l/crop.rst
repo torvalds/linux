@@ -14,17 +14,17 @@ offset into a video signal.
 
 Applications can use the following API to select an area in the video
 signal, query the default area and the hardware limits. *Despite their
-name, the :ref:`VIDIOC_CROPCAP <vidioc-cropcap>`,
-:ref:`VIDIOC_G_CROP <vidioc-g-crop>` and
-:ref:`VIDIOC_S_CROP <vidioc-g-crop>` ioctls apply to input as well
+name, the :ref:`VIDIOC_CROPCAP <VIDIOC_CROPCAP>`,
+:ref:`VIDIOC_G_CROP <VIDIOC_G_CROP>` and
+:ref:`VIDIOC_S_CROP <VIDIOC_G_CROP>` ioctls apply to input as well
 as output devices.*
 
 Scaling requires a source and a target. On a video capture or overlay
 device the source is the video signal, and the cropping ioctls determine
 the area actually sampled. The target are images read by the application
 or overlaid onto the graphics screen. Their size (and position for an
-overlay) is negotiated with the :ref:`VIDIOC_G_FMT <vidioc-g-fmt>`
-and :ref:`VIDIOC_S_FMT <vidioc-g-fmt>` ioctls.
+overlay) is negotiated with the :ref:`VIDIOC_G_FMT <VIDIOC_G_FMT>`
+and :ref:`VIDIOC_S_FMT <VIDIOC_G_FMT>` ioctls.
 
 On a video output device the source are the images passed in by the
 application, and their size is again negotiated with the
@@ -108,7 +108,7 @@ they may prefer a particular image size or a certain area in the video
 signal. If the driver has to adjust both to satisfy hardware
 limitations, the last requested rectangle shall take priority, and the
 driver should preferably adjust the opposite one. The
-:ref:`VIDIOC_TRY_FMT <vidioc-g-fmt>` ioctl however shall not change
+:ref:`VIDIOC_TRY_FMT <VIDIOC_G_FMT>` ioctl however shall not change
 the driver state and therefore only adjust the requested rectangle.
 
 Suppose scaling on a video capture device is restricted to a factor 1:1

@@ -1,6 +1,6 @@
 .. -*- coding: utf-8; mode: rst -*-
 
-.. _vidioc-g-tuner:
+.. _VIDIOC_G_TUNER:
 
 ************************************
 ioctl VIDIOC_G_TUNER, VIDIOC_S_TUNER
@@ -56,7 +56,7 @@ selected audio mode.
 to zero. The term 'tuner' means SDR receiver in this context.
 
 To change the radio frequency the
-:ref:`VIDIOC_S_FREQUENCY <vidioc-g-frequency>` ioctl is available.
+:ref:`VIDIOC_S_FREQUENCY <VIDIOC_G_FREQUENCY>` ioctl is available.
 
 
 .. _v4l2-tuner:
@@ -323,7 +323,7 @@ To change the radio frequency the
           determined from the frequency band.) The set of supported video
           standards is available from the struct
           :ref:`v4l2_input <v4l2-input>` pointing to this tuner, see the
-          description of ioctl :ref:`VIDIOC_ENUMINPUT <vidioc-enuminput>`
+          description of ioctl :ref:`VIDIOC_ENUMINPUT <VIDIOC_ENUMINPUT>`
           for details. Only ``V4L2_TUNER_ANALOG_TV`` tuners can have this
           capability.
 
@@ -425,7 +425,7 @@ To change the radio frequency the
 
        -  0x0400
 
-       -  The :ref:`VIDIOC_ENUM_FREQ_BANDS <vidioc-enum-freq-bands>`
+       -  The :ref:`VIDIOC_ENUM_FREQ_BANDS <VIDIOC_ENUM_FREQ_BANDS>`
           ioctl can be used to enumerate the available frequency bands.
 
     -  .. row 13
@@ -436,7 +436,7 @@ To change the radio frequency the
 
        -  The range to search when using the hardware seek functionality is
           programmable, see
-          :ref:`VIDIOC_S_HW_FREQ_SEEK <vidioc-s-hw-freq-seek>` for
+          :ref:`VIDIOC_S_HW_FREQ_SEEK <VIDIOC_S_HW_FREQ_SEEK>` for
           details.
 
     -  .. row 14

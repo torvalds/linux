@@ -1,6 +1,6 @@
 .. -*- coding: utf-8; mode: rst -*-
 
-.. _vidioc-encoder-cmd:
+.. _VIDIOC_ENCODER_CMD:
 
 ************************************************
 ioctl VIDIOC_ENCODER_CMD, VIDIOC_TRY_ENCODER_CMD
@@ -48,14 +48,14 @@ currently only used by the STOP command and contains one bit: If the
 until the end of the current *Group Of Pictures*, otherwise it will stop
 immediately.
 
-A :c:func:`read()`() or :ref:`VIDIOC_STREAMON <vidioc-streamon>`
+A :c:func:`read()`() or :ref:`VIDIOC_STREAMON <VIDIOC_STREAMON>`
 call sends an implicit START command to the encoder if it has not been
 started yet. After a STOP command, :c:func:`read()`() calls will read
 the remaining data buffered by the driver. When the buffer is empty,
 :c:func:`read()`() will return zero and the next :c:func:`read()`()
 call will restart the encoder.
 
-A :c:func:`close()`() or :ref:`VIDIOC_STREAMOFF <vidioc-streamon>`
+A :c:func:`close()`() or :ref:`VIDIOC_STREAMOFF <VIDIOC_STREAMON>`
 call of a streaming file descriptor sends an implicit immediate STOP to
 the encoder, and all buffered data is discarded.
 
@@ -134,7 +134,7 @@ introduced in Linux 2.6.21.
           produced to dequeue. This buffer may be empty, indicated by the
           driver setting the ``bytesused`` field to 0. Once the
           ``V4L2_BUF_FLAG_LAST`` flag was set, the
-          :ref:`VIDIOC_DQBUF <vidioc-qbuf>` ioctl will not block anymore,
+          :ref:`VIDIOC_DQBUF <VIDIOC_QBUF>` ioctl will not block anymore,
           but return an EPIPE error code.
 
     -  .. row 3

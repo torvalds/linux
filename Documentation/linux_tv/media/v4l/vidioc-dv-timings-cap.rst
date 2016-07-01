@@ -1,6 +1,6 @@
 .. -*- coding: utf-8; mode: rst -*-
 
-.. _vidioc-dv-timings-cap:
+.. _VIDIOC_DV_TIMINGS_CAP:
 
 *********************************************************
 ioctl VIDIOC_DV_TIMINGS_CAP, VIDIOC_SUBDEV_DV_TIMINGS_CAP

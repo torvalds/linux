@@ -1,6 +1,6 @@
 .. -*- coding: utf-8; mode: rst -*-
 
-.. _vidioc-decoder-cmd:
+.. _VIDIOC_DECODER_CMD:
 
 ************************************************
 ioctl VIDIOC_DECODER_CMD, VIDIOC_TRY_DECODER_CMD
@@ -43,11 +43,11 @@ this structure.
 The ``cmd`` field must contain the command code. Some commands use the
 ``flags`` field for additional information.
 
-A :c:func:`write()`() or :ref:`VIDIOC_STREAMON <vidioc-streamon>`
+A :c:func:`write()`() or :ref:`VIDIOC_STREAMON <VIDIOC_STREAMON>`
 call sends an implicit START command to the decoder if it has not been
 started yet.
 
-A :c:func:`close()`() or :ref:`VIDIOC_STREAMOFF <vidioc-streamon>`
+A :c:func:`close()`() or :ref:`VIDIOC_STREAMOFF <VIDIOC_STREAMON>`
 call of a streaming file descriptor sends an implicit immediate STOP
 command to the decoder, and all buffered data is discarded.
 
@@ -224,7 +224,7 @@ introduced in Linux 3.3.
           new buffers produced to dequeue. This buffer may be empty,
           indicated by the driver setting the ``bytesused`` field to 0. Once
           the ``V4L2_BUF_FLAG_LAST`` flag was set, the
-          :ref:`VIDIOC_DQBUF <vidioc-qbuf>` ioctl will not block anymore,
+          :ref:`VIDIOC_DQBUF <VIDIOC_QBUF>` ioctl will not block anymore,
           but return an EPIPE error code. If
           ``V4L2_DEC_CMD_STOP_IMMEDIATELY`` is set, then the decoder stops
           immediately (ignoring the ``pts`` value), otherwise it will keep

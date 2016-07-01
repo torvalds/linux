@@ -24,7 +24,7 @@ Devices supporting the video output interface set the
 ``V4L2_CAP_VIDEO_OUTPUT`` or ``V4L2_CAP_VIDEO_OUTPUT_MPLANE`` flag in
 the ``capabilities`` field of struct
 :ref:`v4l2_capability <v4l2-capability>` returned by the
-:ref:`VIDIOC_QUERYCAP <vidioc-querycap>` ioctl. As secondary device
+:ref:`VIDIOC_QUERYCAP <VIDIOC_QUERYCAP>` ioctl. As secondary device
 functions they may also support the :ref:`raw VBI output <raw-vbi>`
 (``V4L2_CAP_VBI_OUTPUT``) interface. At least one of the read/write or
 streaming I/O methods must be supported. Modulators and audio outputs
@@ -62,7 +62,7 @@ defaults. An example is given in :ref:`crop`.
 To query the current image format applications set the ``type`` field of
 a struct :ref:`v4l2_format <v4l2-format>` to
 ``V4L2_BUF_TYPE_VIDEO_OUTPUT`` or ``V4L2_BUF_TYPE_VIDEO_OUTPUT_MPLANE``
-and call the :ref:`VIDIOC_G_FMT <vidioc-g-fmt>` ioctl with a pointer
+and call the :ref:`VIDIOC_G_FMT <VIDIOC_G_FMT>` ioctl with a pointer
 to this structure. Drivers fill the struct
 :ref:`v4l2_pix_format <v4l2-pix-format>` ``pix`` or the struct
 :ref:`v4l2_pix_format_mplane <v4l2-pix-format-mplane>` ``pix_mp``
@@ -72,12 +72,12 @@ To request different parameters applications set the ``type`` field of a
 struct :ref:`v4l2_format <v4l2-format>` as above and initialize all
 fields of the struct :ref:`v4l2_pix_format <v4l2-pix-format>`
 ``vbi`` member of the ``fmt`` union, or better just modify the results
-of ``VIDIOC_G_FMT``, and call the :ref:`VIDIOC_S_FMT <vidioc-g-fmt>`
+of ``VIDIOC_G_FMT``, and call the :ref:`VIDIOC_S_FMT <VIDIOC_G_FMT>`
 ioctl with a pointer to this structure. Drivers may adjust the
 parameters and finally return the actual parameters as ``VIDIOC_G_FMT``
 does.
 
-Like ``VIDIOC_S_FMT`` the :ref:`VIDIOC_TRY_FMT <vidioc-g-fmt>` ioctl
+Like ``VIDIOC_S_FMT`` the :ref:`VIDIOC_TRY_FMT <VIDIOC_G_FMT>` ioctl
 can be used to learn about hardware limitations without disabling I/O or
 possibly time consuming hardware preparations.
 

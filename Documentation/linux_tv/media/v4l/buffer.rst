@@ -12,9 +12,9 @@ planes, while the buffer structure acts as a container for the planes.
 Only pointers to buffers (planes) are exchanged, the data itself is not
 copied. These pointers, together with meta-information like timestamps
 or field parity, are stored in a struct :c:type:`struct v4l2_buffer`,
-argument to the :ref:`VIDIOC_QUERYBUF <vidioc-querybuf>`,
-:ref:`VIDIOC_QBUF <vidioc-qbuf>` and
-:ref:`VIDIOC_DQBUF <vidioc-qbuf>` ioctl. In the multi-planar API,
+argument to the :ref:`VIDIOC_QUERYBUF <VIDIOC_QUERYBUF>`,
+:ref:`VIDIOC_QBUF <VIDIOC_QBUF>` and
+:ref:`VIDIOC_DQBUF <VIDIOC_QBUF>` ioctl. In the multi-planar API,
 some plane-specific members of struct :c:type:`struct v4l2_buffer`,
 such as pointers and sizes for each plane, are stored in struct
 :c:type:`struct v4l2_plane` instead. In that case, struct
@@ -26,8 +26,8 @@ see flags in the masks ``V4L2_BUF_FLAG_TIMESTAMP_MASK`` and
 ``V4L2_BUF_FLAG_TSTAMP_SRC_MASK`` in :ref:`buffer-flags`. These flags
 are always valid and constant across all buffers during the whole video
 stream. Changes in these flags may take place as a side effect of
-:ref:`VIDIOC_S_INPUT <vidioc-g-input>` or
-:ref:`VIDIOC_S_OUTPUT <vidioc-g-output>` however. The
+:ref:`VIDIOC_S_INPUT <VIDIOC_G_INPUT>` or
+:ref:`VIDIOC_S_OUTPUT <VIDIOC_G_OUTPUT>` however. The
 ``V4L2_BUF_FLAG_TIMESTAMP_COPY`` timestamp type which is used by e.g. on
 mem-to-mem devices is an exception to the rule: the timestamp source
 flags are copied from the OUTPUT video buffer to the CAPTURE video
@@ -50,12 +50,12 @@ buffer.
 
        -  
        -  Number of the buffer, set by the application except when calling
-          :ref:`VIDIOC_DQBUF <vidioc-qbuf>`, then it is set by the
+          :ref:`VIDIOC_DQBUF <VIDIOC_QBUF>`, then it is set by the
           driver. This field can range from zero to the number of buffers
-          allocated with the :ref:`VIDIOC_REQBUFS <vidioc-reqbufs>` ioctl
+          allocated with the :ref:`VIDIOC_REQBUFS <VIDIOC_REQBUFS>` ioctl
           (struct :ref:`v4l2_requestbuffers <v4l2-requestbuffers>`
           ``count``), plus any buffers allocated with
-          :ref:`VIDIOC_CREATE_BUFS <vidioc-create-bufs>` minus one.
+          :ref:`VIDIOC_CREATE_BUFS <VIDIOC_CREATE_BUFS>` minus one.
 
     -  .. row 2
 
@@ -243,8 +243,8 @@ buffer.
        -  
        -  Size of the buffer (not the payload) in bytes for the
           single-planar API. This is set by the driver based on the calls to
-          :ref:`VIDIOC_REQBUFS <vidioc-reqbufs>` and/or
-          :ref:`VIDIOC_CREATE_BUFS <vidioc-create-bufs>`. For the
+          :ref:`VIDIOC_REQBUFS <VIDIOC_REQBUFS>` and/or
+          :ref:`VIDIOC_CREATE_BUFS <VIDIOC_CREATE_BUFS>`. For the
           multi-planar API the application sets this to the number of
           elements in the ``planes`` array. The driver will fill in the
           actual number of valid elements in that array.
@@ -303,8 +303,8 @@ buffer.
        -  
        -  Size in bytes of the plane (not its payload). This is set by the
           driver based on the calls to
-          :ref:`VIDIOC_REQBUFS <vidioc-reqbufs>` and/or
-          :ref:`VIDIOC_CREATE_BUFS <vidioc-create-bufs>`.
+          :ref:`VIDIOC_REQBUFS <VIDIOC_REQBUFS>` and/or
+          :ref:`VIDIOC_CREATE_BUFS <VIDIOC_CREATE_BUFS>`.
 
     -  .. row 3
 
@@ -506,9 +506,9 @@ buffer.
        -  The buffer resides in device memory and has been mapped into the
           application's address space, see :ref:`mmap` for details.
           Drivers set or clear this flag when the
-          :ref:`VIDIOC_QUERYBUF <vidioc-querybuf>`,
-          :ref:`VIDIOC_QBUF <vidioc-qbuf>` or
-          :ref:`VIDIOC_DQBUF <vidioc-qbuf>` ioctl is called. Set by the
+          :ref:`VIDIOC_QUERYBUF <VIDIOC_QUERYBUF>`,
+          :ref:`VIDIOC_QBUF <VIDIOC_QBUF>` or
+          :ref:`VIDIOC_DQBUF <VIDIOC_QBUF>` ioctl is called. Set by the
           driver.
 
     -  .. row 2
@@ -609,10 +609,10 @@ buffer.
 
        -  The buffer has been prepared for I/O and can be queued by the
           application. Drivers set or clear this flag when the
-          :ref:`VIDIOC_QUERYBUF <vidioc-querybuf>`,
-          :ref:`VIDIOC_PREPARE_BUF <vidioc-qbuf>`,
-          :ref:`VIDIOC_QBUF <vidioc-qbuf>` or
-          :ref:`VIDIOC_DQBUF <vidioc-qbuf>` ioctl is called.
+          :ref:`VIDIOC_QUERYBUF <VIDIOC_QUERYBUF>`,
+          :ref:`VIDIOC_PREPARE_BUF <VIDIOC_QBUF>`,
+          :ref:`VIDIOC_QBUF <VIDIOC_QBUF>` or
+          :ref:`VIDIOC_DQBUF <VIDIOC_QBUF>` ioctl is called.
 
     -  .. row 10
 
@@ -645,12 +645,12 @@ buffer.
 
        -  Last buffer produced by the hardware. mem2mem codec drivers set
           this flag on the capture queue for the last buffer when the
-          :ref:`VIDIOC_QUERYBUF <vidioc-querybuf>` or
-          :ref:`VIDIOC_DQBUF <vidioc-qbuf>` ioctl is called. Due to
+          :ref:`VIDIOC_QUERYBUF <VIDIOC_QUERYBUF>` or
+          :ref:`VIDIOC_DQBUF <VIDIOC_QBUF>` ioctl is called. Due to
           hardware limitations, the last buffer may be empty. In this case
           the driver will set the ``bytesused`` field to 0, regardless of
           the format. Any Any subsequent call to the
-          :ref:`VIDIOC_DQBUF <vidioc-qbuf>` ioctl will not block anymore,
+          :ref:`VIDIOC_DQBUF <VIDIOC_QBUF>` ioctl will not block anymore,
           but return an EPIPE error code.
 
     -  .. row 13

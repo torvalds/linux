@@ -33,7 +33,7 @@ Querying Capabilities
 Devices supporting the RDS capturing API set the
 ``V4L2_CAP_RDS_CAPTURE`` flag in the ``capabilities`` field of struct
 :ref:`v4l2_capability <v4l2-capability>` returned by the
-:ref:`VIDIOC_QUERYCAP <vidioc-querycap>` ioctl. Any tuner that
+:ref:`VIDIOC_QUERYCAP <VIDIOC_QUERYCAP>` ioctl. Any tuner that
 supports RDS will set the ``V4L2_TUNER_CAP_RDS`` flag in the
 ``capability`` field of struct :ref:`v4l2_tuner <v4l2-tuner>`. If the
 driver only passes RDS blocks without interpreting the data the
@@ -52,7 +52,7 @@ Whether an RDS signal is present can be detected by looking at the
 Devices supporting the RDS output API set the ``V4L2_CAP_RDS_OUTPUT``
 flag in the ``capabilities`` field of struct
 :ref:`v4l2_capability <v4l2-capability>` returned by the
-:ref:`VIDIOC_QUERYCAP <vidioc-querycap>` ioctl. Any modulator that
+:ref:`VIDIOC_QUERYCAP <VIDIOC_QUERYCAP>` ioctl. Any modulator that
 supports RDS will set the ``V4L2_TUNER_CAP_RDS`` flag in the
 ``capability`` field of struct
 :ref:`v4l2_modulator <v4l2-modulator>`. In order to enable the RDS

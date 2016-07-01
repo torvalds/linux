@@ -1,6 +1,6 @@
 .. -*- coding: utf-8; mode: rst -*-
 
-.. _vidioc-subscribe-event:
+.. _VIDIOC_SUBSCRIBE_EVENT:
 
 ******************************************************
 ioctl VIDIOC_SUBSCRIBE_EVENT, VIDIOC_UNSUBSCRIBE_EVENT
@@ -33,7 +33,7 @@ Description
 ===========
 
 Subscribe or unsubscribe V4L2 event. Subscribed events are dequeued by
-using the :ref:`VIDIOC_DQEVENT <vidioc-dqevent>` ioctl.
+using the :ref:`VIDIOC_DQEVENT <VIDIOC_DQEVENT>` ioctl.
 
 
 .. _v4l2-event-subscription:
@@ -110,7 +110,7 @@ using the :ref:`VIDIOC_DQEVENT <vidioc-dqevent>` ioctl.
 
        -  If set, then events directly caused by an ioctl will also be sent
           to the filehandle that called that ioctl. For example, changing a
-          control using :ref:`VIDIOC_S_CTRL <vidioc-g-ctrl>` will cause
+          control using :ref:`VIDIOC_S_CTRL <VIDIOC_G_CTRL>` will cause
           a V4L2_EVENT_CTRL to be sent back to that same filehandle.
           Normally such events are suppressed to prevent feedback loops
           where an application changes a control to a one value and then
@@ -118,7 +118,7 @@ using the :ref:`VIDIOC_DQEVENT <vidioc-dqevent>` ioctl.
           has changed to the first value.
 
           Since it can't tell whether that event was caused by another
-          application or by the :ref:`VIDIOC_S_CTRL <vidioc-g-ctrl>`
+          application or by the :ref:`VIDIOC_S_CTRL <VIDIOC_G_CTRL>`
           call it is hard to decide whether to set the control to the value
           in the event, or ignore it.
 

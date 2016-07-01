@@ -1,6 +1,6 @@
 .. -*- coding: utf-8; mode: rst -*-
 
-.. _vidioc-prepare-buf:
+.. _VIDIOC_PREPARE_BUF:
 
 ************************
 ioctl VIDIOC_PREPARE_BUF

@@ -1,6 +1,6 @@
 .. -*- coding: utf-8; mode: rst -*-
 
-.. _vidioc-subdev-g-selection:
+.. _VIDIOC_SUBDEV_G_SELECTION:
 
 **********************************************************
 ioctl VIDIOC_SUBDEV_G_SELECTION, VIDIOC_SUBDEV_S_SELECTION
@@ -37,7 +37,7 @@ functionality performed by the subdevs which affect the image size. This
 currently includes cropping, scaling and composition.
 
 The selection API replaces
-:ref:`the old subdev crop API <vidioc-subdev-g-crop>`. All the
+:ref:`the old subdev crop API <VIDIOC_SUBDEV_G_CROP>`. All the
 function of the crop API, and more, are supported by the selections API.
 
 See :ref:`subdev` for more information on how each selection target

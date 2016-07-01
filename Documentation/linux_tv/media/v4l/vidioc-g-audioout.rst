@@ -1,6 +1,6 @@
 .. -*- coding: utf-8; mode: rst -*-
 
-.. _vidioc-g-audioout:
+.. _VIDIOC_G_AUDIOOUT:
 
 **************************************
 ioctl VIDIOC_G_AUDOUT, VIDIOC_S_AUDOUT

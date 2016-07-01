@@ -1,6 +1,6 @@
 .. -*- coding: utf-8; mode: rst -*-
 
-.. _vidioc-querycap:
+.. _VIDIOC_QUERYCAP:
 
 *********************
 ioctl VIDIOC_QUERYCAP
@@ -308,7 +308,7 @@ specification the ioctl returns an EINVAL error code.
        -  0x00000400
 
        -  The device supports the
-          :ref:`VIDIOC_S_HW_FREQ_SEEK <vidioc-s-hw-freq-seek>` ioctl
+          :ref:`VIDIOC_S_HW_FREQ_SEEK <VIDIOC_S_HW_FREQ_SEEK>` ioctl
           for hardware frequency seeking.
 
     -  .. row 15

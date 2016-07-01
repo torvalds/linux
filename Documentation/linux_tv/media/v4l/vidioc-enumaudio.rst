@@ -1,6 +1,6 @@
 .. -*- coding: utf-8; mode: rst -*-
 
-.. _vidioc-enumaudio:
+.. _VIDIOC_ENUMAUDIO:
 
 **********************
 ioctl VIDIOC_ENUMAUDIO
@@ -39,7 +39,7 @@ structure or return an EINVAL error code when the index is out of
 bounds. To enumerate all audio inputs applications shall begin at index
 zero, incrementing by one until the driver returns EINVAL.
 
-See :ref:`vidioc-g-audio` for a description of struct
+See :ref:`VIDIOC_G_AUDIO` for a description of struct
 :ref:`v4l2_audio <v4l2-audio>`.
 
 

@@ -1,6 +1,6 @@
 .. -*- coding: utf-8; mode: rst -*-
 
-.. _vidioc-g-parm:
+.. _VIDIOC_G_PARM:
 
 **********************************
 ioctl VIDIOC_G_PARM, VIDIOC_S_PARM
