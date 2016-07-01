@@ -1456,7 +1456,7 @@ static int cec_receive_notify(struct cec_adapter *adap, struct cec_msg *msg,
 		if (!(adap->capabilities & CEC_CAP_RC))
 			break;
 
-#if IS_ENABLED(CONFIG_RC_CORE)
+#if IS_REACHABLE(CONFIG_RC_CORE)
 		switch (msg->msg[2]) {
 		/*
 		 * Play function, this message can have variable length
@@ -1492,7 +1492,7 @@ static int cec_receive_notify(struct cec_adapter *adap, struct cec_msg *msg,
 	case CEC_MSG_USER_CONTROL_RELEASED:
 		if (!(adap->capabilities & CEC_CAP_RC))
 			break;
-#if IS_ENABLED(CONFIG_RC_CORE)
+#if IS_REACHABLE(CONFIG_RC_CORE)
 		rc_keyup(adap->rc);
 #endif
 		break;

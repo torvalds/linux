@@ -81,7 +81,7 @@ config MEDIA_RC_SUPPORT
 	  Say Y when you have a TV or an IR device.
 
 config MEDIA_CEC_EDID
-	tristate
+	bool
 
 #
 # Media controller

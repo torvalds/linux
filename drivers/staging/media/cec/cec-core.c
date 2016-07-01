@@ -239,7 +239,7 @@ struct cec_adapter *cec_allocate_adapter(const struct cec_adap_ops *ops,
 	if (!(caps & CEC_CAP_RC))
 		return adap;
 
-#if IS_ENABLED(CONFIG_RC_CORE)
+#if IS_REACHABLE(CONFIG_RC_CORE)
 	/* Prepare the RC input device */
 	adap->rc = rc_allocate_device();
 	if (!adap->rc) {
@@ -282,7 +282,7 @@ int cec_register_adapter(struct cec_adapter *adap)
 	if (IS_ERR_OR_NULL(adap))
 		return 0;
 
-#if IS_ENABLED(CONFIG_RC_CORE)
+#if IS_REACHABLE(CONFIG_RC_CORE)
 	if (adap->capabilities & CEC_CAP_RC) {
 		res = rc_register_device(adap->rc);
 
@@ -298,7 +298,7 @@ int cec_register_adapter(struct cec_adapter *adap)
 
 	res = cec_devnode_register(&adap->devnode, adap->owner);
 	if (res) {
-#if IS_ENABLED(CONFIG_RC_CORE)
+#if IS_REACHABLE(CONFIG_RC_CORE)
 		/* Note: rc_unregister also calls rc_free */
 		rc_unregister_device(adap->rc);
 		adap->rc = NULL;
@@ -333,7 +333,7 @@ void cec_unregister_adapter(struct cec_adapter *adap)
 	if (IS_ERR_OR_NULL(adap))
 		return;
 
-#if IS_ENABLED(CONFIG_RC_CORE)
+#if IS_REACHABLE(CONFIG_RC_CORE)
 	/* Note: rc_unregister also calls rc_free */
 	rc_unregister_device(adap->rc);
 	adap->rc = NULL;
@@ -353,7 +353,7 @@ void cec_delete_adapter(struct cec_adapter *adap)
 	kthread_stop(adap->kthread);
 	if (adap->kthread_config)
 		kthread_stop(adap->kthread_config);
-#if IS_ENABLED(CONFIG_RC_CORE)
+#if IS_REACHABLE(CONFIG_RC_CORE)
 	if (adap->rc)
 		rc_free_device(adap->rc);
 #endif

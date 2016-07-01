@@ -2,7 +2,9 @@
 # Makefile for the kernel multimedia device drivers.
 #
 
-obj-$(CONFIG_MEDIA_CEC_EDID) += cec-edid.o
+ifeq ($(CONFIG_MEDIA_CEC_EDID),y)
+  obj-$(CONFIG_MEDIA_SUPPORT) += cec-edid.o
+endif
 
 media-objs	:= media-device.o media-devnode.o media-entity.o
 

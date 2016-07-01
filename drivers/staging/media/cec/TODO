@@ -23,5 +23,10 @@ Other TODOs:
   And also TYPE_SWITCH and TYPE_CDC_ONLY in addition to the TYPE_UNREGISTERED?
   This should give the framework more information about the device type
   since SPECIFIC and UNREGISTERED give no useful information.
+- Once this is out of staging this should no longer be a separate
+  config option, instead it should be selected by drivers that want it.
+- Revisit the IS_REACHABLE(RC_CORE): perhaps the RC_CORE support should
+  be enabled through a separate config option in drivers/media/Kconfig
+  or rc/Kconfig?
 
 Hans Verkuil <hans.verkuil@cisco.com>
