@@ -21,8 +21,8 @@ defines the :ref:`VIDIOC_G_PRIORITY <vidioc-g-priority>` and
 query the access priority associate with a file descriptor. Opening a
 device assigns a medium priority, compatible with earlier versions of
 V4L2 and drivers not supporting these ioctls. Applications requiring a
-different priority will usually call ``VIDIOC_S_PRIORITY`` after
-verifying the device with the
+different priority will usually call :ref:`VIDIOC_S_PRIORITY
+<vidioc-g-priority>` after verifying the device with the
 :ref:`VIDIOC_QUERYCAP <vidioc-querycap>` ioctl.
 
 Ioctls changing driver properties, such as
