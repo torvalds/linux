@@ -2932,7 +2932,23 @@ void intel_hpd_cancel_work(struct drm_i915_private *dev_priv);
 bool intel_hpd_pin_to_port(enum hpd_pin pin, enum port *port);
 
 /* i915_irq.c */
-void i915_queue_hangcheck(struct drm_i915_private *dev_priv);
+static inline void i915_queue_hangcheck(struct drm_i915_private *dev_priv)
+{
+	unsigned long delay;
+
+	if (unlikely(!i915.enable_hangcheck))
+		return;
+
+	/* Don't continually defer the hangcheck so that it is always run at
+	 * least once after work has been scheduled on any ring. Otherwise,
+	 * we will ignore a hung ring if a second ring is kept busy.
+	 */
+
+	delay = round_jiffies_up_relative(DRM_I915_HANGCHECK_JIFFIES);
+	queue_delayed_work(system_long_wq,
+			   &dev_priv->gpu_error.hangcheck_work, delay);
+}
+
 __printf(3, 4)
 void i915_handle_error(struct drm_i915_private *dev_priv,
 		       u32 engine_mask,

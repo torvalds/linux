@@ -3247,23 +3247,6 @@ out:
 	ENABLE_RPM_WAKEREF_ASSERTS(dev_priv);
 }
 
-void i915_queue_hangcheck(struct drm_i915_private *dev_priv)
-{
-	unsigned long delay;
-
-	if (!i915.enable_hangcheck)
-		return;
-
-	/* Don't continually defer the hangcheck so that it is always run at
-	 * least once after work has been scheduled on any ring. Otherwise,
-	 * we will ignore a hung ring if a second ring is kept busy.
-	 */
-
-	delay = round_jiffies_up_relative(DRM_I915_HANGCHECK_JIFFIES);
-	queue_delayed_work(system_long_wq,
-			   &dev_priv->gpu_error.hangcheck_work, delay);
-}
-
 static void ibx_irq_reset(struct drm_device *dev)
 {
 	struct drm_i915_private *dev_priv = dev->dev_private;
