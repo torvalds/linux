@@ -3867,7 +3867,7 @@ static ssize_t vop_get_disp_info(struct rk_lcdc_driver *dev_drv,
 	spin_unlock(&vop_dev->reg_lock);
 	size += snprintf(dsp_buf, 80,
 		"z-order:\n  win[%d]\n  win[%d]\n  win[%d]\n  win[%d]\n",
-		layer1_sel, layer0_sel, layer2_sel, layer3_sel);
+		layer3_sel, layer2_sel, layer1_sel, layer0_sel);
 	strcat(buf, dsp_buf);
 	memset(dsp_buf, 0, sizeof(dsp_buf));
 	/* win0 */
