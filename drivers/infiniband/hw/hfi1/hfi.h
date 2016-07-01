@@ -1128,7 +1128,8 @@ struct hfi1_devdata {
 		NUM_SEND_DMA_ENG_ERR_STATUS_COUNTERS];
 	/* Software counter that aggregates all cce_err_status errors */
 	u64 sw_cce_err_status_aggregate;
-
+	/* Software counter that aggregates all bypass packet rcv errors */
+	u64 sw_rcv_bypass_packet_errors;
 	/* receive interrupt functions */
 	rhf_rcv_function_ptr *rhf_rcv_function_map;
 	rhf_rcv_function_ptr normal_rhf_rcv_functions[8];

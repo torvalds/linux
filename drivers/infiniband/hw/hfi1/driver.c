@@ -1362,6 +1362,7 @@ int process_receive_bypass(struct hfi1_packet *packet)
 
 	dd_dev_err(packet->rcd->dd,
 		   "Bypass packets are not supported in normal operation. Dropping\n");
+	incr_cntr64(&packet->rcd->dd->sw_rcv_bypass_packet_errors);
 	return RHF_RCV_CONTINUE;
 }
 
