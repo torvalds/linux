@@ -189,6 +189,8 @@ struct blkfront_info
 	struct mutex mutex;
 	struct xenbus_device *xbdev;
 	struct gendisk *gd;
+	u16 sector_size;
+	unsigned int physical_sector_size;
 	int vdevice;
 	blkif_vdev_t handle;
 	enum blkif_state connected;
@@ -910,9 +912,45 @@ static struct blk_mq_ops blkfront_mq_ops = {
 	.map_queue = blk_mq_map_queue,
 };
 
+static void blkif_set_queue_limits(struct blkfront_info *info)
+{
+	struct request_queue *rq = info->rq;
+	struct gendisk *gd = info->gd;
+	unsigned int segments = info->max_indirect_segments ? :
+				BLKIF_MAX_SEGMENTS_PER_REQUEST;
+
+	queue_flag_set_unlocked(QUEUE_FLAG_VIRT, rq);
+
+	if (info->feature_discard) {
+		queue_flag_set_unlocked(QUEUE_FLAG_DISCARD, rq);
+		blk_queue_max_discard_sectors(rq, get_capacity(gd));
+		rq->limits.discard_granularity = info->discard_granularity;
+		rq->limits.discard_alignment = info->discard_alignment;
+		if (info->feature_secdiscard)
+			queue_flag_set_unlocked(QUEUE_FLAG_SECERASE, rq);
+	}
+
+	/* Hard sector size and max sectors impersonate the equiv. hardware. */
+	blk_queue_logical_block_size(rq, info->sector_size);
+	blk_queue_physical_block_size(rq, info->physical_sector_size);
+	blk_queue_max_hw_sectors(rq, (segments * XEN_PAGE_SIZE) / 512);
+
+	/* Each segment in a request is up to an aligned page in size. */
+	blk_queue_segment_boundary(rq, PAGE_SIZE - 1);
+	blk_queue_max_segment_size(rq, PAGE_SIZE);
+
+	/* Ensure a merged request will fit in a single I/O ring slot. */
+	blk_queue_max_segments(rq, segments / GRANTS_PER_PSEG);
+
+	/* Make sure buffer addresses are sector-aligned. */
+	blk_queue_dma_alignment(rq, 511);
+
+	/* Make sure we don't use bounce buffers. */
+	blk_queue_bounce_limit(rq, BLK_BOUNCE_ANY);
+}
+
 static int xlvbd_init_blk_queue(struct gendisk *gd, u16 sector_size,
-				unsigned int physical_sector_size,
-				unsigned int segments)
+				unsigned int physical_sector_size)
 {
 	struct request_queue *rq;
 	struct blkfront_info *info = gd->private_data;
@@ -944,36 +982,11 @@ static int xlvbd_init_blk_queue(struct gendisk *gd, u16 sector_size,
 	}
 
 	rq->queuedata = info;
-	queue_flag_set_unlocked(QUEUE_FLAG_VIRT, rq);
-
-	if (info->feature_discard) {
-		queue_flag_set_unlocked(QUEUE_FLAG_DISCARD, rq);
-		blk_queue_max_discard_sectors(rq, get_capacity(gd));
-		rq->limits.discard_granularity = info->discard_granularity;
-		rq->limits.discard_alignment = info->discard_alignment;
-		if (info->feature_secdiscard)
-			queue_flag_set_unlocked(QUEUE_FLAG_SECERASE, rq);
-	}
-
-	/* Hard sector size and max sectors impersonate the equiv. hardware. */
-	blk_queue_logical_block_size(rq, sector_size);
-	blk_queue_physical_block_size(rq, physical_sector_size);
-	blk_queue_max_hw_sectors(rq, (segments * XEN_PAGE_SIZE) / 512);
-
-	/* Each segment in a request is up to an aligned page in size. */
-	blk_queue_segment_boundary(rq, PAGE_SIZE - 1);
-	blk_queue_max_segment_size(rq, PAGE_SIZE);
-
-	/* Ensure a merged request will fit in a single I/O ring slot. */
-	blk_queue_max_segments(rq, segments / GRANTS_PER_PSEG);
-
-	/* Make sure buffer addresses are sector-aligned. */
-	blk_queue_dma_alignment(rq, 511);
-
-	/* Make sure we don't use bounce buffers. */
-	blk_queue_bounce_limit(rq, BLK_BOUNCE_ANY);
-
-	gd->queue = rq;
+	info->rq = gd->queue = rq;
+	info->gd = gd;
+	info->sector_size = sector_size;
+	info->physical_sector_size = physical_sector_size;
+	blkif_set_queue_limits(info);
 
 	return 0;
 }
@@ -1136,15 +1149,10 @@ static int xlvbd_alloc_gendisk(blkif_sector_t capacity,
 	gd->private_data = info;
 	set_capacity(gd, capacity);
 
-	if (xlvbd_init_blk_queue(gd, sector_size, physical_sector_size,
-				 info->max_indirect_segments ? :
-				 BLKIF_MAX_SEGMENTS_PER_REQUEST)) {
+	if (xlvbd_init_blk_queue(gd, sector_size, physical_sector_size)) {
 		del_gendisk(gd);
 		goto release;
 	}
-
-	info->rq = gd->queue;
-	info->gd = gd;
 
 	xlvbd_flush(info);
 
@@ -2007,6 +2015,8 @@ static int blkif_recover(struct blkfront_info *info)
 	struct split_bio *split_bio;
 
 	blkfront_gather_backend_features(info);
+	/* Reset limits changed by blk_mq_update_nr_hw_queues(). */
+	blkif_set_queue_limits(info);
 	segs = info->max_indirect_segments ? : BLKIF_MAX_SEGMENTS_PER_REQUEST;
 	blk_queue_max_segments(info->rq, segs / GRANTS_PER_PSEG);
 
