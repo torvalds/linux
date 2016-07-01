@@ -165,12 +165,20 @@ static int hns_nic_get_settings(struct net_device *net_dev,
 		cmd->advertising |= ADVERTISED_10000baseKR_Full;
 	}
 
-	if (h->port_type == HNAE_PORT_SERVICE) {
+	switch (h->media_type) {
+	case HNAE_MEDIA_TYPE_FIBER:
 		cmd->port = PORT_FIBRE;
-		cmd->supported |= SUPPORTED_Pause;
-	} else {
+		break;
+	case HNAE_MEDIA_TYPE_COPPER:
 		cmd->port = PORT_TP;
+		break;
+	case HNAE_MEDIA_TYPE_UNKNOWN:
+	default:
+		break;
 	}
+
+	if (!(AE_IS_VER1(priv->enet_ver) && h->port_type == HNAE_PORT_DEBUG))
+		cmd->supported |= SUPPORTED_Pause;
 
 	cmd->transceiver = XCVR_EXTERNAL;
 	cmd->mdio_support = (ETH_MDIO_SUPPORTS_C45 | ETH_MDIO_SUPPORTS_C22);

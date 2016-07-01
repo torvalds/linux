@@ -56,20 +56,6 @@ static const enum mac_mode g_mac_mode_1000[] = {
 	[PHY_INTERFACE_MODE_RTBI]   = MAC_MODE_RTBI_1000
 };
 
-static enum mac_mode hns_mac_dev_to_enet_if(const struct hns_mac_cb *mac_cb)
-{
-	switch (mac_cb->max_speed) {
-	case MAC_SPEED_100:
-		return g_mac_mode_100[mac_cb->phy_if];
-	case MAC_SPEED_1000:
-		return g_mac_mode_1000[mac_cb->phy_if];
-	case MAC_SPEED_10000:
-		return MAC_MODE_XGMII_10000;
-	default:
-		return MAC_MODE_MII_100;
-	}
-}
-
 static enum mac_mode hns_get_enet_interface(const struct hns_mac_cb *mac_cb)
 {
 	switch (mac_cb->max_speed) {
@@ -134,7 +120,6 @@ void hns_mac_adjust_link(struct hns_mac_cb *mac_cb, int speed, int duplex)
 
 	mac_cb->speed = speed;
 	mac_cb->half_duplex = !duplex;
-	mac_ctrl_drv->mac_mode = hns_mac_dev_to_enet_if(mac_cb);
 
 	if (mac_ctrl_drv->adjust_link) {
 		ret = mac_ctrl_drv->adjust_link(mac_ctrl_drv,
@@ -748,6 +733,18 @@ static void hns_mac_register_phy(struct hns_mac_cb *mac_cb)
 			mac_cb->mac_id, addr);
 }
 
+#define MAC_MEDIA_TYPE_MAX_LEN		16
+
+static const struct {
+	enum hnae_media_type value;
+	const char *name;
+} media_type_defs[] = {
+	{HNAE_MEDIA_TYPE_UNKNOWN,	"unknown" },
+	{HNAE_MEDIA_TYPE_FIBER,		"fiber" },
+	{HNAE_MEDIA_TYPE_COPPER,	"copper" },
+	{HNAE_MEDIA_TYPE_BACKPLANE,	"backplane" },
+};
+
 /**
  *hns_mac_get_info  - get mac information from device node
  *@mac_cb: mac device
@@ -759,10 +756,13 @@ static int  hns_mac_get_info(struct hns_mac_cb *mac_cb)
 	struct device_node *np;
 	struct regmap *syscon;
 	struct of_phandle_args cpld_args;
+	const char *media_type;
+	u32 i;
 	u32 ret;
 
 	mac_cb->link = false;
 	mac_cb->half_duplex = false;
+	mac_cb->media_type = HNAE_MEDIA_TYPE_UNKNOWN;
 	mac_cb->speed = mac_phy_to_speed[mac_cb->phy_if];
 	mac_cb->max_speed = mac_cb->speed;
 
@@ -862,6 +862,17 @@ static int  hns_mac_get_info(struct hns_mac_cb *mac_cb)
 	} else {
 		dev_err(mac_cb->dev, "mac%d cannot find phy node\n",
 			mac_cb->mac_id);
+	}
+
+	if (!fwnode_property_read_string(mac_cb->fw_port, "media-type",
+					 &media_type)) {
+		for (i = 0; i < ARRAY_SIZE(media_type_defs); i++) {
+			if (!strncmp(media_type_defs[i].name, media_type,
+				     MAC_MEDIA_TYPE_MAX_LEN)) {
+				mac_cb->media_type = media_type_defs[i].value;
+				break;
+			}
+		}
 	}
 
 	return 0;
