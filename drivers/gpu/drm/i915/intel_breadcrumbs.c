@@ -22,6 +22,8 @@
  *
  */
 
+#include <linux/kthread.h>
+
 #include "i915_drv.h"
 
 static void intel_breadcrumbs_fake_irq(unsigned long data)
@@ -257,6 +259,15 @@ static inline bool chain_wakeup(struct rb_node *rb, int priority)
 	return rb && to_wait(rb)->tsk->prio <= priority;
 }
 
+static inline int wakeup_priority(struct intel_breadcrumbs *b,
+				  struct task_struct *tsk)
+{
+	if (tsk == b->signaler)
+		return INT_MIN;
+	else
+		return tsk->prio;
+}
+
 void intel_engine_remove_wait(struct intel_engine_cs *engine,
 			      struct intel_wait *wait)
 {
@@ -275,8 +286,8 @@ void intel_engine_remove_wait(struct intel_engine_cs *engine,
 		goto out_unlock;
 
 	if (b->first_wait == wait) {
+		const int priority = wakeup_priority(b, wait->tsk);
 		struct rb_node *next;
-		const int priority = wait->tsk->prio;
 
 		GEM_BUG_ON(b->tasklet != wait->tsk);
 
@@ -345,14 +356,177 @@ out_unlock:
 	spin_unlock(&b->lock);
 }
 
+struct signal {
+	struct rb_node node;
+	struct intel_wait wait;
+	struct drm_i915_gem_request *request;
+};
+
+static bool signal_complete(struct signal *signal)
+{
+	if (!signal)
+		return false;
+
+	/* If another process served as the bottom-half it may have already
+	 * signalled that this wait is already completed.
+	 */
+	if (intel_wait_complete(&signal->wait))
+		return true;
+
+	/* Carefully check if the request is complete, giving time for the
+	 * seqno to be visible or if the GPU hung.
+	 */
+	if (__i915_request_irq_complete(signal->request))
+		return true;
+
+	return false;
+}
+
+static struct signal *to_signal(struct rb_node *rb)
+{
+	return container_of(rb, struct signal, node);
+}
+
+static void signaler_set_rtpriority(void)
+{
+	 struct sched_param param = { .sched_priority = 1 };
+
+	 sched_setscheduler_nocheck(current, SCHED_FIFO, &param);
+}
+
+static int intel_breadcrumbs_signaler(void *arg)
+{
+	struct intel_engine_cs *engine = arg;
+	struct intel_breadcrumbs *b = &engine->breadcrumbs;
+	struct signal *signal;
+
+	/* Install ourselves with high priority to reduce signalling latency */
+	signaler_set_rtpriority();
+
+	do {
+		set_current_state(TASK_INTERRUPTIBLE);
+
+		/* We are either woken up by the interrupt bottom-half,
+		 * or by a client adding a new signaller. In both cases,
+		 * the GPU seqno may have advanced beyond our oldest signal.
+		 * If it has, propagate the signal, remove the waiter and
+		 * check again with the next oldest signal. Otherwise we
+		 * need to wait for a new interrupt from the GPU or for
+		 * a new client.
+		 */
+		signal = READ_ONCE(b->first_signal);
+		if (signal_complete(signal)) {
+			/* Wake up all other completed waiters and select the
+			 * next bottom-half for the next user interrupt.
+			 */
+			intel_engine_remove_wait(engine, &signal->wait);
+
+			i915_gem_request_unreference(signal->request);
+
+			/* Find the next oldest signal. Note that as we have
+			 * not been holding the lock, another client may
+			 * have installed an even older signal than the one
+			 * we just completed - so double check we are still
+			 * the oldest before picking the next one.
+			 */
+			spin_lock(&b->lock);
+			if (signal == b->first_signal)
+				b->first_signal = rb_next(&signal->node);
+			rb_erase(&signal->node, &b->signals);
+			spin_unlock(&b->lock);
+
+			kfree(signal);
+		} else {
+			if (kthread_should_stop())
+				break;
+
+			schedule();
+		}
+	} while (1);
+	__set_current_state(TASK_RUNNING);
+
+	return 0;
+}
+
+int intel_engine_enable_signaling(struct drm_i915_gem_request *request)
+{
+	struct intel_engine_cs *engine = request->engine;
+	struct intel_breadcrumbs *b = &engine->breadcrumbs;
+	struct rb_node *parent, **p;
+	struct signal *signal;
+	bool first, wakeup;
+
+	signal = kmalloc(sizeof(*signal), GFP_ATOMIC);
+	if (unlikely(!signal))
+		return -ENOMEM;
+
+	signal->wait.tsk = b->signaler;
+	signal->wait.seqno = request->seqno;
+
+	signal->request = i915_gem_request_reference(request);
+
+	/* First add ourselves into the list of waiters, but register our
+	 * bottom-half as the signaller thread. As per usual, only the oldest
+	 * waiter (not just signaller) is tasked as the bottom-half waking
+	 * up all completed waiters after the user interrupt.
+	 *
+	 * If we are the oldest waiter, enable the irq (after which we
+	 * must double check that the seqno did not complete).
+	 */
+	wakeup = intel_engine_add_wait(engine, &signal->wait);
+
+	/* Now insert ourselves into the retirement ordered list of signals
+	 * on this engine. We track the oldest seqno as that will be the
+	 * first signal to complete.
+	 */
+	spin_lock(&b->lock);
+	parent = NULL;
+	first = true;
+	p = &b->signals.rb_node;
+	while (*p) {
+		parent = *p;
+		if (i915_seqno_passed(signal->wait.seqno,
+				      to_signal(parent)->wait.seqno)) {
+			p = &parent->rb_right;
+			first = false;
+		} else {
+			p = &parent->rb_left;
+		}
+	}
+	rb_link_node(&signal->node, parent, p);
+	rb_insert_color(&signal->node, &b->signals);
+	if (first)
+		smp_store_mb(b->first_signal, signal);
+	spin_unlock(&b->lock);
+
+	if (wakeup)
+		wake_up_process(b->signaler);
+
+	return 0;
+}
+
 int intel_engine_init_breadcrumbs(struct intel_engine_cs *engine)
 {
 	struct intel_breadcrumbs *b = &engine->breadcrumbs;
+	struct task_struct *tsk;
 
 	spin_lock_init(&b->lock);
 	setup_timer(&b->fake_irq,
 		    intel_breadcrumbs_fake_irq,
 		    (unsigned long)engine);
+
+	/* Spawn a thread to provide a common bottom-half for all signals.
+	 * As this is an asynchronous interface we cannot steal the current
+	 * task for handling the bottom-half to the user interrupt, therefore
+	 * we create a thread to do the coherent seqno dance after the
+	 * interrupt and then signal the waitqueue (via the dma-buf/fence).
+	 */
+	tsk = kthread_run(intel_breadcrumbs_signaler, engine,
+			  "i915/signal:%d", engine->id);
+	if (IS_ERR(tsk))
+		return PTR_ERR(tsk);
+
+	b->signaler = tsk;
 
 	return 0;
 }
@@ -360,6 +534,9 @@ int intel_engine_init_breadcrumbs(struct intel_engine_cs *engine)
 void intel_engine_fini_breadcrumbs(struct intel_engine_cs *engine)
 {
 	struct intel_breadcrumbs *b = &engine->breadcrumbs;
+
+	if (!IS_ERR_OR_NULL(b->signaler))
+		kthread_stop(b->signaler);
 
 	del_timer_sync(&b->fake_irq);
 }
@@ -379,6 +556,21 @@ unsigned int intel_kick_waiters(struct drm_i915_private *i915)
 		if (unlikely(intel_engine_wakeup(engine)))
 			mask |= intel_engine_flag(engine);
 	rcu_read_unlock();
+
+	return mask;
+}
+
+unsigned int intel_kick_signalers(struct drm_i915_private *i915)
+{
+	struct intel_engine_cs *engine;
+	unsigned int mask = 0;
+
+	for_each_engine(engine, i915) {
+		if (unlikely(READ_ONCE(engine->breadcrumbs.first_signal))) {
+			wake_up_process(engine->breadcrumbs.signaler);
+			mask |= intel_engine_flag(engine);
+		}
+	}
 
 	return mask;
 }

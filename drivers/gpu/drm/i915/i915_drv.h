@@ -3976,14 +3976,6 @@ wait_remaining_ms_from_jiffies(unsigned long timestamp_jiffies, int to_wait_ms)
 			    schedule_timeout_uninterruptible(remaining_jiffies);
 	}
 }
-
-static inline void i915_trace_irq_get(struct intel_engine_cs *engine,
-				      struct drm_i915_gem_request *req)
-{
-	if (engine->trace_irq_req == NULL && engine->irq_get(engine))
-		i915_gem_request_assign(&engine->trace_irq_req, req);
-}
-
 static inline bool __i915_request_irq_complete(struct drm_i915_gem_request *req)
 {
 	struct intel_engine_cs *engine = req->engine;

@@ -2755,7 +2755,8 @@ i915_gem_init_seqno(struct drm_i915_private *dev_priv, u32 seqno)
 
 	/* If the seqno wraps around, we need to clear the breadcrumb rbtree */
 	if (!i915_seqno_passed(seqno, dev_priv->next_seqno)) {
-		while (intel_kick_waiters(dev_priv))
+		while (intel_kick_waiters(dev_priv) ||
+		       intel_kick_signalers(dev_priv))
 			yield();
 	}
 
@@ -3217,12 +3218,6 @@ i915_gem_retire_requests_ring(struct intel_engine_cs *engine)
 			break;
 
 		i915_gem_object_retire__read(obj, engine->id);
-	}
-
-	if (unlikely(engine->trace_irq_req &&
-		     i915_gem_request_completed(engine->trace_irq_req))) {
-		engine->irq_put(engine);
-		i915_gem_request_assign(&engine->trace_irq_req, NULL);
 	}
 
 	WARN_ON(i915_verify_lists(engine->dev));

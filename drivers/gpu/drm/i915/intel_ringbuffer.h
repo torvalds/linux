@@ -129,6 +129,8 @@ struct  i915_ctx_workarounds {
 	struct drm_i915_gem_object *obj;
 };
 
+struct drm_i915_gem_request;
+
 struct intel_engine_cs {
 	struct drm_i915_private *i915;
 	const char	*name;
@@ -167,8 +169,11 @@ struct intel_engine_cs {
 	struct intel_breadcrumbs {
 		spinlock_t lock; /* protects the lists of requests */
 		struct rb_root waiters; /* sorted by retirement, priority */
+		struct rb_root signals; /* sorted by retirement */
 		struct intel_wait *first_wait; /* oldest waiter by retirement */
 		struct task_struct *tasklet; /* bh for user interrupts */
+		struct task_struct *signaler; /* used for fence signalling */
+		void *first_signal;
 		struct timer_list fake_irq; /* used after a missed interrupt */
 		bool irq_enabled;
 		bool rpm_wakelock;
@@ -187,7 +192,6 @@ struct intel_engine_cs {
 	unsigned irq_refcount; /* protected by dev_priv->irq_lock */
 	bool		irq_posted;
 	u32		irq_enable_mask;	/* bitmask to enable ring interrupt */
-	struct drm_i915_gem_request *trace_irq_req;
 	bool __must_check (*irq_get)(struct intel_engine_cs *ring);
 	void		(*irq_put)(struct intel_engine_cs *ring);
 
@@ -532,6 +536,7 @@ bool intel_engine_add_wait(struct intel_engine_cs *engine,
 			   struct intel_wait *wait);
 void intel_engine_remove_wait(struct intel_engine_cs *engine,
 			      struct intel_wait *wait);
+int intel_engine_enable_signaling(struct drm_i915_gem_request *request);
 
 static inline bool intel_engine_has_waiter(struct intel_engine_cs *engine)
 {
@@ -558,5 +563,6 @@ static inline bool intel_engine_wakeup(struct intel_engine_cs *engine)
 void intel_engine_enable_fake_irq(struct intel_engine_cs *engine);
 void intel_engine_fini_breadcrumbs(struct intel_engine_cs *engine);
 unsigned int intel_kick_waiters(struct drm_i915_private *i915);
+unsigned int intel_kick_signalers(struct drm_i915_private *i915);
 
 #endif /* _INTEL_RINGBUFFER_H_ */
