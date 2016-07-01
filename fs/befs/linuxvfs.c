@@ -179,7 +179,7 @@ befs_lookup(struct inode *dir, struct dentry *dentry, unsigned int flags)
 		kfree(utfname);
 
 	} else {
-		ret = befs_btree_find(sb, ds, dentry->d_name.name, &offset);
+		ret = befs_btree_find(sb, ds, name, &offset);
 	}
 
 	if (ret == BEFS_BT_NOT_FOUND) {
