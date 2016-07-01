@@ -549,10 +549,14 @@ static int dw_mipi_dsi_host_attach(struct mipi_dsi_host *host,
 	dsi->channel = device->channel;
 	dsi->format = device->format;
 	dsi->panel = of_drm_find_panel(device->dev.of_node);
-	if (dsi->panel)
-		return drm_panel_attach(dsi->panel, &dsi->connector);
+	if (!dsi->panel) {
+		DRM_ERROR("failed to find panel\n");
+		return -EPROBE_DEFER;
+	}
 
-	return -EINVAL;
+	drm_panel_attach(dsi->panel, &dsi->connector);
+
+	return 0;
 }
 
 static int dw_mipi_dsi_host_detach(struct mipi_dsi_host *host,
@@ -560,7 +564,8 @@ static int dw_mipi_dsi_host_detach(struct mipi_dsi_host *host,
 {
 	struct dw_mipi_dsi *dsi = host_to_dsi(host);
 
-	drm_panel_detach(dsi->panel);
+	if (dsi->panel)
+		drm_panel_detach(dsi->panel);
 
 	return 0;
 }
