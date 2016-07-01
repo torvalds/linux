@@ -144,6 +144,10 @@
 /* TCO configuration bits for TCOCTL */
 #define TCOCTL_EN		0x0100
 
+/* Auxiliary status register bits, ICH4+ only */
+#define SMBAUXSTS_CRCE		1
+#define SMBAUXSTS_STCO		2
+
 /* Auxiliary control register bits, ICH4+ only */
 #define SMBAUXCTL_CRC		1
 #define SMBAUXCTL_E32B		2
@@ -305,6 +309,29 @@ static int i801_check_pre(struct i801_priv *priv)
 		}
 	}
 
+	/*
+	 * Clear CRC status if needed.
+	 * During normal operation, i801_check_post() takes care
+	 * of it after every operation.  We do it here only in case
+	 * the hardware was already in this state when the driver
+	 * started.
+	 */
+	if (priv->features & FEATURE_SMBUS_PEC) {
+		status = inb_p(SMBAUXSTS(priv)) & SMBAUXSTS_CRCE;
+		if (status) {
+			dev_dbg(&priv->pci_dev->dev,
+				"Clearing aux status flags (%02x)\n", status);
+			outb_p(status, SMBAUXSTS(priv));
+			status = inb_p(SMBAUXSTS(priv)) & SMBAUXSTS_CRCE;
+			if (status) {
+				dev_err(&priv->pci_dev->dev,
+					"Failed clearing aux status flags (%02x)\n",
+					status);
+				return -EBUSY;
+			}
+		}
+	}
+
 	return 0;
 }
 
@@ -348,8 +375,30 @@ static int i801_check_post(struct i801_priv *priv, int status)
 		dev_err(&priv->pci_dev->dev, "Transaction failed\n");
 	}
 	if (status & SMBHSTSTS_DEV_ERR) {
-		result = -ENXIO;
-		dev_dbg(&priv->pci_dev->dev, "No response\n");
+		/*
+		 * This may be a PEC error, check and clear it.
+		 *
+		 * AUXSTS is handled differently from HSTSTS.
+		 * For HSTSTS, i801_isr() or i801_wait_intr()
+		 * has already cleared the error bits in hardware,
+		 * and we are passed a copy of the original value
+		 * in "status".
+		 * For AUXSTS, the hardware register is left
+		 * for us to handle here.
+		 * This is asymmetric, slightly iffy, but safe,
+		 * since all this code is serialized and the CRCE
+		 * bit is harmless as long as it's cleared before
+		 * the next operation.
+		 */
+		if ((priv->features & FEATURE_SMBUS_PEC) &&
+		    (inb_p(SMBAUXSTS(priv)) & SMBAUXSTS_CRCE)) {
+			outb_p(SMBAUXSTS_CRCE, SMBAUXSTS(priv));
+			result = -EBADMSG;
+			dev_dbg(&priv->pci_dev->dev, "PEC error\n");
+		} else {
+			result = -ENXIO;
+			dev_dbg(&priv->pci_dev->dev, "No response\n");
+		}
 	}
 	if (status & SMBHSTSTS_BUS_ERR) {
 		result = -EAGAIN;
