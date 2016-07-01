@@ -17,6 +17,7 @@
 #include "tool.h"
 #include "header.h"
 #include "vdso.h"
+#include "probe-file.h"
 
 
 static bool no_buildid_cache;
@@ -532,6 +533,30 @@ int build_id_cache__list_build_ids(const char *pathname,
 	return ret;
 }
 
+#ifdef HAVE_LIBELF_SUPPORT
+static int build_id_cache__add_sdt_cache(const char *sbuild_id,
+					  const char *realname)
+{
+	struct probe_cache *cache;
+	int ret;
+
+	cache = probe_cache__new(sbuild_id);
+	if (!cache)
+		return -1;
+
+	ret = probe_cache__scan_sdt(cache, realname);
+	if (ret >= 0) {
+		pr_debug("Found %d SDTs in %s\n", ret, realname);
+		if (probe_cache__commit(cache) < 0)
+			ret = -1;
+	}
+	probe_cache__delete(cache);
+	return ret;
+}
+#else
+#define build_id_cache__add_sdt_cache(sbuild_id, realname) (0)
+#endif
+
 int build_id_cache__add_s(const char *sbuild_id, const char *name,
 			  bool is_kallsyms, bool is_vdso)
 {
@@ -589,6 +614,11 @@ int build_id_cache__add_s(const char *sbuild_id, const char *name,
 
 	if (symlink(tmp, linkname) == 0)
 		err = 0;
+
+	/* Update SDT cache : error is just warned */
+	if (build_id_cache__add_sdt_cache(sbuild_id, realname) < 0)
+		pr_debug("Failed to update/scan SDT cache for %s\n", realname);
+
 out_free:
 	if (!is_kallsyms)
 		free(realname);
