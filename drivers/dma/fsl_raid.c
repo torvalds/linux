@@ -337,7 +337,7 @@ static struct dma_async_tx_descriptor *fsl_re_prep_dma_genq(
 
 	re_chan = container_of(chan, struct fsl_re_chan, chan);
 	if (len > FSL_RE_MAX_DATA_LEN) {
-		dev_err(re_chan->dev, "genq tx length %lu, max length %d\n",
+		dev_err(re_chan->dev, "genq tx length %zu, max length %d\n",
 			len, FSL_RE_MAX_DATA_LEN);
 		return NULL;
 	}
@@ -424,7 +424,7 @@ static struct dma_async_tx_descriptor *fsl_re_prep_dma_pq(
 
 	re_chan = container_of(chan, struct fsl_re_chan, chan);
 	if (len > FSL_RE_MAX_DATA_LEN) {
-		dev_err(re_chan->dev, "pq tx length is %lu, max length is %d\n",
+		dev_err(re_chan->dev, "pq tx length is %zu, max length is %d\n",
 			len, FSL_RE_MAX_DATA_LEN);
 		return NULL;
 	}
@@ -545,7 +545,7 @@ static struct dma_async_tx_descriptor *fsl_re_prep_dma_memcpy(
 	re_chan = container_of(chan, struct fsl_re_chan, chan);
 
 	if (len > FSL_RE_MAX_DATA_LEN) {
-		dev_err(re_chan->dev, "cp tx length is %lu, max length is %d\n",
+		dev_err(re_chan->dev, "cp tx length is %zu, max length is %d\n",
 			len, FSL_RE_MAX_DATA_LEN);
 		return NULL;
 	}
