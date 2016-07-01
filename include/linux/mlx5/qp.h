@@ -460,10 +460,9 @@ struct mlx5_core_qp {
 };
 
 struct mlx5_qp_path {
-	u8			fl;
+	u8			fl_free_ar;
 	u8			rsvd3;
-	u8			free_ar;
-	u8			pkey_index;
+	__be16			pkey_index;
 	u8			rsvd0;
 	u8			grh_mlid;
 	__be16			rlid;
@@ -560,6 +559,7 @@ struct mlx5_modify_qp_mbox_in {
 	__be32			optparam;
 	u8			rsvd0[4];
 	struct mlx5_qp_context	ctx;
+	u8			rsvd2[16];
 };
 
 struct mlx5_modify_qp_mbox_out {

@@ -565,7 +565,8 @@ void edac_mc_reset_delay_period(unsigned long value)
 	list_for_each(item, &mc_devices) {
 		mci = list_entry(item, struct mem_ctl_info, link);
 
-		edac_mod_work(&mci->work, value);
+		if (mci->op_state == OP_RUNNING_POLL)
+			edac_mod_work(&mci->work, value);
 	}
 	mutex_unlock(&mem_ctls_mutex);
 }

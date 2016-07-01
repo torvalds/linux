@@ -827,8 +827,10 @@ static uint32_t cail_ioreg_read(struct card_info *info, uint32_t reg)
  */
 static void amdgpu_atombios_fini(struct amdgpu_device *adev)
 {
-	if (adev->mode_info.atom_context)
+	if (adev->mode_info.atom_context) {
 		kfree(adev->mode_info.atom_context->scratch);
+		kfree(adev->mode_info.atom_context->iio);
+	}
 	kfree(adev->mode_info.atom_context);
 	adev->mode_info.atom_context = NULL;
 	kfree(adev->mode_info.atom_card_info);
@@ -1325,6 +1327,11 @@ static int amdgpu_fini(struct amdgpu_device *adev)
 		adev->ip_block_status[i].valid = false;
 	}
 
+	for (i = adev->num_ip_blocks - 1; i >= 0; i--) {
+		if (adev->ip_blocks[i].funcs->late_fini)
+			adev->ip_blocks[i].funcs->late_fini((void *)adev);
+	}
+
 	return 0;
 }
 
@@ -1513,8 +1520,7 @@ int amdgpu_device_init(struct amdgpu_device *adev,
 		amdgpu_atombios_has_gpu_virtualization_table(adev);
 
 	/* Post card if necessary */
-	if (!amdgpu_card_posted(adev) ||
-	    adev->virtualization.supports_sr_iov) {
+	if (!amdgpu_card_posted(adev)) {
 		if (!adev->bios) {
 			dev_err(adev->dev, "Card not posted and no BIOS - ignoring\n");
 			return -EINVAL;

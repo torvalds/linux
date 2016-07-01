@@ -122,6 +122,7 @@ int amdgpu_ib_schedule(struct amdgpu_ring *ring, unsigned num_ibs,
 	bool skip_preamble, need_ctx_switch;
 	unsigned patch_offset = ~0;
 	struct amdgpu_vm *vm;
+	int vmid = 0, old_vmid = ring->vmid;
 	struct fence *hwf;
 	uint64_t ctx;
 
@@ -135,9 +136,11 @@ int amdgpu_ib_schedule(struct amdgpu_ring *ring, unsigned num_ibs,
 	if (job) {
 		vm = job->vm;
 		ctx = job->ctx;
+		vmid = job->vm_id;
 	} else {
 		vm = NULL;
 		ctx = 0;
+		vmid = 0;
 	}
 
 	if (!ring->ready) {
@@ -163,7 +166,8 @@ int amdgpu_ib_schedule(struct amdgpu_ring *ring, unsigned num_ibs,
 		r = amdgpu_vm_flush(ring, job->vm_id, job->vm_pd_addr,
 				    job->gds_base, job->gds_size,
 				    job->gws_base, job->gws_size,
-				    job->oa_base, job->oa_size);
+				    job->oa_base, job->oa_size,
+				    (ring->current_ctx == ctx) && (old_vmid != vmid));
 		if (r) {
 			amdgpu_ring_undo(ring);
 			return r;
@@ -180,7 +184,6 @@ int amdgpu_ib_schedule(struct amdgpu_ring *ring, unsigned num_ibs,
 	need_ctx_switch = ring->current_ctx != ctx;
 	for (i = 0; i < num_ibs; ++i) {
 		ib = &ibs[i];
-
 		/* drop preamble IBs if we don't have a context switch */
 		if ((ib->flags & AMDGPU_IB_FLAG_PREAMBLE) && skip_preamble)
 			continue;
@@ -188,6 +191,7 @@ int amdgpu_ib_schedule(struct amdgpu_ring *ring, unsigned num_ibs,
 		amdgpu_ring_emit_ib(ring, ib, job ? job->vm_id : 0,
 				    need_ctx_switch);
 		need_ctx_switch = false;
+		ring->vmid = vmid;
 	}
 
 	if (ring->funcs->emit_hdp_invalidate)
@@ -198,6 +202,7 @@ int amdgpu_ib_schedule(struct amdgpu_ring *ring, unsigned num_ibs,
 		dev_err(adev->dev, "failed to emit fence (%d)\n", r);
 		if (job && job->vm_id)
 			amdgpu_vm_reset_id(adev, job->vm_id);
+		ring->vmid = old_vmid;
 		amdgpu_ring_undo(ring);
 		return r;
 	}

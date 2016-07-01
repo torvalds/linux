@@ -1337,7 +1337,7 @@ static void cleanup_device_data(struct hfi1_devdata *dd)
 		dma_free_coherent(&dd->pcidev->dev, sizeof(u64),
 				  (void *)dd->rcvhdrtail_dummy_kvaddr,
 				  dd->rcvhdrtail_dummy_physaddr);
-				  dd->rcvhdrtail_dummy_kvaddr = NULL;
+		dd->rcvhdrtail_dummy_kvaddr = NULL;
 	}
 
 	for (ctxt = 0; tmp && ctxt < dd->num_rcv_contexts; ctxt++) {

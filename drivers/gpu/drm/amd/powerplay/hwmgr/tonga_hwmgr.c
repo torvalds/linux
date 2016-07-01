@@ -2847,27 +2847,6 @@ static int tonga_setup_default_dpm_tables(struct pp_hwmgr *hwmgr)
 		}
 	}
 
-	/* Initialize Vddc DPM table based on allow Vddc values.  And populate corresponding std values. */
-	for (i = 0; i < allowed_vdd_sclk_table->count; i++) {
-		data->dpm_table.vddc_table.dpm_levels[i].value = allowed_vdd_mclk_table->entries[i].vddc;
-		/* tonga_hwmgr->dpm_table.VddcTable.dpm_levels[i].param1 = stdVoltageTable->entries[i].Leakage; */
-		/* param1 is for corresponding std voltage */
-		data->dpm_table.vddc_table.dpm_levels[i].enabled = 1;
-	}
-	data->dpm_table.vddc_table.count = allowed_vdd_sclk_table->count;
-
-	if (NULL != allowed_vdd_mclk_table) {
-		/* Initialize Vddci DPM table based on allow Mclk values */
-		for (i = 0; i < allowed_vdd_mclk_table->count; i++) {
-			data->dpm_table.vdd_ci_table.dpm_levels[i].value = allowed_vdd_mclk_table->entries[i].vddci;
-			data->dpm_table.vdd_ci_table.dpm_levels[i].enabled = 1;
-			data->dpm_table.mvdd_table.dpm_levels[i].value = allowed_vdd_mclk_table->entries[i].mvdd;
-			data->dpm_table.mvdd_table.dpm_levels[i].enabled = 1;
-		}
-		data->dpm_table.vdd_ci_table.count = allowed_vdd_mclk_table->count;
-		data->dpm_table.mvdd_table.count = allowed_vdd_mclk_table->count;
-	}
-
 	/* setup PCIE gen speed levels*/
 	tonga_setup_default_pcie_tables(hwmgr);
 

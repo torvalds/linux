@@ -341,6 +341,10 @@
 #define SCALER_DISPLACT0                        0x00000030
 #define SCALER_DISPLACT1                        0x00000034
 #define SCALER_DISPLACT2                        0x00000038
+#define SCALER_DISPLACTX(x)			(SCALER_DISPLACT0 +	\
+						 (x) * (SCALER_DISPLACT1 - \
+							SCALER_DISPLACT0))
+
 #define SCALER_DISPCTRL0                        0x00000040
 # define SCALER_DISPCTRLX_ENABLE		BIT(31)
 # define SCALER_DISPCTRLX_RESET			BIT(30)

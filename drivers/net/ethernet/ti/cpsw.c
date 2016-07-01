@@ -1339,7 +1339,7 @@ static int cpsw_ndo_open(struct net_device *ndev)
 	if (priv->coal_intvl != 0) {
 		struct ethtool_coalesce coal;
 
-		coal.rx_coalesce_usecs = (priv->coal_intvl << 4);
+		coal.rx_coalesce_usecs = priv->coal_intvl;
 		cpsw_set_coalesce(ndev, &coal);
 	}
 

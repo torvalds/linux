@@ -1040,48 +1040,44 @@ int tonga_pp_tables_uninitialize(struct pp_hwmgr *hwmgr)
 	struct phm_ppt_v1_information *pp_table_information =
 		(struct phm_ppt_v1_information *)(hwmgr->pptable);
 
-	if (NULL != hwmgr->soft_pp_table) {
-		kfree(hwmgr->soft_pp_table);
+	if (NULL != hwmgr->soft_pp_table)
 		hwmgr->soft_pp_table = NULL;
-	}
 
-	if (NULL != pp_table_information->vdd_dep_on_sclk)
-		pp_table_information->vdd_dep_on_sclk = NULL;
+	kfree(pp_table_information->vdd_dep_on_sclk);
+	pp_table_information->vdd_dep_on_sclk = NULL;
 
-	if (NULL != pp_table_information->vdd_dep_on_mclk)
-		pp_table_information->vdd_dep_on_mclk = NULL;
+	kfree(pp_table_information->vdd_dep_on_mclk);
+	pp_table_information->vdd_dep_on_mclk = NULL;
 
-	if (NULL != pp_table_information->valid_mclk_values)
-		pp_table_information->valid_mclk_values = NULL;
+	kfree(pp_table_information->valid_mclk_values);
+	pp_table_information->valid_mclk_values = NULL;
 
-	if (NULL != pp_table_information->valid_sclk_values)
-		pp_table_information->valid_sclk_values = NULL;
+	kfree(pp_table_information->valid_sclk_values);
+	pp_table_information->valid_sclk_values = NULL;
 
-	if (NULL != pp_table_information->vddc_lookup_table)
-		pp_table_information->vddc_lookup_table = NULL;
+	kfree(pp_table_information->vddc_lookup_table);
+	pp_table_information->vddc_lookup_table = NULL;
 
-	if (NULL != pp_table_information->vddgfx_lookup_table)
-		pp_table_information->vddgfx_lookup_table = NULL;
+	kfree(pp_table_information->vddgfx_lookup_table);
+	pp_table_information->vddgfx_lookup_table = NULL;
 
-	if (NULL != pp_table_information->mm_dep_table)
-		pp_table_information->mm_dep_table = NULL;
+	kfree(pp_table_information->mm_dep_table);
+	pp_table_information->mm_dep_table = NULL;
 
-	if (NULL != pp_table_information->cac_dtp_table)
-		pp_table_information->cac_dtp_table = NULL;
+	kfree(pp_table_information->cac_dtp_table);
+	pp_table_information->cac_dtp_table = NULL;
 
-	if (NULL != hwmgr->dyn_state.cac_dtp_table)
-		hwmgr->dyn_state.cac_dtp_table = NULL;
+	kfree(hwmgr->dyn_state.cac_dtp_table);
+	hwmgr->dyn_state.cac_dtp_table = NULL;
 
-	if (NULL != pp_table_information->ppm_parameter_table)
-		pp_table_information->ppm_parameter_table = NULL;
+	kfree(pp_table_information->ppm_parameter_table);
+	pp_table_information->ppm_parameter_table = NULL;
 
-	if (NULL != pp_table_information->pcie_table)
-		pp_table_information->pcie_table = NULL;
+	kfree(pp_table_information->pcie_table);
+	pp_table_information->pcie_table = NULL;
 
-	if (NULL != hwmgr->pptable) {
-		kfree(hwmgr->pptable);
-		hwmgr->pptable = NULL;
-	}
+	kfree(hwmgr->pptable);
+	hwmgr->pptable = NULL;
 
 	return result;
 }

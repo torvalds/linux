@@ -117,7 +117,7 @@ static inline void _tlbie_va(unsigned long va, unsigned long pid,
  */
 void radix__local_flush_tlb_mm(struct mm_struct *mm)
 {
-	unsigned int pid;
+	unsigned long pid;
 
 	preempt_disable();
 	pid = mm->context.id;
@@ -130,7 +130,7 @@ EXPORT_SYMBOL(radix__local_flush_tlb_mm);
 void radix___local_flush_tlb_page(struct mm_struct *mm, unsigned long vmaddr,
 			    unsigned long ap, int nid)
 {
-	unsigned int pid;
+	unsigned long pid;
 
 	preempt_disable();
 	pid = mm ? mm->context.id : 0;
@@ -160,7 +160,7 @@ static int mm_is_core_local(struct mm_struct *mm)
 
 void radix__flush_tlb_mm(struct mm_struct *mm)
 {
-	unsigned int pid;
+	unsigned long pid;
 
 	preempt_disable();
 	pid = mm->context.id;
@@ -185,7 +185,7 @@ EXPORT_SYMBOL(radix__flush_tlb_mm);
 void radix___flush_tlb_page(struct mm_struct *mm, unsigned long vmaddr,
 		       unsigned long ap, int nid)
 {
-	unsigned int pid;
+	unsigned long pid;
 
 	preempt_disable();
 	pid = mm ? mm->context.id : 0;

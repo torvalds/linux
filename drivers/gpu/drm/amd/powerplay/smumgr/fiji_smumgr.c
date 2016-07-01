@@ -1006,10 +1006,16 @@ static int fiji_smu_init(struct pp_smumgr *smumgr)
 
 static int fiji_smu_fini(struct pp_smumgr *smumgr)
 {
+	struct fiji_smumgr *priv = (struct fiji_smumgr *)(smumgr->backend);
+
+	smu_free_memory(smumgr->device, (void *)priv->header_buffer.handle);
+
 	if (smumgr->backend) {
 		kfree(smumgr->backend);
 		smumgr->backend = NULL;
 	}
+
+	cgs_rel_firmware(smumgr->device, CGS_UCODE_ID_SMU);
 	return 0;
 }
 
