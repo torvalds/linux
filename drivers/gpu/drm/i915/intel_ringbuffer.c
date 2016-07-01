@@ -2991,25 +2991,29 @@ static void intel_ring_default_vfuncs(struct drm_i915_private *dev_priv,
 	engine->get_seqno = ring_get_seqno;
 	engine->set_seqno = ring_set_seqno;
 
-	if (INTEL_GEN(dev_priv) >= 8) {
+	engine->add_request = i9xx_add_request;
+	if (INTEL_GEN(dev_priv) >= 6)
+		engine->add_request = gen6_add_request;
+
+	if (INTEL_GEN(dev_priv) >= 8)
 		engine->dispatch_execbuffer = gen8_ring_dispatch_execbuffer;
-		engine->add_request = gen6_add_request;
-		engine->irq_seqno_barrier = gen6_seqno_barrier;
-	} else if (INTEL_GEN(dev_priv) >= 6) {
+	else if (INTEL_GEN(dev_priv) >= 6)
 		engine->dispatch_execbuffer = gen6_ring_dispatch_execbuffer;
-		engine->add_request = gen6_add_request;
-		engine->irq_seqno_barrier = gen6_seqno_barrier;
-	} else {
+	else if (INTEL_GEN(dev_priv) >= 4)
 		engine->dispatch_execbuffer = i965_dispatch_execbuffer;
-		engine->add_request = i9xx_add_request;
-	}
+	else if (IS_I830(dev_priv) || IS_845G(dev_priv))
+		engine->dispatch_execbuffer = i830_dispatch_execbuffer;
+	else
+		engine->dispatch_execbuffer = i915_dispatch_execbuffer;
 
 	if (INTEL_GEN(dev_priv) >= 8) {
 		engine->irq_get = gen8_ring_get_irq;
 		engine->irq_put = gen8_ring_put_irq;
+		engine->irq_seqno_barrier = gen6_seqno_barrier;
 	} else if (INTEL_GEN(dev_priv) >= 6) {
 		engine->irq_get = gen6_ring_get_irq;
 		engine->irq_put = gen6_ring_put_irq;
+		engine->irq_seqno_barrier = gen6_seqno_barrier;
 	} else if (INTEL_GEN(dev_priv) >= 5) {
 		engine->irq_get = gen5_ring_get_irq;
 		engine->irq_put = gen5_ring_put_irq;
@@ -3069,10 +3073,7 @@ int intel_init_render_ring_buffer(struct drm_device *dev)
 
 	if (IS_HASWELL(dev_priv))
 		engine->dispatch_execbuffer = hsw_ring_dispatch_execbuffer;
-	else if (IS_I830(dev_priv) || IS_845G(dev_priv))
-		engine->dispatch_execbuffer = i830_dispatch_execbuffer;
-	else if (INTEL_GEN(dev_priv) <= 3)
-		engine->dispatch_execbuffer = i915_dispatch_execbuffer;
+
 	engine->init_hw = init_render_ring;
 	engine->cleanup = render_ring_cleanup;
 
