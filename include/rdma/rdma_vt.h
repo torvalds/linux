@@ -351,6 +351,9 @@ struct rvt_dev_info {
 	/* Driver specific properties */
 	struct rvt_driver_params dparms;
 
+	/* post send table */
+	const struct rvt_operation_params *post_parms;
+
 	struct rvt_mregion __rcu *dma_mr;
 	struct rvt_lkey_table lkey_table;
 

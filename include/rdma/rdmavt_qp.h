@@ -228,11 +228,31 @@ struct rvt_ack_entry {
 
 #define	RC_QP_SCALING_INTERVAL	5
 
-/*
- * Variables prefixed with s_ are for the requester (sender).
- * Variables prefixed with r_ are for the responder (receiver).
- * Variables prefixed with ack_ are for responder replies.
+#define RVT_OPERATION_PRIV        0x00000001
+#define RVT_OPERATION_ATOMIC      0x00000002
+#define RVT_OPERATION_ATOMIC_SGE  0x00000004
+
+#define RVT_OPERATION_MAX (IB_WR_RESERVED10 + 1)
+
+/**
+ * rvt_operation_params - op table entry
+ * @length - the length to copy into the swqe entry
+ * @qpt_support - a bit mask indicating QP type support
+ * @flags - RVT_OPERATION flags (see above)
  *
+ * This supports table driven post send so that
+ * the driver can have differing an potentially
+ * different sets of operations.
+ *
+ **/
+
+struct rvt_operation_params {
+	size_t length;
+	u32 qpt_support;
+	u32 flags;
+};
+
+/*
  * Common variables are protected by both r_rq.lock and s_lock in that order
  * which only happens in modify_qp() or changing the QP 'state'.
  */

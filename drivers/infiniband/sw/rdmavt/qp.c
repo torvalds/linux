@@ -613,6 +613,7 @@ struct ib_qp *rvt_create_qp(struct ib_pd *ibpd,
 	struct rvt_dev_info *rdi = ib_to_rvt(ibpd->device);
 	void *priv = NULL;
 	gfp_t gfp;
+	size_t sqsize;
 
 	if (!rdi)
 		return ERR_PTR(-EINVAL);
@@ -643,7 +644,8 @@ struct ib_qp *rvt_create_qp(struct ib_pd *ibpd,
 		    init_attr->cap.max_recv_wr == 0)
 			return ERR_PTR(-EINVAL);
 	}
-
+	sqsize =
+		init_attr->cap.max_send_wr + 1;
 	switch (init_attr->qp_type) {
 	case IB_QPT_SMI:
 	case IB_QPT_GSI:
@@ -658,11 +660,11 @@ struct ib_qp *rvt_create_qp(struct ib_pd *ibpd,
 			sizeof(struct rvt_swqe);
 		if (gfp == GFP_NOIO)
 			swq = __vmalloc(
-				(init_attr->cap.max_send_wr + 1) * sz,
+				sqsize * sz,
 				gfp | __GFP_ZERO, PAGE_KERNEL);
 		else
 			swq = vzalloc_node(
-				(init_attr->cap.max_send_wr + 1) * sz,
+				sqsize * sz,
 				rdi->dparms.node);
 		if (!swq)
 			return ERR_PTR(-ENOMEM);
@@ -747,7 +749,7 @@ struct ib_qp *rvt_create_qp(struct ib_pd *ibpd,
 		INIT_LIST_HEAD(&qp->rspwait);
 		qp->state = IB_QPS_RESET;
 		qp->s_wq = swq;
-		qp->s_size = init_attr->cap.max_send_wr + 1;
+		qp->s_size = sqsize;
 		qp->s_avail = init_attr->cap.max_send_wr;
 		qp->s_max_sge = init_attr->cap.max_send_sge;
 		if (init_attr->sq_sig_type == IB_SIGNAL_REQ_WR)
@@ -1440,12 +1442,65 @@ int rvt_post_recv(struct ib_qp *ibqp, struct ib_recv_wr *wr,
 }
 
 /**
- * qp_get_savail - return number of avail send entries
+ * rvt_qp_valid_operation - validate post send wr request
+ * @qp - the qp
+ * @post-parms - the post send table for the driver
+ * @wr - the work request
  *
+ * The routine validates the operation based on the
+ * validation table an returns the length of the operation
+ * which can extend beyond the ib_send_bw.  Operation
+ * dependent flags key atomic operation validation.
+ *
+ * There is an exception for UD qps that validates the pd and
+ * overrides the length to include the additional UD specific
+ * length.
+ *
+ * Returns a negative error or the length of the work request
+ * for building the swqe.
+ */
+static inline int rvt_qp_valid_operation(
+	struct rvt_qp *qp,
+	const struct rvt_operation_params *post_parms,
+	struct ib_send_wr *wr)
+{
+	int len;
+
+	if (wr->opcode >= RVT_OPERATION_MAX || !post_parms[wr->opcode].length)
+		return -EINVAL;
+	if (!(post_parms[wr->opcode].qpt_support & BIT(qp->ibqp.qp_type)))
+		return -EINVAL;
+	if ((post_parms[wr->opcode].flags & RVT_OPERATION_PRIV) &&
+	    ibpd_to_rvtpd(qp->ibqp.pd)->user)
+		return -EINVAL;
+	if (post_parms[wr->opcode].flags & RVT_OPERATION_ATOMIC_SGE &&
+	    (wr->num_sge == 0 ||
+	     wr->sg_list[0].length < sizeof(u64) ||
+	     wr->sg_list[0].addr & (sizeof(u64) - 1)))
+		return -EINVAL;
+	if (post_parms[wr->opcode].flags & RVT_OPERATION_ATOMIC &&
+	    !qp->s_max_rd_atomic)
+		return -EINVAL;
+	len = post_parms[wr->opcode].length;
+	/* UD specific */
+	if (qp->ibqp.qp_type != IB_QPT_UC &&
+	    qp->ibqp.qp_type != IB_QPT_RC) {
+		if (qp->ibqp.pd != ud_wr(wr)->ah->pd)
+			return -EINVAL;
+		len = sizeof(struct ib_ud_wr);
+	}
+	return len;
+}
+
+/**
+ * qp_get_savail - return number of avail send entries
  * @qp - the qp
  *
  * This assumes the s_hlock is held but the s_last
  * qp variable is uncontrolled.
+ *
+ * The return is adjusted to not count device specific
+ * reserved operations.
  */
 static inline u32 qp_get_savail(struct rvt_qp *qp)
 {
@@ -1480,6 +1535,8 @@ static int rvt_post_one_wr(struct rvt_qp *qp,
 	struct rvt_dev_info *rdi = ib_to_rvt(qp->ibqp.device);
 	u8 log_pmtu;
 	int ret;
+
+	BUILD_BUG_ON(IB_QPT_MAX >= (sizeof(u32) * BITS_PER_BYTE));
 
 	/* IB spec says that num_sge == 0 is OK. */
 	if (unlikely(wr->num_sge > qp->s_max_sge))
