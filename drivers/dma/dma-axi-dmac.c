@@ -579,7 +579,9 @@ static int axi_dmac_probe(struct platform_device *pdev)
 		return -ENOMEM;
 
 	dmac->irq = platform_get_irq(pdev, 0);
-	if (dmac->irq <= 0)
+	if (dmac->irq < 0)
+		return dmac->irq;
+	if (dmac->irq == 0)
 		return -EINVAL;
 
 	res = platform_get_resource(pdev, IORESOURCE_MEM, 0);
