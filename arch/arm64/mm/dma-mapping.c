@@ -861,15 +861,16 @@ static int __iommu_attach_notifier(struct notifier_block *nb,
 {
 	struct iommu_dma_notifier_data *master, *tmp;
 
-	if (action != BUS_NOTIFY_ADD_DEVICE)
+	if (action != BUS_NOTIFY_BIND_DRIVER)
 		return 0;
 
 	mutex_lock(&iommu_dma_notifier_lock);
 	list_for_each_entry_safe(master, tmp, &iommu_dma_masters, list) {
-		if (do_iommu_attach(master->dev, master->ops,
-				master->dma_base, master->size)) {
+		if (data == master->dev && do_iommu_attach(master->dev,
+				master->ops, master->dma_base, master->size)) {
 			list_del(&master->list);
 			kfree(master);
+			break;
 		}
 	}
 	mutex_unlock(&iommu_dma_notifier_lock);
@@ -883,17 +884,8 @@ static int __init register_iommu_dma_ops_notifier(struct bus_type *bus)
 
 	if (!nb)
 		return -ENOMEM;
-	/*
-	 * The device must be attached to a domain before the driver probe
-	 * routine gets a chance to start allocating DMA buffers. However,
-	 * the IOMMU driver also needs a chance to configure the iommu_group
-	 * via its add_device callback first, so we need to make the attach
-	 * happen between those two points. Since the IOMMU core uses a bus
-	 * notifier with default priority for add_device, do the same but
-	 * with a lower priority to ensure the appropriate ordering.
-	 */
+
 	nb->notifier_call = __iommu_attach_notifier;
-	nb->priority = -100;
 
 	ret = bus_register_notifier(bus, nb);
 	if (ret) {
@@ -917,10 +909,6 @@ static int __init __iommu_dma_init(void)
 	if (!ret)
 		ret = register_iommu_dma_ops_notifier(&pci_bus_type);
 #endif
-
-	/* handle devices queued before this arch_initcall */
-	if (!ret)
-		__iommu_attach_notifier(NULL, BUS_NOTIFY_ADD_DEVICE, NULL);
 	return ret;
 }
 arch_initcall(__iommu_dma_init);
