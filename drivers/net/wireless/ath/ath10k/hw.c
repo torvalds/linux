@@ -204,7 +204,8 @@ void ath10k_hw_fill_survey_time(struct ath10k *ar, struct survey_info *survey,
 		case ATH10K_HW_CC_WRAP_SHIFTED_EACH:
 			if (cc < cc_prev)
 				cc_fix = 0x7fffffff;
-			else
+
+			if (rcc < rcc_prev)
 				rcc_fix = 0x7fffffff;
 			break;
 		case ATH10K_HW_CC_WRAP_DISABLED:
