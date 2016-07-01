@@ -56,7 +56,7 @@
 #define TRACE_SYSTEM hfi1_ctxts
 
 #define UCTXT_FMT \
-	"cred:%u, credaddr:0x%llx, piobase:0x%llx, rcvhdr_cnt:%u, "	\
+	"cred:%u, credaddr:0x%llx, piobase:0x%p, rcvhdr_cnt:%u, "	\
 	"rcvbase:0x%llx, rcvegrc:%u, rcvegrb:0x%llx"
 TRACE_EVENT(hfi1_uctxtdata,
 	    TP_PROTO(struct hfi1_devdata *dd, struct hfi1_ctxtdata *uctxt),
@@ -65,7 +65,7 @@ TRACE_EVENT(hfi1_uctxtdata,
 			     __field(unsigned int, ctxt)
 			     __field(u32, credits)
 			     __field(u64, hw_free)
-			     __field(u64, piobase)
+			     __field(void __iomem *, piobase)
 			     __field(u16, rcvhdrq_cnt)
 			     __field(u64, rcvhdrq_phys)
 			     __field(u32, eager_cnt)
@@ -74,8 +74,8 @@ TRACE_EVENT(hfi1_uctxtdata,
 	    TP_fast_assign(DD_DEV_ASSIGN(dd);
 			   __entry->ctxt = uctxt->ctxt;
 			   __entry->credits = uctxt->sc->credits;
-			   __entry->hw_free = (u64)uctxt->sc->hw_free;
-			   __entry->piobase = (u64)uctxt->sc->base_addr;
+			   __entry->hw_free = le64_to_cpu(*uctxt->sc->hw_free);
+			   __entry->piobase = uctxt->sc->base_addr;
 			   __entry->rcvhdrq_cnt = uctxt->rcvhdrq_cnt;
 			   __entry->rcvhdrq_phys = uctxt->rcvhdrq_phys;
 			   __entry->eager_cnt = uctxt->egrbufs.alloced;

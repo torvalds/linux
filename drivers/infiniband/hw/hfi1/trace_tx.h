@@ -369,22 +369,22 @@ TRACE_EVENT(hfi1_sdma_user_header,
 		    __field(u16, ctxt)
 		    __field(u8, subctxt)
 		    __field(u16, req)
-		    __field(__le32, pbc0)
-		    __field(__le32, pbc1)
-		    __field(__be32, lrh0)
-		    __field(__be32, lrh1)
-		    __field(__be32, bth0)
-		    __field(__be32, bth1)
-		    __field(__be32, bth2)
-		    __field(__le32, kdeth0)
-		    __field(__le32, kdeth1)
-		    __field(__le32, kdeth2)
-		    __field(__le32, kdeth3)
-		    __field(__le32, kdeth4)
-		    __field(__le32, kdeth5)
-		    __field(__le32, kdeth6)
-		    __field(__le32, kdeth7)
-		    __field(__le32, kdeth8)
+		    __field(u32, pbc0)
+		    __field(u32, pbc1)
+		    __field(u32, lrh0)
+		    __field(u32, lrh1)
+		    __field(u32, bth0)
+		    __field(u32, bth1)
+		    __field(u32, bth2)
+		    __field(u32, kdeth0)
+		    __field(u32, kdeth1)
+		    __field(u32, kdeth2)
+		    __field(u32, kdeth3)
+		    __field(u32, kdeth4)
+		    __field(u32, kdeth5)
+		    __field(u32, kdeth6)
+		    __field(u32, kdeth7)
+		    __field(u32, kdeth8)
 		    __field(u32, tidval)
 		    ),
 		    TP_fast_assign(
@@ -397,22 +397,22 @@ TRACE_EVENT(hfi1_sdma_user_header,
 		    __entry->ctxt = ctxt;
 		    __entry->subctxt = subctxt;
 		    __entry->req = req;
-		    __entry->pbc0 = pbc[0];
-		    __entry->pbc1 = pbc[1];
+		    __entry->pbc0 = le32_to_cpu(pbc[0]);
+		    __entry->pbc1 = le32_to_cpu(pbc[1]);
 		    __entry->lrh0 = be32_to_cpu(lrh[0]);
 		    __entry->lrh1 = be32_to_cpu(lrh[1]);
 		    __entry->bth0 = be32_to_cpu(bth[0]);
 		    __entry->bth1 = be32_to_cpu(bth[1]);
 		    __entry->bth2 = be32_to_cpu(bth[2]);
-		    __entry->kdeth0 = kdeth[0];
-		    __entry->kdeth1 = kdeth[1];
-		    __entry->kdeth2 = kdeth[2];
-		    __entry->kdeth3 = kdeth[3];
-		    __entry->kdeth4 = kdeth[4];
-		    __entry->kdeth5 = kdeth[5];
-		    __entry->kdeth6 = kdeth[6];
-		    __entry->kdeth7 = kdeth[7];
-		    __entry->kdeth8 = kdeth[8];
+		    __entry->kdeth0 = le32_to_cpu(kdeth[0]);
+		    __entry->kdeth1 = le32_to_cpu(kdeth[1]);
+		    __entry->kdeth2 = le32_to_cpu(kdeth[2]);
+		    __entry->kdeth3 = le32_to_cpu(kdeth[3]);
+		    __entry->kdeth4 = le32_to_cpu(kdeth[4]);
+		    __entry->kdeth5 = le32_to_cpu(kdeth[5]);
+		    __entry->kdeth6 = le32_to_cpu(kdeth[6]);
+		    __entry->kdeth7 = le32_to_cpu(kdeth[7]);
+		    __entry->kdeth8 = le32_to_cpu(kdeth[8]);
 		    __entry->tidval = tidval;
 	    ),
 	    TP_printk(USDMA_HDR_FORMAT,
