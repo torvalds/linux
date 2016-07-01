@@ -183,10 +183,6 @@ alternative_else_nop_endif
 	eret					// return to kernel
 	.endm
 
-	.macro	get_thread_info, rd
-	mrs	\rd, sp_el0
-	.endm
-
 	.macro	irq_stack_entry
 	mov	x19, sp			// preserve the original sp
 
