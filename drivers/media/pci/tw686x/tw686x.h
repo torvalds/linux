@@ -106,7 +106,6 @@ struct tw686x_video_channel {
 
 struct tw686x_dma_ops {
 	int (*setup)(struct tw686x_dev *dev);
-	void (*cleanup)(struct tw686x_dev *dev);
 	int (*alloc)(struct tw686x_video_channel *vc, unsigned int pb);
 	void (*free)(struct tw686x_video_channel *vc, unsigned int pb);
 	void (*buf_refill)(struct tw686x_video_channel *vc, unsigned int pb);
@@ -131,8 +130,6 @@ struct tw686x_dev {
 	unsigned int dma_mode;
 	struct pci_dev *pci_dev;
 	__u32 __iomem *mmio;
-
-	void *alloc_ctx;
 
 	const struct tw686x_dma_ops *dma_ops;
 	struct tw686x_video_channel *video_channels;

@@ -177,24 +177,7 @@ static void tw686x_contig_buf_refill(struct tw686x_video_channel *vc,
 	vc->curr_bufs[pb] = NULL;
 }
 
-static void tw686x_contig_cleanup(struct tw686x_dev *dev)
-{
-	vb2_dma_contig_cleanup_ctx(dev->alloc_ctx);
-}
-
-static int tw686x_contig_setup(struct tw686x_dev *dev)
-{
-	dev->alloc_ctx = vb2_dma_contig_init_ctx(&dev->pci_dev->dev);
-	if (IS_ERR(dev->alloc_ctx)) {
-		dev_err(&dev->pci_dev->dev, "unable to init DMA context\n");
-		return PTR_ERR(dev->alloc_ctx);
-	}
-	return 0;
-}
-
 const struct tw686x_dma_ops contig_dma_ops = {
-	.setup		= tw686x_contig_setup,
-	.cleanup	= tw686x_contig_cleanup,
 	.buf_refill	= tw686x_contig_buf_refill,
 	.mem_ops	= &vb2_dma_contig_memops,
 	.hw_dma_mode	= TW686X_FRAME_MODE,
@@ -316,20 +299,9 @@ static int tw686x_sg_dma_alloc(struct tw686x_video_channel *vc,
 	return 0;
 }
 
-static void tw686x_sg_cleanup(struct tw686x_dev *dev)
-{
-	vb2_dma_sg_cleanup_ctx(dev->alloc_ctx);
-}
-
 static int tw686x_sg_setup(struct tw686x_dev *dev)
 {
 	unsigned int sg_table_size, pb, ch, channels;
-
-	dev->alloc_ctx = vb2_dma_sg_init_ctx(&dev->pci_dev->dev);
-	if (IS_ERR(dev->alloc_ctx)) {
-		dev_err(&dev->pci_dev->dev, "unable to init DMA context\n");
-		return PTR_ERR(dev->alloc_ctx);
-	}
 
 	if (is_second_gen(dev)) {
 		/*
@@ -360,7 +332,6 @@ static int tw686x_sg_setup(struct tw686x_dev *dev)
 
 const struct tw686x_dma_ops sg_dma_ops = {
 	.setup		= tw686x_sg_setup,
-	.cleanup	= tw686x_sg_cleanup,
 	.alloc		= tw686x_sg_dma_alloc,
 	.free		= tw686x_sg_dma_free,
 	.buf_refill	= tw686x_sg_buf_refill,
@@ -449,7 +420,6 @@ static int tw686x_queue_setup(struct vb2_queue *vq,
 		return 0;
 	}
 
-	alloc_ctxs[0] = vc->dev->alloc_ctx;
 	sizes[0] = szimage;
 	*nplanes = 1;
 	return 0;
@@ -1063,9 +1033,6 @@ void tw686x_video_free(struct tw686x_dev *dev)
 			for (pb = 0; pb < 2; pb++)
 				dev->dma_ops->free(vc, pb);
 	}
-
-	if (dev->dma_ops->cleanup)
-		dev->dma_ops->cleanup(dev);
 }
 
 int tw686x_video_init(struct tw686x_dev *dev)
@@ -1135,6 +1102,7 @@ int tw686x_video_init(struct tw686x_dev *dev)
 		vc->vidq.min_buffers_needed = 2;
 		vc->vidq.lock = &vc->vb_mutex;
 		vc->vidq.gfp_flags = GFP_DMA32;
+		vc->vidq.dev = &dev->pci_dev->dev;
 
 		err = vb2_queue_init(&vc->vidq);
 		if (err) {
