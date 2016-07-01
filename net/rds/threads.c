@@ -125,6 +125,11 @@ void rds_queue_reconnect(struct rds_conn_path *cp)
 	  conn, &conn->c_laddr, &conn->c_faddr,
 	  cp->cp_reconnect_jiffies);
 
+	/* let peer with smaller addr initiate reconnect, to avoid duels */
+	if (conn->c_trans->t_type == RDS_TRANS_TCP &&
+	    conn->c_laddr > conn->c_faddr)
+		return;
+
 	set_bit(RDS_RECONNECT_PENDING, &cp->cp_flags);
 	if (cp->cp_reconnect_jiffies == 0) {
 		cp->cp_reconnect_jiffies = rds_sysctl_reconnect_min_jiffies;
@@ -152,8 +157,9 @@ void rds_connect_worker(struct work_struct *work)
 	int ret;
 
 	clear_bit(RDS_RECONNECT_PENDING, &cp->cp_flags);
-	if (rds_conn_path_transition(cp, RDS_CONN_DOWN, RDS_CONN_CONNECTING)) {
-		ret = conn->c_trans->conn_connect(conn);
+	ret = rds_conn_path_transition(cp, RDS_CONN_DOWN, RDS_CONN_CONNECTING);
+	if (ret) {
+		ret = conn->c_trans->conn_path_connect(cp);
 		rdsdebug("conn %p for %pI4 to %pI4 dispatched, ret %d\n",
 			conn, &conn->c_laddr, &conn->c_faddr, ret);
 
@@ -203,7 +209,7 @@ void rds_recv_worker(struct work_struct *work)
 	int ret;
 
 	if (rds_conn_path_state(cp) == RDS_CONN_UP) {
-		ret = cp->cp_conn->c_trans->recv(cp->cp_conn);
+		ret = cp->cp_conn->c_trans->recv_path(cp);
 		rdsdebug("conn %p ret %d\n", cp->cp_conn, ret);
 		switch (ret) {
 		case -EAGAIN:

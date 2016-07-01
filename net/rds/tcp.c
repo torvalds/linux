@@ -136,9 +136,9 @@ void rds_tcp_restore_callbacks(struct socket *sock,
  * from being called while it isn't set.
  */
 void rds_tcp_reset_callbacks(struct socket *sock,
-			     struct rds_connection *conn)
+			     struct rds_conn_path *cp)
 {
-	struct rds_tcp_connection *tc = conn->c_transport_data;
+	struct rds_tcp_connection *tc = cp->cp_transport_data;
 	struct socket *osock = tc->t_sock;
 
 	if (!osock)
@@ -148,8 +148,8 @@ void rds_tcp_reset_callbacks(struct socket *sock,
 	 * We have an outstanding SYN to this peer, which may
 	 * potentially have transitioned to the RDS_CONN_UP state,
 	 * so we must quiesce any send threads before resetting
-	 * c_transport_data. We quiesce these threads by setting
-	 * c_state to something other than RDS_CONN_UP, and then
+	 * cp_transport_data. We quiesce these threads by setting
+	 * cp_state to something other than RDS_CONN_UP, and then
 	 * waiting for any existing threads in rds_send_xmit to
 	 * complete release_in_xmit(). (Subsequent threads entering
 	 * rds_send_xmit() will bail on !rds_conn_up().
@@ -164,8 +164,8 @@ void rds_tcp_reset_callbacks(struct socket *sock,
 	 * RDS_CONN_RESETTTING, to ensure that rds_tcp_state_change
 	 * cannot mark rds_conn_path_up() in the window before lock_sock()
 	 */
-	atomic_set(&conn->c_state, RDS_CONN_RESETTING);
-	wait_event(conn->c_waitq, !test_bit(RDS_IN_XMIT, &conn->c_flags));
+	atomic_set(&cp->cp_state, RDS_CONN_RESETTING);
+	wait_event(cp->cp_waitq, !test_bit(RDS_IN_XMIT, &cp->cp_flags));
 	lock_sock(osock->sk);
 	/* reset receive side state for rds_tcp_data_recv() for osock  */
 	if (tc->t_tinc) {
@@ -186,11 +186,12 @@ void rds_tcp_reset_callbacks(struct socket *sock,
 	release_sock(osock->sk);
 	sock_release(osock);
 newsock:
-	rds_send_path_reset(&conn->c_path[0]);
+	rds_send_path_reset(cp);
 	lock_sock(sock->sk);
 	write_lock_bh(&sock->sk->sk_callback_lock);
 	tc->t_sock = sock;
-	sock->sk->sk_user_data = conn;
+	tc->t_cpath = cp;
+	sock->sk->sk_user_data = cp;
 	sock->sk->sk_data_ready = rds_tcp_data_ready;
 	sock->sk->sk_write_space = rds_tcp_write_space;
 	sock->sk->sk_state_change = rds_tcp_state_change;
@@ -203,9 +204,9 @@ newsock:
  * above rds_tcp_reset_callbacks for notes about synchronization
  * with data path
  */
-void rds_tcp_set_callbacks(struct socket *sock, struct rds_connection *conn)
+void rds_tcp_set_callbacks(struct socket *sock, struct rds_conn_path *cp)
 {
-	struct rds_tcp_connection *tc = conn->c_transport_data;
+	struct rds_tcp_connection *tc = cp->cp_transport_data;
 
 	rdsdebug("setting sock %p callbacks to tc %p\n", sock, tc);
 	write_lock_bh(&sock->sk->sk_callback_lock);
@@ -221,12 +222,12 @@ void rds_tcp_set_callbacks(struct socket *sock, struct rds_connection *conn)
 		sock->sk->sk_data_ready = sock->sk->sk_user_data;
 
 	tc->t_sock = sock;
-	tc->conn = conn;
+	tc->t_cpath = cp;
 	tc->t_orig_data_ready = sock->sk->sk_data_ready;
 	tc->t_orig_write_space = sock->sk->sk_write_space;
 	tc->t_orig_state_change = sock->sk->sk_state_change;
 
-	sock->sk->sk_user_data = conn;
+	sock->sk->sk_user_data = cp;
 	sock->sk->sk_data_ready = rds_tcp_data_ready;
 	sock->sk->sk_write_space = rds_tcp_write_space;
 	sock->sk->sk_state_change = rds_tcp_state_change;
@@ -284,24 +285,29 @@ static int rds_tcp_laddr_check(struct net *net, __be32 addr)
 static int rds_tcp_conn_alloc(struct rds_connection *conn, gfp_t gfp)
 {
 	struct rds_tcp_connection *tc;
+	int i;
 
-	tc = kmem_cache_alloc(rds_tcp_conn_slab, gfp);
-	if (!tc)
-		return -ENOMEM;
+	for (i = 0; i < RDS_MPATH_WORKERS; i++) {
+		tc = kmem_cache_alloc(rds_tcp_conn_slab, gfp);
+		if (!tc)
+			return -ENOMEM;
 
-	mutex_init(&tc->t_conn_lock);
-	tc->t_sock = NULL;
-	tc->t_tinc = NULL;
-	tc->t_tinc_hdr_rem = sizeof(struct rds_header);
-	tc->t_tinc_data_rem = 0;
+		mutex_init(&tc->t_conn_path_lock);
+		tc->t_sock = NULL;
+		tc->t_tinc = NULL;
+		tc->t_tinc_hdr_rem = sizeof(struct rds_header);
+		tc->t_tinc_data_rem = 0;
 
-	conn->c_transport_data = tc;
+		conn->c_path[i].cp_transport_data = tc;
+		tc->t_cpath = &conn->c_path[i];
 
-	spin_lock_irq(&rds_tcp_conn_lock);
-	list_add_tail(&tc->t_tcp_node, &rds_tcp_conn_list);
-	spin_unlock_irq(&rds_tcp_conn_lock);
+		spin_lock_irq(&rds_tcp_conn_lock);
+		list_add_tail(&tc->t_tcp_node, &rds_tcp_conn_list);
+		spin_unlock_irq(&rds_tcp_conn_lock);
+		rdsdebug("rds_conn_path [%d] tc %p\n", i,
+			 conn->c_path[i].cp_transport_data);
+	}
 
-	rdsdebug("alloced tc %p\n", conn->c_transport_data);
 	return 0;
 }
 
@@ -318,6 +324,17 @@ static void rds_tcp_conn_free(void *arg)
 	kmem_cache_free(rds_tcp_conn_slab, tc);
 }
 
+static bool list_has_conn(struct list_head *list, struct rds_connection *conn)
+{
+	struct rds_tcp_connection *tc, *_tc;
+
+	list_for_each_entry_safe(tc, _tc, list, t_tcp_node) {
+		if (tc->t_cpath->cp_conn == conn)
+			return true;
+	}
+	return false;
+}
+
 static void rds_tcp_destroy_conns(void)
 {
 	struct rds_tcp_connection *tc, *_tc;
@@ -325,29 +342,28 @@ static void rds_tcp_destroy_conns(void)
 
 	/* avoid calling conn_destroy with irqs off */
 	spin_lock_irq(&rds_tcp_conn_lock);
-	list_splice(&rds_tcp_conn_list, &tmp_list);
-	INIT_LIST_HEAD(&rds_tcp_conn_list);
+	list_for_each_entry_safe(tc, _tc, &rds_tcp_conn_list, t_tcp_node) {
+		if (!list_has_conn(&tmp_list, tc->t_cpath->cp_conn))
+			list_move_tail(&tc->t_tcp_node, &tmp_list);
+	}
 	spin_unlock_irq(&rds_tcp_conn_lock);
 
-	list_for_each_entry_safe(tc, _tc, &tmp_list, t_tcp_node) {
-		if (tc->conn->c_passive)
-			rds_conn_destroy(tc->conn->c_passive);
-		rds_conn_destroy(tc->conn);
-	}
+	list_for_each_entry_safe(tc, _tc, &tmp_list, t_tcp_node)
+		rds_conn_destroy(tc->t_cpath->cp_conn);
 }
 
 static void rds_tcp_exit(void);
 
 struct rds_transport rds_tcp_transport = {
 	.laddr_check		= rds_tcp_laddr_check,
-	.xmit_prepare		= rds_tcp_xmit_prepare,
-	.xmit_complete		= rds_tcp_xmit_complete,
+	.xmit_path_prepare	= rds_tcp_xmit_path_prepare,
+	.xmit_path_complete	= rds_tcp_xmit_path_complete,
 	.xmit			= rds_tcp_xmit,
-	.recv			= rds_tcp_recv,
+	.recv_path		= rds_tcp_recv_path,
 	.conn_alloc		= rds_tcp_conn_alloc,
 	.conn_free		= rds_tcp_conn_free,
-	.conn_connect		= rds_tcp_conn_connect,
-	.conn_shutdown		= rds_tcp_conn_shutdown,
+	.conn_path_connect	= rds_tcp_conn_path_connect,
+	.conn_path_shutdown	= rds_tcp_conn_path_shutdown,
 	.inc_copy_to_user	= rds_tcp_inc_copy_to_user,
 	.inc_free		= rds_tcp_inc_free,
 	.stats_info_copy	= rds_tcp_stats_info_copy,
@@ -489,10 +505,30 @@ static struct pernet_operations rds_tcp_net_ops = {
 	.size = sizeof(struct rds_tcp_net),
 };
 
+/* explicitly send a RST on each socket, thereby releasing any socket refcnts
+ * that may otherwise hold up netns deletion.
+ */
+static void rds_tcp_conn_paths_destroy(struct rds_connection *conn)
+{
+	struct rds_conn_path *cp;
+	struct rds_tcp_connection *tc;
+	int i;
+	struct sock *sk;
+
+	for (i = 0; i < RDS_MPATH_WORKERS; i++) {
+		cp = &conn->c_path[i];
+		tc = cp->cp_transport_data;
+		if (!tc->t_sock)
+			continue;
+		sk = tc->t_sock->sk;
+		sk->sk_prot->disconnect(sk, 0);
+		tcp_done(sk);
+	}
+}
+
 static void rds_tcp_kill_sock(struct net *net)
 {
 	struct rds_tcp_connection *tc, *_tc;
-	struct sock *sk;
 	LIST_HEAD(tmp_list);
 	struct rds_tcp_net *rtn = net_generic(net, rds_tcp_netid);
 
@@ -501,20 +537,17 @@ static void rds_tcp_kill_sock(struct net *net)
 	flush_work(&rtn->rds_tcp_accept_w);
 	spin_lock_irq(&rds_tcp_conn_lock);
 	list_for_each_entry_safe(tc, _tc, &rds_tcp_conn_list, t_tcp_node) {
-		struct net *c_net = read_pnet(&tc->conn->c_net);
+		struct net *c_net = read_pnet(&tc->t_cpath->cp_conn->c_net);
 
 		if (net != c_net || !tc->t_sock)
 			continue;
-		list_move_tail(&tc->t_tcp_node, &tmp_list);
+		if (!list_has_conn(&tmp_list, tc->t_cpath->cp_conn))
+			list_move_tail(&tc->t_tcp_node, &tmp_list);
 	}
 	spin_unlock_irq(&rds_tcp_conn_lock);
 	list_for_each_entry_safe(tc, _tc, &tmp_list, t_tcp_node) {
-		sk = tc->t_sock->sk;
-		sk->sk_prot->disconnect(sk, 0);
-		tcp_done(sk);
-		if (tc->conn->c_passive)
-			rds_conn_destroy(tc->conn->c_passive);
-		rds_conn_destroy(tc->conn);
+		rds_tcp_conn_paths_destroy(tc->t_cpath->cp_conn);
+		rds_conn_destroy(tc->t_cpath->cp_conn);
 	}
 }
 
@@ -552,12 +585,13 @@ static void rds_tcp_sysctl_reset(struct net *net)
 
 	spin_lock_irq(&rds_tcp_conn_lock);
 	list_for_each_entry_safe(tc, _tc, &rds_tcp_conn_list, t_tcp_node) {
-		struct net *c_net = read_pnet(&tc->conn->c_net);
+		struct net *c_net = read_pnet(&tc->t_cpath->cp_conn->c_net);
 
 		if (net != c_net || !tc->t_sock)
 			continue;
 
-		rds_conn_drop(tc->conn); /* reconnect with new parameters */
+		/* reconnect with new parameters */
+		rds_conn_path_drop(tc->t_cpath);
 	}
 	spin_unlock_irq(&rds_tcp_conn_lock);
 }

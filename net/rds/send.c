@@ -183,12 +183,8 @@ restart:
 		goto out;
 	}
 
-	if (conn->c_trans->t_mp_capable) {
-		if (conn->c_trans->xmit_path_prepare)
-			conn->c_trans->xmit_path_prepare(cp);
-	} else if (conn->c_trans->xmit_prepare) {
-		conn->c_trans->xmit_prepare(conn);
-	}
+	if (conn->c_trans->xmit_path_prepare)
+		conn->c_trans->xmit_path_prepare(cp);
 
 	/*
 	 * spin trying to push headers and data down the connection until
@@ -403,12 +399,8 @@ restart:
 	}
 
 over_batch:
-	if (conn->c_trans->t_mp_capable) {
-		if (conn->c_trans->xmit_path_complete)
-			conn->c_trans->xmit_path_complete(cp);
-	} else if (conn->c_trans->xmit_complete) {
-		conn->c_trans->xmit_complete(conn);
-	}
+	if (conn->c_trans->xmit_path_complete)
+		conn->c_trans->xmit_path_complete(cp);
 	release_in_xmit(cp);
 
 	/* Nuke any messages we decided not to retransmit. */

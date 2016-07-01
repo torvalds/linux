@@ -226,6 +226,10 @@ void rds_recv_incoming(struct rds_connection *conn, __be32 saddr, __be32 daddr,
 	cp->cp_next_rx_seq = be64_to_cpu(inc->i_hdr.h_sequence) + 1;
 
 	if (rds_sysctl_ping_enable && inc->i_hdr.h_dport == 0) {
+		if (inc->i_hdr.h_sport == 0) {
+			rdsdebug("ignore ping with 0 sport from 0x%x\n", saddr);
+			goto out;
+		}
 		rds_stats_inc(s_recv_ping);
 		rds_send_pong(cp, inc->i_hdr.h_sport);
 		goto out;
