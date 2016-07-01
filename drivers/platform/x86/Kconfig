@@ -774,6 +774,18 @@ config INTEL_HID_EVENT
 	  To compile this driver as a module, choose M here: the module will
 	  be called intel_hid.
 
+config INTEL_VBTN
+	tristate "INTEL VIRTUAL BUTTON"
+	depends on ACPI
+	depends on INPUT
+	select INPUT_SPARSEKMAP
+	help
+	  This driver provides support for the Intel Virtual Button interface.
+	  Some laptops require this driver for power button support.
+
+	  To compile this driver as a module, choose M here: the module will
+	  be called intel_vbtn.
+
 config INTEL_SCU_IPC
 	bool "Intel SCU IPC Support"
 	depends on X86_INTEL_MID

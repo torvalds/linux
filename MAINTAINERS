@@ -5903,6 +5903,12 @@ L:	platform-driver-x86@vger.kernel.org
 S:	Maintained
 F:	drivers/platform/x86/intel-hid.c
 
+INTEL VIRTUAL BUTTON DRIVER
+M:	AceLan Kao <acelan.kao@canonical.com>
+L:	platform-driver-x86@vger.kernel.org
+S:	Maintained
+F:	drivers/platform/x86/intel-vbtn.c
+
 INTEL IDLE DRIVER
 M:	Len Brown <lenb@kernel.org>
 L:	linux-pm@vger.kernel.org
