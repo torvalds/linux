@@ -2758,12 +2758,30 @@ static int __init coh901318_probe(struct platform_device *pdev)
 	coh901318_pool_destroy(&base->pool);
 	return err;
 }
+static void coh901318_base_remove(struct coh901318_base *base, const int *pick_chans)
+{
+	int chans_i;
+	int i = 0;
+	struct coh901318_chan *cohc;
+
+	for (chans_i = 0; pick_chans[chans_i] != -1; chans_i += 2) {
+		for (i = pick_chans[chans_i]; i <= pick_chans[chans_i+1]; i++) {
+			cohc = &base->chans[i];
+
+			tasklet_kill(&cohc->tasklet);
+		}
+	}
+
+}
 
 static int coh901318_remove(struct platform_device *pdev)
 {
 	struct coh901318_base *base = platform_get_drvdata(pdev);
 
 	devm_free_irq(&pdev->dev, base->irq, base);
+
+	coh901318_base_remove(base, dma_slave_channels);
+	coh901318_base_remove(base, dma_memcpy_channels);
 
 	of_dma_controller_free(pdev->dev.of_node);
 	dma_async_device_unregister(&base->dma_memcpy);
