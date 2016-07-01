@@ -18,6 +18,11 @@
 #ifndef __ASM_UACCESS_H
 #define __ASM_UACCESS_H
 
+#include <asm/alternative.h>
+#include <asm/sysreg.h>
+
+#ifndef __ASSEMBLY__
+
 /*
  * User space memory access functions
  */
@@ -26,10 +31,8 @@
 #include <linux/string.h>
 #include <linux/thread_info.h>
 
-#include <asm/alternative.h>
 #include <asm/cpufeature.h>
 #include <asm/ptrace.h>
-#include <asm/sysreg.h>
 #include <asm/errno.h>
 #include <asm/memory.h>
 #include <asm/compiler.h>
@@ -120,6 +123,44 @@ static inline void set_fs(mm_segment_t fs)
 	"	.popsection\n"
 
 /*
+ * User access enabling/disabling.
+ */
+#define __uaccess_disable(alt)						\
+do {									\
+	asm(ALTERNATIVE("nop", SET_PSTATE_PAN(1), alt,			\
+			CONFIG_ARM64_PAN));				\
+} while (0)
+
+#define __uaccess_enable(alt)						\
+do {									\
+	asm(ALTERNATIVE("nop", SET_PSTATE_PAN(0), alt,			\
+			CONFIG_ARM64_PAN));				\
+} while (0)
+
+static inline void uaccess_disable(void)
+{
+	__uaccess_disable(ARM64_HAS_PAN);
+}
+
+static inline void uaccess_enable(void)
+{
+	__uaccess_enable(ARM64_HAS_PAN);
+}
+
+/*
+ * These functions are no-ops when UAO is present.
+ */
+static inline void uaccess_disable_not_uao(void)
+{
+	__uaccess_disable(ARM64_ALT_PAN_NOT_UAO);
+}
+
+static inline void uaccess_enable_not_uao(void)
+{
+	__uaccess_enable(ARM64_ALT_PAN_NOT_UAO);
+}
+
+/*
  * The "__xxx" versions of the user access functions do not verify the address
  * space - it must have been done previously with a separate "access_ok()"
  * call.
@@ -146,8 +187,7 @@ static inline void set_fs(mm_segment_t fs)
 do {									\
 	unsigned long __gu_val;						\
 	__chk_user_ptr(ptr);						\
-	asm(ALTERNATIVE("nop", SET_PSTATE_PAN(0), ARM64_ALT_PAN_NOT_UAO,\
-			CONFIG_ARM64_PAN));				\
+	uaccess_enable_not_uao();					\
 	switch (sizeof(*(ptr))) {					\
 	case 1:								\
 		__get_user_asm("ldrb", "ldtrb", "%w", __gu_val, (ptr),  \
@@ -168,9 +208,8 @@ do {									\
 	default:							\
 		BUILD_BUG();						\
 	}								\
+	uaccess_disable_not_uao();					\
 	(x) = (__force __typeof__(*(ptr)))__gu_val;			\
-	asm(ALTERNATIVE("nop", SET_PSTATE_PAN(1), ARM64_ALT_PAN_NOT_UAO,\
-			CONFIG_ARM64_PAN));				\
 } while (0)
 
 #define __get_user(x, ptr)						\
@@ -215,8 +254,7 @@ do {									\
 do {									\
 	__typeof__(*(ptr)) __pu_val = (x);				\
 	__chk_user_ptr(ptr);						\
-	asm(ALTERNATIVE("nop", SET_PSTATE_PAN(0), ARM64_ALT_PAN_NOT_UAO,\
-			CONFIG_ARM64_PAN));				\
+	uaccess_enable_not_uao();					\
 	switch (sizeof(*(ptr))) {					\
 	case 1:								\
 		__put_user_asm("strb", "sttrb", "%w", __pu_val, (ptr),	\
@@ -237,8 +275,7 @@ do {									\
 	default:							\
 		BUILD_BUG();						\
 	}								\
-	asm(ALTERNATIVE("nop", SET_PSTATE_PAN(1), ARM64_ALT_PAN_NOT_UAO,\
-			CONFIG_ARM64_PAN));				\
+	uaccess_disable_not_uao();					\
 } while (0)
 
 #define __put_user(x, ptr)						\
@@ -330,5 +367,27 @@ extern long strncpy_from_user(char *dest, const char __user *src, long count);
 
 extern __must_check long strlen_user(const char __user *str);
 extern __must_check long strnlen_user(const char __user *str, long n);
+
+#else	/* __ASSEMBLY__ */
+
+#include <asm/assembler.h>
+
+/*
+ * User access enabling/disabling macros. These are no-ops when UAO is
+ * present.
+ */
+	.macro	uaccess_disable_not_uao, tmp1
+alternative_if ARM64_ALT_PAN_NOT_UAO
+	SET_PSTATE_PAN(1)
+alternative_else_nop_endif
+	.endm
+
+	.macro	uaccess_enable_not_uao, tmp1, tmp2
+alternative_if ARM64_ALT_PAN_NOT_UAO
+	SET_PSTATE_PAN(0)
+alternative_else_nop_endif
+	.endm
+
+#endif	/* __ASSEMBLY__ */
 
 #endif /* __ASM_UACCESS_H */
