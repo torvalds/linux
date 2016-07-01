@@ -184,6 +184,8 @@ int ovl_permission(struct inode *inode, int mask)
 		return err;
 
 	old_cred = ovl_override_creds(inode->i_sb);
+	if (!is_upper)
+		mask &= ~(MAY_WRITE | MAY_APPEND);
 	err = __inode_permission(realinode, mask);
 	revert_creds(old_cred);
 
