@@ -17,6 +17,11 @@
 typedef pthread_spinlock_t  spinlock_t;
 
 typedef int gfp_t;
+static void *kmalloc(unsigned size, gfp_t gfp)
+{
+	return memalign(64, size);
+}
+
 static void *kzalloc(unsigned size, gfp_t gfp)
 {
 	void *p = memalign(64, size);
