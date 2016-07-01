@@ -56,20 +56,6 @@ static const enum mac_mode g_mac_mode_1000[] = {
 	[PHY_INTERFACE_MODE_RTBI]   = MAC_MODE_RTBI_1000
 };
 
-static enum mac_mode hns_mac_dev_to_enet_if(const struct hns_mac_cb *mac_cb)
-{
-	switch (mac_cb->max_speed) {
-	case MAC_SPEED_100:
-		return g_mac_mode_100[mac_cb->phy_if];
-	case MAC_SPEED_1000:
-		return g_mac_mode_1000[mac_cb->phy_if];
-	case MAC_SPEED_10000:
-		return MAC_MODE_XGMII_10000;
-	default:
-		return MAC_MODE_MII_100;
-	}
-}
-
 static enum mac_mode hns_get_enet_interface(const struct hns_mac_cb *mac_cb)
 {
 	switch (mac_cb->max_speed) {
@@ -134,7 +120,6 @@ void hns_mac_adjust_link(struct hns_mac_cb *mac_cb, int speed, int duplex)
 
 	mac_cb->speed = speed;
 	mac_cb->half_duplex = !duplex;
-	mac_ctrl_drv->mac_mode = hns_mac_dev_to_enet_if(mac_cb);
 
 	if (mac_ctrl_drv->adjust_link) {
 		ret = mac_ctrl_drv->adjust_link(mac_ctrl_drv,
