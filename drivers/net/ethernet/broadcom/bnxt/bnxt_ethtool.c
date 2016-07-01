@@ -961,7 +961,7 @@ static int bnxt_set_pauseparam(struct net_device *dev,
 	struct bnxt_link_info *link_info = &bp->link_info;
 
 	if (!BNXT_SINGLE_PF(bp))
-		return rc;
+		return -EOPNOTSUPP;
 
 	if (epause->autoneg) {
 		if (!(link_info->autoneg & BNXT_AUTONEG_SPEED))
@@ -1483,7 +1483,7 @@ static int bnxt_set_eee(struct net_device *dev, struct ethtool_eee *edata)
 	int rc = 0;
 
 	if (!BNXT_SINGLE_PF(bp))
-		return 0;
+		return -EOPNOTSUPP;
 
 	if (!(bp->flags & BNXT_FLAG_EEE_CAP))
 		return -EOPNOTSUPP;
