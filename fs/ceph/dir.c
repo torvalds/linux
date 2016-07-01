@@ -1214,14 +1214,18 @@ static int ceph_d_revalidate(struct dentry *dentry, unsigned int flags)
 	struct dentry *parent;
 	struct inode *dir;
 
-	if (flags & LOOKUP_RCU)
-		return -ECHILD;
+	if (flags & LOOKUP_RCU) {
+		parent = ACCESS_ONCE(dentry->d_parent);
+		dir = d_inode_rcu(parent);
+		if (!dir)
+			return -ECHILD;
+	} else {
+		parent = dget_parent(dentry);
+		dir = d_inode(parent);
+	}
 
 	dout("d_revalidate %p '%pd' inode %p offset %lld\n", dentry,
 	     dentry, d_inode(dentry), ceph_dentry(dentry)->offset);
-
-	parent = dget_parent(dentry);
-	dir = d_inode(parent);
 
 	/* always trust cached snapped dentries, snapdir dentry */
 	if (ceph_snap(dir) != CEPH_NOSNAP) {
@@ -1248,6 +1252,9 @@ static int ceph_d_revalidate(struct dentry *dentry, unsigned int flags)
 			ceph_sb_to_client(dir->i_sb)->mdsc;
 		struct ceph_mds_request *req;
 		int op, mask, err;
+
+		if (flags & LOOKUP_RCU)
+			return -ECHILD;
 
 		op = ceph_snap(dir) == CEPH_SNAPDIR ?
 			CEPH_MDS_OP_LOOKUPSNAP : CEPH_MDS_OP_LOOKUP;
@@ -1284,7 +1291,8 @@ static int ceph_d_revalidate(struct dentry *dentry, unsigned int flags)
 		ceph_dir_clear_complete(dir);
 	}
 
-	dput(parent);
+	if (!(flags & LOOKUP_RCU))
+		dput(parent);
 	return valid;
 }
 
