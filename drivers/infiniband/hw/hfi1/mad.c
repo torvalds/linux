@@ -2487,6 +2487,9 @@ static int pma_get_opa_portstatus(struct opa_pma_mad *pmp,
 			cpu_to_be64(read_dev_cntr(dd, C_DC_RCV_BCN_VL,
 						  idx_from_vl(vl)));
 
+		rsp->vls[vfi].port_vl_xmit_discards =
+			cpu_to_be64(read_port_cntr(ppd, C_SW_XMIT_DSCD_VL,
+						   idx_from_vl(vl)));
 		vlinfo++;
 		vfi++;
 	}
@@ -2878,7 +2881,9 @@ static int pma_get_opa_porterrors(struct opa_pma_mad *pmp,
 	for_each_set_bit(vl, (unsigned long *)&(vl_select_mask),
 			 8 * sizeof(req->vl_select_mask)) {
 		memset(vlinfo, 0, sizeof(*vlinfo));
-		/* vlinfo->vls[vfi].port_vl_xmit_discards ??? */
+		rsp->vls[vfi].port_vl_xmit_discards =
+			cpu_to_be64(read_port_cntr(ppd, C_SW_XMIT_DSCD_VL,
+						   idx_from_vl(vl)));
 		vlinfo += 1;
 		vfi++;
 	}
@@ -3211,7 +3216,9 @@ static int pma_set_opa_portstatus(struct opa_pma_mad *pmp,
 		/* if (counter_select & CS_PORT_MARK_FECN)
 		 *     write_csr(dd, DCC_PRF_PORT_VL_MARK_FECN_CNT + offset, 0);
 		 */
-		/* port_vl_xmit_discards ??? */
+		if (counter_select & C_SW_XMIT_DSCD_VL)
+			write_port_cntr(ppd, C_SW_XMIT_DSCD_VL,
+					idx_from_vl(vl), 0);
 	}
 
 	if (resp_len)
