@@ -2865,9 +2865,11 @@ struct wireless_dev *mwifiex_add_virtual_intf(struct wiphy *wiphy,
 
 	ret = mwifiex_send_cmd(priv, HostCmd_CMD_SET_BSS_MODE,
 			       HostCmd_ACT_GEN_SET, 0, NULL, true);
+	if (ret)
 		return ERR_PTR(ret);
 
 	ret = mwifiex_sta_init_cmd(priv, false, false);
+	if (ret)
 		return ERR_PTR(ret);
 
 	mwifiex_setup_ht_caps(&wiphy->bands[NL80211_BAND_2GHZ]->ht_cap, priv);
