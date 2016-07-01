@@ -326,7 +326,6 @@ struct intel_engine_cs {
 	struct {
 		struct drm_i915_gem_object *obj;
 		u32 gtt_offset;
-		volatile u32 *cpu_page;
 	} scratch;
 
 	bool needs_cmd_parser;

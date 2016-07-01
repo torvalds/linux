@@ -648,58 +648,40 @@ out:
 	return ret;
 }
 
-void
-intel_fini_pipe_control(struct intel_engine_cs *engine)
+void intel_fini_pipe_control(struct intel_engine_cs *engine)
 {
 	if (engine->scratch.obj == NULL)
 		return;
 
-	if (INTEL_GEN(engine->i915) >= 5) {
-		kunmap(sg_page(engine->scratch.obj->pages->sgl));
-		i915_gem_object_ggtt_unpin(engine->scratch.obj);
-	}
-
+	i915_gem_object_ggtt_unpin(engine->scratch.obj);
 	drm_gem_object_unreference(&engine->scratch.obj->base);
 	engine->scratch.obj = NULL;
 }
 
-int
-intel_init_pipe_control(struct intel_engine_cs *engine)
+int intel_init_pipe_control(struct intel_engine_cs *engine)
 {
+	struct drm_i915_gem_object *obj;
 	int ret;
 
 	WARN_ON(engine->scratch.obj);
 
-	engine->scratch.obj = i915_gem_object_create(engine->i915->dev, 4096);
-	if (IS_ERR(engine->scratch.obj)) {
-		DRM_ERROR("Failed to allocate seqno page\n");
-		ret = PTR_ERR(engine->scratch.obj);
-		engine->scratch.obj = NULL;
+	obj = i915_gem_object_create(engine->i915->dev, 4096);
+	if (IS_ERR(obj)) {
+		DRM_ERROR("Failed to allocate scratch page\n");
+		ret = PTR_ERR(obj);
 		goto err;
 	}
 
-	ret = i915_gem_object_set_cache_level(engine->scratch.obj,
-					      I915_CACHE_LLC);
+	ret = i915_gem_obj_ggtt_pin(obj, 4096, PIN_HIGH);
 	if (ret)
 		goto err_unref;
 
-	ret = i915_gem_obj_ggtt_pin(engine->scratch.obj, 4096, 0);
-	if (ret)
-		goto err_unref;
-
-	engine->scratch.gtt_offset = i915_gem_obj_ggtt_offset(engine->scratch.obj);
-	engine->scratch.cpu_page = kmap(sg_page(engine->scratch.obj->pages->sgl));
-	if (engine->scratch.cpu_page == NULL) {
-		ret = -ENOMEM;
-		goto err_unpin;
-	}
-
+	engine->scratch.obj = obj;
+	engine->scratch.gtt_offset = i915_gem_obj_ggtt_offset(obj);
 	DRM_DEBUG_DRIVER("%s pipe control offset: 0x%08x\n",
 			 engine->name, engine->scratch.gtt_offset);
 	return 0;
 
-err_unpin:
-	i915_gem_object_ggtt_unpin(engine->scratch.obj);
 err_unref:
 	drm_gem_object_unreference(&engine->scratch.obj->base);
 err:
