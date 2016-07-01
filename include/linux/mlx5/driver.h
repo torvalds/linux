@@ -629,6 +629,7 @@ struct mlx5_cmd_work_ent {
 	void		       *uout;
 	int			uout_size;
 	mlx5_cmd_cbk_t		callback;
+	struct delayed_work	cb_timeout_work;
 	void		       *context;
 	int			idx;
 	struct completion	done;
