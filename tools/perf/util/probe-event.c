@@ -1206,10 +1206,8 @@ static int parse_perf_probe_point(char *arg, struct perf_probe_event *pev)
 	bool file_spec = false;
 	/*
 	 * <Syntax>
-	 * perf probe [EVENT=]SRC[:LN|;PTN]
-	 * perf probe [EVENT=]FUNC[@SRC][+OFFS|%return|:LN|;PAT]
-	 *
-	 * TODO:Group name support
+	 * perf probe [GRP:][EVENT=]SRC[:LN|;PTN]
+	 * perf probe [GRP:][EVENT=]FUNC[@SRC][+OFFS|%return|:LN|;PAT]
 	 */
 	if (!arg)
 		return -EINVAL;
@@ -1218,11 +1216,19 @@ static int parse_perf_probe_point(char *arg, struct perf_probe_event *pev)
 	if (ptr && *ptr == '=') {	/* Event name */
 		*ptr = '\0';
 		tmp = ptr + 1;
-		if (strchr(arg, ':')) {
-			semantic_error("Group name is not supported yet.\n");
-			return -ENOTSUP;
-		}
+		ptr = strchr(arg, ':');
+		if (ptr) {
+			*ptr = '\0';
+			if (!is_c_func_name(arg))
+				goto not_fname;
+			pev->group = strdup(arg);
+			if (!pev->group)
+				return -ENOMEM;
+			arg = ptr + 1;
+		} else
+			pev->group = NULL;
 		if (!is_c_func_name(arg)) {
+not_fname:
 			semantic_error("%s is bad for event name -it must "
 				       "follow C symbol-naming rule.\n", arg);
 			return -EINVAL;
@@ -1230,7 +1236,6 @@ static int parse_perf_probe_point(char *arg, struct perf_probe_event *pev)
 		pev->event = strdup(arg);
 		if (pev->event == NULL)
 			return -ENOMEM;
-		pev->group = NULL;
 		arg = tmp;
 	}
 
