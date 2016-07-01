@@ -116,6 +116,7 @@ OPTIONS
 	(With --add) Cache the probes. Any events which successfully added
 	are also stored in the cache file.
 	(With --list) Show cached probes.
+	(With --del) Remove cached probes.
 
 --max-probes=NUM::
 	Set the maximum number of probe points for an event. Default is 128.

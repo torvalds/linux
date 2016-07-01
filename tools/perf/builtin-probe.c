@@ -363,6 +363,32 @@ out_cleanup:
 	return ret;
 }
 
+static int del_perf_probe_caches(struct strfilter *filter)
+{
+	struct probe_cache *cache;
+	struct strlist *bidlist;
+	struct str_node *nd;
+	int ret;
+
+	bidlist = build_id_cache__list_all();
+	if (!bidlist) {
+		ret = -errno;
+		pr_debug("Failed to get buildids: %d\n", ret);
+		return ret ?: -ENOMEM;
+	}
+
+	strlist__for_each_entry(nd, bidlist) {
+		cache = probe_cache__new(nd->s);
+		if (!cache)
+			continue;
+		if (probe_cache__filter_purge(cache, filter) < 0 ||
+		    probe_cache__commit(cache) < 0)
+			pr_warning("Failed to remove entries for %s\n", nd->s);
+		probe_cache__delete(cache);
+	}
+	return 0;
+}
+
 static int perf_del_probe_events(struct strfilter *filter)
 {
 	int ret, ret2, ufd = -1, kfd = -1;
@@ -374,6 +400,9 @@ static int perf_del_probe_events(struct strfilter *filter)
 		return -EINVAL;
 
 	pr_debug("Delete filter: \'%s\'\n", str);
+
+	if (probe_conf.cache)
+		return del_perf_probe_caches(filter);
 
 	/* Get current event names */
 	ret = probe_file__open_both(&kfd, &ufd, PF_FL_RW);

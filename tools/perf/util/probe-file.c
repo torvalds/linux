@@ -684,20 +684,40 @@ out:
 	return ret;
 }
 
+static bool probe_cache_entry__compare(struct probe_cache_entry *entry,
+				       struct strfilter *filter)
+{
+	char buf[128], *ptr = entry->spev;
+
+	if (entry->pev.event) {
+		snprintf(buf, 128, "%s:%s", entry->pev.group, entry->pev.event);
+		ptr = buf;
+	}
+	return strfilter__compare(filter, ptr);
+}
+
+int probe_cache__filter_purge(struct probe_cache *pcache,
+			      struct strfilter *filter)
+{
+	struct probe_cache_entry *entry, *tmp;
+
+	list_for_each_entry_safe(entry, tmp, &pcache->entries, node) {
+		if (probe_cache_entry__compare(entry, filter)) {
+			pr_info("Removed cached event: %s\n", entry->spev);
+			list_del_init(&entry->node);
+			probe_cache_entry__delete(entry);
+		}
+	}
+	return 0;
+}
+
 static int probe_cache__show_entries(struct probe_cache *pcache,
 				     struct strfilter *filter)
 {
 	struct probe_cache_entry *entry;
-	char buf[128], *ptr;
 
 	list_for_each_entry(entry, &pcache->entries, node) {
-		if (entry->pev.event) {
-			ptr = buf;
-			snprintf(buf, 128, "%s:%s",
-				 entry->pev.group, entry->pev.event);
-		} else
-			ptr = entry->spev;
-		if (strfilter__compare(filter, ptr))
+		if (probe_cache_entry__compare(entry, filter))
 			printf("%s\n", entry->spev);
 	}
 	return 0;
