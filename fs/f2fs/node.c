@@ -1045,7 +1045,8 @@ struct page *new_node_page(struct dnode_of_data *dn,
 	f2fs_wait_on_page_writeback(page, NODE, true);
 	fill_node_footer(page, dn->nid, dn->inode->i_ino, ofs, true);
 	set_cold_node(dn->inode, page);
-	SetPageUptodate(page);
+	if (!PageUptodate(page))
+		SetPageUptodate(page);
 	if (set_page_dirty(page))
 		dn->node_changed = true;
 
@@ -1644,7 +1645,8 @@ static int f2fs_set_node_page_dirty(struct page *page)
 {
 	trace_f2fs_set_page_dirty(page, NODE);
 
-	SetPageUptodate(page);
+	if (!PageUptodate(page))
+		SetPageUptodate(page);
 	if (!PageDirty(page)) {
 		f2fs_set_page_dirty_nobuffers(page);
 		inc_page_count(F2FS_P_SB(page), F2FS_DIRTY_NODES);
@@ -2015,7 +2017,8 @@ int recover_inode_page(struct f2fs_sb_info *sbi, struct page *page)
 	/* Should not use this inode from free nid list */
 	remove_free_nid(NM_I(sbi), ino);
 
-	SetPageUptodate(ipage);
+	if (!PageUptodate(ipage))
+		SetPageUptodate(ipage);
 	fill_node_footer(ipage, ino, ino, 0, true);
 
 	src = F2FS_INODE(page);

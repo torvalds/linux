@@ -81,7 +81,8 @@ static int f2fs_vm_page_mkwrite(struct vm_area_struct *vma,
 		zero_user_segment(page, offset, PAGE_SIZE);
 	}
 	set_page_dirty(page);
-	SetPageUptodate(page);
+	if (!PageUptodate(page))
+		SetPageUptodate(page);
 
 	trace_f2fs_vm_page_mkwrite(page, DATA);
 mapped:
