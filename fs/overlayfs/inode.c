@@ -310,6 +310,22 @@ out:
 	return err;
 }
 
+struct posix_acl *ovl_get_acl(struct inode *inode, int type)
+{
+	struct inode *realinode = ovl_inode_real(inode);
+
+	if (!realinode)
+		return ERR_PTR(-ENOENT);
+
+	if (!IS_POSIXACL(realinode))
+		return NULL;
+
+	if (!realinode->i_op->get_acl)
+		return NULL;
+
+	return realinode->i_op->get_acl(realinode, type);
+}
+
 static bool ovl_open_need_copy_up(int flags, enum ovl_path_type type,
 				  struct dentry *realdentry)
 {
@@ -354,6 +370,7 @@ static const struct inode_operations ovl_file_inode_operations = {
 	.getxattr	= ovl_getxattr,
 	.listxattr	= ovl_listxattr,
 	.removexattr	= ovl_removexattr,
+	.get_acl	= ovl_get_acl,
 };
 
 static const struct inode_operations ovl_symlink_inode_operations = {
