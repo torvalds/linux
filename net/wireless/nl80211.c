@@ -4446,6 +4446,12 @@ static int nl80211_set_station(struct sk_buff *skb, struct genl_info *info)
 			nla_get_u8(info->attrs[NL80211_ATTR_STA_PLINK_STATE]);
 		if (params.plink_state >= NUM_NL80211_PLINK_STATES)
 			return -EINVAL;
+		if (info->attrs[NL80211_ATTR_MESH_PEER_AID]) {
+			params.peer_aid = nla_get_u16(
+				info->attrs[NL80211_ATTR_MESH_PEER_AID]);
+			if (params.peer_aid > IEEE80211_MAX_AID)
+				return -EINVAL;
+		}
 		params.sta_modify_mask |= STATION_PARAM_APPLY_PLINK_STATE;
 	}
 

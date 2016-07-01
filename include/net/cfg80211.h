@@ -780,6 +780,7 @@ enum station_parameters_apply_mask {
  *	(bitmask of BIT(NL80211_STA_FLAG_...))
  * @listen_interval: listen interval or -1 for no change
  * @aid: AID or zero for no change
+ * @peer_aid: mesh peer AID or zero for no change
  * @plink_action: plink action to take
  * @plink_state: set the peer link state for a station
  * @ht_capa: HT capabilities of station
@@ -811,6 +812,7 @@ struct station_parameters {
 	u32 sta_modify_mask;
 	int listen_interval;
 	u16 aid;
+	u16 peer_aid;
 	u8 supported_rates_len;
 	u8 plink_action;
 	u8 plink_state;
