@@ -2983,6 +2983,29 @@ static void intel_ring_init_semaphores(struct drm_i915_private *dev_priv,
 	}
 }
 
+static void intel_ring_init_irq(struct drm_i915_private *dev_priv,
+				struct intel_engine_cs *engine)
+{
+	if (INTEL_GEN(dev_priv) >= 8) {
+		engine->irq_get = gen8_ring_get_irq;
+		engine->irq_put = gen8_ring_put_irq;
+		engine->irq_seqno_barrier = gen6_seqno_barrier;
+	} else if (INTEL_GEN(dev_priv) >= 6) {
+		engine->irq_get = gen6_ring_get_irq;
+		engine->irq_put = gen6_ring_put_irq;
+		engine->irq_seqno_barrier = gen6_seqno_barrier;
+	} else if (INTEL_GEN(dev_priv) >= 5) {
+		engine->irq_get = gen5_ring_get_irq;
+		engine->irq_put = gen5_ring_put_irq;
+	} else if (INTEL_GEN(dev_priv) >= 3) {
+		engine->irq_get = i9xx_ring_get_irq;
+		engine->irq_put = i9xx_ring_put_irq;
+	} else {
+		engine->irq_get = i8xx_ring_get_irq;
+		engine->irq_put = i8xx_ring_put_irq;
+	}
+}
+
 static void intel_ring_default_vfuncs(struct drm_i915_private *dev_priv,
 				      struct intel_engine_cs *engine)
 {
@@ -3006,25 +3029,7 @@ static void intel_ring_default_vfuncs(struct drm_i915_private *dev_priv,
 	else
 		engine->dispatch_execbuffer = i915_dispatch_execbuffer;
 
-	if (INTEL_GEN(dev_priv) >= 8) {
-		engine->irq_get = gen8_ring_get_irq;
-		engine->irq_put = gen8_ring_put_irq;
-		engine->irq_seqno_barrier = gen6_seqno_barrier;
-	} else if (INTEL_GEN(dev_priv) >= 6) {
-		engine->irq_get = gen6_ring_get_irq;
-		engine->irq_put = gen6_ring_put_irq;
-		engine->irq_seqno_barrier = gen6_seqno_barrier;
-	} else if (INTEL_GEN(dev_priv) >= 5) {
-		engine->irq_get = gen5_ring_get_irq;
-		engine->irq_put = gen5_ring_put_irq;
-	} else if (INTEL_GEN(dev_priv) >= 3) {
-		engine->irq_get = i9xx_ring_get_irq;
-		engine->irq_put = i9xx_ring_put_irq;
-	} else {
-		engine->irq_get = i8xx_ring_get_irq;
-		engine->irq_put = i8xx_ring_put_irq;
-	}
-
+	intel_ring_init_irq(dev_priv, engine);
 	intel_ring_init_semaphores(dev_priv, engine);
 }
 
