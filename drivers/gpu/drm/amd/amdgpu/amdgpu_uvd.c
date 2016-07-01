@@ -40,7 +40,7 @@
 #include "uvd/uvd_4_2_d.h"
 
 /* 1 second timeout */
-#define UVD_IDLE_TIMEOUT_MS	1000
+#define UVD_IDLE_TIMEOUT	msecs_to_jiffies(1000)
 /* Polaris10/11 firmware version */
 #define FW_1_66_16 ((1 << 24) | (66 << 16) | (16 << 8))
 
@@ -1110,8 +1110,7 @@ static void amdgpu_uvd_idle_work_handler(struct work_struct *work)
 			amdgpu_asic_set_uvd_clocks(adev, 0, 0);
 		}
 	} else {
-		schedule_delayed_work(&adev->uvd.idle_work,
-				      msecs_to_jiffies(UVD_IDLE_TIMEOUT_MS));
+		schedule_delayed_work(&adev->uvd.idle_work, UVD_IDLE_TIMEOUT);
 	}
 }
 
@@ -1119,7 +1118,7 @@ static void amdgpu_uvd_note_usage(struct amdgpu_device *adev)
 {
 	bool set_clocks = !cancel_delayed_work_sync(&adev->uvd.idle_work);
 	set_clocks &= schedule_delayed_work(&adev->uvd.idle_work,
-					    msecs_to_jiffies(UVD_IDLE_TIMEOUT_MS));
+					    UVD_IDLE_TIMEOUT);
 
 	if (set_clocks) {
 		if (adev->pm.dpm_enabled) {
