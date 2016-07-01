@@ -383,7 +383,7 @@ err_clk:
 static int exynos_bus_probe(struct platform_device *pdev)
 {
 	struct device *dev = &pdev->dev;
-	struct device_node *np = dev->of_node;
+	struct device_node *np = dev->of_node, *node;
 	struct devfreq_dev_profile *profile;
 	struct devfreq_simple_ondemand_data *ondemand_data;
 	struct devfreq_passive_data *passive_data;
@@ -415,10 +415,13 @@ static int exynos_bus_probe(struct platform_device *pdev)
 		goto err;
 	}
 
-	if (of_parse_phandle(dev->of_node, "devfreq", 0))
+	node = of_parse_phandle(dev->of_node, "devfreq", 0);
+	if (node) {
+		of_node_put(node);
 		goto passive;
-	else
+	} else {
 		ret = exynos_bus_parent_parse_of(np, bus);
+	}
 
 	if (ret < 0)
 		goto err;
