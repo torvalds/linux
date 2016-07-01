@@ -1186,7 +1186,8 @@ static int bnxt_flash_firmware_from_file(struct net_device *dev,
 	const struct firmware  *fw;
 	int			rc;
 
-	if (bnxt_dir_type_is_executable(dir_type) == false)
+	if (dir_type != BNX_DIR_TYPE_UPDATE &&
+	    bnxt_dir_type_is_executable(dir_type) == false)
 		return -EINVAL;
 
 	rc = request_firmware(&fw, filename, &dev->dev);
