@@ -240,6 +240,7 @@
 };
 
 &spdif {
+	pinctrl-0 = <&spdif_bus_1>;
 	status = "okay";
 	#sound-dai-cells = <0>;
 };
