@@ -38,6 +38,45 @@
 #include "mlx5_core.h"
 #include "eswitch.h"
 
+struct mlx5_flow_rule *
+mlx5_eswitch_add_send_to_vport_rule(struct mlx5_eswitch *esw, int vport, u32 sqn)
+{
+	struct mlx5_flow_destination dest;
+	struct mlx5_flow_rule *flow_rule;
+	int match_header = MLX5_MATCH_MISC_PARAMETERS;
+	u32 *match_v, *match_c;
+	void *misc;
+
+	match_v = kzalloc(MLX5_ST_SZ_BYTES(fte_match_param), GFP_KERNEL);
+	match_c = kzalloc(MLX5_ST_SZ_BYTES(fte_match_param), GFP_KERNEL);
+	if (!match_v || !match_c) {
+		esw_warn(esw->dev, "FDB: Failed to alloc match parameters\n");
+		flow_rule = ERR_PTR(-ENOMEM);
+		goto out;
+	}
+
+	misc = MLX5_ADDR_OF(fte_match_param, match_v, misc_parameters);
+	MLX5_SET(fte_match_set_misc, misc, source_sqn, sqn);
+	MLX5_SET(fte_match_set_misc, misc, source_port, 0x0); /* source vport is 0 */
+
+	misc = MLX5_ADDR_OF(fte_match_param, match_c, misc_parameters);
+	MLX5_SET_TO_ONES(fte_match_set_misc, misc, source_sqn);
+	MLX5_SET_TO_ONES(fte_match_set_misc, misc, source_port);
+
+	dest.type = MLX5_FLOW_DESTINATION_TYPE_VPORT;
+	dest.vport_num = vport;
+
+	flow_rule = mlx5_add_flow_rule(esw->fdb_table.fdb, match_header, match_c,
+				       match_v, MLX5_FLOW_CONTEXT_ACTION_FWD_DEST,
+				       0, &dest);
+	if (IS_ERR(flow_rule))
+		esw_warn(esw->dev, "FDB: Failed to add send to vport rule err %ld\n", PTR_ERR(flow_rule));
+out:
+	kfree(match_v);
+	kfree(match_c);
+	return flow_rule;
+}
+
 static int esw_add_fdb_miss_rule(struct mlx5_eswitch *esw)
 {
 	struct mlx5_flow_destination dest;
