@@ -570,10 +570,6 @@ struct mlx5e_priv {
 
 	unsigned long              state;
 	struct mutex               state_lock; /* Protects Interface state */
-	struct mlx5_uar            cq_uar;
-	u32                        pdn;
-	u32                        tdn;
-	struct mlx5_core_mkey      mkey;
 	struct mlx5_core_mkey      umr_mkey;
 	struct mlx5e_rq            drop_rq;
 
@@ -788,5 +784,7 @@ int mlx5e_rx_flow_steer(struct net_device *dev, const struct sk_buff *skb,
 #endif
 
 u16 mlx5e_get_max_inline_cap(struct mlx5_core_dev *mdev);
+int mlx5e_create_mdev_resources(struct mlx5_core_dev *mdev);
+void mlx5e_destroy_mdev_resources(struct mlx5_core_dev *mdev);
 
 #endif /* __MLX5_EN_H__ */

@@ -578,6 +578,18 @@ enum mlx5_pci_status {
 	MLX5_PCI_STATUS_ENABLED,
 };
 
+struct mlx5_td {
+	struct list_head tirs_list;
+	u32              tdn;
+};
+
+struct mlx5e_resources {
+	struct mlx5_uar            cq_uar;
+	u32                        pdn;
+	struct mlx5_td             td;
+	struct mlx5_core_mkey      mkey;
+};
+
 struct mlx5_core_dev {
 	struct pci_dev	       *pdev;
 	/* sync pci state */
@@ -602,6 +614,7 @@ struct mlx5_core_dev {
 	struct mlx5_profile	*profile;
 	atomic_t		num_qps;
 	u32			issi;
+	struct mlx5e_resources  mlx5e_res;
 #ifdef CONFIG_RFS_ACCEL
 	struct cpu_rmap         *rmap;
 #endif
