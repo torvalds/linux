@@ -524,7 +524,7 @@ static bool streql(const char *a, const char *b)
 	return !strcmp(a, b);
 }
 
-static struct probe_cache_entry *
+struct probe_cache_entry *
 probe_cache__find(struct probe_cache *pcache, struct perf_probe_event *pev)
 {
 	struct probe_cache_entry *entry = NULL;
@@ -545,6 +545,24 @@ probe_cache__find(struct probe_cache *pcache, struct perf_probe_event *pev)
 
 found:
 	free(cmd);
+	return entry;
+}
+
+struct probe_cache_entry *
+probe_cache__find_by_name(struct probe_cache *pcache,
+			  const char *group, const char *event)
+{
+	struct probe_cache_entry *entry = NULL;
+
+	list_for_each_entry(entry, &pcache->entries, node) {
+		/* Hit if same event name or same command-string */
+		if (streql(entry->pev.group, group) &&
+		    streql(entry->pev.event, event))
+			goto found;
+	}
+	entry = NULL;
+
+found:
 	return entry;
 }
 

@@ -38,5 +38,8 @@ int probe_cache__add_entry(struct probe_cache *pcache,
 int probe_cache__commit(struct probe_cache *pcache);
 void probe_cache__purge(struct probe_cache *pcache);
 void probe_cache__delete(struct probe_cache *pcache);
-
+struct probe_cache_entry *probe_cache__find(struct probe_cache *pcache,
+					    struct perf_probe_event *pev);
+struct probe_cache_entry *probe_cache__find_by_name(struct probe_cache *pcache,
+					const char *group, const char *event);
 #endif
