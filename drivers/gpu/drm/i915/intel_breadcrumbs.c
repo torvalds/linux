@@ -50,12 +50,18 @@ static void irq_enable(struct intel_engine_cs *engine)
 	 * just in case.
 	 */
 	engine->irq_posted = true;
-	WARN_ON(!engine->irq_get(engine));
+
+	spin_lock_irq(&engine->i915->irq_lock);
+	engine->irq_enable(engine);
+	spin_unlock_irq(&engine->i915->irq_lock);
 }
 
 static void irq_disable(struct intel_engine_cs *engine)
 {
-	engine->irq_put(engine);
+	spin_lock_irq(&engine->i915->irq_lock);
+	engine->irq_disable(engine);
+	spin_unlock_irq(&engine->i915->irq_lock);
+
 	engine->irq_posted = false;
 }
 

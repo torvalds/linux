@@ -189,11 +189,10 @@ struct intel_engine_cs {
 	struct intel_hw_status_page status_page;
 	struct i915_ctx_workarounds wa_ctx;
 
-	unsigned irq_refcount; /* protected by dev_priv->irq_lock */
 	bool		irq_posted;
 	u32		irq_enable_mask;	/* bitmask to enable ring interrupt */
-	bool __must_check (*irq_get)(struct intel_engine_cs *ring);
-	void		(*irq_put)(struct intel_engine_cs *ring);
+	void		(*irq_enable)(struct intel_engine_cs *ring);
+	void		(*irq_disable)(struct intel_engine_cs *ring);
 
 	int		(*init_hw)(struct intel_engine_cs *ring);
 

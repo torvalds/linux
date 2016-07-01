@@ -1617,36 +1617,18 @@ static int gen8_emit_bb_start(struct drm_i915_gem_request *req,
 	return 0;
 }
 
-static bool gen8_logical_ring_get_irq(struct intel_engine_cs *engine)
+static void gen8_logical_ring_enable_irq(struct intel_engine_cs *engine)
 {
 	struct drm_i915_private *dev_priv = engine->i915;
-	unsigned long flags;
-
-	if (WARN_ON(!intel_irqs_enabled(dev_priv)))
-		return false;
-
-	spin_lock_irqsave(&dev_priv->irq_lock, flags);
-	if (engine->irq_refcount++ == 0) {
-		I915_WRITE_IMR(engine,
-			       ~(engine->irq_enable_mask | engine->irq_keep_mask));
-		POSTING_READ(RING_IMR(engine->mmio_base));
-	}
-	spin_unlock_irqrestore(&dev_priv->irq_lock, flags);
-
-	return true;
+	I915_WRITE_IMR(engine,
+		       ~(engine->irq_enable_mask | engine->irq_keep_mask));
+	POSTING_READ_FW(RING_IMR(engine->mmio_base));
 }
 
-static void gen8_logical_ring_put_irq(struct intel_engine_cs *engine)
+static void gen8_logical_ring_disable_irq(struct intel_engine_cs *engine)
 {
 	struct drm_i915_private *dev_priv = engine->i915;
-	unsigned long flags;
-
-	spin_lock_irqsave(&dev_priv->irq_lock, flags);
-	if (--engine->irq_refcount == 0) {
-		I915_WRITE_IMR(engine, ~engine->irq_keep_mask);
-		POSTING_READ(RING_IMR(engine->mmio_base));
-	}
-	spin_unlock_irqrestore(&dev_priv->irq_lock, flags);
+	I915_WRITE_IMR(engine, ~engine->irq_keep_mask);
 }
 
 static int gen8_emit_flush(struct drm_i915_gem_request *request,
@@ -1966,8 +1948,8 @@ logical_ring_default_vfuncs(struct intel_engine_cs *engine)
 	engine->init_hw = gen8_init_common_ring;
 	engine->emit_request = gen8_emit_request;
 	engine->emit_flush = gen8_emit_flush;
-	engine->irq_get = gen8_logical_ring_get_irq;
-	engine->irq_put = gen8_logical_ring_put_irq;
+	engine->irq_enable = gen8_logical_ring_enable_irq;
+	engine->irq_disable = gen8_logical_ring_disable_irq;
 	engine->emit_bb_start = gen8_emit_bb_start;
 	if (IS_BXT_REVID(engine->i915, 0, BXT_REVID_A1))
 		engine->irq_seqno_barrier = bxt_a_seqno_barrier;

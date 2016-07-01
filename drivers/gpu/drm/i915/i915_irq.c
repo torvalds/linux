@@ -259,12 +259,12 @@ static void ilk_update_gt_irq(struct drm_i915_private *dev_priv,
 	dev_priv->gt_irq_mask &= ~interrupt_mask;
 	dev_priv->gt_irq_mask |= (~enabled_irq_mask & interrupt_mask);
 	I915_WRITE(GTIMR, dev_priv->gt_irq_mask);
-	POSTING_READ(GTIMR);
 }
 
 void gen5_enable_gt_irq(struct drm_i915_private *dev_priv, uint32_t mask)
 {
 	ilk_update_gt_irq(dev_priv, mask, mask);
+	POSTING_READ_FW(GTIMR);
 }
 
 void gen5_disable_gt_irq(struct drm_i915_private *dev_priv, uint32_t mask)
@@ -2819,9 +2819,9 @@ ring_idle(struct intel_engine_cs *engine, u32 seqno)
 }
 
 static bool
-ipehr_is_semaphore_wait(struct drm_i915_private *dev_priv, u32 ipehr)
+ipehr_is_semaphore_wait(struct intel_engine_cs *engine, u32 ipehr)
 {
-	if (INTEL_GEN(dev_priv) >= 8) {
+	if (INTEL_GEN(engine->i915) >= 8) {
 		return (ipehr >> 23) == 0x1c;
 	} else {
 		ipehr &= ~MI_SEMAPHORE_SYNC_MASK;
@@ -2892,7 +2892,7 @@ semaphore_waits_for(struct intel_engine_cs *engine, u32 *seqno)
 		return NULL;
 
 	ipehr = I915_READ(RING_IPEHR(engine->mmio_base));
-	if (!ipehr_is_semaphore_wait(engine->i915, ipehr))
+	if (!ipehr_is_semaphore_wait(engine, ipehr))
 		return NULL;
 
 	/*

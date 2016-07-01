@@ -1636,103 +1636,54 @@ gen6_seqno_barrier(struct intel_engine_cs *engine)
 	spin_unlock_irq(&dev_priv->uncore.lock);
 }
 
-static bool
-gen5_ring_get_irq(struct intel_engine_cs *engine)
+static void
+gen5_irq_enable(struct intel_engine_cs *engine)
 {
-	struct drm_i915_private *dev_priv = engine->i915;
-	unsigned long flags;
-
-	if (WARN_ON(!intel_irqs_enabled(dev_priv)))
-		return false;
-
-	spin_lock_irqsave(&dev_priv->irq_lock, flags);
-	if (engine->irq_refcount++ == 0)
-		gen5_enable_gt_irq(dev_priv, engine->irq_enable_mask);
-	spin_unlock_irqrestore(&dev_priv->irq_lock, flags);
-
-	return true;
+	gen5_enable_gt_irq(engine->i915, engine->irq_enable_mask);
 }
 
 static void
-gen5_ring_put_irq(struct intel_engine_cs *engine)
+gen5_irq_disable(struct intel_engine_cs *engine)
 {
-	struct drm_i915_private *dev_priv = engine->i915;
-	unsigned long flags;
-
-	spin_lock_irqsave(&dev_priv->irq_lock, flags);
-	if (--engine->irq_refcount == 0)
-		gen5_disable_gt_irq(dev_priv, engine->irq_enable_mask);
-	spin_unlock_irqrestore(&dev_priv->irq_lock, flags);
-}
-
-static bool
-i9xx_ring_get_irq(struct intel_engine_cs *engine)
-{
-	struct drm_i915_private *dev_priv = engine->i915;
-	unsigned long flags;
-
-	if (!intel_irqs_enabled(dev_priv))
-		return false;
-
-	spin_lock_irqsave(&dev_priv->irq_lock, flags);
-	if (engine->irq_refcount++ == 0) {
-		dev_priv->irq_mask &= ~engine->irq_enable_mask;
-		I915_WRITE(IMR, dev_priv->irq_mask);
-		POSTING_READ(IMR);
-	}
-	spin_unlock_irqrestore(&dev_priv->irq_lock, flags);
-
-	return true;
+	gen5_disable_gt_irq(engine->i915, engine->irq_enable_mask);
 }
 
 static void
-i9xx_ring_put_irq(struct intel_engine_cs *engine)
+i9xx_irq_enable(struct intel_engine_cs *engine)
 {
 	struct drm_i915_private *dev_priv = engine->i915;
-	unsigned long flags;
 
-	spin_lock_irqsave(&dev_priv->irq_lock, flags);
-	if (--engine->irq_refcount == 0) {
-		dev_priv->irq_mask |= engine->irq_enable_mask;
-		I915_WRITE(IMR, dev_priv->irq_mask);
-		POSTING_READ(IMR);
-	}
-	spin_unlock_irqrestore(&dev_priv->irq_lock, flags);
-}
-
-static bool
-i8xx_ring_get_irq(struct intel_engine_cs *engine)
-{
-	struct drm_i915_private *dev_priv = engine->i915;
-	unsigned long flags;
-
-	if (!intel_irqs_enabled(dev_priv))
-		return false;
-
-	spin_lock_irqsave(&dev_priv->irq_lock, flags);
-	if (engine->irq_refcount++ == 0) {
-		dev_priv->irq_mask &= ~engine->irq_enable_mask;
-		I915_WRITE16(IMR, dev_priv->irq_mask);
-		POSTING_READ16(IMR);
-	}
-	spin_unlock_irqrestore(&dev_priv->irq_lock, flags);
-
-	return true;
+	dev_priv->irq_mask &= ~engine->irq_enable_mask;
+	I915_WRITE(IMR, dev_priv->irq_mask);
+	POSTING_READ_FW(RING_IMR(engine->mmio_base));
 }
 
 static void
-i8xx_ring_put_irq(struct intel_engine_cs *engine)
+i9xx_irq_disable(struct intel_engine_cs *engine)
 {
 	struct drm_i915_private *dev_priv = engine->i915;
-	unsigned long flags;
 
-	spin_lock_irqsave(&dev_priv->irq_lock, flags);
-	if (--engine->irq_refcount == 0) {
-		dev_priv->irq_mask |= engine->irq_enable_mask;
-		I915_WRITE16(IMR, dev_priv->irq_mask);
-		POSTING_READ16(IMR);
-	}
-	spin_unlock_irqrestore(&dev_priv->irq_lock, flags);
+	dev_priv->irq_mask |= engine->irq_enable_mask;
+	I915_WRITE(IMR, dev_priv->irq_mask);
+}
+
+static void
+i8xx_irq_enable(struct intel_engine_cs *engine)
+{
+	struct drm_i915_private *dev_priv = engine->i915;
+
+	dev_priv->irq_mask &= ~engine->irq_enable_mask;
+	I915_WRITE16(IMR, dev_priv->irq_mask);
+	POSTING_READ16(RING_IMR(engine->mmio_base));
+}
+
+static void
+i8xx_irq_disable(struct intel_engine_cs *engine)
+{
+	struct drm_i915_private *dev_priv = engine->i915;
+
+	dev_priv->irq_mask |= engine->irq_enable_mask;
+	I915_WRITE16(IMR, dev_priv->irq_mask);
 }
 
 static int
@@ -1773,122 +1724,74 @@ i9xx_add_request(struct drm_i915_gem_request *req)
 	return 0;
 }
 
-static bool
-gen6_ring_get_irq(struct intel_engine_cs *engine)
-{
-	struct drm_i915_private *dev_priv = engine->i915;
-	unsigned long flags;
-
-	if (WARN_ON(!intel_irqs_enabled(dev_priv)))
-		return false;
-
-	spin_lock_irqsave(&dev_priv->irq_lock, flags);
-	if (engine->irq_refcount++ == 0) {
-		if (HAS_L3_DPF(dev_priv) && engine->id == RCS)
-			I915_WRITE_IMR(engine,
-				       ~(engine->irq_enable_mask |
-					 GT_PARITY_ERROR(dev_priv)));
-		else
-			I915_WRITE_IMR(engine, ~engine->irq_enable_mask);
-		gen5_enable_gt_irq(dev_priv, engine->irq_enable_mask);
-	}
-	spin_unlock_irqrestore(&dev_priv->irq_lock, flags);
-
-	return true;
-}
-
 static void
-gen6_ring_put_irq(struct intel_engine_cs *engine)
+gen6_irq_enable(struct intel_engine_cs *engine)
 {
 	struct drm_i915_private *dev_priv = engine->i915;
-	unsigned long flags;
 
-	spin_lock_irqsave(&dev_priv->irq_lock, flags);
-	if (--engine->irq_refcount == 0) {
-		if (HAS_L3_DPF(dev_priv) && engine->id == RCS)
-			I915_WRITE_IMR(engine, ~GT_PARITY_ERROR(dev_priv));
-		else
-			I915_WRITE_IMR(engine, ~0);
-		gen5_disable_gt_irq(dev_priv, engine->irq_enable_mask);
-	}
-	spin_unlock_irqrestore(&dev_priv->irq_lock, flags);
-}
-
-static bool
-hsw_vebox_get_irq(struct intel_engine_cs *engine)
-{
-	struct drm_i915_private *dev_priv = engine->i915;
-	unsigned long flags;
-
-	if (WARN_ON(!intel_irqs_enabled(dev_priv)))
-		return false;
-
-	spin_lock_irqsave(&dev_priv->irq_lock, flags);
-	if (engine->irq_refcount++ == 0) {
+	if (HAS_L3_DPF(dev_priv) && engine->id == RCS)
+		I915_WRITE_IMR(engine,
+			       ~(engine->irq_enable_mask |
+				 GT_PARITY_ERROR(dev_priv)));
+	else
 		I915_WRITE_IMR(engine, ~engine->irq_enable_mask);
-		gen6_enable_pm_irq(dev_priv, engine->irq_enable_mask);
-	}
-	spin_unlock_irqrestore(&dev_priv->irq_lock, flags);
-
-	return true;
+	gen5_enable_gt_irq(dev_priv, engine->irq_enable_mask);
 }
 
 static void
-hsw_vebox_put_irq(struct intel_engine_cs *engine)
+gen6_irq_disable(struct intel_engine_cs *engine)
 {
 	struct drm_i915_private *dev_priv = engine->i915;
-	unsigned long flags;
 
-	spin_lock_irqsave(&dev_priv->irq_lock, flags);
-	if (--engine->irq_refcount == 0) {
+	if (HAS_L3_DPF(dev_priv) && engine->id == RCS)
+		I915_WRITE_IMR(engine, ~GT_PARITY_ERROR(dev_priv));
+	else
 		I915_WRITE_IMR(engine, ~0);
-		gen6_disable_pm_irq(dev_priv, engine->irq_enable_mask);
-	}
-	spin_unlock_irqrestore(&dev_priv->irq_lock, flags);
-}
-
-static bool
-gen8_ring_get_irq(struct intel_engine_cs *engine)
-{
-	struct drm_i915_private *dev_priv = engine->i915;
-	unsigned long flags;
-
-	if (WARN_ON(!intel_irqs_enabled(dev_priv)))
-		return false;
-
-	spin_lock_irqsave(&dev_priv->irq_lock, flags);
-	if (engine->irq_refcount++ == 0) {
-		if (HAS_L3_DPF(dev_priv) && engine->id == RCS) {
-			I915_WRITE_IMR(engine,
-				       ~(engine->irq_enable_mask |
-					 GT_RENDER_L3_PARITY_ERROR_INTERRUPT));
-		} else {
-			I915_WRITE_IMR(engine, ~engine->irq_enable_mask);
-		}
-		POSTING_READ(RING_IMR(engine->mmio_base));
-	}
-	spin_unlock_irqrestore(&dev_priv->irq_lock, flags);
-
-	return true;
+	gen5_disable_gt_irq(dev_priv, engine->irq_enable_mask);
 }
 
 static void
-gen8_ring_put_irq(struct intel_engine_cs *engine)
+hsw_vebox_irq_enable(struct intel_engine_cs *engine)
 {
 	struct drm_i915_private *dev_priv = engine->i915;
-	unsigned long flags;
 
-	spin_lock_irqsave(&dev_priv->irq_lock, flags);
-	if (--engine->irq_refcount == 0) {
-		if (HAS_L3_DPF(dev_priv) && engine->id == RCS) {
-			I915_WRITE_IMR(engine,
-				       ~GT_RENDER_L3_PARITY_ERROR_INTERRUPT);
-		} else {
-			I915_WRITE_IMR(engine, ~0);
-		}
-		POSTING_READ(RING_IMR(engine->mmio_base));
-	}
-	spin_unlock_irqrestore(&dev_priv->irq_lock, flags);
+	I915_WRITE_IMR(engine, ~engine->irq_enable_mask);
+	gen6_enable_pm_irq(dev_priv, engine->irq_enable_mask);
+}
+
+static void
+hsw_vebox_irq_disable(struct intel_engine_cs *engine)
+{
+	struct drm_i915_private *dev_priv = engine->i915;
+
+	I915_WRITE_IMR(engine, ~0);
+	gen6_disable_pm_irq(dev_priv, engine->irq_enable_mask);
+}
+
+static void
+gen8_irq_enable(struct intel_engine_cs *engine)
+{
+	struct drm_i915_private *dev_priv = engine->i915;
+
+	if (HAS_L3_DPF(dev_priv) && engine->id == RCS)
+		I915_WRITE_IMR(engine,
+			       ~(engine->irq_enable_mask |
+				 GT_RENDER_L3_PARITY_ERROR_INTERRUPT));
+	else
+		I915_WRITE_IMR(engine, ~engine->irq_enable_mask);
+	POSTING_READ_FW(RING_IMR(engine->mmio_base));
+}
+
+static void
+gen8_irq_disable(struct intel_engine_cs *engine)
+{
+	struct drm_i915_private *dev_priv = engine->i915;
+
+	if (HAS_L3_DPF(dev_priv) && engine->id == RCS)
+		I915_WRITE_IMR(engine,
+			       ~GT_RENDER_L3_PARITY_ERROR_INTERRUPT);
+	else
+		I915_WRITE_IMR(engine, ~0);
 }
 
 static int
@@ -2909,23 +2812,23 @@ static void intel_ring_init_irq(struct drm_i915_private *dev_priv,
 				struct intel_engine_cs *engine)
 {
 	if (INTEL_GEN(dev_priv) >= 8) {
-		engine->irq_get = gen8_ring_get_irq;
-		engine->irq_put = gen8_ring_put_irq;
+		engine->irq_enable = gen8_irq_enable;
+		engine->irq_disable = gen8_irq_disable;
 		engine->irq_seqno_barrier = gen6_seqno_barrier;
 	} else if (INTEL_GEN(dev_priv) >= 6) {
-		engine->irq_get = gen6_ring_get_irq;
-		engine->irq_put = gen6_ring_put_irq;
+		engine->irq_enable = gen6_irq_enable;
+		engine->irq_disable = gen6_irq_disable;
 		engine->irq_seqno_barrier = gen6_seqno_barrier;
 	} else if (INTEL_GEN(dev_priv) >= 5) {
-		engine->irq_get = gen5_ring_get_irq;
-		engine->irq_put = gen5_ring_put_irq;
+		engine->irq_enable = gen5_irq_enable;
+		engine->irq_disable = gen5_irq_disable;
 		engine->irq_seqno_barrier = gen5_seqno_barrier;
 	} else if (INTEL_GEN(dev_priv) >= 3) {
-		engine->irq_get = i9xx_ring_get_irq;
-		engine->irq_put = i9xx_ring_put_irq;
+		engine->irq_enable = i9xx_irq_enable;
+		engine->irq_disable = i9xx_irq_disable;
 	} else {
-		engine->irq_get = i8xx_ring_get_irq;
-		engine->irq_put = i8xx_ring_put_irq;
+		engine->irq_enable = i8xx_irq_enable;
+		engine->irq_disable = i8xx_irq_disable;
 	}
 }
 
@@ -3115,8 +3018,8 @@ int intel_init_vebox_ring_buffer(struct drm_device *dev)
 			GT_RENDER_USER_INTERRUPT << GEN8_VECS_IRQ_SHIFT;
 	} else {
 		engine->irq_enable_mask = PM_VEBOX_USER_INTERRUPT;
-		engine->irq_get = hsw_vebox_get_irq;
-		engine->irq_put = hsw_vebox_put_irq;
+		engine->irq_enable = hsw_vebox_irq_enable;
+		engine->irq_disable = hsw_vebox_irq_disable;
 	}
 
 	return intel_init_ring_buffer(dev, engine);
