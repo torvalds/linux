@@ -1286,10 +1286,14 @@ static void ceph_d_release(struct dentry *dentry)
 
 	dout("d_release %p\n", dentry);
 	ceph_dentry_lru_del(dentry);
+
+	spin_lock(&dentry->d_lock);
+	dentry->d_fsdata = NULL;
+	spin_unlock(&dentry->d_lock);
+
 	if (di->lease_session)
 		ceph_put_mds_session(di->lease_session);
 	kmem_cache_free(ceph_dentry_cachep, di);
-	dentry->d_fsdata = NULL;
 }
 
 static int ceph_snapdir_d_revalidate(struct dentry *dentry,
