@@ -707,10 +707,12 @@ struct devfreq *devfreq_get_devfreq_by_phandle(struct device *dev, int index)
 		if (devfreq->dev.parent
 			&& devfreq->dev.parent->of_node == node) {
 			mutex_unlock(&devfreq_list_lock);
+			of_node_put(node);
 			return devfreq;
 		}
 	}
 	mutex_unlock(&devfreq_list_lock);
+	of_node_put(node);
 
 	return ERR_PTR(-EPROBE_DEFER);
 }
