@@ -3988,6 +3988,12 @@ static inline bool __i915_request_irq_complete(struct drm_i915_gem_request *req)
 {
 	struct intel_engine_cs *engine = req->engine;
 
+	/* Before we do the heavier coherent read of the seqno,
+	 * check the value (hopefully) in the CPU cacheline.
+	 */
+	if (i915_gem_request_completed(req))
+		return true;
+
 	/* Ensure our read of the seqno is coherent so that we
 	 * do not "miss an interrupt" (i.e. if this is the last
 	 * request and the seqno write from the GPU is not visible
@@ -3999,11 +4005,11 @@ static inline bool __i915_request_irq_complete(struct drm_i915_gem_request *req)
 	 * but it is easier and safer to do it every time the waiter
 	 * is woken.
 	 */
-	if (engine->irq_seqno_barrier)
+	if (engine->irq_seqno_barrier) {
 		engine->irq_seqno_barrier(engine);
-
-	if (i915_gem_request_completed(req))
-		return true;
+		if (i915_gem_request_completed(req))
+			return true;
+	}
 
 	/* We need to check whether any gpu reset happened in between
 	 * the request being submitted and now. If a reset has occurred,
