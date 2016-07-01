@@ -16,9 +16,9 @@ check if the kernel device is compatible with this specification, and to
 query the :ref:`functions <devices>` and :ref:`I/O methods <io>`
 supported by the device.
 
-Starting with kernel version 3.1, VIDIOC-QUERYCAP will return the V4L2
-API version used by the driver, with generally matches the Kernel
-version. There's no need of using
+Starting with kernel version 3.1, :ref:`VIDIOC_QUERYCAP <vidioc-querycap>`
+will return the V4L2 API version used by the driver, with generally
+matches the Kernel version. There's no need of using
 :ref:`VIDIOC_QUERYCAP <vidioc-querycap>` to check if a specific ioctl
 is supported, the V4L2 core now returns ENOTTY if a driver doesn't
 provide support for an ioctl.
@@ -30,8 +30,8 @@ abstraction is a major objective of this API, the
 :ref:`VIDIOC_QUERYCAP <vidioc-querycap>` ioctl also allows driver
 specific applications to reliably identify the driver.
 
-All V4L2 drivers must support ``VIDIOC_QUERYCAP``. Applications should
-always call this ioctl after opening the device.
+All V4L2 drivers must support :ref:`VIDIOC_QUERYCAP <vidioc-querycap>`.
+Applications should always call this ioctl after opening the device.
 
 
 .. ------------------------------------------------------------------------------
