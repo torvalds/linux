@@ -5119,12 +5119,6 @@ i915_gem_init_hw(struct drm_device *dev)
 	if (ret)
 		goto out;
 
-	/*
-	 * Increment the next seqno by 0x100 so we have a visible break
-	 * on re-initialisation
-	 */
-	ret = i915_gem_set_seqno(dev, dev_priv->next_seqno+0x100);
-
 out:
 	intel_uncore_forcewake_put(dev_priv, FORCEWAKE_ALL);
 	return ret;
@@ -5266,14 +5260,6 @@ i915_gem_load_init(struct drm_device *dev)
 	init_waitqueue_head(&dev_priv->gpu_error.reset_queue);
 
 	dev_priv->relative_constants_mode = I915_EXEC_CONSTANTS_REL_GENERAL;
-
-	/*
-	 * Set initial sequence number for requests.
-	 * Using this number allows the wraparound to happen early,
-	 * catching any obvious problems.
-	 */
-	dev_priv->next_seqno = ((u32)~0 - 0x1100);
-	dev_priv->last_seqno = ((u32)~0 - 0x1101);
 
 	INIT_LIST_HEAD(&dev_priv->mm.fence_list);
 
