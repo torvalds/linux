@@ -328,3 +328,13 @@ out:
 	kfree(match_c);
 	return flow_rule;
 }
+
+int mlx5_devlink_eswitch_mode_set(struct devlink *devlink, u16 mode)
+{
+	return -EOPNOTSUPP;
+}
+
+int mlx5_devlink_eswitch_mode_get(struct devlink *devlink, u16 *mode)
+{
+	return -EOPNOTSUPP;
+}

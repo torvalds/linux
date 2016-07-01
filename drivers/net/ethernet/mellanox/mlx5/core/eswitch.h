@@ -35,6 +35,7 @@
 
 #include <linux/if_ether.h>
 #include <linux/if_link.h>
+#include <net/devlink.h>
 #include <linux/mlx5/device.h>
 
 #define MLX5_MAX_UC_PER_VPORT(dev) \
@@ -204,6 +205,9 @@ mlx5_eswitch_add_send_to_vport_rule(struct mlx5_eswitch *esw, int vport, u32 sqn
 
 struct mlx5_flow_rule *
 mlx5_eswitch_create_vport_rx_rule(struct mlx5_eswitch *esw, int vport, u32 tirn);
+
+int mlx5_devlink_eswitch_mode_set(struct devlink *devlink, u16 mode);
+int mlx5_devlink_eswitch_mode_get(struct devlink *devlink, u16 *mode);
 
 #define MLX5_DEBUG_ESWITCH_MASK BIT(3)
 
