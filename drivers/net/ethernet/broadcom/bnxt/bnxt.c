@@ -6049,7 +6049,7 @@ static int bnxt_change_mtu(struct net_device *dev, int new_mtu)
 {
 	struct bnxt *bp = netdev_priv(dev);
 
-	if (new_mtu < 60 || new_mtu > 9000)
+	if (new_mtu < 60 || new_mtu > 9500)
 		return -EINVAL;
 
 	if (netif_running(dev))
