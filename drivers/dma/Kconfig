@@ -538,6 +538,13 @@ config XILINX_DMA
 	  AXI DMA engine provides high-bandwidth one dimensional direct
 	  memory access between memory and AXI4-Stream target peripherals.
 
+config XILINX_ZYNQMP_DMA
+	tristate "Xilinx ZynqMP DMA Engine"
+	depends on (ARCH_ZYNQ || MICROBLAZE || ARM64)
+	select DMA_ENGINE
+	help
+	  Enable support for Xilinx ZynqMP DMA controller.
+
 config ZX_DMA
 	tristate "ZTE ZX296702 DMA support"
 	depends on ARCH_ZX
