@@ -737,9 +737,9 @@
 
 	thermal_zones: thermal-zones {
 		soc_thermal: soc-thermal {
-			polling-delay-passive = <100>;
+			polling-delay-passive = <20>;
 			polling-delay = <1000>;
-			sustainable-power = <2600>; /* milliwatts */
+			sustainable-power = <1600>; /* milliwatts */
 
 			thermal-sensors = <&tsadc 0>;
 
@@ -766,16 +766,19 @@
 					trip = <&target>;
 					cooling-device =
 						<&cpu_l0 THERMAL_NO_LIMIT THERMAL_NO_LIMIT>;
+					contribution = <10240>;
 				};
 				map1 {
 					trip = <&target>;
 					cooling-device =
 						<&cpu_b0 THERMAL_NO_LIMIT THERMAL_NO_LIMIT>;
+					contribution = <1024>;
 				};
 				map2 {
 					trip = <&target>;
 					cooling-device =
 						<&gpu THERMAL_NO_LIMIT THERMAL_NO_LIMIT>;
+					contribution = <10240>;
 				};
 			};
 		};
