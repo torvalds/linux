@@ -552,10 +552,15 @@ struct mlx5e_flow_steering {
 	struct mlx5e_arfs_tables        arfs;
 };
 
-struct mlx5e_tir {
-	u32              tirn;
+struct mlx5e_rqt {
 	u32              rqtn;
-	struct list_head list;
+	bool		 enabled;
+};
+
+struct mlx5e_tir {
+	u32		  tirn;
+	struct mlx5e_rqt  rqt;
+	struct list_head  list;
 };
 
 enum {
@@ -576,7 +581,7 @@ struct mlx5e_priv {
 
 	struct mlx5e_channel     **channel;
 	u32                        tisn[MLX5E_MAX_NUM_TC];
-	u32                        indir_rqtn;
+	struct mlx5e_rqt           indir_rqt;
 	struct mlx5e_tir           indir_tir[MLX5E_NUM_INDIR_TIRS];
 	struct mlx5e_tir           direct_tir[MLX5E_MAX_NUM_CHANNELS];
 	u32                        tx_rates[MLX5E_MAX_NUM_SQS];

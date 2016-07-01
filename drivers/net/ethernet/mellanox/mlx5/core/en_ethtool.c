@@ -898,7 +898,7 @@ static int mlx5e_set_rxfh(struct net_device *dev, const u32 *indir,
 	mutex_lock(&priv->state_lock);
 
 	if (indir) {
-		u32 rqtn = priv->indir_rqtn;
+		u32 rqtn = priv->indir_rqt.rqtn;
 
 		memcpy(priv->params.indirection_rqt, indir,
 		       sizeof(priv->params.indirection_rqt));
