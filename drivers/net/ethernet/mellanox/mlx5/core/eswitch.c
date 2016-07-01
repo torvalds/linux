@@ -40,17 +40,6 @@
 
 #define UPLINK_VPORT 0xFFFF
 
-#define MLX5_DEBUG_ESWITCH_MASK BIT(3)
-
-#define esw_info(dev, format, ...)				\
-	pr_info("(%s): E-Switch: " format, (dev)->priv.name, ##__VA_ARGS__)
-
-#define esw_warn(dev, format, ...)				\
-	pr_warn("(%s): E-Switch: " format, (dev)->priv.name, ##__VA_ARGS__)
-
-#define esw_debug(dev, format, ...)				\
-	mlx5_core_dbg_mask(dev, MLX5_DEBUG_ESWITCH_MASK, format, ##__VA_ARGS__)
-
 enum {
 	MLX5_ACTION_NONE = 0,
 	MLX5_ACTION_ADD  = 1,
@@ -91,6 +80,9 @@ enum {
 #define SRIOV_VPORT_EVENTS (UC_ADDR_CHANGE | \
 			    MC_ADDR_CHANGE | \
 			    PROMISC_CHANGE)
+
+int  esw_create_offloads_fdb_table(struct mlx5_eswitch *esw, int nvports);
+void esw_destroy_offloads_fdb_table(struct mlx5_eswitch *esw);
 
 static int arm_vport_context_events_cmd(struct mlx5_core_dev *dev, u16 vport,
 					u32 events_mask)
@@ -578,7 +570,8 @@ static int esw_add_uc_addr(struct mlx5_eswitch *esw, struct vport_addr *vaddr)
 	if (err)
 		goto abort;
 
-	if (esw->fdb_table.fdb) /* SRIOV is enabled: Forward UC MAC to vport */
+	/* SRIOV is enabled: Forward UC MAC to vport */
+	if (esw->fdb_table.fdb && esw->mode == SRIOV_LEGACY)
 		vaddr->flow_rule = esw_fdb_set_vport_rule(esw, mac, vport);
 
 	esw_debug(esw->dev, "\tADDED UC MAC: vport[%d] %pM index:%d fr(%p)\n",
@@ -1543,7 +1536,7 @@ static void esw_disable_vport(struct mlx5_eswitch *esw, int vport_num)
 int mlx5_eswitch_enable_sriov(struct mlx5_eswitch *esw, int nvfs, int mode)
 {
 	int err;
-	int i;
+	int i, enabled_events;
 
 	if (!esw || !MLX5_CAP_GEN(esw->dev, vport_group_manager) ||
 	    MLX5_CAP_GEN(esw->dev, port_type) != MLX5_CAP_PORT_TYPE_ETH)
@@ -1562,18 +1555,19 @@ int mlx5_eswitch_enable_sriov(struct mlx5_eswitch *esw, int nvfs, int mode)
 		esw_warn(esw->dev, "E-Switch engress ACL is not supported by FW\n");
 
 	esw_info(esw->dev, "E-Switch enable SRIOV: nvfs(%d) mode (%d)\n", nvfs, mode);
-	if (mode != SRIOV_LEGACY)
-		return -EINVAL;
-
 	esw->mode = mode;
 	esw_disable_vport(esw, 0);
 
-	err = esw_create_legacy_fdb_table(esw, nvfs + 1);
+	if (mode == SRIOV_LEGACY)
+		err = esw_create_legacy_fdb_table(esw, nvfs + 1);
+	else
+		err = esw_create_offloads_fdb_table(esw, nvfs + 1);
 	if (err)
 		goto abort;
 
+	enabled_events = (mode == SRIOV_LEGACY) ? SRIOV_VPORT_EVENTS : UC_ADDR_CHANGE;
 	for (i = 0; i <= nvfs; i++)
-		esw_enable_vport(esw, i, SRIOV_VPORT_EVENTS);
+		esw_enable_vport(esw, i, enabled_events);
 
 	esw_info(esw->dev, "SRIOV enabled: active vports(%d)\n",
 		 esw->enabled_vports);
@@ -1604,7 +1598,10 @@ void mlx5_eswitch_disable_sriov(struct mlx5_eswitch *esw)
 	if (mc_promisc && mc_promisc->uplink_rule)
 		mlx5_del_flow_rule(mc_promisc->uplink_rule);
 
-	esw_destroy_legacy_fdb_table(esw);
+	if (esw->mode == SRIOV_LEGACY)
+		esw_destroy_legacy_fdb_table(esw);
+	else
+		esw_destroy_offloads_fdb_table(esw);
 
 	esw->mode = SRIOV_NONE;
 	/* VPORT 0 (PF) must be enabled back with non-sriov configuration */

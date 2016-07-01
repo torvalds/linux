@@ -1,0 +1,135 @@
+/*
+ * Copyright (c) 2016, Mellanox Technologies. All rights reserved.
+ *
+ * This software is available to you under a choice of one of two
+ * licenses.  You may choose to be licensed under the terms of the GNU
+ * General Public License (GPL) Version 2, available from the file
+ * COPYING in the main directory of this source tree, or the
+ * OpenIB.org BSD license below:
+ *
+ *     Redistribution and use in source and binary forms, with or
+ *     without modification, are permitted provided that the following
+ *     conditions are met:
+ *
+ *      - Redistributions of source code must retain the above
+ *        copyright notice, this list of conditions and the following
+ *        disclaimer.
+ *
+ *      - Redistributions in binary form must reproduce the above
+ *        copyright notice, this list of conditions and the following
+ *        disclaimer in the documentation and/or other materials
+ *        provided with the distribution.
+ *
+ * THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND,
+ * EXPRESS OR IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF
+ * MERCHANTABILITY, FITNESS FOR A PARTICULAR PURPOSE AND
+ * NONINFRINGEMENT. IN NO EVENT SHALL THE AUTHORS OR COPYRIGHT HOLDERS
+ * BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER LIABILITY, WHETHER IN AN
+ * ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN
+ * CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
+ * SOFTWARE.
+ */
+
+#include <linux/etherdevice.h>
+#include <linux/mlx5/driver.h>
+#include <linux/mlx5/mlx5_ifc.h>
+#include <linux/mlx5/vport.h>
+#include <linux/mlx5/fs.h>
+#include "mlx5_core.h"
+#include "eswitch.h"
+
+#define MAX_PF_SQ 256
+
+int esw_create_offloads_fdb_table(struct mlx5_eswitch *esw, int nvports)
+{
+	int inlen = MLX5_ST_SZ_BYTES(create_flow_group_in);
+	struct mlx5_core_dev *dev = esw->dev;
+	struct mlx5_flow_namespace *root_ns;
+	struct mlx5_flow_table *fdb = NULL;
+	struct mlx5_flow_group *g;
+	u32 *flow_group_in;
+	void *match_criteria;
+	int table_size, ix, err = 0;
+
+	flow_group_in = mlx5_vzalloc(inlen);
+	if (!flow_group_in)
+		return -ENOMEM;
+
+	root_ns = mlx5_get_flow_namespace(dev, MLX5_FLOW_NAMESPACE_FDB);
+	if (!root_ns) {
+		esw_warn(dev, "Failed to get FDB flow namespace\n");
+		goto ns_err;
+	}
+
+	esw_debug(dev, "Create offloads FDB table, log_max_size(%d)\n",
+		  MLX5_CAP_ESW_FLOWTABLE_FDB(dev, log_max_ft_size));
+
+	table_size = nvports + MAX_PF_SQ + 1;
+	fdb = mlx5_create_flow_table(root_ns, 0, table_size, 0);
+	if (IS_ERR(fdb)) {
+		err = PTR_ERR(fdb);
+		esw_warn(dev, "Failed to create FDB Table err %d\n", err);
+		goto fdb_err;
+	}
+	esw->fdb_table.fdb = fdb;
+
+	/* create send-to-vport group */
+	memset(flow_group_in, 0, inlen);
+	MLX5_SET(create_flow_group_in, flow_group_in, match_criteria_enable,
+		 MLX5_MATCH_MISC_PARAMETERS);
+
+	match_criteria = MLX5_ADDR_OF(create_flow_group_in, flow_group_in, match_criteria);
+
+	MLX5_SET_TO_ONES(fte_match_param, match_criteria, misc_parameters.source_sqn);
+	MLX5_SET_TO_ONES(fte_match_param, match_criteria, misc_parameters.source_port);
+
+	ix = nvports + MAX_PF_SQ;
+	MLX5_SET(create_flow_group_in, flow_group_in, start_flow_index, 0);
+	MLX5_SET(create_flow_group_in, flow_group_in, end_flow_index, ix - 1);
+
+	g = mlx5_create_flow_group(fdb, flow_group_in);
+	if (IS_ERR(g)) {
+		err = PTR_ERR(g);
+		esw_warn(dev, "Failed to create send-to-vport flow group err(%d)\n", err);
+		goto send_vport_err;
+	}
+	esw->fdb_table.offloads.send_to_vport_grp = g;
+
+	/* create miss group */
+	memset(flow_group_in, 0, inlen);
+	MLX5_SET(create_flow_group_in, flow_group_in, match_criteria_enable, 0);
+
+	MLX5_SET(create_flow_group_in, flow_group_in, start_flow_index, ix);
+	MLX5_SET(create_flow_group_in, flow_group_in, end_flow_index, ix + 1);
+
+	g = mlx5_create_flow_group(fdb, flow_group_in);
+	if (IS_ERR(g)) {
+		err = PTR_ERR(g);
+		esw_warn(dev, "Failed to create miss flow group err(%d)\n", err);
+		goto miss_err;
+	}
+	esw->fdb_table.offloads.miss_grp = g;
+
+	return 0;
+
+miss_err:
+	mlx5_destroy_flow_group(esw->fdb_table.offloads.send_to_vport_grp);
+send_vport_err:
+	mlx5_destroy_flow_table(fdb);
+fdb_err:
+ns_err:
+	kvfree(flow_group_in);
+	return err;
+}
+
+void esw_destroy_offloads_fdb_table(struct mlx5_eswitch *esw)
+{
+	if (!esw->fdb_table.fdb)
+		return;
+
+	esw_debug(esw->dev, "Destroy offloads FDB Table\n");
+	mlx5_destroy_flow_group(esw->fdb_table.offloads.send_to_vport_grp);
+	mlx5_destroy_flow_group(esw->fdb_table.offloads.miss_grp);
+
+	mlx5_destroy_flow_table(esw->fdb_table.fdb);
+}

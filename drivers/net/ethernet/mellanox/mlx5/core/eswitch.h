@@ -140,6 +140,11 @@ struct mlx5_eswitch_fdb {
 			struct mlx5_flow_group *allmulti_grp;
 			struct mlx5_flow_group *promisc_grp;
 		} legacy;
+
+		struct offloads_fdb {
+			struct mlx5_flow_group *send_to_vport_grp;
+			struct mlx5_flow_group *miss_grp;
+		} offloads;
 	};
 };
 
@@ -187,5 +192,16 @@ int mlx5_eswitch_get_vport_config(struct mlx5_eswitch *esw,
 int mlx5_eswitch_get_vport_stats(struct mlx5_eswitch *esw,
 				 int vport,
 				 struct ifla_vf_stats *vf_stats);
+
+#define MLX5_DEBUG_ESWITCH_MASK BIT(3)
+
+#define esw_info(dev, format, ...)				\
+	pr_info("(%s): E-Switch: " format, (dev)->priv.name, ##__VA_ARGS__)
+
+#define esw_warn(dev, format, ...)				\
+	pr_warn("(%s): E-Switch: " format, (dev)->priv.name, ##__VA_ARGS__)
+
+#define esw_debug(dev, format, ...)				\
+	mlx5_core_dbg_mask(dev, MLX5_DEBUG_ESWITCH_MASK, format, ##__VA_ARGS__)
 
 #endif /* __MLX5_ESWITCH_H__ */
