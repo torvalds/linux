@@ -762,13 +762,13 @@ static int hns_nic_rx_poll_one(struct hns_nic_ring_data *ring_data,
 	recv_pkts = 0, recv_bds = 0, clean_count = 0;
 recv:
 	while (recv_pkts < budget && recv_bds < num) {
-		/* reuse or realloc buffers*/
+		/* reuse or realloc buffers */
 		if (clean_count >= RCB_NOF_ALLOC_RX_BUFF_ONCE) {
 			hns_nic_alloc_rx_buffers(ring_data, clean_count);
 			clean_count = 0;
 		}
 
-		/* poll one pkt*/
+		/* poll one pkt */
 		err = hns_nic_poll_rx_skb(ring_data, &skb, &bnum);
 		if (unlikely(!skb)) /* this fault cannot be repaired */
 			goto out;
