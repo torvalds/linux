@@ -134,9 +134,19 @@ struct mlx5_l2_table {
 
 struct mlx5_eswitch_fdb {
 	void *fdb;
-	struct mlx5_flow_group *addr_grp;
-	struct mlx5_flow_group *allmulti_grp;
-	struct mlx5_flow_group *promisc_grp;
+	union {
+		struct legacy_fdb {
+			struct mlx5_flow_group *addr_grp;
+			struct mlx5_flow_group *allmulti_grp;
+			struct mlx5_flow_group *promisc_grp;
+		} legacy;
+	};
+};
+
+enum {
+	SRIOV_NONE,
+	SRIOV_LEGACY,
+	SRIOV_OFFLOADS
 };
 
 struct mlx5_eswitch {
@@ -153,13 +163,14 @@ struct mlx5_eswitch {
 	 */
 	struct mutex            state_lock;
 	struct esw_mc_addr      *mc_promisc;
+	int                     mode;
 };
 
 /* E-Switch API */
 int mlx5_eswitch_init(struct mlx5_core_dev *dev);
 void mlx5_eswitch_cleanup(struct mlx5_eswitch *esw);
 void mlx5_eswitch_vport_event(struct mlx5_eswitch *esw, struct mlx5_eqe *eqe);
-int mlx5_eswitch_enable_sriov(struct mlx5_eswitch *esw, int nvfs);
+int mlx5_eswitch_enable_sriov(struct mlx5_eswitch *esw, int nvfs, int mode);
 void mlx5_eswitch_disable_sriov(struct mlx5_eswitch *esw);
 int mlx5_eswitch_set_vport_mac(struct mlx5_eswitch *esw,
 			       int vport, u8 mac[ETH_ALEN]);
