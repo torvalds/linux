@@ -852,6 +852,17 @@ fsl_edma_irq_init(struct platform_device *pdev, struct fsl_edma_engine *fsl_edma
 	return 0;
 }
 
+static void fsl_edma_irq_exit(
+		struct platform_device *pdev, struct fsl_edma_engine *fsl_edma)
+{
+	if (fsl_edma->txirq == fsl_edma->errirq) {
+		devm_free_irq(&pdev->dev, fsl_edma->txirq, fsl_edma);
+	} else {
+		devm_free_irq(&pdev->dev, fsl_edma->txirq, fsl_edma);
+		devm_free_irq(&pdev->dev, fsl_edma->errirq, fsl_edma);
+	}
+}
+
 static void fsl_disable_clocks(struct fsl_edma_engine *fsl_edma)
 {
 	int i;
@@ -989,6 +1000,7 @@ static int fsl_edma_remove(struct platform_device *pdev)
 	struct device_node *np = pdev->dev.of_node;
 	struct fsl_edma_engine *fsl_edma = platform_get_drvdata(pdev);
 
+	fsl_edma_irq_exit(pdev, fsl_edma);
 	of_dma_controller_free(np);
 	dma_async_device_unregister(&fsl_edma->dma_dev);
 	fsl_disable_clocks(fsl_edma);
