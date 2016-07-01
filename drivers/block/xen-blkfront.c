@@ -1315,7 +1315,7 @@ free_shadow:
 			rinfo->ring_ref[i] = GRANT_INVALID_REF;
 		}
 	}
-	free_pages((unsigned long)rinfo->ring.sring, get_order(info->nr_ring_pages * PAGE_SIZE));
+	free_pages((unsigned long)rinfo->ring.sring, get_order(info->nr_ring_pages * XEN_PAGE_SIZE));
 	rinfo->ring.sring = NULL;
 
 	if (rinfo->irq)
@@ -2008,7 +2008,7 @@ static int blkif_recover(struct blkfront_info *info)
 
 	blkfront_gather_backend_features(info);
 	segs = info->max_indirect_segments ? : BLKIF_MAX_SEGMENTS_PER_REQUEST;
-	blk_queue_max_segments(info->rq, segs);
+	blk_queue_max_segments(info->rq, segs / GRANTS_PER_PSEG);
 
 	for (r_index = 0; r_index < info->nr_rings; r_index++) {
 		struct blkfront_ring_info *rinfo = &info->rinfo[r_index];
