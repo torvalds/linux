@@ -3952,7 +3952,7 @@ static int bnxt_hwrm_stat_ctx_alloc(struct bnxt *bp)
 
 	bnxt_hwrm_cmd_hdr_init(bp, &req, HWRM_STAT_CTX_ALLOC, -1, -1);
 
-	req.update_period_ms = cpu_to_le32(1000);
+	req.update_period_ms = cpu_to_le32(bp->stats_coal_ticks / 1000);
 
 	mutex_lock(&bp->hwrm_cmd_lock);
 	for (i = 0; i < bp->cp_nr_rings; i++) {
@@ -5993,6 +5993,8 @@ static int bnxt_init_board(struct pci_dev *pdev, struct net_device *dev)
 	bp->tx_coal_bufs = 30;
 	bp->tx_coal_ticks_irq = 2;
 	bp->tx_coal_bufs_irq = 2;
+
+	bp->stats_coal_ticks = BNXT_DEF_STATS_COAL_TICKS;
 
 	init_timer(&bp->timer);
 	bp->timer.data = (unsigned long)bp;

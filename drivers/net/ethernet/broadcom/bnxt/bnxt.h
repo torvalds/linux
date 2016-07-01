@@ -1067,6 +1067,11 @@ struct bnxt {
 
 #define BNXT_USEC_TO_COAL_TIMER(x)	((x) * 25 / 2)
 
+	u32			stats_coal_ticks;
+#define BNXT_DEF_STATS_COAL_TICKS	 1000000
+#define BNXT_MIN_STATS_COAL_TICKS	  250000
+#define BNXT_MAX_STATS_COAL_TICKS	 1000000
+
 	struct work_struct	sp_task;
 	unsigned long		sp_event;
 #define BNXT_RX_MASK_SP_EVENT		0
