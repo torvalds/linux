@@ -17,6 +17,12 @@ ifeq ($(HAVE_SPHINX),0)
 	$(warning The '$(SPHINXBUILD)' command was not found. Make sure you have Sphinx installed and in PATH, or set the SPHINXBUILD make variable to point to the full path of the '$(SPHINXBUILD)' executable.)
 	@echo "  SKIP    Sphinx $@ target."
 
+else ifneq ($(DOCBOOKS),)
+
+# Skip Sphinx build if the user explicitly requested DOCBOOKS.
+.DEFAULT:
+	@echo "  SKIP    Sphinx $@ target (DOCBOOKS specified)."
+
 else # HAVE_SPHINX
 
 # User-friendly check for rst2pdf
