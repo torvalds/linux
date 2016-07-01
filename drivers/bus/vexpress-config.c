@@ -178,6 +178,7 @@ static int vexpress_config_populate(struct device_node *node)
 
 	parent = class_find_device(vexpress_config_class, NULL, bridge,
 			vexpress_config_node_match);
+	of_node_put(bridge);
 	if (WARN_ON(!parent))
 		return -ENODEV;
 
