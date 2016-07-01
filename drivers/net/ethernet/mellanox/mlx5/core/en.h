@@ -568,6 +568,22 @@ enum {
 	MLX5E_NIC_PRIO
 };
 
+struct mlx5e_profile {
+	void	(*init)(struct mlx5_core_dev *mdev,
+			struct net_device *netdev,
+			const struct mlx5e_profile *profile);
+	void	(*cleanup)(struct mlx5e_priv *priv);
+	int	(*init_rx)(struct mlx5e_priv *priv);
+	void	(*cleanup_rx)(struct mlx5e_priv *priv);
+	int	(*init_tx)(struct mlx5e_priv *priv);
+	void	(*cleanup_tx)(struct mlx5e_priv *priv);
+	void	(*enable)(struct mlx5e_priv *priv);
+	void	(*disable)(struct mlx5e_priv *priv);
+	void	(*update_stats)(struct mlx5e_priv *priv);
+	int	(*max_nch)(struct mlx5_core_dev *mdev);
+	int	max_tc;
+};
+
 struct mlx5e_priv {
 	/* priv data path fields - start */
 	struct mlx5e_sq            **txq_to_sq_map;
@@ -601,6 +617,7 @@ struct mlx5e_priv {
 	struct mlx5e_stats         stats;
 	struct mlx5e_tstamp        tstamp;
 	u16 q_counter;
+	const struct mlx5e_profile *profile;
 };
 
 enum mlx5e_link_mode {
