@@ -33,7 +33,7 @@ Description
 ===========
 
 Subscribe or unsubscribe V4L2 event. Subscribed events are dequeued by
-using the :ref:`VIDIOC_DQEVENT <VIDIOC_DQEVENT>` ioctl.
+using the :ref:`VIDIOC_DQEVENT` ioctl.
 
 
 .. _v4l2-event-subscription:

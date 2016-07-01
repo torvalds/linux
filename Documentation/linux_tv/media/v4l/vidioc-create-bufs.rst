@@ -34,7 +34,7 @@ Description
 This ioctl is used to create buffers for :ref:`memory mapped <mmap>`
 or :ref:`user pointer <userp>` or :ref:`DMA buffer <dmabuf>` I/O. It
 can be used as an alternative or in addition to the
-:ref:`VIDIOC_REQBUFS <VIDIOC_REQBUFS>` ioctl, when a tighter control
+:ref:`VIDIOC_REQBUFS` ioctl, when a tighter control
 over buffers is required. This ioctl can be called multiple times to
 create buffers of different sizes.
 
@@ -48,7 +48,7 @@ The ``format`` field specifies the image format that the buffers must be
 able to handle. The application has to fill in this struct
 :ref:`v4l2_format <v4l2-format>`. Usually this will be done using the
 :ref:`VIDIOC_TRY_FMT <VIDIOC_G_FMT>` or
-:ref:`VIDIOC_G_FMT <VIDIOC_G_FMT>` ioctls to ensure that the
+:ref:`VIDIOC_G_FMT` ioctls to ensure that the
 requested format is supported by the driver. Based on the format's
 ``type`` field the requested buffer size (for single-planar) or plane
 sizes (for multi-planar formats) will be used for the allocated buffers.

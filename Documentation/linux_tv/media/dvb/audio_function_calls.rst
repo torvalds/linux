@@ -456,7 +456,7 @@ AUDIO_SET_MUTE
 DESCRIPTION
 
 This ioctl is for DVB devices only. To control a V4L2 decoder use the
-V4L2 :ref:`VIDIOC_DECODER_CMD <VIDIOC_DECODER_CMD>` with the
+V4L2 :ref:`VIDIOC_DECODER_CMD` with the
 ``V4L2_DEC_CMD_START_MUTE_AUDIO`` flag instead.
 
 This ioctl call asks the audio device to mute the stream that is

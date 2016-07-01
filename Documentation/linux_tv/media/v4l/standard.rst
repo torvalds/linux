@@ -11,8 +11,8 @@ variations of standards. Each video input and output may support another
 set of standards. This set is reported by the ``std`` field of struct
 :ref:`v4l2_input <v4l2-input>` and struct
 :ref:`v4l2_output <v4l2-output>` returned by the
-:ref:`VIDIOC_ENUMINPUT <VIDIOC_ENUMINPUT>` and
-:ref:`VIDIOC_ENUMOUTPUT <VIDIOC_ENUMOUTPUT>` ioctls, respectively.
+:ref:`VIDIOC_ENUMINPUT` and
+:ref:`VIDIOC_ENUMOUTPUT` ioctls, respectively.
 
 V4L2 defines one bit for each analog video standard currently in use
 worldwide, and sets aside bits for driver defined standards, e. g.
@@ -20,7 +20,7 @@ hybrid standards to watch NTSC video tapes on PAL TVs and vice versa.
 Applications can use the predefined bits to select a particular
 standard, although presenting the user a menu of supported standards is
 preferred. To enumerate and query the attributes of the supported
-standards applications use the :ref:`VIDIOC_ENUMSTD <VIDIOC_ENUMSTD>`
+standards applications use the :ref:`VIDIOC_ENUMSTD`
 ioctl.
 
 Many of the defined standards are actually just variations of a few
@@ -36,10 +36,10 @@ Composite input may collapse standards, enumerating "PAL-B/G/H/I",
 "NTSC-M" and "SECAM-D/K". [1]_
 
 To query and select the standard used by the current video input or
-output applications call the :ref:`VIDIOC_G_STD <VIDIOC_G_STD>` and
+output applications call the :ref:`VIDIOC_G_STD` and
 :ref:`VIDIOC_S_STD <VIDIOC_G_STD>` ioctl, respectively. The
 *received* standard can be sensed with the
-:ref:`VIDIOC_QUERYSTD <VIDIOC_QUERYSTD>` ioctl. Note that the
+:ref:`VIDIOC_QUERYSTD` ioctl. Note that the
 parameter of all these ioctls is a pointer to a
 :ref:`v4l2_std_id <v4l2-std-id>` type (a standard set), *not* an
 index into the standard enumeration. Drivers must implement all video

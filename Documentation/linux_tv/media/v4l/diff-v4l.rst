@@ -85,7 +85,7 @@ Querying Capabilities
 =====================
 
 The V4L ``VIDIOCGCAP`` ioctl is equivalent to V4L2's
-:ref:`VIDIOC_QUERYCAP <VIDIOC_QUERYCAP>`.
+:ref:`VIDIOC_QUERYCAP`.
 
 The ``name`` field in struct :c:type:`struct video_capability` became
 ``card`` in struct :ref:`v4l2_capability <v4l2-capability>`, ``type``
@@ -194,7 +194,7 @@ introduction.
        -  ``-``
 
        -  Applications can enumerate the supported image formats with the
-          :ref:`VIDIOC_ENUM_FMT <VIDIOC_ENUM_FMT>` ioctl to determine if
+          :ref:`VIDIOC_ENUM_FMT` ioctl to determine if
           the device supports grey scale capturing only. For more
           information on image formats see :ref:`pixfmt`.
 
@@ -204,7 +204,7 @@ introduction.
 
        -  ``-``
 
-       -  Applications can call the :ref:`VIDIOC_G_CROP <VIDIOC_G_CROP>`
+       -  Applications can call the :ref:`VIDIOC_G_CROP`
           ioctl to determine if the device supports capturing a subsection
           of the full picture ("cropping" in V4L2). If not, the ioctl
           returns the EINVAL error code. For more information on cropping
@@ -217,7 +217,7 @@ introduction.
        -  ``-``
 
        -  Applications can enumerate the supported image formats with the
-          :ref:`VIDIOC_ENUM_FMT <VIDIOC_ENUM_FMT>` ioctl to determine if
+          :ref:`VIDIOC_ENUM_FMT` ioctl to determine if
           the device supports MPEG streams.
 
     -  .. row 13
@@ -248,7 +248,7 @@ introduction.
 The ``audios`` field was replaced by ``capabilities`` flag
 ``V4L2_CAP_AUDIO``, indicating *if* the device has any audio inputs or
 outputs. To determine their number applications can enumerate audio
-inputs with the :ref:`VIDIOC_G_AUDIO <VIDIOC_G_AUDIO>` ioctl. The
+inputs with the :ref:`VIDIOC_G_AUDIO` ioctl. The
 audio ioctls are described in :ref:`audio`.
 
 The ``maxwidth``, ``maxheight``, ``minwidth`` and ``minheight`` fields
@@ -264,8 +264,8 @@ Video Sources
 V4L provides the ``VIDIOCGCHAN`` and ``VIDIOCSCHAN`` ioctl using struct
 :c:type:`struct video_channel` to enumerate the video inputs of a V4L
 device. The equivalent V4L2 ioctls are
-:ref:`VIDIOC_ENUMINPUT <VIDIOC_ENUMINPUT>`,
-:ref:`VIDIOC_G_INPUT <VIDIOC_G_INPUT>` and
+:ref:`VIDIOC_ENUMINPUT`,
+:ref:`VIDIOC_G_INPUT` and
 :ref:`VIDIOC_S_INPUT <VIDIOC_G_INPUT>` using struct
 :ref:`v4l2_input <v4l2-input>` as discussed in :ref:`video`.
 
@@ -328,7 +328,7 @@ Tuning
 The V4L ``VIDIOCGTUNER`` and ``VIDIOCSTUNER`` ioctl and struct
 :c:type:`struct video_tuner` can be used to enumerate the tuners of a
 V4L TV or radio device. The equivalent V4L2 ioctls are
-:ref:`VIDIOC_G_TUNER <VIDIOC_G_TUNER>` and
+:ref:`VIDIOC_G_TUNER` and
 :ref:`VIDIOC_S_TUNER <VIDIOC_G_TUNER>` using struct
 :ref:`v4l2_tuner <v4l2-tuner>`. Tuners are covered in :ref:`tuner`.
 
@@ -360,7 +360,7 @@ the struct :ref:`v4l2_tuner <v4l2-tuner>` ``capability`` field.
 
 The ``VIDIOCGFREQ`` and ``VIDIOCSFREQ`` ioctl to change the tuner
 frequency where renamed to
-:ref:`VIDIOC_G_FREQUENCY <VIDIOC_G_FREQUENCY>` and
+:ref:`VIDIOC_G_FREQUENCY` and
 :ref:`VIDIOC_S_FREQUENCY <VIDIOC_G_FREQUENCY>`. They take a pointer
 to a struct :ref:`v4l2_frequency <v4l2-frequency>` instead of an
 unsigned long integer.
@@ -374,8 +374,8 @@ Image Properties
 V4L2 has no equivalent of the ``VIDIOCGPICT`` and ``VIDIOCSPICT`` ioctl
 and struct :c:type:`struct video_picture`. The following fields where
 replaced by V4L2 controls accessible with the
-:ref:`VIDIOC_QUERYCTRL <VIDIOC_QUERYCTRL>`,
-:ref:`VIDIOC_G_CTRL <VIDIOC_G_CTRL>` and
+:ref:`VIDIOC_QUERYCTRL`,
+:ref:`VIDIOC_G_CTRL` and
 :ref:`VIDIOC_S_CTRL <VIDIOC_G_CTRL>` ioctls:
 
 
@@ -425,7 +425,7 @@ replaced by V4L2 controls accessible with the
 The V4L picture controls are assumed to range from 0 to 65535 with no
 particular reset value. The V4L2 API permits arbitrary limits and
 defaults which can be queried with the
-:ref:`VIDIOC_QUERYCTRL <VIDIOC_QUERYCTRL>` ioctl. For general
+:ref:`VIDIOC_QUERYCTRL` ioctl. For general
 information about controls see :ref:`control`.
 
 The ``depth`` (average number of bits per pixel) of a video image is
@@ -554,7 +554,7 @@ Audio
 The ``VIDIOCGAUDIO`` and ``VIDIOCSAUDIO`` ioctl and struct
 :c:type:`struct video_audio` are used to enumerate the audio inputs
 of a V4L device. The equivalent V4L2 ioctls are
-:ref:`VIDIOC_G_AUDIO <VIDIOC_G_AUDIO>` and
+:ref:`VIDIOC_G_AUDIO` and
 :ref:`VIDIOC_S_AUDIO <VIDIOC_G_AUDIO>` using struct
 :ref:`v4l2_audio <v4l2-audio>` as discussed in :ref:`audio`.
 
@@ -576,8 +576,8 @@ information on tuners. Related to audio modes struct
 stereo input, regardless if the source is a tuner.
 
 The following fields where replaced by V4L2 controls accessible with the
-:ref:`VIDIOC_QUERYCTRL <VIDIOC_QUERYCTRL>`,
-:ref:`VIDIOC_G_CTRL <VIDIOC_G_CTRL>` and
+:ref:`VIDIOC_QUERYCTRL`,
+:ref:`VIDIOC_G_CTRL` and
 :ref:`VIDIOC_S_CTRL <VIDIOC_G_CTRL>` ioctls:
 
 
@@ -621,7 +621,7 @@ The following fields where replaced by V4L2 controls accessible with the
 To determine which of these controls are supported by a driver V4L
 provides the ``flags`` ``VIDEO_AUDIO_VOLUME``, ``VIDEO_AUDIO_BASS``,
 ``VIDEO_AUDIO_TREBLE`` and ``VIDEO_AUDIO_BALANCE``. In the V4L2 API the
-:ref:`VIDIOC_QUERYCTRL <VIDIOC_QUERYCTRL>` ioctl reports if the
+:ref:`VIDIOC_QUERYCTRL` ioctl reports if the
 respective control is supported. Accordingly the ``VIDEO_AUDIO_MUTABLE``
 and ``VIDEO_AUDIO_MUTE`` flags where replaced by the boolean
 ``V4L2_CID_AUDIO_MUTE`` control.
@@ -630,7 +630,7 @@ All V4L2 controls have a ``step`` attribute replacing the struct
 :c:type:`struct video_audio` ``step`` field. The V4L audio controls
 are assumed to range from 0 to 65535 with no particular reset value. The
 V4L2 API permits arbitrary limits and defaults which can be queried with
-the :ref:`VIDIOC_QUERYCTRL <VIDIOC_QUERYCTRL>` ioctl. For general
+the :ref:`VIDIOC_QUERYCTRL` ioctl. For general
 information about controls see :ref:`control`.
 
 
@@ -638,7 +638,7 @@ Frame Buffer Overlay
 ====================
 
 The V4L2 ioctls equivalent to ``VIDIOCGFBUF`` and ``VIDIOCSFBUF`` are
-:ref:`VIDIOC_G_FBUF <VIDIOC_G_FBUF>` and
+:ref:`VIDIOC_G_FBUF` and
 :ref:`VIDIOC_S_FBUF <VIDIOC_G_FBUF>`. The ``base`` field of struct
 :c:type:`struct video_buffer` remained unchanged, except V4L2 defines
 a flag to indicate non-destructive overlays instead of a ``NULL``
@@ -650,7 +650,7 @@ list of RGB formats and their respective color depths.
 
 Instead of the special ioctls ``VIDIOCGWIN`` and ``VIDIOCSWIN`` V4L2
 uses the general-purpose data format negotiation ioctls
-:ref:`VIDIOC_G_FMT <VIDIOC_G_FMT>` and
+:ref:`VIDIOC_G_FMT` and
 :ref:`VIDIOC_S_FMT <VIDIOC_G_FMT>`. They take a pointer to a struct
 :ref:`v4l2_format <v4l2-format>` as argument. Here the ``win`` member
 of the ``fmt`` union is used, a struct
@@ -678,7 +678,7 @@ has a separate ``bitmap`` pointer field for this purpose and the bitmap
 size is determined by ``w.width`` and ``w.height``.
 
 The ``VIDIOCCAPTURE`` ioctl to enable or disable overlay was renamed to
-:ref:`VIDIOC_OVERLAY <VIDIOC_OVERLAY>`.
+:ref:`VIDIOC_OVERLAY`.
 
 
 Cropping
@@ -687,10 +687,10 @@ Cropping
 To capture only a subsection of the full picture V4L defines the
 ``VIDIOCGCAPTURE`` and ``VIDIOCSCAPTURE`` ioctls using struct
 :c:type:`struct video_capture`. The equivalent V4L2 ioctls are
-:ref:`VIDIOC_G_CROP <VIDIOC_G_CROP>` and
+:ref:`VIDIOC_G_CROP` and
 :ref:`VIDIOC_S_CROP <VIDIOC_G_CROP>` using struct
 :ref:`v4l2_crop <v4l2-crop>`, and the related
-:ref:`VIDIOC_CROPCAP <VIDIOC_CROPCAP>` ioctl. This is a rather
+:ref:`VIDIOC_CROPCAP` ioctl. This is a rather
 complex matter, see :ref:`crop` for details.
 
 The ``x``, ``y``, ``width`` and ``height`` fields moved into struct
@@ -719,14 +719,14 @@ There is no essential difference between reading images from a V4L or
 V4L2 device using the :ref:`read() <func-read>` function, however V4L2
 drivers are not required to support this I/O method. Applications can
 determine if the function is available with the
-:ref:`VIDIOC_QUERYCAP <VIDIOC_QUERYCAP>` ioctl. All V4L2 devices
+:ref:`VIDIOC_QUERYCAP` ioctl. All V4L2 devices
 exchanging data with applications must support the
 :ref:`select() <func-select>` and :ref:`poll() <func-poll>`
 functions.
 
 To select an image format and size, V4L provides the ``VIDIOCSPICT`` and
 ``VIDIOCSWIN`` ioctls. V4L2 uses the general-purpose data format
-negotiation ioctls :ref:`VIDIOC_G_FMT <VIDIOC_G_FMT>` and
+negotiation ioctls :ref:`VIDIOC_G_FMT` and
 :ref:`VIDIOC_S_FMT <VIDIOC_G_FMT>`. They take a pointer to a struct
 :ref:`v4l2_format <v4l2-format>` as argument, here the struct
 :ref:`v4l2_pix_format <v4l2-pix-format>` named ``pix`` of its
@@ -771,7 +771,7 @@ differences.
           into the driver, unless it has a module option to change the
           number when the driver module is loaded.
 
-       -  The :ref:`VIDIOC_REQBUFS <VIDIOC_REQBUFS>` ioctl allocates the
+       -  The :ref:`VIDIOC_REQBUFS` ioctl allocates the
           desired number of buffers, this is a required step in the
           initialization sequence.
 
@@ -785,7 +785,7 @@ differences.
 
        -  Buffers are individually mapped. The offset and size of each
           buffer can be determined with the
-          :ref:`VIDIOC_QUERYBUF <VIDIOC_QUERYBUF>` ioctl.
+          :ref:`VIDIOC_QUERYBUF` ioctl.
 
     -  .. row 5
 
@@ -800,18 +800,18 @@ differences.
           buffer has been filled.
 
        -  Drivers maintain an incoming and outgoing queue.
-          :ref:`VIDIOC_QBUF <VIDIOC_QBUF>` enqueues any empty buffer into
+          :ref:`VIDIOC_QBUF` enqueues any empty buffer into
           the incoming queue. Filled buffers are dequeued from the outgoing
           queue with the :ref:`VIDIOC_DQBUF <VIDIOC_QBUF>` ioctl. To wait
           until filled buffers become available this function,
           :ref:`select() <func-select>` or :ref:`poll() <func-poll>` can
-          be used. The :ref:`VIDIOC_STREAMON <VIDIOC_STREAMON>` ioctl
+          be used. The :ref:`VIDIOC_STREAMON` ioctl
           must be called once after enqueuing one or more buffers to start
           capturing. Its counterpart
           :ref:`VIDIOC_STREAMOFF <VIDIOC_STREAMON>` stops capturing and
           dequeues all buffers from both queues. Applications can query the
           signal status, if known, with the
-          :ref:`VIDIOC_ENUMINPUT <VIDIOC_ENUMINPUT>` ioctl.
+          :ref:`VIDIOC_ENUMINPUT` ioctl.
 
 
 For a more in-depth discussion of memory mapping and examples, see

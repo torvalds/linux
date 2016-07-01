@@ -48,7 +48,7 @@ effects applications must select an output before querying or
 negotiating any other parameters.
 
 Information about video outputs is available using the
-:ref:`VIDIOC_ENUMOUTPUT <VIDIOC_ENUMOUTPUT>` ioctl.
+:ref:`VIDIOC_ENUMOUTPUT` ioctl.
 
 
 Return Value

@@ -234,7 +234,7 @@ measurement was taken.
 
 It can be used to calculate the PER indicator, by dividing
 :ref:`DTV_STAT_ERROR_BLOCK_COUNT <DTV-STAT-ERROR-BLOCK-COUNT>` by
-:ref:`DTV-STAT-TOTAL-BLOCK-COUNT <DTV-STAT-TOTAL-BLOCK-COUNT>`.
+:ref:`DTV-STAT-TOTAL-BLOCK-COUNT`.
 
 Possible scales for this metric are:
 

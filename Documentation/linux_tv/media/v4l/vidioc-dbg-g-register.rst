@@ -36,7 +36,7 @@ Description
 
     **Note**
 
-    This is an :ref:`experimental <experimental>` interface and may
+    This is an :ref:`experimental` interface and may
     change in the future.
 
 For driver debugging purposes these ioctls allow test applications to
@@ -65,14 +65,14 @@ When ``match.type`` is ``V4L2_CHIP_MATCH_BRIDGE``, ``match.addr``
 selects the nth non-sub-device chip on the TV card. The number zero
 always selects the host chip, e. g. the chip connected to the PCI or USB
 bus. You can find out which chips are present with the
-:ref:`VIDIOC_DBG_G_CHIP_INFO <VIDIOC_DBG_G_CHIP_INFO>` ioctl.
+:ref:`VIDIOC_DBG_G_CHIP_INFO` ioctl.
 
 When ``match.type`` is ``V4L2_CHIP_MATCH_SUBDEV``, ``match.addr``
 selects the nth sub-device.
 
 These ioctls are optional, not all drivers may support them. However
 when a driver supports these ioctls it must also support
-:ref:`VIDIOC_DBG_G_CHIP_INFO <VIDIOC_DBG_G_CHIP_INFO>`. Conversely
+:ref:`VIDIOC_DBG_G_CHIP_INFO`. Conversely
 it may support ``VIDIOC_DBG_G_CHIP_INFO`` but not these ioctls.
 
 ``VIDIOC_DBG_G_REGISTER`` and ``VIDIOC_DBG_S_REGISTER`` were introduced

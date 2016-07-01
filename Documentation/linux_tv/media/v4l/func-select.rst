@@ -39,8 +39,8 @@ On success :c:func:`select()` returns the total number of bits set in
 the :c:type:`struct fd_set`s. When the function timed out it returns
 a value of zero. On failure it returns -1 and the ``errno`` variable is
 set appropriately. When the application did not call
-:ref:`VIDIOC_QBUF <VIDIOC_QBUF>` or
-:ref:`VIDIOC_STREAMON <VIDIOC_STREAMON>` yet the :c:func:`select()`
+:ref:`VIDIOC_QBUF` or
+:ref:`VIDIOC_STREAMON` yet the :c:func:`select()`
 function succeeds, setting the bit of the file descriptor in ``readfds``
 or ``writefds``, but subsequent :ref:`VIDIOC_DQBUF <VIDIOC_QBUF>`
 calls will fail. [1]_

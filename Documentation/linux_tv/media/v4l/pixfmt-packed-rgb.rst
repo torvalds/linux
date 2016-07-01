@@ -967,7 +967,7 @@ XBGR) must be used instead of an alpha format.
 
 The XRGB and XBGR formats contain undefined bits (-). Applications,
 devices and drivers must ignore those bits, for both
-:ref:`capture <capture>` and :ref:`output <output>` devices.
+:ref:`capture` and :ref:`output` devices.
 
 **Byte Order..**
 

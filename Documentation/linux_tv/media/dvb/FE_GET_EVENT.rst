@@ -38,7 +38,7 @@ PARAMETERS
 
        -  int request
 
-       -  Equals :ref:`FE_GET_EVENT <FE_GET_EVENT>` for this command.
+       -  Equals :ref:`FE_GET_EVENT` for this command.
 
     -  .. row 3
 

@@ -56,7 +56,7 @@ the receiver could lock to the signal, but the format is unsupported
 (e.g. because the pixelclock is out of range of the hardware
 capabilities), then the driver fills in whatever timings it could find
 and returns ERANGE. In that case the application can call
-:ref:`VIDIOC_DV_TIMINGS_CAP <VIDIOC_DV_TIMINGS_CAP>` to compare the
+:ref:`VIDIOC_DV_TIMINGS_CAP` to compare the
 found timings with the hardware's capabilities in order to give more
 precise feedback to the user.
 

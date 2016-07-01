@@ -36,7 +36,7 @@ Applications call ``VIDIOC_OVERLAY`` to start or stop the overlay. It
 takes a pointer to an integer which must be set to zero by the
 application to stop overlay, to one to start.
 
-Drivers do not support :ref:`VIDIOC_STREAMON <VIDIOC_STREAMON>` or
+Drivers do not support :ref:`VIDIOC_STREAMON` or
 :ref:`VIDIOC_STREAMOFF <VIDIOC_STREAMON>` with
 ``V4L2_BUF_TYPE_VIDEO_OVERLAY``.
 

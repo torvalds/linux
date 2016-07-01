@@ -39,7 +39,7 @@ to get and set the framebuffer parameters for a
 :ref:`Video Overlay <overlay>` or :ref:`Video Output Overlay <osd>`
 (OSD). The type of overlay is implied by the device type (capture or
 output device) and can be determined with the
-:ref:`VIDIOC_QUERYCAP <VIDIOC_QUERYCAP>` ioctl. One ``/dev/videoN``
+:ref:`VIDIOC_QUERYCAP` ioctl. One ``/dev/videoN``
 device must not support both kinds of overlay.
 
 The V4L2 API distinguishes destructive and non-destructive overlays. A

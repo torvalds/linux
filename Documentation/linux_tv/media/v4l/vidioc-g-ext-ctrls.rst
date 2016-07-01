@@ -58,7 +58,7 @@ set ``size`` to a valid value and return an ENOSPC error code. You
 should re-allocate the memory to this new size and try again. For the
 string type it is possible that the same issue occurs again if the
 string has grown in the meantime. It is recommended to call
-:ref:`VIDIOC_QUERYCTRL <VIDIOC_QUERYCTRL>` first and use
+:ref:`VIDIOC_QUERYCTRL` first and use
 ``maximum``\ +1 as the new ``size`` value. It is guaranteed that that is
 sufficient memory.
 
@@ -367,7 +367,7 @@ still cause this situation.
        -  The class containing user controls. These controls are described
           in :ref:`control`. All controls that can be set using the
           :ref:`VIDIOC_S_CTRL <VIDIOC_G_CTRL>` and
-          :ref:`VIDIOC_G_CTRL <VIDIOC_G_CTRL>` ioctl belong to this
+          :ref:`VIDIOC_G_CTRL` ioctl belong to this
           class.
 
     -  .. row 2

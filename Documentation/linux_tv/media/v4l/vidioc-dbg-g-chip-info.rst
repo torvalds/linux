@@ -33,7 +33,7 @@ Description
 
     **Note**
 
-    This is an :ref:`experimental <experimental>` interface and may
+    This is an :ref:`experimental` interface and may
     change in the future.
 
 For driver debugging purposes this ioctl allows test applications to

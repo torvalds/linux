@@ -20,7 +20,7 @@ dishes were already legacy in 2004.
 SYNOPSIS
 
 int ioctl(int fd, int request =
-:ref:`FE_DISHNETWORK_SEND_LEGACY_CMD <FE_DISHNETWORK_SEND_LEGACY_CMD>`,
+:ref:`FE_DISHNETWORK_SEND_LEGACY_CMD`,
 unsigned long cmd);
 
 PARAMETERS

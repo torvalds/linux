@@ -17,7 +17,7 @@ sufficient.
 SYNOPSIS
 
 int ioctl( int fd, int request =
-:ref:`FE_READ_UNCORRECTED_BLOCKS <FE_READ_UNCORRECTED_BLOCKS>`,
+:ref:`FE_READ_UNCORRECTED_BLOCKS`,
 uint32_t *ublocks);
 
 PARAMETERS
@@ -40,7 +40,7 @@ PARAMETERS
        -  int request
 
        -  Equals
-          :ref:`FE_READ_UNCORRECTED_BLOCKS <FE_READ_UNCORRECTED_BLOCKS>`
+          :ref:`FE_READ_UNCORRECTED_BLOCKS`
           for this command.
 
     -  .. row 3

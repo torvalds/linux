@@ -31,7 +31,7 @@ them. So the decision was made to finally remove support for the
 Teletext API in kernel 2.6.37.
 
 Modern devices all use the :ref:`raw <raw-vbi>` or
-:ref:`sliced <sliced>` VBI API.
+:ref:`sliced` VBI API.
 
 
 .. ------------------------------------------------------------------------------

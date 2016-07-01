@@ -52,7 +52,7 @@ one until EINVAL is returned.
 
 Available frame intervals may depend on the current 'try' formats at
 other pads of the sub-device, as well as on the current active links.
-See :ref:`VIDIOC_SUBDEV_G_FMT <VIDIOC_SUBDEV_G_FMT>` for more
+See :ref:`VIDIOC_SUBDEV_G_FMT` for more
 information about the try formats.
 
 Sub-devices that support the frame interval enumeration ioctl should

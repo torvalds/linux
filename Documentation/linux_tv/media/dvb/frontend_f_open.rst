@@ -49,7 +49,7 @@ Description
 This system call opens a named frontend device
 (``/dev/dvb/adapter?/frontend?``) for subsequent use. Usually the first
 thing to do after a successful open is to find out the frontend type
-with :ref:`FE_GET_INFO <FE_GET_INFO>`.
+with :ref:`FE_GET_INFO`.
 
 The device can be opened in read-only mode, which only allows monitoring
 of device status and statistics, or read/write mode, which allows any

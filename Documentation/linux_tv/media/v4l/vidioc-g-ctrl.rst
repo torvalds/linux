@@ -48,7 +48,7 @@ actual new value. If the ``value`` is inappropriate for the control
 EINVAL error code is returned as well.
 
 These ioctls work only with user controls. For other control classes the
-:ref:`VIDIOC_G_EXT_CTRLS <VIDIOC_G_EXT_CTRLS>`,
+:ref:`VIDIOC_G_EXT_CTRLS`,
 :ref:`VIDIOC_S_EXT_CTRLS <VIDIOC_G_EXT_CTRLS>` or
 :ref:`VIDIOC_TRY_EXT_CTRLS <VIDIOC_G_EXT_CTRLS>` must be used.
 

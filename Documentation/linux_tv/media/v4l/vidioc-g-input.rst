@@ -47,7 +47,7 @@ applications must select an input before querying or negotiating any
 other parameters.
 
 Information about video inputs is available using the
-:ref:`VIDIOC_ENUMINPUT <VIDIOC_ENUMINPUT>` ioctl.
+:ref:`VIDIOC_ENUMINPUT` ioctl.
 
 
 Return Value

@@ -14,7 +14,7 @@ access to the device is sufficient.
 
 SYNOPSIS
 
-int ioctl(int fd, int request = :ref:`FE_READ_BER <FE_READ_BER>`,
+int ioctl(int fd, int request = :ref:`FE_READ_BER`,
 uint32_t *ber);
 
 PARAMETERS
@@ -36,7 +36,7 @@ PARAMETERS
 
        -  int request
 
-       -  Equals :ref:`FE_READ_BER <FE_READ_BER>` for this command.
+       -  Equals :ref:`FE_READ_BER` for this command.
 
     -  .. row 3
 

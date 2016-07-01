@@ -15,7 +15,7 @@ to the device is sufficient.
 SYNOPSIS
 
 int ioctl( int fd, int request =
-:ref:`FE_READ_SIGNAL_STRENGTH <FE_READ_SIGNAL_STRENGTH>`,
+:ref:`FE_READ_SIGNAL_STRENGTH`,
 uint16_t *strength);
 
 PARAMETERS
@@ -38,7 +38,7 @@ PARAMETERS
        -  int request
 
        -  Equals
-          :ref:`FE_READ_SIGNAL_STRENGTH <FE_READ_SIGNAL_STRENGTH>`
+          :ref:`FE_READ_SIGNAL_STRENGTH`
           for this command.
 
     -  .. row 3

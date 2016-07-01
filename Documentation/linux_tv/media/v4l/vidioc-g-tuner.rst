@@ -215,7 +215,7 @@ To change the radio frequency the
 
           The selected audio mode, see :ref:`tuner-audmode` for valid
           values. The audio mode does not affect audio subprogram detection,
-          and like a :ref:`control <control>` it does not automatically
+          and like a :ref:`control` it does not automatically
           change unless the requested mode is invalid or unsupported. See
           :ref:`tuner-matrix` for possible results when the selected and
           received audio programs do not match.
@@ -323,7 +323,7 @@ To change the radio frequency the
           determined from the frequency band.) The set of supported video
           standards is available from the struct
           :ref:`v4l2_input <v4l2-input>` pointing to this tuner, see the
-          description of ioctl :ref:`VIDIOC_ENUMINPUT <VIDIOC_ENUMINPUT>`
+          description of ioctl :ref:`VIDIOC_ENUMINPUT`
           for details. Only ``V4L2_TUNER_ANALOG_TV`` tuners can have this
           capability.
 
@@ -425,7 +425,7 @@ To change the radio frequency the
 
        -  0x0400
 
-       -  The :ref:`VIDIOC_ENUM_FREQ_BANDS <VIDIOC_ENUM_FREQ_BANDS>`
+       -  The :ref:`VIDIOC_ENUM_FREQ_BANDS`
           ioctl can be used to enumerate the available frequency bands.
 
     -  .. row 13
@@ -436,7 +436,7 @@ To change the radio frequency the
 
        -  The range to search when using the hardware seek functionality is
           programmable, see
-          :ref:`VIDIOC_S_HW_FREQ_SEEK <VIDIOC_S_HW_FREQ_SEEK>` for
+          :ref:`VIDIOC_S_HW_FREQ_SEEK` for
           details.
 
     -  .. row 14

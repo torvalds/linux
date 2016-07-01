@@ -27,7 +27,7 @@ Compressed Formats
 
        -  'JPEG'
 
-       -  TBD. See also :ref:`VIDIOC_G_JPEGCOMP <VIDIOC_G_JPEGCOMP>`,
+       -  TBD. See also :ref:`VIDIOC_G_JPEGCOMP`,
           :ref:`VIDIOC_S_JPEGCOMP <VIDIOC_G_JPEGCOMP>`.
 
     -  .. _`V4L2-PIX-FMT-MPEG`:

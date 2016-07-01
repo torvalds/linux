@@ -26,7 +26,7 @@ Querying Capabilities
 Devices supporting the *Video Output Overlay* interface set the
 ``V4L2_CAP_VIDEO_OUTPUT_OVERLAY`` flag in the ``capabilities`` field of
 struct :ref:`v4l2_capability <v4l2-capability>` returned by the
-:ref:`VIDIOC_QUERYCAP <VIDIOC_QUERYCAP>` ioctl.
+:ref:`VIDIOC_QUERYCAP` ioctl.
 
 
 Framebuffer
@@ -36,7 +36,7 @@ Contrary to the *Video Overlay* interface the framebuffer is normally
 implemented on the TV card and not the graphics card. On Linux it is
 accessible as a framebuffer device (``/dev/fbN``). Given a V4L2 device,
 applications can find the corresponding framebuffer device by calling
-the :ref:`VIDIOC_G_FBUF <VIDIOC_G_FBUF>` ioctl. It returns, amongst
+the :ref:`VIDIOC_G_FBUF` ioctl. It returns, amongst
 other information, the physical address of the framebuffer in the
 ``base`` field of struct :ref:`v4l2_framebuffer <v4l2-framebuffer>`.
 The framebuffer device ioctl ``FBIOGET_FSCREENINFO`` returns the same
@@ -115,7 +115,7 @@ clipping/blending method to be used for the overlay. To get the current
 parameters applications set the ``type`` field of a struct
 :ref:`v4l2_format <v4l2-format>` to
 ``V4L2_BUF_TYPE_VIDEO_OUTPUT_OVERLAY`` and call the
-:ref:`VIDIOC_G_FMT <VIDIOC_G_FMT>` ioctl. The driver fills the
+:ref:`VIDIOC_G_FMT` ioctl. The driver fills the
 :c:type:`struct v4l2_window` substructure named ``win``. It is not
 possible to retrieve a previously programmed clipping list or bitmap.
 

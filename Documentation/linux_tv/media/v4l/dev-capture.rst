@@ -25,7 +25,7 @@ Devices supporting the video capture interface set the
 ``V4L2_CAP_VIDEO_CAPTURE`` or ``V4L2_CAP_VIDEO_CAPTURE_MPLANE`` flag in
 the ``capabilities`` field of struct
 :ref:`v4l2_capability <v4l2-capability>` returned by the
-:ref:`VIDIOC_QUERYCAP <VIDIOC_QUERYCAP>` ioctl. As secondary device
+:ref:`VIDIOC_QUERYCAP` ioctl. As secondary device
 functions they may also support the :ref:`video overlay <overlay>`
 (``V4L2_CAP_VIDEO_OVERLAY``) and the :ref:`raw VBI capture <raw-vbi>`
 (``V4L2_CAP_VBI_CAPTURE``) interface. At least one of the read/write or
@@ -37,7 +37,7 @@ Supplemental Functions
 ======================
 
 Video capture devices shall support :ref:`audio input <audio>`,
-:ref:`tuner <tuner>`, :ref:`controls <control>`,
+:ref:`tuner`, :ref:`controls <control>`,
 :ref:`cropping and scaling <crop>` and
 :ref:`streaming parameter <streaming-par>` ioctls as needed. The
 :ref:`video input <video>` and :ref:`video standard <standard>`
@@ -65,7 +65,7 @@ To query the current image format applications set the ``type`` field of
 a struct :ref:`v4l2_format <v4l2-format>` to
 ``V4L2_BUF_TYPE_VIDEO_CAPTURE`` or
 ``V4L2_BUF_TYPE_VIDEO_CAPTURE_MPLANE`` and call the
-:ref:`VIDIOC_G_FMT <VIDIOC_G_FMT>` ioctl with a pointer to this
+:ref:`VIDIOC_G_FMT` ioctl with a pointer to this
 structure. Drivers fill the struct
 :ref:`v4l2_pix_format <v4l2-pix-format>` ``pix`` or the struct
 :ref:`v4l2_pix_format_mplane <v4l2-pix-format-mplane>` ``pix_mp``

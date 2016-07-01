@@ -118,18 +118,18 @@ every point in the pipeline explicitly.
 Drivers that implement the :ref:`media API <media-controller-intro>`
 can expose pad-level image format configuration to applications. When
 they do, applications can use the
-:ref:`VIDIOC_SUBDEV_G_FMT <VIDIOC_SUBDEV_G_FMT>` and
+:ref:`VIDIOC_SUBDEV_G_FMT` and
 :ref:`VIDIOC_SUBDEV_S_FMT <VIDIOC_SUBDEV_G_FMT>` ioctls. to
 negotiate formats on a per-pad basis.
 
 Applications are responsible for configuring coherent parameters on the
 whole pipeline and making sure that connected pads have compatible
 formats. The pipeline is checked for formats mismatch at
-:ref:`VIDIOC_STREAMON <VIDIOC_STREAMON>` time, and an EPIPE error
+:ref:`VIDIOC_STREAMON` time, and an EPIPE error
 code is then returned if the configuration is invalid.
 
 Pad-level image format configuration support can be tested by calling
-the :ref:`VIDIOC_SUBDEV_G_FMT <VIDIOC_SUBDEV_G_FMT>` ioctl on pad
+the :ref:`VIDIOC_SUBDEV_G_FMT` ioctl on pad
 0. If the driver returns an EINVAL error code pad-level format
 configuration is not supported by the sub-device.
 
@@ -146,7 +146,7 @@ formats enumeration only. A format negotiation mechanism is required.
 Central to the format negotiation mechanism are the get/set format
 operations. When called with the ``which`` argument set to
 ``V4L2_SUBDEV_FORMAT_TRY``, the
-:ref:`VIDIOC_SUBDEV_G_FMT <VIDIOC_SUBDEV_G_FMT>` and
+:ref:`VIDIOC_SUBDEV_G_FMT` and
 :ref:`VIDIOC_SUBDEV_S_FMT <VIDIOC_SUBDEV_G_FMT>` ioctls operate on
 a set of formats parameters that are not connected to the hardware
 configuration. Modifying those 'try' formats leaves the device state
@@ -155,7 +155,7 @@ and the hardware state stored in the device itself).
 
 While not kept as part of the device state, try formats are stored in
 the sub-device file handles. A
-:ref:`VIDIOC_SUBDEV_G_FMT <VIDIOC_SUBDEV_G_FMT>` call will return
+:ref:`VIDIOC_SUBDEV_G_FMT` call will return
 the last try format set *on the same sub-device file handle*. Several
 applications querying the same sub-device at the same time will thus not
 interact with each other.

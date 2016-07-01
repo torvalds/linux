@@ -14,9 +14,9 @@ events.
 
 To receive events, the events the user is interested in first must be
 subscribed using the
-:ref:`VIDIOC_SUBSCRIBE_EVENT <VIDIOC_SUBSCRIBE_EVENT>` ioctl. Once
+:ref:`VIDIOC_SUBSCRIBE_EVENT` ioctl. Once
 an event is subscribed, the events of subscribed types are dequeueable
-using the :ref:`VIDIOC_DQEVENT <VIDIOC_DQEVENT>` ioctl. Events may be
+using the :ref:`VIDIOC_DQEVENT` ioctl. Events may be
 unsubscribed using VIDIOC_UNSUBSCRIBE_EVENT ioctl. The special event
 type V4L2_EVENT_ALL may be used to unsubscribe all the events the
 driver supports.

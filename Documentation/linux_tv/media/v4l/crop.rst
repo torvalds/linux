@@ -14,8 +14,8 @@ offset into a video signal.
 
 Applications can use the following API to select an area in the video
 signal, query the default area and the hardware limits. *Despite their
-name, the :ref:`VIDIOC_CROPCAP <VIDIOC_CROPCAP>`,
-:ref:`VIDIOC_G_CROP <VIDIOC_G_CROP>` and
+name, the :ref:`VIDIOC_CROPCAP`,
+:ref:`VIDIOC_G_CROP` and
 :ref:`VIDIOC_S_CROP <VIDIOC_G_CROP>` ioctls apply to input as well
 as output devices.*
 
@@ -23,7 +23,7 @@ Scaling requires a source and a target. On a video capture or overlay
 device the source is the video signal, and the cropping ioctls determine
 the area actually sampled. The target are images read by the application
 or overlaid onto the graphics screen. Their size (and position for an
-overlay) is negotiated with the :ref:`VIDIOC_G_FMT <VIDIOC_G_FMT>`
+overlay) is negotiated with the :ref:`VIDIOC_G_FMT`
 and :ref:`VIDIOC_S_FMT <VIDIOC_G_FMT>` ioctls.
 
 On a video output device the source are the images passed in by the

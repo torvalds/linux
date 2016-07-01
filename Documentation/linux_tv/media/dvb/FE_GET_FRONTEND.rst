@@ -14,7 +14,7 @@ this command, read-only access to the device is sufficient.
 SYNOPSIS
 
 int ioctl(int fd, int request =
-:ref:`FE_GET_FRONTEND <FE_GET_FRONTEND>`, struct
+:ref:`FE_GET_FRONTEND`, struct
 dvb_frontend_parameters *p);
 
 PARAMETERS
@@ -36,7 +36,7 @@ PARAMETERS
 
        -  int request
 
-       -  Equals :ref:`FE_SET_FRONTEND <FE_SET_FRONTEND>` for this
+       -  Equals :ref:`FE_SET_FRONTEND` for this
           command.
 
     -  .. row 3

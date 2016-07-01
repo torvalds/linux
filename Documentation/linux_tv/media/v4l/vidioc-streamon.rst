@@ -55,14 +55,14 @@ and it removes all buffers from the incoming and outgoing queues. That
 means all images captured but not dequeued yet will be lost, likewise
 all images enqueued for output but not transmitted yet. I/O returns to
 the same state as after calling
-:ref:`VIDIOC_REQBUFS <VIDIOC_REQBUFS>` and can be restarted
+:ref:`VIDIOC_REQBUFS` and can be restarted
 accordingly.
 
-If buffers have been queued with :ref:`VIDIOC_QBUF <VIDIOC_QBUF>` and
+If buffers have been queued with :ref:`VIDIOC_QBUF` and
 ``VIDIOC_STREAMOFF`` is called without ever having called
 ``VIDIOC_STREAMON``, then those queued buffers will also be removed from
 the incoming queue and all are returned to the same state as after
-calling :ref:`VIDIOC_REQBUFS <VIDIOC_REQBUFS>` and can be restarted
+calling :ref:`VIDIOC_REQBUFS` and can be restarted
 accordingly.
 
 Both ioctls take a pointer to an integer, the desired buffer or stream

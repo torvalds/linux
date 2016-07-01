@@ -38,8 +38,8 @@ This ioctl allows applications to enumerate all frame intervals that the
 device supports for the given pixel format and frame size.
 
 The supported pixel formats and frame sizes can be obtained by using the
-:ref:`VIDIOC_ENUM_FMT <VIDIOC_ENUM_FMT>` and
-:ref:`VIDIOC_ENUM_FRAMESIZES <VIDIOC_ENUM_FRAMESIZES>` functions.
+:ref:`VIDIOC_ENUM_FMT` and
+:ref:`VIDIOC_ENUM_FRAMESIZES` functions.
 
 The return value and the content of the ``v4l2_frmivalenum.type`` field
 depend on the type of frame intervals the device supports. Here are the

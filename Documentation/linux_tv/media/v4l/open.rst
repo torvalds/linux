@@ -108,8 +108,8 @@ are comparable to an ALSA audio mixer application. Just opening a V4L2
 device should not change the state of the device. [2]_
 
 Once an application has allocated the memory buffers needed for
-streaming data (by calling the :ref:`VIDIOC_REQBUFS <VIDIOC_REQBUFS>`
-or :ref:`VIDIOC_CREATE_BUFS <VIDIOC_CREATE_BUFS>` ioctls, or
+streaming data (by calling the :ref:`VIDIOC_REQBUFS`
+or :ref:`VIDIOC_CREATE_BUFS` ioctls, or
 implicitly by calling the :ref:`read() <func-read>` or
 :ref:`write() <func-write>` functions) that application (filehandle)
 becomes the owner of the device. It is no longer allowed to make changes

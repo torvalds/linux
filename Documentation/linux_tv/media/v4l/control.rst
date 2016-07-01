@@ -47,7 +47,7 @@ changed or generally never without application request.
 
 V4L2 specifies an event mechanism to notify applications when controls
 change value (see
-:ref:`VIDIOC_SUBSCRIBE_EVENT <VIDIOC_SUBSCRIBE_EVENT>`, event
+:ref:`VIDIOC_SUBSCRIBE_EVENT`, event
 ``V4L2_EVENT_CTRL``), panel applications might want to make use of that
 in order to always reflect the correct control value.
 
@@ -362,9 +362,9 @@ Control IDs
     and version, see :ref:`querycap`.
 
 Applications can enumerate the available controls with the
-:ref:`VIDIOC_QUERYCTRL <VIDIOC_QUERYCTRL>` and
+:ref:`VIDIOC_QUERYCTRL` and
 :ref:`VIDIOC_QUERYMENU <VIDIOC_QUERYCTRL>` ioctls, get and set a
-control value with the :ref:`VIDIOC_G_CTRL <VIDIOC_G_CTRL>` and
+control value with the :ref:`VIDIOC_G_CTRL` and
 :ref:`VIDIOC_S_CTRL <VIDIOC_G_CTRL>` ioctls. Drivers must implement
 ``VIDIOC_QUERYCTRL``, ``VIDIOC_G_CTRL`` and ``VIDIOC_S_CTRL`` when the
 device has one or more controls, ``VIDIOC_QUERYMENU`` when it has one or
@@ -522,7 +522,7 @@ more menu type controls.
    the real IDs.
 
    Many applications today still use the ``V4L2_CID_PRIVATE_BASE`` IDs
-   instead of using :ref:`VIDIOC_QUERYCTRL <VIDIOC_QUERYCTRL>` with
+   instead of using :ref:`VIDIOC_QUERYCTRL` with
    the ``V4L2_CTRL_FLAG_NEXT_CTRL`` flag to enumerate all IDs, so
    support for ``V4L2_CID_PRIVATE_BASE`` is still around.
 

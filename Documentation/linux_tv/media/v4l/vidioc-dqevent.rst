@@ -363,7 +363,7 @@ call.
 
        -  The 32-bit value of the control for 32-bit control types. This is
           0 for string controls since the value of a string cannot be passed
-          using :ref:`VIDIOC_DQEVENT <VIDIOC_DQEVENT>`.
+          using :ref:`VIDIOC_DQEVENT`.
 
     -  .. row 5
 

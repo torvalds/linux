@@ -35,7 +35,7 @@ Devices supporting the sliced VBI capturing or output API set the
 ``V4L2_CAP_SLICED_VBI_CAPTURE`` or ``V4L2_CAP_SLICED_VBI_OUTPUT`` flag
 respectively, in the ``capabilities`` field of struct
 :ref:`v4l2_capability <v4l2-capability>` returned by the
-:ref:`VIDIOC_QUERYCAP <VIDIOC_QUERYCAP>` ioctl. At least one of the
+:ref:`VIDIOC_QUERYCAP` ioctl. At least one of the
 read/write, streaming or asynchronous :ref:`I/O methods <io>` must be
 supported. Sliced VBI devices may have a tuner or modulator.
 
@@ -45,7 +45,7 @@ Supplemental Functions
 
 Sliced VBI devices shall support :ref:`video input or output <video>`
 and :ref:`tuner or modulator <tuner>` ioctls if they have these
-capabilities, and they may support :ref:`control <control>` ioctls.
+capabilities, and they may support :ref:`control` ioctls.
 The :ref:`video standard <standard>` ioctls provide information vital
 to program a sliced VBI device, therefore must be supported.
 
@@ -57,7 +57,7 @@ Sliced VBI Format Negotiation
 
 To find out which data services are supported by the hardware
 applications can call the
-:ref:`VIDIOC_G_SLICED_VBI_CAP <VIDIOC_G_SLICED_VBI_CAP>` ioctl.
+:ref:`VIDIOC_G_SLICED_VBI_CAP` ioctl.
 All drivers implementing the sliced VBI interface must support this
 ioctl. The results may differ from those of the
 :ref:`VIDIOC_S_FMT <VIDIOC_G_FMT>` ioctl when the number of VBI
@@ -70,7 +70,7 @@ To determine the currently selected services applications set the
 ``type`` field of struct :ref:`v4l2_format <v4l2-format>` to
 ``V4L2_BUF_TYPE_SLICED_VBI_CAPTURE`` or
 ``V4L2_BUF_TYPE_SLICED_VBI_OUTPUT``, and the
-:ref:`VIDIOC_G_FMT <VIDIOC_G_FMT>` ioctl fills the ``fmt.sliced``
+:ref:`VIDIOC_G_FMT` ioctl fills the ``fmt.sliced``
 member, a struct
 :ref:`v4l2_sliced_vbi_format <v4l2-sliced-vbi-format>`.
 
@@ -95,7 +95,7 @@ according to hardware capabilities. When the driver allocates resources
 at this point, it may return an EBUSY error code if the required
 resources are temporarily unavailable. Other resource allocation points
 which may return EBUSY can be the
-:ref:`VIDIOC_STREAMON <VIDIOC_STREAMON>` ioctl and the first
+:ref:`VIDIOC_STREAMON` ioctl and the first
 :ref:`read() <func-read>`, :ref:`write() <func-write>` and
 :ref:`select() <func-select>` call.
 
@@ -224,7 +224,7 @@ which may return EBUSY can be the
        -  :cspan:`2` Maximum number of bytes passed by one
           :ref:`read() <func-read>` or :ref:`write() <func-write>` call,
           and the buffer size in bytes for the
-          :ref:`VIDIOC_QBUF <VIDIOC_QBUF>` and
+          :ref:`VIDIOC_QBUF` and
           :ref:`VIDIOC_DQBUF <VIDIOC_QBUF>` ioctl. Drivers set this field
           to the size of struct
           :ref:`v4l2_sliced_vbi_data <v4l2-sliced-vbi-data>` times the
@@ -343,7 +343,7 @@ after switching the video input (which may change the video standard as
 a side effect). The :ref:`VIDIOC_S_FMT <VIDIOC_G_FMT>` ioctl may
 return an EBUSY error code when applications attempt to change the
 format while i/o is in progress (between a
-:ref:`VIDIOC_STREAMON <VIDIOC_STREAMON>` and
+:ref:`VIDIOC_STREAMON` and
 :ref:`VIDIOC_STREAMOFF <VIDIOC_STREAMON>` call, and after the first
 :ref:`read() <func-read>` or :ref:`write() <func-write>` call).
 
@@ -428,11 +428,11 @@ of one video frame. The ``id`` of unused
 
 Packets are always passed in ascending line number order, without
 duplicate line numbers. The :ref:`write() <func-write>` function and
-the :ref:`VIDIOC_QBUF <VIDIOC_QBUF>` ioctl must return an EINVAL
+the :ref:`VIDIOC_QBUF` ioctl must return an EINVAL
 error code when applications violate this rule. They must also return an
 EINVAL error code when applications pass an incorrect field or line
 number, or a combination of ``field``, ``line`` and ``id`` which has not
-been negotiated with the :ref:`VIDIOC_G_FMT <VIDIOC_G_FMT>` or
+been negotiated with the :ref:`VIDIOC_G_FMT` or
 :ref:`VIDIOC_S_FMT <VIDIOC_G_FMT>` ioctl. When the line numbers are
 unknown the driver must pass the packets in transmitted order. The
 driver can insert empty packets with ``id`` set to zero anywhere in the

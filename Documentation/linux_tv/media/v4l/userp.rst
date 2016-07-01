@@ -9,10 +9,10 @@ Streaming I/O (User Pointers)
 Input and output devices support this I/O method when the
 ``V4L2_CAP_STREAMING`` flag in the ``capabilities`` field of struct
 :ref:`v4l2_capability <v4l2-capability>` returned by the
-:ref:`VIDIOC_QUERYCAP <VIDIOC_QUERYCAP>` ioctl is set. If the
+:ref:`VIDIOC_QUERYCAP` ioctl is set. If the
 particular user pointer method (not only memory mapping) is supported
 must be determined by calling the
-:ref:`VIDIOC_REQBUFS <VIDIOC_REQBUFS>` ioctl.
+:ref:`VIDIOC_REQBUFS` ioctl.
 
 This I/O method combines advantages of the read/write and memory mapping
 methods. Buffers (planes) are allocated by the application itself, and
@@ -21,7 +21,7 @@ data are exchanged, these pointers and meta-information are passed in
 struct :ref:`v4l2_buffer <v4l2-buffer>` (or in struct
 :ref:`v4l2_plane <v4l2-plane>` in the multi-planar API case). The
 driver must be switched into user pointer I/O mode by calling the
-:ref:`VIDIOC_REQBUFS <VIDIOC_REQBUFS>` with the desired buffer type.
+:ref:`VIDIOC_REQBUFS` with the desired buffer type.
 No buffers (planes) are allocated beforehand, consequently they are not
 indexed and cannot be queried like mapped buffers with the
 ``VIDIOC_QUERYBUF`` ioctl.
@@ -45,7 +45,7 @@ indexed and cannot be queried like mapped buffers with the
     }
 
 Buffer (plane) addresses and sizes are passed on the fly with the
-:ref:`VIDIOC_QBUF <VIDIOC_QBUF>` ioctl. Although buffers are commonly
+:ref:`VIDIOC_QBUF` ioctl. Although buffers are commonly
 cycled, applications can pass different addresses and sizes at each
 ``VIDIOC_QBUF`` call. If required by the hardware the driver swaps
 memory pages within physical memory to create a continuous area of
@@ -59,7 +59,7 @@ Filled or displayed buffers are dequeued with the
 memory pages at any time between the completion of the DMA and this
 ioctl. The memory is also unlocked when
 :ref:`VIDIOC_STREAMOFF <VIDIOC_STREAMON>` is called,
-:ref:`VIDIOC_REQBUFS <VIDIOC_REQBUFS>`, or when the device is closed.
+:ref:`VIDIOC_REQBUFS`, or when the device is closed.
 Applications must take care not to free buffers without dequeuing. For
 once, the buffers remain locked until further, wasting physical memory.
 Second the driver will not be notified when the memory is returned to
@@ -82,7 +82,7 @@ immediately with an EAGAIN error code when no buffer is available. The
 are always available.
 
 To start and stop capturing or output applications call the
-:ref:`VIDIOC_STREAMON <VIDIOC_STREAMON>` and
+:ref:`VIDIOC_STREAMON` and
 :ref:`VIDIOC_STREAMOFF <VIDIOC_STREAMON>` ioctl. Note
 ``VIDIOC_STREAMOFF`` removes all buffers from both queues and unlocks
 all buffers as a side effect. Since there is no notion of doing anything

@@ -14,7 +14,7 @@ to the device is sufficient.
 
 SYNOPSIS
 
-int ioctl(int fd, int request = :ref:`FE_READ_SNR <FE_READ_SNR>`,
+int ioctl(int fd, int request = :ref:`FE_READ_SNR`,
 uint16_t *snr);
 
 PARAMETERS
@@ -36,7 +36,7 @@ PARAMETERS
 
        -  int request
 
-       -  Equals :ref:`FE_READ_SNR <FE_READ_SNR>` for this command.
+       -  Equals :ref:`FE_READ_SNR` for this command.
 
     -  .. row 3
 

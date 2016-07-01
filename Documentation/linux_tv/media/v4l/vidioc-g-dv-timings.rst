@@ -47,7 +47,7 @@ values are not correct, the driver returns EINVAL error code.
 The ``linux/v4l2-dv-timings.h`` header can be used to get the timings of
 the formats in the :ref:`cea861` and :ref:`vesadmt` standards. If
 the current input or output does not support DV timings (e.g. if
-:ref:`VIDIOC_ENUMINPUT <VIDIOC_ENUMINPUT>` does not set the
+:ref:`VIDIOC_ENUMINPUT` does not set the
 ``V4L2_IN_CAP_DV_TIMINGS`` flag), then ENODATA error code is returned.
 
 

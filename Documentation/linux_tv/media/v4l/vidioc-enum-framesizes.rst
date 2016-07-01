@@ -39,7 +39,7 @@ and height in pixels) that the device supports for the given pixel
 format.
 
 The supported pixel formats can be obtained by using the
-:ref:`VIDIOC_ENUM_FMT <VIDIOC_ENUM_FMT>` function.
+:ref:`VIDIOC_ENUM_FMT` function.
 
 The return value and the content of the ``v4l2_frmsizeenum.type`` field
 depend on the type of frame sizes the device supports. Here are the

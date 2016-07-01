@@ -41,7 +41,7 @@ Querying Capabilities
 Devices supporting the video overlay interface set the
 ``V4L2_CAP_VIDEO_OVERLAY`` flag in the ``capabilities`` field of struct
 :ref:`v4l2_capability <v4l2-capability>` returned by the
-:ref:`VIDIOC_QUERYCAP <VIDIOC_QUERYCAP>` ioctl. The overlay I/O
+:ref:`VIDIOC_QUERYCAP` ioctl. The overlay I/O
 method specified below must be supported. Tuners and audio inputs are
 optional.
 
@@ -50,7 +50,7 @@ Supplemental Functions
 ======================
 
 Video overlay devices shall support :ref:`audio input <audio>`,
-:ref:`tuner <tuner>`, :ref:`controls <control>`,
+:ref:`tuner`, :ref:`controls <control>`,
 :ref:`cropping and scaling <crop>` and
 :ref:`streaming parameter <streaming-par>` ioctls as needed. The
 :ref:`video input <video>` and :ref:`video standard <standard>`
@@ -63,7 +63,7 @@ Setup
 Before overlay can commence applications must program the driver with
 frame buffer parameters, namely the address and size of the frame buffer
 and the image format, for example RGB 5:6:5. The
-:ref:`VIDIOC_G_FBUF <VIDIOC_G_FBUF>` and
+:ref:`VIDIOC_G_FBUF` and
 :ref:`VIDIOC_S_FBUF <VIDIOC_G_FBUF>` ioctls are available to get and
 set these parameters, respectively. The ``VIDIOC_S_FBUF`` ioctl is
 privileged because it allows to set up DMA into physical memory,
@@ -121,7 +121,7 @@ its position over the graphics surface and the clipping to be applied.
 To get the current parameters applications set the ``type`` field of a
 struct :ref:`v4l2_format <v4l2-format>` to
 ``V4L2_BUF_TYPE_VIDEO_OVERLAY`` and call the
-:ref:`VIDIOC_G_FMT <VIDIOC_G_FMT>` ioctl. The driver fills the
+:ref:`VIDIOC_G_FMT` ioctl. The driver fills the
 :c:type:`struct v4l2_window` substructure named ``win``. It is not
 possible to retrieve a previously programmed clipping list or bitmap.
 
@@ -179,7 +179,7 @@ struct v4l2_window
 
 ``struct v4l2_clip * clips``
     When chroma-keying has *not* been negotiated and
-    :ref:`VIDIOC_G_FBUF <VIDIOC_G_FBUF>` indicated this capability,
+    :ref:`VIDIOC_G_FBUF` indicated this capability,
     applications can set this field to point to an array of clipping
     rectangles.
 
@@ -204,7 +204,7 @@ are undefined.
 
 ``void * bitmap``
     When chroma-keying has *not* been negotiated and
-    :ref:`VIDIOC_G_FBUF <VIDIOC_G_FBUF>` indicated this capability,
+    :ref:`VIDIOC_G_FBUF` indicated this capability,
     applications can set this field to point to a clipping bit mask.
 
 It must be of the same size as the window, ``w.width`` and ``w.height``.
@@ -289,7 +289,7 @@ Enabling Overlay
 ================
 
 To start or stop the frame buffer overlay applications call the
-:ref:`VIDIOC_OVERLAY <VIDIOC_OVERLAY>` ioctl.
+:ref:`VIDIOC_OVERLAY` ioctl.
 
 .. [1]
    A common application of two file descriptors is the XFree86

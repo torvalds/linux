@@ -35,7 +35,7 @@ Description
 While some DV receivers or transmitters support a wide range of timings,
 others support only a limited number of timings. With this ioctl
 applications can enumerate a list of known supported timings. Call
-:ref:`VIDIOC_DV_TIMINGS_CAP <VIDIOC_DV_TIMINGS_CAP>` to check if it
+:ref:`VIDIOC_DV_TIMINGS_CAP` to check if it
 also supports other standards or even custom timings that are not in
 this list.
 

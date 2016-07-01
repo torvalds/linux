@@ -48,7 +48,7 @@ no flags are given or the current input does not support the requested
 standard the driver returns an EINVAL error code. When the standard set
 is ambiguous drivers may return EINVAL or choose any of the requested
 standards. If the current input or output does not support standard
-video timings (e.g. if :ref:`VIDIOC_ENUMINPUT <VIDIOC_ENUMINPUT>`
+video timings (e.g. if :ref:`VIDIOC_ENUMINPUT`
 does not set the ``V4L2_IN_CAP_STD`` flag), then ENODATA error code is
 returned.
 

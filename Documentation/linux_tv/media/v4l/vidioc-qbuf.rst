@@ -42,10 +42,10 @@ previously used with struct :ref:`v4l2_format <v4l2-format>` ``type``
 and struct :ref:`v4l2_requestbuffers <v4l2-requestbuffers>` ``type``.
 Applications must also set the ``index`` field. Valid index numbers
 range from zero to the number of buffers allocated with
-:ref:`VIDIOC_REQBUFS <VIDIOC_REQBUFS>` (struct
+:ref:`VIDIOC_REQBUFS` (struct
 :ref:`v4l2_requestbuffers <v4l2-requestbuffers>` ``count``) minus
 one. The contents of the struct :c:type:`struct v4l2_buffer` returned
-by a :ref:`VIDIOC_QUERYBUF <VIDIOC_QUERYBUF>` ioctl will do as well.
+by a :ref:`VIDIOC_QUERYBUF` ioctl will do as well.
 When the buffer is intended for output (``type`` is
 ``V4L2_BUF_TYPE_VIDEO_OUTPUT``, ``V4L2_BUF_TYPE_VIDEO_OUTPUT_MPLANE``,
 or ``V4L2_BUF_TYPE_VBI_OUTPUT``) applications must also initialize the
@@ -76,7 +76,7 @@ the driver sets the ``V4L2_BUF_FLAG_QUEUED`` flag and clears the
 memory pages of the buffer in physical memory, they cannot be swapped
 out to disk. Buffers remain locked until dequeued, until the
 :ref:`VIDIOC_STREAMOFF <VIDIOC_STREAMON>` or
-:ref:`VIDIOC_REQBUFS <VIDIOC_REQBUFS>` ioctl is called, or until the
+:ref:`VIDIOC_REQBUFS` ioctl is called, or until the
 device is closed.
 
 To enqueue a :ref:`DMABUF <dmabuf>` buffer applications set the
@@ -92,7 +92,7 @@ buffer. Locking a buffer means passing it to a driver for a hardware
 access (usually DMA). If an application accesses (reads/writes) a locked
 buffer then the result is undefined. Buffers remain locked until
 dequeued, until the :ref:`VIDIOC_STREAMOFF <VIDIOC_STREAMON>` or
-:ref:`VIDIOC_REQBUFS <VIDIOC_REQBUFS>` ioctl is called, or until the
+:ref:`VIDIOC_REQBUFS` ioctl is called, or until the
 device is closed.
 
 Applications call the ``VIDIOC_DQBUF`` ioctl to dequeue a filled

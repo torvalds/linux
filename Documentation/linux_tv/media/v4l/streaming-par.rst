@@ -23,7 +23,7 @@ internally by a driver in read/write mode. For implications see the
 section discussing the :ref:`read() <func-read>` function.
 
 To get and set the streaming parameters applications call the
-:ref:`VIDIOC_G_PARM <VIDIOC_G_PARM>` and
+:ref:`VIDIOC_G_PARM` and
 :ref:`VIDIOC_S_PARM <VIDIOC_G_PARM>` ioctl, respectively. They take
 a pointer to a struct :ref:`v4l2_streamparm <v4l2-streamparm>`, which
 contains a union holding separate parameters for input and output

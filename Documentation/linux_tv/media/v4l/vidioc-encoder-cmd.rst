@@ -48,7 +48,7 @@ currently only used by the STOP command and contains one bit: If the
 until the end of the current *Group Of Pictures*, otherwise it will stop
 immediately.
 
-A :c:func:`read()`() or :ref:`VIDIOC_STREAMON <VIDIOC_STREAMON>`
+A :c:func:`read()`() or :ref:`VIDIOC_STREAMON`
 call sends an implicit START command to the encoder if it has not been
 started yet. After a STOP command, :c:func:`read()`() calls will read
 the remaining data buffered by the driver. When the buffer is empty,

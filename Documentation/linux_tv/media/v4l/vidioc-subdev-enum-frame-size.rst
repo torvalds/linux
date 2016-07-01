@@ -34,7 +34,7 @@ Description
 This ioctl allows applications to enumerate all frame sizes supported by
 a sub-device on the given pad for the given media bus format. Supported
 formats can be retrieved with the
-:ref:`VIDIOC_SUBDEV_ENUM_MBUS_CODE <VIDIOC_SUBDEV_ENUM_MBUS_CODE>`
+:ref:`VIDIOC_SUBDEV_ENUM_MBUS_CODE`
 ioctl.
 
 To enumerate frame sizes applications initialize the ``pad``, ``which``
@@ -58,7 +58,7 @@ sub-device for an exact supported frame size.
 Available frame sizes may depend on the current 'try' formats at other
 pads of the sub-device, as well as on the current active links and the
 current values of V4L2 controls. See
-:ref:`VIDIOC_SUBDEV_G_FMT <VIDIOC_SUBDEV_G_FMT>` for more
+:ref:`VIDIOC_SUBDEV_G_FMT` for more
 information about try formats.
 
 

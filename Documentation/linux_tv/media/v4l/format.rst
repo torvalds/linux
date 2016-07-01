@@ -23,7 +23,7 @@ current selection.
 
 A single mechanism exists to negotiate all data formats using the
 aggregate struct :ref:`v4l2_format <v4l2-format>` and the
-:ref:`VIDIOC_G_FMT <VIDIOC_G_FMT>` and
+:ref:`VIDIOC_G_FMT` and
 :ref:`VIDIOC_S_FMT <VIDIOC_G_FMT>` ioctls. Additionally the
 :ref:`VIDIOC_TRY_FMT <VIDIOC_G_FMT>` ioctl can be used to examine
 what the hardware *could* do, without actually selecting a new data
@@ -52,7 +52,7 @@ image size.
 
 When applications omit the ``VIDIOC_S_FMT`` ioctl its locking side
 effects are implied by the next step, the selection of an I/O method
-with the :ref:`VIDIOC_REQBUFS <VIDIOC_REQBUFS>` ioctl or implicit
+with the :ref:`VIDIOC_REQBUFS` ioctl or implicit
 with the first :ref:`read() <func-read>` or
 :ref:`write() <func-write>` call.
 
@@ -75,7 +75,7 @@ Apart of the generic format negotiation functions a special ioctl to
 enumerate all image formats supported by video capture, overlay or
 output devices is available. [1]_
 
-The :ref:`VIDIOC_ENUM_FMT <VIDIOC_ENUM_FMT>` ioctl must be supported
+The :ref:`VIDIOC_ENUM_FMT` ioctl must be supported
 by all drivers exchanging image data with applications.
 
     **Important**

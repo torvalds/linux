@@ -36,7 +36,7 @@ Description
 
     **Note**
 
-    This is an :ref:`obsolete <obsolete>` interface and may be removed
+    This is an :ref:`obsolete` interface and may be removed
     in the future. It is superseded by
     :ref:`the selection API <VIDIOC_SUBDEV_G_SELECTION>`.
 

@@ -39,11 +39,11 @@ The Extended Control API
 ========================
 
 Three new ioctls are available:
-:ref:`VIDIOC_G_EXT_CTRLS <VIDIOC_G_EXT_CTRLS>`,
+:ref:`VIDIOC_G_EXT_CTRLS`,
 :ref:`VIDIOC_S_EXT_CTRLS <VIDIOC_G_EXT_CTRLS>` and
 :ref:`VIDIOC_TRY_EXT_CTRLS <VIDIOC_G_EXT_CTRLS>`. These ioctls act
 on arrays of controls (as opposed to the
-:ref:`VIDIOC_G_CTRL <VIDIOC_G_CTRL>` and
+:ref:`VIDIOC_G_CTRL` and
 :ref:`VIDIOC_S_CTRL <VIDIOC_G_CTRL>` ioctls that act on a single
 control). This is needed since it is often required to atomically change
 several controls at once.
@@ -79,7 +79,7 @@ with compound types should only be used programmatically.
 
 Since such compound controls need to expose more information about
 themselves than is possible with
-:ref:`VIDIOC_QUERYCTRL <VIDIOC_QUERYCTRL>` the
+:ref:`VIDIOC_QUERYCTRL` the
 :ref:`VIDIOC_QUERY_EXT_CTRL <VIDIOC_QUERYCTRL>` ioctl was added. In
 particular, this ioctl gives the dimensions of the N-dimensional array
 if this control consists of more than one element.
@@ -87,7 +87,7 @@ if this control consists of more than one element.
 It is important to realize that due to the flexibility of controls it is
 necessary to check whether the control you want to set actually is
 supported in the driver and what the valid range of values is. So use
-the :ref:`VIDIOC_QUERYCTRL <VIDIOC_QUERYCTRL>` (or
+the :ref:`VIDIOC_QUERYCTRL` (or
 :ref:`VIDIOC_QUERY_EXT_CTRL <VIDIOC_QUERYCTRL>`) and
 :ref:`VIDIOC_QUERYMENU <VIDIOC_QUERYCTRL>` ioctls to check this. Also
 note that it is possible that some of the menu indices in a control of
@@ -103,7 +103,7 @@ Enumerating Extended Controls
 =============================
 
 The recommended way to enumerate over the extended controls is by using
-:ref:`VIDIOC_QUERYCTRL <VIDIOC_QUERYCTRL>` in combination with the
+:ref:`VIDIOC_QUERYCTRL` in combination with the
 ``V4L2_CTRL_FLAG_NEXT_CTRL`` flag:
 
 
@@ -169,7 +169,7 @@ within a control panel.
 
 The flags field of struct :ref:`v4l2_queryctrl <v4l2-queryctrl>` also
 contains hints on the behavior of the control. See the
-:ref:`VIDIOC_QUERYCTRL <VIDIOC_QUERYCTRL>` documentation for more
+:ref:`VIDIOC_QUERYCTRL` documentation for more
 details.
 
 
@@ -198,7 +198,7 @@ Codec Control IDs
 
 ``V4L2_CID_MPEG_CLASS (class)``
     The Codec class descriptor. Calling
-    :ref:`VIDIOC_QUERYCTRL <VIDIOC_QUERYCTRL>` for this control will
+    :ref:`VIDIOC_QUERYCTRL` for this control will
     return a description of this control class. This description can be
     used as the caption of a Tab page in a GUI, for example.
 
@@ -1168,7 +1168,7 @@ Codec Control IDs
     This read-only control returns the 33-bit video Presentation Time
     Stamp as defined in ITU T-REC-H.222.0 and ISO/IEC 13818-1 of the
     currently displayed frame. This is the same PTS as is used in
-    :ref:`VIDIOC_DECODER_CMD <VIDIOC_DECODER_CMD>`.
+    :ref:`VIDIOC_DECODER_CMD`.
 
 .. _`v4l2-mpeg-video-dec-frame`:
 
@@ -2781,7 +2781,7 @@ Camera Control IDs
 
 ``V4L2_CID_CAMERA_CLASS (class)``
     The Camera class descriptor. Calling
-    :ref:`VIDIOC_QUERYCTRL <VIDIOC_QUERYCTRL>` for this control will
+    :ref:`VIDIOC_QUERYCTRL` for this control will
     return a description of this control class.
 
 .. _`v4l2-exposure-auto-type`:
@@ -3441,7 +3441,7 @@ FM_TX Control IDs
 
 ``V4L2_CID_FM_TX_CLASS (class)``
     The FM_TX class descriptor. Calling
-    :ref:`VIDIOC_QUERYCTRL <VIDIOC_QUERYCTRL>` for this control will
+    :ref:`VIDIOC_QUERYCTRL` for this control will
     return a description of this control class.
 
 ``V4L2_CID_RDS_TX_DEVIATION (integer)``
@@ -3870,7 +3870,7 @@ JPEG Control IDs
 
 ``V4L2_CID_JPEG_CLASS (class)``
     The JPEG class descriptor. Calling
-    :ref:`VIDIOC_QUERYCTRL <VIDIOC_QUERYCTRL>` for this control will
+    :ref:`VIDIOC_QUERYCTRL` for this control will
     return a description of this control class.
 
 ``V4L2_CID_JPEG_CHROMA_SUBSAMPLING (menu)``
@@ -4271,7 +4271,7 @@ FM_RX Control IDs
 
 ``V4L2_CID_FM_RX_CLASS (class)``
     The FM_RX class descriptor. Calling
-    :ref:`VIDIOC_QUERYCTRL <VIDIOC_QUERYCTRL>` for this control will
+    :ref:`VIDIOC_QUERYCTRL` for this control will
     return a description of this control class.
 
 ``V4L2_CID_RDS_RECEPTION (boolean)``
@@ -4369,7 +4369,7 @@ Detect Control IDs
 
 ``V4L2_CID_DETECT_CLASS (class)``
     The Detect class descriptor. Calling
-    :ref:`VIDIOC_QUERYCTRL <VIDIOC_QUERYCTRL>` for this control will
+    :ref:`VIDIOC_QUERYCTRL` for this control will
     return a description of this control class.
 
 ``V4L2_CID_DETECT_MD_MODE (menu)``
@@ -4463,7 +4463,7 @@ RF_TUNER Control IDs
 
 ``V4L2_CID_RF_TUNER_CLASS (class)``
     The RF_TUNER class descriptor. Calling
-    :ref:`VIDIOC_QUERYCTRL <VIDIOC_QUERYCTRL>` for this control will
+    :ref:`VIDIOC_QUERYCTRL` for this control will
     return a description of this control class.
 
 ``V4L2_CID_RF_TUNER_BANDWIDTH_AUTO (boolean)``
