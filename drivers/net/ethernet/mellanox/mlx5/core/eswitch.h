@@ -156,9 +156,17 @@ enum {
 	SRIOV_OFFLOADS
 };
 
+
+struct mlx5_eswitch_rep {
+	u16		       vport;
+	void		      *priv_data;
+	bool		       valid;
+};
+
 struct mlx5_esw_offload {
 	struct mlx5_flow_table *ft_offloads;
 	struct mlx5_flow_group *vport_rx_group;
+	struct mlx5_eswitch_rep *vport_reps;
 };
 
 struct mlx5_eswitch {
@@ -208,6 +216,10 @@ mlx5_eswitch_create_vport_rx_rule(struct mlx5_eswitch *esw, int vport, u32 tirn)
 
 int mlx5_devlink_eswitch_mode_set(struct devlink *devlink, u16 mode);
 int mlx5_devlink_eswitch_mode_get(struct devlink *devlink, u16 *mode);
+void mlx5_eswitch_register_vport_rep(struct mlx5_eswitch *esw,
+				     struct mlx5_eswitch_rep *rep);
+void mlx5_eswitch_unregister_vport_rep(struct mlx5_eswitch *esw,
+				       int vport);
 
 #define MLX5_DEBUG_ESWITCH_MASK BIT(3)
 

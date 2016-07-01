@@ -571,7 +571,7 @@ enum {
 struct mlx5e_profile {
 	void	(*init)(struct mlx5_core_dev *mdev,
 			struct net_device *netdev,
-			const struct mlx5e_profile *profile);
+			const struct mlx5e_profile *profile, void *ppriv);
 	void	(*cleanup)(struct mlx5e_priv *priv);
 	int	(*init_rx)(struct mlx5e_priv *priv);
 	void	(*cleanup_rx)(struct mlx5e_priv *priv);
@@ -618,6 +618,7 @@ struct mlx5e_priv {
 	struct mlx5e_tstamp        tstamp;
 	u16 q_counter;
 	const struct mlx5e_profile *profile;
+	void                      *ppriv;
 };
 
 enum mlx5e_link_mode {

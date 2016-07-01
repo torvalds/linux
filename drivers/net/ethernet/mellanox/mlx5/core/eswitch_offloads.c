@@ -451,3 +451,22 @@ int mlx5_devlink_eswitch_mode_get(struct devlink *devlink, u16 *mode)
 
 	return 0;
 }
+
+void mlx5_eswitch_register_vport_rep(struct mlx5_eswitch *esw,
+				     struct mlx5_eswitch_rep *rep)
+{
+	struct mlx5_esw_offload *offloads = &esw->offloads;
+
+	memcpy(&offloads->vport_reps[rep->vport], rep,
+	       sizeof(struct mlx5_eswitch_rep));
+
+	offloads->vport_reps[rep->vport].valid = true;
+}
+
+void mlx5_eswitch_unregister_vport_rep(struct mlx5_eswitch *esw,
+				       int vport)
+{
+	struct mlx5_esw_offload *offloads = &esw->offloads;
+
+	offloads->vport_reps[vport].valid = false;
+}
