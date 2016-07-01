@@ -850,6 +850,31 @@ struct vmbus_channel {
 	 * ring lock to preserve the current behavior.
 	 */
 	bool acquire_ring_lock;
+	/*
+	 * For performance critical channels (storage, networking
+	 * etc,), Hyper-V has a mechanism to enhance the throughput
+	 * at the expense of latency:
+	 * When the host is to be signaled, we just set a bit in a shared page
+	 * and this bit will be inspected by the hypervisor within a certain
+	 * window and if the bit is set, the host will be signaled. The window
+	 * of time is the monitor latency - currently around 100 usecs. This
+	 * mechanism improves throughput by:
+	 *
+	 * A) Making the host more efficient - each time it wakes up,
+	 *    potentially it will process morev number of packets. The
+	 *    monitor latency allows a batch to build up.
+	 * B) By deferring the hypercall to signal, we will also minimize
+	 *    the interrupts.
+	 *
+	 * Clearly, these optimizations improve throughput at the expense of
+	 * latency. Furthermore, since the channel is shared for both
+	 * control and data messages, control messages currently suffer
+	 * unnecessary latency adversley impacting performance and boot
+	 * time. To fix this issue, permit tagging the channel as being
+	 * in "low latency" mode. In this mode, we will bypass the monitor
+	 * mechanism.
+	 */
+	bool low_latency;
 
 };
 
@@ -889,6 +914,16 @@ static inline void set_channel_pending_send_size(struct vmbus_channel *c,
 						 u32 size)
 {
 	c->outbound.ring_buffer->pending_send_sz = size;
+}
+
+static inline void set_low_latency_mode(struct vmbus_channel *c)
+{
+	c->low_latency = true;
+}
+
+static inline void clear_low_latency_mode(struct vmbus_channel *c)
+{
+	c->low_latency = false;
 }
 
 void vmbus_onmessage(void *context);

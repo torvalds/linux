@@ -43,7 +43,12 @@ static void vmbus_setevent(struct vmbus_channel *channel)
 {
 	struct hv_monitor_page *monitorpage;
 
-	if (channel->offermsg.monitor_allocated) {
+	/*
+	 * For channels marked as in "low latency" mode
+	 * bypass the monitor page mechanism.
+	 */
+	if ((channel->offermsg.monitor_allocated) &&
+	    (!channel->low_latency)) {
 		/* Each u32 represents 32 channels */
 		sync_set_bit(channel->offermsg.child_relid & 31,
 			(unsigned long *) vmbus_connection.send_int_page +
