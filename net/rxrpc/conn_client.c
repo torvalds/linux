@@ -132,8 +132,6 @@ rxrpc_alloc_client_connection(struct rxrpc_conn_parameters *cp, gfp_t gfp)
 	}
 
 	conn->params		= *cp;
-	conn->proto.epoch	= rxrpc_epoch;
-	conn->proto.cid		= 0;
 	conn->out_clientflag	= RXRPC_CLIENT_INITIATED;
 	conn->state		= RXRPC_CONN_CLIENT;
 

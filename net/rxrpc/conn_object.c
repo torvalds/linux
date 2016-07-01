@@ -15,7 +15,6 @@
 #include <linux/slab.h>
 #include <linux/net.h>
 #include <linux/skbuff.h>
-#include <linux/crypto.h>
 #include <net/sock.h>
 #include <net/af_rxrpc.h>
 #include "ar-internal.h"
@@ -64,23 +63,29 @@ struct rxrpc_connection *rxrpc_alloc_connection(gfp_t gfp)
 }
 
 /*
- * find a connection based on transport and RxRPC connection ID for an incoming
- * packet
+ * Look up a connection in the cache by protocol parameters.
+ *
+ * If successful, a pointer to the connection is returned, but no ref is taken.
+ * NULL is returned if there is no match.
+ *
+ * The caller must be holding the RCU read lock.
  */
-struct rxrpc_connection *rxrpc_find_connection(struct rxrpc_local *local,
-					       struct sk_buff *skb)
+struct rxrpc_connection *rxrpc_find_connection_rcu(struct rxrpc_local *local,
+						   struct sk_buff *skb)
 {
 	struct rxrpc_connection *conn;
 	struct rxrpc_conn_proto k;
 	struct rxrpc_skb_priv *sp = rxrpc_skb(skb);
 	struct sockaddr_rxrpc srx;
 	struct rxrpc_peer *peer;
-	struct rb_node *p;
 
-	_enter(",{%x,%x}", sp->hdr.cid, sp->hdr.flags);
+	_enter(",%x", sp->hdr.cid & RXRPC_CIDMASK);
 
 	if (rxrpc_extract_addr_from_skb(&srx, skb) < 0)
 		goto not_found;
+
+	k.epoch	= sp->hdr.epoch;
+	k.cid	= sp->hdr.cid & RXRPC_CIDMASK;
 
 	/* We may have to handle mixing IPv4 and IPv6 */
 	if (srx.transport.family != local->srx.transport.family) {
@@ -101,32 +106,23 @@ struct rxrpc_connection *rxrpc_find_connection(struct rxrpc_local *local,
 		peer = rxrpc_lookup_peer_rcu(local, &srx);
 		if (!peer)
 			goto not_found;
-
-		read_lock_bh(&peer->conn_lock);
-
-		p = peer->service_conns.rb_node;
-		while (p) {
-			conn = rb_entry(p, struct rxrpc_connection, service_node);
-
-			_debug("maybe %x", conn->proto.cid);
-
-			if (k.epoch < conn->proto.epoch)
-				p = p->rb_left;
-			else if (k.epoch > conn->proto.epoch)
-				p = p->rb_right;
-			else if (k.cid < conn->proto.cid)
-				p = p->rb_left;
-			else if (k.cid > conn->proto.cid)
-				p = p->rb_right;
-			else
-				goto found_service_conn;
-		}
-		read_unlock_bh(&peer->conn_lock);
+		conn = rxrpc_find_service_conn_rcu(peer, skb);
+		if (!conn || atomic_read(&conn->usage) == 0)
+			goto not_found;
+		_leave(" = %p", conn);
+		return conn;
 	} else {
+		/* Look up client connections by connection ID alone as their
+		 * IDs are unique for this machine.
+		 */
 		conn = idr_find(&rxrpc_client_conn_ids,
-				k.cid >> RXRPC_CIDSHIFT);
-		if (!conn ||
-		    conn->proto.epoch != k.epoch ||
+				sp->hdr.cid >> RXRPC_CIDSHIFT);
+		if (!conn || atomic_read(&conn->usage) == 0) {
+			_debug("no conn");
+			goto not_found;
+		}
+
+		if (conn->proto.epoch != k.epoch ||
 		    conn->params.local != local)
 			goto not_found;
 
@@ -143,7 +139,6 @@ struct rxrpc_connection *rxrpc_find_connection(struct rxrpc_local *local,
 			BUG();
 		}
 
-		conn = rxrpc_get_connection_maybe(conn);
 		_leave(" = %p", conn);
 		return conn;
 	}
@@ -151,12 +146,6 @@ struct rxrpc_connection *rxrpc_find_connection(struct rxrpc_local *local,
 not_found:
 	_leave(" = NULL");
 	return NULL;
-
-found_service_conn:
-	conn = rxrpc_get_connection_maybe(conn);
-	read_unlock_bh(&peer->conn_lock);
-	_leave(" = %p", conn);
-	return conn;
 }
 
 /*

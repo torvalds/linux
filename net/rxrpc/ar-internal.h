@@ -10,6 +10,7 @@
  */
 
 #include <linux/atomic.h>
+#include <linux/seqlock.h>
 #include <net/sock.h>
 #include <net/af_rxrpc.h>
 #include <rxrpc/packet.h>
@@ -206,7 +207,7 @@ struct rxrpc_peer {
 	struct hlist_head	error_targets;	/* targets for net error distribution */
 	struct work_struct	error_distributor;
 	struct rb_root		service_conns;	/* Service connections */
-	rwlock_t		conn_lock;
+	seqlock_t		service_conn_lock;
 	spinlock_t		lock;		/* access lock */
 	unsigned int		if_mtu;		/* interface MTU for this peer */
 	unsigned int		mtu;		/* network MTU for this peer */
@@ -559,12 +560,10 @@ extern unsigned int rxrpc_connection_expiry;
 extern struct list_head rxrpc_connections;
 extern rwlock_t rxrpc_connection_lock;
 
-void rxrpc_conn_hash_proto_key(struct rxrpc_conn_proto *);
-void rxrpc_extract_conn_params(struct rxrpc_conn_proto *,
-			       struct rxrpc_local *, struct sk_buff *);
+int rxrpc_extract_addr_from_skb(struct sockaddr_rxrpc *, struct sk_buff *);
 struct rxrpc_connection *rxrpc_alloc_connection(gfp_t);
-struct rxrpc_connection *rxrpc_find_connection(struct rxrpc_local *,
-					       struct sk_buff *);
+struct rxrpc_connection *rxrpc_find_connection_rcu(struct rxrpc_local *,
+						   struct sk_buff *);
 void __rxrpc_disconnect_call(struct rxrpc_call *);
 void rxrpc_disconnect_call(struct rxrpc_call *);
 void rxrpc_put_connection(struct rxrpc_connection *);
@@ -591,16 +590,20 @@ struct rxrpc_connection *rxrpc_get_connection_maybe(struct rxrpc_connection *con
 	return atomic_inc_not_zero(&conn->usage) ? conn : NULL;
 }
 
-static inline void rxrpc_queue_conn(struct rxrpc_connection *conn)
+static inline bool rxrpc_queue_conn(struct rxrpc_connection *conn)
 {
-	if (rxrpc_get_connection_maybe(conn) &&
-	    !rxrpc_queue_work(&conn->processor))
+	if (!rxrpc_get_connection_maybe(conn))
+		return false;
+	if (!rxrpc_queue_work(&conn->processor))
 		rxrpc_put_connection(conn);
+	return true;
 }
 
 /*
  * conn_service.c
  */
+struct rxrpc_connection *rxrpc_find_service_conn_rcu(struct rxrpc_peer *,
+						     struct sk_buff *);
 struct rxrpc_connection *rxrpc_incoming_connection(struct rxrpc_local *,
 						   struct sockaddr_rxrpc *,
 						   struct sk_buff *);
