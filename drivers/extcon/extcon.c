@@ -861,10 +861,12 @@ struct extcon_dev *extcon_get_edev_by_phandle(struct device *dev, int index)
 	list_for_each_entry(edev, &extcon_dev_list, entry) {
 		if (edev->dev.parent && edev->dev.parent->of_node == node) {
 			mutex_unlock(&extcon_dev_list_lock);
+			of_node_put(node);
 			return edev;
 		}
 	}
 	mutex_unlock(&extcon_dev_list_lock);
+	of_node_put(node);
 
 	return ERR_PTR(-EPROBE_DEFER);
 }
