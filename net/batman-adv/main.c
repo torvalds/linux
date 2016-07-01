@@ -569,8 +569,6 @@ int batadv_algo_register(struct batadv_algo_ops *bat_algo_ops)
 	    !bat_algo_ops->bat_iface_disable ||
 	    !bat_algo_ops->bat_iface_update_mac ||
 	    !bat_algo_ops->bat_primary_iface_set ||
-	    !bat_algo_ops->bat_ogm_schedule ||
-	    !bat_algo_ops->bat_ogm_emit ||
 	    !bat_algo_ops->bat_neigh_cmp ||
 	    !bat_algo_ops->bat_neigh_is_similar_or_better) {
 		pr_info("Routing algo '%s' does not implement required ops\n",

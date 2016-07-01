@@ -683,8 +683,8 @@ static void batadv_v_ogm_process(const struct sk_buff *skb, int ogm_offset,
 	if (!orig_node)
 		return;
 
-	neigh_node = batadv_neigh_node_new(orig_node, if_incoming,
-					   ethhdr->h_source);
+	neigh_node = batadv_neigh_node_get_or_create(orig_node, if_incoming,
+						     ethhdr->h_source);
 	if (!neigh_node)
 		goto out;
 

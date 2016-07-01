@@ -144,7 +144,7 @@ void batadv_gw_tvlv_container_update(struct batadv_priv *bat_priv)
 	u32 down, up;
 	char gw_mode;
 
-	gw_mode = atomic_read(&bat_priv->gw_mode);
+	gw_mode = atomic_read(&bat_priv->gw.mode);
 
 	switch (gw_mode) {
 	case BATADV_GW_MODE_OFF:
@@ -241,8 +241,8 @@ static void batadv_gw_tvlv_ogm_handler_v1(struct batadv_priv *bat_priv,
 
 	/* restart gateway selection if fast or late switching was enabled */
 	if ((gateway.bandwidth_down != 0) &&
-	    (atomic_read(&bat_priv->gw_mode) == BATADV_GW_MODE_CLIENT) &&
-	    (atomic_read(&bat_priv->gw_sel_class) > 2))
+	    (atomic_read(&bat_priv->gw.mode) == BATADV_GW_MODE_CLIENT) &&
+	    (atomic_read(&bat_priv->gw.sel_class) > 2))
 		batadv_gw_check_election(bat_priv, orig);
 }
 

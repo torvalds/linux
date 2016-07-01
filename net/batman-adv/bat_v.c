@@ -70,11 +70,6 @@ static int batadv_v_iface_enable(struct batadv_hard_iface *hard_iface)
 	if (ret < 0)
 		batadv_v_elp_iface_disable(hard_iface);
 
-	/* enable link throughput auto-detection by setting the throughput
-	 * override to zero
-	 */
-	atomic_set(&hard_iface->bat_v.throughput_override, 0);
-
 	return ret;
 }
 
@@ -117,14 +112,6 @@ batadv_v_hardif_neigh_init(struct batadv_hardif_neigh_node *hardif_neigh)
 	ewma_throughput_init(&hardif_neigh->bat_v.throughput);
 	INIT_WORK(&hardif_neigh->bat_v.metric_work,
 		  batadv_v_elp_throughput_metric_update);
-}
-
-static void batadv_v_ogm_schedule(struct batadv_hard_iface *hard_iface)
-{
-}
-
-static void batadv_v_ogm_emit(struct batadv_forw_packet *forw_packet)
-{
 }
 
 /**
@@ -340,13 +327,25 @@ static struct batadv_algo_ops batadv_batman_v __read_mostly = {
 	.bat_iface_update_mac = batadv_v_iface_update_mac,
 	.bat_primary_iface_set = batadv_v_primary_iface_set,
 	.bat_hardif_neigh_init = batadv_v_hardif_neigh_init,
-	.bat_ogm_emit = batadv_v_ogm_emit,
-	.bat_ogm_schedule = batadv_v_ogm_schedule,
 	.bat_orig_print = batadv_v_orig_print,
 	.bat_neigh_cmp = batadv_v_neigh_cmp,
 	.bat_neigh_is_similar_or_better = batadv_v_neigh_is_sob,
 	.bat_neigh_print = batadv_v_neigh_print,
 };
+
+/**
+ * batadv_v_hardif_init - initialize the algorithm specific fields in the
+ *  hard-interface object
+ * @hard_iface: the hard-interface to initialize
+ */
+void batadv_v_hardif_init(struct batadv_hard_iface *hard_iface)
+{
+	/* enable link throughput auto-detection by setting the throughput
+	 * override to zero
+	 */
+	atomic_set(&hard_iface->bat_v.throughput_override, 0);
+	atomic_set(&hard_iface->bat_v.elp_interval, 500);
+}
 
 /**
  * batadv_v_mesh_init - initialize the B.A.T.M.A.N. V private resources for a
