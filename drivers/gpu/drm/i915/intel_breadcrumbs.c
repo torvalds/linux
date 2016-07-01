@@ -43,12 +43,18 @@ static void intel_breadcrumbs_fake_irq(unsigned long data)
 
 static void irq_enable(struct intel_engine_cs *engine)
 {
+	/* Enabling the IRQ may miss the generation of the interrupt, but
+	 * we still need to force the barrier before reading the seqno,
+	 * just in case.
+	 */
+	engine->irq_posted = true;
 	WARN_ON(!engine->irq_get(engine));
 }
 
 static void irq_disable(struct intel_engine_cs *engine)
 {
 	engine->irq_put(engine);
+	engine->irq_posted = false;
 }
 
 static bool __intel_breadcrumbs_enable_irq(struct intel_breadcrumbs *b)
@@ -56,7 +62,6 @@ static bool __intel_breadcrumbs_enable_irq(struct intel_breadcrumbs *b)
 	struct intel_engine_cs *engine =
 		container_of(b, struct intel_engine_cs, breadcrumbs);
 	struct drm_i915_private *i915 = engine->i915;
-	bool irq_posted = false;
 
 	assert_spin_locked(&b->lock);
 	if (b->rpm_wakelock)
@@ -72,10 +77,8 @@ static bool __intel_breadcrumbs_enable_irq(struct intel_breadcrumbs *b)
 
 	/* No interrupts? Kick the waiter every jiffie! */
 	if (intel_irqs_enabled(i915)) {
-		if (!test_bit(engine->id, &i915->gpu_error.test_irq_rings)) {
+		if (!test_bit(engine->id, &i915->gpu_error.test_irq_rings))
 			irq_enable(engine);
-			irq_posted = true;
-		}
 		b->irq_enabled = true;
 	}
 
@@ -83,7 +86,7 @@ static bool __intel_breadcrumbs_enable_irq(struct intel_breadcrumbs *b)
 	    test_bit(engine->id, &i915->gpu_error.missed_irq_rings))
 		mod_timer(&b->fake_irq, jiffies + 1);
 
-	return irq_posted;
+	return engine->irq_posted;
 }
 
 static void __intel_breadcrumbs_disable_irq(struct intel_breadcrumbs *b)
@@ -207,7 +210,8 @@ static bool __intel_engine_add_wait(struct intel_engine_cs *engine,
 			 * in case the seqno passed.
 			 */
 			__intel_breadcrumbs_enable_irq(b);
-			wake_up_process(to_wait(next)->tsk);
+			if (READ_ONCE(engine->irq_posted))
+				wake_up_process(to_wait(next)->tsk);
 		}
 
 		do {

@@ -4005,7 +4005,20 @@ static inline bool __i915_request_irq_complete(struct drm_i915_gem_request *req)
 	 * but it is easier and safer to do it every time the waiter
 	 * is woken.
 	 */
-	if (engine->irq_seqno_barrier) {
+	if (engine->irq_seqno_barrier &&
+	    cmpxchg_relaxed(&engine->irq_posted, 1, 0)) {
+		/* The ordering of irq_posted versus applying the barrier
+		 * is crucial. The clearing of the current irq_posted must
+		 * be visible before we perform the barrier operation,
+		 * such that if a subsequent interrupt arrives, irq_posted
+		 * is reasserted and our task rewoken (which causes us to
+		 * do another __i915_request_irq_complete() immediately
+		 * and reapply the barrier). Conversely, if the clear
+		 * occurs after the barrier, then an interrupt that arrived
+		 * whilst we waited on the barrier would not trigger a
+		 * barrier on the next pass, and the read may not see the
+		 * seqno update.
+		 */
 		engine->irq_seqno_barrier(engine);
 		if (i915_gem_request_completed(req))
 			return true;

@@ -185,6 +185,7 @@ struct intel_engine_cs {
 	struct i915_ctx_workarounds wa_ctx;
 
 	unsigned irq_refcount; /* protected by dev_priv->irq_lock */
+	bool		irq_posted;
 	u32		irq_enable_mask;	/* bitmask to enable ring interrupt */
 	struct drm_i915_gem_request *trace_irq_req;
 	bool __must_check (*irq_get)(struct intel_engine_cs *ring);

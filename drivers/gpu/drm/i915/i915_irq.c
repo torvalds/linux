@@ -976,6 +976,7 @@ static void ironlake_rps_change_irq_handler(struct drm_i915_private *dev_priv)
 
 static void notify_ring(struct intel_engine_cs *engine)
 {
+	smp_store_mb(engine->irq_posted, true);
 	if (intel_engine_wakeup(engine)) {
 		trace_i915_gem_request_notify(engine);
 		engine->user_interrupts++;
