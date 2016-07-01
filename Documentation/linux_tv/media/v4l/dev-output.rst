@@ -72,23 +72,23 @@ To request different parameters applications set the ``type`` field of a
 struct :ref:`v4l2_format <v4l2-format>` as above and initialize all
 fields of the struct :ref:`v4l2_pix_format <v4l2-pix-format>`
 ``vbi`` member of the ``fmt`` union, or better just modify the results
-of ``VIDIOC_G_FMT``, and call the :ref:`VIDIOC_S_FMT <VIDIOC_G_FMT>`
+of :ref:`VIDIOC_G_FMT`, and call the :ref:`VIDIOC_S_FMT <VIDIOC_G_FMT>`
 ioctl with a pointer to this structure. Drivers may adjust the
-parameters and finally return the actual parameters as ``VIDIOC_G_FMT``
+parameters and finally return the actual parameters as :ref:`VIDIOC_G_FMT`
 does.
 
-Like ``VIDIOC_S_FMT`` the :ref:`VIDIOC_TRY_FMT <VIDIOC_G_FMT>` ioctl
+Like :ref:`VIDIOC_S_FMT <VIDIOC_G_FMT>` the :ref:`VIDIOC_TRY_FMT <VIDIOC_G_FMT>` ioctl
 can be used to learn about hardware limitations without disabling I/O or
 possibly time consuming hardware preparations.
 
 The contents of struct :ref:`v4l2_pix_format <v4l2-pix-format>` and
 struct :ref:`v4l2_pix_format_mplane <v4l2-pix-format-mplane>` are
 discussed in :ref:`pixfmt`. See also the specification of the
-``VIDIOC_G_FMT``, ``VIDIOC_S_FMT`` and ``VIDIOC_TRY_FMT`` ioctls for
-details. Video output devices must implement both the ``VIDIOC_G_FMT``
-and ``VIDIOC_S_FMT`` ioctl, even if ``VIDIOC_S_FMT`` ignores all
-requests and always returns default parameters as ``VIDIOC_G_FMT`` does.
-``VIDIOC_TRY_FMT`` is optional.
+:ref:`VIDIOC_G_FMT`, :ref:`VIDIOC_S_FMT <VIDIOC_G_FMT>` and :ref:`VIDIOC_TRY_FMT <VIDIOC_G_FMT>` ioctls for
+details. Video output devices must implement both the :ref:`VIDIOC_G_FMT`
+and :ref:`VIDIOC_S_FMT <VIDIOC_G_FMT>` ioctl, even if :ref:`VIDIOC_S_FMT <VIDIOC_G_FMT>` ignores all
+requests and always returns default parameters as :ref:`VIDIOC_G_FMT` does.
+:ref:`VIDIOC_TRY_FMT <VIDIOC_G_FMT>` is optional.
 
 
 Writing Images

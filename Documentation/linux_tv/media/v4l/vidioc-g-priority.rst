@@ -36,11 +36,11 @@ Description
 ===========
 
 To query the current access priority applications call the
-``VIDIOC_G_PRIORITY`` ioctl with a pointer to an enum v4l2_priority
+:ref:`VIDIOC_G_PRIORITY` ioctl with a pointer to an enum v4l2_priority
 variable where the driver stores the current priority.
 
 To request an access priority applications store the desired priority in
-an enum v4l2_priority variable and call ``VIDIOC_S_PRIORITY`` ioctl
+an enum v4l2_priority variable and call :ref:`VIDIOC_S_PRIORITY <VIDIOC_G_PRIORITY>` ioctl
 with a pointer to this variable.
 
 

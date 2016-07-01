@@ -37,7 +37,7 @@ Description
 To query the attributes of a modulator applications initialize the
 ``index`` field and zero out the ``reserved`` array of a struct
 :ref:`v4l2_modulator <v4l2-modulator>` and call the
-``VIDIOC_G_MODULATOR`` ioctl with a pointer to this structure. Drivers
+:ref:`VIDIOC_G_MODULATOR` ioctl with a pointer to this structure. Drivers
 fill the rest of the structure or return an EINVAL error code when the
 index is out of bounds. To enumerate all modulators applications shall
 begin at index zero, incrementing by one until the driver returns
@@ -46,7 +46,7 @@ EINVAL.
 Modulators have two writable properties, an audio modulation set and the
 radio frequency. To change the modulated audio subprograms, applications
 initialize the ``index`` and ``txsubchans`` fields and the ``reserved``
-array and call the ``VIDIOC_S_MODULATOR`` ioctl. Drivers may choose a
+array and call the :ref:`VIDIOC_S_MODULATOR <VIDIOC_G_MODULATOR>` ioctl. Drivers may choose a
 different audio modulation if the request cannot be satisfied. However
 this is a write-only ioctl, it does not return the actual audio
 modulation selected.
@@ -198,7 +198,7 @@ To change the radio frequency the
           ``V4L2_TUNER_SUB_MONO``, ``V4L2_TUNER_SUB_STEREO`` or
           ``V4L2_TUNER_SUB_SAP``. If the hardware does not support the
           respective audio matrix, or the current video standard does not
-          permit bilingual audio the ``VIDIOC_S_MODULATOR`` ioctl shall
+          permit bilingual audio the :ref:`VIDIOC_S_MODULATOR <VIDIOC_G_MODULATOR>` ioctl shall
           return an EINVAL error code and the driver shall fall back to mono
           or stereo mode.
 
@@ -230,7 +230,7 @@ To change the radio frequency the
           ``V4L2_TUNER_SUB_MONO`` or ``V4L2_TUNER_SUB_STEREO``. If the
           hardware does not support the respective audio matrix, or the
           current video standard does not permit SAP the
-          ``VIDIOC_S_MODULATOR`` ioctl shall return an EINVAL error code and
+          :ref:`VIDIOC_S_MODULATOR <VIDIOC_G_MODULATOR>` ioctl shall return an EINVAL error code and
           driver shall fall back to mono or stereo mode.
 
     -  .. row 6

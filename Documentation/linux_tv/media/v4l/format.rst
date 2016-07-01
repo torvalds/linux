@@ -31,10 +31,10 @@ format. The data formats supported by the V4L2 API are covered in the
 respective device section in :ref:`devices`. For a closer look at
 image formats see :ref:`pixfmt`.
 
-The ``VIDIOC_S_FMT`` ioctl is a major turning-point in the
+The :ref:`VIDIOC_S_FMT <VIDIOC_G_FMT>` ioctl is a major turning-point in the
 initialization sequence. Prior to this point multiple panel applications
 can access the same device concurrently to select the current input,
-change controls or modify other properties. The first ``VIDIOC_S_FMT``
+change controls or modify other properties. The first :ref:`VIDIOC_S_FMT <VIDIOC_G_FMT>`
 assigns a logical stream (video data, VBI data etc.) exclusively to one
 file descriptor.
 
@@ -50,7 +50,7 @@ example video overlay is about to start or already in progress,
 simultaneous video capturing may be restricted to the same cropping and
 image size.
 
-When applications omit the ``VIDIOC_S_FMT`` ioctl its locking side
+When applications omit the :ref:`VIDIOC_S_FMT <VIDIOC_G_FMT>` ioctl its locking side
 effects are implied by the next step, the selection of an I/O method
 with the :ref:`VIDIOC_REQBUFS` ioctl or implicit
 with the first :ref:`read() <func-read>` or
@@ -61,11 +61,11 @@ the exception being drivers permitting simultaneous video capturing and
 overlay using the same file descriptor for compatibility with V4L and
 earlier versions of V4L2. Switching the logical stream or returning into
 "panel mode" is possible by closing and reopening the device. Drivers
-*may* support a switch using ``VIDIOC_S_FMT``.
+*may* support a switch using :ref:`VIDIOC_S_FMT <VIDIOC_G_FMT>`.
 
 All drivers exchanging data with applications must support the
-``VIDIOC_G_FMT`` and ``VIDIOC_S_FMT`` ioctl. Implementation of the
-``VIDIOC_TRY_FMT`` is highly recommended but optional.
+:ref:`VIDIOC_G_FMT` and :ref:`VIDIOC_S_FMT <VIDIOC_G_FMT>` ioctl. Implementation of the
+:ref:`VIDIOC_TRY_FMT <VIDIOC_G_FMT>` is highly recommended but optional.
 
 
 Image Format Enumeration

@@ -34,18 +34,18 @@ Description
 
 The hardware may be able to detect the current DV timings automatically,
 similar to sensing the video standard. To do so, applications call
-``VIDIOC_QUERY_DV_TIMINGS`` with a pointer to a struct
+:ref:`VIDIOC_QUERY_DV_TIMINGS` with a pointer to a struct
 :ref:`v4l2_dv_timings <v4l2-dv-timings>`. Once the hardware detects
 the timings, it will fill in the timings structure.
 
 Please note that drivers shall *not* switch timings automatically if new
 timings are detected. Instead, drivers should send the
 ``V4L2_EVENT_SOURCE_CHANGE`` event (if they support this) and expect
-that userspace will take action by calling ``VIDIOC_QUERY_DV_TIMINGS``.
+that userspace will take action by calling :ref:`VIDIOC_QUERY_DV_TIMINGS`.
 The reason is that new timings usually mean different buffer sizes as
 well, and you cannot change buffer sizes on the fly. In general,
 applications that receive the Source Change event will have to call
-``VIDIOC_QUERY_DV_TIMINGS``, and if the detected timings are valid they
+:ref:`VIDIOC_QUERY_DV_TIMINGS`, and if the detected timings are valid they
 will have to stop streaming, set the new timings, allocate new buffers
 and start streaming again.
 

@@ -39,15 +39,15 @@ the ``tuner`` field of a struct
 :ref:`v4l2_frequency <v4l2-frequency>` to the respective tuner or
 modulator number (only input devices have tuners, only output devices
 have modulators), zero out the ``reserved`` array and call the
-``VIDIOC_G_FREQUENCY`` ioctl with a pointer to this structure. The
+:ref:`VIDIOC_G_FREQUENCY` ioctl with a pointer to this structure. The
 driver stores the current frequency in the ``frequency`` field.
 
 To change the current tuner or modulator radio frequency applications
 initialize the ``tuner``, ``type`` and ``frequency`` fields, and the
 ``reserved`` array of a struct :ref:`v4l2_frequency <v4l2-frequency>`
-and call the ``VIDIOC_S_FREQUENCY`` ioctl with a pointer to this
+and call the :ref:`VIDIOC_S_FREQUENCY <VIDIOC_G_FREQUENCY>` ioctl with a pointer to this
 structure. When the requested frequency is not possible the driver
-assumes the closest possible value. However ``VIDIOC_S_FREQUENCY`` is a
+assumes the closest possible value. However :ref:`VIDIOC_S_FREQUENCY <VIDIOC_G_FREQUENCY>` is a
 write-only ioctl, it does not return the actual new frequency.
 
 

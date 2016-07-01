@@ -53,9 +53,9 @@ Additional flags may be posted in the ``flags`` field. Refer to a manual
 for open() for details. Currently only O_CLOEXEC, O_RDONLY, O_WRONLY,
 and O_RDWR are supported. All other fields must be set to zero. In the
 case of multi-planar API, every plane is exported separately using
-multiple ``VIDIOC_EXPBUF`` calls.
+multiple :ref:`VIDIOC_EXPBUF` calls.
 
-After calling ``VIDIOC_EXPBUF`` the ``fd`` field will be set by a
+After calling :ref:`VIDIOC_EXPBUF` the ``fd`` field will be set by a
 driver. This is a DMABUF file descriptor. The application may pass it to
 other DMABUF-aware devices. Refer to :ref:`DMABUF importing <dmabuf>`
 for details about importing DMABUF files into V4L2 nodes. It is

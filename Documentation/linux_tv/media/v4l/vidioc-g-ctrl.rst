@@ -34,15 +34,15 @@ Description
 
 To get the current value of a control applications initialize the ``id``
 field of a struct :c:type:`struct v4l2_control` and call the
-``VIDIOC_G_CTRL`` ioctl with a pointer to this structure. To change the
+:ref:`VIDIOC_G_CTRL` ioctl with a pointer to this structure. To change the
 value of a control applications initialize the ``id`` and ``value``
 fields of a struct :c:type:`struct v4l2_control` and call the
-``VIDIOC_S_CTRL`` ioctl.
+:ref:`VIDIOC_S_CTRL <VIDIOC_G_CTRL>` ioctl.
 
 When the ``id`` is invalid drivers return an EINVAL error code. When the
 ``value`` is out of bounds drivers can choose to take the closest valid
 value or return an ERANGE error code, whatever seems more appropriate.
-However, ``VIDIOC_S_CTRL`` is a write-only ioctl, it does not return the
+However, :ref:`VIDIOC_S_CTRL <VIDIOC_G_CTRL>` is a write-only ioctl, it does not return the
 actual new value. If the ``value`` is inappropriate for the control
 (e.g. if it refers to an unsupported menu index of a menu control), then
 EINVAL error code is returned as well.

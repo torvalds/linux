@@ -36,13 +36,13 @@ Description
 
 To query the cropping rectangle size and position applications set the
 ``type`` field of a :c:type:`struct v4l2_crop` structure to the
-respective buffer (stream) type and call the ``VIDIOC_G_CROP`` ioctl
+respective buffer (stream) type and call the :ref:`VIDIOC_G_CROP` ioctl
 with a pointer to this structure. The driver fills the rest of the
 structure or returns the EINVAL error code if cropping is not supported.
 
 To change the cropping rectangle applications initialize the ``type``
 and struct :ref:`v4l2_rect <v4l2-rect>` substructure named ``c`` of a
-v4l2_crop structure and call the ``VIDIOC_S_CROP`` ioctl with a pointer
+v4l2_crop structure and call the :ref:`VIDIOC_S_CROP <VIDIOC_G_CROP>` ioctl with a pointer
 to this structure.
 
 Do not use the multiplanar buffer types. Use
@@ -64,15 +64,15 @@ the closest size possible while maintaining the current horizontal and
 vertical scaling factor.
 
 Finally the driver programs the hardware with the actual cropping and
-image parameters. ``VIDIOC_S_CROP`` is a write-only ioctl, it does not
+image parameters. :ref:`VIDIOC_S_CROP <VIDIOC_G_CROP>` is a write-only ioctl, it does not
 return the actual parameters. To query them applications must call
-``VIDIOC_G_CROP`` and :ref:`VIDIOC_G_FMT`. When the
+:ref:`VIDIOC_G_CROP` and :ref:`VIDIOC_G_FMT`. When the
 parameters are unsuitable the application may modify the cropping or
 image parameters and repeat the cycle until satisfactory parameters have
 been negotiated.
 
 When cropping is not supported then no parameters are changed and
-``VIDIOC_S_CROP`` returns the EINVAL error code.
+:ref:`VIDIOC_S_CROP <VIDIOC_G_CROP>` returns the EINVAL error code.
 
 
 .. _v4l2-crop:

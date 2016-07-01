@@ -65,7 +65,7 @@ frame buffer parameters, namely the address and size of the frame buffer
 and the image format, for example RGB 5:6:5. The
 :ref:`VIDIOC_G_FBUF` and
 :ref:`VIDIOC_S_FBUF <VIDIOC_G_FBUF>` ioctls are available to get and
-set these parameters, respectively. The ``VIDIOC_S_FBUF`` ioctl is
+set these parameters, respectively. The :ref:`VIDIOC_S_FBUF <VIDIOC_G_FBUF>` ioctl is
 privileged because it allows to set up DMA into physical memory,
 bypassing the memory protection mechanisms of the kernel. Only the
 superuser can change the frame buffer address and size. Users are not
@@ -76,8 +76,8 @@ system and program the V4L2 driver at the appropriate time.
 Some devices add the video overlay to the output signal of the graphics
 card. In this case the frame buffer is not modified by the video device,
 and the frame buffer address and pixel format are not needed by the
-driver. The ``VIDIOC_S_FBUF`` ioctl is not privileged. An application
-can check for this type of device by calling the ``VIDIOC_G_FBUF``
+driver. The :ref:`VIDIOC_S_FBUF <VIDIOC_G_FBUF>` ioctl is not privileged. An application
+can check for this type of device by calling the :ref:`VIDIOC_G_FBUF`
 ioctl.
 
 A driver may support any (or none) of five clipping/blending methods:
@@ -130,10 +130,10 @@ struct :ref:`v4l2_format <v4l2-format>` to
 ``V4L2_BUF_TYPE_VIDEO_OVERLAY``, initialize the ``win`` substructure and
 call the :ref:`VIDIOC_S_FMT <VIDIOC_G_FMT>` ioctl. The driver
 adjusts the parameters against hardware limits and returns the actual
-parameters as ``VIDIOC_G_FMT`` does. Like ``VIDIOC_S_FMT``, the
+parameters as :ref:`VIDIOC_G_FMT` does. Like :ref:`VIDIOC_S_FMT <VIDIOC_G_FMT>`, the
 :ref:`VIDIOC_TRY_FMT <VIDIOC_G_FMT>` ioctl can be used to learn
 about driver capabilities without actually changing driver state. Unlike
-``VIDIOC_S_FMT`` this also works after the overlay has been enabled.
+:ref:`VIDIOC_S_FMT <VIDIOC_G_FMT>` this also works after the overlay has been enabled.
 
 The scaling factor of the overlaid image is implied by the width and
 height given in struct :ref:`v4l2_window <v4l2-window>` and the size
@@ -199,7 +199,7 @@ are undefined.
     When the application set the ``clips`` field, this field must
     contain the number of clipping rectangles in the list. When clip
     lists are not supported the driver ignores this field, its contents
-    after calling ``VIDIOC_S_FMT`` are undefined. When clip lists are
+    after calling :ref:`VIDIOC_S_FMT <VIDIOC_G_FMT>` are undefined. When clip lists are
     supported but no clipping is desired this field must be set to zero.
 
 ``void * bitmap``

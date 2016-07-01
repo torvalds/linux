@@ -34,7 +34,7 @@ Description
 Applications use this function to query the cropping limits, the pixel
 aspect of images and to calculate scale factors. They set the ``type``
 field of a v4l2_cropcap structure to the respective buffer (stream)
-type and call the ``VIDIOC_CROPCAP`` ioctl with a pointer to this
+type and call the :ref:`VIDIOC_CROPCAP` ioctl with a pointer to this
 structure. Drivers fill the rest of the structure. The results are
 constant except when switching the video standard. Remember this switch
 can occur implicit when switching the video input or output.

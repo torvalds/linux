@@ -31,7 +31,7 @@ and drivers permitting simultaneous video capturing and overlay using
 the same file descriptor, for compatibility with V4L and earlier
 versions of V4L2.
 
-``VIDIOC_S_FMT`` and ``VIDIOC_REQBUFS`` would permit this to some
+:ref:`VIDIOC_S_FMT <VIDIOC_G_FMT>` and :ref:`VIDIOC_REQBUFS` would permit this to some
 degree, but for simplicity drivers need not support switching the I/O
 method (after first switching away from read/write) other than by
 closing and reopening the device.

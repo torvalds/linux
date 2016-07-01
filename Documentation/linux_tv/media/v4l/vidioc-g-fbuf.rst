@@ -34,7 +34,7 @@ Arguments
 Description
 ===========
 
-Applications can use the ``VIDIOC_G_FBUF`` and ``VIDIOC_S_FBUF`` ioctl
+Applications can use the :ref:`VIDIOC_G_FBUF` and :ref:`VIDIOC_S_FBUF <VIDIOC_G_FBUF>` ioctl
 to get and set the framebuffer parameters for a
 :ref:`Video Overlay <overlay>` or :ref:`Video Output Overlay <osd>`
 (OSD). The type of overlay is implied by the device type (capture or
@@ -48,7 +48,7 @@ of a graphics card. A non-destructive overlay blends video images into a
 VGA signal or graphics into a video signal. *Video Output Overlays* are
 always non-destructive.
 
-To get the current parameters applications call the ``VIDIOC_G_FBUF``
+To get the current parameters applications call the :ref:`VIDIOC_G_FBUF`
 ioctl with a pointer to a :c:type:`struct v4l2_framebuffer`
 structure. The driver fills all fields of the structure or returns an
 EINVAL error code when overlays are not supported.
@@ -57,15 +57,15 @@ To set the parameters for a *Video Output Overlay*, applications must
 initialize the ``flags`` field of a struct
 :c:type:`struct v4l2_framebuffer`. Since the framebuffer is
 implemented on the TV card all other parameters are determined by the
-driver. When an application calls ``VIDIOC_S_FBUF`` with a pointer to
+driver. When an application calls :ref:`VIDIOC_S_FBUF <VIDIOC_G_FBUF>` with a pointer to
 this structure, the driver prepares for the overlay and returns the
-framebuffer parameters as ``VIDIOC_G_FBUF`` does, or it returns an error
+framebuffer parameters as :ref:`VIDIOC_G_FBUF` does, or it returns an error
 code.
 
 To set the parameters for a *non-destructive Video Overlay*,
 applications must initialize the ``flags`` field, the ``fmt``
-substructure, and call ``VIDIOC_S_FBUF``. Again the driver prepares for
-the overlay and returns the framebuffer parameters as ``VIDIOC_G_FBUF``
+substructure, and call :ref:`VIDIOC_S_FBUF <VIDIOC_G_FBUF>`. Again the driver prepares for
+the overlay and returns the framebuffer parameters as :ref:`VIDIOC_G_FBUF`
 does, or it returns an error code.
 
 For a *destructive Video Overlay* applications must additionally provide
@@ -486,11 +486,11 @@ appropriately. The generic error codes are described at the
 :ref:`Generic Error Codes <gen-errors>` chapter.
 
 EPERM
-    ``VIDIOC_S_FBUF`` can only be called by a privileged user to
+    :ref:`VIDIOC_S_FBUF <VIDIOC_G_FBUF>` can only be called by a privileged user to
     negotiate the parameters for a destructive overlay.
 
 EINVAL
-    The ``VIDIOC_S_FBUF`` parameters are unsuitable.
+    The :ref:`VIDIOC_S_FBUF <VIDIOC_G_FBUF>` parameters are unsuitable.
 
 .. [1]
    A physical base address may not suit all platforms. GK notes in

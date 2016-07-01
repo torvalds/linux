@@ -19,7 +19,7 @@ setting the field struct
 :ref:`v4l2_pix_format <v4l2-pix-format>```::bytesperline``.
 Introducing an image offsets could be done by modifying field struct
 :ref:`v4l2_buffer <v4l2-buffer>```::m_userptr`` before calling
-``VIDIOC_QBUF``. Those operations should be avoided because they are not
+:ref:`VIDIOC_QBUF`. Those operations should be avoided because they are not
 portable (endianness), and do not work for macroblock and Bayer formats
 and mmap buffers. The selection API deals with configuration of buffer
 cropping/composing in a clear, intuitive and portable way. Next, with

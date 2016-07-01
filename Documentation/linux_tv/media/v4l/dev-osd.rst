@@ -124,10 +124,10 @@ struct :ref:`v4l2_format <v4l2-format>` to
 ``V4L2_BUF_TYPE_VIDEO_OUTPUT_OVERLAY``, initialize the ``win``
 substructure and call the :ref:`VIDIOC_S_FMT <VIDIOC_G_FMT>` ioctl.
 The driver adjusts the parameters against hardware limits and returns
-the actual parameters as ``VIDIOC_G_FMT`` does. Like ``VIDIOC_S_FMT``,
+the actual parameters as :ref:`VIDIOC_G_FMT` does. Like :ref:`VIDIOC_S_FMT <VIDIOC_G_FMT>`,
 the :ref:`VIDIOC_TRY_FMT <VIDIOC_G_FMT>` ioctl can be used to learn
 about driver capabilities without actually changing driver state. Unlike
-``VIDIOC_S_FMT`` this also works after the overlay has been enabled.
+:ref:`VIDIOC_S_FMT <VIDIOC_G_FMT>` this also works after the overlay has been enabled.
 
 A struct :ref:`v4l2_crop <v4l2-crop>` defines the size and position
 of the target rectangle. The scaling factor of the overlay is implied by

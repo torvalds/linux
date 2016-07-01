@@ -35,7 +35,7 @@ To enumerate media bus formats available at a given sub-device pad
 applications initialize the ``pad``, ``which`` and ``index`` fields of
 struct
 :ref:`v4l2_subdev_mbus_code_enum <v4l2-subdev-mbus-code-enum>` and
-call the ``VIDIOC_SUBDEV_ENUM_MBUS_CODE`` ioctl with a pointer to this
+call the :ref:`VIDIOC_SUBDEV_ENUM_MBUS_CODE` ioctl with a pointer to this
 structure. Drivers fill the rest of the structure or return an EINVAL
 error code if either the ``pad`` or ``index`` are invalid. All media bus
 formats are enumerable by beginning at index zero and incrementing by

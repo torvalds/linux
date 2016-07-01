@@ -80,7 +80,7 @@ To request different parameters applications set the ``type`` field of a
 struct :ref:`v4l2_format <v4l2-format>` as above and initialize all
 fields of the struct :ref:`v4l2_vbi_format <v4l2-vbi-format>`
 ``vbi`` member of the ``fmt`` union, or better just modify the results
-of ``VIDIOC_G_FMT``, and call the :ref:`VIDIOC_S_FMT <VIDIOC_G_FMT>`
+of :ref:`VIDIOC_G_FMT`, and call the :ref:`VIDIOC_S_FMT <VIDIOC_G_FMT>`
 ioctl with a pointer to this structure. Drivers return an EINVAL error
 code only when the given parameters are ambiguous, otherwise they modify
 the parameters according to the hardware capabilities and return the
@@ -94,10 +94,10 @@ expect other resource allocation points which may return EBUSY, at the
 :ref:`VIDIOC_STREAMON` ioctl and the first read(),
 write() and select() call.
 
-VBI devices must implement both the ``VIDIOC_G_FMT`` and
-``VIDIOC_S_FMT`` ioctl, even if ``VIDIOC_S_FMT`` ignores all requests
-and always returns default parameters as ``VIDIOC_G_FMT`` does.
-``VIDIOC_TRY_FMT`` is optional.
+VBI devices must implement both the :ref:`VIDIOC_G_FMT` and
+:ref:`VIDIOC_S_FMT <VIDIOC_G_FMT>` ioctl, even if :ref:`VIDIOC_S_FMT <VIDIOC_G_FMT>` ignores all requests
+and always returns default parameters as :ref:`VIDIOC_G_FMT` does.
+:ref:`VIDIOC_TRY_FMT <VIDIOC_G_FMT>` is optional.
 
 
 .. _v4l2-vbi-format:

@@ -40,7 +40,7 @@ ioctl.
 To enumerate frame sizes applications initialize the ``pad``, ``which``
 , ``code`` and ``index`` fields of the struct
 :ref:`v4l2_subdev_mbus_code_enum <v4l2-subdev-mbus-code-enum>` and
-call the ``VIDIOC_SUBDEV_ENUM_FRAME_SIZE`` ioctl with a pointer to the
+call the :ref:`VIDIOC_SUBDEV_ENUM_FRAME_SIZE` ioctl with a pointer to the
 structure. Drivers fill the minimum and maximum frame sizes or return an
 EINVAL error code if one of the input parameters is invalid.
 

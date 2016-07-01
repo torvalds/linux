@@ -32,7 +32,7 @@ Description
 ===========
 
 This ioctl is part of the :ref:`video overlay <overlay>` I/O method.
-Applications call ``VIDIOC_OVERLAY`` to start or stop the overlay. It
+Applications call :ref:`VIDIOC_OVERLAY` to start or stop the overlay. It
 takes a pointer to an integer which must be set to zero by the
 application to stop overlay, to one to start.
 

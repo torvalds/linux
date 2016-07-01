@@ -48,7 +48,7 @@ using the :ref:`multi-planar API <planar-apis>`, the ``m.planes``
 field must contain a userspace pointer to an array of struct
 :ref:`v4l2_plane <v4l2-plane>` and the ``length`` field has to be set
 to the number of elements in that array. After calling
-``VIDIOC_QUERYBUF`` with a pointer to this structure drivers return an
+:ref:`VIDIOC_QUERYBUF` with a pointer to this structure drivers return an
 error code or fill the rest of the structure.
 
 In the ``flags`` field the ``V4L2_BUF_FLAG_MAPPED``,

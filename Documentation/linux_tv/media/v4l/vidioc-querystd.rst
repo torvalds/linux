@@ -32,7 +32,7 @@ Description
 ===========
 
 The hardware may be able to detect the current video standard
-automatically. To do so, applications call ``VIDIOC_QUERYSTD`` with a
+automatically. To do so, applications call :ref:`VIDIOC_QUERYSTD` with a
 pointer to a :ref:`v4l2_std_id <v4l2-std-id>` type. The driver
 stores here a set of candidates, this can be a single flag or a set of
 supported standards if for example the hardware can only distinguish
@@ -45,10 +45,10 @@ Please note that drivers shall *not* switch the video standard
 automatically if a new video standard is detected. Instead, drivers
 should send the ``V4L2_EVENT_SOURCE_CHANGE`` event (if they support
 this) and expect that userspace will take action by calling
-``VIDIOC_QUERYSTD``. The reason is that a new video standard can mean
+:ref:`VIDIOC_QUERYSTD`. The reason is that a new video standard can mean
 different buffer sizes as well, and you cannot change buffer sizes on
 the fly. In general, applications that receive the Source Change event
-will have to call ``VIDIOC_QUERYSTD``, and if the detected video
+will have to call :ref:`VIDIOC_QUERYSTD`, and if the detected video
 standard is valid they will have to stop streaming, set the new
 standard, allocate new buffers and start streaming again.
 

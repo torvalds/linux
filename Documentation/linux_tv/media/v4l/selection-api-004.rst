@@ -50,7 +50,7 @@ The composing targets refer to a memory buffer. The limits of composing
 coordinates are obtained using ``V4L2_SEL_TGT_COMPOSE_BOUNDS``. All
 coordinates are expressed in pixels. The rectangle's top/left corner
 must be located at position ``(0,0)``. The width and height are equal to
-the image size set by ``VIDIOC_S_FMT``.
+the image size set by :ref:`VIDIOC_S_FMT <VIDIOC_G_FMT>`.
 
 The part of a buffer into which the image is inserted by the hardware is
 controlled by the ``V4L2_SEL_TGT_COMPOSE`` target. The rectangle's
@@ -90,7 +90,7 @@ to be inserted into a video signal or graphical screen. The limits of
 cropping coordinates are obtained using ``V4L2_SEL_TGT_CROP_BOUNDS``.
 All coordinates are expressed in pixels. The top/left corner is always
 point ``(0,0)``. The width and height is equal to the image size
-specified using ``VIDIOC_S_FMT`` ioctl.
+specified using :ref:`VIDIOC_S_FMT <VIDIOC_G_FMT>` ioctl.
 
 The top left corner, width and height of the source rectangle, that is
 the area from which image date are processed by the hardware, is given

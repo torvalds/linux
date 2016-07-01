@@ -44,7 +44,7 @@ when enumerating frame intervals.
 To enumerate frame intervals applications initialize the ``index``,
 ``pad``, ``which``, ``code``, ``width`` and ``height`` fields of struct
 :ref:`v4l2_subdev_frame_interval_enum <v4l2-subdev-frame-interval-enum>`
-and call the ``VIDIOC_SUBDEV_ENUM_FRAME_INTERVAL`` ioctl with a pointer
+and call the :ref:`VIDIOC_SUBDEV_ENUM_FRAME_INTERVAL` ioctl with a pointer
 to this structure. Drivers fill the rest of the structure or return an
 EINVAL error code if one of the input fields is invalid. All frame
 intervals are enumerable by beginning at index zero and incrementing by

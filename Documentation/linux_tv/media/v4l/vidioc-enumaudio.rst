@@ -33,7 +33,7 @@ Description
 
 To query the attributes of an audio input applications initialize the
 ``index`` field and zero out the ``reserved`` array of a struct
-:ref:`v4l2_audio <v4l2-audio>` and call the ``VIDIOC_ENUMAUDIO``
+:ref:`v4l2_audio <v4l2-audio>` and call the :ref:`VIDIOC_ENUMAUDIO`
 ioctl with a pointer to this structure. Drivers fill the rest of the
 structure or return an EINVAL error code when the index is out of
 bounds. To enumerate all audio inputs applications shall begin at index

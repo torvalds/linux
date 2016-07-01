@@ -36,8 +36,8 @@ Description
 ===========
 
 To set DV timings for the input or output, applications use the
-``VIDIOC_S_DV_TIMINGS`` ioctl and to get the current timings,
-applications use the ``VIDIOC_G_DV_TIMINGS`` ioctl. The detailed timing
+:ref:`VIDIOC_S_DV_TIMINGS <VIDIOC_G_DV_TIMINGS>` ioctl and to get the current timings,
+applications use the :ref:`VIDIOC_G_DV_TIMINGS` ioctl. The detailed timing
 information is filled in using the structure struct
 :ref:`v4l2_dv_timings <v4l2-dv-timings>`. These ioctls take a
 pointer to the struct :ref:`v4l2_dv_timings <v4l2-dv-timings>`
@@ -59,7 +59,7 @@ appropriately. The generic error codes are described at the
 :ref:`Generic Error Codes <gen-errors>` chapter.
 
 EINVAL
-    This ioctl is not supported, or the ``VIDIOC_S_DV_TIMINGS``
+    This ioctl is not supported, or the :ref:`VIDIOC_S_DV_TIMINGS <VIDIOC_G_DV_TIMINGS>`
     parameter was unsuitable.
 
 ENODATA

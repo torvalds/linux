@@ -58,7 +58,7 @@ buffers, one displayed and one filled by the application.
 When the I/O method is not supported the ioctl returns an EINVAL error
 code.
 
-Applications can call ``VIDIOC_REQBUFS`` again to change the number of
+Applications can call :ref:`VIDIOC_REQBUFS` again to change the number of
 buffers, however this cannot succeed when any buffers are still mapped.
 A ``count`` value of zero frees all buffers, after aborting or finishing
 any DMA in progress, an implicit

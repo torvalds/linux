@@ -35,7 +35,7 @@ Enumerates the frequency bands that a tuner or modulator supports. To do
 this applications initialize the ``tuner``, ``type`` and ``index``
 fields, and zero out the ``reserved`` array of a struct
 :ref:`v4l2_frequency_band <v4l2-frequency-band>` and call the
-``VIDIOC_ENUM_FREQ_BANDS`` ioctl with a pointer to this structure.
+:ref:`VIDIOC_ENUM_FREQ_BANDS` ioctl with a pointer to this structure.
 
 This ioctl is supported if the ``V4L2_TUNER_CAP_FREQ_BANDS`` capability
 of the corresponding tuner/modulator is set.

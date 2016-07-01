@@ -33,14 +33,14 @@ Description
 ===========
 
 To query the current video output applications call the
-``VIDIOC_G_OUTPUT`` ioctl with a pointer to an integer where the driver
+:ref:`VIDIOC_G_OUTPUT` ioctl with a pointer to an integer where the driver
 stores the number of the output, as in the struct
 :ref:`v4l2_output <v4l2-output>` ``index`` field. This ioctl will
 fail only when there are no video outputs, returning the EINVAL error
 code.
 
 To select a video output applications store the number of the desired
-output in an integer and call the ``VIDIOC_S_OUTPUT`` ioctl with a
+output in an integer and call the :ref:`VIDIOC_S_OUTPUT <VIDIOC_G_OUTPUT>` ioctl with a
 pointer to this integer. Side effects are possible. For example outputs
 may support different video standards, so the driver may implicitly
 switch the current standard. standard. Because of these possible side

@@ -41,7 +41,7 @@ struct :c:type:`struct v4l2_format` to the respective buffer (stream)
 type. For example video capture devices use
 ``V4L2_BUF_TYPE_VIDEO_CAPTURE`` or
 ``V4L2_BUF_TYPE_VIDEO_CAPTURE_MPLANE``. When the application calls the
-``VIDIOC_G_FMT`` ioctl with a pointer to this structure the driver fills
+:ref:`VIDIOC_G_FMT` ioctl with a pointer to this structure the driver fills
 the respective member of the ``fmt`` union. In case of video capture
 devices that is either the struct
 :ref:`v4l2_pix_format <v4l2-pix-format>` ``pix`` or the struct
@@ -54,32 +54,32 @@ To change the current format parameters applications initialize the
 For details see the documentation of the various devices types in
 :ref:`devices`. Good practice is to query the current parameters
 first, and to modify only those parameters not suitable for the
-application. When the application calls the ``VIDIOC_S_FMT`` ioctl with
+application. When the application calls the :ref:`VIDIOC_S_FMT <VIDIOC_G_FMT>` ioctl with
 a pointer to a :c:type:`struct v4l2_format` structure the driver
 checks and adjusts the parameters against hardware abilities. Drivers
 should not return an error code unless the ``type`` field is invalid,
 this is a mechanism to fathom device capabilities and to approach
 parameters acceptable for both the application and driver. On success
 the driver may program the hardware, allocate resources and generally
-prepare for data exchange. Finally the ``VIDIOC_S_FMT`` ioctl returns
-the current format parameters as ``VIDIOC_G_FMT`` does. Very simple,
+prepare for data exchange. Finally the :ref:`VIDIOC_S_FMT <VIDIOC_G_FMT>` ioctl returns
+the current format parameters as :ref:`VIDIOC_G_FMT` does. Very simple,
 inflexible devices may even ignore all input and always return the
 default parameters. However all V4L2 devices exchanging data with the
-application must implement the ``VIDIOC_G_FMT`` and ``VIDIOC_S_FMT``
+application must implement the :ref:`VIDIOC_G_FMT` and :ref:`VIDIOC_S_FMT <VIDIOC_G_FMT>`
 ioctl. When the requested buffer type is not supported drivers return an
-EINVAL error code on a ``VIDIOC_S_FMT`` attempt. When I/O is already in
+EINVAL error code on a :ref:`VIDIOC_S_FMT <VIDIOC_G_FMT>` attempt. When I/O is already in
 progress or the resource is not available for other reasons drivers
 return the EBUSY error code.
 
-The ``VIDIOC_TRY_FMT`` ioctl is equivalent to ``VIDIOC_S_FMT`` with one
+The :ref:`VIDIOC_TRY_FMT <VIDIOC_G_FMT>` ioctl is equivalent to :ref:`VIDIOC_S_FMT <VIDIOC_G_FMT>` with one
 exception: it does not change driver state. It can also be called at any
 time, never returning EBUSY. This function is provided to negotiate
 parameters, to learn about hardware limitations, without disabling I/O
 or possibly time consuming hardware preparations. Although strongly
 recommended drivers are not required to implement this ioctl.
 
-The format as returned by ``VIDIOC_TRY_FMT`` must be identical to what
-``VIDIOC_S_FMT`` returns for the same input or output.
+The format as returned by :ref:`VIDIOC_TRY_FMT <VIDIOC_G_FMT>` must be identical to what
+:ref:`VIDIOC_S_FMT <VIDIOC_G_FMT>` returns for the same input or output.
 
 
 .. _v4l2-format:

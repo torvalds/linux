@@ -33,7 +33,7 @@ Description
 
 To query the attributes of a video standard, especially a custom (driver
 defined) one, applications initialize the ``index`` field of struct
-:ref:`v4l2_standard <v4l2-standard>` and call the ``VIDIOC_ENUMSTD``
+:ref:`v4l2_standard <v4l2-standard>` and call the :ref:`VIDIOC_ENUMSTD`
 ioctl with a pointer to this structure. Drivers fill the rest of the
 structure or return an EINVAL error code when the index is out of
 bounds. To enumerate all standards applications shall begin at index
@@ -401,7 +401,7 @@ ENODATA
 
 .. [1]
    The supported standards may overlap and we need an unambiguous set to
-   find the current standard returned by ``VIDIOC_G_STD``.
+   find the current standard returned by :ref:`VIDIOC_G_STD`.
 
 .. [2]
    Japan uses a standard similar to M/NTSC (V4L2_STD_NTSC_M_JP).

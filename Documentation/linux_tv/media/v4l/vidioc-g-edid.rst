@@ -52,7 +52,7 @@ value, then the EINVAL error code will be returned.
 
 To get the EDID data the application has to fill in the ``pad``,
 ``start_block``, ``blocks`` and ``edid`` fields, zero the ``reserved``
-array and call ``VIDIOC_G_EDID``. The current EDID from block
+array and call :ref:`VIDIOC_G_EDID`. The current EDID from block
 ``start_block`` and of size ``blocks`` will be placed in the memory
 ``edid`` points to. The ``edid`` pointer must point to memory at least
 ``blocks`` * 128 bytes large (the size of one block is 128 bytes).
@@ -65,7 +65,7 @@ If blocks have to be retrieved from the sink, then this call will block
 until they have been read.
 
 If ``start_block`` and ``blocks`` are both set to 0 when
-``VIDIOC_G_EDID`` is called, then the driver will set ``blocks`` to the
+:ref:`VIDIOC_G_EDID` is called, then the driver will set ``blocks`` to the
 total number of available EDID blocks and it will return 0 without
 copying any data. This is an easy way to discover how many EDID blocks
 there are. Note that if there are no EDID blocks available at all, then

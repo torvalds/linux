@@ -48,7 +48,7 @@ by the ``controls`` fields.
 To get the current value of a set of controls applications initialize
 the ``id``, ``size`` and ``reserved2`` fields of each struct
 :ref:`v4l2_ext_control <v4l2-ext-control>` and call the
-``VIDIOC_G_EXT_CTRLS`` ioctl. String controls controls must also set the
+:ref:`VIDIOC_G_EXT_CTRLS` ioctl. String controls controls must also set the
 ``string`` field. Controls of compound types
 (``V4L2_CTRL_FLAG_HAS_PAYLOAD`` is set) must set the ``ptr`` field.
 
@@ -70,14 +70,14 @@ by calling :ref:`VIDIOC_QUERY_EXT_CTRL <VIDIOC_QUERYCTRL>`.
 To change the value of a set of controls applications initialize the
 ``id``, ``size``, ``reserved2`` and ``value/value64/string/ptr`` fields
 of each struct :ref:`v4l2_ext_control <v4l2-ext-control>` and call
-the ``VIDIOC_S_EXT_CTRLS`` ioctl. The controls will only be set if *all*
+the :ref:`VIDIOC_S_EXT_CTRLS <VIDIOC_G_EXT_CTRLS>` ioctl. The controls will only be set if *all*
 control values are valid.
 
 To check if a set of controls have correct values applications
 initialize the ``id``, ``size``, ``reserved2`` and
 ``value/value64/string/ptr`` fields of each struct
 :ref:`v4l2_ext_control <v4l2-ext-control>` and call the
-``VIDIOC_TRY_EXT_CTRLS`` ioctl. It is up to the driver whether wrong
+:ref:`VIDIOC_TRY_EXT_CTRLS <VIDIOC_G_EXT_CTRLS>` ioctl. It is up to the driver whether wrong
 values are automatically adjusted to a valid value or if an error is
 returned.
 
@@ -122,7 +122,7 @@ still cause this situation.
        -  The total size in bytes of the payload of this control. This is
           normally 0, but for pointer controls this should be set to the
           size of the memory containing the payload, or that will receive
-          the payload. If ``VIDIOC_G_EXT_CTRLS`` finds that this value is
+          the payload. If :ref:`VIDIOC_G_EXT_CTRLS` finds that this value is
           less than is required to store the payload result, then it is set
           to a value large enough to store the payload result and ENOSPC is
           returned. Note that for string controls this ``size`` field should
@@ -248,7 +248,7 @@ still cause this situation.
           handling controls will also accept a value of 0 here, meaning that
           the controls can belong to any control class. Whether drivers
           support this can be tested by setting ``ctrl_class`` to 0 and
-          calling ``VIDIOC_TRY_EXT_CTRLS`` with a ``count`` of 0. If that
+          calling :ref:`VIDIOC_TRY_EXT_CTRLS <VIDIOC_G_EXT_CTRLS>` with a ``count`` of 0. If that
           succeeds, then the driver supports this feature.
 
     -  .. row 3
@@ -321,14 +321,14 @@ still cause this situation.
           ``error_idx-1`` were read or written correctly, and the state of
           the remaining controls is undefined.
 
-          Since ``VIDIOC_TRY_EXT_CTRLS`` does not access hardware there is
+          Since :ref:`VIDIOC_TRY_EXT_CTRLS <VIDIOC_G_EXT_CTRLS>` does not access hardware there is
           also no need to handle the validation step in this special way, so
           ``error_idx`` will just be set to the control that failed the
           validation step instead of to ``count``. This means that if
-          ``VIDIOC_S_EXT_CTRLS`` fails with ``error_idx`` set to ``count``,
-          then you can call ``VIDIOC_TRY_EXT_CTRLS`` to try to discover the
+          :ref:`VIDIOC_S_EXT_CTRLS <VIDIOC_G_EXT_CTRLS>` fails with ``error_idx`` set to ``count``,
+          then you can call :ref:`VIDIOC_TRY_EXT_CTRLS <VIDIOC_G_EXT_CTRLS>` to try to discover the
           actual control that failed the validation step. Unfortunately,
-          there is no ``TRY`` equivalent for ``VIDIOC_G_EXT_CTRLS``.
+          there is no ``TRY`` equivalent for :ref:`VIDIOC_G_EXT_CTRLS`.
 
     -  .. row 6
 
@@ -467,7 +467,7 @@ EINVAL
     :ref:`v4l2_ext_control <v4l2-ext-control>` ``value`` was
     inappropriate (e.g. the given menu index is not supported by the
     driver). This error code is also returned by the
-    ``VIDIOC_S_EXT_CTRLS`` and ``VIDIOC_TRY_EXT_CTRLS`` ioctls if two or
+    :ref:`VIDIOC_S_EXT_CTRLS <VIDIOC_G_EXT_CTRLS>` and :ref:`VIDIOC_TRY_EXT_CTRLS <VIDIOC_G_EXT_CTRLS>` ioctls if two or
     more control values are in conflict.
 
 ERANGE
