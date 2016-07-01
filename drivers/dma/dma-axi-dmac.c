@@ -270,6 +270,9 @@ static irqreturn_t axi_dmac_interrupt_handler(int irq, void *devid)
 	unsigned int pending;
 
 	pending = axi_dmac_read(dmac, AXI_DMAC_REG_IRQ_PENDING);
+	if (!pending)
+		return IRQ_NONE;
+
 	axi_dmac_write(dmac, AXI_DMAC_REG_IRQ_PENDING, pending);
 
 	spin_lock(&dmac->chan.vchan.lock);
