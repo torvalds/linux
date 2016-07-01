@@ -1726,14 +1726,33 @@ static int efx_probe_filters(struct efx_nic *efx)
 
 #ifdef CONFIG_RFS_ACCEL
 	if (efx->type->offload_features & NETIF_F_NTUPLE) {
-		efx->rps_flow_id = kcalloc(efx->type->max_rx_ip_filters,
-					   sizeof(*efx->rps_flow_id),
-					   GFP_KERNEL);
-		if (!efx->rps_flow_id) {
+		struct efx_channel *channel;
+		int i, success = 1;
+
+		efx_for_each_channel(channel, efx) {
+			channel->rps_flow_id =
+				kcalloc(efx->type->max_rx_ip_filters,
+					sizeof(*channel->rps_flow_id),
+					GFP_KERNEL);
+			if (!channel->rps_flow_id)
+				success = 0;
+			else
+				for (i = 0;
+				     i < efx->type->max_rx_ip_filters;
+				     ++i)
+					channel->rps_flow_id[i] =
+						RPS_FLOW_ID_INVALID;
+		}
+
+		if (!success) {
+			efx_for_each_channel(channel, efx)
+				kfree(channel->rps_flow_id);
 			efx->type->filter_table_remove(efx);
 			rc = -ENOMEM;
 			goto out_unlock;
 		}
+
+		efx->rps_expire_index = efx->rps_expire_channel = 0;
 	}
 #endif
 out_unlock:
@@ -1744,7 +1763,10 @@ out_unlock:
 static void efx_remove_filters(struct efx_nic *efx)
 {
 #ifdef CONFIG_RFS_ACCEL
-	kfree(efx->rps_flow_id);
+	struct efx_channel *channel;
+
+	efx_for_each_channel(channel, efx)
+		kfree(channel->rps_flow_id);
 #endif
 	down_write(&efx->filter_sem);
 	efx->type->filter_table_remove(efx);

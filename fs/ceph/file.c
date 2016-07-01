@@ -137,23 +137,11 @@ static int ceph_init_file(struct inode *inode, struct file *file, int fmode)
 {
 	struct ceph_file_info *cf;
 	int ret = 0;
-	struct ceph_inode_info *ci = ceph_inode(inode);
-	struct ceph_fs_client *fsc = ceph_sb_to_client(inode->i_sb);
-	struct ceph_mds_client *mdsc = fsc->mdsc;
 
 	switch (inode->i_mode & S_IFMT) {
 	case S_IFREG:
-		/* First file open request creates the cookie, we want to keep
-		 * this cookie around for the filetime of the inode as not to
-		 * have to worry about fscache register / revoke / operation
-		 * races.
-		 *
-		 * Also, if we know the operation is going to invalidate data
-		 * (non readonly) just nuke the cache right away.
-		 */
-		ceph_fscache_register_inode_cookie(mdsc->fsc, ci);
-		if ((fmode & CEPH_FILE_MODE_WR))
-			ceph_fscache_invalidate(inode);
+		ceph_fscache_register_inode_cookie(inode);
+		ceph_fscache_file_set_cookie(inode, file);
 	case S_IFDIR:
 		dout("init_file %p %p 0%o (regular)\n", inode, file,
 		     inode->i_mode);
@@ -1349,7 +1337,7 @@ static ssize_t ceph_write_iter(struct kiocb *iocb, struct iov_iter *from)
 	}
 
 retry_snap:
-	if (ceph_osdmap_flag(osdc->osdmap, CEPH_OSDMAP_FULL)) {
+	if (ceph_osdmap_flag(osdc, CEPH_OSDMAP_FULL)) {
 		err = -ENOSPC;
 		goto out;
 	}
@@ -1407,7 +1395,6 @@ retry_snap:
 			iov_iter_advance(from, written);
 		ceph_put_snap_context(snapc);
 	} else {
-		loff_t old_size = i_size_read(inode);
 		/*
 		 * No need to acquire the i_truncate_mutex. Because
 		 * the MDS revokes Fwb caps before sending truncate
@@ -1418,8 +1405,6 @@ retry_snap:
 		written = generic_perform_write(file, from, pos);
 		if (likely(written >= 0))
 			iocb->ki_pos = pos + written;
-		if (i_size_read(inode) > old_size)
-			ceph_fscache_update_objectsize(inode);
 		inode_unlock(inode);
 	}
 
@@ -1440,7 +1425,7 @@ retry_snap:
 	ceph_put_cap_refs(ci, got);
 
 	if (written >= 0) {
-		if (ceph_osdmap_flag(osdc->osdmap, CEPH_OSDMAP_NEARFULL))
+		if (ceph_osdmap_flag(osdc, CEPH_OSDMAP_NEARFULL))
 			iocb->ki_flags |= IOCB_DSYNC;
 
 		written = generic_write_sync(iocb, written);
@@ -1672,8 +1657,8 @@ static long ceph_fallocate(struct file *file, int mode,
 		goto unlock;
 	}
 
-	if (ceph_osdmap_flag(osdc->osdmap, CEPH_OSDMAP_FULL) &&
-		!(mode & FALLOC_FL_PUNCH_HOLE)) {
+	if (ceph_osdmap_flag(osdc, CEPH_OSDMAP_FULL) &&
+	    !(mode & FALLOC_FL_PUNCH_HOLE)) {
 		ret = -ENOSPC;
 		goto unlock;
 	}

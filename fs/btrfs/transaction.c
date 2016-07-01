@@ -818,6 +818,7 @@ static int __btrfs_end_transaction(struct btrfs_trans_handle *trans,
 {
 	struct btrfs_transaction *cur_trans = trans->transaction;
 	struct btrfs_fs_info *info = root->fs_info;
+	u64 transid = trans->transid;
 	unsigned long cur = trans->delayed_ref_updates;
 	int lock = (trans->type != TRANS_JOIN_NOLOCK);
 	int err = 0;
@@ -905,7 +906,7 @@ static int __btrfs_end_transaction(struct btrfs_trans_handle *trans,
 
 	kmem_cache_free(btrfs_trans_handle_cachep, trans);
 	if (must_run_delayed_refs) {
-		btrfs_async_run_delayed_refs(root, cur,
+		btrfs_async_run_delayed_refs(root, cur, transid,
 					     must_run_delayed_refs == 1);
 	}
 	return err;
@@ -1311,11 +1312,6 @@ int btrfs_defrag_root(struct btrfs_root *root)
 	return ret;
 }
 
-/* Bisesctability fixup, remove in 4.8 */
-#ifndef btrfs_std_error
-#define btrfs_std_error btrfs_handle_fs_error
-#endif
-
 /*
  * Do all special snapshot related qgroup dirty hack.
  *
@@ -1385,7 +1381,7 @@ static int qgroup_account_snapshot(struct btrfs_trans_handle *trans,
 	switch_commit_roots(trans->transaction, fs_info);
 	ret = btrfs_write_and_wait_transaction(trans, src);
 	if (ret)
-		btrfs_std_error(fs_info, ret,
+		btrfs_handle_fs_error(fs_info, ret,
 			"Error while writing out transaction for qgroup");
 
 out:

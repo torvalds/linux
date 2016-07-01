@@ -169,7 +169,8 @@ void __hyp_text __vgic_v3_save_state(struct kvm_vcpu *vcpu)
 	 * Make sure stores to the GIC via the memory mapped interface
 	 * are now visible to the system register interface.
 	 */
-	dsb(st);
+	if (!cpu_if->vgic_sre)
+		dsb(st);
 
 	cpu_if->vgic_vmcr  = read_gicreg(ICH_VMCR_EL2);
 
@@ -190,12 +191,11 @@ void __hyp_text __vgic_v3_save_state(struct kvm_vcpu *vcpu)
 			if (!(vcpu->arch.vgic_cpu.live_lrs & (1UL << i)))
 				continue;
 
-			if (cpu_if->vgic_elrsr & (1 << i)) {
+			if (cpu_if->vgic_elrsr & (1 << i))
 				cpu_if->vgic_lr[i] &= ~ICH_LR_STATE;
-				continue;
-			}
+			else
+				cpu_if->vgic_lr[i] = __gic_v3_get_lr(i);
 
-			cpu_if->vgic_lr[i] = __gic_v3_get_lr(i);
 			__gic_v3_set_lr(0, i);
 		}
 
@@ -236,8 +236,12 @@ void __hyp_text __vgic_v3_save_state(struct kvm_vcpu *vcpu)
 
 	val = read_gicreg(ICC_SRE_EL2);
 	write_gicreg(val | ICC_SRE_EL2_ENABLE, ICC_SRE_EL2);
-	isb(); /* Make sure ENABLE is set at EL2 before setting SRE at EL1 */
-	write_gicreg(1, ICC_SRE_EL1);
+
+	if (!cpu_if->vgic_sre) {
+		/* Make sure ENABLE is set at EL2 before setting SRE at EL1 */
+		isb();
+		write_gicreg(1, ICC_SRE_EL1);
+	}
 }
 
 void __hyp_text __vgic_v3_restore_state(struct kvm_vcpu *vcpu)
@@ -256,8 +260,10 @@ void __hyp_text __vgic_v3_restore_state(struct kvm_vcpu *vcpu)
 	 * been actually programmed with the value we want before
 	 * starting to mess with the rest of the GIC.
 	 */
-	write_gicreg(cpu_if->vgic_sre, ICC_SRE_EL1);
-	isb();
+	if (!cpu_if->vgic_sre) {
+		write_gicreg(0, ICC_SRE_EL1);
+		isb();
+	}
 
 	val = read_gicreg(ICH_VTR_EL2);
 	max_lr_idx = vtr_to_max_lr_idx(val);
@@ -306,18 +312,18 @@ void __hyp_text __vgic_v3_restore_state(struct kvm_vcpu *vcpu)
 	 * (re)distributors. This ensure the guest will read the
 	 * correct values from the memory-mapped interface.
 	 */
-	isb();
-	dsb(sy);
+	if (!cpu_if->vgic_sre) {
+		isb();
+		dsb(sy);
+	}
 	vcpu->arch.vgic_cpu.live_lrs = live_lrs;
 
 	/*
 	 * Prevent the guest from touching the GIC system registers if
 	 * SRE isn't enabled for GICv3 emulation.
 	 */
-	if (!cpu_if->vgic_sre) {
-		write_gicreg(read_gicreg(ICC_SRE_EL2) & ~ICC_SRE_EL2_ENABLE,
-			     ICC_SRE_EL2);
-	}
+	write_gicreg(read_gicreg(ICC_SRE_EL2) & ~ICC_SRE_EL2_ENABLE,
+		     ICC_SRE_EL2);
 }
 
 void __hyp_text __vgic_v3_init_lrs(void)

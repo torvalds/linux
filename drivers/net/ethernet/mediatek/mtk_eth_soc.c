@@ -133,6 +133,8 @@ static int mtk_mdio_read(struct mii_bus *bus, int phy_addr, int phy_reg)
 static void mtk_phy_link_adjust(struct net_device *dev)
 {
 	struct mtk_mac *mac = netdev_priv(dev);
+	u16 lcl_adv = 0, rmt_adv = 0;
+	u8 flowctrl;
 	u32 mcr = MAC_MCR_MAX_RX_1536 | MAC_MCR_IPG_CFG |
 		  MAC_MCR_FORCE_MODE | MAC_MCR_TX_EN |
 		  MAC_MCR_RX_EN | MAC_MCR_BACKOFF_EN |
@@ -150,11 +152,30 @@ static void mtk_phy_link_adjust(struct net_device *dev)
 	if (mac->phy_dev->link)
 		mcr |= MAC_MCR_FORCE_LINK;
 
-	if (mac->phy_dev->duplex)
+	if (mac->phy_dev->duplex) {
 		mcr |= MAC_MCR_FORCE_DPX;
 
-	if (mac->phy_dev->pause)
-		mcr |= MAC_MCR_FORCE_RX_FC | MAC_MCR_FORCE_TX_FC;
+		if (mac->phy_dev->pause)
+			rmt_adv = LPA_PAUSE_CAP;
+		if (mac->phy_dev->asym_pause)
+			rmt_adv |= LPA_PAUSE_ASYM;
+
+		if (mac->phy_dev->advertising & ADVERTISED_Pause)
+			lcl_adv |= ADVERTISE_PAUSE_CAP;
+		if (mac->phy_dev->advertising & ADVERTISED_Asym_Pause)
+			lcl_adv |= ADVERTISE_PAUSE_ASYM;
+
+		flowctrl = mii_resolve_flowctrl_fdx(lcl_adv, rmt_adv);
+
+		if (flowctrl & FLOW_CTRL_TX)
+			mcr |= MAC_MCR_FORCE_TX_FC;
+		if (flowctrl & FLOW_CTRL_RX)
+			mcr |= MAC_MCR_FORCE_RX_FC;
+
+		netif_dbg(mac->hw, link, dev, "rx pause %s, tx pause %s\n",
+			  flowctrl & FLOW_CTRL_RX ? "enabled" : "disabled",
+			  flowctrl & FLOW_CTRL_TX ? "enabled" : "disabled");
+	}
 
 	mtk_w32(mac->hw, mcr, MTK_MAC_MCR(mac->id));
 
@@ -208,10 +229,16 @@ static int mtk_phy_connect(struct mtk_mac *mac)
 	u32 val, ge_mode;
 
 	np = of_parse_phandle(mac->of_node, "phy-handle", 0);
+	if (!np && of_phy_is_fixed_link(mac->of_node))
+		if (!of_phy_register_fixed_link(mac->of_node))
+			np = of_node_get(mac->of_node);
 	if (!np)
 		return -ENODEV;
 
 	switch (of_get_phy_mode(np)) {
+	case PHY_INTERFACE_MODE_RGMII_TXID:
+	case PHY_INTERFACE_MODE_RGMII_RXID:
+	case PHY_INTERFACE_MODE_RGMII_ID:
 	case PHY_INTERFACE_MODE_RGMII:
 		ge_mode = 0;
 		break;
@@ -236,7 +263,8 @@ static int mtk_phy_connect(struct mtk_mac *mac)
 	mac->phy_dev->autoneg = AUTONEG_ENABLE;
 	mac->phy_dev->speed = 0;
 	mac->phy_dev->duplex = 0;
-	mac->phy_dev->supported &= PHY_BASIC_FEATURES;
+	mac->phy_dev->supported &= PHY_GBIT_FEATURES | SUPPORTED_Pause |
+				   SUPPORTED_Asym_Pause;
 	mac->phy_dev->advertising = mac->phy_dev->supported |
 				    ADVERTISED_Autoneg;
 	phy_start_aneg(mac->phy_dev);
@@ -280,7 +308,7 @@ static int mtk_mdio_init(struct mtk_eth *eth)
 	return 0;
 
 err_free_bus:
-	kfree(eth->mii_bus);
+	mdiobus_free(eth->mii_bus);
 
 err_put_node:
 	of_node_put(mii_np);
@@ -295,7 +323,7 @@ static void mtk_mdio_cleanup(struct mtk_eth *eth)
 
 	mdiobus_unregister(eth->mii_bus);
 	of_node_put(eth->mii_bus->dev.of_node);
-	kfree(eth->mii_bus);
+	mdiobus_free(eth->mii_bus);
 }
 
 static inline void mtk_irq_disable(struct mtk_eth *eth, u32 mask)

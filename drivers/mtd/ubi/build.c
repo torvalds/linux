@@ -1147,11 +1147,17 @@ int ubi_detach_mtd_dev(int ubi_num, int anyway)
  */
 static struct mtd_info * __init open_mtd_by_chdev(const char *mtd_dev)
 {
-	struct kstat stat;
 	int err, minor;
+	struct path path;
+	struct kstat stat;
 
 	/* Probably this is an MTD character device node path */
-	err = vfs_stat(mtd_dev, &stat);
+	err = kern_path(mtd_dev, LOOKUP_FOLLOW, &path);
+	if (err)
+		return ERR_PTR(err);
+
+	err = vfs_getattr(&path, &stat);
+	path_put(&path);
 	if (err)
 		return ERR_PTR(err);
 
@@ -1160,6 +1166,7 @@ static struct mtd_info * __init open_mtd_by_chdev(const char *mtd_dev)
 		return ERR_PTR(-EINVAL);
 
 	minor = MINOR(stat.rdev);
+
 	if (minor & 1)
 		/*
 		 * Just do not think the "/dev/mtdrX" devices support is need,

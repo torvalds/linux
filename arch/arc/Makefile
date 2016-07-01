@@ -127,7 +127,7 @@ libs-y		+= arch/arc/lib/ $(LIBGCC)
 
 boot		:= arch/arc/boot
 
-#default target for make without any arguements.
+#default target for make without any arguments.
 KBUILD_IMAGE	:= bootpImage
 
 all:	$(KBUILD_IMAGE)

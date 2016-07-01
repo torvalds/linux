@@ -1446,21 +1446,36 @@ ec_parse_io_ports(struct acpi_resource *resource, void *context)
 	return AE_OK;
 }
 
-int __init acpi_boot_ec_enable(void)
+static const struct acpi_device_id ec_device_ids[] = {
+	{"PNP0C09", 0},
+	{"", 0},
+};
+
+int __init acpi_ec_dsdt_probe(void)
 {
-	if (!boot_ec)
+	acpi_status status;
+
+	if (boot_ec)
 		return 0;
+
+	/*
+	 * Finding EC from DSDT if there is no ECDT EC available. When this
+	 * function is invoked, ACPI tables have been fully loaded, we can
+	 * walk namespace now.
+	 */
+	boot_ec = make_acpi_ec();
+	if (!boot_ec)
+		return -ENOMEM;
+	status = acpi_get_devices(ec_device_ids[0].id,
+				  ec_parse_device, boot_ec, NULL);
+	if (ACPI_FAILURE(status) || !boot_ec->handle)
+		return -ENODEV;
 	if (!ec_install_handlers(boot_ec)) {
 		first_ec = boot_ec;
 		return 0;
 	}
 	return -EFAULT;
 }
-
-static const struct acpi_device_id ec_device_ids[] = {
-	{"PNP0C09", 0},
-	{"", 0},
-};
 
 #if 0
 /*

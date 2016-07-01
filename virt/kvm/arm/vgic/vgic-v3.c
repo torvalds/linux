@@ -101,11 +101,15 @@ void vgic_v3_fold_lr_state(struct kvm_vcpu *vcpu)
 			}
 		}
 
-		/* Clear soft pending state when level irqs have been acked */
-		if (irq->config == VGIC_CONFIG_LEVEL &&
-		    !(val & ICH_LR_PENDING_BIT)) {
-			irq->soft_pending = false;
-			irq->pending = irq->line_level;
+		/*
+		 * Clear soft pending state when level irqs have been acked.
+		 * Always regenerate the pending state.
+		 */
+		if (irq->config == VGIC_CONFIG_LEVEL) {
+			if (!(val & ICH_LR_PENDING_BIT))
+				irq->soft_pending = false;
+
+			irq->pending = irq->line_level || irq->soft_pending;
 		}
 
 		spin_unlock(&irq->irq_lock);

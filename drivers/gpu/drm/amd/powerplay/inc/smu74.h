@@ -34,6 +34,30 @@
 #define SMU__NUM_LCLK_DPM_LEVELS 8
 #define SMU__NUM_PCIE_DPM_LEVELS 8
 
+#define EXP_M1  35
+#define EXP_M2  92821
+#define EXP_B   66629747
+
+#define EXP_M1_1  365
+#define EXP_M2_1  658700
+#define EXP_B_1   305506134
+
+#define EXP_M1_2  189
+#define EXP_M2_2  379692
+#define EXP_B_2   194609469
+
+#define EXP_M1_3  99
+#define EXP_M2_3  217915
+#define EXP_B_3   122255994
+
+#define EXP_M1_4  51
+#define EXP_M2_4  122643
+#define EXP_B_4   74893384
+
+#define EXP_M1_5  423
+#define EXP_M2_5  1103326
+#define EXP_B_5   728122621
+
 enum SID_OPTION {
 	SID_OPTION_HI,
 	SID_OPTION_LO,
@@ -548,20 +572,20 @@ struct SMU74_Firmware_Header {
 	uint32_t CacConfigTable;
 	uint32_t CacStatusTable;
 
-
 	uint32_t mcRegisterTable;
 
-
 	uint32_t mcArbDramTimingTable;
-
-
-
 
 	uint32_t PmFuseTable;
 	uint32_t Globals;
 	uint32_t ClockStretcherTable;
 	uint32_t VftTable;
-	uint32_t Reserved[21];
+	uint32_t Reserved1;
+	uint32_t AvfsTable;
+	uint32_t AvfsCksOffGbvTable;
+	uint32_t AvfsMeanNSigma;
+	uint32_t AvfsSclkOffsetTable;
+	uint32_t Reserved[16];
 	uint32_t Signature;
 };
 
@@ -701,8 +725,6 @@ VR Config info is contained in dpmTable.VRConfig */
 struct SMU_ClockStretcherDataTableEntry {
 	uint8_t minVID;
 	uint8_t maxVID;
-
-
 	uint16_t setting;
 };
 typedef struct SMU_ClockStretcherDataTableEntry SMU_ClockStretcherDataTableEntry;
@@ -768,6 +790,43 @@ struct VFT_TABLE_t {
 
 typedef struct VFT_TABLE_t VFT_TABLE_t;
 
+
+/* Total margin, root mean square of Fmax + DC + Platform */
+struct AVFS_Margin_t {
+	VFT_CELL_t Cell[NUM_VFT_COLUMNS];
+};
+typedef struct AVFS_Margin_t AVFS_Margin_t;
+
+#define BTCGB_VDROOP_TABLE_MAX_ENTRIES 2
+#define AVFSGB_VDROOP_TABLE_MAX_ENTRIES 2
+
+struct GB_VDROOP_TABLE_t {
+	int32_t a0;
+	int32_t a1;
+	int32_t a2;
+	uint32_t spare;
+};
+typedef struct GB_VDROOP_TABLE_t GB_VDROOP_TABLE_t;
+
+struct AVFS_CksOff_Gbv_t {
+	VFT_CELL_t Cell[NUM_VFT_COLUMNS];
+};
+typedef struct AVFS_CksOff_Gbv_t AVFS_CksOff_Gbv_t;
+
+struct AVFS_meanNsigma_t {
+	uint32_t Aconstant[3];
+	uint16_t DC_tol_sigma;
+	uint16_t Platform_mean;
+	uint16_t Platform_sigma;
+	uint16_t PSM_Age_CompFactor;
+	uint8_t  Static_Voltage_Offset[NUM_VFT_COLUMNS];
+};
+typedef struct AVFS_meanNsigma_t AVFS_meanNsigma_t;
+
+struct AVFS_Sclk_Offset_t {
+	uint16_t Sclk_Offset[8];
+};
+typedef struct AVFS_Sclk_Offset_t AVFS_Sclk_Offset_t;
 
 #endif
 

@@ -741,6 +741,7 @@ static const struct iio_info accel_info = {
 static const struct iio_trigger_ops st_accel_trigger_ops = {
 	.owner = THIS_MODULE,
 	.set_trigger_state = ST_ACCEL_TRIGGER_SET_STATE,
+	.validate_device = st_sensors_validate_device,
 };
 #define ST_ACCEL_TRIGGER_OPS (&st_accel_trigger_ops)
 #else

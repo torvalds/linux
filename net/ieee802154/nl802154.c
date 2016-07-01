@@ -1289,8 +1289,8 @@ ieee802154_llsec_parse_dev_addr(struct nlattr *nla,
 				     nl802154_dev_addr_policy))
 		return -EINVAL;
 
-	if (!attrs[NL802154_DEV_ADDR_ATTR_PAN_ID] &&
-	    !attrs[NL802154_DEV_ADDR_ATTR_MODE] &&
+	if (!attrs[NL802154_DEV_ADDR_ATTR_PAN_ID] ||
+	    !attrs[NL802154_DEV_ADDR_ATTR_MODE] ||
 	    !(attrs[NL802154_DEV_ADDR_ATTR_SHORT] ||
 	      attrs[NL802154_DEV_ADDR_ATTR_EXTENDED]))
 		return -EINVAL;
