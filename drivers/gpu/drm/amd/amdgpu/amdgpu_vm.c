@@ -185,7 +185,7 @@ void amdgpu_vm_move_pt_bos_in_lru(struct amdgpu_device *adev,
  */
 int amdgpu_vm_grab_id(struct amdgpu_vm *vm, struct amdgpu_ring *ring,
 		      struct amdgpu_sync *sync, struct fence *fence,
-		      unsigned *vm_id, uint64_t *vm_pd_addr)
+		      struct amdgpu_job *job)
 {
 	struct amdgpu_device *adev = ring->adev;
 	struct fence *updates = sync->last_vm_update;
@@ -242,6 +242,7 @@ int amdgpu_vm_grab_id(struct amdgpu_vm *vm, struct amdgpu_ring *ring,
 	}
 	kfree(fences);
 
+	job->vm_needs_flush = true;
 	/* Check if we can use a VMID already assigned to this VM */
 	i = ring->idx;
 	do {
@@ -261,7 +262,7 @@ int amdgpu_vm_grab_id(struct amdgpu_vm *vm, struct amdgpu_ring *ring,
 		if (atomic64_read(&id->owner) != vm->client_id)
 			continue;
 
-		if (*vm_pd_addr != id->pd_gpu_addr)
+		if (job->vm_pd_addr != id->pd_gpu_addr)
 			continue;
 
 		if (!same_ring &&
@@ -284,9 +285,9 @@ int amdgpu_vm_grab_id(struct amdgpu_vm *vm, struct amdgpu_ring *ring,
 		list_move_tail(&id->list, &adev->vm_manager.ids_lru);
 		vm->ids[ring->idx] = id;
 
-		*vm_id = id - adev->vm_manager.ids;
-		*vm_pd_addr = AMDGPU_VM_NO_FLUSH;
-		trace_amdgpu_vm_grab_id(vm, ring->idx, *vm_id, *vm_pd_addr);
+		job->vm_id = id - adev->vm_manager.ids;
+		job->vm_needs_flush = false;
+		trace_amdgpu_vm_grab_id(vm, ring->idx, job->vm_id, job->vm_pd_addr);
 
 		mutex_unlock(&adev->vm_manager.lock);
 		return 0;
@@ -310,15 +311,14 @@ int amdgpu_vm_grab_id(struct amdgpu_vm *vm, struct amdgpu_ring *ring,
 	fence_put(id->flushed_updates);
 	id->flushed_updates = fence_get(updates);
 
-	id->pd_gpu_addr = *vm_pd_addr;
-
+	id->pd_gpu_addr = job->vm_pd_addr;
 	id->current_gpu_reset_count = atomic_read(&adev->gpu_reset_counter);
 	list_move_tail(&id->list, &adev->vm_manager.ids_lru);
 	atomic64_set(&id->owner, vm->client_id);
 	vm->ids[ring->idx] = id;
 
-	*vm_id = id - adev->vm_manager.ids;
-	trace_amdgpu_vm_grab_id(vm, ring->idx, *vm_id, *vm_pd_addr);
+	job->vm_id = id - adev->vm_manager.ids;
+	trace_amdgpu_vm_grab_id(vm, ring->idx, job->vm_id, job->vm_pd_addr);
 
 error:
 	mutex_unlock(&adev->vm_manager.lock);
@@ -360,34 +360,29 @@ static bool amdgpu_vm_ring_has_compute_vm_bug(struct amdgpu_ring *ring)
  *
  * Emit a VM flush when it is necessary.
  */
-int amdgpu_vm_flush(struct amdgpu_ring *ring,
-		    unsigned vm_id, uint64_t pd_addr,
-		    uint32_t gds_base, uint32_t gds_size,
-		    uint32_t gws_base, uint32_t gws_size,
-		    uint32_t oa_base, uint32_t oa_size)
+int amdgpu_vm_flush(struct amdgpu_ring *ring, struct amdgpu_job *job)
 {
 	struct amdgpu_device *adev = ring->adev;
-	struct amdgpu_vm_id *id = &adev->vm_manager.ids[vm_id];
+	struct amdgpu_vm_id *id = &adev->vm_manager.ids[job->vm_id];
 	bool gds_switch_needed = ring->funcs->emit_gds_switch && (
-		id->gds_base != gds_base ||
-		id->gds_size != gds_size ||
-		id->gws_base != gws_base ||
-		id->gws_size != gws_size ||
-		id->oa_base != oa_base ||
-		id->oa_size != oa_size);
+		id->gds_base != job->gds_base ||
+		id->gds_size != job->gds_size ||
+		id->gws_base != job->gws_base ||
+		id->gws_size != job->gws_size ||
+		id->oa_base != job->oa_base ||
+		id->oa_size != job->oa_size);
 	int r;
 
 	if (ring->funcs->emit_pipeline_sync && (
-	    pd_addr != AMDGPU_VM_NO_FLUSH || gds_switch_needed ||
+	    job->vm_needs_flush || gds_switch_needed ||
 	    amdgpu_vm_ring_has_compute_vm_bug(ring)))
 		amdgpu_ring_emit_pipeline_sync(ring);
 
-	if (ring->funcs->emit_vm_flush &&
-	    pd_addr != AMDGPU_VM_NO_FLUSH) {
+	if (ring->funcs->emit_vm_flush && job->vm_needs_flush) {
 		struct fence *fence;
 
-		trace_amdgpu_vm_flush(pd_addr, ring->idx, vm_id);
-		amdgpu_ring_emit_vm_flush(ring, vm_id, pd_addr);
+		trace_amdgpu_vm_flush(job->vm_pd_addr, ring->idx, job->vm_id);
+		amdgpu_ring_emit_vm_flush(ring, job->vm_id, job->vm_pd_addr);
 
 		r = amdgpu_fence_emit(ring, &fence);
 		if (r)
@@ -400,16 +395,16 @@ int amdgpu_vm_flush(struct amdgpu_ring *ring,
 	}
 
 	if (gds_switch_needed) {
-		id->gds_base = gds_base;
-		id->gds_size = gds_size;
-		id->gws_base = gws_base;
-		id->gws_size = gws_size;
-		id->oa_base = oa_base;
-		id->oa_size = oa_size;
-		amdgpu_ring_emit_gds_switch(ring, vm_id,
-					    gds_base, gds_size,
-					    gws_base, gws_size,
-					    oa_base, oa_size);
+		id->gds_base = job->gds_base;
+		id->gds_size = job->gds_size;
+		id->gws_base = job->gws_base;
+		id->gws_size = job->gws_size;
+		id->oa_base = job->oa_base;
+		id->oa_size = job->oa_size;
+		amdgpu_ring_emit_gds_switch(ring, job->vm_id,
+					    job->gds_base, job->gds_size,
+					    job->gws_base, job->gws_size,
+					    job->oa_base, job->oa_size);
 	}
 
 	return 0;

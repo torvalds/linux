@@ -946,12 +946,8 @@ void amdgpu_vm_move_pt_bos_in_lru(struct amdgpu_device *adev,
 				  struct amdgpu_vm *vm);
 int amdgpu_vm_grab_id(struct amdgpu_vm *vm, struct amdgpu_ring *ring,
 		      struct amdgpu_sync *sync, struct fence *fence,
-		      unsigned *vm_id, uint64_t *vm_pd_addr);
-int amdgpu_vm_flush(struct amdgpu_ring *ring,
-		    unsigned vm_id, uint64_t pd_addr,
-		    uint32_t gds_base, uint32_t gds_size,
-		    uint32_t gws_base, uint32_t gws_size,
-		    uint32_t oa_base, uint32_t oa_size);
+		      struct amdgpu_job *job);
+int amdgpu_vm_flush(struct amdgpu_ring *ring, struct amdgpu_job *job);
 void amdgpu_vm_reset_id(struct amdgpu_device *adev, unsigned vm_id);
 uint64_t amdgpu_vm_map_gart(const dma_addr_t *pages_addr, uint64_t addr);
 int amdgpu_vm_update_page_directory(struct amdgpu_device *adev,
@@ -1272,6 +1268,7 @@ struct amdgpu_job {
 	uint32_t		num_ibs;
 	void			*owner;
 	uint64_t		ctx;
+	bool                    vm_needs_flush;
 	unsigned		vm_id;
 	uint64_t		vm_pd_addr;
 	uint32_t		gds_base, gds_size;

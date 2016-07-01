@@ -160,10 +160,7 @@ int amdgpu_ib_schedule(struct amdgpu_ring *ring, unsigned num_ibs,
 		patch_offset = amdgpu_ring_init_cond_exec(ring);
 
 	if (vm) {
-		r = amdgpu_vm_flush(ring, job->vm_id, job->vm_pd_addr,
-				    job->gds_base, job->gds_size,
-				    job->gws_base, job->gws_size,
-				    job->oa_base, job->oa_size);
+		r = amdgpu_vm_flush(ring, job);
 		if (r) {
 			amdgpu_ring_undo(ring);
 			return r;

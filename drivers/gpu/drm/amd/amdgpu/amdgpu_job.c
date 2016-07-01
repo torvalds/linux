@@ -145,7 +145,7 @@ static struct fence *amdgpu_job_dependency(struct amd_sched_job *sched_job)
 
 		r = amdgpu_vm_grab_id(vm, ring, &job->sync,
 				      &job->base.s_fence->finished,
-				      &job->vm_id, &job->vm_pd_addr);
+				      job);
 		if (r)
 			DRM_ERROR("Error getting VM ID (%d)\n", r);
 
