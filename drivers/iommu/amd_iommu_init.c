@@ -1107,13 +1107,13 @@ static int __init init_iommu_from_acpi(struct amd_iommu *iommu,
 				break;
 			}
 
+			devid = e->devid;
 			DUMP_printk("  DEV_ACPI_HID(%s[%s])\t\tdevid: %02x:%02x.%x\n",
 				    hid, uid,
 				    PCI_BUS_NUM(devid),
 				    PCI_SLOT(devid),
 				    PCI_FUNC(devid));
 
-			devid  = e->devid;
 			flags = e->flags;
 
 			ret = add_acpi_hid_device(hid, uid, &devid, false);
