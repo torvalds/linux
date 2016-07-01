@@ -243,3 +243,88 @@ static void esw_destroy_offloads_table(struct mlx5_eswitch *esw)
 
 	mlx5_destroy_flow_table(offloads->ft_offloads);
 }
+
+static int esw_create_vport_rx_group(struct mlx5_eswitch *esw)
+{
+	int inlen = MLX5_ST_SZ_BYTES(create_flow_group_in);
+	struct mlx5_flow_group *g;
+	struct mlx5_priv *priv = &esw->dev->priv;
+	u32 *flow_group_in;
+	void *match_criteria, *misc;
+	int err = 0;
+	int nvports = priv->sriov.num_vfs + 2;
+
+	flow_group_in = mlx5_vzalloc(inlen);
+	if (!flow_group_in)
+		return -ENOMEM;
+
+	/* create vport rx group */
+	memset(flow_group_in, 0, inlen);
+	MLX5_SET(create_flow_group_in, flow_group_in, match_criteria_enable,
+		 MLX5_MATCH_MISC_PARAMETERS);
+
+	match_criteria = MLX5_ADDR_OF(create_flow_group_in, flow_group_in, match_criteria);
+	misc = MLX5_ADDR_OF(fte_match_param, match_criteria, misc_parameters);
+	MLX5_SET_TO_ONES(fte_match_set_misc, misc, source_port);
+
+	MLX5_SET(create_flow_group_in, flow_group_in, start_flow_index, 0);
+	MLX5_SET(create_flow_group_in, flow_group_in, end_flow_index, nvports - 1);
+
+	g = mlx5_create_flow_group(esw->offloads.ft_offloads, flow_group_in);
+
+	if (IS_ERR(g)) {
+		err = PTR_ERR(g);
+		mlx5_core_warn(esw->dev, "Failed to create vport rx group err %d\n", err);
+		goto out;
+	}
+
+	esw->offloads.vport_rx_group = g;
+out:
+	kfree(flow_group_in);
+	return err;
+}
+
+static void esw_destroy_vport_rx_group(struct mlx5_eswitch *esw)
+{
+	mlx5_destroy_flow_group(esw->offloads.vport_rx_group);
+}
+
+struct mlx5_flow_rule *
+mlx5_eswitch_create_vport_rx_rule(struct mlx5_eswitch *esw, int vport, u32 tirn)
+{
+	struct mlx5_flow_destination dest;
+	struct mlx5_flow_rule *flow_rule;
+	int match_header = MLX5_MATCH_MISC_PARAMETERS;
+	u32 *match_v, *match_c;
+	void *misc;
+
+	match_v = kzalloc(MLX5_ST_SZ_BYTES(fte_match_param), GFP_KERNEL);
+	match_c = kzalloc(MLX5_ST_SZ_BYTES(fte_match_param), GFP_KERNEL);
+	if (!match_v || !match_c) {
+		esw_warn(esw->dev, "Failed to alloc match parameters\n");
+		flow_rule = ERR_PTR(-ENOMEM);
+		goto out;
+	}
+
+	misc = MLX5_ADDR_OF(fte_match_param, match_v, misc_parameters);
+	MLX5_SET(fte_match_set_misc, misc, source_port, vport);
+
+	misc = MLX5_ADDR_OF(fte_match_param, match_c, misc_parameters);
+	MLX5_SET_TO_ONES(fte_match_set_misc, misc, source_port);
+
+	dest.type = MLX5_FLOW_DESTINATION_TYPE_TIR;
+	dest.tir_num = tirn;
+
+	flow_rule = mlx5_add_flow_rule(esw->offloads.ft_offloads, match_header, match_c,
+				       match_v, MLX5_FLOW_CONTEXT_ACTION_FWD_DEST,
+				       0, &dest);
+	if (IS_ERR(flow_rule)) {
+		esw_warn(esw->dev, "fs offloads: Failed to add vport rx rule err %ld\n", PTR_ERR(flow_rule));
+		goto out;
+	}
+
+out:
+	kfree(match_v);
+	kfree(match_c);
+	return flow_rule;
+}
