@@ -16,8 +16,8 @@ TRACE_EVENT(console,
 	),
 
 	TP_fast_assign(
-		memcpy(__get_dynamic_array(msg), text, len);
-		((char *)__get_dynamic_array(msg))[len] = 0;
+		memcpy(__get_str(msg), text, len);
+		__get_str(msg)[len] = 0;
 	),
 
 	TP_printk("%s", __get_str(msg))
