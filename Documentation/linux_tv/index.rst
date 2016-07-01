@@ -39,19 +39,19 @@ A typical media device hardware is shown at
 The media infrastructure API was designed to control such devices. It is
 divided into four parts.
 
-The first part covers radio, video capture and output,
+The :Ref:`first part <v4l2spec>` covers radio, video capture and output,
 cameras, analog TV devices and codecs.
 
-The second part covers the API used for digital TV and Internet
-reception via one of the several digital tv standards. While it is
-called as DVB API, in fact it covers several different video standards
-including DVB-T/T2, DVB-S/S2, DVB-C, ATSC, ISDB-T, ISDB-S, DTMB, etc.
-The complete list of supported standards can be found at
+The :Ref:`second part <dvbapi>` covers the API used for digital TV and
+Internet reception via one of the several digital tv standards. While it
+is called as DVB API, in fact it covers several different video
+standards including DVB-T/T2, DVB-S/S2, DVB-C, ATSC, ISDB-T, ISDB-S,
+DTMB, etc. The complete list of supported standards can be found at
 :ref:`fe-delivery-system-t`.
 
-The third part covers the Remote Controller API.
+The :Ref:`third part <remote_controllers>` covers the Remote Controller API.
 
-The fourth part covers the Media Controller API.
+The :Ref:`fourth part <media_controller>` covers the Media Controller API.
 
 It should also be noted that a media device may also have audio
 components, like mixers, PCM capture, PCM playback, etc, which are
