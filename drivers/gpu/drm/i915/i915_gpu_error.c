@@ -500,7 +500,7 @@ int i915_error_state_to_str(struct drm_i915_error_state_buf *m,
 					   hws_page[elt+1],
 					   hws_page[elt+2],
 					   hws_page[elt+3]);
-					offset += 16;
+				offset += 16;
 			}
 		}
 
