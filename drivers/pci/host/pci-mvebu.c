@@ -1,6 +1,8 @@
 /*
  * PCIe driver for Marvell Armada 370 and Armada XP SoCs
  *
+ * Author: Thomas Petazzoni <thomas.petazzoni@free-electrons.com>
+ *
  * This file is licensed under the terms of the GNU General Public
  * License version 2.  This program is licensed "as is" without any
  * warranty of any kind, whether express or implied.
@@ -11,7 +13,7 @@
 #include <linux/clk.h>
 #include <linux/delay.h>
 #include <linux/gpio.h>
-#include <linux/module.h>
+#include <linux/init.h>
 #include <linux/mbus.h>
 #include <linux/msi.h>
 #include <linux/slab.h>
@@ -1298,7 +1300,6 @@ static const struct of_device_id mvebu_pcie_of_match_table[] = {
 	{ .compatible = "marvell,kirkwood-pcie", },
 	{},
 };
-MODULE_DEVICE_TABLE(of, mvebu_pcie_of_match_table);
 
 static const struct dev_pm_ops mvebu_pcie_pm_ops = {
 	SET_NOIRQ_SYSTEM_SLEEP_PM_OPS(mvebu_pcie_suspend, mvebu_pcie_resume)
@@ -1314,8 +1315,4 @@ static struct platform_driver mvebu_pcie_driver = {
 	},
 	.probe = mvebu_pcie_probe,
 };
-module_platform_driver(mvebu_pcie_driver);
-
-MODULE_AUTHOR("Thomas Petazzoni <thomas.petazzoni@free-electrons.com>");
-MODULE_DESCRIPTION("Marvell EBU PCIe driver");
-MODULE_LICENSE("GPL v2");
+builtin_platform_driver(mvebu_pcie_driver);
