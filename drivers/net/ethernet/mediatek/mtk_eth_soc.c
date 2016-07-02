@@ -1297,7 +1297,7 @@ static void mtk_poll_controller(struct net_device *dev)
 	u32 int_mask = MTK_TX_DONE_INT | MTK_RX_DONE_INT;
 
 	mtk_irq_disable(eth, int_mask);
-	mtk_handle_irq(dev->irq[0], dev);
+	mtk_handle_irq_rx(eth->irq[2], dev);
 	mtk_irq_enable(eth, int_mask);
 }
 #endif
