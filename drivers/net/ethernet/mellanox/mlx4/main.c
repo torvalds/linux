@@ -2600,7 +2600,7 @@ static int mlx4_setup_hca(struct mlx4_dev *dev)
 	err = mlx4_init_uar_table(dev);
 	if (err) {
 		mlx4_err(dev, "Failed to initialize user access region table, aborting\n");
-		 return err;
+		return err;
 	}
 
 	err = mlx4_uar_alloc(dev, &priv->driver_uar);

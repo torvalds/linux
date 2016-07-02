@@ -147,7 +147,7 @@ int mlx4_do_bond(struct mlx4_dev *dev, bool enable)
 	if (enable) {
 		dev->flags |= MLX4_FLAG_BONDED;
 	} else {
-		 ret = mlx4_virt2phy_port_map(dev, 1, 2);
+		ret = mlx4_virt2phy_port_map(dev, 1, 2);
 		if (ret) {
 			mlx4_err(dev, "Fail to reset port map\n");
 			return ret;
