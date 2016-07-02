@@ -392,6 +392,8 @@ typedef uint16_t PPSMC_Result;
 #define PPSMC_MSG_SetGpuPllDfsForSclk         ((uint16_t) 0x300)
 #define PPSMC_MSG_Didt_Block_Function		  ((uint16_t) 0x301)
 
+#define PPSMC_MSG_SetVBITimeout               ((uint16_t) 0x306)
+
 #define PPSMC_MSG_SecureSRBMWrite             ((uint16_t) 0x600)
 #define PPSMC_MSG_SecureSRBMRead              ((uint16_t) 0x601)
 #define PPSMC_MSG_SetAddress                  ((uint16_t) 0x800)
