@@ -35,10 +35,14 @@
 #define S35390A_ALRM_BYTE_HOURS	1
 #define S35390A_ALRM_BYTE_MINS	2
 
+/* flags for STATUS1 */
 #define S35390A_FLAG_POC	0x01
 #define S35390A_FLAG_BLD	0x02
+#define S35390A_FLAG_INT2	0x04
 #define S35390A_FLAG_24H	0x40
 #define S35390A_FLAG_RESET	0x80
+
+/* flag for STATUS2 */
 #define S35390A_FLAG_TEST	0x01
 
 #define S35390A_INT2_MODE_MASK		0xF0
@@ -408,11 +412,11 @@ static struct i2c_driver s35390a_driver;
 static int s35390a_probe(struct i2c_client *client,
 			 const struct i2c_device_id *id)
 {
-	int err;
+	int err, err_reset;
 	unsigned int i;
 	struct s35390a *s35390a;
 	struct rtc_time tm;
-	char buf[1], status1;
+	char buf, status1;
 
 	if (!i2c_check_functionality(client->adapter, I2C_FUNC_I2C)) {
 		err = -ENODEV;
@@ -441,29 +445,35 @@ static int s35390a_probe(struct i2c_client *client,
 		}
 	}
 
-	err = s35390a_reset(s35390a, &status1);
-	if (err < 0) {
+	err_reset = s35390a_reset(s35390a, &status1);
+	if (err_reset < 0) {
+		err = err_reset;
 		dev_err(&client->dev, "error resetting chip\n");
 		goto exit_dummy;
 	}
 
-	err = s35390a_disable_test_mode(s35390a);
-	if (err < 0) {
-		dev_err(&client->dev, "error disabling test mode\n");
-		goto exit_dummy;
-	}
-
-	err = s35390a_get_reg(s35390a, S35390A_CMD_STATUS1, buf, sizeof(buf));
-	if (err < 0) {
-		dev_err(&client->dev, "error checking 12/24 hour mode\n");
-		goto exit_dummy;
-	}
-	if (buf[0] & S35390A_FLAG_24H)
+	if (status1 & S35390A_FLAG_24H)
 		s35390a->twentyfourhour = 1;
 	else
 		s35390a->twentyfourhour = 0;
 
-	if (s35390a_get_datetime(client, &tm) < 0)
+	if (status1 & S35390A_FLAG_INT2) {
+		/* disable alarm (and maybe test mode) */
+		buf = 0;
+		err = s35390a_set_reg(s35390a, S35390A_CMD_STATUS2, &buf, 1);
+		if (err < 0) {
+			dev_err(&client->dev, "error disabling alarm");
+			goto exit_dummy;
+		}
+	} else {
+		err = s35390a_disable_test_mode(s35390a);
+		if (err < 0) {
+			dev_err(&client->dev, "error disabling test mode\n");
+			goto exit_dummy;
+		}
+	}
+
+	if (err_reset > 0 || s35390a_get_datetime(client, &tm) < 0)
 		dev_warn(&client->dev, "clock needs to be set\n");
 
 	device_set_wakeup_capable(&client->dev, 1);
@@ -476,6 +486,10 @@ static int s35390a_probe(struct i2c_client *client,
 		err = PTR_ERR(s35390a->rtc);
 		goto exit_dummy;
 	}
+
+	if (status1 & S35390A_FLAG_INT2)
+		rtc_update_irq(s35390a->rtc, 1, RTC_AF);
+
 	return 0;
 
 exit_dummy:
