@@ -15,6 +15,7 @@
 #include <linux/bitrev.h>
 #include <linux/bcd.h>
 #include <linux/slab.h>
+#include <linux/delay.h>
 
 #define S35390A_CMD_STATUS1	0
 #define S35390A_CMD_STATUS2	1
@@ -94,19 +95,63 @@ static int s35390a_get_reg(struct s35390a *s35390a, int reg, char *buf, int len)
 	return 0;
 }
 
-static int s35390a_reset(struct s35390a *s35390a)
+/*
+ * Returns <0 on error, 0 if rtc is setup fine and 1 if the chip was reset.
+ * To keep the information if an irq is pending, pass the value read from
+ * STATUS1 to the caller.
+ */
+static int s35390a_reset(struct s35390a *s35390a, char *status1)
 {
-	char buf[1];
+	char buf;
+	int ret;
+	unsigned initcount = 0;
 
-	if (s35390a_get_reg(s35390a, S35390A_CMD_STATUS1, buf, sizeof(buf)) < 0)
-		return -EIO;
+	ret = s35390a_get_reg(s35390a, S35390A_CMD_STATUS1, status1, 1);
+	if (ret < 0)
+		return ret;
 
-	if (!(buf[0] & (S35390A_FLAG_POC | S35390A_FLAG_BLD)))
+	if (*status1 & S35390A_FLAG_POC)
+		/*
+		 * Do not communicate for 0.5 seconds since the power-on
+		 * detection circuit is in operation.
+		 */
+		msleep(500);
+	else if (!(*status1 & S35390A_FLAG_BLD))
+		/*
+		 * If both POC and BLD are unset everything is fine.
+		 */
 		return 0;
 
-	buf[0] |= (S35390A_FLAG_RESET | S35390A_FLAG_24H);
-	buf[0] &= 0xf0;
-	return s35390a_set_reg(s35390a, S35390A_CMD_STATUS1, buf, sizeof(buf));
+	/*
+	 * At least one of POC and BLD are set, so reinitialise chip. Keeping
+	 * this information in the hardware to know later that the time isn't
+	 * valid is unfortunately not possible because POC and BLD are cleared
+	 * on read. So the reset is best done now.
+	 *
+	 * The 24H bit is kept over reset, so set it already here.
+	 */
+initialize:
+	*status1 = S35390A_FLAG_24H;
+	buf = S35390A_FLAG_RESET | S35390A_FLAG_24H;
+	ret = s35390a_set_reg(s35390a, S35390A_CMD_STATUS1, &buf, 1);
+
+	if (ret < 0)
+		return ret;
+
+	ret = s35390a_get_reg(s35390a, S35390A_CMD_STATUS1, &buf, 1);
+	if (ret < 0)
+		return ret;
+
+	if (buf & (S35390A_FLAG_POC | S35390A_FLAG_BLD)) {
+		/* Try up to five times to reset the chip */
+		if (initcount < 5) {
+			++initcount;
+			goto initialize;
+		} else
+			return -EIO;
+	}
+
+	return 1;
 }
 
 static int s35390a_disable_test_mode(struct s35390a *s35390a)
@@ -367,7 +412,7 @@ static int s35390a_probe(struct i2c_client *client,
 	unsigned int i;
 	struct s35390a *s35390a;
 	struct rtc_time tm;
-	char buf[1];
+	char buf[1], status1;
 
 	if (!i2c_check_functionality(client->adapter, I2C_FUNC_I2C)) {
 		err = -ENODEV;
@@ -396,7 +441,7 @@ static int s35390a_probe(struct i2c_client *client,
 		}
 	}
 
-	err = s35390a_reset(s35390a);
+	err = s35390a_reset(s35390a, &status1);
 	if (err < 0) {
 		dev_err(&client->dev, "error resetting chip\n");
 		goto exit_dummy;
