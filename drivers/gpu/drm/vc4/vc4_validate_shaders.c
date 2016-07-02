@@ -59,6 +59,13 @@ struct vc4_shader_validation_state {
 	 */
 	uint32_t live_min_clamp_offsets[32 + 32 + 4];
 	bool live_max_clamp_regs[32 + 32 + 4];
+
+	/* Bitfield of which IPs are used as branch targets.
+	 *
+	 * Used for validation that the uniform stream is updated at the right
+	 * points and clearing the texturing/clamping state.
+	 */
+	unsigned long *branch_targets;
 };
 
 static uint32_t
@@ -418,13 +425,104 @@ check_instruction_reads(uint64_t inst,
 	return true;
 }
 
+/* Make sure that all branches are absolute and point within the shader, and
+ * note their targets for later.
+ */
+static bool
+vc4_validate_branches(struct vc4_shader_validation_state *validation_state)
+{
+	uint32_t max_branch_target = 0;
+	bool found_shader_end = false;
+	int ip;
+	int shader_end_ip = 0;
+	int last_branch = -2;
+
+	for (ip = 0; ip < validation_state->max_ip; ip++) {
+		uint64_t inst = validation_state->shader[ip];
+		int32_t branch_imm = QPU_GET_FIELD(inst, QPU_BRANCH_TARGET);
+		uint32_t sig = QPU_GET_FIELD(inst, QPU_SIG);
+		uint32_t after_delay_ip = ip + 4;
+		uint32_t branch_target_ip;
+
+		if (sig == QPU_SIG_PROG_END) {
+			shader_end_ip = ip;
+			found_shader_end = true;
+			continue;
+		}
+
+		if (sig != QPU_SIG_BRANCH)
+			continue;
+
+		if (ip - last_branch < 4) {
+			DRM_ERROR("Branch at %d during delay slots\n", ip);
+			return false;
+		}
+		last_branch = ip;
+
+		if (inst & QPU_BRANCH_REG) {
+			DRM_ERROR("branching from register relative "
+				  "not supported\n");
+			return false;
+		}
+
+		if (!(inst & QPU_BRANCH_REL)) {
+			DRM_ERROR("relative branching required\n");
+			return false;
+		}
+
+		/* The actual branch target is the instruction after the delay
+		 * slots, plus whatever byte offset is in the low 32 bits of
+		 * the instruction.  Make sure we're not branching beyond the
+		 * end of the shader object.
+		 */
+		if (branch_imm % sizeof(inst) != 0) {
+			DRM_ERROR("branch target not aligned\n");
+			return false;
+		}
+
+		branch_target_ip = after_delay_ip + (branch_imm >> 3);
+		if (branch_target_ip >= validation_state->max_ip) {
+			DRM_ERROR("Branch at %d outside of shader (ip %d/%d)\n",
+				  ip, branch_target_ip,
+				  validation_state->max_ip);
+			return false;
+		}
+		set_bit(branch_target_ip, validation_state->branch_targets);
+
+		/* Make sure that the non-branching path is also not outside
+		 * the shader.
+		 */
+		if (after_delay_ip >= validation_state->max_ip) {
+			DRM_ERROR("Branch at %d continues past shader end "
+				  "(%d/%d)\n",
+				  ip, after_delay_ip, validation_state->max_ip);
+			return false;
+		}
+		set_bit(after_delay_ip, validation_state->branch_targets);
+		max_branch_target = max(max_branch_target, after_delay_ip);
+
+		/* There are two delay slots after program end is signaled
+		 * that are still executed, then we're finished.
+		 */
+		if (found_shader_end && ip == shader_end_ip + 2)
+			break;
+	}
+
+	if (max_branch_target > shader_end_ip) {
+		DRM_ERROR("Branch landed after QPU_SIG_PROG_END");
+		return false;
+	}
+
+	return true;
+}
+
 struct vc4_validated_shader_info *
 vc4_validate_shader(struct drm_gem_cma_object *shader_obj)
 {
 	bool found_shader_end = false;
 	int shader_end_ip = 0;
 	uint32_t ip;
-	struct vc4_validated_shader_info *validated_shader;
+	struct vc4_validated_shader_info *validated_shader = NULL;
 	struct vc4_shader_validation_state validation_state;
 	int i;
 
@@ -437,9 +535,18 @@ vc4_validate_shader(struct drm_gem_cma_object *shader_obj)
 	for (i = 0; i < ARRAY_SIZE(validation_state.live_min_clamp_offsets); i++)
 		validation_state.live_min_clamp_offsets[i] = ~0;
 
+	validation_state.branch_targets =
+		kcalloc(BITS_TO_LONGS(validation_state.max_ip),
+			sizeof(unsigned long), GFP_KERNEL);
+	if (!validation_state.branch_targets)
+		goto fail;
+
 	validated_shader = kcalloc(1, sizeof(*validated_shader), GFP_KERNEL);
 	if (!validated_shader)
-		return NULL;
+		goto fail;
+
+	if (!vc4_validate_branches(&validation_state))
+		goto fail;
 
 	for (ip = 0; ip < validation_state.max_ip; ip++) {
 		uint64_t inst = validation_state.shader[ip];
@@ -508,9 +615,12 @@ vc4_validate_shader(struct drm_gem_cma_object *shader_obj)
 		(validated_shader->uniforms_size +
 		 4 * validated_shader->num_texture_samples);
 
+	kfree(validation_state.branch_targets);
+
 	return validated_shader;
 
 fail:
+	kfree(validation_state.branch_targets);
 	if (validated_shader) {
 		kfree(validated_shader->texture_samples);
 		kfree(validated_shader);
