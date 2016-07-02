@@ -24,11 +24,11 @@
 
 struct tcf_skbedit {
 	struct tcf_common	common;
-	u32			flags;
-	u32     		priority;
-	u32     		mark;
-	u16			queue_mapping;
-	/* XXX: 16-bit pad here? */
+	u32		flags;
+	u32		priority;
+	u32		mark;
+	u16		queue_mapping;
+	u16		ptype;
 };
 #define to_skbedit(a) \
 	container_of(a->priv, struct tcf_skbedit, common)
