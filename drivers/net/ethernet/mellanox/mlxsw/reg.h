@@ -386,7 +386,9 @@ enum mlxsw_reg_sfd_rec_action {
 	/* forward and trap, trap_id is FDB_TRAP */
 	MLXSW_REG_SFD_REC_ACTION_MIRROR_TO_CPU = 1,
 	/* trap and do not forward, trap_id is FDB_TRAP */
-	MLXSW_REG_SFD_REC_ACTION_TRAP = 3,
+	MLXSW_REG_SFD_REC_ACTION_TRAP = 2,
+	/* forward to IP router */
+	MLXSW_REG_SFD_REC_ACTION_FORWARD_IP_ROUTER = 3,
 	MLXSW_REG_SFD_REC_ACTION_DISCARD_ERROR = 15,
 };
 
