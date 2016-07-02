@@ -887,25 +887,4 @@ error_cleanup_cache:
 	kmem_cache_destroy(mc_dev_cache);
 	return error;
 }
-
 postcore_initcall(fsl_mc_bus_driver_init);
-
-static void __exit fsl_mc_bus_driver_exit(void)
-{
-	if (WARN_ON(!mc_dev_cache))
-		return;
-
-	its_fsl_mc_msi_cleanup();
-	fsl_mc_allocator_driver_exit();
-	dprc_driver_exit();
-	platform_driver_unregister(&fsl_mc_bus_driver);
-	bus_unregister(&fsl_mc_bus_type);
-	kmem_cache_destroy(mc_dev_cache);
-	pr_info("MC bus unregistered\n");
-}
-
-module_exit(fsl_mc_bus_driver_exit);
-
-MODULE_AUTHOR("Freescale Semiconductor Inc.");
-MODULE_DESCRIPTION("Freescale Management Complex (MC) bus driver");
-MODULE_LICENSE("GPL");
