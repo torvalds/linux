@@ -2,9 +2,9 @@
 
 .. _VIDIOC_QUERYCTRL:
 
-***************************************************************
-ioctl VIDIOC_QUERYCTRL, VIDIOC_QUERY_EXT_CTRL, VIDIOC_QUERYMENU
-***************************************************************
+*******************************************************************
+ioctls VIDIOC_QUERYCTRL, VIDIOC_QUERY_EXT_CTRL and VIDIOC_QUERYMENU
+*******************************************************************
 
 *man VIDIOC_QUERYCTRL(2)*
 
