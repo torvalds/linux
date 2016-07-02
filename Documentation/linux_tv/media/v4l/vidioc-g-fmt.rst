@@ -16,7 +16,7 @@ Get or set the data format, try a format
 Synopsis
 ========
 
-.. c:function:: int ioctl( int fd, int request, struct v4l2_format *argp )
+.. cpp:function:: int ioctl( int fd, int request, struct v4l2_format *argp )
 
 Arguments
 =========

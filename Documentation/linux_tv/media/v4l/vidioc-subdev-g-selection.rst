@@ -15,7 +15,7 @@ Get or set selection rectangles on a subdev pad
 Synopsis
 ========
 
-.. c:function:: int ioctl( int fd, int request, struct v4l2_subdev_selection *argp )
+.. cpp:function:: int ioctl( int fd, int request, struct v4l2_subdev_selection *argp )
 
 Arguments
 =========

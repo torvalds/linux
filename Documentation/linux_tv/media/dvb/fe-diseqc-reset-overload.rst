@@ -15,7 +15,7 @@ to power overload.
 Synopsis
 ========
 
-.. c:function:: int ioctl( int fd, int request, NULL )
+.. cpp:function:: int ioctl( int fd, int request, NULL )
 
 Arguments
 =========

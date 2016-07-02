@@ -14,7 +14,7 @@ Sends a DiSEqC command
 Synopsis
 ========
 
-.. c:function:: int ioctl( int fd, int request, struct dvb_diseqc_master_cmd *argp )
+.. cpp:function:: int ioctl( int fd, int request, struct dvb_diseqc_master_cmd *argp )
 
 Arguments
 =========

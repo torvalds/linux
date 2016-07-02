@@ -46,7 +46,7 @@ Creates a new network interface for a given Packet ID.
 Synopsis
 ========
 
-.. c:function:: int ioctl( int fd, int request, struct dvb_net_if *net_if )
+.. cpp:function:: int ioctl( int fd, int request, struct dvb_net_if *net_if )
 
 Arguments
 =========
@@ -135,7 +135,7 @@ Removes a network interface.
 Synopsis
 ========
 
-.. c:function:: int ioctl( int fd, int request, int ifnum )
+.. cpp:function:: int ioctl( int fd, int request, int ifnum )
 
 Arguments
 =========
@@ -178,7 +178,7 @@ Read the configuration data of an interface created via
 Synopsis
 ========
 
-.. c:function:: int ioctl( int fd, int request, struct dvb_net_if *net_if )
+.. cpp:function:: int ioctl( int fd, int request, struct dvb_net_if *net_if )
 
 Arguments
 =========

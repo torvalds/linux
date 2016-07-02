@@ -14,7 +14,7 @@ Allow setting tuner mode flags to the frontend.
 Synopsis
 ========
 
-.. c:function:: int ioctl( int fd, int request, unsigned int flags )
+.. cpp:function:: int ioctl( int fd, int request, unsigned int flags )
 
 Arguments
 =========

@@ -15,7 +15,7 @@ read-only access to the device
 Synopsis
 ========
 
-.. c:function:: int ioctl( int fd, int request, unsigned int *status )
+.. cpp:function:: int ioctl( int fd, int request, unsigned int *status )
 
 Arguments
 =========

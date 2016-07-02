@@ -14,7 +14,7 @@ Enumerate frame sizes
 Synopsis
 ========
 
-.. c:function:: int ioctl( int fd, int request, struct v4l2_frmsizeenum *argp )
+.. cpp:function:: int ioctl( int fd, int request, struct v4l2_frmsizeenum *argp )
 
 Arguments
 =========

@@ -14,7 +14,7 @@ Query device information
 Synopsis
 ========
 
-.. c:function:: int ioctl( int fd, int request, struct media_device_info *argp )
+.. cpp:function:: int ioctl( int fd, int request, struct media_device_info *argp )
 
 Arguments
 =========

@@ -14,7 +14,7 @@ Query the status of a buffer
 Synopsis
 ========
 
-.. c:function:: int ioctl( int fd, int request, struct v4l2_buffer *argp )
+.. cpp:function:: int ioctl( int fd, int request, struct v4l2_buffer *argp )
 
 Arguments
 =========

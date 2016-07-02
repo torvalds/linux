@@ -16,7 +16,7 @@ FE_GET_PROPERTY returns one or more frontend properties.
 Synopsis
 ========
 
-.. c:function:: int ioctl( int fd, int request, struct dtv_properties *argp )
+.. cpp:function:: int ioctl( int fd, int request, struct dtv_properties *argp )
 
 Arguments
 =========

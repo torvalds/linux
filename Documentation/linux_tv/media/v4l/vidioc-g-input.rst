@@ -15,7 +15,7 @@ Query or select the current video input
 Synopsis
 ========
 
-.. c:function:: int ioctl( int fd, int request, int *argp )
+.. cpp:function:: int ioctl( int fd, int request, int *argp )
 
 Arguments
 =========

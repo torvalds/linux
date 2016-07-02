@@ -14,7 +14,7 @@ Identify the chips on a TV card
 Synopsis
 ========
 
-.. c:function:: int ioctl( int fd, int request, struct v4l2_dbg_chip_info *argp )
+.. cpp:function:: int ioctl( int fd, int request, struct v4l2_dbg_chip_info *argp )
 
 Arguments
 =========

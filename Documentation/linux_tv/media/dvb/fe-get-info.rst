@@ -15,7 +15,7 @@ front-end. This call only requires read-only access to the device
 Synopsis
 ========
 
-.. c:function:: int ioctl( int fd, int request, struct dvb_frontend_info *argp )
+.. cpp:function:: int ioctl( int fd, int request, struct dvb_frontend_info *argp )
 
 Arguments
 =========

@@ -14,7 +14,7 @@ Export a buffer as a DMABUF file descriptor.
 Synopsis
 ========
 
-.. c:function:: int ioctl( int fd, int request, struct v4l2_exportbuffer *argp )
+.. cpp:function:: int ioctl( int fd, int request, struct v4l2_exportbuffer *argp )
 
 Arguments
 =========

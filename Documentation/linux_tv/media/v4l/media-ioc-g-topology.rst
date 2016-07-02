@@ -14,7 +14,7 @@ Enumerate the graph topology and graph element properties
 Synopsis
 ========
 
-.. c:function:: int ioctl( int fd, int request, struct media_v2_topology *argp )
+.. cpp:function:: int ioctl( int fd, int request, struct media_v2_topology *argp )
 
 Arguments
 =========

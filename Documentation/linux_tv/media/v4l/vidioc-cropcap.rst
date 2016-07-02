@@ -14,7 +14,7 @@ Information about the video cropping and scaling abilities
 Synopsis
 ========
 
-.. c:function:: int ioctl( int fd, int request, struct v4l2_cropcap *argp )
+.. cpp:function:: int ioctl( int fd, int request, struct v4l2_cropcap *argp )
 
 Arguments
 =========

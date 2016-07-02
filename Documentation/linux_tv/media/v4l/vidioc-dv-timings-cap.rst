@@ -15,7 +15,7 @@ The capabilities of the Digital Video receiver/transmitter
 Synopsis
 ========
 
-.. c:function:: int ioctl( int fd, int request, struct v4l2_dv_timings_cap *argp )
+.. cpp:function:: int ioctl( int fd, int request, struct v4l2_dv_timings_cap *argp )
 
 Arguments
 =========

@@ -14,7 +14,7 @@ Receives reply from a DiSEqC 2.0 command
 Synopsis
 ========
 
-.. c:function:: int ioctl( int fd, int request, struct dvb_diseqc_slave_reply *argp )
+.. cpp:function:: int ioctl( int fd, int request, struct dvb_diseqc_slave_reply *argp )
 
 Arguments
 =========

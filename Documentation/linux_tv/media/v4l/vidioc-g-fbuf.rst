@@ -15,9 +15,9 @@ Get or set frame buffer overlay parameters
 Synopsis
 ========
 
-.. c:function:: int ioctl( int fd, int request, struct v4l2_framebuffer *argp )
+.. cpp:function:: int ioctl( int fd, int request, struct v4l2_framebuffer *argp )
 
-.. c:function:: int ioctl( int fd, int request, const struct v4l2_framebuffer *argp )
+.. cpp:function:: int ioctl( int fd, int request, const struct v4l2_framebuffer *argp )
 
 Arguments
 =========

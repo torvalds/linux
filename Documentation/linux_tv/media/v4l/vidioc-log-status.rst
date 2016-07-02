@@ -14,7 +14,7 @@ Log driver status information
 Synopsis
 ========
 
-.. c:function:: int ioctl( int fd, int request )
+.. cpp:function:: int ioctl( int fd, int request )
 
 Description
 ===========

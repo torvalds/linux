@@ -14,7 +14,7 @@ Modify the properties of a link
 Synopsis
 ========
 
-.. c:function:: int ioctl( int fd, int request, struct media_link_desc *argp )
+.. cpp:function:: int ioctl( int fd, int request, struct media_link_desc *argp )
 
 Arguments
 =========

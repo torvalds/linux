@@ -17,9 +17,9 @@ Get or set the EDID of a video receiver/transmitter
 Synopsis
 ========
 
-.. c:function:: int ioctl( int fd, int request, struct v4l2_edid *argp )
+.. cpp:function:: int ioctl( int fd, int request, struct v4l2_edid *argp )
 
-.. c:function:: int ioctl( int fd, int request, struct v4l2_edid *argp )
+.. cpp:function:: int ioctl( int fd, int request, struct v4l2_edid *argp )
 
 Arguments
 =========

@@ -15,7 +15,7 @@ Exchange a buffer with the driver
 Synopsis
 ========
 
-.. c:function:: int ioctl( int fd, int request, struct v4l2_buffer *argp )
+.. cpp:function:: int ioctl( int fd, int request, struct v4l2_buffer *argp )
 
 Arguments
 =========

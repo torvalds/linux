@@ -14,7 +14,7 @@ Enumerate frame intervals
 Synopsis
 ========
 
-.. c:function:: int ioctl( int fd, int request, struct v4l2_frmivalenum *argp )
+.. cpp:function:: int ioctl( int fd, int request, struct v4l2_frmivalenum *argp )
 
 Arguments
 =========

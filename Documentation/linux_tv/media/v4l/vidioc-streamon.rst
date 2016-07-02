@@ -15,7 +15,7 @@ Start or stop streaming I/O
 Synopsis
 ========
 
-.. c:function:: int ioctl( int fd, int request, const int *argp )
+.. cpp:function:: int ioctl( int fd, int request, const int *argp )
 
 Arguments
 =========

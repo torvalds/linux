@@ -16,7 +16,7 @@ Get or set the value of several controls, try control values
 Synopsis
 ========
 
-.. c:function:: int ioctl( int fd, int request, struct v4l2_ext_controls *argp )
+.. cpp:function:: int ioctl( int fd, int request, struct v4l2_ext_controls *argp )
 
 Arguments
 =========

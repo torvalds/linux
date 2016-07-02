@@ -15,7 +15,7 @@ Execute an encoder command
 Synopsis
 ========
 
-.. c:function:: int ioctl( int fd, int request, struct v4l2_encoder_cmd *argp )
+.. cpp:function:: int ioctl( int fd, int request, struct v4l2_encoder_cmd *argp )
 
 Arguments
 =========

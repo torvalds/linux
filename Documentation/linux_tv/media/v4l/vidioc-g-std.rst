@@ -15,9 +15,9 @@ Query or select the video standard of the current input
 Synopsis
 ========
 
-.. c:function:: int ioctl( int fd, int request, v4l2_std_id *argp )
+.. cpp:function:: int ioctl( int fd, int request, v4l2_std_id *argp )
 
-.. c:function:: int ioctl( int fd, int request, const v4l2_std_id *argp )
+.. cpp:function:: int ioctl( int fd, int request, const v4l2_std_id *argp )
 
 Arguments
 =========

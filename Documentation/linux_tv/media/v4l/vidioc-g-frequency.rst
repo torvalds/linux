@@ -15,9 +15,9 @@ Get or set tuner or modulator radio frequency
 Synopsis
 ========
 
-.. c:function:: int ioctl( int fd, int request, struct v4l2_frequency *argp )
+.. cpp:function:: int ioctl( int fd, int request, struct v4l2_frequency *argp )
 
-.. c:function:: int ioctl( int fd, int request, const struct v4l2_frequency *argp )
+.. cpp:function:: int ioctl( int fd, int request, const struct v4l2_frequency *argp )
 
 Arguments
 =========

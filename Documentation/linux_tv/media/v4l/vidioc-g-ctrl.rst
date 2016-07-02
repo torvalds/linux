@@ -15,7 +15,7 @@ Get or set the value of a control
 Synopsis
 ========
 
-.. c:function:: int ioctl( int fd, int request, struct v4l2_control *argp )
+.. cpp:function:: int ioctl( int fd, int request, struct v4l2_control *argp )
 
 Arguments
 =========

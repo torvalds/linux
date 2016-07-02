@@ -15,7 +15,7 @@ Get or set the frame interval on a subdev pad
 Synopsis
 ========
 
-.. c:function:: int ioctl( int fd, int request, struct v4l2_subdev_frame_interval *argp )
+.. cpp:function:: int ioctl( int fd, int request, struct v4l2_subdev_frame_interval *argp )
 
 Arguments
 =========

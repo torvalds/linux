@@ -15,7 +15,7 @@ Get or set the data format on a subdev pad
 Synopsis
 ========
 
-.. c:function:: int ioctl( int fd, int request, struct v4l2_subdev_format *argp )
+.. cpp:function:: int ioctl( int fd, int request, struct v4l2_subdev_format *argp )
 
 Arguments
 =========

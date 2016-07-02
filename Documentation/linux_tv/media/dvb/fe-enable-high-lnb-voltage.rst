@@ -15,7 +15,7 @@ voltages.
 Synopsis
 ========
 
-.. c:function:: int ioctl( int fd, int request, unsigned int high )
+.. cpp:function:: int ioctl( int fd, int request, unsigned int high )
 
 Arguments
 =========

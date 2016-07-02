@@ -20,7 +20,7 @@ Synopsis
     #include <sys/mman.h>
 
 
-.. c:function:: int munmap( void *start, size_t length )
+.. cpp:function:: int munmap( void *start, size_t length )
 
 Arguments
 =========

@@ -21,7 +21,7 @@ Synopsis
     #include <unistd.h>
 
 
-.. c:function:: int select( int nfds, fd_set *readfds, fd_set *writefds, fd_set *exceptfds, struct timeval *timeout )
+.. cpp:function:: int select( int nfds, fd_set *readfds, fd_set *writefds, fd_set *exceptfds, struct timeval *timeout )
 
 Description
 ===========

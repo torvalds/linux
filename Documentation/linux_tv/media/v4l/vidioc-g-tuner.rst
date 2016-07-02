@@ -15,9 +15,9 @@ Get or set tuner attributes
 Synopsis
 ========
 
-.. c:function:: int ioctl( int fd, int request, struct v4l2_tuner *argp )
+.. cpp:function:: int ioctl( int fd, int request, struct v4l2_tuner *argp )
 
-.. c:function:: int ioctl( int fd, int request, const struct v4l2_tuner *argp )
+.. cpp:function:: int ioctl( int fd, int request, const struct v4l2_tuner *argp )
 
 Arguments
 =========

@@ -15,7 +15,7 @@ Get or set streaming parameters
 Synopsis
 ========
 
-.. c:function:: int ioctl( int fd, int request, v4l2_streamparm *argp )
+.. cpp:function:: int ioctl( int fd, int request, v4l2_streamparm *argp )
 
 Arguments
 =========

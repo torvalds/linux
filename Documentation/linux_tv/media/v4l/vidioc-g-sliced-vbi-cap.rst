@@ -14,7 +14,7 @@ Query sliced VBI capabilities
 Synopsis
 ========
 
-.. c:function:: int ioctl( int fd, int request, struct v4l2_sliced_vbi_cap *argp )
+.. cpp:function:: int ioctl( int fd, int request, struct v4l2_sliced_vbi_cap *argp )
 
 Arguments
 =========

@@ -14,7 +14,7 @@ Enumerate entities and their properties
 Synopsis
 ========
 
-.. c:function:: int ioctl( int fd, int request, struct media_entity_desc *argp )
+.. cpp:function:: int ioctl( int fd, int request, struct media_entity_desc *argp )
 
 Arguments
 =========

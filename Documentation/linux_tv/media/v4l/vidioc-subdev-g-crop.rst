@@ -15,9 +15,9 @@ Get or set the crop rectangle on a subdev pad
 Synopsis
 ========
 
-.. c:function:: int ioctl( int fd, int request, struct v4l2_subdev_crop *argp )
+.. cpp:function:: int ioctl( int fd, int request, struct v4l2_subdev_crop *argp )
 
-.. c:function:: int ioctl( int fd, int request, const struct v4l2_subdev_crop *argp )
+.. cpp:function:: int ioctl( int fd, int request, const struct v4l2_subdev_crop *argp )
 
 Arguments
 =========

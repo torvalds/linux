@@ -14,7 +14,7 @@ Enumerate media bus formats
 Synopsis
 ========
 
-.. c:function:: int ioctl( int fd, int request, struct v4l2_subdev_mbus_code_enum * argp )
+.. cpp:function:: int ioctl( int fd, int request, struct v4l2_subdev_mbus_code_enum * argp )
 
 Arguments
 =========

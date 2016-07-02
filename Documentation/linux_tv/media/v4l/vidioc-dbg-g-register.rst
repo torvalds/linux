@@ -15,9 +15,9 @@ Read or write hardware registers
 Synopsis
 ========
 
-.. c:function:: int ioctl( int fd, int request, struct v4l2_dbg_register *argp )
+.. cpp:function:: int ioctl( int fd, int request, struct v4l2_dbg_register *argp )
 
-.. c:function:: int ioctl( int fd, int request, const struct v4l2_dbg_register *argp )
+.. cpp:function:: int ioctl( int fd, int request, const struct v4l2_dbg_register *argp )
 
 Arguments
 =========

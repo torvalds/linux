@@ -19,7 +19,7 @@ Synopsis
     #include <unistd.h>
 
 
-.. c:function:: ssize_t read( int fd, void *buf, size_t count )
+.. cpp:function:: ssize_t read( int fd, void *buf, size_t count )
 
 Arguments
 =========

@@ -17,7 +17,7 @@ Get or set DV timings for input or output
 Synopsis
 ========
 
-.. c:function:: int ioctl( int fd, int request, struct v4l2_dv_timings *argp )
+.. cpp:function:: int ioctl( int fd, int request, struct v4l2_dv_timings *argp )
 
 Arguments
 =========

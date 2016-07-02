@@ -14,7 +14,7 @@ Enumerate audio inputs
 Synopsis
 ========
 
-.. c:function:: int ioctl( int fd, int request, struct v4l2_audio *argp )
+.. cpp:function:: int ioctl( int fd, int request, struct v4l2_audio *argp )
 
 Arguments
 =========

@@ -14,7 +14,7 @@ Initiate Memory Mapping or User Pointer I/O
 Synopsis
 ========
 
-.. c:function:: int ioctl( int fd, int request, struct v4l2_requestbuffers *argp )
+.. cpp:function:: int ioctl( int fd, int request, struct v4l2_requestbuffers *argp )
 
 Arguments
 =========

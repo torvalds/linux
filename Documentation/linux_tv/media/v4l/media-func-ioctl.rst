@@ -19,7 +19,7 @@ Synopsis
     #include <sys/ioctl.h>
 
 
-.. c:function:: int ioctl( int fd, int request, void *argp )
+.. cpp:function:: int ioctl( int fd, int request, void *argp )
 
 Arguments
 =========

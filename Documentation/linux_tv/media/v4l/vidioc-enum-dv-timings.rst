@@ -15,7 +15,7 @@ Enumerate supported Digital Video timings
 Synopsis
 ========
 
-.. c:function:: int ioctl( int fd, int request, struct v4l2_enum_dv_timings *argp )
+.. cpp:function:: int ioctl( int fd, int request, struct v4l2_enum_dv_timings *argp )
 
 Arguments
 =========

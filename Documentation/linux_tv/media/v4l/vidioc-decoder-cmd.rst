@@ -15,7 +15,7 @@ Execute an decoder command
 Synopsis
 ========
 
-.. c:function:: int ioctl( int fd, int request, struct v4l2_decoder_cmd *argp )
+.. cpp:function:: int ioctl( int fd, int request, struct v4l2_decoder_cmd *argp )
 
 Arguments
 =========

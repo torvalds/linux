@@ -14,7 +14,7 @@ Enumerate all pads and links for a given entity
 Synopsis
 ========
 
-.. c:function:: int ioctl( int fd, int request, struct media_links_enum *argp )
+.. cpp:function:: int ioctl( int fd, int request, struct media_links_enum *argp )
 
 Arguments
 =========

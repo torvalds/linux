@@ -15,9 +15,9 @@ Query or select the current audio output
 Synopsis
 ========
 
-.. c:function:: int ioctl( int fd, int request, struct v4l2_audioout *argp )
+.. cpp:function:: int ioctl( int fd, int request, struct v4l2_audioout *argp )
 
-.. c:function:: int ioctl( int fd, int request, const struct v4l2_audioout *argp )
+.. cpp:function:: int ioctl( int fd, int request, const struct v4l2_audioout *argp )
 
 Arguments
 =========

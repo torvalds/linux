@@ -19,7 +19,7 @@ Synopsis
     #include <fcntl.h>
 
 
-.. c:function:: int open( const char *device_name, int flags )
+.. cpp:function:: int open( const char *device_name, int flags )
 
 Arguments
 =========

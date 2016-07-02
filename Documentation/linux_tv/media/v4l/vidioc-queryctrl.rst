@@ -16,11 +16,11 @@ Enumerate controls and menu control items
 Synopsis
 ========
 
-.. c:function:: int ioctl( int fd, int request, struct v4l2_queryctrl *argp )
+.. cpp:function:: int ioctl( int fd, int request, struct v4l2_queryctrl *argp )
 
-.. c:function:: int ioctl( int fd, int request, struct v4l2_query_ext_ctrl *argp )
+.. cpp:function:: int ioctl( int fd, int request, struct v4l2_query_ext_ctrl *argp )
 
-.. c:function:: int ioctl( int fd, int request, struct v4l2_querymenu *argp )
+.. cpp:function:: int ioctl( int fd, int request, struct v4l2_querymenu *argp )
 
 Arguments
 =========
