@@ -194,7 +194,7 @@ check_tmu_write(struct vc4_validated_shader_info *validated_shader,
 			return false;
 		}
 
-		/* We assert that the the clamped address is the first
+		/* We assert that the clamped address is the first
 		 * argument, and the UBO base address is the second argument.
 		 * This is arbitrary, but simpler than supporting flipping the
 		 * two either way.
