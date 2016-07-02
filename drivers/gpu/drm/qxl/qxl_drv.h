@@ -321,7 +321,6 @@ struct qxl_device {
 	struct qxl_bo *current_release_bo[3];
 	int current_release_bo_offset[3];
 
-	struct workqueue_struct *gc_queue;
 	struct work_struct gc_work;
 
 	struct drm_property *hotplug_mode_update_property;
