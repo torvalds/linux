@@ -621,6 +621,11 @@ struct aac_driver_ident
 #define AAC_QUIRK_SCSI_32	0x0020
 
 /*
+ * SRC based adapters support the AifReqEvent functions
+ */
+#define AAC_QUIRK_SRC 0x0040
+
+/*
  *	The adapter interface specs all queues to be located in the same
  *	physically contiguous block. The host structure that defines the
  *	commuication queues will assume they are each a separate physically

@@ -317,7 +317,8 @@ static netdev_tx_t mlx5e_sq_xmit(struct mlx5e_sq *sq, struct sk_buff *skb)
 	while ((sq->pc & wq->sz_m1) > sq->edge)
 		mlx5e_send_nop(sq, false);
 
-	sq->bf_budget = bf ? sq->bf_budget - 1 : 0;
+	if (bf)
+		sq->bf_budget--;
 
 	sq->stats.packets++;
 	sq->stats.bytes += num_bytes;

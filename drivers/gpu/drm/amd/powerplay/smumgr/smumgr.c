@@ -81,6 +81,7 @@ int smum_init(struct amd_pp_init *pp_init, struct pp_instance *handle)
 
 int smum_fini(struct pp_smumgr *smumgr)
 {
+	kfree(smumgr->device);
 	kfree(smumgr);
 	return 0;
 }

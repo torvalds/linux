@@ -189,6 +189,7 @@ struct mvneta_bm_pool *mvneta_bm_pool_use(struct mvneta_bm *priv, u8 pool_id,
 			SKB_DATA_ALIGN(sizeof(struct skb_shared_info));
 		hwbm_pool->construct = mvneta_bm_construct;
 		hwbm_pool->priv = new_pool;
+		spin_lock_init(&hwbm_pool->lock);
 
 		/* Create new pool */
 		err = mvneta_bm_pool_create(priv, new_pool);

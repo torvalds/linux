@@ -712,6 +712,7 @@ static void ip6gre_tnl_link_config(struct ip6_tnl *t, int set_mtu)
 	fl6->daddr = p->raddr;
 	fl6->flowi6_oif = p->link;
 	fl6->flowlabel = 0;
+	fl6->flowi6_proto = IPPROTO_GRE;
 
 	if (!(p->flags&IP6_TNL_F_USE_ORIG_TCLASS))
 		fl6->flowlabel |= IPV6_TCLASS_MASK & p->flowinfo;
@@ -1027,6 +1028,8 @@ static int ip6gre_tunnel_init_common(struct net_device *dev)
 
 	dev->hard_header_len = LL_MAX_HEADER + t_hlen;
 	dev->mtu = ETH_DATA_LEN - t_hlen;
+	if (dev->type == ARPHRD_ETHER)
+		dev->mtu -= ETH_HLEN;
 	if (!(tunnel->parms.flags & IP6_TNL_F_IGN_ENCAP_LIMIT))
 		dev->mtu -= 8;
 
@@ -1253,6 +1256,8 @@ static int ip6gre_tap_init(struct net_device *dev)
 	if (ret)
 		return ret;
 
+	dev->priv_flags |= IFF_LIVE_ADDR_CHANGE;
+
 	tunnel = netdev_priv(dev);
 
 	ip6gre_tnl_link_config(tunnel, 1);
@@ -1286,6 +1291,7 @@ static void ip6gre_tap_setup(struct net_device *dev)
 
 	dev->features |= NETIF_F_NETNS_LOCAL;
 	dev->priv_flags &= ~IFF_TX_SKB_SHARING;
+	dev->priv_flags |= IFF_LIVE_ADDR_CHANGE;
 }
 
 static bool ip6gre_netlink_encap_parms(struct nlattr *data[],

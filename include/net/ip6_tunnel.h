@@ -63,6 +63,8 @@ struct ip6_tnl_encap_ops {
 			    u8 *protocol, struct flowi6 *fl6);
 };
 
+#ifdef CONFIG_INET
+
 extern const struct ip6_tnl_encap_ops __rcu *
 		ip6tun_encaps[MAX_IPTUN_ENCAP_OPS];
 
@@ -138,7 +140,6 @@ struct net *ip6_tnl_get_link_net(const struct net_device *dev);
 int ip6_tnl_get_iflink(const struct net_device *dev);
 int ip6_tnl_change_mtu(struct net_device *dev, int new_mtu);
 
-#ifdef CONFIG_INET
 static inline void ip6tunnel_xmit(struct sock *sk, struct sk_buff *skb,
 				  struct net_device *dev)
 {

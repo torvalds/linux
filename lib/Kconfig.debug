@@ -1841,6 +1841,9 @@ config TEST_BITMAP
 
 	  If unsure, say N.
 
+config TEST_UUID
+	tristate "Test functions located in the uuid module at runtime"
+
 config TEST_RHASHTABLE
 	tristate "Perform selftest on resizable hash table"
 	default n

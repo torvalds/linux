@@ -970,8 +970,8 @@ static const struct sunxi_mmc_clk_delay sun9i_mmc_clk_delays[] = {
 	[SDXC_CLK_400K]		= { .output = 180, .sample = 180 },
 	[SDXC_CLK_25M]		= { .output = 180, .sample =  75 },
 	[SDXC_CLK_50M]		= { .output = 150, .sample = 120 },
-	[SDXC_CLK_50M_DDR]	= { .output =  90, .sample = 120 },
-	[SDXC_CLK_50M_DDR_8BIT]	= { .output =  90, .sample = 120 },
+	[SDXC_CLK_50M_DDR]	= { .output =  54, .sample =  36 },
+	[SDXC_CLK_50M_DDR_8BIT]	= { .output =  72, .sample =  72 },
 };
 
 static int sunxi_mmc_resource_request(struct sunxi_mmc_host *host,
@@ -1128,11 +1128,6 @@ static int sunxi_mmc_probe(struct platform_device *pdev)
 	mmc->caps	       |= MMC_CAP_MMC_HIGHSPEED | MMC_CAP_SD_HIGHSPEED |
 				  MMC_CAP_1_8V_DDR |
 				  MMC_CAP_ERASE | MMC_CAP_SDIO_IRQ;
-
-	/* TODO MMC DDR is not working on A80 */
-	if (of_device_is_compatible(pdev->dev.of_node,
-				    "allwinner,sun9i-a80-mmc"))
-		mmc->caps &= ~MMC_CAP_1_8V_DDR;
 
 	ret = mmc_of_parse(mmc);
 	if (ret)
