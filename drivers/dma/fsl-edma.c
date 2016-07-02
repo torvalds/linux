@@ -995,12 +995,24 @@ static int fsl_edma_probe(struct platform_device *pdev)
 	return 0;
 }
 
+static void fsl_edma_cleanup_vchan(struct dma_device *dmadev)
+{
+	struct fsl_edma_chan *chan, *_chan;
+
+	list_for_each_entry_safe(chan, _chan,
+				&dmadev->channels, vchan.chan.device_node) {
+		list_del(&chan->vchan.chan.device_node);
+		tasklet_kill(&chan->vchan.task);
+	}
+}
+
 static int fsl_edma_remove(struct platform_device *pdev)
 {
 	struct device_node *np = pdev->dev.of_node;
 	struct fsl_edma_engine *fsl_edma = platform_get_drvdata(pdev);
 
 	fsl_edma_irq_exit(pdev, fsl_edma);
+	fsl_edma_cleanup_vchan(&fsl_edma->dma_dev);
 	of_dma_controller_free(np);
 	dma_async_device_unregister(&fsl_edma->dma_dev);
 	fsl_disable_clocks(fsl_edma);
