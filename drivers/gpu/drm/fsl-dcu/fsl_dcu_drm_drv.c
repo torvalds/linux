@@ -42,9 +42,10 @@ static const struct regmap_config fsl_dcu_regmap_config = {
 	.reg_bits = 32,
 	.reg_stride = 4,
 	.val_bits = 32,
-	.cache_type = REGCACHE_RBTREE,
+	.cache_type = REGCACHE_FLAT,
 
 	.volatile_reg = fsl_dcu_drm_is_volatile_reg,
+	.max_register = 0x11fc,
 };
 
 static int fsl_dcu_drm_irq_init(struct drm_device *dev)

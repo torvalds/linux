@@ -633,6 +633,8 @@ static int fiji_hwmgr_backend_init(struct pp_hwmgr *hwmgr)
 	data->vddci_control = FIJI_VOLTAGE_CONTROL_NONE;
 	data->mvdd_control = FIJI_VOLTAGE_CONTROL_NONE;
 
+	data->force_pcie_gen = PP_PCIEGenInvalid;
+
 	if (atomctrl_is_voltage_controled_by_gpio_v3(hwmgr,
 			VOLTAGE_TYPE_VDDC, VOLTAGE_OBJ_SVID2))
 		data->voltage_control = FIJI_VOLTAGE_CONTROL_BY_SVID2;
@@ -1830,7 +1832,7 @@ static uint16_t fiji_find_closest_vddci(struct pp_hwmgr *hwmgr, uint16_t vddci)
 
 	PP_ASSERT_WITH_CODE(false,
 			"VDDCI is larger than max VDDCI in VDDCI Voltage Table!",
-			return vddci_table->entries[i].value);
+			return vddci_table->entries[i-1].value);
 }
 
 static int fiji_get_dependency_volt_by_clk(struct pp_hwmgr *hwmgr,

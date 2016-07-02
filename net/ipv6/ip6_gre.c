@@ -1256,6 +1256,8 @@ static int ip6gre_tap_init(struct net_device *dev)
 	if (ret)
 		return ret;
 
+	dev->priv_flags |= IFF_LIVE_ADDR_CHANGE;
+
 	tunnel = netdev_priv(dev);
 
 	ip6gre_tnl_link_config(tunnel, 1);
@@ -1289,6 +1291,7 @@ static void ip6gre_tap_setup(struct net_device *dev)
 
 	dev->features |= NETIF_F_NETNS_LOCAL;
 	dev->priv_flags &= ~IFF_TX_SKB_SHARING;
+	dev->priv_flags |= IFF_LIVE_ADDR_CHANGE;
 }
 
 static bool ip6gre_netlink_encap_parms(struct nlattr *data[],

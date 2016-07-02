@@ -2416,24 +2416,24 @@ fec_enet_set_coalesce(struct net_device *ndev, struct ethtool_coalesce *ec)
 		return -EOPNOTSUPP;
 
 	if (ec->rx_max_coalesced_frames > 255) {
-		pr_err("Rx coalesced frames exceed hardware limiation");
+		pr_err("Rx coalesced frames exceed hardware limitation\n");
 		return -EINVAL;
 	}
 
 	if (ec->tx_max_coalesced_frames > 255) {
-		pr_err("Tx coalesced frame exceed hardware limiation");
+		pr_err("Tx coalesced frame exceed hardware limitation\n");
 		return -EINVAL;
 	}
 
 	cycle = fec_enet_us_to_itr_clock(ndev, fep->rx_time_itr);
 	if (cycle > 0xFFFF) {
-		pr_err("Rx coalesed usec exceeed hardware limiation");
+		pr_err("Rx coalesced usec exceed hardware limitation\n");
 		return -EINVAL;
 	}
 
 	cycle = fec_enet_us_to_itr_clock(ndev, fep->tx_time_itr);
 	if (cycle > 0xFFFF) {
-		pr_err("Rx coalesed usec exceeed hardware limiation");
+		pr_err("Rx coalesced usec exceed hardware limitation\n");
 		return -EINVAL;
 	}
 

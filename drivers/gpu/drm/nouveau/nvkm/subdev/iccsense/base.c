@@ -276,6 +276,8 @@ nvkm_iccsense_oneinit(struct nvkm_subdev *subdev)
 		struct pwr_rail_t *r = &stbl.rail[i];
 		struct nvkm_iccsense_rail *rail;
 		struct nvkm_iccsense_sensor *sensor;
+		int (*read)(struct nvkm_iccsense *,
+			    struct nvkm_iccsense_rail *);
 
 		if (!r->mode || r->resistor_mohm == 0)
 			continue;
@@ -284,31 +286,31 @@ nvkm_iccsense_oneinit(struct nvkm_subdev *subdev)
 		if (!sensor)
 			continue;
 
-		rail = kmalloc(sizeof(*rail), GFP_KERNEL);
-		if (!rail)
-			return -ENOMEM;
-
 		switch (sensor->type) {
 		case NVBIOS_EXTDEV_INA209:
 			if (r->rail != 0)
 				continue;
-			rail->read = nvkm_iccsense_ina209_read;
+			read = nvkm_iccsense_ina209_read;
 			break;
 		case NVBIOS_EXTDEV_INA219:
 			if (r->rail != 0)
 				continue;
-			rail->read = nvkm_iccsense_ina219_read;
+			read = nvkm_iccsense_ina219_read;
 			break;
 		case NVBIOS_EXTDEV_INA3221:
 			if (r->rail >= 3)
 				continue;
-			rail->read = nvkm_iccsense_ina3221_read;
+			read = nvkm_iccsense_ina3221_read;
 			break;
 		default:
 			continue;
 		}
 
+		rail = kmalloc(sizeof(*rail), GFP_KERNEL);
+		if (!rail)
+			return -ENOMEM;
 		sensor->rail_mask |= 1 << r->rail;
+		rail->read = read;
 		rail->sensor = sensor;
 		rail->idx = r->rail;
 		rail->mohm = r->resistor_mohm;

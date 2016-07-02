@@ -159,6 +159,10 @@ static int msm_fbdev_create(struct drm_fb_helper *helper,
 	dev->mode_config.fb_base = paddr;
 
 	fbi->screen_base = msm_gem_vaddr_locked(fbdev->bo);
+	if (IS_ERR(fbi->screen_base)) {
+		ret = PTR_ERR(fbi->screen_base);
+		goto fail_unlock;
+	}
 	fbi->screen_size = fbdev->bo->size;
 	fbi->fix.smem_start = paddr;
 	fbi->fix.smem_len = fbdev->bo->size;

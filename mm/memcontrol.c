@@ -1608,7 +1608,7 @@ static void memcg_oom_recover(struct mem_cgroup *memcg)
 
 static void mem_cgroup_oom(struct mem_cgroup *memcg, gfp_t mask, int order)
 {
-	if (!current->memcg_may_oom || current->memcg_in_oom)
+	if (!current->memcg_may_oom)
 		return;
 	/*
 	 * We are in the middle of the charge context here, so we
@@ -4203,7 +4203,7 @@ mem_cgroup_css_alloc(struct cgroup_subsys_state *parent_css)
 	return &memcg->css;
 fail:
 	mem_cgroup_free(memcg);
-	return NULL;
+	return ERR_PTR(-ENOMEM);
 }
 
 static int
@@ -5544,6 +5544,7 @@ void mem_cgroup_migrate(struct page *oldpage, struct page *newpage)
 	struct mem_cgroup *memcg;
 	unsigned int nr_pages;
 	bool compound;
+	unsigned long flags;
 
 	VM_BUG_ON_PAGE(!PageLocked(oldpage), oldpage);
 	VM_BUG_ON_PAGE(!PageLocked(newpage), newpage);
@@ -5574,10 +5575,10 @@ void mem_cgroup_migrate(struct page *oldpage, struct page *newpage)
 
 	commit_charge(newpage, memcg, false);
 
-	local_irq_disable();
+	local_irq_save(flags);
 	mem_cgroup_charge_statistics(memcg, newpage, compound, nr_pages);
 	memcg_check_events(memcg, newpage);
-	local_irq_enable();
+	local_irq_restore(flags);
 }
 
 DEFINE_STATIC_KEY_FALSE(memcg_sockets_enabled_key);

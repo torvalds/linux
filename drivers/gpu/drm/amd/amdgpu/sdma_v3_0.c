@@ -236,6 +236,15 @@ static void sdma_v3_0_init_golden_registers(struct amdgpu_device *adev)
 	}
 }
 
+static void sdma_v3_0_free_microcode(struct amdgpu_device *adev)
+{
+	int i;
+	for (i = 0; i < adev->sdma.num_instances; i++) {
+		release_firmware(adev->sdma.instance[i].fw);
+		adev->sdma.instance[i].fw = NULL;
+	}
+}
+
 /**
  * sdma_v3_0_init_microcode - load ucode images from disk
  *
@@ -672,6 +681,8 @@ static int sdma_v3_0_gfx_resume(struct amdgpu_device *adev)
 		/* Initialize the ring buffer's read and write pointers */
 		WREG32(mmSDMA0_GFX_RB_RPTR + sdma_offsets[i], 0);
 		WREG32(mmSDMA0_GFX_RB_WPTR + sdma_offsets[i], 0);
+		WREG32(mmSDMA0_GFX_IB_RPTR + sdma_offsets[i], 0);
+		WREG32(mmSDMA0_GFX_IB_OFFSET + sdma_offsets[i], 0);
 
 		/* set the wb address whether it's enabled or not */
 		WREG32(mmSDMA0_GFX_RB_RPTR_ADDR_HI + sdma_offsets[i],
@@ -711,7 +722,15 @@ static int sdma_v3_0_gfx_resume(struct amdgpu_device *adev)
 		WREG32(mmSDMA0_GFX_IB_CNTL + sdma_offsets[i], ib_cntl);
 
 		ring->ready = true;
+	}
 
+	/* unhalt the MEs */
+	sdma_v3_0_enable(adev, true);
+	/* enable sdma ring preemption */
+	sdma_v3_0_ctx_switch_enable(adev, true);
+
+	for (i = 0; i < adev->sdma.num_instances; i++) {
+		ring = &adev->sdma.instance[i].ring;
 		r = amdgpu_ring_test_ring(ring);
 		if (r) {
 			ring->ready = false;
@@ -804,10 +823,9 @@ static int sdma_v3_0_start(struct amdgpu_device *adev)
 		}
 	}
 
-	/* unhalt the MEs */
-	sdma_v3_0_enable(adev, true);
-	/* enable sdma ring preemption */
-	sdma_v3_0_ctx_switch_enable(adev, true);
+	/* disble sdma engine before programing it */
+	sdma_v3_0_ctx_switch_enable(adev, false);
+	sdma_v3_0_enable(adev, false);
 
 	/* start the gfx rings and rlc compute queues */
 	r = sdma_v3_0_gfx_resume(adev);
@@ -1247,6 +1265,7 @@ static int sdma_v3_0_sw_fini(void *handle)
 	for (i = 0; i < adev->sdma.num_instances; i++)
 		amdgpu_ring_fini(&adev->sdma.instance[i].ring);
 
+	sdma_v3_0_free_microcode(adev);
 	return 0;
 }
 

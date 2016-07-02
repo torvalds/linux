@@ -1232,7 +1232,7 @@ void ip_vs_conn_expire_now(struct ip_vs_conn *cp);
 const char *ip_vs_state_name(__u16 proto, int state);
 
 void ip_vs_tcp_conn_listen(struct ip_vs_conn *cp);
-int ip_vs_check_template(struct ip_vs_conn *ct);
+int ip_vs_check_template(struct ip_vs_conn *ct, struct ip_vs_dest *cdest);
 void ip_vs_random_dropentry(struct netns_ipvs *ipvs);
 int ip_vs_conn_init(void);
 void ip_vs_conn_cleanup(void);
