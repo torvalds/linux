@@ -2255,6 +2255,31 @@ static const struct mlxsw_rx_listener mlxsw_sp_rx_listener[] = {
 		.local_port = MLXSW_PORT_DONT_CARE,
 		.trap_id = MLXSW_TRAP_ID_IGMP_V3_REPORT,
 	},
+	{
+		.func = mlxsw_sp_rx_listener_func,
+		.local_port = MLXSW_PORT_DONT_CARE,
+		.trap_id = MLXSW_TRAP_ID_ARPBC,
+	},
+	{
+		.func = mlxsw_sp_rx_listener_func,
+		.local_port = MLXSW_PORT_DONT_CARE,
+		.trap_id = MLXSW_TRAP_ID_ARPUC,
+	},
+	{
+		.func = mlxsw_sp_rx_listener_func,
+		.local_port = MLXSW_PORT_DONT_CARE,
+		.trap_id = MLXSW_TRAP_ID_IP2ME,
+	},
+	{
+		.func = mlxsw_sp_rx_listener_func,
+		.local_port = MLXSW_PORT_DONT_CARE,
+		.trap_id = MLXSW_TRAP_ID_RTR_INGRESS0,
+	},
+	{
+		.func = mlxsw_sp_rx_listener_func,
+		.local_port = MLXSW_PORT_DONT_CARE,
+		.trap_id = MLXSW_TRAP_ID_HOST_MISS_IPV4,
+	},
 };
 
 static int mlxsw_sp_traps_init(struct mlxsw_sp *mlxsw_sp)
