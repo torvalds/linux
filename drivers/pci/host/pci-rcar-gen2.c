@@ -4,6 +4,8 @@
  * Copyright (C) 2013 Renesas Solutions Corp.
  * Copyright (C) 2013 Cogent Embedded, Inc.
  *
+ * Author: Valentine Barshak <valentine.barshak@cogentembedded.com>
+ *
  * This program is free software; you can redistribute it and/or modify
  * it under the terms of the GNU General Public License version 2 as
  * published by the Free Software Foundation.
@@ -14,7 +16,6 @@
 #include <linux/interrupt.h>
 #include <linux/io.h>
 #include <linux/kernel.h>
-#include <linux/module.h>
 #include <linux/of_address.h>
 #include <linux/of_pci.h>
 #include <linux/pci.h>
@@ -437,8 +438,6 @@ static struct of_device_id rcar_pci_of_match[] = {
 	{ },
 };
 
-MODULE_DEVICE_TABLE(of, rcar_pci_of_match);
-
 static struct platform_driver rcar_pci_driver = {
 	.driver = {
 		.name = "pci-rcar-gen2",
@@ -447,9 +446,4 @@ static struct platform_driver rcar_pci_driver = {
 	},
 	.probe = rcar_pci_probe,
 };
-
-module_platform_driver(rcar_pci_driver);
-
-MODULE_LICENSE("GPL v2");
-MODULE_DESCRIPTION("Renesas R-Car Gen2 internal PCI");
-MODULE_AUTHOR("Valentine Barshak <valentine.barshak@cogentembedded.com>");
+builtin_platform_driver(rcar_pci_driver);
