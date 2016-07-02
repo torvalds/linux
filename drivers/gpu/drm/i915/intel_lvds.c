@@ -184,8 +184,8 @@ static void intel_pre_enable_lvds(struct intel_encoder *encoder)
 	 * panels behave in the two modes. For now, let's just maintain the
 	 * value we got from the BIOS.
 	 */
-	 temp &= ~LVDS_A3_POWER_MASK;
-	 temp |= lvds_encoder->a3_power;
+	temp &= ~LVDS_A3_POWER_MASK;
+	temp |= lvds_encoder->a3_power;
 
 	/* Set the dithering flag on LVDS as needed, note that there is no
 	 * special lvds dither control bit on pch-split platforms, dithering is
