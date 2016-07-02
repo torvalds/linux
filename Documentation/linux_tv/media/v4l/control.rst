@@ -371,6 +371,8 @@ device has one or more controls, ``VIDIOC_QUERYMENU`` when it has one or
 more menu type controls.
 
 
+.. _enum_all_controls:
+
 .. code-block:: c
     :caption: Example 8: Enumerating all user controls
 
