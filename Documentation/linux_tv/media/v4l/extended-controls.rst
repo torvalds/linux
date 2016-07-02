@@ -54,9 +54,9 @@ contains a pointer to the control array, a count of the number of
 controls in that array and a control class. Control classes are used to
 group similar controls into a single class. For example, control class
 ``V4L2_CTRL_CLASS_USER`` contains all user controls (i. e. all controls
-that can also be set using the old ``VIDIOC_S_CTRL`` ioctl). Control
-class ``V4L2_CTRL_CLASS_MPEG`` contains all controls relating to MPEG
-encoding, etc.
+that can also be set using the old :ref:`VIDIOC_S_CTRL <VIDIOC_G_CTRL>`
+ioctl). Control class ``V4L2_CTRL_CLASS_MPEG`` contains all controls
+relating to MPEG encoding, etc.
 
 All controls in the control array must belong to the specified control
 class. An error is returned if this is not the case.
