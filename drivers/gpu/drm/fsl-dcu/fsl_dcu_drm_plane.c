@@ -217,6 +217,22 @@ static const u32 fsl_dcu_drm_plane_formats[] = {
 	DRM_FORMAT_YUV422,
 };
 
+void fsl_dcu_drm_init_planes(struct drm_device *dev)
+{
+	struct fsl_dcu_drm_device *fsl_dev = dev->dev_private;
+	int i, j;
+
+	for (i = 0; i < fsl_dev->soc->total_layer; i++) {
+		for (j = 1; j <= fsl_dev->soc->layer_regs; j++)
+			regmap_write(fsl_dev->regmap, DCU_CTRLDESCLN(i, j), 0);
+	}
+	regmap_update_bits(fsl_dev->regmap, DCU_DCU_MODE,
+			   DCU_MODE_DCU_MODE_MASK,
+			   DCU_MODE_DCU_MODE(DCU_MODE_OFF));
+	regmap_write(fsl_dev->regmap, DCU_UPDATE_MODE,
+		     DCU_UPDATE_MODE_READREG);
+}
+
 struct drm_plane *fsl_dcu_drm_primary_create_plane(struct drm_device *dev)
 {
 	struct drm_plane *primary;
