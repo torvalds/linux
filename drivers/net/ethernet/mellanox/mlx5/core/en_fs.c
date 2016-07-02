@@ -655,7 +655,7 @@ static int mlx5e_generate_ttc_table_rules(struct mlx5e_priv *priv)
 		if (tt == MLX5E_TT_ANY)
 			dest.tir_num = priv->direct_tir[0].tirn;
 		else
-			dest.tir_num = priv->indir_tirn[tt];
+			dest.tir_num = priv->indir_tir[tt].tirn;
 		rules[tt] = mlx5e_generate_ttc_rule(priv, ft, &dest,
 						    ttc_rules[tt].etype,
 						    ttc_rules[tt].proto);
