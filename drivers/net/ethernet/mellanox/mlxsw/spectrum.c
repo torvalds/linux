@@ -816,6 +816,7 @@ int mlxsw_sp_port_add_vid(struct net_device *dev, __be16 __always_unused proto,
 {
 	struct mlxsw_sp_port *mlxsw_sp_port = netdev_priv(dev);
 	struct mlxsw_sp_port *mlxsw_sp_vport;
+	bool untagged = vid == 1;
 	int err;
 
 	/* VLAN 0 is added to HW filter when device goes up, but it is
@@ -859,7 +860,7 @@ int mlxsw_sp_port_add_vid(struct net_device *dev, __be16 __always_unused proto,
 		goto err_port_vid_learning_set;
 	}
 
-	err = mlxsw_sp_port_vlan_set(mlxsw_sp_vport, vid, vid, true, false);
+	err = mlxsw_sp_port_vlan_set(mlxsw_sp_vport, vid, vid, true, untagged);
 	if (err) {
 		netdev_err(dev, "Failed to set VLAN membership for VID=%d\n",
 			   vid);
