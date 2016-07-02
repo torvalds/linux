@@ -60,7 +60,6 @@ struct mipid_device {
 	struct mutex		mutex;
 	struct lcd_panel	panel;
 
-	struct workqueue_struct	*esd_wq;
 	struct delayed_work	esd_work;
 	void			(*esd_check)(struct mipid_device *m);
 };
@@ -390,7 +389,7 @@ static void ls041y3_esd_check(struct mipid_device *md)
 static void mipid_esd_start_check(struct mipid_device *md)
 {
 	if (md->esd_check != NULL)
-		queue_delayed_work(md->esd_wq, &md->esd_work,
+		schedule_delayed_work(&md->esd_work,
 				   MIPID_ESD_CHECK_PERIOD);
 }
 
@@ -476,11 +475,6 @@ static int mipid_init(struct lcd_panel *panel,
 	struct mipid_device *md = to_mipid_device(panel);
 
 	md->fbdev = fbdev;
-	md->esd_wq = create_singlethread_workqueue("mipid_esd");
-	if (md->esd_wq == NULL) {
-		dev_err(&md->spi->dev, "can't create ESD workqueue\n");
-		return -ENOMEM;
-	}
 	INIT_DELAYED_WORK(&md->esd_work, mipid_esd_work);
 	mutex_init(&md->mutex);
 
@@ -500,7 +494,6 @@ static void mipid_cleanup(struct lcd_panel *panel)
 
 	if (md->enabled)
 		mipid_esd_stop_check(md);
-	destroy_workqueue(md->esd_wq);
 }
 
 static struct lcd_panel mipid_panel = {
