@@ -74,6 +74,8 @@
 
 #define MLXSW_SP_CELL_FACTOR 2	/* 2 * cell_size / (IPG + cell_size + 1) */
 
+#define MLXSW_SP_RIF_MAX 800
+
 static inline u16 mlxsw_sp_pfc_delay_get(int mtu, u16 delay)
 {
 	delay = MLXSW_SP_BYTES_TO_CELLS(DIV_ROUND_UP(delay, BITS_PER_BYTE));
@@ -410,5 +412,8 @@ static inline void mlxsw_sp_port_dcb_fini(struct mlxsw_sp_port *mlxsw_sp_port)
 {}
 
 #endif
+
+int mlxsw_sp_router_init(struct mlxsw_sp *mlxsw_sp);
+void mlxsw_sp_router_fini(struct mlxsw_sp *mlxsw_sp);
 
 #endif
