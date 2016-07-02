@@ -2502,6 +2502,8 @@ verbose_printk("btrfs: send_utimes %llu\n", ino);
 	key.type = BTRFS_INODE_ITEM_KEY;
 	key.offset = 0;
 	ret = btrfs_search_slot(NULL, sctx->send_root, &key, path, 0, 0);
+	if (ret > 0)
+		ret = -ENOENT;
 	if (ret < 0)
 		goto out;
 
