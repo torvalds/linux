@@ -890,8 +890,8 @@ err_port_vp_mode_trans:
 	return err;
 }
 
-int mlxsw_sp_port_kill_vid(struct net_device *dev,
-			   __be16 __always_unused proto, u16 vid)
+static int mlxsw_sp_port_kill_vid(struct net_device *dev,
+				  __be16 __always_unused proto, u16 vid)
 {
 	struct mlxsw_sp_port *mlxsw_sp_port = netdev_priv(dev);
 	struct mlxsw_sp_port *mlxsw_sp_vport;
@@ -1845,23 +1845,6 @@ err_port_active_vlans_alloc:
 	return err;
 }
 
-static void mlxsw_sp_port_vports_fini(struct mlxsw_sp_port *mlxsw_sp_port)
-{
-	struct net_device *dev = mlxsw_sp_port->dev;
-	struct mlxsw_sp_port *mlxsw_sp_vport, *tmp;
-
-	list_for_each_entry_safe(mlxsw_sp_vport, tmp,
-				 &mlxsw_sp_port->vports_list, vport.list) {
-		u16 vid = mlxsw_sp_vport_vid_get(mlxsw_sp_vport);
-
-		/* vPorts created for VLAN devices should already be gone
-		 * by now, since we unregistered the port netdev.
-		 */
-		WARN_ON(is_vlan_dev(mlxsw_sp_vport->dev));
-		mlxsw_sp_port_kill_vid(dev, 0, vid);
-	}
-}
-
 static void mlxsw_sp_port_remove(struct mlxsw_sp *mlxsw_sp, u8 local_port)
 {
 	struct mlxsw_sp_port *mlxsw_sp_port = mlxsw_sp->ports[local_port];
@@ -1872,13 +1855,14 @@ static void mlxsw_sp_port_remove(struct mlxsw_sp *mlxsw_sp, u8 local_port)
 	mlxsw_core_port_fini(&mlxsw_sp_port->core_port);
 	unregister_netdev(mlxsw_sp_port->dev); /* This calls ndo_stop */
 	mlxsw_sp_port_dcb_fini(mlxsw_sp_port);
-	mlxsw_sp_port_vports_fini(mlxsw_sp_port);
+	mlxsw_sp_port_kill_vid(mlxsw_sp_port->dev, 0, 1);
 	mlxsw_sp_port_switchdev_fini(mlxsw_sp_port);
 	mlxsw_sp_port_swid_set(mlxsw_sp_port, MLXSW_PORT_SWID_DISABLED_PORT);
 	mlxsw_sp_port_module_unmap(mlxsw_sp, mlxsw_sp_port->local_port);
 	free_percpu(mlxsw_sp_port->pcpu_stats);
 	kfree(mlxsw_sp_port->untagged_vlans);
 	kfree(mlxsw_sp_port->active_vlans);
+	WARN_ON_ONCE(!list_empty(&mlxsw_sp_port->vports_list));
 	free_netdev(mlxsw_sp_port->dev);
 }
 

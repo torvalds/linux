@@ -633,25 +633,6 @@ err_port_allow_untagged_set:
 	return err;
 }
 
-static int mlxsw_sp_port_add_vids(struct net_device *dev, u16 vid_begin,
-				  u16 vid_end)
-{
-	u16 vid;
-	int err;
-
-	for (vid = vid_begin; vid <= vid_end; vid++) {
-		err = mlxsw_sp_port_add_vid(dev, 0, vid);
-		if (err)
-			goto err_port_add_vid;
-	}
-	return 0;
-
-err_port_add_vid:
-	for (vid--; vid >= vid_begin; vid--)
-		mlxsw_sp_port_kill_vid(dev, 0, vid);
-	return err;
-}
-
 static int __mlxsw_sp_port_vlans_set(struct mlxsw_sp_port *mlxsw_sp_port,
 				     u16 vid_begin, u16 vid_end, bool is_member,
 				     bool untagged)
@@ -681,12 +662,8 @@ static int __mlxsw_sp_port_vlans_add(struct mlxsw_sp_port *mlxsw_sp_port,
 	u16 vid, old_pvid;
 	int err;
 
-	/* In case this is invoked with BRIDGE_FLAGS_SELF and port is
-	 * not bridged, then packets ingressing through the port with
-	 * the specified VIDs will be directed to CPU.
-	 */
 	if (!mlxsw_sp_port->bridged)
-		return mlxsw_sp_port_add_vids(dev, vid_begin, vid_end);
+		return -EINVAL;
 
 	err = mlxsw_sp_port_fid_join(mlxsw_sp_port, vid_begin, vid_end);
 	if (err) {
@@ -1019,21 +996,6 @@ static int mlxsw_sp_port_obj_add(struct net_device *dev,
 	return err;
 }
 
-static int mlxsw_sp_port_kill_vids(struct net_device *dev, u16 vid_begin,
-				   u16 vid_end)
-{
-	u16 vid;
-	int err;
-
-	for (vid = vid_begin; vid <= vid_end; vid++) {
-		err = mlxsw_sp_port_kill_vid(dev, 0, vid);
-		if (err)
-			return err;
-	}
-
-	return 0;
-}
-
 static int __mlxsw_sp_port_vlans_del(struct mlxsw_sp_port *mlxsw_sp_port,
 				     u16 vid_begin, u16 vid_end, bool init)
 {
@@ -1041,12 +1003,8 @@ static int __mlxsw_sp_port_vlans_del(struct mlxsw_sp_port *mlxsw_sp_port,
 	u16 vid, pvid;
 	int err;
 
-	/* In case this is invoked with BRIDGE_FLAGS_SELF and port is
-	 * not bridged, then prevent packets ingressing through the
-	 * port with the specified VIDs from being trapped to CPU.
-	 */
 	if (!init && !mlxsw_sp_port->bridged)
-		return mlxsw_sp_port_kill_vids(dev, vid_begin, vid_end);
+		return -EINVAL;
 
 	err = __mlxsw_sp_port_vlans_set(mlxsw_sp_port, vid_begin, vid_end,
 					false, false);
