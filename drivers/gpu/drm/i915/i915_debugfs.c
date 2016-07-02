@@ -1982,19 +1982,19 @@ static int i915_gem_framebuffer_info(struct seq_file *m, void *data)
 		return ret;
 
 #ifdef CONFIG_DRM_FBDEV_EMULATION
-       if (to_i915(dev)->fbdev) {
-               fbdev_fb = to_intel_framebuffer(to_i915(dev)->fbdev->helper.fb);
+	if (to_i915(dev)->fbdev) {
+		fbdev_fb = to_intel_framebuffer(to_i915(dev)->fbdev->helper.fb);
 
-               seq_printf(m, "fbcon size: %d x %d, depth %d, %d bpp, modifier 0x%llx, refcount %d, obj ",
-                         fbdev_fb->base.width,
-                         fbdev_fb->base.height,
-                         fbdev_fb->base.depth,
-                         fbdev_fb->base.bits_per_pixel,
-                         fbdev_fb->base.modifier[0],
-                         drm_framebuffer_read_refcount(&fbdev_fb->base));
-               describe_obj(m, fbdev_fb->obj);
-               seq_putc(m, '\n');
-       }
+		seq_printf(m, "fbcon size: %d x %d, depth %d, %d bpp, modifier 0x%llx, refcount %d, obj ",
+			   fbdev_fb->base.width,
+			   fbdev_fb->base.height,
+			   fbdev_fb->base.depth,
+			   fbdev_fb->base.bits_per_pixel,
+			   fbdev_fb->base.modifier[0],
+			   drm_framebuffer_read_refcount(&fbdev_fb->base));
+		describe_obj(m, fbdev_fb->obj);
+		seq_putc(m, '\n');
+	}
 #endif
 
 	mutex_lock(&dev->mode_config.fb_lock);
