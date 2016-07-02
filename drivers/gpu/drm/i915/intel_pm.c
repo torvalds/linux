@@ -4667,19 +4667,23 @@ static void gen6_set_rps_thresholds(struct drm_i915_private *dev_priv, u8 val)
 	new_power = dev_priv->rps.power;
 	switch (dev_priv->rps.power) {
 	case LOW_POWER:
-		if (val > dev_priv->rps.efficient_freq + 1 && val > dev_priv->rps.cur_freq)
+		if (val > dev_priv->rps.efficient_freq + 1 &&
+		    val > dev_priv->rps.cur_freq)
 			new_power = BETWEEN;
 		break;
 
 	case BETWEEN:
-		if (val <= dev_priv->rps.efficient_freq && val < dev_priv->rps.cur_freq)
+		if (val <= dev_priv->rps.efficient_freq &&
+		    val < dev_priv->rps.cur_freq)
 			new_power = LOW_POWER;
-		else if (val >= dev_priv->rps.rp0_freq && val > dev_priv->rps.cur_freq)
+		else if (val >= dev_priv->rps.rp0_freq &&
+			 val > dev_priv->rps.cur_freq)
 			new_power = HIGH_POWER;
 		break;
 
 	case HIGH_POWER:
-		if (val < (dev_priv->rps.rp1_freq + dev_priv->rps.rp0_freq) >> 1 && val < dev_priv->rps.cur_freq)
+		if (val < (dev_priv->rps.rp1_freq + dev_priv->rps.rp0_freq) >> 1 &&
+		    val < dev_priv->rps.cur_freq)
 			new_power = BETWEEN;
 		break;
 	}
@@ -4725,22 +4729,24 @@ static void gen6_set_rps_thresholds(struct drm_i915_private *dev_priv, u8 val)
 	}
 
 	I915_WRITE(GEN6_RP_UP_EI,
-		GT_INTERVAL_FROM_US(dev_priv, ei_up));
+		   GT_INTERVAL_FROM_US(dev_priv, ei_up));
 	I915_WRITE(GEN6_RP_UP_THRESHOLD,
-		GT_INTERVAL_FROM_US(dev_priv, (ei_up * threshold_up / 100)));
+		   GT_INTERVAL_FROM_US(dev_priv,
+				       ei_up * threshold_up / 100));
 
 	I915_WRITE(GEN6_RP_DOWN_EI,
-		GT_INTERVAL_FROM_US(dev_priv, ei_down));
+		   GT_INTERVAL_FROM_US(dev_priv, ei_down));
 	I915_WRITE(GEN6_RP_DOWN_THRESHOLD,
-		GT_INTERVAL_FROM_US(dev_priv, (ei_down * threshold_down / 100)));
+		   GT_INTERVAL_FROM_US(dev_priv,
+				       ei_down * threshold_down / 100));
 
-	 I915_WRITE(GEN6_RP_CONTROL,
-		    GEN6_RP_MEDIA_TURBO |
-		    GEN6_RP_MEDIA_HW_NORMAL_MODE |
-		    GEN6_RP_MEDIA_IS_GFX |
-		    GEN6_RP_ENABLE |
-		    GEN6_RP_UP_BUSY_AVG |
-		    GEN6_RP_DOWN_IDLE_AVG);
+	I915_WRITE(GEN6_RP_CONTROL,
+		   GEN6_RP_MEDIA_TURBO |
+		   GEN6_RP_MEDIA_HW_NORMAL_MODE |
+		   GEN6_RP_MEDIA_IS_GFX |
+		   GEN6_RP_ENABLE |
+		   GEN6_RP_UP_BUSY_AVG |
+		   GEN6_RP_DOWN_IDLE_AVG);
 
 	dev_priv->rps.power = new_power;
 	dev_priv->rps.up_threshold = threshold_up;
