@@ -276,7 +276,7 @@ static int get_temp_8960(struct tsens_device *tmdev, int id, int *temp)
 	return -ETIMEDOUT;
 }
 
-const struct tsens_ops ops_8960 = {
+static const struct tsens_ops ops_8960 = {
 	.init		= init_8960,
 	.calibrate	= calibrate_8960,
 	.get_temp	= get_temp_8960,

@@ -73,7 +73,7 @@ done:
 	return 0;
 }
 
-const struct tsens_ops ops_8996 = {
+static const struct tsens_ops ops_8996 = {
 	.init		= init_common,
 	.get_temp	= get_temp_8996,
 };
