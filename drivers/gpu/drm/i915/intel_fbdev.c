@@ -362,23 +362,24 @@ static bool intel_fb_initial_config(struct drm_fb_helper *fb_helper,
 				    bool *enabled, int width, int height)
 {
 	struct drm_device *dev = fb_helper->dev;
+	unsigned long conn_configured, mask;
+	unsigned int count = min(fb_helper->connector_count, BITS_PER_LONG);
 	int i, j;
 	bool *save_enabled;
 	bool fallback = true;
 	int num_connectors_enabled = 0;
 	int num_connectors_detected = 0;
-	uint64_t conn_configured = 0, mask;
 	int pass = 0;
 
-	save_enabled = kcalloc(fb_helper->connector_count, sizeof(bool),
-			       GFP_KERNEL);
+	save_enabled = kcalloc(count, sizeof(bool), GFP_KERNEL);
 	if (!save_enabled)
 		return false;
 
-	memcpy(save_enabled, enabled, fb_helper->connector_count);
-	mask = (1 << fb_helper->connector_count) - 1;
+	memcpy(save_enabled, enabled, count);
+	mask = BIT(count) - 1;
+	conn_configured = 0;
 retry:
-	for (i = 0; i < fb_helper->connector_count; i++) {
+	for (i = 0; i < count; i++) {
 		struct drm_fb_helper_connector *fb_conn;
 		struct drm_connector *connector;
 		struct drm_encoder *encoder;
@@ -388,7 +389,7 @@ retry:
 		fb_conn = fb_helper->connector_info[i];
 		connector = fb_conn->connector;
 
-		if (conn_configured & (1 << i))
+		if (conn_configured & BIT(i))
 			continue;
 
 		if (pass == 0 && !connector->has_tile)
@@ -400,7 +401,7 @@ retry:
 		if (!enabled[i]) {
 			DRM_DEBUG_KMS("connector %s not enabled, skipping\n",
 				      connector->name);
-			conn_configured |= (1 << i);
+			conn_configured |= BIT(i);
 			continue;
 		}
 
@@ -419,7 +420,7 @@ retry:
 			DRM_DEBUG_KMS("connector %s has no encoder or crtc, skipping\n",
 				      connector->name);
 			enabled[i] = false;
-			conn_configured |= (1 << i);
+			conn_configured |= BIT(i);
 			continue;
 		}
 
@@ -432,14 +433,15 @@ retry:
 			intel_crtc->lut_b[j] = j;
 		}
 
-		new_crtc = intel_fb_helper_crtc(fb_helper, connector->state->crtc);
+		new_crtc = intel_fb_helper_crtc(fb_helper,
+						connector->state->crtc);
 
 		/*
 		 * Make sure we're not trying to drive multiple connectors
 		 * with a single CRTC, since our cloning support may not
 		 * match the BIOS.
 		 */
-		for (j = 0; j < fb_helper->connector_count; j++) {
+		for (j = 0; j < count; j++) {
 			if (crtcs[j] == new_crtc) {
 				DRM_DEBUG_KMS("fallback: cloned configuration\n");
 				goto bail;
@@ -498,7 +500,7 @@ retry:
 			      modes[i]->flags & DRM_MODE_FLAG_INTERLACE ? "i" :"");
 
 		fallback = false;
-		conn_configured |= (1 << i);
+		conn_configured |= BIT(i);
 	}
 
 	if ((conn_configured & mask) != mask) {
@@ -522,7 +524,7 @@ retry:
 	if (fallback) {
 bail:
 		DRM_DEBUG_KMS("Not using firmware configuration\n");
-		memcpy(enabled, save_enabled, fb_helper->connector_count);
+		memcpy(enabled, save_enabled, count);
 		kfree(save_enabled);
 		return false;
 	}
