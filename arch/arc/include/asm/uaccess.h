@@ -32,7 +32,7 @@
 #define __kernel_ok		(segment_eq(get_fs(), KERNEL_DS))
 
 /*
- * Algorthmically, for __user_ok() we want do:
+ * Algorithmically, for __user_ok() we want do:
  * 	(start < TASK_SIZE) && (start+len < TASK_SIZE)
  * where TASK_SIZE could either be retrieved from thread_info->addr_limit or
  * emitted directly in code.

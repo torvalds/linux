@@ -546,7 +546,7 @@ static int svc_addparty(struct socket *sock, struct sockaddr *sockaddr,
 		schedule();
 	}
 	finish_wait(sk_sleep(sk), &wait);
-	error = xchg(&sk->sk_err_soft, 0);
+	error = -xchg(&sk->sk_err_soft, 0);
 out:
 	release_sock(sk);
 	return error;
@@ -573,7 +573,7 @@ static int svc_dropparty(struct socket *sock, int ep_ref)
 		error = -EUNATCH;
 		goto out;
 	}
-	error = xchg(&sk->sk_err_soft, 0);
+	error = -xchg(&sk->sk_err_soft, 0);
 out:
 	release_sock(sk);
 	return error;

@@ -1518,6 +1518,8 @@ int drm_mode_convert_umode(struct drm_display_mode *out,
 	if (out->status != MODE_OK)
 		goto out;
 
+	drm_mode_set_crtcinfo(out, CRTC_INTERLACE_HALVE_V);
+
 	ret = 0;
 
 out:

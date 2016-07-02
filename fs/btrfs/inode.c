@@ -3271,7 +3271,16 @@ int btrfs_orphan_add(struct btrfs_trans_handle *trans, struct inode *inode)
 	/* grab metadata reservation from transaction handle */
 	if (reserve) {
 		ret = btrfs_orphan_reserve_metadata(trans, inode);
-		BUG_ON(ret); /* -ENOSPC in reservation; Logic error? JDM */
+		ASSERT(!ret);
+		if (ret) {
+			atomic_dec(&root->orphan_inodes);
+			clear_bit(BTRFS_INODE_ORPHAN_META_RESERVED,
+				  &BTRFS_I(inode)->runtime_flags);
+			if (insert)
+				clear_bit(BTRFS_INODE_HAS_ORPHAN_ITEM,
+					  &BTRFS_I(inode)->runtime_flags);
+			return ret;
+		}
 	}
 
 	/* insert an orphan item to track this unlinked/truncated file */
@@ -4549,6 +4558,7 @@ delete:
 			BUG_ON(ret);
 			if (btrfs_should_throttle_delayed_refs(trans, root))
 				btrfs_async_run_delayed_refs(root,
+							     trans->transid,
 					trans->delayed_ref_updates * 2, 0);
 			if (be_nice) {
 				if (truncate_space_check(trans, root,
@@ -5748,6 +5758,7 @@ static int btrfs_real_readdir(struct file *file, struct dir_context *ctx)
 	int name_len;
 	int is_curr = 0;	/* ctx->pos points to the current index? */
 	bool emitted;
+	bool put = false;
 
 	/* FIXME, use a real flag for deciding about the key type */
 	if (root->fs_info->tree_root == root)
@@ -5765,7 +5776,8 @@ static int btrfs_real_readdir(struct file *file, struct dir_context *ctx)
 	if (key_type == BTRFS_DIR_INDEX_KEY) {
 		INIT_LIST_HEAD(&ins_list);
 		INIT_LIST_HEAD(&del_list);
-		btrfs_get_delayed_items(inode, &ins_list, &del_list);
+		put = btrfs_readdir_get_delayed_items(inode, &ins_list,
+						      &del_list);
 	}
 
 	key.type = key_type;
@@ -5912,8 +5924,8 @@ next:
 nopos:
 	ret = 0;
 err:
-	if (key_type == BTRFS_DIR_INDEX_KEY)
-		btrfs_put_delayed_items(&ins_list, &del_list);
+	if (put)
+		btrfs_readdir_put_delayed_items(inode, &ins_list, &del_list);
 	btrfs_free_path(path);
 	return ret;
 }
@@ -6979,7 +6991,18 @@ insert:
 		 * existing will always be non-NULL, since there must be
 		 * extent causing the -EEXIST.
 		 */
-		if (start >= extent_map_end(existing) ||
+		if (existing->start == em->start &&
+		    extent_map_end(existing) == extent_map_end(em) &&
+		    em->block_start == existing->block_start) {
+			/*
+			 * these two extents are the same, it happens
+			 * with inlines especially
+			 */
+			free_extent_map(em);
+			em = existing;
+			err = 0;
+
+		} else if (start >= extent_map_end(existing) ||
 		    start <= existing->start) {
 			/*
 			 * The existing extent map is the one nearest to
@@ -10514,7 +10537,7 @@ static const struct inode_operations btrfs_dir_ro_inode_operations = {
 static const struct file_operations btrfs_dir_file_operations = {
 	.llseek		= generic_file_llseek,
 	.read		= generic_read_dir,
-	.iterate	= btrfs_real_readdir,
+	.iterate_shared	= btrfs_real_readdir,
 	.unlocked_ioctl	= btrfs_ioctl,
 #ifdef CONFIG_COMPAT
 	.compat_ioctl	= btrfs_compat_ioctl,

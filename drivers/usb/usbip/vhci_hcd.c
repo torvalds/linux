@@ -941,7 +941,7 @@ static void vhci_stop(struct usb_hcd *hcd)
 
 static int vhci_get_frame_number(struct usb_hcd *hcd)
 {
-	pr_err("Not yet implemented\n");
+	dev_err_ratelimited(&hcd->self.root_hub->dev, "Not yet implemented\n");
 	return 0;
 }
 

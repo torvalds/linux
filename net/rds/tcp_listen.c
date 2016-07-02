@@ -78,7 +78,6 @@ int rds_tcp_accept_one(struct socket *sock)
 	struct inet_sock *inet;
 	struct rds_tcp_connection *rs_tcp = NULL;
 	int conn_state;
-	struct sock *nsk;
 
 	if (!sock) /* module unload or netns delete in progress */
 		return -ENETUNREACH;
@@ -136,26 +135,21 @@ int rds_tcp_accept_one(struct socket *sock)
 		    !conn->c_outgoing) {
 			goto rst_nsk;
 		} else {
-			atomic_set(&conn->c_state, RDS_CONN_CONNECTING);
-			wait_event(conn->c_waitq,
-				   !test_bit(RDS_IN_XMIT, &conn->c_flags));
-			rds_tcp_restore_callbacks(rs_tcp->t_sock, rs_tcp);
+			rds_tcp_reset_callbacks(new_sock, conn);
 			conn->c_outgoing = 0;
+			/* rds_connect_path_complete() marks RDS_CONN_UP */
+			rds_connect_path_complete(conn, RDS_CONN_DISCONNECTING);
 		}
+	} else {
+		rds_tcp_set_callbacks(new_sock, conn);
+		rds_connect_path_complete(conn, RDS_CONN_CONNECTING);
 	}
-	rds_tcp_set_callbacks(new_sock, conn);
-	rds_connect_complete(conn); /* marks RDS_CONN_UP */
 	new_sock = NULL;
 	ret = 0;
 	goto out;
 rst_nsk:
 	/* reset the newly returned accept sock and bail */
-	nsk = new_sock->sk;
-	rds_tcp_stats_inc(s_tcp_listen_closed_stale);
-	nsk->sk_user_data = NULL;
-	nsk->sk_prot->disconnect(nsk, 0);
-	tcp_done(nsk);
-	new_sock = NULL;
+	kernel_sock_shutdown(new_sock, SHUT_RDWR);
 	ret = 0;
 out:
 	if (rs_tcp)

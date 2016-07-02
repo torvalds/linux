@@ -25,7 +25,8 @@ u16 nvbios_outp_match(struct nvkm_bios *, u16 type, u16 mask,
 		      u8 *ver, u8 *hdr, u8 *cnt, u8 *len, struct nvbios_outp *);
 
 struct nvbios_ocfg {
-	u16 match;
+	u8  proto;
+	u8  flags;
 	u16 clkcmp[2];
 };
 
@@ -33,7 +34,7 @@ u16 nvbios_ocfg_entry(struct nvkm_bios *, u16 outp, u8 idx,
 		      u8 *ver, u8 *hdr, u8 *cnt, u8 *len);
 u16 nvbios_ocfg_parse(struct nvkm_bios *, u16 outp, u8 idx,
 		      u8 *ver, u8 *hdr, u8 *cnt, u8 *len, struct nvbios_ocfg *);
-u16 nvbios_ocfg_match(struct nvkm_bios *, u16 outp, u16 type,
+u16 nvbios_ocfg_match(struct nvkm_bios *, u16 outp, u8 proto, u8 flags,
 		      u8 *ver, u8 *hdr, u8 *cnt, u8 *len, struct nvbios_ocfg *);
 u16 nvbios_oclk_match(struct nvkm_bios *, u16 cmp, u32 khz);
 #endif

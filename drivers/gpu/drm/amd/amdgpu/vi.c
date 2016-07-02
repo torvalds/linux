@@ -421,6 +421,20 @@ static bool vi_read_bios_from_rom(struct amdgpu_device *adev,
 	return true;
 }
 
+static u32 vi_get_virtual_caps(struct amdgpu_device *adev)
+{
+	u32 caps = 0;
+	u32 reg = RREG32(mmBIF_IOV_FUNC_IDENTIFIER);
+
+	if (REG_GET_FIELD(reg, BIF_IOV_FUNC_IDENTIFIER, IOV_ENABLE))
+		caps |= AMDGPU_VIRT_CAPS_SRIOV_EN;
+
+	if (REG_GET_FIELD(reg, BIF_IOV_FUNC_IDENTIFIER, FUNC_IDENTIFIER))
+		caps |= AMDGPU_VIRT_CAPS_IS_VF;
+
+	return caps;
+}
+
 static const struct amdgpu_allowed_register_entry tonga_allowed_read_registers[] = {
 	{mmGB_MACROTILE_MODE7, true},
 };
@@ -1118,6 +1132,7 @@ static const struct amdgpu_asic_funcs vi_asic_funcs =
 	.get_xclk = &vi_get_xclk,
 	.set_uvd_clocks = &vi_set_uvd_clocks,
 	.set_vce_clocks = &vi_set_vce_clocks,
+	.get_virtual_caps = &vi_get_virtual_caps,
 	/* these should be moved to their own ip modules */
 	.get_gpu_clock_counter = &gfx_v8_0_get_gpu_clock_counter,
 	.wait_for_mc_idle = &gmc_v8_0_mc_wait_for_idle,

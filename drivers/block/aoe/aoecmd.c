@@ -1750,7 +1750,7 @@ aoecmd_init(void)
 	int ret;
 
 	/* get_zeroed_page returns page with ref count 1 */
-	p = (void *) get_zeroed_page(GFP_KERNEL | __GFP_REPEAT);
+	p = (void *) get_zeroed_page(GFP_KERNEL);
 	if (!p)
 		return -ENOMEM;
 	empty_page = virt_to_page(p);

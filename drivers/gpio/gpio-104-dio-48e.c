@@ -75,7 +75,7 @@ static int dio48e_gpio_direction_input(struct gpio_chip *chip, unsigned offset)
 {
 	struct dio48e_gpio *const dio48egpio = gpiochip_get_data(chip);
 	const unsigned io_port = offset / 8;
-	const unsigned control_port = io_port / 2;
+	const unsigned int control_port = io_port / 3;
 	const unsigned control_addr = dio48egpio->base + 3 + control_port*4;
 	unsigned long flags;
 	unsigned control;
@@ -115,7 +115,7 @@ static int dio48e_gpio_direction_output(struct gpio_chip *chip, unsigned offset,
 {
 	struct dio48e_gpio *const dio48egpio = gpiochip_get_data(chip);
 	const unsigned io_port = offset / 8;
-	const unsigned control_port = io_port / 2;
+	const unsigned int control_port = io_port / 3;
 	const unsigned mask = BIT(offset % 8);
 	const unsigned control_addr = dio48egpio->base + 3 + control_port*4;
 	const unsigned out_port = (io_port > 2) ? io_port + 1 : io_port;

@@ -159,6 +159,19 @@ static struct mmu_psize_def mmu_psize_defaults_gp[] = {
 	},
 };
 
+/*
+ * 'R' and 'C' update notes:
+ *  - Under pHyp or KVM, the updatepp path will not set C, thus it *will*
+ *     create writeable HPTEs without C set, because the hcall H_PROTECT
+ *     that we use in that case will not update C
+ *  - The above is however not a problem, because we also don't do that
+ *     fancy "no flush" variant of eviction and we use H_REMOVE which will
+ *     do the right thing and thus we don't have the race I described earlier
+ *
+ *    - Under bare metal,  we do have the race, so we need R and C set
+ *    - We make sure R is always set and never lost
+ *    - C is _PAGE_DIRTY, and *should* always be set for a writeable mapping
+ */
 unsigned long htab_convert_pte_flags(unsigned long pteflags)
 {
 	unsigned long rflags = 0;
@@ -186,19 +199,28 @@ unsigned long htab_convert_pte_flags(unsigned long pteflags)
 			rflags |= 0x1;
 	}
 	/*
-	 * Always add "C" bit for perf. Memory coherence is always enabled
+	 * We can't allow hardware to update hpte bits. Hence always
+	 * set 'R' bit and set 'C' if it is a write fault
 	 */
-	rflags |=  HPTE_R_C | HPTE_R_M;
+	rflags |=  HPTE_R_R;
+
+	if (pteflags & _PAGE_DIRTY)
+		rflags |= HPTE_R_C;
 	/*
 	 * Add in WIG bits
 	 */
 
 	if ((pteflags & _PAGE_CACHE_CTL) == _PAGE_TOLERANT)
 		rflags |= HPTE_R_I;
-	if ((pteflags & _PAGE_CACHE_CTL ) == _PAGE_NON_IDEMPOTENT)
+	else if ((pteflags & _PAGE_CACHE_CTL) == _PAGE_NON_IDEMPOTENT)
 		rflags |= (HPTE_R_I | HPTE_R_G);
-	if ((pteflags & _PAGE_CACHE_CTL) == _PAGE_SAO)
-		rflags |= (HPTE_R_I | HPTE_R_W);
+	else if ((pteflags & _PAGE_CACHE_CTL) == _PAGE_SAO)
+		rflags |= (HPTE_R_W | HPTE_R_I | HPTE_R_M);
+	else
+		/*
+		 * Add memory coherence if cache inhibited is not set
+		 */
+		rflags |= HPTE_R_M;
 
 	return rflags;
 }

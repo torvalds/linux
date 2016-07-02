@@ -324,8 +324,9 @@ int init_per_cpu(int cpunum)
 		per_cpu(cpu_data, cpunum).fp_rev = coproc_cfg.revision;
 		per_cpu(cpu_data, cpunum).fp_model = coproc_cfg.model;
 
-		printk(KERN_INFO  "FP[%d] enabled: Rev %ld Model %ld\n",
-			cpunum, coproc_cfg.revision, coproc_cfg.model);
+		if (cpunum == 0)
+			printk(KERN_INFO  "FP[%d] enabled: Rev %ld Model %ld\n",
+				cpunum, coproc_cfg.revision, coproc_cfg.model);
 
 		/*
 		** store status register to stack (hopefully aligned)

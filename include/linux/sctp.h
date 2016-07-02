@@ -765,6 +765,8 @@ struct sctp_info {
 	__u8	sctpi_s_disable_fragments;
 	__u8	sctpi_s_v4mapped;
 	__u8	sctpi_s_frag_interleave;
+	__u32	sctpi_s_type;
+	__u32	__reserved3;
 };
 
 struct sctp_infox {

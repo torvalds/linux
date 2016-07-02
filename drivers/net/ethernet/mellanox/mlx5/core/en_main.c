@@ -3192,10 +3192,7 @@ static void mlx5e_destroy_netdev(struct mlx5_core_dev *mdev, void *vpriv)
 	flush_workqueue(priv->wq);
 	if (test_bit(MLX5_INTERFACE_STATE_SHUTDOWN, &mdev->intf_state)) {
 		netif_device_detach(netdev);
-		mutex_lock(&priv->state_lock);
-		if (test_bit(MLX5E_STATE_OPENED, &priv->state))
-			mlx5e_close_locked(netdev);
-		mutex_unlock(&priv->state_lock);
+		mlx5e_close(netdev);
 	} else {
 		unregister_netdev(netdev);
 	}

@@ -91,7 +91,7 @@ static int pic32_set_type_edge(struct irq_data *data,
 	/* set polarity for external interrupts only */
 	for (i = 0; i < ARRAY_SIZE(priv->ext_irqs); i++) {
 		if (priv->ext_irqs[i] == data->hwirq) {
-			ret = pic32_set_ext_polarity(i + 1, flow_type);
+			ret = pic32_set_ext_polarity(i, flow_type);
 			if (ret)
 				return ret;
 		}

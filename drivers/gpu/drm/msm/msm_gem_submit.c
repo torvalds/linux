@@ -40,12 +40,14 @@ static struct msm_gem_submit *submit_create(struct drm_device *dev,
 
 	submit->dev = dev;
 	submit->gpu = gpu;
+	submit->fence = NULL;
 	submit->pid = get_pid(task_pid(current));
 
 	/* initially, until copy_from_user() and bo lookup succeeds: */
 	submit->nr_bos = 0;
 	submit->nr_cmds = 0;
 
+	INIT_LIST_HEAD(&submit->node);
 	INIT_LIST_HEAD(&submit->bo_list);
 	ww_acquire_init(&submit->ticket, &reservation_ww_class);
 
@@ -74,6 +76,11 @@ static int submit_lookup_objects(struct msm_gem_submit *submit,
 		struct msm_gem_object *msm_obj;
 		void __user *userptr =
 			u64_to_user_ptr(args->bos + (i * sizeof(submit_bo)));
+
+		/* make sure we don't have garbage flags, in case we hit
+		 * error path before flags is initialized:
+		 */
+		submit->bos[i].flags = 0;
 
 		ret = copy_from_user(&submit_bo, userptr, sizeof(submit_bo));
 		if (ret) {

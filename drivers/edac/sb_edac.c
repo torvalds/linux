@@ -239,8 +239,11 @@ static const u32 rir_offset[MAX_RIR_RANGES][MAX_RIR_WAY] = {
 	{ 0x1a0, 0x1a4, 0x1a8, 0x1ac, 0x1b0, 0x1b4, 0x1b8, 0x1bc },
 };
 
-#define RIR_RNK_TGT(reg)		GET_BITFIELD(reg, 16, 19)
-#define RIR_OFFSET(reg)		GET_BITFIELD(reg,  2, 14)
+#define RIR_RNK_TGT(type, reg) (((type) == BROADWELL) ? \
+	GET_BITFIELD(reg, 20, 23) : GET_BITFIELD(reg, 16, 19))
+
+#define RIR_OFFSET(type, reg) (((type) == HASWELL || (type) == BROADWELL) ? \
+	GET_BITFIELD(reg,  2, 15) : GET_BITFIELD(reg,  2, 14))
 
 /* Device 16, functions 2-7 */
 
@@ -326,6 +329,7 @@ struct pci_id_descr {
 struct pci_id_table {
 	const struct pci_id_descr	*descr;
 	int				n_devs;
+	enum type			type;
 };
 
 struct sbridge_dev {
@@ -394,9 +398,14 @@ static const struct pci_id_descr pci_dev_descr_sbridge[] = {
 	{ PCI_DESCR(PCI_DEVICE_ID_INTEL_SBRIDGE_BR, 0)		},
 };
 
-#define PCI_ID_TABLE_ENTRY(A) { .descr=A, .n_devs = ARRAY_SIZE(A) }
+#define PCI_ID_TABLE_ENTRY(A, T) {	\
+	.descr = A,			\
+	.n_devs = ARRAY_SIZE(A),	\
+	.type = T			\
+}
+
 static const struct pci_id_table pci_dev_descr_sbridge_table[] = {
-	PCI_ID_TABLE_ENTRY(pci_dev_descr_sbridge),
+	PCI_ID_TABLE_ENTRY(pci_dev_descr_sbridge, SANDY_BRIDGE),
 	{0,}			/* 0 terminated list. */
 };
 
@@ -463,7 +472,7 @@ static const struct pci_id_descr pci_dev_descr_ibridge[] = {
 };
 
 static const struct pci_id_table pci_dev_descr_ibridge_table[] = {
-	PCI_ID_TABLE_ENTRY(pci_dev_descr_ibridge),
+	PCI_ID_TABLE_ENTRY(pci_dev_descr_ibridge, IVY_BRIDGE),
 	{0,}			/* 0 terminated list. */
 };
 
@@ -536,7 +545,7 @@ static const struct pci_id_descr pci_dev_descr_haswell[] = {
 };
 
 static const struct pci_id_table pci_dev_descr_haswell_table[] = {
-	PCI_ID_TABLE_ENTRY(pci_dev_descr_haswell),
+	PCI_ID_TABLE_ENTRY(pci_dev_descr_haswell, HASWELL),
 	{0,}			/* 0 terminated list. */
 };
 
@@ -580,7 +589,7 @@ static const struct pci_id_descr pci_dev_descr_knl[] = {
 };
 
 static const struct pci_id_table pci_dev_descr_knl_table[] = {
-	PCI_ID_TABLE_ENTRY(pci_dev_descr_knl),
+	PCI_ID_TABLE_ENTRY(pci_dev_descr_knl, KNIGHTS_LANDING),
 	{0,}
 };
 
@@ -648,7 +657,7 @@ static const struct pci_id_descr pci_dev_descr_broadwell[] = {
 };
 
 static const struct pci_id_table pci_dev_descr_broadwell_table[] = {
-	PCI_ID_TABLE_ENTRY(pci_dev_descr_broadwell),
+	PCI_ID_TABLE_ENTRY(pci_dev_descr_broadwell, BROADWELL),
 	{0,}			/* 0 terminated list. */
 };
 
@@ -1894,14 +1903,14 @@ static void get_memory_layout(const struct mem_ctl_info *mci)
 				pci_read_config_dword(pvt->pci_tad[i],
 						      rir_offset[j][k],
 						      &reg);
-				tmp_mb = RIR_OFFSET(reg) << 6;
+				tmp_mb = RIR_OFFSET(pvt->info.type, reg) << 6;
 
 				gb = div_u64_rem(tmp_mb, 1024, &mb);
 				edac_dbg(0, "CH#%d RIR#%d INTL#%d, offset %u.%03u GB (0x%016Lx), tgt: %d, reg=0x%08x\n",
 					 i, j, k,
 					 gb, (mb*1000)/1024,
 					 ((u64)tmp_mb) << 20L,
-					 (u32)RIR_RNK_TGT(reg),
+					 (u32)RIR_RNK_TGT(pvt->info.type, reg),
 					 reg);
 			}
 		}
@@ -2234,7 +2243,7 @@ static int get_memory_error_data(struct mem_ctl_info *mci,
 	pci_read_config_dword(pvt->pci_tad[ch_add + base_ch],
 			      rir_offset[n_rir][idx],
 			      &reg);
-	*rank = RIR_RNK_TGT(reg);
+	*rank = RIR_RNK_TGT(pvt->info.type, reg);
 
 	edac_dbg(0, "RIR#%d: channel address 0x%08Lx < 0x%08Lx, RIR interleave %d, index %d\n",
 		 n_rir,
@@ -3357,12 +3366,12 @@ fail0:
 #define ICPU(model, table) \
 	{ X86_VENDOR_INTEL, 6, model, 0, (unsigned long)&table }
 
-/* Order here must match "enum type" */
 static const struct x86_cpu_id sbridge_cpuids[] = {
 	ICPU(0x2d, pci_dev_descr_sbridge_table),	/* SANDY_BRIDGE */
 	ICPU(0x3e, pci_dev_descr_ibridge_table),	/* IVY_BRIDGE */
 	ICPU(0x3f, pci_dev_descr_haswell_table),	/* HASWELL */
 	ICPU(0x4f, pci_dev_descr_broadwell_table),	/* BROADWELL */
+	ICPU(0x56, pci_dev_descr_broadwell_table),	/* BROADWELL-DE */
 	ICPU(0x57, pci_dev_descr_knl_table),		/* KNIGHTS_LANDING */
 	{ }
 };
@@ -3398,7 +3407,7 @@ static int sbridge_probe(const struct x86_cpu_id *id)
 			 mc, mc + 1, num_mc);
 
 		sbridge_dev->mc = mc++;
-		rc = sbridge_register_mci(sbridge_dev, id - sbridge_cpuids);
+		rc = sbridge_register_mci(sbridge_dev, ptable->type);
 		if (unlikely(rc < 0))
 			goto fail1;
 	}

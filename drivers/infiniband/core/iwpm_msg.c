@@ -506,7 +506,7 @@ int iwpm_add_and_query_mapping_cb(struct sk_buff *skb,
 	if (!nlmsg_request) {
 		pr_info("%s: Could not find a matching request (seq = %u)\n",
 				 __func__, msg_seq);
-			return -EINVAL;
+		return -EINVAL;
 	}
 	pm_msg = nlmsg_request->req_buffer;
 	local_sockaddr = (struct sockaddr_storage *)
