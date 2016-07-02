@@ -37,7 +37,8 @@ applicable to all devices.
     tuner
     standard
     dv-timings
-    controls
+    control
+    extended-controls
     format
     planar-apis
     crop
