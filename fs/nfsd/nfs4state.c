@@ -3130,7 +3130,7 @@ nfsd4_reclaim_complete(struct svc_rqst *rqstp, struct nfsd4_compound_state *csta
 		 * We don't take advantage of the rca_one_fs case.
 		 * That's OK, it's optional, we can safely ignore it.
 		 */
-		 return nfs_ok;
+		return nfs_ok;
 	}
 
 	status = nfserr_complete_already;
