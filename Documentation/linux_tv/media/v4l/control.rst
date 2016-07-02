@@ -372,6 +372,8 @@ more menu type controls.
 
 
 .. code-block:: c
+    :caption: Example 8: Enumerating all user controls
+
 
     struct v4l2_queryctrl queryctrl;
     struct v4l2_querymenu querymenu;
@@ -435,6 +437,7 @@ more menu type controls.
 
 
 .. code-block:: c
+    :caption: Example 9: Enumerating all user controls (alternative)
 
     memset(&queryctrl, 0, sizeof(queryctrl));
 
@@ -459,6 +462,7 @@ more menu type controls.
 
 
 .. code-block:: c
+    :caption: Example 10: Changing controls
 
     struct v4l2_queryctrl queryctrl;
     struct v4l2_control control;
