@@ -98,6 +98,11 @@ struct mlxsw_sp_fid {
 	u16 vid;
 };
 
+struct mlxsw_sp_rif {
+	struct net_device *dev;
+	u16 rif;
+};
+
 struct mlxsw_sp_mid {
 	struct list_head list;
 	unsigned char addr[ETH_ALEN];
@@ -169,6 +174,7 @@ struct mlxsw_sp {
 		DECLARE_BITMAP(mapped, MLXSW_SP_MID_MAX);
 	} br_mids;
 	struct list_head fids;	/* VLAN-aware bridge FIDs */
+	struct mlxsw_sp_rif *rifs[MLXSW_SP_RIF_MAX];
 	struct mlxsw_sp_port **ports;
 	struct mlxsw_core *core;
 	const struct mlxsw_bus_info *bus_info;
@@ -323,6 +329,19 @@ mlxsw_sp_port_vport_find_by_fid(const struct mlxsw_sp_port *mlxsw_sp_port,
 		if (f && f->fid == fid)
 			return mlxsw_sp_vport;
 	}
+
+	return NULL;
+}
+
+static inline struct mlxsw_sp_rif *
+mlxsw_sp_rif_find_by_dev(const struct mlxsw_sp *mlxsw_sp,
+			 const struct net_device *dev)
+{
+	int i;
+
+	for (i = 0; i < MLXSW_SP_RIF_MAX; i++)
+		if (mlxsw_sp->rifs[i] && mlxsw_sp->rifs[i]->dev == dev)
+			return mlxsw_sp->rifs[i];
 
 	return NULL;
 }
