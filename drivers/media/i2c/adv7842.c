@@ -118,7 +118,6 @@ struct adv7842_state {
 	struct v4l2_fract aspect_ratio;
 	u32 rgb_quantization_range;
 	bool is_cea_format;
-	struct workqueue_struct *work_queues;
 	struct delayed_work delayed_work_enable_hotplug;
 	bool restart_stdi_once;
 	bool hdmi_port_a;
@@ -756,8 +755,7 @@ static int edid_write_vga_segment(struct v4l2_subdev *sd)
 	}
 
 	/* enable hotplug after 200 ms */
-	queue_delayed_work(state->work_queues,
-			&state->delayed_work_enable_hotplug, HZ / 5);
+	schedule_delayed_work(&state->delayed_work_enable_hotplug, HZ / 5);
 
 	return 0;
 }
@@ -855,8 +853,7 @@ static int edid_write_hdmi_segment(struct v4l2_subdev *sd, u8 port)
 	}
 
 	/* enable hotplug after 200 ms */
-	queue_delayed_work(state->work_queues,
-			&state->delayed_work_enable_hotplug, HZ / 5);
+	schedule_delayed_work(&state->delayed_work_enable_hotplug, HZ / 5);
 
 	return 0;
 }
@@ -3314,13 +3311,6 @@ static int adv7842_probe(struct i2c_client *client,
 		goto err_i2c;
 	}
 
-	/* work queues */
-	state->work_queues = create_singlethread_workqueue(client->name);
-	if (!state->work_queues) {
-		v4l2_err(sd, "Could not create work queue\n");
-		err = -ENOMEM;
-		goto err_i2c;
-	}
 
 	INIT_DELAYED_WORK(&state->delayed_work_enable_hotplug,
 			adv7842_delayed_work_enable_hotplug);
@@ -3342,7 +3332,6 @@ err_entity:
 	media_entity_cleanup(&sd->entity);
 err_work_queues:
 	cancel_delayed_work(&state->delayed_work_enable_hotplug);
-	destroy_workqueue(state->work_queues);
 err_i2c:
 	adv7842_unregister_clients(sd);
 err_hdl:
@@ -3360,7 +3349,6 @@ static int adv7842_remove(struct i2c_client *client)
 	adv7842_irq_enable(sd, false);
 
 	cancel_delayed_work(&state->delayed_work_enable_hotplug);
-	destroy_workqueue(state->work_queues);
 	v4l2_device_unregister_subdev(sd);
 	media_entity_cleanup(&sd->entity);
 	adv7842_unregister_clients(sd);
