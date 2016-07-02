@@ -285,6 +285,7 @@ struct drm_vc4_get_hang_state {
 #define DRM_VC4_PARAM_V3D_IDENT0		0
 #define DRM_VC4_PARAM_V3D_IDENT1		1
 #define DRM_VC4_PARAM_V3D_IDENT2		2
+#define DRM_VC4_PARAM_SUPPORTS_BRANCHES		3
 
 struct drm_vc4_get_param {
 	__u32 param;

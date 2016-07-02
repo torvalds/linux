@@ -76,6 +76,9 @@ static int vc4_get_param_ioctl(struct drm_device *dev, void *data,
 		args->value = V3D_READ(V3D_IDENT2);
 		pm_runtime_put(&vc4->v3d->pdev->dev);
 		break;
+	case DRM_VC4_PARAM_SUPPORTS_BRANCHES:
+		args->value = true;
+		break;
 	default:
 		DRM_DEBUG("Unknown parameter %d\n", args->param);
 		return -EINVAL;
