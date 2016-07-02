@@ -21,7 +21,7 @@
 #include <linux/io.h>
 #include <linux/jiffies.h>
 #include <linux/memblock.h>
-#include <linux/module.h>
+#include <linux/init.h>
 #include <linux/of.h>
 #include <linux/of_address.h>
 #include <linux/of_irq.h>
@@ -569,8 +569,4 @@ static struct platform_driver xgene_pcie_driver = {
 	},
 	.probe = xgene_pcie_probe_bridge,
 };
-module_platform_driver(xgene_pcie_driver);
-
-MODULE_AUTHOR("Tanmay Inamdar <tinamdar@apm.com>");
-MODULE_DESCRIPTION("APM X-Gene PCIe driver");
-MODULE_LICENSE("GPL v2");
+builtin_platform_driver(xgene_pcie_driver);
