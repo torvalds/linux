@@ -184,7 +184,6 @@ struct adv76xx_state {
 	u16 spa_port_a[2];
 	struct v4l2_fract aspect_ratio;
 	u32 rgb_quantization_range;
-	struct workqueue_struct *work_queues;
 	struct delayed_work delayed_work_enable_hotplug;
 	bool restart_stdi_once;
 
@@ -2154,8 +2153,7 @@ static int adv76xx_set_edid(struct v4l2_subdev *sd, struct v4l2_edid *edid)
 	}
 
 	/* enable hotplug after 100 ms */
-	queue_delayed_work(state->work_queues,
-			&state->delayed_work_enable_hotplug, HZ / 10);
+	schedule_delayed_work(&state->delayed_work_enable_hotplug, HZ / 10);
 	return 0;
 }
 
@@ -3206,14 +3204,6 @@ static int adv76xx_probe(struct i2c_client *client,
 		}
 	}
 
-	/* work queues */
-	state->work_queues = create_singlethread_workqueue(client->name);
-	if (!state->work_queues) {
-		v4l2_err(sd, "Could not create work queue\n");
-		err = -ENOMEM;
-		goto err_i2c;
-	}
-
 	INIT_DELAYED_WORK(&state->delayed_work_enable_hotplug,
 			adv76xx_delayed_work_enable_hotplug);
 
@@ -3249,7 +3239,6 @@ err_entity:
 	media_entity_cleanup(&sd->entity);
 err_work_queues:
 	cancel_delayed_work(&state->delayed_work_enable_hotplug);
-	destroy_workqueue(state->work_queues);
 err_i2c:
 	adv76xx_unregister_clients(state);
 err_hdl:
@@ -3265,7 +3254,6 @@ static int adv76xx_remove(struct i2c_client *client)
 	struct adv76xx_state *state = to_state(sd);
 
 	cancel_delayed_work(&state->delayed_work_enable_hotplug);
-	destroy_workqueue(state->work_queues);
 	v4l2_async_unregister_subdev(sd);
 	media_entity_cleanup(&sd->entity);
 	adv76xx_unregister_clients(to_state(sd));
