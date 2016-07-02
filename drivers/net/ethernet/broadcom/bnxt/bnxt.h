@@ -11,10 +11,10 @@
 #define BNXT_H
 
 #define DRV_MODULE_NAME		"bnxt_en"
-#define DRV_MODULE_VERSION	"1.2.0"
+#define DRV_MODULE_VERSION	"1.3.0"
 
 #define DRV_VER_MAJ	1
-#define DRV_VER_MIN	0
+#define DRV_VER_MIN	3
 #define DRV_VER_UPD	0
 
 struct tx_bd {
@@ -359,7 +359,8 @@ struct rx_tpa_end_cmp {
 	 RX_TPA_END_CMP_FLAGS_PLACEMENT_ANY_GRO)
 
 #define TPA_END_GRO_TS(rx_tpa_end)					\
-	((rx_tpa_end)->rx_tpa_end_cmp_tsdelta & cpu_to_le32(RX_TPA_END_GRO_TS))
+	(!!((rx_tpa_end)->rx_tpa_end_cmp_tsdelta &			\
+	    cpu_to_le32(RX_TPA_END_GRO_TS)))
 
 struct rx_tpa_end_cmp_ext {
 	__le32 rx_tpa_end_cmp_dup_acks;
@@ -753,8 +754,8 @@ struct bnxt_vf_info {
 struct bnxt_pf_info {
 #define BNXT_FIRST_PF_FID	1
 #define BNXT_FIRST_VF_FID	128
-	u32	fw_fid;
-	u8	port_id;
+	u16	fw_fid;
+	u16	port_id;
 	u8	mac_addr[ETH_ALEN];
 	u16	max_rsscos_ctxs;
 	u16	max_cp_rings;
@@ -1017,6 +1018,7 @@ struct bnxt {
 	unsigned long		state;
 #define BNXT_STATE_OPEN		0
 #define BNXT_STATE_IN_SP_TASK	1
+#define BNXT_STATE_FN_RST_DONE	2
 
 	struct bnxt_irq	*irq_tbl;
 	u8			mac_addr[ETH_ALEN];
@@ -1064,6 +1066,11 @@ struct bnxt {
 	u16			tx_coal_bufs_irq;
 
 #define BNXT_USEC_TO_COAL_TIMER(x)	((x) * 25 / 2)
+
+	u32			stats_coal_ticks;
+#define BNXT_DEF_STATS_COAL_TICKS	 1000000
+#define BNXT_MIN_STATS_COAL_TICKS	  250000
+#define BNXT_MAX_STATS_COAL_TICKS	 1000000
 
 	struct work_struct	sp_task;
 	unsigned long		sp_event;

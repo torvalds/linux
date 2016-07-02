@@ -3414,7 +3414,8 @@ static int bnxt_hwrm_vnic_cfg(struct bnxt *bp, u16 vnic_id)
 	bnxt_hwrm_cmd_hdr_init(bp, &req, HWRM_VNIC_CFG, -1, -1);
 	/* Only RSS support for now TBD: COS & LB */
 	req.enables = cpu_to_le32(VNIC_CFG_REQ_ENABLES_DFLT_RING_GRP |
-				  VNIC_CFG_REQ_ENABLES_RSS_RULE);
+				  VNIC_CFG_REQ_ENABLES_RSS_RULE |
+				  VNIC_CFG_REQ_ENABLES_MRU);
 	req.rss_rule = cpu_to_le16(vnic->fw_rss_cos_lb_ctx);
 	req.cos_rule = cpu_to_le16(0xffff);
 	if (vnic->flags & BNXT_VNIC_RSS_FLAG)
@@ -3951,7 +3952,7 @@ static int bnxt_hwrm_stat_ctx_alloc(struct bnxt *bp)
 
 	bnxt_hwrm_cmd_hdr_init(bp, &req, HWRM_STAT_CTX_ALLOC, -1, -1);
 
-	req.update_period_ms = cpu_to_le32(1000);
+	req.update_period_ms = cpu_to_le32(bp->stats_coal_ticks / 1000);
 
 	mutex_lock(&bp->hwrm_cmd_lock);
 	for (i = 0; i < bp->cp_nr_rings; i++) {
@@ -4025,6 +4026,7 @@ int bnxt_hwrm_func_qcaps(struct bnxt *bp)
 
 		pf->fw_fid = le16_to_cpu(resp->fid);
 		pf->port_id = le16_to_cpu(resp->port_id);
+		bp->dev->dev_port = pf->port_id;
 		memcpy(pf->mac_addr, resp->mac_address, ETH_ALEN);
 		memcpy(bp->dev->dev_addr, pf->mac_addr, ETH_ALEN);
 		pf->max_rsscos_ctxs = le16_to_cpu(resp->max_rsscos_ctx);
@@ -4315,6 +4317,16 @@ static int bnxt_alloc_rfs_vnics(struct bnxt *bp)
 #endif
 }
 
+/* Allow PF and VF with default VLAN to be in promiscuous mode */
+static bool bnxt_promisc_ok(struct bnxt *bp)
+{
+#ifdef CONFIG_BNXT_SRIOV
+	if (BNXT_VF(bp) && !bp->vf.vlan)
+		return false;
+#endif
+	return true;
+}
+
 static int bnxt_cfg_rx_mode(struct bnxt *);
 static bool bnxt_mc_list_updated(struct bnxt *, u32 *);
 
@@ -4380,7 +4392,7 @@ static int bnxt_init_chip(struct bnxt *bp, bool irq_re_init)
 
 	vnic->rx_mask = CFA_L2_SET_RX_MASK_REQ_MASK_BCAST;
 
-	if ((bp->dev->flags & IFF_PROMISC) && BNXT_PF(bp))
+	if ((bp->dev->flags & IFF_PROMISC) && bnxt_promisc_ok(bp))
 		vnic->rx_mask |= CFA_L2_SET_RX_MASK_REQ_MASK_PROMISCUOUS;
 
 	if (bp->dev->flags & IFF_ALLMULTI) {
@@ -5295,12 +5307,19 @@ static int bnxt_open(struct net_device *dev)
 	struct bnxt *bp = netdev_priv(dev);
 	int rc = 0;
 
-	rc = bnxt_hwrm_func_reset(bp);
-	if (rc) {
-		netdev_err(bp->dev, "hwrm chip reset failure rc: %x\n",
-			   rc);
-		rc = -1;
-		return rc;
+	if (!test_bit(BNXT_STATE_FN_RST_DONE, &bp->state)) {
+		rc = bnxt_hwrm_func_reset(bp);
+		if (rc) {
+			netdev_err(bp->dev, "hwrm chip reset failure rc: %x\n",
+				   rc);
+			rc = -EBUSY;
+			return rc;
+		}
+		/* Do func_reset during the 1st PF open only to prevent killing
+		 * the VFs when the PF is brought down and up.
+		 */
+		if (BNXT_PF(bp))
+			set_bit(BNXT_STATE_FN_RST_DONE, &bp->state);
 	}
 	return __bnxt_open_nic(bp, true, true);
 }
@@ -5520,8 +5539,7 @@ static void bnxt_set_rx_mode(struct net_device *dev)
 		  CFA_L2_SET_RX_MASK_REQ_MASK_MCAST |
 		  CFA_L2_SET_RX_MASK_REQ_MASK_ALL_MCAST);
 
-	/* Only allow PF to be in promiscuous mode */
-	if ((dev->flags & IFF_PROMISC) && BNXT_PF(bp))
+	if ((dev->flags & IFF_PROMISC) && bnxt_promisc_ok(bp))
 		mask |= CFA_L2_SET_RX_MASK_REQ_MASK_PROMISCUOUS;
 
 	uc_update = bnxt_uc_list_updated(bp);
@@ -5976,6 +5994,8 @@ static int bnxt_init_board(struct pci_dev *pdev, struct net_device *dev)
 	bp->tx_coal_ticks_irq = 2;
 	bp->tx_coal_bufs_irq = 2;
 
+	bp->stats_coal_ticks = BNXT_DEF_STATS_COAL_TICKS;
+
 	init_timer(&bp->timer);
 	bp->timer.data = (unsigned long)bp;
 	bp->timer.function = bnxt_timer;
@@ -6041,7 +6061,7 @@ static int bnxt_change_mtu(struct net_device *dev, int new_mtu)
 {
 	struct bnxt *bp = netdev_priv(dev);
 
-	if (new_mtu < 60 || new_mtu > 9000)
+	if (new_mtu < 60 || new_mtu > 9500)
 		return -EINVAL;
 
 	if (netif_running(dev))
@@ -6676,6 +6696,7 @@ static pci_ers_result_t bnxt_io_error_detected(struct pci_dev *pdev,
 					       pci_channel_state_t state)
 {
 	struct net_device *netdev = pci_get_drvdata(pdev);
+	struct bnxt *bp = netdev_priv(netdev);
 
 	netdev_info(netdev, "PCI I/O error detected\n");
 
@@ -6690,6 +6711,8 @@ static pci_ers_result_t bnxt_io_error_detected(struct pci_dev *pdev,
 	if (netif_running(netdev))
 		bnxt_close(netdev);
 
+	/* So that func_reset will be done during slot_reset */
+	clear_bit(BNXT_STATE_FN_RST_DONE, &bp->state);
 	pci_disable_device(pdev);
 	rtnl_unlock();
 
