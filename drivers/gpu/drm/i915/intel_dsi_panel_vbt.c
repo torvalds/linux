@@ -649,14 +649,13 @@ struct drm_panel *vbt_panel_init(struct intel_dsi *intel_dsi, u16 panel_id)
 				);
 
 	/*
-	 * Exit zero  is unified val ths_zero and ths_exit
+	 * Exit zero is unified val ths_zero and ths_exit
 	 * minimum value for ths_exit = 110ns
 	 * min (exit_zero_cnt * 2) = 110/UI
 	 * exit_zero_cnt = 55/UI
 	 */
-	 if (exit_zero_cnt < (55 * ui_den / ui_num))
-		if ((55 * ui_den) % ui_num)
-			exit_zero_cnt += 1;
+	if (exit_zero_cnt < (55 * ui_den / ui_num) && (55 * ui_den) % ui_num)
+		exit_zero_cnt += 1;
 
 	/* clk zero count */
 	clk_zero_cnt = DIV_ROUND_UP(
