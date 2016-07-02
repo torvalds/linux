@@ -9,6 +9,8 @@
  *
  * Bits taken from arch/arm/mach-dove/pcie.c
  *
+ * Author: Thierry Reding <treding@nvidia.com>
+ *
  * This program is free software; you can redistribute it and/or modify
  * it under the terms of the GNU General Public License as published by
  * the Free Software Foundation; either version 2 of the License, or
@@ -32,7 +34,7 @@
 #include <linux/irq.h>
 #include <linux/irqdomain.h>
 #include <linux/kernel.h>
-#include <linux/module.h>
+#include <linux/init.h>
 #include <linux/msi.h>
 #include <linux/of_address.h>
 #include <linux/of_pci.h>
@@ -2115,7 +2117,6 @@ static const struct of_device_id tegra_pcie_of_match[] = {
 	{ .compatible = "nvidia,tegra20-pcie", .data = &tegra20_pcie_data },
 	{ },
 };
-MODULE_DEVICE_TABLE(of, tegra_pcie_of_match);
 
 static void *tegra_pcie_ports_seq_start(struct seq_file *s, loff_t *pos)
 {
@@ -2306,8 +2307,4 @@ static struct platform_driver tegra_pcie_driver = {
 	},
 	.probe = tegra_pcie_probe,
 };
-module_platform_driver(tegra_pcie_driver);
-
-MODULE_AUTHOR("Thierry Reding <treding@nvidia.com>");
-MODULE_DESCRIPTION("NVIDIA Tegra PCIe driver");
-MODULE_LICENSE("GPL v2");
+builtin_platform_driver(tegra_pcie_driver);
