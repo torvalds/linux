@@ -386,6 +386,7 @@ struct sdma_engine {
 	const struct sdma_driver_data	*drvdata;
 	u32				spba_start_addr;
 	u32				spba_end_addr;
+	unsigned int			irq;
 };
 
 static struct sdma_driver_data sdma_imx31 = {
@@ -1708,6 +1709,8 @@ static int sdma_probe(struct platform_device *pdev)
 	if (ret)
 		return ret;
 
+	sdma->irq = irq;
+
 	sdma->script_addrs = kzalloc(sizeof(*sdma->script_addrs), GFP_KERNEL);
 	if (!sdma->script_addrs)
 		return -ENOMEM;
@@ -1833,6 +1836,7 @@ static int sdma_remove(struct platform_device *pdev)
 	struct sdma_engine *sdma = platform_get_drvdata(pdev);
 	int i;
 
+	devm_free_irq(&pdev->dev, sdma->irq, sdma);
 	dma_async_device_unregister(&sdma->dma_device);
 	kfree(sdma->script_addrs);
 	/* Kill the tasklet */
