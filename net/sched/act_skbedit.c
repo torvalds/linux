@@ -170,20 +170,16 @@ static int tcf_skbedit_dump(struct sk_buff *skb, struct tc_action *a,
 	if (nla_put(skb, TCA_SKBEDIT_PARMS, sizeof(opt), &opt))
 		goto nla_put_failure;
 	if ((d->flags & SKBEDIT_F_PRIORITY) &&
-	    nla_put(skb, TCA_SKBEDIT_PRIORITY, sizeof(d->priority),
-		    &d->priority))
+	    nla_put_u32(skb, TCA_SKBEDIT_PRIORITY, d->priority))
 		goto nla_put_failure;
 	if ((d->flags & SKBEDIT_F_QUEUE_MAPPING) &&
-	    nla_put(skb, TCA_SKBEDIT_QUEUE_MAPPING,
-		    sizeof(d->queue_mapping), &d->queue_mapping))
+	    nla_put_u16(skb, TCA_SKBEDIT_QUEUE_MAPPING, d->queue_mapping))
 		goto nla_put_failure;
 	if ((d->flags & SKBEDIT_F_MARK) &&
-	    nla_put(skb, TCA_SKBEDIT_MARK, sizeof(d->mark),
-		    &d->mark))
+	    nla_put_u32(skb, TCA_SKBEDIT_MARK, d->mark))
 		goto nla_put_failure;
 	if ((d->flags & SKBEDIT_F_PTYPE) &&
-	    nla_put(skb, TCA_SKBEDIT_PTYPE, sizeof(d->ptype),
-		    &d->ptype))
+	    nla_put_u16(skb, TCA_SKBEDIT_PTYPE, d->ptype))
 		goto nla_put_failure;
 
 	tcf_tm_dump(&t, &d->tcf_tm);
