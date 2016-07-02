@@ -1,6 +1,8 @@
 /*
  * PCIe host controller driver for Axis ARTPEC-6 SoC
  *
+ * Author: Niklas Cassel <niklas.cassel@axis.com>
+ *
  * Based on work done by Phil Edworthy <phil@edworthys.org>
  *
  * This program is free software; you can redistribute it and/or modify
@@ -10,7 +12,7 @@
 
 #include <linux/delay.h>
 #include <linux/kernel.h>
-#include <linux/module.h>
+#include <linux/init.h>
 #include <linux/pci.h>
 #include <linux/platform_device.h>
 #include <linux/resource.h>
@@ -267,7 +269,6 @@ static const struct of_device_id artpec6_pcie_of_match[] = {
 	{ .compatible = "axis,artpec6-pcie", },
 	{},
 };
-MODULE_DEVICE_TABLE(of, artpec6_pcie_of_match);
 
 static struct platform_driver artpec6_pcie_driver = {
 	.probe = artpec6_pcie_probe,
@@ -276,9 +277,4 @@ static struct platform_driver artpec6_pcie_driver = {
 		.of_match_table = artpec6_pcie_of_match,
 	},
 };
-
-module_platform_driver(artpec6_pcie_driver);
-
-MODULE_AUTHOR("Niklas Cassel <niklas.cassel@axis.com>");
-MODULE_DESCRIPTION("Axis ARTPEC-6 PCIe host controller driver");
-MODULE_LICENSE("GPL v2");
+builtin_platform_driver(artpec6_pcie_driver);
