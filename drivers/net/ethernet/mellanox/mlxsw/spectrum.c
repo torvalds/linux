@@ -2295,7 +2295,7 @@ err_rx_trap_set:
 					  mlxsw_sp);
 err_rx_listener_register:
 	for (i--; i >= 0; i--) {
-		mlxsw_reg_hpkt_pack(hpkt_pl, MLXSW_REG_HPKT_ACTION_FORWARD,
+		mlxsw_reg_hpkt_pack(hpkt_pl, MLXSW_REG_HPKT_ACTION_DISCARD,
 				    mlxsw_sp_rx_listener[i].trap_id);
 		mlxsw_reg_write(mlxsw_sp->core, MLXSW_REG(hpkt), hpkt_pl);
 
@@ -2312,7 +2312,7 @@ static void mlxsw_sp_traps_fini(struct mlxsw_sp *mlxsw_sp)
 	int i;
 
 	for (i = 0; i < ARRAY_SIZE(mlxsw_sp_rx_listener); i++) {
-		mlxsw_reg_hpkt_pack(hpkt_pl, MLXSW_REG_HPKT_ACTION_FORWARD,
+		mlxsw_reg_hpkt_pack(hpkt_pl, MLXSW_REG_HPKT_ACTION_DISCARD,
 				    mlxsw_sp_rx_listener[i].trap_id);
 		mlxsw_reg_write(mlxsw_sp->core, MLXSW_REG(hpkt), hpkt_pl);
 
