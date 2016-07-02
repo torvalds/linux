@@ -1346,27 +1346,6 @@ static void octeon_mgmt_get_drvinfo(struct net_device *netdev,
 	strlcpy(info->bus_info, "N/A", sizeof(info->bus_info));
 }
 
-static int octeon_mgmt_get_settings(struct net_device *netdev,
-				    struct ethtool_cmd *cmd)
-{
-	if (netdev->phydev)
-		return phy_ethtool_gset(netdev->phydev, cmd);
-
-	return -EOPNOTSUPP;
-}
-
-static int octeon_mgmt_set_settings(struct net_device *netdev,
-				    struct ethtool_cmd *cmd)
-{
-	if (!capable(CAP_NET_ADMIN))
-		return -EPERM;
-
-	if (netdev->phydev)
-		return phy_ethtool_sset(netdev->phydev, cmd);
-
-	return -EOPNOTSUPP;
-}
-
 static int octeon_mgmt_nway_reset(struct net_device *dev)
 {
 	if (!capable(CAP_NET_ADMIN))
@@ -1380,10 +1359,10 @@ static int octeon_mgmt_nway_reset(struct net_device *dev)
 
 static const struct ethtool_ops octeon_mgmt_ethtool_ops = {
 	.get_drvinfo = octeon_mgmt_get_drvinfo,
-	.get_settings = octeon_mgmt_get_settings,
-	.set_settings = octeon_mgmt_set_settings,
 	.nway_reset = octeon_mgmt_nway_reset,
 	.get_link = ethtool_op_get_link,
+	.get_link_ksettings = phy_ethtool_get_link_ksettings,
+	.set_link_ksettings = phy_ethtool_set_link_ksettings,
 };
 
 static const struct net_device_ops octeon_mgmt_ops = {
