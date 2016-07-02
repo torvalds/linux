@@ -1,7 +1,7 @@
 /*
  * drivers/net/ethernet/mellanox/mlxsw/reg.h
  * Copyright (c) 2015 Mellanox Technologies. All rights reserved.
- * Copyright (c) 2015 Ido Schimmel <idosch@mellanox.com>
+ * Copyright (c) 2015-2016 Ido Schimmel <idosch@mellanox.com>
  * Copyright (c) 2015 Elad Raz <eladr@mellanox.com>
  * Copyright (c) 2015 Jiri Pirko <jiri@mellanox.com>
  *
@@ -386,7 +386,9 @@ enum mlxsw_reg_sfd_rec_action {
 	/* forward and trap, trap_id is FDB_TRAP */
 	MLXSW_REG_SFD_REC_ACTION_MIRROR_TO_CPU = 1,
 	/* trap and do not forward, trap_id is FDB_TRAP */
-	MLXSW_REG_SFD_REC_ACTION_TRAP = 3,
+	MLXSW_REG_SFD_REC_ACTION_TRAP = 2,
+	/* forward to IP router */
+	MLXSW_REG_SFD_REC_ACTION_FORWARD_IP_ROUTER = 3,
 	MLXSW_REG_SFD_REC_ACTION_DISCARD_ERROR = 15,
 };
 
@@ -3186,6 +3188,272 @@ static inline void mlxsw_reg_hpkt_pack(char *payload, u8 action, u16 trap_id)
 	mlxsw_reg_hpkt_ctrl_set(payload, MLXSW_REG_HPKT_CTRL_PACKET_DEFAULT);
 }
 
+/* RGCR - Router General Configuration Register
+ * --------------------------------------------
+ * The register is used for setting up the router configuration.
+ */
+#define MLXSW_REG_RGCR_ID 0x8001
+#define MLXSW_REG_RGCR_LEN 0x28
+
+static const struct mlxsw_reg_info mlxsw_reg_rgcr = {
+	.id = MLXSW_REG_RGCR_ID,
+	.len = MLXSW_REG_RGCR_LEN,
+};
+
+/* reg_rgcr_ipv4_en
+ * IPv4 router enable.
+ * Access: RW
+ */
+MLXSW_ITEM32(reg, rgcr, ipv4_en, 0x00, 31, 1);
+
+/* reg_rgcr_ipv6_en
+ * IPv6 router enable.
+ * Access: RW
+ */
+MLXSW_ITEM32(reg, rgcr, ipv6_en, 0x00, 30, 1);
+
+/* reg_rgcr_max_router_interfaces
+ * Defines the maximum number of active router interfaces for all virtual
+ * routers.
+ * Access: RW
+ */
+MLXSW_ITEM32(reg, rgcr, max_router_interfaces, 0x10, 0, 16);
+
+/* reg_rgcr_usp
+ * Update switch priority and packet color.
+ * 0 - Preserve the value of Switch Priority and packet color.
+ * 1 - Recalculate the value of Switch Priority and packet color.
+ * Access: RW
+ *
+ * Note: Not supported by SwitchX and SwitchX-2.
+ */
+MLXSW_ITEM32(reg, rgcr, usp, 0x18, 20, 1);
+
+/* reg_rgcr_pcp_rw
+ * Indicates how to handle the pcp_rewrite_en value:
+ * 0 - Preserve the value of pcp_rewrite_en.
+ * 2 - Disable PCP rewrite.
+ * 3 - Enable PCP rewrite.
+ * Access: RW
+ *
+ * Note: Not supported by SwitchX and SwitchX-2.
+ */
+MLXSW_ITEM32(reg, rgcr, pcp_rw, 0x18, 16, 2);
+
+/* reg_rgcr_activity_dis
+ * Activity disable:
+ * 0 - Activity will be set when an entry is hit (default).
+ * 1 - Activity will not be set when an entry is hit.
+ *
+ * Bit 0 - Disable activity bit in Router Algorithmic LPM Unicast Entry
+ * (RALUE).
+ * Bit 1 - Disable activity bit in Router Algorithmic LPM Unicast Host
+ * Entry (RAUHT).
+ * Bits 2:7 are reserved.
+ * Access: RW
+ *
+ * Note: Not supported by SwitchX, SwitchX-2 and Switch-IB.
+ */
+MLXSW_ITEM32(reg, rgcr, activity_dis, 0x20, 0, 8);
+
+static inline void mlxsw_reg_rgcr_pack(char *payload, bool ipv4_en)
+{
+	MLXSW_REG_ZERO(rgcr, payload);
+	mlxsw_reg_rgcr_ipv4_en_set(payload, ipv4_en);
+}
+
+/* RITR - Router Interface Table Register
+ * --------------------------------------
+ * The register is used to configure the router interface table.
+ */
+#define MLXSW_REG_RITR_ID 0x8002
+#define MLXSW_REG_RITR_LEN 0x40
+
+static const struct mlxsw_reg_info mlxsw_reg_ritr = {
+	.id = MLXSW_REG_RITR_ID,
+	.len = MLXSW_REG_RITR_LEN,
+};
+
+/* reg_ritr_enable
+ * Enables routing on the router interface.
+ * Access: RW
+ */
+MLXSW_ITEM32(reg, ritr, enable, 0x00, 31, 1);
+
+/* reg_ritr_ipv4
+ * IPv4 routing enable. Enables routing of IPv4 traffic on the router
+ * interface.
+ * Access: RW
+ */
+MLXSW_ITEM32(reg, ritr, ipv4, 0x00, 29, 1);
+
+/* reg_ritr_ipv6
+ * IPv6 routing enable. Enables routing of IPv6 traffic on the router
+ * interface.
+ * Access: RW
+ */
+MLXSW_ITEM32(reg, ritr, ipv6, 0x00, 28, 1);
+
+enum mlxsw_reg_ritr_if_type {
+	MLXSW_REG_RITR_VLAN_IF,
+	MLXSW_REG_RITR_FID_IF,
+	MLXSW_REG_RITR_SP_IF,
+};
+
+/* reg_ritr_type
+ * Router interface type.
+ * 0 - VLAN interface.
+ * 1 - FID interface.
+ * 2 - Sub-port interface.
+ * Access: RW
+ */
+MLXSW_ITEM32(reg, ritr, type, 0x00, 23, 3);
+
+enum {
+	MLXSW_REG_RITR_RIF_CREATE,
+	MLXSW_REG_RITR_RIF_DEL,
+};
+
+/* reg_ritr_op
+ * Opcode:
+ * 0 - Create or edit RIF.
+ * 1 - Delete RIF.
+ * Reserved for SwitchX-2. For Spectrum, editing of interface properties
+ * is not supported. An interface must be deleted and re-created in order
+ * to update properties.
+ * Access: WO
+ */
+MLXSW_ITEM32(reg, ritr, op, 0x00, 20, 2);
+
+/* reg_ritr_rif
+ * Router interface index. A pointer to the Router Interface Table.
+ * Access: Index
+ */
+MLXSW_ITEM32(reg, ritr, rif, 0x00, 0, 16);
+
+/* reg_ritr_ipv4_fe
+ * IPv4 Forwarding Enable.
+ * Enables routing of IPv4 traffic on the router interface. When disabled,
+ * forwarding is blocked but local traffic (traps and IP2ME) will be enabled.
+ * Not supported in SwitchX-2.
+ * Access: RW
+ */
+MLXSW_ITEM32(reg, ritr, ipv4_fe, 0x04, 29, 1);
+
+/* reg_ritr_ipv6_fe
+ * IPv6 Forwarding Enable.
+ * Enables routing of IPv6 traffic on the router interface. When disabled,
+ * forwarding is blocked but local traffic (traps and IP2ME) will be enabled.
+ * Not supported in SwitchX-2.
+ * Access: RW
+ */
+MLXSW_ITEM32(reg, ritr, ipv6_fe, 0x04, 28, 1);
+
+/* reg_ritr_virtual_router
+ * Virtual router ID associated with the router interface.
+ * Access: RW
+ */
+MLXSW_ITEM32(reg, ritr, virtual_router, 0x04, 0, 16);
+
+/* reg_ritr_mtu
+ * Router interface MTU.
+ * Access: RW
+ */
+MLXSW_ITEM32(reg, ritr, mtu, 0x34, 0, 16);
+
+/* reg_ritr_if_swid
+ * Switch partition ID.
+ * Access: RW
+ */
+MLXSW_ITEM32(reg, ritr, if_swid, 0x08, 24, 8);
+
+/* reg_ritr_if_mac
+ * Router interface MAC address.
+ * In Spectrum, all MAC addresses must have the same 38 MSBits.
+ * Access: RW
+ */
+MLXSW_ITEM_BUF(reg, ritr, if_mac, 0x12, 6);
+
+/* VLAN Interface */
+
+/* reg_ritr_vlan_if_vid
+ * VLAN ID.
+ * Access: RW
+ */
+MLXSW_ITEM32(reg, ritr, vlan_if_vid, 0x08, 0, 12);
+
+/* FID Interface */
+
+/* reg_ritr_fid_if_fid
+ * Filtering ID. Used to connect a bridge to the router. Only FIDs from
+ * the vFID range are supported.
+ * Access: RW
+ */
+MLXSW_ITEM32(reg, ritr, fid_if_fid, 0x08, 0, 16);
+
+static inline void mlxsw_reg_ritr_fid_set(char *payload,
+					  enum mlxsw_reg_ritr_if_type rif_type,
+					  u16 fid)
+{
+	if (rif_type == MLXSW_REG_RITR_FID_IF)
+		mlxsw_reg_ritr_fid_if_fid_set(payload, fid);
+	else
+		mlxsw_reg_ritr_vlan_if_vid_set(payload, fid);
+}
+
+/* Sub-port Interface */
+
+/* reg_ritr_sp_if_lag
+ * LAG indication. When this bit is set the system_port field holds the
+ * LAG identifier.
+ * Access: RW
+ */
+MLXSW_ITEM32(reg, ritr, sp_if_lag, 0x08, 24, 1);
+
+/* reg_ritr_sp_system_port
+ * Port unique indentifier. When lag bit is set, this field holds the
+ * lag_id in bits 0:9.
+ * Access: RW
+ */
+MLXSW_ITEM32(reg, ritr, sp_if_system_port, 0x08, 0, 16);
+
+/* reg_ritr_sp_if_vid
+ * VLAN ID.
+ * Access: RW
+ */
+MLXSW_ITEM32(reg, ritr, sp_if_vid, 0x18, 0, 12);
+
+static inline void mlxsw_reg_ritr_rif_pack(char *payload, u16 rif)
+{
+	MLXSW_REG_ZERO(ritr, payload);
+	mlxsw_reg_ritr_rif_set(payload, rif);
+}
+
+static inline void mlxsw_reg_ritr_sp_if_pack(char *payload, bool lag,
+					     u16 system_port, u16 vid)
+{
+	mlxsw_reg_ritr_sp_if_lag_set(payload, lag);
+	mlxsw_reg_ritr_sp_if_system_port_set(payload, system_port);
+	mlxsw_reg_ritr_sp_if_vid_set(payload, vid);
+}
+
+static inline void mlxsw_reg_ritr_pack(char *payload, bool enable,
+				       enum mlxsw_reg_ritr_if_type type,
+				       u16 rif, u16 mtu, const char *mac)
+{
+	bool op = enable ? MLXSW_REG_RITR_RIF_CREATE : MLXSW_REG_RITR_RIF_DEL;
+
+	MLXSW_REG_ZERO(ritr, payload);
+	mlxsw_reg_ritr_enable_set(payload, enable);
+	mlxsw_reg_ritr_ipv4_set(payload, 1);
+	mlxsw_reg_ritr_type_set(payload, type);
+	mlxsw_reg_ritr_op_set(payload, op);
+	mlxsw_reg_ritr_rif_set(payload, rif);
+	mlxsw_reg_ritr_ipv4_fe_set(payload, 1);
+	mlxsw_reg_ritr_mtu_set(payload, mtu);
+	mlxsw_reg_ritr_if_mac_memcpy_to(payload, mac);
+}
+
 /* MFCR - Management Fan Control Register
  * --------------------------------------
  * This register controls the settings of the Fan Speed PWM mechanism.
@@ -3924,6 +4192,10 @@ static inline const char *mlxsw_reg_id_str(u16 reg_id)
 		return "HTGT";
 	case MLXSW_REG_HPKT_ID:
 		return "HPKT";
+	case MLXSW_REG_RGCR_ID:
+		return "RGCR";
+	case MLXSW_REG_RITR_ID:
+		return "RITR";
 	case MLXSW_REG_MFCR_ID:
 		return "MFCR";
 	case MLXSW_REG_MFSC_ID:

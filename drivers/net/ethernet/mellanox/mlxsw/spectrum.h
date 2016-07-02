@@ -74,6 +74,8 @@
 
 #define MLXSW_SP_CELL_FACTOR 2	/* 2 * cell_size / (IPG + cell_size + 1) */
 
+#define MLXSW_SP_RIF_MAX 800
+
 static inline u16 mlxsw_sp_pfc_delay_get(int mtu, u16 delay)
 {
 	delay = MLXSW_SP_BYTES_TO_CELLS(DIV_ROUND_UP(delay, BITS_PER_BYTE));
@@ -94,6 +96,11 @@ struct mlxsw_sp_fid {
 	struct net_device *dev;
 	u16 fid;
 	u16 vid;
+};
+
+struct mlxsw_sp_rif {
+	struct net_device *dev;
+	u16 rif;
 };
 
 struct mlxsw_sp_mid {
@@ -167,6 +174,7 @@ struct mlxsw_sp {
 		DECLARE_BITMAP(mapped, MLXSW_SP_MID_MAX);
 	} br_mids;
 	struct list_head fids;	/* VLAN-aware bridge FIDs */
+	struct mlxsw_sp_rif *rifs[MLXSW_SP_RIF_MAX];
 	struct mlxsw_sp_port **ports;
 	struct mlxsw_core *core;
 	const struct mlxsw_bus_info *bus_info;
@@ -325,6 +333,19 @@ mlxsw_sp_port_vport_find_by_fid(const struct mlxsw_sp_port *mlxsw_sp_port,
 	return NULL;
 }
 
+static inline struct mlxsw_sp_rif *
+mlxsw_sp_rif_find_by_dev(const struct mlxsw_sp *mlxsw_sp,
+			 const struct net_device *dev)
+{
+	int i;
+
+	for (i = 0; i < MLXSW_SP_RIF_MAX; i++)
+		if (mlxsw_sp->rifs[i] && mlxsw_sp->rifs[i]->dev == dev)
+			return mlxsw_sp->rifs[i];
+
+	return NULL;
+}
+
 enum mlxsw_sp_flood_table {
 	MLXSW_SP_FLOOD_TABLE_UC,
 	MLXSW_SP_FLOOD_TABLE_BM,
@@ -377,8 +398,6 @@ int mlxsw_sp_port_vlan_set(struct mlxsw_sp_port *mlxsw_sp_port, u16 vid_begin,
 			   u16 vid_end, bool is_member, bool untagged);
 int mlxsw_sp_port_add_vid(struct net_device *dev, __be16 __always_unused proto,
 			  u16 vid);
-int mlxsw_sp_port_kill_vid(struct net_device *dev,
-			   __be16 __always_unused proto, u16 vid);
 int mlxsw_sp_vport_flood_set(struct mlxsw_sp_port *mlxsw_sp_vport, u16 fid,
 			     bool set);
 void mlxsw_sp_port_active_vlans_del(struct mlxsw_sp_port *mlxsw_sp_port);
@@ -412,5 +431,8 @@ static inline void mlxsw_sp_port_dcb_fini(struct mlxsw_sp_port *mlxsw_sp_port)
 {}
 
 #endif
+
+int mlxsw_sp_router_init(struct mlxsw_sp *mlxsw_sp);
+void mlxsw_sp_router_fini(struct mlxsw_sp *mlxsw_sp);
 
 #endif
