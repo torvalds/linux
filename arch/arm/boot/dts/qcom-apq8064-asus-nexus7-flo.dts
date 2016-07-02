@@ -253,6 +253,7 @@
 			vddcx-supply	= <&pm8921_s3>;
 			v3p3-supply	= <&pm8921_l3>;
 			v1p8-supply	= <&pm8921_l4>;
+			dr_mode		= "otg";
 		};
 
 		gadget@12500000 {
