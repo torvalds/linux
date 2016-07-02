@@ -66,6 +66,7 @@ standard ioctls can be used with the given input or output.
 
 
 .. code-block:: c
+    :caption: Example 5: Information about the current video standard
 
     v4l2_std_id std_id;
     struct v4l2_standard standard;
@@ -101,6 +102,7 @@ standard ioctls can be used with the given input or output.
 
 
 .. code-block:: c
+    :caption: Example 6: Listing the video standards supported by the current input
 
     struct v4l2_input input;
     struct v4l2_standard standard;
@@ -139,6 +141,7 @@ standard ioctls can be used with the given input or output.
 
 
 .. code-block:: c
+    :caption: Example 7: Selecting a new video standard
 
     struct v4l2_input input;
     v4l2_std_id std_id;
