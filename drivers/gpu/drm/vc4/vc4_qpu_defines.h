@@ -270,6 +270,9 @@ enum qpu_unpack_r4 {
 #define QPU_OP_ADD_SHIFT                24
 #define QPU_OP_ADD_MASK                 QPU_MASK(28, 24)
 
+#define QPU_LOAD_IMM_SHIFT              0
+#define QPU_LOAD_IMM_MASK               QPU_MASK(31, 0)
+
 #define QPU_BRANCH_TARGET_SHIFT         0
 #define QPU_BRANCH_TARGET_MASK          QPU_MASK(31, 0)
 
