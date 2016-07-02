@@ -40,6 +40,14 @@
 #include "vc4_qpu_defines.h"
 
 struct vc4_shader_validation_state {
+	/* Current IP being validated. */
+	uint32_t ip;
+
+	/* IP at the end of the BO, do not read shader[max_ip] */
+	uint32_t max_ip;
+
+	uint64_t *shader;
+
 	struct vc4_texture_sample_info tmu_setup[2];
 	int tmu_write_count[2];
 
@@ -129,11 +137,11 @@ record_texture_sample(struct vc4_validated_shader_info *validated_shader,
 }
 
 static bool
-check_tmu_write(uint64_t inst,
-		struct vc4_validated_shader_info *validated_shader,
+check_tmu_write(struct vc4_validated_shader_info *validated_shader,
 		struct vc4_shader_validation_state *validation_state,
 		bool is_mul)
 {
+	uint64_t inst = validation_state->shader[validation_state->ip];
 	uint32_t waddr = (is_mul ?
 			  QPU_GET_FIELD(inst, QPU_WADDR_MUL) :
 			  QPU_GET_FIELD(inst, QPU_WADDR_ADD));
@@ -228,11 +236,11 @@ check_tmu_write(uint64_t inst,
 }
 
 static bool
-check_reg_write(uint64_t inst,
-		struct vc4_validated_shader_info *validated_shader,
+check_reg_write(struct vc4_validated_shader_info *validated_shader,
 		struct vc4_shader_validation_state *validation_state,
 		bool is_mul)
 {
+	uint64_t inst = validation_state->shader[validation_state->ip];
 	uint32_t waddr = (is_mul ?
 			  QPU_GET_FIELD(inst, QPU_WADDR_MUL) :
 			  QPU_GET_FIELD(inst, QPU_WADDR_ADD));
@@ -261,7 +269,7 @@ check_reg_write(uint64_t inst,
 	case QPU_W_TMU1_T:
 	case QPU_W_TMU1_R:
 	case QPU_W_TMU1_B:
-		return check_tmu_write(inst, validated_shader, validation_state,
+		return check_tmu_write(validated_shader, validation_state,
 				       is_mul);
 
 	case QPU_W_HOST_INT:
@@ -294,10 +302,10 @@ check_reg_write(uint64_t inst,
 }
 
 static void
-track_live_clamps(uint64_t inst,
-		  struct vc4_validated_shader_info *validated_shader,
+track_live_clamps(struct vc4_validated_shader_info *validated_shader,
 		  struct vc4_shader_validation_state *validation_state)
 {
+	uint64_t inst = validation_state->shader[validation_state->ip];
 	uint32_t op_add = QPU_GET_FIELD(inst, QPU_OP_ADD);
 	uint32_t waddr_add = QPU_GET_FIELD(inst, QPU_WADDR_ADD);
 	uint32_t waddr_mul = QPU_GET_FIELD(inst, QPU_WADDR_MUL);
@@ -369,10 +377,10 @@ track_live_clamps(uint64_t inst,
 }
 
 static bool
-check_instruction_writes(uint64_t inst,
-			 struct vc4_validated_shader_info *validated_shader,
+check_instruction_writes(struct vc4_validated_shader_info *validated_shader,
 			 struct vc4_shader_validation_state *validation_state)
 {
+	uint64_t inst = validation_state->shader[validation_state->ip];
 	uint32_t waddr_add = QPU_GET_FIELD(inst, QPU_WADDR_ADD);
 	uint32_t waddr_mul = QPU_GET_FIELD(inst, QPU_WADDR_MUL);
 	bool ok;
@@ -382,12 +390,10 @@ check_instruction_writes(uint64_t inst,
 		return false;
 	}
 
-	ok = (check_reg_write(inst, validated_shader, validation_state,
-			      false) &&
-	      check_reg_write(inst, validated_shader, validation_state,
-			      true));
+	ok = (check_reg_write(validated_shader, validation_state, false) &&
+	      check_reg_write(validated_shader, validation_state, true));
 
-	track_live_clamps(inst, validated_shader, validation_state);
+	track_live_clamps(validated_shader, validation_state);
 
 	return ok;
 }
@@ -417,29 +423,29 @@ vc4_validate_shader(struct drm_gem_cma_object *shader_obj)
 {
 	bool found_shader_end = false;
 	int shader_end_ip = 0;
-	uint32_t ip, max_ip;
-	uint64_t *shader;
+	uint32_t ip;
 	struct vc4_validated_shader_info *validated_shader;
 	struct vc4_shader_validation_state validation_state;
 	int i;
 
 	memset(&validation_state, 0, sizeof(validation_state));
+	validation_state.shader = shader_obj->vaddr;
+	validation_state.max_ip = shader_obj->base.size / sizeof(uint64_t);
 
 	for (i = 0; i < 8; i++)
 		validation_state.tmu_setup[i / 4].p_offset[i % 4] = ~0;
 	for (i = 0; i < ARRAY_SIZE(validation_state.live_min_clamp_offsets); i++)
 		validation_state.live_min_clamp_offsets[i] = ~0;
 
-	shader = shader_obj->vaddr;
-	max_ip = shader_obj->base.size / sizeof(uint64_t);
-
 	validated_shader = kcalloc(1, sizeof(*validated_shader), GFP_KERNEL);
 	if (!validated_shader)
 		return NULL;
 
-	for (ip = 0; ip < max_ip; ip++) {
-		uint64_t inst = shader[ip];
+	for (ip = 0; ip < validation_state.max_ip; ip++) {
+		uint64_t inst = validation_state.shader[ip];
 		uint32_t sig = QPU_GET_FIELD(inst, QPU_SIG);
+
+		validation_state.ip = ip;
 
 		switch (sig) {
 		case QPU_SIG_NONE:
@@ -450,7 +456,7 @@ vc4_validate_shader(struct drm_gem_cma_object *shader_obj)
 		case QPU_SIG_LOAD_TMU1:
 		case QPU_SIG_PROG_END:
 		case QPU_SIG_SMALL_IMM:
-			if (!check_instruction_writes(inst, validated_shader,
+			if (!check_instruction_writes(validated_shader,
 						      &validation_state)) {
 				DRM_ERROR("Bad write at ip %d\n", ip);
 				goto fail;
@@ -467,7 +473,7 @@ vc4_validate_shader(struct drm_gem_cma_object *shader_obj)
 			break;
 
 		case QPU_SIG_LOAD_IMM:
-			if (!check_instruction_writes(inst, validated_shader,
+			if (!check_instruction_writes(validated_shader,
 						      &validation_state)) {
 				DRM_ERROR("Bad LOAD_IMM write at ip %d\n", ip);
 				goto fail;
@@ -487,7 +493,7 @@ vc4_validate_shader(struct drm_gem_cma_object *shader_obj)
 			break;
 	}
 
-	if (ip == max_ip) {
+	if (ip == validation_state.max_ip) {
 		DRM_ERROR("shader failed to terminate before "
 			  "shader BO end at %zd\n",
 			  shader_obj->base.size);
