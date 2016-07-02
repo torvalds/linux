@@ -1729,6 +1729,23 @@ static const struct bpf_func_proto bpf_get_route_realm_proto = {
 	.arg1_type      = ARG_PTR_TO_CTX,
 };
 
+static u64 bpf_get_hash_recalc(u64 r1, u64 r2, u64 r3, u64 r4, u64 r5)
+{
+	/* If skb_clear_hash() was called due to mangling, we can
+	 * trigger SW recalculation here. Later access to hash
+	 * can then use the inline skb->hash via context directly
+	 * instead of calling this helper again.
+	 */
+	return skb_get_hash((struct sk_buff *) (unsigned long) r1);
+}
+
+static const struct bpf_func_proto bpf_get_hash_recalc_proto = {
+	.func		= bpf_get_hash_recalc,
+	.gpl_only	= false,
+	.ret_type	= RET_INTEGER,
+	.arg1_type	= ARG_PTR_TO_CTX,
+};
+
 static u64 bpf_skb_vlan_push(u64 r1, u64 r2, u64 vlan_tci, u64 r4, u64 r5)
 {
 	struct sk_buff *skb = (struct sk_buff *) (long) r1;
@@ -2337,6 +2354,8 @@ tc_cls_act_func_proto(enum bpf_func_id func_id)
 		return &bpf_redirect_proto;
 	case BPF_FUNC_get_route_realm:
 		return &bpf_get_route_realm_proto;
+	case BPF_FUNC_get_hash_recalc:
+		return &bpf_get_hash_recalc_proto;
 	case BPF_FUNC_perf_event_output:
 		return bpf_get_event_output_proto();
 	case BPF_FUNC_get_smp_processor_id:
