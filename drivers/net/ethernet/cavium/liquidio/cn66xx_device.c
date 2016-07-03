@@ -64,9 +64,9 @@ void lio_cn6xxx_enable_error_reporting(struct octeon_device *oct)
 	u32 val;
 
 	pci_read_config_dword(oct->pci_dev, CN6XXX_PCIE_DEVCTL, &val);
-	if (val & 0x000f0000) {
+	if (val & 0x000c0000) {
 		dev_err(&oct->pci_dev->dev, "PCI-E Link error detected: 0x%08x\n",
-			val & 0x000f0000);
+			val & 0x000c0000);
 	}
 
 	val |= 0xf;          /* Enable Link error reporting */

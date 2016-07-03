@@ -644,16 +644,16 @@ int octeon_download_firmware(struct octeon_device *oct, const u8 *data,
 
 void octeon_free_device_mem(struct octeon_device *oct)
 {
-	u32 i;
+	int i;
 
 	for (i = 0; i < MAX_OCTEON_OUTPUT_QUEUES(oct); i++) {
-		/* could check  mask as well */
-		vfree(oct->droq[i]);
+		if (oct->io_qmask.oq & (1ULL << i))
+			vfree(oct->droq[i]);
 	}
 
 	for (i = 0; i < MAX_OCTEON_INSTR_QUEUES(oct); i++) {
-		/* could check mask as well */
-		vfree(oct->instr_queue[i]);
+		if (oct->io_qmask.iq & (1ULL << i))
+			vfree(oct->instr_queue[i]);
 	}
 
 	i = oct->octeon_id;
