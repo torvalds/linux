@@ -360,9 +360,8 @@ static void batadv_gw_node_add(struct batadv_priv *bat_priv,
  *
  * Return: gateway node if found or NULL otherwise.
  */
-static struct batadv_gw_node *
-batadv_gw_node_get(struct batadv_priv *bat_priv,
-		   struct batadv_orig_node *orig_node)
+struct batadv_gw_node *batadv_gw_node_get(struct batadv_priv *bat_priv,
+					  struct batadv_orig_node *orig_node)
 {
 	struct batadv_gw_node *gw_node_tmp, *gw_node = NULL;
 
