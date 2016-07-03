@@ -806,6 +806,7 @@ static int ad799x_probe(struct i2c_client *client,
 	st->client = client;
 
 	indio_dev->dev.parent = &client->dev;
+	indio_dev->dev.of_node = client->dev.of_node;
 	indio_dev->name = id->name;
 	indio_dev->info = st->chip_config->info;
 

@@ -455,6 +455,7 @@ static int hi8435_probe(struct spi_device *spi)
 	mutex_init(&priv->lock);
 
 	idev->dev.parent	= &spi->dev;
+	idev->dev.of_node	= spi->dev.of_node;
 	idev->name		= spi_get_device_id(spi)->name;
 	idev->modes		= INDIO_DIRECT_MODE;
 	idev->info		= &hi8435_info;

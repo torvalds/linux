@@ -691,6 +691,7 @@ static int ina2xx_probe(struct i2c_client *client,
 
 	indio_dev->modes = INDIO_DIRECT_MODE | INDIO_BUFFER_SOFTWARE;
 	indio_dev->dev.parent = &client->dev;
+	indio_dev->dev.of_node = client->dev.of_node;
 	indio_dev->channels = ina2xx_channels;
 	indio_dev->num_channels = ARRAY_SIZE(ina2xx_channels);
 	indio_dev->name = id->name;
