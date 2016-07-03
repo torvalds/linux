@@ -429,6 +429,13 @@ static ssize_t batadv_show_gw_mode(struct kobject *kobj, struct attribute *attr,
 	struct batadv_priv *bat_priv = batadv_kobj_to_batpriv(kobj);
 	int bytes_written;
 
+	/* GW mode is not available if the routing algorithm in use does not
+	 * implement the GW API
+	 */
+	if (!bat_priv->algo_ops->gw.get_best_gw_node ||
+	    !bat_priv->algo_ops->gw.is_eligible)
+		return -ENOENT;
+
 	switch (atomic_read(&bat_priv->gw.mode)) {
 	case BATADV_GW_MODE_CLIENT:
 		bytes_written = sprintf(buff, "%s\n",
@@ -455,6 +462,13 @@ static ssize_t batadv_store_gw_mode(struct kobject *kobj,
 	struct batadv_priv *bat_priv = netdev_priv(net_dev);
 	char *curr_gw_mode_str;
 	int gw_mode_tmp = -1;
+
+	/* toggling GW mode is allowed only if the routing algorithm in use
+	 * provides the GW API
+	 */
+	if (!bat_priv->algo_ops->gw.get_best_gw_node ||
+	    !bat_priv->algo_ops->gw.is_eligible)
+		return -EINVAL;
 
 	if (buff[count - 1] == '\n')
 		buff[count - 1] = '\0';
@@ -520,6 +534,13 @@ static ssize_t batadv_show_gw_sel_class(struct kobject *kobj,
 {
 	struct batadv_priv *bat_priv = batadv_kobj_to_batpriv(kobj);
 
+	/* GW selection class is not available if the routing algorithm in use
+	 * does not implement the GW API
+	 */
+	if (!bat_priv->algo_ops->gw.get_best_gw_node ||
+	    !bat_priv->algo_ops->gw.is_eligible)
+		return -ENOENT;
+
 	if (bat_priv->algo_ops->gw.show_sel_class)
 		return bat_priv->algo_ops->gw.show_sel_class(bat_priv, buff);
 
@@ -531,6 +552,13 @@ static ssize_t batadv_store_gw_sel_class(struct kobject *kobj,
 					 size_t count)
 {
 	struct batadv_priv *bat_priv = batadv_kobj_to_batpriv(kobj);
+
+	/* setting the GW selection class is allowed only if the routing
+	 * algorithm in use implements the GW API
+	 */
+	if (!bat_priv->algo_ops->gw.get_best_gw_node ||
+	    !bat_priv->algo_ops->gw.is_eligible)
+		return -EINVAL;
 
 	if (buff[count - 1] == '\n')
 		buff[count - 1] = '\0';
