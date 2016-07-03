@@ -3488,7 +3488,6 @@ static int setup_nic_devices(struct octeon_device *octeon_dev)
 	struct liquidio_if_cfg_resp *resp;
 	struct octdev_props *props;
 	int retval, num_iqueues, num_oqueues;
-	int num_cpus = num_online_cpus();
 	union oct_nic_if_cfg if_cfg;
 	unsigned int base_queue;
 	unsigned int gmx_port_id;
@@ -3530,10 +3529,7 @@ static int setup_nic_devices(struct octeon_device *octeon_dev)
 		gmx_port_id =
 			CFG_GET_GMXID_NIC_IF(octeon_get_conf(octeon_dev), i);
 		ifidx_or_pfnum = i;
-		if (num_iqueues > num_cpus)
-			num_iqueues = num_cpus;
-		if (num_oqueues > num_cpus)
-			num_oqueues = num_cpus;
+
 		dev_dbg(&octeon_dev->pci_dev->dev,
 			"requesting config for interface %d, iqs %d, oqs %d\n",
 			ifidx_or_pfnum, num_iqueues, num_oqueues);
