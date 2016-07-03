@@ -360,6 +360,7 @@ lio_process_iq_request_list(struct octeon_device *oct,
 	unsigned int pkts_compl = 0, bytes_compl = 0;
 	struct octeon_soft_command *sc;
 	struct octeon_instr_irh *irh;
+	unsigned long flags;
 
 	while (old != iq->octeon_read_index) {
 		reqtype = iq->request_list[old].reqtype;
@@ -389,15 +390,19 @@ lio_process_iq_request_list(struct octeon_device *oct,
 				 * command response list because we expect
 				 * a response from Octeon.
 				 */
-				spin_lock_bh(&oct->response_list
-					[OCTEON_ORDERED_SC_LIST].lock);
+				spin_lock_irqsave
+					(&oct->response_list
+					 [OCTEON_ORDERED_SC_LIST].lock,
+					 flags);
 				atomic_inc(&oct->response_list
 					[OCTEON_ORDERED_SC_LIST].
 					pending_req_count);
 				list_add_tail(&sc->node, &oct->response_list
 					[OCTEON_ORDERED_SC_LIST].head);
-				spin_unlock_bh(&oct->response_list
-					[OCTEON_ORDERED_SC_LIST].lock);
+				spin_unlock_irqrestore
+					(&oct->response_list
+					 [OCTEON_ORDERED_SC_LIST].lock,
+					 flags);
 			} else {
 				if (sc->callback) {
 					sc->callback(oct, OCTEON_REQUEST_DONE,
@@ -674,7 +679,7 @@ int octeon_free_sc_buffer_pool(struct octeon_device *oct)
 	struct list_head *tmp, *tmp2;
 	struct octeon_soft_command *sc;
 
-	spin_lock(&oct->sc_buf_pool.lock);
+	spin_lock_bh(&oct->sc_buf_pool.lock);
 
 	list_for_each_safe(tmp, tmp2, &oct->sc_buf_pool.head) {
 		list_del(tmp);
@@ -686,7 +691,7 @@ int octeon_free_sc_buffer_pool(struct octeon_device *oct)
 
 	INIT_LIST_HEAD(&oct->sc_buf_pool.head);
 
-	spin_unlock(&oct->sc_buf_pool.lock);
+	spin_unlock_bh(&oct->sc_buf_pool.lock);
 
 	return 0;
 }
@@ -705,10 +710,10 @@ struct octeon_soft_command *octeon_alloc_soft_command(struct octeon_device *oct,
 	WARN_ON((offset + datasize + rdatasize + ctxsize) >
 	       SOFT_COMMAND_BUFFER_SIZE);
 
-	spin_lock(&oct->sc_buf_pool.lock);
+	spin_lock_bh(&oct->sc_buf_pool.lock);
 
 	if (list_empty(&oct->sc_buf_pool.head)) {
-		spin_unlock(&oct->sc_buf_pool.lock);
+		spin_unlock_bh(&oct->sc_buf_pool.lock);
 		return NULL;
 	}
 
@@ -719,7 +724,7 @@ struct octeon_soft_command *octeon_alloc_soft_command(struct octeon_device *oct,
 
 	atomic_inc(&oct->sc_buf_pool.alloc_buf_count);
 
-	spin_unlock(&oct->sc_buf_pool.lock);
+	spin_unlock_bh(&oct->sc_buf_pool.lock);
 
 	sc = (struct octeon_soft_command *)tmp;
 
@@ -762,11 +767,11 @@ struct octeon_soft_command *octeon_alloc_soft_command(struct octeon_device *oct,
 void octeon_free_soft_command(struct octeon_device *oct,
 			      struct octeon_soft_command *sc)
 {
-	spin_lock(&oct->sc_buf_pool.lock);
+	spin_lock_bh(&oct->sc_buf_pool.lock);
 
 	list_add_tail(&sc->node, &oct->sc_buf_pool.head);
 
 	atomic_dec(&oct->sc_buf_pool.alloc_buf_count);
 
-	spin_unlock(&oct->sc_buf_pool.lock);
+	spin_unlock_bh(&oct->sc_buf_pool.lock);
 }
