@@ -20,7 +20,7 @@ Some of the V4L2 API calls and structures are interpreted differently,
 depending on whether single- or multi-planar API is being used. An
 application can choose whether to use one or the other by passing a
 corresponding buffer type to its ioctl calls. Multi-planar versions of
-buffer types are suffixed with an `_MPLANE' string. For a list of
+buffer types are suffixed with an ``_MPLANE`` string. For a list of
 available multi-planar buffer types see enum
 :ref:`v4l2_buf_type <v4l2-buf-type>`.
 
@@ -39,29 +39,25 @@ handle multi-planar formats.
 Calls that distinguish between single and multi-planar APIs
 ===========================================================
 
-:ref:`VIDIOC_QUERYCAP`
+:ref:`VIDIOC_QUERYCAP <VIDIOC_QUERYCAP>`
     Two additional multi-planar capabilities are added. They can be set
     together with non-multi-planar ones for devices that handle both
     single- and multi-planar formats.
 
-:ref:`VIDIOC_G_FMT <VIDIOC_G_FMT>`,
-:ref:`VIDIOC_S_FMT <VIDIOC_G_FMT>`,
-:ref:`VIDIOC_TRY_FMT <VIDIOC_G_FMT>`
+:ref:`VIDIOC_G_FMT <VIDIOC_G_FMT>`, :ref:`VIDIOC_S_FMT <VIDIOC_G_FMT>`, :ref:`VIDIOC_TRY_FMT <VIDIOC_G_FMT>`
     New structures for describing multi-planar formats are added: struct
     :ref:`v4l2_pix_format_mplane <v4l2-pix-format-mplane>` and
     struct :ref:`v4l2_plane_pix_format <v4l2-plane-pix-format>`.
     Drivers may define new multi-planar formats, which have distinct
     FourCC codes from the existing single-planar ones.
 
-:ref:`VIDIOC_QBUF`,
-:ref:`VIDIOC_DQBUF <VIDIOC_QBUF>`,
-:ref:`VIDIOC_QUERYBUF`
+:ref:`VIDIOC_QBUF <VIDIOC_QBUF>`, :ref:`VIDIOC_DQBUF <VIDIOC_QBUF>`, :ref:`VIDIOC_QUERYBUF <VIDIOC_QUERYBUF>`
     A new struct :ref:`v4l2_plane <v4l2-plane>` structure for
     describing planes is added. Arrays of this structure are passed in
     the new ``m.planes`` field of struct
     :ref:`v4l2_buffer <v4l2-buffer>`.
 
-:ref:`VIDIOC_REQBUFS`
+:ref:`VIDIOC_REQBUFS <VIDIOC_REQBUFS>`
     Will allocate multi-planar buffers as requested.
 
 
