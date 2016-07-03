@@ -11,14 +11,14 @@ the Streaming I/O methods. In the multi-planar API, the data is held in
 planes, while the buffer structure acts as a container for the planes.
 Only pointers to buffers (planes) are exchanged, the data itself is not
 copied. These pointers, together with meta-information like timestamps
-or field parity, are stored in a struct :c:type:`struct v4l2_buffer`,
+or field parity, are stored in a struct :ref:`struct v4l2_buffer <v4l2-buffer>`,
 argument to the :ref:`VIDIOC_QUERYBUF`,
 :ref:`VIDIOC_QBUF` and
 :ref:`VIDIOC_DQBUF <VIDIOC_QBUF>` ioctl. In the multi-planar API,
-some plane-specific members of struct :c:type:`struct v4l2_buffer`,
+some plane-specific members of struct :ref:`struct v4l2_buffer <v4l2-buffer>`,
 such as pointers and sizes for each plane, are stored in struct
-:c:type:`struct v4l2_plane` instead. In that case, struct
-:c:type:`struct v4l2_buffer` contains an array of plane structures.
+:ref:`struct v4l2_plane <v4l2-plane>` instead. In that case, struct
+:ref:`struct v4l2_buffer <v4l2-buffer>` contains an array of plane structures.
 
 Dequeued video buffers come with timestamps. The driver decides at which
 part of the frame and with which clock the timestamp is taken. Please
@@ -221,7 +221,7 @@ buffer.
        -  When using the multi-planar API, contains a userspace pointer to
           an array of struct :ref:`v4l2_plane <v4l2-plane>`. The size of
           the array should be put in the ``length`` field of this
-          :c:type:`struct v4l2_buffer` structure.
+          :ref:`struct v4l2_buffer <v4l2-buffer>` structure.
 
     -  .. row 15
 
@@ -780,7 +780,7 @@ buffer.
 Timecodes
 =========
 
-The :c:type:`struct v4l2_timecode` structure is designed to hold a
+The :ref:`struct v4l2_timecode <v4l2-timecode>` structure is designed to hold a
 :ref:`smpte12m` or similar timecode. (struct
 :c:type:`struct timeval` timestamps are stored in struct
 :ref:`v4l2_buffer <v4l2-buffer>` field ``timestamp``.)

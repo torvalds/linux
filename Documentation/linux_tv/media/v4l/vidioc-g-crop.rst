@@ -35,7 +35,7 @@ Description
 ===========
 
 To query the cropping rectangle size and position applications set the
-``type`` field of a :c:type:`struct v4l2_crop` structure to the
+``type`` field of a :ref:`struct v4l2_crop <v4l2-crop>` structure to the
 respective buffer (stream) type and call the :ref:`VIDIOC_G_CROP <VIDIOC_G_CROP>` ioctl
 with a pointer to this structure. The driver fills the rest of the
 structure or returns the ``EINVAL`` error code if cropping is not supported.

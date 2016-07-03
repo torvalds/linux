@@ -40,7 +40,7 @@ To query and select the current video standard applications use the
 can return a single flag or a set of flags as in struct
 :ref:`v4l2_standard <v4l2-standard>` field ``id``. The flags must be
 unambiguous such that they appear in only one enumerated
-:c:type:`struct v4l2_standard` structure.
+:ref:`struct v4l2_standard <v4l2-standard>` structure.
 
 :ref:`VIDIOC_S_STD <VIDIOC_G_STD>` accepts one or more flags, being a write-only ioctl it
 does not return the actual new standard as :ref:`VIDIOC_G_STD <VIDIOC_G_STD>` does. When

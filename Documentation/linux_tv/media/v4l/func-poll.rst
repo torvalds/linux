@@ -39,7 +39,7 @@ returns immediately.
 
 On success :c:func:`poll()` returns the number of file descriptors
 that have been selected (that is, file descriptors for which the
-``revents`` field of the respective :c:type:`struct pollfd` structure
+``revents`` field of the respective :c:func:`struct pollfd` structure
 is non-zero). Capture devices set the ``POLLIN`` and ``POLLRDNORM``
 flags in the ``revents`` field, output devices the ``POLLOUT`` and
 ``POLLWRNORM`` flags. When the function timed out it returns a value of

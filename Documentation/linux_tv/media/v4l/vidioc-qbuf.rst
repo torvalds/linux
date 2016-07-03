@@ -44,7 +44,7 @@ Applications must also set the ``index`` field. Valid index numbers
 range from zero to the number of buffers allocated with
 :ref:`VIDIOC_REQBUFS` (struct
 :ref:`v4l2_requestbuffers <v4l2-requestbuffers>` ``count``) minus
-one. The contents of the struct :c:type:`struct v4l2_buffer` returned
+one. The contents of the struct :ref:`struct v4l2_buffer <v4l2-buffer>` returned
 by a :ref:`VIDIOC_QUERYBUF` ioctl will do as well.
 When the buffer is intended for output (``type`` is
 ``V4L2_BUF_TYPE_VIDEO_OUTPUT``, ``V4L2_BUF_TYPE_VIDEO_OUTPUT_MPLANE``,
@@ -112,7 +112,7 @@ queue. When the ``O_NONBLOCK`` flag was given to the
 :ref:`open() <func-open>` function, ``VIDIOC_DQBUF`` returns
 immediately with an ``EAGAIN`` error code when no buffer is available.
 
-The :c:type:`struct v4l2_buffer` structure is specified in
+The :ref:`struct v4l2_buffer <v4l2-buffer>` structure is specified in
 :ref:`buffer`.
 
 
