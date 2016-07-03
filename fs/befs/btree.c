@@ -301,7 +301,8 @@ befs_btree_find(struct super_block *sb, const befs_data_stream *ds,
 	kfree(this_node);
 
 	if (res != BEFS_BT_MATCH) {
-		befs_debug(sb, "<--- %s Key %s not found", __func__, key);
+		befs_error(sb, "<--- %s Key %s not found", __func__, key);
+		befs_debug(sb, "<--- %s ERROR", __func__);
 		*value = 0;
 		return BEFS_BT_NOT_FOUND;
 	}
@@ -358,7 +359,8 @@ befs_find_key(struct super_block *sb, struct befs_btree_node *node,
 
 	eq = befs_compare_strings(thiskey, keylen, findkey, findkey_len);
 	if (eq < 0) {
-		befs_debug(sb, "<--- %s %s not found", __func__, findkey);
+		befs_error(sb, "<--- %s %s not found", __func__, findkey);
+		befs_debug(sb, "<--- %s ERROR", __func__);
 		return BEFS_BT_NOT_FOUND;
 	}
 

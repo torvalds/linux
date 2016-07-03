@@ -275,6 +275,8 @@ befs_find_brun_direct(struct super_block *sb, const befs_data_stream *data,
 		}
 	}
 
+	befs_error(sb, "%s failed to find file block %lu", __func__,
+		   (unsigned long)blockno);
 	befs_debug(sb, "---> %s ERROR", __func__);
 	return BEFS_ERR;
 }
@@ -328,9 +330,10 @@ befs_find_brun_indirect(struct super_block *sb,
 	for (i = 0; i < indirect.len; i++) {
 		indirblock = sb_bread(sb, indirblockno + i);
 		if (indirblock == NULL) {
-			befs_debug(sb, "---> %s failed to read "
+			befs_error(sb, "---> %s failed to read "
 				   "disk block %lu from the indirect brun",
 				   __func__, (unsigned long)indirblockno + i);
+			befs_debug(sb, "<--- %s ERROR", __func__);
 			return BEFS_ERR;
 		}
 

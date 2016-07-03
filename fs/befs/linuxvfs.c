@@ -187,7 +187,7 @@ befs_lookup(struct inode *dir, struct dentry *dentry, unsigned int flags)
 		return ERR_PTR(-ENOENT);
 
 	} else if (ret != BEFS_OK || offset == 0) {
-		befs_warning(sb, "<--- %s Error", __func__);
+		befs_error(sb, "<--- %s Error", __func__);
 		return ERR_PTR(-ENODATA);
 	}
 
