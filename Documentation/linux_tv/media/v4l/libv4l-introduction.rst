@@ -116,42 +116,42 @@ The common file operation methods are provided by libv4l.
 Those functions operate just like glibc
 open/close/dup/ioctl/read/mmap/munmap:
 
--  int v4l2_open(const char *file, int oflag, ...) - operates like the
+-  :c:type:`int v4l2_open(const char *file, int oflag, ...)` - operates like the
    standard :ref:`open() <func-open>` function.
 
--  int v4l2_close(int fd) - operates like the standard
+-  :c:type:`int v4l2_close(int fd)` - operates like the standard
    :ref:`close() <func-close>` function.
 
--  int v4l2_dup(int fd) - operates like the standard dup() function,
+-  :c:type:`int v4l2_dup(int fd)` - operates like the standard dup() function,
    duplicating a file handler.
 
--  int v4l2_ioctl (int fd, unsigned long int request, ...) - operates
+-  :c:type:`int v4l2_ioctl (int fd, unsigned long int request, ...)` - operates
    like the standard :ref:`ioctl() <func-ioctl>` function.
 
--  int v4l2_read (int fd, void* buffer, size_t n) - operates like the
+-  :c:type:`int v4l2_read (int fd, void* buffer, size_t n)` - operates like the
    standard :ref:`read() <func-read>` function.
 
--  void v4l2_mmap(void *start, size_t length, int prot, int flags, int
-   fd, int64_t offset); - operates like the standard
+-  :c:type:`void v4l2_mmap(void *start, size_t length, int prot, int flags, int
+   fd, int64_t offset);` - operates like the standard
    :ref:`mmap() <func-mmap>` function.
 
--  int v4l2_munmap(void *_start, size_t length); - operates like the
+-  :c:type:`int v4l2_munmap(void *_start, size_t length);` - operates like the
    standard :ref:`munmap() <func-munmap>` function.
 
 Those functions provide additional control:
 
--  int v4l2_fd_open(int fd, int v4l2_flags) - opens an already opened
+-  :c:type:`int v4l2_fd_open(int fd, int v4l2_flags)` - opens an already opened
    fd for further use through v4l2lib and possibly modify libv4l2's
    default behavior through the v4l2_flags argument. Currently,
    v4l2_flags can be ``V4L2_DISABLE_CONVERSION``, to disable format
    conversion.
 
--  int v4l2_set_control(int fd, int cid, int value) - This function
+-  :c:type:`int v4l2_set_control(int fd, int cid, int value)` - This function
    takes a value of 0 - 65535, and then scales that range to the actual
    range of the given v4l control id, and then if the cid exists and is
    not locked sets the cid to the scaled value.
 
--  int v4l2_get_control(int fd, int cid) - This function returns a
+-  :c:type:`int v4l2_get_control(int fd, int cid)` - This function returns a
    value of 0 - 65535, scaled to from the actual range of the given v4l
    control id. when the cid does not exist, could not be accessed for
    some reason, or some error occurred 0 is returned.

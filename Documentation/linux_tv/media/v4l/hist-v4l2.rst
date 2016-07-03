@@ -187,7 +187,7 @@ common Linux driver API conventions.
    until the time in the timestamp field has arrived. I would like to
    follow SGI's lead, and adopt a multimedia timestamping system like
    their UST (Unadjusted System Time). See
-   http://web.archive.org/web/*/http://reality.sgi.com
+   http://web.archive.org/web/\*/http://reality.sgi.com
    /cpirazzi_engr/lg/time/intro.html. UST uses timestamps that are
    64-bit signed integers (not struct timeval's) and given in nanosecond
    units. The UST clock starts at zero when the system is booted and
@@ -1408,13 +1408,12 @@ XFree86 and XOrg, just programming any overlay capable Video4Linux
 device it finds. To enable it ``/etc/X11/XF86Config`` must contain these
 lines:
 
-
-
 ::
 
     Section "Module"
         Load "v4l"
     EndSection
+
 As of XFree86 4.2 this driver still supports only V4L ioctls, however it
 should work just fine with all V4L2 devices through the V4L2
 backward-compatibility layer. Since V4L2 permits multiple opens it is
