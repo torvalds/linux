@@ -19,6 +19,7 @@
 #include "main.h"
 
 #include <linux/atomic.h>
+#include <linux/byteorder/generic.h>
 #include <linux/errno.h>
 #include <linux/fs.h>
 #include <linux/genetlink.h>
@@ -42,6 +43,7 @@
 #include "gateway_client.h"
 #include "hard-interface.h"
 #include "originator.h"
+#include "packet.h"
 #include "soft-interface.h"
 #include "tp_meter.h"
 #include "translation-table.h"
@@ -140,6 +142,12 @@ batadv_netlink_mesh_info_put(struct sk_buff *msg, struct net_device *soft_iface)
 	    nla_put_u8(msg, BATADV_ATTR_TT_TTVN,
 		       (u8)atomic_read(&bat_priv->tt.vn)))
 		goto out;
+
+#ifdef CONFIG_BATMAN_ADV_BLA
+	if (nla_put_u16(msg, BATADV_ATTR_BLA_CRC,
+			ntohs(bat_priv->bla.claim_dest.group)))
+		goto out;
+#endif
 
 	primary_if = batadv_primary_if_get_selected(bat_priv);
 	if (primary_if && primary_if->if_status == BATADV_IF_ACTIVE) {
