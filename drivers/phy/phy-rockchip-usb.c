@@ -236,9 +236,10 @@ static int rockchip_usb_phy_init(struct rockchip_usb_phy_base *base,
 			goto err_clk_prov;
 	}
 
-	err = devm_add_action(base->dev, rockchip_usb_phy_action, rk_phy);
+	err = devm_add_action_or_reset(base->dev, rockchip_usb_phy_action,
+				       rk_phy);
 	if (err)
-		goto err_devm_action;
+		return err;
 
 	rk_phy->phy = devm_phy_create(base->dev, child, &ops);
 	if (IS_ERR(rk_phy->phy)) {
@@ -256,9 +257,6 @@ static int rockchip_usb_phy_init(struct rockchip_usb_phy_base *base,
 	else
 		return rockchip_usb_phy_power(rk_phy, 1);
 
-err_devm_action:
-	if (!rk_phy->uart_enabled)
-		of_clk_del_provider(child);
 err_clk_prov:
 	if (!rk_phy->uart_enabled)
 		clk_unregister(rk_phy->clk480m);
