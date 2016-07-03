@@ -32,12 +32,3 @@ specific applications to reliably identify the driver.
 
 All V4L2 drivers must support :ref:`VIDIOC_QUERYCAP`.
 Applications should always call this ioctl after opening the device.
-
-
-.. ------------------------------------------------------------------------------
-.. This file was automatically converted from DocBook-XML with the dbxml
-.. library (https://github.com/return42/sphkerneldoc). The origin XML comes
-.. from the linux kernel, refer to:
-..
-.. * https://github.com/torvalds/linux/tree/master/Documentation/DocBook
-.. ------------------------------------------------------------------------------

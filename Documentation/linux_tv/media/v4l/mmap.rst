@@ -275,12 +275,3 @@ the :c:func:`mmap()`, :c:func:`munmap()`, :c:func:`select()` and
    At the driver level :c:func:`select()` and :c:func:`poll()` are
    the same, and :c:func:`select()` is too important to be optional.
    The rest should be evident.
-
-
-.. ------------------------------------------------------------------------------
-.. This file was automatically converted from DocBook-XML with the dbxml
-.. library (https://github.com/return42/sphkerneldoc). The origin XML comes
-.. from the linux kernel, refer to:
-..
-.. * https://github.com/torvalds/linux/tree/master/Documentation/DocBook
-.. ------------------------------------------------------------------------------

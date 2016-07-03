@@ -416,14 +416,3 @@ EBUSY
           R'G'B' values use limited range (i.e. 16-235) as opposed to full
           range (i.e. 0-255). All formats defined in CEA-861 except for the
           640x480p59.94 format are CE formats.
-
-
-
-
-.. ------------------------------------------------------------------------------
-.. This file was automatically converted from DocBook-XML with the dbxml
-.. library (https://github.com/return42/sphkerneldoc). The origin XML comes
-.. from the linux kernel, refer to:
-..
-.. * https://github.com/torvalds/linux/tree/master/Documentation/DocBook
-.. ------------------------------------------------------------------------------

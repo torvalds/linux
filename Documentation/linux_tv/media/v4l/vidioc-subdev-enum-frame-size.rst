@@ -159,12 +159,3 @@ EINVAL
     :ref:`v4l2_subdev_frame_size_enum <v4l2-subdev-frame-size-enum>`
     ``pad`` references a non-existing pad, the ``code`` is invalid for
     the given pad or the ``index`` field is out of bounds.
-
-
-.. ------------------------------------------------------------------------------
-.. This file was automatically converted from DocBook-XML with the dbxml
-.. library (https://github.com/return42/sphkerneldoc). The origin XML comes
-.. from the linux kernel, refer to:
-..
-.. * https://github.com/torvalds/linux/tree/master/Documentation/DocBook
-.. ------------------------------------------------------------------------------

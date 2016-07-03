@@ -75,14 +75,3 @@ appropriately. The generic error codes are described at the
 
        -  Return from ioctl after timeout ms with errorcode when no message
           was received
-
-
-
-
-.. ------------------------------------------------------------------------------
-.. This file was automatically converted from DocBook-XML with the dbxml
-.. library (https://github.com/return42/sphkerneldoc). The origin XML comes
-.. from the linux kernel, refer to:
-..
-.. * https://github.com/torvalds/linux/tree/master/Documentation/DocBook
-.. ------------------------------------------------------------------------------

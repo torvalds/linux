@@ -193,12 +193,3 @@ appropriately. The generic error codes are described at the
 EINVAL
     The struct :ref:`media_entity_desc <media-entity-desc>` ``id``
     references a non-existing entity.
-
-
-.. ------------------------------------------------------------------------------
-.. This file was automatically converted from DocBook-XML with the dbxml
-.. library (https://github.com/return42/sphkerneldoc). The origin XML comes
-.. from the linux kernel, refer to:
-..
-.. * https://github.com/torvalds/linux/tree/master/Documentation/DocBook
-.. ------------------------------------------------------------------------------

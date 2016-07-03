@@ -127,12 +127,3 @@ EIO
 EINVAL
     The :c:func:`read()` function is not supported by this driver, not
     on this device, or generally not on this type of device.
-
-
-.. ------------------------------------------------------------------------------
-.. This file was automatically converted from DocBook-XML with the dbxml
-.. library (https://github.com/return42/sphkerneldoc). The origin XML comes
-.. from the linux kernel, refer to:
-..
-.. * https://github.com/torvalds/linux/tree/master/Documentation/DocBook
-.. ------------------------------------------------------------------------------

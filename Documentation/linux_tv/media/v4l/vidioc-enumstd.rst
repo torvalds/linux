@@ -439,12 +439,3 @@ ENODATA
    may be used in addition to the main sound carrier. It is modulated in
    differentially encoded QPSK with a 728 kbit/s sound and data
    multiplexer capable of carrying two sound channels. (NICAM system)
-
-
-.. ------------------------------------------------------------------------------
-.. This file was automatically converted from DocBook-XML with the dbxml
-.. library (https://github.com/return42/sphkerneldoc). The origin XML comes
-.. from the linux kernel, refer to:
-..
-.. * https://github.com/torvalds/linux/tree/master/Documentation/DocBook
-.. ------------------------------------------------------------------------------

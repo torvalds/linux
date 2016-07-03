@@ -88,12 +88,3 @@ the :ref:`VIDIOC_QUERYCAP` ioctl.
    ``tuner`` field like struct :ref:`v4l2_input <v4l2-input>`, not
    only making the API more consistent but also permitting radio devices
    with multiple tuners.
-
-
-.. ------------------------------------------------------------------------------
-.. This file was automatically converted from DocBook-XML with the dbxml
-.. library (https://github.com/return42/sphkerneldoc). The origin XML comes
-.. from the linux kernel, refer to:
-..
-.. * https://github.com/torvalds/linux/tree/master/Documentation/DocBook
-.. ------------------------------------------------------------------------------

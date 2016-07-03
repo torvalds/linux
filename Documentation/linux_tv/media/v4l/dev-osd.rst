@@ -143,12 +143,3 @@ Enabling Overlay
 
 There is no V4L2 ioctl to enable or disable the overlay, however the
 framebuffer interface of the driver may support the ``FBIOBLANK`` ioctl.
-
-
-.. ------------------------------------------------------------------------------
-.. This file was automatically converted from DocBook-XML with the dbxml
-.. library (https://github.com/return42/sphkerneldoc). The origin XML comes
-.. from the linux kernel, refer to:
-..
-.. * https://github.com/torvalds/linux/tree/master/Documentation/DocBook
-.. ------------------------------------------------------------------------------

@@ -26,12 +26,3 @@ Rectangles for all cropping and composing targets are defined even if
 the device does supports neither cropping nor composing. Their size and
 position will be fixed in such a case. If the device does not support
 scaling then the cropping and composing rectangles have the same size.
-
-
-.. ------------------------------------------------------------------------------
-.. This file was automatically converted from DocBook-XML with the dbxml
-.. library (https://github.com/return42/sphkerneldoc). The origin XML comes
-.. from the linux kernel, refer to:
-..
-.. * https://github.com/torvalds/linux/tree/master/Documentation/DocBook
-.. ------------------------------------------------------------------------------

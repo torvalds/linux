@@ -292,12 +292,3 @@ change ``V4L2_BUF_TYPE_VIDEO_CAPTURE`` for other types of device.
 
     dwidth = format.fmt.pix.width / aspect;
     dheight = format.fmt.pix.height;
-
-
-.. ------------------------------------------------------------------------------
-.. This file was automatically converted from DocBook-XML with the dbxml
-.. library (https://github.com/return42/sphkerneldoc). The origin XML comes
-.. from the linux kernel, refer to:
-..
-.. * https://github.com/torvalds/linux/tree/master/Documentation/DocBook
-.. ------------------------------------------------------------------------------

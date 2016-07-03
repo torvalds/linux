@@ -197,14 +197,3 @@ should have the value ``V4L2_FIELD_ANY`` (0).
     :align:  center
 
     Field Order, Bottom Field First Transmitted
-
-
-
-
-.. ------------------------------------------------------------------------------
-.. This file was automatically converted from DocBook-XML with the dbxml
-.. library (https://github.com/return42/sphkerneldoc). The origin XML comes
-.. from the linux kernel, refer to:
-..
-.. * https://github.com/torvalds/linux/tree/master/Documentation/DocBook
-.. ------------------------------------------------------------------------------

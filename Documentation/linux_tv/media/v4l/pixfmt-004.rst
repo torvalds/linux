@@ -49,12 +49,3 @@ memory buffer, but it can also be placed in two or three separate
 buffers, with Y component in one buffer and CbCr components in another
 in the 2-planar version or with each component in its own buffer in the
 3-planar case. Those sub-buffers are referred to as "*planes*".
-
-
-.. ------------------------------------------------------------------------------
-.. This file was automatically converted from DocBook-XML with the dbxml
-.. library (https://github.com/return42/sphkerneldoc). The origin XML comes
-.. from the linux kernel, refer to:
-..
-.. * https://github.com/torvalds/linux/tree/master/Documentation/DocBook
-.. ------------------------------------------------------------------------------

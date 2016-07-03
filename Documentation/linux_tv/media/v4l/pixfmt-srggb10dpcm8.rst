@@ -22,12 +22,3 @@ colour compressed to 8 bits each, using DPCM compression. DPCM,
 differential pulse-code modulation, is lossy. Each colour component
 consumes 8 bits of memory. In other respects this format is similar to
 :ref:`V4L2-PIX-FMT-SRGGB10`.
-
-
-.. ------------------------------------------------------------------------------
-.. This file was automatically converted from DocBook-XML with the dbxml
-.. library (https://github.com/return42/sphkerneldoc). The origin XML comes
-.. from the linux kernel, refer to:
-..
-.. * https://github.com/torvalds/linux/tree/master/Documentation/DocBook
-.. ------------------------------------------------------------------------------

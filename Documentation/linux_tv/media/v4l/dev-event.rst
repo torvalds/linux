@@ -45,12 +45,3 @@ events:
    is lost, but only an intermediate step leading up to that
    information. See the documentation for the event you want to
    subscribe to whether this is applicable for that event or not.
-
-
-.. ------------------------------------------------------------------------------
-.. This file was automatically converted from DocBook-XML with the dbxml
-.. library (https://github.com/return42/sphkerneldoc). The origin XML comes
-.. from the linux kernel, refer to:
-..
-.. * https://github.com/torvalds/linux/tree/master/Documentation/DocBook
-.. ------------------------------------------------------------------------------

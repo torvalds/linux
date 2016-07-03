@@ -240,14 +240,3 @@ enum dmx_source_t
         DMX_SOURCE_DVR2,
         DMX_SOURCE_DVR3
     } dmx_source_t;
-
-
-
-
-.. ------------------------------------------------------------------------------
-.. This file was automatically converted from DocBook-XML with the dbxml
-.. library (https://github.com/return42/sphkerneldoc). The origin XML comes
-.. from the linux kernel, refer to:
-..
-.. * https://github.com/torvalds/linux/tree/master/Documentation/DocBook
-.. ------------------------------------------------------------------------------

@@ -43,14 +43,3 @@ pixels.
        -  Y'\ :sub:`02[5:0]`\ Y'\ :sub:`03[9:8]`
 
        -  Y'\ :sub:`03[7:0]`
-
-
-
-
-.. ------------------------------------------------------------------------------
-.. This file was automatically converted from DocBook-XML with the dbxml
-.. library (https://github.com/return42/sphkerneldoc). The origin XML comes
-.. from the linux kernel, refer to:
-..
-.. * https://github.com/torvalds/linux/tree/master/Documentation/DocBook
-.. ------------------------------------------------------------------------------

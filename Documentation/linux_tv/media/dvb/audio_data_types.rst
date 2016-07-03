@@ -174,14 +174,3 @@ The following attributes can be set by a call to AUDIO_SET_ATTRIBUTES:
      /*    7- 6 Quantization / DRC (mpeg audio: 1=DRC exists)(lpcm: 0=16bit,  */
      /*    5- 4 Sample frequency fs (0=48kHz, 1=96kHz) */
      /*    2- 0 number of audio channels (n+1 channels) */
-
-
-
-
-.. ------------------------------------------------------------------------------
-.. This file was automatically converted from DocBook-XML with the dbxml
-.. library (https://github.com/return42/sphkerneldoc). The origin XML comes
-.. from the linux kernel, refer to:
-..
-.. * https://github.com/torvalds/linux/tree/master/Documentation/DocBook
-.. ------------------------------------------------------------------------------

@@ -20,12 +20,3 @@ statistics require the demodulator to be fully locked (e. g. with
 FE_HAS_LOCK bit set). See
 :ref:`Frontend statistics indicators <frontend-stat-properties>` for
 more details.
-
-
-.. ------------------------------------------------------------------------------
-.. This file was automatically converted from DocBook-XML with the dbxml
-.. library (https://github.com/return42/sphkerneldoc). The origin XML comes
-.. from the linux kernel, refer to:
-..
-.. * https://github.com/torvalds/linux/tree/master/Documentation/DocBook
-.. ------------------------------------------------------------------------------

@@ -90,12 +90,3 @@ by all drivers exchanging image data with applications.
    (otherwise it could explicitly ask for them and need not enumerate)
    seems useless, but there are applications serving as proxy between
    drivers and the actual video applications for which this is useful.
-
-
-.. ------------------------------------------------------------------------------
-.. This file was automatically converted from DocBook-XML with the dbxml
-.. library (https://github.com/return42/sphkerneldoc). The origin XML comes
-.. from the linux kernel, refer to:
-..
-.. * https://github.com/torvalds/linux/tree/master/Documentation/DocBook
-.. ------------------------------------------------------------------------------

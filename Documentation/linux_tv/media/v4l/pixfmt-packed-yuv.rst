@@ -314,12 +314,3 @@ Bit 7 is the most significant bit. The value of a = alpha bits is
 undefined when reading from the driver, ignored when writing to the
 driver, except when alpha blending has been negotiated for a
 :ref:`Video Overlay <overlay>` or :ref:`Video Output Overlay <osd>`.
-
-
-.. ------------------------------------------------------------------------------
-.. This file was automatically converted from DocBook-XML with the dbxml
-.. library (https://github.com/return42/sphkerneldoc). The origin XML comes
-.. from the linux kernel, refer to:
-..
-.. * https://github.com/torvalds/linux/tree/master/Documentation/DocBook
-.. ------------------------------------------------------------------------------

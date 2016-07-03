@@ -160,12 +160,3 @@ appropriately. The generic error codes are described at the
 EINVAL
     No audio inputs combine with the current video input, or the number
     of the selected audio input is out of bounds or it does not combine.
-
-
-.. ------------------------------------------------------------------------------
-.. This file was automatically converted from DocBook-XML with the dbxml
-.. library (https://github.com/return42/sphkerneldoc). The origin XML comes
-.. from the linux kernel, refer to:
-..
-.. * https://github.com/torvalds/linux/tree/master/Documentation/DocBook
-.. ------------------------------------------------------------------------------

@@ -21,12 +21,3 @@ These four pixel formats are raw sRGB / Bayer formats with 10 bits per
 color compressed to 8 bits each, using the A-LAW algorithm. Each color
 component consumes 8 bits of memory. In other respects this format is
 similar to :ref:`V4L2-PIX-FMT-SRGGB8`.
-
-
-.. ------------------------------------------------------------------------------
-.. This file was automatically converted from DocBook-XML with the dbxml
-.. library (https://github.com/return42/sphkerneldoc). The origin XML comes
-.. from the linux kernel, refer to:
-..
-.. * https://github.com/torvalds/linux/tree/master/Documentation/DocBook
-.. ------------------------------------------------------------------------------

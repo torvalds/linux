@@ -30,12 +30,3 @@ Transfer function:
 Inverse Transfer function:
     L = (max(L':sup:`1/m2` - c1, 0) / (c2 - c3 *
     L'\ :sup:`1/m2`))\ :sup:`1/m1`
-
-
-.. ------------------------------------------------------------------------------
-.. This file was automatically converted from DocBook-XML with the dbxml
-.. library (https://github.com/return42/sphkerneldoc). The origin XML comes
-.. from the linux kernel, refer to:
-..
-.. * https://github.com/torvalds/linux/tree/master/Documentation/DocBook
-.. ------------------------------------------------------------------------------

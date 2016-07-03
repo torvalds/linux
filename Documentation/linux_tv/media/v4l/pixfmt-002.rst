@@ -194,14 +194,3 @@ Single-planar format structure
        -  This information supplements the ``colorspace`` and must be set by
           the driver for capture streams and by the application for output
           streams, see :ref:`colorspaces`.
-
-
-
-
-.. ------------------------------------------------------------------------------
-.. This file was automatically converted from DocBook-XML with the dbxml
-.. library (https://github.com/return42/sphkerneldoc). The origin XML comes
-.. from the linux kernel, refer to:
-..
-.. * https://github.com/torvalds/linux/tree/master/Documentation/DocBook
-.. ------------------------------------------------------------------------------

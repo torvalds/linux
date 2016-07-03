@@ -75,18 +75,6 @@ etc, please mail to:
     media/v4l/gen-errors
     media/v4l/fdl-appendix
 
-
-
-
-.. ------------------------------------------------------------------------------
-.. This file was automatically converted from DocBook-XML with the dbxml
-.. library (https://github.com/return42/sphkerneldoc). The origin XML comes
-.. from the linux kernel, refer to:
-..
-.. * https://github.com/torvalds/linux/tree/master/Documentation/DocBook
-.. ------------------------------------------------------------------------------
-
-
 .. only:: html
 
   Retrieval

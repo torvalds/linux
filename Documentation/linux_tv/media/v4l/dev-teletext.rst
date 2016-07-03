@@ -32,12 +32,3 @@ Teletext API in kernel 2.6.37.
 
 Modern devices all use the :ref:`raw <raw-vbi>` or
 :ref:`sliced` VBI API.
-
-
-.. ------------------------------------------------------------------------------
-.. This file was automatically converted from DocBook-XML with the dbxml
-.. library (https://github.com/return42/sphkerneldoc). The origin XML comes
-.. from the linux kernel, refer to:
-..
-.. * https://github.com/torvalds/linux/tree/master/Documentation/DocBook
-.. ------------------------------------------------------------------------------

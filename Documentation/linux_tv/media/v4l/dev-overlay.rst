@@ -317,12 +317,3 @@ To start or stop the frame buffer overlay applications call the
    because the application and graphics system are not aware these
    regions need to be refreshed. The driver should clip out more pixels
    or not write the image at all.
-
-
-.. ------------------------------------------------------------------------------
-.. This file was automatically converted from DocBook-XML with the dbxml
-.. library (https://github.com/return42/sphkerneldoc). The origin XML comes
-.. from the linux kernel, refer to:
-..
-.. * https://github.com/torvalds/linux/tree/master/Documentation/DocBook
-.. ------------------------------------------------------------------------------

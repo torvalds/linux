@@ -892,12 +892,3 @@ will have to set that information explicitly. Effectively
 ``V4L2_COLORSPACE_JPEG`` can be considered to be an abbreviation for
 ``V4L2_COLORSPACE_SRGB``, ``V4L2_YCBCR_ENC_601`` and
 ``V4L2_QUANTIZATION_FULL_RANGE``.
-
-
-.. ------------------------------------------------------------------------------
-.. This file was automatically converted from DocBook-XML with the dbxml
-.. library (https://github.com/return42/sphkerneldoc). The origin XML comes
-.. from the linux kernel, refer to:
-..
-.. * https://github.com/torvalds/linux/tree/master/Documentation/DocBook
-.. ------------------------------------------------------------------------------

@@ -141,12 +141,3 @@ scancodes which match the filter will wake the system from e.g. suspend
 to RAM or power off. Otherwise the write will fail with an error.
 
 This value may be reset to 0 if the wakeup protocol is altered.
-
-
-.. ------------------------------------------------------------------------------
-.. This file was automatically converted from DocBook-XML with the dbxml
-.. library (https://github.com/return42/sphkerneldoc). The origin XML comes
-.. from the linux kernel, refer to:
-..
-.. * https://github.com/torvalds/linux/tree/master/Documentation/DocBook
-.. ------------------------------------------------------------------------------

@@ -61,12 +61,3 @@ appropriately. The generic error codes are described at the
 EINVAL
     The number of the video output is out of bounds, or there are no
     video outputs at all.
-
-
-.. ------------------------------------------------------------------------------
-.. This file was automatically converted from DocBook-XML with the dbxml
-.. library (https://github.com/return42/sphkerneldoc). The origin XML comes
-.. from the linux kernel, refer to:
-..
-.. * https://github.com/torvalds/linux/tree/master/Documentation/DocBook
-.. ------------------------------------------------------------------------------

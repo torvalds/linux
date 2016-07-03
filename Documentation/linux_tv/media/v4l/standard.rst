@@ -177,12 +177,3 @@ standard ioctls can be used with the given input or output.
    Some users are already confused by technical terms PAL, NTSC and
    SECAM. There is no point asking them to distinguish between B, G, D,
    or K when the software or hardware can do that automatically.
-
-
-.. ------------------------------------------------------------------------------
-.. This file was automatically converted from DocBook-XML with the dbxml
-.. library (https://github.com/return42/sphkerneldoc). The origin XML comes
-.. from the linux kernel, refer to:
-..
-.. * https://github.com/torvalds/linux/tree/master/Documentation/DocBook
-.. ------------------------------------------------------------------------------

@@ -118,12 +118,3 @@ data transfer, set by the driver in order to inform application.
 
 An SDR device may support :ref:`read/write <rw>` and/or streaming
 (:ref:`memory mapping <mmap>` or :ref:`user pointer <userp>`) I/O.
-
-
-.. ------------------------------------------------------------------------------
-.. This file was automatically converted from DocBook-XML with the dbxml
-.. library (https://github.com/return42/sphkerneldoc). The origin XML comes
-.. from the linux kernel, refer to:
-..
-.. * https://github.com/torvalds/linux/tree/master/Documentation/DocBook
-.. ------------------------------------------------------------------------------

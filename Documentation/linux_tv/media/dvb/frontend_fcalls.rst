@@ -22,14 +22,3 @@ Frontend Function Calls
     fe-set-voltage
     fe-enable-high-lnb-voltage
     fe-set-frontend-tune-mode
-
-
-
-
-.. ------------------------------------------------------------------------------
-.. This file was automatically converted from DocBook-XML with the dbxml
-.. library (https://github.com/return42/sphkerneldoc). The origin XML comes
-.. from the linux kernel, refer to:
-..
-.. * https://github.com/torvalds/linux/tree/master/Documentation/DocBook
-.. ------------------------------------------------------------------------------

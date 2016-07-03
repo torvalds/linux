@@ -112,12 +112,3 @@ EINVAL
     :ref:`v4l2_subdev_mbus_code_enum <v4l2-subdev-mbus-code-enum>`
     ``pad`` references a non-existing pad, or the ``index`` field is out
     of bounds.
-
-
-.. ------------------------------------------------------------------------------
-.. This file was automatically converted from DocBook-XML with the dbxml
-.. library (https://github.com/return42/sphkerneldoc). The origin XML comes
-.. from the linux kernel, refer to:
-..
-.. * https://github.com/torvalds/linux/tree/master/Documentation/DocBook
-.. ------------------------------------------------------------------------------

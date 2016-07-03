@@ -54,12 +54,3 @@ On success :c:func:`munmap()` returns 0, on failure -1 and the
 EINVAL
     The ``start`` or ``length`` is incorrect, or no buffers have been
     mapped yet.
-
-
-.. ------------------------------------------------------------------------------
-.. This file was automatically converted from DocBook-XML with the dbxml
-.. library (https://github.com/return42/sphkerneldoc). The origin XML comes
-.. from the linux kernel, refer to:
-..
-.. * https://github.com/torvalds/linux/tree/master/Documentation/DocBook
-.. ------------------------------------------------------------------------------

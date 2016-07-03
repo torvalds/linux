@@ -101,12 +101,3 @@ The following parameters are valid for ISDB-S:
 -  :ref:`DTV_VOLTAGE <DTV-VOLTAGE>`
 
 -  :ref:`DTV_STREAM_ID <DTV-STREAM-ID>`
-
-
-.. ------------------------------------------------------------------------------
-.. This file was automatically converted from DocBook-XML with the dbxml
-.. library (https://github.com/return42/sphkerneldoc). The origin XML comes
-.. from the linux kernel, refer to:
-..
-.. * https://github.com/torvalds/linux/tree/master/Documentation/DocBook
-.. ------------------------------------------------------------------------------

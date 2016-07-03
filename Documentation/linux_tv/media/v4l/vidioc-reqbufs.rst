@@ -122,12 +122,3 @@ appropriately. The generic error codes are described at the
 EINVAL
     The buffer type (``type`` field) or the requested I/O method
     (``memory``) is not supported.
-
-
-.. ------------------------------------------------------------------------------
-.. This file was automatically converted from DocBook-XML with the dbxml
-.. library (https://github.com/return42/sphkerneldoc). The origin XML comes
-.. from the linux kernel, refer to:
-..
-.. * https://github.com/torvalds/linux/tree/master/Documentation/DocBook
-.. ------------------------------------------------------------------------------

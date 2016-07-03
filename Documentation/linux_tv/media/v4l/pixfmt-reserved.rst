@@ -358,14 +358,3 @@ please make a proposal on the linux-media mailing list.
           by RGBA values (128, 192, 255, 128), the same pixel described with
           premultiplied colors would be described by RGBA values (64, 96,
           128, 128)
-
-
-
-
-.. ------------------------------------------------------------------------------
-.. This file was automatically converted from DocBook-XML with the dbxml
-.. library (https://github.com/return42/sphkerneldoc). The origin XML comes
-.. from the linux kernel, refer to:
-..
-.. * https://github.com/torvalds/linux/tree/master/Documentation/DocBook
-.. ------------------------------------------------------------------------------

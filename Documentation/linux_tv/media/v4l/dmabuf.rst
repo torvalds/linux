@@ -147,12 +147,3 @@ Drivers implementing DMABUF importing I/O must support the
 ``VIDIOC_REQBUFS``, ``VIDIOC_QBUF``, ``VIDIOC_DQBUF``,
 ``VIDIOC_STREAMON`` and ``VIDIOC_STREAMOFF`` ioctls, and the
 :c:func:`select()` and :c:func:`poll()` functions.
-
-
-.. ------------------------------------------------------------------------------
-.. This file was automatically converted from DocBook-XML with the dbxml
-.. library (https://github.com/return42/sphkerneldoc). The origin XML comes
-.. from the linux kernel, refer to:
-..
-.. * https://github.com/torvalds/linux/tree/master/Documentation/DocBook
-.. ------------------------------------------------------------------------------

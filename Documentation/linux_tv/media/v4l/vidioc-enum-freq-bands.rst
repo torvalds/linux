@@ -187,12 +187,3 @@ appropriately. The generic error codes are described at the
 EINVAL
     The ``tuner`` or ``index`` is out of bounds or the ``type`` field is
     wrong.
-
-
-.. ------------------------------------------------------------------------------
-.. This file was automatically converted from DocBook-XML with the dbxml
-.. library (https://github.com/return42/sphkerneldoc). The origin XML comes
-.. from the linux kernel, refer to:
-..
-.. * https://github.com/torvalds/linux/tree/master/Documentation/DocBook
-.. ------------------------------------------------------------------------------

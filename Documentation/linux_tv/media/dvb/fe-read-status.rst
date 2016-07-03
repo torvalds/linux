@@ -130,14 +130,3 @@ state changes of the frontend hardware. It is produced using the enum
 
        -  The frontend was reinitialized, application is recommended to
           reset DiSEqC, tone and parameters
-
-
-
-
-.. ------------------------------------------------------------------------------
-.. This file was automatically converted from DocBook-XML with the dbxml
-.. library (https://github.com/return42/sphkerneldoc). The origin XML comes
-.. from the linux kernel, refer to:
-..
-.. * https://github.com/torvalds/linux/tree/master/Documentation/DocBook
-.. ------------------------------------------------------------------------------

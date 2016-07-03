@@ -120,12 +120,3 @@ EINVAL
     :ref:`v4l2_subdev_frame_interval <v4l2-subdev-frame-interval>`
     ``pad`` references a non-existing pad, or the pad doesn't support
     frame intervals.
-
-
-.. ------------------------------------------------------------------------------
-.. This file was automatically converted from DocBook-XML with the dbxml
-.. library (https://github.com/return42/sphkerneldoc). The origin XML comes
-.. from the linux kernel, refer to:
-..
-.. * https://github.com/torvalds/linux/tree/master/Documentation/DocBook
-.. ------------------------------------------------------------------------------

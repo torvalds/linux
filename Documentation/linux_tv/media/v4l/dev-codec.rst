@@ -30,12 +30,3 @@ the codec and reprogram it whenever another file handler gets access.
 This is different from the usual video node behavior where the video
 properties are global to the device (i.e. changing something through one
 file handle is visible through another file handle).
-
-
-.. ------------------------------------------------------------------------------
-.. This file was automatically converted from DocBook-XML with the dbxml
-.. library (https://github.com/return42/sphkerneldoc). The origin XML comes
-.. from the linux kernel, refer to:
-..
-.. * https://github.com/torvalds/linux/tree/master/Documentation/DocBook
-.. ------------------------------------------------------------------------------

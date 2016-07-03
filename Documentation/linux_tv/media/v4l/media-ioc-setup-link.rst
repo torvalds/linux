@@ -64,12 +64,3 @@ EINVAL
     The struct :ref:`media_link_desc <media-link-desc>` references a
     non-existing link, or the link is immutable and an attempt to modify
     its configuration was made.
-
-
-.. ------------------------------------------------------------------------------
-.. This file was automatically converted from DocBook-XML with the dbxml
-.. library (https://github.com/return42/sphkerneldoc). The origin XML comes
-.. from the linux kernel, refer to:
-..
-.. * https://github.com/torvalds/linux/tree/master/Documentation/DocBook
-.. ------------------------------------------------------------------------------

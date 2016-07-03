@@ -193,12 +193,3 @@ partial path like:
 To enable applications to support different API version, an additional
 include file ``linux/dvb/version.h`` exists, which defines the constant
 ``DVB_API_VERSION``. This document describes ``DVB_API_VERSION 5.10``.
-
-
-.. ------------------------------------------------------------------------------
-.. This file was automatically converted from DocBook-XML with the dbxml
-.. library (https://github.com/return42/sphkerneldoc). The origin XML comes
-.. from the linux kernel, refer to:
-..
-.. * https://github.com/torvalds/linux/tree/master/Documentation/DocBook
-.. ------------------------------------------------------------------------------

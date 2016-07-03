@@ -431,12 +431,3 @@ appropriately. The generic error codes are described at the
    The struct :ref:`v4l2_framebuffer <v4l2-framebuffer>` lacks an
    enum :ref:`v4l2_buf_type <v4l2-buf-type>` field, therefore the
    type of overlay is implied by the driver capabilities.
-
-
-.. ------------------------------------------------------------------------------
-.. This file was automatically converted from DocBook-XML with the dbxml
-.. library (https://github.com/return42/sphkerneldoc). The origin XML comes
-.. from the linux kernel, refer to:
-..
-.. * https://github.com/torvalds/linux/tree/master/Documentation/DocBook
-.. ------------------------------------------------------------------------------

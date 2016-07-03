@@ -22,12 +22,3 @@ conjunction with a wide variety of different IR remotes.
 In order to allow flexibility, the Remote Controller subsystem allows
 controlling the RC-specific attributes via
 :ref:`the sysfs class nodes <remote_controllers_sysfs_nodes>`.
-
-
-.. ------------------------------------------------------------------------------
-.. This file was automatically converted from DocBook-XML with the dbxml
-.. library (https://github.com/return42/sphkerneldoc). The origin XML comes
-.. from the linux kernel, refer to:
-..
-.. * https://github.com/torvalds/linux/tree/master/Documentation/DocBook
-.. ------------------------------------------------------------------------------

@@ -531,12 +531,3 @@ more menu type controls.
    instead of using :ref:`VIDIOC_QUERYCTRL` with
    the ``V4L2_CTRL_FLAG_NEXT_CTRL`` flag to enumerate all IDs, so
    support for ``V4L2_CID_PRIVATE_BASE`` is still around.
-
-
-.. ------------------------------------------------------------------------------
-.. This file was automatically converted from DocBook-XML with the dbxml
-.. library (https://github.com/return42/sphkerneldoc). The origin XML comes
-.. from the linux kernel, refer to:
-..
-.. * https://github.com/torvalds/linux/tree/master/Documentation/DocBook
-.. ------------------------------------------------------------------------------

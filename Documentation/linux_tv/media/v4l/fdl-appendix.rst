@@ -469,12 +469,3 @@ recommend releasing these examples in parallel under your choice of free
 software license, such as the
 `GNU General Public License <http://www.gnu.org/copyleft/gpl.html>`__,
 to permit their use in free software.
-
-
-.. ------------------------------------------------------------------------------
-.. This file was automatically converted from DocBook-XML with the dbxml
-.. library (https://github.com/return42/sphkerneldoc). The origin XML comes
-.. from the linux kernel, refer to:
-..
-.. * https://github.com/torvalds/linux/tree/master/Documentation/DocBook
-.. ------------------------------------------------------------------------------

@@ -377,14 +377,3 @@ The following attributes can be set by a call to VIDEO_SET_ATTRIBUTES:
      /*    5- 3 source resolution (0=720x480/576, 1=704x480/576, 2=352x480/57 */
      /*    2    source letterboxed (1=yes, 0=no) */
      /*    0    film/camera mode (0=camera, 1=film (625/50 only)) */
-
-
-
-
-.. ------------------------------------------------------------------------------
-.. This file was automatically converted from DocBook-XML with the dbxml
-.. library (https://github.com/return42/sphkerneldoc). The origin XML comes
-.. from the linux kernel, refer to:
-..
-.. * https://github.com/torvalds/linux/tree/master/Documentation/DocBook
-.. ------------------------------------------------------------------------------

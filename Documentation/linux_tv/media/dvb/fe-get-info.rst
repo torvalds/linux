@@ -421,14 +421,3 @@ supported only on some specific frontend types.
           ``FE_CAN_MUTE_TS``
 
        -  The frontend can stop spurious TS data output
-
-
-
-
-.. ------------------------------------------------------------------------------
-.. This file was automatically converted from DocBook-XML with the dbxml
-.. library (https://github.com/return42/sphkerneldoc). The origin XML comes
-.. from the linux kernel, refer to:
-..
-.. * https://github.com/torvalds/linux/tree/master/Documentation/DocBook
-.. ------------------------------------------------------------------------------

@@ -160,14 +160,3 @@ file: dmx.h
     #define DMX_REMOVE_PID           _IOW('o', 52, __u16)
 
     #endif /* _UAPI_DVBDMX_H_ */
-
-
-
-
-.. ------------------------------------------------------------------------------
-.. This file was automatically converted from DocBook-XML with the dbxml
-.. library (https://github.com/return42/sphkerneldoc). The origin XML comes
-.. from the linux kernel, refer to:
-..
-.. * https://github.com/torvalds/linux/tree/master/Documentation/DocBook
-.. ------------------------------------------------------------------------------

@@ -498,12 +498,3 @@ EINVAL
    offset instead. If you encounter problems please discuss on the
    linux-media mailing list:
    `https://linuxtv.org/lists.php <https://linuxtv.org/lists.php>`__.
-
-
-.. ------------------------------------------------------------------------------
-.. This file was automatically converted from DocBook-XML with the dbxml
-.. library (https://github.com/return42/sphkerneldoc). The origin XML comes
-.. from the linux kernel, refer to:
-..
-.. * https://github.com/torvalds/linux/tree/master/Documentation/DocBook
-.. ------------------------------------------------------------------------------

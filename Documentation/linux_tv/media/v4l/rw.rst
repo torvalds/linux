@@ -45,12 +45,3 @@ driver must also support the :ref:`select() <func-select>` and
 .. [2]
    At the driver level :c:func:`select()` and :c:func:`poll()` are
    the same, and :c:func:`select()` is too important to be optional.
-
-
-.. ------------------------------------------------------------------------------
-.. This file was automatically converted from DocBook-XML with the dbxml
-.. library (https://github.com/return42/sphkerneldoc). The origin XML comes
-.. from the linux kernel, refer to:
-..
-.. * https://github.com/torvalds/linux/tree/master/Documentation/DocBook
-.. ------------------------------------------------------------------------------

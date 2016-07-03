@@ -117,14 +117,3 @@ DVB-T frontends are supported by the ``dvb_ofdm_parameters`` structure:
          fe_guard_interval_t guard_interval;
          fe_hierarchy_t      hierarchy_information;
      };
-
-
-
-
-.. ------------------------------------------------------------------------------
-.. This file was automatically converted from DocBook-XML with the dbxml
-.. library (https://github.com/return42/sphkerneldoc). The origin XML comes
-.. from the linux kernel, refer to:
-..
-.. * https://github.com/torvalds/linux/tree/master/Documentation/DocBook
-.. ------------------------------------------------------------------------------
