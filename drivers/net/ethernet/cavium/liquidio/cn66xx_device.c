@@ -219,7 +219,7 @@ void lio_cn6xxx_setup_global_output_regs(struct octeon_device *oct)
 	/* / Select Packet count instead of bytes for SLI_PKTi_CNTS[CNT] */
 	octeon_write_csr(oct, CN6XXX_SLI_PKT_OUT_BMODE, 0);
 
-	/* / Select ES,RO,NS setting from register for Output Queue Packet
+	/* Select ES, RO, NS setting from register for Output Queue Packet
 	 * Address
 	 */
 	octeon_write_csr(oct, CN6XXX_SLI_PKT_DPADDR, 0xFFFFFFFF);

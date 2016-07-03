@@ -92,6 +92,11 @@ static inline void *octeon_get_dispatch_arg(struct octeon_device *octeon_dev,
 	return fn_arg;
 }
 
+/** Check for packets on Droq. This function should be called with
+ * lock held.
+ *  @param  droq - Droq on which count is checked.
+ *  @return Returns packet count.
+ */
 u32 octeon_droq_check_hw_for_pkts(struct octeon_droq *droq)
 {
 	u32 pkt_count = 0;
@@ -183,7 +188,6 @@ octeon_droq_setup_ring_buffers(struct octeon_device *oct,
 
 		droq->recv_buf_list[i].buffer = buf;
 		droq->recv_buf_list[i].data = get_rbd(buf);
-
 		droq->info_list[i].length = 0;
 
 		/* map ring buffers into memory */
@@ -556,7 +560,9 @@ octeon_droq_dispatch_pkt(struct octeon_device *oct,
 			droq->stats.dropped_nomem++;
 		}
 	} else {
-		dev_err(&oct->pci_dev->dev, "DROQ: No dispatch function\n");
+		dev_err(&oct->pci_dev->dev, "DROQ: No dispatch function (opcode %u/%u)\n",
+			(unsigned int)rh->r.opcode,
+			(unsigned int)rh->r.subcode);
 		droq->stats.dropped_nodispatch++;
 	}                       /* else (dispatch_fn ... */
 
@@ -641,6 +647,7 @@ octeon_droq_fast_process_packets(struct octeon_device *oct,
 					pg_info->page = NULL;
 				droq->recv_buf_list[droq->read_idx].buffer =
 					NULL;
+
 				INCR_INDEX_BY1(droq->read_idx, droq->max_count);
 				droq->refill_count++;
 			} else {
@@ -735,7 +742,7 @@ octeon_droq_process_packets(struct octeon_device *oct,
 	if (pkt_count > budget)
 		pkt_count = budget;
 
-	/* Grab the lock */
+	/* Grab the droq lock */
 	spin_lock(&droq->lock);
 
 	pkts_processed = octeon_droq_fast_process_packets(oct, droq, pkt_count);

@@ -1258,7 +1258,7 @@ static void octeon_destroy_resources(struct octeon_device *oct)
 
 		/* Nothing to be done here either */
 		break;
-	}                       /* end switch(oct->status) */
+	}                       /* end switch (oct->status) */
 
 	tasklet_kill(&oct_priv->droq_tasklet);
 }
@@ -2125,7 +2125,7 @@ static int liquidio_napi_poll(struct napi_struct *napi, int budget)
 /**
  * \brief Setup input and output queues
  * @param octeon_dev octeon device
- * @param net_device Net device
+ * @param ifidx  Interface Index
  *
  * Note: Queues are with respect to the octeon device. Thus
  * an input queue is for egress packets, and output queues
@@ -2336,7 +2336,6 @@ static int liquidio_stop(struct net_device *netdev)
 	}
 
 	dev_info(&oct->pci_dev->dev, "%s interface is stopped\n", netdev->name);
-	module_put(THIS_MODULE);
 
 	return 0;
 }
@@ -2347,6 +2346,7 @@ void liquidio_link_ctrl_cmd_completion(void *nctrl_ptr)
 	struct net_device *netdev = (struct net_device *)nctrl->netpndev;
 	struct lio *lio = GET_LIO(netdev);
 	struct octeon_device *oct = lio->oct_dev;
+	u8 *mac;
 
 	switch (nctrl->ncmd.s.cmd) {
 	case OCTNET_CMD_CHANGE_DEVFLAGS:
@@ -2354,12 +2354,11 @@ void liquidio_link_ctrl_cmd_completion(void *nctrl_ptr)
 		break;
 
 	case OCTNET_CMD_CHANGE_MACADDR:
-		/* If command is successful, change the MACADDR. */
-		netif_info(lio, probe, lio->netdev, " MACAddr changed to 0x%llx\n",
-			   CVM_CAST64(nctrl->udd[0]));
-		dev_info(&oct->pci_dev->dev, "%s MACAddr changed to 0x%llx\n",
-			 netdev->name, CVM_CAST64(nctrl->udd[0]));
-		memcpy(netdev->dev_addr, ((u8 *)&nctrl->udd[0]) + 2, ETH_ALEN);
+		mac = ((u8 *)&nctrl->udd[0]) + 2;
+		netif_info(lio, probe, lio->netdev,
+			   "%s %2.2x:%2.2x:%2.2x:%2.2x:%2.2x:%2.2x\n",
+			   "MACAddr changed to", mac[0], mac[1],
+			   mac[2], mac[3], mac[4], mac[5]);
 		break;
 
 	case OCTNET_CMD_CHANGE_MTU:
@@ -2940,12 +2939,12 @@ static int liquidio_xmit(struct sk_buff *skb, struct net_device *netdev)
 			/* defer sending if queue is full */
 			stats->tx_iq_busy++;
 			netif_info(lio, tx_err, lio->netdev, "Transmit failed iq:%d full\n",
-				   ndata.q_no);
+				   lio->txq);
 			return NETDEV_TX_BUSY;
 		}
 	}
 	/* pr_info(" XMIT - valid Qs: %d, 1st Q no: %d, cpu:  %d, q_no:%d\n",
-	 *	lio->linfo.num_txpciq, lio->txq, cpu, ndata.q_no );
+	 *	lio->linfo.num_txpciq, lio->txq, cpu, ndata.q_no);
 	 */
 
 	ndata.datasize = skb->len;
@@ -2969,6 +2968,7 @@ static int liquidio_xmit(struct sk_buff *skb, struct net_device *netdev)
 	if (skb_shinfo(skb)->nr_frags == 0) {
 		cmdsetup.s.u.datasize = skb->len;
 		octnet_prepare_pci_cmd(oct, &ndata.cmd, &cmdsetup, tag);
+
 		/* Offload checksum calculation for TCP/UDP packets */
 		dptr = dma_map_single(&oct->pci_dev->dev,
 				      skb->data,
@@ -3716,8 +3716,8 @@ static int setup_nic_devices(struct octeon_device *octeon_dev)
 		octeon_dev->priv_flags = 0x0;
 
 		if (netdev->features & NETIF_F_LRO)
-		liquidio_set_feature(netdev, OCTNET_CMD_LRO_ENABLE,
-				     OCTNIC_LROIPV4 | OCTNIC_LROIPV6);
+			liquidio_set_feature(netdev, OCTNET_CMD_LRO_ENABLE,
+					     OCTNIC_LROIPV4 | OCTNIC_LROIPV6);
 
 		liquidio_set_feature(netdev, OCTNET_CMD_ENABLE_VLAN_FILTER, 0);
 

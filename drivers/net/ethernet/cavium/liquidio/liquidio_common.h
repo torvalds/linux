@@ -34,6 +34,7 @@
 #define LIQUIDIO_MICRO_VERSION  ".1"
 #define LIQUIDIO_PACKAGE ""
 #define LIQUIDIO_VERSION  "1.4.1"
+
 #define CONTROL_IQ 0
 /** Tag types used by Octeon cores in its work. */
 enum octeon_tag_type {
@@ -295,7 +296,7 @@ union octnet_cmd {
 
 #define   OCTNET_CMD_SIZE     (sizeof(union octnet_cmd))
 
-/* Instruction Header (DPI - CN23xx) - for OCTEON-III models */
+/* Instruction Header(DPI) - for OCTEON-III models */
 struct  octeon_instr_ih3 {
 #ifdef __BIG_ENDIAN_BITFIELD
 
@@ -345,7 +346,7 @@ struct  octeon_instr_ih3 {
 #endif
 };
 
-/* Optional PKI Instruction Header(PKI IH) - for OCTEON CN23XX models */
+/* Optional PKI Instruction Header(PKI IH) - for OCTEON-III models */
 /** BIG ENDIAN format.   */
 struct  octeon_instr_pki_ih3 {
 #ifdef __BIG_ENDIAN_BITFIELD

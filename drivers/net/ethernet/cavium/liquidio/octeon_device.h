@@ -221,7 +221,7 @@ struct octeon_fn_list {
 
 /* Structure for named memory blocks
  * Number of descriptors
- * available can be changed without affecting compatiblity,
+ * available can be changed without affecting compatibility,
  * but name length changes require a bump in the bootmem
  * descriptor version
  * Note: This structure must be naturally 64 bit aligned, as a single
@@ -254,7 +254,7 @@ struct oct_fw_info {
 struct cavium_wk {
 	struct delayed_work work;
 	void *ctxptr;
-	size_t ctxul;
+	u64 ctxul;
 };
 
 struct cavium_wq {

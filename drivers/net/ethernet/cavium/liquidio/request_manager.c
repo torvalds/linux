@@ -349,6 +349,7 @@ __add_to_request_list(struct octeon_instr_queue *iq,
 	iq->request_list[idx].reqtype = reqtype;
 }
 
+/* Can only run in process context */
 int
 lio_process_iq_request_list(struct octeon_device *oct,
 			    struct octeon_instr_queue *iq, u32 napi_budget)
@@ -405,6 +406,7 @@ lio_process_iq_request_list(struct octeon_device *oct,
 					 flags);
 			} else {
 				if (sc->callback) {
+					/* This callback must not sleep */
 					sc->callback(oct, OCTEON_REQUEST_DONE,
 						     sc->callback_arg);
 				}
@@ -521,7 +523,7 @@ static void check_db_timeout(struct work_struct *work)
 {
 	struct cavium_wk *wk = (struct cavium_wk *)work;
 	struct octeon_device *oct = (struct octeon_device *)wk->ctxptr;
-	unsigned long iq_no = wk->ctxul;
+	u64 iq_no = wk->ctxul;
 	struct cavium_wq *db_wq = &oct->check_db_wq[iq_no];
 	u32 delay = 10;
 
@@ -550,7 +552,7 @@ octeon_send_command(struct octeon_device *oct, u32 iq_no,
 		INCR_INSTRQUEUE_PKT_COUNT(oct, iq_no, bytes_sent, datasize);
 		INCR_INSTRQUEUE_PKT_COUNT(oct, iq_no, instr_posted, 1);
 
-		if (iq->fill_cnt >= iq->fill_threshold || force_db)
+		if (force_db)
 			ring_doorbell(oct, iq);
 	} else {
 		INCR_INSTRQUEUE_PKT_COUNT(oct, iq_no, instr_dropped, 1);

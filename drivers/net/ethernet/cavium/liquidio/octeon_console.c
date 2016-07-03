@@ -223,7 +223,7 @@ static void CVMX_BOOTMEM_NAMED_GET_NAME(struct octeon_device *oct,
 					u32 len)
 {
 	addr += offsetof(struct cvmx_bootmem_named_block_desc, name);
-	octeon_pci_read_core_mem(oct, addr, str, len);
+	octeon_pci_read_core_mem(oct, addr, (u8 *)str, len);
 	str[len] = 0;
 }
 
@@ -375,7 +375,7 @@ static void octeon_remote_unlock(void)
 int octeon_console_send_cmd(struct octeon_device *oct, char *cmd_str,
 			    u32 wait_hundredths)
 {
-	u32 len = strlen(cmd_str);
+	u32 len = (u32)strlen(cmd_str);
 
 	dev_dbg(&oct->pci_dev->dev, "sending \"%s\" to bootloader\n", cmd_str);
 
@@ -483,7 +483,7 @@ static void check_console(struct work_struct *work)
 	struct octeon_console *console;
 	struct cavium_wk *wk = (struct cavium_wk *)work;
 	struct octeon_device *oct = (struct octeon_device *)wk->ctxptr;
-	size_t console_num = wk->ctxul;
+	u32 console_num = (u32)wk->ctxul;
 	u32 delay;
 
 	console = &oct->console[console_num];
@@ -506,7 +506,7 @@ static void check_console(struct work_struct *work)
 						    console_buffer, bytes_read);
 			}
 		} else if (bytes_read < 0) {
-			dev_err(&oct->pci_dev->dev, "Error reading console %lu, ret=%d\n",
+			dev_err(&oct->pci_dev->dev, "Error reading console %u, ret=%d\n",
 				console_num, bytes_read);
 		}
 
@@ -518,7 +518,7 @@ static void check_console(struct work_struct *work)
 	 */
 	if (octeon_console_debug_enabled(console_num) &&
 	    (total_read == 0) && (console->leftover[0])) {
-		dev_info(&oct->pci_dev->dev, "%lu: %s\n",
+		dev_info(&oct->pci_dev->dev, "%u: %s\n",
 			 console_num, console->leftover);
 		console->leftover[0] = '\0';
 	}
@@ -700,7 +700,7 @@ static int octeon_console_read(struct octeon_device *oct, u32 console_num,
 		bytes_to_read = console->buffer_size - rd_idx;
 
 	octeon_pci_read_core_mem(oct, console->output_base_addr + rd_idx,
-				 buffer, bytes_to_read);
+				 (u8 *)buffer, bytes_to_read);
 	octeon_write_device_mem32(oct, console->addr +
 				  offsetof(struct octeon_pci_console,
 					   output_read_index),

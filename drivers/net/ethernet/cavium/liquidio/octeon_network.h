@@ -124,7 +124,6 @@ struct lio {
 
 	/* work queue for  txq status */
 	struct cavium_wq	txq_status_wq;
-
 };
 
 #define LIO_SIZE         (sizeof(struct lio))

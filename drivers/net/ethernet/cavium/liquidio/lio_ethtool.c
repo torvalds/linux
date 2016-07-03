@@ -464,18 +464,16 @@ static int lio_set_phys_id(struct net_device *netdev,
 
 			/* Configure Beacon values */
 			value = LIO68XX_LED_BEACON_CFGON;
-			ret =
-				octnet_mdio45_access(lio, 1,
-						     LIO68XX_LED_BEACON_ADDR,
-						     &value);
+			ret = octnet_mdio45_access(lio, 1,
+						   LIO68XX_LED_BEACON_ADDR,
+						   &value);
 			if (ret)
 				return ret;
 
 			value = LIO68XX_LED_CTRL_CFGON;
-			ret =
-				octnet_mdio45_access(lio, 1,
-						     LIO68XX_LED_CTRL_ADDR,
-						     &value);
+			ret = octnet_mdio45_access(lio, 1,
+						   LIO68XX_LED_CTRL_ADDR,
+						   &value);
 			if (ret)
 				return ret;
 		} else {
@@ -961,7 +959,6 @@ static int lio_get_intr_coalesce(struct net_device *netdev,
 			intr_coal->rx_max_coalesced_frames =
 				CFG_GET_OQ_INTR_PKT(cn6xxx->conf);
 		}
-
 		iq = oct->instr_queue[lio->linfo.txpciq[0].s.q_no];
 		intr_coal->tx_max_coalesced_frames = iq->fill_threshold;
 		break;
@@ -1688,13 +1685,12 @@ static void lio_get_regs(struct net_device *dev,
 	int len = 0;
 	struct octeon_device *oct = lio->oct_dev;
 
-	memset(regbuf, 0, OCT_ETHTOOL_REGDUMP_LEN);
 	regs->version = OCT_ETHTOOL_REGSVER;
 
 	switch (oct->chip_id) {
-	/* case OCTEON_CN73XX: Todo */
 	case OCTEON_CN68XX:
 	case OCTEON_CN66XX:
+		memset(regbuf, 0, OCT_ETHTOOL_REGDUMP_LEN);
 		len += cn6xxx_read_csr_reg(regbuf + len, oct);
 		len += cn6xxx_read_config_reg(regbuf + len, oct);
 		break;

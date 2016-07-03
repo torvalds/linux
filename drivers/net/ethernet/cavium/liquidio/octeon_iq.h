@@ -99,7 +99,7 @@ struct octeon_instr_queue {
 
 	u32 rsvd:17;
 
-	/* Controls the periodic flushing of iq */
+	/* Controls whether extra flushing of IQ is done on Tx */
 	u32 do_auto_flush:1;
 
 	u32 status:8;
