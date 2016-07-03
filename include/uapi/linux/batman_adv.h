@@ -87,6 +87,7 @@ enum batadv_tt_client_flags {
  * @BATADV_ATTR_LAST_SEEN_MSECS: Time in milliseconds since last seen
  * @BATADV_ATTR_NEIGH_ADDRESS: Neighbour MAC address
  * @BATADV_ATTR_TQ: TQ to neighbour
+ * @BATADV_ATTR_THROUGHPUT: Estimated throughput to Neighbour
  * @__BATADV_ATTR_AFTER_LAST: internal use
  * @NUM_BATADV_ATTR: total number of batadv_nl_attrs available
  * @BATADV_ATTR_MAX: highest attribute number currently defined
@@ -118,6 +119,7 @@ enum batadv_nl_attrs {
 	BATADV_ATTR_LAST_SEEN_MSECS,
 	BATADV_ATTR_NEIGH_ADDRESS,
 	BATADV_ATTR_TQ,
+	BATADV_ATTR_THROUGHPUT,
 	/* add attributes above here, update the policy in netlink.c */
 	__BATADV_ATTR_AFTER_LAST,
 	NUM_BATADV_ATTR = __BATADV_ATTR_AFTER_LAST,

@@ -86,6 +86,7 @@ static struct nla_policy batadv_netlink_policy[NUM_BATADV_ATTR] = {
 	[BATADV_ATTR_LAST_SEEN_MSECS]	= { .type = NLA_U32 },
 	[BATADV_ATTR_NEIGH_ADDRESS]	= { .len = ETH_ALEN },
 	[BATADV_ATTR_TQ]		= { .type = NLA_U8 },
+	[BATADV_ATTR_THROUGHPUT]	= { .type = NLA_U32 },
 };
 
 /**
