@@ -54,7 +54,6 @@ struct hidled_config {
 	int			num_leds;
 	size_t			report_size;
 	enum hidled_report_type	report_type;
-	u8			report_id;
 	int (*init)(struct hidled_device *ldev);
 	int (*write)(struct led_classdev *cdev, enum led_brightness br);
 };
@@ -93,8 +92,6 @@ static int hidled_send(struct hidled_device *ldev, __u8 *buf)
 {
 	int ret;
 
-	buf[0] = ldev->config->report_id;
-
 	mutex_lock(&ldev->lock);
 
 	if (ldev->config->report_type == RAW_REQUEST)
@@ -123,8 +120,6 @@ static int hidled_recv(struct hidled_device *ldev, __u8 *buf)
 
 	if (ldev->config->report_type != RAW_REQUEST)
 		return -EINVAL;
-
-	buf[0] = ldev->config->report_id;
 
 	mutex_lock(&ldev->lock);
 
@@ -203,7 +198,7 @@ static int _thingm_write(struct led_classdev *cdev, enum led_brightness br,
 			 u8 offset)
 {
 	struct hidled_led *led = to_hidled_led(cdev);
-	__u8 buf[MAX_REPORT_SIZE] = { [1] = 'c' };
+	__u8 buf[MAX_REPORT_SIZE] = { 1, 'c' };
 
 	buf[2] = led->rgb->red.cdev.brightness;
 	buf[3] = led->rgb->green.cdev.brightness;
@@ -230,13 +225,12 @@ static const struct hidled_config hidled_config_thingm_v1 = {
 	.num_leds = 1,
 	.report_size = 9,
 	.report_type = RAW_REQUEST,
-	.report_id = 1,
 	.write = thingm_write_v1,
 };
 
 static int thingm_init(struct hidled_device *ldev)
 {
-	__u8 buf[MAX_REPORT_SIZE] = { [1] = 'v' };
+	__u8 buf[MAX_REPORT_SIZE] = { 1, 'v' };
 	int ret;
 
 	ret = hidled_recv(ldev, buf);
@@ -259,7 +253,6 @@ static const struct hidled_config hidled_configs[] = {
 		.num_leds = 1,
 		.report_size = 6,
 		.report_type = OUTPUT_REPORT,
-		.report_id = 0,
 		.write = riso_kagaku_write,
 	},
 	{
@@ -270,7 +263,6 @@ static const struct hidled_config hidled_configs[] = {
 		.num_leds = 1,
 		.report_size = 9,
 		.report_type = RAW_REQUEST,
-		.report_id = 0,
 		.init = dream_cheeky_init,
 		.write = dream_cheeky_write,
 	},
@@ -282,7 +274,6 @@ static const struct hidled_config hidled_configs[] = {
 		.num_leds = 2,
 		.report_size = 9,
 		.report_type = RAW_REQUEST,
-		.report_id = 1,
 		.init = thingm_init,
 		.write = thingm_write,
 	},
