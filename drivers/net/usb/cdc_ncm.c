@@ -477,6 +477,13 @@ advance:
 	if (cdc_ncm_setup(ctx))
 		goto error2;
 
+	/* Some firmwares need a pause here or they will silently fail
+	 * to set up the interface properly.  This value was decided
+	 * empirically on a Sierra Wireless MC7455 running 02.08.02.00
+	 * firmware.
+	 */
+	usleep_range(10000, 20000);
+
 	/* configure data interface */
 	temp = usb_set_interface(dev->udev, iface_no, data_altsetting);
 	if (temp)
