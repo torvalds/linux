@@ -799,13 +799,9 @@ static int snd_cx88_alc_put(struct snd_kcontrol *kcontrol,
 {
 	snd_cx88_card_t *chip = snd_kcontrol_chip(kcontrol);
 	struct cx88_core *core = chip->core;
-	struct v4l2_control client_ctl;
 
-	memset(&client_ctl, 0, sizeof(client_ctl));
-	client_ctl.value = 0 != value->value.integer.value[0];
-	client_ctl.id = V4L2_CID_AUDIO_LOUDNESS;
-	call_hw(core, WM8775_GID, core, s_ctrl, &client_ctl);
-
+	wm8775_s_ctrl(core, V4L2_CID_AUDIO_LOUDNESS,
+		      value->value.integer.value[0] != 0);
 	return 0;
 }
 
