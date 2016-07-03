@@ -97,8 +97,8 @@ than the number requested.
           :ref:`VIDIOC_CREATE_BUFS` will set ``index`` to the current number of
           created buffers, and it will check the validity of ``memory`` and
           ``format.type``. If those are invalid -1 is returned and errno is
-          set to EINVAL error code, otherwise :ref:`VIDIOC_CREATE_BUFS` returns
-          0. It will never set errno to EBUSY error code in this particular
+          set to ``EINVAL`` error code, otherwise :ref:`VIDIOC_CREATE_BUFS` returns
+          0. It will never set errno to ``EBUSY`` error code in this particular
           case.
 
     -  .. row 3

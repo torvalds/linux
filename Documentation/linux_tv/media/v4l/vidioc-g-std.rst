@@ -45,11 +45,11 @@ unambiguous such that they appear in only one enumerated
 :ref:`VIDIOC_S_STD <VIDIOC_G_STD>` accepts one or more flags, being a write-only ioctl it
 does not return the actual new standard as :ref:`VIDIOC_G_STD <VIDIOC_G_STD>` does. When
 no flags are given or the current input does not support the requested
-standard the driver returns an EINVAL error code. When the standard set
-is ambiguous drivers may return EINVAL or choose any of the requested
+standard the driver returns an ``EINVAL`` error code. When the standard set
+is ambiguous drivers may return ``EINVAL`` or choose any of the requested
 standards. If the current input or output does not support standard
 video timings (e.g. if :ref:`VIDIOC_ENUMINPUT`
-does not set the ``V4L2_IN_CAP_STD`` flag), then ENODATA error code is
+does not set the ``V4L2_IN_CAP_STD`` flag), then ``ENODATA`` error code is
 returned.
 
 

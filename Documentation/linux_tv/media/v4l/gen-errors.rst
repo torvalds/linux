@@ -16,7 +16,7 @@ Generic Error Codes
 
     -  .. row 1
 
-       -  EAGAIN (aka EWOULDBLOCK)
+       -  ``EAGAIN`` (aka ``EWOULDBLOCK``)
 
        -  The ioctl can't be handled because the device is in state where it
           can't perform it. This could happen for example in case where
@@ -26,13 +26,13 @@ Generic Error Codes
 
     -  .. row 2
 
-       -  EBADF
+       -  ``EBADF``
 
        -  The file descriptor is not a valid.
 
     -  .. row 3
 
-       -  EBUSY
+       -  ``EBUSY``
 
        -  The ioctl can't be handled because the device is busy. This is
           typically return while device is streaming, and an ioctl tried to
@@ -43,14 +43,14 @@ Generic Error Codes
 
     -  .. row 4
 
-       -  EFAULT
+       -  ``EFAULT``
 
        -  There was a failure while copying data from/to userspace, probably
           caused by an invalid pointer reference.
 
     -  .. row 5
 
-       -  EINVAL
+       -  ``EINVAL``
 
        -  One or more of the ioctl parameters are invalid or out of the
           allowed range. This is a widely used error code. See the
@@ -58,19 +58,19 @@ Generic Error Codes
 
     -  .. row 6
 
-       -  ENODEV
+       -  ``ENODEV``
 
        -  Device not found or was removed.
 
     -  .. row 7
 
-       -  ENOMEM
+       -  ``ENOMEM``
 
        -  There's not enough memory to handle the desired operation.
 
     -  .. row 8
 
-       -  ENOTTY
+       -  ``ENOTTY``
 
        -  The ioctl is not supported by the driver, actually meaning that
           the required functionality is not available, or the file
@@ -78,7 +78,7 @@ Generic Error Codes
 
     -  .. row 9
 
-       -  ENOSPC
+       -  ``ENOSPC``
 
        -  On USB devices, the stream ioctl's can return this error, meaning
           that this request would overcommit the usb bandwidth reserved for
@@ -86,7 +86,7 @@ Generic Error Codes
 
     -  .. row 10
 
-       -  EPERM
+       -  ``EPERM``
 
        -  Permission denied. Can be returned if the device needs write
           permission, or some special capabilities is needed (e. g. root)

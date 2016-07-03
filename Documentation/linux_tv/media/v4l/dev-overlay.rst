@@ -102,7 +102,7 @@ When simultaneous capturing and overlay is supported and the hardware
 prohibits different image and frame buffer formats, the format requested
 first takes precedence. The attempt to capture
 (:ref:`VIDIOC_S_FMT <VIDIOC_G_FMT>`) or overlay
-(:ref:`VIDIOC_S_FBUF <VIDIOC_G_FBUF>`) may fail with an EBUSY error
+(:ref:`VIDIOC_S_FBUF <VIDIOC_G_FBUF>`) may fail with an ``EBUSY`` error
 code or return accordingly modified parameters..
 
 
@@ -142,7 +142,7 @@ of the cropping rectangle. For more information see :ref:`crop`.
 When simultaneous capturing and overlay is supported and the hardware
 prohibits different image and window sizes, the size requested first
 takes precedence. The attempt to capture or overlay as well
-(:ref:`VIDIOC_S_FMT <VIDIOC_G_FMT>`) may fail with an EBUSY error
+(:ref:`VIDIOC_S_FMT <VIDIOC_G_FMT>`) may fail with an ``EBUSY`` error
 code or return accordingly modified parameters.
 
 

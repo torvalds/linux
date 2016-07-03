@@ -38,9 +38,9 @@ To query the attributes of a tuner applications initialize the ``index``
 field and zero out the ``reserved`` array of a struct
 :ref:`v4l2_tuner <v4l2-tuner>` and call the ``VIDIOC_G_TUNER`` ioctl
 with a pointer to this structure. Drivers fill the rest of the structure
-or return an EINVAL error code when the index is out of bounds. To
+or return an ``EINVAL`` error code when the index is out of bounds. To
 enumerate all tuners applications shall begin at index zero,
-incrementing by one until the driver returns EINVAL.
+incrementing by one until the driver returns ``EINVAL``.
 
 Tuners have two writable properties, the audio mode and the radio
 frequency. To change the audio mode, applications initialize the

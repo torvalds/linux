@@ -113,7 +113,7 @@ On success the struct :ref:`v4l2_rect <v4l2-rect>` ``r`` field
 contains the adjusted rectangle. When the parameters are unsuitable the
 application may modify the cropping (composing) or image parameters and
 repeat the cycle until satisfactory parameters have been negotiated. If
-constraints flags have to be violated at then ERANGE is returned. The
+constraints flags have to be violated at then ``ERANGE`` is returned. The
 error indicates that *there exist no rectangle* that satisfies the
 constraints.
 

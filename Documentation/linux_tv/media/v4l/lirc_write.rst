@@ -11,7 +11,7 @@ values. Pulses and spaces are only marked implicitly by their position.
 The data must start and end with a pulse, therefore, the data must
 always include an uneven number of samples. The write function must
 block until the data has been transmitted by the hardware. If more data
-is provided than the hardware can send, the driver returns EINVAL.
+is provided than the hardware can send, the driver returns ``EINVAL``.
 
 
 .. ------------------------------------------------------------------------------

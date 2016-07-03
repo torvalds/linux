@@ -43,10 +43,10 @@ To query the available timings, applications initialize the ``index``
 field, set the ``pad`` field to 0, zero the reserved array of struct
 :ref:`v4l2_enum_dv_timings <v4l2-enum-dv-timings>` and call the
 ``VIDIOC_ENUM_DV_TIMINGS`` ioctl on a video node with a pointer to this
-structure. Drivers fill the rest of the structure or return an EINVAL
+structure. Drivers fill the rest of the structure or return an ``EINVAL``
 error code when the index is out of bounds. To enumerate all supported
 DV timings, applications shall begin at index zero, incrementing by one
-until the driver returns EINVAL. Note that drivers may enumerate a
+until the driver returns ``EINVAL``. Note that drivers may enumerate a
 different set of DV timings after switching the video input or output.
 
 When implemented by the driver DV timings of subdevices can be queried
@@ -56,7 +56,7 @@ or outputs (for DV transmitters), applications must specify the desired
 pad number in the struct
 :ref:`v4l2_enum_dv_timings <v4l2-enum-dv-timings>` ``pad`` field.
 Attempts to enumerate timings on a pad that doesn't support them will
-return an EINVAL error code.
+return an ``EINVAL`` error code.
 
 
 .. _v4l2-enum-dv-timings:

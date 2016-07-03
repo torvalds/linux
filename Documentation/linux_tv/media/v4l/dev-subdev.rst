@@ -125,12 +125,12 @@ negotiate formats on a per-pad basis.
 Applications are responsible for configuring coherent parameters on the
 whole pipeline and making sure that connected pads have compatible
 formats. The pipeline is checked for formats mismatch at
-:ref:`VIDIOC_STREAMON` time, and an EPIPE error
+:ref:`VIDIOC_STREAMON` time, and an ``EPIPE`` error
 code is then returned if the configuration is invalid.
 
 Pad-level image format configuration support can be tested by calling
 the :ref:`VIDIOC_SUBDEV_G_FMT` ioctl on pad
-0. If the driver returns an EINVAL error code pad-level format
+0. If the driver returns an ``EINVAL`` error code pad-level format
 configuration is not supported by the sub-device.
 
 

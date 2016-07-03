@@ -48,7 +48,7 @@ returned by :ref:`VIDIOC_ENUMINPUT` and
 :ref:`VIDIOC_ENUMOUTPUT` respectively. When used
 with subdevice nodes the ``pad`` field represents the input or output
 pad of the subdevice. If there is no EDID support for the given ``pad``
-value, then the EINVAL error code will be returned.
+value, then the ``EINVAL`` error code will be returned.
 
 To get the EDID data the application has to fill in the ``pad``,
 ``start_block``, ``blocks`` and ``edid`` fields, zero the ``reserved``
@@ -59,7 +59,7 @@ array and call :ref:`VIDIOC_G_EDID <VIDIOC_G_EDID>`. The current EDID from block
 
 If there are fewer blocks than specified, then the driver will set
 ``blocks`` to the actual number of blocks. If there are no EDID blocks
-available at all, then the error code ENODATA is set.
+available at all, then the error code ``ENODATA`` is set.
 
 If blocks have to be retrieved from the sink, then this call will block
 until they have been read.
@@ -79,9 +79,9 @@ receivers as it makes no sense for a transmitter.
 
 The driver assumes that the full EDID is passed in. If there are more
 EDID blocks than the hardware can handle then the EDID is not written,
-but instead the error code E2BIG is set and ``blocks`` is set to the
+but instead the error code ``E2BIG`` is set and ``blocks`` is set to the
 maximum that the hardware supports. If ``start_block`` is any value
-other than 0 then the error code EINVAL is set.
+other than 0 then the error code ``EINVAL`` is set.
 
 To disable an EDID you set ``blocks`` to 0. Depending on the hardware
 this will drive the hotplug pin low and/or block the source from reading
@@ -155,10 +155,10 @@ On success 0 is returned, on error -1 and the ``errno`` variable is set
 appropriately. The generic error codes are described at the
 :ref:`Generic Error Codes <gen-errors>` chapter.
 
-ENODATA
+``ENODATA``
     The EDID data is not available.
 
-E2BIG
+``E2BIG``
     The EDID data you provided is more than the hardware can handle.
 
 

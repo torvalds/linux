@@ -26,7 +26,7 @@ different priority will usually call :ref:`VIDIOC_S_PRIORITY
 :ref:`VIDIOC_QUERYCAP` ioctl.
 
 Ioctls changing driver properties, such as
-:ref:`VIDIOC_S_INPUT <VIDIOC_G_INPUT>`, return an EBUSY error code
+:ref:`VIDIOC_S_INPUT <VIDIOC_G_INPUT>`, return an ``EBUSY`` error code
 after another application obtained higher priority.
 
 

@@ -35,7 +35,7 @@ To find out which data services are supported by a sliced VBI capture or
 output device, applications initialize the ``type`` field of a struct
 :ref:`v4l2_sliced_vbi_cap <v4l2-sliced-vbi-cap>`, clear the
 ``reserved`` array and call the :ref:`VIDIOC_G_SLICED_VBI_CAP <VIDIOC_G_SLICED_VBI_CAP>` ioctl. The
-driver fills in the remaining fields or returns an EINVAL error code if
+driver fills in the remaining fields or returns an ``EINVAL`` error code if
 the sliced VBI API is unsupported or ``type`` is invalid.
 
 Note the ``type`` field was added, and the ioctl changed from read-only

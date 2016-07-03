@@ -55,7 +55,7 @@ number is also possible when the driver requires more buffers to
 function correctly. For example video output requires at least two
 buffers, one displayed and one filled by the application.
 
-When the I/O method is not supported the ioctl returns an EINVAL error
+When the I/O method is not supported the ioctl returns an ``EINVAL`` error
 code.
 
 Applications can call :ref:`VIDIOC_REQBUFS` again to change the number of

@@ -42,13 +42,13 @@ information is filled in using the structure struct
 :ref:`v4l2_dv_timings <v4l2-dv-timings>`. These ioctls take a
 pointer to the struct :ref:`v4l2_dv_timings <v4l2-dv-timings>`
 structure as argument. If the ioctl is not supported or the timing
-values are not correct, the driver returns EINVAL error code.
+values are not correct, the driver returns ``EINVAL`` error code.
 
 The ``linux/v4l2-dv-timings.h`` header can be used to get the timings of
 the formats in the :ref:`cea861` and :ref:`vesadmt` standards. If
 the current input or output does not support DV timings (e.g. if
 :ref:`VIDIOC_ENUMINPUT` does not set the
-``V4L2_IN_CAP_DV_TIMINGS`` flag), then ENODATA error code is returned.
+``V4L2_IN_CAP_DV_TIMINGS`` flag), then ``ENODATA`` error code is returned.
 
 
 Return Value

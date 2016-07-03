@@ -40,7 +40,7 @@ EINVAL error code when the id is invalid.
 Entities can be enumerated by or'ing the id with the
 ``MEDIA_ENT_ID_FLAG_NEXT`` flag. The driver will return information
 about the entity with the smallest id strictly larger than the requested
-one ('next entity'), or the EINVAL error code if there is none.
+one ('next entity'), or the ``EINVAL`` error code if there is none.
 
 Entity IDs can be non-contiguous. Applications must *not* try to
 enumerate entities by calling MEDIA_IOC_ENUM_ENTITIES with increasing

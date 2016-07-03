@@ -81,16 +81,16 @@ struct :ref:`v4l2_format <v4l2-format>` as above and initialize all
 fields of the struct :ref:`v4l2_vbi_format <v4l2-vbi-format>`
 ``vbi`` member of the ``fmt`` union, or better just modify the results
 of :ref:`VIDIOC_G_FMT <VIDIOC_G_FMT>`, and call the :ref:`VIDIOC_S_FMT <VIDIOC_G_FMT>`
-ioctl with a pointer to this structure. Drivers return an EINVAL error
+ioctl with a pointer to this structure. Drivers return an ``EINVAL`` error
 code only when the given parameters are ambiguous, otherwise they modify
 the parameters according to the hardware capabilities and return the
 actual parameters. When the driver allocates resources at this point, it
-may return an EBUSY error code to indicate the returned parameters are
+may return an ``EBUSY`` error code to indicate the returned parameters are
 valid but the required resources are currently not available. That may
 happen for instance when the video and VBI areas to capture would
 overlap, or when the driver supports multiple opens and another process
 already requested VBI capturing or output. Anyway, applications must
-expect other resource allocation points which may return EBUSY, at the
+expect other resource allocation points which may return ``EBUSY``, at the
 :ref:`VIDIOC_STREAMON` ioctl and the first read(),
 write() and select() call.
 
@@ -341,7 +341,7 @@ using buffer timestamps.
 
 Remember the :ref:`VIDIOC_STREAMON` ioctl and the
 first read(), write() and select() call can be resource allocation
-points returning an EBUSY error code if the required hardware resources
+points returning an ``EBUSY`` error code if the required hardware resources
 are temporarily unavailable, for example the device is already in use by
 another process.
 

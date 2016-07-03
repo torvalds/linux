@@ -87,25 +87,25 @@ RETURN VALUE
 
     -  .. row 1
 
-       -  ENODEV
+       -  ``ENODEV``
 
        -  Device driver not loaded/available.
 
     -  .. row 2
 
-       -  EINTERNAL
+       -  ``EINTERNAL``
 
        -  Internal error.
 
     -  .. row 3
 
-       -  EBUSY
+       -  ``EBUSY``
 
        -  Device or resource busy.
 
     -  .. row 4
 
-       -  EINVAL
+       -  ``EINVAL``
 
        -  Invalid argument.
 
@@ -151,7 +151,7 @@ RETURN VALUE
 
     -  .. row 1
 
-       -  EBADF
+       -  ``EBADF``
 
        -  fd is not a valid open file descriptor.
 
@@ -213,19 +213,19 @@ RETURN VALUE
 
     -  .. row 1
 
-       -  EPERM
+       -  ``EPERM``
 
        -  Mode VIDEO_SOURCE_MEMORY not selected.
 
     -  .. row 2
 
-       -  ENOMEM
+       -  ``ENOMEM``
 
        -  Attempted to write more data than the internal buffer can hold.
 
     -  .. row 3
 
-       -  EBADF
+       -  ``EBADF``
 
        -  fd is not a valid open file descriptor.
 
@@ -768,7 +768,7 @@ use the V4L2 :ref:`VIDIOC_DQEVENT` ioctl instead.
 This ioctl call returns an event of type video_event if available. If
 an event is not available, the behavior depends on whether the device is
 in blocking or non-blocking mode. In the latter case, the call fails
-immediately with errno set to EWOULDBLOCK. In the former case, the call
+immediately with errno set to ``EWOULDBLOCK``. In the former case, the call
 blocks until an event becomes available. The standard Linux poll()
 and/or select() system calls can be used with the device file descriptor
 to watch for new events. For select(), the file descriptor should be
@@ -823,13 +823,13 @@ appropriately. The generic error codes are described at the
 
     -  .. row 1
 
-       -  EWOULDBLOCK
+       -  ``EWOULDBLOCK``
 
        -  There is no event pending, and the device is in non-blocking mode.
 
     -  .. row 2
 
-       -  EOVERFLOW
+       -  ``EOVERFLOW``
 
        -  Overflow in event queue - one or more events were lost.
 
@@ -1154,7 +1154,7 @@ appropriately. The generic error codes are described at the
 
     -  .. row 1
 
-       -  EPERM
+       -  ``EPERM``
 
        -  Mode VIDEO_SOURCE_MEMORY not selected.
 
@@ -1218,7 +1218,7 @@ appropriately. The generic error codes are described at the
 
     -  .. row 1
 
-       -  EPERM
+       -  ``EPERM``
 
        -  Mode VIDEO_SOURCE_MEMORY not selected.
 
@@ -1332,7 +1332,7 @@ appropriately. The generic error codes are described at the
 
     -  .. row 1
 
-       -  EINVAL
+       -  ``EINVAL``
 
        -  Invalid sub-stream id.
 
@@ -1490,7 +1490,7 @@ appropriately. The generic error codes are described at the
 
     -  .. row 1
 
-       -  EINVAL
+       -  ``EINVAL``
 
        -  format is not a valid video format.
 
@@ -1556,7 +1556,7 @@ appropriately. The generic error codes are described at the
 
     -  .. row 1
 
-       -  EINVAL
+       -  ``EINVAL``
 
        -  system is not a valid or supported video system.
 
@@ -1670,7 +1670,7 @@ appropriately. The generic error codes are described at the
 
     -  .. row 1
 
-       -  EINVAL
+       -  ``EINVAL``
 
        -  input is not a valid spu setting or driver cannot handle SPU.
 
@@ -1733,7 +1733,7 @@ appropriately. The generic error codes are described at the
 
     -  .. row 1
 
-       -  EINVAL
+       -  ``EINVAL``
 
        -  input is not a valid palette or driver doesn’t handle SPU.
 
@@ -1798,7 +1798,7 @@ appropriately. The generic error codes are described at the
 
     -  .. row 1
 
-       -  EFAULT
+       -  ``EFAULT``
 
        -  driver is not able to return navigational information
 
@@ -1864,7 +1864,7 @@ appropriately. The generic error codes are described at the
 
     -  .. row 1
 
-       -  EINVAL
+       -  ``EINVAL``
 
        -  input is not a valid attribute setting.
 

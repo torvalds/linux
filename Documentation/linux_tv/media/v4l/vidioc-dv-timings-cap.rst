@@ -46,7 +46,7 @@ receivers) or outputs (for DV transmitters), applications must specify
 the desired pad number in the struct
 :ref:`v4l2_dv_timings_cap <v4l2-dv-timings-cap>` ``pad`` field and
 zero the ``reserved`` array. Attempts to query capabilities on a pad
-that doesn't support them will return an EINVAL error code.
+that doesn't support them will return an ``EINVAL`` error code.
 
 
 .. _v4l2-bt-timings-cap:

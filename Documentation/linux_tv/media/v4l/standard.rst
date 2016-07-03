@@ -58,7 +58,7 @@ Here the driver shall set the ``std`` field of struct
 :ref:`v4l2_input <v4l2-input>` and struct
 :ref:`v4l2_output <v4l2-output>` to zero and the :ref:`VIDIOC_G_STD <VIDIOC_G_STD>`,
 :ref:`VIDIOC_S_STD <VIDIOC_G_STD>`, :ref:`VIDIOC_QUERYSTD` and :ref:`VIDIOC_ENUMSTD` ioctls
-shall return the ENOTTY error code or the EINVAL error code.
+shall return the ``ENOTTY`` error code or the ``EINVAL`` error code.
 
 Applications can make use of the :ref:`input-capabilities` and
 :ref:`output-capabilities` flags to determine whether the video

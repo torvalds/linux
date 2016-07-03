@@ -55,7 +55,7 @@ If an error is returned, then the original frequency will be restored.
 This ioctl is supported if the ``V4L2_CAP_HW_FREQ_SEEK`` capability is
 set.
 
-If this ioctl is called from a non-blocking filehandle, then EAGAIN
+If this ioctl is called from a non-blocking filehandle, then ``EAGAIN``
 error code is returned and no seek takes place.
 
 

@@ -36,7 +36,7 @@ identify kernel devices compatible with this specification and to obtain
 information about driver and hardware capabilities. The ioctl takes a
 pointer to a struct :ref:`v4l2_capability <v4l2-capability>` which is
 filled by the driver. When the driver is not compatible with this
-specification the ioctl returns an EINVAL error code.
+specification the ioctl returns an ``EINVAL`` error code.
 
 
 .. _v4l2-capability:

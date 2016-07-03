@@ -54,7 +54,7 @@ the ``id``, ``size`` and ``reserved2`` fields of each struct
 
 If the ``size`` is too small to receive the control result (only
 relevant for pointer-type controls like strings), then the driver will
-set ``size`` to a valid value and return an ENOSPC error code. You
+set ``size`` to a valid value and return an ``ENOSPC`` error code. You
 should re-allocate the memory to this new size and try again. For the
 string type it is possible that the same issue occurs again if the
 string has grown in the meantime. It is recommended to call
@@ -81,13 +81,13 @@ initialize the ``id``, ``size``, ``reserved2`` and
 values are automatically adjusted to a valid value or if an error is
 returned.
 
-When the ``id`` or ``which`` is invalid drivers return an EINVAL error
+When the ``id`` or ``which`` is invalid drivers return an ``EINVAL`` error
 code. When the value is out of bounds drivers can choose to take the
-closest valid value or return an ERANGE error code, whatever seems more
+closest valid value or return an ``ERANGE`` error code, whatever seems more
 appropriate. In the first case the new value is set in struct
 :ref:`v4l2_ext_control <v4l2-ext-control>`. If the new control value
 is inappropriate (e.g. the given menu index is not supported by the menu
-control), then this will also result in an EINVAL error code error.
+control), then this will also result in an ``EINVAL`` error code error.
 
 The driver will only set/get these controls if all control values are
 correct. This prevents the situation where only some of the controls
@@ -124,7 +124,7 @@ still cause this situation.
           size of the memory containing the payload, or that will receive
           the payload. If :ref:`VIDIOC_G_EXT_CTRLS <VIDIOC_G_EXT_CTRLS>` finds that this value is
           less than is required to store the payload result, then it is set
-          to a value large enough to store the payload result and ENOSPC is
+          to a value large enough to store the payload result and ``ENOSPC`` is
           returned. Note that for string controls this ``size`` field should
           not be confused with the length of the string. This field refers
           to the size of the memory that contains the string. The actual

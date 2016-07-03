@@ -39,9 +39,9 @@ value of a control applications initialize the ``id`` and ``value``
 fields of a struct :c:type:`struct v4l2_control` and call the
 :ref:`VIDIOC_S_CTRL <VIDIOC_G_CTRL>` ioctl.
 
-When the ``id`` is invalid drivers return an EINVAL error code. When the
+When the ``id`` is invalid drivers return an ``EINVAL`` error code. When the
 ``value`` is out of bounds drivers can choose to take the closest valid
-value or return an ERANGE error code, whatever seems more appropriate.
+value or return an ``ERANGE`` error code, whatever seems more appropriate.
 However, :ref:`VIDIOC_S_CTRL <VIDIOC_G_CTRL>` is a write-only ioctl, it does not return the
 actual new value. If the ``value`` is inappropriate for the control
 (e.g. if it refers to an unsupported menu index of a menu control), then

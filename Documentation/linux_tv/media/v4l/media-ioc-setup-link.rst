@@ -43,13 +43,13 @@ not be enabled or disabled.
 
 Link configuration has no side effect on other links. If an enabled link
 at the sink pad prevents the link from being enabled, the driver returns
-with an EBUSY error code.
+with an ``EBUSY`` error code.
 
 Only links marked with the ``DYNAMIC`` link flag can be enabled/disabled
 while streaming media data. Attempting to enable or disable a streaming
-non-dynamic link will return an EBUSY error code.
+non-dynamic link will return an ``EBUSY`` error code.
 
-If the specified link can't be found the driver returns with an EINVAL
+If the specified link can't be found the driver returns with an ``EINVAL``
 error code.
 
 

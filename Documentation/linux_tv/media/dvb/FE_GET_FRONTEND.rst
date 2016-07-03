@@ -61,7 +61,7 @@ appropriately. The generic error codes are described at the
 
     -  .. row 1
 
-       -  EINVAL
+       -  ``EINVAL``
 
        -  Maximum supported symbol rate reached.
 

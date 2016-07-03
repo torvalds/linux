@@ -37,7 +37,7 @@ Description
 To query the current audio input applications zero out the ``reserved``
 array of a struct :ref:`v4l2_audio <v4l2-audio>` and call the
 :ref:`VIDIOC_G_AUDIO <VIDIOC_G_AUDIO>` ioctl with a pointer to this structure. Drivers fill
-the rest of the structure or return an EINVAL error code when the device
+the rest of the structure or return an ``EINVAL`` error code when the device
 has no audio inputs, or none which combine with the current video input.
 
 Audio inputs have one writable property, the audio mode. To select the

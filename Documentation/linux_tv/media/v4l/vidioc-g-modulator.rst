@@ -38,7 +38,7 @@ To query the attributes of a modulator applications initialize the
 ``index`` field and zero out the ``reserved`` array of a struct
 :ref:`v4l2_modulator <v4l2-modulator>` and call the
 :ref:`VIDIOC_G_MODULATOR <VIDIOC_G_MODULATOR>` ioctl with a pointer to this structure. Drivers
-fill the rest of the structure or return an EINVAL error code when the
+fill the rest of the structure or return an ``EINVAL`` error code when the
 index is out of bounds. To enumerate all modulators applications shall
 begin at index zero, incrementing by one until the driver returns
 EINVAL.
@@ -199,7 +199,7 @@ To change the radio frequency the
           ``V4L2_TUNER_SUB_SAP``. If the hardware does not support the
           respective audio matrix, or the current video standard does not
           permit bilingual audio the :ref:`VIDIOC_S_MODULATOR <VIDIOC_G_MODULATOR>` ioctl shall
-          return an EINVAL error code and the driver shall fall back to mono
+          return an ``EINVAL`` error code and the driver shall fall back to mono
           or stereo mode.
 
     -  .. row 4
@@ -230,7 +230,7 @@ To change the radio frequency the
           ``V4L2_TUNER_SUB_MONO`` or ``V4L2_TUNER_SUB_STEREO``. If the
           hardware does not support the respective audio matrix, or the
           current video standard does not permit SAP the
-          :ref:`VIDIOC_S_MODULATOR <VIDIOC_G_MODULATOR>` ioctl shall return an EINVAL error code and
+          :ref:`VIDIOC_S_MODULATOR <VIDIOC_G_MODULATOR>` ioctl shall return an ``EINVAL`` error code and
           driver shall fall back to mono or stereo mode.
 
     -  .. row 6

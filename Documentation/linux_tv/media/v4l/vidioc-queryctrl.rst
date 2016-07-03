@@ -40,30 +40,30 @@ Description
 To query the attributes of a control applications set the ``id`` field
 of a struct :ref:`v4l2_queryctrl <v4l2-queryctrl>` and call the
 ``VIDIOC_QUERYCTRL`` ioctl with a pointer to this structure. The driver
-fills the rest of the structure or returns an EINVAL error code when the
+fills the rest of the structure or returns an ``EINVAL`` error code when the
 ``id`` is invalid.
 
 It is possible to enumerate controls by calling ``VIDIOC_QUERYCTRL``
 with successive ``id`` values starting from ``V4L2_CID_BASE`` up to and
-exclusive ``V4L2_CID_LASTP1``. Drivers may return EINVAL if a control in
+exclusive ``V4L2_CID_LASTP1``. Drivers may return ``EINVAL`` if a control in
 this range is not supported. Further applications can enumerate private
 controls, which are not defined in this specification, by starting at
 ``V4L2_CID_PRIVATE_BASE`` and incrementing ``id`` until the driver
-returns EINVAL.
+returns ``EINVAL``.
 
 In both cases, when the driver sets the ``V4L2_CTRL_FLAG_DISABLED`` flag
 in the ``flags`` field this control is permanently disabled and should
 be ignored by the application. [1]_
 
 When the application ORs ``id`` with ``V4L2_CTRL_FLAG_NEXT_CTRL`` the
-driver returns the next supported non-compound control, or EINVAL if
+driver returns the next supported non-compound control, or ``EINVAL`` if
 there is none. In addition, the ``V4L2_CTRL_FLAG_NEXT_COMPOUND`` flag
 can be specified to enumerate all compound controls (i.e. controls with
 type ≥ ``V4L2_CTRL_COMPOUND_TYPES`` and/or array control, in other words
 controls that contain more than one value). Specify both
 ``V4L2_CTRL_FLAG_NEXT_CTRL`` and ``V4L2_CTRL_FLAG_NEXT_COMPOUND`` in
 order to enumerate all controls, compound or not. Drivers which do not
-support these flags yet always return EINVAL.
+support these flags yet always return ``EINVAL``.
 
 The ``VIDIOC_QUERY_EXT_CTRL`` ioctl was introduced in order to better
 support controls that can use compound types, and to expose additional
@@ -78,12 +78,12 @@ Additional information is required for menu controls: the names of the
 menu items. To query them applications set the ``id`` and ``index``
 fields of struct :ref:`v4l2_querymenu <v4l2-querymenu>` and call the
 ``VIDIOC_QUERYMENU`` ioctl with a pointer to this structure. The driver
-fills the rest of the structure or returns an EINVAL error code when the
+fills the rest of the structure or returns an ``EINVAL`` error code when the
 ``id`` or ``index`` is invalid. Menu items are enumerated by calling
 ``VIDIOC_QUERYMENU`` with successive ``index`` values from struct
 :ref:`v4l2_queryctrl <v4l2-queryctrl>` ``minimum`` to ``maximum``,
 inclusive. Note that it is possible for ``VIDIOC_QUERYMENU`` to return
-an EINVAL error code for some indices between ``minimum`` and
+an ``EINVAL`` error code for some indices between ``minimum`` and
 ``maximum``. In that case that particular menu item is not supported by
 this driver. Also note that the ``minimum`` value is not necessarily 0.
 
@@ -108,7 +108,7 @@ See also the examples in :ref:`control`.
           :ref:`control-id` for predefined IDs. When the ID is ORed with
           V4L2_CTRL_FLAG_NEXT_CTRL the driver clears the flag and
           returns the first control with a higher ID. Drivers which do not
-          support this flag yet always return an EINVAL error code.
+          support this flag yet always return an ``EINVAL`` error code.
 
     -  .. row 2
 
@@ -533,7 +533,7 @@ See also the examples in :ref:`control`.
        -  0
 
        -  A control which performs an action when set. Drivers must ignore
-          the value passed with ``VIDIOC_S_CTRL`` and return an EINVAL error
+          the value passed with ``VIDIOC_S_CTRL`` and return an ``EINVAL`` error
           code on a ``VIDIOC_G_CTRL`` attempt.
 
     -  .. row 8
@@ -588,7 +588,7 @@ See also the examples in :ref:`control`.
           control ID equal to a control class code (see :ref:`ctrl-class`)
           + 1, the ioctl returns the name of the control class and this
           control type. Older drivers which do not support this feature
-          return an EINVAL error code.
+          return an ``EINVAL`` error code.
 
     -  .. row 11
 
@@ -647,7 +647,7 @@ See also the examples in :ref:`control`.
 
        -  This control is permanently disabled and should be ignored by the
           application. Any attempt to change the control will result in an
-          EINVAL error code.
+          ``EINVAL`` error code.
 
     -  .. row 2
 
@@ -658,7 +658,7 @@ See also the examples in :ref:`control`.
        -  This control is temporarily unchangeable, for example because
           another application took over control of the respective resource.
           Such controls may be displayed specially in a user interface.
-          Attempts to change the control may result in an EBUSY error code.
+          Attempts to change the control may result in an ``EBUSY`` error code.
 
     -  .. row 3
 
@@ -667,7 +667,7 @@ See also the examples in :ref:`control`.
        -  0x0004
 
        -  This control is permanently readable only. Any attempt to change
-          the control will result in an EINVAL error code.
+          the control will result in an ``EINVAL`` error code.
 
     -  .. row 4
 
@@ -706,7 +706,7 @@ See also the examples in :ref:`control`.
        -  0x0040
 
        -  This control is permanently writable only. Any attempt to read the
-          control will result in an EACCES error code error code. This flag
+          control will result in an ``EACCES`` error code error code. This flag
           is typically present for relative controls or action controls
           where writing a value will cause the device to carry out a given
           action (e. g. motor control) but no meaningful value can be
@@ -775,9 +775,9 @@ EACCES
 .. [1]
    ``V4L2_CTRL_FLAG_DISABLED`` was intended for two purposes: Drivers
    can skip predefined controls not supported by the hardware (although
-   returning EINVAL would do as well), or disable predefined and private
+   returning ``EINVAL`` would do as well), or disable predefined and private
    controls after hardware detection without the trouble of reordering
-   control arrays and indices (EINVAL cannot be used to skip private
+   control arrays and indices (``EINVAL`` cannot be used to skip private
    controls because it would prematurely end the enumeration).
 
 

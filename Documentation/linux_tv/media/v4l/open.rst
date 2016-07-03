@@ -146,7 +146,7 @@ sections.
 .. [1]
    There are still some old and obscure drivers that have not been
    updated to allow for multiple opens. This implies that for such
-   drivers :ref:`open() <func-open>` can return an EBUSY error code
+   drivers :ref:`open() <func-open>` can return an ``EBUSY`` error code
    when the device is already in use.
 
 .. [2]

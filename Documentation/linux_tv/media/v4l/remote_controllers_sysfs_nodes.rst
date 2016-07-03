@@ -49,7 +49,7 @@ Writing "proto" will enable only "proto".
 
 Writing "none" will disable all protocols.
 
-Write fails with EINVAL if an invalid protocol combination or unknown
+Write fails with ``EINVAL`` if an invalid protocol combination or unknown
 protocol name is used.
 
 
@@ -106,7 +106,7 @@ Writing "proto" will use "proto" for wakeup events.
 
 Writing "none" will disable wakeup.
 
-Write fails with EINVAL if an invalid protocol combination or unknown
+Write fails with ``EINVAL`` if an invalid protocol combination or unknown
 protocol name is used, or if wakeup is not supported by the hardware.
 
 

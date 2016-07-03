@@ -85,19 +85,19 @@ RETURN VALUE
 
     -  .. row 1
 
-       -  ENODEV
+       -  ``ENODEV``
 
        -  Device driver not loaded/available.
 
     -  .. row 2
 
-       -  EBUSY
+       -  ``EBUSY``
 
        -  Device or resource busy.
 
     -  .. row 3
 
-       -  EINVAL
+       -  ``EINVAL``
 
        -  Invalid argument.
 
@@ -143,7 +143,7 @@ RETURN VALUE
 
     -  .. row 1
 
-       -  EBADF
+       -  ``EBADF``
 
        -  fd is not a valid open file descriptor.
 
@@ -205,19 +205,19 @@ RETURN VALUE
 
     -  .. row 1
 
-       -  EPERM
+       -  ``EPERM``
 
        -  Mode AUDIO_SOURCE_MEMORY not selected.
 
     -  .. row 2
 
-       -  ENOMEM
+       -  ``ENOMEM``
 
        -  Attempted to write more data than the internal buffer can hold.
 
     -  .. row 3
 
-       -  EBADF
+       -  ``EBADF``
 
        -  fd is not a valid open file descriptor.
 
@@ -1102,7 +1102,7 @@ appropriately. The generic error codes are described at the
 
     -  .. row 1
 
-       -  EINVAL
+       -  ``EINVAL``
 
        -  type is not a valid or supported stream type.
 
@@ -1165,7 +1165,7 @@ appropriately. The generic error codes are described at the
 
     -  .. row 1
 
-       -  EINVAL
+       -  ``EINVAL``
 
        -  id is not a valid id.
 
@@ -1229,7 +1229,7 @@ appropriately. The generic error codes are described at the
 
     -  .. row 1
 
-       -  EINVAL
+       -  ``EINVAL``
 
        -  attr is not a valid or supported attribute setting.
 
@@ -1292,7 +1292,7 @@ appropriately. The generic error codes are described at the
 
     -  .. row 1
 
-       -  EINVAL
+       -  ``EINVAL``
 
        -  karaoke is not a valid or supported karaoke setting.
 

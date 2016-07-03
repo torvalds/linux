@@ -45,7 +45,7 @@ field of a struct :ref:`v4l2_subdev_crop <v4l2-subdev-crop>` to the
 desired pad number as reported by the media API and the ``which`` field
 to ``V4L2_SUBDEV_FORMAT_ACTIVE``. They then call the
 ``VIDIOC_SUBDEV_G_CROP`` ioctl with a pointer to this structure. The
-driver fills the members of the ``rect`` field or returns EINVAL error
+driver fills the members of the ``rect`` field or returns ``EINVAL`` error
 code if the input arguments are invalid, or if cropping is not supported
 on the given pad.
 

@@ -225,7 +225,7 @@ introduced in Linux 3.3.
           indicated by the driver setting the ``bytesused`` field to 0. Once
           the ``V4L2_BUF_FLAG_LAST`` flag was set, the
           :ref:`VIDIOC_DQBUF <VIDIOC_QBUF>` ioctl will not block anymore,
-          but return an EPIPE error code. If
+          but return an ``EPIPE`` error code. If
           ``V4L2_DEC_CMD_STOP_IMMEDIATELY`` is set, then the decoder stops
           immediately (ignoring the ``pts`` value), otherwise it will keep
           decoding until timestamp >= pts or until the last of the pending
@@ -238,7 +238,7 @@ introduced in Linux 3.3.
        -  2
 
        -  Pause the decoder. When the decoder has not been started yet, the
-          driver will return an EPERM error code. When the decoder is
+          driver will return an ``EPERM`` error code. When the decoder is
           already paused, this command does nothing. This command has one
           flag: if ``V4L2_DEC_CMD_PAUSE_TO_BLACK`` is set, then set the
           decoder output to black when paused.
@@ -250,7 +250,7 @@ introduced in Linux 3.3.
        -  3
 
        -  Resume decoding after a PAUSE command. When the decoder has not
-          been started yet, the driver will return an EPERM error code. When
+          been started yet, the driver will return an ``EPERM`` error code. When
           the decoder is already running, this command does nothing. No
           flags are defined for this command.
 

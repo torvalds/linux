@@ -51,11 +51,11 @@ and start streaming again.
 
 If the timings could not be detected because there was no signal, then
 ENOLINK is returned. If a signal was detected, but it was unstable and
-the receiver could not lock to the signal, then ENOLCK is returned. If
+the receiver could not lock to the signal, then ``ENOLCK`` is returned. If
 the receiver could lock to the signal, but the format is unsupported
 (e.g. because the pixelclock is out of range of the hardware
 capabilities), then the driver fills in whatever timings it could find
-and returns ERANGE. In that case the application can call
+and returns ``ERANGE``. In that case the application can call
 :ref:`VIDIOC_DV_TIMINGS_CAP` to compare the
 found timings with the hardware's capabilities in order to give more
 precise feedback to the user.

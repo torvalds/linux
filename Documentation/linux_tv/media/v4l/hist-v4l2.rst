@@ -280,14 +280,14 @@ A number of changes were made to the raw VBI interface.
    transmitted only on the first field. The comment that both ``count``
    values will usually be equal is misleading and pointless and has been
    removed. This change *breaks compatibility* with earlier versions:
-   Drivers may return EINVAL, applications may not function correctly.
+   Drivers may return ``EINVAL``, applications may not function correctly.
 
 3. Drivers are again permitted to return negative (unknown) start values
    as proposed earlier. Why this feature was dropped is unclear. This
    change may *break compatibility* with applications depending on the
    start values being positive. The use of ``EBUSY`` and ``EINVAL``
    error codes with the :ref:`VIDIOC_S_FMT <VIDIOC_G_FMT>` ioctl was
-   clarified. The EBUSY error code was finally documented, and the
+   clarified. The ``EBUSY`` error code was finally documented, and the
    ``reserved2`` field which was previously mentioned only in the
    ``videodev.h`` header file.
 
@@ -324,7 +324,7 @@ This unnamed version was finally merged into Linux 2.5.46.
 3.  The struct :ref:`v4l2_capability <v4l2-capability>` changed
     dramatically. Note that also the size of the structure changed,
     which is encoded in the ioctl request code, thus older V4L2 devices
-    will respond with an EINVAL error code to the new
+    will respond with an ``EINVAL`` error code to the new
     :ref:`VIDIOC_QUERYCAP` ioctl.
 
     There are new fields to identify the driver, a new RDS device
@@ -855,7 +855,7 @@ V4L2 spec erratum 2004-08-01
 4. The documentation of the :ref:`VIDIOC_QBUF` and
    :ref:`VIDIOC_DQBUF <VIDIOC_QBUF>` ioctls did not mention the
    struct :ref:`v4l2_buffer <v4l2-buffer>` ``memory`` field. It was
-   also missing from examples. Also on the ``VIDIOC_DQBUF`` page the EIO
+   also missing from examples. Also on the ``VIDIOC_DQBUF`` page the ``EIO``
    error code was not documented.
 
 

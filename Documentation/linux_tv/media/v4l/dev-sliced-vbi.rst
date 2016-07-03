@@ -92,9 +92,9 @@ explicitly.
 
 The :ref:`VIDIOC_S_FMT <VIDIOC_G_FMT>` ioctl modifies the parameters
 according to hardware capabilities. When the driver allocates resources
-at this point, it may return an EBUSY error code if the required
+at this point, it may return an ``EBUSY`` error code if the required
 resources are temporarily unavailable. Other resource allocation points
-which may return EBUSY can be the
+which may return ``EBUSY`` can be the
 :ref:`VIDIOC_STREAMON` ioctl and the first
 :ref:`read() <func-read>`, :ref:`write() <func-write>` and
 :ref:`select() <func-select>` call.
@@ -336,12 +336,12 @@ which may return EBUSY can be the
        -  :cspan:`2` Set of services applicable to 625 line systems.
 
 
-Drivers may return an EINVAL error code when applications attempt to
+Drivers may return an ``EINVAL`` error code when applications attempt to
 read or write data without prior format negotiation, after switching the
 video standard (which may invalidate the negotiated VBI parameters) and
 after switching the video input (which may change the video standard as
 a side effect). The :ref:`VIDIOC_S_FMT <VIDIOC_G_FMT>` ioctl may
-return an EBUSY error code when applications attempt to change the
+return an ``EBUSY`` error code when applications attempt to change the
 format while i/o is in progress (between a
 :ref:`VIDIOC_STREAMON` and
 :ref:`VIDIOC_STREAMOFF <VIDIOC_STREAMON>` call, and after the first
@@ -428,7 +428,7 @@ of one video frame. The ``id`` of unused
 
 Packets are always passed in ascending line number order, without
 duplicate line numbers. The :ref:`write() <func-write>` function and
-the :ref:`VIDIOC_QBUF` ioctl must return an EINVAL
+the :ref:`VIDIOC_QBUF` ioctl must return an ``EINVAL``
 error code when applications violate this rule. They must also return an
 EINVAL error code when applications pass an incorrect field or line
 number, or a combination of ``field``, ``line`` and ``id`` which has not

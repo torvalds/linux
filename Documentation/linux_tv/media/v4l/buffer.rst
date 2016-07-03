@@ -651,7 +651,7 @@ buffer.
           the driver will set the ``bytesused`` field to 0, regardless of
           the format. Any Any subsequent call to the
           :ref:`VIDIOC_DQBUF <VIDIOC_QBUF>` ioctl will not block anymore,
-          but return an EPIPE error code.
+          but return an ``EPIPE`` error code.
 
     -  .. row 13
 

@@ -83,25 +83,25 @@ RETURN VALUE
 
     -  .. row 1
 
-       -  ENODEV
+       -  ``ENODEV``
 
        -  Device driver not loaded/available.
 
     -  .. row 2
 
-       -  EINVAL
+       -  ``EINVAL``
 
        -  Invalid argument.
 
     -  .. row 3
 
-       -  EMFILE
+       -  ``EMFILE``
 
        -  “Too many open files”, i.e. no more filters available.
 
     -  .. row 4
 
-       -  ENOMEM
+       -  ``ENOMEM``
 
        -  The driver failed to allocate enough memory.
 
@@ -148,7 +148,7 @@ RETURN VALUE
 
     -  .. row 1
 
-       -  EBADF
+       -  ``EBADF``
 
        -  fd is not a valid open file descriptor.
 
@@ -209,26 +209,26 @@ RETURN VALUE
 
     -  .. row 1
 
-       -  EWOULDBLOCK
+       -  ``EWOULDBLOCK``
 
        -  No data to return and O_NONBLOCK was specified.
 
     -  .. row 2
 
-       -  EBADF
+       -  ``EBADF``
 
        -  fd is not a valid open file descriptor.
 
     -  .. row 3
 
-       -  ECRC
+       -  ``ECRC``
 
        -  Last section had a CRC error - no data returned. The buffer is
           flushed.
 
     -  .. row 4
 
-       -  EOVERFLOW
+       -  ``EOVERFLOW``
 
        -  
 
@@ -240,14 +240,14 @@ RETURN VALUE
 
     -  .. row 6
 
-       -  ETIMEDOUT
+       -  ``ETIMEDOUT``
 
        -  The section was not loaded within the stated timeout period. See
           ioctl DMX_SET_FILTER for how to set a timeout.
 
     -  .. row 7
 
-       -  EFAULT
+       -  ``EFAULT``
 
        -  The driver failed to write to the callers buffer due to an invalid
           *buf pointer.
@@ -311,7 +311,7 @@ RETURN VALUE
 
     -  .. row 1
 
-       -  EWOULDBLOCK
+       -  ``EWOULDBLOCK``
 
        -  No data was written. This might happen if O_NONBLOCK was
           specified and there is no more buffer space available (if
@@ -320,7 +320,7 @@ RETURN VALUE
 
     -  .. row 2
 
-       -  EBUSY
+       -  ``EBUSY``
 
        -  This error code indicates that there are conflicting requests. The
           corresponding demux device is setup to receive data from the
@@ -329,7 +329,7 @@ RETURN VALUE
 
     -  .. row 3
 
-       -  EBADF
+       -  ``EBADF``
 
        -  fd is not a valid open file descriptor.
 
@@ -386,14 +386,14 @@ appropriately. The generic error codes are described at the
 
     -  .. row 1
 
-       -  EINVAL
+       -  ``EINVAL``
 
        -  Invalid argument, i.e. no filtering parameters provided via the
           DMX_SET_FILTER or DMX_SET_PES_FILTER functions.
 
     -  .. row 2
 
-       -  EBUSY
+       -  ``EBUSY``
 
        -  This error code indicates that there are conflicting requests.
           There are active filters filtering data from another input source.
@@ -564,7 +564,7 @@ appropriately. The generic error codes are described at the
 
     -  .. row 1
 
-       -  EBUSY
+       -  ``EBUSY``
 
        -  This error code indicates that there are conflicting requests.
           There are active filters filtering data from another input source.
@@ -635,7 +635,7 @@ DESCRIPTION
 This ioctl call returns an event if available. If an event is not
 available, the behavior depends on whether the device is in blocking or
 non-blocking mode. In the latter case, the call fails immediately with
-errno set to EWOULDBLOCK. In the former case, the call blocks until an
+errno set to ``EWOULDBLOCK``. In the former case, the call blocks until an
 event becomes available.
 
 SYNOPSIS
@@ -686,7 +686,7 @@ appropriately. The generic error codes are described at the
 
     -  .. row 1
 
-       -  EWOULDBLOCK
+       -  ``EWOULDBLOCK``
 
        -  There is no event pending, and the device is in non-blocking mode.
 
@@ -753,7 +753,7 @@ appropriately. The generic error codes are described at the
 
     -  .. row 1
 
-       -  EINVAL
+       -  ``EINVAL``
 
        -  Invalid stc number.
 

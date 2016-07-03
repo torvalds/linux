@@ -78,7 +78,7 @@ V4L prohibits (or used to prohibit) multiple opens of a device file.
 V4L2 drivers *may* support multiple opens, see :ref:`open` for details
 and consequences.
 
-V4L drivers respond to V4L2 ioctls with an EINVAL error code.
+V4L drivers respond to V4L2 ioctls with an ``EINVAL`` error code.
 
 
 Querying Capabilities
@@ -207,7 +207,7 @@ introduction.
        -  Applications can call the :ref:`VIDIOC_G_CROP <VIDIOC_G_CROP>`
           ioctl to determine if the device supports capturing a subsection
           of the full picture ("cropping" in V4L2). If not, the ioctl
-          returns the EINVAL error code. For more information on cropping
+          returns the ``EINVAL`` error code. For more information on cropping
           and scaling see :ref:`crop`.
 
     -  .. row 12
@@ -791,7 +791,7 @@ differences.
 
        -  The ``VIDIOCMCAPTURE`` ioctl prepares a buffer for capturing. It
           also determines the image format for this buffer. The ioctl
-          returns immediately, eventually with an EAGAIN error code if no
+          returns immediately, eventually with an ``EAGAIN`` error code if no
           video signal had been detected. When the driver supports more than
           one buffer applications can call the ioctl multiple times and thus
           have multiple outstanding capture requests.
@@ -899,7 +899,7 @@ remaining fields are probably equivalent to struct
 Apparently only the Zoran (ZR 36120) driver implements these ioctls. The
 semantics differ from those specified for V4L2 in two ways. The
 parameters are reset on :ref:`open() <func-open>` and
-``VIDIOCSVBIFMT`` always returns an EINVAL error code if the parameters
+``VIDIOCSVBIFMT`` always returns an ``EINVAL`` error code if the parameters
 are invalid.
 
 

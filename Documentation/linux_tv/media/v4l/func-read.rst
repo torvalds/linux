@@ -45,7 +45,7 @@ worth of data.
 
 By default :c:func:`read()` blocks until data becomes available. When
 the ``O_NONBLOCK`` flag was given to the :ref:`open() <func-open>`
-function it returns immediately with an EAGAIN error code when no data
+function it returns immediately with an ``EAGAIN`` error code when no data
 is available. The :ref:`select() <func-select>` or
 :ref:`poll() <func-poll>` functions can always be used to suspend
 execution until data becomes available. All drivers supporting the

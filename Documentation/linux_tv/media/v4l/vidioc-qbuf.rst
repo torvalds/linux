@@ -110,7 +110,7 @@ array must be passed in as well.
 By default ``VIDIOC_DQBUF`` blocks when no buffer is in the outgoing
 queue. When the ``O_NONBLOCK`` flag was given to the
 :ref:`open() <func-open>` function, ``VIDIOC_DQBUF`` returns
-immediately with an EAGAIN error code when no buffer is available.
+immediately with an ``EAGAIN`` error code when no buffer is available.
 
 The :c:type:`struct v4l2_buffer` structure is specified in
 :ref:`buffer`.

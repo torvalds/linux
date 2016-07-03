@@ -34,9 +34,9 @@ Description
 To enumerate image formats applications initialize the ``type`` and
 ``index`` field of struct :ref:`v4l2_fmtdesc <v4l2-fmtdesc>` and call
 the :ref:`VIDIOC_ENUM_FMT` ioctl with a pointer to this structure. Drivers
-fill the rest of the structure or return an EINVAL error code. All
+fill the rest of the structure or return an ``EINVAL`` error code. All
 formats are enumerable by beginning at index zero and incrementing by
-one until EINVAL is returned.
+one until ``EINVAL`` is returned.
 
 Note that after switching input or output the list of enumerated image
 formats may be different.

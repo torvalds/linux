@@ -47,7 +47,7 @@ devices that is either the struct
 :ref:`v4l2_pix_format <v4l2-pix-format>` ``pix`` or the struct
 :ref:`v4l2_pix_format_mplane <v4l2-pix-format-mplane>` ``pix_mp``
 member. When the requested buffer type is not supported drivers return
-an EINVAL error code.
+an ``EINVAL`` error code.
 
 To change the current format parameters applications initialize the
 ``type`` field and all fields of the respective ``fmt`` union member.
@@ -69,11 +69,11 @@ application must implement the :ref:`VIDIOC_G_FMT <VIDIOC_G_FMT>` and :ref:`VIDI
 ioctl. When the requested buffer type is not supported drivers return an
 EINVAL error code on a :ref:`VIDIOC_S_FMT <VIDIOC_G_FMT>` attempt. When I/O is already in
 progress or the resource is not available for other reasons drivers
-return the EBUSY error code.
+return the ``EBUSY`` error code.
 
 The :ref:`VIDIOC_TRY_FMT <VIDIOC_G_FMT>` ioctl is equivalent to :ref:`VIDIOC_S_FMT <VIDIOC_G_FMT>` with one
 exception: it does not change driver state. It can also be called at any
-time, never returning EBUSY. This function is provided to negotiate
+time, never returning ``EBUSY``. This function is provided to negotiate
 parameters, to learn about hardware limitations, without disabling I/O
 or possibly time consuming hardware preparations. Although strongly
 recommended drivers are not required to implement this ioctl.

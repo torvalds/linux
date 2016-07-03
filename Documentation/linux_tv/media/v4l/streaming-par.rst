@@ -30,7 +30,7 @@ contains a union holding separate parameters for input and output
 devices.
 
 These ioctls are optional, drivers need not implement them. If so, they
-return the EINVAL error code.
+return the ``EINVAL`` error code.
 
 
 .. ------------------------------------------------------------------------------

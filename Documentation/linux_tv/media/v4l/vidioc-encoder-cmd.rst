@@ -135,7 +135,7 @@ introduced in Linux 2.6.21.
           driver setting the ``bytesused`` field to 0. Once the
           ``V4L2_BUF_FLAG_LAST`` flag was set, the
           :ref:`VIDIOC_DQBUF <VIDIOC_QBUF>` ioctl will not block anymore,
-          but return an EPIPE error code.
+          but return an ``EPIPE`` error code.
 
     -  .. row 3
 
@@ -144,7 +144,7 @@ introduced in Linux 2.6.21.
        -  2
 
        -  Pause the encoder. When the encoder has not been started yet, the
-          driver will return an EPERM error code. When the encoder is
+          driver will return an ``EPERM`` error code. When the encoder is
           already paused, this command does nothing. No flags are defined
           for this command.
 
@@ -155,7 +155,7 @@ introduced in Linux 2.6.21.
        -  3
 
        -  Resume encoding after a PAUSE command. When the encoder has not
-          been started yet, the driver will return an EPERM error code. When
+          been started yet, the driver will return an ``EPERM`` error code. When
           the encoder is already running, this command does nothing. No
           flags are defined for this command.
 

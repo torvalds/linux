@@ -56,7 +56,7 @@ and ``flags`` fields.
 When ``match.type`` is ``V4L2_CHIP_MATCH_BRIDGE``, ``match.addr``
 selects the nth bridge 'chip' on the TV card. You can enumerate all
 chips by starting at zero and incrementing ``match.addr`` by one until
-:ref:`VIDIOC_DBG_G_CHIP_INFO` fails with an EINVAL error code. The number
+:ref:`VIDIOC_DBG_G_CHIP_INFO` fails with an ``EINVAL`` error code. The number
 zero always selects the bridge chip itself, e. g. the chip connected to
 the PCI or USB bus. Non-zero numbers identify specific parts of the
 bridge chip such as an AC97 register block.

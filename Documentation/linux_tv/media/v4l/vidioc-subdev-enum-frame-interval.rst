@@ -48,7 +48,7 @@ and call the :ref:`VIDIOC_SUBDEV_ENUM_FRAME_INTERVAL` ioctl with a pointer
 to this structure. Drivers fill the rest of the structure or return an
 EINVAL error code if one of the input fields is invalid. All frame
 intervals are enumerable by beginning at index zero and incrementing by
-one until EINVAL is returned.
+one until ``EINVAL`` is returned.
 
 Available frame intervals may depend on the current 'try' formats at
 other pads of the sub-device, as well as on the current active links.

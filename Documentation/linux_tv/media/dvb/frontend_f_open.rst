@@ -37,7 +37,7 @@ Arguments
     allowed.
 
     When the ``O_NONBLOCK`` flag is given, the system calls may return
-    EAGAIN error code when no data is available or when the device
+    ``EAGAIN`` error code when no data is available or when the device
     driver is temporarily busy.
 
     Other flags have no effect.

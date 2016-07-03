@@ -35,9 +35,9 @@ To query the attributes of an audio output applications initialize the
 ``index`` field and zero out the ``reserved`` array of a struct
 :ref:`v4l2_audioout <v4l2-audioout>` and call the ``VIDIOC_G_AUDOUT``
 ioctl with a pointer to this structure. Drivers fill the rest of the
-structure or return an EINVAL error code when the index is out of
+structure or return an ``EINVAL`` error code when the index is out of
 bounds. To enumerate all audio outputs applications shall begin at index
-zero, incrementing by one until the driver returns EINVAL.
+zero, incrementing by one until the driver returns ``EINVAL``.
 
 Note connectors on a TV card to loop back the received audio signal to a
 sound card are not audio outputs in this sense.

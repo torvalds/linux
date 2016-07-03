@@ -84,25 +84,25 @@ RETURN VALUE
 
     -  .. row 1
 
-       -  ENODEV
+       -  ``ENODEV``
 
        -  Device driver not loaded/available.
 
     -  .. row 2
 
-       -  EINTERNAL
+       -  ``EINTERNAL``
 
        -  Internal error.
 
     -  .. row 3
 
-       -  EBUSY
+       -  ``EBUSY``
 
        -  Device or resource busy.
 
     -  .. row 4
 
-       -  EINVAL
+       -  ``EINVAL``
 
        -  Invalid argument.
 
@@ -148,7 +148,7 @@ RETURN VALUE
 
     -  .. row 1
 
-       -  EBADF
+       -  ``EBADF``
 
        -  fd is not a valid open file descriptor.
 

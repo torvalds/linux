@@ -34,7 +34,7 @@ Description
 To query the attributes of a video outputs applications initialize the
 ``index`` field of struct :ref:`v4l2_output <v4l2-output>` and call
 the :ref:`VIDIOC_ENUMOUTPUT` ioctl with a pointer to this structure.
-Drivers fill the rest of the structure or return an EINVAL error code
+Drivers fill the rest of the structure or return an ``EINVAL`` error code
 when the index is out of bounds. To enumerate all outputs applications
 shall begin at index zero, incrementing by one until the driver returns
 EINVAL.

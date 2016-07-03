@@ -35,9 +35,9 @@ To query the attributes of a video standard, especially a custom (driver
 defined) one, applications initialize the ``index`` field of struct
 :ref:`v4l2_standard <v4l2-standard>` and call the :ref:`VIDIOC_ENUMSTD`
 ioctl with a pointer to this structure. Drivers fill the rest of the
-structure or return an EINVAL error code when the index is out of
+structure or return an ``EINVAL`` error code when the index is out of
 bounds. To enumerate all standards applications shall begin at index
-zero, incrementing by one until the driver returns EINVAL. Drivers may
+zero, incrementing by one until the driver returns ``EINVAL``. Drivers may
 enumerate a different set of standards after switching the video input
 or output. [1]_
 

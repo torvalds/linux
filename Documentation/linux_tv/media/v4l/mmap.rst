@@ -235,7 +235,7 @@ suspend execution of the application until one or more buffers can be
 dequeued. By default ``VIDIOC_DQBUF`` blocks when no buffer is in the
 outgoing queue. When the ``O_NONBLOCK`` flag was given to the
 :ref:`open() <func-open>` function, ``VIDIOC_DQBUF`` returns
-immediately with an EAGAIN error code when no buffer is available. The
+immediately with an ``EAGAIN`` error code when no buffer is available. The
 :ref:`select() <func-select>` or :ref:`poll() <func-poll>` functions
 are always available.
 

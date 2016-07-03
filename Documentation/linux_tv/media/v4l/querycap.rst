@@ -20,7 +20,7 @@ Starting with kernel version 3.1, :ref:`VIDIOC_QUERYCAP`
 will return the V4L2 API version used by the driver, with generally
 matches the Kernel version. There's no need of using
 :ref:`VIDIOC_QUERYCAP` to check if a specific ioctl
-is supported, the V4L2 core now returns ENOTTY if a driver doesn't
+is supported, the V4L2 core now returns ``ENOTTY`` if a driver doesn't
 provide support for an ioctl.
 
 Other features can be queried by calling the respective ioctl, for
