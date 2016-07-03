@@ -20,25 +20,12 @@
 * Contact Cavium, Inc. for more information
 **********************************************************************/
 #include <linux/version.h>
-#include <linux/module.h>
-#include <linux/crc32.h>
-#include <linux/dma-mapping.h>
 #include <linux/pci.h>
-#include <linux/pci_ids.h>
-#include <linux/ip.h>
-#include <net/ip.h>
-#include <linux/ipv6.h>
 #include <linux/net_tstamp.h>
 #include <linux/if_vlan.h>
 #include <linux/firmware.h>
-#include <linux/ethtool.h>
 #include <linux/ptp_clock_kernel.h>
-#include <linux/types.h>
-#include <linux/list.h>
-#include <linux/workqueue.h>
-#include <linux/interrupt.h>
 #include <net/vxlan.h>
-#include "octeon_config.h"
 #include "liquidio_common.h"
 #include "octeon_droq.h"
 #include "octeon_iq.h"
@@ -49,7 +36,6 @@
 #include "octeon_network.h"
 #include "cn66xx_regs.h"
 #include "cn66xx_device.h"
-#include "cn68xx_regs.h"
 #include "cn68xx_device.h"
 #include "liquidio_image.h"
 
@@ -252,8 +238,7 @@ static int lio_wait_for_oq_pkts(struct octeon_device *oct)
 		for (i = 0; i < MAX_OCTEON_OUTPUT_QUEUES(oct); i++) {
 			if (!(oct->io_qmask.oq & (1ULL << i)))
 				continue;
-			pkt_cnt += octeon_droq_check_hw_for_pkts(oct,
-								 oct->droq[i]);
+			pkt_cnt += octeon_droq_check_hw_for_pkts(oct->droq[i]);
 		}
 		if (pkt_cnt > 0) {
 			pending_pkts += pkt_cnt;
@@ -508,7 +493,8 @@ static pci_ers_result_t liquidio_pcie_error_detected(struct pci_dev *pdev,
  * \brief mmio handler
  * @param pdev Pointer to PCI device
  */
-static pci_ers_result_t liquidio_pcie_mmio_enabled(struct pci_dev *pdev)
+static pci_ers_result_t liquidio_pcie_mmio_enabled(
+				struct pci_dev *pdev __attribute__((unused)))
 {
 	/* We should never hit this since we never ask for a reset for a Fatal
 	 * Error. We always return DISCONNECT in io_error above.
@@ -524,7 +510,8 @@ static pci_ers_result_t liquidio_pcie_mmio_enabled(struct pci_dev *pdev)
  * Restart the card from scratch, as if from a cold-boot. Implementation
  * resembles the first-half of the octeon_resume routine.
  */
-static pci_ers_result_t liquidio_pcie_slot_reset(struct pci_dev *pdev)
+static pci_ers_result_t liquidio_pcie_slot_reset(
+				struct pci_dev *pdev __attribute__((unused)))
 {
 	/* We should never hit this since we never ask for a reset for a Fatal
 	 * Error. We always return DISCONNECT in io_error above.
@@ -541,7 +528,7 @@ static pci_ers_result_t liquidio_pcie_slot_reset(struct pci_dev *pdev)
  * its OK to resume normal operation. Implementation resembles the
  * second-half of the octeon_resume routine.
  */
-static void liquidio_pcie_resume(struct pci_dev *pdev)
+static void liquidio_pcie_resume(struct pci_dev *pdev __attribute__((unused)))
 {
 	/* Nothing to be done here. */
 }
@@ -552,7 +539,8 @@ static void liquidio_pcie_resume(struct pci_dev *pdev)
  * @param pdev Pointer to PCI device
  * @param state state to suspend to
  */
-static int liquidio_suspend(struct pci_dev *pdev, pm_message_t state)
+static int liquidio_suspend(struct pci_dev *pdev __attribute__((unused)),
+			    pm_message_t state __attribute__((unused)))
 {
 	return 0;
 }
@@ -561,7 +549,7 @@ static int liquidio_suspend(struct pci_dev *pdev, pm_message_t state)
  * \brief called when resuming
  * @param pdev Pointer to PCI device
  */
-static int liquidio_resume(struct pci_dev *pdev)
+static int liquidio_resume(struct pci_dev *pdev __attribute__((unused)))
 {
 	return 0;
 }
@@ -1105,7 +1093,9 @@ static int octeon_setup_interrupt(struct octeon_device *oct)
  * @param pdev PCI device structure
  * @param ent unused
  */
-static int liquidio_probe(struct pci_dev *pdev, const struct pci_device_id *ent)
+static int
+liquidio_probe(struct pci_dev *pdev,
+	       const struct pci_device_id *ent __attribute__((unused)))
 {
 	struct octeon_device *oct_dev = NULL;
 	struct handshake *hs;
@@ -1725,8 +1715,10 @@ static int liquidio_ptp_settime(struct ptp_clock_info *ptp,
  * @param rq request
  * @param on is it on
  */
-static int liquidio_ptp_enable(struct ptp_clock_info *ptp,
-			       struct ptp_clock_request *rq, int on)
+static int
+liquidio_ptp_enable(struct ptp_clock_info *ptp __attribute__((unused)),
+		    struct ptp_clock_request *rq __attribute__((unused)),
+		    int on __attribute__((unused)))
 {
 	return -EOPNOTSUPP;
 }
@@ -1867,7 +1859,7 @@ static int octeon_setup_droq(struct octeon_device *oct, int q_no, int num_descs,
  * @param buf pointer to resp structure
  */
 static void if_cfg_callback(struct octeon_device *oct,
-			    u32 status,
+			    u32 status __attribute__((unused)),
 			    void *buf)
 {
 	struct octeon_soft_command *sc = (struct octeon_soft_command *)buf;
@@ -1881,7 +1873,7 @@ static void if_cfg_callback(struct octeon_device *oct,
 	if (resp->status)
 		dev_err(&oct->pci_dev->dev, "nic if cfg instruction failed. Status: %llx\n",
 			CVM_CAST64(resp->status));
-	ACCESS_ONCE(ctx->cond) = 1;
+	WRITE_ONCE(ctx->cond, 1);
 
 	snprintf(oct->fw_info.liquidio_firmware_version, 32, "%s",
 		 resp->cfg_info.liquidio_firmware_version);
@@ -1901,7 +1893,8 @@ static void if_cfg_callback(struct octeon_device *oct,
  * @returns selected queue number
  */
 static u16 select_q(struct net_device *dev, struct sk_buff *skb,
-		    void *accel_priv, select_queue_fallback_t fallback)
+		    void *accel_priv __attribute__((unused)),
+		    select_queue_fallback_t fallback __attribute__((unused)))
 {
 	u32 qindex = 0;
 	struct lio *lio;
@@ -1921,7 +1914,7 @@ static u16 select_q(struct net_device *dev, struct sk_buff *skb,
  * @param arg	   - farg registered in droq_ops
  */
 static void
-liquidio_push_packet(u32 octeon_id,
+liquidio_push_packet(u32 octeon_id __attribute__((unused)),
 		     void *skbuff,
 		     u32 len,
 		     union octeon_rh *rh,
@@ -2526,7 +2519,7 @@ static void liquidio_set_mcast_list(struct net_device *netdev)
 	struct octnic_ctrl_pkt nctrl;
 	struct netdev_hw_addr *ha;
 	u64 *mc;
-	int ret, i;
+	int ret;
 	int mc_count = min(netdev_mc_count(netdev), MAX_OCTEON_MULTICAST_ADDR);
 
 	memset(&nctrl, 0, sizeof(struct octnic_ctrl_pkt));
@@ -2542,7 +2535,6 @@ static void liquidio_set_mcast_list(struct net_device *netdev)
 	nctrl.cb_fn = liquidio_link_ctrl_cmd_completion;
 
 	/* copy all the addresses into the udd */
-	i = 0;
 	mc = &nctrl.udd[0];
 	netdev_for_each_mc_addr(ha, netdev) {
 		*mc = 0;
@@ -2707,7 +2699,7 @@ static int liquidio_change_mtu(struct net_device *netdev, int new_mtu)
  * @param ifr interface request
  * @param cmd command
  */
-static int hwtstamp_ioctl(struct net_device *netdev, struct ifreq *ifr, int cmd)
+static int hwtstamp_ioctl(struct net_device *netdev, struct ifreq *ifr)
 {
 	struct hwtstamp_config conf;
 	struct lio *lio = GET_LIO(netdev);
@@ -2768,7 +2760,7 @@ static int liquidio_ioctl(struct net_device *netdev, struct ifreq *ifr, int cmd)
 {
 	switch (cmd) {
 	case SIOCSHWTSTAMP:
-		return hwtstamp_ioctl(netdev, ifr, cmd);
+		return hwtstamp_ioctl(netdev, ifr);
 	default:
 		return -EOPNOTSUPP;
 	}
@@ -3545,7 +3537,7 @@ static int setup_nic_devices(struct octeon_device *octeon_dev)
 		dev_dbg(&octeon_dev->pci_dev->dev,
 			"requesting config for interface %d, iqs %d, oqs %d\n",
 			ifidx_or_pfnum, num_iqueues, num_oqueues);
-		ACCESS_ONCE(ctx->cond) = 0;
+		WRITE_ONCE(ctx->cond, 0);
 		ctx->octeon_id = lio_get_device_id(octeon_dev);
 		init_waitqueue_head(&ctx->wc);
 

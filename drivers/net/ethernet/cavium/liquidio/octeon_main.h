@@ -174,7 +174,7 @@ sleep_cond(wait_queue_head_t *wait_queue, int *condition)
 
 	init_waitqueue_entry(&we, current);
 	add_wait_queue(wait_queue, &we);
-	while (!(ACCESS_ONCE(*condition))) {
+	while (!(READ_ONCE(*condition))) {
 		set_current_state(TASK_INTERRUPTIBLE);
 		if (signal_pending(current))
 			goto out;

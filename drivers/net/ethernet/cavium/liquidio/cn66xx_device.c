@@ -19,26 +19,16 @@
 * This file may also be available under a different license from Cavium.
 * Contact Cavium, Inc. for more information
 **********************************************************************/
-#include <linux/version.h>
-#include <linux/types.h>
-#include <linux/list.h>
-#include <linux/interrupt.h>
 #include <linux/pci.h>
-#include <linux/kthread.h>
 #include <linux/netdevice.h>
-#include "octeon_config.h"
 #include "liquidio_common.h"
 #include "octeon_droq.h"
 #include "octeon_iq.h"
 #include "response_manager.h"
 #include "octeon_device.h"
-#include "octeon_nic.h"
 #include "octeon_main.h"
-#include "octeon_network.h"
 #include "cn66xx_regs.h"
 #include "cn66xx_device.h"
-#include "liquidio_image.h"
-#include "octeon_mem_ops.h"
 
 int lio_cn6xxx_soft_reset(struct octeon_device *oct)
 {
@@ -547,14 +537,14 @@ static void lio_cn6xxx_get_pcie_qlmport(struct octeon_device *oct)
 	dev_dbg(&oct->pci_dev->dev, "Using PCIE Port %d\n", oct->pcie_port);
 }
 
-void
+static void
 lio_cn6xxx_process_pcie_error_intr(struct octeon_device *oct, u64 intr64)
 {
 	dev_err(&oct->pci_dev->dev, "Error Intr: 0x%016llx\n",
 		CVM_CAST64(intr64));
 }
 
-int lio_cn6xxx_process_droq_intr_regs(struct octeon_device *oct)
+static int lio_cn6xxx_process_droq_intr_regs(struct octeon_device *oct)
 {
 	struct octeon_droq *droq;
 	int oq_no;
@@ -579,7 +569,7 @@ int lio_cn6xxx_process_droq_intr_regs(struct octeon_device *oct)
 			continue;
 
 		droq = oct->droq[oq_no];
-		pkt_count = octeon_droq_check_hw_for_pkts(oct, droq);
+		pkt_count = octeon_droq_check_hw_for_pkts(droq);
 		if (pkt_count) {
 			oct->droq_intr |= (1ULL << oq_no);
 			if (droq->ops.poll_mode) {

@@ -19,13 +19,9 @@
 * This file may also be available under a different license from Cavium.
 * Contact Cavium, Inc. for more information
 **********************************************************************/
-#include <linux/version.h>
 #include <linux/netdevice.h>
 #include <linux/net_tstamp.h>
-#include <linux/ethtool.h>
-#include <linux/dma-mapping.h>
 #include <linux/pci.h>
-#include "octeon_config.h"
 #include "liquidio_common.h"
 #include "octeon_droq.h"
 #include "octeon_iq.h"
@@ -36,9 +32,6 @@
 #include "octeon_network.h"
 #include "cn66xx_regs.h"
 #include "cn66xx_device.h"
-#include "cn68xx_regs.h"
-#include "cn68xx_device.h"
-#include "liquidio_image.h"
 
 static int octnet_get_link_stats(struct net_device *netdev);
 
@@ -346,20 +339,18 @@ static void octnet_mdio_resp_callback(struct octeon_device *oct,
 				      u32 status,
 				      void *buf)
 {
-	struct oct_mdio_cmd_resp *mdio_cmd_rsp;
 	struct oct_mdio_cmd_context *mdio_cmd_ctx;
 	struct octeon_soft_command *sc = (struct octeon_soft_command *)buf;
 
-	mdio_cmd_rsp = (struct oct_mdio_cmd_resp *)sc->virtrptr;
 	mdio_cmd_ctx = (struct oct_mdio_cmd_context *)sc->ctxptr;
 
 	oct = lio_get_device(mdio_cmd_ctx->octeon_id);
 	if (status) {
 		dev_err(&oct->pci_dev->dev, "MIDO instruction failed. Status: %llx\n",
 			CVM_CAST64(status));
-		ACCESS_ONCE(mdio_cmd_ctx->cond) = -1;
+		WRITE_ONCE(mdio_cmd_ctx->cond, -1);
 	} else {
-		ACCESS_ONCE(mdio_cmd_ctx->cond) = 1;
+		WRITE_ONCE(mdio_cmd_ctx->cond, 1);
 	}
 	wake_up_interruptible(&mdio_cmd_ctx->wc);
 }
@@ -390,7 +381,7 @@ octnet_mdio45_access(struct lio *lio, int op, int loc, int *value)
 	mdio_cmd_rsp = (struct oct_mdio_cmd_resp *)sc->virtrptr;
 	mdio_cmd = (struct oct_mdio_cmd *)sc->virtdptr;
 
-	ACCESS_ONCE(mdio_cmd_ctx->cond) = 0;
+	WRITE_ONCE(mdio_cmd_ctx->cond, 0);
 	mdio_cmd_ctx->octeon_id = lio_get_device_id(oct_dev);
 	mdio_cmd->op = op;
 	mdio_cmd->mdio_addr = loc;
@@ -429,7 +420,7 @@ octnet_mdio45_access(struct lio *lio, int op, int loc, int *value)
 			octeon_swap_8B_data((u64 *)(&mdio_cmd_rsp->resp),
 					    sizeof(struct oct_mdio_cmd) / 8);
 
-			if (ACCESS_ONCE(mdio_cmd_ctx->cond) == 1) {
+			if (READ_ONCE(mdio_cmd_ctx->cond) == 1) {
 				if (!op)
 					*value = mdio_cmd_rsp->resp.value1;
 			} else {
@@ -623,7 +614,8 @@ lio_get_pauseparam(struct net_device *netdev, struct ethtool_pauseparam *pause)
 
 static void
 lio_get_ethtool_stats(struct net_device *netdev,
-		      struct ethtool_stats *stats, u64 *data)
+		      struct ethtool_stats *stats  __attribute__((unused)),
+		      u64 *data)
 {
 	struct lio *lio = GET_LIO(netdev);
 	struct octeon_device *oct_dev = lio->oct_dev;
@@ -1067,7 +1059,7 @@ static int octnet_set_intrmod_cfg(struct lio *lio,
 	return 0;
 }
 
-void
+static void
 octnet_nic_stats_callback(struct octeon_device *oct_dev,
 			  u32 status, void *ptr)
 {
@@ -1552,7 +1544,7 @@ static int lio_nway_reset(struct net_device *netdev)
 }
 
 /* Return register dump len. */
-static int lio_get_regs_len(struct net_device *dev)
+static int lio_get_regs_len(struct net_device *dev __attribute__((unused)))
 {
 	return OCT_ETHTOOL_REGDUMP_LEN;
 }

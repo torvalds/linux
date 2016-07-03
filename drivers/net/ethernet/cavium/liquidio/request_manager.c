@@ -19,28 +19,17 @@
  * This file may also be available under a different license from Cavium.
  * Contact Cavium, Inc. for more information
  **********************************************************************/
-#include <linux/version.h>
-#include <linux/types.h>
-#include <linux/list.h>
-#include <linux/interrupt.h>
 #include <linux/pci.h>
-#include <linux/kthread.h>
 #include <linux/netdevice.h>
 #include <linux/vmalloc.h>
-#include "octeon_config.h"
 #include "liquidio_common.h"
 #include "octeon_droq.h"
 #include "octeon_iq.h"
 #include "response_manager.h"
 #include "octeon_device.h"
-#include "octeon_nic.h"
 #include "octeon_main.h"
 #include "octeon_network.h"
-#include "cn66xx_regs.h"
 #include "cn66xx_device.h"
-#include "cn68xx_regs.h"
-#include "cn68xx_device.h"
-#include "liquidio_image.h"
 
 #define INCR_INSTRQUEUE_PKT_COUNT(octeon_dev_ptr, iq_no, field, count)  \
 	(octeon_dev_ptr->instr_queue[iq_no]->stats.field += count)
@@ -301,40 +290,8 @@ static inline void __copy_cmd_into_iq(struct octeon_instr_queue *iq,
 	memcpy(iqptr, cmd, cmdsize);
 }
 
-static inline int
-__post_command(struct octeon_device *octeon_dev __attribute__((unused)),
-	       struct octeon_instr_queue *iq,
-	       u32 force_db __attribute__((unused)), u8 *cmd)
-{
-	u32 index = -1;
-
-	/* This ensures that the read index does not wrap around to the same
-	 * position if queue gets full before Octeon could fetch any instr.
-	 */
-	if (atomic_read(&iq->instr_pending) >= (s32)(iq->max_count - 1))
-		return -1;
-
-	__copy_cmd_into_iq(iq, cmd);
-
-	/* "index" is returned, host_write_index is modified. */
-	index = iq->host_write_index;
-	INCR_INDEX_BY1(iq->host_write_index, iq->max_count);
-	iq->fill_cnt++;
-
-	/* Flush the command into memory. We need to be sure the data is in
-	 * memory before indicating that the instruction is pending.
-	 */
-	wmb();
-
-	atomic_inc(&iq->instr_pending);
-
-	return index;
-}
-
 static inline struct iq_post_status
-__post_command2(struct octeon_device *octeon_dev __attribute__((unused)),
-		struct octeon_instr_queue *iq,
-		u32 force_db __attribute__((unused)), u8 *cmd)
+__post_command2(struct octeon_instr_queue *iq, u8 *cmd)
 {
 	struct iq_post_status st;
 
@@ -579,7 +536,7 @@ octeon_send_command(struct octeon_device *oct, u32 iq_no,
 	 */
 	spin_lock_bh(&iq->post_lock);
 
-	st = __post_command2(oct, iq, force_db, cmd);
+	st = __post_command2(iq, cmd);
 
 	if (st.status != IQ_SEND_FAILED) {
 		octeon_report_sent_bytes_to_bql(buf, reqtype);
@@ -618,8 +575,8 @@ octeon_prepare_soft_command(struct octeon_device *oct,
 	struct octeon_instr_irh *irh;
 	struct octeon_instr_rdp *rdp;
 
-	BUG_ON(opcode > 15);
-	BUG_ON(subcode > 127);
+	WARN_ON(opcode > 15);
+	WARN_ON(subcode > 127);
 
 	oct_cfg = octeon_get_conf(oct);
 
@@ -661,7 +618,6 @@ int octeon_send_soft_command(struct octeon_device *oct,
 {
 	struct octeon_instr_ih2 *ih2;
 	struct octeon_instr_irh *irh;
-	struct octeon_instr_rdp *rdp;
 	u32 len;
 
 	ih2 = (struct octeon_instr_ih2 *)&sc->cmd.cmd2.ih2;
@@ -671,11 +627,9 @@ int octeon_send_soft_command(struct octeon_device *oct,
 	}
 	irh = (struct octeon_instr_irh *)&sc->cmd.cmd2.irh;
 	if (irh->rflag) {
-		BUG_ON(!sc->dmarptr);
-		BUG_ON(!sc->status_word);
+		WARN_ON(!sc->dmarptr);
+		WARN_ON(!sc->status_word);
 		*sc->status_word = COMPLETION_WORD_INIT;
-
-		rdp = (struct octeon_instr_rdp *)&sc->cmd.cmd2.rdp;
 
 		sc->cmd.cmd2.rptr = sc->dmarptr;
 	}
@@ -748,7 +702,7 @@ struct octeon_soft_command *octeon_alloc_soft_command(struct octeon_device *oct,
 	struct octeon_soft_command *sc = NULL;
 	struct list_head *tmp;
 
-	BUG_ON((offset + datasize + rdatasize + ctxsize) >
+	WARN_ON((offset + datasize + rdatasize + ctxsize) >
 	       SOFT_COMMAND_BUFFER_SIZE);
 
 	spin_lock(&oct->sc_buf_pool.lock);
@@ -795,7 +749,7 @@ struct octeon_soft_command *octeon_alloc_soft_command(struct octeon_device *oct,
 	offset = (offset + datasize + 127) & 0xffffff80;
 
 	if (rdatasize) {
-		BUG_ON(rdatasize < 16);
+		WARN_ON(rdatasize < 16);
 		sc->virtrptr = (u8 *)sc + offset;
 		sc->dmarptr = dma_addr + offset;
 		sc->rdatasize = rdatasize;

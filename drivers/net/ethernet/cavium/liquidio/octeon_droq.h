@@ -416,24 +416,9 @@ int octeon_register_dispatch_fn(struct octeon_device *oct,
 				u16 subcode,
 				octeon_dispatch_fn_t fn, void *fn_arg);
 
-/**  Remove registration for an opcode/subcode. This will delete the mapping for
- *   an opcode/subcode. The dispatch function will be unregistered and will no
- *   longer be called if a packet with the opcode/subcode arrives in the driver
- *   output queues.
- *   @param  oct        -  the octeon device to unregister from.
- *   @param  opcode     -  the opcode to be unregistered.
- *   @param  subcode    -  the subcode to be unregistered.
- *
- *   @return Success: 0; Failure: 1
- */
-int octeon_unregister_dispatch_fn(struct octeon_device *oct,
-				  u16 opcode,
-				  u16 subcode);
-
 void octeon_droq_print_stats(void);
 
-u32 octeon_droq_check_hw_for_pkts(struct octeon_device *oct,
-				  struct octeon_droq *droq);
+u32 octeon_droq_check_hw_for_pkts(struct octeon_droq *droq);
 
 int octeon_create_droq(struct octeon_device *oct, u32 q_no,
 		       u32 num_descs, u32 desc_size, void *app_ctx);

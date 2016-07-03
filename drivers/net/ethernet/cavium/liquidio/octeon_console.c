@@ -23,27 +23,14 @@
 /**
  * @file octeon_console.c
  */
-#include <linux/version.h>
-#include <linux/types.h>
-#include <linux/list.h>
-#include <linux/interrupt.h>
 #include <linux/pci.h>
-#include <linux/kthread.h>
 #include <linux/netdevice.h>
-#include "octeon_config.h"
 #include "liquidio_common.h"
 #include "octeon_droq.h"
 #include "octeon_iq.h"
 #include "response_manager.h"
 #include "octeon_device.h"
-#include "octeon_nic.h"
 #include "octeon_main.h"
-#include "octeon_network.h"
-#include "cn66xx_regs.h"
-#include "cn66xx_device.h"
-#include "cn68xx_regs.h"
-#include "cn68xx_device.h"
-#include "liquidio_image.h"
 #include "octeon_mem_ops.h"
 
 static void octeon_remote_lock(void);
@@ -51,6 +38,8 @@ static void octeon_remote_unlock(void);
 static u64 cvmx_bootmem_phy_named_block_find(struct octeon_device *oct,
 					     const char *name,
 					     u32 flags);
+static int octeon_console_read(struct octeon_device *oct, u32 console_num,
+			       char *buffer, u32 buf_size);
 
 #define MIN(a, b) min((a), (b))
 #define CAST_ULL(v) ((u64)(v))
@@ -170,8 +159,8 @@ struct octeon_pci_console_desc {
 				offsetof(struct cvmx_bootmem_desc, field),   \
 				SIZEOF_FIELD(struct cvmx_bootmem_desc, field))
 
-#define __cvmx_bootmem_lock(flags)
-#define __cvmx_bootmem_unlock(flags)
+#define __cvmx_bootmem_lock(flags)	(flags = flags)
+#define __cvmx_bootmem_unlock(flags)	(flags = flags)
 
 /**
  * This macro returns a member of the
@@ -440,8 +429,7 @@ int octeon_wait_for_bootloader(struct octeon_device *oct,
 }
 
 static void octeon_console_handle_result(struct octeon_device *oct,
-					 size_t console_num,
-					 char *buffer, s32 bytes_read)
+					 size_t console_num)
 {
 	struct octeon_console *console;
 
@@ -505,14 +493,11 @@ static void check_console(struct work_struct *work)
 		 */
 		bytes_read =
 			octeon_console_read(oct, console_num, console_buffer,
-					    sizeof(console_buffer) - 1, 0);
+					    sizeof(console_buffer) - 1);
 		if (bytes_read > 0) {
 			total_read += bytes_read;
-			if (console->waiting) {
-				octeon_console_handle_result(oct, console_num,
-							     console_buffer,
-							     bytes_read);
-			}
+			if (console->waiting)
+				octeon_console_handle_result(oct, console_num);
 			if (octeon_console_debug_enabled(console_num)) {
 				output_console_line(oct, console, console_num,
 						    console_buffer, bytes_read);
@@ -675,8 +660,8 @@ static inline int octeon_console_avail_bytes(u32 buffer_size,
 	       octeon_console_free_bytes(buffer_size, wr_idx, rd_idx);
 }
 
-int octeon_console_read(struct octeon_device *oct, u32 console_num,
-			char *buffer, u32 buf_size, u32 flags)
+static int octeon_console_read(struct octeon_device *oct, u32 console_num,
+			       char *buffer, u32 buf_size)
 {
 	int bytes_to_read;
 	u32 rd_idx, wr_idx;

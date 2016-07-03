@@ -357,7 +357,7 @@ lio_map_ring_info(struct octeon_droq *droq, u32 i)
 	dma_addr = dma_map_single(&oct->pci_dev->dev, &droq->info_list[i],
 				  OCT_DROQ_INFO_SIZE, DMA_FROM_DEVICE);
 
-	BUG_ON(dma_mapping_error(&oct->pci_dev->dev, dma_addr));
+	WARN_ON(dma_mapping_error(&oct->pci_dev->dev, dma_addr));
 
 	return (u64)dma_addr;
 }

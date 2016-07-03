@@ -19,27 +19,19 @@
 * This file may also be available under a different license from Cavium.
 * Contact Cavium, Inc. for more information
 **********************************************************************/
-#include <linux/types.h>
-#include <linux/list.h>
-#include <linux/interrupt.h>
 #include <linux/pci.h>
 #include <linux/crc32.h>
-#include <linux/kthread.h>
 #include <linux/netdevice.h>
 #include <linux/vmalloc.h>
-#include "octeon_config.h"
 #include "liquidio_common.h"
 #include "octeon_droq.h"
 #include "octeon_iq.h"
 #include "response_manager.h"
 #include "octeon_device.h"
-#include "octeon_nic.h"
 #include "octeon_main.h"
 #include "octeon_network.h"
 #include "cn66xx_regs.h"
 #include "cn66xx_device.h"
-#include "cn68xx_regs.h"
-#include "cn68xx_device.h"
 #include "liquidio_image.h"
 #include "octeon_mem_ops.h"
 
@@ -752,13 +744,11 @@ struct octeon_device *octeon_allocate_device(u32 pci_id,
 /* this function is only for setting up the first queue */
 int octeon_setup_instr_queues(struct octeon_device *oct)
 {
-	u32 num_iqs = 0;
 	u32 num_descs = 0;
 	u32 iq_no = 0;
 	union oct_txpciq txpciq;
 	int numa_node = cpu_to_node(iq_no % num_online_cpus());
 
-	num_iqs = 1;
 	/* this causes queue 0 to be default queue */
 	if (OCTEON_CN6XXX(oct))
 		num_descs =
@@ -793,13 +783,11 @@ int octeon_setup_instr_queues(struct octeon_device *oct)
 
 int octeon_setup_output_queues(struct octeon_device *oct)
 {
-	u32 num_oqs = 0;
 	u32 num_descs = 0;
 	u32 desc_size = 0;
 	u32 oq_no = 0;
 	int numa_node = cpu_to_node(oq_no % num_online_cpus());
 
-	num_oqs = 1;
 	/* this causes queue 0 to be default queue */
 	if (OCTEON_CN6XXX(oct)) {
 		num_descs =
@@ -1017,79 +1005,6 @@ octeon_register_dispatch_fn(struct octeon_device *oct,
 	}
 
 	return 0;
-}
-
-/* octeon_unregister_dispatch_fn
- * Parameters:
- *   oct       - octeon device
- *   opcode    - driver should unregister the function for this opcode
- *   subcode   - driver should unregister the function for this subcode
- * Description:
- *   Unregister the function set for this opcode+subcode.
- * Returns:
- *   Success: 0
- *   Failure: 1
- * Locks:
- *   No locks are held.
- */
-int
-octeon_unregister_dispatch_fn(struct octeon_device *oct, u16 opcode,
-			      u16 subcode)
-{
-	int retval = 0;
-	u32 idx;
-	struct list_head *dispatch, *dfree = NULL, *tmp2;
-	u16 combined_opcode = OPCODE_SUBCODE(opcode, subcode);
-
-	idx = combined_opcode & OCTEON_OPCODE_MASK;
-
-	spin_lock_bh(&oct->dispatch.lock);
-
-	if (oct->dispatch.count == 0) {
-		spin_unlock_bh(&oct->dispatch.lock);
-		dev_err(&oct->pci_dev->dev,
-			"No dispatch functions registered for this device\n");
-		return 1;
-	}
-
-	if (oct->dispatch.dlist[idx].opcode == combined_opcode) {
-		dispatch = &oct->dispatch.dlist[idx].list;
-		if (dispatch->next != dispatch) {
-			dispatch = dispatch->next;
-			oct->dispatch.dlist[idx].opcode =
-				((struct octeon_dispatch *)dispatch)->opcode;
-			oct->dispatch.dlist[idx].dispatch_fn =
-				((struct octeon_dispatch *)
-				 dispatch)->dispatch_fn;
-			oct->dispatch.dlist[idx].arg =
-				((struct octeon_dispatch *)dispatch)->arg;
-			list_del(dispatch);
-			dfree = dispatch;
-		} else {
-			oct->dispatch.dlist[idx].opcode = 0;
-			oct->dispatch.dlist[idx].dispatch_fn = NULL;
-			oct->dispatch.dlist[idx].arg = NULL;
-		}
-	} else {
-		retval = 1;
-		list_for_each_safe(dispatch, tmp2,
-				   &(oct->dispatch.dlist[idx].
-				     list)) {
-			if (((struct octeon_dispatch *)dispatch)->opcode ==
-			    combined_opcode) {
-				list_del(dispatch);
-				dfree = dispatch;
-				retval = 0;
-			}
-		}
-	}
-
-	if (!retval)
-		oct->dispatch.count--;
-
-	spin_unlock_bh(&oct->dispatch.lock);
-	vfree(dfree);
-	return retval;
 }
 
 int octeon_core_drv_init(struct octeon_recv_info *recv_info, void *buf)
