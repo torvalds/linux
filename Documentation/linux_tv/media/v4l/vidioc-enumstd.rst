@@ -401,7 +401,7 @@ ENODATA
 
 .. [1]
    The supported standards may overlap and we need an unambiguous set to
-   find the current standard returned by :ref:`VIDIOC_G_STD`.
+   find the current standard returned by :ref:`VIDIOC_G_STD <VIDIOC_G_STD>`.
 
 .. [2]
    Japan uses a standard similar to M/NTSC (V4L2_STD_NTSC_M_JP).

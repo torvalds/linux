@@ -37,7 +37,7 @@ Description
 
 To set DV timings for the input or output, applications use the
 :ref:`VIDIOC_S_DV_TIMINGS <VIDIOC_G_DV_TIMINGS>` ioctl and to get the current timings,
-applications use the :ref:`VIDIOC_G_DV_TIMINGS` ioctl. The detailed timing
+applications use the :ref:`VIDIOC_G_DV_TIMINGS <VIDIOC_G_DV_TIMINGS>` ioctl. The detailed timing
 information is filled in using the structure struct
 :ref:`v4l2_dv_timings <v4l2-dv-timings>`. These ioctls take a
 pointer to the struct :ref:`v4l2_dv_timings <v4l2-dv-timings>`

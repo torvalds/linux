@@ -22,9 +22,9 @@ Radio input devices have exactly one tuner with index zero, no video
 inputs.
 
 To query and change tuner properties applications use the
-:ref:`VIDIOC_G_TUNER` and
+:ref:`VIDIOC_G_TUNER <VIDIOC_G_TUNER>` and
 :ref:`VIDIOC_S_TUNER <VIDIOC_G_TUNER>` ioctls, respectively. The
-struct :ref:`v4l2_tuner <v4l2-tuner>` returned by :ref:`VIDIOC_G_TUNER`
+struct :ref:`v4l2_tuner <v4l2-tuner>` returned by :ref:`VIDIOC_G_TUNER <VIDIOC_G_TUNER>`
 also contains signal status information applicable when the tuner of the
 current video or radio input is queried. Note that :ref:`VIDIOC_S_TUNER <VIDIOC_G_TUNER>`
 does not switch the current tuner, when there is more than one at all.
@@ -59,7 +59,7 @@ functionality. The reason is a limitation with the
 cannot specify whether the frequency is for a tuner or a modulator.
 
 To query and change modulator properties applications use the
-:ref:`VIDIOC_G_MODULATOR` and
+:ref:`VIDIOC_G_MODULATOR <VIDIOC_G_MODULATOR>` and
 :ref:`VIDIOC_S_MODULATOR <VIDIOC_G_MODULATOR>` ioctl. Note that
 :ref:`VIDIOC_S_MODULATOR <VIDIOC_G_MODULATOR>` does not switch the current modulator, when there
 is more than one at all. The modulator is solely determined by the
@@ -74,7 +74,7 @@ Radio Frequency
 ===============
 
 To get and set the tuner or modulator radio frequency applications use
-the :ref:`VIDIOC_G_FREQUENCY` and
+the :ref:`VIDIOC_G_FREQUENCY <VIDIOC_G_FREQUENCY>` and
 :ref:`VIDIOC_S_FREQUENCY <VIDIOC_G_FREQUENCY>` ioctl which both take
 a pointer to a struct :ref:`v4l2_frequency <v4l2-frequency>`. These
 ioctls are used for TV and radio devices alike. Drivers must support

@@ -44,7 +44,7 @@ Calls that distinguish between single and multi-planar APIs
     together with non-multi-planar ones for devices that handle both
     single- and multi-planar formats.
 
-:ref:`VIDIOC_G_FMT`,
+:ref:`VIDIOC_G_FMT <VIDIOC_G_FMT>`,
 :ref:`VIDIOC_S_FMT <VIDIOC_G_FMT>`,
 :ref:`VIDIOC_TRY_FMT <VIDIOC_G_FMT>`
     New structures for describing multi-planar formats are added: struct

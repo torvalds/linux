@@ -41,7 +41,7 @@ struct :c:type:`struct v4l2_format` to the respective buffer (stream)
 type. For example video capture devices use
 ``V4L2_BUF_TYPE_VIDEO_CAPTURE`` or
 ``V4L2_BUF_TYPE_VIDEO_CAPTURE_MPLANE``. When the application calls the
-:ref:`VIDIOC_G_FMT` ioctl with a pointer to this structure the driver fills
+:ref:`VIDIOC_G_FMT <VIDIOC_G_FMT>` ioctl with a pointer to this structure the driver fills
 the respective member of the ``fmt`` union. In case of video capture
 devices that is either the struct
 :ref:`v4l2_pix_format <v4l2-pix-format>` ``pix`` or the struct
@@ -62,10 +62,10 @@ this is a mechanism to fathom device capabilities and to approach
 parameters acceptable for both the application and driver. On success
 the driver may program the hardware, allocate resources and generally
 prepare for data exchange. Finally the :ref:`VIDIOC_S_FMT <VIDIOC_G_FMT>` ioctl returns
-the current format parameters as :ref:`VIDIOC_G_FMT` does. Very simple,
+the current format parameters as :ref:`VIDIOC_G_FMT <VIDIOC_G_FMT>` does. Very simple,
 inflexible devices may even ignore all input and always return the
 default parameters. However all V4L2 devices exchanging data with the
-application must implement the :ref:`VIDIOC_G_FMT` and :ref:`VIDIOC_S_FMT <VIDIOC_G_FMT>`
+application must implement the :ref:`VIDIOC_G_FMT <VIDIOC_G_FMT>` and :ref:`VIDIOC_S_FMT <VIDIOC_G_FMT>`
 ioctl. When the requested buffer type is not supported drivers return an
 EINVAL error code on a :ref:`VIDIOC_S_FMT <VIDIOC_G_FMT>` attempt. When I/O is already in
 progress or the resource is not available for other reasons drivers

@@ -36,7 +36,7 @@ Composite input may collapse standards, enumerating "PAL-B/G/H/I",
 "NTSC-M" and "SECAM-D/K". [1]_
 
 To query and select the standard used by the current video input or
-output applications call the :ref:`VIDIOC_G_STD` and
+output applications call the :ref:`VIDIOC_G_STD <VIDIOC_G_STD>` and
 :ref:`VIDIOC_S_STD <VIDIOC_G_STD>` ioctl, respectively. The
 *received* standard can be sensed with the
 :ref:`VIDIOC_QUERYSTD` ioctl. Note that the
@@ -56,7 +56,7 @@ output device which is:
 
 Here the driver shall set the ``std`` field of struct
 :ref:`v4l2_input <v4l2-input>` and struct
-:ref:`v4l2_output <v4l2-output>` to zero and the :ref:`VIDIOC_G_STD`,
+:ref:`v4l2_output <v4l2-output>` to zero and the :ref:`VIDIOC_G_STD <VIDIOC_G_STD>`,
 :ref:`VIDIOC_S_STD <VIDIOC_G_STD>`, :ref:`VIDIOC_QUERYSTD` and :ref:`VIDIOC_ENUMSTD` ioctls
 shall return the ENOTTY error code or the EINVAL error code.
 

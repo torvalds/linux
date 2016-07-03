@@ -364,7 +364,7 @@ Control IDs
 Applications can enumerate the available controls with the
 :ref:`VIDIOC_QUERYCTRL` and
 :ref:`VIDIOC_QUERYMENU <VIDIOC_QUERYCTRL>` ioctls, get and set a
-control value with the :ref:`VIDIOC_G_CTRL` and
+control value with the :ref:`VIDIOC_G_CTRL <VIDIOC_G_CTRL>` and
 :ref:`VIDIOC_S_CTRL <VIDIOC_G_CTRL>` ioctls. Drivers must implement
 ``VIDIOC_QUERYCTRL``, ``VIDIOC_G_CTRL`` and ``VIDIOC_S_CTRL`` when the
 device has one or more controls, ``VIDIOC_QUERYMENU`` when it has one or

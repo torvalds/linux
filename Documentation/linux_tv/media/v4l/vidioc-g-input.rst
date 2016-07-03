@@ -33,7 +33,7 @@ Description
 ===========
 
 To query the current video input applications call the
-:ref:`VIDIOC_G_INPUT` ioctl with a pointer to an integer where the driver
+:ref:`VIDIOC_G_INPUT <VIDIOC_G_INPUT>` ioctl with a pointer to an integer where the driver
 stores the number of the input, as in the struct
 :ref:`v4l2_input <v4l2-input>` ``index`` field. This ioctl will fail
 only when there are no video inputs, returning EINVAL.

@@ -39,11 +39,11 @@ The Extended Control API
 ========================
 
 Three new ioctls are available:
-:ref:`VIDIOC_G_EXT_CTRLS`,
+:ref:`VIDIOC_G_EXT_CTRLS <VIDIOC_G_EXT_CTRLS>`,
 :ref:`VIDIOC_S_EXT_CTRLS <VIDIOC_G_EXT_CTRLS>` and
 :ref:`VIDIOC_TRY_EXT_CTRLS <VIDIOC_G_EXT_CTRLS>`. These ioctls act
 on arrays of controls (as opposed to the
-:ref:`VIDIOC_G_CTRL` and
+:ref:`VIDIOC_G_CTRL <VIDIOC_G_CTRL>` and
 :ref:`VIDIOC_S_CTRL <VIDIOC_G_CTRL>` ioctls that act on a single
 control). This is needed since it is often required to atomically change
 several controls at once.

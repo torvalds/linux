@@ -29,7 +29,7 @@ device applications use the
 DV timings for the device applications use the
 :ref:`VIDIOC_S_DV_TIMINGS <VIDIOC_G_DV_TIMINGS>` ioctl and to get
 current DV timings they use the
-:ref:`VIDIOC_G_DV_TIMINGS` ioctl. To detect
+:ref:`VIDIOC_G_DV_TIMINGS <VIDIOC_G_DV_TIMINGS>` ioctl. To detect
 the DV timings as seen by the video receiver applications use the
 :ref:`VIDIOC_QUERY_DV_TIMINGS` ioctl.
 

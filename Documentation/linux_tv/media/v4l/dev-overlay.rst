@@ -63,7 +63,7 @@ Setup
 Before overlay can commence applications must program the driver with
 frame buffer parameters, namely the address and size of the frame buffer
 and the image format, for example RGB 5:6:5. The
-:ref:`VIDIOC_G_FBUF` and
+:ref:`VIDIOC_G_FBUF <VIDIOC_G_FBUF>` and
 :ref:`VIDIOC_S_FBUF <VIDIOC_G_FBUF>` ioctls are available to get and
 set these parameters, respectively. The :ref:`VIDIOC_S_FBUF <VIDIOC_G_FBUF>` ioctl is
 privileged because it allows to set up DMA into physical memory,
@@ -77,7 +77,7 @@ Some devices add the video overlay to the output signal of the graphics
 card. In this case the frame buffer is not modified by the video device,
 and the frame buffer address and pixel format are not needed by the
 driver. The :ref:`VIDIOC_S_FBUF <VIDIOC_G_FBUF>` ioctl is not privileged. An application
-can check for this type of device by calling the :ref:`VIDIOC_G_FBUF`
+can check for this type of device by calling the :ref:`VIDIOC_G_FBUF <VIDIOC_G_FBUF>`
 ioctl.
 
 A driver may support any (or none) of five clipping/blending methods:
@@ -121,7 +121,7 @@ its position over the graphics surface and the clipping to be applied.
 To get the current parameters applications set the ``type`` field of a
 struct :ref:`v4l2_format <v4l2-format>` to
 ``V4L2_BUF_TYPE_VIDEO_OVERLAY`` and call the
-:ref:`VIDIOC_G_FMT` ioctl. The driver fills the
+:ref:`VIDIOC_G_FMT <VIDIOC_G_FMT>` ioctl. The driver fills the
 :c:type:`struct v4l2_window` substructure named ``win``. It is not
 possible to retrieve a previously programmed clipping list or bitmap.
 
@@ -130,7 +130,7 @@ struct :ref:`v4l2_format <v4l2-format>` to
 ``V4L2_BUF_TYPE_VIDEO_OVERLAY``, initialize the ``win`` substructure and
 call the :ref:`VIDIOC_S_FMT <VIDIOC_G_FMT>` ioctl. The driver
 adjusts the parameters against hardware limits and returns the actual
-parameters as :ref:`VIDIOC_G_FMT` does. Like :ref:`VIDIOC_S_FMT <VIDIOC_G_FMT>`, the
+parameters as :ref:`VIDIOC_G_FMT <VIDIOC_G_FMT>` does. Like :ref:`VIDIOC_S_FMT <VIDIOC_G_FMT>`, the
 :ref:`VIDIOC_TRY_FMT <VIDIOC_G_FMT>` ioctl can be used to learn
 about driver capabilities without actually changing driver state. Unlike
 :ref:`VIDIOC_S_FMT <VIDIOC_G_FMT>` this also works after the overlay has been enabled.
@@ -179,7 +179,7 @@ struct v4l2_window
 
 ``struct v4l2_clip * clips``
     When chroma-keying has *not* been negotiated and
-    :ref:`VIDIOC_G_FBUF` indicated this capability,
+    :ref:`VIDIOC_G_FBUF <VIDIOC_G_FBUF>` indicated this capability,
     applications can set this field to point to an array of clipping
     rectangles.
 
@@ -204,7 +204,7 @@ are undefined.
 
 ``void * bitmap``
     When chroma-keying has *not* been negotiated and
-    :ref:`VIDIOC_G_FBUF` indicated this capability,
+    :ref:`VIDIOC_G_FBUF <VIDIOC_G_FBUF>` indicated this capability,
     applications can set this field to point to a clipping bit mask.
 
 It must be of the same size as the window, ``w.width`` and ``w.height``.

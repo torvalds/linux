@@ -33,11 +33,11 @@ The struct :ref:`v4l2_audio <v4l2-audio>` returned by the
 :ref:`VIDIOC_ENUMAUDIO` ioctl also contains signal
 :status information applicable when the current audio input is queried.
 
-The :ref:`VIDIOC_G_AUDIO` and
+The :ref:`VIDIOC_G_AUDIO <VIDIOC_G_AUDIO>` and
 :ref:`VIDIOC_G_AUDOUT <VIDIOC_G_AUDIOout>` ioctls report the current
 audio input and output, respectively. Note that, unlike
-:ref:`VIDIOC_G_INPUT` and
-:ref:`VIDIOC_G_OUTPUT` these ioctls return a
+:ref:`VIDIOC_G_INPUT <VIDIOC_G_INPUT>` and
+:ref:`VIDIOC_G_OUTPUT <VIDIOC_G_OUTPUT>` these ioctls return a
 structure as :ref:`VIDIOC_ENUMAUDIO` and
 :ref:`VIDIOC_ENUMAUDOUT <VIDIOC_ENUMAUDIOout>` do, not just an index.
 

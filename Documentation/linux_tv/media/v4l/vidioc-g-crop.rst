@@ -36,7 +36,7 @@ Description
 
 To query the cropping rectangle size and position applications set the
 ``type`` field of a :c:type:`struct v4l2_crop` structure to the
-respective buffer (stream) type and call the :ref:`VIDIOC_G_CROP` ioctl
+respective buffer (stream) type and call the :ref:`VIDIOC_G_CROP <VIDIOC_G_CROP>` ioctl
 with a pointer to this structure. The driver fills the rest of the
 structure or returns the EINVAL error code if cropping is not supported.
 
@@ -66,7 +66,7 @@ vertical scaling factor.
 Finally the driver programs the hardware with the actual cropping and
 image parameters. :ref:`VIDIOC_S_CROP <VIDIOC_G_CROP>` is a write-only ioctl, it does not
 return the actual parameters. To query them applications must call
-:ref:`VIDIOC_G_CROP` and :ref:`VIDIOC_G_FMT`. When the
+:ref:`VIDIOC_G_CROP <VIDIOC_G_CROP>` and :ref:`VIDIOC_G_FMT`. When the
 parameters are unsuitable the application may modify the cropping or
 image parameters and repeat the cycle until satisfactory parameters have
 been negotiated.

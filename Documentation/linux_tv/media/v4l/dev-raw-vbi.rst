@@ -71,7 +71,7 @@ parameters and then checking if the actual parameters are suitable.
 To query the current raw VBI capture parameters applications set the
 ``type`` field of a struct :ref:`v4l2_format <v4l2-format>` to
 ``V4L2_BUF_TYPE_VBI_CAPTURE`` or ``V4L2_BUF_TYPE_VBI_OUTPUT``, and call
-the :ref:`VIDIOC_G_FMT` ioctl with a pointer to this
+the :ref:`VIDIOC_G_FMT <VIDIOC_G_FMT>` ioctl with a pointer to this
 structure. Drivers fill the struct
 :ref:`v4l2_vbi_format <v4l2-vbi-format>` ``vbi`` member of the
 ``fmt`` union.
@@ -80,7 +80,7 @@ To request different parameters applications set the ``type`` field of a
 struct :ref:`v4l2_format <v4l2-format>` as above and initialize all
 fields of the struct :ref:`v4l2_vbi_format <v4l2-vbi-format>`
 ``vbi`` member of the ``fmt`` union, or better just modify the results
-of :ref:`VIDIOC_G_FMT`, and call the :ref:`VIDIOC_S_FMT <VIDIOC_G_FMT>`
+of :ref:`VIDIOC_G_FMT <VIDIOC_G_FMT>`, and call the :ref:`VIDIOC_S_FMT <VIDIOC_G_FMT>`
 ioctl with a pointer to this structure. Drivers return an EINVAL error
 code only when the given parameters are ambiguous, otherwise they modify
 the parameters according to the hardware capabilities and return the
@@ -94,9 +94,9 @@ expect other resource allocation points which may return EBUSY, at the
 :ref:`VIDIOC_STREAMON` ioctl and the first read(),
 write() and select() call.
 
-VBI devices must implement both the :ref:`VIDIOC_G_FMT` and
+VBI devices must implement both the :ref:`VIDIOC_G_FMT <VIDIOC_G_FMT>` and
 :ref:`VIDIOC_S_FMT <VIDIOC_G_FMT>` ioctl, even if :ref:`VIDIOC_S_FMT <VIDIOC_G_FMT>` ignores all requests
-and always returns default parameters as :ref:`VIDIOC_G_FMT` does.
+and always returns default parameters as :ref:`VIDIOC_G_FMT <VIDIOC_G_FMT>` does.
 :ref:`VIDIOC_TRY_FMT <VIDIOC_G_FMT>` is optional.
 
 

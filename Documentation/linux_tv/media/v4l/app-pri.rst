@@ -16,7 +16,7 @@ applications and automatically regain control of the device at a later
 time.
 
 Since these features cannot be implemented entirely in user space V4L2
-defines the :ref:`VIDIOC_G_PRIORITY` and
+defines the :ref:`VIDIOC_G_PRIORITY <VIDIOC_G_PRIORITY>` and
 :ref:`VIDIOC_S_PRIORITY <VIDIOC_G_PRIORITY>` ioctls to request and
 query the access priority associate with a file descriptor. Opening a
 device assigns a medium priority, compatible with earlier versions of

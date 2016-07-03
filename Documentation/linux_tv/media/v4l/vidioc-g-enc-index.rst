@@ -31,19 +31,19 @@ Arguments
 Description
 ===========
 
-The :ref:`VIDIOC_G_ENC_INDEX` ioctl provides meta data about a compressed
+The :ref:`VIDIOC_G_ENC_INDEX <VIDIOC_G_ENC_INDEX>` ioctl provides meta data about a compressed
 video stream the same or another application currently reads from the
 driver, which is useful for random access into the stream without
 decoding it.
 
-To read the data applications must call :ref:`VIDIOC_G_ENC_INDEX` with a
+To read the data applications must call :ref:`VIDIOC_G_ENC_INDEX <VIDIOC_G_ENC_INDEX>` with a
 pointer to a struct :ref:`v4l2_enc_idx <v4l2-enc-idx>`. On success
 the driver fills the ``entry`` array, stores the number of elements
 written in the ``entries`` field, and initializes the ``entries_cap``
 field.
 
 Each element of the ``entry`` array contains meta data about one
-picture. A :ref:`VIDIOC_G_ENC_INDEX` call reads up to
+picture. A :ref:`VIDIOC_G_ENC_INDEX <VIDIOC_G_ENC_INDEX>` call reads up to
 ``V4L2_ENC_IDX_ENTRIES`` entries from a driver buffer, which can hold up
 to ``entries_cap`` entries. This number can be lower or higher than
 ``V4L2_ENC_IDX_ENTRIES``, but not zero. When the application fails to

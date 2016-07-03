@@ -48,7 +48,7 @@ by the ``controls`` fields.
 To get the current value of a set of controls applications initialize
 the ``id``, ``size`` and ``reserved2`` fields of each struct
 :ref:`v4l2_ext_control <v4l2-ext-control>` and call the
-:ref:`VIDIOC_G_EXT_CTRLS` ioctl. String controls controls must also set the
+:ref:`VIDIOC_G_EXT_CTRLS <VIDIOC_G_EXT_CTRLS>` ioctl. String controls controls must also set the
 ``string`` field. Controls of compound types
 (``V4L2_CTRL_FLAG_HAS_PAYLOAD`` is set) must set the ``ptr`` field.
 
@@ -122,7 +122,7 @@ still cause this situation.
        -  The total size in bytes of the payload of this control. This is
           normally 0, but for pointer controls this should be set to the
           size of the memory containing the payload, or that will receive
-          the payload. If :ref:`VIDIOC_G_EXT_CTRLS` finds that this value is
+          the payload. If :ref:`VIDIOC_G_EXT_CTRLS <VIDIOC_G_EXT_CTRLS>` finds that this value is
           less than is required to store the payload result, then it is set
           to a value large enough to store the payload result and ENOSPC is
           returned. Note that for string controls this ``size`` field should
@@ -328,7 +328,7 @@ still cause this situation.
           :ref:`VIDIOC_S_EXT_CTRLS <VIDIOC_G_EXT_CTRLS>` fails with ``error_idx`` set to ``count``,
           then you can call :ref:`VIDIOC_TRY_EXT_CTRLS <VIDIOC_G_EXT_CTRLS>` to try to discover the
           actual control that failed the validation step. Unfortunately,
-          there is no ``TRY`` equivalent for :ref:`VIDIOC_G_EXT_CTRLS`.
+          there is no ``TRY`` equivalent for :ref:`VIDIOC_G_EXT_CTRLS <VIDIOC_G_EXT_CTRLS>`.
 
     -  .. row 6
 
@@ -367,7 +367,7 @@ still cause this situation.
        -  The class containing user controls. These controls are described
           in :ref:`control`. All controls that can be set using the
           :ref:`VIDIOC_S_CTRL <VIDIOC_G_CTRL>` and
-          :ref:`VIDIOC_G_CTRL` ioctl belong to this
+          :ref:`VIDIOC_G_CTRL <VIDIOC_G_CTRL>` ioctl belong to this
           class.
 
     -  .. row 2

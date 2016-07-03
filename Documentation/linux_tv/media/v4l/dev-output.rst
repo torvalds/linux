@@ -62,7 +62,7 @@ defaults. An example is given in :ref:`crop`.
 To query the current image format applications set the ``type`` field of
 a struct :ref:`v4l2_format <v4l2-format>` to
 ``V4L2_BUF_TYPE_VIDEO_OUTPUT`` or ``V4L2_BUF_TYPE_VIDEO_OUTPUT_MPLANE``
-and call the :ref:`VIDIOC_G_FMT` ioctl with a pointer
+and call the :ref:`VIDIOC_G_FMT <VIDIOC_G_FMT>` ioctl with a pointer
 to this structure. Drivers fill the struct
 :ref:`v4l2_pix_format <v4l2-pix-format>` ``pix`` or the struct
 :ref:`v4l2_pix_format_mplane <v4l2-pix-format-mplane>` ``pix_mp``
@@ -72,9 +72,9 @@ To request different parameters applications set the ``type`` field of a
 struct :ref:`v4l2_format <v4l2-format>` as above and initialize all
 fields of the struct :ref:`v4l2_pix_format <v4l2-pix-format>`
 ``vbi`` member of the ``fmt`` union, or better just modify the results
-of :ref:`VIDIOC_G_FMT`, and call the :ref:`VIDIOC_S_FMT <VIDIOC_G_FMT>`
+of :ref:`VIDIOC_G_FMT <VIDIOC_G_FMT>`, and call the :ref:`VIDIOC_S_FMT <VIDIOC_G_FMT>`
 ioctl with a pointer to this structure. Drivers may adjust the
-parameters and finally return the actual parameters as :ref:`VIDIOC_G_FMT`
+parameters and finally return the actual parameters as :ref:`VIDIOC_G_FMT <VIDIOC_G_FMT>`
 does.
 
 Like :ref:`VIDIOC_S_FMT <VIDIOC_G_FMT>` the :ref:`VIDIOC_TRY_FMT <VIDIOC_G_FMT>` ioctl
@@ -84,10 +84,10 @@ possibly time consuming hardware preparations.
 The contents of struct :ref:`v4l2_pix_format <v4l2-pix-format>` and
 struct :ref:`v4l2_pix_format_mplane <v4l2-pix-format-mplane>` are
 discussed in :ref:`pixfmt`. See also the specification of the
-:ref:`VIDIOC_G_FMT`, :ref:`VIDIOC_S_FMT <VIDIOC_G_FMT>` and :ref:`VIDIOC_TRY_FMT <VIDIOC_G_FMT>` ioctls for
-details. Video output devices must implement both the :ref:`VIDIOC_G_FMT`
+:ref:`VIDIOC_G_FMT <VIDIOC_G_FMT>`, :ref:`VIDIOC_S_FMT <VIDIOC_G_FMT>` and :ref:`VIDIOC_TRY_FMT <VIDIOC_G_FMT>` ioctls for
+details. Video output devices must implement both the :ref:`VIDIOC_G_FMT <VIDIOC_G_FMT>`
 and :ref:`VIDIOC_S_FMT <VIDIOC_G_FMT>` ioctl, even if :ref:`VIDIOC_S_FMT <VIDIOC_G_FMT>` ignores all
-requests and always returns default parameters as :ref:`VIDIOC_G_FMT` does.
+requests and always returns default parameters as :ref:`VIDIOC_G_FMT <VIDIOC_G_FMT>` does.
 :ref:`VIDIOC_TRY_FMT <VIDIOC_G_FMT>` is optional.
 
 

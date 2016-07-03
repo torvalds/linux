@@ -57,7 +57,7 @@ Sliced VBI Format Negotiation
 
 To find out which data services are supported by the hardware
 applications can call the
-:ref:`VIDIOC_G_SLICED_VBI_CAP` ioctl.
+:ref:`VIDIOC_G_SLICED_VBI_CAP <VIDIOC_G_SLICED_VBI_CAP>` ioctl.
 All drivers implementing the sliced VBI interface must support this
 ioctl. The results may differ from those of the
 :ref:`VIDIOC_S_FMT <VIDIOC_G_FMT>` ioctl when the number of VBI
@@ -70,7 +70,7 @@ To determine the currently selected services applications set the
 ``type`` field of struct :ref:`v4l2_format <v4l2-format>` to
 ``V4L2_BUF_TYPE_SLICED_VBI_CAPTURE`` or
 ``V4L2_BUF_TYPE_SLICED_VBI_OUTPUT``, and the
-:ref:`VIDIOC_G_FMT` ioctl fills the ``fmt.sliced``
+:ref:`VIDIOC_G_FMT <VIDIOC_G_FMT>` ioctl fills the ``fmt.sliced``
 member, a struct
 :ref:`v4l2_sliced_vbi_format <v4l2-sliced-vbi-format>`.
 
@@ -432,7 +432,7 @@ the :ref:`VIDIOC_QBUF` ioctl must return an EINVAL
 error code when applications violate this rule. They must also return an
 EINVAL error code when applications pass an incorrect field or line
 number, or a combination of ``field``, ``line`` and ``id`` which has not
-been negotiated with the :ref:`VIDIOC_G_FMT` or
+been negotiated with the :ref:`VIDIOC_G_FMT <VIDIOC_G_FMT>` or
 :ref:`VIDIOC_S_FMT <VIDIOC_G_FMT>` ioctl. When the line numbers are
 unknown the driver must pass the packets in transmitted order. The
 driver can insert empty packets with ``id`` set to zero anywhere in the

@@ -48,7 +48,7 @@ The ``format`` field specifies the image format that the buffers must be
 able to handle. The application has to fill in this struct
 :ref:`v4l2_format <v4l2-format>`. Usually this will be done using the
 :ref:`VIDIOC_TRY_FMT <VIDIOC_G_FMT>` or
-:ref:`VIDIOC_G_FMT` ioctls to ensure that the
+:ref:`VIDIOC_G_FMT <VIDIOC_G_FMT>` ioctls to ensure that the
 requested format is supported by the driver. Based on the format's
 ``type`` field the requested buffer size (for single-planar) or plane
 sizes (for multi-planar formats) will be used for the allocated buffers.

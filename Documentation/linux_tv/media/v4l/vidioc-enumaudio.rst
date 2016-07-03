@@ -39,7 +39,7 @@ structure or return an EINVAL error code when the index is out of
 bounds. To enumerate all audio inputs applications shall begin at index
 zero, incrementing by one until the driver returns EINVAL.
 
-See :ref:`VIDIOC_G_AUDIO` for a description of struct
+See :ref:`VIDIOC_G_AUDIO <VIDIOC_G_AUDIO>` for a description of struct
 :ref:`v4l2_audio <v4l2-audio>`.
 
 

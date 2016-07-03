@@ -13,7 +13,7 @@ single-planar API, while the latter is used with the multi-planar
 version (see :ref:`planar-apis`). Image formats are negotiated with
 the :ref:`VIDIOC_S_FMT <VIDIOC_G_FMT>` ioctl. (The explanations here
 focus on video capturing and output, for overlay frame buffer formats
-see also :ref:`VIDIOC_G_FBUF`.)
+see also :ref:`VIDIOC_G_FBUF <VIDIOC_G_FBUF>`.)
 
 
 .. toctree::

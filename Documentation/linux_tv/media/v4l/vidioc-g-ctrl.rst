@@ -34,7 +34,7 @@ Description
 
 To get the current value of a control applications initialize the ``id``
 field of a struct :c:type:`struct v4l2_control` and call the
-:ref:`VIDIOC_G_CTRL` ioctl with a pointer to this structure. To change the
+:ref:`VIDIOC_G_CTRL <VIDIOC_G_CTRL>` ioctl with a pointer to this structure. To change the
 value of a control applications initialize the ``id`` and ``value``
 fields of a struct :c:type:`struct v4l2_control` and call the
 :ref:`VIDIOC_S_CTRL <VIDIOC_G_CTRL>` ioctl.
@@ -48,7 +48,7 @@ actual new value. If the ``value`` is inappropriate for the control
 EINVAL error code is returned as well.
 
 These ioctls work only with user controls. For other control classes the
-:ref:`VIDIOC_G_EXT_CTRLS`,
+:ref:`VIDIOC_G_EXT_CTRLS <VIDIOC_G_EXT_CTRLS>`,
 :ref:`VIDIOC_S_EXT_CTRLS <VIDIOC_G_EXT_CTRLS>` or
 :ref:`VIDIOC_TRY_EXT_CTRLS <VIDIOC_G_EXT_CTRLS>` must be used.
 

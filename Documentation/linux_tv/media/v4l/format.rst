@@ -23,7 +23,7 @@ current selection.
 
 A single mechanism exists to negotiate all data formats using the
 aggregate struct :ref:`v4l2_format <v4l2-format>` and the
-:ref:`VIDIOC_G_FMT` and
+:ref:`VIDIOC_G_FMT <VIDIOC_G_FMT>` and
 :ref:`VIDIOC_S_FMT <VIDIOC_G_FMT>` ioctls. Additionally the
 :ref:`VIDIOC_TRY_FMT <VIDIOC_G_FMT>` ioctl can be used to examine
 what the hardware *could* do, without actually selecting a new data
@@ -64,7 +64,7 @@ earlier versions of V4L2. Switching the logical stream or returning into
 *may* support a switch using :ref:`VIDIOC_S_FMT <VIDIOC_G_FMT>`.
 
 All drivers exchanging data with applications must support the
-:ref:`VIDIOC_G_FMT` and :ref:`VIDIOC_S_FMT <VIDIOC_G_FMT>` ioctl. Implementation of the
+:ref:`VIDIOC_G_FMT <VIDIOC_G_FMT>` and :ref:`VIDIOC_S_FMT <VIDIOC_G_FMT>` ioctl. Implementation of the
 :ref:`VIDIOC_TRY_FMT <VIDIOC_G_FMT>` is highly recommended but optional.
 
 

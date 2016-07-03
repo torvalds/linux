@@ -37,7 +37,7 @@ Description
 To query the attributes of a modulator applications initialize the
 ``index`` field and zero out the ``reserved`` array of a struct
 :ref:`v4l2_modulator <v4l2-modulator>` and call the
-:ref:`VIDIOC_G_MODULATOR` ioctl with a pointer to this structure. Drivers
+:ref:`VIDIOC_G_MODULATOR <VIDIOC_G_MODULATOR>` ioctl with a pointer to this structure. Drivers
 fill the rest of the structure or return an EINVAL error code when the
 index is out of bounds. To enumerate all modulators applications shall
 begin at index zero, incrementing by one until the driver returns

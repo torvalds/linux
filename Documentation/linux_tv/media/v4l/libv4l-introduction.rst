@@ -92,7 +92,7 @@ and to enhance the image quality.
 In most cases, libv4l2 just passes the calls directly through to the
 v4l2 driver, intercepting the calls to
 :ref:`VIDIOC_TRY_FMT <VIDIOC_G_FMT>`,
-:ref:`VIDIOC_G_FMT`
+:ref:`VIDIOC_G_FMT <VIDIOC_G_FMT>`
 :ref:`VIDIOC_S_FMT <VIDIOC_G_FMT>`
 :ref:`VIDIOC_ENUM_FRAMESIZES` and
 :ref:`VIDIOC_ENUM_FRAMEINTERVALS` in
