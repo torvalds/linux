@@ -1469,6 +1469,7 @@ struct batadv_algo_orig_ops {
  * @is_eligible: check if a newly discovered GW is a potential candidate for
  *  the election as best GW (optional)
  * @print: print the gateway table (optional)
+ * @dump: dump gateways to a netlink socket (optional)
  */
 struct batadv_algo_gw_ops {
 	ssize_t (*store_sel_class)(struct batadv_priv *bat_priv, char *buff,
@@ -1480,6 +1481,8 @@ struct batadv_algo_gw_ops {
 			    struct batadv_orig_node *curr_gw_orig,
 			    struct batadv_orig_node *orig_node);
 	void (*print)(struct batadv_priv *bat_priv, struct seq_file *seq);
+	void (*dump)(struct sk_buff *msg, struct netlink_callback *cb,
+		     struct batadv_priv *priv);
 };
 
 /**
