@@ -542,6 +542,7 @@ union octeon_rh {
 		u64 csum_verified:3;     /** checksum verified. */
 		u64 has_hwtstamp:1;      /** Has hardware timestamp. 1 = yes. */
 		u64 encap_on:1;
+		u64 has_hash:1;          /** Has hash (rth or rss). 1 = yes. */
 	} r_dh;
 	struct {
 		u64 opcode:4;
@@ -551,7 +552,8 @@ union octeon_rh {
 		u64 num_gmx_ports:8;
 		u64 max_nic_ports:10;
 		u64 app_cap_flags:4;
-		u64 app_mode:16;
+		u64 app_mode:8;
+		u64 pkind:8;
 	} r_core_drv_init;
 	struct {
 		u64 opcode:4;
@@ -571,6 +573,7 @@ union octeon_rh {
 		u64 opcode:4;
 	} r;
 	struct {
+		u64 has_hash:1;          /** Has hash (rth or rss). 1 = yes. */
 		u64 encap_on:1;
 		u64 has_hwtstamp:1;      /** 1 = has hwtstamp */
 		u64 csum_verified:3;     /** checksum verified. */
@@ -582,7 +585,8 @@ union octeon_rh {
 		u64 opcode:4;
 	} r_dh;
 	struct {
-		u64 app_mode:16;
+		u64 pkind:8;
+		u64 app_mode:8;
 		u64 app_cap_flags:4;
 		u64 max_nic_ports:10;
 		u64 num_gmx_ports:8;
@@ -640,9 +644,11 @@ union oct_link_status {
 		u64 autoneg:1;
 		u64 if_mode:5;
 		u64 pause:1;
-		u64 reserved:16;
+		u64 flashing:1;
+		u64 reserved:15;
 #else
-		u64 reserved:16;
+		u64 reserved:15;
+		u64 flashing:1;
 		u64 pause:1;
 		u64 if_mode:5;
 		u64 autoneg:1;
@@ -869,9 +875,9 @@ union oct_nic_if_cfg {
 		u64 num_iqueues:16;
 		u64 num_oqueues:16;
 		u64 gmx_port_id:8;
-		u64 reserved:8;
+		u64 vf_id:8;
 #else
-		u64 reserved:8;
+		u64 vf_id:8;
 		u64 gmx_port_id:8;
 		u64 num_oqueues:16;
 		u64 num_iqueues:16;
