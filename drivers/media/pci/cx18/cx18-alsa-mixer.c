@@ -93,7 +93,7 @@ static int snd_cx18_mixer_tv_vol_get(struct snd_kcontrol *kctl,
 	vctrl.value = dB_to_cx18_av_vol(uctl->value.integer.value[0]);
 
 	snd_cx18_lock(cxsc);
-	ret = v4l2_subdev_call(cx->sd_av, core, g_ctrl, &vctrl);
+	ret = v4l2_g_ctrl(cx->sd_av->ctrl_handler, &vctrl);
 	snd_cx18_unlock(cxsc);
 
 	if (!ret)
@@ -115,14 +115,14 @@ static int snd_cx18_mixer_tv_vol_put(struct snd_kcontrol *kctl,
 	snd_cx18_lock(cxsc);
 
 	/* Fetch current state */
-	ret = v4l2_subdev_call(cx->sd_av, core, g_ctrl, &vctrl);
+	ret = v4l2_g_ctrl(cx->sd_av->ctrl_handler, &vctrl);
 
 	if (ret ||
 	    (cx18_av_vol_to_dB(vctrl.value) != uctl->value.integer.value[0])) {
 
 		/* Set, if needed */
 		vctrl.value = dB_to_cx18_av_vol(uctl->value.integer.value[0]);
-		ret = v4l2_subdev_call(cx->sd_av, core, s_ctrl, &vctrl);
+		ret = v4l2_s_ctrl(cx->sd_av->ctrl_handler, &vctrl);
 		if (!ret)
 			ret = 1; /* Indicate control was changed w/o error */
 	}
