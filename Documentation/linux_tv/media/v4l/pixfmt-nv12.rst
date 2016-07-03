@@ -118,8 +118,6 @@ Each cell is one byte.
 
 **Color Sample Location..**
 
-
-
 .. flat-table::
     :header-rows:  0
     :stub-columns: 0
@@ -133,7 +131,6 @@ Each cell is one byte.
        -  
        -  1
 
-       -  
        -  2
 
        -  
@@ -148,7 +145,6 @@ Each cell is one byte.
        -  
        -  Y
 
-       -  
        -  Y
 
        -  
@@ -162,7 +158,6 @@ Each cell is one byte.
 
        -  
        -  
-       -  
        -  C
 
        -  
@@ -172,11 +167,10 @@ Each cell is one byte.
        -  1
 
        -  Y
-
        -  
+
        -  Y
 
-       -  
        -  Y
 
        -  
@@ -191,11 +185,10 @@ Each cell is one byte.
        -  2
 
        -  Y
-
        -  
+
        -  Y
 
-       -  
        -  Y
 
        -  
@@ -207,7 +200,6 @@ Each cell is one byte.
        -  
        -  C
 
-       -  
        -  
        -  
        -  C
@@ -223,7 +215,6 @@ Each cell is one byte.
        -  
        -  Y
 
-       -  
        -  Y
 
        -  
