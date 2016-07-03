@@ -973,7 +973,7 @@ static int mcam_cam_set_flip(struct mcam_camera *cam)
 	memset(&ctrl, 0, sizeof(ctrl));
 	ctrl.id = V4L2_CID_VFLIP;
 	ctrl.value = flip;
-	return sensor_call(cam, core, s_ctrl, &ctrl);
+	return v4l2_s_ctrl(NULL, cam->sensor->ctrl_handler, &ctrl);
 }
 
 
