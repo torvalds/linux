@@ -38,8 +38,6 @@ described in :ref:`planar-apis`.
 
 Each cell is one byte.
 
-
-
 .. flat-table::
     :header-rows:  0
     :stub-columns: 0
@@ -213,13 +211,10 @@ Each cell is one byte.
        -  
        -  0
 
-       -  
        -  1
 
-       -  
        -  2
 
-       -  
        -  3
 
     -  .. row 2
@@ -228,13 +223,10 @@ Each cell is one byte.
 
        -  YC
 
-       -  
        -  YC
 
-       -  
        -  YC
 
-       -  
        -  YC
 
     -  .. row 3
@@ -243,13 +235,10 @@ Each cell is one byte.
 
        -  YC
 
-       -  
        -  YC
 
-       -  
        -  YC
 
-       -  
        -  YC
 
     -  .. row 4
@@ -258,13 +247,10 @@ Each cell is one byte.
 
        -  YC
 
-       -  
        -  YC
 
-       -  
        -  YC
 
-       -  
        -  YC
 
     -  .. row 5
@@ -273,11 +259,8 @@ Each cell is one byte.
 
        -  YC
 
-       -  
        -  YC
 
-       -  
        -  YC
 
-       -  
        -  YC
