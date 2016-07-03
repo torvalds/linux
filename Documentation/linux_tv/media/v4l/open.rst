@@ -30,18 +30,16 @@ of leaving it to chance. When the driver supports multiple devices of
 the same type more than one device node number can be assigned,
 separated by commas:
 
+.. code-block:: none
 
+   # modprobe mydriver video_nr=0,1 radio_nr=0,1
 
-::
-
-    > modprobe mydriver video_nr=0,1 radio_nr=0,1
 In ``/etc/modules.conf`` this may be written as:
-
-
 
 ::
 
     options mydriver video_nr=0,1 radio_nr=0,1
+
 When no device node number is given as module option the driver supplies
 a default.
 
