@@ -73,6 +73,7 @@ enum batadv_nl_attrs {
  * @BATADV_CMD_GET_MESH_INFO: Query basic information about batman-adv device
  * @BATADV_CMD_TP_METER: Start a tp meter session
  * @BATADV_CMD_TP_METER_CANCEL: Cancel a tp meter session
+ * @BATADV_CMD_GET_ROUTING_ALGOS: Query the list of routing algorithms.
  * @__BATADV_CMD_AFTER_LAST: internal use
  * @BATADV_CMD_MAX: highest used command number
  */
@@ -81,6 +82,7 @@ enum batadv_nl_commands {
 	BATADV_CMD_GET_MESH_INFO,
 	BATADV_CMD_TP_METER,
 	BATADV_CMD_TP_METER_CANCEL,
+	BATADV_CMD_GET_ROUTING_ALGOS,
 	/* add new commands above here */
 	__BATADV_CMD_AFTER_LAST,
 	BATADV_CMD_MAX = __BATADV_CMD_AFTER_LAST - 1

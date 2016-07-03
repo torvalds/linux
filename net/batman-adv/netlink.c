@@ -32,13 +32,14 @@
 #include <net/netlink.h>
 #include <uapi/linux/batman_adv.h>
 
+#include "bat_algo.h"
 #include "hard-interface.h"
 #include "soft-interface.h"
 #include "tp_meter.h"
 
 struct sk_buff;
 
-static struct genl_family batadv_netlink_family = {
+struct genl_family batadv_netlink_family = {
 	.id = GENL_ID_GENERATE,
 	.hdrsize = 0,
 	.name = BATADV_NL_NAME,
@@ -398,6 +399,12 @@ static struct genl_ops batadv_netlink_ops[] = {
 		.flags = GENL_ADMIN_PERM,
 		.policy = batadv_netlink_policy,
 		.doit = batadv_netlink_tp_meter_cancel,
+	},
+	{
+		.cmd = BATADV_CMD_GET_ROUTING_ALGOS,
+		.flags = GENL_ADMIN_PERM,
+		.policy = batadv_netlink_policy,
+		.dumpit = batadv_algo_dump,
 	},
 };
 
