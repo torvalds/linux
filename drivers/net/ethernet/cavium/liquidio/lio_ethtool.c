@@ -106,6 +106,7 @@ static const char oct_stats_strings[][ETH_GSTRING_LEN] = {
 	"tx_tso",
 	"tx_tso_packets",
 	"tx_tso_err",
+	"tx_vxlan",
 
 	"mac_tx_total_pkts",
 	"mac_tx_total_bytes",
@@ -128,6 +129,9 @@ static const char oct_stats_strings[][ETH_GSTRING_LEN] = {
 	"rx_err_pko",
 	"rx_err_link",
 	"rx_err_drop",
+
+	"rx_vxlan",
+	"rx_vxlan_err",
 
 	"rx_lro_pkts",
 	"rx_lro_bytes",
@@ -167,6 +171,7 @@ static const char oct_iq_stats_strings[][ETH_GSTRING_LEN] = {
 	"fw_bytes_sent",
 
 	"tso",
+	"vxlan",
 	"txq_restart",
 };
 
@@ -186,6 +191,7 @@ static const char oct_droq_stats_strings[][ETH_GSTRING_LEN] = {
 	"fw_bytes_received",
 	"fw_dropped_nodispatch",
 
+	"vxlan",
 	"buffer_alloc_failure",
 };
 
@@ -675,6 +681,10 @@ lio_get_ethtool_stats(struct net_device *netdev,
 	 *fw_err_tso
 	 */
 	data[i++] = CVM_CAST64(oct_dev->link_stats.fromhost.fw_err_tso);
+	/*per_core_stats[cvmx_get_core_num()].link_stats[idx].fromhost.
+	 *fw_tx_vxlan
+	 */
+	data[i++] = CVM_CAST64(oct_dev->link_stats.fromhost.fw_tx_vxlan);
 
 	/* mac tx statistics */
 	/*CVMX_BGXX_CMRX_TX_STAT5 */
@@ -728,6 +738,15 @@ lio_get_ethtool_stats(struct net_device *netdev,
 	 *fromwire.fw_err_drop
 	 */
 	data[i++] = CVM_CAST64(oct_dev->link_stats.fromwire.fw_err_drop);
+
+	/*per_core_stats[cvmx_get_core_num()].link_stats[lro_ctx->ifidx].
+	 *fromwire.fw_rx_vxlan
+	 */
+	data[i++] = CVM_CAST64(oct_dev->link_stats.fromwire.fw_rx_vxlan);
+	/*per_core_stats[cvmx_get_core_num()].link_stats[lro_ctx->ifidx].
+	 *fromwire.fw_rx_vxlan_err
+	 */
+	data[i++] = CVM_CAST64(oct_dev->link_stats.fromwire.fw_rx_vxlan_err);
 
 	/* LRO */
 	/*per_core_stats[cvmx_get_core_num()].link_stats[ifidx].fromwire.
@@ -822,6 +841,8 @@ lio_get_ethtool_stats(struct net_device *netdev,
 
 		/*tso request*/
 		data[i++] = CVM_CAST64(oct_dev->instr_queue[j]->stats.tx_gso);
+		/*vxlan request*/
+		data[i++] = CVM_CAST64(oct_dev->instr_queue[j]->stats.tx_vxlan);
 		/*txq restart*/
 		data[i++] =
 			CVM_CAST64(oct_dev->instr_queue[j]->stats.tx_restart);
@@ -858,6 +879,9 @@ lio_get_ethtool_stats(struct net_device *netdev,
 			CVM_CAST64(oct_dev->droq[j]->stats.bytes_received);
 		data[i++] =
 			CVM_CAST64(oct_dev->droq[j]->stats.dropped_nodispatch);
+
+		data[i++] =
+			CVM_CAST64(oct_dev->droq[j]->stats.rx_vxlan);
 		data[i++] =
 			CVM_CAST64(oct_dev->droq[j]->stats.rx_alloc_failure);
 	}
@@ -1083,6 +1107,9 @@ octnet_nic_stats_callback(struct octeon_device *oct_dev,
 		rstats->fw_err_pko = rsp_rstats->fw_err_pko;
 		rstats->fw_err_link = rsp_rstats->fw_err_link;
 		rstats->fw_err_drop = rsp_rstats->fw_err_drop;
+		rstats->fw_rx_vxlan = rsp_rstats->fw_rx_vxlan;
+		rstats->fw_rx_vxlan_err = rsp_rstats->fw_rx_vxlan_err;
+
 		/* Number of packets that are LROed      */
 		rstats->fw_lro_pkts = rsp_rstats->fw_lro_pkts;
 		/* Number of octets that are LROed       */
@@ -1127,6 +1154,8 @@ octnet_nic_stats_callback(struct octeon_device *oct_dev,
 		tstats->fw_tso = rsp_tstats->fw_tso;
 		tstats->fw_tso_fwd = rsp_tstats->fw_tso_fwd;
 		tstats->fw_err_tso = rsp_tstats->fw_err_tso;
+		tstats->fw_tx_vxlan = rsp_tstats->fw_tx_vxlan;
+
 		resp->status = 1;
 	} else {
 		resp->status = -1;

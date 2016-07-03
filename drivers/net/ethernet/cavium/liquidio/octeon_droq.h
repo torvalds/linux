@@ -121,6 +121,9 @@ struct oct_droq_stats {
 	/** Num of Packets dropped due to receive path failures. */
 	u64 rx_dropped;
 
+	/** Num of vxlan packets received; */
+	u64 rx_vxlan;
+
 	/** Num of failures of recv_buffer_alloc() */
 	u64 rx_alloc_failure;
 

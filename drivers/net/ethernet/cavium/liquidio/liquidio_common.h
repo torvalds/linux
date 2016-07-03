@@ -216,6 +216,13 @@ static inline void add_sg_size(struct octeon_sg_entry *sg_entry,
 #define   OCTNET_CMD_ENABLE_VLAN_FILTER 0x16
 #define   OCTNET_CMD_ADD_VLAN_FILTER  0x17
 #define   OCTNET_CMD_DEL_VLAN_FILTER  0x18
+#define   OCTNET_CMD_VXLAN_PORT_CONFIG 0x19
+#define   OCTNET_CMD_VXLAN_PORT_ADD    0x0
+#define   OCTNET_CMD_VXLAN_PORT_DEL    0x1
+#define   OCTNET_CMD_RXCSUM_ENABLE     0x0
+#define   OCTNET_CMD_RXCSUM_DISABLE    0x1
+#define   OCTNET_CMD_TXCSUM_ENABLE     0x0
+#define   OCTNET_CMD_TXCSUM_DISABLE    0x1
 
 /* RX(packets coming from wire) Checksum verification flags */
 /* TCP/UDP csum */
@@ -533,6 +540,7 @@ union octeon_rh {
 		u64 priority:3;
 		u64 csum_verified:3;     /** checksum verified. */
 		u64 has_hwtstamp:1;      /** Has hardware timestamp. 1 = yes. */
+		u64 encap_on:1;
 	} r_dh;
 	struct {
 		u64 opcode:4;
@@ -562,6 +570,7 @@ union octeon_rh {
 		u64 opcode:4;
 	} r;
 	struct {
+		u64 encap_on:1;
 		u64 has_hwtstamp:1;      /** 1 = has hwtstamp */
 		u64 csum_verified:3;     /** checksum verified. */
 		u64 priority:3;
@@ -736,6 +745,8 @@ struct nic_rx_stats {
 	u64 fw_err_pko;
 	u64 fw_err_link;
 	u64 fw_err_drop;
+	u64 fw_rx_vxlan;
+	u64 fw_rx_vxlan_err;
 
 	/* LRO */
 	u64 fw_lro_pkts;   /* Number of packets that are LROed      */
@@ -776,6 +787,7 @@ struct nic_tx_stats {
 	u64 fw_err_tso;
 	u64 fw_tso;		/* number of tso requests */
 	u64 fw_tso_fwd;		/* number of packets segmented in tso */
+	u64 fw_tx_vxlan;
 };
 
 struct oct_link_stats {

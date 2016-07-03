@@ -37,6 +37,7 @@
 #include <linux/list.h>
 #include <linux/workqueue.h>
 #include <linux/interrupt.h>
+#include <net/vxlan.h>
 #include "octeon_config.h"
 #include "liquidio_common.h"
 #include "octeon_droq.h"
@@ -2000,13 +2001,24 @@ liquidio_push_packet(u32 octeon_id,
 		}
 
 		skb->protocol = eth_type_trans(skb, skb->dev);
-
 		if ((netdev->features & NETIF_F_RXCSUM) &&
-		    (rh->r_dh.csum_verified == CNNIC_CSUM_VERIFIED))
+		    (((rh->r_dh.encap_on) &&
+		      (rh->r_dh.csum_verified & CNNIC_TUN_CSUM_VERIFIED)) ||
+		     (!(rh->r_dh.encap_on) &&
+		      (rh->r_dh.csum_verified & CNNIC_CSUM_VERIFIED))))
 			/* checksum has already been verified */
 			skb->ip_summed = CHECKSUM_UNNECESSARY;
 		else
 			skb->ip_summed = CHECKSUM_NONE;
+
+		/* Setting Encapsulation field on basis of status received
+		 * from the firmware
+		 */
+		if (rh->r_dh.encap_on) {
+			skb->encapsulation = 1;
+			skb->csum_level = 1;
+			droq->stats.rx_vxlan++;
+		}
 
 		/* inbound VLAN tag */
 		if ((netdev->features & NETIF_F_HW_VLAN_CTAG_RX) &&
@@ -2409,6 +2421,55 @@ void liquidio_link_ctrl_cmd_completion(void *nctrl_ptr)
 		dev_info(&oct->pci_dev->dev, "%s settings changed\n",
 			 netdev->name);
 
+		break;
+		/* Case to handle "OCTNET_CMD_TNL_RX_CSUM_CTL"
+		 * Command passed by NIC driver
+		 */
+	case OCTNET_CMD_TNL_RX_CSUM_CTL:
+		if (nctrl->ncmd.s.param1 == OCTNET_CMD_RXCSUM_ENABLE) {
+			netif_info(lio, probe, lio->netdev,
+				   "%s RX Checksum Offload Enabled\n",
+				   netdev->name);
+		} else if (nctrl->ncmd.s.param1 ==
+			   OCTNET_CMD_RXCSUM_DISABLE) {
+			netif_info(lio, probe, lio->netdev,
+				   "%s RX Checksum Offload Disabled\n",
+				   netdev->name);
+		}
+		break;
+
+		/* Case to handle "OCTNET_CMD_TNL_TX_CSUM_CTL"
+		 * Command passed by NIC driver
+		 */
+	case OCTNET_CMD_TNL_TX_CSUM_CTL:
+		if (nctrl->ncmd.s.param1 == OCTNET_CMD_TXCSUM_ENABLE) {
+			netif_info(lio, probe, lio->netdev,
+				   "%s TX Checksum Offload Enabled\n",
+				   netdev->name);
+		} else if (nctrl->ncmd.s.param1 ==
+			   OCTNET_CMD_TXCSUM_DISABLE) {
+			netif_info(lio, probe, lio->netdev,
+				   "%s TX Checksum Offload Disabled\n",
+				   netdev->name);
+		}
+		break;
+
+		/* Case to handle "OCTNET_CMD_VXLAN_PORT_CONFIG"
+		 * Command passed by NIC driver
+		 */
+	case OCTNET_CMD_VXLAN_PORT_CONFIG:
+		if (nctrl->ncmd.s.more == OCTNET_CMD_VXLAN_PORT_ADD) {
+			netif_info(lio, probe, lio->netdev,
+				   "%s VxLAN Destination UDP PORT:%d ADDED\n",
+				   netdev->name,
+				   nctrl->ncmd.s.param1);
+		} else if (nctrl->ncmd.s.more ==
+			   OCTNET_CMD_VXLAN_PORT_DEL) {
+			netif_info(lio, probe, lio->netdev,
+				   "%s VxLAN Destination UDP PORT:%d DELETED\n",
+				   netdev->name,
+				   nctrl->ncmd.s.param1);
+		}
 		break;
 
 	case OCTNET_CMD_SET_FLOW_CTL:
@@ -2899,9 +2960,14 @@ static int liquidio_xmit(struct sk_buff *skb, struct net_device *netdev)
 	cmdsetup.u64 = 0;
 	cmdsetup.s.iq_no = iq_no;
 
-	if (skb->ip_summed == CHECKSUM_PARTIAL)
-		cmdsetup.s.transport_csum = 1;
-
+	if (skb->ip_summed == CHECKSUM_PARTIAL) {
+		if (skb->encapsulation) {
+			cmdsetup.s.tnl_csum = 1;
+			stats->tx_vxlan++;
+		} else {
+			cmdsetup.s.transport_csum = 1;
+		}
+	}
 	if (unlikely(skb_shinfo(skb)->tx_flags & SKBTX_HW_TSTAMP)) {
 		skb_shinfo(skb)->tx_flags |= SKBTX_IN_PROGRESS;
 		cmdsetup.s.timestamp = 1;
@@ -3124,6 +3190,72 @@ static int liquidio_vlan_rx_kill_vid(struct net_device *netdev,
 	return ret;
 }
 
+/** Sending command to enable/disable RX checksum offload
+ * @param netdev                pointer to network device
+ * @param command               OCTNET_CMD_TNL_RX_CSUM_CTL
+ * @param rx_cmd_bit            OCTNET_CMD_RXCSUM_ENABLE/
+ *                              OCTNET_CMD_RXCSUM_DISABLE
+ * @returns                     SUCCESS or FAILURE
+ */
+int liquidio_set_rxcsum_command(struct net_device *netdev, int command,
+				u8 rx_cmd)
+{
+	struct lio *lio = GET_LIO(netdev);
+	struct octeon_device *oct = lio->oct_dev;
+	struct octnic_ctrl_pkt nctrl;
+	int ret = 0;
+
+	nctrl.ncmd.u64 = 0;
+	nctrl.ncmd.s.cmd = command;
+	nctrl.ncmd.s.param1 = rx_cmd;
+	nctrl.iq_no = lio->linfo.txpciq[0].s.q_no;
+	nctrl.wait_time = 100;
+	nctrl.netpndev = (u64)netdev;
+	nctrl.cb_fn = liquidio_link_ctrl_cmd_completion;
+
+	ret = octnet_send_nic_ctrl_pkt(lio->oct_dev, &nctrl);
+	if (ret < 0) {
+		dev_err(&oct->pci_dev->dev,
+			"DEVFLAGS RXCSUM change failed in core(ret:0x%x)\n",
+			ret);
+	}
+	return ret;
+}
+
+/** Sending command to add/delete VxLAN UDP port to firmware
+ * @param netdev                pointer to network device
+ * @param command               OCTNET_CMD_VXLAN_PORT_CONFIG
+ * @param vxlan_port            VxLAN port to be added or deleted
+ * @param vxlan_cmd_bit         OCTNET_CMD_VXLAN_PORT_ADD,
+ *                              OCTNET_CMD_VXLAN_PORT_DEL
+ * @returns                     SUCCESS or FAILURE
+ */
+static int liquidio_vxlan_port_command(struct net_device *netdev, int command,
+				       u16 vxlan_port, u8 vxlan_cmd_bit)
+{
+	struct lio *lio = GET_LIO(netdev);
+	struct octeon_device *oct = lio->oct_dev;
+	struct octnic_ctrl_pkt nctrl;
+	int ret = 0;
+
+	nctrl.ncmd.u64 = 0;
+	nctrl.ncmd.s.cmd = command;
+	nctrl.ncmd.s.more = vxlan_cmd_bit;
+	nctrl.ncmd.s.param1 = vxlan_port;
+	nctrl.iq_no = lio->linfo.txpciq[0].s.q_no;
+	nctrl.wait_time = 100;
+	nctrl.netpndev = (u64)netdev;
+	nctrl.cb_fn = liquidio_link_ctrl_cmd_completion;
+
+	ret = octnet_send_nic_ctrl_pkt(lio->oct_dev, &nctrl);
+	if (ret < 0) {
+		dev_err(&oct->pci_dev->dev,
+			"VxLAN port add/delete failed in core (ret:0x%x)\n",
+			ret);
+	}
+	return ret;
+}
+
 int liquidio_set_feature(struct net_device *netdev, int cmd, u16 param1)
 {
 	struct lio *lio = GET_LIO(netdev);
@@ -3204,7 +3336,46 @@ static int liquidio_set_features(struct net_device *netdev,
 		liquidio_set_feature(netdev, OCTNET_CMD_LRO_DISABLE,
 				     OCTNIC_LROIPV4 | OCTNIC_LROIPV6);
 
+	/* Sending command to firmware to enable/disable RX checksum
+	 * offload settings using ethtool
+	 */
+	if (!(netdev->features & NETIF_F_RXCSUM) &&
+	    (lio->enc_dev_capability & NETIF_F_RXCSUM) &&
+	    (features & NETIF_F_RXCSUM))
+		liquidio_set_rxcsum_command(netdev,
+					    OCTNET_CMD_TNL_RX_CSUM_CTL,
+					    OCTNET_CMD_RXCSUM_ENABLE);
+	else if ((netdev->features & NETIF_F_RXCSUM) &&
+		 (lio->enc_dev_capability & NETIF_F_RXCSUM) &&
+		 !(features & NETIF_F_RXCSUM))
+		liquidio_set_rxcsum_command(netdev, OCTNET_CMD_TNL_RX_CSUM_CTL,
+					    OCTNET_CMD_RXCSUM_DISABLE);
+
 	return 0;
+}
+
+static void liquidio_add_vxlan_port(struct net_device *netdev,
+				    struct udp_tunnel_info *ti)
+{
+	if (ti->type != UDP_TUNNEL_TYPE_VXLAN)
+		return;
+
+	liquidio_vxlan_port_command(netdev,
+				    OCTNET_CMD_VXLAN_PORT_CONFIG,
+				    htons(ti->port),
+				    OCTNET_CMD_VXLAN_PORT_ADD);
+}
+
+static void liquidio_del_vxlan_port(struct net_device *netdev,
+				    struct udp_tunnel_info *ti)
+{
+	if (ti->type != UDP_TUNNEL_TYPE_VXLAN)
+		return;
+
+	liquidio_vxlan_port_command(netdev,
+				    OCTNET_CMD_VXLAN_PORT_CONFIG,
+				    htons(ti->port),
+				    OCTNET_CMD_VXLAN_PORT_DEL);
 }
 
 static struct net_device_ops lionetdevops = {
@@ -3222,6 +3393,8 @@ static struct net_device_ops lionetdevops = {
 	.ndo_do_ioctl		= liquidio_ioctl,
 	.ndo_fix_features	= liquidio_fix_features,
 	.ndo_set_features	= liquidio_set_features,
+	.ndo_udp_tunnel_add	= liquidio_add_vxlan_port,
+	.ndo_udp_tunnel_del	= liquidio_del_vxlan_port,
 };
 
 /** \brief Entry point for the liquidio module
@@ -3479,6 +3652,22 @@ static int setup_nic_devices(struct octeon_device *octeon_dev)
 				| NETIF_F_LRO;
 		netif_set_gso_max_size(netdev, OCTNIC_GSO_MAX_SIZE);
 
+		/*  Copy of transmit encapsulation capabilities:
+		 *  TSO, TSO6, Checksums for this device
+		 */
+		lio->enc_dev_capability = NETIF_F_IP_CSUM
+					  | NETIF_F_IPV6_CSUM
+					  | NETIF_F_GSO_UDP_TUNNEL
+					  | NETIF_F_HW_CSUM | NETIF_F_SG
+					  | NETIF_F_RXCSUM
+					  | NETIF_F_TSO | NETIF_F_TSO6
+					  | NETIF_F_LRO;
+
+		netdev->hw_enc_features = (lio->enc_dev_capability &
+					   ~NETIF_F_LRO);
+
+		lio->dev_capability |= NETIF_F_GSO_UDP_TUNNEL;
+
 		netdev->vlan_features = lio->dev_capability;
 		/* Add any unchangeable hw features */
 		lio->dev_capability |=  NETIF_F_HW_VLAN_CTAG_FILTER |
@@ -3560,6 +3749,15 @@ static int setup_nic_devices(struct octeon_device *octeon_dev)
 		lio->link_changes++;
 
 		ifstate_set(lio, LIO_IFSTATE_REGISTERED);
+
+		/* Sending command to firmware to enable Rx checksum offload
+		 * by default at the time of setup of Liquidio driver for
+		 * this device
+		 */
+		liquidio_set_rxcsum_command(netdev, OCTNET_CMD_TNL_RX_CSUM_CTL,
+					    OCTNET_CMD_RXCSUM_ENABLE);
+		liquidio_set_feature(netdev, OCTNET_CMD_TNL_TX_CSUM_CTL,
+				     OCTNET_CMD_TXCSUM_ENABLE);
 
 		dev_dbg(&octeon_dev->pci_dev->dev,
 			"NIC ifidx:%d Setup successful\n", i);

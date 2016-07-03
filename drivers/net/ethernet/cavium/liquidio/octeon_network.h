@@ -96,6 +96,12 @@ struct lio {
 	/** Copy of Interface capabilities: TSO, TSO6, LRO, Chescksums . */
 	u64 dev_capability;
 
+	/* Copy of transmit encapsulation capabilities:
+	 * TSO, TSO6, Checksums for this device for Kernel
+	 * 3.10.0 onwards
+	 */
+	u64 enc_dev_capability;
+
 	/** Copy of beacaon reg in phy */
 	u32 phy_beacon_val;
 
