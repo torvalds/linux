@@ -15,10 +15,11 @@ appropriate targets. The V4L2 API lacks any support for composing to and
 cropping from an image inside a memory buffer. The application could
 configure a capture device to fill only a part of an image by abusing
 V4L2 API. Cropping a smaller image from a larger one is achieved by
-setting the field struct
-:ref:`v4l2_pix_format <v4l2-pix-format>```::bytesperline``.
-Introducing an image offsets could be done by modifying field struct
-:ref:`v4l2_buffer <v4l2-buffer>```::m_userptr`` before calling
+setting the field ``bytesperline`` at struct
+:ref:`v4l2_pix_format <v4l2-pix-format>`.
+Introducing an image offsets could be done by modifying field ``m_userptr``
+at struct
+:ref:`v4l2_buffer <v4l2-buffer>` before calling
 :ref:`VIDIOC_QBUF`. Those operations should be avoided because they are not
 portable (endianness), and do not work for macroblock and Bayer formats
 and mmap buffers. The selection API deals with configuration of buffer
