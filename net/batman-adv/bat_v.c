@@ -21,8 +21,10 @@
 #include <linux/atomic.h>
 #include <linux/bug.h>
 #include <linux/cache.h>
+#include <linux/errno.h>
 #include <linux/init.h>
 #include <linux/jiffies.h>
+#include <linux/kernel.h>
 #include <linux/netdevice.h>
 #include <linux/rculist.h>
 #include <linux/rcupdate.h>
@@ -34,6 +36,8 @@
 #include "bat_algo.h"
 #include "bat_v_elp.h"
 #include "bat_v_ogm.h"
+#include "gateway_client.h"
+#include "gateway_common.h"
 #include "hard-interface.h"
 #include "hash.h"
 #include "originator.h"
@@ -320,6 +324,32 @@ err_ifinfo1:
 	return ret;
 }
 
+static ssize_t batadv_v_store_sel_class(struct batadv_priv *bat_priv,
+					char *buff, size_t count)
+{
+	u32 old_class, class;
+
+	if (!batadv_parse_throughput(bat_priv->soft_iface, buff,
+				     "B.A.T.M.A.N. V GW selection class",
+				     &class))
+		return -EINVAL;
+
+	old_class = atomic_read(&bat_priv->gw.sel_class);
+	atomic_set(&bat_priv->gw.sel_class, class);
+
+	if (old_class != class)
+		batadv_gw_reselect(bat_priv);
+
+	return count;
+}
+
+static ssize_t batadv_v_show_sel_class(struct batadv_priv *bat_priv, char *buff)
+{
+	u32 class = atomic_read(&bat_priv->gw.sel_class);
+
+	return sprintf(buff, "%u.%u MBit\n", class / 10, class % 10);
+}
+
 static struct batadv_algo_ops batadv_batman_v __read_mostly = {
 	.name = "BATMAN_V",
 	.iface = {
@@ -337,6 +367,10 @@ static struct batadv_algo_ops batadv_batman_v __read_mostly = {
 	},
 	.orig = {
 		.print = batadv_v_orig_print,
+	},
+	.gw = {
+		.store_sel_class = batadv_v_store_sel_class,
+		.show_sel_class = batadv_v_show_sel_class,
 	},
 };
 

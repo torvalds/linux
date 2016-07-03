@@ -1450,12 +1450,24 @@ struct batadv_algo_orig_ops {
 };
 
 /**
+ * struct batadv_algo_gw_ops - mesh algorithm callbacks (GW specific)
+ * @store_sel_class: parse and stores a new GW selection class (optional)
+ * @show_sel_class: prints the current GW selection class (optional)
+ */
+struct batadv_algo_gw_ops {
+	ssize_t (*store_sel_class)(struct batadv_priv *bat_priv, char *buff,
+				   size_t count);
+	ssize_t (*show_sel_class)(struct batadv_priv *bat_priv, char *buff);
+};
+
+/**
  * struct batadv_algo_ops - mesh algorithm callbacks
  * @list: list node for the batadv_algo_list
  * @name: name of the algorithm
  * @iface: callbacks related to interface handling
  * @neigh: callbacks related to neighbors handling
  * @orig: callbacks related to originators handling
+ * @gw: callbacks related to GW mode
  */
 struct batadv_algo_ops {
 	struct hlist_node list;
@@ -1463,6 +1475,7 @@ struct batadv_algo_ops {
 	struct batadv_algo_iface_ops iface;
 	struct batadv_algo_neigh_ops neigh;
 	struct batadv_algo_orig_ops orig;
+	struct batadv_algo_gw_ops gw;
 };
 
 /**

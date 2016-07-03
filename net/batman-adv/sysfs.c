@@ -515,6 +515,36 @@ static ssize_t batadv_store_gw_mode(struct kobject *kobj,
 	return count;
 }
 
+static ssize_t batadv_show_gw_sel_class(struct kobject *kobj,
+					struct attribute *attr, char *buff)
+{
+	struct batadv_priv *bat_priv = batadv_kobj_to_batpriv(kobj);
+
+	if (bat_priv->algo_ops->gw.show_sel_class)
+		return bat_priv->algo_ops->gw.show_sel_class(bat_priv, buff);
+
+	return sprintf(buff, "%i\n", atomic_read(&bat_priv->gw.sel_class));
+}
+
+static ssize_t batadv_store_gw_sel_class(struct kobject *kobj,
+					 struct attribute *attr, char *buff,
+					 size_t count)
+{
+	struct batadv_priv *bat_priv = batadv_kobj_to_batpriv(kobj);
+
+	if (buff[count - 1] == '\n')
+		buff[count - 1] = '\0';
+
+	if (bat_priv->algo_ops->gw.store_sel_class)
+		return bat_priv->algo_ops->gw.store_sel_class(bat_priv, buff,
+							      count);
+
+	return __batadv_store_uint_attr(buff, count, 1, BATADV_TQ_MAX_VALUE,
+					batadv_post_gw_reselect, attr,
+					&bat_priv->gw.sel_class,
+					bat_priv->soft_iface);
+}
+
 static ssize_t batadv_show_gw_bwidth(struct kobject *kobj,
 				     struct attribute *attr, char *buff)
 {
@@ -626,8 +656,8 @@ BATADV_ATTR_SIF_UINT(orig_interval, orig_interval, S_IRUGO | S_IWUSR,
 		     2 * BATADV_JITTER, INT_MAX, NULL);
 BATADV_ATTR_SIF_UINT(hop_penalty, hop_penalty, S_IRUGO | S_IWUSR, 0,
 		     BATADV_TQ_MAX_VALUE, NULL);
-BATADV_ATTR_SIF_UINT(gw_sel_class, gw.sel_class, S_IRUGO | S_IWUSR, 1,
-		     BATADV_TQ_MAX_VALUE, batadv_post_gw_reselect);
+static BATADV_ATTR(gw_sel_class, S_IRUGO | S_IWUSR, batadv_show_gw_sel_class,
+		   batadv_store_gw_sel_class);
 static BATADV_ATTR(gw_bandwidth, S_IRUGO | S_IWUSR, batadv_show_gw_bwidth,
 		   batadv_store_gw_bwidth);
 #ifdef CONFIG_BATMAN_ADV_MCAST
