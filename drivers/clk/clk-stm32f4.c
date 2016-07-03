@@ -364,7 +364,7 @@ static void __init stm32f4_rcc_init(struct device_node *np)
 		    NULL, gd->name, gd->parent_name, gd->flags,
 		    base + gd->offset, gd->bit_idx, 0, &stm32f4_clk_lock);
 
-		if (IS_ERR(clks[n])) {
+		if (IS_ERR(clks[idx])) {
 			pr_err("%s: Unable to register leaf clock %s\n",
 			       np->full_name, gd->name);
 			goto fail;
