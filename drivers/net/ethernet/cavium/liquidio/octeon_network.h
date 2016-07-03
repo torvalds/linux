@@ -30,6 +30,9 @@
 #include <linux/dma-mapping.h>
 #include <linux/ptp_clock_kernel.h>
 
+#define LIO_MAX_MTU_SIZE (OCTNET_MAX_FRM_SIZE - OCTNET_FRM_HEADER_SIZE)
+#define LIO_MIN_MTU_SIZE 68
+
 struct oct_nic_stats_resp {
 	u64     rh;
 	struct oct_link_stats stats;

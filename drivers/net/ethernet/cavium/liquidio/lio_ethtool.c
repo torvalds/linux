@@ -554,7 +554,7 @@ lio_ethtool_get_ringparam(struct net_device *netdev,
 		tx_pending = CFG_GET_NUM_TX_DESCS_NIC_IF(conf6x, lio->ifidx);
 	}
 
-	if (lio->mtu > OCTNET_DEFAULT_FRM_SIZE) {
+	if (lio->mtu > OCTNET_DEFAULT_FRM_SIZE - OCTNET_FRM_HEADER_SIZE) {
 		ering->rx_pending = 0;
 		ering->rx_max_pending = 0;
 		ering->rx_mini_pending = 0;
