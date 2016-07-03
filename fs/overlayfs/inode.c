@@ -59,16 +59,37 @@ int ovl_setattr(struct dentry *dentry, struct iattr *attr)
 	if (err)
 		goto out;
 
+	if (attr->ia_valid & ATTR_SIZE) {
+		struct inode *realinode = d_inode(ovl_dentry_real(dentry));
+
+		err = -ETXTBSY;
+		if (atomic_read(&realinode->i_writecount) < 0)
+			goto out_drop_write;
+	}
+
 	err = ovl_copy_up(dentry);
 	if (!err) {
+		struct inode *winode = NULL;
+
 		upperdentry = ovl_dentry_upper(dentry);
+
+		if (attr->ia_valid & ATTR_SIZE) {
+			winode = d_inode(upperdentry);
+			err = get_write_access(winode);
+			if (err)
+				goto out_drop_write;
+		}
 
 		inode_lock(upperdentry->d_inode);
 		err = notify_change(upperdentry, attr, NULL);
 		if (!err)
 			ovl_copyattr(upperdentry->d_inode, dentry->d_inode);
 		inode_unlock(upperdentry->d_inode);
+
+		if (winode)
+			put_write_access(winode);
 	}
+out_drop_write:
 	ovl_drop_write(dentry);
 out:
 	return err;
@@ -121,16 +142,18 @@ int ovl_permission(struct inode *inode, int mask)
 
 		err = vfs_getattr(&realpath, &stat);
 		if (err)
-			return err;
+			goto out_dput;
 
+		err = -ESTALE;
 		if ((stat.mode ^ inode->i_mode) & S_IFMT)
-			return -ESTALE;
+			goto out_dput;
 
 		inode->i_mode = stat.mode;
 		inode->i_uid = stat.uid;
 		inode->i_gid = stat.gid;
 
-		return generic_permission(inode, mask);
+		err = generic_permission(inode, mask);
+		goto out_dput;
 	}
 
 	/* Careful in RCU walk mode */
