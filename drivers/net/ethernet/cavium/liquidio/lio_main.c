@@ -3555,7 +3555,7 @@ static int setup_nic_devices(struct octeon_device *octeon_dev)
 
 		sc->callback = if_cfg_callback;
 		sc->callback_arg = sc;
-		sc->wait_time = 1000;
+		sc->wait_time = 3000;
 
 		retval = octeon_send_soft_command(octeon_dev, sc);
 		if (retval == IQ_SEND_FAILED) {

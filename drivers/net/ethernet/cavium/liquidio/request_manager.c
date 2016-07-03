@@ -523,9 +523,10 @@ static void check_db_timeout(struct work_struct *work)
 	struct octeon_device *oct = (struct octeon_device *)wk->ctxptr;
 	unsigned long iq_no = wk->ctxul;
 	struct cavium_wq *db_wq = &oct->check_db_wq[iq_no];
+	u32 delay = 10;
 
 	__check_db_timeout(oct, iq_no);
-	queue_delayed_work(db_wq->wq, &db_wq->wk.work, msecs_to_jiffies(1));
+	queue_delayed_work(db_wq->wq, &db_wq->wk.work, msecs_to_jiffies(delay));
 }
 
 int
