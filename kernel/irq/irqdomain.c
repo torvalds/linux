@@ -1192,8 +1192,10 @@ int irq_domain_alloc_irqs_recursive(struct irq_domain *domain,
 	if (recursive)
 		ret = irq_domain_alloc_irqs_recursive(parent, irq_base,
 						      nr_irqs, arg);
-	if (ret >= 0)
-		ret = domain->ops->alloc(domain, irq_base, nr_irqs, arg);
+	if (ret < 0)
+		return ret;
+
+	ret = domain->ops->alloc(domain, irq_base, nr_irqs, arg);
 	if (ret < 0 && recursive)
 		irq_domain_free_irqs_recursive(parent, irq_base, nr_irqs);
 
