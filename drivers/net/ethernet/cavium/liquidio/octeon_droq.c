@@ -821,18 +821,6 @@ octeon_process_droq_poll_cmd(struct octeon_device *oct, u32 q_no, int cmd,
 			     u32 arg)
 {
 	struct octeon_droq *droq;
-	struct octeon_config *oct_cfg = NULL;
-
-	oct_cfg = octeon_get_conf(oct);
-
-	if (!oct_cfg)
-		return -EINVAL;
-
-	if (q_no >= CFG_GET_OQ_MAX_Q(oct_cfg)) {
-		dev_err(&oct->pci_dev->dev, "%s: droq id (%d) exceeds MAX (%d)\n",
-			__func__, q_no, (oct->num_oqs - 1));
-		return -EINVAL;
-	}
 
 	droq = oct->droq[q_no];
 
