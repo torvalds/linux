@@ -157,6 +157,7 @@ enum batadv_nl_attrs {
  * @BATADV_CMD_GET_NEIGHBORS: Query list of neighbours
  * @BATADV_CMD_GET_GATEWAYS: Query list of gateways
  * @BATADV_CMD_GET_BLA_CLAIM: Query list of bridge loop avoidance claims
+ * @BATADV_CMD_GET_BLA_BACKBONE: Query list of bridge loop avoidance backbones
  * @__BATADV_CMD_AFTER_LAST: internal use
  * @BATADV_CMD_MAX: highest used command number
  */
@@ -173,6 +174,7 @@ enum batadv_nl_commands {
 	BATADV_CMD_GET_NEIGHBORS,
 	BATADV_CMD_GET_GATEWAYS,
 	BATADV_CMD_GET_BLA_CLAIM,
+	BATADV_CMD_GET_BLA_BACKBONE,
 	/* add new commands above here */
 	__BATADV_CMD_AFTER_LAST,
 	BATADV_CMD_MAX = __BATADV_CMD_AFTER_LAST - 1

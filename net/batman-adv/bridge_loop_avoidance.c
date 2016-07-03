@@ -2283,3 +2283,167 @@ out:
 		batadv_hardif_put(primary_if);
 	return 0;
 }
+
+/**
+ * batadv_bla_backbone_dump_entry - dump one entry of the backbone table
+ * to a netlink socket
+ * @msg: buffer for the message
+ * @portid: netlink port
+ * @seq: Sequence number of netlink message
+ * @primary_if: primary interface
+ * @backbone_gw: entry to dump
+ *
+ * Return: 0 or error code.
+ */
+static int
+batadv_bla_backbone_dump_entry(struct sk_buff *msg, u32 portid, u32 seq,
+			       struct batadv_hard_iface *primary_if,
+			       struct batadv_bla_backbone_gw *backbone_gw)
+{
+	u8 *primary_addr = primary_if->net_dev->dev_addr;
+	u16 backbone_crc;
+	bool is_own;
+	int msecs;
+	void *hdr;
+	int ret = -EINVAL;
+
+	hdr = genlmsg_put(msg, portid, seq, &batadv_netlink_family,
+			  NLM_F_MULTI, BATADV_CMD_GET_BLA_BACKBONE);
+	if (!hdr) {
+		ret = -ENOBUFS;
+		goto out;
+	}
+
+	is_own = batadv_compare_eth(backbone_gw->orig, primary_addr);
+
+	spin_lock_bh(&backbone_gw->crc_lock);
+	backbone_crc = backbone_gw->crc;
+	spin_unlock_bh(&backbone_gw->crc_lock);
+
+	msecs = jiffies_to_msecs(jiffies - backbone_gw->lasttime);
+
+	if (is_own)
+		if (nla_put_flag(msg, BATADV_ATTR_BLA_OWN)) {
+			genlmsg_cancel(msg, hdr);
+			goto out;
+		}
+
+	if (nla_put(msg, BATADV_ATTR_BLA_BACKBONE, ETH_ALEN,
+		    backbone_gw->orig) ||
+	    nla_put_u16(msg, BATADV_ATTR_BLA_VID, backbone_gw->vid) ||
+	    nla_put_u16(msg, BATADV_ATTR_BLA_CRC,
+			backbone_crc) ||
+	    nla_put_u32(msg, BATADV_ATTR_LAST_SEEN_MSECS, msecs)) {
+		genlmsg_cancel(msg, hdr);
+		goto out;
+	}
+
+	genlmsg_end(msg, hdr);
+	ret = 0;
+
+out:
+	return ret;
+}
+
+/**
+ * batadv_bla_backbone_dump_bucket - dump one bucket of the backbone table
+ * to a netlink socket
+ * @msg: buffer for the message
+ * @portid: netlink port
+ * @seq: Sequence number of netlink message
+ * @primary_if: primary interface
+ * @head: bucket to dump
+ * @idx_skip: How many entries to skip
+ *
+ * Return: always 0.
+ */
+static int
+batadv_bla_backbone_dump_bucket(struct sk_buff *msg, u32 portid, u32 seq,
+				struct batadv_hard_iface *primary_if,
+				struct hlist_head *head, int *idx_skip)
+{
+	struct batadv_bla_backbone_gw *backbone_gw;
+	int idx = 0;
+
+	rcu_read_lock();
+	hlist_for_each_entry_rcu(backbone_gw, head, hash_entry) {
+		if (idx++ < *idx_skip)
+			continue;
+		if (batadv_bla_backbone_dump_entry(msg, portid, seq,
+						   primary_if, backbone_gw)) {
+			*idx_skip = idx - 1;
+			goto unlock;
+		}
+	}
+
+	*idx_skip = idx;
+unlock:
+	rcu_read_unlock();
+	return 0;
+}
+
+/**
+ * batadv_bla_backbone_dump - dump backbone table to a netlink socket
+ * @msg: buffer for the message
+ * @cb: callback structure containing arguments
+ *
+ * Return: message length.
+ */
+int batadv_bla_backbone_dump(struct sk_buff *msg, struct netlink_callback *cb)
+{
+	struct batadv_hard_iface *primary_if = NULL;
+	int portid = NETLINK_CB(cb->skb).portid;
+	struct net *net = sock_net(cb->skb->sk);
+	struct net_device *soft_iface;
+	struct batadv_hashtable *hash;
+	struct batadv_priv *bat_priv;
+	int bucket = cb->args[0];
+	struct hlist_head *head;
+	int idx = cb->args[1];
+	int ifindex;
+	int ret = 0;
+
+	ifindex = batadv_netlink_get_ifindex(cb->nlh,
+					     BATADV_ATTR_MESH_IFINDEX);
+	if (!ifindex)
+		return -EINVAL;
+
+	soft_iface = dev_get_by_index(net, ifindex);
+	if (!soft_iface || !batadv_softif_is_valid(soft_iface)) {
+		ret = -ENODEV;
+		goto out;
+	}
+
+	bat_priv = netdev_priv(soft_iface);
+	hash = bat_priv->bla.backbone_hash;
+
+	primary_if = batadv_primary_if_get_selected(bat_priv);
+	if (!primary_if || primary_if->if_status != BATADV_IF_ACTIVE) {
+		ret = -ENOENT;
+		goto out;
+	}
+
+	while (bucket < hash->size) {
+		head = &hash->table[bucket];
+
+		if (batadv_bla_backbone_dump_bucket(msg, portid,
+						    cb->nlh->nlmsg_seq,
+						    primary_if, head, &idx))
+			break;
+		bucket++;
+	}
+
+	cb->args[0] = bucket;
+	cb->args[1] = idx;
+
+	ret = msg->len;
+
+out:
+	if (primary_if)
+		batadv_hardif_put(primary_if);
+
+	if (soft_iface)
+		dev_put(soft_iface);
+
+	return ret;
+}

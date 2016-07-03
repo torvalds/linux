@@ -39,6 +39,7 @@ int batadv_bla_claim_table_seq_print_text(struct seq_file *seq, void *offset);
 int batadv_bla_claim_dump(struct sk_buff *msg, struct netlink_callback *cb);
 int batadv_bla_backbone_table_seq_print_text(struct seq_file *seq,
 					     void *offset);
+int batadv_bla_backbone_dump(struct sk_buff *msg, struct netlink_callback *cb);
 bool batadv_bla_is_backbone_gw_orig(struct batadv_priv *bat_priv, u8 *orig,
 				    unsigned short vid);
 bool batadv_bla_check_bcast_duplist(struct batadv_priv *bat_priv,
@@ -116,6 +117,12 @@ static inline void batadv_bla_free(struct batadv_priv *bat_priv)
 
 static inline int batadv_bla_claim_dump(struct sk_buff *msg,
 					struct netlink_callback *cb)
+{
+	return -EOPNOTSUPP;
+}
+
+static inline int batadv_bla_backbone_dump(struct sk_buff *msg,
+					   struct netlink_callback *cb)
 {
 	return -EOPNOTSUPP;
 }
