@@ -92,7 +92,8 @@ static void *arc_dma_alloc(struct device *dev, size_t size,
 static void arc_dma_free(struct device *dev, size_t size, void *vaddr,
 		dma_addr_t dma_handle, struct dma_attrs *attrs)
 {
-	struct page *page = virt_to_page(dma_handle);
+	phys_addr_t paddr = plat_dma_to_phys(dev, dma_handle);
+	struct page *page = virt_to_page(paddr);
 	int is_non_coh = 1;
 
 	is_non_coh = dma_get_attr(DMA_ATTR_NON_CONSISTENT, attrs) ||
