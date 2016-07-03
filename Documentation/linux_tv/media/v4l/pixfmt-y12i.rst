@@ -19,7 +19,6 @@ pixels from 2 sources interleaved and bit-packed. Each pixel is stored
 in a 24-bit word in the little-endian order. On a little-endian machine
 these pixels can be deinterlaced using
 
-
 .. code-block:: c
 
     __u8 *buf;
@@ -27,11 +26,8 @@ these pixels can be deinterlaced using
     right0 = *(__u16 *)(buf + 1) >> 4;
 
 **Bit-packed representation.**
-
 pixels cross the byte boundary and have a ratio of 3 bytes for each
 interleaved pixel.
-
-
 
 .. flat-table::
     :header-rows:  0
