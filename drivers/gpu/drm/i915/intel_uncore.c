@@ -1299,9 +1299,11 @@ static void intel_uncore_fw_domains_init(struct drm_i915_private *dev_priv)
 		fw_domain_init(dev_priv, FW_DOMAIN_ID_RENDER,
 			       FORCEWAKE_MT, FORCEWAKE_MT_ACK);
 
+		spin_lock_irq(&dev_priv->uncore.lock);
 		fw_domains_get_with_thread_status(dev_priv, FORCEWAKE_ALL);
 		ecobus = __raw_i915_read32(dev_priv, ECOBUS);
 		fw_domains_put_with_fifo(dev_priv, FORCEWAKE_ALL);
+		spin_unlock_irq(&dev_priv->uncore.lock);
 
 		if (!(ecobus & FORCEWAKE_MT_ENABLE)) {
 			DRM_INFO("No MT forcewake available on Ivybridge, this can result in issues\n");
