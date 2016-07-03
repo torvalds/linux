@@ -1146,13 +1146,13 @@ repeat:
 
 	lock_page(page);
 
-	if (unlikely(!PageUptodate(page)))
-		goto out_err;
-
 	if (unlikely(page->mapping != NODE_MAPPING(sbi))) {
 		f2fs_put_page(page, 1);
 		goto repeat;
 	}
+
+	if (unlikely(!PageUptodate(page)))
+		goto out_err;
 page_hit:
 	if(unlikely(nid != nid_of_node(page))) {
 		f2fs_bug_on(sbi, 1);

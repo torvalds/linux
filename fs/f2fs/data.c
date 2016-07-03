@@ -500,13 +500,13 @@ repeat:
 
 	/* wait for read completion */
 	lock_page(page);
-	if (unlikely(!PageUptodate(page))) {
-		f2fs_put_page(page, 1);
-		return ERR_PTR(-EIO);
-	}
 	if (unlikely(page->mapping != mapping)) {
 		f2fs_put_page(page, 1);
 		goto repeat;
+	}
+	if (unlikely(!PageUptodate(page))) {
+		f2fs_put_page(page, 1);
+		return ERR_PTR(-EIO);
 	}
 	return page;
 }
@@ -1647,13 +1647,13 @@ repeat:
 		__submit_bio(sbi, READ_SYNC, bio, DATA);
 
 		lock_page(page);
-		if (unlikely(!PageUptodate(page))) {
-			err = -EIO;
-			goto fail;
-		}
 		if (unlikely(page->mapping != mapping)) {
 			f2fs_put_page(page, 1);
 			goto repeat;
+		}
+		if (unlikely(!PageUptodate(page))) {
+			err = -EIO;
+			goto fail;
 		}
 	}
 out_update:
