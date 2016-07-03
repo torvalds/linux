@@ -1453,11 +1453,22 @@ struct batadv_algo_orig_ops {
  * struct batadv_algo_gw_ops - mesh algorithm callbacks (GW specific)
  * @store_sel_class: parse and stores a new GW selection class (optional)
  * @show_sel_class: prints the current GW selection class (optional)
+ * @get_best_gw_node: select the best GW from the list of available nodes
+ *  (optional)
+ * @is_eligible: check if a newly discovered GW is a potential candidate for
+ *  the election as best GW (optional)
+ * @print: print the gateway table (optional)
  */
 struct batadv_algo_gw_ops {
 	ssize_t (*store_sel_class)(struct batadv_priv *bat_priv, char *buff,
 				   size_t count);
 	ssize_t (*show_sel_class)(struct batadv_priv *bat_priv, char *buff);
+	struct batadv_gw_node *(*get_best_gw_node)
+		(struct batadv_priv *bat_priv);
+	bool (*is_eligible)(struct batadv_priv *bat_priv,
+			    struct batadv_orig_node *curr_gw_orig,
+			    struct batadv_orig_node *orig_node);
+	void (*print)(struct batadv_priv *bat_priv, struct seq_file *seq);
 };
 
 /**

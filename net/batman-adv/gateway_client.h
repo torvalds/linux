@@ -39,6 +39,9 @@ void batadv_gw_node_update(struct batadv_priv *bat_priv,
 void batadv_gw_node_delete(struct batadv_priv *bat_priv,
 			   struct batadv_orig_node *orig_node);
 void batadv_gw_node_free(struct batadv_priv *bat_priv);
+void batadv_gw_node_put(struct batadv_gw_node *gw_node);
+struct batadv_gw_node *
+batadv_gw_get_selected_gw_node(struct batadv_priv *bat_priv);
 int batadv_gw_client_seq_print_text(struct seq_file *seq, void *offset);
 bool batadv_gw_out_of_range(struct batadv_priv *bat_priv, struct sk_buff *skb);
 enum batadv_dhcp_recipient
