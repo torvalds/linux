@@ -18,6 +18,7 @@
 #include "netlink.h"
 #include "main.h"
 
+#include <linux/atomic.h>
 #include <linux/errno.h>
 #include <linux/fs.h>
 #include <linux/genetlink.h>
@@ -121,7 +122,9 @@ batadv_netlink_mesh_info_put(struct sk_buff *msg, struct net_device *soft_iface)
 	    nla_put_u32(msg, BATADV_ATTR_MESH_IFINDEX, soft_iface->ifindex) ||
 	    nla_put_string(msg, BATADV_ATTR_MESH_IFNAME, soft_iface->name) ||
 	    nla_put(msg, BATADV_ATTR_MESH_ADDRESS, ETH_ALEN,
-		    soft_iface->dev_addr))
+		    soft_iface->dev_addr) ||
+	    nla_put_u8(msg, BATADV_ATTR_TT_TTVN,
+		       (u8)atomic_read(&bat_priv->tt.vn)))
 		goto out;
 
 	primary_if = batadv_primary_if_get_selected(bat_priv);
