@@ -10,6 +10,7 @@ Examples
 
 
 .. code-block:: c
+	:caption: Example 1.15. Resetting the cropping parameters
 
         struct v4l2_selection sel = {
             .type = V4L2_BUF_TYPE_VIDEO_CAPTURE,
@@ -28,6 +29,7 @@ placed at a center of a display.
 
 
 .. code-block:: c
+   :caption: Example 1.16. Simple downscaling
 
         struct v4l2_selection sel = {
             .type = V4L2_BUF_TYPE_VIDEO_OUTPUT,
@@ -55,6 +57,7 @@ for other devices
 
 
 .. code-block:: c
+   :caption: Example 1.17. Querying for scaling factors
 
         struct v4l2_selection compose = {
             .type = V4L2_BUF_TYPE_VIDEO_OUTPUT,
