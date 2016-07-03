@@ -43,12 +43,12 @@ world.
 
 For some formats, data is stored in separate, discontiguous memory
 buffers. Those formats are identified by a separate set of FourCC codes
-and are referred to as "multi-planar formats". For example, a YUV422
-frame is normally stored in one memory buffer, but it can also be placed
-in two or three separate buffers, with Y component in one buffer and
-CbCr components in another in the 2-planar version or with each
-component in its own buffer in the 3-planar case. Those sub-buffers are
-referred to as "planes".
+and are referred to as "multi-planar formats". For example, a
+:ref:`YUV422 <V4L2-PIX-FMT-YUV422M>` frame is normally stored in one
+memory buffer, but it can also be placed in two or three separate
+buffers, with Y component in one buffer and CbCr components in another
+in the 2-planar version or with each component in its own buffer in the
+3-planar case. Those sub-buffers are referred to as "*planes*".
 
 
 .. ------------------------------------------------------------------------------
