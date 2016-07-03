@@ -91,6 +91,11 @@ enum batadv_tt_client_flags {
  * @BATADV_ATTR_BANDWIDTH_UP: Reported uplink bandwidth
  * @BATADV_ATTR_BANDWIDTH_DOWN: Reported downlink bandwidth
  * @BATADV_ATTR_ROUTER: Gateway router MAC address
+ * @BATADV_ATTR_BLA_OWN: Flag indicating own originator
+ * @BATADV_ATTR_BLA_ADDRESS: Bridge loop avoidance claim MAC address
+ * @BATADV_ATTR_BLA_VID: BLA VLAN ID
+ * @BATADV_ATTR_BLA_BACKBONE: BLA gateway originator MAC address
+ * @BATADV_ATTR_BLA_CRC: BLA CRC
  * @__BATADV_ATTR_AFTER_LAST: internal use
  * @NUM_BATADV_ATTR: total number of batadv_nl_attrs available
  * @BATADV_ATTR_MAX: highest attribute number currently defined
@@ -126,6 +131,11 @@ enum batadv_nl_attrs {
 	BATADV_ATTR_BANDWIDTH_UP,
 	BATADV_ATTR_BANDWIDTH_DOWN,
 	BATADV_ATTR_ROUTER,
+	BATADV_ATTR_BLA_OWN,
+	BATADV_ATTR_BLA_ADDRESS,
+	BATADV_ATTR_BLA_VID,
+	BATADV_ATTR_BLA_BACKBONE,
+	BATADV_ATTR_BLA_CRC,
 	/* add attributes above here, update the policy in netlink.c */
 	__BATADV_ATTR_AFTER_LAST,
 	NUM_BATADV_ATTR = __BATADV_ATTR_AFTER_LAST,
@@ -146,6 +156,7 @@ enum batadv_nl_attrs {
  * @BATADV_CMD_GET_ORIGINATORS: Query list of originators
  * @BATADV_CMD_GET_NEIGHBORS: Query list of neighbours
  * @BATADV_CMD_GET_GATEWAYS: Query list of gateways
+ * @BATADV_CMD_GET_BLA_CLAIM: Query list of bridge loop avoidance claims
  * @__BATADV_CMD_AFTER_LAST: internal use
  * @BATADV_CMD_MAX: highest used command number
  */
@@ -161,6 +172,7 @@ enum batadv_nl_commands {
 	BATADV_CMD_GET_ORIGINATORS,
 	BATADV_CMD_GET_NEIGHBORS,
 	BATADV_CMD_GET_GATEWAYS,
+	BATADV_CMD_GET_BLA_CLAIM,
 	/* add new commands above here */
 	__BATADV_CMD_AFTER_LAST,
 	BATADV_CMD_MAX = __BATADV_CMD_AFTER_LAST - 1

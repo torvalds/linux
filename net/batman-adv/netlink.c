@@ -38,6 +38,7 @@
 #include <uapi/linux/batman_adv.h>
 
 #include "bat_algo.h"
+#include "bridge_loop_avoidance.h"
 #include "gateway_client.h"
 #include "hard-interface.h"
 #include "originator.h"
@@ -91,6 +92,11 @@ static struct nla_policy batadv_netlink_policy[NUM_BATADV_ATTR] = {
 	[BATADV_ATTR_BANDWIDTH_UP]	= { .type = NLA_U32 },
 	[BATADV_ATTR_BANDWIDTH_DOWN]	= { .type = NLA_U32 },
 	[BATADV_ATTR_ROUTER]		= { .len = ETH_ALEN },
+	[BATADV_ATTR_BLA_OWN]		= { .type = NLA_FLAG },
+	[BATADV_ATTR_BLA_ADDRESS]	= { .len = ETH_ALEN },
+	[BATADV_ATTR_BLA_VID]		= { .type = NLA_U16 },
+	[BATADV_ATTR_BLA_BACKBONE]	= { .len = ETH_ALEN },
+	[BATADV_ATTR_BLA_CRC]		= { .type = NLA_U16 },
 };
 
 /**
@@ -579,6 +585,12 @@ static struct genl_ops batadv_netlink_ops[] = {
 		.flags = GENL_ADMIN_PERM,
 		.policy = batadv_netlink_policy,
 		.dumpit = batadv_gw_dump,
+	},
+	{
+		.cmd = BATADV_CMD_GET_BLA_CLAIM,
+		.flags = GENL_ADMIN_PERM,
+		.policy = batadv_netlink_policy,
+		.dumpit = batadv_bla_claim_dump,
 	},
 };
 
