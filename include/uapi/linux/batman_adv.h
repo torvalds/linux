@@ -40,6 +40,7 @@
  * @BATADV_ATTR_TPMETER_BYTES: amount of acked bytes during run
  * @BATADV_ATTR_TPMETER_COOKIE: session cookie to match tp_meter session
  * @BATADV_ATTR_PAD: attribute used for padding for 64-bit alignment
+ * @BATADV_ATTR_ACTIVE: Flag indicating if the hard interface is active
  * @__BATADV_ATTR_AFTER_LAST: internal use
  * @NUM_BATADV_ATTR: total number of batadv_nl_attrs available
  * @BATADV_ATTR_MAX: highest attribute number currently defined
@@ -60,6 +61,7 @@ enum batadv_nl_attrs {
 	BATADV_ATTR_TPMETER_BYTES,
 	BATADV_ATTR_TPMETER_COOKIE,
 	BATADV_ATTR_PAD,
+	BATADV_ATTR_ACTIVE,
 	/* add attributes above here, update the policy in netlink.c */
 	__BATADV_ATTR_AFTER_LAST,
 	NUM_BATADV_ATTR = __BATADV_ATTR_AFTER_LAST,
@@ -74,6 +76,7 @@ enum batadv_nl_attrs {
  * @BATADV_CMD_TP_METER: Start a tp meter session
  * @BATADV_CMD_TP_METER_CANCEL: Cancel a tp meter session
  * @BATADV_CMD_GET_ROUTING_ALGOS: Query the list of routing algorithms.
+ * @BATADV_CMD_GET_HARDIFS: Query list of hard interfaces
  * @__BATADV_CMD_AFTER_LAST: internal use
  * @BATADV_CMD_MAX: highest used command number
  */
@@ -83,6 +86,7 @@ enum batadv_nl_commands {
 	BATADV_CMD_TP_METER,
 	BATADV_CMD_TP_METER_CANCEL,
 	BATADV_CMD_GET_ROUTING_ALGOS,
+	BATADV_CMD_GET_HARDIFS,
 	/* add new commands above here */
 	__BATADV_CMD_AFTER_LAST,
 	BATADV_CMD_MAX = __BATADV_CMD_AFTER_LAST - 1
