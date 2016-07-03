@@ -61,7 +61,7 @@ relating to MPEG encoding, etc.
 All controls in the control array must belong to the specified control
 class. An error is returned if this is not the case.
 
-It is also possible to use an empty control array (count == 0) to check
+It is also possible to use an empty control array (``count`` == 0) to check
 whether the specified control class is supported.
 
 The control array is a struct
