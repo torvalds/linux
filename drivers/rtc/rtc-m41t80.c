@@ -829,10 +829,9 @@ static int m41t80_probe(struct i2c_client *client,
 		return rc;
 	}
 
-	rc = devm_add_action(&client->dev, m41t80_remove_sysfs_group,
-			     &client->dev);
+	rc = devm_add_action_or_reset(&client->dev, m41t80_remove_sysfs_group,
+				      &client->dev);
 	if (rc) {
-		m41t80_remove_sysfs_group(&client->dev);
 		dev_err(&client->dev,
 			"Failed to add sysfs cleanup action: %d\n", rc);
 		return rc;
