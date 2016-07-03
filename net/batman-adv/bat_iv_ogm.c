@@ -2019,6 +2019,51 @@ static void batadv_iv_neigh_print(struct batadv_priv *bat_priv,
 }
 
 /**
+ * batadv_iv_ogm_neigh_diff - calculate tq difference of two neighbors
+ * @neigh1: the first neighbor object of the comparison
+ * @if_outgoing1: outgoing interface for the first neighbor
+ * @neigh2: the second neighbor object of the comparison
+ * @if_outgoing2: outgoing interface for the second neighbor
+ * @diff: pointer to integer receiving the calculated difference
+ *
+ * The content of *@diff is only valid when this function returns true.
+ * It is less, equal to or greater than 0 if the metric via neigh1 is lower,
+ * the same as or higher than the metric via neigh2
+ *
+ * Return: true when the difference could be calculated, false otherwise
+ */
+static bool batadv_iv_ogm_neigh_diff(struct batadv_neigh_node *neigh1,
+				     struct batadv_hard_iface *if_outgoing1,
+				     struct batadv_neigh_node *neigh2,
+				     struct batadv_hard_iface *if_outgoing2,
+				     int *diff)
+{
+	struct batadv_neigh_ifinfo *neigh1_ifinfo, *neigh2_ifinfo;
+	u8 tq1, tq2;
+	bool ret = true;
+
+	neigh1_ifinfo = batadv_neigh_ifinfo_get(neigh1, if_outgoing1);
+	neigh2_ifinfo = batadv_neigh_ifinfo_get(neigh2, if_outgoing2);
+
+	if (!neigh1_ifinfo || !neigh2_ifinfo) {
+		ret = false;
+		goto out;
+	}
+
+	tq1 = neigh1_ifinfo->bat_iv.tq_avg;
+	tq2 = neigh2_ifinfo->bat_iv.tq_avg;
+	*diff = (int)tq1 - (int)tq2;
+
+out:
+	if (neigh1_ifinfo)
+		batadv_neigh_ifinfo_put(neigh1_ifinfo);
+	if (neigh2_ifinfo)
+		batadv_neigh_ifinfo_put(neigh2_ifinfo);
+
+	return ret;
+}
+
+/**
  * batadv_iv_ogm_neigh_cmp - compare the metrics of two neighbors
  * @neigh1: the first neighbor object of the comparison
  * @if_outgoing1: outgoing interface for the first neighbor
@@ -2033,27 +2078,13 @@ static int batadv_iv_ogm_neigh_cmp(struct batadv_neigh_node *neigh1,
 				   struct batadv_neigh_node *neigh2,
 				   struct batadv_hard_iface *if_outgoing2)
 {
-	struct batadv_neigh_ifinfo *neigh1_ifinfo, *neigh2_ifinfo;
-	u8 tq1, tq2;
+	bool ret;
 	int diff;
 
-	neigh1_ifinfo = batadv_neigh_ifinfo_get(neigh1, if_outgoing1);
-	neigh2_ifinfo = batadv_neigh_ifinfo_get(neigh2, if_outgoing2);
-
-	if (!neigh1_ifinfo || !neigh2_ifinfo) {
-		diff = 0;
-		goto out;
-	}
-
-	tq1 = neigh1_ifinfo->bat_iv.tq_avg;
-	tq2 = neigh2_ifinfo->bat_iv.tq_avg;
-	diff = tq1 - tq2;
-
-out:
-	if (neigh1_ifinfo)
-		batadv_neigh_ifinfo_put(neigh1_ifinfo);
-	if (neigh2_ifinfo)
-		batadv_neigh_ifinfo_put(neigh2_ifinfo);
+	ret = batadv_iv_ogm_neigh_diff(neigh1, if_outgoing1, neigh2,
+				       if_outgoing2, &diff);
+	if (!ret)
+		return 0;
 
 	return diff;
 }
@@ -2075,29 +2106,15 @@ batadv_iv_ogm_neigh_is_sob(struct batadv_neigh_node *neigh1,
 			   struct batadv_neigh_node *neigh2,
 			   struct batadv_hard_iface *if_outgoing2)
 {
-	struct batadv_neigh_ifinfo *neigh1_ifinfo, *neigh2_ifinfo;
-	u8 tq1, tq2;
 	bool ret;
+	int diff;
 
-	neigh1_ifinfo = batadv_neigh_ifinfo_get(neigh1, if_outgoing1);
-	neigh2_ifinfo = batadv_neigh_ifinfo_get(neigh2, if_outgoing2);
+	ret = batadv_iv_ogm_neigh_diff(neigh1, if_outgoing1, neigh2,
+				       if_outgoing2, &diff);
+	if (!ret)
+		return false;
 
-	/* we can't say that the metric is better */
-	if (!neigh1_ifinfo || !neigh2_ifinfo) {
-		ret = false;
-		goto out;
-	}
-
-	tq1 = neigh1_ifinfo->bat_iv.tq_avg;
-	tq2 = neigh2_ifinfo->bat_iv.tq_avg;
-	ret = (tq1 - tq2) > -BATADV_TQ_SIMILARITY_THRESHOLD;
-
-out:
-	if (neigh1_ifinfo)
-		batadv_neigh_ifinfo_put(neigh1_ifinfo);
-	if (neigh2_ifinfo)
-		batadv_neigh_ifinfo_put(neigh2_ifinfo);
-
+	ret = diff > -BATADV_TQ_SIMILARITY_THRESHOLD;
 	return ret;
 }
 
