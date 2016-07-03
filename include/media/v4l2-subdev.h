@@ -143,20 +143,6 @@ struct v4l2_subdev_io_pin_config {
  * @s_gpio: set GPIO pins. Very simple right now, might need to be extended with
  *	a direction argument if needed.
  *
- * @queryctrl: callback for VIDIOC_QUERYCTL ioctl handler code.
- *
- * @g_ctrl: callback for VIDIOC_G_CTRL ioctl handler code.
- *
- * @s_ctrl: callback for VIDIOC_S_CTRL ioctl handler code.
- *
- * @g_ext_ctrls: callback for VIDIOC_G_EXT_CTRLS ioctl handler code.
- *
- * @s_ext_ctrls: callback for VIDIOC_S_EXT_CTRLS ioctl handler code.
- *
- * @try_ext_ctrls: callback for VIDIOC_TRY_EXT_CTRLS ioctl handler code.
- *
- * @querymenu: callback for VIDIOC_QUERYMENU ioctl handler code.
- *
  * @ioctl: called at the end of ioctl() syscall handler at the V4L2 core.
  *	   used to provide support for private ioctls used on the driver.
  *
@@ -190,13 +176,6 @@ struct v4l2_subdev_core_ops {
 	int (*load_fw)(struct v4l2_subdev *sd);
 	int (*reset)(struct v4l2_subdev *sd, u32 val);
 	int (*s_gpio)(struct v4l2_subdev *sd, u32 val);
-	int (*queryctrl)(struct v4l2_subdev *sd, struct v4l2_queryctrl *qc);
-	int (*g_ctrl)(struct v4l2_subdev *sd, struct v4l2_control *ctrl);
-	int (*s_ctrl)(struct v4l2_subdev *sd, struct v4l2_control *ctrl);
-	int (*g_ext_ctrls)(struct v4l2_subdev *sd, struct v4l2_ext_controls *ctrls);
-	int (*s_ext_ctrls)(struct v4l2_subdev *sd, struct v4l2_ext_controls *ctrls);
-	int (*try_ext_ctrls)(struct v4l2_subdev *sd, struct v4l2_ext_controls *ctrls);
-	int (*querymenu)(struct v4l2_subdev *sd, struct v4l2_querymenu *qm);
 	long (*ioctl)(struct v4l2_subdev *sd, unsigned int cmd, void *arg);
 #ifdef CONFIG_COMPAT
 	long (*compat_ioctl32)(struct v4l2_subdev *sd, unsigned int cmd,
