@@ -456,49 +456,55 @@ static int pkcs1pad_verify_complete(struct akcipher_request *req, int err)
 	struct akcipher_instance *inst = akcipher_alg_instance(tfm);
 	struct pkcs1pad_inst_ctx *ictx = akcipher_instance_ctx(inst);
 	const struct rsa_asn1_template *digest_info = ictx->digest_info;
+	unsigned int dst_len;
 	unsigned int pos;
-
-	if (err == -EOVERFLOW)
-		/* Decrypted value had no leading 0 byte */
-		err = -EINVAL;
+	u8 *out_buf;
 
 	if (err)
 		goto done;
 
-	if (req_ctx->child_req.dst_len != ctx->key_size - 1) {
-		err = -EINVAL;
+	err = -EINVAL;
+	dst_len = req_ctx->child_req.dst_len;
+	if (dst_len < ctx->key_size - 1)
 		goto done;
+
+	out_buf = req_ctx->out_buf;
+	if (dst_len == ctx->key_size) {
+		if (out_buf[0] != 0x00)
+			/* Decrypted value had no leading 0 byte */
+			goto done;
+
+		dst_len--;
+		out_buf++;
 	}
 
 	err = -EBADMSG;
-	if (req_ctx->out_buf[0] != 0x01)
+	if (out_buf[0] != 0x01)
 		goto done;
 
-	for (pos = 1; pos < req_ctx->child_req.dst_len; pos++)
-		if (req_ctx->out_buf[pos] != 0xff)
+	for (pos = 1; pos < dst_len; pos++)
+		if (out_buf[pos] != 0xff)
 			break;
 
-	if (pos < 9 || pos == req_ctx->child_req.dst_len ||
-	    req_ctx->out_buf[pos] != 0x00)
+	if (pos < 9 || pos == dst_len || out_buf[pos] != 0x00)
 		goto done;
 	pos++;
 
-	if (memcmp(req_ctx->out_buf + pos, digest_info->data,
-		   digest_info->size))
+	if (memcmp(out_buf + pos, digest_info->data, digest_info->size))
 		goto done;
 
 	pos += digest_info->size;
 
 	err = 0;
 
-	if (req->dst_len < req_ctx->child_req.dst_len - pos)
+	if (req->dst_len < dst_len - pos)
 		err = -EOVERFLOW;
-	req->dst_len = req_ctx->child_req.dst_len - pos;
+	req->dst_len = dst_len - pos;
 
 	if (!err)
 		sg_copy_from_buffer(req->dst,
 				sg_nents_for_len(req->dst, req->dst_len),
-				req_ctx->out_buf + pos, req->dst_len);
+				out_buf + pos, req->dst_len);
 done:
 	kzfree(req_ctx->out_buf);
 
