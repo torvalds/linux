@@ -23,11 +23,11 @@ setup to exchange data. It permits command line stunts like this (the
 vidctrl tool is fictitious):
 
 
+.. code-block:: none
 
-::
+    $ vidctrl /dev/video --input=0 --format=YUYV --size=352x288
+    $ dd if=/dev/video of=myimage.422 bs=202752 count=1
 
-    > vidctrl /dev/video --input=0 --format=YUYV --size=352x288
-    > dd if=/dev/video of=myimage.422 bs=202752 count=1
 To read from the device applications use the :ref:`read() <func-read>`
 function, to write the :ref:`write() <func-write>` function. Drivers
 must implement one I/O method if they exchange data with applications,
