@@ -48,6 +48,8 @@ EXPORT_SYMBOL_GPL(print_tuple);
 
 struct ct_iter_state {
 	struct seq_net_private p;
+	struct hlist_nulls_head *hash;
+	unsigned int htable_size;
 	unsigned int bucket;
 	u_int64_t time_now;
 };
@@ -58,9 +60,10 @@ static struct hlist_nulls_node *ct_get_first(struct seq_file *seq)
 	struct hlist_nulls_node *n;
 
 	for (st->bucket = 0;
-	     st->bucket < nf_conntrack_htable_size;
+	     st->bucket < st->htable_size;
 	     st->bucket++) {
-		n = rcu_dereference(hlist_nulls_first_rcu(&nf_conntrack_hash[st->bucket]));
+		n = rcu_dereference(
+			hlist_nulls_first_rcu(&st->hash[st->bucket]));
 		if (!is_a_nulls(n))
 			return n;
 	}
@@ -75,12 +78,11 @@ static struct hlist_nulls_node *ct_get_next(struct seq_file *seq,
 	head = rcu_dereference(hlist_nulls_next_rcu(head));
 	while (is_a_nulls(head)) {
 		if (likely(get_nulls_value(head) == st->bucket)) {
-			if (++st->bucket >= nf_conntrack_htable_size)
+			if (++st->bucket >= st->htable_size)
 				return NULL;
 		}
 		head = rcu_dereference(
-				hlist_nulls_first_rcu(
-					&nf_conntrack_hash[st->bucket]));
+			hlist_nulls_first_rcu(&st->hash[st->bucket]));
 	}
 	return head;
 }
@@ -102,6 +104,8 @@ static void *ct_seq_start(struct seq_file *seq, loff_t *pos)
 
 	st->time_now = ktime_get_real_ns();
 	rcu_read_lock();
+
+	nf_conntrack_get_ht(&st->hash, &st->htable_size);
 	return ct_get_idx(seq, *pos);
 }
 
