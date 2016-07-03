@@ -21,7 +21,7 @@ These four pixel formats are raw sRGB / Bayer formats with 10 bits per
 colour compressed to 8 bits each, using DPCM compression. DPCM,
 differential pulse-code modulation, is lossy. Each colour component
 consumes 8 bits of memory. In other respects this format is similar to
-:ref:`pixfmt-srggb10`.
+:ref:`V4L2-PIX-FMT-SRGGB10`.
 
 
 .. ------------------------------------------------------------------------------

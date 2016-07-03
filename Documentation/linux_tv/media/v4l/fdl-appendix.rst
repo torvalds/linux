@@ -246,7 +246,7 @@ Modified Version:
 
    Preserve the section entitled “History”, and its title, and add to it
    an item stating at least the title, year, new authors, and publisher
-   of the :ref:`Modified Version <fdl-modified>`as given on the
+   of the :ref:`Modified Version <fdl-modified>` as given on the
    :ref:`Title Page <fdl-title-page>`. If there is no section entitled
    “History” in the :ref:`Document <fdl-document>`, create one stating
    the title, year, authors, and publisher of the Document as given on
