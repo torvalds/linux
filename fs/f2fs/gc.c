@@ -653,12 +653,23 @@ static void move_data_page(struct inode *inode, block_t bidx, int gc_type)
 			.page = page,
 			.encrypted_page = NULL,
 		};
+		bool is_dirty = PageDirty(page);
+		int err;
+
+retry:
 		set_page_dirty(page);
 		f2fs_wait_on_page_writeback(page, DATA, true);
 		if (clear_page_dirty_for_io(page))
 			inode_dec_dirty_pages(inode);
+
 		set_cold_data(page);
-		do_write_data_page(&fio);
+
+		err = do_write_data_page(&fio);
+		if (err == -ENOMEM && is_dirty) {
+			congestion_wait(BLK_RW_ASYNC, HZ/50);
+			goto retry;
+		}
+
 		clear_cold_data(page);
 	}
 out:
