@@ -30,9 +30,7 @@ have ¼ as many pad bytes after their rows. In other words, four C x rows
 (including padding) is exactly as long as one Y row (including padding).
 
 **Byte Order..**
-
 Each cell is one byte.
-
 
 
 .. flat-table::
@@ -152,13 +150,11 @@ Each cell is one byte.
        -  
        -  0
 
-       -  
        -  1
 
        -  
        -  2
 
-       -  
        -  3
 
     -  .. row 2
@@ -167,14 +163,12 @@ Each cell is one byte.
 
        -  Y
 
-       -  
        -  Y
 
        -  C
 
        -  Y
 
-       -  
        -  Y
 
     -  .. row 3
@@ -183,14 +177,12 @@ Each cell is one byte.
 
        -  Y
 
-       -  
        -  Y
 
        -  C
 
        -  Y
 
-       -  
        -  Y
 
     -  .. row 4
@@ -199,14 +191,12 @@ Each cell is one byte.
 
        -  Y
 
-       -  
        -  Y
 
        -  C
 
        -  Y
 
-       -  
        -  Y
 
     -  .. row 5
@@ -215,12 +205,10 @@ Each cell is one byte.
 
        -  Y
 
-       -  
        -  Y
 
        -  C
 
        -  Y
 
-       -  
        -  Y
