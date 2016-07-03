@@ -55,7 +55,7 @@ the :ref:`VIDIOC_QUERYCAP` ioctl.
 
 
 .. code-block:: c
-    :caption: Example 3: Information about the current audio input
+    :caption: Example 1.3. Information about the current audio input
 
     struct v4l2_audio audio;
 
@@ -70,7 +70,7 @@ the :ref:`VIDIOC_QUERYCAP` ioctl.
 
 
 .. code-block:: c
-    :caption: Example 4: Switching to the first audio input
+    :caption: Example 1.4. Switching to the first audio input
 
     struct v4l2_audio audio;
 

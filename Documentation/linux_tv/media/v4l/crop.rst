@@ -148,7 +148,7 @@ ensure the parameters are suitable before starting I/O.
 change ``V4L2_BUF_TYPE_VIDEO_CAPTURE`` for other types of device.
 
 .. code-block:: c
-    :caption: Example 11: Resetting the cropping parameters
+    :caption: Example 1.11. Resetting the cropping parameters
 
     struct v4l2_cropcap cropcap;
     struct v4l2_crop crop;
@@ -174,7 +174,7 @@ change ``V4L2_BUF_TYPE_VIDEO_CAPTURE`` for other types of device.
     }
 
 .. code-block:: c
-    :caption: Example 12: Simple downscaling
+    :caption: Example 1.12. Simple downscaling
 
     struct v4l2_cropcap cropcap;
     struct v4l2_format format;
@@ -202,7 +202,7 @@ change ``V4L2_BUF_TYPE_VIDEO_CAPTURE`` for other types of device.
 **NOTE:** This example assumes an output device.
 
 .. code-block:: c
-    :caption: Example 13. Selecting an output area
+    :caption: Example 1.13. Selecting an output area
 
     struct v4l2_cropcap cropcap;
     struct v4l2_crop crop;
@@ -239,7 +239,7 @@ change ``V4L2_BUF_TYPE_VIDEO_CAPTURE`` for other types of device.
 **NOTE:** This example assumes a video capture device.
 
 .. code-block:: c
-    :caption: Example 14: Current scaling factor and pixel aspect
+    :caption: Example 1.14. Current scaling factor and pixel aspect
 
     struct v4l2_cropcap cropcap;
     struct v4l2_crop crop;
