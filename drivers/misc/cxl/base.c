@@ -114,5 +114,4 @@ static int __init cxl_base_init(void)
 	pr_devel("Found %d cxl device(s)\n", count);
 	return 0;
 }
-
-module_init(cxl_base_init);
+device_initcall(cxl_base_init);
