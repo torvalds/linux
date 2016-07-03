@@ -131,6 +131,8 @@ enum batadv_nl_attrs {
  * @BATADV_CMD_GET_HARDIFS: Query list of hard interfaces
  * @BATADV_CMD_GET_TRANSTABLE_LOCAL: Query list of local translations
  * @BATADV_CMD_GET_TRANSTABLE_GLOBAL Query list of global translations
+ * @BATADV_CMD_GET_ORIGINATORS: Query list of originators
+ * @BATADV_CMD_GET_NEIGHBORS: Query list of neighbours
  * @__BATADV_CMD_AFTER_LAST: internal use
  * @BATADV_CMD_MAX: highest used command number
  */
@@ -143,6 +145,8 @@ enum batadv_nl_commands {
 	BATADV_CMD_GET_HARDIFS,
 	BATADV_CMD_GET_TRANSTABLE_LOCAL,
 	BATADV_CMD_GET_TRANSTABLE_GLOBAL,
+	BATADV_CMD_GET_ORIGINATORS,
+	BATADV_CMD_GET_NEIGHBORS,
 	/* add new commands above here */
 	__BATADV_CMD_AFTER_LAST,
 	BATADV_CMD_MAX = __BATADV_CMD_AFTER_LAST - 1
