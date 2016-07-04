@@ -15,7 +15,7 @@ A memory-to-memory video node acts just like a normal video node, but it
 supports both output (sending frames from memory to the codec hardware)
 and capture (receiving the processed frames from the codec hardware into
 memory) stream I/O. An application will have to setup the stream I/O for
-both sides and finally call :ref:`VIDIOC_STREAMON`
+both sides and finally call :ref:`VIDIOC_STREAMON <VIDIOC_STREAMON>`
 for both capture and output to start the codec.
 
 Video compression codecs use the MPEG controls to setup their codec
