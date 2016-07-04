@@ -279,17 +279,21 @@ static void ath9k_set_tsfadjust(struct ath_softc *sc, struct ieee80211_vif *vif)
 	struct ath_common *common = ath9k_hw_common(sc->sc_ah);
 	struct ath_vif *avp = (void *)vif->drv_priv;
 	struct ath_beacon_config *cur_conf = &avp->chanctx->beacon;
-	u32 tsfadjust;
+	s64 tsfadjust;
 
 	if (avp->av_bslot == 0)
 		return;
 
+	/* tsf_adjust is added to the TSF value. We send out the beacon late,
+	 * so need to adjust the TSF starting point to be later in time (i.e.
+	 * the theoretical first beacon has a TSF of 0 after correction).
+	 */
 	tsfadjust = cur_conf->beacon_interval * avp->av_bslot;
-	tsfadjust = TU_TO_USEC(tsfadjust) / ATH_BCBUF;
+	tsfadjust = -TU_TO_USEC(tsfadjust) / ATH_BCBUF;
 	avp->tsf_adjust = cpu_to_le64(tsfadjust);
 
-	ath_dbg(common, CONFIG, "tsfadjust is: %llu for bslot: %d\n",
-		(unsigned long long)tsfadjust, avp->av_bslot);
+	ath_dbg(common, CONFIG, "tsfadjust is: %lld for bslot: %d\n",
+		(signed long long)tsfadjust, avp->av_bslot);
 }
 
 bool ath9k_csa_is_finished(struct ath_softc *sc, struct ieee80211_vif *vif)
