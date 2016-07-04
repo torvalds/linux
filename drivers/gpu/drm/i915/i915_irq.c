@@ -3084,9 +3084,8 @@ static void i915_hangcheck_elapsed(struct work_struct *work)
 		container_of(work, typeof(*dev_priv),
 			     gpu_error.hangcheck_work.work);
 	struct intel_engine_cs *engine;
-	enum intel_engine_id id;
-	int busy_count = 0, rings_hung = 0;
-	bool stuck[I915_NUM_ENGINES] = { 0 };
+	unsigned int hung = 0, stuck = 0;
+	int busy_count = 0;
 #define BUSY 1
 #define KICK 5
 #define HUNG 20
@@ -3104,7 +3103,7 @@ static void i915_hangcheck_elapsed(struct work_struct *work)
 	 */
 	intel_uncore_arm_unclaimed_mmio_detection(dev_priv);
 
-	for_each_engine_id(engine, dev_priv, id) {
+	for_each_engine(engine, dev_priv) {
 		bool busy = intel_engine_has_waiter(engine);
 		u64 acthd;
 		u32 seqno;
@@ -3167,9 +3166,14 @@ static void i915_hangcheck_elapsed(struct work_struct *work)
 					break;
 				case HANGCHECK_HUNG:
 					engine->hangcheck.score += HUNG;
-					stuck[id] = true;
 					break;
 				}
+			}
+
+			if (engine->hangcheck.score >= HANGCHECK_SCORE_RING_HUNG) {
+				hung |= intel_engine_flag(engine);
+				if (engine->hangcheck.action != HANGCHECK_HUNG)
+					stuck |= intel_engine_flag(engine);
 			}
 		} else {
 			engine->hangcheck.action = HANGCHECK_ACTIVE;
@@ -3195,17 +3199,24 @@ static void i915_hangcheck_elapsed(struct work_struct *work)
 		busy_count += busy;
 	}
 
-	for_each_engine_id(engine, dev_priv, id) {
-		if (engine->hangcheck.score >= HANGCHECK_SCORE_RING_HUNG) {
-			DRM_INFO("%s on %s\n",
-				 stuck[id] ? "stuck" : "no progress",
-				 engine->name);
-			rings_hung |= intel_engine_flag(engine);
-		}
-	}
+	if (hung) {
+		char msg[80];
+		int len;
 
-	if (rings_hung)
-		i915_handle_error(dev_priv, rings_hung, "Engine(s) hung");
+		/* If some rings hung but others were still busy, only
+		 * blame the hanging rings in the synopsis.
+		 */
+		if (stuck != hung)
+			hung &= ~stuck;
+		len = scnprintf(msg, sizeof(msg),
+				"%s on ", stuck == hung ? "No progress" : "Hang");
+		for_each_engine_masked(engine, dev_priv, hung)
+			len += scnprintf(msg + len, sizeof(msg) - len,
+					 "%s, ", engine->name);
+		msg[len-2] = '\0';
+
+		return i915_handle_error(dev_priv, hung, msg);
+	}
 
 	/* Reset timer in case GPU hangs without another request being added */
 	if (busy_count)
