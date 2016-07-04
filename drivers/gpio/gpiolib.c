@@ -488,8 +488,10 @@ static int linehandle_create(struct gpio_device *gdev, void __user *ip)
 	}
 
 	handlereq.fd = fd;
-	if (copy_to_user(ip, &handlereq, sizeof(handlereq)))
-		return -EFAULT;
+	if (copy_to_user(ip, &handlereq, sizeof(handlereq))) {
+		ret = -EFAULT;
+		goto out_free_descs;
+	}
 
 	dev_dbg(&gdev->dev, "registered chardev handle for %d lines\n",
 		lh->numdescs);
@@ -784,8 +786,10 @@ static int lineevent_create(struct gpio_device *gdev, void __user *ip)
 	}
 
 	eventreq.fd = fd;
-	if (copy_to_user(ip, &eventreq, sizeof(eventreq)))
-		return -EFAULT;
+	if (copy_to_user(ip, &eventreq, sizeof(eventreq))) {
+		ret = -EFAULT;
+		goto out_free_irq;
+	}
 
 	return 0;
 
