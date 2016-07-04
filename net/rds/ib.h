@@ -16,7 +16,7 @@
 #define RDS_IB_DEFAULT_SEND_WR		256
 #define RDS_IB_DEFAULT_FR_WR		512
 
-#define RDS_IB_DEFAULT_RETRY_COUNT	2
+#define RDS_IB_DEFAULT_RETRY_COUNT	1
 
 #define RDS_IB_SUPPORTED_PROTOCOLS	0x00000003	/* minor versions supported */
 
