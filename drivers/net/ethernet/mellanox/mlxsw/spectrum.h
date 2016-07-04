@@ -50,9 +50,10 @@
 #include "core.h"
 
 #define MLXSW_SP_VFID_BASE VLAN_N_VID
-#define MLXSW_SP_VFID_PORT_MAX 512	/* Non-bridged VLAN interfaces */
-#define MLXSW_SP_VFID_BR_MAX 6144	/* Bridged VLAN interfaces */
-#define MLXSW_SP_VFID_MAX (MLXSW_SP_VFID_PORT_MAX + MLXSW_SP_VFID_BR_MAX)
+#define MLXSW_SP_VFID_MAX 6656	/* Bridged VLAN interfaces */
+
+#define MLXSW_SP_RFID_BASE 15360
+#define MLXSW_SP_RIF_MAX 800
 
 #define MLXSW_SP_LAG_MAX 64
 #define MLXSW_SP_PORT_PER_LAG_MAX 16
@@ -81,8 +82,6 @@
 
 #define MLXSW_SP_CELL_FACTOR 2	/* 2 * cell_size / (IPG + cell_size + 1) */
 
-#define MLXSW_SP_RIF_MAX 800
-
 static inline u16 mlxsw_sp_pfc_delay_get(int mtu, u16 delay)
 {
 	delay = MLXSW_SP_BYTES_TO_CELLS(DIV_ROUND_UP(delay, BITS_PER_BYTE));
@@ -101,12 +100,13 @@ struct mlxsw_sp_fid {
 	struct list_head list;
 	unsigned int ref_count;
 	struct net_device *dev;
+	struct mlxsw_sp_rif *r;
 	u16 fid;
-	u16 vid;
 };
 
 struct mlxsw_sp_rif {
 	struct net_device *dev;
+	unsigned int ref_count;
 	struct mlxsw_sp_fid *f;
 	unsigned char addr[ETH_ALEN];
 	int mtu;
@@ -133,7 +133,17 @@ static inline u16 mlxsw_sp_fid_to_vfid(u16 fid)
 
 static inline bool mlxsw_sp_fid_is_vfid(u16 fid)
 {
-	return fid >= MLXSW_SP_VFID_BASE;
+	return fid >= MLXSW_SP_VFID_BASE && fid < MLXSW_SP_RFID_BASE;
+}
+
+static inline bool mlxsw_sp_fid_is_rfid(u16 fid)
+{
+	return fid >= MLXSW_SP_RFID_BASE;
+}
+
+static inline u16 mlxsw_sp_rif_sp_to_fid(u16 rif)
+{
+	return MLXSW_SP_RFID_BASE + rif;
 }
 
 struct mlxsw_sp_sb_pr {
@@ -207,11 +217,7 @@ struct mlxsw_sp_router {
 struct mlxsw_sp {
 	struct {
 		struct list_head list;
-		DECLARE_BITMAP(mapped, MLXSW_SP_VFID_PORT_MAX);
-	} port_vfids;
-	struct {
-		struct list_head list;
-		DECLARE_BITMAP(mapped, MLXSW_SP_VFID_BR_MAX);
+		DECLARE_BITMAP(mapped, MLXSW_SP_VFID_MAX);
 	} br_vfids;
 	struct {
 		struct list_head list;
