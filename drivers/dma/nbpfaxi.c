@@ -1456,6 +1456,8 @@ static int nbpf_remove(struct platform_device *pdev)
 		struct nbpf_channel *chan = nbpf->chan + i;
 
 		devm_free_irq(&pdev->dev, chan->irq, chan);
+
+		tasklet_kill(&chan->tasklet);
 	}
 
 	of_dma_controller_free(pdev->dev.of_node);
