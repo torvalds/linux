@@ -1601,7 +1601,10 @@ enum emulation_result kvm_mips_emulate_cache(union mips_instruction inst,
 
 	base = inst.i_format.rs;
 	op_inst = inst.i_format.rt;
-	offset = inst.i_format.simmediate;
+	if (cpu_has_mips_r6)
+		offset = inst.spec3_format.simmediate;
+	else
+		offset = inst.i_format.simmediate;
 	cache = op_inst & CacheOp_Cache;
 	op = op_inst & CacheOp_Op;
 
@@ -1764,11 +1767,27 @@ enum emulation_result kvm_mips_emulate_inst(u32 cause, u32 *opc,
 		er = kvm_mips_emulate_load(inst, cause, run, vcpu);
 		break;
 
+#ifndef CONFIG_CPU_MIPSR6
 	case cache_op:
 		++vcpu->stat.cache_exits;
 		trace_kvm_exit(vcpu, KVM_TRACE_EXIT_CACHE);
 		er = kvm_mips_emulate_cache(inst, opc, cause, run, vcpu);
 		break;
+#else
+	case spec3_op:
+		switch (inst.spec3_format.func) {
+		case cache6_op:
+			++vcpu->stat.cache_exits;
+			trace_kvm_exit(vcpu, KVM_TRACE_EXIT_CACHE);
+			er = kvm_mips_emulate_cache(inst, opc, cause, run,
+						    vcpu);
+			break;
+		default:
+			goto unknown;
+		};
+		break;
+unknown:
+#endif
 
 	default:
 		kvm_err("Instruction emulation not supported (%p/%#x)\n", opc,

@@ -72,7 +72,10 @@ int kvm_mips_trans_cache_va(union mips_instruction inst, u32 *opc,
 	synci_inst.i_format.opcode = bcond_op;
 	synci_inst.i_format.rs = inst.i_format.rs;
 	synci_inst.i_format.rt = synci_op;
-	synci_inst.i_format.simmediate = inst.i_format.simmediate;
+	if (cpu_has_mips_r6)
+		synci_inst.i_format.simmediate = inst.spec3_format.simmediate;
+	else
+		synci_inst.i_format.simmediate = inst.i_format.simmediate;
 
 	return kvm_mips_trans_replace(vcpu, opc, synci_inst);
 }
