@@ -340,8 +340,6 @@ static void compass_set_YPR(int *rbuf)
 
 static int compass_dev_open(struct inode *inode, struct file *file)
 {
-	struct sensor_private_data* sensor = 
-		(struct sensor_private_data *)i2c_get_clientdata(this_client); 
 	int result = 0;
 	DBG("%s\n",__func__);
 
@@ -351,8 +349,6 @@ static int compass_dev_open(struct inode *inode, struct file *file)
 
 static int compass_dev_release(struct inode *inode, struct file *file)
 {
-	struct sensor_private_data* sensor = 
-		(struct sensor_private_data *)i2c_get_clientdata(this_client); 
 	int result = 0;	
 	DBG("%s\n",__func__);
 

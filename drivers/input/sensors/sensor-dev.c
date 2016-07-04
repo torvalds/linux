@@ -460,7 +460,6 @@ static long angle_dev_ioctl(struct file *file,
 				}	
 				else
 				{
-					PREPARE_DELAYED_WORK(&sensor->delaywork, sensor_delaywork_func);
 					schedule_delayed_work(&sensor->delaywork, msecs_to_jiffies(sensor->pdata->poll_delay_ms));
 				}
 				sensor->status_cur = SENSOR_ON;
@@ -608,7 +607,6 @@ static long gsensor_dev_ioctl(struct file *file,
 				}	
 				else
 				{
-					PREPARE_DELAYED_WORK(&sensor->delaywork, sensor_delaywork_func);
 					schedule_delayed_work(&sensor->delaywork, msecs_to_jiffies(sensor->pdata->poll_delay_ms));
 				}
 				sensor->status_cur = SENSOR_ON;
@@ -940,7 +938,6 @@ static long gyro_dev_ioctl(struct file *file,
 				}	
 				else
 				{
-					PREPARE_DELAYED_WORK(&sensor->delaywork, sensor_delaywork_func);
 					schedule_delayed_work(&sensor->delaywork, msecs_to_jiffies(sensor->pdata->poll_delay_ms));
 				}
 				sensor->status_cur = SENSOR_ON;
@@ -995,7 +992,6 @@ static long gyro_dev_ioctl(struct file *file,
 			}	
 			else
 			{
-				PREPARE_DELAYED_WORK(&sensor->delaywork, sensor_delaywork_func);
 				schedule_delayed_work(&sensor->delaywork, msecs_to_jiffies(sensor->pdata->poll_delay_ms));
 			}
 			sensor->status_cur = SENSOR_ON;
@@ -1076,7 +1072,6 @@ static long light_dev_ioctl(struct file *file,
 					}	
 					else
 					{
-						PREPARE_DELAYED_WORK(&sensor->delaywork, sensor_delaywork_func);
 						schedule_delayed_work(&sensor->delaywork, msecs_to_jiffies(sensor->pdata->poll_delay_ms));
 					}
 					
@@ -1177,7 +1172,6 @@ static long proximity_dev_ioctl(struct file *file,
 					}	
 					else
 					{
-						PREPARE_DELAYED_WORK(&sensor->delaywork, sensor_delaywork_func);
 						schedule_delayed_work(&sensor->delaywork, msecs_to_jiffies(sensor->pdata->poll_delay_ms));
 					}
 					
@@ -1277,7 +1271,6 @@ static long temperature_dev_ioctl(struct file *file,
 					}	
 					else
 					{
-						PREPARE_DELAYED_WORK(&sensor->delaywork, sensor_delaywork_func);
 						schedule_delayed_work(&sensor->delaywork, msecs_to_jiffies(sensor->pdata->poll_delay_ms));
 					}
 					
@@ -1380,7 +1373,6 @@ static long pressure_dev_ioctl(struct file *file,
 					}	
 					else
 					{
-						PREPARE_DELAYED_WORK(&sensor->delaywork, sensor_delaywork_func);
 						schedule_delayed_work(&sensor->delaywork, msecs_to_jiffies(sensor->pdata->poll_delay_ms));
 					}
 					

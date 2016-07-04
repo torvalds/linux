@@ -293,11 +293,12 @@ void gyro_dev_reset(struct i2c_client *client)
 
 static int sensor_active(struct i2c_client *client, int enable, int rate)
 {
+	/*
 	struct sensor_private_data *sensor =
 	    (struct sensor_private_data *) i2c_get_clientdata(client);	
-	int result = 0;
 	int status = 0;
-	//register setting according to chip datasheet		
+	*/
+	int result = 0;
 	if(enable)
 	{	
 		result=ewtsa_enable(client);
@@ -319,11 +320,12 @@ static int sensor_init(struct i2c_client *client)
 	struct sensor_private_data *sensor =
 	    (struct sensor_private_data *) i2c_get_clientdata(client);	
 	int result = 0;	
+	/*
 	unsigned char buf[5];		
 	unsigned char data = 0;
 	int i = 0;
 	char pReadData=0;
-	
+	*/
 	sensor->status_cur = SENSOR_OFF;
 	gyro_dev_reset(client);
 	ewtsa_system_restart(client);
@@ -356,7 +358,7 @@ static int sensor_report_value(struct i2c_client *client)
 	struct sensor_axis axis;
 	char buffer[6] = {0};	
 	int i = 0;
-	int value = 0;
+	/* int value = 0; */
 
 	memset(buffer, 0, 6);
 #if 0	

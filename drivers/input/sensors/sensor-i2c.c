@@ -50,7 +50,6 @@ static int sensor_i2c_write(struct i2c_adapter *i2c_adap,
 	msgs[0].flags = 0;	/* write */
 	msgs[0].buf = (unsigned char *)data;
 	msgs[0].len = len;
-	msgs[0].scl_rate = SENSOR_I2C_RATE;
 
 	res = i2c_transfer(i2c_adap, msgs, 1);
 	if (res == 1)
@@ -78,13 +77,11 @@ static int senosr_i2c_read(struct i2c_adapter *i2c_adap,
 	msgs[0].flags = 0;	/* write */
 	msgs[0].buf = &reg;
 	msgs[0].len = 1;
-	msgs[0].scl_rate = SENSOR_I2C_RATE;
 	
 	msgs[1].addr = address;
 	msgs[1].flags = I2C_M_RD;
 	msgs[1].buf = data;
 	msgs[1].len = len;
-	msgs[1].scl_rate = SENSOR_I2C_RATE;	
 
 	res = i2c_transfer(i2c_adap, msgs, 2);
 	if (res == 2)
@@ -174,7 +171,6 @@ static int i2c_master_normal_recv(const struct i2c_client *client, char *buf, in
     msg.flags = client->flags | I2C_M_RD;
 	msg.len = count;
 	msg.buf = (char *)buf;
-	msg.scl_rate = scl_rate;
 	ret = i2c_transfer(adap, &msg, 1);
 
 		 return (ret == 1) ? count : ret;
@@ -190,7 +186,6 @@ static int i2c_master_normal_send(const struct i2c_client *client, const char *b
 	msg.flags = client->flags;
 	msg.len = count;
 	msg.buf = (char *)buf;
-	msg.scl_rate = scl_rate;
 
 	ret = i2c_transfer(adap, &msg, 1);
 	return (ret == 1) ? count : ret;
