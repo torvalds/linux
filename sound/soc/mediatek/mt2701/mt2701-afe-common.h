@@ -69,11 +69,6 @@ enum {
 	MT2701_IRQ_ASYS_END,
 };
 
-enum {
-	DIV_ID_MCLK_TO_BCK,
-	DIV_ID_BCK_TO_LRCK,
-};
-
 /* 2701 clock def */
 enum audio_system_clock_type {
 	MT2701_AUD_INFRA_SYS_AUDIO,
@@ -163,10 +158,6 @@ enum mt2701_i2s_dir {
 struct mt2701_i2s_path {
 	int dai_id;
 	int mclk_rate;
-	int div_mclk_to_bck;
-	int div_bck_to_lrck;
-	int format;
-	snd_pcm_format_t stream_fmt;
 	int on[I2S_DIR_NUM];
 	int occupied[I2S_DIR_NUM];
 	const struct mt2701_i2s_data *i2s_data[2];
