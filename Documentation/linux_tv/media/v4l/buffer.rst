@@ -36,6 +36,9 @@ buffer.
 
 .. _v4l2-buffer:
 
+struct v4l2_buffer
+==================
+
 .. flat-table:: struct v4l2_buffer
     :header-rows:  0
     :stub-columns: 0
@@ -273,7 +276,10 @@ buffer.
 
 .. _v4l2-plane:
 
-.. flat-table:: struct v4l2_plane
+struct v4l2_plane
+=================
+
+.. flat-table::
     :header-rows:  0
     :stub-columns: 0
     :widths:       1 1 1 2
@@ -380,7 +386,10 @@ buffer.
 
 .. _v4l2-buf-type:
 
-.. flat-table:: enum v4l2_buf_type
+enum v4l2_buf_type
+==================
+
+.. flat-table::
     :header-rows:  0
     :stub-columns: 0
     :widths:       3 1 4
@@ -491,7 +500,10 @@ buffer.
 
 .. _buffer-flags:
 
-.. flat-table:: Buffer Flags
+Buffer Flags
+============
+
+.. flat-table::
     :header-rows:  0
     :stub-columns: 0
     :widths:       3 1 4
@@ -737,7 +749,10 @@ buffer.
 
 .. _v4l2-memory:
 
-.. flat-table:: enum v4l2_memory
+enum v4l2_memory
+================
+
+.. flat-table::
     :header-rows:  0
     :stub-columns: 0
     :widths:       3 1 4
@@ -788,7 +803,10 @@ The :ref:`struct v4l2_timecode <v4l2-timecode>` structure is designed to hold a
 
 .. _v4l2-timecode:
 
-.. flat-table:: struct v4l2_timecode
+struct v4l2_timecode
+--------------------
+
+.. flat-table::
     :header-rows:  0
     :stub-columns: 0
     :widths:       1 1 2
@@ -855,7 +873,10 @@ The :ref:`struct v4l2_timecode <v4l2-timecode>` structure is designed to hold a
 
 .. _timecode-type:
 
-.. flat-table:: Timecode Types
+Timecode Types
+--------------
+
+.. flat-table::
     :header-rows:  0
     :stub-columns: 0
     :widths:       3 1 4
@@ -905,7 +926,10 @@ The :ref:`struct v4l2_timecode <v4l2-timecode>` structure is designed to hold a
 
 .. _timecode-flags:
 
-.. flat-table:: Timecode Flags
+Timecode Flags
+--------------
+
+.. flat-table::
     :header-rows:  0
     :stub-columns: 0
     :widths:       3 1 4
