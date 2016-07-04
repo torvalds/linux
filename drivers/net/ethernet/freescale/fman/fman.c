@@ -2036,7 +2036,7 @@ static int fman_init(struct fman *fman)
 	/* allocate MURAM for FIFO according to total size */
 	fman->fifo_offset = fman_muram_alloc(fman->muram,
 					     fman->state->total_fifo_size);
-	if (IS_ERR_VALUE(fman->cam_offset)) {
+	if (IS_ERR_VALUE(fman->fifo_offset)) {
 		free_init_resources(fman);
 		dev_err(fman->dev, "%s: MURAM alloc for BMI FIFO failed\n",
 			__func__);
