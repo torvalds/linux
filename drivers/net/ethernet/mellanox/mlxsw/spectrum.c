@@ -2627,6 +2627,63 @@ void mlxsw_sp_port_dev_put(struct mlxsw_sp_port *mlxsw_sp_port)
 	dev_put(mlxsw_sp_port->dev);
 }
 
+static int mlxsw_sp_rif_edit(struct mlxsw_sp *mlxsw_sp, u16 rif,
+			     const char *mac, int mtu)
+{
+	char ritr_pl[MLXSW_REG_RITR_LEN];
+	int err;
+
+	mlxsw_reg_ritr_rif_pack(ritr_pl, rif);
+	err = mlxsw_reg_query(mlxsw_sp->core, MLXSW_REG(ritr), ritr_pl);
+	if (err)
+		return err;
+
+	mlxsw_reg_ritr_mtu_set(ritr_pl, mtu);
+	mlxsw_reg_ritr_if_mac_memcpy_to(ritr_pl, mac);
+	mlxsw_reg_ritr_op_set(ritr_pl, MLXSW_REG_RITR_RIF_CREATE);
+	return mlxsw_reg_write(mlxsw_sp->core, MLXSW_REG(ritr), ritr_pl);
+}
+
+static int mlxsw_sp_netdevice_router_port_event(struct net_device *dev)
+{
+	struct mlxsw_sp *mlxsw_sp;
+	struct mlxsw_sp_rif *r;
+	int err;
+
+	mlxsw_sp = mlxsw_sp_lower_get(dev);
+	if (!mlxsw_sp)
+		return 0;
+
+	r = mlxsw_sp_rif_find_by_dev(mlxsw_sp, dev);
+	if (!r)
+		return 0;
+
+	err = mlxsw_sp_rif_fdb_op(mlxsw_sp, r->addr, r->f->fid, false);
+	if (err)
+		return err;
+
+	err = mlxsw_sp_rif_edit(mlxsw_sp, r->rif, dev->dev_addr, dev->mtu);
+	if (err)
+		goto err_rif_edit;
+
+	err = mlxsw_sp_rif_fdb_op(mlxsw_sp, dev->dev_addr, r->f->fid, true);
+	if (err)
+		goto err_rif_fdb_op;
+
+	ether_addr_copy(r->addr, dev->dev_addr);
+	r->mtu = dev->mtu;
+
+	netdev_dbg(dev, "Updated RIF=%d\n", r->rif);
+
+	return 0;
+
+err_rif_fdb_op:
+	mlxsw_sp_rif_edit(mlxsw_sp, r->rif, r->addr, r->mtu);
+err_rif_edit:
+	mlxsw_sp_rif_fdb_op(mlxsw_sp, r->addr, r->f->fid, true);
+	return err;
+}
+
 static bool mlxsw_sp_lag_port_fid_member(struct mlxsw_sp_port *lag_port,
 					 u16 fid)
 {
@@ -3487,7 +3544,9 @@ static int mlxsw_sp_netdevice_event(struct notifier_block *unused,
 	struct net_device *dev = netdev_notifier_info_to_dev(ptr);
 	int err = 0;
 
-	if (mlxsw_sp_port_dev_check(dev))
+	if (event == NETDEV_CHANGEADDR || event == NETDEV_CHANGEMTU)
+		err = mlxsw_sp_netdevice_router_port_event(dev);
+	else if (mlxsw_sp_port_dev_check(dev))
 		err = mlxsw_sp_netdevice_port_event(dev, event, ptr);
 	else if (netif_is_lag_master(dev))
 		err = mlxsw_sp_netdevice_lag_event(dev, event, ptr);

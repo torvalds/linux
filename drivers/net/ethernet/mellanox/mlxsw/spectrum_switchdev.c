@@ -753,9 +753,10 @@ static enum mlxsw_reg_sfd_op mlxsw_sp_sfd_op(bool adding)
 			MLXSW_REG_SFD_OP_WRITE_REMOVE;
 }
 
-static int mlxsw_sp_port_fdb_uc_op(struct mlxsw_sp *mlxsw_sp, u8 local_port,
-				   const char *mac, u16 fid, bool adding,
-				   bool dynamic)
+static int __mlxsw_sp_port_fdb_uc_op(struct mlxsw_sp *mlxsw_sp, u8 local_port,
+				     const char *mac, u16 fid, bool adding,
+				     enum mlxsw_reg_sfd_rec_action action,
+				     bool dynamic)
 {
 	char *sfd_pl;
 	int err;
@@ -766,12 +767,27 @@ static int mlxsw_sp_port_fdb_uc_op(struct mlxsw_sp *mlxsw_sp, u8 local_port,
 
 	mlxsw_reg_sfd_pack(sfd_pl, mlxsw_sp_sfd_op(adding), 0);
 	mlxsw_reg_sfd_uc_pack(sfd_pl, 0, mlxsw_sp_sfd_rec_policy(dynamic),
-			      mac, fid, MLXSW_REG_SFD_REC_ACTION_NOP,
-			      local_port);
+			      mac, fid, action, local_port);
 	err = mlxsw_reg_write(mlxsw_sp->core, MLXSW_REG(sfd), sfd_pl);
 	kfree(sfd_pl);
 
 	return err;
+}
+
+static int mlxsw_sp_port_fdb_uc_op(struct mlxsw_sp *mlxsw_sp, u8 local_port,
+				   const char *mac, u16 fid, bool adding,
+				   bool dynamic)
+{
+	return __mlxsw_sp_port_fdb_uc_op(mlxsw_sp, local_port, mac, fid, adding,
+					 MLXSW_REG_SFD_REC_ACTION_NOP, dynamic);
+}
+
+int mlxsw_sp_rif_fdb_op(struct mlxsw_sp *mlxsw_sp, const char *mac, u16 fid,
+			bool adding)
+{
+	return __mlxsw_sp_port_fdb_uc_op(mlxsw_sp, 0, mac, fid, adding,
+					 MLXSW_REG_SFD_REC_ACTION_FORWARD_IP_ROUTER,
+					 false);
 }
 
 static int mlxsw_sp_port_fdb_uc_lag_op(struct mlxsw_sp *mlxsw_sp, u16 lag_id,
