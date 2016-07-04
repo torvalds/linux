@@ -58,18 +58,10 @@ void intel_ring_update_space(struct intel_ringbuffer *ringbuf)
 					    ringbuf->tail, ringbuf->size);
 }
 
-bool intel_engine_stopped(struct intel_engine_cs *engine)
-{
-	struct drm_i915_private *dev_priv = engine->i915;
-	return dev_priv->gpu_error.stop_rings & intel_engine_flag(engine);
-}
-
 static void __intel_ring_advance(struct intel_engine_cs *engine)
 {
 	struct intel_ringbuffer *ringbuf = engine->buffer;
 	ringbuf->tail &= ringbuf->size - 1;
-	if (intel_engine_stopped(engine))
-		return;
 	engine->write_tail(engine, ringbuf->tail);
 }
 

@@ -789,9 +789,6 @@ intel_logical_ring_advance_and_submit(struct drm_i915_gem_request *request)
 	intel_logical_ring_emit(ringbuf, MI_NOOP);
 	intel_logical_ring_advance(ringbuf);
 
-	if (intel_engine_stopped(engine))
-		return 0;
-
 	/* We keep the previous context alive until we retire the following
 	 * request. This ensures that any the context object is still pinned
 	 * for any residual writes the HW makes into it on the context switch

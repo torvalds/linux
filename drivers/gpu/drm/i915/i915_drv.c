@@ -2159,24 +2159,11 @@ int i915_reset(struct drm_i915_private *dev_priv)
 		goto error;
 	}
 
+	pr_notice("drm/i915: Resetting chip after gpu hang\n");
+
 	i915_gem_reset(dev);
 
 	ret = intel_gpu_reset(dev_priv, ALL_ENGINES);
-
-	/* Also reset the gpu hangman. */
-	if (error->stop_rings != 0) {
-		DRM_INFO("Simulated gpu hang, resetting stop_rings\n");
-		error->stop_rings = 0;
-		if (ret == -ENODEV) {
-			DRM_INFO("Reset not implemented, but ignoring "
-				 "error for simulated gpu hangs\n");
-			ret = 0;
-		}
-	}
-
-	if (i915_stop_ring_allow_warn(dev_priv))
-		pr_notice("drm/i915: Resetting chip after gpu hang\n");
-
 	if (ret) {
 		if (ret != -ENODEV)
 			DRM_ERROR("Failed to reset chip: %i\n", ret);

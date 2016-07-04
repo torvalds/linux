@@ -2956,44 +2956,30 @@ void __i915_add_request(struct drm_i915_gem_request *request,
 	i915_gem_mark_busy(engine);
 }
 
-static bool i915_context_is_banned(struct drm_i915_private *dev_priv,
-				   const struct i915_gem_context *ctx)
+static bool i915_context_is_banned(const struct i915_gem_context *ctx)
 {
 	unsigned long elapsed;
-
-	elapsed = get_seconds() - ctx->hang_stats.guilty_ts;
 
 	if (ctx->hang_stats.banned)
 		return true;
 
+	elapsed = get_seconds() - ctx->hang_stats.guilty_ts;
 	if (ctx->hang_stats.ban_period_seconds &&
 	    elapsed <= ctx->hang_stats.ban_period_seconds) {
-		if (!i915_gem_context_is_default(ctx)) {
-			DRM_DEBUG("context hanging too fast, banning!\n");
-			return true;
-		} else if (i915_stop_ring_allow_ban(dev_priv)) {
-			if (i915_stop_ring_allow_warn(dev_priv))
-				DRM_ERROR("gpu hanging too fast, banning!\n");
-			return true;
-		}
+		DRM_DEBUG("context hanging too fast, banning!\n");
+		return true;
 	}
 
 	return false;
 }
 
-static void i915_set_reset_status(struct drm_i915_private *dev_priv,
-				  struct i915_gem_context *ctx,
+static void i915_set_reset_status(struct i915_gem_context *ctx,
 				  const bool guilty)
 {
-	struct i915_ctx_hang_stats *hs;
-
-	if (WARN_ON(!ctx))
-		return;
-
-	hs = &ctx->hang_stats;
+	struct i915_ctx_hang_stats *hs = &ctx->hang_stats;
 
 	if (guilty) {
-		hs->banned = i915_context_is_banned(dev_priv, ctx);
+		hs->banned = i915_context_is_banned(ctx);
 		hs->batch_active++;
 		hs->guilty_ts = get_seconds();
 	} else {
@@ -3119,27 +3105,23 @@ i915_gem_find_active_request(struct intel_engine_cs *engine)
 	return NULL;
 }
 
-static void i915_gem_reset_engine_status(struct drm_i915_private *dev_priv,
-				       struct intel_engine_cs *engine)
+static void i915_gem_reset_engine_status(struct intel_engine_cs *engine)
 {
 	struct drm_i915_gem_request *request;
 	bool ring_hung;
 
 	request = i915_gem_find_active_request(engine);
-
 	if (request == NULL)
 		return;
 
 	ring_hung = engine->hangcheck.score >= HANGCHECK_SCORE_RING_HUNG;
 
-	i915_set_reset_status(dev_priv, request->ctx, ring_hung);
-
+	i915_set_reset_status(request->ctx, ring_hung);
 	list_for_each_entry_continue(request, &engine->request_list, list)
-		i915_set_reset_status(dev_priv, request->ctx, false);
+		i915_set_reset_status(request->ctx, false);
 }
 
-static void i915_gem_reset_engine_cleanup(struct drm_i915_private *dev_priv,
-					struct intel_engine_cs *engine)
+static void i915_gem_reset_engine_cleanup(struct intel_engine_cs *engine)
 {
 	struct intel_ringbuffer *buffer;
 
@@ -3209,10 +3191,10 @@ void i915_gem_reset(struct drm_device *dev)
 	 * their reference to the objects, the inspection must be done first.
 	 */
 	for_each_engine(engine, dev_priv)
-		i915_gem_reset_engine_status(dev_priv, engine);
+		i915_gem_reset_engine_status(engine);
 
 	for_each_engine(engine, dev_priv)
-		i915_gem_reset_engine_cleanup(dev_priv, engine);
+		i915_gem_reset_engine_cleanup(engine);
 
 	i915_gem_context_reset(dev);
 

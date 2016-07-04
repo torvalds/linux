@@ -4831,40 +4831,6 @@ DEFINE_SIMPLE_ATTRIBUTE(i915_wedged_fops,
 			"%llu\n");
 
 static int
-i915_ring_stop_get(void *data, u64 *val)
-{
-	struct drm_device *dev = data;
-	struct drm_i915_private *dev_priv = dev->dev_private;
-
-	*val = dev_priv->gpu_error.stop_rings;
-
-	return 0;
-}
-
-static int
-i915_ring_stop_set(void *data, u64 val)
-{
-	struct drm_device *dev = data;
-	struct drm_i915_private *dev_priv = dev->dev_private;
-	int ret;
-
-	DRM_DEBUG_DRIVER("Stopping rings 0x%08llx\n", val);
-
-	ret = mutex_lock_interruptible(&dev->struct_mutex);
-	if (ret)
-		return ret;
-
-	dev_priv->gpu_error.stop_rings = val;
-	mutex_unlock(&dev->struct_mutex);
-
-	return 0;
-}
-
-DEFINE_SIMPLE_ATTRIBUTE(i915_ring_stop_fops,
-			i915_ring_stop_get, i915_ring_stop_set,
-			"0x%08llx\n");
-
-static int
 i915_ring_missed_irq_get(void *data, u64 *val)
 {
 	struct drm_device *dev = data;
@@ -5493,7 +5459,6 @@ static const struct i915_debugfs_files {
 	{"i915_max_freq", &i915_max_freq_fops},
 	{"i915_min_freq", &i915_min_freq_fops},
 	{"i915_cache_sharing", &i915_cache_sharing_fops},
-	{"i915_ring_stop", &i915_ring_stop_fops},
 	{"i915_ring_missed_irq", &i915_ring_missed_irq_fops},
 	{"i915_ring_test_irq", &i915_ring_test_irq_fops},
 	{"i915_gem_drop_caches", &i915_drop_caches_fops},

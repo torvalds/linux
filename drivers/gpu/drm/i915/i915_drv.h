@@ -1402,13 +1402,6 @@ struct i915_gpu_error {
 	 */
 	wait_queue_head_t reset_queue;
 
-	/* Userspace knobs for gpu hang simulation;
-	 * combines both a ring mask, and extra flags
-	 */
-	u32 stop_rings;
-#define I915_STOP_RING_ALLOW_BAN       (1 << 31)
-#define I915_STOP_RING_ALLOW_WARN      (1 << 30)
-
 	/* For missed irq/seqno simulation. */
 	unsigned long test_irq_rings;
 };
@@ -3358,18 +3351,6 @@ static inline bool i915_terminally_wedged(struct i915_gpu_error *error)
 static inline u32 i915_reset_count(struct i915_gpu_error *error)
 {
 	return ((i915_reset_counter(error) & ~I915_WEDGED) + 1) / 2;
-}
-
-static inline bool i915_stop_ring_allow_ban(struct drm_i915_private *dev_priv)
-{
-	return dev_priv->gpu_error.stop_rings == 0 ||
-		dev_priv->gpu_error.stop_rings & I915_STOP_RING_ALLOW_BAN;
-}
-
-static inline bool i915_stop_ring_allow_warn(struct drm_i915_private *dev_priv)
-{
-	return dev_priv->gpu_error.stop_rings == 0 ||
-		dev_priv->gpu_error.stop_rings & I915_STOP_RING_ALLOW_WARN;
 }
 
 void i915_gem_reset(struct drm_device *dev);
