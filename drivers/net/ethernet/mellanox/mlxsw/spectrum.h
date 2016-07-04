@@ -218,7 +218,7 @@ struct mlxsw_sp {
 	struct {
 		struct list_head list;
 		DECLARE_BITMAP(mapped, MLXSW_SP_VFID_MAX);
-	} br_vfids;
+	} vfids;
 	struct {
 		struct list_head list;
 		DECLARE_BITMAP(mapped, MLXSW_SP_MID_MAX);
@@ -349,7 +349,7 @@ mlxsw_sp_vport_fid_get(const struct mlxsw_sp_port *mlxsw_sp_vport)
 }
 
 static inline struct net_device *
-mlxsw_sp_vport_br_get(const struct mlxsw_sp_port *mlxsw_sp_vport)
+mlxsw_sp_vport_dev_get(const struct mlxsw_sp_port *mlxsw_sp_vport)
 {
 	struct mlxsw_sp_fid *f = mlxsw_sp_vport_fid_get(mlxsw_sp_vport);
 
