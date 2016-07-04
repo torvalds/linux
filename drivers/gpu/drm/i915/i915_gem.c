@@ -4467,9 +4467,6 @@ i915_gem_ring_throttle(struct drm_device *dev, struct drm_file *file)
 		return 0;
 
 	ret = __i915_wait_request(target, true, NULL, NULL);
-	if (ret == 0)
-		queue_delayed_work(dev_priv->wq, &dev_priv->gt.retire_work, 0);
-
 	i915_gem_request_unreference(target);
 
 	return ret;
