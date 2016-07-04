@@ -1312,7 +1312,7 @@ static int bam_dma_remove(struct platform_device *pdev)
 	return 0;
 }
 
-static int bam_dma_runtime_suspend(struct device *dev)
+static int __maybe_unused bam_dma_runtime_suspend(struct device *dev)
 {
 	struct bam_device *bdev = dev_get_drvdata(dev);
 
@@ -1321,7 +1321,7 @@ static int bam_dma_runtime_suspend(struct device *dev)
 	return 0;
 }
 
-static int bam_dma_runtime_resume(struct device *dev)
+static int __maybe_unused bam_dma_runtime_resume(struct device *dev)
 {
 	struct bam_device *bdev = dev_get_drvdata(dev);
 	int ret;
@@ -1334,8 +1334,8 @@ static int bam_dma_runtime_resume(struct device *dev)
 
 	return 0;
 }
-#ifdef CONFIG_PM_SLEEP
-static int bam_dma_suspend(struct device *dev)
+
+static int __maybe_unused bam_dma_suspend(struct device *dev)
 {
 	struct bam_device *bdev = dev_get_drvdata(dev);
 
@@ -1346,7 +1346,7 @@ static int bam_dma_suspend(struct device *dev)
 	return 0;
 }
 
-static int bam_dma_resume(struct device *dev)
+static int __maybe_unused bam_dma_resume(struct device *dev)
 {
 	struct bam_device *bdev = dev_get_drvdata(dev);
 	int ret;
@@ -1359,7 +1359,6 @@ static int bam_dma_resume(struct device *dev)
 
 	return 0;
 }
-#endif
 
 static const struct dev_pm_ops bam_dma_pm_ops = {
 	SET_LATE_SYSTEM_SLEEP_PM_OPS(bam_dma_suspend, bam_dma_resume)
