@@ -121,7 +121,7 @@ static void pma_cnt_ext_assign(struct ib_pma_portcounters_ext *pma_cnt_ext,
 	pma_cnt_ext->port_xmit_data =
 		cpu_to_be64(MLX5_SUM_CNT(out, transmitted_ib_unicast.octets,
 					 transmitted_ib_multicast.octets) >> 2);
-	pma_cnt_ext->port_xmit_data =
+	pma_cnt_ext->port_rcv_data =
 		cpu_to_be64(MLX5_SUM_CNT(out, received_ib_unicast.octets,
 					 received_ib_multicast.octets) >> 2);
 	pma_cnt_ext->port_xmit_packets =

@@ -6671,7 +6671,13 @@ static int get_vmx_mem_address(struct kvm_vcpu *vcpu,
 
 	/* Checks for #GP/#SS exceptions. */
 	exn = false;
-	if (is_protmode(vcpu)) {
+	if (is_long_mode(vcpu)) {
+		/* Long mode: #GP(0)/#SS(0) if the memory address is in a
+		 * non-canonical form. This is the only check on the memory
+		 * destination for long mode!
+		 */
+		exn = is_noncanonical_address(*ret);
+	} else if (is_protmode(vcpu)) {
 		/* Protected mode: apply checks for segment validity in the
 		 * following order:
 		 * - segment type check (#GP(0) may be thrown)
@@ -6688,17 +6694,10 @@ static int get_vmx_mem_address(struct kvm_vcpu *vcpu,
 			 * execute-only code segment
 			 */
 			exn = ((s.type & 0xa) == 8);
-	}
-	if (exn) {
-		kvm_queue_exception_e(vcpu, GP_VECTOR, 0);
-		return 1;
-	}
-	if (is_long_mode(vcpu)) {
-		/* Long mode: #GP(0)/#SS(0) if the memory address is in a
-		 * non-canonical form. This is an only check for long mode.
-		 */
-		exn = is_noncanonical_address(*ret);
-	} else if (is_protmode(vcpu)) {
+		if (exn) {
+			kvm_queue_exception_e(vcpu, GP_VECTOR, 0);
+			return 1;
+		}
 		/* Protected mode: #GP(0)/#SS(0) if the segment is unusable.
 		 */
 		exn = (s.unusable != 0);

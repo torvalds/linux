@@ -136,7 +136,7 @@ int check_compaction(unsigned long mem_free, unsigned int hugepage_size)
 	printf("No of huge pages allocated = %d\n",
 	       (atoi(nr_hugepages)));
 
-	if (write(fd, initial_nr_hugepages, sizeof(initial_nr_hugepages))
+	if (write(fd, initial_nr_hugepages, strlen(initial_nr_hugepages))
 	    != strlen(initial_nr_hugepages)) {
 		perror("Failed to write to /proc/sys/vm/nr_hugepages\n");
 		goto close_fd;

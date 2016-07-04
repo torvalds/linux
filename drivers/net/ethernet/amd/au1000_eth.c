@@ -509,8 +509,8 @@ static int au1000_mii_probe(struct net_device *dev)
 	 * on the current MAC's MII bus
 	 */
 	for (phy_addr = 0; phy_addr < PHY_MAX_ADDR; phy_addr++)
-		if (mdiobus_get_phy(aup->mii_bus, aup->phy_addr)) {
-			phydev = mdiobus_get_phy(aup->mii_bus, aup->phy_addr);
+		if (mdiobus_get_phy(aup->mii_bus, phy_addr)) {
+			phydev = mdiobus_get_phy(aup->mii_bus, phy_addr);
 			if (!aup->phy_search_highest_addr)
 				/* break out with first one found */
 				break;

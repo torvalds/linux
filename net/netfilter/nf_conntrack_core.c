@@ -1544,6 +1544,8 @@ void nf_conntrack_cleanup_end(void)
 	nf_conntrack_tstamp_fini();
 	nf_conntrack_acct_fini();
 	nf_conntrack_expect_fini();
+
+	kmem_cache_destroy(nf_conntrack_cachep);
 }
 
 /*

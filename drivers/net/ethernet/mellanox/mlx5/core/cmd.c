@@ -545,6 +545,7 @@ const char *mlx5_command_str(int command)
 	MLX5_COMMAND_STR_CASE(ALLOC_FLOW_COUNTER);
 	MLX5_COMMAND_STR_CASE(DEALLOC_FLOW_COUNTER);
 	MLX5_COMMAND_STR_CASE(QUERY_FLOW_COUNTER);
+	MLX5_COMMAND_STR_CASE(MODIFY_FLOW_TABLE);
 	default: return "unknown command opcode";
 	}
 }

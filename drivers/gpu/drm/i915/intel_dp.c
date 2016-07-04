@@ -663,7 +663,7 @@ intel_dp_aux_wait_done(struct intel_dp *intel_dp, bool has_aux_irq)
 		done = wait_event_timeout(dev_priv->gmbus_wait_queue, C,
 					  msecs_to_jiffies_timeout(10));
 	else
-		done = wait_for_atomic(C, 10) == 0;
+		done = wait_for(C, 10) == 0;
 	if (!done)
 		DRM_ERROR("dp aux hw did not signal timeout (has irq: %i)!\n",
 			  has_aux_irq);
@@ -4899,12 +4899,14 @@ static void intel_edp_panel_vdd_sanitize(struct intel_dp *intel_dp)
 
 void intel_dp_encoder_reset(struct drm_encoder *encoder)
 {
-	struct intel_dp *intel_dp;
+	struct drm_i915_private *dev_priv = to_i915(encoder->dev);
+	struct intel_dp *intel_dp = enc_to_intel_dp(encoder);
+
+	if (!HAS_DDI(dev_priv))
+		intel_dp->DP = I915_READ(intel_dp->output_reg);
 
 	if (to_intel_encoder(encoder)->type != INTEL_OUTPUT_EDP)
 		return;
-
-	intel_dp = enc_to_intel_dp(encoder);
 
 	pps_lock(intel_dp);
 
@@ -4977,9 +4979,6 @@ intel_dp_hpd_pulse(struct intel_digital_port *intel_dig_port, bool long_hpd)
 	intel_display_power_get(dev_priv, power_domain);
 
 	if (long_hpd) {
-		/* indicate that we need to restart link training */
-		intel_dp->train_set_valid = false;
-
 		intel_dp_long_pulse(intel_dp->attached_connector);
 		if (intel_dp->is_mst)
 			ret = IRQ_HANDLED;
