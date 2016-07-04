@@ -106,6 +106,7 @@ struct callchain_param {
 };
 
 extern struct callchain_param callchain_param;
+extern struct callchain_param callchain_param_default;
 
 struct callchain_list {
 	u64			ip;
