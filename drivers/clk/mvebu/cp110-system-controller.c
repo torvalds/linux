@@ -30,7 +30,7 @@
 
 #include <linux/clk-provider.h>
 #include <linux/mfd/syscon.h>
-#include <linux/module.h>
+#include <linux/init.h>
 #include <linux/of.h>
 #include <linux/of_address.h>
 #include <linux/platform_device.h>
@@ -368,46 +368,17 @@ fail0:
 	return ret;
 }
 
-static int cp110_syscon_clk_remove(struct platform_device *pdev)
-{
-	struct clk_hw **cp110_clks = platform_get_drvdata(pdev);
-	int i;
-
-	of_clk_del_provider(pdev->dev.of_node);
-
-	for (i = 0; i < CP110_MAX_GATABLE_CLOCKS; i++) {
-		struct clk_hw *hw = cp110_clks[CP110_MAX_CORE_CLOCKS + i];
-
-		if (hw)
-			cp110_unregister_gate(hw);
-	}
-
-	clk_hw_unregister_fixed_factor(cp110_clks[CP110_CORE_NAND]);
-	clk_hw_unregister_fixed_factor(cp110_clks[CP110_CORE_CORE]);
-	clk_hw_unregister_fixed_factor(cp110_clks[CP110_CORE_EIP]);
-	clk_hw_unregister_fixed_factor(cp110_clks[CP110_CORE_PPV2]);
-	clk_hw_unregister_fixed_rate(cp110_clks[CP110_CORE_APLL]);
-
-	return 0;
-}
-
 static const struct of_device_id cp110_syscon_of_match[] = {
 	{ .compatible = "marvell,cp110-system-controller0", },
 	{ }
 };
-MODULE_DEVICE_TABLE(of, armada8k_pcie_of_match);
 
 static struct platform_driver cp110_syscon_driver = {
 	.probe = cp110_syscon_clk_probe,
-	.remove = cp110_syscon_clk_remove,
 	.driver		= {
 		.name	= "marvell-cp110-system-controller0",
 		.of_match_table = cp110_syscon_of_match,
+		.suppress_bind_attrs = true,
 	},
 };
-
-module_platform_driver(cp110_syscon_driver);
-
-MODULE_DESCRIPTION("Marvell CP110 System Controller 0 driver");
-MODULE_AUTHOR("Thomas Petazzoni <thomas.petazzoni@free-electrons.com>");
-MODULE_LICENSE("GPL");
+builtin_platform_driver(cp110_syscon_driver);
