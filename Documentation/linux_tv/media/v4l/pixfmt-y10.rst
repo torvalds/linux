@@ -18,8 +18,7 @@ This is a grey-scale image with a depth of 10 bits per pixel. Pixels are
 stored in 16-bit words with unused high bits padded with 0. The least
 significant byte is stored at lower memory addresses (little-endian).
 
-**Byte Order..**
-
+**Byte Order.**
 Each cell is one byte.
 
 

@@ -19,8 +19,7 @@ number consist two parts, called In-phase and Quadrature (IQ). Both I
 and Q are represented as a 16 bit unsigned little endian number. I value
 comes first and Q value after that.
 
-**Byte Order..**
-
+**Byte Order.**
 Each cell is one byte.
 
 

@@ -21,8 +21,7 @@ memory addresses (little-endian). Note the actual sampling precision may
 be lower than 16 bits, for example 10 bits per pixel with values in
 range 0 to 1023.
 
-**Byte Order..**
-
+**Byte Order.**
 Each cell is one byte.
 
 

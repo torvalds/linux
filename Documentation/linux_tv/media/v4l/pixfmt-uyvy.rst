@@ -20,8 +20,7 @@ Y's, a Cb and a Cr. Each Y goes to one of the pixels, and the Cb and Cr
 belong to both pixels. As you can see, the Cr and Cb components have
 half the horizontal resolution of the Y component.
 
-**Byte Order..**
-
+**Byte Order.**
 Each cell is one byte.
 
 .. flat-table::

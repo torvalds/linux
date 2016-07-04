@@ -25,8 +25,7 @@ are stored in memory in little endian order. They are conventionally
 described as GRGR... BGBG..., RGRG... GBGB..., etc. Below is an example
 of one of these formats
 
-**Byte Order..**
-
+**Byte Order.**
 Each cell is one byte, high 6 bits in high bytes are 0.
 
 

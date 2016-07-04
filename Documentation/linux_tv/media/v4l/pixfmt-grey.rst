@@ -17,8 +17,7 @@ Description
 This is a grey-scale image. It is really a degenerate Y'CbCr format
 which simply contains no Cb or Cr data.
 
-**Byte Order..**
-
+**Byte Order.**
 Each cell is one byte.
 
 

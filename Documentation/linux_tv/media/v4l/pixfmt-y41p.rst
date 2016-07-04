@@ -26,7 +26,6 @@ from "YUV 4:1:1 *packed*", while YUV411P stands for "YUV 4:1:1
 *planar*".
 
 **Byte Order.**
-
 Each cell is one byte.
 
 

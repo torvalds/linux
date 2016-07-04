@@ -42,7 +42,7 @@ applications that support the multi-planar API, described in
 If the Y plane has pad bytes after each row, then the CbCr plane has as
 many pad bytes after its rows.
 
-**Byte Order..**
+**Byte Order.**
 Each cell is one byte.
 
 .. flat-table::

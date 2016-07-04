@@ -33,7 +33,7 @@ Cb and Cr bytes are swapped, the CrCb plane starts with a Cr byte.
 used only in drivers and applications that support the multi-planar API,
 described in :ref:`planar-apis`.
 
-**Byte Order..**
+**Byte Order.**
 Each cell is one byte.
 
 

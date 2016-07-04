@@ -28,8 +28,7 @@ Y'\ :sub:`10`, Y'\ :sub:`11`.
 All line lengths are identical: if the Y lines include pad bytes so do
 the CbCr lines.
 
-**Byte Order..**
-
+**Byte Order.**
 Each cell is one byte.
 
 

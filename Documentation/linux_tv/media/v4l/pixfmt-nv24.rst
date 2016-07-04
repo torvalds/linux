@@ -30,8 +30,7 @@ swapped, the CrCb plane starts with a Cr sample.
 If the Y plane has pad bytes after each row, then the CbCr plane has
 twice as many pad bytes after its rows.
 
-**Byte Order..**
-
+**Byte Order.**
 Each cell is one byte.
 
 

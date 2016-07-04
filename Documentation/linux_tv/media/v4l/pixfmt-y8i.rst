@@ -19,8 +19,7 @@ pixels from 2 sources interleaved. Each pixel is stored in a 16-bit
 word. E.g. the R200 RealSense camera stores pixel from the left sensor
 in lower and from the right sensor in the higher 8 bits.
 
-**Byte Order..**
-
+**Byte Order.**
 Each cell is one byte.
 
 

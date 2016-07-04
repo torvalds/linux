@@ -29,7 +29,7 @@ If the Y plane has pad bytes after each row, then the Cr and Cb planes
 have ¼ as many pad bytes after their rows. In other words, four C x rows
 (including padding) is exactly as long as one Y row (including padding).
 
-**Byte Order..**
+**Byte Order.**
 Each cell is one byte.
 
 

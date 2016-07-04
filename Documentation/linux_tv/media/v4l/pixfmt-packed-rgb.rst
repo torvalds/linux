@@ -969,8 +969,7 @@ The XRGB and XBGR formats contain undefined bits (-). Applications,
 devices and drivers must ignore those bits, for both
 :ref:`capture` and :ref:`output` devices.
 
-**Byte Order..**
-
+**Byte Order.**
 Each cell is one byte.
 
 

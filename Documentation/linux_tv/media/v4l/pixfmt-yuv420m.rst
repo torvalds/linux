@@ -39,8 +39,7 @@ padding).
 used only in drivers and applications that support the multi-planar API,
 described in :ref:`planar-apis`.
 
-**Byte Order..**
-
+**Byte Order.**
 Each cell is one byte.
 
 

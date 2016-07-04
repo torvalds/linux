@@ -21,8 +21,7 @@ belong to both pixels. As you can see, the Cr and Cb components have
 half the horizontal resolution of the Y component. ``V4L2_PIX_FMT_YUYV``
 is known in the Windows environment as YUY2.
 
-**Byte Order..**
-
+**Byte Order.**
 Each cell is one byte.
 
 

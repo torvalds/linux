@@ -19,8 +19,7 @@ distance to the respective point in the image coordinates. Distance unit
 can vary and has to be negotiated with the device separately. Each pixel
 is stored in a 16-bit word in the little endian byte order.
 
-**Byte Order..**
-
+**Byte Order.**
 Each cell is one byte.
 
 

@@ -21,8 +21,7 @@ from neighbouring pixels. From left to right the first row consists of a
 green and blue value, the second row of a red and green value. This
 scheme repeats to the right and down for every two columns and rows.
 
-**Byte Order..**
-
+**Byte Order.**
 Each cell is one byte.
 
 

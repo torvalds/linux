@@ -16,8 +16,7 @@ Description
 
 In this format there is no Y plane, Only CbCr plane. ie (UV interleaved)
 
-**Byte Order..**
-
+**Byte Order.**
 Each cell is one byte.
 
 

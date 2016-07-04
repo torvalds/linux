@@ -29,8 +29,7 @@ have half as many pad bytes after their rows. In other words, two Cx
 rows (including padding) is exactly as long as one Y row (including
 padding).
 
-**Byte Order..**
-
+**Byte Order.**
 Each cell is one byte.
 
 

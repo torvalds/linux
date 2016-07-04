@@ -18,8 +18,7 @@ This format contains sequence of real number samples. Each sample is
 represented as a 12 bit unsigned little endian number. Sample is stored
 in 16 bit space with unused high bits padded with 0.
 
-**Byte Order..**
-
+**Byte Order.**
 Each cell is one byte.
 
 
