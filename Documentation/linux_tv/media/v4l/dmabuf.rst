@@ -38,6 +38,7 @@ driver must be switched into DMABUF I/O mode by calling the
 
 
 .. code-block:: c
+    :caption: Example 3.4. Initiating streaming I/O with DMABUF file descriptors
 
     struct v4l2_requestbuffers reqbuf;
 
@@ -63,6 +64,7 @@ a different DMABUF descriptor at each ``VIDIOC_QBUF`` call.
 
 
 .. code-block:: c
+    :caption: Example 3.5. Queueing DMABUF using single plane API
 
     int buffer_queue(int v4lfd, int index, int dmafd)
     {
@@ -84,6 +86,7 @@ a different DMABUF descriptor at each ``VIDIOC_QBUF`` call.
 
 
 .. code-block:: c
+    :caption: Example 3.6. Queueing DMABUF using multi plane API
 
     int buffer_queue_mp(int v4lfd, int index, int dmafd[], int n_planes)
     {
