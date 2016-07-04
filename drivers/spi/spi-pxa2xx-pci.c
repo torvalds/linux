@@ -15,6 +15,7 @@
 enum {
 	PORT_CE4100,
 	PORT_BYT,
+	PORT_MRFLD,
 	PORT_BSW0,
 	PORT_BSW1,
 	PORT_BSW2,
@@ -89,6 +90,27 @@ static int lpss_spi_setup(struct pci_dev *dev, struct pxa_spi_info *c)
 	return 0;
 }
 
+static int mrfld_spi_setup(struct pci_dev *dev, struct pxa_spi_info *c)
+{
+	switch (PCI_FUNC(dev->devfn)) {
+	case 0:
+		c->port_id = 3;
+		c->num_chipselect = 1;
+		break;
+	case 1:
+		c->port_id = 5;
+		c->num_chipselect = 4;
+		break;
+	case 2:
+		c->port_id = 6;
+		c->num_chipselect = 1;
+		break;
+	default:
+		return -ENODEV;
+	}
+	return 0;
+}
+
 static struct pxa_spi_info spi_info_configs[] = {
 	[PORT_CE4100] = {
 		.type = PXA25x_SSP,
@@ -123,6 +145,11 @@ static struct pxa_spi_info spi_info_configs[] = {
 		.setup = lpss_spi_setup,
 		.tx_param = &bsw2_tx_param,
 		.rx_param = &bsw2_rx_param,
+	},
+	[PORT_MRFLD] = {
+		.type = PXA27x_SSP,
+		.max_clk_rate = 25000000,
+		.setup = mrfld_spi_setup,
 	},
 	[PORT_QUARK_X1000] = {
 		.type = QUARK_X1000_SSP,
@@ -222,6 +249,7 @@ static const struct pci_device_id pxa2xx_spi_pci_devices[] = {
 	{ PCI_VDEVICE(INTEL, 0x2e6a), PORT_CE4100 },
 	{ PCI_VDEVICE(INTEL, 0x0935), PORT_QUARK_X1000 },
 	{ PCI_VDEVICE(INTEL, 0x0f0e), PORT_BYT },
+	{ PCI_VDEVICE(INTEL, 0x1194), PORT_MRFLD },
 	{ PCI_VDEVICE(INTEL, 0x228e), PORT_BSW0 },
 	{ PCI_VDEVICE(INTEL, 0x2290), PORT_BSW1 },
 	{ PCI_VDEVICE(INTEL, 0x22ac), PORT_BSW2 },
