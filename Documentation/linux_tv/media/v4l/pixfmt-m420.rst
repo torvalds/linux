@@ -129,7 +129,6 @@ Each cell is one byte.
        -  
        -  1
 
-       -  
        -  2
 
        -  
@@ -144,7 +143,6 @@ Each cell is one byte.
        -  
        -  Y
 
-       -  
        -  Y
 
        -  
@@ -156,7 +154,6 @@ Each cell is one byte.
        -  
        -  C
 
-       -  
        -  
        -  
        -  C
@@ -172,7 +169,6 @@ Each cell is one byte.
        -  
        -  Y
 
-       -  
        -  Y
 
        -  
@@ -191,7 +187,6 @@ Each cell is one byte.
        -  
        -  Y
 
-       -  
        -  Y
 
        -  
@@ -203,7 +198,6 @@ Each cell is one byte.
        -  
        -  C
 
-       -  
        -  
        -  
        -  C
@@ -219,7 +213,6 @@ Each cell is one byte.
        -  
        -  Y
 
-       -  
        -  Y
 
        -  
