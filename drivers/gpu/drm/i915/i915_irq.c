@@ -3103,12 +3103,8 @@ static void i915_hangcheck_elapsed(struct work_struct *work)
 	if (!i915.enable_hangcheck)
 		return;
 
-	/*
-	 * The hangcheck work is synced during runtime suspend, we don't
-	 * require a wakeref. TODO: instead of disabling the asserts make
-	 * sure that we hold a reference when this work is running.
-	 */
-	DISABLE_RPM_WAKEREF_ASSERTS(dev_priv);
+	if (!lockless_dereference(dev_priv->gt.awake))
+		return;
 
 	/* As enabling the GPU requires fairly extensive mmio access,
 	 * periodically arm the mmio checker to see if we are triggering
@@ -3216,17 +3212,12 @@ static void i915_hangcheck_elapsed(struct work_struct *work)
 		}
 	}
 
-	if (rings_hung) {
+	if (rings_hung)
 		i915_handle_error(dev_priv, rings_hung, "Engine(s) hung");
-		goto out;
-	}
 
 	/* Reset timer in case GPU hangs without another request being added */
 	if (busy_count)
 		i915_queue_hangcheck(dev_priv);
-
-out:
-	ENABLE_RPM_WAKEREF_ASSERTS(dev_priv);
 }
 
 static void ibx_irq_reset(struct drm_device *dev)

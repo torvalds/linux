@@ -4899,7 +4899,7 @@ void gen6_rps_boost(struct drm_i915_private *dev_priv,
 	/* This is intentionally racy! We peek at the state here, then
 	 * validate inside the RPS worker.
 	 */
-	if (!(dev_priv->mm.busy &&
+	if (!(dev_priv->gt.awake &&
 	      dev_priv->rps.enabled &&
 	      dev_priv->rps.cur_freq < dev_priv->rps.max_freq_softlimit))
 		return;

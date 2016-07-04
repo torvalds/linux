@@ -1314,36 +1314,10 @@ struct i915_gem_mm {
 	struct list_head fence_list;
 
 	/**
-	 * We leave the user IRQ off as much as possible,
-	 * but this means that requests will finish and never
-	 * be retired once the system goes idle. Set a timer to
-	 * fire periodically while the ring is running. When it
-	 * fires, go retire requests.
-	 */
-	struct delayed_work retire_work;
-
-	/**
-	 * When we detect an idle GPU, we want to turn on
-	 * powersaving features. So once we see that there
-	 * are no more requests outstanding and no more
-	 * arrive within a small period of time, we fire
-	 * off the idle_work.
-	 */
-	struct delayed_work idle_work;
-
-	/**
 	 * Are we in a non-interruptible section of code like
 	 * modesetting?
 	 */
 	bool interruptible;
-
-	/**
-	 * Is the GPU currently considered idle, or busy executing userspace
-	 * requests?  Whilst idle, we attempt to power down the hardware and
-	 * display clocks. In order to reduce the effect on performance, there
-	 * is a slight delay before we do so.
-	 */
-	bool busy;
 
 	/* the indicator for dispatch video commands on two BSD rings */
 	unsigned int bsd_ring_dispatch_index;
@@ -2045,6 +2019,34 @@ struct drm_i915_private {
 		int (*init_engines)(struct drm_device *dev);
 		void (*cleanup_engine)(struct intel_engine_cs *engine);
 		void (*stop_engine)(struct intel_engine_cs *engine);
+
+		/**
+		 * Is the GPU currently considered idle, or busy executing
+		 * userspace requests? Whilst idle, we allow runtime power
+		 * management to power down the hardware and display clocks.
+		 * In order to reduce the effect on performance, there
+		 * is a slight delay before we do so.
+		 */
+		unsigned int active_engines;
+		bool awake;
+
+		/**
+		 * We leave the user IRQ off as much as possible,
+		 * but this means that requests will finish and never
+		 * be retired once the system goes idle. Set a timer to
+		 * fire periodically while the ring is running. When it
+		 * fires, go retire requests.
+		 */
+		struct delayed_work retire_work;
+
+		/**
+		 * When we detect an idle GPU, we want to turn on
+		 * powersaving features. So once we see that there
+		 * are no more requests outstanding and no more
+		 * arrive within a small period of time, we fire
+		 * off the idle_work.
+		 */
+		struct delayed_work idle_work;
 	} gt;
 
 	/* perform PHY state sanity checks? */
@@ -3315,7 +3317,7 @@ int __must_check i915_gem_set_seqno(struct drm_device *dev, u32 seqno);
 struct drm_i915_gem_request *
 i915_gem_find_active_request(struct intel_engine_cs *engine);
 
-bool i915_gem_retire_requests(struct drm_i915_private *dev_priv);
+void i915_gem_retire_requests(struct drm_i915_private *dev_priv);
 void i915_gem_retire_requests_ring(struct intel_engine_cs *engine);
 
 static inline u32 i915_reset_counter(struct i915_gpu_error *error)

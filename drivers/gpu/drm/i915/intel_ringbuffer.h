@@ -360,13 +360,13 @@ struct intel_engine_cs {
 };
 
 static inline bool
-intel_engine_initialized(struct intel_engine_cs *engine)
+intel_engine_initialized(const struct intel_engine_cs *engine)
 {
 	return engine->i915 != NULL;
 }
 
 static inline unsigned
-intel_engine_flag(struct intel_engine_cs *engine)
+intel_engine_flag(const struct intel_engine_cs *engine)
 {
 	return 1 << engine->id;
 }

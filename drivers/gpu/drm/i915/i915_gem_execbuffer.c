@@ -1477,6 +1477,12 @@ i915_gem_do_execbuffer(struct drm_device *dev, void *data,
 		dispatch_flags |= I915_DISPATCH_RS;
 	}
 
+	/* Take a local wakeref for preparing to dispatch the execbuf as
+	 * we expect to access the hardware fairly frequently in the
+	 * process. Upon first dispatch, we acquire another prolonged
+	 * wakeref that we hold until the GPU has been idle for at least
+	 * 100ms.
+	 */
 	intel_runtime_pm_get(dev_priv);
 
 	ret = i915_mutex_lock_interruptible(dev);

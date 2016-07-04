@@ -2442,7 +2442,8 @@ static int i915_rps_boost_info(struct seq_file *m, void *data)
 	struct drm_file *file;
 
 	seq_printf(m, "RPS enabled? %d\n", dev_priv->rps.enabled);
-	seq_printf(m, "GPU busy? %d\n", dev_priv->mm.busy);
+	seq_printf(m, "GPU busy? %s [%x]\n",
+		   yesno(dev_priv->gt.awake), dev_priv->gt.active_engines);
 	seq_printf(m, "CPU waiting? %d\n", count_irq_waiters(dev_priv));
 	seq_printf(m, "Frequency requested %d; min hard:%d, soft:%d; max soft:%d, hard:%d\n",
 		   intel_gpu_freq(dev_priv, dev_priv->rps.cur_freq),
@@ -2786,7 +2787,7 @@ static int i915_runtime_pm_status(struct seq_file *m, void *unused)
 	if (!HAS_RUNTIME_PM(dev_priv))
 		seq_puts(m, "Runtime power management not supported\n");
 
-	seq_printf(m, "GPU idle: %s\n", yesno(!dev_priv->mm.busy));
+	seq_printf(m, "GPU idle: %s\n", yesno(!dev_priv->gt.awake));
 	seq_printf(m, "IRQs disabled: %s\n",
 		   yesno(!intel_irqs_enabled(dev_priv)));
 #ifdef CONFIG_PM

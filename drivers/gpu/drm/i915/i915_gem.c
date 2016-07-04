@@ -2809,6 +2809,26 @@ i915_gem_get_seqno(struct drm_i915_private *dev_priv, u32 *seqno)
 	return 0;
 }
 
+static void i915_gem_mark_busy(const struct intel_engine_cs *engine)
+{
+	struct drm_i915_private *dev_priv = engine->i915;
+
+	dev_priv->gt.active_engines |= intel_engine_flag(engine);
+	if (dev_priv->gt.awake)
+		return;
+
+	intel_runtime_pm_get_noresume(dev_priv);
+	dev_priv->gt.awake = true;
+
+	i915_update_gfx_val(dev_priv);
+	if (INTEL_GEN(dev_priv) >= 6)
+		gen6_rps_busy(dev_priv);
+
+	queue_delayed_work(dev_priv->wq,
+			   &dev_priv->gt.retire_work,
+			   round_jiffies_up_relative(HZ));
+}
+
 /*
  * NB: This function is not allowed to fail. Doing so would mean the the
  * request is not being tracked for completion but the work itself is
@@ -2819,7 +2839,6 @@ void __i915_add_request(struct drm_i915_gem_request *request,
 			bool flush_caches)
 {
 	struct intel_engine_cs *engine;
-	struct drm_i915_private *dev_priv;
 	struct intel_ringbuffer *ringbuf;
 	u32 request_start;
 	u32 reserved_tail;
@@ -2829,7 +2848,6 @@ void __i915_add_request(struct drm_i915_gem_request *request,
 		return;
 
 	engine = request->engine;
-	dev_priv = request->i915;
 	ringbuf = request->ringbuf;
 
 	/*
@@ -2895,12 +2913,6 @@ void __i915_add_request(struct drm_i915_gem_request *request,
 	}
 	/* Not allowed to fail! */
 	WARN(ret, "emit|add_request failed: %d!\n", ret);
-
-	queue_delayed_work(dev_priv->wq,
-			   &dev_priv->mm.retire_work,
-			   round_jiffies_up_relative(HZ));
-	intel_mark_busy(dev_priv);
-
 	/* Sanity check that the reserved size was large enough. */
 	ret = intel_ring_get_tail(ringbuf) - request_start;
 	if (ret < 0)
@@ -2909,6 +2921,8 @@ void __i915_add_request(struct drm_i915_gem_request *request,
 		  "Not enough space reserved (%d bytes) "
 		  "for adding the request (%d bytes)\n",
 		  reserved_tail, ret);
+
+	i915_gem_mark_busy(engine);
 }
 
 static bool i915_context_is_banned(struct drm_i915_private *dev_priv,
@@ -3223,46 +3237,49 @@ i915_gem_retire_requests_ring(struct intel_engine_cs *engine)
 	WARN_ON(i915_verify_lists(engine->dev));
 }
 
-bool
-i915_gem_retire_requests(struct drm_i915_private *dev_priv)
+void i915_gem_retire_requests(struct drm_i915_private *dev_priv)
 {
 	struct intel_engine_cs *engine;
-	bool idle = true;
+
+	lockdep_assert_held(&dev_priv->dev->struct_mutex);
+
+	if (dev_priv->gt.active_engines == 0)
+		return;
+
+	GEM_BUG_ON(!dev_priv->gt.awake);
 
 	for_each_engine(engine, dev_priv) {
 		i915_gem_retire_requests_ring(engine);
-		idle &= list_empty(&engine->request_list);
-		if (i915.enable_execlists) {
-			spin_lock_bh(&engine->execlist_lock);
-			idle &= list_empty(&engine->execlist_queue);
-			spin_unlock_bh(&engine->execlist_lock);
-		}
+		if (list_empty(&engine->request_list))
+			dev_priv->gt.active_engines &= ~intel_engine_flag(engine);
 	}
 
-	if (idle)
+	if (dev_priv->gt.active_engines == 0)
 		mod_delayed_work(dev_priv->wq,
-				 &dev_priv->mm.idle_work,
+				 &dev_priv->gt.idle_work,
 				 msecs_to_jiffies(100));
-
-	return idle;
 }
 
 static void
 i915_gem_retire_work_handler(struct work_struct *work)
 {
 	struct drm_i915_private *dev_priv =
-		container_of(work, typeof(*dev_priv), mm.retire_work.work);
+		container_of(work, typeof(*dev_priv), gt.retire_work.work);
 	struct drm_device *dev = dev_priv->dev;
-	bool idle;
 
 	/* Come back later if the device is busy... */
-	idle = false;
 	if (mutex_trylock(&dev->struct_mutex)) {
-		idle = i915_gem_retire_requests(dev_priv);
+		i915_gem_retire_requests(dev_priv);
 		mutex_unlock(&dev->struct_mutex);
 	}
-	if (!idle)
-		queue_delayed_work(dev_priv->wq, &dev_priv->mm.retire_work,
+
+	/* Keep the retire handler running until we are finally idle.
+	 * We do not need to do this test under locking as in the worst-case
+	 * we queue the retire worker once too often.
+	 */
+	if (lockless_dereference(dev_priv->gt.awake))
+		queue_delayed_work(dev_priv->wq,
+				   &dev_priv->gt.retire_work,
 				   round_jiffies_up_relative(HZ));
 }
 
@@ -3270,25 +3287,55 @@ static void
 i915_gem_idle_work_handler(struct work_struct *work)
 {
 	struct drm_i915_private *dev_priv =
-		container_of(work, typeof(*dev_priv), mm.idle_work.work);
+		container_of(work, typeof(*dev_priv), gt.idle_work.work);
 	struct drm_device *dev = dev_priv->dev;
 	struct intel_engine_cs *engine;
+	unsigned int stuck_engines;
+	bool rearm_hangcheck;
+
+	if (!READ_ONCE(dev_priv->gt.awake))
+		return;
+
+	if (READ_ONCE(dev_priv->gt.active_engines))
+		return;
+
+	rearm_hangcheck =
+		cancel_delayed_work_sync(&dev_priv->gpu_error.hangcheck_work);
+
+	if (!mutex_trylock(&dev->struct_mutex)) {
+		/* Currently busy, come back later */
+		mod_delayed_work(dev_priv->wq,
+				 &dev_priv->gt.idle_work,
+				 msecs_to_jiffies(50));
+		goto out_rearm;
+	}
+
+	if (dev_priv->gt.active_engines)
+		goto out_unlock;
 
 	for_each_engine(engine, dev_priv)
-		if (!list_empty(&engine->request_list))
-			return;
+		i915_gem_batch_pool_fini(&engine->batch_pool);
 
-	/* we probably should sync with hangcheck here, using cancel_work_sync.
-	 * Also locking seems to be fubar here, engine->request_list is protected
-	 * by dev->struct_mutex. */
+	GEM_BUG_ON(!dev_priv->gt.awake);
+	dev_priv->gt.awake = false;
+	rearm_hangcheck = false;
 
-	intel_mark_idle(dev_priv);
+	stuck_engines = intel_kick_waiters(dev_priv);
+	if (unlikely(stuck_engines)) {
+		DRM_DEBUG_DRIVER("kicked stuck waiters...missed irq\n");
+		dev_priv->gpu_error.missed_irq_rings |= stuck_engines;
+	}
 
-	if (mutex_trylock(&dev->struct_mutex)) {
-		for_each_engine(engine, dev_priv)
-			i915_gem_batch_pool_fini(&engine->batch_pool);
+	if (INTEL_GEN(dev_priv) >= 6)
+		gen6_rps_idle(dev_priv);
+	intel_runtime_pm_put(dev_priv);
+out_unlock:
+	mutex_unlock(&dev->struct_mutex);
 
-		mutex_unlock(&dev->struct_mutex);
+out_rearm:
+	if (rearm_hangcheck) {
+		GEM_BUG_ON(!dev_priv->gt.awake);
+		i915_queue_hangcheck(dev_priv);
 	}
 }
 
@@ -4421,7 +4468,7 @@ i915_gem_ring_throttle(struct drm_device *dev, struct drm_file *file)
 
 	ret = __i915_wait_request(target, true, NULL, NULL);
 	if (ret == 0)
-		queue_delayed_work(dev_priv->wq, &dev_priv->mm.retire_work, 0);
+		queue_delayed_work(dev_priv->wq, &dev_priv->gt.retire_work, 0);
 
 	i915_gem_request_unreference(target);
 
@@ -4939,13 +4986,13 @@ i915_gem_suspend(struct drm_device *dev)
 	mutex_unlock(&dev->struct_mutex);
 
 	cancel_delayed_work_sync(&dev_priv->gpu_error.hangcheck_work);
-	cancel_delayed_work_sync(&dev_priv->mm.retire_work);
-	flush_delayed_work(&dev_priv->mm.idle_work);
+	cancel_delayed_work_sync(&dev_priv->gt.retire_work);
+	flush_delayed_work(&dev_priv->gt.idle_work);
 
 	/* Assert that we sucessfully flushed all the work and
 	 * reset the GPU back to its idle, low power state.
 	 */
-	WARN_ON(dev_priv->mm.busy);
+	WARN_ON(dev_priv->gt.awake);
 
 	return 0;
 
@@ -5247,9 +5294,9 @@ i915_gem_load_init(struct drm_device *dev)
 		init_engine_lists(&dev_priv->engine[i]);
 	for (i = 0; i < I915_MAX_NUM_FENCES; i++)
 		INIT_LIST_HEAD(&dev_priv->fence_regs[i].lru_list);
-	INIT_DELAYED_WORK(&dev_priv->mm.retire_work,
+	INIT_DELAYED_WORK(&dev_priv->gt.retire_work,
 			  i915_gem_retire_work_handler);
-	INIT_DELAYED_WORK(&dev_priv->mm.idle_work,
+	INIT_DELAYED_WORK(&dev_priv->gt.idle_work,
 			  i915_gem_idle_work_handler);
 	init_waitqueue_head(&dev_priv->gpu_error.wait_queue);
 	init_waitqueue_head(&dev_priv->gpu_error.reset_queue);
