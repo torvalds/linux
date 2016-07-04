@@ -6,18 +6,20 @@
 FE_READ_SNR
 ***********
 
-DESCRIPTION
+Description
+-----------
 
 This ioctl call returns the signal-to-noise ratio for the signal
 currently received by the front-end. For this command, read-only access
 to the device is sufficient.
 
-SYNOPSIS
+Synopsis
+--------
 
-int ioctl(int fd, int request = :ref:`FE_READ_SNR`,
-uint16_t *snr);
+.. c:function:: int  ioctl(int fd, int request = FE_READ_SNR, int16_t *snr)
 
-PARAMETERS
+Arguments
+----------
 
 
 
@@ -40,12 +42,13 @@ PARAMETERS
 
     -  .. row 3
 
-       -  uint16_t *snr
+       -  uint16_t \*snr
 
-       -  The signal-to-noise ratio is stored into *snr.
+       -  The signal-to-noise ratio is stored into \*snr.
 
 
-RETURN VALUE
+Return Value
+------------
 
 On success 0 is returned, on error -1 and the ``errno`` variable is set
 appropriately. The generic error codes are described at the
