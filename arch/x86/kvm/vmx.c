@@ -1112,7 +1112,7 @@ static inline bool cpu_has_broken_vmx_preemption_timer(void)
 
 	/* Clear the reserved bits */
 	eax &= ~(0x3U << 14 | 0xfU << 28);
-	for (i = 0; i < sizeof(vmx_preemption_cpu_tfms)/sizeof(u32); i++)
+	for (i = 0; i < ARRAY_SIZE(vmx_preemption_cpu_tfms); i++)
 		if (eax == vmx_preemption_cpu_tfms[i])
 			return true;
 
