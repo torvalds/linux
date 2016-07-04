@@ -1835,6 +1835,7 @@ static u64 ath9k_get_tsf(struct ieee80211_hw *hw, struct ieee80211_vif *vif)
 		tsf = sc->cur_chan->tsf_val +
 		      ath9k_hw_get_tsf_offset(&sc->cur_chan->tsf_ts, NULL);
 	}
+	tsf += le64_to_cpu(avp->tsf_adjust);
 	ath9k_ps_restore(sc);
 	mutex_unlock(&sc->mutex);
 
@@ -1850,6 +1851,7 @@ static void ath9k_set_tsf(struct ieee80211_hw *hw,
 
 	mutex_lock(&sc->mutex);
 	ath9k_ps_wakeup(sc);
+	tsf -= le64_to_cpu(avp->tsf_adjust);
 	getrawmonotonic(&avp->chanctx->tsf_ts);
 	if (sc->cur_chan == avp->chanctx)
 		ath9k_hw_settsf64(sc->sc_ah, tsf);
