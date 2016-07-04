@@ -1579,8 +1579,8 @@ static int mma8452_probe(struct i2c_client *client,
 		goto buffer_cleanup;
 
 	ret = mma8452_set_freefall_mode(data, false);
-	if (ret)
-		return ret;
+	if (ret < 0)
+		goto buffer_cleanup;
 
 	return 0;
 
