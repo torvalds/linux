@@ -614,6 +614,11 @@ static void r6040_tx(struct net_device *dev)
 		if (descptr->status & DSC_OWNER_MAC)
 			break; /* Not complete */
 		skb_ptr = descptr->skb_ptr;
+
+		/* Statistic Counter */
+		dev->stats.tx_packets++;
+		dev->stats.tx_bytes += skb_ptr->len;
+
 		pci_unmap_single(priv->pdev, le32_to_cpu(descptr->buf),
 			skb_ptr->len, PCI_DMA_TODEVICE);
 		/* Free buffer */
@@ -821,9 +826,6 @@ static netdev_tx_t r6040_start_xmit(struct sk_buff *skb,
 		return NETDEV_TX_BUSY;
 	}
 
-	/* Statistic Counter */
-	dev->stats.tx_packets++;
-	dev->stats.tx_bytes += skb->len;
 	/* Set TX descriptor & Transmit it */
 	lp->tx_free_desc--;
 	descptr = lp->tx_insert_ptr;
