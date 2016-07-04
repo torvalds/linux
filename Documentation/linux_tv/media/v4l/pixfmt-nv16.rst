@@ -30,8 +30,7 @@ swapped, the CrCb plane starts with a Cr byte.
 If the Y plane has pad bytes after each row, then the CbCr plane has as
 many pad bytes after its rows.
 
-**Byte Order..**
-
+**Byte Order.**
 Each cell is one byte.
 
 
@@ -156,7 +155,6 @@ Each cell is one byte.
        -  
        -  1
 
-       -  
        -  2
 
        -  
@@ -171,7 +169,6 @@ Each cell is one byte.
        -  
        -  Y
 
-       -  
        -  Y
 
        -  
@@ -183,7 +180,6 @@ Each cell is one byte.
        -  
        -  C
 
-       -  
        -  
        -  
        -  C
@@ -199,7 +195,6 @@ Each cell is one byte.
        -  
        -  Y
 
-       -  
        -  Y
 
        -  
@@ -211,7 +206,6 @@ Each cell is one byte.
        -  
        -  C
 
-       -  
        -  
        -  
        -  C
@@ -231,7 +225,6 @@ Each cell is one byte.
        -  
        -  Y
 
-       -  
        -  Y
 
        -  
@@ -243,7 +236,6 @@ Each cell is one byte.
        -  
        -  C
 
-       -  
        -  
        -  
        -  C
@@ -259,7 +251,6 @@ Each cell is one byte.
        -  
        -  Y
 
-       -  
        -  Y
 
        -  
@@ -271,7 +262,6 @@ Each cell is one byte.
        -  
        -  C
 
-       -  
        -  
        -  
        -  C
