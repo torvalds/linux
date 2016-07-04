@@ -517,13 +517,9 @@ int trace_pid_write(struct trace_pid_list *filtered_pids,
 
 	if (filtered_pids) {
 		/* copy the current bits to the new max */
-		pid = find_first_bit(filtered_pids->pids,
-				     filtered_pids->pid_max);
-		while (pid < filtered_pids->pid_max) {
+		for_each_set_bit(pid, filtered_pids->pids,
+				 filtered_pids->pid_max) {
 			set_bit(pid, pid_list->pids);
-			pid = find_next_bit(filtered_pids->pids,
-					    filtered_pids->pid_max,
-					    pid + 1);
 			nr_pids++;
 		}
 	}
