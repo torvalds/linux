@@ -161,9 +161,12 @@ unsigned long kvm_compute_return_epc(struct kvm_vcpu *vcpu,
 		nextpc = epc;
 		break;
 
-	case blez_op:		/* not really i_format */
-	case blezl_op:
-		/* rt field assumed to be zero */
+	case blez_op:	/* POP06 */
+#ifndef CONFIG_CPU_MIPSR6
+	case blezl_op:	/* removed in R6 */
+#endif
+		if (insn.i_format.rt != 0)
+			goto compact_branch;
 		if ((long)arch->gprs[insn.i_format.rs] <= 0)
 			epc = epc + 4 + (insn.i_format.simmediate << 2);
 		else
@@ -171,9 +174,12 @@ unsigned long kvm_compute_return_epc(struct kvm_vcpu *vcpu,
 		nextpc = epc;
 		break;
 
-	case bgtz_op:
-	case bgtzl_op:
-		/* rt field assumed to be zero */
+	case bgtz_op:	/* POP07 */
+#ifndef CONFIG_CPU_MIPSR6
+	case bgtzl_op:	/* removed in R6 */
+#endif
+		if (insn.i_format.rt != 0)
+			goto compact_branch;
 		if ((long)arch->gprs[insn.i_format.rs] > 0)
 			epc = epc + 4 + (insn.i_format.simmediate << 2);
 		else
@@ -185,6 +191,40 @@ unsigned long kvm_compute_return_epc(struct kvm_vcpu *vcpu,
 	case cop1_op:
 		kvm_err("%s: unsupported cop1_op\n", __func__);
 		break;
+
+#ifdef CONFIG_CPU_MIPSR6
+	/* R6 added the following compact branches with forbidden slots */
+	case blezl_op:	/* POP26 */
+	case bgtzl_op:	/* POP27 */
+		/* only rt == 0 isn't compact branch */
+		if (insn.i_format.rt != 0)
+			goto compact_branch;
+		break;
+	case pop10_op:
+	case pop30_op:
+		/* only rs == rt == 0 is reserved, rest are compact branches */
+		if (insn.i_format.rs != 0 || insn.i_format.rt != 0)
+			goto compact_branch;
+		break;
+	case pop66_op:
+	case pop76_op:
+		/* only rs == 0 isn't compact branch */
+		if (insn.i_format.rs != 0)
+			goto compact_branch;
+		break;
+compact_branch:
+		/*
+		 * If we've hit an exception on the forbidden slot, then
+		 * the branch must not have been taken.
+		 */
+		epc += 8;
+		nextpc = epc;
+		break;
+#else
+compact_branch:
+		/* Compact branches not supported before R6 */
+		break;
+#endif
 	}
 
 	return nextpc;
