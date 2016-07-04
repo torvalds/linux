@@ -54,7 +54,10 @@ should have the value ``V4L2_FIELD_ANY`` (0).
 
 .. _v4l2-field:
 
-.. flat-table:: enum v4l2_field
+enum v4l2_field
+===============
+
+.. flat-table::
     :header-rows:  0
     :stub-columns: 0
     :widths:       3 1 4
@@ -183,17 +186,20 @@ should have the value ``V4L2_FIELD_ANY`` (0).
 
 .. _fieldseq-tb:
 
+Field Order, Top Field First Transmitted
+========================================
+
 .. figure::  field-order_files/fieldseq_tb.*
     :alt:    fieldseq_tb.pdf / fieldseq_tb.gif
     :align:  center
 
-    Field Order, Top Field First Transmitted
-
 
 .. _fieldseq-bt:
+
+Field Order, Bottom Field First Transmitted
+===========================================
 
 .. figure::  field-order_files/fieldseq_bt.*
     :alt:    fieldseq_bt.pdf / fieldseq_bt.gif
     :align:  center
 
-    Field Order, Bottom Field First Transmitted
