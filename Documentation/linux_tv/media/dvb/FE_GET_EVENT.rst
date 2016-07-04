@@ -6,7 +6,8 @@
 FE_GET_EVENT
 ************
 
-DESCRIPTION
+Description
+-----------
 
 This ioctl call returns a frontend event if available. If an event is
 not available, the behavior depends on whether the device is in blocking
@@ -14,12 +15,13 @@ or non-blocking mode. In the latter case, the call fails immediately
 with errno set to ``EWOULDBLOCK``. In the former case, the call blocks until
 an event becomes available.
 
-SYNOPSIS
+Synopsis
+--------
 
-int ioctl(int fd, int request = QPSK_GET_EVENT, struct
-dvb_frontend_event *ev);
+.. c:function:: int  ioctl(int fd, int request = QPSK_GET_EVENT, struct dvb_frontend_event *ev)
 
-PARAMETERS
+Arguments
+----------
 
 
 
@@ -52,7 +54,8 @@ PARAMETERS
        -  if any, is to be stored.
 
 
-RETURN VALUE
+Return Value
+------------
 
 On success 0 is returned, on error -1 and the ``errno`` variable is set
 appropriately. The generic error codes are described at the
