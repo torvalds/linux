@@ -1,4 +1,6 @@
 /*
+ * AmLogic S805 / Meson8b Clock Controller Driver
+ *
  * Copyright (c) 2015 Endless Mobile, Inc.
  * Author: Carlo Caione <carlo@endlessm.com>
  *
@@ -23,7 +25,7 @@
 #include <linux/of_address.h>
 #include <dt-bindings/clock/meson8b-clkc.h>
 #include <linux/platform_device.h>
-#include <linux/module.h>
+#include <linux/init.h>
 
 #include "clkc.h"
 
@@ -429,7 +431,6 @@ static const struct of_device_id meson8b_clkc_match_table[] = {
 	{ .compatible = "amlogic,meson8b-clkc" },
 	{ }
 };
-MODULE_DEVICE_TABLE(of, meson8b_match_table);
 
 static struct platform_driver meson8b_driver = {
 	.probe		= meson8b_clkc_probe,
@@ -443,16 +444,4 @@ static int __init meson8b_clkc_init(void)
 {
 	return platform_driver_register(&meson8b_driver);
 }
-module_init(meson8b_clkc_init);
-
-static void __exit meson8b_clkc_exit(void)
-{
-	platform_driver_unregister(&meson8b_driver);
-}
-module_exit(meson8b_clkc_exit);
-
-MODULE_DESCRIPTION("AmLogic S805 / Meson8b Clock Controller Driver");
-MODULE_LICENSE("GPL v2");
-MODULE_ALIAS("platform:meson8b-clkc");
-MODULE_AUTHOR("Michael Turquette <mturquette@baylibre.com>");
-MODULE_AUTHOR("Carlo Caione <carlo@endlessm.com>");
+device_initcall(meson8b_clkc_init);
