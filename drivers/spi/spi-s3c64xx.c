@@ -330,8 +330,8 @@ static void s3c64xx_spi_set_cs(struct spi_device *spi, bool enable)
 		}
 	} else {
 		if (!(sdd->port_conf->quirks & S3C64XX_SPI_QUIRK_CS_AUTO))
-		writel(S3C64XX_SPI_SLAVE_SIG_INACT,
-		sdd->regs + S3C64XX_SPI_SLAVE_SEL);
+			writel(S3C64XX_SPI_SLAVE_SIG_INACT,
+			       sdd->regs + S3C64XX_SPI_SLAVE_SEL);
 	}
 }
 
