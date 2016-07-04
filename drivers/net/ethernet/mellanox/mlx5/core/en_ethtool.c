@@ -1368,6 +1368,26 @@ static u32 mlx5e_get_priv_flags(struct net_device *netdev)
 	return priv->pflags;
 }
 
+static int mlx5e_set_rxnfc(struct net_device *dev, struct ethtool_rxnfc *cmd)
+{
+	int err = 0;
+	struct mlx5e_priv *priv = netdev_priv(dev);
+
+	switch (cmd->cmd) {
+	case ETHTOOL_SRXCLSRLINS:
+		err = mlx5e_ethtool_flow_replace(priv, &cmd->fs);
+		break;
+	case ETHTOOL_SRXCLSRLDEL:
+		err = mlx5e_ethtool_flow_remove(priv, cmd->fs.location);
+		break;
+	default:
+		err = -EOPNOTSUPP;
+		break;
+	}
+
+	return err;
+}
+
 const struct ethtool_ops mlx5e_ethtool_ops = {
 	.get_drvinfo       = mlx5e_get_drvinfo,
 	.get_link          = ethtool_op_get_link,
@@ -1387,6 +1407,7 @@ const struct ethtool_ops mlx5e_ethtool_ops = {
 	.get_rxfh          = mlx5e_get_rxfh,
 	.set_rxfh          = mlx5e_set_rxfh,
 	.get_rxnfc         = mlx5e_get_rxnfc,
+	.set_rxnfc         = mlx5e_set_rxnfc,
 	.get_tunable       = mlx5e_get_tunable,
 	.set_tunable       = mlx5e_set_tunable,
 	.get_pauseparam    = mlx5e_get_pauseparam,

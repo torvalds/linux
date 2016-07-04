@@ -67,13 +67,21 @@
 #define FS_REQUIRED_CAPS(...) {.arr_sz = INIT_CAPS_ARRAY_SIZE(__VA_ARGS__), \
 			       .caps = (long[]) {__VA_ARGS__} }
 
+#define FS_CHAINING_CAPS  FS_REQUIRED_CAPS(FS_CAP(flow_table_properties_nic_receive.flow_modify_en), \
+					   FS_CAP(flow_table_properties_nic_receive.modify_root), \
+					   FS_CAP(flow_table_properties_nic_receive.identified_miss_table_mode), \
+					   FS_CAP(flow_table_properties_nic_receive.flow_table_modify))
+
 #define LEFTOVERS_NUM_LEVELS 1
 #define LEFTOVERS_NUM_PRIOS 1
 
 #define BY_PASS_PRIO_NUM_LEVELS 1
-#define BY_PASS_MIN_LEVEL (KERNEL_MIN_LEVEL + MLX5_BY_PASS_NUM_PRIOS +\
+#define BY_PASS_MIN_LEVEL (ETHTOOL_MIN_LEVEL + MLX5_BY_PASS_NUM_PRIOS +\
 			   LEFTOVERS_NUM_PRIOS)
 
+#define ETHTOOL_PRIO_NUM_LEVELS 1
+#define ETHTOOL_NUM_PRIOS 4
+#define ETHTOOL_MIN_LEVEL (KERNEL_MIN_LEVEL + ETHTOOL_NUM_PRIOS)
 /* Vlan, mac, ttc, aRFS */
 #define KERNEL_NIC_PRIO_NUM_LEVELS 4
 #define KERNEL_NIC_NUM_PRIOS 1
@@ -103,27 +111,24 @@ static struct init_tree_node {
 	int num_levels;
 } root_fs = {
 	.type = FS_TYPE_NAMESPACE,
-	.ar_size = 5,
+	.ar_size = 6,
 	.children = (struct init_tree_node[]) {
 		ADD_PRIO(0, BY_PASS_MIN_LEVEL, 0,
-			 FS_REQUIRED_CAPS(FS_CAP(flow_table_properties_nic_receive.flow_modify_en),
-					  FS_CAP(flow_table_properties_nic_receive.modify_root),
-					  FS_CAP(flow_table_properties_nic_receive.identified_miss_table_mode),
-					  FS_CAP(flow_table_properties_nic_receive.flow_table_modify)),
+			 FS_CHAINING_CAPS,
 			 ADD_NS(ADD_MULTIPLE_PRIO(MLX5_BY_PASS_NUM_PRIOS,
 						  BY_PASS_PRIO_NUM_LEVELS))),
 		ADD_PRIO(0, OFFLOADS_MIN_LEVEL, 0, {},
 			 ADD_NS(ADD_MULTIPLE_PRIO(OFFLOADS_NUM_PRIOS, OFFLOADS_MAX_FT))),
-
+		ADD_PRIO(0, ETHTOOL_MIN_LEVEL, 0,
+			 FS_CHAINING_CAPS,
+			 ADD_NS(ADD_MULTIPLE_PRIO(ETHTOOL_NUM_PRIOS,
+						  ETHTOOL_PRIO_NUM_LEVELS))),
 		ADD_PRIO(0, KERNEL_MIN_LEVEL, 0, {},
 			 ADD_NS(ADD_MULTIPLE_PRIO(1, 1),
 				ADD_MULTIPLE_PRIO(KERNEL_NIC_NUM_PRIOS,
 						  KERNEL_NIC_PRIO_NUM_LEVELS))),
 		ADD_PRIO(0, BY_PASS_MIN_LEVEL, 0,
-			 FS_REQUIRED_CAPS(FS_CAP(flow_table_properties_nic_receive.flow_modify_en),
-					  FS_CAP(flow_table_properties_nic_receive.modify_root),
-					  FS_CAP(flow_table_properties_nic_receive.identified_miss_table_mode),
-					  FS_CAP(flow_table_properties_nic_receive.flow_table_modify)),
+			 FS_CHAINING_CAPS,
 			 ADD_NS(ADD_MULTIPLE_PRIO(LEFTOVERS_NUM_PRIOS, LEFTOVERS_NUM_LEVELS))),
 		ADD_PRIO(0, ANCHOR_MIN_LEVEL, 0, {},
 			 ADD_NS(ADD_MULTIPLE_PRIO(ANCHOR_NUM_PRIOS, ANCHOR_NUM_LEVELS))),
@@ -1375,6 +1380,7 @@ struct mlx5_flow_namespace *mlx5_get_flow_namespace(struct mlx5_core_dev *dev,
 	switch (type) {
 	case MLX5_FLOW_NAMESPACE_BYPASS:
 	case MLX5_FLOW_NAMESPACE_OFFLOADS:
+	case MLX5_FLOW_NAMESPACE_ETHTOOL:
 	case MLX5_FLOW_NAMESPACE_KERNEL:
 	case MLX5_FLOW_NAMESPACE_LEFTOVERS:
 	case MLX5_FLOW_NAMESPACE_ANCHOR:
