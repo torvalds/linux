@@ -734,8 +734,13 @@ struct iwl_tfh_tfd {
 /**
  * struct iwlagn_schedq_bc_tbl scheduler byte count table
  *	base physical address provided by SCD_DRAM_BASE_ADDR
+ * For devices up to a000:
  * @tfd_offset  0-12 - tx command byte count
- *	       12-16 - station index
+ *		12-16 - station index
+ * For a000 and on:
+ * @tfd_offset  0-12 - tx command byte count
+ *		12-13 - number of 64 byte chunks
+ *		14-16 - reserved
  */
 struct iwlagn_scd_bc_tbl {
 	__le16 tfd_offset[TFD_QUEUE_BC_SIZE];
