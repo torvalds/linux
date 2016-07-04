@@ -75,7 +75,7 @@ returned during the enumeration process.
 
        -  struct :ref:`media_pad_desc <media-pad-desc>`
 
-       -  *\ ``pads``
+       -  \*\ ``pads``
 
        -  Pointer to a pads array allocated by the application. Ignored if
           NULL.
@@ -84,7 +84,7 @@ returned during the enumeration process.
 
        -  struct :ref:`media_link_desc <media-link-desc>`
 
-       -  *\ ``links``
+       -  \*\ ``links``
 
        -  Pointer to a links array allocated by the application. Ignored if
           NULL.

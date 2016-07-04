@@ -44,7 +44,7 @@ Arguments
 
     -  .. row 3
 
-       -  struct dvb_frontend_event *ev
+       -  struct dvb_frontend_event \*ev
 
        -  Points to the location where the event,
 
