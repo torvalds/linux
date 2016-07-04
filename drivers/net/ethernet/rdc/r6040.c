@@ -690,7 +690,7 @@ static irqreturn_t r6040_interrupt(int irq, void *dev_id)
 		if (likely(napi_schedule_prep(&lp->napi))) {
 			/* Mask off RX interrupt */
 			misr &= ~(RX_INTS | TX_INTS);
-			__napi_schedule(&lp->napi);
+			__napi_schedule_irqoff(&lp->napi);
 		}
 	}
 
