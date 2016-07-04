@@ -6,18 +6,19 @@
 FE_GET_FRONTEND
 ***************
 
-DESCRIPTION
+Description
+-----------
 
 This ioctl call queries the currently effective frontend parameters. For
 this command, read-only access to the device is sufficient.
 
-SYNOPSIS
+Synopsis
+--------
 
-int ioctl(int fd, int request =
-:ref:`FE_GET_FRONTEND`, struct
-dvb_frontend_parameters *p);
+.. c:function:: int ioctl(int fd, int request = FE_GET_FRONTEND, struct dvb_frontend_parameters *p)
 
-PARAMETERS
+Arguments
+----------
 
 
 
@@ -41,12 +42,13 @@ PARAMETERS
 
     -  .. row 3
 
-       -  struct dvb_frontend_parameters *p
+       -  struct dvb_frontend_parameters \*p
 
        -  Points to parameters for tuning operation.
 
 
-RETURN VALUE
+Return Value
+------------
 
 On success 0 is returned, on error -1 and the ``errno`` variable is set
 appropriately. The generic error codes are described at the
