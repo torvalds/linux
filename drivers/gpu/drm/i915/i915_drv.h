@@ -2763,14 +2763,14 @@ struct drm_i915_cmd_table {
  * have their own (e.g. HAS_PCH_SPLIT for ILK+ display, IS_foo for particular
  * chips, etc.).
  */
-#define IS_GEN2(dev)	(INTEL_INFO(dev)->gen_mask & BIT(1))
-#define IS_GEN3(dev)	(INTEL_INFO(dev)->gen_mask & BIT(2))
-#define IS_GEN4(dev)	(INTEL_INFO(dev)->gen_mask & BIT(3))
-#define IS_GEN5(dev)	(INTEL_INFO(dev)->gen_mask & BIT(4))
-#define IS_GEN6(dev)	(INTEL_INFO(dev)->gen_mask & BIT(5))
-#define IS_GEN7(dev)	(INTEL_INFO(dev)->gen_mask & BIT(6))
-#define IS_GEN8(dev)	(INTEL_INFO(dev)->gen_mask & BIT(7))
-#define IS_GEN9(dev)	(INTEL_INFO(dev)->gen_mask & BIT(8))
+#define IS_GEN2(dev)	(!!(INTEL_INFO(dev)->gen_mask & BIT(1)))
+#define IS_GEN3(dev)	(!!(INTEL_INFO(dev)->gen_mask & BIT(2)))
+#define IS_GEN4(dev)	(!!(INTEL_INFO(dev)->gen_mask & BIT(3)))
+#define IS_GEN5(dev)	(!!(INTEL_INFO(dev)->gen_mask & BIT(4)))
+#define IS_GEN6(dev)	(!!(INTEL_INFO(dev)->gen_mask & BIT(5)))
+#define IS_GEN7(dev)	(!!(INTEL_INFO(dev)->gen_mask & BIT(6)))
+#define IS_GEN8(dev)	(!!(INTEL_INFO(dev)->gen_mask & BIT(7)))
+#define IS_GEN9(dev)	(!!(INTEL_INFO(dev)->gen_mask & BIT(8)))
 
 #define ENGINE_MASK(id)	BIT(id)
 #define RENDER_RING	ENGINE_MASK(RCS)
@@ -2781,7 +2781,7 @@ struct drm_i915_cmd_table {
 #define ALL_ENGINES	(~0)
 
 #define HAS_ENGINE(dev_priv, id) \
-	(INTEL_INFO(dev_priv)->ring_mask & ENGINE_MASK(id))
+	(!!(INTEL_INFO(dev_priv)->ring_mask & ENGINE_MASK(id)))
 
 #define HAS_BSD(dev_priv)	HAS_ENGINE(dev_priv, VCS)
 #define HAS_BSD2(dev_priv)	HAS_ENGINE(dev_priv, VCS2)
@@ -2790,7 +2790,7 @@ struct drm_i915_cmd_table {
 
 #define HAS_LLC(dev)		(INTEL_INFO(dev)->has_llc)
 #define HAS_SNOOP(dev)		(INTEL_INFO(dev)->has_snoop)
-#define HAS_EDRAM(dev)		(__I915__(dev)->edram_cap & EDRAM_ENABLED)
+#define HAS_EDRAM(dev)		(!!(__I915__(dev)->edram_cap & EDRAM_ENABLED))
 #define HAS_WT(dev)		((IS_HASWELL(dev) || IS_BROADWELL(dev)) && \
 				 HAS_EDRAM(dev))
 #define I915_NEED_GFX_HWS(dev)	(INTEL_INFO(dev)->need_gfx_hws)
