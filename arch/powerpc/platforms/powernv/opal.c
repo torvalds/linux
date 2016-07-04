@@ -55,6 +55,7 @@ struct device_node *opal_node;
 static DEFINE_SPINLOCK(opal_write_lock);
 static struct atomic_notifier_head opal_msg_notifier_head[OPAL_MSG_TYPE_MAX];
 static uint32_t opal_heartbeat;
+static struct task_struct *kopald_tsk;
 
 static void opal_reinit_cores(void)
 {
@@ -653,6 +654,7 @@ static void opal_i2c_create_devs(void)
 
 static int kopald(void *unused)
 {
+	unsigned long timeout = msecs_to_jiffies(opal_heartbeat) + 1;
 	__be64 events;
 
 	set_freezable();
@@ -660,10 +662,16 @@ static int kopald(void *unused)
 		try_to_freeze();
 		opal_poll_events(&events);
 		opal_handle_events(be64_to_cpu(events));
-		msleep_interruptible(opal_heartbeat);
+		schedule_timeout_interruptible(timeout);
 	} while (!kthread_should_stop());
 
 	return 0;
+}
+
+void opal_wake_poller(void)
+{
+	if (kopald_tsk)
+		wake_up_process(kopald_tsk);
 }
 
 static void opal_init_heartbeat(void)
@@ -674,7 +682,7 @@ static void opal_init_heartbeat(void)
 		opal_heartbeat = 0;
 
 	if (opal_heartbeat)
-		kthread_run(kopald, NULL, "kopald");
+		kopald_tsk = kthread_run(kopald, NULL, "kopald");
 }
 
 static int __init opal_init(void)

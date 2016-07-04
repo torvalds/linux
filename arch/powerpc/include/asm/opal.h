@@ -292,6 +292,8 @@ static inline int opal_get_async_rc(struct opal_msg msg)
 		return be64_to_cpu(msg.params[1]);
 }
 
+void opal_wake_poller(void);
+
 #endif /* __ASSEMBLY__ */
 
 #endif /* _ASM_POWERPC_OPAL_H */
