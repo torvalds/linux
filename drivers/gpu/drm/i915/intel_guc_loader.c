@@ -608,7 +608,7 @@ static void guc_fw_fetch(struct drm_device *dev, struct intel_guc_fw *guc_fw)
 
 	/* Header and uCode will be loaded to WOPCM. Size of the two. */
 	size = guc_fw->header_size + guc_fw->ucode_size;
-	if (size > guc_wopcm_size(dev->dev_private)) {
+	if (size > guc_wopcm_size(to_i915(dev))) {
 		DRM_ERROR("Firmware is too large to fit in WOPCM\n");
 		goto fail;
 	}

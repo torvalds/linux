@@ -4772,7 +4772,7 @@ void i915_gem_object_init(struct drm_i915_gem_object *obj,
 	obj->fence_reg = I915_FENCE_REG_NONE;
 	obj->madv = I915_MADV_WILLNEED;
 
-	i915_gem_info_add_obj(obj->base.dev->dev_private, obj->base.size);
+	i915_gem_info_add_obj(to_i915(obj->base.dev), obj->base.size);
 }
 
 static const struct drm_i915_gem_object_ops i915_gem_object_ops = {
@@ -5398,7 +5398,7 @@ int i915_gem_open(struct drm_device *dev, struct drm_file *file)
 		return -ENOMEM;
 
 	file->driver_priv = file_priv;
-	file_priv->dev_priv = dev->dev_private;
+	file_priv->dev_priv = to_i915(dev);
 	file_priv->file = file;
 	INIT_LIST_HEAD(&file_priv->rps.link);
 
