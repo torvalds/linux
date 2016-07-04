@@ -67,7 +67,7 @@ static bool intel_crt_get_hw_state(struct intel_encoder *encoder,
 				   enum pipe *pipe)
 {
 	struct drm_device *dev = encoder->base.dev;
-	struct drm_i915_private *dev_priv = dev->dev_private;
+	struct drm_i915_private *dev_priv = to_i915(dev);
 	struct intel_crt *crt = intel_encoder_to_crt(encoder);
 	enum intel_display_power_domain power_domain;
 	u32 tmp;
@@ -98,7 +98,7 @@ out:
 
 static unsigned int intel_crt_get_flags(struct intel_encoder *encoder)
 {
-	struct drm_i915_private *dev_priv = encoder->base.dev->dev_private;
+	struct drm_i915_private *dev_priv = to_i915(encoder->base.dev);
 	struct intel_crt *crt = intel_encoder_to_crt(encoder);
 	u32 tmp, flags = 0;
 
@@ -146,7 +146,7 @@ static void hsw_crt_get_config(struct intel_encoder *encoder,
 static void intel_crt_set_dpms(struct intel_encoder *encoder, int mode)
 {
 	struct drm_device *dev = encoder->base.dev;
-	struct drm_i915_private *dev_priv = dev->dev_private;
+	struct drm_i915_private *dev_priv = to_i915(dev);
 	struct intel_crt *crt = intel_encoder_to_crt(encoder);
 	struct intel_crtc *crtc = to_intel_crtc(encoder->base.crtc);
 	const struct drm_display_mode *adjusted_mode = &crtc->config->base.adjusted_mode;
@@ -281,7 +281,7 @@ static bool intel_ironlake_crt_detect_hotplug(struct drm_connector *connector)
 {
 	struct drm_device *dev = connector->dev;
 	struct intel_crt *crt = intel_attached_crt(connector);
-	struct drm_i915_private *dev_priv = dev->dev_private;
+	struct drm_i915_private *dev_priv = to_i915(dev);
 	u32 adpa;
 	bool ret;
 
@@ -328,7 +328,7 @@ static bool valleyview_crt_detect_hotplug(struct drm_connector *connector)
 {
 	struct drm_device *dev = connector->dev;
 	struct intel_crt *crt = intel_attached_crt(connector);
-	struct drm_i915_private *dev_priv = dev->dev_private;
+	struct drm_i915_private *dev_priv = to_i915(dev);
 	u32 adpa;
 	bool ret;
 	u32 save_adpa;
@@ -371,7 +371,7 @@ static bool valleyview_crt_detect_hotplug(struct drm_connector *connector)
 static bool intel_crt_detect_hotplug(struct drm_connector *connector)
 {
 	struct drm_device *dev = connector->dev;
-	struct drm_i915_private *dev_priv = dev->dev_private;
+	struct drm_i915_private *dev_priv = to_i915(dev);
 	u32 stat;
 	bool ret = false;
 	int i, tries = 0;
@@ -453,7 +453,7 @@ static int intel_crt_ddc_get_modes(struct drm_connector *connector,
 static bool intel_crt_detect_ddc(struct drm_connector *connector)
 {
 	struct intel_crt *crt = intel_attached_crt(connector);
-	struct drm_i915_private *dev_priv = crt->base.base.dev->dev_private;
+	struct drm_i915_private *dev_priv = to_i915(crt->base.base.dev);
 	struct edid *edid;
 	struct i2c_adapter *i2c;
 
@@ -489,7 +489,7 @@ static enum drm_connector_status
 intel_crt_load_detect(struct intel_crt *crt, uint32_t pipe)
 {
 	struct drm_device *dev = crt->base.base.dev;
-	struct drm_i915_private *dev_priv = dev->dev_private;
+	struct drm_i915_private *dev_priv = to_i915(dev);
 	uint32_t save_bclrpat;
 	uint32_t save_vtotal;
 	uint32_t vtotal, vactive;
@@ -604,7 +604,7 @@ static enum drm_connector_status
 intel_crt_detect(struct drm_connector *connector, bool force)
 {
 	struct drm_device *dev = connector->dev;
-	struct drm_i915_private *dev_priv = dev->dev_private;
+	struct drm_i915_private *dev_priv = to_i915(dev);
 	struct intel_crt *crt = intel_attached_crt(connector);
 	struct intel_encoder *intel_encoder = &crt->base;
 	enum intel_display_power_domain power_domain;
@@ -685,7 +685,7 @@ static void intel_crt_destroy(struct drm_connector *connector)
 static int intel_crt_get_modes(struct drm_connector *connector)
 {
 	struct drm_device *dev = connector->dev;
-	struct drm_i915_private *dev_priv = dev->dev_private;
+	struct drm_i915_private *dev_priv = to_i915(dev);
 	struct intel_crt *crt = intel_attached_crt(connector);
 	struct intel_encoder *intel_encoder = &crt->base;
 	enum intel_display_power_domain power_domain;
@@ -720,7 +720,7 @@ static int intel_crt_set_property(struct drm_connector *connector,
 static void intel_crt_reset(struct drm_connector *connector)
 {
 	struct drm_device *dev = connector->dev;
-	struct drm_i915_private *dev_priv = dev->dev_private;
+	struct drm_i915_private *dev_priv = to_i915(dev);
 	struct intel_crt *crt = intel_attached_crt(connector);
 
 	if (INTEL_INFO(dev)->gen >= 5) {
@@ -796,7 +796,7 @@ void intel_crt_init(struct drm_device *dev)
 	struct drm_connector *connector;
 	struct intel_crt *crt;
 	struct intel_connector *intel_connector;
-	struct drm_i915_private *dev_priv = dev->dev_private;
+	struct drm_i915_private *dev_priv = to_i915(dev);
 	i915_reg_t adpa_reg;
 	u32 adpa;
 

@@ -703,7 +703,7 @@ static void intel_fbdev_suspend_worker(struct work_struct *work)
 int intel_fbdev_init(struct drm_device *dev)
 {
 	struct intel_fbdev *ifbdev;
-	struct drm_i915_private *dev_priv = dev->dev_private;
+	struct drm_i915_private *dev_priv = to_i915(dev);
 	int ret;
 
 	if (WARN_ON(INTEL_INFO(dev)->num_pipes == 0))
@@ -762,7 +762,7 @@ static void intel_fbdev_sync(struct intel_fbdev *ifbdev)
 
 void intel_fbdev_fini(struct drm_device *dev)
 {
-	struct drm_i915_private *dev_priv = dev->dev_private;
+	struct drm_i915_private *dev_priv = to_i915(dev);
 	struct intel_fbdev *ifbdev = dev_priv->fbdev;
 
 	if (!ifbdev)
@@ -778,7 +778,7 @@ void intel_fbdev_fini(struct drm_device *dev)
 
 void intel_fbdev_set_suspend(struct drm_device *dev, int state, bool synchronous)
 {
-	struct drm_i915_private *dev_priv = dev->dev_private;
+	struct drm_i915_private *dev_priv = to_i915(dev);
 	struct intel_fbdev *ifbdev = dev_priv->fbdev;
 	struct fb_info *info;
 
@@ -827,7 +827,7 @@ void intel_fbdev_set_suspend(struct drm_device *dev, int state, bool synchronous
 
 void intel_fbdev_output_poll_changed(struct drm_device *dev)
 {
-	struct drm_i915_private *dev_priv = dev->dev_private;
+	struct drm_i915_private *dev_priv = to_i915(dev);
 	if (dev_priv->fbdev)
 		drm_fb_helper_hotplug_event(&dev_priv->fbdev->helper);
 }
@@ -835,7 +835,7 @@ void intel_fbdev_output_poll_changed(struct drm_device *dev)
 void intel_fbdev_restore_mode(struct drm_device *dev)
 {
 	int ret;
-	struct drm_i915_private *dev_priv = dev->dev_private;
+	struct drm_i915_private *dev_priv = to_i915(dev);
 	struct intel_fbdev *ifbdev = dev_priv->fbdev;
 	struct drm_fb_helper *fb_helper;
 

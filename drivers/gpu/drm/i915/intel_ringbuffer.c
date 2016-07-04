@@ -2837,7 +2837,7 @@ static void intel_ring_default_vfuncs(struct drm_i915_private *dev_priv,
 
 int intel_init_render_ring_buffer(struct drm_device *dev)
 {
-	struct drm_i915_private *dev_priv = dev->dev_private;
+	struct drm_i915_private *dev_priv = to_i915(dev);
 	struct intel_engine_cs *engine = &dev_priv->engine[RCS];
 	int ret;
 
@@ -2899,7 +2899,7 @@ int intel_init_render_ring_buffer(struct drm_device *dev)
 
 int intel_init_bsd_ring_buffer(struct drm_device *dev)
 {
-	struct drm_i915_private *dev_priv = dev->dev_private;
+	struct drm_i915_private *dev_priv = to_i915(dev);
 	struct intel_engine_cs *engine = &dev_priv->engine[VCS];
 
 	engine->name = "bsd ring";
@@ -2937,7 +2937,7 @@ int intel_init_bsd_ring_buffer(struct drm_device *dev)
  */
 int intel_init_bsd2_ring_buffer(struct drm_device *dev)
 {
-	struct drm_i915_private *dev_priv = dev->dev_private;
+	struct drm_i915_private *dev_priv = to_i915(dev);
 	struct intel_engine_cs *engine = &dev_priv->engine[VCS2];
 
 	engine->name = "bsd2 ring";
@@ -2957,7 +2957,7 @@ int intel_init_bsd2_ring_buffer(struct drm_device *dev)
 
 int intel_init_blt_ring_buffer(struct drm_device *dev)
 {
-	struct drm_i915_private *dev_priv = dev->dev_private;
+	struct drm_i915_private *dev_priv = to_i915(dev);
 	struct intel_engine_cs *engine = &dev_priv->engine[BCS];
 
 	engine->name = "blitter ring";
@@ -2980,7 +2980,7 @@ int intel_init_blt_ring_buffer(struct drm_device *dev)
 
 int intel_init_vebox_ring_buffer(struct drm_device *dev)
 {
-	struct drm_i915_private *dev_priv = dev->dev_private;
+	struct drm_i915_private *dev_priv = to_i915(dev);
 	struct intel_engine_cs *engine = &dev_priv->engine[VECS];
 
 	engine->name = "video enhancement ring";

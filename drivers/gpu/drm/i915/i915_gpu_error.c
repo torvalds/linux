@@ -332,7 +332,7 @@ int i915_error_state_to_str(struct drm_i915_error_state_buf *m,
 			    const struct i915_error_state_file_priv *error_priv)
 {
 	struct drm_device *dev = error_priv->dev;
-	struct drm_i915_private *dev_priv = dev->dev_private;
+	struct drm_i915_private *dev_priv = to_i915(dev);
 	struct drm_i915_error_state *error = error_priv->error;
 	struct drm_i915_error_object *obj;
 	int i, j, offset, elt;
@@ -1451,7 +1451,7 @@ void i915_capture_error_state(struct drm_i915_private *dev_priv,
 void i915_error_state_get(struct drm_device *dev,
 			  struct i915_error_state_file_priv *error_priv)
 {
-	struct drm_i915_private *dev_priv = dev->dev_private;
+	struct drm_i915_private *dev_priv = to_i915(dev);
 
 	spin_lock_irq(&dev_priv->gpu_error.lock);
 	error_priv->error = dev_priv->gpu_error.first_error;
@@ -1469,7 +1469,7 @@ void i915_error_state_put(struct i915_error_state_file_priv *error_priv)
 
 void i915_destroy_error_state(struct drm_device *dev)
 {
-	struct drm_i915_private *dev_priv = dev->dev_private;
+	struct drm_i915_private *dev_priv = to_i915(dev);
 	struct drm_i915_error_state *error;
 
 	spin_lock_irq(&dev_priv->gpu_error.lock);

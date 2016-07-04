@@ -113,7 +113,7 @@ to_intel_gmbus(struct i2c_adapter *i2c)
 void
 intel_i2c_reset(struct drm_device *dev)
 {
-	struct drm_i915_private *dev_priv = dev->dev_private;
+	struct drm_i915_private *dev_priv = to_i915(dev);
 
 	I915_WRITE(GMBUS0, 0);
 	I915_WRITE(GMBUS4, 0);
@@ -632,7 +632,7 @@ static const struct i2c_algorithm gmbus_algorithm = {
  */
 int intel_setup_gmbus(struct drm_device *dev)
 {
-	struct drm_i915_private *dev_priv = dev->dev_private;
+	struct drm_i915_private *dev_priv = to_i915(dev);
 	struct intel_gmbus *bus;
 	unsigned int pin;
 	int ret;
@@ -736,7 +736,7 @@ void intel_gmbus_force_bit(struct i2c_adapter *adapter, bool force_bit)
 
 void intel_teardown_gmbus(struct drm_device *dev)
 {
-	struct drm_i915_private *dev_priv = dev->dev_private;
+	struct drm_i915_private *dev_priv = to_i915(dev);
 	struct intel_gmbus *bus;
 	unsigned int pin;
 

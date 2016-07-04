@@ -1033,7 +1033,7 @@ void i915_guc_submission_fini(struct drm_i915_private *dev_priv)
  */
 int intel_guc_suspend(struct drm_device *dev)
 {
-	struct drm_i915_private *dev_priv = dev->dev_private;
+	struct drm_i915_private *dev_priv = to_i915(dev);
 	struct intel_guc *guc = &dev_priv->guc;
 	struct i915_gem_context *ctx;
 	u32 data[3];
@@ -1059,7 +1059,7 @@ int intel_guc_suspend(struct drm_device *dev)
  */
 int intel_guc_resume(struct drm_device *dev)
 {
-	struct drm_i915_private *dev_priv = dev->dev_private;
+	struct drm_i915_private *dev_priv = to_i915(dev);
 	struct intel_guc *guc = &dev_priv->guc;
 	struct i915_gem_context *ctx;
 	u32 data[3];

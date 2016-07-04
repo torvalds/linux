@@ -1084,7 +1084,7 @@ int intel_overlay_put_image_ioctl(struct drm_device *dev, void *data,
 				  struct drm_file *file_priv)
 {
 	struct drm_intel_overlay_put_image *put_image_rec = data;
-	struct drm_i915_private *dev_priv = dev->dev_private;
+	struct drm_i915_private *dev_priv = to_i915(dev);
 	struct intel_overlay *overlay;
 	struct drm_crtc *drmmode_crtc;
 	struct intel_crtc *crtc;
@@ -1282,7 +1282,7 @@ int intel_overlay_attrs_ioctl(struct drm_device *dev, void *data,
 			      struct drm_file *file_priv)
 {
 	struct drm_intel_overlay_attrs *attrs = data;
-	struct drm_i915_private *dev_priv = dev->dev_private;
+	struct drm_i915_private *dev_priv = to_i915(dev);
 	struct intel_overlay *overlay;
 	struct overlay_registers __iomem *regs;
 	int ret;

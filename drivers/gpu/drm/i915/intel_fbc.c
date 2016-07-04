@@ -445,7 +445,7 @@ out:
 
 static void intel_fbc_schedule_activation(struct intel_crtc *crtc)
 {
-	struct drm_i915_private *dev_priv = crtc->base.dev->dev_private;
+	struct drm_i915_private *dev_priv = to_i915(crtc->base.dev);
 	struct intel_fbc *fbc = &dev_priv->fbc;
 	struct intel_fbc_work *work = &fbc->work;
 
@@ -555,7 +555,7 @@ again:
 
 static int intel_fbc_alloc_cfb(struct intel_crtc *crtc)
 {
-	struct drm_i915_private *dev_priv = crtc->base.dev->dev_private;
+	struct drm_i915_private *dev_priv = to_i915(crtc->base.dev);
 	struct intel_fbc *fbc = &dev_priv->fbc;
 	struct drm_mm_node *uninitialized_var(compressed_llb);
 	int size, fb_cpp, ret;
@@ -686,7 +686,7 @@ static bool pixel_format_is_valid(struct drm_i915_private *dev_priv,
  */
 static bool intel_fbc_hw_tracking_covers_screen(struct intel_crtc *crtc)
 {
-	struct drm_i915_private *dev_priv = crtc->base.dev->dev_private;
+	struct drm_i915_private *dev_priv = to_i915(crtc->base.dev);
 	struct intel_fbc *fbc = &dev_priv->fbc;
 	unsigned int effective_w, effective_h, max_w, max_h;
 
@@ -713,7 +713,7 @@ static void intel_fbc_update_state_cache(struct intel_crtc *crtc,
 					 struct intel_crtc_state *crtc_state,
 					 struct intel_plane_state *plane_state)
 {
-	struct drm_i915_private *dev_priv = crtc->base.dev->dev_private;
+	struct drm_i915_private *dev_priv = to_i915(crtc->base.dev);
 	struct intel_fbc *fbc = &dev_priv->fbc;
 	struct intel_fbc_state_cache *cache = &fbc->state_cache;
 	struct drm_framebuffer *fb = plane_state->base.fb;
@@ -746,7 +746,7 @@ static void intel_fbc_update_state_cache(struct intel_crtc *crtc,
 
 static bool intel_fbc_can_activate(struct intel_crtc *crtc)
 {
-	struct drm_i915_private *dev_priv = crtc->base.dev->dev_private;
+	struct drm_i915_private *dev_priv = to_i915(crtc->base.dev);
 	struct intel_fbc *fbc = &dev_priv->fbc;
 	struct intel_fbc_state_cache *cache = &fbc->state_cache;
 
@@ -818,7 +818,7 @@ static bool intel_fbc_can_activate(struct intel_crtc *crtc)
 
 static bool intel_fbc_can_choose(struct intel_crtc *crtc)
 {
-	struct drm_i915_private *dev_priv = crtc->base.dev->dev_private;
+	struct drm_i915_private *dev_priv = to_i915(crtc->base.dev);
 	struct intel_fbc *fbc = &dev_priv->fbc;
 
 	if (intel_vgpu_active(dev_priv)) {
@@ -847,7 +847,7 @@ static bool intel_fbc_can_choose(struct intel_crtc *crtc)
 static void intel_fbc_get_reg_params(struct intel_crtc *crtc,
 				     struct intel_fbc_reg_params *params)
 {
-	struct drm_i915_private *dev_priv = crtc->base.dev->dev_private;
+	struct drm_i915_private *dev_priv = to_i915(crtc->base.dev);
 	struct intel_fbc *fbc = &dev_priv->fbc;
 	struct intel_fbc_state_cache *cache = &fbc->state_cache;
 
@@ -880,7 +880,7 @@ void intel_fbc_pre_update(struct intel_crtc *crtc,
 			  struct intel_crtc_state *crtc_state,
 			  struct intel_plane_state *plane_state)
 {
-	struct drm_i915_private *dev_priv = crtc->base.dev->dev_private;
+	struct drm_i915_private *dev_priv = to_i915(crtc->base.dev);
 	struct intel_fbc *fbc = &dev_priv->fbc;
 
 	if (!fbc_supported(dev_priv))
@@ -906,7 +906,7 @@ unlock:
 
 static void __intel_fbc_post_update(struct intel_crtc *crtc)
 {
-	struct drm_i915_private *dev_priv = crtc->base.dev->dev_private;
+	struct drm_i915_private *dev_priv = to_i915(crtc->base.dev);
 	struct intel_fbc *fbc = &dev_priv->fbc;
 	struct intel_fbc_reg_params old_params;
 
@@ -939,7 +939,7 @@ static void __intel_fbc_post_update(struct intel_crtc *crtc)
 
 void intel_fbc_post_update(struct intel_crtc *crtc)
 {
-	struct drm_i915_private *dev_priv = crtc->base.dev->dev_private;
+	struct drm_i915_private *dev_priv = to_i915(crtc->base.dev);
 	struct intel_fbc *fbc = &dev_priv->fbc;
 
 	if (!fbc_supported(dev_priv))
@@ -1085,7 +1085,7 @@ void intel_fbc_enable(struct intel_crtc *crtc,
 		      struct intel_crtc_state *crtc_state,
 		      struct intel_plane_state *plane_state)
 {
-	struct drm_i915_private *dev_priv = crtc->base.dev->dev_private;
+	struct drm_i915_private *dev_priv = to_i915(crtc->base.dev);
 	struct intel_fbc *fbc = &dev_priv->fbc;
 
 	if (!fbc_supported(dev_priv))
@@ -1156,7 +1156,7 @@ static void __intel_fbc_disable(struct drm_i915_private *dev_priv)
  */
 void intel_fbc_disable(struct intel_crtc *crtc)
 {
-	struct drm_i915_private *dev_priv = crtc->base.dev->dev_private;
+	struct drm_i915_private *dev_priv = to_i915(crtc->base.dev);
 	struct intel_fbc *fbc = &dev_priv->fbc;
 
 	if (!fbc_supported(dev_priv))

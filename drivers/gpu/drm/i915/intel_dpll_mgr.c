@@ -83,7 +83,7 @@ void assert_shared_dpll(struct drm_i915_private *dev_priv,
 void intel_prepare_shared_dpll(struct intel_crtc *crtc)
 {
 	struct drm_device *dev = crtc->base.dev;
-	struct drm_i915_private *dev_priv = dev->dev_private;
+	struct drm_i915_private *dev_priv = to_i915(dev);
 	struct intel_shared_dpll *pll = crtc->config->shared_dpll;
 
 	if (WARN_ON(pll == NULL))
@@ -112,7 +112,7 @@ void intel_prepare_shared_dpll(struct intel_crtc *crtc)
 void intel_enable_shared_dpll(struct intel_crtc *crtc)
 {
 	struct drm_device *dev = crtc->base.dev;
-	struct drm_i915_private *dev_priv = dev->dev_private;
+	struct drm_i915_private *dev_priv = to_i915(dev);
 	struct intel_shared_dpll *pll = crtc->config->shared_dpll;
 	unsigned crtc_mask = 1 << drm_crtc_index(&crtc->base);
 	unsigned old_mask;
@@ -151,7 +151,7 @@ out:
 void intel_disable_shared_dpll(struct intel_crtc *crtc)
 {
 	struct drm_device *dev = crtc->base.dev;
-	struct drm_i915_private *dev_priv = dev->dev_private;
+	struct drm_i915_private *dev_priv = to_i915(dev);
 	struct intel_shared_dpll *pll = crtc->config->shared_dpll;
 	unsigned crtc_mask = 1 << drm_crtc_index(&crtc->base);
 
@@ -191,7 +191,7 @@ intel_find_shared_dpll(struct intel_crtc *crtc,
 		       enum intel_dpll_id range_min,
 		       enum intel_dpll_id range_max)
 {
-	struct drm_i915_private *dev_priv = crtc->base.dev->dev_private;
+	struct drm_i915_private *dev_priv = to_i915(crtc->base.dev);
 	struct intel_shared_dpll *pll;
 	struct intel_shared_dpll_config *shared_dpll;
 	enum intel_dpll_id i;
@@ -1636,7 +1636,7 @@ static const struct intel_shared_dpll_funcs bxt_ddi_pll_funcs = {
 
 static void intel_ddi_pll_init(struct drm_device *dev)
 {
-	struct drm_i915_private *dev_priv = dev->dev_private;
+	struct drm_i915_private *dev_priv = to_i915(dev);
 
 	if (INTEL_GEN(dev_priv) < 9) {
 		uint32_t val = I915_READ(LCPLL_CTL);
@@ -1723,7 +1723,7 @@ static const struct intel_dpll_mgr bxt_pll_mgr = {
 
 void intel_shared_dpll_init(struct drm_device *dev)
 {
-	struct drm_i915_private *dev_priv = dev->dev_private;
+	struct drm_i915_private *dev_priv = to_i915(dev);
 	const struct intel_dpll_mgr *dpll_mgr = NULL;
 	const struct dpll_info *dpll_info;
 	int i;

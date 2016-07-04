@@ -303,7 +303,7 @@ static void chv_exec_gpio(struct drm_i915_private *dev_priv,
 static const u8 *mipi_exec_gpio(struct intel_dsi *intel_dsi, const u8 *data)
 {
 	struct drm_device *dev = intel_dsi->base.base.dev;
-	struct drm_i915_private *dev_priv = dev->dev_private;
+	struct drm_i915_private *dev_priv = to_i915(dev);
 	u8 gpio_source, gpio_index;
 	bool value;
 
@@ -469,7 +469,7 @@ static int vbt_panel_get_modes(struct drm_panel *panel)
 	struct vbt_panel *vbt_panel = to_vbt_panel(panel);
 	struct intel_dsi *intel_dsi = vbt_panel->intel_dsi;
 	struct drm_device *dev = intel_dsi->base.base.dev;
-	struct drm_i915_private *dev_priv = dev->dev_private;
+	struct drm_i915_private *dev_priv = to_i915(dev);
 	struct drm_display_mode *mode;
 
 	if (!panel->connector)
@@ -497,7 +497,7 @@ static const struct drm_panel_funcs vbt_panel_funcs = {
 struct drm_panel *vbt_panel_init(struct intel_dsi *intel_dsi, u16 panel_id)
 {
 	struct drm_device *dev = intel_dsi->base.base.dev;
-	struct drm_i915_private *dev_priv = dev->dev_private;
+	struct drm_i915_private *dev_priv = to_i915(dev);
 	struct mipi_config *mipi_config = dev_priv->vbt.dsi.config;
 	struct mipi_pps_data *pps = dev_priv->vbt.dsi.pps;
 	struct drm_display_mode *mode = dev_priv->vbt.lfp_lvds_vbt_mode;

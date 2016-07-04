@@ -1409,7 +1409,7 @@ static const struct register_whitelist {
 int i915_reg_read_ioctl(struct drm_device *dev,
 			void *data, struct drm_file *file)
 {
-	struct drm_i915_private *dev_priv = dev->dev_private;
+	struct drm_i915_private *dev_priv = to_i915(dev);
 	struct drm_i915_reg_read *reg = data;
 	struct register_whitelist const *entry = whitelist;
 	unsigned size;

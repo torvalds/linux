@@ -84,7 +84,7 @@ static void wait_for_dsi_fifo_empty(struct intel_dsi *intel_dsi, enum port port)
 {
 	struct drm_encoder *encoder = &intel_dsi->base.base;
 	struct drm_device *dev = encoder->dev;
-	struct drm_i915_private *dev_priv = dev->dev_private;
+	struct drm_i915_private *dev_priv = to_i915(dev);
 	u32 mask;
 
 	mask = LP_CTRL_FIFO_EMPTY | HS_CTRL_FIFO_EMPTY |
@@ -131,7 +131,7 @@ static ssize_t intel_dsi_host_transfer(struct mipi_dsi_host *host,
 {
 	struct intel_dsi_host *intel_dsi_host = to_intel_dsi_host(host);
 	struct drm_device *dev = intel_dsi_host->intel_dsi->base.base.dev;
-	struct drm_i915_private *dev_priv = dev->dev_private;
+	struct drm_i915_private *dev_priv = to_i915(dev);
 	enum port port = intel_dsi_host->port;
 	struct mipi_dsi_packet packet;
 	ssize_t ret;
@@ -260,7 +260,7 @@ static int dpi_send_cmd(struct intel_dsi *intel_dsi, u32 cmd, bool hs,
 {
 	struct drm_encoder *encoder = &intel_dsi->base.base;
 	struct drm_device *dev = encoder->dev;
-	struct drm_i915_private *dev_priv = dev->dev_private;
+	struct drm_i915_private *dev_priv = to_i915(dev);
 	u32 mask;
 
 	/* XXX: pipe, hs */
@@ -314,7 +314,7 @@ static inline bool is_cmd_mode(struct intel_dsi *intel_dsi)
 static bool intel_dsi_compute_config(struct intel_encoder *encoder,
 				     struct intel_crtc_state *pipe_config)
 {
-	struct drm_i915_private *dev_priv = encoder->base.dev->dev_private;
+	struct drm_i915_private *dev_priv = to_i915(encoder->base.dev);
 	struct intel_dsi *intel_dsi = container_of(encoder, struct intel_dsi,
 						   base);
 	struct intel_connector *intel_connector = intel_dsi->attached_connector;
@@ -360,7 +360,7 @@ static bool intel_dsi_compute_config(struct intel_encoder *encoder,
 
 static void bxt_dsi_device_ready(struct intel_encoder *encoder)
 {
-	struct drm_i915_private *dev_priv = encoder->base.dev->dev_private;
+	struct drm_i915_private *dev_priv = to_i915(encoder->base.dev);
 	struct intel_dsi *intel_dsi = enc_to_intel_dsi(&encoder->base);
 	enum port port;
 	u32 val;
@@ -399,7 +399,7 @@ static void bxt_dsi_device_ready(struct intel_encoder *encoder)
 
 static void vlv_dsi_device_ready(struct intel_encoder *encoder)
 {
-	struct drm_i915_private *dev_priv = encoder->base.dev->dev_private;
+	struct drm_i915_private *dev_priv = to_i915(encoder->base.dev);
 	struct intel_dsi *intel_dsi = enc_to_intel_dsi(&encoder->base);
 	enum port port;
 	u32 val;
@@ -449,7 +449,7 @@ static void intel_dsi_device_ready(struct intel_encoder *encoder)
 static void intel_dsi_port_enable(struct intel_encoder *encoder)
 {
 	struct drm_device *dev = encoder->base.dev;
-	struct drm_i915_private *dev_priv = dev->dev_private;
+	struct drm_i915_private *dev_priv = to_i915(dev);
 	struct intel_crtc *intel_crtc = to_intel_crtc(encoder->base.crtc);
 	struct intel_dsi *intel_dsi = enc_to_intel_dsi(&encoder->base);
 	enum port port;
@@ -490,7 +490,7 @@ static void intel_dsi_port_enable(struct intel_encoder *encoder)
 static void intel_dsi_port_disable(struct intel_encoder *encoder)
 {
 	struct drm_device *dev = encoder->base.dev;
-	struct drm_i915_private *dev_priv = dev->dev_private;
+	struct drm_i915_private *dev_priv = to_i915(dev);
 	struct intel_dsi *intel_dsi = enc_to_intel_dsi(&encoder->base);
 	enum port port;
 
@@ -509,7 +509,7 @@ static void intel_dsi_port_disable(struct intel_encoder *encoder)
 static void intel_dsi_enable(struct intel_encoder *encoder)
 {
 	struct drm_device *dev = encoder->base.dev;
-	struct drm_i915_private *dev_priv = dev->dev_private;
+	struct drm_i915_private *dev_priv = to_i915(dev);
 	struct intel_dsi *intel_dsi = enc_to_intel_dsi(&encoder->base);
 	enum port port;
 
@@ -540,7 +540,7 @@ static void intel_dsi_prepare(struct intel_encoder *intel_encoder);
 static void intel_dsi_pre_enable(struct intel_encoder *encoder)
 {
 	struct drm_device *dev = encoder->base.dev;
-	struct drm_i915_private *dev_priv = dev->dev_private;
+	struct drm_i915_private *dev_priv = to_i915(dev);
 	struct intel_dsi *intel_dsi = enc_to_intel_dsi(&encoder->base);
 	struct intel_crtc *crtc = to_intel_crtc(encoder->base.crtc);
 	enum port port;
@@ -614,7 +614,7 @@ static void intel_dsi_pre_disable(struct intel_encoder *encoder)
 static void intel_dsi_disable(struct intel_encoder *encoder)
 {
 	struct drm_device *dev = encoder->base.dev;
-	struct drm_i915_private *dev_priv = dev->dev_private;
+	struct drm_i915_private *dev_priv = to_i915(dev);
 	struct intel_dsi *intel_dsi = enc_to_intel_dsi(&encoder->base);
 	enum port port;
 	u32 temp;
@@ -653,7 +653,7 @@ static void intel_dsi_disable(struct intel_encoder *encoder)
 static void intel_dsi_clear_device_ready(struct intel_encoder *encoder)
 {
 	struct drm_device *dev = encoder->base.dev;
-	struct drm_i915_private *dev_priv = encoder->base.dev->dev_private;
+	struct drm_i915_private *dev_priv = to_i915(encoder->base.dev);
 	struct intel_dsi *intel_dsi = enc_to_intel_dsi(&encoder->base);
 	enum port port;
 
@@ -698,7 +698,7 @@ static void intel_dsi_clear_device_ready(struct intel_encoder *encoder)
 
 static void intel_dsi_post_disable(struct intel_encoder *encoder)
 {
-	struct drm_i915_private *dev_priv = encoder->base.dev->dev_private;
+	struct drm_i915_private *dev_priv = to_i915(encoder->base.dev);
 	struct intel_dsi *intel_dsi = enc_to_intel_dsi(&encoder->base);
 
 	DRM_DEBUG_KMS("\n");
@@ -733,7 +733,7 @@ static void intel_dsi_post_disable(struct intel_encoder *encoder)
 static bool intel_dsi_get_hw_state(struct intel_encoder *encoder,
 				   enum pipe *pipe)
 {
-	struct drm_i915_private *dev_priv = encoder->base.dev->dev_private;
+	struct drm_i915_private *dev_priv = to_i915(encoder->base.dev);
 	struct intel_dsi *intel_dsi = enc_to_intel_dsi(&encoder->base);
 	struct drm_device *dev = encoder->base.dev;
 	enum intel_display_power_domain power_domain;
@@ -807,7 +807,7 @@ static void bxt_dsi_get_pipe_config(struct intel_encoder *encoder,
 				 struct intel_crtc_state *pipe_config)
 {
 	struct drm_device *dev = encoder->base.dev;
-	struct drm_i915_private *dev_priv = dev->dev_private;
+	struct drm_i915_private *dev_priv = to_i915(dev);
 	struct drm_display_mode *adjusted_mode =
 					&pipe_config->base.adjusted_mode;
 	struct drm_display_mode *adjusted_mode_sw;
@@ -1026,7 +1026,7 @@ static void set_dsi_timings(struct drm_encoder *encoder,
 			    const struct drm_display_mode *adjusted_mode)
 {
 	struct drm_device *dev = encoder->dev;
-	struct drm_i915_private *dev_priv = dev->dev_private;
+	struct drm_i915_private *dev_priv = to_i915(dev);
 	struct intel_dsi *intel_dsi = enc_to_intel_dsi(encoder);
 	enum port port;
 	unsigned int bpp = mipi_dsi_pixel_format_to_bpp(intel_dsi->pixel_format);
@@ -1112,7 +1112,7 @@ static void intel_dsi_prepare(struct intel_encoder *intel_encoder)
 {
 	struct drm_encoder *encoder = &intel_encoder->base;
 	struct drm_device *dev = encoder->dev;
-	struct drm_i915_private *dev_priv = dev->dev_private;
+	struct drm_i915_private *dev_priv = to_i915(dev);
 	struct intel_crtc *intel_crtc = to_intel_crtc(encoder->crtc);
 	struct intel_dsi *intel_dsi = enc_to_intel_dsi(encoder);
 	const struct drm_display_mode *adjusted_mode = &intel_crtc->config->base.adjusted_mode;
@@ -1434,7 +1434,7 @@ void intel_dsi_init(struct drm_device *dev)
 	struct intel_connector *intel_connector;
 	struct drm_connector *connector;
 	struct drm_display_mode *scan, *fixed_mode = NULL;
-	struct drm_i915_private *dev_priv = dev->dev_private;
+	struct drm_i915_private *dev_priv = to_i915(dev);
 	enum port port;
 	unsigned int i;
 

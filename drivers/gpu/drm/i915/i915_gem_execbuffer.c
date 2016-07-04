@@ -1142,7 +1142,7 @@ i915_reset_gen7_sol_offsets(struct drm_device *dev,
 			    struct drm_i915_gem_request *req)
 {
 	struct intel_engine_cs *engine = req->engine;
-	struct drm_i915_private *dev_priv = dev->dev_private;
+	struct drm_i915_private *dev_priv = to_i915(dev);
 	int ret, i;
 
 	if (!IS_GEN7(dev) || engine != &dev_priv->engine[RCS]) {
@@ -1225,7 +1225,7 @@ i915_gem_ringbuffer_submission(struct i915_execbuffer_params *params,
 {
 	struct drm_device *dev = params->dev;
 	struct intel_engine_cs *engine = params->engine;
-	struct drm_i915_private *dev_priv = dev->dev_private;
+	struct drm_i915_private *dev_priv = to_i915(dev);
 	u64 exec_start, exec_len;
 	int instp_mode;
 	u32 instp_mask;

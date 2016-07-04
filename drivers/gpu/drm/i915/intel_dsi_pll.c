@@ -114,7 +114,7 @@ static int dsi_calc_mnp(struct drm_i915_private *dev_priv,
 static int vlv_compute_dsi_pll(struct intel_encoder *encoder,
 			       struct intel_crtc_state *config)
 {
-	struct drm_i915_private *dev_priv = encoder->base.dev->dev_private;
+	struct drm_i915_private *dev_priv = to_i915(encoder->base.dev);
 	struct intel_dsi *intel_dsi = enc_to_intel_dsi(&encoder->base);
 	int ret;
 	u32 dsi_clk;
@@ -325,7 +325,7 @@ static u32 bxt_dsi_get_pclk(struct intel_encoder *encoder, int pipe_bpp,
 	u32 dsi_clk;
 	u32 dsi_ratio;
 	struct intel_dsi *intel_dsi = enc_to_intel_dsi(&encoder->base);
-	struct drm_i915_private *dev_priv = encoder->base.dev->dev_private;
+	struct drm_i915_private *dev_priv = to_i915(encoder->base.dev);
 
 	/* Divide by zero */
 	if (!pipe_bpp) {
@@ -360,7 +360,7 @@ u32 intel_dsi_get_pclk(struct intel_encoder *encoder, int pipe_bpp,
 static void vlv_dsi_reset_clocks(struct intel_encoder *encoder, enum port port)
 {
 	u32 temp;
-	struct drm_i915_private *dev_priv = encoder->base.dev->dev_private;
+	struct drm_i915_private *dev_priv = to_i915(encoder->base.dev);
 	struct intel_dsi *intel_dsi = enc_to_intel_dsi(&encoder->base);
 
 	temp = I915_READ(MIPI_CTRL(port));
@@ -374,7 +374,7 @@ static void vlv_dsi_reset_clocks(struct intel_encoder *encoder, enum port port)
 static void bxt_dsi_program_clocks(struct drm_device *dev, enum port port,
 				   const struct intel_crtc_state *config)
 {
-	struct drm_i915_private *dev_priv = dev->dev_private;
+	struct drm_i915_private *dev_priv = to_i915(dev);
 	u32 tmp;
 	u32 dsi_rate = 0;
 	u32 pll_ratio = 0;
@@ -469,7 +469,7 @@ static int bxt_compute_dsi_pll(struct intel_encoder *encoder,
 static void bxt_enable_dsi_pll(struct intel_encoder *encoder,
 			       const struct intel_crtc_state *config)
 {
-	struct drm_i915_private *dev_priv = encoder->base.dev->dev_private;
+	struct drm_i915_private *dev_priv = to_i915(encoder->base.dev);
 	struct intel_dsi *intel_dsi = enc_to_intel_dsi(&encoder->base);
 	enum port port;
 	u32 val;
@@ -550,7 +550,7 @@ static void bxt_dsi_reset_clocks(struct intel_encoder *encoder, enum port port)
 {
 	u32 tmp;
 	struct drm_device *dev = encoder->base.dev;
-	struct drm_i915_private *dev_priv = dev->dev_private;
+	struct drm_i915_private *dev_priv = to_i915(dev);
 
 	/* Clear old configurations */
 	tmp = I915_READ(BXT_MIPI_CLOCK_CTL);

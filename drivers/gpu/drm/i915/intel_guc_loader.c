@@ -413,7 +413,7 @@ static int i915_reset_guc(struct drm_i915_private *dev_priv)
  */
 int intel_guc_setup(struct drm_device *dev)
 {
-	struct drm_i915_private *dev_priv = dev->dev_private;
+	struct drm_i915_private *dev_priv = to_i915(dev);
 	struct intel_guc_fw *guc_fw = &dev_priv->guc.guc_fw;
 	const char *fw_path = guc_fw->guc_fw_path;
 	int retries, ret, err;
@@ -681,7 +681,7 @@ fail:
  */
 void intel_guc_init(struct drm_device *dev)
 {
-	struct drm_i915_private *dev_priv = dev->dev_private;
+	struct drm_i915_private *dev_priv = to_i915(dev);
 	struct intel_guc_fw *guc_fw = &dev_priv->guc.guc_fw;
 	const char *fw_path;
 
@@ -734,7 +734,7 @@ void intel_guc_init(struct drm_device *dev)
  */
 void intel_guc_fini(struct drm_device *dev)
 {
-	struct drm_i915_private *dev_priv = dev->dev_private;
+	struct drm_i915_private *dev_priv = to_i915(dev);
 	struct intel_guc_fw *guc_fw = &dev_priv->guc.guc_fw;
 
 	mutex_lock(&dev->struct_mutex);

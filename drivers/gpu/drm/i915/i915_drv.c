@@ -144,7 +144,7 @@ static enum intel_pch intel_virt_detect_pch(struct drm_device *dev)
 
 static void intel_detect_pch(struct drm_device *dev)
 {
-	struct drm_i915_private *dev_priv = dev->dev_private;
+	struct drm_i915_private *dev_priv = to_i915(dev);
 	struct pci_dev *pch = NULL;
 
 	/* In all current cases, num_pipes is equivalent to the PCH_NOP setting
@@ -248,7 +248,7 @@ bool i915_semaphore_is_enabled(struct drm_i915_private *dev_priv)
 static int i915_getparam(struct drm_device *dev, void *data,
 			 struct drm_file *file_priv)
 {
-	struct drm_i915_private *dev_priv = dev->dev_private;
+	struct drm_i915_private *dev_priv = to_i915(dev);
 	drm_i915_getparam_t *param = data;
 	int value;
 
@@ -384,7 +384,7 @@ static int i915_getparam(struct drm_device *dev, void *data,
 
 static int i915_get_bridge_dev(struct drm_device *dev)
 {
-	struct drm_i915_private *dev_priv = dev->dev_private;
+	struct drm_i915_private *dev_priv = to_i915(dev);
 
 	dev_priv->bridge_dev = pci_get_bus_and_slot(0, PCI_DEVFN(0, 0));
 	if (!dev_priv->bridge_dev) {
@@ -398,7 +398,7 @@ static int i915_get_bridge_dev(struct drm_device *dev)
 static int
 intel_alloc_mchbar_resource(struct drm_device *dev)
 {
-	struct drm_i915_private *dev_priv = dev->dev_private;
+	struct drm_i915_private *dev_priv = to_i915(dev);
 	int reg = INTEL_INFO(dev)->gen >= 4 ? MCHBAR_I965 : MCHBAR_I915;
 	u32 temp_lo, temp_hi = 0;
 	u64 mchbar_addr;
@@ -444,7 +444,7 @@ intel_alloc_mchbar_resource(struct drm_device *dev)
 static void
 intel_setup_mchbar(struct drm_device *dev)
 {
-	struct drm_i915_private *dev_priv = dev->dev_private;
+	struct drm_i915_private *dev_priv = to_i915(dev);
 	int mchbar_reg = INTEL_INFO(dev)->gen >= 4 ? MCHBAR_I965 : MCHBAR_I915;
 	u32 temp;
 	bool enabled;
@@ -484,7 +484,7 @@ intel_setup_mchbar(struct drm_device *dev)
 static void
 intel_teardown_mchbar(struct drm_device *dev)
 {
-	struct drm_i915_private *dev_priv = dev->dev_private;
+	struct drm_i915_private *dev_priv = to_i915(dev);
 	int mchbar_reg = INTEL_INFO(dev)->gen >= 4 ? MCHBAR_I965 : MCHBAR_I915;
 
 	if (dev_priv->mchbar_need_disable) {
@@ -601,7 +601,7 @@ static void i915_gem_fini(struct drm_device *dev)
 
 static int i915_load_modeset_init(struct drm_device *dev)
 {
-	struct drm_i915_private *dev_priv = dev->dev_private;
+	struct drm_i915_private *dev_priv = to_i915(dev);
 	int ret;
 
 	if (i915_inject_load_failure())
@@ -1671,7 +1671,7 @@ out_free_priv:
 
 void i915_driver_unload(struct drm_device *dev)
 {
-	struct drm_i915_private *dev_priv = dev->dev_private;
+	struct drm_i915_private *dev_priv = to_i915(dev);
 
 	intel_fbdev_fini(dev);
 
@@ -1797,7 +1797,7 @@ static bool suspend_to_idle(struct drm_i915_private *dev_priv)
 
 static int i915_drm_suspend(struct drm_device *dev)
 {
-	struct drm_i915_private *dev_priv = dev->dev_private;
+	struct drm_i915_private *dev_priv = to_i915(dev);
 	pci_power_t opregion_target_state;
 	int error;
 
@@ -1864,7 +1864,7 @@ out:
 
 static int i915_drm_suspend_late(struct drm_device *drm_dev, bool hibernation)
 {
-	struct drm_i915_private *dev_priv = drm_dev->dev_private;
+	struct drm_i915_private *dev_priv = to_i915(drm_dev);
 	bool fw_csr;
 	int ret;
 
@@ -1948,7 +1948,7 @@ int i915_suspend_switcheroo(struct drm_device *dev, pm_message_t state)
 
 static int i915_drm_resume(struct drm_device *dev)
 {
-	struct drm_i915_private *dev_priv = dev->dev_private;
+	struct drm_i915_private *dev_priv = to_i915(dev);
 	int ret;
 
 	disable_rpm_wakeref_asserts(dev_priv);
@@ -2028,7 +2028,7 @@ static int i915_drm_resume(struct drm_device *dev)
 
 static int i915_drm_resume_early(struct drm_device *dev)
 {
-	struct drm_i915_private *dev_priv = dev->dev_private;
+	struct drm_i915_private *dev_priv = to_i915(dev);
 	int ret;
 
 	/*
@@ -2684,7 +2684,7 @@ static int intel_runtime_suspend(struct device *device)
 {
 	struct pci_dev *pdev = to_pci_dev(device);
 	struct drm_device *dev = pci_get_drvdata(pdev);
-	struct drm_i915_private *dev_priv = dev->dev_private;
+	struct drm_i915_private *dev_priv = to_i915(dev);
 	int ret;
 
 	if (WARN_ON_ONCE(!(dev_priv->rps.enabled && intel_enable_rc6())))
@@ -2788,7 +2788,7 @@ static int intel_runtime_resume(struct device *device)
 {
 	struct pci_dev *pdev = to_pci_dev(device);
 	struct drm_device *dev = pci_get_drvdata(pdev);
-	struct drm_i915_private *dev_priv = dev->dev_private;
+	struct drm_i915_private *dev_priv = to_i915(dev);
 	int ret = 0;
 
 	if (WARN_ON_ONCE(!HAS_RUNTIME_PM(dev)))

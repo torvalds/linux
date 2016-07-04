@@ -1732,7 +1732,7 @@ static int gen6_mm_switch(struct i915_hw_ppgtt *ppgtt,
 {
 	struct intel_engine_cs *engine = req->engine;
 	struct drm_device *dev = ppgtt->base.dev;
-	struct drm_i915_private *dev_priv = dev->dev_private;
+	struct drm_i915_private *dev_priv = to_i915(dev);
 
 
 	I915_WRITE(RING_PP_DIR_DCLV(engine), PP_DIR_DCLV_2G);
@@ -1745,7 +1745,7 @@ static int gen6_mm_switch(struct i915_hw_ppgtt *ppgtt,
 
 static void gen8_ppgtt_enable(struct drm_device *dev)
 {
-	struct drm_i915_private *dev_priv = dev->dev_private;
+	struct drm_i915_private *dev_priv = to_i915(dev);
 	struct intel_engine_cs *engine;
 
 	for_each_engine(engine, dev_priv) {
@@ -1757,7 +1757,7 @@ static void gen8_ppgtt_enable(struct drm_device *dev)
 
 static void gen7_ppgtt_enable(struct drm_device *dev)
 {
-	struct drm_i915_private *dev_priv = dev->dev_private;
+	struct drm_i915_private *dev_priv = to_i915(dev);
 	struct intel_engine_cs *engine;
 	uint32_t ecochk, ecobits;
 
@@ -1782,7 +1782,7 @@ static void gen7_ppgtt_enable(struct drm_device *dev)
 
 static void gen6_ppgtt_enable(struct drm_device *dev)
 {
-	struct drm_i915_private *dev_priv = dev->dev_private;
+	struct drm_i915_private *dev_priv = to_i915(dev);
 	uint32_t ecochk, gab_ctl, ecobits;
 
 	ecobits = I915_READ(GAC_ECO_BITS);
@@ -2142,7 +2142,7 @@ static void i915_address_space_init(struct i915_address_space *vm,
 
 static void gtt_write_workarounds(struct drm_device *dev)
 {
-	struct drm_i915_private *dev_priv = dev->dev_private;
+	struct drm_i915_private *dev_priv = to_i915(dev);
 
 	/* This function is for gtt related workarounds. This function is
 	 * called on driver load and after a GPU reset, so you can place
@@ -2161,7 +2161,7 @@ static void gtt_write_workarounds(struct drm_device *dev)
 
 static int i915_ppgtt_init(struct drm_device *dev, struct i915_hw_ppgtt *ppgtt)
 {
-	struct drm_i915_private *dev_priv = dev->dev_private;
+	struct drm_i915_private *dev_priv = to_i915(dev);
 	int ret = 0;
 
 	ret = __hw_ppgtt_init(dev, ppgtt);
@@ -2611,7 +2611,7 @@ static void i915_ggtt_insert_entries(struct i915_address_space *vm,
 				     uint64_t start,
 				     enum i915_cache_level cache_level, u32 unused)
 {
-	struct drm_i915_private *dev_priv = vm->dev->dev_private;
+	struct drm_i915_private *dev_priv = to_i915(vm->dev);
 	unsigned int flags = (cache_level == I915_CACHE_NONE) ?
 		AGP_USER_MEMORY : AGP_USER_CACHED_MEMORY;
 	int rpm_atomic_seq;
@@ -2629,7 +2629,7 @@ static void i915_ggtt_clear_range(struct i915_address_space *vm,
 				  uint64_t length,
 				  bool unused)
 {
-	struct drm_i915_private *dev_priv = vm->dev->dev_private;
+	struct drm_i915_private *dev_priv = to_i915(vm->dev);
 	unsigned first_entry = start >> PAGE_SHIFT;
 	unsigned num_entries = length >> PAGE_SHIFT;
 	int rpm_atomic_seq;
@@ -2710,7 +2710,7 @@ static int aliasing_gtt_bind_vma(struct i915_vma *vma,
 static void ggtt_unbind_vma(struct i915_vma *vma)
 {
 	struct drm_device *dev = vma->vm->dev;
-	struct drm_i915_private *dev_priv = dev->dev_private;
+	struct drm_i915_private *dev_priv = to_i915(dev);
 	struct drm_i915_gem_object *obj = vma->obj;
 	const uint64_t size = min_t(uint64_t,
 				    obj->base.size,
@@ -2736,7 +2736,7 @@ static void ggtt_unbind_vma(struct i915_vma *vma)
 void i915_gem_gtt_finish_object(struct drm_i915_gem_object *obj)
 {
 	struct drm_device *dev = obj->base.dev;
-	struct drm_i915_private *dev_priv = dev->dev_private;
+	struct drm_i915_private *dev_priv = to_i915(dev);
 	bool interruptible;
 
 	interruptible = do_idling(dev_priv);

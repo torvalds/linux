@@ -823,7 +823,7 @@ int intel_execlists_submission(struct i915_execbuffer_params *params,
 {
 	struct drm_device       *dev = params->dev;
 	struct intel_engine_cs *engine = params->engine;
-	struct drm_i915_private *dev_priv = dev->dev_private;
+	struct drm_i915_private *dev_priv = to_i915(dev);
 	struct intel_ringbuffer *ringbuf = params->ctx->engine[engine->id].ringbuf;
 	u64 exec_start;
 	int instp_mode;
@@ -2172,7 +2172,7 @@ logical_ring_setup(struct drm_i915_private *dev_priv, enum intel_engine_id id)
  */
 int intel_logical_rings_init(struct drm_device *dev)
 {
-	struct drm_i915_private *dev_priv = dev->dev_private;
+	struct drm_i915_private *dev_priv = to_i915(dev);
 	unsigned int mask = 0;
 	unsigned int i;
 	int ret;
