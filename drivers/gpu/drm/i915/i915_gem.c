@@ -1462,6 +1462,21 @@ int __i915_wait_request(struct drm_i915_gem_request *req,
 
 	trace_i915_gem_request_wait_begin(req);
 
+	/* This client is about to stall waiting for the GPU. In many cases
+	 * this is undesirable and limits the throughput of the system, as
+	 * many clients cannot continue processing user input/output whilst
+	 * blocked. RPS autotuning may take tens of milliseconds to respond
+	 * to the GPU load and thus incurs additional latency for the client.
+	 * We can circumvent that by promoting the GPU frequency to maximum
+	 * before we wait. This makes the GPU throttle up much more quickly
+	 * (good for benchmarks and user experience, e.g. window animations),
+	 * but at a cost of spending more power processing the workload
+	 * (bad for battery). Not all clients even want their results
+	 * immediately and for them we should just let the GPU select its own
+	 * frequency to maximise efficiency. To prevent a single client from
+	 * forcing the clocks too high for the whole system, we only allow
+	 * each client to waitboost once in a busy period.
+	 */
 	if (INTEL_INFO(req->i915)->gen >= 6)
 		gen6_rps_boost(req->i915, rps, req->emitted_jiffies);
 
