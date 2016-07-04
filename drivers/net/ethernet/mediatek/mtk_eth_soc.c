@@ -1492,7 +1492,6 @@ static void mtk_uninit(struct net_device *dev)
 	phy_disconnect(mac->phy_dev);
 	mtk_mdio_cleanup(eth);
 	mtk_irq_disable(eth, ~0);
-	free_irq(eth->irq[0], dev);
 	free_irq(eth->irq[1], dev);
 	free_irq(eth->irq[2], dev);
 }
