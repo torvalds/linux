@@ -9559,7 +9559,7 @@ M:	Florian Fainelli <florian@openwrt.org>
 S:	Maintained
 
 RDC R6040 FAST ETHERNET DRIVER
-M:	Florian Fainelli <florian@openwrt.org>
+M:	Florian Fainelli <f.fainelli@gmail.com>
 L:	netdev@vger.kernel.org
 S:	Maintained
 F:	drivers/net/ethernet/rdc/r6040.c
