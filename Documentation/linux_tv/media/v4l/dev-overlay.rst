@@ -6,8 +6,8 @@
 Video Overlay Interface
 ***********************
 
+**Also known as Framebuffer Overlay or Previewing.**
 
-**Also known as Framebuffer Overlay or Previewing**
 Video overlay devices have the ability to genlock (TV-)video into the
 (VGA-)video signal of a graphics card, or to store captured images
 directly in video memory of a graphics card, typically with clipping.
@@ -183,17 +183,15 @@ struct v4l2_window
     applications can set this field to point to an array of clipping
     rectangles.
 
-Like the window coordinates
-w
-, clipping rectangles are defined relative to the top, left corner of
-the frame buffer. However clipping rectangles must not extend the frame
-buffer width and height, and they must not overlap. If possible
-applications should merge adjacent rectangles. Whether this must create
-x-y or y-x bands, or the order of rectangles, is not defined. When clip
-lists are not supported the driver ignores this field. Its contents
-after calling
-!ri!:ref:`VIDIOC_S_FMT <VIDIOC_G_FMT>`
-are undefined.
+    Like the window coordinates w, clipping rectangles are defined
+    relative to the top, left corner of the frame buffer. However
+    clipping rectangles must not extend the frame buffer width and
+    height, and they must not overlap. If possible applications
+    should merge adjacent rectangles. Whether this must create
+    x-y or y-x bands, or the order of rectangles, is not defined. When
+    clip lists are not supported the driver ignores this field. Its
+    contents after calling :ref:`VIDIOC_S_FMT <VIDIOC_G_FMT>`
+    are undefined.
 
 ``__u32 clipcount``
     When the application set the ``clips`` field, this field must
@@ -237,22 +235,16 @@ exceeded are undefined. [3]_
     :ref:`VIDIOC_S_FBUF <VIDIOC_G_FBUF>`,
     :ref:`framebuffer-flags`).
 
-Note this field was added in Linux 2.6.23, extending the structure.
-However the
-!ri!:ref:`VIDIOC_G/S/TRY_FMT <VIDIOC_G_FMT>`
-ioctls, which take a pointer to a
-!ri!:ref:`v4l2_format <v4l2-format>`
-parent structure with padding bytes at the end, are not affected.
+    **Note**: this field was added in Linux 2.6.23, extending the structure.
+    However the :ref:`VIDIOC_[G|S|TRY]_FMT <VIDIOC_G_FMT>`
+    ioctls, which take a pointer to a :ref:`v4l2_format <v4l2-format>`
+    parent structure with padding bytes at the end, are not affected.
 
 
 .. _v4l2-clip:
 
-struct v4l2_clip
+struct v4l2_clip [4]_
 ----------------
-
-The X Window system defines "regions" which are vectors of struct BoxRec
-{ short x1, y1, x2, y2; } with width = x2 - x1 and height = y2 - y1, so
-one cannot pass X11 clip lists directly.
 
 ``struct v4l2_rect c``
     Coordinates of the clipping rectangle, relative to the top, left
@@ -260,7 +252,7 @@ one cannot pass X11 clip lists directly.
     clipping rectangles are displayed.
 
 ``struct v4l2_clip * next``
-    Pointer to the next clipping rectangle, NULL when this is the last
+    Pointer to the next clipping rectangle, ``NULL`` when this is the last
     rectangle. Drivers ignore this field, it cannot be used to pass a
     linked list of clipping rectangles.
 
@@ -317,3 +309,8 @@ To start or stop the frame buffer overlay applications call the
    because the application and graphics system are not aware these
    regions need to be refreshed. The driver should clip out more pixels
    or not write the image at all.
+
+.. [4]
+   The X Window system defines "regions" which are vectors of ``struct
+   BoxRec { short x1, y1, x2, y2; }`` with ``width = x2 - x1`` and
+   ``height = y2 - y1``, so one cannot pass X11 clip lists directly.
