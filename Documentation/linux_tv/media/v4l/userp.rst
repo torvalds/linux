@@ -28,6 +28,7 @@ indexed and cannot be queried like mapped buffers with the
 
 
 .. code-block:: c
+    :caption: Example 3.3. Initiating streaming I/O with user pointers
 
     struct v4l2_requestbuffers reqbuf;
 
