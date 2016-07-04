@@ -212,6 +212,39 @@ int thread__insert_map(struct thread *thread, struct map *map)
 	return 0;
 }
 
+static int __thread__prepare_access(struct thread *thread)
+{
+	bool initialized = false;
+	int i, err = 0;
+
+	for (i = 0; i < MAP__NR_TYPES; ++i) {
+		struct maps *maps = &thread->mg->maps[i];
+		struct map *map;
+
+		pthread_rwlock_rdlock(&maps->lock);
+
+		for (map = maps__first(maps); map; map = map__next(map)) {
+			err = unwind__prepare_access(thread, map, &initialized);
+			if (err || initialized)
+				break;
+		}
+
+		pthread_rwlock_unlock(&maps->lock);
+	}
+
+	return err;
+}
+
+static int thread__prepare_access(struct thread *thread)
+{
+	int err = 0;
+
+	if (symbol_conf.use_callchain)
+		err = __thread__prepare_access(thread);
+
+	return err;
+}
+
 static int thread__clone_map_groups(struct thread *thread,
 				    struct thread *parent)
 {
@@ -219,7 +252,7 @@ static int thread__clone_map_groups(struct thread *thread,
 
 	/* This is new thread, we share map groups for process. */
 	if (thread->pid_ == parent->pid_)
-		return 0;
+		return thread__prepare_access(thread);
 
 	if (thread->mg == parent->mg) {
 		pr_debug("broken map groups on thread %d/%d parent %d/%d\n",
@@ -229,7 +262,7 @@ static int thread__clone_map_groups(struct thread *thread,
 
 	/* But this one is new process, copy maps. */
 	for (i = 0; i < MAP__NR_TYPES; ++i)
-		if (map_groups__clone(thread->mg, parent->mg, i) < 0)
+		if (map_groups__clone(thread, parent->mg, i) < 0)
 			return -ENOMEM;
 
 	return 0;
