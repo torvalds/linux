@@ -45,6 +45,7 @@
 #include <dt-bindings/interrupt-controller/arm-gic.h>
 #include <dt-bindings/interrupt-controller/irq.h>
 #include <dt-bindings/pinctrl/rockchip.h>
+#include <dt-bindings/power/rk3399-power.h>
 #include <dt-bindings/thermal/thermal.h>
 
 / {
@@ -592,6 +593,183 @@
 		pinctrl-2 = <&otp_gpio>;
 		#thermal-sensor-cells = <1>;
 		status = "disabled";
+	};
+
+	qos_hdcp: qos@ffa90000 {
+		compatible = "syscon";
+		reg = <0x0 0xffa90000 0x0 0x20>;
+	};
+
+	qos_iep: qos@ffa98000 {
+		compatible = "syscon";
+		reg = <0x0 0xffa98000 0x0 0x20>;
+	};
+
+	qos_isp0_m0: qos@ffaa0000 {
+		compatible = "syscon";
+		reg = <0x0 0xffaa0000 0x0 0x20>;
+	};
+
+	qos_isp0_m1: qos@ffaa0080 {
+		compatible = "syscon";
+		reg = <0x0 0xffaa0080 0x0 0x20>;
+	};
+
+	qos_isp1_m0: qos@ffaa8000 {
+		compatible = "syscon";
+		reg = <0x0 0xffaa8000 0x0 0x20>;
+	};
+
+	qos_isp1_m1: qos@ffaa8080 {
+		compatible = "syscon";
+		reg = <0x0 0xffaa8080 0x0 0x20>;
+	};
+
+	qos_rga_r: qos@ffab0000 {
+		compatible = "syscon";
+		reg = <0x0 0xffab0000 0x0 0x20>;
+	};
+
+	qos_rga_w: qos@ffab0080 {
+		compatible = "syscon";
+		reg = <0x0 0xffab0080 0x0 0x20>;
+	};
+
+	qos_video_m0: qos@ffab8000 {
+		compatible = "syscon";
+		reg = <0x0 0xffab8000 0x0 0x20>;
+	};
+
+	qos_video_m1_r: qos@ffac0000 {
+		compatible = "syscon";
+		reg = <0x0 0xffac0000 0x0 0x20>;
+	};
+
+	qos_video_m1_w: qos@ffac0080 {
+		compatible = "syscon";
+		reg = <0x0 0xffac0080 0x0 0x20>;
+	};
+
+	qos_vop_big_r: qos@ffac8000 {
+		compatible = "syscon";
+		reg = <0x0 0xffac8000 0x0 0x20>;
+	};
+
+	qos_vop_big_w: qos@ffac8080 {
+		compatible = "syscon";
+		reg = <0x0 0xffac8080 0x0 0x20>;
+	};
+
+	qos_vop_little: qos@ffad0000 {
+		compatible = "syscon";
+		reg = <0x0 0xffad0000 0x0 0x20>;
+	};
+
+	qos_gpu: qos@ffae0000 {
+		compatible = "syscon";
+		reg = <0x0 0xffae0000 0x0 0x20>;
+	};
+
+	pmu: power-management@ff310000 {
+		compatible = "rockchip,rk3399-pmu", "syscon", "simple-mfd";
+		reg = <0x0 0xff310000 0x0 0x1000>;
+
+		/*
+		 * Note: RK3399 supports 6 voltage domains including VD_CORE_L,
+		 * VD_CORE_B, VD_CENTER, VD_GPU, VD_LOGIC and VD_PMU.
+		 * Some of the power domains are grouped together for every
+		 * voltage domain.
+		 * The detail contents as below.
+		 */
+		power: power-controller {
+			compatible = "rockchip,rk3399-power-controller";
+			#power-domain-cells = <1>;
+			#address-cells = <1>;
+			#size-cells = <0>;
+
+			/* These power domains are grouped by VD_CENTER */
+			pd_iep@RK3399_PD_IEP {
+				reg = <RK3399_PD_IEP>;
+				clocks = <&cru ACLK_IEP>,
+					 <&cru HCLK_IEP>;
+				pm_qos = <&qos_iep>;
+			};
+			pd_rga@RK3399_PD_RGA {
+				reg = <RK3399_PD_RGA>;
+				clocks = <&cru ACLK_RGA>,
+					 <&cru HCLK_RGA>;
+				pm_qos = <&qos_rga_r>,
+					 <&qos_rga_w>;
+			};
+			pd_vcodec@RK3399_PD_VCODEC {
+				reg = <RK3399_PD_VCODEC>;
+				clocks = <&cru ACLK_VCODEC>,
+					 <&cru HCLK_VCODEC>;
+				pm_qos = <&qos_video_m0>;
+			};
+			pd_vdu@RK3399_PD_VDU {
+				reg = <RK3399_PD_VDU>;
+				clocks = <&cru ACLK_VDU>,
+					 <&cru HCLK_VDU>;
+				pm_qos = <&qos_video_m1_r>,
+					 <&qos_video_m1_w>;
+			};
+
+			/* These power domains are grouped by VD_GPU */
+			pd_gpu@RK3399_PD_GPU {
+				reg = <RK3399_PD_GPU>;
+				clocks = <&cru ACLK_GPU>;
+				pm_qos = <&qos_gpu>;
+			};
+
+			/* These power domains are grouped by VD_LOGIC */
+			pd_vio@RK3399_PD_VIO {
+				reg = <RK3399_PD_VIO>;
+				#address-cells = <1>;
+				#size-cells = <0>;
+
+				pd_hdcp@RK3399_PD_HDCP {
+					reg = <RK3399_PD_HDCP>;
+					clocks = <&cru ACLK_HDCP>,
+						 <&cru HCLK_HDCP>,
+						 <&cru PCLK_HDCP>;
+					pm_qos = <&qos_hdcp>;
+				};
+				pd_isp0@RK3399_PD_ISP0 {
+					reg = <RK3399_PD_ISP0>;
+					clocks = <&cru ACLK_ISP0>,
+						 <&cru HCLK_ISP0>;
+					pm_qos = <&qos_isp0_m0>,
+						 <&qos_isp0_m1>;
+				};
+				pd_isp1@RK3399_PD_ISP1 {
+					reg = <RK3399_PD_ISP1>;
+					clocks = <&cru ACLK_ISP1>,
+						 <&cru HCLK_ISP1>;
+					pm_qos = <&qos_isp1_m0>,
+						 <&qos_isp1_m1>;
+				};
+				pd_vo@RK3399_PD_VO {
+					reg = <RK3399_PD_VO>;
+					#address-cells = <1>;
+					#size-cells = <0>;
+
+					pd_vopb@RK3399_PD_VOPB {
+						reg = <RK3399_PD_VOPB>;
+						clocks = <&cru ACLK_VOP0>,
+							 <&cru HCLK_VOP0>;
+						pm_qos = <&qos_vop_big_r>,
+							 <&qos_vop_big_w>;
+					};
+					pd_vopl@RK3399_PD_VOPL {
+						reg = <RK3399_PD_VOPL>;
+						clocks = <&cru ACLK_VOP1>,
+							 <&cru HCLK_VOP1>;
+						pm_qos = <&qos_vop_little>;
+					};
+				};
+			};
+		};
 	};
 
 	pmugrf: syscon@ff320000 {
