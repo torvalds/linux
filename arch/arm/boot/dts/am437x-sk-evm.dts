@@ -428,7 +428,6 @@
 		#interrupt-cells = <2>;
 
 		dcdc1: regulator-dcdc1 {
-			compatible = "ti,tps65218-dcdc1";
 			/* VDD_CORE limits min of OPP50 and max of OPP100 */
 			regulator-name = "vdd_core";
 			regulator-min-microvolt = <912000>;
@@ -438,7 +437,6 @@
 		};
 
 		dcdc2: regulator-dcdc2 {
-			compatible = "ti,tps65218-dcdc2";
 			/* VDD_MPU limits min of OPP50 and max of OPP_NITRO */
 			regulator-name = "vdd_mpu";
 			regulator-min-microvolt = <912000>;
@@ -448,7 +446,6 @@
 		};
 
 		dcdc3: regulator-dcdc3 {
-			compatible = "ti,tps65218-dcdc3";
 			regulator-name = "vdds_ddr";
 			regulator-min-microvolt = <1500000>;
 			regulator-max-microvolt = <1500000>;
@@ -463,7 +460,6 @@
 		};
 
 		dcdc4: regulator-dcdc4 {
-			compatible = "ti,tps65218-dcdc4";
 			regulator-name = "v3_3d";
 			regulator-min-microvolt = <3300000>;
 			regulator-max-microvolt = <3300000>;
@@ -496,7 +492,6 @@
 		};
 
 		ldo1: regulator-ldo1 {
-			compatible = "ti,tps65218-ldo1";
 			regulator-name = "v1_8d";
 			regulator-min-microvolt = <1800000>;
 			regulator-max-microvolt = <1800000>;
