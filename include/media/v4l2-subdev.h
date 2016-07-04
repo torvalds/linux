@@ -358,7 +358,7 @@ struct v4l2_mbus_frame_desc {
  * @s_stream: used to notify the driver that a video stream will start or has
  *	stopped.
  *
- * @cropcap: callback for %VIDIOC_CROPCAP ioctl handler code.
+ * @g_pixelaspect: callback to return the pixelaspect ratio.
  *
  * @g_parm: callback for %VIDIOC_G_PARM ioctl handler code.
  *
@@ -398,7 +398,7 @@ struct v4l2_subdev_video_ops {
 	int (*g_tvnorms_output)(struct v4l2_subdev *sd, v4l2_std_id *std);
 	int (*g_input_status)(struct v4l2_subdev *sd, u32 *status);
 	int (*s_stream)(struct v4l2_subdev *sd, int enable);
-	int (*cropcap)(struct v4l2_subdev *sd, struct v4l2_cropcap *cc);
+	int (*g_pixelaspect)(struct v4l2_subdev *sd, struct v4l2_fract *aspect);
 	int (*g_parm)(struct v4l2_subdev *sd, struct v4l2_streamparm *param);
 	int (*s_parm)(struct v4l2_subdev *sd, struct v4l2_streamparm *param);
 	int (*g_frame_interval)(struct v4l2_subdev *sd,
