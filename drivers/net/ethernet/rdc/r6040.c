@@ -622,7 +622,7 @@ static void r6040_tx(struct net_device *dev)
 		pci_unmap_single(priv->pdev, le32_to_cpu(descptr->buf),
 			skb_ptr->len, PCI_DMA_TODEVICE);
 		/* Free buffer */
-		dev_kfree_skb_irq(skb_ptr);
+		dev_kfree_skb(skb_ptr);
 		descptr->skb_ptr = NULL;
 		/* To next descriptor */
 		descptr = descptr->vndescp;
@@ -643,12 +643,15 @@ static int r6040_poll(struct napi_struct *napi, int budget)
 	void __iomem *ioaddr = priv->base;
 	int work_done;
 
+	r6040_tx(dev);
+
 	work_done = r6040_rx(dev, budget);
 
 	if (work_done < budget) {
 		napi_complete(napi);
-		/* Enable RX interrupt */
-		iowrite16(ioread16(ioaddr + MIER) | RX_INTS, ioaddr + MIER);
+		/* Enable RX/TX interrupt */
+		iowrite16(ioread16(ioaddr + MIER) | RX_INTS | TX_INTS,
+			  ioaddr + MIER);
 	}
 	return work_done;
 }
@@ -675,7 +678,7 @@ static irqreturn_t r6040_interrupt(int irq, void *dev_id)
 	}
 
 	/* RX interrupt request */
-	if (status & RX_INTS) {
+	if (status & (RX_INTS | TX_INTS)) {
 		if (status & RX_NO_DESC) {
 			/* RX descriptor unavailable */
 			dev->stats.rx_dropped++;
@@ -686,14 +689,10 @@ static irqreturn_t r6040_interrupt(int irq, void *dev_id)
 
 		if (likely(napi_schedule_prep(&lp->napi))) {
 			/* Mask off RX interrupt */
-			misr &= ~RX_INTS;
+			misr &= ~(RX_INTS | TX_INTS);
 			__napi_schedule(&lp->napi);
 		}
 	}
-
-	/* TX interrupt request */
-	if (status & TX_INTS)
-		r6040_tx(dev);
 
 	/* Restore RDC MAC interrupt */
 	iowrite16(misr, ioaddr + MIER);
