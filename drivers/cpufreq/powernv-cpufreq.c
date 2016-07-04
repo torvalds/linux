@@ -530,8 +530,7 @@ static inline void  queue_gpstate_timer(struct global_pstate_info *gpstates)
 	else
 		timer_interval = GPSTATE_TIMER_INTERVAL;
 
-	mod_timer_pinned(&gpstates->timer, jiffies +
-			msecs_to_jiffies(timer_interval));
+	mod_timer(&gpstates->timer, jiffies + msecs_to_jiffies(timer_interval));
 }
 
 /**
@@ -699,7 +698,7 @@ static int powernv_cpufreq_cpu_init(struct cpufreq_policy *policy)
 	policy->driver_data = gpstates;
 
 	/* initialize timer */
-	init_timer_deferrable(&gpstates->timer);
+	init_timer_pinned_deferrable(&gpstates->timer);
 	gpstates->timer.data = (unsigned long)policy;
 	gpstates->timer.function = gpstate_timer_handler;
 	gpstates->timer.expires = jiffies +
