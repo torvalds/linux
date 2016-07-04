@@ -155,7 +155,7 @@ and always returns default parameters as :ref:`VIDIOC_G_FMT <VIDIOC_G_FMT>` does
 
        -  __u32
 
-       -  ``start``\ [2]
+       -  ``start``\ [2]_
 
        -  This is the scanning system line number associated with the first
 	  line of the VBI image, of the first and the second field
@@ -173,7 +173,7 @@ and always returns default parameters as :ref:`VIDIOC_G_FMT <VIDIOC_G_FMT>` does
 
        -  __u32
 
-       -  ``count``\ [2]
+       -  ``count``\ [2]_
 
        -  The number of lines in the first and second field image,
 	  respectively.
@@ -218,7 +218,7 @@ and always returns default parameters as :ref:`VIDIOC_G_FMT <VIDIOC_G_FMT>` does
 
        -  __u32
 
-       -  ``reserved``\ [2]
+       -  ``reserved``\ [2]_
 
        -  This array is reserved for future extensions. Drivers and
 	  applications must set it to zero.
@@ -275,11 +275,7 @@ and always returns default parameters as :ref:`VIDIOC_G_FMT <VIDIOC_G_FMT>` does
     :alt:    vbi_hsync.pdf / vbi_hsync.gif
     :align:  center
 
-    Line synchronization
-
-    Line synchronization diagram
-
-
+    **Figure 4.1. Line synchronization**
 
 
 .. _vbi-525:
@@ -288,10 +284,7 @@ and always returns default parameters as :ref:`VIDIOC_G_FMT <VIDIOC_G_FMT>` does
     :alt:    vbi_525.pdf / vbi_525.gif
     :align:  center
 
-    ITU-R 525 line numbering (M/NTSC and M/PAL)
-
-    NTSC field synchronization diagram
-
+    **Figure 4.2. ITU-R 525 line numbering (M/NTSC and M/PAL)**
 
 
 
@@ -301,9 +294,7 @@ and always returns default parameters as :ref:`VIDIOC_G_FMT <VIDIOC_G_FMT>` does
     :alt:    vbi_625.pdf / vbi_625.gif
     :align:  center
 
-    ITU-R 625 line numbering
-
-    PAL/SECAM field synchronization diagram
+    **Figure 4.3. ITU-R 625 line numbering**
 
 
 
@@ -327,8 +318,7 @@ The total size of a frame computes as follows:
 
 .. code-block:: c
 
-    (count[0] + count[1]) *
-    samples_per_line * sample size in bytes
+    (count[0] + count[1]) * samples_per_line * sample size in bytes
 
 The sample size is most likely always one byte, applications must check
 the ``sample_format`` field though, to function properly with other
@@ -339,8 +329,9 @@ A VBI device may support :ref:`read/write <rw>` and/or streaming
 The latter bears the possibility of synchronizing video and VBI data by
 using buffer timestamps.
 
-Remember the :ref:`VIDIOC_STREAMON` ioctl and the
-first read(), write() and select() call can be resource allocation
+Remember the :ref:`VIDIOC_STREAMON <VIDIOC_STREAMON>` ioctl and the
+first :ref:`read() <func-read>`, :ref:`write() <func-write>` and
+:ref:`select() <func-select>` call can be resource allocation
 points returning an ``EBUSY`` error code if the required hardware resources
 are temporarily unavailable, for example the device is already in use by
 another process.
