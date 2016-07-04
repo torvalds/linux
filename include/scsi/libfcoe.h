@@ -78,10 +78,12 @@ enum fip_state {
  * The mode is the state that is to be entered after link up.
  * It must not change after fcoe_ctlr_init() sets it.
  */
-#define FIP_MODE_AUTO		FIP_ST_AUTO
-#define FIP_MODE_NON_FIP	FIP_ST_NON_FIP
-#define FIP_MODE_FABRIC		FIP_ST_ENABLED
-#define FIP_MODE_VN2VN		FIP_ST_VNMP_START
+enum fip_mode {
+	FIP_MODE_AUTO = FIP_ST_AUTO,
+	FIP_MODE_NON_FIP,
+	FIP_MODE_FABRIC,
+	FIP_MODE_VN2VN,
+};
 
 /**
  * struct fcoe_ctlr - FCoE Controller and FIP state
@@ -124,7 +126,7 @@ enum fip_state {
  */
 struct fcoe_ctlr {
 	enum fip_state state;
-	enum fip_state mode;
+	enum fip_mode mode;
 	struct fc_lport *lp;
 	struct fcoe_fcf *sel_fcf;
 	struct list_head fcfs;
@@ -311,7 +313,7 @@ struct fcoe_transport {
 	struct list_head list;
 	bool (*match) (struct net_device *device);
 	int (*alloc) (struct net_device *device);
-	int (*create) (struct net_device *device, enum fip_state fip_mode);
+	int (*create) (struct net_device *device, enum fip_mode fip_mode);
 	int (*destroy) (struct net_device *device);
 	int (*enable) (struct net_device *device);
 	int (*disable) (struct net_device *device);

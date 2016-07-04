@@ -107,7 +107,7 @@ static int fcoe_dcb_app_notification(struct notifier_block *notifier,
 				     ulong event, void *ptr);
 
 static bool fcoe_match(struct net_device *netdev);
-static int fcoe_create(struct net_device *netdev, enum fip_state fip_mode);
+static int fcoe_create(struct net_device *netdev, enum fip_mode fip_mode);
 static int fcoe_destroy(struct net_device *netdev);
 static int fcoe_enable(struct net_device *netdev);
 static int fcoe_disable(struct net_device *netdev);
@@ -2133,7 +2133,7 @@ enum fcoe_create_link_state {
  * consolidation of code can be done when that interface is
  * removed.
  */
-static int _fcoe_create(struct net_device *netdev, enum fip_state fip_mode,
+static int _fcoe_create(struct net_device *netdev, enum fip_mode fip_mode,
 			enum fcoe_create_link_state link_state)
 {
 	int rc = 0;
@@ -2222,7 +2222,7 @@ out:
  *
  * Returns: 0 for success
  */
-static int fcoe_create(struct net_device *netdev, enum fip_state fip_mode)
+static int fcoe_create(struct net_device *netdev, enum fip_mode fip_mode)
 {
 	return _fcoe_create(netdev, fip_mode, FCOE_CREATE_LINK_UP);
 }

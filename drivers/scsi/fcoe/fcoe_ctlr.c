@@ -2864,7 +2864,7 @@ unlock:
  * when nothing is happening.
  */
 static void fcoe_ctlr_mode_set(struct fc_lport *lport, struct fcoe_ctlr *fip,
-			       enum fip_state fip_mode)
+			       enum fip_mode fip_mode)
 {
 	void *priv;
 
