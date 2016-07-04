@@ -60,7 +60,7 @@ of the two interfaces they are used.
        -  0x0002
 
        -  Bounds of the crop rectangle. All valid crop rectangles fit inside
-          the crop bounds rectangle.
+	  the crop bounds rectangle.
 
        -  Yes
 
@@ -73,12 +73,12 @@ of the two interfaces they are used.
        -  0x0003
 
        -  The native size of the device, e.g. a sensor's pixel array.
-          ``left`` and ``top`` fields are zero for this target. Setting the
-          native size will generally only make sense for memory to memory
-          devices where the software can create a canvas of a given size in
-          which for example a video frame can be composed. In that case
-          V4L2_SEL_TGT_NATIVE_SIZE can be used to configure the size of
-          that canvas.
+	  ``left`` and ``top`` fields are zero for this target. Setting the
+	  native size will generally only make sense for memory to memory
+	  devices where the software can create a canvas of a given size in
+	  which for example a video frame can be composed. In that case
+	  V4L2_SEL_TGT_NATIVE_SIZE can be used to configure the size of
+	  that canvas.
 
        -  Yes
 
@@ -115,7 +115,7 @@ of the two interfaces they are used.
        -  0x0102
 
        -  Bounds of the compose rectangle. All valid compose rectangles fit
-          inside the compose bounds rectangle.
+	  inside the compose bounds rectangle.
 
        -  Yes
 
@@ -128,7 +128,7 @@ of the two interfaces they are used.
        -  0x0103
 
        -  The active area and all padding pixels that are inserted or
-          modified by hardware.
+	  modified by hardware.
 
        -  Yes
 

@@ -40,7 +40,7 @@ R'G'B' quantization.
        -  ``V4L2_COLORSPACE_DEFAULT``
 
        -  The default colorspace. This can be used by applications to let
-          the driver fill in the colorspace.
+	  the driver fill in the colorspace.
 
     -  .. row 3
 
@@ -107,10 +107,10 @@ R'G'B' quantization.
        -  ``V4L2_COLORSPACE_RAW``
 
        -  The raw colorspace. This is used for raw image capture where the
-          image is minimally processed and is using the internal colorspace
-          of the device. The software that processes an image using this
-          'colorspace' will have to know the internals of the capture
-          device.
+	  image is minimally processed and is using the internal colorspace
+	  of the device. The software that processes an image using this
+	  'colorspace' will have to know the internals of the capture
+	  device.
 
 
 
@@ -258,23 +258,23 @@ R'G'B' quantization.
        -  ``V4L2_QUANTIZATION_DEFAULT``
 
        -  Use the default quantization encoding as defined by the
-          colorspace. This is always full range for R'G'B' (except for the
-          BT.2020 colorspace) and usually limited range for Y'CbCr.
+	  colorspace. This is always full range for R'G'B' (except for the
+	  BT.2020 colorspace) and usually limited range for Y'CbCr.
 
     -  .. row 3
 
        -  ``V4L2_QUANTIZATION_FULL_RANGE``
 
        -  Use the full range quantization encoding. I.e. the range [0…1] is
-          mapped to [0…255] (with possible clipping to [1…254] to avoid the
-          0x00 and 0xff values). Cb and Cr are mapped from [-0.5…0.5] to
-          [0…255] (with possible clipping to [1…254] to avoid the 0x00 and
-          0xff values).
+	  mapped to [0…255] (with possible clipping to [1…254] to avoid the
+	  0x00 and 0xff values). Cb and Cr are mapped from [-0.5…0.5] to
+	  [0…255] (with possible clipping to [1…254] to avoid the 0x00 and
+	  0xff values).
 
     -  .. row 4
 
        -  ``V4L2_QUANTIZATION_LIM_RANGE``
 
        -  Use the limited range quantization encoding. I.e. the range [0…1]
-          is mapped to [16…235]. Cb and Cr are mapped from [-0.5…0.5] to
-          [16…240].
+	  is mapped to [16…235]. Cb and Cr are mapped from [-0.5…0.5] to
+	  [16…240].

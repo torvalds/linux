@@ -56,11 +56,11 @@ of the corresponding tuner/modulator is set.
        -  ``tuner``
 
        -  The tuner or modulator index number. This is the same value as in
-          the struct :ref:`v4l2_input <v4l2-input>` ``tuner`` field and
-          the struct :ref:`v4l2_tuner <v4l2-tuner>` ``index`` field, or
-          the struct :ref:`v4l2_output <v4l2-output>` ``modulator`` field
-          and the struct :ref:`v4l2_modulator <v4l2-modulator>` ``index``
-          field.
+	  the struct :ref:`v4l2_input <v4l2-input>` ``tuner`` field and
+	  the struct :ref:`v4l2_tuner <v4l2-tuner>` ``index`` field, or
+	  the struct :ref:`v4l2_output <v4l2-output>` ``modulator`` field
+	  and the struct :ref:`v4l2_modulator <v4l2-modulator>` ``index``
+	  field.
 
     -  .. row 2
 
@@ -69,11 +69,11 @@ of the corresponding tuner/modulator is set.
        -  ``type``
 
        -  The tuner type. This is the same value as in the struct
-          :ref:`v4l2_tuner <v4l2-tuner>` ``type`` field. The type must be
-          set to ``V4L2_TUNER_RADIO`` for ``/dev/radioX`` device nodes, and
-          to ``V4L2_TUNER_ANALOG_TV`` for all others. Set this field to
-          ``V4L2_TUNER_RADIO`` for modulators (currently only radio
-          modulators are supported). See :ref:`v4l2-tuner-type`
+	  :ref:`v4l2_tuner <v4l2-tuner>` ``type`` field. The type must be
+	  set to ``V4L2_TUNER_RADIO`` for ``/dev/radioX`` device nodes, and
+	  to ``V4L2_TUNER_ANALOG_TV`` for all others. Set this field to
+	  ``V4L2_TUNER_RADIO`` for modulators (currently only radio
+	  modulators are supported). See :ref:`v4l2-tuner-type`
 
     -  .. row 3
 
@@ -90,11 +90,11 @@ of the corresponding tuner/modulator is set.
        -  ``capability``
 
        -  :cspan:`2` The tuner/modulator capability flags for this
-          frequency band, see :ref:`tuner-capability`. The
-          ``V4L2_TUNER_CAP_LOW`` or ``V4L2_TUNER_CAP_1HZ`` capability must
-          be the same for all frequency bands of the selected
-          tuner/modulator. So either all bands have that capability set, or
-          none of them have that capability.
+	  frequency band, see :ref:`tuner-capability`. The
+	  ``V4L2_TUNER_CAP_LOW`` or ``V4L2_TUNER_CAP_1HZ`` capability must
+	  be the same for all frequency bands of the selected
+	  tuner/modulator. So either all bands have that capability set, or
+	  none of them have that capability.
 
     -  .. row 5
 
@@ -103,9 +103,9 @@ of the corresponding tuner/modulator is set.
        -  ``rangelow``
 
        -  :cspan:`2` The lowest tunable frequency in units of 62.5 kHz, or
-          if the ``capability`` flag ``V4L2_TUNER_CAP_LOW`` is set, in units
-          of 62.5 Hz, for this frequency band. A 1 Hz unit is used when the
-          ``capability`` flag ``V4L2_TUNER_CAP_1HZ`` is set.
+	  if the ``capability`` flag ``V4L2_TUNER_CAP_LOW`` is set, in units
+	  of 62.5 Hz, for this frequency band. A 1 Hz unit is used when the
+	  ``capability`` flag ``V4L2_TUNER_CAP_1HZ`` is set.
 
     -  .. row 6
 
@@ -114,9 +114,9 @@ of the corresponding tuner/modulator is set.
        -  ``rangehigh``
 
        -  :cspan:`2` The highest tunable frequency in units of 62.5 kHz,
-          or if the ``capability`` flag ``V4L2_TUNER_CAP_LOW`` is set, in
-          units of 62.5 Hz, for this frequency band. A 1 Hz unit is used
-          when the ``capability`` flag ``V4L2_TUNER_CAP_1HZ`` is set.
+	  or if the ``capability`` flag ``V4L2_TUNER_CAP_LOW`` is set, in
+	  units of 62.5 Hz, for this frequency band. A 1 Hz unit is used
+	  when the ``capability`` flag ``V4L2_TUNER_CAP_1HZ`` is set.
 
     -  .. row 7
 
@@ -125,12 +125,12 @@ of the corresponding tuner/modulator is set.
        -  ``modulation``
 
        -  :cspan:`2` The supported modulation systems of this frequency
-          band. See :ref:`band-modulation`. Note that currently only one
-          modulation system per frequency band is supported. More work will
-          need to be done if multiple modulation systems are possible.
-          Contact the linux-media mailing list
-          (`https://linuxtv.org/lists.php <https://linuxtv.org/lists.php>`__)
-          if you need that functionality.
+	  band. See :ref:`band-modulation`. Note that currently only one
+	  modulation system per frequency band is supported. More work will
+	  need to be done if multiple modulation systems are possible.
+	  Contact the linux-media mailing list
+	  (`https://linuxtv.org/lists.php <https://linuxtv.org/lists.php>`__)
+	  if you need that functionality.
 
     -  .. row 8
 
@@ -139,7 +139,7 @@ of the corresponding tuner/modulator is set.
        -  ``reserved``\ [9]
 
        -  Reserved for future extensions. Applications and drivers must set
-          the array to zero.
+	  the array to zero.
 
 
 

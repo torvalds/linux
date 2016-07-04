@@ -72,32 +72,32 @@ standard ioctls can be used with the given input or output.
     struct v4l2_standard standard;
 
     if (-1 == ioctl(fd, VIDIOC_G_STD, &std_id)) {
-        /* Note when VIDIOC_ENUMSTD always returns ENOTTY this
-           is no video device or it falls under the USB exception,
-           and VIDIOC_G_STD returning ENOTTY is no error. */
+	/* Note when VIDIOC_ENUMSTD always returns ENOTTY this
+	   is no video device or it falls under the USB exception,
+	   and VIDIOC_G_STD returning ENOTTY is no error. */
 
-        perror("VIDIOC_G_STD");
-        exit(EXIT_FAILURE);
+	perror("VIDIOC_G_STD");
+	exit(EXIT_FAILURE);
     }
 
     memset(&standard, 0, sizeof(standard));
     standard.index = 0;
 
     while (0 == ioctl(fd, VIDIOC_ENUMSTD, &standard)) {
-        if (standard.id & std_id) {
-               printf("Current video standard: %s\\n", standard.name);
-               exit(EXIT_SUCCESS);
-        }
+	if (standard.id & std_id) {
+	       printf("Current video standard: %s\\n", standard.name);
+	       exit(EXIT_SUCCESS);
+	}
 
-        standard.index++;
+	standard.index++;
     }
 
     /* EINVAL indicates the end of the enumeration, which cannot be
        empty unless this device falls under the USB exception. */
 
     if (errno == EINVAL || standard.index == 0) {
-        perror("VIDIOC_ENUMSTD");
-        exit(EXIT_FAILURE);
+	perror("VIDIOC_ENUMSTD");
+	exit(EXIT_FAILURE);
     }
 
 
@@ -110,13 +110,13 @@ standard ioctls can be used with the given input or output.
     memset(&input, 0, sizeof(input));
 
     if (-1 == ioctl(fd, VIDIOC_G_INPUT, &input.index)) {
-        perror("VIDIOC_G_INPUT");
-        exit(EXIT_FAILURE);
+	perror("VIDIOC_G_INPUT");
+	exit(EXIT_FAILURE);
     }
 
     if (-1 == ioctl(fd, VIDIOC_ENUMINPUT, &input)) {
-        perror("VIDIOC_ENUM_INPUT");
-        exit(EXIT_FAILURE);
+	perror("VIDIOC_ENUM_INPUT");
+	exit(EXIT_FAILURE);
     }
 
     printf("Current input %s supports:\\n", input.name);
@@ -125,18 +125,18 @@ standard ioctls can be used with the given input or output.
     standard.index = 0;
 
     while (0 == ioctl(fd, VIDIOC_ENUMSTD, &standard)) {
-        if (standard.id & input.std)
-            printf("%s\\n", standard.name);
+	if (standard.id & input.std)
+	    printf("%s\\n", standard.name);
 
-        standard.index++;
+	standard.index++;
     }
 
     /* EINVAL indicates the end of the enumeration, which cannot be
        empty unless this device falls under the USB exception. */
 
     if (errno != EINVAL || standard.index == 0) {
-        perror("VIDIOC_ENUMSTD");
-        exit(EXIT_FAILURE);
+	perror("VIDIOC_ENUMSTD");
+	exit(EXIT_FAILURE);
     }
 
 
@@ -149,18 +149,18 @@ standard ioctls can be used with the given input or output.
     memset(&input, 0, sizeof(input));
 
     if (-1 == ioctl(fd, VIDIOC_G_INPUT, &input.index)) {
-        perror("VIDIOC_G_INPUT");
-        exit(EXIT_FAILURE);
+	perror("VIDIOC_G_INPUT");
+	exit(EXIT_FAILURE);
     }
 
     if (-1 == ioctl(fd, VIDIOC_ENUMINPUT, &input)) {
-        perror("VIDIOC_ENUM_INPUT");
-        exit(EXIT_FAILURE);
+	perror("VIDIOC_ENUM_INPUT");
+	exit(EXIT_FAILURE);
     }
 
     if (0 == (input.std & V4L2_STD_PAL_BG)) {
-        fprintf(stderr, "Oops. B/G PAL is not supported.\\n");
-        exit(EXIT_FAILURE);
+	fprintf(stderr, "Oops. B/G PAL is not supported.\\n");
+	exit(EXIT_FAILURE);
     }
 
     /* Note this is also supposed to work when only B
@@ -169,8 +169,8 @@ standard ioctls can be used with the given input or output.
     std_id = V4L2_STD_PAL_BG;
 
     if (-1 == ioctl(fd, VIDIOC_S_STD, &std_id)) {
-        perror("VIDIOC_S_STD");
-        exit(EXIT_FAILURE);
+	perror("VIDIOC_S_STD");
+	exit(EXIT_FAILURE);
     }
 
 .. [1]

@@ -39,8 +39,8 @@ Arguments
        -  int request
 
        -  Equals
-          :ref:`FE_READ_SIGNAL_STRENGTH`
-          for this command.
+	  :ref:`FE_READ_SIGNAL_STRENGTH`
+	  for this command.
 
     -  .. row 3
 

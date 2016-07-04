@@ -78,7 +78,7 @@ returned during the enumeration process.
        -  \*\ ``pads``
 
        -  Pointer to a pads array allocated by the application. Ignored if
-          NULL.
+	  NULL.
 
     -  .. row 3
 
@@ -87,7 +87,7 @@ returned during the enumeration process.
        -  \*\ ``links``
 
        -  Pointer to a links array allocated by the application. Ignored if
-          NULL.
+	  NULL.
 
 
 

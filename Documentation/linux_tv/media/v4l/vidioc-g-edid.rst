@@ -102,9 +102,9 @@ EDID is no longer available.
        -  ``pad``
 
        -  Pad for which to get/set the EDID blocks. When used with a video
-          device node the pad represents the input or output index as
-          returned by :ref:`VIDIOC_ENUMINPUT` and
-          :ref:`VIDIOC_ENUMOUTPUT` respectively.
+	  device node the pad represents the input or output index as
+	  returned by :ref:`VIDIOC_ENUMINPUT` and
+	  :ref:`VIDIOC_ENUMOUTPUT` respectively.
 
     -  .. row 2
 
@@ -113,7 +113,7 @@ EDID is no longer available.
        -  ``start_block``
 
        -  Read the EDID from starting with this block. Must be 0 when
-          setting the EDID.
+	  setting the EDID.
 
     -  .. row 3
 
@@ -122,9 +122,9 @@ EDID is no longer available.
        -  ``blocks``
 
        -  The number of blocks to get or set. Must be less or equal to 256
-          (the maximum number of blocks as defined by the standard). When
-          you set the EDID and ``blocks`` is 0, then the EDID is disabled or
-          erased.
+	  (the maximum number of blocks as defined by the standard). When
+	  you set the EDID and ``blocks`` is 0, then the EDID is disabled or
+	  erased.
 
     -  .. row 4
 
@@ -133,7 +133,7 @@ EDID is no longer available.
        -  ``reserved``\ [5]
 
        -  Reserved for future extensions. Applications and drivers must set
-          the array to zero.
+	  the array to zero.
 
     -  .. row 5
 
@@ -142,7 +142,7 @@ EDID is no longer available.
        -  ``edid``
 
        -  Pointer to memory that contains the EDID. The minimum size is
-          ``blocks`` * 128.
+	  ``blocks`` * 128.
 
 
 

@@ -82,8 +82,8 @@ return an ``EINVAL`` error code.
        -  ``pad``
 
        -  Pad number as reported by the media controller API. This field is
-          only used when operating on a subdevice node. When operating on a
-          video node applications must set this field to zero.
+	  only used when operating on a subdevice node. When operating on a
+	  video node applications must set this field to zero.
 
     -  .. row 3
 
@@ -92,7 +92,7 @@ return an ``EINVAL`` error code.
        -  ``reserved``\ [2]
 
        -  Reserved for future extensions. Drivers and applications must set
-          the array to zero.
+	  the array to zero.
 
     -  .. row 4
 

@@ -51,8 +51,8 @@ using the :ref:`VIDIOC_DQEVENT` ioctl.
        -  ``type``
 
        -  Type of the event, see :ref:`event-type`. Note that
-          ``V4L2_EVENT_ALL`` can be used with VIDIOC_UNSUBSCRIBE_EVENT for
-          unsubscribing all events at once.
+	  ``V4L2_EVENT_ALL`` can be used with VIDIOC_UNSUBSCRIBE_EVENT for
+	  unsubscribing all events at once.
 
     -  .. row 2
 
@@ -61,8 +61,8 @@ using the :ref:`VIDIOC_DQEVENT` ioctl.
        -  ``id``
 
        -  ID of the event source. If there is no ID associated with the
-          event source, then set this to 0. Whether or not an event needs an
-          ID depends on the event type.
+	  event source, then set this to 0. Whether or not an event needs an
+	  ID depends on the event type.
 
     -  .. row 3
 
@@ -79,7 +79,7 @@ using the :ref:`VIDIOC_DQEVENT` ioctl.
        -  ``reserved``\ [5]
 
        -  Reserved for future extensions. Drivers and applications must set
-          the array to zero.
+	  the array to zero.
 
 
 
@@ -98,9 +98,9 @@ using the :ref:`VIDIOC_DQEVENT` ioctl.
        -  0x0001
 
        -  When this event is subscribed an initial event will be sent
-          containing the current status. This only makes sense for events
-          that are triggered by a status change such as ``V4L2_EVENT_CTRL``.
-          Other events will ignore this flag.
+	  containing the current status. This only makes sense for events
+	  that are triggered by a status change such as ``V4L2_EVENT_CTRL``.
+	  Other events will ignore this flag.
 
     -  .. row 2
 
@@ -109,21 +109,21 @@ using the :ref:`VIDIOC_DQEVENT` ioctl.
        -  0x0002
 
        -  If set, then events directly caused by an ioctl will also be sent
-          to the filehandle that called that ioctl. For example, changing a
-          control using :ref:`VIDIOC_S_CTRL <VIDIOC_G_CTRL>` will cause
-          a V4L2_EVENT_CTRL to be sent back to that same filehandle.
-          Normally such events are suppressed to prevent feedback loops
-          where an application changes a control to a one value and then
-          another, and then receives an event telling it that that control
-          has changed to the first value.
+	  to the filehandle that called that ioctl. For example, changing a
+	  control using :ref:`VIDIOC_S_CTRL <VIDIOC_G_CTRL>` will cause
+	  a V4L2_EVENT_CTRL to be sent back to that same filehandle.
+	  Normally such events are suppressed to prevent feedback loops
+	  where an application changes a control to a one value and then
+	  another, and then receives an event telling it that that control
+	  has changed to the first value.
 
-          Since it can't tell whether that event was caused by another
-          application or by the :ref:`VIDIOC_S_CTRL <VIDIOC_G_CTRL>`
-          call it is hard to decide whether to set the control to the value
-          in the event, or ignore it.
+	  Since it can't tell whether that event was caused by another
+	  application or by the :ref:`VIDIOC_S_CTRL <VIDIOC_G_CTRL>`
+	  call it is hard to decide whether to set the control to the value
+	  in the event, or ignore it.
 
-          Think carefully when you set this flag so you won't get into
-          situations like that.
+	  Think carefully when you set this flag so you won't get into
+	  situations like that.
 
 
 

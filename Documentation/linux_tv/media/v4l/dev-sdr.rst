@@ -93,9 +93,9 @@ data transfer, set by the driver in order to inform application.
        -  ``pixelformat``
 
        -  The data format or type of compression, set by the application.
-          This is a little endian
-          :ref:`four character code <v4l2-fourcc>`. V4L2 defines SDR
-          formats in :ref:`sdr-formats`.
+	  This is a little endian
+	  :ref:`four character code <v4l2-fourcc>`. V4L2 defines SDR
+	  formats in :ref:`sdr-formats`.
 
     -  .. row 2
 
@@ -104,7 +104,7 @@ data transfer, set by the driver in order to inform application.
        -  ``buffersize``
 
        -  Maximum size in bytes required for data. Value is set by the
-          driver.
+	  driver.
 
     -  .. row 3
 
@@ -113,7 +113,7 @@ data transfer, set by the driver in order to inform application.
        -  ``reserved[24]``
 
        -  This array is reserved for future extensions. Drivers and
-          applications must set it to zero.
+	  applications must set it to zero.
 
 
 An SDR device may support :ref:`read/write <rw>` and/or streaming

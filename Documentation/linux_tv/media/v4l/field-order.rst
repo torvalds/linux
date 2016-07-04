@@ -67,16 +67,16 @@ should have the value ``V4L2_FIELD_ANY`` (0).
        -  0
 
        -  Applications request this field order when any one of the
-          ``V4L2_FIELD_NONE``, ``V4L2_FIELD_TOP``, ``V4L2_FIELD_BOTTOM``, or
-          ``V4L2_FIELD_INTERLACED`` formats is acceptable. Drivers choose
-          depending on hardware capabilities or e. g. the requested image
-          size, and return the actual field order. Drivers must never return
-          ``V4L2_FIELD_ANY``. If multiple field orders are possible the
-          driver must choose one of the possible field orders during
-          :ref:`VIDIOC_S_FMT <VIDIOC_G_FMT>` or
-          :ref:`VIDIOC_TRY_FMT <VIDIOC_G_FMT>`. struct
-          :ref:`v4l2_buffer <v4l2-buffer>` ``field`` can never be
-          ``V4L2_FIELD_ANY``.
+	  ``V4L2_FIELD_NONE``, ``V4L2_FIELD_TOP``, ``V4L2_FIELD_BOTTOM``, or
+	  ``V4L2_FIELD_INTERLACED`` formats is acceptable. Drivers choose
+	  depending on hardware capabilities or e. g. the requested image
+	  size, and return the actual field order. Drivers must never return
+	  ``V4L2_FIELD_ANY``. If multiple field orders are possible the
+	  driver must choose one of the possible field orders during
+	  :ref:`VIDIOC_S_FMT <VIDIOC_G_FMT>` or
+	  :ref:`VIDIOC_TRY_FMT <VIDIOC_G_FMT>`. struct
+	  :ref:`v4l2_buffer <v4l2-buffer>` ``field`` can never be
+	  ``V4L2_FIELD_ANY``.
 
     -  .. row 2
 
@@ -85,8 +85,8 @@ should have the value ``V4L2_FIELD_ANY`` (0).
        -  1
 
        -  Images are in progressive format, not interlaced. The driver may
-          also indicate this order when it cannot distinguish between
-          ``V4L2_FIELD_TOP`` and ``V4L2_FIELD_BOTTOM``.
+	  also indicate this order when it cannot distinguish between
+	  ``V4L2_FIELD_TOP`` and ``V4L2_FIELD_BOTTOM``.
 
     -  .. row 3
 
@@ -103,9 +103,9 @@ should have the value ``V4L2_FIELD_ANY`` (0).
        -  3
 
        -  Images consist of the bottom (aka even) field only. Applications
-          may wish to prevent a device from capturing interlaced images
-          because they will have "comb" or "feathering" artefacts around
-          moving objects.
+	  may wish to prevent a device from capturing interlaced images
+	  because they will have "comb" or "feathering" artefacts around
+	  moving objects.
 
     -  .. row 5
 
@@ -114,10 +114,10 @@ should have the value ``V4L2_FIELD_ANY`` (0).
        -  4
 
        -  Images contain both fields, interleaved line by line. The temporal
-          order of the fields (whether the top or bottom field is first
-          transmitted) depends on the current video standard. M/NTSC
-          transmits the bottom field first, all other standards the top
-          field first.
+	  order of the fields (whether the top or bottom field is first
+	  transmitted) depends on the current video standard. M/NTSC
+	  transmits the bottom field first, all other standards the top
+	  field first.
 
     -  .. row 6
 
@@ -126,9 +126,9 @@ should have the value ``V4L2_FIELD_ANY`` (0).
        -  5
 
        -  Images contain both fields, the top field lines are stored first
-          in memory, immediately followed by the bottom field lines. Fields
-          are always stored in temporal order, the older one first in
-          memory. Image sizes refer to the frame, not fields.
+	  in memory, immediately followed by the bottom field lines. Fields
+	  are always stored in temporal order, the older one first in
+	  memory. Image sizes refer to the frame, not fields.
 
     -  .. row 7
 
@@ -137,9 +137,9 @@ should have the value ``V4L2_FIELD_ANY`` (0).
        -  6
 
        -  Images contain both fields, the bottom field lines are stored
-          first in memory, immediately followed by the top field lines.
-          Fields are always stored in temporal order, the older one first in
-          memory. Image sizes refer to the frame, not fields.
+	  first in memory, immediately followed by the top field lines.
+	  Fields are always stored in temporal order, the older one first in
+	  memory. Image sizes refer to the frame, not fields.
 
     -  .. row 8
 
@@ -148,18 +148,18 @@ should have the value ``V4L2_FIELD_ANY`` (0).
        -  7
 
        -  The two fields of a frame are passed in separate buffers, in
-          temporal order, i. e. the older one first. To indicate the field
-          parity (whether the current field is a top or bottom field) the
-          driver or application, depending on data direction, must set
-          struct :ref:`v4l2_buffer <v4l2-buffer>` ``field`` to
-          ``V4L2_FIELD_TOP`` or ``V4L2_FIELD_BOTTOM``. Any two successive
-          fields pair to build a frame. If fields are successive, without
-          any dropped fields between them (fields can drop individually),
-          can be determined from the struct
-          :ref:`v4l2_buffer <v4l2-buffer>` ``sequence`` field. This
-          format cannot be selected when using the read/write I/O method
-          since there is no way to communicate if a field was a top or
-          bottom field.
+	  temporal order, i. e. the older one first. To indicate the field
+	  parity (whether the current field is a top or bottom field) the
+	  driver or application, depending on data direction, must set
+	  struct :ref:`v4l2_buffer <v4l2-buffer>` ``field`` to
+	  ``V4L2_FIELD_TOP`` or ``V4L2_FIELD_BOTTOM``. Any two successive
+	  fields pair to build a frame. If fields are successive, without
+	  any dropped fields between them (fields can drop individually),
+	  can be determined from the struct
+	  :ref:`v4l2_buffer <v4l2-buffer>` ``sequence`` field. This
+	  format cannot be selected when using the read/write I/O method
+	  since there is no way to communicate if a field was a top or
+	  bottom field.
 
     -  .. row 9
 
@@ -168,7 +168,7 @@ should have the value ``V4L2_FIELD_ANY`` (0).
        -  8
 
        -  Images contain both fields, interleaved line by line, top field
-          first. The top field is transmitted first.
+	  first. The top field is transmitted first.
 
     -  .. row 10
 
@@ -177,7 +177,7 @@ should have the value ``V4L2_FIELD_ANY`` (0).
        -  9
 
        -  Images contain both fields, interleaved line by line, top field
-          first. The bottom field is transmitted first.
+	  first. The bottom field is transmitted first.
 
 
 

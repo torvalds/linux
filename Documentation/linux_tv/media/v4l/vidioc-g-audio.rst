@@ -72,8 +72,8 @@ return the actual new audio mode.
        -  ``name``\ [32]
 
        -  Name of the audio input, a NUL-terminated ASCII string, for
-          example: "Line In". This information is intended for the user,
-          preferably the connector label on the device itself.
+	  example: "Line In". This information is intended for the user,
+	  preferably the connector label on the device itself.
 
     -  .. row 3
 
@@ -90,7 +90,7 @@ return the actual new audio mode.
        -  ``mode``
 
        -  Audio mode flags set by drivers and applications (on
-          :ref:`VIDIOC_S_AUDIO <VIDIOC_G_AUDIO>` ioctl), see :ref:`audio-mode`.
+	  :ref:`VIDIOC_S_AUDIO <VIDIOC_G_AUDIO>` ioctl), see :ref:`audio-mode`.
 
     -  .. row 5
 
@@ -99,7 +99,7 @@ return the actual new audio mode.
        -  ``reserved``\ [2]
 
        -  Reserved for future extensions. Drivers and applications must set
-          the array to zero.
+	  the array to zero.
 
 
 
@@ -118,9 +118,9 @@ return the actual new audio mode.
        -  0x00001
 
        -  This is a stereo input. The flag is intended to automatically
-          disable stereo recording etc. when the signal is always monaural.
-          The API provides no means to detect if stereo is *received*,
-          unless the audio input belongs to a tuner.
+	  disable stereo recording etc. when the signal is always monaural.
+	  The API provides no means to detect if stereo is *received*,
+	  unless the audio input belongs to a tuner.
 
     -  .. row 2
 

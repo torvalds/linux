@@ -66,11 +66,11 @@ write-only ioctl, it does not return the actual new frequency.
        -  ``tuner``
 
        -  The tuner or modulator index number. This is the same value as in
-          the struct :ref:`v4l2_input <v4l2-input>` ``tuner`` field and
-          the struct :ref:`v4l2_tuner <v4l2-tuner>` ``index`` field, or
-          the struct :ref:`v4l2_output <v4l2-output>` ``modulator`` field
-          and the struct :ref:`v4l2_modulator <v4l2-modulator>` ``index``
-          field.
+	  the struct :ref:`v4l2_input <v4l2-input>` ``tuner`` field and
+	  the struct :ref:`v4l2_tuner <v4l2-tuner>` ``index`` field, or
+	  the struct :ref:`v4l2_output <v4l2-output>` ``modulator`` field
+	  and the struct :ref:`v4l2_modulator <v4l2-modulator>` ``index``
+	  field.
 
     -  .. row 2
 
@@ -79,11 +79,11 @@ write-only ioctl, it does not return the actual new frequency.
        -  ``type``
 
        -  The tuner type. This is the same value as in the struct
-          :ref:`v4l2_tuner <v4l2-tuner>` ``type`` field. The type must be
-          set to ``V4L2_TUNER_RADIO`` for ``/dev/radioX`` device nodes, and
-          to ``V4L2_TUNER_ANALOG_TV`` for all others. Set this field to
-          ``V4L2_TUNER_RADIO`` for modulators (currently only radio
-          modulators are supported). See :ref:`v4l2-tuner-type`
+	  :ref:`v4l2_tuner <v4l2-tuner>` ``type`` field. The type must be
+	  set to ``V4L2_TUNER_RADIO`` for ``/dev/radioX`` device nodes, and
+	  to ``V4L2_TUNER_ANALOG_TV`` for all others. Set this field to
+	  ``V4L2_TUNER_RADIO`` for modulators (currently only radio
+	  modulators are supported). See :ref:`v4l2-tuner-type`
 
     -  .. row 3
 
@@ -92,10 +92,10 @@ write-only ioctl, it does not return the actual new frequency.
        -  ``frequency``
 
        -  Tuning frequency in units of 62.5 kHz, or if the struct
-          :ref:`v4l2_tuner <v4l2-tuner>` or struct
-          :ref:`v4l2_modulator <v4l2-modulator>` ``capability`` flag
-          ``V4L2_TUNER_CAP_LOW`` is set, in units of 62.5 Hz. A 1 Hz unit is
-          used when the ``capability`` flag ``V4L2_TUNER_CAP_1HZ`` is set.
+	  :ref:`v4l2_tuner <v4l2-tuner>` or struct
+	  :ref:`v4l2_modulator <v4l2-modulator>` ``capability`` flag
+	  ``V4L2_TUNER_CAP_LOW`` is set, in units of 62.5 Hz. A 1 Hz unit is
+	  used when the ``capability`` flag ``V4L2_TUNER_CAP_1HZ`` is set.
 
     -  .. row 4
 
@@ -104,7 +104,7 @@ write-only ioctl, it does not return the actual new frequency.
        -  ``reserved``\ [8]
 
        -  Reserved for future extensions. Drivers and applications must set
-          the array to zero.
+	  the array to zero.
 
 
 

@@ -58,22 +58,22 @@ Arguments
 
     -  .. row 3
 
-       -  
+       -
        -  O_RDONLY read-only access
 
     -  .. row 4
 
-       -  
+       -
        -  O_RDWR read/write access
 
     -  .. row 5
 
-       -  
+       -
        -  O_NONBLOCK open in non-blocking mode
 
     -  .. row 6
 
-       -  
+       -
        -  (blocking mode is the default)
 
 
@@ -529,12 +529,12 @@ Arguments
 
     -  .. row 4
 
-       -  
+       -
        -  TRUE Audio Mute
 
     -  .. row 5
 
-       -  
+       -
        -  FALSE Audio Un-mute
 
 
@@ -592,12 +592,12 @@ Arguments
 
     -  .. row 4
 
-       -  
+       -
        -  TRUE AV-sync ON
 
     -  .. row 5
 
-       -  
+       -
        -  FALSE AV-sync OFF
 
 
@@ -655,16 +655,16 @@ Arguments
        -  boolean mode
 
        -  Enables or disables the decoding of the current Audio stream in
-          the DVB subsystem.
+	  the DVB subsystem.
 
     -  .. row 4
 
-       -  
+       -
        -  TRUE Bypass is disabled
 
     -  .. row 5
 
-       -  
+       -
        -  FALSE Bypass is enabled
 
 
@@ -836,11 +836,11 @@ Arguments
        -  __u64 \*pts
 
        -  Returns the 33-bit timestamp as defined in ITU T-REC-H.222.0 /
-          ISO/IEC 13818-1.
+	  ISO/IEC 13818-1.
 
-          The PTS should belong to the currently played frame if possible,
-          but may also be a value close to it like the PTS of the last
-          decoded frame or the last PTS extracted by the PES parser.
+	  The PTS should belong to the currently played frame if possible,
+	  but may also be a value close to it like the PTS of the last
+	  decoded frame or the last PTS extracted by the PES parser.
 
 
 Return Value

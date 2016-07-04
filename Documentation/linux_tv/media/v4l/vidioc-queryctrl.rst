@@ -105,10 +105,10 @@ See also the examples in :ref:`control`.
        -  ``id``
 
        -  Identifies the control, set by the application. See
-          :ref:`control-id` for predefined IDs. When the ID is ORed with
-          V4L2_CTRL_FLAG_NEXT_CTRL the driver clears the flag and
-          returns the first control with a higher ID. Drivers which do not
-          support this flag yet always return an ``EINVAL`` error code.
+	  :ref:`control-id` for predefined IDs. When the ID is ORed with
+	  V4L2_CTRL_FLAG_NEXT_CTRL the driver clears the flag and
+	  returns the first control with a higher ID. Drivers which do not
+	  support this flag yet always return an ``EINVAL`` error code.
 
     -  .. row 2
 
@@ -125,7 +125,7 @@ See also the examples in :ref:`control`.
        -  ``name``\ [32]
 
        -  Name of the control, a NUL-terminated ASCII string. This
-          information is intended for the user.
+	  information is intended for the user.
 
     -  .. row 4
 
@@ -134,9 +134,9 @@ See also the examples in :ref:`control`.
        -  ``minimum``
 
        -  Minimum value, inclusive. This field gives a lower bound for the
-          control. See enum :ref:`v4l2_ctrl_type <v4l2-ctrl-type>` how
-          the minimum value is to be used for each possible control type.
-          Note that this a signed 32-bit value.
+	  control. See enum :ref:`v4l2_ctrl_type <v4l2-ctrl-type>` how
+	  the minimum value is to be used for each possible control type.
+	  Note that this a signed 32-bit value.
 
     -  .. row 5
 
@@ -145,9 +145,9 @@ See also the examples in :ref:`control`.
        -  ``maximum``
 
        -  Maximum value, inclusive. This field gives an upper bound for the
-          control. See enum :ref:`v4l2_ctrl_type <v4l2-ctrl-type>` how
-          the maximum value is to be used for each possible control type.
-          Note that this a signed 32-bit value.
+	  control. See enum :ref:`v4l2_ctrl_type <v4l2-ctrl-type>` how
+	  the maximum value is to be used for each possible control type.
+	  Note that this a signed 32-bit value.
 
     -  .. row 6
 
@@ -156,25 +156,25 @@ See also the examples in :ref:`control`.
        -  ``step``
 
        -  This field gives a step size for the control. See enum
-          :ref:`v4l2_ctrl_type <v4l2-ctrl-type>` how the step value is
-          to be used for each possible control type. Note that this an
-          unsigned 32-bit value.
+	  :ref:`v4l2_ctrl_type <v4l2-ctrl-type>` how the step value is
+	  to be used for each possible control type. Note that this an
+	  unsigned 32-bit value.
 
-          Generally drivers should not scale hardware control values. It may
-          be necessary for example when the ``name`` or ``id`` imply a
-          particular unit and the hardware actually accepts only multiples
-          of said unit. If so, drivers must take care values are properly
-          rounded when scaling, such that errors will not accumulate on
-          repeated read-write cycles.
+	  Generally drivers should not scale hardware control values. It may
+	  be necessary for example when the ``name`` or ``id`` imply a
+	  particular unit and the hardware actually accepts only multiples
+	  of said unit. If so, drivers must take care values are properly
+	  rounded when scaling, such that errors will not accumulate on
+	  repeated read-write cycles.
 
-          This field gives the smallest change of an integer control
-          actually affecting hardware. Often the information is needed when
-          the user can change controls by keyboard or GUI buttons, rather
-          than a slider. When for example a hardware register accepts values
-          0-511 and the driver reports 0-65535, step should be 128.
+	  This field gives the smallest change of an integer control
+	  actually affecting hardware. Often the information is needed when
+	  the user can change controls by keyboard or GUI buttons, rather
+	  than a slider. When for example a hardware register accepts values
+	  0-511 and the driver reports 0-65535, step should be 128.
 
-          Note that although signed, the step value is supposed to be always
-          positive.
+	  Note that although signed, the step value is supposed to be always
+	  positive.
 
     -  .. row 7
 
@@ -183,10 +183,10 @@ See also the examples in :ref:`control`.
        -  ``default_value``
 
        -  The default value of a ``V4L2_CTRL_TYPE_INTEGER``, ``_BOOLEAN``,
-          ``_BITMASK``, ``_MENU`` or ``_INTEGER_MENU`` control. Not valid
-          for other types of controls. Note that drivers reset controls to
-          their default value only when the driver is first loaded, never
-          afterwards.
+	  ``_BITMASK``, ``_MENU`` or ``_INTEGER_MENU`` control. Not valid
+	  for other types of controls. Note that drivers reset controls to
+	  their default value only when the driver is first loaded, never
+	  afterwards.
 
     -  .. row 8
 
@@ -203,7 +203,7 @@ See also the examples in :ref:`control`.
        -  ``reserved``\ [2]
 
        -  Reserved for future extensions. Drivers must set the array to
-          zero.
+	  zero.
 
 
 
@@ -222,13 +222,13 @@ See also the examples in :ref:`control`.
        -  ``id``
 
        -  Identifies the control, set by the application. See
-          :ref:`control-id` for predefined IDs. When the ID is ORed with
-          ``V4L2_CTRL_FLAG_NEXT_CTRL`` the driver clears the flag and
-          returns the first non-compound control with a higher ID. When the
-          ID is ORed with ``V4L2_CTRL_FLAG_NEXT_COMPOUND`` the driver clears
-          the flag and returns the first compound control with a higher ID.
-          Set both to get the first control (compound or not) with a higher
-          ID.
+	  :ref:`control-id` for predefined IDs. When the ID is ORed with
+	  ``V4L2_CTRL_FLAG_NEXT_CTRL`` the driver clears the flag and
+	  returns the first non-compound control with a higher ID. When the
+	  ID is ORed with ``V4L2_CTRL_FLAG_NEXT_COMPOUND`` the driver clears
+	  the flag and returns the first compound control with a higher ID.
+	  Set both to get the first control (compound or not) with a higher
+	  ID.
 
     -  .. row 2
 
@@ -245,7 +245,7 @@ See also the examples in :ref:`control`.
        -  ``name``\ [32]
 
        -  Name of the control, a NUL-terminated ASCII string. This
-          information is intended for the user.
+	  information is intended for the user.
 
     -  .. row 4
 
@@ -254,9 +254,9 @@ See also the examples in :ref:`control`.
        -  ``minimum``
 
        -  Minimum value, inclusive. This field gives a lower bound for the
-          control. See enum :ref:`v4l2_ctrl_type <v4l2-ctrl-type>` how
-          the minimum value is to be used for each possible control type.
-          Note that this a signed 64-bit value.
+	  control. See enum :ref:`v4l2_ctrl_type <v4l2-ctrl-type>` how
+	  the minimum value is to be used for each possible control type.
+	  Note that this a signed 64-bit value.
 
     -  .. row 5
 
@@ -265,9 +265,9 @@ See also the examples in :ref:`control`.
        -  ``maximum``
 
        -  Maximum value, inclusive. This field gives an upper bound for the
-          control. See enum :ref:`v4l2_ctrl_type <v4l2-ctrl-type>` how
-          the maximum value is to be used for each possible control type.
-          Note that this a signed 64-bit value.
+	  control. See enum :ref:`v4l2_ctrl_type <v4l2-ctrl-type>` how
+	  the maximum value is to be used for each possible control type.
+	  Note that this a signed 64-bit value.
 
     -  .. row 6
 
@@ -276,22 +276,22 @@ See also the examples in :ref:`control`.
        -  ``step``
 
        -  This field gives a step size for the control. See enum
-          :ref:`v4l2_ctrl_type <v4l2-ctrl-type>` how the step value is
-          to be used for each possible control type. Note that this an
-          unsigned 64-bit value.
+	  :ref:`v4l2_ctrl_type <v4l2-ctrl-type>` how the step value is
+	  to be used for each possible control type. Note that this an
+	  unsigned 64-bit value.
 
-          Generally drivers should not scale hardware control values. It may
-          be necessary for example when the ``name`` or ``id`` imply a
-          particular unit and the hardware actually accepts only multiples
-          of said unit. If so, drivers must take care values are properly
-          rounded when scaling, such that errors will not accumulate on
-          repeated read-write cycles.
+	  Generally drivers should not scale hardware control values. It may
+	  be necessary for example when the ``name`` or ``id`` imply a
+	  particular unit and the hardware actually accepts only multiples
+	  of said unit. If so, drivers must take care values are properly
+	  rounded when scaling, such that errors will not accumulate on
+	  repeated read-write cycles.
 
-          This field gives the smallest change of an integer control
-          actually affecting hardware. Often the information is needed when
-          the user can change controls by keyboard or GUI buttons, rather
-          than a slider. When for example a hardware register accepts values
-          0-511 and the driver reports 0-65535, step should be 128.
+	  This field gives the smallest change of an integer control
+	  actually affecting hardware. Often the information is needed when
+	  the user can change controls by keyboard or GUI buttons, rather
+	  than a slider. When for example a hardware register accepts values
+	  0-511 and the driver reports 0-65535, step should be 128.
 
     -  .. row 7
 
@@ -300,10 +300,10 @@ See also the examples in :ref:`control`.
        -  ``default_value``
 
        -  The default value of a ``V4L2_CTRL_TYPE_INTEGER``, ``_INTEGER64``,
-          ``_BOOLEAN``, ``_BITMASK``, ``_MENU``, ``_INTEGER_MENU``, ``_U8``
-          or ``_U16`` control. Not valid for other types of controls. Note
-          that drivers reset controls to their default value only when the
-          driver is first loaded, never afterwards.
+	  ``_BOOLEAN``, ``_BITMASK``, ``_MENU``, ``_INTEGER_MENU``, ``_U8``
+	  or ``_U16`` control. Not valid for other types of controls. Note
+	  that drivers reset controls to their default value only when the
+	  driver is first loaded, never afterwards.
 
     -  .. row 8
 
@@ -320,12 +320,12 @@ See also the examples in :ref:`control`.
        -  ``elem_size``
 
        -  The size in bytes of a single element of the array. Given a char
-          pointer ``p`` to a 3-dimensional array you can find the position
-          of cell ``(z, y, x)`` as follows:
-          ``p + ((z * dims[1] + y) * dims[0] + x) * elem_size``.
-          ``elem_size`` is always valid, also when the control isn't an
-          array. For string controls ``elem_size`` is equal to
-          ``maximum + 1``.
+	  pointer ``p`` to a 3-dimensional array you can find the position
+	  of cell ``(z, y, x)`` as follows:
+	  ``p + ((z * dims[1] + y) * dims[0] + x) * elem_size``.
+	  ``elem_size`` is always valid, also when the control isn't an
+	  array. For string controls ``elem_size`` is equal to
+	  ``maximum + 1``.
 
     -  .. row 10
 
@@ -334,8 +334,8 @@ See also the examples in :ref:`control`.
        -  ``elems``
 
        -  The number of elements in the N-dimensional array. If this control
-          is not an array, then ``elems`` is 1. The ``elems`` field can
-          never be 0.
+	  is not an array, then ``elems`` is 1. The ``elems`` field can
+	  never be 0.
 
     -  .. row 11
 
@@ -344,7 +344,7 @@ See also the examples in :ref:`control`.
        -  ``nr_of_dims``
 
        -  The number of dimension in the N-dimensional array. If this
-          control is not an array, then this field is 0.
+	  control is not an array, then this field is 0.
 
     -  .. row 12
 
@@ -353,7 +353,7 @@ See also the examples in :ref:`control`.
        -  ``dims[V4L2_CTRL_MAX_DIMS]``
 
        -  The size of each dimension. The first ``nr_of_dims`` elements of
-          this array must be non-zero, all remaining elements must be zero.
+	  this array must be non-zero, all remaining elements must be zero.
 
     -  .. row 13
 
@@ -362,7 +362,7 @@ See also the examples in :ref:`control`.
        -  ``reserved``\ [32]
 
        -  Reserved for future extensions. Applications and drivers must set
-          the array to zero.
+	  the array to zero.
 
 
 
@@ -378,17 +378,17 @@ See also the examples in :ref:`control`.
 
        -  __u32
 
-       -  
+       -
        -  ``id``
 
        -  Identifies the control, set by the application from the respective
-          struct :ref:`v4l2_queryctrl <v4l2-queryctrl>` ``id``.
+	  struct :ref:`v4l2_queryctrl <v4l2-queryctrl>` ``id``.
 
     -  .. row 2
 
        -  __u32
 
-       -  
+       -
        -  ``index``
 
        -  Index of the menu item, starting at zero, set by the application.
@@ -397,40 +397,40 @@ See also the examples in :ref:`control`.
 
        -  union
 
-       -  
-       -  
-       -  
+       -
+       -
+       -
 
     -  .. row 4
 
-       -  
+       -
        -  __u8
 
        -  ``name``\ [32]
 
        -  Name of the menu item, a NUL-terminated ASCII string. This
-          information is intended for the user. This field is valid for
-          ``V4L2_CTRL_FLAG_MENU`` type controls.
+	  information is intended for the user. This field is valid for
+	  ``V4L2_CTRL_FLAG_MENU`` type controls.
 
     -  .. row 5
 
-       -  
+       -
        -  __s64
 
        -  ``value``
 
        -  Value of the integer menu item. This field is valid for
-          ``V4L2_CTRL_FLAG_INTEGER_MENU`` type controls.
+	  ``V4L2_CTRL_FLAG_INTEGER_MENU`` type controls.
 
     -  .. row 6
 
        -  __u32
 
-       -  
+       -
        -  ``reserved``
 
        -  Reserved for future extensions. Drivers must set the array to
-          zero.
+	  zero.
 
 
 
@@ -465,7 +465,7 @@ See also the examples in :ref:`control`.
        -  any
 
        -  An integer-valued control ranging from minimum to maximum
-          inclusive. The step value indicates the increment between values.
+	  inclusive. The step value indicates the increment between values.
 
     -  .. row 3
 
@@ -478,7 +478,7 @@ See also the examples in :ref:`control`.
        -  1
 
        -  A boolean-valued control. Zero corresponds to "disabled", and one
-          means "enabled".
+	  means "enabled".
 
     -  .. row 4
 
@@ -491,7 +491,7 @@ See also the examples in :ref:`control`.
        -  N-1
 
        -  The control has a menu of N choices. The names of the menu items
-          can be enumerated with the ``VIDIOC_QUERYMENU`` ioctl.
+	  can be enumerated with the ``VIDIOC_QUERYMENU`` ioctl.
 
     -  .. row 5
 
@@ -504,9 +504,9 @@ See also the examples in :ref:`control`.
        -  N-1
 
        -  The control has a menu of N choices. The values of the menu items
-          can be enumerated with the ``VIDIOC_QUERYMENU`` ioctl. This is
-          similar to ``V4L2_CTRL_TYPE_MENU`` except that instead of strings,
-          the menu items are signed 64-bit integers.
+	  can be enumerated with the ``VIDIOC_QUERYMENU`` ioctl. This is
+	  similar to ``V4L2_CTRL_TYPE_MENU`` except that instead of strings,
+	  the menu items are signed 64-bit integers.
 
     -  .. row 6
 
@@ -519,8 +519,8 @@ See also the examples in :ref:`control`.
        -  any
 
        -  A bitmask field. The maximum value is the set of bits that can be
-          used, all other bits are to be 0. The maximum value is interpreted
-          as a __u32, allowing the use of bit 31 in the bitmask.
+	  used, all other bits are to be 0. The maximum value is interpreted
+	  as a __u32, allowing the use of bit 31 in the bitmask.
 
     -  .. row 7
 
@@ -533,8 +533,8 @@ See also the examples in :ref:`control`.
        -  0
 
        -  A control which performs an action when set. Drivers must ignore
-          the value passed with ``VIDIOC_S_CTRL`` and return an ``EINVAL`` error
-          code on a ``VIDIOC_G_CTRL`` attempt.
+	  the value passed with ``VIDIOC_S_CTRL`` and return an ``EINVAL`` error
+	  code on a ``VIDIOC_G_CTRL`` attempt.
 
     -  .. row 8
 
@@ -547,10 +547,10 @@ See also the examples in :ref:`control`.
        -  any
 
        -  A 64-bit integer valued control. Minimum, maximum and step size
-          cannot be queried using ``VIDIOC_QUERYCTRL``. Only
-          ``VIDIOC_QUERY_EXT_CTRL`` can retrieve the 64-bit min/max/step
-          values, they should be interpreted as n/a when using
-          ``VIDIOC_QUERYCTRL``.
+	  cannot be queried using ``VIDIOC_QUERYCTRL``. Only
+	  ``VIDIOC_QUERY_EXT_CTRL`` can retrieve the 64-bit min/max/step
+	  values, they should be interpreted as n/a when using
+	  ``VIDIOC_QUERYCTRL``.
 
     -  .. row 9
 
@@ -563,16 +563,16 @@ See also the examples in :ref:`control`.
        -  ≥ 0
 
        -  The minimum and maximum string lengths. The step size means that
-          the string must be (minimum + N * step) characters long for N ≥ 0.
-          These lengths do not include the terminating zero, so in order to
-          pass a string of length 8 to
-          :ref:`VIDIOC_S_EXT_CTRLS <VIDIOC_G_EXT_CTRLS>` you need to
-          set the ``size`` field of struct
-          :ref:`v4l2_ext_control <v4l2-ext-control>` to 9. For
-          :ref:`VIDIOC_G_EXT_CTRLS <VIDIOC_G_EXT_CTRLS>` you can set
-          the ``size`` field to ``maximum`` + 1. Which character encoding is
-          used will depend on the string control itself and should be part
-          of the control documentation.
+	  the string must be (minimum + N * step) characters long for N ≥ 0.
+	  These lengths do not include the terminating zero, so in order to
+	  pass a string of length 8 to
+	  :ref:`VIDIOC_S_EXT_CTRLS <VIDIOC_G_EXT_CTRLS>` you need to
+	  set the ``size`` field of struct
+	  :ref:`v4l2_ext_control <v4l2-ext-control>` to 9. For
+	  :ref:`VIDIOC_G_EXT_CTRLS <VIDIOC_G_EXT_CTRLS>` you can set
+	  the ``size`` field to ``maximum`` + 1. Which character encoding is
+	  used will depend on the string control itself and should be part
+	  of the control documentation.
 
     -  .. row 10
 
@@ -585,10 +585,10 @@ See also the examples in :ref:`control`.
        -  n/a
 
        -  This is not a control. When ``VIDIOC_QUERYCTRL`` is called with a
-          control ID equal to a control class code (see :ref:`ctrl-class`)
-          + 1, the ioctl returns the name of the control class and this
-          control type. Older drivers which do not support this feature
-          return an ``EINVAL`` error code.
+	  control ID equal to a control class code (see :ref:`ctrl-class`)
+	  + 1, the ioctl returns the name of the control class and this
+	  control type. Older drivers which do not support this feature
+	  return an ``EINVAL`` error code.
 
     -  .. row 11
 
@@ -601,7 +601,7 @@ See also the examples in :ref:`control`.
        -  any
 
        -  An unsigned 8-bit valued control ranging from minimum to maximum
-          inclusive. The step value indicates the increment between values.
+	  inclusive. The step value indicates the increment between values.
 
     -  .. row 12
 
@@ -614,7 +614,7 @@ See also the examples in :ref:`control`.
        -  any
 
        -  An unsigned 16-bit valued control ranging from minimum to maximum
-          inclusive. The step value indicates the increment between values.
+	  inclusive. The step value indicates the increment between values.
 
     -  .. row 13
 
@@ -627,7 +627,7 @@ See also the examples in :ref:`control`.
        -  any
 
        -  An unsigned 32-bit valued control ranging from minimum to maximum
-          inclusive. The step value indicates the increment between values.
+	  inclusive. The step value indicates the increment between values.
 
 
 
@@ -646,8 +646,8 @@ See also the examples in :ref:`control`.
        -  0x0001
 
        -  This control is permanently disabled and should be ignored by the
-          application. Any attempt to change the control will result in an
-          ``EINVAL`` error code.
+	  application. Any attempt to change the control will result in an
+	  ``EINVAL`` error code.
 
     -  .. row 2
 
@@ -656,9 +656,9 @@ See also the examples in :ref:`control`.
        -  0x0002
 
        -  This control is temporarily unchangeable, for example because
-          another application took over control of the respective resource.
-          Such controls may be displayed specially in a user interface.
-          Attempts to change the control may result in an ``EBUSY`` error code.
+	  another application took over control of the respective resource.
+	  Such controls may be displayed specially in a user interface.
+	  Attempts to change the control may result in an ``EBUSY`` error code.
 
     -  .. row 3
 
@@ -667,7 +667,7 @@ See also the examples in :ref:`control`.
        -  0x0004
 
        -  This control is permanently readable only. Any attempt to change
-          the control will result in an ``EINVAL`` error code.
+	  the control will result in an ``EINVAL`` error code.
 
     -  .. row 4
 
@@ -676,8 +676,8 @@ See also the examples in :ref:`control`.
        -  0x0008
 
        -  A hint that changing this control may affect the value of other
-          controls within the same control class. Applications should update
-          their user interface accordingly.
+	  controls within the same control class. Applications should update
+	  their user interface accordingly.
 
     -  .. row 5
 
@@ -686,9 +686,9 @@ See also the examples in :ref:`control`.
        -  0x0010
 
        -  This control is not applicable to the current configuration and
-          should be displayed accordingly in a user interface. For example
-          the flag may be set on a MPEG audio level 2 bitrate control when
-          MPEG audio encoding level 1 was selected with another control.
+	  should be displayed accordingly in a user interface. For example
+	  the flag may be set on a MPEG audio level 2 bitrate control when
+	  MPEG audio encoding level 1 was selected with another control.
 
     -  .. row 6
 
@@ -697,7 +697,7 @@ See also the examples in :ref:`control`.
        -  0x0020
 
        -  A hint that this control is best represented as a slider-like
-          element in a user interface.
+	  element in a user interface.
 
     -  .. row 7
 
@@ -706,11 +706,11 @@ See also the examples in :ref:`control`.
        -  0x0040
 
        -  This control is permanently writable only. Any attempt to read the
-          control will result in an ``EACCES`` error code error code. This flag
-          is typically present for relative controls or action controls
-          where writing a value will cause the device to carry out a given
-          action (e. g. motor control) but no meaningful value can be
-          returned.
+	  control will result in an ``EACCES`` error code error code. This flag
+	  is typically present for relative controls or action controls
+	  where writing a value will cause the device to carry out a given
+	  action (e. g. motor control) but no meaningful value can be
+	  returned.
 
     -  .. row 8
 
@@ -719,14 +719,14 @@ See also the examples in :ref:`control`.
        -  0x0080
 
        -  This control is volatile, which means that the value of the
-          control changes continuously. A typical example would be the
-          current gain value if the device is in auto-gain mode. In such a
-          case the hardware calculates the gain value based on the lighting
-          conditions which can change over time. Note that setting a new
-          value for a volatile control will have no effect and no
-          ``V4L2_EVENT_CTRL_CH_VALUE`` will be sent, unless the
-          ``V4L2_CTRL_FLAG_EXECUTE_ON_WRITE`` flag (see below) is also set.
-          Otherwise the new value will just be ignored.
+	  control changes continuously. A typical example would be the
+	  current gain value if the device is in auto-gain mode. In such a
+	  case the hardware calculates the gain value based on the lighting
+	  conditions which can change over time. Note that setting a new
+	  value for a volatile control will have no effect and no
+	  ``V4L2_EVENT_CTRL_CH_VALUE`` will be sent, unless the
+	  ``V4L2_CTRL_FLAG_EXECUTE_ON_WRITE`` flag (see below) is also set.
+	  Otherwise the new value will just be ignored.
 
     -  .. row 9
 
@@ -735,11 +735,11 @@ See also the examples in :ref:`control`.
        -  0x0100
 
        -  This control has a pointer type, so its value has to be accessed
-          using one of the pointer fields of struct
-          :ref:`v4l2_ext_control <v4l2-ext-control>`. This flag is set
-          for controls that are an array, string, or have a compound type.
-          In all cases you have to set a pointer to memory containing the
-          payload of the control.
+	  using one of the pointer fields of struct
+	  :ref:`v4l2_ext_control <v4l2-ext-control>`. This flag is set
+	  for controls that are an array, string, or have a compound type.
+	  In all cases you have to set a pointer to memory containing the
+	  payload of the control.
 
     -  .. row 10
 
@@ -748,10 +748,10 @@ See also the examples in :ref:`control`.
        -  0x0200
 
        -  The value provided to the control will be propagated to the driver
-          even if it remains constant. This is required when the control
-          represents an action on the hardware. For example: clearing an
-          error flag or triggering the flash. All the controls of the type
-          ``V4L2_CTRL_TYPE_BUTTON`` have this flag set.
+	  even if it remains constant. This is required when the control
+	  represents an action on the hardware. For example: clearing an
+	  error flag or triggering the flash. All the controls of the type
+	  ``V4L2_CTRL_TYPE_BUTTON`` have this flag set.
 
 
 

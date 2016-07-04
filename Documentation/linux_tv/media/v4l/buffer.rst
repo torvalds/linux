@@ -48,14 +48,14 @@ buffer.
 
        -  ``index``
 
-       -  
+       -
        -  Number of the buffer, set by the application except when calling
-          :ref:`VIDIOC_DQBUF <VIDIOC_QBUF>`, then it is set by the
-          driver. This field can range from zero to the number of buffers
-          allocated with the :ref:`VIDIOC_REQBUFS` ioctl
-          (struct :ref:`v4l2_requestbuffers <v4l2-requestbuffers>`
-          ``count``), plus any buffers allocated with
-          :ref:`VIDIOC_CREATE_BUFS` minus one.
+	  :ref:`VIDIOC_DQBUF <VIDIOC_QBUF>`, then it is set by the
+	  driver. This field can range from zero to the number of buffers
+	  allocated with the :ref:`VIDIOC_REQBUFS` ioctl
+	  (struct :ref:`v4l2_requestbuffers <v4l2-requestbuffers>`
+	  ``count``), plus any buffers allocated with
+	  :ref:`VIDIOC_CREATE_BUFS` minus one.
 
     -  .. row 2
 
@@ -63,11 +63,11 @@ buffer.
 
        -  ``type``
 
-       -  
+       -
        -  Type of the buffer, same as struct
-          :ref:`v4l2_format <v4l2-format>` ``type`` or struct
-          :ref:`v4l2_requestbuffers <v4l2-requestbuffers>` ``type``, set
-          by the application. See :ref:`v4l2-buf-type`
+	  :ref:`v4l2_format <v4l2-format>` ``type`` or struct
+	  :ref:`v4l2_requestbuffers <v4l2-requestbuffers>` ``type``, set
+	  by the application. See :ref:`v4l2-buf-type`
 
     -  .. row 3
 
@@ -75,16 +75,16 @@ buffer.
 
        -  ``bytesused``
 
-       -  
+       -
        -  The number of bytes occupied by the data in the buffer. It depends
-          on the negotiated data format and may change with each buffer for
-          compressed variable size data like JPEG images. Drivers must set
-          this field when ``type`` refers to a capture stream, applications
-          when it refers to an output stream. If the application sets this
-          to 0 for an output stream, then ``bytesused`` will be set to the
-          size of the buffer (see the ``length`` field of this struct) by
-          the driver. For multiplanar formats this field is ignored and the
-          ``planes`` pointer is used instead.
+	  on the negotiated data format and may change with each buffer for
+	  compressed variable size data like JPEG images. Drivers must set
+	  this field when ``type`` refers to a capture stream, applications
+	  when it refers to an output stream. If the application sets this
+	  to 0 for an output stream, then ``bytesused`` will be set to the
+	  size of the buffer (see the ``length`` field of this struct) by
+	  the driver. For multiplanar formats this field is ignored and the
+	  ``planes`` pointer is used instead.
 
     -  .. row 4
 
@@ -92,7 +92,7 @@ buffer.
 
        -  ``flags``
 
-       -  
+       -
        -  Flags set by the application or driver, see :ref:`buffer-flags`.
 
     -  .. row 5
@@ -101,11 +101,11 @@ buffer.
 
        -  ``field``
 
-       -  
+       -
        -  Indicates the field order of the image in the buffer, see
-          :ref:`v4l2-field`. This field is not used when the buffer
-          contains VBI data. Drivers must set it when ``type`` refers to a
-          capture stream, applications when it refers to an output stream.
+	  :ref:`v4l2-field`. This field is not used when the buffer
+	  contains VBI data. Drivers must set it when ``type`` refers to a
+	  capture stream, applications when it refers to an output stream.
 
     -  .. row 6
 
@@ -113,17 +113,17 @@ buffer.
 
        -  ``timestamp``
 
-       -  
+       -
        -  For capture streams this is time when the first data byte was
-          captured, as returned by the :c:func:`clock_gettime()` function
-          for the relevant clock id; see ``V4L2_BUF_FLAG_TIMESTAMP_*`` in
-          :ref:`buffer-flags`. For output streams the driver stores the
-          time at which the last data byte was actually sent out in the
-          ``timestamp`` field. This permits applications to monitor the
-          drift between the video and system clock. For output streams that
-          use ``V4L2_BUF_FLAG_TIMESTAMP_COPY`` the application has to fill
-          in the timestamp which will be copied by the driver to the capture
-          stream.
+	  captured, as returned by the :c:func:`clock_gettime()` function
+	  for the relevant clock id; see ``V4L2_BUF_FLAG_TIMESTAMP_*`` in
+	  :ref:`buffer-flags`. For output streams the driver stores the
+	  time at which the last data byte was actually sent out in the
+	  ``timestamp`` field. This permits applications to monitor the
+	  drift between the video and system clock. For output streams that
+	  use ``V4L2_BUF_FLAG_TIMESTAMP_COPY`` the application has to fill
+	  in the timestamp which will be copied by the driver to the capture
+	  stream.
 
     -  .. row 7
 
@@ -131,15 +131,15 @@ buffer.
 
        -  ``timecode``
 
-       -  
+       -
        -  When ``type`` is ``V4L2_BUF_TYPE_VIDEO_CAPTURE`` and the
-          ``V4L2_BUF_FLAG_TIMECODE`` flag is set in ``flags``, this
-          structure contains a frame timecode. In
-          :ref:`V4L2_FIELD_ALTERNATE <v4l2-field>` mode the top and
-          bottom field contain the same timecode. Timecodes are intended to
-          help video editing and are typically recorded on video tapes, but
-          also embedded in compressed formats like MPEG. This field is
-          independent of the ``timestamp`` and ``sequence`` fields.
+	  ``V4L2_BUF_FLAG_TIMECODE`` flag is set in ``flags``, this
+	  structure contains a frame timecode. In
+	  :ref:`V4L2_FIELD_ALTERNATE <v4l2-field>` mode the top and
+	  bottom field contain the same timecode. Timecodes are intended to
+	  help video editing and are typically recorded on video tapes, but
+	  also embedded in compressed formats like MPEG. This field is
+	  independent of the ``timestamp`` and ``sequence`` fields.
 
     -  .. row 8
 
@@ -147,27 +147,27 @@ buffer.
 
        -  ``sequence``
 
-       -  
+       -
        -  Set by the driver, counting the frames (not fields!) in sequence.
-          This field is set for both input and output devices.
+	  This field is set for both input and output devices.
 
     -  .. row 9
 
        -  :cspan:`3`
 
-          In :ref:`V4L2_FIELD_ALTERNATE <v4l2-field>` mode the top and
-          bottom field have the same sequence number. The count starts at
-          zero and includes dropped or repeated frames. A dropped frame was
-          received by an input device but could not be stored due to lack of
-          free buffer space. A repeated frame was displayed again by an
-          output device because the application did not pass new data in
-          time.
+	  In :ref:`V4L2_FIELD_ALTERNATE <v4l2-field>` mode the top and
+	  bottom field have the same sequence number. The count starts at
+	  zero and includes dropped or repeated frames. A dropped frame was
+	  received by an input device but could not be stored due to lack of
+	  free buffer space. A repeated frame was displayed again by an
+	  output device because the application did not pass new data in
+	  time.
 
-          Note this may count the frames received e.g. over USB, without
-          taking into account the frames dropped by the remote hardware due
-          to limited compression throughput or bus bandwidth. These devices
-          identify by not enumerating any video standards, see
-          :ref:`standard`.
+	  Note this may count the frames received e.g. over USB, without
+	  taking into account the frames dropped by the remote hardware due
+	  to limited compression throughput or bus bandwidth. These devices
+	  identify by not enumerating any video standards, see
+	  :ref:`standard`.
 
     -  .. row 10
 
@@ -175,9 +175,9 @@ buffer.
 
        -  ``memory``
 
-       -  
+       -
        -  This field must be set by applications and/or drivers in
-          accordance with the selected I/O method. See :ref:`v4l2-memory`
+	  accordance with the selected I/O method. See :ref:`v4l2-memory`
 
     -  .. row 11
 
@@ -187,52 +187,52 @@ buffer.
 
     -  .. row 12
 
-       -  
+       -
        -  __u32
 
        -  ``offset``
 
        -  For the single-planar API and when ``memory`` is
-          ``V4L2_MEMORY_MMAP`` this is the offset of the buffer from the
-          start of the device memory. The value is returned by the driver
-          and apart of serving as parameter to the
-          :ref:`mmap() <func-mmap>` function not useful for applications.
-          See :ref:`mmap` for details
+	  ``V4L2_MEMORY_MMAP`` this is the offset of the buffer from the
+	  start of the device memory. The value is returned by the driver
+	  and apart of serving as parameter to the
+	  :ref:`mmap() <func-mmap>` function not useful for applications.
+	  See :ref:`mmap` for details
 
     -  .. row 13
 
-       -  
+       -
        -  unsigned long
 
        -  ``userptr``
 
        -  For the single-planar API and when ``memory`` is
-          ``V4L2_MEMORY_USERPTR`` this is a pointer to the buffer (casted to
-          unsigned long type) in virtual memory, set by the application. See
-          :ref:`userp` for details.
+	  ``V4L2_MEMORY_USERPTR`` this is a pointer to the buffer (casted to
+	  unsigned long type) in virtual memory, set by the application. See
+	  :ref:`userp` for details.
 
     -  .. row 14
 
-       -  
+       -
        -  struct v4l2_plane
 
        -  ``*planes``
 
        -  When using the multi-planar API, contains a userspace pointer to
-          an array of struct :ref:`v4l2_plane <v4l2-plane>`. The size of
-          the array should be put in the ``length`` field of this
-          :ref:`struct v4l2_buffer <v4l2-buffer>` structure.
+	  an array of struct :ref:`v4l2_plane <v4l2-plane>`. The size of
+	  the array should be put in the ``length`` field of this
+	  :ref:`struct v4l2_buffer <v4l2-buffer>` structure.
 
     -  .. row 15
 
-       -  
+       -
        -  int
 
        -  ``fd``
 
        -  For the single-plane API and when ``memory`` is
-          ``V4L2_MEMORY_DMABUF`` this is the file descriptor associated with
-          a DMABUF buffer.
+	  ``V4L2_MEMORY_DMABUF`` this is the file descriptor associated with
+	  a DMABUF buffer.
 
     -  .. row 16
 
@@ -240,14 +240,14 @@ buffer.
 
        -  ``length``
 
-       -  
+       -
        -  Size of the buffer (not the payload) in bytes for the
-          single-planar API. This is set by the driver based on the calls to
-          :ref:`VIDIOC_REQBUFS` and/or
-          :ref:`VIDIOC_CREATE_BUFS`. For the
-          multi-planar API the application sets this to the number of
-          elements in the ``planes`` array. The driver will fill in the
-          actual number of valid elements in that array.
+	  single-planar API. This is set by the driver based on the calls to
+	  :ref:`VIDIOC_REQBUFS` and/or
+	  :ref:`VIDIOC_CREATE_BUFS`. For the
+	  multi-planar API the application sets this to the number of
+	  elements in the ``planes`` array. The driver will fill in the
+	  actual number of valid elements in that array.
 
     -  .. row 17
 
@@ -255,9 +255,9 @@ buffer.
 
        -  ``reserved2``
 
-       -  
+       -
        -  A place holder for future extensions. Drivers and applications
-          must set this to 0.
+	  must set this to 0.
 
     -  .. row 18
 
@@ -265,9 +265,9 @@ buffer.
 
        -  ``reserved``
 
-       -  
+       -
        -  A place holder for future extensions. Drivers and applications
-          must set this to 0.
+	  must set this to 0.
 
 
 
@@ -285,14 +285,14 @@ buffer.
 
        -  ``bytesused``
 
-       -  
+       -
        -  The number of bytes occupied by data in the plane (its payload).
-          Drivers must set this field when ``type`` refers to a capture
-          stream, applications when it refers to an output stream. If the
-          application sets this to 0 for an output stream, then
-          ``bytesused`` will be set to the size of the plane (see the
-          ``length`` field of this struct) by the driver. Note that the
-          actual image data starts at ``data_offset`` which may not be 0.
+	  Drivers must set this field when ``type`` refers to a capture
+	  stream, applications when it refers to an output stream. If the
+	  application sets this to 0 for an output stream, then
+	  ``bytesused`` will be set to the size of the plane (see the
+	  ``length`` field of this struct) by the driver. Note that the
+	  actual image data starts at ``data_offset`` which may not be 0.
 
     -  .. row 2
 
@@ -300,11 +300,11 @@ buffer.
 
        -  ``length``
 
-       -  
+       -
        -  Size in bytes of the plane (not its payload). This is set by the
-          driver based on the calls to
-          :ref:`VIDIOC_REQBUFS` and/or
-          :ref:`VIDIOC_CREATE_BUFS`.
+	  driver based on the calls to
+	  :ref:`VIDIOC_REQBUFS` and/or
+	  :ref:`VIDIOC_CREATE_BUFS`.
 
     -  .. row 3
 
@@ -312,45 +312,45 @@ buffer.
 
        -  ``m``
 
-       -  
-       -  
+       -
+       -
 
     -  .. row 4
 
-       -  
+       -
        -  __u32
 
        -  ``mem_offset``
 
        -  When the memory type in the containing struct
-          :ref:`v4l2_buffer <v4l2-buffer>` is ``V4L2_MEMORY_MMAP``, this
-          is the value that should be passed to :ref:`mmap() <func-mmap>`,
-          similar to the ``offset`` field in struct
-          :ref:`v4l2_buffer <v4l2-buffer>`.
+	  :ref:`v4l2_buffer <v4l2-buffer>` is ``V4L2_MEMORY_MMAP``, this
+	  is the value that should be passed to :ref:`mmap() <func-mmap>`,
+	  similar to the ``offset`` field in struct
+	  :ref:`v4l2_buffer <v4l2-buffer>`.
 
     -  .. row 5
 
-       -  
+       -
        -  unsigned long
 
        -  ``userptr``
 
        -  When the memory type in the containing struct
-          :ref:`v4l2_buffer <v4l2-buffer>` is ``V4L2_MEMORY_USERPTR``,
-          this is a userspace pointer to the memory allocated for this plane
-          by an application.
+	  :ref:`v4l2_buffer <v4l2-buffer>` is ``V4L2_MEMORY_USERPTR``,
+	  this is a userspace pointer to the memory allocated for this plane
+	  by an application.
 
     -  .. row 6
 
-       -  
+       -
        -  int
 
        -  ``fd``
 
        -  When the memory type in the containing struct
-          :ref:`v4l2_buffer <v4l2-buffer>` is ``V4L2_MEMORY_DMABUF``,
-          this is a file descriptor associated with a DMABUF buffer, similar
-          to the ``fd`` field in struct :ref:`v4l2_buffer <v4l2-buffer>`.
+	  :ref:`v4l2_buffer <v4l2-buffer>` is ``V4L2_MEMORY_DMABUF``,
+	  this is a file descriptor associated with a DMABUF buffer, similar
+	  to the ``fd`` field in struct :ref:`v4l2_buffer <v4l2-buffer>`.
 
     -  .. row 7
 
@@ -358,13 +358,13 @@ buffer.
 
        -  ``data_offset``
 
-       -  
+       -
        -  Offset in bytes to video data in the plane. Drivers must set this
-          field when ``type`` refers to a capture stream, applications when
-          it refers to an output stream. Note that data_offset is included
-          in ``bytesused``. So the size of the image in the plane is
-          ``bytesused``-``data_offset`` at offset ``data_offset`` from the
-          start of the plane.
+	  field when ``type`` refers to a capture stream, applications when
+	  it refers to an output stream. Note that data_offset is included
+	  in ``bytesused``. So the size of the image in the plane is
+	  ``bytesused``-``data_offset`` at offset ``data_offset`` from the
+	  start of the plane.
 
     -  .. row 8
 
@@ -372,9 +372,9 @@ buffer.
 
        -  ``reserved[11]``
 
-       -  
+       -
        -  Reserved for future use. Should be zeroed by drivers and
-          applications.
+	  applications.
 
 
 
@@ -393,7 +393,7 @@ buffer.
        -  1
 
        -  Buffer of a single-planar video capture stream, see
-          :ref:`capture`.
+	  :ref:`capture`.
 
     -  .. row 2
 
@@ -402,7 +402,7 @@ buffer.
        -  9
 
        -  Buffer of a multi-planar video capture stream, see
-          :ref:`capture`.
+	  :ref:`capture`.
 
     -  .. row 3
 
@@ -411,7 +411,7 @@ buffer.
        -  2
 
        -  Buffer of a single-planar video output stream, see
-          :ref:`output`.
+	  :ref:`output`.
 
     -  .. row 4
 
@@ -476,7 +476,7 @@ buffer.
        -  11
 
        -  Buffer for Software Defined Radio (SDR) capture stream, see
-          :ref:`sdr`.
+	  :ref:`sdr`.
 
     -  .. row 12
 
@@ -485,7 +485,7 @@ buffer.
        -  12
 
        -  Buffer for Software Defined Radio (SDR) output stream, see
-          :ref:`sdr`.
+	  :ref:`sdr`.
 
 
 
@@ -504,12 +504,12 @@ buffer.
        -  0x00000001
 
        -  The buffer resides in device memory and has been mapped into the
-          application's address space, see :ref:`mmap` for details.
-          Drivers set or clear this flag when the
-          :ref:`VIDIOC_QUERYBUF`,
-          :ref:`VIDIOC_QBUF` or
-          :ref:`VIDIOC_DQBUF <VIDIOC_QBUF>` ioctl is called. Set by the
-          driver.
+	  application's address space, see :ref:`mmap` for details.
+	  Drivers set or clear this flag when the
+	  :ref:`VIDIOC_QUERYBUF`,
+	  :ref:`VIDIOC_QBUF` or
+	  :ref:`VIDIOC_DQBUF <VIDIOC_QBUF>` ioctl is called. Set by the
+	  driver.
 
     -  .. row 2
 
@@ -518,13 +518,13 @@ buffer.
        -  0x00000002
 
        -  Internally drivers maintain two buffer queues, an incoming and
-          outgoing queue. When this flag is set, the buffer is currently on
-          the incoming queue. It automatically moves to the outgoing queue
-          after the buffer has been filled (capture devices) or displayed
-          (output devices). Drivers set or clear this flag when the
-          ``VIDIOC_QUERYBUF`` ioctl is called. After (successful) calling
-          the ``VIDIOC_QBUF``\ ioctl it is always set and after
-          ``VIDIOC_DQBUF`` always cleared.
+	  outgoing queue. When this flag is set, the buffer is currently on
+	  the incoming queue. It automatically moves to the outgoing queue
+	  after the buffer has been filled (capture devices) or displayed
+	  (output devices). Drivers set or clear this flag when the
+	  ``VIDIOC_QUERYBUF`` ioctl is called. After (successful) calling
+	  the ``VIDIOC_QBUF``\ ioctl it is always set and after
+	  ``VIDIOC_DQBUF`` always cleared.
 
     -  .. row 3
 
@@ -533,14 +533,14 @@ buffer.
        -  0x00000004
 
        -  When this flag is set, the buffer is currently on the outgoing
-          queue, ready to be dequeued from the driver. Drivers set or clear
-          this flag when the ``VIDIOC_QUERYBUF`` ioctl is called. After
-          calling the ``VIDIOC_QBUF`` or ``VIDIOC_DQBUF`` it is always
-          cleared. Of course a buffer cannot be on both queues at the same
-          time, the ``V4L2_BUF_FLAG_QUEUED`` and ``V4L2_BUF_FLAG_DONE`` flag
-          are mutually exclusive. They can be both cleared however, then the
-          buffer is in "dequeued" state, in the application domain so to
-          say.
+	  queue, ready to be dequeued from the driver. Drivers set or clear
+	  this flag when the ``VIDIOC_QUERYBUF`` ioctl is called. After
+	  calling the ``VIDIOC_QBUF`` or ``VIDIOC_DQBUF`` it is always
+	  cleared. Of course a buffer cannot be on both queues at the same
+	  time, the ``V4L2_BUF_FLAG_QUEUED`` and ``V4L2_BUF_FLAG_DONE`` flag
+	  are mutually exclusive. They can be both cleared however, then the
+	  buffer is in "dequeued" state, in the application domain so to
+	  say.
 
     -  .. row 4
 
@@ -549,10 +549,10 @@ buffer.
        -  0x00000040
 
        -  When this flag is set, the buffer has been dequeued successfully,
-          although the data might have been corrupted. This is recoverable,
-          streaming may continue as normal and the buffer may be reused
-          normally. Drivers set this flag when the ``VIDIOC_DQBUF`` ioctl is
-          called.
+	  although the data might have been corrupted. This is recoverable,
+	  streaming may continue as normal and the buffer may be reused
+	  normally. Drivers set this flag when the ``VIDIOC_DQBUF`` ioctl is
+	  called.
 
     -  .. row 5
 
@@ -561,11 +561,11 @@ buffer.
        -  0x00000008
 
        -  Drivers set or clear this flag when calling the ``VIDIOC_DQBUF``
-          ioctl. It may be set by video capture devices when the buffer
-          contains a compressed image which is a key frame (or field), i. e.
-          can be decompressed on its own. Also known as an I-frame.
-          Applications can set this bit when ``type`` refers to an output
-          stream.
+	  ioctl. It may be set by video capture devices when the buffer
+	  contains a compressed image which is a key frame (or field), i. e.
+	  can be decompressed on its own. Also known as an I-frame.
+	  Applications can set this bit when ``type`` refers to an output
+	  stream.
 
     -  .. row 6
 
@@ -574,9 +574,9 @@ buffer.
        -  0x00000010
 
        -  Similar to ``V4L2_BUF_FLAG_KEYFRAME`` this flags predicted frames
-          or fields which contain only differences to a previous key frame.
-          Applications can set this bit when ``type`` refers to an output
-          stream.
+	  or fields which contain only differences to a previous key frame.
+	  Applications can set this bit when ``type`` refers to an output
+	  stream.
 
     -  .. row 7
 
@@ -585,10 +585,10 @@ buffer.
        -  0x00000020
 
        -  Similar to ``V4L2_BUF_FLAG_KEYFRAME`` this flags a bi-directional
-          predicted frame or field which contains only the differences
-          between the current frame and both the preceding and following key
-          frames to specify its content. Applications can set this bit when
-          ``type`` refers to an output stream.
+	  predicted frame or field which contains only the differences
+	  between the current frame and both the preceding and following key
+	  frames to specify its content. Applications can set this bit when
+	  ``type`` refers to an output stream.
 
     -  .. row 8
 
@@ -597,9 +597,9 @@ buffer.
        -  0x00000100
 
        -  The ``timecode`` field is valid. Drivers set or clear this flag
-          when the ``VIDIOC_DQBUF`` ioctl is called. Applications can set
-          this bit and the corresponding ``timecode`` structure when
-          ``type`` refers to an output stream.
+	  when the ``VIDIOC_DQBUF`` ioctl is called. Applications can set
+	  this bit and the corresponding ``timecode`` structure when
+	  ``type`` refers to an output stream.
 
     -  .. row 9
 
@@ -608,11 +608,11 @@ buffer.
        -  0x00000400
 
        -  The buffer has been prepared for I/O and can be queued by the
-          application. Drivers set or clear this flag when the
-          :ref:`VIDIOC_QUERYBUF`,
-          :ref:`VIDIOC_PREPARE_BUF <VIDIOC_QBUF>`,
-          :ref:`VIDIOC_QBUF` or
-          :ref:`VIDIOC_DQBUF <VIDIOC_QBUF>` ioctl is called.
+	  application. Drivers set or clear this flag when the
+	  :ref:`VIDIOC_QUERYBUF`,
+	  :ref:`VIDIOC_PREPARE_BUF <VIDIOC_QBUF>`,
+	  :ref:`VIDIOC_QBUF` or
+	  :ref:`VIDIOC_DQBUF <VIDIOC_QBUF>` ioctl is called.
 
     -  .. row 10
 
@@ -621,10 +621,10 @@ buffer.
        -  0x00000800
 
        -  Caches do not have to be invalidated for this buffer. Typically
-          applications shall use this flag if the data captured in the
-          buffer is not going to be touched by the CPU, instead the buffer
-          will, probably, be passed on to a DMA-capable hardware unit for
-          further processing or output.
+	  applications shall use this flag if the data captured in the
+	  buffer is not going to be touched by the CPU, instead the buffer
+	  will, probably, be passed on to a DMA-capable hardware unit for
+	  further processing or output.
 
     -  .. row 11
 
@@ -633,9 +633,9 @@ buffer.
        -  0x00001000
 
        -  Caches do not have to be cleaned for this buffer. Typically
-          applications shall use this flag for output buffers if the data in
-          this buffer has not been created by the CPU but by some
-          DMA-capable unit, in which case caches have not been used.
+	  applications shall use this flag for output buffers if the data in
+	  this buffer has not been created by the CPU but by some
+	  DMA-capable unit, in which case caches have not been used.
 
     -  .. row 12
 
@@ -644,14 +644,14 @@ buffer.
        -  0x00100000
 
        -  Last buffer produced by the hardware. mem2mem codec drivers set
-          this flag on the capture queue for the last buffer when the
-          :ref:`VIDIOC_QUERYBUF` or
-          :ref:`VIDIOC_DQBUF <VIDIOC_QBUF>` ioctl is called. Due to
-          hardware limitations, the last buffer may be empty. In this case
-          the driver will set the ``bytesused`` field to 0, regardless of
-          the format. Any Any subsequent call to the
-          :ref:`VIDIOC_DQBUF <VIDIOC_QBUF>` ioctl will not block anymore,
-          but return an ``EPIPE`` error code.
+	  this flag on the capture queue for the last buffer when the
+	  :ref:`VIDIOC_QUERYBUF` or
+	  :ref:`VIDIOC_DQBUF <VIDIOC_QBUF>` ioctl is called. Due to
+	  hardware limitations, the last buffer may be empty. In this case
+	  the driver will set the ``bytesused`` field to 0, regardless of
+	  the format. Any Any subsequent call to the
+	  :ref:`VIDIOC_DQBUF <VIDIOC_QBUF>` ioctl will not block anymore,
+	  but return an ``EPIPE`` error code.
 
     -  .. row 13
 
@@ -660,8 +660,8 @@ buffer.
        -  0x0000e000
 
        -  Mask for timestamp types below. To test the timestamp type, mask
-          out bits not belonging to timestamp type by performing a logical
-          and operation with buffer flags and timestamp mask.
+	  out bits not belonging to timestamp type by performing a logical
+	  and operation with buffer flags and timestamp mask.
 
     -  .. row 14
 
@@ -670,12 +670,12 @@ buffer.
        -  0x00000000
 
        -  Unknown timestamp type. This type is used by drivers before Linux
-          3.9 and may be either monotonic (see below) or realtime (wall
-          clock). Monotonic clock has been favoured in embedded systems
-          whereas most of the drivers use the realtime clock. Either kinds
-          of timestamps are available in user space via
-          :c:func:`clock_gettime(2)` using clock IDs ``CLOCK_MONOTONIC``
-          and ``CLOCK_REALTIME``, respectively.
+	  3.9 and may be either monotonic (see below) or realtime (wall
+	  clock). Monotonic clock has been favoured in embedded systems
+	  whereas most of the drivers use the realtime clock. Either kinds
+	  of timestamps are available in user space via
+	  :c:func:`clock_gettime(2)` using clock IDs ``CLOCK_MONOTONIC``
+	  and ``CLOCK_REALTIME``, respectively.
 
     -  .. row 15
 
@@ -684,8 +684,8 @@ buffer.
        -  0x00002000
 
        -  The buffer timestamp has been taken from the ``CLOCK_MONOTONIC``
-          clock. To access the same clock outside V4L2, use
-          :c:func:`clock_gettime(2)`.
+	  clock. To access the same clock outside V4L2, use
+	  :c:func:`clock_gettime(2)`.
 
     -  .. row 16
 
@@ -694,7 +694,7 @@ buffer.
        -  0x00004000
 
        -  The CAPTURE buffer timestamp has been taken from the corresponding
-          OUTPUT buffer. This flag applies only to mem2mem devices.
+	  OUTPUT buffer. This flag applies only to mem2mem devices.
 
     -  .. row 17
 
@@ -703,12 +703,12 @@ buffer.
        -  0x00070000
 
        -  Mask for timestamp sources below. The timestamp source defines the
-          point of time the timestamp is taken in relation to the frame.
-          Logical 'and' operation between the ``flags`` field and
-          ``V4L2_BUF_FLAG_TSTAMP_SRC_MASK`` produces the value of the
-          timestamp source. Applications must set the timestamp source when
-          ``type`` refers to an output stream and
-          ``V4L2_BUF_FLAG_TIMESTAMP_COPY`` is set.
+	  point of time the timestamp is taken in relation to the frame.
+	  Logical 'and' operation between the ``flags`` field and
+	  ``V4L2_BUF_FLAG_TSTAMP_SRC_MASK`` produces the value of the
+	  timestamp source. Applications must set the timestamp source when
+	  ``type`` refers to an output stream and
+	  ``V4L2_BUF_FLAG_TIMESTAMP_COPY`` is set.
 
     -  .. row 18
 
@@ -717,11 +717,11 @@ buffer.
        -  0x00000000
 
        -  End Of Frame. The buffer timestamp has been taken when the last
-          pixel of the frame has been received or the last pixel of the
-          frame has been transmitted. In practice, software generated
-          timestamps will typically be read from the clock a small amount of
-          time after the last pixel has been received or transmitten,
-          depending on the system and other activity in it.
+	  pixel of the frame has been received or the last pixel of the
+	  frame has been transmitted. In practice, software generated
+	  timestamps will typically be read from the clock a small amount of
+	  time after the last pixel has been received or transmitten,
+	  depending on the system and other activity in it.
 
     -  .. row 19
 
@@ -730,8 +730,8 @@ buffer.
        -  0x00010000
 
        -  Start Of Exposure. The buffer timestamp has been taken when the
-          exposure of the frame has begun. This is only valid for the
-          ``V4L2_BUF_TYPE_VIDEO_CAPTURE`` buffer type.
+	  exposure of the frame has begun. This is only valid for the
+	  ``V4L2_BUF_TYPE_VIDEO_CAPTURE`` buffer type.
 
 
 
@@ -817,7 +817,7 @@ The :ref:`struct v4l2_timecode <v4l2-timecode>` structure is designed to hold a
        -  ``frames``
 
        -  Frame count, 0 ... 23/24/29/49/59, depending on the type of
-          timecode.
+	  timecode.
 
     -  .. row 4
 
@@ -891,7 +891,7 @@ The :ref:`struct v4l2_timecode <v4l2-timecode>` structure is designed to hold a
 
        -  4
 
-       -  
+       -
 
     -  .. row 5
 
@@ -899,7 +899,7 @@ The :ref:`struct v4l2_timecode <v4l2-timecode>` structure is designed to hold a
 
        -  5
 
-       -  
+       -
 
 
 
@@ -918,9 +918,9 @@ The :ref:`struct v4l2_timecode <v4l2-timecode>` structure is designed to hold a
        -  0x0001
 
        -  Indicates "drop frame" semantics for counting frames in 29.97 fps
-          material. When set, frame numbers 0 and 1 at the start of each
-          minute, except minutes 0, 10, 20, 30, 40, 50 are omitted from the
-          count.
+	  material. When set, frame numbers 0 and 1 at the start of each
+	  minute, except minutes 0, 10, 20, 30, 40, 50 are omitted from the
+	  count.
 
     -  .. row 2
 

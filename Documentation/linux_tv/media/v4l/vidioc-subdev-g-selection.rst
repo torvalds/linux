@@ -78,7 +78,7 @@ Selection targets and flags are documented in
        -  ``which``
 
        -  Active or try selection, from enum
-          :ref:`v4l2_subdev_format_whence <v4l2-subdev-format-whence>`.
+	  :ref:`v4l2_subdev_format_whence <v4l2-subdev-format-whence>`.
 
     -  .. row 2
 
@@ -119,7 +119,7 @@ Selection targets and flags are documented in
        -  ``reserved``\ [8]
 
        -  Reserved for future extensions. Applications and drivers must set
-          the array to zero.
+	  the array to zero.
 
 
 

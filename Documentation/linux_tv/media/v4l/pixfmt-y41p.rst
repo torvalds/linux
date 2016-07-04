@@ -158,12 +158,12 @@ Each cell is one byte.
 
     -  .. row 1
 
-       -  
+       -
        -  0
 
        -  1
 
-       -  
+       -
        -  2
 
        -  3
@@ -172,7 +172,7 @@ Each cell is one byte.
 
        -  5
 
-       -  
+       -
        -  6
 
        -  7

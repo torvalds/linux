@@ -65,12 +65,12 @@ or output. [1]_
        -  ``id``
 
        -  The bits in this field identify the standard as one of the common
-          standards listed in :ref:`v4l2-std-id`, or if bits 32 to 63 are
-          set as custom standards. Multiple bits can be set if the hardware
-          does not distinguish between these standards, however separate
-          indices do not indicate the opposite. The ``id`` must be unique.
-          No other enumerated :ref:`struct v4l2_standard <v4l2-standard>` structure,
-          for this input or output anyway, can contain the same set of bits.
+	  standards listed in :ref:`v4l2-std-id`, or if bits 32 to 63 are
+	  set as custom standards. Multiple bits can be set if the hardware
+	  does not distinguish between these standards, however separate
+	  indices do not indicate the opposite. The ``id`` must be unique.
+	  No other enumerated :ref:`struct v4l2_standard <v4l2-standard>` structure,
+	  for this input or output anyway, can contain the same set of bits.
 
     -  .. row 3
 
@@ -79,8 +79,8 @@ or output. [1]_
        -  ``name``\ [24]
 
        -  Name of the standard, a NUL-terminated ASCII string, for example:
-          "PAL-B/G", "NTSC Japan". This information is intended for the
-          user.
+	  "PAL-B/G", "NTSC Japan". This information is intended for the
+	  user.
 
     -  .. row 4
 
@@ -89,7 +89,7 @@ or output. [1]_
        -  ``frameperiod``
 
        -  The frame period (not field period) is numerator / denominator.
-          For example M/NTSC has a frame period of 1001 / 30000 seconds.
+	  For example M/NTSC has a frame period of 1001 / 30000 seconds.
 
     -  .. row 5
 
@@ -106,7 +106,7 @@ or output. [1]_
        -  ``reserved``\ [4]
 
        -  Reserved for future extensions. Drivers must set the array to
-          zero.
+	  zero.
 
 
 
@@ -124,7 +124,7 @@ or output. [1]_
 
        -  ``numerator``
 
-       -  
+       -
 
     -  .. row 2
 
@@ -132,7 +132,7 @@ or output. [1]_
 
        -  ``denominator``
 
-       -  
+       -
 
 
 
@@ -151,9 +151,9 @@ or output. [1]_
        -  ``v4l2_std_id``
 
        -  This type is a set, each bit representing another video standard
-          as listed below and in :ref:`video-standards`. The 32 most
-          significant bits are reserved for custom (driver defined) video
-          standards.
+	  as listed below and in :ref:`video-standards`. The 32 most
+	  significant bits are reserved for custom (driver defined) video
+	  standards.
 
 
 
@@ -215,54 +215,54 @@ support digital TV. See also the Linux DVB API at
 .. code-block:: c
 
     #define V4L2_STD_PAL_BG         (V4L2_STD_PAL_B         |
-                     V4L2_STD_PAL_B1        |
-                     V4L2_STD_PAL_G)
+		     V4L2_STD_PAL_B1        |
+		     V4L2_STD_PAL_G)
     #define V4L2_STD_B              (V4L2_STD_PAL_B         |
-                     V4L2_STD_PAL_B1        |
-                     V4L2_STD_SECAM_B)
+		     V4L2_STD_PAL_B1        |
+		     V4L2_STD_SECAM_B)
     #define V4L2_STD_GH             (V4L2_STD_PAL_G         |
-                     V4L2_STD_PAL_H         |
-                     V4L2_STD_SECAM_G       |
-                     V4L2_STD_SECAM_H)
+		     V4L2_STD_PAL_H         |
+		     V4L2_STD_SECAM_G       |
+		     V4L2_STD_SECAM_H)
     #define V4L2_STD_PAL_DK         (V4L2_STD_PAL_D         |
-                     V4L2_STD_PAL_D1        |
-                     V4L2_STD_PAL_K)
+		     V4L2_STD_PAL_D1        |
+		     V4L2_STD_PAL_K)
     #define V4L2_STD_PAL            (V4L2_STD_PAL_BG        |
-                     V4L2_STD_PAL_DK        |
-                     V4L2_STD_PAL_H         |
-                     V4L2_STD_PAL_I)
+		     V4L2_STD_PAL_DK        |
+		     V4L2_STD_PAL_H         |
+		     V4L2_STD_PAL_I)
     #define V4L2_STD_NTSC           (V4L2_STD_NTSC_M        |
-                     V4L2_STD_NTSC_M_JP     |
-                     V4L2_STD_NTSC_M_KR)
+		     V4L2_STD_NTSC_M_JP     |
+		     V4L2_STD_NTSC_M_KR)
     #define V4L2_STD_MN             (V4L2_STD_PAL_M         |
-                     V4L2_STD_PAL_N         |
-                     V4L2_STD_PAL_Nc        |
-                     V4L2_STD_NTSC)
+		     V4L2_STD_PAL_N         |
+		     V4L2_STD_PAL_Nc        |
+		     V4L2_STD_NTSC)
     #define V4L2_STD_SECAM_DK       (V4L2_STD_SECAM_D       |
-                     V4L2_STD_SECAM_K       |
-                     V4L2_STD_SECAM_K1)
+		     V4L2_STD_SECAM_K       |
+		     V4L2_STD_SECAM_K1)
     #define V4L2_STD_DK             (V4L2_STD_PAL_DK        |
-                     V4L2_STD_SECAM_DK)
+		     V4L2_STD_SECAM_DK)
 
     #define V4L2_STD_SECAM          (V4L2_STD_SECAM_B       |
-                     V4L2_STD_SECAM_G       |
-                     V4L2_STD_SECAM_H       |
-                     V4L2_STD_SECAM_DK      |
-                     V4L2_STD_SECAM_L       |
-                     V4L2_STD_SECAM_LC)
+		     V4L2_STD_SECAM_G       |
+		     V4L2_STD_SECAM_H       |
+		     V4L2_STD_SECAM_DK      |
+		     V4L2_STD_SECAM_L       |
+		     V4L2_STD_SECAM_LC)
 
     #define V4L2_STD_525_60         (V4L2_STD_PAL_M         |
-                     V4L2_STD_PAL_60        |
-                     V4L2_STD_NTSC          |
-                     V4L2_STD_NTSC_443)
+		     V4L2_STD_PAL_60        |
+		     V4L2_STD_NTSC          |
+		     V4L2_STD_NTSC_443)
     #define V4L2_STD_625_50         (V4L2_STD_PAL           |
-                     V4L2_STD_PAL_N         |
-                     V4L2_STD_PAL_Nc        |
-                     V4L2_STD_SECAM)
+		     V4L2_STD_PAL_N         |
+		     V4L2_STD_PAL_Nc        |
+		     V4L2_STD_SECAM)
 
     #define V4L2_STD_UNKNOWN        0
     #define V4L2_STD_ALL            (V4L2_STD_525_60        |
-                     V4L2_STD_625_50)
+		     V4L2_STD_625_50)
 
 
 .. _video-standards:
@@ -329,7 +329,7 @@ support digital TV. See also the Linux DVB API at
        -  4433618.75 ± 1
 
        -  :cspan:`3` f\ :sub:`OR` = 4406250 ± 2000, f\ :sub:`OB` = 4250000
-          ± 2000
+	  ± 2000
 
     -  .. row 5
 

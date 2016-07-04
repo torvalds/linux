@@ -62,8 +62,8 @@ at index zero, incrementing by one until the driver returns ``EINVAL``.
        -  ``name``\ [32]
 
        -  Name of the video input, a NUL-terminated ASCII string, for
-          example: "Vin (Composite 2)". This information is intended for the
-          user, preferably the connector label on the device itself.
+	  example: "Vin (Composite 2)". This information is intended for the
+	  user, preferably the connector label on the device itself.
 
     -  .. row 3
 
@@ -80,18 +80,18 @@ at index zero, incrementing by one until the driver returns ``EINVAL``.
        -  ``audioset``
 
        -  Drivers can enumerate up to 32 video and audio inputs. This field
-          shows which audio inputs were selectable as audio source if this
-          was the currently selected video input. It is a bit mask. The LSB
-          corresponds to audio input 0, the MSB to input 31. Any number of
-          bits can be set, or none.
+	  shows which audio inputs were selectable as audio source if this
+	  was the currently selected video input. It is a bit mask. The LSB
+	  corresponds to audio input 0, the MSB to input 31. Any number of
+	  bits can be set, or none.
 
-          When the driver does not enumerate audio inputs no bits must be
-          set. Applications shall not interpret this as lack of audio
-          support. Some drivers automatically select audio sources and do
-          not enumerate them since there is no choice anyway.
+	  When the driver does not enumerate audio inputs no bits must be
+	  set. Applications shall not interpret this as lack of audio
+	  support. Some drivers automatically select audio sources and do
+	  not enumerate them since there is no choice anyway.
 
-          For details on audio inputs and how to select the current input
-          see :ref:`audio`.
+	  For details on audio inputs and how to select the current input
+	  see :ref:`audio`.
 
     -  .. row 5
 
@@ -100,10 +100,10 @@ at index zero, incrementing by one until the driver returns ``EINVAL``.
        -  ``tuner``
 
        -  Capture devices can have zero or more tuners (RF demodulators).
-          When the ``type`` is set to ``V4L2_INPUT_TYPE_TUNER`` this is an
-          RF connector and this field identifies the tuner. It corresponds
-          to struct :ref:`v4l2_tuner <v4l2-tuner>` field ``index``. For
-          details on tuners see :ref:`tuner`.
+	  When the ``type`` is set to ``V4L2_INPUT_TYPE_TUNER`` this is an
+	  RF connector and this field identifies the tuner. It corresponds
+	  to struct :ref:`v4l2_tuner <v4l2-tuner>` field ``index``. For
+	  details on tuners see :ref:`tuner`.
 
     -  .. row 6
 
@@ -112,8 +112,8 @@ at index zero, incrementing by one until the driver returns ``EINVAL``.
        -  ``std``
 
        -  Every video input supports one or more different video standards.
-          This field is a set of all supported standards. For details on
-          video standards and how to switch see :ref:`standard`.
+	  This field is a set of all supported standards. For details on
+	  video standards and how to switch see :ref:`standard`.
 
     -  .. row 7
 
@@ -122,9 +122,9 @@ at index zero, incrementing by one until the driver returns ``EINVAL``.
        -  ``status``
 
        -  This field provides status information about the input. See
-          :ref:`input-status` for flags. With the exception of the sensor
-          orientation bits ``status`` is only valid when this is the current
-          input.
+	  :ref:`input-status` for flags. With the exception of the sensor
+	  orientation bits ``status`` is only valid when this is the current
+	  input.
 
     -  .. row 8
 
@@ -133,7 +133,7 @@ at index zero, incrementing by one until the driver returns ``EINVAL``.
        -  ``capabilities``
 
        -  This field provides capabilities for the input. See
-          :ref:`input-capabilities` for flags.
+	  :ref:`input-capabilities` for flags.
 
     -  .. row 9
 
@@ -142,7 +142,7 @@ at index zero, incrementing by one until the driver returns ``EINVAL``.
        -  ``reserved``\ [3]
 
        -  Reserved for future extensions. Drivers must set the array to
-          zero.
+	  zero.
 
 
 
@@ -169,7 +169,7 @@ at index zero, incrementing by one until the driver returns ``EINVAL``.
        -  2
 
        -  Analog baseband input, for example CVBS / Composite Video,
-          S-Video, RGB.
+	  S-Video, RGB.
 
 
 
@@ -198,7 +198,7 @@ at index zero, incrementing by one until the driver returns ``EINVAL``.
 
        -  0x00000002
 
-       -  
+       -
 
     -  .. row 4
 
@@ -207,7 +207,7 @@ at index zero, incrementing by one until the driver returns ``EINVAL``.
        -  0x00000004
 
        -  The hardware supports color decoding, but does not detect color
-          modulation in the signal.
+	  modulation in the signal.
 
     -  .. row 5
 
@@ -220,8 +220,8 @@ at index zero, incrementing by one until the driver returns ``EINVAL``.
        -  0x00000010
 
        -  The input is connected to a device that produces a signal that is
-          flipped horizontally and does not correct this before passing the
-          signal to userspace.
+	  flipped horizontally and does not correct this before passing the
+	  signal to userspace.
 
     -  .. row 7
 
@@ -230,9 +230,9 @@ at index zero, incrementing by one until the driver returns ``EINVAL``.
        -  0x00000020
 
        -  The input is connected to a device that produces a signal that is
-          flipped vertically and does not correct this before passing the
-          signal to userspace. Note that a 180 degree rotation is the same
-          as HFLIP | VFLIP
+	  flipped vertically and does not correct this before passing the
+	  signal to userspace. Note that a 180 degree rotation is the same
+	  as HFLIP | VFLIP
 
     -  .. row 8
 
@@ -253,8 +253,8 @@ at index zero, incrementing by one until the driver returns ``EINVAL``.
        -  0x00000200
 
        -  A color killer circuit automatically disables color decoding when
-          it detects no color modulation. When this flag is set the color
-          killer is enabled *and* has shut off color decoding.
+	  it detects no color modulation. When this flag is set the color
+	  killer is enabled *and* has shut off color decoding.
 
     -  .. row 11
 
@@ -295,8 +295,8 @@ at index zero, incrementing by one until the driver returns ``EINVAL``.
        -  0x01000000
 
        -  Macrovision is an analog copy prevention system mangling the video
-          signal to confuse video recorders. When this flag is set
-          Macrovision has been detected.
+	  signal to confuse video recorders. When this flag is set
+	  Macrovision has been detected.
 
     -  .. row 17
 
@@ -331,7 +331,7 @@ at index zero, incrementing by one until the driver returns ``EINVAL``.
        -  0x00000002
 
        -  This input supports setting video timings by using
-          VIDIOC_S_DV_TIMINGS.
+	  VIDIOC_S_DV_TIMINGS.
 
     -  .. row 2
 
@@ -340,7 +340,7 @@ at index zero, incrementing by one until the driver returns ``EINVAL``.
        -  0x00000004
 
        -  This input supports setting the TV standard by using
-          VIDIOC_S_STD.
+	  VIDIOC_S_STD.
 
     -  .. row 3
 
@@ -349,8 +349,8 @@ at index zero, incrementing by one until the driver returns ``EINVAL``.
        -  0x00000008
 
        -  This input supports setting the native size using the
-          ``V4L2_SEL_TGT_NATIVE_SIZE`` selection target, see
-          :ref:`v4l2-selections-common`.
+	  ``V4L2_SEL_TGT_NATIVE_SIZE`` selection target, see
+	  :ref:`v4l2-selections-common`.
 
 
 

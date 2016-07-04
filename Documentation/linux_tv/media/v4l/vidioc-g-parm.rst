@@ -63,10 +63,10 @@ union holding separate parameters for input and output devices.
 
        -  ``type``
 
-       -  
+       -
        -  The buffer (stream) type, same as struct
-          :ref:`v4l2_format <v4l2-format>` ``type``, set by the
-          application. See :ref:`v4l2-buf-type`
+	  :ref:`v4l2_format <v4l2-format>` ``type``, set by the
+	  application. See :ref:`v4l2-buf-type`
 
     -  .. row 2
 
@@ -74,32 +74,32 @@ union holding separate parameters for input and output devices.
 
        -  ``parm``
 
-       -  
-       -  
+       -
+       -
 
     -  .. row 3
 
-       -  
+       -
        -  struct :ref:`v4l2_captureparm <v4l2-captureparm>`
 
        -  ``capture``
 
        -  Parameters for capture devices, used when ``type`` is
-          ``V4L2_BUF_TYPE_VIDEO_CAPTURE``.
+	  ``V4L2_BUF_TYPE_VIDEO_CAPTURE``.
 
     -  .. row 4
 
-       -  
+       -
        -  struct :ref:`v4l2_outputparm <v4l2-outputparm>`
 
        -  ``output``
 
        -  Parameters for output devices, used when ``type`` is
-          ``V4L2_BUF_TYPE_VIDEO_OUTPUT``.
+	  ``V4L2_BUF_TYPE_VIDEO_OUTPUT``.
 
     -  .. row 5
 
-       -  
+       -
        -  __u8
 
        -  ``raw_data``\ [200]
@@ -139,20 +139,20 @@ union holding separate parameters for input and output devices.
        -  ``timeperframe``
 
        -  This is the desired period between successive frames captured by
-          the driver, in seconds. The field is intended to skip frames on
-          the driver side, saving I/O bandwidth.
+	  the driver, in seconds. The field is intended to skip frames on
+	  the driver side, saving I/O bandwidth.
 
-          Applications store here the desired frame period, drivers return
-          the actual frame period, which must be greater or equal to the
-          nominal frame period determined by the current video standard
-          (struct :ref:`v4l2_standard <v4l2-standard>` ``frameperiod``
-          field). Changing the video standard (also implicitly by switching
-          the video input) may reset this parameter to the nominal frame
-          period. To reset manually applications can just set this field to
-          zero.
+	  Applications store here the desired frame period, drivers return
+	  the actual frame period, which must be greater or equal to the
+	  nominal frame period determined by the current video standard
+	  (struct :ref:`v4l2_standard <v4l2-standard>` ``frameperiod``
+	  field). Changing the video standard (also implicitly by switching
+	  the video input) may reset this parameter to the nominal frame
+	  period. To reset manually applications can just set this field to
+	  zero.
 
-          Drivers support this function only when they set the
-          ``V4L2_CAP_TIMEPERFRAME`` flag in the ``capability`` field.
+	  Drivers support this function only when they set the
+	  ``V4L2_CAP_TIMEPERFRAME`` flag in the ``capability`` field.
 
     -  .. row 4
 
@@ -161,9 +161,9 @@ union holding separate parameters for input and output devices.
        -  ``extendedmode``
 
        -  Custom (driver specific) streaming parameters. When unused,
-          applications and drivers must set this field to zero. Applications
-          using this field should check the driver name and version, see
-          :ref:`querycap`.
+	  applications and drivers must set this field to zero. Applications
+	  using this field should check the driver name and version, see
+	  :ref:`querycap`.
 
     -  .. row 5
 
@@ -172,11 +172,11 @@ union holding separate parameters for input and output devices.
        -  ``readbuffers``
 
        -  Applications set this field to the desired number of buffers used
-          internally by the driver in :ref:`read() <func-read>` mode.
-          Drivers return the actual number of buffers. When an application
-          requests zero buffers, drivers should just return the current
-          setting rather than the minimum or an error code. For details see
-          :ref:`rw`.
+	  internally by the driver in :ref:`read() <func-read>` mode.
+	  Drivers return the actual number of buffers. When an application
+	  requests zero buffers, drivers should just return the current
+	  setting rather than the minimum or an error code. For details see
+	  :ref:`rw`.
 
     -  .. row 6
 
@@ -185,7 +185,7 @@ union holding separate parameters for input and output devices.
        -  ``reserved``\ [4]
 
        -  Reserved for future extensions. Drivers and applications must set
-          the array to zero.
+	  the array to zero.
 
 
 
@@ -220,27 +220,27 @@ union holding separate parameters for input and output devices.
        -  ``timeperframe``
 
        -  This is the desired period between successive frames output by the
-          driver, in seconds.
+	  driver, in seconds.
 
     -  .. row 4
 
        -  :cspan:`2`
 
-          The field is intended to repeat frames on the driver side in
-          :ref:`write() <func-write>` mode (in streaming mode timestamps
-          can be used to throttle the output), saving I/O bandwidth.
+	  The field is intended to repeat frames on the driver side in
+	  :ref:`write() <func-write>` mode (in streaming mode timestamps
+	  can be used to throttle the output), saving I/O bandwidth.
 
-          Applications store here the desired frame period, drivers return
-          the actual frame period, which must be greater or equal to the
-          nominal frame period determined by the current video standard
-          (struct :ref:`v4l2_standard <v4l2-standard>` ``frameperiod``
-          field). Changing the video standard (also implicitly by switching
-          the video output) may reset this parameter to the nominal frame
-          period. To reset manually applications can just set this field to
-          zero.
+	  Applications store here the desired frame period, drivers return
+	  the actual frame period, which must be greater or equal to the
+	  nominal frame period determined by the current video standard
+	  (struct :ref:`v4l2_standard <v4l2-standard>` ``frameperiod``
+	  field). Changing the video standard (also implicitly by switching
+	  the video output) may reset this parameter to the nominal frame
+	  period. To reset manually applications can just set this field to
+	  zero.
 
-          Drivers support this function only when they set the
-          ``V4L2_CAP_TIMEPERFRAME`` flag in the ``capability`` field.
+	  Drivers support this function only when they set the
+	  ``V4L2_CAP_TIMEPERFRAME`` flag in the ``capability`` field.
 
     -  .. row 5
 
@@ -249,9 +249,9 @@ union holding separate parameters for input and output devices.
        -  ``extendedmode``
 
        -  Custom (driver specific) streaming parameters. When unused,
-          applications and drivers must set this field to zero. Applications
-          using this field should check the driver name and version, see
-          :ref:`querycap`.
+	  applications and drivers must set this field to zero. Applications
+	  using this field should check the driver name and version, see
+	  :ref:`querycap`.
 
     -  .. row 6
 
@@ -260,11 +260,11 @@ union holding separate parameters for input and output devices.
        -  ``writebuffers``
 
        -  Applications set this field to the desired number of buffers used
-          internally by the driver in :ref:`write() <func-write>` mode. Drivers
-          return the actual number of buffers. When an application requests
-          zero buffers, drivers should just return the current setting
-          rather than the minimum or an error code. For details see
-          :ref:`rw`.
+	  internally by the driver in :ref:`write() <func-write>` mode. Drivers
+	  return the actual number of buffers. When an application requests
+	  zero buffers, drivers should just return the current setting
+	  rather than the minimum or an error code. For details see
+	  :ref:`rw`.
 
     -  .. row 7
 
@@ -273,7 +273,7 @@ union holding separate parameters for input and output devices.
        -  ``reserved``\ [4]
 
        -  Reserved for future extensions. Drivers and applications must set
-          the array to zero.
+	  the array to zero.
 
 
 
@@ -292,7 +292,7 @@ union holding separate parameters for input and output devices.
        -  0x1000
 
        -  The frame skipping/repeating controlled by the ``timeperframe``
-          field is supported.
+	  field is supported.
 
 
 
@@ -311,33 +311,33 @@ union holding separate parameters for input and output devices.
        -  0x0001
 
        -  High quality imaging mode. High quality mode is intended for still
-          imaging applications. The idea is to get the best possible image
-          quality that the hardware can deliver. It is not defined how the
-          driver writer may achieve that; it will depend on the hardware and
-          the ingenuity of the driver writer. High quality mode is a
-          different mode from the regular motion video capture modes. In
-          high quality mode:
+	  imaging applications. The idea is to get the best possible image
+	  quality that the hardware can deliver. It is not defined how the
+	  driver writer may achieve that; it will depend on the hardware and
+	  the ingenuity of the driver writer. High quality mode is a
+	  different mode from the regular motion video capture modes. In
+	  high quality mode:
 
-          -  The driver may be able to capture higher resolutions than for
-             motion capture.
+	  -  The driver may be able to capture higher resolutions than for
+	     motion capture.
 
-          -  The driver may support fewer pixel formats than motion capture
-             (eg; true color).
+	  -  The driver may support fewer pixel formats than motion capture
+	     (eg; true color).
 
-          -  The driver may capture and arithmetically combine multiple
-             successive fields or frames to remove color edge artifacts and
-             reduce the noise in the video data.
+	  -  The driver may capture and arithmetically combine multiple
+	     successive fields or frames to remove color edge artifacts and
+	     reduce the noise in the video data.
 
-          -  The driver may capture images in slices like a scanner in order
-             to handle larger format images than would otherwise be
-             possible.
+	  -  The driver may capture images in slices like a scanner in order
+	     to handle larger format images than would otherwise be
+	     possible.
 
-          -  An image capture operation may be significantly slower than
-             motion capture.
+	  -  An image capture operation may be significantly slower than
+	     motion capture.
 
-          -  Moving objects in the image might have excessive motion blur.
+	  -  Moving objects in the image might have excessive motion blur.
 
-          -  Capture might only work through the :ref:`read() <func-read>` call.
+	  -  Capture might only work through the :ref:`read() <func-read>` call.
 
 
 

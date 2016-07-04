@@ -288,7 +288,7 @@ the remote via /dev/input/event devices.
        -  ``KEY_ANGLE``
 
        -  Switch video camera angle (on videos with more than one angle
-          stored)
+	  stored)
 
        -  ANGLE / SWAP
 
@@ -739,19 +739,19 @@ at some cheaper IR's. Due to that, it is recommended to:
     -  .. row 1
 
        -  On simpler IR's, without separate channel keys, you need to map UP
-          as ``KEY_CHANNELUP``
+	  as ``KEY_CHANNELUP``
 
     -  .. row 2
 
        -  On simpler IR's, without separate channel keys, you need to map
-          DOWN as ``KEY_CHANNELDOWN``
+	  DOWN as ``KEY_CHANNELDOWN``
 
     -  .. row 3
 
        -  On simpler IR's, without separate volume keys, you need to map
-          LEFT as ``KEY_VOLUMEDOWN``
+	  LEFT as ``KEY_VOLUMEDOWN``
 
     -  .. row 4
 
        -  On simpler IR's, without separate volume keys, you need to map
-          RIGHT as ``KEY_VOLUMEUP``
+	  RIGHT as ``KEY_VOLUMEUP``

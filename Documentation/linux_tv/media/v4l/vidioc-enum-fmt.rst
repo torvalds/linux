@@ -57,7 +57,7 @@ formats may be different.
        -  ``index``
 
        -  Number of the format in the enumeration, set by the application.
-          This is in no way related to the ``pixelformat`` field.
+	  This is in no way related to the ``pixelformat`` field.
 
     -  .. row 2
 
@@ -66,11 +66,11 @@ formats may be different.
        -  ``type``
 
        -  Type of the data stream, set by the application. Only these types
-          are valid here: ``V4L2_BUF_TYPE_VIDEO_CAPTURE``,
-          ``V4L2_BUF_TYPE_VIDEO_CAPTURE_MPLANE``,
-          ``V4L2_BUF_TYPE_VIDEO_OUTPUT``,
-          ``V4L2_BUF_TYPE_VIDEO_OUTPUT_MPLANE`` and
-          ``V4L2_BUF_TYPE_VIDEO_OVERLAY``. See :ref:`v4l2-buf-type`.
+	  are valid here: ``V4L2_BUF_TYPE_VIDEO_CAPTURE``,
+	  ``V4L2_BUF_TYPE_VIDEO_CAPTURE_MPLANE``,
+	  ``V4L2_BUF_TYPE_VIDEO_OUTPUT``,
+	  ``V4L2_BUF_TYPE_VIDEO_OUTPUT_MPLANE`` and
+	  ``V4L2_BUF_TYPE_VIDEO_OVERLAY``. See :ref:`v4l2-buf-type`.
 
     -  .. row 3
 
@@ -87,7 +87,7 @@ formats may be different.
        -  ``description``\ [32]
 
        -  Description of the format, a NUL-terminated ASCII string. This
-          information is intended for the user, for example: "YUV 4:2:2".
+	  information is intended for the user, for example: "YUV 4:2:2".
 
     -  .. row 5
 
@@ -96,21 +96,21 @@ formats may be different.
        -  ``pixelformat``
 
        -  The image format identifier. This is a four character code as
-          computed by the v4l2_fourcc() macro:
+	  computed by the v4l2_fourcc() macro:
 
     -  .. row 6
 
        -  :cspan:`2`
 
 
-          .. _v4l2-fourcc:
-          .. code-block:: c
+	  .. _v4l2-fourcc:
+	  .. code-block:: c
 
-              #define v4l2_fourcc(a,b,c,d) (((__u32)(a)<<0)|((__u32)(b)<<8)|((__u32)(c)<<16)|((__u32)(d)<<24))
+	      #define v4l2_fourcc(a,b,c,d) (((__u32)(a)<<0)|((__u32)(b)<<8)|((__u32)(c)<<16)|((__u32)(d)<<24))
 
-          Several image formats are already defined by this specification in
-          :ref:`pixfmt`. Note these codes are not the same as those used
-          in the Windows world.
+	  Several image formats are already defined by this specification in
+	  :ref:`pixfmt`. Note these codes are not the same as those used
+	  in the Windows world.
 
     -  .. row 7
 
@@ -119,7 +119,7 @@ formats may be different.
        -  ``reserved``\ [4]
 
        -  Reserved for future extensions. Drivers must set the array to
-          zero.
+	  zero.
 
 
 
@@ -146,8 +146,8 @@ formats may be different.
        -  0x0002
 
        -  This format is not native to the device but emulated through
-          software (usually libv4l2), where possible try to use a native
-          format instead for better performance.
+	  software (usually libv4l2), where possible try to use a native
+	  format instead for better performance.
 
 
 

@@ -18,7 +18,7 @@ Types and flags used to represent the media graph elements
        -  ``MEDIA_ENT_F_UNKNOWN`` and ``MEDIA_ENT_F_V4L2_SUBDEV_UNKNOWN``
 
        -  Unknown entity. That generally indicates that a driver didn't
-          initialize properly the entity, with is a Kernel bug
+	  initialize properly the entity, with is a Kernel bug
 
     -  .. row 2
 
@@ -55,7 +55,7 @@ Types and flags used to represent the media graph elements
        -  ``MEDIA_ENT_F_TS_DEMUX``
 
        -  MPEG Transport stream demux entity. Could be implemented on
-          hardware or in Kernelspace by the Linux DVB subsystem.
+	  hardware or in Kernelspace by the Linux DVB subsystem.
 
     -  .. row 8
 
@@ -68,7 +68,7 @@ Types and flags used to represent the media graph elements
        -  ``MEDIA_ENT_F_DTV_NET_DECAP``
 
        -  Digital TV network ULE/MLE desencapsulation entity. Could be
-          implemented on hardware or in Kernelspace
+	  implemented on hardware or in Kernelspace
 
     -  .. row 10
 
@@ -111,42 +111,42 @@ Types and flags used to represent the media graph elements
        -  ``MEDIA_ENT_F_ATV_DECODER``
 
        -  Analog video decoder, the basic function of the video decoder is
-          to accept analogue video from a wide variety of sources such as
-          broadcast, DVD players, cameras and video cassette recorders, in
-          either NTSC, PAL, SECAM or HD format, separating the stream into
-          its component parts, luminance and chrominance, and output it in
-          some digital video standard, with appropriate timing signals.
+	  to accept analogue video from a wide variety of sources such as
+	  broadcast, DVD players, cameras and video cassette recorders, in
+	  either NTSC, PAL, SECAM or HD format, separating the stream into
+	  its component parts, luminance and chrominance, and output it in
+	  some digital video standard, with appropriate timing signals.
 
     -  .. row 17
 
        -  ``MEDIA_ENT_F_TUNER``
 
        -  Digital TV, analog TV, radio and/or software radio tuner, with
-          consists on a PLL tuning stage that converts radio frequency (RF)
-          signal into an Intermediate Frequency (IF). Modern tuners have
-          internally IF-PLL decoders for audio and video, but older models
-          have those stages implemented on separate entities.
+	  consists on a PLL tuning stage that converts radio frequency (RF)
+	  signal into an Intermediate Frequency (IF). Modern tuners have
+	  internally IF-PLL decoders for audio and video, but older models
+	  have those stages implemented on separate entities.
 
     -  .. row 18
 
        -  ``MEDIA_ENT_F_IF_VID_DECODER``
 
        -  IF-PLL video decoder. It receives the IF from a PLL and decodes
-          the analog TV video signal. This is commonly found on some very
-          old analog tuners, like Philips MK3 designs. They all contain a
-          tda9887 (or some software compatible similar chip, like tda9885).
-          Those devices use a different I2C address than the tuner PLL.
+	  the analog TV video signal. This is commonly found on some very
+	  old analog tuners, like Philips MK3 designs. They all contain a
+	  tda9887 (or some software compatible similar chip, like tda9885).
+	  Those devices use a different I2C address than the tuner PLL.
 
     -  .. row 19
 
        -  ``MEDIA_ENT_F_IF_AUD_DECODER``
 
        -  IF-PLL sound decoder. It receives the IF from a PLL and decodes
-          the analog TV audio signal. This is commonly found on some very
-          old analog hardware, like Micronas msp3400, Philips tda9840,
-          tda985x, etc. Those devices use a different I2C address than the
-          tuner PLL and should be controlled together with the IF-PLL video
-          decoder.
+	  the analog TV audio signal. This is commonly found on some very
+	  old analog hardware, like Micronas msp3400, Philips tda9840,
+	  tda985x, etc. Those devices use a different I2C address than the
+	  tuner PLL and should be controlled together with the IF-PLL video
+	  decoder.
 
     -  .. row 20
 
@@ -180,7 +180,7 @@ Types and flags used to represent the media graph elements
        -  ``MEDIA_ENT_FL_DEFAULT``
 
        -  Default entity for its type. Used to discover the default audio,
-          VBI and video devices, the default camera sensor, ...
+	  VBI and video devices, the default camera sensor, ...
 
     -  .. row 2
 
@@ -355,25 +355,25 @@ Types and flags used to represent the media graph elements
        -  ``MEDIA_PAD_FL_SINK``
 
        -  Input pad, relative to the entity. Input pads sink data and are
-          targets of links.
+	  targets of links.
 
     -  .. row 2
 
        -  ``MEDIA_PAD_FL_SOURCE``
 
        -  Output pad, relative to the entity. Output pads source data and
-          are origins of links.
+	  are origins of links.
 
     -  .. row 3
 
        -  ``MEDIA_PAD_FL_MUST_CONNECT``
 
        -  If this flag is set and the pad is linked to any other pad, then
-          at least one of those links must be enabled for the entity to be
-          able to stream. There could be temporary reasons (e.g. device
-          configuration dependent) for the pad to need enabled links even
-          when this flag isn't set; the absence of the flag doesn't imply
-          there is none.
+	  at least one of those links must be enabled for the entity to be
+	  able to stream. There could be temporary reasons (e.g. device
+	  configuration dependent) for the pad to need enabled links even
+	  when this flag isn't set; the absence of the flag doesn't imply
+	  there is none.
 
 
 One and only one of ``MEDIA_PAD_FL_SINK`` and ``MEDIA_PAD_FL_SOURCE``
@@ -392,31 +392,31 @@ must be set for every pad.
        -  ``MEDIA_LNK_FL_ENABLED``
 
        -  The link is enabled and can be used to transfer media data. When
-          two or more links target a sink pad, only one of them can be
-          enabled at a time.
+	  two or more links target a sink pad, only one of them can be
+	  enabled at a time.
 
     -  .. row 2
 
        -  ``MEDIA_LNK_FL_IMMUTABLE``
 
        -  The link enabled state can't be modified at runtime. An immutable
-          link is always enabled.
+	  link is always enabled.
 
     -  .. row 3
 
        -  ``MEDIA_LNK_FL_DYNAMIC``
 
        -  The link enabled state can be modified during streaming. This flag
-          is set by drivers and is read-only for applications.
+	  is set by drivers and is read-only for applications.
 
     -  .. row 4
 
        -  ``MEDIA_LNK_FL_LINK_TYPE``
 
        -  This is a bitmask that defines the type of the link. Currently,
-          two types of links are supported:
+	  two types of links are supported:
 
-          ``MEDIA_LNK_FL_DATA_LINK`` if the link is between two pads
+	  ``MEDIA_LNK_FL_DATA_LINK`` if the link is between two pads
 
-          ``MEDIA_LNK_FL_INTERFACE_LINK`` if the link is between an
-          interface and an entity
+	  ``MEDIA_LNK_FL_INTERFACE_LINK`` if the link is between an
+	  interface and an entity

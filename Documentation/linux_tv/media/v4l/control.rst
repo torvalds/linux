@@ -231,7 +231,7 @@ Control IDs
        -  ``V4L2_COLORFX_EMBOSS``
 
        -  Emboss, the highlights and shadows replace light/dark boundaries
-          and low contrast areas are set to a gray background.
+	  and low contrast areas are set to a gray background.
 
     -  .. row 7
 
@@ -274,7 +274,7 @@ Control IDs
        -  ``V4L2_COLORFX_SOLARIZATION``
 
        -  Solarization, the image is partially reversed in tone, only color
-          values above or below a certain threshold are inverted.
+	  values above or below a certain threshold are inverted.
 
     -  .. row 14
 
@@ -293,7 +293,7 @@ Control IDs
        -  ``V4L2_COLORFX_SET_CBCR``
 
        -  The Cb and Cr chroma components are replaced by fixed coefficients
-          determined by ``V4L2_CID_COLORFX_CBCR`` control.
+	  determined by ``V4L2_CID_COLORFX_CBCR`` control.
 
 
 
@@ -382,59 +382,59 @@ more menu type controls.
 
     static void enumerate_menu(void)
     {
-        printf("  Menu items:\\n");
+	printf("  Menu items:\\n");
 
-        memset(&querymenu, 0, sizeof(querymenu));
-        querymenu.id = queryctrl.id;
+	memset(&querymenu, 0, sizeof(querymenu));
+	querymenu.id = queryctrl.id;
 
-        for (querymenu.index = queryctrl.minimum;
-             querymenu.index <= queryctrl.maximum;
-             querymenu.index++) {
-            if (0 == ioctl(fd, VIDIOC_QUERYMENU, &querymenu)) {
-                printf("  %s\\n", querymenu.name);
-            }
-        }
+	for (querymenu.index = queryctrl.minimum;
+	     querymenu.index <= queryctrl.maximum;
+	     querymenu.index++) {
+	    if (0 == ioctl(fd, VIDIOC_QUERYMENU, &querymenu)) {
+		printf("  %s\\n", querymenu.name);
+	    }
+	}
     }
 
     memset(&queryctrl, 0, sizeof(queryctrl));
 
     for (queryctrl.id = V4L2_CID_BASE;
-         queryctrl.id < V4L2_CID_LASTP1;
-         queryctrl.id++) {
-        if (0 == ioctl(fd, VIDIOC_QUERYCTRL, &queryctrl)) {
-            if (queryctrl.flags & V4L2_CTRL_FLAG_DISABLED)
-                continue;
+	 queryctrl.id < V4L2_CID_LASTP1;
+	 queryctrl.id++) {
+	if (0 == ioctl(fd, VIDIOC_QUERYCTRL, &queryctrl)) {
+	    if (queryctrl.flags & V4L2_CTRL_FLAG_DISABLED)
+		continue;
 
-            printf("Control %s\\n", queryctrl.name);
+	    printf("Control %s\\n", queryctrl.name);
 
-            if (queryctrl.type == V4L2_CTRL_TYPE_MENU)
-                enumerate_menu();
-        } else {
-            if (errno == EINVAL)
-                continue;
+	    if (queryctrl.type == V4L2_CTRL_TYPE_MENU)
+		enumerate_menu();
+	} else {
+	    if (errno == EINVAL)
+		continue;
 
-            perror("VIDIOC_QUERYCTRL");
-            exit(EXIT_FAILURE);
-        }
+	    perror("VIDIOC_QUERYCTRL");
+	    exit(EXIT_FAILURE);
+	}
     }
 
     for (queryctrl.id = V4L2_CID_PRIVATE_BASE;;
-         queryctrl.id++) {
-        if (0 == ioctl(fd, VIDIOC_QUERYCTRL, &queryctrl)) {
-            if (queryctrl.flags & V4L2_CTRL_FLAG_DISABLED)
-                continue;
+	 queryctrl.id++) {
+	if (0 == ioctl(fd, VIDIOC_QUERYCTRL, &queryctrl)) {
+	    if (queryctrl.flags & V4L2_CTRL_FLAG_DISABLED)
+		continue;
 
-            printf("Control %s\\n", queryctrl.name);
+	    printf("Control %s\\n", queryctrl.name);
 
-            if (queryctrl.type == V4L2_CTRL_TYPE_MENU)
-                enumerate_menu();
-        } else {
-            if (errno == EINVAL)
-                break;
+	    if (queryctrl.type == V4L2_CTRL_TYPE_MENU)
+		enumerate_menu();
+	} else {
+	    if (errno == EINVAL)
+		break;
 
-            perror("VIDIOC_QUERYCTRL");
-            exit(EXIT_FAILURE);
-        }
+	    perror("VIDIOC_QUERYCTRL");
+	    exit(EXIT_FAILURE);
+	}
     }
 
 
@@ -445,21 +445,21 @@ more menu type controls.
 
     queryctrl.id = V4L2_CTRL_CLASS_USER | V4L2_CTRL_FLAG_NEXT_CTRL;
     while (0 == ioctl(fd, VIDIOC_QUERYCTRL, &queryctrl)) {
-        if (V4L2_CTRL_ID2CLASS(queryctrl.id) != V4L2_CTRL_CLASS_USER)
-            break;
-        if (queryctrl.flags & V4L2_CTRL_FLAG_DISABLED)
-            continue;
+	if (V4L2_CTRL_ID2CLASS(queryctrl.id) != V4L2_CTRL_CLASS_USER)
+	    break;
+	if (queryctrl.flags & V4L2_CTRL_FLAG_DISABLED)
+	    continue;
 
-        printf("Control %s\\n", queryctrl.name);
+	printf("Control %s\\n", queryctrl.name);
 
-        if (queryctrl.type == V4L2_CTRL_TYPE_MENU)
-            enumerate_menu();
+	if (queryctrl.type == V4L2_CTRL_TYPE_MENU)
+	    enumerate_menu();
 
-        queryctrl.id |= V4L2_CTRL_FLAG_NEXT_CTRL;
+	queryctrl.id |= V4L2_CTRL_FLAG_NEXT_CTRL;
     }
     if (errno != EINVAL) {
-        perror("VIDIOC_QUERYCTRL");
-        exit(EXIT_FAILURE);
+	perror("VIDIOC_QUERYCTRL");
+	exit(EXIT_FAILURE);
     }
 
 
@@ -473,42 +473,42 @@ more menu type controls.
     queryctrl.id = V4L2_CID_BRIGHTNESS;
 
     if (-1 == ioctl(fd, VIDIOC_QUERYCTRL, &queryctrl)) {
-        if (errno != EINVAL) {
-            perror("VIDIOC_QUERYCTRL");
-            exit(EXIT_FAILURE);
-        } else {
-            printf("V4L2_CID_BRIGHTNESS is not supportedn");
-        }
+	if (errno != EINVAL) {
+	    perror("VIDIOC_QUERYCTRL");
+	    exit(EXIT_FAILURE);
+	} else {
+	    printf("V4L2_CID_BRIGHTNESS is not supportedn");
+	}
     } else if (queryctrl.flags & V4L2_CTRL_FLAG_DISABLED) {
-        printf("V4L2_CID_BRIGHTNESS is not supportedn");
+	printf("V4L2_CID_BRIGHTNESS is not supportedn");
     } else {
-        memset(&control, 0, sizeof (control));
-        control.id = V4L2_CID_BRIGHTNESS;
-        control.value = queryctrl.default_value;
+	memset(&control, 0, sizeof (control));
+	control.id = V4L2_CID_BRIGHTNESS;
+	control.value = queryctrl.default_value;
 
-        if (-1 == ioctl(fd, VIDIOC_S_CTRL, &control)) {
-            perror("VIDIOC_S_CTRL");
-            exit(EXIT_FAILURE);
-        }
+	if (-1 == ioctl(fd, VIDIOC_S_CTRL, &control)) {
+	    perror("VIDIOC_S_CTRL");
+	    exit(EXIT_FAILURE);
+	}
     }
 
     memset(&control, 0, sizeof(control));
     control.id = V4L2_CID_CONTRAST;
 
     if (0 == ioctl(fd, VIDIOC_G_CTRL, &control)) {
-        control.value += 1;
+	control.value += 1;
 
-        /* The driver may clamp the value or return ERANGE, ignored here */
+	/* The driver may clamp the value or return ERANGE, ignored here */
 
-        if (-1 == ioctl(fd, VIDIOC_S_CTRL, &control)
-            && errno != ERANGE) {
-            perror("VIDIOC_S_CTRL");
-            exit(EXIT_FAILURE);
-        }
+	if (-1 == ioctl(fd, VIDIOC_S_CTRL, &control)
+	    && errno != ERANGE) {
+	    perror("VIDIOC_S_CTRL");
+	    exit(EXIT_FAILURE);
+	}
     /* Ignore if V4L2_CID_CONTRAST is unsupported */
     } else if (errno != EINVAL) {
-        perror("VIDIOC_G_CTRL");
-        exit(EXIT_FAILURE);
+	perror("VIDIOC_G_CTRL");
+	exit(EXIT_FAILURE);
     }
 
     control.id = V4L2_CID_AUDIO_MUTE;

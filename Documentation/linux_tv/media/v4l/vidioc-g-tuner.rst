@@ -82,8 +82,8 @@ To change the radio frequency the
 
        -  :cspan:`1`
 
-          Name of the tuner, a NUL-terminated ASCII string. This information
-          is intended for the user.
+	  Name of the tuner, a NUL-terminated ASCII string. This information
+	  is intended for the user.
 
     -  .. row 3
 
@@ -101,17 +101,17 @@ To change the radio frequency the
 
        -  :cspan:`1`
 
-          Tuner capability flags, see :ref:`tuner-capability`. Audio flags
-          indicate the ability to decode audio subprograms. They will *not*
-          change, for example with the current video standard.
+	  Tuner capability flags, see :ref:`tuner-capability`. Audio flags
+	  indicate the ability to decode audio subprograms. They will *not*
+	  change, for example with the current video standard.
 
-          When the structure refers to a radio tuner the
-          ``V4L2_TUNER_CAP_LANG1``, ``V4L2_TUNER_CAP_LANG2`` and
-          ``V4L2_TUNER_CAP_NORM`` flags can't be used.
+	  When the structure refers to a radio tuner the
+	  ``V4L2_TUNER_CAP_LANG1``, ``V4L2_TUNER_CAP_LANG2`` and
+	  ``V4L2_TUNER_CAP_NORM`` flags can't be used.
 
-          If multiple frequency bands are supported, then ``capability`` is
-          the union of all ``capability`` fields of each struct
-          :ref:`v4l2_frequency_band <v4l2-frequency-band>`.
+	  If multiple frequency bands are supported, then ``capability`` is
+	  the union of all ``capability`` fields of each struct
+	  :ref:`v4l2_frequency_band <v4l2-frequency-band>`.
 
     -  .. row 5
 
@@ -120,11 +120,11 @@ To change the radio frequency the
        -  ``rangelow``
 
        -  :cspan:`1` The lowest tunable frequency in units of 62.5 kHz, or
-          if the ``capability`` flag ``V4L2_TUNER_CAP_LOW`` is set, in units
-          of 62.5 Hz, or if the ``capability`` flag ``V4L2_TUNER_CAP_1HZ``
-          is set, in units of 1 Hz. If multiple frequency bands are
-          supported, then ``rangelow`` is the lowest frequency of all the
-          frequency bands.
+	  if the ``capability`` flag ``V4L2_TUNER_CAP_LOW`` is set, in units
+	  of 62.5 Hz, or if the ``capability`` flag ``V4L2_TUNER_CAP_1HZ``
+	  is set, in units of 1 Hz. If multiple frequency bands are
+	  supported, then ``rangelow`` is the lowest frequency of all the
+	  frequency bands.
 
     -  .. row 6
 
@@ -133,11 +133,11 @@ To change the radio frequency the
        -  ``rangehigh``
 
        -  :cspan:`1` The highest tunable frequency in units of 62.5 kHz,
-          or if the ``capability`` flag ``V4L2_TUNER_CAP_LOW`` is set, in
-          units of 62.5 Hz, or if the ``capability`` flag
-          ``V4L2_TUNER_CAP_1HZ`` is set, in units of 1 Hz. If multiple
-          frequency bands are supported, then ``rangehigh`` is the highest
-          frequency of all the frequency bands.
+	  or if the ``capability`` flag ``V4L2_TUNER_CAP_LOW`` is set, in
+	  units of 62.5 Hz, or if the ``capability`` flag
+	  ``V4L2_TUNER_CAP_1HZ`` is set, in units of 1 Hz. If multiple
+	  frequency bands are supported, then ``rangehigh`` is the highest
+	  frequency of all the frequency bands.
 
     -  .. row 7
 
@@ -147,63 +147,63 @@ To change the radio frequency the
 
        -  :cspan:`1`
 
-          Some tuners or audio decoders can determine the received audio
-          subprograms by analyzing audio carriers, pilot tones or other
-          indicators. To pass this information drivers set flags defined in
-          :ref:`tuner-rxsubchans` in this field. For example:
+	  Some tuners or audio decoders can determine the received audio
+	  subprograms by analyzing audio carriers, pilot tones or other
+	  indicators. To pass this information drivers set flags defined in
+	  :ref:`tuner-rxsubchans` in this field. For example:
 
     -  .. row 8
 
-       -  
-       -  
+       -
+       -
        -  ``V4L2_TUNER_SUB_MONO``
 
        -  receiving mono audio
 
     -  .. row 9
 
-       -  
-       -  
+       -
+       -
        -  ``STEREO | SAP``
 
        -  receiving stereo audio and a secondary audio program
 
     -  .. row 10
 
-       -  
-       -  
+       -
+       -
        -  ``MONO | STEREO``
 
        -  receiving mono or stereo audio, the hardware cannot distinguish
 
     -  .. row 11
 
-       -  
-       -  
+       -
+       -
        -  ``LANG1 | LANG2``
 
        -  receiving bilingual audio
 
     -  .. row 12
 
-       -  
-       -  
+       -
+       -
        -  ``MONO | STEREO | LANG1 | LANG2``
 
        -  receiving mono, stereo or bilingual audio
 
     -  .. row 13
 
-       -  
-       -  
+       -
+       -
        -  :cspan:`1`
 
-          When the ``V4L2_TUNER_CAP_STEREO``, ``_LANG1``, ``_LANG2`` or
-          ``_SAP`` flag is cleared in the ``capability`` field, the
-          corresponding ``V4L2_TUNER_SUB_`` flag must not be set here.
+	  When the ``V4L2_TUNER_CAP_STEREO``, ``_LANG1``, ``_LANG2`` or
+	  ``_SAP`` flag is cleared in the ``capability`` field, the
+	  corresponding ``V4L2_TUNER_SUB_`` flag must not be set here.
 
-          This field is valid only if this is the tuner of the current video
-          input, or when the structure refers to a radio tuner.
+	  This field is valid only if this is the tuner of the current video
+	  input, or when the structure refers to a radio tuner.
 
     -  .. row 14
 
@@ -213,15 +213,15 @@ To change the radio frequency the
 
        -  :cspan:`1`
 
-          The selected audio mode, see :ref:`tuner-audmode` for valid
-          values. The audio mode does not affect audio subprogram detection,
-          and like a :ref:`control` it does not automatically
-          change unless the requested mode is invalid or unsupported. See
-          :ref:`tuner-matrix` for possible results when the selected and
-          received audio programs do not match.
+	  The selected audio mode, see :ref:`tuner-audmode` for valid
+	  values. The audio mode does not affect audio subprogram detection,
+	  and like a :ref:`control` it does not automatically
+	  change unless the requested mode is invalid or unsupported. See
+	  :ref:`tuner-matrix` for possible results when the selected and
+	  received audio programs do not match.
 
-          Currently this is the only field of struct
-          :ref:`struct v4l2_tuner <v4l2-tuner>` applications can change.
+	  Currently this is the only field of struct
+	  :ref:`struct v4l2_tuner <v4l2-tuner>` applications can change.
 
     -  .. row 15
 
@@ -230,7 +230,7 @@ To change the radio frequency the
        -  ``signal``
 
        -  :cspan:`1` The signal strength if known, ranging from 0 to
-          65535. Higher values indicate a better signal.
+	  65535. Higher values indicate a better signal.
 
     -  .. row 16
 
@@ -239,7 +239,7 @@ To change the radio frequency the
        -  ``afc``
 
        -  :cspan:`1` Automatic frequency control: When the ``afc`` value
-          is negative, the frequency is too low, when positive too high.
+	  is negative, the frequency is too low, when positive too high.
 
     -  .. row 17
 
@@ -248,7 +248,7 @@ To change the radio frequency the
        -  ``reserved``\ [4]
 
        -  :cspan:`1` Reserved for future extensions. Drivers and
-          applications must set the array to zero.
+	  applications must set the array to zero.
 
 
 
@@ -266,7 +266,7 @@ To change the radio frequency the
 
        -  1
 
-       -  
+       -
 
     -  .. row 2
 
@@ -274,7 +274,7 @@ To change the radio frequency the
 
        -  2
 
-       -  
+       -
 
     -  .. row 3
 
@@ -282,7 +282,7 @@ To change the radio frequency the
 
        -  4
 
-       -  
+       -
 
     -  .. row 4
 
@@ -290,7 +290,7 @@ To change the radio frequency the
 
        -  5
 
-       -  
+       -
 
 
 
@@ -309,7 +309,7 @@ To change the radio frequency the
        -  0x0001
 
        -  When set, tuning frequencies are expressed in units of 62.5 Hz
-          instead of 62.5 kHz.
+	  instead of 62.5 kHz.
 
     -  .. row 2
 
@@ -318,14 +318,14 @@ To change the radio frequency the
        -  0x0002
 
        -  This is a multi-standard tuner; the video standard can or must be
-          switched. (B/G PAL tuners for example are typically not considered
-          multi-standard because the video standard is automatically
-          determined from the frequency band.) The set of supported video
-          standards is available from the struct
-          :ref:`v4l2_input <v4l2-input>` pointing to this tuner, see the
-          description of ioctl :ref:`VIDIOC_ENUMINPUT`
-          for details. Only ``V4L2_TUNER_ANALOG_TV`` tuners can have this
-          capability.
+	  switched. (B/G PAL tuners for example are typically not considered
+	  multi-standard because the video standard is automatically
+	  determined from the frequency band.) The set of supported video
+	  standards is available from the struct
+	  :ref:`v4l2_input <v4l2-input>` pointing to this tuner, see the
+	  description of ioctl :ref:`VIDIOC_ENUMINPUT`
+	  for details. Only ``V4L2_TUNER_ANALOG_TV`` tuners can have this
+	  capability.
 
     -  .. row 3
 
@@ -334,8 +334,8 @@ To change the radio frequency the
        -  0x0004
 
        -  If set, then this tuner supports the hardware seek functionality
-          where the seek stops when it reaches the end of the frequency
-          range.
+	  where the seek stops when it reaches the end of the frequency
+	  range.
 
     -  .. row 4
 
@@ -344,8 +344,8 @@ To change the radio frequency the
        -  0x0008
 
        -  If set, then this tuner supports the hardware seek functionality
-          where the seek wraps around when it reaches the end of the
-          frequency range.
+	  where the seek wraps around when it reaches the end of the
+	  frequency range.
 
     -  .. row 5
 
@@ -362,10 +362,10 @@ To change the radio frequency the
        -  0x0040
 
        -  Reception of the primary language of a bilingual audio program is
-          supported. Bilingual audio is a feature of two-channel systems,
-          transmitting the primary language monaural on the main audio
-          carrier and a secondary language monaural on a second carrier.
-          Only ``V4L2_TUNER_ANALOG_TV`` tuners can have this capability.
+	  supported. Bilingual audio is a feature of two-channel systems,
+	  transmitting the primary language monaural on the main audio
+	  carrier and a secondary language monaural on a second carrier.
+	  Only ``V4L2_TUNER_ANALOG_TV`` tuners can have this capability.
 
     -  .. row 7
 
@@ -374,8 +374,8 @@ To change the radio frequency the
        -  0x0020
 
        -  Reception of the secondary language of a bilingual audio program
-          is supported. Only ``V4L2_TUNER_ANALOG_TV`` tuners can have this
-          capability.
+	  is supported. Only ``V4L2_TUNER_ANALOG_TV`` tuners can have this
+	  capability.
 
     -  .. row 8
 
@@ -384,15 +384,15 @@ To change the radio frequency the
        -  0x0020
 
        -  Reception of a secondary audio program is supported. This is a
-          feature of the BTSC system which accompanies the NTSC video
-          standard. Two audio carriers are available for mono or stereo
-          transmissions of a primary language, and an independent third
-          carrier for a monaural secondary language. Only
-          ``V4L2_TUNER_ANALOG_TV`` tuners can have this capability.
+	  feature of the BTSC system which accompanies the NTSC video
+	  standard. Two audio carriers are available for mono or stereo
+	  transmissions of a primary language, and an independent third
+	  carrier for a monaural secondary language. Only
+	  ``V4L2_TUNER_ANALOG_TV`` tuners can have this capability.
 
-          Note the ``V4L2_TUNER_CAP_LANG2`` and ``V4L2_TUNER_CAP_SAP`` flags
-          are synonyms. ``V4L2_TUNER_CAP_SAP`` applies when the tuner
-          supports the ``V4L2_STD_NTSC_M`` video standard.
+	  Note the ``V4L2_TUNER_CAP_LANG2`` and ``V4L2_TUNER_CAP_SAP`` flags
+	  are synonyms. ``V4L2_TUNER_CAP_SAP`` applies when the tuner
+	  supports the ``V4L2_STD_NTSC_M`` video standard.
 
     -  .. row 9
 
@@ -401,7 +401,7 @@ To change the radio frequency the
        -  0x0080
 
        -  RDS capture is supported. This capability is only valid for radio
-          tuners.
+	  tuners.
 
     -  .. row 10
 
@@ -426,7 +426,7 @@ To change the radio frequency the
        -  0x0400
 
        -  The :ref:`VIDIOC_ENUM_FREQ_BANDS`
-          ioctl can be used to enumerate the available frequency bands.
+	  ioctl can be used to enumerate the available frequency bands.
 
     -  .. row 13
 
@@ -435,9 +435,9 @@ To change the radio frequency the
        -  0x0800
 
        -  The range to search when using the hardware seek functionality is
-          programmable, see
-          :ref:`VIDIOC_S_HW_FREQ_SEEK` for
-          details.
+	  programmable, see
+	  :ref:`VIDIOC_S_HW_FREQ_SEEK` for
+	  details.
 
     -  .. row 14
 
@@ -446,7 +446,7 @@ To change the radio frequency the
        -  0x1000
 
        -  When set, tuning frequencies are expressed in units of 1 Hz
-          instead of 62.5 kHz.
+	  instead of 62.5 kHz.
 
 
 
@@ -481,8 +481,8 @@ To change the radio frequency the
        -  0x0008
 
        -  The tuner receives the primary language of a bilingual audio
-          signal. Drivers must clear this flag when the current video
-          standard is ``V4L2_STD_NTSC_M``.
+	  signal. Drivers must clear this flag when the current video
+	  standard is ``V4L2_STD_NTSC_M``.
 
     -  .. row 4
 
@@ -491,7 +491,7 @@ To change the radio frequency the
        -  0x0004
 
        -  The tuner receives the secondary language of a bilingual audio
-          signal (or a second audio program).
+	  signal (or a second audio program).
 
     -  .. row 5
 
@@ -500,9 +500,9 @@ To change the radio frequency the
        -  0x0004
 
        -  The tuner receives a Second Audio Program. Note the
-          ``V4L2_TUNER_SUB_LANG2`` and ``V4L2_TUNER_SUB_SAP`` flags are
-          synonyms. The ``V4L2_TUNER_SUB_SAP`` flag applies when the current
-          video standard is ``V4L2_STD_NTSC_M``.
+	  ``V4L2_TUNER_SUB_LANG2`` and ``V4L2_TUNER_SUB_SAP`` flags are
+	  synonyms. The ``V4L2_TUNER_SUB_SAP`` flag applies when the current
+	  video standard is ``V4L2_STD_NTSC_M``.
 
     -  .. row 6
 
@@ -529,8 +529,8 @@ To change the radio frequency the
        -  0
 
        -  Play mono audio. When the tuner receives a stereo signal this a
-          down-mix of the left and right channel. When the tuner receives a
-          bilingual or SAP signal this mode selects the primary language.
+	  down-mix of the left and right channel. When the tuner receives a
+	  bilingual or SAP signal this mode selects the primary language.
 
     -  .. row 2
 
@@ -539,14 +539,14 @@ To change the radio frequency the
        -  1
 
        -  Play stereo audio. When the tuner receives bilingual audio it may
-          play different languages on the left and right channel or the
-          primary language is played on both channels.
+	  play different languages on the left and right channel or the
+	  primary language is played on both channels.
 
-          Playing different languages in this mode is deprecated. New
-          drivers should do this only in ``MODE_LANG1_LANG2``.
+	  Playing different languages in this mode is deprecated. New
+	  drivers should do this only in ``MODE_LANG1_LANG2``.
 
-          When the tuner receives no stereo signal or does not support
-          stereo reception the driver shall fall back to ``MODE_MONO``.
+	  When the tuner receives no stereo signal or does not support
+	  stereo reception the driver shall fall back to ``MODE_MONO``.
 
     -  .. row 3
 
@@ -555,7 +555,7 @@ To change the radio frequency the
        -  3
 
        -  Play the primary language, mono or stereo. Only
-          ``V4L2_TUNER_ANALOG_TV`` tuners support this mode.
+	  ``V4L2_TUNER_ANALOG_TV`` tuners support this mode.
 
     -  .. row 4
 
@@ -564,9 +564,9 @@ To change the radio frequency the
        -  2
 
        -  Play the secondary language, mono. When the tuner receives no
-          bilingual audio or SAP, or their reception is not supported the
-          driver shall fall back to mono or stereo mode. Only
-          ``V4L2_TUNER_ANALOG_TV`` tuners support this mode.
+	  bilingual audio or SAP, or their reception is not supported the
+	  driver shall fall back to mono or stereo mode. Only
+	  ``V4L2_TUNER_ANALOG_TV`` tuners support this mode.
 
     -  .. row 5
 
@@ -575,11 +575,11 @@ To change the radio frequency the
        -  2
 
        -  Play the Second Audio Program. When the tuner receives no
-          bilingual audio or SAP, or their reception is not supported the
-          driver shall fall back to mono or stereo mode. Only
-          ``V4L2_TUNER_ANALOG_TV`` tuners support this mode. Note the
-          ``V4L2_TUNER_MODE_LANG2`` and ``V4L2_TUNER_MODE_SAP`` are
-          synonyms.
+	  bilingual audio or SAP, or their reception is not supported the
+	  driver shall fall back to mono or stereo mode. Only
+	  ``V4L2_TUNER_ANALOG_TV`` tuners support this mode. Note the
+	  ``V4L2_TUNER_MODE_LANG2`` and ``V4L2_TUNER_MODE_SAP`` are
+	  synonyms.
 
     -  .. row 6
 
@@ -588,10 +588,10 @@ To change the radio frequency the
        -  4
 
        -  Play the primary language on the left channel, the secondary
-          language on the right channel. When the tuner receives no
-          bilingual audio or SAP, it shall fall back to ``MODE_LANG1`` or
-          ``MODE_MONO``. Only ``V4L2_TUNER_ANALOG_TV`` tuners support this
-          mode.
+	  language on the right channel. When the tuner receives no
+	  bilingual audio or SAP, it shall fall back to ``MODE_LANG1`` or
+	  ``MODE_MONO``. Only ``V4L2_TUNER_ANALOG_TV`` tuners support this
+	  mode.
 
 
 
@@ -604,7 +604,7 @@ To change the radio frequency the
 
     -  .. row 1
 
-       -  
+       -
        -  :cspan:`5` Selected ``V4L2_TUNER_MODE_``
 
     -  .. row 2

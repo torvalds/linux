@@ -62,8 +62,8 @@ the :ref:`VIDIOC_QUERYCAP` ioctl.
     memset(&audio, 0, sizeof(audio));
 
     if (-1 == ioctl(fd, VIDIOC_G_AUDIO, &audio)) {
-        perror("VIDIOC_G_AUDIO");
-        exit(EXIT_FAILURE);
+	perror("VIDIOC_G_AUDIO");
+	exit(EXIT_FAILURE);
     }
 
     printf("Current input: %s\\n", audio.name);
@@ -79,8 +79,8 @@ the :ref:`VIDIOC_QUERYCAP` ioctl.
     audio.index = 0;
 
     if (-1 == ioctl(fd, VIDIOC_S_AUDIO, &audio)) {
-        perror("VIDIOC_S_AUDIO");
-        exit(EXIT_FAILURE);
+	perror("VIDIOC_S_AUDIO");
+	exit(EXIT_FAILURE);
     }
 
 .. [1]

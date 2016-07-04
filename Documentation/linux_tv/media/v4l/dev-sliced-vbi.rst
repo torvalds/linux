@@ -116,22 +116,22 @@ which may return ``EBUSY`` can be the
 
        -  :cspan:`2`
 
-          If ``service_set`` is non-zero when passed with
-          :ref:`VIDIOC_S_FMT <VIDIOC_G_FMT>` or
-          :ref:`VIDIOC_TRY_FMT <VIDIOC_G_FMT>`, the ``service_lines``
-          array will be filled by the driver according to the services
-          specified in this field. For example, if ``service_set`` is
-          initialized with ``V4L2_SLICED_TELETEXT_B | V4L2_SLICED_WSS_625``,
-          a driver for the cx25840 video decoder sets lines 7-22 of both
-          fields [1]_ to ``V4L2_SLICED_TELETEXT_B`` and line 23 of the first
-          field to ``V4L2_SLICED_WSS_625``. If ``service_set`` is set to
-          zero, then the values of ``service_lines`` will be used instead.
+	  If ``service_set`` is non-zero when passed with
+	  :ref:`VIDIOC_S_FMT <VIDIOC_G_FMT>` or
+	  :ref:`VIDIOC_TRY_FMT <VIDIOC_G_FMT>`, the ``service_lines``
+	  array will be filled by the driver according to the services
+	  specified in this field. For example, if ``service_set`` is
+	  initialized with ``V4L2_SLICED_TELETEXT_B | V4L2_SLICED_WSS_625``,
+	  a driver for the cx25840 video decoder sets lines 7-22 of both
+	  fields [1]_ to ``V4L2_SLICED_TELETEXT_B`` and line 23 of the first
+	  field to ``V4L2_SLICED_WSS_625``. If ``service_set`` is set to
+	  zero, then the values of ``service_lines`` will be used instead.
 
-          On return the driver sets this field to the union of all elements
-          of the returned ``service_lines`` array. It may contain less
-          services than requested, perhaps just one, if the hardware cannot
-          handle more services simultaneously. It may be empty (zero) if
-          none of the requested services are supported by the hardware.
+	  On return the driver sets this field to the union of all elements
+	  of the returned ``service_lines`` array. It may contain less
+	  services than requested, perhaps just one, if the hardware cannot
+	  handle more services simultaneously. It may be empty (zero) if
+	  none of the requested services are supported by the hardware.
 
     -  .. row 2
 
@@ -141,22 +141,22 @@ which may return ``EBUSY`` can be the
 
        -  :cspan:`2`
 
-          Applications initialize this array with sets of data services the
-          driver shall look for or insert on the respective scan line.
-          Subject to hardware capabilities drivers return the requested set,
-          a subset, which may be just a single service, or an empty set.
-          When the hardware cannot handle multiple services on the same line
-          the driver shall choose one. No assumptions can be made on which
-          service the driver chooses.
+	  Applications initialize this array with sets of data services the
+	  driver shall look for or insert on the respective scan line.
+	  Subject to hardware capabilities drivers return the requested set,
+	  a subset, which may be just a single service, or an empty set.
+	  When the hardware cannot handle multiple services on the same line
+	  the driver shall choose one. No assumptions can be made on which
+	  service the driver chooses.
 
-          Data services are defined in :ref:`vbi-services2`. Array indices
-          map to ITU-R line numbers (see also :ref:`vbi-525` and
-          :ref:`vbi-625`) as follows:
+	  Data services are defined in :ref:`vbi-services2`. Array indices
+	  map to ITU-R line numbers (see also :ref:`vbi-525` and
+	  :ref:`vbi-625`) as follows:
 
     -  .. row 3
 
-       -  
-       -  
+       -
+       -
        -  Element
 
        -  525 line systems
@@ -165,8 +165,8 @@ which may return ``EBUSY`` can be the
 
     -  .. row 4
 
-       -  
-       -  
+       -
+       -
        -  ``service_lines``\ [0][1]
 
        -  1
@@ -175,8 +175,8 @@ which may return ``EBUSY`` can be the
 
     -  .. row 5
 
-       -  
-       -  
+       -
+       -
        -  ``service_lines``\ [0][23]
 
        -  23
@@ -185,8 +185,8 @@ which may return ``EBUSY`` can be the
 
     -  .. row 6
 
-       -  
-       -  
+       -
+       -
        -  ``service_lines``\ [1][1]
 
        -  264
@@ -195,8 +195,8 @@ which may return ``EBUSY`` can be the
 
     -  .. row 7
 
-       -  
-       -  
+       -
+       -
        -  ``service_lines``\ [1][23]
 
        -  286
@@ -205,15 +205,15 @@ which may return ``EBUSY`` can be the
 
     -  .. row 8
 
-       -  
-       -  
+       -
+       -
        -  :cspan:`2` Drivers must set ``service_lines`` [0][0] and
-          ``service_lines``\ [1][0] to zero. The
-          ``V4L2_VBI_ITU_525_F1_START``, ``V4L2_VBI_ITU_525_F2_START``,
-          ``V4L2_VBI_ITU_625_F1_START`` and ``V4L2_VBI_ITU_625_F2_START``
-          defines give the start line numbers for each field for each 525 or
-          625 line format as a convenience. Don't forget that ITU line
-          numbering starts at 1, not 0.
+	  ``service_lines``\ [1][0] to zero. The
+	  ``V4L2_VBI_ITU_525_F1_START``, ``V4L2_VBI_ITU_525_F2_START``,
+	  ``V4L2_VBI_ITU_625_F1_START`` and ``V4L2_VBI_ITU_625_F2_START``
+	  defines give the start line numbers for each field for each 525 or
+	  625 line format as a convenience. Don't forget that ITU line
+	  numbering starts at 1, not 0.
 
     -  .. row 9
 
@@ -222,14 +222,14 @@ which may return ``EBUSY`` can be the
        -  ``io_size``
 
        -  :cspan:`2` Maximum number of bytes passed by one
-          :ref:`read() <func-read>` or :ref:`write() <func-write>` call,
-          and the buffer size in bytes for the
-          :ref:`VIDIOC_QBUF` and
-          :ref:`VIDIOC_DQBUF <VIDIOC_QBUF>` ioctl. Drivers set this field
-          to the size of struct
-          :ref:`v4l2_sliced_vbi_data <v4l2-sliced-vbi-data>` times the
-          number of non-zero elements in the returned ``service_lines``
-          array (that is the number of lines potentially carrying data).
+	  :ref:`read() <func-read>` or :ref:`write() <func-write>` call,
+	  and the buffer size in bytes for the
+	  :ref:`VIDIOC_QBUF` and
+	  :ref:`VIDIOC_DQBUF <VIDIOC_QBUF>` ioctl. Drivers set this field
+	  to the size of struct
+	  :ref:`v4l2_sliced_vbi_data <v4l2-sliced-vbi-data>` times the
+	  number of non-zero elements in the returned ``service_lines``
+	  array (that is the number of lines potentially carrying data).
 
     -  .. row 10
 
@@ -238,7 +238,7 @@ which may return ``EBUSY`` can be the
        -  ``reserved``\ [2]
 
        -  :cspan:`2` This array is reserved for future extensions.
-          Applications and drivers must set it to zero.
+	  Applications and drivers must set it to zero.
 
 
 
@@ -273,7 +273,7 @@ which may return ``EBUSY`` can be the
        -  PAL/SECAM line 7-22, 320-335 (second field 7-22)
 
        -  Last 42 of the 45 byte Teletext packet, that is without clock
-          run-in and framing code, lsb first transmitted.
+	  run-in and framing code, lsb first transmitted.
 
     -  .. row 3
 
@@ -286,7 +286,7 @@ which may return ``EBUSY`` can be the
        -  PAL line 16
 
        -  Byte number 3 to 15 according to Figure 9 of ETS 300 231, lsb
-          first transmitted.
+	  first transmitted.
 
     -  .. row 4
 
@@ -299,7 +299,7 @@ which may return ``EBUSY`` can be the
        -  NTSC line 21, 284 (second field 21)
 
        -  Two bytes in transmission order, including parity bit, lsb first
-          transmitted.
+	  transmitted.
 
     -  .. row 5
 
@@ -311,13 +311,13 @@ which may return ``EBUSY`` can be the
 
        -  PAL/SECAM line 23
 
-       -  
+       -
 
-          ::
+	  ::
 
-              Byte         0                 1
-                    msb         lsb  msb           lsb
-               Bit  7 6 5 4 3 2 1 0  x x 13 12 11 10 9
+	      Byte         0                 1
+		    msb         lsb  msb           lsb
+	       Bit  7 6 5 4 3 2 1 0  x x 13 12 11 10 9
 
     -  .. row 6
 
@@ -375,12 +375,12 @@ of one video frame. The ``id`` of unused
        -  ``id``
 
        -  A flag from :ref:`vbi-services` identifying the type of data in
-          this packet. Only a single bit must be set. When the ``id`` of a
-          captured packet is zero, the packet is empty and the contents of
-          other fields are undefined. Applications shall ignore empty
-          packets. When the ``id`` of a packet for output is zero the
-          contents of the ``data`` field are undefined and the driver must
-          no longer insert data on the requested ``field`` and ``line``.
+	  this packet. Only a single bit must be set. When the ``id`` of a
+	  captured packet is zero, the packet is empty and the contents of
+	  other fields are undefined. Applications shall ignore empty
+	  packets. When the ``id`` of a packet for output is zero the
+	  contents of the ``data`` field are undefined and the driver must
+	  no longer insert data on the requested ``field`` and ``line``.
 
     -  .. row 2
 
@@ -389,8 +389,8 @@ of one video frame. The ``id`` of unused
        -  ``field``
 
        -  The video field number this data has been captured from, or shall
-          be inserted at. ``0`` for the first field, ``1`` for the second
-          field.
+	  be inserted at. ``0`` for the first field, ``1`` for the second
+	  field.
 
     -  .. row 3
 
@@ -399,11 +399,11 @@ of one video frame. The ``id`` of unused
        -  ``line``
 
        -  The field (as opposed to frame) line number this data has been
-          captured from, or shall be inserted at. See :ref:`vbi-525` and
-          :ref:`vbi-625` for valid values. Sliced VBI capture devices can
-          set the line number of all packets to ``0`` if the hardware cannot
-          reliably identify scan lines. The field number must always be
-          valid.
+	  captured from, or shall be inserted at. See :ref:`vbi-525` and
+	  :ref:`vbi-625` for valid values. Sliced VBI capture devices can
+	  set the line number of all packets to ``0`` if the hardware cannot
+	  reliably identify scan lines. The field number must always be
+	  valid.
 
     -  .. row 4
 
@@ -412,7 +412,7 @@ of one video frame. The ``id`` of unused
        -  ``reserved``
 
        -  This field is reserved for future extensions. Applications and
-          drivers must set it to zero.
+	  drivers must set it to zero.
 
     -  .. row 5
 
@@ -421,9 +421,9 @@ of one video frame. The ``id`` of unused
        -  ``data``\ [48]
 
        -  The packet payload. See :ref:`vbi-services` for the contents and
-          number of bytes passed for each data type. The contents of padding
-          bytes at the end of this array are undefined, drivers and
-          applications shall ignore them.
+	  number of bytes passed for each data type. The contents of padding
+	  bytes at the end of this array are undefined, drivers and
+	  applications shall ignore them.
 
 
 Packets are always passed in ascending line number order, without
@@ -556,11 +556,11 @@ number).
 
        -  ``magic``\ [4]
 
-       -  
+       -
        -  A "magic" constant from :ref:`v4l2-mpeg-vbi-fmt-ivtv-magic` that
-          indicates this is a valid sliced VBI data payload and also
-          indicates which member of the anonymous union, ``itv0`` or
-          ``ITV0``, to use for the payload data.
+	  indicates this is a valid sliced VBI data payload and also
+	  indicates which member of the anonymous union, ``itv0`` or
+	  ``ITV0``, to use for the payload data.
 
     -  .. row 2
 
@@ -570,27 +570,27 @@ number).
 
     -  .. row 3
 
-       -  
+       -
        -  struct :ref:`v4l2_mpeg_vbi_itv0 <v4l2-mpeg-vbi-itv0>`
 
        -  ``itv0``
 
        -  The primary form of the sliced VBI data payload that contains
-          anywhere from 1 to 35 lines of sliced VBI data. Line masks are
-          provided in this form of the payload indicating which VBI lines
-          are provided.
+	  anywhere from 1 to 35 lines of sliced VBI data. Line masks are
+	  provided in this form of the payload indicating which VBI lines
+	  are provided.
 
     -  .. row 4
 
-       -  
+       -
        -  struct :ref:`v4l2_mpeg_vbi_ITV0 <v4l2-mpeg-vbi-itv0-1>`
 
        -  ``ITV0``
 
        -  An alternate form of the sliced VBI data payload used when 36
-          lines of sliced VBI data are present. No line masks are provided
-          in this form of the payload; all valid line mask bits are
-          implcitly set.
+	  lines of sliced VBI data are present. No line masks are provided
+	  in this form of the payload; all valid line mask bits are
+	  implcitly set.
 
 
 
@@ -617,8 +617,8 @@ number).
        -  "itv0"
 
        -  Indicates the ``itv0`` member of the union in struct
-          :ref:`v4l2_mpeg_vbi_fmt_ivtv <v4l2-mpeg-vbi-fmt-ivtv>` is
-          valid.
+	  :ref:`v4l2_mpeg_vbi_fmt_ivtv <v4l2-mpeg-vbi-fmt-ivtv>` is
+	  valid.
 
     -  .. row 3
 
@@ -627,8 +627,8 @@ number).
        -  "ITV0"
 
        -  Indicates the ``ITV0`` member of the union in struct
-          :ref:`v4l2_mpeg_vbi_fmt_ivtv <v4l2-mpeg-vbi-fmt-ivtv>` is
-          valid and that 36 lines of sliced VBI data are present.
+	  :ref:`v4l2_mpeg_vbi_fmt_ivtv <v4l2-mpeg-vbi-fmt-ivtv>` is
+	  valid and that 36 lines of sliced VBI data are present.
 
 
 
@@ -647,42 +647,42 @@ number).
        -  ``linemask``\ [2]
 
        -  Bitmasks indicating the VBI service lines present. These
-          ``linemask`` values are stored in little endian byte order in the
-          MPEG stream. Some reference ``linemask`` bit positions with their
-          corresponding VBI line number and video field are given below.
-          b\ :sub:`0` indicates the least significant bit of a ``linemask``
-          value:
+	  ``linemask`` values are stored in little endian byte order in the
+	  MPEG stream. Some reference ``linemask`` bit positions with their
+	  corresponding VBI line number and video field are given below.
+	  b\ :sub:`0` indicates the least significant bit of a ``linemask``
+	  value:
 
 
 
-          ::
+	  ::
 
-              linemask[0] b0:     line  6     first field
-              linemask[0] b17:        line 23     first field
-              linemask[0] b18:        line  6     second field
-              linemask[0] b31:        line 19     second field
-              linemask[1] b0:     line 20     second field
-              linemask[1] b3:     line 23     second field
-              linemask[1] b4-b31: unused and set to 0
+	      linemask[0] b0:     line  6     first field
+	      linemask[0] b17:        line 23     first field
+	      linemask[0] b18:        line  6     second field
+	      linemask[0] b31:        line 19     second field
+	      linemask[1] b0:     line 20     second field
+	      linemask[1] b3:     line 23     second field
+	      linemask[1] b4-b31: unused and set to 0
 
     -  .. row 2
 
        -  struct
-          :ref:`v4l2_mpeg_vbi_itv0_line <v4l2-mpeg-vbi-itv0-line>`
+	  :ref:`v4l2_mpeg_vbi_itv0_line <v4l2-mpeg-vbi-itv0-line>`
 
        -  ``line``\ [35]
 
        -  This is a variable length array that holds from 1 to 35 lines of
-          sliced VBI data. The sliced VBI data lines present correspond to
-          the bits set in the ``linemask`` array, starting from b\ :sub:`0`
-          of ``linemask``\ [0] up through b\ :sub:`31` of ``linemask``\ [0],
-          and from b\ :sub:`0` of ``linemask``\ [1] up through b\ :sub:`3` of
-          ``linemask``\ [1]. ``line``\ [0] corresponds to the first bit
-          found set in the ``linemask`` array, ``line``\ [1] corresponds to
-          the second bit found set in the ``linemask`` array, etc. If no
-          ``linemask`` array bits are set, then ``line``\ [0] may contain
-          one line of unspecified data that should be ignored by
-          applications.
+	  sliced VBI data. The sliced VBI data lines present correspond to
+	  the bits set in the ``linemask`` array, starting from b\ :sub:`0`
+	  of ``linemask``\ [0] up through b\ :sub:`31` of ``linemask``\ [0],
+	  and from b\ :sub:`0` of ``linemask``\ [1] up through b\ :sub:`3` of
+	  ``linemask``\ [1]. ``line``\ [0] corresponds to the first bit
+	  found set in the ``linemask`` array, ``line``\ [1] corresponds to
+	  the second bit found set in the ``linemask`` array, etc. If no
+	  ``linemask`` array bits are set, then ``line``\ [0] may contain
+	  one line of unspecified data that should be ignored by
+	  applications.
 
 
 
@@ -697,14 +697,14 @@ number).
     -  .. row 1
 
        -  struct
-          :ref:`v4l2_mpeg_vbi_itv0_line <v4l2-mpeg-vbi-itv0-line>`
+	  :ref:`v4l2_mpeg_vbi_itv0_line <v4l2-mpeg-vbi-itv0-line>`
 
        -  ``line``\ [36]
 
        -  A fixed length array of 36 lines of sliced VBI data. ``line``\ [0]
-          through ``line``\ [17] correspond to lines 6 through 23 of the
-          first field. ``line``\ [18] through ``line``\ [35] corresponds to
-          lines 6 through 23 of the second field.
+	  through ``line``\ [17] correspond to lines 6 through 23 of the
+	  first field. ``line``\ [18] through ``line``\ [35] corresponds to
+	  lines 6 through 23 of the second field.
 
 
 
@@ -723,8 +723,8 @@ number).
        -  ``id``
 
        -  A line identifier value from
-          :ref:`ITV0-Line-Identifier-Constants` that indicates the type of
-          sliced VBI data stored on this line.
+	  :ref:`ITV0-Line-Identifier-Constants` that indicates the type of
+	  sliced VBI data stored on this line.
 
     -  .. row 2
 
@@ -759,7 +759,7 @@ number).
        -  1
 
        -  Refer to :ref:`Sliced VBI services <vbi-services2>` for a
-          description of the line payload.
+	  description of the line payload.
 
     -  .. row 3
 
@@ -768,7 +768,7 @@ number).
        -  4
 
        -  Refer to :ref:`Sliced VBI services <vbi-services2>` for a
-          description of the line payload.
+	  description of the line payload.
 
     -  .. row 4
 
@@ -777,7 +777,7 @@ number).
        -  5
 
        -  Refer to :ref:`Sliced VBI services <vbi-services2>` for a
-          description of the line payload.
+	  description of the line payload.
 
     -  .. row 5
 
@@ -786,7 +786,7 @@ number).
        -  7
 
        -  Refer to :ref:`Sliced VBI services <vbi-services2>` for a
-          description of the line payload.
+	  description of the line payload.
 
 
 

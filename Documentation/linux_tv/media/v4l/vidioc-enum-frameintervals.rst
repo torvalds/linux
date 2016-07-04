@@ -150,7 +150,7 @@ application should zero out all members except for the *IN* fields.
 
        -  ``index``
 
-       -  
+       -
        -  IN: Index of the given frame interval in the enumeration.
 
     -  .. row 2
@@ -159,7 +159,7 @@ application should zero out all members except for the *IN* fields.
 
        -  ``pixel_format``
 
-       -  
+       -
        -  IN: Pixel format for which the frame intervals are enumerated.
 
     -  .. row 3
@@ -168,7 +168,7 @@ application should zero out all members except for the *IN* fields.
 
        -  ``width``
 
-       -  
+       -
        -  IN: Frame width for which the frame intervals are enumerated.
 
     -  .. row 4
@@ -177,7 +177,7 @@ application should zero out all members except for the *IN* fields.
 
        -  ``height``
 
-       -  
+       -
        -  IN: Frame height for which the frame intervals are enumerated.
 
     -  .. row 5
@@ -186,20 +186,20 @@ application should zero out all members except for the *IN* fields.
 
        -  ``type``
 
-       -  
+       -
        -  OUT: Frame interval type the device supports.
 
     -  .. row 6
 
        -  union
 
-       -  
-       -  
+       -
+       -
        -  OUT: Frame interval with the given index.
 
     -  .. row 7
 
-       -  
+       -
        -  struct :ref:`v4l2_fract <v4l2-fract>`
 
        -  ``discrete``
@@ -208,12 +208,12 @@ application should zero out all members except for the *IN* fields.
 
     -  .. row 8
 
-       -  
+       -
        -  struct :ref:`v4l2_frmival_stepwise <v4l2-frmival-stepwise>`
 
        -  ``stepwise``
 
-       -  
+       -
 
     -  .. row 9
 
@@ -221,9 +221,9 @@ application should zero out all members except for the *IN* fields.
 
        -  ``reserved[2]``
 
-       -  
+       -
        -  Reserved space for future use. Must be zeroed by drivers and
-          applications.
+	  applications.
 
 
 

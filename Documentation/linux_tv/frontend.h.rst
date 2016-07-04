@@ -36,58 +36,58 @@ file: frontend.h
     #include <linux/types.h>
 
     enum fe_type {
-            FE_QPSK,
-            FE_QAM,
-            FE_OFDM,
-            FE_ATSC
+	    FE_QPSK,
+	    FE_QAM,
+	    FE_OFDM,
+	    FE_ATSC
     };
 
     enum fe_caps {
-            FE_IS_STUPID                    = 0,
-            FE_CAN_INVERSION_AUTO           = 0x1,
-            FE_CAN_FEC_1_2                  = 0x2,
-            FE_CAN_FEC_2_3                  = 0x4,
-            FE_CAN_FEC_3_4                  = 0x8,
-            FE_CAN_FEC_4_5                  = 0x10,
-            FE_CAN_FEC_5_6                  = 0x20,
-            FE_CAN_FEC_6_7                  = 0x40,
-            FE_CAN_FEC_7_8                  = 0x80,
-            FE_CAN_FEC_8_9                  = 0x100,
-            FE_CAN_FEC_AUTO                 = 0x200,
-            FE_CAN_QPSK                     = 0x400,
-            FE_CAN_QAM_16                   = 0x800,
-            FE_CAN_QAM_32                   = 0x1000,
-            FE_CAN_QAM_64                   = 0x2000,
-            FE_CAN_QAM_128                  = 0x4000,
-            FE_CAN_QAM_256                  = 0x8000,
-            FE_CAN_QAM_AUTO                 = 0x10000,
-            FE_CAN_TRANSMISSION_MODE_AUTO   = 0x20000,
-            FE_CAN_BANDWIDTH_AUTO           = 0x40000,
-            FE_CAN_GUARD_INTERVAL_AUTO      = 0x80000,
-            FE_CAN_HIERARCHY_AUTO           = 0x100000,
-            FE_CAN_8VSB                     = 0x200000,
-            FE_CAN_16VSB                    = 0x400000,
-            FE_HAS_EXTENDED_CAPS            = 0x800000,   /* We need more bitspace for newer APIs, indicate this. */
-            FE_CAN_MULTISTREAM              = 0x4000000,  /* frontend supports multistream filtering */
-            FE_CAN_TURBO_FEC                = 0x8000000,  /* frontend supports "turbo fec modulation" */
-            FE_CAN_2G_MODULATION            = 0x10000000, /* frontend supports "2nd generation modulation" (DVB-S2) */
-            FE_NEEDS_BENDING                = 0x20000000, /* not supported anymore, don't use (frontend requires frequency bending) */
-            FE_CAN_RECOVER                  = 0x40000000, /* frontend can recover from a cable unplug automatically */
-            FE_CAN_MUTE_TS                  = 0x80000000  /* frontend can stop spurious TS data output */
+	    FE_IS_STUPID                    = 0,
+	    FE_CAN_INVERSION_AUTO           = 0x1,
+	    FE_CAN_FEC_1_2                  = 0x2,
+	    FE_CAN_FEC_2_3                  = 0x4,
+	    FE_CAN_FEC_3_4                  = 0x8,
+	    FE_CAN_FEC_4_5                  = 0x10,
+	    FE_CAN_FEC_5_6                  = 0x20,
+	    FE_CAN_FEC_6_7                  = 0x40,
+	    FE_CAN_FEC_7_8                  = 0x80,
+	    FE_CAN_FEC_8_9                  = 0x100,
+	    FE_CAN_FEC_AUTO                 = 0x200,
+	    FE_CAN_QPSK                     = 0x400,
+	    FE_CAN_QAM_16                   = 0x800,
+	    FE_CAN_QAM_32                   = 0x1000,
+	    FE_CAN_QAM_64                   = 0x2000,
+	    FE_CAN_QAM_128                  = 0x4000,
+	    FE_CAN_QAM_256                  = 0x8000,
+	    FE_CAN_QAM_AUTO                 = 0x10000,
+	    FE_CAN_TRANSMISSION_MODE_AUTO   = 0x20000,
+	    FE_CAN_BANDWIDTH_AUTO           = 0x40000,
+	    FE_CAN_GUARD_INTERVAL_AUTO      = 0x80000,
+	    FE_CAN_HIERARCHY_AUTO           = 0x100000,
+	    FE_CAN_8VSB                     = 0x200000,
+	    FE_CAN_16VSB                    = 0x400000,
+	    FE_HAS_EXTENDED_CAPS            = 0x800000,   /* We need more bitspace for newer APIs, indicate this. */
+	    FE_CAN_MULTISTREAM              = 0x4000000,  /* frontend supports multistream filtering */
+	    FE_CAN_TURBO_FEC                = 0x8000000,  /* frontend supports "turbo fec modulation" */
+	    FE_CAN_2G_MODULATION            = 0x10000000, /* frontend supports "2nd generation modulation" (DVB-S2) */
+	    FE_NEEDS_BENDING                = 0x20000000, /* not supported anymore, don't use (frontend requires frequency bending) */
+	    FE_CAN_RECOVER                  = 0x40000000, /* frontend can recover from a cable unplug automatically */
+	    FE_CAN_MUTE_TS                  = 0x80000000  /* frontend can stop spurious TS data output */
     };
 
     struct dvb_frontend_info {
-            char       name[128];
-            enum fe_type type;      /* DEPRECATED. Use DTV_ENUM_DELSYS instead */
-            __u32      frequency_min;
-            __u32      frequency_max;
-            __u32      frequency_stepsize;
-            __u32      frequency_tolerance;
-            __u32      symbol_rate_min;
-            __u32      symbol_rate_max;
-            __u32      symbol_rate_tolerance;       /* ppm */
-            __u32      notifier_delay;              /* DEPRECATED */
-            enum fe_caps caps;
+	    char       name[128];
+	    enum fe_type type;      /* DEPRECATED. Use DTV_ENUM_DELSYS instead */
+	    __u32      frequency_min;
+	    __u32      frequency_max;
+	    __u32      frequency_stepsize;
+	    __u32      frequency_tolerance;
+	    __u32      symbol_rate_min;
+	    __u32      symbol_rate_max;
+	    __u32      symbol_rate_tolerance;       /* ppm */
+	    __u32      notifier_delay;              /* DEPRECATED */
+	    enum fe_caps caps;
     };
 
 
@@ -96,30 +96,30 @@ file: frontend.h
      *  the meaning of this struct...
      */
     struct dvb_diseqc_master_cmd {
-            __u8 msg [6];   /*  { framing, address, command, data [3] } */
-            __u8 msg_len;   /*  valid values are 3...6  */
+	    __u8 msg [6];   /*  { framing, address, command, data [3] } */
+	    __u8 msg_len;   /*  valid values are 3...6  */
     };
 
     struct dvb_diseqc_slave_reply {
-            __u8 msg [4];   /*  { framing, data [3] } */
-            __u8 msg_len;   /*  valid values are 0...4, 0 means no msg  */
-            int  timeout;   /*  return from ioctl after timeout ms with */
+	    __u8 msg [4];   /*  { framing, data [3] } */
+	    __u8 msg_len;   /*  valid values are 0...4, 0 means no msg  */
+	    int  timeout;   /*  return from ioctl after timeout ms with */
     };                      /*  errorcode when no message was received  */
 
     enum fe_sec_voltage {
-            SEC_VOLTAGE_13,
-            SEC_VOLTAGE_18,
-            SEC_VOLTAGE_OFF
+	    SEC_VOLTAGE_13,
+	    SEC_VOLTAGE_18,
+	    SEC_VOLTAGE_OFF
     };
 
     enum fe_sec_tone_mode {
-            SEC_TONE_ON,
-            SEC_TONE_OFF
+	    SEC_TONE_ON,
+	    SEC_TONE_OFF
     };
 
     enum fe_sec_mini_cmd {
-            SEC_MINI_A,
-            SEC_MINI_B
+	    SEC_MINI_A,
+	    SEC_MINI_B
     };
 
     /**
@@ -134,93 +134,93 @@ file: frontend.h
      *                      to reset DiSEqC, tone and parameters
      */
     enum fe_status {
-            FE_HAS_SIGNAL           = 0x01,
-            FE_HAS_CARRIER          = 0x02,
-            FE_HAS_VITERBI          = 0x04,
-            FE_HAS_SYNC             = 0x08,
-            FE_HAS_LOCK             = 0x10,
-            FE_TIMEDOUT             = 0x20,
-            FE_REINIT               = 0x40,
+	    FE_HAS_SIGNAL           = 0x01,
+	    FE_HAS_CARRIER          = 0x02,
+	    FE_HAS_VITERBI          = 0x04,
+	    FE_HAS_SYNC             = 0x08,
+	    FE_HAS_LOCK             = 0x10,
+	    FE_TIMEDOUT             = 0x20,
+	    FE_REINIT               = 0x40,
     };
 
     enum fe_spectral_inversion {
-            INVERSION_OFF,
-            INVERSION_ON,
-            INVERSION_AUTO
+	    INVERSION_OFF,
+	    INVERSION_ON,
+	    INVERSION_AUTO
     };
 
     enum fe_code_rate {
-            FEC_NONE = 0,
-            FEC_1_2,
-            FEC_2_3,
-            FEC_3_4,
-            FEC_4_5,
-            FEC_5_6,
-            FEC_6_7,
-            FEC_7_8,
-            FEC_8_9,
-            FEC_AUTO,
-            FEC_3_5,
-            FEC_9_10,
-            FEC_2_5,
+	    FEC_NONE = 0,
+	    FEC_1_2,
+	    FEC_2_3,
+	    FEC_3_4,
+	    FEC_4_5,
+	    FEC_5_6,
+	    FEC_6_7,
+	    FEC_7_8,
+	    FEC_8_9,
+	    FEC_AUTO,
+	    FEC_3_5,
+	    FEC_9_10,
+	    FEC_2_5,
     };
 
     enum fe_modulation {
-            QPSK,
-            QAM_16,
-            QAM_32,
-            QAM_64,
-            QAM_128,
-            QAM_256,
-            QAM_AUTO,
-            VSB_8,
-            VSB_16,
-            PSK_8,
-            APSK_16,
-            APSK_32,
-            DQPSK,
-            QAM_4_NR,
+	    QPSK,
+	    QAM_16,
+	    QAM_32,
+	    QAM_64,
+	    QAM_128,
+	    QAM_256,
+	    QAM_AUTO,
+	    VSB_8,
+	    VSB_16,
+	    PSK_8,
+	    APSK_16,
+	    APSK_32,
+	    DQPSK,
+	    QAM_4_NR,
     };
 
     enum fe_transmit_mode {
-            TRANSMISSION_MODE_2K,
-            TRANSMISSION_MODE_8K,
-            TRANSMISSION_MODE_AUTO,
-            TRANSMISSION_MODE_4K,
-            TRANSMISSION_MODE_1K,
-            TRANSMISSION_MODE_16K,
-            TRANSMISSION_MODE_32K,
-            TRANSMISSION_MODE_C1,
-            TRANSMISSION_MODE_C3780,
+	    TRANSMISSION_MODE_2K,
+	    TRANSMISSION_MODE_8K,
+	    TRANSMISSION_MODE_AUTO,
+	    TRANSMISSION_MODE_4K,
+	    TRANSMISSION_MODE_1K,
+	    TRANSMISSION_MODE_16K,
+	    TRANSMISSION_MODE_32K,
+	    TRANSMISSION_MODE_C1,
+	    TRANSMISSION_MODE_C3780,
     };
 
     enum fe_guard_interval {
-            GUARD_INTERVAL_1_32,
-            GUARD_INTERVAL_1_16,
-            GUARD_INTERVAL_1_8,
-            GUARD_INTERVAL_1_4,
-            GUARD_INTERVAL_AUTO,
-            GUARD_INTERVAL_1_128,
-            GUARD_INTERVAL_19_128,
-            GUARD_INTERVAL_19_256,
-            GUARD_INTERVAL_PN420,
-            GUARD_INTERVAL_PN595,
-            GUARD_INTERVAL_PN945,
+	    GUARD_INTERVAL_1_32,
+	    GUARD_INTERVAL_1_16,
+	    GUARD_INTERVAL_1_8,
+	    GUARD_INTERVAL_1_4,
+	    GUARD_INTERVAL_AUTO,
+	    GUARD_INTERVAL_1_128,
+	    GUARD_INTERVAL_19_128,
+	    GUARD_INTERVAL_19_256,
+	    GUARD_INTERVAL_PN420,
+	    GUARD_INTERVAL_PN595,
+	    GUARD_INTERVAL_PN945,
     };
 
     enum fe_hierarchy {
-            HIERARCHY_NONE,
-            HIERARCHY_1,
-            HIERARCHY_2,
-            HIERARCHY_4,
-            HIERARCHY_AUTO
+	    HIERARCHY_NONE,
+	    HIERARCHY_1,
+	    HIERARCHY_2,
+	    HIERARCHY_4,
+	    HIERARCHY_AUTO
     };
 
     enum fe_interleaving {
-            INTERLEAVING_NONE,
-            INTERLEAVING_AUTO,
-            INTERLEAVING_240,
-            INTERLEAVING_720,
+	    INTERLEAVING_NONE,
+	    INTERLEAVING_AUTO,
+	    INTERLEAVING_240,
+	    INTERLEAVING_720,
     };
 
     /* S2API Commands */
@@ -317,38 +317,38 @@ file: frontend.h
     #define DTV_MAX_COMMAND         DTV_STAT_TOTAL_BLOCK_COUNT
 
     enum fe_pilot {
-            PILOT_ON,
-            PILOT_OFF,
-            PILOT_AUTO,
+	    PILOT_ON,
+	    PILOT_OFF,
+	    PILOT_AUTO,
     };
 
     enum fe_rolloff {
-            ROLLOFF_35, /* Implied value in DVB-S, default for DVB-S2 */
-            ROLLOFF_20,
-            ROLLOFF_25,
-            ROLLOFF_AUTO,
+	    ROLLOFF_35, /* Implied value in DVB-S, default for DVB-S2 */
+	    ROLLOFF_20,
+	    ROLLOFF_25,
+	    ROLLOFF_AUTO,
     };
 
     enum fe_delivery_system {
-            SYS_UNDEFINED,
-            SYS_DVBC_ANNEX_A,
-            SYS_DVBC_ANNEX_B,
-            SYS_DVBT,
-            SYS_DSS,
-            SYS_DVBS,
-            SYS_DVBS2,
-            SYS_DVBH,
-            SYS_ISDBT,
-            SYS_ISDBS,
-            SYS_ISDBC,
-            SYS_ATSC,
-            SYS_ATSCMH,
-            SYS_DTMB,
-            SYS_CMMB,
-            SYS_DAB,
-            SYS_DVBT2,
-            SYS_TURBO,
-            SYS_DVBC_ANNEX_C,
+	    SYS_UNDEFINED,
+	    SYS_DVBC_ANNEX_A,
+	    SYS_DVBC_ANNEX_B,
+	    SYS_DVBT,
+	    SYS_DSS,
+	    SYS_DVBS,
+	    SYS_DVBS2,
+	    SYS_DVBH,
+	    SYS_ISDBT,
+	    SYS_ISDBS,
+	    SYS_ISDBC,
+	    SYS_ATSC,
+	    SYS_ATSCMH,
+	    SYS_DTMB,
+	    SYS_CMMB,
+	    SYS_DAB,
+	    SYS_DVBT2,
+	    SYS_TURBO,
+	    SYS_DVBC_ANNEX_C,
     };
 
     /* backward compatibility */
@@ -358,47 +358,47 @@ file: frontend.h
     /* ATSC-MH */
 
     enum atscmh_sccc_block_mode {
-            ATSCMH_SCCC_BLK_SEP      = 0,
-            ATSCMH_SCCC_BLK_COMB     = 1,
-            ATSCMH_SCCC_BLK_RES      = 2,
+	    ATSCMH_SCCC_BLK_SEP      = 0,
+	    ATSCMH_SCCC_BLK_COMB     = 1,
+	    ATSCMH_SCCC_BLK_RES      = 2,
     };
 
     enum atscmh_sccc_code_mode {
-            ATSCMH_SCCC_CODE_HLF     = 0,
-            ATSCMH_SCCC_CODE_QTR     = 1,
-            ATSCMH_SCCC_CODE_RES     = 2,
+	    ATSCMH_SCCC_CODE_HLF     = 0,
+	    ATSCMH_SCCC_CODE_QTR     = 1,
+	    ATSCMH_SCCC_CODE_RES     = 2,
     };
 
     enum atscmh_rs_frame_ensemble {
-            ATSCMH_RSFRAME_ENS_PRI   = 0,
-            ATSCMH_RSFRAME_ENS_SEC   = 1,
+	    ATSCMH_RSFRAME_ENS_PRI   = 0,
+	    ATSCMH_RSFRAME_ENS_SEC   = 1,
     };
 
     enum atscmh_rs_frame_mode {
-            ATSCMH_RSFRAME_PRI_ONLY  = 0,
-            ATSCMH_RSFRAME_PRI_SEC   = 1,
-            ATSCMH_RSFRAME_RES       = 2,
+	    ATSCMH_RSFRAME_PRI_ONLY  = 0,
+	    ATSCMH_RSFRAME_PRI_SEC   = 1,
+	    ATSCMH_RSFRAME_RES       = 2,
     };
 
     enum atscmh_rs_code_mode {
-            ATSCMH_RSCODE_211_187    = 0,
-            ATSCMH_RSCODE_223_187    = 1,
-            ATSCMH_RSCODE_235_187    = 2,
-            ATSCMH_RSCODE_RES        = 3,
+	    ATSCMH_RSCODE_211_187    = 0,
+	    ATSCMH_RSCODE_223_187    = 1,
+	    ATSCMH_RSCODE_235_187    = 2,
+	    ATSCMH_RSCODE_RES        = 3,
     };
 
     #define NO_STREAM_ID_FILTER     (~0U)
     #define LNA_AUTO                (~0U)
 
     struct dtv_cmds_h {
-            char    *name;          /* A display name for debugging purposes */
+	    char    *name;          /* A display name for debugging purposes */
 
-            __u32   cmd;            /* A unique ID */
+	    __u32   cmd;            /* A unique ID */
 
-            /* Flags */
-            __u32   set:1;          /* Either a set or get property */
-            __u32   buffer:1;       /* Does this property use the buffer? */
-            __u32   reserved:30;    /* Align */
+	    /* Flags */
+	    __u32   set:1;          /* Either a set or get property */
+	    __u32   buffer:1;       /* Does this property use the buffer? */
+	    __u32   reserved:30;    /* Align */
     };
 
     /**
@@ -414,10 +414,10 @@ file: frontend.h
      *                      bit error, block error, lapsed time.
      */
     enum fecap_scale_params {
-            FE_SCALE_NOT_AVAILABLE = 0,
-            FE_SCALE_DECIBEL,
-            FE_SCALE_RELATIVE,
-            FE_SCALE_COUNTER
+	    FE_SCALE_NOT_AVAILABLE = 0,
+	    FE_SCALE_DECIBEL,
+	    FE_SCALE_RELATIVE,
+	    FE_SCALE_COUNTER
     };
 
     /**
@@ -452,43 +452,43 @@ file: frontend.h
      *      u.st.len = 4;
      */
     struct dtv_stats {
-            __u8 scale;     /* enum fecap_scale_params type */
-            union {
-                    __u64 uvalue;   /* for counters and relative scales */
-                    __s64 svalue;   /* for 0.001 dB measures */
-            };
+	    __u8 scale;     /* enum fecap_scale_params type */
+	    union {
+		    __u64 uvalue;   /* for counters and relative scales */
+		    __s64 svalue;   /* for 0.001 dB measures */
+	    };
     } __attribute__ ((packed));
 
 
     #define MAX_DTV_STATS   4
 
     struct dtv_fe_stats {
-            __u8 len;
-            struct dtv_stats stat[MAX_DTV_STATS];
+	    __u8 len;
+	    struct dtv_stats stat[MAX_DTV_STATS];
     } __attribute__ ((packed));
 
     struct dtv_property {
-            __u32 cmd;
-            __u32 reserved[3];
-            union {
-                    __u32 data;
-                    struct dtv_fe_stats st;
-                    struct {
-                            __u8 data[32];
-                            __u32 len;
-                            __u32 reserved1[3];
-                            void *reserved2;
-                    } buffer;
-            } u;
-            int result;
+	    __u32 cmd;
+	    __u32 reserved[3];
+	    union {
+		    __u32 data;
+		    struct dtv_fe_stats st;
+		    struct {
+			    __u8 data[32];
+			    __u32 len;
+			    __u32 reserved1[3];
+			    void *reserved2;
+		    } buffer;
+	    } u;
+	    int result;
     } __attribute__ ((packed));
 
     /* num of properties cannot exceed DTV_IOCTL_MAX_MSGS per ioctl */
     #define DTV_IOCTL_MAX_MSGS 64
 
     struct dtv_properties {
-            __u32 num;
-            struct dtv_property *props;
+	    __u32 num;
+	    struct dtv_property *props;
     };
 
     #if defined(__DVB_CORE__) || !defined (__KERNEL__)
@@ -500,13 +500,13 @@ file: frontend.h
      */
 
     enum fe_bandwidth {
-            BANDWIDTH_8_MHZ,
-            BANDWIDTH_7_MHZ,
-            BANDWIDTH_6_MHZ,
-            BANDWIDTH_AUTO,
-            BANDWIDTH_5_MHZ,
-            BANDWIDTH_10_MHZ,
-            BANDWIDTH_1_712_MHZ,
+	    BANDWIDTH_8_MHZ,
+	    BANDWIDTH_7_MHZ,
+	    BANDWIDTH_6_MHZ,
+	    BANDWIDTH_AUTO,
+	    BANDWIDTH_5_MHZ,
+	    BANDWIDTH_10_MHZ,
+	    BANDWIDTH_1_712_MHZ,
     };
 
     /* This is needed for legacy userspace support */
@@ -528,45 +528,45 @@ file: frontend.h
     typedef enum fe_delivery_system fe_delivery_system_t;
 
     struct dvb_qpsk_parameters {
-            __u32           symbol_rate;  /* symbol rate in Symbols per second */
-            fe_code_rate_t  fec_inner;    /* forward error correction (see above) */
+	    __u32           symbol_rate;  /* symbol rate in Symbols per second */
+	    fe_code_rate_t  fec_inner;    /* forward error correction (see above) */
     };
 
     struct dvb_qam_parameters {
-            __u32           symbol_rate; /* symbol rate in Symbols per second */
-            fe_code_rate_t  fec_inner;   /* forward error correction (see above) */
-            fe_modulation_t modulation;  /* modulation type (see above) */
+	    __u32           symbol_rate; /* symbol rate in Symbols per second */
+	    fe_code_rate_t  fec_inner;   /* forward error correction (see above) */
+	    fe_modulation_t modulation;  /* modulation type (see above) */
     };
 
     struct dvb_vsb_parameters {
-            fe_modulation_t modulation;  /* modulation type (see above) */
+	    fe_modulation_t modulation;  /* modulation type (see above) */
     };
 
     struct dvb_ofdm_parameters {
-            fe_bandwidth_t      bandwidth;
-            fe_code_rate_t      code_rate_HP;  /* high priority stream code rate */
-            fe_code_rate_t      code_rate_LP;  /* low priority stream code rate */
-            fe_modulation_t     constellation; /* modulation type (see above) */
-            fe_transmit_mode_t  transmission_mode;
-            fe_guard_interval_t guard_interval;
-            fe_hierarchy_t      hierarchy_information;
+	    fe_bandwidth_t      bandwidth;
+	    fe_code_rate_t      code_rate_HP;  /* high priority stream code rate */
+	    fe_code_rate_t      code_rate_LP;  /* low priority stream code rate */
+	    fe_modulation_t     constellation; /* modulation type (see above) */
+	    fe_transmit_mode_t  transmission_mode;
+	    fe_guard_interval_t guard_interval;
+	    fe_hierarchy_t      hierarchy_information;
     };
 
     struct dvb_frontend_parameters {
-            __u32 frequency;     /* (absolute) frequency in Hz for DVB-C/DVB-T/ATSC */
-                                 /* intermediate frequency in kHz for DVB-S */
-            fe_spectral_inversion_t inversion;
-            union {
-                    struct dvb_qpsk_parameters qpsk;        /* DVB-S */
-                    struct dvb_qam_parameters  qam;         /* DVB-C */
-                    struct dvb_ofdm_parameters ofdm;        /* DVB-T */
-                    struct dvb_vsb_parameters vsb;          /* ATSC */
-            } u;
+	    __u32 frequency;     /* (absolute) frequency in Hz for DVB-C/DVB-T/ATSC */
+				 /* intermediate frequency in kHz for DVB-S */
+	    fe_spectral_inversion_t inversion;
+	    union {
+		    struct dvb_qpsk_parameters qpsk;        /* DVB-S */
+		    struct dvb_qam_parameters  qam;         /* DVB-C */
+		    struct dvb_ofdm_parameters ofdm;        /* DVB-T */
+		    struct dvb_vsb_parameters vsb;          /* ATSC */
+	    } u;
     };
 
     struct dvb_frontend_event {
-            fe_status_t status;
-            struct dvb_frontend_parameters parameters;
+	    fe_status_t status;
+	    struct dvb_frontend_parameters parameters;
     };
     #endif
 

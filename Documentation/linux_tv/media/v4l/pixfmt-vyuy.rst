@@ -119,13 +119,13 @@ Each cell is one byte.
 
     -  .. row 1
 
-       -  
+       -
        -  0
 
-       -  
+       -
        -  1
 
-       -  
+       -
        -  2
 
        -  3

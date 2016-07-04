@@ -211,7 +211,7 @@ list entity names and pad numbers).
 
     -  .. row 1
 
-       -  
+       -
        -  Sensor/0 format
 
        -  Frontend/0 format

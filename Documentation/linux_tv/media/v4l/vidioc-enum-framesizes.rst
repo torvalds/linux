@@ -185,7 +185,7 @@ application should zero out all members except for the *IN* fields.
 
        -  ``index``
 
-       -  
+       -
        -  IN: Index of the given frame size in the enumeration.
 
     -  .. row 2
@@ -194,7 +194,7 @@ application should zero out all members except for the *IN* fields.
 
        -  ``pixel_format``
 
-       -  
+       -
        -  IN: Pixel format for which the frame sizes are enumerated.
 
     -  .. row 3
@@ -203,34 +203,34 @@ application should zero out all members except for the *IN* fields.
 
        -  ``type``
 
-       -  
+       -
        -  OUT: Frame size type the device supports.
 
     -  .. row 4
 
        -  union
 
-       -  
-       -  
+       -
+       -
        -  OUT: Frame size with the given index.
 
     -  .. row 5
 
-       -  
+       -
        -  struct :ref:`v4l2_frmsize_discrete <v4l2-frmsize-discrete>`
 
        -  ``discrete``
 
-       -  
+       -
 
     -  .. row 6
 
-       -  
+       -
        -  struct :ref:`v4l2_frmsize_stepwise <v4l2-frmsize-stepwise>`
 
        -  ``stepwise``
 
-       -  
+       -
 
     -  .. row 7
 
@@ -238,9 +238,9 @@ application should zero out all members except for the *IN* fields.
 
        -  ``reserved[2]``
 
-       -  
+       -
        -  Reserved space for future use. Must be zeroed by drivers and
-          applications.
+	  applications.
 
 
 

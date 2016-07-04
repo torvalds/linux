@@ -52,7 +52,7 @@ Each cell is one byte.
        -  G\ :sub:`03high`
 
        -  B\ :sub:`00low`\ (bits 7--6) G\ :sub:`01low`\ (bits 5--4)
-          B\ :sub:`02low`\ (bits 3--2) G\ :sub:`03low`\ (bits 1--0)
+	  B\ :sub:`02low`\ (bits 3--2) G\ :sub:`03low`\ (bits 1--0)
 
     -  .. row 2
 
@@ -67,7 +67,7 @@ Each cell is one byte.
        -  R\ :sub:`13high`
 
        -  G\ :sub:`10low`\ (bits 7--6) R\ :sub:`11low`\ (bits 5--4)
-          G\ :sub:`12low`\ (bits 3--2) R\ :sub:`13low`\ (bits 1--0)
+	  G\ :sub:`12low`\ (bits 3--2) R\ :sub:`13low`\ (bits 1--0)
 
     -  .. row 3
 
@@ -82,7 +82,7 @@ Each cell is one byte.
        -  G\ :sub:`23high`
 
        -  B\ :sub:`20low`\ (bits 7--6) G\ :sub:`21low`\ (bits 5--4)
-          B\ :sub:`22low`\ (bits 3--2) G\ :sub:`23low`\ (bits 1--0)
+	  B\ :sub:`22low`\ (bits 3--2) G\ :sub:`23low`\ (bits 1--0)
 
     -  .. row 4
 
@@ -97,4 +97,4 @@ Each cell is one byte.
        -  R\ :sub:`33high`
 
        -  G\ :sub:`30low`\ (bits 7--6) R\ :sub:`31low`\ (bits 5--4)
-          G\ :sub:`32low`\ (bits 3--2) R\ :sub:`33low`\ (bits 1--0)
+	  G\ :sub:`32low`\ (bits 3--2) R\ :sub:`33low`\ (bits 1--0)

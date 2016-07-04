@@ -63,8 +63,8 @@ EINVAL.
        -  ``name``\ [32]
 
        -  Name of the video output, a NUL-terminated ASCII string, for
-          example: "Vout". This information is intended for the user,
-          preferably the connector label on the device itself.
+	  example: "Vout". This information is intended for the user,
+	  preferably the connector label on the device itself.
 
     -  .. row 3
 
@@ -81,18 +81,18 @@ EINVAL.
        -  ``audioset``
 
        -  Drivers can enumerate up to 32 video and audio outputs. This field
-          shows which audio outputs were selectable as the current output if
-          this was the currently selected video output. It is a bit mask.
-          The LSB corresponds to audio output 0, the MSB to output 31. Any
-          number of bits can be set, or none.
+	  shows which audio outputs were selectable as the current output if
+	  this was the currently selected video output. It is a bit mask.
+	  The LSB corresponds to audio output 0, the MSB to output 31. Any
+	  number of bits can be set, or none.
 
-          When the driver does not enumerate audio outputs no bits must be
-          set. Applications shall not interpret this as lack of audio
-          support. Drivers may automatically select audio outputs without
-          enumerating them.
+	  When the driver does not enumerate audio outputs no bits must be
+	  set. Applications shall not interpret this as lack of audio
+	  support. Drivers may automatically select audio outputs without
+	  enumerating them.
 
-          For details on audio outputs and how to select the current output
-          see :ref:`audio`.
+	  For details on audio outputs and how to select the current output
+	  see :ref:`audio`.
 
     -  .. row 5
 
@@ -101,10 +101,10 @@ EINVAL.
        -  ``modulator``
 
        -  Output devices can have zero or more RF modulators. When the
-          ``type`` is ``V4L2_OUTPUT_TYPE_MODULATOR`` this is an RF connector
-          and this field identifies the modulator. It corresponds to struct
-          :ref:`v4l2_modulator <v4l2-modulator>` field ``index``. For
-          details on modulators see :ref:`tuner`.
+	  ``type`` is ``V4L2_OUTPUT_TYPE_MODULATOR`` this is an RF connector
+	  and this field identifies the modulator. It corresponds to struct
+	  :ref:`v4l2_modulator <v4l2-modulator>` field ``index``. For
+	  details on modulators see :ref:`tuner`.
 
     -  .. row 6
 
@@ -113,8 +113,8 @@ EINVAL.
        -  ``std``
 
        -  Every video output supports one or more different video standards.
-          This field is a set of all supported standards. For details on
-          video standards and how to switch see :ref:`standard`.
+	  This field is a set of all supported standards. For details on
+	  video standards and how to switch see :ref:`standard`.
 
     -  .. row 7
 
@@ -123,7 +123,7 @@ EINVAL.
        -  ``capabilities``
 
        -  This field provides capabilities for the output. See
-          :ref:`output-capabilities` for flags.
+	  :ref:`output-capabilities` for flags.
 
     -  .. row 8
 
@@ -132,7 +132,7 @@ EINVAL.
        -  ``reserved``\ [3]
 
        -  Reserved for future extensions. Drivers must set the array to
-          zero.
+	  zero.
 
 
 
@@ -159,7 +159,7 @@ EINVAL.
        -  2
 
        -  Analog baseband output, for example Composite / CVBS, S-Video,
-          RGB.
+	  RGB.
 
     -  .. row 3
 
@@ -186,7 +186,7 @@ EINVAL.
        -  0x00000002
 
        -  This output supports setting video timings by using
-          VIDIOC_S_DV_TIMINGS.
+	  VIDIOC_S_DV_TIMINGS.
 
     -  .. row 2
 
@@ -195,7 +195,7 @@ EINVAL.
        -  0x00000004
 
        -  This output supports setting the TV standard by using
-          VIDIOC_S_STD.
+	  VIDIOC_S_STD.
 
     -  .. row 3
 
@@ -204,8 +204,8 @@ EINVAL.
        -  0x00000008
 
        -  This output supports setting the native size using the
-          ``V4L2_SEL_TGT_NATIVE_SIZE`` selection target, see
-          :ref:`v4l2-selections-common`.
+	  ``V4L2_SEL_TGT_NATIVE_SIZE`` selection target, see
+	  :ref:`v4l2-selections-common`.
 
 
 

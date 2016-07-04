@@ -112,7 +112,7 @@ that doesn't support them will return an ``EINVAL`` error code.
        -  ``standards``
 
        -  The video standard(s) supported by the hardware. See
-          :ref:`dv-bt-standards` for a list of standards.
+	  :ref:`dv-bt-standards` for a list of standards.
 
     -  .. row 8
 
@@ -121,7 +121,7 @@ that doesn't support them will return an ``EINVAL`` error code.
        -  ``capabilities``
 
        -  Several flags giving more information about the capabilities. See
-          :ref:`dv-bt-cap-capabilities` for a description of the flags.
+	  :ref:`dv-bt-cap-capabilities` for a description of the flags.
 
     -  .. row 9
 
@@ -130,7 +130,7 @@ that doesn't support them will return an ``EINVAL`` error code.
        -  ``reserved``\ [16]
 
        -  Reserved for future extensions. Drivers must set the array to
-          zero.
+	  zero.
 
 
 
@@ -157,8 +157,8 @@ that doesn't support them will return an ``EINVAL`` error code.
        -  ``pad``
 
        -  Pad number as reported by the media controller API. This field is
-          only used when operating on a subdevice node. When operating on a
-          video node applications must set this field to zero.
+	  only used when operating on a subdevice node. When operating on a
+	  video node applications must set this field to zero.
 
     -  .. row 3
 
@@ -167,18 +167,18 @@ that doesn't support them will return an ``EINVAL`` error code.
        -  ``reserved``\ [2]
 
        -  Reserved for future extensions. Drivers and applications must set
-          the array to zero.
+	  the array to zero.
 
     -  .. row 4
 
        -  union
 
-       -  
-       -  
+       -
+       -
 
     -  .. row 5
 
-       -  
+       -
        -  struct :ref:`v4l2_bt_timings_cap <v4l2-bt-timings-cap>`
 
        -  ``bt``
@@ -187,12 +187,12 @@ that doesn't support them will return an ``EINVAL`` error code.
 
     -  .. row 6
 
-       -  
+       -
        -  __u32
 
        -  ``raw_data``\ [32]
 
-       -  
+       -
 
 
 
@@ -211,8 +211,8 @@ that doesn't support them will return an ``EINVAL`` error code.
 
     -  .. row 2
 
-       -  
-       -  
+       -
+       -
 
     -  .. row 3
 
@@ -231,14 +231,14 @@ that doesn't support them will return an ``EINVAL`` error code.
        -  V4L2_DV_BT_CAP_REDUCED_BLANKING
 
        -  CVT/GTF specific: the timings can make use of reduced blanking
-          (CVT) or the 'Secondary GTF' curve (GTF).
+	  (CVT) or the 'Secondary GTF' curve (GTF).
 
     -  .. row 6
 
        -  V4L2_DV_BT_CAP_CUSTOM
 
        -  Can support non-standard timings, i.e. timings not belonging to
-          the standards set in the ``standards`` field.
+	  the standards set in the ``standards`` field.
 
 
 

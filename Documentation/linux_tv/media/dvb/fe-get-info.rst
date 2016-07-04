@@ -71,8 +71,8 @@ appropriately. The generic error codes are described at the
        -  type
 
        -  **DEPRECATED**. DVBv3 type. Should not be used on modern programs,
-          as a frontend may have more than one type. So, the DVBv5 API
-          should be used instead to enumerate and select the frontend type.
+	  as a frontend may have more than one type. So, the DVBv5 API
+	  should be used instead to enumerate and select the frontend type.
 
     -  .. row 3
 
@@ -177,16 +177,16 @@ supported only on some specific frontend types.
 
        -  .. _`FE-IS-STUPID`:
 
-          ``FE_IS_STUPID``
+	  ``FE_IS_STUPID``
 
        -  There's something wrong at the frontend, and it can't report its
-          capabilities
+	  capabilities
 
     -  .. row 3
 
        -  .. _`FE-CAN-INVERSION-AUTO`:
 
-          ``FE_CAN_INVERSION_AUTO``
+	  ``FE_CAN_INVERSION_AUTO``
 
        -  The frontend is capable of auto-detecting inversion
 
@@ -194,7 +194,7 @@ supported only on some specific frontend types.
 
        -  .. _`FE-CAN-FEC-1-2`:
 
-          ``FE_CAN_FEC_1_2``
+	  ``FE_CAN_FEC_1_2``
 
        -  The frontend supports FEC 1/2
 
@@ -202,7 +202,7 @@ supported only on some specific frontend types.
 
        -  .. _`FE-CAN-FEC-2-3`:
 
-          ``FE_CAN_FEC_2_3``
+	  ``FE_CAN_FEC_2_3``
 
        -  The frontend supports FEC 2/3
 
@@ -210,7 +210,7 @@ supported only on some specific frontend types.
 
        -  .. _`FE-CAN-FEC-3-4`:
 
-          ``FE_CAN_FEC_3_4``
+	  ``FE_CAN_FEC_3_4``
 
        -  The frontend supports FEC 3/4
 
@@ -218,7 +218,7 @@ supported only on some specific frontend types.
 
        -  .. _`FE-CAN-FEC-4-5`:
 
-          ``FE_CAN_FEC_4_5``
+	  ``FE_CAN_FEC_4_5``
 
        -  The frontend supports FEC 4/5
 
@@ -226,7 +226,7 @@ supported only on some specific frontend types.
 
        -  .. _`FE-CAN-FEC-5-6`:
 
-          ``FE_CAN_FEC_5_6``
+	  ``FE_CAN_FEC_5_6``
 
        -  The frontend supports FEC 5/6
 
@@ -234,7 +234,7 @@ supported only on some specific frontend types.
 
        -  .. _`FE-CAN-FEC-6-7`:
 
-          ``FE_CAN_FEC_6_7``
+	  ``FE_CAN_FEC_6_7``
 
        -  The frontend supports FEC 6/7
 
@@ -242,7 +242,7 @@ supported only on some specific frontend types.
 
        -  .. _`FE-CAN-FEC-7-8`:
 
-          ``FE_CAN_FEC_7_8``
+	  ``FE_CAN_FEC_7_8``
 
        -  The frontend supports FEC 7/8
 
@@ -250,7 +250,7 @@ supported only on some specific frontend types.
 
        -  .. _`FE-CAN-FEC-8-9`:
 
-          ``FE_CAN_FEC_8_9``
+	  ``FE_CAN_FEC_8_9``
 
        -  The frontend supports FEC 8/9
 
@@ -258,7 +258,7 @@ supported only on some specific frontend types.
 
        -  .. _`FE-CAN-FEC-AUTO`:
 
-          ``FE_CAN_FEC_AUTO``
+	  ``FE_CAN_FEC_AUTO``
 
        -  The frontend can autodetect FEC.
 
@@ -266,7 +266,7 @@ supported only on some specific frontend types.
 
        -  .. _`FE-CAN-QPSK`:
 
-          ``FE_CAN_QPSK``
+	  ``FE_CAN_QPSK``
 
        -  The frontend supports QPSK modulation
 
@@ -274,7 +274,7 @@ supported only on some specific frontend types.
 
        -  .. _`FE-CAN-QAM-16`:
 
-          ``FE_CAN_QAM_16``
+	  ``FE_CAN_QAM_16``
 
        -  The frontend supports 16-QAM modulation
 
@@ -282,7 +282,7 @@ supported only on some specific frontend types.
 
        -  .. _`FE-CAN-QAM-32`:
 
-          ``FE_CAN_QAM_32``
+	  ``FE_CAN_QAM_32``
 
        -  The frontend supports 32-QAM modulation
 
@@ -290,7 +290,7 @@ supported only on some specific frontend types.
 
        -  .. _`FE-CAN-QAM-64`:
 
-          ``FE_CAN_QAM_64``
+	  ``FE_CAN_QAM_64``
 
        -  The frontend supports 64-QAM modulation
 
@@ -298,7 +298,7 @@ supported only on some specific frontend types.
 
        -  .. _`FE-CAN-QAM-128`:
 
-          ``FE_CAN_QAM_128``
+	  ``FE_CAN_QAM_128``
 
        -  The frontend supports 128-QAM modulation
 
@@ -306,7 +306,7 @@ supported only on some specific frontend types.
 
        -  .. _`FE-CAN-QAM-256`:
 
-          ``FE_CAN_QAM_256``
+	  ``FE_CAN_QAM_256``
 
        -  The frontend supports 256-QAM modulation
 
@@ -314,7 +314,7 @@ supported only on some specific frontend types.
 
        -  .. _`FE-CAN-QAM-AUTO`:
 
-          ``FE_CAN_QAM_AUTO``
+	  ``FE_CAN_QAM_AUTO``
 
        -  The frontend can autodetect modulation
 
@@ -322,7 +322,7 @@ supported only on some specific frontend types.
 
        -  .. _`FE-CAN-TRANSMISSION-MODE-AUTO`:
 
-          ``FE_CAN_TRANSMISSION_MODE_AUTO``
+	  ``FE_CAN_TRANSMISSION_MODE_AUTO``
 
        -  The frontend can autodetect the transmission mode
 
@@ -330,7 +330,7 @@ supported only on some specific frontend types.
 
        -  .. _`FE-CAN-BANDWIDTH-AUTO`:
 
-          ``FE_CAN_BANDWIDTH_AUTO``
+	  ``FE_CAN_BANDWIDTH_AUTO``
 
        -  The frontend can autodetect the bandwidth
 
@@ -338,7 +338,7 @@ supported only on some specific frontend types.
 
        -  .. _`FE-CAN-GUARD-INTERVAL-AUTO`:
 
-          ``FE_CAN_GUARD_INTERVAL_AUTO``
+	  ``FE_CAN_GUARD_INTERVAL_AUTO``
 
        -  The frontend can autodetect the guard interval
 
@@ -346,7 +346,7 @@ supported only on some specific frontend types.
 
        -  .. _`FE-CAN-HIERARCHY-AUTO`:
 
-          ``FE_CAN_HIERARCHY_AUTO``
+	  ``FE_CAN_HIERARCHY_AUTO``
 
        -  The frontend can autodetect hierarch
 
@@ -354,7 +354,7 @@ supported only on some specific frontend types.
 
        -  .. _`FE-CAN-8VSB`:
 
-          ``FE_CAN_8VSB``
+	  ``FE_CAN_8VSB``
 
        -  The frontend supports 8-VSB modulation
 
@@ -362,7 +362,7 @@ supported only on some specific frontend types.
 
        -  .. _`FE-CAN-16VSB`:
 
-          ``FE_CAN_16VSB``
+	  ``FE_CAN_16VSB``
 
        -  The frontend supports 16-VSB modulation
 
@@ -370,7 +370,7 @@ supported only on some specific frontend types.
 
        -  .. _`FE-HAS-EXTENDED-CAPS`:
 
-          ``FE_HAS_EXTENDED_CAPS``
+	  ``FE_HAS_EXTENDED_CAPS``
 
        -  Currently, unused
 
@@ -378,7 +378,7 @@ supported only on some specific frontend types.
 
        -  .. _`FE-CAN-MULTISTREAM`:
 
-          ``FE_CAN_MULTISTREAM``
+	  ``FE_CAN_MULTISTREAM``
 
        -  The frontend supports multistream filtering
 
@@ -386,7 +386,7 @@ supported only on some specific frontend types.
 
        -  .. _`FE-CAN-TURBO-FEC`:
 
-          ``FE_CAN_TURBO_FEC``
+	  ``FE_CAN_TURBO_FEC``
 
        -  The frontend supports turbo FEC modulation
 
@@ -394,7 +394,7 @@ supported only on some specific frontend types.
 
        -  .. _`FE-CAN-2G-MODULATION`:
 
-          ``FE_CAN_2G_MODULATION``
+	  ``FE_CAN_2G_MODULATION``
 
        -  The frontend supports "2nd generation modulation" (DVB-S2/T2)>
 
@@ -402,7 +402,7 @@ supported only on some specific frontend types.
 
        -  .. _`FE-NEEDS-BENDING`:
 
-          ``FE_NEEDS_BENDING``
+	  ``FE_NEEDS_BENDING``
 
        -  Not supported anymore, don't use it
 
@@ -410,7 +410,7 @@ supported only on some specific frontend types.
 
        -  .. _`FE-CAN-RECOVER`:
 
-          ``FE_CAN_RECOVER``
+	  ``FE_CAN_RECOVER``
 
        -  The frontend can recover from a cable unplug automatically
 
@@ -418,6 +418,6 @@ supported only on some specific frontend types.
 
        -  .. _`FE-CAN-MUTE-TS`:
 
-          ``FE_CAN_MUTE_TS``
+	  ``FE_CAN_MUTE_TS``
 
        -  The frontend can stop spurious TS data output

@@ -78,7 +78,7 @@ information about the try formats.
        -  ``code``
 
        -  The media bus format code, as defined in
-          :ref:`v4l2-mbus-format`.
+	  :ref:`v4l2-mbus-format`.
 
     -  .. row 4
 
@@ -87,7 +87,7 @@ information about the try formats.
        -  ``which``
 
        -  Media bus format codes to be enumerated, from enum
-          :ref:`v4l2_subdev_format_whence <v4l2-subdev-format-whence>`.
+	  :ref:`v4l2_subdev_format_whence <v4l2-subdev-format-whence>`.
 
     -  .. row 5
 
@@ -96,7 +96,7 @@ information about the try formats.
        -  ``reserved``\ [8]
 
        -  Reserved for future extensions. Applications and drivers must set
-          the array to zero.
+	  the array to zero.
 
 
 

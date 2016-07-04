@@ -88,8 +88,8 @@ any DMA in progress, an implicit
        -  ``type``
 
        -  Type of the stream or buffers, this is the same as the struct
-          :ref:`v4l2_format <v4l2-format>` ``type`` field. See
-          :ref:`v4l2-buf-type` for valid values.
+	  :ref:`v4l2_format <v4l2-format>` ``type`` field. See
+	  :ref:`v4l2-buf-type` for valid values.
 
     -  .. row 3
 
@@ -98,8 +98,8 @@ any DMA in progress, an implicit
        -  ``memory``
 
        -  Applications set this field to ``V4L2_MEMORY_MMAP``,
-          ``V4L2_MEMORY_DMABUF`` or ``V4L2_MEMORY_USERPTR``. See
-          :ref:`v4l2-memory`.
+	  ``V4L2_MEMORY_DMABUF`` or ``V4L2_MEMORY_USERPTR``. See
+	  :ref:`v4l2-memory`.
 
     -  .. row 4
 
@@ -108,7 +108,7 @@ any DMA in progress, an implicit
        -  ``reserved``\ [2]
 
        -  A place holder for future extensions. Drivers and applications
-          must set the array to zero.
+	  must set the array to zero.
 
 
 

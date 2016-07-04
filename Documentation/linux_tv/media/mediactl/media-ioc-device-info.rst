@@ -53,12 +53,12 @@ ioctl never fails.
        -  ``driver``\ [16]
 
        -  Name of the driver implementing the media API as a NUL-terminated
-          ASCII string. The driver version is stored in the
-          ``driver_version`` field.
+	  ASCII string. The driver version is stored in the
+	  ``driver_version`` field.
 
-          Driver specific applications can use this information to verify
-          the driver identity. It is also useful to work around known bugs,
-          or to identify drivers in error reports.
+	  Driver specific applications can use this information to verify
+	  the driver identity. It is also useful to work around known bugs,
+	  or to identify drivers in error reports.
 
     -  .. row 2
 
@@ -67,8 +67,8 @@ ioctl never fails.
        -  ``model``\ [32]
 
        -  Device model name as a NUL-terminated UTF-8 string. The device
-          version is stored in the ``device_version`` field and is not be
-          appended to the model name.
+	  version is stored in the ``device_version`` field and is not be
+	  appended to the model name.
 
     -  .. row 3
 
@@ -85,8 +85,8 @@ ioctl never fails.
        -  ``bus_info``\ [32]
 
        -  Location of the device in the system as a NUL-terminated ASCII
-          string. This includes the bus type name (PCI, USB, ...) and a
-          bus-specific identifier.
+	  string. This includes the bus type name (PCI, USB, ...) and a
+	  bus-specific identifier.
 
     -  .. row 5
 
@@ -111,8 +111,8 @@ ioctl never fails.
        -  ``driver_version``
 
        -  Media device driver version, formatted with the
-          ``KERNEL_VERSION()`` macro. Together with the ``driver`` field
-          this identifies a particular driver.
+	  ``KERNEL_VERSION()`` macro. Together with the ``driver`` field
+	  this identifies a particular driver.
 
     -  .. row 8
 
@@ -121,7 +121,7 @@ ioctl never fails.
        -  ``reserved``\ [31]
 
        -  Reserved for future extensions. Drivers and applications must set
-          this array to zero.
+	  this array to zero.
 
 
 The ``serial`` and ``bus_info`` fields can be used to distinguish

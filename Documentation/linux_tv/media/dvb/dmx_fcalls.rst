@@ -61,17 +61,17 @@ Arguments
 
     -  .. row 3
 
-       -  
+       -
        -  O_RDWR read/write access
 
     -  .. row 4
 
-       -  
+       -
        -  O_NONBLOCK open in non-blocking mode
 
     -  .. row 5
 
-       -  
+       -
        -  (blocking mode is the default)
 
 
@@ -236,33 +236,33 @@ Return Value
        -  ``ECRC``
 
        -  Last section had a CRC error - no data returned. The buffer is
-          flushed.
+	  flushed.
 
     -  .. row 4
 
        -  ``EOVERFLOW``
 
-       -  
+       -
 
     -  .. row 5
 
-       -  
+       -
        -  The filtered data was not read from the buffer in due time,
-          resulting in non-read data being lost. The buffer is flushed.
+	  resulting in non-read data being lost. The buffer is flushed.
 
     -  .. row 6
 
        -  ``ETIMEDOUT``
 
        -  The section was not loaded within the stated timeout period. See
-          ioctl DMX_SET_FILTER for how to set a timeout.
+	  ioctl DMX_SET_FILTER for how to set a timeout.
 
     -  .. row 7
 
        -  ``EFAULT``
 
        -  The driver failed to write to the callers buffer due to an invalid
-          \*buf pointer.
+	  \*buf pointer.
 
 
 
@@ -330,18 +330,18 @@ Return Value
        -  ``EWOULDBLOCK``
 
        -  No data was written. This might happen if O_NONBLOCK was
-          specified and there is no more buffer space available (if
-          O_NONBLOCK is not specified the function will block until buffer
-          space is available).
+	  specified and there is no more buffer space available (if
+	  O_NONBLOCK is not specified the function will block until buffer
+	  space is available).
 
     -  .. row 2
 
        -  ``EBUSY``
 
        -  This error code indicates that there are conflicting requests. The
-          corresponding demux device is setup to receive data from the
-          front- end. Make sure that these filters are stopped and that the
-          filters with input set to DMX_IN_DVR are started.
+	  corresponding demux device is setup to receive data from the
+	  front- end. Make sure that these filters are stopped and that the
+	  filters with input set to DMX_IN_DVR are started.
 
     -  .. row 3
 
@@ -409,16 +409,16 @@ appropriately. The generic error codes are described at the
        -  ``EINVAL``
 
        -  Invalid argument, i.e. no filtering parameters provided via the
-          DMX_SET_FILTER or DMX_SET_PES_FILTER functions.
+	  DMX_SET_FILTER or DMX_SET_PES_FILTER functions.
 
     -  .. row 2
 
        -  ``EBUSY``
 
        -  This error code indicates that there are conflicting requests.
-          There are active filters filtering data from another input source.
-          Make sure that these filters are stopped before starting this
-          filter.
+	  There are active filters filtering data from another input source.
+	  Make sure that these filters are stopped before starting this
+	  filter.
 
 
 
@@ -597,9 +597,9 @@ appropriately. The generic error codes are described at the
        -  ``EBUSY``
 
        -  This error code indicates that there are conflicting requests.
-          There are active filters filtering data from another input source.
-          Make sure that these filters are stopped before starting this
-          filter.
+	  There are active filters filtering data from another input source.
+	  Make sure that these filters are stopped before starting this
+	  filter.
 
 
 

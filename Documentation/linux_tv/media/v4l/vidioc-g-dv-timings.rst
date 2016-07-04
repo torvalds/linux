@@ -92,8 +92,8 @@ EBUSY
        -  ``height``
 
        -  Height of the active video frame in lines. So for interlaced
-          formats the height of the active video in each field is
-          ``height``/2.
+	  formats the height of the active video in each field is
+	  ``height``/2.
 
     -  .. row 3
 
@@ -110,10 +110,10 @@ EBUSY
        -  ``polarities``
 
        -  This is a bit mask that defines polarities of sync signals. bit 0
-          (V4L2_DV_VSYNC_POS_POL) is for vertical sync polarity and bit
-          1 (V4L2_DV_HSYNC_POS_POL) is for horizontal sync polarity. If
-          the bit is set (1) it is positive polarity and if is cleared (0),
-          it is negative polarity.
+	  (V4L2_DV_VSYNC_POS_POL) is for vertical sync polarity and bit
+	  1 (V4L2_DV_HSYNC_POS_POL) is for horizontal sync polarity. If
+	  the bit is set (1) it is positive polarity and if is cleared (0),
+	  it is negative polarity.
 
     -  .. row 5
 
@@ -154,7 +154,7 @@ EBUSY
        -  ``vfrontporch``
 
        -  Vertical front porch in lines. For interlaced formats this refers
-          to the odd field (aka field 1).
+	  to the odd field (aka field 1).
 
     -  .. row 10
 
@@ -163,7 +163,7 @@ EBUSY
        -  ``vsync``
 
        -  Vertical sync length in lines. For interlaced formats this refers
-          to the odd field (aka field 1).
+	  to the odd field (aka field 1).
 
     -  .. row 11
 
@@ -172,7 +172,7 @@ EBUSY
        -  ``vbackporch``
 
        -  Vertical back porch in lines. For interlaced formats this refers
-          to the odd field (aka field 1).
+	  to the odd field (aka field 1).
 
     -  .. row 12
 
@@ -181,7 +181,7 @@ EBUSY
        -  ``il_vfrontporch``
 
        -  Vertical front porch in lines for the even field (aka field 2) of
-          interlaced field formats. Must be 0 for progressive formats.
+	  interlaced field formats. Must be 0 for progressive formats.
 
     -  .. row 13
 
@@ -190,7 +190,7 @@ EBUSY
        -  ``il_vsync``
 
        -  Vertical sync length in lines for the even field (aka field 2) of
-          interlaced field formats. Must be 0 for progressive formats.
+	  interlaced field formats. Must be 0 for progressive formats.
 
     -  .. row 14
 
@@ -199,7 +199,7 @@ EBUSY
        -  ``il_vbackporch``
 
        -  Vertical back porch in lines for the even field (aka field 2) of
-          interlaced field formats. Must be 0 for progressive formats.
+	  interlaced field formats. Must be 0 for progressive formats.
 
     -  .. row 15
 
@@ -208,8 +208,8 @@ EBUSY
        -  ``standards``
 
        -  The video standard(s) this format belongs to. This will be filled
-          in by the driver. Applications must set this to 0. See
-          :ref:`dv-bt-standards` for a list of standards.
+	  in by the driver. Applications must set this to 0. See
+	  :ref:`dv-bt-standards` for a list of standards.
 
     -  .. row 16
 
@@ -218,7 +218,7 @@ EBUSY
        -  ``flags``
 
        -  Several flags giving more information about the format. See
-          :ref:`dv-bt-flags` for a description of the flags.
+	  :ref:`dv-bt-flags` for a description of the flags.
 
 
 
@@ -236,19 +236,19 @@ EBUSY
 
        -  ``type``
 
-       -  
+       -
        -  Type of DV timings as listed in :ref:`dv-timing-types`.
 
     -  .. row 2
 
        -  union
 
-       -  
-       -  
+       -
+       -
 
     -  .. row 3
 
-       -  
+       -
        -  struct :ref:`v4l2_bt_timings <v4l2-bt-timings>`
 
        -  ``bt``
@@ -257,12 +257,12 @@ EBUSY
 
     -  .. row 4
 
-       -  
+       -
        -  __u32
 
        -  ``reserved``\ [32]
 
-       -  
+       -
 
 
 
@@ -284,9 +284,9 @@ EBUSY
 
     -  .. row 2
 
-       -  
-       -  
-       -  
+       -
+       -
+       -
 
     -  .. row 3
 
@@ -313,8 +313,8 @@ EBUSY
 
     -  .. row 2
 
-       -  
-       -  
+       -
+       -
 
     -  .. row 3
 
@@ -357,62 +357,62 @@ EBUSY
 
     -  .. row 2
 
-       -  
-       -  
+       -
+       -
 
     -  .. row 3
 
        -  V4L2_DV_FL_REDUCED_BLANKING
 
        -  CVT/GTF specific: the timings use reduced blanking (CVT) or the
-          'Secondary GTF' curve (GTF). In both cases the horizontal and/or
-          vertical blanking intervals are reduced, allowing a higher
-          resolution over the same bandwidth. This is a read-only flag,
-          applications must not set this.
+	  'Secondary GTF' curve (GTF). In both cases the horizontal and/or
+	  vertical blanking intervals are reduced, allowing a higher
+	  resolution over the same bandwidth. This is a read-only flag,
+	  applications must not set this.
 
     -  .. row 4
 
        -  V4L2_DV_FL_CAN_REDUCE_FPS
 
        -  CEA-861 specific: set for CEA-861 formats with a framerate that is
-          a multiple of six. These formats can be optionally played at 1 /
-          1.001 speed to be compatible with 60 Hz based standards such as
-          NTSC and PAL-M that use a framerate of 29.97 frames per second. If
-          the transmitter can't generate such frequencies, then the flag
-          will also be cleared. This is a read-only flag, applications must
-          not set this.
+	  a multiple of six. These formats can be optionally played at 1 /
+	  1.001 speed to be compatible with 60 Hz based standards such as
+	  NTSC and PAL-M that use a framerate of 29.97 frames per second. If
+	  the transmitter can't generate such frequencies, then the flag
+	  will also be cleared. This is a read-only flag, applications must
+	  not set this.
 
     -  .. row 5
 
        -  V4L2_DV_FL_REDUCED_FPS
 
        -  CEA-861 specific: only valid for video transmitters, the flag is
-          cleared by receivers. It is also only valid for formats with the
-          V4L2_DV_FL_CAN_REDUCE_FPS flag set, for other formats the
-          flag will be cleared by the driver. If the application sets this
-          flag, then the pixelclock used to set up the transmitter is
-          divided by 1.001 to make it compatible with NTSC framerates. If
-          the transmitter can't generate such frequencies, then the flag
-          will also be cleared.
+	  cleared by receivers. It is also only valid for formats with the
+	  V4L2_DV_FL_CAN_REDUCE_FPS flag set, for other formats the
+	  flag will be cleared by the driver. If the application sets this
+	  flag, then the pixelclock used to set up the transmitter is
+	  divided by 1.001 to make it compatible with NTSC framerates. If
+	  the transmitter can't generate such frequencies, then the flag
+	  will also be cleared.
 
     -  .. row 6
 
        -  V4L2_DV_FL_HALF_LINE
 
        -  Specific to interlaced formats: if set, then the vertical
-          frontporch of field 1 (aka the odd field) is really one half-line
-          longer and the vertical backporch of field 2 (aka the even field)
-          is really one half-line shorter, so each field has exactly the
-          same number of half-lines. Whether half-lines can be detected or
-          used depends on the hardware.
+	  frontporch of field 1 (aka the odd field) is really one half-line
+	  longer and the vertical backporch of field 2 (aka the even field)
+	  is really one half-line shorter, so each field has exactly the
+	  same number of half-lines. Whether half-lines can be detected or
+	  used depends on the hardware.
 
     -  .. row 7
 
        -  V4L2_DV_FL_IS_CE_VIDEO
 
        -  If set, then this is a Consumer Electronics (CE) video format.
-          Such formats differ from other formats (commonly called IT
-          formats) in that if R'G'B' encoding is used then by default the
-          R'G'B' values use limited range (i.e. 16-235) as opposed to full
-          range (i.e. 0-255). All formats defined in CEA-861 except for the
-          640x480p59.94 format are CE formats.
+	  Such formats differ from other formats (commonly called IT
+	  formats) in that if R'G'B' encoding is used then by default the
+	  R'G'B' values use limited range (i.e. 16-235) as opposed to full
+	  range (i.e. 0-255). All formats defined in CEA-861 except for the
+	  640x480p59.94 format are CE formats.

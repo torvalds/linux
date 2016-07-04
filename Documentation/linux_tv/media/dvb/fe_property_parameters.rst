@@ -93,7 +93,7 @@ modulations are supported by a given standard.
 
        -  .. _`QPSK`:
 
-          ``QPSK``
+	  ``QPSK``
 
        -  QPSK modulation
 
@@ -101,7 +101,7 @@ modulations are supported by a given standard.
 
        -  .. _`QAM-16`:
 
-          ``QAM_16``
+	  ``QAM_16``
 
        -  16-QAM modulation
 
@@ -109,7 +109,7 @@ modulations are supported by a given standard.
 
        -  .. _`QAM-32`:
 
-          ``QAM_32``
+	  ``QAM_32``
 
        -  32-QAM modulation
 
@@ -117,7 +117,7 @@ modulations are supported by a given standard.
 
        -  .. _`QAM-64`:
 
-          ``QAM_64``
+	  ``QAM_64``
 
        -  64-QAM modulation
 
@@ -125,7 +125,7 @@ modulations are supported by a given standard.
 
        -  .. _`QAM-128`:
 
-          ``QAM_128``
+	  ``QAM_128``
 
        -  128-QAM modulation
 
@@ -133,7 +133,7 @@ modulations are supported by a given standard.
 
        -  .. _`QAM-256`:
 
-          ``QAM_256``
+	  ``QAM_256``
 
        -  256-QAM modulation
 
@@ -141,7 +141,7 @@ modulations are supported by a given standard.
 
        -  .. _`QAM-AUTO`:
 
-          ``QAM_AUTO``
+	  ``QAM_AUTO``
 
        -  Autodetect QAM modulation
 
@@ -149,7 +149,7 @@ modulations are supported by a given standard.
 
        -  .. _`VSB-8`:
 
-          ``VSB_8``
+	  ``VSB_8``
 
        -  8-VSB modulation
 
@@ -157,7 +157,7 @@ modulations are supported by a given standard.
 
        -  .. _`VSB-16`:
 
-          ``VSB_16``
+	  ``VSB_16``
 
        -  16-VSB modulation
 
@@ -165,7 +165,7 @@ modulations are supported by a given standard.
 
        -  .. _`PSK-8`:
 
-          ``PSK_8``
+	  ``PSK_8``
 
        -  8-PSK modulation
 
@@ -173,7 +173,7 @@ modulations are supported by a given standard.
 
        -  .. _`APSK-16`:
 
-          ``APSK_16``
+	  ``APSK_16``
 
        -  16-APSK modulation
 
@@ -181,7 +181,7 @@ modulations are supported by a given standard.
 
        -  .. _`APSK-32`:
 
-          ``APSK_32``
+	  ``APSK_32``
 
        -  32-APSK modulation
 
@@ -189,7 +189,7 @@ modulations are supported by a given standard.
 
        -  .. _`DQPSK`:
 
-          ``DQPSK``
+	  ``DQPSK``
 
        -  DQPSK modulation
 
@@ -197,7 +197,7 @@ modulations are supported by a given standard.
 
        -  .. _`QAM-4-NR`:
 
-          ``QAM_4_NR``
+	  ``QAM_4_NR``
 
        -  4-QAM-NR modulation
 
@@ -269,7 +269,7 @@ inversion off. If it fails, it will try to enable inversion.
 
        -  .. _`INVERSION-OFF`:
 
-          ``INVERSION_OFF``
+	  ``INVERSION_OFF``
 
        -  Don't do spectral band inversion.
 
@@ -277,7 +277,7 @@ inversion off. If it fails, it will try to enable inversion.
 
        -  .. _`INVERSION-ON`:
 
-          ``INVERSION_ON``
+	  ``INVERSION_ON``
 
        -  Do spectral band inversion.
 
@@ -285,7 +285,7 @@ inversion off. If it fails, it will try to enable inversion.
 
        -  .. _`INVERSION-AUTO`:
 
-          ``INVERSION_AUTO``
+	  ``INVERSION_AUTO``
 
        -  Autodetect spectral band inversion.
 
@@ -339,7 +339,7 @@ enum fe_code_rate: type of the Forward Error Correction.
 
        -  .. _`FEC-NONE`:
 
-          ``FEC_NONE``
+	  ``FEC_NONE``
 
        -  No Forward Error Correction Code
 
@@ -347,7 +347,7 @@ enum fe_code_rate: type of the Forward Error Correction.
 
        -  .. _`FEC-AUTO`:
 
-          ``FEC_AUTO``
+	  ``FEC_AUTO``
 
        -  Autodetect Error Correction Code
 
@@ -355,7 +355,7 @@ enum fe_code_rate: type of the Forward Error Correction.
 
        -  .. _`FEC-1-2`:
 
-          ``FEC_1_2``
+	  ``FEC_1_2``
 
        -  Forward Error Correction Code 1/2
 
@@ -363,7 +363,7 @@ enum fe_code_rate: type of the Forward Error Correction.
 
        -  .. _`FEC-2-3`:
 
-          ``FEC_2_3``
+	  ``FEC_2_3``
 
        -  Forward Error Correction Code 2/3
 
@@ -371,7 +371,7 @@ enum fe_code_rate: type of the Forward Error Correction.
 
        -  .. _`FEC-3-4`:
 
-          ``FEC_3_4``
+	  ``FEC_3_4``
 
        -  Forward Error Correction Code 3/4
 
@@ -379,7 +379,7 @@ enum fe_code_rate: type of the Forward Error Correction.
 
        -  .. _`FEC-4-5`:
 
-          ``FEC_4_5``
+	  ``FEC_4_5``
 
        -  Forward Error Correction Code 4/5
 
@@ -387,7 +387,7 @@ enum fe_code_rate: type of the Forward Error Correction.
 
        -  .. _`FEC-5-6`:
 
-          ``FEC_5_6``
+	  ``FEC_5_6``
 
        -  Forward Error Correction Code 5/6
 
@@ -395,7 +395,7 @@ enum fe_code_rate: type of the Forward Error Correction.
 
        -  .. _`FEC-6-7`:
 
-          ``FEC_6_7``
+	  ``FEC_6_7``
 
        -  Forward Error Correction Code 6/7
 
@@ -403,7 +403,7 @@ enum fe_code_rate: type of the Forward Error Correction.
 
        -  .. _`FEC-7-8`:
 
-          ``FEC_7_8``
+	  ``FEC_7_8``
 
        -  Forward Error Correction Code 7/8
 
@@ -411,7 +411,7 @@ enum fe_code_rate: type of the Forward Error Correction.
 
        -  .. _`FEC-8-9`:
 
-          ``FEC_8_9``
+	  ``FEC_8_9``
 
        -  Forward Error Correction Code 8/9
 
@@ -419,7 +419,7 @@ enum fe_code_rate: type of the Forward Error Correction.
 
        -  .. _`FEC-9-10`:
 
-          ``FEC_9_10``
+	  ``FEC_9_10``
 
        -  Forward Error Correction Code 9/10
 
@@ -427,7 +427,7 @@ enum fe_code_rate: type of the Forward Error Correction.
 
        -  .. _`FEC-2-5`:
 
-          ``FEC_2_5``
+	  ``FEC_2_5``
 
        -  Forward Error Correction Code 2/5
 
@@ -435,7 +435,7 @@ enum fe_code_rate: type of the Forward Error Correction.
 
        -  .. _`FEC-3-5`:
 
-          ``FEC_3_5``
+	  ``FEC_3_5``
 
        -  Forward Error Correction Code 3/5
 
@@ -469,7 +469,7 @@ described in the DiSEqC spec.
 
        -  .. _`SEC-VOLTAGE-13`:
 
-          ``SEC_VOLTAGE_13``
+	  ``SEC_VOLTAGE_13``
 
        -  Set DC voltage level to 13V
 
@@ -477,7 +477,7 @@ described in the DiSEqC spec.
 
        -  .. _`SEC-VOLTAGE-18`:
 
-          ``SEC_VOLTAGE_18``
+	  ``SEC_VOLTAGE_18``
 
        -  Set DC voltage level to 18V
 
@@ -485,7 +485,7 @@ described in the DiSEqC spec.
 
        -  .. _`SEC-VOLTAGE-OFF`:
 
-          ``SEC_VOLTAGE_OFF``
+	  ``SEC_VOLTAGE_OFF``
 
        -  Don't send any voltage to the antenna
 
@@ -530,7 +530,7 @@ fe_pilot type
 
        -  .. _`PILOT-ON`:
 
-          ``PILOT_ON``
+	  ``PILOT_ON``
 
        -  Pilot tones enabled
 
@@ -538,7 +538,7 @@ fe_pilot type
 
        -  .. _`PILOT-OFF`:
 
-          ``PILOT_OFF``
+	  ``PILOT_OFF``
 
        -  Pilot tones disabled
 
@@ -546,7 +546,7 @@ fe_pilot type
 
        -  .. _`PILOT-AUTO`:
 
-          ``PILOT_AUTO``
+	  ``PILOT_AUTO``
 
        -  Autodetect pilot tones
 
@@ -583,7 +583,7 @@ fe_rolloff type
 
        -  .. _`ROLLOFF-35`:
 
-          ``ROLLOFF_35``
+	  ``ROLLOFF_35``
 
        -  Roloff factor: α=35%
 
@@ -591,7 +591,7 @@ fe_rolloff type
 
        -  .. _`ROLLOFF-20`:
 
-          ``ROLLOFF_20``
+	  ``ROLLOFF_20``
 
        -  Roloff factor: α=20%
 
@@ -599,7 +599,7 @@ fe_rolloff type
 
        -  .. _`ROLLOFF-25`:
 
-          ``ROLLOFF_25``
+	  ``ROLLOFF_25``
 
        -  Roloff factor: α=25%
 
@@ -607,7 +607,7 @@ fe_rolloff type
 
        -  .. _`ROLLOFF-AUTO`:
 
-          ``ROLLOFF_AUTO``
+	  ``ROLLOFF_AUTO``
 
        -  Auto-detect the roloff factor.
 
@@ -670,7 +670,7 @@ Possible values:
 
        -  .. _`SYS-UNDEFINED`:
 
-          ``SYS_UNDEFINED``
+	  ``SYS_UNDEFINED``
 
        -  Undefined standard. Generally, indicates an error
 
@@ -678,7 +678,7 @@ Possible values:
 
        -  .. _`SYS-DVBC-ANNEX-A`:
 
-          ``SYS_DVBC_ANNEX_A``
+	  ``SYS_DVBC_ANNEX_A``
 
        -  Cable TV: DVB-C following ITU-T J.83 Annex A spec
 
@@ -686,7 +686,7 @@ Possible values:
 
        -  .. _`SYS-DVBC-ANNEX-B`:
 
-          ``SYS_DVBC_ANNEX_B``
+	  ``SYS_DVBC_ANNEX_B``
 
        -  Cable TV: DVB-C following ITU-T J.83 Annex B spec (ClearQAM)
 
@@ -694,7 +694,7 @@ Possible values:
 
        -  .. _`SYS-DVBC-ANNEX-C`:
 
-          ``SYS_DVBC_ANNEX_C``
+	  ``SYS_DVBC_ANNEX_C``
 
        -  Cable TV: DVB-C following ITU-T J.83 Annex C spec
 
@@ -702,7 +702,7 @@ Possible values:
 
        -  .. _`SYS-ISDBC`:
 
-          ``SYS_ISDBC``
+	  ``SYS_ISDBC``
 
        -  Cable TV: ISDB-C (no drivers yet)
 
@@ -710,7 +710,7 @@ Possible values:
 
        -  .. _`SYS-DVBT`:
 
-          ``SYS_DVBT``
+	  ``SYS_DVBT``
 
        -  Terrestral TV: DVB-T
 
@@ -718,7 +718,7 @@ Possible values:
 
        -  .. _`SYS-DVBT2`:
 
-          ``SYS_DVBT2``
+	  ``SYS_DVBT2``
 
        -  Terrestral TV: DVB-T2
 
@@ -726,7 +726,7 @@ Possible values:
 
        -  .. _`SYS-ISDBT`:
 
-          ``SYS_ISDBT``
+	  ``SYS_ISDBT``
 
        -  Terrestral TV: ISDB-T
 
@@ -734,7 +734,7 @@ Possible values:
 
        -  .. _`SYS-ATSC`:
 
-          ``SYS_ATSC``
+	  ``SYS_ATSC``
 
        -  Terrestral TV: ATSC
 
@@ -742,7 +742,7 @@ Possible values:
 
        -  .. _`SYS-ATSCMH`:
 
-          ``SYS_ATSCMH``
+	  ``SYS_ATSCMH``
 
        -  Terrestral TV (mobile): ATSC-M/H
 
@@ -750,7 +750,7 @@ Possible values:
 
        -  .. _`SYS-DTMB`:
 
-          ``SYS_DTMB``
+	  ``SYS_DTMB``
 
        -  Terrestrial TV: DTMB
 
@@ -758,7 +758,7 @@ Possible values:
 
        -  .. _`SYS-DVBS`:
 
-          ``SYS_DVBS``
+	  ``SYS_DVBS``
 
        -  Satellite TV: DVB-S
 
@@ -766,7 +766,7 @@ Possible values:
 
        -  .. _`SYS-DVBS2`:
 
-          ``SYS_DVBS2``
+	  ``SYS_DVBS2``
 
        -  Satellite TV: DVB-S2
 
@@ -774,7 +774,7 @@ Possible values:
 
        -  .. _`SYS-TURBO`:
 
-          ``SYS_TURBO``
+	  ``SYS_TURBO``
 
        -  Satellite TV: DVB-S Turbo
 
@@ -782,7 +782,7 @@ Possible values:
 
        -  .. _`SYS-ISDBS`:
 
-          ``SYS_ISDBS``
+	  ``SYS_ISDBS``
 
        -  Satellite TV: ISDB-S
 
@@ -790,7 +790,7 @@ Possible values:
 
        -  .. _`SYS-DAB`:
 
-          ``SYS_DAB``
+	  ``SYS_DAB``
 
        -  Digital audio: DAB (not fully supported)
 
@@ -798,7 +798,7 @@ Possible values:
 
        -  .. _`SYS-DSS`:
 
-          ``SYS_DSS``
+	  ``SYS_DSS``
 
        -  Satellite TV:"DSS (not fully supported)
 
@@ -806,7 +806,7 @@ Possible values:
 
        -  .. _`SYS-CMMB`:
 
-          ``SYS_CMMB``
+	  ``SYS_CMMB``
 
        -  Terrestral TV (mobile):CMMB (not fully supported)
 
@@ -814,7 +814,7 @@ Possible values:
 
        -  .. _`SYS-DVBH`:
 
-          ``SYS_DVBH``
+	  ``SYS_DVBH``
 
        -  Terrestral TV (mobile): DVB-H (standard deprecated)
 
@@ -1240,20 +1240,20 @@ Possible values are:
 
        -  .. _`ATSCMH-RSFRAME-PRI-ONLY`:
 
-          ``ATSCMH_RSFRAME_PRI_ONLY``
+	  ``ATSCMH_RSFRAME_PRI_ONLY``
 
        -  Single Frame: There is only a primary RS Frame for all Group
-          Regions.
+	  Regions.
 
     -  .. row 3
 
        -  .. _`ATSCMH-RSFRAME-PRI-SEC`:
 
-          ``ATSCMH_RSFRAME_PRI_SEC``
+	  ``ATSCMH_RSFRAME_PRI_SEC``
 
        -  Dual Frame: There are two separate RS Frames: Primary RS Frame for
-          Group Region A and B and Secondary RS Frame for Group Region C and
-          D.
+	  Group Region A and B and Secondary RS Frame for Group Region C and
+	  D.
 
 
 
@@ -1284,7 +1284,7 @@ Possible values are:
 
        -  .. _`ATSCMH-RSFRAME-ENS-PRI`:
 
-          ``ATSCMH_RSFRAME_ENS_PRI``
+	  ``ATSCMH_RSFRAME_ENS_PRI``
 
        -  Primary Ensemble.
 
@@ -1292,7 +1292,7 @@ Possible values are:
 
        -  .. _`ATSCMH-RSFRAME-ENS-SEC`:
 
-          ``AATSCMH_RSFRAME_PRI_SEC``
+	  ``AATSCMH_RSFRAME_PRI_SEC``
 
        -  Secondary Ensemble.
 
@@ -1300,7 +1300,7 @@ Possible values are:
 
        -  .. _`ATSCMH-RSFRAME-RES`:
 
-          ``AATSCMH_RSFRAME_RES``
+	  ``AATSCMH_RSFRAME_RES``
 
        -  Reserved. Shouldn't be used.
 
@@ -1333,7 +1333,7 @@ Possible values are:
 
        -  .. _`ATSCMH-RSCODE-211-187`:
 
-          ``ATSCMH_RSCODE_211_187``
+	  ``ATSCMH_RSCODE_211_187``
 
        -  Reed Solomon code (211,187).
 
@@ -1341,7 +1341,7 @@ Possible values are:
 
        -  .. _`ATSCMH-RSCODE-223-187`:
 
-          ``ATSCMH_RSCODE_223_187``
+	  ``ATSCMH_RSCODE_223_187``
 
        -  Reed Solomon code (223,187).
 
@@ -1349,7 +1349,7 @@ Possible values are:
 
        -  .. _`ATSCMH-RSCODE-235-187`:
 
-          ``ATSCMH_RSCODE_235_187``
+	  ``ATSCMH_RSCODE_235_187``
 
        -  Reed Solomon code (235,187).
 
@@ -1357,7 +1357,7 @@ Possible values are:
 
        -  .. _`ATSCMH-RSCODE-RES`:
 
-          ``ATSCMH_RSCODE_RES``
+	  ``ATSCMH_RSCODE_RES``
 
        -  Reserved. Shouldn't be used.
 
@@ -1401,25 +1401,25 @@ Possible values are:
 
        -  .. _`ATSCMH-SCCC-BLK-SEP`:
 
-          ``ATSCMH_SCCC_BLK_SEP``
+	  ``ATSCMH_SCCC_BLK_SEP``
 
        -  Separate SCCC: the SCCC outer code mode shall be set independently
-          for each Group Region (A, B, C, D)
+	  for each Group Region (A, B, C, D)
 
     -  .. row 3
 
        -  .. _`ATSCMH-SCCC-BLK-COMB`:
 
-          ``ATSCMH_SCCC_BLK_COMB``
+	  ``ATSCMH_SCCC_BLK_COMB``
 
        -  Combined SCCC: all four Regions shall have the same SCCC outer
-          code mode.
+	  code mode.
 
     -  .. row 4
 
        -  .. _`ATSCMH-SCCC-BLK-RES`:
 
-          ``ATSCMH_SCCC_BLK_RES``
+	  ``ATSCMH_SCCC_BLK_RES``
 
        -  Reserved. Shouldn't be used.
 
@@ -1452,7 +1452,7 @@ Possible values are:
 
        -  .. _`ATSCMH-SCCC-CODE-HLF`:
 
-          ``ATSCMH_SCCC_CODE_HLF``
+	  ``ATSCMH_SCCC_CODE_HLF``
 
        -  The outer code rate of a SCCC Block is 1/2 rate.
 
@@ -1460,7 +1460,7 @@ Possible values are:
 
        -  .. _`ATSCMH-SCCC-CODE-QTR`:
 
-          ``ATSCMH_SCCC_CODE_QTR``
+	  ``ATSCMH_SCCC_CODE_QTR``
 
        -  The outer code rate of a SCCC Block is 1/4 rate.
 
@@ -1468,7 +1468,7 @@ Possible values are:
 
        -  .. _`ATSCMH-SCCC-CODE-RES`:
 
-          ``ATSCMH_SCCC_CODE_RES``
+	  ``ATSCMH_SCCC_CODE_RES``
 
        -  to be documented.
 
@@ -1564,7 +1564,7 @@ Modulation guard interval
 
        -  .. _`GUARD-INTERVAL-AUTO`:
 
-          ``GUARD_INTERVAL_AUTO``
+	  ``GUARD_INTERVAL_AUTO``
 
        -  Autodetect the guard interval
 
@@ -1572,7 +1572,7 @@ Modulation guard interval
 
        -  .. _`GUARD-INTERVAL-1-128`:
 
-          ``GUARD_INTERVAL_1_128``
+	  ``GUARD_INTERVAL_1_128``
 
        -  Guard interval 1/128
 
@@ -1580,7 +1580,7 @@ Modulation guard interval
 
        -  .. _`GUARD-INTERVAL-1-32`:
 
-          ``GUARD_INTERVAL_1_32``
+	  ``GUARD_INTERVAL_1_32``
 
        -  Guard interval 1/32
 
@@ -1588,7 +1588,7 @@ Modulation guard interval
 
        -  .. _`GUARD-INTERVAL-1-16`:
 
-          ``GUARD_INTERVAL_1_16``
+	  ``GUARD_INTERVAL_1_16``
 
        -  Guard interval 1/16
 
@@ -1596,7 +1596,7 @@ Modulation guard interval
 
        -  .. _`GUARD-INTERVAL-1-8`:
 
-          ``GUARD_INTERVAL_1_8``
+	  ``GUARD_INTERVAL_1_8``
 
        -  Guard interval 1/8
 
@@ -1604,7 +1604,7 @@ Modulation guard interval
 
        -  .. _`GUARD-INTERVAL-1-4`:
 
-          ``GUARD_INTERVAL_1_4``
+	  ``GUARD_INTERVAL_1_4``
 
        -  Guard interval 1/4
 
@@ -1612,7 +1612,7 @@ Modulation guard interval
 
        -  .. _`GUARD-INTERVAL-19-128`:
 
-          ``GUARD_INTERVAL_19_128``
+	  ``GUARD_INTERVAL_19_128``
 
        -  Guard interval 19/128
 
@@ -1620,7 +1620,7 @@ Modulation guard interval
 
        -  .. _`GUARD-INTERVAL-19-256`:
 
-          ``GUARD_INTERVAL_19_256``
+	  ``GUARD_INTERVAL_19_256``
 
        -  Guard interval 19/256
 
@@ -1628,7 +1628,7 @@ Modulation guard interval
 
        -  .. _`GUARD-INTERVAL-PN420`:
 
-          ``GUARD_INTERVAL_PN420``
+	  ``GUARD_INTERVAL_PN420``
 
        -  PN length 420 (1/4)
 
@@ -1636,7 +1636,7 @@ Modulation guard interval
 
        -  .. _`GUARD-INTERVAL-PN595`:
 
-          ``GUARD_INTERVAL_PN595``
+	  ``GUARD_INTERVAL_PN595``
 
        -  PN length 595 (1/6)
 
@@ -1644,7 +1644,7 @@ Modulation guard interval
 
        -  .. _`GUARD-INTERVAL-PN945`:
 
-          ``GUARD_INTERVAL_PN945``
+	  ``GUARD_INTERVAL_PN945``
 
        -  PN length 945 (1/9)
 
@@ -1693,16 +1693,16 @@ enum fe_transmit_mode: Number of carriers per channel
 
        -  .. _`TRANSMISSION-MODE-AUTO`:
 
-          ``TRANSMISSION_MODE_AUTO``
+	  ``TRANSMISSION_MODE_AUTO``
 
        -  Autodetect transmission mode. The hardware will try to find the
-          correct FFT-size (if capable) to fill in the missing parameters.
+	  correct FFT-size (if capable) to fill in the missing parameters.
 
     -  .. row 3
 
        -  .. _`TRANSMISSION-MODE-1K`:
 
-          ``TRANSMISSION_MODE_1K``
+	  ``TRANSMISSION_MODE_1K``
 
        -  Transmission mode 1K
 
@@ -1710,7 +1710,7 @@ enum fe_transmit_mode: Number of carriers per channel
 
        -  .. _`TRANSMISSION-MODE-2K`:
 
-          ``TRANSMISSION_MODE_2K``
+	  ``TRANSMISSION_MODE_2K``
 
        -  Transmission mode 2K
 
@@ -1718,7 +1718,7 @@ enum fe_transmit_mode: Number of carriers per channel
 
        -  .. _`TRANSMISSION-MODE-8K`:
 
-          ``TRANSMISSION_MODE_8K``
+	  ``TRANSMISSION_MODE_8K``
 
        -  Transmission mode 8K
 
@@ -1726,7 +1726,7 @@ enum fe_transmit_mode: Number of carriers per channel
 
        -  .. _`TRANSMISSION-MODE-4K`:
 
-          ``TRANSMISSION_MODE_4K``
+	  ``TRANSMISSION_MODE_4K``
 
        -  Transmission mode 4K
 
@@ -1734,7 +1734,7 @@ enum fe_transmit_mode: Number of carriers per channel
 
        -  .. _`TRANSMISSION-MODE-16K`:
 
-          ``TRANSMISSION_MODE_16K``
+	  ``TRANSMISSION_MODE_16K``
 
        -  Transmission mode 16K
 
@@ -1742,7 +1742,7 @@ enum fe_transmit_mode: Number of carriers per channel
 
        -  .. _`TRANSMISSION-MODE-32K`:
 
-          ``TRANSMISSION_MODE_32K``
+	  ``TRANSMISSION_MODE_32K``
 
        -  Transmission mode 32K
 
@@ -1750,7 +1750,7 @@ enum fe_transmit_mode: Number of carriers per channel
 
        -  .. _`TRANSMISSION-MODE-C1`:
 
-          ``TRANSMISSION_MODE_C1``
+	  ``TRANSMISSION_MODE_C1``
 
        -  Single Carrier (C=1) transmission mode (DTMB)
 
@@ -1758,7 +1758,7 @@ enum fe_transmit_mode: Number of carriers per channel
 
        -  .. _`TRANSMISSION-MODE-C3780`:
 
-          ``TRANSMISSION_MODE_C3780``
+	  ``TRANSMISSION_MODE_C3780``
 
        -  Multi Carrier (C=3780) transmission mode (DTMB)
 
@@ -1810,7 +1810,7 @@ Frontend hierarchy
 
        -  .. _`HIERARCHY-NONE`:
 
-          ``HIERARCHY_NONE``
+	  ``HIERARCHY_NONE``
 
        -  No hierarchy
 
@@ -1818,7 +1818,7 @@ Frontend hierarchy
 
        -  .. _`HIERARCHY-AUTO`:
 
-          ``HIERARCHY_AUTO``
+	  ``HIERARCHY_AUTO``
 
        -  Autodetect hierarchy (if supported)
 
@@ -1826,7 +1826,7 @@ Frontend hierarchy
 
        -  .. _`HIERARCHY-1`:
 
-          ``HIERARCHY_1``
+	  ``HIERARCHY_1``
 
        -  Hierarchy 1
 
@@ -1834,7 +1834,7 @@ Frontend hierarchy
 
        -  .. _`HIERARCHY-2`:
 
-          ``HIERARCHY_2``
+	  ``HIERARCHY_2``
 
        -  Hierarchy 2
 
@@ -1842,7 +1842,7 @@ Frontend hierarchy
 
        -  .. _`HIERARCHY-4`:
 
-          ``HIERARCHY_4``
+	  ``HIERARCHY_4``
 
        -  Hierarchy 4
 
@@ -1917,7 +1917,7 @@ Time interleaving to be used. Currently, used only on DTMB.
 
        -  .. _`INTERLEAVING-NONE`:
 
-          ``INTERLEAVING_NONE``
+	  ``INTERLEAVING_NONE``
 
        -  No interleaving.
 
@@ -1925,7 +1925,7 @@ Time interleaving to be used. Currently, used only on DTMB.
 
        -  .. _`INTERLEAVING-AUTO`:
 
-          ``INTERLEAVING_AUTO``
+	  ``INTERLEAVING_AUTO``
 
        -  Auto-detect interleaving.
 
@@ -1933,7 +1933,7 @@ Time interleaving to be used. Currently, used only on DTMB.
 
        -  .. _`INTERLEAVING-240`:
 
-          ``INTERLEAVING_240``
+	  ``INTERLEAVING_240``
 
        -  Interleaving of 240 symbols.
 
@@ -1941,7 +1941,7 @@ Time interleaving to be used. Currently, used only on DTMB.
 
        -  .. _`INTERLEAVING-720`:
 
-          ``INTERLEAVING_720``
+	  ``INTERLEAVING_720``
 
        -  Interleaving of 720 symbols.
 

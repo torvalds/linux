@@ -33,7 +33,7 @@ next to each other in memory.
 
        -  Code
 
-       -  
+       -
        -  :cspan:`7` Byte 0 in memory
 
        -  :cspan:`7` Byte 1
@@ -44,8 +44,8 @@ next to each other in memory.
 
     -  .. row 2
 
-       -  
-       -  
+       -
+       -
        -  Bit
 
        -  7
@@ -64,7 +64,7 @@ next to each other in memory.
 
        -  0
 
-       -  
+       -
        -  7
 
        -  6
@@ -81,7 +81,7 @@ next to each other in memory.
 
        -  0
 
-       -  
+       -
        -  7
 
        -  6
@@ -98,7 +98,7 @@ next to each other in memory.
 
        -  0
 
-       -  
+       -
        -  7
 
        -  6
@@ -121,7 +121,7 @@ next to each other in memory.
 
        -  'RGB1'
 
-       -  
+       -
        -  r\ :sub:`2`
 
        -  r\ :sub:`1`
@@ -144,7 +144,7 @@ next to each other in memory.
 
        -  'AR12'
 
-       -  
+       -
        -  g\ :sub:`3`
 
        -  g\ :sub:`2`
@@ -161,7 +161,7 @@ next to each other in memory.
 
        -  b\ :sub:`0`
 
-       -  
+       -
        -  a\ :sub:`3`
 
        -  a\ :sub:`2`
@@ -184,7 +184,7 @@ next to each other in memory.
 
        -  'XR12'
 
-       -  
+       -
        -  g\ :sub:`3`
 
        -  g\ :sub:`2`
@@ -201,7 +201,7 @@ next to each other in memory.
 
        -  b\ :sub:`0`
 
-       -  
+       -
        -  -
 
        -  -
@@ -224,7 +224,7 @@ next to each other in memory.
 
        -  'AR15'
 
-       -  
+       -
        -  g\ :sub:`2`
 
        -  g\ :sub:`1`
@@ -241,7 +241,7 @@ next to each other in memory.
 
        -  b\ :sub:`0`
 
-       -  
+       -
        -  a
 
        -  r\ :sub:`4`
@@ -264,7 +264,7 @@ next to each other in memory.
 
        -  'XR15'
 
-       -  
+       -
        -  g\ :sub:`2`
 
        -  g\ :sub:`1`
@@ -281,7 +281,7 @@ next to each other in memory.
 
        -  b\ :sub:`0`
 
-       -  
+       -
        -  -
 
        -  r\ :sub:`4`
@@ -304,7 +304,7 @@ next to each other in memory.
 
        -  'RGBP'
 
-       -  
+       -
        -  g\ :sub:`2`
 
        -  g\ :sub:`1`
@@ -321,7 +321,7 @@ next to each other in memory.
 
        -  b\ :sub:`0`
 
-       -  
+       -
        -  r\ :sub:`4`
 
        -  r\ :sub:`3`
@@ -344,7 +344,7 @@ next to each other in memory.
 
        -  'AR15' | (1 << 31)
 
-       -  
+       -
        -  a
 
        -  r\ :sub:`4`
@@ -361,7 +361,7 @@ next to each other in memory.
 
        -  g\ :sub:`3`
 
-       -  
+       -
        -  g\ :sub:`2`
 
        -  g\ :sub:`1`
@@ -384,7 +384,7 @@ next to each other in memory.
 
        -  'XR15' | (1 << 31)
 
-       -  
+       -
        -  -
 
        -  r\ :sub:`4`
@@ -401,7 +401,7 @@ next to each other in memory.
 
        -  g\ :sub:`3`
 
-       -  
+       -
        -  g\ :sub:`2`
 
        -  g\ :sub:`1`
@@ -424,7 +424,7 @@ next to each other in memory.
 
        -  'RGBR'
 
-       -  
+       -
        -  r\ :sub:`4`
 
        -  r\ :sub:`3`
@@ -441,7 +441,7 @@ next to each other in memory.
 
        -  g\ :sub:`3`
 
-       -  
+       -
        -  g\ :sub:`2`
 
        -  g\ :sub:`1`
@@ -464,7 +464,7 @@ next to each other in memory.
 
        -  'BGR3'
 
-       -  
+       -
        -  b\ :sub:`7`
 
        -  b\ :sub:`6`
@@ -481,7 +481,7 @@ next to each other in memory.
 
        -  b\ :sub:`0`
 
-       -  
+       -
        -  g\ :sub:`7`
 
        -  g\ :sub:`6`
@@ -498,7 +498,7 @@ next to each other in memory.
 
        -  g\ :sub:`0`
 
-       -  
+       -
        -  r\ :sub:`7`
 
        -  r\ :sub:`6`
@@ -521,7 +521,7 @@ next to each other in memory.
 
        -  'RGB3'
 
-       -  
+       -
        -  r\ :sub:`7`
 
        -  r\ :sub:`6`
@@ -538,7 +538,7 @@ next to each other in memory.
 
        -  r\ :sub:`0`
 
-       -  
+       -
        -  g\ :sub:`7`
 
        -  g\ :sub:`6`
@@ -555,7 +555,7 @@ next to each other in memory.
 
        -  g\ :sub:`0`
 
-       -  
+       -
        -  b\ :sub:`7`
 
        -  b\ :sub:`6`
@@ -578,7 +578,7 @@ next to each other in memory.
 
        -  'BGRH'
 
-       -  
+       -
        -  b\ :sub:`5`
 
        -  b\ :sub:`4`
@@ -595,7 +595,7 @@ next to each other in memory.
 
        -  g\ :sub:`4`
 
-       -  
+       -
        -  g\ :sub:`3`
 
        -  g\ :sub:`2`
@@ -612,7 +612,7 @@ next to each other in memory.
 
        -  r\ :sub:`2`
 
-       -  
+       -
        -  r\ :sub:`1`
 
        -  r\ :sub:`0`
@@ -629,7 +629,7 @@ next to each other in memory.
 
        -  -
 
-       -  
+       -
        -  -
 
        -  -
@@ -652,7 +652,7 @@ next to each other in memory.
 
        -  'AR24'
 
-       -  
+       -
        -  b\ :sub:`7`
 
        -  b\ :sub:`6`
@@ -669,7 +669,7 @@ next to each other in memory.
 
        -  b\ :sub:`0`
 
-       -  
+       -
        -  g\ :sub:`7`
 
        -  g\ :sub:`6`
@@ -686,7 +686,7 @@ next to each other in memory.
 
        -  g\ :sub:`0`
 
-       -  
+       -
        -  r\ :sub:`7`
 
        -  r\ :sub:`6`
@@ -703,7 +703,7 @@ next to each other in memory.
 
        -  r\ :sub:`0`
 
-       -  
+       -
        -  a\ :sub:`7`
 
        -  a\ :sub:`6`
@@ -726,7 +726,7 @@ next to each other in memory.
 
        -  'XR24'
 
-       -  
+       -
        -  b\ :sub:`7`
 
        -  b\ :sub:`6`
@@ -743,7 +743,7 @@ next to each other in memory.
 
        -  b\ :sub:`0`
 
-       -  
+       -
        -  g\ :sub:`7`
 
        -  g\ :sub:`6`
@@ -760,7 +760,7 @@ next to each other in memory.
 
        -  g\ :sub:`0`
 
-       -  
+       -
        -  r\ :sub:`7`
 
        -  r\ :sub:`6`
@@ -777,7 +777,7 @@ next to each other in memory.
 
        -  r\ :sub:`0`
 
-       -  
+       -
        -  -
 
        -  -
@@ -800,7 +800,7 @@ next to each other in memory.
 
        -  'BA24'
 
-       -  
+       -
        -  a\ :sub:`7`
 
        -  a\ :sub:`6`
@@ -817,7 +817,7 @@ next to each other in memory.
 
        -  a\ :sub:`0`
 
-       -  
+       -
        -  r\ :sub:`7`
 
        -  r\ :sub:`6`
@@ -834,7 +834,7 @@ next to each other in memory.
 
        -  r\ :sub:`0`
 
-       -  
+       -
        -  g\ :sub:`7`
 
        -  g\ :sub:`6`
@@ -851,7 +851,7 @@ next to each other in memory.
 
        -  g\ :sub:`0`
 
-       -  
+       -
        -  b\ :sub:`7`
 
        -  b\ :sub:`6`
@@ -874,7 +874,7 @@ next to each other in memory.
 
        -  'BX24'
 
-       -  
+       -
        -  -
 
        -  -
@@ -891,7 +891,7 @@ next to each other in memory.
 
        -  -
 
-       -  
+       -
        -  r\ :sub:`7`
 
        -  r\ :sub:`6`
@@ -908,7 +908,7 @@ next to each other in memory.
 
        -  r\ :sub:`0`
 
-       -  
+       -
        -  g\ :sub:`7`
 
        -  g\ :sub:`6`
@@ -925,7 +925,7 @@ next to each other in memory.
 
        -  g\ :sub:`0`
 
-       -  
+       -
        -  b\ :sub:`7`
 
        -  b\ :sub:`6`
@@ -1112,7 +1112,7 @@ either the corresponding ARGB or XRGB format, depending on the driver.
 
        -  Code
 
-       -  
+       -
        -  :cspan:`7` Byte 0 in memory
 
        -  :cspan:`7` Byte 1
@@ -1123,8 +1123,8 @@ either the corresponding ARGB or XRGB format, depending on the driver.
 
     -  .. row 2
 
-       -  
-       -  
+       -
+       -
        -  Bit
 
        -  7
@@ -1143,7 +1143,7 @@ either the corresponding ARGB or XRGB format, depending on the driver.
 
        -  0
 
-       -  
+       -
        -  7
 
        -  6
@@ -1160,7 +1160,7 @@ either the corresponding ARGB or XRGB format, depending on the driver.
 
        -  0
 
-       -  
+       -
        -  7
 
        -  6
@@ -1177,7 +1177,7 @@ either the corresponding ARGB or XRGB format, depending on the driver.
 
        -  0
 
-       -  
+       -
        -  7
 
        -  6
@@ -1200,7 +1200,7 @@ either the corresponding ARGB or XRGB format, depending on the driver.
 
        -  'R444'
 
-       -  
+       -
        -  g\ :sub:`3`
 
        -  g\ :sub:`2`
@@ -1217,7 +1217,7 @@ either the corresponding ARGB or XRGB format, depending on the driver.
 
        -  b\ :sub:`0`
 
-       -  
+       -
        -  a\ :sub:`3`
 
        -  a\ :sub:`2`
@@ -1240,7 +1240,7 @@ either the corresponding ARGB or XRGB format, depending on the driver.
 
        -  'RGBO'
 
-       -  
+       -
        -  g\ :sub:`2`
 
        -  g\ :sub:`1`
@@ -1257,7 +1257,7 @@ either the corresponding ARGB or XRGB format, depending on the driver.
 
        -  b\ :sub:`0`
 
-       -  
+       -
        -  a
 
        -  r\ :sub:`4`
@@ -1280,7 +1280,7 @@ either the corresponding ARGB or XRGB format, depending on the driver.
 
        -  'RGBQ'
 
-       -  
+       -
        -  a
 
        -  r\ :sub:`4`
@@ -1297,7 +1297,7 @@ either the corresponding ARGB or XRGB format, depending on the driver.
 
        -  g\ :sub:`3`
 
-       -  
+       -
        -  g\ :sub:`2`
 
        -  g\ :sub:`1`
@@ -1320,7 +1320,7 @@ either the corresponding ARGB or XRGB format, depending on the driver.
 
        -  'BGR4'
 
-       -  
+       -
        -  b\ :sub:`7`
 
        -  b\ :sub:`6`
@@ -1337,7 +1337,7 @@ either the corresponding ARGB or XRGB format, depending on the driver.
 
        -  b\ :sub:`0`
 
-       -  
+       -
        -  g\ :sub:`7`
 
        -  g\ :sub:`6`
@@ -1354,7 +1354,7 @@ either the corresponding ARGB or XRGB format, depending on the driver.
 
        -  g\ :sub:`0`
 
-       -  
+       -
        -  r\ :sub:`7`
 
        -  r\ :sub:`6`
@@ -1371,7 +1371,7 @@ either the corresponding ARGB or XRGB format, depending on the driver.
 
        -  r\ :sub:`0`
 
-       -  
+       -
        -  a\ :sub:`7`
 
        -  a\ :sub:`6`
@@ -1394,7 +1394,7 @@ either the corresponding ARGB or XRGB format, depending on the driver.
 
        -  'RGB4'
 
-       -  
+       -
        -  a\ :sub:`7`
 
        -  a\ :sub:`6`
@@ -1411,7 +1411,7 @@ either the corresponding ARGB or XRGB format, depending on the driver.
 
        -  a\ :sub:`0`
 
-       -  
+       -
        -  r\ :sub:`7`
 
        -  r\ :sub:`6`
@@ -1428,7 +1428,7 @@ either the corresponding ARGB or XRGB format, depending on the driver.
 
        -  r\ :sub:`0`
 
-       -  
+       -
        -  g\ :sub:`7`
 
        -  g\ :sub:`6`
@@ -1445,7 +1445,7 @@ either the corresponding ARGB or XRGB format, depending on the driver.
 
        -  g\ :sub:`0`
 
-       -  
+       -
        -  b\ :sub:`7`
 
        -  b\ :sub:`6`

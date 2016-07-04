@@ -58,22 +58,22 @@ Arguments
 
     -  .. row 3
 
-       -  
+       -
        -  O_RDONLY read-only access
 
     -  .. row 4
 
-       -  
+       -
        -  O_RDWR read/write access
 
     -  .. row 5
 
-       -  
+       -
        -  O_NONBLOCK open in non-blocking mode
 
     -  .. row 6
 
-       -  
+       -
        -  (blocking mode is the default)
 
 
@@ -291,12 +291,12 @@ Arguments
 
     -  .. row 4
 
-       -  
+       -
        -  TRUE: Blank screen when stop.
 
     -  .. row 5
 
-       -  
+       -
        -  FALSE: Show last decoded frame.
 
 
@@ -565,7 +565,7 @@ Arguments
 
     -  .. row 4
 
-       -  
+       -
        -  FALSE: Show last decoded frame.
 
 
@@ -677,7 +677,7 @@ Arguments
        -  __u64 \*pts
 
        -  Returns the number of frames displayed since the decoder was
-          started.
+	  started.
 
 
 Return Value
@@ -735,11 +735,11 @@ Arguments
        -  __u64 \*pts
 
        -  Returns the 33-bit timestamp as defined in ITU T-REC-H.222.0 /
-          ISO/IEC 13818-1.
+	  ISO/IEC 13818-1.
 
-          The PTS should belong to the currently played frame if possible,
-          but may also be a value close to it like the PTS of the last
-          decoded frame or the last PTS extracted by the PES parser.
+	  The PTS should belong to the currently played frame if possible,
+	  but may also be a value close to it like the PTS of the last
+	  decoded frame or the last PTS extracted by the PES parser.
 
 
 Return Value
@@ -1754,7 +1754,7 @@ Arguments
        -  video_spu_t \*spu
 
        -  SPU decoding (de)activation and subid setting according to section
-          ??.
+	  ??.
 
 
 Return Value

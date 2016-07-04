@@ -91,7 +91,7 @@ multiple pads of the same sub-device is not defined.
        -  ``code``
 
        -  The media bus format code, as defined in
-          :ref:`v4l2-mbus-format`.
+	  :ref:`v4l2-mbus-format`.
 
     -  .. row 4
 
@@ -124,7 +124,7 @@ multiple pads of the same sub-device is not defined.
        -  ``which``
 
        -  Frame intervals to be enumerated, from enum
-          :ref:`v4l2_subdev_format_whence <v4l2-subdev-format-whence>`.
+	  :ref:`v4l2_subdev_format_whence <v4l2-subdev-format-whence>`.
 
     -  .. row 8
 
@@ -133,7 +133,7 @@ multiple pads of the same sub-device is not defined.
        -  ``reserved``\ [8]
 
        -  Reserved for future extensions. Applications and drivers must set
-          the array to zero.
+	  the array to zero.
 
 
 

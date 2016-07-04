@@ -71,46 +71,46 @@ Examples
 
     int buffer_export(int v4lfd, enum v4l2_buf_type bt, int index, int *dmafd)
     {
-        struct v4l2_exportbuffer expbuf;
+	struct v4l2_exportbuffer expbuf;
 
-        memset(&expbuf, 0, sizeof(expbuf));
-        expbuf.type = bt;
-        expbuf.index = index;
-        if (ioctl(v4lfd, VIDIOC_EXPBUF, &expbuf) == -1) {
-            perror("VIDIOC_EXPBUF");
-            return -1;
-        }
+	memset(&expbuf, 0, sizeof(expbuf));
+	expbuf.type = bt;
+	expbuf.index = index;
+	if (ioctl(v4lfd, VIDIOC_EXPBUF, &expbuf) == -1) {
+	    perror("VIDIOC_EXPBUF");
+	    return -1;
+	}
 
-        *dmafd = expbuf.fd;
+	*dmafd = expbuf.fd;
 
-        return 0;
+	return 0;
     }
 
 
 .. code-block:: c
 
     int buffer_export_mp(int v4lfd, enum v4l2_buf_type bt, int index,
-        int dmafd[], int n_planes)
+	int dmafd[], int n_planes)
     {
-        int i;
+	int i;
 
-        for (i = 0; i < n_planes; ++i) {
-            struct v4l2_exportbuffer expbuf;
+	for (i = 0; i < n_planes; ++i) {
+	    struct v4l2_exportbuffer expbuf;
 
-            memset(&expbuf, 0, sizeof(expbuf));
-            expbuf.type = bt;
-            expbuf.index = index;
-            expbuf.plane = i;
-            if (ioctl(v4lfd, VIDIOC_EXPBUF, &expbuf) == -1) {
-                perror("VIDIOC_EXPBUF");
-                while (i)
-                    close(dmafd[--i]);
-                return -1;
-            }
-            dmafd[i] = expbuf.fd;
-        }
+	    memset(&expbuf, 0, sizeof(expbuf));
+	    expbuf.type = bt;
+	    expbuf.index = index;
+	    expbuf.plane = i;
+	    if (ioctl(v4lfd, VIDIOC_EXPBUF, &expbuf) == -1) {
+		perror("VIDIOC_EXPBUF");
+		while (i)
+		    close(dmafd[--i]);
+		return -1;
+	    }
+	    dmafd[i] = expbuf.fd;
+	}
 
-        return 0;
+	return 0;
     }
 
 
@@ -129,9 +129,9 @@ Examples
        -  ``type``
 
        -  Type of the buffer, same as struct
-          :ref:`v4l2_format <v4l2-format>` ``type`` or struct
-          :ref:`v4l2_requestbuffers <v4l2-requestbuffers>` ``type``, set
-          by the application. See :ref:`v4l2-buf-type`
+	  :ref:`v4l2_format <v4l2-format>` ``type`` or struct
+	  :ref:`v4l2_requestbuffers <v4l2-requestbuffers>` ``type``, set
+	  by the application. See :ref:`v4l2-buf-type`
 
     -  .. row 2
 
@@ -140,10 +140,10 @@ Examples
        -  ``index``
 
        -  Number of the buffer, set by the application. This field is only
-          used for :ref:`memory mapping <mmap>` I/O and can range from
-          zero to the number of buffers allocated with the
-          :ref:`VIDIOC_REQBUFS` and/or
-          :ref:`VIDIOC_CREATE_BUFS` ioctls.
+	  used for :ref:`memory mapping <mmap>` I/O and can range from
+	  zero to the number of buffers allocated with the
+	  :ref:`VIDIOC_REQBUFS` and/or
+	  :ref:`VIDIOC_CREATE_BUFS` ioctls.
 
     -  .. row 3
 
@@ -152,7 +152,7 @@ Examples
        -  ``plane``
 
        -  Index of the plane to be exported when using the multi-planar API.
-          Otherwise this value must be set to zero.
+	  Otherwise this value must be set to zero.
 
     -  .. row 4
 
@@ -161,8 +161,8 @@ Examples
        -  ``flags``
 
        -  Flags for the newly created file, currently only ``O_CLOEXEC``,
-          ``O_RDONLY``, ``O_WRONLY``, and ``O_RDWR`` are supported, refer to
-          the manual of open() for more details.
+	  ``O_RDONLY``, ``O_WRONLY``, and ``O_RDWR`` are supported, refer to
+	  the manual of open() for more details.
 
     -  .. row 5
 
@@ -171,7 +171,7 @@ Examples
        -  ``fd``
 
        -  The DMABUF file descriptor associated with a buffer. Set by the
-          driver.
+	  driver.
 
     -  .. row 6
 
@@ -180,7 +180,7 @@ Examples
        -  ``reserved[11]``
 
        -  Reserved field for future use. Drivers and applications must set
-          the array to zero.
+	  the array to zero.
 
 
 

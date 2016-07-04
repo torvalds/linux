@@ -18,9 +18,9 @@ The ``video_format_t`` data type defined by
 .. code-block:: c
 
     typedef enum {
-        VIDEO_FORMAT_4_3,     /* Select 4:3 format */
-        VIDEO_FORMAT_16_9,    /* Select 16:9 format. */
-        VIDEO_FORMAT_221_1    /* 2.21:1 */
+	VIDEO_FORMAT_4_3,     /* Select 4:3 format */
+	VIDEO_FORMAT_16_9,    /* Select 16:9 format. */
+	VIDEO_FORMAT_221_1    /* 2.21:1 */
     } video_format_t;
 
 is used in the VIDEO_SET_FORMAT function (??) to tell the driver which
@@ -44,9 +44,9 @@ VIDEO_SET_DISPLAY_FORMAT call (??) which accepts
 .. code-block:: c
 
     typedef enum {
-        VIDEO_PAN_SCAN,       /* use pan and scan format */
-        VIDEO_LETTER_BOX,     /* use letterbox format */
-        VIDEO_CENTER_CUT_OUT  /* use center cut out format */
+	VIDEO_PAN_SCAN,       /* use pan and scan format */
+	VIDEO_LETTER_BOX,     /* use letterbox format */
+	VIDEO_CENTER_CUT_OUT  /* use center cut out format */
     } video_displayformat_t;
 
 as argument.
@@ -65,10 +65,10 @@ from an internal (demuxer) or external (user write) source.
 .. code-block:: c
 
     typedef enum {
-        VIDEO_SOURCE_DEMUX, /* Select the demux as the main source */
-        VIDEO_SOURCE_MEMORY /* If this source is selected, the stream
-                       comes from the user through the write
-                       system call */
+	VIDEO_SOURCE_DEMUX, /* Select the demux as the main source */
+	VIDEO_SOURCE_MEMORY /* If this source is selected, the stream
+		       comes from the user through the write
+		       system call */
     } video_stream_source_t;
 
 VIDEO_SOURCE_DEMUX selects the demultiplexer (fed either by the
@@ -89,9 +89,9 @@ representing the state of video playback.
 .. code-block:: c
 
     typedef enum {
-        VIDEO_STOPPED, /* Video is stopped */
-        VIDEO_PLAYING, /* Video is currently playing */
-        VIDEO_FREEZED  /* Video is freezed */
+	VIDEO_STOPPED, /* Video is stopped */
+	VIDEO_PLAYING, /* Video is currently playing */
+	VIDEO_FREEZED  /* Video is freezed */
     } video_play_state_t;
 
 
@@ -107,27 +107,27 @@ it can be extended safely in the future.
 .. code-block:: c
 
     struct video_command {
-        __u32 cmd;
-        __u32 flags;
-        union {
-            struct {
-                __u64 pts;
-            } stop;
+	__u32 cmd;
+	__u32 flags;
+	union {
+	    struct {
+		__u64 pts;
+	    } stop;
 
-            struct {
-                /* 0 or 1000 specifies normal speed,
-                   1 specifies forward single stepping,
-                   -1 specifies backward single stepping,
-                   >>1: playback at speed/1000 of the normal speed,
-                   <-1: reverse playback at (-speed/1000) of the normal speed. */
-                __s32 speed;
-                __u32 format;
-            } play;
+	    struct {
+		/* 0 or 1000 specifies normal speed,
+		   1 specifies forward single stepping,
+		   -1 specifies backward single stepping,
+		   >>1: playback at speed/1000 of the normal speed,
+		   <-1: reverse playback at (-speed/1000) of the normal speed. */
+		__s32 speed;
+		__u32 format;
+	    } play;
 
-            struct {
-                __u32 data[16];
-            } raw;
-        };
+	    struct {
+		__u32 data[16];
+	    } raw;
+	};
     };
 
 
@@ -140,9 +140,9 @@ video_size_t
 .. code-block:: c
 
     typedef struct {
-        int w;
-        int h;
-        video_format_t aspect_ratio;
+	int w;
+	int h;
+	video_format_t aspect_ratio;
     } video_size_t;
 
 
@@ -158,17 +158,17 @@ VIDEO_GET_EVENT call.
 .. code-block:: c
 
     struct video_event {
-        __s32 type;
+	__s32 type;
     #define VIDEO_EVENT_SIZE_CHANGED    1
     #define VIDEO_EVENT_FRAME_RATE_CHANGED  2
     #define VIDEO_EVENT_DECODER_STOPPED     3
     #define VIDEO_EVENT_VSYNC       4
-        __kernel_time_t timestamp;
-        union {
-            video_size_t size;
-            unsigned int frame_rate;    /* in frames per 1000sec */
-            unsigned char vsync_field;  /* unknown/odd/even/progressive */
-        } u;
+	__kernel_time_t timestamp;
+	union {
+	    video_size_t size;
+	    unsigned int frame_rate;    /* in frames per 1000sec */
+	    unsigned char vsync_field;  /* unknown/odd/even/progressive */
+	} u;
     };
 
 
@@ -184,11 +184,11 @@ about various states of the playback operation.
 .. code-block:: c
 
     struct video_status {
-        int                   video_blank;   /* blank video on freeze? */
-        video_play_state_t    play_state;    /* current state of playback */
-        video_stream_source_t stream_source; /* current source (demux/memory) */
-        video_format_t        video_format;  /* current aspect ratio of stream */
-        video_displayformat_t display_format;/* selected cropping mode */
+	int                   video_blank;   /* blank video on freeze? */
+	video_play_state_t    play_state;    /* current state of playback */
+	video_stream_source_t stream_source; /* current source (demux/memory) */
+	video_format_t        video_format;  /* current aspect ratio of stream */
+	video_displayformat_t display_format;/* selected cropping mode */
     };
 
 If video_blank is set video will be blanked out if the channel is
@@ -216,8 +216,8 @@ within the following structure.
 
     /* pointer to and size of a single iframe in memory */
     struct video_still_picture {
-        char *iFrame;        /* pointer to a single iframe in memory */
-        int32_t size;
+	char *iFrame;        /* pointer to a single iframe in memory */
+	int32_t size;
     };
 
 
@@ -237,12 +237,12 @@ following bits set according to the hardwares capabilities.
      #define VIDEO_CAP_MPEG1   1
      #define VIDEO_CAP_MPEG2   2
      /* can you send a system and/or program stream to video device?
-        (you still have to open the video and the audio device but only
-         send the stream to the video device) */
+	(you still have to open the video and the audio device but only
+	 send the stream to the video device) */
      #define VIDEO_CAP_SYS     4
      #define VIDEO_CAP_PROG    8
      /* can the driver also handle SPU, NAVI and CSS encoded data?
-        (CSS API is not present yet) */
+	(CSS API is not present yet) */
      #define VIDEO_CAP_SPU    16
      #define VIDEO_CAP_NAVI   32
      #define VIDEO_CAP_CSS    64
@@ -260,14 +260,14 @@ output. The following system types can be set:
 .. code-block:: c
 
     typedef enum {
-         VIDEO_SYSTEM_PAL,
-         VIDEO_SYSTEM_NTSC,
-         VIDEO_SYSTEM_PALN,
-         VIDEO_SYSTEM_PALNc,
-         VIDEO_SYSTEM_PALM,
-         VIDEO_SYSTEM_NTSC60,
-         VIDEO_SYSTEM_PAL60,
-         VIDEO_SYSTEM_PALM60
+	 VIDEO_SYSTEM_PAL,
+	 VIDEO_SYSTEM_NTSC,
+	 VIDEO_SYSTEM_PALN,
+	 VIDEO_SYSTEM_PALNc,
+	 VIDEO_SYSTEM_PALM,
+	 VIDEO_SYSTEM_NTSC60,
+	 VIDEO_SYSTEM_PAL60,
+	 VIDEO_SYSTEM_PALM60
     } video_system_t;
 
 
@@ -284,21 +284,21 @@ information. The call expects the following format for that information:
 
      typedef
      struct video_highlight {
-         boolean active;      /*    1=show highlight, 0=hide highlight */
-         uint8_t contrast1;   /*    7- 4  Pattern pixel contrast */
-                      /*    3- 0  Background pixel contrast */
-         uint8_t contrast2;   /*    7- 4  Emphasis pixel-2 contrast */
-                      /*    3- 0  Emphasis pixel-1 contrast */
-         uint8_t color1;      /*    7- 4  Pattern pixel color */
-                      /*    3- 0  Background pixel color */
-         uint8_t color2;      /*    7- 4  Emphasis pixel-2 color */
-                      /*    3- 0  Emphasis pixel-1 color */
-         uint32_t ypos;       /*   23-22  auto action mode */
-                      /*   21-12  start y */
-                      /*    9- 0  end y */
-         uint32_t xpos;       /*   23-22  button color number */
-                      /*   21-12  start x */
-                      /*    9- 0  end x */
+	 boolean active;      /*    1=show highlight, 0=hide highlight */
+	 uint8_t contrast1;   /*    7- 4  Pattern pixel contrast */
+		      /*    3- 0  Background pixel contrast */
+	 uint8_t contrast2;   /*    7- 4  Emphasis pixel-2 contrast */
+		      /*    3- 0  Emphasis pixel-1 contrast */
+	 uint8_t color1;      /*    7- 4  Pattern pixel color */
+		      /*    3- 0  Background pixel color */
+	 uint8_t color2;      /*    7- 4  Emphasis pixel-2 color */
+		      /*    3- 0  Emphasis pixel-1 color */
+	 uint32_t ypos;       /*   23-22  auto action mode */
+		      /*   21-12  start y */
+		      /*    9- 0  end y */
+	 uint32_t xpos;       /*   23-22  button color number */
+		      /*   21-12  start x */
+		      /*    9- 0  end x */
      } video_highlight_t;
 
 
@@ -315,8 +315,8 @@ to the following format:
 
      typedef
      struct video_spu {
-         boolean active;
-         int stream_id;
+	 boolean active;
+	 int stream_id;
      } video_spu_t;
 
 
@@ -333,8 +333,8 @@ VIDEO_SPU_PALETTE:
 
      typedef
      struct video_spu_palette {
-         int length;
-         uint8_t *palette;
+	 int length;
+	 uint8_t *palette;
      } video_spu_palette_t;
 
 
@@ -351,8 +351,8 @@ passed to the ioctl VIDEO_GET_NAVI:
 
      typedef
      struct video_navi_pack {
-         int length;         /* 0 ... 1024 */
-         uint8_t data[1024];
+	 int length;         /* 0 ... 1024 */
+	 uint8_t data[1024];
      } video_navi_pack_t;
 
 

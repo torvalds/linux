@@ -116,8 +116,8 @@ struct dvb_net_if description
        -  feedtype
 
        -  Encapsulation type of the feed. It can be:
-          ``DVB_NET_FEEDTYPE_MPE`` for MPE encoding or
-          ``DVB_NET_FEEDTYPE_ULE`` for ULE encoding.
+	  ``DVB_NET_FEEDTYPE_MPE`` for MPE encoding or
+	  ``DVB_NET_FEEDTYPE_ULE`` for ULE encoding.
 
 
 

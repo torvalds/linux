@@ -28,7 +28,7 @@ Compressed Formats
        -  'JPEG'
 
        -  TBD. See also :ref:`VIDIOC_G_JPEGCOMP <VIDIOC_G_JPEGCOMP>`,
-          :ref:`VIDIOC_S_JPEGCOMP <VIDIOC_G_JPEGCOMP>`.
+	  :ref:`VIDIOC_S_JPEGCOMP <VIDIOC_G_JPEGCOMP>`.
 
     -  .. _`V4L2-PIX-FMT-MPEG`:
 
@@ -37,8 +37,8 @@ Compressed Formats
        -  'MPEG'
 
        -  MPEG multiplexed stream. The actual format is determined by
-          extended control ``V4L2_CID_MPEG_STREAM_TYPE``, see
-          :ref:`mpeg-control-id`.
+	  extended control ``V4L2_CID_MPEG_STREAM_TYPE``, see
+	  :ref:`mpeg-control-id`.
 
     -  .. _`V4L2-PIX-FMT-H264`:
 

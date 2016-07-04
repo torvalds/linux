@@ -444,93 +444,93 @@ This unnamed version was finally merged into Linux 2.5.46.
 
 
     .. flat-table::
-        :header-rows:  1
-        :stub-columns: 0
+	:header-rows:  1
+	:stub-columns: 0
 
 
-        -  .. row 1
+	-  .. row 1
 
-           -  Old defines
+	   -  Old defines
 
-           -  enum :ref:`v4l2_buf_type <v4l2-buf-type>`
+	   -  enum :ref:`v4l2_buf_type <v4l2-buf-type>`
 
-        -  .. row 2
+	-  .. row 2
 
-           -  ``V4L2_BUF_TYPE_CAPTURE``
+	   -  ``V4L2_BUF_TYPE_CAPTURE``
 
-           -  ``V4L2_BUF_TYPE_VIDEO_CAPTURE``
+	   -  ``V4L2_BUF_TYPE_VIDEO_CAPTURE``
 
-        -  .. row 3
+	-  .. row 3
 
-           -  ``V4L2_BUF_TYPE_CODECIN``
+	   -  ``V4L2_BUF_TYPE_CODECIN``
 
-           -  Omitted for now
+	   -  Omitted for now
 
-        -  .. row 4
+	-  .. row 4
 
-           -  ``V4L2_BUF_TYPE_CODECOUT``
+	   -  ``V4L2_BUF_TYPE_CODECOUT``
 
-           -  Omitted for now
+	   -  Omitted for now
 
-        -  .. row 5
+	-  .. row 5
 
-           -  ``V4L2_BUF_TYPE_EFFECTSIN``
+	   -  ``V4L2_BUF_TYPE_EFFECTSIN``
 
-           -  Omitted for now
+	   -  Omitted for now
 
-        -  .. row 6
+	-  .. row 6
 
-           -  ``V4L2_BUF_TYPE_EFFECTSIN2``
+	   -  ``V4L2_BUF_TYPE_EFFECTSIN2``
 
-           -  Omitted for now
+	   -  Omitted for now
 
-        -  .. row 7
+	-  .. row 7
 
-           -  ``V4L2_BUF_TYPE_EFFECTSOUT``
+	   -  ``V4L2_BUF_TYPE_EFFECTSOUT``
 
-           -  Omitted for now
+	   -  Omitted for now
 
-        -  .. row 8
+	-  .. row 8
 
-           -  ``V4L2_BUF_TYPE_VIDEOOUT``
+	   -  ``V4L2_BUF_TYPE_VIDEOOUT``
 
-           -  ``V4L2_BUF_TYPE_VIDEO_OUTPUT``
+	   -  ``V4L2_BUF_TYPE_VIDEO_OUTPUT``
 
-        -  .. row 9
+	-  .. row 9
 
-           -  ``-``
+	   -  ``-``
 
-           -  ``V4L2_BUF_TYPE_VIDEO_OVERLAY``
+	   -  ``V4L2_BUF_TYPE_VIDEO_OVERLAY``
 
-        -  .. row 10
+	-  .. row 10
 
-           -  ``-``
+	   -  ``-``
 
-           -  ``V4L2_BUF_TYPE_VBI_CAPTURE``
+	   -  ``V4L2_BUF_TYPE_VBI_CAPTURE``
 
-        -  .. row 11
+	-  .. row 11
 
-           -  ``-``
+	   -  ``-``
 
-           -  ``V4L2_BUF_TYPE_VBI_OUTPUT``
+	   -  ``V4L2_BUF_TYPE_VBI_OUTPUT``
 
-        -  .. row 12
+	-  .. row 12
 
-           -  ``-``
+	   -  ``-``
 
-           -  ``V4L2_BUF_TYPE_SLICED_VBI_CAPTURE``
+	   -  ``V4L2_BUF_TYPE_SLICED_VBI_CAPTURE``
 
-        -  .. row 13
+	-  .. row 13
 
-           -  ``-``
+	   -  ``-``
 
-           -  ``V4L2_BUF_TYPE_SLICED_VBI_OUTPUT``
+	   -  ``V4L2_BUF_TYPE_SLICED_VBI_OUTPUT``
 
-        -  .. row 14
+	-  .. row 14
 
-           -  ``V4L2_BUF_TYPE_PRIVATE_BASE``
+	   -  ``V4L2_BUF_TYPE_PRIVATE_BASE``
 
-           -  ``V4L2_BUF_TYPE_PRIVATE`` (but this is deprecated)
+	   -  ``V4L2_BUF_TYPE_PRIVATE`` (but this is deprecated)
 
 
 10. In struct :ref:`v4l2_fmtdesc <v4l2-fmtdesc>` a enum
@@ -561,57 +561,57 @@ This unnamed version was finally merged into Linux 2.5.46.
 
 
     .. flat-table::
-        :header-rows:  1
-        :stub-columns: 0
+	:header-rows:  1
+	:stub-columns: 0
 
 
-        -  .. row 1
+	-  .. row 1
 
-           -  Old flag
+	   -  Old flag
 
-           -  enum :ref:`v4l2_field <v4l2-field>`
+	   -  enum :ref:`v4l2_field <v4l2-field>`
 
-        -  .. row 2
+	-  .. row 2
 
-           -  ``V4L2_FMT_FLAG_NOT_INTERLACED``
+	   -  ``V4L2_FMT_FLAG_NOT_INTERLACED``
 
-           -  ?
+	   -  ?
 
-        -  .. row 3
+	-  .. row 3
 
-           -  ``V4L2_FMT_FLAG_INTERLACED`` = ``V4L2_FMT_FLAG_COMBINED``
+	   -  ``V4L2_FMT_FLAG_INTERLACED`` = ``V4L2_FMT_FLAG_COMBINED``
 
-           -  ``V4L2_FIELD_INTERLACED``
+	   -  ``V4L2_FIELD_INTERLACED``
 
-        -  .. row 4
+	-  .. row 4
 
-           -  ``V4L2_FMT_FLAG_TOPFIELD`` = ``V4L2_FMT_FLAG_ODDFIELD``
+	   -  ``V4L2_FMT_FLAG_TOPFIELD`` = ``V4L2_FMT_FLAG_ODDFIELD``
 
-           -  ``V4L2_FIELD_TOP``
+	   -  ``V4L2_FIELD_TOP``
 
-        -  .. row 5
+	-  .. row 5
 
-           -  ``V4L2_FMT_FLAG_BOTFIELD`` = ``V4L2_FMT_FLAG_EVENFIELD``
+	   -  ``V4L2_FMT_FLAG_BOTFIELD`` = ``V4L2_FMT_FLAG_EVENFIELD``
 
-           -  ``V4L2_FIELD_BOTTOM``
+	   -  ``V4L2_FIELD_BOTTOM``
 
-        -  .. row 6
+	-  .. row 6
 
-           -  ``-``
+	   -  ``-``
 
-           -  ``V4L2_FIELD_SEQ_TB``
+	   -  ``V4L2_FIELD_SEQ_TB``
 
-        -  .. row 7
+	-  .. row 7
 
-           -  ``-``
+	   -  ``-``
 
-           -  ``V4L2_FIELD_SEQ_BT``
+	   -  ``V4L2_FIELD_SEQ_BT``
 
-        -  .. row 8
+	-  .. row 8
 
-           -  ``-``
+	   -  ``-``
 
-           -  ``V4L2_FIELD_ALTERNATE``
+	   -  ``V4L2_FIELD_ALTERNATE``
 
 
     The color space flags were replaced by a enum
@@ -771,43 +771,43 @@ V4L2 2003-11-05
 
        -  .. row 1
 
-          -  Symbol
+	  -  Symbol
 
-          -  In this document prior to revision 0.5
+	  -  In this document prior to revision 0.5
 
-          -  Corrected
+	  -  Corrected
 
        -  .. row 2
 
-          -  ``V4L2_PIX_FMT_RGB24``
+	  -  ``V4L2_PIX_FMT_RGB24``
 
-          -  B, G, R
+	  -  B, G, R
 
-          -  R, G, B
+	  -  R, G, B
 
        -  .. row 3
 
-          -  ``V4L2_PIX_FMT_BGR24``
+	  -  ``V4L2_PIX_FMT_BGR24``
 
-          -  R, G, B
+	  -  R, G, B
 
-          -  B, G, R
+	  -  B, G, R
 
        -  .. row 4
 
-          -  ``V4L2_PIX_FMT_RGB32``
+	  -  ``V4L2_PIX_FMT_RGB32``
 
-          -  B, G, R, X
+	  -  B, G, R, X
 
-          -  R, G, B, X
+	  -  R, G, B, X
 
        -  .. row 5
 
-          -  ``V4L2_PIX_FMT_BGR32``
+	  -  ``V4L2_PIX_FMT_BGR32``
 
-          -  R, G, B, X
+	  -  R, G, B, X
 
-          -  B, G, R, X
+	  -  B, G, R, X
 
 
    The ``V4L2_PIX_FMT_BGR24`` example was always correct.
@@ -1411,7 +1411,7 @@ lines:
 ::
 
     Section "Module"
-        Load "v4l"
+	Load "v4l"
     EndSection
 
 As of XFree86 4.2 this driver still supports only V4L ioctls, however it

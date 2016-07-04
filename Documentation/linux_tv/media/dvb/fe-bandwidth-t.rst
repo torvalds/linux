@@ -24,7 +24,7 @@ Frontend bandwidth
 
        -  .. _`BANDWIDTH-AUTO`:
 
-          ``BANDWIDTH_AUTO``
+	  ``BANDWIDTH_AUTO``
 
        -  Autodetect bandwidth (if supported)
 
@@ -32,7 +32,7 @@ Frontend bandwidth
 
        -  .. _`BANDWIDTH-1-712-MHZ`:
 
-          ``BANDWIDTH_1_712_MHZ``
+	  ``BANDWIDTH_1_712_MHZ``
 
        -  1.712 MHz
 
@@ -40,7 +40,7 @@ Frontend bandwidth
 
        -  .. _`BANDWIDTH-5-MHZ`:
 
-          ``BANDWIDTH_5_MHZ``
+	  ``BANDWIDTH_5_MHZ``
 
        -  5 MHz
 
@@ -48,7 +48,7 @@ Frontend bandwidth
 
        -  .. _`BANDWIDTH-6-MHZ`:
 
-          ``BANDWIDTH_6_MHZ``
+	  ``BANDWIDTH_6_MHZ``
 
        -  6 MHz
 
@@ -56,7 +56,7 @@ Frontend bandwidth
 
        -  .. _`BANDWIDTH-7-MHZ`:
 
-          ``BANDWIDTH_7_MHZ``
+	  ``BANDWIDTH_7_MHZ``
 
        -  7 MHz
 
@@ -64,7 +64,7 @@ Frontend bandwidth
 
        -  .. _`BANDWIDTH-8-MHZ`:
 
-          ``BANDWIDTH_8_MHZ``
+	  ``BANDWIDTH_8_MHZ``
 
        -  8 MHz
 
@@ -72,6 +72,6 @@ Frontend bandwidth
 
        -  .. _`BANDWIDTH-10-MHZ`:
 
-          ``BANDWIDTH_10_MHZ``
+	  ``BANDWIDTH_10_MHZ``
 
        -  10 MHz

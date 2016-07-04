@@ -89,9 +89,9 @@ destructive video overlay.
 
        -  ``capability``
 
-       -  
+       -
        -  Overlay capability flags set by the driver, see
-          :ref:`framebuffer-cap`.
+	  :ref:`framebuffer-cap`.
 
     -  .. row 2
 
@@ -99,9 +99,9 @@ destructive video overlay.
 
        -  ``flags``
 
-       -  
+       -
        -  Overlay control flags set by application and driver, see
-          :ref:`framebuffer-flags`
+	  :ref:`framebuffer-flags`
 
     -  .. row 3
 
@@ -109,22 +109,22 @@ destructive video overlay.
 
        -  ``base``
 
-       -  
+       -
        -  Physical base address of the framebuffer, that is the address of
-          the pixel in the top left corner of the framebuffer. [1]_
+	  the pixel in the top left corner of the framebuffer. [1]_
 
     -  .. row 4
 
-       -  
-       -  
-       -  
+       -
+       -
+       -
        -  This field is irrelevant to *non-destructive Video Overlays*. For
-          *destructive Video Overlays* applications must provide a base
-          address. The driver may accept only base addresses which are a
-          multiple of two, four or eight bytes. For *Video Output Overlays*
-          the driver must return a valid base address, so applications can
-          find the corresponding Linux framebuffer device (see
-          :ref:`osd`).
+	  *destructive Video Overlays* applications must provide a base
+	  address. The driver may accept only base addresses which are a
+	  multiple of two, four or eight bytes. For *Video Output Overlays*
+	  the driver must return a valid base address, so applications can
+	  find the corresponding Linux framebuffer device (see
+	  :ref:`osd`).
 
     -  .. row 5
 
@@ -132,12 +132,12 @@ destructive video overlay.
 
        -  ``fmt``
 
-       -  
+       -
        -  Layout of the frame buffer.
 
     -  .. row 6
 
-       -  
+       -
        -  __u32
 
        -  ``width``
@@ -146,7 +146,7 @@ destructive video overlay.
 
     -  .. row 7
 
-       -  
+       -
        -  __u32
 
        -  ``height``
@@ -155,7 +155,7 @@ destructive video overlay.
 
     -  .. row 8
 
-       -  
+       -
        -  __u32
 
        -  ``pixelformat``
@@ -164,114 +164,114 @@ destructive video overlay.
 
     -  .. row 9
 
-       -  
-       -  
-       -  
+       -
+       -
+       -
        -  For *non-destructive Video Overlays* this field only defines a
-          format for the struct :ref:`v4l2_window <v4l2-window>`
-          ``chromakey`` field.
+	  format for the struct :ref:`v4l2_window <v4l2-window>`
+	  ``chromakey`` field.
 
     -  .. row 10
 
-       -  
-       -  
-       -  
+       -
+       -
+       -
        -  For *destructive Video Overlays* applications must initialize this
-          field. For *Video Output Overlays* the driver must return a valid
-          format.
+	  field. For *Video Output Overlays* the driver must return a valid
+	  format.
 
     -  .. row 11
 
-       -  
-       -  
-       -  
+       -
+       -
+       -
        -  Usually this is an RGB format (for example
-          :ref:`V4L2_PIX_FMT_RGB565 <V4L2-PIX-FMT-RGB565>`) but YUV
-          formats (only packed YUV formats when chroma keying is used, not
-          including ``V4L2_PIX_FMT_YUYV`` and ``V4L2_PIX_FMT_UYVY``) and the
-          ``V4L2_PIX_FMT_PAL8`` format are also permitted. The behavior of
-          the driver when an application requests a compressed format is
-          undefined. See :ref:`pixfmt` for information on pixel formats.
+	  :ref:`V4L2_PIX_FMT_RGB565 <V4L2-PIX-FMT-RGB565>`) but YUV
+	  formats (only packed YUV formats when chroma keying is used, not
+	  including ``V4L2_PIX_FMT_YUYV`` and ``V4L2_PIX_FMT_UYVY``) and the
+	  ``V4L2_PIX_FMT_PAL8`` format are also permitted. The behavior of
+	  the driver when an application requests a compressed format is
+	  undefined. See :ref:`pixfmt` for information on pixel formats.
 
     -  .. row 12
 
-       -  
+       -
        -  enum :ref:`v4l2_field <v4l2-field>`
 
        -  ``field``
 
        -  Drivers and applications shall ignore this field. If applicable,
-          the field order is selected with the
-          :ref:`VIDIOC_S_FMT <VIDIOC_G_FMT>` ioctl, using the ``field``
-          field of struct :ref:`v4l2_window <v4l2-window>`.
+	  the field order is selected with the
+	  :ref:`VIDIOC_S_FMT <VIDIOC_G_FMT>` ioctl, using the ``field``
+	  field of struct :ref:`v4l2_window <v4l2-window>`.
 
     -  .. row 13
 
-       -  
+       -
        -  __u32
 
        -  ``bytesperline``
 
        -  Distance in bytes between the leftmost pixels in two adjacent
-          lines.
+	  lines.
 
     -  .. row 14
 
        -  :cspan:`3`
 
-          This field is irrelevant to *non-destructive Video Overlays*.
+	  This field is irrelevant to *non-destructive Video Overlays*.
 
-          For *destructive Video Overlays* both applications and drivers can
-          set this field to request padding bytes at the end of each line.
-          Drivers however may ignore the requested value, returning
-          ``width`` times bytes-per-pixel or a larger value required by the
-          hardware. That implies applications can just set this field to
-          zero to get a reasonable default.
+	  For *destructive Video Overlays* both applications and drivers can
+	  set this field to request padding bytes at the end of each line.
+	  Drivers however may ignore the requested value, returning
+	  ``width`` times bytes-per-pixel or a larger value required by the
+	  hardware. That implies applications can just set this field to
+	  zero to get a reasonable default.
 
-          For *Video Output Overlays* the driver must return a valid value.
+	  For *Video Output Overlays* the driver must return a valid value.
 
-          Video hardware may access padding bytes, therefore they must
-          reside in accessible memory. Consider for example the case where
-          padding bytes after the last line of an image cross a system page
-          boundary. Capture devices may write padding bytes, the value is
-          undefined. Output devices ignore the contents of padding bytes.
+	  Video hardware may access padding bytes, therefore they must
+	  reside in accessible memory. Consider for example the case where
+	  padding bytes after the last line of an image cross a system page
+	  boundary. Capture devices may write padding bytes, the value is
+	  undefined. Output devices ignore the contents of padding bytes.
 
-          When the image format is planar the ``bytesperline`` value applies
-          to the first plane and is divided by the same factor as the
-          ``width`` field for the other planes. For example the Cb and Cr
-          planes of a YUV 4:2:0 image have half as many padding bytes
-          following each line as the Y plane. To avoid ambiguities drivers
-          must return a ``bytesperline`` value rounded up to a multiple of
-          the scale factor.
+	  When the image format is planar the ``bytesperline`` value applies
+	  to the first plane and is divided by the same factor as the
+	  ``width`` field for the other planes. For example the Cb and Cr
+	  planes of a YUV 4:2:0 image have half as many padding bytes
+	  following each line as the Y plane. To avoid ambiguities drivers
+	  must return a ``bytesperline`` value rounded up to a multiple of
+	  the scale factor.
 
     -  .. row 15
 
-       -  
+       -
        -  __u32
 
        -  ``sizeimage``
 
        -  This field is irrelevant to *non-destructive Video Overlays*. For
-          *destructive Video Overlays* applications must initialize this
-          field. For *Video Output Overlays* the driver must return a valid
-          format.
+	  *destructive Video Overlays* applications must initialize this
+	  field. For *Video Output Overlays* the driver must return a valid
+	  format.
 
-          Together with ``base`` it defines the framebuffer memory
-          accessible by the driver.
+	  Together with ``base`` it defines the framebuffer memory
+	  accessible by the driver.
 
     -  .. row 16
 
-       -  
+       -
        -  enum :ref:`v4l2_colorspace <v4l2-colorspace>`
 
        -  ``colorspace``
 
        -  This information supplements the ``pixelformat`` and must be set
-          by the driver, see :ref:`colorspaces`.
+	  by the driver, see :ref:`colorspaces`.
 
     -  .. row 17
 
-       -  
+       -
        -  __u32
 
        -  ``priv``
@@ -295,10 +295,10 @@ destructive video overlay.
        -  0x0001
 
        -  The device is capable of non-destructive overlays. When the driver
-          clears this flag, only destructive overlays are supported. There
-          are no drivers yet which support both destructive and
-          non-destructive overlays. Video Output Overlays are in practice
-          always non-destructive.
+	  clears this flag, only destructive overlays are supported. There
+	  are no drivers yet which support both destructive and
+	  non-destructive overlays. Video Output Overlays are in practice
+	  always non-destructive.
 
     -  .. row 2
 
@@ -307,9 +307,9 @@ destructive video overlay.
        -  0x0002
 
        -  The device supports clipping by chroma-keying the images. That is,
-          image pixels replace pixels in the VGA or video signal only where
-          the latter assume a certain color. Chroma-keying makes no sense
-          for destructive overlays.
+	  image pixels replace pixels in the VGA or video signal only where
+	  the latter assume a certain color. Chroma-keying makes no sense
+	  for destructive overlays.
 
     -  .. row 3
 
@@ -334,8 +334,8 @@ destructive video overlay.
        -  0x0010
 
        -  The device supports clipping/blending using the alpha channel of
-          the framebuffer or VGA signal. Alpha blending makes no sense for
-          destructive overlays.
+	  the framebuffer or VGA signal. Alpha blending makes no sense for
+	  destructive overlays.
 
     -  .. row 6
 
@@ -344,7 +344,7 @@ destructive video overlay.
        -  0x0020
 
        -  The device supports alpha blending using a global alpha value.
-          Alpha blending makes no sense for destructive overlays.
+	  Alpha blending makes no sense for destructive overlays.
 
     -  .. row 7
 
@@ -353,8 +353,8 @@ destructive video overlay.
        -  0x0040
 
        -  The device supports clipping/blending using the inverted alpha
-          channel of the framebuffer or VGA signal. Alpha blending makes no
-          sense for destructive overlays.
+	  channel of the framebuffer or VGA signal. Alpha blending makes no
+	  sense for destructive overlays.
 
     -  .. row 8
 
@@ -363,8 +363,8 @@ destructive video overlay.
        -  0x0080
 
        -  The device supports Source Chroma-keying. Video pixels with the
-          chroma-key colors are replaced by framebuffer pixels, which is
-          exactly opposite of ``V4L2_FBUF_CAP_CHROMAKEY``
+	  chroma-key colors are replaced by framebuffer pixels, which is
+	  exactly opposite of ``V4L2_FBUF_CAP_CHROMAKEY``
 
 
 
@@ -383,9 +383,9 @@ destructive video overlay.
        -  0x0001
 
        -  The framebuffer is the primary graphics surface. In other words,
-          the overlay is destructive. This flag is typically set by any
-          driver that doesn't have the ``V4L2_FBUF_CAP_EXTERNOVERLAY``
-          capability and it is cleared otherwise.
+	  the overlay is destructive. This flag is typically set by any
+	  driver that doesn't have the ``V4L2_FBUF_CAP_EXTERNOVERLAY``
+	  capability and it is cleared otherwise.
 
     -  .. row 2
 
@@ -394,18 +394,18 @@ destructive video overlay.
        -  0x0002
 
        -  If this flag is set for a video capture device, then the driver
-          will set the initial overlay size to cover the full framebuffer
-          size, otherwise the existing overlay size (as set by
-          :ref:`VIDIOC_S_FMT <VIDIOC_G_FMT>`) will be used. Only one
-          video capture driver (bttv) supports this flag. The use of this
-          flag for capture devices is deprecated. There is no way to detect
-          which drivers support this flag, so the only reliable method of
-          setting the overlay size is through
-          :ref:`VIDIOC_S_FMT <VIDIOC_G_FMT>`. If this flag is set for a
-          video output device, then the video output overlay window is
-          relative to the top-left corner of the framebuffer and restricted
-          to the size of the framebuffer. If it is cleared, then the video
-          output overlay window is relative to the video output display.
+	  will set the initial overlay size to cover the full framebuffer
+	  size, otherwise the existing overlay size (as set by
+	  :ref:`VIDIOC_S_FMT <VIDIOC_G_FMT>`) will be used. Only one
+	  video capture driver (bttv) supports this flag. The use of this
+	  flag for capture devices is deprecated. There is no way to detect
+	  which drivers support this flag, so the only reliable method of
+	  setting the overlay size is through
+	  :ref:`VIDIOC_S_FMT <VIDIOC_G_FMT>`. If this flag is set for a
+	  video output device, then the video output overlay window is
+	  relative to the top-left corner of the framebuffer and restricted
+	  to the size of the framebuffer. If it is cleared, then the video
+	  output overlay window is relative to the video output display.
 
     -  .. row 3
 
@@ -414,16 +414,16 @@ destructive video overlay.
        -  0x0004
 
        -  Use chroma-keying. The chroma-key color is determined by the
-          ``chromakey`` field of struct :ref:`v4l2_window <v4l2-window>`
-          and negotiated with the :ref:`VIDIOC_S_FMT <VIDIOC_G_FMT>`
-          ioctl, see :ref:`overlay` and :ref:`osd`.
+	  ``chromakey`` field of struct :ref:`v4l2_window <v4l2-window>`
+	  and negotiated with the :ref:`VIDIOC_S_FMT <VIDIOC_G_FMT>`
+	  ioctl, see :ref:`overlay` and :ref:`osd`.
 
     -  .. row 4
 
        -  :cspan:`2` There are no flags to enable clipping using a list of
-          clip rectangles or a bitmap. These methods are negotiated with the
-          :ref:`VIDIOC_S_FMT <VIDIOC_G_FMT>` ioctl, see :ref:`overlay`
-          and :ref:`osd`.
+	  clip rectangles or a bitmap. These methods are negotiated with the
+	  :ref:`VIDIOC_S_FMT <VIDIOC_G_FMT>` ioctl, see :ref:`overlay`
+	  and :ref:`osd`.
 
     -  .. row 5
 
@@ -432,9 +432,9 @@ destructive video overlay.
        -  0x0008
 
        -  Use the alpha channel of the framebuffer to clip or blend
-          framebuffer pixels with video images. The blend function is:
-          output = framebuffer pixel * alpha + video pixel * (1 - alpha).
-          The actual alpha depth depends on the framebuffer pixel format.
+	  framebuffer pixels with video images. The blend function is:
+	  output = framebuffer pixel * alpha + video pixel * (1 - alpha).
+	  The actual alpha depth depends on the framebuffer pixel format.
 
     -  .. row 6
 
@@ -443,12 +443,12 @@ destructive video overlay.
        -  0x0010
 
        -  Use a global alpha value to blend the framebuffer with video
-          images. The blend function is: output = (framebuffer pixel * alpha
-          + video pixel * (255 - alpha)) / 255. The alpha value is
-          determined by the ``global_alpha`` field of struct
-          :ref:`v4l2_window <v4l2-window>` and negotiated with the
-          :ref:`VIDIOC_S_FMT <VIDIOC_G_FMT>` ioctl, see :ref:`overlay`
-          and :ref:`osd`.
+	  images. The blend function is: output = (framebuffer pixel * alpha
+	  + video pixel * (255 - alpha)) / 255. The alpha value is
+	  determined by the ``global_alpha`` field of struct
+	  :ref:`v4l2_window <v4l2-window>` and negotiated with the
+	  :ref:`VIDIOC_S_FMT <VIDIOC_G_FMT>` ioctl, see :ref:`overlay`
+	  and :ref:`osd`.
 
     -  .. row 7
 
@@ -457,10 +457,10 @@ destructive video overlay.
        -  0x0020
 
        -  Like ``V4L2_FBUF_FLAG_LOCAL_ALPHA``, use the alpha channel of the
-          framebuffer to clip or blend framebuffer pixels with video images,
-          but with an inverted alpha value. The blend function is: output =
-          framebuffer pixel * (1 - alpha) + video pixel * alpha. The actual
-          alpha depth depends on the framebuffer pixel format.
+	  framebuffer to clip or blend framebuffer pixels with video images,
+	  but with an inverted alpha value. The blend function is: output =
+	  framebuffer pixel * (1 - alpha) + video pixel * alpha. The actual
+	  alpha depth depends on the framebuffer pixel format.
 
     -  .. row 8
 
@@ -469,12 +469,12 @@ destructive video overlay.
        -  0x0040
 
        -  Use source chroma-keying. The source chroma-key color is
-          determined by the ``chromakey`` field of struct
-          :ref:`v4l2_window <v4l2-window>` and negotiated with the
-          :ref:`VIDIOC_S_FMT <VIDIOC_G_FMT>` ioctl, see :ref:`overlay`
-          and :ref:`osd`. Both chroma-keying are mutual exclusive to each
-          other, so same ``chromakey`` field of struct
-          :ref:`v4l2_window <v4l2-window>` is being used.
+	  determined by the ``chromakey`` field of struct
+	  :ref:`v4l2_window <v4l2-window>` and negotiated with the
+	  :ref:`VIDIOC_S_FMT <VIDIOC_G_FMT>` ioctl, see :ref:`overlay`
+	  and :ref:`osd`. Both chroma-keying are mutual exclusive to each
+	  other, so same ``chromakey`` field of struct
+	  :ref:`v4l2_window <v4l2-window>` is being used.
 
 
 

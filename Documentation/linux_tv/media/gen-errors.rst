@@ -19,10 +19,10 @@ Generic Error Codes
        -  ``EAGAIN`` (aka ``EWOULDBLOCK``)
 
        -  The ioctl can't be handled because the device is in state where it
-          can't perform it. This could happen for example in case where
-          device is sleeping and ioctl is performed to query statistics. It
-          is also returned when the ioctl would need to wait for an event,
-          but the device was opened in non-blocking mode.
+	  can't perform it. This could happen for example in case where
+	  device is sleeping and ioctl is performed to query statistics. It
+	  is also returned when the ioctl would need to wait for an event,
+	  but the device was opened in non-blocking mode.
 
     -  .. row 2
 
@@ -35,26 +35,26 @@ Generic Error Codes
        -  ``EBUSY``
 
        -  The ioctl can't be handled because the device is busy. This is
-          typically return while device is streaming, and an ioctl tried to
-          change something that would affect the stream, or would require
-          the usage of a hardware resource that was already allocated. The
-          ioctl must not be retried without performing another action to fix
-          the problem first (typically: stop the stream before retrying).
+	  typically return while device is streaming, and an ioctl tried to
+	  change something that would affect the stream, or would require
+	  the usage of a hardware resource that was already allocated. The
+	  ioctl must not be retried without performing another action to fix
+	  the problem first (typically: stop the stream before retrying).
 
     -  .. row 4
 
        -  ``EFAULT``
 
        -  There was a failure while copying data from/to userspace, probably
-          caused by an invalid pointer reference.
+	  caused by an invalid pointer reference.
 
     -  .. row 5
 
        -  ``EINVAL``
 
        -  One or more of the ioctl parameters are invalid or out of the
-          allowed range. This is a widely used error code. See the
-          individual ioctl requests for specific causes.
+	  allowed range. This is a widely used error code. See the
+	  individual ioctl requests for specific causes.
 
     -  .. row 6
 
@@ -73,23 +73,23 @@ Generic Error Codes
        -  ``ENOTTY``
 
        -  The ioctl is not supported by the driver, actually meaning that
-          the required functionality is not available, or the file
-          descriptor is not for a media device.
+	  the required functionality is not available, or the file
+	  descriptor is not for a media device.
 
     -  .. row 9
 
        -  ``ENOSPC``
 
        -  On USB devices, the stream ioctl's can return this error, meaning
-          that this request would overcommit the usb bandwidth reserved for
-          periodic transfers (up to 80% of the USB bandwidth).
+	  that this request would overcommit the usb bandwidth reserved for
+	  periodic transfers (up to 80% of the USB bandwidth).
 
     -  .. row 10
 
        -  ``EPERM``
 
        -  Permission denied. Can be returned if the device needs write
-          permission, or some special capabilities is needed (e. g. root)
+	  permission, or some special capabilities is needed (e. g. root)
 
 
 Note 1: ioctls may return other error codes. Since errors may have side

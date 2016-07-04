@@ -30,22 +30,22 @@ component of each pixel in one 16 or 32 bit word.
 
        -  Code
 
-       -  
+       -
        -  :cspan:`7` Byte 0 in memory
 
-       -  
+       -
        -  :cspan:`7` Byte 1
 
-       -  
+       -
        -  :cspan:`7` Byte 2
 
-       -  
+       -
        -  :cspan:`7` Byte 3
 
     -  .. row 2
 
-       -  
-       -  
+       -
+       -
        -  Bit
 
        -  7
@@ -64,7 +64,7 @@ component of each pixel in one 16 or 32 bit word.
 
        -  0
 
-       -  
+       -
        -  7
 
        -  6
@@ -81,7 +81,7 @@ component of each pixel in one 16 or 32 bit word.
 
        -  0
 
-       -  
+       -
        -  7
 
        -  6
@@ -98,7 +98,7 @@ component of each pixel in one 16 or 32 bit word.
 
        -  0
 
-       -  
+       -
        -  7
 
        -  6
@@ -121,7 +121,7 @@ component of each pixel in one 16 or 32 bit word.
 
        -  'Y444'
 
-       -  
+       -
        -  Cb\ :sub:`3`
 
        -  Cb\ :sub:`2`
@@ -138,7 +138,7 @@ component of each pixel in one 16 or 32 bit word.
 
        -  Cr\ :sub:`0`
 
-       -  
+       -
        -  a\ :sub:`3`
 
        -  a\ :sub:`2`
@@ -161,7 +161,7 @@ component of each pixel in one 16 or 32 bit word.
 
        -  'YUVO'
 
-       -  
+       -
        -  Cb\ :sub:`2`
 
        -  Cb\ :sub:`1`
@@ -178,7 +178,7 @@ component of each pixel in one 16 or 32 bit word.
 
        -  Cr\ :sub:`0`
 
-       -  
+       -
        -  a
 
        -  Y'\ :sub:`4`
@@ -201,7 +201,7 @@ component of each pixel in one 16 or 32 bit word.
 
        -  'YUVP'
 
-       -  
+       -
        -  Cb\ :sub:`2`
 
        -  Cb\ :sub:`1`
@@ -218,7 +218,7 @@ component of each pixel in one 16 or 32 bit word.
 
        -  Cr\ :sub:`0`
 
-       -  
+       -
        -  Y'\ :sub:`4`
 
        -  Y'\ :sub:`3`
@@ -241,7 +241,7 @@ component of each pixel in one 16 or 32 bit word.
 
        -  'YUV4'
 
-       -  
+       -
        -  a\ :sub:`7`
 
        -  a\ :sub:`6`
@@ -258,7 +258,7 @@ component of each pixel in one 16 or 32 bit word.
 
        -  a\ :sub:`0`
 
-       -  
+       -
        -  Y'\ :sub:`7`
 
        -  Y'\ :sub:`6`
@@ -275,7 +275,7 @@ component of each pixel in one 16 or 32 bit word.
 
        -  Y'\ :sub:`0`
 
-       -  
+       -
        -  Cb\ :sub:`7`
 
        -  Cb\ :sub:`6`
@@ -292,7 +292,7 @@ component of each pixel in one 16 or 32 bit word.
 
        -  Cb\ :sub:`0`
 
-       -  
+       -
        -  Cr\ :sub:`7`
 
        -  Cr\ :sub:`6`

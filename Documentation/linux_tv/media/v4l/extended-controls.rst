@@ -113,8 +113,8 @@ The recommended way to enumerate over the extended controls is by using
 
     qctrl.id = V4L2_CTRL_FLAG_NEXT_CTRL;
     while (0 == ioctl (fd, VIDIOC_QUERYCTRL, &qctrl)) {
-        /* ... */
-        qctrl.id |= V4L2_CTRL_FLAG_NEXT_CTRL;
+	/* ... */
+	qctrl.id |= V4L2_CTRL_FLAG_NEXT_CTRL;
     }
 
 The initial control ID is set to 0 ORed with the
@@ -132,10 +132,10 @@ control class is found:
 
     qctrl.id = V4L2_CTRL_CLASS_MPEG | V4L2_CTRL_FLAG_NEXT_CTRL;
     while (0 == ioctl(fd, VIDIOC_QUERYCTRL, &qctrl)) {
-        if (V4L2_CTRL_ID2CLASS(qctrl.id) != V4L2_CTRL_CLASS_MPEG)
-            break;
-            /* ... */
-        qctrl.id |= V4L2_CTRL_FLAG_NEXT_CTRL;
+	if (V4L2_CTRL_ID2CLASS(qctrl.id) != V4L2_CTRL_CLASS_MPEG)
+	    break;
+	    /* ... */
+	qctrl.id |= V4L2_CTRL_FLAG_NEXT_CTRL;
     }
 
 The 32-bit ``qctrl.id`` value is subdivided into three bit ranges: the
@@ -302,8 +302,8 @@ Codec Control IDs
        -  ``V4L2_MPEG_STREAM_VBI_FMT_IVTV``
 
        -  VBI in private packets, IVTV format (documented in the kernel
-          sources in the file
-          ``Documentation/video4linux/cx2341x/README.vbi``)
+	  sources in the file
+	  ``Documentation/video4linux/cx2341x/README.vbi``)
 
 
 
@@ -1650,7 +1650,7 @@ Codec Control IDs
 
        -  ``V4L2_MPEG_VIDEO_PROFILE_ADVANCED_CODING_EFFICIENCY``
 
-       -  
+       -
 
 
 
@@ -1929,7 +1929,7 @@ Codec Control IDs
        -  ``V4L2_MPEG_VIDEO_HEADER_MODE_JOINED_WITH_1ST_FRAME``
 
        -  The stream header is returned together with the first encoded
-          frame.
+	  frame.
 
 
 
@@ -2035,14 +2035,14 @@ Codec Control IDs
        -  ``V4L2_MPEG_VIDEO_H264_FMO_MAP_TYPE_INTERLEAVED_SLICES``
 
        -  Slices are interleaved one after other with macroblocks in run
-          length order.
+	  length order.
 
     -  .. row 2
 
        -  ``V4L2_MPEG_VIDEO_H264_FMO_MAP_TYPE_SCATTERED_SLICES``
 
        -  Scatters the macroblocks based on a mathematical function known to
-          both encoder and decoder.
+	  both encoder and decoder.
 
     -  .. row 3
 
@@ -2340,14 +2340,14 @@ MFC 5.1 Control IDs
        -  ``V4L2_MPEG_MFC51_FRAME_SKIP_MODE_LEVEL_LIMIT``
 
        -  Frame skip mode enabled and buffer limit is set by the chosen
-          level and is defined by the standard.
+	  level and is defined by the standard.
 
     -  .. row 3
 
        -  ``V4L2_MPEG_MFC51_FRAME_SKIP_MODE_BUF_LIMIT``
 
        -  Frame skip mode enabled and buffer limit is set by the VBV
-          (MPEG1/2/4) or CPB (H264) buffer size control.
+	  (MPEG1/2/4) or CPB (H264) buffer size control.
 
 
 
@@ -2690,15 +2690,15 @@ VPX Control IDs
        -  ``V4L2_CID_MPEG_VIDEO_VPX_2_REF_FRAME``
 
        -  Two frames will be searched among the last encoded frame, the
-          golden frame and the alternate reference (altref) frame. The
-          encoder implementation will decide which two are chosen.
+	  golden frame and the alternate reference (altref) frame. The
+	  encoder implementation will decide which two are chosen.
 
     -  .. row 3
 
        -  ``V4L2_CID_MPEG_VIDEO_VPX_3_REF_FRAME``
 
        -  The last encoded frame, the golden frame and the altref frame will
-          be searched.
+	  be searched.
 
 
 
@@ -2736,15 +2736,15 @@ VPX Control IDs
        -  ``V4L2_CID_MPEG_VIDEO_VPX_GOLDEN_FRAME_USE_PREV``
 
        -  Use the (n-2)th frame as a golden frame, current frame index being
-          'n'.
+	  'n'.
 
     -  .. row 2
 
        -  ``V4L2_CID_MPEG_VIDEO_VPX_GOLDEN_FRAME_USE_REF_PERIOD``
 
        -  Use the previous specific frame indicated by
-          V4L2_CID_MPEG_VIDEO_VPX_GOLDEN_FRAME_REF_PERIOD as a
-          golden frame.
+	  V4L2_CID_MPEG_VIDEO_VPX_GOLDEN_FRAME_REF_PERIOD as a
+	  golden frame.
 
 
 
@@ -2867,14 +2867,14 @@ Camera Control IDs
        -  ``V4L2_EXPOSURE_METERING_AVERAGE``
 
        -  Use the light information coming from the entire frame and average
-          giving no weighting to any particular portion of the metered area.
+	  giving no weighting to any particular portion of the metered area.
 
     -  .. row 2
 
        -  ``V4L2_EXPOSURE_METERING_CENTER_WEIGHTED``
 
        -  Average the light information coming from the entire frame giving
-          priority to the center of the metered area.
+	  priority to the center of the metered area.
 
     -  .. row 3
 
@@ -2887,9 +2887,9 @@ Camera Control IDs
        -  ``V4L2_EXPOSURE_METERING_MATRIX``
 
        -  A multi-zone metering. The light intensity is measured in several
-          points of the frame and the results are combined. The algorithm of
-          the zones selection and their significance in calculating the
-          final value is device dependent.
+	  points of the frame and the results are combined. The algorithm of
+	  the zones selection and their significance in calculating the
+	  final value is device dependent.
 
 
 
@@ -2993,7 +2993,7 @@ Camera Control IDs
        -  ``V4L2_AUTO_FOCUS_STATUS_FAILED``
 
        -  Automatic focus has failed, the driver will not transition from
-          this state until another action is performed by an application.
+	  this state until another action is performed by an application.
 
 
 
@@ -3020,14 +3020,14 @@ Camera Control IDs
        -  ``V4L2_AUTO_FOCUS_RANGE_NORMAL``
 
        -  Normal distance range, limited for best automatic focus
-          performance.
+	  performance.
 
     -  .. row 3
 
        -  ``V4L2_AUTO_FOCUS_RANGE_MACRO``
 
        -  Macro (close-up) auto focus. The camera will use its minimum
-          possible distance for auto focus.
+	  possible distance for auto focus.
 
     -  .. row 4
 
@@ -3114,59 +3114,59 @@ Camera Control IDs
        -  ``V4L2_WHITE_BALANCE_INCANDESCENT``
 
        -  White balance setting for incandescent (tungsten) lighting. It
-          generally cools down the colors and corresponds approximately to
-          2500...3500 K color temperature range.
+	  generally cools down the colors and corresponds approximately to
+	  2500...3500 K color temperature range.
 
     -  .. row 4
 
        -  ``V4L2_WHITE_BALANCE_FLUORESCENT``
 
        -  White balance preset for fluorescent lighting. It corresponds
-          approximately to 4000...5000 K color temperature.
+	  approximately to 4000...5000 K color temperature.
 
     -  .. row 5
 
        -  ``V4L2_WHITE_BALANCE_FLUORESCENT_H``
 
        -  With this setting the camera will compensate for fluorescent H
-          lighting.
+	  lighting.
 
     -  .. row 6
 
        -  ``V4L2_WHITE_BALANCE_HORIZON``
 
        -  White balance setting for horizon daylight. It corresponds
-          approximately to 5000 K color temperature.
+	  approximately to 5000 K color temperature.
 
     -  .. row 7
 
        -  ``V4L2_WHITE_BALANCE_DAYLIGHT``
 
        -  White balance preset for daylight (with clear sky). It corresponds
-          approximately to 5000...6500 K color temperature.
+	  approximately to 5000...6500 K color temperature.
 
     -  .. row 8
 
        -  ``V4L2_WHITE_BALANCE_FLASH``
 
        -  With this setting the camera will compensate for the flash light.
-          It slightly warms up the colors and corresponds roughly to
-          5000...5500 K color temperature.
+	  It slightly warms up the colors and corresponds roughly to
+	  5000...5500 K color temperature.
 
     -  .. row 9
 
        -  ``V4L2_WHITE_BALANCE_CLOUDY``
 
        -  White balance preset for moderately overcast sky. This option
-          corresponds approximately to 6500...8000 K color temperature
-          range.
+	  corresponds approximately to 6500...8000 K color temperature
+	  range.
 
     -  .. row 10
 
        -  ``V4L2_WHITE_BALANCE_SHADE``
 
        -  White balance preset for shade or heavily overcast sky. It
-          corresponds approximately to 9000...10000 K color temperature.
+	  corresponds approximately to 9000...10000 K color temperature.
 
 
 
@@ -3256,115 +3256,115 @@ Camera Control IDs
        -  ``V4L2_SCENE_MODE_BACKLIGHT``
 
        -  Backlight. Compensates for dark shadows when light is coming from
-          behind a subject, also by automatically turning on the flash.
+	  behind a subject, also by automatically turning on the flash.
 
     -  .. row 3
 
        -  ``V4L2_SCENE_MODE_BEACH_SNOW``
 
        -  Beach and snow. This mode compensates for all-white or bright
-          scenes, which tend to look gray and low contrast, when camera's
-          automatic exposure is based on an average scene brightness. To
-          compensate, this mode automatically slightly overexposes the
-          frames. The white balance may also be adjusted to compensate for
-          the fact that reflected snow looks bluish rather than white.
+	  scenes, which tend to look gray and low contrast, when camera's
+	  automatic exposure is based on an average scene brightness. To
+	  compensate, this mode automatically slightly overexposes the
+	  frames. The white balance may also be adjusted to compensate for
+	  the fact that reflected snow looks bluish rather than white.
 
     -  .. row 4
 
        -  ``V4L2_SCENE_MODE_CANDLELIGHT``
 
        -  Candle light. The camera generally raises the ISO sensitivity and
-          lowers the shutter speed. This mode compensates for relatively
-          close subject in the scene. The flash is disabled in order to
-          preserve the ambiance of the light.
+	  lowers the shutter speed. This mode compensates for relatively
+	  close subject in the scene. The flash is disabled in order to
+	  preserve the ambiance of the light.
 
     -  .. row 5
 
        -  ``V4L2_SCENE_MODE_DAWN_DUSK``
 
        -  Dawn and dusk. Preserves the colors seen in low natural light
-          before dusk and after down. The camera may turn off the flash, and
-          automatically focus at infinity. It will usually boost saturation
-          and lower the shutter speed.
+	  before dusk and after down. The camera may turn off the flash, and
+	  automatically focus at infinity. It will usually boost saturation
+	  and lower the shutter speed.
 
     -  .. row 6
 
        -  ``V4L2_SCENE_MODE_FALL_COLORS``
 
        -  Fall colors. Increases saturation and adjusts white balance for
-          color enhancement. Pictures of autumn leaves get saturated reds
-          and yellows.
+	  color enhancement. Pictures of autumn leaves get saturated reds
+	  and yellows.
 
     -  .. row 7
 
        -  ``V4L2_SCENE_MODE_FIREWORKS``
 
        -  Fireworks. Long exposure times are used to capture the expanding
-          burst of light from a firework. The camera may invoke image
-          stabilization.
+	  burst of light from a firework. The camera may invoke image
+	  stabilization.
 
     -  .. row 8
 
        -  ``V4L2_SCENE_MODE_LANDSCAPE``
 
        -  Landscape. The camera may choose a small aperture to provide deep
-          depth of field and long exposure duration to help capture detail
-          in dim light conditions. The focus is fixed at infinity. Suitable
-          for distant and wide scenery.
+	  depth of field and long exposure duration to help capture detail
+	  in dim light conditions. The focus is fixed at infinity. Suitable
+	  for distant and wide scenery.
 
     -  .. row 9
 
        -  ``V4L2_SCENE_MODE_NIGHT``
 
        -  Night, also known as Night Landscape. Designed for low light
-          conditions, it preserves detail in the dark areas without blowing
-          out bright objects. The camera generally sets itself to a
-          medium-to-high ISO sensitivity, with a relatively long exposure
-          time, and turns flash off. As such, there will be increased image
-          noise and the possibility of blurred image.
+	  conditions, it preserves detail in the dark areas without blowing
+	  out bright objects. The camera generally sets itself to a
+	  medium-to-high ISO sensitivity, with a relatively long exposure
+	  time, and turns flash off. As such, there will be increased image
+	  noise and the possibility of blurred image.
 
     -  .. row 10
 
        -  ``V4L2_SCENE_MODE_PARTY_INDOOR``
 
        -  Party and indoor. Designed to capture indoor scenes that are lit
-          by indoor background lighting as well as the flash. The camera
-          usually increases ISO sensitivity, and adjusts exposure for the
-          low light conditions.
+	  by indoor background lighting as well as the flash. The camera
+	  usually increases ISO sensitivity, and adjusts exposure for the
+	  low light conditions.
 
     -  .. row 11
 
        -  ``V4L2_SCENE_MODE_PORTRAIT``
 
        -  Portrait. The camera adjusts the aperture so that the depth of
-          field is reduced, which helps to isolate the subject against a
-          smooth background. Most cameras recognize the presence of faces in
-          the scene and focus on them. The color hue is adjusted to enhance
-          skin tones. The intensity of the flash is often reduced.
+	  field is reduced, which helps to isolate the subject against a
+	  smooth background. Most cameras recognize the presence of faces in
+	  the scene and focus on them. The color hue is adjusted to enhance
+	  skin tones. The intensity of the flash is often reduced.
 
     -  .. row 12
 
        -  ``V4L2_SCENE_MODE_SPORTS``
 
        -  Sports. Significantly increases ISO and uses a fast shutter speed
-          to freeze motion of rapidly-moving subjects. Increased image noise
-          may be seen in this mode.
+	  to freeze motion of rapidly-moving subjects. Increased image noise
+	  may be seen in this mode.
 
     -  .. row 13
 
        -  ``V4L2_SCENE_MODE_SUNSET``
 
        -  Sunset. Preserves deep hues seen in sunsets and sunrises. It bumps
-          up the saturation.
+	  up the saturation.
 
     -  .. row 14
 
        -  ``V4L2_SCENE_MODE_TEXT``
 
        -  Text. It applies extra contrast and sharpness, it is typically a
-          black-and-white mode optimized for readability. Automatic focus
-          may be switched to close-up mode and this setting may also involve
-          some lens-distortion correction.
+	  black-and-white mode optimized for readability. Automatic focus
+	  may be switched to close-up mode and this setting may also involve
+	  some lens-distortion correction.
 
 
 
@@ -3715,15 +3715,15 @@ Flash Control IDs
        -  ``V4L2_FLASH_STROBE_SOURCE_SOFTWARE``
 
        -  The flash strobe is triggered by using the
-          V4L2_CID_FLASH_STROBE control.
+	  V4L2_CID_FLASH_STROBE control.
 
     -  .. row 2
 
        -  ``V4L2_FLASH_STROBE_SOURCE_EXTERNAL``
 
        -  The flash strobe is triggered by an external source. Typically
-          this is a sensor, which makes it possible to synchronises the
-          flash strobe start to exposure start.
+	  this is a sensor, which makes it possible to synchronises the
+	  flash strobe start to exposure start.
 
 
 
@@ -3782,15 +3782,15 @@ Flash Control IDs
        -  ``V4L2_FLASH_FAULT_OVER_VOLTAGE``
 
        -  Flash controller voltage to the flash LED has exceeded the limit
-          specific to the flash controller.
+	  specific to the flash controller.
 
     -  .. row 2
 
        -  ``V4L2_FLASH_FAULT_TIMEOUT``
 
        -  The flash strobe was still on when the timeout set by the user ---
-          V4L2_CID_FLASH_TIMEOUT control --- has expired. Not all flash
-          controllers may set this in all such conditions.
+	  V4L2_CID_FLASH_TIMEOUT control --- has expired. Not all flash
+	  controllers may set this in all such conditions.
 
     -  .. row 3
 
@@ -3803,36 +3803,36 @@ Flash Control IDs
        -  ``V4L2_FLASH_FAULT_SHORT_CIRCUIT``
 
        -  The short circuit protection of the flash controller has been
-          triggered.
+	  triggered.
 
     -  .. row 5
 
        -  ``V4L2_FLASH_FAULT_OVER_CURRENT``
 
        -  Current in the LED power supply has exceeded the limit specific to
-          the flash controller.
+	  the flash controller.
 
     -  .. row 6
 
        -  ``V4L2_FLASH_FAULT_INDICATOR``
 
        -  The flash controller has detected a short or open circuit
-          condition on the indicator LED.
+	  condition on the indicator LED.
 
     -  .. row 7
 
        -  ``V4L2_FLASH_FAULT_UNDER_VOLTAGE``
 
        -  Flash controller voltage to the flash LED has been below the
-          minimum limit specific to the flash controller.
+	  minimum limit specific to the flash controller.
 
     -  .. row 8
 
        -  ``V4L2_FLASH_FAULT_INPUT_VOLTAGE``
 
        -  The input voltage of the flash controller is below the limit under
-          which strobing the flash at full current will not be possible.The
-          condition persists until this flag is no longer set.
+	  which strobing the flash at full current will not be possible.The
+	  condition persists until this flag is no longer set.
 
     -  .. row 9
 
@@ -4193,15 +4193,15 @@ Digital Video Control IDs
        -  ``V4L2_DV_IT_CONTENT_TYPE_GRAPHICS``
 
        -  Graphics content. Pixel data should be passed unfiltered and
-          without analog reconstruction.
+	  without analog reconstruction.
 
     -  .. row 2
 
        -  ``V4L2_DV_IT_CONTENT_TYPE_PHOTO``
 
        -  Photo content. The content is derived from digital still pictures.
-          The content should be passed through with minimal scaling and
-          picture enhancements.
+	  The content should be passed through with minimal scaling and
+	  picture enhancements.
 
     -  .. row 3
 
@@ -4220,7 +4220,7 @@ Digital Video Control IDs
        -  ``V4L2_DV_IT_CONTENT_TYPE_NO_ITC``
 
        -  No IT Content information is available and the ITC bit in the AVI
-          InfoFrame is set to 0.
+	  InfoFrame is set to 0.
 
 
 
@@ -4399,19 +4399,19 @@ Detect Control IDs
        -  ``V4L2_DETECT_MD_MODE_THRESHOLD_GRID``
 
        -  The image is divided into a grid, each cell with its own motion
-          detection threshold. These thresholds are set through the
-          ``V4L2_CID_DETECT_MD_THRESHOLD_GRID`` matrix control.
+	  detection threshold. These thresholds are set through the
+	  ``V4L2_CID_DETECT_MD_THRESHOLD_GRID`` matrix control.
 
     -  .. row 4
 
        -  ``V4L2_DETECT_MD_MODE_REGION_GRID``
 
        -  The image is divided into a grid, each cell with its own region
-          value that specifies which per-region motion detection thresholds
-          should be used. Each region has its own thresholds. How these
-          per-region thresholds are set up is driver-specific. The region
-          values for the grid are set through the
-          ``V4L2_CID_DETECT_MD_REGION_GRID`` matrix control.
+	  value that specifies which per-region motion detection thresholds
+	  should be used. Each region has its own thresholds. How these
+	  per-region thresholds are set up is driver-specific. The region
+	  values for the grid are set through the
+	  ``V4L2_CID_DETECT_MD_REGION_GRID`` matrix control.
 
 
 

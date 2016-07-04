@@ -57,7 +57,7 @@ to write-read, in Linux 2.6.19.
        -  ``service_set``
 
        -  :cspan:`2` A set of all data services supported by the driver.
-          Equal to the union of all elements of the ``service_lines`` array.
+	  Equal to the union of all elements of the ``service_lines`` array.
 
     -  .. row 2
 
@@ -66,15 +66,15 @@ to write-read, in Linux 2.6.19.
        -  ``service_lines``\ [2][24]
 
        -  :cspan:`2` Each element of this array contains a set of data
-          services the hardware can look for or insert into a particular
-          scan line. Data services are defined in :ref:`vbi-services`.
-          Array indices map to ITU-R line numbers (see also :ref:`vbi-525`
-          and :ref:`vbi-625`) as follows:
+	  services the hardware can look for or insert into a particular
+	  scan line. Data services are defined in :ref:`vbi-services`.
+	  Array indices map to ITU-R line numbers (see also :ref:`vbi-525`
+	  and :ref:`vbi-625`) as follows:
 
     -  .. row 3
 
-       -  
-       -  
+       -
+       -
        -  Element
 
        -  525 line systems
@@ -83,8 +83,8 @@ to write-read, in Linux 2.6.19.
 
     -  .. row 4
 
-       -  
-       -  
+       -
+       -
        -  ``service_lines``\ [0][1]
 
        -  1
@@ -93,8 +93,8 @@ to write-read, in Linux 2.6.19.
 
     -  .. row 5
 
-       -  
-       -  
+       -
+       -
        -  ``service_lines``\ [0][23]
 
        -  23
@@ -103,8 +103,8 @@ to write-read, in Linux 2.6.19.
 
     -  .. row 6
 
-       -  
-       -  
+       -
+       -
        -  ``service_lines``\ [1][1]
 
        -  264
@@ -113,8 +113,8 @@ to write-read, in Linux 2.6.19.
 
     -  .. row 7
 
-       -  
-       -  
+       -
+       -
        -  ``service_lines``\ [1][23]
 
        -  286
@@ -123,30 +123,30 @@ to write-read, in Linux 2.6.19.
 
     -  .. row 8
 
-       -  
+       -
 
     -  .. row 9
 
-       -  
-       -  
+       -
+       -
        -  :cspan:`2` The number of VBI lines the hardware can capture or
-          output per frame, or the number of services it can identify on a
-          given line may be limited. For example on PAL line 16 the hardware
-          may be able to look for a VPS or Teletext signal, but not both at
-          the same time. Applications can learn about these limits using the
-          :ref:`VIDIOC_S_FMT <VIDIOC_G_FMT>` ioctl as described in
-          :ref:`sliced`.
+	  output per frame, or the number of services it can identify on a
+	  given line may be limited. For example on PAL line 16 the hardware
+	  may be able to look for a VPS or Teletext signal, but not both at
+	  the same time. Applications can learn about these limits using the
+	  :ref:`VIDIOC_S_FMT <VIDIOC_G_FMT>` ioctl as described in
+	  :ref:`sliced`.
 
     -  .. row 10
 
-       -  
+       -
 
     -  .. row 11
 
-       -  
-       -  
+       -
+       -
        -  :cspan:`2` Drivers must set ``service_lines`` [0][0] and
-          ``service_lines``\ [1][0] to zero.
+	  ``service_lines``\ [1][0] to zero.
 
     -  .. row 12
 
@@ -155,8 +155,8 @@ to write-read, in Linux 2.6.19.
        -  ``type``
 
        -  Type of the data stream, see :ref:`v4l2-buf-type`. Should be
-          ``V4L2_BUF_TYPE_SLICED_VBI_CAPTURE`` or
-          ``V4L2_BUF_TYPE_SLICED_VBI_OUTPUT``.
+	  ``V4L2_BUF_TYPE_SLICED_VBI_CAPTURE`` or
+	  ``V4L2_BUF_TYPE_SLICED_VBI_OUTPUT``.
 
     -  .. row 13
 
@@ -165,7 +165,7 @@ to write-read, in Linux 2.6.19.
        -  ``reserved``\ [3]
 
        -  :cspan:`2` This array is reserved for future extensions.
-          Applications and drivers must set it to zero.
+	  Applications and drivers must set it to zero.
 
 
 
@@ -200,7 +200,7 @@ to write-read, in Linux 2.6.19.
        -  PAL/SECAM line 7-22, 320-335 (second field 7-22)
 
        -  Last 42 of the 45 byte Teletext packet, that is without clock
-          run-in and framing code, lsb first transmitted.
+	  run-in and framing code, lsb first transmitted.
 
     -  .. row 3
 
@@ -213,7 +213,7 @@ to write-read, in Linux 2.6.19.
        -  PAL line 16
 
        -  Byte number 3 to 15 according to Figure 9 of ETS 300 231, lsb
-          first transmitted.
+	  first transmitted.
 
     -  .. row 4
 
@@ -226,7 +226,7 @@ to write-read, in Linux 2.6.19.
        -  NTSC line 21, 284 (second field 21)
 
        -  Two bytes in transmission order, including parity bit, lsb first
-          transmitted.
+	  transmitted.
 
     -  .. row 5
 
@@ -238,13 +238,13 @@ to write-read, in Linux 2.6.19.
 
        -  PAL/SECAM line 23
 
-       -  
+       -
 
-          ::
+	  ::
 
-              Byte        0                 1
-                   msb         lsb  msb           lsb
-              Bit  7 6 5 4 3 2 1 0  x x 13 12 11 10 9
+	      Byte        0                 1
+		   msb         lsb  msb           lsb
+	      Bit  7 6 5 4 3 2 1 0  x x 13 12 11 10 9
 
     -  .. row 6
 

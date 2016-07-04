@@ -97,7 +97,7 @@ should be as close as possible to the original request.
        -  ``which``
 
        -  Format to modified, from enum
-          :ref:`v4l2_subdev_format_whence <v4l2-subdev-format-whence>`.
+	  :ref:`v4l2_subdev_format_whence <v4l2-subdev-format-whence>`.
 
     -  .. row 3
 
@@ -106,7 +106,7 @@ should be as close as possible to the original request.
        -  ``format``
 
        -  Definition of an image format, see :ref:`v4l2-mbus-framefmt` for
-          details.
+	  details.
 
     -  .. row 4
 
@@ -115,7 +115,7 @@ should be as close as possible to the original request.
        -  ``reserved``\ [8]
 
        -  Reserved for future extensions. Applications and drivers must set
-          the array to zero.
+	  the array to zero.
 
 
 

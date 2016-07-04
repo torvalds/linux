@@ -41,8 +41,8 @@ Arguments
        -  int request
 
        -  Equals
-          :ref:`FE_READ_UNCORRECTED_BLOCKS`
-          for this command.
+	  :ref:`FE_READ_UNCORRECTED_BLOCKS`
+	  for this command.
 
     -  .. row 3
 

@@ -94,7 +94,7 @@ modified format should be as close as possible to the original request.
        -  ``which``
 
        -  Crop rectangle to get or set, from enum
-          :ref:`v4l2_subdev_format_whence <v4l2-subdev-format-whence>`.
+	  :ref:`v4l2_subdev_format_whence <v4l2-subdev-format-whence>`.
 
     -  .. row 3
 
@@ -111,7 +111,7 @@ modified format should be as close as possible to the original request.
        -  ``reserved``\ [8]
 
        -  Reserved for future extensions. Applications and drivers must set
-          the array to zero.
+	  the array to zero.
 
 
 

@@ -30,15 +30,15 @@ FrontendParameters structure:
 .. code-block:: c
 
     struct dvb_frontend_parameters {
-        uint32_t frequency;     /* (absolute) frequency in Hz for QAM/OFDM */
-                    /* intermediate frequency in kHz for QPSK */
-        fe_spectral_inversion_t inversion;
-        union {
-            struct dvb_qpsk_parameters qpsk;
-            struct dvb_qam_parameters  qam;
-            struct dvb_ofdm_parameters ofdm;
-            struct dvb_vsb_parameters  vsb;
-        } u;
+	uint32_t frequency;     /* (absolute) frequency in Hz for QAM/OFDM */
+		    /* intermediate frequency in kHz for QPSK */
+	fe_spectral_inversion_t inversion;
+	union {
+	    struct dvb_qpsk_parameters qpsk;
+	    struct dvb_qam_parameters  qam;
+	    struct dvb_ofdm_parameters ofdm;
+	    struct dvb_vsb_parameters  vsb;
+	} u;
     };
 
 In the case of QPSK frontends the ``frequency`` field specifies the
@@ -61,8 +61,8 @@ structure:
 .. code-block:: c
 
      struct dvb_qpsk_parameters {
-         uint32_t        symbol_rate;  /* symbol rate in Symbols per second */
-         fe_code_rate_t  fec_inner;    /* forward error correction (see above) */
+	 uint32_t        symbol_rate;  /* symbol rate in Symbols per second */
+	 fe_code_rate_t  fec_inner;    /* forward error correction (see above) */
      };
 
 
@@ -77,9 +77,9 @@ for cable QAM frontend you use the ``dvb_qam_parameters`` structure:
 .. code-block:: c
 
      struct dvb_qam_parameters {
-         uint32_t         symbol_rate; /* symbol rate in Symbols per second */
-         fe_code_rate_t   fec_inner;   /* forward error correction (see above) */
-         fe_modulation_t  modulation;  /* modulation type (see above) */
+	 uint32_t         symbol_rate; /* symbol rate in Symbols per second */
+	 fe_code_rate_t   fec_inner;   /* forward error correction (see above) */
+	 fe_modulation_t  modulation;  /* modulation type (see above) */
      };
 
 
@@ -94,7 +94,7 @@ ATSC frontends are supported by the ``dvb_vsb_parameters`` structure:
 .. code-block:: c
 
     struct dvb_vsb_parameters {
-        fe_modulation_t modulation; /* modulation type (see above) */
+	fe_modulation_t modulation; /* modulation type (see above) */
     };
 
 
@@ -109,11 +109,11 @@ DVB-T frontends are supported by the ``dvb_ofdm_parameters`` structure:
 .. code-block:: c
 
      struct dvb_ofdm_parameters {
-         fe_bandwidth_t      bandwidth;
-         fe_code_rate_t      code_rate_HP;  /* high priority stream code rate */
-         fe_code_rate_t      code_rate_LP;  /* low priority stream code rate */
-         fe_modulation_t     constellation; /* modulation type (see above) */
-         fe_transmit_mode_t  transmission_mode;
-         fe_guard_interval_t guard_interval;
-         fe_hierarchy_t      hierarchy_information;
+	 fe_bandwidth_t      bandwidth;
+	 fe_code_rate_t      code_rate_HP;  /* high priority stream code rate */
+	 fe_code_rate_t      code_rate_LP;  /* low priority stream code rate */
+	 fe_modulation_t     constellation; /* modulation type (see above) */
+	 fe_transmit_mode_t  transmission_mode;
+	 fe_guard_interval_t guard_interval;
+	 fe_hierarchy_t      hierarchy_information;
      };

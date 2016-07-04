@@ -67,9 +67,9 @@ encoding. You usually do want to add them.
        -  ``quality``
 
        -  Deprecated. If
-          :ref:`V4L2_CID_JPEG_COMPRESSION_QUALITY <jpeg-quality-control>`
-          control is exposed by a driver applications should use it instead
-          and ignore this field.
+	  :ref:`V4L2_CID_JPEG_COMPRESSION_QUALITY <jpeg-quality-control>`
+	  control is exposed by a driver applications should use it instead
+	  and ignore this field.
 
     -  .. row 2
 
@@ -77,7 +77,7 @@ encoding. You usually do want to add them.
 
        -  ``APPn``
 
-       -  
+       -
 
     -  .. row 3
 
@@ -85,7 +85,7 @@ encoding. You usually do want to add them.
 
        -  ``APP_len``
 
-       -  
+       -
 
     -  .. row 4
 
@@ -93,7 +93,7 @@ encoding. You usually do want to add them.
 
        -  ``APP_data``\ [60]
 
-       -  
+       -
 
     -  .. row 5
 
@@ -101,7 +101,7 @@ encoding. You usually do want to add them.
 
        -  ``COM_len``
 
-       -  
+       -
 
     -  .. row 6
 
@@ -109,7 +109,7 @@ encoding. You usually do want to add them.
 
        -  ``COM_data``\ [60]
 
-       -  
+       -
 
     -  .. row 7
 
@@ -118,9 +118,9 @@ encoding. You usually do want to add them.
        -  ``jpeg_markers``
 
        -  See :ref:`jpeg-markers`. Deprecated. If
-          :ref:`V4L2_CID_JPEG_ACTIVE_MARKER <jpeg-active-marker-control>`
-          control is exposed by a driver applications should use it instead
-          and ignore this field.
+	  :ref:`V4L2_CID_JPEG_ACTIVE_MARKER <jpeg-active-marker-control>`
+	  control is exposed by a driver applications should use it instead
+	  and ignore this field.
 
 
 

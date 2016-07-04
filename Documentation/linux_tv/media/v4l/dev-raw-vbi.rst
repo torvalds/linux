@@ -123,10 +123,10 @@ and always returns default parameters as :ref:`VIDIOC_G_FMT <VIDIOC_G_FMT>` does
        -  ``offset``
 
        -  Horizontal offset of the VBI image, relative to the leading edge
-          of the line synchronization pulse and counted in samples: The
-          first sample in the VBI image will be located ``offset`` /
-          ``sampling_rate`` seconds following the leading edge. See also
-          :ref:`vbi-hsync`.
+	  of the line synchronization pulse and counted in samples: The
+	  first sample in the VBI image will be located ``offset`` /
+	  ``sampling_rate`` seconds following the leading edge. See also
+	  :ref:`vbi-hsync`.
 
     -  .. row 3
 
@@ -134,7 +134,7 @@ and always returns default parameters as :ref:`VIDIOC_G_FMT <VIDIOC_G_FMT>` does
 
        -  ``samples_per_line``
 
-       -  
+       -
 
     -  .. row 4
 
@@ -143,13 +143,13 @@ and always returns default parameters as :ref:`VIDIOC_G_FMT <VIDIOC_G_FMT>` does
        -  ``sample_format``
 
        -  Defines the sample format as in :ref:`pixfmt`, a
-          four-character-code. [2]_ Usually this is ``V4L2_PIX_FMT_GREY``,
-          i. e. each sample consists of 8 bits with lower values oriented
-          towards the black level. Do not assume any other correlation of
-          values with the signal level. For example, the MSB does not
-          necessarily indicate if the signal is 'high' or 'low' because 128
-          may not be the mean value of the signal. Drivers shall not convert
-          the sample format by software.
+	  four-character-code. [2]_ Usually this is ``V4L2_PIX_FMT_GREY``,
+	  i. e. each sample consists of 8 bits with lower values oriented
+	  towards the black level. Do not assume any other correlation of
+	  values with the signal level. For example, the MSB does not
+	  necessarily indicate if the signal is 'high' or 'low' because 128
+	  may not be the mean value of the signal. Drivers shall not convert
+	  the sample format by software.
 
     -  .. row 5
 
@@ -158,16 +158,16 @@ and always returns default parameters as :ref:`VIDIOC_G_FMT <VIDIOC_G_FMT>` does
        -  ``start``\ [2]
 
        -  This is the scanning system line number associated with the first
-          line of the VBI image, of the first and the second field
-          respectively. See :ref:`vbi-525` and :ref:`vbi-625` for valid
-          values. The ``V4L2_VBI_ITU_525_F1_START``,
-          ``V4L2_VBI_ITU_525_F2_START``, ``V4L2_VBI_ITU_625_F1_START`` and
-          ``V4L2_VBI_ITU_625_F2_START`` defines give the start line numbers
-          for each field for each 525 or 625 line format as a convenience.
-          Don't forget that ITU line numbering starts at 1, not 0. VBI input
-          drivers can return start values 0 if the hardware cannot reliable
-          identify scanning lines, VBI acquisition may not require this
-          information.
+	  line of the VBI image, of the first and the second field
+	  respectively. See :ref:`vbi-525` and :ref:`vbi-625` for valid
+	  values. The ``V4L2_VBI_ITU_525_F1_START``,
+	  ``V4L2_VBI_ITU_525_F2_START``, ``V4L2_VBI_ITU_625_F1_START`` and
+	  ``V4L2_VBI_ITU_625_F2_START`` defines give the start line numbers
+	  for each field for each 525 or 625 line format as a convenience.
+	  Don't forget that ITU line numbering starts at 1, not 0. VBI input
+	  drivers can return start values 0 if the hardware cannot reliable
+	  identify scanning lines, VBI acquisition may not require this
+	  information.
 
     -  .. row 6
 
@@ -176,34 +176,34 @@ and always returns default parameters as :ref:`VIDIOC_G_FMT <VIDIOC_G_FMT>` does
        -  ``count``\ [2]
 
        -  The number of lines in the first and second field image,
-          respectively.
+	  respectively.
 
     -  .. row 7
 
        -  :cspan:`2`
 
-          Drivers should be as flexibility as possible. For example, it may
-          be possible to extend or move the VBI capture window down to the
-          picture area, implementing a 'full field mode' to capture data
-          service transmissions embedded in the picture.
+	  Drivers should be as flexibility as possible. For example, it may
+	  be possible to extend or move the VBI capture window down to the
+	  picture area, implementing a 'full field mode' to capture data
+	  service transmissions embedded in the picture.
 
-          An application can set the first or second ``count`` value to zero
-          if no data is required from the respective field; ``count``\ [1]
-          if the scanning system is progressive, i. e. not interlaced. The
-          corresponding start value shall be ignored by the application and
-          driver. Anyway, drivers may not support single field capturing and
-          return both count values non-zero.
+	  An application can set the first or second ``count`` value to zero
+	  if no data is required from the respective field; ``count``\ [1]
+	  if the scanning system is progressive, i. e. not interlaced. The
+	  corresponding start value shall be ignored by the application and
+	  driver. Anyway, drivers may not support single field capturing and
+	  return both count values non-zero.
 
-          Both ``count`` values set to zero, or line numbers outside the
-          bounds depicted in :ref:`vbi-525` and :ref:`vbi-625`, or a
-          field image covering lines of two fields, are invalid and shall
-          not be returned by the driver.
+	  Both ``count`` values set to zero, or line numbers outside the
+	  bounds depicted in :ref:`vbi-525` and :ref:`vbi-625`, or a
+	  field image covering lines of two fields, are invalid and shall
+	  not be returned by the driver.
 
-          To initialize the ``start`` and ``count`` fields, applications
-          must first determine the current video standard selection. The
-          :ref:`v4l2_std_id <v4l2-std-id>` or the ``framelines`` field
-          of struct :ref:`v4l2_standard <v4l2-standard>` can be evaluated
-          for this purpose.
+	  To initialize the ``start`` and ``count`` fields, applications
+	  must first determine the current video standard selection. The
+	  :ref:`v4l2_std_id <v4l2-std-id>` or the ``framelines`` field
+	  of struct :ref:`v4l2_standard <v4l2-standard>` can be evaluated
+	  for this purpose.
 
     -  .. row 8
 
@@ -212,7 +212,7 @@ and always returns default parameters as :ref:`VIDIOC_G_FMT <VIDIOC_G_FMT>` does
        -  ``flags``
 
        -  See :ref:`vbifmt-flags` below. Currently only drivers set flags,
-          applications must set this field to zero.
+	  applications must set this field to zero.
 
     -  .. row 9
 
@@ -221,7 +221,7 @@ and always returns default parameters as :ref:`VIDIOC_G_FMT <VIDIOC_G_FMT>` does
        -  ``reserved``\ [2]
 
        -  This array is reserved for future extensions. Drivers and
-          applications must set it to zero.
+	  applications must set it to zero.
 
 
 
@@ -240,12 +240,12 @@ and always returns default parameters as :ref:`VIDIOC_G_FMT <VIDIOC_G_FMT>` does
        -  0x0001
 
        -  This flag indicates hardware which does not properly distinguish
-          between fields. Normally the VBI image stores the first field
-          (lower scanning line numbers) first in memory. This may be a top
-          or bottom field depending on the video standard. When this flag is
-          set the first or second field may be stored first, however the
-          fields are still in correct temporal order with the older field
-          first in memory. [3]_
+	  between fields. Normally the VBI image stores the first field
+	  (lower scanning line numbers) first in memory. This may be a top
+	  or bottom field depending on the video standard. When this flag is
+	  set the first or second field may be stored first, however the
+	  fields are still in correct temporal order with the older field
+	  first in memory. [3]_
 
     -  .. row 2
 
@@ -254,18 +254,18 @@ and always returns default parameters as :ref:`VIDIOC_G_FMT <VIDIOC_G_FMT>` does
        -  0x0002
 
        -  By default the two field images will be passed sequentially; all
-          lines of the first field followed by all lines of the second field
-          (compare :ref:`field-order` ``V4L2_FIELD_SEQ_TB`` and
-          ``V4L2_FIELD_SEQ_BT``, whether the top or bottom field is first in
-          memory depends on the video standard). When this flag is set, the
-          two fields are interlaced (cf. ``V4L2_FIELD_INTERLACED``). The
-          first line of the first field followed by the first line of the
-          second field, then the two second lines, and so on. Such a layout
-          may be necessary when the hardware has been programmed to capture
-          or output interlaced video images and is unable to separate the
-          fields for VBI capturing at the same time. For simplicity setting
-          this flag implies that both ``count`` values are equal and
-          non-zero.
+	  lines of the first field followed by all lines of the second field
+	  (compare :ref:`field-order` ``V4L2_FIELD_SEQ_TB`` and
+	  ``V4L2_FIELD_SEQ_BT``, whether the top or bottom field is first in
+	  memory depends on the video standard). When this flag is set, the
+	  two fields are interlaced (cf. ``V4L2_FIELD_INTERLACED``). The
+	  first line of the first field followed by the first line of the
+	  second field, then the two second lines, and so on. Such a layout
+	  may be necessary when the hardware has been programmed to capture
+	  or output interlaced video images and is unable to separate the
+	  fields for VBI capturing at the same time. For simplicity setting
+	  this flag implies that both ``count`` values are equal and
+	  non-zero.
 
 
 

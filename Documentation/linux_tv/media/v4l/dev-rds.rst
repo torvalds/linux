@@ -144,21 +144,21 @@ RDS datastructures
        -  Bits 3-5
 
        -  Deprecated. Currently identical to bits 0-2. Do not use these
-          bits.
+	  bits.
 
     -  .. row 3
 
        -  Bit 6
 
        -  Corrected bit. Indicates that an error was corrected for this data
-          block.
+	  block.
 
     -  .. row 4
 
        -  Bit 7
 
        -  Error bit. Indicates that an uncorrectable error occurred during
-          reception of this block.
+	  reception of this block.
 
 
 
@@ -174,7 +174,7 @@ RDS datastructures
 
        -  V4L2_RDS_BLOCK_MSK
 
-       -  
+       -
        -  7
 
        -  Mask for bits 0-2 to get the block ID.
@@ -183,7 +183,7 @@ RDS datastructures
 
        -  V4L2_RDS_BLOCK_A
 
-       -  
+       -
        -  0
 
        -  Block A.
@@ -192,7 +192,7 @@ RDS datastructures
 
        -  V4L2_RDS_BLOCK_B
 
-       -  
+       -
        -  1
 
        -  Block B.
@@ -201,7 +201,7 @@ RDS datastructures
 
        -  V4L2_RDS_BLOCK_C
 
-       -  
+       -
        -  2
 
        -  Block C.
@@ -210,7 +210,7 @@ RDS datastructures
 
        -  V4L2_RDS_BLOCK_D
 
-       -  
+       -
        -  3
 
        -  Block D.
@@ -219,7 +219,7 @@ RDS datastructures
 
        -  V4L2_RDS_BLOCK_C_ALT
 
-       -  
+       -
        -  4
 
        -  Block C'.

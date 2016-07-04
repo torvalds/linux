@@ -35,7 +35,7 @@ describing all planes of that format.
        -  ``bytesperline``
 
        -  Distance in bytes between the leftmost pixels in two adjacent
-          lines. See struct :ref:`v4l2_pix_format <v4l2-pix-format>`.
+	  lines. See struct :ref:`v4l2_pix_format <v4l2-pix-format>`.
 
     -  .. row 3
 
@@ -44,7 +44,7 @@ describing all planes of that format.
        -  ``reserved[6]``
 
        -  Reserved for future extensions. Should be zeroed by drivers and
-          applications.
+	  applications.
 
 
 
@@ -63,7 +63,7 @@ describing all planes of that format.
        -  ``width``
 
        -  Image width in pixels. See struct
-          :ref:`v4l2_pix_format <v4l2-pix-format>`.
+	  :ref:`v4l2_pix_format <v4l2-pix-format>`.
 
     -  .. row 2
 
@@ -72,7 +72,7 @@ describing all planes of that format.
        -  ``height``
 
        -  Image height in pixels. See struct
-          :ref:`v4l2_pix_format <v4l2-pix-format>`.
+	  :ref:`v4l2_pix_format <v4l2-pix-format>`.
 
     -  .. row 3
 
@@ -81,7 +81,7 @@ describing all planes of that format.
        -  ``pixelformat``
 
        -  The pixel format. Both single- and multi-planar four character
-          codes can be used.
+	  codes can be used.
 
     -  .. row 4
 
@@ -106,8 +106,8 @@ describing all planes of that format.
        -  ``plane_fmt[VIDEO_MAX_PLANES]``
 
        -  An array of structures describing format of each plane this pixel
-          format consists of. The number of valid entries in this array has
-          to be put in the ``num_planes`` field.
+	  format consists of. The number of valid entries in this array has
+	  to be put in the ``num_planes`` field.
 
     -  .. row 7
 
@@ -116,7 +116,7 @@ describing all planes of that format.
        -  ``num_planes``
 
        -  Number of planes (i.e. separate memory buffers) for this format
-          and the number of valid entries in the ``plane_fmt`` array.
+	  and the number of valid entries in the ``plane_fmt`` array.
 
     -  .. row 8
 
@@ -133,8 +133,8 @@ describing all planes of that format.
        -  ``ycbcr_enc``
 
        -  This information supplements the ``colorspace`` and must be set by
-          the driver for capture streams and by the application for output
-          streams, see :ref:`colorspaces`.
+	  the driver for capture streams and by the application for output
+	  streams, see :ref:`colorspaces`.
 
     -  .. row 10
 
@@ -143,8 +143,8 @@ describing all planes of that format.
        -  ``quantization``
 
        -  This information supplements the ``colorspace`` and must be set by
-          the driver for capture streams and by the application for output
-          streams, see :ref:`colorspaces`.
+	  the driver for capture streams and by the application for output
+	  streams, see :ref:`colorspaces`.
 
     -  .. row 11
 
@@ -153,8 +153,8 @@ describing all planes of that format.
        -  ``xfer_func``
 
        -  This information supplements the ``colorspace`` and must be set by
-          the driver for capture streams and by the application for output
-          streams, see :ref:`colorspaces`.
+	  the driver for capture streams and by the application for output
+	  streams, see :ref:`colorspaces`.
 
     -  .. row 12
 
@@ -163,4 +163,4 @@ describing all planes of that format.
        -  ``reserved[7]``
 
        -  Reserved for future extensions. Should be zeroed by drivers and
-          applications.
+	  applications.

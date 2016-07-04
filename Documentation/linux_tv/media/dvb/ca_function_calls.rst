@@ -57,22 +57,22 @@ Arguments
 
     -  .. row 3
 
-       -  
+       -
        -  O_RDONLY read-only access
 
     -  .. row 4
 
-       -  
+       -
        -  O_RDWR read/write access
 
     -  .. row 5
 
-       -  
+       -
        -  O_NONBLOCK open in non-blocking mode
 
     -  .. row 6
 
-       -  
+       -
        -  (blocking mode is the default)
 
 

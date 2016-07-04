@@ -158,37 +158,37 @@ partial path like:
 
 .. code-block:: c
 
-        #include <linux/dvb/audio.h>
+	#include <linux/dvb/audio.h>
 
 
 .. code-block:: c
 
-        #include <linux/dvb/ca.h>
+	#include <linux/dvb/ca.h>
 
 
 .. code-block:: c
 
-        #include <linux/dvb/dmx.h>
+	#include <linux/dvb/dmx.h>
 
 
 .. code-block:: c
 
-        #include <linux/dvb/frontend.h>
+	#include <linux/dvb/frontend.h>
 
 
 .. code-block:: c
 
-        #include <linux/dvb/net.h>
+	#include <linux/dvb/net.h>
 
 
 .. code-block:: c
 
-        #include <linux/dvb/osd.h>
+	#include <linux/dvb/osd.h>
 
 
 .. code-block:: c
 
-        #include <linux/dvb/video.h>
+	#include <linux/dvb/video.h>
 
 To enable applications to support different API version, an additional
 include file ``linux/dvb/version.h`` exists, which defines the constant

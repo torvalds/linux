@@ -34,52 +34,52 @@ file: audio.h
     #include <linux/types.h>
 
     typedef enum {
-            AUDIO_SOURCE_DEMUX, /* Select the demux as the main source */
-            AUDIO_SOURCE_MEMORY /* Select internal memory as the main source */
+	    AUDIO_SOURCE_DEMUX, /* Select the demux as the main source */
+	    AUDIO_SOURCE_MEMORY /* Select internal memory as the main source */
     } audio_stream_source_t;
 
 
     typedef enum {
-            AUDIO_STOPPED,      /* Device is stopped */
-            AUDIO_PLAYING,      /* Device is currently playing */
-            AUDIO_PAUSED        /* Device is paused */
+	    AUDIO_STOPPED,      /* Device is stopped */
+	    AUDIO_PLAYING,      /* Device is currently playing */
+	    AUDIO_PAUSED        /* Device is paused */
     } audio_play_state_t;
 
 
     typedef enum {
-            AUDIO_STEREO,
-            AUDIO_MONO_LEFT,
-            AUDIO_MONO_RIGHT,
-            AUDIO_MONO,
-            AUDIO_STEREO_SWAPPED
+	    AUDIO_STEREO,
+	    AUDIO_MONO_LEFT,
+	    AUDIO_MONO_RIGHT,
+	    AUDIO_MONO,
+	    AUDIO_STEREO_SWAPPED
     } audio_channel_select_t;
 
 
     typedef struct audio_mixer {
-            unsigned int volume_left;
-            unsigned int volume_right;
+	    unsigned int volume_left;
+	    unsigned int volume_right;
       // what else do we need? bass, pass-through, ...
     } audio_mixer_t;
 
 
     typedef struct audio_status {
-            int                    AV_sync_state;  /* sync audio and video? */
-            int                    mute_state;     /* audio is muted */
-            audio_play_state_t     play_state;     /* current playback state */
-            audio_stream_source_t  stream_source;  /* current stream source */
-            audio_channel_select_t channel_select; /* currently selected channel */
-            int                    bypass_mode;    /* pass on audio data to */
-            audio_mixer_t          mixer_state;    /* current mixer state */
+	    int                    AV_sync_state;  /* sync audio and video? */
+	    int                    mute_state;     /* audio is muted */
+	    audio_play_state_t     play_state;     /* current playback state */
+	    audio_stream_source_t  stream_source;  /* current stream source */
+	    audio_channel_select_t channel_select; /* currently selected channel */
+	    int                    bypass_mode;    /* pass on audio data to */
+	    audio_mixer_t          mixer_state;    /* current mixer state */
     } audio_status_t;                              /* separate decoder hardware */
 
 
     typedef
     struct audio_karaoke {  /* if Vocal1 or Vocal2 are non-zero, they get mixed  */
-            int vocal1;    /* into left and right t at 70% each */
-            int vocal2;    /* if both, Vocal1 and Vocal2 are non-zero, Vocal1 gets*/
-            int melody;    /* mixed into the left channel and */
-                           /* Vocal2 into the right channel at 100% each. */
-                           /* if Melody is non-zero, the melody channel gets mixed*/
+	    int vocal1;    /* into left and right t at 70% each */
+	    int vocal2;    /* if both, Vocal1 and Vocal2 are non-zero, Vocal1 gets*/
+	    int melody;    /* mixed into the left channel and */
+			   /* Vocal2 into the right channel at 100% each. */
+			   /* if Melody is non-zero, the melody channel gets mixed*/
     } audio_karaoke_t;     /* into left and right  */
 
 

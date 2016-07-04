@@ -24,13 +24,13 @@ the palette, this must be done with ioctls of the Linux framebuffer API.
 
        -  Code
 
-       -  
+       -
        -  :cspan:`7` Byte 0
 
     -  .. row 2
 
-       -  
-       -  
+       -
+       -
        -  Bit
 
        -  7
@@ -55,7 +55,7 @@ the palette, this must be done with ioctls of the Linux framebuffer API.
 
        -  'PAL8'
 
-       -  
+       -
        -  i\ :sub:`7`
 
        -  i\ :sub:`6`

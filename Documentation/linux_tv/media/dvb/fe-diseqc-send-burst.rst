@@ -69,7 +69,7 @@ enum fe_sec_mini_cmd
 
        -  .. _`SEC-MINI-A`:
 
-          ``SEC_MINI_A``
+	  ``SEC_MINI_A``
 
        -  Sends a mini-DiSEqC 22kHz '0' Tone Burst to select satellite-A
 
@@ -77,6 +77,6 @@ enum fe_sec_mini_cmd
 
        -  .. _`SEC-MINI-B`:
 
-          ``SEC_MINI_B``
+	  ``SEC_MINI_B``
 
        -  Sends a mini-DiSEqC 22kHz '1' Data Burst to select satellite-B

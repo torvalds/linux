@@ -74,8 +74,8 @@ error code is returned and no seek takes place.
        -  ``tuner``
 
        -  The tuner index number. This is the same value as in the struct
-          :ref:`v4l2_input <v4l2-input>` ``tuner`` field and the struct
-          :ref:`v4l2_tuner <v4l2-tuner>` ``index`` field.
+	  :ref:`v4l2_input <v4l2-input>` ``tuner`` field and the struct
+	  :ref:`v4l2_tuner <v4l2-tuner>` ``index`` field.
 
     -  .. row 2
 
@@ -84,8 +84,8 @@ error code is returned and no seek takes place.
        -  ``type``
 
        -  The tuner type. This is the same value as in the struct
-          :ref:`v4l2_tuner <v4l2-tuner>` ``type`` field. See
-          :ref:`v4l2-tuner-type`
+	  :ref:`v4l2_tuner <v4l2-tuner>` ``type`` field. See
+	  :ref:`v4l2-tuner-type`
 
     -  .. row 3
 
@@ -94,7 +94,7 @@ error code is returned and no seek takes place.
        -  ``seek_upward``
 
        -  If non-zero, seek upward from the current frequency, else seek
-          downward.
+	  downward.
 
     -  .. row 4
 
@@ -103,8 +103,8 @@ error code is returned and no seek takes place.
        -  ``wrap_around``
 
        -  If non-zero, wrap around when at the end of the frequency range,
-          else stop seeking. The struct :ref:`v4l2_tuner <v4l2-tuner>`
-          ``capability`` field will tell you what the hardware supports.
+	  else stop seeking. The struct :ref:`v4l2_tuner <v4l2-tuner>`
+	  ``capability`` field will tell you what the hardware supports.
 
     -  .. row 5
 
@@ -113,8 +113,8 @@ error code is returned and no seek takes place.
        -  ``spacing``
 
        -  If non-zero, defines the hardware seek resolution in Hz. The
-          driver selects the nearest value that is supported by the device.
-          If spacing is zero a reasonable default value is used.
+	  driver selects the nearest value that is supported by the device.
+	  If spacing is zero a reasonable default value is used.
 
     -  .. row 6
 
@@ -123,12 +123,12 @@ error code is returned and no seek takes place.
        -  ``rangelow``
 
        -  If non-zero, the lowest tunable frequency of the band to search in
-          units of 62.5 kHz, or if the struct
-          :ref:`v4l2_tuner <v4l2-tuner>` ``capability`` field has the
-          ``V4L2_TUNER_CAP_LOW`` flag set, in units of 62.5 Hz or if the
-          struct :ref:`v4l2_tuner <v4l2-tuner>` ``capability`` field has
-          the ``V4L2_TUNER_CAP_1HZ`` flag set, in units of 1 Hz. If
-          ``rangelow`` is zero a reasonable default value is used.
+	  units of 62.5 kHz, or if the struct
+	  :ref:`v4l2_tuner <v4l2-tuner>` ``capability`` field has the
+	  ``V4L2_TUNER_CAP_LOW`` flag set, in units of 62.5 Hz or if the
+	  struct :ref:`v4l2_tuner <v4l2-tuner>` ``capability`` field has
+	  the ``V4L2_TUNER_CAP_1HZ`` flag set, in units of 1 Hz. If
+	  ``rangelow`` is zero a reasonable default value is used.
 
     -  .. row 7
 
@@ -137,12 +137,12 @@ error code is returned and no seek takes place.
        -  ``rangehigh``
 
        -  If non-zero, the highest tunable frequency of the band to search
-          in units of 62.5 kHz, or if the struct
-          :ref:`v4l2_tuner <v4l2-tuner>` ``capability`` field has the
-          ``V4L2_TUNER_CAP_LOW`` flag set, in units of 62.5 Hz or if the
-          struct :ref:`v4l2_tuner <v4l2-tuner>` ``capability`` field has
-          the ``V4L2_TUNER_CAP_1HZ`` flag set, in units of 1 Hz. If
-          ``rangehigh`` is zero a reasonable default value is used.
+	  in units of 62.5 kHz, or if the struct
+	  :ref:`v4l2_tuner <v4l2-tuner>` ``capability`` field has the
+	  ``V4L2_TUNER_CAP_LOW`` flag set, in units of 62.5 Hz or if the
+	  struct :ref:`v4l2_tuner <v4l2-tuner>` ``capability`` field has
+	  the ``V4L2_TUNER_CAP_1HZ`` flag set, in units of 1 Hz. If
+	  ``rangehigh`` is zero a reasonable default value is used.
 
     -  .. row 8
 
@@ -151,7 +151,7 @@ error code is returned and no seek takes place.
        -  ``reserved``\ [5]
 
        -  Reserved for future extensions. Applications must set the array to
-          zero.
+	  zero.
 
 
 

@@ -77,8 +77,8 @@ sound card are not audio outputs in this sense.
        -  ``name``\ [32]
 
        -  Name of the audio output, a NUL-terminated ASCII string, for
-          example: "Line Out". This information is intended for the user,
-          preferably the connector label on the device itself.
+	  example: "Line Out". This information is intended for the user,
+	  preferably the connector label on the device itself.
 
     -  .. row 3
 
@@ -87,7 +87,7 @@ sound card are not audio outputs in this sense.
        -  ``capability``
 
        -  Audio capability flags, none defined yet. Drivers must set this
-          field to zero.
+	  field to zero.
 
     -  .. row 4
 
@@ -96,7 +96,7 @@ sound card are not audio outputs in this sense.
        -  ``mode``
 
        -  Audio mode, none defined yet. Drivers and applications (on
-          ``VIDIOC_S_AUDOUT``) must set this field to zero.
+	  ``VIDIOC_S_AUDOUT``) must set this field to zero.
 
     -  .. row 5
 
@@ -105,7 +105,7 @@ sound card are not audio outputs in this sense.
        -  ``reserved``\ [2]
 
        -  Reserved for future extensions. Drivers and applications must set
-          the array to zero.
+	  the array to zero.
 
 
 

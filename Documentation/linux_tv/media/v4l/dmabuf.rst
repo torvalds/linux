@@ -47,12 +47,12 @@ driver must be switched into DMABUF I/O mode by calling the
     reqbuf.count = 1;
 
     if (ioctl(fd, VIDIOC_REQBUFS, &reqbuf) == -1) {
-        if (errno == EINVAL)
-            printf("Video capturing or DMABUF streaming is not supported\\n");
-        else
-            perror("VIDIOC_REQBUFS");
+	if (errno == EINVAL)
+	    printf("Video capturing or DMABUF streaming is not supported\\n");
+	else
+	    perror("VIDIOC_REQBUFS");
 
-        exit(EXIT_FAILURE);
+	exit(EXIT_FAILURE);
     }
 
 The buffer (plane) file descriptor is passed on the fly with the
@@ -66,20 +66,20 @@ a different DMABUF descriptor at each ``VIDIOC_QBUF`` call.
 
     int buffer_queue(int v4lfd, int index, int dmafd)
     {
-        struct v4l2_buffer buf;
+	struct v4l2_buffer buf;
 
-        memset(&buf, 0, sizeof buf);
-        buf.type = V4L2_BUF_TYPE_VIDEO_CAPTURE;
-        buf.memory = V4L2_MEMORY_DMABUF;
-        buf.index = index;
-        buf.m.fd = dmafd;
+	memset(&buf, 0, sizeof buf);
+	buf.type = V4L2_BUF_TYPE_VIDEO_CAPTURE;
+	buf.memory = V4L2_MEMORY_DMABUF;
+	buf.index = index;
+	buf.m.fd = dmafd;
 
-        if (ioctl(v4lfd, VIDIOC_QBUF, &buf) == -1) {
-            perror("VIDIOC_QBUF");
-            return -1;
-        }
+	if (ioctl(v4lfd, VIDIOC_QBUF, &buf) == -1) {
+	    perror("VIDIOC_QBUF");
+	    return -1;
+	}
 
-        return 0;
+	return 0;
     }
 
 
@@ -87,28 +87,28 @@ a different DMABUF descriptor at each ``VIDIOC_QBUF`` call.
 
     int buffer_queue_mp(int v4lfd, int index, int dmafd[], int n_planes)
     {
-        struct v4l2_buffer buf;
-        struct v4l2_plane planes[VIDEO_MAX_PLANES];
-        int i;
+	struct v4l2_buffer buf;
+	struct v4l2_plane planes[VIDEO_MAX_PLANES];
+	int i;
 
-        memset(&buf, 0, sizeof buf);
-        buf.type = V4L2_BUF_TYPE_VIDEO_CAPTURE_MPLANE;
-        buf.memory = V4L2_MEMORY_DMABUF;
-        buf.index = index;
-        buf.m.planes = planes;
-        buf.length = n_planes;
+	memset(&buf, 0, sizeof buf);
+	buf.type = V4L2_BUF_TYPE_VIDEO_CAPTURE_MPLANE;
+	buf.memory = V4L2_MEMORY_DMABUF;
+	buf.index = index;
+	buf.m.planes = planes;
+	buf.length = n_planes;
 
-        memset(&planes, 0, sizeof planes);
+	memset(&planes, 0, sizeof planes);
 
-        for (i = 0; i < n_planes; ++i)
-            buf.m.planes[i].m.fd = dmafd[i];
+	for (i = 0; i < n_planes; ++i)
+	    buf.m.planes[i].m.fd = dmafd[i];
 
-        if (ioctl(v4lfd, VIDIOC_QBUF, &buf) == -1) {
-            perror("VIDIOC_QBUF");
-            return -1;
-        }
+	if (ioctl(v4lfd, VIDIOC_QBUF, &buf) == -1) {
+	    perror("VIDIOC_QBUF");
+	    return -1;
+	}
 
-        return 0;
+	return 0;
     }
 
 Captured or displayed buffers are dequeued with the

@@ -23,8 +23,8 @@ from an internal (demux) or external (user write) source.
 .. code-block:: c
 
     typedef enum {
-        AUDIO_SOURCE_DEMUX,
-        AUDIO_SOURCE_MEMORY
+	AUDIO_SOURCE_DEMUX,
+	AUDIO_SOURCE_MEMORY
     } audio_stream_source_t;
 
 AUDIO_SOURCE_DEMUX selects the demultiplexer (fed either by the
@@ -45,9 +45,9 @@ representing the state of audio playback.
 .. code-block:: c
 
     typedef enum {
-        AUDIO_STOPPED,
-        AUDIO_PLAYING,
-        AUDIO_PAUSED
+	AUDIO_STOPPED,
+	AUDIO_PLAYING,
+	AUDIO_PAUSED
     } audio_play_state_t;
 
 
@@ -63,11 +63,11 @@ the following values.
 .. code-block:: c
 
     typedef enum {
-        AUDIO_STEREO,
-        AUDIO_MONO_LEFT,
-        AUDIO_MONO_RIGHT,
-        AUDIO_MONO,
-        AUDIO_STEREO_SWAPPED
+	AUDIO_STEREO,
+	AUDIO_MONO_LEFT,
+	AUDIO_MONO_RIGHT,
+	AUDIO_MONO,
+	AUDIO_STEREO_SWAPPED
     } audio_channel_select_t;
 
 
@@ -83,13 +83,13 @@ about various states of the playback operation.
 .. code-block:: c
 
     typedef struct audio_status {
-        boolean AV_sync_state;
-        boolean mute_state;
-        audio_play_state_t play_state;
-        audio_stream_source_t stream_source;
-        audio_channel_select_t channel_select;
-        boolean bypass_mode;
-        audio_mixer_t mixer_state;
+	boolean AV_sync_state;
+	boolean mute_state;
+	audio_play_state_t play_state;
+	audio_stream_source_t stream_source;
+	audio_channel_select_t channel_select;
+	boolean bypass_mode;
+	audio_mixer_t mixer_state;
     } audio_status_t;
 
 
@@ -105,8 +105,8 @@ audio volume.
 .. code-block:: c
 
     typedef struct audio_mixer {
-        unsigned int volume_left;
-        unsigned int volume_right;
+	unsigned int volume_left;
+	unsigned int volume_right;
     } audio_mixer_t;
 
 
@@ -144,9 +144,9 @@ The ioctl AUDIO_SET_KARAOKE uses the following format:
 
     typedef
     struct audio_karaoke {
-        int vocal1;
-        int vocal2;
-        int melody;
+	int vocal1;
+	int vocal2;
+	int melody;
     } audio_karaoke_t;
 
 If Vocal1 or Vocal2 are non-zero, they get mixed into left and right t

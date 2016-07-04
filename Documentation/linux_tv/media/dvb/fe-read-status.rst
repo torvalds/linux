@@ -77,7 +77,7 @@ state changes of the frontend hardware. It is produced using the enum
 
        -  .. _`FE-HAS-SIGNAL`:
 
-          ``FE_HAS_SIGNAL``
+	  ``FE_HAS_SIGNAL``
 
        -  The frontend has found something above the noise level
 
@@ -85,7 +85,7 @@ state changes of the frontend hardware. It is produced using the enum
 
        -  .. _`FE-HAS-CARRIER`:
 
-          ``FE_HAS_CARRIER``
+	  ``FE_HAS_CARRIER``
 
        -  The frontend has found a DVB signal
 
@@ -93,16 +93,16 @@ state changes of the frontend hardware. It is produced using the enum
 
        -  .. _`FE-HAS-VITERBI`:
 
-          ``FE_HAS_VITERBI``
+	  ``FE_HAS_VITERBI``
 
        -  The frontend FEC inner coding (Viterbi, LDPC or other inner code)
-          is stable
+	  is stable
 
     -  .. row 5
 
        -  .. _`FE-HAS-SYNC`:
 
-          ``FE_HAS_SYNC``
+	  ``FE_HAS_SYNC``
 
        -  Synchronization bytes was found
 
@@ -110,7 +110,7 @@ state changes of the frontend hardware. It is produced using the enum
 
        -  .. _`FE-HAS-LOCK`:
 
-          ``FE_HAS_LOCK``
+	  ``FE_HAS_LOCK``
 
        -  The DVB were locked and everything is working
 
@@ -118,7 +118,7 @@ state changes of the frontend hardware. It is produced using the enum
 
        -  .. _`FE-TIMEDOUT`:
 
-          ``FE_TIMEDOUT``
+	  ``FE_TIMEDOUT``
 
        -  no lock within the last about 2 seconds
 
@@ -126,7 +126,7 @@ state changes of the frontend hardware. It is produced using the enum
 
        -  .. _`FE-REINIT`:
 
-          ``FE_REINIT``
+	  ``FE_REINIT``
 
        -  The frontend was reinitialized, application is recommended to
-          reset DiSEqC, tone and parameters
+	  reset DiSEqC, tone and parameters

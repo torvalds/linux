@@ -100,23 +100,23 @@ instructions.
 
     -  .. row 3
 
-       -  
+       -
        -  __u32
 
        -  ``addr``
 
        -  Match a chip by this number, interpreted according to the ``type``
-          field.
+	  field.
 
     -  .. row 4
 
-       -  
+       -
        -  char
 
        -  ``name[32]``
 
        -  Match a chip by this name, interpreted according to the ``type``
-          field. Currently unused.
+	  field. Currently unused.
 
 
 
@@ -151,9 +151,9 @@ instructions.
        -  ``flags``
 
        -  Set by the driver. If ``V4L2_CHIP_FL_READABLE`` is set, then the
-          driver supports reading registers from the device. If
-          ``V4L2_CHIP_FL_WRITABLE`` is set, then it supports writing
-          registers.
+	  driver supports reading registers from the device. If
+	  ``V4L2_CHIP_FL_WRITABLE`` is set, then it supports writing
+	  registers.
 
     -  .. row 4
 
@@ -180,7 +180,7 @@ instructions.
        -  0
 
        -  Match the nth chip on the card, zero for the bridge chip. Does not
-          match sub-devices.
+	  match sub-devices.
 
     -  .. row 2
 

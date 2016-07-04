@@ -59,33 +59,33 @@ The code that would do the above is:
     #include <linux/dvb/frontend.h>
 
     static struct dtv_property props[] = {
-        { .cmd = DTV_DELIVERY_SYSTEM, .u.data = SYS_DVBC_ANNEX_A },
-        { .cmd = DTV_FREQUENCY,       .u.data = 651000000 },
-        { .cmd = DTV_MODULATION,      .u.data = QAM_256 },
-        { .cmd = DTV_INVERSION,       .u.data = INVERSION_AUTO },
-        { .cmd = DTV_SYMBOL_RATE,     .u.data = 5217000 },
-        { .cmd = DTV_INNER_FEC,       .u.data = FEC_3_4 },
-        { .cmd = DTV_TUNE }
+	{ .cmd = DTV_DELIVERY_SYSTEM, .u.data = SYS_DVBC_ANNEX_A },
+	{ .cmd = DTV_FREQUENCY,       .u.data = 651000000 },
+	{ .cmd = DTV_MODULATION,      .u.data = QAM_256 },
+	{ .cmd = DTV_INVERSION,       .u.data = INVERSION_AUTO },
+	{ .cmd = DTV_SYMBOL_RATE,     .u.data = 5217000 },
+	{ .cmd = DTV_INNER_FEC,       .u.data = FEC_3_4 },
+	{ .cmd = DTV_TUNE }
     };
 
     static struct dtv_properties dtv_prop = {
-        .num = 6, .props = props
+	.num = 6, .props = props
     };
 
     int main(void)
     {
-        int fd = open("/dev/dvb/adapter0/frontend0", O_RDWR);
+	int fd = open("/dev/dvb/adapter0/frontend0", O_RDWR);
 
-        if (!fd) {
-            perror ("open");
-            return -1;
-        }
-        if (ioctl(fd, FE_SET_PROPERTY, &dtv_prop) == -1) {
-            perror("ioctl");
-            return -1;
-        }
-        printf("Frontend set\\n");
-        return 0;
+	if (!fd) {
+	    perror ("open");
+	    return -1;
+	}
+	if (ioctl(fd, FE_SET_PROPERTY, &dtv_prop) == -1) {
+	    perror("ioctl");
+	    return -1;
+	}
+	printf("Frontend set\\n");
+	return 0;
     }
 
 NOTE: While it is possible to directly call the Kernel code like the

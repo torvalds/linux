@@ -94,12 +94,12 @@ than the number requested.
        -  ``count``
 
        -  The number of buffers requested or granted. If count == 0, then
-          :ref:`VIDIOC_CREATE_BUFS` will set ``index`` to the current number of
-          created buffers, and it will check the validity of ``memory`` and
-          ``format.type``. If those are invalid -1 is returned and errno is
-          set to ``EINVAL`` error code, otherwise :ref:`VIDIOC_CREATE_BUFS` returns
-          0. It will never set errno to ``EBUSY`` error code in this particular
-          case.
+	  :ref:`VIDIOC_CREATE_BUFS` will set ``index`` to the current number of
+	  created buffers, and it will check the validity of ``memory`` and
+	  ``format.type``. If those are invalid -1 is returned and errno is
+	  set to ``EINVAL`` error code, otherwise :ref:`VIDIOC_CREATE_BUFS` returns
+	  0. It will never set errno to ``EBUSY`` error code in this particular
+	  case.
 
     -  .. row 3
 
@@ -108,8 +108,8 @@ than the number requested.
        -  ``memory``
 
        -  Applications set this field to ``V4L2_MEMORY_MMAP``,
-          ``V4L2_MEMORY_DMABUF`` or ``V4L2_MEMORY_USERPTR``. See
-          :ref:`v4l2-memory`
+	  ``V4L2_MEMORY_DMABUF`` or ``V4L2_MEMORY_USERPTR``. See
+	  :ref:`v4l2-memory`
 
     -  .. row 4
 
@@ -126,7 +126,7 @@ than the number requested.
        -  ``reserved``\ [8]
 
        -  A place holder for future extensions. Drivers and applications
-          must set the array to zero.
+	  must set the array to zero.
 
 
 

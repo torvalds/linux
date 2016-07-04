@@ -53,7 +53,7 @@ using driver module options. The major device number remains 81.
        -  Video capture and overlay
 
        -  ``/dev/video`` and ``/dev/bttv0``\  [1]_, ``/dev/video0`` to
-          ``/dev/video63``
+	  ``/dev/video63``
 
        -  0-63
 
@@ -107,7 +107,7 @@ introduction.
        -  struct :c:type:`struct video_capability` ``type``
 
        -  struct :ref:`v4l2_capability <v4l2-capability>`
-          ``capabilities`` flags
+	  ``capabilities`` flags
 
        -  Purpose
 
@@ -148,31 +148,31 @@ introduction.
        -  ``VID_TYPE_CHROMAKEY``
 
        -  ``V4L2_FBUF_CAP_CHROMAKEY`` in field ``capability`` of struct
-          :ref:`v4l2_framebuffer <v4l2-framebuffer>`
+	  :ref:`v4l2_framebuffer <v4l2-framebuffer>`
 
        -  Whether chromakey overlay is supported. For more information on
-          overlay see :ref:`overlay`.
+	  overlay see :ref:`overlay`.
 
     -  .. row 7
 
        -  ``VID_TYPE_CLIPPING``
 
        -  ``V4L2_FBUF_CAP_LIST_CLIPPING`` and
-          ``V4L2_FBUF_CAP_BITMAP_CLIPPING`` in field ``capability`` of
-          struct :ref:`v4l2_framebuffer <v4l2-framebuffer>`
+	  ``V4L2_FBUF_CAP_BITMAP_CLIPPING`` in field ``capability`` of
+	  struct :ref:`v4l2_framebuffer <v4l2-framebuffer>`
 
        -  Whether clipping the overlaid image is supported, see
-          :ref:`overlay`.
+	  :ref:`overlay`.
 
     -  .. row 8
 
        -  ``VID_TYPE_FRAMERAM``
 
        -  ``V4L2_FBUF_CAP_EXTERNOVERLAY`` *not set* in field ``capability``
-          of struct :ref:`v4l2_framebuffer <v4l2-framebuffer>`
+	  of struct :ref:`v4l2_framebuffer <v4l2-framebuffer>`
 
        -  Whether overlay overwrites frame buffer memory, see
-          :ref:`overlay`.
+	  :ref:`overlay`.
 
     -  .. row 9
 
@@ -181,11 +181,11 @@ introduction.
        -  ``-``
 
        -  This flag indicates if the hardware can scale images. The V4L2 API
-          implies the scale factor by setting the cropping dimensions and
-          image size with the :ref:`VIDIOC_S_CROP <VIDIOC_G_CROP>` and
-          :ref:`VIDIOC_S_FMT <VIDIOC_G_FMT>` ioctl, respectively. The
-          driver returns the closest sizes possible. For more information on
-          cropping and scaling see :ref:`crop`.
+	  implies the scale factor by setting the cropping dimensions and
+	  image size with the :ref:`VIDIOC_S_CROP <VIDIOC_G_CROP>` and
+	  :ref:`VIDIOC_S_FMT <VIDIOC_G_FMT>` ioctl, respectively. The
+	  driver returns the closest sizes possible. For more information on
+	  cropping and scaling see :ref:`crop`.
 
     -  .. row 10
 
@@ -194,9 +194,9 @@ introduction.
        -  ``-``
 
        -  Applications can enumerate the supported image formats with the
-          :ref:`VIDIOC_ENUM_FMT` ioctl to determine if
-          the device supports grey scale capturing only. For more
-          information on image formats see :ref:`pixfmt`.
+	  :ref:`VIDIOC_ENUM_FMT` ioctl to determine if
+	  the device supports grey scale capturing only. For more
+	  information on image formats see :ref:`pixfmt`.
 
     -  .. row 11
 
@@ -205,10 +205,10 @@ introduction.
        -  ``-``
 
        -  Applications can call the :ref:`VIDIOC_G_CROP <VIDIOC_G_CROP>`
-          ioctl to determine if the device supports capturing a subsection
-          of the full picture ("cropping" in V4L2). If not, the ioctl
-          returns the ``EINVAL`` error code. For more information on cropping
-          and scaling see :ref:`crop`.
+	  ioctl to determine if the device supports capturing a subsection
+	  of the full picture ("cropping" in V4L2). If not, the ioctl
+	  returns the ``EINVAL`` error code. For more information on cropping
+	  and scaling see :ref:`crop`.
 
     -  .. row 12
 
@@ -217,8 +217,8 @@ introduction.
        -  ``-``
 
        -  Applications can enumerate the supported image formats with the
-          :ref:`VIDIOC_ENUM_FMT` ioctl to determine if
-          the device supports MPEG streams.
+	  :ref:`VIDIOC_ENUM_FMT` ioctl to determine if
+	  the device supports MPEG streams.
 
     -  .. row 13
 
@@ -759,59 +759,59 @@ differences.
 
     -  .. row 2
 
-       -  
+       -
        -  The image format must be selected before buffers are allocated,
-          with the :ref:`VIDIOC_S_FMT <VIDIOC_G_FMT>` ioctl. When no
-          format is selected the driver may use the last, possibly by
-          another application requested format.
+	  with the :ref:`VIDIOC_S_FMT <VIDIOC_G_FMT>` ioctl. When no
+	  format is selected the driver may use the last, possibly by
+	  another application requested format.
 
     -  .. row 3
 
        -  Applications cannot change the number of buffers. The it is built
-          into the driver, unless it has a module option to change the
-          number when the driver module is loaded.
+	  into the driver, unless it has a module option to change the
+	  number when the driver module is loaded.
 
        -  The :ref:`VIDIOC_REQBUFS` ioctl allocates the
-          desired number of buffers, this is a required step in the
-          initialization sequence.
+	  desired number of buffers, this is a required step in the
+	  initialization sequence.
 
     -  .. row 4
 
        -  Drivers map all buffers as one contiguous range of memory. The
-          ``VIDIOCGMBUF`` ioctl is available to query the number of buffers,
-          the offset of each buffer from the start of the virtual file, and
-          the overall amount of memory used, which can be used as arguments
-          for the :ref:`mmap() <func-mmap>` function.
+	  ``VIDIOCGMBUF`` ioctl is available to query the number of buffers,
+	  the offset of each buffer from the start of the virtual file, and
+	  the overall amount of memory used, which can be used as arguments
+	  for the :ref:`mmap() <func-mmap>` function.
 
        -  Buffers are individually mapped. The offset and size of each
-          buffer can be determined with the
-          :ref:`VIDIOC_QUERYBUF` ioctl.
+	  buffer can be determined with the
+	  :ref:`VIDIOC_QUERYBUF` ioctl.
 
     -  .. row 5
 
        -  The ``VIDIOCMCAPTURE`` ioctl prepares a buffer for capturing. It
-          also determines the image format for this buffer. The ioctl
-          returns immediately, eventually with an ``EAGAIN`` error code if no
-          video signal had been detected. When the driver supports more than
-          one buffer applications can call the ioctl multiple times and thus
-          have multiple outstanding capture requests.
+	  also determines the image format for this buffer. The ioctl
+	  returns immediately, eventually with an ``EAGAIN`` error code if no
+	  video signal had been detected. When the driver supports more than
+	  one buffer applications can call the ioctl multiple times and thus
+	  have multiple outstanding capture requests.
 
-          The ``VIDIOCSYNC`` ioctl suspends execution until a particular
-          buffer has been filled.
+	  The ``VIDIOCSYNC`` ioctl suspends execution until a particular
+	  buffer has been filled.
 
        -  Drivers maintain an incoming and outgoing queue.
-          :ref:`VIDIOC_QBUF` enqueues any empty buffer into
-          the incoming queue. Filled buffers are dequeued from the outgoing
-          queue with the :ref:`VIDIOC_DQBUF <VIDIOC_QBUF>` ioctl. To wait
-          until filled buffers become available this function,
-          :ref:`select() <func-select>` or :ref:`poll() <func-poll>` can
-          be used. The :ref:`VIDIOC_STREAMON` ioctl
-          must be called once after enqueuing one or more buffers to start
-          capturing. Its counterpart
-          :ref:`VIDIOC_STREAMOFF <VIDIOC_STREAMON>` stops capturing and
-          dequeues all buffers from both queues. Applications can query the
-          signal status, if known, with the
-          :ref:`VIDIOC_ENUMINPUT` ioctl.
+	  :ref:`VIDIOC_QBUF` enqueues any empty buffer into
+	  the incoming queue. Filled buffers are dequeued from the outgoing
+	  queue with the :ref:`VIDIOC_DQBUF <VIDIOC_QBUF>` ioctl. To wait
+	  until filled buffers become available this function,
+	  :ref:`select() <func-select>` or :ref:`poll() <func-poll>` can
+	  be used. The :ref:`VIDIOC_STREAMON` ioctl
+	  must be called once after enqueuing one or more buffers to start
+	  capturing. Its counterpart
+	  :ref:`VIDIOC_STREAMOFF <VIDIOC_STREAMON>` stops capturing and
+	  dequeues all buffers from both queues. Applications can query the
+	  signal status, if known, with the
+	  :ref:`VIDIOC_ENUMINPUT` ioctl.
 
 
 For a more in-depth discussion of memory mapping and examples, see
@@ -845,7 +845,7 @@ with the following parameters:
        -  sampling_rate
 
        -  28636363 Hz NTSC (or any other 525-line standard); 35468950 Hz PAL
-          and SECAM (625-line standards)
+	  and SECAM (625-line standards)
 
     -  .. row 3
 
@@ -864,7 +864,7 @@ with the following parameters:
        -  sample_format
 
        -  V4L2_PIX_FMT_GREY. The last four bytes (a machine endianness
-          integer) contain a frame counter.
+	  integer) contain a frame counter.
 
     -  .. row 6
 

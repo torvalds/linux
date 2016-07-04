@@ -64,10 +64,10 @@ please make a proposal on the linux-media mailing list.
        -  'HM12'
 
        -  YUV 4:2:0 format used by the IVTV driver,
-          `http://www.ivtvdriver.org/ <http://www.ivtvdriver.org/>`__
+	  `http://www.ivtvdriver.org/ <http://www.ivtvdriver.org/>`__
 
-          The format is documented in the kernel sources in the file
-          ``Documentation/video4linux/cx2341x/README.hm12``
+	  The format is documented in the kernel sources in the file
+	  ``Documentation/video4linux/cx2341x/README.hm12``
 
     -  .. _`V4L2-PIX-FMT-CPIA1`:
 
@@ -84,7 +84,7 @@ please make a proposal on the linux-media mailing list.
        -  'JPGL'
 
        -  JPEG-Light format (Pegasus Lossless JPEG) used in Divio webcams NW
-          80x.
+	  80x.
 
     -  .. _`V4L2-PIX-FMT-SPCA501`:
 
@@ -245,7 +245,7 @@ please make a proposal on the linux-media mailing list.
        -  'WNVA'
 
        -  Used by the Winnov Videum driver,
-          `http://www.thedirks.org/winnov/ <http://www.thedirks.org/winnov/>`__
+	  `http://www.thedirks.org/winnov/ <http://www.thedirks.org/winnov/>`__
 
     -  .. _`V4L2-PIX-FMT-TM6000`:
 
@@ -263,7 +263,7 @@ please make a proposal on the linux-media mailing list.
 
        -  Used by xirlink CIT, found at IBM webcams.
 
-          Uses one line of Y then 1 line of VYUY
+	  Uses one line of Y then 1 line of VYUY
 
     -  .. _`V4L2-PIX-FMT-KONICA420`:
 
@@ -273,7 +273,7 @@ please make a proposal on the linux-media mailing list.
 
        -  Used by Konica webcams.
 
-          YUV420 planar in blocks of 256 pixels.
+	  YUV420 planar in blocks of 256 pixels.
 
     -  .. _`V4L2-PIX-FMT-YYUV`:
 
@@ -290,7 +290,7 @@ please make a proposal on the linux-media mailing list.
        -  'Y04 '
 
        -  Old 4-bit greyscale format. Only the most significant 4 bits of
-          each byte are used, the other bits are set to 0.
+	  each byte are used, the other bits are set to 0.
 
     -  .. _`V4L2-PIX-FMT-Y6`:
 
@@ -299,7 +299,7 @@ please make a proposal on the linux-media mailing list.
        -  'Y06 '
 
        -  Old 6-bit greyscale format. Only the most significant 6 bits of
-          each byte are used, the other bits are set to 0.
+	  each byte are used, the other bits are set to 0.
 
     -  .. _`V4L2-PIX-FMT-S5C-UYVY-JPG`:
 
@@ -308,34 +308,34 @@ please make a proposal on the linux-media mailing list.
        -  'S5CI'
 
        -  Two-planar format used by Samsung S5C73MX cameras. The first plane
-          contains interleaved JPEG and UYVY image data, followed by meta
-          data in form of an array of offsets to the UYVY data blocks. The
-          actual pointer array follows immediately the interleaved JPEG/UYVY
-          data, the number of entries in this array equals the height of the
-          UYVY image. Each entry is a 4-byte unsigned integer in big endian
-          order and it's an offset to a single pixel line of the UYVY image.
-          The first plane can start either with JPEG or UYVY data chunk. The
-          size of a single UYVY block equals the UYVY image's width
-          multiplied by 2. The size of a JPEG chunk depends on the image and
-          can vary with each line.
+	  contains interleaved JPEG and UYVY image data, followed by meta
+	  data in form of an array of offsets to the UYVY data blocks. The
+	  actual pointer array follows immediately the interleaved JPEG/UYVY
+	  data, the number of entries in this array equals the height of the
+	  UYVY image. Each entry is a 4-byte unsigned integer in big endian
+	  order and it's an offset to a single pixel line of the UYVY image.
+	  The first plane can start either with JPEG or UYVY data chunk. The
+	  size of a single UYVY block equals the UYVY image's width
+	  multiplied by 2. The size of a JPEG chunk depends on the image and
+	  can vary with each line.
 
-          The second plane, at an offset of 4084 bytes, contains a 4-byte
-          offset to the pointer array in the first plane. This offset is
-          followed by a 4-byte value indicating size of the pointer array.
-          All numbers in the second plane are also in big endian order.
-          Remaining data in the second plane is undefined. The information
-          in the second plane allows to easily find location of the pointer
-          array, which can be different for each frame. The size of the
-          pointer array is constant for given UYVY image height.
+	  The second plane, at an offset of 4084 bytes, contains a 4-byte
+	  offset to the pointer array in the first plane. This offset is
+	  followed by a 4-byte value indicating size of the pointer array.
+	  All numbers in the second plane are also in big endian order.
+	  Remaining data in the second plane is undefined. The information
+	  in the second plane allows to easily find location of the pointer
+	  array, which can be different for each frame. The size of the
+	  pointer array is constant for given UYVY image height.
 
-          In order to extract UYVY and JPEG frames an application can
-          initially set a data pointer to the start of first plane and then
-          add an offset from the first entry of the pointers table. Such a
-          pointer indicates start of an UYVY image pixel line. Whole UYVY
-          line can be copied to a separate buffer. These steps should be
-          repeated for each line, i.e. the number of entries in the pointer
-          array. Anything what's in between the UYVY lines is JPEG data and
-          should be concatenated to form the JPEG stream.
+	  In order to extract UYVY and JPEG frames an application can
+	  initially set a data pointer to the start of first plane and then
+	  add an offset from the first entry of the pointers table. Such a
+	  pointer indicates start of an UYVY image pixel line. Whole UYVY
+	  line can be copied to a separate buffer. These steps should be
+	  repeated for each line, i.e. the number of entries in the pointer
+	  array. Anything what's in between the UYVY lines is JPEG data and
+	  should be concatenated to form the JPEG stream.
 
 
 
@@ -354,7 +354,7 @@ please make a proposal on the linux-media mailing list.
        -  0x00000001
 
        -  The color values are premultiplied by the alpha channel value. For
-          example, if a light blue pixel with 50% transparency was described
-          by RGBA values (128, 192, 255, 128), the same pixel described with
-          premultiplied colors would be described by RGBA values (64, 96,
-          128, 128)
+	  example, if a light blue pixel with 50% transparency was described
+	  by RGBA values (128, 192, 255, 128), the same pixel described with
+	  premultiplied colors would be described by RGBA values (64, 96,
+	  128, 128)

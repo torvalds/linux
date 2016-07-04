@@ -58,7 +58,7 @@ with a pointer to this variable.
 
        -  0
 
-       -  
+       -
 
     -  .. row 2
 
@@ -67,9 +67,9 @@ with a pointer to this variable.
        -  1
 
        -  Lowest priority, usually applications running in background, for
-          example monitoring VBI transmissions. A proxy application running
-          in user space will be necessary if multiple applications want to
-          read from a device at this priority.
+	  example monitoring VBI transmissions. A proxy application running
+	  in user space will be necessary if multiple applications want to
+	  read from a device at this priority.
 
     -  .. row 3
 
@@ -77,7 +77,7 @@ with a pointer to this variable.
 
        -  2
 
-       -  
+       -
 
     -  .. row 4
 
@@ -86,10 +86,10 @@ with a pointer to this variable.
        -  2
 
        -  Medium priority, usually applications started and interactively
-          controlled by the user. For example TV viewers, Teletext browsers,
-          or just "panel" applications to change the channel or video
-          controls. This is the default priority unless an application
-          requests another.
+	  controlled by the user. For example TV viewers, Teletext browsers,
+	  or just "panel" applications to change the channel or video
+	  controls. This is the default priority unless an application
+	  requests another.
 
     -  .. row 5
 
@@ -98,8 +98,8 @@ with a pointer to this variable.
        -  3
 
        -  Highest priority. Only one file descriptor can have this priority,
-          it blocks any other fd from changing device properties. Usually
-          applications which must not be interrupted, like video recording.
+	  it blocks any other fd from changing device properties. Usually
+	  applications which must not be interrupted, like video recording.
 
 
 

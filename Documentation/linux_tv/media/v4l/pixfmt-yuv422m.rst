@@ -99,7 +99,7 @@ Each cell is one byte.
 
     -  .. row 5
 
-       -  
+       -
 
     -  .. row 6
 
@@ -135,7 +135,7 @@ Each cell is one byte.
 
     -  .. row 10
 
-       -  
+       -
 
     -  .. row 11
 
@@ -181,15 +181,15 @@ Each cell is one byte.
 
     -  .. row 1
 
-       -  
+       -
        -  0
 
-       -  
+       -
        -  1
 
        -  2
 
-       -  
+       -
        -  3
 
     -  .. row 2

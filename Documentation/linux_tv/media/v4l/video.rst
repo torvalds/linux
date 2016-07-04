@@ -35,16 +35,16 @@ all the output ioctls when the device has one or more outputs.
     int index;
 
     if (-1 == ioctl(fd, VIDIOC_G_INPUT, &index)) {
-        perror("VIDIOC_G_INPUT");
-        exit(EXIT_FAILURE);
+	perror("VIDIOC_G_INPUT");
+	exit(EXIT_FAILURE);
     }
 
     memset(&input, 0, sizeof(input));
     input.index = index;
 
     if (-1 == ioctl(fd, VIDIOC_ENUMINPUT, &input)) {
-        perror("VIDIOC_ENUMINPUT");
-        exit(EXIT_FAILURE);
+	perror("VIDIOC_ENUMINPUT");
+	exit(EXIT_FAILURE);
     }
 
     printf("Current input: %s\\n", input.name);
@@ -58,6 +58,6 @@ all the output ioctls when the device has one or more outputs.
     index = 0;
 
     if (-1 == ioctl(fd, VIDIOC_S_INPUT, &index)) {
-        perror("VIDIOC_S_INPUT");
-        exit(EXIT_FAILURE);
+	perror("VIDIOC_S_INPUT");
+	exit(EXIT_FAILURE);
     }

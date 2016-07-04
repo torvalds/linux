@@ -60,11 +60,11 @@ id's until they get an error.
 
        -  ``id``
 
-       -  
-       -  
+       -
+       -
        -  Entity id, set by the application. When the id is or'ed with
-          ``MEDIA_ENT_ID_FLAG_NEXT``, the driver clears the flag and returns
-          the first entity with a larger id.
+	  ``MEDIA_ENT_ID_FLAG_NEXT``, the driver clears the flag and returns
+	  the first entity with a larger id.
 
     -  .. row 2
 
@@ -72,8 +72,8 @@ id's until they get an error.
 
        -  ``name``\ [32]
 
-       -  
-       -  
+       -
+       -
        -  Entity name as an UTF-8 NULL-terminated string.
 
     -  .. row 3
@@ -82,8 +82,8 @@ id's until they get an error.
 
        -  ``type``
 
-       -  
-       -  
+       -
+       -
        -  Entity type, see :ref:`media-entity-type` for details.
 
     -  .. row 4
@@ -92,8 +92,8 @@ id's until they get an error.
 
        -  ``revision``
 
-       -  
-       -  
+       -
+       -
        -  Entity revision. Always zero (obsolete)
 
     -  .. row 5
@@ -102,8 +102,8 @@ id's until they get an error.
 
        -  ``flags``
 
-       -  
-       -  
+       -
+       -
        -  Entity flags, see :ref:`media-entity-flag` for details.
 
     -  .. row 6
@@ -112,8 +112,8 @@ id's until they get an error.
 
        -  ``group_id``
 
-       -  
-       -  
+       -
+       -
        -  Entity group ID. Always zero (obsolete)
 
     -  .. row 7
@@ -122,8 +122,8 @@ id's until they get an error.
 
        -  ``pads``
 
-       -  
-       -  
+       -
+       -
        -  Number of pads
 
     -  .. row 8
@@ -132,10 +132,10 @@ id's until they get an error.
 
        -  ``links``
 
-       -  
-       -  
+       -
+       -
        -  Total number of outbound links. Inbound links are not counted in
-          this field.
+	  this field.
 
     -  .. row 9
 
@@ -143,18 +143,18 @@ id's until they get an error.
 
     -  .. row 10
 
-       -  
+       -
        -  struct
 
        -  ``dev``
 
-       -  
+       -
        -  Valid for (sub-)devices that create a single device node.
 
     -  .. row 11
 
-       -  
-       -  
+       -
+       -
        -  __u32
 
        -  ``major``
@@ -163,8 +163,8 @@ id's until they get an error.
 
     -  .. row 12
 
-       -  
-       -  
+       -
+       -
        -  __u32
 
        -  ``minor``
@@ -173,13 +173,13 @@ id's until they get an error.
 
     -  .. row 13
 
-       -  
+       -
        -  __u8
 
        -  ``raw``\ [184]
 
-       -  
-       -  
+       -
+       -
 
 
 

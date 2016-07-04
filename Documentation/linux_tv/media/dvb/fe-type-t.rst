@@ -26,13 +26,13 @@ fe_type_t type, defined as:
        -  Description
 
        -  :ref:`DTV_DELIVERY_SYSTEM <DTV-DELIVERY-SYSTEM>` equivalent
-          type
+	  type
 
     -  .. row 2
 
        -  .. _`FE-QPSK`:
 
-          ``FE_QPSK``
+	  ``FE_QPSK``
 
        -  For DVB-S standard
 
@@ -42,7 +42,7 @@ fe_type_t type, defined as:
 
        -  .. _`FE-QAM`:
 
-          ``FE_QAM``
+	  ``FE_QAM``
 
        -  For DVB-C annex A standard
 
@@ -52,7 +52,7 @@ fe_type_t type, defined as:
 
        -  .. _`FE-OFDM`:
 
-          ``FE_OFDM``
+	  ``FE_OFDM``
 
        -  For DVB-T standard
 
@@ -62,10 +62,10 @@ fe_type_t type, defined as:
 
        -  .. _`FE-ATSC`:
 
-          ``FE_ATSC``
+	  ``FE_ATSC``
 
        -  For ATSC standard (terrestrial) or for DVB-C Annex B (cable) used
-          in US.
+	  in US.
 
        -  ``SYS_ATSC`` (terrestrial) or ``SYS_DVBC_ANNEX_B`` (cable)
 

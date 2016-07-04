@@ -149,7 +149,7 @@ Selection targets and flags are documented in
        -  ``type``
 
        -  Type of the buffer (from enum
-          :ref:`v4l2_buf_type <v4l2-buf-type>`).
+	  :ref:`v4l2_buf_type <v4l2-buf-type>`).
 
     -  .. row 2
 
@@ -158,7 +158,7 @@ Selection targets and flags are documented in
        -  ``target``
 
        -  Used to select between
-          :ref:`cropping and composing rectangles <v4l2-selections-common>`.
+	  :ref:`cropping and composing rectangles <v4l2-selections-common>`.
 
     -  .. row 3
 
@@ -167,7 +167,7 @@ Selection targets and flags are documented in
        -  ``flags``
 
        -  Flags controlling the selection rectangle adjustments, refer to
-          :ref:`selection flags <v4l2-selection-flags>`.
+	  :ref:`selection flags <v4l2-selection-flags>`.
 
     -  .. row 4
 
@@ -184,7 +184,7 @@ Selection targets and flags are documented in
        -  ``reserved[9]``
 
        -  Reserved fields for future use. Drivers and applications must zero
-          this array.
+	  this array.
 
 
 

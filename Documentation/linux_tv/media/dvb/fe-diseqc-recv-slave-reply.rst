@@ -65,7 +65,7 @@ appropriately. The generic error codes are described at the
        -  msg_len
 
        -  Length of the DiSEqC message. Valid values are 0 to 4, where 0
-          means no msg
+	  means no msg
 
     -  .. row 3
 
@@ -74,4 +74,4 @@ appropriately. The generic error codes are described at the
        -  timeout
 
        -  Return from ioctl after timeout ms with errorcode when no message
-          was received
+	  was received

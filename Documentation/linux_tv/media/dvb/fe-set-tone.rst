@@ -75,7 +75,7 @@ enum fe_sec_tone_mode
 
        -  .. _`SEC-TONE-ON`:
 
-          ``SEC_TONE_ON``
+	  ``SEC_TONE_ON``
 
        -  Sends a 22kHz tone burst to the antenna
 
@@ -83,7 +83,7 @@ enum fe_sec_tone_mode
 
        -  .. _`SEC-TONE-OFF`:
 
-          ``SEC_TONE_OFF``
+	  ``SEC_TONE_OFF``
 
        -  Don't send a 22kHz tone to the antenna (except if the
-          FE_DISEQC_* ioctls are called)
+	  FE_DISEQC_* ioctls are called)

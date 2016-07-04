@@ -54,14 +54,14 @@ specification the ioctl returns an ``EINVAL`` error code.
        -  ``driver``\ [16]
 
        -  Name of the driver, a unique NUL-terminated ASCII string. For
-          example: "bttv". Driver specific applications can use this
-          information to verify the driver identity. It is also useful to
-          work around known bugs, or to identify drivers in error reports.
+	  example: "bttv". Driver specific applications can use this
+	  information to verify the driver identity. It is also useful to
+	  work around known bugs, or to identify drivers in error reports.
 
-          Storing strings in fixed sized arrays is bad practice but
-          unavoidable here. Drivers and applications should take precautions
-          to never read or write beyond the end of the array and to make
-          sure the strings are properly NUL-terminated.
+	  Storing strings in fixed sized arrays is bad practice but
+	  unavoidable here. Drivers and applications should take precautions
+	  to never read or write beyond the end of the array and to make
+	  sure the strings are properly NUL-terminated.
 
     -  .. row 2
 
@@ -70,13 +70,13 @@ specification the ioctl returns an ``EINVAL`` error code.
        -  ``card``\ [32]
 
        -  Name of the device, a NUL-terminated UTF-8 string. For example:
-          "Yoyodyne TV/FM". One driver may support different brands or
-          models of video hardware. This information is intended for users,
-          for example in a menu of available devices. Since multiple TV
-          cards of the same brand may be installed which are supported by
-          the same driver, this name should be combined with the character
-          device file name (e. g. ``/dev/video2``) or the ``bus_info``
-          string to avoid ambiguities.
+	  "Yoyodyne TV/FM". One driver may support different brands or
+	  models of video hardware. This information is intended for users,
+	  for example in a menu of available devices. Since multiple TV
+	  cards of the same brand may be installed which are supported by
+	  the same driver, this name should be combined with the character
+	  device file name (e. g. ``/dev/video2``) or the ``bus_info``
+	  string to avoid ambiguities.
 
     -  .. row 3
 
@@ -85,14 +85,14 @@ specification the ioctl returns an ``EINVAL`` error code.
        -  ``bus_info``\ [32]
 
        -  Location of the device in the system, a NUL-terminated ASCII
-          string. For example: "PCI:0000:05:06.0". This information is
-          intended for users, to distinguish multiple identical devices. If
-          no such information is available the field must simply count the
-          devices controlled by the driver ("platform:vivi-000"). The
-          bus_info must start with "PCI:" for PCI boards, "PCIe:" for PCI
-          Express boards, "usb-" for USB devices, "I2C:" for i2c devices,
-          "ISA:" for ISA devices, "parport" for parallel port devices and
-          "platform:" for platform devices.
+	  string. For example: "PCI:0000:05:06.0". This information is
+	  intended for users, to distinguish multiple identical devices. If
+	  no such information is available the field must simply count the
+	  devices controlled by the driver ("platform:vivi-000"). The
+	  bus_info must start with "PCI:" for PCI boards, "PCIe:" for PCI
+	  Express boards, "usb-" for USB devices, "I2C:" for i2c devices,
+	  "ISA:" for ISA devices, "parport" for parallel port devices and
+	  "platform:" for platform devices.
 
     -  .. row 4
 
@@ -102,30 +102,30 @@ specification the ioctl returns an ``EINVAL`` error code.
 
        -  Version number of the driver.
 
-          Starting with kernel 3.1, the version reported is provided by the
-          V4L2 subsystem following the kernel numbering scheme. However, it
-          may not always return the same version as the kernel if, for
-          example, a stable or distribution-modified kernel uses the V4L2
-          stack from a newer kernel.
+	  Starting with kernel 3.1, the version reported is provided by the
+	  V4L2 subsystem following the kernel numbering scheme. However, it
+	  may not always return the same version as the kernel if, for
+	  example, a stable or distribution-modified kernel uses the V4L2
+	  stack from a newer kernel.
 
-          The version number is formatted using the ``KERNEL_VERSION()``
-          macro:
+	  The version number is formatted using the ``KERNEL_VERSION()``
+	  macro:
 
     -  .. row 5
 
        -  :cspan:`2`
 
 
-          .. code-block:: c
+	  .. code-block:: c
 
-              #define KERNEL_VERSION(a,b,c) (((a) << 16) + ((b) << 8) + (c))
+	      #define KERNEL_VERSION(a,b,c) (((a) << 16) + ((b) << 8) + (c))
 
-              __u32 version = KERNEL_VERSION(0, 8, 1);
+	      __u32 version = KERNEL_VERSION(0, 8, 1);
 
-              printf ("Version: %u.%u.%u\\n",
-                  (version >> 16) & 0xFF,
-                  (version >> 8) & 0xFF,
-                   version & 0xFF);
+	      printf ("Version: %u.%u.%u\\n",
+		  (version >> 16) & 0xFF,
+		  (version >> 8) & 0xFF,
+		   version & 0xFF);
 
     -  .. row 6
 
@@ -134,15 +134,15 @@ specification the ioctl returns an ``EINVAL`` error code.
        -  ``capabilities``
 
        -  Available capabilities of the physical device as a whole, see
-          :ref:`device-capabilities`. The same physical device can export
-          multiple devices in /dev (e.g. /dev/videoX, /dev/vbiY and
-          /dev/radioZ). The ``capabilities`` field should contain a union of
-          all capabilities available around the several V4L2 devices
-          exported to userspace. For all those devices the ``capabilities``
-          field returns the same set of capabilities. This allows
-          applications to open just one of the devices (typically the video
-          device) and discover whether video, vbi and/or radio are also
-          supported.
+	  :ref:`device-capabilities`. The same physical device can export
+	  multiple devices in /dev (e.g. /dev/videoX, /dev/vbiY and
+	  /dev/radioZ). The ``capabilities`` field should contain a union of
+	  all capabilities available around the several V4L2 devices
+	  exported to userspace. For all those devices the ``capabilities``
+	  field returns the same set of capabilities. This allows
+	  applications to open just one of the devices (typically the video
+	  device) and discover whether video, vbi and/or radio are also
+	  supported.
 
     -  .. row 7
 
@@ -151,14 +151,14 @@ specification the ioctl returns an ``EINVAL`` error code.
        -  ``device_caps``
 
        -  Device capabilities of the opened device, see
-          :ref:`device-capabilities`. Should contain the available
-          capabilities of that specific device node. So, for example,
-          ``device_caps`` of a radio device will only contain radio related
-          capabilities and no video or vbi capabilities. This field is only
-          set if the ``capabilities`` field contains the
-          ``V4L2_CAP_DEVICE_CAPS`` capability. Only the ``capabilities``
-          field can have the ``V4L2_CAP_DEVICE_CAPS`` capability,
-          ``device_caps`` will never set ``V4L2_CAP_DEVICE_CAPS``.
+	  :ref:`device-capabilities`. Should contain the available
+	  capabilities of that specific device node. So, for example,
+	  ``device_caps`` of a radio device will only contain radio related
+	  capabilities and no video or vbi capabilities. This field is only
+	  set if the ``capabilities`` field contains the
+	  ``V4L2_CAP_DEVICE_CAPS`` capability. Only the ``capabilities``
+	  field can have the ``V4L2_CAP_DEVICE_CAPS`` capability,
+	  ``device_caps`` will never set ``V4L2_CAP_DEVICE_CAPS``.
 
     -  .. row 8
 
@@ -167,7 +167,7 @@ specification the ioctl returns an ``EINVAL`` error code.
        -  ``reserved``\ [3]
 
        -  Reserved for future extensions. Drivers must set this array to
-          zero.
+	  zero.
 
 
 
@@ -186,7 +186,7 @@ specification the ioctl returns an ``EINVAL`` error code.
        -  0x00000001
 
        -  The device supports the single-planar API through the
-          :ref:`Video Capture <capture>` interface.
+	  :ref:`Video Capture <capture>` interface.
 
     -  .. row 2
 
@@ -195,7 +195,7 @@ specification the ioctl returns an ``EINVAL`` error code.
        -  0x00001000
 
        -  The device supports the :ref:`multi-planar API <planar-apis>`
-          through the :ref:`Video Capture <capture>` interface.
+	  through the :ref:`Video Capture <capture>` interface.
 
     -  .. row 3
 
@@ -204,7 +204,7 @@ specification the ioctl returns an ``EINVAL`` error code.
        -  0x00000002
 
        -  The device supports the single-planar API through the
-          :ref:`Video Output <output>` interface.
+	  :ref:`Video Output <output>` interface.
 
     -  .. row 4
 
@@ -213,7 +213,7 @@ specification the ioctl returns an ``EINVAL`` error code.
        -  0x00002000
 
        -  The device supports the :ref:`multi-planar API <planar-apis>`
-          through the :ref:`Video Output <output>` interface.
+	  through the :ref:`Video Output <output>` interface.
 
     -  .. row 5
 
@@ -222,7 +222,7 @@ specification the ioctl returns an ``EINVAL`` error code.
        -  0x00004000
 
        -  The device supports the single-planar API through the Video
-          Memory-To-Memory interface.
+	  Memory-To-Memory interface.
 
     -  .. row 6
 
@@ -231,7 +231,7 @@ specification the ioctl returns an ``EINVAL`` error code.
        -  0x00008000
 
        -  The device supports the :ref:`multi-planar API <planar-apis>`
-          through the Video Memory-To-Memory interface.
+	  through the Video Memory-To-Memory interface.
 
     -  .. row 7
 
@@ -240,9 +240,9 @@ specification the ioctl returns an ``EINVAL`` error code.
        -  0x00000004
 
        -  The device supports the :ref:`Video Overlay <overlay>`
-          interface. A video overlay device typically stores captured images
-          directly in the video memory of a graphics card, with hardware
-          clipping and scaling.
+	  interface. A video overlay device typically stores captured images
+	  directly in the video memory of a graphics card, with hardware
+	  clipping and scaling.
 
     -  .. row 8
 
@@ -251,7 +251,7 @@ specification the ioctl returns an ``EINVAL`` error code.
        -  0x00000010
 
        -  The device supports the :ref:`Raw VBI Capture <raw-vbi>`
-          interface, providing Teletext and Closed Caption data.
+	  interface, providing Teletext and Closed Caption data.
 
     -  .. row 9
 
@@ -260,7 +260,7 @@ specification the ioctl returns an ``EINVAL`` error code.
        -  0x00000020
 
        -  The device supports the :ref:`Raw VBI Output <raw-vbi>`
-          interface.
+	  interface.
 
     -  .. row 10
 
@@ -269,7 +269,7 @@ specification the ioctl returns an ``EINVAL`` error code.
        -  0x00000040
 
        -  The device supports the :ref:`Sliced VBI Capture <sliced>`
-          interface.
+	  interface.
 
     -  .. row 11
 
@@ -278,7 +278,7 @@ specification the ioctl returns an ``EINVAL`` error code.
        -  0x00000080
 
        -  The device supports the :ref:`Sliced VBI Output <sliced>`
-          interface.
+	  interface.
 
     -  .. row 12
 
@@ -295,11 +295,11 @@ specification the ioctl returns an ``EINVAL`` error code.
        -  0x00000200
 
        -  The device supports the :ref:`Video Output Overlay <osd>` (OSD)
-          interface. Unlike the *Video Overlay* interface, this is a
-          secondary function of video output devices and overlays an image
-          onto an outgoing video signal. When the driver sets this flag, it
-          must clear the ``V4L2_CAP_VIDEO_OVERLAY`` flag and vice
-          versa. [1]_
+	  interface. Unlike the *Video Overlay* interface, this is a
+	  secondary function of video output devices and overlays an image
+	  onto an outgoing video signal. When the driver sets this flag, it
+	  must clear the ``V4L2_CAP_VIDEO_OVERLAY`` flag and vice
+	  versa. [1]_
 
     -  .. row 14
 
@@ -308,8 +308,8 @@ specification the ioctl returns an ``EINVAL`` error code.
        -  0x00000400
 
        -  The device supports the
-          :ref:`VIDIOC_S_HW_FREQ_SEEK` ioctl
-          for hardware frequency seeking.
+	  :ref:`VIDIOC_S_HW_FREQ_SEEK` ioctl
+	  for hardware frequency seeking.
 
     -  .. row 15
 
@@ -326,8 +326,8 @@ specification the ioctl returns an ``EINVAL`` error code.
        -  0x00010000
 
        -  The device has some sort of tuner to receive RF-modulated video
-          signals. For more information about tuner programming see
-          :ref:`tuner`.
+	  signals. For more information about tuner programming see
+	  :ref:`tuner`.
 
     -  .. row 17
 
@@ -336,9 +336,9 @@ specification the ioctl returns an ``EINVAL`` error code.
        -  0x00020000
 
        -  The device has audio inputs or outputs. It may or may not support
-          audio recording or playback, in PCM or compressed formats. PCM
-          audio support must be implemented as ALSA or OSS interface. For
-          more information on audio inputs and outputs see :ref:`audio`.
+	  audio recording or playback, in PCM or compressed formats. PCM
+	  audio support must be implemented as ALSA or OSS interface. For
+	  more information on audio inputs and outputs see :ref:`audio`.
 
     -  .. row 18
 
@@ -355,8 +355,8 @@ specification the ioctl returns an ``EINVAL`` error code.
        -  0x00080000
 
        -  The device has some sort of modulator to emit RF-modulated
-          video/audio signals. For more information about modulator
-          programming see :ref:`tuner`.
+	  video/audio signals. For more information about modulator
+	  programming see :ref:`tuner`.
 
     -  .. row 20
 
@@ -373,7 +373,7 @@ specification the ioctl returns an ``EINVAL`` error code.
        -  0x00200000
 
        -  The device supports the struct
-          :ref:`v4l2_pix_format <v4l2-pix-format>` extended fields.
+	  :ref:`v4l2_pix_format <v4l2-pix-format>` extended fields.
 
     -  .. row 22
 
@@ -390,7 +390,7 @@ specification the ioctl returns an ``EINVAL`` error code.
        -  0x01000000
 
        -  The device supports the :ref:`read() <rw>` and/or
-          :ref:`write() <rw>` I/O methods.
+	  :ref:`write() <rw>` I/O methods.
 
     -  .. row 24
 
@@ -415,8 +415,8 @@ specification the ioctl returns an ``EINVAL`` error code.
        -  0x80000000
 
        -  The driver fills the ``device_caps`` field. This capability can
-          only appear in the ``capabilities`` field and never in the
-          ``device_caps`` field.
+	  only appear in the ``capabilities`` field and never in the
+	  ``device_caps`` field.
 
 
 

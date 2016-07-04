@@ -97,7 +97,7 @@ the same sub-device is not defined.
        -  ``reserved``\ [9]
 
        -  Reserved for future extensions. Applications and drivers must set
-          the array to zero.
+	  the array to zero.
 
 
 

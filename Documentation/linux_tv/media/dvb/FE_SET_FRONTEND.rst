@@ -45,7 +45,7 @@ Arguments
        -  int request
 
        -  Equals :ref:`FE_SET_FRONTEND` for this
-          command.
+	  command.
 
     -  .. row 3
 

@@ -78,7 +78,7 @@ video elementary streams.
        -  ``entries_cap``
 
        -  The number of entries the driver can buffer. Must be greater than
-          zero.
+	  zero.
 
     -  .. row 3
 
@@ -87,7 +87,7 @@ video elementary streams.
        -  ``reserved``\ [4]
 
        -  :cspan:`2` Reserved for future extensions. Drivers must set the
-          array to zero.
+	  array to zero.
 
     -  .. row 4
 
@@ -96,8 +96,8 @@ video elementary streams.
        -  ``entry``\ [``V4L2_ENC_IDX_ENTRIES``]
 
        -  Meta data about a compressed video stream. Each element of the
-          array corresponds to one picture, sorted in ascending order by
-          their ``offset``.
+	  array corresponds to one picture, sorted in ascending order by
+	  their ``offset``.
 
 
 
@@ -116,10 +116,10 @@ video elementary streams.
        -  ``offset``
 
        -  The offset in bytes from the beginning of the compressed video
-          stream to the beginning of this picture, that is a *PES packet
-          header* as defined in :ref:`mpeg2part1` or a *picture header* as
-          defined in :ref:`mpeg2part2`. When the encoder is stopped, the
-          driver resets the offset to zero.
+	  stream to the beginning of this picture, that is a *PES packet
+	  header* as defined in :ref:`mpeg2part1` or a *picture header* as
+	  defined in :ref:`mpeg2part2`. When the encoder is stopped, the
+	  driver resets the offset to zero.
 
     -  .. row 2
 
@@ -128,7 +128,7 @@ video elementary streams.
        -  ``pts``
 
        -  The 33 bit *Presentation Time Stamp* of this picture as defined in
-          :ref:`mpeg2part1`.
+	  :ref:`mpeg2part1`.
 
     -  .. row 3
 
@@ -145,7 +145,7 @@ video elementary streams.
        -  ``flags``
 
        -  Flags containing the coding type of this picture, see
-          :ref:`enc-idx-flags`.
+	  :ref:`enc-idx-flags`.
 
     -  .. row 5
 
@@ -154,7 +154,7 @@ video elementary streams.
        -  ``reserved``\ [2]
 
        -  Reserved for future extensions. Drivers must set the array to
-          zero.
+	  zero.
 
 
 
@@ -197,7 +197,7 @@ video elementary streams.
        -  0x0F
 
        -  *AND* the flags field with this mask to obtain the picture coding
-          type.
+	  type.
 
 
 

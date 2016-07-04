@@ -95,7 +95,7 @@ The format as returned by :ref:`VIDIOC_TRY_FMT <VIDIOC_G_FMT>` must be identical
 
        -  ``type``
 
-       -  
+       -
        -  Type of the data stream, see :ref:`v4l2-buf-type`.
 
     -  .. row 2
@@ -106,69 +106,69 @@ The format as returned by :ref:`VIDIOC_TRY_FMT <VIDIOC_G_FMT>` must be identical
 
     -  .. row 3
 
-       -  
+       -
        -  struct :ref:`v4l2_pix_format <v4l2-pix-format>`
 
        -  ``pix``
 
        -  Definition of an image format, see :ref:`pixfmt`, used by video
-          capture and output devices.
+	  capture and output devices.
 
     -  .. row 4
 
-       -  
+       -
        -  struct :ref:`v4l2_pix_format_mplane <v4l2-pix-format-mplane>`
 
        -  ``pix_mp``
 
        -  Definition of an image format, see :ref:`pixfmt`, used by video
-          capture and output devices that support the
-          :ref:`multi-planar version of the API <planar-apis>`.
+	  capture and output devices that support the
+	  :ref:`multi-planar version of the API <planar-apis>`.
 
     -  .. row 5
 
-       -  
+       -
        -  struct :ref:`v4l2_window <v4l2-window>`
 
        -  ``win``
 
        -  Definition of an overlaid image, see :ref:`overlay`, used by
-          video overlay devices.
+	  video overlay devices.
 
     -  .. row 6
 
-       -  
+       -
        -  struct :ref:`v4l2_vbi_format <v4l2-vbi-format>`
 
        -  ``vbi``
 
        -  Raw VBI capture or output parameters. This is discussed in more
-          detail in :ref:`raw-vbi`. Used by raw VBI capture and output
-          devices.
+	  detail in :ref:`raw-vbi`. Used by raw VBI capture and output
+	  devices.
 
     -  .. row 7
 
-       -  
+       -
        -  struct :ref:`v4l2_sliced_vbi_format <v4l2-sliced-vbi-format>`
 
        -  ``sliced``
 
        -  Sliced VBI capture or output parameters. See :ref:`sliced` for
-          details. Used by sliced VBI capture and output devices.
+	  details. Used by sliced VBI capture and output devices.
 
     -  .. row 8
 
-       -  
+       -
        -  struct :ref:`v4l2_sdr_format <v4l2-sdr-format>`
 
        -  ``sdr``
 
        -  Definition of a data format, see :ref:`pixfmt`, used by SDR
-          capture and output devices.
+	  capture and output devices.
 
     -  .. row 9
 
-       -  
+       -
        -  __u8
 
        -  ``raw_data``\ [200]

@@ -37,7 +37,7 @@ Media Bus Formats
        -  ``code``
 
        -  Format code, from enum
-          :ref:`v4l2_mbus_pixelcode <v4l2-mbus-pixelcode>`.
+	  :ref:`v4l2_mbus_pixelcode <v4l2-mbus-pixelcode>`.
 
     -  .. row 4
 
@@ -46,7 +46,7 @@ Media Bus Formats
        -  ``field``
 
        -  Field order, from enum :ref:`v4l2_field <v4l2-field>`. See
-          :ref:`field-order` for details.
+	  :ref:`field-order` for details.
 
     -  .. row 5
 
@@ -55,8 +55,8 @@ Media Bus Formats
        -  ``colorspace``
 
        -  Image colorspace, from enum
-          :ref:`v4l2_colorspace <v4l2-colorspace>`. See
-          :ref:`colorspaces` for details.
+	  :ref:`v4l2_colorspace <v4l2-colorspace>`. See
+	  :ref:`colorspaces` for details.
 
     -  .. row 6
 
@@ -65,8 +65,8 @@ Media Bus Formats
        -  ``ycbcr_enc``
 
        -  This information supplements the ``colorspace`` and must be set by
-          the driver for capture streams and by the application for output
-          streams, see :ref:`colorspaces`.
+	  the driver for capture streams and by the application for output
+	  streams, see :ref:`colorspaces`.
 
     -  .. row 7
 
@@ -75,8 +75,8 @@ Media Bus Formats
        -  ``quantization``
 
        -  This information supplements the ``colorspace`` and must be set by
-          the driver for capture streams and by the application for output
-          streams, see :ref:`colorspaces`.
+	  the driver for capture streams and by the application for output
+	  streams, see :ref:`colorspaces`.
 
     -  .. row 8
 
@@ -85,8 +85,8 @@ Media Bus Formats
        -  ``xfer_func``
 
        -  This information supplements the ``colorspace`` and must be set by
-          the driver for capture streams and by the application for output
-          streams, see :ref:`colorspaces`.
+	  the driver for capture streams and by the application for output
+	  streams, see :ref:`colorspaces`.
 
     -  .. row 9
 
@@ -95,7 +95,7 @@ Media Bus Formats
        -  ``reserved``\ [11]
 
        -  Reserved for future extensions. Applications and drivers must set
-          the array to zero.
+	  the array to zero.
 
 
 
@@ -167,13 +167,13 @@ The following tables list existing packed RGB formats.
 
        -  Code
 
-       -  
+       -
        -  :cspan:`31` Data organization
 
     -  .. row 2
 
-       -  
-       -  
+       -
+       -
        -  Bit
 
        -  31
@@ -246,7 +246,7 @@ The following tables list existing packed RGB formats.
 
        -  0x1016
 
-       -  
+       -
        -  -
 
        -  -
@@ -317,7 +317,7 @@ The following tables list existing packed RGB formats.
 
        -  0x1001
 
-       -  
+       -
        -  -
 
        -  -
@@ -384,9 +384,9 @@ The following tables list existing packed RGB formats.
 
     -  .. row 5
 
-       -  
-       -  
-       -  
+       -
+       -
+       -
        -  -
 
        -  -
@@ -457,7 +457,7 @@ The following tables list existing packed RGB formats.
 
        -  0x1002
 
-       -  
+       -
        -  -
 
        -  -
@@ -524,9 +524,9 @@ The following tables list existing packed RGB formats.
 
     -  .. row 7
 
-       -  
-       -  
-       -  
+       -
+       -
+       -
        -  -
 
        -  -
@@ -597,7 +597,7 @@ The following tables list existing packed RGB formats.
 
        -  0x1003
 
-       -  
+       -
        -  -
 
        -  -
@@ -664,9 +664,9 @@ The following tables list existing packed RGB formats.
 
     -  .. row 9
 
-       -  
-       -  
-       -  
+       -
+       -
+       -
        -  -
 
        -  -
@@ -737,7 +737,7 @@ The following tables list existing packed RGB formats.
 
        -  0x1004
 
-       -  
+       -
        -  -
 
        -  -
@@ -804,9 +804,9 @@ The following tables list existing packed RGB formats.
 
     -  .. row 11
 
-       -  
-       -  
-       -  
+       -
+       -
+       -
        -  -
 
        -  -
@@ -877,7 +877,7 @@ The following tables list existing packed RGB formats.
 
        -  0x1017
 
-       -  
+       -
        -  -
 
        -  -
@@ -948,7 +948,7 @@ The following tables list existing packed RGB formats.
 
        -  0x1005
 
-       -  
+       -
        -  -
 
        -  -
@@ -1015,9 +1015,9 @@ The following tables list existing packed RGB formats.
 
     -  .. row 14
 
-       -  
-       -  
-       -  
+       -
+       -
+       -
        -  -
 
        -  -
@@ -1088,7 +1088,7 @@ The following tables list existing packed RGB formats.
 
        -  0x1006
 
-       -  
+       -
        -  -
 
        -  -
@@ -1155,9 +1155,9 @@ The following tables list existing packed RGB formats.
 
     -  .. row 16
 
-       -  
-       -  
-       -  
+       -
+       -
+       -
        -  -
 
        -  -
@@ -1228,7 +1228,7 @@ The following tables list existing packed RGB formats.
 
        -  0x1007
 
-       -  
+       -
        -  -
 
        -  -
@@ -1295,9 +1295,9 @@ The following tables list existing packed RGB formats.
 
     -  .. row 18
 
-       -  
-       -  
-       -  
+       -
+       -
+       -
        -  -
 
        -  -
@@ -1368,7 +1368,7 @@ The following tables list existing packed RGB formats.
 
        -  0x1008
 
-       -  
+       -
        -  -
 
        -  -
@@ -1435,9 +1435,9 @@ The following tables list existing packed RGB formats.
 
     -  .. row 20
 
-       -  
-       -  
-       -  
+       -
+       -
+       -
        -  -
 
        -  -
@@ -1508,7 +1508,7 @@ The following tables list existing packed RGB formats.
 
        -  0x1009
 
-       -  
+       -
        -  -
 
        -  -
@@ -1579,7 +1579,7 @@ The following tables list existing packed RGB formats.
 
        -  0x100e
 
-       -  
+       -
        -  -
 
        -  -
@@ -1650,7 +1650,7 @@ The following tables list existing packed RGB formats.
 
        -  0x1015
 
-       -  
+       -
        -  -
 
        -  -
@@ -1721,7 +1721,7 @@ The following tables list existing packed RGB formats.
 
        -  0x1013
 
-       -  
+       -
        -  -
 
        -  -
@@ -1792,7 +1792,7 @@ The following tables list existing packed RGB formats.
 
        -  0x1014
 
-       -  
+       -
        -  -
 
        -  -
@@ -1863,7 +1863,7 @@ The following tables list existing packed RGB formats.
 
        -  0x100a
 
-       -  
+       -
        -  -
 
        -  -
@@ -1934,7 +1934,7 @@ The following tables list existing packed RGB formats.
 
        -  0x100b
 
-       -  
+       -
        -  -
 
        -  -
@@ -2001,9 +2001,9 @@ The following tables list existing packed RGB formats.
 
     -  .. row 28
 
-       -  
-       -  
-       -  
+       -
+       -
+       -
        -  -
 
        -  -
@@ -2074,7 +2074,7 @@ The following tables list existing packed RGB formats.
 
        -  0x100c
 
-       -  
+       -
        -  -
 
        -  -
@@ -2141,9 +2141,9 @@ The following tables list existing packed RGB formats.
 
     -  .. row 30
 
-       -  
-       -  
-       -  
+       -
+       -
+       -
        -  -
 
        -  -
@@ -2214,7 +2214,7 @@ The following tables list existing packed RGB formats.
 
        -  0x100d
 
-       -  
+       -
        -  a\ :sub:`7`
 
        -  a\ :sub:`6`
@@ -2285,7 +2285,7 @@ The following tables list existing packed RGB formats.
 
        -  0x100f
 
-       -  
+       -
        -  0
 
        -  0
@@ -2373,14 +2373,14 @@ JEIDA defined bit mapping will be named
 
        -  Code
 
-       -  
-       -  
+       -
+       -
        -  :cspan:`3` Data organization
 
     -  .. row 2
 
-       -  
-       -  
+       -
+       -
        -  Timeslot
 
        -  Lane
@@ -2401,7 +2401,7 @@ JEIDA defined bit mapping will be named
 
        -  0
 
-       -  
+       -
        -  -
 
        -  d
@@ -2412,11 +2412,11 @@ JEIDA defined bit mapping will be named
 
     -  .. row 4
 
-       -  
-       -  
+       -
+       -
        -  1
 
-       -  
+       -
        -  -
 
        -  d
@@ -2427,11 +2427,11 @@ JEIDA defined bit mapping will be named
 
     -  .. row 5
 
-       -  
-       -  
+       -
+       -
        -  2
 
-       -  
+       -
        -  -
 
        -  d
@@ -2442,11 +2442,11 @@ JEIDA defined bit mapping will be named
 
     -  .. row 6
 
-       -  
-       -  
+       -
+       -
        -  3
 
-       -  
+       -
        -  -
 
        -  b\ :sub:`5`
@@ -2457,11 +2457,11 @@ JEIDA defined bit mapping will be named
 
     -  .. row 7
 
-       -  
-       -  
+       -
+       -
        -  4
 
-       -  
+       -
        -  -
 
        -  b\ :sub:`4`
@@ -2472,11 +2472,11 @@ JEIDA defined bit mapping will be named
 
     -  .. row 8
 
-       -  
-       -  
+       -
+       -
        -  5
 
-       -  
+       -
        -  -
 
        -  b\ :sub:`3`
@@ -2487,11 +2487,11 @@ JEIDA defined bit mapping will be named
 
     -  .. row 9
 
-       -  
-       -  
+       -
+       -
        -  6
 
-       -  
+       -
        -  -
 
        -  b\ :sub:`2`
@@ -2508,7 +2508,7 @@ JEIDA defined bit mapping will be named
 
        -  0
 
-       -  
+       -
        -  d
 
        -  d
@@ -2519,11 +2519,11 @@ JEIDA defined bit mapping will be named
 
     -  .. row 11
 
-       -  
-       -  
+       -
+       -
        -  1
 
-       -  
+       -
        -  b\ :sub:`7`
 
        -  d
@@ -2534,11 +2534,11 @@ JEIDA defined bit mapping will be named
 
     -  .. row 12
 
-       -  
-       -  
+       -
+       -
        -  2
 
-       -  
+       -
        -  b\ :sub:`6`
 
        -  d
@@ -2549,11 +2549,11 @@ JEIDA defined bit mapping will be named
 
     -  .. row 13
 
-       -  
-       -  
+       -
+       -
        -  3
 
-       -  
+       -
        -  g\ :sub:`7`
 
        -  b\ :sub:`5`
@@ -2564,11 +2564,11 @@ JEIDA defined bit mapping will be named
 
     -  .. row 14
 
-       -  
-       -  
+       -
+       -
        -  4
 
-       -  
+       -
        -  g\ :sub:`6`
 
        -  b\ :sub:`4`
@@ -2579,11 +2579,11 @@ JEIDA defined bit mapping will be named
 
     -  .. row 15
 
-       -  
-       -  
+       -
+       -
        -  5
 
-       -  
+       -
        -  r\ :sub:`7`
 
        -  b\ :sub:`3`
@@ -2594,11 +2594,11 @@ JEIDA defined bit mapping will be named
 
     -  .. row 16
 
-       -  
-       -  
+       -
+       -
        -  6
 
-       -  
+       -
        -  r\ :sub:`6`
 
        -  b\ :sub:`2`
@@ -2615,7 +2615,7 @@ JEIDA defined bit mapping will be named
 
        -  0
 
-       -  
+       -
        -  d
 
        -  d
@@ -2626,11 +2626,11 @@ JEIDA defined bit mapping will be named
 
     -  .. row 18
 
-       -  
-       -  
+       -
+       -
        -  1
 
-       -  
+       -
        -  b\ :sub:`1`
 
        -  d
@@ -2641,11 +2641,11 @@ JEIDA defined bit mapping will be named
 
     -  .. row 19
 
-       -  
-       -  
+       -
+       -
        -  2
 
-       -  
+       -
        -  b\ :sub:`0`
 
        -  d
@@ -2656,11 +2656,11 @@ JEIDA defined bit mapping will be named
 
     -  .. row 20
 
-       -  
-       -  
+       -
+       -
        -  3
 
-       -  
+       -
        -  g\ :sub:`1`
 
        -  b\ :sub:`7`
@@ -2671,11 +2671,11 @@ JEIDA defined bit mapping will be named
 
     -  .. row 21
 
-       -  
-       -  
+       -
+       -
        -  4
 
-       -  
+       -
        -  g\ :sub:`0`
 
        -  b\ :sub:`6`
@@ -2686,11 +2686,11 @@ JEIDA defined bit mapping will be named
 
     -  .. row 22
 
-       -  
-       -  
+       -
+       -
        -  5
 
-       -  
+       -
        -  r\ :sub:`1`
 
        -  b\ :sub:`5`
@@ -2701,11 +2701,11 @@ JEIDA defined bit mapping will be named
 
     -  .. row 23
 
-       -  
-       -  
+       -
+       -
        -  6
 
-       -  
+       -
        -  r\ :sub:`0`
 
        -  b\ :sub:`4`
@@ -2783,13 +2783,13 @@ organization is given as an example for the first pixel only.
 
        -  Code
 
-       -  
+       -
        -  :cspan:`11` Data organization
 
     -  .. row 2
 
-       -  
-       -  
+       -
+       -
        -  Bit
 
        -  11
@@ -2822,7 +2822,7 @@ organization is given as an example for the first pixel only.
 
        -  0x3001
 
-       -  
+       -
        -  -
 
        -  -
@@ -2853,7 +2853,7 @@ organization is given as an example for the first pixel only.
 
        -  0x3013
 
-       -  
+       -
        -  -
 
        -  -
@@ -2884,7 +2884,7 @@ organization is given as an example for the first pixel only.
 
        -  0x3002
 
-       -  
+       -
        -  -
 
        -  -
@@ -2915,7 +2915,7 @@ organization is given as an example for the first pixel only.
 
        -  0x3014
 
-       -  
+       -
        -  -
 
        -  -
@@ -2946,7 +2946,7 @@ organization is given as an example for the first pixel only.
 
        -  0x3015
 
-       -  
+       -
        -  -
 
        -  -
@@ -2977,7 +2977,7 @@ organization is given as an example for the first pixel only.
 
        -  0x3016
 
-       -  
+       -
        -  -
 
        -  -
@@ -3008,7 +3008,7 @@ organization is given as an example for the first pixel only.
 
        -  0x3017
 
-       -  
+       -
        -  -
 
        -  -
@@ -3039,7 +3039,7 @@ organization is given as an example for the first pixel only.
 
        -  0x3018
 
-       -  
+       -
        -  -
 
        -  -
@@ -3070,7 +3070,7 @@ organization is given as an example for the first pixel only.
 
        -  0x300b
 
-       -  
+       -
        -  -
 
        -  -
@@ -3101,7 +3101,7 @@ organization is given as an example for the first pixel only.
 
        -  0x300c
 
-       -  
+       -
        -  -
 
        -  -
@@ -3132,7 +3132,7 @@ organization is given as an example for the first pixel only.
 
        -  0x3009
 
-       -  
+       -
        -  -
 
        -  -
@@ -3163,7 +3163,7 @@ organization is given as an example for the first pixel only.
 
        -  0x300d
 
-       -  
+       -
        -  -
 
        -  -
@@ -3194,7 +3194,7 @@ organization is given as an example for the first pixel only.
 
        -  0x3003
 
-       -  
+       -
        -  -
 
        -  -
@@ -3221,9 +3221,9 @@ organization is given as an example for the first pixel only.
 
     -  .. row 16
 
-       -  
-       -  
-       -  
+       -
+       -
+       -
        -  -
 
        -  -
@@ -3254,7 +3254,7 @@ organization is given as an example for the first pixel only.
 
        -  0x3004
 
-       -  
+       -
        -  -
 
        -  -
@@ -3281,9 +3281,9 @@ organization is given as an example for the first pixel only.
 
     -  .. row 18
 
-       -  
-       -  
-       -  
+       -
+       -
+       -
        -  -
 
        -  -
@@ -3314,7 +3314,7 @@ organization is given as an example for the first pixel only.
 
        -  0x3005
 
-       -  
+       -
        -  -
 
        -  -
@@ -3341,9 +3341,9 @@ organization is given as an example for the first pixel only.
 
     -  .. row 20
 
-       -  
-       -  
-       -  
+       -
+       -
+       -
        -  -
 
        -  -
@@ -3374,7 +3374,7 @@ organization is given as an example for the first pixel only.
 
        -  0x3006
 
-       -  
+       -
        -  -
 
        -  -
@@ -3401,9 +3401,9 @@ organization is given as an example for the first pixel only.
 
     -  .. row 22
 
-       -  
-       -  
-       -  
+       -
+       -
+       -
        -  -
 
        -  -
@@ -3434,7 +3434,7 @@ organization is given as an example for the first pixel only.
 
        -  0x3007
 
-       -  
+       -
        -  -
 
        -  -
@@ -3465,7 +3465,7 @@ organization is given as an example for the first pixel only.
 
        -  0x300e
 
-       -  
+       -
        -  -
 
        -  -
@@ -3496,7 +3496,7 @@ organization is given as an example for the first pixel only.
 
        -  0x300a
 
-       -  
+       -
        -  -
 
        -  -
@@ -3527,7 +3527,7 @@ organization is given as an example for the first pixel only.
 
        -  0x300f
 
-       -  
+       -
        -  -
 
        -  -
@@ -3558,7 +3558,7 @@ organization is given as an example for the first pixel only.
 
        -  0x3008
 
-       -  
+       -
        -  b\ :sub:`11`
 
        -  b\ :sub:`10`
@@ -3589,7 +3589,7 @@ organization is given as an example for the first pixel only.
 
        -  0x3010
 
-       -  
+       -
        -  g\ :sub:`11`
 
        -  g\ :sub:`10`
@@ -3620,7 +3620,7 @@ organization is given as an example for the first pixel only.
 
        -  0x3011
 
-       -  
+       -
        -  g\ :sub:`11`
 
        -  g\ :sub:`10`
@@ -3651,7 +3651,7 @@ organization is given as an example for the first pixel only.
 
        -  0x3012
 
-       -  
+       -
        -  r\ :sub:`11`
 
        -  r\ :sub:`10`
@@ -3746,13 +3746,13 @@ the following codes.
 
        -  Code
 
-       -  
+       -
        -  :cspan:`31` Data organization
 
     -  .. row 2
 
-       -  
-       -  
+       -
+       -
        -  Bit
 
        -  31
@@ -3825,7 +3825,7 @@ the following codes.
 
        -  0x2001
 
-       -  
+       -
        -  -
 
        -  -
@@ -3896,7 +3896,7 @@ the following codes.
 
        -  0x2015
 
-       -  
+       -
        -  -
 
        -  -
@@ -3963,9 +3963,9 @@ the following codes.
 
     -  .. row 5
 
-       -  
-       -  
-       -  
+       -
+       -
+       -
        -  -
 
        -  -
@@ -4036,7 +4036,7 @@ the following codes.
 
        -  0x2002
 
-       -  
+       -
        -  -
 
        -  -
@@ -4103,9 +4103,9 @@ the following codes.
 
     -  .. row 7
 
-       -  
-       -  
-       -  
+       -
+       -
+       -
        -  -
 
        -  -
@@ -4172,9 +4172,9 @@ the following codes.
 
     -  .. row 8
 
-       -  
-       -  
-       -  
+       -
+       -
+       -
        -  -
 
        -  -
@@ -4241,9 +4241,9 @@ the following codes.
 
     -  .. row 9
 
-       -  
-       -  
-       -  
+       -
+       -
+       -
        -  -
 
        -  -
@@ -4310,9 +4310,9 @@ the following codes.
 
     -  .. row 10
 
-       -  
-       -  
-       -  
+       -
+       -
+       -
        -  -
 
        -  -
@@ -4379,9 +4379,9 @@ the following codes.
 
     -  .. row 11
 
-       -  
-       -  
-       -  
+       -
+       -
+       -
        -  -
 
        -  -
@@ -4452,7 +4452,7 @@ the following codes.
 
        -  0x2003
 
-       -  
+       -
        -  -
 
        -  -
@@ -4519,9 +4519,9 @@ the following codes.
 
     -  .. row 13
 
-       -  
-       -  
-       -  
+       -
+       -
+       -
        -  -
 
        -  -
@@ -4588,9 +4588,9 @@ the following codes.
 
     -  .. row 14
 
-       -  
-       -  
-       -  
+       -
+       -
+       -
        -  -
 
        -  -
@@ -4657,9 +4657,9 @@ the following codes.
 
     -  .. row 15
 
-       -  
-       -  
-       -  
+       -
+       -
+       -
        -  -
 
        -  -
@@ -4726,9 +4726,9 @@ the following codes.
 
     -  .. row 16
 
-       -  
-       -  
-       -  
+       -
+       -
+       -
        -  -
 
        -  -
@@ -4795,9 +4795,9 @@ the following codes.
 
     -  .. row 17
 
-       -  
-       -  
-       -  
+       -
+       -
+       -
        -  -
 
        -  -
@@ -4868,7 +4868,7 @@ the following codes.
 
        -  0x2004
 
-       -  
+       -
        -  -
 
        -  -
@@ -4935,9 +4935,9 @@ the following codes.
 
     -  .. row 19
 
-       -  
-       -  
-       -  
+       -
+       -
+       -
        -  -
 
        -  -
@@ -5004,9 +5004,9 @@ the following codes.
 
     -  .. row 20
 
-       -  
-       -  
-       -  
+       -
+       -
+       -
        -  -
 
        -  -
@@ -5073,9 +5073,9 @@ the following codes.
 
     -  .. row 21
 
-       -  
-       -  
-       -  
+       -
+       -
+       -
        -  -
 
        -  -
@@ -5142,9 +5142,9 @@ the following codes.
 
     -  .. row 22
 
-       -  
-       -  
-       -  
+       -
+       -
+       -
        -  -
 
        -  -
@@ -5211,9 +5211,9 @@ the following codes.
 
     -  .. row 23
 
-       -  
-       -  
-       -  
+       -
+       -
+       -
        -  -
 
        -  -
@@ -5284,7 +5284,7 @@ the following codes.
 
        -  0x2005
 
-       -  
+       -
        -  -
 
        -  -
@@ -5351,9 +5351,9 @@ the following codes.
 
     -  .. row 25
 
-       -  
-       -  
-       -  
+       -
+       -
+       -
        -  -
 
        -  -
@@ -5420,9 +5420,9 @@ the following codes.
 
     -  .. row 26
 
-       -  
-       -  
-       -  
+       -
+       -
+       -
        -  -
 
        -  -
@@ -5489,9 +5489,9 @@ the following codes.
 
     -  .. row 27
 
-       -  
-       -  
-       -  
+       -
+       -
+       -
        -  -
 
        -  -
@@ -5558,9 +5558,9 @@ the following codes.
 
     -  .. row 28
 
-       -  
-       -  
-       -  
+       -
+       -
+       -
        -  -
 
        -  -
@@ -5627,9 +5627,9 @@ the following codes.
 
     -  .. row 29
 
-       -  
-       -  
-       -  
+       -
+       -
+       -
        -  -
 
        -  -
@@ -5700,7 +5700,7 @@ the following codes.
 
        -  0x2006
 
-       -  
+       -
        -  -
 
        -  -
@@ -5767,9 +5767,9 @@ the following codes.
 
     -  .. row 31
 
-       -  
-       -  
-       -  
+       -
+       -
+       -
        -  -
 
        -  -
@@ -5836,9 +5836,9 @@ the following codes.
 
     -  .. row 32
 
-       -  
-       -  
-       -  
+       -
+       -
+       -
        -  -
 
        -  -
@@ -5905,9 +5905,9 @@ the following codes.
 
     -  .. row 33
 
-       -  
-       -  
-       -  
+       -
+       -
+       -
        -  -
 
        -  -
@@ -5978,7 +5978,7 @@ the following codes.
 
        -  0x2007
 
-       -  
+       -
        -  -
 
        -  -
@@ -6045,9 +6045,9 @@ the following codes.
 
     -  .. row 35
 
-       -  
-       -  
-       -  
+       -
+       -
+       -
        -  -
 
        -  -
@@ -6114,9 +6114,9 @@ the following codes.
 
     -  .. row 36
 
-       -  
-       -  
-       -  
+       -
+       -
+       -
        -  -
 
        -  -
@@ -6183,9 +6183,9 @@ the following codes.
 
     -  .. row 37
 
-       -  
-       -  
-       -  
+       -
+       -
+       -
        -  -
 
        -  -
@@ -6256,7 +6256,7 @@ the following codes.
 
        -  0x2008
 
-       -  
+       -
        -  -
 
        -  -
@@ -6323,9 +6323,9 @@ the following codes.
 
     -  .. row 39
 
-       -  
-       -  
-       -  
+       -
+       -
+       -
        -  -
 
        -  -
@@ -6392,9 +6392,9 @@ the following codes.
 
     -  .. row 40
 
-       -  
-       -  
-       -  
+       -
+       -
+       -
        -  -
 
        -  -
@@ -6461,9 +6461,9 @@ the following codes.
 
     -  .. row 41
 
-       -  
-       -  
-       -  
+       -
+       -
+       -
        -  -
 
        -  -
@@ -6534,7 +6534,7 @@ the following codes.
 
        -  0x2009
 
-       -  
+       -
        -  -
 
        -  -
@@ -6601,9 +6601,9 @@ the following codes.
 
     -  .. row 43
 
-       -  
-       -  
-       -  
+       -
+       -
+       -
        -  -
 
        -  -
@@ -6670,9 +6670,9 @@ the following codes.
 
     -  .. row 44
 
-       -  
-       -  
-       -  
+       -
+       -
+       -
        -  -
 
        -  -
@@ -6739,9 +6739,9 @@ the following codes.
 
     -  .. row 45
 
-       -  
-       -  
-       -  
+       -
+       -
+       -
        -  -
 
        -  -
@@ -6812,7 +6812,7 @@ the following codes.
 
        -  0x200a
 
-       -  
+       -
        -  -
 
        -  -
@@ -6883,7 +6883,7 @@ the following codes.
 
        -  0x2018
 
-       -  
+       -
        -  -
 
        -  -
@@ -6950,9 +6950,9 @@ the following codes.
 
     -  .. row 48
 
-       -  
-       -  
-       -  
+       -
+       -
+       -
        -  -
 
        -  -
@@ -7019,9 +7019,9 @@ the following codes.
 
     -  .. row 49
 
-       -  
-       -  
-       -  
+       -
+       -
+       -
        -  -
 
        -  -
@@ -7088,9 +7088,9 @@ the following codes.
 
     -  .. row 50
 
-       -  
-       -  
-       -  
+       -
+       -
+       -
        -  -
 
        -  -
@@ -7161,7 +7161,7 @@ the following codes.
 
        -  0x2019
 
-       -  
+       -
        -  -
 
        -  -
@@ -7228,9 +7228,9 @@ the following codes.
 
     -  .. row 52
 
-       -  
-       -  
-       -  
+       -
+       -
+       -
        -  -
 
        -  -
@@ -7297,9 +7297,9 @@ the following codes.
 
     -  .. row 53
 
-       -  
-       -  
-       -  
+       -
+       -
+       -
        -  -
 
        -  -
@@ -7366,9 +7366,9 @@ the following codes.
 
     -  .. row 54
 
-       -  
-       -  
-       -  
+       -
+       -
+       -
        -  -
 
        -  -
@@ -7439,7 +7439,7 @@ the following codes.
 
        -  0x200b
 
-       -  
+       -
        -  -
 
        -  -
@@ -7506,9 +7506,9 @@ the following codes.
 
     -  .. row 56
 
-       -  
-       -  
-       -  
+       -
+       -
+       -
        -  -
 
        -  -
@@ -7575,9 +7575,9 @@ the following codes.
 
     -  .. row 57
 
-       -  
-       -  
-       -  
+       -
+       -
+       -
        -  -
 
        -  -
@@ -7644,9 +7644,9 @@ the following codes.
 
     -  .. row 58
 
-       -  
-       -  
-       -  
+       -
+       -
+       -
        -  -
 
        -  -
@@ -7717,7 +7717,7 @@ the following codes.
 
        -  0x200c
 
-       -  
+       -
        -  -
 
        -  -
@@ -7784,9 +7784,9 @@ the following codes.
 
     -  .. row 60
 
-       -  
-       -  
-       -  
+       -
+       -
+       -
        -  -
 
        -  -
@@ -7853,9 +7853,9 @@ the following codes.
 
     -  .. row 61
 
-       -  
-       -  
-       -  
+       -
+       -
+       -
        -  -
 
        -  -
@@ -7922,9 +7922,9 @@ the following codes.
 
     -  .. row 62
 
-       -  
-       -  
-       -  
+       -
+       -
+       -
        -  -
 
        -  -
@@ -7995,7 +7995,7 @@ the following codes.
 
        -  0x2013
 
-       -  
+       -
        -  -
 
        -  -
@@ -8066,7 +8066,7 @@ the following codes.
 
        -  0x201c
 
-       -  
+       -
        -  -
 
        -  -
@@ -8133,9 +8133,9 @@ the following codes.
 
     -  .. row 65
 
-       -  
-       -  
-       -  
+       -
+       -
+       -
        -  -
 
        -  -
@@ -8202,9 +8202,9 @@ the following codes.
 
     -  .. row 66
 
-       -  
-       -  
-       -  
+       -
+       -
+       -
        -  -
 
        -  -
@@ -8271,9 +8271,9 @@ the following codes.
 
     -  .. row 67
 
-       -  
-       -  
-       -  
+       -
+       -
+       -
        -  -
 
        -  -
@@ -8344,7 +8344,7 @@ the following codes.
 
        -  0x201d
 
-       -  
+       -
        -  -
 
        -  -
@@ -8411,9 +8411,9 @@ the following codes.
 
     -  .. row 69
 
-       -  
-       -  
-       -  
+       -
+       -
+       -
        -  -
 
        -  -
@@ -8480,9 +8480,9 @@ the following codes.
 
     -  .. row 70
 
-       -  
-       -  
-       -  
+       -
+       -
+       -
        -  -
 
        -  -
@@ -8549,9 +8549,9 @@ the following codes.
 
     -  .. row 71
 
-       -  
-       -  
-       -  
+       -
+       -
+       -
        -  -
 
        -  -
@@ -8622,7 +8622,7 @@ the following codes.
 
        -  0x201e
 
-       -  
+       -
        -  -
 
        -  -
@@ -8689,9 +8689,9 @@ the following codes.
 
     -  .. row 73
 
-       -  
-       -  
-       -  
+       -
+       -
+       -
        -  -
 
        -  -
@@ -8758,9 +8758,9 @@ the following codes.
 
     -  .. row 74
 
-       -  
-       -  
-       -  
+       -
+       -
+       -
        -  -
 
        -  -
@@ -8827,9 +8827,9 @@ the following codes.
 
     -  .. row 75
 
-       -  
-       -  
-       -  
+       -
+       -
+       -
        -  -
 
        -  -
@@ -8900,7 +8900,7 @@ the following codes.
 
        -  0x201f
 
-       -  
+       -
        -  -
 
        -  -
@@ -8967,9 +8967,9 @@ the following codes.
 
     -  .. row 77
 
-       -  
-       -  
-       -  
+       -
+       -
+       -
        -  -
 
        -  -
@@ -9036,9 +9036,9 @@ the following codes.
 
     -  .. row 78
 
-       -  
-       -  
-       -  
+       -
+       -
+       -
        -  -
 
        -  -
@@ -9105,9 +9105,9 @@ the following codes.
 
     -  .. row 79
 
-       -  
-       -  
-       -  
+       -
+       -
+       -
        -  -
 
        -  -
@@ -9178,7 +9178,7 @@ the following codes.
 
        -  0x200f
 
-       -  
+       -
        -  -
 
        -  -
@@ -9245,9 +9245,9 @@ the following codes.
 
     -  .. row 81
 
-       -  
-       -  
-       -  
+       -
+       -
+       -
        -  -
 
        -  -
@@ -9318,7 +9318,7 @@ the following codes.
 
        -  0x2010
 
-       -  
+       -
        -  -
 
        -  -
@@ -9385,9 +9385,9 @@ the following codes.
 
     -  .. row 83
 
-       -  
-       -  
-       -  
+       -
+       -
+       -
        -  -
 
        -  -
@@ -9458,7 +9458,7 @@ the following codes.
 
        -  0x2011
 
-       -  
+       -
        -  -
 
        -  -
@@ -9525,9 +9525,9 @@ the following codes.
 
     -  .. row 85
 
-       -  
-       -  
-       -  
+       -
+       -
+       -
        -  -
 
        -  -
@@ -9598,7 +9598,7 @@ the following codes.
 
        -  0x2012
 
-       -  
+       -
        -  -
 
        -  -
@@ -9665,9 +9665,9 @@ the following codes.
 
     -  .. row 87
 
-       -  
-       -  
-       -  
+       -
+       -
+       -
        -  -
 
        -  -
@@ -9738,7 +9738,7 @@ the following codes.
 
        -  0x2014
 
-       -  
+       -
        -  -
 
        -  -
@@ -9805,9 +9805,9 @@ the following codes.
 
     -  .. row 89
 
-       -  
-       -  
-       -  
+       -
+       -
+       -
        -  -
 
        -  -
@@ -9874,9 +9874,9 @@ the following codes.
 
     -  .. row 90
 
-       -  
-       -  
-       -  
+       -
+       -
+       -
        -  -
 
        -  -
@@ -9943,9 +9943,9 @@ the following codes.
 
     -  .. row 91
 
-       -  
-       -  
-       -  
+       -
+       -
+       -
        -  -
 
        -  -
@@ -10016,7 +10016,7 @@ the following codes.
 
        -  0x201a
 
-       -  
+       -
        -  -
 
        -  -
@@ -10083,9 +10083,9 @@ the following codes.
 
     -  .. row 93
 
-       -  
-       -  
-       -  
+       -
+       -
+       -
        -  -
 
        -  -
@@ -10156,7 +10156,7 @@ the following codes.
 
        -  0x201b
 
-       -  
+       -
        -  -
 
        -  -
@@ -10223,9 +10223,9 @@ the following codes.
 
     -  .. row 95
 
-       -  
-       -  
-       -  
+       -
+       -
+       -
        -  -
 
        -  -
@@ -10296,7 +10296,7 @@ the following codes.
 
        -  0x200d
 
-       -  
+       -
        -  -
 
        -  -
@@ -10363,9 +10363,9 @@ the following codes.
 
     -  .. row 97
 
-       -  
-       -  
-       -  
+       -
+       -
+       -
        -  -
 
        -  -
@@ -10436,7 +10436,7 @@ the following codes.
 
        -  0x200e
 
-       -  
+       -
        -  -
 
        -  -
@@ -10503,9 +10503,9 @@ the following codes.
 
     -  .. row 99
 
-       -  
-       -  
-       -  
+       -
+       -
+       -
        -  -
 
        -  -
@@ -10576,7 +10576,7 @@ the following codes.
 
        -  0x201a
 
-       -  
+       -
        -  -
 
        -  -
@@ -10647,7 +10647,7 @@ the following codes.
 
        -  0x2025
 
-       -  
+       -
        -  -
 
        -  -
@@ -10718,7 +10718,7 @@ the following codes.
 
        -  0x2020
 
-       -  
+       -
        -  -
 
        -  -
@@ -10785,9 +10785,9 @@ the following codes.
 
     -  .. row 103
 
-       -  
-       -  
-       -  
+       -
+       -
+       -
        -  -
 
        -  -
@@ -10858,7 +10858,7 @@ the following codes.
 
        -  0x2021
 
-       -  
+       -
        -  -
 
        -  -
@@ -10925,9 +10925,9 @@ the following codes.
 
     -  .. row 105
 
-       -  
-       -  
-       -  
+       -
+       -
+       -
        -  -
 
        -  -
@@ -10998,7 +10998,7 @@ the following codes.
 
        -  0x2022
 
-       -  
+       -
        -  -
 
        -  -
@@ -11065,9 +11065,9 @@ the following codes.
 
     -  .. row 107
 
-       -  
-       -  
-       -  
+       -
+       -
+       -
        -  -
 
        -  -
@@ -11138,7 +11138,7 @@ the following codes.
 
        -  0x2023
 
-       -  
+       -
        -  -
 
        -  -
@@ -11205,9 +11205,9 @@ the following codes.
 
     -  .. row 109
 
-       -  
-       -  
-       -  
+       -
+       -
+       -
        -  -
 
        -  -
@@ -11278,7 +11278,7 @@ the following codes.
 
        -  0x2016
 
-       -  
+       -
        -  -
 
        -  -
@@ -11349,7 +11349,7 @@ the following codes.
 
        -  0x2017
 
-       -  
+       -
        -  a\ :sub:`7`
 
        -  a\ :sub:`6`
@@ -11463,13 +11463,13 @@ The following table lists existing HSV/HSL formats.
 
        -  Code
 
-       -  
+       -
        -  :cspan:`31` Data organization
 
     -  .. row 2
 
-       -  
-       -  
+       -
+       -
        -  Bit
 
        -  31
@@ -11542,7 +11542,7 @@ The following table lists existing HSV/HSL formats.
 
        -  0x6001
 
-       -  
+       -
        -  a\ :sub:`7`
 
        -  a\ :sub:`6`
@@ -11648,8 +11648,8 @@ The following table lists existing JPEG compressed formats.
        -  0x4001
 
        -  Besides of its usage for the parallel bus this format is
-          recommended for transmission of JPEG data over MIPI CSI bus using
-          the User Defined 8-bit Data types.
+	  recommended for transmission of JPEG data over MIPI CSI bus using
+	  the User Defined 8-bit Data types.
 
 
 
@@ -11687,4 +11687,4 @@ formats.
        -  0x5001
 
        -  Interleaved raw UYVY and JPEG image format with embedded meta-data
-          used by Samsung S3C73MX camera sensors.
+	  used by Samsung S3C73MX camera sensors.
