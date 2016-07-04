@@ -931,6 +931,15 @@ static int mlx5e_get_rxnfc(struct net_device *netdev,
 	case ETHTOOL_GRXRINGS:
 		info->data = priv->params.num_channels;
 		break;
+	case ETHTOOL_GRXCLSRLCNT:
+		info->rule_cnt = priv->fs.ethtool.tot_num_rules;
+		break;
+	case ETHTOOL_GRXCLSRULE:
+		err = mlx5e_ethtool_get_flow(priv, info, info->fs.location);
+		break;
+	case ETHTOOL_GRXCLSRLALL:
+		err = mlx5e_ethtool_get_all_flows(priv, info, rule_locs);
+		break;
 	default:
 		err = -EOPNOTSUPP;
 		break;

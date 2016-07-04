@@ -717,6 +717,10 @@ int mlx5e_create_flow_steering(struct mlx5e_priv *priv);
 void mlx5e_destroy_flow_steering(struct mlx5e_priv *priv);
 void mlx5e_init_l2_addr(struct mlx5e_priv *priv);
 void mlx5e_destroy_flow_table(struct mlx5e_flow_table *ft);
+int mlx5e_ethtool_get_flow(struct mlx5e_priv *priv, struct ethtool_rxnfc *info,
+			   int location);
+int mlx5e_ethtool_get_all_flows(struct mlx5e_priv *priv,
+				struct ethtool_rxnfc *info, u32 *rule_locs);
 int mlx5e_ethtool_flow_replace(struct mlx5e_priv *priv,
 			       struct ethtool_rx_flow_spec *fs);
 int mlx5e_ethtool_flow_remove(struct mlx5e_priv *priv,
