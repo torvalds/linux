@@ -48,14 +48,14 @@ currently only used by the STOP command and contains one bit: If the
 until the end of the current *Group Of Pictures*, otherwise it will stop
 immediately.
 
-A :c:func:`read()`() or :ref:`VIDIOC_STREAMON`
+A :ref:`read() <func-read>` or :ref:`VIDIOC_STREAMON <VIDIOC_STREAMON>`
 call sends an implicit START command to the encoder if it has not been
-started yet. After a STOP command, :c:func:`read()`() calls will read
+started yet. After a STOP command, :ref:`read() <func-read>` calls will read
 the remaining data buffered by the driver. When the buffer is empty,
-:c:func:`read()`() will return zero and the next :c:func:`read()`()
+:ref:`read() <func-read>` will return zero and the next :ref:`read() <func-read>`
 call will restart the encoder.
 
-A :c:func:`close()`() or :ref:`VIDIOC_STREAMOFF <VIDIOC_STREAMON>`
+A :ref:`close() <func-close>` or :ref:`VIDIOC_STREAMOFF <VIDIOC_STREAMON>`
 call of a streaming file descriptor sends an implicit immediate STOP to
 the encoder, and all buffered data is discarded.
 

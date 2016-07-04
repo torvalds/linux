@@ -38,7 +38,7 @@ Arguments
 Description
 ===========
 
-The :c:func:`ioctl()` function is used to program V4L2 devices. The
+The :ref:`ioctl() <func-ioctl>` function is used to program V4L2 devices. The
 argument ``fd`` must be an open file descriptor. An ioctl ``request``
 has encoded in it whether the argument is an input, output or read/write
 parameter, and the size of the argument ``argp`` in bytes. Macros and

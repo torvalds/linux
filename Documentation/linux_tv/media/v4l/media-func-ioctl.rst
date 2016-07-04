@@ -38,7 +38,7 @@ Arguments
 Description
 ===========
 
-The :c:func:`ioctl()` function manipulates media device parameters.
+The :ref:`ioctl() <func-ioctl>` function manipulates media device parameters.
 The argument ``fd`` must be an open file descriptor.
 
 The ioctl ``request`` code specifies the media function to be called. It

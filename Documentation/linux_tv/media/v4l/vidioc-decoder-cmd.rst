@@ -43,11 +43,11 @@ this structure.
 The ``cmd`` field must contain the command code. Some commands use the
 ``flags`` field for additional information.
 
-A :c:func:`write()`() or :ref:`VIDIOC_STREAMON`
+A :ref:`write() <func-write>` or :ref:`VIDIOC_STREAMON`
 call sends an implicit START command to the decoder if it has not been
 started yet.
 
-A :c:func:`close()`() or :ref:`VIDIOC_STREAMOFF <VIDIOC_STREAMON>`
+A :ref:`close() <func-close>` or :ref:`VIDIOC_STREAMOFF <VIDIOC_STREAMON>`
 call of a streaming file descriptor sends an implicit immediate STOP
 command to the decoder, and all buffered data is discarded.
 

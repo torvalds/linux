@@ -6,8 +6,8 @@
 Read/Write
 **********
 
-Input and output devices support the :c:func:`read()` and
-:c:func:`write()` function, respectively, when the
+Input and output devices support the :ref:`read() <func-read>` and
+:ref:`write() <func-write>` function, respectively, when the
 ``V4L2_CAP_READWRITE`` flag in the ``capabilities`` field of struct
 :ref:`v4l2_capability <v4l2-capability>` returned by the
 :ref:`VIDIOC_QUERYCAP` ioctl is set.
@@ -43,5 +43,5 @@ driver must also support the :ref:`select() <func-select>` and
    capturing still images.
 
 .. [2]
-   At the driver level :c:func:`select()` and :c:func:`poll()` are
-   the same, and :c:func:`select()` is too important to be optional.
+   At the driver level :ref:`select() <func-select>` and :ref:`poll() <func-poll>` are
+   the same, and :ref:`select() <func-select>` is too important to be optional.

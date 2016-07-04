@@ -45,10 +45,10 @@ Arguments
 Description
 ===========
 
-To open a V4L2 device applications call :c:func:`open()` with the
+To open a V4L2 device applications call :ref:`open() <func-open>` with the
 desired device name. This function has no side effects; all data format
 parameters, current input or output, control values or other properties
-remain unchanged. At the first :c:func:`open()` call after loading the
+remain unchanged. At the first :ref:`open() <func-open>` call after loading the
 driver they will be reset to default values, drivers are never in an
 undefined state.
 
@@ -56,7 +56,7 @@ undefined state.
 Return Value
 ============
 
-On success :c:func:`open()` returns the new file descriptor. On error
+On success :ref:`open() <func-open>` returns the new file descriptor. On error
 -1 is returned, and the ``errno`` variable is set appropriately.
 Possible error codes are:
 

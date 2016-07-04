@@ -40,7 +40,7 @@ location of the buffers in device memory can be determined with the
 :ref:`VIDIOC_QUERYBUF` ioctl. In the single-planar
 API case, the ``m.offset`` and ``length`` returned in a struct
 :ref:`v4l2_buffer <v4l2-buffer>` are passed as sixth and second
-parameter to the :c:func:`mmap()` function. When using the
+parameter to the :ref:`mmap() <func-mmap>` function. When using the
 multi-planar API, struct :ref:`v4l2_buffer <v4l2-buffer>` contains an
 array of struct :ref:`v4l2_plane <v4l2-plane>` structures, each
 containing its own ``m.offset`` and ``length``. When using the
@@ -251,15 +251,15 @@ event it should examine the struct :ref:`v4l2_buffer <v4l2-buffer>`
 Drivers implementing memory mapping I/O must support the
 ``VIDIOC_REQBUFS``, ``VIDIOC_QUERYBUF``, ``VIDIOC_QBUF``,
 ``VIDIOC_DQBUF``, ``VIDIOC_STREAMON`` and ``VIDIOC_STREAMOFF`` ioctl,
-the :c:func:`mmap()`, :c:func:`munmap()`, :c:func:`select()` and
-:c:func:`poll()` function. [3]_
+the :ref:`mmap() <func-mmap>`, :ref:`munmap() <func-munmap>`, :ref:`select() <func-select>` and
+:ref:`poll() <func-poll>` function. [3]_
 
 [capture example]
 
 .. [1]
    One could use one file descriptor and set the buffer type field
    accordingly when calling :ref:`VIDIOC_QBUF` etc.,
-   but it makes the :c:func:`select()` function ambiguous. We also
+   but it makes the :ref:`select() <func-select>` function ambiguous. We also
    like the clean approach of one file descriptor per logical stream.
    Video overlay for example is also a logical stream, although the CPU
    is not needed for continuous operation.
@@ -272,6 +272,6 @@ the :c:func:`mmap()`, :c:func:`munmap()`, :c:func:`select()` and
    scatter-gather lists and the like.
 
 .. [3]
-   At the driver level :c:func:`select()` and :c:func:`poll()` are
-   the same, and :c:func:`select()` is too important to be optional.
+   At the driver level :ref:`select() <func-select>` and :ref:`poll() <func-poll>` are
+   the same, and :ref:`select() <func-select>` is too important to be optional.
    The rest should be evident.

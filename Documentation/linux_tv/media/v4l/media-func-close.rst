@@ -38,7 +38,7 @@ are freed. The device configuration remain unchanged.
 Return Value
 ============
 
-:c:func:`close()` returns 0 on success. On error, -1 is returned, and
+:ref:`close() <func-close>` returns 0 on success. On error, -1 is returned, and
 ``errno`` is set appropriately. Possible error codes are:
 
 EBADF

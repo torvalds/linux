@@ -72,8 +72,9 @@ that possible.
 Return Value
 ============
 
-On success :c:func:`open()` returns the new file descriptor. On error
--1 is returned, and the ``errno`` variable is set appropriately.
+On success :ref:`open() <frontend_f_open>` returns the new file descriptor.
+On error, -1 is returned, and the ``errno`` variable is set appropriately.
+
 Possible error codes are:
 
 EACCES
