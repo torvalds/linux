@@ -32,12 +32,12 @@ Arguments
     technicality, input devices still support only reading and output
     devices only writing.
 
-    When the ``O_NONBLOCK`` flag is given, the read() function and the
-    :ref:`VIDIOC_DQBUF <VIDIOC_QBUF>` ioctl will return the ``EAGAIN``
-    error code when no data is available or no buffer is in the driver
-    outgoing queue, otherwise these functions block until data becomes
-    available. All V4L2 drivers exchanging data with applications must
-    support the ``O_NONBLOCK`` flag.
+    When the ``O_NONBLOCK`` flag is given, the :ref:`read() <func-read>`
+    function and the :ref:`VIDIOC_DQBUF <VIDIOC_QBUF>` ioctl will
+    return the ``EAGAIN`` error code when no data is available or no
+    buffer is in the driver outgoing queue, otherwise these functions
+    block until data becomes available. All V4L2 drivers exchanging data
+    with applications must support the ``O_NONBLOCK`` flag.
 
     Other flags have no effect.
 

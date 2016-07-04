@@ -91,8 +91,8 @@ happen for instance when the video and VBI areas to capture would
 overlap, or when the driver supports multiple opens and another process
 already requested VBI capturing or output. Anyway, applications must
 expect other resource allocation points which may return ``EBUSY``, at the
-:ref:`VIDIOC_STREAMON` ioctl and the first read(),
-write() and select() call.
+:ref:`VIDIOC_STREAMON` ioctl and the first :ref:`read() <func-read>`
+, :ref:`write() <func-write>` and :ref:`select() <func-select>` calls.
 
 VBI devices must implement both the :ref:`VIDIOC_G_FMT <VIDIOC_G_FMT>` and
 :ref:`VIDIOC_S_FMT <VIDIOC_G_FMT>` ioctl, even if :ref:`VIDIOC_S_FMT <VIDIOC_G_FMT>` ignores all requests

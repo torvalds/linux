@@ -73,7 +73,8 @@ support all functions. However, in practice this never worked: this
 'feature' was never used by applications and many drivers did not
 support it and if they did it was certainly never tested. In addition,
 switching a device node between different functions only works when
-using the streaming I/O API, not with the read()/write() API.
+using the streaming I/O API, not with the
+:ref:`read() <func-read>`/\ :ref:`write() <func-write>` API.
 
 Today each device node supports just one function.
 
