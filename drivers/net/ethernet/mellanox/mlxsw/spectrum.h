@@ -43,6 +43,7 @@
 #include <linux/if_vlan.h>
 #include <linux/list.h>
 #include <linux/dcbnl.h>
+#include <linux/in6.h>
 #include <net/switchdev.h>
 
 #include "port.h"
@@ -158,6 +159,12 @@ struct mlxsw_sp_sb {
 		struct mlxsw_sp_sb_cm cms[2][MLXSW_SP_SB_TC_COUNT];
 		struct mlxsw_sp_sb_pm pms[2][MLXSW_SP_SB_POOL_COUNT];
 	} ports[MLXSW_PORT_MAX_PORTS];
+};
+
+#define MLXSW_SP_PREFIX_COUNT (sizeof(struct in6_addr) * BITS_PER_BYTE)
+
+struct mlxsw_sp_prefix_usage {
+	DECLARE_BITMAP(b, MLXSW_SP_PREFIX_COUNT);
 };
 
 struct mlxsw_sp {
