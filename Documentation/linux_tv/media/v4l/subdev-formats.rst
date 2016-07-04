@@ -2760,9 +2760,7 @@ be named ``MEDIA_BUS_FMT_SRGGB10_2X8_PADHI_LE``.
     :alt:    bayer.png
     :align:  center
 
-    Bayer Patterns
-
-    Bayer filter color patterns
+    **Figure 4.8 Bayer Patterns**
 
 
 
