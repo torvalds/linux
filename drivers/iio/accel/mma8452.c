@@ -634,11 +634,7 @@ static int mma8452_set_freefall_mode(struct mma8452_data *data, bool state)
 		val |= MMA8452_FF_MT_CFG_OAE;
 	}
 
-	val = mma8452_change_config(data, chip->ev_cfg, val);
-	if (val)
-		return val;
-
-	return 0;
+	return mma8452_change_config(data, chip->ev_cfg, val);
 }
 
 static int mma8452_set_hp_filter_frequency(struct mma8452_data *data,
