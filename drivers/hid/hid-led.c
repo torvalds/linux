@@ -28,6 +28,7 @@ enum hidled_type {
 	DREAM_CHEEKY,
 	THINGM,
 	DELCOM,
+	LUXAFOR,
 };
 
 static unsigned const char riso_kagaku_tbl[] = {
@@ -329,6 +330,19 @@ static int delcom_init(struct hidled_device *ldev)
 	return dp.fw.family_code == 2 ? 0 : -ENODEV;
 }
 
+static int luxafor_write(struct led_classdev *cdev, enum led_brightness br)
+{
+	struct hidled_led *led = to_hidled_led(cdev);
+	__u8 buf[MAX_REPORT_SIZE] = { [1] = 1 };
+
+	buf[2] = led->rgb->num + 1;
+	buf[3] = led->rgb->red.cdev.brightness;
+	buf[4] = led->rgb->green.cdev.brightness;
+	buf[5] = led->rgb->blue.cdev.brightness;
+
+	return hidled_send(led->rgb->ldev, buf);
+}
+
 static const struct hidled_config hidled_configs[] = {
 	{
 		.type = RISO_KAGAKU,
@@ -372,6 +386,16 @@ static const struct hidled_config hidled_configs[] = {
 		.report_type = RAW_REQUEST,
 		.init = delcom_init,
 		.write = delcom_write,
+	},
+	{
+		.type = LUXAFOR,
+		.name = "Greynut Luxafor",
+		.short_name = "luxafor",
+		.max_brightness = 255,
+		.num_leds = 6,
+		.report_size = 9,
+		.report_type = OUTPUT_REPORT,
+		.write = luxafor_write,
 	},
 };
 
@@ -480,6 +504,8 @@ static const struct hid_device_id hidled_table[] = {
 	  USB_DEVICE_ID_BLINK1), .driver_data = THINGM },
 	{ HID_USB_DEVICE(USB_VENDOR_ID_DELCOM,
 	  USB_DEVICE_ID_DELCOM_VISUAL_IND), .driver_data = DELCOM },
+	{ HID_USB_DEVICE(USB_VENDOR_ID_MICROCHIP,
+	  USB_DEVICE_ID_LUXAFOR), .driver_data = LUXAFOR },
 	{ }
 };
 MODULE_DEVICE_TABLE(hid, hidled_table);
