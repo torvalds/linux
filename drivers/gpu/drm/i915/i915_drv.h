@@ -475,6 +475,7 @@ struct drm_i915_error_state {
 	struct timeval time;
 
 	char error_msg[128];
+	bool simulated;
 	int iommu;
 	u32 reset_count;
 	u32 suspend_count;
@@ -875,9 +876,10 @@ struct i915_gem_context {
 
 	/* Unique identifier for this context, used by the hw for tracking */
 	unsigned long flags;
+#define CONTEXT_NO_ZEROMAP		BIT(0)
+#define CONTEXT_NO_ERROR_CAPTURE	BIT(1)
 	unsigned hw_id;
 	u32 user_handle;
-#define CONTEXT_NO_ZEROMAP		(1<<0)
 
 	u32 ggtt_alignment;
 
