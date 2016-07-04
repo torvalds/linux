@@ -1542,6 +1542,22 @@ complete:
 			*timeout = 0;
 	}
 
+	if (rps && req->seqno == req->engine->last_submitted_seqno) {
+		/* The GPU is now idle and this client has stalled.
+		 * Since no other client has submitted a request in the
+		 * meantime, assume that this client is the only one
+		 * supplying work to the GPU but is unable to keep that
+		 * work supplied because it is waiting. Since the GPU is
+		 * then never kept fully busy, RPS autoclocking will
+		 * keep the clocks relatively low, causing further delays.
+		 * Compensate by giving the synchronous client credit for
+		 * a waitboost next time.
+		 */
+		spin_lock(&req->i915->rps.client_lock);
+		list_del_init(&rps->link);
+		spin_unlock(&req->i915->rps.client_lock);
+	}
+
 	return ret;
 }
 
