@@ -27,6 +27,7 @@ enum hidled_type {
 	RISO_KAGAKU,
 	DREAM_CHEEKY,
 	THINGM,
+	DELCOM,
 };
 
 static unsigned const char riso_kagaku_tbl[] = {
@@ -42,6 +43,28 @@ static unsigned const char riso_kagaku_tbl[] = {
 };
 
 #define RISO_KAGAKU_IX(r, g, b) riso_kagaku_tbl[((r)?1:0)+((g)?2:0)+((b)?4:0)]
+
+union delcom_packet {
+	__u8 data[8];
+	struct {
+		__u8 major_cmd;
+		__u8 minor_cmd;
+		__u8 data_lsb;
+		__u8 data_msb;
+	} tx;
+	struct {
+		__u8 cmd;
+	} rx;
+	struct {
+		__le16 family_code;
+		__le16 security_code;
+		__u8 fw_version;
+	} fw;
+};
+
+#define DELCOM_GREEN_LED	0
+#define DELCOM_RED_LED		1
+#define DELCOM_BLUE_LED		2
 
 struct hidled_device;
 struct hidled_rgb;
@@ -244,6 +267,68 @@ static int thingm_init(struct hidled_device *ldev)
 	return 0;
 }
 
+static inline int delcom_get_lednum(const struct hidled_led *led)
+{
+	if (led == &led->rgb->red)
+		return DELCOM_RED_LED;
+	else if (led == &led->rgb->green)
+		return DELCOM_GREEN_LED;
+	else
+		return DELCOM_BLUE_LED;
+}
+
+static int delcom_enable_led(struct hidled_led *led)
+{
+	union delcom_packet dp = { .tx.major_cmd = 101, .tx.minor_cmd = 12 };
+
+	dp.tx.data_lsb = 1 << delcom_get_lednum(led);
+	dp.tx.data_msb = 0;
+
+	return hidled_send(led->rgb->ldev, dp.data);
+}
+
+static int delcom_set_pwm(struct hidled_led *led)
+{
+	union delcom_packet dp = { .tx.major_cmd = 101, .tx.minor_cmd = 34 };
+
+	dp.tx.data_lsb = delcom_get_lednum(led);
+	dp.tx.data_msb = led->cdev.brightness;
+
+	return hidled_send(led->rgb->ldev, dp.data);
+}
+
+static int delcom_write(struct led_classdev *cdev, enum led_brightness br)
+{
+	struct hidled_led *led = to_hidled_led(cdev);
+	int ret;
+
+	/*
+	 * enable LED
+	 * We can't do this in the init function already because the device
+	 * is internally reset later.
+	 */
+	ret = delcom_enable_led(led);
+	if (ret)
+		return ret;
+
+	return delcom_set_pwm(led);
+}
+
+static int delcom_init(struct hidled_device *ldev)
+{
+	union delcom_packet dp = { .rx.cmd = 104 };
+	int ret;
+
+	ret = hidled_recv(ldev, dp.data);
+	if (ret)
+		return ret;
+	/*
+	 * Several Delcom devices share the same USB VID/PID
+	 * Check for family id 2 for Visual Signal Indicator
+	 */
+	return dp.fw.family_code == 2 ? 0 : -ENODEV;
+}
+
 static const struct hidled_config hidled_configs[] = {
 	{
 		.type = RISO_KAGAKU,
@@ -276,6 +361,17 @@ static const struct hidled_config hidled_configs[] = {
 		.report_type = RAW_REQUEST,
 		.init = thingm_init,
 		.write = thingm_write,
+	},
+	{
+		.type = DELCOM,
+		.name = "Delcom Visual Signal Indicator G2",
+		.short_name = "delcom",
+		.max_brightness = 100,
+		.num_leds = 1,
+		.report_size = 8,
+		.report_type = RAW_REQUEST,
+		.init = delcom_init,
+		.write = delcom_write,
 	},
 };
 
@@ -382,6 +478,8 @@ static const struct hid_device_id hidled_table[] = {
 	  USB_DEVICE_ID_DREAM_CHEEKY_FA), .driver_data = DREAM_CHEEKY },
 	{ HID_USB_DEVICE(USB_VENDOR_ID_THINGM,
 	  USB_DEVICE_ID_BLINK1), .driver_data = THINGM },
+	{ HID_USB_DEVICE(USB_VENDOR_ID_DELCOM,
+	  USB_DEVICE_ID_DELCOM_VISUAL_IND), .driver_data = DELCOM },
 	{ }
 };
 MODULE_DEVICE_TABLE(hid, hidled_table);

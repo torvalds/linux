@@ -397,6 +397,7 @@ config HID_LED
 	- Riso Kagaku Webmail Notifier
 	- Dream Cheeky Webmail Notifier and Friends Alert
 	- ThingM blink(1)
+	- Delcom Visual Signal Indicator Generation 2
 
 	To compile this driver as a module, choose M here: the
 	module will be called hid-led.
