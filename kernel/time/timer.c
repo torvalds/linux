@@ -471,12 +471,9 @@ static inline unsigned calc_index(unsigned expires, unsigned lvl)
 	return LVL_OFFS(lvl) + (expires & LVL_MASK);
 }
 
-static void
-__internal_add_timer(struct timer_base *base, struct timer_list *timer)
+static int calc_wheel_index(unsigned long expires, unsigned long clk)
 {
-	unsigned long expires = timer->expires;
-	unsigned long delta = expires - base->clk;
-	struct hlist_head *vec;
+	unsigned long delta = expires - clk;
 	unsigned int idx;
 
 	if (delta < LVL_START(1)) {
@@ -496,7 +493,7 @@ __internal_add_timer(struct timer_base *base, struct timer_list *timer)
 	} else if (LVL_DEPTH > 8 && delta < LVL_START(8)) {
 		idx = calc_index(expires, 7);
 	} else if ((long) delta < 0) {
-		idx = base->clk & LVL_MASK;
+		idx = clk & LVL_MASK;
 	} else {
 		/*
 		 * Force expire obscene large timeouts to expire at the
@@ -507,20 +504,33 @@ __internal_add_timer(struct timer_base *base, struct timer_list *timer)
 
 		idx = calc_index(expires, LVL_DEPTH - 1);
 	}
-	/*
-	 * Enqueue the timer into the array bucket, mark it pending in
-	 * the bitmap and store the index in the timer flags.
-	 */
-	vec = base->vectors + idx;
-	hlist_add_head(&timer->entry, vec);
+	return idx;
+}
+
+/*
+ * Enqueue the timer into the hash bucket, mark it pending in
+ * the bitmap and store the index in the timer flags.
+ */
+static void enqueue_timer(struct timer_base *base, struct timer_list *timer,
+			  unsigned int idx)
+{
+	hlist_add_head(&timer->entry, base->vectors + idx);
 	__set_bit(idx, base->pending_map);
 	timer_set_idx(timer, idx);
 }
 
-static void internal_add_timer(struct timer_base *base, struct timer_list *timer)
+static void
+__internal_add_timer(struct timer_base *base, struct timer_list *timer)
 {
-	__internal_add_timer(base, timer);
+	unsigned int idx;
 
+	idx = calc_wheel_index(timer->expires, base->clk);
+	enqueue_timer(base, timer, idx);
+}
+
+static void
+trigger_dyntick_cpu(struct timer_base *base, struct timer_list *timer)
+{
 	if (!IS_ENABLED(CONFIG_NO_HZ_COMMON) || !base->nohz_active)
 		return;
 
@@ -551,7 +561,14 @@ static void internal_add_timer(struct timer_base *base, struct timer_list *timer
 	 * wheel:
 	 */
 	base->next_expiry = timer->expires;
-	wake_up_nohz_cpu(base->cpu);
+		wake_up_nohz_cpu(base->cpu);
+}
+
+static void
+internal_add_timer(struct timer_base *base, struct timer_list *timer)
+{
+	__internal_add_timer(base, timer);
+	trigger_dyntick_cpu(base, timer);
 }
 
 #ifdef CONFIG_TIMER_STATS
