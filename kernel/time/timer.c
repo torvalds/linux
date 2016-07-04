@@ -196,9 +196,11 @@ struct timer_base {
 	spinlock_t		lock;
 	struct timer_list	*running_timer;
 	unsigned long		clk;
+	unsigned long		next_expiry;
 	unsigned int		cpu;
 	bool			migration_enabled;
 	bool			nohz_active;
+	bool			is_idle;
 	DECLARE_BITMAP(pending_map, WHEEL_SIZE);
 	struct hlist_head	vectors[WHEEL_SIZE];
 } ____cacheline_aligned;
@@ -519,24 +521,37 @@ static void internal_add_timer(struct timer_base *base, struct timer_list *timer
 {
 	__internal_add_timer(base, timer);
 
+	if (!IS_ENABLED(CONFIG_NO_HZ_COMMON) || !base->nohz_active)
+		return;
+
 	/*
-	 * Check whether the other CPU is in dynticks mode and needs
-	 * to be triggered to reevaluate the timer wheel.  We are
-	 * protected against the other CPU fiddling with the timer by
-	 * holding the timer base lock. This also makes sure that a
-	 * CPU on the way to stop its tick can not evaluate the timer
-	 * wheel.
-	 *
-	 * Spare the IPI for deferrable timers on idle targets though.
-	 * The next busy ticks will take care of it. Except full dynticks
-	 * require special care against races with idle_cpu(), lets deal
-	 * with that later.
+	 * TODO: This wants some optimizing similar to the code below, but we
+	 * will do that when we switch from push to pull for deferrable timers.
 	 */
-	if (IS_ENABLED(CONFIG_NO_HZ_COMMON) && base->nohz_active) {
-		if (!(timer->flags & TIMER_DEFERRABLE) ||
-		    tick_nohz_full_cpu(base->cpu))
+	if (timer->flags & TIMER_DEFERRABLE) {
+		if (tick_nohz_full_cpu(base->cpu))
 			wake_up_nohz_cpu(base->cpu);
+		return;
 	}
+
+	/*
+	 * We might have to IPI the remote CPU if the base is idle and the
+	 * timer is not deferrable. If the other CPU is on the way to idle
+	 * then it can't set base->is_idle as we hold the base lock:
+	 */
+	if (!base->is_idle)
+		return;
+
+	/* Check whether this is the new first expiring timer: */
+	if (time_after_eq(timer->expires, base->next_expiry))
+		return;
+
+	/*
+	 * Set the next expiry time and kick the CPU so it can reevaluate the
+	 * wheel:
+	 */
+	base->next_expiry = timer->expires;
+	wake_up_nohz_cpu(base->cpu);
 }
 
 #ifdef CONFIG_TIMER_STATS
@@ -844,16 +859,54 @@ static inline struct timer_base *get_timer_base(u32 tflags)
 	return get_timer_cpu_base(tflags, tflags & TIMER_CPUMASK);
 }
 
-static inline struct timer_base *get_target_base(struct timer_base *base,
-						 unsigned tflags)
+#ifdef CONFIG_NO_HZ_COMMON
+static inline struct timer_base *
+__get_target_base(struct timer_base *base, unsigned tflags)
 {
-#if defined(CONFIG_NO_HZ_COMMON) && defined(CONFIG_SMP)
+#ifdef CONFIG_SMP
 	if ((tflags & TIMER_PINNED) || !base->migration_enabled)
 		return get_timer_this_cpu_base(tflags);
 	return get_timer_cpu_base(tflags, get_nohz_timer_target());
 #else
 	return get_timer_this_cpu_base(tflags);
 #endif
+}
+
+static inline void forward_timer_base(struct timer_base *base)
+{
+	/*
+	 * We only forward the base when it's idle and we have a delta between
+	 * base clock and jiffies.
+	 */
+	if (!base->is_idle || (long) (jiffies - base->clk) < 2)
+		return;
+
+	/*
+	 * If the next expiry value is > jiffies, then we fast forward to
+	 * jiffies otherwise we forward to the next expiry value.
+	 */
+	if (time_after(base->next_expiry, jiffies))
+		base->clk = jiffies;
+	else
+		base->clk = base->next_expiry;
+}
+#else
+static inline struct timer_base *
+__get_target_base(struct timer_base *base, unsigned tflags)
+{
+	return get_timer_this_cpu_base(tflags);
+}
+
+static inline void forward_timer_base(struct timer_base *base) { }
+#endif
+
+static inline struct timer_base *
+get_target_base(struct timer_base *base, unsigned tflags)
+{
+	struct timer_base *target = __get_target_base(base, tflags);
+
+	forward_timer_base(target);
+	return target;
 }
 
 /*
@@ -1417,14 +1470,47 @@ u64 get_next_timer_interrupt(unsigned long basej, u64 basem)
 
 	spin_lock(&base->lock);
 	nextevt = __next_timer_interrupt(base);
+	base->next_expiry = nextevt;
+	/*
+	 * We have a fresh next event. Check whether we can forward the base:
+	 */
+	if (time_after(nextevt, jiffies))
+		base->clk = jiffies;
+	else if (time_after(nextevt, base->clk))
+		base->clk = nextevt;
+
+	if (time_before_eq(nextevt, basej)) {
+		expires = basem;
+		base->is_idle = false;
+	} else {
+		expires = basem + (nextevt - basej) * TICK_NSEC;
+		/*
+		 * If we expect to sleep more than a tick, mark the base idle:
+		 */
+		if ((expires - basem) > TICK_NSEC)
+			base->is_idle = true;
+	}
 	spin_unlock(&base->lock);
 
-	if (time_before_eq(nextevt, basej))
-		expires = basem;
-	else
-		expires = basem + (nextevt - basej) * TICK_NSEC;
-
 	return cmp_next_hrtimer_event(basem, expires);
+}
+
+/**
+ * timer_clear_idle - Clear the idle state of the timer base
+ *
+ * Called with interrupts disabled
+ */
+void timer_clear_idle(void)
+{
+	struct timer_base *base = this_cpu_ptr(&timer_bases[BASE_STD]);
+
+	/*
+	 * We do this unlocked. The worst outcome is a remote enqueue sending
+	 * a pointless IPI, but taking the lock would just make the window for
+	 * sending the IPI a few instructions smaller for the cost of taking
+	 * the lock in the exit from idle path.
+	 */
+	base->is_idle = false;
 }
 
 static int collect_expired_timers(struct timer_base *base,
@@ -1440,7 +1526,7 @@ static int collect_expired_timers(struct timer_base *base,
 
 		/*
 		 * If the next timer is ahead of time forward to current
-		 * jiffies, otherwise forward to the next expiry time.
+		 * jiffies, otherwise forward to the next expiry time:
 		 */
 		if (time_after(next, jiffies)) {
 			/* The call site will increment clock! */

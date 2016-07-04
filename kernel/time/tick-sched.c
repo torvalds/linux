@@ -700,6 +700,12 @@ static ktime_t tick_nohz_stop_sched_tick(struct tick_sched *ts,
 	delta = next_tick - basemono;
 	if (delta <= (u64)TICK_NSEC) {
 		tick.tv64 = 0;
+
+		/*
+		 * Tell the timer code that the base is not idle, i.e. undo
+		 * the effect of get_next_timer_interrupt():
+		 */
+		timer_clear_idle();
 		/*
 		 * We've not stopped the tick yet, and there's a timer in the
 		 * next period, so no point in stopping it either, bail.
@@ -808,6 +814,12 @@ static void tick_nohz_restart_sched_tick(struct tick_sched *ts, ktime_t now)
 	/* Update jiffies first */
 	tick_do_update_jiffies64(now);
 	cpu_load_update_nohz_stop();
+
+	/*
+	 * Clear the timer idle flag, so we avoid IPIs on remote queueing and
+	 * the clock forward checks in the enqueue path:
+	 */
+	timer_clear_idle();
 
 	calc_load_exit_idle();
 	touch_softlockup_watchdog_sched();
