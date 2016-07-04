@@ -79,14 +79,15 @@ static const struct of_device_id machines[] __initconst = {
 static int __init cpufreq_dt_platdev_init(void)
 {
 	struct device_node *np = of_find_node_by_path("/");
+	const struct of_device_id *match;
 
 	if (!np)
 		return -ENODEV;
 
-	if (!of_match_node(machines, np))
+	match = of_match_node(machines, np);
+	of_node_put(np);
+	if (!match)
 		return -ENODEV;
-
-	of_node_put(of_root);
 
 	return PTR_ERR_OR_ZERO(platform_device_register_simple("cpufreq-dt", -1,
 							       NULL, 0));

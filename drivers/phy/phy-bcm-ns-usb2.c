@@ -109,8 +109,8 @@ static int bcm_ns_usb2_probe(struct platform_device *pdev)
 	}
 
 	usb2->phy = devm_phy_create(dev, NULL, &ops);
-	if (IS_ERR(dev))
-		return PTR_ERR(dev);
+	if (IS_ERR(usb2->phy))
+		return PTR_ERR(usb2->phy);
 
 	phy_set_drvdata(usb2->phy, usb2);
 	platform_set_drvdata(pdev, usb2);

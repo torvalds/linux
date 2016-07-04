@@ -1904,7 +1904,6 @@ static void ath10k_htt_rx_in_ord_ind(struct ath10k *ar, struct sk_buff *skb)
 			return;
 		}
 	}
-	ath10k_htt_rx_msdu_buff_replenish(htt);
 }
 
 static void ath10k_htt_rx_tx_fetch_resp_id_confirm(struct ath10k *ar,

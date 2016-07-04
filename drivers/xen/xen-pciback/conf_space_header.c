@@ -145,7 +145,7 @@ static int rom_write(struct pci_dev *dev, int offset, u32 value, void *data)
 	/* A write to obtain the length must happen as a 32-bit write.
 	 * This does not (yet) support writing individual bytes
 	 */
-	if (value == ~PCI_ROM_ADDRESS_ENABLE)
+	if ((value | ~PCI_ROM_ADDRESS_MASK) == ~0U)
 		bar->which = 1;
 	else {
 		u32 tmpval;
@@ -225,38 +225,42 @@ static inline void read_dev_bar(struct pci_dev *dev,
 			   (PCI_BASE_ADDRESS_SPACE_MEMORY |
 				PCI_BASE_ADDRESS_MEM_TYPE_64))) {
 			bar_info->val = res[pos - 1].start >> 32;
-			bar_info->len_val = res[pos - 1].end >> 32;
+			bar_info->len_val = -resource_size(&res[pos - 1]) >> 32;
 			return;
 		}
 	}
 
+	if (!res[pos].flags ||
+	    (res[pos].flags & (IORESOURCE_DISABLED | IORESOURCE_UNSET |
+			       IORESOURCE_BUSY)))
+		return;
+
 	bar_info->val = res[pos].start |
 			(res[pos].flags & PCI_REGION_FLAG_MASK);
-	bar_info->len_val = resource_size(&res[pos]);
+	bar_info->len_val = -resource_size(&res[pos]) |
+			    (res[pos].flags & PCI_REGION_FLAG_MASK);
 }
 
 static void *bar_init(struct pci_dev *dev, int offset)
 {
-	struct pci_bar_info *bar = kmalloc(sizeof(*bar), GFP_KERNEL);
+	struct pci_bar_info *bar = kzalloc(sizeof(*bar), GFP_KERNEL);
 
 	if (!bar)
 		return ERR_PTR(-ENOMEM);
 
 	read_dev_bar(dev, bar, offset, ~0);
-	bar->which = 0;
 
 	return bar;
 }
 
 static void *rom_init(struct pci_dev *dev, int offset)
 {
-	struct pci_bar_info *bar = kmalloc(sizeof(*bar), GFP_KERNEL);
+	struct pci_bar_info *bar = kzalloc(sizeof(*bar), GFP_KERNEL);
 
 	if (!bar)
 		return ERR_PTR(-ENOMEM);
 
 	read_dev_bar(dev, bar, offset, ~PCI_ROM_ADDRESS_ENABLE);
-	bar->which = 0;
 
 	return bar;
 }

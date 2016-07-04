@@ -511,12 +511,16 @@ int ib_init_ah_from_wc(struct ib_device *device, u8 port_num,
 		ah_attr->grh.dgid = sgid;
 
 		if (!rdma_cap_eth_ah(device, port_num)) {
-			ret = ib_find_cached_gid_by_port(device, &dgid,
-							 IB_GID_TYPE_IB,
-							 port_num, NULL,
-							 &gid_index);
-			if (ret)
-				return ret;
+			if (dgid.global.interface_id != cpu_to_be64(IB_SA_WELL_KNOWN_GUID)) {
+				ret = ib_find_cached_gid_by_port(device, &dgid,
+								 IB_GID_TYPE_IB,
+								 port_num, NULL,
+								 &gid_index);
+				if (ret)
+					return ret;
+			} else {
+				gid_index = 0;
+			}
 		}
 
 		ah_attr->grh.sgid_index = (u8) gid_index;

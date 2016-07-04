@@ -509,7 +509,7 @@ static int __ieee80211_data_to_8023(struct sk_buff *skb, struct ethhdr *ehdr,
 		 * replace EtherType */
 		hdrlen += ETH_ALEN + 2;
 	else
-		tmp.h_proto = htons(skb->len);
+		tmp.h_proto = htons(skb->len - hdrlen);
 
 	pskb_pull(skb, hdrlen);
 
