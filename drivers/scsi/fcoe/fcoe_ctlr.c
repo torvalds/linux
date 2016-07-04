@@ -991,7 +991,7 @@ static int fcoe_ctlr_parse_adv(struct fcoe_ctlr *fip,
 			LIBFCOE_FIP_DBG(fip, "unexpected descriptor type %x "
 					"in FIP adv\n", desc->fip_dtype);
 			/* standard says ignore unknown descriptors >= 128 */
-			if (desc->fip_dtype < FIP_DT_VENDOR_BASE)
+			if (desc->fip_dtype < FIP_DT_NON_CRITICAL)
 				return -EINVAL;
 			break;
 		}
@@ -1232,7 +1232,7 @@ static void fcoe_ctlr_recv_els(struct fcoe_ctlr *fip, struct sk_buff *skb)
 			LIBFCOE_FIP_DBG(fip, "unexpected descriptor type %x "
 					"in FIP adv\n", desc->fip_dtype);
 			/* standard says ignore unknown descriptors >= 128 */
-			if (desc->fip_dtype < FIP_DT_VENDOR_BASE)
+			if (desc->fip_dtype < FIP_DT_NON_CRITICAL)
 				goto drop;
 			if (desc_cnt <= 2) {
 				LIBFCOE_FIP_DBG(fip, "FIP descriptors "
@@ -1410,7 +1410,7 @@ static void fcoe_ctlr_recv_clr_vlink(struct fcoe_ctlr *fip,
 			break;
 		default:
 			/* standard says ignore unknown descriptors >= 128 */
-			if (desc->fip_dtype < FIP_DT_VENDOR_BASE)
+			if (desc->fip_dtype < FIP_DT_NON_CRITICAL)
 				goto err;
 			break;
 		}
@@ -2338,7 +2338,7 @@ static int fcoe_ctlr_vn_parse(struct fcoe_ctlr *fip,
 			LIBFCOE_FIP_DBG(fip, "unexpected descriptor type %x "
 					"in FIP probe\n", dtype);
 			/* standard says ignore unknown descriptors >= 128 */
-			if (dtype < FIP_DT_VENDOR_BASE)
+			if (dtype < FIP_DT_NON_CRITICAL)
 				return -EINVAL;
 			break;
 		}
