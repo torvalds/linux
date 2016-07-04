@@ -72,8 +72,8 @@ etc, please mail to:
     media/dvb/dvbapi
     media/rc/remote_controllers
     media/mediactl/media-controller
-    media/v4l/gen-errors
-    media/v4l/fdl-appendix
+    media/gen-errors
+    media/fdl-appendix
 
 .. only:: html
 
