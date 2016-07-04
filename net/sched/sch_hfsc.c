@@ -115,9 +115,9 @@ struct hfsc_class {
 	struct gnet_stats_basic_packed bstats;
 	struct gnet_stats_queue qstats;
 	struct gnet_stats_rate_est64 rate_est;
-	unsigned int	level;		/* class level in hierarchy */
 	struct tcf_proto __rcu *filter_list; /* filter list */
 	unsigned int	filter_cnt;	/* filter count */
+	unsigned int	level;		/* class level in hierarchy */
 
 	struct hfsc_sched *sched;	/* scheduler data */
 	struct hfsc_class *cl_parent;	/* parent class */
@@ -165,10 +165,10 @@ struct hfsc_class {
 	struct runtime_sc cl_virtual;	/* virtual curve */
 	struct runtime_sc cl_ulimit;	/* upperlimit curve */
 
-	unsigned long	cl_flags;	/* which curves are valid */
-	unsigned long	cl_vtperiod;	/* vt period sequence number */
-	unsigned long	cl_parentperiod;/* parent's vt period sequence number*/
-	unsigned long	cl_nactive;	/* number of active children */
+	u8		cl_flags;	/* which curves are valid */
+	u32		cl_vtperiod;	/* vt period sequence number */
+	u32		cl_parentperiod;/* parent's vt period sequence number*/
+	u32		cl_nactive;	/* number of active children */
 };
 
 struct hfsc_sched {
