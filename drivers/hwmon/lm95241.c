@@ -205,7 +205,7 @@ static ssize_t show_min(struct device *dev, struct device_attribute *attr,
 
 	return snprintf(buf, PAGE_SIZE - 1,
 			data->config & to_sensor_dev_attr(attr)->index ?
-			"-127000\n" : "0\n");
+			"-128000\n" : "0\n");
 }
 
 static ssize_t set_min(struct device *dev, struct device_attribute *attr,
@@ -215,8 +215,6 @@ static ssize_t set_min(struct device *dev, struct device_attribute *attr,
 	long val;
 
 	if (kstrtol(buf, 10, &val) < 0)
-		return -EINVAL;
-	if (val < -128000)
 		return -EINVAL;
 
 	mutex_lock(&data->update_lock);
@@ -242,7 +240,7 @@ static ssize_t show_max(struct device *dev, struct device_attribute *attr,
 
 	return snprintf(buf, PAGE_SIZE - 1,
 			data->config & to_sensor_dev_attr(attr)->index ?
-			"127000\n" : "255000\n");
+			"127875\n" : "255875\n");
 }
 
 static ssize_t set_max(struct device *dev, struct device_attribute *attr,
@@ -252,8 +250,6 @@ static ssize_t set_max(struct device *dev, struct device_attribute *attr,
 	long val;
 
 	if (kstrtol(buf, 10, &val) < 0)
-		return -EINVAL;
-	if (val >= 256000)
 		return -EINVAL;
 
 	mutex_lock(&data->update_lock);
