@@ -92,7 +92,7 @@ static int pwm_lpss_config(struct pwm_chip *chip, struct pwm_device *pwm,
 {
 	struct pwm_lpss_chip *lpwm = to_lpwm(chip);
 	unsigned long long on_time_div;
-	unsigned long c, base_unit_range;
+	unsigned long c = lpwm->info->clk_rate, base_unit_range;
 	unsigned long long base_unit, freq = NSEC_PER_SEC;
 	u32 ctrl;
 
@@ -104,10 +104,6 @@ static int pwm_lpss_config(struct pwm_chip *chip, struct pwm_device *pwm,
 	 */
 	base_unit_range = BIT(lpwm->info->base_unit_bits);
 	freq *= base_unit_range;
-
-	c = lpwm->info->clk_rate;
-	if (!c)
-		return -EINVAL;
 
 	base_unit = DIV_ROUND_CLOSEST_ULL(freq, c);
 
@@ -169,6 +165,7 @@ struct pwm_lpss_chip *pwm_lpss_probe(struct device *dev, struct resource *r,
 				     const struct pwm_lpss_boardinfo *info)
 {
 	struct pwm_lpss_chip *lpwm;
+	unsigned long c;
 	int ret;
 
 	lpwm = devm_kzalloc(dev, sizeof(*lpwm), GFP_KERNEL);
@@ -180,6 +177,11 @@ struct pwm_lpss_chip *pwm_lpss_probe(struct device *dev, struct resource *r,
 		return ERR_CAST(lpwm->regs);
 
 	lpwm->info = info;
+
+	c = lpwm->info->clk_rate;
+	if (!c)
+		return ERR_PTR(-EINVAL);
+
 	lpwm->chip.dev = dev;
 	lpwm->chip.ops = &pwm_lpss_ops;
 	lpwm->chip.base = -1;
