@@ -14,15 +14,15 @@ IR data to and fro, the essential fops are read, write and ioctl.
 
 Example dmesg output upon a driver registering w/LIRC:
 
+.. code-block:: none
+
     $ dmesg |grep lirc_dev
-
     lirc_dev: IR Remote Control driver registered, major 248
-
-    rc rc0: lirc_dev: driver ir-lirc-codec (mceusb) registered at minor
-    = 0
+    rc rc0: lirc_dev: driver ir-lirc-codec (mceusb) registered at minor = 0
 
 What you should see for a chardev:
 
-    $ ls -l /dev/lirc*
+.. code-block:: none
 
+    $ ls -l /dev/lirc*
     crw-rw---- 1 root root 248, 0 Jul 2 22:20 /dev/lirc0
