@@ -61,6 +61,10 @@
 
 #define MLXSW_SP_PORTS_PER_CLUSTER_MAX 4
 
+#define MLXSW_SP_LPM_TREE_MIN 2 /* trees 0 and 1 are reserved */
+#define MLXSW_SP_LPM_TREE_MAX 22
+#define MLXSW_SP_LPM_TREE_COUNT (MLXSW_SP_LPM_TREE_MAX - MLXSW_SP_LPM_TREE_MIN)
+
 #define MLXSW_SP_PORT_BASE_SPEED 25000	/* Mb/s */
 
 #define MLXSW_SP_BYTES_PER_CELL 96
@@ -167,6 +171,22 @@ struct mlxsw_sp_prefix_usage {
 	DECLARE_BITMAP(b, MLXSW_SP_PREFIX_COUNT);
 };
 
+enum mlxsw_sp_l3proto {
+	MLXSW_SP_L3_PROTO_IPV4,
+	MLXSW_SP_L3_PROTO_IPV6,
+};
+
+struct mlxsw_sp_lpm_tree {
+	u8 id; /* tree ID */
+	unsigned int ref_count;
+	enum mlxsw_sp_l3proto proto;
+	struct mlxsw_sp_prefix_usage prefix_usage;
+};
+
+struct mlxsw_sp_router {
+	struct mlxsw_sp_lpm_tree lpm_trees[MLXSW_SP_LPM_TREE_COUNT];
+};
+
 struct mlxsw_sp {
 	struct {
 		struct list_head list;
@@ -199,6 +219,7 @@ struct mlxsw_sp {
 	struct mlxsw_sp_upper lags[MLXSW_SP_LAG_MAX];
 	u8 port_to_module[MLXSW_PORT_MAX_PORTS];
 	struct mlxsw_sp_sb sb;
+	struct mlxsw_sp_router router;
 };
 
 static inline struct mlxsw_sp_upper *
