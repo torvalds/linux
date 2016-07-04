@@ -55,6 +55,14 @@ enum fs_fte_status {
 	FS_FTE_STATUS_EXISTING = 1UL << 0,
 };
 
+struct mlx5_flow_steering {
+	struct mlx5_core_dev *dev;
+	struct mlx5_flow_root_namespace *root_ns;
+	struct mlx5_flow_root_namespace *fdb_root_ns;
+	struct mlx5_flow_root_namespace *esw_egress_root_ns;
+	struct mlx5_flow_root_namespace *esw_ingress_root_ns;
+};
+
 struct fs_node {
 	struct list_head	list;
 	struct list_head	children;
