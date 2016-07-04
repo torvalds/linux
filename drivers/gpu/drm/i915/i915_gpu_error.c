@@ -1401,6 +1401,9 @@ void i915_capture_error_state(struct drm_i915_private *dev_priv,
 	struct drm_i915_error_state *error;
 	unsigned long flags;
 
+	if (READ_ONCE(dev_priv->gpu_error.first_error))
+		return;
+
 	/* Account for pipe specific data like PIPE*STAT */
 	error = kzalloc(sizeof(*error), GFP_ATOMIC);
 	if (!error) {
