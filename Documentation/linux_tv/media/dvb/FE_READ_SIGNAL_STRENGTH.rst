@@ -6,19 +6,20 @@
 FE_READ_SIGNAL_STRENGTH
 ***********************
 
-DESCRIPTION
+Description
+-----------
 
 This ioctl call returns the signal strength value for the signal
 currently received by the front-end. For this command, read-only access
 to the device is sufficient.
 
-SYNOPSIS
+Synopsis
+--------
 
-int ioctl( int fd, int request =
-:ref:`FE_READ_SIGNAL_STRENGTH`,
-uint16_t *strength);
+.. c:function:: int ioctl( int fd, int request = FE_READ_SIGNAL_STRENGTH, uint16_t *strength)
 
-PARAMETERS
+Arguments
+----------
 
 
 
@@ -43,12 +44,13 @@ PARAMETERS
 
     -  .. row 3
 
-       -  uint16_t *strength
+       -  uint16_t \*strength
 
-       -  The signal strength value is stored into *strength.
+       -  The signal strength value is stored into \*strength.
 
 
-RETURN VALUE
+Return Value
+------------
 
 On success 0 is returned, on error -1 and the ``errno`` variable is set
 appropriately. The generic error codes are described at the
