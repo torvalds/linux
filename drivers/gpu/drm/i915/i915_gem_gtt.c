@@ -1683,17 +1683,6 @@ static int hsw_mm_switch(struct i915_hw_ppgtt *ppgtt,
 	return 0;
 }
 
-static int vgpu_mm_switch(struct i915_hw_ppgtt *ppgtt,
-			  struct drm_i915_gem_request *req)
-{
-	struct intel_engine_cs *engine = req->engine;
-	struct drm_i915_private *dev_priv = to_i915(ppgtt->base.dev);
-
-	I915_WRITE(RING_PP_DIR_DCLV(engine), PP_DIR_DCLV_2G);
-	I915_WRITE(RING_PP_DIR_BASE(engine), get_pd_offset(ppgtt));
-	return 0;
-}
-
 static int gen7_mm_switch(struct i915_hw_ppgtt *ppgtt,
 			  struct drm_i915_gem_request *req)
 {
@@ -1731,15 +1720,10 @@ static int gen6_mm_switch(struct i915_hw_ppgtt *ppgtt,
 			  struct drm_i915_gem_request *req)
 {
 	struct intel_engine_cs *engine = req->engine;
-	struct drm_device *dev = ppgtt->base.dev;
-	struct drm_i915_private *dev_priv = to_i915(dev);
-
+	struct drm_i915_private *dev_priv = req->i915;
 
 	I915_WRITE(RING_PP_DIR_DCLV(engine), PP_DIR_DCLV_2G);
 	I915_WRITE(RING_PP_DIR_BASE(engine), get_pd_offset(ppgtt));
-
-	POSTING_READ(RING_PP_DIR_DCLV(engine));
-
 	return 0;
 }
 
@@ -2074,17 +2058,14 @@ static int gen6_ppgtt_init(struct i915_hw_ppgtt *ppgtt)
 	int ret;
 
 	ppgtt->base.pte_encode = ggtt->base.pte_encode;
-	if (IS_GEN6(dev)) {
+	if (intel_vgpu_active(dev_priv) || IS_GEN6(dev))
 		ppgtt->switch_mm = gen6_mm_switch;
-	} else if (IS_HASWELL(dev)) {
+	else if (IS_HASWELL(dev))
 		ppgtt->switch_mm = hsw_mm_switch;
-	} else if (IS_GEN7(dev)) {
+	else if (IS_GEN7(dev))
 		ppgtt->switch_mm = gen7_mm_switch;
-	} else
+	else
 		BUG();
-
-	if (intel_vgpu_active(dev_priv))
-		ppgtt->switch_mm = vgpu_mm_switch;
 
 	ret = gen6_ppgtt_alloc(ppgtt);
 	if (ret)
