@@ -6,8 +6,8 @@
 Video Output Overlay Interface
 ******************************
 
-
 **Also known as On-Screen Display (OSD)**
+
 Some video output devices can overlay a framebuffer image onto the
 outgoing video signal. Applications can set up such an overlay using
 this interface, which borrows structures and ioctls of the
@@ -48,10 +48,11 @@ the ``linux/fb.h`` header file.
 The width and height of the framebuffer depends on the current video
 standard. A V4L2 driver may reject attempts to change the video standard
 (or any other ioctl which would imply a framebuffer size change) with an
-EBUSY error code until all applications closed the framebuffer device.
+``EBUSY`` error code until all applications closed the framebuffer device.
 
 
 .. code-block:: c
+    :caption: Example 4.1. Finding a framebuffer device for OSD
 
     #include <linux/fb.h>
 
