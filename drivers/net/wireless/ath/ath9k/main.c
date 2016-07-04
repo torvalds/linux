@@ -926,7 +926,7 @@ static void ath9k_vif_iter(struct ath9k_vif_iter_data *iter_data,
 	}
 
 	if (!vif->bss_conf.use_short_slot)
-		iter_data->slottime = ATH9K_SLOT_TIME_20;
+		iter_data->slottime = 20;
 
 	switch (vif->type) {
 	case NL80211_IFTYPE_AP:
@@ -999,7 +999,7 @@ void ath9k_calculate_iter_data(struct ath_softc *sc,
 	 */
 	memset(iter_data, 0, sizeof(*iter_data));
 	eth_broadcast_addr(iter_data->mask);
-	iter_data->slottime = ATH9K_SLOT_TIME_9;
+	iter_data->slottime = 9;
 
 	list_for_each_entry(avp, &ctx->vifs, list)
 		ath9k_vif_iter(iter_data, avp->vif->addr, avp->vif);
@@ -1061,7 +1061,7 @@ static void ath9k_set_offchannel_state(struct ath_softc *sc)
 	ah->opmode = vif->type;
 	ah->imask &= ~ATH9K_INT_SWBA;
 	ah->imask &= ~ATH9K_INT_TSFOOR;
-	ah->slottime = ATH9K_SLOT_TIME_9;
+	ah->slottime = 9;
 
 	ath_hw_setbssidmask(common);
 	ath9k_hw_setopmode(ah);
@@ -1788,6 +1788,7 @@ static void ath9k_bss_info_changed(struct ieee80211_hw *hw,
 			slottime = 9;
 		else
 			slottime = 20;
+
 		if (vif->type == NL80211_IFTYPE_AP) {
 			/*
 			 * Defer update, so that connected stations can adjust
