@@ -3579,6 +3579,49 @@ static inline void mlxsw_reg_ralst_bin_pack(char *payload, u8 bin_number,
 					    right_child_bin);
 }
 
+/* RALTB - Router Algorithmic LPM Tree Binding Register
+ * ----------------------------------------------------
+ * RALTB is used to bind virtual router and protocol to an allocated LPM tree.
+ */
+#define MLXSW_REG_RALTB_ID 0x8012
+#define MLXSW_REG_RALTB_LEN 0x04
+
+static const struct mlxsw_reg_info mlxsw_reg_raltb = {
+	.id = MLXSW_REG_RALTB_ID,
+	.len = MLXSW_REG_RALTB_LEN,
+};
+
+/* reg_raltb_virtual_router
+ * Virtual Router ID
+ * Range is 0..cap_max_virtual_routers-1
+ * Access: Index
+ */
+MLXSW_ITEM32(reg, raltb, virtual_router, 0x00, 16, 16);
+
+/* reg_raltb_protocol
+ * Protocol.
+ * Access: Index
+ */
+MLXSW_ITEM32(reg, raltb, protocol, 0x00, 12, 4);
+
+/* reg_raltb_tree_id
+ * Tree to be used for the {virtual_router, protocol}
+ * Tree identifier numbered from 1..(cap_shspm_max_trees-1).
+ * By default, all Unicast IPv4 and IPv6 are bound to tree_id 0.
+ * Access: RW
+ */
+MLXSW_ITEM32(reg, raltb, tree_id, 0x00, 0, 8);
+
+static inline void mlxsw_reg_raltb_pack(char *payload, u16 virtual_router,
+					enum mlxsw_reg_ralxx_protocol protocol,
+					u8 tree_id)
+{
+	MLXSW_REG_ZERO(raltb, payload);
+	mlxsw_reg_raltb_virtual_router_set(payload, virtual_router);
+	mlxsw_reg_raltb_protocol_set(payload, protocol);
+	mlxsw_reg_raltb_tree_id_set(payload, tree_id);
+}
+
 /* MFCR - Management Fan Control Register
  * --------------------------------------
  * This register controls the settings of the Fan Speed PWM mechanism.
@@ -4325,6 +4368,8 @@ static inline const char *mlxsw_reg_id_str(u16 reg_id)
 		return "RALTA";
 	case MLXSW_REG_RALST_ID:
 		return "RALST";
+	case MLXSW_REG_RALTB_ID:
+		return "RALTB";
 	case MLXSW_REG_MFCR_ID:
 		return "MFCR";
 	case MLXSW_REG_MFSC_ID:
