@@ -78,6 +78,81 @@ int rsa_get_d(void *context, size_t hdrlen, unsigned char tag,
 	return 0;
 }
 
+int rsa_get_p(void *context, size_t hdrlen, unsigned char tag,
+	      const void *value, size_t vlen)
+{
+	struct rsa_key *key = context;
+
+	/* invalid key provided */
+	if (!value || !vlen || vlen > key->n_sz)
+		return -EINVAL;
+
+	key->p = value;
+	key->p_sz = vlen;
+
+	return 0;
+}
+
+int rsa_get_q(void *context, size_t hdrlen, unsigned char tag,
+	      const void *value, size_t vlen)
+{
+	struct rsa_key *key = context;
+
+	/* invalid key provided */
+	if (!value || !vlen || vlen > key->n_sz)
+		return -EINVAL;
+
+	key->q = value;
+	key->q_sz = vlen;
+
+	return 0;
+}
+
+int rsa_get_dp(void *context, size_t hdrlen, unsigned char tag,
+	       const void *value, size_t vlen)
+{
+	struct rsa_key *key = context;
+
+	/* invalid key provided */
+	if (!value || !vlen || vlen > key->n_sz)
+		return -EINVAL;
+
+	key->dp = value;
+	key->dp_sz = vlen;
+
+	return 0;
+}
+
+int rsa_get_dq(void *context, size_t hdrlen, unsigned char tag,
+	       const void *value, size_t vlen)
+{
+	struct rsa_key *key = context;
+
+	/* invalid key provided */
+	if (!value || !vlen || vlen > key->n_sz)
+		return -EINVAL;
+
+	key->dq = value;
+	key->dq_sz = vlen;
+
+	return 0;
+}
+
+int rsa_get_qinv(void *context, size_t hdrlen, unsigned char tag,
+		 const void *value, size_t vlen)
+{
+	struct rsa_key *key = context;
+
+	/* invalid key provided */
+	if (!value || !vlen || vlen > key->n_sz)
+		return -EINVAL;
+
+	key->qinv = value;
+	key->qinv_sz = vlen;
+
+	return 0;
+}
+
 /**
  * rsa_parse_pub_key() - decodes the BER encoded buffer and stores in the
  *                       provided struct rsa_key, pointers to the raw key as is,
