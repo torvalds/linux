@@ -770,9 +770,6 @@ static void fcoe_fdmi_info(struct fc_lport *lport, struct net_device *netdev)
 	fcoe = port->priv;
 	realdev = fcoe->realdev;
 
-	if (!realdev)
-		return;
-
 	/* No FDMI state m/c for NPIV ports */
 	if (lport->vport)
 		return;
