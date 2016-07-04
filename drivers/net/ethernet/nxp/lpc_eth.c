@@ -1183,7 +1183,6 @@ static void lpc_eth_set_multicast_list(struct net_device *ndev)
 
 static int lpc_eth_ioctl(struct net_device *ndev, struct ifreq *req, int cmd)
 {
-	struct netdata_local *pldat = netdev_priv(ndev);
 	struct phy_device *phydev = ndev->phydev;
 
 	if (!netif_running(ndev))
