@@ -910,6 +910,22 @@ static bool ath9k_uses_beacons(int type)
 	}
 }
 
+static void ath9k_vif_iter_set_beacon(struct ath9k_vif_iter_data *iter_data,
+				      struct ieee80211_vif *vif)
+{
+	/* Use the first (configured) interface, but prefering AP interfaces. */
+	if (!iter_data->primary_beacon_vif) {
+		iter_data->primary_beacon_vif = vif;
+	} else {
+		if (iter_data->primary_beacon_vif->type != NL80211_IFTYPE_AP &&
+		    vif->type == NL80211_IFTYPE_AP)
+		iter_data->primary_beacon_vif = vif;
+	}
+
+	iter_data->beacons = true;
+	iter_data->nbcnvifs += 1;
+}
+
 static void ath9k_vif_iter(struct ath9k_vif_iter_data *iter_data,
 			   u8 *mac, struct ieee80211_vif *vif)
 {
@@ -931,6 +947,8 @@ static void ath9k_vif_iter(struct ath9k_vif_iter_data *iter_data,
 	switch (vif->type) {
 	case NL80211_IFTYPE_AP:
 		iter_data->naps++;
+		if (vif->bss_conf.enable_beacon)
+			ath9k_vif_iter_set_beacon(iter_data, vif);
 		break;
 	case NL80211_IFTYPE_STATION:
 		iter_data->nstations++;
@@ -943,12 +961,12 @@ static void ath9k_vif_iter(struct ath9k_vif_iter_data *iter_data,
 	case NL80211_IFTYPE_ADHOC:
 		iter_data->nadhocs++;
 		if (vif->bss_conf.enable_beacon)
-			iter_data->beacons = true;
+			ath9k_vif_iter_set_beacon(iter_data, vif);
 		break;
 	case NL80211_IFTYPE_MESH_POINT:
 		iter_data->nmeshes++;
 		if (vif->bss_conf.enable_beacon)
-			iter_data->beacons = true;
+			ath9k_vif_iter_set_beacon(iter_data, vif);
 		break;
 	case NL80211_IFTYPE_WDS:
 		iter_data->nwds++;
@@ -1081,7 +1099,6 @@ void ath9k_calculate_summary_state(struct ath_softc *sc,
 	struct ath_hw *ah = sc->sc_ah;
 	struct ath_common *common = ath9k_hw_common(ah);
 	struct ath9k_vif_iter_data iter_data;
-	struct ath_beacon_config *cur_conf;
 
 	ath_chanctx_check_active(sc, ctx);
 
@@ -1103,13 +1120,12 @@ void ath9k_calculate_summary_state(struct ath_softc *sc,
 	ath_hw_setbssidmask(common);
 
 	if (iter_data.naps > 0) {
-		cur_conf = &ctx->beacon;
 		ath9k_hw_set_tsfadjust(ah, true);
 		ah->opmode = NL80211_IFTYPE_AP;
-		if (cur_conf->enable_beacon)
-			iter_data.beacons = true;
 	} else {
 		ath9k_hw_set_tsfadjust(ah, false);
+		if (iter_data.beacons)
+			ath9k_beacon_ensure_primary_slot(sc);
 
 		if (iter_data.nmeshes)
 			ah->opmode = NL80211_IFTYPE_MESH_POINT;
@@ -1134,7 +1150,6 @@ void ath9k_calculate_summary_state(struct ath_softc *sc,
 			ctx->switch_after_beacon = true;
 	}
 
-	ah->imask &= ~ATH9K_INT_SWBA;
 	if (ah->opmode == NL80211_IFTYPE_STATION) {
 		bool changed = (iter_data.primary_sta != ctx->primary_sta);
 
@@ -1151,15 +1166,11 @@ void ath9k_calculate_summary_state(struct ath_softc *sc,
 			if (ath9k_hw_mci_is_enabled(sc->sc_ah))
 				ath9k_mci_update_wlan_channels(sc, true);
 		}
-	} else if (iter_data.beacons) {
-		ah->imask |= ATH9K_INT_SWBA;
 	}
+	sc->nbcnvifs = iter_data.nbcnvifs;
+	ath9k_beacon_config(sc, iter_data.primary_beacon_vif,
+			    iter_data.beacons);
 	ath9k_hw_set_interrupts(ah);
-
-	if (iter_data.beacons)
-		set_bit(ATH_OP_BEACONS, &common->op_flags);
-	else
-		clear_bit(ATH_OP_BEACONS, &common->op_flags);
 
 	if (ah->slottime != iter_data.slottime) {
 		ah->slottime = iter_data.slottime;
@@ -1777,9 +1788,7 @@ static void ath9k_bss_info_changed(struct ieee80211_hw *hw,
 	if ((changed & BSS_CHANGED_BEACON_ENABLED) ||
 	    (changed & BSS_CHANGED_BEACON_INT) ||
 	    (changed & BSS_CHANGED_BEACON_INFO)) {
-		ath9k_beacon_config(sc, vif, changed);
-		if (changed & BSS_CHANGED_BEACON_ENABLED)
-			ath9k_calculate_summary_state(sc, avp->chanctx);
+		ath9k_calculate_summary_state(sc, avp->chanctx);
 	}
 
 	if ((avp->chanctx == sc->cur_chan) &&
