@@ -178,12 +178,6 @@ void *kvm_mips_build_vcpu_run(void *addr)
 		UASM_i_SW(&p, i, offsetof(struct pt_regs, regs[i]), K1);
 	}
 
-	/* Save hi/lo */
-	uasm_i_mflo(&p, V0);
-	UASM_i_SW(&p, V0, offsetof(struct pt_regs, lo), K1);
-	uasm_i_mfhi(&p, V1);
-	UASM_i_SW(&p, V1, offsetof(struct pt_regs, hi), K1);
-
 	/* Save host status */
 	uasm_i_mfc0(&p, V0, C0_STATUS);
 	UASM_i_SW(&p, V0, offsetof(struct pt_regs, cp0_status), K1);
@@ -307,12 +301,14 @@ static void *kvm_mips_build_enter_guest(void *addr)
 		UASM_i_LW(&p, i, offsetof(struct kvm_vcpu_arch, gprs[i]), K1);
 	}
 
+#ifndef CONFIG_CPU_MIPSR6
 	/* Restore hi/lo */
 	UASM_i_LW(&p, K0, offsetof(struct kvm_vcpu_arch, hi), K1);
 	uasm_i_mthi(&p, K0);
 
 	UASM_i_LW(&p, K0, offsetof(struct kvm_vcpu_arch, lo), K1);
 	uasm_i_mtlo(&p, K0);
+#endif
 
 	/* Restore the guest's k0/k1 registers */
 	UASM_i_LW(&p, K0, offsetof(struct kvm_vcpu_arch, gprs[K0]), K1);
@@ -408,12 +404,14 @@ void *kvm_mips_build_exit(void *addr)
 		UASM_i_SW(&p, i, offsetof(struct kvm_vcpu_arch, gprs[i]), K1);
 	}
 
+#ifndef CONFIG_CPU_MIPSR6
 	/* We need to save hi/lo and restore them on the way out */
 	uasm_i_mfhi(&p, T0);
 	UASM_i_SW(&p, T0, offsetof(struct kvm_vcpu_arch, hi), K1);
 
 	uasm_i_mflo(&p, T0);
 	UASM_i_SW(&p, T0, offsetof(struct kvm_vcpu_arch, lo), K1);
+#endif
 
 	/* Finally save guest k1 to VCPU */
 	uasm_i_ehb(&p);
@@ -662,12 +660,6 @@ static void *kvm_mips_build_ret_to_host(void *addr)
 			i = 28;
 		UASM_i_LW(&p, i, offsetof(struct pt_regs, regs[i]), K1);
 	}
-
-	UASM_i_LW(&p, K0, offsetof(struct pt_regs, hi), K1);
-	uasm_i_mthi(&p, K0);
-
-	UASM_i_LW(&p, K0, offsetof(struct pt_regs, lo), K1);
-	uasm_i_mtlo(&p, K0);
 
 	/* Restore RDHWR access */
 	UASM_i_LA_mostly(&p, K0, (long)&hwrena);

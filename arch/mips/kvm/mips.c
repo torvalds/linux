@@ -521,8 +521,10 @@ static u64 kvm_mips_get_one_regs[] = {
 	KVM_REG_MIPS_R30,
 	KVM_REG_MIPS_R31,
 
+#ifndef CONFIG_CPU_MIPSR6
 	KVM_REG_MIPS_HI,
 	KVM_REG_MIPS_LO,
+#endif
 	KVM_REG_MIPS_PC,
 
 	KVM_REG_MIPS_CP0_INDEX,
@@ -666,12 +668,14 @@ static int kvm_mips_get_reg(struct kvm_vcpu *vcpu,
 	case KVM_REG_MIPS_R0 ... KVM_REG_MIPS_R31:
 		v = (long)vcpu->arch.gprs[reg->id - KVM_REG_MIPS_R0];
 		break;
+#ifndef CONFIG_CPU_MIPSR6
 	case KVM_REG_MIPS_HI:
 		v = (long)vcpu->arch.hi;
 		break;
 	case KVM_REG_MIPS_LO:
 		v = (long)vcpu->arch.lo;
 		break;
+#endif
 	case KVM_REG_MIPS_PC:
 		v = (long)vcpu->arch.pc;
 		break;
@@ -887,12 +891,14 @@ static int kvm_mips_set_reg(struct kvm_vcpu *vcpu,
 	case KVM_REG_MIPS_R1 ... KVM_REG_MIPS_R31:
 		vcpu->arch.gprs[reg->id - KVM_REG_MIPS_R0] = v;
 		break;
+#ifndef CONFIG_CPU_MIPSR6
 	case KVM_REG_MIPS_HI:
 		vcpu->arch.hi = v;
 		break;
 	case KVM_REG_MIPS_LO:
 		vcpu->arch.lo = v;
 		break;
+#endif
 	case KVM_REG_MIPS_PC:
 		vcpu->arch.pc = v;
 		break;
