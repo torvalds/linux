@@ -447,24 +447,6 @@ unsigned long round_jiffies_up_relative(unsigned long j)
 }
 EXPORT_SYMBOL_GPL(round_jiffies_up_relative);
 
-/**
- * set_timer_slack - set the allowed slack for a timer
- * @timer: the timer to be modified
- * @slack_hz: the amount of time (in jiffies) allowed for rounding
- *
- * Set the amount of time, in jiffies, that a certain timer has
- * in terms of slack. By setting this value, the timer subsystem
- * will schedule the actual timer somewhere between
- * the time mod_timer() asks for, and that time plus the slack.
- *
- * By setting the slack to -1, a percentage of the delay is used
- * instead.
- */
-void set_timer_slack(struct timer_list *timer, int slack_hz)
-{
-	timer->slack = slack_hz;
-}
-EXPORT_SYMBOL_GPL(set_timer_slack);
 
 static inline unsigned int timer_get_idx(struct timer_list *timer)
 {
@@ -775,7 +757,6 @@ static void do_init_timer(struct timer_list *timer, unsigned int flags,
 {
 	timer->entry.pprev = NULL;
 	timer->flags = flags | raw_smp_processor_id();
-	timer->slack = -1;
 #ifdef CONFIG_TIMER_STATS
 	timer->start_site = NULL;
 	timer->start_pid = -1;
