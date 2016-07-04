@@ -223,7 +223,7 @@ static void free_desc(unsigned int irq)
 }
 
 static int alloc_descs(unsigned int start, unsigned int cnt, int node,
-		       struct module *owner)
+		       const struct cpumask *affinity, struct module *owner)
 {
 	struct irq_desc *desc;
 	int i;
@@ -333,6 +333,7 @@ static void free_desc(unsigned int irq)
 }
 
 static inline int alloc_descs(unsigned int start, unsigned int cnt, int node,
+			      const struct cpumask *affinity,
 			      struct module *owner)
 {
 	u32 i;
@@ -453,12 +454,15 @@ EXPORT_SYMBOL_GPL(irq_free_descs);
  * @cnt:	Number of consecutive irqs to allocate.
  * @node:	Preferred node on which the irq descriptor should be allocated
  * @owner:	Owning module (can be NULL)
+ * @affinity:	Optional pointer to an affinity mask which hints where the
+ *		irq descriptors should be allocated and which default
+ *		affinities to use
  *
  * Returns the first irq number or error code
  */
 int __ref
 __irq_alloc_descs(int irq, unsigned int from, unsigned int cnt, int node,
-		  struct module *owner)
+		  struct module *owner, const struct cpumask *affinity)
 {
 	int start, ret;
 
@@ -494,7 +498,7 @@ __irq_alloc_descs(int irq, unsigned int from, unsigned int cnt, int node,
 
 	bitmap_set(allocated_irqs, start, cnt);
 	mutex_unlock(&sparse_irq_lock);
-	return alloc_descs(start, cnt, node, owner);
+	return alloc_descs(start, cnt, node, affinity, owner);
 
 err:
 	mutex_unlock(&sparse_irq_lock);
@@ -512,7 +516,7 @@ EXPORT_SYMBOL_GPL(__irq_alloc_descs);
  */
 unsigned int irq_alloc_hwirqs(int cnt, int node)
 {
-	int i, irq = __irq_alloc_descs(-1, 0, cnt, node, NULL);
+	int i, irq = __irq_alloc_descs(-1, 0, cnt, node, NULL, NULL);
 
 	if (irq < 0)
 		return 0;

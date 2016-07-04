@@ -334,7 +334,8 @@ int msi_domain_alloc_irqs(struct irq_domain *domain, struct device *dev,
 		ops->set_desc(&arg, desc);
 
 		virq = __irq_domain_alloc_irqs(domain, -1, desc->nvec_used,
-					       dev_to_node(dev), &arg, false);
+					       dev_to_node(dev), &arg, false,
+					       NULL);
 		if (virq < 0) {
 			ret = -ENOSPC;
 			if (ops->handle_error)
