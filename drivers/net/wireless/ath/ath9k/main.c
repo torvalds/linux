@@ -1823,11 +1823,18 @@ static void ath9k_bss_info_changed(struct ieee80211_hw *hw,
 static u64 ath9k_get_tsf(struct ieee80211_hw *hw, struct ieee80211_vif *vif)
 {
 	struct ath_softc *sc = hw->priv;
+	struct ath_vif *avp = (void *)vif->drv_priv;
 	u64 tsf;
 
 	mutex_lock(&sc->mutex);
 	ath9k_ps_wakeup(sc);
-	tsf = ath9k_hw_gettsf64(sc->sc_ah);
+	/* Get current TSF either from HW or kernel time. */
+	if (sc->cur_chan == avp->chanctx) {
+		tsf = ath9k_hw_gettsf64(sc->sc_ah);
+	} else {
+		tsf = sc->cur_chan->tsf_val +
+		      ath9k_hw_get_tsf_offset(&sc->cur_chan->tsf_ts, NULL);
+	}
 	ath9k_ps_restore(sc);
 	mutex_unlock(&sc->mutex);
 
@@ -1839,10 +1846,14 @@ static void ath9k_set_tsf(struct ieee80211_hw *hw,
 			  u64 tsf)
 {
 	struct ath_softc *sc = hw->priv;
+	struct ath_vif *avp = (void *)vif->drv_priv;
 
 	mutex_lock(&sc->mutex);
 	ath9k_ps_wakeup(sc);
-	ath9k_hw_settsf64(sc->sc_ah, tsf);
+	getrawmonotonic(&avp->chanctx->tsf_ts);
+	if (sc->cur_chan == avp->chanctx)
+		ath9k_hw_settsf64(sc->sc_ah, tsf);
+	avp->chanctx->tsf_val = tsf;
 	ath9k_ps_restore(sc);
 	mutex_unlock(&sc->mutex);
 }
@@ -1850,11 +1861,15 @@ static void ath9k_set_tsf(struct ieee80211_hw *hw,
 static void ath9k_reset_tsf(struct ieee80211_hw *hw, struct ieee80211_vif *vif)
 {
 	struct ath_softc *sc = hw->priv;
+	struct ath_vif *avp = (void *)vif->drv_priv;
 
 	mutex_lock(&sc->mutex);
 
 	ath9k_ps_wakeup(sc);
-	ath9k_hw_reset_tsf(sc->sc_ah);
+	getrawmonotonic(&avp->chanctx->tsf_ts);
+	if (sc->cur_chan == avp->chanctx)
+		ath9k_hw_reset_tsf(sc->sc_ah);
+	avp->chanctx->tsf_val = 0;
 	ath9k_ps_restore(sc);
 
 	mutex_unlock(&sc->mutex);
