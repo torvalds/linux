@@ -65,6 +65,8 @@
 #define MLXSW_SP_LPM_TREE_MAX 22
 #define MLXSW_SP_LPM_TREE_COUNT (MLXSW_SP_LPM_TREE_MAX - MLXSW_SP_LPM_TREE_MIN)
 
+#define MLXSW_SP_VIRTUAL_ROUTER_MAX 256
+
 #define MLXSW_SP_PORT_BASE_SPEED 25000	/* Mb/s */
 
 #define MLXSW_SP_BYTES_PER_CELL 96
@@ -183,8 +185,20 @@ struct mlxsw_sp_lpm_tree {
 	struct mlxsw_sp_prefix_usage prefix_usage;
 };
 
+struct mlxsw_sp_fib;
+
+struct mlxsw_sp_vr {
+	u16 id; /* virtual router ID */
+	bool used;
+	enum mlxsw_sp_l3proto proto;
+	u32 tb_id; /* kernel fib table id */
+	struct mlxsw_sp_lpm_tree *lpm_tree;
+	struct mlxsw_sp_fib *fib;
+};
+
 struct mlxsw_sp_router {
 	struct mlxsw_sp_lpm_tree lpm_trees[MLXSW_SP_LPM_TREE_COUNT];
+	struct mlxsw_sp_vr vrs[MLXSW_SP_VIRTUAL_ROUTER_MAX];
 };
 
 struct mlxsw_sp {
