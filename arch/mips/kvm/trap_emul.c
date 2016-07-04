@@ -431,9 +431,15 @@ static int kvm_trap_emul_vcpu_setup(struct kvm_vcpu *vcpu)
 
 	/*
 	 * Arch specific stuff, set up config registers properly so that the
-	 * guest will come up as expected, for now we simulate a MIPS 24kc
+	 * guest will come up as expected
 	 */
+#ifndef CONFIG_CPU_MIPSR6
+	/* r2-r5, simulate a MIPS 24kc */
 	kvm_write_c0_guest_prid(cop0, 0x00019300);
+#else
+	/* r6+, simulate a generic QEMU machine */
+	kvm_write_c0_guest_prid(cop0, 0x00010000);
+#endif
 	/*
 	 * Have config1, Cacheable, noncoherent, write-back, write allocate.
 	 * Endianness, arch revision & virtually tagged icache should match
