@@ -54,6 +54,7 @@ possible with the :ref:`munmap() <func-munmap>` function.
 
 
 .. code-block:: c
+    :caption: Example 3.1. Mapping buffers in the single-planar API
 
     struct v4l2_requestbuffers reqbuf;
     struct {
@@ -122,6 +123,7 @@ possible with the :ref:`munmap() <func-munmap>` function.
 
 
 .. code-block:: c
+    :caption: Example 3.2. Mapping buffers in the multi-planar API
 
     struct v4l2_requestbuffers reqbuf;
     /* Our current format uses 3 planes per buffer */
