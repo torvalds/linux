@@ -3856,7 +3856,7 @@ int btrfs_scrub_dev(struct btrfs_fs_info *fs_info, u64 devid, u64 start,
 
 	if (fs_info->chunk_root->sectorsize != PAGE_SIZE) {
 		/* not supported for data w/o checksums */
-		btrfs_err(fs_info,
+		btrfs_err_rl(fs_info,
 			   "scrub: size assumption sectorsize != PAGE_SIZE "
 			   "(%d != %lu) fails",
 		       fs_info->chunk_root->sectorsize, PAGE_SIZE);
