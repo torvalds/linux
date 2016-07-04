@@ -50,7 +50,7 @@ struct mlx5e_tc_flow {
 #define MLX5E_TC_TABLE_NUM_GROUPS 4
 
 static struct mlx5_flow_rule *mlx5e_tc_add_flow(struct mlx5e_priv *priv,
-						u32 *match_c, u32 *match_v,
+						struct mlx5_flow_spec *spec,
 						u32 action, u32 flow_tag)
 {
 	struct mlx5_core_dev *dev = priv->mdev;
@@ -88,8 +88,8 @@ static struct mlx5_flow_rule *mlx5e_tc_add_flow(struct mlx5e_priv *priv,
 		table_created = true;
 	}
 
-	rule = mlx5_add_flow_rule(priv->fs.tc.t, MLX5_MATCH_OUTER_HEADERS,
-				  match_c, match_v,
+	spec->match_criteria_enable = MLX5_MATCH_OUTER_HEADERS;
+	rule = mlx5_add_flow_rule(priv->fs.tc.t, spec,
 				  action, flow_tag,
 				  &dest);
 
@@ -126,12 +126,13 @@ static void mlx5e_tc_del_flow(struct mlx5e_priv *priv,
 	}
 }
 
-static int parse_cls_flower(struct mlx5e_priv *priv,
-			    u32 *match_c, u32 *match_v,
+static int parse_cls_flower(struct mlx5e_priv *priv, struct mlx5_flow_spec *spec,
 			    struct tc_cls_flower_offload *f)
 {
-	void *headers_c = MLX5_ADDR_OF(fte_match_param, match_c, outer_headers);
-	void *headers_v = MLX5_ADDR_OF(fte_match_param, match_v, outer_headers);
+	void *headers_c = MLX5_ADDR_OF(fte_match_param, spec->match_criteria,
+				       outer_headers);
+	void *headers_v = MLX5_ADDR_OF(fte_match_param, spec->match_value,
+				       outer_headers);
 	u16 addr_type = 0;
 	u8 ip_proto = 0;
 
@@ -342,12 +343,11 @@ int mlx5e_configure_flower(struct mlx5e_priv *priv, __be16 protocol,
 			   struct tc_cls_flower_offload *f)
 {
 	struct mlx5e_tc_table *tc = &priv->fs.tc;
-	u32 *match_c;
-	u32 *match_v;
 	int err = 0;
 	u32 flow_tag;
 	u32 action;
 	struct mlx5e_tc_flow *flow;
+	struct mlx5_flow_spec *spec;
 	struct mlx5_flow_rule *old = NULL;
 
 	flow = rhashtable_lookup_fast(&tc->ht, &f->cookie,
@@ -357,16 +357,15 @@ int mlx5e_configure_flower(struct mlx5e_priv *priv, __be16 protocol,
 	else
 		flow = kzalloc(sizeof(*flow), GFP_KERNEL);
 
-	match_c = kzalloc(MLX5_ST_SZ_BYTES(fte_match_param), GFP_KERNEL);
-	match_v = kzalloc(MLX5_ST_SZ_BYTES(fte_match_param), GFP_KERNEL);
-	if (!match_c || !match_v || !flow) {
+	spec = mlx5_vzalloc(sizeof(*spec));
+	if (!spec || !flow) {
 		err = -ENOMEM;
 		goto err_free;
 	}
 
 	flow->cookie = f->cookie;
 
-	err = parse_cls_flower(priv, match_c, match_v, f);
+	err = parse_cls_flower(priv, spec, f);
 	if (err < 0)
 		goto err_free;
 
@@ -379,8 +378,7 @@ int mlx5e_configure_flower(struct mlx5e_priv *priv, __be16 protocol,
 	if (err)
 		goto err_free;
 
-	flow->rule = mlx5e_tc_add_flow(priv, match_c, match_v, action,
-				       flow_tag);
+	flow->rule = mlx5e_tc_add_flow(priv, spec, action, flow_tag);
 	if (IS_ERR(flow->rule)) {
 		err = PTR_ERR(flow->rule);
 		goto err_hash_del;
@@ -398,8 +396,7 @@ err_free:
 	if (!old)
 		kfree(flow);
 out:
-	kfree(match_c);
-	kfree(match_v);
+	kvfree(spec);
 	return err;
 }
 

@@ -1160,9 +1160,7 @@ static bool dest_is_valid(struct mlx5_flow_destination *dest,
 
 static struct mlx5_flow_rule *
 _mlx5_add_flow_rule(struct mlx5_flow_table *ft,
-		    u8 match_criteria_enable,
-		    u32 *match_criteria,
-		    u32 *match_value,
+		   struct mlx5_flow_spec *spec,
 		    u32 action,
 		    u32 flow_tag,
 		    struct mlx5_flow_destination *dest)
@@ -1176,22 +1174,23 @@ _mlx5_add_flow_rule(struct mlx5_flow_table *ft,
 	nested_lock_ref_node(&ft->node, FS_MUTEX_GRANDPARENT);
 	fs_for_each_fg(g, ft)
 		if (compare_match_criteria(g->mask.match_criteria_enable,
-					   match_criteria_enable,
+					   spec->match_criteria_enable,
 					   g->mask.match_criteria,
-					   match_criteria)) {
-			rule = add_rule_fg(g, match_value,
+					   spec->match_criteria)) {
+			rule = add_rule_fg(g, spec->match_value,
 					   action, flow_tag, dest);
 			if (!IS_ERR(rule) || PTR_ERR(rule) != -ENOSPC)
 				goto unlock;
 		}
 
-	g = create_autogroup(ft, match_criteria_enable, match_criteria);
+	g = create_autogroup(ft, spec->match_criteria_enable,
+			     spec->match_criteria);
 	if (IS_ERR(g)) {
 		rule = (void *)g;
 		goto unlock;
 	}
 
-	rule = add_rule_fg(g, match_value,
+	rule = add_rule_fg(g, spec->match_value,
 			   action, flow_tag, dest);
 	if (IS_ERR(rule)) {
 		/* Remove assumes refcount > 0 and autogroup creates a group
@@ -1215,9 +1214,7 @@ static bool fwd_next_prio_supported(struct mlx5_flow_table *ft)
 
 struct mlx5_flow_rule *
 mlx5_add_flow_rule(struct mlx5_flow_table *ft,
-		   u8 match_criteria_enable,
-		   u32 *match_criteria,
-		   u32 *match_value,
+		   struct mlx5_flow_spec *spec,
 		   u32 action,
 		   u32 flow_tag,
 		   struct mlx5_flow_destination *dest)
@@ -1248,8 +1245,7 @@ mlx5_add_flow_rule(struct mlx5_flow_table *ft,
 		}
 	}
 
-	rule =	_mlx5_add_flow_rule(ft, match_criteria_enable, match_criteria,
-				    match_value, action, flow_tag, dest);
+	rule = _mlx5_add_flow_rule(ft, spec, action, flow_tag, dest);
 
 	if (sw_action == MLX5_FLOW_CONTEXT_ACTION_FWD_NEXT_PRIO) {
 		if (!IS_ERR_OR_NULL(rule) &&
