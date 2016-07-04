@@ -2567,6 +2567,66 @@ static struct mlxsw_driver mlxsw_sp_driver = {
 	.profile			= &mlxsw_sp_config_profile,
 };
 
+static bool mlxsw_sp_port_dev_check(const struct net_device *dev)
+{
+	return dev->netdev_ops == &mlxsw_sp_port_netdev_ops;
+}
+
+static struct mlxsw_sp_port *mlxsw_sp_port_dev_lower_find(struct net_device *dev)
+{
+	struct net_device *lower_dev;
+	struct list_head *iter;
+
+	if (mlxsw_sp_port_dev_check(dev))
+		return netdev_priv(dev);
+
+	netdev_for_each_all_lower_dev(dev, lower_dev, iter) {
+		if (mlxsw_sp_port_dev_check(lower_dev))
+			return netdev_priv(lower_dev);
+	}
+	return NULL;
+}
+
+static struct mlxsw_sp *mlxsw_sp_lower_get(struct net_device *dev)
+{
+	struct mlxsw_sp_port *mlxsw_sp_port;
+
+	mlxsw_sp_port = mlxsw_sp_port_dev_lower_find(dev);
+	return mlxsw_sp_port ? mlxsw_sp_port->mlxsw_sp : NULL;
+}
+
+static struct mlxsw_sp_port *mlxsw_sp_port_dev_lower_find_rcu(struct net_device *dev)
+{
+	struct net_device *lower_dev;
+	struct list_head *iter;
+
+	if (mlxsw_sp_port_dev_check(dev))
+		return netdev_priv(dev);
+
+	netdev_for_each_all_lower_dev_rcu(dev, lower_dev, iter) {
+		if (mlxsw_sp_port_dev_check(lower_dev))
+			return netdev_priv(lower_dev);
+	}
+	return NULL;
+}
+
+struct mlxsw_sp_port *mlxsw_sp_port_lower_dev_hold(struct net_device *dev)
+{
+	struct mlxsw_sp_port *mlxsw_sp_port;
+
+	rcu_read_lock();
+	mlxsw_sp_port = mlxsw_sp_port_dev_lower_find_rcu(dev);
+	if (mlxsw_sp_port)
+		dev_hold(mlxsw_sp_port->dev);
+	rcu_read_unlock();
+	return mlxsw_sp_port;
+}
+
+void mlxsw_sp_port_dev_put(struct mlxsw_sp_port *mlxsw_sp_port)
+{
+	dev_put(mlxsw_sp_port->dev);
+}
+
 static bool mlxsw_sp_lag_port_fid_member(struct mlxsw_sp_port *lag_port,
 					 u16 fid)
 {
@@ -2645,11 +2705,6 @@ int mlxsw_sp_port_fdb_flush(struct mlxsw_sp_port *mlxsw_sp_port, u16 fid)
 							     fid);
 	else
 		return mlxsw_sp_port_fdb_flush_by_port_fid(mlxsw_sp_port, fid);
-}
-
-static bool mlxsw_sp_port_dev_check(const struct net_device *dev)
-{
-	return dev->netdev_ops == &mlxsw_sp_port_netdev_ops;
 }
 
 static bool mlxsw_sp_master_bridge_check(struct mlxsw_sp *mlxsw_sp,

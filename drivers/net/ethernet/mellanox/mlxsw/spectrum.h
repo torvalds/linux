@@ -292,6 +292,9 @@ struct mlxsw_sp_port {
 	struct list_head vports_list;
 };
 
+struct mlxsw_sp_port *mlxsw_sp_port_lower_dev_hold(struct net_device *dev);
+void mlxsw_sp_port_dev_put(struct mlxsw_sp_port *mlxsw_sp_port);
+
 static inline bool
 mlxsw_sp_port_is_pause_en(const struct mlxsw_sp_port *mlxsw_sp_port)
 {
