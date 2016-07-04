@@ -185,6 +185,10 @@ struct rds_ib_connection {
 
 	/* Endpoint role in connection */
 	bool			i_active_side;
+
+	/* Send/Recv vectors */
+	int			i_scq_vector;
+	int			i_rcq_vector;
 };
 
 /* This assumes that atomic_t is at least 32 bits */
@@ -227,6 +231,7 @@ struct rds_ib_device {
 	spinlock_t		spinlock;	/* protect the above */
 	atomic_t		refcount;
 	struct work_struct	free_work;
+	int			*vector_load;
 };
 
 #define ibdev_to_node(ibdev) dev_to_node(ibdev->dma_device)

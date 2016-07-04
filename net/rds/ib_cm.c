@@ -358,6 +358,28 @@ static void rds_ib_cq_comp_handler_send(struct ib_cq *cq, void *context)
 	tasklet_schedule(&ic->i_send_tasklet);
 }
 
+static inline int ibdev_get_unused_vector(struct rds_ib_device *rds_ibdev)
+{
+	int min = rds_ibdev->vector_load[rds_ibdev->dev->num_comp_vectors - 1];
+	int index = rds_ibdev->dev->num_comp_vectors - 1;
+	int i;
+
+	for (i = rds_ibdev->dev->num_comp_vectors - 1; i >= 0; i--) {
+		if (rds_ibdev->vector_load[i] < min) {
+			index = i;
+			min = rds_ibdev->vector_load[i];
+		}
+	}
+
+	rds_ibdev->vector_load[index]++;
+	return index;
+}
+
+static inline void ibdev_put_vector(struct rds_ib_device *rds_ibdev, int index)
+{
+	rds_ibdev->vector_load[index]--;
+}
+
 /*
  * This needs to be very careful to not leave IS_ERR pointers around for
  * cleanup to trip over.
@@ -399,25 +421,30 @@ static int rds_ib_setup_qp(struct rds_connection *conn)
 	/* Protection domain and memory range */
 	ic->i_pd = rds_ibdev->pd;
 
+	ic->i_scq_vector = ibdev_get_unused_vector(rds_ibdev);
 	cq_attr.cqe = ic->i_send_ring.w_nr + fr_queue_space + 1;
-
+	cq_attr.comp_vector = ic->i_scq_vector;
 	ic->i_send_cq = ib_create_cq(dev, rds_ib_cq_comp_handler_send,
 				     rds_ib_cq_event_handler, conn,
 				     &cq_attr);
 	if (IS_ERR(ic->i_send_cq)) {
 		ret = PTR_ERR(ic->i_send_cq);
 		ic->i_send_cq = NULL;
+		ibdev_put_vector(rds_ibdev, ic->i_scq_vector);
 		rdsdebug("ib_create_cq send failed: %d\n", ret);
 		goto out;
 	}
 
+	ic->i_rcq_vector = ibdev_get_unused_vector(rds_ibdev);
 	cq_attr.cqe = ic->i_recv_ring.w_nr;
+	cq_attr.comp_vector = ic->i_rcq_vector;
 	ic->i_recv_cq = ib_create_cq(dev, rds_ib_cq_comp_handler_recv,
 				     rds_ib_cq_event_handler, conn,
 				     &cq_attr);
 	if (IS_ERR(ic->i_recv_cq)) {
 		ret = PTR_ERR(ic->i_recv_cq);
 		ic->i_recv_cq = NULL;
+		ibdev_put_vector(rds_ibdev, ic->i_rcq_vector);
 		rdsdebug("ib_create_cq recv failed: %d\n", ret);
 		goto out;
 	}
@@ -780,10 +807,17 @@ void rds_ib_conn_path_shutdown(struct rds_conn_path *cp)
 		/* first destroy the ib state that generates callbacks */
 		if (ic->i_cm_id->qp)
 			rdma_destroy_qp(ic->i_cm_id);
-		if (ic->i_send_cq)
+		if (ic->i_send_cq) {
+			if (ic->rds_ibdev)
+				ibdev_put_vector(ic->rds_ibdev, ic->i_scq_vector);
 			ib_destroy_cq(ic->i_send_cq);
-		if (ic->i_recv_cq)
+		}
+
+		if (ic->i_recv_cq) {
+			if (ic->rds_ibdev)
+				ibdev_put_vector(ic->rds_ibdev, ic->i_rcq_vector);
 			ib_destroy_cq(ic->i_recv_cq);
+		}
 
 		/* then free the resources that ib callbacks use */
 		if (ic->i_send_hdrs)
