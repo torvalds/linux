@@ -35,6 +35,7 @@
 #include <asm/msr.h>
 #include <asm/cpu_device_id.h>
 #include <asm/cpufeature.h>
+#include <asm/intel-family.h>
 
 #define ATOM_RATIOS		0x66a
 #define ATOM_VIDS		0x66b
@@ -281,9 +282,9 @@ struct cpu_defaults {
 static inline int32_t get_target_pstate_use_performance(struct cpudata *cpu);
 static inline int32_t get_target_pstate_use_cpu_load(struct cpudata *cpu);
 
-static struct pstate_adjust_policy pid_params;
-static struct pstate_funcs pstate_funcs;
-static int hwp_active;
+static struct pstate_adjust_policy pid_params __read_mostly;
+static struct pstate_funcs pstate_funcs __read_mostly;
+static int hwp_active __read_mostly;
 
 #ifdef CONFIG_ACPI
 static bool acpi_ppc;
@@ -1091,6 +1092,26 @@ static struct cpu_defaults knl_params = {
 	},
 };
 
+static struct cpu_defaults bxt_params = {
+	.pid_policy = {
+		.sample_rate_ms = 10,
+		.deadband = 0,
+		.setpoint = 60,
+		.p_gain_pct = 14,
+		.d_gain_pct = 0,
+		.i_gain_pct = 4,
+	},
+	.funcs = {
+		.get_max = core_get_max_pstate,
+		.get_max_physical = core_get_max_pstate_physical,
+		.get_min = core_get_min_pstate,
+		.get_turbo = core_get_turbo_pstate,
+		.get_scaling = core_get_scaling,
+		.get_val = core_get_val,
+		.get_target_pstate = get_target_pstate_use_cpu_load,
+	},
+};
+
 static void intel_pstate_get_min_max(struct cpudata *cpu, int *min, int *max)
 {
 	int max_perf = cpu->pstate.turbo_pstate;
@@ -1334,29 +1355,30 @@ static void intel_pstate_update_util(struct update_util_data *data, u64 time,
 			(unsigned long)&policy }
 
 static const struct x86_cpu_id intel_pstate_cpu_ids[] = {
-	ICPU(0x2a, core_params),
-	ICPU(0x2d, core_params),
-	ICPU(0x37, silvermont_params),
-	ICPU(0x3a, core_params),
-	ICPU(0x3c, core_params),
-	ICPU(0x3d, core_params),
-	ICPU(0x3e, core_params),
-	ICPU(0x3f, core_params),
-	ICPU(0x45, core_params),
-	ICPU(0x46, core_params),
-	ICPU(0x47, core_params),
-	ICPU(0x4c, airmont_params),
-	ICPU(0x4e, core_params),
-	ICPU(0x4f, core_params),
-	ICPU(0x5e, core_params),
-	ICPU(0x56, core_params),
-	ICPU(0x57, knl_params),
+	ICPU(INTEL_FAM6_SANDYBRIDGE, 		core_params),
+	ICPU(INTEL_FAM6_SANDYBRIDGE_X,		core_params),
+	ICPU(INTEL_FAM6_ATOM_SILVERMONT1,	silvermont_params),
+	ICPU(INTEL_FAM6_IVYBRIDGE,		core_params),
+	ICPU(INTEL_FAM6_HASWELL_CORE,		core_params),
+	ICPU(INTEL_FAM6_BROADWELL_CORE,		core_params),
+	ICPU(INTEL_FAM6_IVYBRIDGE_X,		core_params),
+	ICPU(INTEL_FAM6_HASWELL_X,		core_params),
+	ICPU(INTEL_FAM6_HASWELL_ULT,		core_params),
+	ICPU(INTEL_FAM6_HASWELL_GT3E,		core_params),
+	ICPU(INTEL_FAM6_BROADWELL_GT3E,		core_params),
+	ICPU(INTEL_FAM6_ATOM_AIRMONT,		airmont_params),
+	ICPU(INTEL_FAM6_SKYLAKE_MOBILE,		core_params),
+	ICPU(INTEL_FAM6_BROADWELL_X,		core_params),
+	ICPU(INTEL_FAM6_SKYLAKE_DESKTOP,	core_params),
+	ICPU(INTEL_FAM6_BROADWELL_XEON_D,	core_params),
+	ICPU(INTEL_FAM6_XEON_PHI_KNL,		knl_params),
+	ICPU(INTEL_FAM6_ATOM_GOLDMONT,		bxt_params),
 	{}
 };
 MODULE_DEVICE_TABLE(x86cpu, intel_pstate_cpu_ids);
 
-static const struct x86_cpu_id intel_pstate_cpu_oob_ids[] = {
-	ICPU(0x56, core_params),
+static const struct x86_cpu_id intel_pstate_cpu_oob_ids[] __initconst = {
+	ICPU(INTEL_FAM6_BROADWELL_XEON_D, core_params),
 	{}
 };
 
@@ -1575,12 +1597,12 @@ static struct cpufreq_driver intel_pstate_driver = {
 	.name		= "intel_pstate",
 };
 
-static int __initdata no_load;
-static int __initdata no_hwp;
-static int __initdata hwp_only;
-static unsigned int force_load;
+static int no_load __initdata;
+static int no_hwp __initdata;
+static int hwp_only __initdata;
+static unsigned int force_load __initdata;
 
-static int intel_pstate_msrs_not_valid(void)
+static int __init intel_pstate_msrs_not_valid(void)
 {
 	if (!pstate_funcs.get_max() ||
 	    !pstate_funcs.get_min() ||
@@ -1590,7 +1612,7 @@ static int intel_pstate_msrs_not_valid(void)
 	return 0;
 }
 
-static void copy_pid_params(struct pstate_adjust_policy *policy)
+static void __init copy_pid_params(struct pstate_adjust_policy *policy)
 {
 	pid_params.sample_rate_ms = policy->sample_rate_ms;
 	pid_params.sample_rate_ns = pid_params.sample_rate_ms * NSEC_PER_MSEC;
@@ -1601,7 +1623,7 @@ static void copy_pid_params(struct pstate_adjust_policy *policy)
 	pid_params.setpoint = policy->setpoint;
 }
 
-static void copy_cpu_funcs(struct pstate_funcs *funcs)
+static void __init copy_cpu_funcs(struct pstate_funcs *funcs)
 {
 	pstate_funcs.get_max   = funcs->get_max;
 	pstate_funcs.get_max_physical = funcs->get_max_physical;
@@ -1616,7 +1638,7 @@ static void copy_cpu_funcs(struct pstate_funcs *funcs)
 
 #ifdef CONFIG_ACPI
 
-static bool intel_pstate_no_acpi_pss(void)
+static bool __init intel_pstate_no_acpi_pss(void)
 {
 	int i;
 
@@ -1645,7 +1667,7 @@ static bool intel_pstate_no_acpi_pss(void)
 	return true;
 }
 
-static bool intel_pstate_has_acpi_ppc(void)
+static bool __init intel_pstate_has_acpi_ppc(void)
 {
 	int i;
 
@@ -1673,7 +1695,7 @@ struct hw_vendor_info {
 };
 
 /* Hardware vendor-specific info that has its own power management modes */
-static struct hw_vendor_info vendor_info[] = {
+static struct hw_vendor_info vendor_info[] __initdata = {
 	{1, "HP    ", "ProLiant", PSS},
 	{1, "ORACLE", "X4-2    ", PPC},
 	{1, "ORACLE", "X4-2L   ", PPC},
@@ -1692,7 +1714,7 @@ static struct hw_vendor_info vendor_info[] = {
 	{0, "", ""},
 };
 
-static bool intel_pstate_platform_pwr_mgmt_exists(void)
+static bool __init intel_pstate_platform_pwr_mgmt_exists(void)
 {
 	struct acpi_table_header hdr;
 	struct hw_vendor_info *v_info;

@@ -63,8 +63,6 @@ int cpufreq_frequency_table_cpuinfo(struct cpufreq_policy *policy,
 	else
 		return 0;
 }
-EXPORT_SYMBOL_GPL(cpufreq_frequency_table_cpuinfo);
-
 
 int cpufreq_frequency_table_verify(struct cpufreq_policy *policy,
 				   struct cpufreq_frequency_table *table)
@@ -108,20 +106,16 @@ EXPORT_SYMBOL_GPL(cpufreq_frequency_table_verify);
  */
 int cpufreq_generic_frequency_table_verify(struct cpufreq_policy *policy)
 {
-	struct cpufreq_frequency_table *table =
-		cpufreq_frequency_get_table(policy->cpu);
-	if (!table)
+	if (!policy->freq_table)
 		return -ENODEV;
 
-	return cpufreq_frequency_table_verify(policy, table);
+	return cpufreq_frequency_table_verify(policy, policy->freq_table);
 }
 EXPORT_SYMBOL_GPL(cpufreq_generic_frequency_table_verify);
 
 int cpufreq_frequency_table_target(struct cpufreq_policy *policy,
-				   struct cpufreq_frequency_table *table,
-				   unsigned int target_freq,
-				   unsigned int relation,
-				   unsigned int *index)
+				    unsigned int target_freq,
+				    unsigned int relation)
 {
 	struct cpufreq_frequency_table optimal = {
 		.driver_data = ~0,
@@ -132,7 +126,9 @@ int cpufreq_frequency_table_target(struct cpufreq_policy *policy,
 		.frequency = 0,
 	};
 	struct cpufreq_frequency_table *pos;
+	struct cpufreq_frequency_table *table = policy->freq_table;
 	unsigned int freq, diff, i = 0;
+	int index;
 
 	pr_debug("request for target %u kHz (relation: %u) for cpu %u\n",
 					target_freq, relation, policy->cpu);
@@ -196,25 +192,26 @@ int cpufreq_frequency_table_target(struct cpufreq_policy *policy,
 		}
 	}
 	if (optimal.driver_data > i) {
-		if (suboptimal.driver_data > i)
-			return -EINVAL;
-		*index = suboptimal.driver_data;
+		if (suboptimal.driver_data > i) {
+			WARN(1, "Invalid frequency table: %d\n", policy->cpu);
+			return 0;
+		}
+
+		index = suboptimal.driver_data;
 	} else
-		*index = optimal.driver_data;
+		index = optimal.driver_data;
 
-	pr_debug("target index is %u, freq is:%u kHz\n", *index,
-		 table[*index].frequency);
-
-	return 0;
+	pr_debug("target index is %u, freq is:%u kHz\n", index,
+		 table[index].frequency);
+	return index;
 }
 EXPORT_SYMBOL_GPL(cpufreq_frequency_table_target);
 
 int cpufreq_frequency_table_get_index(struct cpufreq_policy *policy,
 		unsigned int freq)
 {
-	struct cpufreq_frequency_table *pos, *table;
+	struct cpufreq_frequency_table *pos, *table = policy->freq_table;
 
-	table = cpufreq_frequency_get_table(policy->cpu);
 	if (unlikely(!table)) {
 		pr_debug("%s: Unable to find frequency table\n", __func__);
 		return -ENOENT;

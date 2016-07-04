@@ -16,27 +16,16 @@
 #include <linux/init.h>
 #include <linux/module.h>
 
-static int cpufreq_governor_performance(struct cpufreq_policy *policy,
-					unsigned int event)
+static void cpufreq_gov_performance_limits(struct cpufreq_policy *policy)
 {
-	switch (event) {
-	case CPUFREQ_GOV_START:
-	case CPUFREQ_GOV_LIMITS:
-		pr_debug("setting to %u kHz because of event %u\n",
-						policy->max, event);
-		__cpufreq_driver_target(policy, policy->max,
-						CPUFREQ_RELATION_H);
-		break;
-	default:
-		break;
-	}
-	return 0;
+	pr_debug("setting to %u kHz\n", policy->max);
+	__cpufreq_driver_target(policy, policy->max, CPUFREQ_RELATION_H);
 }
 
 static struct cpufreq_governor cpufreq_gov_performance = {
 	.name		= "performance",
-	.governor	= cpufreq_governor_performance,
 	.owner		= THIS_MODULE,
+	.limits		= cpufreq_gov_performance_limits,
 };
 
 static int __init cpufreq_gov_performance_init(void)
