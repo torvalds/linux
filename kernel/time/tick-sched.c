@@ -1092,35 +1092,6 @@ static void tick_nohz_switch_to_nohz(void)
 	tick_nohz_activate(ts, NOHZ_MODE_LOWRES);
 }
 
-/*
- * When NOHZ is enabled and the tick is stopped, we need to kick the
- * tick timer from irq_enter() so that the jiffies update is kept
- * alive during long running softirqs. That's ugly as hell, but
- * correctness is key even if we need to fix the offending softirq in
- * the first place.
- *
- * Note, this is different to tick_nohz_restart. We just kick the
- * timer and do not touch the other magic bits which need to be done
- * when idle is left.
- */
-static void tick_nohz_kick_tick(struct tick_sched *ts, ktime_t now)
-{
-#if 0
-	/* Switch back to 2.6.27 behaviour */
-	ktime_t delta;
-
-	/*
-	 * Do not touch the tick device, when the next expiry is either
-	 * already reached or less/equal than the tick period.
-	 */
-	delta =	ktime_sub(hrtimer_get_expires(&ts->sched_timer), now);
-	if (delta.tv64 <= tick_period.tv64)
-		return;
-
-	tick_nohz_restart(ts, now);
-#endif
-}
-
 static inline void tick_nohz_irq_enter(void)
 {
 	struct tick_sched *ts = this_cpu_ptr(&tick_cpu_sched);
@@ -1131,10 +1102,8 @@ static inline void tick_nohz_irq_enter(void)
 	now = ktime_get();
 	if (ts->idle_active)
 		tick_nohz_stop_idle(ts, now);
-	if (ts->tick_stopped) {
+	if (ts->tick_stopped)
 		tick_nohz_update_jiffies(now);
-		tick_nohz_kick_tick(ts, now);
-	}
 }
 
 #else
