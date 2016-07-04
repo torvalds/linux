@@ -5163,10 +5163,10 @@ S:	Maintained
 F:	drivers/media/usb/gspca/m5602/
 
 GSPCA PAC207 SONIXB SUBDRIVER
-M:	Hans de Goede <hdegoede@redhat.com>
+M:	Hans Verkuil <hverkuil@xs4all.nl>
 L:	linux-media@vger.kernel.org
 T:	git git://linuxtv.org/media_tree.git
-S:	Maintained
+S:	Odd Fixes
 F:	drivers/media/usb/gspca/pac207.c
 
 GSPCA SN9C20X SUBDRIVER
@@ -5184,10 +5184,10 @@ S:	Maintained
 F:	drivers/media/usb/gspca/t613.c
 
 GSPCA USB WEBCAM DRIVER
-M:	Hans de Goede <hdegoede@redhat.com>
+M:	Hans Verkuil <hverkuil@xs4all.nl>
 L:	linux-media@vger.kernel.org
 T:	git git://linuxtv.org/media_tree.git
-S:	Maintained
+S:	Odd Fixes
 F:	drivers/media/usb/gspca/
 
 GUID PARTITION TABLE (GPT)
@@ -9237,10 +9237,10 @@ F:	Documentation/video4linux/README.pvrusb2
 F:	drivers/media/usb/pvrusb2/
 
 PWC WEBCAM DRIVER
-M:	Hans de Goede <hdegoede@redhat.com>
+M:	Hans Verkuil <hverkuil@xs4all.nl>
 L:	linux-media@vger.kernel.org
 T:	git git://linuxtv.org/media_tree.git
-S:	Maintained
+S:	Odd Fixes
 F:	drivers/media/usb/pwc/*
 
 PWM FAN DRIVER
@@ -9455,14 +9455,14 @@ F:	drivers/video/fbdev/aty/radeon*
 F:	include/uapi/linux/radeonfb.h
 
 RADIOSHARK RADIO DRIVER
-M:	Hans de Goede <hdegoede@redhat.com>
+M:	Hans Verkuil <hverkuil@xs4all.nl>
 L:	linux-media@vger.kernel.org
 T:	git git://linuxtv.org/media_tree.git
 S:	Maintained
 F:	drivers/media/radio/radio-shark.c
 
 RADIOSHARK2 RADIO DRIVER
-M:	Hans de Goede <hdegoede@redhat.com>
+M:	Hans Verkuil <hverkuil@xs4all.nl>
 L:	linux-media@vger.kernel.org
 T:	git git://linuxtv.org/media_tree.git
 S:	Maintained
