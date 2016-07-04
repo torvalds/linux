@@ -782,7 +782,7 @@ __mod_timer(struct timer_list *timer, unsigned long expires,
 
 	debug_activate(timer, expires);
 
-	new_base = get_target_base(base, pinned);
+	new_base = get_target_base(base, pinned || timer->flags & TIMER_PINNED);
 
 	if (base != new_base) {
 		/*
@@ -825,7 +825,7 @@ out_unlock:
  */
 int mod_timer_pending(struct timer_list *timer, unsigned long expires)
 {
-	return __mod_timer(timer, expires, true, TIMER_NOT_PINNED);
+	return __mod_timer(timer, expires, true, MOD_TIMER_NOT_PINNED);
 }
 EXPORT_SYMBOL(mod_timer_pending);
 
@@ -900,7 +900,7 @@ int mod_timer(struct timer_list *timer, unsigned long expires)
 	if (timer_pending(timer) && timer->expires == expires)
 		return 1;
 
-	return __mod_timer(timer, expires, false, TIMER_NOT_PINNED);
+	return __mod_timer(timer, expires, false, MOD_TIMER_NOT_PINNED);
 }
 EXPORT_SYMBOL(mod_timer);
 
@@ -928,7 +928,7 @@ int mod_timer_pinned(struct timer_list *timer, unsigned long expires)
 	if (timer->expires == expires && timer_pending(timer))
 		return 1;
 
-	return __mod_timer(timer, expires, false, TIMER_PINNED);
+	return __mod_timer(timer, expires, false, MOD_TIMER_PINNED);
 }
 EXPORT_SYMBOL(mod_timer_pinned);
 
@@ -1512,7 +1512,7 @@ signed long __sched schedule_timeout(signed long timeout)
 	expire = timeout + jiffies;
 
 	setup_timer_on_stack(&timer, process_timeout, (unsigned long)current);
-	__mod_timer(&timer, expire, false, TIMER_NOT_PINNED);
+	__mod_timer(&timer, expire, false, MOD_TIMER_NOT_PINNED);
 	schedule();
 	del_singleshot_timer_sync(&timer);
 
