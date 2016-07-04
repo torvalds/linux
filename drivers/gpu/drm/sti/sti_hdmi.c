@@ -1169,7 +1169,7 @@ static int hdmi_audio_configure(struct sti_hdmi *hdmi,
 	return hdmi_audio_infoframe_config(hdmi);
 }
 
-static void hdmi_audio_shutdown(struct device *dev)
+static void hdmi_audio_shutdown(struct device *dev, void *data)
 {
 	struct sti_hdmi *hdmi = dev_get_drvdata(dev);
 	int audio_cfg;
@@ -1186,6 +1186,7 @@ static void hdmi_audio_shutdown(struct device *dev)
 }
 
 static int hdmi_audio_hw_params(struct device *dev,
+				void *data,
 				struct hdmi_codec_daifmt *daifmt,
 				struct hdmi_codec_params *params)
 {
@@ -1221,7 +1222,7 @@ static int hdmi_audio_hw_params(struct device *dev,
 	return 0;
 }
 
-static int hdmi_audio_digital_mute(struct device *dev, bool enable)
+static int hdmi_audio_digital_mute(struct device *dev, void *data, bool enable)
 {
 	struct sti_hdmi *hdmi = dev_get_drvdata(dev);
 
@@ -1235,7 +1236,7 @@ static int hdmi_audio_digital_mute(struct device *dev, bool enable)
 	return 0;
 }
 
-static int hdmi_audio_get_eld(struct device *dev, uint8_t *buf, size_t len)
+static int hdmi_audio_get_eld(struct device *dev, void *data, uint8_t *buf, size_t len)
 {
 	struct sti_hdmi *hdmi = dev_get_drvdata(dev);
 	struct drm_connector *connector = hdmi->drm_connector;
