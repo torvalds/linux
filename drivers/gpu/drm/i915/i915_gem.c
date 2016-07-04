@@ -3255,9 +3255,9 @@ void i915_gem_retire_requests(struct drm_i915_private *dev_priv)
 	}
 
 	if (dev_priv->gt.active_engines == 0)
-		mod_delayed_work(dev_priv->wq,
-				 &dev_priv->gt.idle_work,
-				 msecs_to_jiffies(100));
+		queue_delayed_work(dev_priv->wq,
+				   &dev_priv->gt.idle_work,
+				   msecs_to_jiffies(100));
 }
 
 static void
