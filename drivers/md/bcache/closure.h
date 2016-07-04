@@ -31,7 +31,8 @@
  * passing it, as you might expect, the function to run when nothing is pending
  * and the workqueue to run that function out of.
  *
- * continue_at() also, critically, is a macro that returns the calling function.
+ * continue_at() also, critically, requires a 'return' immediately following the
+ * location where this macro is referenced, to return to the calling function.
  * There's good reason for this.
  *
  * To use safely closures asynchronously, they must always have a refcount while
