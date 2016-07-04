@@ -202,7 +202,7 @@ int thread__insert_map(struct thread *thread, struct map *map)
 {
 	int ret;
 
-	ret = unwind__prepare_access(thread, map);
+	ret = unwind__prepare_access(thread, map, NULL);
 	if (ret)
 		return ret;
 

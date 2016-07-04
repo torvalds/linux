@@ -42,12 +42,14 @@ int unwind__get_entries(unwind_entry_cb_t cb, void *arg,
 #endif
 
 int LIBUNWIND__ARCH_REG_ID(int regnum);
-int unwind__prepare_access(struct thread *thread, struct map *map);
+int unwind__prepare_access(struct thread *thread, struct map *map,
+			   bool *initialized);
 void unwind__flush_access(struct thread *thread);
 void unwind__finish_access(struct thread *thread);
 #else
 static inline int unwind__prepare_access(struct thread *thread __maybe_unused,
-					 struct map *map __maybe_unused)
+					 struct map *map __maybe_unused,
+					 bool *initialized __maybe_unused)
 {
 	return 0;
 }
@@ -67,7 +69,8 @@ unwind__get_entries(unwind_entry_cb_t cb __maybe_unused,
 }
 
 static inline int unwind__prepare_access(struct thread *thread __maybe_unused,
-					 struct map *map __maybe_unused)
+					 struct map *map __maybe_unused,
+					 bool *initialized __maybe_unused)
 {
 	return 0;
 }

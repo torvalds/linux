@@ -14,15 +14,19 @@ static void unwind__register_ops(struct thread *thread,
 	thread->unwind_libunwind_ops = ops;
 }
 
-int unwind__prepare_access(struct thread *thread, struct map *map)
+int unwind__prepare_access(struct thread *thread, struct map *map,
+			   bool *initialized)
 {
 	const char *arch;
 	enum dso_type dso_type;
 	struct unwind_libunwind_ops *ops = local_unwind_libunwind_ops;
+	int err;
 
 	if (thread->addr_space) {
 		pr_debug("unwind: thread map already set, dso=%s\n",
 			 map->dso->name);
+		if (initialized)
+			*initialized = true;
 		return 0;
 	}
 
@@ -51,7 +55,10 @@ int unwind__prepare_access(struct thread *thread, struct map *map)
 out_register:
 	unwind__register_ops(thread, ops);
 
-	return thread->unwind_libunwind_ops->prepare_access(thread);
+	err = thread->unwind_libunwind_ops->prepare_access(thread);
+	if (initialized)
+		*initialized = err ? false : true;
+	return err;
 }
 
 void unwind__flush_access(struct thread *thread)
