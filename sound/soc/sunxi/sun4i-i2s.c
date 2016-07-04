@@ -599,10 +599,8 @@ static int sun4i_i2s_probe(struct platform_device *pdev)
 
 	res = platform_get_resource(pdev, IORESOURCE_MEM, 0);
 	regs = devm_ioremap_resource(&pdev->dev, res);
-	if (IS_ERR(regs)) {
-		dev_err(&pdev->dev, "Can't request IO region\n");
+	if (IS_ERR(regs))
 		return PTR_ERR(regs);
-	}
 
 	irq = platform_get_irq(pdev, 0);
 	if (irq < 0) {
