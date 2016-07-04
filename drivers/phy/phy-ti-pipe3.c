@@ -293,11 +293,18 @@ static int ti_pipe3_init(struct phy *x)
 		ret = ti_pipe3_dpll_wait_lock(phy);
 	}
 
-	/* Program the DPLL only if not locked */
+	/* SATA has issues if re-programmed when locked */
 	val = ti_pipe3_readl(phy->pll_ctrl_base, PLL_STATUS);
-	if (!(val & PLL_LOCK))
-		if (ti_pipe3_dpll_program(phy))
-			return -EINVAL;
+	if ((val & PLL_LOCK) && of_device_is_compatible(phy->dev->of_node,
+							"ti,phy-pipe3-sata"))
+		return ret;
+
+	/* Program the DPLL */
+	ret = ti_pipe3_dpll_program(phy);
+	if (ret) {
+		ti_pipe3_disable_clocks(phy);
+		return -EINVAL;
+	}
 
 	return ret;
 }

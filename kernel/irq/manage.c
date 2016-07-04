@@ -115,12 +115,12 @@ EXPORT_SYMBOL(synchronize_irq);
 #ifdef CONFIG_SMP
 cpumask_var_t irq_default_affinity;
 
-static int __irq_can_set_affinity(struct irq_desc *desc)
+static bool __irq_can_set_affinity(struct irq_desc *desc)
 {
 	if (!desc || !irqd_can_balance(&desc->irq_data) ||
 	    !desc->irq_data.chip || !desc->irq_data.chip->irq_set_affinity)
-		return 0;
-	return 1;
+		return false;
+	return true;
 }
 
 /**
@@ -131,6 +131,21 @@ static int __irq_can_set_affinity(struct irq_desc *desc)
 int irq_can_set_affinity(unsigned int irq)
 {
 	return __irq_can_set_affinity(irq_to_desc(irq));
+}
+
+/**
+ * irq_can_set_affinity_usr - Check if affinity of a irq can be set from user space
+ * @irq:	Interrupt to check
+ *
+ * Like irq_can_set_affinity() above, but additionally checks for the
+ * AFFINITY_MANAGED flag.
+ */
+bool irq_can_set_affinity_usr(unsigned int irq)
+{
+	struct irq_desc *desc = irq_to_desc(irq);
+
+	return __irq_can_set_affinity(desc) &&
+		!irqd_affinity_is_managed(&desc->irq_data);
 }
 
 /**
@@ -338,10 +353,11 @@ static int setup_affinity(struct irq_desc *desc, struct cpumask *mask)
 		return 0;
 
 	/*
-	 * Preserve an userspace affinity setup, but make sure that
-	 * one of the targets is online.
+	 * Preserve the managed affinity setting and an userspace affinity
+	 * setup, but make sure that one of the targets is online.
 	 */
-	if (irqd_has_set(&desc->irq_data, IRQD_AFFINITY_SET)) {
+	if (irqd_affinity_is_managed(&desc->irq_data) ||
+	    irqd_has_set(&desc->irq_data, IRQD_AFFINITY_SET)) {
 		if (cpumask_intersects(desc->irq_common_data.affinity,
 				       cpu_online_mask))
 			set = desc->irq_common_data.affinity;

@@ -437,7 +437,7 @@ void ptep_zap_unused(struct mm_struct *mm, unsigned long addr,
 	pgste = pgste_get_lock(ptep);
 	pgstev = pgste_val(pgste);
 	pte = *ptep;
-	if (pte_swap(pte) &&
+	if (!reset && pte_swap(pte) &&
 	    ((pgstev & _PGSTE_GPS_USAGE_MASK) == _PGSTE_GPS_USAGE_UNUSED ||
 	     (pgstev & _PGSTE_GPS_ZERO))) {
 		ptep_zap_swap_entry(mm, pte_to_swp_entry(pte));

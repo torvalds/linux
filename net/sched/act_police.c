@@ -38,7 +38,7 @@ struct tcf_police {
 	bool			peak_present;
 };
 #define to_police(pc)	\
-	container_of(pc, struct tcf_police, common)
+	container_of(pc->priv, struct tcf_police, common)
 
 #define POL_TAB_MASK     15
 
@@ -119,14 +119,12 @@ static int tcf_act_police_locate(struct net *net, struct nlattr *nla,
 				 struct nlattr *est, struct tc_action *a,
 				 int ovr, int bind)
 {
-	unsigned int h;
 	int ret = 0, err;
 	struct nlattr *tb[TCA_POLICE_MAX + 1];
 	struct tc_police *parm;
 	struct tcf_police *police;
 	struct qdisc_rate_table *R_tab = NULL, *P_tab = NULL;
 	struct tc_action_net *tn = net_generic(net, police_net_id);
-	struct tcf_hashinfo *hinfo = tn->hinfo;
 	int size;
 
 	if (nla == NULL)
@@ -145,7 +143,7 @@ static int tcf_act_police_locate(struct net *net, struct nlattr *nla,
 
 	if (parm->index) {
 		if (tcf_hash_search(tn, a, parm->index)) {
-			police = to_police(a->priv);
+			police = to_police(a);
 			if (bind) {
 				police->tcf_bindcnt += 1;
 				police->tcf_refcnt += 1;
@@ -156,16 +154,15 @@ static int tcf_act_police_locate(struct net *net, struct nlattr *nla,
 			/* not replacing */
 			return -EEXIST;
 		}
+	} else {
+		ret = tcf_hash_create(tn, parm->index, NULL, a,
+				      sizeof(*police), bind, false);
+		if (ret)
+			return ret;
+		ret = ACT_P_CREATED;
 	}
 
-	police = kzalloc(sizeof(*police), GFP_KERNEL);
-	if (police == NULL)
-		return -ENOMEM;
-	ret = ACT_P_CREATED;
-	police->tcf_refcnt = 1;
-	spin_lock_init(&police->tcf_lock);
-	if (bind)
-		police->tcf_bindcnt = 1;
+	police = to_police(a);
 override:
 	if (parm->rate.rate) {
 		err = -ENOMEM;
@@ -237,16 +234,8 @@ override:
 		return ret;
 
 	police->tcfp_t_c = ktime_get_ns();
-	police->tcf_index = parm->index ? parm->index :
-		tcf_hash_new_index(tn);
-	police->tcf_tm.install = jiffies;
-	police->tcf_tm.lastuse = jiffies;
-	h = tcf_hash(police->tcf_index, POL_TAB_MASK);
-	spin_lock_bh(&hinfo->lock);
-	hlist_add_head(&police->tcf_head, &hinfo->htab[h]);
-	spin_unlock_bh(&hinfo->lock);
+	tcf_hash_insert(tn, a);
 
-	a->priv = police;
 	return ret;
 
 failure_unlock:
@@ -255,7 +244,7 @@ failure:
 	qdisc_put_rtab(P_tab);
 	qdisc_put_rtab(R_tab);
 	if (ret == ACT_P_CREATED)
-		kfree(police);
+		tcf_hash_cleanup(a, est);
 	return err;
 }
 

@@ -95,10 +95,8 @@ static struct dentry *__fh_to_dentry(struct super_block *sb, u64 ino)
 	}
 
 	dentry = d_obtain_alias(inode);
-	if (IS_ERR(dentry)) {
-		iput(inode);
+	if (IS_ERR(dentry))
 		return dentry;
-	}
 	err = ceph_init_dentry(dentry);
 	if (err < 0) {
 		dput(dentry);
@@ -167,10 +165,8 @@ static struct dentry *__get_parent(struct super_block *sb,
 		return ERR_PTR(-ENOENT);
 
 	dentry = d_obtain_alias(inode);
-	if (IS_ERR(dentry)) {
-		iput(inode);
+	if (IS_ERR(dentry))
 		return dentry;
-	}
 	err = ceph_init_dentry(dentry);
 	if (err < 0) {
 		dput(dentry);
@@ -210,7 +206,7 @@ static struct dentry *ceph_fh_to_parent(struct super_block *sb,
 
 	dout("fh_to_parent %llx\n", cfh->parent_ino);
 	dentry = __get_parent(sb, NULL, cfh->ino);
-	if (IS_ERR(dentry) && PTR_ERR(dentry) == -ENOENT)
+	if (unlikely(dentry == ERR_PTR(-ENOENT)))
 		dentry = __fh_to_dentry(sb, cfh->parent_ino);
 	return dentry;
 }

@@ -96,7 +96,7 @@ static ssize_t write_irq_affinity(int type, struct file *file,
 	cpumask_var_t new_value;
 	int err;
 
-	if (!irq_can_set_affinity(irq) || no_irq_affinity)
+	if (!irq_can_set_affinity_usr(irq) || no_irq_affinity)
 		return -EIO;
 
 	if (!alloc_cpumask_var(&new_value, GFP_KERNEL))

@@ -223,6 +223,7 @@ static int __init nf_conntrack_sane_init(void)
 			if (ret) {
 				pr_err("failed to register helper for pf: %d port: %d\n",
 				       sane[i][j].tuple.src.l3num, ports[i]);
+				ports_c = i;
 				nf_conntrack_sane_fini();
 				return ret;
 			}

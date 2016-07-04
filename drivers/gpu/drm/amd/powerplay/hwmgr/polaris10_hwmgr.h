@@ -312,6 +312,10 @@ struct polaris10_hwmgr {
 
 	/* soft pptable for re-uploading into smu */
 	void *soft_pp_table;
+
+	uint32_t                              avfs_vdroop_override_setting;
+	bool                                  apply_avfs_cks_off_voltage;
+	uint32_t                              frame_time_x2;
 };
 
 /* To convert to Q8.8 format for firmware */

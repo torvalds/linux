@@ -61,7 +61,7 @@ config RWSEM_GENERIC_SPINLOCK
 	def_bool y
 
 config ARCH_DISCONTIGMEM_ENABLE
-	def_bool y
+	def_bool n
 
 config ARCH_FLATMEM_ENABLE
 	def_bool y
@@ -184,9 +184,6 @@ config SMP
 if SMP
 
 config ARC_HAS_COH_CACHES
-	def_bool n
-
-config ARC_HAS_REENTRANT_IRQ_LV2
 	def_bool n
 
 config ARC_MCIP
@@ -366,25 +363,10 @@ config NODES_SHIFT
 if ISA_ARCOMPACT
 
 config ARC_COMPACT_IRQ_LEVELS
-	bool "ARCompact IRQ Priorities: High(2)/Low(1)"
+	bool "Setup Timer IRQ as high Priority"
 	default n
-	# Timer HAS to be high priority, for any other high priority config
-	select ARC_IRQ3_LV2
 	# if SMP, LV2 enabled ONLY if ARC implementation has LV2 re-entrancy
-	depends on !SMP || ARC_HAS_REENTRANT_IRQ_LV2
-
-if ARC_COMPACT_IRQ_LEVELS
-
-config ARC_IRQ3_LV2
-	bool
-
-config ARC_IRQ5_LV2
-	bool
-
-config ARC_IRQ6_LV2
-	bool
-
-endif	#ARC_COMPACT_IRQ_LEVELS
+	depends on !SMP
 
 config ARC_FPU_SAVE_RESTORE
 	bool "Enable FPU state persistence across context switch"
@@ -406,11 +388,6 @@ config ARC_HAS_LLSC
 	bool "Insn: LLOCK/SCOND (efficient atomic ops)"
 	default y
 	depends on !ARC_CANT_LLSC
-
-config ARC_STAR_9000923308
-	bool "Workaround for llock/scond livelock"
-	default n
-	depends on ISA_ARCV2 && SMP && ARC_HAS_LLSC
 
 config ARC_HAS_SWAPE
 	bool "Insn: SWAPE (endian-swap)"
@@ -471,7 +448,7 @@ config LINUX_LINK_BASE
 
 config HIGHMEM
 	bool "High Memory Support"
-	select DISCONTIGMEM
+	select ARCH_DISCONTIGMEM_ENABLE
 	help
 	  With ARC 2G:2G address split, only upper 2G is directly addressable by
 	  kernel. Enable this to potentially allow access to rest of 2G and PAE
