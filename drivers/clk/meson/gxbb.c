@@ -1,4 +1,6 @@
 /*
+ * AmLogic S905 / GXBB Clock Controller Driver
+ *
  * Copyright (c) 2016 AmLogic, Inc.
  * Michael Turquette <mturquette@baylibre.com>
  *
@@ -19,7 +21,7 @@
 #include <linux/clk-provider.h>
 #include <linux/of_address.h>
 #include <linux/platform_device.h>
-#include <linux/module.h>
+#include <linux/init.h>
 
 #include "clkc.h"
 #include "gxbb.h"
@@ -926,7 +928,6 @@ static const struct of_device_id gxbb_clkc_match_table[] = {
 	{ .compatible = "amlogic,gxbb-clkc" },
 	{ }
 };
-MODULE_DEVICE_TABLE(of, gxbb_match_table);
 
 static struct platform_driver gxbb_driver = {
 	.probe		= gxbb_clkc_probe,
@@ -940,15 +941,4 @@ static int __init gxbb_clkc_init(void)
 {
 	return platform_driver_register(&gxbb_driver);
 }
-module_init(gxbb_clkc_init);
-
-static void __exit gxbb_clkc_exit(void)
-{
-	platform_driver_unregister(&gxbb_driver);
-}
-module_exit(gxbb_clkc_exit);
-
-MODULE_DESCRIPTION("AmLogic S905 / GXBB Clock Controller Driver");
-MODULE_LICENSE("GPL v2");
-MODULE_ALIAS("platform:gxbb-clkc");
-MODULE_AUTHOR("Michael Turquette <mturquette@baylibre.com>");
+device_initcall(gxbb_clkc_init);
