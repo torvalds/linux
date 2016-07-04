@@ -20,7 +20,7 @@
 #include <linux/cpu.h>
 #include <linux/err.h>
 #include <linux/kernel.h>
-#include <linux/module.h>
+#include <linux/init.h>
 #include <linux/platform_device.h>
 #include <soc/tegra/fuse.h>
 
@@ -148,7 +148,6 @@ static const struct of_device_id tegra124_dfll_fcpu_of_match[] = {
 	{ .compatible = "nvidia,tegra124-dfll", },
 	{ },
 };
-MODULE_DEVICE_TABLE(of, tegra124_dfll_fcpu_of_match);
 
 static const struct dev_pm_ops tegra124_dfll_pm_ops = {
 	SET_RUNTIME_PM_OPS(tegra_dfll_runtime_suspend,
@@ -169,15 +168,4 @@ static int __init tegra124_dfll_fcpu_init(void)
 {
 	return platform_driver_register(&tegra124_dfll_fcpu_driver);
 }
-module_init(tegra124_dfll_fcpu_init);
-
-static void __exit tegra124_dfll_fcpu_exit(void)
-{
-	platform_driver_unregister(&tegra124_dfll_fcpu_driver);
-}
-module_exit(tegra124_dfll_fcpu_exit);
-
-MODULE_DESCRIPTION("Tegra124 DFLL clock source driver");
-MODULE_LICENSE("GPL v2");
-MODULE_AUTHOR("Aleksandr Frid <afrid@nvidia.com>");
-MODULE_AUTHOR("Paul Walmsley <pwalmsley@nvidia.com>");
+device_initcall(tegra124_dfll_fcpu_init);
