@@ -1077,7 +1077,6 @@ static void i915_gem_record_rings(struct drm_i915_private *dev_priv,
 
 	for (i = 0; i < I915_NUM_ENGINES; i++) {
 		struct intel_engine_cs *engine = &dev_priv->engine[i];
-		struct intel_ringbuffer *rbuf;
 
 		error->ring[i].pid = -1;
 
@@ -1092,6 +1091,7 @@ static void i915_gem_record_rings(struct drm_i915_private *dev_priv,
 		request = i915_gem_find_active_request(engine);
 		if (request) {
 			struct i915_address_space *vm;
+			struct intel_ringbuffer *rb;
 
 			vm = request->ctx && request->ctx->ppgtt ?
 				&request->ctx->ppgtt->base :
@@ -1122,26 +1122,14 @@ static void i915_gem_record_rings(struct drm_i915_private *dev_priv,
 				}
 				rcu_read_unlock();
 			}
+
+			rb = request->ringbuf;
+			error->ring[i].cpu_ring_head = rb->head;
+			error->ring[i].cpu_ring_tail = rb->tail;
+			error->ring[i].ringbuffer =
+				i915_error_ggtt_object_create(dev_priv,
+							      rb->obj);
 		}
-
-		if (i915.enable_execlists) {
-			/* TODO: This is only a small fix to keep basic error
-			 * capture working, but we need to add more information
-			 * for it to be useful (e.g. dump the context being
-			 * executed).
-			 */
-			if (request)
-				rbuf = request->ctx->engine[engine->id].ringbuf;
-			else
-				rbuf = dev_priv->kernel_context->engine[engine->id].ringbuf;
-		} else
-			rbuf = engine->buffer;
-
-		error->ring[i].cpu_ring_head = rbuf->head;
-		error->ring[i].cpu_ring_tail = rbuf->tail;
-
-		error->ring[i].ringbuffer =
-			i915_error_ggtt_object_create(dev_priv, rbuf->obj);
 
 		error->ring[i].hws_page =
 			i915_error_ggtt_object_create(dev_priv,
