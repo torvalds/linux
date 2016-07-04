@@ -520,9 +520,7 @@ void ceph_queue_cap_snap(struct ceph_inode_info *ci)
 	ihold(inode);
 
 	atomic_set(&capsnap->nref, 1);
-	capsnap->ci = ci;
 	INIT_LIST_HEAD(&capsnap->ci_item);
-	INIT_LIST_HEAD(&capsnap->flushing_item);
 
 	capsnap->follows = old_snapc->seq;
 	capsnap->issued = __ceph_caps_issued(ci, NULL);
@@ -800,7 +798,7 @@ static void flush_snaps(struct ceph_mds_client *mdsc)
 		ihold(inode);
 		spin_unlock(&mdsc->snap_flush_lock);
 		spin_lock(&ci->i_ceph_lock);
-		__ceph_flush_snaps(ci, &session, 0);
+		__ceph_flush_snaps(ci, &session);
 		spin_unlock(&ci->i_ceph_lock);
 		iput(inode);
 		spin_lock(&mdsc->snap_flush_lock);

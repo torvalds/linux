@@ -147,6 +147,13 @@ struct ceph_cap {
 #define CHECK_CAPS_AUTHONLY   2  /* only check auth cap */
 #define CHECK_CAPS_FLUSH      4  /* flush any dirty caps */
 
+struct ceph_cap_flush {
+	u64 tid;
+	int caps; /* 0 means capsnap */
+	struct list_head g_list; // global
+	struct list_head i_list; // per inode
+};
+
 /*
  * Snapped cap state that is pending flush to mds.  When a snapshot occurs,
  * we first complete any in-process sync writes and writeback any dirty
@@ -154,10 +161,11 @@ struct ceph_cap {
  */
 struct ceph_cap_snap {
 	atomic_t nref;
-	struct ceph_inode_info *ci;
-	struct list_head ci_item, flushing_item;
+	struct list_head ci_item;
 
-	u64 follows, flush_tid;
+	struct ceph_cap_flush cap_flush;
+
+	u64 follows;
 	int issued, dirty;
 	struct ceph_snap_context *context;
 
@@ -185,13 +193,6 @@ static inline void ceph_put_cap_snap(struct ceph_cap_snap *capsnap)
 		kfree(capsnap);
 	}
 }
-
-struct ceph_cap_flush {
-	u64 tid;
-	int caps;
-	struct list_head g_list; // global
-	struct list_head i_list; // per inode
-};
 
 /*
  * The frag tree describes how a directory is fragmented, potentially across
@@ -888,8 +889,7 @@ extern void ceph_put_cap_refs(struct ceph_inode_info *ci, int had);
 extern void ceph_put_wrbuffer_cap_refs(struct ceph_inode_info *ci, int nr,
 				       struct ceph_snap_context *snapc);
 extern void __ceph_flush_snaps(struct ceph_inode_info *ci,
-			       struct ceph_mds_session **psession,
-			       int again);
+			       struct ceph_mds_session **psession);
 extern void ceph_check_caps(struct ceph_inode_info *ci, int flags,
 			    struct ceph_mds_session *session);
 extern void ceph_check_delayed_caps(struct ceph_mds_client *mdsc);
