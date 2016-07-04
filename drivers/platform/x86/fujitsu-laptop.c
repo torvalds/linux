@@ -212,7 +212,6 @@ static void eco_led_set(struct led_classdev *cdev,
 
 static struct led_classdev eco_led = {
  .name = "fujitsu::eco_led",
- .max_brightness = 1,
  .brightness_get = eco_led_get,
  .brightness_set = eco_led_set
 };
@@ -306,7 +305,7 @@ static void eco_led_set(struct led_classdev *cdev,
 	int curr;
 
 	curr = call_fext_func(FUNC_LEDS, 0x2, ECO_LED, 0x0);
-	if (brightness)
+	if (brightness >= LED_FULL)
 		call_fext_func(FUNC_LEDS, 0x1, ECO_LED, curr | ECO_LED_ON);
 	else
 		call_fext_func(FUNC_LEDS, 0x1, ECO_LED, curr & ~ECO_LED_ON);
@@ -352,7 +351,7 @@ static enum led_brightness eco_led_get(struct led_classdev *cdev)
 	enum led_brightness brightness = LED_OFF;
 
 	if (call_fext_func(FUNC_LEDS, 0x2, ECO_LED, 0x0) & ECO_LED_ON)
-		brightness = cdev->max_brightness;
+		brightness = LED_FULL;
 
 	return brightness;
 }
