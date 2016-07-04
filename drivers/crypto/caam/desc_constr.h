@@ -77,6 +77,13 @@ static inline void init_job_desc(u32 *desc, u32 options)
 	init_desc(desc, CMD_DESC_HDR | options);
 }
 
+static inline void init_job_desc_pdb(u32 *desc, u32 options, size_t pdb_bytes)
+{
+	u32 pdb_len = (pdb_bytes + CAAM_CMD_SZ - 1) / CAAM_CMD_SZ;
+
+	init_job_desc(desc, (((pdb_len + 1) << HDR_START_IDX_SHIFT)) | options);
+}
+
 static inline void append_ptr(u32 *desc, dma_addr_t ptr)
 {
 	dma_addr_t *offset = (dma_addr_t *)desc_end(desc);

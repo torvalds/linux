@@ -1,12 +1,13 @@
 /*
  * CAAM Protocol Data Block (PDB) definition header file
  *
- * Copyright 2008-2012 Freescale Semiconductor, Inc.
+ * Copyright 2008-2016 Freescale Semiconductor, Inc.
  *
  */
 
 #ifndef CAAM_PDB_H
 #define CAAM_PDB_H
+#include "compat.h"
 
 /*
  * PDB- IPSec ESP Header Modification Options
@@ -475,5 +476,53 @@ struct dsa_verify_pdb {
 	u8 *tmp; /* temporary data block */
 	u8 *ab; /* only used if ECC processing */
 };
+
+/* RSA Protocol Data Block */
+#define RSA_PDB_SGF_SHIFT       28
+#define RSA_PDB_E_SHIFT         12
+#define RSA_PDB_E_MASK          (0xFFF << RSA_PDB_E_SHIFT)
+#define RSA_PDB_D_SHIFT         12
+#define RSA_PDB_D_MASK          (0xFFF << RSA_PDB_D_SHIFT)
+
+#define RSA_PDB_SGF_F           (0x8 << RSA_PDB_SGF_SHIFT)
+#define RSA_PDB_SGF_G           (0x4 << RSA_PDB_SGF_SHIFT)
+#define RSA_PRIV_PDB_SGF_F      (0x4 << RSA_PDB_SGF_SHIFT)
+#define RSA_PRIV_PDB_SGF_G      (0x8 << RSA_PDB_SGF_SHIFT)
+
+#define RSA_PRIV_KEY_FRM_1      0
+
+/**
+ * RSA Encrypt Protocol Data Block
+ * @sgf: scatter-gather field
+ * @f_dma: dma address of input data
+ * @g_dma: dma address of encrypted output data
+ * @n_dma: dma address of RSA modulus
+ * @e_dma: dma address of RSA public exponent
+ * @f_len: length in octets of the input data
+ */
+struct rsa_pub_pdb {
+	u32		sgf;
+	dma_addr_t	f_dma;
+	dma_addr_t	g_dma;
+	dma_addr_t	n_dma;
+	dma_addr_t	e_dma;
+	u32		f_len;
+} __packed;
+
+/**
+ * RSA Decrypt PDB - Private Key Form #1
+ * @sgf: scatter-gather field
+ * @g_dma: dma address of encrypted input data
+ * @f_dma: dma address of output data
+ * @n_dma: dma address of RSA modulus
+ * @d_dma: dma address of RSA private exponent
+ */
+struct rsa_priv_f1_pdb {
+	u32		sgf;
+	dma_addr_t	g_dma;
+	dma_addr_t	f_dma;
+	dma_addr_t	n_dma;
+	dma_addr_t	d_dma;
+} __packed;
 
 #endif
