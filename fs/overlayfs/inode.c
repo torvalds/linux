@@ -80,6 +80,9 @@ int ovl_setattr(struct dentry *dentry, struct iattr *attr)
 				goto out_drop_write;
 		}
 
+		if (attr->ia_valid & (ATTR_KILL_SUID|ATTR_KILL_SGID))
+			attr->ia_valid &= ~ATTR_MODE;
+
 		inode_lock(upperdentry->d_inode);
 		err = notify_change(upperdentry, attr, NULL);
 		if (!err)
