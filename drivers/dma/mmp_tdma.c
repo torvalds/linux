@@ -404,7 +404,7 @@ static void mmp_tdma_free_chan_resources(struct dma_chan *chan)
 	return;
 }
 
-struct mmp_tdma_desc *mmp_tdma_alloc_descriptor(struct mmp_tdma_chan *tdmac)
+static struct mmp_tdma_desc *mmp_tdma_alloc_descriptor(struct mmp_tdma_chan *tdmac)
 {
 	struct gen_pool *gpool;
 	int size = tdmac->desc_num * sizeof(struct mmp_tdma_desc);
@@ -592,7 +592,7 @@ static bool mmp_tdma_filter_fn(struct dma_chan *chan, void *fn_param)
 	return true;
 }
 
-struct dma_chan *mmp_tdma_xlate(struct of_phandle_args *dma_spec,
+static struct dma_chan *mmp_tdma_xlate(struct of_phandle_args *dma_spec,
 			       struct of_dma *ofdma)
 {
 	struct mmp_tdma_device *tdev = ofdma->of_dma_data;
