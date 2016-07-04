@@ -1,25 +1,26 @@
 /*
  * CE4100's SPI device is more or less the same one as found on PXA
  *
+ * Copyright (C) 2016, Intel Corporation
  */
+#include <linux/clk-provider.h>
+#include <linux/module.h>
+#include <linux/of_device.h>
 #include <linux/pci.h>
 #include <linux/platform_device.h>
-#include <linux/of_device.h>
-#include <linux/module.h>
 #include <linux/spi/pxa2xx_spi.h>
-#include <linux/clk-provider.h>
 
 #include <linux/dmaengine.h>
 #include <linux/platform_data/dma-dw.h>
 
 enum {
-	PORT_CE4100,
+	PORT_QUARK_X1000,
 	PORT_BYT,
 	PORT_MRFLD,
 	PORT_BSW0,
 	PORT_BSW1,
 	PORT_BSW2,
-	PORT_QUARK_X1000,
+	PORT_CE4100,
 	PORT_LPT,
 };
 
@@ -242,13 +243,13 @@ static void pxa2xx_spi_pci_remove(struct pci_dev *dev)
 }
 
 static const struct pci_device_id pxa2xx_spi_pci_devices[] = {
-	{ PCI_VDEVICE(INTEL, 0x2e6a), PORT_CE4100 },
 	{ PCI_VDEVICE(INTEL, 0x0935), PORT_QUARK_X1000 },
 	{ PCI_VDEVICE(INTEL, 0x0f0e), PORT_BYT },
 	{ PCI_VDEVICE(INTEL, 0x1194), PORT_MRFLD },
 	{ PCI_VDEVICE(INTEL, 0x228e), PORT_BSW0 },
 	{ PCI_VDEVICE(INTEL, 0x2290), PORT_BSW1 },
 	{ PCI_VDEVICE(INTEL, 0x22ac), PORT_BSW2 },
+	{ PCI_VDEVICE(INTEL, 0x2e6a), PORT_CE4100 },
 	{ PCI_VDEVICE(INTEL, 0x9ce6), PORT_LPT },
 	{ },
 };
