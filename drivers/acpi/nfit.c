@@ -1920,11 +1920,11 @@ static int acpi_nfit_insert_resource(struct acpi_nfit_desc *acpi_desc,
 	if (ret)
 		return ret;
 
-	ret = devm_add_action(acpi_desc->dev, acpi_nfit_remove_resource, res);
-	if (ret) {
-		remove_resource(res);
+	ret = devm_add_action_or_reset(acpi_desc->dev,
+					acpi_nfit_remove_resource,
+					res);
+	if (ret)
 		return ret;
-	}
 
 	return 0;
 }
