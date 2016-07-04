@@ -34,7 +34,6 @@ used only in drivers and applications that support the multi-planar API,
 described in :ref:`planar-apis`.
 
 **Byte Order..**
-
 Each cell is one byte.
 
 
@@ -163,7 +162,6 @@ Each cell is one byte.
        -  
        -  1
 
-       -  
        -  2
 
        -  
@@ -178,7 +176,6 @@ Each cell is one byte.
        -  
        -  Y
 
-       -  
        -  Y
 
        -  
@@ -190,7 +187,6 @@ Each cell is one byte.
        -  
        -  C
 
-       -  
        -  
        -  
        -  C
@@ -206,7 +202,6 @@ Each cell is one byte.
        -  
        -  Y
 
-       -  
        -  Y
 
        -  
@@ -218,7 +213,6 @@ Each cell is one byte.
        -  
        -  C
 
-       -  
        -  
        -  
        -  C
@@ -238,7 +232,6 @@ Each cell is one byte.
        -  
        -  Y
 
-       -  
        -  Y
 
        -  
@@ -250,7 +243,6 @@ Each cell is one byte.
        -  
        -  C
 
-       -  
        -  
        -  
        -  C
@@ -266,7 +258,6 @@ Each cell is one byte.
        -  
        -  Y
 
-       -  
        -  Y
 
        -  
@@ -278,7 +269,6 @@ Each cell is one byte.
        -  
        -  C
 
-       -  
        -  
        -  
        -  C
