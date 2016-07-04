@@ -960,28 +960,36 @@ static inline int
 __mod_timer(struct timer_list *timer, unsigned long expires, bool pending_only)
 {
 	struct timer_base *base, *new_base;
-	unsigned long flags;
+	unsigned int idx = UINT_MAX;
+	unsigned long clk = 0, flags;
 	int ret = 0;
 
 	/*
-	 * TODO: Calculate the array bucket of the timer right here w/o
-	 * holding the base lock. This allows to check not only
-	 * timer->expires == expires below, but also whether the timer
-	 * ends up in the same bucket. If we really need to requeue
-	 * the timer then we check whether base->clk have
-	 * advanced between here and locking the timer base. If
-	 * jiffies advanced we have to recalc the array bucket with the
-	 * lock held.
-	 */
-
-	/*
-	 * This is a common optimization triggered by the
-	 * networking code - if the timer is re-modified
-	 * to be the same thing then just return:
+	 * This is a common optimization triggered by the networking code - if
+	 * the timer is re-modified to have the same timeout or ends up in the
+	 * same array bucket then just return:
 	 */
 	if (timer_pending(timer)) {
 		if (timer->expires == expires)
 			return 1;
+		/*
+		 * Take the current timer_jiffies of base, but without holding
+		 * the lock!
+		 */
+		base = get_timer_base(timer->flags);
+		clk = base->clk;
+
+		idx = calc_wheel_index(expires, clk);
+
+		/*
+		 * Retrieve and compare the array index of the pending
+		 * timer. If it matches set the expiry to the new value so a
+		 * subsequent call will exit in the expires check above.
+		 */
+		if (idx == timer_get_idx(timer)) {
+			timer->expires = expires;
+			return 1;
+		}
 	}
 
 	timer_stats_timer_set_start_info(timer);
@@ -1018,7 +1026,18 @@ __mod_timer(struct timer_list *timer, unsigned long expires, bool pending_only)
 	}
 
 	timer->expires = expires;
-	internal_add_timer(base, timer);
+	/*
+	 * If 'idx' was calculated above and the base time did not advance
+	 * between calculating 'idx' and taking the lock, only enqueue_timer()
+	 * and trigger_dyntick_cpu() is required. Otherwise we need to
+	 * (re)calculate the wheel index via internal_add_timer().
+	 */
+	if (idx != UINT_MAX && clk == base->clk) {
+		enqueue_timer(base, timer, idx);
+		trigger_dyntick_cpu(base, timer);
+	} else {
+		internal_add_timer(base, timer);
+	}
 
 out_unlock:
 	spin_unlock_irqrestore(&base->lock, flags);
