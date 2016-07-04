@@ -764,8 +764,7 @@ static struct tvec_base *lock_timer_base(struct timer_list *timer,
 }
 
 static inline int
-__mod_timer(struct timer_list *timer, unsigned long expires,
-	    bool pending_only, int pinned)
+__mod_timer(struct timer_list *timer, unsigned long expires, bool pending_only)
 {
 	struct tvec_base *base, *new_base;
 	unsigned long flags;
@@ -782,7 +781,7 @@ __mod_timer(struct timer_list *timer, unsigned long expires,
 
 	debug_activate(timer, expires);
 
-	new_base = get_target_base(base, pinned || timer->flags & TIMER_PINNED);
+	new_base = get_target_base(base, timer->flags & TIMER_PINNED);
 
 	if (base != new_base) {
 		/*
@@ -825,7 +824,7 @@ out_unlock:
  */
 int mod_timer_pending(struct timer_list *timer, unsigned long expires)
 {
-	return __mod_timer(timer, expires, true, MOD_TIMER_NOT_PINNED);
+	return __mod_timer(timer, expires, true);
 }
 EXPORT_SYMBOL(mod_timer_pending);
 
@@ -900,37 +899,9 @@ int mod_timer(struct timer_list *timer, unsigned long expires)
 	if (timer_pending(timer) && timer->expires == expires)
 		return 1;
 
-	return __mod_timer(timer, expires, false, MOD_TIMER_NOT_PINNED);
+	return __mod_timer(timer, expires, false);
 }
 EXPORT_SYMBOL(mod_timer);
-
-/**
- * mod_timer_pinned - modify a timer's timeout
- * @timer: the timer to be modified
- * @expires: new timeout in jiffies
- *
- * mod_timer_pinned() is a way to update the expire field of an
- * active timer (if the timer is inactive it will be activated)
- * and to ensure that the timer is scheduled on the current CPU.
- *
- * Note that this does not prevent the timer from being migrated
- * when the current CPU goes offline.  If this is a problem for
- * you, use CPU-hotplug notifiers to handle it correctly, for
- * example, cancelling the timer when the corresponding CPU goes
- * offline.
- *
- * mod_timer_pinned(timer, expires) is equivalent to:
- *
- *     del_timer(timer); timer->expires = expires; add_timer(timer);
- */
-int mod_timer_pinned(struct timer_list *timer, unsigned long expires)
-{
-	if (timer->expires == expires && timer_pending(timer))
-		return 1;
-
-	return __mod_timer(timer, expires, false, MOD_TIMER_PINNED);
-}
-EXPORT_SYMBOL(mod_timer_pinned);
 
 /**
  * add_timer - start a timer
@@ -1512,7 +1483,7 @@ signed long __sched schedule_timeout(signed long timeout)
 	expire = timeout + jiffies;
 
 	setup_timer_on_stack(&timer, process_timeout, (unsigned long)current);
-	__mod_timer(&timer, expire, false, MOD_TIMER_NOT_PINNED);
+	__mod_timer(&timer, expire, false);
 	schedule();
 	del_singleshot_timer_sync(&timer);
 
