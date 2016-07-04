@@ -445,6 +445,9 @@ void mlxsw_sp_fid_destroy(struct mlxsw_sp *mlxsw_sp, struct mlxsw_sp_fid *f)
 
 	list_del(&f->list);
 
+	if (f->r)
+		mlxsw_sp_rif_bridge_destroy(mlxsw_sp, f->r);
+
 	kfree(f);
 
 	mlxsw_sp_fid_op(mlxsw_sp, fid, false);
