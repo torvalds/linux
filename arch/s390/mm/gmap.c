@@ -430,6 +430,9 @@ int __gmap_link(struct gmap *gmap, unsigned long gaddr, unsigned long vmaddr)
 	VM_BUG_ON(pgd_none(*pgd));
 	pud = pud_offset(pgd, vmaddr);
 	VM_BUG_ON(pud_none(*pud));
+	/* large puds cannot yet be handled */
+	if (pud_large(*pud))
+		return -EFAULT;
 	pmd = pmd_offset(pud, vmaddr);
 	VM_BUG_ON(pmd_none(*pmd));
 	/* large pmds cannot yet be handled */

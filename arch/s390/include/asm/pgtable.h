@@ -306,6 +306,9 @@ static inline int is_module_addr(void *addr)
 #define _REGION3_ENTRY_SOFT_DIRTY 0x0000 /* SW region soft dirty bit */
 #endif
 
+#define _REGION_ENTRY_BITS	 0xfffffffffffff227UL
+#define _REGION_ENTRY_BITS_LARGE 0xffffffff8000fe27UL
+
 /* Bits in the segment table entry */
 #define _SEGMENT_ENTRY_BITS	0xfffffffffffffe33UL
 #define _SEGMENT_ENTRY_BITS_LARGE 0xfffffffffff0ff33UL
@@ -573,7 +576,7 @@ static inline int pud_none(pud_t pud)
 {
 	if ((pud_val(pud) & _REGION_ENTRY_TYPE_MASK) < _REGION_ENTRY_TYPE_R3)
 		return 0;
-	return (pud_val(pud) & _REGION_ENTRY_INVALID) != 0UL;
+	return pud_val(pud) == _REGION3_ENTRY_EMPTY;
 }
 
 static inline int pud_large(pud_t pud)
@@ -593,17 +596,25 @@ static inline unsigned long pud_pfn(pud_t pud)
 	return (pud_val(pud) & origin_mask) >> PAGE_SHIFT;
 }
 
+static inline int pmd_large(pmd_t pmd)
+{
+	return (pmd_val(pmd) & _SEGMENT_ENTRY_LARGE) != 0;
+}
+
+static inline int pmd_bad(pmd_t pmd)
+{
+	if (pmd_large(pmd))
+		return (pmd_val(pmd) & ~_SEGMENT_ENTRY_BITS_LARGE) != 0;
+	return (pmd_val(pmd) & ~_SEGMENT_ENTRY_BITS) != 0;
+}
+
 static inline int pud_bad(pud_t pud)
 {
-	/*
-	 * With dynamic page table levels the pud can be a region table
-	 * entry or a segment table entry. Check for the bit that are
-	 * invalid for either table entry.
-	 */
-	unsigned long mask =
-		~_SEGMENT_ENTRY_ORIGIN & ~_REGION_ENTRY_INVALID &
-		~_REGION_ENTRY_TYPE_MASK & ~_REGION_ENTRY_LENGTH;
-	return (pud_val(pud) & mask) != 0;
+	if ((pud_val(pud) & _REGION_ENTRY_TYPE_MASK) < _REGION_ENTRY_TYPE_R3)
+		return pmd_bad(__pmd(pud_val(pud)));
+	if (pud_large(pud))
+		return (pud_val(pud) & ~_REGION_ENTRY_BITS_LARGE) != 0;
+	return (pud_val(pud) & ~_REGION_ENTRY_BITS) != 0;
 }
 
 static inline int pmd_present(pmd_t pmd)
@@ -616,11 +627,6 @@ static inline int pmd_none(pmd_t pmd)
 	return pmd_val(pmd) == _SEGMENT_ENTRY_INVALID;
 }
 
-static inline int pmd_large(pmd_t pmd)
-{
-	return (pmd_val(pmd) & _SEGMENT_ENTRY_LARGE) != 0;
-}
-
 static inline unsigned long pmd_pfn(pmd_t pmd)
 {
 	unsigned long origin_mask;
@@ -629,13 +635,6 @@ static inline unsigned long pmd_pfn(pmd_t pmd)
 	if (pmd_large(pmd))
 		origin_mask = _SEGMENT_ENTRY_ORIGIN_LARGE;
 	return (pmd_val(pmd) & origin_mask) >> PAGE_SHIFT;
-}
-
-static inline int pmd_bad(pmd_t pmd)
-{
-	if (pmd_large(pmd))
-		return (pmd_val(pmd) & ~_SEGMENT_ENTRY_BITS_LARGE) != 0;
-	return (pmd_val(pmd) & ~_SEGMENT_ENTRY_BITS) != 0;
 }
 
 #define __HAVE_ARCH_PMD_WRITE
@@ -1081,6 +1080,7 @@ static inline pmd_t *pmd_offset(pud_t *pud, unsigned long address)
 #define pte_page(x) pfn_to_page(pte_pfn(x))
 
 #define pmd_page(pmd) pfn_to_page(pmd_pfn(pmd))
+#define pud_page(pud) pfn_to_page(pud_pfn(pud))
 
 /* Find an entry in the lowest level page table.. */
 #define pte_offset(pmd, addr) ((pte_t *) pmd_deref(*(pmd)) + pte_index(addr))
@@ -1238,6 +1238,19 @@ static inline void __pmdp_idte(unsigned long address, pmd_t *pmdp)
 		: "cc" );
 }
 
+static inline void __pudp_idte(unsigned long address, pud_t *pudp)
+{
+	unsigned long r3o;
+
+	r3o = (unsigned long) pudp - pud_index(address) * sizeof(pud_t);
+	r3o |= _ASCE_TYPE_REGION3;
+	asm volatile(
+		"	.insn	rrf,0xb98e0000,%2,%3,0,0"
+		: "=m" (*pudp)
+		: "m" (*pudp), "a" (r3o), "a" ((address & PUD_MASK))
+		: "cc");
+}
+
 static inline void __pmdp_idte_local(unsigned long address, pmd_t *pmdp)
 {
 	unsigned long sto;
@@ -1250,8 +1263,22 @@ static inline void __pmdp_idte_local(unsigned long address, pmd_t *pmdp)
 		: "cc" );
 }
 
+static inline void __pudp_idte_local(unsigned long address, pud_t *pudp)
+{
+	unsigned long r3o;
+
+	r3o = (unsigned long) pudp - pud_index(address) * sizeof(pud_t);
+	r3o |= _ASCE_TYPE_REGION3;
+	asm volatile(
+		"	.insn	rrf,0xb98e0000,%2,%3,0,1"
+		: "=m" (*pudp)
+		: "m" (*pudp), "a" (r3o), "a" ((address & PUD_MASK))
+		: "cc");
+}
+
 pmd_t pmdp_xchg_direct(struct mm_struct *, unsigned long, pmd_t *, pmd_t);
 pmd_t pmdp_xchg_lazy(struct mm_struct *, unsigned long, pmd_t *, pmd_t);
+pud_t pudp_xchg_direct(struct mm_struct *, unsigned long, pud_t *, pud_t);
 
 #ifdef CONFIG_TRANSPARENT_HUGEPAGE
 

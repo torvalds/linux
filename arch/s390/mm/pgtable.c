@@ -352,6 +352,45 @@ pmd_t pmdp_xchg_lazy(struct mm_struct *mm, unsigned long addr,
 }
 EXPORT_SYMBOL(pmdp_xchg_lazy);
 
+static inline pud_t pudp_flush_direct(struct mm_struct *mm,
+				      unsigned long addr, pud_t *pudp)
+{
+	pud_t old;
+
+	old = *pudp;
+	if (pud_val(old) & _REGION_ENTRY_INVALID)
+		return old;
+	if (!MACHINE_HAS_IDTE) {
+		/*
+		 * Invalid bit position is the same for pmd and pud, so we can
+		 * re-use _pmd_csp() here
+		 */
+		__pmdp_csp((pmd_t *) pudp);
+		return old;
+	}
+	atomic_inc(&mm->context.flush_count);
+	if (MACHINE_HAS_TLB_LC &&
+	    cpumask_equal(mm_cpumask(mm), cpumask_of(smp_processor_id())))
+		__pudp_idte_local(addr, pudp);
+	else
+		__pudp_idte(addr, pudp);
+	atomic_dec(&mm->context.flush_count);
+	return old;
+}
+
+pud_t pudp_xchg_direct(struct mm_struct *mm, unsigned long addr,
+		       pud_t *pudp, pud_t new)
+{
+	pud_t old;
+
+	preempt_disable();
+	old = pudp_flush_direct(mm, addr, pudp);
+	*pudp = new;
+	preempt_enable();
+	return old;
+}
+EXPORT_SYMBOL(pudp_xchg_direct);
+
 #ifdef CONFIG_TRANSPARENT_HUGEPAGE
 void pgtable_trans_huge_deposit(struct mm_struct *mm, pmd_t *pmdp,
 				pgtable_t pgtable)
