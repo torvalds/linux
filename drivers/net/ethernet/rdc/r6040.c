@@ -815,6 +815,9 @@ static netdev_tx_t r6040_start_xmit(struct sk_buff *skb,
 	void __iomem *ioaddr = lp->base;
 	unsigned long flags;
 
+	if (skb_put_padto(skb, ETH_ZLEN) < 0)
+		return NETDEV_TX_OK;
+
 	/* Critical Section */
 	spin_lock_irqsave(&lp->lock, flags);
 
@@ -829,11 +832,7 @@ static netdev_tx_t r6040_start_xmit(struct sk_buff *skb,
 	/* Set TX descriptor & Transmit it */
 	lp->tx_free_desc--;
 	descptr = lp->tx_insert_ptr;
-	if (skb->len < ETH_ZLEN)
-		descptr->len = ETH_ZLEN;
-	else
-		descptr->len = skb->len;
-
+	descptr->len = skb->len;
 	descptr->skb_ptr = skb;
 	descptr->buf = cpu_to_le32(pci_map_single(lp->pdev,
 		skb->data, skb->len, PCI_DMA_TODEVICE));
