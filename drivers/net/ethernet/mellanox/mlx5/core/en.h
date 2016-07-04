@@ -549,9 +549,11 @@ struct mlx5e_ethtool_table {
 	int                    num_rules;
 };
 
+#define ETHTOOL_NUM_L3_L4_FTS 7
 #define ETHTOOL_NUM_L2_FTS 4
 
 struct mlx5e_ethtool_steering {
+	struct mlx5e_ethtool_table      l3_l4_ft[ETHTOOL_NUM_L3_L4_FTS];
 	struct mlx5e_ethtool_table      l2_ft[ETHTOOL_NUM_L2_FTS];
 	struct list_head                rules;
 	int                             tot_num_rules;

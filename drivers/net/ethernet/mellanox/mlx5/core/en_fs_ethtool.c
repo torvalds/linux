@@ -48,7 +48,8 @@ static void put_flow_table(struct mlx5e_ethtool_table *eth_ft)
 	}
 }
 
-#define MLX5E_ETHTOOL_L2_PRIO 0
+#define MLX5E_ETHTOOL_L3_L4_PRIO 0
+#define MLX5E_ETHTOOL_L2_PRIO (MLX5E_ETHTOOL_L3_L4_PRIO + ETHTOOL_NUM_L3_L4_FTS)
 #define MLX5E_ETHTOOL_NUM_ENTRIES 64000
 #define MLX5E_ETHTOOL_NUM_GROUPS  10
 static struct mlx5e_ethtool_table *get_flow_table(struct mlx5e_priv *priv,
@@ -63,6 +64,17 @@ static struct mlx5e_ethtool_table *get_flow_table(struct mlx5e_priv *priv,
 	int prio;
 
 	switch (fs->flow_type & ~(FLOW_EXT | FLOW_MAC_EXT)) {
+	case TCP_V4_FLOW:
+	case UDP_V4_FLOW:
+		max_tuples = ETHTOOL_NUM_L3_L4_FTS;
+		prio = MLX5E_ETHTOOL_L3_L4_PRIO + (max_tuples - num_tuples);
+		eth_ft = &priv->fs.ethtool.l3_l4_ft[prio];
+		break;
+	case IP_USER_FLOW:
+		max_tuples = ETHTOOL_NUM_L3_L4_FTS;
+		prio = MLX5E_ETHTOOL_L3_L4_PRIO + (max_tuples - num_tuples);
+		eth_ft = &priv->fs.ethtool.l3_l4_ft[prio];
+		break;
 	case ETHER_FLOW:
 		max_tuples = ETHTOOL_NUM_L2_FTS;
 		prio = max_tuples - num_tuples;
@@ -103,6 +115,31 @@ static void mask_spec(u8 *mask, u8 *val, size_t size)
 		*((u8 *)val) = *((u8 *)mask) & *((u8 *)val);
 }
 
+static void set_ips(void *outer_headers_v, void *outer_headers_c, __be32 ip4src_m,
+		    __be32 ip4src_v, __be32 ip4dst_m, __be32 ip4dst_v)
+{
+	if (ip4src_m) {
+		memcpy(MLX5_ADDR_OF(fte_match_set_lyr_2_4, outer_headers_v,
+				    src_ipv4_src_ipv6.ipv4_layout.ipv4),
+		       &ip4src_v, sizeof(ip4src_v));
+		memset(MLX5_ADDR_OF(fte_match_set_lyr_2_4, outer_headers_c,
+				    src_ipv4_src_ipv6.ipv4_layout.ipv4),
+		       0xff, sizeof(ip4src_m));
+	}
+	if (ip4dst_m) {
+		memcpy(MLX5_ADDR_OF(fte_match_set_lyr_2_4, outer_headers_v,
+				    dst_ipv4_dst_ipv6.ipv4_layout.ipv4),
+		       &ip4dst_v, sizeof(ip4dst_v));
+		memset(MLX5_ADDR_OF(fte_match_set_lyr_2_4, outer_headers_c,
+				    dst_ipv4_dst_ipv6.ipv4_layout.ipv4),
+		       0xff, sizeof(ip4dst_m));
+	}
+	MLX5_SET(fte_match_set_lyr_2_4, outer_headers_v,
+		 ethertype, ETH_P_IP);
+	MLX5_SET(fte_match_set_lyr_2_4, outer_headers_c,
+		 ethertype, 0xffff);
+}
+
 static int set_flow_attrs(u32 *match_c, u32 *match_v,
 			  struct ethtool_rx_flow_spec *fs)
 {
@@ -111,10 +148,66 @@ static int set_flow_attrs(u32 *match_c, u32 *match_v,
 	void *outer_headers_v = MLX5_ADDR_OF(fte_match_param, match_v,
 					     outer_headers);
 	u32 flow_type = fs->flow_type & ~(FLOW_EXT | FLOW_MAC_EXT);
+	struct ethtool_tcpip4_spec *l4_mask;
+	struct ethtool_tcpip4_spec *l4_val;
+	struct ethtool_usrip4_spec *l3_mask;
+	struct ethtool_usrip4_spec *l3_val;
 	struct ethhdr *eth_val;
 	struct ethhdr *eth_mask;
 
 	switch (flow_type) {
+	case TCP_V4_FLOW:
+		l4_mask = &fs->m_u.tcp_ip4_spec;
+		l4_val = &fs->h_u.tcp_ip4_spec;
+		set_ips(outer_headers_v, outer_headers_c, l4_mask->ip4src,
+			l4_val->ip4src, l4_mask->ip4dst, l4_val->ip4dst);
+
+		if (l4_mask->psrc) {
+			MLX5_SET(fte_match_set_lyr_2_4, outer_headers_c, tcp_sport,
+				 0xffff);
+			MLX5_SET(fte_match_set_lyr_2_4, outer_headers_v, tcp_sport,
+				 ntohs(l4_val->psrc));
+		}
+		if (l4_mask->pdst) {
+			MLX5_SET(fte_match_set_lyr_2_4, outer_headers_c, tcp_dport,
+				 0xffff);
+			MLX5_SET(fte_match_set_lyr_2_4, outer_headers_v, tcp_dport,
+				 ntohs(l4_val->pdst));
+		}
+		MLX5_SET(fte_match_set_lyr_2_4, outer_headers_c, ip_protocol,
+			 0xffff);
+		MLX5_SET(fte_match_set_lyr_2_4, outer_headers_v, ip_protocol,
+			 IPPROTO_TCP);
+		break;
+	case UDP_V4_FLOW:
+		l4_mask = &fs->m_u.tcp_ip4_spec;
+		l4_val = &fs->h_u.tcp_ip4_spec;
+		set_ips(outer_headers_v, outer_headers_c, l4_mask->ip4src,
+			l4_val->ip4src, l4_mask->ip4dst, l4_val->ip4dst);
+
+		if (l4_mask->psrc) {
+			MLX5_SET(fte_match_set_lyr_2_4, outer_headers_c, udp_sport,
+				 0xffff);
+			MLX5_SET(fte_match_set_lyr_2_4, outer_headers_v, udp_sport,
+				 ntohs(l4_val->psrc));
+		}
+		if (l4_mask->pdst) {
+			MLX5_SET(fte_match_set_lyr_2_4, outer_headers_c, udp_dport,
+				 0xffff);
+			MLX5_SET(fte_match_set_lyr_2_4, outer_headers_v, udp_dport,
+				 ntohs(l4_val->pdst));
+		}
+		MLX5_SET(fte_match_set_lyr_2_4, outer_headers_c, ip_protocol,
+			 0xffff);
+		MLX5_SET(fte_match_set_lyr_2_4, outer_headers_v, ip_protocol,
+			 IPPROTO_UDP);
+		break;
+	case IP_USER_FLOW:
+		l3_mask = &fs->m_u.usr_ip4_spec;
+		l3_val = &fs->h_u.usr_ip4_spec;
+		set_ips(outer_headers_v, outer_headers_c, l3_mask->ip4src,
+			l3_val->ip4src, l3_mask->ip4dst, l3_val->ip4dst);
+		break;
 	case ETHER_FLOW:
 		eth_mask = &fs->m_u.ether_spec;
 		eth_val = &fs->h_u.ether_spec;
@@ -151,6 +244,15 @@ static int set_flow_attrs(u32 *match_c, u32 *match_v,
 			 first_vid, 0xfff);
 		MLX5_SET(fte_match_set_lyr_2_4, outer_headers_v,
 			 first_vid, ntohs(fs->h_ext.vlan_tci));
+	}
+	if (fs->flow_type & FLOW_MAC_EXT &&
+	    !is_zero_ether_addr(fs->m_ext.h_dest)) {
+		ether_addr_copy(MLX5_ADDR_OF(fte_match_set_lyr_2_4,
+					     outer_headers_c, dmac_47_16),
+				fs->m_ext.h_dest);
+		ether_addr_copy(MLX5_ADDR_OF(fte_match_set_lyr_2_4,
+					     outer_headers_v, dmac_47_16),
+				fs->h_ext.h_dest);
 	}
 
 	return 0;
@@ -270,9 +372,16 @@ static struct mlx5e_ethtool_rule *get_ethtool_rule(struct mlx5e_priv *priv,
 }
 
 #define MAX_NUM_OF_ETHTOOL_RULES BIT(10)
+
+#define all_ones(field) (field == (__force typeof(field))-1)
+#define all_zeros_or_all_ones(field)		\
+	((field) == 0 || (field) == (__force typeof(field))-1)
+
 static int validate_flow(struct mlx5e_priv *priv,
 			 struct ethtool_rx_flow_spec *fs)
 {
+	struct ethtool_tcpip4_spec *l4_mask;
+	struct ethtool_usrip4_spec *l3_mask;
 	struct ethhdr *eth_mask;
 	int num_tuples = 0;
 
@@ -293,6 +402,52 @@ static int validate_flow(struct mlx5e_priv *priv,
 		if (eth_mask->h_proto)
 			num_tuples++;
 		break;
+	case TCP_V4_FLOW:
+	case UDP_V4_FLOW:
+		if (fs->m_u.tcp_ip4_spec.tos)
+			return -EINVAL;
+		l4_mask = &fs->m_u.tcp_ip4_spec;
+		if (l4_mask->ip4src) {
+			if (!all_ones(l4_mask->ip4src))
+				return -EINVAL;
+			num_tuples++;
+		}
+		if (l4_mask->ip4dst) {
+			if (!all_ones(l4_mask->ip4dst))
+				return -EINVAL;
+			num_tuples++;
+		}
+		if (l4_mask->psrc) {
+			if (!all_ones(l4_mask->psrc))
+				return -EINVAL;
+			num_tuples++;
+		}
+		if (l4_mask->pdst) {
+			if (!all_ones(l4_mask->pdst))
+				return -EINVAL;
+			num_tuples++;
+		}
+		/* Flow is TCP/UDP */
+		num_tuples++;
+		break;
+	case IP_USER_FLOW:
+		l3_mask = &fs->m_u.usr_ip4_spec;
+		if (l3_mask->l4_4_bytes || l3_mask->tos || l3_mask->proto ||
+		    fs->h_u.usr_ip4_spec.ip_ver != ETH_RX_NFC_IP4)
+			return -EINVAL;
+		if (l3_mask->ip4src) {
+			if (!all_ones(l3_mask->ip4src))
+				return -EINVAL;
+			num_tuples++;
+		}
+		if (l3_mask->ip4dst) {
+			if (!all_ones(l3_mask->ip4dst))
+				return -EINVAL;
+			num_tuples++;
+		}
+		/* Flow is IPv4 */
+		num_tuples++;
+		break;
 	default:
 		return -EINVAL;
 	}
@@ -307,6 +462,10 @@ static int validate_flow(struct mlx5e_priv *priv,
 		}
 		num_tuples++;
 	}
+
+	if (fs->flow_type & FLOW_MAC_EXT &&
+	    !is_zero_ether_addr(fs->m_ext.h_dest))
+		num_tuples++;
 
 	return num_tuples;
 }
