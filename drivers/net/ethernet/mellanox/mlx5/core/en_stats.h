@@ -151,6 +151,22 @@ static const struct counter_desc vport_stats_desc[] = {
 		VPORT_COUNTER_OFF(transmitted_eth_broadcast.packets) },
 	{ "tx_vport_broadcast_bytes",
 		VPORT_COUNTER_OFF(transmitted_eth_broadcast.octets) },
+	{ "rx_vport_rdma_unicast_packets",
+		VPORT_COUNTER_OFF(received_ib_unicast.packets) },
+	{ "rx_vport_rdma_unicast_bytes",
+		VPORT_COUNTER_OFF(received_ib_unicast.octets) },
+	{ "tx_vport_rdma_unicast_packets",
+		VPORT_COUNTER_OFF(transmitted_ib_unicast.packets) },
+	{ "tx_vport_rdma_unicast_bytes",
+		VPORT_COUNTER_OFF(transmitted_ib_unicast.octets) },
+	{ "rx_vport_rdma_multicast_packets",
+		VPORT_COUNTER_OFF(received_ib_multicast.packets) },
+	{ "rx_vport_rdma_multicast_bytes",
+		VPORT_COUNTER_OFF(received_ib_multicast.octets) },
+	{ "tx_vport_rdma_multicast_packets",
+		VPORT_COUNTER_OFF(transmitted_ib_multicast.packets) },
+	{ "tx_vport_rdma_multicast_bytes",
+		VPORT_COUNTER_OFF(transmitted_ib_multicast.octets) },
 };
 
 #define PPORT_802_3_OFF(c) \
