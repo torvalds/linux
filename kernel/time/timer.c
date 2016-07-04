@@ -1277,32 +1277,6 @@ static int collect_expired_timers(struct timer_base *base,
 	return levels;
 }
 
-/**
- * __run_timers - run all expired timers (if any) on this CPU.
- * @base: the timer vector to be processed.
- */
-static inline void __run_timers(struct timer_base *base)
-{
-	struct hlist_head heads[LVL_DEPTH];
-	int levels;
-
-	if (!time_after_eq(jiffies, base->clk))
-		return;
-
-	spin_lock_irq(&base->lock);
-
-	while (time_after_eq(jiffies, base->clk)) {
-
-		levels = collect_expired_timers(base, heads);
-		base->clk++;
-
-		while (levels--)
-			expire_timers(base, heads + levels);
-	}
-	base->running_timer = NULL;
-	spin_unlock_irq(&base->lock);
-}
-
 #ifdef CONFIG_NO_HZ_COMMON
 /*
  * Find the next pending bucket of a level. Search from @offset + @clk upwards
@@ -1470,6 +1444,32 @@ void update_process_times(int user_tick)
 #endif
 	scheduler_tick();
 	run_posix_cpu_timers(p);
+}
+
+/**
+ * __run_timers - run all expired timers (if any) on this CPU.
+ * @base: the timer vector to be processed.
+ */
+static inline void __run_timers(struct timer_base *base)
+{
+	struct hlist_head heads[LVL_DEPTH];
+	int levels;
+
+	if (!time_after_eq(jiffies, base->clk))
+		return;
+
+	spin_lock_irq(&base->lock);
+
+	while (time_after_eq(jiffies, base->clk)) {
+
+		levels = collect_expired_timers(base, heads);
+		base->clk++;
+
+		while (levels--)
+			expire_timers(base, heads + levels);
+	}
+	base->running_timer = NULL;
+	spin_unlock_irq(&base->lock);
 }
 
 /*
