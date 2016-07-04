@@ -6,7 +6,8 @@
 FE_SET_FRONTEND
 ***************
 
-DESCRIPTION
+Description
+-----------
 
 This ioctl call starts a tuning operation using specified parameters.
 The result of this call will be successful if the parameters were valid
@@ -18,13 +19,13 @@ operation is initiated before the previous one was completed, the
 previous operation will be aborted in favor of the new one. This command
 requires read/write access to the device.
 
-SYNOPSIS
+Synopsis
+--------
 
-int ioctl(int fd, int request =
-:ref:`FE_SET_FRONTEND`, struct
-dvb_frontend_parameters *p);
+.. c:function:: int ioctl(int fd, int request = FE_SET_FRONTEND, struct dvb_frontend_parameters *p)
 
-PARAMETERS
+Arguments
+----------
 
 
 
@@ -48,12 +49,13 @@ PARAMETERS
 
     -  .. row 3
 
-       -  struct dvb_frontend_parameters *p
+       -  struct dvb_frontend_parameters \*p
 
        -  Points to parameters for tuning operation.
 
 
-RETURN VALUE
+Return Value
+------------
 
 On success 0 is returned, on error -1 and the ``errno`` variable is set
 appropriately. The generic error codes are described at the
