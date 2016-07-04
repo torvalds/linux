@@ -648,7 +648,7 @@ static int r6040_poll(struct napi_struct *napi, int budget)
 	work_done = r6040_rx(dev, budget);
 
 	if (work_done < budget) {
-		napi_complete(napi);
+		napi_complete_done(napi, work_done);
 		/* Enable RX/TX interrupt */
 		iowrite16(ioread16(ioaddr + MIER) | RX_INTS | TX_INTS,
 			  ioaddr + MIER);
