@@ -9,10 +9,11 @@ CA Function Calls
 
 .. _ca_fopen:
 
-open()
-======
+DVB CA open()
+=============
 
-DESCRIPTION
+Description
+-----------
 
 This system call opens a named ca device (e.g. /dev/ost/ca) for
 subsequent use.
@@ -27,11 +28,13 @@ system call, documented in the Linux manual page for fcntl. Only one
 user can open the CA Device in O_RDWR mode. All other attempts to open
 the device in this mode will fail, and an error code will be returned.
 
-SYNOPSIS
+Synopsis
+--------
 
-int open(const char *deviceName, int flags);
+.. cpp:function:: int  open(const char *deviceName, int flags)
 
-PARAMETERS
+Arguments
+----------
 
 
 
@@ -42,7 +45,7 @@ PARAMETERS
 
     -  .. row 1
 
-       -  const char *deviceName
+       -  const char \*deviceName
 
        -  Name of specific video device.
 
@@ -73,7 +76,8 @@ PARAMETERS
        -  (blocking mode is the default)
 
 
-RETURN VALUE
+Return Value
+------------
 
 
 
@@ -110,18 +114,21 @@ RETURN VALUE
 
 .. _ca_fclose:
 
-close()
-=======
+DVB CA close()
+==============
 
-DESCRIPTION
+Description
+-----------
 
 This system call closes a previously opened audio device.
 
-SYNOPSIS
+Synopsis
+--------
 
-int close(int fd);
+.. cpp:function:: int  close(int fd)
 
-PARAMETERS
+Arguments
+----------
 
 
 
@@ -137,7 +144,8 @@ PARAMETERS
        -  File descriptor returned by a previous call to open().
 
 
-RETURN VALUE
+Return Value
+------------
 
 
 
@@ -159,15 +167,18 @@ RETURN VALUE
 CA_RESET
 ========
 
-DESCRIPTION
+Description
+-----------
 
 This ioctl is undocumented. Documentation is welcome.
 
-SYNOPSIS
+Synopsis
+--------
 
-int ioctl(fd, int request = CA_RESET);
+.. cpp:function:: int  ioctl(fd, int request = CA_RESET)
 
-PARAMETERS
+Arguments
+----------
 
 
 
@@ -189,7 +200,8 @@ PARAMETERS
        -  Equals CA_RESET for this command.
 
 
-RETURN VALUE
+Return Value
+------------
 
 On success 0 is returned, on error -1 and the ``errno`` variable is set
 appropriately. The generic error codes are described at the
@@ -201,15 +213,18 @@ appropriately. The generic error codes are described at the
 CA_GET_CAP
 ==========
 
-DESCRIPTION
+Description
+-----------
 
 This ioctl is undocumented. Documentation is welcome.
 
-SYNOPSIS
+Synopsis
+--------
 
-int ioctl(fd, int request = CA_GET_CAP, ca_caps_t *);
+.. cpp:function:: int  ioctl(fd, int request = CA_GET_CAP, ca_caps_t *)
 
-PARAMETERS
+Arguments
+----------
 
 
 
@@ -237,7 +252,8 @@ PARAMETERS
        -  Undocumented.
 
 
-RETURN VALUE
+Return Value
+------------
 
 On success 0 is returned, on error -1 and the ``errno`` variable is set
 appropriately. The generic error codes are described at the
@@ -249,15 +265,18 @@ appropriately. The generic error codes are described at the
 CA_GET_SLOT_INFO
 ================
 
-DESCRIPTION
+Description
+-----------
 
 This ioctl is undocumented. Documentation is welcome.
 
-SYNOPSIS
+Synopsis
+--------
 
-int ioctl(fd, int request = CA_GET_SLOT_INFO, ca_slot_info_t *);
+.. cpp:function:: int  ioctl(fd, int request = CA_GET_SLOT_INFO, ca_slot_info_t *)
 
-PARAMETERS
+Arguments
+----------
 
 
 
@@ -280,12 +299,13 @@ PARAMETERS
 
     -  .. row 3
 
-       -  ca_slot_info_t *
+       -  ca_slot_info_t \*
 
        -  Undocumented.
 
 
-RETURN VALUE
+Return Value
+------------
 
 On success 0 is returned, on error -1 and the ``errno`` variable is set
 appropriately. The generic error codes are described at the
@@ -297,15 +317,18 @@ appropriately. The generic error codes are described at the
 CA_GET_DESCR_INFO
 =================
 
-DESCRIPTION
+Description
+-----------
 
 This ioctl is undocumented. Documentation is welcome.
 
-SYNOPSIS
+Synopsis
+--------
 
-int ioctl(fd, int request = CA_GET_DESCR_INFO, ca_descr_info_t *);
+.. cpp:function:: int  ioctl(fd, int request = CA_GET_DESCR_INFO, ca_descr_info_t *)
 
-PARAMETERS
+Arguments
+----------
 
 
 
@@ -328,12 +351,13 @@ PARAMETERS
 
     -  .. row 3
 
-       -  ca_descr_info_t *
+       -  ca_descr_info_t \*
 
        -  Undocumented.
 
 
-RETURN VALUE
+Return Value
+------------
 
 On success 0 is returned, on error -1 and the ``errno`` variable is set
 appropriately. The generic error codes are described at the
@@ -345,15 +369,18 @@ appropriately. The generic error codes are described at the
 CA_GET_MSG
 ==========
 
-DESCRIPTION
+Description
+-----------
 
 This ioctl is undocumented. Documentation is welcome.
 
-SYNOPSIS
+Synopsis
+--------
 
-int ioctl(fd, int request = CA_GET_MSG, ca_msg_t *);
+.. cpp:function:: int  ioctl(fd, int request = CA_GET_MSG, ca_msg_t *)
 
-PARAMETERS
+Arguments
+----------
 
 
 
@@ -376,12 +403,13 @@ PARAMETERS
 
     -  .. row 3
 
-       -  ca_msg_t *
+       -  ca_msg_t \*
 
        -  Undocumented.
 
 
-RETURN VALUE
+Return Value
+------------
 
 On success 0 is returned, on error -1 and the ``errno`` variable is set
 appropriately. The generic error codes are described at the
@@ -393,15 +421,18 @@ appropriately. The generic error codes are described at the
 CA_SEND_MSG
 ===========
 
-DESCRIPTION
+Description
+-----------
 
 This ioctl is undocumented. Documentation is welcome.
 
-SYNOPSIS
+Synopsis
+--------
 
-int ioctl(fd, int request = CA_SEND_MSG, ca_msg_t *);
+.. cpp:function:: int  ioctl(fd, int request = CA_SEND_MSG, ca_msg_t *)
 
-PARAMETERS
+Arguments
+----------
 
 
 
@@ -424,12 +455,13 @@ PARAMETERS
 
     -  .. row 3
 
-       -  ca_msg_t *
+       -  ca_msg_t \*
 
        -  Undocumented.
 
 
-RETURN VALUE
+Return Value
+------------
 
 On success 0 is returned, on error -1 and the ``errno`` variable is set
 appropriately. The generic error codes are described at the
@@ -441,15 +473,18 @@ appropriately. The generic error codes are described at the
 CA_SET_DESCR
 ============
 
-DESCRIPTION
+Description
+-----------
 
 This ioctl is undocumented. Documentation is welcome.
 
-SYNOPSIS
+Synopsis
+--------
 
-int ioctl(fd, int request = CA_SET_DESCR, ca_descr_t *);
+.. cpp:function:: int  ioctl(fd, int request = CA_SET_DESCR, ca_descr_t *)
 
-PARAMETERS
+Arguments
+----------
 
 
 
@@ -472,12 +507,13 @@ PARAMETERS
 
     -  .. row 3
 
-       -  ca_descr_t *
+       -  ca_descr_t \*
 
        -  Undocumented.
 
 
-RETURN VALUE
+Return Value
+------------
 
 On success 0 is returned, on error -1 and the ``errno`` variable is set
 appropriately. The generic error codes are described at the
@@ -489,15 +525,18 @@ appropriately. The generic error codes are described at the
 CA_SET_PID
 ==========
 
-DESCRIPTION
+Description
+-----------
 
 This ioctl is undocumented. Documentation is welcome.
 
-SYNOPSIS
+Synopsis
+--------
 
-int ioctl(fd, int request = CA_SET_PID, ca_pid_t *);
+.. cpp:function:: int  ioctl(fd, int request = CA_SET_PID, ca_pid_t *)
 
-PARAMETERS
+Arguments
+----------
 
 
 
@@ -520,12 +559,13 @@ PARAMETERS
 
     -  .. row 3
 
-       -  ca_pid_t *
+       -  ca_pid_t \*
 
        -  Undocumented.
 
 
-RETURN VALUE
+Return Value
+------------
 
 On success 0 is returned, on error -1 and the ``errno`` variable is set
 appropriately. The generic error codes are described at the
