@@ -1001,14 +1001,8 @@ static void r6040_adjust_link(struct net_device *dev)
 		lp->old_duplex = phydev->duplex;
 	}
 
-	if (status_changed) {
-		pr_info("%s: link %s", dev->name, phydev->link ?
-			"UP" : "DOWN");
-		if (phydev->link)
-			pr_cont(" - %d/%s", phydev->speed,
-			DUPLEX_FULL == phydev->duplex ? "full" : "half");
-		pr_cont("\n");
-	}
+	if (status_changed)
+		phy_print_status(phydev);
 }
 
 static int r6040_mii_probe(struct net_device *dev)
