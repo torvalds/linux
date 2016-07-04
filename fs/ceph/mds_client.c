@@ -48,7 +48,7 @@
 struct ceph_reconnect_state {
 	int nr_caps;
 	struct ceph_pagelist *pagelist;
-	bool flock;
+	unsigned msg_version;
 };
 
 static void __wake_requests(struct ceph_mds_client *mdsc,
@@ -2791,7 +2791,6 @@ static int encode_caps_cb(struct inode *inode, struct ceph_cap *cap,
 		struct ceph_mds_cap_reconnect v2;
 		struct ceph_mds_cap_reconnect_v1 v1;
 	} rec;
-	size_t reclen;
 	struct ceph_inode_info *ci;
 	struct ceph_reconnect_state *recon_state = arg;
 	struct ceph_pagelist *pagelist = recon_state->pagelist;
@@ -2820,9 +2819,6 @@ static int encode_caps_cb(struct inode *inode, struct ceph_cap *cap,
 		path = NULL;
 		pathlen = 0;
 	}
-	err = ceph_pagelist_encode_string(pagelist, path, pathlen);
-	if (err)
-		goto out_free;
 
 	spin_lock(&ci->i_ceph_lock);
 	cap->seq = 0;        /* reset cap seq */
@@ -2830,14 +2826,13 @@ static int encode_caps_cb(struct inode *inode, struct ceph_cap *cap,
 	cap->mseq = 0;       /* and migrate_seq */
 	cap->cap_gen = cap->session->s_cap_gen;
 
-	if (recon_state->flock) {
+	if (recon_state->msg_version >= 2) {
 		rec.v2.cap_id = cpu_to_le64(cap->cap_id);
 		rec.v2.wanted = cpu_to_le32(__ceph_caps_wanted(ci));
 		rec.v2.issued = cpu_to_le32(cap->issued);
 		rec.v2.snaprealm = cpu_to_le64(ci->i_snap_realm->ino);
 		rec.v2.pathbase = cpu_to_le64(pathbase);
 		rec.v2.flock_len = 0;
-		reclen = sizeof(rec.v2);
 	} else {
 		rec.v1.cap_id = cpu_to_le64(cap->cap_id);
 		rec.v1.wanted = cpu_to_le32(__ceph_caps_wanted(ci));
@@ -2847,13 +2842,14 @@ static int encode_caps_cb(struct inode *inode, struct ceph_cap *cap,
 		ceph_encode_timespec(&rec.v1.atime, &inode->i_atime);
 		rec.v1.snaprealm = cpu_to_le64(ci->i_snap_realm->ino);
 		rec.v1.pathbase = cpu_to_le64(pathbase);
-		reclen = sizeof(rec.v1);
 	}
 	spin_unlock(&ci->i_ceph_lock);
 
-	if (recon_state->flock) {
+	if (recon_state->msg_version >= 2) {
 		int num_fcntl_locks, num_flock_locks;
 		struct ceph_filelock *flocks;
+		size_t struct_len, total_len = 0;
+		u8 struct_v = 0;
 
 encode_again:
 		ceph_count_locks(inode, &num_fcntl_locks, &num_flock_locks);
@@ -2872,20 +2868,46 @@ encode_again:
 				goto encode_again;
 			goto out_free;
 		}
+
+		if (recon_state->msg_version >= 3) {
+			/* version, compat_version and struct_len */
+			total_len = 2 * sizeof(u8) + sizeof(u32);
+			struct_v = 1;
+		}
 		/*
 		 * number of encoded locks is stable, so copy to pagelist
 		 */
-		rec.v2.flock_len = cpu_to_le32(2*sizeof(u32) +
-				    (num_fcntl_locks+num_flock_locks) *
-				    sizeof(struct ceph_filelock));
-		err = ceph_pagelist_append(pagelist, &rec, reclen);
-		if (!err)
-			err = ceph_locks_to_pagelist(flocks, pagelist,
-						     num_fcntl_locks,
-						     num_flock_locks);
+		struct_len = 2 * sizeof(u32) +
+			    (num_fcntl_locks + num_flock_locks) *
+			    sizeof(struct ceph_filelock);
+		rec.v2.flock_len = cpu_to_le32(struct_len);
+
+		struct_len += sizeof(rec.v2);
+		struct_len += sizeof(u32) + pathlen;
+
+		total_len += struct_len;
+		err = ceph_pagelist_reserve(pagelist, total_len);
+
+		if (!err) {
+			if (recon_state->msg_version >= 3) {
+				ceph_pagelist_encode_8(pagelist, struct_v);
+				ceph_pagelist_encode_8(pagelist, 1);
+				ceph_pagelist_encode_32(pagelist, struct_len);
+			}
+			ceph_pagelist_encode_string(pagelist, path, pathlen);
+			ceph_pagelist_append(pagelist, &rec, sizeof(rec.v2));
+			ceph_locks_to_pagelist(flocks, pagelist,
+					       num_fcntl_locks,
+					       num_flock_locks);
+		}
 		kfree(flocks);
 	} else {
-		err = ceph_pagelist_append(pagelist, &rec, reclen);
+		size_t size = sizeof(u32) + pathlen + sizeof(rec.v1);
+		err = ceph_pagelist_reserve(pagelist, size);
+		if (!err) {
+			ceph_pagelist_encode_string(pagelist, path, pathlen);
+			ceph_pagelist_append(pagelist, &rec, sizeof(rec.v1));
+		}
 	}
 
 	recon_state->nr_caps++;
@@ -2976,7 +2998,12 @@ static void send_mds_reconnect(struct ceph_mds_client *mdsc,
 
 	recon_state.nr_caps = 0;
 	recon_state.pagelist = pagelist;
-	recon_state.flock = session->s_con.peer_features & CEPH_FEATURE_FLOCK;
+	if (session->s_con.peer_features & CEPH_FEATURE_MDSENC)
+		recon_state.msg_version = 3;
+	else if (session->s_con.peer_features & CEPH_FEATURE_FLOCK)
+		recon_state.msg_version = 2;
+	else
+		recon_state.msg_version = 1;
 	err = iterate_session_caps(session, encode_caps_cb, &recon_state);
 	if (err < 0)
 		goto fail;
@@ -3005,8 +3032,7 @@ static void send_mds_reconnect(struct ceph_mds_client *mdsc,
 			goto fail;
 	}
 
-	if (recon_state.flock)
-		reply->hdr.version = cpu_to_le16(2);
+	reply->hdr.version = cpu_to_le16(recon_state.msg_version);
 
 	/* raced with cap release? */
 	if (s_nr_caps != recon_state.nr_caps) {
