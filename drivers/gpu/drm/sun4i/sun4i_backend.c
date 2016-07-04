@@ -190,7 +190,7 @@ int sun4i_backend_update_layer_buffer(struct sun4i_backend *backend,
 	/* Get the physical address of the buffer in memory */
 	gem = drm_fb_cma_get_gem_obj(fb, 0);
 
-	DRM_DEBUG_DRIVER("Using GEM @ 0x%x\n", gem->paddr);
+	DRM_DEBUG_DRIVER("Using GEM @ %pad\n", &gem->paddr);
 
 	/* Compute the start of the displayed memory */
 	bpp = drm_format_plane_cpp(fb->pixel_format, 0);
@@ -198,7 +198,7 @@ int sun4i_backend_update_layer_buffer(struct sun4i_backend *backend,
 	paddr += (state->src_x >> 16) * bpp;
 	paddr += (state->src_y >> 16) * fb->pitches[0];
 
-	DRM_DEBUG_DRIVER("Setting buffer address to 0x%x\n", paddr);
+	DRM_DEBUG_DRIVER("Setting buffer address to %pad\n", &paddr);
 
 	/* Write the 32 lower bits of the address (in bits) */
 	lo_paddr = paddr << 3;

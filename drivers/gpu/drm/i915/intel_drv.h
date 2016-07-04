@@ -863,8 +863,6 @@ struct intel_dp {
 	/* This is called before a link training is starterd */
 	void (*prepare_link_retrain)(struct intel_dp *intel_dp);
 
-	bool train_set_valid;
-
 	/* Displayport compliance testing */
 	unsigned long compliance_test_type;
 	unsigned long compliance_test_data;

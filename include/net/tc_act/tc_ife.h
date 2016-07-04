@@ -36,7 +36,7 @@ struct tcf_meta_ops {
 	int	(*encode)(struct sk_buff *, void *, struct tcf_meta_info *);
 	int	(*decode)(struct sk_buff *, void *, u16 len);
 	int	(*get)(struct sk_buff *skb, struct tcf_meta_info *mi);
-	int	(*alloc)(struct tcf_meta_info *, void *);
+	int	(*alloc)(struct tcf_meta_info *, void *, gfp_t);
 	void	(*release)(struct tcf_meta_info *);
 	int	(*validate)(void *val, int len);
 	struct module	*owner;
@@ -48,8 +48,8 @@ int ife_get_meta_u32(struct sk_buff *skb, struct tcf_meta_info *mi);
 int ife_get_meta_u16(struct sk_buff *skb, struct tcf_meta_info *mi);
 int ife_tlv_meta_encode(void *skbdata, u16 attrtype, u16 dlen,
 			const void *dval);
-int ife_alloc_meta_u32(struct tcf_meta_info *mi, void *metaval);
-int ife_alloc_meta_u16(struct tcf_meta_info *mi, void *metaval);
+int ife_alloc_meta_u32(struct tcf_meta_info *mi, void *metaval, gfp_t gfp);
+int ife_alloc_meta_u16(struct tcf_meta_info *mi, void *metaval, gfp_t gfp);
 int ife_check_meta_u32(u32 metaval, struct tcf_meta_info *mi);
 int ife_encode_meta_u32(u32 metaval, void *skbdata, struct tcf_meta_info *mi);
 int ife_validate_meta_u32(void *val, int len);
