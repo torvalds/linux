@@ -2357,7 +2357,9 @@ enum emulation_result kvm_mips_handle_ri(u32 cause, u32 *opc,
 	}
 
 	if (inst.r_format.opcode == spec3_op &&
-	    inst.r_format.func == rdhwr_op) {
+	    inst.r_format.func == rdhwr_op &&
+	    inst.r_format.rs == 0 &&
+	    (inst.r_format.re >> 3) == 0) {
 		int usermode = !KVM_GUEST_KERNEL_MODE(vcpu);
 		int rd = inst.r_format.rd;
 		int rt = inst.r_format.rt;
