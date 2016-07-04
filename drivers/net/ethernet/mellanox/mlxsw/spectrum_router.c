@@ -106,9 +106,19 @@ struct mlxsw_sp_fib_key {
 	unsigned char prefix_len;
 };
 
+enum mlxsw_sp_fib_entry_type {
+	MLXSW_SP_FIB_ENTRY_TYPE_REMOTE,
+	MLXSW_SP_FIB_ENTRY_TYPE_LOCAL,
+	MLXSW_SP_FIB_ENTRY_TYPE_TRAP,
+};
+
 struct mlxsw_sp_fib_entry {
 	struct rhash_head ht_node;
 	struct mlxsw_sp_fib_key key;
+	enum mlxsw_sp_fib_entry_type type;
+	u8 added:1;
+	u16 rif; /* used for action local */
+	struct mlxsw_sp_vr *vr;
 };
 
 struct mlxsw_sp_fib {
@@ -566,4 +576,239 @@ int mlxsw_sp_router_init(struct mlxsw_sp *mlxsw_sp)
 void mlxsw_sp_router_fini(struct mlxsw_sp *mlxsw_sp)
 {
 	__mlxsw_sp_router_fini(mlxsw_sp);
+}
+
+static int mlxsw_sp_fib_entry_op4_local(struct mlxsw_sp *mlxsw_sp,
+					struct mlxsw_sp_fib_entry *fib_entry,
+					enum mlxsw_reg_ralue_op op)
+{
+	char ralue_pl[MLXSW_REG_RALUE_LEN];
+	u32 *p_dip = (u32 *) fib_entry->key.addr;
+	struct mlxsw_sp_vr *vr = fib_entry->vr;
+
+	mlxsw_reg_ralue_pack4(ralue_pl, vr->proto, op, vr->id,
+			      fib_entry->key.prefix_len, *p_dip);
+	mlxsw_reg_ralue_act_local_pack(ralue_pl,
+				       MLXSW_REG_RALUE_TRAP_ACTION_NOP, 0,
+				       fib_entry->rif);
+	return mlxsw_reg_write(mlxsw_sp->core, MLXSW_REG(ralue), ralue_pl);
+}
+
+static int mlxsw_sp_fib_entry_op4_trap(struct mlxsw_sp *mlxsw_sp,
+				       struct mlxsw_sp_fib_entry *fib_entry,
+				       enum mlxsw_reg_ralue_op op)
+{
+	char ralue_pl[MLXSW_REG_RALUE_LEN];
+	u32 *p_dip = (u32 *) fib_entry->key.addr;
+	struct mlxsw_sp_vr *vr = fib_entry->vr;
+
+	mlxsw_reg_ralue_pack4(ralue_pl, vr->proto, op, vr->id,
+			      fib_entry->key.prefix_len, *p_dip);
+	mlxsw_reg_ralue_act_ip2me_pack(ralue_pl);
+	return mlxsw_reg_write(mlxsw_sp->core, MLXSW_REG(ralue), ralue_pl);
+}
+
+static int mlxsw_sp_fib_entry_op4(struct mlxsw_sp *mlxsw_sp,
+				  struct mlxsw_sp_fib_entry *fib_entry,
+				  enum mlxsw_reg_ralue_op op)
+{
+	switch (fib_entry->type) {
+	case MLXSW_SP_FIB_ENTRY_TYPE_REMOTE:
+		return -EINVAL;
+	case MLXSW_SP_FIB_ENTRY_TYPE_LOCAL:
+		return mlxsw_sp_fib_entry_op4_local(mlxsw_sp, fib_entry, op);
+	case MLXSW_SP_FIB_ENTRY_TYPE_TRAP:
+		return mlxsw_sp_fib_entry_op4_trap(mlxsw_sp, fib_entry, op);
+	}
+	return -EINVAL;
+}
+
+static int mlxsw_sp_fib_entry_op(struct mlxsw_sp *mlxsw_sp,
+				 struct mlxsw_sp_fib_entry *fib_entry,
+				 enum mlxsw_reg_ralue_op op)
+{
+	switch (fib_entry->vr->proto) {
+	case MLXSW_SP_L3_PROTO_IPV4:
+		return mlxsw_sp_fib_entry_op4(mlxsw_sp, fib_entry, op);
+	case MLXSW_SP_L3_PROTO_IPV6:
+		return -EINVAL;
+	}
+	return -EINVAL;
+}
+
+static int mlxsw_sp_fib_entry_update(struct mlxsw_sp *mlxsw_sp,
+				     struct mlxsw_sp_fib_entry *fib_entry)
+{
+	enum mlxsw_reg_ralue_op op;
+
+	op = !fib_entry->added ? MLXSW_REG_RALUE_OP_WRITE_WRITE :
+				 MLXSW_REG_RALUE_OP_WRITE_UPDATE;
+	return mlxsw_sp_fib_entry_op(mlxsw_sp, fib_entry, op);
+}
+
+static int mlxsw_sp_fib_entry_del(struct mlxsw_sp *mlxsw_sp,
+				  struct mlxsw_sp_fib_entry *fib_entry)
+{
+	return mlxsw_sp_fib_entry_op(mlxsw_sp, fib_entry,
+				     MLXSW_REG_RALUE_OP_WRITE_DELETE);
+}
+
+struct mlxsw_sp_router_fib4_add_info {
+	struct switchdev_trans_item tritem;
+	struct mlxsw_sp *mlxsw_sp;
+	struct mlxsw_sp_fib_entry *fib_entry;
+};
+
+static void mlxsw_sp_router_fib4_add_info_destroy(void const *data)
+{
+	const struct mlxsw_sp_router_fib4_add_info *info = data;
+	struct mlxsw_sp_fib_entry *fib_entry = info->fib_entry;
+	struct mlxsw_sp *mlxsw_sp = info->mlxsw_sp;
+
+	mlxsw_sp_fib_entry_destroy(fib_entry);
+	mlxsw_sp_vr_put(mlxsw_sp, fib_entry->vr);
+	kfree(info);
+}
+
+static int
+mlxsw_sp_router_fib4_entry_init(struct mlxsw_sp *mlxsw_sp,
+				const struct switchdev_obj_ipv4_fib *fib4,
+				struct mlxsw_sp_fib_entry *fib_entry)
+{
+	struct fib_info *fi = fib4->fi;
+
+	if (fib4->type == RTN_LOCAL || fib4->type == RTN_BROADCAST) {
+		fib_entry->type = MLXSW_SP_FIB_ENTRY_TYPE_TRAP;
+		return 0;
+	}
+	if (fib4->type != RTN_UNICAST)
+		return -EINVAL;
+
+	if (fi->fib_scope != RT_SCOPE_UNIVERSE) {
+		struct mlxsw_sp_rif *r;
+
+		fib_entry->type = MLXSW_SP_FIB_ENTRY_TYPE_LOCAL;
+		r = mlxsw_sp_rif_find_by_dev(mlxsw_sp, fi->fib_dev);
+		if (!r)
+			return -EINVAL;
+		fib_entry->rif = r->rif;
+		return 0;
+	}
+	return -EINVAL;
+}
+
+static int
+mlxsw_sp_router_fib4_add_prepare(struct mlxsw_sp_port *mlxsw_sp_port,
+				 const struct switchdev_obj_ipv4_fib *fib4,
+				 struct switchdev_trans *trans)
+{
+	struct mlxsw_sp *mlxsw_sp = mlxsw_sp_port->mlxsw_sp;
+	struct mlxsw_sp_router_fib4_add_info *info;
+	struct mlxsw_sp_fib_entry *fib_entry;
+	struct mlxsw_sp_vr *vr;
+	int err;
+
+	vr = mlxsw_sp_vr_get(mlxsw_sp, fib4->dst_len, fib4->tb_id,
+			     MLXSW_SP_L3_PROTO_IPV4);
+	if (IS_ERR(vr))
+		return PTR_ERR(vr);
+
+	fib_entry = mlxsw_sp_fib_entry_create(vr->fib, &fib4->dst,
+					      sizeof(fib4->dst), fib4->dst_len);
+	if (!fib_entry) {
+		err = -ENOMEM;
+		goto err_fib_entry_create;
+	}
+	fib_entry->vr = vr;
+
+	err = mlxsw_sp_router_fib4_entry_init(mlxsw_sp, fib4, fib_entry);
+	if (err)
+		goto err_fib4_entry_init;
+
+	info = kmalloc(sizeof(*info), GFP_KERNEL);
+	if (!info) {
+		err = -ENOMEM;
+		goto err_alloc_info;
+	}
+	info->mlxsw_sp = mlxsw_sp;
+	info->fib_entry = fib_entry;
+	switchdev_trans_item_enqueue(trans, info,
+				     mlxsw_sp_router_fib4_add_info_destroy,
+				     &info->tritem);
+	return 0;
+
+err_alloc_info:
+err_fib4_entry_init:
+	mlxsw_sp_fib_entry_destroy(fib_entry);
+err_fib_entry_create:
+	mlxsw_sp_vr_put(mlxsw_sp, vr);
+	return err;
+}
+
+static int
+mlxsw_sp_router_fib4_add_commit(struct mlxsw_sp_port *mlxsw_sp_port,
+				const struct switchdev_obj_ipv4_fib *fib4,
+				struct switchdev_trans *trans)
+{
+	struct mlxsw_sp *mlxsw_sp = mlxsw_sp_port->mlxsw_sp;
+	struct mlxsw_sp_router_fib4_add_info *info;
+	struct mlxsw_sp_fib_entry *fib_entry;
+	struct mlxsw_sp_vr *vr;
+	int err;
+
+	info = switchdev_trans_item_dequeue(trans);
+	fib_entry = info->fib_entry;
+	kfree(info);
+
+	vr = fib_entry->vr;
+	err = mlxsw_sp_fib_entry_insert(fib_entry->vr->fib, fib_entry);
+	if (err)
+		goto err_fib_entry_insert;
+	err = mlxsw_sp_fib_entry_update(mlxsw_sp, fib_entry);
+	if (err)
+		goto err_fib_entry_add;
+	return 0;
+
+err_fib_entry_add:
+	mlxsw_sp_fib_entry_remove(vr->fib, fib_entry);
+err_fib_entry_insert:
+	mlxsw_sp_fib_entry_destroy(fib_entry);
+	mlxsw_sp_vr_put(mlxsw_sp, vr);
+	return err;
+}
+
+int mlxsw_sp_router_fib4_add(struct mlxsw_sp_port *mlxsw_sp_port,
+			     const struct switchdev_obj_ipv4_fib *fib4,
+			     struct switchdev_trans *trans)
+{
+	if (switchdev_trans_ph_prepare(trans))
+		return mlxsw_sp_router_fib4_add_prepare(mlxsw_sp_port,
+							fib4, trans);
+	return mlxsw_sp_router_fib4_add_commit(mlxsw_sp_port,
+					       fib4, trans);
+}
+
+int mlxsw_sp_router_fib4_del(struct mlxsw_sp_port *mlxsw_sp_port,
+			     const struct switchdev_obj_ipv4_fib *fib4)
+{
+	struct mlxsw_sp *mlxsw_sp = mlxsw_sp_port->mlxsw_sp;
+	struct mlxsw_sp_fib_entry *fib_entry;
+	struct mlxsw_sp_vr *vr;
+
+	vr = mlxsw_sp_vr_find(mlxsw_sp, fib4->tb_id, MLXSW_SP_L3_PROTO_IPV4);
+	if (!vr) {
+		dev_warn(mlxsw_sp->bus_info->dev, "Failed to find virtual router for FIB4 entry being removed.\n");
+		return -ENOENT;
+	}
+	fib_entry = mlxsw_sp_fib_entry_lookup(vr->fib, &fib4->dst,
+					      sizeof(fib4->dst), fib4->dst_len);
+	if (!fib_entry) {
+		dev_warn(mlxsw_sp->bus_info->dev, "Failed to find FIB4 entry being removed.\n");
+		return PTR_ERR(vr);
+	}
+	mlxsw_sp_fib_entry_del(mlxsw_sp_port->mlxsw_sp, fib_entry);
+	mlxsw_sp_fib_entry_remove(vr->fib, fib_entry);
+	mlxsw_sp_fib_entry_destroy(fib_entry);
+	mlxsw_sp_vr_put(mlxsw_sp, vr);
+	return 0;
 }

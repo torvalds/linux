@@ -476,5 +476,10 @@ static inline void mlxsw_sp_port_dcb_fini(struct mlxsw_sp_port *mlxsw_sp_port)
 
 int mlxsw_sp_router_init(struct mlxsw_sp *mlxsw_sp);
 void mlxsw_sp_router_fini(struct mlxsw_sp *mlxsw_sp);
+int mlxsw_sp_router_fib4_add(struct mlxsw_sp_port *mlxsw_sp_port,
+			     const struct switchdev_obj_ipv4_fib *fib4,
+			     struct switchdev_trans *trans);
+int mlxsw_sp_router_fib4_del(struct mlxsw_sp_port *mlxsw_sp_port,
+			     const struct switchdev_obj_ipv4_fib *fib4);
 
 #endif

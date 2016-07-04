@@ -978,6 +978,11 @@ static int mlxsw_sp_port_obj_add(struct net_device *dev,
 					      SWITCHDEV_OBJ_PORT_VLAN(obj),
 					      trans);
 		break;
+	case SWITCHDEV_OBJ_ID_IPV4_FIB:
+		err = mlxsw_sp_router_fib4_add(mlxsw_sp_port,
+					       SWITCHDEV_OBJ_IPV4_FIB(obj),
+					       trans);
+		break;
 	case SWITCHDEV_OBJ_ID_PORT_FDB:
 		err = mlxsw_sp_port_fdb_static_add(mlxsw_sp_port,
 						   SWITCHDEV_OBJ_PORT_FDB(obj),
@@ -1122,6 +1127,10 @@ static int mlxsw_sp_port_obj_del(struct net_device *dev,
 
 		err = mlxsw_sp_port_vlans_del(mlxsw_sp_port,
 					      SWITCHDEV_OBJ_PORT_VLAN(obj));
+		break;
+	case SWITCHDEV_OBJ_ID_IPV4_FIB:
+		err = mlxsw_sp_router_fib4_del(mlxsw_sp_port,
+					       SWITCHDEV_OBJ_IPV4_FIB(obj));
 		break;
 	case SWITCHDEV_OBJ_ID_PORT_FDB:
 		err = mlxsw_sp_port_fdb_static_del(mlxsw_sp_port,
