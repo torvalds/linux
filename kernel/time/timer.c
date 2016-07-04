@@ -77,10 +77,10 @@ struct tvec_root {
 	struct hlist_head vec[TVR_SIZE];
 };
 
-struct tvec_base {
+struct timer_base {
 	spinlock_t lock;
 	struct timer_list *running_timer;
-	unsigned long timer_jiffies;
+	unsigned long clk;
 	unsigned long next_timer;
 	unsigned long active_timers;
 	unsigned long all_timers;
@@ -95,7 +95,7 @@ struct tvec_base {
 } ____cacheline_aligned;
 
 
-static DEFINE_PER_CPU(struct tvec_base, tvec_bases);
+static DEFINE_PER_CPU(struct timer_base, timer_bases);
 
 #if defined(CONFIG_SMP) && defined(CONFIG_NO_HZ_COMMON)
 unsigned int sysctl_timer_migration = 1;
@@ -106,15 +106,15 @@ void timers_update_migration(bool update_nohz)
 	unsigned int cpu;
 
 	/* Avoid the loop, if nothing to update */
-	if (this_cpu_read(tvec_bases.migration_enabled) == on)
+	if (this_cpu_read(timer_bases.migration_enabled) == on)
 		return;
 
 	for_each_possible_cpu(cpu) {
-		per_cpu(tvec_bases.migration_enabled, cpu) = on;
+		per_cpu(timer_bases.migration_enabled, cpu) = on;
 		per_cpu(hrtimer_bases.migration_enabled, cpu) = on;
 		if (!update_nohz)
 			continue;
-		per_cpu(tvec_bases.nohz_active, cpu) = true;
+		per_cpu(timer_bases.nohz_active, cpu) = true;
 		per_cpu(hrtimer_bases.nohz_active, cpu) = true;
 	}
 }
@@ -134,18 +134,18 @@ int timer_migration_handler(struct ctl_table *table, int write,
 	return ret;
 }
 
-static inline struct tvec_base *get_target_base(struct tvec_base *base,
+static inline struct timer_base *get_target_base(struct timer_base *base,
 						int pinned)
 {
 	if (pinned || !base->migration_enabled)
-		return this_cpu_ptr(&tvec_bases);
-	return per_cpu_ptr(&tvec_bases, get_nohz_timer_target());
+		return this_cpu_ptr(&timer_bases);
+	return per_cpu_ptr(&timer_bases, get_nohz_timer_target());
 }
 #else
-static inline struct tvec_base *get_target_base(struct tvec_base *base,
+static inline struct timer_base *get_target_base(struct timer_base *base,
 						int pinned)
 {
-	return this_cpu_ptr(&tvec_bases);
+	return this_cpu_ptr(&timer_bases);
 }
 #endif
 
@@ -371,10 +371,10 @@ void set_timer_slack(struct timer_list *timer, int slack_hz)
 EXPORT_SYMBOL_GPL(set_timer_slack);
 
 static void
-__internal_add_timer(struct tvec_base *base, struct timer_list *timer)
+__internal_add_timer(struct timer_base *base, struct timer_list *timer)
 {
 	unsigned long expires = timer->expires;
-	unsigned long idx = expires - base->timer_jiffies;
+	unsigned long idx = expires - base->clk;
 	struct hlist_head *vec;
 
 	if (idx < TVR_SIZE) {
@@ -394,7 +394,7 @@ __internal_add_timer(struct tvec_base *base, struct timer_list *timer)
 		 * Can happen if you add a timer with expires == jiffies,
 		 * or you set a timer to go off in the past
 		 */
-		vec = base->tv1.vec + (base->timer_jiffies & TVR_MASK);
+		vec = base->tv1.vec + (base->clk & TVR_MASK);
 	} else {
 		int i;
 		/* If the timeout is larger than MAX_TVAL (on 64-bit
@@ -403,7 +403,7 @@ __internal_add_timer(struct tvec_base *base, struct timer_list *timer)
 		 */
 		if (idx > MAX_TVAL) {
 			idx = MAX_TVAL;
-			expires = idx + base->timer_jiffies;
+			expires = idx + base->clk;
 		}
 		i = (expires >> (TVR_BITS + 3 * TVN_BITS)) & TVN_MASK;
 		vec = base->tv5.vec + i;
@@ -412,11 +412,11 @@ __internal_add_timer(struct tvec_base *base, struct timer_list *timer)
 	hlist_add_head(&timer->entry, vec);
 }
 
-static void internal_add_timer(struct tvec_base *base, struct timer_list *timer)
+static void internal_add_timer(struct timer_base *base, struct timer_list *timer)
 {
 	/* Advance base->jiffies, if the base is empty */
 	if (!base->all_timers++)
-		base->timer_jiffies = jiffies;
+		base->clk = jiffies;
 
 	__internal_add_timer(base, timer);
 	/*
@@ -707,7 +707,7 @@ static inline void detach_timer(struct timer_list *timer, bool clear_pending)
 }
 
 static inline void
-detach_expired_timer(struct timer_list *timer, struct tvec_base *base)
+detach_expired_timer(struct timer_list *timer, struct timer_base *base)
 {
 	detach_timer(timer, true);
 	if (!(timer->flags & TIMER_DEFERRABLE))
@@ -715,7 +715,7 @@ detach_expired_timer(struct timer_list *timer, struct tvec_base *base)
 	base->all_timers--;
 }
 
-static int detach_if_pending(struct timer_list *timer, struct tvec_base *base,
+static int detach_if_pending(struct timer_list *timer, struct timer_base *base,
 			     bool clear_pending)
 {
 	if (!timer_pending(timer))
@@ -725,16 +725,16 @@ static int detach_if_pending(struct timer_list *timer, struct tvec_base *base,
 	if (!(timer->flags & TIMER_DEFERRABLE)) {
 		base->active_timers--;
 		if (timer->expires == base->next_timer)
-			base->next_timer = base->timer_jiffies;
+			base->next_timer = base->clk;
 	}
 	/* If this was the last timer, advance base->jiffies */
 	if (!--base->all_timers)
-		base->timer_jiffies = jiffies;
+		base->clk = jiffies;
 	return 1;
 }
 
 /*
- * We are using hashed locking: holding per_cpu(tvec_bases).lock
+ * We are using hashed locking: holding per_cpu(timer_bases).lock
  * means that all timers which are tied to this base via timer->base are
  * locked, and the base itself is locked too.
  *
@@ -744,16 +744,16 @@ static int detach_if_pending(struct timer_list *timer, struct tvec_base *base,
  * When the timer's base is locked and removed from the list, the
  * TIMER_MIGRATING flag is set, FIXME
  */
-static struct tvec_base *lock_timer_base(struct timer_list *timer,
+static struct timer_base *lock_timer_base(struct timer_list *timer,
 					unsigned long *flags)
 	__acquires(timer->base->lock)
 {
 	for (;;) {
 		u32 tf = timer->flags;
-		struct tvec_base *base;
+		struct timer_base *base;
 
 		if (!(tf & TIMER_MIGRATING)) {
-			base = per_cpu_ptr(&tvec_bases, tf & TIMER_CPUMASK);
+			base = per_cpu_ptr(&timer_bases, tf & TIMER_CPUMASK);
 			spin_lock_irqsave(&base->lock, *flags);
 			if (timer->flags == tf)
 				return base;
@@ -766,7 +766,7 @@ static struct tvec_base *lock_timer_base(struct timer_list *timer,
 static inline int
 __mod_timer(struct timer_list *timer, unsigned long expires, bool pending_only)
 {
-	struct tvec_base *base, *new_base;
+	struct timer_base *base, *new_base;
 	unsigned long flags;
 	int ret = 0;
 
@@ -933,8 +933,8 @@ EXPORT_SYMBOL(add_timer);
  */
 void add_timer_on(struct timer_list *timer, int cpu)
 {
-	struct tvec_base *new_base = per_cpu_ptr(&tvec_bases, cpu);
-	struct tvec_base *base;
+	struct timer_base *new_base = per_cpu_ptr(&timer_bases, cpu);
+	struct timer_base *base;
 	unsigned long flags;
 
 	timer_stats_timer_set_start_info(timer);
@@ -975,7 +975,7 @@ EXPORT_SYMBOL_GPL(add_timer_on);
  */
 int del_timer(struct timer_list *timer)
 {
-	struct tvec_base *base;
+	struct timer_base *base;
 	unsigned long flags;
 	int ret = 0;
 
@@ -1001,7 +1001,7 @@ EXPORT_SYMBOL(del_timer);
  */
 int try_to_del_timer_sync(struct timer_list *timer)
 {
-	struct tvec_base *base;
+	struct timer_base *base;
 	unsigned long flags;
 	int ret = -1;
 
@@ -1085,7 +1085,7 @@ int del_timer_sync(struct timer_list *timer)
 EXPORT_SYMBOL(del_timer_sync);
 #endif
 
-static int cascade(struct tvec_base *base, struct tvec *tv, int index)
+static int cascade(struct timer_base *base, struct tvec *tv, int index)
 {
 	/* cascade all the timers from tv up one level */
 	struct timer_list *timer;
@@ -1149,7 +1149,7 @@ static void call_timer_fn(struct timer_list *timer, void (*fn)(unsigned long),
 	}
 }
 
-#define INDEX(N) ((base->timer_jiffies >> (TVR_BITS + (N) * TVN_BITS)) & TVN_MASK)
+#define INDEX(N) ((base->clk >> (TVR_BITS + (N) * TVN_BITS)) & TVN_MASK)
 
 /**
  * __run_timers - run all expired timers (if any) on this CPU.
@@ -1158,23 +1158,23 @@ static void call_timer_fn(struct timer_list *timer, void (*fn)(unsigned long),
  * This function cascades all vectors and executes all expired timer
  * vectors.
  */
-static inline void __run_timers(struct tvec_base *base)
+static inline void __run_timers(struct timer_base *base)
 {
 	struct timer_list *timer;
 
 	spin_lock_irq(&base->lock);
 
-	while (time_after_eq(jiffies, base->timer_jiffies)) {
+	while (time_after_eq(jiffies, base->clk)) {
 		struct hlist_head work_list;
 		struct hlist_head *head = &work_list;
 		int index;
 
 		if (!base->all_timers) {
-			base->timer_jiffies = jiffies;
+			base->clk = jiffies;
 			break;
 		}
 
-		index = base->timer_jiffies & TVR_MASK;
+		index = base->clk & TVR_MASK;
 
 		/*
 		 * Cascade timers:
@@ -1184,7 +1184,7 @@ static inline void __run_timers(struct tvec_base *base)
 				(!cascade(base, &base->tv3, INDEX(1))) &&
 					!cascade(base, &base->tv4, INDEX(2)))
 			cascade(base, &base->tv5, INDEX(3));
-		++base->timer_jiffies;
+		++base->clk;
 		hlist_move_list(base->tv1.vec + index, head);
 		while (!hlist_empty(head)) {
 			void (*fn)(unsigned long);
@@ -1222,16 +1222,16 @@ static inline void __run_timers(struct tvec_base *base)
  * is used on S/390 to stop all activity when a CPU is idle.
  * This function needs to be called with interrupts disabled.
  */
-static unsigned long __next_timer_interrupt(struct tvec_base *base)
+static unsigned long __next_timer_interrupt(struct timer_base *base)
 {
-	unsigned long timer_jiffies = base->timer_jiffies;
-	unsigned long expires = timer_jiffies + NEXT_TIMER_MAX_DELTA;
+	unsigned long clk = base->clk;
+	unsigned long expires = clk + NEXT_TIMER_MAX_DELTA;
 	int index, slot, array, found = 0;
 	struct timer_list *nte;
 	struct tvec *varray[4];
 
 	/* Look for timer events in tv1. */
-	index = slot = timer_jiffies & TVR_MASK;
+	index = slot = clk & TVR_MASK;
 	do {
 		hlist_for_each_entry(nte, base->tv1.vec + slot, entry) {
 			if (nte->flags & TIMER_DEFERRABLE)
@@ -1250,8 +1250,8 @@ static unsigned long __next_timer_interrupt(struct tvec_base *base)
 cascade:
 	/* Calculate the next cascade event */
 	if (index)
-		timer_jiffies += TVR_SIZE - index;
-	timer_jiffies >>= TVR_BITS;
+		clk += TVR_SIZE - index;
+	clk >>= TVR_BITS;
 
 	/* Check tv2-tv5. */
 	varray[0] = &base->tv2;
@@ -1262,7 +1262,7 @@ cascade:
 	for (array = 0; array < 4; array++) {
 		struct tvec *varp = varray[array];
 
-		index = slot = timer_jiffies & TVN_MASK;
+		index = slot = clk & TVN_MASK;
 		do {
 			hlist_for_each_entry(nte, varp->vec + slot, entry) {
 				if (nte->flags & TIMER_DEFERRABLE)
@@ -1286,8 +1286,8 @@ cascade:
 		} while (slot != index);
 
 		if (index)
-			timer_jiffies += TVN_SIZE - index;
-		timer_jiffies >>= TVN_BITS;
+			clk += TVN_SIZE - index;
+		clk >>= TVN_BITS;
 	}
 	return expires;
 }
@@ -1335,7 +1335,7 @@ static u64 cmp_next_hrtimer_event(u64 basem, u64 expires)
  */
 u64 get_next_timer_interrupt(unsigned long basej, u64 basem)
 {
-	struct tvec_base *base = this_cpu_ptr(&tvec_bases);
+	struct timer_base *base = this_cpu_ptr(&timer_bases);
 	u64 expires = KTIME_MAX;
 	unsigned long nextevt;
 
@@ -1348,7 +1348,7 @@ u64 get_next_timer_interrupt(unsigned long basej, u64 basem)
 
 	spin_lock(&base->lock);
 	if (base->active_timers) {
-		if (time_before_eq(base->next_timer, base->timer_jiffies))
+		if (time_before_eq(base->next_timer, base->clk))
 			base->next_timer = __next_timer_interrupt(base);
 		nextevt = base->next_timer;
 		if (time_before_eq(nextevt, basej))
@@ -1387,9 +1387,9 @@ void update_process_times(int user_tick)
  */
 static void run_timer_softirq(struct softirq_action *h)
 {
-	struct tvec_base *base = this_cpu_ptr(&tvec_bases);
+	struct timer_base *base = this_cpu_ptr(&timer_bases);
 
-	if (time_after_eq(jiffies, base->timer_jiffies))
+	if (time_after_eq(jiffies, base->clk))
 		__run_timers(base);
 }
 
@@ -1534,7 +1534,7 @@ signed long __sched schedule_timeout_idle(signed long timeout)
 EXPORT_SYMBOL(schedule_timeout_idle);
 
 #ifdef CONFIG_HOTPLUG_CPU
-static void migrate_timer_list(struct tvec_base *new_base, struct hlist_head *head)
+static void migrate_timer_list(struct timer_base *new_base, struct hlist_head *head)
 {
 	struct timer_list *timer;
 	int cpu = new_base->cpu;
@@ -1550,13 +1550,13 @@ static void migrate_timer_list(struct tvec_base *new_base, struct hlist_head *he
 
 static void migrate_timers(int cpu)
 {
-	struct tvec_base *old_base;
-	struct tvec_base *new_base;
+	struct timer_base *old_base;
+	struct timer_base *new_base;
 	int i;
 
 	BUG_ON(cpu_online(cpu));
-	old_base = per_cpu_ptr(&tvec_bases, cpu);
-	new_base = get_cpu_ptr(&tvec_bases);
+	old_base = per_cpu_ptr(&timer_bases, cpu);
+	new_base = get_cpu_ptr(&timer_bases);
 	/*
 	 * The caller is globally serialized and nobody else
 	 * takes two locks at once, deadlock is not possible.
@@ -1580,7 +1580,7 @@ static void migrate_timers(int cpu)
 
 	spin_unlock(&old_base->lock);
 	spin_unlock_irq(&new_base->lock);
-	put_cpu_ptr(&tvec_bases);
+	put_cpu_ptr(&timer_bases);
 }
 
 static int timer_cpu_notify(struct notifier_block *self,
@@ -1608,13 +1608,13 @@ static inline void timer_register_cpu_notifier(void) { }
 
 static void __init init_timer_cpu(int cpu)
 {
-	struct tvec_base *base = per_cpu_ptr(&tvec_bases, cpu);
+	struct timer_base *base = per_cpu_ptr(&timer_bases, cpu);
 
 	base->cpu = cpu;
 	spin_lock_init(&base->lock);
 
-	base->timer_jiffies = jiffies;
-	base->next_timer = base->timer_jiffies;
+	base->clk = jiffies;
+	base->next_timer = base->clk;
 }
 
 static void __init init_timer_cpus(void)
