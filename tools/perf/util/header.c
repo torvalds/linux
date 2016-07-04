@@ -1306,42 +1306,19 @@ static void print_total_mem(struct perf_header *ph, int fd __maybe_unused,
 static void print_numa_topology(struct perf_header *ph, int fd __maybe_unused,
 				FILE *fp)
 {
-	u32 nr, c, i;
-	char *str, *tmp;
-	uint64_t mem_total, mem_free;
+	int i;
+	struct numa_node *n;
 
-	/* nr nodes */
-	nr = ph->env.nr_numa_nodes;
-	str = ph->env.numa_nodes;
-
-	for (i = 0; i < nr; i++) {
-		/* node number */
-		c = strtoul(str, &tmp, 0);
-		if (*tmp != ':')
-			goto error;
-
-		str = tmp + 1;
-		mem_total = strtoull(str, &tmp, 0);
-		if (*tmp != ':')
-			goto error;
-
-		str = tmp + 1;
-		mem_free = strtoull(str, &tmp, 0);
-		if (*tmp != ':')
-			goto error;
+	for (i = 0; i < ph->env.nr_numa_nodes; i++) {
+		n = &ph->env.numa_nodes[i];
 
 		fprintf(fp, "# node%u meminfo  : total = %"PRIu64" kB,"
 			    " free = %"PRIu64" kB\n",
-			c, mem_total, mem_free);
+			n->node, n->mem_total, n->mem_free);
 
-		str = tmp + 1;
-		fprintf(fp, "# node%u cpu list : %s\n", c, str);
-
-		str += strlen(str) + 1;
+		fprintf(fp, "# node%u cpu list : ", n->node);
+		cpu_map__fprintf(n->map, fp);
 	}
-	return;
-error:
-	fprintf(fp, "# numa topology : not available\n");
 }
 
 static void print_cpuid(struct perf_header *ph, int fd __maybe_unused, FILE *fp)
@@ -1906,11 +1883,10 @@ static int process_numa_topology(struct perf_file_section *section __maybe_unuse
 				 struct perf_header *ph, int fd,
 				 void *data __maybe_unused)
 {
+	struct numa_node *nodes, *n;
 	ssize_t ret;
-	u32 nr, node, i;
+	u32 nr, i;
 	char *str;
-	uint64_t mem_total, mem_free;
-	struct strbuf sb;
 
 	/* nr nodes */
 	ret = readn(fd, &nr, sizeof(nr));
@@ -1921,47 +1897,47 @@ static int process_numa_topology(struct perf_file_section *section __maybe_unuse
 		nr = bswap_32(nr);
 
 	ph->env.nr_numa_nodes = nr;
-	if (strbuf_init(&sb, 256) < 0)
-		return -1;
+	nodes = zalloc(sizeof(*nodes) * nr);
+	if (!nodes)
+		return -ENOMEM;
 
 	for (i = 0; i < nr; i++) {
+		n = &nodes[i];
+
 		/* node number */
-		ret = readn(fd, &node, sizeof(node));
-		if (ret != sizeof(node))
+		ret = readn(fd, &n->node, sizeof(u32));
+		if (ret != sizeof(n->node))
 			goto error;
 
-		ret = readn(fd, &mem_total, sizeof(u64));
+		ret = readn(fd, &n->mem_total, sizeof(u64));
 		if (ret != sizeof(u64))
 			goto error;
 
-		ret = readn(fd, &mem_free, sizeof(u64));
+		ret = readn(fd, &n->mem_free, sizeof(u64));
 		if (ret != sizeof(u64))
 			goto error;
 
 		if (ph->needs_swap) {
-			node = bswap_32(node);
-			mem_total = bswap_64(mem_total);
-			mem_free = bswap_64(mem_free);
+			n->node      = bswap_32(n->node);
+			n->mem_total = bswap_64(n->mem_total);
+			n->mem_free  = bswap_64(n->mem_free);
 		}
-
-		if (strbuf_addf(&sb, "%u:%"PRIu64":%"PRIu64":",
-				node, mem_total, mem_free) < 0)
-			goto error;
 
 		str = do_read_string(fd, ph);
 		if (!str)
 			goto error;
 
-		/* include a NULL character at the end */
-		if (strbuf_add(&sb, str, strlen(str) + 1) < 0)
+		n->map = cpu_map__new(str);
+		if (!n->map)
 			goto error;
+
 		free(str);
 	}
-	ph->env.numa_nodes = strbuf_detach(&sb, NULL);
+	ph->env.numa_nodes = nodes;
 	return 0;
 
 error:
-	strbuf_release(&sb);
+	free(nodes);
 	return -1;
 }
 
