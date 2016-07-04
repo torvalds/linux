@@ -46,7 +46,6 @@
 #include <linux/delay.h>
 #include <linux/dma-mapping.h>
 #include <linux/vmalloc.h>
-#include <linux/version.h>
 
 #include <linux/device.h>
 #include <linux/bitrev.h>
