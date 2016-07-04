@@ -840,7 +840,8 @@ static netdev_tx_t r6040_start_xmit(struct sk_buff *skb,
 	skb_tx_timestamp(skb);
 
 	/* Trigger the MAC to check the TX descriptor */
-	iowrite16(TM2TX, ioaddr + MTPR);
+	if (!skb->xmit_more || netif_queue_stopped(dev))
+		iowrite16(TM2TX, ioaddr + MTPR);
 	lp->tx_insert_ptr = descptr->vndescp;
 
 	/* If no tx resource, stop */
