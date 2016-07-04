@@ -4864,6 +4864,8 @@ void gen6_rps_busy(struct drm_i915_private *dev_priv)
 		I915_WRITE(GEN6_PMINTRMSK,
 			   gen6_rps_pm_mask(dev_priv, dev_priv->rps.cur_freq));
 
+		gen6_enable_rps_interrupts(dev_priv);
+
 		/* Ensure we start at the user's desired frequency */
 		intel_set_rps(dev_priv,
 			      clamp(dev_priv->rps.cur_freq,
@@ -4875,6 +4877,13 @@ void gen6_rps_busy(struct drm_i915_private *dev_priv)
 
 void gen6_rps_idle(struct drm_i915_private *dev_priv)
 {
+	/* Flush our bottom-half so that it does not race with us
+	 * setting the idle frequency and so that it is bounded by
+	 * our rpm wakeref. And then disable the interrupts to stop any
+	 * futher RPS reclocking whilst we are asleep.
+	 */
+	gen6_disable_rps_interrupts(dev_priv);
+
 	mutex_lock(&dev_priv->rps.hw_lock);
 	if (dev_priv->rps.enabled) {
 		if (IS_VALLEYVIEW(dev_priv) || IS_CHERRYVIEW(dev_priv))
@@ -4915,7 +4924,7 @@ void gen6_rps_boost(struct drm_i915_private *dev_priv,
 		spin_lock_irq(&dev_priv->irq_lock);
 		if (dev_priv->rps.interrupts_enabled) {
 			dev_priv->rps.client_boost = true;
-			queue_work(dev_priv->wq, &dev_priv->rps.work);
+			schedule_work(&dev_priv->rps.work);
 		}
 		spin_unlock_irq(&dev_priv->irq_lock);
 

@@ -351,9 +351,8 @@ void gen6_reset_rps_interrupts(struct drm_i915_private *dev_priv)
 void gen6_enable_rps_interrupts(struct drm_i915_private *dev_priv)
 {
 	spin_lock_irq(&dev_priv->irq_lock);
-
-	WARN_ON(dev_priv->rps.pm_iir);
-	WARN_ON(I915_READ(gen6_pm_iir(dev_priv)) & dev_priv->pm_rps_events);
+	WARN_ON_ONCE(dev_priv->rps.pm_iir);
+	WARN_ON_ONCE(I915_READ(gen6_pm_iir(dev_priv)) & dev_priv->pm_rps_events);
 	dev_priv->rps.interrupts_enabled = true;
 	I915_WRITE(gen6_pm_ier(dev_priv), I915_READ(gen6_pm_ier(dev_priv)) |
 				dev_priv->pm_rps_events);
@@ -371,11 +370,6 @@ void gen6_disable_rps_interrupts(struct drm_i915_private *dev_priv)
 {
 	spin_lock_irq(&dev_priv->irq_lock);
 	dev_priv->rps.interrupts_enabled = false;
-	spin_unlock_irq(&dev_priv->irq_lock);
-
-	cancel_work_sync(&dev_priv->rps.work);
-
-	spin_lock_irq(&dev_priv->irq_lock);
 
 	I915_WRITE(GEN6_PMINTRMSK, gen6_sanitize_rps_pm_mask(dev_priv, ~0));
 
@@ -384,8 +378,15 @@ void gen6_disable_rps_interrupts(struct drm_i915_private *dev_priv)
 				~dev_priv->pm_rps_events);
 
 	spin_unlock_irq(&dev_priv->irq_lock);
-
 	synchronize_irq(dev_priv->dev->irq);
+
+	/* Now that we will not be generating any more work, flush any
+	 * outsanding tasks. As we are called on the RPS idle path,
+	 * we will reset the GPU to minimum frequencies, so the current
+	 * state of the worker can be discarded.
+	 */
+	cancel_work_sync(&dev_priv->rps.work);
+	gen6_reset_rps_interrupts(dev_priv);
 }
 
 /**
@@ -1082,13 +1083,6 @@ static void gen6_pm_rps_work(struct work_struct *work)
 		return;
 	}
 
-	/*
-	 * The RPS work is synced during runtime suspend, we don't require a
-	 * wakeref. TODO: instead of disabling the asserts make sure that we
-	 * always hold an RPM reference while the work is running.
-	 */
-	DISABLE_RPM_WAKEREF_ASSERTS(dev_priv);
-
 	pm_iir = dev_priv->rps.pm_iir;
 	dev_priv->rps.pm_iir = 0;
 	/* Make sure not to corrupt PMIMR state used by ringbuffer on GEN6 */
@@ -1101,7 +1095,7 @@ static void gen6_pm_rps_work(struct work_struct *work)
 	WARN_ON(pm_iir & ~dev_priv->pm_rps_events);
 
 	if ((pm_iir & dev_priv->pm_rps_events) == 0 && !client_boost)
-		goto out;
+		return;
 
 	mutex_lock(&dev_priv->rps.hw_lock);
 
@@ -1156,8 +1150,6 @@ static void gen6_pm_rps_work(struct work_struct *work)
 	intel_set_rps(dev_priv, new_delay);
 
 	mutex_unlock(&dev_priv->rps.hw_lock);
-out:
-	ENABLE_RPM_WAKEREF_ASSERTS(dev_priv);
 }
 
 
@@ -1597,7 +1589,7 @@ static void gen6_rps_irq_handler(struct drm_i915_private *dev_priv, u32 pm_iir)
 		gen6_disable_pm_irq(dev_priv, pm_iir & dev_priv->pm_rps_events);
 		if (dev_priv->rps.interrupts_enabled) {
 			dev_priv->rps.pm_iir |= pm_iir & dev_priv->pm_rps_events;
-			queue_work(dev_priv->wq, &dev_priv->rps.work);
+			schedule_work(&dev_priv->rps.work);
 		}
 		spin_unlock(&dev_priv->irq_lock);
 	}
