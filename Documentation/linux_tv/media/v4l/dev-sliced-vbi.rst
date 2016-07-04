@@ -102,7 +102,10 @@ which may return ``EBUSY`` can be the
 
 .. _v4l2-sliced-vbi-format:
 
-.. flat-table:: struct v4l2_sliced_vbi_format
+struct v4l2_sliced_vbi_format
+-----------------------------
+
+.. flat-table::
     :header-rows:  0
     :stub-columns: 0
     :widths:       3 3 2 2 2
@@ -244,7 +247,10 @@ which may return ``EBUSY`` can be the
 
 .. _vbi-services2:
 
-.. flat-table:: Sliced VBI services
+Sliced VBI services
+-------------------
+
+.. flat-table::
     :header-rows:  1
     :stub-columns: 0
     :widths:       2 1 1 2 2
@@ -362,7 +368,10 @@ of one video frame. The ``id`` of unused
 
 .. _v4l2-sliced-vbi-data:
 
-.. flat-table:: struct v4l2_sliced_vbi_data
+struct v4l2_sliced_vbi_data
+---------------------------
+
+.. flat-table::
     :header-rows:  0
     :stub-columns: 0
     :widths:       3 1 4
@@ -544,7 +553,10 @@ number).
 
 .. _v4l2-mpeg-vbi-fmt-ivtv:
 
-.. flat-table:: struct v4l2_mpeg_vbi_fmt_ivtv
+struct v4l2_mpeg_vbi_fmt_ivtv
+-----------------------------
+
+.. flat-table::
     :header-rows:  0
     :stub-columns: 0
     :widths:       1 1 1 2
@@ -596,7 +608,10 @@ number).
 
 .. _v4l2-mpeg-vbi-fmt-ivtv-magic:
 
-.. flat-table:: Magic Constants for struct v4l2_mpeg_vbi_fmt_ivtv magic field
+Magic Constants for struct v4l2_mpeg_vbi_fmt_ivtv magic field
+-------------------------------------------------------------
+
+.. flat-table::
     :header-rows:  1
     :stub-columns: 0
     :widths:       3 1 4
@@ -634,7 +649,10 @@ number).
 
 .. _v4l2-mpeg-vbi-itv0:
 
-.. flat-table:: struct v4l2_mpeg_vbi_itv0
+struct v4l2_mpeg_vbi_itv0
+-------------------------
+
+.. flat-table::
     :header-rows:  0
     :stub-columns: 0
     :widths:       1 1 2
@@ -688,7 +706,10 @@ number).
 
 .. _v4l2-mpeg-vbi-itv0-1:
 
-.. flat-table:: struct v4l2_mpeg_vbi_ITV0
+struct v4l2_mpeg_vbi_ITV0
+-------------------------
+
+.. flat-table::
     :header-rows:  0
     :stub-columns: 0
     :widths:       1 1 2
@@ -710,7 +731,10 @@ number).
 
 .. _v4l2-mpeg-vbi-itv0-line:
 
-.. flat-table:: struct v4l2_mpeg_vbi_itv0_line
+struct v4l2_mpeg_vbi_itv0_line
+------------------------------
+
+.. flat-table::
     :header-rows:  0
     :stub-columns: 0
     :widths:       1 1 2
@@ -738,7 +762,10 @@ number).
 
 .. _ITV0-Line-Identifier-Constants:
 
-.. flat-table:: Line Identifiers for struct v4l2_mpeg_vbi_itv0_line id field
+Line Identifiers for struct v4l2_mpeg_vbi_itv0_line id field
+------------------------------------------------------------
+
+.. flat-table::
     :header-rows:  1
     :stub-columns: 0
     :widths:       3 1 4
