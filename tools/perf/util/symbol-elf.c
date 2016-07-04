@@ -54,6 +54,14 @@ static int elf_getphdrnum(Elf *elf, size_t *dst)
 }
 #endif
 
+#ifndef HAVE_ELF_GETSHDRSTRNDX_SUPPORT
+static int elf_getshdrstrndx(Elf *elf __maybe_unused, size_t *dst __maybe_unused)
+{
+	pr_err("%s: update your libelf to > 0.140, this one lacks elf_getshdrstrndx().\n", __func__);
+	return -1;
+}
+#endif
+
 #ifndef NT_GNU_BUILD_ID
 #define NT_GNU_BUILD_ID 3
 #endif
