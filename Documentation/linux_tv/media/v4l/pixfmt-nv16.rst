@@ -23,7 +23,7 @@ first. The Y plane has one byte per pixel. For ``V4L2_PIX_FMT_NV16``, a
 combined CbCr plane immediately follows the Y plane in memory. The CbCr
 plane is the same width and height, in bytes, as the Y plane (and of the
 image). Each CbCr pair belongs to two pixels. For example,
-Cb\ :sub:`0`/Cr:sub:`0` belongs to Y'\ :sub:`00`, Y'\ :sub:`01`.
+Cb\ :sub:`0`/Cr\ :sub:`0` belongs to Y'\ :sub:`00`, Y'\ :sub:`01`.
 ``V4L2_PIX_FMT_NV61`` is the same except the Cb and Cr bytes are
 swapped, the CrCb plane starts with a Cr byte.
 

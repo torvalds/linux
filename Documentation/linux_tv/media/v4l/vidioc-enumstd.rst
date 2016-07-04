@@ -328,7 +328,7 @@ support digital TV. See also the Linux DVB API at
 
        -  4433618.75 ± 1
 
-       -  :cspan:`3` f :sub:`OR` = 4406250 ± 2000, f :sub:`OB` = 4250000
+       -  :cspan:`3` f\ :sub:`OR` = 4406250 ± 2000, f\ :sub:`OB` = 4250000
           ± 2000
 
     -  .. row 5
@@ -408,7 +408,7 @@ ENODATA
 
 .. [3]
    The values in brackets apply to the combination N/PAL a.k.a.
-   N :sub:`C` used in Argentina (V4L2_STD_PAL_Nc).
+   N\ :sub:`C` used in Argentina (V4L2_STD_PAL_Nc).
 
 .. [4]
    In the Federal Republic of Germany, Austria, Italy, the Netherlands,

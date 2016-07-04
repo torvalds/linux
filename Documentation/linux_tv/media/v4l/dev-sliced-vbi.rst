@@ -676,7 +676,7 @@ number).
           sliced VBI data. The sliced VBI data lines present correspond to
           the bits set in the ``linemask`` array, starting from b\ :sub:`0`
           of ``linemask``\ [0] up through b\ :sub:`31` of ``linemask``\ [0],
-          and from b\ :sub:`0` of ``linemask``\ [1] up through b :sub:`3` of
+          and from b\ :sub:`0` of ``linemask``\ [1] up through b\ :sub:`3` of
           ``linemask``\ [1]. ``line``\ [0] corresponds to the first bit
           found set in the ``linemask`` array, ``line``\ [1] corresponds to
           the second bit found set in the ``linemask`` array, etc. If no

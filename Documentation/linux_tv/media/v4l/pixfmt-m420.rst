@@ -22,7 +22,7 @@ Two lines of luma data are followed by one line of chroma data.
 The luma plane has one byte per pixel. The chroma plane contains
 interleaved CbCr pixels subsampled by ½ in the horizontal and vertical
 directions. Each CbCr pair belongs to four pixels. For example,
-Cb\ :sub:`0`/Cr:sub:`0` belongs to Y'\ :sub:`00`, Y'\ :sub:`01`,
+Cb\ :sub:`0`/Cr\ :sub:`0` belongs to Y'\ :sub:`00`, Y'\ :sub:`01`,
 Y'\ :sub:`10`, Y'\ :sub:`11`.
 
 All line lengths are identical: if the Y lines include pad bytes so do

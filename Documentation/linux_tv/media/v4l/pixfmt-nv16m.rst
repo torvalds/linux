@@ -25,7 +25,7 @@ occupies the first plane. The Y plane has one byte per pixel. In the
 second plane there is chrominance data with alternating chroma samples.
 The CbCr plane is the same width and height, in bytes, as the Y plane.
 Each CbCr pair belongs to two pixels. For example,
-Cb\ :sub:`0`/Cr:sub:`0` belongs to Y'\ :sub:`00`, Y'\ :sub:`01`.
+Cb\ :sub:`0`/Cr\ :sub:`0` belongs to Y'\ :sub:`00`, Y'\ :sub:`01`.
 ``V4L2_PIX_FMT_NV61M`` is the same as ``V4L2_PIX_FMT_NV16M`` except the
 Cb and Cr bytes are swapped, the CrCb plane starts with a Cr byte.
 
