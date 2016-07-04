@@ -254,11 +254,12 @@ static const struct counter_desc pport_per_prio_traffic_stats_desc[] = {
 };
 
 static const struct counter_desc pport_per_prio_pfc_stats_desc[] = {
-	{ "rx_prio%d_pause", PPORT_PER_PRIO_OFF(rx_pause) },
-	{ "rx_prio%d_pause_duration", PPORT_PER_PRIO_OFF(rx_pause_duration) },
-	{ "tx_prio%d_pause", PPORT_PER_PRIO_OFF(tx_pause) },
-	{ "tx_prio%d_pause_duration", PPORT_PER_PRIO_OFF(tx_pause_duration) },
-	{ "rx_prio%d_pause_transition", PPORT_PER_PRIO_OFF(rx_pause_transition) },
+	/* %s is "global" or "prio{i}" */
+	{ "rx_%s_pause", PPORT_PER_PRIO_OFF(rx_pause) },
+	{ "rx_%s_pause_duration", PPORT_PER_PRIO_OFF(rx_pause_duration) },
+	{ "tx_%s_pause", PPORT_PER_PRIO_OFF(tx_pause) },
+	{ "tx_%s_pause_duration", PPORT_PER_PRIO_OFF(tx_pause_duration) },
+	{ "rx_%s_pause_transition", PPORT_PER_PRIO_OFF(rx_pause_transition) },
 };
 
 struct mlx5e_rq_stats {

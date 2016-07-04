@@ -139,6 +139,18 @@ static unsigned long mlx5e_query_pfc_combined(struct mlx5e_priv *priv)
 	return err ? 0 : pfc_en_tx | pfc_en_rx;
 }
 
+static bool mlx5e_query_global_pause_combined(struct mlx5e_priv *priv)
+{
+	struct mlx5_core_dev *mdev = priv->mdev;
+	u32 rx_pause;
+	u32 tx_pause;
+	int err;
+
+	err = mlx5_query_port_pause(mdev, &rx_pause, &tx_pause);
+
+	return err ? false : rx_pause | tx_pause;
+}
+
 #define MLX5E_NUM_Q_CNTRS(priv) (NUM_Q_COUNTERS * (!!priv->q_counter))
 #define MLX5E_NUM_RQ_STATS(priv) \
 	(NUM_RQ_STATS * priv->params.num_channels * \
@@ -147,8 +159,8 @@ static unsigned long mlx5e_query_pfc_combined(struct mlx5e_priv *priv)
 	(NUM_SQ_STATS * priv->params.num_channels * priv->params.num_tc * \
 	 test_bit(MLX5E_STATE_OPENED, &priv->state))
 #define MLX5E_NUM_PFC_COUNTERS(priv) \
-	(hweight8(mlx5e_query_pfc_combined(priv)) * \
-	 NUM_PPORT_PER_PRIO_PFC_COUNTERS)
+	((mlx5e_query_global_pause_combined(priv) + hweight8(mlx5e_query_pfc_combined(priv))) * \
+	  NUM_PPORT_PER_PRIO_PFC_COUNTERS)
 
 static int mlx5e_get_sset_count(struct net_device *dev, int sset)
 {
@@ -210,8 +222,18 @@ static void mlx5e_fill_stats_strings(struct mlx5e_priv *priv, uint8_t *data)
 	pfc_combined = mlx5e_query_pfc_combined(priv);
 	for_each_set_bit(prio, &pfc_combined, NUM_PPORT_PRIO) {
 		for (i = 0; i < NUM_PPORT_PER_PRIO_PFC_COUNTERS; i++) {
+			char pfc_string[ETH_GSTRING_LEN];
+
+			snprintf(pfc_string, sizeof(pfc_string), "prio%d", prio);
 			sprintf(data + (idx++) * ETH_GSTRING_LEN,
-				pport_per_prio_pfc_stats_desc[i].format, prio);
+				pport_per_prio_pfc_stats_desc[i].format, pfc_string);
+		}
+	}
+
+	if (mlx5e_query_global_pause_combined(priv)) {
+		for (i = 0; i < NUM_PPORT_PER_PRIO_PFC_COUNTERS; i++) {
+			sprintf(data + (idx++) * ETH_GSTRING_LEN,
+				pport_per_prio_pfc_stats_desc[i].format, "global");
 		}
 	}
 
@@ -303,6 +325,13 @@ static void mlx5e_get_ethtool_stats(struct net_device *dev,
 		for (i = 0; i < NUM_PPORT_PER_PRIO_PFC_COUNTERS; i++) {
 			data[idx++] = MLX5E_READ_CTR64_BE(&priv->stats.pport.per_prio_counters[prio],
 							  pport_per_prio_pfc_stats_desc, i);
+		}
+	}
+
+	if (mlx5e_query_global_pause_combined(priv)) {
+		for (i = 0; i < NUM_PPORT_PER_PRIO_PFC_COUNTERS; i++) {
+			data[idx++] = MLX5E_READ_CTR64_BE(&priv->stats.pport.per_prio_counters[0],
+							  pport_per_prio_pfc_stats_desc, 0);
 		}
 	}
 
