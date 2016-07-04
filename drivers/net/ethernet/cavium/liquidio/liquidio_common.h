@@ -34,6 +34,7 @@
 #define LIQUIDIO_MICRO_VERSION  ".1"
 #define LIQUIDIO_PACKAGE ""
 #define LIQUIDIO_VERSION  "1.4.1"
+
 #define CONTROL_IQ 0
 /** Tag types used by Octeon cores in its work. */
 enum octeon_tag_type {
@@ -216,6 +217,13 @@ static inline void add_sg_size(struct octeon_sg_entry *sg_entry,
 #define   OCTNET_CMD_ENABLE_VLAN_FILTER 0x16
 #define   OCTNET_CMD_ADD_VLAN_FILTER  0x17
 #define   OCTNET_CMD_DEL_VLAN_FILTER  0x18
+#define   OCTNET_CMD_VXLAN_PORT_CONFIG 0x19
+#define   OCTNET_CMD_VXLAN_PORT_ADD    0x0
+#define   OCTNET_CMD_VXLAN_PORT_DEL    0x1
+#define   OCTNET_CMD_RXCSUM_ENABLE     0x0
+#define   OCTNET_CMD_RXCSUM_DISABLE    0x1
+#define   OCTNET_CMD_TXCSUM_ENABLE     0x0
+#define   OCTNET_CMD_TXCSUM_DISABLE    0x1
 
 /* RX(packets coming from wire) Checksum verification flags */
 /* TCP/UDP csum */
@@ -288,7 +296,7 @@ union octnet_cmd {
 
 #define   OCTNET_CMD_SIZE     (sizeof(union octnet_cmd))
 
-/* Instruction Header (DPI - CN23xx) - for OCTEON-III models */
+/* Instruction Header(DPI) - for OCTEON-III models */
 struct  octeon_instr_ih3 {
 #ifdef __BIG_ENDIAN_BITFIELD
 
@@ -338,7 +346,7 @@ struct  octeon_instr_ih3 {
 #endif
 };
 
-/* Optional PKI Instruction Header(PKI IH) - for OCTEON CN23XX models */
+/* Optional PKI Instruction Header(PKI IH) - for OCTEON-III models */
 /** BIG ENDIAN format.   */
 struct  octeon_instr_pki_ih3 {
 #ifdef __BIG_ENDIAN_BITFIELD
@@ -533,6 +541,8 @@ union octeon_rh {
 		u64 priority:3;
 		u64 csum_verified:3;     /** checksum verified. */
 		u64 has_hwtstamp:1;      /** Has hardware timestamp. 1 = yes. */
+		u64 encap_on:1;
+		u64 has_hash:1;          /** Has hash (rth or rss). 1 = yes. */
 	} r_dh;
 	struct {
 		u64 opcode:4;
@@ -542,7 +552,8 @@ union octeon_rh {
 		u64 num_gmx_ports:8;
 		u64 max_nic_ports:10;
 		u64 app_cap_flags:4;
-		u64 app_mode:16;
+		u64 app_mode:8;
+		u64 pkind:8;
 	} r_core_drv_init;
 	struct {
 		u64 opcode:4;
@@ -562,6 +573,8 @@ union octeon_rh {
 		u64 opcode:4;
 	} r;
 	struct {
+		u64 has_hash:1;          /** Has hash (rth or rss). 1 = yes. */
+		u64 encap_on:1;
 		u64 has_hwtstamp:1;      /** 1 = has hwtstamp */
 		u64 csum_verified:3;     /** checksum verified. */
 		u64 priority:3;
@@ -572,7 +585,8 @@ union octeon_rh {
 		u64 opcode:4;
 	} r_dh;
 	struct {
-		u64 app_mode:16;
+		u64 pkind:8;
+		u64 app_mode:8;
 		u64 app_cap_flags:4;
 		u64 max_nic_ports:10;
 		u64 num_gmx_ports:8;
@@ -630,9 +644,11 @@ union oct_link_status {
 		u64 autoneg:1;
 		u64 if_mode:5;
 		u64 pause:1;
-		u64 reserved:16;
+		u64 flashing:1;
+		u64 reserved:15;
 #else
-		u64 reserved:16;
+		u64 reserved:15;
+		u64 flashing:1;
 		u64 pause:1;
 		u64 if_mode:5;
 		u64 autoneg:1;
@@ -736,6 +752,8 @@ struct nic_rx_stats {
 	u64 fw_err_pko;
 	u64 fw_err_link;
 	u64 fw_err_drop;
+	u64 fw_rx_vxlan;
+	u64 fw_rx_vxlan_err;
 
 	/* LRO */
 	u64 fw_lro_pkts;   /* Number of packets that are LROed      */
@@ -776,6 +794,7 @@ struct nic_tx_stats {
 	u64 fw_err_tso;
 	u64 fw_tso;		/* number of tso requests */
 	u64 fw_tso_fwd;		/* number of packets segmented in tso */
+	u64 fw_tx_vxlan;
 };
 
 struct oct_link_stats {
@@ -856,9 +875,9 @@ union oct_nic_if_cfg {
 		u64 num_iqueues:16;
 		u64 num_oqueues:16;
 		u64 gmx_port_id:8;
-		u64 reserved:8;
+		u64 vf_id:8;
 #else
-		u64 reserved:8;
+		u64 vf_id:8;
 		u64 gmx_port_id:8;
 		u64 num_oqueues:16;
 		u64 num_iqueues:16;

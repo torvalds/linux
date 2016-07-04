@@ -226,7 +226,7 @@ struct octeon_oq_config {
 	 */
 	u64 refill_threshold:16;
 
-	/** If set, the Output queue uses info-pointer mode. (Default: 1 ) */
+	/** If set, the Output queue uses info-pointer mode. (Default: 1) */
 	u64 info_ptr:32;
 
 	/* Max number of OQs available */
@@ -236,7 +236,7 @@ struct octeon_oq_config {
 	/* Max number of OQs available */
 	u64 max_oqs:8;
 
-	/** If set, the Output queue uses info-pointer mode. (Default: 1 ) */
+	/** If set, the Output queue uses info-pointer mode. (Default: 1) */
 	u64 info_ptr:32;
 
 	/** The number of buffers that were consumed during packet processing by

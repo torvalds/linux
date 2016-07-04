@@ -19,13 +19,9 @@
 * This file may also be available under a different license from Cavium.
 * Contact Cavium, Inc. for more information
 **********************************************************************/
-#include <linux/version.h>
 #include <linux/netdevice.h>
 #include <linux/net_tstamp.h>
-#include <linux/ethtool.h>
-#include <linux/dma-mapping.h>
 #include <linux/pci.h>
-#include "octeon_config.h"
 #include "liquidio_common.h"
 #include "octeon_droq.h"
 #include "octeon_iq.h"
@@ -36,9 +32,6 @@
 #include "octeon_network.h"
 #include "cn66xx_regs.h"
 #include "cn66xx_device.h"
-#include "cn68xx_regs.h"
-#include "cn68xx_device.h"
-#include "liquidio_image.h"
 
 static int octnet_get_link_stats(struct net_device *netdev);
 
@@ -106,6 +99,7 @@ static const char oct_stats_strings[][ETH_GSTRING_LEN] = {
 	"tx_tso",
 	"tx_tso_packets",
 	"tx_tso_err",
+	"tx_vxlan",
 
 	"mac_tx_total_pkts",
 	"mac_tx_total_bytes",
@@ -128,6 +122,9 @@ static const char oct_stats_strings[][ETH_GSTRING_LEN] = {
 	"rx_err_pko",
 	"rx_err_link",
 	"rx_err_drop",
+
+	"rx_vxlan",
+	"rx_vxlan_err",
 
 	"rx_lro_pkts",
 	"rx_lro_bytes",
@@ -167,6 +164,7 @@ static const char oct_iq_stats_strings[][ETH_GSTRING_LEN] = {
 	"fw_bytes_sent",
 
 	"tso",
+	"vxlan",
 	"txq_restart",
 };
 
@@ -186,6 +184,7 @@ static const char oct_droq_stats_strings[][ETH_GSTRING_LEN] = {
 	"fw_bytes_received",
 	"fw_dropped_nodispatch",
 
+	"vxlan",
 	"buffer_alloc_failure",
 };
 
@@ -340,20 +339,18 @@ static void octnet_mdio_resp_callback(struct octeon_device *oct,
 				      u32 status,
 				      void *buf)
 {
-	struct oct_mdio_cmd_resp *mdio_cmd_rsp;
 	struct oct_mdio_cmd_context *mdio_cmd_ctx;
 	struct octeon_soft_command *sc = (struct octeon_soft_command *)buf;
 
-	mdio_cmd_rsp = (struct oct_mdio_cmd_resp *)sc->virtrptr;
 	mdio_cmd_ctx = (struct oct_mdio_cmd_context *)sc->ctxptr;
 
 	oct = lio_get_device(mdio_cmd_ctx->octeon_id);
 	if (status) {
 		dev_err(&oct->pci_dev->dev, "MIDO instruction failed. Status: %llx\n",
 			CVM_CAST64(status));
-		ACCESS_ONCE(mdio_cmd_ctx->cond) = -1;
+		WRITE_ONCE(mdio_cmd_ctx->cond, -1);
 	} else {
-		ACCESS_ONCE(mdio_cmd_ctx->cond) = 1;
+		WRITE_ONCE(mdio_cmd_ctx->cond, 1);
 	}
 	wake_up_interruptible(&mdio_cmd_ctx->wc);
 }
@@ -384,7 +381,7 @@ octnet_mdio45_access(struct lio *lio, int op, int loc, int *value)
 	mdio_cmd_rsp = (struct oct_mdio_cmd_resp *)sc->virtrptr;
 	mdio_cmd = (struct oct_mdio_cmd *)sc->virtdptr;
 
-	ACCESS_ONCE(mdio_cmd_ctx->cond) = 0;
+	WRITE_ONCE(mdio_cmd_ctx->cond, 0);
 	mdio_cmd_ctx->octeon_id = lio_get_device_id(oct_dev);
 	mdio_cmd->op = op;
 	mdio_cmd->mdio_addr = loc;
@@ -423,7 +420,7 @@ octnet_mdio45_access(struct lio *lio, int op, int loc, int *value)
 			octeon_swap_8B_data((u64 *)(&mdio_cmd_rsp->resp),
 					    sizeof(struct oct_mdio_cmd) / 8);
 
-			if (ACCESS_ONCE(mdio_cmd_ctx->cond) == 1) {
+			if (READ_ONCE(mdio_cmd_ctx->cond) == 1) {
 				if (!op)
 					*value = mdio_cmd_rsp->resp.value1;
 			} else {
@@ -467,18 +464,16 @@ static int lio_set_phys_id(struct net_device *netdev,
 
 			/* Configure Beacon values */
 			value = LIO68XX_LED_BEACON_CFGON;
-			ret =
-				octnet_mdio45_access(lio, 1,
-						     LIO68XX_LED_BEACON_ADDR,
-						     &value);
+			ret = octnet_mdio45_access(lio, 1,
+						   LIO68XX_LED_BEACON_ADDR,
+						   &value);
 			if (ret)
 				return ret;
 
 			value = LIO68XX_LED_CTRL_CFGON;
-			ret =
-				octnet_mdio45_access(lio, 1,
-						     LIO68XX_LED_CTRL_ADDR,
-						     &value);
+			ret = octnet_mdio45_access(lio, 1,
+						   LIO68XX_LED_CTRL_ADDR,
+						   &value);
 			if (ret)
 				return ret;
 		} else {
@@ -557,7 +552,7 @@ lio_ethtool_get_ringparam(struct net_device *netdev,
 		tx_pending = CFG_GET_NUM_TX_DESCS_NIC_IF(conf6x, lio->ifidx);
 	}
 
-	if (lio->mtu > OCTNET_DEFAULT_FRM_SIZE) {
+	if (lio->mtu > OCTNET_DEFAULT_FRM_SIZE - OCTNET_FRM_HEADER_SIZE) {
 		ering->rx_pending = 0;
 		ering->rx_max_pending = 0;
 		ering->rx_mini_pending = 0;
@@ -617,7 +612,8 @@ lio_get_pauseparam(struct net_device *netdev, struct ethtool_pauseparam *pause)
 
 static void
 lio_get_ethtool_stats(struct net_device *netdev,
-		      struct ethtool_stats *stats, u64 *data)
+		      struct ethtool_stats *stats  __attribute__((unused)),
+		      u64 *data)
 {
 	struct lio *lio = GET_LIO(netdev);
 	struct octeon_device *oct_dev = lio->oct_dev;
@@ -675,6 +671,10 @@ lio_get_ethtool_stats(struct net_device *netdev,
 	 *fw_err_tso
 	 */
 	data[i++] = CVM_CAST64(oct_dev->link_stats.fromhost.fw_err_tso);
+	/*per_core_stats[cvmx_get_core_num()].link_stats[idx].fromhost.
+	 *fw_tx_vxlan
+	 */
+	data[i++] = CVM_CAST64(oct_dev->link_stats.fromhost.fw_tx_vxlan);
 
 	/* mac tx statistics */
 	/*CVMX_BGXX_CMRX_TX_STAT5 */
@@ -728,6 +728,15 @@ lio_get_ethtool_stats(struct net_device *netdev,
 	 *fromwire.fw_err_drop
 	 */
 	data[i++] = CVM_CAST64(oct_dev->link_stats.fromwire.fw_err_drop);
+
+	/*per_core_stats[cvmx_get_core_num()].link_stats[lro_ctx->ifidx].
+	 *fromwire.fw_rx_vxlan
+	 */
+	data[i++] = CVM_CAST64(oct_dev->link_stats.fromwire.fw_rx_vxlan);
+	/*per_core_stats[cvmx_get_core_num()].link_stats[lro_ctx->ifidx].
+	 *fromwire.fw_rx_vxlan_err
+	 */
+	data[i++] = CVM_CAST64(oct_dev->link_stats.fromwire.fw_rx_vxlan_err);
 
 	/* LRO */
 	/*per_core_stats[cvmx_get_core_num()].link_stats[ifidx].fromwire.
@@ -822,6 +831,8 @@ lio_get_ethtool_stats(struct net_device *netdev,
 
 		/*tso request*/
 		data[i++] = CVM_CAST64(oct_dev->instr_queue[j]->stats.tx_gso);
+		/*vxlan request*/
+		data[i++] = CVM_CAST64(oct_dev->instr_queue[j]->stats.tx_vxlan);
 		/*txq restart*/
 		data[i++] =
 			CVM_CAST64(oct_dev->instr_queue[j]->stats.tx_restart);
@@ -858,6 +869,9 @@ lio_get_ethtool_stats(struct net_device *netdev,
 			CVM_CAST64(oct_dev->droq[j]->stats.bytes_received);
 		data[i++] =
 			CVM_CAST64(oct_dev->droq[j]->stats.dropped_nodispatch);
+
+		data[i++] =
+			CVM_CAST64(oct_dev->droq[j]->stats.rx_vxlan);
 		data[i++] =
 			CVM_CAST64(oct_dev->droq[j]->stats.rx_alloc_failure);
 	}
@@ -945,7 +959,6 @@ static int lio_get_intr_coalesce(struct net_device *netdev,
 			intr_coal->rx_max_coalesced_frames =
 				CFG_GET_OQ_INTR_PKT(cn6xxx->conf);
 		}
-
 		iq = oct->instr_queue[lio->linfo.txpciq[0].s.q_no];
 		intr_coal->tx_max_coalesced_frames = iq->fill_threshold;
 		break;
@@ -1043,7 +1056,7 @@ static int octnet_set_intrmod_cfg(struct lio *lio,
 	return 0;
 }
 
-void
+static void
 octnet_nic_stats_callback(struct octeon_device *oct_dev,
 			  u32 status, void *ptr)
 {
@@ -1083,6 +1096,9 @@ octnet_nic_stats_callback(struct octeon_device *oct_dev,
 		rstats->fw_err_pko = rsp_rstats->fw_err_pko;
 		rstats->fw_err_link = rsp_rstats->fw_err_link;
 		rstats->fw_err_drop = rsp_rstats->fw_err_drop;
+		rstats->fw_rx_vxlan = rsp_rstats->fw_rx_vxlan;
+		rstats->fw_rx_vxlan_err = rsp_rstats->fw_rx_vxlan_err;
+
 		/* Number of packets that are LROed      */
 		rstats->fw_lro_pkts = rsp_rstats->fw_lro_pkts;
 		/* Number of octets that are LROed       */
@@ -1127,6 +1143,8 @@ octnet_nic_stats_callback(struct octeon_device *oct_dev,
 		tstats->fw_tso = rsp_tstats->fw_tso;
 		tstats->fw_tso_fwd = rsp_tstats->fw_tso_fwd;
 		tstats->fw_err_tso = rsp_tstats->fw_err_tso;
+		tstats->fw_tx_vxlan = rsp_tstats->fw_tx_vxlan;
+
 		resp->status = 1;
 	} else {
 		resp->status = -1;
@@ -1523,7 +1541,7 @@ static int lio_nway_reset(struct net_device *netdev)
 }
 
 /* Return register dump len. */
-static int lio_get_regs_len(struct net_device *dev)
+static int lio_get_regs_len(struct net_device *dev __attribute__((unused)))
 {
 	return OCT_ETHTOOL_REGDUMP_LEN;
 }
@@ -1667,13 +1685,12 @@ static void lio_get_regs(struct net_device *dev,
 	int len = 0;
 	struct octeon_device *oct = lio->oct_dev;
 
-	memset(regbuf, 0, OCT_ETHTOOL_REGDUMP_LEN);
 	regs->version = OCT_ETHTOOL_REGSVER;
 
 	switch (oct->chip_id) {
-	/* case OCTEON_CN73XX: Todo */
 	case OCTEON_CN68XX:
 	case OCTEON_CN66XX:
+		memset(regbuf, 0, OCT_ETHTOOL_REGDUMP_LEN);
 		len += cn6xxx_read_csr_reg(regbuf + len, oct);
 		len += cn6xxx_read_config_reg(regbuf + len, oct);
 		break;

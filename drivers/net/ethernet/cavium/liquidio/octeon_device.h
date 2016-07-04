@@ -221,7 +221,7 @@ struct octeon_fn_list {
 
 /* Structure for named memory blocks
  * Number of descriptors
- * available can be changed without affecting compatiblity,
+ * available can be changed without affecting compatibility,
  * but name length changes require a bump in the bootmem
  * descriptor version
  * Note: This structure must be naturally 64 bit aligned, as a single
@@ -254,7 +254,7 @@ struct oct_fw_info {
 struct cavium_wk {
 	struct delayed_work work;
 	void *ctxptr;
-	size_t ctxul;
+	u64 ctxul;
 };
 
 struct cavium_wq {
@@ -585,8 +585,7 @@ int octeon_add_console(struct octeon_device *oct, u32 console_num);
 int octeon_console_write(struct octeon_device *oct, u32 console_num,
 			 char *buffer, u32 write_request_size, u32 flags);
 int octeon_console_write_avail(struct octeon_device *oct, u32 console_num);
-int octeon_console_read(struct octeon_device *oct, u32 console_num,
-			char *buffer, u32 buf_size, u32 flags);
+
 int octeon_console_read_avail(struct octeon_device *oct, u32 console_num);
 
 /** Removes all attached consoles. */

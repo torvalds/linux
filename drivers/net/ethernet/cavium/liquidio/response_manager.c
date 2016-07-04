@@ -19,28 +19,14 @@
  * This file may also be available under a different license from Cavium.
  * Contact Cavium, Inc. for more information
  **********************************************************************/
-#include <linux/version.h>
-#include <linux/types.h>
-#include <linux/list.h>
-#include <linux/interrupt.h>
-#include <linux/dma-mapping.h>
 #include <linux/pci.h>
-#include <linux/kthread.h>
 #include <linux/netdevice.h>
-#include "octeon_config.h"
 #include "liquidio_common.h"
 #include "octeon_droq.h"
 #include "octeon_iq.h"
 #include "response_manager.h"
 #include "octeon_device.h"
-#include "octeon_nic.h"
 #include "octeon_main.h"
-#include "octeon_network.h"
-#include "cn66xx_regs.h"
-#include "cn66xx_device.h"
-#include "cn68xx_regs.h"
-#include "cn68xx_device.h"
-#include "liquidio_image.h"
 
 static void oct_poll_req_completion(struct work_struct *work);
 
@@ -66,7 +52,7 @@ int octeon_setup_response_list(struct octeon_device *oct)
 	INIT_DELAYED_WORK(&cwq->wk.work, oct_poll_req_completion);
 	cwq->wk.ctxptr = oct;
 	oct->cmd_resp_state = OCT_DRV_ONLINE;
-	queue_delayed_work(cwq->wq, &cwq->wk.work, msecs_to_jiffies(100));
+	queue_delayed_work(cwq->wq, &cwq->wk.work, msecs_to_jiffies(50));
 
 	return ret;
 }
@@ -176,6 +162,5 @@ static void oct_poll_req_completion(struct work_struct *work)
 	struct cavium_wq *cwq = &oct->dma_comp_wq;
 
 	lio_process_ordered_list(oct, 0);
-
-	queue_delayed_work(cwq->wq, &cwq->wk.work, msecs_to_jiffies(100));
+	queue_delayed_work(cwq->wq, &cwq->wk.work, msecs_to_jiffies(50));
 }

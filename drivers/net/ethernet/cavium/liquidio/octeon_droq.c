@@ -19,30 +19,18 @@
 * This file may also be available under a different license from Cavium.
 * Contact Cavium, Inc. for more information
 **********************************************************************/
-#include <linux/version.h>
-#include <linux/types.h>
-#include <linux/list.h>
 #include <linux/pci.h>
-#include <linux/kthread.h>
 #include <linux/netdevice.h>
 #include <linux/vmalloc.h>
-#include "octeon_config.h"
 #include "liquidio_common.h"
 #include "octeon_droq.h"
 #include "octeon_iq.h"
 #include "response_manager.h"
 #include "octeon_device.h"
-#include "octeon_nic.h"
 #include "octeon_main.h"
 #include "octeon_network.h"
 #include "cn66xx_regs.h"
 #include "cn66xx_device.h"
-#include "cn68xx_regs.h"
-#include "cn68xx_device.h"
-#include "liquidio_image.h"
-#include "octeon_mem_ops.h"
-
-/* #define CAVIUM_ONLY_PERF_MODE */
 
 #define     CVM_MIN(d1, d2)           (((d1) < (d2)) ? (d1) : (d2))
 #define     CVM_MAX(d1, d2)           (((d1) > (d2)) ? (d1) : (d2))
@@ -104,8 +92,12 @@ static inline void *octeon_get_dispatch_arg(struct octeon_device *octeon_dev,
 	return fn_arg;
 }
 
-u32 octeon_droq_check_hw_for_pkts(struct octeon_device *oct,
-				  struct octeon_droq *droq)
+/** Check for packets on Droq. This function should be called with
+ * lock held.
+ *  @param  droq - Droq on which count is checked.
+ *  @return Returns packet count.
+ */
+u32 octeon_droq_check_hw_for_pkts(struct octeon_droq *droq)
 {
 	u32 pkt_count = 0;
 
@@ -196,7 +188,6 @@ octeon_droq_setup_ring_buffers(struct octeon_device *oct,
 
 		droq->recv_buf_list[i].buffer = buf;
 		droq->recv_buf_list[i].data = get_rbd(buf);
-
 		droq->info_list[i].length = 0;
 
 		/* map ring buffers into memory */
@@ -569,7 +560,9 @@ octeon_droq_dispatch_pkt(struct octeon_device *oct,
 			droq->stats.dropped_nomem++;
 		}
 	} else {
-		dev_err(&oct->pci_dev->dev, "DROQ: No dispatch function\n");
+		dev_err(&oct->pci_dev->dev, "DROQ: No dispatch function (opcode %u/%u)\n",
+			(unsigned int)rh->r.opcode,
+			(unsigned int)rh->r.subcode);
 		droq->stats.dropped_nodispatch++;
 	}                       /* else (dispatch_fn ... */
 
@@ -654,6 +647,7 @@ octeon_droq_fast_process_packets(struct octeon_device *oct,
 					pg_info->page = NULL;
 				droq->recv_buf_list[droq->read_idx].buffer =
 					NULL;
+
 				INCR_INDEX_BY1(droq->read_idx, droq->max_count);
 				droq->refill_count++;
 			} else {
@@ -748,7 +742,7 @@ octeon_droq_process_packets(struct octeon_device *oct,
 	if (pkt_count > budget)
 		pkt_count = budget;
 
-	/* Grab the lock */
+	/* Grab the droq lock */
 	spin_lock(&droq->lock);
 
 	pkts_processed = octeon_droq_fast_process_packets(oct, droq, pkt_count);
@@ -810,7 +804,7 @@ octeon_droq_process_poll_pkts(struct octeon_device *oct,
 
 		total_pkts_processed += pkts_processed;
 
-		octeon_droq_check_hw_for_pkts(oct, droq);
+		octeon_droq_check_hw_for_pkts(droq);
 	}
 
 	spin_unlock(&droq->lock);
@@ -834,18 +828,6 @@ octeon_process_droq_poll_cmd(struct octeon_device *oct, u32 q_no, int cmd,
 			     u32 arg)
 {
 	struct octeon_droq *droq;
-	struct octeon_config *oct_cfg = NULL;
-
-	oct_cfg = octeon_get_conf(oct);
-
-	if (!oct_cfg)
-		return -EINVAL;
-
-	if (q_no >= CFG_GET_OQ_MAX_Q(oct_cfg)) {
-		dev_err(&oct->pci_dev->dev, "%s: droq id (%d) exceeds MAX (%d)\n",
-			__func__, q_no, (oct->num_oqs - 1));
-		return -EINVAL;
-	}
 
 	droq = oct->droq[q_no];
 
