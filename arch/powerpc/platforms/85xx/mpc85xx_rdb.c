@@ -47,13 +47,12 @@
 void __init mpc85xx_rdb_pic_init(void)
 {
 	struct mpic *mpic;
-	unsigned long root = of_get_flat_dt_root();
 
 #ifdef CONFIG_QUICC_ENGINE
 	struct device_node *np;
 #endif
 
-	if (of_flat_dt_is_compatible(root, "fsl,MPC85XXRDB-CAMP")) {
+	if (of_machine_is_compatible("fsl,MPC85XXRDB-CAMP")) {
 		mpic = mpic_alloc(NULL, 0, MPIC_NO_RESET |
 			MPIC_BIG_ENDIAN |
 			MPIC_SINGLE_DEST_CPU,
