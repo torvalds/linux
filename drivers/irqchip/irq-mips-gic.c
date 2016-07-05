@@ -959,7 +959,7 @@ int gic_ipi_domain_match(struct irq_domain *d, struct device_node *node,
 	switch (bus_token) {
 	case DOMAIN_BUS_IPI:
 		is_ipi = d->bus_token == bus_token;
-		return to_of_node(d->fwnode) == node && is_ipi;
+		return (!node || to_of_node(d->fwnode) == node) && is_ipi;
 		break;
 	default:
 		return 0;
