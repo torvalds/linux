@@ -1328,10 +1328,10 @@ gen8_dispatch_bsd_ring(struct drm_i915_private *dev_priv, struct drm_file *file)
 	/* Check whether the file_priv has already selected one ring. */
 	if ((int)file_priv->bsd_ring < 0) {
 		/* If not, use the ping-pong mechanism to select one. */
-		mutex_lock(&dev_priv->dev->struct_mutex);
+		mutex_lock(&dev_priv->drm.struct_mutex);
 		file_priv->bsd_ring = dev_priv->mm.bsd_ring_dispatch_index;
 		dev_priv->mm.bsd_ring_dispatch_index ^= 1;
-		mutex_unlock(&dev_priv->dev->struct_mutex);
+		mutex_unlock(&dev_priv->drm.struct_mutex);
 	}
 
 	return file_priv->bsd_ring;

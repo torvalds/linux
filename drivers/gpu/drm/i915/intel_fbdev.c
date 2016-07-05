@@ -693,9 +693,9 @@ out:
 
 static void intel_fbdev_suspend_worker(struct work_struct *work)
 {
-	intel_fbdev_set_suspend(container_of(work,
-					     struct drm_i915_private,
-					     fbdev_suspend_work)->dev,
+	intel_fbdev_set_suspend(&container_of(work,
+					      struct drm_i915_private,
+					      fbdev_suspend_work)->drm,
 				FBINFO_STATE_RUNNING,
 				true);
 }

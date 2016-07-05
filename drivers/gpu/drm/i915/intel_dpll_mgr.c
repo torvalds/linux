@@ -331,7 +331,7 @@ static void ibx_pch_dpll_enable(struct drm_i915_private *dev_priv,
 static void ibx_pch_dpll_disable(struct drm_i915_private *dev_priv,
 				 struct intel_shared_dpll *pll)
 {
-	struct drm_device *dev = dev_priv->dev;
+	struct drm_device *dev = &dev_priv->drm;
 	struct intel_crtc *crtc;
 
 	/* Make sure no transcoder isn't still depending on us. */

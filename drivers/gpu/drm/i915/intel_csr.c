@@ -412,7 +412,7 @@ static void csr_load_work_fn(struct work_struct *work)
 	csr = &dev_priv->csr;
 
 	ret = request_firmware(&fw, dev_priv->csr.fw_path,
-			       &dev_priv->dev->pdev->dev);
+			       &dev_priv->drm.pdev->dev);
 	if (fw)
 		dev_priv->csr.dmc_payload = parse_csr_fw(dev_priv, fw);
 
@@ -426,7 +426,7 @@ static void csr_load_work_fn(struct work_struct *work)
 			 CSR_VERSION_MAJOR(csr->version),
 			 CSR_VERSION_MINOR(csr->version));
 	} else {
-		dev_notice(dev_priv->dev->dev,
+		dev_notice(dev_priv->drm.dev,
 			   "Failed to load DMC firmware"
 			   " [" FIRMWARE_URL "],"
 			   " disabling runtime power management.\n");

@@ -154,7 +154,7 @@ void i915_gem_context_free(struct kref *ctx_ref)
 	struct i915_gem_context *ctx = container_of(ctx_ref, typeof(*ctx), ref);
 	int i;
 
-	lockdep_assert_held(&ctx->i915->dev->struct_mutex);
+	lockdep_assert_held(&ctx->i915->drm.struct_mutex);
 	trace_i915_context_free(ctx);
 
 	/*
@@ -465,7 +465,7 @@ void i915_gem_context_lost(struct drm_i915_private *dev_priv)
 {
 	struct intel_engine_cs *engine;
 
-	lockdep_assert_held(&dev_priv->dev->struct_mutex);
+	lockdep_assert_held(&dev_priv->drm.struct_mutex);
 
 	for_each_engine(engine, dev_priv) {
 		if (engine->last_context) {
@@ -895,7 +895,7 @@ int i915_switch_context(struct drm_i915_gem_request *req)
 	struct intel_engine_cs *engine = req->engine;
 
 	WARN_ON(i915.enable_execlists);
-	lockdep_assert_held(&req->i915->dev->struct_mutex);
+	lockdep_assert_held(&req->i915->drm.struct_mutex);
 
 	if (!req->ctx->engine[engine->id].state) {
 		struct i915_gem_context *to = req->ctx;

@@ -287,7 +287,7 @@ void intel_display_set_init_power(struct drm_i915_private *dev_priv,
  */
 static void hsw_power_well_post_enable(struct drm_i915_private *dev_priv)
 {
-	struct drm_device *dev = dev_priv->dev;
+	struct drm_device *dev = &dev_priv->drm;
 
 	/*
 	 * After we re-enable the power well, if we touch VGA register 0x3d5
@@ -318,7 +318,7 @@ static void hsw_power_well_pre_disable(struct drm_i915_private *dev_priv)
 static void skl_power_well_post_enable(struct drm_i915_private *dev_priv,
 				       struct i915_power_well *power_well)
 {
-	struct drm_device *dev = dev_priv->dev;
+	struct drm_device *dev = &dev_priv->drm;
 
 	/*
 	 * After we re-enable the power well, if we touch VGA register 0x3d5
@@ -930,7 +930,7 @@ static void gen9_dc_off_power_well_enable(struct drm_i915_private *dev_priv,
 	gen9_set_dc_state(dev_priv, DC_STATE_DISABLE);
 
 	WARN_ON(dev_priv->cdclk_freq !=
-		dev_priv->display.get_display_clock_speed(dev_priv->dev));
+		dev_priv->display.get_display_clock_speed(&dev_priv->drm));
 
 	gen9_assert_dbuf_enabled(dev_priv);
 
@@ -1088,7 +1088,7 @@ static void vlv_display_power_well_init(struct drm_i915_private *dev_priv)
 	 *
 	 * CHV DPLL B/C have some issues if VGA mode is enabled.
 	 */
-	for_each_pipe(dev_priv->dev, pipe) {
+	for_each_pipe(&dev_priv->drm, pipe) {
 		u32 val = I915_READ(DPLL(pipe));
 
 		val |= DPLL_REF_CLK_ENABLE_VLV | DPLL_VGA_MODE_DIS;
@@ -1113,7 +1113,7 @@ static void vlv_display_power_well_init(struct drm_i915_private *dev_priv)
 
 	intel_hpd_init(dev_priv);
 
-	i915_redisable_vga_power_on(dev_priv->dev);
+	i915_redisable_vga_power_on(&dev_priv->drm);
 }
 
 static void vlv_display_power_well_deinit(struct drm_i915_private *dev_priv)
@@ -1123,7 +1123,7 @@ static void vlv_display_power_well_deinit(struct drm_i915_private *dev_priv)
 	spin_unlock_irq(&dev_priv->irq_lock);
 
 	/* make sure we're done processing display irqs */
-	synchronize_irq(dev_priv->dev->irq);
+	synchronize_irq(dev_priv->drm.irq);
 
 	intel_power_sequencer_reset(dev_priv);
 }
@@ -2275,7 +2275,7 @@ int intel_power_domains_init(struct drm_i915_private *dev_priv)
  */
 void intel_power_domains_fini(struct drm_i915_private *dev_priv)
 {
-	struct device *device = &dev_priv->dev->pdev->dev;
+	struct device *device = &dev_priv->drm.pdev->dev;
 
 	/*
 	 * The i915.ko module is still not prepared to be loaded when
@@ -2576,7 +2576,7 @@ static void vlv_cmnlane_wa(struct drm_i915_private *dev_priv)
  */
 void intel_power_domains_init_hw(struct drm_i915_private *dev_priv, bool resume)
 {
-	struct drm_device *dev = dev_priv->dev;
+	struct drm_device *dev = &dev_priv->drm;
 	struct i915_power_domains *power_domains = &dev_priv->power_domains;
 
 	power_domains->initializing = true;
@@ -2638,7 +2638,7 @@ void intel_power_domains_suspend(struct drm_i915_private *dev_priv)
  */
 void intel_runtime_pm_get(struct drm_i915_private *dev_priv)
 {
-	struct drm_device *dev = dev_priv->dev;
+	struct drm_device *dev = &dev_priv->drm;
 	struct device *device = &dev->pdev->dev;
 
 	pm_runtime_get_sync(device);
@@ -2659,7 +2659,7 @@ void intel_runtime_pm_get(struct drm_i915_private *dev_priv)
  */
 bool intel_runtime_pm_get_if_in_use(struct drm_i915_private *dev_priv)
 {
-	struct drm_device *dev = dev_priv->dev;
+	struct drm_device *dev = &dev_priv->drm;
 	struct device *device = &dev->pdev->dev;
 
 	if (IS_ENABLED(CONFIG_PM)) {
@@ -2701,7 +2701,7 @@ bool intel_runtime_pm_get_if_in_use(struct drm_i915_private *dev_priv)
  */
 void intel_runtime_pm_get_noresume(struct drm_i915_private *dev_priv)
 {
-	struct drm_device *dev = dev_priv->dev;
+	struct drm_device *dev = &dev_priv->drm;
 	struct device *device = &dev->pdev->dev;
 
 	assert_rpm_wakelock_held(dev_priv);
@@ -2720,7 +2720,7 @@ void intel_runtime_pm_get_noresume(struct drm_i915_private *dev_priv)
  */
 void intel_runtime_pm_put(struct drm_i915_private *dev_priv)
 {
-	struct drm_device *dev = dev_priv->dev;
+	struct drm_device *dev = &dev_priv->drm;
 	struct device *device = &dev->pdev->dev;
 
 	assert_rpm_wakelock_held(dev_priv);
@@ -2743,7 +2743,7 @@ void intel_runtime_pm_put(struct drm_i915_private *dev_priv)
  */
 void intel_runtime_pm_enable(struct drm_i915_private *dev_priv)
 {
-	struct drm_device *dev = dev_priv->dev;
+	struct drm_device *dev = &dev_priv->drm;
 	struct device *device = &dev->pdev->dev;
 
 	pm_runtime_set_autosuspend_delay(device, 10000); /* 10s */

@@ -378,7 +378,7 @@ void gen6_disable_rps_interrupts(struct drm_i915_private *dev_priv)
 				~dev_priv->pm_rps_events);
 
 	spin_unlock_irq(&dev_priv->irq_lock);
-	synchronize_irq(dev_priv->dev->irq);
+	synchronize_irq(dev_priv->drm.irq);
 
 	/* Now that we will not be generating any more work, flush any
 	 * outsanding tasks. As we are called on the RPS idle path,
@@ -566,7 +566,7 @@ i915_enable_pipestat(struct drm_i915_private *dev_priv, enum pipe pipe,
 	u32 enable_mask;
 
 	if (IS_VALLEYVIEW(dev_priv) || IS_CHERRYVIEW(dev_priv))
-		enable_mask = vlv_get_pipestat_enable_mask(dev_priv->dev,
+		enable_mask = vlv_get_pipestat_enable_mask(&dev_priv->drm,
 							   status_mask);
 	else
 		enable_mask = status_mask << 16;
@@ -580,7 +580,7 @@ i915_disable_pipestat(struct drm_i915_private *dev_priv, enum pipe pipe,
 	u32 enable_mask;
 
 	if (IS_VALLEYVIEW(dev_priv) || IS_CHERRYVIEW(dev_priv))
-		enable_mask = vlv_get_pipestat_enable_mask(dev_priv->dev,
+		enable_mask = vlv_get_pipestat_enable_mask(&dev_priv->drm,
 							   status_mask);
 	else
 		enable_mask = status_mask << 16;
@@ -1175,7 +1175,7 @@ static void ivybridge_parity_work(struct work_struct *work)
 	 * In order to prevent a get/put style interface, acquire struct mutex
 	 * any time we access those registers.
 	 */
-	mutex_lock(&dev_priv->dev->struct_mutex);
+	mutex_lock(&dev_priv->drm.struct_mutex);
 
 	/* If we've screwed up tracking, just let the interrupt fire again */
 	if (WARN_ON(!dev_priv->l3_parity.which_slice))
@@ -1211,7 +1211,7 @@ static void ivybridge_parity_work(struct work_struct *work)
 		parity_event[4] = kasprintf(GFP_KERNEL, "SLICE=%d", slice);
 		parity_event[5] = NULL;
 
-		kobject_uevent_env(&dev_priv->dev->primary->kdev->kobj,
+		kobject_uevent_env(&dev_priv->drm.primary->kdev->kobj,
 				   KOBJ_CHANGE, parity_event);
 
 		DRM_DEBUG("Parity error: Slice = %d, Row = %d, Bank = %d, Sub bank = %d.\n",
@@ -1231,7 +1231,7 @@ out:
 	gen5_enable_gt_irq(dev_priv, GT_PARITY_ERROR(dev_priv));
 	spin_unlock_irq(&dev_priv->irq_lock);
 
-	mutex_unlock(&dev_priv->dev->struct_mutex);
+	mutex_unlock(&dev_priv->drm.struct_mutex);
 }
 
 static void ivybridge_parity_error_irq_handler(struct drm_i915_private *dev_priv,
@@ -1513,7 +1513,7 @@ static void display_pipe_crc_irq_handler(struct drm_i915_private *dev_priv,
 
 	entry = &pipe_crc->entries[head];
 
-	entry->frame = dev_priv->dev->driver->get_vblank_counter(dev_priv->dev,
+	entry->frame = dev_priv->drm.driver->get_vblank_counter(&dev_priv->drm,
 								 pipe);
 	entry->crc[0] = crc0;
 	entry->crc[1] = crc1;
@@ -1611,7 +1611,7 @@ static bool intel_pipe_handle_vblank(struct drm_i915_private *dev_priv,
 {
 	bool ret;
 
-	ret = drm_handle_vblank(dev_priv->dev, pipe);
+	ret = drm_handle_vblank(&dev_priv->drm, pipe);
 	if (ret)
 		intel_finish_page_flip_mmio(dev_priv, pipe);
 
@@ -2500,7 +2500,7 @@ static void i915_error_wake_up(struct drm_i915_private *dev_priv)
  */
 static void i915_reset_and_wakeup(struct drm_i915_private *dev_priv)
 {
-	struct kobject *kobj = &dev_priv->dev->primary->kdev->kobj;
+	struct kobject *kobj = &dev_priv->drm.primary->kdev->kobj;
 	char *error_event[] = { I915_ERROR_UEVENT "=1", NULL };
 	char *reset_event[] = { I915_RESET_UEVENT "=1", NULL };
 	char *reset_done_event[] = { I915_ERROR_UEVENT "=0", NULL };
@@ -3402,7 +3402,7 @@ void gen8_irq_power_well_pre_disable(struct drm_i915_private *dev_priv,
 	spin_unlock_irq(&dev_priv->irq_lock);
 
 	/* make sure we're done processing display irqs */
-	synchronize_irq(dev_priv->dev->irq);
+	synchronize_irq(dev_priv->drm.irq);
 }
 
 static void cherryview_irq_preinstall(struct drm_device *dev)
@@ -3428,7 +3428,7 @@ static u32 intel_hpd_enabled_irqs(struct drm_i915_private *dev_priv,
 	struct intel_encoder *encoder;
 	u32 enabled_irqs = 0;
 
-	for_each_intel_encoder(dev_priv->dev, encoder)
+	for_each_intel_encoder(&dev_priv->drm, encoder)
 		if (dev_priv->hotplug.stats[encoder->hpd_pin].state == HPD_ENABLED)
 			enabled_irqs |= hpd[encoder->hpd_pin];
 
@@ -4510,7 +4510,7 @@ static void i965_irq_uninstall(struct drm_device * dev)
  */
 void intel_irq_init(struct drm_i915_private *dev_priv)
 {
-	struct drm_device *dev = dev_priv->dev;
+	struct drm_device *dev = &dev_priv->drm;
 
 	intel_hpd_init_work(dev_priv);
 
@@ -4644,7 +4644,7 @@ int intel_irq_install(struct drm_i915_private *dev_priv)
 	 */
 	dev_priv->pm.irqs_enabled = true;
 
-	return drm_irq_install(dev_priv->dev, dev_priv->dev->pdev->irq);
+	return drm_irq_install(&dev_priv->drm, dev_priv->drm.pdev->irq);
 }
 
 /**
@@ -4656,7 +4656,7 @@ int intel_irq_install(struct drm_i915_private *dev_priv)
  */
 void intel_irq_uninstall(struct drm_i915_private *dev_priv)
 {
-	drm_irq_uninstall(dev_priv->dev);
+	drm_irq_uninstall(&dev_priv->drm);
 	intel_hpd_cancel_work(dev_priv);
 	dev_priv->pm.irqs_enabled = false;
 }
@@ -4670,9 +4670,9 @@ void intel_irq_uninstall(struct drm_i915_private *dev_priv)
  */
 void intel_runtime_pm_disable_interrupts(struct drm_i915_private *dev_priv)
 {
-	dev_priv->dev->driver->irq_uninstall(dev_priv->dev);
+	dev_priv->drm.driver->irq_uninstall(&dev_priv->drm);
 	dev_priv->pm.irqs_enabled = false;
-	synchronize_irq(dev_priv->dev->irq);
+	synchronize_irq(dev_priv->drm.irq);
 }
 
 /**
@@ -4685,6 +4685,6 @@ void intel_runtime_pm_disable_interrupts(struct drm_i915_private *dev_priv)
 void intel_runtime_pm_enable_interrupts(struct drm_i915_private *dev_priv)
 {
 	dev_priv->pm.irqs_enabled = true;
-	dev_priv->dev->driver->irq_preinstall(dev_priv->dev);
-	dev_priv->dev->driver->irq_postinstall(dev_priv->dev);
+	dev_priv->drm.driver->irq_preinstall(&dev_priv->drm);
+	dev_priv->drm.driver->irq_postinstall(&dev_priv->drm);
 }

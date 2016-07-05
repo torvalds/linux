@@ -392,7 +392,7 @@ static void intel_fbc_work_fn(struct work_struct *__work)
 	struct intel_fbc *fbc = &dev_priv->fbc;
 	struct intel_fbc_work *work = &fbc->work;
 	struct intel_crtc *crtc = fbc->crtc;
-	struct drm_vblank_crtc *vblank = &dev_priv->dev->vblank[crtc->pipe];
+	struct drm_vblank_crtc *vblank = &dev_priv->drm.vblank[crtc->pipe];
 
 	if (drm_crtc_vblank_get(&crtc->base)) {
 		DRM_ERROR("vblank not available for FBC on pipe %c\n",
@@ -1210,7 +1210,7 @@ void intel_fbc_init_pipe_state(struct drm_i915_private *dev_priv)
 	if (!no_fbc_on_multiple_pipes(dev_priv))
 		return;
 
-	for_each_intel_crtc(dev_priv->dev, crtc)
+	for_each_intel_crtc(&dev_priv->drm, crtc)
 		if (intel_crtc_active(&crtc->base) &&
 		    to_intel_plane_state(crtc->base.primary->state)->visible)
 			dev_priv->fbc.visible_pipes_mask |= (1 << crtc->pipe);

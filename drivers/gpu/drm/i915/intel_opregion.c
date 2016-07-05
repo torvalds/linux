@@ -261,7 +261,7 @@ static int swsci(struct drm_i915_private *dev_priv,
 		 u32 function, u32 parm, u32 *parm_out)
 {
 	struct opregion_swsci *swsci = dev_priv->opregion.swsci;
-	struct pci_dev *pdev = dev_priv->dev->pdev;
+	struct pci_dev *pdev = dev_priv->drm.pdev;
 	u32 main_function, sub_function, scic;
 	u16 swsci_val;
 	u32 dslp;
@@ -435,7 +435,7 @@ static u32 asle_set_backlight(struct drm_i915_private *dev_priv, u32 bclp)
 {
 	struct intel_connector *connector;
 	struct opregion_asle *asle = dev_priv->opregion.asle;
-	struct drm_device *dev = dev_priv->dev;
+	struct drm_device *dev = &dev_priv->drm;
 
 	DRM_DEBUG_DRIVER("bclp = 0x%08x\n", bclp);
 
@@ -718,7 +718,7 @@ static u32 acpi_display_type(struct drm_connector *connector)
 static void intel_didl_outputs(struct drm_i915_private *dev_priv)
 {
 	struct intel_opregion *opregion = &dev_priv->opregion;
-	struct pci_dev *pdev = dev_priv->dev->pdev;
+	struct pci_dev *pdev = dev_priv->drm.pdev;
 	struct drm_connector *connector;
 	acpi_handle handle;
 	struct acpi_device *acpi_dev, *acpi_cdev, *acpi_video_bus = NULL;
@@ -782,7 +782,8 @@ end:
 
 blind_set:
 	i = 0;
-	list_for_each_entry(connector, &dev_priv->dev->mode_config.connector_list, head) {
+	list_for_each_entry(connector,
+			    &dev_priv->drm.mode_config.connector_list, head) {
 		int display_type = acpi_display_type(connector);
 
 		if (i >= max_outputs) {
@@ -954,7 +955,7 @@ static const struct dmi_system_id intel_no_opregion_vbt[] = {
 int intel_opregion_setup(struct drm_i915_private *dev_priv)
 {
 	struct intel_opregion *opregion = &dev_priv->opregion;
-	struct pci_dev *pdev = dev_priv->dev->pdev;
+	struct pci_dev *pdev = dev_priv->drm.pdev;
 	u32 asls, mboxes;
 	char buf[sizeof(OPREGION_SIGNATURE)];
 	int err = 0;

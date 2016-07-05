@@ -687,7 +687,7 @@ out:
 static int i915_kick_out_firmware_fb(struct drm_i915_private *dev_priv)
 {
 	struct apertures_struct *ap;
-	struct pci_dev *pdev = dev_priv->dev->pdev;
+	struct pci_dev *pdev = dev_priv->drm.pdev;
 	struct i915_ggtt *ggtt = &dev_priv->ggtt;
 	bool primary;
 	int ret;
@@ -889,7 +889,7 @@ err_workqueues:
  */
 static void i915_driver_cleanup_early(struct drm_i915_private *dev_priv)
 {
-	i915_gem_load_cleanup(dev_priv->dev);
+	i915_gem_load_cleanup(&dev_priv->drm);
 	i915_workqueues_cleanup(dev_priv);
 }
 
@@ -944,7 +944,7 @@ static void i915_mmio_cleanup(struct drm_device *dev)
  */
 static int i915_driver_init_mmio(struct drm_i915_private *dev_priv)
 {
-	struct drm_device *dev = dev_priv->dev;
+	struct drm_device *dev = &dev_priv->drm;
 	int ret;
 
 	if (i915_inject_load_failure())
@@ -973,7 +973,7 @@ put_bridge:
  */
 static void i915_driver_cleanup_mmio(struct drm_i915_private *dev_priv)
 {
-	struct drm_device *dev = dev_priv->dev;
+	struct drm_device *dev = &dev_priv->drm;
 
 	intel_uncore_fini(dev_priv);
 	i915_mmio_cleanup(dev);
@@ -1006,7 +1006,7 @@ static void intel_sanitize_options(struct drm_i915_private *dev_priv)
  */
 static int i915_driver_init_hw(struct drm_i915_private *dev_priv)
 {
-	struct drm_device *dev = dev_priv->dev;
+	struct drm_device *dev = &dev_priv->drm;
 	struct i915_ggtt *ggtt = &dev_priv->ggtt;
 	uint32_t aperture_size;
 	int ret;
@@ -1125,7 +1125,7 @@ out_ggtt:
  */
 static void i915_driver_cleanup_hw(struct drm_i915_private *dev_priv)
 {
-	struct drm_device *dev = dev_priv->dev;
+	struct drm_device *dev = &dev_priv->drm;
 	struct i915_ggtt *ggtt = &dev_priv->ggtt;
 
 	if (dev->pdev->msi_enabled)
@@ -1146,7 +1146,7 @@ static void i915_driver_cleanup_hw(struct drm_i915_private *dev_priv)
  */
 static void i915_driver_register(struct drm_i915_private *dev_priv)
 {
-	struct drm_device *dev = dev_priv->dev;
+	struct drm_device *dev = &dev_priv->drm;
 
 	i915_gem_shrinker_init(dev_priv);
 
@@ -1197,9 +1197,9 @@ static void i915_driver_unregister(struct drm_i915_private *dev_priv)
 	acpi_video_unregister();
 	intel_opregion_unregister(dev_priv);
 
-	i915_teardown_sysfs(dev_priv->dev);
+	i915_teardown_sysfs(&dev_priv->drm);
 	i915_debugfs_unregister(dev_priv);
-	drm_dev_unregister(dev_priv->dev);
+	drm_dev_unregister(&dev_priv->drm);
 
 	i915_gem_shrinker_cleanup(dev_priv);
 }
@@ -1236,7 +1236,6 @@ int i915_driver_load(struct pci_dev *pdev, const struct pci_device_id *ent)
 
 	dev_priv->drm.pdev = pdev;
 	dev_priv->drm.dev_private = dev_priv;
-	dev_priv->dev = &dev_priv->drm;
 
 	ret = pci_enable_device(pdev);
 	if (ret)
@@ -1264,13 +1263,13 @@ int i915_driver_load(struct pci_dev *pdev, const struct pci_device_id *ent)
 	 * to the role/effect of the given init step.
 	 */
 	if (INTEL_INFO(dev_priv)->num_pipes) {
-		ret = drm_vblank_init(dev_priv->dev,
+		ret = drm_vblank_init(&dev_priv->drm,
 				      INTEL_INFO(dev_priv)->num_pipes);
 		if (ret)
 			goto out_cleanup_hw;
 	}
 
-	ret = i915_load_modeset_init(dev_priv->dev);
+	ret = i915_load_modeset_init(&dev_priv->drm);
 	if (ret < 0)
 		goto out_cleanup_vblank;
 
@@ -1283,7 +1282,7 @@ int i915_driver_load(struct pci_dev *pdev, const struct pci_device_id *ent)
 	return 0;
 
 out_cleanup_vblank:
-	drm_vblank_cleanup(dev_priv->dev);
+	drm_vblank_cleanup(&dev_priv->drm);
 out_cleanup_hw:
 	i915_driver_cleanup_hw(dev_priv);
 out_cleanup_mmio:
@@ -1402,7 +1401,7 @@ static void i915_driver_postclose(struct drm_device *dev, struct drm_file *file)
 
 static void intel_suspend_encoders(struct drm_i915_private *dev_priv)
 {
-	struct drm_device *dev = dev_priv->dev;
+	struct drm_device *dev = &dev_priv->drm;
 	struct intel_encoder *encoder;
 
 	drm_modeset_lock_all(dev);
@@ -1770,7 +1769,7 @@ int i915_resume_switcheroo(struct drm_device *dev)
  */
 int i915_reset(struct drm_i915_private *dev_priv)
 {
-	struct drm_device *dev = dev_priv->dev;
+	struct drm_device *dev = &dev_priv->drm;
 	struct i915_gpu_error *error = &dev_priv->gpu_error;
 	unsigned reset_counter;
 	int ret;
@@ -1861,7 +1860,7 @@ static int i915_pm_suspend(struct device *dev)
 
 static int i915_pm_suspend_late(struct device *dev)
 {
-	struct drm_device *drm_dev = dev_to_i915(dev)->dev;
+	struct drm_device *drm_dev = &dev_to_i915(dev)->drm;
 
 	/*
 	 * We have a suspend ordering issue with the snd-hda driver also
@@ -1880,7 +1879,7 @@ static int i915_pm_suspend_late(struct device *dev)
 
 static int i915_pm_poweroff_late(struct device *dev)
 {
-	struct drm_device *drm_dev = dev_to_i915(dev)->dev;
+	struct drm_device *drm_dev = &dev_to_i915(dev)->drm;
 
 	if (drm_dev->switch_power_state == DRM_SWITCH_POWER_OFF)
 		return 0;
@@ -1890,7 +1889,7 @@ static int i915_pm_poweroff_late(struct device *dev)
 
 static int i915_pm_resume_early(struct device *dev)
 {
-	struct drm_device *drm_dev = dev_to_i915(dev)->dev;
+	struct drm_device *drm_dev = &dev_to_i915(dev)->drm;
 
 	if (drm_dev->switch_power_state == DRM_SWITCH_POWER_OFF)
 		return 0;
@@ -1900,7 +1899,7 @@ static int i915_pm_resume_early(struct device *dev)
 
 static int i915_pm_resume(struct device *dev)
 {
-	struct drm_device *drm_dev = dev_to_i915(dev)->dev;
+	struct drm_device *drm_dev = &dev_to_i915(dev)->drm;
 
 	if (drm_dev->switch_power_state == DRM_SWITCH_POWER_OFF)
 		return 0;
@@ -2278,7 +2277,7 @@ err1:
 static int vlv_resume_prepare(struct drm_i915_private *dev_priv,
 				bool rpm_resume)
 {
-	struct drm_device *dev = dev_priv->dev;
+	struct drm_device *dev = &dev_priv->drm;
 	int err;
 	int ret;
 

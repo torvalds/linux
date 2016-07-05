@@ -657,9 +657,9 @@ int intel_init_pipe_control(struct intel_engine_cs *engine, int size)
 
 	WARN_ON(engine->scratch.obj);
 
-	obj = i915_gem_object_create_stolen(engine->i915->dev, size);
+	obj = i915_gem_object_create_stolen(&engine->i915->drm, size);
 	if (!obj)
-		obj = i915_gem_object_create(engine->i915->dev, size);
+		obj = i915_gem_object_create(&engine->i915->drm, size);
 	if (IS_ERR(obj)) {
 		DRM_ERROR("Failed to allocate scratch page\n");
 		ret = PTR_ERR(obj);
@@ -1888,7 +1888,7 @@ static void cleanup_phys_status_page(struct intel_engine_cs *engine)
 	if (!dev_priv->status_page_dmah)
 		return;
 
-	drm_pci_free(dev_priv->dev, dev_priv->status_page_dmah);
+	drm_pci_free(&dev_priv->drm, dev_priv->status_page_dmah);
 	engine->status_page.page_addr = NULL;
 }
 
@@ -1914,7 +1914,7 @@ static int init_status_page(struct intel_engine_cs *engine)
 		unsigned flags;
 		int ret;
 
-		obj = i915_gem_object_create(engine->i915->dev, 4096);
+		obj = i915_gem_object_create(&engine->i915->drm, 4096);
 		if (IS_ERR(obj)) {
 			DRM_ERROR("Failed to allocate status page\n");
 			return PTR_ERR(obj);
@@ -1963,7 +1963,7 @@ static int init_phys_status_page(struct intel_engine_cs *engine)
 
 	if (!dev_priv->status_page_dmah) {
 		dev_priv->status_page_dmah =
-			drm_pci_alloc(dev_priv->dev, PAGE_SIZE, PAGE_SIZE);
+			drm_pci_alloc(&dev_priv->drm, PAGE_SIZE, PAGE_SIZE);
 		if (!dev_priv->status_page_dmah)
 			return -ENOMEM;
 	}
@@ -2096,7 +2096,7 @@ intel_engine_create_ringbuffer(struct intel_engine_cs *engine, int size)
 	ring->last_retired_head = -1;
 	intel_ring_update_space(ring);
 
-	ret = intel_alloc_ringbuffer_obj(engine->i915->dev, ring);
+	ret = intel_alloc_ringbuffer_obj(&engine->i915->drm, ring);
 	if (ret) {
 		DRM_DEBUG_DRIVER("Failed to allocate ringbuffer %s: %d\n",
 				 engine->name, ret);
@@ -2122,7 +2122,7 @@ static int intel_ring_context_pin(struct i915_gem_context *ctx,
 	struct intel_context *ce = &ctx->engine[engine->id];
 	int ret;
 
-	lockdep_assert_held(&ctx->i915->dev->struct_mutex);
+	lockdep_assert_held(&ctx->i915->drm.struct_mutex);
 
 	if (ce->pin_count++)
 		return 0;
@@ -2156,7 +2156,7 @@ static void intel_ring_context_unpin(struct i915_gem_context *ctx,
 {
 	struct intel_context *ce = &ctx->engine[engine->id];
 
-	lockdep_assert_held(&ctx->i915->dev->struct_mutex);
+	lockdep_assert_held(&ctx->i915->drm.struct_mutex);
 
 	if (--ce->pin_count)
 		return;
@@ -2696,7 +2696,7 @@ static void intel_ring_init_semaphores(struct drm_i915_private *dev_priv,
 		return;
 
 	if (INTEL_GEN(dev_priv) >= 8 && !dev_priv->semaphore_obj) {
-		obj = i915_gem_object_create(dev_priv->dev, 4096);
+		obj = i915_gem_object_create(&dev_priv->drm, 4096);
 		if (IS_ERR(obj)) {
 			DRM_ERROR("Failed to allocate semaphore bo. Disabling semaphores\n");
 			i915.semaphores = 0;

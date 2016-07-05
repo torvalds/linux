@@ -1471,7 +1471,7 @@ static void intel_disable_sdvo(struct intel_encoder *encoder)
 		temp &= ~SDVO_ENABLE;
 		intel_sdvo_write_sdvox(intel_sdvo, temp);
 
-		intel_wait_for_vblank_if_active(dev_priv->dev, PIPE_A);
+		intel_wait_for_vblank_if_active(&dev_priv->drm, PIPE_A);
 		intel_set_cpu_fifo_underrun_reporting(dev_priv, PIPE_A, true);
 		intel_set_pch_fifo_underrun_reporting(dev_priv, PIPE_A, true);
 	}

@@ -320,15 +320,16 @@ struct i915_hotplug {
 		for_each_if ((__ports_mask) & (1 << (__port)))
 
 #define for_each_crtc(dev, crtc) \
-	list_for_each_entry(crtc, &dev->mode_config.crtc_list, head)
+	list_for_each_entry(crtc, &(dev)->mode_config.crtc_list, head)
 
 #define for_each_intel_plane(dev, intel_plane) \
 	list_for_each_entry(intel_plane,			\
-			    &dev->mode_config.plane_list,	\
+			    &(dev)->mode_config.plane_list,	\
 			    base.head)
 
 #define for_each_intel_plane_mask(dev, intel_plane, plane_mask)		\
-	list_for_each_entry(intel_plane, &dev->mode_config.plane_list,	\
+	list_for_each_entry(intel_plane,				\
+			    &(dev)->mode_config.plane_list,		\
 			    base.head)					\
 		for_each_if ((plane_mask) &				\
 			     (1 << drm_plane_index(&intel_plane->base)))
@@ -339,11 +340,15 @@ struct i915_hotplug {
 			    base.head)					\
 		for_each_if ((intel_plane)->pipe == (intel_crtc)->pipe)
 
-#define for_each_intel_crtc(dev, intel_crtc) \
-	list_for_each_entry(intel_crtc, &dev->mode_config.crtc_list, base.head)
+#define for_each_intel_crtc(dev, intel_crtc)				\
+	list_for_each_entry(intel_crtc,					\
+			    &(dev)->mode_config.crtc_list,		\
+			    base.head)
 
-#define for_each_intel_crtc_mask(dev, intel_crtc, crtc_mask) \
-	list_for_each_entry(intel_crtc, &dev->mode_config.crtc_list, base.head) \
+#define for_each_intel_crtc_mask(dev, intel_crtc, crtc_mask)		\
+	list_for_each_entry(intel_crtc,					\
+			    &(dev)->mode_config.crtc_list,		\
+			    base.head)					\
 		for_each_if ((crtc_mask) & (1 << drm_crtc_index(&intel_crtc->base)))
 
 #define for_each_intel_encoder(dev, intel_encoder)		\
@@ -353,7 +358,7 @@ struct i915_hotplug {
 
 #define for_each_intel_connector(dev, intel_connector)		\
 	list_for_each_entry(intel_connector,			\
-			    &dev->mode_config.connector_list,	\
+			    &(dev)->mode_config.connector_list,	\
 			    base.head)
 
 #define for_each_encoder_on_crtc(dev, __crtc, intel_encoder) \
@@ -1718,7 +1723,6 @@ struct intel_wm_config {
 struct drm_i915_private {
 	struct drm_device drm;
 
-	struct drm_device *dev;
 	struct kmem_cache *objects;
 	struct kmem_cache *vmas;
 	struct kmem_cache *requests;

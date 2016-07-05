@@ -314,7 +314,7 @@ static u32 guc_wopcm_size(struct drm_i915_private *dev_priv)
 static int guc_ucode_xfer(struct drm_i915_private *dev_priv)
 {
 	struct intel_guc_fw *guc_fw = &dev_priv->guc.guc_fw;
-	struct drm_device *dev = dev_priv->dev;
+	struct drm_device *dev = &dev_priv->drm;
 	int ret;
 
 	ret = i915_gem_object_set_to_gtt_domain(guc_fw->guc_fw_obj, false);

@@ -622,7 +622,7 @@ gem_allocate_guc_obj(struct drm_i915_private *dev_priv, u32 size)
 {
 	struct drm_i915_gem_object *obj;
 
-	obj = i915_gem_object_create(dev_priv->dev, size);
+	obj = i915_gem_object_create(&dev_priv->drm, size);
 	if (IS_ERR(obj))
 		return NULL;
 

@@ -153,7 +153,7 @@ int intel_sanitize_enable_ppgtt(struct drm_i915_private *dev_priv,
 #endif
 
 	/* Early VLV doesn't have this */
-	if (IS_VALLEYVIEW(dev_priv) && dev_priv->dev->pdev->revision < 0xb) {
+	if (IS_VALLEYVIEW(dev_priv) && dev_priv->drm.pdev->revision < 0xb) {
 		DRM_DEBUG_DRIVER("disabling PPGTT on pre-B3 step VLV\n");
 		return 0;
 	}
@@ -2115,7 +2115,7 @@ static void i915_address_space_init(struct i915_address_space *vm,
 				    struct drm_i915_private *dev_priv)
 {
 	drm_mm_init(&vm->mm, vm->start, vm->total);
-	vm->dev = dev_priv->dev;
+	vm->dev = &dev_priv->drm;
 	INIT_LIST_HEAD(&vm->active_list);
 	INIT_LIST_HEAD(&vm->inactive_list);
 	list_add_tail(&vm->global_link, &dev_priv->vm_list);
@@ -3179,7 +3179,7 @@ static int i915_gmch_probe(struct i915_ggtt *ggtt)
 	struct drm_i915_private *dev_priv = to_i915(dev);
 	int ret;
 
-	ret = intel_gmch_probe(dev_priv->bridge_dev, dev_priv->dev->pdev, NULL);
+	ret = intel_gmch_probe(dev_priv->bridge_dev, dev_priv->drm.pdev, NULL);
 	if (!ret) {
 		DRM_ERROR("failed to set up gmch\n");
 		return -EIO;
@@ -3188,7 +3188,7 @@ static int i915_gmch_probe(struct i915_ggtt *ggtt)
 	intel_gtt_get(&ggtt->base.total, &ggtt->stolen_size,
 		      &ggtt->mappable_base, &ggtt->mappable_end);
 
-	ggtt->do_idle_maps = needs_idle_maps(dev_priv->dev);
+	ggtt->do_idle_maps = needs_idle_maps(&dev_priv->drm);
 	ggtt->base.insert_page = i915_ggtt_insert_page;
 	ggtt->base.insert_entries = i915_ggtt_insert_entries;
 	ggtt->base.clear_range = i915_ggtt_clear_range;

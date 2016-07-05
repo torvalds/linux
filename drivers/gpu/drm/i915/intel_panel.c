@@ -504,7 +504,7 @@ static u32 i9xx_get_backlight(struct intel_connector *connector)
 	if (panel->backlight.combination_mode) {
 		u8 lbpc;
 
-		pci_read_config_byte(dev_priv->dev->pdev, LBPC, &lbpc);
+		pci_read_config_byte(dev_priv->drm.pdev, LBPC, &lbpc);
 		val *= lbpc;
 	}
 
@@ -592,7 +592,7 @@ static void i9xx_set_backlight(struct intel_connector *connector, u32 level)
 
 		lbpc = level * 0xfe / panel->backlight.max + 1;
 		level /= lbpc;
-		pci_write_config_byte(dev_priv->dev->pdev, LBPC, lbpc);
+		pci_write_config_byte(dev_priv->drm.pdev, LBPC, lbpc);
 	}
 
 	if (IS_GEN4(dev_priv)) {
@@ -822,7 +822,7 @@ void intel_panel_disable_backlight(struct intel_connector *connector)
 	 * backlight. This will leave the backlight on unnecessarily when
 	 * another client is not activated.
 	 */
-	if (dev_priv->dev->switch_power_state == DRM_SWITCH_POWER_CHANGING) {
+	if (dev_priv->drm.switch_power_state == DRM_SWITCH_POWER_CHANGING) {
 		DRM_DEBUG_DRIVER("Skipping backlight disable on vga switch\n");
 		return;
 	}

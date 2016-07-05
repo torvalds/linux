@@ -440,15 +440,15 @@ static void print_context_stats(struct seq_file *m,
 
 	memset(&stats, 0, sizeof(stats));
 
-	mutex_lock(&dev_priv->dev->struct_mutex);
+	mutex_lock(&dev_priv->drm.struct_mutex);
 	if (dev_priv->kernel_context)
 		per_file_ctx_stats(0, dev_priv->kernel_context, &stats);
 
-	list_for_each_entry(file, &dev_priv->dev->filelist, lhead) {
+	list_for_each_entry(file, &dev_priv->drm.filelist, lhead) {
 		struct drm_i915_file_private *fpriv = file->driver_priv;
 		idr_for_each(&fpriv->context_idr, per_file_ctx_stats, &stats);
 	}
-	mutex_unlock(&dev_priv->dev->struct_mutex);
+	mutex_unlock(&dev_priv->drm.struct_mutex);
 
 	print_file_stats(m, "[k]contexts", stats);
 }
@@ -2797,8 +2797,8 @@ static int i915_runtime_pm_status(struct seq_file *m, void *unused)
 	seq_printf(m, "Device Power Management (CONFIG_PM) disabled\n");
 #endif
 	seq_printf(m, "PCI device power state: %s [%d]\n",
-		   pci_power_name(dev_priv->dev->pdev->current_state),
-		   dev_priv->dev->pdev->current_state);
+		   pci_power_name(dev_priv->drm.pdev->current_state),
+		   dev_priv->drm.pdev->current_state);
 
 	return 0;
 }
@@ -5098,7 +5098,7 @@ i915_cache_sharing_get(void *data, u64 *val)
 	snpcr = I915_READ(GEN6_MBCUNIT_SNPCR);
 
 	intel_runtime_pm_put(dev_priv);
-	mutex_unlock(&dev_priv->dev->struct_mutex);
+	mutex_unlock(&dev_priv->drm.struct_mutex);
 
 	*val = (snpcr & GEN6_MBC_SNPCR_MASK) >> GEN6_MBC_SNPCR_SHIFT;
 
@@ -5483,7 +5483,7 @@ void intel_display_crc_init(struct drm_device *dev)
 
 int i915_debugfs_register(struct drm_i915_private *dev_priv)
 {
-	struct drm_minor *minor = dev_priv->dev->primary;
+	struct drm_minor *minor = dev_priv->drm.primary;
 	int ret, i;
 
 	ret = i915_forcewake_create(minor->debugfs_root, minor);
@@ -5511,7 +5511,7 @@ int i915_debugfs_register(struct drm_i915_private *dev_priv)
 
 void i915_debugfs_unregister(struct drm_i915_private *dev_priv)
 {
-	struct drm_minor *minor = dev_priv->dev->primary;
+	struct drm_minor *minor = dev_priv->drm.primary;
 	int i;
 
 	drm_debugfs_remove_files(i915_debugfs_list,

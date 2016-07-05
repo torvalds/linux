@@ -899,7 +899,7 @@ void intel_execlists_cancel_requests(struct intel_engine_cs *engine)
 	struct drm_i915_gem_request *req, *tmp;
 	LIST_HEAD(cancel_list);
 
-	WARN_ON(!mutex_is_locked(&engine->i915->dev->struct_mutex));
+	WARN_ON(!mutex_is_locked(&engine->i915->drm.struct_mutex));
 
 	spin_lock_bh(&engine->execlist_lock);
 	list_replace_init(&engine->execlist_queue, &cancel_list);
@@ -961,7 +961,7 @@ static int intel_lr_context_pin(struct i915_gem_context *ctx,
 	u32 *lrc_reg_state;
 	int ret;
 
-	lockdep_assert_held(&ctx->i915->dev->struct_mutex);
+	lockdep_assert_held(&ctx->i915->drm.struct_mutex);
 
 	if (ce->pin_count++)
 		return 0;
@@ -1011,7 +1011,7 @@ void intel_lr_context_unpin(struct i915_gem_context *ctx,
 {
 	struct intel_context *ce = &ctx->engine[engine->id];
 
-	lockdep_assert_held(&ctx->i915->dev->struct_mutex);
+	lockdep_assert_held(&ctx->i915->drm.struct_mutex);
 	GEM_BUG_ON(ce->pin_count == 0);
 
 	if (--ce->pin_count)
@@ -1353,8 +1353,8 @@ static int lrc_setup_wa_ctx_obj(struct intel_engine_cs *engine, u32 size)
 {
 	int ret;
 
-	engine->wa_ctx.obj = i915_gem_object_create(engine->i915->dev,
-						   PAGE_ALIGN(size));
+	engine->wa_ctx.obj = i915_gem_object_create(&engine->i915->drm,
+						    PAGE_ALIGN(size));
 	if (IS_ERR(engine->wa_ctx.obj)) {
 		DRM_DEBUG_DRIVER("alloc LRC WA ctx backing obj failed.\n");
 		ret = PTR_ERR(engine->wa_ctx.obj);
@@ -2154,7 +2154,7 @@ logical_ring_setup(struct drm_i915_private *dev_priv, enum intel_engine_id id)
 	logical_ring_default_irqs(engine, info->irq_shift);
 
 	intel_engine_init_hangcheck(engine);
-	i915_gem_batch_pool_init(dev_priv->dev, &engine->batch_pool);
+	i915_gem_batch_pool_init(&dev_priv->drm, &engine->batch_pool);
 
 	return engine;
 }
@@ -2486,7 +2486,7 @@ static int execlists_context_deferred_alloc(struct i915_gem_context *ctx,
 	/* One extra page as the sharing data between driver and GuC */
 	context_size += PAGE_SIZE * LRC_PPHWSP_PN;
 
-	ctx_obj = i915_gem_object_create(ctx->i915->dev, context_size);
+	ctx_obj = i915_gem_object_create(&ctx->i915->drm, context_size);
 	if (IS_ERR(ctx_obj)) {
 		DRM_DEBUG_DRIVER("Alloc LRC backing obj failed.\n");
 		return PTR_ERR(ctx_obj);

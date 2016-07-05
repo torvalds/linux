@@ -540,7 +540,7 @@ vlv_initial_power_sequencer_setup(struct intel_dp *intel_dp)
 
 void intel_power_sequencer_reset(struct drm_i915_private *dev_priv)
 {
-	struct drm_device *dev = dev_priv->dev;
+	struct drm_device *dev = &dev_priv->drm;
 	struct intel_encoder *encoder;
 
 	if (WARN_ON(!IS_VALLEYVIEW(dev) && !IS_CHERRYVIEW(dev) &&
@@ -2286,7 +2286,7 @@ static void ironlake_edp_pll_on(struct intel_dp *intel_dp)
 	 * 2. Program DP PLL enable
 	 */
 	if (IS_GEN5(dev_priv))
-		intel_wait_for_vblank_if_active(dev_priv->dev, !crtc->pipe);
+		intel_wait_for_vblank_if_active(&dev_priv->drm, !crtc->pipe);
 
 	intel_dp->DP |= DP_PLL_ENABLE;
 
@@ -3387,7 +3387,7 @@ intel_dp_link_down(struct intel_dp *intel_dp)
 		I915_WRITE(intel_dp->output_reg, DP);
 		POSTING_READ(intel_dp->output_reg);
 
-		intel_wait_for_vblank_if_active(dev_priv->dev, PIPE_A);
+		intel_wait_for_vblank_if_active(&dev_priv->drm, PIPE_A);
 		intel_set_cpu_fifo_underrun_reporting(dev_priv, PIPE_A, true);
 		intel_set_pch_fifo_underrun_reporting(dev_priv, PIPE_A, true);
 	}
@@ -5147,9 +5147,9 @@ void intel_edp_drrs_disable(struct intel_dp *intel_dp)
 	}
 
 	if (dev_priv->drrs.refresh_rate_type == DRRS_LOW_RR)
-		intel_dp_set_drrs_state(dev_priv->dev,
-			intel_dp->attached_connector->panel.
-			fixed_mode->vrefresh);
+		intel_dp_set_drrs_state(&dev_priv->drm,
+					intel_dp->attached_connector->panel.
+					fixed_mode->vrefresh);
 
 	dev_priv->drrs.dp = NULL;
 	mutex_unlock(&dev_priv->drrs.mutex);
@@ -5179,9 +5179,9 @@ static void intel_edp_drrs_downclock_work(struct work_struct *work)
 		goto unlock;
 
 	if (dev_priv->drrs.refresh_rate_type != DRRS_LOW_RR)
-		intel_dp_set_drrs_state(dev_priv->dev,
-			intel_dp->attached_connector->panel.
-			downclock_mode->vrefresh);
+		intel_dp_set_drrs_state(&dev_priv->drm,
+					intel_dp->attached_connector->panel.
+					downclock_mode->vrefresh);
 
 unlock:
 	mutex_unlock(&dev_priv->drrs.mutex);
@@ -5223,9 +5223,9 @@ void intel_edp_drrs_invalidate(struct drm_device *dev,
 
 	/* invalidate means busy screen hence upclock */
 	if (frontbuffer_bits && dev_priv->drrs.refresh_rate_type == DRRS_LOW_RR)
-		intel_dp_set_drrs_state(dev_priv->dev,
-				dev_priv->drrs.dp->attached_connector->panel.
-				fixed_mode->vrefresh);
+		intel_dp_set_drrs_state(&dev_priv->drm,
+					dev_priv->drrs.dp->attached_connector->panel.
+					fixed_mode->vrefresh);
 
 	mutex_unlock(&dev_priv->drrs.mutex);
 }
@@ -5268,9 +5268,9 @@ void intel_edp_drrs_flush(struct drm_device *dev,
 
 	/* flush means busy screen hence upclock */
 	if (frontbuffer_bits && dev_priv->drrs.refresh_rate_type == DRRS_LOW_RR)
-		intel_dp_set_drrs_state(dev_priv->dev,
-				dev_priv->drrs.dp->attached_connector->panel.
-				fixed_mode->vrefresh);
+		intel_dp_set_drrs_state(&dev_priv->drm,
+					dev_priv->drrs.dp->attached_connector->panel.
+					fixed_mode->vrefresh);
 
 	/*
 	 * flush also means no more activity hence schedule downclock, if all

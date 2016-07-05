@@ -1276,7 +1276,7 @@ static void i915_gem_capture_buffers(struct drm_i915_private *dev_priv,
 static void i915_capture_reg_state(struct drm_i915_private *dev_priv,
 				   struct drm_i915_error_state *error)
 {
-	struct drm_device *dev = dev_priv->dev;
+	struct drm_device *dev = &dev_priv->drm;
 	int i;
 
 	/* General organization
@@ -1446,7 +1446,8 @@ void i915_capture_error_state(struct drm_i915_private *dev_priv,
 		DRM_INFO("Please file a _new_ bug report on bugs.freedesktop.org against DRI -> DRM/Intel\n");
 		DRM_INFO("drm/i915 developers can then reassign to the right component if it's not a kernel issue.\n");
 		DRM_INFO("The gpu crash dump is required to analyze gpu hangs, so please always attach it.\n");
-		DRM_INFO("GPU crash dump saved to /sys/class/drm/card%d/error\n", dev_priv->dev->primary->index);
+		DRM_INFO("GPU crash dump saved to /sys/class/drm/card%d/error\n",
+			 dev_priv->drm.primary->index);
 		warned = true;
 	}
 }

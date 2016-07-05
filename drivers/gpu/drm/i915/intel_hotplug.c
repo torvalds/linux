@@ -144,7 +144,7 @@ static bool intel_hpd_irq_storm_detect(struct drm_i915_private *dev_priv,
 
 static void intel_hpd_irq_storm_disable(struct drm_i915_private *dev_priv)
 {
-	struct drm_device *dev = dev_priv->dev;
+	struct drm_device *dev = &dev_priv->drm;
 	struct drm_mode_config *mode_config = &dev->mode_config;
 	struct intel_connector *intel_connector;
 	struct intel_encoder *intel_encoder;
@@ -191,7 +191,7 @@ static void intel_hpd_irq_storm_reenable_work(struct work_struct *work)
 	struct drm_i915_private *dev_priv =
 		container_of(work, typeof(*dev_priv),
 			     hotplug.reenable_work.work);
-	struct drm_device *dev = dev_priv->dev;
+	struct drm_device *dev = &dev_priv->drm;
 	struct drm_mode_config *mode_config = &dev->mode_config;
 	int i;
 
@@ -302,7 +302,7 @@ static void i915_hotplug_work_func(struct work_struct *work)
 {
 	struct drm_i915_private *dev_priv =
 		container_of(work, struct drm_i915_private, hotplug.hotplug_work);
-	struct drm_device *dev = dev_priv->dev;
+	struct drm_device *dev = &dev_priv->drm;
 	struct drm_mode_config *mode_config = &dev->mode_config;
 	struct intel_connector *intel_connector;
 	struct intel_encoder *intel_encoder;
@@ -455,7 +455,7 @@ void intel_hpd_irq_handler(struct drm_i915_private *dev_priv,
  */
 void intel_hpd_init(struct drm_i915_private *dev_priv)
 {
-	struct drm_device *dev = dev_priv->dev;
+	struct drm_device *dev = &dev_priv->drm;
 	struct drm_mode_config *mode_config = &dev->mode_config;
 	struct drm_connector *connector;
 	int i;

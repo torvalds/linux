@@ -749,14 +749,14 @@ static int i915_audio_component_bind(struct device *i915_dev,
 	if (WARN_ON(acomp->ops || acomp->dev))
 		return -EEXIST;
 
-	drm_modeset_lock_all(dev_priv->dev);
+	drm_modeset_lock_all(&dev_priv->drm);
 	acomp->ops = &i915_audio_component_ops;
 	acomp->dev = i915_dev;
 	BUILD_BUG_ON(MAX_PORTS != I915_MAX_PORTS);
 	for (i = 0; i < ARRAY_SIZE(acomp->aud_sample_rate); i++)
 		acomp->aud_sample_rate[i] = 0;
 	dev_priv->audio_component = acomp;
-	drm_modeset_unlock_all(dev_priv->dev);
+	drm_modeset_unlock_all(&dev_priv->drm);
 
 	return 0;
 }
@@ -767,11 +767,11 @@ static void i915_audio_component_unbind(struct device *i915_dev,
 	struct i915_audio_component *acomp = data;
 	struct drm_i915_private *dev_priv = dev_to_i915(i915_dev);
 
-	drm_modeset_lock_all(dev_priv->dev);
+	drm_modeset_lock_all(&dev_priv->drm);
 	acomp->ops = NULL;
 	acomp->dev = NULL;
 	dev_priv->audio_component = NULL;
-	drm_modeset_unlock_all(dev_priv->dev);
+	drm_modeset_unlock_all(&dev_priv->drm);
 }
 
 static const struct component_ops i915_audio_component_bind_ops = {
@@ -799,7 +799,7 @@ void i915_audio_component_init(struct drm_i915_private *dev_priv)
 {
 	int ret;
 
-	ret = component_add(dev_priv->dev->dev, &i915_audio_component_bind_ops);
+	ret = component_add(dev_priv->drm.dev, &i915_audio_component_bind_ops);
 	if (ret < 0) {
 		DRM_ERROR("failed to add audio component (%d)\n", ret);
 		/* continue with reduced functionality */
@@ -821,6 +821,6 @@ void i915_audio_component_cleanup(struct drm_i915_private *dev_priv)
 	if (!dev_priv->audio_component_registered)
 		return;
 
-	component_del(dev_priv->dev->dev, &i915_audio_component_bind_ops);
+	component_del(dev_priv->drm.dev, &i915_audio_component_bind_ops);
 	dev_priv->audio_component_registered = false;
 }

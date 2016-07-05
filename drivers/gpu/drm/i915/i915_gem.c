@@ -1651,7 +1651,7 @@ __i915_gem_request_retire__upto(struct drm_i915_gem_request *req)
 	struct intel_engine_cs *engine = req->engine;
 	struct drm_i915_gem_request *tmp;
 
-	lockdep_assert_held(&engine->i915->dev->struct_mutex);
+	lockdep_assert_held(&engine->i915->drm.struct_mutex);
 
 	if (list_empty(&req->list))
 		return;
@@ -1680,7 +1680,7 @@ i915_wait_request(struct drm_i915_gem_request *req)
 
 	interruptible = dev_priv->mm.interruptible;
 
-	BUG_ON(!mutex_is_locked(&dev_priv->dev->struct_mutex));
+	BUG_ON(!mutex_is_locked(&dev_priv->drm.struct_mutex));
 
 	ret = __i915_wait_request(req, interruptible, NULL, NULL);
 	if (ret)
@@ -3254,7 +3254,7 @@ void i915_gem_retire_requests(struct drm_i915_private *dev_priv)
 {
 	struct intel_engine_cs *engine;
 
-	lockdep_assert_held(&dev_priv->dev->struct_mutex);
+	lockdep_assert_held(&dev_priv->drm.struct_mutex);
 
 	if (dev_priv->gt.active_engines == 0)
 		return;
@@ -3278,7 +3278,7 @@ i915_gem_retire_work_handler(struct work_struct *work)
 {
 	struct drm_i915_private *dev_priv =
 		container_of(work, typeof(*dev_priv), gt.retire_work.work);
-	struct drm_device *dev = dev_priv->dev;
+	struct drm_device *dev = &dev_priv->drm;
 
 	/* Come back later if the device is busy... */
 	if (mutex_trylock(&dev->struct_mutex)) {
@@ -3301,7 +3301,7 @@ i915_gem_idle_work_handler(struct work_struct *work)
 {
 	struct drm_i915_private *dev_priv =
 		container_of(work, typeof(*dev_priv), gt.idle_work.work);
-	struct drm_device *dev = dev_priv->dev;
+	struct drm_device *dev = &dev_priv->drm;
 	struct intel_engine_cs *engine;
 	unsigned int stuck_engines;
 	bool rearm_hangcheck;
@@ -3713,7 +3713,7 @@ int i915_gem_wait_for_idle(struct drm_i915_private *dev_priv)
 	struct intel_engine_cs *engine;
 	int ret;
 
-	lockdep_assert_held(&dev_priv->dev->struct_mutex);
+	lockdep_assert_held(&dev_priv->drm.struct_mutex);
 
 	for_each_engine(engine, dev_priv) {
 		if (engine->last_context == NULL)
@@ -5252,7 +5252,7 @@ init_engine_lists(struct intel_engine_cs *engine)
 void
 i915_gem_load_init_fences(struct drm_i915_private *dev_priv)
 {
-	struct drm_device *dev = dev_priv->dev;
+	struct drm_device *dev = &dev_priv->drm;
 
 	if (INTEL_INFO(dev_priv)->gen >= 7 && !IS_VALLEYVIEW(dev_priv) &&
 	    !IS_CHERRYVIEW(dev_priv))

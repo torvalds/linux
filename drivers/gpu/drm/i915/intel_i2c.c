@@ -138,7 +138,7 @@ static void intel_i2c_quirk_set(struct drm_i915_private *dev_priv, bool enable)
 static u32 get_reserved(struct intel_gmbus *bus)
 {
 	struct drm_i915_private *dev_priv = bus->dev_priv;
-	struct drm_device *dev = dev_priv->dev;
+	struct drm_device *dev = &dev_priv->drm;
 	u32 reserved = 0;
 
 	/* On most chips, these bits must be preserved in software. */
@@ -212,7 +212,7 @@ intel_gpio_pre_xfer(struct i2c_adapter *adapter)
 					       adapter);
 	struct drm_i915_private *dev_priv = bus->dev_priv;
 
-	intel_i2c_reset(dev_priv->dev);
+	intel_i2c_reset(&dev_priv->drm);
 	intel_i2c_quirk_set(dev_priv, true);
 	set_data(bus, 1);
 	set_clock(bus, 1);
@@ -688,7 +688,7 @@ int intel_setup_gmbus(struct drm_device *dev)
 			goto err;
 	}
 
-	intel_i2c_reset(dev_priv->dev);
+	intel_i2c_reset(&dev_priv->drm);
 
 	return 0;
 
