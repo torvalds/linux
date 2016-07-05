@@ -123,6 +123,7 @@ struct gbaudio_widget {
 struct gbaudio_control {
 	__u8 id;
 	char *name;
+	char *wname;
 	const char * const *texts;
 	struct list_head list;
 };

@@ -77,6 +77,20 @@ static const char *gbaudio_map_controlid(struct gbaudio_module_info *module,
 	return NULL;
 }
 
+static int gbaudio_map_wcontrolname(struct gbaudio_module_info *module,
+					  const char *name)
+{
+	struct gbaudio_control *control;
+
+	list_for_each_entry(control, &module->widget_ctl_list, list) {
+		if (!strncmp(control->wname, name, NAME_SIZE))
+			return control->id;
+	}
+	dev_warn(module->dev, "%s: missing in modules controls list\n", name);
+
+	return -EINVAL;
+}
+
 static int gbaudio_map_widgetname(struct gbaudio_module_info *module,
 					  const char *name)
 {
@@ -652,6 +666,8 @@ static int gbaudio_tplg_create_widget(struct gbaudio_module_info *module,
 		}
 		control->id = curr->id;
 		control->name = curr->name;
+		control->wname = w->name;
+
 		if (curr->info.type == GB_AUDIO_CTL_ELEM_TYPE_ENUMERATED)
 			control->texts = (const char * const *)
 				curr->info.value.enumerated.names;
