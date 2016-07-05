@@ -494,7 +494,7 @@ void __init smp_setup_cpu_maps(void)
 	 * On pSeries LPAR, we need to know how many cpus
 	 * could possibly be added to this partition.
 	 */
-	if (machine_is(pseries) && firmware_has_feature(FW_FEATURE_LPAR) &&
+	if (firmware_has_feature(FW_FEATURE_LPAR) &&
 	    (dn = of_find_node_by_path("/rtas"))) {
 		int num_addr_cell, num_size_cell, maxcpus;
 		const __be32 *ireg;
