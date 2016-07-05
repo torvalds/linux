@@ -117,6 +117,9 @@ struct nf_conn {
 	/* Extensions */
 	struct nf_ct_ext *ext;
 
+#if IS_ENABLED(CONFIG_NF_NAT)
+	struct hlist_node	nat_bysource;
+#endif
 	/* Storage reserved for other modules, must be the last member */
 	union nf_conntrack_proto proto;
 };

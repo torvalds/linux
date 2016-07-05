@@ -99,9 +99,6 @@ void *__nf_ct_ext_add_length(struct nf_conn *ct, enum nf_ct_ext_id id,
 struct nf_ct_ext_type {
 	/* Destroys relationships (can be NULL). */
 	void (*destroy)(struct nf_conn *ct);
-	/* Called when realloacted (can be NULL).
-	   Contents has already been moved. */
-	void (*move)(void *new, void *old);
 
 	enum nf_ct_ext_id id;
 
