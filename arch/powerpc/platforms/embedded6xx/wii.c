@@ -205,10 +205,7 @@ static void __init wii_pic_probe(void)
 
 static int __init wii_probe(void)
 {
-	unsigned long dt_root;
-
-	dt_root = of_get_flat_dt_root();
-	if (!of_flat_dt_is_compatible(dt_root, "nintendo,wii"))
+	if (!of_machine_is_compatible("nintendo,wii"))
 		return 0;
 
 	pm_power_off = wii_power_off;

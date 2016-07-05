@@ -123,9 +123,7 @@ void c2k_show_cpuinfo(struct seq_file *m)
  */
 static int __init c2k_probe(void)
 {
-	unsigned long root = of_get_flat_dt_root();
-
-	if (!of_flat_dt_is_compatible(root, "GEFanuc,C2K"))
+	if (!of_machine_is_compatible("GEFanuc,C2K"))
 		return 0;
 
 	printk(KERN_INFO "Detected a GEFanuc C2K board\n");

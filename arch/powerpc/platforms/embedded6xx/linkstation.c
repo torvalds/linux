@@ -141,11 +141,7 @@ static void linkstation_show_cpuinfo(struct seq_file *m)
 
 static int __init linkstation_probe(void)
 {
-	unsigned long root;
-
-	root = of_get_flat_dt_root();
-
-	if (!of_flat_dt_is_compatible(root, "linkstation"))
+	if (!of_machine_is_compatible("linkstation"))
 		return 0;
 
 	pm_power_off = linkstation_power_off;

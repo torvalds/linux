@@ -113,9 +113,7 @@ void __init pdm360ng_init(void)
 
 static int __init pdm360ng_probe(void)
 {
-	unsigned long root = of_get_flat_dt_root();
-
-	return of_flat_dt_is_compatible(root, "ifm,pdm360ng");
+	return of_machine_is_compatible("ifm,pdm360ng");
 }
 
 define_machine(pdm360ng) {

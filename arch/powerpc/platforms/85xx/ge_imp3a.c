@@ -197,9 +197,7 @@ static void ge_imp3a_show_cpuinfo(struct seq_file *m)
  */
 static int __init ge_imp3a_probe(void)
 {
-	unsigned long root = of_get_flat_dt_root();
-
-	return of_flat_dt_is_compatible(root, "ge,IMP3A");
+	return of_machine_is_compatible("ge,IMP3A");
 }
 
 machine_arch_initcall(ge_imp3a, mpc85xx_common_publish_devices);

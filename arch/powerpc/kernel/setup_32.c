@@ -113,23 +113,7 @@ notrace void __init machine_init(u64 dt_ptr)
 
 	early_init_mmu();
 
-	probe_machine();
-
 	setup_kdump_trampoline();
-
-#ifdef CONFIG_6xx
-	if (cpu_has_feature(CPU_FTR_CAN_DOZE) ||
-	    cpu_has_feature(CPU_FTR_CAN_NAP))
-		ppc_md.power_save = ppc6xx_idle;
-#endif
-
-#ifdef CONFIG_E500
-	if (cpu_has_feature(CPU_FTR_CAN_DOZE) ||
-	    cpu_has_feature(CPU_FTR_CAN_NAP))
-		ppc_md.power_save = e500_idle;
-#endif
-	if (ppc_md.progress)
-		ppc_md.progress("id mach(): done", 0x200);
 }
 
 /* Checks "l2cr=xxxx" command-line option */
@@ -249,6 +233,21 @@ static void __init exc_lvl_early_init(void)
 #define exc_lvl_early_init()
 #endif
 
+static void setup_power_save(void)
+{
+#ifdef CONFIG_6xx
+	if (cpu_has_feature(CPU_FTR_CAN_DOZE) ||
+	    cpu_has_feature(CPU_FTR_CAN_NAP))
+		ppc_md.power_save = ppc6xx_idle;
+#endif
+
+#ifdef CONFIG_E500
+	if (cpu_has_feature(CPU_FTR_CAN_DOZE) ||
+	    cpu_has_feature(CPU_FTR_CAN_NAP))
+		ppc_md.power_save = e500_idle;
+#endif
+}
+
 /* Warning, IO base is not yet inited */
 void __init setup_arch(char **cmdline_p)
 {
@@ -259,6 +258,10 @@ void __init setup_arch(char **cmdline_p)
 
 	unflatten_device_tree();
 	check_for_initrd();
+
+	probe_machine();
+
+	setup_power_save();
 
 	if (ppc_md.init_early)
 		ppc_md.init_early();

@@ -161,9 +161,7 @@ static void __noreturn mpc7448_hpc2_restart(char *cmd)
  */
 static int __init mpc7448_hpc2_probe(void)
 {
-	unsigned long root = of_get_flat_dt_root();
-
-	if (!of_flat_dt_is_compatible(root, "mpc74xx"))
+	if (!of_machine_is_compatible("mpc74xx"))
 		return 0;
 	return 1;
 }

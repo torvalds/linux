@@ -250,9 +250,7 @@ void holly_halt(void)
  */
 static int __init holly_probe(void)
 {
-	unsigned long root = of_get_flat_dt_root();
-
-	if (!of_flat_dt_is_compatible(root, "ibm,holly"))
+	if (!of_machine_is_compatible("ibm,holly"))
 		return 0;
 	return 1;
 }

@@ -275,12 +275,10 @@ static void ppc47x_pci_irq_fixup(struct pci_dev *dev)
  */
 static int __init ppc47x_probe(void)
 {
-	unsigned long root = of_get_flat_dt_root();
-
-	if (of_flat_dt_is_compatible(root, "ibm,akebono"))
+	if (of_machine_is_compatible("ibm,akebono"))
 		return 1;
 
-	if (of_flat_dt_is_compatible(root, "ibm,currituck")) {
+	if (of_machine_is_compatible("ibm,currituck")) {
 		ppc_md.pci_irq_fixup = ppc47x_pci_irq_fixup;
 		return 1;
 	}
