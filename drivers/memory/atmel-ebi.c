@@ -14,7 +14,7 @@
 #include <linux/mfd/syscon.h>
 #include <linux/mfd/syscon/atmel-matrix.h>
 #include <linux/mfd/syscon/atmel-smc.h>
-#include <linux/module.h>
+#include <linux/init.h>
 #include <linux/of_device.h>
 #include <linux/regmap.h>
 
@@ -648,7 +648,6 @@ static const struct of_device_id at91_ebi_id_table[] = {
 	},
 	{ /* sentinel */ }
 };
-MODULE_DEVICE_TABLE(of, at91_ebi_id_table);
 
 static int at91_ebi_dev_disable(struct at91_ebi *ebi, struct device_node *np)
 {
@@ -764,8 +763,4 @@ static struct platform_driver at91_ebi_driver = {
 		.of_match_table	= at91_ebi_id_table,
 	},
 };
-module_platform_driver_probe(at91_ebi_driver, at91_ebi_probe);
-
-MODULE_AUTHOR("Jean-Jacques Hiblot <jjhiblot@traphandler.com>");
-MODULE_DESCRIPTION("Atmel EBI driver");
-MODULE_LICENSE("GPL");
+builtin_platform_driver_probe(at91_ebi_driver, at91_ebi_probe);
