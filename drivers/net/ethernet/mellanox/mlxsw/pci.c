@@ -1255,6 +1255,20 @@ static int mlxsw_pci_config_profile(struct mlxsw_pci *mlxsw_pci, char *mbox,
 		mlxsw_cmd_mbox_config_profile_adaptive_routing_group_cap_set(
 			mbox, profile->adaptive_routing_group_cap);
 	}
+	if (profile->used_kvd_sizes) {
+		mlxsw_cmd_mbox_config_profile_set_kvd_linear_size_set(
+			mbox, 1);
+		mlxsw_cmd_mbox_config_profile_kvd_linear_size_set(
+			mbox, profile->kvd_linear_size);
+		mlxsw_cmd_mbox_config_profile_set_kvd_hash_single_size_set(
+			mbox, 1);
+		mlxsw_cmd_mbox_config_profile_kvd_hash_single_size_set(
+			mbox, profile->kvd_hash_single_size);
+		mlxsw_cmd_mbox_config_profile_set_kvd_hash_double_size_set(
+			mbox, 1);
+		mlxsw_cmd_mbox_config_profile_kvd_hash_double_size_set(
+			mbox, profile->kvd_hash_double_size);
+	}
 
 	for (i = 0; i < MLXSW_CONFIG_PROFILE_SWID_COUNT; i++)
 		mlxsw_pci_config_profile_swid_config(mlxsw_pci, mbox, i,

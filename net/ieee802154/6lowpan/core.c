@@ -81,7 +81,7 @@ static int lowpan_stop(struct net_device *dev)
 	return 0;
 }
 
-static int lowpan_neigh_construct(struct neighbour *n)
+static int lowpan_neigh_construct(struct net_device *dev, struct neighbour *n)
 {
 	struct lowpan_802154_neigh *neigh = lowpan_802154_neigh(neighbour_priv(n));
 

@@ -39,6 +39,7 @@
 
 #include <linux/types.h>
 #include <linux/netdevice.h>
+#include <linux/rhashtable.h>
 #include <linux/bitops.h>
 #include <linux/if_vlan.h>
 #include <linux/list.h>
@@ -74,6 +75,10 @@
 
 #define MLXSW_SP_BYTES_TO_CELLS(b) DIV_ROUND_UP(b, MLXSW_SP_BYTES_PER_CELL)
 #define MLXSW_SP_CELLS_TO_BYTES(c) (c * MLXSW_SP_BYTES_PER_CELL)
+
+#define MLXSW_SP_KVD_LINEAR_SIZE 65536 /* entries */
+#define MLXSW_SP_KVD_HASH_SINGLE_SIZE 163840 /* entries */
+#define MLXSW_SP_KVD_HASH_DOUBLE_SIZE 32768 /* entries */
 
 /* Maximum delay buffer needed in case of PAUSE frames, in cells.
  * Assumes 100m cable and maximum MTU.
@@ -212,6 +217,15 @@ struct mlxsw_sp_vr {
 struct mlxsw_sp_router {
 	struct mlxsw_sp_lpm_tree lpm_trees[MLXSW_SP_LPM_TREE_COUNT];
 	struct mlxsw_sp_vr vrs[MLXSW_SP_VIRTUAL_ROUTER_MAX];
+	struct rhashtable neigh_ht;
+	struct {
+		struct delayed_work dw;
+		unsigned long interval;	/* ms */
+	} neighs_update;
+	struct delayed_work nexthop_probe_dw;
+#define MLXSW_SP_UNRESOLVED_NH_PROBE_INTERVAL 5000 /* ms */
+	struct list_head nexthop_group_list;
+	struct list_head nexthop_neighs_list;
 };
 
 struct mlxsw_sp {
@@ -243,6 +257,9 @@ struct mlxsw_sp {
 	u8 port_to_module[MLXSW_PORT_MAX_PORTS];
 	struct mlxsw_sp_sb sb;
 	struct mlxsw_sp_router router;
+	struct {
+		DECLARE_BITMAP(usage, MLXSW_SP_KVD_LINEAR_SIZE);
+	} kvdl;
 };
 
 static inline struct mlxsw_sp_upper *
@@ -524,5 +541,12 @@ int mlxsw_sp_router_fib4_add(struct mlxsw_sp_port *mlxsw_sp_port,
 			     struct switchdev_trans *trans);
 int mlxsw_sp_router_fib4_del(struct mlxsw_sp_port *mlxsw_sp_port,
 			     const struct switchdev_obj_ipv4_fib *fib4);
+int mlxsw_sp_router_neigh_construct(struct net_device *dev,
+				    struct neighbour *n);
+void mlxsw_sp_router_neigh_destroy(struct net_device *dev,
+				   struct neighbour *n);
+
+int mlxsw_sp_kvdl_alloc(struct mlxsw_sp *mlxsw_sp, unsigned int entry_count);
+void mlxsw_sp_kvdl_free(struct mlxsw_sp *mlxsw_sp, int entry_index);
 
 #endif

@@ -190,7 +190,8 @@ struct mlxsw_config_profile {
 		used_max_ib_mc:1,
 		used_max_pkey:1,
 		used_ar_sec:1,
-		used_adaptive_routing_group_cap:1;
+		used_adaptive_routing_group_cap:1,
+		used_kvd_sizes:1;
 	u8	max_vepa_channels;
 	u16	max_lag;
 	u16	max_port_per_lag;
@@ -211,6 +212,9 @@ struct mlxsw_config_profile {
 	u8	ar_sec;
 	u16	adaptive_routing_group_cap;
 	u8	arn;
+	u32	kvd_linear_size;
+	u32	kvd_hash_single_size;
+	u32	kvd_hash_double_size;
 	struct mlxsw_swid_config swid_config[MLXSW_CONFIG_PROFILE_SWID_COUNT];
 };
 

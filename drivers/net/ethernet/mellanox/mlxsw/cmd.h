@@ -607,6 +607,24 @@ MLXSW_ITEM32(cmd_mbox, config_profile,
  */
 MLXSW_ITEM32(cmd_mbox, config_profile, set_ar_sec, 0x0C, 15, 1);
 
+/* cmd_mbox_config_set_kvd_linear_size
+ * Capability bit. Setting a bit to 1 configures the profile
+ * according to the mailbox contents.
+ */
+MLXSW_ITEM32(cmd_mbox, config_profile, set_kvd_linear_size, 0x0C, 24, 1);
+
+/* cmd_mbox_config_set_kvd_hash_single_size
+ * Capability bit. Setting a bit to 1 configures the profile
+ * according to the mailbox contents.
+ */
+MLXSW_ITEM32(cmd_mbox, config_profile, set_kvd_hash_single_size, 0x0C, 25, 1);
+
+/* cmd_mbox_config_set_kvd_hash_double_size
+ * Capability bit. Setting a bit to 1 configures the profile
+ * according to the mailbox contents.
+ */
+MLXSW_ITEM32(cmd_mbox, config_profile, set_kvd_hash_double_size, 0x0C, 26, 1);
+
 /* cmd_mbox_config_profile_max_vepa_channels
  * Maximum number of VEPA channels per port (0 through 16)
  * 0 - multi-channel VEPA is disabled
@@ -732,6 +750,31 @@ MLXSW_ITEM32(cmd_mbox, config_profile, adaptive_routing_group_cap, 0x4C, 0, 16);
  * Not supported in SwitchX, SwitchX-2
  */
 MLXSW_ITEM32(cmd_mbox, config_profile, arn, 0x50, 31, 1);
+
+/* cmd_mbox_config_kvd_linear_size
+ * KVD Linear Size
+ * Valid for Spectrum only
+ * Allowed values are 128*N where N=0 or higher
+ */
+MLXSW_ITEM32(cmd_mbox, config_profile, kvd_linear_size, 0x54, 0, 24);
+
+/* cmd_mbox_config_kvd_hash_single_size
+ * KVD Hash single-entries size
+ * Valid for Spectrum only
+ * Allowed values are 128*N where N=0 or higher
+ * Must be greater or equal to cap_min_kvd_hash_single_size
+ * Must be smaller or equal to cap_kvd_size - kvd_linear_size
+ */
+MLXSW_ITEM32(cmd_mbox, config_profile, kvd_hash_single_size, 0x58, 0, 24);
+
+/* cmd_mbox_config_kvd_hash_double_size
+ * KVD Hash double-entries size (units of single-size entries)
+ * Valid for Spectrum only
+ * Allowed values are 128*N where N=0 or higher
+ * Must be either 0 or greater or equal to cap_min_kvd_hash_double_size
+ * Must be smaller or equal to cap_kvd_size - kvd_linear_size
+ */
+MLXSW_ITEM32(cmd_mbox, config_profile, kvd_hash_double_size, 0x5C, 0, 24);
 
 /* cmd_mbox_config_profile_swid_config_mask
  * Modify Switch Partition Configuration mask. When set, the configu-

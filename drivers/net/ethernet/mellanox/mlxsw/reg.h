@@ -4,6 +4,7 @@
  * Copyright (c) 2015-2016 Ido Schimmel <idosch@mellanox.com>
  * Copyright (c) 2015 Elad Raz <eladr@mellanox.com>
  * Copyright (c) 2015-2016 Jiri Pirko <jiri@mellanox.com>
+ * Copyright (c) 2016 Yotam Gigi <yotamg@mellanox.com>
  *
  * Redistribution and use in source and binary forms, with or without
  * modification, are permitted provided that the following conditions are met:
@@ -3454,6 +3455,137 @@ static inline void mlxsw_reg_ritr_pack(char *payload, bool enable,
 	mlxsw_reg_ritr_if_mac_memcpy_to(payload, mac);
 }
 
+/* RATR - Router Adjacency Table Register
+ * --------------------------------------
+ * The RATR register is used to configure the Router Adjacency (next-hop)
+ * Table.
+ */
+#define MLXSW_REG_RATR_ID 0x8008
+#define MLXSW_REG_RATR_LEN 0x2C
+
+static const struct mlxsw_reg_info mlxsw_reg_ratr = {
+	.id = MLXSW_REG_RATR_ID,
+	.len = MLXSW_REG_RATR_LEN,
+};
+
+enum mlxsw_reg_ratr_op {
+	/* Read */
+	MLXSW_REG_RATR_OP_QUERY_READ = 0,
+	/* Read and clear activity */
+	MLXSW_REG_RATR_OP_QUERY_READ_CLEAR = 2,
+	/* Write Adjacency entry */
+	MLXSW_REG_RATR_OP_WRITE_WRITE_ENTRY = 1,
+	/* Write Adjacency entry only if the activity is cleared.
+	 * The write may not succeed if the activity is set. There is not
+	 * direct feedback if the write has succeeded or not, however
+	 * the get will reveal the actual entry (SW can compare the get
+	 * response to the set command).
+	 */
+	MLXSW_REG_RATR_OP_WRITE_WRITE_ENTRY_ON_ACTIVITY = 3,
+};
+
+/* reg_ratr_op
+ * Note that Write operation may also be used for updating
+ * counter_set_type and counter_index. In this case all other
+ * fields must not be updated.
+ * Access: OP
+ */
+MLXSW_ITEM32(reg, ratr, op, 0x00, 28, 4);
+
+/* reg_ratr_v
+ * Valid bit. Indicates if the adjacency entry is valid.
+ * Note: the device may need some time before reusing an invalidated
+ * entry. During this time the entry can not be reused. It is
+ * recommended to use another entry before reusing an invalidated
+ * entry (e.g. software can put it at the end of the list for
+ * reusing). Trying to access an invalidated entry not yet cleared
+ * by the device results with failure indicating "Try Again" status.
+ * When valid is '0' then egress_router_interface,trap_action,
+ * adjacency_parameters and counters are reserved
+ * Access: RW
+ */
+MLXSW_ITEM32(reg, ratr, v, 0x00, 24, 1);
+
+/* reg_ratr_a
+ * Activity. Set for new entries. Set if a packet lookup has hit on
+ * the specific entry. To clear the a bit, use "clear activity".
+ * Access: RO
+ */
+MLXSW_ITEM32(reg, ratr, a, 0x00, 16, 1);
+
+/* reg_ratr_adjacency_index_low
+ * Bits 15:0 of index into the adjacency table.
+ * For SwitchX and SwitchX-2, the adjacency table is linear and
+ * used for adjacency entries only.
+ * For Spectrum, the index is to the KVD linear.
+ * Access: Index
+ */
+MLXSW_ITEM32(reg, ratr, adjacency_index_low, 0x04, 0, 16);
+
+/* reg_ratr_egress_router_interface
+ * Range is 0 .. cap_max_router_interfaces - 1
+ * Access: RW
+ */
+MLXSW_ITEM32(reg, ratr, egress_router_interface, 0x08, 0, 16);
+
+enum mlxsw_reg_ratr_trap_action {
+	MLXSW_REG_RATR_TRAP_ACTION_NOP,
+	MLXSW_REG_RATR_TRAP_ACTION_TRAP,
+	MLXSW_REG_RATR_TRAP_ACTION_MIRROR_TO_CPU,
+	MLXSW_REG_RATR_TRAP_ACTION_MIRROR,
+	MLXSW_REG_RATR_TRAP_ACTION_DISCARD_ERRORS,
+};
+
+/* reg_ratr_trap_action
+ * see mlxsw_reg_ratr_trap_action
+ * Access: RW
+ */
+MLXSW_ITEM32(reg, ratr, trap_action, 0x0C, 28, 4);
+
+enum mlxsw_reg_ratr_trap_id {
+	MLXSW_REG_RATR_TRAP_ID_RTR_EGRESS0 = 0,
+	MLXSW_REG_RATR_TRAP_ID_RTR_EGRESS1 = 1,
+};
+
+/* reg_ratr_adjacency_index_high
+ * Bits 23:16 of the adjacency_index.
+ * Access: Index
+ */
+MLXSW_ITEM32(reg, ratr, adjacency_index_high, 0x0C, 16, 8);
+
+/* reg_ratr_trap_id
+ * Trap ID to be reported to CPU.
+ * Trap-ID is RTR_EGRESS0 or RTR_EGRESS1.
+ * For trap_action of NOP, MIRROR and DISCARD_ERROR
+ * Access: RW
+ */
+MLXSW_ITEM32(reg, ratr, trap_id, 0x0C, 0, 8);
+
+/* reg_ratr_eth_destination_mac
+ * MAC address of the destination next-hop.
+ * Access: RW
+ */
+MLXSW_ITEM_BUF(reg, ratr, eth_destination_mac, 0x12, 6);
+
+static inline void
+mlxsw_reg_ratr_pack(char *payload,
+		    enum mlxsw_reg_ratr_op op, bool valid,
+		    u32 adjacency_index, u16 egress_rif)
+{
+	MLXSW_REG_ZERO(ratr, payload);
+	mlxsw_reg_ratr_op_set(payload, op);
+	mlxsw_reg_ratr_v_set(payload, valid);
+	mlxsw_reg_ratr_adjacency_index_low_set(payload, adjacency_index);
+	mlxsw_reg_ratr_adjacency_index_high_set(payload, adjacency_index >> 16);
+	mlxsw_reg_ratr_egress_router_interface_set(payload, egress_rif);
+}
+
+static inline void mlxsw_reg_ratr_eth_entry_pack(char *payload,
+						 const char *dest_mac)
+{
+	mlxsw_reg_ratr_eth_destination_mac_memcpy_to(payload, dest_mac);
+}
+
 /* RALTA - Router Algorithmic LPM Tree Allocation Register
  * -------------------------------------------------------
  * RALTA is used to allocate the LPM trees of the SHSPM method.
@@ -3882,6 +4014,356 @@ mlxsw_reg_ralue_act_ip2me_pack(char *payload)
 {
 	mlxsw_reg_ralue_action_type_set(payload,
 					MLXSW_REG_RALUE_ACTION_TYPE_IP2ME);
+}
+
+/* RAUHT - Router Algorithmic LPM Unicast Host Table Register
+ * ----------------------------------------------------------
+ * The RAUHT register is used to configure and query the Unicast Host table in
+ * devices that implement the Algorithmic LPM.
+ */
+#define MLXSW_REG_RAUHT_ID 0x8014
+#define MLXSW_REG_RAUHT_LEN 0x74
+
+static const struct mlxsw_reg_info mlxsw_reg_rauht = {
+	.id = MLXSW_REG_RAUHT_ID,
+	.len = MLXSW_REG_RAUHT_LEN,
+};
+
+enum mlxsw_reg_rauht_type {
+	MLXSW_REG_RAUHT_TYPE_IPV4,
+	MLXSW_REG_RAUHT_TYPE_IPV6,
+};
+
+/* reg_rauht_type
+ * Access: Index
+ */
+MLXSW_ITEM32(reg, rauht, type, 0x00, 24, 2);
+
+enum mlxsw_reg_rauht_op {
+	MLXSW_REG_RAUHT_OP_QUERY_READ = 0,
+	/* Read operation */
+	MLXSW_REG_RAUHT_OP_QUERY_CLEAR_ON_READ = 1,
+	/* Clear on read operation. Used to read entry and clear
+	 * activity bit.
+	 */
+	MLXSW_REG_RAUHT_OP_WRITE_ADD = 0,
+	/* Add. Used to write a new entry to the table. All R/W fields are
+	 * relevant for new entry. Activity bit is set for new entries.
+	 */
+	MLXSW_REG_RAUHT_OP_WRITE_UPDATE = 1,
+	/* Update action. Used to update an existing route entry and
+	 * only update the following fields:
+	 * trap_action, trap_id, mac, counter_set_type, counter_index
+	 */
+	MLXSW_REG_RAUHT_OP_WRITE_CLEAR_ACTIVITY = 2,
+	/* Clear activity. A bit is cleared for the entry. */
+	MLXSW_REG_RAUHT_OP_WRITE_DELETE = 3,
+	/* Delete entry */
+	MLXSW_REG_RAUHT_OP_WRITE_DELETE_ALL = 4,
+	/* Delete all host entries on a RIF. In this command, dip
+	 * field is reserved.
+	 */
+};
+
+/* reg_rauht_op
+ * Access: OP
+ */
+MLXSW_ITEM32(reg, rauht, op, 0x00, 20, 3);
+
+/* reg_rauht_a
+ * Activity. Set for new entries. Set if a packet lookup has hit on
+ * the specific entry.
+ * To clear the a bit, use "clear activity" op.
+ * Enabled by activity_dis in RGCR
+ * Access: RO
+ */
+MLXSW_ITEM32(reg, rauht, a, 0x00, 16, 1);
+
+/* reg_rauht_rif
+ * Router Interface
+ * Access: Index
+ */
+MLXSW_ITEM32(reg, rauht, rif, 0x00, 0, 16);
+
+/* reg_rauht_dip*
+ * Destination address.
+ * Access: Index
+ */
+MLXSW_ITEM32(reg, rauht, dip4, 0x1C, 0x0, 32);
+
+enum mlxsw_reg_rauht_trap_action {
+	MLXSW_REG_RAUHT_TRAP_ACTION_NOP,
+	MLXSW_REG_RAUHT_TRAP_ACTION_TRAP,
+	MLXSW_REG_RAUHT_TRAP_ACTION_MIRROR_TO_CPU,
+	MLXSW_REG_RAUHT_TRAP_ACTION_MIRROR,
+	MLXSW_REG_RAUHT_TRAP_ACTION_DISCARD_ERRORS,
+};
+
+/* reg_rauht_trap_action
+ * Access: RW
+ */
+MLXSW_ITEM32(reg, rauht, trap_action, 0x60, 28, 4);
+
+enum mlxsw_reg_rauht_trap_id {
+	MLXSW_REG_RAUHT_TRAP_ID_RTR_EGRESS0,
+	MLXSW_REG_RAUHT_TRAP_ID_RTR_EGRESS1,
+};
+
+/* reg_rauht_trap_id
+ * Trap ID to be reported to CPU.
+ * Trap-ID is RTR_EGRESS0 or RTR_EGRESS1.
+ * For trap_action of NOP, MIRROR and DISCARD_ERROR,
+ * trap_id is reserved.
+ * Access: RW
+ */
+MLXSW_ITEM32(reg, rauht, trap_id, 0x60, 0, 9);
+
+/* reg_rauht_counter_set_type
+ * Counter set type for flow counters
+ * Access: RW
+ */
+MLXSW_ITEM32(reg, rauht, counter_set_type, 0x68, 24, 8);
+
+/* reg_rauht_counter_index
+ * Counter index for flow counters
+ * Access: RW
+ */
+MLXSW_ITEM32(reg, rauht, counter_index, 0x68, 0, 24);
+
+/* reg_rauht_mac
+ * MAC address.
+ * Access: RW
+ */
+MLXSW_ITEM_BUF(reg, rauht, mac, 0x6E, 6);
+
+static inline void mlxsw_reg_rauht_pack(char *payload,
+					enum mlxsw_reg_rauht_op op, u16 rif,
+					const char *mac)
+{
+	MLXSW_REG_ZERO(rauht, payload);
+	mlxsw_reg_rauht_op_set(payload, op);
+	mlxsw_reg_rauht_rif_set(payload, rif);
+	mlxsw_reg_rauht_mac_memcpy_to(payload, mac);
+}
+
+static inline void mlxsw_reg_rauht_pack4(char *payload,
+					 enum mlxsw_reg_rauht_op op, u16 rif,
+					 const char *mac, u32 dip)
+{
+	mlxsw_reg_rauht_pack(payload, op, rif, mac);
+	mlxsw_reg_rauht_dip4_set(payload, dip);
+}
+
+/* RALEU - Router Algorithmic LPM ECMP Update Register
+ * ---------------------------------------------------
+ * The register enables updating the ECMP section in the action for multiple
+ * LPM Unicast entries in a single operation. The update is executed to
+ * all entries of a {virtual router, protocol} tuple using the same ECMP group.
+ */
+#define MLXSW_REG_RALEU_ID 0x8015
+#define MLXSW_REG_RALEU_LEN 0x28
+
+static const struct mlxsw_reg_info mlxsw_reg_raleu = {
+	.id = MLXSW_REG_RALEU_ID,
+	.len = MLXSW_REG_RALEU_LEN,
+};
+
+/* reg_raleu_protocol
+ * Protocol.
+ * Access: Index
+ */
+MLXSW_ITEM32(reg, raleu, protocol, 0x00, 24, 4);
+
+/* reg_raleu_virtual_router
+ * Virtual Router ID
+ * Range is 0..cap_max_virtual_routers-1
+ * Access: Index
+ */
+MLXSW_ITEM32(reg, raleu, virtual_router, 0x00, 0, 16);
+
+/* reg_raleu_adjacency_index
+ * Adjacency Index used for matching on the existing entries.
+ * Access: Index
+ */
+MLXSW_ITEM32(reg, raleu, adjacency_index, 0x10, 0, 24);
+
+/* reg_raleu_ecmp_size
+ * ECMP Size used for matching on the existing entries.
+ * Access: Index
+ */
+MLXSW_ITEM32(reg, raleu, ecmp_size, 0x14, 0, 13);
+
+/* reg_raleu_new_adjacency_index
+ * New Adjacency Index.
+ * Access: WO
+ */
+MLXSW_ITEM32(reg, raleu, new_adjacency_index, 0x20, 0, 24);
+
+/* reg_raleu_new_ecmp_size
+ * New ECMP Size.
+ * Access: WO
+ */
+MLXSW_ITEM32(reg, raleu, new_ecmp_size, 0x24, 0, 13);
+
+static inline void mlxsw_reg_raleu_pack(char *payload,
+					enum mlxsw_reg_ralxx_protocol protocol,
+					u16 virtual_router,
+					u32 adjacency_index, u16 ecmp_size,
+					u32 new_adjacency_index,
+					u16 new_ecmp_size)
+{
+	MLXSW_REG_ZERO(raleu, payload);
+	mlxsw_reg_raleu_protocol_set(payload, protocol);
+	mlxsw_reg_raleu_virtual_router_set(payload, virtual_router);
+	mlxsw_reg_raleu_adjacency_index_set(payload, adjacency_index);
+	mlxsw_reg_raleu_ecmp_size_set(payload, ecmp_size);
+	mlxsw_reg_raleu_new_adjacency_index_set(payload, new_adjacency_index);
+	mlxsw_reg_raleu_new_ecmp_size_set(payload, new_ecmp_size);
+}
+
+/* RAUHTD - Router Algorithmic LPM Unicast Host Table Dump Register
+ * ----------------------------------------------------------------
+ * The RAUHTD register allows dumping entries from the Router Unicast Host
+ * Table. For a given session an entry is dumped no more than one time. The
+ * first RAUHTD access after reset is a new session. A session ends when the
+ * num_rec response is smaller than num_rec request or for IPv4 when the
+ * num_entries is smaller than 4. The clear activity affect the current session
+ * or the last session if a new session has not started.
+ */
+#define MLXSW_REG_RAUHTD_ID 0x8018
+#define MLXSW_REG_RAUHTD_BASE_LEN 0x20
+#define MLXSW_REG_RAUHTD_REC_LEN 0x20
+#define MLXSW_REG_RAUHTD_REC_MAX_NUM 32
+#define MLXSW_REG_RAUHTD_LEN (MLXSW_REG_RAUHTD_BASE_LEN + \
+		MLXSW_REG_RAUHTD_REC_MAX_NUM * MLXSW_REG_RAUHTD_REC_LEN)
+#define MLXSW_REG_RAUHTD_IPV4_ENT_PER_REC 4
+
+static const struct mlxsw_reg_info mlxsw_reg_rauhtd = {
+	.id = MLXSW_REG_RAUHTD_ID,
+	.len = MLXSW_REG_RAUHTD_LEN,
+};
+
+#define MLXSW_REG_RAUHTD_FILTER_A BIT(0)
+#define MLXSW_REG_RAUHTD_FILTER_RIF BIT(3)
+
+/* reg_rauhtd_filter_fields
+ * if a bit is '0' then the relevant field is ignored and dump is done
+ * regardless of the field value
+ * Bit0 - filter by activity: entry_a
+ * Bit3 - filter by entry rip: entry_rif
+ * Access: Index
+ */
+MLXSW_ITEM32(reg, rauhtd, filter_fields, 0x00, 0, 8);
+
+enum mlxsw_reg_rauhtd_op {
+	MLXSW_REG_RAUHTD_OP_DUMP,
+	MLXSW_REG_RAUHTD_OP_DUMP_AND_CLEAR,
+};
+
+/* reg_rauhtd_op
+ * Access: OP
+ */
+MLXSW_ITEM32(reg, rauhtd, op, 0x04, 24, 2);
+
+/* reg_rauhtd_num_rec
+ * At request: number of records requested
+ * At response: number of records dumped
+ * For IPv4, each record has 4 entries at request and up to 4 entries
+ * at response
+ * Range is 0..MLXSW_REG_RAUHTD_REC_MAX_NUM
+ * Access: Index
+ */
+MLXSW_ITEM32(reg, rauhtd, num_rec, 0x04, 0, 8);
+
+/* reg_rauhtd_entry_a
+ * Dump only if activity has value of entry_a
+ * Reserved if filter_fields bit0 is '0'
+ * Access: Index
+ */
+MLXSW_ITEM32(reg, rauhtd, entry_a, 0x08, 16, 1);
+
+enum mlxsw_reg_rauhtd_type {
+	MLXSW_REG_RAUHTD_TYPE_IPV4,
+	MLXSW_REG_RAUHTD_TYPE_IPV6,
+};
+
+/* reg_rauhtd_type
+ * Dump only if record type is:
+ * 0 - IPv4
+ * 1 - IPv6
+ * Access: Index
+ */
+MLXSW_ITEM32(reg, rauhtd, type, 0x08, 0, 4);
+
+/* reg_rauhtd_entry_rif
+ * Dump only if RIF has value of entry_rif
+ * Reserved if filter_fields bit3 is '0'
+ * Access: Index
+ */
+MLXSW_ITEM32(reg, rauhtd, entry_rif, 0x0C, 0, 16);
+
+static inline void mlxsw_reg_rauhtd_pack(char *payload,
+					 enum mlxsw_reg_rauhtd_type type)
+{
+	MLXSW_REG_ZERO(rauhtd, payload);
+	mlxsw_reg_rauhtd_filter_fields_set(payload, MLXSW_REG_RAUHTD_FILTER_A);
+	mlxsw_reg_rauhtd_op_set(payload, MLXSW_REG_RAUHTD_OP_DUMP_AND_CLEAR);
+	mlxsw_reg_rauhtd_num_rec_set(payload, MLXSW_REG_RAUHTD_REC_MAX_NUM);
+	mlxsw_reg_rauhtd_entry_a_set(payload, 1);
+	mlxsw_reg_rauhtd_type_set(payload, type);
+}
+
+/* reg_rauhtd_ipv4_rec_num_entries
+ * Number of valid entries in this record:
+ * 0 - 1 valid entry
+ * 1 - 2 valid entries
+ * 2 - 3 valid entries
+ * 3 - 4 valid entries
+ * Access: RO
+ */
+MLXSW_ITEM32_INDEXED(reg, rauhtd, ipv4_rec_num_entries,
+		     MLXSW_REG_RAUHTD_BASE_LEN, 28, 2,
+		     MLXSW_REG_RAUHTD_REC_LEN, 0x00, false);
+
+/* reg_rauhtd_rec_type
+ * Record type.
+ * 0 - IPv4
+ * 1 - IPv6
+ * Access: RO
+ */
+MLXSW_ITEM32_INDEXED(reg, rauhtd, rec_type, MLXSW_REG_RAUHTD_BASE_LEN, 24, 2,
+		     MLXSW_REG_RAUHTD_REC_LEN, 0x00, false);
+
+#define MLXSW_REG_RAUHTD_IPV4_ENT_LEN 0x8
+
+/* reg_rauhtd_ipv4_ent_a
+ * Activity. Set for new entries. Set if a packet lookup has hit on the
+ * specific entry.
+ * Access: RO
+ */
+MLXSW_ITEM32_INDEXED(reg, rauhtd, ipv4_ent_a, MLXSW_REG_RAUHTD_BASE_LEN, 16, 1,
+		     MLXSW_REG_RAUHTD_IPV4_ENT_LEN, 0x00, false);
+
+/* reg_rauhtd_ipv4_ent_rif
+ * Router interface.
+ * Access: RO
+ */
+MLXSW_ITEM32_INDEXED(reg, rauhtd, ipv4_ent_rif, MLXSW_REG_RAUHTD_BASE_LEN, 0,
+		     16, MLXSW_REG_RAUHTD_IPV4_ENT_LEN, 0x00, false);
+
+/* reg_rauhtd_ipv4_ent_dip
+ * Destination IPv4 address.
+ * Access: RO
+ */
+MLXSW_ITEM32_INDEXED(reg, rauhtd, ipv4_ent_dip, MLXSW_REG_RAUHTD_BASE_LEN, 0,
+		     32, MLXSW_REG_RAUHTD_IPV4_ENT_LEN, 0x04, false);
+
+static inline void mlxsw_reg_rauhtd_ent_ipv4_unpack(char *payload,
+						    int ent_index, u16 *p_rif,
+						    u32 *p_dip)
+{
+	*p_rif = mlxsw_reg_rauhtd_ipv4_ent_rif_get(payload, ent_index);
+	*p_dip = mlxsw_reg_rauhtd_ipv4_ent_dip_get(payload, ent_index);
 }
 
 /* MFCR - Management Fan Control Register
@@ -4626,6 +5108,8 @@ static inline const char *mlxsw_reg_id_str(u16 reg_id)
 		return "RGCR";
 	case MLXSW_REG_RITR_ID:
 		return "RITR";
+	case MLXSW_REG_RATR_ID:
+		return "RATR";
 	case MLXSW_REG_RALTA_ID:
 		return "RALTA";
 	case MLXSW_REG_RALST_ID:
@@ -4634,6 +5118,12 @@ static inline const char *mlxsw_reg_id_str(u16 reg_id)
 		return "RALTB";
 	case MLXSW_REG_RALUE_ID:
 		return "RALUE";
+	case MLXSW_REG_RAUHT_ID:
+		return "RAUHT";
+	case MLXSW_REG_RALEU_ID:
+		return "RALEU";
+	case MLXSW_REG_RAUHTD_ID:
+		return "RAUHTD";
 	case MLXSW_REG_MFCR_ID:
 		return "MFCR";
 	case MLXSW_REG_MFSC_ID:
