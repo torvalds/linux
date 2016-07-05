@@ -6,6 +6,13 @@
 #include "tests.h"
 #include "debug.h"
 
+#ifndef O_DIRECTORY
+#define O_DIRECTORY    00200000
+#endif
+#ifndef AT_FDCWD
+#define AT_FDCWD       -100
+#endif
+
 int test__syscall_openat_tp_fields(int subtest __maybe_unused)
 {
 	struct record_opts opts = {
