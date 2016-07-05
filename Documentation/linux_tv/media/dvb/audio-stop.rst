@@ -15,7 +15,7 @@ AUDIO_STOP
 Synopsis
 --------
 
-.. c:function:: int ioctl(int fd, int request = AUDIO_STOP)
+.. cpp:function:: int ioctl(int fd, int request = AUDIO_STOP)
 
 
 Arguments

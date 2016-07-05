@@ -15,7 +15,7 @@ AUDIO_SET_ATTRIBUTES
 Synopsis
 --------
 
-.. c:function:: int ioctl(fd, int request = AUDIO_SET_ATTRIBUTES, audio_attributes_t attr )
+.. cpp:function:: int ioctl(fd, int request = AUDIO_SET_ATTRIBUTES, audio_attributes_t attr )
 
 
 Arguments

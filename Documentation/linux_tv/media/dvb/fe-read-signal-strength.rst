@@ -15,7 +15,7 @@ FE_READ_SIGNAL_STRENGTH
 Synopsis
 ========
 
-.. c:function:: int ioctl( int fd, int request = FE_READ_SIGNAL_STRENGTH, uint16_t *strength)
+.. cpp:function:: int ioctl( int fd, int request = FE_READ_SIGNAL_STRENGTH, uint16_t *strength)
 
 
 Arguments

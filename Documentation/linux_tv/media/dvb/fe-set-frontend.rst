@@ -15,7 +15,7 @@ FE_SET_FRONTEND
 Synopsis
 ========
 
-.. c:function:: int ioctl(int fd, int request = FE_SET_FRONTEND, struct dvb_frontend_parameters *p)
+.. cpp:function:: int ioctl(int fd, int request = FE_SET_FRONTEND, struct dvb_frontend_parameters *p)
 
 
 Arguments

@@ -15,7 +15,7 @@ DMX_START
 Synopsis
 --------
 
-.. c:function:: int ioctl( int fd, int request = DMX_START)
+.. cpp:function:: int ioctl( int fd, int request = DMX_START)
 
 
 Arguments

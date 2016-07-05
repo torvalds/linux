@@ -15,7 +15,7 @@ VIDEO_GET_FRAME_RATE
 Synopsis
 --------
 
-.. c:function:: int ioctl(int fd, int request = VIDEO_GET_FRAME_RATE, unsigned int *rate)
+.. cpp:function:: int ioctl(int fd, int request = VIDEO_GET_FRAME_RATE, unsigned int *rate)
 
 
 Arguments

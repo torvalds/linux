@@ -15,7 +15,7 @@ AUDIO_CHANNEL_SELECT
 Synopsis
 --------
 
-.. c:function:: int ioctl(int fd, int request = AUDIO_CHANNEL_SELECT, audio_channel_select_t)
+.. cpp:function:: int ioctl(int fd, int request = AUDIO_CHANNEL_SELECT, audio_channel_select_t)
 
 
 Arguments

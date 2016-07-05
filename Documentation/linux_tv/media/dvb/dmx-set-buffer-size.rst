@@ -15,7 +15,7 @@ DMX_SET_BUFFER_SIZE
 Synopsis
 --------
 
-.. c:function:: int ioctl( int fd, int request = DMX_SET_BUFFER_SIZE, unsigned long size)
+.. cpp:function:: int ioctl( int fd, int request = DMX_SET_BUFFER_SIZE, unsigned long size)
 
 
 Arguments

@@ -15,7 +15,7 @@ VIDEO_SET_SYSTEM
 Synopsis
 --------
 
-.. c:function:: int ioctl(fd, int request = VIDEO_SET_SYSTEM , video_system_t system)
+.. cpp:function:: int ioctl(fd, int request = VIDEO_SET_SYSTEM , video_system_t system)
 
 
 Arguments

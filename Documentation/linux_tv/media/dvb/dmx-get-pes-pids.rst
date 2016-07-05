@@ -15,7 +15,7 @@ DMX_GET_PES_PIDS
 Synopsis
 --------
 
-.. c:function:: int ioctl(fd, int request = DMX_GET_PES_PIDS, __u16[5])
+.. cpp:function:: int ioctl(fd, int request = DMX_GET_PES_PIDS, __u16[5])
 
 
 Arguments

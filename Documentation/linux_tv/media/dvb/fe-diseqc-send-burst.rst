@@ -15,7 +15,7 @@ FE_DISEQC_SEND_BURST - Sends a 22KHz tone burst for 2x1 mini DiSEqC satellite se
 Synopsis
 ========
 
-.. c:function:: int ioctl( int fd, int request, enum fe_sec_mini_cmd *tone )
+.. cpp:function:: int ioctl( int fd, int request, enum fe_sec_mini_cmd *tone )
 
 
 Arguments

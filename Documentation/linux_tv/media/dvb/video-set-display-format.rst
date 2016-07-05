@@ -15,7 +15,7 @@ VIDEO_SET_DISPLAY_FORMAT
 Synopsis
 --------
 
-.. c:function:: int ioctl(fd, int request = VIDEO_SET_DISPLAY_FORMAT, video_display_format_t format)
+.. cpp:function:: int ioctl(fd, int request = VIDEO_SET_DISPLAY_FORMAT, video_display_format_t format)
 
 
 Arguments

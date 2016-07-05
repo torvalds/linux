@@ -15,7 +15,7 @@ VIDEO_GET_STATUS
 Synopsis
 --------
 
-.. c:function:: int ioctl(fd, int request = VIDEO_GET_STATUS, struct video_status *status)
+.. cpp:function:: int ioctl(fd, int request = VIDEO_GET_STATUS, struct video_status *status)
 
 
 Arguments

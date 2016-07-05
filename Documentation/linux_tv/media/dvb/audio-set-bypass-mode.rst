@@ -15,7 +15,7 @@ AUDIO_SET_BYPASS_MODE
 Synopsis
 --------
 
-.. c:function:: int ioctl(int fd, int request = AUDIO_SET_BYPASS_MODE, boolean mode)
+.. cpp:function:: int ioctl(int fd, int request = AUDIO_SET_BYPASS_MODE, boolean mode)
 
 
 Arguments

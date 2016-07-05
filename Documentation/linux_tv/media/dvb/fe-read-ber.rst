@@ -14,7 +14,7 @@ FE_READ_BER
 Synopsis
 ========
 
-.. c:function:: int  ioctl(int fd, int request = FE_READ_BER, uint32_t *ber)
+.. cpp:function:: int  ioctl(int fd, int request = FE_READ_BER, uint32_t *ber)
 
 
 Arguments

@@ -15,7 +15,7 @@ DMX_SET_FILTER
 Synopsis
 --------
 
-.. c:function:: int ioctl( int fd, int request = DMX_SET_FILTER, struct dmx_sct_filter_params *params)
+.. cpp:function:: int ioctl( int fd, int request = DMX_SET_FILTER, struct dmx_sct_filter_params *params)
 
 
 Arguments

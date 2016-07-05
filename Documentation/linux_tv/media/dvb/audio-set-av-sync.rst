@@ -15,7 +15,7 @@ AUDIO_SET_AV_SYNC
 Synopsis
 --------
 
-.. c:function:: int  ioctl(int fd, int request = AUDIO_SET_AV_SYNC, boolean state)
+.. cpp:function:: int  ioctl(int fd, int request = AUDIO_SET_AV_SYNC, boolean state)
 
 
 Arguments

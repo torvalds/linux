@@ -15,7 +15,7 @@ VIDEO_SET_STREAMTYPE
 Synopsis
 --------
 
-.. c:function:: int ioctl(fd, int request = VIDEO_SET_STREAMTYPE, int type)
+.. cpp:function:: int ioctl(fd, int request = VIDEO_SET_STREAMTYPE, int type)
 
 
 Arguments

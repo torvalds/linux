@@ -15,7 +15,7 @@ VIDEO_GET_CAPABILITIES
 Synopsis
 --------
 
-.. c:function:: int ioctl(fd, int request = VIDEO_GET_CAPABILITIES, unsigned int *cap)
+.. cpp:function:: int ioctl(fd, int request = VIDEO_GET_CAPABILITIES, unsigned int *cap)
 
 
 Arguments

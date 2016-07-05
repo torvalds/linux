@@ -37,16 +37,10 @@ Description
 
 Sends a DiSEqC command to the antenna subsystem.
 
-
-Return Value
-============
-
-On success 0 is returned, on error -1 and the ``errno`` variable is set
-appropriately. The generic error codes are described at the
-:ref:`Generic Error Codes <gen-errors>` chapter.
-
-
 .. _dvb-diseqc-master-cmd:
+
+struct dvb_diseqc_master_cmd
+============================
 
 .. flat-table:: struct dvb_diseqc_master_cmd
     :header-rows:  0
@@ -69,3 +63,11 @@ appropriately. The generic error codes are described at the
        -  msg_len
 
        -  Length of the DiSEqC message. Valid values are 3 to 6
+
+Return Value
+============
+
+On success 0 is returned, on error -1 and the ``errno`` variable is set
+appropriately. The generic error codes are described at the
+:ref:`Generic Error Codes <gen-errors>` chapter.
+

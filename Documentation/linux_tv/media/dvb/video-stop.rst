@@ -15,7 +15,7 @@ VIDEO_STOP
 Synopsis
 --------
 
-.. c:function:: int ioctl(fd, int request = VIDEO_STOP, boolean mode)
+.. cpp:function:: int ioctl(fd, int request = VIDEO_STOP, boolean mode)
 
 
 Arguments

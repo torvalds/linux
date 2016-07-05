@@ -15,7 +15,7 @@ DVB audio open()
 Synopsis
 --------
 
-.. c:function:: int  open(const char *deviceName, int flags)
+.. cpp:function:: int  open(const char *deviceName, int flags)
 
 
 Arguments

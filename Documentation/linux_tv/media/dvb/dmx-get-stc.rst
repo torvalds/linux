@@ -15,7 +15,7 @@ DMX_GET_STC
 Synopsis
 --------
 
-.. c:function:: int ioctl( int fd, int request = DMX_GET_STC, struct dmx_stc *stc)
+.. cpp:function:: int ioctl( int fd, int request = DMX_GET_STC, struct dmx_stc *stc)
 
 
 Arguments

@@ -15,7 +15,7 @@ AUDIO_SET_KARAOKE
 Synopsis
 --------
 
-.. c:function:: int ioctl(fd, int request = AUDIO_SET_KARAOKE, audio_karaoke_t *karaoke)
+.. cpp:function:: int ioctl(fd, int request = AUDIO_SET_KARAOKE, audio_karaoke_t *karaoke)
 
 
 Arguments

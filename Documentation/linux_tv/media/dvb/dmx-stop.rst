@@ -15,7 +15,7 @@ DMX_STOP
 Synopsis
 --------
 
-.. c:function:: int ioctl( int fd, int request = DMX_STOP)
+.. cpp:function:: int ioctl( int fd, int request = DMX_STOP)
 
 
 Arguments

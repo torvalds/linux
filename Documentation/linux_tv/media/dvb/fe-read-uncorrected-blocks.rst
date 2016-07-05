@@ -15,7 +15,7 @@ FE_READ_UNCORRECTED_BLOCKS
 Synopsis
 ========
 
-.. c:function:: int ioctl( int fd, int request =FE_READ_UNCORRECTED_BLOCKS, uint32_t *ublocks)
+.. cpp:function:: int ioctl( int fd, int request =FE_READ_UNCORRECTED_BLOCKS, uint32_t *ublocks)
 
 
 Arguments

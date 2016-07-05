@@ -15,7 +15,7 @@ FE_DISHNETWORK_SEND_LEGACY_CMD
 Synopsis
 ========
 
-.. c:function:: int  ioctl(int fd, int request = FE_DISHNETWORK_SEND_LEGACY_CMD, unsigned long cmd)
+.. cpp:function:: int  ioctl(int fd, int request = FE_DISHNETWORK_SEND_LEGACY_CMD, unsigned long cmd)
 
 
 Arguments

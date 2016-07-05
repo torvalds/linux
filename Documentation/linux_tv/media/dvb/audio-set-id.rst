@@ -15,7 +15,7 @@ AUDIO_SET_ID
 Synopsis
 --------
 
-.. c:function:: int  ioctl(int fd, int request = AUDIO_SET_ID, int id)
+.. cpp:function:: int  ioctl(int fd, int request = AUDIO_SET_ID, int id)
 
 
 Arguments

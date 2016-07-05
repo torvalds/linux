@@ -15,7 +15,7 @@ AUDIO_CONTINUE
 Synopsis
 --------
 
-.. c:function:: int  ioctl(int fd, int request = AUDIO_CONTINUE)
+.. cpp:function:: int  ioctl(int fd, int request = AUDIO_CONTINUE)
 
 
 Arguments

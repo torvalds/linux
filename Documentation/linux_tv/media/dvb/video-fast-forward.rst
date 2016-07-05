@@ -15,7 +15,7 @@ VIDEO_FAST_FORWARD
 Synopsis
 --------
 
-.. c:function:: int ioctl(fd, int request = VIDEO_FAST_FORWARD, int nFrames)
+.. cpp:function:: int ioctl(fd, int request = VIDEO_FAST_FORWARD, int nFrames)
 
 
 Arguments

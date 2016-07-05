@@ -15,7 +15,7 @@ VIDEO_STILLPICTURE
 Synopsis
 --------
 
-.. c:function:: int ioctl(fd, int request = VIDEO_STILLPICTURE, struct video_still_picture *sp)
+.. cpp:function:: int ioctl(fd, int request = VIDEO_STILLPICTURE, struct video_still_picture *sp)
 
 
 Arguments

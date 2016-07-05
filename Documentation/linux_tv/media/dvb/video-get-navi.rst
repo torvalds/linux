@@ -15,7 +15,7 @@ VIDEO_GET_NAVI
 Synopsis
 --------
 
-.. c:function:: int ioctl(fd, int request = VIDEO_GET_NAVI , video_navi_pack_t *navipack)
+.. cpp:function:: int ioctl(fd, int request = VIDEO_GET_NAVI , video_navi_pack_t *navipack)
 
 
 Arguments

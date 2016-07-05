@@ -15,7 +15,7 @@ VIDEO_SET_HIGHLIGHT
 Synopsis
 --------
 
-.. c:function:: int ioctl(fd, int request = VIDEO_SET_HIGHLIGHT ,video_highlight_t *vhilite)
+.. cpp:function:: int ioctl(fd, int request = VIDEO_SET_HIGHLIGHT ,video_highlight_t *vhilite)
 
 
 Arguments
