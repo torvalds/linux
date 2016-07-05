@@ -211,12 +211,8 @@ static void iwl_pcie_rxq_inc_wr_ptr(struct iwl_trans *trans,
 	if (trans->cfg->mq_rx_supported)
 		iwl_write32(trans, RFH_Q_FRBDCB_WIDX_TRG(rxq->id),
 			    rxq->write_actual);
-	/*
-	 * write to FH_RSCSR_CHNL0_WPTR register even in MQ as a W/A to
-	 * hardware shadow registers bug - writing to RFH_Q_FRBDCB_WIDX will
-	 * not wake the NIC.
-	 */
-	iwl_write32(trans, FH_RSCSR_CHNL0_WPTR, rxq->write_actual);
+	else
+		iwl_write32(trans, FH_RSCSR_CHNL0_WPTR, rxq->write_actual);
 }
 
 static void iwl_pcie_rxq_check_wrptr(struct iwl_trans *trans)
@@ -764,6 +760,23 @@ static void iwl_pcie_rx_hw_init(struct iwl_trans *trans, struct iwl_rxq *rxq)
 		iwl_set_bit(trans, CSR_INT_COALESCING, IWL_HOST_INT_OPER_MODE);
 }
 
+void iwl_pcie_enable_rx_wake(struct iwl_trans *trans, bool enable)
+{
+	/*
+	 * Turn on the chicken-bits that cause MAC wakeup for RX-related
+	 * values.
+	 * This costs some power, but needed for W/A 9000 integrated A-step
+	 * bug where shadow registers are not in the retention list and their
+	 * value is lost when NIC powers down
+	 */
+	if (trans->cfg->integrated) {
+		iwl_set_bit(trans, CSR_MAC_SHADOW_REG_CTRL,
+			    CSR_MAC_SHADOW_REG_CTRL_RX_WAKE);
+		iwl_set_bit(trans, CSR_MAC_SHADOW_REG_CTL2,
+			    CSR_MAC_SHADOW_REG_CTL2_RX_WAKE);
+	}
+}
+
 static void iwl_pcie_rx_mq_hw_init(struct iwl_trans *trans)
 {
 	struct iwl_trans_pcie *trans_pcie = IWL_TRANS_GET_PCIE_TRANS(trans);
@@ -820,28 +833,30 @@ static void iwl_pcie_rx_mq_hw_init(struct iwl_trans *trans)
 
 	/*
 	 * Enable Rx DMA
-	 * Single frame mode
 	 * Rx buffer size 4 or 8k or 12k
 	 * Min RB size 4 or 8
 	 * Drop frames that exceed RB size
 	 * 512 RBDs
 	 */
 	iwl_write_prph_no_grab(trans, RFH_RXF_DMA_CFG,
-			       RFH_DMA_EN_ENABLE_VAL |
-			       rb_size | RFH_RXF_DMA_SINGLE_FRAME_MASK |
+			       RFH_DMA_EN_ENABLE_VAL | rb_size |
 			       RFH_RXF_DMA_MIN_RB_4_8 |
 			       RFH_RXF_DMA_DROP_TOO_LARGE_MASK |
 			       RFH_RXF_DMA_RBDCB_SIZE_512);
 
 	/*
 	 * Activate DMA snooping.
-	 * Set RX DMA chunk size to 64B
+	 * Set RX DMA chunk size to 64B for IOSF and 128B for PCIe
 	 * Default queue is 0
 	 */
 	iwl_write_prph_no_grab(trans, RFH_GEN_CFG, RFH_GEN_CFG_RFH_DMA_SNOOP |
 			       (DEFAULT_RXQ_NUM <<
 				RFH_GEN_CFG_DEFAULT_RXQ_NUM_POS) |
-			       RFH_GEN_CFG_SERVICE_DMA_SNOOP);
+			       RFH_GEN_CFG_SERVICE_DMA_SNOOP |
+			       (trans->cfg->integrated ?
+				RFH_GEN_CFG_RB_CHUNK_SIZE_64 :
+				RFH_GEN_CFG_RB_CHUNK_SIZE_128) <<
+			       RFH_GEN_CFG_RB_CHUNK_SIZE_POS);
 	/* Enable the relevant rx queues */
 	iwl_write_prph_no_grab(trans, RFH_RXF_RXQ_ACTIVE, enabled);
 
@@ -849,6 +864,8 @@ static void iwl_pcie_rx_mq_hw_init(struct iwl_trans *trans)
 
 	/* Set interrupt coalescing timer to default (2048 usecs) */
 	iwl_write8(trans, CSR_INT_COALESCING, IWL_HOST_INT_TIMEOUT_DEF);
+
+	iwl_pcie_enable_rx_wake(trans, true);
 }
 
 static void iwl_pcie_rx_init_rxb_lists(struct iwl_rxq *rxq)
@@ -1086,6 +1103,9 @@ static void iwl_pcie_rx_handle_rb(struct iwl_trans *trans,
 
 		if (pkt->len_n_flags == cpu_to_le32(FH_RSCSR_FRAME_INVALID))
 			break;
+
+		WARN_ON((le32_to_cpu(pkt->len_n_flags) & FH_RSCSR_RXQ_MASK) >>
+			FH_RSCSR_RXQ_POS != rxq->id);
 
 		IWL_DEBUG_RX(trans,
 			     "cmd at offset %d: %s (0x%.2x, seq 0x%x)\n",

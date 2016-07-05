@@ -452,6 +452,7 @@ struct iwl_mvm_vif {
 	/* Indicates that CSA countdown may be started */
 	bool csa_countdown;
 	bool csa_failed;
+	u16 csa_target_freq;
 
 	/* TCP Checksum Offload */
 	netdev_features_t features;
@@ -731,6 +732,7 @@ struct iwl_mvm {
 	struct iwl_sf_region sf_space;
 
 	u32 ampdu_ref;
+	bool ampdu_toggle;
 
 	struct iwl_notif_wait_data notif_wait;
 
@@ -1006,6 +1008,8 @@ struct iwl_mvm {
 	 * clients.
 	 */
 	bool drop_bcn_ap_mode;
+
+	struct delayed_work cs_tx_unblock_dwork;
 };
 
 /* Extract MVM priv from op_mode and _hw */
@@ -1158,10 +1162,10 @@ static inline bool iwl_mvm_is_mplut_supported(struct iwl_mvm *mvm)
 }
 
 static inline
-bool iwl_mvm_is_p2p_standalone_uapsd_supported(struct iwl_mvm *mvm)
+bool iwl_mvm_is_p2p_scm_uapsd_supported(struct iwl_mvm *mvm)
 {
 	return fw_has_capa(&mvm->fw->ucode_capa,
-			   IWL_UCODE_TLV_CAPA_P2P_STANDALONE_UAPSD) &&
+			   IWL_UCODE_TLV_CAPA_P2P_SCM_UAPSD) &&
 		!(iwlwifi_mod_params.uapsd_disable &
 		  IWL_DISABLE_UAPSD_P2P_CLIENT);
 }
@@ -1321,7 +1325,6 @@ bool iwl_mvm_bcast_filter_build_cmd(struct iwl_mvm *mvm,
 void iwl_mvm_rx_rx_phy_cmd(struct iwl_mvm *mvm, struct iwl_rx_cmd_buffer *rxb);
 void iwl_mvm_rx_rx_mpdu(struct iwl_mvm *mvm, struct napi_struct *napi,
 			struct iwl_rx_cmd_buffer *rxb);
-void iwl_mvm_rx_phy_cmd_mq(struct iwl_mvm *mvm, struct iwl_rx_cmd_buffer *rxb);
 void iwl_mvm_rx_mpdu_mq(struct iwl_mvm *mvm, struct napi_struct *napi,
 			struct iwl_rx_cmd_buffer *rxb, int queue);
 void iwl_mvm_rx_frame_release(struct iwl_mvm *mvm, struct napi_struct *napi,
@@ -1381,6 +1384,8 @@ void iwl_mvm_mac_ctxt_recalc_tsf_id(struct iwl_mvm *mvm,
 				    struct ieee80211_vif *vif);
 unsigned long iwl_mvm_get_used_hw_queues(struct iwl_mvm *mvm,
 					 struct ieee80211_vif *exclude_vif);
+void iwl_mvm_channel_switch_noa_notif(struct iwl_mvm *mvm,
+				      struct iwl_rx_cmd_buffer *rxb);
 /* Bindings */
 int iwl_mvm_binding_add_vif(struct iwl_mvm *mvm, struct ieee80211_vif *vif);
 int iwl_mvm_binding_remove_vif(struct iwl_mvm *mvm, struct ieee80211_vif *vif);

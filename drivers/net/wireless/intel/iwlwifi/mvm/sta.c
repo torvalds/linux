@@ -819,8 +819,9 @@ int iwl_mvm_rm_sta(struct iwl_mvm *mvm,
 	if (iwl_mvm_has_new_rx_api(mvm))
 		kfree(mvm_sta->dup_data);
 
-	if (vif->type == NL80211_IFTYPE_STATION &&
-	    mvmvif->ap_sta_id == mvm_sta->sta_id) {
+	if ((vif->type == NL80211_IFTYPE_STATION &&
+	     mvmvif->ap_sta_id == mvm_sta->sta_id) ||
+	    iwl_mvm_is_dqa_supported(mvm)){
 		ret = iwl_mvm_drain_sta(mvm, mvm_sta, true);
 		if (ret)
 			return ret;

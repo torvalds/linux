@@ -431,6 +431,7 @@ static const struct iwl_hcmd_names iwl_mvm_system_names[] = {
 static const struct iwl_hcmd_names iwl_mvm_mac_conf_names[] = {
 	HCMD_NAME(LINK_QUALITY_MEASUREMENT_CMD),
 	HCMD_NAME(LINK_QUALITY_MEASUREMENT_COMPLETE_NOTIF),
+	HCMD_NAME(CHANNEL_SWITCH_NOA_NOTIF),
 };
 
 /* Please keep this array *SORTED* by hex value.
@@ -493,6 +494,29 @@ static u32 calc_min_backoff(struct iwl_trans *trans, const struct iwl_cfg *cfg)
 }
 
 static void iwl_mvm_fw_error_dump_wk(struct work_struct *work);
+
+static void iwl_mvm_tx_unblock_dwork(struct work_struct *work)
+{
+	struct iwl_mvm *mvm =
+		container_of(work, struct iwl_mvm, cs_tx_unblock_dwork.work);
+	struct ieee80211_vif *tx_blocked_vif;
+	struct iwl_mvm_vif *mvmvif;
+
+	mutex_lock(&mvm->mutex);
+
+	tx_blocked_vif =
+		rcu_dereference_protected(mvm->csa_tx_blocked_vif,
+					  lockdep_is_held(&mvm->mutex));
+
+	if (!tx_blocked_vif)
+		goto unlock;
+
+	mvmvif = iwl_mvm_vif_from_mac80211(tx_blocked_vif);
+	iwl_mvm_modify_all_sta_disable_tx(mvm, mvmvif, false);
+	RCU_INIT_POINTER(mvm->csa_tx_blocked_vif, NULL);
+unlock:
+	mutex_unlock(&mvm->mutex);
+}
 
 static struct iwl_op_mode *
 iwl_op_mode_mvm_start(struct iwl_trans *trans, const struct iwl_cfg *cfg,
@@ -595,6 +619,8 @@ iwl_op_mode_mvm_start(struct iwl_trans *trans, const struct iwl_cfg *cfg,
 
 	SET_IEEE80211_DEV(mvm->hw, mvm->trans->dev);
 
+	INIT_DELAYED_WORK(&mvm->cs_tx_unblock_dwork, iwl_mvm_tx_unblock_dwork);
+
 	/*
 	 * Populate the state variables that the transport layer needs
 	 * to know about.
@@ -603,6 +629,7 @@ iwl_op_mode_mvm_start(struct iwl_trans *trans, const struct iwl_cfg *cfg,
 	trans_cfg.no_reclaim_cmds = no_reclaim_cmds;
 	trans_cfg.n_no_reclaim_cmds = ARRAY_SIZE(no_reclaim_cmds);
 	switch (iwlwifi_mod_params.amsdu_size) {
+	case IWL_AMSDU_DEF:
 	case IWL_AMSDU_4K:
 		trans_cfg.rx_buf_size = IWL_AMSDU_4K;
 		break;
@@ -617,6 +644,10 @@ iwl_op_mode_mvm_start(struct iwl_trans *trans, const struct iwl_cfg *cfg,
 		       iwlwifi_mod_params.amsdu_size);
 		trans_cfg.rx_buf_size = IWL_AMSDU_4K;
 	}
+
+	/* the hardware splits the A-MSDU */
+	if (mvm->cfg->mq_rx_supported)
+		trans_cfg.rx_buf_size = IWL_AMSDU_4K;
 	trans_cfg.wide_cmd_header = fw_has_api(&mvm->fw->ucode_capa,
 					       IWL_UCODE_TLV_API_WIDE_CMD_HDR);
 
@@ -936,8 +967,6 @@ static void iwl_mvm_rx(struct iwl_op_mode *op_mode,
 
 	if (likely(pkt->hdr.cmd == REPLY_RX_MPDU_CMD))
 		iwl_mvm_rx_rx_mpdu(mvm, napi, rxb);
-	else if (pkt->hdr.cmd == FRAME_RELEASE)
-		iwl_mvm_rx_frame_release(mvm, napi, rxb, 0);
 	else if (pkt->hdr.cmd == REPLY_RX_PHY_CMD)
 		iwl_mvm_rx_rx_phy_cmd(mvm, rxb);
 	else
@@ -953,11 +982,11 @@ static void iwl_mvm_rx_mq(struct iwl_op_mode *op_mode,
 
 	if (likely(pkt->hdr.cmd == REPLY_RX_MPDU_CMD))
 		iwl_mvm_rx_mpdu_mq(mvm, napi, rxb, 0);
-	else if (pkt->hdr.cmd == REPLY_RX_PHY_CMD)
-		iwl_mvm_rx_phy_cmd_mq(mvm, rxb);
 	else if (unlikely(pkt->hdr.group_id == DATA_PATH_GROUP &&
 			  pkt->hdr.cmd == RX_QUEUES_NOTIFICATION))
 		iwl_mvm_rx_queue_notif(mvm, rxb, 0);
+	else if (pkt->hdr.cmd == FRAME_RELEASE)
+		iwl_mvm_rx_frame_release(mvm, napi, rxb, 0);
 	else
 		iwl_mvm_rx_common(mvm, rxb, pkt);
 }
