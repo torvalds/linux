@@ -1,5 +1,6 @@
 #ifndef _NF_NAT_H
 #define _NF_NAT_H
+#include <linux/rhashtable.h>
 #include <linux/netfilter_ipv4.h>
 #include <linux/netfilter/nf_nat.h>
 #include <net/netfilter/nf_conntrack_tuple.h>
