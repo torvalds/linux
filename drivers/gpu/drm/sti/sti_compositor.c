@@ -267,10 +267,12 @@ static int sti_compositor_probe(struct platform_device *pdev)
 	vtg_np = of_parse_phandle(pdev->dev.of_node, "st,vtg", 0);
 	if (vtg_np)
 		compo->vtg_main = of_vtg_find(vtg_np);
+	of_node_put(vtg_np);
 
 	vtg_np = of_parse_phandle(pdev->dev.of_node, "st,vtg", 1);
 	if (vtg_np)
 		compo->vtg_aux = of_vtg_find(vtg_np);
+	of_node_put(vtg_np);
 
 	platform_set_drvdata(pdev, compo);
 
