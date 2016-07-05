@@ -1418,8 +1418,9 @@ static u64 *fetch_pte(struct protection_domain *domain,
 static int iommu_map_page(struct protection_domain *dom,
 			  unsigned long bus_addr,
 			  unsigned long phys_addr,
+			  unsigned long page_size,
 			  int prot,
-			  unsigned long page_size)
+			  gfp_t gfp)
 {
 	u64 __pte, *pte;
 	int i, count;
@@ -1431,7 +1432,7 @@ static int iommu_map_page(struct protection_domain *dom,
 		return -EINVAL;
 
 	count = PAGE_SIZE_PTE_COUNT(page_size);
-	pte   = alloc_pte(dom, bus_addr, page_size, NULL, GFP_KERNEL);
+	pte   = alloc_pte(dom, bus_addr, page_size, NULL, gfp);
 
 	if (!pte)
 		return -ENOMEM;
@@ -3283,7 +3284,7 @@ static int amd_iommu_map(struct iommu_domain *dom, unsigned long iova,
 		prot |= IOMMU_PROT_IW;
 
 	mutex_lock(&domain->api_lock);
-	ret = iommu_map_page(domain, iova, paddr, prot, page_size);
+	ret = iommu_map_page(domain, iova, paddr, page_size, prot, GFP_KERNEL);
 	mutex_unlock(&domain->api_lock);
 
 	return ret;
