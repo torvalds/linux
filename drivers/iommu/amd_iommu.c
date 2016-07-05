@@ -1649,167 +1649,32 @@ out_free:
 	return -ENOMEM;
 }
 
-static dma_addr_t dma_ops_aperture_alloc(struct dma_ops_domain *dom,
-					 struct aperture_range *range,
-					 unsigned long pages,
-					 unsigned long dma_mask,
-					 unsigned long boundary_size,
-					 unsigned long align_mask,
-					 bool trylock)
+static unsigned long dma_ops_alloc_iova(struct device *dev,
+					struct dma_ops_domain *dma_dom,
+					unsigned int pages, u64 dma_mask)
 {
-	unsigned long offset, limit, flags;
-	dma_addr_t address;
-	bool flush = false;
+	unsigned long pfn = 0;
 
-	offset = range->offset >> PAGE_SHIFT;
-	limit  = iommu_device_max_index(APERTURE_RANGE_PAGES, offset,
-					dma_mask >> PAGE_SHIFT);
+	pages = __roundup_pow_of_two(pages);
 
-	if (trylock) {
-		if (!spin_trylock_irqsave(&range->bitmap_lock, flags))
-			return -1;
-	} else {
-		spin_lock_irqsave(&range->bitmap_lock, flags);
-	}
+	if (dma_mask > DMA_BIT_MASK(32))
+		pfn = alloc_iova_fast(&dma_dom->iovad, pages,
+				      IOVA_PFN(DMA_BIT_MASK(32)));
 
-	address = iommu_area_alloc(range->bitmap, limit, range->next_bit,
-				   pages, offset, boundary_size, align_mask);
-	if (address == -1) {
-		/* Nothing found, retry one time */
-		address = iommu_area_alloc(range->bitmap, limit,
-					   0, pages, offset, boundary_size,
-					   align_mask);
-		flush = true;
-	}
+	if (!pfn)
+		pfn = alloc_iova_fast(&dma_dom->iovad, pages, IOVA_PFN(dma_mask));
 
-	if (address != -1)
-		range->next_bit = address + pages;
-
-	spin_unlock_irqrestore(&range->bitmap_lock, flags);
-
-	if (flush) {
-		domain_flush_tlb(&dom->domain);
-		domain_flush_complete(&dom->domain);
-	}
-
-	return address;
+	return (pfn << PAGE_SHIFT);
 }
 
-static unsigned long dma_ops_area_alloc(struct device *dev,
-					struct dma_ops_domain *dom,
-					unsigned int pages,
-					unsigned long align_mask,
-					u64 dma_mask)
+static void dma_ops_free_iova(struct dma_ops_domain *dma_dom,
+			      unsigned long address,
+			      unsigned int pages)
 {
-	unsigned long boundary_size, mask;
-	unsigned long address = -1;
-	bool first = true;
-	u32 start, i;
+	pages = __roundup_pow_of_two(pages);
+	address >>= PAGE_SHIFT;
 
-	preempt_disable();
-
-	mask = dma_get_seg_boundary(dev);
-
-again:
-	start = this_cpu_read(*dom->next_index);
-
-	/* Sanity check - is it really necessary? */
-	if (unlikely(start > APERTURE_MAX_RANGES)) {
-		start = 0;
-		this_cpu_write(*dom->next_index, 0);
-	}
-
-	boundary_size = mask + 1 ? ALIGN(mask + 1, PAGE_SIZE) >> PAGE_SHIFT :
-				   1UL << (BITS_PER_LONG - PAGE_SHIFT);
-
-	for (i = 0; i < APERTURE_MAX_RANGES; ++i) {
-		struct aperture_range *range;
-		int index;
-
-		index = (start + i) % APERTURE_MAX_RANGES;
-
-		range = dom->aperture[index];
-
-		if (!range || range->offset >= dma_mask)
-			continue;
-
-		address = dma_ops_aperture_alloc(dom, range, pages,
-						 dma_mask, boundary_size,
-						 align_mask, first);
-		if (address != -1) {
-			address = range->offset + (address << PAGE_SHIFT);
-			this_cpu_write(*dom->next_index, index);
-			break;
-		}
-	}
-
-	if (address == -1 && first) {
-		first = false;
-		goto again;
-	}
-
-	preempt_enable();
-
-	return address;
-}
-
-static unsigned long dma_ops_alloc_addresses(struct device *dev,
-					     struct dma_ops_domain *dom,
-					     unsigned int pages,
-					     unsigned long align_mask,
-					     u64 dma_mask)
-{
-	unsigned long address = -1;
-
-	while (address == -1) {
-		address = dma_ops_area_alloc(dev, dom, pages,
-					     align_mask, dma_mask);
-
-		if (address == -1 && alloc_new_range(dom, false, GFP_ATOMIC))
-			break;
-	}
-
-	if (unlikely(address == -1))
-		address = DMA_ERROR_CODE;
-
-	WARN_ON((address + (PAGE_SIZE*pages)) > dom->aperture_size);
-
-	return address;
-}
-
-/*
- * The address free function.
- *
- * called with domain->lock held
- */
-static void dma_ops_free_addresses(struct dma_ops_domain *dom,
-				   unsigned long address,
-				   unsigned int pages)
-{
-	unsigned i = address >> APERTURE_RANGE_SHIFT;
-	struct aperture_range *range = dom->aperture[i];
-	unsigned long flags;
-
-	BUG_ON(i >= APERTURE_MAX_RANGES || range == NULL);
-
-#ifdef CONFIG_IOMMU_STRESS
-	if (i < 4)
-		return;
-#endif
-
-	if (amd_iommu_unmap_flush) {
-		domain_flush_tlb(&dom->domain);
-		domain_flush_complete(&dom->domain);
-	}
-
-	address = (address % APERTURE_RANGE_SIZE) >> PAGE_SHIFT;
-
-	spin_lock_irqsave(&range->bitmap_lock, flags);
-	if (address + pages > range->next_bit)
-		range->next_bit = address + pages;
-	bitmap_clear(range->bitmap, address, pages);
-	spin_unlock_irqrestore(&range->bitmap_lock, flags);
-
+	free_iova_fast(&dma_dom->iovad, address, pages);
 }
 
 /****************************************************************************
@@ -2586,9 +2451,7 @@ static dma_addr_t __map_single(struct device *dev,
 	if (align)
 		align_mask = (1UL << get_order(size)) - 1;
 
-	address = dma_ops_alloc_addresses(dev, dma_dom, pages, align_mask,
-					  dma_mask);
-
+	address = dma_ops_alloc_iova(dev, dma_dom, pages, dma_mask);
 	if (address == DMA_ERROR_CODE)
 		goto out;
 
@@ -2626,7 +2489,10 @@ out_unmap:
 		iommu_unmap_page(&dma_dom->domain, start, PAGE_SIZE);
 	}
 
-	dma_ops_free_addresses(dma_dom, address, pages);
+	domain_flush_tlb(&dma_dom->domain);
+	domain_flush_complete(&dma_dom->domain);
+
+	dma_ops_free_iova(dma_dom, address, pages);
 
 	return DMA_ERROR_CODE;
 }
@@ -2658,7 +2524,10 @@ static void __unmap_single(struct dma_ops_domain *dma_dom,
 		start += PAGE_SIZE;
 	}
 
-	dma_ops_free_addresses(dma_dom, dma_addr, pages);
+	domain_flush_tlb(&dma_dom->domain);
+	domain_flush_complete(&dma_dom->domain);
+
+	dma_ops_free_iova(dma_dom, dma_addr, pages);
 }
 
 /*
