@@ -362,10 +362,11 @@ static void __ieee80211_scan_completed(struct ieee80211_hw *hw, bool aborted)
 		if (rc == 0)
 			return;
 
-		/* HW scan failed and is going to be reported as done, so clear
-		 * old scan info.
+		/* HW scan failed and is going to be reported as aborted,
+		 * so clear old scan info.
 		 */
 		memset(&local->scan_info, 0, sizeof(local->scan_info));
+		aborted = true;
 	}
 
 	kfree(local->hw_scan_req);
