@@ -149,7 +149,7 @@ outputted buffers.
 
 Drivers implementing DMABUF importing I/O must support the
 :ref:`VIDIOC_REQBUFS <VIDIOC_REQBUFS>`, :ref:`VIDIOC_QBUF <VIDIOC_QBUF>`,
-:ref:`VIDIOC_DQBUF <VIDIOC_DQBUF>`, :ref:`VIDIOC_STREAMON
+:ref:`VIDIOC_DQBUF <VIDIOC_QBUF>`, :ref:`VIDIOC_STREAMON
 <VIDIOC_STREAMON>` and :ref:`VIDIOC_STREAMOFF <VIDIOC_STREAMON>` ioctls,
 and the :ref:`select() <func-select>` and :ref:`poll() <func-poll>`
 functions.
