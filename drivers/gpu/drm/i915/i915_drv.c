@@ -1556,7 +1556,7 @@ int i915_suspend_switcheroo(struct drm_device *dev, pm_message_t state)
 {
 	int error;
 
-	if (!dev || !dev->dev_private) {
+	if (!dev) {
 		DRM_ERROR("dev: %p\n", dev);
 		DRM_ERROR("DRM not initialized, aborting suspend.\n");
 		return -ENODEV;
@@ -1848,7 +1848,7 @@ static int i915_pm_suspend(struct device *dev)
 	struct pci_dev *pdev = to_pci_dev(dev);
 	struct drm_device *drm_dev = pci_get_drvdata(pdev);
 
-	if (!drm_dev || !drm_dev->dev_private) {
+	if (!drm_dev) {
 		dev_err(dev, "DRM not initialized, aborting suspend.\n");
 		return -ENODEV;
 	}
