@@ -7369,6 +7369,7 @@ static __init int tracer_init_tracefs(void)
 		return 0;
 
 	init_tracer_tracefs(&global_trace, d_tracer);
+	ftrace_init_tracefs_toplevel(&global_trace, d_tracer);
 
 	trace_create_file("tracing_thresh", 0644, d_tracer,
 			&global_trace, &tracing_thresh_fops);

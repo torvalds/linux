@@ -5539,14 +5539,18 @@ static const struct file_operations ftrace_pid_fops = {
 
 void ftrace_init_tracefs(struct trace_array *tr, struct dentry *d_tracer)
 {
-	/* Only the top level directory has the dyn_tracefs and profile */
-	if (tr->flags & TRACE_ARRAY_FL_GLOBAL) {
-		ftrace_init_dyn_tracefs(d_tracer);
-		ftrace_profile_tracefs(d_tracer);
-	}
-
 	trace_create_file("set_ftrace_pid", 0644, d_tracer,
 			    tr, &ftrace_pid_fops);
+}
+
+void __init ftrace_init_tracefs_toplevel(struct trace_array *tr,
+					 struct dentry *d_tracer)
+{
+	/* Only the top level directory has the dyn_tracefs and profile */
+	WARN_ON(!(tr->flags & TRACE_ARRAY_FL_GLOBAL));
+
+	ftrace_init_dyn_tracefs(d_tracer);
+	ftrace_profile_tracefs(d_tracer);
 }
 
 /**
