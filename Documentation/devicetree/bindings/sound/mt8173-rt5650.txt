@@ -1,8 +1,9 @@
-MT8173 with RT5650 CODECS
+MT8173 with RT5650 CODECS and HDMI via I2S
 
 Required properties:
 - compatible : "mediatek,mt8173-rt5650"
 - mediatek,audio-codec: the phandles of rt5650 codecs
+                        and of the hdmi encoder node
 - mediatek,platform: the phandle of MT8173 ASoC platform
 
 Optional subnodes:
@@ -20,7 +21,7 @@ Example:
 
 	sound {
 		compatible = "mediatek,mt8173-rt5650";
-		mediatek,audio-codec = <&rt5650>;
+		mediatek,audio-codec = <&rt5650 &hdmi0>;
 		mediatek,platform = <&afe>;
 		mediatek,mclk = <0>;
 		codec-capture {

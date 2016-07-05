@@ -46,6 +46,7 @@ config SND_SOC_MT8173_RT5650
 	tristate "ASoC Audio driver for MT8173 with RT5650 codec"
 	depends on SND_SOC_MT8173 && I2C
 	select SND_SOC_RT5645
+	select SND_SOC_HDMI_CODEC
 	help
 	  This adds ASoC driver for Mediatek MT8173 boards
 	  with the RT5650 audio codec.
