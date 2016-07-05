@@ -43,15 +43,17 @@
 #include <linux/if_vlan.h>
 #include <linux/list.h>
 #include <linux/dcbnl.h>
+#include <linux/in6.h>
 #include <net/switchdev.h>
 
 #include "port.h"
 #include "core.h"
 
 #define MLXSW_SP_VFID_BASE VLAN_N_VID
-#define MLXSW_SP_VFID_PORT_MAX 512	/* Non-bridged VLAN interfaces */
-#define MLXSW_SP_VFID_BR_MAX 6144	/* Bridged VLAN interfaces */
-#define MLXSW_SP_VFID_MAX (MLXSW_SP_VFID_PORT_MAX + MLXSW_SP_VFID_BR_MAX)
+#define MLXSW_SP_VFID_MAX 6656	/* Bridged VLAN interfaces */
+
+#define MLXSW_SP_RFID_BASE 15360
+#define MLXSW_SP_RIF_MAX 800
 
 #define MLXSW_SP_LAG_MAX 64
 #define MLXSW_SP_PORT_PER_LAG_MAX 16
@@ -59,6 +61,12 @@
 #define MLXSW_SP_MID_MAX 7000
 
 #define MLXSW_SP_PORTS_PER_CLUSTER_MAX 4
+
+#define MLXSW_SP_LPM_TREE_MIN 2 /* trees 0 and 1 are reserved */
+#define MLXSW_SP_LPM_TREE_MAX 22
+#define MLXSW_SP_LPM_TREE_COUNT (MLXSW_SP_LPM_TREE_MAX - MLXSW_SP_LPM_TREE_MIN)
+
+#define MLXSW_SP_VIRTUAL_ROUTER_MAX 256
 
 #define MLXSW_SP_PORT_BASE_SPEED 25000	/* Mb/s */
 
@@ -73,8 +81,6 @@
 #define MLXSW_SP_PAUSE_DELAY 612
 
 #define MLXSW_SP_CELL_FACTOR 2	/* 2 * cell_size / (IPG + cell_size + 1) */
-
-#define MLXSW_SP_RIF_MAX 800
 
 static inline u16 mlxsw_sp_pfc_delay_get(int mtu, u16 delay)
 {
@@ -94,12 +100,16 @@ struct mlxsw_sp_fid {
 	struct list_head list;
 	unsigned int ref_count;
 	struct net_device *dev;
+	struct mlxsw_sp_rif *r;
 	u16 fid;
-	u16 vid;
 };
 
 struct mlxsw_sp_rif {
 	struct net_device *dev;
+	unsigned int ref_count;
+	struct mlxsw_sp_fid *f;
+	unsigned char addr[ETH_ALEN];
+	int mtu;
 	u16 rif;
 };
 
@@ -123,7 +133,17 @@ static inline u16 mlxsw_sp_fid_to_vfid(u16 fid)
 
 static inline bool mlxsw_sp_fid_is_vfid(u16 fid)
 {
-	return fid >= MLXSW_SP_VFID_BASE;
+	return fid >= MLXSW_SP_VFID_BASE && fid < MLXSW_SP_RFID_BASE;
+}
+
+static inline bool mlxsw_sp_fid_is_rfid(u16 fid)
+{
+	return fid >= MLXSW_SP_RFID_BASE;
+}
+
+static inline u16 mlxsw_sp_rif_sp_to_fid(u16 rif)
+{
+	return MLXSW_SP_RFID_BASE + rif;
 }
 
 struct mlxsw_sp_sb_pr {
@@ -160,15 +180,45 @@ struct mlxsw_sp_sb {
 	} ports[MLXSW_PORT_MAX_PORTS];
 };
 
+#define MLXSW_SP_PREFIX_COUNT (sizeof(struct in6_addr) * BITS_PER_BYTE)
+
+struct mlxsw_sp_prefix_usage {
+	DECLARE_BITMAP(b, MLXSW_SP_PREFIX_COUNT);
+};
+
+enum mlxsw_sp_l3proto {
+	MLXSW_SP_L3_PROTO_IPV4,
+	MLXSW_SP_L3_PROTO_IPV6,
+};
+
+struct mlxsw_sp_lpm_tree {
+	u8 id; /* tree ID */
+	unsigned int ref_count;
+	enum mlxsw_sp_l3proto proto;
+	struct mlxsw_sp_prefix_usage prefix_usage;
+};
+
+struct mlxsw_sp_fib;
+
+struct mlxsw_sp_vr {
+	u16 id; /* virtual router ID */
+	bool used;
+	enum mlxsw_sp_l3proto proto;
+	u32 tb_id; /* kernel fib table id */
+	struct mlxsw_sp_lpm_tree *lpm_tree;
+	struct mlxsw_sp_fib *fib;
+};
+
+struct mlxsw_sp_router {
+	struct mlxsw_sp_lpm_tree lpm_trees[MLXSW_SP_LPM_TREE_COUNT];
+	struct mlxsw_sp_vr vrs[MLXSW_SP_VIRTUAL_ROUTER_MAX];
+};
+
 struct mlxsw_sp {
 	struct {
 		struct list_head list;
-		DECLARE_BITMAP(mapped, MLXSW_SP_VFID_PORT_MAX);
-	} port_vfids;
-	struct {
-		struct list_head list;
-		DECLARE_BITMAP(mapped, MLXSW_SP_VFID_BR_MAX);
-	} br_vfids;
+		DECLARE_BITMAP(mapped, MLXSW_SP_VFID_MAX);
+	} vfids;
 	struct {
 		struct list_head list;
 		DECLARE_BITMAP(mapped, MLXSW_SP_MID_MAX);
@@ -192,6 +242,7 @@ struct mlxsw_sp {
 	struct mlxsw_sp_upper lags[MLXSW_SP_LAG_MAX];
 	u8 port_to_module[MLXSW_PORT_MAX_PORTS];
 	struct mlxsw_sp_sb sb;
+	struct mlxsw_sp_router router;
 };
 
 static inline struct mlxsw_sp_upper *
@@ -250,6 +301,9 @@ struct mlxsw_sp_port {
 	struct list_head vports_list;
 };
 
+struct mlxsw_sp_port *mlxsw_sp_port_lower_dev_hold(struct net_device *dev);
+void mlxsw_sp_port_dev_put(struct mlxsw_sp_port *mlxsw_sp_port);
+
 static inline bool
 mlxsw_sp_port_is_pause_en(const struct mlxsw_sp_port *mlxsw_sp_port)
 {
@@ -295,7 +349,7 @@ mlxsw_sp_vport_fid_get(const struct mlxsw_sp_port *mlxsw_sp_vport)
 }
 
 static inline struct net_device *
-mlxsw_sp_vport_br_get(const struct mlxsw_sp_port *mlxsw_sp_vport)
+mlxsw_sp_vport_dev_get(const struct mlxsw_sp_port *mlxsw_sp_vport)
 {
 	struct mlxsw_sp_fid *f = mlxsw_sp_vport_fid_get(mlxsw_sp_vport);
 
@@ -329,6 +383,31 @@ mlxsw_sp_port_vport_find_by_fid(const struct mlxsw_sp_port *mlxsw_sp_port,
 		if (f && f->fid == fid)
 			return mlxsw_sp_vport;
 	}
+
+	return NULL;
+}
+
+static inline struct mlxsw_sp_fid *mlxsw_sp_fid_find(struct mlxsw_sp *mlxsw_sp,
+						     u16 fid)
+{
+	struct mlxsw_sp_fid *f;
+
+	list_for_each_entry(f, &mlxsw_sp->fids, list)
+		if (f->fid == fid)
+			return f;
+
+	return NULL;
+}
+
+static inline struct mlxsw_sp_fid *
+mlxsw_sp_vfid_find(const struct mlxsw_sp *mlxsw_sp,
+		   const struct net_device *br_dev)
+{
+	struct mlxsw_sp_fid *f;
+
+	list_for_each_entry(f, &mlxsw_sp->vfids.list, list)
+		if (f->dev == br_dev)
+			return f;
 
 	return NULL;
 }
@@ -403,6 +482,12 @@ int mlxsw_sp_vport_flood_set(struct mlxsw_sp_port *mlxsw_sp_vport, u16 fid,
 void mlxsw_sp_port_active_vlans_del(struct mlxsw_sp_port *mlxsw_sp_port);
 int mlxsw_sp_port_pvid_set(struct mlxsw_sp_port *mlxsw_sp_port, u16 vid);
 int mlxsw_sp_port_fdb_flush(struct mlxsw_sp_port *mlxsw_sp_port, u16 fid);
+int mlxsw_sp_rif_fdb_op(struct mlxsw_sp *mlxsw_sp, const char *mac, u16 fid,
+			bool adding);
+struct mlxsw_sp_fid *mlxsw_sp_fid_create(struct mlxsw_sp *mlxsw_sp, u16 fid);
+void mlxsw_sp_fid_destroy(struct mlxsw_sp *mlxsw_sp, struct mlxsw_sp_fid *f);
+void mlxsw_sp_rif_bridge_destroy(struct mlxsw_sp *mlxsw_sp,
+				 struct mlxsw_sp_rif *r);
 int mlxsw_sp_port_ets_set(struct mlxsw_sp_port *mlxsw_sp_port,
 			  enum mlxsw_reg_qeec_hr hr, u8 index, u8 next_index,
 			  bool dwrr, u8 dwrr_weight);
@@ -434,5 +519,10 @@ static inline void mlxsw_sp_port_dcb_fini(struct mlxsw_sp_port *mlxsw_sp_port)
 
 int mlxsw_sp_router_init(struct mlxsw_sp *mlxsw_sp);
 void mlxsw_sp_router_fini(struct mlxsw_sp *mlxsw_sp);
+int mlxsw_sp_router_fib4_add(struct mlxsw_sp_port *mlxsw_sp_port,
+			     const struct switchdev_obj_ipv4_fib *fib4,
+			     struct switchdev_trans *trans);
+int mlxsw_sp_router_fib4_del(struct mlxsw_sp_port *mlxsw_sp_port,
+			     const struct switchdev_obj_ipv4_fib *fib4);
 
 #endif

@@ -5445,6 +5445,52 @@ void *netdev_lower_get_next(struct net_device *dev, struct list_head **iter)
 EXPORT_SYMBOL(netdev_lower_get_next);
 
 /**
+ * netdev_all_lower_get_next - Get the next device from all lower neighbour list
+ * @dev: device
+ * @iter: list_head ** of the current position
+ *
+ * Gets the next netdev_adjacent from the dev's all lower neighbour
+ * list, starting from iter position. The caller must hold RTNL lock or
+ * its own locking that guarantees that the neighbour all lower
+ * list will remain unchanged.
+ */
+struct net_device *netdev_all_lower_get_next(struct net_device *dev, struct list_head **iter)
+{
+	struct netdev_adjacent *lower;
+
+	lower = list_entry(*iter, struct netdev_adjacent, list);
+
+	if (&lower->list == &dev->all_adj_list.lower)
+		return NULL;
+
+	*iter = lower->list.next;
+
+	return lower->dev;
+}
+EXPORT_SYMBOL(netdev_all_lower_get_next);
+
+/**
+ * netdev_all_lower_get_next_rcu - Get the next device from all
+ *				   lower neighbour list, RCU variant
+ * @dev: device
+ * @iter: list_head ** of the current position
+ *
+ * Gets the next netdev_adjacent from the dev's all lower neighbour
+ * list, starting from iter position. The caller must hold RCU read lock.
+ */
+struct net_device *netdev_all_lower_get_next_rcu(struct net_device *dev,
+						 struct list_head **iter)
+{
+	struct netdev_adjacent *lower;
+
+	lower = list_first_or_null_rcu(&dev->all_adj_list.lower,
+				       struct netdev_adjacent, list);
+
+	return lower ? lower->dev : NULL;
+}
+EXPORT_SYMBOL(netdev_all_lower_get_next_rcu);
+
+/**
  * netdev_lower_get_first_private_rcu - Get the first ->private from the
  *				       lower neighbour list, RCU
  *				       variant

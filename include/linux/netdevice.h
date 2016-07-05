@@ -3804,11 +3804,29 @@ void *netdev_lower_get_next_private_rcu(struct net_device *dev,
 
 void *netdev_lower_get_next(struct net_device *dev,
 				struct list_head **iter);
+
 #define netdev_for_each_lower_dev(dev, ldev, iter) \
 	for (iter = (dev)->adj_list.lower.next, \
 	     ldev = netdev_lower_get_next(dev, &(iter)); \
 	     ldev; \
 	     ldev = netdev_lower_get_next(dev, &(iter)))
+
+struct net_device *netdev_all_lower_get_next(struct net_device *dev,
+					     struct list_head **iter);
+struct net_device *netdev_all_lower_get_next_rcu(struct net_device *dev,
+						 struct list_head **iter);
+
+#define netdev_for_each_all_lower_dev(dev, ldev, iter) \
+	for (iter = (dev)->all_adj_list.lower.next, \
+	     ldev = netdev_all_lower_get_next(dev, &(iter)); \
+	     ldev; \
+	     ldev = netdev_all_lower_get_next(dev, &(iter)))
+
+#define netdev_for_each_all_lower_dev_rcu(dev, ldev, iter) \
+	for (iter = (dev)->all_adj_list.lower.next, \
+	     ldev = netdev_all_lower_get_next_rcu(dev, &(iter)); \
+	     ldev; \
+	     ldev = netdev_all_lower_get_next_rcu(dev, &(iter)))
 
 void *netdev_adjacent_get_private(struct list_head *adj_list);
 void *netdev_lower_get_first_private_rcu(struct net_device *dev);
