@@ -41,10 +41,10 @@
 #define VCNL4000_PS_MOD_ADJ	0x8a /* Proximity modulator timing adjustment */
 
 /* Bit masks for COMMAND register */
-#define VCNL4000_AL_RDY		0x40 /* ALS data ready? */
-#define VCNL4000_PS_RDY		0x20 /* proximity data ready? */
-#define VCNL4000_AL_OD		0x10 /* start on-demand ALS measurement */
-#define VCNL4000_PS_OD		0x08 /* start on-demand proximity measurement */
+#define VCNL4000_AL_RDY		BIT(6) /* ALS data ready? */
+#define VCNL4000_PS_RDY		BIT(5) /* proximity data ready? */
+#define VCNL4000_AL_OD		BIT(4) /* start on-demand ALS measurement */
+#define VCNL4000_PS_OD		BIT(3) /* start on-demand proximity measurement */
 
 struct vcnl4000_data {
 	struct i2c_client *client;
