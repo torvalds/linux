@@ -91,9 +91,15 @@ the Atmel website: http://www.atmel.com.
           http://www.atmel.com/Images/Atmel-11238-32-bit-Cortex-A5-Microcontroller-SAMA5D4_Datasheet.pdf
 
       - sama5d2 family
-        - sama5d27
+        - sama5d21
+        - sama5d22
+        - sama5d23
+        - sama5d24
+        - sama5d26
+        - sama5d27 (device superset)
+        - sama5d28 (device superset + environmental monitors)
         + Datasheet
-          Coming soon
+          http://www.atmel.com/Images/Atmel-11267-32-bit-Cortex-A5-Microcontroller-SAMA5D2_Datasheet.pdf
 
 
 Linux kernel information

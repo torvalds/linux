@@ -22,6 +22,7 @@
 #include <linux/of_platform.h>
 #include <linux/of_address.h>
 #include <linux/platform_device.h>
+#include <linux/platform_data/atmel.h>
 #include <linux/io.h>
 #include <linux/clk/at91_pmc.h>
 
@@ -355,7 +356,7 @@ static __init void at91_dt_ramc(void)
 	at91_pm_set_standby(standby);
 }
 
-void at91rm9200_idle(void)
+static void at91rm9200_idle(void)
 {
 	/*
 	 * Disable the processor clock.  The processor will be automatically
@@ -364,7 +365,7 @@ void at91rm9200_idle(void)
 	writel(AT91_PMC_PCK, pmc + AT91_PMC_SCDR);
 }
 
-void at91sam9_idle(void)
+static void at91sam9_idle(void)
 {
 	writel(AT91_PMC_PCK, pmc + AT91_PMC_SCDR);
 	cpu_do_idle();
