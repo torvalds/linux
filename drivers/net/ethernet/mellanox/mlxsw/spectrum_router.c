@@ -845,6 +845,33 @@ static void mlxsw_sp_router_neighs_update_work(struct work_struct *work)
 	mlxsw_sp_router_neighs_update_work_schedule(mlxsw_sp);
 }
 
+static void mlxsw_sp_router_probe_unresolved_nexthops(struct work_struct *work)
+{
+	struct mlxsw_sp_neigh_entry *neigh_entry;
+	struct mlxsw_sp *mlxsw_sp = container_of(work, struct mlxsw_sp,
+						 router.nexthop_probe_dw.work);
+
+	/* Iterate over nexthop neighbours, find those who are unresolved and
+	 * send arp on them. This solves the chicken-egg problem when
+	 * the nexthop wouldn't get offloaded until the neighbor is resolved
+	 * but it wouldn't get resolved ever in case traffic is flowing in HW
+	 * using different nexthop.
+	 *
+	 * Take RTNL mutex here to prevent lists from changes.
+	 */
+	rtnl_lock();
+	list_for_each_entry(neigh_entry, &mlxsw_sp->router.nexthop_neighs_list,
+			    nexthop_neighs_list_node) {
+		if (!(neigh_entry->n->nud_state & NUD_VALID) &&
+		    !list_empty(&neigh_entry->nexthop_list))
+			neigh_event_send(neigh_entry->n, NULL);
+	}
+	rtnl_unlock();
+
+	mlxsw_core_schedule_dw(&mlxsw_sp->router.nexthop_probe_dw,
+			       MLXSW_SP_UNRESOLVED_NH_PROBE_INTERVAL);
+}
+
 static void
 mlxsw_sp_nexthop_neigh_update(struct mlxsw_sp *mlxsw_sp,
 			      struct mlxsw_sp_neigh_entry *neigh_entry,
@@ -1004,10 +1031,13 @@ static int mlxsw_sp_neigh_init(struct mlxsw_sp *mlxsw_sp)
 	if (err)
 		goto err_register_netevent_notifier;
 
+	/* Create the delayed works for the activity_update */
 	INIT_DELAYED_WORK(&mlxsw_sp->router.neighs_update.dw,
 			  mlxsw_sp_router_neighs_update_work);
+	INIT_DELAYED_WORK(&mlxsw_sp->router.nexthop_probe_dw,
+			  mlxsw_sp_router_probe_unresolved_nexthops);
 	mlxsw_core_schedule_dw(&mlxsw_sp->router.neighs_update.dw, 0);
-
+	mlxsw_core_schedule_dw(&mlxsw_sp->router.nexthop_probe_dw, 0);
 	return 0;
 
 err_register_netevent_notifier:
@@ -1018,6 +1048,7 @@ err_register_netevent_notifier:
 static void mlxsw_sp_neigh_fini(struct mlxsw_sp *mlxsw_sp)
 {
 	cancel_delayed_work_sync(&mlxsw_sp->router.neighs_update.dw);
+	cancel_delayed_work_sync(&mlxsw_sp->router.nexthop_probe_dw);
 	unregister_netevent_notifier(&mlxsw_sp_router_netevent_nb);
 	rhashtable_destroy(&mlxsw_sp->router.neigh_ht);
 }

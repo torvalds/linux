@@ -222,6 +222,8 @@ struct mlxsw_sp_router {
 		struct delayed_work dw;
 		unsigned long interval;	/* ms */
 	} neighs_update;
+	struct delayed_work nexthop_probe_dw;
+#define MLXSW_SP_UNRESOLVED_NH_PROBE_INTERVAL 5000 /* ms */
 	struct list_head nexthop_group_list;
 	struct list_head nexthop_neighs_list;
 };
