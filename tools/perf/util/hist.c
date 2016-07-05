@@ -424,21 +424,42 @@ static int hist_entry__init(struct hist_entry *he,
 	return 0;
 }
 
+static void *hist_entry__zalloc(size_t size)
+{
+	return zalloc(size + sizeof(struct hist_entry));
+}
+
+static void hist_entry__free(void *ptr)
+{
+	free(ptr);
+}
+
+static struct hist_entry_ops default_ops = {
+	.new	= hist_entry__zalloc,
+	.free	= hist_entry__free,
+};
+
 static struct hist_entry *hist_entry__new(struct hist_entry *template,
 					  bool sample_self)
 {
+	struct hist_entry_ops *ops = template->ops;
 	size_t callchain_size = 0;
 	struct hist_entry *he;
 	int err = 0;
 
+	if (!ops)
+		ops = template->ops = &default_ops;
+
 	if (symbol_conf.use_callchain)
 		callchain_size = sizeof(struct callchain_root);
 
-	he = zalloc(sizeof(*he) + callchain_size);
+	he = ops->new(callchain_size);
 	if (he) {
 		err = hist_entry__init(he, template, sample_self);
-		if (err)
-			zfree(&he);
+		if (err) {
+			ops->free(he);
+			he = NULL;
+		}
 	}
 
 	return he;
@@ -1050,6 +1071,8 @@ hist_entry__collapse(struct hist_entry *left, struct hist_entry *right)
 
 void hist_entry__delete(struct hist_entry *he)
 {
+	struct hist_entry_ops *ops = he->ops;
+
 	thread__zput(he->thread);
 	map__zput(he->ms.map);
 
@@ -1074,7 +1097,7 @@ void hist_entry__delete(struct hist_entry *he)
 	free_callchain(he->callchain);
 	free(he->trace_output);
 	free(he->raw_data);
-	free(he);
+	ops->free(he);
 }
 
 /*
