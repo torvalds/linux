@@ -779,6 +779,25 @@ static int vrf_get_saddr(struct net_device *dev, struct flowi4 *fl4)
 	return rc;
 }
 
+static int vrf_rcv_finish(struct net *net, struct sock *sk, struct sk_buff *skb)
+{
+	return 0;
+}
+
+static struct sk_buff *vrf_rcv_nfhook(u8 pf, unsigned int hook,
+				      struct sk_buff *skb,
+				      struct net_device *dev)
+{
+	struct net *net = dev_net(dev);
+
+	nf_reset(skb);
+
+	if (NF_HOOK(pf, hook, net, NULL, skb, dev, NULL, vrf_rcv_finish) < 0)
+		skb = NULL;    /* kfree_skb(skb) handled by nf code */
+
+	return skb;
+}
+
 #if IS_ENABLED(CONFIG_IPV6)
 /* neighbor handling is done with actual device; do not want
  * to flip skb->dev for those ndisc packets. This really fails
@@ -899,6 +918,7 @@ static struct sk_buff *vrf_ip6_rcv(struct net_device *vrf_dev,
 	if (need_strict)
 		vrf_ip6_input_dst(skb, vrf_dev, orig_iif);
 
+	skb = vrf_rcv_nfhook(NFPROTO_IPV6, NF_INET_PRE_ROUTING, skb, vrf_dev);
 out:
 	return skb;
 }
@@ -929,6 +949,7 @@ static struct sk_buff *vrf_ip_rcv(struct net_device *vrf_dev,
 	dev_queue_xmit_nit(skb, vrf_dev);
 	skb_pull(skb, skb->mac_len);
 
+	skb = vrf_rcv_nfhook(NFPROTO_IPV4, NF_INET_PRE_ROUTING, skb, vrf_dev);
 out:
 	return skb;
 }
