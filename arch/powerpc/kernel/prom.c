@@ -56,6 +56,7 @@
 #include <asm/opal.h>
 #include <asm/fadump.h>
 #include <asm/debug.h>
+#include <asm/epapr_hcalls.h>
 
 #include <mm/mmu_decl.h>
 
@@ -739,6 +740,7 @@ void __init early_init_devtree(void *params)
 	/* Scan and build the list of machine check recoverable ranges */
 	of_scan_flat_dt(early_init_dt_scan_recoverable_ranges, NULL);
 #endif
+	epapr_paravirt_early_init();
 
 	DBG(" <- early_init_devtree()\n");
 }

@@ -68,7 +68,6 @@
 #include <asm/code-patching.h>
 #include <asm/kvm_ppc.h>
 #include <asm/hugetlb.h>
-#include <asm/epapr_hcalls.h>
 #include <asm/livepatch.h>
 
 #ifdef DEBUG
@@ -269,8 +268,6 @@ void __init early_setup(unsigned long dt_ptr)
 	 * calculating/retrieving the hash table size.
 	 */
 	early_init_devtree(__va(dt_ptr));
-
-	epapr_paravirt_early_init();
 
 	/* Now we know the logical id of our boot cpu, setup the paca. */
 	setup_paca(&paca[boot_cpuid]);
