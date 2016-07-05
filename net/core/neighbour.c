@@ -2047,6 +2047,7 @@ static int neightbl_set(struct sk_buff *skb, struct nlmsghdr *nlh)
 			case NDTPA_DELAY_PROBE_TIME:
 				NEIGH_VAR_SET(p, DELAY_PROBE_TIME,
 					      nla_get_msecs(tbp[i]));
+				call_netevent_notifiers(NETEVENT_DELAY_PROBE_TIME_UPDATE, p);
 				break;
 			case NDTPA_RETRANS_TIME:
 				NEIGH_VAR_SET(p, RETRANS_TIME,
@@ -2930,6 +2931,7 @@ static void neigh_proc_update(struct ctl_table *ctl, int write)
 		return;
 
 	set_bit(index, p->data_state);
+	call_netevent_notifiers(NETEVENT_DELAY_PROBE_TIME_UPDATE, p);
 	if (!dev) /* NULL dev means this is default value */
 		neigh_copy_dflt_parms(net, p, index);
 }
