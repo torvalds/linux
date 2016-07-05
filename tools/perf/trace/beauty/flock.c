@@ -1,3 +1,4 @@
+#include <fcntl.h>
 
 static size_t syscall_arg__scnprintf_flock(char *bf, size_t size,
 					   struct syscall_arg *arg)
