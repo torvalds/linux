@@ -661,12 +661,13 @@ void __init setup_arch(char **cmdline_p)
 	 */
 	register_early_udbg_console();
 
+	smp_setup_cpu_maps();
+
 	/*
 	 * Initialize xmon
 	 */
 	xmon_setup();
 
-	smp_setup_cpu_maps();
 	check_smt_enabled();
 	setup_tlb_core_data();
 

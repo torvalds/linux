@@ -281,10 +281,10 @@ void __init setup_arch(char **cmdline_p)
 
 	find_legacy_serial_ports();
 
-	smp_setup_cpu_maps();
-
 	/* Register early console */
 	register_early_udbg_console();
+
+	smp_setup_cpu_maps();
 
 	xmon_setup();
 
