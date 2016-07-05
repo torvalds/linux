@@ -32,4 +32,4 @@ are:
    from a source pad to a sink pad.
 
 -  An **interface link** is a point-to-point bidirectional control
-   connection between a Linux Kernel interface and an entity.m
+   connection between a Linux Kernel interface and an entity.
