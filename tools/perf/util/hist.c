@@ -559,13 +559,15 @@ out:
 	return he;
 }
 
-struct hist_entry *hists__add_entry(struct hists *hists,
-				    struct addr_location *al,
-				    struct symbol *sym_parent,
-				    struct branch_info *bi,
-				    struct mem_info *mi,
-				    struct perf_sample *sample,
-				    bool sample_self)
+static struct hist_entry*
+__hists__add_entry(struct hists *hists,
+		   struct addr_location *al,
+		   struct symbol *sym_parent,
+		   struct branch_info *bi,
+		   struct mem_info *mi,
+		   struct perf_sample *sample,
+		   bool sample_self,
+		   struct hist_entry_ops *ops)
 {
 	struct hist_entry entry = {
 		.thread	= al->thread,
@@ -592,9 +594,35 @@ struct hist_entry *hists__add_entry(struct hists *hists,
 		.transaction = sample->transaction,
 		.raw_data = sample->raw_data,
 		.raw_size = sample->raw_size,
+		.ops = ops,
 	};
 
 	return hists__findnew_entry(hists, &entry, al, sample_self);
+}
+
+struct hist_entry *hists__add_entry(struct hists *hists,
+				    struct addr_location *al,
+				    struct symbol *sym_parent,
+				    struct branch_info *bi,
+				    struct mem_info *mi,
+				    struct perf_sample *sample,
+				    bool sample_self)
+{
+	return __hists__add_entry(hists, al, sym_parent, bi, mi,
+				  sample, sample_self, NULL);
+}
+
+struct hist_entry *hists__add_entry_ops(struct hists *hists,
+					struct hist_entry_ops *ops,
+					struct addr_location *al,
+					struct symbol *sym_parent,
+					struct branch_info *bi,
+					struct mem_info *mi,
+					struct perf_sample *sample,
+					bool sample_self)
+{
+	return __hists__add_entry(hists, al, sym_parent, bi, mi,
+				  sample, sample_self, ops);
 }
 
 static int
