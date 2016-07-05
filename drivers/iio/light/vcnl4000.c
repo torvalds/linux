@@ -109,7 +109,7 @@ static int vcnl4000_read_raw(struct iio_dev *indio_dev,
 				struct iio_chan_spec const *chan,
 				int *val, int *val2, long mask)
 {
-	int ret = -EINVAL;
+	int ret;
 	struct vcnl4000_data *data = iio_priv(indio_dev);
 
 	switch (mask) {
@@ -121,32 +121,27 @@ static int vcnl4000_read_raw(struct iio_dev *indio_dev,
 				VCNL4000_AL_RESULT_HI, val);
 			if (ret < 0)
 				return ret;
-			ret = IIO_VAL_INT;
-			break;
+			return IIO_VAL_INT;
 		case IIO_PROXIMITY:
 			ret = vcnl4000_measure(data,
 				VCNL4000_PS_OD, VCNL4000_PS_RDY,
 				VCNL4000_PS_RESULT_HI, val);
 			if (ret < 0)
 				return ret;
-			ret = IIO_VAL_INT;
-			break;
+			return IIO_VAL_INT;
 		default:
-			break;
+			return -EINVAL;
 		}
-		break;
 	case IIO_CHAN_INFO_SCALE:
-		if (chan->type == IIO_LIGHT) {
-			*val = 0;
-			*val2 = 250000;
-			ret = IIO_VAL_INT_PLUS_MICRO;
-		}
-		break;
-	default:
-		break;
-	}
+		if (chan->type != IIO_LIGHT)
+			return -EINVAL;
 
-	return ret;
+		*val = 0;
+		*val2 = 250000;
+		return IIO_VAL_INT_PLUS_MICRO;
+	default:
+		return -EINVAL;
+	}
 }
 
 static const struct iio_info vcnl4000_info = {
