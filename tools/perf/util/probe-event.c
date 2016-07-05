@@ -1206,10 +1206,8 @@ static int parse_perf_probe_point(char *arg, struct perf_probe_event *pev)
 	bool file_spec = false;
 	/*
 	 * <Syntax>
-	 * perf probe [EVENT=]SRC[:LN|;PTN]
-	 * perf probe [EVENT=]FUNC[@SRC][+OFFS|%return|:LN|;PAT]
-	 *
-	 * TODO:Group name support
+	 * perf probe [GRP:][EVENT=]SRC[:LN|;PTN]
+	 * perf probe [GRP:][EVENT=]FUNC[@SRC][+OFFS|%return|:LN|;PAT]
 	 */
 	if (!arg)
 		return -EINVAL;
@@ -1218,11 +1216,19 @@ static int parse_perf_probe_point(char *arg, struct perf_probe_event *pev)
 	if (ptr && *ptr == '=') {	/* Event name */
 		*ptr = '\0';
 		tmp = ptr + 1;
-		if (strchr(arg, ':')) {
-			semantic_error("Group name is not supported yet.\n");
-			return -ENOTSUP;
-		}
+		ptr = strchr(arg, ':');
+		if (ptr) {
+			*ptr = '\0';
+			if (!is_c_func_name(arg))
+				goto not_fname;
+			pev->group = strdup(arg);
+			if (!pev->group)
+				return -ENOMEM;
+			arg = ptr + 1;
+		} else
+			pev->group = NULL;
 		if (!is_c_func_name(arg)) {
+not_fname:
 			semantic_error("%s is bad for event name -it must "
 				       "follow C symbol-naming rule.\n", arg);
 			return -EINVAL;
@@ -1230,7 +1236,6 @@ static int parse_perf_probe_point(char *arg, struct perf_probe_event *pev)
 		pev->event = strdup(arg);
 		if (pev->event == NULL)
 			return -ENOMEM;
-		pev->group = NULL;
 		arg = tmp;
 	}
 
@@ -2366,6 +2371,9 @@ int show_perf_probe_events(struct strfilter *filter)
 
 	setup_pager();
 
+	if (probe_conf.cache)
+		return probe_cache__show_all_caches(filter);
+
 	ret = init_probe_symbol_maps(false);
 	if (ret < 0)
 		return ret;
@@ -2474,17 +2482,24 @@ static int probe_trace_event__set_name(struct probe_trace_event *tev,
 	char buf[64];
 	int ret;
 
+	/* If probe_event or trace_event already have the name, reuse it */
 	if (pev->event)
 		event = pev->event;
-	else
+	else if (tev->event)
+		event = tev->event;
+	else {
+		/* Or generate new one from probe point */
 		if (pev->point.function &&
 			(strncmp(pev->point.function, "0x", 2) != 0) &&
 			!strisglob(pev->point.function))
 			event = pev->point.function;
 		else
 			event = tev->point.realname;
+	}
 	if (pev->group)
 		group = pev->group;
+	else if (tev->group)
+		group = tev->group;
 	else
 		group = PERFPROBE_GROUP;
 
@@ -2531,7 +2546,7 @@ static int __add_probe_trace_events(struct perf_probe_event *pev,
 	for (i = 0; i < ntevs; i++) {
 		tev = &tevs[i];
 		/* Skip if the symbol is out of .text or blacklisted */
-		if (!tev->point.symbol)
+		if (!tev->point.symbol && !pev->uprobes)
 			continue;
 
 		/* Set new name for tev (and update namelist) */
@@ -2844,6 +2859,55 @@ errout:
 
 bool __weak arch__prefers_symtab(void) { return false; }
 
+static int find_probe_trace_events_from_cache(struct perf_probe_event *pev,
+					      struct probe_trace_event **tevs)
+{
+	struct probe_cache *cache;
+	struct probe_cache_entry *entry;
+	struct probe_trace_event *tev;
+	struct str_node *node;
+	int ret, i;
+
+	cache = probe_cache__new(pev->target);
+	if (!cache)
+		return 0;
+
+	entry = probe_cache__find(cache, pev);
+	if (!entry) {
+		ret = 0;
+		goto out;
+	}
+
+	ret = strlist__nr_entries(entry->tevlist);
+	if (ret > probe_conf.max_probes) {
+		pr_debug("Too many entries matched in the cache of %s\n",
+			 pev->target ? : "kernel");
+		ret = -E2BIG;
+		goto out;
+	}
+
+	*tevs = zalloc(ret * sizeof(*tev));
+	if (!*tevs) {
+		ret = -ENOMEM;
+		goto out;
+	}
+
+	i = 0;
+	strlist__for_each_entry(node, entry->tevlist) {
+		tev = &(*tevs)[i++];
+		ret = parse_probe_trace_command(node->s, tev);
+		if (ret < 0)
+			goto out;
+		/* Set the uprobes attribute as same as original */
+		tev->uprobes = pev->uprobes;
+	}
+	ret = i;
+
+out:
+	probe_cache__delete(cache);
+	return ret;
+}
+
 static int convert_to_probe_trace_events(struct perf_probe_event *pev,
 					 struct probe_trace_event **tevs)
 {
@@ -2865,6 +2929,11 @@ static int convert_to_probe_trace_events(struct perf_probe_event *pev,
 	ret = try_to_find_absolute_address(pev, tevs);
 	if (ret > 0)
 		return ret;
+
+	/* At first, we need to lookup cache entry */
+	ret = find_probe_trace_events_from_cache(pev, tevs);
+	if (ret > 0)
+		return ret;	/* Found in probe cache */
 
 	if (arch__prefers_symtab() && !perf_probe_event_need_dwarf(pev)) {
 		ret = find_probe_trace_events_from_map(pev, tevs);

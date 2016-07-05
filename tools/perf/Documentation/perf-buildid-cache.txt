@@ -15,6 +15,9 @@ DESCRIPTION
 This command manages the build-id cache. It can add, remove, update and purge
 files to/from the cache. In the future it should as well set upper limits for
 the space used by the cache, etc.
+This also scans the target binary for SDT (Statically Defined Tracing) and
+record it along with the buildid-cache, which will be used by perf-probe.
+For more details, see linkperf:perf-probe[1].
 
 OPTIONS
 -------

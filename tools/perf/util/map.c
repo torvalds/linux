@@ -15,6 +15,7 @@
 #include "debug.h"
 #include "machine.h"
 #include <linux/string.h>
+#include "unwind.h"
 
 static void __maps__insert(struct maps *maps, struct map *map);
 
@@ -744,9 +745,10 @@ int map_groups__fixup_overlappings(struct map_groups *mg, struct map *map,
 /*
  * XXX This should not really _copy_ te maps, but refcount them.
  */
-int map_groups__clone(struct map_groups *mg,
+int map_groups__clone(struct thread *thread,
 		      struct map_groups *parent, enum map_type type)
 {
+	struct map_groups *mg = thread->mg;
 	int err = -ENOMEM;
 	struct map *map;
 	struct maps *maps = &parent->maps[type];
@@ -757,6 +759,11 @@ int map_groups__clone(struct map_groups *mg,
 		struct map *new = map__clone(map);
 		if (new == NULL)
 			goto out_unlock;
+
+		err = unwind__prepare_access(thread, new, NULL);
+		if (err)
+			goto out_unlock;
+
 		map_groups__insert(mg, new);
 		map__put(new);
 	}

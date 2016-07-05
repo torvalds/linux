@@ -17,6 +17,7 @@ FILES=					\
 	test-cplus-demangle.bin		\
 	test-libelf.bin			\
 	test-libelf-getphdrnum.bin	\
+	test-libelf-getshdrstrndx.bin	\
 	test-libelf-mmap.bin		\
 	test-libnuma.bin		\
 	test-numa_num_possible_cpus.bin	\
@@ -96,6 +97,9 @@ $(OUTPUT)test-libelf-mmap.bin:
 	$(BUILD) -lelf
 
 $(OUTPUT)test-libelf-getphdrnum.bin:
+	$(BUILD) -lelf
+
+$(OUTPUT)test-libelf-getshdrstrndx.bin:
 	$(BUILD) -lelf
 
 $(OUTPUT)test-libnuma.bin:

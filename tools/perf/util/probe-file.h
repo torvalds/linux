@@ -8,6 +8,7 @@
 /* Cache of probe definitions */
 struct probe_cache_entry {
 	struct list_head	node;
+	bool			sdt;
 	struct perf_probe_event pev;
 	char			*spev;
 	struct strlist		*tevlist;
@@ -35,8 +36,15 @@ struct probe_cache *probe_cache__new(const char *target);
 int probe_cache__add_entry(struct probe_cache *pcache,
 			   struct perf_probe_event *pev,
 			   struct probe_trace_event *tevs, int ntevs);
+int probe_cache__scan_sdt(struct probe_cache *pcache, const char *pathname);
 int probe_cache__commit(struct probe_cache *pcache);
 void probe_cache__purge(struct probe_cache *pcache);
 void probe_cache__delete(struct probe_cache *pcache);
-
+int probe_cache__filter_purge(struct probe_cache *pcache,
+			      struct strfilter *filter);
+struct probe_cache_entry *probe_cache__find(struct probe_cache *pcache,
+					    struct perf_probe_event *pev);
+struct probe_cache_entry *probe_cache__find_by_name(struct probe_cache *pcache,
+					const char *group, const char *event);
+int probe_cache__show_all_caches(struct strfilter *filter);
 #endif
