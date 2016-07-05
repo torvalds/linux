@@ -3385,6 +3385,20 @@ static void amd_iommu_put_dm_regions(struct device *dev,
 		kfree(entry);
 }
 
+static void amd_iommu_apply_dm_region(struct device *dev,
+				      struct iommu_domain *domain,
+				      struct iommu_dm_region *region)
+{
+	struct protection_domain *pdomain = to_pdomain(domain);
+	struct dma_ops_domain *dma_dom = pdomain->priv;
+	unsigned long start, end;
+
+	start = IOVA_PFN(region->start);
+	end   = IOVA_PFN(region->start + region->length);
+
+	WARN_ON_ONCE(reserve_iova(&dma_dom->iovad, start, end) == NULL);
+}
+
 static const struct iommu_ops amd_iommu_ops = {
 	.capable = amd_iommu_capable,
 	.domain_alloc = amd_iommu_domain_alloc,
@@ -3400,6 +3414,7 @@ static const struct iommu_ops amd_iommu_ops = {
 	.device_group = amd_iommu_device_group,
 	.get_dm_regions = amd_iommu_get_dm_regions,
 	.put_dm_regions = amd_iommu_put_dm_regions,
+	.apply_dm_region = amd_iommu_apply_dm_region,
 	.pgsize_bitmap	= AMD_IOMMU_PGSIZES,
 };
 
