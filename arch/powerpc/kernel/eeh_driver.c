@@ -647,7 +647,7 @@ static int eeh_reset_device(struct eeh_pe *pe, struct pci_bus *bus,
 			pci_unlock_rescan_remove();
 		}
 	} else if (frozen_bus) {
-		eeh_pe_dev_traverse(pe, eeh_rmv_device, &rmv_data);
+		eeh_pe_dev_traverse(pe, eeh_rmv_device, rmv_data);
 	}
 
 	/*

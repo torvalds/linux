@@ -344,6 +344,8 @@ struct device *nd_pfn_create(struct nd_region *nd_region)
 int nd_pfn_validate(struct nd_pfn *nd_pfn, const char *sig)
 {
 	u64 checksum, offset;
+	unsigned long align;
+	enum nd_pfn_mode mode;
 	struct nd_namespace_io *nsio;
 	struct nd_pfn_sb *pfn_sb = nd_pfn->pfn_sb;
 	struct nd_namespace_common *ndns = nd_pfn->ndns;
@@ -386,22 +388,50 @@ int nd_pfn_validate(struct nd_pfn *nd_pfn, const char *sig)
 		return -ENXIO;
 	}
 
+	align = le32_to_cpu(pfn_sb->align);
+	offset = le64_to_cpu(pfn_sb->dataoff);
+	if (align == 0)
+		align = 1UL << ilog2(offset);
+	mode = le32_to_cpu(pfn_sb->mode);
+
 	if (!nd_pfn->uuid) {
-		/* from probe we allocate */
+		/*
+		 * When probing a namepace via nd_pfn_probe() the uuid
+		 * is NULL (see: nd_pfn_devinit()) we init settings from
+		 * pfn_sb
+		 */
 		nd_pfn->uuid = kmemdup(pfn_sb->uuid, 16, GFP_KERNEL);
 		if (!nd_pfn->uuid)
 			return -ENOMEM;
+		nd_pfn->align = align;
+		nd_pfn->mode = mode;
 	} else {
-		/* from init we validate */
+		/*
+		 * When probing a pfn / dax instance we validate the
+		 * live settings against the pfn_sb
+		 */
 		if (memcmp(nd_pfn->uuid, pfn_sb->uuid, 16) != 0)
 			return -ENODEV;
+
+		/*
+		 * If the uuid validates, but other settings mismatch
+		 * return EINVAL because userspace has managed to change
+		 * the configuration without specifying new
+		 * identification.
+		 */
+		if (nd_pfn->align != align || nd_pfn->mode != mode) {
+			dev_err(&nd_pfn->dev,
+					"init failed, settings mismatch\n");
+			dev_dbg(&nd_pfn->dev, "align: %lx:%lx mode: %d:%d\n",
+					nd_pfn->align, align, nd_pfn->mode,
+					mode);
+			return -EINVAL;
+		}
 	}
 
-	if (nd_pfn->align == 0)
-		nd_pfn->align = le32_to_cpu(pfn_sb->align);
-	if (nd_pfn->align > nvdimm_namespace_capacity(ndns)) {
+	if (align > nvdimm_namespace_capacity(ndns)) {
 		dev_err(&nd_pfn->dev, "alignment: %lx exceeds capacity %llx\n",
-				nd_pfn->align, nvdimm_namespace_capacity(ndns));
+				align, nvdimm_namespace_capacity(ndns));
 		return -EINVAL;
 	}
 
@@ -411,7 +441,6 @@ int nd_pfn_validate(struct nd_pfn *nd_pfn, const char *sig)
 	 * namespace has changed since the pfn superblock was
 	 * established.
 	 */
-	offset = le64_to_cpu(pfn_sb->dataoff);
 	nsio = to_nd_namespace_io(&ndns->dev);
 	if (offset >= resource_size(&nsio->res)) {
 		dev_err(&nd_pfn->dev, "pfn array size exceeds capacity of %s\n",
@@ -419,10 +448,11 @@ int nd_pfn_validate(struct nd_pfn *nd_pfn, const char *sig)
 		return -EBUSY;
 	}
 
-	if ((nd_pfn->align && !IS_ALIGNED(offset, nd_pfn->align))
+	if ((align && !IS_ALIGNED(offset, align))
 			|| !IS_ALIGNED(offset, PAGE_SIZE)) {
-		dev_err(&nd_pfn->dev, "bad offset: %#llx dax disabled\n",
-				offset);
+		dev_err(&nd_pfn->dev,
+				"bad offset: %#llx dax disabled align: %#lx\n",
+				offset, align);
 		return -ENXIO;
 	}
 
@@ -502,7 +532,6 @@ static struct vmem_altmap *__nvdimm_setup_pfn(struct nd_pfn *nd_pfn,
 	res->start += start_pad;
 	res->end -= end_trunc;
 
-	nd_pfn->mode = le32_to_cpu(nd_pfn->pfn_sb->mode);
 	if (nd_pfn->mode == PFN_MODE_RAM) {
 		if (offset < SZ_8K)
 			return ERR_PTR(-EINVAL);

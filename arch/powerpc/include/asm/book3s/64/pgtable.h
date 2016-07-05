@@ -230,6 +230,7 @@ extern unsigned long __kernel_virt_size;
 #define KERN_VIRT_SIZE  __kernel_virt_size
 extern struct page *vmemmap;
 extern unsigned long ioremap_bot;
+extern unsigned long pci_io_base;
 #endif /* __ASSEMBLY__ */
 
 #include <asm/book3s/64/hash.h>

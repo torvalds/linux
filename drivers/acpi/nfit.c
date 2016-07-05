@@ -928,7 +928,7 @@ static ssize_t format_show(struct device *dev,
 {
 	struct acpi_nfit_control_region *dcr = to_nfit_dcr(dev);
 
-	return sprintf(buf, "0x%04x\n", be16_to_cpu(dcr->code));
+	return sprintf(buf, "0x%04x\n", le16_to_cpu(dcr->code));
 }
 static DEVICE_ATTR_RO(format);
 
@@ -961,8 +961,8 @@ static ssize_t format1_show(struct device *dev,
 				continue;
 			if (nfit_dcr->dcr->code == dcr->code)
 				continue;
-			rc = sprintf(buf, "%#x\n",
-					be16_to_cpu(nfit_dcr->dcr->code));
+			rc = sprintf(buf, "0x%04x\n",
+					le16_to_cpu(nfit_dcr->dcr->code));
 			break;
 		}
 		if (rc != ENXIO)
@@ -1131,11 +1131,11 @@ static int acpi_nfit_add_dimm(struct acpi_nfit_desc *acpi_desc,
 
 	/*
 	 * Until standardization materializes we need to consider up to 3
-	 * different command sets.  Note, that checking for function0 (bit0)
-	 * tells us if any commands are reachable through this uuid.
+	 * different command sets.  Note, that checking for zero functions
+	 * tells us if any commands might be reachable through this uuid.
 	 */
 	for (i = NVDIMM_FAMILY_INTEL; i <= NVDIMM_FAMILY_HPE2; i++)
-		if (acpi_check_dsm(adev_dimm->handle, to_nfit_uuid(i), 1, 1))
+		if (acpi_check_dsm(adev_dimm->handle, to_nfit_uuid(i), 1, 0))
 			break;
 
 	/* limit the supported commands to those that are publicly documented */

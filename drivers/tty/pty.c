@@ -667,8 +667,11 @@ static void pty_unix98_remove(struct tty_driver *driver, struct tty_struct *tty)
 		fsi = tty->driver_data;
 	else
 		fsi = tty->link->driver_data;
-	devpts_kill_index(fsi, tty->index);
-	devpts_release(fsi);
+
+	if (fsi) {
+		devpts_kill_index(fsi, tty->index);
+		devpts_release(fsi);
+	}
 }
 
 static const struct tty_operations ptm_unix98_ops = {
