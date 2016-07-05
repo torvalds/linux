@@ -215,7 +215,6 @@ static int isl29018_read_lux(struct isl29018_chip *chip, int *lux)
 
 	lux_data = isl29018_read_sensor_input(chip,
 					      ISL29018_CMD1_OPMODE_ALS_ONCE);
-
 	if (lux_data < 0)
 		return lux_data;
 
@@ -233,7 +232,6 @@ static int isl29018_read_ir(struct isl29018_chip *chip, int *ir)
 
 	ir_data = isl29018_read_sensor_input(chip,
 					     ISL29018_CMD1_OPMODE_IR_ONCE);
-
 	if (ir_data < 0)
 		return ir_data;
 
@@ -271,7 +269,6 @@ static int isl29018_read_proximity_ir(struct isl29018_chip *chip, int scheme,
 
 	ir_data = isl29018_read_sensor_input(chip,
 					     ISL29018_CMD1_OPMODE_IR_ONCE);
-
 	if (ir_data < 0)
 		return ir_data;
 
