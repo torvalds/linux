@@ -1504,7 +1504,7 @@ int nfs_atomic_open(struct inode *dir, struct dentry *dentry,
 
 	/* NFS only supports OPEN on regular files */
 	if ((open_flags & O_DIRECTORY)) {
-		if (!d_unhashed(dentry)) {
+		if (!d_in_lookup(dentry)) {
 			/*
 			 * Hashed negative dentry with O_DIRECTORY: dentry was
 			 * revalidated and is fine, no need to perform lookup
