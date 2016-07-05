@@ -1941,8 +1941,12 @@ static void hw_scan_work(struct work_struct *work)
 
 	mutex_lock(&hwsim->mutex);
 	if (hwsim->scan_chan_idx >= req->n_channels) {
+		struct cfg80211_scan_info info = {
+			.aborted = false,
+		};
+
 		wiphy_debug(hwsim->hw->wiphy, "hw scan complete\n");
-		ieee80211_scan_completed(hwsim->hw, false);
+		ieee80211_scan_completed(hwsim->hw, &info);
 		hwsim->hw_scan_request = NULL;
 		hwsim->hw_scan_vif = NULL;
 		hwsim->tmp_chan = NULL;
@@ -2027,13 +2031,16 @@ static void mac80211_hwsim_cancel_hw_scan(struct ieee80211_hw *hw,
 					  struct ieee80211_vif *vif)
 {
 	struct mac80211_hwsim_data *hwsim = hw->priv;
+	struct cfg80211_scan_info info = {
+		.aborted = true,
+	};
 
 	wiphy_debug(hw->wiphy, "hwsim cancel_hw_scan\n");
 
 	cancel_delayed_work_sync(&hwsim->hw_scan);
 
 	mutex_lock(&hwsim->mutex);
-	ieee80211_scan_completed(hwsim->hw, true);
+	ieee80211_scan_completed(hwsim->hw, &info);
 	hwsim->tmp_chan = NULL;
 	hwsim->hw_scan_request = NULL;
 	hwsim->hw_scan_vif = NULL;
