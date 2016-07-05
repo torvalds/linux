@@ -1377,8 +1377,8 @@ static void bxt_ddi_pll_enable(struct drm_i915_private *dev_priv,
 	I915_WRITE(BXT_PORT_PLL_ENABLE(port), temp);
 	POSTING_READ(BXT_PORT_PLL_ENABLE(port));
 
-	if (wait_for_atomic_us((I915_READ(BXT_PORT_PLL_ENABLE(port)) &
-			PORT_PLL_LOCK), 200))
+	if (wait_for_us((I915_READ(BXT_PORT_PLL_ENABLE(port)) & PORT_PLL_LOCK),
+			200))
 		DRM_ERROR("PLL %d not locked\n", port);
 
 	/*
