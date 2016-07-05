@@ -135,7 +135,6 @@ int ext4_mpage_readpages(struct address_space *mapping,
 			 unsigned nr_pages)
 {
 	struct bio *bio = NULL;
-	unsigned page_idx;
 	sector_t last_block_in_bio = 0;
 
 	struct inode *inode = mapping->host;
@@ -157,7 +156,7 @@ int ext4_mpage_readpages(struct address_space *mapping,
 	map.m_len = 0;
 	map.m_flags = 0;
 
-	for (page_idx = 0; nr_pages; page_idx++, nr_pages--) {
+	for (; nr_pages; nr_pages--) {
 		int fully_mapped = 1;
 		unsigned first_hole = blocks_per_page;
 
