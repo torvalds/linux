@@ -330,6 +330,9 @@ struct ieee80211_supported_band {
  * in a separate chapter.
  */
 
+#define VHT_MUMIMO_GROUPS_DATA_LEN (WLAN_MEMBERSHIP_LEN +\
+				    WLAN_USER_POSITION_LEN)
+
 /**
  * struct vif_params - describes virtual interface parameters
  * @use_4addr: use 4-address frames
@@ -339,10 +342,13 @@ struct ieee80211_supported_band {
  *	This feature is only fully supported by drivers that enable the
  *	%NL80211_FEATURE_MAC_ON_CREATE flag.  Others may support creating
  **	only p2p devices with specified MAC.
+ * @vht_mumimo_groups: MU-MIMO groupID. used for monitoring only
+ *	 packets belonging to that MU-MIMO groupID.
  */
 struct vif_params {
-       int use_4addr;
-       u8 macaddr[ETH_ALEN];
+	int use_4addr;
+	u8 macaddr[ETH_ALEN];
+	u8 vht_mumimo_groups[VHT_MUMIMO_GROUPS_DATA_LEN];
 };
 
 /**
