@@ -248,6 +248,21 @@ static void setup_power_save(void)
 #endif
 }
 
+static __init void initialize_cache_info(void)
+{
+	/*
+	 * Set cache line size based on type of cpu as a default.
+	 * Systems with OF can look in the properties on the cpu node(s)
+	 * for a possibly more accurate value.
+	 */
+	dcache_bsize = cur_cpu_spec->dcache_bsize;
+	icache_bsize = cur_cpu_spec->icache_bsize;
+	ucache_bsize = 0;
+	if (cpu_has_feature(CPU_FTR_UNIFIED_ID_CACHE))
+		ucache_bsize = icache_bsize = dcache_bsize;
+}
+
+
 /* Warning, IO base is not yet inited */
 void __init setup_arch(char **cmdline_p)
 {
@@ -257,6 +272,7 @@ void __init setup_arch(char **cmdline_p)
 	loops_per_jiffy = 500000000 / HZ;
 
 	unflatten_device_tree();
+	initialize_cache_info();
 	check_for_initrd();
 
 	probe_machine();
@@ -271,17 +287,6 @@ void __init setup_arch(char **cmdline_p)
 	register_early_udbg_console();
 
 	xmon_setup();
-
-	/*
-	 * Set cache line size based on type of cpu as a default.
-	 * Systems with OF can look in the properties on the cpu node(s)
-	 * for a possibly more accurate value.
-	 */
-	dcache_bsize = cur_cpu_spec->dcache_bsize;
-	icache_bsize = cur_cpu_spec->icache_bsize;
-	ucache_bsize = 0;
-	if (cpu_has_feature(CPU_FTR_UNIFIED_ID_CACHE))
-		ucache_bsize = icache_bsize = dcache_bsize;
 
 	if (ppc_md.panic)
 		setup_panic();
