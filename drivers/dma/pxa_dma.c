@@ -318,7 +318,6 @@ static int dbg_open_##name(struct inode *inode, struct file *file) \
 	return single_open(file, dbg_show_##name, inode->i_private); \
 } \
 static const struct file_operations dbg_fops_##name = { \
-	.owner		= THIS_MODULE, \
 	.open		= dbg_open_##name, \
 	.llseek		= seq_lseek, \
 	.read		= seq_read, \
