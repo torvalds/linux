@@ -1359,6 +1359,18 @@ err_memcpy:
 	return ret;
 }
 
+static void s3c24xx_dma_free_irq(struct platform_device *pdev,
+				struct s3c24xx_dma_engine *s3cdma)
+{
+	int i;
+
+	for (i = 0; i < s3cdma->pdata->num_phy_channels; i++) {
+		struct s3c24xx_dma_phy *phy = &s3cdma->phy_chans[i];
+
+		devm_free_irq(&pdev->dev, phy->irq, phy);
+	}
+}
+
 static int s3c24xx_dma_remove(struct platform_device *pdev)
 {
 	const struct s3c24xx_dma_platdata *pdata = dev_get_platdata(&pdev->dev);
@@ -1368,6 +1380,8 @@ static int s3c24xx_dma_remove(struct platform_device *pdev)
 
 	dma_async_device_unregister(&s3cdma->slave);
 	dma_async_device_unregister(&s3cdma->memcpy);
+
+	s3c24xx_dma_free_irq(pdev, s3cdma);
 
 	s3c24xx_dma_free_virtual_channels(&s3cdma->slave);
 	s3c24xx_dma_free_virtual_channels(&s3cdma->memcpy);
