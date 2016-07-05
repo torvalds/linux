@@ -19,31 +19,15 @@
  * LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM,
  * OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
  * SOFTWARE.
- *
- * Authors:
- *    Eddie Dong <eddie.dong@intel.com>
- *    Dexuan Cui
- *    Jike Song <jike.song@intel.com>
- *
- * Contributors:
- *    Zhi Wang <zhi.a.wang@intel.com>
- *
  */
 
-#ifndef _GVT_HYPERCALL_H_
-#define _GVT_HYPERCALL_H_
+#ifndef _GVT_REG_H
+#define _GVT_REG_H
 
-/*
- * Specific GVT-g MPT modules function collections. Currently GVT-g supports
- * both Xen and KVM by providing dedicated hypervisor-related MPT modules.
- */
-struct intel_gvt_mpt {
-	int (*detect_host)(void);
-	int (*attach_vgpu)(void *vgpu, unsigned long *handle);
-	void (*detach_vgpu)(unsigned long handle);
-};
+#define INTEL_GVT_PCI_CLASS_VGA_OTHER   0x80
 
-extern struct intel_gvt_mpt xengt_mpt;
-extern struct intel_gvt_mpt kvmgt_mpt;
+#define INTEL_GVT_PCI_GMCH_CONTROL	0x50
+#define   BDW_GMCH_GMS_SHIFT		8
+#define   BDW_GMCH_GMS_MASK		0xff
 
-#endif /* _GVT_HYPERCALL_H_ */
+#endif

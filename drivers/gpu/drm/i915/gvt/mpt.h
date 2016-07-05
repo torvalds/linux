@@ -19,6 +19,15 @@
  * LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM,
  * OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
  * SOFTWARE.
+ *
+ * Authors:
+ *    Eddie Dong <eddie.dong@intel.com>
+ *    Dexuan Cui
+ *    Jike Song <jike.song@intel.com>
+ *
+ * Contributors:
+ *    Zhi Wang <zhi.a.wang@intel.com>
+ *
  */
 
 #ifndef _GVT_MPT_H_
@@ -44,6 +53,30 @@
 static inline int intel_gvt_hypervisor_detect_host(void)
 {
 	return intel_gvt_host.mpt->detect_host();
+}
+
+/**
+ * intel_gvt_hypervisor_attach_vgpu - call hypervisor to initialize vGPU
+ * related stuffs inside hypervisor.
+ *
+ * Returns:
+ * Zero on success, negative error code if failed.
+ */
+static inline int intel_gvt_hypervisor_attach_vgpu(struct intel_vgpu *vgpu)
+{
+	return intel_gvt_host.mpt->attach_vgpu(vgpu, &vgpu->handle);
+}
+
+/**
+ * intel_gvt_hypervisor_detach_vgpu - call hypervisor to release vGPU
+ * related stuffs inside hypervisor.
+ *
+ * Returns:
+ * Zero on success, negative error code if failed.
+ */
+static inline void intel_gvt_hypervisor_detach_vgpu(struct intel_vgpu *vgpu)
+{
+	intel_gvt_host.mpt->detach_vgpu(vgpu->handle);
 }
 
 #endif /* _GVT_MPT_H_ */

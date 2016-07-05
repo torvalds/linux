@@ -36,6 +36,7 @@
 #include "debug.h"
 #include "hypercall.h"
 #include "mmio.h"
+#include "reg.h"
 
 #define GVT_MAX_VGPU 8
 
@@ -77,13 +78,37 @@ struct intel_vgpu_fence {
 	u32 size;
 };
 
+struct intel_vgpu_mmio {
+	void *vreg;
+	void *sreg;
+};
+
+#define INTEL_GVT_MAX_CFG_SPACE_SZ 256
+#define INTEL_GVT_MAX_BAR_NUM 4
+
+struct intel_vgpu_pci_bar {
+	u64 size;
+	bool tracked;
+};
+
+struct intel_vgpu_cfg_space {
+	unsigned char virtual_cfg_space[INTEL_GVT_MAX_CFG_SPACE_SZ];
+	struct intel_vgpu_pci_bar bar[INTEL_GVT_MAX_BAR_NUM];
+};
+
+#define vgpu_cfg_space(vgpu) ((vgpu)->cfg_space.virtual_cfg_space)
+
 struct intel_vgpu {
 	struct intel_gvt *gvt;
 	int id;
 	unsigned long handle; /* vGPU handle used by hypervisor MPT modules */
+	bool active;
+	bool resetting;
 
 	struct intel_vgpu_fence fence;
 	struct intel_vgpu_gm gm;
+	struct intel_vgpu_cfg_space cfg_space;
+	struct intel_vgpu_mmio mmio;
 };
 
 struct intel_gvt_gm {
@@ -182,6 +207,52 @@ int intel_vgpu_alloc_resource(struct intel_vgpu *vgpu,
 void intel_vgpu_free_resource(struct intel_vgpu *vgpu);
 void intel_vgpu_write_fence(struct intel_vgpu *vgpu,
 	u32 fence, u64 value);
+
+/* Macros for easily accessing vGPU virtual/shadow register */
+#define vgpu_vreg(vgpu, reg) \
+	(*(u32 *)(vgpu->mmio.vreg + INTEL_GVT_MMIO_OFFSET(reg)))
+#define vgpu_vreg8(vgpu, reg) \
+	(*(u8 *)(vgpu->mmio.vreg + INTEL_GVT_MMIO_OFFSET(reg)))
+#define vgpu_vreg16(vgpu, reg) \
+	(*(u16 *)(vgpu->mmio.vreg + INTEL_GVT_MMIO_OFFSET(reg)))
+#define vgpu_vreg64(vgpu, reg) \
+	(*(u64 *)(vgpu->mmio.vreg + INTEL_GVT_MMIO_OFFSET(reg)))
+#define vgpu_sreg(vgpu, reg) \
+	(*(u32 *)(vgpu->mmio.sreg + INTEL_GVT_MMIO_OFFSET(reg)))
+#define vgpu_sreg8(vgpu, reg) \
+	(*(u8 *)(vgpu->mmio.sreg + INTEL_GVT_MMIO_OFFSET(reg)))
+#define vgpu_sreg16(vgpu, reg) \
+	(*(u16 *)(vgpu->mmio.sreg + INTEL_GVT_MMIO_OFFSET(reg)))
+#define vgpu_sreg64(vgpu, reg) \
+	(*(u64 *)(vgpu->mmio.sreg + INTEL_GVT_MMIO_OFFSET(reg)))
+
+#define for_each_active_vgpu(gvt, vgpu, id) \
+	idr_for_each_entry((&(gvt)->vgpu_idr), (vgpu), (id)) \
+		for_each_if(vgpu->active)
+
+static inline void intel_vgpu_write_pci_bar(struct intel_vgpu *vgpu,
+					    u32 offset, u32 val, bool low)
+{
+	u32 *pval;
+
+	/* BAR offset should be 32 bits algiend */
+	offset = rounddown(offset, 4);
+	pval = (u32 *)(vgpu_cfg_space(vgpu) + offset);
+
+	if (low) {
+		/*
+		 * only update bit 31 - bit 4,
+		 * leave the bit 3 - bit 0 unchanged.
+		 */
+		*pval = (val & GENMASK(31, 4)) | (*pval & GENMASK(3, 0));
+	}
+}
+
+struct intel_vgpu *intel_gvt_create_vgpu(struct intel_gvt *gvt,
+					 struct intel_vgpu_creation_params *
+					 param);
+
+void intel_gvt_destroy_vgpu(struct intel_vgpu *vgpu);
 
 #include "mpt.h"
 
