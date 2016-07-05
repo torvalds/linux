@@ -47,7 +47,7 @@ nouveau_display_vblank_handler(struct nvif_notify *notify)
 {
 	struct nouveau_crtc *nv_crtc =
 		container_of(notify, typeof(*nv_crtc), vblank);
-	drm_handle_vblank(nv_crtc->base.dev, nv_crtc->index);
+	drm_crtc_handle_vblank(&nv_crtc->base);
 	return NVIF_NOTIFY_KEEP;
 }
 
