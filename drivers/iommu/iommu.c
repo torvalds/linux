@@ -348,6 +348,9 @@ static int iommu_group_create_direct_mappings(struct iommu_group *group,
 	list_for_each_entry(entry, &mappings, list) {
 		dma_addr_t start, end, addr;
 
+		if (domain->ops->apply_dm_region)
+			domain->ops->apply_dm_region(dev, domain, entry);
+
 		start = ALIGN(entry->start, pg_size);
 		end   = ALIGN(entry->start + entry->length, pg_size);
 
