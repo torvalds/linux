@@ -484,9 +484,6 @@ static int __init pmac_declare_of_platform_devices(void)
 {
 	struct device_node *np;
 
-	if (machine_is(chrp))
-		return -1;
-
 	np = of_find_node_by_name(NULL, "valkyrie");
 	if (np) {
 		of_platform_device_create(np, "valkyrie", NULL);
