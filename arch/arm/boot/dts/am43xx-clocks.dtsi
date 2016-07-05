@@ -104,6 +104,14 @@
 		clock-div = <1>;
 	};
 
+	rng_fck: rng_fck {
+		#clock-cells = <0>;
+		compatible = "fixed-factor-clock";
+		clocks = <&sys_clkin_ck>;
+		clock-mult = <1>;
+		clock-div = <1>;
+	};
+
 	ehrpwm0_tbclk: ehrpwm0_tbclk@664 {
 		#clock-cells = <0>;
 		compatible = "ti,gate-clock";
