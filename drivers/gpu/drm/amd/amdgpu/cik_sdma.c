@@ -675,7 +675,6 @@ static int cik_sdma_ring_test_ib(struct amdgpu_ring *ring)
 	}
 
 err1:
-	fence_put(f);
 	amdgpu_ib_free(adev, &ib, NULL);
 	fence_put(f);
 err0:

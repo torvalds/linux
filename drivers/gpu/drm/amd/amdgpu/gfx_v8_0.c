@@ -829,7 +829,6 @@ static int gfx_v8_0_ring_test_ib(struct amdgpu_ring *ring)
 		r = -EINVAL;
 	}
 err2:
-	fence_put(f);
 	amdgpu_ib_free(adev, &ib, NULL);
 	fence_put(f);
 err1:
@@ -1719,7 +1718,6 @@ static int gfx_v8_0_do_edc_gpr_workarounds(struct amdgpu_device *adev)
 		RREG32(sec_ded_counter_registers[i]);
 
 fail:
-	fence_put(f);
 	amdgpu_ib_free(adev, &ib, NULL);
 	fence_put(f);
 

@@ -122,7 +122,6 @@ int amdgpu_ib_schedule(struct amdgpu_ring *ring, unsigned num_ibs,
 	bool skip_preamble, need_ctx_switch;
 	unsigned patch_offset = ~0;
 	struct amdgpu_vm *vm;
-	struct fence *hwf;
 	uint64_t ctx;
 
 	unsigned i;
@@ -190,7 +189,7 @@ int amdgpu_ib_schedule(struct amdgpu_ring *ring, unsigned num_ibs,
 	if (ring->funcs->emit_hdp_invalidate)
 		amdgpu_ring_emit_hdp_invalidate(ring);
 
-	r = amdgpu_fence_emit(ring, &hwf);
+	r = amdgpu_fence_emit(ring, f);
 	if (r) {
 		dev_err(adev->dev, "failed to emit fence (%d)\n", r);
 		if (job && job->vm_id)
@@ -204,9 +203,6 @@ int amdgpu_ib_schedule(struct amdgpu_ring *ring, unsigned num_ibs,
 		amdgpu_ring_emit_fence(ring, job->uf_addr, job->uf_sequence,
 				       AMDGPU_FENCE_FLAG_64BIT);
 	}
-
-	if (f)
-		*f = fence_get(hwf);
 
 	if (patch_offset != ~0 && ring->funcs->patch_cond_exec)
 		amdgpu_ring_patch_cond_exec(ring, patch_offset);

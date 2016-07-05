@@ -172,15 +172,13 @@ static struct fence *amdgpu_job_run(struct amd_sched_job *sched_job)
 	trace_amdgpu_sched_run_job(job);
 	r = amdgpu_ib_schedule(job->ring, job->num_ibs, job->ibs,
 			       job->sync.last_vm_update, job, &fence);
-	if (r) {
+	if (r)
 		DRM_ERROR("Error scheduling IBs (%d)\n", r);
-		goto err;
-	}
 
-err:
 	/* if gpu reset, hw fence will be replaced here */
 	fence_put(job->fence);
-	job->fence = fence;
+	job->fence = fence_get(fence);
+	amdgpu_job_free_resources(job);
 	return fence;
 }
 
