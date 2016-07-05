@@ -591,15 +591,15 @@ __setup("bulk_remove=", disable_bulk_remove);
 
 void __init hpte_init_lpar(void)
 {
-	ppc_md.hpte_invalidate	= pSeries_lpar_hpte_invalidate;
-	ppc_md.hpte_updatepp	= pSeries_lpar_hpte_updatepp;
-	ppc_md.hpte_updateboltedpp = pSeries_lpar_hpte_updateboltedpp;
-	ppc_md.hpte_insert	= pSeries_lpar_hpte_insert;
-	ppc_md.hpte_remove	= pSeries_lpar_hpte_remove;
-	ppc_md.hpte_removebolted = pSeries_lpar_hpte_removebolted;
-	ppc_md.flush_hash_range	= pSeries_lpar_flush_hash_range;
-	ppc_md.hpte_clear_all   = pSeries_lpar_hptab_clear;
-	ppc_md.hugepage_invalidate = pSeries_lpar_hugepage_invalidate;
+	mmu_hash_ops.hpte_invalidate	 = pSeries_lpar_hpte_invalidate;
+	mmu_hash_ops.hpte_updatepp	 = pSeries_lpar_hpte_updatepp;
+	mmu_hash_ops.hpte_updateboltedpp = pSeries_lpar_hpte_updateboltedpp;
+	mmu_hash_ops.hpte_insert	 = pSeries_lpar_hpte_insert;
+	mmu_hash_ops.hpte_remove	 = pSeries_lpar_hpte_remove;
+	mmu_hash_ops.hpte_removebolted   = pSeries_lpar_hpte_removebolted;
+	mmu_hash_ops.flush_hash_range	 = pSeries_lpar_flush_hash_range;
+	mmu_hash_ops.hpte_clear_all      = pSeries_lpar_hptab_clear;
+	mmu_hash_ops.hugepage_invalidate = pSeries_lpar_hugepage_invalidate;
 }
 
 #ifdef CONFIG_PPC_SMLPAR

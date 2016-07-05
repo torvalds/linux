@@ -739,14 +739,14 @@ static int native_register_proc_table(unsigned long base, unsigned long page_siz
 
 void __init hpte_init_native(void)
 {
-	ppc_md.hpte_invalidate	= native_hpte_invalidate;
-	ppc_md.hpte_updatepp	= native_hpte_updatepp;
-	ppc_md.hpte_updateboltedpp = native_hpte_updateboltedpp;
-	ppc_md.hpte_insert	= native_hpte_insert;
-	ppc_md.hpte_remove	= native_hpte_remove;
-	ppc_md.hpte_clear_all	= native_hpte_clear;
-	ppc_md.flush_hash_range = native_flush_hash_range;
-	ppc_md.hugepage_invalidate   = native_hugepage_invalidate;
+	mmu_hash_ops.hpte_invalidate	= native_hpte_invalidate;
+	mmu_hash_ops.hpte_updatepp	= native_hpte_updatepp;
+	mmu_hash_ops.hpte_updateboltedpp = native_hpte_updateboltedpp;
+	mmu_hash_ops.hpte_insert	= native_hpte_insert;
+	mmu_hash_ops.hpte_remove	= native_hpte_remove;
+	mmu_hash_ops.hpte_clear_all	= native_hpte_clear;
+	mmu_hash_ops.flush_hash_range = native_flush_hash_range;
+	mmu_hash_ops.hugepage_invalidate   = native_hugepage_invalidate;
 
 	if (cpu_has_feature(CPU_FTR_ARCH_300))
 		ppc_md.register_process_table = native_register_proc_table;

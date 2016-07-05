@@ -124,6 +124,45 @@
 
 #ifndef __ASSEMBLY__
 
+struct mmu_hash_ops {
+	void            (*hpte_invalidate)(unsigned long slot,
+					   unsigned long vpn,
+					   int bpsize, int apsize,
+					   int ssize, int local);
+	long		(*hpte_updatepp)(unsigned long slot,
+					 unsigned long newpp,
+					 unsigned long vpn,
+					 int bpsize, int apsize,
+					 int ssize, unsigned long flags);
+	void            (*hpte_updateboltedpp)(unsigned long newpp,
+					       unsigned long ea,
+					       int psize, int ssize);
+	long		(*hpte_insert)(unsigned long hpte_group,
+				       unsigned long vpn,
+				       unsigned long prpn,
+				       unsigned long rflags,
+				       unsigned long vflags,
+				       int psize, int apsize,
+				       int ssize);
+	long		(*hpte_remove)(unsigned long hpte_group);
+	int             (*hpte_removebolted)(unsigned long ea,
+					     int psize, int ssize);
+	void		(*flush_hash_range)(unsigned long number, int local);
+	void		(*hugepage_invalidate)(unsigned long vsid,
+					       unsigned long addr,
+					       unsigned char *hpte_slot_array,
+					       int psize, int ssize, int local);
+	/*
+	 * Special for kexec.
+	 * To be called in real mode with interrupts disabled. No locks are
+	 * taken as such, concurrent access on pre POWER5 hardware could result
+	 * in a deadlock.
+	 * The linear mapping is destroyed as well.
+	 */
+	void		(*hpte_clear_all)(void);
+};
+extern struct mmu_hash_ops mmu_hash_ops;
+
 struct hash_pte {
 	__be64 v;
 	__be64 r;

@@ -34,9 +34,9 @@
 
 void kvmppc_mmu_invalidate_pte(struct kvm_vcpu *vcpu, struct hpte_cache *pte)
 {
-	ppc_md.hpte_invalidate(pte->slot, pte->host_vpn,
-			       pte->pagesize, pte->pagesize, MMU_SEGSIZE_256M,
-			       false);
+	mmu_hash_ops.hpte_invalidate(pte->slot, pte->host_vpn,
+				     pte->pagesize, pte->pagesize,
+				     MMU_SEGSIZE_256M, false);
 }
 
 /* We keep 512 gvsid->hvsid entries, mapping the guest ones to the array using
@@ -169,13 +169,13 @@ map_again:
 
 	/* In case we tried normal mapping already, let's nuke old entries */
 	if (attempt > 1)
-		if (ppc_md.hpte_remove(hpteg) < 0) {
+		if (mmu_hash_ops.hpte_remove(hpteg) < 0) {
 			r = -1;
 			goto out_unlock;
 		}
 
-	ret = ppc_md.hpte_insert(hpteg, vpn, hpaddr, rflags, vflags,
-				 hpsize, hpsize, MMU_SEGSIZE_256M);
+	ret = mmu_hash_ops.hpte_insert(hpteg, vpn, hpaddr, rflags, vflags,
+				       hpsize, hpsize, MMU_SEGSIZE_256M);
 
 	if (ret < 0) {
 		/* If we couldn't map a primary PTE, try a secondary */
@@ -187,8 +187,10 @@ map_again:
 		trace_kvm_book3s_64_mmu_map(rflags, hpteg,
 					    vpn, hpaddr, orig_pte);
 
-		/* The ppc_md code may give us a secondary entry even though we
-		   asked for a primary. Fix up. */
+		/*
+		 * The mmu_hash_ops code may give us a secondary entry even
+		 * though we asked for a primary. Fix up.
+		 */
 		if ((ret & _PTEIDX_SECONDARY) && !(vflags & HPTE_V_SECONDARY)) {
 			hash = ~hash;
 			hpteg = ((hash & htab_hash_mask) * HPTES_PER_GROUP);

@@ -118,6 +118,8 @@ static u8 *linear_map_hash_slots;
 static unsigned long linear_map_hash_count;
 static DEFINE_SPINLOCK(linear_map_hash_lock);
 #endif /* CONFIG_DEBUG_PAGEALLOC */
+struct mmu_hash_ops mmu_hash_ops;
+EXPORT_SYMBOL(mmu_hash_ops);
 
 /* There are definitions of page sizes arrays to be used when none
  * is provided by the firmware.
@@ -276,9 +278,10 @@ int htab_bolt_mapping(unsigned long vstart, unsigned long vend,
 		hash = hpt_hash(vpn, shift, ssize);
 		hpteg = ((hash & htab_hash_mask) * HPTES_PER_GROUP);
 
-		BUG_ON(!ppc_md.hpte_insert);
-		ret = ppc_md.hpte_insert(hpteg, vpn, paddr, tprot,
-					 HPTE_V_BOLTED, psize, psize, ssize);
+		BUG_ON(!mmu_hash_ops.hpte_insert);
+		ret = mmu_hash_ops.hpte_insert(hpteg, vpn, paddr, tprot,
+					       HPTE_V_BOLTED, psize, psize,
+					       ssize);
 
 		if (ret < 0)
 			break;
@@ -303,11 +306,11 @@ int htab_remove_mapping(unsigned long vstart, unsigned long vend,
 	shift = mmu_psize_defs[psize].shift;
 	step = 1 << shift;
 
-	if (!ppc_md.hpte_removebolted)
+	if (!mmu_hash_ops.hpte_removebolted)
 		return -ENODEV;
 
 	for (vaddr = vstart; vaddr < vend; vaddr += step) {
-		rc = ppc_md.hpte_removebolted(vaddr, psize, ssize);
+		rc = mmu_hash_ops.hpte_removebolted(vaddr, psize, ssize);
 		if (rc == -ENOENT) {
 			ret = -ENOENT;
 			continue;
@@ -789,8 +792,8 @@ static void __init htab_initialize(void)
 		 * Clear the htab if firmware assisted dump is active so
 		 * that we dont end up using old mappings.
 		 */
-		if (is_fadump_active() && ppc_md.hpte_clear_all)
-			ppc_md.hpte_clear_all();
+		if (is_fadump_active() && mmu_hash_ops.hpte_clear_all)
+			mmu_hash_ops.hpte_clear_all();
 #endif
 	} else {
 		unsigned long limit = MEMBLOCK_ALLOC_ANYWHERE;
@@ -1480,7 +1483,8 @@ void flush_hash_page(unsigned long vpn, real_pte_t pte, int psize, int ssize,
 		 * We use same base page size and actual psize, because we don't
 		 * use these functions for hugepage
 		 */
-		ppc_md.hpte_invalidate(slot, vpn, psize, psize, ssize, local);
+		mmu_hash_ops.hpte_invalidate(slot, vpn, psize, psize,
+					     ssize, local);
 	} pte_iterate_hashed_end();
 
 #ifdef CONFIG_PPC_TRANSACTIONAL_MEM
@@ -1521,9 +1525,9 @@ void flush_hash_hugepage(unsigned long vsid, unsigned long addr,
 	if (!hpte_slot_array)
 		return;
 
-	if (ppc_md.hugepage_invalidate) {
-		ppc_md.hugepage_invalidate(vsid, s_addr, hpte_slot_array,
-					   psize, ssize, local);
+	if (mmu_hash_ops.hugepage_invalidate) {
+		mmu_hash_ops.hugepage_invalidate(vsid, s_addr, hpte_slot_array,
+						 psize, ssize, local);
 		goto tm_abort;
 	}
 	/*
@@ -1550,8 +1554,8 @@ void flush_hash_hugepage(unsigned long vsid, unsigned long addr,
 
 		slot = (hash & htab_hash_mask) * HPTES_PER_GROUP;
 		slot += hidx & _PTEIDX_GROUP_IX;
-		ppc_md.hpte_invalidate(slot, vpn, psize,
-				       MMU_PAGE_16M, ssize, local);
+		mmu_hash_ops.hpte_invalidate(slot, vpn, psize,
+					     MMU_PAGE_16M, ssize, local);
 	}
 tm_abort:
 #ifdef CONFIG_PPC_TRANSACTIONAL_MEM
@@ -1575,8 +1579,8 @@ tm_abort:
 
 void flush_hash_range(unsigned long number, int local)
 {
-	if (ppc_md.flush_hash_range)
-		ppc_md.flush_hash_range(number, local);
+	if (mmu_hash_ops.flush_hash_range)
+		mmu_hash_ops.flush_hash_range(number, local);
 	else {
 		int i;
 		struct ppc64_tlb_batch *batch =
@@ -1621,22 +1625,22 @@ repeat:
 		       HPTES_PER_GROUP) & ~0x7UL;
 
 	/* Insert into the hash table, primary slot */
-	slot = ppc_md.hpte_insert(hpte_group, vpn, pa, rflags, vflags,
-				  psize, psize, ssize);
+	slot = mmu_hash_ops.hpte_insert(hpte_group, vpn, pa, rflags, vflags,
+					psize, psize, ssize);
 
 	/* Primary is full, try the secondary */
 	if (unlikely(slot == -1)) {
 		hpte_group = ((~hash & htab_hash_mask) *
 			      HPTES_PER_GROUP) & ~0x7UL;
-		slot = ppc_md.hpte_insert(hpte_group, vpn, pa, rflags,
-					  vflags | HPTE_V_SECONDARY,
-					  psize, psize, ssize);
+		slot = mmu_hash_ops.hpte_insert(hpte_group, vpn, pa, rflags,
+						vflags | HPTE_V_SECONDARY,
+						psize, psize, ssize);
 		if (slot == -1) {
 			if (mftb() & 0x1)
 				hpte_group = ((hash & htab_hash_mask) *
 					      HPTES_PER_GROUP)&~0x7UL;
 
-			ppc_md.hpte_remove(hpte_group);
+			mmu_hash_ops.hpte_remove(hpte_group);
 			goto repeat;
 		}
 	}
@@ -1686,8 +1690,9 @@ static void kernel_unmap_linear_page(unsigned long vaddr, unsigned long lmi)
 		hash = ~hash;
 	slot = (hash & htab_hash_mask) * HPTES_PER_GROUP;
 	slot += hidx & _PTEIDX_GROUP_IX;
-	ppc_md.hpte_invalidate(slot, vpn, mmu_linear_psize, mmu_linear_psize,
-			       mmu_kernel_ssize, 0);
+	mmu_hash_ops.hpte_invalidate(slot, vpn, mmu_linear_psize,
+				     mmu_linear_psize,
+				     mmu_kernel_ssize, 0);
 }
 
 void __kernel_map_pages(struct page *page, int numpages, int enable)
