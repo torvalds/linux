@@ -34,6 +34,45 @@
 #define TIMEOUT_US		100
 #define BMVAL(val, lsb, msb)	((val & GENMASK(msb, lsb)) >> lsb)
 
+#define ETM_MODE_EXCL_KERN	BIT(30)
+#define ETM_MODE_EXCL_USER	BIT(31)
+
+#define coresight_simple_func(type, name, offset)			\
+static ssize_t name##_show(struct device *_dev,				\
+			   struct device_attribute *attr, char *buf)	\
+{									\
+	type *drvdata = dev_get_drvdata(_dev->parent);			\
+	return scnprintf(buf, PAGE_SIZE, "0x%x\n",			\
+			 readl_relaxed(drvdata->base + offset));	\
+}									\
+static DEVICE_ATTR_RO(name)
+
+enum cs_mode {
+	CS_MODE_DISABLED,
+	CS_MODE_SYSFS,
+	CS_MODE_PERF,
+};
+
+/**
+ * struct cs_buffer - keep track of a recording session' specifics
+ * @cur:	index of the current buffer
+ * @nr_pages:	max number of pages granted to us
+ * @offset:	offset within the current buffer
+ * @data_size:	how much we collected in this run
+ * @lost:	other than zero if we had a HW buffer wrap around
+ * @snapshot:	is this run in snapshot mode
+ * @data_pages:	a handle the ring buffer
+ */
+struct cs_buffers {
+	unsigned int		cur;
+	unsigned int		nr_pages;
+	unsigned long		offset;
+	local_t			data_size;
+	local_t			lost;
+	bool			snapshot;
+	void			**data_pages;
+};
+
 static inline void CS_LOCK(void __iomem *addr)
 {
 	do {
@@ -51,6 +90,13 @@ static inline void CS_UNLOCK(void __iomem *addr)
 		mb();
 	} while (0);
 }
+
+void coresight_disable_path(struct list_head *path);
+int coresight_enable_path(struct list_head *path, u32 mode);
+struct coresight_device *coresight_get_sink(struct list_head *path);
+struct list_head *coresight_build_path(struct coresight_device *csdev,
+				       const char *sink);
+void coresight_release_path(struct list_head *path);
 
 #ifdef CONFIG_CORESIGHT_SOURCE_ETM3X
 extern int etm_readl_cp14(u32 off, unsigned int *val);

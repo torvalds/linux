@@ -15,10 +15,9 @@
  * Install the watch registers for the current thread.	A maximum of
  * four registers are installed although the machine may have more.
  */
-void mips_install_watch_registers(void)
+void mips_install_watch_registers(struct task_struct *t)
 {
-	struct mips3264_watch_reg_state *watches =
-		&current->thread.watch.mips3264;
+	struct mips3264_watch_reg_state *watches = &t->thread.watch.mips3264;
 	switch (current_cpu_data.watch_reg_use_cnt) {
 	default:
 		BUG();

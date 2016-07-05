@@ -224,14 +224,6 @@ static int process_event_stub(struct perf_tool *tool __maybe_unused,
 	return 0;
 }
 
-static int process_build_id_stub(struct perf_tool *tool __maybe_unused,
-				 union perf_event *event __maybe_unused,
-				 struct perf_session *session __maybe_unused)
-{
-	dump_printf(": unhandled!\n");
-	return 0;
-}
-
 static int process_finished_round_stub(struct perf_tool *tool __maybe_unused,
 				       union perf_event *event __maybe_unused,
 				       struct ordered_events *oe __maybe_unused)
@@ -243,23 +235,6 @@ static int process_finished_round_stub(struct perf_tool *tool __maybe_unused,
 static int process_finished_round(struct perf_tool *tool,
 				  union perf_event *event,
 				  struct ordered_events *oe);
-
-static int process_id_index_stub(struct perf_tool *tool __maybe_unused,
-				 union perf_event *event __maybe_unused,
-				 struct perf_session *perf_session
-				 __maybe_unused)
-{
-	dump_printf(": unhandled!\n");
-	return 0;
-}
-
-static int process_event_auxtrace_info_stub(struct perf_tool *tool __maybe_unused,
-				union perf_event *event __maybe_unused,
-				struct perf_session *session __maybe_unused)
-{
-	dump_printf(": unhandled!\n");
-	return 0;
-}
 
 static int skipn(int fd, off_t n)
 {
@@ -287,10 +262,9 @@ static s64 process_event_auxtrace_stub(struct perf_tool *tool __maybe_unused,
 	return event->auxtrace.size;
 }
 
-static
-int process_event_auxtrace_error_stub(struct perf_tool *tool __maybe_unused,
-				      union perf_event *event __maybe_unused,
-				      struct perf_session *session __maybe_unused)
+static int process_event_op2_stub(struct perf_tool *tool __maybe_unused,
+				  union perf_event *event __maybe_unused,
+				  struct perf_session *session __maybe_unused)
 {
 	dump_printf(": unhandled!\n");
 	return 0;
@@ -331,7 +305,7 @@ void perf_tool__fill_defaults(struct perf_tool *tool)
 	if (tool->tracing_data == NULL)
 		tool->tracing_data = process_event_synth_tracing_data_stub;
 	if (tool->build_id == NULL)
-		tool->build_id = process_build_id_stub;
+		tool->build_id = process_event_op2_stub;
 	if (tool->finished_round == NULL) {
 		if (tool->ordered_events)
 			tool->finished_round = process_finished_round;
@@ -339,13 +313,13 @@ void perf_tool__fill_defaults(struct perf_tool *tool)
 			tool->finished_round = process_finished_round_stub;
 	}
 	if (tool->id_index == NULL)
-		tool->id_index = process_id_index_stub;
+		tool->id_index = process_event_op2_stub;
 	if (tool->auxtrace_info == NULL)
-		tool->auxtrace_info = process_event_auxtrace_info_stub;
+		tool->auxtrace_info = process_event_op2_stub;
 	if (tool->auxtrace == NULL)
 		tool->auxtrace = process_event_auxtrace_stub;
 	if (tool->auxtrace_error == NULL)
-		tool->auxtrace_error = process_event_auxtrace_error_stub;
+		tool->auxtrace_error = process_event_op2_stub;
 }
 
 static void swap_sample_id_all(union perf_event *event, void *data)

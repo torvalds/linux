@@ -50,6 +50,8 @@ struct stm_device;
  * @sw_end:		last STP master available to software
  * @sw_nchannels:	number of STP channels per master
  * @sw_mmiosz:		size of one channel's IO space, for mmap, optional
+ * @hw_override:	masters in the STP stream will not match the ones
+ *			assigned by software, but are up to the STM hardware
  * @packet:		callback that sends an STP packet
  * @mmio_addr:		mmap callback, optional
  * @link:		called when a new stm_source gets linked to us, optional
@@ -67,6 +69,16 @@ struct stm_device;
  * description. That is, the lowest master that can be allocated to software
  * writers is @sw_start and data from this writer will appear is @sw_start
  * master in the STP stream.
+ *
+ * The @packet callback should adhere to the following rules:
+ *   1) it must return the number of bytes it consumed from the payload;
+ *   2) therefore, if it sent a packet that does not have payload (like FLAG),
+ *      it must return zero;
+ *   3) if it does not support the requested packet type/flag combination,
+ *      it must return -ENOTSUPP.
+ *
+ * The @unlink callback is called when there are no more active writers so
+ * that the master/channel can be quiesced.
  */
 struct stm_data {
 	const char		*name;
@@ -75,6 +87,7 @@ struct stm_data {
 	unsigned int		sw_end;
 	unsigned int		sw_nchannels;
 	unsigned int		sw_mmiosz;
+	unsigned int		hw_override;
 	ssize_t			(*packet)(struct stm_data *, unsigned int,
 					  unsigned int, unsigned int,
 					  unsigned int, unsigned int,

@@ -68,6 +68,8 @@ xfs_inobp_check(
  * recovery and we don't get unnecssary panics on debug kernels. We use EIO here
  * because all we want to do is say readahead failed; there is no-one to report
  * the error to, so this will distinguish it from a non-ra verifier failure.
+ * Changes to this readahead error behavour also need to be reflected in
+ * xfs_dquot_buf_readahead_verify().
  */
 static void
 xfs_inode_buf_verify(
@@ -134,11 +136,13 @@ xfs_inode_buf_write_verify(
 }
 
 const struct xfs_buf_ops xfs_inode_buf_ops = {
+	.name = "xfs_inode",
 	.verify_read = xfs_inode_buf_read_verify,
 	.verify_write = xfs_inode_buf_write_verify,
 };
 
 const struct xfs_buf_ops xfs_inode_buf_ra_ops = {
+	.name = "xxfs_inode_ra",
 	.verify_read = xfs_inode_buf_readahead_verify,
 	.verify_write = xfs_inode_buf_write_verify,
 };

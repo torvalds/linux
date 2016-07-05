@@ -782,6 +782,8 @@ bool mei_hbuf_acquire(struct mei_device *dev);
 
 bool mei_write_is_idle(struct mei_device *dev);
 
+void mei_irq_discard_msg(struct mei_device *dev, struct mei_msg_hdr *hdr);
+
 #if IS_ENABLED(CONFIG_DEBUG_FS)
 int mei_dbgfs_register(struct mei_device *dev, const char *name);
 void mei_dbgfs_deregister(struct mei_device *dev);

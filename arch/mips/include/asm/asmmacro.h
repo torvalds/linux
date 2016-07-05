@@ -298,21 +298,21 @@
 	.set	pop
 	.endm
 
-	.macro	copy_u_w	ws, n
+	.macro	copy_s_w	ws, n
 	.set	push
 	.set	mips32r2
 	.set	fp=64
 	.set	msa
-	copy_u.w $1, $w\ws[\n]
+	copy_s.w $1, $w\ws[\n]
 	.set	pop
 	.endm
 
-	.macro	copy_u_d	ws, n
+	.macro	copy_s_d	ws, n
 	.set	push
 	.set	mips64r2
 	.set	fp=64
 	.set	msa
-	copy_u.d $1, $w\ws[\n]
+	copy_s.d $1, $w\ws[\n]
 	.set	pop
 	.endm
 
@@ -346,8 +346,8 @@
 #define STH_MSA_INSN		0x5800081f
 #define STW_MSA_INSN		0x5800082f
 #define STD_MSA_INSN		0x5800083f
-#define COPY_UW_MSA_INSN	0x58f00056
-#define COPY_UD_MSA_INSN	0x58f80056
+#define COPY_SW_MSA_INSN	0x58b00056
+#define COPY_SD_MSA_INSN	0x58b80056
 #define INSERT_W_MSA_INSN	0x59300816
 #define INSERT_D_MSA_INSN	0x59380816
 #else
@@ -361,8 +361,8 @@
 #define STH_MSA_INSN		0x78000825
 #define STW_MSA_INSN		0x78000826
 #define STD_MSA_INSN		0x78000827
-#define COPY_UW_MSA_INSN	0x78f00059
-#define COPY_UD_MSA_INSN	0x78f80059
+#define COPY_SW_MSA_INSN	0x78b00059
+#define COPY_SD_MSA_INSN	0x78b80059
 #define INSERT_W_MSA_INSN	0x79300819
 #define INSERT_D_MSA_INSN	0x79380819
 #endif
@@ -393,7 +393,7 @@
 	.set	push
 	.set	noat
 	SET_HARDFLOAT
-	addu	$1, \base, \off
+	PTR_ADDU $1, \base, \off
 	.word	LDB_MSA_INSN | (\wd << 6)
 	.set	pop
 	.endm
@@ -402,7 +402,7 @@
 	.set	push
 	.set	noat
 	SET_HARDFLOAT
-	addu	$1, \base, \off
+	PTR_ADDU $1, \base, \off
 	.word	LDH_MSA_INSN | (\wd << 6)
 	.set	pop
 	.endm
@@ -411,7 +411,7 @@
 	.set	push
 	.set	noat
 	SET_HARDFLOAT
-	addu	$1, \base, \off
+	PTR_ADDU $1, \base, \off
 	.word	LDW_MSA_INSN | (\wd << 6)
 	.set	pop
 	.endm
@@ -420,7 +420,7 @@
 	.set	push
 	.set	noat
 	SET_HARDFLOAT
-	addu	$1, \base, \off
+	PTR_ADDU $1, \base, \off
 	.word	LDD_MSA_INSN | (\wd << 6)
 	.set	pop
 	.endm
@@ -429,7 +429,7 @@
 	.set	push
 	.set	noat
 	SET_HARDFLOAT
-	addu	$1, \base, \off
+	PTR_ADDU $1, \base, \off
 	.word	STB_MSA_INSN | (\wd << 6)
 	.set	pop
 	.endm
@@ -438,7 +438,7 @@
 	.set	push
 	.set	noat
 	SET_HARDFLOAT
-	addu	$1, \base, \off
+	PTR_ADDU $1, \base, \off
 	.word	STH_MSA_INSN | (\wd << 6)
 	.set	pop
 	.endm
@@ -447,7 +447,7 @@
 	.set	push
 	.set	noat
 	SET_HARDFLOAT
-	addu	$1, \base, \off
+	PTR_ADDU $1, \base, \off
 	.word	STW_MSA_INSN | (\wd << 6)
 	.set	pop
 	.endm
@@ -456,26 +456,26 @@
 	.set	push
 	.set	noat
 	SET_HARDFLOAT
-	addu	$1, \base, \off
+	PTR_ADDU $1, \base, \off
 	.word	STD_MSA_INSN | (\wd << 6)
 	.set	pop
 	.endm
 
-	.macro	copy_u_w	ws, n
+	.macro	copy_s_w	ws, n
 	.set	push
 	.set	noat
 	SET_HARDFLOAT
 	.insn
-	.word	COPY_UW_MSA_INSN | (\n << 16) | (\ws << 11)
+	.word	COPY_SW_MSA_INSN | (\n << 16) | (\ws << 11)
 	.set	pop
 	.endm
 
-	.macro	copy_u_d	ws, n
+	.macro	copy_s_d	ws, n
 	.set	push
 	.set	noat
 	SET_HARDFLOAT
 	.insn
-	.word	COPY_UD_MSA_INSN | (\n << 16) | (\ws << 11)
+	.word	COPY_SD_MSA_INSN | (\n << 16) | (\ws << 11)
 	.set	pop
 	.endm
 

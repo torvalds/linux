@@ -369,7 +369,7 @@ static int ipu_crtc_init(struct ipu_crtc *ipu_crtc,
 
 	ret = imx_drm_add_crtc(drm, &ipu_crtc->base, &ipu_crtc->imx_crtc,
 			&ipu_crtc->plane[0]->base, &ipu_crtc_helper_funcs,
-			ipu_crtc->dev->of_node);
+			pdata->of_node);
 	if (ret) {
 		dev_err(ipu_crtc->dev, "adding crtc failed with %d.\n", ret);
 		goto err_put_resources;

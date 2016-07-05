@@ -145,7 +145,7 @@ static int asnprintf(char **strp, size_t size, const char *fmt, ...)
 	return ret;
 }
 
-static char *build_id__filename(const char *sbuild_id, char *bf, size_t size)
+char *build_id__filename(const char *sbuild_id, char *bf, size_t size)
 {
 	char *tmp = bf;
 	int ret = asnprintf(&bf, size, "%s/.build-id/%.2s/%s", buildid_dir,

@@ -567,14 +567,17 @@ static int das1800_cancel(struct comedi_device *dev, struct comedi_subdevice *s)
 	struct comedi_isadma_desc *desc;
 	int i;
 
-	outb(0x0, dev->iobase + DAS1800_STATUS);	/* disable conversions */
-	outb(0x0, dev->iobase + DAS1800_CONTROL_B);	/* disable interrupts and dma */
-	outb(0x0, dev->iobase + DAS1800_CONTROL_A);	/* disable and clear fifo and stop triggering */
+	/* disable and stop conversions */
+	outb(0x0, dev->iobase + DAS1800_STATUS);
+	outb(0x0, dev->iobase + DAS1800_CONTROL_B);
+	outb(0x0, dev->iobase + DAS1800_CONTROL_A);
 
-	for (i = 0; i < 2; i++) {
-		desc = &dma->desc[i];
-		if (desc->chan)
-			comedi_isadma_disable(desc->chan);
+	if (dma) {
+		for (i = 0; i < 2; i++) {
+			desc = &dma->desc[i];
+			if (desc->chan)
+				comedi_isadma_disable(desc->chan);
+		}
 	}
 
 	return 0;
@@ -934,13 +937,14 @@ static void das1800_ai_setup_dma(struct comedi_device *dev,
 {
 	struct das1800_private *devpriv = dev->private;
 	struct comedi_isadma *dma = devpriv->dma;
-	struct comedi_isadma_desc *desc = &dma->desc[0];
+	struct comedi_isadma_desc *desc;
 	unsigned int bytes;
 
 	if ((devpriv->irq_dma_bits & DMA_ENABLED) == 0)
 		return;
 
 	dma->cur_dma = 0;
+	desc = &dma->desc[0];
 
 	/* determine a dma transfer size to fill buffer in 0.3 sec */
 	bytes = das1800_ai_transfer_size(dev, s, desc->maxsize, 300000000);

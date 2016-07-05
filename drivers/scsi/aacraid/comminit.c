@@ -37,6 +37,7 @@
 #include <linux/spinlock.h>
 #include <linux/slab.h>
 #include <linux/blkdev.h>
+#include <linux/delay.h>
 #include <linux/completion.h>
 #include <linux/mm.h>
 #include <scsi/scsi_host.h>
@@ -46,6 +47,20 @@
 struct aac_common aac_config = {
 	.irq_mod = 1
 };
+
+static inline int aac_is_msix_mode(struct aac_dev *dev)
+{
+	u32 status;
+
+	status = src_readl(dev, MUnit.OMR);
+	return (status & AAC_INT_MODE_MSIX);
+}
+
+static inline void aac_change_to_intx(struct aac_dev *dev)
+{
+	aac_src_access_devreg(dev, AAC_DISABLE_MSIX);
+	aac_src_access_devreg(dev, AAC_ENABLE_INTX);
+}
 
 static int aac_alloc_comm(struct aac_dev *dev, void **commaddr, unsigned long commsize, unsigned long commalign)
 {
@@ -424,6 +439,15 @@ struct aac_dev *aac_init_adapter(struct aac_dev *dev)
 			/ sizeof(struct sgentry);
 	dev->comm_interface = AAC_COMM_PRODUCER;
 	dev->raw_io_interface = dev->raw_io_64 = 0;
+
+
+	/*
+	 * Enable INTX mode, if not done already Enabled
+	 */
+	if (aac_is_msix_mode(dev)) {
+		aac_change_to_intx(dev);
+		dev_info(&dev->pdev->dev, "Changed firmware to INTX mode");
+	}
 
 	if ((!aac_adapter_sync_cmd(dev, GET_ADAPTER_PROPERTIES,
 		0, 0, 0, 0, 0, 0,

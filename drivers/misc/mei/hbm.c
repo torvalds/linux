@@ -873,8 +873,7 @@ static int mei_hbm_fw_disconnect_req(struct mei_device *dev,
 		cb = mei_io_cb_init(cl, MEI_FOP_DISCONNECT_RSP, NULL);
 		if (!cb)
 			return -ENOMEM;
-		cl_dbg(dev, cl, "add disconnect response as first\n");
-		list_add(&cb->list, &dev->ctrl_wr_list.list);
+		list_add_tail(&cb->list, &dev->ctrl_wr_list.list);
 	}
 	return 0;
 }

@@ -146,7 +146,7 @@ prepare_bpf(void *obj_buf, size_t obj_buf_sz, const char *name)
 	return obj;
 }
 
-static int __test__bpf(int index)
+static int __test__bpf(int idx)
 {
 	int ret;
 	void *obj_buf;
@@ -154,27 +154,27 @@ static int __test__bpf(int index)
 	struct bpf_object *obj;
 
 	ret = test_llvm__fetch_bpf_obj(&obj_buf, &obj_buf_sz,
-				       bpf_testcase_table[index].prog_id,
+				       bpf_testcase_table[idx].prog_id,
 				       true);
 	if (ret != TEST_OK || !obj_buf || !obj_buf_sz) {
 		pr_debug("Unable to get BPF object, %s\n",
-			 bpf_testcase_table[index].msg_compile_fail);
-		if (index == 0)
+			 bpf_testcase_table[idx].msg_compile_fail);
+		if (idx == 0)
 			return TEST_SKIP;
 		else
 			return TEST_FAIL;
 	}
 
 	obj = prepare_bpf(obj_buf, obj_buf_sz,
-			  bpf_testcase_table[index].name);
+			  bpf_testcase_table[idx].name);
 	if (!obj) {
 		ret = TEST_FAIL;
 		goto out;
 	}
 
 	ret = do_test(obj,
-		      bpf_testcase_table[index].target_func,
-		      bpf_testcase_table[index].expect_result);
+		      bpf_testcase_table[idx].target_func,
+		      bpf_testcase_table[idx].expect_result);
 out:
 	bpf__clear();
 	return ret;

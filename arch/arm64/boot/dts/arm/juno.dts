@@ -143,5 +143,310 @@
 				     <&A53_3>;
 	};
 
+	etr@20070000 {
+		compatible = "arm,coresight-tmc", "arm,primecell";
+		reg = <0 0x20070000 0 0x1000>;
+
+		clocks = <&soc_smc50mhz>;
+		clock-names = "apb_pclk";
+		port {
+			etr_in_port: endpoint {
+				slave-mode;
+				remote-endpoint = <&replicator_out_port1>;
+			};
+		};
+	};
+
+	tpiu@20030000 {
+		compatible = "arm,coresight-tpiu", "arm,primecell";
+		reg = <0 0x20030000 0 0x1000>;
+
+		clocks = <&soc_smc50mhz>;
+		clock-names = "apb_pclk";
+		port {
+			tpiu_in_port: endpoint {
+				slave-mode;
+				remote-endpoint = <&replicator_out_port0>;
+			};
+		};
+	};
+
+	replicator@20020000 {
+		/* non-configurable replicators don't show up on the
+		 * AMBA bus.  As such no need to add "arm,primecell".
+		 */
+		compatible = "arm,coresight-replicator";
+
+		ports {
+			#address-cells = <1>;
+			#size-cells = <0>;
+
+			/* replicator output ports */
+			port@0 {
+				reg = <0>;
+				replicator_out_port0: endpoint {
+					remote-endpoint = <&tpiu_in_port>;
+				};
+			};
+
+			port@1 {
+				reg = <1>;
+				replicator_out_port1: endpoint {
+					remote-endpoint = <&etr_in_port>;
+				};
+			};
+
+			/* replicator input port */
+			port@2 {
+				reg = <0>;
+				replicator_in_port0: endpoint {
+					slave-mode;
+					remote-endpoint = <&etf_out_port>;
+				};
+			};
+		};
+	};
+
+	etf@20010000 {
+		compatible = "arm,coresight-tmc", "arm,primecell";
+		reg = <0 0x20010000 0 0x1000>;
+
+		clocks = <&soc_smc50mhz>;
+		clock-names = "apb_pclk";
+		ports {
+			#address-cells = <1>;
+			#size-cells = <0>;
+
+			/* input port */
+			port@0 {
+				reg = <0>;
+				etf_in_port: endpoint {
+					slave-mode;
+					remote-endpoint =
+						<&main_funnel_out_port>;
+				};
+			};
+
+			/* output port */
+			port@1 {
+				reg = <0>;
+				etf_out_port: endpoint {
+					remote-endpoint =
+						<&replicator_in_port0>;
+				};
+			};
+		};
+	};
+
+	main_funnel@20040000 {
+		compatible = "arm,coresight-funnel", "arm,primecell";
+		reg = <0 0x20040000 0 0x1000>;
+
+		clocks = <&soc_smc50mhz>;
+		clock-names = "apb_pclk";
+		ports {
+			#address-cells = <1>;
+			#size-cells = <0>;
+
+			port@0 {
+				reg = <0>;
+				main_funnel_out_port: endpoint {
+					remote-endpoint =
+						<&etf_in_port>;
+				};
+			};
+
+			port@1 {
+				reg = <0>;
+				main_funnel_in_port0: endpoint {
+					slave-mode;
+					remote-endpoint =
+						<&A72_57_funnel_out_port>;
+				};
+			};
+
+			port@2 {
+				reg = <1>;
+				main_funnel_in_port1: endpoint {
+					slave-mode;
+					remote-endpoint = <&A53_funnel_out_port>;
+				};
+			};
+
+		};
+	};
+
+	A72_57_funnel@220c0000 {
+		compatible = "arm,coresight-funnel", "arm,primecell";
+		reg = <0 0x220c0000 0 0x1000>;
+
+		clocks = <&soc_smc50mhz>;
+		clock-names = "apb_pclk";
+		ports {
+			#address-cells = <1>;
+			#size-cells = <0>;
+
+			port@0 {
+				reg = <0>;
+				A72_57_funnel_out_port: endpoint {
+					remote-endpoint =
+						<&main_funnel_in_port0>;
+				};
+			};
+
+			port@1 {
+				reg = <0>;
+				A72_57_funnel_in_port0: endpoint {
+					slave-mode;
+					remote-endpoint =
+							<&A72_57_etm0_out_port>;
+				};
+			};
+
+			port@2 {
+				reg = <1>;
+				A72_57_funnel_in_port1: endpoint {
+					slave-mode;
+					remote-endpoint =
+							<&A72_57_etm1_out_port>;
+				};
+			};
+		};
+	};
+
+	A53_funnel@220c0000 {
+		compatible = "arm,coresight-funnel", "arm,primecell";
+		reg = <0 0x230c0000 0 0x1000>;
+
+		clocks = <&soc_smc50mhz>;
+		clock-names = "apb_pclk";
+		ports {
+			#address-cells = <1>;
+			#size-cells = <0>;
+
+			port@0 {
+				reg = <0>;
+				A53_funnel_out_port: endpoint {
+					remote-endpoint =
+						<&main_funnel_in_port1>;
+				};
+			};
+
+			port@1 {
+				reg = <0>;
+				A53_funnel_in_port0: endpoint {
+					slave-mode;
+					remote-endpoint = <&A53_etm0_out_port>;
+				};
+			};
+
+			port@2 {
+				reg = <1>;
+				A53_funnel_in_port1: endpoint {
+					slave-mode;
+					remote-endpoint = <&A53_etm1_out_port>;
+				};
+			};
+			port@3 {
+				reg = <2>;
+				A53_funnel_in_port2: endpoint {
+					slave-mode;
+					remote-endpoint = <&A53_etm2_out_port>;
+				};
+			};
+			port@4 {
+				reg = <3>;
+				A53_funnel_in_port3: endpoint {
+					slave-mode;
+					remote-endpoint = <&A53_etm3_out_port>;
+				};
+			};
+		};
+	};
+
+	etm@22040000 {
+		compatible = "arm,coresight-etm4x", "arm,primecell";
+		reg = <0 0x22040000 0 0x1000>;
+
+		cpu = <&A57_0>;
+		clocks = <&soc_smc50mhz>;
+		clock-names = "apb_pclk";
+		port {
+			A72_57_etm0_out_port: endpoint {
+				remote-endpoint = <&A72_57_funnel_in_port0>;
+			};
+		};
+	};
+
+	etm@22140000 {
+		compatible = "arm,coresight-etm4x", "arm,primecell";
+		reg = <0 0x22140000 0 0x1000>;
+
+		cpu = <&A57_1>;
+		clocks = <&soc_smc50mhz>;
+		clock-names = "apb_pclk";
+		port {
+			A72_57_etm1_out_port: endpoint {
+				remote-endpoint = <&A72_57_funnel_in_port1>;
+			};
+		};
+	};
+
+	etm@23040000 {
+		compatible = "arm,coresight-etm4x", "arm,primecell";
+		reg = <0 0x23040000 0 0x1000>;
+
+		cpu = <&A53_0>;
+		clocks = <&soc_smc50mhz>;
+		clock-names = "apb_pclk";
+		port {
+			A53_etm0_out_port: endpoint {
+				remote-endpoint = <&A53_funnel_in_port0>;
+			};
+		};
+	};
+
+	etm@23140000 {
+		compatible = "arm,coresight-etm4x", "arm,primecell";
+		reg = <0 0x23140000 0 0x1000>;
+
+		cpu = <&A53_1>;
+		clocks = <&soc_smc50mhz>;
+		clock-names = "apb_pclk";
+		port {
+			A53_etm1_out_port: endpoint {
+				remote-endpoint = <&A53_funnel_in_port1>;
+			};
+		};
+	};
+
+	etm@23240000 {
+		compatible = "arm,coresight-etm4x", "arm,primecell";
+		reg = <0 0x23240000 0 0x1000>;
+
+		cpu = <&A53_2>;
+		clocks = <&soc_smc50mhz>;
+		clock-names = "apb_pclk";
+		port {
+			A53_etm2_out_port: endpoint {
+				remote-endpoint = <&A53_funnel_in_port2>;
+			};
+		};
+	};
+
+	etm@23340000 {
+		compatible = "arm,coresight-etm4x", "arm,primecell";
+		reg = <0 0x23340000 0 0x1000>;
+
+		cpu = <&A53_3>;
+		clocks = <&soc_smc50mhz>;
+		clock-names = "apb_pclk";
+		port {
+			A53_etm3_out_port: endpoint {
+				remote-endpoint = <&A53_funnel_in_port3>;
+			};
+		};
+	};
+
 	#include "juno-base.dtsi"
 };

@@ -40,10 +40,7 @@ struct mmci_platform_data {
 	int	gpio_wp;
 	int	gpio_cd;
 	bool	cd_invert;
-	unsigned int status_irq;
 	struct embedded_sdio_data *embedded_sdio;
-	int (*register_status_notify)(void (*callback)(int card_present, void *dev_id), void *dev_id);
-
 };
 
 #endif

@@ -57,6 +57,7 @@ include/asm-generic/bitops/const_hweight.h
 include/asm-generic/bitops/fls64.h
 include/asm-generic/bitops/__fls.h
 include/asm-generic/bitops/fls.h
+include/linux/coresight-pmu.h
 include/linux/perf_event.h
 include/linux/list.h
 include/linux/hash.h

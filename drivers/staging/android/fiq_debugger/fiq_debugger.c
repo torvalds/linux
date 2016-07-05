@@ -39,6 +39,10 @@
 #include <asm/fiq_glue.h>
 #endif
 
+#ifdef CONFIG_FIQ_DEBUGGER_UART_OVERLAY
+#include <linux/of.h>
+#endif
+
 #include <linux/uaccess.h>
 
 #include "fiq_debugger.h"
@@ -119,11 +123,13 @@ static bool initial_console_enable;
 #endif
 
 static bool fiq_kgdb_enable;
+static bool fiq_debugger_disable;
 
 module_param_named(no_sleep, initial_no_sleep, bool, 0644);
 module_param_named(debug_enable, initial_debug_enable, bool, 0644);
 module_param_named(console_enable, initial_console_enable, bool, 0644);
 module_param_named(kgdb_enable, fiq_kgdb_enable, bool, 0644);
+module_param_named(disable, fiq_debugger_disable, bool, 0644);
 
 #ifdef CONFIG_FIQ_DEBUGGER_WAKEUP_IRQ_ALWAYS_ON
 static inline
@@ -1201,10 +1207,40 @@ static struct platform_driver fiq_debugger_driver = {
 	},
 };
 
+#if defined(CONFIG_FIQ_DEBUGGER_UART_OVERLAY)
+int fiq_debugger_uart_overlay(void)
+{
+	struct device_node *onp = of_find_node_by_path("/uart_overlay@0");
+	int ret;
+
+	if (!onp) {
+		pr_err("serial_debugger: uart overlay not found\n");
+		return -ENODEV;
+	}
+
+	ret = of_overlay_create(onp);
+	if (ret < 0) {
+		pr_err("serial_debugger: fail to create overlay: %d\n", ret);
+		of_node_put(onp);
+		return ret;
+	}
+
+	pr_info("serial_debugger: uart overlay applied\n");
+	return 0;
+}
+#endif
+
 static int __init fiq_debugger_init(void)
 {
+	if (fiq_debugger_disable) {
+		pr_err("serial_debugger: disabled\n");
+		return -ENODEV;
+	}
 #if defined(CONFIG_FIQ_DEBUGGER_CONSOLE)
 	fiq_debugger_tty_init();
+#endif
+#if defined(CONFIG_FIQ_DEBUGGER_UART_OVERLAY)
+	fiq_debugger_uart_overlay();
 #endif
 	return platform_driver_register(&fiq_debugger_driver);
 }
