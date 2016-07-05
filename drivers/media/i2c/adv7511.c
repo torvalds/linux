@@ -1057,6 +1057,11 @@ static int adv7511_s_dv_timings(struct v4l2_subdev *sd,
 	/* save timings */
 	state->dv_timings = *timings;
 
+	/* set h/vsync polarities */
+	adv7511_wr_and_or(sd, 0x17, 0x9f,
+		((timings->bt.polarities & V4L2_DV_VSYNC_POS_POL) ? 0 : 0x40) |
+		((timings->bt.polarities & V4L2_DV_HSYNC_POS_POL) ? 0 : 0x20));
+
 	/* update quantization range based on new dv_timings */
 	adv7511_set_rgb_quantization_mode(sd, state->rgb_quantization_range_ctrl);
 
