@@ -759,6 +759,12 @@ void __init early_init_devtree(void *params)
 	/* Now try to figure out if we are running on LPAR and so on */
 	pseries_probe_fw_features();
 
+#ifdef CONFIG_PPC_PS3
+	/* Identify PS3 firmware */
+	if (of_flat_dt_is_compatible(of_get_flat_dt_root(), "sony,ps3"))
+		powerpc_firmware_features |= FW_FEATURE_PS3_POSSIBLE;
+#endif
+
 	DBG(" <- early_init_devtree()\n");
 }
 

@@ -345,6 +345,7 @@ void __init radix__early_init_mmu(void)
 
 	radix_init_page_sizes();
 	if (!firmware_has_feature(FW_FEATURE_LPAR)) {
+		radix_init_native();
 		lpcr = mfspr(SPRN_LPCR);
 		mtspr(SPRN_LPCR, lpcr | LPCR_UPRT | LPCR_HR);
 		radix_init_partition_table();

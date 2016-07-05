@@ -599,10 +599,6 @@ static int __init pmac_probe(void)
 	    !of_flat_dt_is_compatible(root, "MacRISC"))
 		return 0;
 
-#ifdef CONFIG_PPC64
-	hpte_init_native();
-#endif
-
 #ifdef CONFIG_PPC32
 	/* isa_io_base gets set in pmac_pci_init */
 	ISA_DMA_THRESHOLD = ~0L;

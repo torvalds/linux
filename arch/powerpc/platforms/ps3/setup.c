@@ -226,9 +226,17 @@ static void __init ps3_progress(char *s, unsigned short hex)
 	printk("*** %04x : %s\n", hex, s ? s : "");
 }
 
-static int __init ps3_probe(void)
+void __init ps3_early_mm_init(void)
 {
 	unsigned long htab_size;
+
+	ps3_mm_init();
+	ps3_mm_vas_create(&htab_size);
+	ps3_hpte_init(htab_size);
+}
+
+static int __init ps3_probe(void)
+{
 	unsigned long dt_root;
 
 	DBG(" -> %s:%d\n", __func__, __LINE__);
@@ -237,12 +245,7 @@ static int __init ps3_probe(void)
 	if (!of_flat_dt_is_compatible(dt_root, "sony,ps3"))
 		return 0;
 
-	powerpc_firmware_features |= FW_FEATURE_PS3_POSSIBLE;
-
 	ps3_os_area_save_params();
-	ps3_mm_init();
-	ps3_mm_vas_create(&htab_size);
-	ps3_hpte_init(htab_size);
 	pm_power_off = ps3_power_off;
 
 	DBG(" <- %s:%d\n", __func__, __LINE__);

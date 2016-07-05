@@ -273,11 +273,6 @@ static int __init pnv_probe(void)
 	if (!of_flat_dt_is_compatible(root, "ibm,powernv"))
 		return 0;
 
-	if (IS_ENABLED(CONFIG_PPC_RADIX_MMU) && radix_enabled())
-		radix_init_native();
-	else if (IS_ENABLED(CONFIG_PPC_STD_MMU_64))
-		hpte_init_native();
-
 	if (firmware_has_feature(FW_FEATURE_OPAL))
 		pnv_setup_machdep_opal();
 

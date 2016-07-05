@@ -687,13 +687,6 @@ static int __init pSeries_probe(void)
 	    of_flat_dt_is_compatible(root, "IBM,CBEA"))
 		return 0;
 
-	pr_debug("pSeries detected, looking for LPAR capability...\n");
-
-	if (firmware_has_feature(FW_FEATURE_LPAR))
-		hpte_init_lpar();
-	else
-		hpte_init_native();
-
 	pm_power_off = pseries_power_off;
 
 	pr_debug("Machine is%s LPAR !\n",

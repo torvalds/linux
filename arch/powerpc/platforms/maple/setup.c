@@ -306,7 +306,6 @@ static int __init maple_probe(void)
 	    !of_flat_dt_is_compatible(root, "Momentum,Apache"))
 		return 0;
 
-	hpte_init_native();
 	pm_power_off = maple_power_off;
 
 	return 1;

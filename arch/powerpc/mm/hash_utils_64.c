@@ -58,6 +58,7 @@
 #include <asm/firmware.h>
 #include <asm/tm.h>
 #include <asm/trace.h>
+#include <asm/ps3.h>
 
 #ifdef DEBUG
 #define DBG(fmt...) udbg_printf(fmt)
@@ -872,6 +873,11 @@ static void __init htab_initialize(void)
 #undef KB
 #undef MB
 
+void __init __weak hpte_init_lpar(void)
+{
+	panic("FW_FEATURE_LPAR set but no LPAR support compiled\n");
+}
+
 void __init hash__early_init_mmu(void)
 {
 	/*
@@ -907,6 +913,14 @@ void __init hash__early_init_mmu(void)
 #ifdef CONFIG_PCI
 	pci_io_base = ISA_IO_BASE;
 #endif
+
+	/* Select appropriate backend */
+	if (firmware_has_feature(FW_FEATURE_PS3_LV1))
+		ps3_early_mm_init();
+	else if (firmware_has_feature(FW_FEATURE_LPAR))
+		hpte_init_lpar();
+	else
+		hpte_init_native();
 
 	/* Initialize the MMU Hash table and create the linear mapping
 	 * of memory. Has to be done before SLB initialization as this is

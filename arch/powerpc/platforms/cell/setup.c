@@ -261,7 +261,6 @@ static int __init cell_probe(void)
 	    !of_flat_dt_is_compatible(root, "IBM,CPBW-1.0"))
 		return 0;
 
-	hpte_init_native();
 	pm_power_off = rtas_power_off;
 
 	return 1;
