@@ -578,7 +578,8 @@ dtb-$(CONFIG_ARCH_PRIMA2) += \
 dtb-$(CONFIG_ARCH_OXNAS) += \
 	wd-mbwe.dtb
 dtb-$(CONFIG_ARCH_QCOM) += \
-	qcom-apq8064-arrow-db600c.dtb \
+	qcom-apq8060-dragonboard.dtb \
+	qcom-apq8064-arrow-sd-600eval.dtb \
 	qcom-apq8064-cm-qs600.dtb \
 	qcom-apq8064-ifc6410.dtb \
 	qcom-apq8064-sony-xperia-yuga.dtb \
