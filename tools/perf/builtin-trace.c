@@ -334,6 +334,10 @@ static size_t syscall_arg__scnprintf_fd(char *bf, size_t size,
 
 #define SCA_FD syscall_arg__scnprintf_fd
 
+#ifndef AT_FDCWD
+#define AT_FDCWD	-100
+#endif
+
 static size_t syscall_arg__scnprintf_fd_at(char *bf, size_t size,
 					   struct syscall_arg *arg)
 {
