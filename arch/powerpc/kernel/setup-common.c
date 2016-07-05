@@ -688,6 +688,8 @@ static struct notifier_block ppc_panic_block = {
 
 void __init setup_panic(void)
 {
+	if (!ppc_md.panic)
+		return;
 	atomic_notifier_chain_register(&panic_notifier_list, &ppc_panic_block);
 }
 

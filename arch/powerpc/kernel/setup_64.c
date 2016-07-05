@@ -649,6 +649,8 @@ void __init setup_arch(char **cmdline_p)
 	/* Probe the machine type */
 	probe_machine();
 
+	setup_panic();
+
 	/*
 	 * We can discover serial ports now since the above did setup the
 	 * hash table management for us, thus ioremap works. We do that early
@@ -695,9 +697,6 @@ void __init setup_arch(char **cmdline_p)
 	 * called since this will reserve memory.
 	 */
 	reserve_hugetlb_gpages();
-
-	if (ppc_md.panic)
-		setup_panic();
 
 	klp_init_thread_info(&init_thread_info);
 
