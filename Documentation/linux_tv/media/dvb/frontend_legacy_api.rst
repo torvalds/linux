@@ -28,11 +28,11 @@ recommended
 .. toctree::
     :maxdepth: 1
 
-    FE_READ_BER
-    FE_READ_SNR
-    FE_READ_SIGNAL_STRENGTH
-    FE_READ_UNCORRECTED_BLOCKS
-    FE_SET_FRONTEND
-    FE_GET_FRONTEND
-    FE_GET_EVENT
-    FE_DISHNETWORK_SEND_LEGACY_CMD
+    fe-read-ber
+    fe-read-snr
+    fe-read-signal-strength
+    fe-read-uncorrected-blocks
+    fe-set-frontend
+    fe-get-frontend
+    fe-get-event
+    fe-dishnetwork-send-legacy-cmd
