@@ -52,11 +52,18 @@ Authors:
 
  - Initial version.
 
+- Carvalho Chehab, Mauro <mchehab@kernel.org>
+
+ - MEDIA_IOC_G_TOPOLOGY documentation and documentation improvements.
+
 **Copyright** 2010 : Laurent Pinchart
+**Copyright** 2015-2016 : Mauro Carvalho Chehab
 
 ****************
 Revision History
 ****************
+
+:revision: 1.1.0 / 2015-12-12 (*mcc*)
 
 :revision: 1.0.0 / 2010-11-10 (*lp*)
 
