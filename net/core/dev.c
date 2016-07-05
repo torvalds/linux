@@ -6087,6 +6087,50 @@ void netdev_lower_state_changed(struct net_device *lower_dev,
 }
 EXPORT_SYMBOL(netdev_lower_state_changed);
 
+int netdev_default_l2upper_neigh_construct(struct net_device *dev,
+					   struct neighbour *n)
+{
+	struct net_device *lower_dev, *stop_dev;
+	struct list_head *iter;
+	int err;
+
+	netdev_for_each_lower_dev(dev, lower_dev, iter) {
+		if (!lower_dev->netdev_ops->ndo_neigh_construct)
+			continue;
+		err = lower_dev->netdev_ops->ndo_neigh_construct(lower_dev, n);
+		if (err) {
+			stop_dev = lower_dev;
+			goto rollback;
+		}
+	}
+	return 0;
+
+rollback:
+	netdev_for_each_lower_dev(dev, lower_dev, iter) {
+		if (lower_dev == stop_dev)
+			break;
+		if (!lower_dev->netdev_ops->ndo_neigh_destroy)
+			continue;
+		lower_dev->netdev_ops->ndo_neigh_destroy(lower_dev, n);
+	}
+	return err;
+}
+EXPORT_SYMBOL_GPL(netdev_default_l2upper_neigh_construct);
+
+void netdev_default_l2upper_neigh_destroy(struct net_device *dev,
+					  struct neighbour *n)
+{
+	struct net_device *lower_dev;
+	struct list_head *iter;
+
+	netdev_for_each_lower_dev(dev, lower_dev, iter) {
+		if (!lower_dev->netdev_ops->ndo_neigh_destroy)
+			continue;
+		lower_dev->netdev_ops->ndo_neigh_destroy(lower_dev, n);
+	}
+}
+EXPORT_SYMBOL_GPL(netdev_default_l2upper_neigh_destroy);
+
 static void dev_change_rx_flags(struct net_device *dev, int flags)
 {
 	const struct net_device_ops *ops = dev->netdev_ops;
