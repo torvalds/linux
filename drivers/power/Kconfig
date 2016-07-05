@@ -501,6 +501,14 @@ config BATTERY_RK818
 	  If you say yes here you will get support for the battery of RK818 PMIC.
 	  This driver can give support for Rk818 Battery Charge Interface.
 
+config CHARGER_RK818
+	bool "RK818 Charger driver"
+	depends on MFD_RK808
+	default n
+	help
+	  If you say yes here you will get support for the charger of RK818 PMIC.
+	  This driver can give support for Rk818 Charger Interface.
+
 config CHARGER_RT9455
 	tristate "Richtek RT9455 battery charger driver"
 	depends on I2C
