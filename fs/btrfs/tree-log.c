@@ -4703,6 +4703,10 @@ static int btrfs_log_inode(struct btrfs_trans_handle *trans,
 		ins_nr = 0;
 		ret = btrfs_search_forward(root, &min_key,
 					   path, trans->transid);
+		if (ret < 0) {
+			err = ret;
+			goto out_unlock;
+		}
 		if (ret != 0)
 			break;
 again:

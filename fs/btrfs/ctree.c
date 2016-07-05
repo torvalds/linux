@@ -1866,7 +1866,6 @@ static void root_sub_used(struct btrfs_root *root, u32 size)
 
 /* given a node and slot number, this reads the blocks it points to.  The
  * extent buffer is returned with a reference taken (but unlocked).
- * NULL is returned on error.
  */
 static noinline struct extent_buffer *read_node_slot(struct btrfs_root *root,
 				   struct extent_buffer *parent, int slot)
@@ -1874,19 +1873,16 @@ static noinline struct extent_buffer *read_node_slot(struct btrfs_root *root,
 	int level = btrfs_header_level(parent);
 	struct extent_buffer *eb;
 
-	if (slot < 0)
-		return NULL;
-	if (slot >= btrfs_header_nritems(parent))
-		return NULL;
+	if (slot < 0 || slot >= btrfs_header_nritems(parent))
+		return ERR_PTR(-ENOENT);
 
 	BUG_ON(level == 0);
 
 	eb = read_tree_block(root, btrfs_node_blockptr(parent, slot),
 			     btrfs_node_ptr_generation(parent, slot));
-	if (IS_ERR(eb) || !extent_buffer_uptodate(eb)) {
-		if (!IS_ERR(eb))
-			free_extent_buffer(eb);
-		eb = NULL;
+	if (!IS_ERR(eb) && !extent_buffer_uptodate(eb)) {
+		free_extent_buffer(eb);
+		eb = ERR_PTR(-EIO);
 	}
 
 	return eb;
@@ -1939,8 +1935,8 @@ static noinline int balance_level(struct btrfs_trans_handle *trans,
 
 		/* promote the child to a root */
 		child = read_node_slot(root, mid, 0);
-		if (!child) {
-			ret = -EROFS;
+		if (IS_ERR(child)) {
+			ret = PTR_ERR(child);
 			btrfs_handle_fs_error(root->fs_info, ret, NULL);
 			goto enospc;
 		}
@@ -1978,6 +1974,9 @@ static noinline int balance_level(struct btrfs_trans_handle *trans,
 		return 0;
 
 	left = read_node_slot(root, parent, pslot - 1);
+	if (IS_ERR(left))
+		left = NULL;
+
 	if (left) {
 		btrfs_tree_lock(left);
 		btrfs_set_lock_blocking(left);
@@ -1988,7 +1987,11 @@ static noinline int balance_level(struct btrfs_trans_handle *trans,
 			goto enospc;
 		}
 	}
+
 	right = read_node_slot(root, parent, pslot + 1);
+	if (IS_ERR(right))
+		right = NULL;
+
 	if (right) {
 		btrfs_tree_lock(right);
 		btrfs_set_lock_blocking(right);
@@ -2143,6 +2146,8 @@ static noinline int push_nodes_for_insert(struct btrfs_trans_handle *trans,
 		return 1;
 
 	left = read_node_slot(root, parent, pslot - 1);
+	if (IS_ERR(left))
+		left = NULL;
 
 	/* first, try to make some room in the middle buffer */
 	if (left) {
@@ -2193,6 +2198,8 @@ static noinline int push_nodes_for_insert(struct btrfs_trans_handle *trans,
 		free_extent_buffer(left);
 	}
 	right = read_node_slot(root, parent, pslot + 1);
+	if (IS_ERR(right))
+		right = NULL;
 
 	/*
 	 * then try to empty the right most buffer into the middle
@@ -3781,7 +3788,11 @@ static int push_leaf_right(struct btrfs_trans_handle *trans, struct btrfs_root
 	btrfs_assert_tree_locked(path->nodes[1]);
 
 	right = read_node_slot(root, upper, slot + 1);
-	if (right == NULL)
+	/*
+	 * slot + 1 is not valid or we fail to read the right node,
+	 * no big deal, just return.
+	 */
+	if (IS_ERR(right))
 		return 1;
 
 	btrfs_tree_lock(right);
@@ -4011,7 +4022,11 @@ static int push_leaf_left(struct btrfs_trans_handle *trans, struct btrfs_root
 	btrfs_assert_tree_locked(path->nodes[1]);
 
 	left = read_node_slot(root, path->nodes[1], slot - 1);
-	if (left == NULL)
+	/*
+	 * slot - 1 is not valid or we fail to read the left node,
+	 * no big deal, just return.
+	 */
+	if (IS_ERR(left))
 		return 1;
 
 	btrfs_tree_lock(left);
@@ -5218,7 +5233,10 @@ find_next_key:
 		}
 		btrfs_set_path_blocking(path);
 		cur = read_node_slot(root, cur, slot);
-		BUG_ON(!cur); /* -ENOMEM */
+		if (IS_ERR(cur)) {
+			ret = PTR_ERR(cur);
+			goto out;
+		}
 
 		btrfs_tree_read_lock(cur);
 
@@ -5237,15 +5255,21 @@ out:
 	return ret;
 }
 
-static void tree_move_down(struct btrfs_root *root,
+static int tree_move_down(struct btrfs_root *root,
 			   struct btrfs_path *path,
 			   int *level, int root_level)
 {
+	struct extent_buffer *eb;
+
 	BUG_ON(*level == 0);
-	path->nodes[*level - 1] = read_node_slot(root, path->nodes[*level],
-					path->slots[*level]);
+	eb = read_node_slot(root, path->nodes[*level], path->slots[*level]);
+	if (IS_ERR(eb))
+		return PTR_ERR(eb);
+
+	path->nodes[*level - 1] = eb;
 	path->slots[*level - 1] = 0;
 	(*level)--;
+	return 0;
 }
 
 static int tree_move_next_or_upnext(struct btrfs_root *root,
@@ -5290,8 +5314,7 @@ static int tree_advance(struct btrfs_root *root,
 	if (*level == 0 || !allow_down) {
 		ret = tree_move_next_or_upnext(root, path, level, root_level);
 	} else {
-		tree_move_down(root, path, level, root_level);
-		ret = 0;
+		ret = tree_move_down(root, path, level, root_level);
 	}
 	if (ret >= 0) {
 		if (*level == 0)
@@ -5465,8 +5488,10 @@ int btrfs_compare_trees(struct btrfs_root *left_root,
 					left_root_level,
 					advance_left != ADVANCE_ONLY_NEXT,
 					&left_key);
-			if (ret < 0)
+			if (ret == -1)
 				left_end_reached = ADVANCE;
+			else if (ret < 0)
+				goto out;
 			advance_left = 0;
 		}
 		if (advance_right && !right_end_reached) {
@@ -5474,8 +5499,10 @@ int btrfs_compare_trees(struct btrfs_root *left_root,
 					right_root_level,
 					advance_right != ADVANCE_ONLY_NEXT,
 					&right_key);
-			if (ret < 0)
+			if (ret == -1)
 				right_end_reached = ADVANCE;
+			else if (ret < 0)
+				goto out;
 			advance_right = 0;
 		}
 
