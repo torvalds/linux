@@ -301,6 +301,14 @@ struct lkl_netdev *lkl_netdev_dpdk_create(const char *ifname);
  */
 struct lkl_netdev *lkl_netdev_vde_create(const char *switch_path);
 
+/**
+ * lkl_netdev_raw_create - create raw socket net_device for the virtio net
+ *                         backend
+ *
+ * @ifname - interface name for the snoop device.
+ */
+struct lkl_netdev *lkl_netdev_raw_create(const char *ifname);
+
 /*
  * lkl_register_dbg_handler- register a signal handler that loads a debug lib.
  *

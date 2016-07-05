@@ -89,7 +89,7 @@ static int test_icmp(char *str, int len)
 		return TEST_FAILURE;
 	}
 
-	ret = lkl_sys_recv(sock, buf, sizeof(buf), 0);
+	ret = lkl_sys_recv(sock, buf, sizeof(buf), MSG_DONTWAIT);
 	if (ret < 0) {
 		snprintf(str, len, "recv error (%s)", strerror(errno));
 		return TEST_FAILURE;
@@ -116,7 +116,7 @@ static int test_net_init(int argc, char **argv)
 	struct lkl_netdev *nd = NULL;
 
 	if (argc < 6) {
-		printf("usage %s <iftype: tap|dpdk> <ifname> <v4addr> <v4mask> <dstaddr> [gateway]\n", argv[0]);
+		printf("usage %s <iftype: tap|dpdk|raw> <ifname> <v4addr> <v4mask> <dstaddr> [gateway]\n", argv[0]);
 		exit(0);
 	}
 
@@ -127,7 +127,7 @@ static int test_net_init(int argc, char **argv)
 	dst = argv[5];
 
 	if (argc == 7)
-		gateway = argv[5];
+		gateway = argv[6];
 
 	if (iftype && ifname && (strncmp(iftype, "tap", 3) == 0))
 		nd = lkl_netdev_tap_create(ifname);
@@ -135,6 +135,8 @@ static int test_net_init(int argc, char **argv)
 	else if (iftype && ifname && (strncmp(iftype, "dpdk", 4) == 0))
 		nd = lkl_netdev_dpdk_create(ifname);
 #endif /* CONFIG_AUTO_LKL_VIRTIO_NET_DPDK */
+	else if (iftype && ifname && (strncmp(iftype, "raw", 3) == 0))
+		nd = lkl_netdev_raw_create(ifname);
 
 	if (!nd) {
 		fprintf(stderr, "init netdev failed\n");

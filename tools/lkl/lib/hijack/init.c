@@ -214,6 +214,8 @@ hijack_init(void)
 			nd = lkl_netdev_dpdk_create(ifparams);
 		else if (strcmp(iftype, "vde") == 0)
 			nd = lkl_netdev_vde_create(ifparams);
+		else if (strcmp(iftype, "raw") == 0)
+			nd = lkl_netdev_raw_create(ifparams);
 	}
 
 	if (nd) {
