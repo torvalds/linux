@@ -160,33 +160,15 @@ partial path like:
 
 	#include <linux/dvb/audio.h>
 
-
-.. code-block:: c
-
 	#include <linux/dvb/ca.h>
-
-
-.. code-block:: c
 
 	#include <linux/dvb/dmx.h>
 
-
-.. code-block:: c
-
 	#include <linux/dvb/frontend.h>
-
-
-.. code-block:: c
 
 	#include <linux/dvb/net.h>
 
-
-.. code-block:: c
-
 	#include <linux/dvb/osd.h>
-
-
-.. code-block:: c
 
 	#include <linux/dvb/video.h>
 
