@@ -198,18 +198,6 @@ void __init maple_setup_arch(void)
 	mmio_nvram_init();
 }
 
-/* 
- * Early initialization.
- */
-static void __init maple_init_early(void)
-{
-	DBG(" -> maple_init_early\n");
-
-	iommu_init_early_dart(&maple_pci_controller_ops);
-
-	DBG(" <- maple_init_early\n");
-}
-
 /*
  * This is almost identical to pSeries and CHRP. We need to make that
  * code generic at one point, with appropriate bits in the device-tree to
@@ -306,6 +294,8 @@ static int __init maple_probe(void)
 
 	pm_power_off = maple_power_off;
 
+	iommu_init_early_dart(&maple_pci_controller_ops);
+
 	return 1;
 }
 
@@ -313,7 +303,6 @@ define_machine(maple) {
 	.name			= "Maple",
 	.probe			= maple_probe,
 	.setup_arch		= maple_setup_arch,
-	.init_early		= maple_init_early,
 	.init_IRQ		= maple_init_IRQ,
 	.pci_irq_fixup		= maple_pci_irq_fixup,
 	.pci_get_legacy_ide_irq	= maple_pci_get_legacy_ide_irq,

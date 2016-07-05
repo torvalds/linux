@@ -192,11 +192,6 @@ static void __noreturn wii_halt(void)
 	wii_spin();
 }
 
-static void __init wii_init_early(void)
-{
-	ug_udbg_init();
-}
-
 static void __init wii_pic_probe(void)
 {
 	flipper_pic_probe();
@@ -210,6 +205,8 @@ static int __init wii_probe(void)
 
 	pm_power_off = wii_power_off;
 
+	ug_udbg_init();
+
 	return 1;
 }
 
@@ -222,7 +219,6 @@ static void wii_shutdown(void)
 define_machine(wii) {
 	.name			= "wii",
 	.probe			= wii_probe,
-	.init_early		= wii_init_early,
 	.setup_arch		= wii_setup_arch,
 	.restart		= wii_restart,
 	.halt			= wii_halt,

@@ -57,7 +57,12 @@ static void __init mpc5121_ads_init_IRQ(void)
  */
 static int __init mpc5121_ads_probe(void)
 {
-	return of_machine_is_compatible("fsl,mpc5121ads");
+	if (!of_machine_is_compatible("fsl,mpc5121ads"))
+		return 0;
+
+	mpc512x_init_early();
+
+	return 1;
 }
 
 define_machine(mpc5121_ads) {
@@ -65,7 +70,6 @@ define_machine(mpc5121_ads) {
 	.probe			= mpc5121_ads_probe,
 	.setup_arch		= mpc5121_ads_setup_arch,
 	.init			= mpc512x_init,
-	.init_early		= mpc512x_init_early,
 	.init_IRQ		= mpc5121_ads_init_IRQ,
 	.get_irq		= ipic_get_irq,
 	.calibrate_decr		= generic_calibrate_decr,

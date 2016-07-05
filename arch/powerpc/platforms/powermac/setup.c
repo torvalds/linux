@@ -452,7 +452,7 @@ pmac_halt(void)
 /* 
  * Early initialization.
  */
-static void __init pmac_init_early(void)
+static void __init pmac_init(void)
 {
 	/* Enable early btext debug if requested */
 	if (strstr(boot_command_line, "btextdbg")) {
@@ -603,6 +603,8 @@ static int __init pmac_probe(void)
 
 	pm_power_off = pmac_power_off;
 
+	pmac_init();
+
 	return 1;
 }
 
@@ -610,7 +612,6 @@ define_machine(powermac) {
 	.name			= "PowerMac",
 	.probe			= pmac_probe,
 	.setup_arch		= pmac_setup_arch,
-	.init_early		= pmac_init_early,
 	.show_cpuinfo		= pmac_show_cpuinfo,
 	.init_IRQ		= pmac_pic_init,
 	.get_irq		= NULL,	/* changed later */

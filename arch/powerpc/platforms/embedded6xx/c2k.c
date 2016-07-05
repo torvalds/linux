@@ -130,6 +130,9 @@ static int __init c2k_probe(void)
 
 	_set_L2CR(0);
 	_set_L2CR(L2CR_L2E | L2CR_L2PE | L2CR_L2I);
+
+	mv64x60_init_early();
+
 	return 1;
 }
 
@@ -137,7 +140,6 @@ define_machine(c2k) {
 	.name			= "C2K",
 	.probe			= c2k_probe,
 	.setup_arch		= c2k_setup_arch,
-	.init_early		= mv64x60_init_early,
 	.show_cpuinfo		= c2k_show_cpuinfo,
 	.init_IRQ		= mv64x60_init_irq,
 	.get_irq		= mv64x60_get_irq,

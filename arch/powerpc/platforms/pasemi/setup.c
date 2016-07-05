@@ -339,11 +339,6 @@ out:
 	return !!(srr1 & 0x2);
 }
 
-static void __init pas_init_early(void)
-{
-	iommu_init_early_pasemi();
-}
-
 #ifdef CONFIG_PCMCIA
 static int pcmcia_notify(struct notifier_block *nb, unsigned long action,
 			 void *data)
@@ -424,6 +419,8 @@ static int __init pas_probe(void)
 	    !of_machine_is_compatible("pasemi,pwrficient"))
 		return 0;
 
+	iommu_init_early_pasemi();
+
 	return 1;
 }
 
@@ -431,7 +428,6 @@ define_machine(pasemi) {
 	.name			= "PA Semi PWRficient",
 	.probe			= pas_probe,
 	.setup_arch		= pas_setup_arch,
-	.init_early		= pas_init_early,
 	.init_IRQ		= pas_init_IRQ,
 	.get_irq		= mpic_get_irq,
 	.restart		= pas_restart,

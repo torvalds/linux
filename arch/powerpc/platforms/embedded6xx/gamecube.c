@@ -54,17 +54,14 @@ static void __noreturn gamecube_halt(void)
 	gamecube_restart(NULL);
 }
 
-static void __init gamecube_init_early(void)
-{
-	ug_udbg_init();
-}
-
 static int __init gamecube_probe(void)
 {
 	if (!of_machine_is_compatible("nintendo,gamecube"))
 		return 0;
 
 	pm_power_off = gamecube_power_off;
+
+	ug_udbg_init();
 
 	return 1;
 }
@@ -77,7 +74,6 @@ static void gamecube_shutdown(void)
 define_machine(gamecube) {
 	.name			= "gamecube",
 	.probe			= gamecube_probe,
-	.init_early		= gamecube_init_early,
 	.restart		= gamecube_restart,
 	.halt			= gamecube_halt,
 	.init_IRQ		= flipper_pic_probe,

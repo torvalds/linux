@@ -58,7 +58,7 @@ static void __init pnv_setup_arch(void)
 	/* XXX PMCS */
 }
 
-static void __init pnv_init_early(void)
+static void __init pnv_init(void)
 {
 	/*
 	 * Initialize the LPC bus now so that legacy serial
@@ -276,6 +276,8 @@ static int __init pnv_probe(void)
 
 	pr_debug("PowerNV detected !\n");
 
+	pnv_init();
+
 	return 1;
 }
 
@@ -301,7 +303,6 @@ static unsigned long pnv_get_proc_freq(unsigned int cpu)
 define_machine(powernv) {
 	.name			= "PowerNV",
 	.probe			= pnv_probe,
-	.init_early		= pnv_init_early,
 	.setup_arch		= pnv_setup_arch,
 	.init_IRQ		= pnv_init_IRQ,
 	.show_cpuinfo		= pnv_show_cpuinfo,

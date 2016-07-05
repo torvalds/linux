@@ -253,7 +253,7 @@ static void __noreturn briq_restart(char *cmd)
  * But unfortunately, the firmware does not connect /chosen/{stdin,stdout}
  * the the built-in serial node. Instead, a /failsafe node is created.
  */
-static __init void chrp_init_early(void)
+static __init void chrp_init(void)
 {
 	struct device_node *node;
 	const char *property;
@@ -587,6 +587,8 @@ static int __init chrp_probe(void)
 
 	pm_power_off = rtas_power_off;
 
+	chrp_init();
+
 	return 1;
 }
 
@@ -595,7 +597,6 @@ define_machine(chrp) {
 	.probe			= chrp_probe,
 	.setup_arch		= chrp_setup_arch,
 	.init			= chrp_init2,
-	.init_early		= chrp_init_early,
 	.show_cpuinfo		= chrp_show_cpuinfo,
 	.init_IRQ		= chrp_init_IRQ,
 	.restart		= rtas_restart,

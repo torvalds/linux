@@ -263,9 +263,6 @@ void __init setup_arch(char **cmdline_p)
 
 	setup_power_save();
 
-	if (ppc_md.init_early)
-		ppc_md.init_early();
-
 	find_legacy_serial_ports();
 
 	smp_setup_cpu_maps();
