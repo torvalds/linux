@@ -60,10 +60,10 @@
 
 #define ISL29028_NUM_REGS		(ISL29028_REG_TEST2_MODE + 1)
 
-enum als_ir_mode {
-	MODE_NONE = 0,
-	MODE_ALS,
-	MODE_IR
+enum isl29028_als_ir_mode {
+	ISL29028_MODE_NONE = 0,
+	ISL29028_MODE_ALS,
+	ISL29028_MODE_IR,
 };
 
 struct isl29028_chip {
@@ -74,7 +74,7 @@ struct isl29028_chip {
 	bool			enable_prox;
 
 	int			lux_scale;
-	int			als_ir_mode;
+	enum isl29028_als_ir_mode	als_ir_mode;
 };
 
 static int isl29028_set_proxim_sampling(struct isl29028_chip *chip,
@@ -120,12 +120,12 @@ static int isl29028_set_als_scale(struct isl29028_chip *chip, int lux_scale)
 }
 
 static int isl29028_set_als_ir_mode(struct isl29028_chip *chip,
-				    enum als_ir_mode mode)
+				    enum isl29028_als_ir_mode mode)
 {
 	int ret = 0;
 
 	switch (mode) {
-	case MODE_ALS:
+	case ISL29028_MODE_ALS:
 		ret = regmap_update_bits(chip->regmap, ISL29028_REG_CONFIGURE,
 					 ISL29028_CONF_ALS_IR_MODE_MASK,
 					 ISL29028_CONF_ALS_IR_MODE_ALS);
@@ -137,13 +137,13 @@ static int isl29028_set_als_ir_mode(struct isl29028_chip *chip,
 					 ISL29028_CONF_ALS_RANGE_HIGH_LUX);
 		break;
 
-	case MODE_IR:
+	case ISL29028_MODE_IR:
 		ret = regmap_update_bits(chip->regmap, ISL29028_REG_CONFIGURE,
 					 ISL29028_CONF_ALS_IR_MODE_MASK,
 					 ISL29028_CONF_ALS_IR_MODE_IR);
 		break;
 
-	case MODE_NONE:
+	case ISL29028_MODE_NONE:
 		return regmap_update_bits(chip->regmap, ISL29028_REG_CONFIGURE,
 			ISL29028_CONF_ALS_EN_MASK, ISL29028_CONF_ALS_DIS);
 	}
@@ -223,14 +223,14 @@ static int isl29028_als_get(struct isl29028_chip *chip, int *als_data)
 	int ret;
 	int als_ir_data;
 
-	if (chip->als_ir_mode != MODE_ALS) {
-		ret = isl29028_set_als_ir_mode(chip, MODE_ALS);
+	if (chip->als_ir_mode != ISL29028_MODE_ALS) {
+		ret = isl29028_set_als_ir_mode(chip, ISL29028_MODE_ALS);
 		if (ret < 0) {
 			dev_err(dev,
 				"Error in enabling ALS mode err %d\n", ret);
 			return ret;
 		}
-		chip->als_ir_mode = MODE_ALS;
+		chip->als_ir_mode = ISL29028_MODE_ALS;
 	}
 
 	ret = isl29028_read_als_ir(chip, &als_ir_data);
@@ -256,14 +256,14 @@ static int isl29028_ir_get(struct isl29028_chip *chip, int *ir_data)
 	struct device *dev = regmap_get_device(chip->regmap);
 	int ret;
 
-	if (chip->als_ir_mode != MODE_IR) {
-		ret = isl29028_set_als_ir_mode(chip, MODE_IR);
+	if (chip->als_ir_mode != ISL29028_MODE_IR) {
+		ret = isl29028_set_als_ir_mode(chip, ISL29028_MODE_IR);
 		if (ret < 0) {
 			dev_err(dev,
 				"Error in enabling IR mode err %d\n", ret);
 			return ret;
 		}
-		chip->als_ir_mode = MODE_IR;
+		chip->als_ir_mode = ISL29028_MODE_IR;
 	}
 	return isl29028_read_als_ir(chip, ir_data);
 }
@@ -428,7 +428,7 @@ static int isl29028_chip_init(struct isl29028_chip *chip)
 	chip->enable_prox  = false;
 	chip->prox_sampling = 20;
 	chip->lux_scale = 2000;
-	chip->als_ir_mode = MODE_NONE;
+	chip->als_ir_mode = ISL29028_MODE_NONE;
 
 	ret = regmap_write(chip->regmap, ISL29028_REG_TEST1_MODE, 0x0);
 	if (ret < 0) {
