@@ -2871,12 +2871,12 @@ static int polaris10_get_evv_voltages(struct pp_hwmgr *hwmgr)
 				}
 			}
 
-
-			PP_ASSERT_WITH_CODE(0 == atomctrl_get_voltage_evv_on_sclk_ai(hwmgr,
-							VOLTAGE_TYPE_VDDC, sclk, vv_id, &vddc),
-						"Error retrieving EVV voltage value!",
-						continue);
-
+			if (atomctrl_get_voltage_evv_on_sclk_ai(hwmgr,
+						VOLTAGE_TYPE_VDDC,
+						sclk, vv_id, &vddc) != 0) {
+				printk(KERN_WARNING "failed to retrieving EVV voltage!\n");
+				continue;
+			}
 
 			/* need to make sure vddc is less than 2v or else, it could burn the ASIC. */
 			PP_ASSERT_WITH_CODE((vddc < 2000 && vddc != 0),
