@@ -198,7 +198,7 @@ early_param("smt-enabled", early_smt_enabled);
 #endif /* CONFIG_SMP */
 
 /** Fix up paca fields required for the boot cpu */
-static void fixup_boot_paca(void)
+static void __init fixup_boot_paca(void)
 {
 	/* The boot cpu is started */
 	get_paca()->cpu_start = 1;
@@ -206,7 +206,7 @@ static void fixup_boot_paca(void)
 	get_paca()->data_offset = 0;
 }
 
-static void configure_exceptions(void)
+static void __init configure_exceptions(void)
 {
 	/*
 	 * Setup the trampolines from the lowmem exception vectors
@@ -517,7 +517,7 @@ static __init void print_system_info(void)
  * used to allocate interrupt or emergency stacks for which our
  * exception entry path doesn't deal with being interrupted.
  */
-static u64 safe_stack_limit(void)
+static __init u64 safe_stack_limit(void)
 {
 #ifdef CONFIG_PPC_BOOK3E
 	/* Freescale BookE bolts the entire linear mapping */
