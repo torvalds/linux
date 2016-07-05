@@ -39,6 +39,7 @@
 
 #include <linux/types.h>
 #include <linux/netdevice.h>
+#include <linux/rhashtable.h>
 #include <linux/bitops.h>
 #include <linux/if_vlan.h>
 #include <linux/list.h>
@@ -212,6 +213,7 @@ struct mlxsw_sp_vr {
 struct mlxsw_sp_router {
 	struct mlxsw_sp_lpm_tree lpm_trees[MLXSW_SP_LPM_TREE_COUNT];
 	struct mlxsw_sp_vr vrs[MLXSW_SP_VIRTUAL_ROUTER_MAX];
+	struct rhashtable neigh_ht;
 };
 
 struct mlxsw_sp {
@@ -524,5 +526,9 @@ int mlxsw_sp_router_fib4_add(struct mlxsw_sp_port *mlxsw_sp_port,
 			     struct switchdev_trans *trans);
 int mlxsw_sp_router_fib4_del(struct mlxsw_sp_port *mlxsw_sp_port,
 			     const struct switchdev_obj_ipv4_fib *fib4);
+int mlxsw_sp_router_neigh_construct(struct net_device *dev,
+				    struct neighbour *n);
+void mlxsw_sp_router_neigh_destroy(struct net_device *dev,
+				   struct neighbour *n);
 
 #endif
