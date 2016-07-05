@@ -33,7 +33,6 @@ static size_t syscall_arg__scnprintf_msg_flags(char *bf, size_t size,
 	P_MSG_FLAG(OOB);
 	P_MSG_FLAG(PEEK);
 	P_MSG_FLAG(DONTROUTE);
-	P_MSG_FLAG(TRYHARD);
 	P_MSG_FLAG(CTRUNC);
 	P_MSG_FLAG(PROBE);
 	P_MSG_FLAG(TRUNC);
