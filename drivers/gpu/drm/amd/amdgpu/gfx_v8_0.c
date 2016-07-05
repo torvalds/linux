@@ -784,7 +784,6 @@ static int gfx_v8_0_ring_test_ib(struct amdgpu_ring *ring)
 	struct fence *f = NULL;
 	uint32_t scratch;
 	uint32_t tmp = 0;
-	unsigned i;
 	int r;
 
 	r = amdgpu_gfx_scratch_get(adev, &scratch);
@@ -813,16 +812,9 @@ static int gfx_v8_0_ring_test_ib(struct amdgpu_ring *ring)
 		DRM_ERROR("amdgpu: fence wait failed (%d).\n", r);
 		goto err2;
 	}
-	for (i = 0; i < adev->usec_timeout; i++) {
-		tmp = RREG32(scratch);
-		if (tmp == 0xDEADBEEF)
-			break;
-		DRM_UDELAY(1);
-	}
-	if (i < adev->usec_timeout) {
-		DRM_INFO("ib test on ring %d succeeded in %u usecs\n",
-			 ring->idx, i);
-		goto err2;
+	tmp = RREG32(scratch);
+	if (tmp == 0xDEADBEEF) {
+		DRM_INFO("ib test on ring %d succeeded\n", ring->idx);
 	} else {
 		DRM_ERROR("amdgpu: ib test failed (scratch(0x%04X)=0x%08X)\n",
 			  scratch, tmp);
