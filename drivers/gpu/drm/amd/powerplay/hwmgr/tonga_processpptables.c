@@ -302,7 +302,7 @@ static int init_dpm_2_parameters(
 			(((unsigned long)powerplay_table) + le16_to_cpu(powerplay_table->usPPMTableOffset));
 
 		if (0 != powerplay_table->usPPMTableOffset) {
-			if (1 == get_platform_power_management_table(hwmgr, atom_ppm_table)) {
+			if (get_platform_power_management_table(hwmgr, atom_ppm_table) == 0) {
 				phm_cap_set(hwmgr->platform_descriptor.platformCaps,
 					PHM_PlatformCaps_EnablePlatformPowerManagement);
 			}
