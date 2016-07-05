@@ -462,7 +462,7 @@ static int isl29028_chip_init(struct isl29028_chip *chip)
 	return ret;
 }
 
-static bool is_volatile_reg(struct device *dev, unsigned int reg)
+static bool isl29028_is_volatile_reg(struct device *dev, unsigned int reg)
 {
 	switch (reg) {
 	case ISL29028_REG_INTERRUPT:
@@ -478,7 +478,7 @@ static bool is_volatile_reg(struct device *dev, unsigned int reg)
 static const struct regmap_config isl29028_regmap_config = {
 	.reg_bits = 8,
 	.val_bits = 8,
-	.volatile_reg = is_volatile_reg,
+	.volatile_reg = isl29028_is_volatile_reg,
 	.max_register = ISL29028_NUM_REGS - 1,
 	.num_reg_defaults_raw = ISL29028_NUM_REGS,
 	.cache_type = REGCACHE_RBTREE,
