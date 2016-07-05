@@ -116,6 +116,16 @@ int memory_add_physaddr_to_nid(u64 start)
 }
 #endif
 
+int __weak create_section_mapping(unsigned long start, unsigned long end)
+{
+	return -ENODEV;
+}
+
+int __weak remove_section_mapping(unsigned long start, unsigned long end)
+{
+	return -ENODEV;
+}
+
 int arch_add_memory(int nid, u64 start, u64 size, bool for_device)
 {
 	struct pglist_data *pgdata;
