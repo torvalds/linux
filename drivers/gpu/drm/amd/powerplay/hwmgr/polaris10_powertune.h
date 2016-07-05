@@ -31,6 +31,19 @@ enum polaris10_pt_config_reg_type {
 	POLARIS10_CONFIGREG_MAX
 };
 
+#define DIDT_SQ_CTRL0__UNUSED_0_MASK    0xfffc0000
+#define DIDT_SQ_CTRL0__UNUSED_0__SHIFT  0x12
+#define DIDT_TD_CTRL0__UNUSED_0_MASK    0xfffc0000
+#define DIDT_TD_CTRL0__UNUSED_0__SHIFT  0x12
+#define DIDT_TCP_CTRL0__UNUSED_0_MASK   0xfffc0000
+#define DIDT_TCP_CTRL0__UNUSED_0__SHIFT 0x12
+#define DIDT_SQ_TUNING_CTRL__UNUSED_0_MASK                 0xc0000000
+#define DIDT_SQ_TUNING_CTRL__UNUSED_0__SHIFT               0x0000001e
+#define DIDT_TD_TUNING_CTRL__UNUSED_0_MASK                 0xc0000000
+#define DIDT_TD_TUNING_CTRL__UNUSED_0__SHIFT               0x0000001e
+#define DIDT_TCP_TUNING_CTRL__UNUSED_0_MASK                0xc0000000
+#define DIDT_TCP_TUNING_CTRL__UNUSED_0__SHIFT              0x0000001e
+
 /* PowerContainment Features */
 #define POWERCONTAINMENT_FEATURE_DTE             0x00000001
 #define POWERCONTAINMENT_FEATURE_TDCLimit        0x00000002

@@ -36,6 +36,19 @@ enum fiji_pt_config_reg_type {
 #define POWERCONTAINMENT_FEATURE_TDCLimit        0x00000002
 #define POWERCONTAINMENT_FEATURE_PkgPwrLimit     0x00000004
 
+#define DIDT_SQ_CTRL0__UNUSED_0_MASK             0xffffffc0
+#define DIDT_SQ_CTRL0__UNUSED_0__SHIFT           0x6
+#define DIDT_TD_CTRL0__UNUSED_0_MASK             0xffffffc0
+#define DIDT_TD_CTRL0__UNUSED_0__SHIFT           0x6
+#define DIDT_TCP_CTRL0__UNUSED_0_MASK            0xffffffc0
+#define DIDT_TCP_CTRL0__UNUSED_0__SHIFT          0x6
+#define DIDT_SQ_TUNING_CTRL__UNUSED_0_MASK                 0xe0000000
+#define DIDT_SQ_TUNING_CTRL__UNUSED_0__SHIFT               0x0000001d
+#define DIDT_TD_TUNING_CTRL__UNUSED_0_MASK                 0xe0000000
+#define DIDT_TD_TUNING_CTRL__UNUSED_0__SHIFT               0x0000001d
+#define DIDT_TCP_TUNING_CTRL__UNUSED_0_MASK                0xe0000000
+#define DIDT_TCP_TUNING_CTRL__UNUSED_0__SHIFT              0x0000001d
+
 struct fiji_pt_config_reg {
 	uint32_t                           offset;
 	uint32_t                           mask;
