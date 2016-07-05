@@ -942,8 +942,6 @@ extern int drm_wait_vblank(struct drm_device *dev, void *data,
 			   struct drm_file *filp);
 extern u32 drm_vblank_count(struct drm_device *dev, unsigned int pipe);
 extern u32 drm_crtc_vblank_count(struct drm_crtc *crtc);
-extern u32 drm_vblank_count_and_time(struct drm_device *dev, unsigned int pipe,
-				     struct timeval *vblanktime);
 extern u32 drm_crtc_vblank_count_and_time(struct drm_crtc *crtc,
 					  struct timeval *vblanktime);
 extern void drm_crtc_send_vblank_event(struct drm_crtc *crtc,
