@@ -846,13 +846,13 @@ struct extcon_dev *extcon_get_edev_by_phandle(struct device *dev, int index)
 		return ERR_PTR(-EINVAL);
 
 	if (!dev->of_node) {
-		dev_err(dev, "device does not have a device node entry\n");
+		dev_dbg(dev, "device does not have a device node entry\n");
 		return ERR_PTR(-EINVAL);
 	}
 
 	node = of_parse_phandle(dev->of_node, "extcon", index);
 	if (!node) {
-		dev_err(dev, "failed to get phandle in %s node\n",
+		dev_dbg(dev, "failed to get phandle in %s node\n",
 			dev->of_node->full_name);
 		return ERR_PTR(-ENODEV);
 	}
