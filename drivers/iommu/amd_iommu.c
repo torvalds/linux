@@ -134,42 +134,11 @@ static int protection_domain_init(struct protection_domain *domain);
 static void detach_device(struct device *dev);
 
 /*
- * For dynamic growth the aperture size is split into ranges of 128MB of
- * DMA address space each. This struct represents one such range.
- */
-struct aperture_range {
-
-	spinlock_t bitmap_lock;
-
-	/* address allocation bitmap */
-	unsigned long *bitmap;
-	unsigned long offset;
-	unsigned long next_bit;
-
-	/*
-	 * Array of PTE pages for the aperture. In this array we save all the
-	 * leaf pages of the domain page table used for the aperture. This way
-	 * we don't need to walk the page table to find a specific PTE. We can
-	 * just calculate its address in constant time.
-	 */
-	u64 *pte_pages[64];
-};
-
-/*
  * Data container for a dma_ops specific protection domain
  */
 struct dma_ops_domain {
 	/* generic protection domain information */
 	struct protection_domain domain;
-
-	/* size of the aperture for the mappings */
-	unsigned long aperture_size;
-
-	/* aperture index we start searching for free addresses */
-	u32 __percpu *next_index;
-
-	/* address space relevant data */
-	struct aperture_range *aperture[APERTURE_MAX_RANGES];
 
 	/* IOVA RB-Tree */
 	struct iova_domain iovad;
@@ -410,43 +379,6 @@ static bool pdev_pri_erratum(struct pci_dev *pdev, u32 erratum)
 }
 
 /*
- * This function actually applies the mapping to the page table of the
- * dma_ops domain.
- */
-static void alloc_unity_mapping(struct dma_ops_domain *dma_dom,
-				struct unity_map_entry *e)
-{
-	u64 addr;
-
-	for (addr = e->address_start; addr < e->address_end;
-	     addr += PAGE_SIZE) {
-		if (addr < dma_dom->aperture_size)
-			__set_bit(addr >> PAGE_SHIFT,
-				  dma_dom->aperture[0]->bitmap);
-	}
-}
-
-/*
- * Inits the unity mappings required for a specific device
- */
-static void init_unity_mappings_for_device(struct device *dev,
-					   struct dma_ops_domain *dma_dom)
-{
-	struct unity_map_entry *e;
-	int devid;
-
-	devid = get_device_id(dev);
-	if (devid < 0)
-		return;
-
-	list_for_each_entry(e, &amd_iommu_unity_map, list) {
-		if (!(devid >= e->devid_start && devid <= e->devid_end))
-			continue;
-		alloc_unity_mapping(dma_dom, e);
-	}
-}
-
-/*
  * This function checks if the driver got a valid device from the caller to
  * avoid dereferencing invalid pointers.
  */
@@ -473,24 +405,12 @@ static bool check_device(struct device *dev)
 
 static void init_iommu_group(struct device *dev)
 {
-	struct dma_ops_domain *dma_domain;
-	struct iommu_domain *domain;
 	struct iommu_group *group;
 
 	group = iommu_group_get_for_dev(dev);
 	if (IS_ERR(group))
 		return;
 
-	domain = iommu_group_default_domain(group);
-	if (!domain)
-		goto out;
-
-	if (to_pdomain(domain)->flags == PD_DMA_OPS_MASK) {
-		dma_domain = to_pdomain(domain)->priv;
-		init_unity_mappings_for_device(dev, dma_domain);
-	}
-
-out:
 	iommu_group_put(group);
 }
 
@@ -1496,158 +1416,10 @@ static unsigned long iommu_unmap_page(struct protection_domain *dom,
 /****************************************************************************
  *
  * The next functions belong to the address allocator for the dma_ops
- * interface functions. They work like the allocators in the other IOMMU
- * drivers. Its basically a bitmap which marks the allocated pages in
- * the aperture. Maybe it could be enhanced in the future to a more
- * efficient allocator.
+ * interface functions.
  *
  ****************************************************************************/
 
-/*
- * The address allocator core functions.
- *
- * called with domain->lock held
- */
-
-/*
- * Used to reserve address ranges in the aperture (e.g. for exclusion
- * ranges.
- */
-static void dma_ops_reserve_addresses(struct dma_ops_domain *dom,
-				      unsigned long start_page,
-				      unsigned int pages)
-{
-	unsigned int i, last_page = dom->aperture_size >> PAGE_SHIFT;
-
-	if (start_page + pages > last_page)
-		pages = last_page - start_page;
-
-	for (i = start_page; i < start_page + pages; ++i) {
-		int index = i / APERTURE_RANGE_PAGES;
-		int page  = i % APERTURE_RANGE_PAGES;
-		__set_bit(page, dom->aperture[index]->bitmap);
-	}
-}
-
-/*
- * This function is used to add a new aperture range to an existing
- * aperture in case of dma_ops domain allocation or address allocation
- * failure.
- */
-static int alloc_new_range(struct dma_ops_domain *dma_dom,
-			   bool populate, gfp_t gfp)
-{
-	int index = dma_dom->aperture_size >> APERTURE_RANGE_SHIFT;
-	unsigned long i, old_size, pte_pgsize;
-	struct aperture_range *range;
-	struct amd_iommu *iommu;
-	unsigned long flags;
-
-#ifdef CONFIG_IOMMU_STRESS
-	populate = false;
-#endif
-
-	if (index >= APERTURE_MAX_RANGES)
-		return -ENOMEM;
-
-	range = kzalloc(sizeof(struct aperture_range), gfp);
-	if (!range)
-		return -ENOMEM;
-
-	range->bitmap = (void *)get_zeroed_page(gfp);
-	if (!range->bitmap)
-		goto out_free;
-
-	range->offset = dma_dom->aperture_size;
-
-	spin_lock_init(&range->bitmap_lock);
-
-	if (populate) {
-		unsigned long address = dma_dom->aperture_size;
-		int i, num_ptes = APERTURE_RANGE_PAGES / 512;
-		u64 *pte, *pte_page;
-
-		for (i = 0; i < num_ptes; ++i) {
-			pte = alloc_pte(&dma_dom->domain, address, PAGE_SIZE,
-					&pte_page, gfp);
-			if (!pte)
-				goto out_free;
-
-			range->pte_pages[i] = pte_page;
-
-			address += APERTURE_RANGE_SIZE / 64;
-		}
-	}
-
-	spin_lock_irqsave(&dma_dom->domain.lock, flags);
-
-	/* First take the bitmap_lock and then publish the range */
-	spin_lock(&range->bitmap_lock);
-
-	old_size                 = dma_dom->aperture_size;
-	dma_dom->aperture[index] = range;
-	dma_dom->aperture_size  += APERTURE_RANGE_SIZE;
-
-	/* Reserve address range used for MSI messages */
-	if (old_size < MSI_ADDR_BASE_LO &&
-	    dma_dom->aperture_size > MSI_ADDR_BASE_LO) {
-		unsigned long spage;
-		int pages;
-
-		pages = iommu_num_pages(MSI_ADDR_BASE_LO, 0x10000, PAGE_SIZE);
-		spage = MSI_ADDR_BASE_LO >> PAGE_SHIFT;
-
-		dma_ops_reserve_addresses(dma_dom, spage, pages);
-	}
-
-	/* Initialize the exclusion range if necessary */
-	for_each_iommu(iommu) {
-		if (iommu->exclusion_start &&
-		    iommu->exclusion_start >= dma_dom->aperture[index]->offset
-		    && iommu->exclusion_start < dma_dom->aperture_size) {
-			unsigned long startpage;
-			int pages = iommu_num_pages(iommu->exclusion_start,
-						    iommu->exclusion_length,
-						    PAGE_SIZE);
-			startpage = iommu->exclusion_start >> PAGE_SHIFT;
-			dma_ops_reserve_addresses(dma_dom, startpage, pages);
-		}
-	}
-
-	/*
-	 * Check for areas already mapped as present in the new aperture
-	 * range and mark those pages as reserved in the allocator. Such
-	 * mappings may already exist as a result of requested unity
-	 * mappings for devices.
-	 */
-	for (i = dma_dom->aperture[index]->offset;
-	     i < dma_dom->aperture_size;
-	     i += pte_pgsize) {
-		u64 *pte = fetch_pte(&dma_dom->domain, i, &pte_pgsize);
-		if (!pte || !IOMMU_PTE_PRESENT(*pte))
-			continue;
-
-		dma_ops_reserve_addresses(dma_dom, i >> PAGE_SHIFT,
-					  pte_pgsize >> 12);
-	}
-
-	update_domain(&dma_dom->domain);
-
-	spin_unlock(&range->bitmap_lock);
-
-	spin_unlock_irqrestore(&dma_dom->domain.lock, flags);
-
-	return 0;
-
-out_free:
-	update_domain(&dma_dom->domain);
-
-	free_page((unsigned long)range->bitmap);
-
-	kfree(range);
-
-	return -ENOMEM;
-}
 
 static unsigned long dma_ops_alloc_iova(struct device *dev,
 					struct dma_ops_domain *dma_dom,
@@ -1848,44 +1620,16 @@ static void free_gcr3_table(struct protection_domain *domain)
  */
 static void dma_ops_domain_free(struct dma_ops_domain *dom)
 {
-	int i;
-
 	if (!dom)
 		return;
 
-	put_iova_domain(&dom->iovad);
-
-	free_percpu(dom->next_index);
-
 	del_domain_from_list(&dom->domain);
+
+	put_iova_domain(&dom->iovad);
 
 	free_pagetable(&dom->domain);
 
-	for (i = 0; i < APERTURE_MAX_RANGES; ++i) {
-		if (!dom->aperture[i])
-			continue;
-		free_page((unsigned long)dom->aperture[i]->bitmap);
-		kfree(dom->aperture[i]);
-	}
-
 	kfree(dom);
-}
-
-static int dma_ops_domain_alloc_apertures(struct dma_ops_domain *dma_dom,
-					  int max_apertures)
-{
-	int ret, i, apertures;
-
-	apertures = dma_dom->aperture_size >> APERTURE_RANGE_SHIFT;
-	ret       = 0;
-
-	for (i = apertures; i < max_apertures; ++i) {
-		ret = alloc_new_range(dma_dom, false, GFP_KERNEL);
-		if (ret)
-			break;
-	}
-
-	return ret;
 }
 
 /*
@@ -1896,17 +1640,12 @@ static int dma_ops_domain_alloc_apertures(struct dma_ops_domain *dma_dom,
 static struct dma_ops_domain *dma_ops_domain_alloc(void)
 {
 	struct dma_ops_domain *dma_dom;
-	int cpu;
 
 	dma_dom = kzalloc(sizeof(struct dma_ops_domain), GFP_KERNEL);
 	if (!dma_dom)
 		return NULL;
 
 	if (protection_domain_init(&dma_dom->domain))
-		goto free_dma_dom;
-
-	dma_dom->next_index = alloc_percpu(u32);
-	if (!dma_dom->next_index)
 		goto free_dma_dom;
 
 	dma_dom->domain.mode = PAGE_MODE_2_LEVEL;
@@ -1916,25 +1655,13 @@ static struct dma_ops_domain *dma_ops_domain_alloc(void)
 	if (!dma_dom->domain.pt_root)
 		goto free_dma_dom;
 
-	add_domain_to_list(&dma_dom->domain);
-
-	if (alloc_new_range(dma_dom, true, GFP_KERNEL))
-		goto free_dma_dom;
-
-	/*
-	 * mark the first page as allocated so we never return 0 as
-	 * a valid dma-address. So we can use 0 as error value
-	 */
-	dma_dom->aperture[0]->bitmap[0] = 1;
-
-	for_each_possible_cpu(cpu)
-		*per_cpu_ptr(dma_dom->next_index, cpu) = 0;
-
 	init_iova_domain(&dma_dom->iovad, PAGE_SIZE,
 			 IOVA_START_PFN, DMA_32BIT_PFN);
 
 	/* Initialize reserved ranges */
 	copy_reserved_iova(&reserved_iova_ranges, &dma_dom->iovad);
+
+	add_domain_to_list(&dma_dom->domain);
 
 	return dma_dom;
 
@@ -2510,10 +2237,6 @@ static void __unmap_single(struct dma_ops_domain *dma_dom,
 	dma_addr_t i, start;
 	unsigned int pages;
 
-	if ((dma_addr == DMA_ERROR_CODE) ||
-	    (dma_addr + size > dma_dom->aperture_size))
-		return;
-
 	flush_addr = dma_addr;
 	pages = iommu_num_pages(dma_addr, size, PAGE_SIZE);
 	dma_addr &= PAGE_MASK;
@@ -2727,34 +2450,6 @@ static int amd_iommu_dma_supported(struct device *dev, u64 mask)
 	return check_device(dev);
 }
 
-static int set_dma_mask(struct device *dev, u64 mask)
-{
-	struct protection_domain *domain;
-	int max_apertures = 1;
-
-	domain = get_domain(dev);
-	if (IS_ERR(domain))
-		return PTR_ERR(domain);
-
-	if (mask == DMA_BIT_MASK(64))
-		max_apertures = 8;
-	else if (mask > DMA_BIT_MASK(32))
-		max_apertures = 4;
-
-	/*
-	 * To prevent lock contention it doesn't make sense to allocate more
-	 * apertures than online cpus
-	 */
-	if (max_apertures > num_online_cpus())
-		max_apertures = num_online_cpus();
-
-	if (dma_ops_domain_alloc_apertures(domain->priv, max_apertures))
-		dev_err(dev, "Can't allocate %d iommu apertures\n",
-			max_apertures);
-
-	return 0;
-}
-
 static struct dma_map_ops amd_iommu_dma_ops = {
 	.alloc		= alloc_coherent,
 	.free		= free_coherent,
@@ -2763,7 +2458,6 @@ static struct dma_map_ops amd_iommu_dma_ops = {
 	.map_sg		= map_sg,
 	.unmap_sg	= unmap_sg,
 	.dma_supported	= amd_iommu_dma_supported,
-	.set_dma_mask	= set_dma_mask,
 };
 
 static int init_reserved_iova_ranges(void)
