@@ -36,16 +36,10 @@ DESCRIPTION
 
 Receives reply from a DiSEqC 2.0 command.
 
-
-RETURN VALUE
-============
-
-On success 0 is returned, on error -1 and the ``errno`` variable is set
-appropriately. The generic error codes are described at the
-:ref:`Generic Error Codes <gen-errors>` chapter.
-
-
 .. _dvb-diseqc-slave-reply:
+
+struct dvb_diseqc_slave_reply
+-----------------------------
 
 .. flat-table:: struct dvb_diseqc_slave_reply
     :header-rows:  0
@@ -78,3 +72,10 @@ appropriately. The generic error codes are described at the
 
        -  Return from ioctl after timeout ms with errorcode when no message
 	  was received
+
+RETURN VALUE
+============
+
+On success 0 is returned, on error -1 and the ``errno`` variable is set
+appropriately. The generic error codes are described at the
+:ref:`Generic Error Codes <gen-errors>` chapter.

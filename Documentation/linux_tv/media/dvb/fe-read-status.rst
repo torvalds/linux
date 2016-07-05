@@ -44,14 +44,6 @@ varies according with the architecture. This needs to be fixed in the
 future.
 
 
-RETURN VALUE
-============
-
-On success 0 is returned, on error -1 and the ``errno`` variable is set
-appropriately. The generic error codes are described at the
-:ref:`Generic Error Codes <gen-errors>` chapter.
-
-
 .. _fe-status-t:
 
 int fe_status
@@ -132,3 +124,10 @@ state changes of the frontend hardware. It is produced using the enum
 
        -  The frontend was reinitialized, application is recommended to
 	  reset DiSEqC, tone and parameters
+
+RETURN VALUE
+============
+
+On success 0 is returned, on error -1 and the ``errno`` variable is set
+appropriately. The generic error codes are described at the
+:ref:`Generic Error Codes <gen-errors>` chapter.

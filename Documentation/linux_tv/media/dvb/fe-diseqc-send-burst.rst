@@ -40,20 +40,10 @@ read/write permissions.
 It provides support for what's specified at
 `Digital Satellite Equipment Control (DiSEqC) - Simple "ToneBurst" Detection Circuit specification. <http://www.eutelsat.com/files/contributed/satellites/pdf/Diseqc/associated%20docs/simple_tone_burst_detec.pdf>`__
 
-
-RETURN VALUE
-============
-
-On success 0 is returned, on error -1 and the ``errno`` variable is set
-appropriately. The generic error codes are described at the
-:ref:`Generic Error Codes <gen-errors>` chapter.
-
-
 .. _fe-sec-mini-cmd-t:
 
 enum fe_sec_mini_cmd
 ====================
-
 
 .. _fe-sec-mini-cmd:
 
@@ -83,3 +73,10 @@ enum fe_sec_mini_cmd
 	  ``SEC_MINI_B``
 
        -  Sends a mini-DiSEqC 22kHz '1' Data Burst to select satellite-B
+
+RETURN VALUE
+============
+
+On success 0 is returned, on error -1 and the ``errno`` variable is set
+appropriately. The generic error codes are described at the
+:ref:`Generic Error Codes <gen-errors>` chapter.

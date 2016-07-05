@@ -20,8 +20,6 @@ SYNOPSIS
 Arguments
 ----------
 
-
-
 .. flat-table::
     :header-rows:  0
     :stub-columns: 0

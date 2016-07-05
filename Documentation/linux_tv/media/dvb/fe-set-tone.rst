@@ -46,20 +46,10 @@ a tone may interfere on other devices, as they may lose the capability
 of selecting the band. So, it is recommended that applications would
 change to SEC_TONE_OFF when the device is not used.
 
-
-RETURN VALUE
-============
-
-On success 0 is returned, on error -1 and the ``errno`` variable is set
-appropriately. The generic error codes are described at the
-:ref:`Generic Error Codes <gen-errors>` chapter.
-
-
 .. _fe-sec-tone-mode-t:
 
 enum fe_sec_tone_mode
 =====================
-
 
 .. _fe-sec-tone-mode:
 
@@ -90,3 +80,10 @@ enum fe_sec_tone_mode
 
        -  Don't send a 22kHz tone to the antenna (except if the
 	  FE_DISEQC_* ioctls are called)
+
+RETURN VALUE
+============
+
+On success 0 is returned, on error -1 and the ``errno`` variable is set
+appropriately. The generic error codes are described at the
+:ref:`Generic Error Codes <gen-errors>` chapter.

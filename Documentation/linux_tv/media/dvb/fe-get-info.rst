@@ -41,16 +41,10 @@ takes a pointer to dvb_frontend_info which is filled by the driver.
 When the driver is not compatible with this specification the ioctl
 returns an error.
 
-
-RETURN VALUE
-============
-
-On success 0 is returned, on error -1 and the ``errno`` variable is set
-appropriately. The generic error codes are described at the
-:ref:`Generic Error Codes <gen-errors>` chapter.
-
-
 .. _dvb-frontend-info:
+
+struct dvb_frontend_info
+========================
 
 .. flat-table:: struct dvb_frontend_info
     :header-rows:  0
@@ -423,3 +417,10 @@ supported only on some specific frontend types.
 	  ``FE_CAN_MUTE_TS``
 
        -  The frontend can stop spurious TS data output
+
+RETURN VALUE
+============
+
+On success 0 is returned, on error -1 and the ``errno`` variable is set
+appropriately. The generic error codes are described at the
+:ref:`Generic Error Codes <gen-errors>` chapter.
