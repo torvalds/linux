@@ -36,7 +36,6 @@
 #include <asm/time.h>
 #include <asm/serial.h>
 #include <asm/udbg.h>
-#include <asm/mmu_context.h>
 #include <asm/code-patching.h>
 
 #define DBG(fmt...)
@@ -191,7 +190,7 @@ int __init ppc_init(void)
 
 arch_initcall(ppc_init);
 
-static void __init irqstack_early_init(void)
+void __init irqstack_early_init(void)
 {
 	unsigned int i;
 
@@ -206,7 +205,7 @@ static void __init irqstack_early_init(void)
 }
 
 #if defined(CONFIG_BOOKE) || defined(CONFIG_40x)
-static void __init exc_lvl_early_init(void)
+void __init exc_lvl_early_init(void)
 {
 	unsigned int i, hw_cpu;
 
@@ -229,11 +228,9 @@ static void __init exc_lvl_early_init(void)
 #endif
 	}
 }
-#else
-#define exc_lvl_early_init()
 #endif
 
-static void setup_power_save(void)
+void __init setup_power_save(void)
 {
 #ifdef CONFIG_6xx
 	if (cpu_has_feature(CPU_FTR_CAN_DOZE) ||
@@ -248,7 +245,7 @@ static void setup_power_save(void)
 #endif
 }
 
-static __init void initialize_cache_info(void)
+__init void initialize_cache_info(void)
 {
 	/*
 	 * Set cache line size based on type of cpu as a default.
@@ -260,58 +257,4 @@ static __init void initialize_cache_info(void)
 	ucache_bsize = 0;
 	if (cpu_has_feature(CPU_FTR_UNIFIED_ID_CACHE))
 		ucache_bsize = icache_bsize = dcache_bsize;
-}
-
-
-/* Warning, IO base is not yet inited */
-void __init setup_arch(char **cmdline_p)
-{
-	*cmdline_p = boot_command_line;
-
-	/* so udelay does something sensible, assume <= 1000 bogomips */
-	loops_per_jiffy = 500000000 / HZ;
-
-	unflatten_device_tree();
-	initialize_cache_info();
-	check_for_initrd();
-
-	probe_machine();
-
-	setup_panic();
-
-	setup_power_save();
-
-	find_legacy_serial_ports();
-
-	/* Register early console */
-	register_early_udbg_console();
-
-	smp_setup_cpu_maps();
-
-	xmon_setup();
-
-	init_mm.start_code = (unsigned long)_stext;
-	init_mm.end_code = (unsigned long) _etext;
-	init_mm.end_data = (unsigned long) _edata;
-	init_mm.brk = klimit;
-
-	exc_lvl_early_init();
-
-	irqstack_early_init();
-
-	initmem_init();
-	if ( ppc_md.progress ) ppc_md.progress("setup_arch: initmem", 0x3eab);
-
-#ifdef CONFIG_DUMMY_CONSOLE
-	conswitchp = &dummy_con;
-#endif
-
-	if (ppc_md.setup_arch)
-		ppc_md.setup_arch();
-	if ( ppc_md.progress ) ppc_md.progress("arch: exit", 0x3eab);
-
-	paging_init();
-
-	/* Initialize the MMU context management stuff */
-	mmu_context_init();
 }
