@@ -352,86 +352,93 @@ void hists__delete_entries(struct hists *hists)
  * histogram, sorted on item, collects periods
  */
 
+static int hist_entry__init(struct hist_entry *he,
+			    struct hist_entry *template,
+			    bool sample_self)
+{
+	*he = *template;
+
+	if (symbol_conf.cumulate_callchain) {
+		he->stat_acc = malloc(sizeof(he->stat));
+		if (he->stat_acc == NULL)
+			return -ENOMEM;
+		memcpy(he->stat_acc, &he->stat, sizeof(he->stat));
+		if (!sample_self)
+			memset(&he->stat, 0, sizeof(he->stat));
+	}
+
+	map__get(he->ms.map);
+
+	if (he->branch_info) {
+		/*
+		 * This branch info is (a part of) allocated from
+		 * sample__resolve_bstack() and will be freed after
+		 * adding new entries.  So we need to save a copy.
+		 */
+		he->branch_info = malloc(sizeof(*he->branch_info));
+		if (he->branch_info == NULL) {
+			map__zput(he->ms.map);
+			free(he->stat_acc);
+			return -ENOMEM;
+		}
+
+		memcpy(he->branch_info, template->branch_info,
+		       sizeof(*he->branch_info));
+
+		map__get(he->branch_info->from.map);
+		map__get(he->branch_info->to.map);
+	}
+
+	if (he->mem_info) {
+		map__get(he->mem_info->iaddr.map);
+		map__get(he->mem_info->daddr.map);
+	}
+
+	if (symbol_conf.use_callchain)
+		callchain_init(he->callchain);
+
+	if (he->raw_data) {
+		he->raw_data = memdup(he->raw_data, he->raw_size);
+
+		if (he->raw_data == NULL) {
+			map__put(he->ms.map);
+			if (he->branch_info) {
+				map__put(he->branch_info->from.map);
+				map__put(he->branch_info->to.map);
+				free(he->branch_info);
+			}
+			if (he->mem_info) {
+				map__put(he->mem_info->iaddr.map);
+				map__put(he->mem_info->daddr.map);
+			}
+			free(he->stat_acc);
+			return -ENOMEM;
+		}
+	}
+	INIT_LIST_HEAD(&he->pairs.node);
+	thread__get(he->thread);
+
+	if (!symbol_conf.report_hierarchy)
+		he->leaf = true;
+
+	return 0;
+}
+
 static struct hist_entry *hist_entry__new(struct hist_entry *template,
 					  bool sample_self)
 {
 	size_t callchain_size = 0;
 	struct hist_entry *he;
+	int err = 0;
 
 	if (symbol_conf.use_callchain)
 		callchain_size = sizeof(struct callchain_root);
 
 	he = zalloc(sizeof(*he) + callchain_size);
-
-	if (he != NULL) {
-		*he = *template;
-
-		if (symbol_conf.cumulate_callchain) {
-			he->stat_acc = malloc(sizeof(he->stat));
-			if (he->stat_acc == NULL) {
-				free(he);
-				return NULL;
-			}
-			memcpy(he->stat_acc, &he->stat, sizeof(he->stat));
-			if (!sample_self)
-				memset(&he->stat, 0, sizeof(he->stat));
-		}
-
-		map__get(he->ms.map);
-
-		if (he->branch_info) {
-			/*
-			 * This branch info is (a part of) allocated from
-			 * sample__resolve_bstack() and will be freed after
-			 * adding new entries.  So we need to save a copy.
-			 */
-			he->branch_info = malloc(sizeof(*he->branch_info));
-			if (he->branch_info == NULL) {
-				map__zput(he->ms.map);
-				free(he->stat_acc);
-				free(he);
-				return NULL;
-			}
-
-			memcpy(he->branch_info, template->branch_info,
-			       sizeof(*he->branch_info));
-
-			map__get(he->branch_info->from.map);
-			map__get(he->branch_info->to.map);
-		}
-
-		if (he->mem_info) {
-			map__get(he->mem_info->iaddr.map);
-			map__get(he->mem_info->daddr.map);
-		}
-
-		if (symbol_conf.use_callchain)
-			callchain_init(he->callchain);
-
-		if (he->raw_data) {
-			he->raw_data = memdup(he->raw_data, he->raw_size);
-
-			if (he->raw_data == NULL) {
-				map__put(he->ms.map);
-				if (he->branch_info) {
-					map__put(he->branch_info->from.map);
-					map__put(he->branch_info->to.map);
-					free(he->branch_info);
-				}
-				if (he->mem_info) {
-					map__put(he->mem_info->iaddr.map);
-					map__put(he->mem_info->daddr.map);
-				}
-				free(he->stat_acc);
-				free(he);
-				return NULL;
-			}
-		}
-		INIT_LIST_HEAD(&he->pairs.node);
-		thread__get(he->thread);
-
-		if (!symbol_conf.report_hierarchy)
-			he->leaf = true;
+	if (he) {
+		err = hist_entry__init(he, template, sample_self);
+		if (err)
+			zfree(&he);
 	}
 
 	return he;
