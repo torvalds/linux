@@ -512,78 +512,6 @@ static __init void print_system_info(void)
 	pr_info("-----------------------------------------------------\n");
 }
 
-/*
- * Do some initial setup of the system.  The parameters are those which 
- * were passed in from the bootloader.
- */
-void __init setup_system(void)
-{
-	DBG(" -> setup_system()\n");
-
-	/*
-	 * Unflatten the device-tree passed by prom_init or kexec
-	 */
-	unflatten_device_tree();
-
-	/*
-	 * Fill the ppc64_caches & systemcfg structures with informations
- 	 * retrieved from the device-tree.
-	 */
-	initialize_cache_info();
-
-#ifdef CONFIG_PPC_RTAS
-	/*
-	 * Initialize RTAS if available
-	 */
-	rtas_initialize();
-#endif /* CONFIG_PPC_RTAS */
-
-	/*
-	 * Check if we have an initrd provided via the device-tree
-	 */
-	check_for_initrd();
-
-	/* Probe the machine type */
-	probe_machine();
-
- 	/*
-	 * We can discover serial ports now since the above did setup the
-	 * hash table management for us, thus ioremap works. We do that early
-	 * so that further code can be debugged
-	 */
-	find_legacy_serial_ports();
-
-	/*
-	 * Register early console
-	 */
-	register_early_udbg_console();
-
-	/*
-	 * Initialize xmon
-	 */
-	xmon_setup();
-
-	smp_setup_cpu_maps();
-	check_smt_enabled();
-	setup_tlb_core_data();
-
-	/*
-	 * Freescale Book3e parts spin in a loop provided by firmware,
-	 * so smp_release_cpus() does nothing for them
-	 */
-#if defined(CONFIG_SMP)
-	/* Release secondary cpus out of their spinloops at 0x60 now that
-	 * we can map physical -> logical CPU ids
-	 */
-	smp_release_cpus();
-#endif
-
-	/* Print various info about the machine that has been gathered so far. */
-	print_system_info();
-
-	DBG(" <- setup_system()\n");
-}
-
 /* This returns the limit below which memory accesses to the linear
  * mapping are guarnateed not to cause a TLB or SLB miss. This is
  * used to allocate interrupt or emergency stacks for which our
@@ -694,6 +622,68 @@ static void __init emergency_stack_init(void)
 void __init setup_arch(char **cmdline_p)
 {
 	*cmdline_p = boot_command_line;
+
+	/*
+	 * Unflatten the device-tree passed by prom_init or kexec
+	 */
+	unflatten_device_tree();
+
+	/*
+	 * Fill the ppc64_caches & systemcfg structures with informations
+	 * retrieved from the device-tree.
+	 */
+	initialize_cache_info();
+
+#ifdef CONFIG_PPC_RTAS
+	/*
+	 * Initialize RTAS if available
+	 */
+	rtas_initialize();
+#endif /* CONFIG_PPC_RTAS */
+
+	/*
+	 * Check if we have an initrd provided via the device-tree
+	 */
+	check_for_initrd();
+
+	/* Probe the machine type */
+	probe_machine();
+
+	/*
+	 * We can discover serial ports now since the above did setup the
+	 * hash table management for us, thus ioremap works. We do that early
+	 * so that further code can be debugged
+	 */
+	find_legacy_serial_ports();
+
+	/*
+	 * Register early console
+	 */
+	register_early_udbg_console();
+
+	/*
+	 * Initialize xmon
+	 */
+	xmon_setup();
+
+	smp_setup_cpu_maps();
+	check_smt_enabled();
+	setup_tlb_core_data();
+
+	/*
+	 * Freescale Book3e parts spin in a loop provided by firmware,
+	 * so smp_release_cpus() does nothing for them
+	 */
+#if defined(CONFIG_SMP)
+	/*
+	 * Release secondary cpus out of their spinloops at 0x60 now that
+	 * we can map physical -> logical CPU ids
+	 */
+	smp_release_cpus();
+#endif
+
+	/* Print various info about the machine that has been gathered so far. */
+	print_system_info();
 
 	/* Reserve large chunks of memory for use by CMA for KVM */
 	kvm_cma_reserve();

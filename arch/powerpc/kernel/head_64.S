@@ -941,7 +941,7 @@ start_here_multiplatform:
 	mtspr	SPRN_SRR1,r4
 	RFI
 	b	.	/* prevent speculative execution */
-	
+
 	/* This is where all platforms converge execution */
 
 start_here_common:
@@ -950,9 +950,6 @@ start_here_common:
 
 	/* Load the TOC (virtual address) */
 	ld	r2,PACATOC(r13)
-
-	/* Do more system initializations in virtual mode */
-	bl	setup_system
 
 	/* Mark interrupts soft and hard disabled (they might be enabled
 	 * in the PACA when doing hotplug)
