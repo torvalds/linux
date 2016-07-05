@@ -974,6 +974,13 @@ __nfs_revalidate_inode(struct nfs_server *server, struct inode *inode)
 	if (NFS_STALE(inode))
 		goto out;
 
+	/* pNFS: Attributes aren't updated until we layoutcommit */
+	if (S_ISREG(inode->i_mode)) {
+		status = pnfs_sync_inode(inode, false);
+		if (status)
+			goto out;
+	}
+
 	status = -ENOMEM;
 	fattr = nfs_alloc_fattr();
 	if (fattr == NULL)
@@ -1493,27 +1500,11 @@ static int nfs_inode_attrs_need_update(const struct inode *inode, const struct n
 		((long)nfsi->attr_gencount - (long)nfs_read_attr_generation_counter() > 0);
 }
 
-/*
- * Don't trust the change_attribute, mtime, ctime or size if
- * a pnfs LAYOUTCOMMIT is outstanding
- */
-static void nfs_inode_attrs_handle_layoutcommit(struct inode *inode,
-		struct nfs_fattr *fattr)
-{
-	if (pnfs_layoutcommit_outstanding(inode))
-		fattr->valid &= ~(NFS_ATTR_FATTR_CHANGE |
-				NFS_ATTR_FATTR_MTIME |
-				NFS_ATTR_FATTR_CTIME |
-				NFS_ATTR_FATTR_SIZE);
-}
-
 static int nfs_refresh_inode_locked(struct inode *inode, struct nfs_fattr *fattr)
 {
 	int ret;
 
 	trace_nfs_refresh_inode_enter(inode);
-
-	nfs_inode_attrs_handle_layoutcommit(inode, fattr);
 
 	if (nfs_inode_attrs_need_update(inode, fattr))
 		ret = nfs_update_inode(inode, fattr);
