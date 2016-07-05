@@ -892,7 +892,6 @@ static struct of_device_id fsl_re_ids[] = {
 static struct platform_driver fsl_re_driver = {
 	.driver = {
 		.name = "fsl-raideng",
-		.owner = THIS_MODULE,
 		.of_match_table = fsl_re_ids,
 	},
 	.probe = fsl_re_probe,
