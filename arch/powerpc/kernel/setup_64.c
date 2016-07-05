@@ -285,6 +285,9 @@ void __init early_setup(unsigned long dt_ptr)
 	/* Initialize the hash table or TLB handling */
 	early_init_mmu();
 
+	/* Apply all the dynamic patching */
+	apply_feature_fixups();
+
 	/*
 	 * At this point, we can let interrupts switch to virtual mode
 	 * (the MMU has been setup), so adjust the MSR in the PACA to
@@ -466,8 +469,6 @@ static void __init initialize_cache_info(void)
 void __init setup_system(void)
 {
 	DBG(" -> setup_system()\n");
-
-	apply_feature_fixups();
 
 	/*
 	 * Unflatten the device-tree passed by prom_init or kexec
