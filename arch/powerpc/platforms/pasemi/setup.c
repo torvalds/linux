@@ -426,8 +426,6 @@ static int __init pas_probe(void)
 	    !of_flat_dt_is_compatible(root, "pasemi,pwrficient"))
 		return 0;
 
-	alloc_iobmap_l2();
-
 	return 1;
 }
 
