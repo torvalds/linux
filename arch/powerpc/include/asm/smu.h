@@ -471,13 +471,6 @@ extern int smu_get_rtc_time(struct rtc_time *time, int spinwait);
 extern int smu_set_rtc_time(struct rtc_time *time, int spinwait);
 
 /*
- * SMU command buffer absolute address, exported by pmac_setup,
- * this is allocated very early during boot.
- */
-extern unsigned long smu_cmdbuf_abs;
-
-
-/*
  * Kernel asynchronous i2c interface
  */
 

@@ -52,7 +52,6 @@
 #include <linux/suspend.h>
 #include <linux/of_device.h>
 #include <linux/of_platform.h>
-#include <linux/memblock.h>
 
 #include <asm/reg.h>
 #include <asm/sections.h>
@@ -96,11 +95,6 @@ int sccdbg;
 
 sys_ctrler_t sys_ctrler = SYS_CTRLER_UNKNOWN;
 EXPORT_SYMBOL(sys_ctrler);
-
-#ifdef CONFIG_PMAC_SMU
-unsigned long smu_cmdbuf_abs;
-EXPORT_SYMBOL(smu_cmdbuf_abs);
-#endif
 
 static void pmac_show_cpuinfo(struct seq_file *m)
 {
@@ -325,7 +319,6 @@ static void __init pmac_setup_arch(void)
     defined(CONFIG_PPC64)
 	pmac_nvram_init();
 #endif
-
 #ifdef CONFIG_PPC32
 #ifdef CONFIG_BLK_DEV_INITRD
 	if (initrd_start)
@@ -616,15 +609,6 @@ static int __init pmac_probe(void)
 	DMA_MODE_READ = 1;
 	DMA_MODE_WRITE = 2;
 #endif /* CONFIG_PPC32 */
-
-#ifdef CONFIG_PMAC_SMU
-	/*
-	 * SMU based G5s need some memory below 2Gb, at least the current
-	 * driver needs that. We have to allocate it now. We allocate 4k
-	 * (1 small page) for now.
-	 */
-	smu_cmdbuf_abs = memblock_alloc_base(4096, 4096, 0x80000000UL);
-#endif /* CONFIG_PMAC_SMU */
 
 	pm_power_off = pmac_power_off;
 
