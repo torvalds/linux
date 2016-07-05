@@ -51,7 +51,7 @@
 	};
 
 	chosen {
-		bootargs = "earlycon=uart8250,mmio32,0xff1a0000";
+		bootargs = "earlycon=uart8250,mmio32,0xff1a0000 swiotlb=1";
 	};
 
 	ramoops_mem: ramoops_mem {
