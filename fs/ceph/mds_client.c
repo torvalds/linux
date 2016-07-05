@@ -2797,6 +2797,7 @@ static int encode_caps_cb(struct inode *inode, struct ceph_cap *cap,
 	char *path;
 	int pathlen, err;
 	u64 pathbase;
+	u64 snap_follows;
 	struct dentry *dentry;
 
 	ci = cap->ci;
@@ -2843,6 +2844,15 @@ static int encode_caps_cb(struct inode *inode, struct ceph_cap *cap,
 		rec.v1.snaprealm = cpu_to_le64(ci->i_snap_realm->ino);
 		rec.v1.pathbase = cpu_to_le64(pathbase);
 	}
+
+	if (list_empty(&ci->i_cap_snaps)) {
+		snap_follows = 0;
+	} else {
+		struct ceph_cap_snap *capsnap =
+			list_first_entry(&ci->i_cap_snaps,
+					 struct ceph_cap_snap, ci_item);
+		snap_follows = capsnap->follows;
+	}
 	spin_unlock(&ci->i_ceph_lock);
 
 	if (recon_state->msg_version >= 2) {
@@ -2872,7 +2882,7 @@ encode_again:
 		if (recon_state->msg_version >= 3) {
 			/* version, compat_version and struct_len */
 			total_len = 2 * sizeof(u8) + sizeof(u32);
-			struct_v = 1;
+			struct_v = 2;
 		}
 		/*
 		 * number of encoded locks is stable, so copy to pagelist
@@ -2884,6 +2894,9 @@ encode_again:
 
 		struct_len += sizeof(rec.v2);
 		struct_len += sizeof(u32) + pathlen;
+
+		if (struct_v >= 2)
+			struct_len += sizeof(u64); /* snap_follows */
 
 		total_len += struct_len;
 		err = ceph_pagelist_reserve(pagelist, total_len);
@@ -2899,6 +2912,8 @@ encode_again:
 			ceph_locks_to_pagelist(flocks, pagelist,
 					       num_fcntl_locks,
 					       num_flock_locks);
+			if (struct_v >= 2)
+				ceph_pagelist_encode_64(pagelist, snap_follows);
 		}
 		kfree(flocks);
 	} else {
