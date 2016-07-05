@@ -607,14 +607,6 @@ static int __init pmac_probe(void)
 		return 0;
 
 #ifdef CONFIG_PPC64
-	/*
-	 * On U3, the DART (iommu) must be allocated now since it
-	 * has an impact on htab_initialize (due to the large page it
-	 * occupies having to be broken up so the DART itself is not
-	 * part of the cacheable linar mapping
-	 */
-	alloc_dart_table();
-
 	hpte_init_native();
 #endif
 

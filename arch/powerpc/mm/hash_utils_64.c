@@ -87,10 +87,6 @@
  *
  */
 
-#ifdef CONFIG_U3_DART
-extern unsigned long dart_tablebase;
-#endif /* CONFIG_U3_DART */
-
 static unsigned long _SDR1;
 struct mmu_psize_def mmu_psize_defs[MMU_PAGE_COUNT];
 EXPORT_SYMBOL_GPL(mmu_psize_defs);
@@ -846,34 +842,6 @@ static void __init htab_initialize(void)
 		DBG("creating mapping for region: %lx..%lx (prot: %lx)\n",
 		    base, size, prot);
 
-#ifdef CONFIG_U3_DART
-		/* Do not map the DART space. Fortunately, it will be aligned
-		 * in such a way that it will not cross two memblock regions and
-		 * will fit within a single 16Mb page.
-		 * The DART space is assumed to be a full 16Mb region even if
-		 * we only use 2Mb of that space. We will use more of it later
-		 * for AGP GART. We have to use a full 16Mb large page.
-		 */
-		DBG("DART base: %lx\n", dart_tablebase);
-
-		if (dart_tablebase != 0 && dart_tablebase >= base
-		    && dart_tablebase < (base + size)) {
-			unsigned long dart_table_end = dart_tablebase + 16 * MB;
-			if (base != dart_tablebase)
-				BUG_ON(htab_bolt_mapping(base, dart_tablebase,
-							__pa(base), prot,
-							mmu_linear_psize,
-							mmu_kernel_ssize));
-			if ((base + size) > dart_table_end)
-				BUG_ON(htab_bolt_mapping(dart_tablebase+16*MB,
-							base + size,
-							__pa(dart_table_end),
-							 prot,
-							 mmu_linear_psize,
-							 mmu_kernel_ssize));
-			continue;
-		}
-#endif /* CONFIG_U3_DART */
 		BUG_ON(htab_bolt_mapping(base, base + size, __pa(base),
 				prot, mmu_linear_psize, mmu_kernel_ssize));
 	}

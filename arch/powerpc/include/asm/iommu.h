@@ -273,7 +273,6 @@ extern void iommu_init_early_pSeries(void);
 extern void iommu_init_early_dart(struct pci_controller_ops *controller_ops);
 extern void iommu_init_early_pasemi(void);
 
-extern void alloc_dart_table(void);
 #if defined(CONFIG_PPC64) && defined(CONFIG_PM)
 static inline void iommu_save(void)
 {
