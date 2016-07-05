@@ -34,11 +34,13 @@
 #include <linux/spinlock.h>
 #include <linux/workqueue.h>
 
+#include "bat_algo.h"
 #include "distributed-arp-table.h"
 #include "fragmentation.h"
 #include "gateway_client.h"
 #include "hard-interface.h"
 #include "hash.h"
+#include "log.h"
 #include "multicast.h"
 #include "network-coding.h"
 #include "routing.h"
@@ -532,8 +534,8 @@ batadv_hardif_neigh_create(struct batadv_hard_iface *hard_iface,
 
 	kref_init(&hardif_neigh->refcount);
 
-	if (bat_priv->bat_algo_ops->bat_hardif_neigh_init)
-		bat_priv->bat_algo_ops->bat_hardif_neigh_init(hardif_neigh);
+	if (bat_priv->algo_ops->neigh.hardif_init)
+		bat_priv->algo_ops->neigh.hardif_init(hardif_neigh);
 
 	hlist_add_head(&hardif_neigh->list, &hard_iface->neigh_list);
 
@@ -704,17 +706,17 @@ int batadv_hardif_neigh_seq_print_text(struct seq_file *seq, void *offset)
 	seq_printf(seq, "[B.A.T.M.A.N. adv %s, MainIF/MAC: %s/%pM (%s %s)]\n",
 		   BATADV_SOURCE_VERSION, primary_if->net_dev->name,
 		   primary_if->net_dev->dev_addr, net_dev->name,
-		   bat_priv->bat_algo_ops->name);
+		   bat_priv->algo_ops->name);
 
 	batadv_hardif_put(primary_if);
 
-	if (!bat_priv->bat_algo_ops->bat_neigh_print) {
+	if (!bat_priv->algo_ops->neigh.print) {
 		seq_puts(seq,
 			 "No printing function for this routing protocol\n");
 		return 0;
 	}
 
-	bat_priv->bat_algo_ops->bat_neigh_print(bat_priv, seq);
+	bat_priv->algo_ops->neigh.print(bat_priv, seq);
 	return 0;
 }
 
@@ -765,8 +767,8 @@ static void batadv_orig_node_free_rcu(struct rcu_head *rcu)
 
 	batadv_frag_purge_orig(orig_node, NULL);
 
-	if (orig_node->bat_priv->bat_algo_ops->bat_orig_free)
-		orig_node->bat_priv->bat_algo_ops->bat_orig_free(orig_node);
+	if (orig_node->bat_priv->algo_ops->orig.free)
+		orig_node->bat_priv->algo_ops->orig.free(orig_node);
 
 	kfree(orig_node->tt_buff);
 	kfree(orig_node);
@@ -1095,12 +1097,12 @@ batadv_find_best_neighbor(struct batadv_priv *bat_priv,
 			  struct batadv_hard_iface *if_outgoing)
 {
 	struct batadv_neigh_node *best = NULL, *neigh;
-	struct batadv_algo_ops *bao = bat_priv->bat_algo_ops;
+	struct batadv_algo_ops *bao = bat_priv->algo_ops;
 
 	rcu_read_lock();
 	hlist_for_each_entry_rcu(neigh, &orig_node->neigh_list, list) {
-		if (best && (bao->bat_neigh_cmp(neigh, if_outgoing,
-						best, if_outgoing) <= 0))
+		if (best && (bao->neigh.cmp(neigh, if_outgoing, best,
+					    if_outgoing) <= 0))
 			continue;
 
 		if (!kref_get_unless_zero(&neigh->refcount))
@@ -1252,18 +1254,17 @@ int batadv_orig_seq_print_text(struct seq_file *seq, void *offset)
 	seq_printf(seq, "[B.A.T.M.A.N. adv %s, MainIF/MAC: %s/%pM (%s %s)]\n",
 		   BATADV_SOURCE_VERSION, primary_if->net_dev->name,
 		   primary_if->net_dev->dev_addr, net_dev->name,
-		   bat_priv->bat_algo_ops->name);
+		   bat_priv->algo_ops->name);
 
 	batadv_hardif_put(primary_if);
 
-	if (!bat_priv->bat_algo_ops->bat_orig_print) {
+	if (!bat_priv->algo_ops->orig.print) {
 		seq_puts(seq,
 			 "No printing function for this routing protocol\n");
 		return 0;
 	}
 
-	bat_priv->bat_algo_ops->bat_orig_print(bat_priv, seq,
-					       BATADV_IF_DEFAULT);
+	bat_priv->algo_ops->orig.print(bat_priv, seq, BATADV_IF_DEFAULT);
 
 	return 0;
 }
@@ -1290,7 +1291,7 @@ int batadv_orig_hardif_seq_print_text(struct seq_file *seq, void *offset)
 	}
 
 	bat_priv = netdev_priv(hard_iface->soft_iface);
-	if (!bat_priv->bat_algo_ops->bat_orig_print) {
+	if (!bat_priv->algo_ops->orig.print) {
 		seq_puts(seq,
 			 "No printing function for this routing protocol\n");
 		goto out;
@@ -1304,9 +1305,9 @@ int batadv_orig_hardif_seq_print_text(struct seq_file *seq, void *offset)
 	seq_printf(seq, "[B.A.T.M.A.N. adv %s, IF/MAC: %s/%pM (%s %s)]\n",
 		   BATADV_SOURCE_VERSION, hard_iface->net_dev->name,
 		   hard_iface->net_dev->dev_addr,
-		   hard_iface->soft_iface->name, bat_priv->bat_algo_ops->name);
+		   hard_iface->soft_iface->name, bat_priv->algo_ops->name);
 
-	bat_priv->bat_algo_ops->bat_orig_print(bat_priv, seq, hard_iface);
+	bat_priv->algo_ops->orig.print(bat_priv, seq, hard_iface);
 
 out:
 	if (hard_iface)
@@ -1318,7 +1319,7 @@ int batadv_orig_hash_add_if(struct batadv_hard_iface *hard_iface,
 			    int max_if_num)
 {
 	struct batadv_priv *bat_priv = netdev_priv(hard_iface->soft_iface);
-	struct batadv_algo_ops *bao = bat_priv->bat_algo_ops;
+	struct batadv_algo_ops *bao = bat_priv->algo_ops;
 	struct batadv_hashtable *hash = bat_priv->orig_hash;
 	struct hlist_head *head;
 	struct batadv_orig_node *orig_node;
@@ -1334,9 +1335,8 @@ int batadv_orig_hash_add_if(struct batadv_hard_iface *hard_iface,
 		rcu_read_lock();
 		hlist_for_each_entry_rcu(orig_node, head, hash_entry) {
 			ret = 0;
-			if (bao->bat_orig_add_if)
-				ret = bao->bat_orig_add_if(orig_node,
-							   max_if_num);
+			if (bao->orig.add_if)
+				ret = bao->orig.add_if(orig_node, max_if_num);
 			if (ret == -ENOMEM)
 				goto err;
 		}
@@ -1358,7 +1358,7 @@ int batadv_orig_hash_del_if(struct batadv_hard_iface *hard_iface,
 	struct hlist_head *head;
 	struct batadv_hard_iface *hard_iface_tmp;
 	struct batadv_orig_node *orig_node;
-	struct batadv_algo_ops *bao = bat_priv->bat_algo_ops;
+	struct batadv_algo_ops *bao = bat_priv->algo_ops;
 	u32 i;
 	int ret;
 
@@ -1371,10 +1371,9 @@ int batadv_orig_hash_del_if(struct batadv_hard_iface *hard_iface,
 		rcu_read_lock();
 		hlist_for_each_entry_rcu(orig_node, head, hash_entry) {
 			ret = 0;
-			if (bao->bat_orig_del_if)
-				ret = bao->bat_orig_del_if(orig_node,
-							   max_if_num,
-							   hard_iface->if_num);
+			if (bao->orig.del_if)
+				ret = bao->orig.del_if(orig_node, max_if_num,
+						       hard_iface->if_num);
 			if (ret == -ENOMEM)
 				goto err;
 		}

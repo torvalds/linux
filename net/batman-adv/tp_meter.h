@@ -1,6 +1,6 @@
-/* Copyright (C) 2013-2016 B.A.T.M.A.N. contributors:
+/* Copyright (C) 2012-2016 B.A.T.M.A.N. contributors:
  *
- * Antonio Quartulli
+ * Edo Monticelli, Antonio Quartulli
  *
  * This program is free software; you can redistribute it and/or
  * modify it under the terms of version 2 of the GNU General Public
@@ -15,8 +15,8 @@
  * along with this program; if not, see <http://www.gnu.org/licenses/>.
  */
 
-#ifndef _BATMAN_ADV_BATADV_V_OGM_H_
-#define _BATMAN_ADV_BATADV_V_OGM_H_
+#ifndef _NET_BATMAN_ADV_TP_METER_H_
+#define _NET_BATMAN_ADV_TP_METER_H_
 
 #include "main.h"
 
@@ -24,13 +24,11 @@
 
 struct sk_buff;
 
-int batadv_v_ogm_init(struct batadv_priv *bat_priv);
-void batadv_v_ogm_free(struct batadv_priv *bat_priv);
-int batadv_v_ogm_iface_enable(struct batadv_hard_iface *hard_iface);
-struct batadv_orig_node *batadv_v_ogm_orig_get(struct batadv_priv *bat_priv,
-					       const u8 *addr);
-void batadv_v_ogm_primary_iface_set(struct batadv_hard_iface *primary_iface);
-int batadv_v_ogm_packet_recv(struct sk_buff *skb,
-			     struct batadv_hard_iface *if_incoming);
+void batadv_tp_meter_init(void);
+void batadv_tp_start(struct batadv_priv *bat_priv, const u8 *dst,
+		     u32 test_length, u32 *cookie);
+void batadv_tp_stop(struct batadv_priv *bat_priv, const u8 *dst,
+		    u8 return_value);
+void batadv_tp_meter_recv(struct batadv_priv *bat_priv, struct sk_buff *skb);
 
-#endif /* _BATMAN_ADV_BATADV_V_OGM_H_ */
+#endif /* _NET_BATMAN_ADV_TP_METER_H_ */

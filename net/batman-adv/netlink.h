@@ -1,6 +1,6 @@
-/* Copyright (C) 2011-2016  B.A.T.M.A.N. contributors:
+/* Copyright (C) 2016 B.A.T.M.A.N. contributors:
  *
- * Marek Lindner, Linus Lüssing
+ * Matthias Schiffer
  *
  * This program is free software; you can redistribute it and/or
  * modify it under the terms of version 2 of the GNU General Public
@@ -15,21 +15,18 @@
  * along with this program; if not, see <http://www.gnu.org/licenses/>.
  */
 
-#ifndef _NET_BATMAN_ADV_BAT_ALGO_H_
-#define _NET_BATMAN_ADV_BAT_ALGO_H_
+#ifndef _NET_BATMAN_ADV_NETLINK_H_
+#define _NET_BATMAN_ADV_NETLINK_H_
 
 #include "main.h"
 
 #include <linux/types.h>
 
-struct seq_file;
+void batadv_netlink_register(void);
+void batadv_netlink_unregister(void);
 
-extern char batadv_routing_algo[];
-extern struct list_head batadv_hardif_list;
+int batadv_netlink_tpmeter_notify(struct batadv_priv *bat_priv, const u8 *dst,
+				  u8 result, u32 test_time, u64 total_bytes,
+				  u32 cookie);
 
-void batadv_algo_init(void);
-int batadv_algo_register(struct batadv_algo_ops *bat_algo_ops);
-int batadv_algo_select(struct batadv_priv *bat_priv, char *name);
-int batadv_algo_seq_print_text(struct seq_file *seq, void *offset);
-
-#endif /* _NET_BATMAN_ADV_BAT_ALGO_H_ */
+#endif /* _NET_BATMAN_ADV_NETLINK_H_ */

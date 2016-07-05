@@ -19,8 +19,8 @@
 #include "main.h"
 
 #include <linux/atomic.h>
-#include <linux/errno.h>
 #include <linux/byteorder/generic.h>
+#include <linux/errno.h>
 #include <linux/kernel.h>
 #include <linux/math64.h>
 #include <linux/netdevice.h>
@@ -28,7 +28,9 @@
 #include <linux/string.h>
 
 #include "gateway_client.h"
+#include "log.h"
 #include "packet.h"
+#include "tvlv.h"
 
 /**
  * batadv_parse_throughput - parse supplied string buffer to extract throughput
