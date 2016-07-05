@@ -279,9 +279,11 @@ void __init early_setup(unsigned long dt_ptr)
 	/* Probe the machine type */
 	probe_machine();
 
+	/*
+	 * Setup the trampolines from the lowmem exception vectors
+	 * to the kdump kernel when not using a relocatable kernel.
+	 */
 	setup_kdump_trampoline();
-
-	DBG("Found, Initializing memory management...\n");
 
 	/* Initialize the hash table or TLB handling */
 	early_init_mmu();
