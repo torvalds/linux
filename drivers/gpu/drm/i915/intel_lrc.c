@@ -1296,6 +1296,31 @@ static int gen9_init_indirectctx_bb(struct intel_engine_cs *engine,
 		wa_ctx_emit(batch, index, 0);
 		wa_ctx_emit(batch, index, 0);
 	}
+
+	/* WaMediaPoolStateCmdInWABB:bxt */
+	if (HAS_POOLED_EU(engine->i915)) {
+		/*
+		 * EU pool configuration is setup along with golden context
+		 * during context initialization. This value depends on
+		 * device type (2x6 or 3x6) and needs to be updated based
+		 * on which subslice is disabled especially for 2x6
+		 * devices, however it is safe to load default
+		 * configuration of 3x6 device instead of masking off
+		 * corresponding bits because HW ignores bits of a disabled
+		 * subslice and drops down to appropriate config. Please
+		 * see render_state_setup() in i915_gem_render_state.c for
+		 * possible configurations, to avoid duplication they are
+		 * not shown here again.
+		 */
+		u32 eu_pool_config = 0x00777000;
+		wa_ctx_emit(batch, index, GEN9_MEDIA_POOL_STATE);
+		wa_ctx_emit(batch, index, GEN9_MEDIA_POOL_ENABLE);
+		wa_ctx_emit(batch, index, eu_pool_config);
+		wa_ctx_emit(batch, index, 0);
+		wa_ctx_emit(batch, index, 0);
+		wa_ctx_emit(batch, index, 0);
+	}
+
 	/* Pad to end of cacheline */
 	while (index % CACHELINE_DWORDS)
 		wa_ctx_emit(batch, index, MI_NOOP);
