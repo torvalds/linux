@@ -457,10 +457,6 @@ static const struct ieee80211_iface_limit hwsim_if_limits[] = {
 	{ .max = 1, .types = BIT(NL80211_IFTYPE_P2P_DEVICE) }
 };
 
-static const struct ieee80211_iface_limit hwsim_if_dfs_limits[] = {
-	{ .max = 8, .types = BIT(NL80211_IFTYPE_AP) },
-};
-
 static const struct ieee80211_iface_combination hwsim_if_comb[] = {
 	{
 		.limits = hwsim_if_limits,
@@ -468,18 +464,12 @@ static const struct ieee80211_iface_combination hwsim_if_comb[] = {
 		.n_limits = ARRAY_SIZE(hwsim_if_limits) - 1,
 		.max_interfaces = 2048,
 		.num_different_channels = 1,
-	},
-	{
-		.limits = hwsim_if_dfs_limits,
-		.n_limits = ARRAY_SIZE(hwsim_if_dfs_limits),
-		.max_interfaces = 8,
-		.num_different_channels = 1,
 		.radar_detect_widths = BIT(NL80211_CHAN_WIDTH_20_NOHT) |
 				       BIT(NL80211_CHAN_WIDTH_20) |
 				       BIT(NL80211_CHAN_WIDTH_40) |
 				       BIT(NL80211_CHAN_WIDTH_80) |
 				       BIT(NL80211_CHAN_WIDTH_160),
-	}
+	},
 };
 
 static const struct ieee80211_iface_combination hwsim_if_comb_p2p_dev[] = {
@@ -488,18 +478,12 @@ static const struct ieee80211_iface_combination hwsim_if_comb_p2p_dev[] = {
 		.n_limits = ARRAY_SIZE(hwsim_if_limits),
 		.max_interfaces = 2048,
 		.num_different_channels = 1,
-	},
-	{
-		.limits = hwsim_if_dfs_limits,
-		.n_limits = ARRAY_SIZE(hwsim_if_dfs_limits),
-		.max_interfaces = 8,
-		.num_different_channels = 1,
 		.radar_detect_widths = BIT(NL80211_CHAN_WIDTH_20_NOHT) |
 				       BIT(NL80211_CHAN_WIDTH_20) |
 				       BIT(NL80211_CHAN_WIDTH_40) |
 				       BIT(NL80211_CHAN_WIDTH_80) |
 				       BIT(NL80211_CHAN_WIDTH_160),
-	}
+	},
 };
 
 static spinlock_t hwsim_radio_lock;
@@ -2487,13 +2471,14 @@ static int mac80211_hwsim_new_radio(struct genl_info *info,
 		hw->wiphy->max_scan_ssids = 255;
 		hw->wiphy->max_scan_ie_len = IEEE80211_MAX_DATA_LEN;
 		hw->wiphy->max_remain_on_channel_duration = 1000;
-		/* For channels > 1 DFS is not allowed */
-		hw->wiphy->n_iface_combinations = 1;
 		hw->wiphy->iface_combinations = &data->if_combination;
 		if (param->p2p_device)
 			data->if_combination = hwsim_if_comb_p2p_dev[0];
 		else
 			data->if_combination = hwsim_if_comb[0];
+		hw->wiphy->n_iface_combinations = 1;
+		/* For channels > 1 DFS is not allowed */
+		data->if_combination.radar_detect_widths = 0;
 		data->if_combination.num_different_channels = data->channels;
 	} else if (param->p2p_device) {
 		hw->wiphy->iface_combinations = hwsim_if_comb_p2p_dev;
