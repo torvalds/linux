@@ -65,7 +65,7 @@
 #define HCI_I2C		8
 
 /* HCI controller types */
-#define HCI_BREDR	0x00
+#define HCI_PRIMARY	0x00
 #define HCI_AMP		0x01
 
 /* First BR/EDR Controller shall have ID = 0 */
