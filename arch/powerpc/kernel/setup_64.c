@@ -473,6 +473,10 @@ static void __init initialize_cache_info(void)
 		}
 	}
 
+	/* For use by binfmt_elf */
+	dcache_bsize = ppc64_caches.dline_size;
+	icache_bsize = ppc64_caches.iline_size;
+
 	DBG(" <- initialize_cache_info()\n");
 }
 
@@ -690,15 +694,6 @@ static void __init emergency_stack_init(void)
 void __init setup_arch(char **cmdline_p)
 {
 	*cmdline_p = boot_command_line;
-
-	/*
-	 * Set cache line size based on type of cpu as a default.
-	 * Systems with OF can look in the properties on the cpu node(s)
-	 * for a possibly more accurate value.
-	 */
-	dcache_bsize = ppc64_caches.dline_size;
-	icache_bsize = ppc64_caches.iline_size;
-
 
 	/* Reserve large chunks of memory for use by CMA for KVM */
 	kvm_cma_reserve();
