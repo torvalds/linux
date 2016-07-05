@@ -39,6 +39,7 @@
 #include <linux/dma-contiguous.h>
 #include <linux/irqdomain.h>
 #include <linux/percpu.h>
+#include <linux/iova.h>
 #include <asm/irq_remapping.h>
 #include <asm/io_apic.h>
 #include <asm/apic.h>
@@ -56,6 +57,11 @@
 #define CMD_SET_TYPE(cmd, t) ((cmd)->data[1] |= ((t) << 28))
 
 #define LOOP_TIMEOUT	100000
+
+/* IO virtual address start page frame number */
+#define IOVA_START_PFN		(1)
+#define IOVA_PFN(addr)		((addr) >> PAGE_SHIFT)
+#define DMA_32BIT_PFN		IOVA_PFN(DMA_BIT_MASK(32))
 
 /*
  * This bitmap is used to advertise the page sizes our hardware support
@@ -158,6 +164,9 @@ struct dma_ops_domain {
 
 	/* address space relevant data */
 	struct aperture_range *aperture[APERTURE_MAX_RANGES];
+
+	/* IOVA RB-Tree */
+	struct iova_domain iovad;
 };
 
 /****************************************************************************
@@ -1969,6 +1978,8 @@ static void dma_ops_domain_free(struct dma_ops_domain *dom)
 	if (!dom)
 		return;
 
+	put_iova_domain(&dom->iovad);
+
 	free_percpu(dom->next_index);
 
 	del_domain_from_list(&dom->domain);
@@ -2043,6 +2054,9 @@ static struct dma_ops_domain *dma_ops_domain_alloc(void)
 
 	for_each_possible_cpu(cpu)
 		*per_cpu_ptr(dma_dom->next_index, cpu) = 0;
+
+	init_iova_domain(&dma_dom->iovad, PAGE_SIZE,
+			 IOVA_START_PFN, DMA_32BIT_PFN);
 
 	return dma_dom;
 
@@ -2951,7 +2965,11 @@ static struct dma_map_ops amd_iommu_dma_ops = {
 
 int __init amd_iommu_init_api(void)
 {
-	int err = 0;
+	int ret, err = 0;
+
+	ret = iova_cache_get();
+	if (ret)
+		return ret;
 
 	err = bus_set_iommu(&pci_bus_type, &amd_iommu_ops);
 	if (err)
