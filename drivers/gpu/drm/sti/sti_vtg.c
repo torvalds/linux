@@ -432,6 +432,7 @@ static int vtg_probe(struct platform_device *pdev)
 	np = of_parse_phandle(pdev->dev.of_node, "st,slave", 0);
 	if (np) {
 		vtg->slave = of_vtg_find(np);
+		of_node_put(np);
 
 		if (!vtg->slave)
 			return -EPROBE_DEFER;
