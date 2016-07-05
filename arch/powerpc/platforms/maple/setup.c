@@ -300,10 +300,8 @@ static void __init maple_progress(char *s, unsigned short hex)
  */
 static int __init maple_probe(void)
 {
-	unsigned long root = of_get_flat_dt_root();
-
-	if (!of_flat_dt_is_compatible(root, "Momentum,Maple") &&
-	    !of_flat_dt_is_compatible(root, "Momentum,Apache"))
+	if (!of_machine_is_compatible("Momentum,Maple") &&
+	    !of_machine_is_compatible("Momentum,Apache"))
 		return 0;
 
 	pm_power_off = maple_power_off;

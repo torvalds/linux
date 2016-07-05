@@ -672,8 +672,7 @@ static void pseries_power_off(void)
 
 static int __init pSeries_probe(void)
 {
-	unsigned long root = of_get_flat_dt_root();
-	const char *dtype = of_get_flat_dt_prop(root, "device_type", NULL);
+	const char *dtype = of_get_property(of_root, "device_type", NULL);
 
  	if (dtype == NULL)
  		return 0;
@@ -683,8 +682,8 @@ static int __init pSeries_probe(void)
 	/* Cell blades firmware claims to be chrp while it's not. Until this
 	 * is fixed, we need to avoid those here.
 	 */
-	if (of_flat_dt_is_compatible(root, "IBM,CPBW-1.0") ||
-	    of_flat_dt_is_compatible(root, "IBM,CBEA"))
+	if (of_machine_is_compatible("IBM,CPBW-1.0") ||
+	    of_machine_is_compatible("IBM,CBEA"))
 		return 0;
 
 	pm_power_off = pseries_power_off;

@@ -590,11 +590,17 @@ console_initcall(check_pmac_serial_console);
  */
 static int __init pmac_probe(void)
 {
+#ifdef CONFIG_PPC32
 	unsigned long root = of_get_flat_dt_root();
 
 	if (!of_flat_dt_is_compatible(root, "Power Macintosh") &&
 	    !of_flat_dt_is_compatible(root, "MacRISC"))
 		return 0;
+#else
+	if (!of_machine_is_compatible("Power Macintosh") &&
+	    !of_machine_is_compatible("MacRISC"))
+		return 0;
+#endif
 
 #ifdef CONFIG_PPC32
 	/* isa_io_base gets set in pmac_pci_init */

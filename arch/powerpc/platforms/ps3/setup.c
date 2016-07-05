@@ -237,15 +237,13 @@ void __init ps3_early_mm_init(void)
 
 static int __init ps3_probe(void)
 {
-	unsigned long dt_root;
-
 	DBG(" -> %s:%d\n", __func__, __LINE__);
 
-	dt_root = of_get_flat_dt_root();
-	if (!of_flat_dt_is_compatible(dt_root, "sony,ps3"))
+	if (!of_machine_is_compatible("sony,ps3"))
 		return 0;
 
 	ps3_os_area_save_params();
+
 	pm_power_off = ps3_power_off;
 
 	DBG(" <- %s:%d\n", __func__, __LINE__);

@@ -268,9 +268,7 @@ static void __init pnv_setup_machdep_opal(void)
 
 static int __init pnv_probe(void)
 {
-	unsigned long root = of_get_flat_dt_root();
-
-	if (!of_flat_dt_is_compatible(root, "ibm,powernv"))
+	if (!of_machine_is_compatible("ibm,powernv"))
 		return 0;
 
 	if (firmware_has_feature(FW_FEATURE_OPAL))

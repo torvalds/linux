@@ -301,9 +301,6 @@ void __init early_setup(unsigned long dt_ptr)
 	setup_paca(&paca[boot_cpuid]);
 	fixup_boot_paca();
 
-	/* Probe the machine type */
-	probe_machine();
-
 	/*
 	 * Configure exception handlers. This include setting up trampolines
 	 * if needed, setting exception endian mode, etc...
@@ -510,6 +507,9 @@ void __init setup_system(void)
 	 * Check if we have an initrd provided via the device-tree
 	 */
 	check_for_initrd();
+
+	/* Probe the machine type */
+	probe_machine();
 
 	/*
 	 * Do some platform specific early initializations, that includes
