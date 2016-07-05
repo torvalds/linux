@@ -314,7 +314,6 @@ struct iwl_tso_hdr_page {
  * @rx_pool: initial pool of iwl_rx_mem_buffer for all the queues
  * @global_table: table mapping received VID from hw to rxb
  * @rba: allocator for RX replenishing
- * @drv - pointer to iwl_drv
  * @trans: pointer to the generic transport area
  * @scd_base_addr: scheduler sram base address in SRAM
  * @scd_bc_tbls: pointer to the byte count table of the scheduler
@@ -352,7 +351,6 @@ struct iwl_trans_pcie {
 	struct iwl_rx_mem_buffer *global_table[RX_POOL_SIZE];
 	struct iwl_rb_allocator rba;
 	struct iwl_trans *trans;
-	struct iwl_drv *drv;
 
 	struct net_device napi_dev;
 

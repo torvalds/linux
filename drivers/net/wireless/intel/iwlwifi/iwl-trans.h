@@ -761,6 +761,7 @@ enum iwl_plat_pm_mode {
  * @ops - pointer to iwl_trans_ops
  * @op_mode - pointer to the op_mode
  * @cfg - pointer to the configuration
+ * @drv - pointer to iwl_drv
  * @status: a bit-mask of transport status flags
  * @dev - pointer to struct device * that represents the device
  * @max_skb_frags: maximum number of fragments an SKB can have when transmitted.
@@ -804,6 +805,7 @@ struct iwl_trans {
 	const struct iwl_trans_ops *ops;
 	struct iwl_op_mode *op_mode;
 	const struct iwl_cfg *cfg;
+	struct iwl_drv *drv;
 	enum iwl_trans_state state;
 	unsigned long status;
 
