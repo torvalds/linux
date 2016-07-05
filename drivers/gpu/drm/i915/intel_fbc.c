@@ -1165,11 +1165,8 @@ void intel_fbc_disable(struct intel_crtc *crtc)
 		return;
 
 	mutex_lock(&fbc->lock);
-	if (fbc->crtc == crtc) {
-		WARN_ON(!fbc->enabled);
-		WARN_ON(fbc->active);
+	if (fbc->crtc == crtc)
 		__intel_fbc_disable(dev_priv);
-	}
 	mutex_unlock(&fbc->lock);
 
 	cancel_work_sync(&fbc->work.work);
