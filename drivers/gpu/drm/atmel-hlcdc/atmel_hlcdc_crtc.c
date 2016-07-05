@@ -383,7 +383,7 @@ static void atmel_hlcdc_crtc_finish_page_flip(struct atmel_hlcdc_crtc *crtc)
 
 void atmel_hlcdc_crtc_irq(struct drm_crtc *c)
 {
-	drm_handle_vblank(c->dev, 0);
+	drm_crtc_handle_vblank(c);
 	atmel_hlcdc_crtc_finish_page_flip(drm_crtc_to_atmel_hlcdc_crtc(c));
 }
 
