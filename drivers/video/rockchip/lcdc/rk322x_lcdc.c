@@ -4216,7 +4216,7 @@ static int vop_set_irq_to_cpu(struct rk_lcdc_driver *dev_drv, int enable)
 	if (enable)
 		enable_irq(vop_dev->irq);
 	else
-		disable_irq(vop_dev->irq);
+		disable_irq_nosync(vop_dev->irq);
 	return 0;
 }
 
