@@ -3459,6 +3459,10 @@ void __init of_clk_init(const struct of_device_id *matches)
 					&clk_provider_list, node) {
 			if (force || parent_ready(clk_provider->np)) {
 
+				/* Don't populate platform devices */
+				of_node_set_flag(clk_provider->np,
+						 OF_POPULATED);
+
 				clk_provider->clk_init_cb(clk_provider->np);
 				of_clk_set_defaults(clk_provider->np, true);
 
