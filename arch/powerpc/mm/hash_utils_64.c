@@ -527,7 +527,8 @@ static bool might_have_hea(void)
 	 * we will never see an HEA ethernet device.
 	 */
 #ifdef CONFIG_IBMEBUS
-	return !cpu_has_feature(CPU_FTR_ARCH_207S);
+	return !cpu_has_feature(CPU_FTR_ARCH_207S) &&
+		!firmware_has_feature(FW_FEATURE_SPLPAR);
 #else
 	return false;
 #endif
@@ -593,7 +594,7 @@ found:
 			 * would stop us accessing the HEA ethernet. So if we
 			 * have the chance of ever seeing one, stay at 4k.
 			 */
-			if (!might_have_hea() || !machine_is(pseries))
+			if (!might_have_hea())
 				mmu_io_psize = MMU_PAGE_64K;
 		} else
 			mmu_ci_restrictions = 1;
