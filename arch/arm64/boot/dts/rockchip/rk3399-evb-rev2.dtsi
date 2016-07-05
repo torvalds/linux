@@ -56,71 +56,72 @@
 };
 
 &cluster0_opp {
-	opp00 {
+	opp@408000000 {
 		opp-hz = /bits/ 64 <408000000>;
 		opp-microvolt = <800000>;
 		clock-latency-ns = <40000>;
 	};
-	opp01 {
+	opp@600000000 {
 		opp-hz = /bits/ 64 <600000000>;
 		opp-microvolt = <800000>;
 	};
-	opp02 {
+	opp@816000000 {
 		opp-hz = /bits/ 64 <816000000>;
 		opp-microvolt = <800000>;
 	};
-	opp03 {
+	opp@1008000000 {
 		opp-hz = /bits/ 64 <1008000000>;
 		opp-microvolt = <875000>;
 	};
-	opp04 {
+	opp@1200000000 {
 		opp-hz = /bits/ 64 <1200000000>;
 		opp-microvolt = <925000>;
 	};
-	opp05 {
+	opp@1416000000 {
 		opp-hz = /bits/ 64 <1416000000>;
 		opp-microvolt = <1025000>;
 	};
-	opp06 {
+	opp@1512000000 {
 		opp-hz = /bits/ 64 <1512000000>;
 		opp-microvolt = <1075000>;
 	};
 };
 
 &cluster1_opp {
-	opp00 {
+	opp@408000000 {
 		opp-hz = /bits/ 64 <408000000>;
 		opp-microvolt = <800000>;
 		clock-latency-ns = <40000>;
 	};
-	opp01 {
+	opp@600000000 {
 		opp-hz = /bits/ 64 <600000000>;
 		opp-microvolt = <800000>;
 	};
-	opp02 {
+	opp@816000000 {
 		opp-hz = /bits/ 64 <816000000>;
 		opp-microvolt = <800000>;
 	};
-	opp03 {
+	opp@1008000000 {
 		opp-hz = /bits/ 64 <1008000000>;
 		opp-microvolt = <850000>;
 	};
-	opp04 {
+	opp@1200000000 {
 		opp-hz = /bits/ 64 <1200000000>;
 		opp-microvolt = <925000>;
 	};
-	opp05 {
+	opp@1416000000 {
 		opp-hz = /bits/ 64 <1416000000>;
 		opp-microvolt = <1025000>;
 	};
-	opp06 {
+	opp@1608000000 {
 		opp-hz = /bits/ 64 <1608000000>;
 		opp-microvolt = <1125000>;
 	};
-//	opp07 {
-//		opp-hz = /bits/ 64 <1800000000>;
-//		opp-microvolt = <1200000>;
-//	};
+	opp@1800000000 {
+		opp-hz = /bits/ 64 <1800000000>;
+		opp-microvolt = <1200000>;
+		status = "disabeld";
+	};
 };
 
 &CPU_COST_A72 {
