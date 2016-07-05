@@ -74,6 +74,16 @@ config PWM_ATMEL_TCB
 	  To compile this driver as a module, choose M here: the module
 	  will be called pwm-atmel-tcb.
 
+config PWM_BCM_IPROC
+	tristate "iProc PWM support"
+	depends on ARCH_BCM_IPROC
+	help
+	  Generic PWM framework driver for Broadcom iProc PWM block. This
+	  block is used in Broadcom iProc SoC's.
+
+	  To compile this driver as a module, choose M here: the module
+	  will be called pwm-bcm-iproc.
+
 config PWM_BCM_KONA
 	tristate "Kona PWM support"
 	depends on ARCH_BCM_MOBILE
