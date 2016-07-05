@@ -1127,3 +1127,38 @@ void amdgpu_uvd_ring_end_use(struct amdgpu_ring *ring)
 {
 	schedule_delayed_work(&ring->adev->uvd.idle_work, UVD_IDLE_TIMEOUT);
 }
+
+/**
+ * amdgpu_uvd_ring_test_ib - test ib execution
+ *
+ * @ring: amdgpu_ring pointer
+ *
+ * Test if we can successfully execute an IB
+ */
+int amdgpu_uvd_ring_test_ib(struct amdgpu_ring *ring)
+{
+	struct fence *fence = NULL;
+	int r;
+
+	r = amdgpu_uvd_get_create_msg(ring, 1, NULL);
+	if (r) {
+		DRM_ERROR("amdgpu: failed to get create msg (%d).\n", r);
+		goto error;
+	}
+
+	r = amdgpu_uvd_get_destroy_msg(ring, 1, true, &fence);
+	if (r) {
+		DRM_ERROR("amdgpu: failed to get destroy ib (%d).\n", r);
+		goto error;
+	}
+
+	r = fence_wait(fence, false);
+	if (r) {
+		DRM_ERROR("amdgpu: fence wait failed (%d).\n", r);
+		goto error;
+	}
+	DRM_INFO("ib test on ring %d succeeded\n",  ring->idx);
+error:
+	fence_put(fence);
+	return r;
+}

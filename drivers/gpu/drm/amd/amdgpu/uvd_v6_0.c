@@ -684,41 +684,6 @@ static void uvd_v6_0_ring_emit_ib(struct amdgpu_ring *ring,
 	amdgpu_ring_write(ring, ib->length_dw);
 }
 
-/**
- * uvd_v6_0_ring_test_ib - test ib execution
- *
- * @ring: amdgpu_ring pointer
- *
- * Test if we can successfully execute an IB
- */
-static int uvd_v6_0_ring_test_ib(struct amdgpu_ring *ring)
-{
-	struct fence *fence = NULL;
-	int r;
-
-	r = amdgpu_uvd_get_create_msg(ring, 1, NULL);
-	if (r) {
-		DRM_ERROR("amdgpu: failed to get create msg (%d).\n", r);
-		goto error;
-	}
-
-	r = amdgpu_uvd_get_destroy_msg(ring, 1, true, &fence);
-	if (r) {
-		DRM_ERROR("amdgpu: failed to get destroy ib (%d).\n", r);
-		goto error;
-	}
-
-	r = fence_wait(fence, false);
-	if (r) {
-		DRM_ERROR("amdgpu: fence wait failed (%d).\n", r);
-		goto error;
-	}
-	DRM_INFO("ib test on ring %d succeeded\n",  ring->idx);
-error:
-	fence_put(fence);
-	return r;
-}
-
 static void uvd_v6_0_ring_emit_vm_flush(struct amdgpu_ring *ring,
 					 unsigned vm_id, uint64_t pd_addr)
 {
@@ -1016,7 +981,7 @@ static const struct amdgpu_ring_funcs uvd_v6_0_ring_phys_funcs = {
 	.emit_hdp_flush = uvd_v6_0_ring_emit_hdp_flush,
 	.emit_hdp_invalidate = uvd_v6_0_ring_emit_hdp_invalidate,
 	.test_ring = uvd_v6_0_ring_test_ring,
-	.test_ib = uvd_v6_0_ring_test_ib,
+	.test_ib = amdgpu_uvd_ring_test_ib,
 	.insert_nop = amdgpu_ring_insert_nop,
 	.pad_ib = amdgpu_ring_generic_pad_ib,
 	.begin_use = amdgpu_uvd_ring_begin_use,
@@ -1035,7 +1000,7 @@ static const struct amdgpu_ring_funcs uvd_v6_0_ring_vm_funcs = {
 	.emit_hdp_flush = uvd_v6_0_ring_emit_hdp_flush,
 	.emit_hdp_invalidate = uvd_v6_0_ring_emit_hdp_invalidate,
 	.test_ring = uvd_v6_0_ring_test_ring,
-	.test_ib = uvd_v6_0_ring_test_ib,
+	.test_ib = amdgpu_uvd_ring_test_ib,
 	.insert_nop = amdgpu_ring_insert_nop,
 	.pad_ib = amdgpu_ring_generic_pad_ib,
 	.begin_use = amdgpu_uvd_ring_begin_use,
