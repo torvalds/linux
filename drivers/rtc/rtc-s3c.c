@@ -565,8 +565,6 @@ static int s3c_rtc_probe(struct platform_device *pdev)
 
 	s3c_rtc_setfreq(info, 1);
 
-	s3c_rtc_disable_clk(info);
-
 	return 0;
 
  err_nortc:
