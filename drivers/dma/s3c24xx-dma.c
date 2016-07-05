@@ -1136,8 +1136,10 @@ static void s3c24xx_dma_free_virtual_channels(struct dma_device *dmadev)
 	struct s3c24xx_dma_chan *next;
 
 	list_for_each_entry_safe(chan,
-				 next, &dmadev->channels, vc.chan.device_node)
+				 next, &dmadev->channels, vc.chan.device_node) {
 		list_del(&chan->vc.chan.device_node);
+		tasklet_kill(&chan->vc.task);
+	}
 }
 
 /* s3c2410, s3c2440 and s3c2442 have a 0x40 stride without separate clocks */
