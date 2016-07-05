@@ -426,15 +426,17 @@ static void wmi_evt_scan_complete(struct wil6210_priv *wil, int id,
 {
 	if (wil->scan_request) {
 		struct wmi_scan_complete_event *data = d;
-		bool aborted = (data->status != WMI_SCAN_SUCCESS);
+		struct cfg80211_scan_info info = {
+			.aborted = (data->status != WMI_SCAN_SUCCESS),
+		};
 
 		wil_dbg_wmi(wil, "SCAN_COMPLETE(0x%08x)\n", data->status);
 		wil_dbg_misc(wil, "Complete scan_request 0x%p aborted %d\n",
-			     wil->scan_request, aborted);
+			     wil->scan_request, info.aborted);
 
 		del_timer_sync(&wil->scan_timer);
 		mutex_lock(&wil->p2p_wdev_mutex);
-		cfg80211_scan_done(wil->scan_request, aborted);
+		cfg80211_scan_done(wil->scan_request, &info);
 		wil->radio_wdev = wil->wdev;
 		mutex_unlock(&wil->p2p_wdev_mutex);
 		wil->scan_request = NULL;

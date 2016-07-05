@@ -859,7 +859,11 @@ void ath6kl_cfg80211_disconnect_event(struct ath6kl_vif *vif, u8 reason,
 	struct ath6kl *ar = vif->ar;
 
 	if (vif->scan_req) {
-		cfg80211_scan_done(vif->scan_req, true);
+		struct cfg80211_scan_info info = {
+			.aborted = true,
+		};
+
+		cfg80211_scan_done(vif->scan_req, &info);
 		vif->scan_req = NULL;
 	}
 
@@ -1069,6 +1073,9 @@ static int ath6kl_cfg80211_scan(struct wiphy *wiphy,
 void ath6kl_cfg80211_scan_complete_event(struct ath6kl_vif *vif, bool aborted)
 {
 	struct ath6kl *ar = vif->ar;
+	struct cfg80211_scan_info info = {
+		.aborted = aborted,
+	};
 	int i;
 
 	ath6kl_dbg(ATH6KL_DBG_WLAN_CFG, "%s: status%s\n", __func__,
@@ -1089,7 +1096,7 @@ void ath6kl_cfg80211_scan_complete_event(struct ath6kl_vif *vif, bool aborted)
 	}
 
 out:
-	cfg80211_scan_done(vif->scan_req, aborted);
+	cfg80211_scan_done(vif->scan_req, &info);
 	vif->scan_req = NULL;
 }
 
@@ -3614,7 +3621,11 @@ void ath6kl_cfg80211_vif_stop(struct ath6kl_vif *vif, bool wmi_ready)
 	}
 
 	if (vif->scan_req) {
-		cfg80211_scan_done(vif->scan_req, true);
+		struct cfg80211_scan_info info = {
+			.aborted = true,
+		};
+
+		cfg80211_scan_done(vif->scan_req, &info);
 		vif->scan_req = NULL;
 	}
 

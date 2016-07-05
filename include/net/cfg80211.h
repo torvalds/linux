@@ -1424,6 +1424,21 @@ struct cfg80211_ssid {
 };
 
 /**
+ * struct cfg80211_scan_info - information about completed scan
+ * @scan_start_tsf: scan start time in terms of the TSF of the BSS that the
+ *	wireless device that requested the scan is connected to. If this
+ *	information is not available, this field is left zero.
+ * @tsf_bssid: the BSSID according to which %scan_start_tsf is set.
+ * @aborted: set to true if the scan was aborted for any reason,
+ *	userspace will be notified of that
+ */
+struct cfg80211_scan_info {
+	u64 scan_start_tsf;
+	u8 tsf_bssid[ETH_ALEN] __aligned(2);
+	bool aborted;
+};
+
+/**
  * struct cfg80211_scan_request - scan request description
  *
  * @ssids: SSIDs to scan for (active scan only)
@@ -1433,12 +1448,17 @@ struct cfg80211_ssid {
  * @scan_width: channel width for scanning
  * @ie: optional information element(s) to add into Probe Request or %NULL
  * @ie_len: length of ie in octets
+ * @duration: how long to listen on each channel, in TUs. If
+ *	%duration_mandatory is not set, this is the maximum dwell time and
+ *	the actual dwell time may be shorter.
+ * @duration_mandatory: if set, the scan duration must be as specified by the
+ *	%duration field.
  * @flags: bit field of flags controlling operation
  * @rates: bitmap of rates to advertise for each band
  * @wiphy: the wiphy this was for
  * @scan_start: time (in jiffies) when the scan started
  * @wdev: the wireless device to scan for
- * @aborted: (internal) scan request was notified as aborted
+ * @info: (internal) information about completed scan
  * @notified: (internal) scan request was notified as done or aborted
  * @no_cck: used to send probe requests at non CCK rate in 2GHz band
  * @mac_addr: MAC address used with randomisation
@@ -1454,6 +1474,8 @@ struct cfg80211_scan_request {
 	enum nl80211_bss_scan_width scan_width;
 	const u8 *ie;
 	size_t ie_len;
+	u16 duration;
+	bool duration_mandatory;
 	u32 flags;
 
 	u32 rates[NUM_NL80211_BANDS];
@@ -1467,7 +1489,8 @@ struct cfg80211_scan_request {
 	/* internal */
 	struct wiphy *wiphy;
 	unsigned long scan_start;
-	bool aborted, notified;
+	struct cfg80211_scan_info info;
+	bool notified;
 	bool no_cck;
 
 	/* keep last */
@@ -1600,12 +1623,19 @@ enum cfg80211_signal_type {
  *	buffered on the device) and be accurate to about 10ms.
  *	If the frame isn't buffered, just passing the return value of
  *	ktime_get_boot_ns() is likely appropriate.
+ * @parent_tsf: the time at the start of reception of the first octet of the
+ *	timestamp field of the frame. The time is the TSF of the BSS specified
+ *	by %parent_bssid.
+ * @parent_bssid: the BSS according to which %parent_tsf is set. This is set to
+ *	the BSS that requested the scan in which the beacon/probe was received.
  */
 struct cfg80211_inform_bss {
 	struct ieee80211_channel *chan;
 	enum nl80211_bss_scan_width scan_width;
 	s32 signal;
 	u64 boottime_ns;
+	u64 parent_tsf;
+	u8 parent_bssid[ETH_ALEN] __aligned(2);
 };
 
 /**
@@ -4067,10 +4097,10 @@ const char *reg_initiator_name(enum nl80211_reg_initiator initiator);
  * cfg80211_scan_done - notify that scan finished
  *
  * @request: the corresponding scan request
- * @aborted: set to true if the scan was aborted for any reason,
- *	userspace will be notified of that
+ * @info: information about the completed scan
  */
-void cfg80211_scan_done(struct cfg80211_scan_request *request, bool aborted);
+void cfg80211_scan_done(struct cfg80211_scan_request *request,
+			struct cfg80211_scan_info *info);
 
 /**
  * cfg80211_sched_scan_results - notify that new scan results are available

@@ -353,8 +353,13 @@ static void __ieee80211_scan_completed(struct ieee80211_hw *hw, bool aborted)
 	scan_req = rcu_dereference_protected(local->scan_req,
 					     lockdep_is_held(&local->mtx));
 
-	if (scan_req != local->int_scan_req)
-		cfg80211_scan_done(scan_req, aborted);
+	if (scan_req != local->int_scan_req) {
+		struct cfg80211_scan_info info = {
+			.aborted = aborted,
+		};
+
+		cfg80211_scan_done(scan_req, &info);
+	}
 	RCU_INIT_POINTER(local->scan_req, NULL);
 
 	scan_sdata = rcu_dereference_protected(local->scan_sdata,

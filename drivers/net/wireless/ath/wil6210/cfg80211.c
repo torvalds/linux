@@ -1369,7 +1369,11 @@ static void wil_cfg80211_stop_p2p_device(struct wiphy *wiphy,
 	mutex_lock(&wil->mutex);
 	started = wil_p2p_stop_discovery(wil);
 	if (started && wil->scan_request) {
-		cfg80211_scan_done(wil->scan_request, 1);
+		struct cfg80211_scan_info info = {
+			.aborted = true,
+		};
+
+		cfg80211_scan_done(wil->scan_request, &info);
 		wil->scan_request = NULL;
 		wil->radio_wdev = wil->wdev;
 	}
