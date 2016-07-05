@@ -37,7 +37,7 @@ Arguments
 Description
 ===========
 
-To open a media device applications call :ref:`open() <func-open>` with the
+To open a media device applications call :ref:`open() <media-func-open>` with the
 desired device name. The function has no side effects; the device
 configuration remain unchanged.
 
