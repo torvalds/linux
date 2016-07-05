@@ -223,6 +223,7 @@ struct mlxsw_sp_router {
 		unsigned long interval;	/* ms */
 	} neighs_update;
 	struct list_head nexthop_group_list;
+	struct list_head nexthop_neighs_list;
 };
 
 struct mlxsw_sp {
