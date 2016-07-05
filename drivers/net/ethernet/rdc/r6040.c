@@ -4,7 +4,7 @@
  * Copyright (C) 2004 Sten Wang <sten.wang@rdc.com.tw>
  * Copyright (C) 2007
  *	Daniel Gimpelevich <daniel@gimpelevich.san-francisco.ca.us>
- * Copyright (C) 2007-2012 Florian Fainelli <florian@openwrt.org>
+ * Copyright (C) 2007-2012 Florian Fainelli <f.fainelli@gmail.com>
  *
  * This program is free software; you can redistribute it and/or
  * modify it under the terms of the GNU General Public License
@@ -48,8 +48,8 @@
 #include <asm/processor.h>
 
 #define DRV_NAME	"r6040"
-#define DRV_VERSION	"0.28"
-#define DRV_RELDATE	"07Oct2011"
+#define DRV_VERSION	"0.29"
+#define DRV_RELDATE	"04Jul2016"
 
 /* Time in jiffies before concluding the transmitter is hung. */
 #define TX_TIMEOUT	(6000 * HZ / 1000)
@@ -162,7 +162,7 @@
 
 MODULE_AUTHOR("Sten Wang <sten.wang@rdc.com.tw>,"
 	"Daniel Gimpelevich <daniel@gimpelevich.san-francisco.ca.us>,"
-	"Florian Fainelli <florian@openwrt.org>");
+	"Florian Fainelli <f.fainelli@gmail.com>");
 MODULE_LICENSE("GPL");
 MODULE_DESCRIPTION("RDC R6040 NAPI PCI FastEthernet driver");
 MODULE_VERSION(DRV_VERSION " " DRV_RELDATE);
@@ -614,10 +614,15 @@ static void r6040_tx(struct net_device *dev)
 		if (descptr->status & DSC_OWNER_MAC)
 			break; /* Not complete */
 		skb_ptr = descptr->skb_ptr;
+
+		/* Statistic Counter */
+		dev->stats.tx_packets++;
+		dev->stats.tx_bytes += skb_ptr->len;
+
 		pci_unmap_single(priv->pdev, le32_to_cpu(descptr->buf),
 			skb_ptr->len, PCI_DMA_TODEVICE);
 		/* Free buffer */
-		dev_kfree_skb_irq(skb_ptr);
+		dev_kfree_skb(skb_ptr);
 		descptr->skb_ptr = NULL;
 		/* To next descriptor */
 		descptr = descptr->vndescp;
@@ -638,12 +643,15 @@ static int r6040_poll(struct napi_struct *napi, int budget)
 	void __iomem *ioaddr = priv->base;
 	int work_done;
 
+	r6040_tx(dev);
+
 	work_done = r6040_rx(dev, budget);
 
 	if (work_done < budget) {
-		napi_complete(napi);
-		/* Enable RX interrupt */
-		iowrite16(ioread16(ioaddr + MIER) | RX_INTS, ioaddr + MIER);
+		napi_complete_done(napi, work_done);
+		/* Enable RX/TX interrupt */
+		iowrite16(ioread16(ioaddr + MIER) | RX_INTS | TX_INTS,
+			  ioaddr + MIER);
 	}
 	return work_done;
 }
@@ -670,7 +678,7 @@ static irqreturn_t r6040_interrupt(int irq, void *dev_id)
 	}
 
 	/* RX interrupt request */
-	if (status & RX_INTS) {
+	if (status & (RX_INTS | TX_INTS)) {
 		if (status & RX_NO_DESC) {
 			/* RX descriptor unavailable */
 			dev->stats.rx_dropped++;
@@ -681,14 +689,10 @@ static irqreturn_t r6040_interrupt(int irq, void *dev_id)
 
 		if (likely(napi_schedule_prep(&lp->napi))) {
 			/* Mask off RX interrupt */
-			misr &= ~RX_INTS;
-			__napi_schedule(&lp->napi);
+			misr &= ~(RX_INTS | TX_INTS);
+			__napi_schedule_irqoff(&lp->napi);
 		}
 	}
-
-	/* TX interrupt request */
-	if (status & TX_INTS)
-		r6040_tx(dev);
 
 	/* Restore RDC MAC interrupt */
 	iowrite16(misr, ioaddr + MIER);
@@ -810,6 +814,9 @@ static netdev_tx_t r6040_start_xmit(struct sk_buff *skb,
 	void __iomem *ioaddr = lp->base;
 	unsigned long flags;
 
+	if (skb_put_padto(skb, ETH_ZLEN) < 0)
+		return NETDEV_TX_OK;
+
 	/* Critical Section */
 	spin_lock_irqsave(&lp->lock, flags);
 
@@ -821,17 +828,10 @@ static netdev_tx_t r6040_start_xmit(struct sk_buff *skb,
 		return NETDEV_TX_BUSY;
 	}
 
-	/* Statistic Counter */
-	dev->stats.tx_packets++;
-	dev->stats.tx_bytes += skb->len;
 	/* Set TX descriptor & Transmit it */
 	lp->tx_free_desc--;
 	descptr = lp->tx_insert_ptr;
-	if (skb->len < ETH_ZLEN)
-		descptr->len = ETH_ZLEN;
-	else
-		descptr->len = skb->len;
-
+	descptr->len = skb->len;
 	descptr->skb_ptr = skb;
 	descptr->buf = cpu_to_le32(pci_map_single(lp->pdev,
 		skb->data, skb->len, PCI_DMA_TODEVICE));
@@ -840,7 +840,8 @@ static netdev_tx_t r6040_start_xmit(struct sk_buff *skb,
 	skb_tx_timestamp(skb);
 
 	/* Trigger the MAC to check the TX descriptor */
-	iowrite16(TM2TX, ioaddr + MTPR);
+	if (!skb->xmit_more || netif_queue_stopped(dev))
+		iowrite16(TM2TX, ioaddr + MTPR);
 	lp->tx_insert_ptr = descptr->vndescp;
 
 	/* If no tx resource, stop */
@@ -1001,14 +1002,8 @@ static void r6040_adjust_link(struct net_device *dev)
 		lp->old_duplex = phydev->duplex;
 	}
 
-	if (status_changed) {
-		pr_info("%s: link %s", dev->name, phydev->link ?
-			"UP" : "DOWN");
-		if (phydev->link)
-			pr_cont(" - %d/%s", phydev->speed,
-			DUPLEX_FULL == phydev->duplex ? "full" : "half");
-		pr_cont("\n");
-	}
+	if (status_changed)
+		phy_print_status(phydev);
 }
 
 static int r6040_mii_probe(struct net_device *dev)
