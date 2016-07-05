@@ -33,6 +33,8 @@
 #include "amdgpu.h"
 #include "atom.h"
 
+#define AMDGPU_IB_TEST_TIMEOUT	msecs_to_jiffies(10)
+
 /*
  * IB
  * IBs (Indirect Buffers) and areas of GPU accessible memory where
@@ -286,7 +288,7 @@ int amdgpu_ib_ring_tests(struct amdgpu_device *adev)
 		if (!ring || !ring->ready)
 			continue;
 
-		r = amdgpu_ring_test_ib(ring);
+		r = amdgpu_ring_test_ib(ring, AMDGPU_IB_TEST_TIMEOUT);
 		if (r) {
 			ring->ready = false;
 

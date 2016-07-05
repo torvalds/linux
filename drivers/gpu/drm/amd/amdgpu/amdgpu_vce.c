@@ -844,10 +844,10 @@ int amdgpu_vce_ring_test_ring(struct amdgpu_ring *ring)
  * @ring: the engine to test on
  *
  */
-int amdgpu_vce_ring_test_ib(struct amdgpu_ring *ring)
+int amdgpu_vce_ring_test_ib(struct amdgpu_ring *ring, long timeout)
 {
 	struct fence *fence = NULL;
-	int r;
+	long r;
 
 	/* skip vce ring1 ib test for now, since it's not reliable */
 	if (ring == &ring->adev->vce.ring[1])
@@ -855,21 +855,25 @@ int amdgpu_vce_ring_test_ib(struct amdgpu_ring *ring)
 
 	r = amdgpu_vce_get_create_msg(ring, 1, NULL);
 	if (r) {
-		DRM_ERROR("amdgpu: failed to get create msg (%d).\n", r);
+		DRM_ERROR("amdgpu: failed to get create msg (%ld).\n", r);
 		goto error;
 	}
 
 	r = amdgpu_vce_get_destroy_msg(ring, 1, true, &fence);
 	if (r) {
-		DRM_ERROR("amdgpu: failed to get destroy ib (%d).\n", r);
+		DRM_ERROR("amdgpu: failed to get destroy ib (%ld).\n", r);
 		goto error;
 	}
 
-	r = fence_wait(fence, false);
-	if (r) {
-		DRM_ERROR("amdgpu: fence wait failed (%d).\n", r);
+	r = fence_wait_timeout(fence, false, timeout);
+	if (r == 0) {
+		DRM_ERROR("amdgpu: IB test timed out.\n");
+		r = -ETIMEDOUT;
+	} else if (r < 0) {
+		DRM_ERROR("amdgpu: fence wait failed (%ld).\n", r);
 	} else {
 		DRM_INFO("ib test on ring %d succeeded\n", ring->idx);
+		r = 0;
 	}
 error:
 	fence_put(fence);

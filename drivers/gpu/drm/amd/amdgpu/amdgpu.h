@@ -306,7 +306,7 @@ struct amdgpu_ring_funcs {
 				uint32_t oa_base, uint32_t oa_size);
 	/* testing functions */
 	int (*test_ring)(struct amdgpu_ring *ring);
-	int (*test_ib)(struct amdgpu_ring *ring);
+	int (*test_ib)(struct amdgpu_ring *ring, long timeout);
 	/* insert NOP packets */
 	void (*insert_nop)(struct amdgpu_ring *ring, uint32_t count);
 	/* pad the indirect buffer to the necessary number of dw */
@@ -2245,7 +2245,7 @@ amdgpu_get_sdma_instance(struct amdgpu_ring *ring)
 #define amdgpu_vm_set_pte_pde(adev, ib, pe, addr, count, incr, flags) ((adev)->vm_manager.vm_pte_funcs->set_pte_pde((ib), (pe), (addr), (count), (incr), (flags)))
 #define amdgpu_ring_parse_cs(r, p, ib) ((r)->funcs->parse_cs((p), (ib)))
 #define amdgpu_ring_test_ring(r) (r)->funcs->test_ring((r))
-#define amdgpu_ring_test_ib(r) (r)->funcs->test_ib((r))
+#define amdgpu_ring_test_ib(r, t) (r)->funcs->test_ib((r), (t))
 #define amdgpu_ring_get_rptr(r) (r)->funcs->get_rptr((r))
 #define amdgpu_ring_get_wptr(r) (r)->funcs->get_wptr((r))
 #define amdgpu_ring_set_wptr(r) (r)->funcs->set_wptr((r))
