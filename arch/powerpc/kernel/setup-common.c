@@ -575,12 +575,24 @@ void probe_machine(void)
 {
 	extern struct machdep_calls __machine_desc_start;
 	extern struct machdep_calls __machine_desc_end;
+	unsigned int i;
 
 	/*
 	 * Iterate all ppc_md structures until we find the proper
 	 * one for the current machine type
 	 */
 	DBG("Probing machine type ...\n");
+
+	/*
+	 * Check ppc_md is empty, if not we have a bug, ie, we setup an
+	 * entry before probe_machine() which will be overwritten
+	 */
+	for (i = 0; i < (sizeof(ppc_md) / sizeof(void *)); i++) {
+		if (((void **)&ppc_md)[i]) {
+			printk(KERN_ERR "Entry %d in ppc_md non empty before"
+			       " machine probe !\n", i);
+		}
+	}
 
 	for (machine_id = &__machine_desc_start;
 	     machine_id < &__machine_desc_end;
