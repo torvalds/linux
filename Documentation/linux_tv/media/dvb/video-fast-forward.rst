@@ -6,18 +6,19 @@
 VIDEO_FAST_FORWARD
 ==================
 
-NAME
+Name
 ----
 
 VIDEO_FAST_FORWARD
 
-SYNOPSIS
+
+Synopsis
 --------
 
 .. c:function:: int ioctl(fd, int request = VIDEO_FAST_FORWARD, int nFrames)
 
 
-ARGUMENTS
+Arguments
 ---------
 
 .. flat-table::
@@ -44,7 +45,7 @@ ARGUMENTS
        -  The number of frames to skip.
 
 
-DESCRIPTION
+Description
 -----------
 
 This ioctl call asks the Video Device to skip decoding of N number of
@@ -52,7 +53,7 @@ I-frames. This call can only be used if VIDEO_SOURCE_MEMORY is
 selected.
 
 
-RETURN VALUE
+Return Value
 ------------
 
 On success 0 is returned, on error -1 and the ``errno`` variable is set

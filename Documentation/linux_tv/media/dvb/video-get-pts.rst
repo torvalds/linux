@@ -6,18 +6,19 @@
 VIDEO_GET_PTS
 =============
 
-NAME
+Name
 ----
 
 VIDEO_GET_PTS
 
-SYNOPSIS
+
+Synopsis
 --------
 
 .. c:function:: int ioctl(int fd, int request = VIDEO_GET_PTS, __u64 *pts)
 
 
-ARGUMENTS
+Arguments
 ---------
 
 .. flat-table::
@@ -49,7 +50,7 @@ ARGUMENTS
 	  decoded frame or the last PTS extracted by the PES parser.
 
 
-DESCRIPTION
+Description
 -----------
 
 This ioctl is obsolete. Do not use in new drivers. For V4L2 decoders
@@ -60,7 +61,7 @@ This ioctl call asks the Video Device to return the current PTS
 timestamp.
 
 
-RETURN VALUE
+Return Value
 ------------
 
 On success 0 is returned, on error -1 and the ``errno`` variable is set

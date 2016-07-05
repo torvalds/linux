@@ -6,12 +6,13 @@
 ioctl VIDIOC_G_FREQUENCY, VIDIOC_S_FREQUENCY
 ********************************************
 
-NAME
+Name
 ====
 
 VIDIOC_G_FREQUENCY - VIDIOC_S_FREQUENCY - Get or set tuner or modulator radio frequency
 
-SYNOPSIS
+
+Synopsis
 ========
 
 .. cpp:function:: int ioctl( int fd, int request, struct v4l2_frequency *argp )
@@ -19,7 +20,7 @@ SYNOPSIS
 .. cpp:function:: int ioctl( int fd, int request, const struct v4l2_frequency *argp )
 
 
-ARGUMENTS
+Arguments
 =========
 
 ``fd``
@@ -31,7 +32,7 @@ ARGUMENTS
 ``argp``
 
 
-DESCRIPTION
+Description
 ===========
 
 To get the current tuner or modulator radio frequency applications set
@@ -107,7 +108,7 @@ write-only ioctl, it does not return the actual new frequency.
 	  the array to zero.
 
 
-RETURN VALUE
+Return Value
 ============
 
 On success 0 is returned, on error -1 and the ``errno`` variable is set

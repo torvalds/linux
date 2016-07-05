@@ -6,18 +6,19 @@
 ioctl VIDIOC_QBUF, VIDIOC_DQBUF
 *******************************
 
-NAME
+Name
 ====
 
 VIDIOC_QBUF - VIDIOC_DQBUF - Exchange a buffer with the driver
 
-SYNOPSIS
+
+Synopsis
 ========
 
 .. cpp:function:: int ioctl( int fd, int request, struct v4l2_buffer *argp )
 
 
-ARGUMENTS
+Arguments
 =========
 
 ``fd``
@@ -29,7 +30,7 @@ ARGUMENTS
 ``argp``
 
 
-DESCRIPTION
+Description
 ===========
 
 Applications call the ``VIDIOC_QBUF`` ioctl to enqueue an empty
@@ -116,7 +117,7 @@ The :ref:`struct v4l2_buffer <v4l2-buffer>` structure is specified in
 :ref:`buffer`.
 
 
-RETURN VALUE
+Return Value
 ============
 
 On success 0 is returned, on error -1 and the ``errno`` variable is set

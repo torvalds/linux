@@ -6,18 +6,19 @@
 AUDIO_BILINGUAL_CHANNEL_SELECT
 ==============================
 
-NAME
+Name
 ----
 
 AUDIO_BILINGUAL_CHANNEL_SELECT
 
-SYNOPSIS
+
+Synopsis
 --------
 
 .. c:function:: int ioctl(int fd, int request = AUDIO_BILINGUAL_CHANNEL_SELECT, audio_channel_select_t)
 
 
-ARGUMENTS
+Arguments
 ---------
 
 .. flat-table::
@@ -44,7 +45,7 @@ ARGUMENTS
        -  Select the output format of the audio (mono left/right, stereo).
 
 
-DESCRIPTION
+Description
 -----------
 
 This ioctl is obsolete. Do not use in new drivers. It has been replaced
@@ -55,7 +56,7 @@ This ioctl call asks the Audio Device to select the requested channel
 for bilingual streams if possible.
 
 
-RETURN VALUE
+Return Value
 ------------
 
 On success 0 is returned, on error -1 and the ``errno`` variable is set

@@ -6,18 +6,19 @@
 DMX_SET_FILTER
 ==============
 
-NAME
+Name
 ----
 
 DMX_SET_FILTER
 
-SYNOPSIS
+
+Synopsis
 --------
 
 .. c:function:: int ioctl( int fd, int request = DMX_SET_FILTER, struct dmx_sct_filter_params *params)
 
 
-ARGUMENTS
+Arguments
 ---------
 
 .. flat-table::
@@ -44,7 +45,7 @@ ARGUMENTS
        -  Pointer to structure containing filter parameters.
 
 
-DESCRIPTION
+Description
 -----------
 
 This ioctl call sets up a filter according to the filter and mask
@@ -59,7 +60,7 @@ DMX_START ioctl call). If a filter was previously set-up, this filter
 will be canceled, and the receive buffer will be flushed.
 
 
-RETURN VALUE
+Return Value
 ------------
 
 On success 0 is returned, on error -1 and the ``errno`` variable is set

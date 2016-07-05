@@ -6,18 +6,19 @@
 DMX_START
 =========
 
-NAME
+Name
 ----
 
 DMX_START
 
-SYNOPSIS
+
+Synopsis
 --------
 
 .. c:function:: int ioctl( int fd, int request = DMX_START)
 
 
-ARGUMENTS
+Arguments
 ---------
 
 .. flat-table::
@@ -38,14 +39,14 @@ ARGUMENTS
        -  Equals DMX_START for this command.
 
 
-DESCRIPTION
+Description
 -----------
 
 This ioctl call is used to start the actual filtering operation defined
 via the ioctl calls DMX_SET_FILTER or DMX_SET_PES_FILTER.
 
 
-RETURN VALUE
+Return Value
 ------------
 
 On success 0 is returned, on error -1 and the ``errno`` variable is set

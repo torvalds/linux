@@ -6,18 +6,19 @@
 ioctl VIDIOC_G_SLICED_VBI_CAP
 *****************************
 
-NAME
+Name
 ====
 
 VIDIOC_G_SLICED_VBI_CAP - Query sliced VBI capabilities
 
-SYNOPSIS
+
+Synopsis
 ========
 
 .. cpp:function:: int ioctl( int fd, int request, struct v4l2_sliced_vbi_cap *argp )
 
 
-ARGUMENTS
+Arguments
 =========
 
 ``fd``
@@ -29,7 +30,7 @@ ARGUMENTS
 ``argp``
 
 
-DESCRIPTION
+Description
 ===========
 
 To find out which data services are supported by a sliced VBI capture or
@@ -264,7 +265,7 @@ to write-read, in Linux 2.6.19.
        -  :cspan:`2` Set of services applicable to 625 line systems.
 
 
-RETURN VALUE
+Return Value
 ============
 
 On success 0 is returned, on error -1 and the ``errno`` variable is set

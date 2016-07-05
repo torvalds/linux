@@ -6,18 +6,19 @@
 AUDIO_GET_CAPABILITIES
 ======================
 
-NAME
+Name
 ----
 
 AUDIO_GET_CAPABILITIES
 
-SYNOPSIS
+
+Synopsis
 --------
 
 .. c:function:: int ioctl(int fd, int request = AUDIO_GET_CAPABILITIES, unsigned int *cap)
 
 
-ARGUMENTS
+Arguments
 ---------
 
 .. flat-table::
@@ -44,14 +45,14 @@ ARGUMENTS
        -  Returns a bit array of supported sound formats.
 
 
-DESCRIPTION
+Description
 -----------
 
 This ioctl call asks the Audio Device to tell us about the decoding
 capabilities of the audio hardware.
 
 
-RETURN VALUE
+Return Value
 ------------
 
 On success 0 is returned, on error -1 and the ``errno`` variable is set

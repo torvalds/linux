@@ -6,18 +6,19 @@
 VIDEO_GET_FRAME_RATE
 ====================
 
-NAME
+Name
 ----
 
 VIDEO_GET_FRAME_RATE
 
-SYNOPSIS
+
+Synopsis
 --------
 
 .. c:function:: int ioctl(int fd, int request = VIDEO_GET_FRAME_RATE, unsigned int *rate)
 
 
-ARGUMENTS
+Arguments
 ---------
 
 .. flat-table::
@@ -44,13 +45,13 @@ ARGUMENTS
        -  Returns the framerate in number of frames per 1000 seconds.
 
 
-DESCRIPTION
+Description
 -----------
 
 This ioctl call asks the Video Device to return the current framerate.
 
 
-RETURN VALUE
+Return Value
 ------------
 
 On success 0 is returned, on error -1 and the ``errno`` variable is set

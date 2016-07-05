@@ -6,19 +6,19 @@
 FE_READ_BER
 ***********
 
-Description
------------
+Name
+====
 
-This ioctl call returns the bit error rate for the signal currently
-received/demodulated by the front-end. For this command, read-only
-access to the device is sufficient.
+FE_READ_BER
 
-SYNOPSIS
+Synopsis
+========
 
 .. c:function:: int  ioctl(int fd, int request = FE_READ_BER, uint32_t *ber)
 
+
 Arguments
-----------
+=========
 
 .. flat-table::
     :header-rows:  0
@@ -44,8 +44,16 @@ Arguments
        -  The bit error rate is stored into \*ber.
 
 
+Description
+===========
+
+This ioctl call returns the bit error rate for the signal currently
+received/demodulated by the front-end. For this command, read-only
+access to the device is sufficient.
+
+
 Return Value
-------------
+============
 
 On success 0 is returned, on error -1 and the ``errno`` variable is set
 appropriately. The generic error codes are described at the

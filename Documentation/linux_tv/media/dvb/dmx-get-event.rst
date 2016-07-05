@@ -6,18 +6,19 @@
 DMX_GET_EVENT
 =============
 
-NAME
+Name
 ----
 
 DMX_GET_EVENT
 
-SYNOPSIS
+
+Synopsis
 --------
 
 .. c:function:: int ioctl( int fd, int request = DMX_GET_EVENT, struct dmx_event *ev)
 
 
-ARGUMENTS
+Arguments
 ---------
 
 .. flat-table::
@@ -44,7 +45,7 @@ ARGUMENTS
        -  Pointer to the location where the event is to be stored.
 
 
-DESCRIPTION
+Description
 -----------
 
 This ioctl call returns an event if available. If an event is not
@@ -54,7 +55,7 @@ errno set to ``EWOULDBLOCK``. In the former case, the call blocks until an
 event becomes available.
 
 
-RETURN VALUE
+Return Value
 ------------
 
 On success 0 is returned, on error -1 and the ``errno`` variable is set

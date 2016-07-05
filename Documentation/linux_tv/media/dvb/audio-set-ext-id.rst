@@ -6,18 +6,19 @@
 AUDIO_SET_EXT_ID
 ================
 
-NAME
+Name
 ----
 
 AUDIO_SET_EXT_ID
 
-SYNOPSIS
+
+Synopsis
 --------
 
 .. c:function:: int  ioctl(fd, int request = AUDIO_SET_EXT_ID, int id)
 
 
-ARGUMENTS
+Arguments
 ---------
 
 .. flat-table::
@@ -44,14 +45,14 @@ ARGUMENTS
        -  audio sub_stream_id
 
 
-DESCRIPTION
+Description
 -----------
 
 This ioctl can be used to set the extension id for MPEG streams in DVD
 playback. Only the first 3 bits are recognized.
 
 
-RETURN VALUE
+Return Value
 ------------
 
 On success 0 is returned, on error -1 and the ``errno`` variable is set

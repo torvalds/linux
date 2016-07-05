@@ -6,18 +6,19 @@
 CA_GET_MSG
 ==========
 
-NAME
+Name
 ----
 
 CA_GET_MSG
 
-SYNOPSIS
+
+Synopsis
 --------
 
 .. cpp:function:: int  ioctl(fd, int request = CA_GET_MSG, ca_msg_t *)
 
 
-ARGUMENTS
+Arguments
 ---------
 
 .. flat-table::
@@ -44,13 +45,13 @@ ARGUMENTS
        -  Undocumented.
 
 
-DESCRIPTION
+Description
 -----------
 
 This ioctl is undocumented. Documentation is welcome.
 
 
-RETURN VALUE
+Return Value
 ------------
 
 On success 0 is returned, on error -1 and the ``errno`` variable is set

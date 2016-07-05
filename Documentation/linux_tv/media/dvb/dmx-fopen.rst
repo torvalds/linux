@@ -6,18 +6,19 @@
 DVB demux open()
 ================
 
-NAME
+Name
 ----
 
 DVB demux open()
 
-SYNOPSIS
+
+Synopsis
 --------
 
 .. c:function:: int open(const char *deviceName, int flags)
 
 
-ARGUMENTS
+Arguments
 ---------
 
 .. flat-table::
@@ -53,7 +54,7 @@ ARGUMENTS
        -  (blocking mode is the default)
 
 
-DESCRIPTION
+Description
 -----------
 
 This system call, used with a device name of /dev/dvb/adapter0/demux0,
@@ -74,7 +75,7 @@ blocking mode can later be put into non-blocking mode (and vice versa)
 using the F_SETFL command of the fcntl system call.
 
 
-RETURN VALUE
+Return Value
 ------------
 
 .. flat-table::

@@ -6,18 +6,19 @@
 ioctl NET_ADD_IF
 ****************
 
-NAME
+Name
 ====
 
 NET_ADD_IF - Creates a new network interface for a given Packet ID.
 
-SYNOPSIS
+
+Synopsis
 ========
 
 .. cpp:function:: int ioctl( int fd, int request, struct dvb_net_if *net_if )
 
 
-ARGUMENTS
+Arguments
 =========
 
 ``fd``
@@ -30,7 +31,7 @@ ARGUMENTS
     pointer to struct :ref:`dvb_net_if <dvb-net-if>`
 
 
-DESCRIPTION
+Description
 ===========
 
 The NET_ADD_IF ioctl system call selects the Packet ID (PID) that
@@ -82,7 +83,7 @@ struct dvb_net_if description
 	  ``DVB_NET_FEEDTYPE_ULE`` for ULE encoding.
 
 
-RETURN VALUE
+Return Value
 ============
 
 On success 0 is returned, on error -1 and the ``errno`` variable is set

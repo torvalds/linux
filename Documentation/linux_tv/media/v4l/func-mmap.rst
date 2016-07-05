@@ -6,12 +6,13 @@
 V4L2 mmap()
 ***********
 
-NAME
+Name
 ====
 
 v4l2-mmap - Map device memory into application address space
 
-SYNOPSIS
+
+Synopsis
 ========
 
 .. code-block:: c
@@ -23,7 +24,7 @@ SYNOPSIS
 .. cpp:function:: void *mmap( void *start, size_t length, int prot, int flags, int fd, off_t offset )
 
 
-ARGUMENTS
+Arguments
 =========
 
 ``start``
@@ -90,7 +91,7 @@ ARGUMENTS
     ``mem_offset`` field for the multi-planar API.
 
 
-DESCRIPTION
+Description
 ===========
 
 The :ref:`mmap() <func-mmap>` function asks to map ``length`` bytes starting at
@@ -106,7 +107,7 @@ before they can be queried.
 To unmap buffers the :ref:`munmap() <func-munmap>` function is used.
 
 
-RETURN VALUE
+Return Value
 ============
 
 On success :ref:`mmap() <func-mmap>` returns a pointer to the mapped buffer. On

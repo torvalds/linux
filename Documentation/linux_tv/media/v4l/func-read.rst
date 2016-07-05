@@ -6,12 +6,13 @@
 V4L2 read()
 ***********
 
-NAME
+Name
 ====
 
 v4l2-read - Read from a V4L2 device
 
-SYNOPSIS
+
+Synopsis
 ========
 
 .. code-block:: c
@@ -22,7 +23,7 @@ SYNOPSIS
 .. cpp:function:: ssize_t read( int fd, void *buf, size_t count )
 
 
-ARGUMENTS
+Arguments
 =========
 
 ``fd``
@@ -32,7 +33,7 @@ ARGUMENTS
 ``count``
 
 
-DESCRIPTION
+Description
 ===========
 
 :ref:`read() <func-read>` attempts to read up to ``count`` bytes from file
@@ -92,7 +93,7 @@ however. The discarding policy is not reported and cannot be changed.
 For minimum requirements see :ref:`devices`.
 
 
-RETURN VALUE
+Return Value
 ============
 
 On success, the number of bytes read is returned. It is not an error if

@@ -6,18 +6,19 @@
 VIDEO_SET_SPU_PALETTE
 =====================
 
-NAME
+Name
 ----
 
 VIDEO_SET_SPU_PALETTE
 
-SYNOPSIS
+
+Synopsis
 --------
 
 .. c:function:: int ioctl(fd, int request = VIDEO_SET_SPU_PALETTE, video_spu_palette_t *palette )
 
 
-ARGUMENTS
+Arguments
 ---------
 
 .. flat-table::
@@ -44,13 +45,13 @@ ARGUMENTS
        -  SPU palette according to section ??.
 
 
-DESCRIPTION
+Description
 -----------
 
 This ioctl sets the SPU color palette.
 
 
-RETURN VALUE
+Return Value
 ------------
 
 On success 0 is returned, on error -1 and the ``errno`` variable is set

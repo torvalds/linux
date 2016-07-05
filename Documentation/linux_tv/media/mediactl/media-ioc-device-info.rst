@@ -6,18 +6,19 @@
 ioctl MEDIA_IOC_DEVICE_INFO
 ***************************
 
-NAME
+Name
 ====
 
 MEDIA_IOC_DEVICE_INFO - Query device information
 
-SYNOPSIS
+
+Synopsis
 ========
 
 .. cpp:function:: int ioctl( int fd, int request, struct media_device_info *argp )
 
 
-ARGUMENTS
+Arguments
 =========
 
 ``fd``
@@ -29,7 +30,7 @@ ARGUMENTS
 ``argp``
 
 
-DESCRIPTION
+Description
 ===========
 
 All media devices must support the ``MEDIA_IOC_DEVICE_INFO`` ioctl. To
@@ -133,7 +134,7 @@ used instead. The ``bus_info`` field is guaranteed to be unique, but can
 vary across reboots or device unplug/replug.
 
 
-RETURN VALUE
+Return Value
 ============
 
 On success 0 is returned, on error -1 and the ``errno`` variable is set

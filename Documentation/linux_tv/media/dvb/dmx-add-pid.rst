@@ -6,18 +6,19 @@
 DMX_ADD_PID
 ===========
 
-NAME
+Name
 ----
 
 DMX_ADD_PID
 
-SYNOPSIS
+
+Synopsis
 --------
 
 .. c:function:: int ioctl(fd, int request = DMX_ADD_PID, __u16 *)
 
 
-ARGUMENTS
+Arguments
 ---------
 
 .. flat-table::
@@ -44,7 +45,7 @@ ARGUMENTS
        -  PID number to be filtered.
 
 
-DESCRIPTION
+Description
 -----------
 
 This ioctl call allows to add multiple PIDs to a transport stream filter
@@ -52,7 +53,7 @@ previously set up with DMX_SET_PES_FILTER and output equal to
 DMX_OUT_TSDEMUX_TAP.
 
 
-RETURN VALUE
+Return Value
 ------------
 
 On success 0 is returned, on error -1 and the ``errno`` variable is set

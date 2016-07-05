@@ -6,18 +6,19 @@
 ioctl MEDIA_IOC_SETUP_LINK
 **************************
 
-NAME
+Name
 ====
 
 MEDIA_IOC_SETUP_LINK - Modify the properties of a link
 
-SYNOPSIS
+
+Synopsis
 ========
 
 .. cpp:function:: int ioctl( int fd, int request, struct media_link_desc *argp )
 
 
-ARGUMENTS
+Arguments
 =========
 
 ``fd``
@@ -29,7 +30,7 @@ ARGUMENTS
 ``argp``
 
 
-DESCRIPTION
+Description
 ===========
 
 To change link properties applications fill a struct
@@ -54,7 +55,7 @@ If the specified link can't be found the driver returns with an ``EINVAL``
 error code.
 
 
-RETURN VALUE
+Return Value
 ============
 
 On success 0 is returned, on error -1 and the ``errno`` variable is set

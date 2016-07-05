@@ -6,18 +6,19 @@
 VIDEO_SET_STREAMTYPE
 ====================
 
-NAME
+Name
 ----
 
 VIDEO_SET_STREAMTYPE
 
-SYNOPSIS
+
+Synopsis
 --------
 
 .. c:function:: int ioctl(fd, int request = VIDEO_SET_STREAMTYPE, int type)
 
 
-ARGUMENTS
+Arguments
 ---------
 
 .. flat-table::
@@ -44,7 +45,7 @@ ARGUMENTS
        -  stream type
 
 
-DESCRIPTION
+Description
 -----------
 
 This ioctl tells the driver which kind of stream to expect being written
@@ -52,7 +53,7 @@ to it. If this call is not used the default of video PES is used. Some
 drivers might not support this call and always expect PES.
 
 
-RETURN VALUE
+Return Value
 ------------
 
 On success 0 is returned, on error -1 and the ``errno`` variable is set

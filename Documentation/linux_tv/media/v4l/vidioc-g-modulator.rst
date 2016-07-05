@@ -6,12 +6,13 @@
 ioctl VIDIOC_G_MODULATOR, VIDIOC_S_MODULATOR
 ********************************************
 
-NAME
+Name
 ====
 
 VIDIOC_G_MODULATOR - VIDIOC_S_MODULATOR - Get or set modulator attributes
 
-SYNOPSIS
+
+Synopsis
 ========
 
 .. cpp:function:: int ioctl( int fd, int request, struct v4l2_modulator *argp )
@@ -19,7 +20,7 @@ SYNOPSIS
 .. cpp:function:: int ioctl( int fd, int request, const struct v4l2_modulator *argp )
 
 
-ARGUMENTS
+Arguments
 =========
 
 ``fd``
@@ -31,7 +32,7 @@ ARGUMENTS
 ``argp``
 
 
-DESCRIPTION
+Description
 ===========
 
 To query the attributes of a modulator applications initialize the
@@ -242,7 +243,7 @@ To change the radio frequency the
        -  Enable the RDS encoder for a radio FM transmitter.
 
 
-RETURN VALUE
+Return Value
 ============
 
 On success 0 is returned, on error -1 and the ``errno`` variable is set

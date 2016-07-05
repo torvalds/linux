@@ -6,18 +6,19 @@
 CA_RESET
 ========
 
-NAME
+Name
 ----
 
 CA_RESET
 
-SYNOPSIS
+
+Synopsis
 --------
 
 .. cpp:function:: int  ioctl(fd, int request = CA_RESET)
 
 
-ARGUMENTS
+Arguments
 ---------
 
 .. flat-table::
@@ -38,13 +39,13 @@ ARGUMENTS
        -  Equals CA_RESET for this command.
 
 
-DESCRIPTION
+Description
 -----------
 
 This ioctl is undocumented. Documentation is welcome.
 
 
-RETURN VALUE
+Return Value
 ------------
 
 On success 0 is returned, on error -1 and the ``errno`` variable is set

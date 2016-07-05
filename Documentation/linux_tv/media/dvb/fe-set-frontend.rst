@@ -6,18 +6,19 @@
 FE_SET_FRONTEND
 ***************
 
-NAME
+Name
 ====
 
 FE_SET_FRONTEND
 
-SYNOPSIS
+
+Synopsis
 ========
 
 .. c:function:: int ioctl(int fd, int request = FE_SET_FRONTEND, struct dvb_frontend_parameters *p)
 
 
-ARGUMENTS
+Arguments
 =========
 
 .. flat-table::
@@ -45,7 +46,7 @@ ARGUMENTS
        -  Points to parameters for tuning operation.
 
 
-DESCRIPTION
+Description
 ===========
 
 This ioctl call starts a tuning operation using specified parameters.
@@ -59,7 +60,7 @@ previous operation will be aborted in favor of the new one. This command
 requires read/write access to the device.
 
 
-RETURN VALUE
+Return Value
 ============
 
 On success 0 is returned, on error -1 and the ``errno`` variable is set

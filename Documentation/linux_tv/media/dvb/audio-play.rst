@@ -6,18 +6,19 @@
 AUDIO_PLAY
 ==========
 
-NAME
+Name
 ----
 
 AUDIO_PLAY
 
-SYNOPSIS
+
+Synopsis
 --------
 
 .. c:function:: int  ioctl(int fd, int request = AUDIO_PLAY)
 
 
-ARGUMENTS
+Arguments
 ---------
 
 .. flat-table::
@@ -38,14 +39,14 @@ ARGUMENTS
        -  Equals AUDIO_PLAY for this command.
 
 
-DESCRIPTION
+Description
 -----------
 
 This ioctl call asks the Audio Device to start playing an audio stream
 from the selected source.
 
 
-RETURN VALUE
+Return Value
 ------------
 
 On success 0 is returned, on error -1 and the ``errno`` variable is set

@@ -6,18 +6,19 @@
 ioctl VIDIOC_DECODER_CMD, VIDIOC_TRY_DECODER_CMD
 ************************************************
 
-NAME
+Name
 ====
 
 VIDIOC_DECODER_CMD - VIDIOC_TRY_DECODER_CMD - Execute an decoder command
 
-SYNOPSIS
+
+Synopsis
 ========
 
 .. cpp:function:: int ioctl( int fd, int request, struct v4l2_decoder_cmd *argp )
 
 
-ARGUMENTS
+Arguments
 =========
 
 ``fd``
@@ -29,7 +30,7 @@ ARGUMENTS
 ``argp``
 
 
-DESCRIPTION
+Description
 ===========
 
 These ioctls control an audio/video (usually MPEG-) decoder.
@@ -255,7 +256,7 @@ introduced in Linux 3.3.
 	  flags are defined for this command.
 
 
-RETURN VALUE
+Return Value
 ============
 
 On success 0 is returned, on error -1 and the ``errno`` variable is set

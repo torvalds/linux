@@ -6,18 +6,19 @@
 DMX_STOP
 ========
 
-NAME
+Name
 ----
 
 DMX_STOP
 
-SYNOPSIS
+
+Synopsis
 --------
 
 .. c:function:: int ioctl( int fd, int request = DMX_STOP)
 
 
-ARGUMENTS
+Arguments
 ---------
 
 .. flat-table::
@@ -38,7 +39,7 @@ ARGUMENTS
        -  Equals DMX_STOP for this command.
 
 
-DESCRIPTION
+Description
 -----------
 
 This ioctl call is used to stop the actual filtering operation defined
@@ -46,7 +47,7 @@ via the ioctl calls DMX_SET_FILTER or DMX_SET_PES_FILTER and
 started via the DMX_START command.
 
 
-RETURN VALUE
+Return Value
 ------------
 
 On success 0 is returned, on error -1 and the ``errno`` variable is set

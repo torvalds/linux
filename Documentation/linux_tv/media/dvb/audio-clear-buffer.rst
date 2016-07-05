@@ -6,18 +6,19 @@
 AUDIO_CLEAR_BUFFER
 ==================
 
-NAME
+Name
 ----
 
 AUDIO_CLEAR_BUFFER
 
-SYNOPSIS
+
+Synopsis
 --------
 
 .. c:function:: int  ioctl(int fd, int request = AUDIO_CLEAR_BUFFER)
 
 
-ARGUMENTS
+Arguments
 ---------
 
 .. flat-table::
@@ -38,14 +39,14 @@ ARGUMENTS
        -  Equals AUDIO_CLEAR_BUFFER for this command.
 
 
-DESCRIPTION
+Description
 -----------
 
 This ioctl call asks the Audio Device to clear all software and hardware
 buffers of the audio decoder device.
 
 
-RETURN VALUE
+Return Value
 ------------
 
 On success 0 is returned, on error -1 and the ``errno`` variable is set

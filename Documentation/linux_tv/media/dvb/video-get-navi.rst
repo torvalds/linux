@@ -6,18 +6,19 @@
 VIDEO_GET_NAVI
 ==============
 
-NAME
+Name
 ----
 
 VIDEO_GET_NAVI
 
-SYNOPSIS
+
+Synopsis
 --------
 
 .. c:function:: int ioctl(fd, int request = VIDEO_GET_NAVI , video_navi_pack_t *navipack)
 
 
-ARGUMENTS
+Arguments
 ---------
 
 .. flat-table::
@@ -44,7 +45,7 @@ ARGUMENTS
        -  PCI or DSI pack (private stream 2) according to section ??.
 
 
-DESCRIPTION
+Description
 -----------
 
 This ioctl returns navigational information from the DVD stream. This is
@@ -52,7 +53,7 @@ especially needed if an encoded stream has to be decoded by the
 hardware.
 
 
-RETURN VALUE
+Return Value
 ------------
 
 On success 0 is returned, on error -1 and the ``errno`` variable is set

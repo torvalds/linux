@@ -6,12 +6,13 @@
 media close()
 *************
 
-NAME
+Name
 ====
 
 media-close - Close a media device
 
-SYNOPSIS
+
+Synopsis
 ========
 
 .. code-block:: c
@@ -22,21 +23,21 @@ SYNOPSIS
 .. cpp:function:: int close( int fd )
 
 
-ARGUMENTS
+Arguments
 =========
 
 ``fd``
     File descriptor returned by :ref:`open() <func-open>`.
 
 
-DESCRIPTION
+Description
 ===========
 
 Closes the media device. Resources associated with the file descriptor
 are freed. The device configuration remain unchanged.
 
 
-RETURN VALUE
+Return Value
 ============
 
 :ref:`close() <func-close>` returns 0 on success. On error, -1 is returned, and

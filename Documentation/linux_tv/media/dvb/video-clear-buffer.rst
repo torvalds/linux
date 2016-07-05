@@ -6,18 +6,19 @@
 VIDEO_CLEAR_BUFFER
 ==================
 
-NAME
+Name
 ----
 
 VIDEO_CLEAR_BUFFER
 
-SYNOPSIS
+
+Synopsis
 --------
 
 .. c:function:: int ioctl(fd, int request = VIDEO_CLEAR_BUFFER)
 
 
-ARGUMENTS
+Arguments
 ---------
 
 .. flat-table::
@@ -38,14 +39,14 @@ ARGUMENTS
        -  Equals VIDEO_CLEAR_BUFFER for this command.
 
 
-DESCRIPTION
+Description
 -----------
 
 This ioctl call clears all video buffers in the driver and in the
 decoder hardware.
 
 
-RETURN VALUE
+Return Value
 ------------
 
 On success 0 is returned, on error -1 and the ``errno`` variable is set

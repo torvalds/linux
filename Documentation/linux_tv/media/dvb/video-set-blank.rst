@@ -6,18 +6,19 @@
 VIDEO_SET_BLANK
 ===============
 
-NAME
+Name
 ----
 
 VIDEO_SET_BLANK
 
-SYNOPSIS
+
+Synopsis
 --------
 
 .. c:function:: int ioctl(fd, int request = VIDEO_SET_BLANK, boolean mode)
 
 
-ARGUMENTS
+Arguments
 ---------
 
 .. flat-table::
@@ -49,13 +50,13 @@ ARGUMENTS
        -  FALSE: Show last decoded frame.
 
 
-DESCRIPTION
+Description
 -----------
 
 This ioctl call asks the Video Device to blank out the picture.
 
 
-RETURN VALUE
+Return Value
 ------------
 
 On success 0 is returned, on error -1 and the ``errno`` variable is set

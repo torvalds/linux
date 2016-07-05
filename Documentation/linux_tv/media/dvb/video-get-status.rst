@@ -6,18 +6,19 @@
 VIDEO_GET_STATUS
 ================
 
-NAME
+Name
 ----
 
 VIDEO_GET_STATUS
 
-SYNOPSIS
+
+Synopsis
 --------
 
 .. c:function:: int ioctl(fd, int request = VIDEO_GET_STATUS, struct video_status *status)
 
 
-ARGUMENTS
+Arguments
 ---------
 
 .. flat-table::
@@ -44,14 +45,14 @@ ARGUMENTS
        -  Returns the current status of the Video Device.
 
 
-DESCRIPTION
+Description
 -----------
 
 This ioctl call asks the Video Device to return the current status of
 the device.
 
 
-RETURN VALUE
+Return Value
 ------------
 
 On success 0 is returned, on error -1 and the ``errno`` variable is set

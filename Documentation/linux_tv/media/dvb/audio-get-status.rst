@@ -6,18 +6,19 @@
 AUDIO_GET_STATUS
 ================
 
-NAME
+Name
 ----
 
 AUDIO_GET_STATUS
 
-SYNOPSIS
+
+Synopsis
 --------
 
 .. c:function:: int ioctl(int fd, int request = AUDIO_GET_STATUS, struct audio_status *status)
 
 
-ARGUMENTS
+Arguments
 ---------
 
 .. flat-table::
@@ -44,14 +45,14 @@ ARGUMENTS
        -  Returns the current state of Audio Device.
 
 
-DESCRIPTION
+Description
 -----------
 
 This ioctl call asks the Audio Device to return the current state of the
 Audio Device.
 
 
-RETURN VALUE
+Return Value
 ------------
 
 On success 0 is returned, on error -1 and the ``errno`` variable is set

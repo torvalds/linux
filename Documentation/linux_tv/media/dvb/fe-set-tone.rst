@@ -6,18 +6,19 @@
 ioctl FE_SET_TONE
 *****************
 
-NAME
+Name
 ====
 
 FE_SET_TONE - Sets/resets the generation of the continuous 22kHz tone.
 
-SYNOPSIS
+
+Synopsis
 ========
 
 .. c:function:: int ioctl( int fd, int request, enum fe_sec_tone_mode *tone )
 
 
-ARGUMENTS
+Arguments
 =========
 
 ``fd``
@@ -30,7 +31,7 @@ ARGUMENTS
     pointer to enum :ref:`fe_sec_tone_mode <fe-sec-tone-mode>`
 
 
-DESCRIPTION
+Description
 ===========
 
 This ioctl is used to set the generation of the continuous 22kHz tone.
@@ -81,7 +82,8 @@ enum fe_sec_tone_mode
        -  Don't send a 22kHz tone to the antenna (except if the
 	  FE_DISEQC_* ioctls are called)
 
-RETURN VALUE
+
+Return Value
 ============
 
 On success 0 is returned, on error -1 and the ``errno`` variable is set

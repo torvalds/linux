@@ -6,18 +6,19 @@
 VIDEO_SLOWMOTION
 ================
 
-NAME
+Name
 ----
 
 VIDEO_SLOWMOTION
 
-SYNOPSIS
+
+Synopsis
 --------
 
 .. c:function:: int ioctl(fd, int request = VIDEO_SLOWMOTION, int nFrames)
 
 
-ARGUMENTS
+Arguments
 ---------
 
 .. flat-table::
@@ -44,7 +45,7 @@ ARGUMENTS
        -  The number of times to repeat each frame.
 
 
-DESCRIPTION
+Description
 -----------
 
 This ioctl call asks the video device to repeat decoding frames N number
@@ -52,7 +53,7 @@ of times. This call can only be used if VIDEO_SOURCE_MEMORY is
 selected.
 
 
-RETURN VALUE
+Return Value
 ------------
 
 On success 0 is returned, on error -1 and the ``errno`` variable is set

@@ -6,18 +6,19 @@
 VIDEO_SET_ID
 ============
 
-NAME
+Name
 ----
 
 VIDEO_SET_ID
 
-SYNOPSIS
+
+Synopsis
 --------
 
 .. c:function:: int ioctl(int fd, int request = VIDEO_SET_ID, int id)
 
 
-ARGUMENTS
+Arguments
 ---------
 
 .. flat-table::
@@ -44,14 +45,14 @@ ARGUMENTS
        -  video sub-stream id
 
 
-DESCRIPTION
+Description
 -----------
 
 This ioctl selects which sub-stream is to be decoded if a program or
 system stream is sent to the video device.
 
 
-RETURN VALUE
+Return Value
 ------------
 
 On success 0 is returned, on error -1 and the ``errno`` variable is set

@@ -6,18 +6,19 @@
 DVB demux close()
 =================
 
-NAME
+Name
 ----
 
 DVB demux close()
 
-SYNOPSIS
+
+Synopsis
 --------
 
 .. c:function:: int close(int fd)
 
 
-ARGUMENTS
+Arguments
 ---------
 
 .. flat-table::
@@ -32,14 +33,14 @@ ARGUMENTS
        -  File descriptor returned by a previous call to open().
 
 
-DESCRIPTION
+Description
 -----------
 
 This system call deactivates and deallocates a filter that was
 previously allocated via the open() call.
 
 
-RETURN VALUE
+Return Value
 ------------
 
 .. flat-table::

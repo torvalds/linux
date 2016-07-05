@@ -6,12 +6,13 @@
 ioctls VIDIOC_QUERYCTRL, VIDIOC_QUERY_EXT_CTRL and VIDIOC_QUERYMENU
 *******************************************************************
 
-NAME
+Name
 ====
 
 VIDIOC_QUERYCTRL - VIDIOC_QUERY_EXT_CTRL - VIDIOC_QUERYMENU - Enumerate controls and menu control items
 
-SYNOPSIS
+
+Synopsis
 ========
 
 .. cpp:function:: int ioctl( int fd, int request, struct v4l2_queryctrl *argp )
@@ -21,7 +22,7 @@ SYNOPSIS
 .. cpp:function:: int ioctl( int fd, int request, struct v4l2_querymenu *argp )
 
 
-ARGUMENTS
+Arguments
 =========
 
 ``fd``
@@ -33,7 +34,7 @@ ARGUMENTS
 ``argp``
 
 
-DESCRIPTION
+Description
 ===========
 
 To query the attributes of a control applications set the ``id`` field
@@ -753,7 +754,7 @@ See also the examples in :ref:`control`.
 	  ``V4L2_CTRL_TYPE_BUTTON`` have this flag set.
 
 
-RETURN VALUE
+Return Value
 ============
 
 On success 0 is returned, on error -1 and the ``errno`` variable is set

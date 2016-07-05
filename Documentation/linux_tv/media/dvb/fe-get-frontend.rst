@@ -6,18 +6,19 @@
 FE_GET_FRONTEND
 ***************
 
-NAME
+Name
 ====
 
 FE_GET_FRONTEND
 
-SYNOPSIS
+
+Synopsis
 ========
 
 .. c:function:: int ioctl(int fd, int request = FE_GET_FRONTEND, struct dvb_frontend_parameters *p)
 
 
-ARGUMENTS
+Arguments
 =========
 
 .. flat-table::
@@ -45,14 +46,14 @@ ARGUMENTS
        -  Points to parameters for tuning operation.
 
 
-DESCRIPTION
+Description
 ===========
 
 This ioctl call queries the currently effective frontend parameters. For
 this command, read-only access to the device is sufficient.
 
 
-RETURN VALUE
+Return Value
 ============
 
 On success 0 is returned, on error -1 and the ``errno`` variable is set

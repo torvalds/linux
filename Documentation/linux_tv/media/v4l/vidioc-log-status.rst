@@ -6,23 +6,24 @@
 ioctl VIDIOC_LOG_STATUS
 ***********************
 
-NAME
+Name
 ====
 
 VIDIOC_LOG_STATUS - Log driver status information
 
-SYNOPSIS
+
+Synopsis
 ========
 
 .. cpp:function:: int ioctl( int fd, int request )
 
 
-ARGUMENTS
+Arguments
 =========
 
 
 
-DESCRIPTION
+Description
 ===========
 
 As the video/audio devices become more complicated it becomes harder to
@@ -37,7 +38,7 @@ This ioctl is optional and not all drivers support it. It was introduced
 in Linux 2.6.15.
 
 
-RETURN VALUE
+Return Value
 ============
 
 On success 0 is returned, on error -1 and the ``errno`` variable is set

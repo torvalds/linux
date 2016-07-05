@@ -6,12 +6,13 @@
 media open()
 ************
 
-NAME
+Name
 ====
 
 media-open - Open a media device
 
-SYNOPSIS
+
+Synopsis
 ========
 
 .. code-block:: c
@@ -22,7 +23,7 @@ SYNOPSIS
 .. cpp:function:: int open( const char *device_name, int flags )
 
 
-ARGUMENTS
+Arguments
 =========
 
 ``device_name``
@@ -33,7 +34,7 @@ ARGUMENTS
     Other flags have no effect.
 
 
-DESCRIPTION
+Description
 ===========
 
 To open a media device applications call :ref:`open() <func-open>` with the
@@ -45,7 +46,7 @@ configuration will result in an error, and ``errno`` will be set to
 EBADF.
 
 
-RETURN VALUE
+Return Value
 ============
 
 :ref:`open() <func-open>` returns the new file descriptor on success. On error,

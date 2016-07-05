@@ -6,18 +6,19 @@
 AUDIO_SET_MUTE
 ==============
 
-NAME
+Name
 ----
 
 AUDIO_SET_MUTE
 
-SYNOPSIS
+
+Synopsis
 --------
 
 .. c:function:: int  ioctl(int fd, int request = AUDIO_SET_MUTE, boolean state)
 
 
-ARGUMENTS
+Arguments
 ---------
 
 .. flat-table::
@@ -54,7 +55,7 @@ ARGUMENTS
        -  FALSE Audio Un-mute
 
 
-DESCRIPTION
+Description
 -----------
 
 This ioctl is for DVB devices only. To control a V4L2 decoder use the
@@ -65,7 +66,7 @@ This ioctl call asks the audio device to mute the stream that is
 currently being played.
 
 
-RETURN VALUE
+Return Value
 ------------
 
 On success 0 is returned, on error -1 and the ``errno`` variable is set

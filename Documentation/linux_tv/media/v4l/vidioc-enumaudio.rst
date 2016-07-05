@@ -6,18 +6,19 @@
 ioctl VIDIOC_ENUMAUDIO
 **********************
 
-NAME
+Name
 ====
 
 VIDIOC_ENUMAUDIO - Enumerate audio inputs
 
-SYNOPSIS
+
+Synopsis
 ========
 
 .. cpp:function:: int ioctl( int fd, int request, struct v4l2_audio *argp )
 
 
-ARGUMENTS
+Arguments
 =========
 
 ``fd``
@@ -29,7 +30,7 @@ ARGUMENTS
 ``argp``
 
 
-DESCRIPTION
+Description
 ===========
 
 To query the attributes of an audio input applications initialize the
@@ -44,7 +45,7 @@ See :ref:`VIDIOC_G_AUDIO <VIDIOC_G_AUDIO>` for a description of struct
 :ref:`v4l2_audio <v4l2-audio>`.
 
 
-RETURN VALUE
+Return Value
 ============
 
 On success 0 is returned, on error -1 and the ``errno`` variable is set

@@ -6,18 +6,19 @@
 ioctl FE_READ_STATUS
 ********************
 
-NAME
+Name
 ====
 
 FE_READ_STATUS - Returns status information about the front-end. This call only requires - read-only access to the device
 
-SYNOPSIS
+
+Synopsis
 ========
 
 .. cpp:function:: int ioctl( int fd, int request, unsigned int *status )
 
 
-ARGUMENTS
+Arguments
 =========
 
 ``fd``
@@ -31,7 +32,7 @@ ARGUMENTS
     :ref:`fe_status <fe-status>`.
 
 
-DESCRIPTION
+Description
 ===========
 
 All DVB frontend devices support the ``FE_READ_STATUS`` ioctl. It is
@@ -125,7 +126,8 @@ state changes of the frontend hardware. It is produced using the enum
        -  The frontend was reinitialized, application is recommended to
 	  reset DiSEqC, tone and parameters
 
-RETURN VALUE
+
+Return Value
 ============
 
 On success 0 is returned, on error -1 and the ``errno`` variable is set

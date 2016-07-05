@@ -6,18 +6,19 @@
 ioctl FE_SET_VOLTAGE
 ********************
 
-NAME
+Name
 ====
 
 FE_SET_VOLTAGE - Allow setting the DC level sent to the antenna subsystem.
 
-SYNOPSIS
+
+Synopsis
 ========
 
 .. c:function:: int ioctl( int fd, int request, enum fe_sec_voltage *voltage )
 
 
-ARGUMENTS
+Arguments
 =========
 
 ``fd``
@@ -33,7 +34,7 @@ ARGUMENTS
     :ref:`fe_sec_voltage <fe-sec-voltage>`.
 
 
-DESCRIPTION
+Description
 ===========
 
 This ioctl allows to set the DC voltage level sent through the antenna
@@ -54,7 +55,7 @@ the voltage to SEC_VOLTAGE_OFF while the device is not is used is
 recommended.
 
 
-RETURN VALUE
+Return Value
 ============
 
 On success 0 is returned, on error -1 and the ``errno`` variable is set

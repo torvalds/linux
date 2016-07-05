@@ -6,12 +6,13 @@
 V4L2 select()
 *************
 
-NAME
+Name
 ====
 
 v4l2-select - Synchronous I/O multiplexing
 
-SYNOPSIS
+
+Synopsis
 ========
 
 .. code-block:: c
@@ -24,12 +25,12 @@ SYNOPSIS
 .. cpp:function:: int select( int nfds, fd_set *readfds, fd_set *writefds, fd_set *exceptfds, struct timeval *timeout )
 
 
-ARGUMENTS
+Arguments
 =========
 
 
 
-DESCRIPTION
+Description
 ===========
 
 With the :ref:`select() <func-select>` function applications can suspend
@@ -71,7 +72,7 @@ function.
 For more details see the :ref:`select() <func-select>` manual page.
 
 
-RETURN VALUE
+Return Value
 ============
 
 On success, :ref:`select() <func-select>` returns the number of descriptors

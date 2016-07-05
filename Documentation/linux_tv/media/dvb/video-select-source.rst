@@ -6,18 +6,19 @@
 VIDEO_SELECT_SOURCE
 ===================
 
-NAME
+Name
 ----
 
 VIDEO_SELECT_SOURCE
 
-SYNOPSIS
+
+Synopsis
 --------
 
 .. c:function:: int ioctl(fd, int request = VIDEO_SELECT_SOURCE, video_stream_source_t source)
 
 
-ARGUMENTS
+Arguments
 ---------
 
 .. flat-table::
@@ -44,7 +45,7 @@ ARGUMENTS
        -  Indicates which source shall be used for the Video stream.
 
 
-DESCRIPTION
+Description
 -----------
 
 This ioctl is for DVB devices only. This ioctl was also supported by the
@@ -56,7 +57,7 @@ the input data. The possible sources are demux or memory. If memory is
 selected, the data is fed to the video device through the write command.
 
 
-RETURN VALUE
+Return Value
 ------------
 
 On success 0 is returned, on error -1 and the ``errno`` variable is set

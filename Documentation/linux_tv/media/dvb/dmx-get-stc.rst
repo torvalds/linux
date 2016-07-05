@@ -6,18 +6,19 @@
 DMX_GET_STC
 ===========
 
-NAME
+Name
 ----
 
 DMX_GET_STC
 
-SYNOPSIS
+
+Synopsis
 --------
 
 .. c:function:: int ioctl( int fd, int request = DMX_GET_STC, struct dmx_stc *stc)
 
 
-ARGUMENTS
+Arguments
 ---------
 
 .. flat-table::
@@ -44,7 +45,7 @@ ARGUMENTS
        -  Pointer to the location where the stc is to be stored.
 
 
-DESCRIPTION
+Description
 -----------
 
 This ioctl call returns the current value of the system time counter
@@ -55,7 +56,7 @@ in form of a ratio with a 64 bit numerator and a 32 bit denominator, so
 the real 90kHz STC value is stc->stc / stc->base .
 
 
-RETURN VALUE
+Return Value
 ------------
 
 On success 0 is returned, on error -1 and the ``errno`` variable is set

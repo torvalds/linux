@@ -6,18 +6,19 @@
 VIDEO_STOP
 ==========
 
-NAME
+Name
 ----
 
 VIDEO_STOP
 
-SYNOPSIS
+
+Synopsis
 --------
 
 .. c:function:: int ioctl(fd, int request = VIDEO_STOP, boolean mode)
 
 
-ARGUMENTS
+Arguments
 ---------
 
 .. flat-table::
@@ -54,7 +55,7 @@ ARGUMENTS
        -  FALSE: Show last decoded frame.
 
 
-DESCRIPTION
+Description
 -----------
 
 This ioctl is for DVB devices only. To control a V4L2 decoder use the
@@ -65,7 +66,7 @@ stream. Depending on the input parameter, the screen can be blanked out
 or displaying the last decoded frame.
 
 
-RETURN VALUE
+Return Value
 ------------
 
 On success 0 is returned, on error -1 and the ``errno`` variable is set

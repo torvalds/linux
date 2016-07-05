@@ -6,18 +6,19 @@
 ioctl FE_SET_PROPERTY, FE_GET_PROPERTY
 **************************************
 
-NAME
+Name
 ====
 
 FE_SET_PROPERTY - FE_GET_PROPERTY - FE_SET_PROPERTY sets one or more frontend properties. - FE_GET_PROPERTY returns one or more frontend properties.
 
-SYNOPSIS
+
+Synopsis
 ========
 
 .. cpp:function:: int ioctl( int fd, int request, struct dtv_properties *argp )
 
 
-ARGUMENTS
+Arguments
 =========
 
 ``fd``
@@ -30,7 +31,7 @@ ARGUMENTS
     pointer to struct :ref:`dtv_properties <dtv-properties>`
 
 
-DESCRIPTION
+Description
 ===========
 
 All DVB frontend devices support the ``FE_SET_PROPERTY`` and
@@ -59,7 +60,7 @@ depends on the delivery system and on the device:
    -  This call only requires read-only access to the device.
 
 
-RETURN VALUE
+Return Value
 ============
 
 On success 0 is returned, on error -1 and the ``errno`` variable is set

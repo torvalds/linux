@@ -6,12 +6,13 @@
 ioctl VIDIOC_G_STD, VIDIOC_S_STD
 ********************************
 
-NAME
+Name
 ====
 
 VIDIOC_G_STD - VIDIOC_S_STD - Query or select the video standard of the current input
 
-SYNOPSIS
+
+Synopsis
 ========
 
 .. cpp:function:: int ioctl( int fd, int request, v4l2_std_id *argp )
@@ -19,7 +20,7 @@ SYNOPSIS
 .. cpp:function:: int ioctl( int fd, int request, const v4l2_std_id *argp )
 
 
-ARGUMENTS
+Arguments
 =========
 
 ``fd``
@@ -31,7 +32,7 @@ ARGUMENTS
 ``argp``
 
 
-DESCRIPTION
+Description
 ===========
 
 To query and select the current video standard applications use the
@@ -53,7 +54,7 @@ does not set the ``V4L2_IN_CAP_STD`` flag), then ``ENODATA`` error code is
 returned.
 
 
-RETURN VALUE
+Return Value
 ============
 
 On success 0 is returned, on error -1 and the ``errno`` variable is set

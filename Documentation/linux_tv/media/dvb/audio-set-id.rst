@@ -6,18 +6,19 @@
 AUDIO_SET_ID
 ============
 
-NAME
+Name
 ----
 
 AUDIO_SET_ID
 
-SYNOPSIS
+
+Synopsis
 --------
 
 .. c:function:: int  ioctl(int fd, int request = AUDIO_SET_ID, int id)
 
 
-ARGUMENTS
+Arguments
 ---------
 
 .. flat-table::
@@ -44,7 +45,7 @@ ARGUMENTS
        -  audio sub-stream id
 
 
-DESCRIPTION
+Description
 -----------
 
 This ioctl selects which sub-stream is to be decoded if a program or
@@ -56,7 +57,7 @@ substream id of the audio stream and only the first 5 bits are
 recognized.
 
 
-RETURN VALUE
+Return Value
 ------------
 
 On success 0 is returned, on error -1 and the ``errno`` variable is set

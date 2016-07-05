@@ -6,18 +6,19 @@
 DMX_SET_BUFFER_SIZE
 ===================
 
-NAME
+Name
 ----
 
 DMX_SET_BUFFER_SIZE
 
-SYNOPSIS
+
+Synopsis
 --------
 
 .. c:function:: int ioctl( int fd, int request = DMX_SET_BUFFER_SIZE, unsigned long size)
 
 
-ARGUMENTS
+Arguments
 ---------
 
 .. flat-table::
@@ -44,7 +45,7 @@ ARGUMENTS
        -  Size of circular buffer.
 
 
-DESCRIPTION
+Description
 -----------
 
 This ioctl call is used to set the size of the circular buffer used for
@@ -53,7 +54,7 @@ this function is not called a buffer size of 2 \* 4096 bytes will be
 used.
 
 
-RETURN VALUE
+Return Value
 ------------
 
 On success 0 is returned, on error -1 and the ``errno`` variable is set

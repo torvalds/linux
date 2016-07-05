@@ -6,18 +6,19 @@
 DVB audio open()
 ================
 
-NAME
+Name
 ----
 
 DVB audio open()
 
-SYNOPSIS
+
+Synopsis
 --------
 
 .. c:function:: int  open(const char *deviceName, int flags)
 
 
-ARGUMENTS
+Arguments
 ---------
 
 .. flat-table::
@@ -58,7 +59,7 @@ ARGUMENTS
        -  (blocking mode is the default)
 
 
-DESCRIPTION
+Description
 -----------
 
 This system call opens a named audio device (e.g.
@@ -76,7 +77,7 @@ in O_RDONLY mode, the only ioctl call that can be used is
 AUDIO_GET_STATUS. All other call will return with an error code.
 
 
-RETURN VALUE
+Return Value
 ------------
 
 .. flat-table::

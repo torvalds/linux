@@ -6,18 +6,19 @@
 AUDIO_SET_ATTRIBUTES
 ====================
 
-NAME
+Name
 ----
 
 AUDIO_SET_ATTRIBUTES
 
-SYNOPSIS
+
+Synopsis
 --------
 
 .. c:function:: int ioctl(fd, int request = AUDIO_SET_ATTRIBUTES, audio_attributes_t attr )
 
 
-ARGUMENTS
+Arguments
 ---------
 
 .. flat-table::
@@ -44,14 +45,14 @@ ARGUMENTS
        -  audio attributes according to section ??
 
 
-DESCRIPTION
+Description
 -----------
 
 This ioctl is intended for DVD playback and allows you to set certain
 information about the audio stream.
 
 
-RETURN VALUE
+Return Value
 ------------
 
 On success 0 is returned, on error -1 and the ``errno`` variable is set

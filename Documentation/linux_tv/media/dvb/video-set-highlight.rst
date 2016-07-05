@@ -6,18 +6,19 @@
 VIDEO_SET_HIGHLIGHT
 ===================
 
-NAME
+Name
 ----
 
 VIDEO_SET_HIGHLIGHT
 
-SYNOPSIS
+
+Synopsis
 --------
 
 .. c:function:: int ioctl(fd, int request = VIDEO_SET_HIGHLIGHT ,video_highlight_t *vhilite)
 
 
-ARGUMENTS
+Arguments
 ---------
 
 .. flat-table::
@@ -44,14 +45,14 @@ ARGUMENTS
        -  SPU Highlight information according to section ??.
 
 
-DESCRIPTION
+Description
 -----------
 
 This ioctl sets the SPU highlight information for the menu access of a
 DVD.
 
 
-RETURN VALUE
+Return Value
 ------------
 
 On success 0 is returned, on error -1 and the ``errno`` variable is set

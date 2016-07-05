@@ -6,18 +6,19 @@
 VIDEO_GET_EVENT
 ===============
 
-NAME
+Name
 ----
 
 VIDEO_GET_EVENT
 
-SYNOPSIS
+
+Synopsis
 --------
 
 .. c:function:: int ioctl(fd, int request = VIDEO_GET_EVENT, struct video_event *ev)
 
 
-ARGUMENTS
+Arguments
 ---------
 
 .. flat-table::
@@ -44,7 +45,7 @@ ARGUMENTS
        -  Points to the location where the event, if any, is to be stored.
 
 
-DESCRIPTION
+Description
 -----------
 
 This ioctl is for DVB devices only. To get events from a V4L2 decoder
@@ -62,7 +63,7 @@ specified as the wake-up condition. Read-only permissions are sufficient
 for this ioctl call.
 
 
-RETURN VALUE
+Return Value
 ------------
 
 On success 0 is returned, on error -1 and the ``errno`` variable is set

@@ -6,18 +6,19 @@
 dvb video open()
 ================
 
-NAME
+Name
 ----
 
 dvb video open()
 
-SYNOPSIS
+
+Synopsis
 --------
 
 .. c:function:: int open(const char *deviceName, int flags)
 
 
-ARGUMENTS
+Arguments
 ---------
 
 .. flat-table::
@@ -58,7 +59,7 @@ ARGUMENTS
        -  (blocking mode is the default)
 
 
-DESCRIPTION
+Description
 -----------
 
 This system call opens a named video device (e.g.
@@ -78,7 +79,7 @@ ioctl call that can be used is VIDEO_GET_STATUS. All other call will
 return an error code.
 
 
-RETURN VALUE
+Return Value
 ------------
 
 .. flat-table::

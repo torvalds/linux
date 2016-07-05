@@ -6,18 +6,19 @@
 VIDEO_PLAY
 ==========
 
-NAME
+Name
 ----
 
 VIDEO_PLAY
 
-SYNOPSIS
+
+Synopsis
 --------
 
 .. c:function:: int ioctl(fd, int request = VIDEO_PLAY)
 
 
-ARGUMENTS
+Arguments
 ---------
 
 .. flat-table::
@@ -38,7 +39,7 @@ ARGUMENTS
        -  Equals VIDEO_PLAY for this command.
 
 
-DESCRIPTION
+Description
 -----------
 
 This ioctl is for DVB devices only. To control a V4L2 decoder use the
@@ -48,7 +49,7 @@ This ioctl call asks the Video Device to start playing a video stream
 from the selected source.
 
 
-RETURN VALUE
+Return Value
 ------------
 
 On success 0 is returned, on error -1 and the ``errno`` variable is set

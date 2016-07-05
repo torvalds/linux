@@ -6,18 +6,19 @@
 AUDIO_SET_AV_SYNC
 =================
 
-NAME
+Name
 ----
 
 AUDIO_SET_AV_SYNC
 
-SYNOPSIS
+
+Synopsis
 --------
 
 .. c:function:: int  ioctl(int fd, int request = AUDIO_SET_AV_SYNC, boolean state)
 
 
-ARGUMENTS
+Arguments
 ---------
 
 .. flat-table::
@@ -54,14 +55,14 @@ ARGUMENTS
        -  FALSE AV-sync OFF
 
 
-DESCRIPTION
+Description
 -----------
 
 This ioctl call asks the Audio Device to turn ON or OFF A/V
 synchronization.
 
 
-RETURN VALUE
+Return Value
 ------------
 
 On success 0 is returned, on error -1 and the ``errno`` variable is set

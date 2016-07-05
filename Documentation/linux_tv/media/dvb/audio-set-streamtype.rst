@@ -6,18 +6,19 @@
 AUDIO_SET_STREAMTYPE
 ====================
 
-NAME
+Name
 ----
 
 AUDIO_SET_STREAMTYPE
 
-SYNOPSIS
+
+Synopsis
 --------
 
 .. c:function:: int  ioctl(fd, int request = AUDIO_SET_STREAMTYPE, int type)
 
 
-ARGUMENTS
+Arguments
 ---------
 
 .. flat-table::
@@ -44,7 +45,7 @@ ARGUMENTS
        -  stream type
 
 
-DESCRIPTION
+Description
 -----------
 
 This ioctl tells the driver which kind of audio stream to expect. This
@@ -52,7 +53,7 @@ is useful if the stream offers several audio sub-streams like LPCM and
 AC3.
 
 
-RETURN VALUE
+Return Value
 ------------
 
 On success 0 is returned, on error -1 and the ``errno`` variable is set

@@ -6,18 +6,19 @@
 VIDEO_SET_SYSTEM
 ================
 
-NAME
+Name
 ----
 
 VIDEO_SET_SYSTEM
 
-SYNOPSIS
+
+Synopsis
 --------
 
 .. c:function:: int ioctl(fd, int request = VIDEO_SET_SYSTEM , video_system_t system)
 
 
-ARGUMENTS
+Arguments
 ---------
 
 .. flat-table::
@@ -44,7 +45,7 @@ ARGUMENTS
        -  video system of TV output.
 
 
-DESCRIPTION
+Description
 -----------
 
 This ioctl sets the television output format. The format (see section
@@ -53,7 +54,7 @@ hardware is not able to display the requested format the call will
 return an error.
 
 
-RETURN VALUE
+Return Value
 ------------
 
 On success 0 is returned, on error -1 and the ``errno`` variable is set

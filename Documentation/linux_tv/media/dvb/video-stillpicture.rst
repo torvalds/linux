@@ -6,18 +6,19 @@
 VIDEO_STILLPICTURE
 ==================
 
-NAME
+Name
 ----
 
 VIDEO_STILLPICTURE
 
-SYNOPSIS
+
+Synopsis
 --------
 
 .. c:function:: int ioctl(fd, int request = VIDEO_STILLPICTURE, struct video_still_picture *sp)
 
 
-ARGUMENTS
+Arguments
 ---------
 
 .. flat-table::
@@ -44,7 +45,7 @@ ARGUMENTS
        -  Pointer to a location where an I-frame and size is stored.
 
 
-DESCRIPTION
+Description
 -----------
 
 This ioctl call asks the Video Device to display a still picture
@@ -52,7 +53,7 @@ This ioctl call asks the Video Device to display a still picture
 NULL, then the current displayed still picture is blanked.
 
 
-RETURN VALUE
+Return Value
 ------------
 
 On success 0 is returned, on error -1 and the ``errno`` variable is set

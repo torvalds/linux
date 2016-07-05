@@ -6,18 +6,19 @@
 DMX_GET_CAPS
 ============
 
-NAME
+Name
 ----
 
 DMX_GET_CAPS
 
-SYNOPSIS
+
+Synopsis
 --------
 
 .. c:function:: int ioctl(fd, int request = DMX_GET_CAPS, dmx_caps_t *)
 
 
-ARGUMENTS
+Arguments
 ---------
 
 .. flat-table::
@@ -44,13 +45,13 @@ ARGUMENTS
        -  Undocumented.
 
 
-DESCRIPTION
+Description
 -----------
 
 This ioctl is undocumented. Documentation is welcome.
 
 
-RETURN VALUE
+Return Value
 ------------
 
 On success 0 is returned, on error -1 and the ``errno`` variable is set

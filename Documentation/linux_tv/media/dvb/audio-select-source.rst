@@ -6,18 +6,19 @@
 AUDIO_SELECT_SOURCE
 ===================
 
-NAME
+Name
 ----
 
 AUDIO_SELECT_SOURCE
 
-SYNOPSIS
+
+Synopsis
 --------
 
 .. c:function:: int ioctl(int fd, int request = AUDIO_SELECT_SOURCE, audio_stream_source_t source)
 
 
-ARGUMENTS
+Arguments
 ---------
 
 .. flat-table::
@@ -44,7 +45,7 @@ ARGUMENTS
        -  Indicates the source that shall be used for the Audio stream.
 
 
-DESCRIPTION
+Description
 -----------
 
 This ioctl call informs the audio device which source shall be used for
@@ -53,7 +54,7 @@ AUDIO_SOURCE_MEMORY is selected, the data is fed to the Audio Device
 through the write command.
 
 
-RETURN VALUE
+Return Value
 ------------
 
 On success 0 is returned, on error -1 and the ``errno`` variable is set

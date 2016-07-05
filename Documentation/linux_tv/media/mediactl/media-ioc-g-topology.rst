@@ -6,18 +6,19 @@
 ioctl MEDIA_IOC_G_TOPOLOGY
 **************************
 
-NAME
+Name
 ====
 
 MEDIA_IOC_G_TOPOLOGY - Enumerate the graph topology and graph element properties
 
-SYNOPSIS
+
+Synopsis
 ========
 
 .. cpp:function:: int ioctl( int fd, int request, struct media_v2_topology *argp )
 
 
-ARGUMENTS
+Arguments
 =========
 
 ``fd``
@@ -29,7 +30,7 @@ ARGUMENTS
 ``argp``
 
 
-DESCRIPTION
+Description
 ===========
 
 The typical usage of this ioctl is to call it twice. On the first call,
@@ -410,7 +411,7 @@ desired arrays with the media graph elements.
 	  this array to zero.
 
 
-RETURN VALUE
+Return Value
 ============
 
 On success 0 is returned, on error -1 and the ``errno`` variable is set

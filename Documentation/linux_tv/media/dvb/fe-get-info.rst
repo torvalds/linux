@@ -6,18 +6,19 @@
 ioctl FE_GET_INFO
 *****************
 
-NAME
+Name
 ====
 
 FE_GET_INFO - Query DVB frontend capabilities and returns information about the - front-end. This call only requires read-only access to the device
 
-SYNOPSIS
+
+Synopsis
 ========
 
 .. cpp:function:: int ioctl( int fd, int request, struct dvb_frontend_info *argp )
 
 
-ARGUMENTS
+Arguments
 =========
 
 ``fd``
@@ -31,7 +32,7 @@ ARGUMENTS
     :ref:`dvb_frontend_info <dvb-frontend-info>`
 
 
-DESCRIPTION
+Description
 ===========
 
 All DVB frontend devices support the ``FE_GET_INFO`` ioctl. It is used
@@ -418,7 +419,8 @@ supported only on some specific frontend types.
 
        -  The frontend can stop spurious TS data output
 
-RETURN VALUE
+
+Return Value
 ============
 
 On success 0 is returned, on error -1 and the ``errno`` variable is set

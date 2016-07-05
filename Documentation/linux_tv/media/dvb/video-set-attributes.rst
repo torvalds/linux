@@ -6,18 +6,19 @@
 VIDEO_SET_ATTRIBUTES
 ====================
 
-NAME
+Name
 ----
 
 VIDEO_SET_ATTRIBUTES
 
-SYNOPSIS
+
+Synopsis
 --------
 
 .. c:function:: int ioctl(fd, int request = VIDEO_SET_ATTRIBUTE ,video_attributes_t vattr)
 
 
-ARGUMENTS
+Arguments
 ---------
 
 .. flat-table::
@@ -44,7 +45,7 @@ ARGUMENTS
        -  video attributes according to section ??.
 
 
-DESCRIPTION
+Description
 -----------
 
 This ioctl is intended for DVD playback and allows you to set certain
@@ -53,7 +54,7 @@ information, but the call also tells the hardware to prepare for DVD
 playback.
 
 
-RETURN VALUE
+Return Value
 ------------
 
 On success 0 is returned, on error -1 and the ``errno`` variable is set

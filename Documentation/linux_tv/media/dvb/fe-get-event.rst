@@ -6,18 +6,19 @@
 FE_GET_EVENT
 ************
 
-NAME
+Name
 ====
 
 FE_GET_EVENT
 
-SYNOPSIS
+
+Synopsis
 ========
 
 .. c:function:: int  ioctl(int fd, int request = QPSK_GET_EVENT, struct dvb_frontend_event *ev)
 
 
-ARGUMENTS
+Arguments
 =========
 
 .. flat-table::
@@ -49,7 +50,7 @@ ARGUMENTS
        -  if any, is to be stored.
 
 
-DESCRIPTION
+Description
 ===========
 
 This ioctl call returns a frontend event if available. If an event is
@@ -59,7 +60,7 @@ with errno set to ``EWOULDBLOCK``. In the former case, the call blocks until
 an event becomes available.
 
 
-RETURN VALUE
+Return Value
 ============
 
 On success 0 is returned, on error -1 and the ``errno`` variable is set

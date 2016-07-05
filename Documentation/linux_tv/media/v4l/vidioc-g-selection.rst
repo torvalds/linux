@@ -6,18 +6,19 @@
 ioctl VIDIOC_G_SELECTION, VIDIOC_S_SELECTION
 ********************************************
 
-NAME
+Name
 ====
 
 VIDIOC_G_SELECTION - VIDIOC_S_SELECTION - Get or set one of the selection rectangles
 
-SYNOPSIS
+
+Synopsis
 ========
 
 .. cpp:function:: int ioctl( int fd, int request, struct v4l2_selection *argp )
 
 
-ARGUMENTS
+Arguments
 =========
 
 ``fd``
@@ -29,7 +30,7 @@ ARGUMENTS
 ``argp``
 
 
-DESCRIPTION
+Description
 ===========
 
 The ioctls are used to query and configure selection rectangles.
@@ -187,7 +188,7 @@ Selection targets and flags are documented in
 	  this array.
 
 
-RETURN VALUE
+Return Value
 ============
 
 On success 0 is returned, on error -1 and the ``errno`` variable is set

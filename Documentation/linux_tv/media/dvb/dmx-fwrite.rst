@@ -6,18 +6,19 @@
 DVB demux write()
 =================
 
-NAME
+Name
 ----
 
 DVB demux write()
 
-SYNOPSIS
+
+Synopsis
 --------
 
 .. c:function:: ssize_t write(int fd, const void *buf, size_t count)
 
 
-ARGUMENTS
+Arguments
 ---------
 
 .. flat-table::
@@ -44,7 +45,7 @@ ARGUMENTS
        -  Size of buf.
 
 
-DESCRIPTION
+Description
 -----------
 
 This system call is only provided by the logical device
@@ -55,7 +56,7 @@ in the corresponding physical demux device, /dev/dvb/adapter0/demux0.
 The amount of data to be transferred is implied by count.
 
 
-RETURN VALUE
+Return Value
 ------------
 
 .. flat-table::

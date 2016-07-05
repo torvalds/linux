@@ -6,18 +6,19 @@
 ioctl VIDIOC_ENUMOUTPUT
 ***********************
 
-NAME
+Name
 ====
 
 VIDIOC_ENUMOUTPUT - Enumerate video outputs
 
-SYNOPSIS
+
+Synopsis
 ========
 
 .. cpp:function:: int ioctl( int fd, int request, struct v4l2_output *argp )
 
 
-ARGUMENTS
+Arguments
 =========
 
 ``fd``
@@ -29,7 +30,7 @@ ARGUMENTS
 ``argp``
 
 
-DESCRIPTION
+Description
 ===========
 
 To query the attributes of a video outputs applications initialize the
@@ -209,7 +210,7 @@ EINVAL.
 	  :ref:`v4l2-selections-common`.
 
 
-RETURN VALUE
+Return Value
 ============
 
 On success 0 is returned, on error -1 and the ``errno`` variable is set

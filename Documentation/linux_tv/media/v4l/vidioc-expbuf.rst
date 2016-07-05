@@ -6,18 +6,19 @@
 ioctl VIDIOC_EXPBUF
 *******************
 
-NAME
+Name
 ====
 
 VIDIOC_EXPBUF - Export a buffer as a DMABUF file descriptor.
 
-SYNOPSIS
+
+Synopsis
 ========
 
 .. cpp:function:: int ioctl( int fd, int request, struct v4l2_exportbuffer *argp )
 
 
-ARGUMENTS
+Arguments
 =========
 
 ``fd``
@@ -29,7 +30,7 @@ ARGUMENTS
 ``argp``
 
 
-DESCRIPTION
+Description
 ===========
 
 This ioctl is an extension to the :ref:`memory mapping <mmap>` I/O
@@ -184,7 +185,7 @@ Examples
 	  the array to zero.
 
 
-RETURN VALUE
+Return Value
 ============
 
 On success 0 is returned, on error -1 and the ``errno`` variable is set

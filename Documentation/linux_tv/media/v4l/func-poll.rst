@@ -6,12 +6,13 @@
 V4L2 poll()
 ***********
 
-NAME
+Name
 ====
 
 v4l2-poll - Wait for some event on a file descriptor
 
-SYNOPSIS
+
+Synopsis
 ========
 
 .. code-block:: c
@@ -22,12 +23,12 @@ SYNOPSIS
 .. cpp:function:: int poll( struct pollfd *ufds, unsigned int nfds, int timeout )
 
 
-ARGUMENTS
+Arguments
 =========
 
 
 
-DESCRIPTION
+Description
 ===========
 
 With the :ref:`poll() <func-poll>` function applications can suspend execution
@@ -90,7 +91,7 @@ function.
 For more details see the :ref:`poll() <func-poll>` manual page.
 
 
-RETURN VALUE
+Return Value
 ============
 
 On success, :ref:`poll() <func-poll>` returns the number structures which have

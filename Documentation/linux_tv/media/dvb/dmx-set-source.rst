@@ -6,18 +6,19 @@
 DMX_SET_SOURCE
 ==============
 
-NAME
+Name
 ----
 
 DMX_SET_SOURCE
 
-SYNOPSIS
+
+Synopsis
 --------
 
 .. c:function:: int ioctl(fd, int request = DMX_SET_SOURCE, dmx_source_t *)
 
 
-ARGUMENTS
+Arguments
 ---------
 
 .. flat-table::
@@ -44,13 +45,13 @@ ARGUMENTS
        -  Undocumented.
 
 
-DESCRIPTION
+Description
 -----------
 
 This ioctl is undocumented. Documentation is welcome.
 
 
-RETURN VALUE
+Return Value
 ------------
 
 On success 0 is returned, on error -1 and the ``errno`` variable is set

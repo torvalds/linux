@@ -6,18 +6,19 @@
 VIDEO_TRY_COMMAND
 =================
 
-NAME
+Name
 ----
 
 VIDEO_TRY_COMMAND
 
-SYNOPSIS
+
+Synopsis
 --------
 
 .. c:function:: int ioctl(int fd, int request = VIDEO_TRY_COMMAND, struct video_command *cmd)
 
 
-ARGUMENTS
+Arguments
 ---------
 
 .. flat-table::
@@ -44,7 +45,7 @@ ARGUMENTS
        -  Try a decoder command.
 
 
-DESCRIPTION
+Description
 -----------
 
 This ioctl is obsolete. Do not use in new drivers. For V4L2 decoders
@@ -57,7 +58,7 @@ subset of the ``v4l2_decoder_cmd`` struct, so refer to the
 for more information.
 
 
-RETURN VALUE
+Return Value
 ------------
 
 On success 0 is returned, on error -1 and the ``errno`` variable is set

@@ -6,18 +6,19 @@
 FE_DISHNETWORK_SEND_LEGACY_CMD
 ******************************
 
-NAME
+Name
 ====
 
 FE_DISHNETWORK_SEND_LEGACY_CMD
 
-SYNOPSIS
+
+Synopsis
 ========
 
 .. c:function:: int  ioctl(int fd, int request = FE_DISHNETWORK_SEND_LEGACY_CMD, unsigned long cmd)
 
 
-ARGUMENTS
+Arguments
 =========
 
 .. flat-table::
@@ -32,7 +33,7 @@ ARGUMENTS
        -  sends the specified raw cmd to the dish via DISEqC.
 
 
-DESCRIPTION
+Description
 ===========
 
 WARNING: This is a very obscure legacy command, used only at stv0299
@@ -45,7 +46,7 @@ As support for this ioctl were added in 2004, this means that such
 dishes were already legacy in 2004.
 
 
-RETURN VALUE
+Return Value
 ============
 
 On success 0 is returned, on error -1 and the ``errno`` variable is set

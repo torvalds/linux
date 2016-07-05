@@ -6,18 +6,19 @@
 ioctl VIDIOC_CROPCAP
 ********************
 
-NAME
+Name
 ====
 
 VIDIOC_CROPCAP - Information about the video cropping and scaling abilities
 
-SYNOPSIS
+
+Synopsis
 ========
 
 .. cpp:function:: int ioctl( int fd, int request, struct v4l2_cropcap *argp )
 
 
-ARGUMENTS
+Arguments
 =========
 
 ``fd``
@@ -29,7 +30,7 @@ ARGUMENTS
 ``argp``
 
 
-DESCRIPTION
+Description
 ===========
 
 Applications use this function to query the cropping limits, the pixel
@@ -154,7 +155,7 @@ overlay devices.
        -  Height of the rectangle, in pixels.
 
 
-RETURN VALUE
+Return Value
 ============
 
 On success 0 is returned, on error -1 and the ``errno`` variable is set

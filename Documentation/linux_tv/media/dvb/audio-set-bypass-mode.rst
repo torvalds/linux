@@ -6,18 +6,19 @@
 AUDIO_SET_BYPASS_MODE
 =====================
 
-NAME
+Name
 ----
 
 AUDIO_SET_BYPASS_MODE
 
-SYNOPSIS
+
+Synopsis
 --------
 
 .. c:function:: int ioctl(int fd, int request = AUDIO_SET_BYPASS_MODE, boolean mode)
 
 
-ARGUMENTS
+Arguments
 ---------
 
 .. flat-table::
@@ -55,7 +56,7 @@ ARGUMENTS
        -  FALSE Bypass is enabled
 
 
-DESCRIPTION
+Description
 -----------
 
 This ioctl call asks the Audio Device to bypass the Audio decoder and
@@ -65,7 +66,7 @@ DigitalTM streams are automatically forwarded by the DVB subsystem if
 the hardware can handle it.
 
 
-RETURN VALUE
+Return Value
 ------------
 
 On success 0 is returned, on error -1 and the ``errno`` variable is set

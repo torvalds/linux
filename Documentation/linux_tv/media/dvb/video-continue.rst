@@ -6,18 +6,19 @@
 VIDEO_CONTINUE
 ==============
 
-NAME
+Name
 ----
 
 VIDEO_CONTINUE
 
-SYNOPSIS
+
+Synopsis
 --------
 
 .. c:function:: int ioctl(fd, int request = VIDEO_CONTINUE)
 
 
-ARGUMENTS
+Arguments
 ---------
 
 .. flat-table::
@@ -38,7 +39,7 @@ ARGUMENTS
        -  Equals VIDEO_CONTINUE for this command.
 
 
-DESCRIPTION
+Description
 -----------
 
 This ioctl is for DVB devices only. To control a V4L2 decoder use the
@@ -48,7 +49,7 @@ This ioctl call restarts decoding and playing processes of the video
 stream which was played before a call to VIDEO_FREEZE was made.
 
 
-RETURN VALUE
+Return Value
 ------------
 
 On success 0 is returned, on error -1 and the ``errno`` variable is set

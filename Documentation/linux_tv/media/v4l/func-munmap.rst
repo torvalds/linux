@@ -6,12 +6,13 @@
 V4L2 munmap()
 *************
 
-NAME
+Name
 ====
 
 v4l2-munmap - Unmap device memory
 
-SYNOPSIS
+
+Synopsis
 ========
 
 .. code-block:: c
@@ -23,7 +24,7 @@ SYNOPSIS
 .. cpp:function:: int munmap( void *start, size_t length )
 
 
-ARGUMENTS
+Arguments
 =========
 
 ``start``
@@ -39,14 +40,14 @@ ARGUMENTS
     multi-planar API.
 
 
-DESCRIPTION
+Description
 ===========
 
 Unmaps a previously with the :ref:`mmap() <func-mmap>` function mapped
 buffer and frees it, if possible.
 
 
-RETURN VALUE
+Return Value
 ============
 
 On success :ref:`munmap() <func-munmap>` returns 0, on failure -1 and the

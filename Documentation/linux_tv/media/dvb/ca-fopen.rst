@@ -6,18 +6,19 @@
 DVB CA open()
 =============
 
-NAME
+Name
 ----
 
 DVB CA open()
 
-SYNOPSIS
+
+Synopsis
 --------
 
 .. cpp:function:: int  open(const char *deviceName, int flags)
 
 
-ARGUMENTS
+Arguments
 ---------
 
 .. flat-table::
@@ -58,7 +59,7 @@ ARGUMENTS
        -  (blocking mode is the default)
 
 
-DESCRIPTION
+Description
 -----------
 
 This system call opens a named ca device (e.g. /dev/ost/ca) for
@@ -75,7 +76,7 @@ user can open the CA Device in O_RDWR mode. All other attempts to open
 the device in this mode will fail, and an error code will be returned.
 
 
-RETURN VALUE
+Return Value
 ------------
 
 .. flat-table::

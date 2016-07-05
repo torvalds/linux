@@ -6,18 +6,19 @@
 ioctl FE_DISEQC_SEND_BURST
 **************************
 
-NAME
+Name
 ====
 
 FE_DISEQC_SEND_BURST - Sends a 22KHz tone burst for 2x1 mini DiSEqC satellite selection.
 
-SYNOPSIS
+
+Synopsis
 ========
 
 .. c:function:: int ioctl( int fd, int request, enum fe_sec_mini_cmd *tone )
 
 
-ARGUMENTS
+Arguments
 =========
 
 ``fd``
@@ -30,7 +31,7 @@ ARGUMENTS
     pointer to enum :ref:`fe_sec_mini_cmd <fe-sec-mini-cmd>`
 
 
-DESCRIPTION
+Description
 ===========
 
 This ioctl is used to set the generation of a 22kHz tone burst for mini
@@ -74,7 +75,8 @@ enum fe_sec_mini_cmd
 
        -  Sends a mini-DiSEqC 22kHz '1' Data Burst to select satellite-B
 
-RETURN VALUE
+
+Return Value
 ============
 
 On success 0 is returned, on error -1 and the ``errno`` variable is set

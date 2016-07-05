@@ -6,18 +6,19 @@
 dvb video write()
 =================
 
-NAME
+Name
 ----
 
 dvb video write()
 
-SYNOPSIS
+
+Synopsis
 --------
 
 .. c:function:: size_t write(int fd, const void *buf, size_t count)
 
 
-ARGUMENTS
+Arguments
 ---------
 
 .. flat-table::
@@ -44,7 +45,7 @@ ARGUMENTS
        -  Size of buf.
 
 
-DESCRIPTION
+Description
 -----------
 
 This system call can only be used if VIDEO_SOURCE_MEMORY is selected
@@ -54,7 +55,7 @@ is not specified the function will block until buffer space is
 available. The amount of data to be transferred is implied by count.
 
 
-RETURN VALUE
+Return Value
 ------------
 
 .. flat-table::

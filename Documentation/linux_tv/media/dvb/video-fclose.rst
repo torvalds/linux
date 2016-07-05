@@ -6,18 +6,19 @@
 dvb video close()
 =================
 
-NAME
+Name
 ----
 
 dvb video close()
 
-SYNOPSIS
+
+Synopsis
 --------
 
 .. c:function:: int close(int fd)
 
 
-ARGUMENTS
+Arguments
 ---------
 
 .. flat-table::
@@ -32,13 +33,13 @@ ARGUMENTS
        -  File descriptor returned by a previous call to open().
 
 
-DESCRIPTION
+Description
 -----------
 
 This system call closes a previously opened video device.
 
 
-RETURN VALUE
+Return Value
 ------------
 
 .. flat-table::

@@ -6,18 +6,19 @@
 VIDEO_SET_DISPLAY_FORMAT
 ========================
 
-NAME
+Name
 ----
 
 VIDEO_SET_DISPLAY_FORMAT
 
-SYNOPSIS
+
+Synopsis
 --------
 
 .. c:function:: int ioctl(fd, int request = VIDEO_SET_DISPLAY_FORMAT, video_display_format_t format)
 
 
-ARGUMENTS
+Arguments
 ---------
 
 .. flat-table::
@@ -44,14 +45,14 @@ ARGUMENTS
        -  Selects the video format to be used.
 
 
-DESCRIPTION
+Description
 -----------
 
 This ioctl call asks the Video Device to select the video format to be
 applied by the MPEG chip on the video.
 
 
-RETURN VALUE
+Return Value
 ------------
 
 On success 0 is returned, on error -1 and the ``errno`` variable is set

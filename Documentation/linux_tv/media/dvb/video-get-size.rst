@@ -6,18 +6,19 @@
 VIDEO_GET_SIZE
 ==============
 
-NAME
+Name
 ----
 
 VIDEO_GET_SIZE
 
-SYNOPSIS
+
+Synopsis
 --------
 
 .. c:function:: int ioctl(int fd, int request = VIDEO_GET_SIZE, video_size_t *size)
 
 
-ARGUMENTS
+Arguments
 ---------
 
 .. flat-table::
@@ -44,13 +45,13 @@ ARGUMENTS
        -  Returns the size and aspect ratio.
 
 
-DESCRIPTION
+Description
 -----------
 
 This ioctl returns the size and aspect ratio.
 
 
-RETURN VALUE
+Return Value
 ------------
 
 On success 0 is returned, on error -1 and the ``errno`` variable is set

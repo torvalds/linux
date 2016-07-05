@@ -6,18 +6,19 @@
 DMX_REMOVE_PID
 ==============
 
-NAME
+Name
 ----
 
 DMX_REMOVE_PID
 
-SYNOPSIS
+
+Synopsis
 --------
 
 .. c:function:: int ioctl(fd, int request = DMX_REMOVE_PID, __u16 *)
 
 
-ARGUMENTS
+Arguments
 ---------
 
 .. flat-table::
@@ -44,7 +45,7 @@ ARGUMENTS
        -  PID of the PES filter to be removed.
 
 
-DESCRIPTION
+Description
 -----------
 
 This ioctl call allows to remove a PID when multiple PIDs are set on a
@@ -53,7 +54,7 @@ equal to DMX_OUT_TSDEMUX_TAP, created via either
 DMX_SET_PES_FILTER or DMX_ADD_PID.
 
 
-RETURN VALUE
+Return Value
 ------------
 
 On success 0 is returned, on error -1 and the ``errno`` variable is set

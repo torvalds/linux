@@ -6,18 +6,19 @@
 VIDEO_FREEZE
 ============
 
-NAME
+Name
 ----
 
 VIDEO_FREEZE
 
-SYNOPSIS
+
+Synopsis
 --------
 
 .. c:function:: int ioctl(fd, int request = VIDEO_FREEZE)
 
 
-ARGUMENTS
+Arguments
 ---------
 
 .. flat-table::
@@ -38,7 +39,7 @@ ARGUMENTS
        -  Equals VIDEO_FREEZE for this command.
 
 
-DESCRIPTION
+Description
 -----------
 
 This ioctl is for DVB devices only. To control a V4L2 decoder use the
@@ -52,7 +53,7 @@ VIDEO_SELECT_SOURCE, the DVB subsystem will not decode any more data
 until the ioctl call VIDEO_CONTINUE or VIDEO_PLAY is performed.
 
 
-RETURN VALUE
+Return Value
 ------------
 
 On success 0 is returned, on error -1 and the ``errno`` variable is set

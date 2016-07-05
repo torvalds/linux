@@ -6,12 +6,13 @@
 V4L2 close()
 ************
 
-NAME
+Name
 ====
 
 v4l2-close - Close a V4L2 device
 
-SYNOPSIS
+
+Synopsis
 ========
 
 .. code-block:: c
@@ -22,14 +23,14 @@ SYNOPSIS
 .. cpp:function:: int close( int fd )
 
 
-ARGUMENTS
+Arguments
 =========
 
 ``fd``
     File descriptor returned by :ref:`open() <func-open>`.
 
 
-DESCRIPTION
+Description
 ===========
 
 Closes the device. Any I/O in progress is terminated and resources
@@ -38,7 +39,7 @@ parameters, current input or output, control values or other properties
 remain unchanged.
 
 
-RETURN VALUE
+Return Value
 ============
 
 The function returns 0 on success, -1 on failure and the ``errno`` is

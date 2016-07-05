@@ -6,18 +6,19 @@
 ioctl MEDIA_IOC_ENUM_LINKS
 **************************
 
-NAME
+Name
 ====
 
 MEDIA_IOC_ENUM_LINKS - Enumerate all pads and links for a given entity
 
-SYNOPSIS
+
+Synopsis
 ========
 
 .. cpp:function:: int ioctl( int fd, int request, struct media_links_enum *argp )
 
 
-ARGUMENTS
+Arguments
 =========
 
 ``fd``
@@ -29,7 +30,7 @@ ARGUMENTS
 ``argp``
 
 
-DESCRIPTION
+Description
 ===========
 
 To enumerate pads and/or links for a given entity, applications set the
@@ -159,7 +160,7 @@ returned during the enumeration process.
        -  Link flags, see :ref:`media-link-flag` for more details.
 
 
-RETURN VALUE
+Return Value
 ============
 
 On success 0 is returned, on error -1 and the ``errno`` variable is set

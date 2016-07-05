@@ -6,18 +6,19 @@
 DMX_SET_PES_FILTER
 ==================
 
-NAME
+Name
 ----
 
 DMX_SET_PES_FILTER
 
-SYNOPSIS
+
+Synopsis
 --------
 
 .. c:function:: int ioctl( int fd, int request = DMX_SET_PES_FILTER, struct dmx_pes_filter_params *params)
 
 
-ARGUMENTS
+Arguments
 ---------
 
 .. flat-table::
@@ -44,7 +45,7 @@ ARGUMENTS
        -  Pointer to structure containing filter parameters.
 
 
-DESCRIPTION
+Description
 -----------
 
 This ioctl call sets up a PES filter according to the parameters
@@ -53,7 +54,7 @@ packet identifier (PID), i.e. no PES header or payload filtering
 capability is supported.
 
 
-RETURN VALUE
+Return Value
 ------------
 
 On success 0 is returned, on error -1 and the ``errno`` variable is set

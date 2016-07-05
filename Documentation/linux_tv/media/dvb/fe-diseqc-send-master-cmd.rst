@@ -6,18 +6,19 @@
 ioctl FE_DISEQC_SEND_MASTER_CMD
 *******************************
 
-NAME
+Name
 ====
 
 FE_DISEQC_SEND_MASTER_CMD - Sends a DiSEqC command
 
-SYNOPSIS
+
+Synopsis
 ========
 
 .. cpp:function:: int ioctl( int fd, int request, struct dvb_diseqc_master_cmd *argp )
 
 
-ARGUMENTS
+Arguments
 =========
 
 ``fd``
@@ -31,13 +32,13 @@ ARGUMENTS
     :ref:`dvb_diseqc_master_cmd <dvb-diseqc-master-cmd>`
 
 
-DESCRIPTION
+Description
 ===========
 
 Sends a DiSEqC command to the antenna subsystem.
 
 
-RETURN VALUE
+Return Value
 ============
 
 On success 0 is returned, on error -1 and the ``errno`` variable is set

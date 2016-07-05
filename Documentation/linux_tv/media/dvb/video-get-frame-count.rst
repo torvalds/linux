@@ -6,18 +6,19 @@
 VIDEO_GET_FRAME_COUNT
 =====================
 
-NAME
+Name
 ----
 
 VIDEO_GET_FRAME_COUNT
 
-SYNOPSIS
+
+Synopsis
 --------
 
 .. c:function:: int ioctl(int fd, int request = VIDEO_GET_FRAME_COUNT, __u64 *pts)
 
 
-ARGUMENTS
+Arguments
 ---------
 
 .. flat-table::
@@ -45,7 +46,7 @@ ARGUMENTS
 	  started.
 
 
-DESCRIPTION
+Description
 -----------
 
 This ioctl is obsolete. Do not use in new drivers. For V4L2 decoders
@@ -56,7 +57,7 @@ This ioctl call asks the Video Device to return the number of displayed
 frames since the decoder was started.
 
 
-RETURN VALUE
+Return Value
 ------------
 
 On success 0 is returned, on error -1 and the ``errno`` variable is set

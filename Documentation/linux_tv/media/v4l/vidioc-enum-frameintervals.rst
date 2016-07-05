@@ -6,18 +6,19 @@
 ioctl VIDIOC_ENUM_FRAMEINTERVALS
 ********************************
 
-NAME
+Name
 ====
 
 VIDIOC_ENUM_FRAMEINTERVALS - Enumerate frame intervals
 
-SYNOPSIS
+
+Synopsis
 ========
 
 .. cpp:function:: int ioctl( int fd, int request, struct v4l2_frmivalenum *argp )
 
 
-ARGUMENTS
+Arguments
 =========
 
 ``fd``
@@ -32,7 +33,7 @@ ARGUMENTS
     interval.
 
 
-DESCRIPTION
+Description
 ===========
 
 This ioctl allows applications to enumerate all frame intervals that the
@@ -265,7 +266,7 @@ Enums
        -  Step-wise defined frame interval.
 
 
-RETURN VALUE
+Return Value
 ============
 
 On success 0 is returned, on error -1 and the ``errno`` variable is set

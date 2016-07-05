@@ -6,18 +6,19 @@
 FE_READ_UNCORRECTED_BLOCKS
 **************************
 
-NAME
+Name
 ====
 
 FE_READ_UNCORRECTED_BLOCKS
 
-SYNOPSIS
+
+Synopsis
 ========
 
 .. c:function:: int ioctl( int fd, int request =FE_READ_UNCORRECTED_BLOCKS, uint32_t *ublocks)
 
 
-ARGUMENTS
+Arguments
 =========
 
 .. flat-table::
@@ -46,7 +47,7 @@ ARGUMENTS
        -  The total number of uncorrected blocks seen by the driver so far.
 
 
-DESCRIPTION
+Description
 ===========
 
 This ioctl call returns the number of uncorrected blocks detected by the
@@ -56,7 +57,7 @@ calculated. For this command, read-only access to the device is
 sufficient.
 
 
-RETURN VALUE
+Return Value
 ============
 
 On success 0 is returned, on error -1 and the ``errno`` variable is set

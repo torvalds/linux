@@ -6,12 +6,13 @@
 V4L2 ioctl()
 ************
 
-NAME
+Name
 ====
 
 v4l2-ioctl - Program a V4L2 device
 
-SYNOPSIS
+
+Synopsis
 ========
 
 .. code-block:: c
@@ -22,7 +23,7 @@ SYNOPSIS
 .. cpp:function:: int ioctl( int fd, int request, void *argp )
 
 
-ARGUMENTS
+Arguments
 =========
 
 ``fd``
@@ -36,7 +37,7 @@ ARGUMENTS
     Pointer to a function parameter, usually a structure.
 
 
-DESCRIPTION
+Description
 ===========
 
 The :ref:`ioctl() <func-ioctl>` function is used to program V4L2 devices. The
@@ -50,7 +51,7 @@ All V4L2 ioctl requests, their respective function and parameters are
 specified in :ref:`user-func`.
 
 
-RETURN VALUE
+Return Value
 ============
 
 On success 0 is returned, on error -1 and the ``errno`` variable is set

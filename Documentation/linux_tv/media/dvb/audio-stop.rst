@@ -6,18 +6,19 @@
 AUDIO_STOP
 ==========
 
-NAME
+Name
 ----
 
 AUDIO_STOP
 
-SYNOPSIS
+
+Synopsis
 --------
 
 .. c:function:: int ioctl(int fd, int request = AUDIO_STOP)
 
 
-ARGUMENTS
+Arguments
 ---------
 
 .. flat-table::
@@ -38,14 +39,14 @@ ARGUMENTS
        -  Equals AUDIO_STOP for this command.
 
 
-DESCRIPTION
+Description
 -----------
 
 This ioctl call asks the Audio Device to stop playing the current
 stream.
 
 
-RETURN VALUE
+Return Value
 ------------
 
 On success 0 is returned, on error -1 and the ``errno`` variable is set

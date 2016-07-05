@@ -6,18 +6,19 @@
 AUDIO_CONTINUE
 ==============
 
-NAME
+Name
 ----
 
 AUDIO_CONTINUE
 
-SYNOPSIS
+
+Synopsis
 --------
 
 .. c:function:: int  ioctl(int fd, int request = AUDIO_CONTINUE)
 
 
-ARGUMENTS
+Arguments
 ---------
 
 .. flat-table::
@@ -38,14 +39,14 @@ ARGUMENTS
        -  Equals AUDIO_CONTINUE for this command.
 
 
-DESCRIPTION
+Description
 -----------
 
 This ioctl restarts the decoding and playing process previously paused
 with AUDIO_PAUSE command.
 
 
-RETURN VALUE
+Return Value
 ------------
 
 On success 0 is returned, on error -1 and the ``errno`` variable is set

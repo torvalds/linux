@@ -6,18 +6,19 @@
 AUDIO_PAUSE
 ===========
 
-NAME
+Name
 ----
 
 AUDIO_PAUSE
 
-SYNOPSIS
+
+Synopsis
 --------
 
 .. c:function:: int  ioctl(int fd, int request = AUDIO_PAUSE)
 
 
-ARGUMENTS
+Arguments
 ---------
 
 .. flat-table::
@@ -38,7 +39,7 @@ ARGUMENTS
        -  Equals AUDIO_PAUSE for this command.
 
 
-DESCRIPTION
+Description
 -----------
 
 This ioctl call suspends the audio stream being played. Decoding and
@@ -46,7 +47,7 @@ playing are paused. It is then possible to restart again decoding and
 playing process of the audio stream using AUDIO_CONTINUE command.
 
 
-RETURN VALUE
+Return Value
 ------------
 
 On success 0 is returned, on error -1 and the ``errno`` variable is set

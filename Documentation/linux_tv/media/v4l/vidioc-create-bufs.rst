@@ -6,18 +6,19 @@
 ioctl VIDIOC_CREATE_BUFS
 ************************
 
-NAME
+Name
 ====
 
 VIDIOC_CREATE_BUFS - Create buffers for Memory Mapped or User Pointer or DMA Buffer I/O
 
-SYNOPSIS
+
+Synopsis
 ========
 
 .. cpp:function:: int ioctl( int fd, int request, struct v4l2_create_buffers *argp )
 
 
-ARGUMENTS
+Arguments
 =========
 
 ``fd``
@@ -29,7 +30,7 @@ ARGUMENTS
 ``argp``
 
 
-DESCRIPTION
+Description
 ===========
 
 This ioctl is used to create buffers for :ref:`memory mapped <mmap>`
@@ -130,7 +131,7 @@ than the number requested.
 	  must set the array to zero.
 
 
-RETURN VALUE
+Return Value
 ============
 
 On success 0 is returned, on error -1 and the ``errno`` variable is set

@@ -6,18 +6,19 @@
 ioctl FE_DISEQC_RECV_SLAVE_REPLY
 ********************************
 
-NAME
+Name
 ====
 
 FE_DISEQC_RECV_SLAVE_REPLY - Receives reply from a DiSEqC 2.0 command
 
-SYNOPSIS
+
+Synopsis
 ========
 
 .. cpp:function:: int ioctl( int fd, int request, struct dvb_diseqc_slave_reply *argp )
 
 
-ARGUMENTS
+Arguments
 =========
 
 ``fd``
@@ -31,7 +32,7 @@ ARGUMENTS
     :ref:`dvb_diseqc_slave_reply <dvb-diseqc-slave-reply>`
 
 
-DESCRIPTION
+Description
 ===========
 
 Receives reply from a DiSEqC 2.0 command.
@@ -73,7 +74,8 @@ struct dvb_diseqc_slave_reply
        -  Return from ioctl after timeout ms with errorcode when no message
 	  was received
 
-RETURN VALUE
+
+Return Value
 ============
 
 On success 0 is returned, on error -1 and the ``errno`` variable is set

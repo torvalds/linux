@@ -6,18 +6,19 @@
 ioctl VIDIOC_QUERYCAP
 *********************
 
-NAME
+Name
 ====
 
 VIDIOC_QUERYCAP - Query device capabilities
 
-SYNOPSIS
+
+Synopsis
 ========
 
 .. cpp:function:: int ioctl( int fd, int request, struct v4l2_capability *argp )
 
 
-ARGUMENTS
+Arguments
 =========
 
 ``fd``
@@ -29,7 +30,7 @@ ARGUMENTS
 ``argp``
 
 
-DESCRIPTION
+Description
 ===========
 
 All V4L2 devices support the ``VIDIOC_QUERYCAP`` ioctl. It is used to
@@ -420,7 +421,7 @@ specification the ioctl returns an ``EINVAL`` error code.
 	  ``device_caps`` field.
 
 
-RETURN VALUE
+Return Value
 ============
 
 On success 0 is returned, on error -1 and the ``errno`` variable is set
