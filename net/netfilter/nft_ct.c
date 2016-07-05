@@ -355,6 +355,9 @@ static int nft_ct_get_init(const struct nft_ctx *ctx,
 	if (err < 0)
 		return err;
 
+	if (priv->key == NFT_CT_BYTES || priv->key == NFT_CT_PKTS)
+		nf_ct_set_acct(ctx->net, true);
+
 	return 0;
 }
 
