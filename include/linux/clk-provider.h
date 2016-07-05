@@ -780,6 +780,18 @@ extern struct of_device_id __clk_of_table;
 
 #define CLK_OF_DECLARE(name, compat, fn) OF_DECLARE_1(clk, name, compat, fn)
 
+/*
+ * Use this macro when you have a driver that requires two initialization
+ * routines, one at of_clk_init(), and one at platform device probe
+ */
+#define CLK_OF_DECLARE_DRIVER(name, compat, fn) \
+	static void name##_of_clk_init_driver(struct device_node *np)	\
+	{								\
+		of_node_clear_flag(np, OF_POPULATED);			\
+		fn(np);							\
+	}								\
+	OF_DECLARE_1(clk, name, compat, name##_of_clk_init_driver)
+
 #ifdef CONFIG_OF
 int of_clk_add_provider(struct device_node *np,
 			struct clk *(*clk_src_get)(struct of_phandle_args *args,
