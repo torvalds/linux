@@ -1209,8 +1209,10 @@ struct net_device_ops {
 						    netdev_features_t features);
 	int			(*ndo_set_features)(struct net_device *dev,
 						    netdev_features_t features);
-	int			(*ndo_neigh_construct)(struct neighbour *n);
-	void			(*ndo_neigh_destroy)(struct neighbour *n);
+	int			(*ndo_neigh_construct)(struct net_device *dev,
+						       struct neighbour *n);
+	void			(*ndo_neigh_destroy)(struct net_device *dev,
+						     struct neighbour *n);
 
 	int			(*ndo_fdb_add)(struct ndmsg *ndm,
 					       struct nlattr *tb[],
