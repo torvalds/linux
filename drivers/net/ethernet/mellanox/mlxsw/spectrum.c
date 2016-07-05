@@ -2356,6 +2356,10 @@ static struct mlxsw_config_profile mlxsw_sp_config_profile = {
 	.max_ib_mc			= 0,
 	.used_max_pkey			= 1,
 	.max_pkey			= 0,
+	.used_kvd_sizes			= 1,
+	.kvd_linear_size		= MLXSW_SP_KVD_LINEAR_SIZE,
+	.kvd_hash_single_size		= MLXSW_SP_KVD_HASH_SINGLE_SIZE,
+	.kvd_hash_double_size		= MLXSW_SP_KVD_HASH_DOUBLE_SIZE,
 	.swid_config			= {
 		{
 			.used_type	= 1,
