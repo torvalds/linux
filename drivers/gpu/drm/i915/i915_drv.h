@@ -3750,6 +3750,16 @@ static inline void intel_register_dsm_handler(void) { return; }
 static inline void intel_unregister_dsm_handler(void) { return; }
 #endif /* CONFIG_ACPI */
 
+/* intel_device_info.c */
+static inline struct intel_device_info *
+mkwrite_device_info(struct drm_i915_private *dev_priv)
+{
+	return (struct intel_device_info *)&dev_priv->info;
+}
+
+void intel_device_info_runtime_init(struct drm_i915_private *dev_priv);
+void intel_device_info_dump(struct drm_i915_private *dev_priv);
+
 /* modesetting */
 extern void intel_modeset_init_hw(struct drm_device *dev);
 extern void intel_modeset_init(struct drm_device *dev);

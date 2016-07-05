@@ -14,6 +14,7 @@ i915-y := i915_drv.o \
           i915_suspend.o \
 	  i915_sysfs.o \
 	  intel_csr.o \
+	  intel_device_info.o \
 	  intel_pm.o \
 	  intel_runtime_pm.o
 
