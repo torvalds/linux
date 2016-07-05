@@ -34,6 +34,7 @@
 #include <linux/signal.h>
 #include <linux/memblock.h>
 #include <linux/context_tracking.h>
+#include <linux/libfdt.h>
 
 #include <asm/processor.h>
 #include <asm/pgtable.h>
@@ -749,7 +750,7 @@ static void __init htab_initialize(void)
 	unsigned long table;
 	unsigned long pteg_count;
 	unsigned long prot;
-	unsigned long base = 0, size = 0, limit;
+	unsigned long base = 0, size = 0;
 	struct memblock_region *reg;
 
 	DBG(" -> htab_initialize()\n");
@@ -775,7 +776,8 @@ static void __init htab_initialize(void)
 
 	htab_hash_mask = pteg_count - 1;
 
-	if (firmware_has_feature(FW_FEATURE_LPAR)) {
+	if (firmware_has_feature(FW_FEATURE_LPAR) ||
+	    firmware_has_feature(FW_FEATURE_PS3_LV1)) {
 		/* Using a hypervisor which owns the htab */
 		htab_address = NULL;
 		_SDR1 = 0; 
@@ -790,16 +792,22 @@ static void __init htab_initialize(void)
 			ppc_md.hpte_clear_all();
 #endif
 	} else {
-		/* Find storage for the HPT.  Must be contiguous in
-		 * the absolute address space. On cell we want it to be
-		 * in the first 2 Gig so we can use it for IOMMU hacks.
-		 */
-		if (machine_is(cell))
-			limit = 0x80000000;
-		else
-			limit = MEMBLOCK_ALLOC_ANYWHERE;
+		unsigned long limit = MEMBLOCK_ALLOC_ANYWHERE;
 
-		table = memblock_alloc_base(htab_size_bytes, htab_size_bytes, limit);
+#ifdef CONFIG_PPC_CELL
+		/*
+		 * Cell may require the hash table down low when using the
+		 * Axon IOMMU in order to fit the dynamic region over it, see
+		 * comments in cell/iommu.c
+		 */
+		if (fdt_subnode_offset(initial_boot_params, 0, "axon") > 0) {
+			limit = 0x80000000;
+			pr_info("Hash table forced below 2G for Axon IOMMU\n");
+		}
+#endif /* CONFIG_PPC_CELL */
+
+		table = memblock_alloc_base(htab_size_bytes, htab_size_bytes,
+					    limit);
 
 		DBG("Hash table allocated at %lx, size: %lx\n", table,
 		    htab_size_bytes);
