@@ -69,6 +69,7 @@
 #include <asm/kvm_ppc.h>
 #include <asm/hugetlb.h>
 #include <asm/livepatch.h>
+#include <asm/opal.h>
 
 #ifdef DEBUG
 #define DBG(fmt...) udbg_printf(fmt)
@@ -205,21 +206,48 @@ static void fixup_boot_paca(void)
 	get_paca()->data_offset = 0;
 }
 
+static void configure_exceptions(void)
+{
+	/*
+	 * Setup the trampolines from the lowmem exception vectors
+	 * to the kdump kernel when not using a relocatable kernel.
+	 */
+	setup_kdump_trampoline();
+
+	/* Under a PAPR hypervisor, we need hypercalls */
+	if (firmware_has_feature(FW_FEATURE_SET_MODE)) {
+		/* Enable AIL if possible */
+		pseries_enable_reloc_on_exc();
+
+		/*
+		 * Tell the hypervisor that we want our exceptions to
+		 * be taken in little endian mode.
+		 *
+		 * We don't call this for big endian as our calling convention
+		 * makes us always enter in BE, and the call may fail under
+		 * some circumstances with kdump.
+		 */
+#ifdef __LITTLE_ENDIAN__
+		pseries_little_endian_exceptions();
+#endif
+	} else {
+		/* Set endian mode using OPAL */
+		if (firmware_has_feature(FW_FEATURE_OPAL))
+			opal_configure_cores();
+
+		/* Enable AIL if supported, and we are in hypervisor mode */
+		if (cpu_has_feature(CPU_FTR_HVMODE) &&
+		    cpu_has_feature(CPU_FTR_ARCH_207S)) {
+			unsigned long lpcr = mfspr(SPRN_LPCR);
+			mtspr(SPRN_LPCR, lpcr | LPCR_AIL_3);
+		}
+	}
+}
+
 static void cpu_ready_for_interrupts(void)
 {
 	/* Set IR and DR in PACA MSR */
 	get_paca()->kernel_msr = MSR_KERNEL;
-
-	/*
-	 * Enable AIL if supported, and we are in hypervisor mode. If we are
-	 * not in hypervisor mode, we enable relocation-on interrupts later
-	 * in pSeries_setup_arch() using the H_SET_MODE hcall.
-	 */
-	if (cpu_has_feature(CPU_FTR_HVMODE) &&
-	    cpu_has_feature(CPU_FTR_ARCH_207S)) {
-		unsigned long lpcr = mfspr(SPRN_LPCR);
-		mtspr(SPRN_LPCR, lpcr | LPCR_AIL_3);
-	}
 }
 
 /*
@@ -277,10 +305,10 @@ void __init early_setup(unsigned long dt_ptr)
 	probe_machine();
 
 	/*
-	 * Setup the trampolines from the lowmem exception vectors
-	 * to the kdump kernel when not using a relocatable kernel.
+	 * Configure exception handlers. This include setting up trampolines
+	 * if needed, setting exception endian mode, etc...
 	 */
-	setup_kdump_trampoline();
+	configure_exceptions();
 
 	/* Initialize the hash table or TLB handling */
 	early_init_mmu();
