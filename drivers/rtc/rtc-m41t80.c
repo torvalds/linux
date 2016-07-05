@@ -244,7 +244,7 @@ static int m41t80_alarm_irq_enable(struct device *dev, unsigned int enabled)
 
 	retval = i2c_smbus_write_byte_data(client, M41T80_REG_ALARM_MON, flags);
 	if (retval < 0) {
-		dev_info(dev, "Unable to enable alarm IRQ %d\n", retval);
+		dev_err(dev, "Unable to enable alarm IRQ %d\n", retval);
 		return retval;
 	}
 	return 0;
