@@ -624,9 +624,9 @@ static int gbaudio_widget_event(struct snd_soc_dapm_widget *w,
 
 static int gbaudio_tplg_create_widget(struct gbaudio_module_info *module,
 				      struct snd_soc_dapm_widget *dw,
-				      struct gb_audio_widget *w)
+				      struct gb_audio_widget *w, int *w_size)
 {
-	int i, ret;
+	int i, ret, csize;
 	struct snd_kcontrol_new *widget_kctls;
 	struct gb_audio_control *curr;
 	struct gbaudio_control *control, *_control;
@@ -648,9 +648,11 @@ static int gbaudio_tplg_create_widget(struct gbaudio_module_info *module,
 			return -ENOMEM;
 	}
 
+	*w_size = sizeof(struct gb_audio_widget);
+
 	/* create relevant kcontrols */
+	curr = w->ctl;
 	for (i = 0; i < w->ncontrols; i++) {
-		curr = &w->ctl[i];
 		ret = gbaudio_tplg_create_wcontrol(module, &widget_kctls[i],
 						   curr);
 		if (ret) {
@@ -673,6 +675,9 @@ static int gbaudio_tplg_create_widget(struct gbaudio_module_info *module,
 		if (curr->info.type == GB_AUDIO_CTL_ELEM_TYPE_ENUMERATED)
 			control->texts = (const char * const *)
 				curr->info.value.enumerated.names;
+		csize = sizeof(struct gb_audio_control);
+		*w_size += csize;
+		curr = (void *)curr + csize;
 		list_add(&control->list, &module->widget_ctl_list);
 		dev_dbg(module->dev, "%s: control of type %d created\n",
 			widget_kctls[i].name, widget_kctls[i].iface);
@@ -771,7 +776,7 @@ error:
 static int gbaudio_tplg_process_kcontrols(struct gbaudio_module_info *module,
 				   struct gb_audio_control *controls)
 {
-	int i, ret;
+	int i, csize, ret;
 	struct snd_kcontrol_new *dapm_kctls;
 	struct gb_audio_control *curr;
 	struct gbaudio_control *control, *_control;
@@ -808,10 +813,12 @@ static int gbaudio_tplg_process_kcontrols(struct gbaudio_module_info *module,
 		if (curr->info.type == GB_AUDIO_CTL_ELEM_TYPE_ENUMERATED)
 			control->texts = (const char * const *)
 				curr->info.value.enumerated.names;
+		csize = sizeof(struct gb_audio_control);
+
 		list_add(&control->list, &module->ctl_list);
 		dev_dbg(module->dev, "%d:%s created of type %d\n", curr->id,
 			curr->name, curr->info.type);
-		curr++;
+		curr = (void *)curr + csize;
 	}
 	module->controls = dapm_kctls;
 
@@ -829,7 +836,7 @@ error:
 static int gbaudio_tplg_process_widgets(struct gbaudio_module_info *module,
 				   struct gb_audio_widget *widgets)
 {
-	int i, ret, ncontrols;
+	int i, ret, w_size;
 	struct snd_soc_dapm_widget *dapm_widgets;
 	struct gb_audio_widget *curr;
 	struct gbaudio_widget *widget, *_widget;
@@ -843,7 +850,7 @@ static int gbaudio_tplg_process_widgets(struct gbaudio_module_info *module,
 	curr = widgets;
 	for (i = 0; i < module->num_dapm_widgets; i++) {
 		ret = gbaudio_tplg_create_widget(module, &dapm_widgets[i],
-						 curr);
+						 curr, &w_size);
 		if (ret) {
 			dev_err(module->dev, "%s:%d type not supported\n",
 				curr->name, curr->type);
@@ -859,9 +866,7 @@ static int gbaudio_tplg_process_widgets(struct gbaudio_module_info *module,
 		widget->id = curr->id;
 		widget->name = curr->name;
 		list_add(&widget->list, &module->widget_list);
-		ncontrols = curr->ncontrols;
-		curr++;
-		curr = (void *)curr + ncontrols*sizeof(struct gb_audio_control);
+		curr = (void *)curr + w_size;
 	}
 	module->dapm_widgets = dapm_widgets;
 
