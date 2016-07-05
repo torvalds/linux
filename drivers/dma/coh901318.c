@@ -1365,7 +1365,6 @@ static int coh901318_debugfs_read(struct file *file, char __user *buf,
 }
 
 static const struct file_operations coh901318_debugfs_status_operations = {
-	.owner		= THIS_MODULE,
 	.open		= simple_open,
 	.read		= coh901318_debugfs_read,
 	.llseek		= default_llseek,
