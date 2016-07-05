@@ -341,10 +341,8 @@ static ssize_t store_prox_infrared_suppression(struct device *dev,
 
 	if (kstrtoint(buf, 10, &val))
 		return -EINVAL;
-	if (!(val == 0 || val == 1)) {
-		dev_err(dev, "The mode is not supported\n");
+	if (!(val == 0 || val == 1))
 		return -EINVAL;
-	}
 
 	/*
 	 * get the  "proximity scheme" i.e. if the chip does on chip
@@ -727,10 +725,8 @@ static int isl29018_probe(struct i2c_client *client,
 	int dev_id = 0;
 
 	indio_dev = devm_iio_device_alloc(&client->dev, sizeof(*chip));
-	if (!indio_dev) {
-		dev_err(&client->dev, "iio allocation fails\n");
+	if (!indio_dev)
 		return -ENOMEM;
-	}
 	chip = iio_priv(indio_dev);
 
 	i2c_set_clientdata(client, indio_dev);
@@ -770,13 +766,7 @@ static int isl29018_probe(struct i2c_client *client,
 	indio_dev->name = name;
 	indio_dev->dev.parent = &client->dev;
 	indio_dev->modes = INDIO_DIRECT_MODE;
-	err = devm_iio_device_register(&client->dev, indio_dev);
-	if (err) {
-		dev_err(&client->dev, "iio registration fails\n");
-		return err;
-	}
-
-	return 0;
+	return devm_iio_device_register(&client->dev, indio_dev);
 }
 
 #ifdef CONFIG_PM_SLEEP
