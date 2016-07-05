@@ -57,6 +57,7 @@
 #include <asm/fadump.h>
 #include <asm/debug.h>
 #include <asm/epapr_hcalls.h>
+#include <asm/firmware.h>
 
 #include <mm/mmu_decl.h>
 
@@ -754,6 +755,9 @@ void __init early_init_devtree(void *params)
 	of_scan_flat_dt(early_init_dt_scan_recoverable_ranges, NULL);
 #endif
 	epapr_paravirt_early_init();
+
+	/* Now try to figure out if we are running on LPAR and so on */
+	pseries_probe_fw_features();
 
 	DBG(" <- early_init_devtree()\n");
 }
