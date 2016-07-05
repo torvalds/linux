@@ -1010,7 +1010,7 @@ static int fadump_invalidate_dump(struct fadump_mem_struct *fdm)
 
 	if (rc) {
 		pr_err("Failed to invalidate firmware-assisted dump registration. Unexpected error (%d).\n", rc);
-		return rc
+		return rc;
 	}
 	fw_dump.dump_active = 0;
 	fdm_active = NULL;
