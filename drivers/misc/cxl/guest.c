@@ -196,15 +196,18 @@ static irqreturn_t guest_slice_irq_err(int irq, void *data)
 {
 	struct cxl_afu *afu = data;
 	int rc;
-	u64 serr;
+	u64 serr, afu_error, dsisr;
 
-	WARN(irq, "CXL SLICE ERROR interrupt %i\n", irq);
 	rc = cxl_h_get_fn_error_interrupt(afu->guest->handle, &serr);
 	if (rc) {
 		dev_crit(&afu->dev, "Couldn't read PSL_SERR_An: %d\n", rc);
 		return IRQ_HANDLED;
 	}
-	dev_crit(&afu->dev, "PSL_SERR_An: 0x%.16llx\n", serr);
+	afu_error = cxl_p2n_read(afu, CXL_AFU_ERR_An);
+	dsisr = cxl_p2n_read(afu, CXL_PSL_DSISR_An);
+	cxl_afu_decode_psl_serr(afu, serr);
+	dev_crit(&afu->dev, "AFU_ERR_An: 0x%.16llx\n", afu_error);
+	dev_crit(&afu->dev, "PSL_DSISR_An: 0x%.16llx\n", dsisr);
 
 	rc = cxl_h_ack_fn_error_interrupt(afu->guest->handle, serr);
 	if (rc)

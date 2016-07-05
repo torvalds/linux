@@ -189,6 +189,18 @@ static const cxl_p2n_reg_t CXL_PSL_WED_An     = {0x0A0};
 #define CXL_PSL_ID_An_F	(1ull << (63-31))
 #define CXL_PSL_ID_An_L	(1ull << (63-30))
 
+/****** CXL_PSL_SERR_An ****************************************************/
+#define CXL_PSL_SERR_An_afuto	(1ull << (63-0))
+#define CXL_PSL_SERR_An_afudis	(1ull << (63-1))
+#define CXL_PSL_SERR_An_afuov	(1ull << (63-2))
+#define CXL_PSL_SERR_An_badsrc	(1ull << (63-3))
+#define CXL_PSL_SERR_An_badctx	(1ull << (63-4))
+#define CXL_PSL_SERR_An_llcmdis	(1ull << (63-5))
+#define CXL_PSL_SERR_An_llcmdto	(1ull << (63-6))
+#define CXL_PSL_SERR_An_afupar	(1ull << (63-7))
+#define CXL_PSL_SERR_An_afudup	(1ull << (63-8))
+#define CXL_PSL_SERR_An_AE	(1ull << (63-30))
+
 /****** CXL_PSL_SCNTL_An ****************************************************/
 #define CXL_PSL_SCNTL_An_CR          (0x1ull << (63-15))
 /* Programming Modes: */
@@ -916,4 +928,7 @@ extern const struct cxl_backend_ops *cxl_ops;
 
 /* check if the given pci_dev is on the the cxl vphb bus */
 bool cxl_pci_is_vphb_device(struct pci_dev *dev);
+
+/* decode AFU error bits in the PSL register PSL_SERR_An */
+void cxl_afu_decode_psl_serr(struct cxl_afu *afu, u64 serr);
 #endif

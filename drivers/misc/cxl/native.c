@@ -862,7 +862,7 @@ void cxl_native_psl_irq_dump_regs(struct cxl_context *ctx)
 	dev_crit(&ctx->afu->dev, "PSL_FIR2: 0x%016llx\n", fir2);
 	if (ctx->afu->adapter->native->sl_ops->register_serr_irq) {
 		serr = cxl_p1n_read(ctx->afu, CXL_PSL_SERR_An);
-		dev_crit(&ctx->afu->dev, "PSL_SERR_An: 0x%016llx\n", serr);
+		cxl_afu_decode_psl_serr(ctx->afu, serr);
 	}
 	dev_crit(&ctx->afu->dev, "PSL_FIR_SLICE_An: 0x%016llx\n", fir_slice);
 	dev_crit(&ctx->afu->dev, "CXL_PSL_AFU_DEBUG_An: 0x%016llx\n", afu_debug);
@@ -956,21 +956,23 @@ void native_irq_wait(struct cxl_context *ctx)
 static irqreturn_t native_slice_irq_err(int irq, void *data)
 {
 	struct cxl_afu *afu = data;
-	u64 fir_slice, errstat, serr, afu_debug;
+	u64 fir_slice, errstat, serr, afu_debug, afu_error, dsisr;
 
 	/*
 	 * slice err interrupt is only used with full PSL (no XSL)
 	 */
-	WARN(irq, "CXL SLICE ERROR interrupt %i\n", irq);
-
 	serr = cxl_p1n_read(afu, CXL_PSL_SERR_An);
 	fir_slice = cxl_p1n_read(afu, CXL_PSL_FIR_SLICE_An);
 	errstat = cxl_p2n_read(afu, CXL_PSL_ErrStat_An);
 	afu_debug = cxl_p1n_read(afu, CXL_AFU_DEBUG_An);
-	dev_crit(&afu->dev, "PSL_SERR_An: 0x%016llx\n", serr);
+	afu_error = cxl_p2n_read(afu, CXL_AFU_ERR_An);
+	dsisr = cxl_p2n_read(afu, CXL_PSL_DSISR_An);
+	cxl_afu_decode_psl_serr(afu, serr);
 	dev_crit(&afu->dev, "PSL_FIR_SLICE_An: 0x%016llx\n", fir_slice);
 	dev_crit(&afu->dev, "CXL_PSL_ErrStat_An: 0x%016llx\n", errstat);
 	dev_crit(&afu->dev, "CXL_PSL_AFU_DEBUG_An: 0x%016llx\n", afu_debug);
+	dev_crit(&afu->dev, "AFU_ERR_An: 0x%.16llx\n", afu_error);
+	dev_crit(&afu->dev, "PSL_DSISR_An: 0x%.16llx\n", dsisr);
 
 	cxl_p1n_write(afu, CXL_PSL_SERR_An, serr);
 
