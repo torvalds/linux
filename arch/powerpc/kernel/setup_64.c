@@ -476,6 +476,37 @@ static void __init initialize_cache_info(void)
 	DBG(" <- initialize_cache_info()\n");
 }
 
+static __init void print_system_info(void)
+{
+	pr_info("-----------------------------------------------------\n");
+	pr_info("ppc64_pft_size    = 0x%llx\n", ppc64_pft_size);
+	pr_info("phys_mem_size     = 0x%llx\n", memblock_phys_mem_size());
+
+	if (ppc64_caches.dline_size != 0x80)
+		pr_info("dcache_line_size  = 0x%x\n", ppc64_caches.dline_size);
+	if (ppc64_caches.iline_size != 0x80)
+		pr_info("icache_line_size  = 0x%x\n", ppc64_caches.iline_size);
+
+	pr_info("cpu_features      = 0x%016lx\n", cur_cpu_spec->cpu_features);
+	pr_info("  possible        = 0x%016lx\n", CPU_FTRS_POSSIBLE);
+	pr_info("  always          = 0x%016lx\n", CPU_FTRS_ALWAYS);
+	pr_info("cpu_user_features = 0x%08x 0x%08x\n", cur_cpu_spec->cpu_user_features,
+		cur_cpu_spec->cpu_user_features2);
+	pr_info("mmu_features      = 0x%08x\n", cur_cpu_spec->mmu_features);
+	pr_info("firmware_features = 0x%016lx\n", powerpc_firmware_features);
+
+#ifdef CONFIG_PPC_STD_MMU_64
+	if (htab_address)
+		pr_info("htab_address      = 0x%p\n", htab_address);
+
+	pr_info("htab_hash_mask    = 0x%lx\n", htab_hash_mask);
+#endif
+
+	if (PHYSICAL_START > 0)
+		pr_info("physical_start    = 0x%llx\n",
+		       (unsigned long long)PHYSICAL_START);
+	pr_info("-----------------------------------------------------\n");
+}
 
 /*
  * Do some initial setup of the system.  The parameters are those which 
@@ -543,37 +574,8 @@ void __init setup_system(void)
 	smp_release_cpus();
 #endif
 
-	pr_info("Starting Linux %s %s\n", init_utsname()->machine,
-		 init_utsname()->version);
-
-	pr_info("-----------------------------------------------------\n");
-	pr_info("ppc64_pft_size    = 0x%llx\n", ppc64_pft_size);
-	pr_info("phys_mem_size     = 0x%llx\n", memblock_phys_mem_size());
-
-	if (ppc64_caches.dline_size != 0x80)
-		pr_info("dcache_line_size  = 0x%x\n", ppc64_caches.dline_size);
-	if (ppc64_caches.iline_size != 0x80)
-		pr_info("icache_line_size  = 0x%x\n", ppc64_caches.iline_size);
-
-	pr_info("cpu_features      = 0x%016lx\n", cur_cpu_spec->cpu_features);
-	pr_info("  possible        = 0x%016lx\n", CPU_FTRS_POSSIBLE);
-	pr_info("  always          = 0x%016lx\n", CPU_FTRS_ALWAYS);
-	pr_info("cpu_user_features = 0x%08x 0x%08x\n", cur_cpu_spec->cpu_user_features,
-		cur_cpu_spec->cpu_user_features2);
-	pr_info("mmu_features      = 0x%08x\n", cur_cpu_spec->mmu_features);
-	pr_info("firmware_features = 0x%016lx\n", powerpc_firmware_features);
-
-#ifdef CONFIG_PPC_STD_MMU_64
-	if (htab_address)
-		pr_info("htab_address      = 0x%p\n", htab_address);
-
-	pr_info("htab_hash_mask    = 0x%lx\n", htab_hash_mask);
-#endif
-
-	if (PHYSICAL_START > 0)
-		pr_info("physical_start    = 0x%llx\n",
-		       (unsigned long long)PHYSICAL_START);
-	pr_info("-----------------------------------------------------\n");
+	/* Print various info about the machine that has been gathered so far. */
+	print_system_info();
 
 	DBG(" <- setup_system()\n");
 }
