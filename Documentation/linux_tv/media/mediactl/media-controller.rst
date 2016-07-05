@@ -15,6 +15,7 @@ Media Controller
 
 .. toctree::
     :maxdepth: 1
+    :numbered:
 
     media-controller-intro
     media-controller-model
@@ -45,12 +46,17 @@ Function Reference
 Revision and Copyright
 **********************
 
+Authors:
 
-:author:    Pinchart Laurent
-:address:   laurent.pinchart@ideasonboard.com
-:contrib:   Initial version.
+- Pinchart, Laurent <laurent.pinchart@ideasonboard.com>
+
+ - Initial version.
 
 **Copyright** 2010 : Laurent Pinchart
+
+****************
+Revision History
+****************
 
 :revision: 1.0.0 / 2010-11-10 (*lp*)
 
