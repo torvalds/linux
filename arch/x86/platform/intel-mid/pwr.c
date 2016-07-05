@@ -75,6 +75,7 @@
 #define LSS_PWS_BITS		2	/* power state width */
 
 /* Supported device IDs */
+#define PCI_DEVICE_ID_PENWELL	0x0828
 #define PCI_DEVICE_ID_TANGIER	0x11a1
 
 struct mid_pwr_dev {
@@ -354,7 +355,7 @@ static int mid_pwr_probe(struct pci_dev *pdev, const struct pci_device_id *id)
 	return 0;
 }
 
-static int tng_set_initial_state(struct mid_pwr *pwr)
+static int mid_set_initial_state(struct mid_pwr *pwr)
 {
 	unsigned int i, j;
 	int ret;
@@ -397,12 +398,13 @@ static int tng_set_initial_state(struct mid_pwr *pwr)
 	return 0;
 }
 
-static const struct mid_pwr_device_info tng_info = {
-	.set_initial_state = tng_set_initial_state,
+static const struct mid_pwr_device_info mid_info = {
+	.set_initial_state = mid_set_initial_state,
 };
 
 static const struct pci_device_id mid_pwr_pci_ids[] = {
-	{ PCI_VDEVICE(INTEL, PCI_DEVICE_ID_TANGIER), (kernel_ulong_t)&tng_info },
+	{ PCI_VDEVICE(INTEL, PCI_DEVICE_ID_PENWELL), (kernel_ulong_t)&mid_info },
+	{ PCI_VDEVICE(INTEL, PCI_DEVICE_ID_TANGIER), (kernel_ulong_t)&mid_info },
 	{}
 };
 MODULE_DEVICE_TABLE(pci, mid_pwr_pci_ids);
