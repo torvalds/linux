@@ -1049,13 +1049,14 @@ int gpiochip_add_data(struct gpio_chip *chip, void *data)
 	if (chip->parent) {
 		gdev->dev.parent = chip->parent;
 		gdev->dev.of_node = chip->parent->of_node;
-	} else {
+	}
+
 #ifdef CONFIG_OF_GPIO
 	/* If the gpiochip has an assigned OF node this takes precedence */
-		if (chip->of_node)
-			gdev->dev.of_node = chip->of_node;
+	if (chip->of_node)
+		gdev->dev.of_node = chip->of_node;
 #endif
-	}
+
 	gdev->id = ida_simple_get(&gpio_ida, 0, 0, GFP_KERNEL);
 	if (gdev->id < 0) {
 		status = gdev->id;
