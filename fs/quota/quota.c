@@ -584,7 +584,7 @@ static int quota_setxquota(struct super_block *sb, int type, qid_t id,
 	if (!qid_has_mapping(sb->s_user_ns, qid))
 		return -EINVAL;
 	/* Are we actually setting timer / warning limits for all users? */
-	if (from_kqid(&init_user_ns, qid) == 0 &&
+	if (from_kqid(sb->s_user_ns, qid) == 0 &&
 	    fdq.d_fieldmask & (FS_DQ_WARNS_MASK | FS_DQ_TIMER_MASK)) {
 		struct qc_info qinfo;
 		int ret;
