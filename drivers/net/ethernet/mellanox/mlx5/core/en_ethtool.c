@@ -139,6 +139,18 @@ static unsigned long mlx5e_query_pfc_combined(struct mlx5e_priv *priv)
 	return err ? 0 : pfc_en_tx | pfc_en_rx;
 }
 
+static bool mlx5e_query_global_pause_combined(struct mlx5e_priv *priv)
+{
+	struct mlx5_core_dev *mdev = priv->mdev;
+	u32 rx_pause;
+	u32 tx_pause;
+	int err;
+
+	err = mlx5_query_port_pause(mdev, &rx_pause, &tx_pause);
+
+	return err ? false : rx_pause | tx_pause;
+}
+
 #define MLX5E_NUM_Q_CNTRS(priv) (NUM_Q_COUNTERS * (!!priv->q_counter))
 #define MLX5E_NUM_RQ_STATS(priv) \
 	(NUM_RQ_STATS * priv->params.num_channels * \
@@ -147,8 +159,8 @@ static unsigned long mlx5e_query_pfc_combined(struct mlx5e_priv *priv)
 	(NUM_SQ_STATS * priv->params.num_channels * priv->params.num_tc * \
 	 test_bit(MLX5E_STATE_OPENED, &priv->state))
 #define MLX5E_NUM_PFC_COUNTERS(priv) \
-	(hweight8(mlx5e_query_pfc_combined(priv)) * \
-	 NUM_PPORT_PER_PRIO_PFC_COUNTERS)
+	((mlx5e_query_global_pause_combined(priv) + hweight8(mlx5e_query_pfc_combined(priv))) * \
+	  NUM_PPORT_PER_PRIO_PFC_COUNTERS)
 
 static int mlx5e_get_sset_count(struct net_device *dev, int sset)
 {
@@ -210,8 +222,18 @@ static void mlx5e_fill_stats_strings(struct mlx5e_priv *priv, uint8_t *data)
 	pfc_combined = mlx5e_query_pfc_combined(priv);
 	for_each_set_bit(prio, &pfc_combined, NUM_PPORT_PRIO) {
 		for (i = 0; i < NUM_PPORT_PER_PRIO_PFC_COUNTERS; i++) {
+			char pfc_string[ETH_GSTRING_LEN];
+
+			snprintf(pfc_string, sizeof(pfc_string), "prio%d", prio);
 			sprintf(data + (idx++) * ETH_GSTRING_LEN,
-				pport_per_prio_pfc_stats_desc[i].format, prio);
+				pport_per_prio_pfc_stats_desc[i].format, pfc_string);
+		}
+	}
+
+	if (mlx5e_query_global_pause_combined(priv)) {
+		for (i = 0; i < NUM_PPORT_PER_PRIO_PFC_COUNTERS; i++) {
+			sprintf(data + (idx++) * ETH_GSTRING_LEN,
+				pport_per_prio_pfc_stats_desc[i].format, "global");
 		}
 	}
 
@@ -303,6 +325,13 @@ static void mlx5e_get_ethtool_stats(struct net_device *dev,
 		for (i = 0; i < NUM_PPORT_PER_PRIO_PFC_COUNTERS; i++) {
 			data[idx++] = MLX5E_READ_CTR64_BE(&priv->stats.pport.per_prio_counters[prio],
 							  pport_per_prio_pfc_stats_desc, i);
+		}
+	}
+
+	if (mlx5e_query_global_pause_combined(priv)) {
+		for (i = 0; i < NUM_PPORT_PER_PRIO_PFC_COUNTERS; i++) {
+			data[idx++] = MLX5E_READ_CTR64_BE(&priv->stats.pport.per_prio_counters[0],
+							  pport_per_prio_pfc_stats_desc, 0);
 		}
 	}
 
@@ -931,6 +960,15 @@ static int mlx5e_get_rxnfc(struct net_device *netdev,
 	case ETHTOOL_GRXRINGS:
 		info->data = priv->params.num_channels;
 		break;
+	case ETHTOOL_GRXCLSRLCNT:
+		info->rule_cnt = priv->fs.ethtool.tot_num_rules;
+		break;
+	case ETHTOOL_GRXCLSRULE:
+		err = mlx5e_ethtool_get_flow(priv, info, info->fs.location);
+		break;
+	case ETHTOOL_GRXCLSRLALL:
+		err = mlx5e_ethtool_get_all_flows(priv, info, rule_locs);
+		break;
 	default:
 		err = -EOPNOTSUPP;
 		break;
@@ -1368,6 +1406,26 @@ static u32 mlx5e_get_priv_flags(struct net_device *netdev)
 	return priv->pflags;
 }
 
+static int mlx5e_set_rxnfc(struct net_device *dev, struct ethtool_rxnfc *cmd)
+{
+	int err = 0;
+	struct mlx5e_priv *priv = netdev_priv(dev);
+
+	switch (cmd->cmd) {
+	case ETHTOOL_SRXCLSRLINS:
+		err = mlx5e_ethtool_flow_replace(priv, &cmd->fs);
+		break;
+	case ETHTOOL_SRXCLSRLDEL:
+		err = mlx5e_ethtool_flow_remove(priv, cmd->fs.location);
+		break;
+	default:
+		err = -EOPNOTSUPP;
+		break;
+	}
+
+	return err;
+}
+
 const struct ethtool_ops mlx5e_ethtool_ops = {
 	.get_drvinfo       = mlx5e_get_drvinfo,
 	.get_link          = ethtool_op_get_link,
@@ -1387,6 +1445,7 @@ const struct ethtool_ops mlx5e_ethtool_ops = {
 	.get_rxfh          = mlx5e_get_rxfh,
 	.set_rxfh          = mlx5e_set_rxfh,
 	.get_rxnfc         = mlx5e_get_rxnfc,
+	.set_rxnfc         = mlx5e_set_rxnfc,
 	.get_tunable       = mlx5e_get_tunable,
 	.set_tunable       = mlx5e_set_tunable,
 	.get_pauseparam    = mlx5e_get_pauseparam,

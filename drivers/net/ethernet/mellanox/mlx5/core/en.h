@@ -544,8 +544,24 @@ enum {
 	MLX5E_ARFS_FT_LEVEL
 };
 
+struct mlx5e_ethtool_table {
+	struct mlx5_flow_table *ft;
+	int                    num_rules;
+};
+
+#define ETHTOOL_NUM_L3_L4_FTS 7
+#define ETHTOOL_NUM_L2_FTS 4
+
+struct mlx5e_ethtool_steering {
+	struct mlx5e_ethtool_table      l3_l4_ft[ETHTOOL_NUM_L3_L4_FTS];
+	struct mlx5e_ethtool_table      l2_ft[ETHTOOL_NUM_L2_FTS];
+	struct list_head                rules;
+	int                             tot_num_rules;
+};
+
 struct mlx5e_flow_steering {
 	struct mlx5_flow_namespace      *ns;
+	struct mlx5e_ethtool_steering   ethtool;
 	struct mlx5e_tc_table           tc;
 	struct mlx5e_vlan_table         vlan;
 	struct mlx5e_l2_table           l2;
@@ -701,6 +717,16 @@ int mlx5e_create_flow_steering(struct mlx5e_priv *priv);
 void mlx5e_destroy_flow_steering(struct mlx5e_priv *priv);
 void mlx5e_init_l2_addr(struct mlx5e_priv *priv);
 void mlx5e_destroy_flow_table(struct mlx5e_flow_table *ft);
+int mlx5e_ethtool_get_flow(struct mlx5e_priv *priv, struct ethtool_rxnfc *info,
+			   int location);
+int mlx5e_ethtool_get_all_flows(struct mlx5e_priv *priv,
+				struct ethtool_rxnfc *info, u32 *rule_locs);
+int mlx5e_ethtool_flow_replace(struct mlx5e_priv *priv,
+			       struct ethtool_rx_flow_spec *fs);
+int mlx5e_ethtool_flow_remove(struct mlx5e_priv *priv,
+			      int location);
+void mlx5e_ethtool_init_steering(struct mlx5e_priv *priv);
+void mlx5e_ethtool_cleanup_steering(struct mlx5e_priv *priv);
 void mlx5e_set_rx_mode_work(struct work_struct *work);
 
 void mlx5e_fill_hwstamp(struct mlx5e_tstamp *clock, u64 timestamp,
