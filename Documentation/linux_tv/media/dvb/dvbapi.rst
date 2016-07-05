@@ -12,6 +12,7 @@ LINUX DVB API
 
 .. toctree::
     :maxdepth: 1
+    :numbered:
 
     intro
     frontend
@@ -32,27 +33,33 @@ LINUX DVB API
 Revision and Copyright
 **********************
 
+Authors:
 
-:author:    Metzler Ralph (*J. K.*)
-:address:   rjkm@metzlerbros.de
+- J. K. Metzler, Ralph <rjkm@metzlerbros.de>
 
-:author:    Metzler Marcus (*O. C.*)
-:address:   rjkm@metzlerbros.de
+ - Original author of the DVB API documentation.
 
-:author:    Chehab Mauro (*Carvalho*)
-:address:   m.chehab@samsung.com
-:contrib:   Ported document to Docbook XML.
+- O. C. Metzler, Marcus <rjkm@metzlerbros.de>
 
-**Copyright** |copy| 2002, 2003 : Convergence GmbH
+ - Original author of the DVB API documentation.
+
+- Carvalho Chehab, Mauro <m.chehab@kernel.org>
+
+ - Ported document to Docbook XML, addition of DVBv5 API, documentation gaps fix.
+
+**Copyright** |copy| 2002-2003 : Convergence GmbH
 
 **Copyright** |copy| 2009-2016 : Mauro Carvalho Chehab
+
+****************
+Revision History
+****************
 
 :revision: 2.1.0 / 2015-05-29 (*mcc*)
 
 DocBook improvements and cleanups, in order to document the system calls
 on a more standard way and provide more description about the current
 DVB API.
-
 
 :revision: 2.0.4 / 2011-05-06 (*mcc*)
 
