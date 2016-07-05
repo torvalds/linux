@@ -49,6 +49,7 @@
 			};
 
 			macb0: ethernet@fffc4000 {
+				pinctrl-0 = <&pinctrl_macb_rmii &pinctrl_macb_rmii_mii_alt>;
 				phy-mode = "mii";
 				#address-cells = <1>;
 				#size-cells = <0>;
@@ -105,11 +106,16 @@
 	leds {
 		compatible = "gpio-leds";
 
-		b0 {
-			label = "b0";
-			gpios = <&pioA 6 GPIO_ACTIVE_HIGH>;
-			linux,default-trigger = "heartbeat";
+		pwr_led {
+			label = "sam9-l9260:yellow:pwr";
+			gpios = <&pioA 9 GPIO_ACTIVE_HIGH>;
+			linux,default-trigger = "cpu0";
 		};
 
+		status_led {
+			label = "sam9-l9260:green:status";
+			gpios = <&pioA 6 GPIO_ACTIVE_LOW>;
+			linux,default-trigger = "timer";
+		};
 	};
 };
