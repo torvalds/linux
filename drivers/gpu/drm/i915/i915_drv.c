@@ -77,7 +77,7 @@ __i915_printk(struct drm_i915_private *dev_priv, const char *level,
 	      const char *fmt, ...)
 {
 	static bool shown_bug_once;
-	struct device *dev = dev_priv->dev->dev;
+	struct device *dev = dev_priv->drm.dev;
 	bool is_error = level[1] <= KERN_ERR[1];
 	bool is_debug = level[1] == KERN_DEBUG[1];
 	struct va_format vaf;
@@ -1234,7 +1234,6 @@ int i915_driver_load(struct pci_dev *pdev, const struct pci_device_id *ent)
 		return ret;
 	}
 
-	/* Must be set before calling __i915_printk */
 	dev_priv->drm.pdev = pdev;
 	dev_priv->drm.dev_private = dev_priv;
 	dev_priv->dev = &dev_priv->drm;
