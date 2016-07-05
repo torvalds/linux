@@ -557,7 +557,7 @@ void iwl_mvm_fw_error_dump(struct iwl_mvm *mvm)
 					 sizeof(struct iwl_fw_error_dump_fifo);
 		}
 
-		for (i = 0; i < ARRAY_SIZE(mem_cfg->txfifo_size); i++) {
+		for (i = 0; i < mem_cfg->num_txfifo_entries; i++) {
 			if (!mem_cfg->txfifo_size[i])
 				continue;
 

@@ -602,16 +602,9 @@ enum iwl_mvm_tdls_cs_state {
 };
 
 struct iwl_mvm_shared_mem_cfg {
-	u32 shared_mem_addr;
-	u32 shared_mem_size;
-	u32 sample_buff_addr;
-	u32 sample_buff_size;
-	u32 txfifo_addr;
+	int num_txfifo_entries;
 	u32 txfifo_size[TX_FIFO_MAX_NUM];
 	u32 rxfifo_size[RX_FIFO_MAX_NUM];
-	u32 page_buff_addr;
-	u32 page_buff_size;
-	u32 rxfifo_addr;
 	u32 internal_txfifo_addr;
 	u32 internal_txfifo_size[TX_FIFO_INTERNAL_MAX_NUM];
 };

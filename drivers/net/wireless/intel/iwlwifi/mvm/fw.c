@@ -838,6 +838,59 @@ out:
 	return ret;
 }
 
+static void iwl_mvm_parse_shared_mem_a000(struct iwl_mvm *mvm,
+					  struct iwl_rx_packet *pkt)
+{
+	struct iwl_shared_mem_cfg *mem_cfg = (void *)pkt->data;
+	int i;
+
+	mvm->shared_mem_cfg.num_txfifo_entries =
+		ARRAY_SIZE(mvm->shared_mem_cfg.txfifo_size);
+	for (i = 0; i < ARRAY_SIZE(mem_cfg->txfifo_size); i++)
+		mvm->shared_mem_cfg.txfifo_size[i] =
+			le32_to_cpu(mem_cfg->txfifo_size[i]);
+	for (i = 0; i < ARRAY_SIZE(mvm->shared_mem_cfg.rxfifo_size); i++)
+		mvm->shared_mem_cfg.rxfifo_size[i] =
+			le32_to_cpu(mem_cfg->rxfifo_size[i]);
+
+	BUILD_BUG_ON(sizeof(mvm->shared_mem_cfg.internal_txfifo_size) !=
+		     sizeof(mem_cfg->internal_txfifo_size));
+
+	for (i = 0; i < ARRAY_SIZE(mvm->shared_mem_cfg.internal_txfifo_size);
+	     i++)
+		mvm->shared_mem_cfg.internal_txfifo_size[i] =
+			le32_to_cpu(mem_cfg->internal_txfifo_size[i]);
+}
+
+static void iwl_mvm_parse_shared_mem(struct iwl_mvm *mvm,
+				     struct iwl_rx_packet *pkt)
+{
+	struct iwl_shared_mem_cfg_v1 *mem_cfg = (void *)pkt->data;
+	int i;
+
+	mvm->shared_mem_cfg.num_txfifo_entries =
+		ARRAY_SIZE(mvm->shared_mem_cfg.txfifo_size);
+	for (i = 0; i < ARRAY_SIZE(mem_cfg->txfifo_size); i++)
+		mvm->shared_mem_cfg.txfifo_size[i] =
+			le32_to_cpu(mem_cfg->txfifo_size[i]);
+	for (i = 0; i < ARRAY_SIZE(mvm->shared_mem_cfg.rxfifo_size); i++)
+		mvm->shared_mem_cfg.rxfifo_size[i] =
+			le32_to_cpu(mem_cfg->rxfifo_size[i]);
+
+	/* new API has more data, from rxfifo_addr field and on */
+	if (fw_has_capa(&mvm->fw->ucode_capa,
+			IWL_UCODE_TLV_CAPA_EXTEND_SHARED_MEM_CFG)) {
+		BUILD_BUG_ON(sizeof(mvm->shared_mem_cfg.internal_txfifo_size) !=
+			     sizeof(mem_cfg->internal_txfifo_size));
+
+		for (i = 0;
+		     i < ARRAY_SIZE(mvm->shared_mem_cfg.internal_txfifo_size);
+		     i++)
+			mvm->shared_mem_cfg.internal_txfifo_size[i] =
+				le32_to_cpu(mem_cfg->internal_txfifo_size[i]);
+	}
+}
+
 static void iwl_mvm_get_shared_mem_conf(struct iwl_mvm *mvm)
 {
 	struct iwl_host_cmd cmd = {
@@ -845,9 +898,7 @@ static void iwl_mvm_get_shared_mem_conf(struct iwl_mvm *mvm)
 		.data = { NULL, },
 		.len = { 0, },
 	};
-	struct iwl_shared_mem_cfg *mem_cfg;
 	struct iwl_rx_packet *pkt;
-	u32 i;
 
 	lockdep_assert_held(&mvm->mutex);
 
@@ -861,45 +912,10 @@ static void iwl_mvm_get_shared_mem_conf(struct iwl_mvm *mvm)
 		return;
 
 	pkt = cmd.resp_pkt;
-	mem_cfg = (void *)pkt->data;
-
-	mvm->shared_mem_cfg.shared_mem_addr =
-		le32_to_cpu(mem_cfg->shared_mem_addr);
-	mvm->shared_mem_cfg.shared_mem_size =
-		le32_to_cpu(mem_cfg->shared_mem_size);
-	mvm->shared_mem_cfg.sample_buff_addr =
-		le32_to_cpu(mem_cfg->sample_buff_addr);
-	mvm->shared_mem_cfg.sample_buff_size =
-		le32_to_cpu(mem_cfg->sample_buff_size);
-	mvm->shared_mem_cfg.txfifo_addr = le32_to_cpu(mem_cfg->txfifo_addr);
-	for (i = 0; i < ARRAY_SIZE(mvm->shared_mem_cfg.txfifo_size); i++)
-		mvm->shared_mem_cfg.txfifo_size[i] =
-			le32_to_cpu(mem_cfg->txfifo_size[i]);
-	for (i = 0; i < ARRAY_SIZE(mvm->shared_mem_cfg.rxfifo_size); i++)
-		mvm->shared_mem_cfg.rxfifo_size[i] =
-			le32_to_cpu(mem_cfg->rxfifo_size[i]);
-	mvm->shared_mem_cfg.page_buff_addr =
-		le32_to_cpu(mem_cfg->page_buff_addr);
-	mvm->shared_mem_cfg.page_buff_size =
-		le32_to_cpu(mem_cfg->page_buff_size);
-
-	/* new API has more data */
-	if (fw_has_capa(&mvm->fw->ucode_capa,
-			IWL_UCODE_TLV_CAPA_EXTEND_SHARED_MEM_CFG)) {
-		mvm->shared_mem_cfg.rxfifo_addr =
-			le32_to_cpu(mem_cfg->rxfifo_addr);
-		mvm->shared_mem_cfg.internal_txfifo_addr =
-			le32_to_cpu(mem_cfg->internal_txfifo_addr);
-
-		BUILD_BUG_ON(sizeof(mvm->shared_mem_cfg.internal_txfifo_size) !=
-			     sizeof(mem_cfg->internal_txfifo_size));
-
-		for (i = 0;
-		     i < ARRAY_SIZE(mvm->shared_mem_cfg.internal_txfifo_size);
-		     i++)
-			mvm->shared_mem_cfg.internal_txfifo_size[i] =
-				le32_to_cpu(mem_cfg->internal_txfifo_size[i]);
-	}
+	if (iwl_mvm_has_new_tx_api(mvm))
+		iwl_mvm_parse_shared_mem_a000(mvm, pkt);
+	else
+		iwl_mvm_parse_shared_mem(mvm, pkt);
 
 	IWL_DEBUG_INFO(mvm, "SHARED MEM CFG: got memory offsets/sizes\n");
 
