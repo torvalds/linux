@@ -580,6 +580,7 @@ static int sti_dvo_probe(struct platform_device *pdev)
 	dvo->panel_node = of_parse_phandle(np, "sti,panel", 0);
 	if (!dvo->panel_node)
 		DRM_ERROR("No panel associated to the dvo output\n");
+	of_node_put(dvo->panel_node);
 
 	platform_set_drvdata(pdev, dvo);
 
