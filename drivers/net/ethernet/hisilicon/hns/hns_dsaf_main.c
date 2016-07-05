@@ -114,9 +114,9 @@ int hns_dsaf_get_cfg(struct dsaf_device *dsaf_dev)
 
 			dsaf_dev->sc_base = devm_ioremap_resource(&pdev->dev,
 								  res);
-			if (!dsaf_dev->sc_base) {
+			if (IS_ERR(dsaf_dev->sc_base)) {
 				dev_err(dsaf_dev->dev, "subctrl can not map!\n");
-				return -ENOMEM;
+				return PTR_ERR(dsaf_dev->sc_base);
 			}
 
 			res = platform_get_resource(pdev, IORESOURCE_MEM,
@@ -128,9 +128,9 @@ int hns_dsaf_get_cfg(struct dsaf_device *dsaf_dev)
 
 			dsaf_dev->sds_base = devm_ioremap_resource(&pdev->dev,
 								   res);
-			if (!dsaf_dev->sds_base) {
+			if (IS_ERR(dsaf_dev->sds_base)) {
 				dev_err(dsaf_dev->dev, "serdes-ctrl can not map!\n");
-				return -ENOMEM;
+				return PTR_ERR(dsaf_dev->sds_base);
 			}
 		} else {
 			dsaf_dev->sub_ctrl = syscon;
@@ -146,9 +146,9 @@ int hns_dsaf_get_cfg(struct dsaf_device *dsaf_dev)
 		}
 	}
 	dsaf_dev->ppe_base = devm_ioremap_resource(&pdev->dev, res);
-	if (!dsaf_dev->ppe_base) {
+	if (IS_ERR(dsaf_dev->ppe_base)) {
 		dev_err(dsaf_dev->dev, "ppe-base resource can not map!\n");
-		return -ENOMEM;
+		return PTR_ERR(dsaf_dev->ppe_base);
 	}
 	dsaf_dev->ppe_paddr = res->start;
 
@@ -165,9 +165,9 @@ int hns_dsaf_get_cfg(struct dsaf_device *dsaf_dev)
 			}
 		}
 		dsaf_dev->io_base = devm_ioremap_resource(&pdev->dev, res);
-		if (!dsaf_dev->io_base) {
+		if (IS_ERR(dsaf_dev->io_base)) {
 			dev_err(dsaf_dev->dev, "dsaf-base resource can not map!\n");
-			return -ENOMEM;
+			return PTR_ERR(dsaf_dev->io_base);
 		}
 	}
 
