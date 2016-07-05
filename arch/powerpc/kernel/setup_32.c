@@ -70,7 +70,6 @@ int ucache_bsize;
 notrace unsigned long __init early_init(unsigned long dt_ptr)
 {
 	unsigned long offset = reloc_offset();
-	struct cpu_spec *spec;
 
 	/* First zero the BSS -- use memset_io, some platforms don't have
 	 * caches on yet */
@@ -81,21 +80,9 @@ notrace unsigned long __init early_init(unsigned long dt_ptr)
 	 * Identify the CPU type and fix up code sections
 	 * that depend on which cpu we have.
 	 */
-	spec = identify_cpu(offset, mfspr(SPRN_PVR));
+	identify_cpu(offset, mfspr(SPRN_PVR));
 
-	do_feature_fixups(spec->cpu_features,
-			  PTRRELOC(&__start___ftr_fixup),
-			  PTRRELOC(&__stop___ftr_fixup));
-
-	do_feature_fixups(spec->mmu_features,
-			  PTRRELOC(&__start___mmu_ftr_fixup),
-			  PTRRELOC(&__stop___mmu_ftr_fixup));
-
-	do_lwsync_fixups(spec->cpu_features,
-			 PTRRELOC(&__start___lwsync_fixup),
-			 PTRRELOC(&__stop___lwsync_fixup));
-
-	do_final_fixups();
+	apply_feature_fixups();
 
 	return KERNELBASE + offset;
 }

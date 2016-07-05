@@ -467,18 +467,7 @@ void __init setup_system(void)
 {
 	DBG(" -> setup_system()\n");
 
-	/* Apply the CPUs-specific and firmware specific fixups to kernel
-	 * text (nop out sections not relevant to this CPU or this firmware)
-	 */
-	do_feature_fixups(cur_cpu_spec->cpu_features,
-			  &__start___ftr_fixup, &__stop___ftr_fixup);
-	do_feature_fixups(cur_cpu_spec->mmu_features,
-			  &__start___mmu_ftr_fixup, &__stop___mmu_ftr_fixup);
-	do_feature_fixups(powerpc_firmware_features,
-			  &__start___fw_ftr_fixup, &__stop___fw_ftr_fixup);
-	do_lwsync_fixups(cur_cpu_spec->cpu_features,
-			 &__start___lwsync_fixup, &__stop___lwsync_fixup);
-	do_final_fixups();
+	apply_feature_fixups();
 
 	/*
 	 * Unflatten the device-tree passed by prom_init or kexec
