@@ -6,17 +6,18 @@
 ioctl MEDIA_IOC_ENUM_ENTITIES
 *****************************
 
-*man MEDIA_IOC_ENUM_ENTITIES(2)*
+NAME
+====
 
-Enumerate entities and their properties
+MEDIA_IOC_ENUM_ENTITIES - Enumerate entities and their properties
 
-
-Synopsis
+SYNOPSIS
 ========
 
 .. cpp:function:: int ioctl( int fd, int request, struct media_entity_desc *argp )
 
-Arguments
+
+ARGUMENTS
 =========
 
 ``fd``
@@ -28,7 +29,7 @@ Arguments
 ``argp``
 
 
-Description
+DESCRIPTION
 ===========
 
 To query the attributes of an entity, applications set the id field of a
@@ -182,8 +183,7 @@ id's until they get an error.
        -
 
 
-
-Return Value
+RETURN VALUE
 ============
 
 On success 0 is returned, on error -1 and the ``errno`` variable is set

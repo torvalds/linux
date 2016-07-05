@@ -6,17 +6,18 @@
 ioctl VIDIOC_EXPBUF
 *******************
 
-*man VIDIOC_EXPBUF(2)*
+NAME
+====
 
-Export a buffer as a DMABUF file descriptor.
+VIDIOC_EXPBUF - Export a buffer as a DMABUF file descriptor.
 
-
-Synopsis
+SYNOPSIS
 ========
 
 .. cpp:function:: int ioctl( int fd, int request, struct v4l2_exportbuffer *argp )
 
-Arguments
+
+ARGUMENTS
 =========
 
 ``fd``
@@ -28,7 +29,7 @@ Arguments
 ``argp``
 
 
-Description
+DESCRIPTION
 ===========
 
 This ioctl is an extension to the :ref:`memory mapping <mmap>` I/O
@@ -183,8 +184,7 @@ Examples
 	  the array to zero.
 
 
-
-Return Value
+RETURN VALUE
 ============
 
 On success 0 is returned, on error -1 and the ``errno`` variable is set

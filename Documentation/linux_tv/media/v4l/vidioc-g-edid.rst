@@ -6,20 +6,18 @@
 ioctl VIDIOC_G_EDID, VIDIOC_S_EDID, VIDIOC_SUBDEV_G_EDID, VIDIOC_SUBDEV_S_EDID
 ******************************************************************************
 
-*man VIDIOC_G_EDID(2)*
+NAME
+====
 
-VIDIOC_S_EDID
-VIDIOC_SUBDEV_G_EDID
-VIDIOC_SUBDEV_S_EDID
-Get or set the EDID of a video receiver/transmitter
+VIDIOC_G_EDID - VIDIOC_S_EDID - VIDIOC_SUBDEV_G_EDID - VIDIOC_SUBDEV_S_EDID - Get or set the EDID of a video receiver/transmitter
 
-
-Synopsis
+SYNOPSIS
 ========
 
 .. cpp:function:: int ioctl( int fd, int request, struct v4l2_edid *argp )
 
-Arguments
+
+ARGUMENTS
 =========
 
 ``fd``
@@ -32,7 +30,7 @@ Arguments
 ``argp``
 
 
-Description
+DESCRIPTION
 ===========
 
 These ioctls can be used to get or set an EDID associated with an input
@@ -145,8 +143,7 @@ EDID is no longer available.
 	  ``blocks`` * 128.
 
 
-
-Return Value
+RETURN VALUE
 ============
 
 On success 0 is returned, on error -1 and the ``errno`` variable is set

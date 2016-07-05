@@ -2,24 +2,23 @@
 
 .. _VIDEO_SET_SPU:
 
+=============
 VIDEO_SET_SPU
 =============
 
-Description
------------
+NAME
+----
 
-This ioctl activates or deactivates SPU decoding in a DVD input stream.
-It can only be used, if the driver is able to handle a DVD stream.
+VIDEO_SET_SPU
 
-Synopsis
+SYNOPSIS
 --------
 
 .. c:function:: int ioctl(fd, int request = VIDEO_SET_SPU , video_spu_t *spu)
 
-Arguments
-----------
 
-
+ARGUMENTS
+---------
 
 .. flat-table::
     :header-rows:  0
@@ -46,7 +45,14 @@ Arguments
 	  ??.
 
 
-Return Value
+DESCRIPTION
+-----------
+
+This ioctl activates or deactivates SPU decoding in a DVD input stream.
+It can only be used, if the driver is able to handle a DVD stream.
+
+
+RETURN VALUE
 ------------
 
 On success 0 is returned, on error -1 and the ``errno`` variable is set
@@ -65,6 +71,3 @@ appropriately. The generic error codes are described at the
        -  ``EINVAL``
 
        -  input is not a valid spu setting or driver cannot handle SPU.
-
-
-

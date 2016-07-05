@@ -2,24 +2,23 @@
 
 .. _AUDIO_GET_STATUS:
 
+================
 AUDIO_GET_STATUS
 ================
 
-Description
------------
+NAME
+----
 
-This ioctl call asks the Audio Device to return the current state of the
-Audio Device.
+AUDIO_GET_STATUS
 
-Synopsis
+SYNOPSIS
 --------
 
 .. c:function:: int ioctl(int fd, int request = AUDIO_GET_STATUS, struct audio_status *status)
 
-Arguments
-----------
 
-
+ARGUMENTS
+---------
 
 .. flat-table::
     :header-rows:  0
@@ -45,11 +44,16 @@ Arguments
        -  Returns the current state of Audio Device.
 
 
-Return Value
+DESCRIPTION
+-----------
+
+This ioctl call asks the Audio Device to return the current state of the
+Audio Device.
+
+
+RETURN VALUE
 ------------
 
 On success 0 is returned, on error -1 and the ``errno`` variable is set
 appropriately. The generic error codes are described at the
 :ref:`Generic Error Codes <gen-errors>` chapter.
-
-

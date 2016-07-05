@@ -2,23 +2,23 @@
 
 .. _VIDEO_SET_SPU_PALETTE:
 
+=====================
 VIDEO_SET_SPU_PALETTE
 =====================
 
-Description
------------
+NAME
+----
 
-This ioctl sets the SPU color palette.
+VIDEO_SET_SPU_PALETTE
 
-Synopsis
+SYNOPSIS
 --------
 
 .. c:function:: int ioctl(fd, int request = VIDEO_SET_SPU_PALETTE, video_spu_palette_t *palette )
 
-Arguments
-----------
 
-
+ARGUMENTS
+---------
 
 .. flat-table::
     :header-rows:  0
@@ -44,7 +44,13 @@ Arguments
        -  SPU palette according to section ??.
 
 
-Return Value
+DESCRIPTION
+-----------
+
+This ioctl sets the SPU color palette.
+
+
+RETURN VALUE
 ------------
 
 On success 0 is returned, on error -1 and the ``errno`` variable is set
@@ -63,6 +69,3 @@ appropriately. The generic error codes are described at the
        -  ``EINVAL``
 
        -  input is not a valid palette or driver doesn’t handle SPU.
-
-
-

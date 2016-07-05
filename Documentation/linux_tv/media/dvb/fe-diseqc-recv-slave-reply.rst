@@ -6,17 +6,18 @@
 ioctl FE_DISEQC_RECV_SLAVE_REPLY
 ********************************
 
-*man FE_DISEQC_RECV_SLAVE_REPLY(2)*
+NAME
+====
 
-Receives reply from a DiSEqC 2.0 command
+FE_DISEQC_RECV_SLAVE_REPLY - Receives reply from a DiSEqC 2.0 command
 
-
-Synopsis
+SYNOPSIS
 ========
 
 .. cpp:function:: int ioctl( int fd, int request, struct dvb_diseqc_slave_reply *argp )
 
-Arguments
+
+ARGUMENTS
 =========
 
 ``fd``
@@ -30,12 +31,14 @@ Arguments
     :ref:`dvb_diseqc_slave_reply <dvb-diseqc-slave-reply>`
 
 
-Description
+DESCRIPTION
 ===========
 
 Receives reply from a DiSEqC 2.0 command.
 
+
 RETURN VALUE
+============
 
 On success 0 is returned, on error -1 and the ``errno`` variable is set
 appropriately. The generic error codes are described at the

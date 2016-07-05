@@ -2,30 +2,23 @@
 
 .. _VIDEO_TRY_COMMAND:
 
+=================
 VIDEO_TRY_COMMAND
 =================
 
-Description
------------
+NAME
+----
 
-This ioctl is obsolete. Do not use in new drivers. For V4L2 decoders
-this ioctl has been replaced by the
-:ref:`VIDIOC_TRY_DECODER_CMD <VIDIOC_DECODER_CMD>` ioctl.
+VIDEO_TRY_COMMAND
 
-This ioctl tries a decoder command. The ``video_command`` struct is a
-subset of the ``v4l2_decoder_cmd`` struct, so refer to the
-:ref:`VIDIOC_TRY_DECODER_CMD <VIDIOC_DECODER_CMD>` documentation
-for more information.
-
-Synopsis
+SYNOPSIS
 --------
 
 .. c:function:: int ioctl(int fd, int request = VIDEO_TRY_COMMAND, struct video_command *cmd)
 
-Arguments
-----------
 
-
+ARGUMENTS
+---------
 
 .. flat-table::
     :header-rows:  0
@@ -51,11 +44,22 @@ Arguments
        -  Try a decoder command.
 
 
-Return Value
+DESCRIPTION
+-----------
+
+This ioctl is obsolete. Do not use in new drivers. For V4L2 decoders
+this ioctl has been replaced by the
+:ref:`VIDIOC_TRY_DECODER_CMD <VIDIOC_DECODER_CMD>` ioctl.
+
+This ioctl tries a decoder command. The ``video_command`` struct is a
+subset of the ``v4l2_decoder_cmd`` struct, so refer to the
+:ref:`VIDIOC_TRY_DECODER_CMD <VIDIOC_DECODER_CMD>` documentation
+for more information.
+
+
+RETURN VALUE
 ------------
 
 On success 0 is returned, on error -1 and the ``errno`` variable is set
 appropriately. The generic error codes are described at the
 :ref:`Generic Error Codes <gen-errors>` chapter.
-
-

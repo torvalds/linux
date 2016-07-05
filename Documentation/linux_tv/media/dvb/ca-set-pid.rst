@@ -2,23 +2,23 @@
 
 .. _CA_SET_PID:
 
+==========
 CA_SET_PID
 ==========
 
-Description
------------
+NAME
+----
 
-This ioctl is undocumented. Documentation is welcome.
+CA_SET_PID
 
-Synopsis
+SYNOPSIS
 --------
 
 .. cpp:function:: int  ioctl(fd, int request = CA_SET_PID, ca_pid_t *)
 
-Arguments
-----------
 
-
+ARGUMENTS
+---------
 
 .. flat-table::
     :header-rows:  0
@@ -44,7 +44,13 @@ Arguments
        -  Undocumented.
 
 
-Return Value
+DESCRIPTION
+-----------
+
+This ioctl is undocumented. Documentation is welcome.
+
+
+RETURN VALUE
 ------------
 
 On success 0 is returned, on error -1 and the ``errno`` variable is set

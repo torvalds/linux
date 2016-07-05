@@ -6,12 +6,12 @@
 V4L2 write()
 ************
 
-*man v4l2-write(2)*
+NAME
+====
 
-Write to a V4L2 device
+v4l2-write - Write to a V4L2 device
 
-
-Synopsis
+SYNOPSIS
 ========
 
 .. code-block:: c
@@ -21,7 +21,8 @@ Synopsis
 
 .. cpp:function:: ssize_t write( int fd, void *buf, size_t count )
 
-Arguments
+
+ARGUMENTS
 =========
 
 ``fd``
@@ -31,7 +32,7 @@ Arguments
 ``count``
 
 
-Description
+DESCRIPTION
 ===========
 
 :ref:`write() <func-write>` writes up to ``count`` bytes to the device
@@ -46,7 +47,7 @@ Sliced Teletext or Closed Caption data is not repeated, the driver
 inserts a blank line instead.
 
 
-Return Value
+RETURN VALUE
 ============
 
 On success, the number of bytes written are returned. Zero indicates

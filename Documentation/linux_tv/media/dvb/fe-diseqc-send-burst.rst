@@ -6,17 +6,18 @@
 ioctl FE_DISEQC_SEND_BURST
 **************************
 
-*man FE_DISEQC_SEND_BURST(2)*
+NAME
+====
 
-Sends a 22KHz tone burst for 2x1 mini DiSEqC satellite selection.
+FE_DISEQC_SEND_BURST - Sends a 22KHz tone burst for 2x1 mini DiSEqC satellite selection.
 
-
-Synopsis
+SYNOPSIS
 ========
 
 .. c:function:: int ioctl( int fd, int request, enum fe_sec_mini_cmd *tone )
 
-Arguments
+
+ARGUMENTS
 =========
 
 ``fd``
@@ -29,7 +30,7 @@ Arguments
     pointer to enum :ref:`fe_sec_mini_cmd <fe-sec-mini-cmd>`
 
 
-Description
+DESCRIPTION
 ===========
 
 This ioctl is used to set the generation of a 22kHz tone burst for mini
@@ -39,7 +40,9 @@ read/write permissions.
 It provides support for what's specified at
 `Digital Satellite Equipment Control (DiSEqC) - Simple "ToneBurst" Detection Circuit specification. <http://www.eutelsat.com/files/contributed/satellites/pdf/Diseqc/associated%20docs/simple_tone_burst_detec.pdf>`__
 
+
 RETURN VALUE
+============
 
 On success 0 is returned, on error -1 and the ``errno`` variable is set
 appropriately. The generic error codes are described at the

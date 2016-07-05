@@ -6,12 +6,12 @@
 media ioctl()
 *************
 
-*man media-ioctl(2)*
+NAME
+====
 
-Control a media device
+media-ioctl - Control a media device
 
-
-Synopsis
+SYNOPSIS
 ========
 
 .. code-block:: c
@@ -21,7 +21,8 @@ Synopsis
 
 .. cpp:function:: int ioctl( int fd, int request, void *argp )
 
-Arguments
+
+ARGUMENTS
 =========
 
 ``fd``
@@ -35,7 +36,7 @@ Arguments
     Pointer to a request-specific structure.
 
 
-Description
+DESCRIPTION
 ===========
 
 The :ref:`ioctl() <func-ioctl>` function manipulates media device parameters.
@@ -51,7 +52,7 @@ requests, their respective function and parameters are specified in
 :ref:`media-user-func`.
 
 
-Return Value
+RETURN VALUE
 ============
 
 On success 0 is returned, on error -1 and the ``errno`` variable is set

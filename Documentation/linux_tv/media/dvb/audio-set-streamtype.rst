@@ -2,25 +2,23 @@
 
 .. _AUDIO_SET_STREAMTYPE:
 
+====================
 AUDIO_SET_STREAMTYPE
 ====================
 
-Description
------------
+NAME
+----
 
-This ioctl tells the driver which kind of audio stream to expect. This
-is useful if the stream offers several audio sub-streams like LPCM and
-AC3.
+AUDIO_SET_STREAMTYPE
 
-Synopsis
+SYNOPSIS
 --------
 
 .. c:function:: int  ioctl(fd, int request = AUDIO_SET_STREAMTYPE, int type)
 
-Arguments
-----------
 
-
+ARGUMENTS
+---------
 
 .. flat-table::
     :header-rows:  0
@@ -46,7 +44,15 @@ Arguments
        -  stream type
 
 
-Return Value
+DESCRIPTION
+-----------
+
+This ioctl tells the driver which kind of audio stream to expect. This
+is useful if the stream offers several audio sub-streams like LPCM and
+AC3.
+
+
+RETURN VALUE
 ------------
 
 On success 0 is returned, on error -1 and the ``errno`` variable is set
@@ -65,6 +71,3 @@ appropriately. The generic error codes are described at the
        -  ``EINVAL``
 
        -  type is not a valid or supported stream type.
-
-
-

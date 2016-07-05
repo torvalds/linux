@@ -6,17 +6,18 @@
 ioctl VIDIOC_DQEVENT
 ********************
 
-*man VIDIOC_DQEVENT(2)*
+NAME
+====
 
-Dequeue event
+VIDIOC_DQEVENT - Dequeue event
 
-
-Synopsis
+SYNOPSIS
 ========
 
 .. cpp:function:: int ioctl( int fd, int request, struct v4l2_event *argp )
 
-Arguments
+
+ARGUMENTS
 =========
 
 ``fd``
@@ -28,7 +29,7 @@ Arguments
 ``argp``
 
 
-Description
+DESCRIPTION
 ===========
 
 Dequeue an event from a video device. No input is required for this
@@ -563,8 +564,7 @@ call.
 	  decoder.
 
 
-
-Return Value
+RETURN VALUE
 ============
 
 On success 0 is returned, on error -1 and the ``errno`` variable is set

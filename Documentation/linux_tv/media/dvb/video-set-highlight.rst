@@ -2,24 +2,23 @@
 
 .. _VIDEO_SET_HIGHLIGHT:
 
+===================
 VIDEO_SET_HIGHLIGHT
 ===================
 
-Description
------------
+NAME
+----
 
-This ioctl sets the SPU highlight information for the menu access of a
-DVD.
+VIDEO_SET_HIGHLIGHT
 
-Synopsis
+SYNOPSIS
 --------
 
 .. c:function:: int ioctl(fd, int request = VIDEO_SET_HIGHLIGHT ,video_highlight_t *vhilite)
 
-Arguments
-----------
 
-
+ARGUMENTS
+---------
 
 .. flat-table::
     :header-rows:  0
@@ -45,11 +44,16 @@ Arguments
        -  SPU Highlight information according to section ??.
 
 
-Return Value
+DESCRIPTION
+-----------
+
+This ioctl sets the SPU highlight information for the menu access of a
+DVD.
+
+
+RETURN VALUE
 ------------
 
 On success 0 is returned, on error -1 and the ``errno`` variable is set
 appropriately. The generic error codes are described at the
 :ref:`Generic Error Codes <gen-errors>` chapter.
-
-

@@ -6,17 +6,18 @@
 ioctl VIDIOC_S_HW_FREQ_SEEK
 ***************************
 
-*man VIDIOC_S_HW_FREQ_SEEK(2)*
+NAME
+====
 
-Perform a hardware frequency seek
+VIDIOC_S_HW_FREQ_SEEK - Perform a hardware frequency seek
 
-
-Synopsis
+SYNOPSIS
 ========
 
 .. cpp:function:: int ioctl( int fd, int request, struct v4l2_hw_freq_seek *argp )
 
-Arguments
+
+ARGUMENTS
 =========
 
 ``fd``
@@ -28,7 +29,7 @@ Arguments
 ``argp``
 
 
-Description
+DESCRIPTION
 ===========
 
 Start a hardware frequency seek from the current frequency. To do this
@@ -154,8 +155,7 @@ error code is returned and no seek takes place.
 	  zero.
 
 
-
-Return Value
+RETURN VALUE
 ============
 
 On success 0 is returned, on error -1 and the ``errno`` variable is set

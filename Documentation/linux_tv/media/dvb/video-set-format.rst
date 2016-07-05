@@ -2,25 +2,23 @@
 
 .. _VIDEO_SET_FORMAT:
 
+================
 VIDEO_SET_FORMAT
 ================
 
-Description
------------
+NAME
+----
 
-This ioctl sets the screen format (aspect ratio) of the connected output
-device (TV) so that the output of the decoder can be adjusted
-accordingly.
+VIDEO_SET_FORMAT
 
-Synopsis
+SYNOPSIS
 --------
 
 .. c:function:: int ioctl(fd, int request = VIDEO_SET_FORMAT, video_format_t format)
 
-Arguments
-----------
 
-
+ARGUMENTS
+---------
 
 .. flat-table::
     :header-rows:  0
@@ -46,7 +44,15 @@ Arguments
        -  video format of TV as defined in section ??.
 
 
-Return Value
+DESCRIPTION
+-----------
+
+This ioctl sets the screen format (aspect ratio) of the connected output
+device (TV) so that the output of the decoder can be adjusted
+accordingly.
+
+
+RETURN VALUE
 ------------
 
 On success 0 is returned, on error -1 and the ``errno`` variable is set
@@ -65,6 +71,3 @@ appropriately. The generic error codes are described at the
        -  ``EINVAL``
 
        -  format is not a valid video format.
-
-
-

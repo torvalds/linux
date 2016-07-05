@@ -2,27 +2,23 @@
 
 .. _audio_fwrite:
 
+=================
 DVB audio write()
 =================
 
-Description
------------
+NAME
+----
 
-This system call can only be used if AUDIO_SOURCE_MEMORY is selected
-in the ioctl call AUDIO_SELECT_SOURCE. The data provided shall be in
-PES format. If O_NONBLOCK is not specified the function will block
-until buffer space is available. The amount of data to be transferred is
-implied by count.
+DVB audio write()
 
-Synopsis
+SYNOPSIS
 --------
 
 .. c:function:: size_t write(int fd, const void *buf, size_t count)
 
-Arguments
-----------
 
-
+ARGUMENTS
+---------
 
 .. flat-table::
     :header-rows:  0
@@ -48,10 +44,18 @@ Arguments
        -  Size of buf.
 
 
-Return Value
+DESCRIPTION
+-----------
+
+This system call can only be used if AUDIO_SOURCE_MEMORY is selected
+in the ioctl call AUDIO_SELECT_SOURCE. The data provided shall be in
+PES format. If O_NONBLOCK is not specified the function will block
+until buffer space is available. The amount of data to be transferred is
+implied by count.
+
+
+RETURN VALUE
 ------------
-
-
 
 .. flat-table::
     :header-rows:  0
@@ -75,6 +79,3 @@ Return Value
        -  ``EBADF``
 
        -  fd is not a valid open file descriptor.
-
-
-

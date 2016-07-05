@@ -6,12 +6,12 @@
 DVB frontend open()
 *******************
 
-*man fe-open(2)*
+NAME
+====
 
-Open a frontend device
+fe-open - Open a frontend device
 
-
-Synopsis
+SYNOPSIS
 ========
 
 .. code-block:: c
@@ -21,7 +21,8 @@ Synopsis
 
 .. cpp:function:: int open( const char *device_name, int flags )
 
-Arguments
+
+ARGUMENTS
 =========
 
 ``device_name``
@@ -43,7 +44,7 @@ Arguments
     Other flags have no effect.
 
 
-Description
+DESCRIPTION
 ===========
 
 This system call opens a named frontend device
@@ -69,7 +70,7 @@ powered up, and that other front-ends may have been powered down to make
 that possible.
 
 
-Return Value
+RETURN VALUE
 ============
 
 On success :ref:`open() <frontend_f_open>` returns the new file descriptor.

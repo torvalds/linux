@@ -2,24 +2,23 @@
 
 .. _AUDIO_SET_EXT_ID:
 
+================
 AUDIO_SET_EXT_ID
 ================
 
-Description
------------
+NAME
+----
 
-This ioctl can be used to set the extension id for MPEG streams in DVD
-playback. Only the first 3 bits are recognized.
+AUDIO_SET_EXT_ID
 
-Synopsis
+SYNOPSIS
 --------
 
 .. c:function:: int  ioctl(fd, int request = AUDIO_SET_EXT_ID, int id)
 
-Arguments
-----------
 
-
+ARGUMENTS
+---------
 
 .. flat-table::
     :header-rows:  0
@@ -45,7 +44,14 @@ Arguments
        -  audio sub_stream_id
 
 
-Return Value
+DESCRIPTION
+-----------
+
+This ioctl can be used to set the extension id for MPEG streams in DVD
+playback. Only the first 3 bits are recognized.
+
+
+RETURN VALUE
 ------------
 
 On success 0 is returned, on error -1 and the ``errno`` variable is set
@@ -64,6 +70,3 @@ appropriately. The generic error codes are described at the
        -  ``EINVAL``
 
        -  id is not a valid id.
-
-
-

@@ -6,18 +6,18 @@
 ioctl FE_DISEQC_RESET_OVERLOAD
 ******************************
 
-*man FE_DISEQC_RESET_OVERLOAD(2)*
+NAME
+====
 
-Restores the power to the antenna subsystem, if it was powered off due
-to power overload.
+FE_DISEQC_RESET_OVERLOAD - Restores the power to the antenna subsystem, if it was powered off due - to power overload.
 
-
-Synopsis
+SYNOPSIS
 ========
 
 .. cpp:function:: int ioctl( int fd, int request, NULL )
 
-Arguments
+
+ARGUMENTS
 =========
 
 ``fd``
@@ -27,7 +27,7 @@ Arguments
     FE_DISEQC_RESET_OVERLOAD
 
 
-Description
+DESCRIPTION
 ===========
 
 If the bus has been automatically powered off due to power overload,
@@ -35,7 +35,9 @@ this ioctl call restores the power to the bus. The call requires
 read/write access to the device. This call has no effect if the device
 is manually powered off. Not all DVB adapters support this ioctl.
 
+
 RETURN VALUE
+============
 
 On success 0 is returned, on error -1 and the ``errno`` variable is set
 appropriately. The generic error codes are described at the

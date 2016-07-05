@@ -6,17 +6,18 @@
 ioctl NET_REMOVE_IF
 *******************
 
-*man NET_REMOVE_IF(2)*
+NAME
+====
 
-Removes a network interface.
+NET_REMOVE_IF - Removes a network interface.
 
-
-Synopsis
+SYNOPSIS
 ========
 
 .. cpp:function:: int ioctl( int fd, int request, int ifnum )
 
-Arguments
+
+ARGUMENTS
 =========
 
 ``fd``
@@ -29,13 +30,15 @@ Arguments
     number of the interface to be removed
 
 
-Description
+DESCRIPTION
 ===========
 
 The NET_REMOVE_IF ioctl deletes an interface previously created via
 :ref:`NET_ADD_IF <net>`.
 
+
 RETURN VALUE
+============
 
 On success 0 is returned, on error -1 and the ``errno`` variable is set
 appropriately. The generic error codes are described at the

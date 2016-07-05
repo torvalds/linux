@@ -2,23 +2,23 @@
 
 .. _CA_GET_DESCR_INFO:
 
+=================
 CA_GET_DESCR_INFO
 =================
 
-Description
------------
+NAME
+----
 
-This ioctl is undocumented. Documentation is welcome.
+CA_GET_DESCR_INFO
 
-Synopsis
+SYNOPSIS
 --------
 
 .. cpp:function:: int  ioctl(fd, int request = CA_GET_DESCR_INFO, ca_descr_info_t *)
 
-Arguments
-----------
 
-
+ARGUMENTS
+---------
 
 .. flat-table::
     :header-rows:  0
@@ -44,11 +44,15 @@ Arguments
        -  Undocumented.
 
 
-Return Value
+DESCRIPTION
+-----------
+
+This ioctl is undocumented. Documentation is welcome.
+
+
+RETURN VALUE
 ------------
 
 On success 0 is returned, on error -1 and the ``errno`` variable is set
 appropriately. The generic error codes are described at the
 :ref:`Generic Error Codes <gen-errors>` chapter.
-
-

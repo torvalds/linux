@@ -6,17 +6,18 @@
 ioctl VIDIOC_OVERLAY
 ********************
 
-*man VIDIOC_OVERLAY(2)*
+NAME
+====
 
-Start or stop video overlay
+VIDIOC_OVERLAY - Start or stop video overlay
 
-
-Synopsis
+SYNOPSIS
 ========
 
 .. cpp:function:: int ioctl( int fd, int request, const int *argp )
 
-Arguments
+
+ARGUMENTS
 =========
 
 ``fd``
@@ -28,7 +29,7 @@ Arguments
 ``argp``
 
 
-Description
+DESCRIPTION
 ===========
 
 This ioctl is part of the :ref:`video overlay <overlay>` I/O method.
@@ -41,7 +42,7 @@ Drivers do not support :ref:`VIDIOC_STREAMON` or
 ``V4L2_BUF_TYPE_VIDEO_OVERLAY``.
 
 
-Return Value
+RETURN VALUE
 ============
 
 On success 0 is returned, on error -1 and the ``errno`` variable is set

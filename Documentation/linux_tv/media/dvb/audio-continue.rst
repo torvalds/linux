@@ -2,24 +2,23 @@
 
 .. _AUDIO_CONTINUE:
 
+==============
 AUDIO_CONTINUE
 ==============
 
-Description
------------
+NAME
+----
 
-This ioctl restarts the decoding and playing process previously paused
-with AUDIO_PAUSE command.
+AUDIO_CONTINUE
 
-Synopsis
+SYNOPSIS
 --------
 
 .. c:function:: int  ioctl(int fd, int request = AUDIO_CONTINUE)
 
-Arguments
-----------
 
-
+ARGUMENTS
+---------
 
 .. flat-table::
     :header-rows:  0
@@ -39,11 +38,16 @@ Arguments
        -  Equals AUDIO_CONTINUE for this command.
 
 
-Return Value
+DESCRIPTION
+-----------
+
+This ioctl restarts the decoding and playing process previously paused
+with AUDIO_PAUSE command.
+
+
+RETURN VALUE
 ------------
 
 On success 0 is returned, on error -1 and the ``errno`` variable is set
 appropriately. The generic error codes are described at the
 :ref:`Generic Error Codes <gen-errors>` chapter.
-
-

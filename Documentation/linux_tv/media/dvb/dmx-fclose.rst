@@ -2,24 +2,23 @@
 
 .. _dmx_fclose:
 
+=================
 DVB demux close()
 =================
 
-Description
------------
+NAME
+----
 
-This system call deactivates and deallocates a filter that was
-previously allocated via the open() call.
+DVB demux close()
 
-Synopsis
+SYNOPSIS
 --------
 
 .. c:function:: int close(int fd)
 
-Arguments
-----------
 
-
+ARGUMENTS
+---------
 
 .. flat-table::
     :header-rows:  0
@@ -33,10 +32,15 @@ Arguments
        -  File descriptor returned by a previous call to open().
 
 
-Return Value
+DESCRIPTION
+-----------
+
+This system call deactivates and deallocates a filter that was
+previously allocated via the open() call.
+
+
+RETURN VALUE
 ------------
-
-
 
 .. flat-table::
     :header-rows:  0
@@ -48,6 +52,3 @@ Return Value
        -  ``EBADF``
 
        -  fd is not a valid open file descriptor.
-
-
-

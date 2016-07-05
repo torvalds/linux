@@ -6,20 +6,20 @@
 ioctl VIDIOC_G_AUDIO, VIDIOC_S_AUDIO
 ************************************
 
-*man VIDIOC_G_AUDIO(2)*
+NAME
+====
 
-VIDIOC_S_AUDIO
-Query or select the current audio input and its attributes
+VIDIOC_G_AUDIO - VIDIOC_S_AUDIO - Query or select the current audio input and its attributes
 
-
-Synopsis
+SYNOPSIS
 ========
 
 .. cpp:function:: int ioctl( int fd, int request, struct v4l2_audio *argp )
 
 .. cpp:function:: int ioctl( int fd, int request, const struct v4l2_audio *argp )
 
-Arguments
+
+ARGUMENTS
 =========
 
 ``fd``
@@ -31,7 +31,7 @@ Arguments
 ``argp``
 
 
-Description
+DESCRIPTION
 ===========
 
 To query the current audio input applications zero out the ``reserved``
@@ -149,8 +149,7 @@ return the actual new audio mode.
        -  AVL mode is on.
 
 
-
-Return Value
+RETURN VALUE
 ============
 
 On success 0 is returned, on error -1 and the ``errno`` variable is set

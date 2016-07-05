@@ -6,18 +6,18 @@
 ioctl VIDIOC_G_OUTPUT, VIDIOC_S_OUTPUT
 **************************************
 
-*man VIDIOC_G_OUTPUT(2)*
+NAME
+====
 
-VIDIOC_S_OUTPUT
-Query or select the current video output
+VIDIOC_G_OUTPUT - VIDIOC_S_OUTPUT - Query or select the current video output
 
-
-Synopsis
+SYNOPSIS
 ========
 
 .. cpp:function:: int ioctl( int fd, int request, int *argp )
 
-Arguments
+
+ARGUMENTS
 =========
 
 ``fd``
@@ -29,7 +29,7 @@ Arguments
 ``argp``
 
 
-Description
+DESCRIPTION
 ===========
 
 To query the current video output applications call the
@@ -51,7 +51,7 @@ Information about video outputs is available using the
 :ref:`VIDIOC_ENUMOUTPUT` ioctl.
 
 
-Return Value
+RETURN VALUE
 ============
 
 On success 0 is returned, on error -1 and the ``errno`` variable is set

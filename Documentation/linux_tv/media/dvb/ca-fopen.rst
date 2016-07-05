@@ -2,34 +2,23 @@
 
 .. _ca_fopen:
 
+=============
 DVB CA open()
 =============
 
-Description
------------
+NAME
+----
 
-This system call opens a named ca device (e.g. /dev/ost/ca) for
-subsequent use.
+DVB CA open()
 
-When an open() call has succeeded, the device will be ready for use. The
-significance of blocking or non-blocking mode is described in the
-documentation for functions where there is a difference. It does not
-affect the semantics of the open() call itself. A device opened in
-blocking mode can later be put into non-blocking mode (and vice versa)
-using the F_SETFL command of the fcntl system call. This is a standard
-system call, documented in the Linux manual page for fcntl. Only one
-user can open the CA Device in O_RDWR mode. All other attempts to open
-the device in this mode will fail, and an error code will be returned.
-
-Synopsis
+SYNOPSIS
 --------
 
 .. cpp:function:: int  open(const char *deviceName, int flags)
 
-Arguments
-----------
 
-
+ARGUMENTS
+---------
 
 .. flat-table::
     :header-rows:  0
@@ -69,10 +58,25 @@ Arguments
        -  (blocking mode is the default)
 
 
-Return Value
+DESCRIPTION
+-----------
+
+This system call opens a named ca device (e.g. /dev/ost/ca) for
+subsequent use.
+
+When an open() call has succeeded, the device will be ready for use. The
+significance of blocking or non-blocking mode is described in the
+documentation for functions where there is a difference. It does not
+affect the semantics of the open() call itself. A device opened in
+blocking mode can later be put into non-blocking mode (and vice versa)
+using the F_SETFL command of the fcntl system call. This is a standard
+system call, documented in the Linux manual page for fcntl. Only one
+user can open the CA Device in O_RDWR mode. All other attempts to open
+the device in this mode will fail, and an error code will be returned.
+
+
+RETURN VALUE
 ------------
-
-
 
 .. flat-table::
     :header-rows:  0
@@ -102,6 +106,3 @@ Return Value
        -  ``EINVAL``
 
        -  Invalid argument.
-
-
-

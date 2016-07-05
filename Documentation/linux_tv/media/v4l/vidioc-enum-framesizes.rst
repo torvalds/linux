@@ -6,17 +6,18 @@
 ioctl VIDIOC_ENUM_FRAMESIZES
 ****************************
 
-*man VIDIOC_ENUM_FRAMESIZES(2)*
+NAME
+====
 
-Enumerate frame sizes
+VIDIOC_ENUM_FRAMESIZES - Enumerate frame sizes
 
-
-Synopsis
+SYNOPSIS
 ========
 
 .. cpp:function:: int ioctl( int fd, int request, struct v4l2_frmsizeenum *argp )
 
-Arguments
+
+ARGUMENTS
 =========
 
 ``fd``
@@ -31,7 +32,7 @@ Arguments
     and height.
 
 
-Description
+DESCRIPTION
 ===========
 
 This ioctl allows applications to enumerate all frame sizes (i. e. width
@@ -281,8 +282,7 @@ Enums
        -  Step-wise defined frame size.
 
 
-
-Return Value
+RETURN VALUE
 ============
 
 On success 0 is returned, on error -1 and the ``errno`` variable is set

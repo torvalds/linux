@@ -6,18 +6,18 @@
 ioctl FE_READ_STATUS
 ********************
 
-*man FE_READ_STATUS(2)*
+NAME
+====
 
-Returns status information about the front-end. This call only requires
-read-only access to the device
+FE_READ_STATUS - Returns status information about the front-end. This call only requires - read-only access to the device
 
-
-Synopsis
+SYNOPSIS
 ========
 
 .. cpp:function:: int ioctl( int fd, int request, unsigned int *status )
 
-Arguments
+
+ARGUMENTS
 =========
 
 ``fd``
@@ -31,7 +31,7 @@ Arguments
     :ref:`fe_status <fe-status>`.
 
 
-Description
+DESCRIPTION
 ===========
 
 All DVB frontend devices support the ``FE_READ_STATUS`` ioctl. It is
@@ -43,7 +43,9 @@ NOTE: the size of status is actually sizeof(enum fe_status), with
 varies according with the architecture. This needs to be fixed in the
 future.
 
+
 RETURN VALUE
+============
 
 On success 0 is returned, on error -1 and the ``errno`` variable is set
 appropriately. The generic error codes are described at the

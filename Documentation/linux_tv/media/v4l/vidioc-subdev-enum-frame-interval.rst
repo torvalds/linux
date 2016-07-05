@@ -6,17 +6,18 @@
 ioctl VIDIOC_SUBDEV_ENUM_FRAME_INTERVAL
 ***************************************
 
-*man VIDIOC_SUBDEV_ENUM_FRAME_INTERVAL(2)*
+NAME
+====
 
-Enumerate frame intervals
+VIDIOC_SUBDEV_ENUM_FRAME_INTERVAL - Enumerate frame intervals
 
-
-Synopsis
+SYNOPSIS
 ========
 
 .. cpp:function:: int ioctl( int fd, int request, struct v4l2_subdev_frame_interval_enum * argp )
 
-Arguments
+
+ARGUMENTS
 =========
 
 ``fd``
@@ -28,7 +29,7 @@ Arguments
 ``argp``
 
 
-Description
+DESCRIPTION
 ===========
 
 This ioctl lets applications enumerate available frame intervals on a
@@ -136,8 +137,7 @@ multiple pads of the same sub-device is not defined.
 	  the array to zero.
 
 
-
-Return Value
+RETURN VALUE
 ============
 
 On success 0 is returned, on error -1 and the ``errno`` variable is set

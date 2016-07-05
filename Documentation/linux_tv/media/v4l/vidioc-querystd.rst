@@ -6,17 +6,18 @@
 ioctl VIDIOC_QUERYSTD
 *********************
 
-*man VIDIOC_QUERYSTD(2)*
+NAME
+====
 
-Sense the video standard received by the current input
+VIDIOC_QUERYSTD - Sense the video standard received by the current input
 
-
-Synopsis
+SYNOPSIS
 ========
 
 .. cpp:function:: int ioctl( int fd, int request, v4l2_std_id *argp )
 
-Arguments
+
+ARGUMENTS
 =========
 
 ``fd``
@@ -28,7 +29,7 @@ Arguments
 ``argp``
 
 
-Description
+DESCRIPTION
 ===========
 
 The hardware may be able to detect the current video standard
@@ -53,7 +54,7 @@ standard is valid they will have to stop streaming, set the new
 standard, allocate new buffers and start streaming again.
 
 
-Return Value
+RETURN VALUE
 ============
 
 On success 0 is returned, on error -1 and the ``errno`` variable is set

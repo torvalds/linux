@@ -2,24 +2,23 @@
 
 .. _AUDIO_GET_CAPABILITIES:
 
+======================
 AUDIO_GET_CAPABILITIES
 ======================
 
-Description
------------
+NAME
+----
 
-This ioctl call asks the Audio Device to tell us about the decoding
-capabilities of the audio hardware.
+AUDIO_GET_CAPABILITIES
 
-Synopsis
+SYNOPSIS
 --------
 
 .. c:function:: int ioctl(int fd, int request = AUDIO_GET_CAPABILITIES, unsigned int *cap)
 
-Arguments
-----------
 
-
+ARGUMENTS
+---------
 
 .. flat-table::
     :header-rows:  0
@@ -45,11 +44,16 @@ Arguments
        -  Returns a bit array of supported sound formats.
 
 
-Return Value
+DESCRIPTION
+-----------
+
+This ioctl call asks the Audio Device to tell us about the decoding
+capabilities of the audio hardware.
+
+
+RETURN VALUE
 ------------
 
 On success 0 is returned, on error -1 and the ``errno`` variable is set
 appropriately. The generic error codes are described at the
 :ref:`Generic Error Codes <gen-errors>` chapter.
-
-

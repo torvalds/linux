@@ -6,17 +6,18 @@
 ioctl VIDIOC_ENUMINPUT
 **********************
 
-*man VIDIOC_ENUMINPUT(2)*
+NAME
+====
 
-Enumerate video inputs
+VIDIOC_ENUMINPUT - Enumerate video inputs
 
-
-Synopsis
+SYNOPSIS
 ========
 
 .. cpp:function:: int ioctl( int fd, int request, struct v4l2_input *argp )
 
-Arguments
+
+ARGUMENTS
 =========
 
 ``fd``
@@ -28,7 +29,7 @@ Arguments
 ``argp``
 
 
-Description
+DESCRIPTION
 ===========
 
 To query the attributes of a video input applications initialize the
@@ -353,8 +354,7 @@ at index zero, incrementing by one until the driver returns ``EINVAL``.
 	  :ref:`v4l2-selections-common`.
 
 
-
-Return Value
+RETURN VALUE
 ============
 
 On success 0 is returned, on error -1 and the ``errno`` variable is set

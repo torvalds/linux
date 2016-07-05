@@ -2,26 +2,23 @@
 
 .. _DMX_REMOVE_PID:
 
+==============
 DMX_REMOVE_PID
 ==============
 
-Description
------------
+NAME
+----
 
-This ioctl call allows to remove a PID when multiple PIDs are set on a
-transport stream filter, e. g. a filter previously set up with output
-equal to DMX_OUT_TSDEMUX_TAP, created via either
-DMX_SET_PES_FILTER or DMX_ADD_PID.
+DMX_REMOVE_PID
 
-Synopsis
+SYNOPSIS
 --------
 
 .. c:function:: int ioctl(fd, int request = DMX_REMOVE_PID, __u16 *)
 
-Arguments
-----------
 
-
+ARGUMENTS
+---------
 
 .. flat-table::
     :header-rows:  0
@@ -47,7 +44,16 @@ Arguments
        -  PID of the PES filter to be removed.
 
 
-Return Value
+DESCRIPTION
+-----------
+
+This ioctl call allows to remove a PID when multiple PIDs are set on a
+transport stream filter, e. g. a filter previously set up with output
+equal to DMX_OUT_TSDEMUX_TAP, created via either
+DMX_SET_PES_FILTER or DMX_ADD_PID.
+
+
+RETURN VALUE
 ------------
 
 On success 0 is returned, on error -1 and the ``errno`` variable is set

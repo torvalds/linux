@@ -2,27 +2,23 @@
 
 .. _DMX_GET_EVENT:
 
+=============
 DMX_GET_EVENT
 =============
 
-Description
------------
+NAME
+----
 
-This ioctl call returns an event if available. If an event is not
-available, the behavior depends on whether the device is in blocking or
-non-blocking mode. In the latter case, the call fails immediately with
-errno set to ``EWOULDBLOCK``. In the former case, the call blocks until an
-event becomes available.
+DMX_GET_EVENT
 
-Synopsis
+SYNOPSIS
 --------
 
 .. c:function:: int ioctl( int fd, int request = DMX_GET_EVENT, struct dmx_event *ev)
 
-Arguments
-----------
 
-
+ARGUMENTS
+---------
 
 .. flat-table::
     :header-rows:  0
@@ -48,7 +44,17 @@ Arguments
        -  Pointer to the location where the event is to be stored.
 
 
-Return Value
+DESCRIPTION
+-----------
+
+This ioctl call returns an event if available. If an event is not
+available, the behavior depends on whether the device is in blocking or
+non-blocking mode. In the latter case, the call fails immediately with
+errno set to ``EWOULDBLOCK``. In the former case, the call blocks until an
+event becomes available.
+
+
+RETURN VALUE
 ------------
 
 On success 0 is returned, on error -1 and the ``errno`` variable is set
@@ -67,6 +73,3 @@ appropriately. The generic error codes are described at the
        -  ``EWOULDBLOCK``
 
        -  There is no event pending, and the device is in non-blocking mode.
-
-
-

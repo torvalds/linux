@@ -2,24 +2,23 @@
 
 .. _AUDIO_SET_AV_SYNC:
 
+=================
 AUDIO_SET_AV_SYNC
 =================
 
-Description
------------
+NAME
+----
 
-This ioctl call asks the Audio Device to turn ON or OFF A/V
-synchronization.
+AUDIO_SET_AV_SYNC
 
-Synopsis
+SYNOPSIS
 --------
 
 .. c:function:: int  ioctl(int fd, int request = AUDIO_SET_AV_SYNC, boolean state)
 
-Arguments
-----------
 
-
+ARGUMENTS
+---------
 
 .. flat-table::
     :header-rows:  0
@@ -55,11 +54,16 @@ Arguments
        -  FALSE AV-sync OFF
 
 
-Return Value
+DESCRIPTION
+-----------
+
+This ioctl call asks the Audio Device to turn ON or OFF A/V
+synchronization.
+
+
+RETURN VALUE
 ------------
 
 On success 0 is returned, on error -1 and the ``errno`` variable is set
 appropriately. The generic error codes are described at the
 :ref:`Generic Error Codes <gen-errors>` chapter.
-
-

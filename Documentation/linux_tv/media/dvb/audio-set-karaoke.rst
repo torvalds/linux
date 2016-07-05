@@ -2,23 +2,23 @@
 
 .. _AUDIO_SET_KARAOKE:
 
+=================
 AUDIO_SET_KARAOKE
 =================
 
-Description
------------
+NAME
+----
 
-This ioctl allows one to set the mixer settings for a karaoke DVD.
+AUDIO_SET_KARAOKE
 
-Synopsis
+SYNOPSIS
 --------
 
 .. c:function:: int ioctl(fd, int request = AUDIO_SET_KARAOKE, audio_karaoke_t *karaoke)
 
-Arguments
-----------
 
-
+ARGUMENTS
+---------
 
 .. flat-table::
     :header-rows:  0
@@ -44,7 +44,13 @@ Arguments
        -  karaoke settings according to section ??.
 
 
-Return Value
+DESCRIPTION
+-----------
+
+This ioctl allows one to set the mixer settings for a karaoke DVD.
+
+
+RETURN VALUE
 ------------
 
 On success 0 is returned, on error -1 and the ``errno`` variable is set

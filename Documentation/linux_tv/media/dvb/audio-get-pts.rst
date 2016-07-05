@@ -2,28 +2,23 @@
 
 .. _AUDIO_GET_PTS:
 
+=============
 AUDIO_GET_PTS
 =============
 
-Description
------------
+NAME
+----
 
-This ioctl is obsolete. Do not use in new drivers. If you need this
-functionality, then please contact the linux-media mailing list
-(`https://linuxtv.org/lists.php <https://linuxtv.org/lists.php>`__).
+AUDIO_GET_PTS
 
-This ioctl call asks the Audio Device to return the current PTS
-timestamp.
-
-Synopsis
+SYNOPSIS
 --------
 
 .. c:function:: int ioctl(int fd, int request = AUDIO_GET_PTS, __u64 *pts)
 
-Arguments
-----------
 
-
+ARGUMENTS
+---------
 
 .. flat-table::
     :header-rows:  0
@@ -54,11 +49,20 @@ Arguments
 	  decoded frame or the last PTS extracted by the PES parser.
 
 
-Return Value
+DESCRIPTION
+-----------
+
+This ioctl is obsolete. Do not use in new drivers. If you need this
+functionality, then please contact the linux-media mailing list
+(`https://linuxtv.org/lists.php <https://linuxtv.org/lists.php>`__).
+
+This ioctl call asks the Audio Device to return the current PTS
+timestamp.
+
+
+RETURN VALUE
 ------------
 
 On success 0 is returned, on error -1 and the ``errno`` variable is set
 appropriately. The generic error codes are described at the
 :ref:`Generic Error Codes <gen-errors>` chapter.
-
-

@@ -2,23 +2,23 @@
 
 .. _audio_fclose:
 
+=================
 DVB audio close()
 =================
 
-Description
------------
+NAME
+----
 
-This system call closes a previously opened audio device.
+DVB audio close()
 
-Synopsis
+SYNOPSIS
 --------
 
 .. c:function:: int  close(int fd)
 
-Arguments
-----------
 
-
+ARGUMENTS
+---------
 
 .. flat-table::
     :header-rows:  0
@@ -32,10 +32,14 @@ Arguments
        -  File descriptor returned by a previous call to open().
 
 
-Return Value
+DESCRIPTION
+-----------
+
+This system call closes a previously opened audio device.
+
+
+RETURN VALUE
 ------------
-
-
 
 .. flat-table::
     :header-rows:  0
@@ -47,6 +51,3 @@ Return Value
        -  ``EBADF``
 
        -  fd is not a valid open file descriptor.
-
-
-

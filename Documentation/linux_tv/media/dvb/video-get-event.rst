@@ -2,35 +2,23 @@
 
 .. _VIDEO_GET_EVENT:
 
+===============
 VIDEO_GET_EVENT
 ===============
 
-Description
------------
+NAME
+----
 
-This ioctl is for DVB devices only. To get events from a V4L2 decoder
-use the V4L2 :ref:`VIDIOC_DQEVENT` ioctl instead.
+VIDEO_GET_EVENT
 
-This ioctl call returns an event of type video_event if available. If
-an event is not available, the behavior depends on whether the device is
-in blocking or non-blocking mode. In the latter case, the call fails
-immediately with errno set to ``EWOULDBLOCK``. In the former case, the call
-blocks until an event becomes available. The standard Linux poll()
-and/or select() system calls can be used with the device file descriptor
-to watch for new events. For select(), the file descriptor should be
-included in the exceptfds argument, and for poll(), POLLPRI should be
-specified as the wake-up condition. Read-only permissions are sufficient
-for this ioctl call.
-
-Synopsis
+SYNOPSIS
 --------
 
 .. c:function:: int ioctl(fd, int request = VIDEO_GET_EVENT, struct video_event *ev)
 
-Arguments
-----------
 
-
+ARGUMENTS
+---------
 
 .. flat-table::
     :header-rows:  0
@@ -56,7 +44,25 @@ Arguments
        -  Points to the location where the event, if any, is to be stored.
 
 
-Return Value
+DESCRIPTION
+-----------
+
+This ioctl is for DVB devices only. To get events from a V4L2 decoder
+use the V4L2 :ref:`VIDIOC_DQEVENT` ioctl instead.
+
+This ioctl call returns an event of type video_event if available. If
+an event is not available, the behavior depends on whether the device is
+in blocking or non-blocking mode. In the latter case, the call fails
+immediately with errno set to ``EWOULDBLOCK``. In the former case, the call
+blocks until an event becomes available. The standard Linux poll()
+and/or select() system calls can be used with the device file descriptor
+to watch for new events. For select(), the file descriptor should be
+included in the exceptfds argument, and for poll(), POLLPRI should be
+specified as the wake-up condition. Read-only permissions are sufficient
+for this ioctl call.
+
+
+RETURN VALUE
 ------------
 
 On success 0 is returned, on error -1 and the ``errno`` variable is set
@@ -81,6 +87,3 @@ appropriately. The generic error codes are described at the
        -  ``EOVERFLOW``
 
        -  Overflow in event queue - one or more events were lost.
-
-
-

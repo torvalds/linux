@@ -6,18 +6,18 @@
 ioctl VIDIOC_ENCODER_CMD, VIDIOC_TRY_ENCODER_CMD
 ************************************************
 
-*man VIDIOC_ENCODER_CMD(2)*
+NAME
+====
 
-VIDIOC_TRY_ENCODER_CMD
-Execute an encoder command
+VIDIOC_ENCODER_CMD - VIDIOC_TRY_ENCODER_CMD - Execute an encoder command
 
-
-Synopsis
+SYNOPSIS
 ========
 
 .. cpp:function:: int ioctl( int fd, int request, struct v4l2_encoder_cmd *argp )
 
-Arguments
+
+ARGUMENTS
 =========
 
 ``fd``
@@ -29,7 +29,7 @@ Arguments
 ``argp``
 
 
-Description
+DESCRIPTION
 ===========
 
 These ioctls control an audio/video (usually MPEG-) encoder.
@@ -179,8 +179,7 @@ introduced in Linux 2.6.21.
 	  rather than immediately.
 
 
-
-Return Value
+RETURN VALUE
 ============
 
 On success 0 is returned, on error -1 and the ``errno`` variable is set

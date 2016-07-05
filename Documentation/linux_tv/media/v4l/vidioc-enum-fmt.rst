@@ -6,17 +6,18 @@
 ioctl VIDIOC_ENUM_FMT
 *********************
 
-*man VIDIOC_ENUM_FMT(2)*
+NAME
+====
 
-Enumerate image formats
+VIDIOC_ENUM_FMT - Enumerate image formats
 
-
-Synopsis
+SYNOPSIS
 ========
 
 .. cpp:function:: int ioctl( int fd, int request, struct v4l2_fmtdesc *argp )
 
-Arguments
+
+ARGUMENTS
 =========
 
 ``fd``
@@ -28,7 +29,7 @@ Arguments
 ``argp``
 
 
-Description
+DESCRIPTION
 ===========
 
 To enumerate image formats applications initialize the ``type`` and
@@ -150,8 +151,7 @@ formats may be different.
 	  format instead for better performance.
 
 
-
-Return Value
+RETURN VALUE
 ============
 
 On success 0 is returned, on error -1 and the ``errno`` variable is set

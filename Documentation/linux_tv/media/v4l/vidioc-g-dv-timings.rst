@@ -6,20 +6,18 @@
 ioctl VIDIOC_G_DV_TIMINGS, VIDIOC_S_DV_TIMINGS
 **********************************************
 
-*man VIDIOC_G_DV_TIMINGS(2)*
+NAME
+====
 
-VIDIOC_S_DV_TIMINGS
-VIDIOC_SUBDEV_G_DV_TIMINGS
-VIDIOC_SUBDEV_S_DV_TIMINGS
-Get or set DV timings for input or output
+VIDIOC_G_DV_TIMINGS - VIDIOC_S_DV_TIMINGS - VIDIOC_SUBDEV_G_DV_TIMINGS - VIDIOC_SUBDEV_S_DV_TIMINGS - Get or set DV timings for input or output
 
-
-Synopsis
+SYNOPSIS
 ========
 
 .. cpp:function:: int ioctl( int fd, int request, struct v4l2_dv_timings *argp )
 
-Arguments
+
+ARGUMENTS
 =========
 
 ``fd``
@@ -32,7 +30,7 @@ Arguments
 ``argp``
 
 
-Description
+DESCRIPTION
 ===========
 
 To set DV timings for the input or output, applications use the
@@ -51,7 +49,7 @@ the current input or output does not support DV timings (e.g. if
 ``V4L2_IN_CAP_DV_TIMINGS`` flag), then ``ENODATA`` error code is returned.
 
 
-Return Value
+RETURN VALUE
 ============
 
 On success 0 is returned, on error -1 and the ``errno`` variable is set

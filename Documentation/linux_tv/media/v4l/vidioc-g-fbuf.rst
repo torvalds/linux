@@ -6,20 +6,20 @@
 ioctl VIDIOC_G_FBUF, VIDIOC_S_FBUF
 **********************************
 
-*man VIDIOC_G_FBUF(2)*
+NAME
+====
 
-VIDIOC_S_FBUF
-Get or set frame buffer overlay parameters
+VIDIOC_G_FBUF - VIDIOC_S_FBUF - Get or set frame buffer overlay parameters
 
-
-Synopsis
+SYNOPSIS
 ========
 
 .. cpp:function:: int ioctl( int fd, int request, struct v4l2_framebuffer *argp )
 
 .. cpp:function:: int ioctl( int fd, int request, const struct v4l2_framebuffer *argp )
 
-Arguments
+
+ARGUMENTS
 =========
 
 ``fd``
@@ -31,7 +31,7 @@ Arguments
 ``argp``
 
 
-Description
+DESCRIPTION
 ===========
 
 Applications can use the :ref:`VIDIOC_G_FBUF <VIDIOC_G_FBUF>` and :ref:`VIDIOC_S_FBUF <VIDIOC_G_FBUF>` ioctl
@@ -477,8 +477,7 @@ destructive video overlay.
 	  :ref:`v4l2_window <v4l2-window>` is being used.
 
 
-
-Return Value
+RETURN VALUE
 ============
 
 On success 0 is returned, on error -1 and the ``errno`` variable is set

@@ -6,17 +6,18 @@
 ioctl VIDIOC_DBG_G_CHIP_INFO
 ****************************
 
-*man VIDIOC_DBG_G_CHIP_INFO(2)*
+NAME
+====
 
-Identify the chips on a TV card
+VIDIOC_DBG_G_CHIP_INFO - Identify the chips on a TV card
 
-
-Synopsis
+SYNOPSIS
 ========
 
 .. cpp:function:: int ioctl( int fd, int request, struct v4l2_dbg_chip_info *argp )
 
-Arguments
+
+ARGUMENTS
 =========
 
 ``fd``
@@ -28,7 +29,7 @@ Arguments
 ``argp``
 
 
-Description
+DESCRIPTION
 ===========
 
     **Note**
@@ -191,8 +192,7 @@ instructions.
        -  Match the nth sub-device.
 
 
-
-Return Value
+RETURN VALUE
 ============
 
 On success 0 is returned, on error -1 and the ``errno`` variable is set

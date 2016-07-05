@@ -6,18 +6,18 @@
 ioctl VIDIOC_SUBDEV_G_SELECTION, VIDIOC_SUBDEV_S_SELECTION
 **********************************************************
 
-*man VIDIOC_SUBDEV_G_SELECTION(2)*
+NAME
+====
 
-VIDIOC_SUBDEV_S_SELECTION
-Get or set selection rectangles on a subdev pad
+VIDIOC_SUBDEV_G_SELECTION - VIDIOC_SUBDEV_S_SELECTION - Get or set selection rectangles on a subdev pad
 
-
-Synopsis
+SYNOPSIS
 ========
 
 .. cpp:function:: int ioctl( int fd, int request, struct v4l2_subdev_selection *argp )
 
-Arguments
+
+ARGUMENTS
 =========
 
 ``fd``
@@ -29,7 +29,7 @@ Arguments
 ``argp``
 
 
-Description
+DESCRIPTION
 ===========
 
 The selections are used to configure various image processing
@@ -122,8 +122,7 @@ Selection targets and flags are documented in
 	  the array to zero.
 
 
-
-Return Value
+RETURN VALUE
 ============
 
 On success 0 is returned, on error -1 and the ``errno`` variable is set

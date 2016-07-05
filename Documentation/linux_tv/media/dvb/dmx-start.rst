@@ -2,24 +2,23 @@
 
 .. _DMX_START:
 
+=========
 DMX_START
 =========
 
-Description
------------
+NAME
+----
 
-This ioctl call is used to start the actual filtering operation defined
-via the ioctl calls DMX_SET_FILTER or DMX_SET_PES_FILTER.
+DMX_START
 
-Synopsis
+SYNOPSIS
 --------
 
 .. c:function:: int ioctl( int fd, int request = DMX_START)
 
-Arguments
-----------
 
-
+ARGUMENTS
+---------
 
 .. flat-table::
     :header-rows:  0
@@ -39,7 +38,14 @@ Arguments
        -  Equals DMX_START for this command.
 
 
-Return Value
+DESCRIPTION
+-----------
+
+This ioctl call is used to start the actual filtering operation defined
+via the ioctl calls DMX_SET_FILTER or DMX_SET_PES_FILTER.
+
+
+RETURN VALUE
 ------------
 
 On success 0 is returned, on error -1 and the ``errno`` variable is set
@@ -68,6 +74,3 @@ appropriately. The generic error codes are described at the
 	  There are active filters filtering data from another input source.
 	  Make sure that these filters are stopped before starting this
 	  filter.
-
-
-

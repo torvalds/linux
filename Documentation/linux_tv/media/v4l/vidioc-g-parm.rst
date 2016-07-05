@@ -6,18 +6,18 @@
 ioctl VIDIOC_G_PARM, VIDIOC_S_PARM
 **********************************
 
-*man VIDIOC_G_PARM(2)*
+NAME
+====
 
-VIDIOC_S_PARM
-Get or set streaming parameters
+VIDIOC_G_PARM - VIDIOC_S_PARM - Get or set streaming parameters
 
-
-Synopsis
+SYNOPSIS
 ========
 
 .. cpp:function:: int ioctl( int fd, int request, v4l2_streamparm *argp )
 
-Arguments
+
+ARGUMENTS
 =========
 
 ``fd``
@@ -29,7 +29,7 @@ Arguments
 ``argp``
 
 
-Description
+DESCRIPTION
 ===========
 
 The current video standard determines a nominal number of frames per
@@ -340,8 +340,7 @@ union holding separate parameters for input and output devices.
 	  -  Capture might only work through the :ref:`read() <func-read>` call.
 
 
-
-Return Value
+RETURN VALUE
 ============
 
 On success 0 is returned, on error -1 and the ``errno`` variable is set

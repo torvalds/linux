@@ -6,17 +6,18 @@
 ioctl VIDIOC_SUBDEV_ENUM_FRAME_SIZE
 ***********************************
 
-*man VIDIOC_SUBDEV_ENUM_FRAME_SIZE(2)*
+NAME
+====
 
-Enumerate media bus frame sizes
+VIDIOC_SUBDEV_ENUM_FRAME_SIZE - Enumerate media bus frame sizes
 
-
-Synopsis
+SYNOPSIS
 ========
 
 .. cpp:function:: int ioctl( int fd, int request, struct v4l2_subdev_frame_size_enum * argp )
 
-Arguments
+
+ARGUMENTS
 =========
 
 ``fd``
@@ -28,7 +29,7 @@ Arguments
 ``argp``
 
 
-Description
+DESCRIPTION
 ===========
 
 This ioctl allows applications to enumerate all frame sizes supported by
@@ -146,8 +147,7 @@ information about try formats.
 	  the array to zero.
 
 
-
-Return Value
+RETURN VALUE
 ============
 
 On success 0 is returned, on error -1 and the ``errno`` variable is set

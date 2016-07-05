@@ -2,24 +2,23 @@
 
 .. _AUDIO_CLEAR_BUFFER:
 
+==================
 AUDIO_CLEAR_BUFFER
 ==================
 
-Description
------------
+NAME
+----
 
-This ioctl call asks the Audio Device to clear all software and hardware
-buffers of the audio decoder device.
+AUDIO_CLEAR_BUFFER
 
-Synopsis
+SYNOPSIS
 --------
 
 .. c:function:: int  ioctl(int fd, int request = AUDIO_CLEAR_BUFFER)
 
-Arguments
-----------
 
-
+ARGUMENTS
+---------
 
 .. flat-table::
     :header-rows:  0
@@ -39,11 +38,16 @@ Arguments
        -  Equals AUDIO_CLEAR_BUFFER for this command.
 
 
-Return Value
+DESCRIPTION
+-----------
+
+This ioctl call asks the Audio Device to clear all software and hardware
+buffers of the audio decoder device.
+
+
+RETURN VALUE
 ------------
 
 On success 0 is returned, on error -1 and the ``errno`` variable is set
 appropriately. The generic error codes are described at the
 :ref:`Generic Error Codes <gen-errors>` chapter.
-
-

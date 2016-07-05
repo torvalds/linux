@@ -2,26 +2,23 @@
 
 .. _VIDEO_SET_SYSTEM:
 
+================
 VIDEO_SET_SYSTEM
 ================
 
-Description
------------
+NAME
+----
 
-This ioctl sets the television output format. The format (see section
-??) may vary from the color format of the displayed MPEG stream. If the
-hardware is not able to display the requested format the call will
-return an error.
+VIDEO_SET_SYSTEM
 
-Synopsis
+SYNOPSIS
 --------
 
 .. c:function:: int ioctl(fd, int request = VIDEO_SET_SYSTEM , video_system_t system)
 
-Arguments
-----------
 
-
+ARGUMENTS
+---------
 
 .. flat-table::
     :header-rows:  0
@@ -47,7 +44,16 @@ Arguments
        -  video system of TV output.
 
 
-Return Value
+DESCRIPTION
+-----------
+
+This ioctl sets the television output format. The format (see section
+??) may vary from the color format of the displayed MPEG stream. If the
+hardware is not able to display the requested format the call will
+return an error.
+
+
+RETURN VALUE
 ------------
 
 On success 0 is returned, on error -1 and the ``errno`` variable is set
@@ -66,6 +72,3 @@ appropriately. The generic error codes are described at the
        -  ``EINVAL``
 
        -  system is not a valid or supported video system.
-
-
-

@@ -2,24 +2,23 @@
 
 .. _VIDEO_SET_ID:
 
+============
 VIDEO_SET_ID
 ============
 
-Description
------------
+NAME
+----
 
-This ioctl selects which sub-stream is to be decoded if a program or
-system stream is sent to the video device.
+VIDEO_SET_ID
 
-Synopsis
+SYNOPSIS
 --------
 
 .. c:function:: int ioctl(int fd, int request = VIDEO_SET_ID, int id)
 
-Arguments
-----------
 
-
+ARGUMENTS
+---------
 
 .. flat-table::
     :header-rows:  0
@@ -45,7 +44,14 @@ Arguments
        -  video sub-stream id
 
 
-Return Value
+DESCRIPTION
+-----------
+
+This ioctl selects which sub-stream is to be decoded if a program or
+system stream is sent to the video device.
+
+
+RETURN VALUE
 ------------
 
 On success 0 is returned, on error -1 and the ``errno`` variable is set
@@ -64,6 +70,3 @@ appropriately. The generic error codes are described at the
        -  ``EINVAL``
 
        -  Invalid sub-stream id.
-
-
-

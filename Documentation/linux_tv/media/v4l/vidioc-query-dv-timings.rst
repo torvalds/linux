@@ -6,18 +6,18 @@
 ioctl VIDIOC_QUERY_DV_TIMINGS
 *****************************
 
-*man VIDIOC_QUERY_DV_TIMINGS(2)*
+NAME
+====
 
-VIDIOC_SUBDEV_QUERY_DV_TIMINGS
-Sense the DV preset received by the current input
+VIDIOC_QUERY_DV_TIMINGS - VIDIOC_SUBDEV_QUERY_DV_TIMINGS - Sense the DV preset received by the current input
 
-
-Synopsis
+SYNOPSIS
 ========
 
 .. cpp:function:: int ioctl( int fd, int request, struct v4l2_dv_timings *argp )
 
-Arguments
+
+ARGUMENTS
 =========
 
 ``fd``
@@ -29,7 +29,7 @@ Arguments
 ``argp``
 
 
-Description
+DESCRIPTION
 ===========
 
 The hardware may be able to detect the current DV timings automatically,
@@ -61,7 +61,7 @@ found timings with the hardware's capabilities in order to give more
 precise feedback to the user.
 
 
-Return Value
+RETURN VALUE
 ============
 
 On success 0 is returned, on error -1 and the ``errno`` variable is set

@@ -2,25 +2,23 @@
 
 .. _VIDEO_GET_CAPABILITIES:
 
+======================
 VIDEO_GET_CAPABILITIES
 ======================
 
-Description
------------
+NAME
+----
 
-This ioctl call asks the video device about its decoding capabilities.
-On success it returns and integer which has bits set according to the
-defines in section ??.
+VIDEO_GET_CAPABILITIES
 
-Synopsis
+SYNOPSIS
 --------
 
 .. c:function:: int ioctl(fd, int request = VIDEO_GET_CAPABILITIES, unsigned int *cap)
 
-Arguments
-----------
 
-
+ARGUMENTS
+---------
 
 .. flat-table::
     :header-rows:  0
@@ -46,11 +44,17 @@ Arguments
        -  Pointer to a location where to store the capability information.
 
 
-Return Value
+DESCRIPTION
+-----------
+
+This ioctl call asks the video device about its decoding capabilities.
+On success it returns and integer which has bits set according to the
+defines in section ??.
+
+
+RETURN VALUE
 ------------
 
 On success 0 is returned, on error -1 and the ``errno`` variable is set
 appropriately. The generic error codes are described at the
 :ref:`Generic Error Codes <gen-errors>` chapter.
-
-

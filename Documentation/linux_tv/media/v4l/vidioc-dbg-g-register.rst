@@ -6,20 +6,20 @@
 ioctl VIDIOC_DBG_G_REGISTER, VIDIOC_DBG_S_REGISTER
 **************************************************
 
-*man VIDIOC_DBG_G_REGISTER(2)*
+NAME
+====
 
-VIDIOC_DBG_S_REGISTER
-Read or write hardware registers
+VIDIOC_DBG_G_REGISTER - VIDIOC_DBG_S_REGISTER - Read or write hardware registers
 
-
-Synopsis
+SYNOPSIS
 ========
 
 .. cpp:function:: int ioctl( int fd, int request, struct v4l2_dbg_register *argp )
 
 .. cpp:function:: int ioctl( int fd, int request, const struct v4l2_dbg_register *argp )
 
-Arguments
+
+ARGUMENTS
 =========
 
 ``fd``
@@ -31,7 +31,7 @@ Arguments
 ``argp``
 
 
-Description
+DESCRIPTION
 ===========
 
     **Note**
@@ -196,8 +196,7 @@ instructions.
        -  Match the nth sub-device.
 
 
-
-Return Value
+RETURN VALUE
 ============
 
 On success 0 is returned, on error -1 and the ``errno`` variable is set

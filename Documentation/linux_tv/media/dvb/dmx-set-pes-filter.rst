@@ -2,26 +2,23 @@
 
 .. _DMX_SET_PES_FILTER:
 
+==================
 DMX_SET_PES_FILTER
 ==================
 
-Description
------------
+NAME
+----
 
-This ioctl call sets up a PES filter according to the parameters
-provided. By a PES filter is meant a filter that is based just on the
-packet identifier (PID), i.e. no PES header or payload filtering
-capability is supported.
+DMX_SET_PES_FILTER
 
-Synopsis
+SYNOPSIS
 --------
 
 .. c:function:: int ioctl( int fd, int request = DMX_SET_PES_FILTER, struct dmx_pes_filter_params *params)
 
-Arguments
-----------
 
-
+ARGUMENTS
+---------
 
 .. flat-table::
     :header-rows:  0
@@ -47,7 +44,16 @@ Arguments
        -  Pointer to structure containing filter parameters.
 
 
-Return Value
+DESCRIPTION
+-----------
+
+This ioctl call sets up a PES filter according to the parameters
+provided. By a PES filter is meant a filter that is based just on the
+packet identifier (PID), i.e. no PES header or payload filtering
+capability is supported.
+
+
+RETURN VALUE
 ------------
 
 On success 0 is returned, on error -1 and the ``errno`` variable is set
@@ -69,6 +75,3 @@ appropriately. The generic error codes are described at the
 	  There are active filters filtering data from another input source.
 	  Make sure that these filters are stopped before starting this
 	  filter.
-
-
-

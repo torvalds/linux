@@ -6,17 +6,18 @@
 ioctl VIDIOC_PREPARE_BUF
 ************************
 
-*man VIDIOC_PREPARE_BUF(2)*
+NAME
+====
 
-Prepare a buffer for I/O
+VIDIOC_PREPARE_BUF - Prepare a buffer for I/O
 
-
-Synopsis
+SYNOPSIS
 ========
 
 .. cpp:function:: int ioctl( int fd, int request, struct v4l2_buffer *argp )
 
-Arguments
+
+ARGUMENTS
 =========
 
 ``fd``
@@ -28,7 +29,7 @@ Arguments
 ``argp``
 
 
-Description
+DESCRIPTION
 ===========
 
 Applications can optionally call the :ref:`VIDIOC_PREPARE_BUF` ioctl to
@@ -44,7 +45,7 @@ The :ref:`struct v4l2_buffer <v4l2-buffer>` structure is specified in
 :ref:`buffer`.
 
 
-Return Value
+RETURN VALUE
 ============
 
 On success 0 is returned, on error -1 and the ``errno`` variable is set

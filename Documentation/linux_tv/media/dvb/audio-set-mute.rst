@@ -2,28 +2,23 @@
 
 .. _AUDIO_SET_MUTE:
 
+==============
 AUDIO_SET_MUTE
 ==============
 
-Description
------------
+NAME
+----
 
-This ioctl is for DVB devices only. To control a V4L2 decoder use the
-V4L2 :ref:`VIDIOC_DECODER_CMD` with the
-``V4L2_DEC_CMD_START_MUTE_AUDIO`` flag instead.
+AUDIO_SET_MUTE
 
-This ioctl call asks the audio device to mute the stream that is
-currently being played.
-
-Synopsis
+SYNOPSIS
 --------
 
 .. c:function:: int  ioctl(int fd, int request = AUDIO_SET_MUTE, boolean state)
 
-Arguments
-----------
 
-
+ARGUMENTS
+---------
 
 .. flat-table::
     :header-rows:  0
@@ -59,11 +54,20 @@ Arguments
        -  FALSE Audio Un-mute
 
 
-Return Value
+DESCRIPTION
+-----------
+
+This ioctl is for DVB devices only. To control a V4L2 decoder use the
+V4L2 :ref:`VIDIOC_DECODER_CMD` with the
+``V4L2_DEC_CMD_START_MUTE_AUDIO`` flag instead.
+
+This ioctl call asks the audio device to mute the stream that is
+currently being played.
+
+
+RETURN VALUE
 ------------
 
 On success 0 is returned, on error -1 and the ``errno`` variable is set
 appropriately. The generic error codes are described at the
 :ref:`Generic Error Codes <gen-errors>` chapter.
-
-

@@ -6,17 +6,18 @@
 ioctl VIDIOC_QUERYBUF
 *********************
 
-*man VIDIOC_QUERYBUF(2)*
+NAME
+====
 
-Query the status of a buffer
+VIDIOC_QUERYBUF - Query the status of a buffer
 
-
-Synopsis
+SYNOPSIS
 ========
 
 .. cpp:function:: int ioctl( int fd, int request, struct v4l2_buffer *argp )
 
-Arguments
+
+ARGUMENTS
 =========
 
 ``fd``
@@ -28,7 +29,7 @@ Arguments
 ``argp``
 
 
-Description
+DESCRIPTION
 ===========
 
 This ioctl is part of the :ref:`streaming <mmap>` I/O method. It can
@@ -67,7 +68,7 @@ The :ref:`struct v4l2_buffer <v4l2-buffer>` structure is specified in
 :ref:`buffer`.
 
 
-Return Value
+RETURN VALUE
 ============
 
 On success 0 is returned, on error -1 and the ``errno`` variable is set

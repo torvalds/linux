@@ -6,20 +6,20 @@
 ioctl VIDIOC_G_AUDOUT, VIDIOC_S_AUDOUT
 **************************************
 
-*man VIDIOC_G_AUDOUT(2)*
+NAME
+====
 
-VIDIOC_S_AUDOUT
-Query or select the current audio output
+VIDIOC_G_AUDOUT - VIDIOC_S_AUDOUT - Query or select the current audio output
 
-
-Synopsis
+SYNOPSIS
 ========
 
 .. cpp:function:: int ioctl( int fd, int request, struct v4l2_audioout *argp )
 
 .. cpp:function:: int ioctl( int fd, int request, const struct v4l2_audioout *argp )
 
-Arguments
+
+ARGUMENTS
 =========
 
 ``fd``
@@ -31,7 +31,7 @@ Arguments
 ``argp``
 
 
-Description
+DESCRIPTION
 ===========
 
 To query the current audio output applications zero out the ``reserved``
@@ -108,8 +108,7 @@ sound card are not audio outputs in this sense.
 	  the array to zero.
 
 
-
-Return Value
+RETURN VALUE
 ============
 
 On success 0 is returned, on error -1 and the ``errno`` variable is set

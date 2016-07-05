@@ -2,24 +2,23 @@
 
 .. _VIDEO_GET_STATUS:
 
+================
 VIDEO_GET_STATUS
 ================
 
-Description
------------
+NAME
+----
 
-This ioctl call asks the Video Device to return the current status of
-the device.
+VIDEO_GET_STATUS
 
-Synopsis
+SYNOPSIS
 --------
 
 .. c:function:: int ioctl(fd, int request = VIDEO_GET_STATUS, struct video_status *status)
 
-Arguments
-----------
 
-
+ARGUMENTS
+---------
 
 .. flat-table::
     :header-rows:  0
@@ -45,11 +44,16 @@ Arguments
        -  Returns the current status of the Video Device.
 
 
-Return Value
+DESCRIPTION
+-----------
+
+This ioctl call asks the Video Device to return the current status of
+the device.
+
+
+RETURN VALUE
 ------------
 
 On success 0 is returned, on error -1 and the ``errno`` variable is set
 appropriately. The generic error codes are described at the
 :ref:`Generic Error Codes <gen-errors>` chapter.
-
-

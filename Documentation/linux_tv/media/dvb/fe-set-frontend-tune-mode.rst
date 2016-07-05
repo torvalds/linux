@@ -6,17 +6,18 @@
 ioctl FE_SET_FRONTEND_TUNE_MODE
 *******************************
 
-*man FE_SET_FRONTEND_TUNE_MODE(2)*
+NAME
+====
 
-Allow setting tuner mode flags to the frontend.
+FE_SET_FRONTEND_TUNE_MODE - Allow setting tuner mode flags to the frontend.
 
-
-Synopsis
+SYNOPSIS
 ========
 
 .. cpp:function:: int ioctl( int fd, int request, unsigned int flags )
 
-Arguments
+
+ARGUMENTS
 =========
 
 ``fd``
@@ -38,13 +39,15 @@ Arguments
        device is reopened read-write.
 
 
-Description
+DESCRIPTION
 ===========
 
 Allow setting tuner mode flags to the frontend, between 0 (normal) or
 FE_TUNE_MODE_ONESHOT mode
 
+
 RETURN VALUE
+============
 
 On success 0 is returned, on error -1 and the ``errno`` variable is set
 appropriately. The generic error codes are described at the

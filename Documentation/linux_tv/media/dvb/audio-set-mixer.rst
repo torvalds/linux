@@ -2,23 +2,23 @@
 
 .. _AUDIO_SET_MIXER:
 
+===============
 AUDIO_SET_MIXER
 ===============
 
-Description
------------
+NAME
+----
 
-This ioctl lets you adjust the mixer settings of the audio decoder.
+AUDIO_SET_MIXER
 
-Synopsis
+SYNOPSIS
 --------
 
 .. c:function:: int ioctl(int fd, int request = AUDIO_SET_MIXER, audio_mixer_t *mix)
 
-Arguments
-----------
 
-
+ARGUMENTS
+---------
 
 .. flat-table::
     :header-rows:  0
@@ -44,11 +44,15 @@ Arguments
        -  mixer settings.
 
 
-Return Value
+DESCRIPTION
+-----------
+
+This ioctl lets you adjust the mixer settings of the audio decoder.
+
+
+RETURN VALUE
 ------------
 
 On success 0 is returned, on error -1 and the ``errno`` variable is set
 appropriately. The generic error codes are described at the
 :ref:`Generic Error Codes <gen-errors>` chapter.
-
-

@@ -2,26 +2,23 @@
 
 .. _AUDIO_SELECT_SOURCE:
 
+===================
 AUDIO_SELECT_SOURCE
 ===================
 
-Description
------------
+NAME
+----
 
-This ioctl call informs the audio device which source shall be used for
-the input data. The possible sources are demux or memory. If
-AUDIO_SOURCE_MEMORY is selected, the data is fed to the Audio Device
-through the write command.
+AUDIO_SELECT_SOURCE
 
-Synopsis
+SYNOPSIS
 --------
 
 .. c:function:: int ioctl(int fd, int request = AUDIO_SELECT_SOURCE, audio_stream_source_t source)
 
-Arguments
-----------
 
-
+ARGUMENTS
+---------
 
 .. flat-table::
     :header-rows:  0
@@ -47,11 +44,18 @@ Arguments
        -  Indicates the source that shall be used for the Audio stream.
 
 
-Return Value
+DESCRIPTION
+-----------
+
+This ioctl call informs the audio device which source shall be used for
+the input data. The possible sources are demux or memory. If
+AUDIO_SOURCE_MEMORY is selected, the data is fed to the Audio Device
+through the write command.
+
+
+RETURN VALUE
 ------------
 
 On success 0 is returned, on error -1 and the ``errno`` variable is set
 appropriately. The generic error codes are described at the
 :ref:`Generic Error Codes <gen-errors>` chapter.
-
-

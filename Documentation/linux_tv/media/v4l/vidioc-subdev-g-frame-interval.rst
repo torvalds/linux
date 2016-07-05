@@ -6,18 +6,18 @@
 ioctl VIDIOC_SUBDEV_G_FRAME_INTERVAL, VIDIOC_SUBDEV_S_FRAME_INTERVAL
 ********************************************************************
 
-*man VIDIOC_SUBDEV_G_FRAME_INTERVAL(2)*
+NAME
+====
 
-VIDIOC_SUBDEV_S_FRAME_INTERVAL
-Get or set the frame interval on a subdev pad
+VIDIOC_SUBDEV_G_FRAME_INTERVAL - VIDIOC_SUBDEV_S_FRAME_INTERVAL - Get or set the frame interval on a subdev pad
 
-
-Synopsis
+SYNOPSIS
 ========
 
 .. cpp:function:: int ioctl( int fd, int request, struct v4l2_subdev_frame_interval *argp )
 
-Arguments
+
+ARGUMENTS
 =========
 
 ``fd``
@@ -30,7 +30,7 @@ Arguments
 ``argp``
 
 
-Description
+DESCRIPTION
 ===========
 
 These ioctls are used to get and set the frame interval at specific
@@ -100,8 +100,7 @@ the same sub-device is not defined.
 	  the array to zero.
 
 
-
-Return Value
+RETURN VALUE
 ============
 
 On success 0 is returned, on error -1 and the ``errno`` variable is set

@@ -2,24 +2,23 @@
 
 .. _AUDIO_SET_ATTRIBUTES:
 
+====================
 AUDIO_SET_ATTRIBUTES
 ====================
 
-Description
------------
+NAME
+----
 
-This ioctl is intended for DVD playback and allows you to set certain
-information about the audio stream.
+AUDIO_SET_ATTRIBUTES
 
-Synopsis
+SYNOPSIS
 --------
 
 .. c:function:: int ioctl(fd, int request = AUDIO_SET_ATTRIBUTES, audio_attributes_t attr )
 
-Arguments
-----------
 
-
+ARGUMENTS
+---------
 
 .. flat-table::
     :header-rows:  0
@@ -45,7 +44,14 @@ Arguments
        -  audio attributes according to section ??
 
 
-Return Value
+DESCRIPTION
+-----------
+
+This ioctl is intended for DVD playback and allows you to set certain
+information about the audio stream.
+
+
+RETURN VALUE
 ------------
 
 On success 0 is returned, on error -1 and the ``errno`` variable is set
@@ -64,6 +70,3 @@ appropriately. The generic error codes are described at the
        -  ``EINVAL``
 
        -  attr is not a valid or supported attribute setting.
-
-
-

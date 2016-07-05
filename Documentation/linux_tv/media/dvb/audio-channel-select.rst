@@ -2,27 +2,23 @@
 
 .. _AUDIO_CHANNEL_SELECT:
 
+====================
 AUDIO_CHANNEL_SELECT
 ====================
 
-Description
------------
+NAME
+----
 
-This ioctl is for DVB devices only. To control a V4L2 decoder use the
-V4L2 ``V4L2_CID_MPEG_AUDIO_DEC_PLAYBACK`` control instead.
+AUDIO_CHANNEL_SELECT
 
-This ioctl call asks the Audio Device to select the requested channel if
-possible.
-
-Synopsis
+SYNOPSIS
 --------
 
 .. c:function:: int ioctl(int fd, int request = AUDIO_CHANNEL_SELECT, audio_channel_select_t)
 
-Arguments
-----------
 
-
+ARGUMENTS
+---------
 
 .. flat-table::
     :header-rows:  0
@@ -48,11 +44,19 @@ Arguments
        -  Select the output format of the audio (mono left/right, stereo).
 
 
-Return Value
+DESCRIPTION
+-----------
+
+This ioctl is for DVB devices only. To control a V4L2 decoder use the
+V4L2 ``V4L2_CID_MPEG_AUDIO_DEC_PLAYBACK`` control instead.
+
+This ioctl call asks the Audio Device to select the requested channel if
+possible.
+
+
+RETURN VALUE
 ------------
 
 On success 0 is returned, on error -1 and the ``errno`` variable is set
 appropriately. The generic error codes are described at the
 :ref:`Generic Error Codes <gen-errors>` chapter.
-
-

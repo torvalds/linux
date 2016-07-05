@@ -6,20 +6,20 @@
 ioctl VIDIOC_G_PRIORITY, VIDIOC_S_PRIORITY
 ******************************************
 
-*man VIDIOC_G_PRIORITY(2)*
+NAME
+====
 
-VIDIOC_S_PRIORITY
-Query or request the access priority associated with a file descriptor
+VIDIOC_G_PRIORITY - VIDIOC_S_PRIORITY - Query or request the access priority associated with a file descriptor
 
-
-Synopsis
+SYNOPSIS
 ========
 
 .. c:function:: int ioctl( int fd, int request, enum v4l2_priority *argp )
 
 .. c:function:: int ioctl( int fd, int request, const enum v4l2_priority *argp )
 
-Arguments
+
+ARGUMENTS
 =========
 
 ``fd``
@@ -32,7 +32,7 @@ Arguments
     Pointer to an enum v4l2_priority type.
 
 
-Description
+DESCRIPTION
 ===========
 
 To query the current access priority applications call the
@@ -102,8 +102,7 @@ with a pointer to this variable.
 	  applications which must not be interrupted, like video recording.
 
 
-
-Return Value
+RETURN VALUE
 ============
 
 On success 0 is returned, on error -1 and the ``errno`` variable is set

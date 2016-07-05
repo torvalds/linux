@@ -6,18 +6,18 @@
 ioctl VIDIOC_ENUM_DV_TIMINGS, VIDIOC_SUBDEV_ENUM_DV_TIMINGS
 ***********************************************************
 
-*man VIDIOC_ENUM_DV_TIMINGS(2)*
+NAME
+====
 
-VIDIOC_SUBDEV_ENUM_DV_TIMINGS
-Enumerate supported Digital Video timings
+VIDIOC_ENUM_DV_TIMINGS - VIDIOC_SUBDEV_ENUM_DV_TIMINGS - Enumerate supported Digital Video timings
 
-
-Synopsis
+SYNOPSIS
 ========
 
 .. cpp:function:: int ioctl( int fd, int request, struct v4l2_enum_dv_timings *argp )
 
-Arguments
+
+ARGUMENTS
 =========
 
 ``fd``
@@ -29,7 +29,7 @@ Arguments
 ``argp``
 
 
-Description
+DESCRIPTION
 ===========
 
 While some DV receivers or transmitters support a wide range of timings,
@@ -103,8 +103,7 @@ return an ``EINVAL`` error code.
        -  The timings.
 
 
-
-Return Value
+RETURN VALUE
 ============
 
 On success 0 is returned, on error -1 and the ``errno`` variable is set

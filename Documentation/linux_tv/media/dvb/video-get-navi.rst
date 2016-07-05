@@ -2,25 +2,23 @@
 
 .. _VIDEO_GET_NAVI:
 
+==============
 VIDEO_GET_NAVI
 ==============
 
-Description
------------
+NAME
+----
 
-This ioctl returns navigational information from the DVD stream. This is
-especially needed if an encoded stream has to be decoded by the
-hardware.
+VIDEO_GET_NAVI
 
-Synopsis
+SYNOPSIS
 --------
 
 .. c:function:: int ioctl(fd, int request = VIDEO_GET_NAVI , video_navi_pack_t *navipack)
 
-Arguments
-----------
 
-
+ARGUMENTS
+---------
 
 .. flat-table::
     :header-rows:  0
@@ -46,7 +44,15 @@ Arguments
        -  PCI or DSI pack (private stream 2) according to section ??.
 
 
-Return Value
+DESCRIPTION
+-----------
+
+This ioctl returns navigational information from the DVD stream. This is
+especially needed if an encoded stream has to be decoded by the
+hardware.
+
+
+RETURN VALUE
 ------------
 
 On success 0 is returned, on error -1 and the ``errno`` variable is set
@@ -65,6 +71,3 @@ appropriately. The generic error codes are described at the
        -  ``EFAULT``
 
        -  driver is not able to return navigational information
-
-
-

@@ -6,18 +6,18 @@
 ioctl VIDIOC_G_CTRL, VIDIOC_S_CTRL
 **********************************
 
-*man VIDIOC_G_CTRL(2)*
+NAME
+====
 
-VIDIOC_S_CTRL
-Get or set the value of a control
+VIDIOC_G_CTRL - VIDIOC_S_CTRL - Get or set the value of a control
 
-
-Synopsis
+SYNOPSIS
 ========
 
 .. cpp:function:: int ioctl( int fd, int request, struct v4l2_control *argp )
 
-Arguments
+
+ARGUMENTS
 =========
 
 ``fd``
@@ -29,7 +29,7 @@ Arguments
 ``argp``
 
 
-Description
+DESCRIPTION
 ===========
 
 To get the current value of a control applications initialize the ``id``
@@ -78,8 +78,7 @@ These ioctls work only with user controls. For other control classes the
        -  New value or current value.
 
 
-
-Return Value
+RETURN VALUE
 ============
 
 On success 0 is returned, on error -1 and the ``errno`` variable is set

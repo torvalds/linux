@@ -6,17 +6,18 @@
 ioctl VIDIOC_REQBUFS
 ********************
 
-*man VIDIOC_REQBUFS(2)*
+NAME
+====
 
-Initiate Memory Mapping or User Pointer I/O
+VIDIOC_REQBUFS - Initiate Memory Mapping or User Pointer I/O
 
-
-Synopsis
+SYNOPSIS
 ========
 
 .. cpp:function:: int ioctl( int fd, int request, struct v4l2_requestbuffers *argp )
 
-Arguments
+
+ARGUMENTS
 =========
 
 ``fd``
@@ -28,7 +29,7 @@ Arguments
 ``argp``
 
 
-Description
+DESCRIPTION
 ===========
 
 This ioctl is used to initiate :ref:`memory mapped <mmap>`,
@@ -111,8 +112,7 @@ any DMA in progress, an implicit
 	  must set the array to zero.
 
 
-
-Return Value
+RETURN VALUE
 ============
 
 On success 0 is returned, on error -1 and the ``errno`` variable is set

@@ -6,20 +6,20 @@
 ioctl VIDIOC_G_CROP, VIDIOC_S_CROP
 **********************************
 
-*man VIDIOC_G_CROP(2)*
+NAME
+====
 
-VIDIOC_S_CROP
-Get or set the current cropping rectangle
+VIDIOC_G_CROP - VIDIOC_S_CROP - Get or set the current cropping rectangle
 
-
-Synopsis
+SYNOPSIS
 ========
 
 .. cpp:function:: int ioctl( int fd, int request, struct v4l2_crop *argp )
 
 .. cpp:function:: int ioctl( int fd, int request, const struct v4l2_crop *argp )
 
-Arguments
+
+ARGUMENTS
 =========
 
 ``fd``
@@ -31,7 +31,7 @@ Arguments
 ``argp``
 
 
-Description
+DESCRIPTION
 ===========
 
 To query the cropping rectangle size and position applications set the
@@ -104,8 +104,7 @@ When cropping is not supported then no parameters are changed and
 	  :ref:`v4l2_cropcap <v4l2-cropcap>` ``bounds`` is used.
 
 
-
-Return Value
+RETURN VALUE
 ============
 
 On success 0 is returned, on error -1 and the ``errno`` variable is set

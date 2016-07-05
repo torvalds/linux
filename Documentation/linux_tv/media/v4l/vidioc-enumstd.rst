@@ -6,17 +6,18 @@
 ioctl VIDIOC_ENUMSTD
 ********************
 
-*man VIDIOC_ENUMSTD(2)*
+NAME
+====
 
-Enumerate supported video standards
+VIDIOC_ENUMSTD - Enumerate supported video standards
 
-
-Synopsis
+SYNOPSIS
 ========
 
 .. cpp:function:: int ioctl( int fd, int request, struct v4l2_standard *argp )
 
-Arguments
+
+ARGUMENTS
 =========
 
 ``fd``
@@ -28,7 +29,7 @@ Arguments
 ``argp``
 
 
-Description
+DESCRIPTION
 ===========
 
 To query the attributes of a video standard, especially a custom (driver
@@ -384,8 +385,7 @@ support digital TV. See also the Linux DVB API at
        -  + 6.5  [8]_
 
 
-
-Return Value
+RETURN VALUE
 ============
 
 On success 0 is returned, on error -1 and the ``errno`` variable is set

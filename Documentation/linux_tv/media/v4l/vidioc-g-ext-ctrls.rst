@@ -6,19 +6,18 @@
 ioctl VIDIOC_G_EXT_CTRLS, VIDIOC_S_EXT_CTRLS, VIDIOC_TRY_EXT_CTRLS
 ******************************************************************
 
-*man VIDIOC_G_EXT_CTRLS(2)*
+NAME
+====
 
-VIDIOC_S_EXT_CTRLS
-VIDIOC_TRY_EXT_CTRLS
-Get or set the value of several controls, try control values
+VIDIOC_G_EXT_CTRLS - VIDIOC_S_EXT_CTRLS - VIDIOC_TRY_EXT_CTRLS - Get or set the value of several controls, try control values
 
-
-Synopsis
+SYNOPSIS
 ========
 
 .. cpp:function:: int ioctl( int fd, int request, struct v4l2_ext_controls *argp )
 
-Arguments
+
+ARGUMENTS
 =========
 
 ``fd``
@@ -31,7 +30,7 @@ Arguments
 ``argp``
 
 
-Description
+DESCRIPTION
 ===========
 
 These ioctls allow the caller to get or set multiple controls
@@ -452,8 +451,7 @@ still cause this situation.
 	  described in :ref:`rf-tuner-controls`.
 
 
-
-Return Value
+RETURN VALUE
 ============
 
 On success 0 is returned, on error -1 and the ``errno`` variable is set

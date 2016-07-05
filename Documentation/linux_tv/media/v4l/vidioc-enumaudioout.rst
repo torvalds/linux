@@ -6,17 +6,18 @@
 ioctl VIDIOC_ENUMAUDOUT
 ***********************
 
-*man VIDIOC_ENUMAUDOUT(2)*
+NAME
+====
 
-Enumerate audio outputs
+VIDIOC_ENUMAUDOUT - Enumerate audio outputs
 
-
-Synopsis
+SYNOPSIS
 ========
 
 .. cpp:function:: int ioctl( int fd, int request, struct v4l2_audioout *argp )
 
-Arguments
+
+ARGUMENTS
 =========
 
 ``fd``
@@ -28,7 +29,7 @@ Arguments
 ``argp``
 
 
-Description
+DESCRIPTION
 ===========
 
 To query the attributes of an audio output applications initialize the
@@ -46,7 +47,7 @@ See :ref:`VIDIOC_G_AUDIOout <VIDIOC_G_AUDIOout>` for a description of struct
 :ref:`v4l2_audioout <v4l2-audioout>`.
 
 
-Return Value
+RETURN VALUE
 ============
 
 On success 0 is returned, on error -1 and the ``errno`` variable is set

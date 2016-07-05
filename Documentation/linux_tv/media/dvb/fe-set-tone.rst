@@ -6,17 +6,18 @@
 ioctl FE_SET_TONE
 *****************
 
-*man FE_SET_TONE(2)*
+NAME
+====
 
-Sets/resets the generation of the continuous 22kHz tone.
+FE_SET_TONE - Sets/resets the generation of the continuous 22kHz tone.
 
-
-Synopsis
+SYNOPSIS
 ========
 
 .. c:function:: int ioctl( int fd, int request, enum fe_sec_tone_mode *tone )
 
-Arguments
+
+ARGUMENTS
 =========
 
 ``fd``
@@ -29,7 +30,7 @@ Arguments
     pointer to enum :ref:`fe_sec_tone_mode <fe-sec-tone-mode>`
 
 
-Description
+DESCRIPTION
 ===========
 
 This ioctl is used to set the generation of the continuous 22kHz tone.
@@ -45,7 +46,9 @@ a tone may interfere on other devices, as they may lose the capability
 of selecting the band. So, it is recommended that applications would
 change to SEC_TONE_OFF when the device is not used.
 
+
 RETURN VALUE
+============
 
 On success 0 is returned, on error -1 and the ``errno`` variable is set
 appropriately. The generic error codes are described at the

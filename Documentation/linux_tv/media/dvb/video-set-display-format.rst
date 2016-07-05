@@ -2,24 +2,23 @@
 
 .. _VIDEO_SET_DISPLAY_FORMAT:
 
+========================
 VIDEO_SET_DISPLAY_FORMAT
 ========================
 
-Description
------------
+NAME
+----
 
-This ioctl call asks the Video Device to select the video format to be
-applied by the MPEG chip on the video.
+VIDEO_SET_DISPLAY_FORMAT
 
-Synopsis
+SYNOPSIS
 --------
 
 .. c:function:: int ioctl(fd, int request = VIDEO_SET_DISPLAY_FORMAT, video_display_format_t format)
 
-Arguments
-----------
 
-
+ARGUMENTS
+---------
 
 .. flat-table::
     :header-rows:  0
@@ -45,11 +44,16 @@ Arguments
        -  Selects the video format to be used.
 
 
-Return Value
+DESCRIPTION
+-----------
+
+This ioctl call asks the Video Device to select the video format to be
+applied by the MPEG chip on the video.
+
+
+RETURN VALUE
 ------------
 
 On success 0 is returned, on error -1 and the ``errno`` variable is set
 appropriately. The generic error codes are described at the
 :ref:`Generic Error Codes <gen-errors>` chapter.
-
-

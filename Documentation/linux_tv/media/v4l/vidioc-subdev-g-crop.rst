@@ -6,20 +6,20 @@
 ioctl VIDIOC_SUBDEV_G_CROP, VIDIOC_SUBDEV_S_CROP
 ************************************************
 
-*man VIDIOC_SUBDEV_G_CROP(2)*
+NAME
+====
 
-VIDIOC_SUBDEV_S_CROP
-Get or set the crop rectangle on a subdev pad
+VIDIOC_SUBDEV_G_CROP - VIDIOC_SUBDEV_S_CROP - Get or set the crop rectangle on a subdev pad
 
-
-Synopsis
+SYNOPSIS
 ========
 
 .. cpp:function:: int ioctl( int fd, int request, struct v4l2_subdev_crop *argp )
 
 .. cpp:function:: int ioctl( int fd, int request, const struct v4l2_subdev_crop *argp )
 
-Arguments
+
+ARGUMENTS
 =========
 
 ``fd``
@@ -31,7 +31,7 @@ Arguments
 ``argp``
 
 
-Description
+DESCRIPTION
 ===========
 
     **Note**
@@ -114,8 +114,7 @@ modified format should be as close as possible to the original request.
 	  the array to zero.
 
 
-
-Return Value
+RETURN VALUE
 ============
 
 On success 0 is returned, on error -1 and the ``errno`` variable is set

@@ -2,23 +2,23 @@
 
 .. _VIDEO_GET_FRAME_RATE:
 
+====================
 VIDEO_GET_FRAME_RATE
 ====================
 
-Description
------------
+NAME
+----
 
-This ioctl call asks the Video Device to return the current framerate.
+VIDEO_GET_FRAME_RATE
 
-Synopsis
+SYNOPSIS
 --------
 
 .. c:function:: int ioctl(int fd, int request = VIDEO_GET_FRAME_RATE, unsigned int *rate)
 
-Arguments
-----------
 
-
+ARGUMENTS
+---------
 
 .. flat-table::
     :header-rows:  0
@@ -44,11 +44,15 @@ Arguments
        -  Returns the framerate in number of frames per 1000 seconds.
 
 
-Return Value
+DESCRIPTION
+-----------
+
+This ioctl call asks the Video Device to return the current framerate.
+
+
+RETURN VALUE
 ------------
 
 On success 0 is returned, on error -1 and the ``errno`` variable is set
 appropriately. The generic error codes are described at the
 :ref:`Generic Error Codes <gen-errors>` chapter.
-
-

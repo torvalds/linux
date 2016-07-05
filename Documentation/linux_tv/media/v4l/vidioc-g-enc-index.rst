@@ -6,17 +6,18 @@
 ioctl VIDIOC_G_ENC_INDEX
 ************************
 
-*man VIDIOC_G_ENC_INDEX(2)*
+NAME
+====
 
-Get meta data about a compressed video stream
+VIDIOC_G_ENC_INDEX - Get meta data about a compressed video stream
 
-
-Synopsis
+SYNOPSIS
 ========
 
 .. cpp:function:: int ioctl( int fd, int request, struct v4l2_enc_idx *argp )
 
-Arguments
+
+ARGUMENTS
 =========
 
 ``fd``
@@ -28,7 +29,7 @@ Arguments
 ``argp``
 
 
-Description
+DESCRIPTION
 ===========
 
 The :ref:`VIDIOC_G_ENC_INDEX <VIDIOC_G_ENC_INDEX>` ioctl provides meta data about a compressed
@@ -200,8 +201,7 @@ video elementary streams.
 	  type.
 
 
-
-Return Value
+RETURN VALUE
 ============
 
 On success 0 is returned, on error -1 and the ``errno`` variable is set

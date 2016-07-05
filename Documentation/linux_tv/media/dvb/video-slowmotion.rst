@@ -2,25 +2,23 @@
 
 .. _VIDEO_SLOWMOTION:
 
+================
 VIDEO_SLOWMOTION
 ================
 
-Description
------------
+NAME
+----
 
-This ioctl call asks the video device to repeat decoding frames N number
-of times. This call can only be used if VIDEO_SOURCE_MEMORY is
-selected.
+VIDEO_SLOWMOTION
 
-Synopsis
+SYNOPSIS
 --------
 
 .. c:function:: int ioctl(fd, int request = VIDEO_SLOWMOTION, int nFrames)
 
-Arguments
-----------
 
-
+ARGUMENTS
+---------
 
 .. flat-table::
     :header-rows:  0
@@ -46,7 +44,15 @@ Arguments
        -  The number of times to repeat each frame.
 
 
-Return Value
+DESCRIPTION
+-----------
+
+This ioctl call asks the video device to repeat decoding frames N number
+of times. This call can only be used if VIDEO_SOURCE_MEMORY is
+selected.
+
+
+RETURN VALUE
 ------------
 
 On success 0 is returned, on error -1 and the ``errno`` variable is set
@@ -65,6 +71,3 @@ appropriately. The generic error codes are described at the
        -  ``EPERM``
 
        -  Mode VIDEO_SOURCE_MEMORY not selected.
-
-
-

@@ -6,19 +6,18 @@
 ioctl VIDIOC_G_FMT, VIDIOC_S_FMT, VIDIOC_TRY_FMT
 ************************************************
 
-*man VIDIOC_G_FMT(2)*
+NAME
+====
 
-VIDIOC_S_FMT
-VIDIOC_TRY_FMT
-Get or set the data format, try a format
+VIDIOC_G_FMT - VIDIOC_S_FMT - VIDIOC_TRY_FMT - Get or set the data format, try a format
 
-
-Synopsis
+SYNOPSIS
 ========
 
 .. cpp:function:: int ioctl( int fd, int request, struct v4l2_format *argp )
 
-Arguments
+
+ARGUMENTS
 =========
 
 ``fd``
@@ -30,7 +29,7 @@ Arguments
 ``argp``
 
 
-Description
+DESCRIPTION
 ===========
 
 These ioctls are used to negotiate the format of data (typically image
@@ -176,8 +175,7 @@ The format as returned by :ref:`VIDIOC_TRY_FMT <VIDIOC_G_FMT>` must be identical
        -  Place holder for future extensions.
 
 
-
-Return Value
+RETURN VALUE
 ============
 
 On success 0 is returned, on error -1 and the ``errno`` variable is set

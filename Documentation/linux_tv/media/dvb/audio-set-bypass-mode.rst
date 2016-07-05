@@ -2,27 +2,23 @@
 
 .. _AUDIO_SET_BYPASS_MODE:
 
+=====================
 AUDIO_SET_BYPASS_MODE
 =====================
 
-Description
------------
+NAME
+----
 
-This ioctl call asks the Audio Device to bypass the Audio decoder and
-forward the stream without decoding. This mode shall be used if streams
-that can’t be handled by the DVB system shall be decoded. Dolby
-DigitalTM streams are automatically forwarded by the DVB subsystem if
-the hardware can handle it.
+AUDIO_SET_BYPASS_MODE
 
-Synopsis
+SYNOPSIS
 --------
 
 .. c:function:: int ioctl(int fd, int request = AUDIO_SET_BYPASS_MODE, boolean mode)
 
-Arguments
-----------
 
-
+ARGUMENTS
+---------
 
 .. flat-table::
     :header-rows:  0
@@ -59,11 +55,19 @@ Arguments
        -  FALSE Bypass is enabled
 
 
-Return Value
+DESCRIPTION
+-----------
+
+This ioctl call asks the Audio Device to bypass the Audio decoder and
+forward the stream without decoding. This mode shall be used if streams
+that can’t be handled by the DVB system shall be decoded. Dolby
+DigitalTM streams are automatically forwarded by the DVB subsystem if
+the hardware can handle it.
+
+
+RETURN VALUE
 ------------
 
 On success 0 is returned, on error -1 and the ``errno`` variable is set
 appropriately. The generic error codes are described at the
 :ref:`Generic Error Codes <gen-errors>` chapter.
-
-

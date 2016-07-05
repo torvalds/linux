@@ -6,12 +6,12 @@
 V4L2 open()
 ***********
 
-*man v4l2-open(2)*
+NAME
+====
 
-Open a V4L2 device
+v4l2-open - Open a V4L2 device
 
-
-Synopsis
+SYNOPSIS
 ========
 
 .. code-block:: c
@@ -21,7 +21,8 @@ Synopsis
 
 .. cpp:function:: int open( const char *device_name, int flags )
 
-Arguments
+
+ARGUMENTS
 =========
 
 ``device_name``
@@ -42,7 +43,7 @@ Arguments
     Other flags have no effect.
 
 
-Description
+DESCRIPTION
 ===========
 
 To open a V4L2 device applications call :ref:`open() <func-open>` with the
@@ -53,7 +54,7 @@ driver they will be reset to default values, drivers are never in an
 undefined state.
 
 
-Return Value
+RETURN VALUE
 ============
 
 On success :ref:`open() <func-open>` returns the new file descriptor. On error

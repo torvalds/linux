@@ -2,28 +2,23 @@
 
 .. _dmx_fwrite:
 
+=================
 DVB demux write()
 =================
 
-Description
------------
+NAME
+----
 
-This system call is only provided by the logical device
-/dev/dvb/adapter0/dvr0, associated with the physical demux device that
-provides the actual DVR functionality. It is used for replay of a
-digitally recorded Transport Stream. Matching filters have to be defined
-in the corresponding physical demux device, /dev/dvb/adapter0/demux0.
-The amount of data to be transferred is implied by count.
+DVB demux write()
 
-Synopsis
+SYNOPSIS
 --------
 
 .. c:function:: ssize_t write(int fd, const void *buf, size_t count)
 
-Arguments
-----------
 
-
+ARGUMENTS
+---------
 
 .. flat-table::
     :header-rows:  0
@@ -49,10 +44,19 @@ Arguments
        -  Size of buf.
 
 
-Return Value
+DESCRIPTION
+-----------
+
+This system call is only provided by the logical device
+/dev/dvb/adapter0/dvr0, associated with the physical demux device that
+provides the actual DVR functionality. It is used for replay of a
+digitally recorded Transport Stream. Matching filters have to be defined
+in the corresponding physical demux device, /dev/dvb/adapter0/demux0.
+The amount of data to be transferred is implied by count.
+
+
+RETURN VALUE
 ------------
-
-
 
 .. flat-table::
     :header-rows:  0
@@ -82,6 +86,3 @@ Return Value
        -  ``EBADF``
 
        -  fd is not a valid open file descriptor.
-
-
-

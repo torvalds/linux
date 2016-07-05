@@ -6,12 +6,12 @@
 DVB frontend close()
 ********************
 
-*man fe-close(2)*
+NAME
+====
 
-Close a frontend device
+fe-close - Close a frontend device
 
-
-Synopsis
+SYNOPSIS
 ========
 
 .. code-block:: c
@@ -21,14 +21,15 @@ Synopsis
 
 .. cpp:function:: int close( int fd )
 
-Arguments
+
+ARGUMENTS
 =========
 
 ``fd``
     File descriptor returned by :ref:`open() <func-open>`.
 
 
-Description
+DESCRIPTION
 ===========
 
 This system call closes a previously opened front-end device. After
@@ -36,7 +37,7 @@ closing a front-end device, its corresponding hardware might be powered
 down automatically.
 
 
-Return Value
+RETURN VALUE
 ============
 
 The function returns 0 on success, -1 on failure and the ``errno`` is

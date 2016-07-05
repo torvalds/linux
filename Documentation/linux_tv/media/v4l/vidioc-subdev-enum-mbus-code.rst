@@ -6,17 +6,18 @@
 ioctl VIDIOC_SUBDEV_ENUM_MBUS_CODE
 **********************************
 
-*man VIDIOC_SUBDEV_ENUM_MBUS_CODE(2)*
+NAME
+====
 
-Enumerate media bus formats
+VIDIOC_SUBDEV_ENUM_MBUS_CODE - Enumerate media bus formats
 
-
-Synopsis
+SYNOPSIS
 ========
 
 .. cpp:function:: int ioctl( int fd, int request, struct v4l2_subdev_mbus_code_enum * argp )
 
-Arguments
+
+ARGUMENTS
 =========
 
 ``fd``
@@ -28,7 +29,7 @@ Arguments
 ``argp``
 
 
-Description
+DESCRIPTION
 ===========
 
 To enumerate media bus formats available at a given sub-device pad
@@ -99,8 +100,7 @@ information about the try formats.
 	  the array to zero.
 
 
-
-Return Value
+RETURN VALUE
 ============
 
 On success 0 is returned, on error -1 and the ``errno`` variable is set

@@ -6,18 +6,20 @@
 ioctl VIDIOC_G_JPEGCOMP, VIDIOC_S_JPEGCOMP
 ******************************************
 
-*man VIDIOC_G_JPEGCOMP(2)*
+NAME
+====
 
-VIDIOC_S_JPEGCOMP
+VIDIOC_G_JPEGCOMP - VIDIOC_S_JPEGCOMP
 
-Synopsis
+SYNOPSIS
 ========
 
 .. cpp:function:: int ioctl( int fd, int request, v4l2_jpegcompression *argp )
 
 .. cpp:function:: int ioctl( int fd, int request, const v4l2_jpegcompression *argp )
 
-Arguments
+
+ARGUMENTS
 =========
 
 ``fd``
@@ -29,7 +31,7 @@ Arguments
 ``argp``
 
 
-Description
+DESCRIPTION
 ===========
 
 These ioctls are **deprecated**. New drivers and applications should use
@@ -173,8 +175,7 @@ encoding. You usually do want to add them.
        -  App segment, driver will always use APP0
 
 
-
-Return Value
+RETURN VALUE
 ============
 
 On success 0 is returned, on error -1 and the ``errno`` variable is set

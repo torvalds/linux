@@ -2,26 +2,23 @@
 
 .. _dmx_fread:
 
+================
 DVB demux read()
 ================
 
-Description
------------
+NAME
+----
 
-This system call returns filtered data, which might be section or PES
-data. The filtered data is transferred from the driver’s internal
-circular buffer to buf. The maximum amount of data to be transferred is
-implied by count.
+DVB demux read()
 
-Synopsis
+SYNOPSIS
 --------
 
 .. c:function:: size_t read(int fd, void *buf, size_t count)
 
-Arguments
-----------
 
-
+ARGUMENTS
+---------
 
 .. flat-table::
     :header-rows:  0
@@ -47,10 +44,17 @@ Arguments
        -  Size of buf.
 
 
-Return Value
+DESCRIPTION
+-----------
+
+This system call returns filtered data, which might be section or PES
+data. The filtered data is transferred from the driver’s internal
+circular buffer to buf. The maximum amount of data to be transferred is
+implied by count.
+
+
+RETURN VALUE
 ------------
-
-
 
 .. flat-table::
     :header-rows:  0
@@ -101,6 +105,3 @@ Return Value
 
        -  The driver failed to write to the callers buffer due to an invalid
 	  \*buf pointer.
-
-
-

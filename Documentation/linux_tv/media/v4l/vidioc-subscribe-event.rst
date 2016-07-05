@@ -6,18 +6,18 @@
 ioctl VIDIOC_SUBSCRIBE_EVENT, VIDIOC_UNSUBSCRIBE_EVENT
 ******************************************************
 
-*man VIDIOC_SUBSCRIBE_EVENT(2)*
+NAME
+====
 
-VIDIOC_UNSUBSCRIBE_EVENT
-Subscribe or unsubscribe event
+VIDIOC_SUBSCRIBE_EVENT - VIDIOC_UNSUBSCRIBE_EVENT - Subscribe or unsubscribe event
 
-
-Synopsis
+SYNOPSIS
 ========
 
 .. cpp:function:: int ioctl( int fd, int request, struct v4l2_event_subscription *argp )
 
-Arguments
+
+ARGUMENTS
 =========
 
 ``fd``
@@ -29,7 +29,7 @@ Arguments
 ``argp``
 
 
-Description
+DESCRIPTION
 ===========
 
 Subscribe or unsubscribe V4L2 event. Subscribed events are dequeued by
@@ -126,8 +126,7 @@ using the :ref:`VIDIOC_DQEVENT` ioctl.
 	  situations like that.
 
 
-
-Return Value
+RETURN VALUE
 ============
 
 On success 0 is returned, on error -1 and the ``errno`` variable is set

@@ -2,28 +2,23 @@
 
 .. _VIDEO_STOP:
 
+==========
 VIDEO_STOP
 ==========
 
-Description
------------
+NAME
+----
 
-This ioctl is for DVB devices only. To control a V4L2 decoder use the
-V4L2 :ref:`VIDIOC_DECODER_CMD` instead.
+VIDEO_STOP
 
-This ioctl call asks the Video Device to stop playing the current
-stream. Depending on the input parameter, the screen can be blanked out
-or displaying the last decoded frame.
-
-Synopsis
+SYNOPSIS
 --------
 
 .. c:function:: int ioctl(fd, int request = VIDEO_STOP, boolean mode)
 
-Arguments
-----------
 
-
+ARGUMENTS
+---------
 
 .. flat-table::
     :header-rows:  0
@@ -59,11 +54,20 @@ Arguments
        -  FALSE: Show last decoded frame.
 
 
-Return Value
+DESCRIPTION
+-----------
+
+This ioctl is for DVB devices only. To control a V4L2 decoder use the
+V4L2 :ref:`VIDIOC_DECODER_CMD` instead.
+
+This ioctl call asks the Video Device to stop playing the current
+stream. Depending on the input parameter, the screen can be blanked out
+or displaying the last decoded frame.
+
+
+RETURN VALUE
 ------------
 
 On success 0 is returned, on error -1 and the ``errno`` variable is set
 appropriately. The generic error codes are described at the
 :ref:`Generic Error Codes <gen-errors>` chapter.
-
-

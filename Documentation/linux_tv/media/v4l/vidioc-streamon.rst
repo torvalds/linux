@@ -6,18 +6,18 @@
 ioctl VIDIOC_STREAMON, VIDIOC_STREAMOFF
 ***************************************
 
-*man VIDIOC_STREAMON(2)*
+NAME
+====
 
-VIDIOC_STREAMOFF
-Start or stop streaming I/O
+VIDIOC_STREAMON - VIDIOC_STREAMOFF - Start or stop streaming I/O
 
-
-Synopsis
+SYNOPSIS
 ========
 
 .. cpp:function:: int ioctl( int fd, int request, const int *argp )
 
-Arguments
+
+ARGUMENTS
 =========
 
 ``fd``
@@ -29,7 +29,7 @@ Arguments
 ``argp``
 
 
-Description
+DESCRIPTION
 ===========
 
 The ``VIDIOC_STREAMON`` and ``VIDIOC_STREAMOFF`` ioctl start and stop
@@ -81,7 +81,7 @@ no notion of starting or stopping "now". Buffer timestamps can be used
 to synchronize with other events.
 
 
-Return Value
+RETURN VALUE
 ============
 
 On success 0 is returned, on error -1 and the ``errno`` variable is set

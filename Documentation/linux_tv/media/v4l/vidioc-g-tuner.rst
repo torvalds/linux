@@ -6,20 +6,20 @@
 ioctl VIDIOC_G_TUNER, VIDIOC_S_TUNER
 ************************************
 
-*man VIDIOC_G_TUNER(2)*
+NAME
+====
 
-VIDIOC_S_TUNER
-Get or set tuner attributes
+VIDIOC_G_TUNER - VIDIOC_S_TUNER - Get or set tuner attributes
 
-
-Synopsis
+SYNOPSIS
 ========
 
 .. cpp:function:: int ioctl( int fd, int request, struct v4l2_tuner *argp )
 
 .. cpp:function:: int ioctl( int fd, int request, const struct v4l2_tuner *argp )
 
-Arguments
+
+ARGUMENTS
 =========
 
 ``fd``
@@ -31,7 +31,7 @@ Arguments
 ``argp``
 
 
-Description
+DESCRIPTION
 ===========
 
 To query the attributes of a tuner applications initialize the ``index``
@@ -692,8 +692,7 @@ To change the radio frequency the
        -  Lang1/Lang2 (preferred) or Lang1/Lang1
 
 
-
-Return Value
+RETURN VALUE
 ============
 
 On success 0 is returned, on error -1 and the ``errno`` variable is set

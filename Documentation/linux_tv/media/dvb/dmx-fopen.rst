@@ -2,38 +2,23 @@
 
 .. _dmx_fopen:
 
+================
 DVB demux open()
 ================
 
-Description
------------
+NAME
+----
 
-This system call, used with a device name of /dev/dvb/adapter0/demux0,
-allocates a new filter and returns a handle which can be used for
-subsequent control of that filter. This call has to be made for each
-filter to be used, i.e. every returned file descriptor is a reference to
-a single filter. /dev/dvb/adapter0/dvr0 is a logical device to be used
-for retrieving Transport Streams for digital video recording. When
-reading from this device a transport stream containing the packets from
-all PES filters set in the corresponding demux device
-(/dev/dvb/adapter0/demux0) having the output set to DMX_OUT_TS_TAP. A
-recorded Transport Stream is replayed by writing to this device.
+DVB demux open()
 
-The significance of blocking or non-blocking mode is described in the
-documentation for functions where there is a difference. It does not
-affect the semantics of the open() call itself. A device opened in
-blocking mode can later be put into non-blocking mode (and vice versa)
-using the F_SETFL command of the fcntl system call.
-
-Synopsis
+SYNOPSIS
 --------
 
 .. c:function:: int open(const char *deviceName, int flags)
 
-Arguments
-----------
 
-
+ARGUMENTS
+---------
 
 .. flat-table::
     :header-rows:  0
@@ -68,10 +53,29 @@ Arguments
        -  (blocking mode is the default)
 
 
-Return Value
+DESCRIPTION
+-----------
+
+This system call, used with a device name of /dev/dvb/adapter0/demux0,
+allocates a new filter and returns a handle which can be used for
+subsequent control of that filter. This call has to be made for each
+filter to be used, i.e. every returned file descriptor is a reference to
+a single filter. /dev/dvb/adapter0/dvr0 is a logical device to be used
+for retrieving Transport Streams for digital video recording. When
+reading from this device a transport stream containing the packets from
+all PES filters set in the corresponding demux device
+(/dev/dvb/adapter0/demux0) having the output set to DMX_OUT_TS_TAP. A
+recorded Transport Stream is replayed by writing to this device.
+
+The significance of blocking or non-blocking mode is described in the
+documentation for functions where there is a difference. It does not
+affect the semantics of the open() call itself. A device opened in
+blocking mode can later be put into non-blocking mode (and vice versa)
+using the F_SETFL command of the fcntl system call.
+
+
+RETURN VALUE
 ------------
-
-
 
 .. flat-table::
     :header-rows:  0
@@ -101,6 +105,3 @@ Return Value
        -  ``ENOMEM``
 
        -  The driver failed to allocate enough memory.
-
-
-

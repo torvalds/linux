@@ -6,17 +6,18 @@
 ioctl VIDIOC_ENUM_FREQ_BANDS
 ****************************
 
-*man VIDIOC_ENUM_FREQ_BANDS(2)*
+NAME
+====
 
-Enumerate supported frequency bands
+VIDIOC_ENUM_FREQ_BANDS - Enumerate supported frequency bands
 
-
-Synopsis
+SYNOPSIS
 ========
 
 .. cpp:function:: int ioctl( int fd, int request, struct v4l2_frequency_band *argp )
 
-Arguments
+
+ARGUMENTS
 =========
 
 ``fd``
@@ -28,7 +29,7 @@ Arguments
 ``argp``
 
 
-Description
+DESCRIPTION
 ===========
 
 Enumerates the frequency bands that a tuner or modulator supports. To do
@@ -176,8 +177,7 @@ of the corresponding tuner/modulator is set.
        -  Amplitude Modulation, commonly used for analog radio.
 
 
-
-Return Value
+RETURN VALUE
 ============
 
 On success 0 is returned, on error -1 and the ``errno`` variable is set
