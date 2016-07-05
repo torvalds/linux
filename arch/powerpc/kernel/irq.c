@@ -250,7 +250,7 @@ notrace void arch_local_irq_restore(unsigned long en)
 		if (WARN_ON(mfmsr() & MSR_EE))
 			__hard_irq_disable();
 	}
-#endif /* CONFIG_TRACE_IRQFLAG */
+#endif /* CONFIG_TRACE_IRQFLAGS */
 
 	set_soft_enabled(0);
 
