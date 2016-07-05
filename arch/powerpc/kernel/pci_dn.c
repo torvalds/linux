@@ -31,6 +31,7 @@
 #include <asm/pci-bridge.h>
 #include <asm/ppc-pci.h>
 #include <asm/firmware.h>
+#include <asm/eeh.h>
 
 /*
  * The function is used to find the firmware data of one
@@ -181,9 +182,6 @@ struct pci_dn *add_dev_pci_data(struct pci_dev *pdev)
 {
 #ifdef CONFIG_PCI_IOV
 	struct pci_dn *parent, *pdn;
-#ifdef CONFIG_EEH
-	struct eeh_dev *edev;
-#endif /* CONFIG_EEH */
 	int i;
 
 	/* Only support IOV for now */
@@ -201,6 +199,8 @@ struct pci_dn *add_dev_pci_data(struct pci_dev *pdev)
 		return NULL;
 
 	for (i = 0; i < pci_sriov_get_totalvfs(pdev); i++) {
+		struct eeh_dev *edev __maybe_unused;
+
 		pdn = add_one_dev_pci_data(parent, NULL, i,
 					   pci_iov_virtfn_bus(pdev, i),
 					   pci_iov_virtfn_devfn(pdev, i));
@@ -227,7 +227,6 @@ void remove_dev_pci_data(struct pci_dev *pdev)
 #ifdef CONFIG_PCI_IOV
 	struct pci_dn *parent;
 	struct pci_dn *pdn, *tmp;
-	struct eeh_dev *edev;
 	int i;
 
 	/*
@@ -263,6 +262,8 @@ void remove_dev_pci_data(struct pci_dev *pdev)
 	 * a batch mode.
 	 */
 	for (i = 0; i < pci_sriov_get_totalvfs(pdev); i++) {
+		struct eeh_dev *edev __maybe_unused;
+
 		list_for_each_entry_safe(pdn, tmp,
 			&parent->child_list, list) {
 			if (pdn->busno != pci_iov_virtfn_bus(pdev, i) ||
