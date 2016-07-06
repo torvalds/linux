@@ -1851,6 +1851,7 @@ int vivid_vid_cap_s_parm(struct file *file, void *priv,
 	/* resync the thread's timings */
 	dev->cap_seq_resync = true;
 	dev->timeperframe_vid_cap = tpf;
+	parm->parm.capture.capability   = V4L2_CAP_TIMEPERFRAME;
 	parm->parm.capture.timeperframe = tpf;
 	parm->parm.capture.readbuffers  = 1;
 	return 0;
