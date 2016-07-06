@@ -920,9 +920,10 @@ void __init __register_nosave_region(unsigned long start_pfn,
 		/* During init, this shouldn't fail */
 		region = kmalloc(sizeof(struct nosave_region), GFP_KERNEL);
 		BUG_ON(!region);
-	} else
+	} else {
 		/* This allocation cannot fail */
 		region = memblock_virt_alloc(sizeof(struct nosave_region), 0);
+	}
 	region->start_pfn = start_pfn;
 	region->end_pfn = end_pfn;
 	list_add_tail(&region->list, &nosave_regions);
