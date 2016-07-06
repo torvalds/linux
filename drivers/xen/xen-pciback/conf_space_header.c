@@ -209,11 +209,14 @@ static int bar_read(struct pci_dev *dev, int offset, u32 * value, void *data)
 	return 0;
 }
 
-static inline void read_dev_bar(struct pci_dev *dev,
-				struct pci_bar_info *bar_info, int offset)
+static void *bar_init(struct pci_dev *dev, int offset)
 {
 	int	pos;
 	struct resource	*res = dev->resource;
+	struct pci_bar_info *bar = kzalloc(sizeof(*bar), GFP_KERNEL);
+
+	if (!bar)
+		return ERR_PTR(-ENOMEM);
 
 	if (offset == PCI_ROM_ADDRESS || offset == PCI_ROM_ADDRESS1)
 		pos = PCI_ROM_RESOURCE;
@@ -223,31 +226,21 @@ static inline void read_dev_bar(struct pci_dev *dev,
 				PCI_BASE_ADDRESS_MEM_TYPE_MASK)) ==
 			   (PCI_BASE_ADDRESS_SPACE_MEMORY |
 				PCI_BASE_ADDRESS_MEM_TYPE_64))) {
-			bar_info->val = res[pos - 1].start >> 32;
-			bar_info->len_val = -resource_size(&res[pos - 1]) >> 32;
-			return;
+			bar->val = res[pos - 1].start >> 32;
+			bar->len_val = -resource_size(&res[pos - 1]) >> 32;
+			return bar;
 		}
 	}
 
 	if (!res[pos].flags ||
 	    (res[pos].flags & (IORESOURCE_DISABLED | IORESOURCE_UNSET |
 			       IORESOURCE_BUSY)))
-		return;
+		return bar;
 
-	bar_info->val = res[pos].start |
-			(res[pos].flags & PCI_REGION_FLAG_MASK);
-	bar_info->len_val = -resource_size(&res[pos]) |
-			    (res[pos].flags & PCI_REGION_FLAG_MASK);
-}
-
-static void *bar_init(struct pci_dev *dev, int offset)
-{
-	struct pci_bar_info *bar = kzalloc(sizeof(*bar), GFP_KERNEL);
-
-	if (!bar)
-		return ERR_PTR(-ENOMEM);
-
-	read_dev_bar(dev, bar, offset);
+	bar->val = res[pos].start |
+		   (res[pos].flags & PCI_REGION_FLAG_MASK);
+	bar->len_val = -resource_size(&res[pos]) |
+		       (res[pos].flags & PCI_REGION_FLAG_MASK);
 
 	return bar;
 }
