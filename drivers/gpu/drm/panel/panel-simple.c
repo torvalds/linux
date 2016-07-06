@@ -1339,6 +1339,30 @@ static const struct panel_desc samsung_ltn140at29_301 = {
 	},
 };
 
+static const struct display_timing sharp_lq101k1ly04_timing = {
+	.pixelclock = { 60000000, 65000000, 80000000 },
+	.hactive = { 1280, 1280, 1280 },
+	.hfront_porch = { 20, 20, 20 },
+	.hback_porch = { 20, 20, 20 },
+	.hsync_len = { 10, 10, 10 },
+	.vactive = { 800, 800, 800 },
+	.vfront_porch = { 4, 4, 4 },
+	.vback_porch = { 4, 4, 4 },
+	.vsync_len = { 4, 4, 4 },
+	.flags = DISPLAY_FLAGS_PIXDATA_POSEDGE,
+};
+
+static const struct panel_desc sharp_lq101k1ly04 = {
+	.timings = &sharp_lq101k1ly04_timing,
+	.num_timings = 1,
+	.bpc = 8,
+	.size = {
+		.width = 217,
+		.height = 136,
+	},
+	.bus_format = MEDIA_BUS_FMT_RGB888_1X7X4_JEIDA,
+};
+
 static const struct drm_display_mode sharp_lq123p1jx31_mode = {
 	.clock = 252750,
 	.hdisplay = 2400,
@@ -1587,6 +1611,9 @@ static const struct of_device_id platform_of_match[] = {
 	}, {
 		.compatible = "samsung,ltn140at29-301",
 		.data = &samsung_ltn140at29_301,
+	}, {
+		.compatible = "sharp,lq101k1ly04",
+		.data = &sharp_lq101k1ly04,
 	}, {
 		.compatible = "sharp,lq123p1jx31",
 		.data = &sharp_lq123p1jx31,
