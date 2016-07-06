@@ -993,7 +993,7 @@ static int send_cap_msg(struct ceph_mds_session *session,
 			u32 seq, u64 flush_tid, u64 oldest_flush_tid,
 			u32 issue_seq, u32 mseq, u64 size, u64 max_size,
 			struct timespec *mtime, struct timespec *atime,
-			struct timespec *ctime, u64 time_warp_seq,
+			struct timespec *ctime, u32 time_warp_seq,
 			kuid_t uid, kgid_t gid, umode_t mode,
 			u64 xattr_version,
 			struct ceph_buffer *xattrs_buf,
@@ -1118,8 +1118,8 @@ static int __send_cap(struct ceph_mds_client *mdsc, struct ceph_cap *cap,
 	struct inode *inode = &ci->vfs_inode;
 	u64 cap_id = cap->cap_id;
 	int held, revoking, dropping, keep;
-	u64 seq, issue_seq, mseq, time_warp_seq, follows;
-	u64 size, max_size;
+	u64 follows, size, max_size;
+	u32 seq, issue_seq, mseq, time_warp_seq;
 	struct timespec mtime, atime, ctime;
 	int wake = 0;
 	umode_t mode;
@@ -1585,10 +1585,11 @@ void ceph_check_caps(struct ceph_inode_info *ci, int flags,
 	int mds = -1;   /* keep track of how far we've gone through i_caps list
 			   to avoid an infinite loop on retry */
 	struct rb_node *p;
-	int tried_invalidate = 0;
-	int delayed = 0, sent = 0, force_requeue = 0, num;
-	int queue_invalidate = 0;
-	int is_delayed = flags & CHECK_CAPS_NODELAY;
+	int delayed = 0, sent = 0, num;
+	bool is_delayed = flags & CHECK_CAPS_NODELAY;
+	bool queue_invalidate = false;
+	bool force_requeue = false;
+	bool tried_invalidate = false;
 
 	/* if we are unmounting, flush any unused caps immediately. */
 	if (mdsc->stopping)
@@ -1668,17 +1669,17 @@ retry_locked:
 			if (revoking & (CEPH_CAP_FILE_CACHE|
 					CEPH_CAP_FILE_LAZYIO)) {
 				dout("check_caps queuing invalidate\n");
-				queue_invalidate = 1;
+				queue_invalidate = true;
 				ci->i_rdcache_revoking = ci->i_rdcache_gen;
 			} else {
 				dout("check_caps failed to invalidate pages\n");
 				/* we failed to invalidate pages.  check these
 				   caps again later. */
-				force_requeue = 1;
+				force_requeue = true;
 				__cap_set_timeouts(mdsc, ci);
 			}
 		}
-		tried_invalidate = 1;
+		tried_invalidate = true;
 		goto retry_locked;
 	}
 
@@ -1824,7 +1825,7 @@ ack:
 	 * otherwise cancel.
 	 */
 	if (delayed && is_delayed)
-		force_requeue = 1;   /* __send_cap delayed release; requeue */
+		force_requeue = true;   /* __send_cap delayed release; requeue */
 	if (!delayed && !is_delayed)
 		__cap_delay_cancel(mdsc, ci);
 	else if (!is_delayed || force_requeue)
