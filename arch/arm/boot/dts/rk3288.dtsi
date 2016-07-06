@@ -1055,6 +1055,8 @@
 		clock-names = "aclk", "hclk";
 		power-domains = <&power RK3288_PD_VIDEO>;
 		iommus = <&vpu_mmu>;
+		assigned-clocks = <&cru ACLK_VCODEC>;
+		assigned-clock-rates = <400000000>;
 		status = "disabled";
 	};
 
