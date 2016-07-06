@@ -1175,8 +1175,30 @@
 	};
 
 	grf: syscon@ff770000 {
-		compatible = "rockchip,rk3399-grf", "syscon";
+		compatible = "rockchip,rk3399-grf", "syscon", "simple-mfd";
 		reg = <0x0 0xff770000 0x0 0x10000>;
+		#address-cells = <1>;
+		#size-cells = <1>;
+
+		u2phy0: usb2-phy@e450 {
+			compatible = "rockchip,rk3399-usb2phy";
+			reg = <0xe450 0x10>;
+			clocks = <&cru SCLK_USB2PHY0_REF>;
+			clock-names = "phyclk";
+			#clock-cells = <0>;
+			clock-output-names = "clk_usbphy0_480m";
+			status = "disabled";
+
+			u2phy0_otg: otg-port {
+				#phy-cells = <0>;
+				interrupts = <GIC_SPI 103 IRQ_TYPE_LEVEL_HIGH>,
+					     <GIC_SPI 104 IRQ_TYPE_LEVEL_HIGH>,
+					     <GIC_SPI 106 IRQ_TYPE_LEVEL_HIGH>;
+				interrupt-names = "otg-bvalid", "otg-id",
+						  "linestate";
+				status = "disabled";
+			};
+		};
 	};
 
 	watchdog@ff840000 {
