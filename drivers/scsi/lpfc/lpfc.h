@@ -785,9 +785,9 @@ struct lpfc_hba {
 
 	atomic_t fcp_qidx;		/* next work queue to post work to */
 
-	unsigned long pci_bar0_map;     /* Physical address for PCI BAR0 */
-	unsigned long pci_bar1_map;     /* Physical address for PCI BAR1 */
-	unsigned long pci_bar2_map;     /* Physical address for PCI BAR2 */
+	phys_addr_t pci_bar0_map;     /* Physical address for PCI BAR0 */
+	phys_addr_t pci_bar1_map;     /* Physical address for PCI BAR1 */
+	phys_addr_t pci_bar2_map;     /* Physical address for PCI BAR2 */
 	void __iomem *slim_memmap_p;	/* Kernel memory mapped address for
 					   PCI BAR0 */
 	void __iomem *ctrl_regs_memmap_p;/* Kernel memory mapped address for
