@@ -80,8 +80,6 @@ static void lirc_irctl_init(struct irctl *ir)
 
 static void lirc_irctl_cleanup(struct irctl *ir)
 {
-	dev_dbg(ir->d.dev, LOGHEAD "cleaning up\n", ir->d.name, ir->d.minor);
-
 	device_destroy(lirc_class, MKDEV(MAJOR(lirc_base_dev), ir->d.minor));
 
 	if (ir->buf != ir->d.rbuf) {
@@ -127,9 +125,6 @@ static int lirc_thread(void *irctl)
 {
 	struct irctl *ir = irctl;
 
-	dev_dbg(ir->d.dev, LOGHEAD "poll thread started\n",
-		ir->d.name, ir->d.minor);
-
 	do {
 		if (ir->open) {
 			if (ir->jiffies_to_wait) {
@@ -145,9 +140,6 @@ static int lirc_thread(void *irctl)
 			schedule();
 		}
 	} while (!kthread_should_stop());
-
-	dev_dbg(ir->d.dev, LOGHEAD "poll thread ended\n",
-		ir->d.name, ir->d.minor);
 
 	return 0;
 }
@@ -277,8 +269,6 @@ static int lirc_allocate_driver(struct lirc_driver *d)
 		goto out;
 	}
 
-	dev_dbg(d->dev, "lirc_dev: lirc_register_driver: sample_rate: %d\n",
-		d->sample_rate);
 	if (d->sample_rate) {
 		if (2 > d->sample_rate || HZ < d->sample_rate) {
 			dev_err(d->dev, "lirc_dev: lirc_register_driver: "
@@ -521,10 +511,6 @@ int lirc_dev_fop_open(struct inode *inode, struct file *file)
 	}
 
 error:
-	if (ir)
-		dev_dbg(ir->d.dev, LOGHEAD "open result = %d\n",
-			ir->d.name, ir->d.minor, retval);
-
 	mutex_unlock(&lirc_dev_lock);
 
 	nonseekable_open(inode, file);
@@ -545,8 +531,6 @@ int lirc_dev_fop_close(struct inode *inode, struct file *file)
 	}
 
 	cdev = ir->cdev;
-
-	dev_dbg(ir->d.dev, LOGHEAD "close called\n", ir->d.name, ir->d.minor);
 
 	ret = mutex_lock_killable(&lirc_dev_lock);
 	WARN_ON(ret);
@@ -581,8 +565,6 @@ unsigned int lirc_dev_fop_poll(struct file *file, poll_table *wait)
 		printk(KERN_ERR "%s: called with invalid irctl\n", __func__);
 		return POLLERR;
 	}
-
-	dev_dbg(ir->d.dev, LOGHEAD "poll called\n", ir->d.name, ir->d.minor);
 
 	if (!ir->attached)
 		return POLLERR;
@@ -678,9 +660,6 @@ long lirc_dev_fop_ioctl(struct file *file, unsigned int cmd, unsigned long arg)
 	default:
 		result = -EINVAL;
 	}
-
-	dev_dbg(ir->d.dev, LOGHEAD "ioctl result = %d\n",
-		ir->d.name, ir->d.minor, result);
 
 	mutex_unlock(&ir->irctl_lock);
 
@@ -786,8 +765,6 @@ out_locked:
 
 out_unlocked:
 	kfree(buf);
-	dev_dbg(ir->d.dev, LOGHEAD "read result = %s (%d)\n",
-		ir->d.name, ir->d.minor, ret ? "<fail>" : "<ok>", ret);
 
 	return ret ? ret : written;
 }
@@ -809,8 +786,6 @@ ssize_t lirc_dev_fop_write(struct file *file, const char __user *buffer,
 		printk(KERN_ERR "%s: called with invalid irctl\n", __func__);
 		return -ENODEV;
 	}
-
-	dev_dbg(ir->d.dev, LOGHEAD "write called\n", ir->d.name, ir->d.minor);
 
 	if (!ir->attached)
 		return -ENODEV;
