@@ -2844,12 +2844,8 @@ MODULE_PARM_DESC(lpfc_sli_mode, "SLI mode selector:"
 		 " 2 - select SLI-2 even on SLI-3 capable HBAs,"
 		 " 3 - select SLI-3");
 
-int lpfc_enable_npiv = 1;
-module_param(lpfc_enable_npiv, int, S_IRUGO);
-MODULE_PARM_DESC(lpfc_enable_npiv, "Enable NPIV functionality");
-lpfc_param_show(enable_npiv);
-lpfc_param_init(enable_npiv, 1, 0, 1);
-static DEVICE_ATTR(lpfc_enable_npiv, S_IRUGO, lpfc_enable_npiv_show, NULL);
+LPFC_ATTR_R(enable_npiv, 1, 0, 1,
+	"Enable NPIV functionality");
 
 LPFC_ATTR_R(fcf_failover_policy, 1, 1, 2,
 	"FCF Fast failover=1 Priority failover=2");

@@ -11441,21 +11441,17 @@ lpfc_init(void)
 		printk(KERN_ERR "Could not register lpfcmgmt device, "
 			"misc_register returned with status %d", error);
 
-	if (lpfc_enable_npiv) {
-		lpfc_transport_functions.vport_create = lpfc_vport_create;
-		lpfc_transport_functions.vport_delete = lpfc_vport_delete;
-	}
+	lpfc_transport_functions.vport_create = lpfc_vport_create;
+	lpfc_transport_functions.vport_delete = lpfc_vport_delete;
 	lpfc_transport_template =
 				fc_attach_transport(&lpfc_transport_functions);
 	if (lpfc_transport_template == NULL)
 		return -ENOMEM;
-	if (lpfc_enable_npiv) {
-		lpfc_vport_transport_template =
-			fc_attach_transport(&lpfc_vport_transport_functions);
-		if (lpfc_vport_transport_template == NULL) {
-			fc_release_transport(lpfc_transport_template);
-			return -ENOMEM;
-		}
+	lpfc_vport_transport_template =
+		fc_attach_transport(&lpfc_vport_transport_functions);
+	if (lpfc_vport_transport_template == NULL) {
+		fc_release_transport(lpfc_transport_template);
+		return -ENOMEM;
 	}
 
 	/* Initialize in case vector mapping is needed */
@@ -11467,8 +11463,7 @@ lpfc_init(void)
 	error = pci_register_driver(&lpfc_driver);
 	if (error) {
 		fc_release_transport(lpfc_transport_template);
-		if (lpfc_enable_npiv)
-			fc_release_transport(lpfc_vport_transport_template);
+		fc_release_transport(lpfc_vport_transport_template);
 	}
 
 	return error;
@@ -11487,8 +11482,7 @@ lpfc_exit(void)
 	misc_deregister(&lpfc_mgmt_dev);
 	pci_unregister_driver(&lpfc_driver);
 	fc_release_transport(lpfc_transport_template);
-	if (lpfc_enable_npiv)
-		fc_release_transport(lpfc_vport_transport_template);
+	fc_release_transport(lpfc_vport_transport_template);
 	if (_dump_buf_data) {
 		printk(KERN_ERR	"9062 BLKGRD: freeing %lu pages for "
 				"_dump_buf_data at 0x%p\n",
