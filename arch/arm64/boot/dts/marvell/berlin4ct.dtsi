@@ -279,7 +279,6 @@
 				reg = <0x4000 0x100>;
 				clocks = <&osc>;
 				interrupts = <1>;
-				status = "disabled";
 			};
 
 			wdt2: watchdog@5000 {
@@ -287,7 +286,6 @@
 				reg = <0x5000 0x100>;
 				clocks = <&osc>;
 				interrupts = <2>;
-				status = "disabled";
 			};
 
 			sm_gpio0: gpio@8000 {
