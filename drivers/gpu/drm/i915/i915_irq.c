@@ -977,10 +977,10 @@ static void ironlake_rps_change_irq_handler(struct drm_i915_private *dev_priv)
 
 static void notify_ring(struct intel_engine_cs *engine)
 {
-	smp_store_mb(engine->irq_posted, true);
+	smp_store_mb(engine->breadcrumbs.irq_posted, true);
 	if (intel_engine_wakeup(engine)) {
 		trace_i915_gem_request_notify(engine);
-		engine->user_interrupts++;
+		engine->breadcrumbs.irq_wakeups++;
 	}
 }
 
@@ -3054,12 +3054,12 @@ ring_stuck(struct intel_engine_cs *engine, u64 acthd)
 	return HANGCHECK_HUNG;
 }
 
-static unsigned kick_waiters(struct intel_engine_cs *engine)
+static unsigned long kick_waiters(struct intel_engine_cs *engine)
 {
 	struct drm_i915_private *i915 = engine->i915;
-	unsigned user_interrupts = READ_ONCE(engine->user_interrupts);
+	unsigned long irq_count = READ_ONCE(engine->breadcrumbs.irq_wakeups);
 
-	if (engine->hangcheck.user_interrupts == user_interrupts &&
+	if (engine->hangcheck.user_interrupts == irq_count &&
 	    !test_and_set_bit(engine->id, &i915->gpu_error.missed_irq_rings)) {
 		if (!test_bit(engine->id, &i915->gpu_error.test_irq_rings))
 			DRM_ERROR("Hangcheck timer elapsed... %s idle\n",
@@ -3068,7 +3068,7 @@ static unsigned kick_waiters(struct intel_engine_cs *engine)
 		intel_engine_enable_fake_irq(engine);
 	}
 
-	return user_interrupts;
+	return irq_count;
 }
 /*
  * This is called when the chip hasn't reported back with completed

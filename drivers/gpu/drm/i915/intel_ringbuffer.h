@@ -74,8 +74,8 @@ enum intel_ring_hangcheck_action {
 
 struct intel_ring_hangcheck {
 	u64 acthd;
+	unsigned long user_interrupts;
 	u32 seqno;
-	unsigned user_interrupts;
 	int score;
 	enum intel_ring_hangcheck_action action;
 	int deadlock;
@@ -167,16 +167,20 @@ struct intel_engine_cs {
 	 * the overhead of waking that client is much preferred.
 	 */
 	struct intel_breadcrumbs {
+		struct task_struct *irq_seqno_bh; /* bh for user interrupts */
+		unsigned long irq_wakeups;
+		bool irq_posted;
+
 		spinlock_t lock; /* protects the lists of requests */
 		struct rb_root waiters; /* sorted by retirement, priority */
 		struct rb_root signals; /* sorted by retirement */
 		struct intel_wait *first_wait; /* oldest waiter by retirement */
-		struct task_struct *tasklet; /* bh for user interrupts */
 		struct task_struct *signaler; /* used for fence signalling */
 		struct drm_i915_gem_request *first_signal;
 		struct timer_list fake_irq; /* used after a missed interrupt */
-		bool irq_enabled;
-		bool rpm_wakelock;
+
+		bool irq_enabled : 1;
+		bool rpm_wakelock : 1;
 	} breadcrumbs;
 
 	/*
@@ -189,7 +193,6 @@ struct intel_engine_cs {
 	struct intel_hw_status_page status_page;
 	struct i915_ctx_workarounds wa_ctx;
 
-	bool		irq_posted;
 	u32             irq_keep_mask; /* always keep these interrupts */
 	u32		irq_enable_mask; /* bitmask to enable ring interrupt */
 	void		(*irq_enable)(struct intel_engine_cs *ring);
@@ -319,7 +322,6 @@ struct intel_engine_cs {
 	 * inspecting request list.
 	 */
 	u32 last_submitted_seqno;
-	unsigned user_interrupts;
 
 	bool gpu_caches_dirty;
 
@@ -543,13 +545,13 @@ void intel_engine_enable_signaling(struct drm_i915_gem_request *request);
 
 static inline bool intel_engine_has_waiter(struct intel_engine_cs *engine)
 {
-	return READ_ONCE(engine->breadcrumbs.tasklet);
+	return READ_ONCE(engine->breadcrumbs.irq_seqno_bh);
 }
 
 static inline bool intel_engine_wakeup(struct intel_engine_cs *engine)
 {
 	bool wakeup = false;
-	struct task_struct *tsk = READ_ONCE(engine->breadcrumbs.tasklet);
+	struct task_struct *tsk = READ_ONCE(engine->breadcrumbs.irq_seqno_bh);
 	/* Note that for this not to dangerously chase a dangling pointer,
 	 * the caller is responsible for ensure that the task remain valid for
 	 * wake_up_process() i.e. that the RCU grace period cannot expire.
