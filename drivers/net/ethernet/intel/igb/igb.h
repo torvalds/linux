@@ -355,6 +355,27 @@ struct hwmon_buff {
 #define IGB_N_SDP	4
 #define IGB_RETA_SIZE	128
 
+enum igb_filter_match_flags {
+	IGB_FILTER_FLAG_NONE = 0x0,
+};
+
+#define IGB_MAX_RXNFC_FILTERS 16
+
+/* RX network flow classification data structure */
+struct igb_nfc_input {
+	/* Byte layout in order, all values with MSB first:
+	* match_flags - 1 byte
+	*/
+	u8 match_flags;
+};
+
+struct igb_nfc_filter {
+	struct hlist_node nfc_node;
+	struct igb_nfc_input filter;
+	u16 sw_idx;
+	u16 action;
+};
+
 /* board specific private data structure */
 struct igb_adapter {
 	unsigned long active_vlans[BITS_TO_LONGS(VLAN_N_VID)];
@@ -473,6 +494,12 @@ struct igb_adapter {
 	int copper_tries;
 	struct e1000_info ei;
 	u16 eee_advert;
+
+	/* RX network flow classification support */
+	struct hlist_head nfc_filter_list;
+	unsigned int nfc_filter_count;
+	/* lock for RX network flow classification filter */
+	spinlock_t nfc_lock;
 };
 
 /* flags controlling PTP/1588 function */
@@ -598,5 +625,10 @@ static inline struct netdev_queue *txring_txq(const struct igb_ring *tx_ring)
 {
 	return netdev_get_tx_queue(tx_ring->netdev, tx_ring->queue_index);
 }
+
+int igb_add_filter(struct igb_adapter *adapter,
+		   struct igb_nfc_filter *input);
+int igb_erase_filter(struct igb_adapter *adapter,
+		     struct igb_nfc_filter *input);
 
 #endif /* _IGB_H_ */
