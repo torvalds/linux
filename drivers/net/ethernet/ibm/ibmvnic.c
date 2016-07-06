@@ -75,6 +75,7 @@
 #include <linux/uaccess.h>
 #include <asm/firmware.h>
 #include <linux/seq_file.h>
+#include <linux/workqueue.h>
 
 #include "ibmvnic.h"
 
@@ -3253,8 +3254,8 @@ static void ibmvnic_handle_crq(union ibmvnic_crq *crq,
 			dev_info(dev, "Partner initialized\n");
 			/* Send back a response */
 			rc = ibmvnic_send_crq_init_complete(adapter);
-			if (rc == 0)
-				send_version_xchg(adapter);
+			if (!rc)
+				schedule_work(&adapter->vnic_crq_init);
 			else
 				dev_err(dev, "Can't send initrsp rc=%ld\n", rc);
 			break;
@@ -3606,6 +3607,60 @@ static const struct file_operations ibmvnic_dump_ops = {
 	.release        = single_release,
 };
 
+static void handle_crq_init_rsp(struct work_struct *work)
+{
+	struct ibmvnic_adapter *adapter = container_of(work,
+						       struct ibmvnic_adapter,
+						       vnic_crq_init);
+	struct device *dev = &adapter->vdev->dev;
+	struct net_device *netdev = adapter->netdev;
+	unsigned long timeout = msecs_to_jiffies(30000);
+	int rc;
+
+	send_version_xchg(adapter);
+	reinit_completion(&adapter->init_done);
+	if (!wait_for_completion_timeout(&adapter->init_done, timeout)) {
+		dev_err(dev, "Passive init timeout\n");
+		goto task_failed;
+	}
+
+	do {
+		if (adapter->renegotiate) {
+			adapter->renegotiate = false;
+			release_sub_crqs_no_irqs(adapter);
+			send_cap_queries(adapter);
+
+			reinit_completion(&adapter->init_done);
+			if (!wait_for_completion_timeout(&adapter->init_done,
+							 timeout)) {
+				dev_err(dev, "Passive init timeout\n");
+				goto task_failed;
+			}
+		}
+	} while (adapter->renegotiate);
+	rc = init_sub_crq_irqs(adapter);
+
+	if (rc)
+		goto task_failed;
+
+	netdev->real_num_tx_queues = adapter->req_tx_queues;
+
+	rc = register_netdev(netdev);
+	if (rc) {
+		dev_err(dev,
+			"failed to register netdev rc=%d\n", rc);
+		goto register_failed;
+	}
+	dev_info(dev, "ibmvnic registered\n");
+
+	return;
+
+register_failed:
+	release_sub_crqs(adapter);
+task_failed:
+	dev_err(dev, "Passive initialization was not successful\n");
+}
+
 static int ibmvnic_probe(struct vio_dev *dev, const struct vio_device_id *id)
 {
 	unsigned long timeout = msecs_to_jiffies(30000);
@@ -3644,6 +3699,8 @@ static int ibmvnic_probe(struct vio_dev *dev, const struct vio_device_id *id)
 	netdev->netdev_ops = &ibmvnic_netdev_ops;
 	netdev->ethtool_ops = &ibmvnic_ethtool_ops;
 	SET_NETDEV_DEV(netdev, &dev->dev);
+
+	INIT_WORK(&adapter->vnic_crq_init, handle_crq_init_rsp);
 
 	spin_lock_init(&adapter->stats_lock);
 
