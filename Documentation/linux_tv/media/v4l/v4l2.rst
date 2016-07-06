@@ -3,9 +3,11 @@
 .. include:: <isonum.txt>
 .. _v4l2spec:
 
-#####################################
-Video for Linux Two API Specification
-#####################################
+###################
+Video for Linux API
+###################
+
+This part describes the Video for Linux API version 2 (V4L2 API) specification.
 
 **Revision 4.5**
 
