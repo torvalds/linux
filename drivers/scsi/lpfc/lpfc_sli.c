@@ -4696,6 +4696,8 @@ lpfc_sli_hba_setup(struct lpfc_hba *phba)
 				"Not supported by adapter.\n");
 	if (rc && mode != 2)
 		rc = lpfc_sli_config_port(phba, 2);
+	else if (rc && mode == 2)
+		rc = lpfc_sli_config_port(phba, 3);
 	if (rc)
 		goto lpfc_sli_hba_setup_error;
 
