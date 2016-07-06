@@ -16,7 +16,7 @@
  * |                              |                    | 0x016e-0x0170  |
  * | Mailbox commands             |       0x1192       |		|
  * |                              |                    |		|
- * | Device Discovery             |       0x2016       | 0x2020-0x2022, |
+ * | Device Discovery             |       0x2003       | 0x2016		|
  * |                              |                    | 0x2011-0x2012, |
  * |                              |                    | 0x2099-0x20a4  |
  * | Queue Command and IO tracing |       0x3074       | 0x300b         |

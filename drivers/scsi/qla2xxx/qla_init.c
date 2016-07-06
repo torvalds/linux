@@ -2053,6 +2053,14 @@ qla2x00_update_fw_options(scsi_qla_host_t *vha)
 	if (IS_QLA6312(ha))
 		ha->fw_options[2] |= BIT_13;
 
+	/* Set Retry FLOGI in case of P2P connection */
+	if (ha->operating_mode == P2P) {
+		ha->fw_options[2] |= BIT_3;
+		ql_dbg(ql_dbg_disc, vha, 0x2100,
+		    "(%s): Setting FLOGI retry BIT in fw_options[2]: 0x%x\n",
+			__func__, ha->fw_options[2]);
+	}
+
 	/* Update firmware options. */
 	qla2x00_set_fw_options(vha, ha->fw_options);
 }
@@ -2069,6 +2077,14 @@ qla24xx_update_fw_options(scsi_qla_host_t *vha)
 	/*  Hold status IOCBs until ABTS response received. */
 	if (ql2xfwholdabts)
 		ha->fw_options[3] |= BIT_12;
+
+	/* Set Retry FLOGI in case of P2P connection */
+	if (ha->operating_mode == P2P) {
+		ha->fw_options[2] |= BIT_3;
+		ql_dbg(ql_dbg_disc, vha, 0x2101,
+		    "(%s): Setting FLOGI retry BIT in fw_options[2]: 0x%x\n",
+			__func__, ha->fw_options[2]);
+	}
 
 	/* Update Serial Link options. */
 	if ((le16_to_cpu(ha->fw_seriallink_options24[0]) & BIT_0) == 0)
@@ -6512,6 +6528,14 @@ qla81xx_update_fw_options(scsi_qla_host_t *vha)
 	/*  Hold status IOCBs until ABTS response received. */
 	if (ql2xfwholdabts)
 		ha->fw_options[3] |= BIT_12;
+
+	/* Set Retry FLOGI in case of P2P connection */
+	if (ha->operating_mode == P2P) {
+		ha->fw_options[2] |= BIT_3;
+		ql_dbg(ql_dbg_disc, vha, 0x2103,
+		    "(%s): Setting FLOGI retry BIT in fw_options[2]: 0x%x\n",
+			__func__, ha->fw_options[2]);
+	}
 
 	if (!ql2xetsenable)
 		goto out;
