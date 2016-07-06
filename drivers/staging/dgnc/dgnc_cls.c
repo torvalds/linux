@@ -595,7 +595,6 @@ static inline void cls_parse_isr(struct dgnc_board *brd, uint port)
 			/* Transfer data (if any) from Write Queue -> UART. */
 			spin_lock_irqsave(&ch->ch_lock, flags);
 			ch->ch_flags |= (CH_TX_FIFO_EMPTY | CH_TX_FIFO_LWM);
-			brd->intr_tx++;
 			ch->ch_intr_tx++;
 			spin_unlock_irqrestore(&ch->ch_lock, flags);
 			cls_copy_data_from_queue_to_uart(ch);
