@@ -194,6 +194,8 @@ struct cpu_hw_events {
 	 */
 	struct debug_store	*ds;
 	u64			pebs_enabled;
+	int			n_pebs;
+	int			n_large_pebs;
 
 	/*
 	 * Intel LBR bits

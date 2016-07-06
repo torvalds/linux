@@ -2818,6 +2818,10 @@ void perf_sched_cb_inc(struct pmu *pmu)
 /*
  * This function provides the context switch callback to the lower code
  * layer. It is invoked ONLY when the context switch callback is enabled.
+ *
+ * This callback is relevant even to per-cpu events; for example multi event
+ * PEBS requires this to provide PID/TID information. This requires we flush
+ * all queued PEBS records before we context switch to a new task.
  */
 static void perf_pmu_sched_task(struct task_struct *prev,
 				struct task_struct *next,
