@@ -270,15 +270,10 @@ static int lirc_allocate_driver(struct lirc_driver *d)
 			dev_err(d->dev, "add_to_buf not set\n");
 			return -EBADRQC;
 		}
-	} else if (!(d->fops && d->fops->read) && !d->rbuf) {
-		dev_err(d->dev, "fops->read and rbuf are NULL!\n");
+	} else if (!d->rbuf && !(d->fops && d->fops->read &&
+				d->fops->poll && d->fops->unlocked_ioctl)) {
+		dev_err(d->dev, "undefined read, poll, ioctl\n");
 		return -EBADRQC;
-	} else if (!d->rbuf) {
-		if (!(d->fops && d->fops->read && d->fops->poll &&
-		      d->fops->unlocked_ioctl)) {
-			dev_err(d->dev, "undefined read, poll, ioctl\n");
-			return -EBADRQC;
-		}
 	}
 
 	mutex_lock(&lirc_dev_lock);
