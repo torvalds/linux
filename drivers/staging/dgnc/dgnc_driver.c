@@ -599,9 +599,6 @@ static int dgnc_finalize_board_init(struct dgnc_board *brd)
  */
 static void dgnc_do_remap(struct dgnc_board *brd)
 {
-	if (!brd || brd->magic != DGNC_BOARD_MAGIC)
-		return;
-
 	brd->re_map_membase = ioremap(brd->membase, 0x1000);
 }
 
