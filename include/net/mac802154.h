@@ -346,6 +346,25 @@ static inline unsigned char *ieee802154_skb_src_pan(__le16 fc,
 }
 
 /**
+ * ieee802154_skb_is_intra_pan_addressing - checks whenever the mac addressing
+ *	is an intra pan communication
+ * @fc: mac header frame control field
+ * @skb: skb where the source and destination pan should be get from
+ */
+static inline bool ieee802154_skb_is_intra_pan_addressing(__le16 fc,
+							  const struct sk_buff *skb)
+{
+	unsigned char *dst_pan = ieee802154_skb_dst_pan(fc, skb),
+		      *src_pan = ieee802154_skb_src_pan(fc, skb);
+
+	/* if one is NULL is no intra pan addressing */
+	if (!dst_pan || !src_pan)
+		return false;
+
+	return !memcmp(dst_pan, src_pan, IEEE802154_PAN_ID_LEN);
+}
+
+/**
  * ieee802154_be64_to_le64 - copies and convert be64 to le64
  * @le64_dst: le64 destination pointer
  * @be64_src: be64 source pointer
