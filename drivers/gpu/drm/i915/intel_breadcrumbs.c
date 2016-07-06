@@ -65,7 +65,7 @@ static void irq_disable(struct intel_engine_cs *engine)
 	engine->irq_posted = false;
 }
 
-static bool __intel_breadcrumbs_enable_irq(struct intel_breadcrumbs *b)
+static void __intel_breadcrumbs_enable_irq(struct intel_breadcrumbs *b)
 {
 	struct intel_engine_cs *engine =
 		container_of(b, struct intel_engine_cs, breadcrumbs);
@@ -73,7 +73,7 @@ static bool __intel_breadcrumbs_enable_irq(struct intel_breadcrumbs *b)
 
 	assert_spin_locked(&b->lock);
 	if (b->rpm_wakelock)
-		return false;
+		return;
 
 	/* Since we are waiting on a request, the GPU should be busy
 	 * and should have its own rpm reference. For completeness,
@@ -93,8 +93,6 @@ static bool __intel_breadcrumbs_enable_irq(struct intel_breadcrumbs *b)
 	if (!b->irq_enabled ||
 	    test_bit(engine->id, &i915->gpu_error.missed_irq_rings))
 		mod_timer(&b->fake_irq, jiffies + 1);
-
-	return engine->irq_posted;
 }
 
 static void __intel_breadcrumbs_disable_irq(struct intel_breadcrumbs *b)
@@ -233,7 +231,15 @@ static bool __intel_engine_add_wait(struct intel_engine_cs *engine,
 		GEM_BUG_ON(rb_first(&b->waiters) != &wait->node);
 		b->first_wait = wait;
 		smp_store_mb(b->tasklet, wait->tsk);
-		first = __intel_breadcrumbs_enable_irq(b);
+		/* After assigning ourselves as the new bottom-half, we must
+		 * perform a cursory check to prevent a missed interrupt.
+		 * Either we miss the interrupt whilst programming the hardware,
+		 * or if there was a previous waiter (for a later seqno) they
+		 * may be woken instead of us (due to the inherent race
+		 * in the unlocked read of b->tasklet in the irq handler) and
+		 * so we miss the wake up.
+		 */
+		__intel_breadcrumbs_enable_irq(b);
 	}
 	GEM_BUG_ON(!b->tasklet);
 	GEM_BUG_ON(!b->first_wait);
