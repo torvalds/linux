@@ -1510,25 +1510,6 @@ static int gpiochip_irq_reqres(struct irq_data *d)
 	if (!try_module_get(chip->gpiodev->owner))
 		return -ENODEV;
 
-	/*
-	 * If it is possible to switch this GPIO to an input
-	 * this is a good time to do it.
-	 */
-	if (chip->direction_input) {
-		struct gpio_desc *desc;
-		int ret;
-
-		desc = gpiochip_get_desc(chip, d->hwirq);
-		if (IS_ERR(desc))
-			return PTR_ERR(desc);
-
-	        ret = chip->direction_input(chip, d->hwirq);
-		if (ret)
-			return ret;
-
-		clear_bit(FLAG_IS_OUT, &desc->flags);
-	}
-
 	if (gpiochip_lock_as_irq(chip, d->hwirq)) {
 		chip_err(chip,
 			"unable to lock HW IRQ %lu for IRQ\n",
