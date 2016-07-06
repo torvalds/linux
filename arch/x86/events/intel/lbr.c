@@ -422,7 +422,7 @@ static inline bool branch_user_callstack(unsigned br_sel)
 	return (br_sel & X86_BR_USER) && (br_sel & X86_BR_CALL_STACK);
 }
 
-void intel_pmu_lbr_enable(struct perf_event *event)
+void intel_pmu_lbr_add(struct perf_event *event)
 {
 	struct cpu_hw_events *cpuc = this_cpu_ptr(&cpu_hw_events);
 	struct x86_perf_task_context *task_ctx;
@@ -450,7 +450,7 @@ void intel_pmu_lbr_enable(struct perf_event *event)
 	perf_sched_cb_inc(event->ctx->pmu);
 }
 
-void intel_pmu_lbr_disable(struct perf_event *event)
+void intel_pmu_lbr_del(struct perf_event *event)
 {
 	struct cpu_hw_events *cpuc = this_cpu_ptr(&cpu_hw_events);
 	struct x86_perf_task_context *task_ctx;
