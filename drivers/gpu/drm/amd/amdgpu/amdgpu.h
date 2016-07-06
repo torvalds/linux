@@ -776,8 +776,6 @@ struct amdgpu_ring {
 	struct amdgpu_bo	*ring_obj;
 	volatile uint32_t	*ring;
 	unsigned		rptr_offs;
-	u64			next_rptr_gpu_addr;
-	volatile u32		*next_rptr_cpu_addr;
 	unsigned		wptr;
 	unsigned		wptr_old;
 	unsigned		ring_size;
@@ -796,7 +794,6 @@ struct amdgpu_ring {
 	u32			doorbell_index;
 	bool			use_doorbell;
 	unsigned		wptr_offs;
-	unsigned		next_rptr_offs;
 	unsigned		fence_offs;
 	uint64_t		current_ctx;
 	enum amdgpu_ring_type	type;

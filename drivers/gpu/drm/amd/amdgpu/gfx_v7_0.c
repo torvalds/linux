@@ -2056,17 +2056,6 @@ static void gfx_v7_0_ring_emit_ib_gfx(struct amdgpu_ring *ring,
 				      unsigned vm_id, bool ctx_switch)
 {
 	u32 header, control = 0;
-	u32 next_rptr = ring->wptr + 5;
-
-	if (ctx_switch)
-		next_rptr += 2;
-
-	next_rptr += 4;
-	amdgpu_ring_write(ring, PACKET3(PACKET3_WRITE_DATA, 3));
-	amdgpu_ring_write(ring, WRITE_DATA_DST_SEL(5) | WR_CONFIRM);
-	amdgpu_ring_write(ring, ring->next_rptr_gpu_addr & 0xfffffffc);
-	amdgpu_ring_write(ring, upper_32_bits(ring->next_rptr_gpu_addr) & 0xffffffff);
-	amdgpu_ring_write(ring, next_rptr);
 
 	/* insert SWITCH_BUFFER packet before first IB in the ring frame */
 	if (ctx_switch) {
@@ -2095,22 +2084,9 @@ static void gfx_v7_0_ring_emit_ib_compute(struct amdgpu_ring *ring,
 					  struct amdgpu_ib *ib,
 					  unsigned vm_id, bool ctx_switch)
 {
-	u32 header, control = 0;
-	u32 next_rptr = ring->wptr + 5;
+	u32 control = INDIRECT_BUFFER_VALID | ib->length_dw | (vm_id << 24);
 
-	control |= INDIRECT_BUFFER_VALID;
-	next_rptr += 4;
-	amdgpu_ring_write(ring, PACKET3(PACKET3_WRITE_DATA, 3));
-	amdgpu_ring_write(ring, WRITE_DATA_DST_SEL(5) | WR_CONFIRM);
-	amdgpu_ring_write(ring, ring->next_rptr_gpu_addr & 0xfffffffc);
-	amdgpu_ring_write(ring, upper_32_bits(ring->next_rptr_gpu_addr) & 0xffffffff);
-	amdgpu_ring_write(ring, next_rptr);
-
-	header = PACKET3(PACKET3_INDIRECT_BUFFER, 2);
-
-	control |= ib->length_dw | (vm_id << 24);
-
-	amdgpu_ring_write(ring, header);
+	amdgpu_ring_write(ring, PACKET3(PACKET3_INDIRECT_BUFFER, 2));
 	amdgpu_ring_write(ring,
 #ifdef __BIG_ENDIAN
 					  (2 << 0) |

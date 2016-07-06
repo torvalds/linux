@@ -190,14 +190,6 @@ int amdgpu_ring_init(struct amdgpu_device *adev, struct amdgpu_ring *ring,
 		return r;
 	}
 
-	r = amdgpu_wb_get(adev, &ring->next_rptr_offs);
-	if (r) {
-		dev_err(adev->dev, "(%d) ring next_rptr wb alloc failed\n", r);
-		return r;
-	}
-	ring->next_rptr_gpu_addr = adev->wb.gpu_addr + ring->next_rptr_offs * 4;
-	ring->next_rptr_cpu_addr = &adev->wb.wb[ring->next_rptr_offs];
-
 	r = amdgpu_wb_get(adev, &ring->cond_exe_offs);
 	if (r) {
 		dev_err(adev->dev, "(%d) ring cond_exec_polling wb alloc failed\n", r);
@@ -280,7 +272,6 @@ void amdgpu_ring_fini(struct amdgpu_ring *ring)
 	amdgpu_wb_free(ring->adev, ring->fence_offs);
 	amdgpu_wb_free(ring->adev, ring->rptr_offs);
 	amdgpu_wb_free(ring->adev, ring->wptr_offs);
-	amdgpu_wb_free(ring->adev, ring->next_rptr_offs);
 
 	if (ring_obj) {
 		r = amdgpu_bo_reserve(ring_obj, false);
