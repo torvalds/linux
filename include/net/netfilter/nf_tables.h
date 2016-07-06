@@ -297,6 +297,7 @@ void nft_unregister_set(struct nft_set_ops *ops);
  * 	@ops: set ops
  * 	@pnet: network namespace
  * 	@flags: set flags
+ *	@genmask: generation mask
  * 	@klen: key length
  * 	@dlen: data length
  * 	@data: private set data
@@ -318,7 +319,8 @@ struct nft_set {
 	/* runtime data below here */
 	const struct nft_set_ops	*ops ____cacheline_aligned;
 	possible_net_t			pnet;
-	u16				flags;
+	u16				flags:14,
+					genmask:2;
 	u8				klen;
 	u8				dlen;
 	unsigned char			data[]
@@ -336,9 +338,9 @@ static inline struct nft_set *nft_set_container_of(const void *priv)
 }
 
 struct nft_set *nf_tables_set_lookup(const struct nft_table *table,
-				     const struct nlattr *nla);
+				     const struct nlattr *nla, u8 genmask);
 struct nft_set *nf_tables_set_lookup_byid(const struct net *net,
-					  const struct nlattr *nla);
+					  const struct nlattr *nla, u8 genmask);
 
 static inline unsigned long nft_set_gc_interval(const struct nft_set *set)
 {
@@ -733,7 +735,6 @@ static inline struct nft_userdata *nft_userdata(const struct nft_rule *rule)
 
 enum nft_chain_flags {
 	NFT_BASE_CHAIN			= 0x1,
-	NFT_CHAIN_INACTIVE		= 0x2,
 };
 
 /**
@@ -755,7 +756,8 @@ struct nft_chain {
 	u64				handle;
 	u32				use;
 	u16				level;
-	u8				flags;
+	u8				flags:6,
+					genmask:2;
 	char				name[NFT_CHAIN_MAXNAMELEN];
 };
 
@@ -797,7 +799,6 @@ struct nft_stats {
 };
 
 #define NFT_HOOK_OPS_MAX		2
-#define NFT_BASECHAIN_DISABLED		(1 << 0)
 
 /**
  *	struct nft_base_chain - nf_tables base chain
@@ -839,6 +840,7 @@ unsigned int nft_do_chain(struct nft_pktinfo *pkt, void *priv);
  *	@hgenerator: handle generator state
  *	@use: number of chain references to this table
  *	@flags: table flag (see enum nft_table_flags)
+ *	@genmask: generation mask
  *	@name: name of the table
  */
 struct nft_table {
@@ -847,7 +849,8 @@ struct nft_table {
 	struct list_head		sets;
 	u64				hgenerator;
 	u32				use;
-	u16				flags;
+	u16				flags:14,
+					genmask:2;
 	char				name[NFT_TABLE_MAXNAMELEN];
 };
 
@@ -969,6 +972,32 @@ static inline u8 nft_genmask_cur(const struct net *net)
 }
 
 #define NFT_GENMASK_ANY		((1 << 0) | (1 << 1))
+
+/*
+ * Generic transaction helpers
+ */
+
+/* Check if this object is currently active. */
+#define nft_is_active(__net, __obj)				\
+	(((__obj)->genmask & nft_genmask_cur(__net)) == 0)
+
+/* Check if this object is active in the next generation. */
+#define nft_is_active_next(__net, __obj)			\
+	(((__obj)->genmask & nft_genmask_next(__net)) == 0)
+
+/* This object becomes active in the next generation. */
+#define nft_activate_next(__net, __obj)				\
+	(__obj)->genmask = nft_genmask_cur(__net)
+
+/* This object becomes inactive in the next generation. */
+#define nft_deactivate_next(__net, __obj)			\
+        (__obj)->genmask = nft_genmask_next(__net)
+
+/* After committing the ruleset, clear the stale generation bit. */
+#define nft_clear(__net, __obj)					\
+	(__obj)->genmask &= ~nft_genmask_next(__net)
+#define nft_active_genmask(__obj, __genmask)			\
+	!((__obj)->genmask & __genmask)
 
 /*
  * Set element transaction helpers

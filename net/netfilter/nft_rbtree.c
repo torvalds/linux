@@ -170,7 +170,7 @@ static void *nft_rbtree_deactivate(const struct nft_set *set,
 	const struct nft_rbtree *priv = nft_set_priv(set);
 	const struct rb_node *parent = priv->root.rb_node;
 	struct nft_rbtree_elem *rbe, *this = elem->priv;
-	u8 genmask = nft_genmask_cur(read_pnet(&set->pnet));
+	u8 genmask = nft_genmask_next(read_pnet(&set->pnet));
 	int d;
 
 	while (parent != NULL) {

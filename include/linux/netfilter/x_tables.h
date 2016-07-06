@@ -6,6 +6,10 @@
 #include <linux/static_key.h>
 #include <uapi/linux/netfilter/x_tables.h>
 
+/* Test a struct->invflags and a boolean for inequality */
+#define NF_INVF(ptr, flag, boolean)					\
+	((boolean) ^ !!((ptr)->invflags & (flag)))
+
 /**
  * struct xt_action_param - parameters for matches/targets
  *
