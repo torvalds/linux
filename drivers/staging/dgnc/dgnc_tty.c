@@ -1289,13 +1289,7 @@ static int dgnc_block_til_ready(struct tty_struct *tty,
  */
 static void dgnc_tty_hangup(struct tty_struct *tty)
 {
-	struct un_t	*un;
-
 	if (!tty || tty->magic != TTY_MAGIC)
-		return;
-
-	un = tty->driver_data;
-	if (!un || un->magic != DGNC_UNIT_MAGIC)
 		return;
 
 	/* flush the transmit queues */
