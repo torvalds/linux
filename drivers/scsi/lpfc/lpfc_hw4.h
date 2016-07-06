@@ -544,6 +544,8 @@ struct lpfc_register {
 	uint32_t word0;
 };
 
+#define LPFC_PORT_SEM_UE_RECOVERABLE    0xE000
+#define LPFC_PORT_SEM_MASK		0xF000
 /* The following BAR0 Registers apply to SLI4 if_type 0 UCNAs. */
 #define LPFC_UERR_STATUS_HI		0x00A4
 #define LPFC_UERR_STATUS_LO		0x00A0
@@ -937,6 +939,7 @@ struct mbox_header {
 #define LPFC_MBOX_OPCODE_READ_OBJECT_LIST		0xAD
 #define LPFC_MBOX_OPCODE_DELETE_OBJECT			0xAE
 #define LPFC_MBOX_OPCODE_GET_SLI4_PARAMETERS		0xB5
+#define LPFC_MBOX_OPCODE_SET_FEATURES                   0xBF
 
 /* FCoE Opcodes */
 #define LPFC_MBOX_OPCODE_FCOE_WQ_CREATE			0x01
@@ -2887,6 +2890,25 @@ struct lpfc_sli4_parameters {
 #define cfg_ext_embed_cb_WORD			word19
 };
 
+#define LPFC_SET_UE_RECOVERY            0x10
+struct lpfc_mbx_set_feature {
+	struct mbox_header header;
+	uint32_t feature;
+	uint32_t param_len;
+	uint32_t word6;
+#define lpfc_mbx_set_feature_UER_SHIFT  0
+#define lpfc_mbx_set_feature_UER_MASK   0x00000001
+#define lpfc_mbx_set_feature_UER_WORD   word6
+	uint32_t word7;
+#define lpfc_mbx_set_feature_UERP_SHIFT 0
+#define lpfc_mbx_set_feature_UERP_MASK  0x0000ffff
+#define lpfc_mbx_set_feature_UERP_WORD  word7
+#define lpfc_mbx_set_feature_UESR_SHIFT 16
+#define lpfc_mbx_set_feature_UESR_MASK  0x0000ffff
+#define lpfc_mbx_set_feature_UESR_WORD  word7
+};
+
+
 struct lpfc_mbx_get_sli4_parameters {
 	struct mbox_header header;
 	struct lpfc_sli4_parameters sli4_parameters;
@@ -3279,6 +3301,7 @@ struct lpfc_mqe {
 		struct lpfc_mbx_get_prof_cfg get_prof_cfg;
 		struct lpfc_mbx_wr_object wr_object;
 		struct lpfc_mbx_get_port_name get_port_name;
+		struct lpfc_mbx_set_feature  set_feature;
 		struct lpfc_mbx_memory_dump_type3 mem_dump_type3;
 		struct lpfc_mbx_nop nop;
 	} un;

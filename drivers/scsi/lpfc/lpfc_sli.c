@@ -2947,8 +2947,8 @@ void lpfc_poll_eratt(unsigned long ptr)
 	else
 		cnt = (sli_intr - phba->sli.slistat.sli_prev_intr);
 
-	/* 64-bit integer division not supporte on 32-bit x86 - use do_div */
-	do_div(cnt, LPFC_ERATT_POLL_INTERVAL);
+	/* 64-bit integer division not supported on 32-bit x86 - use do_div */
+	do_div(cnt, phba->eratt_poll_interval);
 	phba->sli.slistat.sli_ips = cnt;
 
 	phba->sli.slistat.sli_prev_intr = sli_intr;
@@ -2963,7 +2963,7 @@ void lpfc_poll_eratt(unsigned long ptr)
 		/* Restart the timer for next eratt poll */
 		mod_timer(&phba->eratt_poll,
 			  jiffies +
-			  msecs_to_jiffies(1000 * LPFC_ERATT_POLL_INTERVAL));
+			  msecs_to_jiffies(1000 * phba->eratt_poll_interval));
 	return;
 }
 
@@ -5690,6 +5690,40 @@ lpfc_sli4_dealloc_extent(struct lpfc_hba *phba, uint16_t type)
 	return rc;
 }
 
+void
+lpfc_set_features(struct lpfc_hba *phba)
+{
+	LPFC_MBOXQ_t *mbox = NULL;
+	uint32_t len;
+	int rc;
+
+	mbox = mempool_alloc(phba->mbox_mem_pool, GFP_KERNEL);
+	if (!mbox)
+		return;
+	len = sizeof(struct lpfc_mbx_set_feature) -
+		sizeof(struct lpfc_sli4_cfg_mhdr);
+	lpfc_sli4_config(phba, mbox, LPFC_MBOX_SUBSYSTEM_COMMON,
+			 LPFC_MBOX_OPCODE_SET_FEATURES, len,
+			 LPFC_SLI4_MBX_EMBED);
+	bf_set(lpfc_mbx_set_feature_UER,
+	       &mbox->u.mqe.un.set_feature, 1);
+	mbox->u.mqe.un.set_feature.feature = LPFC_SET_UE_RECOVERY;
+	mbox->u.mqe.un.set_feature.param_len = 8;
+	rc = lpfc_sli_issue_mbox(phba, mbox, MBX_POLL);
+
+	if (rc != MBX_SUCCESS) {
+		mempool_free(mbox, phba->mbox_mem_pool);
+		return;
+	}
+	phba->hba_flag |= HBA_RECOVERABLE_UE;
+	phba->eratt_poll_interval = 1;  /* Set 1Sec interval to detect UE */
+	phba->sli4_hba.ue_to_sr = bf_get(lpfc_mbx_set_feature_UESR,
+					 &mbox->u.mqe.un.set_feature);
+	phba->sli4_hba.ue_to_rp = bf_get(lpfc_mbx_set_feature_UERP,
+					 &mbox->u.mqe.un.set_feature);
+	mempool_free(mbox, phba->mbox_mem_pool);
+}
+
 /**
  * lpfc_sli4_alloc_resource_identifiers - Allocate all SLI4 resource extents.
  * @phba: Pointer to HBA context object.
@@ -6414,6 +6448,9 @@ lpfc_sli4_hba_setup(struct lpfc_hba *phba)
 		phba->pport->cfg_lun_queue_depth = rc;
 	}
 
+	if (bf_get(lpfc_sli_intf_if_type, &phba->sli4_hba.sli_intf) ==
+	    LPFC_SLI_INTF_IF_TYPE_0)
+		lpfc_set_features(phba);
 
 	/*
 	 * Discover the port's supported feature set and match it against the
@@ -6612,7 +6649,7 @@ lpfc_sli4_hba_setup(struct lpfc_hba *phba)
 
 	/* Start error attention (ERATT) polling timer */
 	mod_timer(&phba->eratt_poll,
-		  jiffies + msecs_to_jiffies(1000 * LPFC_ERATT_POLL_INTERVAL));
+		  jiffies + msecs_to_jiffies(1000 * phba->eratt_poll_interval));
 
 	/* Enable PCIe device Advanced Error Reporting (AER) if configured */
 	if (phba->cfg_aer_support == 1 && !(phba->hba_flag & HBA_AER_ENABLED)) {

@@ -568,7 +568,7 @@ lpfc_config_port_post(struct lpfc_hba *phba)
 	phba->last_completion_time = jiffies;
 	/* Set up error attention (ERATT) polling timer */
 	mod_timer(&phba->eratt_poll,
-		  jiffies + msecs_to_jiffies(1000 * LPFC_ERATT_POLL_INTERVAL));
+		  jiffies + msecs_to_jiffies(1000 * phba->eratt_poll_interval));
 
 	if (phba->hba_flag & LINK_DISABLED) {
 		lpfc_printf_log(phba,
@@ -1587,35 +1587,38 @@ lpfc_sli4_port_sta_fn_reset(struct lpfc_hba *phba, int mbx_action,
 	int rc;
 	uint32_t intr_mode;
 
-	/*
-	 * On error status condition, driver need to wait for port
-	 * ready before performing reset.
-	 */
-	rc = lpfc_sli4_pdev_status_reg_wait(phba);
-	if (!rc) {
-		/* need reset: attempt for port recovery */
-		if (en_rn_msg)
-			lpfc_printf_log(phba, KERN_ERR, LOG_INIT,
-					"2887 Reset Needed: Attempting Port "
-					"Recovery...\n");
-		lpfc_offline_prep(phba, mbx_action);
-		lpfc_offline(phba);
-		/* release interrupt for possible resource change */
-		lpfc_sli4_disable_intr(phba);
-		lpfc_sli_brdrestart(phba);
-		/* request and enable interrupt */
-		intr_mode = lpfc_sli4_enable_intr(phba, phba->intr_mode);
-		if (intr_mode == LPFC_INTR_ERROR) {
-			lpfc_printf_log(phba, KERN_ERR, LOG_INIT,
-					"3175 Failed to enable interrupt\n");
-			return -EIO;
-		} else {
-			phba->intr_mode = intr_mode;
-		}
-		rc = lpfc_online(phba);
-		if (rc == 0)
-			lpfc_unblock_mgmt_io(phba);
+	if (bf_get(lpfc_sli_intf_if_type, &phba->sli4_hba.sli_intf) ==
+	    LPFC_SLI_INTF_IF_TYPE_2) {
+		/*
+		 * On error status condition, driver need to wait for port
+		 * ready before performing reset.
+		 */
+		rc = lpfc_sli4_pdev_status_reg_wait(phba);
+		if (!rc)
+			return rc;
 	}
+	/* need reset: attempt for port recovery */
+	if (en_rn_msg)
+		lpfc_printf_log(phba, KERN_ERR, LOG_INIT,
+				"2887 Reset Needed: Attempting Port "
+				"Recovery...\n");
+	lpfc_offline_prep(phba, mbx_action);
+	lpfc_offline(phba);
+	/* release interrupt for possible resource change */
+	lpfc_sli4_disable_intr(phba);
+	lpfc_sli_brdrestart(phba);
+	/* request and enable interrupt */
+	intr_mode = lpfc_sli4_enable_intr(phba, phba->intr_mode);
+	if (intr_mode == LPFC_INTR_ERROR) {
+		lpfc_printf_log(phba, KERN_ERR, LOG_INIT,
+				"3175 Failed to enable interrupt\n");
+		return -EIO;
+	}
+	phba->intr_mode = intr_mode;
+	rc = lpfc_online(phba);
+	if (rc == 0)
+		lpfc_unblock_mgmt_io(phba);
+
 	return rc;
 }
 
@@ -1636,10 +1639,11 @@ lpfc_handle_eratt_s4(struct lpfc_hba *phba)
 	struct lpfc_register portstat_reg = {0};
 	uint32_t reg_err1, reg_err2;
 	uint32_t uerrlo_reg, uemasklo_reg;
-	uint32_t pci_rd_rc1, pci_rd_rc2;
+	uint32_t smphr_port_status = 0, pci_rd_rc1, pci_rd_rc2;
 	bool en_rn_msg = true;
 	struct temp_event temp_event_data;
-	int rc;
+	struct lpfc_register portsmphr_reg;
+	int rc, i;
 
 	/* If the pci channel is offline, ignore possible errors, since
 	 * we cannot communicate with the pci card anyway.
@@ -1647,6 +1651,7 @@ lpfc_handle_eratt_s4(struct lpfc_hba *phba)
 	if (pci_channel_offline(phba->pcidev))
 		return;
 
+	memset(&portsmphr_reg, 0, sizeof(portsmphr_reg));
 	if_type = bf_get(lpfc_sli_intf_if_type, &phba->sli4_hba.sli_intf);
 	switch (if_type) {
 	case LPFC_SLI_INTF_IF_TYPE_0:
@@ -1659,6 +1664,55 @@ lpfc_handle_eratt_s4(struct lpfc_hba *phba)
 		/* consider PCI bus read error as pci_channel_offline */
 		if (pci_rd_rc1 == -EIO && pci_rd_rc2 == -EIO)
 			return;
+		if (!(phba->hba_flag & HBA_RECOVERABLE_UE)) {
+			lpfc_sli4_offline_eratt(phba);
+			return;
+		}
+		lpfc_printf_log(phba, KERN_ERR, LOG_INIT,
+				"7623 Checking UE recoverable");
+
+		for (i = 0; i < phba->sli4_hba.ue_to_sr / 1000; i++) {
+			if (lpfc_readl(phba->sli4_hba.PSMPHRregaddr,
+				       &portsmphr_reg.word0))
+				continue;
+
+			smphr_port_status = bf_get(lpfc_port_smphr_port_status,
+						   &portsmphr_reg);
+			if ((smphr_port_status & LPFC_PORT_SEM_MASK) ==
+			    LPFC_PORT_SEM_UE_RECOVERABLE)
+				break;
+			/*Sleep for 1Sec, before checking SEMAPHORE */
+			msleep(1000);
+		}
+
+		lpfc_printf_log(phba, KERN_ERR, LOG_INIT,
+				"4827 smphr_port_status x%x : Waited %dSec",
+				smphr_port_status, i);
+
+		/* Recoverable UE, reset the HBA device */
+		if ((smphr_port_status & LPFC_PORT_SEM_MASK) ==
+		    LPFC_PORT_SEM_UE_RECOVERABLE) {
+			for (i = 0; i < 20; i++) {
+				msleep(1000);
+				if (!lpfc_readl(phba->sli4_hba.PSMPHRregaddr,
+				    &portsmphr_reg.word0) &&
+				    (LPFC_POST_STAGE_PORT_READY ==
+				     bf_get(lpfc_port_smphr_port_status,
+				     &portsmphr_reg))) {
+					rc = lpfc_sli4_port_sta_fn_reset(phba,
+						LPFC_MBX_NO_WAIT, en_rn_msg);
+					if (rc == 0)
+						return;
+					lpfc_printf_log(phba,
+						KERN_ERR, LOG_INIT,
+						"4215 Failed to recover UE");
+					break;
+				}
+			}
+		}
+		lpfc_printf_log(phba, KERN_ERR, LOG_INIT,
+				"7624 Firmware not ready: Failing UE recovery,"
+				" waited %dSec", i);
 		lpfc_sli4_offline_eratt(phba);
 		break;
 
@@ -5365,6 +5419,7 @@ lpfc_sli4_driver_resource_setup(struct lpfc_hba *phba)
 			goto out_free_bsmbx;
 		}
 	}
+
 	/*
 	 * Get sli4 parameters that override parameters from Port capabilities.
 	 * If this call fails, it isn't critical unless the SLI4 parameters come
@@ -6093,6 +6148,7 @@ lpfc_hba_alloc(struct pci_dev *pdev)
 		kfree(phba);
 		return NULL;
 	}
+	phba->eratt_poll_interval = LPFC_ERATT_POLL_INTERVAL;
 
 	spin_lock_init(&phba->ct_ev_lock);
 	INIT_LIST_HEAD(&phba->ct_ev_waiters);
