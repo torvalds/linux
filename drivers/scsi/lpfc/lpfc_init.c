@@ -1595,9 +1595,10 @@ lpfc_sli4_port_sta_fn_reset(struct lpfc_hba *phba, int mbx_action,
 		 * ready before performing reset.
 		 */
 		rc = lpfc_sli4_pdev_status_reg_wait(phba);
-		if (!rc)
+		if (rc)
 			return rc;
 	}
+
 	/* need reset: attempt for port recovery */
 	if (en_rn_msg)
 		lpfc_printf_log(phba, KERN_ERR, LOG_INIT,
