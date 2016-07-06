@@ -14165,6 +14165,11 @@ static int init_asic_data(struct hfi1_devdata *dd)
 	}
 	dd->asic_data->dds[dd->hfi1_id] = dd; /* self back-pointer */
 	spin_unlock_irqrestore(&hfi1_devs_lock, flags);
+
+	/* first one through - set up i2c devices */
+	if (!peer)
+		ret = set_up_i2c(dd, dd->asic_data);
+
 	return ret;
 }
 

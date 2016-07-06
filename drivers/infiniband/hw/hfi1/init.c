@@ -973,34 +973,45 @@ void hfi1_free_ctxtdata(struct hfi1_devdata *dd, struct hfi1_ctxtdata *rcd)
 
 /*
  * Release our hold on the shared asic data.  If we are the last one,
- * free the structure.  Must be holding hfi1_devs_lock.
+ * return the structure to be finalized outside the lock.  Must be
+ * holding hfi1_devs_lock.
  */
-static void release_asic_data(struct hfi1_devdata *dd)
+static struct hfi1_asic_data *release_asic_data(struct hfi1_devdata *dd)
 {
+	struct hfi1_asic_data *ad;
 	int other;
 
 	if (!dd->asic_data)
-		return;
+		return NULL;
 	dd->asic_data->dds[dd->hfi1_id] = NULL;
 	other = dd->hfi1_id ? 0 : 1;
-	if (!dd->asic_data->dds[other]) {
-		/* we are the last holder, free it */
-		kfree(dd->asic_data);
-	}
+	ad = dd->asic_data;
 	dd->asic_data = NULL;
+	/* return NULL if the other dd still has a link */
+	return ad->dds[other] ? NULL : ad;
+}
+
+static void finalize_asic_data(struct hfi1_devdata *dd,
+			       struct hfi1_asic_data *ad)
+{
+	clean_up_i2c(dd, ad);
+	kfree(ad);
 }
 
 static void __hfi1_free_devdata(struct kobject *kobj)
 {
 	struct hfi1_devdata *dd =
 		container_of(kobj, struct hfi1_devdata, kobj);
+	struct hfi1_asic_data *ad;
 	unsigned long flags;
 
 	spin_lock_irqsave(&hfi1_devs_lock, flags);
 	idr_remove(&hfi1_unit_table, dd->unit);
 	list_del(&dd->list);
-	release_asic_data(dd);
+	ad = release_asic_data(dd);
 	spin_unlock_irqrestore(&hfi1_devs_lock, flags);
+	if (ad)
+		finalize_asic_data(dd, ad);
 	free_platform_config(dd);
 	rcu_barrier(); /* wait for rcu callbacks to complete */
 	free_percpu(dd->int_counter);

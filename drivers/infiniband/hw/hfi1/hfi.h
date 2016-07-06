@@ -62,6 +62,8 @@
 #include <linux/cdev.h>
 #include <linux/delay.h>
 #include <linux/kthread.h>
+#include <linux/i2c.h>
+#include <linux/i2c-algo-bit.h>
 #include <rdma/rdma_vt.h>
 
 #include "chip_registers.h"
@@ -805,10 +807,19 @@ struct hfi1_temp {
 	u8 triggers;      /* temperature triggers */
 };
 
+struct hfi1_i2c_bus {
+	struct hfi1_devdata *controlling_dd; /* current controlling device */
+	struct i2c_adapter adapter;	/* bus details */
+	struct i2c_algo_bit_data algo;	/* bus algorithm details */
+	int num;			/* bus number, 0 or 1 */
+};
+
 /* common data between shared ASIC HFIs */
 struct hfi1_asic_data {
 	struct hfi1_devdata *dds[2];	/* back pointers */
 	struct mutex asic_resource_mutex;
+	struct hfi1_i2c_bus *i2c_bus0;
+	struct hfi1_i2c_bus *i2c_bus1;
 };
 
 /* device data struct now contains only "general per-device" info.
