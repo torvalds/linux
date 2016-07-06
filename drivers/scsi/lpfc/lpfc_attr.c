@@ -2401,6 +2401,69 @@ static DEVICE_ATTR(lpfc_xlane_tgt, S_IRUGO | S_IWUSR,
 		   lpfc_oas_tgt_show, lpfc_oas_tgt_store);
 
 /**
+ * lpfc_oas_priority_show - Return wwpn of target whose luns maybe enabled for
+ *		      Optimized Access Storage (OAS) operations.
+ * @dev: class device that is converted into a Scsi_host.
+ * @attr: device attribute, not used.
+ * @buf: buffer for passing information.
+ *
+ * Returns:
+ * value of count
+ **/
+static ssize_t
+lpfc_oas_priority_show(struct device *dev, struct device_attribute *attr,
+		       char *buf)
+{
+	struct Scsi_Host *shost = class_to_shost(dev);
+	struct lpfc_hba *phba = ((struct lpfc_vport *)shost->hostdata)->phba;
+
+	return snprintf(buf, PAGE_SIZE, "%d\n", phba->cfg_oas_priority);
+}
+
+/**
+ * lpfc_oas_priority_store - Store wwpn of target whose luns maybe enabled for
+ *		      Optimized Access Storage (OAS) operations.
+ * @dev: class device that is converted into a Scsi_host.
+ * @attr: device attribute, not used.
+ * @buf: buffer for passing information.
+ * @count: Size of the data buffer.
+ *
+ * Returns:
+ * -EINVAL count is invalid, invalid wwpn byte invalid
+ * -EPERM oas is not supported by hba
+ * value of count on success
+ **/
+static ssize_t
+lpfc_oas_priority_store(struct device *dev, struct device_attribute *attr,
+			const char *buf, size_t count)
+{
+	struct Scsi_Host *shost = class_to_shost(dev);
+	struct lpfc_hba *phba = ((struct lpfc_vport *)shost->hostdata)->phba;
+	unsigned int cnt = count;
+	unsigned long val;
+	int ret;
+
+	if (!phba->cfg_fof)
+		return -EPERM;
+
+	/* count may include a LF at end of string */
+	if (buf[cnt-1] == '\n')
+		cnt--;
+
+	ret = kstrtoul(buf, 0, &val);
+	if (ret || (val > 0x7f))
+		return -EINVAL;
+
+	if (val)
+		phba->cfg_oas_priority = (uint8_t)val;
+	else
+		phba->cfg_oas_priority = phba->cfg_XLanePriority;
+	return count;
+}
+static DEVICE_ATTR(lpfc_xlane_priority, S_IRUGO | S_IWUSR,
+		   lpfc_oas_priority_show, lpfc_oas_priority_store);
+
+/**
  * lpfc_oas_vpt_show - Return wwpn of vport whose targets maybe enabled
  *		      for Optimized Access Storage (OAS) operations.
  * @dev: class device that is converted into a Scsi_host.
@@ -2462,6 +2525,7 @@ lpfc_oas_vpt_store(struct device *dev, struct device_attribute *attr,
 	else
 		phba->cfg_oas_flags &= ~OAS_FIND_ANY_VPORT;
 	phba->cfg_oas_flags &= ~OAS_LUN_VALID;
+	phba->cfg_oas_priority = phba->cfg_XLanePriority;
 	phba->sli4_hba.oas_next_lun = FIND_FIRST_OAS_LUN;
 	return count;
 }
@@ -2524,7 +2588,6 @@ lpfc_oas_lun_state_store(struct device *dev, struct device_attribute *attr,
 		return -EINVAL;
 
 	phba->cfg_oas_lun_state = val;
-
 	return strlen(buf);
 }
 static DEVICE_ATTR(lpfc_xlane_lun_state, S_IRUGO | S_IWUSR,
@@ -2572,7 +2635,8 @@ static DEVICE_ATTR(lpfc_xlane_lun_status, S_IRUGO,
  */
 static size_t
 lpfc_oas_lun_state_set(struct lpfc_hba *phba, uint8_t vpt_wwpn[],
-		       uint8_t tgt_wwpn[], uint64_t lun, uint32_t oas_state)
+		       uint8_t tgt_wwpn[], uint64_t lun,
+		       uint32_t oas_state, uint8_t pri)
 {
 
 	int rc = 0;
@@ -2582,7 +2646,8 @@ lpfc_oas_lun_state_set(struct lpfc_hba *phba, uint8_t vpt_wwpn[],
 
 	if (oas_state) {
 		if (!lpfc_enable_oas_lun(phba, (struct lpfc_name *)vpt_wwpn,
-					 (struct lpfc_name *)tgt_wwpn, lun))
+					 (struct lpfc_name *)tgt_wwpn,
+					 lun, pri))
 			rc = -ENOMEM;
 	} else {
 		lpfc_disable_oas_lun(phba, (struct lpfc_name *)vpt_wwpn,
@@ -2648,13 +2713,13 @@ lpfc_oas_lun_get_next(struct lpfc_hba *phba, uint8_t vpt_wwpn[],
 static ssize_t
 lpfc_oas_lun_state_change(struct lpfc_hba *phba, uint8_t vpt_wwpn[],
 			  uint8_t tgt_wwpn[], uint64_t lun,
-			  uint32_t oas_state)
+			  uint32_t oas_state, uint8_t pri)
 {
 
 	int rc;
 
 	rc = lpfc_oas_lun_state_set(phba, vpt_wwpn, tgt_wwpn, lun,
-					oas_state);
+				    oas_state, pri);
 	return rc;
 }
 
@@ -2744,16 +2809,16 @@ lpfc_oas_lun_store(struct device *dev, struct device_attribute *attr,
 		return -EINVAL;
 
 	lpfc_printf_log(phba, KERN_INFO, LOG_INIT,
-			"3372 Try to set vport 0x%llx target 0x%llx lun:%lld "
-			"with oas set to %d\n",
+			"3372 Try to set vport 0x%llx target 0x%llx lun:0x%llx "
+			"priority 0x%x with oas state %d\n",
 			wwn_to_u64(phba->cfg_oas_vpt_wwpn),
 			wwn_to_u64(phba->cfg_oas_tgt_wwpn), scsi_lun,
-			phba->cfg_oas_lun_state);
+			phba->cfg_oas_priority, phba->cfg_oas_lun_state);
 
 	rc = lpfc_oas_lun_state_change(phba, phba->cfg_oas_vpt_wwpn,
-					   phba->cfg_oas_tgt_wwpn, scsi_lun,
-					   phba->cfg_oas_lun_state);
-
+				       phba->cfg_oas_tgt_wwpn, scsi_lun,
+				       phba->cfg_oas_lun_state,
+				       phba->cfg_oas_priority);
 	if (rc)
 		return rc;
 
@@ -4865,6 +4930,7 @@ struct device_attribute *lpfc_hba_attrs[] = {
 	&dev_attr_lpfc_xlane_vpt,
 	&dev_attr_lpfc_xlane_lun_state,
 	&dev_attr_lpfc_xlane_lun_status,
+	&dev_attr_lpfc_xlane_priority,
 	&dev_attr_lpfc_sg_seg_cnt,
 	&dev_attr_lpfc_max_scsicmpl_time,
 	&dev_attr_lpfc_stat_data_ctrl,
@@ -5858,6 +5924,7 @@ lpfc_get_cfgparam(struct lpfc_hba *phba)
 	phba->cfg_oas_lun_state = 0;
 	phba->cfg_oas_lun_status = 0;
 	phba->cfg_oas_flags = 0;
+	phba->cfg_oas_priority = 0;
 	lpfc_enable_bg_init(phba, lpfc_enable_bg);
 	if (phba->sli_rev == LPFC_SLI_REV4)
 		phba->cfg_poll = 0;

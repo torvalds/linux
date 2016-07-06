@@ -492,7 +492,7 @@ struct lpfc_device_data *__lpfc_get_device_data(struct lpfc_hba *,
 					struct lpfc_name *,
 					struct lpfc_name *, uint64_t);
 bool lpfc_enable_oas_lun(struct lpfc_hba *, struct lpfc_name *,
-			 struct lpfc_name *, uint64_t);
+			 struct lpfc_name *, uint64_t, uint8_t);
 bool lpfc_disable_oas_lun(struct lpfc_hba *, struct lpfc_name *,
 			  struct lpfc_name *, uint64_t);
 bool lpfc_find_next_oas_lun(struct lpfc_hba *, struct lpfc_name *,

@@ -57,6 +57,7 @@ struct lpfc_iocbq {
 	struct lpfc_cq_event cq_event;
 
 	IOCB_t iocb;		/* IOCB cmd */
+	uint8_t priority;	/* OAS priority */
 	uint8_t retry;		/* retry counter for IOCB cmd - if needed */
 	uint32_t iocb_flag;
 #define LPFC_IO_LIBDFC		1	/* libdfc iocb */

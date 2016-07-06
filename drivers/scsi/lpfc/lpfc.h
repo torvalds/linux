@@ -743,6 +743,7 @@ struct lpfc_hba {
 #define OAS_FIND_ANY_VPORT	0x01
 #define OAS_FIND_ANY_TARGET	0x02
 #define OAS_LUN_VALID	0x04
+	uint32_t cfg_oas_priority;
 	uint32_t cfg_XLanePriority;
 	uint32_t cfg_enable_bg;
 	uint32_t cfg_hostmem_hgp;

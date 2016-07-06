@@ -51,6 +51,7 @@ struct lpfc_device_data {
 	struct list_head listentry;
 	struct lpfc_rport_data *rport_data;
 	struct lpfc_device_id device_id;
+	uint8_t priority;
 	bool oas_enabled;
 	bool available;
 };
