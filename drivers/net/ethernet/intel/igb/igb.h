@@ -350,13 +350,24 @@ struct hwmon_buff {
 	};
 #endif
 
+/* The number of L2 ether-type filter registers, Index 3 is reserved
+ * for PTP 1588 timestamp
+ */
+#define MAX_ETYPE_FILTER	(4 - 1)
+/* ETQF filter list: one static filter per filter consumer. This is
+ * to avoid filter collisions later. Add new filters here!!
+ *
+ * Current filters:		Filter 3
+ */
+#define IGB_ETQF_FILTER_1588	3
+
 #define IGB_N_EXTTS	2
 #define IGB_N_PEROUT	2
 #define IGB_N_SDP	4
 #define IGB_RETA_SIZE	128
 
 enum igb_filter_match_flags {
-	IGB_FILTER_FLAG_NONE = 0x0,
+	IGB_FILTER_FLAG_ETHER_TYPE = 0x1,
 };
 
 #define IGB_MAX_RXNFC_FILTERS 16
@@ -364,14 +375,17 @@ enum igb_filter_match_flags {
 /* RX network flow classification data structure */
 struct igb_nfc_input {
 	/* Byte layout in order, all values with MSB first:
-	* match_flags - 1 byte
-	*/
+	 * match_flags - 1 byte
+	 * etype - 2 bytes
+	 */
 	u8 match_flags;
+	__be16 etype;
 };
 
 struct igb_nfc_filter {
 	struct hlist_node nfc_node;
 	struct igb_nfc_input filter;
+	u16 etype_reg_index;
 	u16 sw_idx;
 	u16 action;
 };
@@ -500,6 +514,7 @@ struct igb_adapter {
 	unsigned int nfc_filter_count;
 	/* lock for RX network flow classification filter */
 	spinlock_t nfc_lock;
+	bool etype_bitmap[MAX_ETYPE_FILTER];
 };
 
 /* flags controlling PTP/1588 function */

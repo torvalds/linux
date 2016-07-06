@@ -2431,6 +2431,7 @@ static int igb_get_ts_info(struct net_device *dev,
 	}
 }
 
+#define ETHER_TYPE_FULL_MASK ((__force __be16)~0)
 static int igb_get_ethtool_nfc_entry(struct igb_adapter *adapter,
 				     struct ethtool_rxnfc *cmd)
 {
@@ -2448,6 +2449,13 @@ static int igb_get_ethtool_nfc_entry(struct igb_adapter *adapter,
 	if (!rule || fsp->location != rule->sw_idx)
 		return -EINVAL;
 
+	if (rule->filter.match_flags & IGB_FILTER_FLAG_ETHER_TYPE) {
+		fsp->flow_type = ETHER_FLOW;
+		fsp->ring_cookie = rule->action;
+		fsp->h_u.ether_spec.h_proto = rule->filter.etype;
+		fsp->m_u.ether_spec.h_proto = ETHER_TYPE_FULL_MASK;
+		return 0;
+	}
 	return -EINVAL;
 }
 
@@ -2650,13 +2658,75 @@ static int igb_set_rss_hash_opt(struct igb_adapter *adapter,
 	return 0;
 }
 
+static int igb_rxnfc_write_etype_filter(struct igb_adapter *adapter,
+					struct igb_nfc_filter *input)
+{
+	struct e1000_hw *hw = &adapter->hw;
+	u8 i;
+	u32 etqf;
+	u16 etype;
+
+	/* find an empty etype filter register */
+	for (i = 0; i < MAX_ETYPE_FILTER; ++i) {
+		if (!adapter->etype_bitmap[i])
+			break;
+	}
+	if (i == MAX_ETYPE_FILTER) {
+		dev_err(&adapter->pdev->dev, "ethtool -N: etype filters are all used.\n");
+		return -EINVAL;
+	}
+
+	adapter->etype_bitmap[i] = true;
+
+	etqf = rd32(E1000_ETQF(i));
+	etype = ntohs(input->filter.etype & ETHER_TYPE_FULL_MASK);
+
+	etqf |= E1000_ETQF_FILTER_ENABLE;
+	etqf &= ~E1000_ETQF_ETYPE_MASK;
+	etqf |= (etype & E1000_ETQF_ETYPE_MASK);
+
+	etqf &= ~E1000_ETQF_QUEUE_MASK;
+	etqf |= ((input->action << E1000_ETQF_QUEUE_SHIFT)
+		& E1000_ETQF_QUEUE_MASK);
+	etqf |= E1000_ETQF_QUEUE_ENABLE;
+
+	wr32(E1000_ETQF(i), etqf);
+
+	input->etype_reg_index = i;
+
+	return 0;
+}
+
 int igb_add_filter(struct igb_adapter *adapter, struct igb_nfc_filter *input)
 {
-	return -EINVAL;
+	int err = -EINVAL;
+
+	if (input->filter.match_flags & IGB_FILTER_FLAG_ETHER_TYPE)
+		err = igb_rxnfc_write_etype_filter(adapter, input);
+
+	return err;
+}
+
+static void igb_clear_etype_filter_regs(struct igb_adapter *adapter,
+					u16 reg_index)
+{
+	struct e1000_hw *hw = &adapter->hw;
+	u32 etqf = rd32(E1000_ETQF(reg_index));
+
+	etqf &= ~E1000_ETQF_QUEUE_ENABLE;
+	etqf &= ~E1000_ETQF_QUEUE_MASK;
+	etqf &= ~E1000_ETQF_FILTER_ENABLE;
+
+	wr32(E1000_ETQF(reg_index), etqf);
+
+	adapter->etype_bitmap[reg_index] = false;
 }
 
 int igb_erase_filter(struct igb_adapter *adapter, struct igb_nfc_filter *input)
 {
+	if (input->filter.match_flags & IGB_FILTER_FLAG_ETHER_TYPE)
+		igb_clear_etype_filter_regs(adapter,
+					    input->etype_reg_index);
 	return 0;
 }
 
@@ -2738,10 +2808,15 @@ static int igb_add_ethtool_nfc_entry(struct igb_adapter *adapter,
 	if ((fsp->flow_type & ~FLOW_EXT) != ETHER_FLOW)
 		return -EINVAL;
 
+	if (fsp->m_u.ether_spec.h_proto != ETHER_TYPE_FULL_MASK)
+		return -EINVAL;
+
 	input = kzalloc(sizeof(*input), GFP_KERNEL);
 	if (!input)
 		return -ENOMEM;
 
+	input->filter.etype = fsp->h_u.ether_spec.h_proto;
+	input->filter.match_flags = IGB_FILTER_FLAG_ETHER_TYPE;
 	input->action = fsp->ring_cookie;
 	input->sw_idx = fsp->location;
 

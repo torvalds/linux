@@ -998,12 +998,12 @@ static int igb_ptp_set_timestamp_mode(struct igb_adapter *adapter,
 
 	/* define ethertype filter for timestamped packets */
 	if (is_l2)
-		wr32(E1000_ETQF(3),
+		wr32(E1000_ETQF(IGB_ETQF_FILTER_1588),
 		     (E1000_ETQF_FILTER_ENABLE | /* enable filter */
 		      E1000_ETQF_1588 | /* enable timestamping */
 		      ETH_P_1588));     /* 1588 eth protocol type */
 	else
-		wr32(E1000_ETQF(3), 0);
+		wr32(E1000_ETQF(IGB_ETQF_FILTER_1588), 0);
 
 	/* L4 Queue Filter[3]: filter by destination port and protocol */
 	if (is_l4) {
