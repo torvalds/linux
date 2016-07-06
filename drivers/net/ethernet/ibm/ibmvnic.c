@@ -469,7 +469,8 @@ static int ibmvnic_open(struct net_device *netdev)
 	crq.logical_link_state.link_state = IBMVNIC_LOGICAL_LNK_UP;
 	ibmvnic_send_crq(adapter, &crq);
 
-	netif_start_queue(netdev);
+	netif_tx_start_all_queues(netdev);
+
 	return 0;
 
 bounce_map_failed:
@@ -519,7 +520,7 @@ static int ibmvnic_close(struct net_device *netdev)
 	for (i = 0; i < adapter->req_rx_queues; i++)
 		napi_disable(&adapter->napi[i]);
 
-	netif_stop_queue(netdev);
+	netif_tx_stop_all_queues(netdev);
 
 	if (adapter->bounce_buffer) {
 		if (!dma_mapping_error(dev, adapter->bounce_buffer_dma)) {
