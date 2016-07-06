@@ -4040,6 +4040,8 @@ lpfc_sli4_async_fc_evt(struct lpfc_hba *phba, struct lpfc_acqe_fc_la *acqe_fc)
 {
 	struct lpfc_dmabuf *mp;
 	LPFC_MBOXQ_t *pmb;
+	MAILBOX_t *mb;
+	struct lpfc_mbx_read_top *la;
 	int rc;
 
 	if (bf_get(lpfc_trailer_type, acqe_fc) !=
@@ -4109,6 +4111,24 @@ lpfc_sli4_async_fc_evt(struct lpfc_hba *phba, struct lpfc_acqe_fc_la *acqe_fc)
 	lpfc_read_topology(phba, pmb, mp);
 	pmb->mbox_cmpl = lpfc_mbx_cmpl_read_topology;
 	pmb->vport = phba->pport;
+
+	if (phba->sli4_hba.link_state.status != LPFC_FC_LA_TYPE_LINK_UP) {
+		/* Parse and translate status field */
+		mb = &pmb->u.mb;
+		mb->mbxStatus = lpfc_sli4_parse_latt_fault(phba,
+							   (void *)acqe_fc);
+
+		/* Parse and translate link attention fields */
+		la = (struct lpfc_mbx_read_top *)&pmb->u.mb.un.varReadTop;
+		la->eventTag = acqe_fc->event_tag;
+		bf_set(lpfc_mbx_read_top_att_type, la,
+		       LPFC_FC_LA_TYPE_LINK_DOWN);
+
+		/* Invoke the mailbox command callback function */
+		lpfc_mbx_cmpl_read_topology(phba, pmb);
+
+		return;
+	}
 
 	rc = lpfc_sli_issue_mbox(phba, pmb, MBX_NOWAIT);
 	if (rc == MBX_NOT_FINISHED)
@@ -9585,6 +9605,14 @@ lpfc_get_sli4_parameters(struct lpfc_hba *phba, LPFC_MBOXQ_t *mboxq)
 		phba->fcp_embed_io = 1;
 	else
 		phba->fcp_embed_io = 0;
+
+	/*
+	 * Check if the SLI port supports MDS Diagnostics
+	 */
+	if (bf_get(cfg_mds_diags, mbx_sli4_parameters))
+		phba->mds_diags_support = 1;
+	else
+		phba->mds_diags_support = 0;
 	return 0;
 }
 

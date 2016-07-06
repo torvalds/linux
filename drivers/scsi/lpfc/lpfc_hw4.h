@@ -2888,9 +2888,13 @@ struct lpfc_sli4_parameters {
 #define cfg_ext_embed_cb_SHIFT			0
 #define cfg_ext_embed_cb_MASK			0x00000001
 #define cfg_ext_embed_cb_WORD			word19
+#define cfg_mds_diags_SHIFT			1
+#define cfg_mds_diags_MASK			0x00000001
+#define cfg_mds_diags_WORD			word19
 };
 
-#define LPFC_SET_UE_RECOVERY            0x10
+#define LPFC_SET_UE_RECOVERY		0x10
+#define LPFC_SET_MDS_DIAGS		0x11
 struct lpfc_mbx_set_feature {
 	struct mbox_header header;
 	uint32_t feature;
@@ -2899,6 +2903,12 @@ struct lpfc_mbx_set_feature {
 #define lpfc_mbx_set_feature_UER_SHIFT  0
 #define lpfc_mbx_set_feature_UER_MASK   0x00000001
 #define lpfc_mbx_set_feature_UER_WORD   word6
+#define lpfc_mbx_set_feature_mds_SHIFT  0
+#define lpfc_mbx_set_feature_mds_MASK   0x00000001
+#define lpfc_mbx_set_feature_mds_WORD   word6
+#define lpfc_mbx_set_feature_mds_deep_loopbk_SHIFT  1
+#define lpfc_mbx_set_feature_mds_deep_loopbk_MASK   0x00000001
+#define lpfc_mbx_set_feature_mds_deep_loopbk_WORD   word6
 	uint32_t word7;
 #define lpfc_mbx_set_feature_UERP_SHIFT 0
 #define lpfc_mbx_set_feature_UERP_MASK  0x0000ffff
@@ -3464,6 +3474,8 @@ struct lpfc_acqe_fc_la {
 #define LPFC_FC_LA_TYPE_LINK_UP		0x1
 #define LPFC_FC_LA_TYPE_LINK_DOWN	0x2
 #define LPFC_FC_LA_TYPE_NO_HARD_ALPA	0x3
+#define LPFC_FC_LA_TYPE_MDS_LINK_DOWN	0x4
+#define LPFC_FC_LA_TYPE_MDS_LOOPBACK	0x5
 #define lpfc_acqe_fc_la_port_type_SHIFT		6
 #define lpfc_acqe_fc_la_port_type_MASK		0x00000003
 #define lpfc_acqe_fc_la_port_type_WORD		word0

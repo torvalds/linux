@@ -4780,6 +4780,14 @@ LPFC_ATTR_R(prot_sg_seg_cnt, LPFC_DEFAULT_SG_SEG_CNT,
 	    LPFC_DEFAULT_SG_SEG_CNT, LPFC_MAX_SG_SEG_CNT,
 	    "Max Protection Scatter Gather Segment Count");
 
+/*
+ * lpfc_enable_mds_diags: Enable MDS Diagnostics
+ *       0  = MDS Diagnostics disabled (default)
+ *       1  = MDS Diagnostics enabled
+ * Value range is [0,1]. Default value is 0.
+ */
+LPFC_ATTR_R(enable_mds_diags, 0, 0, 1, "Enable MDS Diagnostics");
+
 struct device_attribute *lpfc_hba_attrs[] = {
 	&dev_attr_bg_info,
 	&dev_attr_bg_guard_err,
@@ -4876,6 +4884,7 @@ struct device_attribute *lpfc_hba_attrs[] = {
 	&dev_attr_lpfc_sriov_hw_max_virtfn,
 	&dev_attr_protocol,
 	&dev_attr_lpfc_xlane_supported,
+	&dev_attr_lpfc_enable_mds_diags,
 	NULL,
 };
 
@@ -5867,6 +5876,7 @@ lpfc_get_cfgparam(struct lpfc_hba *phba)
 	lpfc_suppress_link_up_init(phba, lpfc_suppress_link_up);
 	lpfc_iocb_cnt_init(phba, lpfc_iocb_cnt);
 	phba->cfg_enable_dss = 1;
+	lpfc_enable_mds_diags_init(phba, lpfc_enable_mds_diags);
 	return;
 }
 

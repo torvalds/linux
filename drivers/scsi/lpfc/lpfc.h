@@ -695,7 +695,8 @@ struct lpfc_hba {
 	uint8_t  wwnn[8];
 	uint8_t  wwpn[8];
 	uint32_t RandomData[7];
-	uint32_t fcp_embed_io;
+	uint8_t  fcp_embed_io;
+	uint8_t  mds_diags_support;
 
 	/* HBA Config Parameters */
 	uint32_t cfg_ack0;
@@ -760,6 +761,7 @@ struct lpfc_hba {
 #define LPFC_FDMI_NO_SUPPORT	0	/* FDMI not supported */
 #define LPFC_FDMI_SUPPORT	1	/* FDMI supported? */
 	uint32_t cfg_enable_SmartSAN;
+	uint32_t cfg_enable_mds_diags;
 	lpfc_vpd_t vpd;		/* vital product data */
 
 	struct pci_dev *pcidev;

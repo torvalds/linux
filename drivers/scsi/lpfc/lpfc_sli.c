@@ -5691,37 +5691,35 @@ lpfc_sli4_dealloc_extent(struct lpfc_hba *phba, uint16_t type)
 }
 
 void
-lpfc_set_features(struct lpfc_hba *phba)
+lpfc_set_features(struct lpfc_hba *phba, LPFC_MBOXQ_t *mbox,
+		  uint32_t feature)
 {
-	LPFC_MBOXQ_t *mbox = NULL;
 	uint32_t len;
-	int rc;
 
-	mbox = mempool_alloc(phba->mbox_mem_pool, GFP_KERNEL);
-	if (!mbox)
-		return;
 	len = sizeof(struct lpfc_mbx_set_feature) -
 		sizeof(struct lpfc_sli4_cfg_mhdr);
 	lpfc_sli4_config(phba, mbox, LPFC_MBOX_SUBSYSTEM_COMMON,
 			 LPFC_MBOX_OPCODE_SET_FEATURES, len,
 			 LPFC_SLI4_MBX_EMBED);
-	bf_set(lpfc_mbx_set_feature_UER,
-	       &mbox->u.mqe.un.set_feature, 1);
-	mbox->u.mqe.un.set_feature.feature = LPFC_SET_UE_RECOVERY;
-	mbox->u.mqe.un.set_feature.param_len = 8;
-	rc = lpfc_sli_issue_mbox(phba, mbox, MBX_POLL);
 
-	if (rc != MBX_SUCCESS) {
-		mempool_free(mbox, phba->mbox_mem_pool);
-		return;
+	switch (feature) {
+	case LPFC_SET_UE_RECOVERY:
+		bf_set(lpfc_mbx_set_feature_UER,
+		       &mbox->u.mqe.un.set_feature, 1);
+		mbox->u.mqe.un.set_feature.feature = LPFC_SET_UE_RECOVERY;
+		mbox->u.mqe.un.set_feature.param_len = 8;
+		break;
+	case LPFC_SET_MDS_DIAGS:
+		bf_set(lpfc_mbx_set_feature_mds,
+		       &mbox->u.mqe.un.set_feature, 1);
+		bf_set(lpfc_mbx_set_feature_mds_deep_loopbk,
+		       &mbox->u.mqe.un.set_feature, 0);
+		mbox->u.mqe.un.set_feature.feature = LPFC_SET_MDS_DIAGS;
+		mbox->u.mqe.un.set_feature.param_len = 8;
+		break;
 	}
-	phba->hba_flag |= HBA_RECOVERABLE_UE;
-	phba->eratt_poll_interval = 1;  /* Set 1Sec interval to detect UE */
-	phba->sli4_hba.ue_to_sr = bf_get(lpfc_mbx_set_feature_UESR,
-					 &mbox->u.mqe.un.set_feature);
-	phba->sli4_hba.ue_to_rp = bf_get(lpfc_mbx_set_feature_UERP,
-					 &mbox->u.mqe.un.set_feature);
-	mempool_free(mbox, phba->mbox_mem_pool);
+
+	return;
 }
 
 /**
@@ -6449,8 +6447,29 @@ lpfc_sli4_hba_setup(struct lpfc_hba *phba)
 	}
 
 	if (bf_get(lpfc_sli_intf_if_type, &phba->sli4_hba.sli_intf) ==
-	    LPFC_SLI_INTF_IF_TYPE_0)
-		lpfc_set_features(phba);
+	    LPFC_SLI_INTF_IF_TYPE_0) {
+		lpfc_set_features(phba, mboxq, LPFC_SET_UE_RECOVERY);
+		rc = lpfc_sli_issue_mbox(phba, mboxq, MBX_POLL);
+		if (rc == MBX_SUCCESS) {
+			phba->hba_flag |= HBA_RECOVERABLE_UE;
+			/* Set 1Sec interval to detect UE */
+			phba->eratt_poll_interval = 1;
+			phba->sli4_hba.ue_to_sr = bf_get(
+					lpfc_mbx_set_feature_UESR,
+					&mboxq->u.mqe.un.set_feature);
+			phba->sli4_hba.ue_to_rp = bf_get(
+					lpfc_mbx_set_feature_UERP,
+					&mboxq->u.mqe.un.set_feature);
+		}
+	}
+
+	if (phba->cfg_enable_mds_diags && phba->mds_diags_support) {
+		/* Enable MDS Diagnostics only if the SLI Port supports it */
+		lpfc_set_features(phba, mboxq, LPFC_SET_MDS_DIAGS);
+		rc = lpfc_sli_issue_mbox(phba, mboxq, MBX_POLL);
+		if (rc != MBX_SUCCESS)
+			phba->mds_diags_support = 0;
+	}
 
 	/*
 	 * Discover the port's supported feature set and match it against the

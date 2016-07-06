@@ -3299,6 +3299,12 @@ lpfc_els_retry(struct lpfc_hba *phba, struct lpfc_iocbq *cmdiocb,
 						     FC_VPORT_FABRIC_REJ_WWN);
 			}
 			break;
+		case LSRJT_VENDOR_UNIQUE:
+			if ((stat.un.b.vendorUnique == 0x45) &&
+			    (cmd == ELS_CMD_FLOGI)) {
+				goto out_retry;
+			}
+			break;
 		}
 		break;
 
@@ -3344,6 +3350,7 @@ lpfc_els_retry(struct lpfc_hba *phba, struct lpfc_iocbq *cmdiocb,
 	if ((vport->load_flag & FC_UNLOADING) != 0)
 		retry = 0;
 
+out_retry:
 	if (retry) {
 		if ((cmd == ELS_CMD_PLOGI) || (cmd == ELS_CMD_FDISC)) {
 			/* Stop retrying PLOGI and FDISC if in FCF discovery */
