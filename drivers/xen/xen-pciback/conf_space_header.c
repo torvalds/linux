@@ -210,8 +210,7 @@ static int bar_read(struct pci_dev *dev, int offset, u32 * value, void *data)
 }
 
 static inline void read_dev_bar(struct pci_dev *dev,
-				struct pci_bar_info *bar_info, int offset,
-				u32 len_mask)
+				struct pci_bar_info *bar_info, int offset)
 {
 	int	pos;
 	struct resource	*res = dev->resource;
@@ -248,7 +247,7 @@ static void *bar_init(struct pci_dev *dev, int offset)
 	if (!bar)
 		return ERR_PTR(-ENOMEM);
 
-	read_dev_bar(dev, bar, offset, ~0);
+	read_dev_bar(dev, bar, offset);
 
 	return bar;
 }
@@ -260,7 +259,7 @@ static void *rom_init(struct pci_dev *dev, int offset)
 	if (!bar)
 		return ERR_PTR(-ENOMEM);
 
-	read_dev_bar(dev, bar, offset, ~PCI_ROM_ADDRESS_ENABLE);
+	read_dev_bar(dev, bar, offset);
 
 	return bar;
 }
