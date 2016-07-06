@@ -27,6 +27,9 @@ Optional properties:
   number to 1.
 - fsl,magic-packet : If present, indicates that the hardware supports waking
   up via magic packet.
+- fsl,err006687-workaround-present: If present indicates that the system has
+  the hardware workaround for ERR006687 applied and does not need a software
+  workaround.
 
 Optional subnodes:
 - mdio : specifies the mdio bus in the FEC, used as a container for phy nodes
