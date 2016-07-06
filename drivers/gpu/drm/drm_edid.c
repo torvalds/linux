@@ -3867,6 +3867,20 @@ static void drm_add_display_info(struct edid *edid,
 	/* HDMI deep color modes supported? Assign to info, if so */
 	drm_assign_hdmi_deep_color_info(edid, info, connector);
 
+	/*
+	 * Digital sink with "DFP 1.x compliant TMDS" according to EDID 1.3?
+	 *
+	 * For such displays, the DFP spec 1.0, section 3.10 "EDID support"
+	 * tells us to assume 8 bpc color depth if the EDID doesn't have
+	 * extensions which tell otherwise.
+	 */
+	if ((info->bpc == 0) && (edid->revision < 4) &&
+	    (edid->input & DRM_EDID_DIGITAL_TYPE_DVI)) {
+		info->bpc = 8;
+		DRM_DEBUG("%s: Assigning DFP sink color depth as %d bpc.\n",
+			  connector->name, info->bpc);
+	}
+
 	/* Only defined for 1.4 with digital displays */
 	if (edid->revision < 4)
 		return;
