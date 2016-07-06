@@ -30,6 +30,7 @@
 #define QL_VND_GET_BBCR_DATA    0x17
 #define QL_VND_GET_PRIV_STATS	0x18
 #define QL_VND_DPORT_DIAGNOSTICS	0x19
+#define QL_VND_GET_PRIV_STATS_EX	0x1A
 
 /* BSG Vendor specific subcode returns */
 #define EXT_STATUS_OK			0
