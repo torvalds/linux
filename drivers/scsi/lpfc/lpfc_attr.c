@@ -4815,11 +4815,8 @@ MODULE_PARM_DESC(lpfc_prot_guard, "host protection guard type");
  * accept and FCID/Fabric name/Fabric portname is changed.
  * Default value is 0.
  */
-int lpfc_delay_discovery;
-module_param(lpfc_delay_discovery, int, S_IRUGO);
-MODULE_PARM_DESC(lpfc_delay_discovery,
-	"Delay NPort discovery when Clean Address bit is cleared. "
-	"Allowed values: 0,1.");
+LPFC_ATTR(delay_discovery, 0, 0, 1,
+	"Delay NPort discovery when Clean Address bit is cleared.");
 
 /*
  * lpfc_sg_seg_cnt - Initial Maximum DMA Segment Count
@@ -5938,6 +5935,7 @@ lpfc_get_cfgparam(struct lpfc_hba *phba)
 	lpfc_request_firmware_upgrade_init(phba, lpfc_req_fw_upgrade);
 	lpfc_suppress_link_up_init(phba, lpfc_suppress_link_up);
 	lpfc_iocb_cnt_init(phba, lpfc_iocb_cnt);
+	lpfc_delay_discovery_init(phba, lpfc_delay_discovery);
 	phba->cfg_enable_dss = 1;
 	lpfc_enable_mds_diags_init(phba, lpfc_enable_mds_diags);
 	return;

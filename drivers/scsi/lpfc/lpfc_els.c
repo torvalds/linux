@@ -594,6 +594,7 @@ static uint8_t
 lpfc_check_clean_addr_bit(struct lpfc_vport *vport,
 		struct serv_parm *sp)
 {
+	struct lpfc_hba *phba = vport->phba;
 	uint8_t fabric_param_changed = 0;
 	struct Scsi_Host *shost = lpfc_shost_from_vport(vport);
 
@@ -615,7 +616,7 @@ lpfc_check_clean_addr_bit(struct lpfc_vport *vport,
 	 * - lpfc_delay_discovery module parameter is set.
 	 */
 	if (fabric_param_changed && !sp->cmn.clean_address_bit &&
-	    (vport->fc_prevDID || lpfc_delay_discovery)) {
+	    (vport->fc_prevDID || phba->cfg_delay_discovery)) {
 		spin_lock_irq(shost->host_lock);
 		vport->fc_flag |= FC_DISC_DELAYED;
 		spin_unlock_irq(shost->host_lock);

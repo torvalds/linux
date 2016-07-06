@@ -754,6 +754,7 @@ struct lpfc_hba {
 	uint32_t cfg_iocb_cnt;
 	uint32_t cfg_suppress_link_up;
 	uint32_t cfg_rrq_xri_bitmap_sz;
+	uint32_t cfg_delay_discovery;
 #define LPFC_INITIALIZE_LINK              0	/* do normal init_link mbox */
 #define LPFC_DELAY_INIT_LINK              1	/* layered driver hold off */
 #define LPFC_DELAY_INIT_LINK_INDEFINITELY 2	/* wait, manual intervention */
