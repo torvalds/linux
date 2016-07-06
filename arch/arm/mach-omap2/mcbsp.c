@@ -34,18 +34,24 @@
 #include "cm3xxx.h"
 #include "cm-regbits-34xx.h"
 
-static struct clk *mcbsp_iclks[5];
-
-static int omap3_enable_st_clock(unsigned int id, bool enable)
+static int omap3_mcbsp_force_ick_on(struct clk *clk, bool force_on)
 {
-	/*
-	 * Sidetone uses McBSP ICLK - which must not idle when sidetones
-	 * are enabled or sidetones start sounding ugly.
-	 */
-	if (enable)
-		return omap2_clk_deny_idle(mcbsp_iclks[id]);
+	if (!clk)
+		return 0;
+
+	if (force_on)
+		return omap2_clk_deny_idle(clk);
 	else
-		return omap2_clk_allow_idle(mcbsp_iclks[id]);
+		return omap2_clk_allow_idle(clk);
+}
+
+void __init omap3_mcbsp_init_pdata_callback(
+					struct omap_mcbsp_platform_data *pdata)
+{
+	if (!pdata)
+		return;
+
+	pdata->force_ick_on = omap3_mcbsp_force_ick_on;
 }
 
 static int __init omap_init_mcbsp(struct omap_hwmod *oh, void *unused)
@@ -55,7 +61,6 @@ static int __init omap_init_mcbsp(struct omap_hwmod *oh, void *unused)
 	struct omap_hwmod *oh_device[2];
 	struct omap_mcbsp_platform_data *pdata = NULL;
 	struct platform_device *pdev;
-	char clk_name[11];
 
 	sscanf(oh->name, "mcbsp%d", &id);
 
@@ -96,9 +101,7 @@ static int __init omap_init_mcbsp(struct omap_hwmod *oh, void *unused)
 	if (oh->dev_attr) {
 		oh_device[1] = omap_hwmod_lookup((
 		(struct omap_mcbsp_dev_attr *)(oh->dev_attr))->sidetone);
-		pdata->enable_st_clock = omap3_enable_st_clock;
-		sprintf(clk_name, "mcbsp%d_ick", id);
-		mcbsp_iclks[id] = clk_get(NULL, clk_name);
+		pdata->force_ick_on = omap3_mcbsp_force_ick_on;
 		count++;
 	}
 	pdev = omap_device_build_ss(name, id, oh_device, count, pdata,

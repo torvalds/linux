@@ -26,6 +26,7 @@
 #include <linux/platform_data/wkup_m3.h>
 #include <linux/platform_data/pwm_omap_dmtimer.h>
 #include <linux/platform_data/media/ir-rx51.h>
+#include <linux/platform_data/asoc-ti-mcbsp.h>
 #include <plat/dmtimer.h>
 
 #include "common.h"
@@ -505,6 +506,16 @@ static struct platform_device __maybe_unused rx51_lirc_device = {
 	},
 };
 
+#if IS_ENABLED(CONFIG_SND_OMAP_SOC_MCBSP)
+static struct omap_mcbsp_platform_data mcbsp_pdata;
+static void __init omap3_mcbsp_init(void)
+{
+	omap3_mcbsp_init_pdata_callback(&mcbsp_pdata);
+}
+#else
+static void __init omap3_mcbsp_init(void) {}
+#endif
+
 /*
  * Few boards still need auxdata populated before we populate
  * the dev entries in of_platform_populate().
@@ -536,6 +547,11 @@ static struct of_dev_auxdata omap_auxdata_lookup[] __initdata = {
 	OF_DEV_AUXDATA("ti,davinci_mdio", 0x5c030000, "davinci_mdio.0", NULL),
 	OF_DEV_AUXDATA("ti,am3517-emac", 0x5c000000, "davinci_emac.0",
 		       &am35xx_emac_pdata),
+	/* McBSP modules with sidetone core */
+#if IS_ENABLED(CONFIG_SND_OMAP_SOC_MCBSP)
+	OF_DEV_AUXDATA("ti,omap3-mcbsp", 0x49022000, "49022000.mcbsp", &mcbsp_pdata),
+	OF_DEV_AUXDATA("ti,omap3-mcbsp", 0x49024000, "49024000.mcbsp", &mcbsp_pdata),
+#endif
 #endif
 #ifdef CONFIG_SOC_AM33XX
 	OF_DEV_AUXDATA("ti,am3352-wkup-m3", 0x44d00000, "44d00000.wkup_m3",
@@ -608,6 +624,8 @@ void __init pdata_quirks_init(const struct of_device_id *omap_dt_match_table)
 	    of_machine_is_compatible("ti,omap3"))
 		omap_sdrc_init(NULL, NULL);
 
+	if (of_machine_is_compatible("ti,omap3"))
+		omap3_mcbsp_init();
 	pdata_quirks_check(auxdata_quirks);
 	of_platform_populate(NULL, omap_dt_match_table,
 			     omap_auxdata_lookup, NULL);

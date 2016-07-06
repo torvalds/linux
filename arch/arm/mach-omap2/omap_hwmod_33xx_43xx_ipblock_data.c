@@ -449,18 +449,6 @@ struct omap_hwmod_class am33xx_epwmss_hwmod_class = {
 	.sysc		= &am33xx_epwmss_sysc,
 };
 
-static struct omap_hwmod_class am33xx_ecap_hwmod_class = {
-	.name		= "ecap",
-};
-
-static struct omap_hwmod_class am33xx_eqep_hwmod_class = {
-	.name		= "eqep",
-};
-
-struct omap_hwmod_class am33xx_ehrpwm_hwmod_class = {
-	.name		= "ehrpwm",
-};
-
 /* epwmss0 */
 struct omap_hwmod am33xx_epwmss0_hwmod = {
 	.name		= "epwmss0",
@@ -472,30 +460,6 @@ struct omap_hwmod am33xx_epwmss0_hwmod = {
 			.modulemode	= MODULEMODE_SWCTRL,
 		},
 	},
-};
-
-/* ecap0 */
-struct omap_hwmod am33xx_ecap0_hwmod = {
-	.name		= "ecap0",
-	.class		= &am33xx_ecap_hwmod_class,
-	.clkdm_name	= "l4ls_clkdm",
-	.main_clk	= "l4ls_gclk",
-};
-
-/* eqep0 */
-struct omap_hwmod am33xx_eqep0_hwmod = {
-	.name		= "eqep0",
-	.class		= &am33xx_eqep_hwmod_class,
-	.clkdm_name	= "l4ls_clkdm",
-	.main_clk	= "l4ls_gclk",
-};
-
-/* ehrpwm0 */
-struct omap_hwmod am33xx_ehrpwm0_hwmod = {
-	.name		= "ehrpwm0",
-	.class		= &am33xx_ehrpwm_hwmod_class,
-	.clkdm_name	= "l4ls_clkdm",
-	.main_clk	= "l4ls_gclk",
 };
 
 /* epwmss1 */
@@ -511,30 +475,6 @@ struct omap_hwmod am33xx_epwmss1_hwmod = {
 	},
 };
 
-/* ecap1 */
-struct omap_hwmod am33xx_ecap1_hwmod = {
-	.name		= "ecap1",
-	.class		= &am33xx_ecap_hwmod_class,
-	.clkdm_name	= "l4ls_clkdm",
-	.main_clk	= "l4ls_gclk",
-};
-
-/* eqep1 */
-struct omap_hwmod am33xx_eqep1_hwmod = {
-	.name		= "eqep1",
-	.class		= &am33xx_eqep_hwmod_class,
-	.clkdm_name	= "l4ls_clkdm",
-	.main_clk	= "l4ls_gclk",
-};
-
-/* ehrpwm1 */
-struct omap_hwmod am33xx_ehrpwm1_hwmod = {
-	.name		= "ehrpwm1",
-	.class		= &am33xx_ehrpwm_hwmod_class,
-	.clkdm_name	= "l4ls_clkdm",
-	.main_clk	= "l4ls_gclk",
-};
-
 /* epwmss2 */
 struct omap_hwmod am33xx_epwmss2_hwmod = {
 	.name		= "epwmss2",
@@ -546,30 +486,6 @@ struct omap_hwmod am33xx_epwmss2_hwmod = {
 			.modulemode	= MODULEMODE_SWCTRL,
 		},
 	},
-};
-
-/* ecap2 */
-struct omap_hwmod am33xx_ecap2_hwmod = {
-	.name		= "ecap2",
-	.class		= &am33xx_ecap_hwmod_class,
-	.clkdm_name	= "l4ls_clkdm",
-	.main_clk	= "l4ls_gclk",
-};
-
-/* eqep2 */
-struct omap_hwmod am33xx_eqep2_hwmod = {
-	.name		= "eqep2",
-	.class		= &am33xx_eqep_hwmod_class,
-	.clkdm_name	= "l4ls_clkdm",
-	.main_clk	= "l4ls_gclk",
-};
-
-/* ehrpwm2 */
-struct omap_hwmod am33xx_ehrpwm2_hwmod = {
-	.name		= "ehrpwm2",
-	.class		= &am33xx_ehrpwm_hwmod_class,
-	.clkdm_name	= "l4ls_clkdm",
-	.main_clk	= "l4ls_gclk",
 };
 
 /*
@@ -1476,6 +1392,7 @@ static void omap_hwmod_am43xx_rst(void)
 {
 	RSTCTRL(am33xx_pruss_hwmod, AM43XX_RM_PER_RSTCTRL_OFFSET);
 	RSTCTRL(am33xx_gfx_hwmod, AM43XX_RM_GFX_RSTCTRL_OFFSET);
+	RSTST(am33xx_pruss_hwmod, AM43XX_RM_PER_RSTST_OFFSET);
 	RSTST(am33xx_gfx_hwmod, AM43XX_RM_GFX_RSTST_OFFSET);
 }
 
