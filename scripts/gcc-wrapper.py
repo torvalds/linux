@@ -46,7 +46,7 @@ allowed_warnings = set([
     "ks8851.c:298", # drivers/net/ethernet/micrel/ks8851.c:298:2: warning: 'rxb[0]' may be used uninitialized in this function
     "ks8851.c:421", # drivers/net/ethernet/micrel/ks8851.c:421:20: warning: 'rxb[0]' may be used uninitialized in this function
     "compat_binfmt_elf.c:58", # fs/compat_binfmt_elf.c:58:13: warning: 'cputime_to_compat_timeval' defined but not used
-    "memcontrol.c:5271", # mm/memcontrol.c:5271:2: warning: initialization from incompatible pointer type
+    "memcontrol.c:5274", # mm/memcontrol.c:5274:12: warning: initialization from incompatible pointer type
  ])
 
 # Capture the name of the object file, can find it.
