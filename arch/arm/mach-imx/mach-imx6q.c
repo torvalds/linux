@@ -407,6 +407,8 @@ static const char * const imx6q_dt_compat[] __initconst = {
 };
 
 DT_MACHINE_START(IMX6Q, "Freescale i.MX6 Quad/DualLite (Device Tree)")
+	.l2c_aux_val 	= 0,
+	.l2c_aux_mask	= ~0,
 	.smp		= smp_ops(imx_smp_ops),
 	.map_io		= imx6q_map_io,
 	.init_irq	= imx6q_init_irq,

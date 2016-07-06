@@ -44,9 +44,6 @@ config MXC_USE_EPIT
 	  uses the same clocks as the GPT. Anyway, on some systems the GPT
 	  may be in use for other purposes.
 
-config ARCH_HAS_RNGA
-	bool
-
 config HAVE_IMX_ANATOP
 	bool
 
@@ -90,7 +87,6 @@ config SOC_IMX27
 config SOC_IMX31
 	bool
 	select CPU_V6
-	select IMX_HAVE_PLATFORM_MXC_RNGA
 	select MXC_AVIC
 	select SMP_ON_UP if SMP
 
