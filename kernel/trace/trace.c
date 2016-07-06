@@ -4054,6 +4054,7 @@ static const char readme_msg[] =
 	"     x86-tsc:   TSC cycle counter\n"
 #endif
 	"\n  trace_marker\t\t- Writes into this file writes into the kernel buffer\n"
+	"\n  trace_marker_raw\t\t- Writes into this file writes binary data into the kernel buffer\n"
 	"  tracing_cpumask\t- Limit which CPUs to trace\n"
 	"  instances\t\t- Make sub-buffers with: mkdir instances/foo\n"
 	"\t\t\t  Remove sub-buffer with rmdir\n"
@@ -5514,34 +5515,14 @@ tracing_free_buffer_release(struct inode *inode, struct file *filp)
 	return 0;
 }
 
-static ssize_t
-tracing_mark_write(struct file *filp, const char __user *ubuf,
-					size_t cnt, loff_t *fpos)
+static inline int lock_user_pages(const char __user *ubuf, size_t cnt,
+				  struct page **pages, void **map_page,
+				  int *offset)
 {
 	unsigned long addr = (unsigned long)ubuf;
-	struct trace_array *tr = filp->private_data;
-	struct ring_buffer_event *event;
-	struct ring_buffer *buffer;
-	struct print_entry *entry;
-	unsigned long irq_flags;
-	struct page *pages[2];
-	void *map_page[2];
 	int nr_pages = 1;
-	ssize_t written;
-	int offset;
-	int size;
-	int len;
 	int ret;
 	int i;
-
-	if (tracing_disabled)
-		return -EINVAL;
-
-	if (!(tr->trace_flags & TRACE_ITER_MARKERS))
-		return -EINVAL;
-
-	if (cnt > TRACE_BUF_SIZE)
-		cnt = TRACE_BUF_SIZE;
 
 	/*
 	 * Userspace is injecting traces into the kernel trace buffer.
@@ -5557,25 +5538,69 @@ tracing_mark_write(struct file *filp, const char __user *ubuf,
 	 * pages directly. We then write the data directly into the
 	 * ring buffer.
 	 */
-	BUILD_BUG_ON(TRACE_BUF_SIZE >= PAGE_SIZE);
 
 	/* check if we cross pages */
 	if ((addr & PAGE_MASK) != ((addr + cnt) & PAGE_MASK))
 		nr_pages = 2;
 
-	offset = addr & (PAGE_SIZE - 1);
+	*offset = addr & (PAGE_SIZE - 1);
 	addr &= PAGE_MASK;
 
 	ret = get_user_pages_fast(addr, nr_pages, 0, pages);
 	if (ret < nr_pages) {
 		while (--ret >= 0)
 			put_page(pages[ret]);
-		written = -EFAULT;
-		goto out;
+		return -EFAULT;
 	}
 
 	for (i = 0; i < nr_pages; i++)
 		map_page[i] = kmap_atomic(pages[i]);
+
+	return nr_pages;
+}
+
+static inline void unlock_user_pages(struct page **pages,
+				     void **map_page, int nr_pages)
+{
+	int i;
+
+	for (i = nr_pages - 1; i >= 0; i--) {
+		kunmap_atomic(map_page[i]);
+		put_page(pages[i]);
+	}
+}
+
+static ssize_t
+tracing_mark_write(struct file *filp, const char __user *ubuf,
+					size_t cnt, loff_t *fpos)
+{
+	struct trace_array *tr = filp->private_data;
+	struct ring_buffer_event *event;
+	struct ring_buffer *buffer;
+	struct print_entry *entry;
+	unsigned long irq_flags;
+	struct page *pages[2];
+	void *map_page[2];
+	int nr_pages = 1;
+	ssize_t written;
+	int offset;
+	int size;
+	int len;
+
+	if (tracing_disabled)
+		return -EINVAL;
+
+	if (!(tr->trace_flags & TRACE_ITER_MARKERS))
+		return -EINVAL;
+
+	if (cnt > TRACE_BUF_SIZE)
+		cnt = TRACE_BUF_SIZE;
+
+	BUILD_BUG_ON(TRACE_BUF_SIZE >= PAGE_SIZE);
+
+	nr_pages = lock_user_pages(ubuf, cnt, pages, map_page, &offset);
+	if (nr_pages < 0)
+		return nr_pages;
 
 	local_save_flags(irq_flags);
 	size = sizeof(*entry) + cnt + 2; /* possible \n added */
@@ -5611,11 +5636,79 @@ tracing_mark_write(struct file *filp, const char __user *ubuf,
 	*fpos += written;
 
  out_unlock:
-	for (i = nr_pages - 1; i >= 0; i--) {
-		kunmap_atomic(map_page[i]);
-		put_page(pages[i]);
+	unlock_user_pages(pages, map_page, nr_pages);
+
+	return written;
+}
+
+/* Limit it for now to 3K (including tag) */
+#define RAW_DATA_MAX_SIZE (1024*3)
+
+static ssize_t
+tracing_mark_raw_write(struct file *filp, const char __user *ubuf,
+					size_t cnt, loff_t *fpos)
+{
+	struct trace_array *tr = filp->private_data;
+	struct ring_buffer_event *event;
+	struct ring_buffer *buffer;
+	struct raw_data_entry *entry;
+	unsigned long irq_flags;
+	struct page *pages[2];
+	void *map_page[2];
+	int nr_pages = 1;
+	ssize_t written;
+	int offset;
+	int size;
+	int len;
+
+	if (tracing_disabled)
+		return -EINVAL;
+
+	if (!(tr->trace_flags & TRACE_ITER_MARKERS))
+		return -EINVAL;
+
+	/* The marker must at least have a tag id */
+	if (cnt < sizeof(unsigned int) || cnt > RAW_DATA_MAX_SIZE)
+		return -EINVAL;
+
+	if (cnt > TRACE_BUF_SIZE)
+		cnt = TRACE_BUF_SIZE;
+
+	BUILD_BUG_ON(TRACE_BUF_SIZE >= PAGE_SIZE);
+
+	nr_pages = lock_user_pages(ubuf, cnt, pages, map_page, &offset);
+	if (nr_pages < 0)
+		return nr_pages;
+
+	local_save_flags(irq_flags);
+	size = sizeof(*entry) + cnt;
+	buffer = tr->trace_buffer.buffer;
+	event = trace_buffer_lock_reserve(buffer, TRACE_RAW_DATA, size,
+					  irq_flags, preempt_count());
+	if (!event) {
+		/* Ring buffer disabled, return as if not open for write */
+		written = -EBADF;
+		goto out_unlock;
 	}
- out:
+
+	entry = ring_buffer_event_data(event);
+
+	if (nr_pages == 2) {
+		len = PAGE_SIZE - offset;
+		memcpy(&entry->id, map_page[0] + offset, len);
+		memcpy(((char *)&entry->id) + len, map_page[1], cnt - len);
+	} else
+		memcpy(&entry->id, map_page[0] + offset, cnt);
+
+	__buffer_unlock_commit(buffer, event);
+
+	written = cnt;
+
+	*fpos += written;
+
+ out_unlock:
+	unlock_user_pages(pages, map_page, nr_pages);
+
 	return written;
 }
 
@@ -5941,6 +6034,13 @@ static const struct file_operations tracing_free_buffer_fops = {
 static const struct file_operations tracing_mark_fops = {
 	.open		= tracing_open_generic_tr,
 	.write		= tracing_mark_write,
+	.llseek		= generic_file_llseek,
+	.release	= tracing_release_generic_tr,
+};
+
+static const struct file_operations tracing_mark_raw_fops = {
+	.open		= tracing_open_generic_tr,
+	.write		= tracing_mark_raw_write,
 	.llseek		= generic_file_llseek,
 	.release	= tracing_release_generic_tr,
 };
@@ -7213,6 +7313,9 @@ init_tracer_tracefs(struct trace_array *tr, struct dentry *d_tracer)
 
 	trace_create_file("trace_marker", 0220, d_tracer,
 			  tr, &tracing_mark_fops);
+
+	trace_create_file("trace_marker_raw", 0220, d_tracer,
+			  tr, &tracing_mark_raw_fops);
 
 	trace_create_file("trace_clock", 0644, d_tracer, tr,
 			  &trace_clock_fops);

@@ -396,6 +396,12 @@ of ftrace. Here is a list of some of the key files:
 
 		trace_fd = open("trace_marker", WR_ONLY);
 
+  trace_marker_raw:
+
+	This is similar to trace_marker above, but is meant for for binary data
+	to be written to it, where a tool can be used to parse the data
+	from trace_pipe_raw.
+
   uprobe_events:
  
 	Add dynamic tracepoints in programs.
