@@ -41,7 +41,7 @@ menuconfig ARCH_RENESAS
 	select ARCH_DMA_ADDR_T_64BIT if ARM_LPAE
 	select NO_IOPORT_MAP
 	select PINCTRL
-	select ARCH_REQUIRE_GPIOLIB
+	select GPIOLIB
 	select ZONE_DMA if ARM_LPAE
 
 if ARCH_RENESAS

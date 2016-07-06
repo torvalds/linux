@@ -1,7 +1,7 @@
 menuconfig ARCH_OXNAS
 	bool "Oxford Semiconductor OXNAS Family SoCs"
-	select ARCH_REQUIRE_GPIOLIB
 	select ARCH_HAS_RESET_CONTROLLER
+	select GPIOLIB
 	select PINCTRL
 	depends on ARCH_MULTI_V5
 	help
