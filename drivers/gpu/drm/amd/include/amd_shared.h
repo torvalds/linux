@@ -26,15 +26,6 @@
 #define AMD_MAX_USEC_TIMEOUT		100000  /* 100 ms */
 
 /*
-* Supported GPU families (aligned with amdgpu_drm.h)
-*/
-#define AMD_FAMILY_UNKNOWN              0
-#define AMD_FAMILY_CI                   120 /* Bonaire, Hawaii */
-#define AMD_FAMILY_KV                   125 /* Kaveri, Kabini, Mullins */
-#define AMD_FAMILY_VI                   130 /* Iceland, Tonga */
-#define AMD_FAMILY_CZ                   135 /* Carrizo */
-
-/*
  * Supported ASIC types
  */
 enum amd_asic_type {

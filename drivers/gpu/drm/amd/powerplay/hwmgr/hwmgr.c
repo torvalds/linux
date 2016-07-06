@@ -24,6 +24,7 @@
 #include <linux/types.h>
 #include <linux/kernel.h>
 #include <linux/slab.h>
+#include <drm/amdgpu_drm.h>
 #include "cgs_common.h"
 #include "power_state.h"
 #include "hwmgr.h"
@@ -61,10 +62,10 @@ int hwmgr_init(struct amd_pp_init *pp_init, struct pp_instance *handle)
 	hwmgr->powercontainment_enabled = pp_init->powercontainment_enabled;
 
 	switch (hwmgr->chip_family) {
-	case AMD_FAMILY_CZ:
+	case AMDGPU_FAMILY_CZ:
 		cz_hwmgr_init(hwmgr);
 		break;
-	case AMD_FAMILY_VI:
+	case AMDGPU_FAMILY_VI:
 		switch (hwmgr->chip_id) {
 		case CHIP_TONGA:
 			tonga_hwmgr_init(hwmgr);
