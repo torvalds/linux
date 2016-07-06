@@ -1828,17 +1828,17 @@ qla2x00_get_fc_host_stats(struct Scsi_Host *shost)
 		goto done;
 
 	stats = dma_alloc_coherent(&ha->pdev->dev,
-	    sizeof(struct link_statistics), &stats_dma, GFP_KERNEL);
-	if (stats == NULL) {
+	    sizeof(*stats), &stats_dma, GFP_KERNEL);
+	if (!stats) {
 		ql_log(ql_log_warn, vha, 0x707d,
 		    "Failed to allocate memory for stats.\n");
 		goto done;
 	}
-	memset(stats, 0, DMA_POOL_SIZE);
+	memset(stats, 0, sizeof(*stats));
 
 	rval = QLA_FUNCTION_FAILED;
 	if (IS_FWI2_CAPABLE(ha)) {
-		rval = qla24xx_get_isp_stats(base_vha, stats, stats_dma);
+		rval = qla24xx_get_isp_stats(base_vha, stats, stats_dma, 0);
 	} else if (atomic_read(&base_vha->loop_state) == LOOP_READY &&
 	    !ha->dpc_active) {
 		/* Must be in a 'READY' state for statistics retrieval. */
@@ -1886,11 +1886,31 @@ static void
 qla2x00_reset_host_stats(struct Scsi_Host *shost)
 {
 	scsi_qla_host_t *vha = shost_priv(shost);
+	struct qla_hw_data *ha = vha->hw;
+	struct scsi_qla_host *base_vha = pci_get_drvdata(ha->pdev);
+	struct link_statistics *stats;
+	dma_addr_t stats_dma;
 
 	memset(&vha->qla_stats, 0, sizeof(vha->qla_stats));
 	memset(&vha->fc_host_stat, 0, sizeof(vha->fc_host_stat));
 
 	vha->qla_stats.jiffies_at_last_reset = get_jiffies_64();
+
+	if (IS_FWI2_CAPABLE(ha)) {
+		stats = dma_alloc_coherent(&ha->pdev->dev,
+		    sizeof(*stats), &stats_dma, GFP_KERNEL);
+		if (!stats) {
+			ql_log(ql_log_warn, vha, 0x70d7,
+			    "Failed to allocate memory for stats.\n");
+			return;
+		}
+
+		/* reset firmware statistics */
+		qla24xx_get_isp_stats(base_vha, stats, stats_dma, BIT_0);
+
+		dma_free_coherent(&ha->pdev->dev, sizeof(*stats),
+		    stats, stats_dma);
+	}
 }
 
 static void

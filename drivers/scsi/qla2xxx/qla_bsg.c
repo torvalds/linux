@@ -2270,7 +2270,7 @@ qla2x00_get_priv_stats(struct fc_bsg_job *bsg_job)
 
 	memset(stats, 0, sizeof(struct link_statistics));
 
-	rval = qla24xx_get_isp_stats(base_vha, stats, stats_dma);
+	rval = qla24xx_get_isp_stats(base_vha, stats, stats_dma, 0);
 
 	if (rval != QLA_SUCCESS)
 		goto done_free;
