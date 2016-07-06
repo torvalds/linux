@@ -1811,10 +1811,9 @@ qla2x00_get_fc_host_stats(struct Scsi_Host *shost)
 	int rval;
 	struct link_statistics *stats;
 	dma_addr_t stats_dma;
-	struct fc_host_statistics *pfc_host_stat;
+	struct fc_host_statistics *p = &vha->fc_host_stat;
 
-	pfc_host_stat = &vha->fc_host_stat;
-	memset(pfc_host_stat, -1, sizeof(struct fc_host_statistics));
+	memset(p, -1, sizeof(*p));
 
 	if (IS_QLAFX00(vha->hw))
 		goto done;
@@ -1850,37 +1849,37 @@ qla2x00_get_fc_host_stats(struct Scsi_Host *shost)
 	if (rval != QLA_SUCCESS)
 		goto done_free;
 
-	pfc_host_stat->link_failure_count = stats->link_fail_cnt;
-	pfc_host_stat->loss_of_sync_count = stats->loss_sync_cnt;
-	pfc_host_stat->loss_of_signal_count = stats->loss_sig_cnt;
-	pfc_host_stat->prim_seq_protocol_err_count = stats->prim_seq_err_cnt;
-	pfc_host_stat->invalid_tx_word_count = stats->inval_xmit_word_cnt;
-	pfc_host_stat->invalid_crc_count = stats->inval_crc_cnt;
+	p->link_failure_count = stats->link_fail_cnt;
+	p->loss_of_sync_count = stats->loss_sync_cnt;
+	p->loss_of_signal_count = stats->loss_sig_cnt;
+	p->prim_seq_protocol_err_count = stats->prim_seq_err_cnt;
+	p->invalid_tx_word_count = stats->inval_xmit_word_cnt;
+	p->invalid_crc_count = stats->inval_crc_cnt;
 	if (IS_FWI2_CAPABLE(ha)) {
-		pfc_host_stat->lip_count = stats->lip_cnt;
-		pfc_host_stat->tx_frames = stats->tx_frames;
-		pfc_host_stat->rx_frames = stats->rx_frames;
-		pfc_host_stat->dumped_frames = stats->discarded_frames;
-		pfc_host_stat->nos_count = stats->nos_rcvd;
-		pfc_host_stat->error_frames =
+		p->lip_count = stats->lip_cnt;
+		p->tx_frames = stats->tx_frames;
+		p->rx_frames = stats->rx_frames;
+		p->dumped_frames = stats->discarded_frames;
+		p->nos_count = stats->nos_rcvd;
+		p->error_frames =
 			stats->dropped_frames + stats->discarded_frames;
-		pfc_host_stat->rx_words = vha->qla_stats.input_bytes;
-		pfc_host_stat->tx_words = vha->qla_stats.output_bytes;
+		p->rx_words = vha->qla_stats.input_bytes;
+		p->tx_words = vha->qla_stats.output_bytes;
 	}
-	pfc_host_stat->fcp_control_requests = vha->qla_stats.control_requests;
-	pfc_host_stat->fcp_input_requests = vha->qla_stats.input_requests;
-	pfc_host_stat->fcp_output_requests = vha->qla_stats.output_requests;
-	pfc_host_stat->fcp_input_megabytes = vha->qla_stats.input_bytes >> 20;
-	pfc_host_stat->fcp_output_megabytes = vha->qla_stats.output_bytes >> 20;
-	pfc_host_stat->seconds_since_last_reset =
+	p->fcp_control_requests = vha->qla_stats.control_requests;
+	p->fcp_input_requests = vha->qla_stats.input_requests;
+	p->fcp_output_requests = vha->qla_stats.output_requests;
+	p->fcp_input_megabytes = vha->qla_stats.input_bytes >> 20;
+	p->fcp_output_megabytes = vha->qla_stats.output_bytes >> 20;
+	p->seconds_since_last_reset =
 		get_jiffies_64() - vha->qla_stats.jiffies_at_last_reset;
-	do_div(pfc_host_stat->seconds_since_last_reset, HZ);
+	do_div(p->seconds_since_last_reset, HZ);
 
 done_free:
 	dma_free_coherent(&ha->pdev->dev, sizeof(struct link_statistics),
 	    stats, stats_dma);
 done:
-	return pfc_host_stat;
+	return p;
 }
 
 static void
@@ -1888,6 +1887,7 @@ qla2x00_reset_host_stats(struct Scsi_Host *shost)
 {
 	scsi_qla_host_t *vha = shost_priv(shost);
 
+	memset(&vha->qla_stats, 0, sizeof(vha->qla_stats));
 	memset(&vha->fc_host_stat, 0, sizeof(vha->fc_host_stat));
 
 	vha->qla_stats.jiffies_at_last_reset = get_jiffies_64();
