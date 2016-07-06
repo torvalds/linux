@@ -1172,17 +1172,12 @@ static int dgnc_block_til_ready(struct tty_struct *tty,
 				struct channel_t *ch)
 {
 	int retval = 0;
-	struct un_t *un = NULL;
+	struct un_t *un = tty->driver_data;
 	unsigned long flags;
 	uint	old_flags = 0;
 	int	sleep_on_un_flags = 0;
 
-	if (!tty || tty->magic != TTY_MAGIC || !file || !ch ||
-	    ch->magic != DGNC_CHANNEL_MAGIC)
-		return -ENXIO;
-
-	un = tty->driver_data;
-	if (!un || un->magic != DGNC_UNIT_MAGIC)
+	if (!file)
 		return -ENXIO;
 
 	spin_lock_irqsave(&ch->ch_lock, flags);
