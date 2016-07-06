@@ -2120,6 +2120,66 @@ static struct iommu_group *amd_iommu_device_group(struct device *dev)
  *
  *****************************************************************************/
 
+static void __queue_flush(struct flush_queue *queue)
+{
+	struct protection_domain *domain;
+	unsigned long flags;
+	int idx;
+
+	/* First flush TLB of all known domains */
+	spin_lock_irqsave(&amd_iommu_pd_lock, flags);
+	list_for_each_entry(domain, &amd_iommu_pd_list, list)
+		domain_flush_tlb(domain);
+	spin_unlock_irqrestore(&amd_iommu_pd_lock, flags);
+
+	/* Wait until flushes have completed */
+	domain_flush_complete(NULL);
+
+	for (idx = 0; idx < queue->next; ++idx) {
+		struct flush_queue_entry *entry;
+
+		entry = queue->entries + idx;
+
+		free_iova_fast(&entry->dma_dom->iovad,
+				entry->iova_pfn,
+				entry->pages);
+
+		/* Not really necessary, just to make sure we catch any bugs */
+		entry->dma_dom = NULL;
+	}
+
+	queue->next = 0;
+}
+
+static void queue_add(struct dma_ops_domain *dma_dom,
+		      unsigned long address, unsigned long pages)
+{
+	struct flush_queue_entry *entry;
+	struct flush_queue *queue;
+	unsigned long flags;
+	int idx;
+
+	pages     = __roundup_pow_of_two(pages);
+	address >>= PAGE_SHIFT;
+
+	queue = get_cpu_ptr(&flush_queue);
+	spin_lock_irqsave(&queue->lock, flags);
+
+	if (queue->next == FLUSH_QUEUE_SIZE)
+		__queue_flush(queue);
+
+	idx   = queue->next++;
+	entry = queue->entries + idx;
+
+	entry->iova_pfn = address;
+	entry->pages    = pages;
+	entry->dma_dom  = dma_dom;
+
+	spin_unlock_irqrestore(&queue->lock, flags);
+	put_cpu_ptr(&flush_queue);
+}
+
+
 /*
  * In the dma_ops path we only have the struct device. This function
  * finds the corresponding IOMMU, the protection domain and the
@@ -2258,10 +2318,13 @@ static void __unmap_single(struct dma_ops_domain *dma_dom,
 		start += PAGE_SIZE;
 	}
 
-	domain_flush_tlb(&dma_dom->domain);
-	domain_flush_complete(&dma_dom->domain);
-
-	dma_ops_free_iova(dma_dom, dma_addr, pages);
+	if (amd_iommu_unmap_flush) {
+		dma_ops_free_iova(dma_dom, dma_addr, pages);
+		domain_flush_tlb(&dma_dom->domain);
+		domain_flush_complete(&dma_dom->domain);
+	} else {
+		queue_add(dma_dom, dma_addr, pages);
+	}
 }
 
 /*
