@@ -250,7 +250,7 @@ static inline void hwsim_clear_chanctx_magic(struct ieee80211_chanctx_conf *c)
 	cp->magic = 0;
 }
 
-static unsigned int hwsim_net_id;
+static int hwsim_net_id;
 
 static int hwsim_netgroup;
 
