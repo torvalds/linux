@@ -690,7 +690,8 @@ ssize_t lirc_dev_fop_read(struct file *file,
 			/* According to the read(2) man page, 'written' can be
 			 * returned as less than 'length', instead of blocking
 			 * again, returning -EWOULDBLOCK, or returning
-			 * -ERESTARTSYS */
+			 * -ERESTARTSYS
+			 */
 			if (written)
 				break;
 			if (file->f_flags & O_NONBLOCK) {
