@@ -150,9 +150,6 @@ static const struct file_operations lirc_dev_fops = {
 	.write		= lirc_dev_fop_write,
 	.poll		= lirc_dev_fop_poll,
 	.unlocked_ioctl	= lirc_dev_fop_ioctl,
-#ifdef CONFIG_COMPAT
-	.compat_ioctl	= lirc_dev_fop_ioctl,
-#endif
 	.open		= lirc_dev_fop_open,
 	.release	= lirc_dev_fop_close,
 	.llseek		= noop_llseek,
