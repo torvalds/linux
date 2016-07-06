@@ -990,8 +990,6 @@ static irqreturn_t cls_intr(int irq, void *voidbrd)
 
 	spin_lock_irqsave(&brd->bd_intr_lock, flags);
 
-	brd->intr_count++;
-
 	/*
 	 * Check the board's global interrupt offset to see if we
 	 * we actually do have an interrupt pending for us.
