@@ -20,7 +20,7 @@
 		reg = <0x80000000 0x10000000>;	/* 256 MB */
 	};
 
-	vbat: fixedregulator@0 {
+	vbat: fixedregulator {
 		compatible = "regulator-fixed";
 		regulator-name = "vbat";
 		regulator-min-microvolt = <5000000>;
