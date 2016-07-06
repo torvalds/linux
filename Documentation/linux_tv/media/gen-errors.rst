@@ -12,6 +12,7 @@ Generic Error Codes
 .. flat-table:: Generic error codes
     :header-rows:  0
     :stub-columns: 0
+    :widths: 1 16
 
 
     -  .. row 1
