@@ -2296,6 +2296,47 @@ done:
 }
 
 static int
+qla2x00_do_dport_diagnostics(struct fc_bsg_job *bsg_job)
+{
+	struct Scsi_Host *host = bsg_job->shost;
+	scsi_qla_host_t *vha = shost_priv(host);
+	int rval;
+	struct qla_dport_diag *dd;
+
+	if (!IS_QLA83XX(vha->hw) && !IS_QLA27XX(vha->hw))
+		return -EPERM;
+
+	dd = kmalloc(sizeof(*dd), GFP_KERNEL);
+	if (!dd) {
+		ql_log(ql_log_warn, vha, 0x70db,
+		    "Failed to allocate memory for dport.\n");
+		return -ENOMEM;
+	}
+
+	sg_copy_to_buffer(bsg_job->request_payload.sg_list,
+	    bsg_job->request_payload.sg_cnt, dd, sizeof(*dd));
+
+	rval = qla26xx_dport_diagnostics(
+	    vha, dd->buf, sizeof(dd->buf), dd->options);
+	if (rval == QLA_SUCCESS) {
+		sg_copy_from_buffer(bsg_job->reply_payload.sg_list,
+		    bsg_job->reply_payload.sg_cnt, dd, sizeof(*dd));
+	}
+
+	bsg_job->reply->reply_payload_rcv_len = sizeof(*dd);
+	bsg_job->reply->reply_data.vendor_reply.vendor_rsp[0] =
+	    rval ? EXT_STATUS_MAILBOX : EXT_STATUS_OK;
+
+	bsg_job->reply_len = sizeof(*bsg_job->reply);
+	bsg_job->reply->result = DID_OK << 16;
+	bsg_job->job_done(bsg_job);
+
+	kfree(dd);
+
+	return 0;
+}
+
+static int
 qla2x00_process_vendor_specific(struct fc_bsg_job *bsg_job)
 {
 	switch (bsg_job->request->rqst_data.h_vendor.vendor_cmd[0]) {
@@ -2361,6 +2402,9 @@ qla2x00_process_vendor_specific(struct fc_bsg_job *bsg_job)
 
 	case QL_VND_GET_PRIV_STATS:
 		return qla2x00_get_priv_stats(bsg_job);
+
+	case QL_VND_DPORT_DIAGNOSTICS:
+		return qla2x00_do_dport_diagnostics(bsg_job);
 
 	default:
 		return -ENOSYS;

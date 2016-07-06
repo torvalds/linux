@@ -445,6 +445,9 @@ qla2x00_port_logout(scsi_qla_host_t *, struct fc_port *);
 extern int
 qla2x00_dump_mctp_data(scsi_qla_host_t *, dma_addr_t, uint32_t, uint32_t);
 
+extern int
+qla26xx_dport_diagnostics(scsi_qla_host_t *, void *, uint, uint);
+
 /*
  * Global Function Prototypes in qla_isr.c source file.
  */

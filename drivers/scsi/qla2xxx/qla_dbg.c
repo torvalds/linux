@@ -14,7 +14,7 @@
  * | Module Init and Probe        |       0x018f       | 0x0146         |
  * |                              |                    | 0x015b-0x0160	|
  * |                              |                    | 0x016e		|
- * | Mailbox commands             |       0x1191       | 		|
+ * | Mailbox commands             |       0x1196       |		|
  * |                              |                    |		|
  * | Device Discovery             |       0x2003       | 0x2016		|
  * |                              |                    | 0x2011-0x2012, |
@@ -41,7 +41,6 @@
  * |                              |                    | 0x70ad-0x70ae  |
  * |                              |                    | 0x70d0-0x70d6	|
  * |                              |                    | 0x70d7-0x70db  |
- * |                              |                    | 0x70db		|
  * | Task Management              |       0x803d       | 0x8000,0x800b  |
  * |                              |                    | 0x8019         |
  * |                              |                    | 0x8025,0x8026  |

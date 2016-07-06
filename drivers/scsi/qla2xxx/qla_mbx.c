@@ -1872,7 +1872,7 @@ qla2x00_get_firmware_state(scsi_qla_host_t *vha, uint16_t *states)
 	states[0] = mcp->mb[1];
 	if (IS_FWI2_CAPABLE(vha->hw)) {
 		states[1] = mcp->mb[2];
-		states[2] = mcp->mb[3];
+		states[2] = mcp->mb[3];  /* SFP info */
 		states[3] = mcp->mb[4];
 		states[4] = mcp->mb[5];
 		states[5] = mcp->mb[6];  /* DPORT status */
@@ -5745,6 +5745,62 @@ qla2x00_dump_mctp_data(scsi_qla_host_t *vha, dma_addr_t req_dma, uint32_t addr,
 		ql_dbg(ql_dbg_mbx + ql_dbg_verbose, vha, 0x114d,
 		    "Done %s.\n", __func__);
 	}
+
+	return rval;
+}
+
+int
+qla26xx_dport_diagnostics(scsi_qla_host_t *vha,
+	void *dd_buf, uint size, uint options)
+{
+	int rval;
+	mbx_cmd_t mc;
+	mbx_cmd_t *mcp = &mc;
+	dma_addr_t dd_dma;
+
+	if (!IS_QLA83XX(vha->hw) && !IS_QLA27XX(vha->hw))
+		return QLA_FUNCTION_FAILED;
+
+	ql_dbg(ql_dbg_mbx + ql_dbg_verbose, vha, 0x1192,
+	    "Entered %s.\n", __func__);
+
+	if (size < 1024) {
+		ql_log(ql_log_warn, vha, 0x1193, "Failed insufficient size.\n");
+		return QLA_FUNCTION_PARAMETER_ERROR;
+	}
+
+	dd_dma = dma_map_single(&vha->hw->pdev->dev,
+	    dd_buf, size, DMA_FROM_DEVICE);
+	if (!dd_dma) {
+		ql_log(ql_log_warn, vha, 0x1194, "Failed to map dma buffer.\n");
+		return QLA_MEMORY_ALLOC_FAILED;
+	}
+
+	memset(dd_buf, 0, size);
+
+	mcp->mb[0] = MBC_DPORT_DIAGNOSTICS;
+	mcp->mb[1] = options;
+	mcp->mb[2] = MSW(LSD(dd_dma));
+	mcp->mb[3] = LSW(LSD(dd_dma));
+	mcp->mb[6] = MSW(MSD(dd_dma));
+	mcp->mb[7] = LSW(MSD(dd_dma));
+	mcp->mb[8] = size;
+	mcp->out_mb = MBX_8|MBX_7|MBX_6|MBX_3|MBX_2|MBX_1|MBX_0;
+	mcp->in_mb = MBX_3|MBX_2|MBX_1|MBX_0;
+	mcp->buf_size = size;
+	mcp->flags = MBX_DMA_IN;
+	mcp->tov = MBX_TOV_SECONDS * 4;
+	rval = qla2x00_mailbox_command(vha, mcp);
+
+	if (rval != QLA_SUCCESS) {
+		ql_dbg(ql_dbg_mbx, vha, 0x1195, "Failed=%x.\n", rval);
+	} else {
+		ql_dbg(ql_dbg_mbx + ql_dbg_verbose, vha, 0x1196,
+		    "Done %s.\n", __func__);
+	}
+
+	dma_unmap_single(&vha->hw->pdev->dev, dd_dma,
+	    size, DMA_FROM_DEVICE);
 
 	return rval;
 }

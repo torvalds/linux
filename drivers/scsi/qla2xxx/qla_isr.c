@@ -1152,10 +1152,13 @@ global_port_update:
 
 	case MBA_DPORT_DIAGNOSTICS:
 		ql_dbg(ql_dbg_async, vha, 0x5052,
-		    "D-Port Diagnostics: %04x %04x=%s\n", mb[0], mb[1],
+		    "D-Port Diagnostics: %04x result=%s index=%u size=%u\n",
+		    mb[0],
 		    mb[1] == 0 ? "start" :
 		    mb[1] == 1 ? "done (ok)" :
-		    mb[1] == 2 ? "done (error)" : "other");
+		    mb[1] == 2 ? "done (error)" : "other",
+		    LSB(mb[2]),
+		    mb[3]);
 		break;
 
 	case MBA_TEMPERATURE_ALERT:
