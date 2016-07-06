@@ -819,6 +819,8 @@ int dm_old_init_request_queue(struct mapped_device *md)
 	init_kthread_worker(&md->kworker);
 	md->kworker_task = kthread_run(kthread_worker_fn, &md->kworker,
 				       "kdmwork-%s", dm_device_name(md));
+	if (IS_ERR(md->kworker_task))
+		return PTR_ERR(md->kworker_task);
 
 	elv_register_queue(md->queue);
 
