@@ -584,7 +584,6 @@ static inline void cls_parse_isr(struct dgnc_board *brd, uint port)
 		/* Receive Interrupt pending */
 		if (isr & (UART_IIR_RDI | UART_IIR_RDI_TIMEOUT)) {
 			/* Read data from uart -> queue */
-			brd->intr_rx++;
 			ch->ch_intr_rx++;
 			cls_copy_data_from_uart_to_queue(ch);
 			dgnc_check_queue_flow_control(ch);
