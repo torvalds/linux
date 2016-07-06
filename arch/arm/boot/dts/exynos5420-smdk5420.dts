@@ -13,6 +13,7 @@
 #include "exynos5420.dtsi"
 #include "exynos5420-cpus.dtsi"
 #include <dt-bindings/gpio/gpio.h>
+#include "exynos-mfc-reserved-memory.dtsi"
 
 / {
 	model = "Samsung SMDK5420 board based on EXYNOS5420";
@@ -352,11 +353,6 @@
 		compatible = "samsung,exynos4210-hdmiddc";
 		reg = <0x50>;
 	};
-};
-
-&mfc {
-	samsung,mfc-r = <0x43000000 0x800000>;
-	samsung,mfc-l = <0x51000000 0x800000>;
 };
 
 &mmc_0 {

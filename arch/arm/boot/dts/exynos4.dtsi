@@ -428,7 +428,6 @@
 		clock-names = "mfc", "sclk_mfc";
 		iommus = <&sysmmu_mfc_l>, <&sysmmu_mfc_r>;
 		iommu-names = "left", "right";
-		status = "disabled";
 	};
 
 	serial_0: serial@13800000 {

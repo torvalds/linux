@@ -632,10 +632,6 @@
 	status = "okay";
 };
 
-&mfc {
-	status = "okay";
-};
-
 &jpeg {
 	status = "okay";
 };

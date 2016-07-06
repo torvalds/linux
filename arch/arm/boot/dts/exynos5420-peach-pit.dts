@@ -16,6 +16,7 @@
 #include <dt-bindings/regulator/maxim,max77802.h>
 #include "exynos5420.dtsi"
 #include "exynos5420-cpus.dtsi"
+#include "exynos-mfc-reserved-memory.dtsi"
 
 / {
 	model = "Google Peach Pit Rev 6+";
@@ -686,11 +687,6 @@
 
 &i2s0 {
 	status = "okay";
-};
-
-&mfc {
-	samsung,mfc-r = <0x43000000 0x800000>;
-	samsung,mfc-l = <0x51000000 0x800000>;
 };
 
 &mmc_0 {

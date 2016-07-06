@@ -431,7 +431,6 @@
 			clocks = <&cmu CLK_MFC>, <&cmu CLK_SCLK_MFC>;
 			power-domains = <&pd_mfc>;
 			iommus = <&sysmmu_mfc>;
-			status = "disabled";
 		};
 
 		sysmmu_mfc: sysmmu@13620000 {
