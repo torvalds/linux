@@ -75,13 +75,56 @@ static void ipu_crtc_disable(struct drm_crtc *crtc)
 	spin_unlock_irq(&crtc->dev->event_lock);
 }
 
+static void imx_drm_crtc_reset(struct drm_crtc *crtc)
+{
+	struct imx_crtc_state *state;
+
+	if (crtc->state) {
+		if (crtc->state->mode_blob)
+			drm_property_unreference_blob(crtc->state->mode_blob);
+
+		state = to_imx_crtc_state(crtc->state);
+		memset(state, 0, sizeof(*state));
+	} else {
+		state = kzalloc(sizeof(*state), GFP_KERNEL);
+		if (!state)
+			return;
+		crtc->state = &state->base;
+	}
+
+	state->base.crtc = crtc;
+}
+
+static struct drm_crtc_state *imx_drm_crtc_duplicate_state(struct drm_crtc *crtc)
+{
+	struct imx_crtc_state *state;
+
+	state = kzalloc(sizeof(*state), GFP_KERNEL);
+	if (!state)
+		return NULL;
+
+	__drm_atomic_helper_crtc_duplicate_state(crtc, &state->base);
+
+	WARN_ON(state->base.crtc != crtc);
+	state->base.crtc = crtc;
+
+	return &state->base;
+}
+
+static void imx_drm_crtc_destroy_state(struct drm_crtc *crtc,
+				       struct drm_crtc_state *state)
+{
+	__drm_atomic_helper_crtc_destroy_state(state);
+	kfree(to_imx_crtc_state(state));
+}
+
 static const struct drm_crtc_funcs ipu_crtc_funcs = {
 	.set_config = drm_atomic_helper_set_config,
 	.destroy = drm_crtc_cleanup,
 	.page_flip = drm_atomic_helper_page_flip,
-	.reset = drm_atomic_helper_crtc_reset,
-	.atomic_duplicate_state = drm_atomic_helper_crtc_duplicate_state,
-	.atomic_destroy_state = drm_atomic_helper_crtc_destroy_state,
+	.reset = imx_drm_crtc_reset,
+	.atomic_duplicate_state = imx_drm_crtc_duplicate_state,
+	.atomic_destroy_state = imx_drm_crtc_destroy_state,
 };
 
 static irqreturn_t ipu_irq_handler(int irq, void *dev_id)
@@ -142,9 +185,9 @@ static void ipu_crtc_mode_set_nofb(struct drm_crtc *crtc)
 {
 	struct drm_device *dev = crtc->dev;
 	struct drm_encoder *encoder;
-	struct imx_drm_encoder *imx_encoder = NULL;
 	struct ipu_crtc *ipu_crtc = to_ipu_crtc(crtc);
 	struct drm_display_mode *mode = &crtc->state->adjusted_mode;
+	struct imx_crtc_state *imx_crtc_state = to_imx_crtc_state(crtc->state);
 	struct ipu_di_signal_cfg sig_cfg = {};
 	unsigned long encoder_types = 0;
 
@@ -154,10 +197,8 @@ static void ipu_crtc_mode_set_nofb(struct drm_crtc *crtc)
 			mode->vdisplay);
 
 	list_for_each_entry(encoder, &dev->mode_config.encoder_list, head) {
-		if (encoder->crtc == crtc) {
+		if (encoder->crtc == crtc)
 			encoder_types |= BIT(encoder->encoder_type);
-			imx_encoder = enc_to_imx_enc(encoder);
-		}
 	}
 
 	dev_dbg(ipu_crtc->dev, "%s: attached to encoder types 0x%lx\n",
@@ -176,20 +217,20 @@ static void ipu_crtc_mode_set_nofb(struct drm_crtc *crtc)
 	else
 		sig_cfg.clkflags = 0;
 
-	sig_cfg.enable_pol = !(imx_encoder->bus_flags & DRM_BUS_FLAG_DE_LOW);
+	sig_cfg.enable_pol = !(imx_crtc_state->bus_flags & DRM_BUS_FLAG_DE_LOW);
 	/* Default to driving pixel data on negative clock edges */
-	sig_cfg.clk_pol = !!(imx_encoder->bus_flags &
+	sig_cfg.clk_pol = !!(imx_crtc_state->bus_flags &
 			     DRM_BUS_FLAG_PIXDATA_POSEDGE);
-	sig_cfg.bus_format = imx_encoder->bus_format;
+	sig_cfg.bus_format = imx_crtc_state->bus_format;
 	sig_cfg.v_to_h_sync = 0;
-	sig_cfg.hsync_pin = imx_encoder->di_hsync_pin;
-	sig_cfg.vsync_pin = imx_encoder->di_vsync_pin;
+	sig_cfg.hsync_pin = imx_crtc_state->di_hsync_pin;
+	sig_cfg.vsync_pin = imx_crtc_state->di_vsync_pin;
 
 	drm_display_mode_to_videomode(mode, &sig_cfg.mode);
 
 	ipu_dc_init_sync(ipu_crtc->dc, ipu_crtc->di,
 			 mode->flags & DRM_MODE_FLAG_INTERLACE,
-			 imx_encoder->bus_format, mode->hdisplay);
+			 imx_crtc_state->bus_format, mode->hdisplay);
 	ipu_di_init_sync_panel(ipu_crtc->di, &sig_cfg);
 }
 

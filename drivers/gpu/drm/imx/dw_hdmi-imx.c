@@ -22,13 +22,16 @@
 
 #include "imx-drm.h"
 
-#define imx_enc_to_imx_hdmi(x) container_of(x, struct imx_hdmi, imx_encoder)
-
 struct imx_hdmi {
 	struct device *dev;
-	struct imx_drm_encoder imx_encoder;
+	struct drm_encoder encoder;
 	struct regmap *regmap;
 };
+
+static inline struct imx_hdmi *enc_to_imx_hdmi(struct drm_encoder *e)
+{
+	return container_of(e, struct imx_hdmi, encoder);
+}
 
 static const struct dw_hdmi_mpll_config imx_mpll_cfg[] = {
 	{
@@ -113,8 +116,7 @@ static void dw_hdmi_imx_encoder_disable(struct drm_encoder *encoder)
 
 static void dw_hdmi_imx_encoder_enable(struct drm_encoder *encoder)
 {
-	struct imx_drm_encoder *imx_encoder = enc_to_imx_enc(encoder);
-	struct imx_hdmi *hdmi = imx_enc_to_imx_hdmi(imx_encoder);
+	struct imx_hdmi *hdmi = enc_to_imx_hdmi(encoder);
 	int mux = drm_of_encoder_active_port_id(hdmi->dev->of_node, encoder);
 
 	regmap_update_bits(hdmi->regmap, IOMUXC_GPR3,
@@ -122,9 +124,23 @@ static void dw_hdmi_imx_encoder_enable(struct drm_encoder *encoder)
 			   mux << IMX6Q_GPR3_HDMI_MUX_CTL_SHIFT);
 }
 
+static int dw_hdmi_imx_atomic_check(struct drm_encoder *encoder,
+				    struct drm_crtc_state *crtc_state,
+				    struct drm_connector_state *conn_state)
+{
+	struct imx_crtc_state *imx_crtc_state = to_imx_crtc_state(crtc_state);
+
+	imx_crtc_state->bus_format = MEDIA_BUS_FMT_RGB888_1X24;
+	imx_crtc_state->di_hsync_pin = 2;
+	imx_crtc_state->di_vsync_pin = 3;
+
+	return 0;
+}
+
 static const struct drm_encoder_helper_funcs dw_hdmi_imx_encoder_helper_funcs = {
 	.enable     = dw_hdmi_imx_encoder_enable,
 	.disable    = dw_hdmi_imx_encoder_disable,
+	.atomic_check = dw_hdmi_imx_atomic_check,
 };
 
 static const struct drm_encoder_funcs dw_hdmi_imx_encoder_funcs = {
@@ -205,10 +221,7 @@ static int dw_hdmi_imx_bind(struct device *dev, struct device *master,
 	match = of_match_node(dw_hdmi_imx_dt_ids, pdev->dev.of_node);
 	plat_data = match->data;
 	hdmi->dev = &pdev->dev;
-	encoder = &hdmi->imx_encoder.encoder;
-	hdmi->imx_encoder.bus_format = MEDIA_BUS_FMT_RGB888_1X24;
-	hdmi->imx_encoder.di_hsync_pin = 2;
-	hdmi->imx_encoder.di_vsync_pin = 3;
+	encoder = &hdmi->encoder;
 
 	irq = platform_get_irq(pdev, 0);
 	if (irq < 0)

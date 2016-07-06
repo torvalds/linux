@@ -15,15 +15,18 @@ struct platform_device;
 
 unsigned int imx_drm_crtc_id(struct imx_drm_crtc *crtc);
 
-struct imx_drm_encoder {
-	struct drm_encoder			encoder;
+struct imx_crtc_state {
+	struct drm_crtc_state			base;
 	u32					bus_format;
 	u32					bus_flags;
 	int					di_hsync_pin;
 	int					di_vsync_pin;
 };
 
-#define enc_to_imx_enc(x) container_of(x, struct imx_drm_encoder, encoder)
+static inline struct imx_crtc_state *to_imx_crtc_state(struct drm_crtc_state *s)
+{
+	return container_of(s, struct imx_crtc_state, base);
+}
 
 struct imx_drm_crtc_helper_funcs {
 	int (*enable_vblank)(struct drm_crtc *crtc);

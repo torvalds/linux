@@ -17,6 +17,7 @@
 #include <linux/clk.h>
 #include <linux/component.h>
 #include <drm/drmP.h>
+#include <drm/drm_atomic.h>
 #include <drm/drm_atomic_helper.h>
 #include <drm/drm_fb_helper.h>
 #include <drm/drm_crtc_helper.h>
@@ -51,15 +52,13 @@
 #define LDB_BGREF_RMODE_INT		(1 << 15)
 
 #define con_to_imx_ldb_ch(x) container_of(x, struct imx_ldb_channel, connector)
-#define imx_enc_to_imx_ldb_ch(x)	\
-			container_of(x, struct imx_ldb_channel, imx_encoder)
 
 struct imx_ldb;
 
 struct imx_ldb_channel {
 	struct imx_ldb *ldb;
 	struct drm_connector connector;
-	struct imx_drm_encoder imx_encoder;
+	struct drm_encoder encoder;
 	struct drm_panel *panel;
 	struct device_node *child;
 	struct i2c_adapter *ddc;
@@ -68,7 +67,13 @@ struct imx_ldb_channel {
 	int edid_len;
 	struct drm_display_mode mode;
 	int mode_valid;
+	u32 bus_format;
 };
+
+static inline struct imx_ldb_channel *enc_to_imx_ldb_ch(struct drm_encoder *e)
+{
+	return container_of(e, struct imx_ldb_channel, encoder);
+}
 
 struct bus_mux {
 	int reg;
@@ -94,25 +99,22 @@ static enum drm_connector_status imx_ldb_connector_detect(
 	return connector_status_connected;
 }
 
-static void imx_ldb_bus_format_translation(struct imx_ldb_channel *imx_ldb_ch,
-					   u32 bus_format)
+static void imx_ldb_ch_set_bus_format(struct imx_ldb_channel *imx_ldb_ch,
+				      u32 bus_format)
 {
 	struct imx_ldb *ldb = imx_ldb_ch->ldb;
 	int dual = ldb->ldb_ctrl & LDB_SPLIT_MODE_EN;
 
 	switch (bus_format) {
 	case MEDIA_BUS_FMT_RGB666_1X7X3_SPWG:
-		imx_ldb_ch->imx_encoder.bus_format = MEDIA_BUS_FMT_RGB666_1X18;
 		break;
 	case MEDIA_BUS_FMT_RGB888_1X7X4_SPWG:
-		imx_ldb_ch->imx_encoder.bus_format = MEDIA_BUS_FMT_RGB888_1X24;
 		if (imx_ldb_ch->chno == 0 || dual)
 			ldb->ldb_ctrl |= LDB_DATA_WIDTH_CH0_24;
 		if (imx_ldb_ch->chno == 1 || dual)
 			ldb->ldb_ctrl |= LDB_DATA_WIDTH_CH1_24;
 		break;
 	case MEDIA_BUS_FMT_RGB888_1X7X4_JEIDA:
-		imx_ldb_ch->imx_encoder.bus_format = MEDIA_BUS_FMT_RGB888_1X24;
 		if (imx_ldb_ch->chno == 0 || dual)
 			ldb->ldb_ctrl |= LDB_DATA_WIDTH_CH0_24 |
 					 LDB_BIT_MAP_CH0_JEIDA;
@@ -130,12 +132,7 @@ static int imx_ldb_connector_get_modes(struct drm_connector *connector)
 
 	if (imx_ldb_ch->panel && imx_ldb_ch->panel->funcs &&
 	    imx_ldb_ch->panel->funcs->get_modes) {
-		struct drm_display_info *di = &connector->display_info;
-
 		num_modes = imx_ldb_ch->panel->funcs->get_modes(imx_ldb_ch->panel);
-		if (!imx_ldb_ch->imx_encoder.bus_format && di->num_bus_formats)
-			imx_ldb_bus_format_translation(imx_ldb_ch,
-							di->bus_formats[0]);
 		if (num_modes > 0)
 			return num_modes;
 	}
@@ -169,7 +166,7 @@ static struct drm_encoder *imx_ldb_connector_best_encoder(
 {
 	struct imx_ldb_channel *imx_ldb_ch = con_to_imx_ldb_ch(connector);
 
-	return &imx_ldb_ch->imx_encoder.encoder;
+	return &imx_ldb_ch->encoder;
 }
 
 static void imx_ldb_set_clock(struct imx_ldb *ldb, int mux, int chno,
@@ -202,8 +199,7 @@ static void imx_ldb_set_clock(struct imx_ldb *ldb, int mux, int chno,
 
 static void imx_ldb_encoder_enable(struct drm_encoder *encoder)
 {
-	struct imx_drm_encoder *imx_encoder = enc_to_imx_enc(encoder);
-	struct imx_ldb_channel *imx_ldb_ch = imx_enc_to_imx_ldb_ch(imx_encoder);
+	struct imx_ldb_channel *imx_ldb_ch = enc_to_imx_ldb_ch(encoder);
 	struct imx_ldb *ldb = imx_ldb_ch->ldb;
 	int dual = ldb->ldb_ctrl & LDB_SPLIT_MODE_EN;
 	int mux = drm_of_encoder_active_port_id(imx_ldb_ch->child, encoder);
@@ -256,13 +252,13 @@ static void imx_ldb_encoder_mode_set(struct drm_encoder *encoder,
 			 struct drm_display_mode *orig_mode,
 			 struct drm_display_mode *mode)
 {
-	struct imx_drm_encoder *imx_encoder = enc_to_imx_enc(encoder);
-	struct imx_ldb_channel *imx_ldb_ch = imx_enc_to_imx_ldb_ch(imx_encoder);
+	struct imx_ldb_channel *imx_ldb_ch = enc_to_imx_ldb_ch(encoder);
 	struct imx_ldb *ldb = imx_ldb_ch->ldb;
 	int dual = ldb->ldb_ctrl & LDB_SPLIT_MODE_EN;
 	unsigned long serial_clk;
 	unsigned long di_clk = mode->clock * 1000;
 	int mux = drm_of_encoder_active_port_id(imx_ldb_ch->child, encoder);
+	u32 bus_format = imx_ldb_ch->bus_format;
 
 	if (mode->clock > 170000) {
 		dev_warn(ldb->dev,
@@ -284,24 +280,41 @@ static void imx_ldb_encoder_mode_set(struct drm_encoder *encoder,
 	}
 
 	/* FIXME - assumes straight connections DI0 --> CH0, DI1 --> CH1 */
-	if (imx_ldb_ch == &ldb->channel[0]) {
+	if (imx_ldb_ch == &ldb->channel[0] || dual) {
 		if (mode->flags & DRM_MODE_FLAG_NVSYNC)
 			ldb->ldb_ctrl |= LDB_DI0_VS_POL_ACT_LOW;
 		else if (mode->flags & DRM_MODE_FLAG_PVSYNC)
 			ldb->ldb_ctrl &= ~LDB_DI0_VS_POL_ACT_LOW;
 	}
-	if (imx_ldb_ch == &ldb->channel[1]) {
+	if (imx_ldb_ch == &ldb->channel[1] || dual) {
 		if (mode->flags & DRM_MODE_FLAG_NVSYNC)
 			ldb->ldb_ctrl |= LDB_DI1_VS_POL_ACT_LOW;
 		else if (mode->flags & DRM_MODE_FLAG_PVSYNC)
 			ldb->ldb_ctrl &= ~LDB_DI1_VS_POL_ACT_LOW;
 	}
+
+	if (!bus_format) {
+		struct drm_connector_state *conn_state;
+		struct drm_connector *connector;
+		int i;
+
+		for_each_connector_in_state(encoder->crtc->state->state,
+					    connector, conn_state, i) {
+			struct drm_display_info *di = &connector->display_info;
+
+			if (conn_state->crtc == encoder->crtc &&
+			    di->num_bus_formats) {
+				bus_format = di->bus_formats[0];
+				break;
+			}
+		}
+	}
+	imx_ldb_ch_set_bus_format(imx_ldb_ch, bus_format);
 }
 
 static void imx_ldb_encoder_disable(struct drm_encoder *encoder)
 {
-	struct imx_drm_encoder *imx_encoder = enc_to_imx_enc(encoder);
-	struct imx_ldb_channel *imx_ldb_ch = imx_enc_to_imx_ldb_ch(imx_encoder);
+	struct imx_ldb_channel *imx_ldb_ch = enc_to_imx_ldb_ch(encoder);
 	struct imx_ldb *ldb = imx_ldb_ch->ldb;
 	int mux, ret;
 
@@ -356,6 +369,37 @@ static void imx_ldb_encoder_disable(struct drm_encoder *encoder)
 	drm_panel_unprepare(imx_ldb_ch->panel);
 }
 
+static int imx_ldb_encoder_atomic_check(struct drm_encoder *encoder,
+					struct drm_crtc_state *crtc_state,
+					struct drm_connector_state *conn_state)
+{
+	struct imx_crtc_state *imx_crtc_state = to_imx_crtc_state(crtc_state);
+	struct imx_ldb_channel *imx_ldb_ch = enc_to_imx_ldb_ch(encoder);
+	struct drm_display_info *di = &conn_state->connector->display_info;
+	u32 bus_format = imx_ldb_ch->bus_format;
+
+	/* Bus format description in DT overrides connector display info. */
+	if (!bus_format && di->num_bus_formats)
+		bus_format = di->bus_formats[0];
+	switch (bus_format) {
+	case MEDIA_BUS_FMT_RGB666_1X7X3_SPWG:
+		imx_crtc_state->bus_format = MEDIA_BUS_FMT_RGB666_1X18;
+		break;
+	case MEDIA_BUS_FMT_RGB888_1X7X4_SPWG:
+	case MEDIA_BUS_FMT_RGB888_1X7X4_JEIDA:
+		imx_crtc_state->bus_format = MEDIA_BUS_FMT_RGB888_1X24;
+		break;
+	default:
+		return -EINVAL;
+	}
+
+	imx_crtc_state->di_hsync_pin = 2;
+	imx_crtc_state->di_vsync_pin = 3;
+
+	return 0;
+}
+
+
 static const struct drm_connector_funcs imx_ldb_connector_funcs = {
 	.dpms = drm_atomic_helper_connector_dpms,
 	.fill_modes = drm_helper_probe_single_connector_modes,
@@ -379,6 +423,7 @@ static const struct drm_encoder_helper_funcs imx_ldb_encoder_helper_funcs = {
 	.mode_set = imx_ldb_encoder_mode_set,
 	.enable = imx_ldb_encoder_enable,
 	.disable = imx_ldb_encoder_disable,
+	.atomic_check = imx_ldb_encoder_atomic_check,
 };
 
 static int imx_ldb_get_clk(struct imx_ldb *ldb, int chno)
@@ -400,10 +445,10 @@ static int imx_ldb_register(struct drm_device *drm,
 	struct imx_ldb_channel *imx_ldb_ch)
 {
 	struct imx_ldb *ldb = imx_ldb_ch->ldb;
+	struct drm_encoder *encoder = &imx_ldb_ch->encoder;
 	int ret;
 
-	ret = imx_drm_encoder_parse_of(drm, &imx_ldb_ch->imx_encoder.encoder,
-				       imx_ldb_ch->child);
+	ret = imx_drm_encoder_parse_of(drm, encoder, imx_ldb_ch->child);
 	if (ret)
 		return ret;
 
@@ -417,10 +462,9 @@ static int imx_ldb_register(struct drm_device *drm,
 			return ret;
 	}
 
-	drm_encoder_helper_add(&imx_ldb_ch->imx_encoder.encoder,
-			&imx_ldb_encoder_helper_funcs);
-	drm_encoder_init(drm, &imx_ldb_ch->imx_encoder.encoder,
-			 &imx_ldb_encoder_funcs, DRM_MODE_ENCODER_LVDS, NULL);
+	drm_encoder_helper_add(encoder, &imx_ldb_encoder_helper_funcs);
+	drm_encoder_init(drm, encoder, &imx_ldb_encoder_funcs,
+			 DRM_MODE_ENCODER_LVDS, NULL);
 
 	drm_connector_helper_add(&imx_ldb_ch->connector,
 			&imx_ldb_connector_helper_funcs);
@@ -430,8 +474,7 @@ static int imx_ldb_register(struct drm_device *drm,
 	if (imx_ldb_ch->panel)
 		drm_panel_attach(imx_ldb_ch->panel, &imx_ldb_ch->connector);
 
-	drm_mode_connector_attach_encoder(&imx_ldb_ch->connector,
-			&imx_ldb_ch->imx_encoder.encoder);
+	drm_mode_connector_attach_encoder(&imx_ldb_ch->connector, encoder);
 
 	return 0;
 }
@@ -648,10 +691,7 @@ static int imx_ldb_bind(struct device *dev, struct device *master, void *data)
 				bus_format);
 			return bus_format;
 		}
-		imx_ldb_bus_format_translation(channel, bus_format);
-
-		channel->imx_encoder.di_hsync_pin = 2;
-		channel->imx_encoder.di_vsync_pin = 3;
+		channel->bus_format = bus_format;
 
 		ret = imx_ldb_register(drm, channel);
 		if (ret)
@@ -676,8 +716,7 @@ static void imx_ldb_unbind(struct device *dev, struct device *master,
 			continue;
 
 		channel->connector.funcs->destroy(&channel->connector);
-		channel->imx_encoder.encoder.funcs->destroy(
-					&channel->imx_encoder.encoder);
+		channel->encoder.funcs->destroy(&channel->encoder);
 
 		kfree(channel->edid);
 		i2c_put_adapter(channel->ddc);
