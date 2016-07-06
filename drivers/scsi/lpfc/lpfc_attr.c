@@ -48,6 +48,7 @@
 #include "lpfc_compat.h"
 #include "lpfc_crtn.h"
 #include "lpfc_vport.h"
+#include "lpfc_attr.h"
 
 #define LPFC_DEF_DEVLOSS_TMO 30
 #define LPFC_MIN_DEVLOSS_TMO 1
@@ -1938,102 +1939,6 @@ lpfc_##attr##_store(struct device *dev, struct device_attribute *attr, \
 		return -EINVAL;\
 }
 
-
-#define LPFC_ATTR(name, defval, minval, maxval, desc) \
-static uint lpfc_##name = defval;\
-module_param(lpfc_##name, uint, S_IRUGO);\
-MODULE_PARM_DESC(lpfc_##name, desc);\
-lpfc_param_init(name, defval, minval, maxval)
-
-#define LPFC_ATTR_R(name, defval, minval, maxval, desc) \
-static uint lpfc_##name = defval;\
-module_param(lpfc_##name, uint, S_IRUGO);\
-MODULE_PARM_DESC(lpfc_##name, desc);\
-lpfc_param_show(name)\
-lpfc_param_init(name, defval, minval, maxval)\
-static DEVICE_ATTR(lpfc_##name, S_IRUGO , lpfc_##name##_show, NULL)
-
-#define LPFC_ATTR_RW(name, defval, minval, maxval, desc) \
-static uint lpfc_##name = defval;\
-module_param(lpfc_##name, uint, S_IRUGO);\
-MODULE_PARM_DESC(lpfc_##name, desc);\
-lpfc_param_show(name)\
-lpfc_param_init(name, defval, minval, maxval)\
-lpfc_param_set(name, defval, minval, maxval)\
-lpfc_param_store(name)\
-static DEVICE_ATTR(lpfc_##name, S_IRUGO | S_IWUSR,\
-		   lpfc_##name##_show, lpfc_##name##_store)
-
-#define LPFC_ATTR_HEX_R(name, defval, minval, maxval, desc) \
-static uint lpfc_##name = defval;\
-module_param(lpfc_##name, uint, S_IRUGO);\
-MODULE_PARM_DESC(lpfc_##name, desc);\
-lpfc_param_hex_show(name)\
-lpfc_param_init(name, defval, minval, maxval)\
-static DEVICE_ATTR(lpfc_##name, S_IRUGO , lpfc_##name##_show, NULL)
-
-#define LPFC_ATTR_HEX_RW(name, defval, minval, maxval, desc) \
-static uint lpfc_##name = defval;\
-module_param(lpfc_##name, uint, S_IRUGO);\
-MODULE_PARM_DESC(lpfc_##name, desc);\
-lpfc_param_hex_show(name)\
-lpfc_param_init(name, defval, minval, maxval)\
-lpfc_param_set(name, defval, minval, maxval)\
-lpfc_param_store(name)\
-static DEVICE_ATTR(lpfc_##name, S_IRUGO | S_IWUSR,\
-		   lpfc_##name##_show, lpfc_##name##_store)
-
-#define LPFC_VPORT_ATTR(name, defval, minval, maxval, desc) \
-static uint lpfc_##name = defval;\
-module_param(lpfc_##name, uint, S_IRUGO);\
-MODULE_PARM_DESC(lpfc_##name, desc);\
-lpfc_vport_param_init(name, defval, minval, maxval)
-
-#define LPFC_VPORT_ATTR_R(name, defval, minval, maxval, desc) \
-static uint lpfc_##name = defval;\
-module_param(lpfc_##name, uint, S_IRUGO);\
-MODULE_PARM_DESC(lpfc_##name, desc);\
-lpfc_vport_param_show(name)\
-lpfc_vport_param_init(name, defval, minval, maxval)\
-static DEVICE_ATTR(lpfc_##name, S_IRUGO , lpfc_##name##_show, NULL)
-
-#define LPFC_VPORT_ULL_ATTR_R(name, defval, minval, maxval, desc) \
-static uint64_t lpfc_##name = defval;\
-module_param(lpfc_##name, ullong, S_IRUGO);\
-MODULE_PARM_DESC(lpfc_##name, desc);\
-lpfc_vport_param_show(name)\
-lpfc_vport_param_init(name, defval, minval, maxval)\
-static DEVICE_ATTR(lpfc_##name, S_IRUGO , lpfc_##name##_show, NULL)
-
-#define LPFC_VPORT_ATTR_RW(name, defval, minval, maxval, desc) \
-static uint lpfc_##name = defval;\
-module_param(lpfc_##name, uint, S_IRUGO);\
-MODULE_PARM_DESC(lpfc_##name, desc);\
-lpfc_vport_param_show(name)\
-lpfc_vport_param_init(name, defval, minval, maxval)\
-lpfc_vport_param_set(name, defval, minval, maxval)\
-lpfc_vport_param_store(name)\
-static DEVICE_ATTR(lpfc_##name, S_IRUGO | S_IWUSR,\
-		   lpfc_##name##_show, lpfc_##name##_store)
-
-#define LPFC_VPORT_ATTR_HEX_R(name, defval, minval, maxval, desc) \
-static uint lpfc_##name = defval;\
-module_param(lpfc_##name, uint, S_IRUGO);\
-MODULE_PARM_DESC(lpfc_##name, desc);\
-lpfc_vport_param_hex_show(name)\
-lpfc_vport_param_init(name, defval, minval, maxval)\
-static DEVICE_ATTR(lpfc_##name, S_IRUGO , lpfc_##name##_show, NULL)
-
-#define LPFC_VPORT_ATTR_HEX_RW(name, defval, minval, maxval, desc) \
-static uint lpfc_##name = defval;\
-module_param(lpfc_##name, uint, S_IRUGO);\
-MODULE_PARM_DESC(lpfc_##name, desc);\
-lpfc_vport_param_hex_show(name)\
-lpfc_vport_param_init(name, defval, minval, maxval)\
-lpfc_vport_param_set(name, defval, minval, maxval)\
-lpfc_vport_param_store(name)\
-static DEVICE_ATTR(lpfc_##name, S_IRUGO | S_IWUSR,\
-		   lpfc_##name##_show, lpfc_##name##_store)
 
 static DEVICE_ATTR(bg_info, S_IRUGO, lpfc_bg_info_show, NULL);
 static DEVICE_ATTR(bg_guard_err, S_IRUGO, lpfc_bg_guard_err_show, NULL);
