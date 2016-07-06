@@ -603,7 +603,6 @@ static inline void cls_parse_isr(struct dgnc_board *brd, uint port)
 
 		/* CTS/RTS change of state */
 		if (isr & UART_IIR_CTSRTS) {
-			brd->intr_modem++;
 			ch->ch_intr_modem++;
 			/*
 			 * Don't need to do anything, the cls_parse_modem
