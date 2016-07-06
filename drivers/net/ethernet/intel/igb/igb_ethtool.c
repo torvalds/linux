@@ -2851,7 +2851,7 @@ static int igb_add_ethtool_nfc_entry(struct igb_adapter *adapter,
 	int err = 0;
 
 	if (!(netdev->hw_features & NETIF_F_NTUPLE))
-		return -ENOTSUPP;
+		return -EOPNOTSUPP;
 
 	/* Don't allow programming if the action is a queue greater than
 	 * the number of online Rx queues.
