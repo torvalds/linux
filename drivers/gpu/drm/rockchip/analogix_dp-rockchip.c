@@ -169,8 +169,6 @@ rockchip_dp_drm_encoder_atomic_check(struct drm_encoder *encoder,
 				      struct drm_connector_state *conn_state)
 {
 	struct rockchip_crtc_state *s = to_rockchip_crtc_state(crtc_state);
-	struct rockchip_dp_device *dp = to_dp(encoder);
-	int ret;
 
 	/*
 	 * The hardware IC designed that VOP must output the RGB10 video
@@ -179,28 +177,7 @@ rockchip_dp_drm_encoder_atomic_check(struct drm_encoder *encoder,
 	 * contoller, that's why we need to hardcode the VOP output mode
 	 * to RGA10 here.
 	 */
-
-	ret = drm_of_encoder_active_endpoint_id(dp->dev->of_node, encoder);
-	if (ret < 0)
-		return true;
-
-	switch (dp->data->chip_type) {
-	case RK3399_EDP:
-		/*
-		 * For RK3399, VOP Lit must code the out mode to RGB888,
-		 * VOP Big must code the out mode to RGB10.
-		 */
-		if (ret)
-			s->output_mode = ROCKCHIP_OUT_MODE_P888;
-		else
-			s->output_mode = ROCKCHIP_OUT_MODE_AAAA;
-		break;
-
-	default:
-		s->output_mode = ROCKCHIP_OUT_MODE_AAAA;
-		break;
-	}
-
+	s->output_mode = ROCKCHIP_OUT_MODE_AAAA;
 	s->output_type = DRM_MODE_CONNECTOR_eDP;
 
 	return 0;

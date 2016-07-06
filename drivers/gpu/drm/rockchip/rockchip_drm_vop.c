@@ -990,6 +990,7 @@ static bool vop_crtc_mode_fixup(struct drm_crtc *crtc,
 static void vop_crtc_enable(struct drm_crtc *crtc)
 {
 	struct vop *vop = to_vop(crtc);
+	const struct vop_data *vop_data = vop->data;
 	struct rockchip_crtc_state *s = to_rockchip_crtc_state(crtc->state);
 	struct drm_display_mode *adjusted_mode = &crtc->state->adjusted_mode;
 	u16 hsync_len = adjusted_mode->hsync_end - adjusted_mode->hsync_start;
@@ -1065,6 +1066,11 @@ static void vop_crtc_enable(struct drm_crtc *crtc)
 	default:
 		DRM_ERROR("unsupport connector_type[%d]\n", s->output_type);
 	}
+
+	if (s->output_mode == ROCKCHIP_OUT_MODE_AAAA &&
+	    !(vop_data->feature & VOP_FEATURE_OUTPUT_10BIT))
+		s->output_mode = ROCKCHIP_OUT_MODE_P888;
+
 	VOP_CTRL_SET(vop, out_mode, s->output_mode);
 
 	VOP_CTRL_SET(vop, htotal_pw, (htotal << 16) | hsync_len);
