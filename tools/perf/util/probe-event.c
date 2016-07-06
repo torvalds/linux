@@ -468,7 +468,7 @@ static struct debuginfo *open_debuginfo(const char *module, bool silent)
 		err = kernel_get_module_dso(module, &dso);
 		if (err < 0) {
 			if (!dso || dso->load_errno == 0) {
-				if (!strerror_r(-err, reason, STRERR_BUFSIZE))
+				if (!str_error_r(-err, reason, STRERR_BUFSIZE))
 					strcpy(reason, "(unknown)");
 			} else
 				dso__strerror_load(dso, reason, STRERR_BUFSIZE);
@@ -806,7 +806,7 @@ static int __show_one_line(FILE *fp, int l, bool skip, bool show_num)
 error:
 	if (ferror(fp)) {
 		pr_warning("File read error: %s\n",
-			   strerror_r(errno, sbuf, sizeof(sbuf)));
+			   str_error_r(errno, sbuf, sizeof(sbuf)));
 		return -1;
 	}
 	return 0;
@@ -886,7 +886,7 @@ static int __show_line_range(struct line_range *lr, const char *module,
 	fp = fopen(lr->path, "r");
 	if (fp == NULL) {
 		pr_warning("Failed to open %s: %s\n", lr->path,
-			   strerror_r(errno, sbuf, sizeof(sbuf)));
+			   str_error_r(errno, sbuf, sizeof(sbuf)));
 		return -errno;
 	}
 	/* Skip to starting line number */

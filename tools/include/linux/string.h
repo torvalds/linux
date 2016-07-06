@@ -12,4 +12,6 @@ int strtobool(const char *s, bool *res);
 extern size_t strlcpy(char *dest, const char *src, size_t size);
 #endif
 
+char *str_error_r(int errnum, char *buf, size_t buflen);
+
 #endif /* _LINUX_STRING_H_ */

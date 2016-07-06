@@ -258,7 +258,7 @@ static int run_test(struct test *test, int subtest)
 
 	if (child < 0) {
 		pr_err("failed to fork test: %s\n",
-			strerror_r(errno, sbuf, sizeof(sbuf)));
+			str_error_r(errno, sbuf, sizeof(sbuf)));
 		return -1;
 	}
 

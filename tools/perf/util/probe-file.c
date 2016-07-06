@@ -50,7 +50,7 @@ static void print_open_warning(int err, bool uprobe)
 	else
 		pr_warning("Failed to open %cprobe_events: %s\n",
 			   uprobe ? 'u' : 'k',
-			   strerror_r(-err, sbuf, sizeof(sbuf)));
+			   str_error_r(-err, sbuf, sizeof(sbuf)));
 }
 
 static void print_both_open_warning(int kerr, int uerr)
@@ -64,9 +64,9 @@ static void print_both_open_warning(int kerr, int uerr)
 	else {
 		char sbuf[STRERR_BUFSIZE];
 		pr_warning("Failed to open kprobe events: %s.\n",
-			   strerror_r(-kerr, sbuf, sizeof(sbuf)));
+			   str_error_r(-kerr, sbuf, sizeof(sbuf)));
 		pr_warning("Failed to open uprobe events: %s.\n",
-			   strerror_r(-uerr, sbuf, sizeof(sbuf)));
+			   str_error_r(-uerr, sbuf, sizeof(sbuf)));
 	}
 }
 
@@ -224,7 +224,7 @@ int probe_file__add_event(int fd, struct probe_trace_event *tev)
 		if (write(fd, buf, strlen(buf)) < (int)strlen(buf)) {
 			ret = -errno;
 			pr_warning("Failed to write event: %s\n",
-				   strerror_r(errno, sbuf, sizeof(sbuf)));
+				   str_error_r(errno, sbuf, sizeof(sbuf)));
 		}
 	}
 	free(buf);
@@ -262,7 +262,7 @@ static int __del_trace_probe_event(int fd, struct str_node *ent)
 	return 0;
 error:
 	pr_warning("Failed to delete event: %s\n",
-		   strerror_r(-ret, buf, sizeof(buf)));
+		   str_error_r(-ret, buf, sizeof(buf)));
 	return ret;
 }
 

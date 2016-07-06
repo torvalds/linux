@@ -360,4 +360,5 @@ typedef void (*print_binary_t)(enum binary_printer_ops,
 void print_binary(unsigned char *data, size_t len,
 		  size_t bytes_per_line, print_binary_t printer,
 		  void *extra);
+
 #endif /* GIT_COMPAT_UTIL_H */
