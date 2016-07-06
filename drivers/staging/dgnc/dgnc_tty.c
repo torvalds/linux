@@ -640,17 +640,10 @@ exit_unlock:
  ************************************************************************/
 void dgnc_carrier(struct channel_t *ch)
 {
-	struct dgnc_board *bd;
-
 	int virt_carrier = 0;
 	int phys_carrier = 0;
 
 	if (!ch || ch->magic != DGNC_CHANNEL_MAGIC)
-		return;
-
-	bd = ch->ch_bd;
-
-	if (!bd || bd->magic != DGNC_BOARD_MAGIC)
 		return;
 
 	if (ch->ch_mistat & UART_MSR_DCD)
