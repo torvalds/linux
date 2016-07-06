@@ -154,21 +154,6 @@ trace_event_buffer_lock_reserve(struct ring_buffer **current_buffer,
 				struct trace_event_file *trace_file,
 				int type, unsigned long len,
 				unsigned long flags, int pc);
-struct ring_buffer_event *
-trace_current_buffer_lock_reserve(struct ring_buffer **current_buffer,
-				  int type, unsigned long len,
-				  unsigned long flags, int pc);
-void trace_buffer_unlock_commit(struct trace_array *tr,
-				struct ring_buffer *buffer,
-				struct ring_buffer_event *event,
-				unsigned long flags, int pc);
-void trace_buffer_unlock_commit_regs(struct trace_array *tr,
-				     struct ring_buffer *buffer,
-				     struct ring_buffer_event *event,
-				     unsigned long flags, int pc,
-				     struct pt_regs *regs);
-void trace_current_buffer_discard_commit(struct ring_buffer *buffer,
-					 struct ring_buffer_event *event);
 
 void tracing_record_cmdline(struct task_struct *tsk);
 
@@ -229,7 +214,6 @@ enum {
 	TRACE_EVENT_FL_NO_SET_FILTER_BIT,
 	TRACE_EVENT_FL_IGNORE_ENABLE_BIT,
 	TRACE_EVENT_FL_WAS_ENABLED_BIT,
-	TRACE_EVENT_FL_USE_CALL_FILTER_BIT,
 	TRACE_EVENT_FL_TRACEPOINT_BIT,
 	TRACE_EVENT_FL_KPROBE_BIT,
 	TRACE_EVENT_FL_UPROBE_BIT,
@@ -244,7 +228,6 @@ enum {
  *  WAS_ENABLED   - Set and stays set when an event was ever enabled
  *                    (used for module unloading, if a module event is enabled,
  *                     it is best to clear the buffers that used it).
- *  USE_CALL_FILTER - For trace internal events, don't use file filter
  *  TRACEPOINT    - Event is a tracepoint
  *  KPROBE        - Event is a kprobe
  *  UPROBE        - Event is a uprobe
@@ -255,7 +238,6 @@ enum {
 	TRACE_EVENT_FL_NO_SET_FILTER	= (1 << TRACE_EVENT_FL_NO_SET_FILTER_BIT),
 	TRACE_EVENT_FL_IGNORE_ENABLE	= (1 << TRACE_EVENT_FL_IGNORE_ENABLE_BIT),
 	TRACE_EVENT_FL_WAS_ENABLED	= (1 << TRACE_EVENT_FL_WAS_ENABLED_BIT),
-	TRACE_EVENT_FL_USE_CALL_FILTER	= (1 << TRACE_EVENT_FL_USE_CALL_FILTER_BIT),
 	TRACE_EVENT_FL_TRACEPOINT	= (1 << TRACE_EVENT_FL_TRACEPOINT_BIT),
 	TRACE_EVENT_FL_KPROBE		= (1 << TRACE_EVENT_FL_KPROBE_BIT),
 	TRACE_EVENT_FL_UPROBE		= (1 << TRACE_EVENT_FL_UPROBE_BIT),
@@ -407,16 +389,12 @@ enum event_trigger_type {
 	ETT_SNAPSHOT		= (1 << 1),
 	ETT_STACKTRACE		= (1 << 2),
 	ETT_EVENT_ENABLE	= (1 << 3),
+	ETT_EVENT_HIST		= (1 << 4),
+	ETT_HIST_ENABLE		= (1 << 5),
 };
 
 extern int filter_match_preds(struct event_filter *filter, void *rec);
 
-extern int filter_check_discard(struct trace_event_file *file, void *rec,
-				struct ring_buffer *buffer,
-				struct ring_buffer_event *event);
-extern int call_filter_check_discard(struct trace_event_call *call, void *rec,
-				     struct ring_buffer *buffer,
-				     struct ring_buffer_event *event);
 extern enum event_trigger_type event_triggers_call(struct trace_event_file *file,
 						   void *rec);
 extern void event_triggers_post_call(struct trace_event_file *file,
@@ -448,100 +426,6 @@ trace_trigger_soft_disabled(struct trace_event_file *file)
 			return trace_event_ignore_this_pid(file);
 	}
 	return false;
-}
-
-/*
- * Helper function for event_trigger_unlock_commit{_regs}().
- * If there are event triggers attached to this event that requires
- * filtering against its fields, then they wil be called as the
- * entry already holds the field information of the current event.
- *
- * It also checks if the event should be discarded or not.
- * It is to be discarded if the event is soft disabled and the
- * event was only recorded to process triggers, or if the event
- * filter is active and this event did not match the filters.
- *
- * Returns true if the event is discarded, false otherwise.
- */
-static inline bool
-__event_trigger_test_discard(struct trace_event_file *file,
-			     struct ring_buffer *buffer,
-			     struct ring_buffer_event *event,
-			     void *entry,
-			     enum event_trigger_type *tt)
-{
-	unsigned long eflags = file->flags;
-
-	if (eflags & EVENT_FILE_FL_TRIGGER_COND)
-		*tt = event_triggers_call(file, entry);
-
-	if (test_bit(EVENT_FILE_FL_SOFT_DISABLED_BIT, &file->flags))
-		ring_buffer_discard_commit(buffer, event);
-	else if (!filter_check_discard(file, entry, buffer, event))
-		return false;
-
-	return true;
-}
-
-/**
- * event_trigger_unlock_commit - handle triggers and finish event commit
- * @file: The file pointer assoctiated to the event
- * @buffer: The ring buffer that the event is being written to
- * @event: The event meta data in the ring buffer
- * @entry: The event itself
- * @irq_flags: The state of the interrupts at the start of the event
- * @pc: The state of the preempt count at the start of the event.
- *
- * This is a helper function to handle triggers that require data
- * from the event itself. It also tests the event against filters and
- * if the event is soft disabled and should be discarded.
- */
-static inline void
-event_trigger_unlock_commit(struct trace_event_file *file,
-			    struct ring_buffer *buffer,
-			    struct ring_buffer_event *event,
-			    void *entry, unsigned long irq_flags, int pc)
-{
-	enum event_trigger_type tt = ETT_NONE;
-
-	if (!__event_trigger_test_discard(file, buffer, event, entry, &tt))
-		trace_buffer_unlock_commit(file->tr, buffer, event, irq_flags, pc);
-
-	if (tt)
-		event_triggers_post_call(file, tt, entry);
-}
-
-/**
- * event_trigger_unlock_commit_regs - handle triggers and finish event commit
- * @file: The file pointer assoctiated to the event
- * @buffer: The ring buffer that the event is being written to
- * @event: The event meta data in the ring buffer
- * @entry: The event itself
- * @irq_flags: The state of the interrupts at the start of the event
- * @pc: The state of the preempt count at the start of the event.
- *
- * This is a helper function to handle triggers that require data
- * from the event itself. It also tests the event against filters and
- * if the event is soft disabled and should be discarded.
- *
- * Same as event_trigger_unlock_commit() but calls
- * trace_buffer_unlock_commit_regs() instead of trace_buffer_unlock_commit().
- */
-static inline void
-event_trigger_unlock_commit_regs(struct trace_event_file *file,
-				 struct ring_buffer *buffer,
-				 struct ring_buffer_event *event,
-				 void *entry, unsigned long irq_flags, int pc,
-				 struct pt_regs *regs)
-{
-	enum event_trigger_type tt = ETT_NONE;
-
-	if (!__event_trigger_test_discard(file, buffer, event, entry, &tt))
-		trace_buffer_unlock_commit_regs(file->tr, buffer, event,
-						irq_flags, pc, regs);
-
-	if (tt)
-		event_triggers_post_call(file, tt, entry);
 }
 
 #ifdef CONFIG_BPF_EVENTS

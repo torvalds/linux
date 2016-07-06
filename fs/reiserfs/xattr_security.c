@@ -20,13 +20,14 @@ security_get(const struct xattr_handler *handler, struct dentry *unused,
 }
 
 static int
-security_set(const struct xattr_handler *handler, struct dentry *dentry,
-	     const char *name, const void *buffer, size_t size, int flags)
+security_set(const struct xattr_handler *handler, struct dentry *unused,
+	     struct inode *inode, const char *name, const void *buffer,
+	     size_t size, int flags)
 {
-	if (IS_PRIVATE(d_inode(dentry)))
+	if (IS_PRIVATE(inode))
 		return -EPERM;
 
-	return reiserfs_xattr_set(d_inode(dentry),
+	return reiserfs_xattr_set(inode,
 				  xattr_full_name(handler, name),
 				  buffer, size, flags);
 }

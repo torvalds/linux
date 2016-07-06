@@ -24,8 +24,6 @@
 #include <linux/module.h>
 #include <linux/bitops.h>
 
-#define DRV_VERSION "1.0.8"
-
 /* offsets into CCR area */
 
 #define CCR_SEC			0
@@ -634,8 +632,6 @@ static int x1205_probe(struct i2c_client *client,
 	if (x1205_validate_client(client) < 0)
 		return -ENODEV;
 
-	dev_info(&client->dev, "chip found, driver version " DRV_VERSION "\n");
-
 	rtc = devm_rtc_device_register(&client->dev, x1205_driver.driver.name,
 					&x1205_rtc_ops, THIS_MODULE);
 
@@ -693,4 +689,3 @@ MODULE_AUTHOR(
 	"Alessandro Zummo <a.zummo@towertech.it>");
 MODULE_DESCRIPTION("Xicor/Intersil X1205 RTC driver");
 MODULE_LICENSE("GPL");
-MODULE_VERSION(DRV_VERSION);

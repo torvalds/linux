@@ -256,7 +256,7 @@ static int machine__write_buildid_table(struct machine *machine, int fd)
 		size_t name_len;
 		bool in_kernel = false;
 
-		if (!pos->hit)
+		if (!pos->hit && !dso__is_vdso(pos))
 			continue;
 
 		if (dso__is_vdso(pos)) {

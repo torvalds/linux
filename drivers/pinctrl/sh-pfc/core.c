@@ -175,6 +175,21 @@ void sh_pfc_write_raw_reg(void __iomem *mapped_reg, unsigned int reg_width,
 	BUG();
 }
 
+u32 sh_pfc_read_reg(struct sh_pfc *pfc, u32 reg, unsigned int width)
+{
+	return sh_pfc_read_raw_reg(sh_pfc_phys_to_virt(pfc, reg), width);
+}
+
+void sh_pfc_write_reg(struct sh_pfc *pfc, u32 reg, unsigned int width, u32 data)
+{
+	if (pfc->info->unlock_reg)
+		sh_pfc_write_raw_reg(
+			sh_pfc_phys_to_virt(pfc, pfc->info->unlock_reg), 32,
+			~data);
+
+	sh_pfc_write_raw_reg(sh_pfc_phys_to_virt(pfc, reg), width, data);
+}
+
 static void sh_pfc_config_reg_helper(struct sh_pfc *pfc,
 				     const struct pinmux_cfg_reg *crp,
 				     unsigned int in_pos,
@@ -585,12 +600,9 @@ static int sh_pfc_probe(struct platform_device *pdev)
 
 static int sh_pfc_remove(struct platform_device *pdev)
 {
-	struct sh_pfc *pfc = platform_get_drvdata(pdev);
-
 #ifdef CONFIG_PINCTRL_SH_PFC_GPIO
-	sh_pfc_unregister_gpiochip(pfc);
+	sh_pfc_unregister_gpiochip(platform_get_drvdata(pdev));
 #endif
-	sh_pfc_unregister_pinctrl(pfc);
 
 	return 0;
 }

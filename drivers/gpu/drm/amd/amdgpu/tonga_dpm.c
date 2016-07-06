@@ -71,6 +71,11 @@ static int tonga_dpm_sw_init(void *handle)
 
 static int tonga_dpm_sw_fini(void *handle)
 {
+	struct amdgpu_device *adev = (struct amdgpu_device *)handle;
+
+	release_firmware(adev->pm.fw);
+	adev->pm.fw = NULL;
+
 	return 0;
 }
 
@@ -143,6 +148,7 @@ static int tonga_dpm_set_powergating_state(void *handle,
 }
 
 const struct amd_ip_funcs tonga_dpm_ip_funcs = {
+	.name = "tonga_dpm",
 	.early_init = tonga_dpm_early_init,
 	.late_init = NULL,
 	.sw_init = tonga_dpm_sw_init,
@@ -154,7 +160,6 @@ const struct amd_ip_funcs tonga_dpm_ip_funcs = {
 	.is_idle = NULL,
 	.wait_for_idle = NULL,
 	.soft_reset = NULL,
-	.print_status = NULL,
 	.set_clockgating_state = tonga_dpm_set_clockgating_state,
 	.set_powergating_state = tonga_dpm_set_powergating_state,
 };

@@ -149,6 +149,8 @@ static struct device_attribute dev_bgt_enabled =
 	__ATTR(bgt_enabled, S_IRUGO, dev_attribute_show, NULL);
 static struct device_attribute dev_mtd_num =
 	__ATTR(mtd_num, S_IRUGO, dev_attribute_show, NULL);
+static struct device_attribute dev_ro_mode =
+	__ATTR(ro_mode, S_IRUGO, dev_attribute_show, NULL);
 
 /**
  * ubi_volume_notify - send a volume change notification.
@@ -385,6 +387,8 @@ static ssize_t dev_attribute_show(struct device *dev,
 		ret = sprintf(buf, "%d\n", ubi->thread_enabled);
 	else if (attr == &dev_mtd_num)
 		ret = sprintf(buf, "%d\n", ubi->mtd->index);
+	else if (attr == &dev_ro_mode)
+		ret = sprintf(buf, "%d\n", ubi->ro_mode);
 	else
 		ret = -EINVAL;
 
@@ -404,6 +408,7 @@ static struct attribute *ubi_dev_attrs[] = {
 	&dev_min_io_size.attr,
 	&dev_bgt_enabled.attr,
 	&dev_mtd_num.attr,
+	&dev_ro_mode.attr,
 	NULL
 };
 ATTRIBUTE_GROUPS(ubi_dev);
@@ -1142,11 +1147,17 @@ int ubi_detach_mtd_dev(int ubi_num, int anyway)
  */
 static struct mtd_info * __init open_mtd_by_chdev(const char *mtd_dev)
 {
-	struct kstat stat;
 	int err, minor;
+	struct path path;
+	struct kstat stat;
 
 	/* Probably this is an MTD character device node path */
-	err = vfs_stat(mtd_dev, &stat);
+	err = kern_path(mtd_dev, LOOKUP_FOLLOW, &path);
+	if (err)
+		return ERR_PTR(err);
+
+	err = vfs_getattr(&path, &stat);
+	path_put(&path);
 	if (err)
 		return ERR_PTR(err);
 
@@ -1155,6 +1166,7 @@ static struct mtd_info * __init open_mtd_by_chdev(const char *mtd_dev)
 		return ERR_PTR(-EINVAL);
 
 	minor = MINOR(stat.rdev);
+
 	if (minor & 1)
 		/*
 		 * Just do not think the "/dev/mtdrX" devices support is need,

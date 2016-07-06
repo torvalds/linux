@@ -231,7 +231,7 @@ bpf_jit_binary_alloc(unsigned int proglen, u8 **image_ptr,
 	hdr->pages = size / PAGE_SIZE;
 	hole = min_t(unsigned int, size - (proglen + sizeof(*hdr)),
 		     PAGE_SIZE - sizeof(*hdr));
-	start = (prandom_u32() % hole) & ~(alignment - 1);
+	start = (get_random_int() % hole) & ~(alignment - 1);
 
 	/* Leave a random number of instructions before BPF code. */
 	*image_ptr = &hdr->image[start];
@@ -251,7 +251,7 @@ static int bpf_jit_blind_insn(const struct bpf_insn *from,
 			      struct bpf_insn *to_buff)
 {
 	struct bpf_insn *to = to_buff;
-	u32 imm_rnd = prandom_u32();
+	u32 imm_rnd = get_random_int();
 	s16 off;
 
 	BUILD_BUG_ON(BPF_REG_AX  + 1 != MAX_BPF_JIT_REG);

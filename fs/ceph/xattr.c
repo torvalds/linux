@@ -77,7 +77,7 @@ static size_t ceph_vxattrcb_layout(struct ceph_inode_info *ci, char *val,
 	char buf[128];
 
 	dout("ceph_vxattrcb_layout %p\n", &ci->vfs_inode);
-	down_read(&osdc->map_sem);
+	down_read(&osdc->lock);
 	pool_name = ceph_pg_pool_name_by_id(osdc->osdmap, pool);
 	if (pool_name) {
 		size_t len = strlen(pool_name);
@@ -109,7 +109,7 @@ static size_t ceph_vxattrcb_layout(struct ceph_inode_info *ci, char *val,
 				ret = -ERANGE;
 		}
 	}
-	up_read(&osdc->map_sem);
+	up_read(&osdc->lock);
 	return ret;
 }
 
@@ -143,13 +143,13 @@ static size_t ceph_vxattrcb_layout_pool(struct ceph_inode_info *ci,
 	s64 pool = ceph_file_layout_pg_pool(ci->i_layout);
 	const char *pool_name;
 
-	down_read(&osdc->map_sem);
+	down_read(&osdc->lock);
 	pool_name = ceph_pg_pool_name_by_id(osdc->osdmap, pool);
 	if (pool_name)
 		ret = snprintf(val, size, "%s", pool_name);
 	else
 		ret = snprintf(val, size, "%lld", (unsigned long long)pool);
-	up_read(&osdc->map_sem);
+	up_read(&osdc->lock);
 	return ret;
 }
 
@@ -862,6 +862,7 @@ static int ceph_sync_setxattr(struct inode *inode, const char *name,
 	struct ceph_mds_request *req;
 	struct ceph_mds_client *mdsc = fsc->mdsc;
 	struct ceph_pagelist *pagelist = NULL;
+	int op = CEPH_MDS_OP_SETXATTR;
 	int err;
 
 	if (size > 0) {
@@ -875,20 +876,21 @@ static int ceph_sync_setxattr(struct inode *inode, const char *name,
 		if (err)
 			goto out;
 	} else if (!value) {
-		flags |= CEPH_XATTR_REMOVE;
+		if (flags & CEPH_XATTR_REPLACE)
+			op = CEPH_MDS_OP_RMXATTR;
+		else
+			flags |= CEPH_XATTR_REMOVE;
 	}
 
 	dout("setxattr value=%.*s\n", (int)size, value);
 
 	/* do request */
-	req = ceph_mdsc_create_request(mdsc, CEPH_MDS_OP_SETXATTR,
-				       USE_AUTH_MDS);
+	req = ceph_mdsc_create_request(mdsc, op, USE_AUTH_MDS);
 	if (IS_ERR(req)) {
 		err = PTR_ERR(req);
 		goto out;
 	}
 
-	req->r_args.setxattr.flags = cpu_to_le32(flags);
 	req->r_path2 = kstrdup(name, GFP_NOFS);
 	if (!req->r_path2) {
 		ceph_mdsc_put_request(req);
@@ -896,8 +898,11 @@ static int ceph_sync_setxattr(struct inode *inode, const char *name,
 		goto out;
 	}
 
-	req->r_pagelist = pagelist;
-	pagelist = NULL;
+	if (op == CEPH_MDS_OP_SETXATTR) {
+		req->r_args.setxattr.flags = cpu_to_le32(flags);
+		req->r_pagelist = pagelist;
+		pagelist = NULL;
+	}
 
 	req->r_inode = inode;
 	ihold(inode);
@@ -1051,12 +1056,13 @@ static int ceph_get_xattr_handler(const struct xattr_handler *handler,
 }
 
 static int ceph_set_xattr_handler(const struct xattr_handler *handler,
-				  struct dentry *dentry, const char *name,
-				  const void *value, size_t size, int flags)
+				  struct dentry *unused, struct inode *inode,
+				  const char *name, const void *value,
+				  size_t size, int flags)
 {
 	if (!ceph_is_valid_xattr(name))
 		return -EOPNOTSUPP;
-	return __ceph_setxattr(d_inode(dentry), name, value, size, flags);
+	return __ceph_setxattr(inode, name, value, size, flags);
 }
 
 const struct xattr_handler ceph_other_xattr_handler = {

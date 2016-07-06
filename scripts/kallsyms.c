@@ -63,7 +63,6 @@ static unsigned int table_size, table_cnt;
 static int all_symbols = 0;
 static int absolute_percpu = 0;
 static char symbol_prefix_char = '\0';
-static unsigned long long kernel_start_addr = 0;
 static int base_relative = 0;
 
 int token_profit[0x10000];
@@ -223,14 +222,12 @@ static int symbol_valid(struct sym_entry *s)
 
 	static char *special_suffixes[] = {
 		"_veneer",		/* arm */
+		"_from_arm",		/* arm */
+		"_from_thumb",		/* arm */
 		NULL };
 
 	int i;
 	char *sym_name = (char *)s->sym + 1;
-
-
-	if (s->addr < kernel_start_addr)
-		return 0;
 
 	/* skip prefix char */
 	if (symbol_prefix_char && *sym_name == symbol_prefix_char)
@@ -765,9 +762,6 @@ int main(int argc, char **argv)
 				if ((*p == '"' && *(p+2) == '"') || (*p == '\'' && *(p+2) == '\''))
 					p++;
 				symbol_prefix_char = *p;
-			} else if (strncmp(argv[i], "--page-offset=", 14) == 0) {
-				const char *p = &argv[i][14];
-				kernel_start_addr = strtoull(p, NULL, 16);
 			} else if (strcmp(argv[i], "--base-relative") == 0)
 				base_relative = 1;
 			else

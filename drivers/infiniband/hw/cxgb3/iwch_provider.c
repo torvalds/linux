@@ -783,15 +783,14 @@ static int iwch_set_page(struct ib_mr *ibmr, u64 addr)
 	return 0;
 }
 
-static int iwch_map_mr_sg(struct ib_mr *ibmr,
-			  struct scatterlist *sg,
-			  int sg_nents)
+static int iwch_map_mr_sg(struct ib_mr *ibmr, struct scatterlist *sg,
+			  int sg_nents, unsigned int *sg_offset)
 {
 	struct iwch_mr *mhp = to_iwch_mr(ibmr);
 
 	mhp->npages = 0;
 
-	return ib_sg_to_pages(ibmr, sg, sg_nents, iwch_set_page);
+	return ib_sg_to_pages(ibmr, sg, sg_nents, sg_offset, iwch_set_page);
 }
 
 static int iwch_destroy_qp(struct ib_qp *ib_qp)
@@ -1219,12 +1218,85 @@ static ssize_t show_board(struct device *dev, struct device_attribute *attr,
 		       iwch_dev->rdev.rnic_info.pdev->device);
 }
 
-static int iwch_get_mib(struct ib_device *ibdev,
-			union rdma_protocol_stats *stats)
+enum counters {
+	IPINRECEIVES,
+	IPINHDRERRORS,
+	IPINADDRERRORS,
+	IPINUNKNOWNPROTOS,
+	IPINDISCARDS,
+	IPINDELIVERS,
+	IPOUTREQUESTS,
+	IPOUTDISCARDS,
+	IPOUTNOROUTES,
+	IPREASMTIMEOUT,
+	IPREASMREQDS,
+	IPREASMOKS,
+	IPREASMFAILS,
+	TCPACTIVEOPENS,
+	TCPPASSIVEOPENS,
+	TCPATTEMPTFAILS,
+	TCPESTABRESETS,
+	TCPCURRESTAB,
+	TCPINSEGS,
+	TCPOUTSEGS,
+	TCPRETRANSSEGS,
+	TCPINERRS,
+	TCPOUTRSTS,
+	TCPRTOMIN,
+	TCPRTOMAX,
+	NR_COUNTERS
+};
+
+static const char * const names[] = {
+	[IPINRECEIVES] = "ipInReceives",
+	[IPINHDRERRORS] = "ipInHdrErrors",
+	[IPINADDRERRORS] = "ipInAddrErrors",
+	[IPINUNKNOWNPROTOS] = "ipInUnknownProtos",
+	[IPINDISCARDS] = "ipInDiscards",
+	[IPINDELIVERS] = "ipInDelivers",
+	[IPOUTREQUESTS] = "ipOutRequests",
+	[IPOUTDISCARDS] = "ipOutDiscards",
+	[IPOUTNOROUTES] = "ipOutNoRoutes",
+	[IPREASMTIMEOUT] = "ipReasmTimeout",
+	[IPREASMREQDS] = "ipReasmReqds",
+	[IPREASMOKS] = "ipReasmOKs",
+	[IPREASMFAILS] = "ipReasmFails",
+	[TCPACTIVEOPENS] = "tcpActiveOpens",
+	[TCPPASSIVEOPENS] = "tcpPassiveOpens",
+	[TCPATTEMPTFAILS] = "tcpAttemptFails",
+	[TCPESTABRESETS] = "tcpEstabResets",
+	[TCPCURRESTAB] = "tcpCurrEstab",
+	[TCPINSEGS] = "tcpInSegs",
+	[TCPOUTSEGS] = "tcpOutSegs",
+	[TCPRETRANSSEGS] = "tcpRetransSegs",
+	[TCPINERRS] = "tcpInErrs",
+	[TCPOUTRSTS] = "tcpOutRsts",
+	[TCPRTOMIN] = "tcpRtoMin",
+	[TCPRTOMAX] = "tcpRtoMax",
+};
+
+static struct rdma_hw_stats *iwch_alloc_stats(struct ib_device *ibdev,
+					      u8 port_num)
+{
+	BUILD_BUG_ON(ARRAY_SIZE(names) != NR_COUNTERS);
+
+	/* Our driver only supports device level stats */
+	if (port_num != 0)
+		return NULL;
+
+	return rdma_alloc_hw_stats_struct(names, NR_COUNTERS,
+					  RDMA_HW_STATS_DEFAULT_LIFESPAN);
+}
+
+static int iwch_get_mib(struct ib_device *ibdev, struct rdma_hw_stats *stats,
+			u8 port, int index)
 {
 	struct iwch_dev *dev;
 	struct tp_mib_stats m;
 	int ret;
+
+	if (port != 0 || !stats)
+		return -ENOSYS;
 
 	PDBG("%s ibdev %p\n", __func__, ibdev);
 	dev = to_iwch_dev(ibdev);
@@ -1232,46 +1304,33 @@ static int iwch_get_mib(struct ib_device *ibdev,
 	if (ret)
 		return -ENOSYS;
 
-	memset(stats, 0, sizeof *stats);
-	stats->iw.ipInReceives = ((u64) m.ipInReceive_hi << 32) +
-				m.ipInReceive_lo;
-	stats->iw.ipInHdrErrors = ((u64) m.ipInHdrErrors_hi << 32) +
-				  m.ipInHdrErrors_lo;
-	stats->iw.ipInAddrErrors = ((u64) m.ipInAddrErrors_hi << 32) +
-				   m.ipInAddrErrors_lo;
-	stats->iw.ipInUnknownProtos = ((u64) m.ipInUnknownProtos_hi << 32) +
-				      m.ipInUnknownProtos_lo;
-	stats->iw.ipInDiscards = ((u64) m.ipInDiscards_hi << 32) +
-				 m.ipInDiscards_lo;
-	stats->iw.ipInDelivers = ((u64) m.ipInDelivers_hi << 32) +
-				 m.ipInDelivers_lo;
-	stats->iw.ipOutRequests = ((u64) m.ipOutRequests_hi << 32) +
-				  m.ipOutRequests_lo;
-	stats->iw.ipOutDiscards = ((u64) m.ipOutDiscards_hi << 32) +
-				  m.ipOutDiscards_lo;
-	stats->iw.ipOutNoRoutes = ((u64) m.ipOutNoRoutes_hi << 32) +
-				  m.ipOutNoRoutes_lo;
-	stats->iw.ipReasmTimeout = (u64) m.ipReasmTimeout;
-	stats->iw.ipReasmReqds = (u64) m.ipReasmReqds;
-	stats->iw.ipReasmOKs = (u64) m.ipReasmOKs;
-	stats->iw.ipReasmFails = (u64) m.ipReasmFails;
-	stats->iw.tcpActiveOpens = (u64) m.tcpActiveOpens;
-	stats->iw.tcpPassiveOpens = (u64) m.tcpPassiveOpens;
-	stats->iw.tcpAttemptFails = (u64) m.tcpAttemptFails;
-	stats->iw.tcpEstabResets = (u64) m.tcpEstabResets;
-	stats->iw.tcpOutRsts = (u64) m.tcpOutRsts;
-	stats->iw.tcpCurrEstab = (u64) m.tcpCurrEstab;
-	stats->iw.tcpInSegs = ((u64) m.tcpInSegs_hi << 32) +
-			      m.tcpInSegs_lo;
-	stats->iw.tcpOutSegs = ((u64) m.tcpOutSegs_hi << 32) +
-			       m.tcpOutSegs_lo;
-	stats->iw.tcpRetransSegs = ((u64) m.tcpRetransSeg_hi << 32) +
-				  m.tcpRetransSeg_lo;
-	stats->iw.tcpInErrs = ((u64) m.tcpInErrs_hi << 32) +
-			      m.tcpInErrs_lo;
-	stats->iw.tcpRtoMin = (u64) m.tcpRtoMin;
-	stats->iw.tcpRtoMax = (u64) m.tcpRtoMax;
-	return 0;
+	stats->value[IPINRECEIVES] = ((u64)m.ipInReceive_hi << 32) +	m.ipInReceive_lo;
+	stats->value[IPINHDRERRORS] = ((u64)m.ipInHdrErrors_hi << 32) + m.ipInHdrErrors_lo;
+	stats->value[IPINADDRERRORS] = ((u64)m.ipInAddrErrors_hi << 32) + m.ipInAddrErrors_lo;
+	stats->value[IPINUNKNOWNPROTOS] = ((u64)m.ipInUnknownProtos_hi << 32) + m.ipInUnknownProtos_lo;
+	stats->value[IPINDISCARDS] = ((u64)m.ipInDiscards_hi << 32) + m.ipInDiscards_lo;
+	stats->value[IPINDELIVERS] = ((u64)m.ipInDelivers_hi << 32) + m.ipInDelivers_lo;
+	stats->value[IPOUTREQUESTS] = ((u64)m.ipOutRequests_hi << 32) + m.ipOutRequests_lo;
+	stats->value[IPOUTDISCARDS] = ((u64)m.ipOutDiscards_hi << 32) + m.ipOutDiscards_lo;
+	stats->value[IPOUTNOROUTES] = ((u64)m.ipOutNoRoutes_hi << 32) + m.ipOutNoRoutes_lo;
+	stats->value[IPREASMTIMEOUT] = 	m.ipReasmTimeout;
+	stats->value[IPREASMREQDS] = m.ipReasmReqds;
+	stats->value[IPREASMOKS] = m.ipReasmOKs;
+	stats->value[IPREASMFAILS] = m.ipReasmFails;
+	stats->value[TCPACTIVEOPENS] =	m.tcpActiveOpens;
+	stats->value[TCPPASSIVEOPENS] =	m.tcpPassiveOpens;
+	stats->value[TCPATTEMPTFAILS] = m.tcpAttemptFails;
+	stats->value[TCPESTABRESETS] = m.tcpEstabResets;
+	stats->value[TCPCURRESTAB] = m.tcpOutRsts;
+	stats->value[TCPINSEGS] = m.tcpCurrEstab;
+	stats->value[TCPOUTSEGS] = ((u64)m.tcpInSegs_hi << 32) + m.tcpInSegs_lo;
+	stats->value[TCPRETRANSSEGS] = ((u64)m.tcpOutSegs_hi << 32) + m.tcpOutSegs_lo;
+	stats->value[TCPINERRS] = ((u64)m.tcpRetransSeg_hi << 32) + m.tcpRetransSeg_lo,
+	stats->value[TCPOUTRSTS] = ((u64)m.tcpInErrs_hi << 32) + m.tcpInErrs_lo;
+	stats->value[TCPRTOMIN] = m.tcpRtoMin;
+	stats->value[TCPRTOMAX] = m.tcpRtoMax;
+
+	return stats->num_counters;
 }
 
 static DEVICE_ATTR(hw_rev, S_IRUGO, show_rev, NULL);
@@ -1374,7 +1433,8 @@ int iwch_register_device(struct iwch_dev *dev)
 	dev->ibdev.req_notify_cq = iwch_arm_cq;
 	dev->ibdev.post_send = iwch_post_send;
 	dev->ibdev.post_recv = iwch_post_receive;
-	dev->ibdev.get_protocol_stats = iwch_get_mib;
+	dev->ibdev.alloc_hw_stats = iwch_alloc_stats;
+	dev->ibdev.get_hw_stats = iwch_get_mib;
 	dev->ibdev.uverbs_abi_ver = IWCH_UVERBS_ABI_VERSION;
 	dev->ibdev.get_port_immutable = iwch_port_immutable;
 

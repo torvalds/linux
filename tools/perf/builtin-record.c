@@ -40,6 +40,7 @@
 #include <unistd.h>
 #include <sched.h>
 #include <sys/mman.h>
+#include <asm/bug.h>
 
 
 struct record {
@@ -82,27 +83,87 @@ static int process_synthesized_event(struct perf_tool *tool,
 	return record__write(rec, event, event->header.size);
 }
 
+static int
+backward_rb_find_range(void *buf, int mask, u64 head, u64 *start, u64 *end)
+{
+	struct perf_event_header *pheader;
+	u64 evt_head = head;
+	int size = mask + 1;
+
+	pr_debug2("backward_rb_find_range: buf=%p, head=%"PRIx64"\n", buf, head);
+	pheader = (struct perf_event_header *)(buf + (head & mask));
+	*start = head;
+	while (true) {
+		if (evt_head - head >= (unsigned int)size) {
+			pr_debug("Finshed reading backward ring buffer: rewind\n");
+			if (evt_head - head > (unsigned int)size)
+				evt_head -= pheader->size;
+			*end = evt_head;
+			return 0;
+		}
+
+		pheader = (struct perf_event_header *)(buf + (evt_head & mask));
+
+		if (pheader->size == 0) {
+			pr_debug("Finshed reading backward ring buffer: get start\n");
+			*end = evt_head;
+			return 0;
+		}
+
+		evt_head += pheader->size;
+		pr_debug3("move evt_head: %"PRIx64"\n", evt_head);
+	}
+	WARN_ONCE(1, "Shouldn't get here\n");
+	return -1;
+}
+
+static int
+rb_find_range(struct perf_evlist *evlist,
+	      void *data, int mask, u64 head, u64 old,
+	      u64 *start, u64 *end)
+{
+	if (!evlist->backward) {
+		*start = old;
+		*end = head;
+		return 0;
+	}
+
+	return backward_rb_find_range(data, mask, head, start, end);
+}
+
 static int record__mmap_read(struct record *rec, int idx)
 {
 	struct perf_mmap *md = &rec->evlist->mmap[idx];
 	u64 head = perf_mmap__read_head(md);
 	u64 old = md->prev;
+	u64 end = head, start = old;
 	unsigned char *data = md->base + page_size;
 	unsigned long size;
 	void *buf;
 	int rc = 0;
 
-	if (old == head)
+	if (rb_find_range(rec->evlist, data, md->mask, head,
+			  old, &start, &end))
+		return -1;
+
+	if (start == end)
 		return 0;
 
 	rec->samples++;
 
-	size = head - old;
+	size = end - start;
+	if (size > (unsigned long)(md->mask) + 1) {
+		WARN_ONCE(1, "failed to keep up with mmap data. (warn only once)\n");
 
-	if ((old & md->mask) + size != (head & md->mask)) {
-		buf = &data[old & md->mask];
-		size = md->mask + 1 - (old & md->mask);
-		old += size;
+		md->prev = head;
+		perf_evlist__mmap_consume(rec->evlist, idx);
+		return 0;
+	}
+
+	if ((start & md->mask) + size != (end & md->mask)) {
+		buf = &data[start & md->mask];
+		size = md->mask + 1 - (start & md->mask);
+		start += size;
 
 		if (record__write(rec, buf, size) < 0) {
 			rc = -1;
@@ -110,16 +171,16 @@ static int record__mmap_read(struct record *rec, int idx)
 		}
 	}
 
-	buf = &data[old & md->mask];
-	size = head - old;
-	old += size;
+	buf = &data[start & md->mask];
+	size = end - start;
+	start += size;
 
 	if (record__write(rec, buf, size) < 0) {
 		rc = -1;
 		goto out;
 	}
 
-	md->prev = old;
+	md->prev = head;
 	perf_evlist__mmap_consume(rec->evlist, idx);
 out:
 	return rc;

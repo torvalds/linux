@@ -136,7 +136,8 @@ u64 bpf_get_stackid(u64 r1, u64 r2, u64 flags, u64 r4, u64 r5)
 			       BPF_F_FAST_STACK_CMP | BPF_F_REUSE_STACKID)))
 		return -EINVAL;
 
-	trace = get_perf_callchain(regs, init_nr, kernel, user, false, false);
+	trace = get_perf_callchain(regs, init_nr, kernel, user,
+				   sysctl_perf_event_max_stack, false, false);
 
 	if (unlikely(!trace))
 		/* couldn't fetch the stack trace */

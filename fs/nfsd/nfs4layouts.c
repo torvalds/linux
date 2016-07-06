@@ -289,7 +289,7 @@ nfsd4_preprocess_layout_stateid(struct svc_rqst *rqstp,
 
 		status = nfserr_bad_stateid;
 		mutex_lock(&ls->ls_mutex);
-		if (stateid->si_generation > stid->sc_stateid.si_generation)
+		if (nfsd4_stateid_generation_after(stateid, &stid->sc_stateid))
 			goto out_unlock_stid;
 		if (layout_type != ls->ls_layout_type)
 			goto out_unlock_stid;

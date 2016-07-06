@@ -134,7 +134,7 @@ config MFD_CROS_EC
 	select MFD_CORE
 	select CHROME_PLATFORMS
 	select CROS_EC_PROTO
-	depends on X86 || ARM || COMPILE_TEST
+	depends on X86 || ARM || ARM64 || COMPILE_TEST
 	help
 	  If you say Y here you get support for the ChromeOS Embedded
 	  Controller (EC) providing keyboard, battery and power services.
@@ -318,6 +318,16 @@ config MFD_HI6421_PMIC
 	  individul components like voltage regulators under corresponding
 	  menus in order to enable them.
 	  We communicate with the Hi6421 via memory-mapped I/O.
+
+config MFD_HI655X_PMIC
+	tristate "HiSilicon Hi655X series PMU/Codec IC"
+	depends on ARCH_HISI || COMPILE_TEST
+	depends on OF
+	select MFD_CORE
+	select REGMAP_MMIO
+	select REGMAP_IRQ
+	help
+	  Select this option to enable Hisilicon hi655x series pmic driver.
 
 config HTC_EGPIO
 	bool "HTC EGPIO support"
@@ -527,6 +537,21 @@ config MFD_MAX14577
 	  additional drivers must be enabled in order to use the functionality
 	  of the device.
 
+config MFD_MAX77620
+	bool "Maxim Semiconductor MAX77620 and MAX20024 PMIC Support"
+	depends on I2C=y
+	depends on OF
+	select MFD_CORE
+	select REGMAP_I2C
+	select REGMAP_IRQ
+	select IRQ_DOMAIN
+	help
+	  Say yes here to add support for Maxim Semiconductor MAX77620 and
+	  MAX20024 which are Power Management IC with General purpose pins,
+	  RTC, regulators, clock generator, watchdog etc. This driver
+	  provides common support for accessing the device; additional drivers
+	  must be enabled in order to use the functionality of the device.
+
 config MFD_MAX77686
 	tristate "Maxim Semiconductor MAX77686/802 PMIC Support"
 	depends on I2C
@@ -543,8 +568,8 @@ config MFD_MAX77686
 	  of the device.
 
 config MFD_MAX77693
-	bool "Maxim Semiconductor MAX77693 PMIC Support"
-	depends on I2C=y
+	tristate "Maxim Semiconductor MAX77693 PMIC Support"
+	depends on I2C
 	select MFD_CORE
 	select REGMAP_I2C
 	select REGMAP_IRQ
@@ -1568,7 +1593,7 @@ endmenu
 
 config MFD_VEXPRESS_SYSREG
 	bool "Versatile Express System Registers"
-	depends on VEXPRESS_CONFIG && GPIOLIB
+	depends on VEXPRESS_CONFIG && GPIOLIB && !ARCH_USES_GETTIMEOFFSET
 	default y
 	select CLKSRC_MMIO
 	select GPIO_GENERIC_PLATFORM

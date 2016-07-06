@@ -12,7 +12,7 @@ Overview:
 The IBM POWER-based pSeries and iSeries computers include PCI bus
 controller chips that have extended capabilities for detecting and
 reporting a large variety of PCI bus error conditions.  These features
-go under the name of "EEH", for "Extended Error Handling".  The EEH
+go under the name of "EEH", for "Enhanced Error Handling".  The EEH
 hardware features allow PCI bus errors to be cleared and a PCI
 card to be "rebooted", without also having to reboot the operating
 system.

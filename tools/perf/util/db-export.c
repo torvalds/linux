@@ -298,8 +298,7 @@ static struct call_path *call_path_from_sample(struct db_export *dbe,
 	 */
 	callchain_param.order = ORDER_CALLER;
 	err = thread__resolve_callchain(thread, &callchain_cursor, evsel,
-					sample, NULL, NULL,
-					sysctl_perf_event_max_stack);
+					sample, NULL, NULL, PERF_MAX_STACK_DEPTH);
 	if (err) {
 		callchain_param.order = saved_order;
 		return NULL;

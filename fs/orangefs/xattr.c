@@ -448,13 +448,14 @@ out_unlock:
 }
 
 static int orangefs_xattr_set_default(const struct xattr_handler *handler,
-				      struct dentry *dentry,
+				      struct dentry *unused,
+				      struct inode *inode,
 				      const char *name,
 				      const void *buffer,
 				      size_t size,
 				      int flags)
 {
-	return orangefs_inode_setxattr(dentry->d_inode,
+	return orangefs_inode_setxattr(inode,
 				    ORANGEFS_XATTR_NAME_DEFAULT_PREFIX,
 				    name,
 				    buffer,
@@ -478,13 +479,14 @@ static int orangefs_xattr_get_default(const struct xattr_handler *handler,
 }
 
 static int orangefs_xattr_set_trusted(const struct xattr_handler *handler,
-				     struct dentry *dentry,
+				     struct dentry *unused,
+				     struct inode *inode,
 				     const char *name,
 				     const void *buffer,
 				     size_t size,
 				     int flags)
 {
-	return orangefs_inode_setxattr(dentry->d_inode,
+	return orangefs_inode_setxattr(inode,
 				    ORANGEFS_XATTR_NAME_TRUSTED_PREFIX,
 				    name,
 				    buffer,

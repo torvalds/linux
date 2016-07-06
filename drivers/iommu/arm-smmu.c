@@ -34,6 +34,7 @@
 #include <linux/err.h>
 #include <linux/interrupt.h>
 #include <linux/io.h>
+#include <linux/io-64-nonatomic-hi-lo.h>
 #include <linux/iommu.h>
 #include <linux/iopoll.h>
 #include <linux/module.h>
@@ -49,7 +50,7 @@
 #include "io-pgtable.h"
 
 /* Maximum number of stream IDs assigned to a single device */
-#define MAX_MASTER_STREAMIDS		MAX_PHANDLE_ARGS
+#define MAX_MASTER_STREAMIDS		128
 
 /* Maximum number of context banks per SMMU */
 #define ARM_SMMU_MAX_CBS		128
@@ -71,16 +72,15 @@
 		((smmu->options & ARM_SMMU_OPT_SECURE_CFG_ACCESS)	\
 			? 0x400 : 0))
 
+/*
+ * Some 64-bit registers only make sense to write atomically, but in such
+ * cases all the data relevant to AArch32 formats lies within the lower word,
+ * therefore this actually makes more sense than it might first appear.
+ */
 #ifdef CONFIG_64BIT
-#define smmu_writeq	writeq_relaxed
+#define smmu_write_atomic_lq		writeq_relaxed
 #else
-#define smmu_writeq(reg64, addr)				\
-	do {							\
-		u64 __val = (reg64);				\
-		void __iomem *__addr = (addr);			\
-		writel_relaxed(__val >> 32, __addr + 4);	\
-		writel_relaxed(__val, __addr);			\
-	} while (0)
+#define smmu_write_atomic_lq		writel_relaxed
 #endif
 
 /* Configuration registers */
@@ -94,8 +94,12 @@
 #define sCR0_VMIDPNE			(1 << 11)
 #define sCR0_PTM			(1 << 12)
 #define sCR0_FB				(1 << 13)
+#define sCR0_VMID16EN			(1 << 31)
 #define sCR0_BSU_SHIFT			14
 #define sCR0_BSU_MASK			0x3
+
+/* Auxiliary Configuration register */
+#define ARM_SMMU_GR0_sACR		0x10
 
 /* Identification registers */
 #define ARM_SMMU_GR0_ID0		0x20
@@ -116,6 +120,8 @@
 #define ID0_NTS				(1 << 28)
 #define ID0_SMS				(1 << 27)
 #define ID0_ATOSNS			(1 << 26)
+#define ID0_PTFS_NO_AARCH32		(1 << 25)
+#define ID0_PTFS_NO_AARCH32S		(1 << 24)
 #define ID0_CTTW			(1 << 14)
 #define ID0_NUMIRPT_SHIFT		16
 #define ID0_NUMIRPT_MASK		0xff
@@ -141,6 +147,10 @@
 #define ID2_PTFS_4K			(1 << 12)
 #define ID2_PTFS_16K			(1 << 13)
 #define ID2_PTFS_64K			(1 << 14)
+#define ID2_VMID16			(1 << 15)
+
+#define ID7_MAJOR_SHIFT			4
+#define ID7_MAJOR_MASK			0xf
 
 /* Global TLB invalidation */
 #define ARM_SMMU_GR0_TLBIVMID		0x64
@@ -193,12 +203,15 @@
 #define ARM_SMMU_GR1_CBA2R(n)		(0x800 + ((n) << 2))
 #define CBA2R_RW64_32BIT		(0 << 0)
 #define CBA2R_RW64_64BIT		(1 << 0)
+#define CBA2R_VMID_SHIFT		16
+#define CBA2R_VMID_MASK			0xffff
 
 /* Translation context bank */
 #define ARM_SMMU_CB_BASE(smmu)		((smmu)->base + ((smmu)->size >> 1))
 #define ARM_SMMU_CB(smmu, n)		((n) * (1 << (smmu)->pgshift))
 
 #define ARM_SMMU_CB_SCTLR		0x0
+#define ARM_SMMU_CB_ACTLR		0x4
 #define ARM_SMMU_CB_RESUME		0x8
 #define ARM_SMMU_CB_TTBCR2		0x10
 #define ARM_SMMU_CB_TTBR0		0x20
@@ -206,11 +219,9 @@
 #define ARM_SMMU_CB_TTBCR		0x30
 #define ARM_SMMU_CB_S1_MAIR0		0x38
 #define ARM_SMMU_CB_S1_MAIR1		0x3c
-#define ARM_SMMU_CB_PAR_LO		0x50
-#define ARM_SMMU_CB_PAR_HI		0x54
+#define ARM_SMMU_CB_PAR			0x50
 #define ARM_SMMU_CB_FSR			0x58
-#define ARM_SMMU_CB_FAR_LO		0x60
-#define ARM_SMMU_CB_FAR_HI		0x64
+#define ARM_SMMU_CB_FAR			0x60
 #define ARM_SMMU_CB_FSYNR0		0x68
 #define ARM_SMMU_CB_S1_TLBIVA		0x600
 #define ARM_SMMU_CB_S1_TLBIASID		0x610
@@ -229,6 +240,10 @@
 #define SCTLR_TRE			(1 << 1)
 #define SCTLR_M				(1 << 0)
 #define SCTLR_EAE_SBOP			(SCTLR_AFE | SCTLR_TRE)
+
+#define ARM_MMU500_ACTLR_CPRE		(1 << 1)
+
+#define ARM_MMU500_ACR_CACHE_LOCK	(1 << 26)
 
 #define CB_PAR_F			(1 << 0)
 
@@ -270,8 +285,15 @@ MODULE_PARM_DESC(disable_bypass,
 	"Disable bypass streams such that incoming transactions from devices that are not attached to an iommu domain will report an abort back to the device and will not be allowed to pass through the SMMU.");
 
 enum arm_smmu_arch_version {
-	ARM_SMMU_V1 = 1,
+	ARM_SMMU_V1,
+	ARM_SMMU_V1_64K,
 	ARM_SMMU_V2,
+};
+
+enum arm_smmu_implementation {
+	GENERIC_SMMU,
+	ARM_MMU500,
+	CAVIUM_SMMUV2,
 };
 
 struct arm_smmu_smr {
@@ -305,11 +327,18 @@ struct arm_smmu_device {
 #define ARM_SMMU_FEAT_TRANS_S2		(1 << 3)
 #define ARM_SMMU_FEAT_TRANS_NESTED	(1 << 4)
 #define ARM_SMMU_FEAT_TRANS_OPS		(1 << 5)
+#define ARM_SMMU_FEAT_VMID16		(1 << 6)
+#define ARM_SMMU_FEAT_FMT_AARCH64_4K	(1 << 7)
+#define ARM_SMMU_FEAT_FMT_AARCH64_16K	(1 << 8)
+#define ARM_SMMU_FEAT_FMT_AARCH64_64K	(1 << 9)
+#define ARM_SMMU_FEAT_FMT_AARCH32_L	(1 << 10)
+#define ARM_SMMU_FEAT_FMT_AARCH32_S	(1 << 11)
 	u32				features;
 
 #define ARM_SMMU_OPT_SECURE_CFG_ACCESS (1 << 0)
 	u32				options;
 	enum arm_smmu_arch_version	version;
+	enum arm_smmu_implementation	model;
 
 	u32				num_context_banks;
 	u32				num_s2_context_banks;
@@ -322,6 +351,7 @@ struct arm_smmu_device {
 	unsigned long			va_size;
 	unsigned long			ipa_size;
 	unsigned long			pa_size;
+	unsigned long			pgsize_bitmap;
 
 	u32				num_global_irqs;
 	u32				num_context_irqs;
@@ -329,17 +359,27 @@ struct arm_smmu_device {
 
 	struct list_head		list;
 	struct rb_root			masters;
+
+	u32				cavium_id_base; /* Specific to Cavium */
+};
+
+enum arm_smmu_context_fmt {
+	ARM_SMMU_CTX_FMT_NONE,
+	ARM_SMMU_CTX_FMT_AARCH64,
+	ARM_SMMU_CTX_FMT_AARCH32_L,
+	ARM_SMMU_CTX_FMT_AARCH32_S,
 };
 
 struct arm_smmu_cfg {
 	u8				cbndx;
 	u8				irptndx;
 	u32				cbar;
+	enum arm_smmu_context_fmt	fmt;
 };
 #define INVALID_IRPTNDX			0xff
 
-#define ARM_SMMU_CB_ASID(cfg)		((cfg)->cbndx)
-#define ARM_SMMU_CB_VMID(cfg)		((cfg)->cbndx + 1)
+#define ARM_SMMU_CB_ASID(smmu, cfg) ((u16)(smmu)->cavium_id_base + (cfg)->cbndx)
+#define ARM_SMMU_CB_VMID(smmu, cfg) ((u16)(smmu)->cavium_id_base + (cfg)->cbndx + 1)
 
 enum arm_smmu_domain_stage {
 	ARM_SMMU_DOMAIN_S1 = 0,
@@ -357,7 +397,11 @@ struct arm_smmu_domain {
 	struct iommu_domain		domain;
 };
 
-static struct iommu_ops arm_smmu_ops;
+struct arm_smmu_phandle_args {
+	struct device_node *np;
+	int args_count;
+	uint32_t args[MAX_MASTER_STREAMIDS];
+};
 
 static DEFINE_SPINLOCK(arm_smmu_devices_lock);
 static LIST_HEAD(arm_smmu_devices);
@@ -366,6 +410,8 @@ struct arm_smmu_option_prop {
 	u32 opt;
 	const char *prop;
 };
+
+static atomic_t cavium_smmu_context_count = ATOMIC_INIT(0);
 
 static struct arm_smmu_option_prop arm_smmu_options[] = {
 	{ ARM_SMMU_OPT_SECURE_CFG_ACCESS, "calxeda,smmu-secure-config-access" },
@@ -466,7 +512,7 @@ static int insert_smmu_master(struct arm_smmu_device *smmu,
 
 static int register_smmu_master(struct arm_smmu_device *smmu,
 				struct device *dev,
-				struct of_phandle_args *masterspec)
+				struct arm_smmu_phandle_args *masterspec)
 {
 	int i;
 	struct arm_smmu_master *master;
@@ -578,11 +624,11 @@ static void arm_smmu_tlb_inv_context(void *cookie)
 
 	if (stage1) {
 		base = ARM_SMMU_CB_BASE(smmu) + ARM_SMMU_CB(smmu, cfg->cbndx);
-		writel_relaxed(ARM_SMMU_CB_ASID(cfg),
+		writel_relaxed(ARM_SMMU_CB_ASID(smmu, cfg),
 			       base + ARM_SMMU_CB_S1_TLBIASID);
 	} else {
 		base = ARM_SMMU_GR0(smmu);
-		writel_relaxed(ARM_SMMU_CB_VMID(cfg),
+		writel_relaxed(ARM_SMMU_CB_VMID(smmu, cfg),
 			       base + ARM_SMMU_GR0_TLBIVMID);
 	}
 
@@ -602,37 +648,33 @@ static void arm_smmu_tlb_inv_range_nosync(unsigned long iova, size_t size,
 		reg = ARM_SMMU_CB_BASE(smmu) + ARM_SMMU_CB(smmu, cfg->cbndx);
 		reg += leaf ? ARM_SMMU_CB_S1_TLBIVAL : ARM_SMMU_CB_S1_TLBIVA;
 
-		if (!IS_ENABLED(CONFIG_64BIT) || smmu->version == ARM_SMMU_V1) {
+		if (cfg->fmt != ARM_SMMU_CTX_FMT_AARCH64) {
 			iova &= ~12UL;
-			iova |= ARM_SMMU_CB_ASID(cfg);
+			iova |= ARM_SMMU_CB_ASID(smmu, cfg);
 			do {
 				writel_relaxed(iova, reg);
 				iova += granule;
 			} while (size -= granule);
-#ifdef CONFIG_64BIT
 		} else {
 			iova >>= 12;
-			iova |= (u64)ARM_SMMU_CB_ASID(cfg) << 48;
+			iova |= (u64)ARM_SMMU_CB_ASID(smmu, cfg) << 48;
 			do {
 				writeq_relaxed(iova, reg);
 				iova += granule >> 12;
 			} while (size -= granule);
-#endif
 		}
-#ifdef CONFIG_64BIT
 	} else if (smmu->version == ARM_SMMU_V2) {
 		reg = ARM_SMMU_CB_BASE(smmu) + ARM_SMMU_CB(smmu, cfg->cbndx);
 		reg += leaf ? ARM_SMMU_CB_S2_TLBIIPAS2L :
 			      ARM_SMMU_CB_S2_TLBIIPAS2;
 		iova >>= 12;
 		do {
-			writeq_relaxed(iova, reg);
+			smmu_write_atomic_lq(iova, reg);
 			iova += granule >> 12;
 		} while (size -= granule);
-#endif
 	} else {
 		reg = ARM_SMMU_GR0(smmu) + ARM_SMMU_GR0_TLBIVMID;
-		writel_relaxed(ARM_SMMU_CB_VMID(cfg), reg);
+		writel_relaxed(ARM_SMMU_CB_VMID(smmu, cfg), reg);
 	}
 }
 
@@ -645,7 +687,7 @@ static struct iommu_gather_ops arm_smmu_gather_ops = {
 static irqreturn_t arm_smmu_context_fault(int irq, void *dev)
 {
 	int flags, ret;
-	u32 fsr, far, fsynr, resume;
+	u32 fsr, fsynr, resume;
 	unsigned long iova;
 	struct iommu_domain *domain = dev;
 	struct arm_smmu_domain *smmu_domain = to_smmu_domain(domain);
@@ -667,13 +709,7 @@ static irqreturn_t arm_smmu_context_fault(int irq, void *dev)
 	fsynr = readl_relaxed(cb_base + ARM_SMMU_CB_FSYNR0);
 	flags = fsynr & FSYNR0_WNR ? IOMMU_FAULT_WRITE : IOMMU_FAULT_READ;
 
-	far = readl_relaxed(cb_base + ARM_SMMU_CB_FAR_LO);
-	iova = far;
-#ifdef CONFIG_64BIT
-	far = readl_relaxed(cb_base + ARM_SMMU_CB_FAR_HI);
-	iova |= ((unsigned long)far << 32);
-#endif
-
+	iova = readq_relaxed(cb_base + ARM_SMMU_CB_FAR);
 	if (!report_iommu_fault(domain, smmu->dev, iova, flags)) {
 		ret = IRQ_HANDLED;
 		resume = RESUME_RETRY;
@@ -734,22 +770,20 @@ static void arm_smmu_init_context_bank(struct arm_smmu_domain *smmu_domain,
 	cb_base = ARM_SMMU_CB_BASE(smmu) + ARM_SMMU_CB(smmu, cfg->cbndx);
 
 	if (smmu->version > ARM_SMMU_V1) {
-		/*
-		 * CBA2R.
-		 * *Must* be initialised before CBAR thanks to VMID16
-		 * architectural oversight affected some implementations.
-		 */
-#ifdef CONFIG_64BIT
-		reg = CBA2R_RW64_64BIT;
-#else
-		reg = CBA2R_RW64_32BIT;
-#endif
+		if (cfg->fmt == ARM_SMMU_CTX_FMT_AARCH64)
+			reg = CBA2R_RW64_64BIT;
+		else
+			reg = CBA2R_RW64_32BIT;
+		/* 16-bit VMIDs live in CBA2R */
+		if (smmu->features & ARM_SMMU_FEAT_VMID16)
+			reg |= ARM_SMMU_CB_VMID(smmu, cfg) << CBA2R_VMID_SHIFT;
+
 		writel_relaxed(reg, gr1_base + ARM_SMMU_GR1_CBA2R(cfg->cbndx));
 	}
 
 	/* CBAR */
 	reg = cfg->cbar;
-	if (smmu->version == ARM_SMMU_V1)
+	if (smmu->version < ARM_SMMU_V2)
 		reg |= cfg->irptndx << CBAR_IRPTNDX_SHIFT;
 
 	/*
@@ -759,8 +793,9 @@ static void arm_smmu_init_context_bank(struct arm_smmu_domain *smmu_domain,
 	if (stage1) {
 		reg |= (CBAR_S1_BPSHCFG_NSH << CBAR_S1_BPSHCFG_SHIFT) |
 			(CBAR_S1_MEMATTR_WB << CBAR_S1_MEMATTR_SHIFT);
-	} else {
-		reg |= ARM_SMMU_CB_VMID(cfg) << CBAR_VMID_SHIFT;
+	} else if (!(smmu->features & ARM_SMMU_FEAT_VMID16)) {
+		/* 8-bit VMIDs live in CBAR */
+		reg |= ARM_SMMU_CB_VMID(smmu, cfg) << CBAR_VMID_SHIFT;
 	}
 	writel_relaxed(reg, gr1_base + ARM_SMMU_GR1_CBAR(cfg->cbndx));
 
@@ -768,15 +803,15 @@ static void arm_smmu_init_context_bank(struct arm_smmu_domain *smmu_domain,
 	if (stage1) {
 		reg64 = pgtbl_cfg->arm_lpae_s1_cfg.ttbr[0];
 
-		reg64 |= ((u64)ARM_SMMU_CB_ASID(cfg)) << TTBRn_ASID_SHIFT;
-		smmu_writeq(reg64, cb_base + ARM_SMMU_CB_TTBR0);
+		reg64 |= ((u64)ARM_SMMU_CB_ASID(smmu, cfg)) << TTBRn_ASID_SHIFT;
+		writeq_relaxed(reg64, cb_base + ARM_SMMU_CB_TTBR0);
 
 		reg64 = pgtbl_cfg->arm_lpae_s1_cfg.ttbr[1];
-		reg64 |= ((u64)ARM_SMMU_CB_ASID(cfg)) << TTBRn_ASID_SHIFT;
-		smmu_writeq(reg64, cb_base + ARM_SMMU_CB_TTBR1);
+		reg64 |= ((u64)ARM_SMMU_CB_ASID(smmu, cfg)) << TTBRn_ASID_SHIFT;
+		writeq_relaxed(reg64, cb_base + ARM_SMMU_CB_TTBR1);
 	} else {
 		reg64 = pgtbl_cfg->arm_lpae_s2_cfg.vttbr;
-		smmu_writeq(reg64, cb_base + ARM_SMMU_CB_TTBR0);
+		writeq_relaxed(reg64, cb_base + ARM_SMMU_CB_TTBR0);
 	}
 
 	/* TTBCR */
@@ -855,16 +890,40 @@ static int arm_smmu_init_domain_context(struct iommu_domain *domain,
 	if (!(smmu->features & ARM_SMMU_FEAT_TRANS_S2))
 		smmu_domain->stage = ARM_SMMU_DOMAIN_S1;
 
+	/*
+	 * Choosing a suitable context format is even more fiddly. Until we
+	 * grow some way for the caller to express a preference, and/or move
+	 * the decision into the io-pgtable code where it arguably belongs,
+	 * just aim for the closest thing to the rest of the system, and hope
+	 * that the hardware isn't esoteric enough that we can't assume AArch64
+	 * support to be a superset of AArch32 support...
+	 */
+	if (smmu->features & ARM_SMMU_FEAT_FMT_AARCH32_L)
+		cfg->fmt = ARM_SMMU_CTX_FMT_AARCH32_L;
+	if ((IS_ENABLED(CONFIG_64BIT) || cfg->fmt == ARM_SMMU_CTX_FMT_NONE) &&
+	    (smmu->features & (ARM_SMMU_FEAT_FMT_AARCH64_64K |
+			       ARM_SMMU_FEAT_FMT_AARCH64_16K |
+			       ARM_SMMU_FEAT_FMT_AARCH64_4K)))
+		cfg->fmt = ARM_SMMU_CTX_FMT_AARCH64;
+
+	if (cfg->fmt == ARM_SMMU_CTX_FMT_NONE) {
+		ret = -EINVAL;
+		goto out_unlock;
+	}
+
 	switch (smmu_domain->stage) {
 	case ARM_SMMU_DOMAIN_S1:
 		cfg->cbar = CBAR_TYPE_S1_TRANS_S2_BYPASS;
 		start = smmu->num_s2_context_banks;
 		ias = smmu->va_size;
 		oas = smmu->ipa_size;
-		if (IS_ENABLED(CONFIG_64BIT))
+		if (cfg->fmt == ARM_SMMU_CTX_FMT_AARCH64) {
 			fmt = ARM_64_LPAE_S1;
-		else
+		} else {
 			fmt = ARM_32_LPAE_S1;
+			ias = min(ias, 32UL);
+			oas = min(oas, 40UL);
+		}
 		break;
 	case ARM_SMMU_DOMAIN_NESTED:
 		/*
@@ -876,10 +935,13 @@ static int arm_smmu_init_domain_context(struct iommu_domain *domain,
 		start = 0;
 		ias = smmu->ipa_size;
 		oas = smmu->pa_size;
-		if (IS_ENABLED(CONFIG_64BIT))
+		if (cfg->fmt == ARM_SMMU_CTX_FMT_AARCH64) {
 			fmt = ARM_64_LPAE_S2;
-		else
+		} else {
 			fmt = ARM_32_LPAE_S2;
+			ias = min(ias, 40UL);
+			oas = min(oas, 40UL);
+		}
 		break;
 	default:
 		ret = -EINVAL;
@@ -888,11 +950,11 @@ static int arm_smmu_init_domain_context(struct iommu_domain *domain,
 
 	ret = __arm_smmu_alloc_bitmap(smmu->context_map, start,
 				      smmu->num_context_banks);
-	if (IS_ERR_VALUE(ret))
+	if (ret < 0)
 		goto out_unlock;
 
 	cfg->cbndx = ret;
-	if (smmu->version == ARM_SMMU_V1) {
+	if (smmu->version < ARM_SMMU_V2) {
 		cfg->irptndx = atomic_inc_return(&smmu->irptndx);
 		cfg->irptndx %= smmu->num_context_irqs;
 	} else {
@@ -900,7 +962,7 @@ static int arm_smmu_init_domain_context(struct iommu_domain *domain,
 	}
 
 	pgtbl_cfg = (struct io_pgtable_cfg) {
-		.pgsize_bitmap	= arm_smmu_ops.pgsize_bitmap,
+		.pgsize_bitmap	= smmu->pgsize_bitmap,
 		.ias		= ias,
 		.oas		= oas,
 		.tlb		= &arm_smmu_gather_ops,
@@ -914,8 +976,8 @@ static int arm_smmu_init_domain_context(struct iommu_domain *domain,
 		goto out_clear_smmu;
 	}
 
-	/* Update our support page sizes to reflect the page table format */
-	arm_smmu_ops.pgsize_bitmap = pgtbl_cfg.pgsize_bitmap;
+	/* Update the domain's page sizes to reflect the page table format */
+	domain->pgsize_bitmap = pgtbl_cfg.pgsize_bitmap;
 
 	/* Initialise the context bank with our page table cfg */
 	arm_smmu_init_context_bank(smmu_domain, &pgtbl_cfg);
@@ -927,7 +989,7 @@ static int arm_smmu_init_domain_context(struct iommu_domain *domain,
 	irq = smmu->irqs[smmu->num_global_irqs + cfg->irptndx];
 	ret = request_irq(irq, arm_smmu_context_fault, IRQF_SHARED,
 			  "arm-smmu-context-fault", domain);
-	if (IS_ERR_VALUE(ret)) {
+	if (ret < 0) {
 		dev_err(smmu->dev, "failed to request context IRQ %d (%u)\n",
 			cfg->irptndx, irq);
 		cfg->irptndx = INVALID_IRPTNDX;
@@ -1037,7 +1099,7 @@ static int arm_smmu_master_configure_smrs(struct arm_smmu_device *smmu,
 	for (i = 0; i < cfg->num_streamids; ++i) {
 		int idx = __arm_smmu_alloc_bitmap(smmu->smr_map, 0,
 						  smmu->num_mapping_groups);
-		if (IS_ERR_VALUE(idx)) {
+		if (idx < 0) {
 			dev_err(smmu->dev, "failed to allocate free SMR\n");
 			goto err_free_smrs;
 		}
@@ -1171,7 +1233,7 @@ static int arm_smmu_attach_dev(struct iommu_domain *domain, struct device *dev)
 
 	/* Ensure that the domain is finalised */
 	ret = arm_smmu_init_domain_context(domain, smmu);
-	if (IS_ERR_VALUE(ret))
+	if (ret < 0)
 		return ret;
 
 	/*
@@ -1252,8 +1314,8 @@ static phys_addr_t arm_smmu_iova_to_phys_hard(struct iommu_domain *domain,
 	/* ATS1 registers can only be written atomically */
 	va = iova & ~0xfffUL;
 	if (smmu->version == ARM_SMMU_V2)
-		smmu_writeq(va, cb_base + ARM_SMMU_CB_ATS1PR);
-	else
+		smmu_write_atomic_lq(va, cb_base + ARM_SMMU_CB_ATS1PR);
+	else /* Register is only 32-bit in v1 */
 		writel_relaxed(va, cb_base + ARM_SMMU_CB_ATS1PR);
 
 	if (readl_poll_timeout_atomic(cb_base + ARM_SMMU_CB_ATSR, tmp,
@@ -1264,9 +1326,7 @@ static phys_addr_t arm_smmu_iova_to_phys_hard(struct iommu_domain *domain,
 		return ops->iova_to_phys(ops, iova);
 	}
 
-	phys = readl_relaxed(cb_base + ARM_SMMU_CB_PAR_LO);
-	phys |= ((u64)readl_relaxed(cb_base + ARM_SMMU_CB_PAR_HI)) << 32;
-
+	phys = readq_relaxed(cb_base + ARM_SMMU_CB_PAR);
 	if (phys & CB_PAR_F) {
 		dev_err(dev, "translation fault!\n");
 		dev_err(dev, "PAR = 0x%llx\n", phys);
@@ -1492,7 +1552,7 @@ static void arm_smmu_device_reset(struct arm_smmu_device *smmu)
 	void __iomem *gr0_base = ARM_SMMU_GR0(smmu);
 	void __iomem *cb_base;
 	int i = 0;
-	u32 reg;
+	u32 reg, major;
 
 	/* clear global FSR */
 	reg = readl_relaxed(ARM_SMMU_GR0_NS(smmu) + ARM_SMMU_GR0_sGFSR);
@@ -1505,11 +1565,33 @@ static void arm_smmu_device_reset(struct arm_smmu_device *smmu)
 		writel_relaxed(reg, gr0_base + ARM_SMMU_GR0_S2CR(i));
 	}
 
+	/*
+	 * Before clearing ARM_MMU500_ACTLR_CPRE, need to
+	 * clear CACHE_LOCK bit of ACR first. And, CACHE_LOCK
+	 * bit is only present in MMU-500r2 onwards.
+	 */
+	reg = readl_relaxed(gr0_base + ARM_SMMU_GR0_ID7);
+	major = (reg >> ID7_MAJOR_SHIFT) & ID7_MAJOR_MASK;
+	if ((smmu->model == ARM_MMU500) && (major >= 2)) {
+		reg = readl_relaxed(gr0_base + ARM_SMMU_GR0_sACR);
+		reg &= ~ARM_MMU500_ACR_CACHE_LOCK;
+		writel_relaxed(reg, gr0_base + ARM_SMMU_GR0_sACR);
+	}
+
 	/* Make sure all context banks are disabled and clear CB_FSR  */
 	for (i = 0; i < smmu->num_context_banks; ++i) {
 		cb_base = ARM_SMMU_CB_BASE(smmu) + ARM_SMMU_CB(smmu, i);
 		writel_relaxed(0, cb_base + ARM_SMMU_CB_SCTLR);
 		writel_relaxed(FSR_FAULT, cb_base + ARM_SMMU_CB_FSR);
+		/*
+		 * Disable MMU-500's not-particularly-beneficial next-page
+		 * prefetcher for the sake of errata #841119 and #826419.
+		 */
+		if (smmu->model == ARM_MMU500) {
+			reg = readl_relaxed(cb_base + ARM_SMMU_CB_ACTLR);
+			reg &= ~ARM_MMU500_ACTLR_CPRE;
+			writel_relaxed(reg, cb_base + ARM_SMMU_CB_ACTLR);
+		}
 	}
 
 	/* Invalidate the TLB, just in case */
@@ -1536,6 +1618,9 @@ static void arm_smmu_device_reset(struct arm_smmu_device *smmu)
 
 	/* Don't upgrade barriers */
 	reg &= ~(sCR0_BSU_MASK << sCR0_BSU_SHIFT);
+
+	if (smmu->features & ARM_SMMU_FEAT_VMID16)
+		reg |= sCR0_VMID16EN;
 
 	/* Push the button */
 	__arm_smmu_tlb_sync(smmu);
@@ -1569,7 +1654,8 @@ static int arm_smmu_device_cfg_probe(struct arm_smmu_device *smmu)
 	bool cttw_dt, cttw_reg;
 
 	dev_notice(smmu->dev, "probing hardware configuration...\n");
-	dev_notice(smmu->dev, "SMMUv%d with:\n", smmu->version);
+	dev_notice(smmu->dev, "SMMUv%d with:\n",
+			smmu->version == ARM_SMMU_V2 ? 2 : 1);
 
 	/* ID0 */
 	id = readl_relaxed(gr0_base + ARM_SMMU_GR0_ID0);
@@ -1601,7 +1687,8 @@ static int arm_smmu_device_cfg_probe(struct arm_smmu_device *smmu)
 		return -ENODEV;
 	}
 
-	if ((id & ID0_S1TS) && ((smmu->version == 1) || !(id & ID0_ATOSNS))) {
+	if ((id & ID0_S1TS) &&
+		((smmu->version < ARM_SMMU_V2) || !(id & ID0_ATOSNS))) {
 		smmu->features |= ARM_SMMU_FEAT_TRANS_OPS;
 		dev_notice(smmu->dev, "\taddress translation ops\n");
 	}
@@ -1657,6 +1744,12 @@ static int arm_smmu_device_cfg_probe(struct arm_smmu_device *smmu)
 					   ID0_NUMSIDB_MASK;
 	}
 
+	if (smmu->version < ARM_SMMU_V2 || !(id & ID0_PTFS_NO_AARCH32)) {
+		smmu->features |= ARM_SMMU_FEAT_FMT_AARCH32_L;
+		if (!(id & ID0_PTFS_NO_AARCH32S))
+			smmu->features |= ARM_SMMU_FEAT_FMT_AARCH32_S;
+	}
+
 	/* ID1 */
 	id = readl_relaxed(gr0_base + ARM_SMMU_GR0_ID1);
 	smmu->pgshift = (id & ID1_PAGESIZE) ? 16 : 12;
@@ -1677,6 +1770,17 @@ static int arm_smmu_device_cfg_probe(struct arm_smmu_device *smmu)
 	}
 	dev_notice(smmu->dev, "\t%u context banks (%u stage-2 only)\n",
 		   smmu->num_context_banks, smmu->num_s2_context_banks);
+	/*
+	 * Cavium CN88xx erratum #27704.
+	 * Ensure ASID and VMID allocation is unique across all SMMUs in
+	 * the system.
+	 */
+	if (smmu->model == CAVIUM_SMMUV2) {
+		smmu->cavium_id_base =
+			atomic_add_return(smmu->num_context_banks,
+					  &cavium_smmu_context_count);
+		smmu->cavium_id_base -= smmu->num_context_banks;
+	}
 
 	/* ID2 */
 	id = readl_relaxed(gr0_base + ARM_SMMU_GR0_ID2);
@@ -1687,6 +1791,9 @@ static int arm_smmu_device_cfg_probe(struct arm_smmu_device *smmu)
 	size = arm_smmu_id_size_to_bits((id >> ID2_OAS_SHIFT) & ID2_OAS_MASK);
 	smmu->pa_size = size;
 
+	if (id & ID2_VMID16)
+		smmu->features |= ARM_SMMU_FEAT_VMID16;
+
 	/*
 	 * What the page table walker can address actually depends on which
 	 * descriptor format is in use, but since a) we don't know that yet,
@@ -1696,26 +1803,39 @@ static int arm_smmu_device_cfg_probe(struct arm_smmu_device *smmu)
 		dev_warn(smmu->dev,
 			 "failed to set DMA mask for table walker\n");
 
-	if (smmu->version == ARM_SMMU_V1) {
+	if (smmu->version < ARM_SMMU_V2) {
 		smmu->va_size = smmu->ipa_size;
-		size = SZ_4K | SZ_2M | SZ_1G;
+		if (smmu->version == ARM_SMMU_V1_64K)
+			smmu->features |= ARM_SMMU_FEAT_FMT_AARCH64_64K;
 	} else {
 		size = (id >> ID2_UBS_SHIFT) & ID2_UBS_MASK;
 		smmu->va_size = arm_smmu_id_size_to_bits(size);
-#ifndef CONFIG_64BIT
-		smmu->va_size = min(32UL, smmu->va_size);
-#endif
-		size = 0;
 		if (id & ID2_PTFS_4K)
-			size |= SZ_4K | SZ_2M | SZ_1G;
+			smmu->features |= ARM_SMMU_FEAT_FMT_AARCH64_4K;
 		if (id & ID2_PTFS_16K)
-			size |= SZ_16K | SZ_32M;
+			smmu->features |= ARM_SMMU_FEAT_FMT_AARCH64_16K;
 		if (id & ID2_PTFS_64K)
-			size |= SZ_64K | SZ_512M;
+			smmu->features |= ARM_SMMU_FEAT_FMT_AARCH64_64K;
 	}
 
-	arm_smmu_ops.pgsize_bitmap &= size;
-	dev_notice(smmu->dev, "\tSupported page sizes: 0x%08lx\n", size);
+	/* Now we've corralled the various formats, what'll it do? */
+	if (smmu->features & ARM_SMMU_FEAT_FMT_AARCH32_S)
+		smmu->pgsize_bitmap |= SZ_4K | SZ_64K | SZ_1M | SZ_16M;
+	if (smmu->features &
+	    (ARM_SMMU_FEAT_FMT_AARCH32_L | ARM_SMMU_FEAT_FMT_AARCH64_4K))
+		smmu->pgsize_bitmap |= SZ_4K | SZ_2M | SZ_1G;
+	if (smmu->features & ARM_SMMU_FEAT_FMT_AARCH64_16K)
+		smmu->pgsize_bitmap |= SZ_16K | SZ_32M;
+	if (smmu->features & ARM_SMMU_FEAT_FMT_AARCH64_64K)
+		smmu->pgsize_bitmap |= SZ_64K | SZ_512M;
+
+	if (arm_smmu_ops.pgsize_bitmap == -1UL)
+		arm_smmu_ops.pgsize_bitmap = smmu->pgsize_bitmap;
+	else
+		arm_smmu_ops.pgsize_bitmap |= smmu->pgsize_bitmap;
+	dev_notice(smmu->dev, "\tSupported page sizes: 0x%08lx\n",
+		   smmu->pgsize_bitmap);
+
 
 	if (smmu->features & ARM_SMMU_FEAT_TRANS_S1)
 		dev_notice(smmu->dev, "\tStage-1: %lu-bit VA -> %lu-bit IPA\n",
@@ -1728,12 +1848,27 @@ static int arm_smmu_device_cfg_probe(struct arm_smmu_device *smmu)
 	return 0;
 }
 
+struct arm_smmu_match_data {
+	enum arm_smmu_arch_version version;
+	enum arm_smmu_implementation model;
+};
+
+#define ARM_SMMU_MATCH_DATA(name, ver, imp)	\
+static struct arm_smmu_match_data name = { .version = ver, .model = imp }
+
+ARM_SMMU_MATCH_DATA(smmu_generic_v1, ARM_SMMU_V1, GENERIC_SMMU);
+ARM_SMMU_MATCH_DATA(smmu_generic_v2, ARM_SMMU_V2, GENERIC_SMMU);
+ARM_SMMU_MATCH_DATA(arm_mmu401, ARM_SMMU_V1_64K, GENERIC_SMMU);
+ARM_SMMU_MATCH_DATA(arm_mmu500, ARM_SMMU_V2, ARM_MMU500);
+ARM_SMMU_MATCH_DATA(cavium_smmuv2, ARM_SMMU_V2, CAVIUM_SMMUV2);
+
 static const struct of_device_id arm_smmu_of_match[] = {
-	{ .compatible = "arm,smmu-v1", .data = (void *)ARM_SMMU_V1 },
-	{ .compatible = "arm,smmu-v2", .data = (void *)ARM_SMMU_V2 },
-	{ .compatible = "arm,mmu-400", .data = (void *)ARM_SMMU_V1 },
-	{ .compatible = "arm,mmu-401", .data = (void *)ARM_SMMU_V1 },
-	{ .compatible = "arm,mmu-500", .data = (void *)ARM_SMMU_V2 },
+	{ .compatible = "arm,smmu-v1", .data = &smmu_generic_v1 },
+	{ .compatible = "arm,smmu-v2", .data = &smmu_generic_v2 },
+	{ .compatible = "arm,mmu-400", .data = &smmu_generic_v1 },
+	{ .compatible = "arm,mmu-401", .data = &arm_mmu401 },
+	{ .compatible = "arm,mmu-500", .data = &arm_mmu500 },
+	{ .compatible = "cavium,smmu-v2", .data = &cavium_smmuv2 },
 	{ },
 };
 MODULE_DEVICE_TABLE(of, arm_smmu_of_match);
@@ -1741,11 +1876,13 @@ MODULE_DEVICE_TABLE(of, arm_smmu_of_match);
 static int arm_smmu_device_dt_probe(struct platform_device *pdev)
 {
 	const struct of_device_id *of_id;
+	const struct arm_smmu_match_data *data;
 	struct resource *res;
 	struct arm_smmu_device *smmu;
 	struct device *dev = &pdev->dev;
 	struct rb_node *node;
-	struct of_phandle_args masterspec;
+	struct of_phandle_iterator it;
+	struct arm_smmu_phandle_args *masterspec;
 	int num_irqs, i, err;
 
 	smmu = devm_kzalloc(dev, sizeof(*smmu), GFP_KERNEL);
@@ -1756,7 +1893,9 @@ static int arm_smmu_device_dt_probe(struct platform_device *pdev)
 	smmu->dev = dev;
 
 	of_id = of_match_node(arm_smmu_of_match, dev->of_node);
-	smmu->version = (enum arm_smmu_arch_version)of_id->data;
+	data = of_id->data;
+	smmu->version = data->version;
+	smmu->model = data->model;
 
 	res = platform_get_resource(pdev, IORESOURCE_MEM, 0);
 	smmu->base = devm_ioremap_resource(dev, res);
@@ -1806,23 +1945,38 @@ static int arm_smmu_device_dt_probe(struct platform_device *pdev)
 
 	i = 0;
 	smmu->masters = RB_ROOT;
-	while (!of_parse_phandle_with_args(dev->of_node, "mmu-masters",
-					   "#stream-id-cells", i,
-					   &masterspec)) {
-		err = register_smmu_master(smmu, dev, &masterspec);
+
+	err = -ENOMEM;
+	/* No need to zero the memory for masterspec */
+	masterspec = kmalloc(sizeof(*masterspec), GFP_KERNEL);
+	if (!masterspec)
+		goto out_put_masters;
+
+	of_for_each_phandle(&it, err, dev->of_node,
+			    "mmu-masters", "#stream-id-cells", 0) {
+		int count = of_phandle_iterator_args(&it, masterspec->args,
+						     MAX_MASTER_STREAMIDS);
+		masterspec->np		= of_node_get(it.node);
+		masterspec->args_count	= count;
+
+		err = register_smmu_master(smmu, dev, masterspec);
 		if (err) {
 			dev_err(dev, "failed to add master %s\n",
-				masterspec.np->name);
+				masterspec->np->name);
+			kfree(masterspec);
 			goto out_put_masters;
 		}
 
 		i++;
 	}
+
 	dev_notice(dev, "registered %d master devices\n", i);
+
+	kfree(masterspec);
 
 	parse_driver_options(smmu);
 
-	if (smmu->version > ARM_SMMU_V1 &&
+	if (smmu->version == ARM_SMMU_V2 &&
 	    smmu->num_context_banks != smmu->num_context_irqs) {
 		dev_err(dev,
 			"found only %d context interrupt(s) but %d required\n",

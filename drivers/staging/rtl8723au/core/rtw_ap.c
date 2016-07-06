@@ -1719,7 +1719,8 @@ void stop_ap_mode23a(struct rtw_adapter *padapter)
 	}
 	spin_unlock_bh(&pacl_node_q->lock);
 
-	DBG_8723A("%s, free acl_node_queue, num =%d\n", __func__, pacl_list->num);
+	DBG_8723A("%s, free acl_node_queue, num =%d\n",
+		  __func__, pacl_list->num);
 
 	rtw_sta_flush23a(padapter);
 

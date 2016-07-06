@@ -51,7 +51,6 @@ xlog_cil_ticket_alloc(
 
 	tic = xlog_ticket_alloc(log, 0, 1, XFS_TRANSACTION, 0,
 				KM_SLEEP|KM_NOFS);
-	tic->t_trans_type = XFS_TRANS_CHECKPOINT;
 
 	/*
 	 * set the current reservation to zero so we know to steal the basic

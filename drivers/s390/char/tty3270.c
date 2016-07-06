@@ -1860,7 +1860,7 @@ static int tty3270_ioctl(struct tty_struct *tty, unsigned int cmd,
 	tp = tty->driver_data;
 	if (!tp)
 		return -ENODEV;
-	if (tty->flags & (1 << TTY_IO_ERROR))
+	if (tty_io_error(tty))
 		return -EIO;
 	return kbd_ioctl(tp->kbd, cmd, arg);
 }
@@ -1874,7 +1874,7 @@ static long tty3270_compat_ioctl(struct tty_struct *tty,
 	tp = tty->driver_data;
 	if (!tp)
 		return -ENODEV;
-	if (tty->flags & (1 << TTY_IO_ERROR))
+	if (tty_io_error(tty))
 		return -EIO;
 	return kbd_ioctl(tp->kbd, cmd, (unsigned long)compat_ptr(arg));
 }

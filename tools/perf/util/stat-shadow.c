@@ -94,7 +94,8 @@ void perf_stat__update_shadow_stats(struct perf_evsel *counter, u64 *count,
 {
 	int ctx = evsel_context(counter);
 
-	if (perf_evsel__match(counter, SOFTWARE, SW_TASK_CLOCK))
+	if (perf_evsel__match(counter, SOFTWARE, SW_TASK_CLOCK) ||
+	    perf_evsel__match(counter, SOFTWARE, SW_CPU_CLOCK))
 		update_stats(&runtime_nsecs_stats[cpu], count[0]);
 	else if (perf_evsel__match(counter, HARDWARE, HW_CPU_CYCLES))
 		update_stats(&runtime_cycles_stats[ctx][cpu], count[0]);
@@ -188,7 +189,7 @@ static void print_stalled_cycles_backend(int cpu,
 
 	color = get_ratio_color(GRC_STALLED_CYCLES_BE, ratio);
 
-	out->print_metric(out->ctx, color, "%6.2f%%", "backend cycles idle", ratio);
+	out->print_metric(out->ctx, color, "%7.2f%%", "backend cycles idle", ratio);
 }
 
 static void print_branch_misses(int cpu,
@@ -444,7 +445,8 @@ void perf_stat__print_shadow_stats(struct perf_evsel *evsel,
 			ratio = total / avg;
 
 		print_metric(ctxp, NULL, "%8.0f", "cycles / elision", ratio);
-	} else if (perf_evsel__match(evsel, SOFTWARE, SW_TASK_CLOCK)) {
+	} else if (perf_evsel__match(evsel, SOFTWARE, SW_TASK_CLOCK) ||
+		   perf_evsel__match(evsel, SOFTWARE, SW_CPU_CLOCK)) {
 		if ((ratio = avg_stats(&walltime_nsecs_stats)) != 0)
 			print_metric(ctxp, NULL, "%8.3f", "CPUs utilized",
 				     avg / ratio);

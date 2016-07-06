@@ -43,10 +43,8 @@ static unsigned long hyp_idmap_start;
 static unsigned long hyp_idmap_end;
 static phys_addr_t hyp_idmap_vector;
 
+#define S2_PGD_SIZE	(PTRS_PER_S2_PGD * sizeof(pgd_t))
 #define hyp_pgd_order get_order(PTRS_PER_PGD * sizeof(pgd_t))
-
-#define kvm_pmd_huge(_x)	(pmd_huge(_x) || pmd_trans_huge(_x))
-#define kvm_pud_huge(_x)	pud_huge(_x)
 
 #define KVM_S2PTE_FLAG_IS_IOMAP		(1UL << 0)
 #define KVM_S2_FLAG_LOGGING_ACTIVE	(1UL << 1)
@@ -69,14 +67,7 @@ void kvm_flush_remote_tlbs(struct kvm *kvm)
 
 static void kvm_tlb_flush_vmid_ipa(struct kvm *kvm, phys_addr_t ipa)
 {
-	/*
-	 * This function also gets called when dealing with HYP page
-	 * tables. As HYP doesn't have an associated struct kvm (and
-	 * the HYP page tables are fairly static), we don't do
-	 * anything there.
-	 */
-	if (kvm)
-		kvm_call_hyp(__kvm_tlb_flush_vmid_ipa, kvm, ipa);
+	kvm_call_hyp(__kvm_tlb_flush_vmid_ipa, kvm, ipa);
 }
 
 /*
@@ -115,7 +106,7 @@ static bool kvm_is_device_pfn(unsigned long pfn)
  */
 static void stage2_dissolve_pmd(struct kvm *kvm, phys_addr_t addr, pmd_t *pmd)
 {
-	if (!kvm_pmd_huge(*pmd))
+	if (!pmd_thp_or_huge(*pmd))
 		return;
 
 	pmd_clear(pmd);
@@ -155,29 +146,29 @@ static void *mmu_memory_cache_alloc(struct kvm_mmu_memory_cache *mc)
 	return p;
 }
 
-static void clear_pgd_entry(struct kvm *kvm, pgd_t *pgd, phys_addr_t addr)
+static void clear_stage2_pgd_entry(struct kvm *kvm, pgd_t *pgd, phys_addr_t addr)
 {
-	pud_t *pud_table __maybe_unused = pud_offset(pgd, 0);
-	pgd_clear(pgd);
+	pud_t *pud_table __maybe_unused = stage2_pud_offset(pgd, 0UL);
+	stage2_pgd_clear(pgd);
 	kvm_tlb_flush_vmid_ipa(kvm, addr);
-	pud_free(NULL, pud_table);
+	stage2_pud_free(pud_table);
 	put_page(virt_to_page(pgd));
 }
 
-static void clear_pud_entry(struct kvm *kvm, pud_t *pud, phys_addr_t addr)
+static void clear_stage2_pud_entry(struct kvm *kvm, pud_t *pud, phys_addr_t addr)
 {
-	pmd_t *pmd_table = pmd_offset(pud, 0);
-	VM_BUG_ON(pud_huge(*pud));
-	pud_clear(pud);
+	pmd_t *pmd_table __maybe_unused = stage2_pmd_offset(pud, 0);
+	VM_BUG_ON(stage2_pud_huge(*pud));
+	stage2_pud_clear(pud);
 	kvm_tlb_flush_vmid_ipa(kvm, addr);
-	pmd_free(NULL, pmd_table);
+	stage2_pmd_free(pmd_table);
 	put_page(virt_to_page(pud));
 }
 
-static void clear_pmd_entry(struct kvm *kvm, pmd_t *pmd, phys_addr_t addr)
+static void clear_stage2_pmd_entry(struct kvm *kvm, pmd_t *pmd, phys_addr_t addr)
 {
 	pte_t *pte_table = pte_offset_kernel(pmd, 0);
-	VM_BUG_ON(kvm_pmd_huge(*pmd));
+	VM_BUG_ON(pmd_thp_or_huge(*pmd));
 	pmd_clear(pmd);
 	kvm_tlb_flush_vmid_ipa(kvm, addr);
 	pte_free_kernel(NULL, pte_table);
@@ -204,7 +195,7 @@ static void clear_pmd_entry(struct kvm *kvm, pmd_t *pmd, phys_addr_t addr)
  * the corresponding TLBs, we call kvm_flush_dcache_p*() to make sure
  * the IO subsystem will never hit in the cache.
  */
-static void unmap_ptes(struct kvm *kvm, pmd_t *pmd,
+static void unmap_stage2_ptes(struct kvm *kvm, pmd_t *pmd,
 		       phys_addr_t addr, phys_addr_t end)
 {
 	phys_addr_t start_addr = addr;
@@ -226,21 +217,21 @@ static void unmap_ptes(struct kvm *kvm, pmd_t *pmd,
 		}
 	} while (pte++, addr += PAGE_SIZE, addr != end);
 
-	if (kvm_pte_table_empty(kvm, start_pte))
-		clear_pmd_entry(kvm, pmd, start_addr);
+	if (stage2_pte_table_empty(start_pte))
+		clear_stage2_pmd_entry(kvm, pmd, start_addr);
 }
 
-static void unmap_pmds(struct kvm *kvm, pud_t *pud,
+static void unmap_stage2_pmds(struct kvm *kvm, pud_t *pud,
 		       phys_addr_t addr, phys_addr_t end)
 {
 	phys_addr_t next, start_addr = addr;
 	pmd_t *pmd, *start_pmd;
 
-	start_pmd = pmd = pmd_offset(pud, addr);
+	start_pmd = pmd = stage2_pmd_offset(pud, addr);
 	do {
-		next = kvm_pmd_addr_end(addr, end);
+		next = stage2_pmd_addr_end(addr, end);
 		if (!pmd_none(*pmd)) {
-			if (kvm_pmd_huge(*pmd)) {
+			if (pmd_thp_or_huge(*pmd)) {
 				pmd_t old_pmd = *pmd;
 
 				pmd_clear(pmd);
@@ -250,57 +241,64 @@ static void unmap_pmds(struct kvm *kvm, pud_t *pud,
 
 				put_page(virt_to_page(pmd));
 			} else {
-				unmap_ptes(kvm, pmd, addr, next);
+				unmap_stage2_ptes(kvm, pmd, addr, next);
 			}
 		}
 	} while (pmd++, addr = next, addr != end);
 
-	if (kvm_pmd_table_empty(kvm, start_pmd))
-		clear_pud_entry(kvm, pud, start_addr);
+	if (stage2_pmd_table_empty(start_pmd))
+		clear_stage2_pud_entry(kvm, pud, start_addr);
 }
 
-static void unmap_puds(struct kvm *kvm, pgd_t *pgd,
+static void unmap_stage2_puds(struct kvm *kvm, pgd_t *pgd,
 		       phys_addr_t addr, phys_addr_t end)
 {
 	phys_addr_t next, start_addr = addr;
 	pud_t *pud, *start_pud;
 
-	start_pud = pud = pud_offset(pgd, addr);
+	start_pud = pud = stage2_pud_offset(pgd, addr);
 	do {
-		next = kvm_pud_addr_end(addr, end);
-		if (!pud_none(*pud)) {
-			if (pud_huge(*pud)) {
+		next = stage2_pud_addr_end(addr, end);
+		if (!stage2_pud_none(*pud)) {
+			if (stage2_pud_huge(*pud)) {
 				pud_t old_pud = *pud;
 
-				pud_clear(pud);
+				stage2_pud_clear(pud);
 				kvm_tlb_flush_vmid_ipa(kvm, addr);
-
 				kvm_flush_dcache_pud(old_pud);
-
 				put_page(virt_to_page(pud));
 			} else {
-				unmap_pmds(kvm, pud, addr, next);
+				unmap_stage2_pmds(kvm, pud, addr, next);
 			}
 		}
 	} while (pud++, addr = next, addr != end);
 
-	if (kvm_pud_table_empty(kvm, start_pud))
-		clear_pgd_entry(kvm, pgd, start_addr);
+	if (stage2_pud_table_empty(start_pud))
+		clear_stage2_pgd_entry(kvm, pgd, start_addr);
 }
 
-
-static void unmap_range(struct kvm *kvm, pgd_t *pgdp,
-			phys_addr_t start, u64 size)
+/**
+ * unmap_stage2_range -- Clear stage2 page table entries to unmap a range
+ * @kvm:   The VM pointer
+ * @start: The intermediate physical base address of the range to unmap
+ * @size:  The size of the area to unmap
+ *
+ * Clear a range of stage-2 mappings, lowering the various ref-counts.  Must
+ * be called while holding mmu_lock (unless for freeing the stage2 pgd before
+ * destroying the VM), otherwise another faulting VCPU may come in and mess
+ * with things behind our backs.
+ */
+static void unmap_stage2_range(struct kvm *kvm, phys_addr_t start, u64 size)
 {
 	pgd_t *pgd;
 	phys_addr_t addr = start, end = start + size;
 	phys_addr_t next;
 
-	pgd = pgdp + kvm_pgd_index(addr);
+	pgd = kvm->arch.pgd + stage2_pgd_index(addr);
 	do {
-		next = kvm_pgd_addr_end(addr, end);
-		if (!pgd_none(*pgd))
-			unmap_puds(kvm, pgd, addr, next);
+		next = stage2_pgd_addr_end(addr, end);
+		if (!stage2_pgd_none(*pgd))
+			unmap_stage2_puds(kvm, pgd, addr, next);
 	} while (pgd++, addr = next, addr != end);
 }
 
@@ -322,11 +320,11 @@ static void stage2_flush_pmds(struct kvm *kvm, pud_t *pud,
 	pmd_t *pmd;
 	phys_addr_t next;
 
-	pmd = pmd_offset(pud, addr);
+	pmd = stage2_pmd_offset(pud, addr);
 	do {
-		next = kvm_pmd_addr_end(addr, end);
+		next = stage2_pmd_addr_end(addr, end);
 		if (!pmd_none(*pmd)) {
-			if (kvm_pmd_huge(*pmd))
+			if (pmd_thp_or_huge(*pmd))
 				kvm_flush_dcache_pmd(*pmd);
 			else
 				stage2_flush_ptes(kvm, pmd, addr, next);
@@ -340,11 +338,11 @@ static void stage2_flush_puds(struct kvm *kvm, pgd_t *pgd,
 	pud_t *pud;
 	phys_addr_t next;
 
-	pud = pud_offset(pgd, addr);
+	pud = stage2_pud_offset(pgd, addr);
 	do {
-		next = kvm_pud_addr_end(addr, end);
-		if (!pud_none(*pud)) {
-			if (pud_huge(*pud))
+		next = stage2_pud_addr_end(addr, end);
+		if (!stage2_pud_none(*pud)) {
+			if (stage2_pud_huge(*pud))
 				kvm_flush_dcache_pud(*pud);
 			else
 				stage2_flush_pmds(kvm, pud, addr, next);
@@ -360,9 +358,9 @@ static void stage2_flush_memslot(struct kvm *kvm,
 	phys_addr_t next;
 	pgd_t *pgd;
 
-	pgd = kvm->arch.pgd + kvm_pgd_index(addr);
+	pgd = kvm->arch.pgd + stage2_pgd_index(addr);
 	do {
-		next = kvm_pgd_addr_end(addr, end);
+		next = stage2_pgd_addr_end(addr, end);
 		stage2_flush_puds(kvm, pgd, addr, next);
 	} while (pgd++, addr = next, addr != end);
 }
@@ -391,6 +389,100 @@ static void stage2_flush_vm(struct kvm *kvm)
 	srcu_read_unlock(&kvm->srcu, idx);
 }
 
+static void clear_hyp_pgd_entry(pgd_t *pgd)
+{
+	pud_t *pud_table __maybe_unused = pud_offset(pgd, 0UL);
+	pgd_clear(pgd);
+	pud_free(NULL, pud_table);
+	put_page(virt_to_page(pgd));
+}
+
+static void clear_hyp_pud_entry(pud_t *pud)
+{
+	pmd_t *pmd_table __maybe_unused = pmd_offset(pud, 0);
+	VM_BUG_ON(pud_huge(*pud));
+	pud_clear(pud);
+	pmd_free(NULL, pmd_table);
+	put_page(virt_to_page(pud));
+}
+
+static void clear_hyp_pmd_entry(pmd_t *pmd)
+{
+	pte_t *pte_table = pte_offset_kernel(pmd, 0);
+	VM_BUG_ON(pmd_thp_or_huge(*pmd));
+	pmd_clear(pmd);
+	pte_free_kernel(NULL, pte_table);
+	put_page(virt_to_page(pmd));
+}
+
+static void unmap_hyp_ptes(pmd_t *pmd, phys_addr_t addr, phys_addr_t end)
+{
+	pte_t *pte, *start_pte;
+
+	start_pte = pte = pte_offset_kernel(pmd, addr);
+	do {
+		if (!pte_none(*pte)) {
+			kvm_set_pte(pte, __pte(0));
+			put_page(virt_to_page(pte));
+		}
+	} while (pte++, addr += PAGE_SIZE, addr != end);
+
+	if (hyp_pte_table_empty(start_pte))
+		clear_hyp_pmd_entry(pmd);
+}
+
+static void unmap_hyp_pmds(pud_t *pud, phys_addr_t addr, phys_addr_t end)
+{
+	phys_addr_t next;
+	pmd_t *pmd, *start_pmd;
+
+	start_pmd = pmd = pmd_offset(pud, addr);
+	do {
+		next = pmd_addr_end(addr, end);
+		/* Hyp doesn't use huge pmds */
+		if (!pmd_none(*pmd))
+			unmap_hyp_ptes(pmd, addr, next);
+	} while (pmd++, addr = next, addr != end);
+
+	if (hyp_pmd_table_empty(start_pmd))
+		clear_hyp_pud_entry(pud);
+}
+
+static void unmap_hyp_puds(pgd_t *pgd, phys_addr_t addr, phys_addr_t end)
+{
+	phys_addr_t next;
+	pud_t *pud, *start_pud;
+
+	start_pud = pud = pud_offset(pgd, addr);
+	do {
+		next = pud_addr_end(addr, end);
+		/* Hyp doesn't use huge puds */
+		if (!pud_none(*pud))
+			unmap_hyp_pmds(pud, addr, next);
+	} while (pud++, addr = next, addr != end);
+
+	if (hyp_pud_table_empty(start_pud))
+		clear_hyp_pgd_entry(pgd);
+}
+
+static void unmap_hyp_range(pgd_t *pgdp, phys_addr_t start, u64 size)
+{
+	pgd_t *pgd;
+	phys_addr_t addr = start, end = start + size;
+	phys_addr_t next;
+
+	/*
+	 * We don't unmap anything from HYP, except at the hyp tear down.
+	 * Hence, we don't have to invalidate the TLBs here.
+	 */
+	pgd = pgdp + pgd_index(addr);
+	do {
+		next = pgd_addr_end(addr, end);
+		if (!pgd_none(*pgd))
+			unmap_hyp_puds(pgd, addr, next);
+	} while (pgd++, addr = next, addr != end);
+}
+
 /**
  * free_boot_hyp_pgd - free HYP boot page tables
  *
@@ -401,14 +493,14 @@ void free_boot_hyp_pgd(void)
 	mutex_lock(&kvm_hyp_pgd_mutex);
 
 	if (boot_hyp_pgd) {
-		unmap_range(NULL, boot_hyp_pgd, hyp_idmap_start, PAGE_SIZE);
-		unmap_range(NULL, boot_hyp_pgd, TRAMPOLINE_VA, PAGE_SIZE);
+		unmap_hyp_range(boot_hyp_pgd, hyp_idmap_start, PAGE_SIZE);
+		unmap_hyp_range(boot_hyp_pgd, TRAMPOLINE_VA, PAGE_SIZE);
 		free_pages((unsigned long)boot_hyp_pgd, hyp_pgd_order);
 		boot_hyp_pgd = NULL;
 	}
 
 	if (hyp_pgd)
-		unmap_range(NULL, hyp_pgd, TRAMPOLINE_VA, PAGE_SIZE);
+		unmap_hyp_range(hyp_pgd, TRAMPOLINE_VA, PAGE_SIZE);
 
 	mutex_unlock(&kvm_hyp_pgd_mutex);
 }
@@ -433,9 +525,9 @@ void free_hyp_pgds(void)
 
 	if (hyp_pgd) {
 		for (addr = PAGE_OFFSET; virt_addr_valid(addr); addr += PGDIR_SIZE)
-			unmap_range(NULL, hyp_pgd, KERN_TO_HYP(addr), PGDIR_SIZE);
+			unmap_hyp_range(hyp_pgd, KERN_TO_HYP(addr), PGDIR_SIZE);
 		for (addr = VMALLOC_START; is_vmalloc_addr((void*)addr); addr += PGDIR_SIZE)
-			unmap_range(NULL, hyp_pgd, KERN_TO_HYP(addr), PGDIR_SIZE);
+			unmap_hyp_range(hyp_pgd, KERN_TO_HYP(addr), PGDIR_SIZE);
 
 		free_pages((unsigned long)hyp_pgd, hyp_pgd_order);
 		hyp_pgd = NULL;
@@ -645,20 +737,6 @@ int create_hyp_io_mappings(void *from, void *to, phys_addr_t phys_addr)
 				     __phys_to_pfn(phys_addr), PAGE_HYP_DEVICE);
 }
 
-/* Free the HW pgd, one page at a time */
-static void kvm_free_hwpgd(void *hwpgd)
-{
-	free_pages_exact(hwpgd, kvm_get_hwpgd_size());
-}
-
-/* Allocate the HW PGD, making sure that each page gets its own refcount */
-static void *kvm_alloc_hwpgd(void)
-{
-	unsigned int size = kvm_get_hwpgd_size();
-
-	return alloc_pages_exact(size, GFP_KERNEL | __GFP_ZERO);
-}
-
 /**
  * kvm_alloc_stage2_pgd - allocate level-1 table for stage-2 translation.
  * @kvm:	The KVM struct pointer for the VM.
@@ -673,79 +751,20 @@ static void *kvm_alloc_hwpgd(void)
 int kvm_alloc_stage2_pgd(struct kvm *kvm)
 {
 	pgd_t *pgd;
-	void *hwpgd;
 
 	if (kvm->arch.pgd != NULL) {
 		kvm_err("kvm_arch already initialized?\n");
 		return -EINVAL;
 	}
 
-	hwpgd = kvm_alloc_hwpgd();
-	if (!hwpgd)
+	/* Allocate the HW PGD, making sure that each page gets its own refcount */
+	pgd = alloc_pages_exact(S2_PGD_SIZE, GFP_KERNEL | __GFP_ZERO);
+	if (!pgd)
 		return -ENOMEM;
-
-	/* When the kernel uses more levels of page tables than the
-	 * guest, we allocate a fake PGD and pre-populate it to point
-	 * to the next-level page table, which will be the real
-	 * initial page table pointed to by the VTTBR.
-	 *
-	 * When KVM_PREALLOC_LEVEL==2, we allocate a single page for
-	 * the PMD and the kernel will use folded pud.
-	 * When KVM_PREALLOC_LEVEL==1, we allocate 2 consecutive PUD
-	 * pages.
-	 */
-	if (KVM_PREALLOC_LEVEL > 0) {
-		int i;
-
-		/*
-		 * Allocate fake pgd for the page table manipulation macros to
-		 * work.  This is not used by the hardware and we have no
-		 * alignment requirement for this allocation.
-		 */
-		pgd = kmalloc(PTRS_PER_S2_PGD * sizeof(pgd_t),
-				GFP_KERNEL | __GFP_ZERO);
-
-		if (!pgd) {
-			kvm_free_hwpgd(hwpgd);
-			return -ENOMEM;
-		}
-
-		/* Plug the HW PGD into the fake one. */
-		for (i = 0; i < PTRS_PER_S2_PGD; i++) {
-			if (KVM_PREALLOC_LEVEL == 1)
-				pgd_populate(NULL, pgd + i,
-					     (pud_t *)hwpgd + i * PTRS_PER_PUD);
-			else if (KVM_PREALLOC_LEVEL == 2)
-				pud_populate(NULL, pud_offset(pgd, 0) + i,
-					     (pmd_t *)hwpgd + i * PTRS_PER_PMD);
-		}
-	} else {
-		/*
-		 * Allocate actual first-level Stage-2 page table used by the
-		 * hardware for Stage-2 page table walks.
-		 */
-		pgd = (pgd_t *)hwpgd;
-	}
 
 	kvm_clean_pgd(pgd);
 	kvm->arch.pgd = pgd;
 	return 0;
-}
-
-/**
- * unmap_stage2_range -- Clear stage2 page table entries to unmap a range
- * @kvm:   The VM pointer
- * @start: The intermediate physical base address of the range to unmap
- * @size:  The size of the area to unmap
- *
- * Clear a range of stage-2 mappings, lowering the various ref-counts.  Must
- * be called while holding mmu_lock (unless for freeing the stage2 pgd before
- * destroying the VM), otherwise another faulting VCPU may come in and mess
- * with things behind our backs.
- */
-static void unmap_stage2_range(struct kvm *kvm, phys_addr_t start, u64 size)
-{
-	unmap_range(kvm, kvm->arch.pgd, start, size);
 }
 
 static void stage2_unmap_memslot(struct kvm *kvm,
@@ -830,10 +849,8 @@ void kvm_free_stage2_pgd(struct kvm *kvm)
 		return;
 
 	unmap_stage2_range(kvm, 0, KVM_PHYS_SIZE);
-	kvm_free_hwpgd(kvm_get_hwpgd(kvm));
-	if (KVM_PREALLOC_LEVEL > 0)
-		kfree(kvm->arch.pgd);
-
+	/* Free the HW pgd, one page at a time */
+	free_pages_exact(kvm->arch.pgd, S2_PGD_SIZE);
 	kvm->arch.pgd = NULL;
 }
 
@@ -843,16 +860,16 @@ static pud_t *stage2_get_pud(struct kvm *kvm, struct kvm_mmu_memory_cache *cache
 	pgd_t *pgd;
 	pud_t *pud;
 
-	pgd = kvm->arch.pgd + kvm_pgd_index(addr);
-	if (WARN_ON(pgd_none(*pgd))) {
+	pgd = kvm->arch.pgd + stage2_pgd_index(addr);
+	if (WARN_ON(stage2_pgd_none(*pgd))) {
 		if (!cache)
 			return NULL;
 		pud = mmu_memory_cache_alloc(cache);
-		pgd_populate(NULL, pgd, pud);
+		stage2_pgd_populate(pgd, pud);
 		get_page(virt_to_page(pgd));
 	}
 
-	return pud_offset(pgd, addr);
+	return stage2_pud_offset(pgd, addr);
 }
 
 static pmd_t *stage2_get_pmd(struct kvm *kvm, struct kvm_mmu_memory_cache *cache,
@@ -862,15 +879,15 @@ static pmd_t *stage2_get_pmd(struct kvm *kvm, struct kvm_mmu_memory_cache *cache
 	pmd_t *pmd;
 
 	pud = stage2_get_pud(kvm, cache, addr);
-	if (pud_none(*pud)) {
+	if (stage2_pud_none(*pud)) {
 		if (!cache)
 			return NULL;
 		pmd = mmu_memory_cache_alloc(cache);
-		pud_populate(NULL, pud, pmd);
+		stage2_pud_populate(pud, pmd);
 		get_page(virt_to_page(pud));
 	}
 
-	return pmd_offset(pud, addr);
+	return stage2_pmd_offset(pud, addr);
 }
 
 static int stage2_set_pmd_huge(struct kvm *kvm, struct kvm_mmu_memory_cache
@@ -893,11 +910,14 @@ static int stage2_set_pmd_huge(struct kvm *kvm, struct kvm_mmu_memory_cache
 	VM_BUG_ON(pmd_present(*pmd) && pmd_pfn(*pmd) != pmd_pfn(*new_pmd));
 
 	old_pmd = *pmd;
-	kvm_set_pmd(pmd, *new_pmd);
-	if (pmd_present(old_pmd))
+	if (pmd_present(old_pmd)) {
+		pmd_clear(pmd);
 		kvm_tlb_flush_vmid_ipa(kvm, addr);
-	else
+	} else {
 		get_page(virt_to_page(pmd));
+	}
+
+	kvm_set_pmd(pmd, *new_pmd);
 	return 0;
 }
 
@@ -946,13 +966,36 @@ static int stage2_set_pte(struct kvm *kvm, struct kvm_mmu_memory_cache *cache,
 
 	/* Create 2nd stage page table mapping - Level 3 */
 	old_pte = *pte;
-	kvm_set_pte(pte, *new_pte);
-	if (pte_present(old_pte))
+	if (pte_present(old_pte)) {
+		kvm_set_pte(pte, __pte(0));
 		kvm_tlb_flush_vmid_ipa(kvm, addr);
-	else
+	} else {
 		get_page(virt_to_page(pte));
+	}
 
+	kvm_set_pte(pte, *new_pte);
 	return 0;
+}
+
+#ifndef __HAVE_ARCH_PTEP_TEST_AND_CLEAR_YOUNG
+static int stage2_ptep_test_and_clear_young(pte_t *pte)
+{
+	if (pte_young(*pte)) {
+		*pte = pte_mkold(*pte);
+		return 1;
+	}
+	return 0;
+}
+#else
+static int stage2_ptep_test_and_clear_young(pte_t *pte)
+{
+	return __ptep_test_and_clear_young(pte);
+}
+#endif
+
+static int stage2_pmdp_test_and_clear_young(pmd_t *pmd)
+{
+	return stage2_ptep_test_and_clear_young((pte_t *)pmd);
 }
 
 /**
@@ -978,7 +1021,7 @@ int kvm_phys_addr_ioremap(struct kvm *kvm, phys_addr_t guest_ipa,
 		pte_t pte = pfn_pte(pfn, PAGE_S2_DEVICE);
 
 		if (writable)
-			kvm_set_s2pte_writable(&pte);
+			pte = kvm_s2pte_mkwrite(pte);
 
 		ret = mmu_topup_memory_cache(&cache, KVM_MMU_CACHE_MIN_PAGES,
 						KVM_NR_MEM_OBJS);
@@ -1078,12 +1121,12 @@ static void stage2_wp_pmds(pud_t *pud, phys_addr_t addr, phys_addr_t end)
 	pmd_t *pmd;
 	phys_addr_t next;
 
-	pmd = pmd_offset(pud, addr);
+	pmd = stage2_pmd_offset(pud, addr);
 
 	do {
-		next = kvm_pmd_addr_end(addr, end);
+		next = stage2_pmd_addr_end(addr, end);
 		if (!pmd_none(*pmd)) {
-			if (kvm_pmd_huge(*pmd)) {
+			if (pmd_thp_or_huge(*pmd)) {
 				if (!kvm_s2pmd_readonly(pmd))
 					kvm_set_s2pmd_readonly(pmd);
 			} else {
@@ -1106,12 +1149,12 @@ static void  stage2_wp_puds(pgd_t *pgd, phys_addr_t addr, phys_addr_t end)
 	pud_t *pud;
 	phys_addr_t next;
 
-	pud = pud_offset(pgd, addr);
+	pud = stage2_pud_offset(pgd, addr);
 	do {
-		next = kvm_pud_addr_end(addr, end);
-		if (!pud_none(*pud)) {
+		next = stage2_pud_addr_end(addr, end);
+		if (!stage2_pud_none(*pud)) {
 			/* TODO:PUD not supported, revisit later if supported */
-			BUG_ON(kvm_pud_huge(*pud));
+			BUG_ON(stage2_pud_huge(*pud));
 			stage2_wp_pmds(pud, addr, next);
 		}
 	} while (pud++, addr = next, addr != end);
@@ -1128,7 +1171,7 @@ static void stage2_wp_range(struct kvm *kvm, phys_addr_t addr, phys_addr_t end)
 	pgd_t *pgd;
 	phys_addr_t next;
 
-	pgd = kvm->arch.pgd + kvm_pgd_index(addr);
+	pgd = kvm->arch.pgd + stage2_pgd_index(addr);
 	do {
 		/*
 		 * Release kvm_mmu_lock periodically if the memory region is
@@ -1140,8 +1183,8 @@ static void stage2_wp_range(struct kvm *kvm, phys_addr_t addr, phys_addr_t end)
 		if (need_resched() || spin_needbreak(&kvm->mmu_lock))
 			cond_resched_lock(&kvm->mmu_lock);
 
-		next = kvm_pgd_addr_end(addr, end);
-		if (pgd_present(*pgd))
+		next = stage2_pgd_addr_end(addr, end);
+		if (stage2_pgd_present(*pgd))
 			stage2_wp_puds(pgd, addr, next);
 	} while (pgd++, addr = next, addr != end);
 }
@@ -1320,7 +1363,7 @@ static int user_mem_abort(struct kvm_vcpu *vcpu, phys_addr_t fault_ipa,
 		pmd_t new_pmd = pfn_pmd(pfn, mem_type);
 		new_pmd = pmd_mkhuge(new_pmd);
 		if (writable) {
-			kvm_set_s2pmd_writable(&new_pmd);
+			new_pmd = kvm_s2pmd_mkwrite(new_pmd);
 			kvm_set_pfn_dirty(pfn);
 		}
 		coherent_cache_guest_page(vcpu, pfn, PMD_SIZE, fault_ipa_uncached);
@@ -1329,7 +1372,7 @@ static int user_mem_abort(struct kvm_vcpu *vcpu, phys_addr_t fault_ipa,
 		pte_t new_pte = pfn_pte(pfn, mem_type);
 
 		if (writable) {
-			kvm_set_s2pte_writable(&new_pte);
+			new_pte = kvm_s2pte_mkwrite(new_pte);
 			kvm_set_pfn_dirty(pfn);
 			mark_page_dirty(kvm, gfn);
 		}
@@ -1348,6 +1391,8 @@ out_unlock:
  * Resolve the access fault by making the page young again.
  * Note that because the faulting entry is guaranteed not to be
  * cached in the TLB, we don't need to invalidate anything.
+ * Only the HW Access Flag updates are supported for Stage 2 (no DBM),
+ * so there is no need for atomic (pte|pmd)_mkyoung operations.
  */
 static void handle_access_fault(struct kvm_vcpu *vcpu, phys_addr_t fault_ipa)
 {
@@ -1364,7 +1409,7 @@ static void handle_access_fault(struct kvm_vcpu *vcpu, phys_addr_t fault_ipa)
 	if (!pmd || pmd_none(*pmd))	/* Nothing there */
 		goto out;
 
-	if (kvm_pmd_huge(*pmd)) {	/* THP, HugeTLB */
+	if (pmd_thp_or_huge(*pmd)) {	/* THP, HugeTLB */
 		*pmd = pmd_mkyoung(*pmd);
 		pfn = pmd_pfn(*pmd);
 		pfn_valid = true;
@@ -1588,25 +1633,14 @@ static int kvm_age_hva_handler(struct kvm *kvm, gpa_t gpa, void *data)
 	if (!pmd || pmd_none(*pmd))	/* Nothing there */
 		return 0;
 
-	if (kvm_pmd_huge(*pmd)) {	/* THP, HugeTLB */
-		if (pmd_young(*pmd)) {
-			*pmd = pmd_mkold(*pmd);
-			return 1;
-		}
-
-		return 0;
-	}
+	if (pmd_thp_or_huge(*pmd))	/* THP, HugeTLB */
+		return stage2_pmdp_test_and_clear_young(pmd);
 
 	pte = pte_offset_kernel(pmd, gpa);
 	if (pte_none(*pte))
 		return 0;
 
-	if (pte_young(*pte)) {
-		*pte = pte_mkold(*pte);	/* Just a page... */
-		return 1;
-	}
-
-	return 0;
+	return stage2_ptep_test_and_clear_young(pte);
 }
 
 static int kvm_test_age_hva_handler(struct kvm *kvm, gpa_t gpa, void *data)
@@ -1618,7 +1652,7 @@ static int kvm_test_age_hva_handler(struct kvm *kvm, gpa_t gpa, void *data)
 	if (!pmd || pmd_none(*pmd))	/* Nothing there */
 		return 0;
 
-	if (kvm_pmd_huge(*pmd))		/* THP, HugeTLB */
+	if (pmd_thp_or_huge(*pmd))		/* THP, HugeTLB */
 		return pmd_young(*pmd);
 
 	pte = pte_offset_kernel(pmd, gpa);

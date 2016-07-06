@@ -65,7 +65,8 @@ static int option_rezero(struct us_data *us)
 		goto out;
 	}
 
-	/* Some of the devices need to be asked for a response, but we don't
+	/*
+	 * Some of the devices need to be asked for a response, but we don't
 	 * care what that response is.
 	 */
 	usb_stor_bulk_transfer_buf(us,
@@ -140,7 +141,8 @@ int option_ms_init(struct us_data *us)
 
 	usb_stor_dbg(us, "Option MS: %s\n", "option_ms_init called");
 
-	/* Additional test for vendor information via INQUIRY,
+	/*
+	 * Additional test for vendor information via INQUIRY,
 	 * because some vendor/product IDs are ambiguous
 	 */
 	result = option_inquiry(us);

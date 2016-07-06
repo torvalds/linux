@@ -22,6 +22,12 @@
 #define P2P_SEARCH_DURATION_MS 500
 #define P2P_DEFAULT_BI 100
 
+bool wil_p2p_is_social_scan(struct cfg80211_scan_request *request)
+{
+	return (request->n_channels == 1) &&
+	       (request->channels[0]->hw_value == P2P_DMG_SOCIAL_CHANNEL);
+}
+
 void wil_p2p_discovery_timer_fn(ulong x)
 {
 	struct wil6210_priv *wil = (void *)x;

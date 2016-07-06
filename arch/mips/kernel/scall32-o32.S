@@ -35,7 +35,6 @@ NESTED(handle_sys, PT_SIZE, sp)
 
 	lw	t1, PT_EPC(sp)		# skip syscall on return
 
-	subu	v0, v0, __NR_O32_Linux	# check syscall number
 	addiu	t1, 4			# skip to next instruction
 	sw	t1, PT_EPC(sp)
 
@@ -89,6 +88,7 @@ loads_done:
 	and	t0, t1
 	bnez	t0, syscall_trace_entry # -> yes
 syscall_common:
+	subu	v0, v0, __NR_O32_Linux	# check syscall number
 	sltiu	t0, v0, __NR_O32_Linux_syscalls + 1
 	beqz	t0, illegal_syscall
 
@@ -118,24 +118,23 @@ o32_syscall_exit:
 
 syscall_trace_entry:
 	SAVE_STATIC
-	move	s0, v0
 	move	a0, sp
 
 	/*
 	 * syscall number is in v0 unless we called syscall(__NR_###)
 	 * where the real syscall number is in a0
 	 */
-	addiu	a1, v0,  __NR_O32_Linux
-	bnez	v0, 1f /* __NR_syscall at offset 0 */
+	move	a1, v0
+	subu	t2, v0,  __NR_O32_Linux
+	bnez	t2, 1f /* __NR_syscall at offset 0 */
 	lw	a1, PT_R4(sp)
 
 1:	jal	syscall_trace_enter
 
 	bltz	v0, 1f			# seccomp failed? Skip syscall
 
-	move	v0, s0			# restore syscall
-
 	RESTORE_STATIC
+	lw	v0, PT_R2(sp)		# Restore syscall (maybe modified)
 	lw	a0, PT_R4(sp)		# Restore argument registers
 	lw	a1, PT_R5(sp)
 	lw	a2, PT_R6(sp)

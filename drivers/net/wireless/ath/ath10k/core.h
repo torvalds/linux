@@ -876,6 +876,7 @@ struct ath10k {
 	 * avoid reporting garbage data.
 	 */
 	bool ch_info_can_report_survey;
+	struct completion bss_survey_done;
 
 	struct dfs_pattern_detector *dfs_detector;
 
@@ -883,8 +884,6 @@ struct ath10k {
 
 #ifdef CONFIG_ATH10K_DEBUGFS
 	struct ath10k_debug debug;
-#endif
-
 	struct {
 		/* relay(fs) channel for spectral scan */
 		struct rchan *rfs_chan_spec_scan;
@@ -893,6 +892,7 @@ struct ath10k {
 		enum ath10k_spectral_mode mode;
 		struct ath10k_spec_scan config;
 	} spectral;
+#endif
 
 	struct {
 		/* protected by conf_mutex */

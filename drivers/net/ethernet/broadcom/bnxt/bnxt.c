@@ -286,7 +286,9 @@ static netdev_tx_t bnxt_start_xmit(struct sk_buff *skb, struct net_device *dev)
 			cpu_to_le32(DB_KEY_TX_PUSH | DB_LONG_TX_PUSH | prod);
 		txr->tx_prod = prod;
 
+		tx_buf->is_push = 1;
 		netdev_tx_sent_queue(txq, skb->len);
+		wmb();	/* Sync is_push and byte queue before pushing data */
 
 		push_len = (length + sizeof(*tx_push) + 7) / 8;
 		if (push_len > 16) {
@@ -298,7 +300,6 @@ static netdev_tx_t bnxt_start_xmit(struct sk_buff *skb, struct net_device *dev)
 					 push_len);
 		}
 
-		tx_buf->is_push = 1;
 		goto tx_done;
 	}
 
@@ -1112,19 +1113,13 @@ static inline struct sk_buff *bnxt_tpa_end(struct bnxt *bp,
 	if (tpa_info->hash_type != PKT_HASH_TYPE_NONE)
 		skb_set_hash(skb, tpa_info->rss_hash, tpa_info->hash_type);
 
-	if (tpa_info->flags2 & RX_CMP_FLAGS2_META_FORMAT_VLAN) {
-		netdev_features_t features = skb->dev->features;
+	if ((tpa_info->flags2 & RX_CMP_FLAGS2_META_FORMAT_VLAN) &&
+	    (skb->dev->features & NETIF_F_HW_VLAN_CTAG_RX)) {
 		u16 vlan_proto = tpa_info->metadata >>
 			RX_CMP_FLAGS2_METADATA_TPID_SFT;
+		u16 vtag = tpa_info->metadata & RX_CMP_FLAGS2_METADATA_VID_MASK;
 
-		if (((features & NETIF_F_HW_VLAN_CTAG_RX) &&
-		     vlan_proto == ETH_P_8021Q) ||
-		    ((features & NETIF_F_HW_VLAN_STAG_RX) &&
-		     vlan_proto == ETH_P_8021AD)) {
-			__vlan_hwaccel_put_tag(skb, htons(vlan_proto),
-					       tpa_info->metadata &
-					       RX_CMP_FLAGS2_METADATA_VID_MASK);
-		}
+		__vlan_hwaccel_put_tag(skb, htons(vlan_proto), vtag);
 	}
 
 	skb_checksum_none_assert(skb);
@@ -1277,19 +1272,14 @@ static int bnxt_rx_pkt(struct bnxt *bp, struct bnxt_napi *bnapi, u32 *raw_cons,
 
 	skb->protocol = eth_type_trans(skb, dev);
 
-	if (rxcmp1->rx_cmp_flags2 &
-	    cpu_to_le32(RX_CMP_FLAGS2_META_FORMAT_VLAN)) {
-		netdev_features_t features = skb->dev->features;
+	if ((rxcmp1->rx_cmp_flags2 &
+	     cpu_to_le32(RX_CMP_FLAGS2_META_FORMAT_VLAN)) &&
+	    (skb->dev->features & NETIF_F_HW_VLAN_CTAG_RX)) {
 		u32 meta_data = le32_to_cpu(rxcmp1->rx_cmp_meta_data);
+		u16 vtag = meta_data & RX_CMP_FLAGS2_METADATA_VID_MASK;
 		u16 vlan_proto = meta_data >> RX_CMP_FLAGS2_METADATA_TPID_SFT;
 
-		if (((features & NETIF_F_HW_VLAN_CTAG_RX) &&
-		     vlan_proto == ETH_P_8021Q) ||
-		    ((features & NETIF_F_HW_VLAN_STAG_RX) &&
-		     vlan_proto == ETH_P_8021AD))
-			__vlan_hwaccel_put_tag(skb, htons(vlan_proto),
-					       meta_data &
-					       RX_CMP_FLAGS2_METADATA_VID_MASK);
+		__vlan_hwaccel_put_tag(skb, htons(vlan_proto), vtag);
 	}
 
 	skb_checksum_none_assert(skb);
@@ -5466,6 +5456,20 @@ static netdev_features_t bnxt_fix_features(struct net_device *dev,
 
 	if (!bnxt_rfs_capable(bp))
 		features &= ~NETIF_F_NTUPLE;
+
+	/* Both CTAG and STAG VLAN accelaration on the RX side have to be
+	 * turned on or off together.
+	 */
+	if ((features & (NETIF_F_HW_VLAN_CTAG_RX | NETIF_F_HW_VLAN_STAG_RX)) !=
+	    (NETIF_F_HW_VLAN_CTAG_RX | NETIF_F_HW_VLAN_STAG_RX)) {
+		if (dev->features & NETIF_F_HW_VLAN_CTAG_RX)
+			features &= ~(NETIF_F_HW_VLAN_CTAG_RX |
+				      NETIF_F_HW_VLAN_STAG_RX);
+		else
+			features |= NETIF_F_HW_VLAN_CTAG_RX |
+				    NETIF_F_HW_VLAN_STAG_RX;
+	}
+
 	return features;
 }
 
@@ -6311,7 +6315,7 @@ static int bnxt_init_one(struct pci_dev *pdev, const struct pci_device_id *ent)
 	dev->hw_features = NETIF_F_IP_CSUM | NETIF_F_IPV6_CSUM | NETIF_F_SG |
 			   NETIF_F_TSO | NETIF_F_TSO6 |
 			   NETIF_F_GSO_UDP_TUNNEL | NETIF_F_GSO_GRE |
-			   NETIF_F_GSO_IPIP | NETIF_F_GSO_SIT |
+			   NETIF_F_GSO_IPXIP4 |
 			   NETIF_F_GSO_UDP_TUNNEL_CSUM | NETIF_F_GSO_GRE_CSUM |
 			   NETIF_F_GSO_PARTIAL | NETIF_F_RXHASH |
 			   NETIF_F_RXCSUM | NETIF_F_LRO | NETIF_F_GRO;
@@ -6321,8 +6325,7 @@ static int bnxt_init_one(struct pci_dev *pdev, const struct pci_device_id *ent)
 			NETIF_F_TSO | NETIF_F_TSO6 |
 			NETIF_F_GSO_UDP_TUNNEL | NETIF_F_GSO_GRE |
 			NETIF_F_GSO_UDP_TUNNEL_CSUM | NETIF_F_GSO_GRE_CSUM |
-			NETIF_F_GSO_IPIP | NETIF_F_GSO_SIT |
-			NETIF_F_GSO_PARTIAL;
+			NETIF_F_GSO_IPXIP4 | NETIF_F_GSO_PARTIAL;
 	dev->gso_partial_features = NETIF_F_GSO_UDP_TUNNEL_CSUM |
 				    NETIF_F_GSO_GRE_CSUM;
 	dev->vlan_features = dev->hw_features | NETIF_F_HIGHDMA;

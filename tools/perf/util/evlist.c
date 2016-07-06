@@ -44,6 +44,7 @@ void perf_evlist__init(struct perf_evlist *evlist, struct cpu_map *cpus,
 	perf_evlist__set_maps(evlist, cpus, threads);
 	fdarray__init(&evlist->pollfd, 64);
 	evlist->workload.pid = -1;
+	evlist->backward = false;
 }
 
 struct perf_evlist *perf_evlist__new(void)
@@ -679,6 +680,33 @@ static struct perf_evsel *perf_evlist__event2evsel(struct perf_evlist *evlist,
 	return NULL;
 }
 
+static int perf_evlist__set_paused(struct perf_evlist *evlist, bool value)
+{
+	int i;
+
+	for (i = 0; i < evlist->nr_mmaps; i++) {
+		int fd = evlist->mmap[i].fd;
+		int err;
+
+		if (fd < 0)
+			continue;
+		err = ioctl(fd, PERF_EVENT_IOC_PAUSE_OUTPUT, value ? 1 : 0);
+		if (err)
+			return err;
+	}
+	return 0;
+}
+
+int perf_evlist__pause(struct perf_evlist *evlist)
+{
+	return perf_evlist__set_paused(evlist, true);
+}
+
+int perf_evlist__resume(struct perf_evlist *evlist)
+{
+	return perf_evlist__set_paused(evlist, false);
+}
+
 /* When check_messup is true, 'end' must points to a good entry */
 static union perf_event *
 perf_mmap__read(struct perf_mmap *md, bool check_messup, u64 start,
@@ -881,6 +909,7 @@ static void __perf_evlist__munmap(struct perf_evlist *evlist, int idx)
 	if (evlist->mmap[idx].base != NULL) {
 		munmap(evlist->mmap[idx].base, evlist->mmap_len);
 		evlist->mmap[idx].base = NULL;
+		evlist->mmap[idx].fd = -1;
 		atomic_set(&evlist->mmap[idx].refcnt, 0);
 	}
 	auxtrace_mmap__munmap(&evlist->mmap[idx].auxtrace_mmap);
@@ -901,10 +930,14 @@ void perf_evlist__munmap(struct perf_evlist *evlist)
 
 static int perf_evlist__alloc_mmap(struct perf_evlist *evlist)
 {
+	int i;
+
 	evlist->nr_mmaps = cpu_map__nr(evlist->cpus);
 	if (cpu_map__empty(evlist->cpus))
 		evlist->nr_mmaps = thread_map__nr(evlist->threads);
 	evlist->mmap = zalloc(evlist->nr_mmaps * sizeof(struct perf_mmap));
+	for (i = 0; i < evlist->nr_mmaps; i++)
+		evlist->mmap[i].fd = -1;
 	return evlist->mmap != NULL ? 0 : -ENOMEM;
 }
 
@@ -941,6 +974,7 @@ static int __perf_evlist__mmap(struct perf_evlist *evlist, int idx,
 		evlist->mmap[idx].base = NULL;
 		return -1;
 	}
+	evlist->mmap[idx].fd = fd;
 
 	if (auxtrace_mmap__mmap(&evlist->mmap[idx].auxtrace_mmap,
 				&mp->auxtrace_mp, evlist->mmap[idx].base, fd))

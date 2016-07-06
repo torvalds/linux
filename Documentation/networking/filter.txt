@@ -230,7 +230,7 @@ opcodes as defined in linux/filter.h stand for:
   mul              0, 4                 A * <x>
   div              0, 4                 A / <x>
   mod              0, 4                 A % <x>
-  neg              0, 4                 !A
+  neg                                   !A
   and              0, 4                 A & <x>
   or               0, 4                 A | <x>
   xor              0, 4                 A ^ <x>

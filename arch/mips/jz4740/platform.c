@@ -32,31 +32,6 @@
 
 #include "clock.h"
 
-/* OHCI controller */
-static struct resource jz4740_usb_ohci_resources[] = {
-	{
-		.start	= JZ4740_UHC_BASE_ADDR,
-		.end	= JZ4740_UHC_BASE_ADDR + 0x1000 - 1,
-		.flags	= IORESOURCE_MEM,
-	},
-	{
-		.start	= JZ4740_IRQ_UHC,
-		.end	= JZ4740_IRQ_UHC,
-		.flags	= IORESOURCE_IRQ,
-	},
-};
-
-struct platform_device jz4740_usb_ohci_device = {
-	.name		= "jz4740-ohci",
-	.id		= -1,
-	.dev = {
-		.dma_mask = &jz4740_usb_ohci_device.dev.coherent_dma_mask,
-		.coherent_dma_mask = DMA_BIT_MASK(32),
-	},
-	.num_resources	= ARRAY_SIZE(jz4740_usb_ohci_resources),
-	.resource	= jz4740_usb_ohci_resources,
-};
-
 /* USB Device Controller */
 struct platform_device jz4740_udc_xceiv_device = {
 	.name = "usb_phy_generic",

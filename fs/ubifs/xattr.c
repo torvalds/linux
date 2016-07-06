@@ -579,11 +579,10 @@ static int ubifs_xattr_get(const struct xattr_handler *handler,
 }
 
 static int ubifs_xattr_set(const struct xattr_handler *handler,
-			   struct dentry *dentry, const char *name,
-			   const void *value, size_t size, int flags)
+			   struct dentry *dentry, struct inode *inode,
+			   const char *name, const void *value,
+			   size_t size, int flags)
 {
-	struct inode *inode = d_inode(dentry);
-
 	dbg_gen("xattr '%s', host ino %lu ('%pd'), size %zd",
 		name, inode->i_ino, dentry, size);
 

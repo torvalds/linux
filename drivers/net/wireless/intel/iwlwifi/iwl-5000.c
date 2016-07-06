@@ -53,7 +53,7 @@
 static const struct iwl_base_params iwl5000_base_params = {
 	.eeprom_size = IWLAGN_EEPROM_IMG_SIZE,
 	.num_of_queues = IWLAGN_NUM_QUEUES,
-	.pll_cfg_val = CSR50_ANA_PLL_CFG_VAL,
+	.pll_cfg = true,
 	.led_compensation = 51,
 	.wd_timeout = IWL_WATCHDOG_DISABLED,
 	.max_event_log_size = 512,

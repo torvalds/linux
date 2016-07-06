@@ -265,7 +265,7 @@ int dprc_get_irq(struct fsl_mc_io *mc_io,
 	/* retrieve response parameters */
 	irq_cfg->val = mc_dec(cmd.params[0], 0, 32);
 	irq_cfg->paddr = mc_dec(cmd.params[1], 0, 64);
-	irq_cfg->user_irq_id = mc_dec(cmd.params[2], 0, 32);
+	irq_cfg->irq_num = mc_dec(cmd.params[2], 0, 32);
 	*type = mc_dec(cmd.params[2], 32, 32);
 
 	return 0;
@@ -296,7 +296,7 @@ int dprc_set_irq(struct fsl_mc_io *mc_io,
 	cmd.params[0] |= mc_enc(32, 8, irq_index);
 	cmd.params[0] |= mc_enc(0, 32, irq_cfg->val);
 	cmd.params[1] |= mc_enc(0, 64, irq_cfg->paddr);
-	cmd.params[2] |= mc_enc(0, 32, irq_cfg->user_irq_id);
+	cmd.params[2] |= mc_enc(0, 32, irq_cfg->irq_num);
 
 	/* send command to mc*/
 	return mc_send_command(mc_io, &cmd);
@@ -466,6 +466,7 @@ int dprc_get_irq_status(struct fsl_mc_io *mc_io,
 	/* prepare command */
 	cmd.header = mc_encode_cmd_header(DPRC_CMDID_GET_IRQ_STATUS,
 					  cmd_flags, token);
+	cmd.params[0] |= mc_enc(0, 32, *status);
 	cmd.params[0] |= mc_enc(32, 8, irq_index);
 
 	/* send command to mc*/
@@ -948,6 +949,7 @@ int dprc_get_obj(struct fsl_mc_io *mc_io,
 	obj_desc->state = mc_dec(cmd.params[1], 32, 32);
 	obj_desc->ver_major = mc_dec(cmd.params[2], 0, 16);
 	obj_desc->ver_minor = mc_dec(cmd.params[2], 16, 16);
+	obj_desc->flags = mc_dec(cmd.params[2], 32, 16);
 	obj_desc->type[0] = mc_dec(cmd.params[3], 0, 8);
 	obj_desc->type[1] = mc_dec(cmd.params[3], 8, 8);
 	obj_desc->type[2] = mc_dec(cmd.params[3], 16, 8);
@@ -1042,6 +1044,7 @@ int dprc_get_obj_desc(struct fsl_mc_io *mc_io,
 	obj_desc->state = (u32)mc_dec(cmd.params[1], 32, 32);
 	obj_desc->ver_major = (u16)mc_dec(cmd.params[2], 0, 16);
 	obj_desc->ver_minor = (u16)mc_dec(cmd.params[2], 16, 16);
+	obj_desc->flags = mc_dec(cmd.params[2], 32, 16);
 	obj_desc->type[0] = (char)mc_dec(cmd.params[3], 0, 8);
 	obj_desc->type[1] = (char)mc_dec(cmd.params[3], 8, 8);
 	obj_desc->type[2] = (char)mc_dec(cmd.params[3], 16, 8);
@@ -1108,7 +1111,7 @@ int dprc_set_obj_irq(struct fsl_mc_io *mc_io,
 	cmd.params[0] |= mc_enc(32, 8, irq_index);
 	cmd.params[0] |= mc_enc(0, 32, irq_cfg->val);
 	cmd.params[1] |= mc_enc(0, 64, irq_cfg->paddr);
-	cmd.params[2] |= mc_enc(0, 32, irq_cfg->user_irq_id);
+	cmd.params[2] |= mc_enc(0, 32, irq_cfg->irq_num);
 	cmd.params[2] |= mc_enc(32, 32, obj_id);
 	cmd.params[3] |= mc_enc(0, 8, obj_type[0]);
 	cmd.params[3] |= mc_enc(8, 8, obj_type[1]);
@@ -1189,7 +1192,7 @@ int dprc_get_obj_irq(struct fsl_mc_io *mc_io,
 	/* retrieve response parameters */
 	irq_cfg->val = (u32)mc_dec(cmd.params[0], 0, 32);
 	irq_cfg->paddr = (u64)mc_dec(cmd.params[1], 0, 64);
-	irq_cfg->user_irq_id = (int)mc_dec(cmd.params[2], 0, 32);
+	irq_cfg->irq_num = (int)mc_dec(cmd.params[2], 0, 32);
 	*type = (int)mc_dec(cmd.params[2], 32, 32);
 
 	return 0;
@@ -1437,14 +1440,8 @@ EXPORT_SYMBOL(dprc_set_obj_label);
  * @endpoint1:	Endpoint 1 configuration parameters
  * @endpoint2:	Endpoint 2 configuration parameters
  * @cfg: Connection configuration. The connection configuration is ignored for
- *	connections made to DPMAC objects, where rate is set according to
- *	MAC configuration.
- *	The committed rate is the guaranteed rate for the connection.
- *	The maximum rate is an upper limit allowed for the connection; it is
- *	expected to be equal or higher than the committed rate.
- *	When committed and maximum rates are both zero, the connection is set
- *	to "best effort" mode, having lower priority compared to connections
- *	with committed or maximum rates.
+ *	 connections made to DPMAC objects, where rate is retrieved from the
+ *	 MAC configuration.
  *
  * Return:	'0' on Success; Error code otherwise.
  */
@@ -1555,7 +1552,10 @@ int dprc_disconnect(struct fsl_mc_io *mc_io,
 * @token:	Token of DPRC object
 * @endpoint1:	Endpoint 1 configuration parameters
 * @endpoint2:	Returned endpoint 2 configuration parameters
-* @state:	Returned link state: 1 - link is up, 0 - link is down
+* @state:	Returned link state:
+*		1 - link is up;
+*		0 - link is down;
+*		-1 - no connection (endpoint2 information is irrelevant)
 *
 * Return:     '0' on Success; -ENAVAIL if connection does not exist.
 */

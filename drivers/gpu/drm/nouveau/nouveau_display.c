@@ -279,7 +279,7 @@ nouveau_user_framebuffer_create(struct drm_device *dev,
 	struct drm_gem_object *gem;
 	int ret = -ENOMEM;
 
-	gem = drm_gem_object_lookup(dev, file_priv, mode_cmd->handles[0]);
+	gem = drm_gem_object_lookup(file_priv, mode_cmd->handles[0]);
 	if (!gem)
 		return ERR_PTR(-ENOENT);
 
@@ -296,7 +296,7 @@ nouveau_user_framebuffer_create(struct drm_device *dev,
 err:
 	kfree(nouveau_fb);
 err_unref:
-	drm_gem_object_unreference(gem);
+	drm_gem_object_unreference_unlocked(gem);
 	return ERR_PTR(ret);
 }
 
@@ -739,7 +739,7 @@ nouveau_crtc_page_flip(struct drm_crtc *crtc, struct drm_framebuffer *fb,
 	}
 
 	mutex_lock(&cli->mutex);
-	ret = ttm_bo_reserve(&new_bo->bo, true, false, false, NULL);
+	ret = ttm_bo_reserve(&new_bo->bo, true, false, NULL);
 	if (ret)
 		goto fail_unpin;
 
@@ -753,7 +753,7 @@ nouveau_crtc_page_flip(struct drm_crtc *crtc, struct drm_framebuffer *fb,
 	if (new_bo != old_bo) {
 		ttm_bo_unreserve(&new_bo->bo);
 
-		ret = ttm_bo_reserve(&old_bo->bo, true, false, false, NULL);
+		ret = ttm_bo_reserve(&old_bo->bo, true, false, NULL);
 		if (ret)
 			goto fail_unpin;
 	}
@@ -916,7 +916,7 @@ nouveau_display_dumb_map_offset(struct drm_file *file_priv,
 {
 	struct drm_gem_object *gem;
 
-	gem = drm_gem_object_lookup(dev, file_priv, handle);
+	gem = drm_gem_object_lookup(file_priv, handle);
 	if (gem) {
 		struct nouveau_bo *bo = nouveau_gem_object(gem);
 		*poffset = drm_vma_node_offset_addr(&bo->bo.vma_node);

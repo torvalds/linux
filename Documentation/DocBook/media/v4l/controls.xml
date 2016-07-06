@@ -2841,7 +2841,7 @@ for a GOP and keep it below or equal the set bitrate target. Otherwise the rate 
 overall average bitrate for the stream and keeps it below or equal to the set bitrate. In the first case
 the average bitrate for the whole stream will be smaller then the set bitrate. This is caused because the
 average is calculated for smaller number of frames, on the other hand enabling this setting will ensure that
-the stream will meet tight bandwidth contraints. Applicable to encoders.
+the stream will meet tight bandwidth constraints. Applicable to encoders.
 </entry>
 	      </row>
 	      <row><entry></entry></row>

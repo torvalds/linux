@@ -599,12 +599,6 @@ _GLOBAL(__bswapdi2)
 	mr      r4,r10
 	blr
 
-_GLOBAL(abs)
-	srawi	r4,r3,31
-	xor	r3,r3,r4
-	sub	r3,r3,r4
-	blr
-
 #ifdef CONFIG_SMP
 _GLOBAL(start_secondary_resume)
 	/* Reset stack */

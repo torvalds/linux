@@ -16,8 +16,7 @@ Required properties:
 
 Optional property:
 - big-endian: If present the dspi device's registers are implemented
-  in big endian mode, otherwise in native mode(same with CPU), for more
-  detail please see: Documentation/devicetree/bindings/regmap/regmap.txt.
+  in big endian mode.
 
 Optional SPI slave node properties:
 - fsl,spi-cs-sck-delay: a delay in nanoseconds between activating chip

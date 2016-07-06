@@ -34,7 +34,7 @@
 
 /* DPBP Version */
 #define DPBP_VER_MAJOR				2
-#define DPBP_VER_MINOR				1
+#define DPBP_VER_MINOR				2
 
 /* Command IDs */
 #define DPBP_CMDID_CLOSE				0x800
@@ -57,4 +57,6 @@
 #define DPBP_CMDID_GET_IRQ_STATUS			0x016
 #define DPBP_CMDID_CLEAR_IRQ_STATUS			0x017
 
+#define DPBP_CMDID_SET_NOTIFICATIONS		0x01b0
+#define DPBP_CMDID_GET_NOTIFICATIONS		0x01b1
 #endif /* _FSL_DPBP_CMD_H */

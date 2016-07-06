@@ -25,7 +25,7 @@
 /* Proxy routine having the same arguments as actual _do_fork() routine */
 static long j_do_fork(unsigned long clone_flags, unsigned long stack_start,
 	      unsigned long stack_size, int __user *parent_tidptr,
-	      int __user *child_tidptr)
+	      int __user *child_tidptr, unsigned long tls)
 {
 	pr_info("jprobe: clone_flags = 0x%lx, stack_start = 0x%lx "
 		"stack_size = 0x%lx\n", clone_flags, stack_start, stack_size);

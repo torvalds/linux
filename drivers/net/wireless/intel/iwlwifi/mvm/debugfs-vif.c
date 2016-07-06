@@ -281,13 +281,10 @@ static ssize_t iwl_dbgfs_mac_params_read(struct file *file,
 
 	if (vif->type == NL80211_IFTYPE_STATION &&
 	    ap_sta_id != IWL_MVM_STATION_COUNT) {
-		struct ieee80211_sta *sta;
+		struct iwl_mvm_sta *mvm_sta;
 
-		sta = rcu_dereference_protected(mvm->fw_id_to_mac_id[ap_sta_id],
-						lockdep_is_held(&mvm->mutex));
-		if (!IS_ERR_OR_NULL(sta)) {
-			struct iwl_mvm_sta *mvm_sta = iwl_mvm_sta_from_mac80211(sta);
-
+		mvm_sta = iwl_mvm_sta_from_staid_protected(mvm, ap_sta_id);
+		if (mvm_sta) {
 			pos += scnprintf(buf+pos, bufsz-pos,
 					 "ap_sta_id %d - reduced Tx power %d\n",
 					 ap_sta_id,

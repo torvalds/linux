@@ -348,9 +348,6 @@ static void vblank_disable_fn(unsigned long arg)
 	unsigned int pipe = vblank->pipe;
 	unsigned long irqflags;
 
-	if (!dev->vblank_disable_allowed)
-		return;
-
 	spin_lock_irqsave(&dev->vbl_lock, irqflags);
 	if (atomic_read(&vblank->refcount) == 0 && vblank->enabled) {
 		DRM_DEBUG("disabling vblank on crtc %u\n", pipe);
@@ -436,8 +433,6 @@ int drm_vblank_init(struct drm_device *dev, unsigned int num_crtcs)
 		DRM_INFO("Setting vblank_disable_immediate to false because "
 			 "get_vblank_timestamp == NULL\n");
 	}
-
-	dev->vblank_disable_allowed = false;
 
 	return 0;
 
@@ -863,10 +858,7 @@ int drm_calc_vbltimestamp_from_scanoutpos(struct drm_device *dev,
 	/* Subtract time delta from raw timestamp to get final
 	 * vblank_time timestamp for end of vblank.
 	 */
-	if (delta_ns < 0)
-		etime = ktime_add_ns(etime, -delta_ns);
-	else
-		etime = ktime_sub_ns(etime, delta_ns);
+	etime = ktime_sub_ns(etime, delta_ns);
 	*vblank_time = ktime_to_timeval(etime);
 
 	DRM_DEBUG_VBL("crtc %u : v 0x%x p(%d,%d)@ %ld.%ld -> %ld.%ld [e %d us, %d rep]\n",
@@ -1588,7 +1580,6 @@ void drm_vblank_post_modeset(struct drm_device *dev, unsigned int pipe)
 
 	if (vblank->inmodeset) {
 		spin_lock_irqsave(&dev->vbl_lock, irqflags);
-		dev->vblank_disable_allowed = true;
 		drm_reset_vblank_timestamp(dev, pipe);
 		spin_unlock_irqrestore(&dev->vbl_lock, irqflags);
 

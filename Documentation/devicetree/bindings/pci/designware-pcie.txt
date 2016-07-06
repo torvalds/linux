@@ -31,7 +31,7 @@ Optional properties:
 
 Example configuration:
 
-	pcie: pcie@0xdffff000 {
+	pcie: pcie@dffff000 {
 		compatible = "snps,dw-pcie";
 		reg = <0xdffff000 0x1000>, /* Controller registers */
 		      <0xd0000000 0x2000>; /* PCI config space */

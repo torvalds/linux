@@ -381,19 +381,17 @@ int snd_tscm_stream_start_duplex(struct snd_tscm *tscm, unsigned int rate)
 	if (err < 0)
 		return err;
 	if (curr_rate != rate ||
-	    amdtp_streaming_error(&tscm->tx_stream) ||
-	    amdtp_streaming_error(&tscm->rx_stream)) {
+	    amdtp_streaming_error(&tscm->rx_stream) ||
+	    amdtp_streaming_error(&tscm->tx_stream)) {
 		finish_session(tscm);
 
-		amdtp_stream_stop(&tscm->tx_stream);
 		amdtp_stream_stop(&tscm->rx_stream);
+		amdtp_stream_stop(&tscm->tx_stream);
 
 		release_resources(tscm);
 	}
 
-	if (!amdtp_stream_running(&tscm->tx_stream)) {
-		amdtp_stream_set_sync(CIP_SYNC_TO_DEVICE,
-				      &tscm->tx_stream, &tscm->rx_stream);
+	if (!amdtp_stream_running(&tscm->rx_stream)) {
 		err = keep_resources(tscm, rate);
 		if (err < 0)
 			goto error;
@@ -406,20 +404,6 @@ int snd_tscm_stream_start_duplex(struct snd_tscm *tscm, unsigned int rate)
 		if (err < 0)
 			goto error;
 
-		err = amdtp_stream_start(&tscm->tx_stream,
-				tscm->tx_resources.channel,
-				fw_parent_device(tscm->unit)->max_speed);
-		if (err < 0)
-			goto error;
-
-		if (!amdtp_stream_wait_callback(&tscm->tx_stream,
-						CALLBACK_TIMEOUT)) {
-			err = -ETIMEDOUT;
-			goto error;
-		}
-	}
-
-	if (!amdtp_stream_running(&tscm->rx_stream)) {
 		err = amdtp_stream_start(&tscm->rx_stream,
 				tscm->rx_resources.channel,
 				fw_parent_device(tscm->unit)->max_speed);
@@ -433,10 +417,24 @@ int snd_tscm_stream_start_duplex(struct snd_tscm *tscm, unsigned int rate)
 		}
 	}
 
+	if (!amdtp_stream_running(&tscm->tx_stream)) {
+		err = amdtp_stream_start(&tscm->tx_stream,
+				tscm->tx_resources.channel,
+				fw_parent_device(tscm->unit)->max_speed);
+		if (err < 0)
+			goto error;
+
+		if (!amdtp_stream_wait_callback(&tscm->tx_stream,
+						CALLBACK_TIMEOUT)) {
+			err = -ETIMEDOUT;
+			goto error;
+		}
+	}
+
 	return 0;
 error:
-	amdtp_stream_stop(&tscm->tx_stream);
 	amdtp_stream_stop(&tscm->rx_stream);
+	amdtp_stream_stop(&tscm->tx_stream);
 
 	finish_session(tscm);
 	release_resources(tscm);

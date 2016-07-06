@@ -60,6 +60,7 @@ int __init security_init(void)
 	 */
 	capability_add_hooks();
 	yama_add_hooks();
+	loadpin_add_hooks();
 
 	/*
 	 * Load all the remaining security modules.
@@ -1848,7 +1849,6 @@ struct security_hook_heads security_hook_heads = {
 	.tun_dev_attach =
 		LIST_HEAD_INIT(security_hook_heads.tun_dev_attach),
 	.tun_dev_open =	LIST_HEAD_INIT(security_hook_heads.tun_dev_open),
-	.skb_owned_by =	LIST_HEAD_INIT(security_hook_heads.skb_owned_by),
 #endif	/* CONFIG_SECURITY_NETWORK */
 #ifdef CONFIG_SECURITY_NETWORK_XFRM
 	.xfrm_policy_alloc_security =

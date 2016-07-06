@@ -433,8 +433,8 @@ static int mlx5e_alloc_rx_fragmented_mpwqe(struct mlx5e_rq *rq,
 	for (i = 0; i < MLX5_MPWRQ_PAGES_PER_WQE; i++) {
 		if (unlikely(mlx5e_alloc_and_map_page(rq, wi, i)))
 			goto err_unmap;
-		atomic_add(mlx5e_mpwqe_strides_per_page(rq),
-			   &wi->umr.dma_info[i].page->_count);
+		page_ref_add(wi->umr.dma_info[i].page,
+			     mlx5e_mpwqe_strides_per_page(rq));
 		wi->skbs_frags[i] = 0;
 	}
 
@@ -452,8 +452,8 @@ err_unmap:
 	while (--i >= 0) {
 		dma_unmap_page(rq->pdev, wi->umr.dma_info[i].addr, PAGE_SIZE,
 			       PCI_DMA_FROMDEVICE);
-		atomic_sub(mlx5e_mpwqe_strides_per_page(rq),
-			   &wi->umr.dma_info[i].page->_count);
+		page_ref_sub(wi->umr.dma_info[i].page,
+			     mlx5e_mpwqe_strides_per_page(rq));
 		put_page(wi->umr.dma_info[i].page);
 	}
 	dma_unmap_single(rq->pdev, wi->umr.mtt_addr, mtt_sz, PCI_DMA_TODEVICE);
@@ -477,8 +477,8 @@ void mlx5e_free_rx_fragmented_mpwqe(struct mlx5e_rq *rq,
 	for (i = 0; i < MLX5_MPWRQ_PAGES_PER_WQE; i++) {
 		dma_unmap_page(rq->pdev, wi->umr.dma_info[i].addr, PAGE_SIZE,
 			       PCI_DMA_FROMDEVICE);
-		atomic_sub(mlx5e_mpwqe_strides_per_page(rq) - wi->skbs_frags[i],
-			   &wi->umr.dma_info[i].page->_count);
+		page_ref_sub(wi->umr.dma_info[i].page,
+			mlx5e_mpwqe_strides_per_page(rq) - wi->skbs_frags[i]);
 		put_page(wi->umr.dma_info[i].page);
 	}
 	dma_unmap_single(rq->pdev, wi->umr.mtt_addr, mtt_sz, PCI_DMA_TODEVICE);
@@ -527,8 +527,8 @@ static int mlx5e_alloc_rx_linear_mpwqe(struct mlx5e_rq *rq,
 	 */
 	split_page(wi->dma_info.page, MLX5_MPWRQ_WQE_PAGE_ORDER);
 	for (i = 0; i < MLX5_MPWRQ_PAGES_PER_WQE; i++) {
-		atomic_add(mlx5e_mpwqe_strides_per_page(rq),
-			   &wi->dma_info.page[i]._count);
+		page_ref_add(&wi->dma_info.page[i],
+			     mlx5e_mpwqe_strides_per_page(rq));
 		wi->skbs_frags[i] = 0;
 	}
 
@@ -551,8 +551,8 @@ void mlx5e_free_rx_linear_mpwqe(struct mlx5e_rq *rq,
 	dma_unmap_page(rq->pdev, wi->dma_info.addr, rq->wqe_sz,
 		       PCI_DMA_FROMDEVICE);
 	for (i = 0; i < MLX5_MPWRQ_PAGES_PER_WQE; i++) {
-		atomic_sub(mlx5e_mpwqe_strides_per_page(rq) - wi->skbs_frags[i],
-			   &wi->dma_info.page[i]._count);
+		page_ref_sub(&wi->dma_info.page[i],
+			mlx5e_mpwqe_strides_per_page(rq) - wi->skbs_frags[i]);
 		put_page(&wi->dma_info.page[i]);
 	}
 }

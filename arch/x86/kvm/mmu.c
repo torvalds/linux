@@ -336,12 +336,12 @@ static gfn_t pse36_gfn_delta(u32 gpte)
 #ifdef CONFIG_X86_64
 static void __set_spte(u64 *sptep, u64 spte)
 {
-	*sptep = spte;
+	WRITE_ONCE(*sptep, spte);
 }
 
 static void __update_clear_spte_fast(u64 *sptep, u64 spte)
 {
-	*sptep = spte;
+	WRITE_ONCE(*sptep, spte);
 }
 
 static u64 __update_clear_spte_slow(u64 *sptep, u64 spte)
@@ -390,7 +390,7 @@ static void __set_spte(u64 *sptep, u64 spte)
 	 */
 	smp_wmb();
 
-	ssptep->spte_low = sspte.spte_low;
+	WRITE_ONCE(ssptep->spte_low, sspte.spte_low);
 }
 
 static void __update_clear_spte_fast(u64 *sptep, u64 spte)
@@ -400,7 +400,7 @@ static void __update_clear_spte_fast(u64 *sptep, u64 spte)
 	ssptep = (union split_spte *)sptep;
 	sspte = (union split_spte)spte;
 
-	ssptep->spte_low = sspte.spte_low;
+	WRITE_ONCE(ssptep->spte_low, sspte.spte_low);
 
 	/*
 	 * If we map the spte from present to nonpresent, we should clear
@@ -1909,18 +1909,17 @@ static void kvm_mmu_commit_zap_page(struct kvm *kvm,
  * since it has been deleted from active_mmu_pages but still can be found
  * at hast list.
  *
- * for_each_gfn_indirect_valid_sp has skipped that kind of page and
- * kvm_mmu_get_page(), the only user of for_each_gfn_sp(), has skipped
- * all the obsolete pages.
+ * for_each_gfn_valid_sp() has skipped that kind of pages.
  */
-#define for_each_gfn_sp(_kvm, _sp, _gfn)				\
+#define for_each_gfn_valid_sp(_kvm, _sp, _gfn)				\
 	hlist_for_each_entry(_sp,					\
 	  &(_kvm)->arch.mmu_page_hash[kvm_page_table_hashfn(_gfn)], hash_link) \
-		if ((_sp)->gfn != (_gfn)) {} else
+		if ((_sp)->gfn != (_gfn) || is_obsolete_sp((_kvm), (_sp)) \
+			|| (_sp)->role.invalid) {} else
 
 #define for_each_gfn_indirect_valid_sp(_kvm, _sp, _gfn)			\
-	for_each_gfn_sp(_kvm, _sp, _gfn)				\
-		if ((_sp)->role.direct || (_sp)->role.invalid) {} else
+	for_each_gfn_valid_sp(_kvm, _sp, _gfn)				\
+		if ((_sp)->role.direct) {} else
 
 /* @sp->gfn should be write-protected at the call site */
 static bool __kvm_sync_page(struct kvm_vcpu *vcpu, struct kvm_mmu_page *sp,
@@ -1960,6 +1959,11 @@ static void kvm_mmu_flush_or_zap(struct kvm_vcpu *vcpu,
 static void kvm_mmu_audit(struct kvm_vcpu *vcpu, int point) { }
 static void mmu_audit_disable(void) { }
 #endif
+
+static bool is_obsolete_sp(struct kvm *kvm, struct kvm_mmu_page *sp)
+{
+	return unlikely(sp->mmu_valid_gen != kvm->arch.mmu_valid_gen);
+}
 
 static bool kvm_sync_page(struct kvm_vcpu *vcpu, struct kvm_mmu_page *sp,
 			 struct list_head *invalid_list)
@@ -2105,11 +2109,6 @@ static void clear_sp_write_flooding_count(u64 *spte)
 	__clear_sp_write_flooding_count(sp);
 }
 
-static bool is_obsolete_sp(struct kvm *kvm, struct kvm_mmu_page *sp)
-{
-	return unlikely(sp->mmu_valid_gen != kvm->arch.mmu_valid_gen);
-}
-
 static struct kvm_mmu_page *kvm_mmu_get_page(struct kvm_vcpu *vcpu,
 					     gfn_t gfn,
 					     gva_t gaddr,
@@ -2136,10 +2135,7 @@ static struct kvm_mmu_page *kvm_mmu_get_page(struct kvm_vcpu *vcpu,
 		quadrant &= (1 << ((PT32_PT_BITS - PT64_PT_BITS) * level)) - 1;
 		role.quadrant = quadrant;
 	}
-	for_each_gfn_sp(vcpu->kvm, sp, gfn) {
-		if (is_obsolete_sp(vcpu->kvm, sp))
-			continue;
-
+	for_each_gfn_valid_sp(vcpu->kvm, sp, gfn) {
 		if (!need_sync && sp->unsync)
 			need_sync = true;
 

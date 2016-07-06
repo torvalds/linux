@@ -81,8 +81,6 @@ void gk104_grctx_generate_bundle(struct gf100_grctx *);
 void gk104_grctx_generate_pagepool(struct gf100_grctx *);
 void gk104_grctx_generate_unkn(struct gf100_gr *);
 void gk104_grctx_generate_r418bb8(struct gf100_gr *);
-void gk104_grctx_generate_rop_active_fbps(struct gf100_gr *);
-
 
 void gm107_grctx_generate_bundle(struct gf100_grctx *);
 void gm107_grctx_generate_pagepool(struct gf100_grctx *);
@@ -98,7 +96,6 @@ void gm107_grctx_generate_pagepool(struct gf100_grctx *);
 void gm107_grctx_generate_attrib(struct gf100_grctx *);
 
 extern const struct gf100_grctx_func gm200_grctx;
-void gm200_grctx_generate_main(struct gf100_gr *, struct gf100_grctx *);
 void gm200_grctx_generate_tpcid(struct gf100_gr *);
 void gm200_grctx_generate_405b60(struct gf100_gr *);
 

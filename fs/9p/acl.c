@@ -239,13 +239,13 @@ static int v9fs_xattr_get_acl(const struct xattr_handler *handler,
 }
 
 static int v9fs_xattr_set_acl(const struct xattr_handler *handler,
-			      struct dentry *dentry, const char *name,
-			      const void *value, size_t size, int flags)
+			      struct dentry *dentry, struct inode *inode,
+			      const char *name, const void *value,
+			      size_t size, int flags)
 {
 	int retval;
 	struct posix_acl *acl;
 	struct v9fs_session_info *v9ses;
-	struct inode *inode = d_inode(dentry);
 
 	v9ses = v9fs_dentry2v9ses(dentry);
 	/*

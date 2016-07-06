@@ -683,15 +683,11 @@ static int check_packet_access(struct verifier_env *env, u32 regno, int off,
 {
 	struct reg_state *regs = env->cur_state.regs;
 	struct reg_state *reg = &regs[regno];
-	int linear_size = (int) reg->range - (int) reg->off;
 
-	if (linear_size < 0 || linear_size >= MAX_PACKET_OFF) {
-		verbose("verifier bug\n");
-		return -EFAULT;
-	}
-	if (off < 0 || off + size > linear_size) {
-		verbose("invalid access to packet, off=%d size=%d, allowed=%d\n",
-			off, size, linear_size);
+	off += reg->off;
+	if (off < 0 || off + size > reg->range) {
+		verbose("invalid access to packet, off=%d size=%d, R%d(id=%d,off=%d,r=%d)\n",
+			off, size, regno, reg->id, reg->off, reg->range);
 		return -EACCES;
 	}
 	return 0;
@@ -1249,6 +1245,7 @@ static int check_packet_ptr_add(struct verifier_env *env, struct bpf_insn *insn)
 	struct reg_state *regs = env->cur_state.regs;
 	struct reg_state *dst_reg = &regs[insn->dst_reg];
 	struct reg_state *src_reg = &regs[insn->src_reg];
+	struct reg_state tmp_reg;
 	s32 imm;
 
 	if (BPF_SRC(insn->code) == BPF_K) {
@@ -1271,6 +1268,19 @@ add_imm:
 		 */
 		dst_reg->off += imm;
 	} else {
+		if (src_reg->type == PTR_TO_PACKET) {
+			/* R6=pkt(id=0,off=0,r=62) R7=imm22; r7 += r6 */
+			tmp_reg = *dst_reg;  /* save r7 state */
+			*dst_reg = *src_reg; /* copy pkt_ptr state r6 into r7 */
+			src_reg = &tmp_reg;  /* pretend it's src_reg state */
+			/* if the checks below reject it, the copy won't matter,
+			 * since we're rejecting the whole program. If all ok,
+			 * then imm22 state will be added to r7
+			 * and r7 will be pkt(id=0,off=22,r=62) while
+			 * r6 will stay as pkt(id=0,off=0,r=62)
+			 */
+		}
+
 		if (src_reg->type == CONST_IMM) {
 			/* pkt_ptr += reg where reg is known constant */
 			imm = src_reg->imm;
@@ -1569,7 +1579,9 @@ static int check_alu_op(struct verifier_env *env, struct bpf_insn *insn)
 			return 0;
 		} else if (opcode == BPF_ADD &&
 			   BPF_CLASS(insn->code) == BPF_ALU64 &&
-			   dst_reg->type == PTR_TO_PACKET) {
+			   (dst_reg->type == PTR_TO_PACKET ||
+			    (BPF_SRC(insn->code) == BPF_X &&
+			     regs[insn->src_reg].type == PTR_TO_PACKET))) {
 			/* ptr_to_packet += K|X */
 			return check_packet_ptr_add(env, insn);
 		} else if (BPF_CLASS(insn->code) == BPF_ALU64 &&

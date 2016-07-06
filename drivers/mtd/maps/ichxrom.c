@@ -84,8 +84,8 @@ static void ichxrom_cleanup(struct ichxrom_window *window)
 }
 
 
-static int ichxrom_init_one(struct pci_dev *pdev,
-			    const struct pci_device_id *ent)
+static int __init ichxrom_init_one(struct pci_dev *pdev,
+				   const struct pci_device_id *ent)
 {
 	static char *rom_probe_types[] = { "cfi_probe", "jedec_probe", NULL };
 	struct ichxrom_window *window = &ichxrom_window;

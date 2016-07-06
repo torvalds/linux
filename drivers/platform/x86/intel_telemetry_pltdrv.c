@@ -1081,7 +1081,7 @@ out:
 	return ret;
 }
 
-static struct telemetry_core_ops telm_pltops = {
+static const struct telemetry_core_ops telm_pltops = {
 	.get_trace_verbosity = telemetry_plt_get_trace_verbosity,
 	.set_trace_verbosity = telemetry_plt_set_trace_verbosity,
 	.set_sampling_period = telemetry_plt_set_sampling_period,

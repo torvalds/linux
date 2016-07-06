@@ -178,8 +178,8 @@ static int drm_dp_dpcd_access(struct drm_dp_aux *aux, u8 request,
 			      unsigned int offset, void *buffer, size_t size)
 {
 	struct drm_dp_aux_msg msg;
-	unsigned int retry;
-	int err = 0;
+	unsigned int retry, native_reply;
+	int err = 0, ret = 0;
 
 	memset(&msg, 0, sizeof(msg));
 	msg.address = offset;
@@ -196,38 +196,39 @@ static int drm_dp_dpcd_access(struct drm_dp_aux *aux, u8 request,
 	 * sufficient, bump to 32 which makes Dell 4k monitors happier.
 	 */
 	for (retry = 0; retry < 32; retry++) {
-
-		err = aux->transfer(aux, &msg);
-		if (err < 0) {
-			if (err == -EBUSY)
-				continue;
-
-			goto unlock;
+		if (ret != 0 && ret != -ETIMEDOUT) {
+			usleep_range(AUX_RETRY_INTERVAL,
+				     AUX_RETRY_INTERVAL + 100);
 		}
 
+		ret = aux->transfer(aux, &msg);
 
-		switch (msg.reply & DP_AUX_NATIVE_REPLY_MASK) {
-		case DP_AUX_NATIVE_REPLY_ACK:
-			if (err < size)
-				err = -EPROTO;
-			goto unlock;
+		if (ret > 0) {
+			native_reply = msg.reply & DP_AUX_NATIVE_REPLY_MASK;
+			if (native_reply == DP_AUX_NATIVE_REPLY_ACK) {
+				if (ret == size)
+					goto unlock;
 
-		case DP_AUX_NATIVE_REPLY_NACK:
-			err = -EIO;
-			goto unlock;
-
-		case DP_AUX_NATIVE_REPLY_DEFER:
-			usleep_range(AUX_RETRY_INTERVAL, AUX_RETRY_INTERVAL + 100);
-			break;
+				ret = -EPROTO;
+			} else
+				ret = -EIO;
 		}
+
+		/*
+		 * We want the error we return to be the error we received on
+		 * the first transaction, since we may get a different error the
+		 * next time we retry
+		 */
+		if (!err)
+			err = ret;
 	}
 
 	DRM_DEBUG_KMS("too many retries, giving up\n");
-	err = -EIO;
+	ret = err;
 
 unlock:
 	mutex_unlock(&aux->hw_mutex);
-	return err;
+	return ret;
 }
 
 /**
@@ -247,6 +248,25 @@ unlock:
 ssize_t drm_dp_dpcd_read(struct drm_dp_aux *aux, unsigned int offset,
 			 void *buffer, size_t size)
 {
+	int ret;
+
+	/*
+	 * HP ZR24w corrupts the first DPCD access after entering power save
+	 * mode. Eg. on a read, the entire buffer will be filled with the same
+	 * byte. Do a throw away read to avoid corrupting anything we care
+	 * about. Afterwards things will work correctly until the monitor
+	 * gets woken up and subsequently re-enters power save mode.
+	 *
+	 * The user pressing any button on the monitor is enough to wake it
+	 * up, so there is no particularly good place to do the workaround.
+	 * We just have to do it before any DPCD access and hope that the
+	 * monitor doesn't power down exactly after the throw away read.
+	 */
+	ret = drm_dp_dpcd_access(aux, DP_AUX_NATIVE_READ, DP_DPCD_REV, buffer,
+				 1);
+	if (ret != 1)
+		return ret;
+
 	return drm_dp_dpcd_access(aux, DP_AUX_NATIVE_READ, offset, buffer,
 				  size);
 }

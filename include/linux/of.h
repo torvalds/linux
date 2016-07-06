@@ -75,6 +75,23 @@ struct of_phandle_args {
 	uint32_t args[MAX_PHANDLE_ARGS];
 };
 
+struct of_phandle_iterator {
+	/* Common iterator information */
+	const char *cells_name;
+	int cell_count;
+	const struct device_node *parent;
+
+	/* List size information */
+	const __be32 *list_end;
+	const __be32 *phandle_end;
+
+	/* Current position state */
+	const __be32 *cur;
+	uint32_t cur_count;
+	phandle phandle;
+	struct device_node *node;
+};
+
 struct of_reconfig_data {
 	struct device_node	*dn;
 	struct property		*prop;
@@ -334,6 +351,18 @@ extern int of_parse_phandle_with_fixed_args(const struct device_node *np,
 extern int of_count_phandle_with_args(const struct device_node *np,
 	const char *list_name, const char *cells_name);
 
+/* phandle iterator functions */
+extern int of_phandle_iterator_init(struct of_phandle_iterator *it,
+				    const struct device_node *np,
+				    const char *list_name,
+				    const char *cells_name,
+				    int cell_count);
+
+extern int of_phandle_iterator_next(struct of_phandle_iterator *it);
+extern int of_phandle_iterator_args(struct of_phandle_iterator *it,
+				    uint32_t *args,
+				    int size);
+
 extern void of_alias_scan(void * (*dt_alloc)(u64 size, u64 align));
 extern int of_alias_get_id(struct device_node *np, const char *stem);
 extern int of_alias_get_highest_id(const char *stem);
@@ -585,7 +614,7 @@ static inline struct device_node *of_parse_phandle(const struct device_node *np,
 	return NULL;
 }
 
-static inline int of_parse_phandle_with_args(struct device_node *np,
+static inline int of_parse_phandle_with_args(const struct device_node *np,
 					     const char *list_name,
 					     const char *cells_name,
 					     int index,
@@ -606,6 +635,27 @@ static inline int of_count_phandle_with_args(struct device_node *np,
 					     const char *cells_name)
 {
 	return -ENOSYS;
+}
+
+static inline int of_phandle_iterator_init(struct of_phandle_iterator *it,
+					   const struct device_node *np,
+					   const char *list_name,
+					   const char *cells_name,
+					   int cell_count)
+{
+	return -ENOSYS;
+}
+
+static inline int of_phandle_iterator_next(struct of_phandle_iterator *it)
+{
+	return -ENOSYS;
+}
+
+static inline int of_phandle_iterator_args(struct of_phandle_iterator *it,
+					   uint32_t *args,
+					   int size)
+{
+	return 0;
 }
 
 static inline int of_alias_get_id(struct device_node *np, const char *stem)
@@ -876,6 +926,12 @@ static inline int of_property_read_s32(const struct device_node *np,
 {
 	return of_property_read_u32(np, propname, (u32*) out_value);
 }
+
+#define of_for_each_phandle(it, err, np, ln, cn, cc)			\
+	for (of_phandle_iterator_init((it), (np), (ln), (cn), (cc)),	\
+	     err = of_phandle_iterator_next(it);			\
+	     err == 0;							\
+	     err = of_phandle_iterator_next(it))
 
 #define of_property_for_each_u32(np, propname, prop, p, u)	\
 	for (prop = of_find_property(np, propname, NULL),	\

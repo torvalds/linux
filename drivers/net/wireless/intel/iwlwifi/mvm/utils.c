@@ -90,10 +90,16 @@ int iwl_mvm_send_cmd(struct iwl_mvm *mvm, struct iwl_host_cmd *cmd)
 	 * the mutex, this ensures we don't try to send two
 	 * (or more) synchronous commands at a time.
 	 */
-	if (!(cmd->flags & CMD_ASYNC))
+	if (!(cmd->flags & CMD_ASYNC)) {
 		lockdep_assert_held(&mvm->mutex);
+		if (!(cmd->flags & CMD_SEND_IN_IDLE))
+			iwl_mvm_ref(mvm, IWL_MVM_REF_SENDING_CMD);
+	}
 
 	ret = iwl_trans_send_cmd(mvm->trans, cmd);
+
+	if (!(cmd->flags & (CMD_ASYNC | CMD_SEND_IN_IDLE)))
+		iwl_mvm_unref(mvm, IWL_MVM_REF_SENDING_CMD);
 
 	/*
 	 * If the caller wants the SKB, then don't hide any problems, the
@@ -581,10 +587,43 @@ int iwl_mvm_find_free_queue(struct iwl_mvm *mvm, u8 minq, u8 maxq)
 
 	for (i = minq; i <= maxq; i++)
 		if (mvm->queue_info[i].hw_queue_refcount == 0 &&
-		    !mvm->queue_info[i].setup_reserved)
+		    mvm->queue_info[i].status == IWL_MVM_QUEUE_FREE)
 			return i;
 
 	return -ENOSPC;
+}
+
+int iwl_mvm_reconfig_scd(struct iwl_mvm *mvm, int queue, int fifo, int sta_id,
+			 int tid, int frame_limit, u16 ssn)
+{
+	struct iwl_scd_txq_cfg_cmd cmd = {
+		.scd_queue = queue,
+		.enable = 1,
+		.window = frame_limit,
+		.sta_id = sta_id,
+		.ssn = cpu_to_le16(ssn),
+		.tx_fifo = fifo,
+		.aggregate = (queue >= IWL_MVM_DQA_MIN_DATA_QUEUE ||
+			      queue == IWL_MVM_DQA_BSS_CLIENT_QUEUE),
+		.tid = tid,
+	};
+	int ret;
+
+	spin_lock_bh(&mvm->queue_info_lock);
+	if (WARN(mvm->queue_info[queue].hw_queue_refcount == 0,
+		 "Trying to reconfig unallocated queue %d\n", queue)) {
+		spin_unlock_bh(&mvm->queue_info_lock);
+		return -ENXIO;
+	}
+	spin_unlock_bh(&mvm->queue_info_lock);
+
+	IWL_DEBUG_TX_QUEUES(mvm, "Reconfig SCD for TXQ #%d\n", queue);
+
+	ret = iwl_mvm_send_cmd_pdu(mvm, SCD_QUEUE_CFG, 0, sizeof(cmd), &cmd);
+	WARN_ONCE(ret, "Failed to re-configure queue %d on FIFO %d, ret=%d\n",
+		  queue, fifo, ret);
+
+	return ret;
 }
 
 void iwl_mvm_enable_txq(struct iwl_mvm *mvm, int queue, int mac80211_queue,
@@ -682,6 +721,8 @@ void iwl_mvm_disable_txq(struct iwl_mvm *mvm, int queue, int mac80211_queue,
 	mvm->queue_info[queue].hw_queue_refcount--;
 
 	cmd.enable = mvm->queue_info[queue].hw_queue_refcount ? 1 : 0;
+	if (!cmd.enable)
+		mvm->queue_info[queue].status = IWL_MVM_QUEUE_FREE;
 
 	IWL_DEBUG_TX_QUEUES(mvm,
 			    "Disabling TXQ #%d refcount=%d (mac80211 map:0x%x)\n",

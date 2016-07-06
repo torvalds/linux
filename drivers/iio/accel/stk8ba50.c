@@ -11,7 +11,6 @@
  */
 
 #include <linux/acpi.h>
-#include <linux/gpio/consumer.h>
 #include <linux/i2c.h>
 #include <linux/interrupt.h>
 #include <linux/kernel.h>

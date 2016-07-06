@@ -29,6 +29,7 @@
 #include <linux/log2.h>
 #include <linux/cleancache.h>
 #include <linux/dax.h>
+#include <linux/badblocks.h>
 #include <asm/uaccess.h>
 #include "internal.h"
 
@@ -49,6 +50,18 @@ struct block_device *I_BDEV(struct inode *inode)
 	return &BDEV_I(inode)->bdev;
 }
 EXPORT_SYMBOL(I_BDEV);
+
+void __vfs_msg(struct super_block *sb, const char *prefix, const char *fmt, ...)
+{
+	struct va_format vaf;
+	va_list args;
+
+	va_start(args, fmt);
+	vaf.fmt = fmt;
+	vaf.va = &args;
+	printk_ratelimited("%sVFS (%s): %pV\n", prefix, sb->s_id, &vaf);
+	va_end(args);
+}
 
 static void bdev_write_inode(struct block_device *bdev)
 {
@@ -488,7 +501,7 @@ long bdev_direct_access(struct block_device *bdev, struct blk_dax_ctl *dax)
 	sector += get_start_sect(bdev);
 	if (sector % (PAGE_SIZE / 512))
 		return -EINVAL;
-	avail = ops->direct_access(bdev, sector, &dax->addr, &dax->pfn);
+	avail = ops->direct_access(bdev, sector, &dax->addr, &dax->pfn, size);
 	if (!avail)
 		return -ERANGE;
 	if (avail > 0 && avail & ~PAGE_MASK)
@@ -496,6 +509,75 @@ long bdev_direct_access(struct block_device *bdev, struct blk_dax_ctl *dax)
 	return min(avail, size);
 }
 EXPORT_SYMBOL_GPL(bdev_direct_access);
+
+/**
+ * bdev_dax_supported() - Check if the device supports dax for filesystem
+ * @sb: The superblock of the device
+ * @blocksize: The block size of the device
+ *
+ * This is a library function for filesystems to check if the block device
+ * can be mounted with dax option.
+ *
+ * Return: negative errno if unsupported, 0 if supported.
+ */
+int bdev_dax_supported(struct super_block *sb, int blocksize)
+{
+	struct blk_dax_ctl dax = {
+		.sector = 0,
+		.size = PAGE_SIZE,
+	};
+	int err;
+
+	if (blocksize != PAGE_SIZE) {
+		vfs_msg(sb, KERN_ERR, "error: unsupported blocksize for dax");
+		return -EINVAL;
+	}
+
+	err = bdev_direct_access(sb->s_bdev, &dax);
+	if (err < 0) {
+		switch (err) {
+		case -EOPNOTSUPP:
+			vfs_msg(sb, KERN_ERR,
+				"error: device does not support dax");
+			break;
+		case -EINVAL:
+			vfs_msg(sb, KERN_ERR,
+				"error: unaligned partition for dax");
+			break;
+		default:
+			vfs_msg(sb, KERN_ERR,
+				"error: dax access failed (%d)", err);
+		}
+		return err;
+	}
+
+	return 0;
+}
+EXPORT_SYMBOL_GPL(bdev_dax_supported);
+
+/**
+ * bdev_dax_capable() - Return if the raw device is capable for dax
+ * @bdev: The device for raw block device access
+ */
+bool bdev_dax_capable(struct block_device *bdev)
+{
+	struct blk_dax_ctl dax = {
+		.size = PAGE_SIZE,
+	};
+
+	if (!IS_ENABLED(CONFIG_FS_DAX))
+		return false;
+
+	dax.sector = 0;
+	if (bdev_direct_access(bdev, &dax) < 0)
+		return false;
+
+	dax.sector = bdev->bd_part->nr_sects - (PAGE_SIZE / 512);
+	if (bdev_direct_access(bdev, &dax) < 0)
+		return false;
+
+	return true;
+}
 
 /*
  * pseudo-fs
@@ -1238,7 +1320,7 @@ static int __blkdev_get(struct block_device *bdev, fmode_t mode, int for_part)
 
 			if (!ret) {
 				bd_set_size(bdev,(loff_t)get_capacity(disk)<<9);
-				if (!blkdev_dax_capable(bdev))
+				if (!bdev_dax_capable(bdev))
 					bdev->bd_inode->i_flags &= ~S_DAX;
 			}
 
@@ -1275,7 +1357,7 @@ static int __blkdev_get(struct block_device *bdev, fmode_t mode, int for_part)
 				goto out_clear;
 			}
 			bd_set_size(bdev, (loff_t)bdev->bd_part->nr_sects << 9);
-			if (!blkdev_dax_capable(bdev))
+			if (!bdev_dax_capable(bdev))
 				bdev->bd_inode->i_flags &= ~S_DAX;
 		}
 	} else {
@@ -1720,79 +1802,13 @@ static const struct address_space_operations def_blk_aops = {
 	.is_dirty_writeback = buffer_check_dirty_writeback,
 };
 
-#ifdef CONFIG_FS_DAX
-/*
- * In the raw block case we do not need to contend with truncation nor
- * unwritten file extents.  Without those concerns there is no need for
- * additional locking beyond the mmap_sem context that these routines
- * are already executing under.
- *
- * Note, there is no protection if the block device is dynamically
- * resized (partition grow/shrink) during a fault. A stable block device
- * size is already not enforced in the blkdev_direct_IO path.
- *
- * For DAX, it is the responsibility of the block device driver to
- * ensure the whole-disk device size is stable while requests are in
- * flight.
- *
- * Finally, unlike the filemap_page_mkwrite() case there is no
- * filesystem superblock to sync against freezing.  We still include a
- * pfn_mkwrite callback for dax drivers to receive write fault
- * notifications.
- */
-static int blkdev_dax_fault(struct vm_area_struct *vma, struct vm_fault *vmf)
-{
-	return __dax_fault(vma, vmf, blkdev_get_block, NULL);
-}
-
-static int blkdev_dax_pfn_mkwrite(struct vm_area_struct *vma,
-		struct vm_fault *vmf)
-{
-	return dax_pfn_mkwrite(vma, vmf);
-}
-
-static int blkdev_dax_pmd_fault(struct vm_area_struct *vma, unsigned long addr,
-		pmd_t *pmd, unsigned int flags)
-{
-	return __dax_pmd_fault(vma, addr, pmd, flags, blkdev_get_block, NULL);
-}
-
-static const struct vm_operations_struct blkdev_dax_vm_ops = {
-	.fault		= blkdev_dax_fault,
-	.pmd_fault	= blkdev_dax_pmd_fault,
-	.pfn_mkwrite	= blkdev_dax_pfn_mkwrite,
-};
-
-static const struct vm_operations_struct blkdev_default_vm_ops = {
-	.fault		= filemap_fault,
-	.map_pages	= filemap_map_pages,
-};
-
-static int blkdev_mmap(struct file *file, struct vm_area_struct *vma)
-{
-	struct inode *bd_inode = bdev_file_inode(file);
-
-	file_accessed(file);
-	if (IS_DAX(bd_inode)) {
-		vma->vm_ops = &blkdev_dax_vm_ops;
-		vma->vm_flags |= VM_MIXEDMAP | VM_HUGEPAGE;
-	} else {
-		vma->vm_ops = &blkdev_default_vm_ops;
-	}
-
-	return 0;
-}
-#else
-#define blkdev_mmap generic_file_mmap
-#endif
-
 const struct file_operations def_blk_fops = {
 	.open		= blkdev_open,
 	.release	= blkdev_close,
 	.llseek		= block_llseek,
 	.read_iter	= blkdev_read_iter,
 	.write_iter	= blkdev_write_iter,
-	.mmap		= blkdev_mmap,
+	.mmap		= generic_file_mmap,
 	.fsync		= blkdev_fsync,
 	.unlocked_ioctl	= block_ioctl,
 #ifdef CONFIG_COMPAT

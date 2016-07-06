@@ -58,50 +58,41 @@ static inline struct vbt_panel *to_vbt_panel(struct drm_panel *panel)
 
 #define NS_KHZ_RATIO 1000000
 
-#define GPI0_NC_0_HV_DDI0_HPD           0x4130
-#define GPIO_NC_0_HV_DDI0_PAD           0x4138
-#define GPIO_NC_1_HV_DDI0_DDC_SDA       0x4120
-#define GPIO_NC_1_HV_DDI0_DDC_SDA_PAD   0x4128
-#define GPIO_NC_2_HV_DDI0_DDC_SCL       0x4110
-#define GPIO_NC_2_HV_DDI0_DDC_SCL_PAD   0x4118
-#define GPIO_NC_3_PANEL0_VDDEN          0x4140
-#define GPIO_NC_3_PANEL0_VDDEN_PAD      0x4148
-#define GPIO_NC_4_PANEL0_BLKEN          0x4150
-#define GPIO_NC_4_PANEL0_BLKEN_PAD      0x4158
-#define GPIO_NC_5_PANEL0_BLKCTL         0x4160
-#define GPIO_NC_5_PANEL0_BLKCTL_PAD     0x4168
-#define GPIO_NC_6_PCONF0                0x4180
-#define GPIO_NC_6_PAD                   0x4188
-#define GPIO_NC_7_PCONF0                0x4190
-#define GPIO_NC_7_PAD                   0x4198
-#define GPIO_NC_8_PCONF0                0x4170
-#define GPIO_NC_8_PAD                   0x4178
-#define GPIO_NC_9_PCONF0                0x4100
-#define GPIO_NC_9_PAD                   0x4108
-#define GPIO_NC_10_PCONF0               0x40E0
-#define GPIO_NC_10_PAD                  0x40E8
-#define GPIO_NC_11_PCONF0               0x40F0
-#define GPIO_NC_11_PAD                  0x40F8
+/* base offsets for gpio pads */
+#define VLV_GPIO_NC_0_HV_DDI0_HPD	0x4130
+#define VLV_GPIO_NC_1_HV_DDI0_DDC_SDA	0x4120
+#define VLV_GPIO_NC_2_HV_DDI0_DDC_SCL	0x4110
+#define VLV_GPIO_NC_3_PANEL0_VDDEN	0x4140
+#define VLV_GPIO_NC_4_PANEL0_BKLTEN	0x4150
+#define VLV_GPIO_NC_5_PANEL0_BKLTCTL	0x4160
+#define VLV_GPIO_NC_6_HV_DDI1_HPD	0x4180
+#define VLV_GPIO_NC_7_HV_DDI1_DDC_SDA	0x4190
+#define VLV_GPIO_NC_8_HV_DDI1_DDC_SCL	0x4170
+#define VLV_GPIO_NC_9_PANEL1_VDDEN	0x4100
+#define VLV_GPIO_NC_10_PANEL1_BKLTEN	0x40E0
+#define VLV_GPIO_NC_11_PANEL1_BKLTCTL	0x40F0
 
-struct gpio_table {
-	u16 function_reg;
-	u16 pad_reg;
-	u8 init;
+#define VLV_GPIO_PCONF0(base_offset)	(base_offset)
+#define VLV_GPIO_PAD_VAL(base_offset)	((base_offset) + 8)
+
+struct gpio_map {
+	u16 base_offset;
+	bool init;
 };
 
-static struct gpio_table gtable[] = {
-	{ GPI0_NC_0_HV_DDI0_HPD, GPIO_NC_0_HV_DDI0_PAD, 0 },
-	{ GPIO_NC_1_HV_DDI0_DDC_SDA, GPIO_NC_1_HV_DDI0_DDC_SDA_PAD, 0 },
-	{ GPIO_NC_2_HV_DDI0_DDC_SCL, GPIO_NC_2_HV_DDI0_DDC_SCL_PAD, 0 },
-	{ GPIO_NC_3_PANEL0_VDDEN, GPIO_NC_3_PANEL0_VDDEN_PAD, 0 },
-	{ GPIO_NC_4_PANEL0_BLKEN, GPIO_NC_4_PANEL0_BLKEN_PAD, 0 },
-	{ GPIO_NC_5_PANEL0_BLKCTL, GPIO_NC_5_PANEL0_BLKCTL_PAD, 0 },
-	{ GPIO_NC_6_PCONF0, GPIO_NC_6_PAD, 0 },
-	{ GPIO_NC_7_PCONF0, GPIO_NC_7_PAD, 0 },
-	{ GPIO_NC_8_PCONF0, GPIO_NC_8_PAD, 0 },
-	{ GPIO_NC_9_PCONF0, GPIO_NC_9_PAD, 0 },
-	{ GPIO_NC_10_PCONF0, GPIO_NC_10_PAD, 0},
-	{ GPIO_NC_11_PCONF0, GPIO_NC_11_PAD, 0}
+static struct gpio_map vlv_gpio_table[] = {
+	{ VLV_GPIO_NC_0_HV_DDI0_HPD },
+	{ VLV_GPIO_NC_1_HV_DDI0_DDC_SDA },
+	{ VLV_GPIO_NC_2_HV_DDI0_DDC_SCL },
+	{ VLV_GPIO_NC_3_PANEL0_VDDEN },
+	{ VLV_GPIO_NC_4_PANEL0_BKLTEN },
+	{ VLV_GPIO_NC_5_PANEL0_BKLTCTL },
+	{ VLV_GPIO_NC_6_HV_DDI1_HPD },
+	{ VLV_GPIO_NC_7_HV_DDI1_DDC_SDA },
+	{ VLV_GPIO_NC_8_HV_DDI1_DDC_SCL },
+	{ VLV_GPIO_NC_9_PANEL1_VDDEN },
+	{ VLV_GPIO_NC_10_PANEL1_BKLTEN },
+	{ VLV_GPIO_NC_11_PANEL1_BKLTCTL },
 };
 
 static inline enum port intel_dsi_seq_port_to_port(u8 port)
@@ -196,56 +187,76 @@ static const u8 *mipi_exec_delay(struct intel_dsi *intel_dsi, const u8 *data)
 	return data;
 }
 
+static void vlv_exec_gpio(struct drm_i915_private *dev_priv,
+			  u8 gpio_source, u8 gpio_index, bool value)
+{
+	struct gpio_map *map;
+	u16 pconf0, padval;
+	u32 tmp;
+	u8 port;
+
+	if (gpio_index >= ARRAY_SIZE(vlv_gpio_table)) {
+		DRM_DEBUG_KMS("unknown gpio index %u\n", gpio_index);
+		return;
+	}
+
+	map = &vlv_gpio_table[gpio_index];
+
+	if (dev_priv->vbt.dsi.seq_version >= 3) {
+		DRM_DEBUG_KMS("GPIO element v3 not supported\n");
+		return;
+	} else {
+		if (gpio_source == 0) {
+			port = IOSF_PORT_GPIO_NC;
+		} else if (gpio_source == 1) {
+			port = IOSF_PORT_GPIO_SC;
+		} else {
+			DRM_DEBUG_KMS("unknown gpio source %u\n", gpio_source);
+			return;
+		}
+	}
+
+	pconf0 = VLV_GPIO_PCONF0(map->base_offset);
+	padval = VLV_GPIO_PAD_VAL(map->base_offset);
+
+	mutex_lock(&dev_priv->sb_lock);
+	if (!map->init) {
+		/* FIXME: remove constant below */
+		vlv_iosf_sb_write(dev_priv, port, pconf0, 0x2000CC00);
+		map->init = true;
+	}
+
+	tmp = 0x4 | value;
+	vlv_iosf_sb_write(dev_priv, port, padval, tmp);
+	mutex_unlock(&dev_priv->sb_lock);
+}
+
 static const u8 *mipi_exec_gpio(struct intel_dsi *intel_dsi, const u8 *data)
 {
-	u8 gpio, action;
-	u16 function, pad;
-	u32 val;
 	struct drm_device *dev = intel_dsi->base.base.dev;
 	struct drm_i915_private *dev_priv = dev->dev_private;
+	u8 gpio_source, gpio_index;
+	bool value;
 
 	if (dev_priv->vbt.dsi.seq_version >= 3)
 		data++;
 
-	gpio = *data++;
+	gpio_index = *data++;
+
+	/* gpio source in sequence v2 only */
+	if (dev_priv->vbt.dsi.seq_version == 2)
+		gpio_source = (*data >> 1) & 3;
+	else
+		gpio_source = 0;
 
 	/* pull up/down */
-	action = *data++ & 1;
+	value = *data++ & 1;
 
-	if (gpio >= ARRAY_SIZE(gtable)) {
-		DRM_DEBUG_KMS("unknown gpio %u\n", gpio);
-		goto out;
-	}
-
-	if (!IS_VALLEYVIEW(dev_priv)) {
+	if (IS_VALLEYVIEW(dev_priv))
+		vlv_exec_gpio(dev_priv, gpio_source, gpio_index, value);
+	else
 		DRM_DEBUG_KMS("GPIO element not supported on this platform\n");
-		goto out;
-	}
 
-	if (dev_priv->vbt.dsi.seq_version >= 3) {
-		DRM_DEBUG_KMS("GPIO element v3 not supported\n");
-		goto out;
-	}
-
-	function = gtable[gpio].function_reg;
-	pad = gtable[gpio].pad_reg;
-
-	mutex_lock(&dev_priv->sb_lock);
-	if (!gtable[gpio].init) {
-		/* program the function */
-		/* FIXME: remove constant below */
-		vlv_iosf_sb_write(dev_priv, IOSF_PORT_GPIO_NC, function,
-				  0x2000CC00);
-		gtable[gpio].init = 1;
-	}
-
-	val = 0x4 | action;
-
-	/* pull up/down */
-	vlv_iosf_sb_write(dev_priv, IOSF_PORT_GPIO_NC, pad, val);
-	mutex_unlock(&dev_priv->sb_lock);
-
-out:
 	return data;
 }
 
@@ -420,7 +431,7 @@ struct drm_panel *vbt_panel_init(struct intel_dsi *intel_dsi, u16 panel_id)
 	struct mipi_pps_data *pps = dev_priv->vbt.dsi.pps;
 	struct drm_display_mode *mode = dev_priv->vbt.lfp_lvds_vbt_mode;
 	struct vbt_panel *vbt_panel;
-	u32 bits_per_pixel = 24;
+	u32 bpp;
 	u32 tlpx_ns, extra_byte_count, bitrate, tlpx_ui;
 	u32 ui_num, ui_den;
 	u32 prepare_cnt, exit_zero_cnt, clk_zero_cnt, trail_cnt;
@@ -436,12 +447,13 @@ struct drm_panel *vbt_panel_init(struct intel_dsi *intel_dsi, u16 panel_id)
 	intel_dsi->eotp_pkt = mipi_config->eot_pkt_disabled ? 0 : 1;
 	intel_dsi->clock_stop = mipi_config->enable_clk_stop ? 1 : 0;
 	intel_dsi->lane_count = mipi_config->lane_cnt + 1;
-	intel_dsi->pixel_format = mipi_config->videomode_color_format << 7;
+	intel_dsi->pixel_format =
+			pixel_format_from_register_bits(
+				mipi_config->videomode_color_format << 7);
+	bpp = mipi_dsi_pixel_format_to_bpp(intel_dsi->pixel_format);
+
 	intel_dsi->dual_link = mipi_config->dual_link;
 	intel_dsi->pixel_overlap = mipi_config->pixel_overlap;
-
-	bits_per_pixel = dsi_pixel_format_bpp(intel_dsi->pixel_format);
-
 	intel_dsi->operation_mode = mipi_config->is_cmd_mode;
 	intel_dsi->video_mode_format = mipi_config->video_transfer_mode;
 	intel_dsi->escape_clk_div = mipi_config->byte_clk_sel;
@@ -475,8 +487,7 @@ struct drm_panel *vbt_panel_init(struct intel_dsi *intel_dsi, u16 panel_id)
 	 */
 	if (intel_dsi->video_mode_format == VIDEO_MODE_BURST) {
 		if (mipi_config->target_burst_mode_freq) {
-			computed_ddr =
-				(pclk * bits_per_pixel) / intel_dsi->lane_count;
+			computed_ddr = (pclk * bpp) / intel_dsi->lane_count;
 
 			if (mipi_config->target_burst_mode_freq <
 								computed_ddr) {
@@ -499,7 +510,7 @@ struct drm_panel *vbt_panel_init(struct intel_dsi *intel_dsi, u16 panel_id)
 	intel_dsi->burst_mode_ratio = burst_mode_ratio;
 	intel_dsi->pclk = pclk;
 
-	bitrate = (pclk * bits_per_pixel) / intel_dsi->lane_count;
+	bitrate = (pclk * bpp) / intel_dsi->lane_count;
 
 	switch (intel_dsi->escape_clk_div) {
 	case 0:

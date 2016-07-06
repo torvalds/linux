@@ -31,7 +31,7 @@
 
 #include <drm/drmP.h>
 
-#include "nouveau_drm.h"
+#include "nouveau_drv.h"
 #include "nouveau_hwmon.h"
 
 #include <nvkm/subdev/iccsense.h>
@@ -689,7 +689,7 @@ nouveau_hwmon_init(struct drm_device *dev)
 			goto error;
 	}
 
-	if (iccsense && iccsense->data_valid && iccsense->rail_count) {
+	if (iccsense && iccsense->data_valid && !list_empty(&iccsense->rails)) {
 		ret = sysfs_create_group(&hwmon_dev->kobj,
 					 &hwmon_power_attrgroup);
 		if (ret)

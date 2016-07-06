@@ -24,7 +24,7 @@
 
 #define WCN36XX_HAL_BUF_SIZE				4096
 
-#define HAL_MSG_TIMEOUT 500
+#define HAL_MSG_TIMEOUT 10000
 #define WCN36XX_SMSM_WLAN_TX_ENABLE			0x00000400
 #define WCN36XX_SMSM_WLAN_TX_RINGS_EMPTY		0x00000200
 /* The PNO version info be contained in the rsp msg */

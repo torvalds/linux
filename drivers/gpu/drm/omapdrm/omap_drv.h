@@ -257,14 +257,14 @@ struct omap_dss_device *omap_encoder_get_dssdev(struct drm_encoder *encoder);
 /* should these be made into common util helpers?
  */
 
-static inline int objects_lookup(struct drm_device *dev,
+static inline int objects_lookup(
 		struct drm_file *filp, uint32_t pixel_format,
 		struct drm_gem_object **bos, const uint32_t *handles)
 {
 	int i, n = drm_format_num_planes(pixel_format);
 
 	for (i = 0; i < n; i++) {
-		bos[i] = drm_gem_object_lookup(dev, filp, handles[i]);
+		bos[i] = drm_gem_object_lookup(filp, handles[i]);
 		if (!bos[i])
 			goto fail;
 

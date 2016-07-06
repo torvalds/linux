@@ -335,11 +335,14 @@ struct thermal_genl_event {
  * @get_trend: a pointer to a function that reads the sensor temperature trend.
  * @set_emul_temp: a pointer to a function that sets sensor emulated
  *		   temperature.
+ * @set_trip_temp: a pointer to a function that sets the trip temperature on
+ *		   hardware.
  */
 struct thermal_zone_of_device_ops {
 	int (*get_temp)(void *, int *);
 	int (*get_trend)(void *, long *);
 	int (*set_emul_temp)(void *, int);
+	int (*set_trip_temp)(void *, int, int);
 };
 
 /**

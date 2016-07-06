@@ -159,6 +159,19 @@ static struct mmu_psize_def mmu_psize_defaults_gp[] = {
 	},
 };
 
+/*
+ * 'R' and 'C' update notes:
+ *  - Under pHyp or KVM, the updatepp path will not set C, thus it *will*
+ *     create writeable HPTEs without C set, because the hcall H_PROTECT
+ *     that we use in that case will not update C
+ *  - The above is however not a problem, because we also don't do that
+ *     fancy "no flush" variant of eviction and we use H_REMOVE which will
+ *     do the right thing and thus we don't have the race I described earlier
+ *
+ *    - Under bare metal,  we do have the race, so we need R and C set
+ *    - We make sure R is always set and never lost
+ *    - C is _PAGE_DIRTY, and *should* always be set for a writeable mapping
+ */
 unsigned long htab_convert_pte_flags(unsigned long pteflags)
 {
 	unsigned long rflags = 0;
@@ -167,31 +180,47 @@ unsigned long htab_convert_pte_flags(unsigned long pteflags)
 	if ((pteflags & _PAGE_EXEC) == 0)
 		rflags |= HPTE_R_N;
 	/*
-	 * PP bits:
+	 * PPP bits:
 	 * Linux uses slb key 0 for kernel and 1 for user.
-	 * kernel areas are mapped with PP=00
-	 * and there is no kernel RO (_PAGE_KERNEL_RO).
-	 * User area is mapped with PP=0x2 for read/write
-	 * or PP=0x3 for read-only (including writeable but clean pages).
+	 * kernel RW areas are mapped with PPP=0b000
+	 * User area is mapped with PPP=0b010 for read/write
+	 * or PPP=0b011 for read-only (including writeable but clean pages).
 	 */
-	if (pteflags & _PAGE_USER) {
-		rflags |= 0x2;
-		if (!((pteflags & _PAGE_RW) && (pteflags & _PAGE_DIRTY)))
+	if (pteflags & _PAGE_PRIVILEGED) {
+		/*
+		 * Kernel read only mapped with ppp bits 0b110
+		 */
+		if (!(pteflags & _PAGE_WRITE))
+			rflags |= (HPTE_R_PP0 | 0x2);
+	} else {
+		if (pteflags & _PAGE_RWX)
+			rflags |= 0x2;
+		if (!((pteflags & _PAGE_WRITE) && (pteflags & _PAGE_DIRTY)))
 			rflags |= 0x1;
 	}
 	/*
-	 * Always add "C" bit for perf. Memory coherence is always enabled
+	 * We can't allow hardware to update hpte bits. Hence always
+	 * set 'R' bit and set 'C' if it is a write fault
 	 */
-	rflags |=  HPTE_R_C | HPTE_R_M;
+	rflags |=  HPTE_R_R;
+
+	if (pteflags & _PAGE_DIRTY)
+		rflags |= HPTE_R_C;
 	/*
 	 * Add in WIG bits
 	 */
-	if (pteflags & _PAGE_WRITETHRU)
-		rflags |= HPTE_R_W;
-	if (pteflags & _PAGE_NO_CACHE)
+
+	if ((pteflags & _PAGE_CACHE_CTL) == _PAGE_TOLERANT)
 		rflags |= HPTE_R_I;
-	if (pteflags & _PAGE_GUARDED)
-		rflags |= HPTE_R_G;
+	else if ((pteflags & _PAGE_CACHE_CTL) == _PAGE_NON_IDEMPOTENT)
+		rflags |= (HPTE_R_I | HPTE_R_G);
+	else if ((pteflags & _PAGE_CACHE_CTL) == _PAGE_SAO)
+		rflags |= (HPTE_R_W | HPTE_R_I | HPTE_R_M);
+	else
+		/*
+		 * Add memory coherence if cache inhibited is not set
+		 */
+		rflags |= HPTE_R_M;
 
 	return rflags;
 }
@@ -669,6 +698,41 @@ int remove_section_mapping(unsigned long start, unsigned long end)
 }
 #endif /* CONFIG_MEMORY_HOTPLUG */
 
+static void __init hash_init_partition_table(phys_addr_t hash_table,
+					     unsigned long pteg_count)
+{
+	unsigned long ps_field;
+	unsigned long htab_size;
+	unsigned long patb_size = 1UL << PATB_SIZE_SHIFT;
+
+	/*
+	 * slb llp encoding for the page size used in VPM real mode.
+	 * We can ignore that for lpid 0
+	 */
+	ps_field = 0;
+	htab_size =  __ilog2(pteg_count) - 11;
+
+	BUILD_BUG_ON_MSG((PATB_SIZE_SHIFT > 24), "Partition table size too large.");
+	partition_tb = __va(memblock_alloc_base(patb_size, patb_size,
+						MEMBLOCK_ALLOC_ANYWHERE));
+
+	/* Initialize the Partition Table with no entries */
+	memset((void *)partition_tb, 0, patb_size);
+	partition_tb->patb0 = cpu_to_be64(ps_field | hash_table | htab_size);
+	/*
+	 * FIXME!! This should be done via update_partition table
+	 * For now UPRT is 0 for us.
+	 */
+	partition_tb->patb1 = 0;
+	DBG("Partition table %p\n", partition_tb);
+	/*
+	 * update partition table control register,
+	 * 64 K size.
+	 */
+	mtspr(SPRN_PTCR, __pa(partition_tb) | (PATB_SIZE_SHIFT - 12));
+
+}
+
 static void __init htab_initialize(void)
 {
 	unsigned long table;
@@ -737,8 +801,11 @@ static void __init htab_initialize(void)
 		/* Initialize the HPT with no entries */
 		memset((void *)table, 0, htab_size_bytes);
 
-		/* Set SDR1 */
-		mtspr(SPRN_SDR1, _SDR1);
+		if (!cpu_has_feature(CPU_FTR_ARCH_300))
+			/* Set SDR1 */
+			mtspr(SPRN_SDR1, _SDR1);
+		else
+			hash_init_partition_table(table, pteg_count);
 	}
 
 	prot = pgprot_val(PAGE_KERNEL);
@@ -823,8 +890,38 @@ static void __init htab_initialize(void)
 #undef KB
 #undef MB
 
-void __init early_init_mmu(void)
+void __init hash__early_init_mmu(void)
 {
+	/*
+	 * initialize page table size
+	 */
+	__pte_frag_nr = H_PTE_FRAG_NR;
+	__pte_frag_size_shift = H_PTE_FRAG_SIZE_SHIFT;
+
+	__pte_index_size = H_PTE_INDEX_SIZE;
+	__pmd_index_size = H_PMD_INDEX_SIZE;
+	__pud_index_size = H_PUD_INDEX_SIZE;
+	__pgd_index_size = H_PGD_INDEX_SIZE;
+	__pmd_cache_index = H_PMD_CACHE_INDEX;
+	__pte_table_size = H_PTE_TABLE_SIZE;
+	__pmd_table_size = H_PMD_TABLE_SIZE;
+	__pud_table_size = H_PUD_TABLE_SIZE;
+	__pgd_table_size = H_PGD_TABLE_SIZE;
+	/*
+	 * 4k use hugepd format, so for hash set then to
+	 * zero
+	 */
+	__pmd_val_bits = 0;
+	__pud_val_bits = 0;
+	__pgd_val_bits = 0;
+
+	__kernel_virt_start = H_KERN_VIRT_START;
+	__kernel_virt_size = H_KERN_VIRT_SIZE;
+	__vmalloc_start = H_VMALLOC_START;
+	__vmalloc_end = H_VMALLOC_END;
+	vmemmap = (struct page *)H_VMEMMAP_BASE;
+	ioremap_bot = IOREMAP_BASE;
+
 	/* Initialize the MMU Hash table and create the linear mapping
 	 * of memory. Has to be done before SLB initialization as this is
 	 * currently where the page size encoding is obtained.
@@ -836,12 +933,16 @@ void __init early_init_mmu(void)
 }
 
 #ifdef CONFIG_SMP
-void early_init_mmu_secondary(void)
+void hash__early_init_mmu_secondary(void)
 {
 	/* Initialize hash table for that CPU */
-	if (!firmware_has_feature(FW_FEATURE_LPAR))
-		mtspr(SPRN_SDR1, _SDR1);
-
+	if (!firmware_has_feature(FW_FEATURE_LPAR)) {
+		if (!cpu_has_feature(CPU_FTR_ARCH_300))
+			mtspr(SPRN_SDR1, _SDR1);
+		else
+			mtspr(SPRN_PTCR,
+			      __pa(partition_tb) | (PATB_SIZE_SHIFT - 12));
+	}
 	/* Initialize SLB */
 	slb_initialize();
 }
@@ -920,7 +1021,7 @@ void demote_segment_4k(struct mm_struct *mm, unsigned long addr)
  * Userspace sets the subpage permissions using the subpage_prot system call.
  *
  * Result is 0: full permissions, _PAGE_RW: read-only,
- * _PAGE_USER or _PAGE_USER|_PAGE_RW: no access.
+ * _PAGE_RWX: no access.
  */
 static int subpage_protection(struct mm_struct *mm, unsigned long ea)
 {
@@ -946,8 +1047,13 @@ static int subpage_protection(struct mm_struct *mm, unsigned long ea)
 	/* extract 2-bit bitfield for this 4k subpage */
 	spp >>= 30 - 2 * ((ea >> 12) & 0xf);
 
-	/* turn 0,1,2,3 into combination of _PAGE_USER and _PAGE_RW */
-	spp = ((spp & 2) ? _PAGE_USER : 0) | ((spp & 1) ? _PAGE_RW : 0);
+	/*
+	 * 0 -> full premission
+	 * 1 -> Read only
+	 * 2 -> no access.
+	 * We return the flag that need to be cleared.
+	 */
+	spp = ((spp & 2) ? _PAGE_RWX : 0) | ((spp & 1) ? _PAGE_WRITE : 0);
 	return spp;
 }
 
@@ -1084,7 +1190,7 @@ int hash_page_mm(struct mm_struct *mm, unsigned long ea,
 	/* Pre-check access permissions (will be re-checked atomically
 	 * in __hash_page_XX but this pre-check is a fast path
 	 */
-	if (access & ~pte_val(*ptep)) {
+	if (!check_pte_access(access, pte_val(*ptep))) {
 		DBG_LOW(" no access !\n");
 		rc = 1;
 		goto bail;
@@ -1122,8 +1228,8 @@ int hash_page_mm(struct mm_struct *mm, unsigned long ea,
 #endif
 	/* Do actual hashing */
 #ifdef CONFIG_PPC_64K_PAGES
-	/* If _PAGE_4K_PFN is set, make sure this is a 4k segment */
-	if ((pte_val(*ptep) & _PAGE_4K_PFN) && psize == MMU_PAGE_64K) {
+	/* If H_PAGE_4K_PFN is set, make sure this is a 4k segment */
+	if ((pte_val(*ptep) & H_PAGE_4K_PFN) && psize == MMU_PAGE_64K) {
 		demote_segment_4k(mm, ea);
 		psize = MMU_PAGE_4K;
 	}
@@ -1131,8 +1237,7 @@ int hash_page_mm(struct mm_struct *mm, unsigned long ea,
 	/* If this PTE is non-cacheable and we have restrictions on
 	 * using non cacheable large pages, then we switch to 4k
 	 */
-	if (mmu_ci_restrictions && psize == MMU_PAGE_64K &&
-	    (pte_val(*ptep) & _PAGE_NO_CACHE)) {
+	if (mmu_ci_restrictions && psize == MMU_PAGE_64K && pte_ci(*ptep)) {
 		if (user_region) {
 			demote_segment_4k(mm, ea);
 			psize = MMU_PAGE_4K;
@@ -1209,7 +1314,7 @@ EXPORT_SYMBOL_GPL(hash_page);
 int __hash_page(unsigned long ea, unsigned long msr, unsigned long trap,
 		unsigned long dsisr)
 {
-	unsigned long access = _PAGE_PRESENT;
+	unsigned long access = _PAGE_PRESENT | _PAGE_READ;
 	unsigned long flags = 0;
 	struct mm_struct *mm = current->mm;
 
@@ -1220,20 +1325,48 @@ int __hash_page(unsigned long ea, unsigned long msr, unsigned long trap,
 		flags |= HPTE_NOHPTE_UPDATE;
 
 	if (dsisr & DSISR_ISSTORE)
-		access |= _PAGE_RW;
+		access |= _PAGE_WRITE;
 	/*
-	 * We need to set the _PAGE_USER bit if MSR_PR is set or if we are
-	 * accessing a userspace segment (even from the kernel). We assume
-	 * kernel addresses always have the high bit set.
+	 * We set _PAGE_PRIVILEGED only when
+	 * kernel mode access kernel space.
+	 *
+	 * _PAGE_PRIVILEGED is NOT set
+	 * 1) when kernel mode access user space
+	 * 2) user space access kernel space.
 	 */
+	access |= _PAGE_PRIVILEGED;
 	if ((msr & MSR_PR) || (REGION_ID(ea) == USER_REGION_ID))
-		access |= _PAGE_USER;
+		access &= ~_PAGE_PRIVILEGED;
 
 	if (trap == 0x400)
 		access |= _PAGE_EXEC;
 
 	return hash_page_mm(mm, ea, access, trap, flags);
 }
+
+#ifdef CONFIG_PPC_MM_SLICES
+static bool should_hash_preload(struct mm_struct *mm, unsigned long ea)
+{
+	int psize = get_slice_psize(mm, ea);
+
+	/* We only prefault standard pages for now */
+	if (unlikely(psize != mm->context.user_psize))
+		return false;
+
+	/*
+	 * Don't prefault if subpage protection is enabled for the EA.
+	 */
+	if (unlikely((psize == MMU_PAGE_4K) && subpage_protection(mm, ea)))
+		return false;
+
+	return true;
+}
+#else
+static bool should_hash_preload(struct mm_struct *mm, unsigned long ea)
+{
+	return true;
+}
+#endif
 
 void hash_preload(struct mm_struct *mm, unsigned long ea,
 		  unsigned long access, unsigned long trap)
@@ -1247,11 +1380,8 @@ void hash_preload(struct mm_struct *mm, unsigned long ea,
 
 	BUG_ON(REGION_ID(ea) != USER_REGION_ID);
 
-#ifdef CONFIG_PPC_MM_SLICES
-	/* We only prefault standard pages for now */
-	if (unlikely(get_slice_psize(mm, ea) != mm->context.user_psize))
+	if (!should_hash_preload(mm, ea))
 		return;
-#endif
 
 	DBG_LOW("hash_preload(mm=%p, mm->pgdir=%p, ea=%016lx, access=%lx,"
 		" trap=%lx\n", mm, mm->pgd, ea, access, trap);
@@ -1282,13 +1412,13 @@ void hash_preload(struct mm_struct *mm, unsigned long ea,
 
 	WARN_ON(hugepage_shift);
 #ifdef CONFIG_PPC_64K_PAGES
-	/* If either _PAGE_4K_PFN or _PAGE_NO_CACHE is set (and we are on
+	/* If either H_PAGE_4K_PFN or cache inhibited is set (and we are on
 	 * a 64K kernel), then we don't preload, hash_page() will take
 	 * care of it once we actually try to access the page.
 	 * That way we don't have to duplicate all of the logic for segment
 	 * page size demotion here
 	 */
-	if (pte_val(*ptep) & (_PAGE_4K_PFN | _PAGE_NO_CACHE))
+	if ((pte_val(*ptep) & H_PAGE_4K_PFN) || pte_ci(*ptep))
 		goto out_exit;
 #endif /* CONFIG_PPC_64K_PAGES */
 
@@ -1570,7 +1700,7 @@ void __kernel_map_pages(struct page *page, int numpages, int enable)
 }
 #endif /* CONFIG_DEBUG_PAGEALLOC */
 
-void setup_initial_memory_limit(phys_addr_t first_memblock_base,
+void hash__setup_initial_memory_limit(phys_addr_t first_memblock_base,
 				phys_addr_t first_memblock_size)
 {
 	/* We don't currently support the first MEMBLOCK not mapping 0

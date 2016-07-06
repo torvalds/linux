@@ -564,7 +564,7 @@ static struct meson_pmx_group meson8b_cbus_groups[] = {
 	GROUP(eth_rx_clk,	6,	3),
 	GROUP(eth_txd0_1,	6,	4),
 	GROUP(eth_txd1_1,	6,	5),
-	GROUP(eth_tx_en,	6,	0),
+	GROUP(eth_tx_en,	6,	6),
 	GROUP(eth_ref_clk,	6,	8),
 	GROUP(eth_mdc,		6,	9),
 	GROUP(eth_mdio_en,	6,	10),

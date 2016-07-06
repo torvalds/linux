@@ -1269,7 +1269,7 @@ static int au1000_probe(struct platform_device *pdev)
 		aup->phy_irq = pd->phy_irq;
 	}
 
-	if (aup->phy_busid && aup->phy_busid > 0) {
+	if (aup->phy_busid > 0) {
 		dev_err(&pdev->dev, "MAC0-associated PHY attached 2nd MACs MII bus not supported yet\n");
 		err = -ENODEV;
 		goto err_mdiobus_alloc;

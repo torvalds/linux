@@ -9,6 +9,8 @@
  * 2 of the Licence, or (at your option) any later version.
  */
 
+#include <keys/asymmetric-type.h>
+
 extern struct asymmetric_key_id *asymmetric_key_hex_to_key_id(const char *id);
 
 extern int __asymmetric_key_hex_to_key_id(const char *id,

@@ -28,8 +28,9 @@
 #include <drm/drm_crtc_helper.h>
 #include <drm/drm_plane_helper.h>
 
-#include "nouveau_drm.h"
+#include "nouveau_drv.h"
 #include "nouveau_reg.h"
+#include "nouveau_ttm.h"
 #include "nouveau_bo.h"
 #include "nouveau_gem.h"
 #include "nouveau_encoder.h"
@@ -995,7 +996,7 @@ nv04_crtc_cursor_set(struct drm_crtc *crtc, struct drm_file *file_priv,
 	if (width != 64 || height != 64)
 		return -EINVAL;
 
-	gem = drm_gem_object_lookup(dev, file_priv, buffer_handle);
+	gem = drm_gem_object_lookup(file_priv, buffer_handle);
 	if (!gem)
 		return -ENOENT;
 	cursor = nouveau_gem_object(gem);

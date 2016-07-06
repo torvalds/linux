@@ -24,7 +24,7 @@ struct op_counter_config {
 	unsigned long unit_mask;
 };
 
-/* Per-architecture configury and hooks.  */
+/* Per-architecture configure and hooks.  */
 struct op_mips_model {
 	void (*reg_setup) (struct op_counter_config *);
 	void (*cpu_setup) (void *dummy);

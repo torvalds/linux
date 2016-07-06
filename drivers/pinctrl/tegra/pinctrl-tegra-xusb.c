@@ -267,7 +267,7 @@ static const struct pinctrl_ops tegra_xusb_padctl_pinctrl_ops = {
 	.get_group_name = tegra_xusb_padctl_get_group_name,
 	.get_group_pins = tegra_xusb_padctl_get_group_pins,
 	.dt_node_to_map = tegra_xusb_padctl_dt_node_to_map,
-	.dt_free_map = pinctrl_utils_dt_free_map,
+	.dt_free_map = pinctrl_utils_free_map,
 };
 
 static int tegra_xusb_padctl_get_functions_count(struct pinctrl_dev *pinctrl)
@@ -914,7 +914,8 @@ int tegra_xusb_padctl_legacy_probe(struct platform_device *pdev)
 	padctl->desc.confops = &tegra_xusb_padctl_pinconf_ops;
 	padctl->desc.owner = THIS_MODULE;
 
-	padctl->pinctrl = pinctrl_register(&padctl->desc, &pdev->dev, padctl);
+	padctl->pinctrl = devm_pinctrl_register(&pdev->dev, &padctl->desc,
+						padctl);
 	if (IS_ERR(padctl->pinctrl)) {
 		dev_err(&pdev->dev, "failed to register pincontrol\n");
 		err = PTR_ERR(padctl->pinctrl);
@@ -924,7 +925,7 @@ int tegra_xusb_padctl_legacy_probe(struct platform_device *pdev)
 	phy = devm_phy_create(&pdev->dev, NULL, &pcie_phy_ops);
 	if (IS_ERR(phy)) {
 		err = PTR_ERR(phy);
-		goto unregister;
+		goto reset;
 	}
 
 	padctl->phys[TEGRA_XUSB_PADCTL_PCIE] = phy;
@@ -933,7 +934,7 @@ int tegra_xusb_padctl_legacy_probe(struct platform_device *pdev)
 	phy = devm_phy_create(&pdev->dev, NULL, &sata_phy_ops);
 	if (IS_ERR(phy)) {
 		err = PTR_ERR(phy);
-		goto unregister;
+		goto reset;
 	}
 
 	padctl->phys[TEGRA_XUSB_PADCTL_SATA] = phy;
@@ -944,13 +945,11 @@ int tegra_xusb_padctl_legacy_probe(struct platform_device *pdev)
 	if (IS_ERR(padctl->provider)) {
 		err = PTR_ERR(padctl->provider);
 		dev_err(&pdev->dev, "failed to register PHYs: %d\n", err);
-		goto unregister;
+		goto reset;
 	}
 
 	return 0;
 
-unregister:
-	pinctrl_unregister(padctl->pinctrl);
 reset:
 	reset_control_assert(padctl->rst);
 	return err;
@@ -961,8 +960,6 @@ int tegra_xusb_padctl_legacy_remove(struct platform_device *pdev)
 {
 	struct tegra_xusb_padctl *padctl = platform_get_drvdata(pdev);
 	int err;
-
-	pinctrl_unregister(padctl->pinctrl);
 
 	err = reset_control_assert(padctl->rst);
 	if (err < 0)

@@ -437,21 +437,28 @@ struct iwl_rxq_sync_notification {
 /**
 * Internal message identifier
 *
+* @IWL_MVM_RXQ_EMPTY: empty sync notification
 * @IWL_MVM_RXQ_NOTIF_DEL_BA: notify RSS queues of delBA
 */
 enum iwl_mvm_rxq_notif_type {
+	IWL_MVM_RXQ_EMPTY,
 	IWL_MVM_RXQ_NOTIF_DEL_BA,
 };
 
 /**
 * struct iwl_mvm_internal_rxq_notif - Internal representation of the data sent
 * in &iwl_rxq_sync_cmd. Should be DWORD aligned.
+* FW is agnostic to the payload, so there are no endianity requirements.
 *
 * @type: value from &iwl_mvm_rxq_notif_type
+* @sync: ctrl path is waiting for all notifications to be received
+* @cookie: internal cookie to identify old notifications
 * @data: payload
 */
 struct iwl_mvm_internal_rxq_notif {
-	u32 type;
+	u16 type;
+	u16 sync;
+	u32 cookie;
 	u8 data[];
 } __packed;
 

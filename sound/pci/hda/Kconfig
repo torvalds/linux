@@ -50,9 +50,13 @@ config SND_HDA_RECONFIG
 	bool "Allow dynamic codec reconfiguration"
 	help
 	  Say Y here to enable the HD-audio codec re-configuration feature.
-	  This adds the sysfs interfaces to allow user to clear the whole
-	  codec configuration, change the codec setup, add extra verbs,
-	  and re-configure the codec dynamically.
+	  It allows user to clear the whole codec configuration, change the
+	  codec setup, add extra verbs, and re-configure the codec dynamically.
+
+	  Note that this item alone doesn't provide the sysfs interface, but
+	  enables the feature just for the patch loader below.
+	  If you need the traditional sysfs entries for the manual interaction,
+	  turn on CONFIG_SND_HDA_HWDEP as well.
 
 config SND_HDA_INPUT_BEEP
 	bool "Support digital beep via input layer"

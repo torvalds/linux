@@ -189,6 +189,8 @@ struct nes_qp {
 	u8                    pau_pending;
 	u8                    pau_state;
 	__u64                 nesuqp_addr;
+	struct completion     sq_drained;
+	struct completion     rq_drained;
 };
 
 struct ib_mr *nes_reg_phys_mr(struct ib_pd *ib_pd,

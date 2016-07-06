@@ -216,7 +216,7 @@ or the <structfield>flags</structfield> argument is not valid.</para>
 	<term><errorcode>ERANGE</errorcode></term>
 	<listitem>
 	  <para>It is not possible to adjust &v4l2-rect; <structfield>
-r</structfield> rectangle to satisfy all contraints given in the
+r</structfield> rectangle to satisfy all constraints given in the
 <structfield>flags</structfield> argument.</para>
 	</listitem>
       </varlistentry>

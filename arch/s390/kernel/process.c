@@ -68,9 +68,10 @@ extern void kernel_thread_starter(void);
 /*
  * Free current thread data structures etc..
  */
-void exit_thread(void)
+void exit_thread(struct task_struct *tsk)
 {
-	exit_thread_runtime_instr();
+	if (tsk == current)
+		exit_thread_runtime_instr();
 }
 
 void flush_thread(void)

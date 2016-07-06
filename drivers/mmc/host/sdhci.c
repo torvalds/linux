@@ -1624,7 +1624,7 @@ static int sdhci_get_cd(struct mmc_host *mmc)
 	 * Try slot gpio detect, if defined it take precedence
 	 * over build in controller functionality
 	 */
-	if (!IS_ERR_VALUE(gpio_cd))
+	if (gpio_cd >= 0)
 		return !!gpio_cd;
 
 	/* If polling, assume that the card is always present. */
@@ -3077,7 +3077,7 @@ int sdhci_add_host(struct sdhci_host *host)
 
 	if ((host->quirks & SDHCI_QUIRK_BROKEN_CARD_DETECTION) &&
 	    !(mmc->caps & MMC_CAP_NONREMOVABLE) &&
-	    IS_ERR_VALUE(mmc_gpio_get_cd(host->mmc)))
+	    mmc_gpio_get_cd(host->mmc) < 0)
 		mmc->caps |= MMC_CAP_NEEDS_POLL;
 
 	/* If there are external regulators, get them */

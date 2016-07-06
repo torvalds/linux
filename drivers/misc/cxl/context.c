@@ -297,8 +297,7 @@ static void reclaim_ctx(struct rcu_head *rcu)
 	if (ctx->kernelapi)
 		kfree(ctx->mapping);
 
-	if (ctx->irq_bitmap)
-		kfree(ctx->irq_bitmap);
+	kfree(ctx->irq_bitmap);
 
 	/* Drop ref to the afu device taken during cxl_context_init */
 	cxl_afu_put(ctx->afu);

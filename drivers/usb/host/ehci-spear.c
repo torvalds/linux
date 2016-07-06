@@ -163,7 +163,7 @@ static struct platform_driver spear_ehci_hcd_driver = {
 	}
 };
 
-static const struct ehci_driver_overrides spear_overrides __initdata = {
+static const struct ehci_driver_overrides spear_overrides __initconst = {
 	.extra_priv_size = sizeof(struct spear_ehci),
 };
 

@@ -745,7 +745,7 @@ static int scrub_fixup_readpage(u64 inum, u64 offset, u64 root, void *fixup_ctx)
 		 * sure we read the bad mirror.
 		 */
 		ret = set_extent_bits(&BTRFS_I(inode)->io_tree, offset, end,
-					EXTENT_DAMAGED, GFP_NOFS);
+					EXTENT_DAMAGED);
 		if (ret) {
 			/* set_extent_bits should give proper error */
 			WARN_ON(ret > 0);
@@ -763,7 +763,7 @@ static int scrub_fixup_readpage(u64 inum, u64 offset, u64 root, void *fixup_ctx)
 						end, EXTENT_DAMAGED, 0, NULL);
 		if (!corrected)
 			clear_extent_bits(&BTRFS_I(inode)->io_tree, offset, end,
-						EXTENT_DAMAGED, GFP_NOFS);
+						EXTENT_DAMAGED);
 	}
 
 out:
@@ -1044,7 +1044,7 @@ nodatasum_case:
 
 		/*
 		 * !is_metadata and !have_csum, this means that the data
-		 * might not be COW'ed, that it might be modified
+		 * might not be COWed, that it might be modified
 		 * concurrently. The general strategy to work on the
 		 * commit root does not help in the case when COW is not
 		 * used.
@@ -1125,7 +1125,7 @@ nodatasum_case:
 	 * the 2nd page of mirror #1 faces I/O errors, and the 2nd page
 	 * of mirror #2 is readable but the final checksum test fails,
 	 * then the 2nd page of mirror #3 could be tried, whether now
-	 * the final checksum succeedes. But this would be a rare
+	 * the final checksum succeeds. But this would be a rare
 	 * exception and is therefore not implemented. At least it is
 	 * avoided that the good copy is overwritten.
 	 * A more useful improvement would be to pick the sectors
@@ -1350,7 +1350,7 @@ static int scrub_setup_recheck_block(struct scrub_block *original_sblock,
 		recover->bbio = bbio;
 		recover->map_length = mapped_length;
 
-		BUG_ON(page_index >= SCRUB_PAGES_PER_RD_BIO);
+		BUG_ON(page_index >= SCRUB_MAX_PAGES_PER_BLOCK);
 
 		nmirrors = min(scrub_nr_raid_mirrors(bbio), BTRFS_MAX_MIRRORS);
 
@@ -2127,6 +2127,8 @@ static void scrub_missing_raid56_end_io(struct bio *bio)
 	if (bio->bi_error)
 		sblock->no_io_error_seen = 0;
 
+	bio_put(bio);
+
 	btrfs_queue_work(fs_info->scrub_workers, &sblock->work);
 }
 
@@ -2179,7 +2181,7 @@ static void scrub_missing_raid56_pages(struct scrub_block *sblock)
 	struct btrfs_fs_info *fs_info = sctx->dev_root->fs_info;
 	u64 length = sblock->page_count * PAGE_SIZE;
 	u64 logical = sblock->pagev[0]->logical;
-	struct btrfs_bio *bbio;
+	struct btrfs_bio *bbio = NULL;
 	struct bio *bio;
 	struct btrfs_raid_bio *rbio;
 	int ret;
@@ -2860,7 +2862,7 @@ static noinline_for_stack int scrub_raid56_parity(struct scrub_ctx *sctx,
 	int extent_mirror_num;
 	int stop_loop = 0;
 
-	nsectors = map->stripe_len / root->sectorsize;
+	nsectors = div_u64(map->stripe_len, root->sectorsize);
 	bitmap_len = scrub_calc_parity_bitmap_len(nsectors);
 	sparity = kzalloc(sizeof(struct scrub_parity) + 2 * bitmap_len,
 			  GFP_NOFS);
@@ -2980,6 +2982,7 @@ again:
 						       extent_len);
 
 			mapped_length = extent_len;
+			bbio = NULL;
 			ret = btrfs_map_block(fs_info, READ, extent_logical,
 					      &mapped_length, &bbio, 0);
 			if (!ret) {
@@ -3070,7 +3073,6 @@ static noinline_for_stack int scrub_stripe(struct scrub_ctx *sctx,
 	int slot;
 	u64 nstripes;
 	struct extent_buffer *l;
-	struct btrfs_key key;
 	u64 physical;
 	u64 logical;
 	u64 logic_end;
@@ -3079,7 +3081,7 @@ static noinline_for_stack int scrub_stripe(struct scrub_ctx *sctx,
 	int mirror_num;
 	struct reada_control *reada1;
 	struct reada_control *reada2;
-	struct btrfs_key key_start;
+	struct btrfs_key key;
 	struct btrfs_key key_end;
 	u64 increment = map->stripe_len;
 	u64 offset;
@@ -3158,21 +3160,21 @@ static noinline_for_stack int scrub_stripe(struct scrub_ctx *sctx,
 	scrub_blocked_if_needed(fs_info);
 
 	/* FIXME it might be better to start readahead at commit root */
-	key_start.objectid = logical;
-	key_start.type = BTRFS_EXTENT_ITEM_KEY;
-	key_start.offset = (u64)0;
+	key.objectid = logical;
+	key.type = BTRFS_EXTENT_ITEM_KEY;
+	key.offset = (u64)0;
 	key_end.objectid = logic_end;
 	key_end.type = BTRFS_METADATA_ITEM_KEY;
 	key_end.offset = (u64)-1;
-	reada1 = btrfs_reada_add(root, &key_start, &key_end);
+	reada1 = btrfs_reada_add(root, &key, &key_end);
 
-	key_start.objectid = BTRFS_EXTENT_CSUM_OBJECTID;
-	key_start.type = BTRFS_EXTENT_CSUM_KEY;
-	key_start.offset = logical;
+	key.objectid = BTRFS_EXTENT_CSUM_OBJECTID;
+	key.type = BTRFS_EXTENT_CSUM_KEY;
+	key.offset = logical;
 	key_end.objectid = BTRFS_EXTENT_CSUM_OBJECTID;
 	key_end.type = BTRFS_EXTENT_CSUM_KEY;
 	key_end.offset = logic_end;
-	reada2 = btrfs_reada_add(csum_root, &key_start, &key_end);
+	reada2 = btrfs_reada_add(csum_root, &key, &key_end);
 
 	if (!IS_ERR(reada1))
 		btrfs_reada_wait(reada1);
@@ -3580,6 +3582,46 @@ int scrub_enumerate_chunks(struct scrub_ctx *sctx,
 		 */
 		scrub_pause_on(fs_info);
 		ret = btrfs_inc_block_group_ro(root, cache);
+		if (!ret && is_dev_replace) {
+			/*
+			 * If we are doing a device replace wait for any tasks
+			 * that started dellaloc right before we set the block
+			 * group to RO mode, as they might have just allocated
+			 * an extent from it or decided they could do a nocow
+			 * write. And if any such tasks did that, wait for their
+			 * ordered extents to complete and then commit the
+			 * current transaction, so that we can later see the new
+			 * extent items in the extent tree - the ordered extents
+			 * create delayed data references (for cow writes) when
+			 * they complete, which will be run and insert the
+			 * corresponding extent items into the extent tree when
+			 * we commit the transaction they used when running
+			 * inode.c:btrfs_finish_ordered_io(). We later use
+			 * the commit root of the extent tree to find extents
+			 * to copy from the srcdev into the tgtdev, and we don't
+			 * want to miss any new extents.
+			 */
+			btrfs_wait_block_group_reservations(cache);
+			btrfs_wait_nocow_writers(cache);
+			ret = btrfs_wait_ordered_roots(fs_info, -1,
+						       cache->key.objectid,
+						       cache->key.offset);
+			if (ret > 0) {
+				struct btrfs_trans_handle *trans;
+
+				trans = btrfs_join_transaction(root);
+				if (IS_ERR(trans))
+					ret = PTR_ERR(trans);
+				else
+					ret = btrfs_commit_transaction(trans,
+								       root);
+				if (ret) {
+					scrub_pause_off(fs_info);
+					btrfs_put_block_group(cache);
+					break;
+				}
+			}
+		}
 		scrub_pause_off(fs_info);
 
 		if (ret == 0) {
@@ -3600,9 +3642,11 @@ int scrub_enumerate_chunks(struct scrub_ctx *sctx,
 			break;
 		}
 
+		btrfs_dev_replace_lock(&fs_info->dev_replace, 1);
 		dev_replace->cursor_right = found_key.offset + length;
 		dev_replace->cursor_left = found_key.offset;
 		dev_replace->item_needs_writeback = 1;
+		btrfs_dev_replace_unlock(&fs_info->dev_replace, 1);
 		ret = scrub_chunk(sctx, scrub_dev, chunk_offset, length,
 				  found_key.offset, cache, is_dev_replace);
 
@@ -3637,6 +3681,11 @@ int scrub_enumerate_chunks(struct scrub_ctx *sctx,
 		atomic_set(&sctx->wr_ctx.flush_all_writes, 0);
 
 		scrub_pause_off(fs_info);
+
+		btrfs_dev_replace_lock(&fs_info->dev_replace, 1);
+		dev_replace->cursor_left = dev_replace->cursor_right;
+		dev_replace->item_needs_writeback = 1;
+		btrfs_dev_replace_unlock(&fs_info->dev_replace, 1);
 
 		if (ro_set)
 			btrfs_dec_block_group_ro(root, cache);
@@ -3675,9 +3724,6 @@ int scrub_enumerate_chunks(struct scrub_ctx *sctx,
 			ret = -ENOMEM;
 			break;
 		}
-
-		dev_replace->cursor_left = dev_replace->cursor_right;
-		dev_replace->item_needs_writeback = 1;
 skip:
 		key.offset = found_key.offset + length;
 		btrfs_release_path(path);

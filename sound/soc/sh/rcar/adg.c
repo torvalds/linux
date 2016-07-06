@@ -492,9 +492,7 @@ static void rsnd_adg_get_clkout(struct rsnd_priv *priv,
 	 */
 	if (!count) {
 		clk = clk_register_fixed_rate(dev, clkout_name[CLKOUT],
-					      parent_clk_name,
-					      (parent_clk_name) ?
-					      0 : CLK_IS_ROOT, req_rate);
+					      parent_clk_name, 0, req_rate);
 		if (!IS_ERR(clk)) {
 			adg->clkout[CLKOUT] = clk;
 			of_clk_add_provider(np, of_clk_src_simple_get, clk);
@@ -506,9 +504,7 @@ static void rsnd_adg_get_clkout(struct rsnd_priv *priv,
 	else {
 		for (i = 0; i < CLKOUTMAX; i++) {
 			clk = clk_register_fixed_rate(dev, clkout_name[i],
-						      parent_clk_name,
-						      (parent_clk_name) ?
-						      0 : CLK_IS_ROOT,
+						      parent_clk_name, 0,
 						      req_rate);
 			if (!IS_ERR(clk)) {
 				adg->onecell.clks	= adg->clkout;

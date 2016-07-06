@@ -506,6 +506,7 @@ static int find_compression_threshold(struct drm_i915_private *dev_priv,
 				      int size,
 				      int fb_cpp)
 {
+	struct i915_ggtt *ggtt = &dev_priv->ggtt;
 	int compression_threshold = 1;
 	int ret;
 	u64 end;
@@ -516,9 +517,9 @@ static int find_compression_threshold(struct drm_i915_private *dev_priv,
 	 * underruns, even if that range is not reserved by the BIOS. */
 	if (IS_BROADWELL(dev_priv) ||
 	    IS_SKYLAKE(dev_priv) || IS_KABYLAKE(dev_priv))
-		end = dev_priv->gtt.stolen_size - 8 * 1024 * 1024;
+		end = ggtt->stolen_size - 8 * 1024 * 1024;
 	else
-		end = dev_priv->gtt.stolen_usable_size;
+		end = ggtt->stolen_usable_size;
 
 	/* HACK: This code depends on what we will do in *_enable_fbc. If that
 	 * code changes, this code needs to change as well.
@@ -823,8 +824,7 @@ static bool intel_fbc_can_choose(struct intel_crtc *crtc)
 {
 	struct drm_i915_private *dev_priv = crtc->base.dev->dev_private;
 	struct intel_fbc *fbc = &dev_priv->fbc;
-	bool enable_by_default = IS_HASWELL(dev_priv) ||
-				 IS_BROADWELL(dev_priv);
+	bool enable_by_default = IS_BROADWELL(dev_priv);
 
 	if (intel_vgpu_active(dev_priv->dev)) {
 		fbc->no_fbc_reason = "VGPU is active";

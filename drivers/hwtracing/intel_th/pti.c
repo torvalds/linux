@@ -200,7 +200,6 @@ static int intel_th_pti_probe(struct intel_th_device *thdev)
 	struct resource *res;
 	struct pti_device *pti;
 	void __iomem *base;
-	int ret;
 
 	res = intel_th_device_get_resource(thdev, IORESOURCE_MEM, 0);
 	if (!res)
@@ -219,10 +218,6 @@ static int intel_th_pti_probe(struct intel_th_device *thdev)
 
 	read_hw_config(pti);
 
-	ret = sysfs_create_group(&dev->kobj, &pti_output_group);
-	if (ret)
-		return ret;
-
 	dev_set_drvdata(dev, pti);
 
 	return 0;
@@ -237,6 +232,7 @@ static struct intel_th_driver intel_th_pti_driver = {
 	.remove	= intel_th_pti_remove,
 	.activate	= intel_th_pti_activate,
 	.deactivate	= intel_th_pti_deactivate,
+	.attr_group	= &pti_output_group,
 	.driver	= {
 		.name	= "pti",
 		.owner	= THIS_MODULE,

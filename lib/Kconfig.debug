@@ -257,6 +257,7 @@ config PAGE_OWNER
 
 config DEBUG_FS
 	bool "Debug Filesystem"
+	select SRCU
 	help
 	  debugfs is a virtual file system that kernel developers use to put
 	  debugging files into.  Enable this option to be able to read and
@@ -1840,6 +1841,9 @@ config TEST_BITMAP
 
 	  If unsure, say N.
 
+config TEST_UUID
+	tristate "Test functions located in the uuid module at runtime"
+
 config TEST_RHASHTABLE
 	tristate "Perform selftest on resizable hash table"
 	default n
@@ -1847,6 +1851,17 @@ config TEST_RHASHTABLE
 	  Enable this option to test the rhashtable functions at boot.
 
 	  If unsure, say N.
+
+config TEST_HASH
+	tristate "Perform selftest on hash functions"
+	default n
+	help
+	  Enable this option to test the kernel's integer (<linux/hash,h>)
+	  and string (<linux/stringhash.h>) hash functions on boot
+	  (or module load).
+
+	  This is intended to help people writing architecture-specific
+	  optimized versions.  If unsure, say N.
 
 endmenu # runtime tests
 

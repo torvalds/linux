@@ -288,6 +288,9 @@ static int iwl_init_channel_map(struct device *dev, const struct iwl_cfg *cfg,
 		    !data->sku_cap_band_52GHz_enable)
 			continue;
 
+		if (ch_flags & NVM_CHANNEL_160MHZ)
+			data->vht160_supported = true;
+
 		if (!lar_supported && !(ch_flags & NVM_CHANNEL_VALID)) {
 			/*
 			 * Channels might become valid later if lar is
@@ -331,17 +334,20 @@ static int iwl_init_channel_map(struct device *dev, const struct iwl_cfg *cfg,
 			channel->flags = 0;
 
 		IWL_DEBUG_EEPROM(dev,
-				 "Ch. %d [%sGHz] %s%s%s%s%s%s%s(0x%02x %ddBm): Ad-Hoc %ssupported\n",
+				 "Ch. %d [%sGHz] flags 0x%x %s%s%s%s%s%s%s%s%s%s(%ddBm): Ad-Hoc %ssupported\n",
 				 channel->hw_value,
 				 is_5ghz ? "5.2" : "2.4",
+				 ch_flags,
 				 CHECK_AND_PRINT_I(VALID),
 				 CHECK_AND_PRINT_I(IBSS),
 				 CHECK_AND_PRINT_I(ACTIVE),
 				 CHECK_AND_PRINT_I(RADAR),
-				 CHECK_AND_PRINT_I(WIDE),
 				 CHECK_AND_PRINT_I(INDOOR_ONLY),
 				 CHECK_AND_PRINT_I(GO_CONCURRENT),
-				 ch_flags,
+				 CHECK_AND_PRINT_I(WIDE),
+				 CHECK_AND_PRINT_I(40MHZ),
+				 CHECK_AND_PRINT_I(80MHZ),
+				 CHECK_AND_PRINT_I(160MHZ),
 				 channel->max_power,
 				 ((ch_flags & NVM_CHANNEL_IBSS) &&
 				  !(ch_flags & NVM_CHANNEL_RADAR))
@@ -369,6 +375,10 @@ static void iwl_init_vht_hw_capab(const struct iwl_cfg *cfg,
 		       3 << IEEE80211_VHT_CAP_BEAMFORMEE_STS_SHIFT |
 		       max_ampdu_exponent <<
 		       IEEE80211_VHT_CAP_MAX_A_MPDU_LENGTH_EXPONENT_SHIFT;
+
+	if (data->vht160_supported)
+		vht_cap->cap |= IEEE80211_VHT_CAP_SUPP_CHAN_WIDTH_160MHZ |
+				IEEE80211_VHT_CAP_SHORT_GI_160;
 
 	if (cfg->vht_mu_mimo_supported)
 		vht_cap->cap |= IEEE80211_VHT_CAP_MU_BEAMFORMEE_CAPABLE;

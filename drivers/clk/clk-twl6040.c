@@ -74,7 +74,6 @@ static const struct clk_ops twl6040_mcpdm_ops = {
 static struct clk_init_data wm831x_clkout_init = {
 	.name = "mcpdm_fclk",
 	.ops = &twl6040_mcpdm_ops,
-	.flags = CLK_IS_ROOT,
 };
 
 static int twl6040_clk_probe(struct platform_device *pdev)

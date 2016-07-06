@@ -1054,6 +1054,12 @@ bytes respectively. Such letter suffixes can also be entirely omitted.
 			the driver will use only 32-bit accessors to read/write
 			the device registers.
 
+		meson,<addr>
+			Start an early, polled-mode console on a meson serial
+			port at the specified address. The serial port must
+			already be setup and configured. Options are not yet
+			supported.
+
 		msm_serial,<addr>
 			Start an early, polled-mode console on an msm serial
 			port at the specified address. The serial port
@@ -1787,6 +1793,13 @@ bytes respectively. Such letter suffixes can also be entirely omitted.
 			PCI device 00:14.0 write the parameter as:
 				ivrs_hpet[0]=00:14.0
 
+	ivrs_acpihid	[HW,X86_64]
+			Provide an override to the ACPI-HID:UID<->DEVICE-ID
+			mapping provided in the IVRS ACPI table. For
+			example, to map UART-HID:UID AMD0020:0 to
+			PCI device 00:14.5 write the parameter as:
+				ivrs_acpihid[00:14.5]=AMD0020:0
+
 	js=		[HW,JOY] Analog joystick
 			See Documentation/input/joystick.txt.
 
@@ -2160,6 +2173,14 @@ bytes respectively. Such letter suffixes can also be entirely omitted.
 	memchunk=nn[KMG]
 			[KNL,SH] Allow user to override the default size for
 			per-device physically contiguous DMA buffers.
+
+        memhp_default_state=online/offline
+			[KNL] Set the initial state for the memory hotplug
+			onlining policy. If not specified, the default value is
+			set according to the
+			CONFIG_MEMORY_HOTPLUG_DEFAULT_ONLINE kernel config
+			option.
+			See Documentation/memory-hotplug.txt.
 
 	memmap=exactmap	[KNL,X86] Enable setting of an exact
 			E820 memory map, as specified by the user.
@@ -2944,11 +2965,6 @@ bytes respectively. Such letter suffixes can also be entirely omitted.
 				for broken drivers that don't call it.
 		skip_isa_align	[X86] do not align io start addr, so can
 				handle more pci cards
-		firmware	[ARM] Do not re-enumerate the bus but instead
-				just use the configuration from the
-				bootloader. This is currently used on
-				IXP2000 systems where the bus has to be
-				configured a certain way for adjunct CPUs.
 		noearly		[X86] Don't do any early type 1 scanning.
 				This might help on some broken boards which
 				machine check when some devices' config space

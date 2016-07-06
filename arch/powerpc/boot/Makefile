@@ -362,9 +362,6 @@ $(obj)/cuImage.initrd.%: vmlinux $(obj)/%.dtb $(wrapperbits)
 $(obj)/cuImage.%: vmlinux $(obj)/%.dtb $(wrapperbits)
 	$(call if_changed,wrap,cuboot-$*,,$(obj)/$*.dtb)
 
-$(obj)/cuImage.%: vmlinux $(obj)/fsl/%.dtb $(wrapperbits)
-	$(call if_changed,wrap,cuboot-$*,,$(obj)/fsl/$*.dtb)
-
 $(obj)/simpleImage.initrd.%: vmlinux $(obj)/%.dtb $(wrapperbits)
 	$(call if_changed,wrap,simpleboot-$*,,$(obj)/$*.dtb,$(obj)/ramdisk.image.gz)
 
@@ -379,6 +376,9 @@ $(obj)/treeImage.%: vmlinux $(obj)/%.dtb $(wrapperbits)
 
 # Rule to build device tree blobs
 $(obj)/%.dtb: $(src)/dts/%.dts FORCE
+	$(call if_changed_dep,dtc)
+
+$(obj)/%.dtb: $(src)/dts/fsl/%.dts FORCE
 	$(call if_changed_dep,dtc)
 
 # If there isn't a platform selected then just strip the vmlinux.

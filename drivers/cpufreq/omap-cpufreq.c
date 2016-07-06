@@ -54,7 +54,7 @@ static int omap_target(struct cpufreq_policy *policy, unsigned int index)
 
 	freq = new_freq * 1000;
 	ret = clk_round_rate(policy->clk, freq);
-	if (IS_ERR_VALUE(ret)) {
+	if (ret < 0) {
 		dev_warn(mpu_dev,
 			 "CPUfreq: Cannot find matching frequency for %lu\n",
 			 freq);

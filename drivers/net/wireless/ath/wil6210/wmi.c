@@ -32,6 +32,11 @@ module_param(agg_wsize, int, S_IRUGO | S_IWUSR);
 MODULE_PARM_DESC(agg_wsize, " Window size for Tx Block Ack after connect;"
 		 " 0 - use default; < 0 - don't auto-establish");
 
+u8 led_id = WIL_LED_INVALID_ID;
+module_param(led_id, byte, S_IRUGO);
+MODULE_PARM_DESC(led_id,
+		 " 60G device led enablement. Set the led ID (0-2) to enable");
+
 /**
  * WMI event receiving - theory of operations
  *
@@ -93,6 +98,14 @@ const struct fw_map fw_mapping[] = {
 	 * 932000..949000 back-door debug data
 	 */
 };
+
+struct blink_on_off_time led_blink_time[] = {
+	{WIL_LED_BLINK_ON_SLOW_MS, WIL_LED_BLINK_OFF_SLOW_MS},
+	{WIL_LED_BLINK_ON_MED_MS, WIL_LED_BLINK_OFF_MED_MS},
+	{WIL_LED_BLINK_ON_FAST_MS, WIL_LED_BLINK_OFF_FAST_MS},
+};
+
+u8 led_polarity = LED_POLARITY_LOW_ACTIVE;
 
 /**
  * return AHB address for given firmware/ucode internal (linker) address
@@ -194,6 +207,7 @@ static int __wmi_send(struct wil6210_priv *wil, u16 cmdid, void *buf, u16 len)
 	void __iomem *dst;
 	void __iomem *head = wmi_addr(wil, r->head);
 	uint retry;
+	int rc = 0;
 
 	if (sizeof(cmd) + len > r->entry_size) {
 		wil_err(wil, "WMI size too large: %d bytes, max is %d\n",
@@ -212,6 +226,9 @@ static int __wmi_send(struct wil6210_priv *wil, u16 cmdid, void *buf, u16 len)
 		wil_err(wil, "WMI head is garbage: 0x%08x\n", r->head);
 		return -EINVAL;
 	}
+
+	wil_halp_vote(wil);
+
 	/* read Tx head till it is not busy */
 	for (retry = 5; retry > 0; retry--) {
 		wil_memcpy_fromio_32(&d_head, head, sizeof(d_head));
@@ -221,7 +238,8 @@ static int __wmi_send(struct wil6210_priv *wil, u16 cmdid, void *buf, u16 len)
 	}
 	if (d_head.sync != 0) {
 		wil_err(wil, "WMI head busy\n");
-		return -EBUSY;
+		rc = -EBUSY;
+		goto out;
 	}
 	/* next head */
 	next_head = r->base + ((r->head - r->base + sizeof(d_head)) % r->size);
@@ -230,7 +248,8 @@ static int __wmi_send(struct wil6210_priv *wil, u16 cmdid, void *buf, u16 len)
 	for (retry = 5; retry > 0; retry--) {
 		if (!test_bit(wil_status_fwready, wil->status)) {
 			wil_err(wil, "WMI: cannot send command while FW not ready\n");
-			return -EAGAIN;
+			rc = -EAGAIN;
+			goto out;
 		}
 		r->tail = wil_r(wil, RGF_MBOX +
 				offsetof(struct wil6210_mbox_ctl, tx.tail));
@@ -240,13 +259,15 @@ static int __wmi_send(struct wil6210_priv *wil, u16 cmdid, void *buf, u16 len)
 	}
 	if (next_head == r->tail) {
 		wil_err(wil, "WMI ring full\n");
-		return -EBUSY;
+		rc = -EBUSY;
+		goto out;
 	}
 	dst = wmi_buffer(wil, d_head.addr);
 	if (!dst) {
 		wil_err(wil, "invalid WMI buffer: 0x%08x\n",
 			le32_to_cpu(d_head.addr));
-		return -EINVAL;
+		rc = -EAGAIN;
+		goto out;
 	}
 	cmd.hdr.seq = cpu_to_le16(++wil->wmi_seq);
 	/* set command */
@@ -269,7 +290,9 @@ static int __wmi_send(struct wil6210_priv *wil, u16 cmdid, void *buf, u16 len)
 	wil_w(wil, RGF_USER_USER_ICR + offsetof(struct RGF_ICR, ICS),
 	      SW_INT_MBOX);
 
-	return 0;
+out:
+	wil_halp_unvote(wil);
+	return rc;
 }
 
 int wmi_send(struct wil6210_priv *wil, u16 cmdid, void *buf, u16 len)
@@ -961,6 +984,60 @@ int wmi_set_mac_address(struct wil6210_priv *wil, void *addr)
 	return wmi_send(wil, WMI_SET_MAC_ADDRESS_CMDID, &cmd, sizeof(cmd));
 }
 
+int wmi_led_cfg(struct wil6210_priv *wil, bool enable)
+{
+	int rc = 0;
+	struct wmi_led_cfg_cmd cmd = {
+		.led_mode = enable,
+		.id = led_id,
+		.slow_blink_cfg.blink_on =
+			cpu_to_le32(led_blink_time[WIL_LED_TIME_SLOW].on_ms),
+		.slow_blink_cfg.blink_off =
+			cpu_to_le32(led_blink_time[WIL_LED_TIME_SLOW].off_ms),
+		.medium_blink_cfg.blink_on =
+			cpu_to_le32(led_blink_time[WIL_LED_TIME_MED].on_ms),
+		.medium_blink_cfg.blink_off =
+			cpu_to_le32(led_blink_time[WIL_LED_TIME_MED].off_ms),
+		.fast_blink_cfg.blink_on =
+			cpu_to_le32(led_blink_time[WIL_LED_TIME_FAST].on_ms),
+		.fast_blink_cfg.blink_off =
+			cpu_to_le32(led_blink_time[WIL_LED_TIME_FAST].off_ms),
+		.led_polarity = led_polarity,
+	};
+	struct {
+		struct wmi_cmd_hdr wmi;
+		struct wmi_led_cfg_done_event evt;
+	} __packed reply;
+
+	if (led_id == WIL_LED_INVALID_ID)
+		goto out;
+
+	if (led_id > WIL_LED_MAX_ID) {
+		wil_err(wil, "Invalid led id %d\n", led_id);
+		rc = -EINVAL;
+		goto out;
+	}
+
+	wil_dbg_wmi(wil,
+		    "%s led %d\n",
+		    enable ? "enabling" : "disabling", led_id);
+
+	rc = wmi_call(wil, WMI_LED_CFG_CMDID, &cmd, sizeof(cmd),
+		      WMI_LED_CFG_DONE_EVENTID, &reply, sizeof(reply),
+		      100);
+	if (rc)
+		goto out;
+
+	if (reply.evt.status) {
+		wil_err(wil, "led %d cfg failed with status %d\n",
+			led_id, le32_to_cpu(reply.evt.status));
+		rc = -EINVAL;
+	}
+
+out:
+	return rc;
+}
+
 int wmi_pcp_start(struct wil6210_priv *wil, int bi, u8 wmi_nettype,
 		  u8 chan, u8 hidden_ssid, u8 is_go)
 {
@@ -1003,11 +1080,21 @@ int wmi_pcp_start(struct wil6210_priv *wil, int bi, u8 wmi_nettype,
 	if (reply.evt.status != WMI_FW_STATUS_SUCCESS)
 		rc = -EINVAL;
 
+	if (wmi_nettype != WMI_NETTYPE_P2P)
+		/* Don't fail due to error in the led configuration */
+		wmi_led_cfg(wil, true);
+
 	return rc;
 }
 
 int wmi_pcp_stop(struct wil6210_priv *wil)
 {
+	int rc;
+
+	rc = wmi_led_cfg(wil, false);
+	if (rc)
+		return rc;
+
 	return wmi_call(wil, WMI_PCP_STOP_CMDID, NULL, 0,
 			WMI_PCP_STOPPED_EVENTID, NULL, 0, 20);
 }

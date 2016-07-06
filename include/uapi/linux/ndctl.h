@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2014-2015, Intel Corporation.
+ * Copyright (c) 2014-2016, Intel Corporation.
  *
  * This program is free software; you can redistribute it and/or modify it
  * under the terms and conditions of the GNU Lesser General Public License,
@@ -20,9 +20,43 @@ struct nd_cmd_smart {
 	__u8 data[128];
 } __packed;
 
+#define ND_SMART_HEALTH_VALID	(1 << 0)
+#define ND_SMART_TEMP_VALID 	(1 << 1)
+#define ND_SMART_SPARES_VALID	(1 << 2)
+#define ND_SMART_ALARM_VALID	(1 << 3)
+#define ND_SMART_USED_VALID	(1 << 4)
+#define ND_SMART_SHUTDOWN_VALID	(1 << 5)
+#define ND_SMART_VENDOR_VALID	(1 << 6)
+#define ND_SMART_TEMP_TRIP	(1 << 0)
+#define ND_SMART_SPARE_TRIP	(1 << 1)
+#define ND_SMART_NON_CRITICAL_HEALTH	(1 << 0)
+#define ND_SMART_CRITICAL_HEALTH	(1 << 1)
+#define ND_SMART_FATAL_HEALTH		(1 << 2)
+
+struct nd_smart_payload {
+	__u32 flags;
+	__u8 reserved0[4];
+	__u8 health;
+	__u16 temperature;
+	__u8 spares;
+	__u8 alarm_flags;
+	__u8 life_used;
+	__u8 shutdown_state;
+	__u8 reserved1;
+	__u32 vendor_size;
+	__u8 vendor_data[108];
+} __packed;
+
 struct nd_cmd_smart_threshold {
 	__u32 status;
 	__u8 data[8];
+} __packed;
+
+struct nd_smart_threshold_payload {
+	__u16 alarm_control;
+	__u16 temperature;
+	__u8 spares;
+	__u8 reserved[3];
 } __packed;
 
 struct nd_cmd_dimm_flags {
@@ -125,6 +159,7 @@ enum {
 	ND_CMD_VENDOR_EFFECT_LOG_SIZE = 7,
 	ND_CMD_VENDOR_EFFECT_LOG = 8,
 	ND_CMD_VENDOR = 9,
+	ND_CMD_CALL = 10,
 };
 
 enum {
@@ -158,6 +193,7 @@ static inline const char *nvdimm_cmd_name(unsigned cmd)
 		[ND_CMD_VENDOR_EFFECT_LOG_SIZE] = "effect_size",
 		[ND_CMD_VENDOR_EFFECT_LOG] = "effect_log",
 		[ND_CMD_VENDOR] = "vendor",
+		[ND_CMD_CALL] = "cmd_call",
 	};
 
 	if (cmd < ARRAY_SIZE(names) && names[cmd])
@@ -206,6 +242,7 @@ static inline const char *nvdimm_cmd_name(unsigned cmd)
 #define ND_DEVICE_NAMESPACE_IO 4    /* legacy persistent memory */
 #define ND_DEVICE_NAMESPACE_PMEM 5  /* PMEM namespace (may alias with BLK) */
 #define ND_DEVICE_NAMESPACE_BLK 6   /* BLK namespace (may alias with PMEM) */
+#define ND_DEVICE_DAX_PMEM 7        /* Device DAX interface to pmem */
 
 enum nd_driver_flags {
 	ND_DRIVER_DIMM            = 1 << ND_DEVICE_DIMM,
@@ -214,6 +251,7 @@ enum nd_driver_flags {
 	ND_DRIVER_NAMESPACE_IO    = 1 << ND_DEVICE_NAMESPACE_IO,
 	ND_DRIVER_NAMESPACE_PMEM  = 1 << ND_DEVICE_NAMESPACE_PMEM,
 	ND_DRIVER_NAMESPACE_BLK   = 1 << ND_DEVICE_NAMESPACE_BLK,
+	ND_DRIVER_DAX_PMEM	  = 1 << ND_DEVICE_DAX_PMEM,
 };
 
 enum {
@@ -224,4 +262,44 @@ enum ars_masks {
 	ARS_STATUS_MASK = 0x0000FFFF,
 	ARS_EXT_STATUS_SHIFT = 16,
 };
+
+/*
+ * struct nd_cmd_pkg
+ *
+ * is a wrapper to a quasi pass thru interface for invoking firmware
+ * associated with nvdimms.
+ *
+ * INPUT PARAMETERS
+ *
+ * nd_family corresponds to the firmware (e.g. DSM) interface.
+ *
+ * nd_command are the function index advertised by the firmware.
+ *
+ * nd_size_in is the size of the input parameters being passed to firmware
+ *
+ * OUTPUT PARAMETERS
+ *
+ * nd_fw_size is the size of the data firmware wants to return for
+ * the call.  If nd_fw_size is greater than size of nd_size_out, only
+ * the first nd_size_out bytes are returned.
+ */
+
+struct nd_cmd_pkg {
+	__u64   nd_family;		/* family of commands */
+	__u64   nd_command;
+	__u32   nd_size_in;		/* INPUT: size of input args */
+	__u32   nd_size_out;		/* INPUT: size of payload */
+	__u32   nd_reserved2[9];	/* reserved must be zero */
+	__u32   nd_fw_size;		/* OUTPUT: size fw wants to return */
+	unsigned char nd_payload[];	/* Contents of call      */
+};
+
+/* These NVDIMM families represent pre-standardization command sets */
+#define NVDIMM_FAMILY_INTEL 0
+#define NVDIMM_FAMILY_HPE1 1
+#define NVDIMM_FAMILY_HPE2 2
+
+#define ND_IOCTL_CALL			_IOWR(ND_IOCTL, ND_CMD_CALL,\
+					struct nd_cmd_pkg)
+
 #endif /* __NDCTL_H__ */

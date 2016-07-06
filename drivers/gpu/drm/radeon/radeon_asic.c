@@ -2324,6 +2324,7 @@ int radeon_asic_init(struct radeon_device *rdev)
 		rdev->num_crtc = 2;
 
 	rdev->has_uvd = false;
+	rdev->has_vce = false;
 
 	switch (rdev->family) {
 	case CHIP_R100:
@@ -2454,6 +2455,7 @@ int radeon_asic_init(struct radeon_device *rdev)
 		/* set num crtcs */
 		rdev->num_crtc = 4;
 		rdev->has_uvd = true;
+		rdev->has_vce = true;
 		rdev->cg_flags =
 			RADEON_CG_SUPPORT_VCE_MGCG;
 		break;
@@ -2470,10 +2472,13 @@ int radeon_asic_init(struct radeon_device *rdev)
 			rdev->num_crtc = 2;
 		else
 			rdev->num_crtc = 6;
-		if (rdev->family == CHIP_HAINAN)
+		if (rdev->family == CHIP_HAINAN) {
 			rdev->has_uvd = false;
-		else
+			rdev->has_vce = false;
+		} else {
 			rdev->has_uvd = true;
+			rdev->has_vce = true;
+		}
 		switch (rdev->family) {
 		case CHIP_TAHITI:
 			rdev->cg_flags =
@@ -2578,6 +2583,7 @@ int radeon_asic_init(struct radeon_device *rdev)
 		rdev->asic = &ci_asic;
 		rdev->num_crtc = 6;
 		rdev->has_uvd = true;
+		rdev->has_vce = true;
 		if (rdev->family == CHIP_BONAIRE) {
 			rdev->cg_flags =
 				RADEON_CG_SUPPORT_GFX_MGCG |
@@ -2678,6 +2684,7 @@ int radeon_asic_init(struct radeon_device *rdev)
 				RADEON_PG_SUPPORT_SAMU;*/
 		}
 		rdev->has_uvd = true;
+		rdev->has_vce = true;
 		break;
 	default:
 		/* FIXME: not supported yet */
@@ -2688,6 +2695,11 @@ int radeon_asic_init(struct radeon_device *rdev)
 		rdev->asic->pm.get_memory_clock = NULL;
 		rdev->asic->pm.set_memory_clock = NULL;
 	}
+
+	if (!radeon_uvd)
+		rdev->has_uvd = false;
+	if (!radeon_vce)
+		rdev->has_vce = false;
 
 	return 0;
 }

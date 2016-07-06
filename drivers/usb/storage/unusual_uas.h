@@ -1,4 +1,5 @@
-/* Driver for USB Attached SCSI devices - Unusual Devices File
+/*
+ * Driver for USB Attached SCSI devices - Unusual Devices File
  *
  *   (c) 2013 Hans de Goede <hdegoede@redhat.com>
  *

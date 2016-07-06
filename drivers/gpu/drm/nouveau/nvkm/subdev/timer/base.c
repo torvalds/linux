@@ -143,7 +143,7 @@ nvkm_timer_new_(const struct nvkm_timer_func *func, struct nvkm_device *device,
 	if (!(tmr = *ptmr = kzalloc(sizeof(*tmr), GFP_KERNEL)))
 		return -ENOMEM;
 
-	nvkm_subdev_ctor(&nvkm_timer, device, index, 0, &tmr->subdev);
+	nvkm_subdev_ctor(&nvkm_timer, device, index, &tmr->subdev);
 	tmr->func = func;
 	INIT_LIST_HEAD(&tmr->alarms);
 	spin_lock_init(&tmr->lock);

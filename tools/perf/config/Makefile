@@ -23,6 +23,12 @@ $(call detected_var,ARCH)
 
 NO_PERF_REGS := 1
 
+# Additional ARCH settings for ppc
+ifeq ($(ARCH),powerpc)
+  NO_PERF_REGS := 0
+  LIBUNWIND_LIBS := -lunwind -lunwind-ppc64
+endif
+
 # Additional ARCH settings for x86
 ifeq ($(ARCH),x86)
   $(call detected,CONFIG_X86)

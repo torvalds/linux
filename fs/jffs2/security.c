@@ -57,10 +57,11 @@ static int jffs2_security_getxattr(const struct xattr_handler *handler,
 }
 
 static int jffs2_security_setxattr(const struct xattr_handler *handler,
-				   struct dentry *dentry, const char *name,
-				   const void *buffer, size_t size, int flags)
+				   struct dentry *unused, struct inode *inode,
+				   const char *name, const void *buffer,
+				   size_t size, int flags)
 {
-	return do_jffs2_setxattr(d_inode(dentry), JFFS2_XPREFIX_SECURITY,
+	return do_jffs2_setxattr(inode, JFFS2_XPREFIX_SECURITY,
 				 name, buffer, size, flags);
 }
 

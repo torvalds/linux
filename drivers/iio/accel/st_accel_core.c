@@ -39,6 +39,9 @@
 #define ST_ACCEL_FS_AVL_6G			6
 #define ST_ACCEL_FS_AVL_8G			8
 #define ST_ACCEL_FS_AVL_16G			16
+#define ST_ACCEL_FS_AVL_100G			100
+#define ST_ACCEL_FS_AVL_200G			200
+#define ST_ACCEL_FS_AVL_400G			400
 
 /* CUSTOM VALUES FOR SENSOR 1 */
 #define ST_ACCEL_1_WAI_EXP			0x33
@@ -96,6 +99,8 @@
 #define ST_ACCEL_2_DRDY_IRQ_INT2_MASK		0x10
 #define ST_ACCEL_2_IHL_IRQ_ADDR			0x22
 #define ST_ACCEL_2_IHL_IRQ_MASK			0x80
+#define ST_ACCEL_2_OD_IRQ_ADDR			0x22
+#define ST_ACCEL_2_OD_IRQ_MASK			0x40
 #define ST_ACCEL_2_MULTIREAD_BIT		true
 
 /* CUSTOM VALUES FOR SENSOR 3 */
@@ -177,9 +182,38 @@
 #define ST_ACCEL_5_DRDY_IRQ_INT2_MASK		0x20
 #define ST_ACCEL_5_IHL_IRQ_ADDR			0x22
 #define ST_ACCEL_5_IHL_IRQ_MASK			0x80
+#define ST_ACCEL_5_OD_IRQ_ADDR			0x22
+#define ST_ACCEL_5_OD_IRQ_MASK			0x40
 #define ST_ACCEL_5_IG1_EN_ADDR			0x21
 #define ST_ACCEL_5_IG1_EN_MASK			0x08
 #define ST_ACCEL_5_MULTIREAD_BIT		false
+
+/* CUSTOM VALUES FOR SENSOR 6 */
+#define ST_ACCEL_6_WAI_EXP			0x32
+#define ST_ACCEL_6_ODR_ADDR			0x20
+#define ST_ACCEL_6_ODR_MASK			0x18
+#define ST_ACCEL_6_ODR_AVL_50HZ_VAL		0x00
+#define ST_ACCEL_6_ODR_AVL_100HZ_VAL		0x01
+#define ST_ACCEL_6_ODR_AVL_400HZ_VAL		0x02
+#define ST_ACCEL_6_ODR_AVL_1000HZ_VAL		0x03
+#define ST_ACCEL_6_PW_ADDR			0x20
+#define ST_ACCEL_6_PW_MASK			0x20
+#define ST_ACCEL_6_FS_ADDR			0x23
+#define ST_ACCEL_6_FS_MASK			0x30
+#define ST_ACCEL_6_FS_AVL_100_VAL		0x00
+#define ST_ACCEL_6_FS_AVL_200_VAL		0x01
+#define ST_ACCEL_6_FS_AVL_400_VAL		0x03
+#define ST_ACCEL_6_FS_AVL_100_GAIN		IIO_G_TO_M_S_2(49000)
+#define ST_ACCEL_6_FS_AVL_200_GAIN		IIO_G_TO_M_S_2(98000)
+#define ST_ACCEL_6_FS_AVL_400_GAIN		IIO_G_TO_M_S_2(195000)
+#define ST_ACCEL_6_BDU_ADDR			0x23
+#define ST_ACCEL_6_BDU_MASK			0x80
+#define ST_ACCEL_6_DRDY_IRQ_ADDR		0x22
+#define ST_ACCEL_6_DRDY_IRQ_INT1_MASK		0x02
+#define ST_ACCEL_6_DRDY_IRQ_INT2_MASK		0x10
+#define ST_ACCEL_6_IHL_IRQ_ADDR			0x22
+#define ST_ACCEL_6_IHL_IRQ_MASK			0x80
+#define ST_ACCEL_6_MULTIREAD_BIT		true
 
 static const struct iio_chan_spec st_accel_8bit_channels[] = {
 	ST_SENSORS_LSM_CHANNELS(IIO_ACCEL,
@@ -302,6 +336,7 @@ static const struct st_sensor_settings st_accel_sensors_settings[] = {
 			.mask_int2 = ST_ACCEL_1_DRDY_IRQ_INT2_MASK,
 			.addr_ihl = ST_ACCEL_1_IHL_IRQ_ADDR,
 			.mask_ihl = ST_ACCEL_1_IHL_IRQ_MASK,
+			.addr_stat_drdy = ST_SENSORS_DEFAULT_STAT_ADDR,
 		},
 		.multi_read_bit = ST_ACCEL_1_MULTIREAD_BIT,
 		.bootime = 2,
@@ -367,6 +402,9 @@ static const struct st_sensor_settings st_accel_sensors_settings[] = {
 			.mask_int2 = ST_ACCEL_2_DRDY_IRQ_INT2_MASK,
 			.addr_ihl = ST_ACCEL_2_IHL_IRQ_ADDR,
 			.mask_ihl = ST_ACCEL_2_IHL_IRQ_MASK,
+			.addr_od = ST_ACCEL_2_OD_IRQ_ADDR,
+			.mask_od = ST_ACCEL_2_OD_IRQ_MASK,
+			.addr_stat_drdy = ST_SENSORS_DEFAULT_STAT_ADDR,
 		},
 		.multi_read_bit = ST_ACCEL_2_MULTIREAD_BIT,
 		.bootime = 2,
@@ -444,6 +482,7 @@ static const struct st_sensor_settings st_accel_sensors_settings[] = {
 			.mask_int2 = ST_ACCEL_3_DRDY_IRQ_INT2_MASK,
 			.addr_ihl = ST_ACCEL_3_IHL_IRQ_ADDR,
 			.mask_ihl = ST_ACCEL_3_IHL_IRQ_MASK,
+			.addr_stat_drdy = ST_SENSORS_DEFAULT_STAT_ADDR,
 			.ig1 = {
 				.en_addr = ST_ACCEL_3_IG1_EN_ADDR,
 				.en_mask = ST_ACCEL_3_IG1_EN_MASK,
@@ -502,6 +541,7 @@ static const struct st_sensor_settings st_accel_sensors_settings[] = {
 		.drdy_irq = {
 			.addr = ST_ACCEL_4_DRDY_IRQ_ADDR,
 			.mask_int1 = ST_ACCEL_4_DRDY_IRQ_INT1_MASK,
+			.addr_stat_drdy = ST_SENSORS_DEFAULT_STAT_ADDR,
 		},
 		.multi_read_bit = ST_ACCEL_4_MULTIREAD_BIT,
 		.bootime = 2, /* guess */
@@ -553,9 +593,74 @@ static const struct st_sensor_settings st_accel_sensors_settings[] = {
 			.mask_int2 = ST_ACCEL_5_DRDY_IRQ_INT2_MASK,
 			.addr_ihl = ST_ACCEL_5_IHL_IRQ_ADDR,
 			.mask_ihl = ST_ACCEL_5_IHL_IRQ_MASK,
+			.addr_od = ST_ACCEL_5_OD_IRQ_ADDR,
+			.mask_od = ST_ACCEL_5_OD_IRQ_MASK,
+			.addr_stat_drdy = ST_SENSORS_DEFAULT_STAT_ADDR,
 		},
 		.multi_read_bit = ST_ACCEL_5_MULTIREAD_BIT,
 		.bootime = 2, /* guess */
+	},
+	{
+		.wai = ST_ACCEL_6_WAI_EXP,
+		.wai_addr = ST_SENSORS_DEFAULT_WAI_ADDRESS,
+		.sensors_supported = {
+			[0] = H3LIS331DL_DRIVER_NAME,
+		},
+		.ch = (struct iio_chan_spec *)st_accel_12bit_channels,
+		.odr = {
+			.addr = ST_ACCEL_6_ODR_ADDR,
+			.mask = ST_ACCEL_6_ODR_MASK,
+			.odr_avl = {
+				{ 50, ST_ACCEL_6_ODR_AVL_50HZ_VAL },
+				{ 100, ST_ACCEL_6_ODR_AVL_100HZ_VAL, },
+				{ 400, ST_ACCEL_6_ODR_AVL_400HZ_VAL, },
+				{ 1000, ST_ACCEL_6_ODR_AVL_1000HZ_VAL, },
+			},
+		},
+		.pw = {
+			.addr = ST_ACCEL_6_PW_ADDR,
+			.mask = ST_ACCEL_6_PW_MASK,
+			.value_on = ST_SENSORS_DEFAULT_POWER_ON_VALUE,
+			.value_off = ST_SENSORS_DEFAULT_POWER_OFF_VALUE,
+		},
+		.enable_axis = {
+			.addr = ST_SENSORS_DEFAULT_AXIS_ADDR,
+			.mask = ST_SENSORS_DEFAULT_AXIS_MASK,
+		},
+		.fs = {
+			.addr = ST_ACCEL_6_FS_ADDR,
+			.mask = ST_ACCEL_6_FS_MASK,
+			.fs_avl = {
+				[0] = {
+					.num = ST_ACCEL_FS_AVL_100G,
+					.value = ST_ACCEL_6_FS_AVL_100_VAL,
+					.gain = ST_ACCEL_6_FS_AVL_100_GAIN,
+				},
+				[1] = {
+					.num = ST_ACCEL_FS_AVL_200G,
+					.value = ST_ACCEL_6_FS_AVL_200_VAL,
+					.gain = ST_ACCEL_6_FS_AVL_200_GAIN,
+				},
+				[2] = {
+					.num = ST_ACCEL_FS_AVL_400G,
+					.value = ST_ACCEL_6_FS_AVL_400_VAL,
+					.gain = ST_ACCEL_6_FS_AVL_400_GAIN,
+				},
+			},
+		},
+		.bdu = {
+			.addr = ST_ACCEL_6_BDU_ADDR,
+			.mask = ST_ACCEL_6_BDU_MASK,
+		},
+		.drdy_irq = {
+			.addr = ST_ACCEL_6_DRDY_IRQ_ADDR,
+			.mask_int1 = ST_ACCEL_6_DRDY_IRQ_INT1_MASK,
+			.mask_int2 = ST_ACCEL_6_DRDY_IRQ_INT2_MASK,
+			.addr_ihl = ST_ACCEL_6_IHL_IRQ_ADDR,
+			.mask_ihl = ST_ACCEL_6_IHL_IRQ_MASK,
+		},
+		.multi_read_bit = ST_ACCEL_6_MULTIREAD_BIT,
+		.bootime = 2,
 	},
 };
 
@@ -636,6 +741,7 @@ static const struct iio_info accel_info = {
 static const struct iio_trigger_ops st_accel_trigger_ops = {
 	.owner = THIS_MODULE,
 	.set_trigger_state = ST_ACCEL_TRIGGER_SET_STATE,
+	.validate_device = st_sensors_validate_device,
 };
 #define ST_ACCEL_TRIGGER_OPS (&st_accel_trigger_ops)
 #else

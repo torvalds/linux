@@ -230,7 +230,10 @@ static int qede_get_sset_count(struct net_device *dev, int stringset)
 	case ETH_SS_PRIV_FLAGS:
 		return QEDE_PRI_FLAG_LEN;
 	case ETH_SS_TEST:
-		return QEDE_ETHTOOL_TEST_MAX;
+		if (!IS_VF(edev))
+			return QEDE_ETHTOOL_TEST_MAX;
+		else
+			return 0;
 	default:
 		DP_VERBOSE(edev, QED_MSG_DEBUG,
 			   "Unsupported stringset 0x%08x\n", stringset);

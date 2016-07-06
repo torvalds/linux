@@ -353,6 +353,88 @@ struct sort_entry sort_srcline = {
 	.se_width_idx	= HISTC_SRCLINE,
 };
 
+/* --sort srcline_from */
+
+static int64_t
+sort__srcline_from_cmp(struct hist_entry *left, struct hist_entry *right)
+{
+	if (!left->branch_info->srcline_from) {
+		struct map *map = left->branch_info->from.map;
+		if (!map)
+			left->branch_info->srcline_from = SRCLINE_UNKNOWN;
+		else
+			left->branch_info->srcline_from = get_srcline(map->dso,
+					   map__rip_2objdump(map,
+							     left->branch_info->from.al_addr),
+							 left->branch_info->from.sym, true);
+	}
+	if (!right->branch_info->srcline_from) {
+		struct map *map = right->branch_info->from.map;
+		if (!map)
+			right->branch_info->srcline_from = SRCLINE_UNKNOWN;
+		else
+			right->branch_info->srcline_from = get_srcline(map->dso,
+					     map__rip_2objdump(map,
+							       right->branch_info->from.al_addr),
+						     right->branch_info->from.sym, true);
+	}
+	return strcmp(right->branch_info->srcline_from, left->branch_info->srcline_from);
+}
+
+static int hist_entry__srcline_from_snprintf(struct hist_entry *he, char *bf,
+					size_t size, unsigned int width)
+{
+	return repsep_snprintf(bf, size, "%-*.*s", width, width, he->branch_info->srcline_from);
+}
+
+struct sort_entry sort_srcline_from = {
+	.se_header	= "From Source:Line",
+	.se_cmp		= sort__srcline_from_cmp,
+	.se_snprintf	= hist_entry__srcline_from_snprintf,
+	.se_width_idx	= HISTC_SRCLINE_FROM,
+};
+
+/* --sort srcline_to */
+
+static int64_t
+sort__srcline_to_cmp(struct hist_entry *left, struct hist_entry *right)
+{
+	if (!left->branch_info->srcline_to) {
+		struct map *map = left->branch_info->to.map;
+		if (!map)
+			left->branch_info->srcline_to = SRCLINE_UNKNOWN;
+		else
+			left->branch_info->srcline_to = get_srcline(map->dso,
+					   map__rip_2objdump(map,
+							     left->branch_info->to.al_addr),
+							 left->branch_info->from.sym, true);
+	}
+	if (!right->branch_info->srcline_to) {
+		struct map *map = right->branch_info->to.map;
+		if (!map)
+			right->branch_info->srcline_to = SRCLINE_UNKNOWN;
+		else
+			right->branch_info->srcline_to = get_srcline(map->dso,
+					     map__rip_2objdump(map,
+							       right->branch_info->to.al_addr),
+						     right->branch_info->to.sym, true);
+	}
+	return strcmp(right->branch_info->srcline_to, left->branch_info->srcline_to);
+}
+
+static int hist_entry__srcline_to_snprintf(struct hist_entry *he, char *bf,
+					size_t size, unsigned int width)
+{
+	return repsep_snprintf(bf, size, "%-*.*s", width, width, he->branch_info->srcline_to);
+}
+
+struct sort_entry sort_srcline_to = {
+	.se_header	= "To Source:Line",
+	.se_cmp		= sort__srcline_to_cmp,
+	.se_snprintf	= hist_entry__srcline_to_snprintf,
+	.se_width_idx	= HISTC_SRCLINE_TO,
+};
+
 /* --sort srcfile */
 
 static char no_srcfile[1];
@@ -1347,6 +1429,8 @@ static struct sort_dimension bstack_sort_dimensions[] = {
 	DIM(SORT_IN_TX, "in_tx", sort_in_tx),
 	DIM(SORT_ABORT, "abort", sort_abort),
 	DIM(SORT_CYCLES, "cycles", sort_cycles),
+	DIM(SORT_SRCLINE_FROM, "srcline_from", sort_srcline_from),
+	DIM(SORT_SRCLINE_TO, "srcline_to", sort_srcline_to),
 };
 
 #undef DIM

@@ -47,7 +47,7 @@
  * Page Tables are purely for Linux VM's consumption and the bits below are
  * suited to that (uniqueness). Hence some are not implemented in the TLB and
  * some have different value in TLB.
- * e.g. MMU v2: K_READ bit is 8 and so is GLOBAL (possible becoz they live in
+ * e.g. MMU v2: K_READ bit is 8 and so is GLOBAL (possible because they live in
  *      seperate PD0 and PD1, which combined forms a translation entry)
  *      while for PTE perspective, they are 8 and 9 respectively
  * with MMU v3: Most bits (except SHARED) represent the exact hardware pos
@@ -217,7 +217,7 @@
 #define BITS_FOR_PTE	(PGDIR_SHIFT - PAGE_SHIFT)
 #define BITS_FOR_PGD	(32 - PGDIR_SHIFT)
 
-#define PGDIR_SIZE	(1UL << PGDIR_SHIFT)	/* vaddr span, not PDG sz */
+#define PGDIR_SIZE	_BITUL(PGDIR_SHIFT)	/* vaddr span, not PDG sz */
 #define PGDIR_MASK	(~(PGDIR_SIZE-1))
 
 #define	PTRS_PER_PTE	_BITUL(BITS_FOR_PTE)

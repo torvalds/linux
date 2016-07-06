@@ -553,8 +553,8 @@ static struct wlcore_partition_set wl12xx_ptable[PART_TABLE_LEN] = {
 			.size  = 0x00000004
 		},
 		.mem3 = {
-			.start = 0x00040404,
-			.size  = 0x00000000
+			.start = 0x00000000,
+			.size  = 0x00040404
 		},
 	},
 

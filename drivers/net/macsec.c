@@ -1646,7 +1646,7 @@ static int macsec_add_rxsa(struct sk_buff *skb, struct genl_info *info)
 	if (tb_sa[MACSEC_SA_ATTR_ACTIVE])
 		rx_sa->active = !!nla_get_u8(tb_sa[MACSEC_SA_ATTR_ACTIVE]);
 
-	nla_memcpy(rx_sa->key.id, tb_sa[MACSEC_SA_ATTR_KEY], MACSEC_KEYID_LEN);
+	nla_memcpy(rx_sa->key.id, tb_sa[MACSEC_SA_ATTR_KEYID], MACSEC_KEYID_LEN);
 	rx_sa->sc = rx_sc;
 	rcu_assign_pointer(rx_sc->sa[assoc_num], rx_sa);
 
@@ -1785,7 +1785,7 @@ static int macsec_add_txsa(struct sk_buff *skb, struct genl_info *info)
 		return -ENOMEM;
 	}
 
-	nla_memcpy(tx_sa->key.id, tb_sa[MACSEC_SA_ATTR_KEY], MACSEC_KEYID_LEN);
+	nla_memcpy(tx_sa->key.id, tb_sa[MACSEC_SA_ATTR_KEYID], MACSEC_KEYID_LEN);
 
 	spin_lock_bh(&tx_sa->lock);
 	tx_sa->next_pn = nla_get_u32(tb_sa[MACSEC_SA_ATTR_PN]);

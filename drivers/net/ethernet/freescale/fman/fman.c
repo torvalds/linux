@@ -615,7 +615,7 @@ struct fman {
 	struct fman_cfg *cfg;
 	struct muram_info *muram;
 	/* cam section in muram */
-	int cam_offset;
+	unsigned long cam_offset;
 	size_t cam_size;
 	/* Fifo in MURAM */
 	int fifo_offset;

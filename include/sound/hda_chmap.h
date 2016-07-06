@@ -36,6 +36,8 @@ struct hdac_chmap_ops {
 	int (*chmap_validate)(struct hdac_chmap *hchmap, int ca,
 			int channels, unsigned char *chmap);
 
+	int (*get_spk_alloc)(struct hdac_device *hdac, int pcm_idx);
+
 	void (*get_chmap)(struct hdac_device *hdac, int pcm_idx,
 					unsigned char *chmap);
 	void (*set_chmap)(struct hdac_device *hdac, int pcm_idx,

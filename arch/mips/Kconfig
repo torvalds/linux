@@ -48,6 +48,7 @@ config MIPS
 	select GENERIC_SCHED_CLOCK if !CAVIUM_OCTEON_SOC
 	select GENERIC_CMOS_UPDATE
 	select HAVE_MOD_ARCH_SPECIFIC
+	select HAVE_NMI
 	select VIRT_TO_BUS
 	select MODULES_USE_ELF_REL if MODULES
 	select MODULES_USE_ELF_RELA if MODULES && 64BIT
@@ -62,6 +63,7 @@ config MIPS
 	select HAVE_IRQ_TIME_ACCOUNTING
 	select GENERIC_TIME_VSYSCALL
 	select ARCH_CLOCKSOURCE_DATA
+	select HANDLE_DOMAIN_IRQ
 
 menu "Machine selection"
 
@@ -137,7 +139,7 @@ config ATH79
 	select SYS_SUPPORTS_32BIT_KERNEL
 	select SYS_SUPPORTS_BIG_ENDIAN
 	select SYS_SUPPORTS_MIPS16
-	select SYS_SUPPORTS_ZBOOT
+	select SYS_SUPPORTS_ZBOOT_UART_PROM
 	select USE_OF
 	help
 	  Support for the Atheros AR71XX/AR724X/AR913X SoCs.
@@ -194,6 +196,7 @@ config BCM47XX
 	select GPIOLIB
 	select LEDS_GPIO_REGISTER
 	select BCM47XX_NVRAM
+	select BCM47XX_SPROM
 	help
 	 Support for BCM47XX based boards
 
@@ -395,6 +398,7 @@ config MACH_PISTACHIO
 	select SYS_SUPPORTS_LITTLE_ENDIAN
 	select SYS_SUPPORTS_MIPS_CPS
 	select SYS_SUPPORTS_MULTITHREADING
+	select SYS_SUPPORTS_RELOCATABLE
 	select SYS_SUPPORTS_ZBOOT
 	select SYS_HAS_EARLY_PRINTK
 	select USE_GENERIC_EARLY_PRINTK_8250
@@ -471,6 +475,7 @@ config MIPS_MALTA
 	select SYS_SUPPORTS_MULTITHREADING
 	select SYS_SUPPORTS_SMARTMIPS
 	select SYS_SUPPORTS_ZBOOT
+	select SYS_SUPPORTS_RELOCATABLE
 	select USE_OF
 	select ZONE_DMA32 if 64BIT
 	select BUILTIN_DTB
@@ -505,6 +510,7 @@ config MIPS_SEAD3
 	select MIPS_MSC
 	select SYS_HAS_CPU_MIPS32_R1
 	select SYS_HAS_CPU_MIPS32_R2
+	select SYS_HAS_CPU_MIPS32_R6
 	select SYS_HAS_CPU_MIPS64_R1
 	select SYS_HAS_EARLY_PRINTK
 	select SYS_SUPPORTS_32BIT_KERNEL
@@ -514,6 +520,7 @@ config MIPS_SEAD3
 	select SYS_SUPPORTS_SMARTMIPS
 	select SYS_SUPPORTS_MICROMIPS
 	select SYS_SUPPORTS_MIPS16
+	select SYS_SUPPORTS_RELOCATABLE
 	select USB_EHCI_BIG_ENDIAN_DESC
 	select USB_EHCI_BIG_ENDIAN_MMIO
 	select USE_OF
@@ -1153,6 +1160,13 @@ config ISA_DMA_API
 config HOLES_IN_ZONE
 	bool
 
+config SYS_SUPPORTS_RELOCATABLE
+	bool
+	help
+	 Selected if the platform supports relocating the kernel.
+	 The platform must provide plat_get_fdt() if it selects CONFIG_USE_OF
+	 to allow access to command line and entropy sources.
+
 #
 # Endianness selection.  Sufficiently obscure so many users don't know what to
 # answer,so we try hard to limit the available choices.  Also the use of a
@@ -1340,10 +1354,29 @@ config CPU_LOONGSON3
 	select CPU_SUPPORTS_HUGEPAGES
 	select WEAK_ORDERING
 	select WEAK_REORDERING_BEYOND_LLSC
+	select MIPS_PGD_C0_CONTEXT
 	select GPIOLIB
 	help
 		The Loongson 3 processor implements the MIPS64R2 instruction
 		set with many extensions.
+
+config LOONGSON3_ENHANCEMENT
+	bool "New Loongson 3 CPU Enhancements"
+	default n
+	select CPU_MIPSR2
+	select CPU_HAS_PREFETCH
+	depends on CPU_LOONGSON3
+	help
+	  New Loongson 3 CPU (since Loongson-3A R2, as opposed to Loongson-3A
+	  R1, Loongson-3B R1 and Loongson-3B R2) has many enhancements, such as
+	  FTLB, L1-VCache, EI/DI/Wait/Prefetch instruction, DSP/DSPv2 ASE, User
+	  Local register, Read-Inhibit/Execute-Inhibit, SFB (Store Fill Buffer),
+	  Fast TLB refill support, etc.
+
+	  This option enable those enhancements which are not probed at run
+	  time. If you want a generic kernel to run on all Loongson 3 machines,
+	  please say 'N' here. If you want a high-performance kernel to run on
+	  new Loongson 3 machines only, please say 'Y' here.
 
 config CPU_LOONGSON2E
 	bool "Loongson 2E"
@@ -1373,6 +1406,8 @@ config CPU_LOONGSON1B
 	bool "Loongson 1B"
 	depends on SYS_HAS_CPU_LOONGSON1B
 	select CPU_LOONGSON1
+	select ARCH_WANT_OPTIONAL_GPIOLIB
+	select LEDS_GPIO_REGISTER
 	help
 	  The Loongson 1B is a 32-bit SoC, which implements the MIPS32
 	  release 2 instruction set.
@@ -1671,6 +1706,7 @@ config CPU_XLP
 	select CPU_HAS_PREFETCH
 	select CPU_MIPSR2
 	select CPU_SUPPORTS_HUGEPAGES
+	select MIPS_ASID_BITS_VARIABLE
 	help
 	  Netlogic Microsystems XLP processors.
 endchoice
@@ -1796,6 +1832,7 @@ config CPU_BMIPS4380
 	select MIPS_L1_CACHE_SHIFT_6
 	select SYS_SUPPORTS_SMP
 	select SYS_SUPPORTS_HOTPLUG_CPU
+	select CPU_HAS_RIXI
 
 config CPU_BMIPS5000
 	bool
@@ -1803,10 +1840,12 @@ config CPU_BMIPS5000
 	select MIPS_L1_CACHE_SHIFT_7
 	select SYS_SUPPORTS_SMP
 	select SYS_SUPPORTS_HOTPLUG_CPU
+	select CPU_HAS_RIXI
 
 config SYS_HAS_CPU_LOONGSON3
 	bool
 	select CPU_SUPPORTS_CPUFREQ
+	select CPU_HAS_RIXI
 
 config SYS_HAS_CPU_LOONGSON2E
 	bool
@@ -1959,11 +1998,15 @@ config CPU_MIPSR1
 config CPU_MIPSR2
 	bool
 	default y if CPU_MIPS32_R2 || CPU_MIPS64_R2 || CPU_CAVIUM_OCTEON
+	select CPU_HAS_RIXI
 	select MIPS_SPRAM
 
 config CPU_MIPSR6
 	bool
 	default y if CPU_MIPS32_R6 || CPU_MIPS64_R6
+	select CPU_HAS_RIXI
+	select HAVE_ARCH_BITREVERSE
+	select MIPS_ASID_BITS_VARIABLE
 	select MIPS_SPRAM
 
 config EVA
@@ -1997,7 +2040,7 @@ config MIPS_PGD_C0_CONTEXT
 #
 config HARDWARE_WATCHPOINTS
        bool
-       default y if CPU_MIPSR1 || CPU_MIPSR2
+       default y if CPU_MIPSR1 || CPU_MIPSR2 || CPU_MIPSR6
 
 menu "Kernel type"
 
@@ -2040,6 +2083,16 @@ config KVM_GUEST_TIMER_FREQ
 	  emulation when determining guest CPU Frequency. Instead, the guest's
 	  timer frequency is specified directly.
 
+config MIPS_VA_BITS_48
+	bool "48 bits virtual memory"
+	depends on 64BIT
+	help
+	  Support a maximum at least 48 bits of application virtual memory.
+	  Default is 40 bits or less, depending on the CPU.
+	  This option result in a small memory overhead for page tables.
+	  This option is only supported with 16k and 64k page sizes.
+	  If unsure, say N.
+
 choice
 	prompt "Kernel page size"
 	default PAGE_SIZE_4KB
@@ -2047,6 +2100,7 @@ choice
 config PAGE_SIZE_4KB
 	bool "4kB"
 	depends on !CPU_LOONGSON2 && !CPU_LOONGSON3
+	depends on !MIPS_VA_BITS_48
 	help
 	 This option select the standard 4kB Linux page size.  On some
 	 R3000-family processors this is the only available page size.  Using
@@ -2056,6 +2110,7 @@ config PAGE_SIZE_4KB
 config PAGE_SIZE_8KB
 	bool "8kB"
 	depends on CPU_R8000 || CPU_CAVIUM_OCTEON
+	depends on !MIPS_VA_BITS_48
 	help
 	  Using 8kB page size will result in higher performance kernel at
 	  the price of higher memory consumption.  This option is available
@@ -2074,6 +2129,7 @@ config PAGE_SIZE_16KB
 config PAGE_SIZE_32KB
 	bool "32kB"
 	depends on CPU_CAVIUM_OCTEON
+	depends on !MIPS_VA_BITS_48
 	help
 	  Using 32kB page size will result in higher performance kernel at
 	  the price of higher memory consumption.  This option is available
@@ -2278,7 +2334,7 @@ config MIPS_CMP
 
 config MIPS_CPS
 	bool "MIPS Coherent Processing System support"
-	depends on SYS_SUPPORTS_MIPS_CPS && !CPU_MIPSR6
+	depends on SYS_SUPPORTS_MIPS_CPS
 	select MIPS_CM
 	select MIPS_CPC
 	select MIPS_CPS_PM if HOTPLUG_CPU
@@ -2369,6 +2425,9 @@ config CPU_HAS_WB
 config XKS01
 	bool
 
+config CPU_HAS_RIXI
+	bool
+
 #
 # Vectored interrupt mode is an R2 feature
 #
@@ -2397,6 +2456,21 @@ config CPU_R4000_WORKAROUNDS
 	select CPU_R4400_WORKAROUNDS
 
 config CPU_R4400_WORKAROUNDS
+	bool
+
+config MIPS_ASID_SHIFT
+	int
+	default 6 if CPU_R3000 || CPU_TX39XX
+	default 4 if CPU_R8000
+	default 0
+
+config MIPS_ASID_BITS
+	int
+	default 0 if MIPS_ASID_BITS_VARIABLE
+	default 6 if CPU_R3000 || CPU_TX39XX
+	default 8
+
+config MIPS_ASID_BITS_VARIABLE
 	bool
 
 #
@@ -2468,6 +2542,61 @@ config NUMA
 config SYS_SUPPORTS_NUMA
 	bool
 
+config RELOCATABLE
+	bool "Relocatable kernel"
+	depends on SYS_SUPPORTS_RELOCATABLE && (CPU_MIPS32_R2 || CPU_MIPS64_R2 || CPU_MIPS32_R6 || CPU_MIPS64_R6)
+	help
+	  This builds a kernel image that retains relocation information
+	  so it can be loaded someplace besides the default 1MB.
+	  The relocations make the kernel binary about 15% larger,
+	  but are discarded at runtime
+
+config RELOCATION_TABLE_SIZE
+	hex "Relocation table size"
+	depends on RELOCATABLE
+	range 0x0 0x01000000
+	default "0x00100000"
+	---help---
+	  A table of relocation data will be appended to the kernel binary
+	  and parsed at boot to fix up the relocated kernel.
+
+	  This option allows the amount of space reserved for the table to be
+	  adjusted, although the default of 1Mb should be ok in most cases.
+
+	  The build will fail and a valid size suggested if this is too small.
+
+	  If unsure, leave at the default value.
+
+config RANDOMIZE_BASE
+	bool "Randomize the address of the kernel image"
+	depends on RELOCATABLE
+	---help---
+	   Randomizes the physical and virtual address at which the
+	   kernel image is loaded, as a security feature that
+	   deters exploit attempts relying on knowledge of the location
+	   of kernel internals.
+
+	   Entropy is generated using any coprocessor 0 registers available.
+
+	   The kernel will be offset by up to RANDOMIZE_BASE_MAX_OFFSET.
+
+	   If unsure, say N.
+
+config RANDOMIZE_BASE_MAX_OFFSET
+	hex "Maximum kASLR offset" if EXPERT
+	depends on RANDOMIZE_BASE
+	range 0x0 0x40000000 if EVA || 64BIT
+	range 0x0 0x08000000
+	default "0x01000000"
+	---help---
+	  When kASLR is active, this provides the maximum offset that will
+	  be applied to the kernel image. It should be set according to the
+	  amount of physical RAM available in the target system minus
+	  PHYSICAL_START and must be a power of 2.
+
+	  This is limited by the size of KSEG0, 256Mb on 32-bit or 1Gb with
+	  EVA or 64-bit. The default is 16Mb.
+
 config NODES_SHIFT
 	int
 	default "6"
@@ -2475,7 +2604,7 @@ config NODES_SHIFT
 
 config HW_PERF_EVENTS
 	bool "Enable hardware performance counter support for perf events"
-	depends on PERF_EVENTS && OPROFILE=n && (CPU_MIPS32 || CPU_MIPS64 || CPU_R10000 || CPU_SB1 || CPU_CAVIUM_OCTEON || CPU_XLP || CPU_LOONGSON3)
+	depends on PERF_EVENTS && !OPROFILE && (CPU_MIPS32 || CPU_MIPS64 || CPU_R10000 || CPU_SB1 || CPU_CAVIUM_OCTEON || CPU_XLP || CPU_LOONGSON3)
 	default y
 	help
 	  Enable hardware performance counter support for perf events. If
@@ -2808,6 +2937,10 @@ choice
 
 	config MIPS_CMDLINE_FROM_BOOTLOADER
 		bool "Bootloader kernel arguments if available"
+
+	config MIPS_CMDLINE_BUILTIN_EXTEND
+		depends on CMDLINE_BOOL
+		bool "Extend builtin kernel arguments with bootloader arguments"
 endchoice
 
 endmenu
@@ -2985,6 +3118,7 @@ config MIPS32_N32
 config BINFMT_ELF32
 	bool
 	default y if MIPS32_O32 || MIPS32_N32
+	select ELFCORE
 
 endmenu
 

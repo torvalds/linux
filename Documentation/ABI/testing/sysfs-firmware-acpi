@@ -169,7 +169,7 @@ Description:
 		to enable/disable/clear ACPI interrupts in user space, which can be
 		used to debug some ACPI interrupt storm issues.
 
-		Note that only writting to VALID GPE/Fixed Event is allowed,
+		Note that only writing to VALID GPE/Fixed Event is allowed,
 		i.e. user can only change the status of runtime GPE and
 		Fixed Event with event handler installed.
 

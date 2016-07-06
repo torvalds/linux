@@ -1831,7 +1831,7 @@ static int will_overwrite_ref(struct send_ctx *sctx, u64 dir, u64 dir_gen,
 
 	/*
 	 * If we have a parent root we need to verify that the parent dir was
-	 * not delted and then re-created, if it was then we have no overwrite
+	 * not deleted and then re-created, if it was then we have no overwrite
 	 * and we can just unlink this entry.
 	 */
 	if (sctx->parent_root) {
@@ -4192,9 +4192,9 @@ static int __process_new_xattr(int num, struct btrfs_key *di_key,
 		return -ENOMEM;
 
 	/*
-	 * This hack is needed because empty acl's are stored as zero byte
+	 * This hack is needed because empty acls are stored as zero byte
 	 * data in xattrs. Problem with that is, that receiving these zero byte
-	 * acl's will fail later. To fix this, we send a dummy acl list that
+	 * acls will fail later. To fix this, we send a dummy acl list that
 	 * only contains the version number and no entries.
 	 */
 	if (!strncmp(name, XATTR_NAME_POSIX_ACL_ACCESS, name_len) ||
@@ -5939,6 +5939,7 @@ long btrfs_ioctl_send(struct file *mnt_file, void __user *arg_)
 	u32 i;
 	u64 *clone_sources_tmp = NULL;
 	int clone_sources_to_rollback = 0;
+	unsigned alloc_size;
 	int sort_clone_roots = 0;
 	int index;
 
@@ -5975,6 +5976,12 @@ long btrfs_ioctl_send(struct file *mnt_file, void __user *arg_)
 	if (IS_ERR(arg)) {
 		ret = PTR_ERR(arg);
 		arg = NULL;
+		goto out;
+	}
+
+	if (arg->clone_sources_count >
+	    ULLONG_MAX / sizeof(*arg->clone_sources)) {
+		ret = -EINVAL;
 		goto out;
 	}
 
@@ -6022,40 +6029,53 @@ long btrfs_ioctl_send(struct file *mnt_file, void __user *arg_)
 	sctx->clone_roots_cnt = arg->clone_sources_count;
 
 	sctx->send_max_size = BTRFS_SEND_BUF_SIZE;
-	sctx->send_buf = vmalloc(sctx->send_max_size);
+	sctx->send_buf = kmalloc(sctx->send_max_size, GFP_KERNEL | __GFP_NOWARN);
 	if (!sctx->send_buf) {
-		ret = -ENOMEM;
-		goto out;
+		sctx->send_buf = vmalloc(sctx->send_max_size);
+		if (!sctx->send_buf) {
+			ret = -ENOMEM;
+			goto out;
+		}
 	}
 
-	sctx->read_buf = vmalloc(BTRFS_SEND_READ_SIZE);
+	sctx->read_buf = kmalloc(BTRFS_SEND_READ_SIZE, GFP_KERNEL | __GFP_NOWARN);
 	if (!sctx->read_buf) {
-		ret = -ENOMEM;
-		goto out;
+		sctx->read_buf = vmalloc(BTRFS_SEND_READ_SIZE);
+		if (!sctx->read_buf) {
+			ret = -ENOMEM;
+			goto out;
+		}
 	}
 
 	sctx->pending_dir_moves = RB_ROOT;
 	sctx->waiting_dir_moves = RB_ROOT;
 	sctx->orphan_dirs = RB_ROOT;
 
-	sctx->clone_roots = vzalloc(sizeof(struct clone_root) *
-			(arg->clone_sources_count + 1));
-	if (!sctx->clone_roots) {
-		ret = -ENOMEM;
-		goto out;
-	}
+	alloc_size = sizeof(struct clone_root) * (arg->clone_sources_count + 1);
 
-	if (arg->clone_sources_count) {
-		clone_sources_tmp = vmalloc(arg->clone_sources_count *
-				sizeof(*arg->clone_sources));
-		if (!clone_sources_tmp) {
+	sctx->clone_roots = kzalloc(alloc_size, GFP_KERNEL | __GFP_NOWARN);
+	if (!sctx->clone_roots) {
+		sctx->clone_roots = vzalloc(alloc_size);
+		if (!sctx->clone_roots) {
 			ret = -ENOMEM;
 			goto out;
 		}
+	}
+
+	alloc_size = arg->clone_sources_count * sizeof(*arg->clone_sources);
+
+	if (arg->clone_sources_count) {
+		clone_sources_tmp = kmalloc(alloc_size, GFP_KERNEL | __GFP_NOWARN);
+		if (!clone_sources_tmp) {
+			clone_sources_tmp = vmalloc(alloc_size);
+			if (!clone_sources_tmp) {
+				ret = -ENOMEM;
+				goto out;
+			}
+		}
 
 		ret = copy_from_user(clone_sources_tmp, arg->clone_sources,
-				arg->clone_sources_count *
-				sizeof(*arg->clone_sources));
+				alloc_size);
 		if (ret) {
 			ret = -EFAULT;
 			goto out;
@@ -6089,7 +6109,7 @@ long btrfs_ioctl_send(struct file *mnt_file, void __user *arg_)
 			sctx->clone_roots[i].root = clone_root;
 			clone_sources_to_rollback = i + 1;
 		}
-		vfree(clone_sources_tmp);
+		kvfree(clone_sources_tmp);
 		clone_sources_tmp = NULL;
 	}
 
@@ -6207,15 +6227,15 @@ out:
 		btrfs_root_dec_send_in_progress(sctx->parent_root);
 
 	kfree(arg);
-	vfree(clone_sources_tmp);
+	kvfree(clone_sources_tmp);
 
 	if (sctx) {
 		if (sctx->send_filp)
 			fput(sctx->send_filp);
 
-		vfree(sctx->clone_roots);
-		vfree(sctx->send_buf);
-		vfree(sctx->read_buf);
+		kvfree(sctx->clone_roots);
+		kvfree(sctx->send_buf);
+		kvfree(sctx->read_buf);
 
 		name_cache_free(sctx);
 

@@ -1805,7 +1805,6 @@ struct security_hook_heads {
 	struct list_head tun_dev_attach_queue;
 	struct list_head tun_dev_attach;
 	struct list_head tun_dev_open;
-	struct list_head skb_owned_by;
 #endif	/* CONFIG_SECURITY_NETWORK */
 #ifdef CONFIG_SECURITY_NETWORK_XFRM
 	struct list_head xfrm_policy_alloc_security;
@@ -1893,6 +1892,11 @@ extern void __init capability_add_hooks(void);
 extern void __init yama_add_hooks(void);
 #else
 static inline void __init yama_add_hooks(void) { }
+#endif
+#ifdef CONFIG_SECURITY_LOADPIN
+void __init loadpin_add_hooks(void);
+#else
+static inline void loadpin_add_hooks(void) { };
 #endif
 
 #endif /* ! __LINUX_LSM_HOOKS_H */

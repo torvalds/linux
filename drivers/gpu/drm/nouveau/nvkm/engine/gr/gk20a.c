@@ -239,9 +239,6 @@ gk20a_gr_init(struct gf100_gr *gr)
 		return ret;
 
 	/* MMU debug buffer */
-	nvkm_wr32(device, 0x100cc8, nvkm_memory_addr(gr->unk4188b4) >> 8);
-	nvkm_wr32(device, 0x100ccc, nvkm_memory_addr(gr->unk4188b8) >> 8);
-
 	if (gr->func->init_gpc_mmu)
 		gr->func->init_gpc_mmu(gr);
 
@@ -267,13 +264,15 @@ gk20a_gr_init(struct gf100_gr *gr)
 
 	for (gpc = 0; gpc < gr->gpc_nr; gpc++) {
 		nvkm_wr32(device, GPC_UNIT(gpc, 0x0914),
-			  gr->magic_not_rop_nr << 8 | gr->tpc_nr[gpc]);
+			  gr->screen_tile_row_offset << 8 | gr->tpc_nr[gpc]);
 		nvkm_wr32(device, GPC_UNIT(gpc, 0x0910), 0x00040000 |
 			  gr->tpc_total);
 		nvkm_wr32(device, GPC_UNIT(gpc, 0x0918), magicgpc918);
 	}
 
 	nvkm_wr32(device, GPC_BCAST(0x3fd4), magicgpc918);
+
+	gr->func->init_rop_active_fbps(gr);
 
 	/* Enable FIFO access */
 	nvkm_wr32(device, 0x400500, 0x00010001);
@@ -312,7 +311,9 @@ gk20a_gr_init(struct gf100_gr *gr)
 static const struct gf100_gr_func
 gk20a_gr = {
 	.init = gk20a_gr_init,
+	.init_rop_active_fbps = gk104_gr_init_rop_active_fbps,
 	.set_hww_esr_report_mask = gk20a_gr_set_hww_esr_report_mask,
+	.rops = gf100_gr_rops,
 	.ppc_nr = 1,
 	.grctx = &gk20a_grctx,
 	.sclass = {

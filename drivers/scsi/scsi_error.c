@@ -452,7 +452,7 @@ static void scsi_report_sense(struct scsi_device *sdev,
  *	When a deferred error is detected the current command has
  *	not been executed and needs retrying.
  */
-static int scsi_check_sense(struct scsi_cmnd *scmd)
+int scsi_check_sense(struct scsi_cmnd *scmd)
 {
 	struct scsi_device *sdev = scmd->device;
 	struct scsi_sense_hdr sshdr;
@@ -602,6 +602,7 @@ static int scsi_check_sense(struct scsi_cmnd *scmd)
 		return SUCCESS;
 	}
 }
+EXPORT_SYMBOL_GPL(scsi_check_sense);
 
 static void scsi_handle_queue_ramp_up(struct scsi_device *sdev)
 {

@@ -3,7 +3,7 @@
  * under the terms of the GNU General Public License version 2 as published
  * by the Free Software Foundation.
  *
- * Copyright (C) 2015 John Crispin <blogic@openwrt.org>
+ * Copyright (C) 2015 John Crispin <john@phrozen.org>
  */
 
 #ifndef _MT7621_REGS_H_

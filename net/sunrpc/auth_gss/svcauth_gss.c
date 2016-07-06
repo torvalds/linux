@@ -569,10 +569,9 @@ gss_svc_searchbyctx(struct cache_detail *cd, struct xdr_netobj *handle)
 	struct rsc *found;
 
 	memset(&rsci, 0, sizeof(rsci));
-	if (dup_to_netobj(&rsci.handle, handle->data, handle->len))
-		return NULL;
+	rsci.handle.data = handle->data;
+	rsci.handle.len = handle->len;
 	found = rsc_lookup(cd, &rsci);
-	rsc_free(&rsci);
 	if (!found)
 		return NULL;
 	if (cache_check(cd, &found->h, NULL))
@@ -857,8 +856,8 @@ unwrap_integ_data(struct svc_rqst *rqstp, struct xdr_buf *buf, u32 seq, struct g
 		goto out;
 	if (svc_getnl(&buf->head[0]) != seq)
 		goto out;
-	/* trim off the mic at the end before returning */
-	xdr_buf_trim(buf, mic.len + 4);
+	/* trim off the mic and padding at the end before returning */
+	xdr_buf_trim(buf, round_up_to_quad(mic.len) + 4);
 	stat = 0;
 out:
 	kfree(mic.data);

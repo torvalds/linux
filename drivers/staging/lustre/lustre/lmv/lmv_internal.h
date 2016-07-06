@@ -42,9 +42,6 @@
 
 #define LMV_MAX_TGT_COUNT 128
 
-#define lmv_init_lock(lmv)   mutex_lock(&lmv->init_mutex)
-#define lmv_init_unlock(lmv) mutex_unlock(&lmv->init_mutex)
-
 #define LL_IT2STR(it)					\
 	((it) ? ldlm_it2str((it)->it_op) : "0")
 

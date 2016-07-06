@@ -8,7 +8,7 @@ Required properties:
   specifies a reference to the associating hardware driver node.
   see Documentation/devicetree/bindings/net/hisilicon-hns-dsaf.txt
 - port-id: is the index of port provided by DSAF (the accelerator). DSAF can
-  connect to 8 PHYs. Port 0 to 1 are both used for adminstration purpose. They
+  connect to 8 PHYs. Port 0 to 1 are both used for administration purpose. They
   are called debug ports.
 
   The remaining 6 PHYs are taken according to the mode of DSAF.

@@ -54,7 +54,6 @@
 #include "../include/lprocfs_status.h"
 #include "../include/lustre_param.h"
 #include "../include/cl_object.h"
-#include "../include/lclient.h"		/* for cl_client_lru */
 #include "../include/lustre/ll_fiemap.h"
 #include "../include/lustre_fid.h"
 
@@ -124,7 +123,6 @@ static int lov_set_osc_active(struct obd_device *obd, struct obd_uuid *uuid,
 static int lov_notify(struct obd_device *obd, struct obd_device *watched,
 		      enum obd_notify_event ev, void *data);
 
-#define MAX_STRING_SIZE 128
 int lov_connect_obd(struct obd_device *obd, __u32 index, int activate,
 		    struct obd_connect_data *data)
 {
@@ -965,7 +963,6 @@ int lov_process_config_base(struct obd_device *obd, struct lustre_cfg *lcfg,
 		CERROR("Unknown command: %d\n", lcfg->lcfg_command);
 		rc = -EINVAL;
 		goto out;
-
 	}
 	}
 out:
@@ -1734,6 +1731,27 @@ static int lov_fiemap(struct lov_obd *lov, __u32 keylen, void *key,
 	unsigned int buffer_size = FIEMAP_BUFFER_SIZE;
 
 	if (!lsm_has_objects(lsm)) {
+		if (lsm && lsm_is_released(lsm) && (fm_key->fiemap.fm_start <
+		    fm_key->oa.o_size)) {
+			/*
+			 * released file, return a minimal FIEMAP if
+			 * request fits in file-size.
+			 */
+			fiemap->fm_mapped_extents = 1;
+			fiemap->fm_extents[0].fe_logical =
+					fm_key->fiemap.fm_start;
+			if (fm_key->fiemap.fm_start + fm_key->fiemap.fm_length <
+			    fm_key->oa.o_size) {
+				fiemap->fm_extents[0].fe_length =
+					fm_key->fiemap.fm_length;
+			} else {
+				fiemap->fm_extents[0].fe_length =
+					fm_key->oa.o_size - fm_key->fiemap.fm_start;
+				fiemap->fm_extents[0].fe_flags |=
+						(FIEMAP_EXTENT_UNKNOWN |
+						 FIEMAP_EXTENT_LAST);
+			}
+		}
 		rc = 0;
 		goto out;
 	}
@@ -2173,7 +2191,6 @@ void lov_stripe_lock(struct lov_stripe_md *md)
 	LASSERT(md->lsm_lock_owner == 0);
 	md->lsm_lock_owner = current_pid();
 }
-EXPORT_SYMBOL(lov_stripe_lock);
 
 void lov_stripe_unlock(struct lov_stripe_md *md)
 		__releases(&md->lsm_lock)
@@ -2182,7 +2199,6 @@ void lov_stripe_unlock(struct lov_stripe_md *md)
 	md->lsm_lock_owner = 0;
 	spin_unlock(&md->lsm_lock);
 }
-EXPORT_SYMBOL(lov_stripe_unlock);
 
 static int lov_quotactl(struct obd_device *obd, struct obd_export *exp,
 			struct obd_quotactl *oqctl)

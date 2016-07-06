@@ -913,7 +913,7 @@ static netdev_tx_t ipip6_tunnel_xmit(struct sk_buff *skb,
 		goto tx_error;
 	}
 
-	if (iptunnel_handle_offloads(skb, SKB_GSO_SIT)) {
+	if (iptunnel_handle_offloads(skb, SKB_GSO_IPXIP4)) {
 		ip_rt_put(rt);
 		goto tx_error;
 	}
@@ -1000,7 +1000,7 @@ static netdev_tx_t ipip_tunnel_xmit(struct sk_buff *skb, struct net_device *dev)
 	struct ip_tunnel *tunnel = netdev_priv(dev);
 	const struct iphdr  *tiph = &tunnel->parms.iph;
 
-	if (iptunnel_handle_offloads(skb, SKB_GSO_IPIP))
+	if (iptunnel_handle_offloads(skb, SKB_GSO_IPXIP4))
 		goto tx_error;
 
 	skb_set_inner_ipproto(skb, IPPROTO_IPIP);

@@ -28,6 +28,7 @@ struct machine {
 	pid_t		  pid;
 	u16		  id_hdr_size;
 	bool		  comm_exec;
+	bool		  kptr_restrict_warned;
 	char		  *root_dir;
 	struct rb_root	  threads;
 	pthread_rwlock_t  threads_lock;

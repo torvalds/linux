@@ -732,7 +732,7 @@ static void perf_event__process_sample(struct perf_tool *tool,
 	if (machine__resolve(machine, &al, sample) < 0)
 		return;
 
-	if (!top->kptr_restrict_warned &&
+	if (!machine->kptr_restrict_warned &&
 	    symbol_conf.kptr_restrict &&
 	    al.cpumode == PERF_RECORD_MISC_KERNEL) {
 		ui__warning(
@@ -743,7 +743,7 @@ static void perf_event__process_sample(struct perf_tool *tool,
 			  " modules" : "");
 		if (use_browser <= 0)
 			sleep(5);
-		top->kptr_restrict_warned = true;
+		machine->kptr_restrict_warned = true;
 	}
 
 	if (al.sym == NULL) {
@@ -759,7 +759,7 @@ static void perf_event__process_sample(struct perf_tool *tool,
 		 * --hide-kernel-symbols, even if the user specifies an
 		 * invalid --vmlinux ;-)
 		 */
-		if (!top->kptr_restrict_warned && !top->vmlinux_warned &&
+		if (!machine->kptr_restrict_warned && !top->vmlinux_warned &&
 		    al.map == machine->vmlinux_maps[MAP__FUNCTION] &&
 		    RB_EMPTY_ROOT(&al.map->dso->symbols[MAP__FUNCTION])) {
 			if (symbol_conf.vmlinux_name) {

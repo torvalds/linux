@@ -69,6 +69,7 @@ struct sclp_info {
 	unsigned int max_cores;
 	unsigned long hsa_size;
 	unsigned long facilities;
+	unsigned int hmfai;
 };
 extern struct sclp_info sclp;
 

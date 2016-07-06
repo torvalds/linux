@@ -36,7 +36,7 @@ static inline void put_unaligned_le8(u8 val, void *p)
  *
  * The end result is that anyone who #includes ctree.h gets a
  * declaration for the btrfs_set_foo functions and btrfs_foo functions,
- * which are wappers of btrfs_set_token_#bits functions and
+ * which are wrappers of btrfs_set_token_#bits functions and
  * btrfs_get_token_#bits functions, which are defined in this file.
  *
  * These setget functions do all the extent_buffer related mapping

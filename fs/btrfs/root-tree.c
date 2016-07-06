@@ -71,9 +71,9 @@ static void btrfs_read_root_item(struct extent_buffer *eb, int slot,
  * search_key: the key to search
  * path: the path we search
  * root_item: the root item of the tree we look for
- * root_key: the reak key of the tree we look for
+ * root_key: the root key of the tree we look for
  *
- * If ->offset of 'seach_key' is -1ULL, it means we are not sure the offset
+ * If ->offset of 'search_key' is -1ULL, it means we are not sure the offset
  * of the search key, just lookup the root with the highest offset for a
  * given objectid.
  *
@@ -284,7 +284,7 @@ int btrfs_find_orphan_roots(struct btrfs_root *tree_root)
 			trans = btrfs_join_transaction(tree_root);
 			if (IS_ERR(trans)) {
 				err = PTR_ERR(trans);
-				btrfs_std_error(tree_root->fs_info, err,
+				btrfs_handle_fs_error(tree_root->fs_info, err,
 					    "Failed to start trans to delete "
 					    "orphan item");
 				break;
@@ -293,7 +293,7 @@ int btrfs_find_orphan_roots(struct btrfs_root *tree_root)
 						    root_key.objectid);
 			btrfs_end_transaction(trans, tree_root);
 			if (err) {
-				btrfs_std_error(tree_root->fs_info, err,
+				btrfs_handle_fs_error(tree_root->fs_info, err,
 					    "Failed to delete root orphan "
 					    "item");
 				break;

@@ -9,7 +9,7 @@ pairing that with a hardware framebuffer (16MB) on the other end of the
 USB wire.  That hardware framebuffer is able to drive the VGA, DVI, or HDMI
 monitor with no CPU involvement until a pixel has to change.
 
-The CPU or other local resource does all the rendering; optinally compares the
+The CPU or other local resource does all the rendering; optionally compares the
 result with a local shadow of the remote hardware framebuffer to identify
 the minimal set of pixels that have changed; and compresses and sends those
 pixels line-by-line via USB bulk transfers.
@@ -66,10 +66,10 @@ means that from a hardware and fbdev software perspective, everything is good.
 At that point, a /dev/fb? interface will be present for user-mode applications
 to open and begin writing to the framebuffer of the DisplayLink device using
 standard fbdev calls.  Note that if mmap() is used, by default the user mode
-application must send down damage notifcations to trigger repaints of the
+application must send down damage notifications to trigger repaints of the
 changed regions.  Alternatively, udlfb can be recompiled with experimental
 defio support enabled, to support a page-fault based detection mechanism
-that can work without explicit notifcation.
+that can work without explicit notification.
 
 The most common client of udlfb is xf86-video-displaylink or a modified
 xf86-video-fbdev X server. These servers have no real DisplayLink specific

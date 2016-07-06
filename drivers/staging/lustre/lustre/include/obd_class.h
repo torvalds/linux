@@ -477,7 +477,7 @@ static inline int obd_setup(struct obd_device *obd, struct lustre_cfg *cfg)
 		struct lu_context  session_ctx;
 		struct lu_env env;
 
-		lu_context_init(&session_ctx, LCT_SESSION);
+		lu_context_init(&session_ctx, LCT_SESSION | LCT_SERVER_SESSION);
 		session_ctx.lc_thread = NULL;
 		lu_context_enter(&session_ctx);
 
@@ -490,8 +490,9 @@ static inline int obd_setup(struct obd_device *obd, struct lustre_cfg *cfg)
 				obd->obd_lu_dev = d;
 				d->ld_obd = obd;
 				rc = 0;
-			} else
+			} else {
 				rc = PTR_ERR(d);
+			}
 		}
 		lu_context_exit(&session_ctx);
 		lu_context_fini(&session_ctx);

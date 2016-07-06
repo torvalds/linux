@@ -105,6 +105,8 @@ static struct static_key supports_deactivate = STATIC_KEY_INIT_TRUE;
 
 static struct gic_chip_data gic_data[CONFIG_ARM_GIC_MAX_NR] __read_mostly;
 
+static struct gic_kvm_info gic_v2_kvm_info;
+
 #ifdef CONFIG_GIC_NON_BANKED
 static void __iomem *gic_get_percpu_base(union gic_base *base)
 {
@@ -1121,7 +1123,7 @@ static int __init __gic_init_bases(struct gic_chip_data *gic, int irq_start,
 
 		irq_base = irq_alloc_descs(irq_start, 16, gic_irqs,
 					   numa_node_id());
-		if (IS_ERR_VALUE(irq_base)) {
+		if (irq_base < 0) {
 			WARN(1, "Cannot allocate irq_descs @ IRQ%d, assuming pre-allocated\n",
 			     irq_start);
 			irq_base = irq_start;
@@ -1248,7 +1250,7 @@ static bool gic_check_eoimode(struct device_node *node, void __iomem **base)
 	return true;
 }
 
-static int gic_of_setup(struct gic_chip_data *gic, struct device_node *node)
+static int __init gic_of_setup(struct gic_chip_data *gic, struct device_node *node)
 {
 	if (!gic || !node)
 		return -EINVAL;
@@ -1270,6 +1272,29 @@ error:
 	gic_teardown(gic);
 
 	return -ENOMEM;
+}
+
+static void __init gic_of_setup_kvm_info(struct device_node *node)
+{
+	int ret;
+	struct resource *vctrl_res = &gic_v2_kvm_info.vctrl;
+	struct resource *vcpu_res = &gic_v2_kvm_info.vcpu;
+
+	gic_v2_kvm_info.type = GIC_V2;
+
+	gic_v2_kvm_info.maint_irq = irq_of_parse_and_map(node, 0);
+	if (!gic_v2_kvm_info.maint_irq)
+		return;
+
+	ret = of_address_to_resource(node, 2, vctrl_res);
+	if (ret)
+		return;
+
+	ret = of_address_to_resource(node, 3, vcpu_res);
+	if (ret)
+		return;
+
+	gic_set_kvm_info(&gic_v2_kvm_info);
 }
 
 int __init
@@ -1303,8 +1328,10 @@ gic_of_init(struct device_node *node, struct device_node *parent)
 		return ret;
 	}
 
-	if (!gic_cnt)
+	if (!gic_cnt) {
 		gic_init_physaddr(node);
+		gic_of_setup_kvm_info(node);
+	}
 
 	if (parent) {
 		irq = irq_of_parse_and_map(node, 0);
@@ -1330,7 +1357,14 @@ IRQCHIP_DECLARE(pl390, "arm,pl390", gic_of_init);
 #endif
 
 #ifdef CONFIG_ACPI
-static phys_addr_t cpu_phy_base __initdata;
+static struct
+{
+	phys_addr_t cpu_phys_base;
+	u32 maint_irq;
+	int maint_irq_mode;
+	phys_addr_t vctrl_base;
+	phys_addr_t vcpu_base;
+} acpi_data __initdata;
 
 static int __init
 gic_acpi_parse_madt_cpu(struct acpi_subtable_header *header,
@@ -1350,10 +1384,16 @@ gic_acpi_parse_madt_cpu(struct acpi_subtable_header *header,
 	 * All CPU interface addresses have to be the same.
 	 */
 	gic_cpu_base = processor->base_address;
-	if (cpu_base_assigned && gic_cpu_base != cpu_phy_base)
+	if (cpu_base_assigned && gic_cpu_base != acpi_data.cpu_phys_base)
 		return -EINVAL;
 
-	cpu_phy_base = gic_cpu_base;
+	acpi_data.cpu_phys_base = gic_cpu_base;
+	acpi_data.maint_irq = processor->vgic_interrupt;
+	acpi_data.maint_irq_mode = (processor->flags & ACPI_MADT_VGIC_IRQ_MODE) ?
+				    ACPI_EDGE_SENSITIVE : ACPI_LEVEL_SENSITIVE;
+	acpi_data.vctrl_base = processor->gich_base_address;
+	acpi_data.vcpu_base = processor->gicv_base_address;
+
 	cpu_base_assigned = 1;
 	return 0;
 }
@@ -1384,6 +1424,41 @@ static bool __init gic_validate_dist(struct acpi_subtable_header *header,
 
 #define ACPI_GICV2_DIST_MEM_SIZE	(SZ_4K)
 #define ACPI_GIC_CPU_IF_MEM_SIZE	(SZ_8K)
+#define ACPI_GICV2_VCTRL_MEM_SIZE	(SZ_4K)
+#define ACPI_GICV2_VCPU_MEM_SIZE	(SZ_8K)
+
+static void __init gic_acpi_setup_kvm_info(void)
+{
+	int irq;
+	struct resource *vctrl_res = &gic_v2_kvm_info.vctrl;
+	struct resource *vcpu_res = &gic_v2_kvm_info.vcpu;
+
+	gic_v2_kvm_info.type = GIC_V2;
+
+	if (!acpi_data.vctrl_base)
+		return;
+
+	vctrl_res->flags = IORESOURCE_MEM;
+	vctrl_res->start = acpi_data.vctrl_base;
+	vctrl_res->end = vctrl_res->start + ACPI_GICV2_VCTRL_MEM_SIZE - 1;
+
+	if (!acpi_data.vcpu_base)
+		return;
+
+	vcpu_res->flags = IORESOURCE_MEM;
+	vcpu_res->start = acpi_data.vcpu_base;
+	vcpu_res->end = vcpu_res->start + ACPI_GICV2_VCPU_MEM_SIZE - 1;
+
+	irq = acpi_register_gsi(NULL, acpi_data.maint_irq,
+				acpi_data.maint_irq_mode,
+				ACPI_ACTIVE_HIGH);
+	if (irq <= 0)
+		return;
+
+	gic_v2_kvm_info.maint_irq = irq;
+
+	gic_set_kvm_info(&gic_v2_kvm_info);
+}
 
 static int __init gic_v2_acpi_init(struct acpi_subtable_header *header,
 				   const unsigned long end)
@@ -1401,7 +1476,7 @@ static int __init gic_v2_acpi_init(struct acpi_subtable_header *header,
 		return -EINVAL;
 	}
 
-	gic->raw_cpu_base = ioremap(cpu_phy_base, ACPI_GIC_CPU_IF_MEM_SIZE);
+	gic->raw_cpu_base = ioremap(acpi_data.cpu_phys_base, ACPI_GIC_CPU_IF_MEM_SIZE);
 	if (!gic->raw_cpu_base) {
 		pr_err("Unable to map GICC registers\n");
 		return -ENOMEM;
@@ -1446,6 +1521,8 @@ static int __init gic_v2_acpi_init(struct acpi_subtable_header *header,
 
 	if (IS_ENABLED(CONFIG_ARM_GIC_V2M))
 		gicv2m_init(NULL, gic_data[0].domain);
+
+	gic_acpi_setup_kvm_info();
 
 	return 0;
 }

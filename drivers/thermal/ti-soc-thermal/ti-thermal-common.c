@@ -337,7 +337,7 @@ int ti_thermal_expose_sensor(struct ti_bandgap *bgp, int id,
 		return -EINVAL;
 
 	/* in case this is specified by DT */
-	data->ti_thermal = thermal_zone_of_sensor_register(bgp->dev, id,
+	data->ti_thermal = devm_thermal_zone_of_sensor_register(bgp->dev, id,
 					data, &ti_of_thermal_ops);
 	if (IS_ERR(data->ti_thermal)) {
 		/* Create thermal zone */
@@ -368,9 +368,6 @@ int ti_thermal_remove_sensor(struct ti_bandgap *bgp, int id)
 	if (data && data->ti_thermal) {
 		if (data->our_zone)
 			thermal_zone_device_unregister(data->ti_thermal);
-		else
-			thermal_zone_of_sensor_unregister(bgp->dev,
-							  data->ti_thermal);
 	}
 
 	return 0;

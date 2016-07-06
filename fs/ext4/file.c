@@ -202,7 +202,7 @@ static int ext4_dax_fault(struct vm_area_struct *vma, struct vm_fault *vmf)
 	if (IS_ERR(handle))
 		result = VM_FAULT_SIGBUS;
 	else
-		result = __dax_fault(vma, vmf, ext4_dax_mmap_get_block, NULL);
+		result = __dax_fault(vma, vmf, ext4_dax_get_block);
 
 	if (write) {
 		if (!IS_ERR(handle))
@@ -238,7 +238,7 @@ static int ext4_dax_pmd_fault(struct vm_area_struct *vma, unsigned long addr,
 		result = VM_FAULT_SIGBUS;
 	else
 		result = __dax_pmd_fault(vma, addr, pmd, flags,
-				ext4_dax_mmap_get_block, NULL);
+					 ext4_dax_get_block);
 
 	if (write) {
 		if (!IS_ERR(handle))
@@ -373,7 +373,7 @@ static int ext4_file_open(struct inode * inode, struct file * filp)
 	if (ext4_encrypted_inode(d_inode(dir)) &&
 	    !ext4_is_child_context_consistent_with_parent(d_inode(dir), inode)) {
 		ext4_warning(inode->i_sb,
-			     "Inconsistent encryption contexts: %lu/%lu\n",
+			     "Inconsistent encryption contexts: %lu/%lu",
 			     (unsigned long) d_inode(dir)->i_ino,
 			     (unsigned long) inode->i_ino);
 		dput(dir);

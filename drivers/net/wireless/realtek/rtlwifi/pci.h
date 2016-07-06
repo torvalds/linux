@@ -286,7 +286,7 @@ struct rtl_pci_priv {
 
 int rtl_pci_reset_trx_ring(struct ieee80211_hw *hw);
 
-extern struct rtl_intf_ops rtl_pci_ops;
+extern const struct rtl_intf_ops rtl_pci_ops;
 
 int rtl_pci_probe(struct pci_dev *pdev,
 			    const struct pci_device_id *id);

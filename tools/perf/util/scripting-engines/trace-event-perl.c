@@ -264,8 +264,7 @@ static SV *perl_process_callchain(struct perf_sample *sample,
 		goto exit;
 
 	if (thread__resolve_callchain(al->thread, &callchain_cursor, evsel,
-				      sample, NULL, NULL,
-				      sysctl_perf_event_max_stack) != 0) {
+				      sample, NULL, NULL, scripting_max_stack) != 0) {
 		pr_err("Failed to resolve callchain. Skipping\n");
 		goto exit;
 	}

@@ -13,8 +13,8 @@
 #include <linux/compat.h>
 #include <linux/mount.h>
 #include <linux/file.h>
-#include <linux/random.h>
 #include <linux/quotaops.h>
+#include <linux/uuid.h>
 #include <asm/uaccess.h>
 #include "ext4_jbd2.h"
 #include "ext4.h"
@@ -365,7 +365,7 @@ static int ext4_ioctl_setproject(struct file *filp, __u32 projid)
 		struct dquot *transfer_to[MAXQUOTAS] = { };
 
 		transfer_to[PRJQUOTA] = dqget(sb, make_kqid_projid(kprojid));
-		if (transfer_to[PRJQUOTA]) {
+		if (!IS_ERR(transfer_to[PRJQUOTA])) {
 			err = __dquot_transfer(inode, transfer_to);
 			dqput(transfer_to[PRJQUOTA]);
 			if (err)

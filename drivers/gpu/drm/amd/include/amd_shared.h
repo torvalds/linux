@@ -48,6 +48,8 @@ enum amd_asic_type {
 	CHIP_FIJI,
 	CHIP_CARRIZO,
 	CHIP_STONEY,
+	CHIP_POLARIS10,
+	CHIP_POLARIS11,
 	CHIP_LAST,
 };
 
@@ -104,6 +106,7 @@ enum amd_powergating_state {
 #define AMD_CG_SUPPORT_VCE_MGCG			(1 << 14)
 #define AMD_CG_SUPPORT_HDP_LS			(1 << 15)
 #define AMD_CG_SUPPORT_HDP_MGCG			(1 << 16)
+#define AMD_CG_SUPPORT_ROM_MGCG			(1 << 17)
 
 /* PG flags */
 #define AMD_PG_SUPPORT_GFX_PG			(1 << 0)
@@ -140,6 +143,8 @@ enum amd_pm_state_type {
 };
 
 struct amd_ip_funcs {
+	/* Name of IP block */
+	char *name;
 	/* sets up early driver state (pre sw_init), does not configure hw - Optional */
 	int (*early_init)(void *handle);
 	/* sets up late driver/hw state (post hw_init) - Optional */
@@ -152,6 +157,7 @@ struct amd_ip_funcs {
 	int (*hw_init)(void *handle);
 	/* tears down the hw state */
 	int (*hw_fini)(void *handle);
+	void (*late_fini)(void *handle);
 	/* handles IP specific hw/sw changes for suspend */
 	int (*suspend)(void *handle);
 	/* handles IP specific hw/sw changes for resume */
@@ -162,8 +168,6 @@ struct amd_ip_funcs {
 	int (*wait_for_idle)(void *handle);
 	/* soft reset the IP block */
 	int (*soft_reset)(void *handle);
-	/* dump the IP block status registers */
-	void (*print_status)(void *handle);
 	/* enable/disable cg for the IP block */
 	int (*set_clockgating_state)(void *handle,
 				     enum amd_clockgating_state state);

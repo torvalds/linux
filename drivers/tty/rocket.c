@@ -495,7 +495,7 @@ static void rp_handle_port(struct r_port *info)
 	if (!info)
 		return;
 
-	if ((info->port.flags & ASYNC_INITIALIZED) == 0) {
+	if (!tty_port_initialized(&info->port)) {
 		printk(KERN_WARNING "rp: WARNING: rp_handle_port called with "
 				"info->flags & NOT_INIT\n");
 		return;
@@ -615,7 +615,8 @@ static void rp_do_poll(unsigned long dummy)
  *  the board.  
  *  Inputs:  board, aiop, chan numbers
  */
-static void init_r_port(int board, int aiop, int chan, struct pci_dev *pci_dev)
+static void __init
+init_r_port(int board, int aiop, int chan, struct pci_dev *pci_dev)
 {
 	unsigned rocketMode;
 	struct r_port *info;
@@ -920,7 +921,7 @@ static int rp_open(struct tty_struct *tty, struct file *filp)
 	/*
 	 * Info->count is now 1; so it's safe to sleep now.
 	 */
-	if (!test_bit(ASYNCB_INITIALIZED, &port->flags)) {
+	if (!tty_port_initialized(port)) {
 		cp = &info->channel;
 		sSetRxTrigger(cp, TRIG_1);
 		if (sGetChanStatus(cp) & CD_ACT)
@@ -944,7 +945,7 @@ static int rp_open(struct tty_struct *tty, struct file *filp)
 		sEnRxFIFO(cp);
 		sEnTransmit(cp);
 
-		set_bit(ASYNCB_INITIALIZED, &info->port.flags);
+		tty_port_set_initialized(&info->port, 1);
 
 		/*
 		 * Set up the tty->alt_speed kludge
@@ -1042,9 +1043,10 @@ static void rp_close(struct tty_struct *tty, struct file *filp)
 		}
 	}
 	spin_lock_irq(&port->lock);
-	info->port.flags &= ~(ASYNC_INITIALIZED | ASYNC_NORMAL_ACTIVE);
 	tty->closing = 0;
 	spin_unlock_irq(&port->lock);
+	tty_port_set_initialized(port, 0);
+	tty_port_set_active(port, 0);
 	mutex_unlock(&port->mutex);
 	tty_port_tty_set(port, NULL);
 
@@ -1512,7 +1514,7 @@ static void rp_hangup(struct tty_struct *tty)
 	sDisCTSFlowCtl(cp);
 	sDisTxSoftFlowCtl(cp);
 	sClrTxXOFF(cp);
-	clear_bit(ASYNCB_INITIALIZED, &info->port.flags);
+	tty_port_set_initialized(&info->port, 0);
 
 	wake_up_interruptible(&info->port.open_wait);
 }
@@ -1624,7 +1626,7 @@ static int rp_write(struct tty_struct *tty,
 	/*  Write remaining data into the port's xmit_buf */
 	while (1) {
 		/* Hung up ? */
-		if (!test_bit(ASYNCB_NORMAL_ACTIVE, &info->port.flags))
+		if (!tty_port_active(&info->port))
 			goto end;
 		c = min(count, XMIT_BUF_SIZE - info->xmit_cnt - 1);
 		c = min(c, XMIT_BUF_SIZE - info->xmit_head);

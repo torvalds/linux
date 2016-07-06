@@ -86,21 +86,17 @@ static void ircomm_tty_change_speed(struct ircomm_tty_cb *self,
 	ircomm_param_request(self, IRCOMM_DATA_RATE, FALSE);
 
 	/* CTS flow control flag and modem status interrupts */
+	tty_port_set_cts_flow(&self->port, cflag & CRTSCTS);
 	if (cflag & CRTSCTS) {
-		self->port.flags |= ASYNC_CTS_FLOW;
 		self->settings.flow_control |= IRCOMM_RTS_CTS_IN;
 		/* This got me. Bummer. Jean II */
 		if (self->service_type == IRCOMM_3_WIRE_RAW)
 			net_warn_ratelimited("%s(), enabling RTS/CTS on link that doesn't support it (3-wire-raw)\n",
 					     __func__);
 	} else {
-		self->port.flags &= ~ASYNC_CTS_FLOW;
 		self->settings.flow_control &= ~IRCOMM_RTS_CTS_IN;
 	}
-	if (cflag & CLOCAL)
-		self->port.flags &= ~ASYNC_CHECK_CD;
-	else
-		self->port.flags |= ASYNC_CHECK_CD;
+	tty_port_set_check_carrier(&self->port, ~cflag & CLOCAL);
 #if 0
 	/*
 	 * Set up parity check flag
@@ -166,7 +162,7 @@ void ircomm_tty_set_termios(struct tty_struct *tty,
 	/* Handle transition away from B0 status */
 	if (!(old_termios->c_cflag & CBAUD) && (cflag & CBAUD)) {
 		self->settings.dte |= IRCOMM_DTR;
-		if (!C_CRTSCTS(tty) || !test_bit(TTY_THROTTLED, &tty->flags))
+		if (!C_CRTSCTS(tty) || !tty_throttled(tty))
 			self->settings.dte |= IRCOMM_RTS;
 		ircomm_param_request(self, IRCOMM_DTE, TRUE);
 	}
@@ -190,7 +186,7 @@ int ircomm_tty_tiocmget(struct tty_struct *tty)
 	struct ircomm_tty_cb *self = (struct ircomm_tty_cb *) tty->driver_data;
 	unsigned int result;
 
-	if (tty->flags & (1 << TTY_IO_ERROR))
+	if (tty_io_error(tty))
 		return -EIO;
 
 	result =  ((self->settings.dte & IRCOMM_RTS) ? TIOCM_RTS : 0)
@@ -213,7 +209,7 @@ int ircomm_tty_tiocmset(struct tty_struct *tty,
 {
 	struct ircomm_tty_cb *self = (struct ircomm_tty_cb *) tty->driver_data;
 
-	if (tty->flags & (1 << TTY_IO_ERROR))
+	if (tty_io_error(tty))
 		return -EIO;
 
 	IRDA_ASSERT(self != NULL, return -1;);
@@ -328,7 +324,7 @@ static int ircomm_tty_set_serial_info(struct ircomm_tty_cb *self,
 
  check_and_exit:
 
-	if (self->flags & ASYNC_INITIALIZED) {
+	if (tty_port_initialized(self)) {
 		if (((old_state.flags & ASYNC_SPD_MASK) !=
 		     (self->flags & ASYNC_SPD_MASK)) ||
 		    (old_driver.custom_divisor != driver->custom_divisor)) {
@@ -362,7 +358,7 @@ int ircomm_tty_ioctl(struct tty_struct *tty,
 	if ((cmd != TIOCGSERIAL) && (cmd != TIOCSSERIAL) &&
 	    (cmd != TIOCSERCONFIG) && (cmd != TIOCSERGSTRUCT) &&
 	    (cmd != TIOCMIWAIT) && (cmd != TIOCGICOUNT)) {
-		if (tty->flags & (1 << TTY_IO_ERROR))
+		if (tty_io_error(tty))
 		    return -EIO;
 	}
 

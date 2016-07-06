@@ -24,7 +24,6 @@
 #include <linux/pm_wakeirq.h>
 #include <linux/slab.h>
 
-#define DS1343_DRV_VERSION	"01.00"
 #define DALLAS_MAXIM_DS1343	0
 #define DALLAS_MAXIM_DS1344	1
 
@@ -747,4 +746,3 @@ MODULE_DESCRIPTION("DS1343 RTC SPI Driver");
 MODULE_AUTHOR("Raghavendra Chandra Ganiga <ravi23ganiga@gmail.com>,"
 		"Ankur Srivastava <sankurece@gmail.com>");
 MODULE_LICENSE("GPL v2");
-MODULE_VERSION(DS1343_DRV_VERSION);

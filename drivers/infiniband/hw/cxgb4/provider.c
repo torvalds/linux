@@ -446,20 +446,59 @@ static ssize_t show_board(struct device *dev, struct device_attribute *attr,
 		       c4iw_dev->rdev.lldi.pdev->device);
 }
 
+enum counters {
+	IP4INSEGS,
+	IP4OUTSEGS,
+	IP4RETRANSSEGS,
+	IP4OUTRSTS,
+	IP6INSEGS,
+	IP6OUTSEGS,
+	IP6RETRANSSEGS,
+	IP6OUTRSTS,
+	NR_COUNTERS
+};
+
+static const char * const names[] = {
+	[IP4INSEGS] = "ip4InSegs",
+	[IP4OUTSEGS] = "ip4OutSegs",
+	[IP4RETRANSSEGS] = "ip4RetransSegs",
+	[IP4OUTRSTS] = "ip4OutRsts",
+	[IP6INSEGS] = "ip6InSegs",
+	[IP6OUTSEGS] = "ip6OutSegs",
+	[IP6RETRANSSEGS] = "ip6RetransSegs",
+	[IP6OUTRSTS] = "ip6OutRsts"
+};
+
+static struct rdma_hw_stats *c4iw_alloc_stats(struct ib_device *ibdev,
+					      u8 port_num)
+{
+	BUILD_BUG_ON(ARRAY_SIZE(names) != NR_COUNTERS);
+
+	if (port_num != 0)
+		return NULL;
+
+	return rdma_alloc_hw_stats_struct(names, NR_COUNTERS,
+					  RDMA_HW_STATS_DEFAULT_LIFESPAN);
+}
+
 static int c4iw_get_mib(struct ib_device *ibdev,
-			union rdma_protocol_stats *stats)
+			struct rdma_hw_stats *stats,
+			u8 port, int index)
 {
 	struct tp_tcp_stats v4, v6;
 	struct c4iw_dev *c4iw_dev = to_c4iw_dev(ibdev);
 
 	cxgb4_get_tcp_stats(c4iw_dev->rdev.lldi.pdev, &v4, &v6);
-	memset(stats, 0, sizeof *stats);
-	stats->iw.tcpInSegs = v4.tcp_in_segs + v6.tcp_in_segs;
-	stats->iw.tcpOutSegs = v4.tcp_out_segs + v6.tcp_out_segs;
-	stats->iw.tcpRetransSegs = v4.tcp_retrans_segs + v6.tcp_retrans_segs;
-	stats->iw.tcpOutRsts = v4.tcp_out_rsts + v6.tcp_out_rsts;
+	stats->value[IP4INSEGS] = v4.tcp_in_segs;
+	stats->value[IP4OUTSEGS] = v4.tcp_out_segs;
+	stats->value[IP4RETRANSSEGS] = v4.tcp_retrans_segs;
+	stats->value[IP4OUTRSTS] = v4.tcp_out_rsts;
+	stats->value[IP6INSEGS] = v6.tcp_in_segs;
+	stats->value[IP6OUTSEGS] = v6.tcp_out_segs;
+	stats->value[IP6RETRANSSEGS] = v6.tcp_retrans_segs;
+	stats->value[IP6OUTRSTS] = v6.tcp_out_rsts;
 
-	return 0;
+	return stats->num_counters;
 }
 
 static DEVICE_ATTR(hw_rev, S_IRUGO, show_rev, NULL);
@@ -562,7 +601,8 @@ int c4iw_register_device(struct c4iw_dev *dev)
 	dev->ibdev.req_notify_cq = c4iw_arm_cq;
 	dev->ibdev.post_send = c4iw_post_send;
 	dev->ibdev.post_recv = c4iw_post_receive;
-	dev->ibdev.get_protocol_stats = c4iw_get_mib;
+	dev->ibdev.alloc_hw_stats = c4iw_alloc_stats;
+	dev->ibdev.get_hw_stats = c4iw_get_mib;
 	dev->ibdev.uverbs_abi_ver = C4IW_UVERBS_ABI_VERSION;
 	dev->ibdev.get_port_immutable = c4iw_port_immutable;
 	dev->ibdev.drain_sq = c4iw_drain_sq;

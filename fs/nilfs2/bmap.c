@@ -13,11 +13,7 @@
  * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
  * GNU General Public License for more details.
  *
- * You should have received a copy of the GNU General Public License
- * along with this program; if not, write to the Free Software
- * Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA  02110-1301  USA
- *
- * Written by Koji Sato <koji@osrg.net>.
+ * Written by Koji Sato.
  */
 
 #include <linux/fs.h>
@@ -46,7 +42,7 @@ static int nilfs_bmap_convert_error(struct nilfs_bmap *bmap,
 
 	if (err == -EINVAL) {
 		nilfs_error(inode->i_sb, fname,
-			    "broken bmap (inode number=%lu)\n", inode->i_ino);
+			    "broken bmap (inode number=%lu)", inode->i_ino);
 		err = -EIO;
 	}
 	return err;
@@ -97,7 +93,7 @@ int nilfs_bmap_lookup_at_level(struct nilfs_bmap *bmap, __u64 key, int level,
 }
 
 int nilfs_bmap_lookup_contig(struct nilfs_bmap *bmap, __u64 key, __u64 *ptrp,
-			     unsigned maxblocks)
+			     unsigned int maxblocks)
 {
 	int ret;
 

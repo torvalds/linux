@@ -27,7 +27,7 @@
 #include <drm/drm_crtc.h>
 #include <drm/drm_fourcc.h>
 
-#include "nouveau_drm.h"
+#include "nouveau_drv.h"
 
 #include "nouveau_bo.h"
 #include "nouveau_connector.h"

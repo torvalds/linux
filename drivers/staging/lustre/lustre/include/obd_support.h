@@ -58,6 +58,7 @@ extern int at_early_margin;
 extern int at_extra;
 extern unsigned int obd_sync_filter;
 extern unsigned int obd_max_dirty_pages;
+extern atomic_t obd_unstable_pages;
 extern atomic_t obd_dirty_pages;
 extern atomic_t obd_dirty_transit_pages;
 extern char obd_jobid_var[];
@@ -289,6 +290,7 @@ extern char obd_jobid_var[];
 #define OBD_FAIL_OST_ENOINO	      0x229
 #define OBD_FAIL_OST_DQACQ_NET	   0x230
 #define OBD_FAIL_OST_STATFS_EINPROGRESS  0x231
+#define OBD_FAIL_OST_SET_INFO_NET		0x232
 
 #define OBD_FAIL_LDLM		    0x300
 #define OBD_FAIL_LDLM_NAMESPACE_NEW      0x301
@@ -319,6 +321,7 @@ extern char obd_jobid_var[];
 #define OBD_FAIL_LDLM_AGL_DELAY	  0x31a
 #define OBD_FAIL_LDLM_AGL_NOLOCK	 0x31b
 #define OBD_FAIL_LDLM_OST_LVB		 0x31c
+#define OBD_FAIL_LDLM_ENQUEUE_HANG	 0x31d
 
 /* LOCKLESS IO */
 #define OBD_FAIL_LDLM_SET_CONTENTION     0x385
@@ -426,6 +429,7 @@ extern char obd_jobid_var[];
 
 #define OBD_FAIL_FLD		     0x1100
 #define OBD_FAIL_FLD_QUERY_NET	   0x1101
+#define OBD_FAIL_FLD_READ_NET		0x1102
 
 #define OBD_FAIL_SEC_CTX		 0x1200
 #define OBD_FAIL_SEC_CTX_INIT_NET	0x1201

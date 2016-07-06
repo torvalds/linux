@@ -512,7 +512,7 @@ static void gs_rx_push(unsigned long _port)
 		req = list_first_entry(queue, struct usb_request, list);
 
 		/* leave data queued if tty was rx throttled */
-		if (tty && test_bit(TTY_THROTTLED, &tty->flags))
+		if (tty && tty_throttled(tty))
 			break;
 
 		switch (req->status) {
@@ -579,7 +579,7 @@ static void gs_rx_push(unsigned long _port)
 	 * from starving ... but it's not clear that case ever happens.
 	 */
 	if (!list_empty(queue) && tty) {
-		if (!test_bit(TTY_THROTTLED, &tty->flags)) {
+		if (!tty_throttled(tty)) {
 			if (do_push)
 				tasklet_schedule(&port->push);
 			else

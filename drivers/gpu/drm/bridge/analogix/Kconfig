@@ -1,0 +1,3 @@
+config DRM_ANALOGIX_DP
+	tristate
+	depends on DRM

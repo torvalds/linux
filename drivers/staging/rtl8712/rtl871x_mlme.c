@@ -155,7 +155,7 @@ static struct wlan_network *_r8712_find_network(struct  __queue *scanned_queue,
 	phead = &scanned_queue->queue;
 	plist = phead->next;
 	while (plist != phead) {
-		pnetwork = LIST_CONTAINOR(plist, struct wlan_network, list);
+		pnetwork = container_of(plist, struct wlan_network, list);
 		plist = plist->next;
 		if (!memcmp(addr, pnetwork->network.MacAddress, ETH_ALEN))
 			break;
@@ -176,7 +176,7 @@ static void _free_network_queue(struct _adapter *padapter)
 	phead = &scanned_queue->queue;
 	plist = phead->next;
 	while (!end_of_queue_search(phead, plist)) {
-		pnetwork = LIST_CONTAINOR(plist, struct wlan_network, list);
+		pnetwork = container_of(plist, struct wlan_network, list);
 		plist = plist->next;
 		_free_network(pmlmepriv, pnetwork);
 	}
@@ -304,7 +304,7 @@ struct	wlan_network *r8712_get_oldest_wlan_network(
 	while (1) {
 		if (end_of_queue_search(phead, plist) ==  true)
 			break;
-		pwlan = LIST_CONTAINOR(plist, struct wlan_network, list);
+		pwlan = container_of(plist, struct wlan_network, list);
 		if (pwlan->fixed != true) {
 			if (oldest == NULL ||
 			    time_after((unsigned long)oldest->last_scanned,
@@ -390,7 +390,7 @@ static void update_scanned_network(struct _adapter *adapter,
 		if (end_of_queue_search(phead, plist))
 			break;
 
-		pnetwork = LIST_CONTAINOR(plist, struct wlan_network, list);
+		pnetwork = container_of(plist, struct wlan_network, list);
 		if (is_same_network(&pnetwork->network, target))
 			break;
 		if ((oldest == ((struct wlan_network *)0)) ||
@@ -1135,8 +1135,8 @@ int r8712_select_and_join_from_scan(struct mlme_priv *pmlmepriv)
 			}
 			return _FAIL;
 		}
-		pnetwork = LIST_CONTAINOR(pmlmepriv->pscanned,
-					  struct wlan_network, list);
+		pnetwork = container_of(pmlmepriv->pscanned,
+					struct wlan_network, list);
 		if (pnetwork == NULL)
 			return _FAIL;
 		pmlmepriv->pscanned = pmlmepriv->pscanned->next;
@@ -1205,7 +1205,7 @@ sint r8712_set_auth(struct _adapter *adapter,
 		return _FAIL;
 
 	psetauthparm = kzalloc(sizeof(*psetauthparm), GFP_ATOMIC);
-	if (psetauthparm == NULL) {
+	if (!psetauthparm) {
 		kfree(pcmd);
 		return _FAIL;
 	}
@@ -1234,7 +1234,7 @@ sint r8712_set_key(struct _adapter *adapter,
 	if (!pcmd)
 		return _FAIL;
 	psetkeyparm = kzalloc(sizeof(*psetkeyparm), GFP_ATOMIC);
-	if (psetkeyparm == NULL) {
+	if (!psetkeyparm) {
 		ret = _FAIL;
 		goto err_free_cmd;
 	}

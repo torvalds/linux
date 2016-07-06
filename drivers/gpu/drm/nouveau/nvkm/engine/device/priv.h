@@ -22,6 +22,7 @@
 #include <subdev/pmu.h>
 #include <subdev/therm.h>
 #include <subdev/timer.h>
+#include <subdev/top.h>
 #include <subdev/volt.h>
 #include <subdev/secboot.h>
 

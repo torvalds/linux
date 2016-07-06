@@ -554,8 +554,13 @@ iwl_op_mode_mvm_start(struct iwl_trans *trans, const struct iwl_cfg *cfg,
 	mvm->restart_fw = iwlwifi_mod_params.restart_fw ? -1 : 0;
 
 	mvm->aux_queue = 15;
-	mvm->first_agg_queue = 16;
-	mvm->last_agg_queue = mvm->cfg->base_params->num_of_queues - 1;
+	if (!iwl_mvm_is_dqa_supported(mvm)) {
+		mvm->first_agg_queue = 16;
+		mvm->last_agg_queue = mvm->cfg->base_params->num_of_queues - 1;
+	} else {
+		mvm->first_agg_queue = IWL_MVM_DQA_MIN_DATA_QUEUE;
+		mvm->last_agg_queue = IWL_MVM_DQA_MAX_DATA_QUEUE;
+	}
 	if (mvm->cfg->base_params->num_of_queues == 16) {
 		mvm->aux_queue = 11;
 		mvm->first_agg_queue = 12;
@@ -585,6 +590,8 @@ iwl_op_mode_mvm_start(struct iwl_trans *trans, const struct iwl_cfg *cfg,
 	spin_lock_init(&mvm->refs_lock);
 	skb_queue_head_init(&mvm->d0i3_tx);
 	init_waitqueue_head(&mvm->d0i3_exit_waitq);
+
+	atomic_set(&mvm->queue_sync_counter, 0);
 
 	SET_IEEE80211_DEV(mvm->hw, mvm->trans->dev);
 
@@ -930,7 +937,7 @@ static void iwl_mvm_rx(struct iwl_op_mode *op_mode,
 	if (likely(pkt->hdr.cmd == REPLY_RX_MPDU_CMD))
 		iwl_mvm_rx_rx_mpdu(mvm, napi, rxb);
 	else if (pkt->hdr.cmd == FRAME_RELEASE)
-		iwl_mvm_rx_frame_release(mvm, rxb, 0);
+		iwl_mvm_rx_frame_release(mvm, napi, rxb, 0);
 	else if (pkt->hdr.cmd == REPLY_RX_PHY_CMD)
 		iwl_mvm_rx_rx_phy_cmd(mvm, rxb);
 	else
@@ -1208,7 +1215,6 @@ static bool iwl_mvm_disallow_offloading(struct iwl_mvm *mvm,
 					struct iwl_d0i3_iter_data *iter_data)
 {
 	struct iwl_mvm_vif *mvmvif = iwl_mvm_vif_from_mac80211(vif);
-	struct ieee80211_sta *ap_sta;
 	struct iwl_mvm_sta *mvmsta;
 	u32 available_tids = 0;
 	u8 tid;
@@ -1217,11 +1223,10 @@ static bool iwl_mvm_disallow_offloading(struct iwl_mvm *mvm,
 		    mvmvif->ap_sta_id == IWL_MVM_STATION_COUNT))
 		return false;
 
-	ap_sta = rcu_dereference(mvm->fw_id_to_mac_id[mvmvif->ap_sta_id]);
-	if (IS_ERR_OR_NULL(ap_sta))
+	mvmsta = iwl_mvm_sta_from_staid_rcu(mvm, mvmvif->ap_sta_id);
+	if (!mvmsta)
 		return false;
 
-	mvmsta = iwl_mvm_sta_from_mac80211(ap_sta);
 	spin_lock_bh(&mvmsta->lock);
 	for (tid = 0; tid < IWL_MAX_TID_COUNT; tid++) {
 		struct iwl_mvm_tid_data *tid_data = &mvmsta->tid_data[tid];
@@ -1632,7 +1637,7 @@ static void iwl_mvm_rx_mq_rss(struct iwl_op_mode *op_mode,
 	struct iwl_rx_packet *pkt = rxb_addr(rxb);
 
 	if (unlikely(pkt->hdr.cmd == FRAME_RELEASE))
-		iwl_mvm_rx_frame_release(mvm, rxb, queue);
+		iwl_mvm_rx_frame_release(mvm, napi, rxb, queue);
 	else if (unlikely(pkt->hdr.cmd == RX_QUEUES_NOTIFICATION &&
 			  pkt->hdr.group_id == DATA_PATH_GROUP))
 		iwl_mvm_rx_queue_notif(mvm, rxb, queue);

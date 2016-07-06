@@ -1719,10 +1719,10 @@ static int fuse_getattr(struct vfsmount *mnt, struct dentry *entry,
 	return fuse_update_attributes(inode, stat, NULL, NULL);
 }
 
-static int fuse_setxattr(struct dentry *entry, const char *name,
-			 const void *value, size_t size, int flags)
+static int fuse_setxattr(struct dentry *unused, struct inode *inode,
+			 const char *name, const void *value,
+			 size_t size, int flags)
 {
-	struct inode *inode = d_inode(entry);
 	struct fuse_conn *fc = get_fuse_conn(inode);
 	FUSE_ARGS(args);
 	struct fuse_setxattr_in inarg;

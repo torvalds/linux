@@ -1304,7 +1304,7 @@ static int vxlan_rcv(struct sock *sk, struct sk_buff *skb)
 
 	/* Need UDP and VXLAN header to be present */
 	if (!pskb_may_pull(skb, VXLAN_HLEN))
-		return 1;
+		goto drop;
 
 	unparsed = *vxlan_hdr(skb);
 	/* VNI flag always required to be set */
@@ -1313,7 +1313,7 @@ static int vxlan_rcv(struct sock *sk, struct sk_buff *skb)
 			   ntohl(vxlan_hdr(skb)->vx_flags),
 			   ntohl(vxlan_hdr(skb)->vx_vni));
 		/* Return non vxlan pkt */
-		return 1;
+		goto drop;
 	}
 	unparsed.vx_flags &= ~VXLAN_HF_VNI;
 	unparsed.vx_vni &= ~VXLAN_VNI_MASK;
@@ -3085,6 +3085,9 @@ static int vxlan_newlink(struct net *src_net, struct net_device *dev,
 
 	if (data[IFLA_VXLAN_REMCSUM_NOPARTIAL])
 		conf.flags |= VXLAN_F_REMCSUM_NOPARTIAL;
+
+	if (tb[IFLA_MTU])
+		conf.mtu = nla_get_u32(tb[IFLA_MTU]);
 
 	err = vxlan_dev_configure(src_net, dev, &conf);
 	switch (err) {

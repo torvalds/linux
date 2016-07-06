@@ -98,7 +98,7 @@ pps_source_info_s as follows:
     };
 
 and then calling the function pps_register_source() in your
-intialization routine as follows:
+initialization routine as follows:
 
     source = pps_register_source(&pps_ktimer_info,
 			PPS_CAPTUREASSERT | PPS_OFFSETASSERT);

@@ -31,7 +31,7 @@ struct frame_tail {
  */
 static struct frame_tail __user *
 user_backtrace(struct frame_tail __user *tail,
-	       struct perf_callchain_entry *entry)
+	       struct perf_callchain_entry_ctx *entry)
 {
 	struct frame_tail buftail;
 	unsigned long err;
@@ -59,7 +59,7 @@ user_backtrace(struct frame_tail __user *tail,
 }
 
 void
-perf_callchain_user(struct perf_callchain_entry *entry, struct pt_regs *regs)
+perf_callchain_user(struct perf_callchain_entry_ctx *entry, struct pt_regs *regs)
 {
 	struct frame_tail __user *tail;
 
@@ -75,7 +75,7 @@ perf_callchain_user(struct perf_callchain_entry *entry, struct pt_regs *regs)
 
 	tail = (struct frame_tail __user *)regs->ARM_fp - 1;
 
-	while ((entry->nr < sysctl_perf_event_max_stack) &&
+	while ((entry->nr < entry->max_stack) &&
 	       tail && !((unsigned long)tail & 0x3))
 		tail = user_backtrace(tail, entry);
 }
@@ -89,13 +89,13 @@ static int
 callchain_trace(struct stackframe *fr,
 		void *data)
 {
-	struct perf_callchain_entry *entry = data;
+	struct perf_callchain_entry_ctx *entry = data;
 	perf_callchain_store(entry, fr->pc);
 	return 0;
 }
 
 void
-perf_callchain_kernel(struct perf_callchain_entry *entry, struct pt_regs *regs)
+perf_callchain_kernel(struct perf_callchain_entry_ctx *entry, struct pt_regs *regs)
 {
 	struct stackframe fr;
 

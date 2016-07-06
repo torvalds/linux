@@ -243,10 +243,21 @@ struct i2c_adapter *msm_hdmi_i2c_init(struct hdmi *hdmi);
 /*
  * hdcp
  */
+#ifdef CONFIG_DRM_MSM_HDMI_HDCP
 struct hdmi_hdcp_ctrl *msm_hdmi_hdcp_init(struct hdmi *hdmi);
 void msm_hdmi_hdcp_destroy(struct hdmi *hdmi);
 void msm_hdmi_hdcp_on(struct hdmi_hdcp_ctrl *hdcp_ctrl);
 void msm_hdmi_hdcp_off(struct hdmi_hdcp_ctrl *hdcp_ctrl);
 void msm_hdmi_hdcp_irq(struct hdmi_hdcp_ctrl *hdcp_ctrl);
+#else
+static inline struct hdmi_hdcp_ctrl *msm_hdmi_hdcp_init(struct hdmi *hdmi)
+{
+	return ERR_PTR(-ENXIO);
+}
+static inline void msm_hdmi_hdcp_destroy(struct hdmi *hdmi) {}
+static inline void msm_hdmi_hdcp_on(struct hdmi_hdcp_ctrl *hdcp_ctrl) {}
+static inline void msm_hdmi_hdcp_off(struct hdmi_hdcp_ctrl *hdcp_ctrl) {}
+static inline void msm_hdmi_hdcp_irq(struct hdmi_hdcp_ctrl *hdcp_ctrl) {}
+#endif
 
 #endif /* __HDMI_CONNECTOR_H__ */

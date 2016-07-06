@@ -712,8 +712,8 @@ static void r5l_write_super_and_discard_space(struct r5l_log *log,
 	 * in_teardown check workaround this issue.
 	 */
 	if (!log->in_teardown) {
-		set_bit(MD_CHANGE_DEVS, &mddev->flags);
-		set_bit(MD_CHANGE_PENDING, &mddev->flags);
+		set_mask_bits(&mddev->flags, 0,
+			      BIT(MD_CHANGE_DEVS) | BIT(MD_CHANGE_PENDING));
 		md_wakeup_thread(mddev->thread);
 		wait_event(mddev->sb_wait,
 			!test_bit(MD_CHANGE_PENDING, &mddev->flags) ||

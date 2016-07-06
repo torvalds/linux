@@ -51,7 +51,6 @@ extern void (*flush_cache_range)(struct vm_area_struct *vma,
 	unsigned long start, unsigned long end);
 extern void (*flush_cache_page)(struct vm_area_struct *vma, unsigned long page, unsigned long pfn);
 extern void __flush_dcache_page(struct page *page);
-extern void __flush_icache_page(struct vm_area_struct *vma, struct page *page);
 
 #define ARCH_IMPLEMENTS_FLUSH_DCACHE_PAGE 1
 static inline void flush_dcache_page(struct page *page)
@@ -77,11 +76,6 @@ static inline void flush_anon_page(struct vm_area_struct *vma,
 static inline void flush_icache_page(struct vm_area_struct *vma,
 	struct page *page)
 {
-	if (!cpu_has_ic_fills_f_dc && (vma->vm_flags & VM_EXEC) &&
-	    Page_dcache_dirty(page)) {
-		__flush_icache_page(vma, page);
-		ClearPageDcacheDirty(page);
-	}
 }
 
 extern void (*flush_icache_range)(unsigned long start, unsigned long end);
@@ -132,6 +126,7 @@ static inline void kunmap_noncoherent(void)
 static inline void flush_kernel_dcache_page(struct page *page)
 {
 	BUG_ON(cpu_has_dc_aliases && PageHighMem(page));
+	flush_dcache_page(page);
 }
 
 /*

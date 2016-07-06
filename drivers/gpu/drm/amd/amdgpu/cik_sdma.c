@@ -66,6 +66,16 @@ MODULE_FIRMWARE("radeon/mullins_sdma1.bin");
 
 u32 amdgpu_cik_gpu_check_soft_reset(struct amdgpu_device *adev);
 
+
+static void cik_sdma_free_microcode(struct amdgpu_device *adev)
+{
+	int i;
+	for (i = 0; i < adev->sdma.num_instances; i++) {
+			release_firmware(adev->sdma.instance[i].fw);
+			adev->sdma.instance[i].fw = NULL;
+	}
+}
+
 /*
  * sDMA - System DMA
  * Starting with CIK, the GPU has new asynchronous
@@ -210,9 +220,10 @@ static void cik_sdma_ring_insert_nop(struct amdgpu_ring *ring, uint32_t count)
  * Schedule an IB in the DMA ring (CIK).
  */
 static void cik_sdma_ring_emit_ib(struct amdgpu_ring *ring,
-			   struct amdgpu_ib *ib)
+				  struct amdgpu_ib *ib,
+				  unsigned vm_id, bool ctx_switch)
 {
-	u32 extra_bits = ib->vm_id & 0xf;
+	u32 extra_bits = vm_id & 0xf;
 	u32 next_rptr = ring->wptr + 5;
 
 	while ((next_rptr & 7) != 4)
@@ -418,6 +429,8 @@ static int cik_sdma_gfx_resume(struct amdgpu_device *adev)
 		/* Initialize the ring buffer's read and write pointers */
 		WREG32(mmSDMA0_GFX_RB_RPTR + sdma_offsets[i], 0);
 		WREG32(mmSDMA0_GFX_RB_WPTR + sdma_offsets[i], 0);
+		WREG32(mmSDMA0_GFX_IB_RPTR + sdma_offsets[i], 0);
+		WREG32(mmSDMA0_GFX_IB_OFFSET + sdma_offsets[i], 0);
 
 		/* set the wb address whether it's enabled or not */
 		WREG32(mmSDMA0_GFX_RB_RPTR_ADDR_HI + sdma_offsets[i],
@@ -445,7 +458,12 @@ static int cik_sdma_gfx_resume(struct amdgpu_device *adev)
 		WREG32(mmSDMA0_GFX_IB_CNTL + sdma_offsets[i], ib_cntl);
 
 		ring->ready = true;
+	}
 
+	cik_sdma_enable(adev, true);
+
+	for (i = 0; i < adev->sdma.num_instances; i++) {
+		ring = &adev->sdma.instance[i].ring;
 		r = amdgpu_ring_test_ring(ring);
 		if (r) {
 			ring->ready = false;
@@ -528,8 +546,8 @@ static int cik_sdma_start(struct amdgpu_device *adev)
 	if (r)
 		return r;
 
-	/* unhalt the MEs */
-	cik_sdma_enable(adev, true);
+	/* halt the engine before programing */
+	cik_sdma_enable(adev, false);
 
 	/* start the gfx rings and rlc compute queues */
 	r = cik_sdma_gfx_resume(adev);
@@ -643,7 +661,7 @@ static int cik_sdma_ring_test_ib(struct amdgpu_ring *ring)
 	ib.ptr[3] = 1;
 	ib.ptr[4] = 0xDEADBEEF;
 	ib.length_dw = 5;
-	r = amdgpu_ib_schedule(ring, 1, &ib, NULL, &f);
+	r = amdgpu_ib_schedule(ring, 1, &ib, NULL, NULL, &f);
 	if (r)
 		goto err1;
 
@@ -976,7 +994,7 @@ static int cik_sdma_sw_init(void *handle)
 		ring = &adev->sdma.instance[i].ring;
 		ring->ring_obj = NULL;
 		sprintf(ring->name, "sdma%d", i);
-		r = amdgpu_ring_init(adev, ring, 256 * 1024,
+		r = amdgpu_ring_init(adev, ring, 1024,
 				     SDMA_PACKET(SDMA_OPCODE_NOP, 0, 0), 0xf,
 				     &adev->sdma.trap_irq,
 				     (i == 0) ?
@@ -997,6 +1015,7 @@ static int cik_sdma_sw_fini(void *handle)
 	for (i = 0; i < adev->sdma.num_instances; i++)
 		amdgpu_ring_fini(&adev->sdma.instance[i].ring);
 
+	cik_sdma_free_microcode(adev);
 	return 0;
 }
 
@@ -1064,57 +1083,6 @@ static int cik_sdma_wait_for_idle(void *handle)
 	return -ETIMEDOUT;
 }
 
-static void cik_sdma_print_status(void *handle)
-{
-	int i, j;
-	struct amdgpu_device *adev = (struct amdgpu_device *)handle;
-
-	dev_info(adev->dev, "CIK SDMA registers\n");
-	dev_info(adev->dev, "  SRBM_STATUS2=0x%08X\n",
-		 RREG32(mmSRBM_STATUS2));
-	for (i = 0; i < adev->sdma.num_instances; i++) {
-		dev_info(adev->dev, "  SDMA%d_STATUS_REG=0x%08X\n",
-			 i, RREG32(mmSDMA0_STATUS_REG + sdma_offsets[i]));
-		dev_info(adev->dev, "  SDMA%d_ME_CNTL=0x%08X\n",
-			 i, RREG32(mmSDMA0_F32_CNTL + sdma_offsets[i]));
-		dev_info(adev->dev, "  SDMA%d_CNTL=0x%08X\n",
-			 i, RREG32(mmSDMA0_CNTL + sdma_offsets[i]));
-		dev_info(adev->dev, "  SDMA%d_SEM_INCOMPLETE_TIMER_CNTL=0x%08X\n",
-			 i, RREG32(mmSDMA0_SEM_INCOMPLETE_TIMER_CNTL + sdma_offsets[i]));
-		dev_info(adev->dev, "  SDMA%d_SEM_WAIT_FAIL_TIMER_CNTL=0x%08X\n",
-			 i, RREG32(mmSDMA0_SEM_WAIT_FAIL_TIMER_CNTL + sdma_offsets[i]));
-		dev_info(adev->dev, "  SDMA%d_GFX_IB_CNTL=0x%08X\n",
-			 i, RREG32(mmSDMA0_GFX_IB_CNTL + sdma_offsets[i]));
-		dev_info(adev->dev, "  SDMA%d_GFX_RB_CNTL=0x%08X\n",
-			 i, RREG32(mmSDMA0_GFX_RB_CNTL + sdma_offsets[i]));
-		dev_info(adev->dev, "  SDMA%d_GFX_RB_RPTR=0x%08X\n",
-			 i, RREG32(mmSDMA0_GFX_RB_RPTR + sdma_offsets[i]));
-		dev_info(adev->dev, "  SDMA%d_GFX_RB_WPTR=0x%08X\n",
-			 i, RREG32(mmSDMA0_GFX_RB_WPTR + sdma_offsets[i]));
-		dev_info(adev->dev, "  SDMA%d_GFX_RB_RPTR_ADDR_HI=0x%08X\n",
-			 i, RREG32(mmSDMA0_GFX_RB_RPTR_ADDR_HI + sdma_offsets[i]));
-		dev_info(adev->dev, "  SDMA%d_GFX_RB_RPTR_ADDR_LO=0x%08X\n",
-			 i, RREG32(mmSDMA0_GFX_RB_RPTR_ADDR_LO + sdma_offsets[i]));
-		dev_info(adev->dev, "  SDMA%d_GFX_RB_BASE=0x%08X\n",
-			 i, RREG32(mmSDMA0_GFX_RB_BASE + sdma_offsets[i]));
-		dev_info(adev->dev, "  SDMA%d_GFX_RB_BASE_HI=0x%08X\n",
-			 i, RREG32(mmSDMA0_GFX_RB_BASE_HI + sdma_offsets[i]));
-		dev_info(adev->dev, "  SDMA%d_TILING_CONFIG=0x%08X\n",
-			 i, RREG32(mmSDMA0_TILING_CONFIG + sdma_offsets[i]));
-		mutex_lock(&adev->srbm_mutex);
-		for (j = 0; j < 16; j++) {
-			cik_srbm_select(adev, 0, 0, 0, j);
-			dev_info(adev->dev, "  VM %d:\n", j);
-			dev_info(adev->dev, "  SDMA0_GFX_VIRTUAL_ADDR=0x%08X\n",
-				 RREG32(mmSDMA0_GFX_VIRTUAL_ADDR + sdma_offsets[i]));
-			dev_info(adev->dev, "  SDMA0_GFX_APE1_CNTL=0x%08X\n",
-				 RREG32(mmSDMA0_GFX_APE1_CNTL + sdma_offsets[i]));
-		}
-		cik_srbm_select(adev, 0, 0, 0, 0);
-		mutex_unlock(&adev->srbm_mutex);
-	}
-}
-
 static int cik_sdma_soft_reset(void *handle)
 {
 	u32 srbm_soft_reset = 0;
@@ -1137,8 +1105,6 @@ static int cik_sdma_soft_reset(void *handle)
 	}
 
 	if (srbm_soft_reset) {
-		cik_sdma_print_status((void *)adev);
-
 		tmp = RREG32(mmSRBM_SOFT_RESET);
 		tmp |= srbm_soft_reset;
 		dev_info(adev->dev, "SRBM_SOFT_RESET=0x%08X\n", tmp);
@@ -1153,8 +1119,6 @@ static int cik_sdma_soft_reset(void *handle)
 
 		/* Wait a little for things to settle down */
 		udelay(50);
-
-		cik_sdma_print_status((void *)adev);
 	}
 
 	return 0;
@@ -1278,6 +1242,7 @@ static int cik_sdma_set_powergating_state(void *handle,
 }
 
 const struct amd_ip_funcs cik_sdma_ip_funcs = {
+	.name = "cik_sdma",
 	.early_init = cik_sdma_early_init,
 	.late_init = NULL,
 	.sw_init = cik_sdma_sw_init,
@@ -1289,7 +1254,6 @@ const struct amd_ip_funcs cik_sdma_ip_funcs = {
 	.is_idle = cik_sdma_is_idle,
 	.wait_for_idle = cik_sdma_wait_for_idle,
 	.soft_reset = cik_sdma_soft_reset,
-	.print_status = cik_sdma_print_status,
 	.set_clockgating_state = cik_sdma_set_clockgating_state,
 	.set_powergating_state = cik_sdma_set_powergating_state,
 };

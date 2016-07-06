@@ -164,9 +164,18 @@ static int __init lustre_init(void)
 	if (rc != 0)
 		goto out_sysfs;
 
+	cl_inode_fini_env = cl_env_alloc(&cl_inode_fini_refcheck,
+					 LCT_REMEMBER | LCT_NOREF);
+	if (IS_ERR(cl_inode_fini_env)) {
+		rc = PTR_ERR(cl_inode_fini_env);
+		goto out_vvp;
+	}
+
+	cl_inode_fini_env->le_ctx.lc_cookie = 0x4;
+
 	rc = ll_xattr_init();
 	if (rc != 0)
-		goto out_vvp;
+		goto out_inode_fini_env;
 
 	lustre_register_client_fill_super(ll_fill_super);
 	lustre_register_kill_super_cb(ll_kill_super);
@@ -174,6 +183,8 @@ static int __init lustre_init(void)
 
 	return 0;
 
+out_inode_fini_env:
+	cl_env_put(cl_inode_fini_env, &cl_inode_fini_refcheck);
 out_vvp:
 	vvp_global_fini();
 out_sysfs:
@@ -198,6 +209,7 @@ static void __exit lustre_exit(void)
 	kset_unregister(llite_kset);
 
 	ll_xattr_fini();
+	cl_env_put(cl_inode_fini_env, &cl_inode_fini_refcheck);
 	vvp_global_fini();
 
 	kmem_cache_destroy(ll_inode_cachep);

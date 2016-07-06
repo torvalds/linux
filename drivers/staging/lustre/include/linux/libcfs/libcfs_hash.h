@@ -245,7 +245,7 @@ struct cfs_hash {
 	/** # of iterators (caller of cfs_hash_for_each_*) */
 	__u32				hs_iterators;
 	/** rehash workitem */
-	cfs_workitem_t			hs_rehash_wi;
+	struct cfs_workitem		hs_rehash_wi;
 	/** refcount on this hash table */
 	atomic_t			hs_refcount;
 	/** rehash buckets-table */
@@ -262,7 +262,7 @@ struct cfs_hash {
 	/** bits when we found the max depth */
 	unsigned int			hs_dep_bits;
 	/** workitem to output max depth */
-	cfs_workitem_t			hs_dep_wi;
+	struct cfs_workitem		hs_dep_wi;
 #endif
 	/** name of htable */
 	char				hs_name[0];

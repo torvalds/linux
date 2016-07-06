@@ -1,4 +1,5 @@
-/* Driver for SanDisk SDDR-09 SmartMedia reader
+/*
+ * Driver for SanDisk SDDR-09 SmartMedia reader
  *
  *   (c) 2000, 2001 Robert Baruch (autophile@starband.net)
  *   (c) 2002 Andries Brouwer (aeb@cwi.nl)
@@ -799,10 +800,12 @@ sddr09_read_data(struct us_data *us,
 			usb_stor_dbg(us, "Read %d zero pages (LBA %d) page %d\n",
 				     pages, lba, page);
 
-			/* This is not really an error. It just means
-			   that the block has never been written.
-			   Instead of returning an error
-			   it is better to return all zero data. */
+			/*
+			 * This is not really an error. It just means
+			 * that the block has never been written.
+			 * Instead of returning an error
+			 * it is better to return all zero data.
+			 */
 
 			memset(buffer, 0, len);
 
@@ -890,8 +893,10 @@ sddr09_write_lba(struct us_data *us, unsigned int lba,
 	}
 
 	if (pba == 1) {
-		/* Maybe it is impossible to write to PBA 1.
-		   Fake success, but don't do anything. */
+		/*
+		 * Maybe it is impossible to write to PBA 1.
+		 * Fake success, but don't do anything.
+		 */
 		printk(KERN_WARNING "sddr09: avoid writing to pba 1\n");
 		return 0;
 	}
@@ -979,18 +984,22 @@ sddr09_write_data(struct us_data *us,
 	struct scatterlist *sg;
 	int result;
 
-	// Figure out the initial LBA and page
+	/* Figure out the initial LBA and page */
 	lba = address >> info->blockshift;
 	page = (address & info->blockmask);
 	maxlba = info->capacity >> (info->pageshift + info->blockshift);
 	if (lba >= maxlba)
 		return -EIO;
 
-	// blockbuffer is used for reading in the old data, overwriting
-	// with the new data, and performing ECC calculations
+	/*
+	 * blockbuffer is used for reading in the old data, overwriting
+	 * with the new data, and performing ECC calculations
+	 */
 
-	/* TODO: instead of doing kmalloc/kfree for each write,
-	   add a bufferpointer to the info structure */
+	/*
+	 * TODO: instead of doing kmalloc/kfree for each write,
+	 * add a bufferpointer to the info structure
+	 */
 
 	pagelen = (1 << info->pageshift) + (1 << CONTROL_SHIFT);
 	blocklen = (pagelen << info->blockshift);
@@ -1000,9 +1009,11 @@ sddr09_write_data(struct us_data *us,
 		return -ENOMEM;
 	}
 
-	// Since we don't write the user data directly to the device,
-	// we have to create a bounce buffer and move the data a piece
-	// at a time between the bounce buffer and the actual transfer buffer.
+	/*
+	 * Since we don't write the user data directly to the device,
+	 * we have to create a bounce buffer and move the data a piece
+	 * at a time between the bounce buffer and the actual transfer buffer.
+	 */
 
 	len = min(sectors, (unsigned int) info->blocksize) * info->pagesize;
 	buffer = kmalloc(len, GFP_NOIO);
@@ -1018,7 +1029,7 @@ sddr09_write_data(struct us_data *us,
 
 	while (sectors > 0) {
 
-		// Write as many sectors as possible in this block
+		/* Write as many sectors as possible in this block */
 
 		pages = min(sectors, info->blocksize - page);
 		len = (pages << info->pageshift);
@@ -1031,7 +1042,7 @@ sddr09_write_data(struct us_data *us,
 			break;
 		}
 
-		// Get the data from the transfer buffer
+		/* Get the data from the transfer buffer */
 		usb_stor_access_xfer_buf(buffer, len, us->srb,
 				&sg, &offset, FROM_XFER_BUF);
 
@@ -1168,9 +1179,11 @@ sddr09_get_cardinfo(struct us_data *us, unsigned char flags) {
 	/* Byte 1 is the device type */
 	cardinfo = nand_find_id(deviceID[1]);
 	if (cardinfo) {
-		/* MB or MiB? It is neither. A 16 MB card has
-		   17301504 raw bytes, of which 16384000 are
-		   usable for user data. */
+		/*
+		 * MB or MiB? It is neither. A 16 MB card has
+		 * 17301504 raw bytes, of which 16384000 are
+		 * usable for user data.
+		 */
 		sprintf(blurbtxt + strlen(blurbtxt),
 			", %d MB", 1<<(cardinfo->chipshift - 20));
 	} else {
@@ -1211,14 +1224,18 @@ sddr09_read_map(struct us_data *us) {
 	if (!info->capacity)
 		return -1;
 
-	// size of a block is 1 << (blockshift + pageshift) bytes
-	// divide into the total capacity to get the number of blocks
+	/*
+	 * size of a block is 1 << (blockshift + pageshift) bytes
+	 * divide into the total capacity to get the number of blocks
+	 */
 
 	numblocks = info->capacity >> (info->blockshift + info->pageshift);
 
-	// read 64 bytes for every block (actually 1 << CONTROL_SHIFT)
-	// but only use a 64 KB buffer
-	// buffer size used must be a multiple of (1 << CONTROL_SHIFT)
+	/*
+	 * read 64 bytes for every block (actually 1 << CONTROL_SHIFT)
+	 * but only use a 64 KB buffer
+	 * buffer size used must be a multiple of (1 << CONTROL_SHIFT)
+	 */
 #define SDDR09_READ_MAP_BUFSZ 65536
 
 	alloc_blocks = min(numblocks, SDDR09_READ_MAP_BUFSZ >> CONTROL_SHIFT);
@@ -1575,8 +1592,10 @@ static int sddr09_transport(struct scsi_cmnd *srb, struct us_data *us)
 
 	havefakesense = 1;
 
-	/* Dummy up a response for INQUIRY since SDDR09 doesn't
-	   respond to INQUIRY commands */
+	/*
+	 * Dummy up a response for INQUIRY since SDDR09 doesn't
+	 * respond to INQUIRY commands
+	 */
 
 	if (srb->cmnd[0] == INQUIRY) {
 		memcpy(ptr, inquiry_response, 8);
@@ -1628,8 +1647,10 @@ static int sddr09_transport(struct scsi_cmnd *srb, struct us_data *us)
 	if (srb->cmnd[0] == MODE_SENSE_10) {
 		int modepage = (srb->cmnd[2] & 0x3F);
 
-		/* They ask for the Read/Write error recovery page,
-		   or for all pages. */
+		/*
+		 * They ask for the Read/Write error recovery page,
+		 * or for all pages.
+		 */
 		/* %% We should check DBD %% */
 		if (modepage == 0x01 || modepage == 0x3F) {
 			usb_stor_dbg(us, "Dummy up request for mode page 0x%x\n",
@@ -1682,7 +1703,8 @@ static int sddr09_transport(struct scsi_cmnd *srb, struct us_data *us)
 				USB_STOR_TRANSPORT_ERROR);
 	}
 
-	/* catch-all for all other commands, except
+	/*
+	 * catch-all for all other commands, except
 	 * pass TEST_UNIT_READY and REQUEST_SENSE through
 	 */
 	if (srb->cmnd[0] != TEST_UNIT_READY &&

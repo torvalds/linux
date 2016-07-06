@@ -32,7 +32,7 @@
 #define VOLTAGE_SCALE  4
 #define POWERTUNE_DEFAULT_SET_MAX    1
 
-struct fiji_pt_defaults fiji_power_tune_data_set_array[POWERTUNE_DEFAULT_SET_MAX] = {
+const struct fiji_pt_defaults fiji_power_tune_data_set_array[POWERTUNE_DEFAULT_SET_MAX] = {
 		/*sviLoadLIneEn,  SviLoadLineVddC, TDC_VDDC_ThrottleReleaseLimitPerc */
 		{1,               0xF,             0xFD,
 		/* TDC_MAWt, TdcWaterfallCtl, DTEAmbientTempBase */
@@ -143,7 +143,7 @@ static void get_scl_sda_value(uint8_t line, uint8_t *scl, uint8_t* sda)
 int fiji_populate_bapm_parameters_in_dpm_table(struct pp_hwmgr *hwmgr)
 {
 	struct fiji_hwmgr *data = (struct fiji_hwmgr *)(hwmgr->backend);
-	struct fiji_pt_defaults *defaults = data->power_tune_defaults;
+	const struct fiji_pt_defaults *defaults = data->power_tune_defaults;
 	SMU73_Discrete_DpmTable  *dpm_table = &(data->smc_state_table);
 	struct phm_ppt_v1_information *table_info =
 			(struct phm_ppt_v1_information *)(hwmgr->pptable);
@@ -222,7 +222,7 @@ int fiji_populate_bapm_parameters_in_dpm_table(struct pp_hwmgr *hwmgr)
 static int fiji_populate_svi_load_line(struct pp_hwmgr *hwmgr)
 {
     struct fiji_hwmgr *data = (struct fiji_hwmgr *)(hwmgr->backend);
-    struct fiji_pt_defaults *defaults = data->power_tune_defaults;
+    const struct fiji_pt_defaults *defaults = data->power_tune_defaults;
 
     data->power_tune_table.SviLoadLineEn = defaults->SviLoadLineEn;
     data->power_tune_table.SviLoadLineVddC = defaults->SviLoadLineVddC;
@@ -238,7 +238,7 @@ static int fiji_populate_tdc_limit(struct pp_hwmgr *hwmgr)
 	struct fiji_hwmgr *data = (struct fiji_hwmgr *)(hwmgr->backend);
 	struct phm_ppt_v1_information *table_info =
 			(struct phm_ppt_v1_information *)(hwmgr->pptable);
-	struct  fiji_pt_defaults *defaults = data->power_tune_defaults;
+	const struct fiji_pt_defaults *defaults = data->power_tune_defaults;
 
 	/* TDC number of fraction bits are changed from 8 to 7
 	 * for Fiji as requested by SMC team
@@ -256,7 +256,7 @@ static int fiji_populate_tdc_limit(struct pp_hwmgr *hwmgr)
 static int fiji_populate_dw8(struct pp_hwmgr *hwmgr, uint32_t fuse_table_offset)
 {
 	struct fiji_hwmgr *data = (struct fiji_hwmgr *)(hwmgr->backend);
-	struct  fiji_pt_defaults *defaults = data->power_tune_defaults;
+	const struct fiji_pt_defaults *defaults = data->power_tune_defaults;
 	uint32_t temp;
 
 	if (fiji_read_smc_sram_dword(hwmgr->smumgr,

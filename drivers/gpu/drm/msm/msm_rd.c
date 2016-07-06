@@ -296,7 +296,7 @@ void msm_rd_dump_submit(struct msm_gem_submit *submit)
 
 	n = snprintf(msg, sizeof(msg), "%.*s/%d: fence=%u",
 			TASK_COMM_LEN, current->comm, task_pid_nr(current),
-			submit->fence);
+			submit->fence->seqno);
 
 	rd_write_section(rd, RD_CMD, msg, ALIGN(n, 4));
 
@@ -311,6 +311,9 @@ void msm_rd_dump_submit(struct msm_gem_submit *submit)
 		uint32_t szd  = submit->cmd[i].size; /* in dwords */
 		struct msm_gem_object *obj = submit->bos[idx].obj;
 		const char *buf = msm_gem_vaddr_locked(&obj->base);
+
+		if (IS_ERR(buf))
+			continue;
 
 		buf += iova - submit->bos[idx].iova;
 

@@ -34,6 +34,10 @@
 
 #include "drm.h"
 
+#if defined(__cplusplus)
+extern "C" {
+#endif
+
 #define DRM_AMDGPU_GEM_CREATE		0x00
 #define DRM_AMDGPU_GEM_MMAP		0x01
 #define DRM_AMDGPU_CTX			0x02
@@ -641,5 +645,9 @@ struct drm_amdgpu_info_hw_ip {
 #define AMDGPU_FAMILY_KV			125 /* Kaveri, Kabini, Mullins */
 #define AMDGPU_FAMILY_VI			130 /* Iceland, Tonga */
 #define AMDGPU_FAMILY_CZ			135 /* Carrizo, Stoney */
+
+#if defined(__cplusplus)
+}
+#endif
 
 #endif

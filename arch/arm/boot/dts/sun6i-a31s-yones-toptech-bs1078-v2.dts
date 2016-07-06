@@ -135,8 +135,6 @@
 
 &reg_dc1sw {
 	regulator-name = "vcc-lcd-usb2";
-	regulator-min-microvolt = <3000000>;
-	regulator-max-microvolt = <3000000>;
 };
 
 &reg_dc5ldo {

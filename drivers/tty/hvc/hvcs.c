@@ -600,7 +600,7 @@ static int hvcs_io(struct hvcs_struct *hvcsd)
 
 	hvcs_try_write(hvcsd);
 
-	if (!tty || test_bit(TTY_THROTTLED, &tty->flags)) {
+	if (!tty || tty_throttled(tty)) {
 		hvcsd->todo_mask &= ~(HVCS_READ_MASK);
 		goto bail;
 	} else if (!(hvcsd->todo_mask & (HVCS_READ_MASK)))

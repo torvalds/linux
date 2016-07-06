@@ -269,7 +269,6 @@ static struct platform_driver imx1_pinctrl_driver = {
 		.name		= "imx1-pinctrl",
 		.of_match_table	= imx1_pinctrl_of_match,
 	},
-	.remove	= imx1_pinctrl_core_remove,
 };
 module_platform_driver_probe(imx1_pinctrl_driver, imx1_pinctrl_probe);
 

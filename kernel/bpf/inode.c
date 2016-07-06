@@ -357,7 +357,7 @@ static int bpf_fill_super(struct super_block *sb, void *data, int silent)
 static struct dentry *bpf_mount(struct file_system_type *type, int flags,
 				const char *dev_name, void *data)
 {
-	return mount_ns(type, flags, current->nsproxy->mnt_ns, bpf_fill_super);
+	return mount_nodev(type, flags, data, bpf_fill_super);
 }
 
 static struct file_system_type bpf_fs_type = {
@@ -365,7 +365,6 @@ static struct file_system_type bpf_fs_type = {
 	.name		= "bpf",
 	.mount		= bpf_mount,
 	.kill_sb	= kill_litter_super,
-	.fs_flags	= FS_USERNS_MOUNT,
 };
 
 MODULE_ALIAS_FS("bpf");

@@ -269,9 +269,8 @@ static int iwl_pcie_apm_init(struct iwl_trans *trans)
 	iwl_pcie_apm_config(trans);
 
 	/* Configure analog phase-lock-loop before activating to D0A */
-	if (trans->cfg->base_params->pll_cfg_val)
-		iwl_set_bit(trans, CSR_ANA_PLL_CFG,
-			    trans->cfg->base_params->pll_cfg_val);
+	if (trans->cfg->base_params->pll_cfg)
+		iwl_set_bit(trans, CSR_ANA_PLL_CFG, CSR50_ANA_PLL_CFG_VAL);
 
 	/*
 	 * Set "initialization complete" bit to move adapter from
@@ -361,8 +360,7 @@ static void iwl_pcie_apm_lp_xtal_enable(struct iwl_trans *trans)
 
 	/* Reset entire device - do controller reset (results in SHRD_HW_RST) */
 	iwl_set_bit(trans, CSR_RESET, CSR_RESET_REG_FLAG_SW_RESET);
-
-	udelay(10);
+	usleep_range(1000, 2000);
 
 	/*
 	 * Set "initialization complete" bit to move adapter from
@@ -408,8 +406,7 @@ static void iwl_pcie_apm_lp_xtal_enable(struct iwl_trans *trans)
 	 * SHRD_HW_RST). Turn MAC off before proceeding.
 	 */
 	iwl_set_bit(trans, CSR_RESET, CSR_RESET_REG_FLAG_SW_RESET);
-
-	udelay(10);
+	usleep_range(1000, 2000);
 
 	/* Enable LP XTAL by indirect access through CSR */
 	apmg_gp1_reg = iwl_trans_pcie_read_shr(trans, SHR_APMG_GP1_REG);
@@ -506,8 +503,7 @@ static void iwl_pcie_apm_stop(struct iwl_trans *trans, bool op_mode_leave)
 
 	/* Reset the entire device */
 	iwl_set_bit(trans, CSR_RESET, CSR_RESET_REG_FLAG_SW_RESET);
-
-	udelay(10);
+	usleep_range(1000, 2000);
 
 	/*
 	 * Clear "initialization complete" bit to move adapter from
@@ -586,7 +582,7 @@ static int iwl_pcie_prepare_card_hw(struct iwl_trans *trans)
 
 	iwl_set_bit(trans, CSR_DBG_LINK_PWR_MGMT_REG,
 		    CSR_RESET_LINK_PWR_MGMT_DISABLED);
-	msleep(1);
+	usleep_range(1000, 2000);
 
 	for (iter = 0; iter < 10; iter++) {
 		/* If HW is not ready, prepare the conditions to check again */
@@ -1074,7 +1070,7 @@ static void _iwl_trans_pcie_stop_device(struct iwl_trans *trans, bool low_power)
 
 	/* stop and reset the on-board processor */
 	iwl_write32(trans, CSR_RESET, CSR_RESET_REG_FLAG_SW_RESET);
-	udelay(20);
+	usleep_range(1000, 2000);
 
 	/*
 	 * Upon stop, the APM issues an interrupt if HW RF kill is set.
@@ -1526,8 +1522,7 @@ static int _iwl_trans_pcie_start_hw(struct iwl_trans *trans, bool low_power)
 
 	/* Reset the entire device */
 	iwl_write32(trans, CSR_RESET, CSR_RESET_REG_FLAG_SW_RESET);
-
-	usleep_range(10, 15);
+	usleep_range(1000, 2000);
 
 	iwl_pcie_apm_init(trans);
 
@@ -1950,7 +1945,7 @@ static int iwl_trans_pcie_wait_txq_empty(struct iwl_trans *trans, u32 txq_bm)
 				      "WR pointer moved while flushing %d -> %d\n",
 				      wr_ptr, write_ptr))
 				return -ETIMEDOUT;
-			msleep(1);
+			usleep_range(1000, 2000);
 		}
 
 		if (q->read_ptr != q->write_ptr) {
@@ -2013,7 +2008,7 @@ static void iwl_trans_pcie_set_bits_mask(struct iwl_trans *trans, u32 reg,
 	spin_unlock_irqrestore(&trans_pcie->reg_lock, flags);
 }
 
-void iwl_trans_pcie_ref(struct iwl_trans *trans)
+static void iwl_trans_pcie_ref(struct iwl_trans *trans)
 {
 	struct iwl_trans_pcie *trans_pcie = IWL_TRANS_GET_PCIE_TRANS(trans);
 
@@ -2028,7 +2023,7 @@ void iwl_trans_pcie_ref(struct iwl_trans *trans)
 #endif /* CONFIG_PM */
 }
 
-void iwl_trans_pcie_unref(struct iwl_trans *trans)
+static void iwl_trans_pcie_unref(struct iwl_trans *trans)
 {
 	struct iwl_trans_pcie *trans_pcie = IWL_TRANS_GET_PCIE_TRANS(trans);
 
@@ -2906,6 +2901,8 @@ struct iwl_trans *iwl_trans_pcie_alloc(struct pci_dev *pdev,
 			iwl_trans_release_nic_access(trans, &flags);
 		}
 	}
+
+	trans->hw_rf_id = iwl_read32(trans, CSR_HW_RF_ID);
 
 	iwl_pcie_set_interrupt_capa(pdev, trans);
 	trans->hw_id = (pdev->device << 16) + pdev->subsystem_device;

@@ -23,7 +23,7 @@ static void nicvf_get_page(struct nicvf *nic)
 	if (!nic->rb_pageref || !nic->rb_page)
 		return;
 
-	atomic_add(nic->rb_pageref, &nic->rb_page->_count);
+	page_ref_add(nic->rb_page, nic->rb_pageref);
 	nic->rb_pageref = 0;
 }
 

@@ -67,9 +67,24 @@ static ssize_t channels_show(struct device *dev,
 
 static DEVICE_ATTR_RO(channels);
 
+static ssize_t hw_override_show(struct device *dev,
+				struct device_attribute *attr,
+				char *buf)
+{
+	struct stm_device *stm = to_stm_device(dev);
+	int ret;
+
+	ret = sprintf(buf, "%u\n", stm->data->hw_override);
+
+	return ret;
+}
+
+static DEVICE_ATTR_RO(hw_override);
+
 static struct attribute *stm_attrs[] = {
 	&dev_attr_masters.attr,
 	&dev_attr_channels.attr,
+	&dev_attr_hw_override.attr,
 	NULL,
 };
 
@@ -546,8 +561,6 @@ static int stm_char_policy_set_ioctl(struct stm_file *stmf, void __user *arg)
 	if (ret)
 		goto err_free;
 
-	ret = 0;
-
 	if (stm->data->link)
 		ret = stm->data->link(stm->data, stmf->output.master,
 				      stmf->output.channel);
@@ -668,6 +681,18 @@ int stm_register_device(struct device *parent, struct stm_data *stm_data,
 	stm->dev.parent = parent;
 	stm->dev.release = stm_device_release;
 
+	mutex_init(&stm->link_mutex);
+	spin_lock_init(&stm->link_lock);
+	INIT_LIST_HEAD(&stm->link_list);
+
+	/* initialize the object before it is accessible via sysfs */
+	spin_lock_init(&stm->mc_lock);
+	mutex_init(&stm->policy_mutex);
+	stm->sw_nmasters = nmasters;
+	stm->owner = owner;
+	stm->data = stm_data;
+	stm_data->stm = stm;
+
 	err = kobject_set_name(&stm->dev.kobj, "%s", stm_data->name);
 	if (err)
 		goto err_device;
@@ -676,20 +701,11 @@ int stm_register_device(struct device *parent, struct stm_data *stm_data,
 	if (err)
 		goto err_device;
 
-	mutex_init(&stm->link_mutex);
-	spin_lock_init(&stm->link_lock);
-	INIT_LIST_HEAD(&stm->link_list);
-
-	spin_lock_init(&stm->mc_lock);
-	mutex_init(&stm->policy_mutex);
-	stm->sw_nmasters = nmasters;
-	stm->owner = owner;
-	stm->data = stm_data;
-	stm_data->stm = stm;
-
 	return 0;
 
 err_device:
+	unregister_chrdev(stm->major, stm_data->name);
+
 	/* matches device_initialize() above */
 	put_device(&stm->dev);
 err_free:

@@ -243,10 +243,6 @@ static void put_arg_page(struct page *page)
 	put_page(page);
 }
 
-static void free_arg_page(struct linux_binprm *bprm, int i)
-{
-}
-
 static void free_arg_pages(struct linux_binprm *bprm)
 {
 }
@@ -267,7 +263,10 @@ static int __bprm_mm_init(struct linux_binprm *bprm)
 	if (!vma)
 		return -ENOMEM;
 
-	down_write(&mm->mmap_sem);
+	if (down_write_killable(&mm->mmap_sem)) {
+		err = -EINTR;
+		goto err_free;
+	}
 	vma->vm_mm = mm;
 
 	/*
@@ -294,6 +293,7 @@ static int __bprm_mm_init(struct linux_binprm *bprm)
 	return 0;
 err:
 	up_write(&mm->mmap_sem);
+err_free:
 	bprm->vma = NULL;
 	kmem_cache_free(vm_area_cachep, vma);
 	return err;
@@ -700,7 +700,9 @@ int setup_arg_pages(struct linux_binprm *bprm,
 		bprm->loader -= stack_shift;
 	bprm->exec -= stack_shift;
 
-	down_write(&mm->mmap_sem);
+	if (down_write_killable(&mm->mmap_sem))
+		return -EINTR;
+
 	vm_flags = VM_STACK_FLAGS;
 
 	/*
@@ -850,15 +852,25 @@ int kernel_read_file(struct file *file, void **buf, loff_t *size,
 	if (ret)
 		return ret;
 
+	ret = deny_write_access(file);
+	if (ret)
+		return ret;
+
 	i_size = i_size_read(file_inode(file));
-	if (max_size > 0 && i_size > max_size)
-		return -EFBIG;
-	if (i_size <= 0)
-		return -EINVAL;
+	if (max_size > 0 && i_size > max_size) {
+		ret = -EFBIG;
+		goto out;
+	}
+	if (i_size <= 0) {
+		ret = -EINVAL;
+		goto out;
+	}
 
 	*buf = vmalloc(i_size);
-	if (!*buf)
-		return -ENOMEM;
+	if (!*buf) {
+		ret = -ENOMEM;
+		goto out;
+	}
 
 	pos = 0;
 	while (pos < i_size) {
@@ -876,18 +888,21 @@ int kernel_read_file(struct file *file, void **buf, loff_t *size,
 
 	if (pos != i_size) {
 		ret = -EIO;
-		goto out;
+		goto out_free;
 	}
 
 	ret = security_kernel_post_read_file(file, *buf, i_size, id);
 	if (!ret)
 		*size = pos;
 
-out:
+out_free:
 	if (ret < 0) {
 		vfree(*buf);
 		*buf = NULL;
 	}
+
+out:
+	allow_write_access(file);
 	return ret;
 }
 EXPORT_SYMBOL_GPL(kernel_read_file);
@@ -1486,9 +1501,6 @@ int remove_arg_zero(struct linux_binprm *bprm)
 
 		kunmap_atomic(kaddr);
 		put_arg_page(page);
-
-		if (offset == PAGE_SIZE)
-			free_arg_page(bprm, (bprm->p >> PAGE_SHIFT) - 1);
 	} while (offset == PAGE_SIZE);
 
 	bprm->p++;

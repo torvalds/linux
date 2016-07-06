@@ -10,6 +10,7 @@
 #include <linux/cache.h>
 #include <linux/rcupdate.h>
 #include <linux/lockref.h>
+#include <linux/stringhash.h>
 
 struct path;
 struct vfsmount;
@@ -52,9 +53,6 @@ struct qstr {
 };
 
 #define QSTR_INIT(n,l) { { { .len = l } }, .name = n }
-#define hashlen_hash(hashlen) ((u32) (hashlen))
-#define hashlen_len(hashlen)  ((u32)((hashlen) >> 32))
-#define hashlen_create(hash,len) (((u64)(len)<<32)|(u32)(hash))
 
 struct dentry_stat_t {
 	long nr_dentry;
@@ -64,29 +62,6 @@ struct dentry_stat_t {
 	long dummy[2];
 };
 extern struct dentry_stat_t dentry_stat;
-
-/* Name hashing routines. Initial hash value */
-/* Hash courtesy of the R5 hash in reiserfs modulo sign bits */
-#define init_name_hash()		0
-
-/* partial hash update function. Assume roughly 4 bits per character */
-static inline unsigned long
-partial_name_hash(unsigned long c, unsigned long prevhash)
-{
-	return (prevhash + (c << 4) + (c >> 4)) * 11;
-}
-
-/*
- * Finally: cut down the number of bits to a int value (and try to avoid
- * losing bits)
- */
-static inline unsigned long end_name_hash(unsigned long hash)
-{
-	return (unsigned int) hash;
-}
-
-/* Compute the hash for a name string. */
-extern unsigned int full_name_hash(const unsigned char *, unsigned int);
 
 /*
  * Try to keep struct dentry aligned on 64 byte cachelines (this will
@@ -237,6 +212,7 @@ struct dentry_operations {
 #define DCACHE_OP_REAL			0x08000000
 
 #define DCACHE_PAR_LOOKUP		0x10000000 /* being looked up (with parent locked shared) */
+#define DCACHE_DENTRY_CURSOR		0x20000000
 
 extern seqlock_t rename_lock;
 
@@ -598,6 +574,18 @@ static inline struct inode *vfs_select_inode(struct dentry *dentry,
 		inode = dentry->d_op->d_select_inode(dentry, open_flags);
 
 	return inode;
+}
+
+/**
+ * d_real_inode - Return the real inode
+ * @dentry: The dentry to query
+ *
+ * If dentry is on an union/overlay, then return the underlying, real inode.
+ * Otherwise return d_inode().
+ */
+static inline struct inode *d_real_inode(struct dentry *dentry)
+{
+	return d_backing_inode(d_real(dentry));
 }
 
 

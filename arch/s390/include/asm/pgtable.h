@@ -1223,6 +1223,7 @@ static inline int pmd_trans_huge(pmd_t pmd)
 	return pmd_val(pmd) & _SEGMENT_ENTRY_LARGE;
 }
 
+#define has_transparent_hugepage has_transparent_hugepage
 static inline int has_transparent_hugepage(void)
 {
 	return MACHINE_HAS_HPAGE ? 1 : 0;

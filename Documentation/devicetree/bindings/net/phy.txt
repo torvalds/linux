@@ -35,8 +35,6 @@ Optional Properties:
 - broken-turn-around: If set, indicates the PHY device does not correctly
   release the turn around line low at the end of a MDIO transaction.
 
-- reset-gpios: Reference to a GPIO used to reset the phy.
-
 Example:
 
 ethernet-phy@0 {
@@ -44,5 +42,4 @@ ethernet-phy@0 {
 	interrupt-parent = <40000>;
 	interrupts = <35 1>;
 	reg = <0>;
-	reset-gpios = <&gpio1 17 GPIO_ACTIVE_LOW>;
 };

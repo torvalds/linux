@@ -302,6 +302,7 @@ EXPORT_SYMBOL_GPL(ubi_open_volume_nm);
 struct ubi_volume_desc *ubi_open_volume_path(const char *pathname, int mode)
 {
 	int error, ubi_num, vol_id;
+	struct path path;
 	struct kstat stat;
 
 	dbg_gen("open volume %s, mode %d", pathname, mode);
@@ -309,7 +310,12 @@ struct ubi_volume_desc *ubi_open_volume_path(const char *pathname, int mode)
 	if (!pathname || !*pathname)
 		return ERR_PTR(-EINVAL);
 
-	error = vfs_stat(pathname, &stat);
+	error = kern_path(pathname, LOOKUP_FOLLOW, &path);
+	if (error)
+		return ERR_PTR(error);
+
+	error = vfs_getattr(&path, &stat);
+	path_put(&path);
 	if (error)
 		return ERR_PTR(error);
 
@@ -705,7 +711,7 @@ int ubi_leb_map(struct ubi_volume_desc *desc, int lnum)
 	struct ubi_volume *vol = desc->vol;
 	struct ubi_device *ubi = vol->ubi;
 
-	dbg_gen("unmap LEB %d:%d", vol->vol_id, lnum);
+	dbg_gen("map LEB %d:%d", vol->vol_id, lnum);
 
 	if (desc->mode == UBI_READONLY || vol->vol_type == UBI_STATIC_VOLUME)
 		return -EROFS;

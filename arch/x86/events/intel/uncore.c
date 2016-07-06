@@ -891,7 +891,7 @@ static int uncore_pci_probe(struct pci_dev *pdev, const struct pci_device_id *id
 		return -ENODEV;
 
 	pkg = topology_phys_to_logical_pkg(phys_id);
-	if (WARN_ON_ONCE(pkg < 0))
+	if (pkg < 0)
 		return -EINVAL;
 
 	if (UNCORE_PCI_DEV_TYPE(id->driver_data) == UNCORE_EXTRA_PCI_DEV) {

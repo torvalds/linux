@@ -2593,7 +2593,7 @@ struct rtl_priv {
 	 *intf_ops : for diff interrface usb/pcie
 	 */
 	struct rtl_hal_cfg *cfg;
-	struct rtl_intf_ops *intf_ops;
+	const struct rtl_intf_ops *intf_ops;
 
 	/*this var will be set by set_bit,
 	   and was used to indicate status of

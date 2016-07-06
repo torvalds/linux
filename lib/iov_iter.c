@@ -101,7 +101,7 @@
 #define iterate_and_advance(i, n, v, I, B, K) {			\
 	if (unlikely(i->count < n))				\
 		n = i->count;					\
-	if (n) {						\
+	if (i->count) {						\
 		size_t skip = i->iov_offset;			\
 		if (unlikely(i->type & ITER_BVEC)) {		\
 			const struct bio_vec *bvec;		\

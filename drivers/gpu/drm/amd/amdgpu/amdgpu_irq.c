@@ -219,7 +219,6 @@ int amdgpu_irq_init(struct amdgpu_device *adev)
 	if (r) {
 		return r;
 	}
-	adev->ddev->vblank_disable_allowed = true;
 
 	/* enable msi */
 	adev->irq.msi_enabled = false;
@@ -498,7 +497,7 @@ static int amdgpu_irqdomain_map(struct irq_domain *d,
 	return 0;
 }
 
-static struct irq_domain_ops amdgpu_hw_irqdomain_ops = {
+static const struct irq_domain_ops amdgpu_hw_irqdomain_ops = {
 	.map = amdgpu_irqdomain_map,
 };
 

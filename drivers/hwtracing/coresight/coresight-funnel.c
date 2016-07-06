@@ -221,7 +221,6 @@ static int funnel_probe(struct amba_device *adev, const struct amba_id *id)
 	if (IS_ERR(drvdata->csdev))
 		return PTR_ERR(drvdata->csdev);
 
-	dev_info(dev, "FUNNEL initialized\n");
 	return 0;
 }
 

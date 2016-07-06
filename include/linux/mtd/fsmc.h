@@ -103,24 +103,6 @@
 
 #define FSMC_BUSY_WAIT_TIMEOUT	(1 * HZ)
 
-/*
- * There are 13 bytes of ecc for every 512 byte block in FSMC version 8
- * and it has to be read consecutively and immediately after the 512
- * byte data block for hardware to generate the error bit offsets
- * Managing the ecc bytes in the following way is easier. This way is
- * similar to oobfree structure maintained already in u-boot nand driver
- */
-#define MAX_ECCPLACE_ENTRIES	32
-
-struct fsmc_nand_eccplace {
-	uint8_t offset;
-	uint8_t length;
-};
-
-struct fsmc_eccplace {
-	struct fsmc_nand_eccplace eccplace[MAX_ECCPLACE_ENTRIES];
-};
-
 struct fsmc_nand_timings {
 	uint8_t tclr;
 	uint8_t tar;

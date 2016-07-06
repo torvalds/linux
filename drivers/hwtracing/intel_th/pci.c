@@ -75,6 +75,11 @@ static const struct pci_device_id intel_th_pci_id_table[] = {
 		PCI_DEVICE(PCI_VENDOR_ID_INTEL, 0x0a80),
 		.driver_data = (kernel_ulong_t)0,
 	},
+	{
+		/* Broxton B-step */
+		PCI_DEVICE(PCI_VENDOR_ID_INTEL, 0x1a8e),
+		.driver_data = (kernel_ulong_t)0,
+	},
 	{ 0 },
 };
 

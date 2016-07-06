@@ -78,7 +78,6 @@ static void validate_firmware_response(struct kim_data_s *kim_gdata)
 		memcpy(kim_gdata->resp_buffer,
 				kim_gdata->rx_skb->data,
 				kim_gdata->rx_skb->len);
-		complete_all(&kim_gdata->kim_rcvd);
 		kim_gdata->rx_state = ST_W4_PACKET_TYPE;
 		kim_gdata->rx_skb = NULL;
 		kim_gdata->rx_count = 0;

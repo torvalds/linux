@@ -712,6 +712,7 @@ static void ip6gre_tnl_link_config(struct ip6_tnl *t, int set_mtu)
 	fl6->daddr = p->raddr;
 	fl6->flowi6_oif = p->link;
 	fl6->flowlabel = 0;
+	fl6->flowi6_proto = IPPROTO_GRE;
 
 	if (!(p->flags&IP6_TNL_F_USE_ORIG_TCLASS))
 		fl6->flowlabel |= IPV6_TCLASS_MASK & p->flowinfo;
@@ -729,7 +730,7 @@ static void ip6gre_tnl_link_config(struct ip6_tnl *t, int set_mtu)
 
 	t->tun_hlen = gre_calc_hlen(t->parms.o_flags);
 
-	t->hlen = t->tun_hlen;
+	t->hlen = t->encap_hlen + t->tun_hlen;
 
 	t_hlen = t->hlen + sizeof(struct ipv6hdr);
 
@@ -1022,13 +1023,13 @@ static int ip6gre_tunnel_init_common(struct net_device *dev)
 	}
 
 	tunnel->tun_hlen = gre_calc_hlen(tunnel->parms.o_flags);
-
-	tunnel->hlen = tunnel->tun_hlen;
-
+	tunnel->hlen = tunnel->tun_hlen + tunnel->encap_hlen;
 	t_hlen = tunnel->hlen + sizeof(struct ipv6hdr);
 
 	dev->hard_header_len = LL_MAX_HEADER + t_hlen;
 	dev->mtu = ETH_DATA_LEN - t_hlen;
+	if (dev->type == ARPHRD_ETHER)
+		dev->mtu -= ETH_HLEN;
 	if (!(tunnel->parms.flags & IP6_TNL_F_IGN_ENCAP_LIMIT))
 		dev->mtu -= 8;
 
@@ -1255,6 +1256,8 @@ static int ip6gre_tap_init(struct net_device *dev)
 	if (ret)
 		return ret;
 
+	dev->priv_flags |= IFF_LIVE_ADDR_CHANGE;
+
 	tunnel = netdev_priv(dev);
 
 	ip6gre_tnl_link_config(tunnel, 1);
@@ -1288,6 +1291,40 @@ static void ip6gre_tap_setup(struct net_device *dev)
 
 	dev->features |= NETIF_F_NETNS_LOCAL;
 	dev->priv_flags &= ~IFF_TX_SKB_SHARING;
+	dev->priv_flags |= IFF_LIVE_ADDR_CHANGE;
+}
+
+static bool ip6gre_netlink_encap_parms(struct nlattr *data[],
+				       struct ip_tunnel_encap *ipencap)
+{
+	bool ret = false;
+
+	memset(ipencap, 0, sizeof(*ipencap));
+
+	if (!data)
+		return ret;
+
+	if (data[IFLA_GRE_ENCAP_TYPE]) {
+		ret = true;
+		ipencap->type = nla_get_u16(data[IFLA_GRE_ENCAP_TYPE]);
+	}
+
+	if (data[IFLA_GRE_ENCAP_FLAGS]) {
+		ret = true;
+		ipencap->flags = nla_get_u16(data[IFLA_GRE_ENCAP_FLAGS]);
+	}
+
+	if (data[IFLA_GRE_ENCAP_SPORT]) {
+		ret = true;
+		ipencap->sport = nla_get_be16(data[IFLA_GRE_ENCAP_SPORT]);
+	}
+
+	if (data[IFLA_GRE_ENCAP_DPORT]) {
+		ret = true;
+		ipencap->dport = nla_get_be16(data[IFLA_GRE_ENCAP_DPORT]);
+	}
+
+	return ret;
 }
 
 static int ip6gre_newlink(struct net *src_net, struct net_device *dev,
@@ -1296,9 +1333,18 @@ static int ip6gre_newlink(struct net *src_net, struct net_device *dev,
 	struct ip6_tnl *nt;
 	struct net *net = dev_net(dev);
 	struct ip6gre_net *ign = net_generic(net, ip6gre_net_id);
+	struct ip_tunnel_encap ipencap;
 	int err;
 
 	nt = netdev_priv(dev);
+
+	if (ip6gre_netlink_encap_parms(data, &ipencap)) {
+		int err = ip6_tnl_encap_setup(nt, &ipencap);
+
+		if (err < 0)
+			return err;
+	}
+
 	ip6gre_netlink_parms(data, &nt->parms);
 
 	if (ip6gre_tunnel_find(net, &nt->parms, dev->type))
@@ -1315,11 +1361,15 @@ static int ip6gre_newlink(struct net *src_net, struct net_device *dev,
 	dev->hw_features	|= GRE6_FEATURES;
 
 	if (!(nt->parms.o_flags & TUNNEL_SEQ)) {
-		/* TCP segmentation offload is not supported when we
-		 * generate output sequences.
+		/* TCP offload with GRE SEQ is not supported, nor
+		 * can we support 2 levels of outer headers requiring
+		 * an update.
 		 */
-		dev->features    |= NETIF_F_GSO_SOFTWARE;
-		dev->hw_features |= NETIF_F_GSO_SOFTWARE;
+		if (!(nt->parms.o_flags & TUNNEL_CSUM) ||
+		    (nt->encap.type == TUNNEL_ENCAP_NONE)) {
+			dev->features    |= NETIF_F_GSO_SOFTWARE;
+			dev->hw_features |= NETIF_F_GSO_SOFTWARE;
+		}
 
 		/* Can use a lockless transmit, unless we generate
 		 * output sequences
@@ -1345,9 +1395,17 @@ static int ip6gre_changelink(struct net_device *dev, struct nlattr *tb[],
 	struct net *net = nt->net;
 	struct ip6gre_net *ign = net_generic(net, ip6gre_net_id);
 	struct __ip6_tnl_parm p;
+	struct ip_tunnel_encap ipencap;
 
 	if (dev == ign->fb_tunnel_dev)
 		return -EINVAL;
+
+	if (ip6gre_netlink_encap_parms(data, &ipencap)) {
+		int err = ip6_tnl_encap_setup(nt, &ipencap);
+
+		if (err < 0)
+			return err;
+	}
 
 	ip6gre_netlink_parms(data, &p);
 
@@ -1400,6 +1458,14 @@ static size_t ip6gre_get_size(const struct net_device *dev)
 		nla_total_size(4) +
 		/* IFLA_GRE_FLAGS */
 		nla_total_size(4) +
+		/* IFLA_GRE_ENCAP_TYPE */
+		nla_total_size(2) +
+		/* IFLA_GRE_ENCAP_FLAGS */
+		nla_total_size(2) +
+		/* IFLA_GRE_ENCAP_SPORT */
+		nla_total_size(2) +
+		/* IFLA_GRE_ENCAP_DPORT */
+		nla_total_size(2) +
 		0;
 }
 
@@ -1422,6 +1488,17 @@ static int ip6gre_fill_info(struct sk_buff *skb, const struct net_device *dev)
 	    nla_put_be32(skb, IFLA_GRE_FLOWINFO, p->flowinfo) ||
 	    nla_put_u32(skb, IFLA_GRE_FLAGS, p->flags))
 		goto nla_put_failure;
+
+	if (nla_put_u16(skb, IFLA_GRE_ENCAP_TYPE,
+			t->encap.type) ||
+	    nla_put_be16(skb, IFLA_GRE_ENCAP_SPORT,
+			 t->encap.sport) ||
+	    nla_put_be16(skb, IFLA_GRE_ENCAP_DPORT,
+			 t->encap.dport) ||
+	    nla_put_u16(skb, IFLA_GRE_ENCAP_FLAGS,
+			t->encap.flags))
+		goto nla_put_failure;
+
 	return 0;
 
 nla_put_failure:
@@ -1440,6 +1517,10 @@ static const struct nla_policy ip6gre_policy[IFLA_GRE_MAX + 1] = {
 	[IFLA_GRE_ENCAP_LIMIT] = { .type = NLA_U8 },
 	[IFLA_GRE_FLOWINFO]    = { .type = NLA_U32 },
 	[IFLA_GRE_FLAGS]       = { .type = NLA_U32 },
+	[IFLA_GRE_ENCAP_TYPE]   = { .type = NLA_U16 },
+	[IFLA_GRE_ENCAP_FLAGS]  = { .type = NLA_U16 },
+	[IFLA_GRE_ENCAP_SPORT]  = { .type = NLA_U16 },
+	[IFLA_GRE_ENCAP_DPORT]  = { .type = NLA_U16 },
 };
 
 static struct rtnl_link_ops ip6gre_link_ops __read_mostly = {

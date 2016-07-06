@@ -1001,7 +1001,8 @@ static int ecryptfs_getattr(struct vfsmount *mnt, struct dentry *dentry,
 }
 
 int
-ecryptfs_setxattr(struct dentry *dentry, const char *name, const void *value,
+ecryptfs_setxattr(struct dentry *dentry, struct inode *inode,
+		  const char *name, const void *value,
 		  size_t size, int flags)
 {
 	int rc = 0;
@@ -1014,8 +1015,8 @@ ecryptfs_setxattr(struct dentry *dentry, const char *name, const void *value,
 	}
 
 	rc = vfs_setxattr(lower_dentry, name, value, size, flags);
-	if (!rc && d_really_is_positive(dentry))
-		fsstack_copy_attr_all(d_inode(dentry), d_inode(lower_dentry));
+	if (!rc && inode)
+		fsstack_copy_attr_all(inode, d_inode(lower_dentry));
 out:
 	return rc;
 }

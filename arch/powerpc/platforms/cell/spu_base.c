@@ -24,7 +24,7 @@
 
 #include <linux/interrupt.h>
 #include <linux/list.h>
-#include <linux/module.h>
+#include <linux/init.h>
 #include <linux/ptrace.h>
 #include <linux/slab.h>
 #include <linux/wait.h>
@@ -197,7 +197,7 @@ static int __spu_trap_data_map(struct spu *spu, unsigned long ea, u64 dsisr)
 	    (REGION_ID(ea) != USER_REGION_ID)) {
 
 		spin_unlock(&spu->register_lock);
-		ret = hash_page(ea, _PAGE_PRESENT, 0x300, dsisr);
+		ret = hash_page(ea, _PAGE_PRESENT | _PAGE_READ, 0x300, dsisr);
 		spin_lock(&spu->register_lock);
 
 		if (!ret) {
@@ -805,7 +805,4 @@ static int __init init_spu_base(void)
  out:
 	return ret;
 }
-module_init(init_spu_base);
-
-MODULE_LICENSE("GPL");
-MODULE_AUTHOR("Arnd Bergmann <arndb@de.ibm.com>");
+device_initcall(init_spu_base);

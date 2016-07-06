@@ -98,12 +98,12 @@ EXPORT_SYMBOL_GPL(of_get_dma_window);
 struct of_iommu_node {
 	struct list_head list;
 	struct device_node *np;
-	struct iommu_ops *ops;
+	const struct iommu_ops *ops;
 };
 static LIST_HEAD(of_iommu_list);
 static DEFINE_SPINLOCK(of_iommu_lock);
 
-void of_iommu_set_ops(struct device_node *np, struct iommu_ops *ops)
+void of_iommu_set_ops(struct device_node *np, const struct iommu_ops *ops)
 {
 	struct of_iommu_node *iommu = kzalloc(sizeof(*iommu), GFP_KERNEL);
 
@@ -119,10 +119,10 @@ void of_iommu_set_ops(struct device_node *np, struct iommu_ops *ops)
 	spin_unlock(&of_iommu_lock);
 }
 
-struct iommu_ops *of_iommu_get_ops(struct device_node *np)
+const struct iommu_ops *of_iommu_get_ops(struct device_node *np)
 {
 	struct of_iommu_node *node;
-	struct iommu_ops *ops = NULL;
+	const struct iommu_ops *ops = NULL;
 
 	spin_lock(&of_iommu_lock);
 	list_for_each_entry(node, &of_iommu_list, list)
@@ -134,12 +134,12 @@ struct iommu_ops *of_iommu_get_ops(struct device_node *np)
 	return ops;
 }
 
-struct iommu_ops *of_iommu_configure(struct device *dev,
-				     struct device_node *master_np)
+const struct iommu_ops *of_iommu_configure(struct device *dev,
+					   struct device_node *master_np)
 {
 	struct of_phandle_args iommu_spec;
 	struct device_node *np;
-	struct iommu_ops *ops = NULL;
+	const struct iommu_ops *ops = NULL;
 	int idx = 0;
 
 	/*

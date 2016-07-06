@@ -535,7 +535,7 @@ static bool iwl_wait_phy_db_entry(struct iwl_notif_wait_data *notif_wait,
 		return true;
 	}
 
-	WARN_ON(iwl_phy_db_set_section(phy_db, pkt, GFP_ATOMIC));
+	WARN_ON(iwl_phy_db_set_section(phy_db, pkt));
 
 	return false;
 }

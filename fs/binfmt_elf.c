@@ -96,10 +96,9 @@ static int set_brk(unsigned long start, unsigned long end)
 	start = ELF_PAGEALIGN(start);
 	end = ELF_PAGEALIGN(end);
 	if (end > start) {
-		unsigned long addr;
-		addr = vm_brk(start, end - start);
-		if (BAD_ADDR(addr))
-			return addr;
+		int error = vm_brk(start, end - start);
+		if (error)
+			return error;
 	}
 	current->mm->start_brk = current->mm->brk = end;
 	return 0;
@@ -629,7 +628,7 @@ static unsigned long load_elf_interp(struct elfhdr *interp_elf_ex,
 
 		/* Map the last of the bss segment */
 		error = vm_brk(elf_bss, last_bss - elf_bss);
-		if (BAD_ADDR(error))
+		if (error)
 			goto out;
 	}
 
@@ -1176,8 +1175,11 @@ static int load_elf_library(struct file *file)
 	len = ELF_PAGESTART(eppnt->p_filesz + eppnt->p_vaddr +
 			    ELF_MIN_ALIGN - 1);
 	bss = eppnt->p_memsz + eppnt->p_vaddr;
-	if (bss > len)
-		vm_brk(len, bss - len);
+	if (bss > len) {
+		error = vm_brk(len, bss - len);
+		if (error)
+			goto out_free_ph;
+	}
 	error = 0;
 
 out_free_ph:
@@ -2273,7 +2275,7 @@ static int elf_core_dump(struct coredump_params *cprm)
 		goto end_coredump;
 
 	/* Align to page */
-	if (!dump_skip(cprm, dataoff - cprm->file->f_pos))
+	if (!dump_skip(cprm, dataoff - cprm->pos))
 		goto end_coredump;
 
 	for (i = 0, vma = first_vma(current, gate_vma); vma != NULL;

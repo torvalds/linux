@@ -69,7 +69,7 @@
 #include <linux/kfifo.h>
 #include <linux/platform_device.h>
 #include <linux/slab.h>
-#if defined(CONFIG_LEDS_CLASS) || defined(CONFIG_LEDS_CLASS_MODULE)
+#if IS_ENABLED(CONFIG_LEDS_CLASS)
 #include <linux/leds.h>
 #endif
 #include <acpi/video.h>
@@ -100,13 +100,14 @@
 /* FUNC interface - responses */
 #define UNSUPPORTED_CMD 0x80000000
 
-#if defined(CONFIG_LEDS_CLASS) || defined(CONFIG_LEDS_CLASS_MODULE)
+#if IS_ENABLED(CONFIG_LEDS_CLASS)
 /* FUNC interface - LED control */
 #define FUNC_LED_OFF	0x1
 #define FUNC_LED_ON	0x30001
 #define KEYBOARD_LAMPS	0x100
 #define LOGOLAMP_POWERON 0x2000
 #define LOGOLAMP_ALWAYS  0x4000
+#define RADIO_LED_ON	0x20
 #endif
 
 /* Hotkey details */
@@ -174,13 +175,14 @@ struct fujitsu_hotkey_t {
 	int rfkill_state;
 	int logolamp_registered;
 	int kblamps_registered;
+	int radio_led_registered;
 };
 
 static struct fujitsu_hotkey_t *fujitsu_hotkey;
 
 static void acpi_fujitsu_hotkey_notify(struct acpi_device *device, u32 event);
 
-#if defined(CONFIG_LEDS_CLASS) || defined(CONFIG_LEDS_CLASS_MODULE)
+#if IS_ENABLED(CONFIG_LEDS_CLASS)
 static enum led_brightness logolamp_get(struct led_classdev *cdev);
 static void logolamp_set(struct led_classdev *cdev,
 			       enum led_brightness brightness);
@@ -199,6 +201,16 @@ static struct led_classdev kblamps_led = {
  .name = "fujitsu::kblamps",
  .brightness_get = kblamps_get,
  .brightness_set = kblamps_set
+};
+
+static enum led_brightness radio_led_get(struct led_classdev *cdev);
+static void radio_led_set(struct led_classdev *cdev,
+			       enum led_brightness brightness);
+
+static struct led_classdev radio_led = {
+ .name = "fujitsu::radio_led",
+ .brightness_get = radio_led_get,
+ .brightness_set = radio_led_set
 };
 #endif
 
@@ -249,7 +261,7 @@ static int call_fext_func(int cmd, int arg0, int arg1, int arg2)
 	return value;
 }
 
-#if defined(CONFIG_LEDS_CLASS) || defined(CONFIG_LEDS_CLASS_MODULE)
+#if IS_ENABLED(CONFIG_LEDS_CLASS)
 /* LED class callbacks */
 
 static void logolamp_set(struct led_classdev *cdev,
@@ -275,6 +287,15 @@ static void kblamps_set(struct led_classdev *cdev,
 		call_fext_func(FUNC_LEDS, 0x1, KEYBOARD_LAMPS, FUNC_LED_OFF);
 }
 
+static void radio_led_set(struct led_classdev *cdev,
+				enum led_brightness brightness)
+{
+	if (brightness >= LED_FULL)
+		call_fext_func(FUNC_RFKILL, 0x5, RADIO_LED_ON, RADIO_LED_ON);
+	else
+		call_fext_func(FUNC_RFKILL, 0x5, RADIO_LED_ON, 0x0);
+}
+
 static enum led_brightness logolamp_get(struct led_classdev *cdev)
 {
 	enum led_brightness brightness = LED_OFF;
@@ -295,6 +316,16 @@ static enum led_brightness kblamps_get(struct led_classdev *cdev)
 	enum led_brightness brightness = LED_OFF;
 
 	if (call_fext_func(FUNC_LEDS, 0x2, KEYBOARD_LAMPS, 0x0) == FUNC_LED_ON)
+		brightness = LED_FULL;
+
+	return brightness;
+}
+
+static enum led_brightness radio_led_get(struct led_classdev *cdev)
+{
+	enum led_brightness brightness = LED_OFF;
+
+	if (call_fext_func(FUNC_RFKILL, 0x4, 0x0, 0x0) & RADIO_LED_ON)
 		brightness = LED_FULL;
 
 	return brightness;
@@ -872,7 +903,7 @@ static int acpi_fujitsu_hotkey_add(struct acpi_device *device)
 	/* Suspect this is a keymap of the application panel, print it */
 	pr_info("BTNI: [0x%x]\n", call_fext_func(FUNC_BUTTONS, 0x0, 0x0, 0x0));
 
-#if defined(CONFIG_LEDS_CLASS) || defined(CONFIG_LEDS_CLASS_MODULE)
+#if IS_ENABLED(CONFIG_LEDS_CLASS)
 	if (call_fext_func(FUNC_LEDS, 0x0, 0x0, 0x0) & LOGOLAMP_POWERON) {
 		result = led_classdev_register(&fujitsu->pf_device->dev,
 						&logolamp_led);
@@ -892,6 +923,23 @@ static int acpi_fujitsu_hotkey_add(struct acpi_device *device)
 			fujitsu_hotkey->kblamps_registered = 1;
 		} else {
 			pr_err("Could not register LED handler for keyboard lamps, error %i\n",
+			       result);
+		}
+	}
+
+	/*
+	 * BTNI bit 24 seems to indicate the presence of a radio toggle
+	 * button in place of a slide switch, and all such machines appear
+	 * to also have an RF LED.  Therefore use bit 24 as an indicator
+	 * that an RF LED is present.
+	 */
+	if (call_fext_func(FUNC_BUTTONS, 0x0, 0x0, 0x0) & BIT(24)) {
+		result = led_classdev_register(&fujitsu->pf_device->dev,
+						&radio_led);
+		if (result == 0) {
+			fujitsu_hotkey->radio_led_registered = 1;
+		} else {
+			pr_err("Could not register LED handler for radio LED, error %i\n",
 			       result);
 		}
 	}
@@ -915,12 +963,15 @@ static int acpi_fujitsu_hotkey_remove(struct acpi_device *device)
 	struct fujitsu_hotkey_t *fujitsu_hotkey = acpi_driver_data(device);
 	struct input_dev *input = fujitsu_hotkey->input;
 
-#if defined(CONFIG_LEDS_CLASS) || defined(CONFIG_LEDS_CLASS_MODULE)
+#if IS_ENABLED(CONFIG_LEDS_CLASS)
 	if (fujitsu_hotkey->logolamp_registered)
 		led_classdev_unregister(&logolamp_led);
 
 	if (fujitsu_hotkey->kblamps_registered)
 		led_classdev_unregister(&kblamps_led);
+
+	if (fujitsu_hotkey->radio_led_registered)
+		led_classdev_unregister(&radio_led);
 #endif
 
 	input_unregister_device(input);

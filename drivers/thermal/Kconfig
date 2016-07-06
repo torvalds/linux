@@ -260,16 +260,6 @@ config ARMADA_THERMAL
 	  Enable this option if you want to have support for thermal management
 	  controller present in Armada 370 and Armada XP SoC.
 
-config TEGRA_SOCTHERM
-	tristate "Tegra SOCTHERM thermal management"
-	depends on ARCH_TEGRA
-	help
-	  Enable this option for integrated thermal management support on NVIDIA
-	  Tegra124 systems-on-chip. The driver supports four thermal zones
-	  (CPU, GPU, MEM, PLLX). Cooling devices can be bound to the thermal
-	  zones to manage temperatures. This option is also required for the
-	  emergency thermal reset (thermtrip) feature to function.
-
 config DB8500_CPUFREQ_COOLING
 	tristate "DB8500 cpufreq cooling"
 	depends on ARCH_U8500 || COMPILE_TEST
@@ -377,6 +367,17 @@ depends on ARCH_STI && OF
 source "drivers/thermal/st/Kconfig"
 endmenu
 
+config TANGO_THERMAL
+	tristate "Tango thermal management"
+	depends on ARCH_TANGO || COMPILE_TEST
+	help
+	  Enable the Tango thermal driver, which supports the primitive
+	  temperature sensor embedded in Tango chips since the SMP8758.
+	  This sensor only generates a 1-bit signal to indicate whether
+	  the die temperature exceeds a programmable threshold.
+
+source "drivers/thermal/tegra/Kconfig"
+
 config QCOM_SPMI_TEMP_ALARM
 	tristate "Qualcomm SPMI PMIC Temperature Alarm"
 	depends on OF && SPMI && IIO
@@ -387,5 +388,15 @@ config QCOM_SPMI_TEMP_ALARM
 	  trip points. The temperature reported by the thermal sensor reflects the
 	  real time die temperature if an ADC is present or an estimate of the
 	  temperature based upon the over temperature stage value.
+
+config GENERIC_ADC_THERMAL
+	tristate "Generic ADC based thermal sensor"
+	depends on IIO
+	help
+	  This enabled a thermal sysfs driver for the temperature sensor
+	  which is connected to the General Purpose ADC. The ADC channel
+	  is read via IIO framework and the channel information is provided
+	  to this driver. This driver reports the temperature by reading ADC
+	  channel and converts it to temperature based on lookup table.
 
 endif

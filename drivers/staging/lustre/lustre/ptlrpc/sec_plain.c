@@ -162,7 +162,7 @@ static void corrupt_bulk_data(struct ptlrpc_bulk_desc *desc)
 			continue;
 
 		ptr = kmap(desc->bd_iov[i].kiov_page);
-		off = desc->bd_iov[i].kiov_offset & ~CFS_PAGE_MASK;
+		off = desc->bd_iov[i].kiov_offset & ~PAGE_MASK;
 		ptr[off] ^= 0x1;
 		kunmap(desc->bd_iov[i].kiov_page);
 		return;

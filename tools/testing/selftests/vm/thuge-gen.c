@@ -30,7 +30,9 @@
 #define MAP_HUGE_1GB    (30 << MAP_HUGE_SHIFT)
 #define MAP_HUGE_SHIFT  26
 #define MAP_HUGE_MASK   0x3f
+#if !defined(MAP_HUGETLB)
 #define MAP_HUGETLB	0x40000
+#endif
 
 #define SHM_HUGETLB     04000   /* segment will use huge TLB pages */
 #define SHM_HUGE_SHIFT  26

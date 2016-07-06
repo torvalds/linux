@@ -62,7 +62,7 @@ int pem_init_event_action_chains(struct pp_eventmgr *eventmgr)
 
 int pem_excute_event_chain(struct pp_eventmgr *eventmgr, const struct action_chain *event_chain, struct pem_event_data *event_data)
 {
-	const pem_event_action **paction_chain;
+	const pem_event_action * const *paction_chain;
 	const pem_event_action *psub_chain;
 	int tmp_result = 0;
 	int result = 0;

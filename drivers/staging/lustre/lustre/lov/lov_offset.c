@@ -66,6 +66,18 @@ u64 lov_stripe_size(struct lov_stripe_md *lsm, u64 ost_size, int stripeno)
 	return lov_size;
 }
 
+/**
+ * Compute file level page index by stripe level page offset
+ */
+pgoff_t lov_stripe_pgoff(struct lov_stripe_md *lsm, pgoff_t stripe_index,
+			 int stripe)
+{
+	loff_t offset;
+
+	offset = lov_stripe_size(lsm, stripe_index << PAGE_SHIFT, stripe);
+	return offset >> PAGE_SHIFT;
+}
+
 /* we have an offset in file backed by an lov and want to find out where
  * that offset lands in our given stripe of the file.  for the easy
  * case where the offset is within the stripe, we just have to scale the

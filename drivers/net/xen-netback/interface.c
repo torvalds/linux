@@ -780,9 +780,8 @@ void xenvif_disconnect_ctrl(struct xenvif *vif)
 		vif->ctrl_task = NULL;
 	}
 
-	xenvif_deinit_hash(vif);
-
 	if (vif->ctrl_irq) {
+		xenvif_deinit_hash(vif);
 		unbind_from_irqhandler(vif->ctrl_irq, vif);
 		vif->ctrl_irq = 0;
 	}

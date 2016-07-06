@@ -3,7 +3,7 @@
  *  under the terms of the GNU General Public License version 2 as published
  *  by the Free Software Foundation.
  *
- *  Copyright (C) 2012 John Crispin <blogic@openwrt.org>
+ *  Copyright (C) 2012 John Crispin <john@phrozen.org>
  */
 
 #include <linux/delay.h>
@@ -112,6 +112,6 @@ static struct platform_driver xway_phy_driver = {
 
 module_platform_driver(xway_phy_driver);
 
-MODULE_AUTHOR("John Crispin <blogic@openwrt.org>");
+MODULE_AUTHOR("John Crispin <john@phrozen.org>");
 MODULE_DESCRIPTION("Lantiq XRX200 PHY Firmware Loader");
 MODULE_LICENSE("GPL");

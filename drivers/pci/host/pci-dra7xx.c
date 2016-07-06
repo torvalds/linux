@@ -142,12 +142,12 @@ static void dra7xx_pcie_enable_interrupts(struct pcie_port *pp)
 
 static void dra7xx_pcie_host_init(struct pcie_port *pp)
 {
-	dw_pcie_setup_rc(pp);
-
 	pp->io_base &= DRA7XX_CPU_TO_BUS_ADDR;
 	pp->mem_base &= DRA7XX_CPU_TO_BUS_ADDR;
 	pp->cfg0_base &= DRA7XX_CPU_TO_BUS_ADDR;
 	pp->cfg1_base &= DRA7XX_CPU_TO_BUS_ADDR;
+
+	dw_pcie_setup_rc(pp);
 
 	dra7xx_pcie_establish_link(pp);
 	if (IS_ENABLED(CONFIG_PCI_MSI))

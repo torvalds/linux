@@ -4278,9 +4278,6 @@ static void ath10k_mac_setup_ht_vht_cap(struct ath10k *ar)
 	if (ar->phy_capability & WHAL_WLAN_11G_CAPABILITY) {
 		band = &ar->mac.sbands[NL80211_BAND_2GHZ];
 		band->ht_cap = ht_cap;
-
-		/* Enable the VHT support at 2.4 GHz */
-		band->vht_cap = vht_cap;
 	}
 	if (ar->phy_capability & WHAL_WLAN_11A_CAPABILITY) {
 		band = &ar->mac.sbands[NL80211_BAND_5GHZ];
@@ -4346,7 +4343,7 @@ static int ath10k_start(struct ieee80211_hw *hw)
 
 	/*
 	 * This makes sense only when restarting hw. It is harmless to call
-	 * uncoditionally. This is necessary to make sure no HTT/WMI tx
+	 * unconditionally. This is necessary to make sure no HTT/WMI tx
 	 * commands will be submitted while restarting.
 	 */
 	ath10k_drain_tx(ar);
@@ -6407,6 +6404,39 @@ static void ath10k_reconfig_complete(struct ieee80211_hw *hw,
 	mutex_unlock(&ar->conf_mutex);
 }
 
+static void
+ath10k_mac_update_bss_chan_survey(struct ath10k *ar,
+				  struct ieee80211_channel *channel)
+{
+	int ret;
+	enum wmi_bss_survey_req_type type = WMI_BSS_SURVEY_REQ_TYPE_READ_CLEAR;
+
+	lockdep_assert_held(&ar->conf_mutex);
+
+	if (!test_bit(WMI_SERVICE_BSS_CHANNEL_INFO_64, ar->wmi.svc_map) ||
+	    (ar->rx_channel != channel))
+		return;
+
+	if (ar->scan.state != ATH10K_SCAN_IDLE) {
+		ath10k_dbg(ar, ATH10K_DBG_MAC, "ignoring bss chan info request while scanning..\n");
+		return;
+	}
+
+	reinit_completion(&ar->bss_survey_done);
+
+	ret = ath10k_wmi_pdev_bss_chan_info_request(ar, type);
+	if (ret) {
+		ath10k_warn(ar, "failed to send pdev bss chan info request\n");
+		return;
+	}
+
+	ret = wait_for_completion_timeout(&ar->bss_survey_done, 3 * HZ);
+	if (!ret) {
+		ath10k_warn(ar, "bss channel survey timed out\n");
+		return;
+	}
+}
+
 static int ath10k_get_survey(struct ieee80211_hw *hw, int idx,
 			     struct survey_info *survey)
 {
@@ -6430,6 +6460,8 @@ static int ath10k_get_survey(struct ieee80211_hw *hw, int idx,
 		ret = -ENOENT;
 		goto exit;
 	}
+
+	ath10k_mac_update_bss_chan_survey(ar, survey->channel);
 
 	spin_lock_bh(&ar->data_lock);
 	memcpy(survey, ar_survey, sizeof(*survey));

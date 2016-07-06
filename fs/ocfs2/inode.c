@@ -176,12 +176,7 @@ struct inode *ocfs2_iget(struct ocfs2_super *osb, u64 blkno, unsigned flags,
 	}
 	if (is_bad_inode(inode)) {
 		iput(inode);
-		if ((flags & OCFS2_FI_FLAG_FILECHECK_CHK) ||
-		    (flags & OCFS2_FI_FLAG_FILECHECK_FIX))
-			/* Return OCFS2_FILECHECK_ERR_XXX related errno */
-			inode = ERR_PTR(rc);
-		else
-			inode = ERR_PTR(-ESTALE);
+		inode = ERR_PTR(rc);
 		goto bail;
 	}
 

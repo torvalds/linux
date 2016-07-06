@@ -15,6 +15,15 @@ config GENERIC_PHY
 	  phy users can obtain reference to the PHY. All the users of this
 	  framework should select this config.
 
+config PHY_BCM_NS_USB2
+	tristate "Broadcom Northstar USB 2.0 PHY Driver"
+	depends on ARCH_BCM_IPROC || COMPILE_TEST
+	depends on HAS_IOMEM && OF
+	select GENERIC_PHY
+	help
+	  Enable this to support Broadcom USB 2.0 PHY connected to the USB
+	  controller on Northstar family.
+
 config PHY_BERLIN_USB
 	tristate "Marvell Berlin USB PHY Driver"
 	depends on ARCH_BERLIN && RESET_CONTROLLER && HAS_IOMEM && OF
@@ -113,14 +122,15 @@ config PHY_MIPHY365X
 
 config PHY_RCAR_GEN2
 	tristate "Renesas R-Car generation 2 USB PHY driver"
-	depends on ARCH_SHMOBILE
+	depends on ARCH_RENESAS
 	depends on GENERIC_PHY
 	help
 	  Support for USB PHY found on Renesas R-Car generation 2 SoCs.
 
 config PHY_RCAR_GEN3_USB2
 	tristate "Renesas R-Car generation 3 USB 2.0 PHY driver"
-	depends on OF && ARCH_SHMOBILE
+	depends on ARCH_RENESAS
+	depends on EXTCON
 	select GENERIC_PHY
 	help
 	  Support for USB 2.0 PHY found on Renesas R-Car generation 3 SoCs.
@@ -218,9 +228,8 @@ config PHY_MT65XX_USB3
 	depends on ARCH_MEDIATEK && OF
 	select GENERIC_PHY
 	help
-	  Say 'Y' here to add support for Mediatek USB3.0 PHY driver
-	  for mt65xx SoCs. it supports two usb2.0 ports and
-	  one usb3.0 port.
+	  Say 'Y' here to add support for Mediatek USB3.0 PHY driver,
+	  it supports multiple usb2.0 and usb3.0 ports.
 
 config PHY_HI6220_USB
 	tristate "hi6220 USB PHY support"
@@ -250,7 +259,8 @@ config PHY_SUN9I_USB
 	tristate "Allwinner sun9i SoC USB PHY driver"
 	depends on ARCH_SUNXI && HAS_IOMEM && OF
 	depends on RESET_CONTROLLER
-	depends on USB_COMMON
+	depends on USB_SUPPORT
+	select USB_COMMON
 	select GENERIC_PHY
 	help
 	  Enable this to support the transceiver that is part of Allwinner
@@ -403,14 +413,15 @@ config PHY_TUSB1210
 	help
 	  Support for TI TUSB1210 USB ULPI PHY.
 
-config PHY_BRCMSTB_SATA
-	tristate "Broadcom STB SATA PHY driver"
-	depends on ARCH_BRCMSTB || BMIPS_GENERIC
+config PHY_BRCM_SATA
+	tristate "Broadcom SATA PHY driver"
+	depends on ARCH_BRCMSTB || ARCH_BCM_IPROC || BMIPS_GENERIC || COMPILE_TEST
 	depends on OF
 	select GENERIC_PHY
+	default ARCH_BCM_IPROC
 	help
-	  Enable this to support the SATA3 PHY on 28nm or 40nm Broadcom STB SoCs.
-	  Likely useful only with CONFIG_SATA_BRCMSTB enabled.
+	  Enable this to support the Broadcom SATA PHY.
+	  If unsure, say N.
 
 config PHY_CYGNUS_PCIE
 	tristate "Broadcom Cygnus PCIe PHY driver"

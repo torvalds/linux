@@ -576,7 +576,7 @@ static int rbio_can_merge(struct btrfs_raid_bio *last,
 	 * we can't merge with cached rbios, since the
 	 * idea is that when we merge the destination
 	 * rbio is going to run our IO for us.  We can
-	 * steal from cached rbio's though, other functions
+	 * steal from cached rbios though, other functions
 	 * handle that.
 	 */
 	if (test_bit(RBIO_CACHE_BIT, &last->flags) ||
@@ -2368,7 +2368,7 @@ static noinline void finish_parity_scrub(struct btrfs_raid_bio *rbio,
 			run_xor(pointers + 1, nr_data - 1, PAGE_SIZE);
 		}
 
-		/* Check scrubbing pairty and repair it */
+		/* Check scrubbing parity and repair it */
 		p = rbio_stripe_page(rbio, rbio->scrubp, pagenr);
 		parity = kmap(p);
 		if (memcmp(parity, pointers[rbio->scrubp], PAGE_SIZE))
@@ -2493,7 +2493,7 @@ static void validate_rbio_for_parity_scrub(struct btrfs_raid_bio *rbio)
 		/*
 		 * Here means we got one corrupted data stripe and one
 		 * corrupted parity on RAID6, if the corrupted parity
-		 * is scrubbing parity, luckly, use the other one to repair
+		 * is scrubbing parity, luckily, use the other one to repair
 		 * the data, or we can not repair the data stripe.
 		 */
 		if (failp != rbio->scrubp)

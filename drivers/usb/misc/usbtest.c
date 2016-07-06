@@ -287,6 +287,9 @@ static struct urb *usbtest_alloc_urb(
 	if (usb_pipein(pipe))
 		urb->transfer_flags |= URB_SHORT_NOT_OK;
 
+	if ((bytes + offset) == 0)
+		return urb;
+
 	if (urb->transfer_flags & URB_NO_TRANSFER_DMA_MAP)
 		urb->transfer_buffer = usb_alloc_coherent(udev, bytes + offset,
 			GFP_KERNEL, &urb->transfer_dma);
@@ -529,6 +532,7 @@ static struct scatterlist *
 alloc_sglist(int nents, int max, int vary, struct usbtest_dev *dev, int pipe)
 {
 	struct scatterlist	*sg;
+	unsigned int		n_size = 0;
 	unsigned		i;
 	unsigned		size = max;
 	unsigned		maxpacket =
@@ -561,7 +565,8 @@ alloc_sglist(int nents, int max, int vary, struct usbtest_dev *dev, int pipe)
 			break;
 		case 1:
 			for (j = 0; j < size; j++)
-				*buf++ = (u8) ((j % maxpacket) % 63);
+				*buf++ = (u8) (((j + n_size) % maxpacket) % 63);
+			n_size += size;
 			break;
 		}
 

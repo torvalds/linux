@@ -87,7 +87,9 @@ static const struct pci_device_id qede_pci_tbl[] = {
 	{PCI_VDEVICE(QLOGIC, PCI_DEVICE_ID_57980S_100), QEDE_PRIVATE_PF},
 	{PCI_VDEVICE(QLOGIC, PCI_DEVICE_ID_57980S_50), QEDE_PRIVATE_PF},
 	{PCI_VDEVICE(QLOGIC, PCI_DEVICE_ID_57980S_25), QEDE_PRIVATE_PF},
+#ifdef CONFIG_QED_SRIOV
 	{PCI_VDEVICE(QLOGIC, PCI_DEVICE_ID_57980S_IOV), QEDE_PRIVATE_VF},
+#endif
 	{ 0 }
 };
 
@@ -920,7 +922,7 @@ static inline int qede_realloc_rx_buffer(struct qede_dev *edev,
 		 * network stack to take the ownership of the page
 		 * which can be recycled multiple times by the driver.
 		 */
-		atomic_inc(&curr_cons->data->_count);
+		page_ref_inc(curr_cons->data);
 		qede_reuse_page(edev, rxq, curr_cons);
 	}
 
@@ -1036,7 +1038,7 @@ static int qede_fill_frag_skb(struct qede_dev *edev,
 		/* Incr page ref count to reuse on allocation failure
 		 * so that it doesn't get freed while freeing SKB.
 		 */
-		atomic_inc(&current_bd->data->_count);
+		page_ref_inc(current_bd->data);
 		goto out;
 	}
 
@@ -1076,8 +1078,7 @@ static void qede_tpa_start(struct qede_dev *edev,
 	 * start until its over and we don't want to risk allocation failing
 	 * here, so re-allocate when aggregation will be over.
 	 */
-	dma_unmap_addr_set(sw_rx_data_prod, mapping,
-			   dma_unmap_addr(replace_buf, mapping));
+	sw_rx_data_prod->mapping = replace_buf->mapping;
 
 	sw_rx_data_prod->data = replace_buf->data;
 	rx_bd_prod->addr.hi = cpu_to_le32(upper_32_bits(mapping));
@@ -1487,7 +1488,7 @@ static int qede_rx_int(struct qede_fastpath *fp, int budget)
 				 * freeing SKB.
 				 */
 
-				atomic_inc(&sw_rx_data->data->_count);
+				page_ref_inc(sw_rx_data->data);
 				rxq->rx_alloc_errors++;
 				qede_recycle_rx_bd_ring(rxq, edev,
 							fp_cqe->bd_num);
@@ -1825,7 +1826,7 @@ static int qede_set_vf_rate(struct net_device *dev, int vfidx,
 {
 	struct qede_dev *edev = netdev_priv(dev);
 
-	return edev->ops->iov->set_rate(edev->cdev, vfidx, max_tx_rate,
+	return edev->ops->iov->set_rate(edev->cdev, vfidx, min_tx_rate,
 					max_tx_rate);
 }
 
@@ -2092,6 +2093,29 @@ static void qede_vlan_mark_nonconfigured(struct qede_dev *edev)
 	edev->accept_any_vlan = false;
 }
 
+int qede_set_features(struct net_device *dev, netdev_features_t features)
+{
+	struct qede_dev *edev = netdev_priv(dev);
+	netdev_features_t changes = features ^ dev->features;
+	bool need_reload = false;
+
+	/* No action needed if hardware GRO is disabled during driver load */
+	if (changes & NETIF_F_GRO) {
+		if (dev->features & NETIF_F_GRO)
+			need_reload = !edev->gro_disable;
+		else
+			need_reload = edev->gro_disable;
+	}
+
+	if (need_reload && netif_running(edev->ndev)) {
+		dev->features = features;
+		qede_reload(edev, NULL, NULL);
+		return 1;
+	}
+
+	return 0;
+}
+
 #ifdef CONFIG_QEDE_VXLAN
 static void qede_add_vxlan_port(struct net_device *dev,
 				sa_family_t sa_family, __be16 port)
@@ -2176,6 +2200,7 @@ static const struct net_device_ops qede_netdev_ops = {
 #endif
 	.ndo_vlan_rx_add_vid = qede_vlan_rx_add_vid,
 	.ndo_vlan_rx_kill_vid = qede_vlan_rx_kill_vid,
+	.ndo_set_features = qede_set_features,
 	.ndo_get_stats64 = qede_get_stats64,
 #ifdef CONFIG_QED_SRIOV
 	.ndo_set_vf_link_state = qede_set_vf_link_state,
@@ -2655,7 +2680,7 @@ static void qede_free_sge_mem(struct qede_dev *edev,
 
 		if (replace_buf->data) {
 			dma_unmap_page(&edev->pdev->dev,
-				       dma_unmap_addr(replace_buf, mapping),
+				       replace_buf->mapping,
 				       PAGE_SIZE, DMA_FROM_DEVICE);
 			__free_page(replace_buf->data);
 		}
@@ -2755,7 +2780,7 @@ static int qede_alloc_sge_mem(struct qede_dev *edev,
 			goto err;
 		}
 
-		dma_unmap_addr_set(replace_buf, mapping, mapping);
+		replace_buf->mapping = mapping;
 		tpa_info->replace_buf.page_offset = 0;
 
 		tpa_info->replace_buf_mapping = mapping;

@@ -175,6 +175,7 @@ config COMMON_CLK_KEYSTONE
 config COMMON_CLK_NXP
 	def_bool COMMON_CLK && (ARCH_LPC18XX || ARCH_LPC32XX)
 	select REGMAP_MMIO if ARCH_LPC32XX
+	select MFD_SYSCON if ARCH_LPC18XX
 	---help---
 	  Support for clock providers on NXP platforms.
 
@@ -196,6 +197,15 @@ config COMMON_CLK_PXA
 	def_bool COMMON_CLK && ARCH_PXA
 	---help---
 	  Support for the Marvell PXA SoC.
+
+config COMMON_CLK_PIC32
+	def_bool COMMON_CLK && MACH_PIC32
+
+config COMMON_CLK_OXNAS
+	bool "Clock driver for the OXNAS SoC Family"
+	select MFD_SYSCON
+	---help---
+	  Support for the OXNAS SoC Family clocks.
 
 source "drivers/clk/bcm/Kconfig"
 source "drivers/clk/hisilicon/Kconfig"

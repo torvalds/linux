@@ -23,7 +23,7 @@
  * This file is part of Lustre, http://www.lustre.org/
  * Lustre is a trademark of Sun Microsystems, Inc.
  *
- * libcfs/include/libcfs/linux/linux-mem.h
+ * libcfs/include/libcfs/linux/linux-cpu.h
  *
  * Basic library routines.
  *

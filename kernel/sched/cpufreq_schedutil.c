@@ -9,6 +9,8 @@
  * published by the Free Software Foundation.
  */
 
+#define pr_fmt(fmt) KBUILD_MODNAME ": " fmt
+
 #include <linux/cpufreq.h>
 #include <linux/module.h>
 #include <linux/slab.h>
@@ -388,7 +390,7 @@ static int sugov_init(struct cpufreq_policy *policy)
 	mutex_unlock(&global_tunables_lock);
 
 	sugov_policy_free(sg_policy);
-	pr_err("cpufreq: schedutil governor initialization failed (error %d)\n", ret);
+	pr_err("initialization failed (error %d)\n", ret);
 	return ret;
 }
 

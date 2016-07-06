@@ -52,7 +52,6 @@ static void lov_init_set(struct lov_request_set *set)
 	INIT_LIST_HEAD(&set->set_list);
 	atomic_set(&set->set_refcount, 1);
 	init_waitqueue_head(&set->set_waitq);
-	spin_lock_init(&set->set_lock);
 }
 
 void lov_finish_set(struct lov_request_set *set)
@@ -235,7 +234,6 @@ out:
 	if (tmp_oa)
 		kmem_cache_free(obdo_cachep, tmp_oa);
 	return rc;
-
 }
 
 int lov_fini_getattr_set(struct lov_request_set *set)
@@ -363,7 +361,6 @@ int lov_prep_destroy_set(struct obd_export *exp, struct obd_info *oinfo,
 	set->set_oi = oinfo;
 	set->set_oi->oi_md = lsm;
 	set->set_oi->oi_oa = src_oa;
-	set->set_oti = oti;
 	if (oti && src_oa->o_valid & OBD_MD_FLCOOKIE)
 		set->set_cookies = oti->oti_logcookies;
 
@@ -480,7 +477,6 @@ int lov_prep_setattr_set(struct obd_export *exp, struct obd_info *oinfo,
 	lov_init_set(set);
 
 	set->set_exp = exp;
-	set->set_oti = oti;
 	set->set_oi = oinfo;
 	if (oti && oinfo->oi_oa->o_valid & OBD_MD_FLCOOKIE)
 		set->set_cookies = oti->oti_logcookies;
@@ -716,11 +712,14 @@ int lov_prep_statfs_set(struct obd_device *obd, struct obd_info *oinfo,
 		struct lov_request *req;
 
 		if (!lov->lov_tgts[i] ||
-		    (!lov_check_and_wait_active(lov, i) &&
-		     (oinfo->oi_flags & OBD_STATFS_NODELAY))) {
+		    (oinfo->oi_flags & OBD_STATFS_NODELAY &&
+		     !lov->lov_tgts[i]->ltd_active)) {
 			CDEBUG(D_HA, "lov idx %d inactive\n", i);
 			continue;
 		}
+
+		if (!lov->lov_tgts[i]->ltd_active)
+			lov_check_and_wait_active(lov, i);
 
 		/* skip targets that have been explicitly disabled by the
 		 * administrator

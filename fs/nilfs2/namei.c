@@ -13,12 +13,7 @@
  * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
  * GNU General Public License for more details.
  *
- * You should have received a copy of the GNU General Public License
- * along with this program; if not, write to the Free Software
- * Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA  02110-1301  USA
- *
- * Modified for NILFS by Amagai Yoshiji <amagai@osrg.net>,
- *                       Ryusuke Konishi <ryusuke@osrg.net>
+ * Modified for NILFS by Amagai Yoshiji and Ryusuke Konishi.
  */
 /*
  *  linux/fs/ext2/namei.c
@@ -49,6 +44,7 @@
 static inline int nilfs_add_nondir(struct dentry *dentry, struct inode *inode)
 {
 	int err = nilfs_add_link(dentry, inode);
+
 	if (!err) {
 		d_instantiate(dentry, inode);
 		unlock_new_inode(inode);
@@ -143,7 +139,7 @@ static int nilfs_symlink(struct inode *dir, struct dentry *dentry,
 {
 	struct nilfs_transaction_info ti;
 	struct super_block *sb = dir->i_sb;
-	unsigned l = strlen(symname)+1;
+	unsigned int l = strlen(symname) + 1;
 	struct inode *inode;
 	int err;
 
@@ -288,7 +284,7 @@ static int nilfs_do_unlink(struct inode *dir, struct dentry *dentry)
 
 	if (!inode->i_nlink) {
 		nilfs_warning(inode->i_sb, __func__,
-			      "deleting nonexistent file (%lu), %d\n",
+			      "deleting nonexistent file (%lu), %d",
 			      inode->i_ino, inode->i_nlink);
 		set_nlink(inode, 1);
 	}

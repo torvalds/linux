@@ -24,15 +24,12 @@
 #include "gk104.h"
 #include "changk104.h"
 
-static const struct nvkm_fifo_func
+static const struct gk104_fifo_func
 gm200_fifo = {
-	.dtor = gk104_fifo_dtor,
-	.oneinit = gk104_fifo_oneinit,
-	.init = gk104_fifo_init,
-	.fini = gk104_fifo_fini,
-	.intr = gk104_fifo_intr,
-	.uevent_init = gk104_fifo_uevent_init,
-	.uevent_fini = gk104_fifo_uevent_fini,
+	.fault.engine = gm107_fifo_fault_engine,
+	.fault.reason = gk104_fifo_fault_reason,
+	.fault.hubclient = gk104_fifo_fault_hubclient,
+	.fault.gpcclient = gk104_fifo_fault_gpcclient,
 	.chan = {
 		&gm200_fifo_gpfifo_oclass,
 		NULL

@@ -632,6 +632,7 @@ static int __init nf_conntrack_ftp_init(void)
 			if (ret) {
 				pr_err("failed to register helper for pf: %d port: %d\n",
 				       ftp[i][j].tuple.src.l3num, ports[i]);
+				ports_c = i;
 				nf_conntrack_ftp_fini();
 				return ret;
 			}

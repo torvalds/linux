@@ -368,7 +368,7 @@ struct iwl_wowlan_gtk_status {
 	u8 decrypt_key[16];
 	u8 tkip_mic_key[8];
 	struct iwl_wowlan_rsc_tsc_params_cmd rsc;
-} __packed;
+} __packed; /* WOWLAN_GTK_MATERIAL_VER_1 */
 
 struct iwl_wowlan_status {
 	struct iwl_wowlan_gtk_status gtk;

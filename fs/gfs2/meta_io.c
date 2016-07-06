@@ -325,18 +325,19 @@ int gfs2_meta_wait(struct gfs2_sbd *sdp, struct buffer_head *bh)
 	return 0;
 }
 
-void gfs2_remove_from_journal(struct buffer_head *bh, struct gfs2_trans *tr, int meta)
+void gfs2_remove_from_journal(struct buffer_head *bh, int meta)
 {
 	struct address_space *mapping = bh->b_page->mapping;
 	struct gfs2_sbd *sdp = gfs2_mapping2sbd(mapping);
 	struct gfs2_bufdata *bd = bh->b_private;
+	struct gfs2_trans *tr = current->journal_info;
 	int was_pinned = 0;
 
 	if (test_clear_buffer_pinned(bh)) {
 		trace_gfs2_pin(bd, 0);
 		atomic_dec(&sdp->sd_log_pinned);
 		list_del_init(&bd->bd_list);
-		if (meta)
+		if (meta == REMOVE_META)
 			tr->tr_num_buf_rm++;
 		else
 			tr->tr_num_databuf_rm++;
@@ -376,7 +377,7 @@ void gfs2_meta_wipe(struct gfs2_inode *ip, u64 bstart, u32 blen)
 		if (bh) {
 			lock_buffer(bh);
 			gfs2_log_lock(sdp);
-			gfs2_remove_from_journal(bh, current->journal_info, 1);
+			gfs2_remove_from_journal(bh, REMOVE_META);
 			gfs2_log_unlock(sdp);
 			unlock_buffer(bh);
 			brelse(bh);

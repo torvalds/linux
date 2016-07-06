@@ -220,7 +220,7 @@ gk20a_pmu_new(struct nvkm_device *device, int index, struct nvkm_pmu **ppmu)
 	pmu->base.func = &func;
 	*ppmu = &pmu->base;
 
-	nvkm_subdev_ctor(&gk20a_pmu, device, index, 0, &pmu->base.subdev);
+	nvkm_subdev_ctor(&gk20a_pmu, device, index, &pmu->base.subdev);
 	pmu->data = &gk20a_dvfs_data;
 	nvkm_alarm_init(&pmu->alarm, gk20a_pmu_dvfs_work);
 	return 0;

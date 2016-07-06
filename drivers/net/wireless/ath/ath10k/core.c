@@ -202,6 +202,7 @@ static const struct ath10k_hw_params ath10k_hw_params_list[] = {
 		.name = "qca4019 hw1.0",
 		.patch_load_addr = QCA4019_HW_1_0_PATCH_LOAD_ADDR,
 		.uart_pin = 7,
+		.has_shifted_cc_wraparound = true,
 		.otp_exe_param = 0x0010000,
 		.continuous_frag_desc = true,
 		.channel_counters_freq_hz = 125000,
@@ -686,6 +687,9 @@ static void ath10k_core_free_firmware_files(struct ath10k *ar)
 	if (!IS_ERR(ar->cal_file))
 		release_firmware(ar->cal_file);
 
+	if (!IS_ERR(ar->pre_cal_file))
+		release_firmware(ar->pre_cal_file);
+
 	ath10k_swap_code_seg_release(ar);
 
 	ar->normal_mode_fw.fw_file.otp_data = NULL;
@@ -696,6 +700,7 @@ static void ath10k_core_free_firmware_files(struct ath10k *ar)
 	ar->normal_mode_fw.fw_file.firmware_len = 0;
 
 	ar->cal_file = NULL;
+	ar->pre_cal_file = NULL;
 }
 
 static int ath10k_fetch_cal_file(struct ath10k *ar)
@@ -1392,6 +1397,7 @@ static void ath10k_core_restart(struct work_struct *work)
 	complete_all(&ar->install_key_done);
 	complete_all(&ar->vdev_setup_done);
 	complete_all(&ar->thermal.wmi_sync);
+	complete_all(&ar->bss_survey_done);
 	wake_up(&ar->htt.empty_tx_wq);
 	wake_up(&ar->wmi.tx_credits_wq);
 	wake_up(&ar->peer_mapping_wq);
@@ -1724,6 +1730,9 @@ int ath10k_core_start(struct ath10k *ar, enum ath10k_firmware_mode mode,
 		if (ath10k_peer_stats_enabled(ar))
 			val = WMI_10_4_PEER_STATS;
 
+		if (test_bit(WMI_SERVICE_BSS_CHANNEL_INFO_64, ar->wmi.svc_map))
+			val |= WMI_10_4_BSS_CHANNEL_INFO_64;
+
 		status = ath10k_mac_ext_resource_config(ar, val);
 		if (status) {
 			ath10k_err(ar,
@@ -1758,6 +1767,10 @@ int ath10k_core_start(struct ath10k *ar, enum ath10k_firmware_mode mode,
 		goto err_hif_stop;
 	}
 
+	ar->free_vdev_map = (1LL << ar->max_num_vdevs) - 1;
+
+	INIT_LIST_HEAD(&ar->arvifs);
+
 	/* we don't care about HTT in UTF mode */
 	if (mode == ATH10K_FIRMWARE_MODE_NORMAL) {
 		status = ath10k_htt_setup(&ar->htt);
@@ -1770,10 +1783,6 @@ int ath10k_core_start(struct ath10k *ar, enum ath10k_firmware_mode mode,
 	status = ath10k_debug_start(ar);
 	if (status)
 		goto err_hif_stop;
-
-	ar->free_vdev_map = (1LL << ar->max_num_vdevs) - 1;
-
-	INIT_LIST_HEAD(&ar->arvifs);
 
 	return 0;
 
@@ -2085,6 +2094,7 @@ struct ath10k *ath10k_core_create(size_t priv_size, struct device *dev,
 	init_completion(&ar->install_key_done);
 	init_completion(&ar->vdev_setup_done);
 	init_completion(&ar->thermal.wmi_sync);
+	init_completion(&ar->bss_survey_done);
 
 	INIT_DELAYED_WORK(&ar->scan.timeout, ath10k_scan_timeout_work);
 

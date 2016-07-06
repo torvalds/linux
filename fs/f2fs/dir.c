@@ -48,7 +48,6 @@ unsigned char f2fs_filetype_table[F2FS_FT_MAX] = {
 	[F2FS_FT_SYMLINK]	= DT_LNK,
 };
 
-#define S_SHIFT 12
 static unsigned char f2fs_type_by_mode[S_IFMT >> S_SHIFT] = {
 	[S_IFREG >> S_SHIFT]	= F2FS_FT_REG_FILE,
 	[S_IFDIR >> S_SHIFT]	= F2FS_FT_DIR,
@@ -62,6 +61,13 @@ static unsigned char f2fs_type_by_mode[S_IFMT >> S_SHIFT] = {
 void set_de_type(struct f2fs_dir_entry *de, umode_t mode)
 {
 	de->file_type = f2fs_type_by_mode[(mode & S_IFMT) >> S_SHIFT];
+}
+
+unsigned char get_de_type(struct f2fs_dir_entry *de)
+{
+	if (de->file_type < F2FS_FT_MAX)
+		return f2fs_filetype_table[de->file_type];
+	return DT_UNKNOWN;
 }
 
 static unsigned long dir_block_index(unsigned int level,
@@ -95,11 +101,6 @@ static struct f2fs_dir_entry *find_in_block(struct page *dentry_page,
 	else
 		kunmap(dentry_page);
 
-	/*
-	 * For the most part, it should be a bug when name_len is zero.
-	 * We stop here for figuring out where the bugs has occurred.
-	 */
-	f2fs_bug_on(F2FS_P_SB(dentry_page), d.max < 0);
 	return de;
 }
 
@@ -124,6 +125,11 @@ struct f2fs_dir_entry *find_target_dentry(struct fscrypt_name *fname,
 
 		de = &d->dentry[bit_pos];
 
+		if (unlikely(!de->name_len)) {
+			bit_pos++;
+			continue;
+		}
+
 		/* encrypted case */
 		de_name.name = d->filename[bit_pos];
 		de_name.len = le16_to_cpu(de->name_len);
@@ -140,10 +146,6 @@ struct f2fs_dir_entry *find_target_dentry(struct fscrypt_name *fname,
 		if (max_slots && max_len > *max_slots)
 			*max_slots = max_len;
 		max_len = 0;
-
-		/* remain bug on condition */
-		if (unlikely(!de->name_len))
-			d->max = -1;
 
 		bit_pos += GET_DENTRY_SLOTS(le16_to_cpu(de->name_len));
 	}
@@ -389,9 +391,14 @@ struct page *init_inode_metadata(struct inode *inode, struct inode *dir,
 			return page;
 
 		if (S_ISDIR(inode->i_mode)) {
+			/* in order to handle error case */
+			get_page(page);
 			err = make_empty_dir(inode, dir, page);
-			if (err)
-				goto error;
+			if (err) {
+				lock_page(page);
+				goto put_error;
+			}
+			put_page(page);
 		}
 
 		err = f2fs_init_acl(inode, dir, page, dpage);
@@ -435,13 +442,12 @@ struct page *init_inode_metadata(struct inode *inode, struct inode *dir,
 	return page;
 
 put_error:
-	f2fs_put_page(page, 1);
-error:
-	/* once the failed inode becomes a bad inode, i_mode is S_IFREG */
+	/* truncate empty dir pages */
 	truncate_inode_pages(&inode->i_data, 0);
-	truncate_blocks(inode, 0, false);
-	remove_dirty_inode(inode);
-	remove_inode_page(inode);
+
+	clear_nlink(inode);
+	update_inode(inode, page);
+	f2fs_put_page(page, 1);
 	return ERR_PTR(err);
 }
 
@@ -509,11 +515,7 @@ void f2fs_update_dentry(nid_t ino, umode_t mode, struct f2fs_dentry_ptr *d,
 	}
 }
 
-/*
- * Caller should grab and release a rwsem by calling f2fs_lock_op() and
- * f2fs_unlock_op().
- */
-int __f2fs_add_link(struct inode *dir, const struct qstr *name,
+int f2fs_add_regular_entry(struct inode *dir, const struct qstr *new_name,
 				struct inode *inode, nid_t ino, umode_t mode)
 {
 	unsigned int bit_pos;
@@ -526,28 +528,11 @@ int __f2fs_add_link(struct inode *dir, const struct qstr *name,
 	struct f2fs_dentry_block *dentry_blk = NULL;
 	struct f2fs_dentry_ptr d;
 	struct page *page = NULL;
-	struct fscrypt_name fname;
-	struct qstr new_name;
-	int slots, err;
-
-	err = fscrypt_setup_filename(dir, name, 0, &fname);
-	if (err)
-		return err;
-
-	new_name.name = fname_name(&fname);
-	new_name.len = fname_len(&fname);
-
-	if (f2fs_has_inline_dentry(dir)) {
-		err = f2fs_add_inline_entry(dir, &new_name, inode, ino, mode);
-		if (!err || err != -EAGAIN)
-			goto out;
-		else
-			err = 0;
-	}
+	int slots, err = 0;
 
 	level = 0;
-	slots = GET_DENTRY_SLOTS(new_name.len);
-	dentry_hash = f2fs_dentry_hash(&new_name);
+	slots = GET_DENTRY_SLOTS(new_name->len);
+	dentry_hash = f2fs_dentry_hash(new_name);
 
 	current_depth = F2FS_I(dir)->i_current_depth;
 	if (F2FS_I(dir)->chash == dentry_hash) {
@@ -556,10 +541,12 @@ int __f2fs_add_link(struct inode *dir, const struct qstr *name,
 	}
 
 start:
-	if (unlikely(current_depth == MAX_DIR_HASH_DEPTH)) {
-		err = -ENOSPC;
-		goto out;
-	}
+#ifdef CONFIG_F2FS_FAULT_INJECTION
+	if (time_to_inject(FAULT_DIR_DEPTH))
+		return -ENOSPC;
+#endif
+	if (unlikely(current_depth == MAX_DIR_HASH_DEPTH))
+		return -ENOSPC;
 
 	/* Increase the depth, if required */
 	if (level == current_depth)
@@ -573,10 +560,8 @@ start:
 
 	for (block = bidx; block <= (bidx + nblock - 1); block++) {
 		dentry_page = get_new_data_page(dir, NULL, block, true);
-		if (IS_ERR(dentry_page)) {
-			err = PTR_ERR(dentry_page);
-			goto out;
-		}
+		if (IS_ERR(dentry_page))
+			return PTR_ERR(dentry_page);
 
 		dentry_blk = kmap(dentry_page);
 		bit_pos = room_for_filename(&dentry_blk->dentry_bitmap,
@@ -596,7 +581,7 @@ add_dentry:
 
 	if (inode) {
 		down_write(&F2FS_I(inode)->i_sem);
-		page = init_inode_metadata(inode, dir, &new_name, NULL);
+		page = init_inode_metadata(inode, dir, new_name, NULL);
 		if (IS_ERR(page)) {
 			err = PTR_ERR(page);
 			goto fail;
@@ -606,7 +591,7 @@ add_dentry:
 	}
 
 	make_dentry_ptr(NULL, &d, (void *)dentry_blk, 1);
-	f2fs_update_dentry(ino, mode, &d, &new_name, dentry_hash, bit_pos);
+	f2fs_update_dentry(ino, mode, &d, new_name, dentry_hash, bit_pos);
 
 	set_page_dirty(dentry_page);
 
@@ -628,7 +613,34 @@ fail:
 	}
 	kunmap(dentry_page);
 	f2fs_put_page(dentry_page, 1);
-out:
+
+	return err;
+}
+
+/*
+ * Caller should grab and release a rwsem by calling f2fs_lock_op() and
+ * f2fs_unlock_op().
+ */
+int __f2fs_add_link(struct inode *dir, const struct qstr *name,
+				struct inode *inode, nid_t ino, umode_t mode)
+{
+	struct fscrypt_name fname;
+	struct qstr new_name;
+	int err;
+
+	err = fscrypt_setup_filename(dir, name, 0, &fname);
+	if (err)
+		return err;
+
+	new_name.name = fname_name(&fname);
+	new_name.len = fname_len(&fname);
+
+	err = -EAGAIN;
+	if (f2fs_has_inline_dentry(dir))
+		err = f2fs_add_inline_entry(dir, &new_name, inode, ino, mode);
+	if (err == -EAGAIN)
+		err = f2fs_add_regular_entry(dir, &new_name, inode, ino, mode);
+
 	fscrypt_free_filename(&fname);
 	f2fs_update_time(F2FS_I_SB(dir), REQ_TIME);
 	return err;
@@ -792,10 +804,7 @@ bool f2fs_fill_dentries(struct dir_context *ctx, struct f2fs_dentry_ptr *d,
 			continue;
 		}
 
-		if (de->file_type < F2FS_FT_MAX)
-			d_type = f2fs_filetype_table[de->file_type];
-		else
-			d_type = DT_UNKNOWN;
+		d_type = get_de_type(de);
 
 		de_name.name = d->filename[bit_pos];
 		de_name.len = le16_to_cpu(de->name_len);
@@ -804,7 +813,7 @@ bool f2fs_fill_dentries(struct dir_context *ctx, struct f2fs_dentry_ptr *d,
 			int save_len = fstr->len;
 			int ret;
 
-			de_name.name = kmalloc(de_name.len, GFP_NOFS);
+			de_name.name = f2fs_kmalloc(de_name.len, GFP_NOFS);
 			if (!de_name.name)
 				return false;
 
@@ -887,6 +896,7 @@ static int f2fs_readdir(struct file *file, struct dir_context *ctx)
 		kunmap(dentry_page);
 		f2fs_put_page(dentry_page, 1);
 	}
+	err = 0;
 out:
 	fscrypt_fname_free_buffer(&fstr);
 	return err;

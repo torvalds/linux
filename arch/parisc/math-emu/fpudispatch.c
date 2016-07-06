@@ -184,7 +184,7 @@ static void parisc_linux_get_fpu_type(u_int fpregs[])
 
 /*
  * this routine will decode the excepting floating point instruction and
- * call the approiate emulation routine.
+ * call the appropriate emulation routine.
  * It is called by decode_fpu with the following parameters:
  * fpudispatch(current_ir, unimplemented_code, 0, &Fpu_register)
  * where current_ir is the instruction to be emulated,

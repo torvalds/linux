@@ -213,7 +213,7 @@ int dpmcp_set_irq(struct fsl_mc_io *mc_io,
 	cmd.params[0] |= mc_enc(0, 8, irq_index);
 	cmd.params[0] |= mc_enc(32, 32, irq_cfg->val);
 	cmd.params[1] |= mc_enc(0, 64, irq_cfg->paddr);
-	cmd.params[2] |= mc_enc(0, 32, irq_cfg->user_irq_id);
+	cmd.params[2] |= mc_enc(0, 32, irq_cfg->irq_num);
 
 	/* send command to mc*/
 	return mc_send_command(mc_io, &cmd);
@@ -254,7 +254,7 @@ int dpmcp_get_irq(struct fsl_mc_io *mc_io,
 	/* retrieve response parameters */
 	irq_cfg->val = (u32)mc_dec(cmd.params[0], 0, 32);
 	irq_cfg->paddr = (u64)mc_dec(cmd.params[1], 0, 64);
-	irq_cfg->user_irq_id = (int)mc_dec(cmd.params[2], 0, 32);
+	irq_cfg->irq_num = (int)mc_dec(cmd.params[2], 0, 32);
 	*type = (int)mc_dec(cmd.params[2], 32, 32);
 	return 0;
 }
@@ -432,37 +432,6 @@ int dpmcp_get_irq_status(struct fsl_mc_io *mc_io,
 	/* retrieve response parameters */
 	*status = (u32)mc_dec(cmd.params[0], 0, 32);
 	return 0;
-}
-
-/**
- * dpmcp_clear_irq_status() - Clear a pending interrupt's status
- *
- * @mc_io:	Pointer to MC portal's I/O object
- * @cmd_flags:	Command flags; one or more of 'MC_CMD_FLAG_'
- * @token:	Token of DPMCP object
- * @irq_index:	The interrupt index to configure
- * @status:	Bits to clear (W1C) - one bit per cause:
- *					0 = don't change
- *					1 = clear status bit
- *
- * Return:	'0' on Success; Error code otherwise.
- */
-int dpmcp_clear_irq_status(struct fsl_mc_io *mc_io,
-			   u32 cmd_flags,
-			   u16 token,
-			   u8 irq_index,
-			   u32 status)
-{
-	struct mc_command cmd = { 0 };
-
-	/* prepare command */
-	cmd.header = mc_encode_cmd_header(DPMCP_CMDID_CLEAR_IRQ_STATUS,
-					  cmd_flags, token);
-	cmd.params[0] |= mc_enc(0, 32, status);
-	cmd.params[0] |= mc_enc(32, 8, irq_index);
-
-	/* send command to mc*/
-	return mc_send_command(mc_io, &cmd);
 }
 
 /**

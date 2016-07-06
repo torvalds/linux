@@ -82,8 +82,8 @@ static int bcm590xx_i2c_probe(struct i2c_client *i2c_pri,
 		goto err;
 	}
 
-	ret = mfd_add_devices(&i2c_pri->dev, -1, bcm590xx_devs,
-			      ARRAY_SIZE(bcm590xx_devs), NULL, 0, NULL);
+	ret = devm_mfd_add_devices(&i2c_pri->dev, -1, bcm590xx_devs,
+				   ARRAY_SIZE(bcm590xx_devs), NULL, 0, NULL);
 	if (ret < 0) {
 		dev_err(&i2c_pri->dev, "failed to add sub-devices: %d\n", ret);
 		goto err;
@@ -94,12 +94,6 @@ static int bcm590xx_i2c_probe(struct i2c_client *i2c_pri,
 err:
 	i2c_unregister_device(bcm590xx->i2c_sec);
 	return ret;
-}
-
-static int bcm590xx_i2c_remove(struct i2c_client *i2c)
-{
-	mfd_remove_devices(&i2c->dev);
-	return 0;
 }
 
 static const struct of_device_id bcm590xx_of_match[] = {
@@ -120,7 +114,6 @@ static struct i2c_driver bcm590xx_i2c_driver = {
 		   .of_match_table = of_match_ptr(bcm590xx_of_match),
 	},
 	.probe = bcm590xx_i2c_probe,
-	.remove = bcm590xx_i2c_remove,
 	.id_table = bcm590xx_i2c_id,
 };
 module_i2c_driver(bcm590xx_i2c_driver);

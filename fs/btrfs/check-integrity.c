@@ -1939,7 +1939,7 @@ again:
 		/*
 		 * Clear all references of this block. Do not free
 		 * the block itself even if is not referenced anymore
-		 * because it still carries valueable information
+		 * because it still carries valuable information
 		 * like whether it was ever written and IO completed.
 		 */
 		list_for_each_entry_safe(l, tmp, &block->ref_to_list,
@@ -2645,7 +2645,7 @@ static void btrfsic_dump_tree_sub(const struct btrfsic_state *state,
 	 * This algorithm is recursive because the amount of used stack space
 	 * is very small and the max recursion depth is limited.
 	 */
-	indent_add = sprintf(buf, "%c-%llu(%s/%llu/%d)",
+	indent_add = sprintf(buf, "%c-%llu(%s/%llu/%u)",
 			     btrfsic_get_block_type(state, block),
 			     block->logical_bytenr, block->dev_state->name,
 			     block->dev_bytenr, block->mirror_num);

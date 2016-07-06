@@ -38,11 +38,17 @@
 		vddio-pex-ctl-supply = <&vdd_3v3_lp0>;
 		avdd-pll-erefe-supply = <&avdd_1v05_run>;
 
+		/* Mini PCIe */
 		pci@1,0 {
+			phys = <&{/padctl@0,7009f000/pads/pcie/lanes/pcie-4}>;
+			phy-names = "pcie-0";
 			status = "okay";
 		};
 
+		/* Gigabit Ethernet */
 		pci@2,0 {
+			phys = <&{/padctl@0,7009f000/pads/pcie/lanes/pcie-2}>;
+			phy-names = "pcie-0";
 			status = "okay";
 		};
 	};
@@ -1677,6 +1683,9 @@
 	sata@0,70020000 {
 		status = "okay";
 
+		phys = <&{/padctl@0,7009f000/pads/sata/lanes/sata-0}>;
+		phy-names = "sata-0";
+
 		hvdd-supply = <&vdd_3v3_lp0>;
 		vddio-supply = <&vdd_1v05_run>;
 		avdd-supply = <&vdd_1v05_run>;
@@ -1689,28 +1698,107 @@
 		status = "okay";
 	};
 
-	padctl@0,7009f000 {
-		pinctrl-0 = <&padctl_default>;
-		pinctrl-names = "default";
+	usb@0,70090000 {
+		phys = <&{/padctl@0,7009f000/pads/usb2/lanes/usb2-0}>, /* Micro A/B */
+		       <&{/padctl@0,7009f000/pads/usb2/lanes/usb2-1}>, /* Mini PCIe */
+		       <&{/padctl@0,7009f000/pads/usb2/lanes/usb2-2}>, /* USB3 */
+		       <&{/padctl@0,7009f000/pads/pcie/lanes/pcie-0}>; /* USB3 */
+		phy-names = "usb2-0", "usb2-1", "usb2-2", "usb3-0";
 
-		padctl_default: pinmux {
-			usb3 {
-				nvidia,lanes = "pcie-0", "pcie-1";
-				nvidia,function = "usb3";
-				nvidia,iddq = <0>;
+		avddio-pex-supply = <&vdd_1v05_run>;
+		dvddio-pex-supply = <&vdd_1v05_run>;
+		avdd-usb-supply = <&vdd_3v3_lp0>;
+		avdd-pll-utmip-supply = <&vddio_1v8>;
+		avdd-pll-erefe-supply = <&avdd_1v05_run>;
+		avdd-usb-ss-pll-supply = <&vdd_1v05_run>;
+		hvdd-usb-ss-supply = <&vdd_3v3_lp0>;
+		hvdd-usb-ss-pll-e-supply = <&vdd_3v3_lp0>;
+
+		status = "okay";
+	};
+
+	padctl@0,7009f000 {
+		status = "okay";
+
+		pads {
+			usb2 {
+				status = "okay";
+
+				lanes {
+					usb2-0 {
+						nvidia,function = "xusb";
+						status = "okay";
+					};
+
+					usb2-1 {
+						nvidia,function = "xusb";
+						status = "okay";
+					};
+
+					usb2-2 {
+						nvidia,function = "xusb";
+						status = "okay";
+					};
+				};
 			};
 
 			pcie {
-				nvidia,lanes = "pcie-2", "pcie-3",
-					       "pcie-4";
-				nvidia,function = "pcie";
-				nvidia,iddq = <0>;
+				status = "okay";
+
+				lanes {
+					pcie-0 {
+						nvidia,function = "usb3-ss";
+						status = "okay";
+					};
+
+					pcie-2 {
+						nvidia,function = "pcie";
+						status = "okay";
+					};
+
+					pcie-4 {
+						nvidia,function = "pcie";
+						status = "okay";
+					};
+				};
 			};
 
 			sata {
-				nvidia,lanes = "sata-0";
-				nvidia,function = "sata";
-				nvidia,iddq = <0>;
+				status = "okay";
+
+				lanes {
+					sata-0 {
+						nvidia,function = "sata";
+						status = "okay";
+					};
+				};
+			};
+		};
+
+		ports {
+			/* Micro A/B */
+			usb2-0 {
+				status = "okay";
+				mode = "otg";
+			};
+
+			/* Mini PCIe */
+			usb2-1 {
+				status = "okay";
+				mode = "host";
+			};
+
+			/* USB3 */
+			usb2-2 {
+				status = "okay";
+				mode = "host";
+
+				vbus-supply = <&vdd_usb3_vbus>;
+			};
+
+			usb3-0 {
+				nvidia,usb2-companion = <2>;
+				status = "okay";
 			};
 		};
 	};

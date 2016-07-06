@@ -169,8 +169,8 @@ static struct xmit_frame *dequeue_one_xmitframe(struct xmit_priv *pxmitpriv,
 	xmitframe_phead = &pframe_queue->queue;
 	xmitframe_plist = xmitframe_phead->next;
 	if (!end_of_queue_search(xmitframe_phead, xmitframe_plist)) {
-		pxmitframe = LIST_CONTAINOR(xmitframe_plist,
-			     struct xmit_frame, list);
+		pxmitframe = container_of(xmitframe_plist,
+					  struct xmit_frame, list);
 		list_del_init(&pxmitframe->list);
 		ptxservq->qcnt--;
 		phwxmit->txcmdcnt++;
@@ -209,8 +209,8 @@ static struct xmit_frame *dequeue_xframe_ex(struct xmit_priv *pxmitpriv,
 		sta_phead = &phwxmit->sta_queue->queue;
 		sta_plist = sta_phead->next;
 		while (!end_of_queue_search(sta_phead, sta_plist)) {
-			ptxservq = LIST_CONTAINOR(sta_plist, struct tx_servq,
-				  tx_pending);
+			ptxservq = container_of(sta_plist, struct tx_servq,
+						tx_pending);
 			pframe_queue = &ptxservq->sta_pending;
 			pxmitframe = dequeue_one_xmitframe(pxmitpriv, phwxmit,
 				     ptxservq, pframe_queue);

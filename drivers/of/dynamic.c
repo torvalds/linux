@@ -311,6 +311,7 @@ int of_detach_node(struct device_node *np)
 
 	return rc;
 }
+EXPORT_SYMBOL_GPL(of_detach_node);
 
 /**
  * of_node_release() - release a dynamically allocated node
@@ -497,6 +498,11 @@ static void __of_changeset_entry_invert(struct of_changeset_entry *ce,
 	case OF_RECONFIG_UPDATE_PROPERTY:
 		rce->old_prop = ce->prop;
 		rce->prop = ce->old_prop;
+		/* update was used but original property did not exist */
+		if (!rce->prop) {
+			rce->action = OF_RECONFIG_REMOVE_PROPERTY;
+			rce->prop = ce->prop;
+		}
 		break;
 	}
 }

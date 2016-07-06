@@ -130,7 +130,7 @@ int virtio_gpu_mode_dumb_mmap(struct drm_file *file_priv,
 	struct drm_gem_object *gobj;
 	struct virtio_gpu_object *obj;
 	BUG_ON(!offset_p);
-	gobj = drm_gem_object_lookup(dev, file_priv, handle);
+	gobj = drm_gem_object_lookup(file_priv, handle);
 	if (gobj == NULL)
 		return -ENOENT;
 	obj = gem_to_virtio_gpu_obj(gobj);

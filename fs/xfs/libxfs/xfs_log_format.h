@@ -212,6 +212,11 @@ typedef struct xfs_trans_header {
 #define	XFS_TRANS_HEADER_MAGIC	0x5452414e	/* TRAN */
 
 /*
+ * The only type valid for th_type in CIL-enabled file system logs:
+ */
+#define XFS_TRANS_CHECKPOINT	40
+
+/*
  * Log item types.
  */
 #define	XFS_LI_EFI		0x1236

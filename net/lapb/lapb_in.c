@@ -444,10 +444,9 @@ static void lapb_state3_machine(struct lapb_cb *lapb, struct sk_buff *skb,
 		break;
 
 	case LAPB_FRMR:
-		lapb_dbg(1, "(%p) S3 RX FRMR(%d) %02X %02X %02X %02X %02X\n",
+		lapb_dbg(1, "(%p) S3 RX FRMR(%d) %5ph\n",
 			 lapb->dev, frame->pf,
-			 skb->data[0], skb->data[1], skb->data[2],
-			 skb->data[3], skb->data[4]);
+			 skb->data);
 		lapb_establish_data_link(lapb);
 		lapb_dbg(0, "(%p) S3 -> S1\n", lapb->dev);
 		lapb_requeue_frames(lapb);

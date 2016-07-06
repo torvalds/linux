@@ -237,10 +237,8 @@ static int efifb_probe(struct platform_device *dev)
 		goto err_release_fb;
 	}
 
-	printk(KERN_INFO "efifb: framebuffer at 0x%lx, mapped to 0x%p, "
-	       "using %dk, total %dk\n",
-	       efifb_fix.smem_start, info->screen_base,
-	       size_remap/1024, size_total/1024);
+	printk(KERN_INFO "efifb: framebuffer at 0x%lx, using %dk, total %dk\n",
+	       efifb_fix.smem_start, size_remap/1024, size_total/1024);
 	printk(KERN_INFO "efifb: mode is %dx%dx%d, linelength=%d, pages=%d\n",
 	       efifb_defined.xres, efifb_defined.yres,
 	       efifb_defined.bits_per_pixel, efifb_fix.line_length,

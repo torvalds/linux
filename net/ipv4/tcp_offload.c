@@ -83,25 +83,6 @@ struct sk_buff *tcp_gso_segment(struct sk_buff *skb,
 
 	if (skb_gso_ok(skb, features | NETIF_F_GSO_ROBUST)) {
 		/* Packet is from an untrusted source, reset gso_segs. */
-		int type = skb_shinfo(skb)->gso_type;
-
-		if (unlikely(type &
-			     ~(SKB_GSO_TCPV4 |
-			       SKB_GSO_DODGY |
-			       SKB_GSO_TCP_ECN |
-			       SKB_GSO_TCP_FIXEDID |
-			       SKB_GSO_TCPV6 |
-			       SKB_GSO_GRE |
-			       SKB_GSO_GRE_CSUM |
-			       SKB_GSO_IPIP |
-			       SKB_GSO_SIT |
-			       SKB_GSO_UDP_TUNNEL |
-			       SKB_GSO_UDP_TUNNEL_CSUM |
-			       SKB_GSO_TUNNEL_REMCSUM |
-			       0) ||
-			     !(type & (SKB_GSO_TCPV4 |
-				       SKB_GSO_TCPV6))))
-			goto out;
 
 		skb_shinfo(skb)->gso_segs = DIV_ROUND_UP(skb->len, mss);
 

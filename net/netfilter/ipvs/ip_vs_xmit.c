@@ -932,17 +932,14 @@ error:
 
 static inline int __tun_gso_type_mask(int encaps_af, int orig_af)
 {
-	if (encaps_af == AF_INET) {
-		if (orig_af == AF_INET)
-			return SKB_GSO_IPIP;
-
-		return SKB_GSO_SIT;
+	switch (encaps_af) {
+	case AF_INET:
+		return SKB_GSO_IPXIP4;
+	case AF_INET6:
+		return SKB_GSO_IPXIP6;
+	default:
+		return 0;
 	}
-
-	/* GSO: we need to provide proper SKB_GSO_ value for IPv6:
-	 * SKB_GSO_SIT/IPV6
-	 */
-	return 0;
 }
 
 /*

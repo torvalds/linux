@@ -26,20 +26,6 @@ static struct sk_buff *gre_gso_segment(struct sk_buff *skb,
 	int gre_offset, outer_hlen;
 	bool need_csum, ufo;
 
-	if (unlikely(skb_shinfo(skb)->gso_type &
-				~(SKB_GSO_TCPV4 |
-				  SKB_GSO_TCPV6 |
-				  SKB_GSO_UDP |
-				  SKB_GSO_DODGY |
-				  SKB_GSO_TCP_ECN |
-				  SKB_GSO_TCP_FIXEDID |
-				  SKB_GSO_GRE |
-				  SKB_GSO_GRE_CSUM |
-				  SKB_GSO_IPIP |
-				  SKB_GSO_SIT |
-				  SKB_GSO_PARTIAL)))
-		goto out;
-
 	if (!skb->encapsulation)
 		goto out;
 

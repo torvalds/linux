@@ -38,7 +38,7 @@ extern struct module __this_module;
 
 #ifdef CONFIG_MODULES
 
-#ifndef __GENKSYMS__
+#if defined(__KERNEL__) && !defined(__GENKSYMS__)
 #ifdef CONFIG_MODVERSIONS
 /* Mark the CRC weak since genksyms apparently decides not to
  * generate a checksums for some symbols */
@@ -53,7 +53,7 @@ extern struct module __this_module;
 #endif
 
 /* For every exported symbol, place a struct in the __ksymtab section */
-#define __EXPORT_SYMBOL(sym, sec)				\
+#define ___EXPORT_SYMBOL(sym, sec)				\
 	extern typeof(sym) sym;					\
 	__CRC_SYMBOL(sym, sec)					\
 	static const char __kstrtab_##sym[]			\
@@ -64,6 +64,35 @@ extern struct module __this_module;
 	__used							\
 	__attribute__((section("___ksymtab" sec "+" #sym), unused))	\
 	= { (unsigned long)&sym, __kstrtab_##sym }
+
+#if defined(__KSYM_DEPS__)
+
+/*
+ * For fine grained build dependencies, we want to tell the build system
+ * about each possible exported symbol even if they're not actually exported.
+ * We use a string pattern that is unlikely to be valid code that the build
+ * system filters out from the preprocessor output (see ksym_dep_filter
+ * in scripts/Kbuild.include).
+ */
+#define __EXPORT_SYMBOL(sym, sec)	=== __KSYM_##sym ===
+
+#elif defined(CONFIG_TRIM_UNUSED_KSYMS)
+
+#include <linux/kconfig.h>
+#include <generated/autoksyms.h>
+
+#define __EXPORT_SYMBOL(sym, sec)				\
+	__cond_export_sym(sym, sec, config_enabled(__KSYM_##sym))
+#define __cond_export_sym(sym, sec, conf)			\
+	___cond_export_sym(sym, sec, conf)
+#define ___cond_export_sym(sym, sec, enabled)			\
+	__cond_export_sym_##enabled(sym, sec)
+#define __cond_export_sym_1(sym, sec) ___EXPORT_SYMBOL(sym, sec)
+#define __cond_export_sym_0(sym, sec) /* nothing */
+
+#else
+#define __EXPORT_SYMBOL ___EXPORT_SYMBOL
+#endif
 
 #define EXPORT_SYMBOL(sym)					\
 	__EXPORT_SYMBOL(sym, "")

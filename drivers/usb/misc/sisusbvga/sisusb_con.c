@@ -601,7 +601,7 @@ sisusbcon_save_screen(struct vc_data *c)
 
 /* interface routine */
 static int
-sisusbcon_set_palette(struct vc_data *c, unsigned char *table)
+sisusbcon_set_palette(struct vc_data *c, const unsigned char *table)
 {
 	struct sisusb_usb_data *sisusb;
 	int i, j;

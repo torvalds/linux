@@ -129,6 +129,7 @@ enum wmi_command_id {
 	WMI_THERMAL_THROTTLING_GET_STATUS_CMDID	= 0x855,
 	WMI_OTP_READ_CMDID			= 0x856,
 	WMI_OTP_WRITE_CMDID			= 0x857,
+	WMI_LED_CFG_CMDID			= 0x858,
 	/* Performance monitoring commands */
 	WMI_BF_CTRL_CMDID			= 0x862,
 	WMI_NOTIFY_REQ_CMDID			= 0x863,
@@ -868,6 +869,7 @@ enum wmi_event_id {
 	WMI_RX_MGMT_PACKET_EVENTID		= 0x1840,
 	WMI_TX_MGMT_PACKET_EVENTID		= 0x1841,
 	WMI_OTP_READ_RESULT_EVENTID		= 0x1856,
+	WMI_LED_CFG_DONE_EVENTID		= 0x1858,
 	/* Performance monitoring events */
 	WMI_DATA_PORT_OPEN_EVENTID		= 0x1860,
 	WMI_WBE_LINK_DOWN_EVENTID		= 0x1861,
@@ -1348,5 +1350,64 @@ enum wmi_hidden_ssid {
 	WMI_HIDDEN_SSID_SEND_EMPTY	= 0x10,
 	WMI_HIDDEN_SSID_CLEAR		= 0xFE,
 };
+
+/* WMI_LED_CFG_CMDID
+ *
+ * Configure LED On\Off\Blinking operation
+ *
+ * Returned events:
+ * - WMI_LED_CFG_DONE_EVENTID
+ */
+enum led_mode {
+	LED_DISABLE	= 0x00,
+	LED_ENABLE	= 0x01,
+};
+
+/* The names of the led as
+ * described on HW schemes.
+ */
+enum wmi_led_id {
+	WMI_LED_WLAN	= 0x00,
+	WMI_LED_WPAN	= 0x01,
+	WMI_LED_WWAN	= 0x02,
+};
+
+/* Led polarity mode. */
+enum wmi_led_polarity {
+	LED_POLARITY_HIGH_ACTIVE	= 0x00,
+	LED_POLARITY_LOW_ACTIVE		= 0x01,
+};
+
+/* Combination of on and off
+ * creates the blinking period
+ */
+struct wmi_led_blink_mode {
+	__le32 blink_on;
+	__le32 blink_off;
+} __packed;
+
+/* WMI_LED_CFG_CMDID */
+struct wmi_led_cfg_cmd {
+	/* enum led_mode_e */
+	u8 led_mode;
+	/* enum wmi_led_id_e */
+	u8 id;
+	/* slow speed blinking combination */
+	struct wmi_led_blink_mode slow_blink_cfg;
+	/* medium speed blinking combination */
+	struct wmi_led_blink_mode medium_blink_cfg;
+	/* high speed blinking combination */
+	struct wmi_led_blink_mode fast_blink_cfg;
+	/* polarity of the led */
+	u8 led_polarity;
+	/* reserved */
+	u8 reserved;
+} __packed;
+
+/* WMI_LED_CFG_DONE_EVENTID */
+struct wmi_led_cfg_done_event {
+	/* led config status */
+	__le32 status;
+} __packed;
 
 #endif /* __WILOCITY_WMI_H__ */
