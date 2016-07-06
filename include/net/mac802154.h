@@ -258,6 +258,35 @@ static inline __le16 ieee802154_get_fc_from_skb(const struct sk_buff *skb)
 }
 
 /**
+ * ieee802154_skb_dst_pan - get the pointer to destination pan field
+ * @fc: mac header frame control field
+ * @skb: skb where the destination pan pointer will be get from
+ */
+static inline unsigned char *ieee802154_skb_dst_pan(__le16 fc,
+						    const struct sk_buff *skb)
+{
+	unsigned char *dst_pan;
+
+	switch (ieee802154_daddr_mode(fc)) {
+	case cpu_to_le16(IEEE802154_FCTL_ADDR_NONE):
+		dst_pan = NULL;
+		break;
+	case cpu_to_le16(IEEE802154_FCTL_DADDR_SHORT):
+	case cpu_to_le16(IEEE802154_FCTL_DADDR_EXTENDED):
+		dst_pan = skb_mac_header(skb) +
+			  IEEE802154_FC_LEN +
+			  IEEE802154_SEQ_LEN;
+		break;
+	default:
+		WARN_ONCE(1, "invalid addr mode detected");
+		dst_pan = NULL;
+		break;
+	}
+
+	return dst_pan;
+}
+
+/**
  * ieee802154_be64_to_le64 - copies and convert be64 to le64
  * @le64_dst: le64 destination pointer
  * @be64_src: be64 source pointer

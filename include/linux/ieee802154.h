@@ -31,6 +31,8 @@
 #define IEEE802154_MIN_PSDU_LEN		9
 #define IEEE802154_FCS_LEN		2
 #define IEEE802154_MAX_AUTH_TAG_LEN	16
+#define IEEE802154_FC_LEN		2
+#define IEEE802154_SEQ_LEN		1
 
 /*  General MAC frame format:
  *  2 bytes: Frame Control
@@ -221,8 +223,13 @@ enum {
 #define IEEE802154_FCTL_ACKREQ		0x0020
 #define IEEE802154_FCTL_SECEN		0x0004
 #define IEEE802154_FCTL_INTRA_PAN	0x0040
+#define IEEE802154_FCTL_DADDR		0x0c00
 
 #define IEEE802154_FTYPE_DATA		0x0001
+
+#define IEEE802154_FCTL_ADDR_NONE	0x0000
+#define IEEE802154_FCTL_DADDR_SHORT	0x0800
+#define IEEE802154_FCTL_DADDR_EXTENDED	0x0c00
 
 /*
  * ieee802154_is_data - check if type is IEEE802154_FTYPE_DATA
@@ -259,6 +266,15 @@ static inline bool ieee802154_is_ackreq(__le16 fc)
 static inline bool ieee802154_is_intra_pan(__le16 fc)
 {
 	return fc & cpu_to_le16(IEEE802154_FCTL_INTRA_PAN);
+}
+
+/*
+ * ieee802154_daddr_mode - get daddr mode from fc
+ * @fc: frame control bytes in little-endian byteorder
+ */
+static inline __le16 ieee802154_daddr_mode(__le16 fc)
+{
+	return fc & cpu_to_le16(IEEE802154_FCTL_DADDR);
 }
 
 /**
