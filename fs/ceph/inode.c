@@ -468,7 +468,7 @@ struct inode *ceph_alloc_inode(struct super_block *sb)
 	INIT_LIST_HEAD(&ci->i_dirty_item);
 	INIT_LIST_HEAD(&ci->i_flushing_item);
 	ci->i_prealloc_cap_flush = NULL;
-	ci->i_cap_flush_tree = RB_ROOT;
+	INIT_LIST_HEAD(&ci->i_cap_flush_list);
 	init_waitqueue_head(&ci->i_cap_wq);
 	ci->i_hold_caps_min = 0;
 	ci->i_hold_caps_max = 0;

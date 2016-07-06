@@ -1148,19 +1148,17 @@ static int remove_session_caps_cb(struct inode *inode, struct ceph_cap *cap,
 		    ACCESS_ONCE(fsc->mount_state) == CEPH_MOUNT_SHUTDOWN)
 			invalidate = true;
 
-		while (true) {
-			struct rb_node *n = rb_first(&ci->i_cap_flush_tree);
-			if (!n)
-				break;
-			cf = rb_entry(n, struct ceph_cap_flush, i_node);
-			rb_erase(&cf->i_node, &ci->i_cap_flush_tree);
-			list_add(&cf->list, &to_remove);
+		while (!list_empty(&ci->i_cap_flush_list)) {
+			cf = list_first_entry(&ci->i_cap_flush_list,
+					      struct ceph_cap_flush, i_list);
+			list_del(&cf->i_list);
+			list_add(&cf->i_list, &to_remove);
 		}
 
 		spin_lock(&mdsc->cap_dirty_lock);
 
-		list_for_each_entry(cf, &to_remove, list)
-			rb_erase(&cf->g_node, &mdsc->cap_flush_tree);
+		list_for_each_entry(cf, &to_remove, i_list)
+			list_del(&cf->g_list);
 
 		if (!list_empty(&ci->i_dirty_item)) {
 			pr_warn_ratelimited(
@@ -1184,7 +1182,7 @@ static int remove_session_caps_cb(struct inode *inode, struct ceph_cap *cap,
 		spin_unlock(&mdsc->cap_dirty_lock);
 
 		if (!ci->i_dirty_caps && ci->i_prealloc_cap_flush) {
-			list_add(&ci->i_prealloc_cap_flush->list, &to_remove);
+			list_add(&ci->i_prealloc_cap_flush->i_list, &to_remove);
 			ci->i_prealloc_cap_flush = NULL;
 		}
 	}
@@ -1192,8 +1190,8 @@ static int remove_session_caps_cb(struct inode *inode, struct ceph_cap *cap,
 	while (!list_empty(&to_remove)) {
 		struct ceph_cap_flush *cf;
 		cf = list_first_entry(&to_remove,
-				      struct ceph_cap_flush, list);
-		list_del(&cf->list);
+				      struct ceph_cap_flush, i_list);
+		list_del(&cf->i_list);
 		ceph_free_cap_flush(cf);
 	}
 
@@ -1499,17 +1497,18 @@ static int check_capsnap_flush(struct ceph_inode_info *ci,
 static int check_caps_flush(struct ceph_mds_client *mdsc,
 			    u64 want_flush_tid)
 {
-	struct rb_node *n;
-	struct ceph_cap_flush *cf;
 	int ret = 1;
 
 	spin_lock(&mdsc->cap_dirty_lock);
-	n = rb_first(&mdsc->cap_flush_tree);
-	cf = n ? rb_entry(n, struct ceph_cap_flush, g_node) : NULL;
-	if (cf && cf->tid <= want_flush_tid) {
-		dout("check_caps_flush still flushing tid %llu <= %llu\n",
-		     cf->tid, want_flush_tid);
-		ret = 0;
+	if (!list_empty(&mdsc->cap_flush_list)) {
+		struct ceph_cap_flush *cf =
+			list_first_entry(&mdsc->cap_flush_list,
+					 struct ceph_cap_flush, g_list);
+		if (cf->tid <= want_flush_tid) {
+			dout("check_caps_flush still flushing tid "
+			     "%llu <= %llu\n", cf->tid, want_flush_tid);
+			ret = 0;
+		}
 	}
 	spin_unlock(&mdsc->cap_dirty_lock);
 	return ret;
@@ -3470,7 +3469,7 @@ int ceph_mdsc_init(struct ceph_fs_client *fsc)
 	INIT_LIST_HEAD(&mdsc->snap_flush_list);
 	spin_lock_init(&mdsc->snap_flush_lock);
 	mdsc->last_cap_flush_tid = 1;
-	mdsc->cap_flush_tree = RB_ROOT;
+	INIT_LIST_HEAD(&mdsc->cap_flush_list);
 	INIT_LIST_HEAD(&mdsc->cap_dirty);
 	INIT_LIST_HEAD(&mdsc->cap_dirty_migrating);
 	mdsc->num_cap_flushing = 0;

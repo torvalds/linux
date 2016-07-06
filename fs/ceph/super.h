@@ -189,11 +189,8 @@ static inline void ceph_put_cap_snap(struct ceph_cap_snap *capsnap)
 struct ceph_cap_flush {
 	u64 tid;
 	int caps;
-	struct rb_node g_node; // global
-	union {
-		struct rb_node i_node; // inode
-		struct list_head list;
-	};
+	struct list_head g_list; // global
+	struct list_head i_list; // per inode
 };
 
 /*
@@ -310,7 +307,7 @@ struct ceph_inode_info {
 	 * overlapping, pipelined cap flushes to the mds.  we can probably
 	 * reduce the tid to 8 bits if we're concerned about inode size. */
 	struct ceph_cap_flush *i_prealloc_cap_flush;
-	struct rb_root i_cap_flush_tree;
+	struct list_head i_cap_flush_list;
 	wait_queue_head_t i_cap_wq;      /* threads waiting on a capability */
 	unsigned long i_hold_caps_min; /* jiffies */
 	unsigned long i_hold_caps_max; /* jiffies */

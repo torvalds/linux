@@ -1413,52 +1413,6 @@ int __ceph_mark_dirty_caps(struct ceph_inode_info *ci, int mask,
 	return dirty;
 }
 
-static void __add_cap_flushing_to_inode(struct ceph_inode_info *ci,
-					struct ceph_cap_flush *cf)
-{
-	struct rb_node **p = &ci->i_cap_flush_tree.rb_node;
-	struct rb_node *parent = NULL;
-	struct ceph_cap_flush *other = NULL;
-
-	while (*p) {
-		parent = *p;
-		other = rb_entry(parent, struct ceph_cap_flush, i_node);
-
-		if (cf->tid < other->tid)
-			p = &(*p)->rb_left;
-		else if (cf->tid > other->tid)
-			p = &(*p)->rb_right;
-		else
-			BUG();
-	}
-
-	rb_link_node(&cf->i_node, parent, p);
-	rb_insert_color(&cf->i_node, &ci->i_cap_flush_tree);
-}
-
-static void __add_cap_flushing_to_mdsc(struct ceph_mds_client *mdsc,
-				       struct ceph_cap_flush *cf)
-{
-	struct rb_node **p = &mdsc->cap_flush_tree.rb_node;
-	struct rb_node *parent = NULL;
-	struct ceph_cap_flush *other = NULL;
-
-	while (*p) {
-		parent = *p;
-		other = rb_entry(parent, struct ceph_cap_flush, g_node);
-
-		if (cf->tid < other->tid)
-			p = &(*p)->rb_left;
-		else if (cf->tid > other->tid)
-			p = &(*p)->rb_right;
-		else
-			BUG();
-	}
-
-	rb_link_node(&cf->g_node, parent, p);
-	rb_insert_color(&cf->g_node, &mdsc->cap_flush_tree);
-}
-
 struct ceph_cap_flush *ceph_alloc_cap_flush(void)
 {
 	return kmem_cache_alloc(ceph_cap_flush_cachep, GFP_KERNEL);
@@ -1472,10 +1426,10 @@ void ceph_free_cap_flush(struct ceph_cap_flush *cf)
 
 static u64 __get_oldest_flush_tid(struct ceph_mds_client *mdsc)
 {
-	struct rb_node *n = rb_first(&mdsc->cap_flush_tree);
-	if (n) {
+	if (!list_empty(&mdsc->cap_flush_list)) {
 		struct ceph_cap_flush *cf =
-			rb_entry(n, struct ceph_cap_flush, g_node);
+			list_first_entry(&mdsc->cap_flush_list,
+					 struct ceph_cap_flush, g_list);
 		return cf->tid;
 	}
 	return 0;
@@ -1516,7 +1470,7 @@ static int __mark_caps_flushing(struct inode *inode,
 	list_del_init(&ci->i_dirty_item);
 
 	cf->tid = ++mdsc->last_cap_flush_tid;
-	__add_cap_flushing_to_mdsc(mdsc, cf);
+	list_add_tail(&cf->g_list, &mdsc->cap_flush_list);
 	*oldest_flush_tid = __get_oldest_flush_tid(mdsc);
 
 	if (list_empty(&ci->i_flushing_item)) {
@@ -1530,7 +1484,7 @@ static int __mark_caps_flushing(struct inode *inode,
 	}
 	spin_unlock(&mdsc->cap_dirty_lock);
 
-	__add_cap_flushing_to_inode(ci, cf);
+	list_add_tail(&cf->i_list, &ci->i_cap_flush_list);
 
 	*flush_tid = cf->tid;
 	return flushing;
@@ -1890,10 +1844,10 @@ retry:
 			spin_unlock(&ci->i_ceph_lock);
 		}
 	} else {
-		struct rb_node *n = rb_last(&ci->i_cap_flush_tree);
-		if (n) {
+		if (!list_empty(&ci->i_cap_flush_list)) {
 			struct ceph_cap_flush *cf =
-				rb_entry(n, struct ceph_cap_flush, i_node);
+				list_last_entry(&ci->i_cap_flush_list,
+						 struct ceph_cap_flush, i_list);
 			flush_tid = cf->tid;
 		}
 		flushing = ci->i_flushing_caps;
@@ -1913,14 +1867,13 @@ out:
 static int caps_are_flushed(struct inode *inode, u64 flush_tid)
 {
 	struct ceph_inode_info *ci = ceph_inode(inode);
-	struct ceph_cap_flush *cf;
-	struct rb_node *n;
 	int ret = 1;
 
 	spin_lock(&ci->i_ceph_lock);
-	n = rb_first(&ci->i_cap_flush_tree);
-	if (n) {
-		cf = rb_entry(n, struct ceph_cap_flush, i_node);
+	if (!list_empty(&ci->i_cap_flush_list)) {
+		struct ceph_cap_flush * cf =
+			list_first_entry(&ci->i_cap_flush_list,
+					 struct ceph_cap_flush, i_list);
 		if (cf->tid <= flush_tid)
 			ret = 0;
 	}
@@ -2083,7 +2036,6 @@ static int __kick_flushing_caps(struct ceph_mds_client *mdsc,
 	struct inode *inode = &ci->vfs_inode;
 	struct ceph_cap *cap;
 	struct ceph_cap_flush *cf;
-	struct rb_node *n;
 	int delayed = 0;
 	u64 first_tid = 0;
 	u64 oldest_flush_tid;
@@ -2092,8 +2044,11 @@ static int __kick_flushing_caps(struct ceph_mds_client *mdsc,
 	oldest_flush_tid = __get_oldest_flush_tid(mdsc);
 	spin_unlock(&mdsc->cap_dirty_lock);
 
-	while (true) {
-		spin_lock(&ci->i_ceph_lock);
+	spin_lock(&ci->i_ceph_lock);
+	list_for_each_entry(cf, &ci->i_cap_flush_list, i_list) {
+		if (cf->tid < first_tid)
+			continue;
+
 		cap = ci->i_auth_cap;
 		if (!(cap && cap->session == session)) {
 			pr_err("%p auth cap %p not mds%d ???\n", inode,
@@ -2101,18 +2056,6 @@ static int __kick_flushing_caps(struct ceph_mds_client *mdsc,
 			spin_unlock(&ci->i_ceph_lock);
 			break;
 		}
-
-		for (n = rb_first(&ci->i_cap_flush_tree); n; n = rb_next(n)) {
-			cf = rb_entry(n, struct ceph_cap_flush, i_node);
-			if (cf->tid >= first_tid)
-				break;
-		}
-		if (!n) {
-			spin_unlock(&ci->i_ceph_lock);
-			break;
-		}
-
-		cf = rb_entry(n, struct ceph_cap_flush, i_node);
 
 		first_tid = cf->tid + 1;
 
@@ -2123,7 +2066,10 @@ static int __kick_flushing_caps(struct ceph_mds_client *mdsc,
 				      __ceph_caps_wanted(ci),
 				      cap->issued | cap->implemented,
 				      cf->caps, cf->tid, oldest_flush_tid);
+
+		spin_lock(&ci->i_ceph_lock);
 	}
+	spin_unlock(&ci->i_ceph_lock);
 	return delayed;
 }
 
@@ -2995,23 +2941,19 @@ static void handle_cap_flush_ack(struct inode *inode, u64 flush_tid,
 {
 	struct ceph_inode_info *ci = ceph_inode(inode);
 	struct ceph_mds_client *mdsc = ceph_sb_to_client(inode->i_sb)->mdsc;
-	struct ceph_cap_flush *cf;
-	struct rb_node *n;
+	struct ceph_cap_flush *cf, *tmp_cf;
 	LIST_HEAD(to_remove);
 	unsigned seq = le32_to_cpu(m->seq);
 	int dirty = le32_to_cpu(m->dirty);
 	int cleaned = 0;
 	int drop = 0;
 
-	n = rb_first(&ci->i_cap_flush_tree);
-	while (n) {
-		cf = rb_entry(n, struct ceph_cap_flush, i_node);
-		n = rb_next(&cf->i_node);
+	list_for_each_entry_safe(cf, tmp_cf, &ci->i_cap_flush_list, i_list) {
 		if (cf->tid == flush_tid)
 			cleaned = cf->caps;
 		if (cf->tid <= flush_tid) {
-			rb_erase(&cf->i_node, &ci->i_cap_flush_tree);
-			list_add_tail(&cf->list, &to_remove);
+			list_del(&cf->i_list);
+			list_add_tail(&cf->i_list, &to_remove);
 		} else {
 			cleaned &= ~cf->caps;
 			if (!cleaned)
@@ -3033,12 +2975,12 @@ static void handle_cap_flush_ack(struct inode *inode, u64 flush_tid,
 	spin_lock(&mdsc->cap_dirty_lock);
 
 	if (!list_empty(&to_remove)) {
-		list_for_each_entry(cf, &to_remove, list)
-			rb_erase(&cf->g_node, &mdsc->cap_flush_tree);
+		u64 oldest_flush_tid;
+		list_for_each_entry(cf, &to_remove, i_list)
+			list_del(&cf->g_list);
 
-		n = rb_first(&mdsc->cap_flush_tree);
-		cf = n ? rb_entry(n, struct ceph_cap_flush, g_node) : NULL;
-		if (!cf || cf->tid > flush_tid)
+		oldest_flush_tid = __get_oldest_flush_tid(mdsc);
+		if (oldest_flush_tid == 0 || oldest_flush_tid > flush_tid)
 			wake_up_all(&mdsc->cap_flushing_wq);
 	}
 
@@ -3075,8 +3017,8 @@ out:
 
 	while (!list_empty(&to_remove)) {
 		cf = list_first_entry(&to_remove,
-				      struct ceph_cap_flush, list);
-		list_del(&cf->list);
+				      struct ceph_cap_flush, i_list);
+		list_del(&cf->i_list);
 		ceph_free_cap_flush(cf);
 	}
 	if (drop)
