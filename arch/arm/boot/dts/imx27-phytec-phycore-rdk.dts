@@ -283,14 +283,14 @@
 };
 
 &uart1 {
-	fsl,uart-has-rtscts;
+	uart-has-rtscts;
 	pinctrl-names = "default";
 	pinctrl-0 = <&pinctrl_uart1>;
 	status = "okay";
 };
 
 &uart2 {
-	fsl,uart-has-rtscts;
+	uart-has-rtscts;
 	pinctrl-names = "default";
 	pinctrl-0 = <&pinctrl_uart2>;
 	status = "okay";

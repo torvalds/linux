@@ -1,5 +1,4 @@
 /*
- * Copyright 2015 Freescale Semiconductor, Inc.
  * Copyright 2016 Toradex AG
  *
  * This file is dual-licensed: you can use it either under the terms
@@ -41,88 +40,109 @@
  *     OTHER DEALINGS IN THE SOFTWARE.
  */
 
-#include "imx7s.dtsi"
-
 / {
-	cpus {
-		cpu1: cpu@1 {
-			compatible = "arm,cortex-a7";
-			device_type = "cpu";
-			reg = <1>;
-		};
+	chosen {
+		stdout-path = "serial0:115200n8";
 	};
+};
 
-	etm@3007d000 {
-		compatible = "arm,coresight-etm3x", "arm,primecell";
-		reg = <0x3007d000 0x1000>;
+&bl {
+	brightness-levels = <0 4 8 16 32 64 128 255>;
+	default-brightness-level = <6>;
+	status = "okay";
+};
 
-		/*
-		 * System will hang if added nosmp in kernel command line
-		 * without arm,primecell-periphid because amba bus try to
-		 * read id and core1 power off at this time.
-		 */
-		arm,primecell-periphid = <0xbb956>;
-		cpu = <&cpu1>;
-		clocks = <&clks IMX7D_MAIN_AXI_ROOT_CLK>;
-		clock-names = "apb_pclk";
+&adc1 {
+	status = "okay";
+};
 
-		port {
-			etm1_out_port: endpoint {
-				remote-endpoint = <&ca_funnel_in_port1>;
+&adc2 {
+	status = "okay";
+};
+
+&fec1 {
+	status = "okay";
+};
+
+&i2c4 {
+	status = "okay";
+
+	/* M41T0M6 real time clock on carrier board */
+	rtc: m41t0m6@68 {
+		compatible = "st,m41t00";
+		reg = <0x68>;
+	};
+};
+
+&lcdif {
+	display = <&display0>;
+	status = "okay";
+
+	display0: lcd-display {
+		bits-per-pixel = <16>;
+		bus-width = <18>;
+
+		display-timings {
+			native-mode = <&timing_vga>;
+
+			/* Standard VGA timing */
+			timing_vga: 640x480 {
+				clock-frequency = <25175000>;
+				hactive = <640>;
+				vactive = <480>;
+				hback-porch = <40>;
+				hfront-porch = <24>;
+				vback-porch = <32>;
+				vfront-porch = <11>;
+				hsync-len = <96>;
+				vsync-len = <2>;
+				de-active = <1>;
+				hsync-active = <0>;
+				vsync-active = <0>;
+				pixelclk-active = <0>;
 			};
 		};
 	};
 };
 
-&aips3 {
-	usbotg2: usb@30b20000 {
-		compatible = "fsl,imx7d-usb", "fsl,imx27-usb";
-		reg = <0x30b20000 0x200>;
-		interrupts = <GIC_SPI 42 IRQ_TYPE_LEVEL_HIGH>;
-		clocks = <&clks IMX7D_USB_CTRL_CLK>;
-		fsl,usbphy = <&usbphynop2>;
-		fsl,usbmisc = <&usbmisc2 0>;
-		phy-clkgate-delay-us = <400>;
-		status = "disabled";
-	};
-
-	usbmisc2: usbmisc@30b20200 {
-		#index-cells = <1>;
-		compatible = "fsl,imx7d-usbmisc", "fsl,imx6q-usbmisc";
-		reg = <0x30b20200 0x200>;
-	};
-
-	usbphynop2: usbphynop2 {
-		compatible = "usb-nop-xceiv";
-		clocks = <&clks IMX7D_USB_PHY2_CLK>;
-		clock-names = "main_clk";
-	};
-
-	fec2: ethernet@30bf0000 {
-		compatible = "fsl,imx7d-fec", "fsl,imx6sx-fec";
-		reg = <0x30bf0000 0x10000>;
-		interrupts = <GIC_SPI 100 IRQ_TYPE_LEVEL_HIGH>,
-			<GIC_SPI 101 IRQ_TYPE_LEVEL_HIGH>,
-			<GIC_SPI 102 IRQ_TYPE_LEVEL_HIGH>;
-		clocks = <&clks IMX7D_ENET_AXI_ROOT_CLK>,
-			<&clks IMX7D_ENET_AXI_ROOT_CLK>,
-			<&clks IMX7D_ENET2_TIME_ROOT_CLK>,
-			<&clks IMX7D_PLL_ENET_MAIN_125M_CLK>,
-			<&clks IMX7D_ENET_PHY_REF_ROOT_CLK>;
-		clock-names = "ipg", "ahb", "ptp",
-			"enet_clk_ref", "enet_out";
-		fsl,num-tx-queues=<3>;
-		fsl,num-rx-queues=<3>;
-		status = "disabled";
-	};
+&pwm1 {
+	status = "okay";
 };
 
-&ca_funnel_ports {
-	port@1 {
-		reg = <1>;
-		ca_funnel_in_port1: endpoint {
-			slave-mode;
-			remote-endpoint = <&etm1_out_port>;
-		};
-	};
+&pwm2 {
+	status = "okay";
+};
+
+&pwm3 {
+	status = "okay";
+};
+
+&pwm4 {
+	status = "okay";
+};
+
+&uart1 {
+	status = "okay";
+};
+
+&uart2 {
+	status = "okay";
+};
+
+&uart3 {
+	status = "okay";
+};
+
+&usbotg1 {
+	status = "okay";
+};
+
+&usdhc1 {
+	pinctrl-names = "default";
+	pinctrl-0 = <&pinctrl_usdhc1 &pinctrl_cd_usdhc1>;
+	no-1-8-v;
+	cd-gpios = <&gpio1 0 GPIO_ACTIVE_LOW>;
+	keep-power-in-suspend;
+	wakeup-source;
+	status = "okay";
 };
