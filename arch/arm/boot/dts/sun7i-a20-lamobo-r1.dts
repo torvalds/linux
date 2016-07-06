@@ -249,7 +249,7 @@
 #include "axp209.dtsi"
 
 &reg_ahci_5v {
-	gpio = <&pio 1 3 0>; /* PB3 */
+	gpio = <&pio 1 3 GPIO_ACTIVE_HIGH>; /* PB3 */
 	status = "okay";
 };
 
