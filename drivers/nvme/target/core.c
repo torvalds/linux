@@ -895,7 +895,7 @@ struct nvmet_subsys *nvmet_subsys_alloc(const char *subsysnqn,
 	subsys->type = type;
 	subsys->subsysnqn = kstrndup(subsysnqn, NVMF_NQN_SIZE,
 			GFP_KERNEL);
-	if (IS_ERR(subsys->subsysnqn)) {
+	if (!subsys->subsysnqn) {
 		kfree(subsys);
 		return NULL;
 	}
