@@ -411,7 +411,10 @@ int lirc_unregister_driver(int minor)
 			ir->d.name, ir->d.minor);
 		wake_up_interruptible(&ir->buf->wait_poll);
 		mutex_lock(&ir->irctl_lock);
-		ir->d.set_use_dec(ir->d.data);
+
+		if (ir->d.set_use_dec)
+			ir->d.set_use_dec(ir->d.data);
+
 		module_put(cdev->owner);
 		mutex_unlock(&ir->irctl_lock);
 	} else {
@@ -469,7 +472,8 @@ int lirc_dev_fop_open(struct inode *inode, struct file *file)
 	cdev = ir->cdev;
 	if (try_module_get(cdev->owner)) {
 		ir->open++;
-		retval = ir->d.set_use_inc(ir->d.data);
+		if (ir->d.set_use_inc)
+			retval = ir->d.set_use_inc(ir->d.data);
 
 		if (retval) {
 			module_put(cdev->owner);
@@ -510,7 +514,8 @@ int lirc_dev_fop_close(struct inode *inode, struct file *file)
 
 	ir->open--;
 	if (ir->attached) {
-		ir->d.set_use_dec(ir->d.data);
+		if (ir->d.set_use_dec)
+			ir->d.set_use_dec(ir->d.data);
 		module_put(cdev->owner);
 	} else {
 		lirc_irctl_cleanup(ir);
