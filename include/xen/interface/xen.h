@@ -413,7 +413,22 @@ DEFINE_GUEST_HANDLE_STRUCT(mmuext_op);
 /* x86/PAE guests: support PDPTs above 4GB. */
 #define VMASST_TYPE_pae_extended_cr3     3
 
-#define MAX_VMASST_TYPE 3
+/*
+ * x86 guests: Sane behaviour for virtual iopl
+ *  - virtual iopl updated from do_iret() hypercalls.
+ *  - virtual iopl reported in bounce frames.
+ *  - guest kernels assumed to be level 0 for the purpose of iopl checks.
+ */
+#define VMASST_TYPE_architectural_iopl   4
+
+/*
+ * All guests: activate update indicator in vcpu_runstate_info
+ * Enable setting the XEN_RUNSTATE_UPDATE flag in guest memory mapped
+ * vcpu_runstate_info during updates of the runstate information.
+ */
+#define VMASST_TYPE_runstate_update_flag 5
+
+#define MAX_VMASST_TYPE 5
 
 #ifndef __ASSEMBLY__
 
