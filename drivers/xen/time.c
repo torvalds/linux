@@ -47,27 +47,31 @@ static u64 get64(const u64 *p)
 	return ret;
 }
 
-/*
- * Runstate accounting
- */
-void xen_get_runstate_snapshot(struct vcpu_runstate_info *res)
+static void xen_get_runstate_snapshot_cpu(struct vcpu_runstate_info *res,
+					  unsigned int cpu)
 {
 	u64 state_time;
 	struct vcpu_runstate_info *state;
 
 	BUG_ON(preemptible());
 
-	state = this_cpu_ptr(&xen_runstate);
+	state = per_cpu_ptr(&xen_runstate, cpu);
 
-	/*
-	 * The runstate info is always updated by the hypervisor on
-	 * the current CPU, so there's no need to use anything
-	 * stronger than a compiler barrier when fetching it.
-	 */
 	do {
 		state_time = get64(&state->state_entry_time);
+		rmb();	/* Hypervisor might update data. */
 		*res = READ_ONCE(*state);
-	} while (get64(&state->state_entry_time) != state_time);
+		rmb();	/* Hypervisor might update data. */
+	} while (get64(&state->state_entry_time) != state_time ||
+		 (state_time & XEN_RUNSTATE_UPDATE));
+}
+
+/*
+ * Runstate accounting
+ */
+void xen_get_runstate_snapshot(struct vcpu_runstate_info *res)
+{
+	xen_get_runstate_snapshot_cpu(res, smp_processor_id());
 }
 
 /* return true when a vcpu could run but has no real cpu to run on */
@@ -80,8 +84,7 @@ static u64 xen_steal_clock(int cpu)
 {
 	struct vcpu_runstate_info state;
 
-	BUG_ON(cpu != smp_processor_id());
-	xen_get_runstate_snapshot(&state);
+	xen_get_runstate_snapshot_cpu(&state, cpu);
 	return state.time[RUNSTATE_runnable] + state.time[RUNSTATE_offline];
 }
 
@@ -98,11 +101,14 @@ void xen_setup_runstate_info(int cpu)
 
 void __init xen_time_setup_guest(void)
 {
+	bool xen_runstate_remote;
+
+	xen_runstate_remote = !HYPERVISOR_vm_assist(VMASST_CMD_enable,
+					VMASST_TYPE_runstate_update_flag);
+
 	pv_time_ops.steal_clock = xen_steal_clock;
 
 	static_key_slow_inc(&paravirt_steal_enabled);
-	/*
-	 * We can't set paravirt_steal_rq_enabled as this would require the
-	 * capability to read another cpu's runstate info.
-	 */
+	if (xen_runstate_remote)
+		static_key_slow_inc(&paravirt_steal_rq_enabled);
 }
