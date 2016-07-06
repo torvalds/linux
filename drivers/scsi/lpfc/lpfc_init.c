@@ -4484,7 +4484,8 @@ lpfc_sli4_async_fip_evt(struct lpfc_hba *phba,
 		 * the corresponding FCF bit in the roundrobin bitmap.
 		 */
 		spin_lock_irq(&phba->hbalock);
-		if (phba->fcf.fcf_flag & FCF_DISCOVERY) {
+		if ((phba->fcf.fcf_flag & FCF_DISCOVERY) &&
+		    (phba->fcf.current_rec.fcf_indx != acqe_fip->index)) {
 			spin_unlock_irq(&phba->hbalock);
 			/* Update FLOGI FCF failover eligible FCF bmask */
 			lpfc_sli4_fcf_rr_index_clear(phba, acqe_fip->index);
