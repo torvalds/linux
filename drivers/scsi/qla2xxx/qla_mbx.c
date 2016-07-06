@@ -5764,11 +5764,6 @@ qla26xx_dport_diagnostics(scsi_qla_host_t *vha,
 	ql_dbg(ql_dbg_mbx + ql_dbg_verbose, vha, 0x1192,
 	    "Entered %s.\n", __func__);
 
-	if (size < 1024) {
-		ql_log(ql_log_warn, vha, 0x1193, "Failed insufficient size.\n");
-		return QLA_FUNCTION_PARAMETER_ERROR;
-	}
-
 	dd_dma = dma_map_single(&vha->hw->pdev->dev,
 	    dd_buf, size, DMA_FROM_DEVICE);
 	if (!dd_dma) {
