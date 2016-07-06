@@ -1206,6 +1206,12 @@ struct fc_rdp_bbc_desc {
 	struct fc_rdp_bbc_info  bbc_info;
 };
 
+/* Optical Element Type Transgression Flags */
+#define RDP_OET_LOW_WARNING  0x1
+#define RDP_OET_HIGH_WARNING 0x2
+#define RDP_OET_LOW_ALARM    0x4
+#define RDP_OET_HIGH_ALARM   0x8
+
 #define RDP_OED_TEMPERATURE  0x1
 #define RDP_OED_VOLTAGE      0x2
 #define RDP_OED_TXBIAS       0x3

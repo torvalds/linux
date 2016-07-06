@@ -4730,9 +4730,10 @@ lpfc_rdp_res_bbc_desc(struct fc_rdp_bbc_desc *desc, READ_LNK_VAR *stat,
 }
 
 void
-lpfc_rdp_res_oed_temp_desc(struct fc_rdp_oed_sfp_desc *desc, uint8_t *page_a2)
+lpfc_rdp_res_oed_temp_desc(struct lpfc_hba *phba,
+			   struct fc_rdp_oed_sfp_desc *desc, uint8_t *page_a2)
 {
-	uint32_t flags;
+	uint32_t flags = 0;
 
 	desc->tag = cpu_to_be32(RDP_OED_DESC_TAG);
 
@@ -4743,17 +4744,27 @@ lpfc_rdp_res_oed_temp_desc(struct fc_rdp_oed_sfp_desc *desc, uint8_t *page_a2)
 			cpu_to_be16(page_a2[SSF_TEMP_HIGH_WARNING]);
 	desc->oed_info.lo_warning =
 			cpu_to_be16(page_a2[SSF_TEMP_LOW_WARNING]);
-	flags = 0xf; /* All four are valid */
+
+	if (phba->sfp_alarm & LPFC_TRANSGRESSION_HIGH_TEMPERATURE)
+		flags |= RDP_OET_HIGH_ALARM;
+	if (phba->sfp_alarm & LPFC_TRANSGRESSION_LOW_TEMPERATURE)
+		flags |= RDP_OET_LOW_ALARM;
+	if (phba->sfp_warning & LPFC_TRANSGRESSION_HIGH_TEMPERATURE)
+		flags |= RDP_OET_HIGH_WARNING;
+	if (phba->sfp_warning & LPFC_TRANSGRESSION_LOW_TEMPERATURE)
+		flags |= RDP_OET_LOW_WARNING;
+
 	flags |= ((0xf & RDP_OED_TEMPERATURE) << RDP_OED_TYPE_SHIFT);
 	desc->oed_info.function_flags = cpu_to_be32(flags);
 	desc->length = cpu_to_be32(sizeof(desc->oed_info));
 }
 
 void
-lpfc_rdp_res_oed_voltage_desc(struct fc_rdp_oed_sfp_desc *desc,
+lpfc_rdp_res_oed_voltage_desc(struct lpfc_hba *phba,
+			      struct fc_rdp_oed_sfp_desc *desc,
 			      uint8_t *page_a2)
 {
-	uint32_t flags;
+	uint32_t flags = 0;
 
 	desc->tag = cpu_to_be32(RDP_OED_DESC_TAG);
 
@@ -4764,17 +4775,27 @@ lpfc_rdp_res_oed_voltage_desc(struct fc_rdp_oed_sfp_desc *desc,
 			cpu_to_be16(page_a2[SSF_VOLTAGE_HIGH_WARNING]);
 	desc->oed_info.lo_warning =
 			cpu_to_be16(page_a2[SSF_VOLTAGE_LOW_WARNING]);
-	flags = 0xf; /* All four are valid */
+
+	if (phba->sfp_alarm & LPFC_TRANSGRESSION_HIGH_VOLTAGE)
+		flags |= RDP_OET_HIGH_ALARM;
+	if (phba->sfp_alarm & LPFC_TRANSGRESSION_LOW_VOLTAGE)
+		flags |= RDP_OET_LOW_ALARM;
+	if (phba->sfp_warning & LPFC_TRANSGRESSION_HIGH_VOLTAGE)
+		flags |= RDP_OET_HIGH_WARNING;
+	if (phba->sfp_warning & LPFC_TRANSGRESSION_LOW_VOLTAGE)
+		flags |= RDP_OET_LOW_WARNING;
+
 	flags |= ((0xf & RDP_OED_VOLTAGE) << RDP_OED_TYPE_SHIFT);
 	desc->oed_info.function_flags = cpu_to_be32(flags);
 	desc->length = cpu_to_be32(sizeof(desc->oed_info));
 }
 
 void
-lpfc_rdp_res_oed_txbias_desc(struct fc_rdp_oed_sfp_desc *desc,
+lpfc_rdp_res_oed_txbias_desc(struct lpfc_hba *phba,
+			     struct fc_rdp_oed_sfp_desc *desc,
 			     uint8_t *page_a2)
 {
-	uint32_t flags;
+	uint32_t flags = 0;
 
 	desc->tag = cpu_to_be32(RDP_OED_DESC_TAG);
 
@@ -4785,17 +4806,27 @@ lpfc_rdp_res_oed_txbias_desc(struct fc_rdp_oed_sfp_desc *desc,
 			cpu_to_be16(page_a2[SSF_BIAS_HIGH_WARNING]);
 	desc->oed_info.lo_warning =
 			cpu_to_be16(page_a2[SSF_BIAS_LOW_WARNING]);
-	flags = 0xf; /* All four are valid */
+
+	if (phba->sfp_alarm & LPFC_TRANSGRESSION_HIGH_TXBIAS)
+		flags |= RDP_OET_HIGH_ALARM;
+	if (phba->sfp_alarm & LPFC_TRANSGRESSION_LOW_TXBIAS)
+		flags |= RDP_OET_LOW_ALARM;
+	if (phba->sfp_warning & LPFC_TRANSGRESSION_HIGH_TXBIAS)
+		flags |= RDP_OET_HIGH_WARNING;
+	if (phba->sfp_warning & LPFC_TRANSGRESSION_LOW_TXBIAS)
+		flags |= RDP_OET_LOW_WARNING;
+
 	flags |= ((0xf & RDP_OED_TXBIAS) << RDP_OED_TYPE_SHIFT);
 	desc->oed_info.function_flags = cpu_to_be32(flags);
 	desc->length = cpu_to_be32(sizeof(desc->oed_info));
 }
 
 void
-lpfc_rdp_res_oed_txpower_desc(struct fc_rdp_oed_sfp_desc *desc,
+lpfc_rdp_res_oed_txpower_desc(struct lpfc_hba *phba,
+			      struct fc_rdp_oed_sfp_desc *desc,
 			      uint8_t *page_a2)
 {
-	uint32_t flags;
+	uint32_t flags = 0;
 
 	desc->tag = cpu_to_be32(RDP_OED_DESC_TAG);
 
@@ -4806,7 +4837,16 @@ lpfc_rdp_res_oed_txpower_desc(struct fc_rdp_oed_sfp_desc *desc,
 			cpu_to_be16(page_a2[SSF_TXPOWER_HIGH_WARNING]);
 	desc->oed_info.lo_warning =
 			cpu_to_be16(page_a2[SSF_TXPOWER_LOW_WARNING]);
-	flags = 0xf; /* All four are valid */
+
+	if (phba->sfp_alarm & LPFC_TRANSGRESSION_HIGH_TXPOWER)
+		flags |= RDP_OET_HIGH_ALARM;
+	if (phba->sfp_alarm & LPFC_TRANSGRESSION_LOW_TXPOWER)
+		flags |= RDP_OET_LOW_ALARM;
+	if (phba->sfp_warning & LPFC_TRANSGRESSION_HIGH_TXPOWER)
+		flags |= RDP_OET_HIGH_WARNING;
+	if (phba->sfp_warning & LPFC_TRANSGRESSION_LOW_TXPOWER)
+		flags |= RDP_OET_LOW_WARNING;
+
 	flags |= ((0xf & RDP_OED_TXPOWER) << RDP_OED_TYPE_SHIFT);
 	desc->oed_info.function_flags = cpu_to_be32(flags);
 	desc->length = cpu_to_be32(sizeof(desc->oed_info));
@@ -4814,10 +4854,11 @@ lpfc_rdp_res_oed_txpower_desc(struct fc_rdp_oed_sfp_desc *desc,
 
 
 void
-lpfc_rdp_res_oed_rxpower_desc(struct fc_rdp_oed_sfp_desc *desc,
+lpfc_rdp_res_oed_rxpower_desc(struct lpfc_hba *phba,
+			      struct fc_rdp_oed_sfp_desc *desc,
 			      uint8_t *page_a2)
 {
-	uint32_t flags;
+	uint32_t flags = 0;
 
 	desc->tag = cpu_to_be32(RDP_OED_DESC_TAG);
 
@@ -4828,7 +4869,16 @@ lpfc_rdp_res_oed_rxpower_desc(struct fc_rdp_oed_sfp_desc *desc,
 			cpu_to_be16(page_a2[SSF_RXPOWER_HIGH_WARNING]);
 	desc->oed_info.lo_warning =
 			cpu_to_be16(page_a2[SSF_RXPOWER_LOW_WARNING]);
-	flags = 0xf; /* All four are valid */
+
+	if (phba->sfp_alarm & LPFC_TRANSGRESSION_HIGH_RXPOWER)
+		flags |= RDP_OET_HIGH_ALARM;
+	if (phba->sfp_alarm & LPFC_TRANSGRESSION_LOW_RXPOWER)
+		flags |= RDP_OET_LOW_ALARM;
+	if (phba->sfp_warning & LPFC_TRANSGRESSION_HIGH_RXPOWER)
+		flags |= RDP_OET_HIGH_WARNING;
+	if (phba->sfp_warning & LPFC_TRANSGRESSION_LOW_RXPOWER)
+		flags |= RDP_OET_LOW_WARNING;
+
 	flags |= ((0xf & RDP_OED_RXPOWER) << RDP_OED_TYPE_SHIFT);
 	desc->oed_info.function_flags = cpu_to_be32(flags);
 	desc->length = cpu_to_be32(sizeof(desc->oed_info));
@@ -4977,6 +5027,7 @@ lpfc_els_rdp_cmpl(struct lpfc_hba *phba, struct lpfc_rdp_context *rdp_context,
 	struct ls_rjt *stat;
 	struct fc_rdp_res_frame *rdp_res;
 	uint32_t cmdsize;
+	uint16_t *flag_ptr;
 	int rc, fec_size;
 
 	if (status != SUCCESS)
@@ -5008,6 +5059,12 @@ lpfc_els_rdp_cmpl(struct lpfc_hba *phba, struct lpfc_rdp_context *rdp_context,
 	memset(pcmd, 0, sizeof(struct fc_rdp_res_frame));
 	*((uint32_t *) (pcmd)) = ELS_CMD_ACC;
 
+	/* Update Alarm and Warning */
+	flag_ptr = (uint16_t *)(rdp_context->page_a2 + SSF_ALARM_FLAGS);
+	phba->sfp_alarm |= *flag_ptr;
+	flag_ptr = (uint16_t *)(rdp_context->page_a2 + SSF_WARNING_FLAGS);
+	phba->sfp_warning |= *flag_ptr;
+
 	/* For RDP payload */
 	lpfc_rdp_res_link_service(&rdp_res->link_service_desc, ELS_CMD_RDP);
 
@@ -5015,21 +5072,21 @@ lpfc_els_rdp_cmpl(struct lpfc_hba *phba, struct lpfc_rdp_context *rdp_context,
 			rdp_context->page_a0, rdp_context->page_a2);
 	lpfc_rdp_res_speed(&rdp_res->portspeed_desc, phba);
 	lpfc_rdp_res_link_error(&rdp_res->link_error_desc,
-			&rdp_context->link_stat);
+				&rdp_context->link_stat);
 	lpfc_rdp_res_diag_port_names(&rdp_res->diag_port_names_desc, phba);
 	lpfc_rdp_res_attach_port_names(&rdp_res->attached_port_names_desc,
-			vport, ndlp);
+				       vport, ndlp);
 	lpfc_rdp_res_bbc_desc(&rdp_res->bbc_desc, &rdp_context->link_stat,
 			      vport);
-	lpfc_rdp_res_oed_temp_desc(&rdp_res->oed_temp_desc,
+	lpfc_rdp_res_oed_temp_desc(phba, &rdp_res->oed_temp_desc,
 				   rdp_context->page_a2);
-	lpfc_rdp_res_oed_voltage_desc(&rdp_res->oed_voltage_desc,
+	lpfc_rdp_res_oed_voltage_desc(phba, &rdp_res->oed_voltage_desc,
 				      rdp_context->page_a2);
-	lpfc_rdp_res_oed_txbias_desc(&rdp_res->oed_txbias_desc,
+	lpfc_rdp_res_oed_txbias_desc(phba, &rdp_res->oed_txbias_desc,
 				     rdp_context->page_a2);
-	lpfc_rdp_res_oed_txpower_desc(&rdp_res->oed_txpower_desc,
+	lpfc_rdp_res_oed_txpower_desc(phba, &rdp_res->oed_txpower_desc,
 				      rdp_context->page_a2);
-	lpfc_rdp_res_oed_rxpower_desc(&rdp_res->oed_rxpower_desc,
+	lpfc_rdp_res_oed_rxpower_desc(phba, &rdp_res->oed_rxpower_desc,
 				      rdp_context->page_a2);
 	lpfc_rdp_res_opd_desc(&rdp_res->opd_desc, rdp_context->page_a0, vport);
 	fec_size = lpfc_rdp_res_fec_desc(&rdp_res->fec_desc,

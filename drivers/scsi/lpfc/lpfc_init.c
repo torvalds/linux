@@ -1681,6 +1681,7 @@ lpfc_handle_eratt_s4(struct lpfc_hba *phba)
 				"taking port offline Data: x%x x%x\n",
 				reg_err1, reg_err2);
 
+			phba->sfp_alarm |= LPFC_TRANSGRESSION_HIGH_TEMPERATURE;
 			temp_event_data.event_type = FC_REG_TEMPERATURE_EVENT;
 			temp_event_data.event_code = LPFC_CRIT_TEMP;
 			temp_event_data.data = 0xFFFFFFFF;
@@ -4107,6 +4108,7 @@ lpfc_sli4_async_sli_evt(struct lpfc_hba *phba, struct lpfc_acqe_sli *acqe_sli)
 				"3190 Over Temperature:%d Celsius- Port Name %c\n",
 				acqe_sli->event_data1, port_name);
 
+		phba->sfp_warning |= LPFC_TRANSGRESSION_HIGH_TEMPERATURE;
 		shost = lpfc_shost_from_vport(phba->pport);
 		fc_host_post_vendor_event(shost, fc_get_event_number(),
 					  sizeof(temp_event_data),

@@ -999,6 +999,18 @@ struct lpfc_hba {
 	spinlock_t devicelock;	/* lock for luns list */
 	mempool_t *device_data_mem_pool;
 	struct list_head luns;
+#define LPFC_TRANSGRESSION_HIGH_TEMPERATURE	0x0080
+#define LPFC_TRANSGRESSION_LOW_TEMPERATURE	0x0040
+#define LPFC_TRANSGRESSION_HIGH_VOLTAGE		0x0020
+#define LPFC_TRANSGRESSION_LOW_VOLTAGE		0x0010
+#define LPFC_TRANSGRESSION_HIGH_TXBIAS		0x0008
+#define LPFC_TRANSGRESSION_LOW_TXBIAS		0x0004
+#define LPFC_TRANSGRESSION_HIGH_TXPOWER		0x0002
+#define LPFC_TRANSGRESSION_LOW_TXPOWER		0x0001
+#define LPFC_TRANSGRESSION_HIGH_RXPOWER		0x8000
+#define LPFC_TRANSGRESSION_LOW_RXPOWER		0x4000
+	uint16_t sfp_alarm;
+	uint16_t sfp_warning;
 };
 
 static inline struct Scsi_Host *
