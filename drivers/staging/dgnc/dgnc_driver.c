@@ -579,9 +579,6 @@ static int dgnc_finalize_board_init(struct dgnc_board *brd)
 {
 	int rc = 0;
 
-	if (!brd || brd->magic != DGNC_BOARD_MAGIC)
-		return -ENODEV;
-
 	if (brd->irq) {
 		rc = request_irq(brd->irq, brd->bd_ops->intr,
 				 IRQF_SHARED, "DGNC", brd);
