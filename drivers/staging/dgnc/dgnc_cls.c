@@ -599,15 +599,6 @@ static inline void cls_parse_isr(struct dgnc_board *brd, uint port)
 			cls_copy_data_from_queue_to_uart(ch);
 		}
 
-		/* CTS/RTS change of state */
-		if (isr & UART_IIR_CTSRTS) {
-			ch->ch_intr_modem++;
-			/*
-			 * Don't need to do anything, the cls_parse_modem
-			 * below will grab the updated modem signals.
-			 */
-		}
-
 		/* Parse any modem signal changes */
 		cls_parse_modem(ch, readb(&ch->ch_cls_uart->msr));
 	}
