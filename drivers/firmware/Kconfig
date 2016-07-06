@@ -29,10 +29,9 @@ config ARM_SCPI_PROTOCOL
 
 config ARM_SCPI_POWER_DOMAIN
 	tristate "SCPI power domain driver"
-	depends on ARM_SCPI_PROTOCOL || COMPILE_TEST
+	depends on ARM_SCPI_PROTOCOL || (COMPILE_TEST && OF)
 	default y
 	select PM_GENERIC_DOMAINS if PM
-	select PM_GENERIC_DOMAINS_OF if PM
 	help
 	  This enables support for the SCPI power domains which can be
 	  enabled or disabled via the SCP firmware
