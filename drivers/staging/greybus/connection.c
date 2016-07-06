@@ -442,16 +442,6 @@ static int gb_connection_control_connected(struct gb_connection *connection)
 	if (gb_connection_is_static(connection))
 		return 0;
 
-	/*
-	 * HACK: Suppress connected request for the offloaded camera
-	 * connection as it is currently not supported by firmware. Note that
-	 * the corresponding non-fatal disconnected event is still sent.
-	 */
-	if (gb_connection_is_offloaded(connection) &&
-			connection->flags & GB_CONNECTION_FLAG_CDSI1) {
-		return 0;
-	}
-
 	if (gb_connection_is_control(connection))
 		return 0;
 
