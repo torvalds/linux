@@ -264,7 +264,7 @@ int exynos_set_boot_addr(u32 core_id, unsigned long boot_addr)
 			ret = PTR_ERR(boot_reg);
 			goto fail;
 		}
-		__raw_writel(boot_addr, boot_reg);
+		writel_relaxed(boot_addr, boot_reg);
 		ret = 0;
 	}
 fail:
@@ -289,7 +289,7 @@ int exynos_get_boot_addr(u32 core_id, unsigned long *boot_addr)
 			ret = PTR_ERR(boot_reg);
 			goto fail;
 		}
-		*boot_addr = __raw_readl(boot_reg);
+		*boot_addr = readl_relaxed(boot_reg);
 		ret = 0;
 	}
 fail:
