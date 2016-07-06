@@ -731,6 +731,19 @@ static const unsigned emmc_pins[] = {36, 37, 38, 39, 40, 41, 42};
 static const int emmc_muxvals[] = {9, 9, 9, 9, 9, 9, 9};
 static const unsigned emmc_dat8_pins[] = {43, 44, 45, 46};
 static const int emmc_dat8_muxvals[] = {9, 9, 9, 9};
+static const unsigned ether_mii_pins[] = {143, 144, 145, 146, 147, 148, 149,
+					  150, 151, 152, 153, 154, 155, 156,
+					  158, 159, 199, 200, 201, 202};
+static const int ether_mii_muxvals[] = {8, 8, 8, 8, 10, 10, 10, 10, 10, 10, 10,
+					10, 10, 10, 10, 10, 12, 12, 12, 12};
+static const unsigned ether_rgmii_pins[] = {143, 144, 145, 146, 147, 148, 149,
+					    150, 151, 152, 153, 154, 155, 156,
+					    157, 158};
+static const int ether_rgmii_muxvals[] = {8, 8, 8, 8, 8, 8, 8, 8, 8, 8, 8, 8,
+					  8, 8, 8, 8};
+static const unsigned ether_rmii_pins[] = {143, 144, 145, 146, 147, 148, 149,
+					   150, 152, 154, 155, 158};
+static const int ether_rmii_muxvals[] = {8, 8, 8, 8, 9, 9, 9, 9, 9, 9, 9, 9};
 static const unsigned i2c0_pins[] = {109, 110};
 static const int i2c0_muxvals[] = {8, 8};
 static const unsigned i2c1_pins[] = {111, 112};
@@ -854,6 +867,9 @@ static const int xirq_muxvals[] = {
 static const struct uniphier_pinctrl_group uniphier_pxs2_groups[] = {
 	UNIPHIER_PINCTRL_GROUP(emmc),
 	UNIPHIER_PINCTRL_GROUP(emmc_dat8),
+	UNIPHIER_PINCTRL_GROUP(ether_mii),
+	UNIPHIER_PINCTRL_GROUP(ether_rgmii),
+	UNIPHIER_PINCTRL_GROUP(ether_rmii),
 	UNIPHIER_PINCTRL_GROUP(i2c0),
 	UNIPHIER_PINCTRL_GROUP(i2c1),
 	UNIPHIER_PINCTRL_GROUP(i2c2),
@@ -1129,6 +1145,9 @@ static const struct uniphier_pinctrl_group uniphier_pxs2_groups[] = {
 };
 
 static const char * const emmc_groups[] = {"emmc", "emmc_dat8"};
+static const char * const ether_mii_groups[] = {"ether_mii"};
+static const char * const ether_rgmii_groups[] = {"ether_rgmii"};
+static const char * const ether_rmii_groups[] = {"ether_rmii"};
 static const char * const i2c0_groups[] = {"i2c0"};
 static const char * const i2c1_groups[] = {"i2c1"};
 static const char * const i2c2_groups[] = {"i2c2"};
@@ -1217,6 +1236,9 @@ static const char * const xirq_groups[] = {
 
 static const struct uniphier_pinmux_function uniphier_pxs2_functions[] = {
 	UNIPHIER_PINMUX_FUNCTION(emmc),
+	UNIPHIER_PINMUX_FUNCTION(ether_mii),
+	UNIPHIER_PINMUX_FUNCTION(ether_rgmii),
+	UNIPHIER_PINMUX_FUNCTION(ether_rmii),
 	UNIPHIER_PINMUX_FUNCTION(i2c0),
 	UNIPHIER_PINMUX_FUNCTION(i2c1),
 	UNIPHIER_PINMUX_FUNCTION(i2c2),
