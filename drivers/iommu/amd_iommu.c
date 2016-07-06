@@ -105,6 +105,9 @@ struct flush_queue {
 
 DEFINE_PER_CPU(struct flush_queue, flush_queue);
 
+static atomic_t queue_timer_on;
+static struct timer_list queue_timer;
+
 /*
  * Domain for untranslated devices - only allocated
  * if iommu=pt passed on kernel cmd line.
@@ -2151,6 +2154,24 @@ static void __queue_flush(struct flush_queue *queue)
 	queue->next = 0;
 }
 
+void queue_flush_timeout(unsigned long unsused)
+{
+	int cpu;
+
+	atomic_set(&queue_timer_on, 0);
+
+	for_each_possible_cpu(cpu) {
+		struct flush_queue *queue;
+		unsigned long flags;
+
+		queue = per_cpu_ptr(&flush_queue, cpu);
+		spin_lock_irqsave(&queue->lock, flags);
+		if (queue->next > 0)
+			__queue_flush(queue);
+		spin_unlock_irqrestore(&queue->lock, flags);
+	}
+}
+
 static void queue_add(struct dma_ops_domain *dma_dom,
 		      unsigned long address, unsigned long pages)
 {
@@ -2176,6 +2197,10 @@ static void queue_add(struct dma_ops_domain *dma_dom,
 	entry->dma_dom  = dma_dom;
 
 	spin_unlock_irqrestore(&queue->lock, flags);
+
+	if (atomic_cmpxchg(&queue_timer_on, 0, 1) == 0)
+		mod_timer(&queue_timer, jiffies + msecs_to_jiffies(10));
+
 	put_cpu_ptr(&flush_queue);
 }
 
@@ -2634,6 +2659,9 @@ out_put_iova:
 
 int __init amd_iommu_init_dma_ops(void)
 {
+	setup_timer(&queue_timer, queue_flush_timeout, 0);
+	atomic_set(&queue_timer_on, 0);
+
 	swiotlb        = iommu_pass_through ? 1 : 0;
 	iommu_detected = 1;
 
