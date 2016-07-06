@@ -54,6 +54,7 @@ id's until they get an error.
 .. flat-table:: struct media_entity_desc
     :header-rows:  0
     :stub-columns: 0
+    :widths: 1 1 1 1 8
 
 
     -  .. row 1
