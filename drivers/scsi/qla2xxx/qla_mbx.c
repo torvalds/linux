@@ -64,6 +64,13 @@ qla2x00_mailbox_command(scsi_qla_host_t *vha, mbx_cmd_t *mcp)
 		return QLA_FUNCTION_TIMEOUT;
 	}
 
+	 /* if PCI error, then avoid mbx processing.*/
+	 if (test_bit(PCI_ERR, &base_vha->dpc_flags)) {
+		ql_log(ql_log_warn, vha, 0x1191,
+		    "PCI error, exiting.\n");
+		return QLA_FUNCTION_TIMEOUT;
+	 }
+
 	reg = ha->iobase;
 	io_lock_on = base_vha->flags.init_done;
 
@@ -266,6 +273,7 @@ qla2x00_mailbox_command(scsi_qla_host_t *vha, mbx_cmd_t *mcp)
 
 		uint16_t mb0;
 		uint32_t ictrl;
+		uint16_t        w;
 
 		if (IS_FWI2_CAPABLE(ha)) {
 			mb0 = RD_REG_WORD(&reg->isp24.mailbox0);
@@ -279,15 +287,32 @@ qla2x00_mailbox_command(scsi_qla_host_t *vha, mbx_cmd_t *mcp)
 		    "mb[0]=0x%x\n", command, ictrl, jiffies, mb0);
 		ql_dump_regs(ql_dbg_mbx + ql_dbg_buffer, vha, 0x1019);
 
-		/*
-		 * Attempt to capture a firmware dump for further analysis
-		 * of the current firmware state.  We do not need to do this
-		 * if we are intentionally generating a dump.
-		 */
-		if (mcp->mb[0] != MBC_GEN_SYSTEM_ERROR)
-			ha->isp_ops->fw_dump(vha, 0);
+		/* Capture FW dump only, if PCI device active */
+		if (!pci_channel_offline(vha->hw->pdev)) {
+			pci_read_config_word(ha->pdev, PCI_VENDOR_ID, &w);
+			if (w == 0xffff || ictrl == 0xffffffff) {
+				/* This is special case if there is unload
+				 * of driver happening and if PCI device go
+				 * into bad state due to PCI error condition
+				 * then only PCI ERR flag would be set.
+				 * we will do premature exit for above case.
+				 */
+				if (test_bit(UNLOADING, &base_vha->dpc_flags))
+					set_bit(PCI_ERR, &base_vha->dpc_flags);
+				ha->flags.mbox_busy = 0;
+				rval = QLA_FUNCTION_TIMEOUT;
+				goto premature_exit;
+			}
 
-		rval = QLA_FUNCTION_TIMEOUT;
+			/* Attempt to capture firmware dump for further
+			 * anallysis of the current formware state. we do not
+			 * need to do this if we are intentionally generating
+			 * a dump
+			 */
+			if (mcp->mb[0] != MBC_GEN_SYSTEM_ERROR)
+				ha->isp_ops->fw_dump(vha, 0);
+			rval = QLA_FUNCTION_TIMEOUT;
+		 }
 	}
 
 	ha->flags.mbox_busy = 0;

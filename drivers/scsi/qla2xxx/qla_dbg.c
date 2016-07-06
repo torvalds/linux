@@ -14,7 +14,7 @@
  * | Module Init and Probe        |       0x018f       | 0x0146         |
  * |                              |                    | 0x015b-0x0160	|
  * |                              |                    | 0x016e		|
- * | Mailbox commands             |       0x1192       |		|
+ * | Mailbox commands             |       0x1191       | 		|
  * |                              |                    |		|
  * | Device Discovery             |       0x2003       | 0x2016		|
  * |                              |                    | 0x2011-0x2012, |

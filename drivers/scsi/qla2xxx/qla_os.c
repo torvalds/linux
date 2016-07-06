@@ -897,12 +897,16 @@ static void
 qla2x00_wait_for_hba_ready(scsi_qla_host_t *vha)
 {
 	struct qla_hw_data *ha = vha->hw;
+	scsi_qla_host_t *base_vha = pci_get_drvdata(ha->pdev);
 
 	while (((qla2x00_reset_active(vha)) || ha->dpc_active ||
 	    ha->flags.mbox_busy) ||
 		test_bit(FX00_RESET_RECOVERY, &vha->dpc_flags) ||
-		test_bit(FX00_TARGET_SCAN, &vha->dpc_flags))
+		test_bit(FX00_TARGET_SCAN, &vha->dpc_flags)) {
+			if (test_bit(UNLOADING, &base_vha->dpc_flags))
+				break;
 		msleep(1000);
+	}
 }
 
 int
@@ -2954,10 +2958,7 @@ iospace_config_failed:
 	ha = NULL;
 
 probe_out:
-	pci_disable_pcie_error_reporting(pdev);
 	pci_disable_device(pdev);
-	if (test_bit(UNLOADING, &base_vha->dpc_flags))
-		return -ENODEV;
 	return ret;
 }
 
@@ -3137,6 +3138,12 @@ qla2x00_remove_one(struct pci_dev *pdev)
 	}
 
 	qla2x00_wait_for_hba_ready(base_vha);
+
+	/* if UNLOAD flag is already set, then continue unload,
+	 * where it was set first.
+	 */
+	if (test_bit(UNLOADING, &base_vha->dpc_flags))
+		return;
 
 	set_bit(UNLOADING, &base_vha->dpc_flags);
 
@@ -4916,6 +4923,12 @@ qla2x00_disable_board_on_pci_error(struct work_struct *work)
 	    board_disable);
 	struct pci_dev *pdev = ha->pdev;
 	scsi_qla_host_t *base_vha = pci_get_drvdata(ha->pdev);
+
+	/* if UNLOAD flag is already set, then continue unload,
+	 * where it was set first.
+	 */
+	if (test_bit(UNLOADING, &base_vha->dpc_flags))
+		return;
 
 	ql_log(ql_log_warn, base_vha, 0x015b,
 	    "Disabling adapter.\n");
