@@ -3130,7 +3130,7 @@ struct qla_hw_data {
 #define PCI_DEVICE_ID_QLOGIC_ISP2271	0x2271
 #define PCI_DEVICE_ID_QLOGIC_ISP2261	0x2261
 
-	uint32_t	device_type;
+	uint32_t	isp_type;
 #define DT_ISP2100                      BIT_0
 #define DT_ISP2200                      BIT_1
 #define DT_ISP2300                      BIT_2
@@ -3155,6 +3155,7 @@ struct qla_hw_data {
 #define DT_ISP2261			BIT_21
 #define DT_ISP_LAST			(DT_ISP2261 << 1)
 
+	uint32_t	device_type;
 #define DT_T10_PI                       BIT_25
 #define DT_IIDMA                        BIT_26
 #define DT_FWI2                         BIT_27
@@ -3162,7 +3163,8 @@ struct qla_hw_data {
 #define DT_OEM_001                      BIT_29
 #define DT_ISP2200A                     BIT_30
 #define DT_EXTENDED_IDS                 BIT_31
-#define DT_MASK(ha)     ((ha)->device_type & (DT_ISP_LAST - 1))
+
+#define DT_MASK(ha)     ((ha)->isp_type & (DT_ISP_LAST - 1))
 #define IS_QLA2100(ha)  (DT_MASK(ha) & DT_ISP2100)
 #define IS_QLA2200(ha)  (DT_MASK(ha) & DT_ISP2200)
 #define IS_QLA2300(ha)  (DT_MASK(ha) & DT_ISP2300)

@@ -2110,27 +2110,27 @@ qla2x00_set_isp_flags(struct qla_hw_data *ha)
 	ha->device_type = DT_EXTENDED_IDS;
 	switch (ha->pdev->device) {
 	case PCI_DEVICE_ID_QLOGIC_ISP2100:
-		ha->device_type |= DT_ISP2100;
+		ha->isp_type |= DT_ISP2100;
 		ha->device_type &= ~DT_EXTENDED_IDS;
 		ha->fw_srisc_address = RISC_START_ADDRESS_2100;
 		break;
 	case PCI_DEVICE_ID_QLOGIC_ISP2200:
-		ha->device_type |= DT_ISP2200;
+		ha->isp_type |= DT_ISP2200;
 		ha->device_type &= ~DT_EXTENDED_IDS;
 		ha->fw_srisc_address = RISC_START_ADDRESS_2100;
 		break;
 	case PCI_DEVICE_ID_QLOGIC_ISP2300:
-		ha->device_type |= DT_ISP2300;
+		ha->isp_type |= DT_ISP2300;
 		ha->device_type |= DT_ZIO_SUPPORTED;
 		ha->fw_srisc_address = RISC_START_ADDRESS_2300;
 		break;
 	case PCI_DEVICE_ID_QLOGIC_ISP2312:
-		ha->device_type |= DT_ISP2312;
+		ha->isp_type |= DT_ISP2312;
 		ha->device_type |= DT_ZIO_SUPPORTED;
 		ha->fw_srisc_address = RISC_START_ADDRESS_2300;
 		break;
 	case PCI_DEVICE_ID_QLOGIC_ISP2322:
-		ha->device_type |= DT_ISP2322;
+		ha->isp_type |= DT_ISP2322;
 		ha->device_type |= DT_ZIO_SUPPORTED;
 		if (ha->pdev->subsystem_vendor == 0x1028 &&
 		    ha->pdev->subsystem_device == 0x0170)
@@ -2138,60 +2138,60 @@ qla2x00_set_isp_flags(struct qla_hw_data *ha)
 		ha->fw_srisc_address = RISC_START_ADDRESS_2300;
 		break;
 	case PCI_DEVICE_ID_QLOGIC_ISP6312:
-		ha->device_type |= DT_ISP6312;
+		ha->isp_type |= DT_ISP6312;
 		ha->fw_srisc_address = RISC_START_ADDRESS_2300;
 		break;
 	case PCI_DEVICE_ID_QLOGIC_ISP6322:
-		ha->device_type |= DT_ISP6322;
+		ha->isp_type |= DT_ISP6322;
 		ha->fw_srisc_address = RISC_START_ADDRESS_2300;
 		break;
 	case PCI_DEVICE_ID_QLOGIC_ISP2422:
-		ha->device_type |= DT_ISP2422;
+		ha->isp_type |= DT_ISP2422;
 		ha->device_type |= DT_ZIO_SUPPORTED;
 		ha->device_type |= DT_FWI2;
 		ha->device_type |= DT_IIDMA;
 		ha->fw_srisc_address = RISC_START_ADDRESS_2400;
 		break;
 	case PCI_DEVICE_ID_QLOGIC_ISP2432:
-		ha->device_type |= DT_ISP2432;
+		ha->isp_type |= DT_ISP2432;
 		ha->device_type |= DT_ZIO_SUPPORTED;
 		ha->device_type |= DT_FWI2;
 		ha->device_type |= DT_IIDMA;
 		ha->fw_srisc_address = RISC_START_ADDRESS_2400;
 		break;
 	case PCI_DEVICE_ID_QLOGIC_ISP8432:
-		ha->device_type |= DT_ISP8432;
+		ha->isp_type |= DT_ISP8432;
 		ha->device_type |= DT_ZIO_SUPPORTED;
 		ha->device_type |= DT_FWI2;
 		ha->device_type |= DT_IIDMA;
 		ha->fw_srisc_address = RISC_START_ADDRESS_2400;
 		break;
 	case PCI_DEVICE_ID_QLOGIC_ISP5422:
-		ha->device_type |= DT_ISP5422;
+		ha->isp_type |= DT_ISP5422;
 		ha->device_type |= DT_FWI2;
 		ha->fw_srisc_address = RISC_START_ADDRESS_2400;
 		break;
 	case PCI_DEVICE_ID_QLOGIC_ISP5432:
-		ha->device_type |= DT_ISP5432;
+		ha->isp_type |= DT_ISP5432;
 		ha->device_type |= DT_FWI2;
 		ha->fw_srisc_address = RISC_START_ADDRESS_2400;
 		break;
 	case PCI_DEVICE_ID_QLOGIC_ISP2532:
-		ha->device_type |= DT_ISP2532;
+		ha->isp_type |= DT_ISP2532;
 		ha->device_type |= DT_ZIO_SUPPORTED;
 		ha->device_type |= DT_FWI2;
 		ha->device_type |= DT_IIDMA;
 		ha->fw_srisc_address = RISC_START_ADDRESS_2400;
 		break;
 	case PCI_DEVICE_ID_QLOGIC_ISP8001:
-		ha->device_type |= DT_ISP8001;
+		ha->isp_type |= DT_ISP8001;
 		ha->device_type |= DT_ZIO_SUPPORTED;
 		ha->device_type |= DT_FWI2;
 		ha->device_type |= DT_IIDMA;
 		ha->fw_srisc_address = RISC_START_ADDRESS_2400;
 		break;
 	case PCI_DEVICE_ID_QLOGIC_ISP8021:
-		ha->device_type |= DT_ISP8021;
+		ha->isp_type |= DT_ISP8021;
 		ha->device_type |= DT_ZIO_SUPPORTED;
 		ha->device_type |= DT_FWI2;
 		ha->fw_srisc_address = RISC_START_ADDRESS_2400;
@@ -2199,7 +2199,7 @@ qla2x00_set_isp_flags(struct qla_hw_data *ha)
 		qla82xx_init_flags(ha);
 		break;
 	 case PCI_DEVICE_ID_QLOGIC_ISP8044:
-		ha->device_type |= DT_ISP8044;
+		ha->isp_type |= DT_ISP8044;
 		ha->device_type |= DT_ZIO_SUPPORTED;
 		ha->device_type |= DT_FWI2;
 		ha->fw_srisc_address = RISC_START_ADDRESS_2400;
@@ -2207,7 +2207,7 @@ qla2x00_set_isp_flags(struct qla_hw_data *ha)
 		qla82xx_init_flags(ha);
 		break;
 	case PCI_DEVICE_ID_QLOGIC_ISP2031:
-		ha->device_type |= DT_ISP2031;
+		ha->isp_type |= DT_ISP2031;
 		ha->device_type |= DT_ZIO_SUPPORTED;
 		ha->device_type |= DT_FWI2;
 		ha->device_type |= DT_IIDMA;
@@ -2215,7 +2215,7 @@ qla2x00_set_isp_flags(struct qla_hw_data *ha)
 		ha->fw_srisc_address = RISC_START_ADDRESS_2400;
 		break;
 	case PCI_DEVICE_ID_QLOGIC_ISP8031:
-		ha->device_type |= DT_ISP8031;
+		ha->isp_type |= DT_ISP8031;
 		ha->device_type |= DT_ZIO_SUPPORTED;
 		ha->device_type |= DT_FWI2;
 		ha->device_type |= DT_IIDMA;
@@ -2223,10 +2223,10 @@ qla2x00_set_isp_flags(struct qla_hw_data *ha)
 		ha->fw_srisc_address = RISC_START_ADDRESS_2400;
 		break;
 	case PCI_DEVICE_ID_QLOGIC_ISPF001:
-		ha->device_type |= DT_ISPFX00;
+		ha->isp_type |= DT_ISPFX00;
 		break;
 	case PCI_DEVICE_ID_QLOGIC_ISP2071:
-		ha->device_type |= DT_ISP2071;
+		ha->isp_type |= DT_ISP2071;
 		ha->device_type |= DT_ZIO_SUPPORTED;
 		ha->device_type |= DT_FWI2;
 		ha->device_type |= DT_IIDMA;
@@ -2234,7 +2234,7 @@ qla2x00_set_isp_flags(struct qla_hw_data *ha)
 		ha->fw_srisc_address = RISC_START_ADDRESS_2400;
 		break;
 	case PCI_DEVICE_ID_QLOGIC_ISP2271:
-		ha->device_type |= DT_ISP2271;
+		ha->isp_type |= DT_ISP2271;
 		ha->device_type |= DT_ZIO_SUPPORTED;
 		ha->device_type |= DT_FWI2;
 		ha->device_type |= DT_IIDMA;
@@ -2242,7 +2242,7 @@ qla2x00_set_isp_flags(struct qla_hw_data *ha)
 		ha->fw_srisc_address = RISC_START_ADDRESS_2400;
 		break;
 	case PCI_DEVICE_ID_QLOGIC_ISP2261:
-		ha->device_type |= DT_ISP2261;
+		ha->isp_type |= DT_ISP2261;
 		ha->device_type |= DT_ZIO_SUPPORTED;
 		ha->device_type |= DT_FWI2;
 		ha->device_type |= DT_IIDMA;
