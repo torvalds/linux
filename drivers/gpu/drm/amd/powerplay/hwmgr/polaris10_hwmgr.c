@@ -733,7 +733,7 @@ static int polaris10_populate_smc_mvdd_table(struct pp_hwmgr *hwmgr,
 			table->Smio[level] |=
 				data->mvdd_voltage_table.entries[level].smio_low;
 		}
-		table->SmioMask2 = data->vddci_voltage_table.mask_low;
+		table->SmioMask2 = data->mvdd_voltage_table.mask_low;
 
 		table->MvddLevelCount = (uint32_t) PP_HOST_TO_SMC_UL(count);
 	}
