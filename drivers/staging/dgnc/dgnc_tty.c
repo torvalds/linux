@@ -100,7 +100,7 @@ static void dgnc_tty_unthrottle(struct tty_struct *tty);
 static void dgnc_tty_flush_chars(struct tty_struct *tty);
 static void dgnc_tty_flush_buffer(struct tty_struct *tty);
 static void dgnc_tty_hangup(struct tty_struct *tty);
-static int dgnc_set_modem_info(struct tty_struct *tty, unsigned int command,
+static int dgnc_set_modem_info(struct channel_t *ch, unsigned int command,
 			       unsigned int __user *value);
 static int dgnc_get_modem_info(struct channel_t *ch,
 			       unsigned int __user *value);
@@ -2008,31 +2008,13 @@ static int dgnc_get_modem_info(struct channel_t *ch,
  *
  * Set modem signals, called by ld.
  */
-static int dgnc_set_modem_info(struct tty_struct *tty,
+static int dgnc_set_modem_info(struct channel_t *ch,
 			       unsigned int command,
 			       unsigned int __user *value)
 {
-	struct dgnc_board *bd;
-	struct channel_t *ch;
-	struct un_t *un;
 	int ret = -ENXIO;
 	unsigned int arg = 0;
 	unsigned long flags;
-
-	if (!tty || tty->magic != TTY_MAGIC)
-		return ret;
-
-	un = tty->driver_data;
-	if (!un || un->magic != DGNC_UNIT_MAGIC)
-		return ret;
-
-	ch = un->un_ch;
-	if (!ch || ch->magic != DGNC_CHANNEL_MAGIC)
-		return ret;
-
-	bd = ch->ch_bd;
-	if (!bd || bd->magic != DGNC_BOARD_MAGIC)
-		return ret;
 
 	ret = get_user(arg, value);
 	if (ret)
@@ -2600,7 +2582,7 @@ static int dgnc_tty_ioctl(struct tty_struct *tty, unsigned int cmd,
 	case TIOCMBIC:
 	case TIOCMSET:
 		spin_unlock_irqrestore(&ch->ch_lock, flags);
-		return dgnc_set_modem_info(tty, cmd, uarg);
+		return dgnc_set_modem_info(ch, cmd, uarg);
 
 		/*
 		 * Here are any additional ioctl's that we want to implement
