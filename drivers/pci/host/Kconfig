@@ -248,6 +248,7 @@ config PCIE_ARMADA_8K
 config PCIE_ARTPEC6
 	bool "Axis ARTPEC-6 PCIe controller"
 	depends on MACH_ARTPEC6
+	depends on PCI_MSI_IRQ_DOMAIN
 	select PCIE_DW
 	select PCIEPORTBUS
 	help
