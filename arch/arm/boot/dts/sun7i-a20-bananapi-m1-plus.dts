@@ -70,12 +70,11 @@
 			gpios = <&pio 7 24 GPIO_ACTIVE_HIGH>;
 		};
 
-		red {
-			label = "bananapi-m1-plus:red:usr";
+		pwr {
+			label = "bananapi-m1-plus:pwr:usr";
 			gpios = <&pio 7 25 GPIO_ACTIVE_HIGH>;
-			linux,default-trigger = "default-on";
+			default-state = "on";
 		};
-
 	};
 
 	mmc3_pwrseq: mmc3_pwrseq {
@@ -202,7 +201,7 @@
 	};
 
 	led_pins_bpi_m1p: led_pins@0 {
-		allwinner,pins = "PH24", "PG2";
+		allwinner,pins = "PH24", "PH25";
 		allwinner,function = "gpio_out";
 		allwinner,drive = <SUN4I_PINCTRL_10_MA>;
 		allwinner,pull = <SUN4I_PINCTRL_NO_PULL>;
