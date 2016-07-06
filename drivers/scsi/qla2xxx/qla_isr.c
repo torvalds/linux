@@ -710,16 +710,23 @@ skip_rio:
 
 	case MBA_RSP_TRANSFER_ERR:	/* Response Transfer Error */
 		ql_log(ql_log_warn, vha, 0x5007,
-		    "ISP Response Transfer Error.\n");
+		    "ISP Response Transfer Error (%x).\n", mb[1]);
 
 		set_bit(ISP_ABORT_NEEDED, &vha->dpc_flags);
 		break;
 
 	case MBA_WAKEUP_THRES:		/* Request Queue Wake-up */
 		ql_dbg(ql_dbg_async, vha, 0x5008,
-		    "Asynchronous WAKEUP_THRES.\n");
-
+		    "Asynchronous WAKEUP_THRES (%x).\n", mb[1]);
 		break;
+
+	case MBA_LOOP_INIT_ERR:
+		ql_log(ql_log_warn, vha, 0x507b,
+		    "LOOP INIT ERROR (%x).\n", mb[1]);
+		ha->isp_ops->fw_dump(vha, 1);
+		set_bit(ISP_ABORT_NEEDED, &vha->dpc_flags);
+		break;
+
 	case MBA_LIP_OCCURRED:		/* Loop Initialization Procedure */
 		ql_dbg(ql_dbg_async, vha, 0x5009,
 		    "LIP occurred (%x).\n", mb[1]);
