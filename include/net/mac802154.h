@@ -287,6 +287,65 @@ static inline unsigned char *ieee802154_skb_dst_pan(__le16 fc,
 }
 
 /**
+ * ieee802154_skb_src_pan - get the pointer to source pan field
+ * @fc: mac header frame control field
+ * @skb: skb where the source pan pointer will be get from
+ */
+static inline unsigned char *ieee802154_skb_src_pan(__le16 fc,
+						    const struct sk_buff *skb)
+{
+	unsigned char *src_pan;
+
+	switch (ieee802154_saddr_mode(fc)) {
+	case cpu_to_le16(IEEE802154_FCTL_ADDR_NONE):
+		src_pan = NULL;
+		break;
+	case cpu_to_le16(IEEE802154_FCTL_SADDR_SHORT):
+	case cpu_to_le16(IEEE802154_FCTL_SADDR_EXTENDED):
+		/* if intra-pan and source addr mode is non none,
+		 * then source pan id is equal destination pan id.
+		 */
+		if (ieee802154_is_intra_pan(fc)) {
+			src_pan = ieee802154_skb_dst_pan(fc, skb);
+			break;
+		}
+
+		switch (ieee802154_daddr_mode(fc)) {
+		case cpu_to_le16(IEEE802154_FCTL_ADDR_NONE):
+			src_pan = skb_mac_header(skb) +
+				  IEEE802154_FC_LEN +
+				  IEEE802154_SEQ_LEN;
+			break;
+		case cpu_to_le16(IEEE802154_FCTL_DADDR_SHORT):
+			src_pan = skb_mac_header(skb) +
+				  IEEE802154_FC_LEN +
+				  IEEE802154_SEQ_LEN +
+				  IEEE802154_PAN_ID_LEN +
+				  IEEE802154_SHORT_ADDR_LEN;
+			break;
+		case cpu_to_le16(IEEE802154_FCTL_DADDR_EXTENDED):
+			src_pan = skb_mac_header(skb) +
+				  IEEE802154_FC_LEN +
+				  IEEE802154_SEQ_LEN +
+				  IEEE802154_PAN_ID_LEN +
+				  IEEE802154_EXTENDED_ADDR_LEN;
+			break;
+		default:
+			WARN_ONCE(1, "invalid addr mode detected");
+			src_pan = NULL;
+			break;
+		}
+		break;
+	default:
+		WARN_ONCE(1, "invalid addr mode detected");
+		src_pan = NULL;
+		break;
+	}
+
+	return src_pan;
+}
+
+/**
  * ieee802154_be64_to_le64 - copies and convert be64 to le64
  * @le64_dst: le64 destination pointer
  * @be64_src: be64 source pointer

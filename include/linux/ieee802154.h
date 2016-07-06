@@ -50,6 +50,7 @@
 
 #define IEEE802154_EXTENDED_ADDR_LEN	8
 #define IEEE802154_SHORT_ADDR_LEN	2
+#define IEEE802154_PAN_ID_LEN		2
 
 #define IEEE802154_LIFS_PERIOD		40
 #define IEEE802154_SIFS_PERIOD		12
@@ -224,12 +225,15 @@ enum {
 #define IEEE802154_FCTL_SECEN		0x0004
 #define IEEE802154_FCTL_INTRA_PAN	0x0040
 #define IEEE802154_FCTL_DADDR		0x0c00
+#define IEEE802154_FCTL_SADDR		0xc000
 
 #define IEEE802154_FTYPE_DATA		0x0001
 
 #define IEEE802154_FCTL_ADDR_NONE	0x0000
 #define IEEE802154_FCTL_DADDR_SHORT	0x0800
 #define IEEE802154_FCTL_DADDR_EXTENDED	0x0c00
+#define IEEE802154_FCTL_SADDR_SHORT	0x8000
+#define IEEE802154_FCTL_SADDR_EXTENDED	0xc000
 
 /*
  * ieee802154_is_data - check if type is IEEE802154_FTYPE_DATA
@@ -275,6 +279,15 @@ static inline bool ieee802154_is_intra_pan(__le16 fc)
 static inline __le16 ieee802154_daddr_mode(__le16 fc)
 {
 	return fc & cpu_to_le16(IEEE802154_FCTL_DADDR);
+}
+
+/*
+ * ieee802154_saddr_mode - get saddr mode from fc
+ * @fc: frame control bytes in little-endian byteorder
+ */
+static inline __le16 ieee802154_saddr_mode(__le16 fc)
+{
+	return fc & cpu_to_le16(IEEE802154_FCTL_SADDR);
 }
 
 /**
