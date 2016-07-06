@@ -5243,6 +5243,12 @@ lpfc_els_rcv_rdp(struct lpfc_vport *vport, struct lpfc_iocbq *cmdiocb,
 			 be32_to_cpu(rdp_req->nport_id_desc.nport_id),
 			 be32_to_cpu(rdp_req->nport_id_desc.length));
 
+	if (!(ndlp->nlp_flag & NLP_RPI_REGISTERED) &&
+	    !phba->cfg_enable_SmartSAN) {
+		rjt_err = LSRJT_UNABLE_TPC;
+		rjt_expl = LSEXP_PORT_LOGIN_REQ;
+		goto error;
+	}
 	if (sizeof(struct fc_rdp_nport_desc) !=
 			be32_to_cpu(rdp_req->rdp_des_length))
 		goto rjt_logerr;
