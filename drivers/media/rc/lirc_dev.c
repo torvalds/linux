@@ -585,7 +585,7 @@ long lirc_dev_fop_ioctl(struct file *file, unsigned int cmd, unsigned long arg)
 		break;
 	case LIRC_GET_REC_MODE:
 		if (!(ir->d.features & LIRC_CAN_REC_MASK)) {
-			result = -ENOSYS;
+			result = -ENOTTY;
 			break;
 		}
 
@@ -595,7 +595,7 @@ long lirc_dev_fop_ioctl(struct file *file, unsigned int cmd, unsigned long arg)
 		break;
 	case LIRC_SET_REC_MODE:
 		if (!(ir->d.features & LIRC_CAN_REC_MASK)) {
-			result = -ENOSYS;
+			result = -ENOTTY;
 			break;
 		}
 
@@ -613,7 +613,7 @@ long lirc_dev_fop_ioctl(struct file *file, unsigned int cmd, unsigned long arg)
 	case LIRC_GET_MIN_TIMEOUT:
 		if (!(ir->d.features & LIRC_CAN_SET_REC_TIMEOUT) ||
 		    ir->d.min_timeout == 0) {
-			result = -ENOSYS;
+			result = -ENOTTY;
 			break;
 		}
 
@@ -622,7 +622,7 @@ long lirc_dev_fop_ioctl(struct file *file, unsigned int cmd, unsigned long arg)
 	case LIRC_GET_MAX_TIMEOUT:
 		if (!(ir->d.features & LIRC_CAN_SET_REC_TIMEOUT) ||
 		    ir->d.max_timeout == 0) {
-			result = -ENOSYS;
+			result = -ENOTTY;
 			break;
 		}
 
