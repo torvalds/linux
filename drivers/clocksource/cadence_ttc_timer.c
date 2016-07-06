@@ -523,7 +523,7 @@ static int __init ttc_timer_init(struct device_node *timer)
 	clk_ce = of_clk_get(timer, clksel);
 	if (IS_ERR(clk_ce)) {
 		pr_err("ERROR: timer input clock not found\n");
-		return PTR_ERR(clk_cs);
+		return PTR_ERR(clk_ce);
 	}
 
 	ret = ttc_setup_clocksource(clk_cs, timer_baseaddr, timer_width);
