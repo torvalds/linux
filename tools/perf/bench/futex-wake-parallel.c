@@ -7,6 +7,9 @@
  * it can be used to measure futex_wake() changes.
  */
 
+/* For the CLR_() macros */
+#include <pthread.h>
+
 #include "../perf.h"
 #include "../util/util.h"
 #include "../util/stat.h"
@@ -18,7 +21,6 @@
 #include <err.h>
 #include <stdlib.h>
 #include <sys/time.h>
-#include <pthread.h>
 
 struct thread_data {
 	pthread_t worker;

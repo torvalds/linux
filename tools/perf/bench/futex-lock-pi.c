@@ -2,6 +2,9 @@
  * Copyright (C) 2015 Davidlohr Bueso.
  */
 
+/* For the CLR_() macros */
+#include <pthread.h>
+
 #include "../perf.h"
 #include "../util/util.h"
 #include "../util/stat.h"
@@ -13,7 +16,6 @@
 #include <err.h>
 #include <stdlib.h>
 #include <sys/time.h>
-#include <pthread.h>
 
 struct worker {
 	int tid;

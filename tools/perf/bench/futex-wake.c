@@ -8,6 +8,9 @@
  * one or more tasks, and thus the waitqueue is never empty.
  */
 
+/* For the CLR_() macros */
+#include <pthread.h>
+
 #include "../perf.h"
 #include "../util/util.h"
 #include "../util/stat.h"
@@ -19,7 +22,6 @@
 #include <err.h>
 #include <stdlib.h>
 #include <sys/time.h>
-#include <pthread.h>
 
 /* all threads will block on the same futex */
 static u_int32_t futex1 = 0;

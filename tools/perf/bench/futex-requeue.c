@@ -8,6 +8,9 @@
  * requeues without waking up any tasks -- thus mimicking a regular futex_wait.
  */
 
+/* For the CLR_() macros */
+#include <pthread.h>
+
 #include "../perf.h"
 #include "../util/util.h"
 #include "../util/stat.h"
@@ -19,7 +22,6 @@
 #include <err.h>
 #include <stdlib.h>
 #include <sys/time.h>
-#include <pthread.h>
 
 static u_int32_t futex1 = 0, futex2 = 0;
 

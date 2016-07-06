@@ -8,8 +8,10 @@
  * many threads and futexes as possible.
  */
 
+/* For the CLR_() macros */
+#include <pthread.h>
+
 #include "../perf.h"
-#include "../util/util.h"
 #include "../util/stat.h"
 #include <subcmd/parse-options.h>
 #include "../util/header.h"
@@ -17,9 +19,7 @@
 #include "futex.h"
 
 #include <err.h>
-#include <stdlib.h>
 #include <sys/time.h>
-#include <pthread.h>
 
 static unsigned int nthreads = 0;
 static unsigned int nsecs    = 10;
