@@ -3,7 +3,7 @@
 .. include:: <isonum.txt>
 
 ##############################
-LINUX MEDIA INFRASTRUCTURE API
+Linux Media Infrastructure API
 ##############################
 
 **Copyright** |copy| 2009-2016 : LinuxTV Developers
