@@ -252,18 +252,6 @@ static void *bar_init(struct pci_dev *dev, int offset)
 	return bar;
 }
 
-static void *rom_init(struct pci_dev *dev, int offset)
-{
-	struct pci_bar_info *bar = kzalloc(sizeof(*bar), GFP_KERNEL);
-
-	if (!bar)
-		return ERR_PTR(-ENOMEM);
-
-	read_dev_bar(dev, bar, offset);
-
-	return bar;
-}
-
 static void bar_reset(struct pci_dev *dev, int offset, void *data)
 {
 	struct pci_bar_info *bar = data;
@@ -382,7 +370,7 @@ static const struct config_field header_common[] = {
 	{						\
 	.offset     = reg_offset,			\
 	.size       = 4,				\
-	.init       = rom_init,				\
+	.init       = bar_init,				\
 	.reset      = bar_reset,			\
 	.release    = bar_release,			\
 	.u.dw.read  = bar_read,				\
