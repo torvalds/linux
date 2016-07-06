@@ -186,8 +186,8 @@ static inline void free_image_page(void *addr, int clear_nosave_free)
 	__free_page(page);
 }
 
-static inline void
-free_list_of_pages(struct linked_page *list, int clear_page_nosave)
+static inline void free_list_of_pages(struct linked_page *list,
+				      int clear_page_nosave)
 {
 	while (list) {
 		struct linked_page *lp = list->next;
@@ -219,8 +219,8 @@ struct chain_allocator {
 	int safe_needed;	/* if set, only "safe" pages are allocated */
 };
 
-static void
-chain_init(struct chain_allocator *ca, gfp_t gfp_mask, int safe_needed)
+static void chain_init(struct chain_allocator *ca, gfp_t gfp_mask,
+		       int safe_needed)
 {
 	ca->chain = NULL;
 	ca->used_space = LINKED_PAGE_DATA_SIZE;
@@ -452,10 +452,11 @@ static void free_zone_bm_rtree(struct mem_zone_bm_rtree *zone,
  *	This function also allocated and builds the radix tree for the
  *	zone.
  */
-static struct mem_zone_bm_rtree *
-create_zone_bm_rtree(gfp_t gfp_mask, int safe_needed,
-		     struct chain_allocator *ca,
-		     unsigned long start, unsigned long end)
+static struct mem_zone_bm_rtree *create_zone_bm_rtree(gfp_t gfp_mask,
+						      int safe_needed,
+						      struct chain_allocator *ca,
+						      unsigned long start,
+						      unsigned long end)
 {
 	struct mem_zone_bm_rtree *zone;
 	unsigned int i, nr_blocks;
@@ -595,8 +596,8 @@ static int create_mem_extents(struct list_head *list, gfp_t gfp_mask)
 /**
   *	memory_bm_create - allocate memory for a memory bitmap
   */
-static int
-memory_bm_create(struct memory_bitmap *bm, gfp_t gfp_mask, int safe_needed)
+static int memory_bm_create(struct memory_bitmap *bm, gfp_t gfp_mask,
+			    int safe_needed)
 {
 	struct chain_allocator ca;
 	struct list_head mem_extents;
@@ -894,9 +895,8 @@ static void memory_bm_recycle(struct memory_bitmap *bm)
  *	initialization code)
  */
 
-void __init
-__register_nosave_region(unsigned long start_pfn, unsigned long end_pfn,
-			 int use_kmalloc)
+void __init __register_nosave_region(unsigned long start_pfn,
+				     unsigned long end_pfn, int use_kmalloc)
 {
 	struct nosave_region *region;
 
@@ -1277,8 +1277,7 @@ static void safe_copy_page(void *dst, struct page *s_page)
 
 
 #ifdef CONFIG_HIGHMEM
-static inline struct page *
-page_is_saveable(struct zone *zone, unsigned long pfn)
+static inline struct page *page_is_saveable(struct zone *zone, unsigned long pfn)
 {
 	return is_highmem(zone) ?
 		saveable_highmem_page(zone, pfn) : saveable_page(zone, pfn);
@@ -1321,8 +1320,8 @@ static inline void copy_data_page(unsigned long dst_pfn, unsigned long src_pfn)
 }
 #endif /* CONFIG_HIGHMEM */
 
-static void
-copy_data_pages(struct memory_bitmap *copy_bm, struct memory_bitmap *orig_bm)
+static void copy_data_pages(struct memory_bitmap *copy_bm,
+			    struct memory_bitmap *orig_bm)
 {
 	struct zone *zone;
 	unsigned long pfn;
@@ -1485,8 +1484,8 @@ static unsigned long __fraction(u64 x, u64 multiplier, u64 base)
 }
 
 static unsigned long preallocate_highmem_fraction(unsigned long nr_pages,
-						unsigned long highmem,
-						unsigned long total)
+						  unsigned long highmem,
+						  unsigned long total)
 {
 	unsigned long alloc = __fraction(nr_pages, highmem, total);
 
@@ -1499,8 +1498,8 @@ static inline unsigned long preallocate_image_highmem(unsigned long nr_pages)
 }
 
 static inline unsigned long preallocate_highmem_fraction(unsigned long nr_pages,
-						unsigned long highmem,
-						unsigned long total)
+							 unsigned long highmem,
+							 unsigned long total)
 {
 	return 0;
 }
@@ -1780,8 +1779,7 @@ static unsigned int count_pages_for_highmem(unsigned int nr_highmem)
 	return nr_highmem;
 }
 #else
-static unsigned int
-count_pages_for_highmem(unsigned int nr_highmem) { return 0; }
+static unsigned int count_pages_for_highmem(unsigned int nr_highmem) { return 0; }
 #endif /* CONFIG_HIGHMEM */
 
 /**
@@ -1823,8 +1821,8 @@ static inline int get_highmem_buffer(int safe_needed)
  *	highmem pages is lesser than that, allocate them all.
  */
 
-static inline unsigned int
-alloc_highmem_pages(struct memory_bitmap *bm, unsigned int nr_highmem)
+static inline unsigned int alloc_highmem_pages(struct memory_bitmap *bm,
+					       unsigned int nr_highmem)
 {
 	unsigned int to_alloc = count_free_highmem_pages();
 
@@ -1843,8 +1841,8 @@ alloc_highmem_pages(struct memory_bitmap *bm, unsigned int nr_highmem)
 #else
 static inline int get_highmem_buffer(int safe_needed) { return 0; }
 
-static inline unsigned int
-alloc_highmem_pages(struct memory_bitmap *bm, unsigned int n) { return 0; }
+static inline unsigned int alloc_highmem_pages(struct memory_bitmap *bm,
+					       unsigned int n) { return 0; }
 #endif /* CONFIG_HIGHMEM */
 
 /**
@@ -1859,9 +1857,9 @@ alloc_highmem_pages(struct memory_bitmap *bm, unsigned int n) { return 0; }
  *	copy_data_pages() works.
  */
 
-static int
-swsusp_alloc(struct memory_bitmap *orig_bm, struct memory_bitmap *copy_bm,
-		unsigned int nr_pages, unsigned int nr_highmem)
+static int swsusp_alloc(struct memory_bitmap *orig_bm,
+			struct memory_bitmap *copy_bm,
+			unsigned int nr_pages, unsigned int nr_highmem)
 {
 	if (nr_highmem > 0) {
 		if (get_highmem_buffer(PG_ANY))
@@ -1978,8 +1976,7 @@ static int init_header(struct swsusp_info *info)
  *	are stored in the array @buf[] (1 page at a time)
  */
 
-static inline void
-pack_pfns(unsigned long *buf, struct memory_bitmap *bm)
+static inline void pack_pfns(unsigned long *buf, struct memory_bitmap *bm)
 {
 	int j;
 
@@ -2110,8 +2107,7 @@ static int check_header(struct swsusp_info *info)
  *	load header - check the image header and copy data from it
  */
 
-static int
-load_header(struct swsusp_info *info)
+static int load_header(struct swsusp_info *info)
 {
 	int error;
 
@@ -2204,8 +2200,8 @@ static unsigned int safe_highmem_pages;
 
 static struct memory_bitmap *safe_highmem_bm;
 
-static int
-prepare_highmem_image(struct memory_bitmap *bm, unsigned int *nr_highmem_p)
+static int prepare_highmem_image(struct memory_bitmap *bm,
+				 unsigned int *nr_highmem_p)
 {
 	unsigned int to_alloc;
 
@@ -2259,8 +2255,8 @@ prepare_highmem_image(struct memory_bitmap *bm, unsigned int *nr_highmem_p)
 
 static struct page *last_highmem_page;
 
-static void *
-get_highmem_page_buffer(struct page *page, struct chain_allocator *ca)
+static void *get_highmem_page_buffer(struct page *page,
+				     struct chain_allocator *ca)
 {
 	struct highmem_pbe *pbe;
 	void *kaddr;
@@ -2333,17 +2329,13 @@ static inline void free_highmem_data(void)
 		free_image_page(buffer, PG_UNSAFE_CLEAR);
 }
 #else
-static unsigned int
-count_highmem_image_pages(struct memory_bitmap *bm) { return 0; }
+static unsigned int count_highmem_image_pages(struct memory_bitmap *bm) { return 0; }
 
-static inline int
-prepare_highmem_image(struct memory_bitmap *bm, unsigned int *nr_highmem_p)
-{
-	return 0;
-}
+static inline int prepare_highmem_image(struct memory_bitmap *bm,
+					unsigned int *nr_highmem_p) { return 0; }
 
-static inline void *
-get_highmem_page_buffer(struct page *page, struct chain_allocator *ca)
+static inline void *get_highmem_page_buffer(struct page *page,
+					    struct chain_allocator *ca)
 {
 	return ERR_PTR(-EINVAL);
 }
@@ -2369,8 +2361,7 @@ static inline void free_highmem_data(void) {}
 
 #define PBES_PER_LINKED_PAGE	(LINKED_PAGE_DATA_SIZE / sizeof(struct pbe))
 
-static int
-prepare_image(struct memory_bitmap *new_bm, struct memory_bitmap *bm)
+static int prepare_image(struct memory_bitmap *new_bm, struct memory_bitmap *bm)
 {
 	unsigned int nr_pages, nr_highmem;
 	struct linked_page *lp;
@@ -2593,8 +2584,8 @@ int snapshot_image_loaded(struct snapshot_handle *handle)
 
 #ifdef CONFIG_HIGHMEM
 /* Assumes that @buf is ready and points to a "safe" page */
-static inline void
-swap_two_pages_data(struct page *p1, struct page *p2, void *buf)
+static inline void swap_two_pages_data(struct page *p1, struct page *p2,
+				       void *buf)
 {
 	void *kaddr1, *kaddr2;
 
