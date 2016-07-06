@@ -325,7 +325,6 @@ static const struct of_device_id imx21_pinctrl_of_match[] = {
 	{ .compatible = "fsl,imx21-iomuxc", },
 	{ }
 };
-MODULE_DEVICE_TABLE(of, imx21_pinctrl_of_match);
 
 static struct platform_driver imx21_pinctrl_driver = {
 	.driver	= {
