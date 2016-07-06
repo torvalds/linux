@@ -38,15 +38,14 @@ static void tango_cpu_die(unsigned int cpu)
 
 	panic("cpu %d failed to die\n", cpu);
 }
-#else
-#define tango_cpu_kill	NULL
-#define tango_cpu_die	NULL
 #endif
 
 static const struct smp_operations tango_smp_ops __initconst = {
 	.smp_boot_secondary	= tango_boot_secondary,
+#ifdef CONFIG_HOTPLUG_CPU
 	.cpu_kill		= tango_cpu_kill,
 	.cpu_die		= tango_cpu_die,
+#endif
 };
 
 CPU_METHOD_OF_DECLARE(tango4_smp, "sigma,tango4-smp", &tango_smp_ops);
