@@ -310,13 +310,6 @@ static int lirc_allocate_driver(struct lirc_driver *d)
 	irctls[minor] = ir;
 	d->minor = minor;
 
-	if (d->sample_rate) {
-		ir->jiffies_to_wait = HZ / d->sample_rate;
-	} else {
-		/* it means - wait for external event in task queue */
-		ir->jiffies_to_wait = 0;
-	}
-
 	/* some safety check 8-) */
 	d->name[sizeof(d->name)-1] = '\0';
 
@@ -330,6 +323,8 @@ static int lirc_allocate_driver(struct lirc_driver *d)
 		      "lirc%u", ir->d.minor);
 
 	if (d->sample_rate) {
+		ir->jiffies_to_wait = HZ / d->sample_rate;
+
 		/* try to fire up polling thread */
 		ir->task = kthread_run(lirc_thread, (void *)ir, "lirc_dev");
 		if (IS_ERR(ir->task)) {
@@ -338,6 +333,9 @@ static int lirc_allocate_driver(struct lirc_driver *d)
 			err = -ECHILD;
 			goto out_sysfs;
 		}
+	} else {
+		/* it means - wait for external event in task queue */
+		ir->jiffies_to_wait = 0;
 	}
 
 	err = lirc_cdev_add(ir);
