@@ -248,13 +248,13 @@ static int lirc_allocate_driver(struct lirc_driver *d)
 		return -EINVAL;
 	}
 
-	if (MAX_IRCTL_DEVICES <= d->minor) {
+	if (d->minor >= MAX_IRCTL_DEVICES) {
 		dev_err(d->dev, "minor must be between 0 and %d!\n",
 						MAX_IRCTL_DEVICES - 1);
 		return -EBADRQC;
 	}
 
-	if (1 > d->code_length || (BUFLEN * 8) < d->code_length) {
+	if (d->code_length < 1 || d->code_length > (BUFLEN * 8)) {
 		dev_err(d->dev, "code length must be less than %d bits\n",
 								BUFLEN * 8);
 		return -EBADRQC;
@@ -285,7 +285,7 @@ static int lirc_allocate_driver(struct lirc_driver *d)
 		for (minor = 0; minor < MAX_IRCTL_DEVICES; minor++)
 			if (!irctls[minor])
 				break;
-		if (MAX_IRCTL_DEVICES == minor) {
+		if (minor == MAX_IRCTL_DEVICES) {
 			dev_err(d->dev, "no free slots for drivers!\n");
 			err = -ENOMEM;
 			goto out_lock;
