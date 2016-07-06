@@ -94,6 +94,19 @@ enum ib_sa_selector {
 	IB_SA_BEST = 3
 };
 
+/*
+ * There are 4 types of join states:
+ * FullMember, NonMember, SendOnlyNonMember, SendOnlyFullMember.
+ * The order corresponds to JoinState bits in MCMemberRecord.
+ */
+enum ib_sa_mc_join_states {
+	FULLMEMBER_JOIN,
+	NONMEMBER_JOIN,
+	SENDONLY_NONMEBER_JOIN,
+	SENDONLY_FULLMEMBER_JOIN,
+	NUM_JOIN_MEMBERSHIP_TYPES,
+};
+
 #define IB_SA_CAP_MASK2_SENDONLY_FULL_MEM_SUPPORT	BIT(12)
 
 /*
