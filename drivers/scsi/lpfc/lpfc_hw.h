@@ -1239,8 +1239,8 @@ struct fc_rdp_opd_sfp_info {
 	uint8_t            vendor_name[16];
 	uint8_t            model_number[16];
 	uint8_t            serial_number[16];
-	uint8_t            reserved[2];
 	uint8_t            revision[2];
+	uint8_t            reserved[2];
 	uint8_t            date[8];
 };
 
