@@ -203,13 +203,41 @@ err_out:
 	return retval;
 }
 
+static int lirc_allocate_buffer(struct irctl *ir)
+{
+	int err;
+	int bytes_in_key;
+	unsigned int chunk_size;
+	unsigned int buffer_size;
+	struct lirc_driver *d = &ir->d;
+
+	bytes_in_key = BITS_TO_LONGS(d->code_length) +
+						(d->code_length % 8 ? 1 : 0);
+	buffer_size = d->buffer_size ? d->buffer_size : BUFLEN / bytes_in_key;
+	chunk_size  = d->chunk_size  ? d->chunk_size  : bytes_in_key;
+
+	if (d->rbuf) {
+		ir->buf = d->rbuf;
+	} else {
+		ir->buf = kmalloc(sizeof(struct lirc_buffer), GFP_KERNEL);
+		if (!ir->buf)
+			return -ENOMEM;
+
+		err = lirc_buffer_init(ir->buf, chunk_size, buffer_size);
+		if (err) {
+			kfree(ir->buf);
+			return err;
+		}
+	}
+	ir->chunk_size = ir->buf->chunk_size;
+
+	return 0;
+}
+
 int lirc_register_driver(struct lirc_driver *d)
 {
 	struct irctl *ir;
 	int minor;
-	int bytes_in_key;
-	unsigned int chunk_size;
-	unsigned int buffer_size;
 	int err;
 
 	if (!d) {
@@ -314,26 +342,9 @@ int lirc_register_driver(struct lirc_driver *d)
 	/* some safety check 8-) */
 	d->name[sizeof(d->name)-1] = '\0';
 
-	bytes_in_key = BITS_TO_LONGS(d->code_length) +
-			(d->code_length % 8 ? 1 : 0);
-	buffer_size = d->buffer_size ? d->buffer_size : BUFLEN / bytes_in_key;
-	chunk_size  = d->chunk_size  ? d->chunk_size  : bytes_in_key;
-
-	if (d->rbuf) {
-		ir->buf = d->rbuf;
-	} else {
-		ir->buf = kmalloc(sizeof(struct lirc_buffer), GFP_KERNEL);
-		if (!ir->buf) {
-			err = -ENOMEM;
-			goto out_lock;
-		}
-		err = lirc_buffer_init(ir->buf, chunk_size, buffer_size);
-		if (err) {
-			kfree(ir->buf);
-			goto out_lock;
-		}
-	}
-	ir->chunk_size = ir->buf->chunk_size;
+	err = lirc_allocate_buffer(ir);
+	if (err)
+		goto out_lock;
 
 	if (d->features == 0)
 		d->features = LIRC_CAN_REC_LIRCCODE;
