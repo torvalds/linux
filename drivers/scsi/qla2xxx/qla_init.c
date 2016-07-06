@@ -2288,13 +2288,13 @@ qla2x00_init_rings(scsi_qla_host_t *vha)
 		mid_init_cb->options = cpu_to_le16(BIT_1);
 		mid_init_cb->init_cb.execution_throttle =
 		    cpu_to_le16(ha->cur_fw_xcb_count);
-		/* D-Port Status */
-		if (IS_DPORT_CAPABLE(ha))
-			mid_init_cb->init_cb.firmware_options_1 |=
-			    cpu_to_le16(BIT_7);
-		/* Enable FA-WWPN */
+		ha->flags.dport_enabled =
+		    (mid_init_cb->init_cb.firmware_options_1 & BIT_7) != 0;
+		ql_dbg(ql_dbg_init, vha, 0x0191, "DPORT Support: %s.\n",
+		    (ha->flags.dport_enabled) ? "enabled" : "disabled");
+		/* FA-WWPN Status */
 		ha->flags.fawwpn_enabled =
-		    (mid_init_cb->init_cb.firmware_options_1 & BIT_6) ? 1 : 0;
+		    (mid_init_cb->init_cb.firmware_options_1 & BIT_6) != 0;
 		ql_dbg(ql_dbg_init, vha, 0x0141, "FA-WWPN Support: %s.\n",
 		    (ha->flags.fawwpn_enabled) ? "enabled" : "disabled");
 	}

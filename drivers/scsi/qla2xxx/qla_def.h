@@ -3029,6 +3029,7 @@ struct qla_hw_data {
 		uint32_t        mr_reset_hdlr_active:1;
 		uint32_t        mr_intr_valid:1;
 
+		uint32_t        dport_enabled:1;
 		uint32_t	fawwpn_enabled:1;
 		uint32_t	exlogins_enabled:1;
 		uint32_t	exchoffld_enabled:1;
