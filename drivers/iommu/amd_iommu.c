@@ -1177,7 +1177,7 @@ static void domain_flush_complete(struct protection_domain *domain)
 	int i;
 
 	for (i = 0; i < amd_iommus_present; ++i) {
-		if (!domain->dev_iommu[i])
+		if (domain && !domain->dev_iommu[i])
 			continue;
 
 		/*
