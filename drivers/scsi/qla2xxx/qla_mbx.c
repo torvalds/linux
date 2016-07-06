@@ -404,7 +404,7 @@ mbx_done:
 		    "**** Failed mbx[0]=%x, mb[1]=%x, mb[2]=%x, mb[3]=%x, cmd=%x ****.\n",
 		    mcp->mb[0], mcp->mb[1], mcp->mb[2], mcp->mb[3], command);
 
-		ql_dbg(ql_dbg_disc, vha, 0x1115,
+		ql_dbg(ql_dbg_mbx, vha, 0x1198,
 		    "host status: 0x%x, flags:0x%lx, intr ctrl reg:0x%x, intr status:0x%x\n",
 		    RD_REG_DWORD(&reg->isp24.host_status),
 		    ha->fw_dump_cap_flags,
@@ -413,7 +413,7 @@ mbx_done:
 
 		mbx_reg = &reg->isp24.mailbox0;
 		for (i = 0; i < 6; i++)
-			ql_dbg(ql_dbg_disc + ql_dbg_verbose, vha, 0x1116,
+			ql_dbg(ql_dbg_mbx + ql_dbg_verbose, vha, 0x1199,
 			    "mbox[%d] 0x%04x\n", i, RD_REG_WORD(mbx_reg++));
 	} else {
 		ql_dbg(ql_dbg_mbx, base_vha, 0x1021, "Done %s.\n", __func__);

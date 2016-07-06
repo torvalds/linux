@@ -721,7 +721,7 @@ skip_rio:
 		break;
 
 	case MBA_LOOP_INIT_ERR:
-		ql_log(ql_log_warn, vha, 0x507b,
+		ql_log(ql_log_warn, vha, 0x5090,
 		    "LOOP INIT ERROR (%x).\n", mb[1]);
 		ha->isp_ops->fw_dump(vha, 1);
 		set_bit(ISP_ABORT_NEEDED, &vha->dpc_flags);
