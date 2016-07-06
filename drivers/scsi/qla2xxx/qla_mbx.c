@@ -782,8 +782,9 @@ qla2x00_get_fw_version(scsi_qla_host_t *vha)
 	if (IS_FWI2_CAPABLE(ha))
 		mcp->in_mb |= MBX_17|MBX_16|MBX_15;
 	if (IS_QLA27XX(ha))
-		mcp->in_mb |= MBX_23 | MBX_22 | MBX_21 | MBX_20 | MBX_19 |
-		    MBX_18 | MBX_14 | MBX_13 | MBX_11 | MBX_10 | MBX_9 | MBX_8;
+		mcp->in_mb |=
+		    MBX_25|MBX_24|MBX_23|MBX_22|MBX_21|MBX_20|MBX_19|MBX_18|
+		    MBX_14|MBX_13|MBX_11|MBX_10|MBX_9|MBX_8;
 
 	mcp->flags = 0;
 	mcp->tov = MBX_TOV_SECONDS;
@@ -842,6 +843,8 @@ qla2x00_get_fw_version(scsi_qla_host_t *vha)
 		ha->pep_version[2] = mcp->mb[14] & 0xff;
 		ha->fw_shared_ram_start = (mcp->mb[19] << 16) | mcp->mb[18];
 		ha->fw_shared_ram_end = (mcp->mb[21] << 16) | mcp->mb[20];
+		ha->fw_ddr_ram_start = (mcp->mb[23] << 16) | mcp->mb[22];
+		ha->fw_ddr_ram_end = (mcp->mb[25] << 16) | mcp->mb[24];
 	}
 
 failed:

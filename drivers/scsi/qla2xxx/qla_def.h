@@ -3370,6 +3370,8 @@ struct qla_hw_data {
 
 	uint32_t	fw_shared_ram_start;
 	uint32_t	fw_shared_ram_end;
+	uint32_t	fw_ddr_ram_start;
+	uint32_t	fw_ddr_ram_end;
 
 	uint16_t	fw_options[16];         /* slots: 1,2,3,10,11 */
 	uint8_t		fw_seriallink_options[4];
