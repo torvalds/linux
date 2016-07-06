@@ -211,8 +211,8 @@ static int bar_read(struct pci_dev *dev, int offset, u32 * value, void *data)
 
 static void *bar_init(struct pci_dev *dev, int offset)
 {
-	int	pos;
-	struct resource	*res = dev->resource;
+	unsigned int pos;
+	const struct resource *res = dev->resource;
 	struct pci_bar_info *bar = kzalloc(sizeof(*bar), GFP_KERNEL);
 
 	if (!bar)
