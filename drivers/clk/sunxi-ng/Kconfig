@@ -53,6 +53,17 @@ config SUNXI_CCU_MP
 
 # SoC Drivers
 
+config SUN50I_A64_CCU
+	bool "Support for the Allwinner A64 CCU"
+	select SUNXI_CCU_DIV
+	select SUNXI_CCU_NK
+	select SUNXI_CCU_NKM
+	select SUNXI_CCU_NKMP
+	select SUNXI_CCU_NM
+	select SUNXI_CCU_MP
+	select SUNXI_CCU_PHASE
+	default ARM64 && ARCH_SUNXI
+
 config SUN6I_A31_CCU
 	bool "Support for the Allwinner A31/A31s CCU"
 	select SUNXI_CCU_DIV
