@@ -212,10 +212,6 @@
 	status = "okay";
 };
 
-&ohci1 {
-	status = "okay";
-};
-
 &otg_sram {
 	status = "okay";
 };
@@ -291,6 +287,7 @@
 };
 
 &reg_usb2_vbus {
+	gpio = <&pio 7 12 GPIO_ACTIVE_HIGH>; /* PH12 */
 	status = "okay";
 };
 
@@ -327,6 +324,10 @@
 
 &usb_power_supply {
 	status = "okay";
+};
+
+&usb2_vbus_pin_a {
+	allwinner,pins = "PH12";
 };
 
 &usbphy {
