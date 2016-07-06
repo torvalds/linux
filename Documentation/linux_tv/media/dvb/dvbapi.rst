@@ -4,9 +4,12 @@
 
 .. _dvbapi:
 
-#############
-LINUX DVB API
-#############
+##############
+Digital TV API
+##############
+
+**NOTE:** This API is also known as **DVB API**, although it is generic
+enough to support all digital TV standards.
 
 **Version 5.10**
 
