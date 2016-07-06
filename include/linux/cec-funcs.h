@@ -788,7 +788,7 @@ static inline void cec_msg_set_timer_program_title(struct cec_msg *msg,
 static inline void cec_ops_set_timer_program_title(const struct cec_msg *msg,
 						   char *prog_title)
 {
-	unsigned int len = msg->len - 2;
+	unsigned int len = msg->len > 2 ? msg->len - 2 : 0;
 
 	if (len > 14)
 		len = 14;
@@ -1167,7 +1167,7 @@ static inline void cec_ops_set_osd_string(const struct cec_msg *msg,
 					  __u8 *disp_ctl,
 					  char *osd)
 {
-	unsigned int len = msg->len - 3;
+	unsigned int len = msg->len > 3 ? msg->len - 3 : 0;
 
 	*disp_ctl = msg->msg[2];
 	if (len > 13)
@@ -1192,7 +1192,7 @@ static inline void cec_msg_set_osd_name(struct cec_msg *msg, const char *name)
 static inline void cec_ops_set_osd_name(const struct cec_msg *msg,
 					char *name)
 {
-	unsigned int len = msg->len - 2;
+	unsigned int len = msg->len > 2 ? msg->len - 2 : 0;
 
 	if (len > 14)
 		len = 14;
