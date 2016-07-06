@@ -199,7 +199,6 @@ static void br_flood(struct net_bridge *br, struct sk_buff *skb,
 		     bool unicast)
 {
 	u8 igmp_type = br_multicast_igmp_type(skb);
-	__be16 proto = skb->protocol;
 	struct net_bridge_port *prev;
 	struct net_bridge_port *p;
 
@@ -221,7 +220,7 @@ static void br_flood(struct net_bridge *br, struct sk_buff *skb,
 		if (IS_ERR(prev))
 			goto out;
 		if (prev == p)
-			br_multicast_count(p->br, p, proto, igmp_type,
+			br_multicast_count(p->br, p, skb, igmp_type,
 					   BR_MCAST_DIR_TX);
 	}
 
@@ -266,8 +265,6 @@ static void br_multicast_flood(struct net_bridge_mdb_entry *mdst,
 	struct net_bridge *br = netdev_priv(dev);
 	struct net_bridge_port *prev = NULL;
 	struct net_bridge_port_group *p;
-	__be16 proto = skb->protocol;
-
 	struct hlist_node *rp;
 
 	rp = rcu_dereference(hlist_first_rcu(&br->router_list));
@@ -286,7 +283,7 @@ static void br_multicast_flood(struct net_bridge_mdb_entry *mdst,
 		if (IS_ERR(prev))
 			goto out;
 		if (prev == port)
-			br_multicast_count(port->br, port, proto, igmp_type,
+			br_multicast_count(port->br, port, skb, igmp_type,
 					   BR_MCAST_DIR_TX);
 
 		if ((unsigned long)lport >= (unsigned long)port)

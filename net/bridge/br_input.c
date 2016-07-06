@@ -61,7 +61,7 @@ static int br_pass_frame_up(struct sk_buff *skb)
 	if (!skb)
 		return NET_RX_DROP;
 	/* update the multicast stats if the packet is IGMP/MLD */
-	br_multicast_count(br, NULL, skb->protocol, br_multicast_igmp_type(skb),
+	br_multicast_count(br, NULL, skb, br_multicast_igmp_type(skb),
 			   BR_MCAST_DIR_TX);
 
 	return NF_HOOK(NFPROTO_BRIDGE, NF_BR_LOCAL_IN,

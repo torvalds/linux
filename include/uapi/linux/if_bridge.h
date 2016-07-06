@@ -261,14 +261,17 @@ enum {
 
 /* IGMP/MLD statistics */
 struct br_mcast_stats {
-	__u64 igmp_queries[BR_MCAST_DIR_SIZE];
+	__u64 igmp_v1queries[BR_MCAST_DIR_SIZE];
+	__u64 igmp_v2queries[BR_MCAST_DIR_SIZE];
+	__u64 igmp_v3queries[BR_MCAST_DIR_SIZE];
 	__u64 igmp_leaves[BR_MCAST_DIR_SIZE];
 	__u64 igmp_v1reports[BR_MCAST_DIR_SIZE];
 	__u64 igmp_v2reports[BR_MCAST_DIR_SIZE];
 	__u64 igmp_v3reports[BR_MCAST_DIR_SIZE];
 	__u64 igmp_parse_errors;
 
-	__u64 mld_queries[BR_MCAST_DIR_SIZE];
+	__u64 mld_v1queries[BR_MCAST_DIR_SIZE];
+	__u64 mld_v2queries[BR_MCAST_DIR_SIZE];
 	__u64 mld_leaves[BR_MCAST_DIR_SIZE];
 	__u64 mld_v1reports[BR_MCAST_DIR_SIZE];
 	__u64 mld_v2reports[BR_MCAST_DIR_SIZE];

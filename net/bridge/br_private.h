@@ -586,7 +586,7 @@ void br_mdb_notify(struct net_device *dev, struct net_bridge_port *port,
 void br_rtr_notify(struct net_device *dev, struct net_bridge_port *port,
 		   int type);
 void br_multicast_count(struct net_bridge *br, const struct net_bridge_port *p,
-			__be16 proto, u8 type, u8 dir);
+			const struct sk_buff *skb, u8 type, u8 dir);
 int br_multicast_init_stats(struct net_bridge *br);
 void br_multicast_get_stats(const struct net_bridge *br,
 			    const struct net_bridge_port *p,
@@ -719,7 +719,8 @@ static inline void br_mdb_uninit(void)
 
 static inline void br_multicast_count(struct net_bridge *br,
 				      const struct net_bridge_port *p,
-				      __be16 proto, u8 type, u8 dir)
+				      const struct sk_buff *skb,
+				      u8 type, u8 dir)
 {
 }
 

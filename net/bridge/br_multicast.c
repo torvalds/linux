@@ -843,14 +843,14 @@ static void __br_multicast_send_query(struct net_bridge *br,
 
 	if (port) {
 		skb->dev = port->dev;
-		br_multicast_count(br, port, skb->protocol, igmp_type,
+		br_multicast_count(br, port, skb, igmp_type,
 				   BR_MCAST_DIR_TX);
 		NF_HOOK(NFPROTO_BRIDGE, NF_BR_LOCAL_OUT,
 			dev_net(port->dev), NULL, skb, NULL, skb->dev,
 			br_dev_queue_push_xmit);
 	} else {
 		br_multicast_select_own_querier(br, ip, skb);
-		br_multicast_count(br, port, skb->protocol, igmp_type,
+		br_multicast_count(br, port, skb, igmp_type,
 				   BR_MCAST_DIR_RX);
 		netif_rx(skb);
 	}
@@ -1676,7 +1676,7 @@ static int br_multicast_ipv4_rcv(struct net_bridge *br,
 	if (skb_trimmed && skb_trimmed != skb)
 		kfree_skb(skb_trimmed);
 
-	br_multicast_count(br, port, skb->protocol, BR_INPUT_SKB_CB(skb)->igmp,
+	br_multicast_count(br, port, skb, BR_INPUT_SKB_CB(skb)->igmp,
 			   BR_MCAST_DIR_RX);
 
 	return err;
@@ -1725,7 +1725,7 @@ static int br_multicast_ipv6_rcv(struct net_bridge *br,
 	if (skb_trimmed && skb_trimmed != skb)
 		kfree_skb(skb_trimmed);
 
-	br_multicast_count(br, port, skb->protocol, BR_INPUT_SKB_CB(skb)->igmp,
+	br_multicast_count(br, port, skb, BR_INPUT_SKB_CB(skb)->igmp,
 			   BR_MCAST_DIR_RX);
 
 	return err;
@@ -2251,13 +2251,16 @@ unlock:
 EXPORT_SYMBOL_GPL(br_multicast_has_querier_adjacent);
 
 static void br_mcast_stats_add(struct bridge_mcast_stats __percpu *stats,
-			       __be16 proto, u8 type, u8 dir)
+			       const struct sk_buff *skb, u8 type, u8 dir)
 {
 	struct bridge_mcast_stats *pstats = this_cpu_ptr(stats);
+	__be16 proto = skb->protocol;
+	unsigned int t_len;
 
 	u64_stats_update_begin(&pstats->syncp);
 	switch (proto) {
 	case htons(ETH_P_IP):
+		t_len = ntohs(ip_hdr(skb)->tot_len) - ip_hdrlen(skb);
 		switch (type) {
 		case IGMP_HOST_MEMBERSHIP_REPORT:
 			pstats->mstats.igmp_v1reports[dir]++;
@@ -2269,7 +2272,21 @@ static void br_mcast_stats_add(struct bridge_mcast_stats __percpu *stats,
 			pstats->mstats.igmp_v3reports[dir]++;
 			break;
 		case IGMP_HOST_MEMBERSHIP_QUERY:
-			pstats->mstats.igmp_queries[dir]++;
+			if (t_len != sizeof(struct igmphdr)) {
+				pstats->mstats.igmp_v3queries[dir]++;
+			} else {
+				unsigned int offset = skb_transport_offset(skb);
+				struct igmphdr *ih, _ihdr;
+
+				ih = skb_header_pointer(skb, offset,
+							sizeof(_ihdr), &_ihdr);
+				if (!ih)
+					break;
+				if (!ih->code)
+					pstats->mstats.igmp_v1queries[dir]++;
+				else
+					pstats->mstats.igmp_v2queries[dir]++;
+			}
 			break;
 		case IGMP_HOST_LEAVE_MESSAGE:
 			pstats->mstats.igmp_leaves[dir]++;
@@ -2278,6 +2295,9 @@ static void br_mcast_stats_add(struct bridge_mcast_stats __percpu *stats,
 		break;
 #if IS_ENABLED(CONFIG_IPV6)
 	case htons(ETH_P_IPV6):
+		t_len = ntohs(ipv6_hdr(skb)->payload_len) +
+			sizeof(struct ipv6hdr);
+		t_len -= skb_network_header_len(skb);
 		switch (type) {
 		case ICMPV6_MGM_REPORT:
 			pstats->mstats.mld_v1reports[dir]++;
@@ -2286,7 +2306,10 @@ static void br_mcast_stats_add(struct bridge_mcast_stats __percpu *stats,
 			pstats->mstats.mld_v2reports[dir]++;
 			break;
 		case ICMPV6_MGM_QUERY:
-			pstats->mstats.mld_queries[dir]++;
+			if (t_len != sizeof(struct mld_msg))
+				pstats->mstats.mld_v2queries[dir]++;
+			else
+				pstats->mstats.mld_v1queries[dir]++;
 			break;
 		case ICMPV6_MGM_REDUCTION:
 			pstats->mstats.mld_leaves[dir]++;
@@ -2299,7 +2322,7 @@ static void br_mcast_stats_add(struct bridge_mcast_stats __percpu *stats,
 }
 
 void br_multicast_count(struct net_bridge *br, const struct net_bridge_port *p,
-			__be16 proto, u8 type, u8 dir)
+			const struct sk_buff *skb, u8 type, u8 dir)
 {
 	struct bridge_mcast_stats __percpu *stats;
 
@@ -2314,7 +2337,7 @@ void br_multicast_count(struct net_bridge *br, const struct net_bridge_port *p,
 	if (WARN_ON(!stats))
 		return;
 
-	br_mcast_stats_add(stats, proto, type, dir);
+	br_mcast_stats_add(stats, skb, type, dir);
 }
 
 int br_multicast_init_stats(struct net_bridge *br)
@@ -2359,14 +2382,17 @@ void br_multicast_get_stats(const struct net_bridge *br,
 			memcpy(&temp, &cpu_stats->mstats, sizeof(temp));
 		} while (u64_stats_fetch_retry_irq(&cpu_stats->syncp, start));
 
-		mcast_stats_add_dir(tdst.igmp_queries, temp.igmp_queries);
+		mcast_stats_add_dir(tdst.igmp_v1queries, temp.igmp_v1queries);
+		mcast_stats_add_dir(tdst.igmp_v2queries, temp.igmp_v2queries);
+		mcast_stats_add_dir(tdst.igmp_v3queries, temp.igmp_v3queries);
 		mcast_stats_add_dir(tdst.igmp_leaves, temp.igmp_leaves);
 		mcast_stats_add_dir(tdst.igmp_v1reports, temp.igmp_v1reports);
 		mcast_stats_add_dir(tdst.igmp_v2reports, temp.igmp_v2reports);
 		mcast_stats_add_dir(tdst.igmp_v3reports, temp.igmp_v3reports);
 		tdst.igmp_parse_errors += temp.igmp_parse_errors;
 
-		mcast_stats_add_dir(tdst.mld_queries, temp.mld_queries);
+		mcast_stats_add_dir(tdst.mld_v1queries, temp.mld_v1queries);
+		mcast_stats_add_dir(tdst.mld_v2queries, temp.mld_v2queries);
 		mcast_stats_add_dir(tdst.mld_leaves, temp.mld_leaves);
 		mcast_stats_add_dir(tdst.mld_v1reports, temp.mld_v1reports);
 		mcast_stats_add_dir(tdst.mld_v2reports, temp.mld_v2reports);
