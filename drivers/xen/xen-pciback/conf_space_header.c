@@ -222,10 +222,7 @@ static void *bar_init(struct pci_dev *dev, int offset)
 		pos = PCI_ROM_RESOURCE;
 	else {
 		pos = (offset - PCI_BASE_ADDRESS_0) / 4;
-		if (pos && ((res[pos - 1].flags & (PCI_BASE_ADDRESS_SPACE |
-				PCI_BASE_ADDRESS_MEM_TYPE_MASK)) ==
-			   (PCI_BASE_ADDRESS_SPACE_MEMORY |
-				PCI_BASE_ADDRESS_MEM_TYPE_64))) {
+		if (pos && (res[pos - 1].flags & IORESOURCE_MEM_64)) {
 			bar->val = res[pos - 1].start >> 32;
 			bar->len_val = -resource_size(&res[pos - 1]) >> 32;
 			return bar;
