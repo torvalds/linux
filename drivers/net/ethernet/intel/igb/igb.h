@@ -368,6 +368,7 @@ struct hwmon_buff {
 
 enum igb_filter_match_flags {
 	IGB_FILTER_FLAG_ETHER_TYPE = 0x1,
+	IGB_FILTER_FLAG_VLAN_TCI   = 0x2,
 };
 
 #define IGB_MAX_RXNFC_FILTERS 16
@@ -377,9 +378,11 @@ struct igb_nfc_input {
 	/* Byte layout in order, all values with MSB first:
 	 * match_flags - 1 byte
 	 * etype - 2 bytes
+	 * vlan_tci - 2 bytes
 	 */
 	u8 match_flags;
 	__be16 etype;
+	__be16 vlan_tci;
 };
 
 struct igb_nfc_filter {

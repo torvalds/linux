@@ -2449,11 +2449,18 @@ static int igb_get_ethtool_nfc_entry(struct igb_adapter *adapter,
 	if (!rule || fsp->location != rule->sw_idx)
 		return -EINVAL;
 
-	if (rule->filter.match_flags & IGB_FILTER_FLAG_ETHER_TYPE) {
+	if (rule->filter.match_flags) {
 		fsp->flow_type = ETHER_FLOW;
 		fsp->ring_cookie = rule->action;
-		fsp->h_u.ether_spec.h_proto = rule->filter.etype;
-		fsp->m_u.ether_spec.h_proto = ETHER_TYPE_FULL_MASK;
+		if (rule->filter.match_flags & IGB_FILTER_FLAG_ETHER_TYPE) {
+			fsp->h_u.ether_spec.h_proto = rule->filter.etype;
+			fsp->m_u.ether_spec.h_proto = ETHER_TYPE_FULL_MASK;
+		}
+		if (rule->filter.match_flags & IGB_FILTER_FLAG_VLAN_TCI) {
+			fsp->flow_type |= FLOW_EXT;
+			fsp->h_ext.vlan_tci = rule->filter.vlan_tci;
+			fsp->m_ext.vlan_tci = htons(VLAN_PRIO_MASK);
+		}
 		return 0;
 	}
 	return -EINVAL;
@@ -2697,12 +2704,46 @@ static int igb_rxnfc_write_etype_filter(struct igb_adapter *adapter,
 	return 0;
 }
 
+int igb_rxnfc_write_vlan_prio_filter(struct igb_adapter *adapter,
+				     struct igb_nfc_filter *input)
+{
+	struct e1000_hw *hw = &adapter->hw;
+	u8 vlan_priority;
+	u16 queue_index;
+	u32 vlapqf;
+
+	vlapqf = rd32(E1000_VLAPQF);
+	vlan_priority = (ntohs(input->filter.vlan_tci) & VLAN_PRIO_MASK)
+				>> VLAN_PRIO_SHIFT;
+	queue_index = (vlapqf >> (vlan_priority * 4)) & E1000_VLAPQF_QUEUE_MASK;
+
+	/* check whether this vlan prio is already set */
+	if ((vlapqf & E1000_VLAPQF_P_VALID(vlan_priority)) &&
+	    (queue_index != input->action)) {
+		dev_err(&adapter->pdev->dev, "ethtool rxnfc set vlan prio filter failed.\n");
+		return -EEXIST;
+	}
+
+	vlapqf |= E1000_VLAPQF_P_VALID(vlan_priority);
+	vlapqf |= E1000_VLAPQF_QUEUE_SEL(vlan_priority, input->action);
+
+	wr32(E1000_VLAPQF, vlapqf);
+
+	return 0;
+}
+
 int igb_add_filter(struct igb_adapter *adapter, struct igb_nfc_filter *input)
 {
 	int err = -EINVAL;
 
-	if (input->filter.match_flags & IGB_FILTER_FLAG_ETHER_TYPE)
+	if (input->filter.match_flags & IGB_FILTER_FLAG_ETHER_TYPE) {
 		err = igb_rxnfc_write_etype_filter(adapter, input);
+		if (err)
+			return err;
+	}
+
+	if (input->filter.match_flags & IGB_FILTER_FLAG_VLAN_TCI)
+		err = igb_rxnfc_write_vlan_prio_filter(adapter, input);
 
 	return err;
 }
@@ -2722,11 +2763,33 @@ static void igb_clear_etype_filter_regs(struct igb_adapter *adapter,
 	adapter->etype_bitmap[reg_index] = false;
 }
 
+static void igb_clear_vlan_prio_filter(struct igb_adapter *adapter,
+				       u16 vlan_tci)
+{
+	struct e1000_hw *hw = &adapter->hw;
+	u8 vlan_priority;
+	u32 vlapqf;
+
+	vlan_priority = (vlan_tci & VLAN_PRIO_MASK) >> VLAN_PRIO_SHIFT;
+
+	vlapqf = rd32(E1000_VLAPQF);
+	vlapqf &= ~E1000_VLAPQF_P_VALID(vlan_priority);
+	vlapqf &= ~E1000_VLAPQF_QUEUE_SEL(vlan_priority,
+						E1000_VLAPQF_QUEUE_MASK);
+
+	wr32(E1000_VLAPQF, vlapqf);
+}
+
 int igb_erase_filter(struct igb_adapter *adapter, struct igb_nfc_filter *input)
 {
 	if (input->filter.match_flags & IGB_FILTER_FLAG_ETHER_TYPE)
 		igb_clear_etype_filter_regs(adapter,
 					    input->etype_reg_index);
+
+	if (input->filter.match_flags & IGB_FILTER_FLAG_VLAN_TCI)
+		igb_clear_vlan_prio_filter(adapter,
+					   ntohs(input->filter.vlan_tci));
+
 	return 0;
 }
 
@@ -2808,15 +2871,28 @@ static int igb_add_ethtool_nfc_entry(struct igb_adapter *adapter,
 	if ((fsp->flow_type & ~FLOW_EXT) != ETHER_FLOW)
 		return -EINVAL;
 
-	if (fsp->m_u.ether_spec.h_proto != ETHER_TYPE_FULL_MASK)
+	if (fsp->m_u.ether_spec.h_proto != ETHER_TYPE_FULL_MASK &&
+	    fsp->m_ext.vlan_tci != htons(VLAN_PRIO_MASK))
 		return -EINVAL;
 
 	input = kzalloc(sizeof(*input), GFP_KERNEL);
 	if (!input)
 		return -ENOMEM;
 
-	input->filter.etype = fsp->h_u.ether_spec.h_proto;
-	input->filter.match_flags = IGB_FILTER_FLAG_ETHER_TYPE;
+	if (fsp->m_u.ether_spec.h_proto == ETHER_TYPE_FULL_MASK) {
+		input->filter.etype = fsp->h_u.ether_spec.h_proto;
+		input->filter.match_flags = IGB_FILTER_FLAG_ETHER_TYPE;
+	}
+
+	if ((fsp->flow_type & FLOW_EXT) && fsp->m_ext.vlan_tci) {
+		if (fsp->m_ext.vlan_tci != htons(VLAN_PRIO_MASK)) {
+			err = -EINVAL;
+			goto err_out;
+		}
+		input->filter.vlan_tci = fsp->h_ext.vlan_tci;
+		input->filter.match_flags |= IGB_FILTER_FLAG_VLAN_TCI;
+	}
+
 	input->action = fsp->ring_cookie;
 	input->sw_idx = fsp->location;
 
@@ -2843,6 +2919,7 @@ static int igb_add_ethtool_nfc_entry(struct igb_adapter *adapter,
 
 err_out_w_lock:
 	spin_unlock(&adapter->nfc_lock);
+err_out:
 	kfree(input);
 	return err;
 }
