@@ -1148,7 +1148,7 @@ static bool batadv_bla_process_claim(struct batadv_priv *bat_priv,
 
 	/* Let the loopdetect frames on the mesh in any case. */
 	if (bla_dst->type == BATADV_CLAIM_TYPE_LOOPDETECT)
-		return 0;
+		return false;
 
 	/* check if it is a claim frame. */
 	ret = batadv_check_claim_group(bat_priv, primary_if, hw_src, hw_dst,
