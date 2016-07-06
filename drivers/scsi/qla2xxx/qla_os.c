@@ -80,6 +80,7 @@ MODULE_PARM_DESC(ql2xallocfwdump,
 
 int ql2xextended_error_logging;
 module_param(ql2xextended_error_logging, int, S_IRUGO|S_IWUSR);
+module_param_named(logging, ql2xextended_error_logging, int, S_IRUGO|S_IWUSR);
 MODULE_PARM_DESC(ql2xextended_error_logging,
 		"Option to enable extended error logging,\n"
 		"\t\tDefault is 0 - no logging.  0x40000000 - Module Init & Probe.\n"
@@ -106,6 +107,7 @@ MODULE_PARM_DESC(ql2xshiftctondsd,
 
 int ql2xfdmienable=1;
 module_param(ql2xfdmienable, int, S_IRUGO|S_IWUSR);
+module_param_named(fdmi, ql2xfdmienable, int, S_IRUGO|S_IWUSR);
 MODULE_PARM_DESC(ql2xfdmienable,
 		"Enables FDMI registrations. "
 		"0 - no FDMI. Default is 1 - perform FDMI.");
@@ -157,6 +159,7 @@ MODULE_PARM_DESC(ql2xmultique_tag,
 
 int ql2xfwloadbin;
 module_param(ql2xfwloadbin, int, S_IRUGO|S_IWUSR);
+module_param_named(fwload, ql2xfwloadbin, int, S_IRUGO|S_IWUSR);
 MODULE_PARM_DESC(ql2xfwloadbin,
 		"Option to specify location from which to load ISP firmware:.\n"
 		" 2 -- load firmware via the request_firmware() (hotplug).\n"
