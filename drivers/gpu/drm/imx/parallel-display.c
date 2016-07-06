@@ -101,12 +101,6 @@ static void imx_pd_encoder_enable(struct drm_encoder *encoder)
 	drm_panel_enable(imxpd->panel);
 }
 
-static void imx_pd_encoder_mode_set(struct drm_encoder *encoder,
-			 struct drm_display_mode *orig_mode,
-			 struct drm_display_mode *mode)
-{
-}
-
 static void imx_pd_encoder_disable(struct drm_encoder *encoder)
 {
 	struct imx_drm_encoder *imx_encoder = enc_to_imx_enc(encoder);
@@ -136,7 +130,6 @@ static const struct drm_encoder_funcs imx_pd_encoder_funcs = {
 };
 
 static const struct drm_encoder_helper_funcs imx_pd_encoder_helper_funcs = {
-	.mode_set = imx_pd_encoder_mode_set,
 	.enable = imx_pd_encoder_enable,
 	.disable = imx_pd_encoder_disable,
 };

@@ -111,12 +111,6 @@ static void dw_hdmi_imx_encoder_disable(struct drm_encoder *encoder)
 {
 }
 
-static void dw_hdmi_imx_encoder_mode_set(struct drm_encoder *encoder,
-					 struct drm_display_mode *mode,
-					 struct drm_display_mode *adj_mode)
-{
-}
-
 static void dw_hdmi_imx_encoder_enable(struct drm_encoder *encoder)
 {
 	struct imx_drm_encoder *imx_encoder = enc_to_imx_enc(encoder);
@@ -129,7 +123,6 @@ static void dw_hdmi_imx_encoder_enable(struct drm_encoder *encoder)
 }
 
 static const struct drm_encoder_helper_funcs dw_hdmi_imx_encoder_helper_funcs = {
-	.mode_set   = dw_hdmi_imx_encoder_mode_set,
 	.enable     = dw_hdmi_imx_encoder_enable,
 	.disable    = dw_hdmi_imx_encoder_disable,
 };
