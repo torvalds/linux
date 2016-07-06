@@ -1119,11 +1119,11 @@ static int __init resume_offset_setup(char *str)
 
 static int __init hibernate_setup(char *str)
 {
-	if (!strncmp(str, "noresume", 8))
+	if (!strncmp(str, "noresume", 8)) {
 		noresume = 1;
-	else if (!strncmp(str, "nocompress", 10))
+	} else if (!strncmp(str, "nocompress", 10)) {
 		nocompress = 1;
-	else if (!strncmp(str, "no", 2)) {
+	} else if (!strncmp(str, "no", 2)) {
 		noresume = 1;
 		nohibernate = 1;
 	}
