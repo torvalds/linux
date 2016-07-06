@@ -1158,6 +1158,13 @@ global_port_update:
 		    mb[1] == 2 ? "done (error)" : "other");
 		break;
 
+	case MBA_TEMPERATURE_ALERT:
+		ql_dbg(ql_dbg_async, vha, 0x505e,
+		    "TEMPERATURE ALERT: %04x %04x %04x\n", mb[1], mb[2], mb[3]);
+		if (mb[1] == 0x12)
+			schedule_work(&ha->board_disable);
+		break;
+
 	default:
 		ql_dbg(ql_dbg_async, vha, 0x5057,
 		    "Unknown AEN:%04x %04x %04x %04x\n",

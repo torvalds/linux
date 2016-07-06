@@ -2901,6 +2901,10 @@ skip_dpc:
 	qlt_add_target(ha, base_vha);
 
 	clear_bit(PFLG_DRIVER_PROBING, &base_vha->pci_flags);
+
+	if (test_bit(UNLOADING, &base_vha->dpc_flags))
+		return -ENODEV;
+
 	return 0;
 
 probe_init_failed:
@@ -2947,7 +2951,10 @@ iospace_config_failed:
 	ha = NULL;
 
 probe_out:
+	pci_disable_pcie_error_reporting(pdev);
 	pci_disable_device(pdev);
+	if (test_bit(UNLOADING, &base_vha->dpc_flags))
+		return -ENODEV;
 	return ret;
 }
 
@@ -5001,6 +5008,9 @@ qla2x00_do_dpc(void *data)
 		ql_dbg(ql_dbg_dpc + ql_dbg_verbose, base_vha, 0x4001,
 		    "DPC handler waking up, dpc_flags=0x%lx.\n",
 		    base_vha->dpc_flags);
+
+		if (test_bit(UNLOADING, &base_vha->dpc_flags))
+			break;
 
 		qla2x00_do_work(base_vha);
 

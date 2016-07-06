@@ -829,6 +829,7 @@ struct mbx_cmd_32 {
 #define MBA_FW_RESTART_CMPLT	0x8060	/* Firmware restart complete */
 #define MBA_INIT_REQUIRED	0x8061	/* Initialization required */
 #define MBA_SHUTDOWN_REQUESTED	0x8062	/* Shutdown Requested */
+#define MBA_TEMPERATURE_ALERT	0x8070	/* Temperature Alert */
 #define MBA_DPORT_DIAGNOSTICS	0x8080	/* D-port Diagnostics */
 #define MBA_FW_INIT_FAILURE	0x8401	/* Firmware initialization failure */
 #define MBA_MIRROR_LUN_CHANGE	0x8402	/* Mirror LUN State Change
