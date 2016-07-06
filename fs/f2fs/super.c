@@ -816,7 +816,7 @@ static int f2fs_statfs(struct dentry *dentry, struct kstatfs *buf)
 	buf->f_bsize = sbi->blocksize;
 
 	buf->f_blocks = total_count - start_count;
-	buf->f_bfree = buf->f_blocks - valid_user_blocks(sbi) - ovp_count;
+	buf->f_bfree = user_block_count - valid_user_blocks(sbi) + ovp_count;
 	buf->f_bavail = user_block_count - valid_user_blocks(sbi);
 
 	buf->f_files = sbi->total_node_count - F2FS_RESERVED_NODE_NUM;
