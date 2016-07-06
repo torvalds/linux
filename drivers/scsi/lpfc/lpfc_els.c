@@ -4719,17 +4719,20 @@ uint32_t
 lpfc_rdp_res_bbc_desc(struct fc_rdp_bbc_desc *desc, READ_LNK_VAR *stat,
 		      struct lpfc_vport *vport)
 {
+	uint32_t bbCredit;
+
 	desc->tag = cpu_to_be32(RDP_BBC_DESC_TAG);
 
-	desc->bbc_info.port_bbc = cpu_to_be32(
-				vport->fc_sparam.cmn.bbCreditMsb |
-				vport->fc_sparam.cmn.bbCreditlsb << 8);
-	if (vport->phba->fc_topology != LPFC_TOPOLOGY_LOOP)
-		desc->bbc_info.attached_port_bbc = cpu_to_be32(
-				vport->phba->fc_fabparam.cmn.bbCreditMsb |
-				vport->phba->fc_fabparam.cmn.bbCreditlsb << 8);
-	else
+	bbCredit = vport->fc_sparam.cmn.bbCreditLsb |
+			(vport->fc_sparam.cmn.bbCreditMsb << 8);
+	desc->bbc_info.port_bbc = cpu_to_be32(bbCredit);
+	if (vport->phba->fc_topology != LPFC_TOPOLOGY_LOOP) {
+		bbCredit = vport->phba->fc_fabparam.cmn.bbCreditLsb |
+			(vport->phba->fc_fabparam.cmn.bbCreditMsb << 8);
+		desc->bbc_info.attached_port_bbc = cpu_to_be32(bbCredit);
+	} else {
 		desc->bbc_info.attached_port_bbc = 0;
+	}
 
 	desc->bbc_info.rtt = 0;
 	desc->length = cpu_to_be32(sizeof(desc->bbc_info));
@@ -4745,13 +4748,10 @@ lpfc_rdp_res_oed_temp_desc(struct lpfc_hba *phba,
 
 	desc->tag = cpu_to_be32(RDP_OED_DESC_TAG);
 
-	desc->oed_info.hi_alarm =
-			cpu_to_be16(page_a2[SSF_TEMP_HIGH_ALARM]);
-	desc->oed_info.lo_alarm = cpu_to_be16(page_a2[SSF_TEMP_LOW_ALARM]);
-	desc->oed_info.hi_warning =
-			cpu_to_be16(page_a2[SSF_TEMP_HIGH_WARNING]);
-	desc->oed_info.lo_warning =
-			cpu_to_be16(page_a2[SSF_TEMP_LOW_WARNING]);
+	desc->oed_info.hi_alarm = page_a2[SSF_TEMP_HIGH_ALARM];
+	desc->oed_info.lo_alarm = page_a2[SSF_TEMP_LOW_ALARM];
+	desc->oed_info.hi_warning = page_a2[SSF_TEMP_HIGH_WARNING];
+	desc->oed_info.lo_warning = page_a2[SSF_TEMP_LOW_WARNING];
 
 	if (phba->sfp_alarm & LPFC_TRANSGRESSION_HIGH_TEMPERATURE)
 		flags |= RDP_OET_HIGH_ALARM;
@@ -4777,13 +4777,10 @@ lpfc_rdp_res_oed_voltage_desc(struct lpfc_hba *phba,
 
 	desc->tag = cpu_to_be32(RDP_OED_DESC_TAG);
 
-	desc->oed_info.hi_alarm =
-			cpu_to_be16(page_a2[SSF_VOLTAGE_HIGH_ALARM]);
-	desc->oed_info.lo_alarm = cpu_to_be16(page_a2[SSF_VOLTAGE_LOW_ALARM]);
-	desc->oed_info.hi_warning =
-			cpu_to_be16(page_a2[SSF_VOLTAGE_HIGH_WARNING]);
-	desc->oed_info.lo_warning =
-			cpu_to_be16(page_a2[SSF_VOLTAGE_LOW_WARNING]);
+	desc->oed_info.hi_alarm = page_a2[SSF_VOLTAGE_HIGH_ALARM];
+	desc->oed_info.lo_alarm = page_a2[SSF_VOLTAGE_LOW_ALARM];
+	desc->oed_info.hi_warning = page_a2[SSF_VOLTAGE_HIGH_WARNING];
+	desc->oed_info.lo_warning = page_a2[SSF_VOLTAGE_LOW_WARNING];
 
 	if (phba->sfp_alarm & LPFC_TRANSGRESSION_HIGH_VOLTAGE)
 		flags |= RDP_OET_HIGH_ALARM;
@@ -4809,13 +4806,10 @@ lpfc_rdp_res_oed_txbias_desc(struct lpfc_hba *phba,
 
 	desc->tag = cpu_to_be32(RDP_OED_DESC_TAG);
 
-	desc->oed_info.hi_alarm =
-			cpu_to_be16(page_a2[SSF_BIAS_HIGH_ALARM]);
-	desc->oed_info.lo_alarm = cpu_to_be16(page_a2[SSF_BIAS_LOW_ALARM]);
-	desc->oed_info.hi_warning =
-			cpu_to_be16(page_a2[SSF_BIAS_HIGH_WARNING]);
-	desc->oed_info.lo_warning =
-			cpu_to_be16(page_a2[SSF_BIAS_LOW_WARNING]);
+	desc->oed_info.hi_alarm = page_a2[SSF_BIAS_HIGH_ALARM];
+	desc->oed_info.lo_alarm = page_a2[SSF_BIAS_LOW_ALARM];
+	desc->oed_info.hi_warning = page_a2[SSF_BIAS_HIGH_WARNING];
+	desc->oed_info.lo_warning = page_a2[SSF_BIAS_LOW_WARNING];
 
 	if (phba->sfp_alarm & LPFC_TRANSGRESSION_HIGH_TXBIAS)
 		flags |= RDP_OET_HIGH_ALARM;
@@ -4841,13 +4835,10 @@ lpfc_rdp_res_oed_txpower_desc(struct lpfc_hba *phba,
 
 	desc->tag = cpu_to_be32(RDP_OED_DESC_TAG);
 
-	desc->oed_info.hi_alarm =
-			cpu_to_be16(page_a2[SSF_TXPOWER_HIGH_ALARM]);
-	desc->oed_info.lo_alarm = cpu_to_be16(page_a2[SSF_TXPOWER_LOW_ALARM]);
-	desc->oed_info.hi_warning =
-			cpu_to_be16(page_a2[SSF_TXPOWER_HIGH_WARNING]);
-	desc->oed_info.lo_warning =
-			cpu_to_be16(page_a2[SSF_TXPOWER_LOW_WARNING]);
+	desc->oed_info.hi_alarm = page_a2[SSF_TXPOWER_HIGH_ALARM];
+	desc->oed_info.lo_alarm = page_a2[SSF_TXPOWER_LOW_ALARM];
+	desc->oed_info.hi_warning = page_a2[SSF_TXPOWER_HIGH_WARNING];
+	desc->oed_info.lo_warning = page_a2[SSF_TXPOWER_LOW_WARNING];
 
 	if (phba->sfp_alarm & LPFC_TRANSGRESSION_HIGH_TXPOWER)
 		flags |= RDP_OET_HIGH_ALARM;
@@ -4874,13 +4865,10 @@ lpfc_rdp_res_oed_rxpower_desc(struct lpfc_hba *phba,
 
 	desc->tag = cpu_to_be32(RDP_OED_DESC_TAG);
 
-	desc->oed_info.hi_alarm =
-			cpu_to_be16(page_a2[SSF_RXPOWER_HIGH_ALARM]);
-	desc->oed_info.lo_alarm = cpu_to_be16(page_a2[SSF_RXPOWER_LOW_ALARM]);
-	desc->oed_info.hi_warning =
-			cpu_to_be16(page_a2[SSF_RXPOWER_HIGH_WARNING]);
-	desc->oed_info.lo_warning =
-			cpu_to_be16(page_a2[SSF_RXPOWER_LOW_WARNING]);
+	desc->oed_info.hi_alarm = page_a2[SSF_RXPOWER_HIGH_ALARM];
+	desc->oed_info.lo_alarm = page_a2[SSF_RXPOWER_LOW_ALARM];
+	desc->oed_info.hi_warning = page_a2[SSF_RXPOWER_HIGH_WARNING];
+	desc->oed_info.lo_warning = page_a2[SSF_RXPOWER_LOW_WARNING];
 
 	if (phba->sfp_alarm & LPFC_TRANSGRESSION_HIGH_RXPOWER)
 		flags |= RDP_OET_HIGH_ALARM;

@@ -346,7 +346,7 @@ struct csp {
 	uint8_t fcphHigh;	/* FC Word 0, byte 0 */
 	uint8_t fcphLow;
 	uint8_t bbCreditMsb;
-	uint8_t bbCreditlsb;	/* FC Word 0, byte 3 */
+	uint8_t bbCreditLsb;	/* FC Word 0, byte 3 */
 
 /*
  * Word 1 Bit 31 in common service parameter is overloaded.
