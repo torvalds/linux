@@ -1,5 +1,7 @@
 .. -*- coding: utf-8; mode: rst -*-
 
+.. include:: <isonum.txt>
+
 .. _remotes:
 
 #####################
@@ -15,6 +17,7 @@ Remote Controllers
 
 .. toctree::
     :maxdepth: 1
+    :numbered:
 
     Remote_controllers_Intro
     remote_controllers_sysfs_nodes
@@ -27,12 +30,17 @@ Remote Controllers
 Revision and Copyright
 **********************
 
+Authors:
 
-:author:    Chehab Mauro (*Carvalho*)
-:address:   m.chehab@samsung.com
-:contrib:   Initial version.
+- Carvalho Chehab, Mauro <mchehab@kernel.org>
 
-**Copyright** 2009-2014 : Mauro Carvalho Chehab
+ - Initial version.
+
+**Copyright** |copy| 2009-2016 : Mauro Carvalho Chehab
+
+****************
+Revision History
+****************
 
 :revision: 3.15 / 2014-02-06 (*mcc*)
 
