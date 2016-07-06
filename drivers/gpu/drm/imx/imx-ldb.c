@@ -51,8 +51,6 @@
 #define LDB_DI1_VS_POL_ACT_LOW		(1 << 10)
 #define LDB_BGREF_RMODE_INT		(1 << 15)
 
-#define con_to_imx_ldb_ch(x) container_of(x, struct imx_ldb_channel, connector)
-
 struct imx_ldb;
 
 struct imx_ldb_channel {
@@ -69,6 +67,11 @@ struct imx_ldb_channel {
 	int mode_valid;
 	u32 bus_format;
 };
+
+static inline struct imx_ldb_channel *con_to_imx_ldb_ch(struct drm_connector *c)
+{
+	return container_of(c, struct imx_ldb_channel, connector);
+}
 
 static inline struct imx_ldb_channel *enc_to_imx_ldb_ch(struct drm_encoder *e)
 {

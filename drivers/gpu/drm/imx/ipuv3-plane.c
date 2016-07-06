@@ -23,7 +23,10 @@
 #include "video/imx-ipu-v3.h"
 #include "ipuv3-plane.h"
 
-#define to_ipu_plane(x)	container_of(x, struct ipu_plane, base)
+static inline struct ipu_plane *to_ipu_plane(struct drm_plane *p)
+{
+	return container_of(p, struct ipu_plane, base);
+}
 
 static const uint32_t ipu_plane_formats[] = {
 	DRM_FORMAT_ARGB1555,

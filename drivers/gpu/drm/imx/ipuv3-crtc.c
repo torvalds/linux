@@ -46,7 +46,10 @@ struct ipu_crtc {
 	int			irq;
 };
 
-#define to_ipu_crtc(x) container_of(x, struct ipu_crtc, base)
+static inline struct ipu_crtc *to_ipu_crtc(struct drm_crtc *crtc)
+{
+	return container_of(crtc, struct ipu_crtc, base);
+}
 
 static void ipu_crtc_enable(struct drm_crtc *crtc)
 {

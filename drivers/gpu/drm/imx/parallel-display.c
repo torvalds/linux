@@ -26,8 +26,6 @@
 
 #include "imx-drm.h"
 
-#define con_to_imxpd(x) container_of(x, struct imx_parallel_display, connector)
-
 struct imx_parallel_display {
 	struct drm_connector connector;
 	struct drm_encoder encoder;
@@ -38,6 +36,11 @@ struct imx_parallel_display {
 	struct drm_display_mode mode;
 	struct drm_panel *panel;
 };
+
+static inline struct imx_parallel_display *con_to_imxpd(struct drm_connector *c)
+{
+	return container_of(c, struct imx_parallel_display, connector);
+}
 
 static inline struct imx_parallel_display *enc_to_imxpd(struct drm_encoder *e)
 {

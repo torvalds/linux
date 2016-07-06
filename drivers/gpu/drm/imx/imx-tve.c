@@ -98,8 +98,6 @@
 /* TVE_TST_MODE_REG */
 #define TVE_TVDAC_TEST_MODE_MASK	(0x7 << 0)
 
-#define con_to_tve(x) container_of(x, struct imx_tve, connector)
-
 enum {
 	TVE_MODE_TVOUT,
 	TVE_MODE_VGA,
@@ -123,6 +121,11 @@ struct imx_tve {
 	struct clk_hw clk_hw_di;
 	struct clk *di_clk;
 };
+
+static inline struct imx_tve *con_to_tve(struct drm_connector *c)
+{
+	return container_of(c, struct imx_tve, connector);
+}
 
 static inline struct imx_tve *enc_to_tve(struct drm_encoder *e)
 {
