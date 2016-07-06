@@ -308,6 +308,7 @@ static int ext4_ioctl_setproject(struct file *filp, __u32 projid)
 	kprojid_t kprojid;
 	struct ext4_iloc iloc;
 	struct ext4_inode *raw_inode;
+	struct dquot *transfer_to[MAXQUOTAS] = { };
 
 	if (!EXT4_HAS_RO_COMPAT_FEATURE(sb,
 			EXT4_FEATURE_RO_COMPAT_PROJECT)) {
@@ -361,17 +362,14 @@ static int ext4_ioctl_setproject(struct file *filp, __u32 projid)
 	if (err)
 		goto out_stop;
 
-	if (sb_has_quota_limits_enabled(sb, PRJQUOTA)) {
-		struct dquot *transfer_to[MAXQUOTAS] = { };
-
-		transfer_to[PRJQUOTA] = dqget(sb, make_kqid_projid(kprojid));
-		if (!IS_ERR(transfer_to[PRJQUOTA])) {
-			err = __dquot_transfer(inode, transfer_to);
-			dqput(transfer_to[PRJQUOTA]);
-			if (err)
-				goto out_dirty;
-		}
+	transfer_to[PRJQUOTA] = dqget(sb, make_kqid_projid(kprojid));
+	if (!IS_ERR(transfer_to[PRJQUOTA])) {
+		err = __dquot_transfer(inode, transfer_to);
+		dqput(transfer_to[PRJQUOTA]);
+		if (err)
+			goto out_dirty;
 	}
+
 	EXT4_I(inode)->i_projid = kprojid;
 	inode->i_ctime = ext4_current_time(inode);
 out_dirty:
