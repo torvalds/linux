@@ -2837,12 +2837,11 @@ MODULE_PARM_DESC(lpfc_poll, "FCP ring polling mode control:"
 static DEVICE_ATTR(lpfc_poll, S_IRUGO | S_IWUSR,
 		   lpfc_poll_show, lpfc_poll_store);
 
-int  lpfc_sli_mode = 0;
-module_param(lpfc_sli_mode, int, S_IRUGO);
-MODULE_PARM_DESC(lpfc_sli_mode, "SLI mode selector:"
-		 " 0 - auto (SLI-3 if supported),"
-		 " 2 - select SLI-2 even on SLI-3 capable HBAs,"
-		 " 3 - select SLI-3");
+LPFC_ATTR(sli_mode, 0, 0, 3,
+	"SLI mode selector:"
+	" 0 - auto (SLI-3 if supported),"
+	" 2 - select SLI-2 even on SLI-3 capable HBAs,"
+	" 3 - select SLI-3");
 
 LPFC_ATTR_R(enable_npiv, 1, 0, 1,
 	"Enable NPIV functionality");
@@ -5936,6 +5935,7 @@ lpfc_get_cfgparam(struct lpfc_hba *phba)
 	lpfc_suppress_link_up_init(phba, lpfc_suppress_link_up);
 	lpfc_iocb_cnt_init(phba, lpfc_iocb_cnt);
 	lpfc_delay_discovery_init(phba, lpfc_delay_discovery);
+	lpfc_sli_mode_init(phba, lpfc_sli_mode);
 	phba->cfg_enable_dss = 1;
 	lpfc_enable_mds_diags_init(phba, lpfc_enable_mds_diags);
 	return;

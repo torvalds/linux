@@ -4665,13 +4665,13 @@ lpfc_sli_hba_setup(struct lpfc_hba *phba)
 	int  mode = 3, i;
 	int longs;
 
-	switch (lpfc_sli_mode) {
+	switch (phba->cfg_sli_mode) {
 	case 2:
 		if (phba->cfg_enable_npiv) {
 			lpfc_printf_log(phba, KERN_ERR, LOG_INIT | LOG_VPORT,
-				"1824 NPIV enabled: Override lpfc_sli_mode "
+				"1824 NPIV enabled: Override sli_mode "
 				"parameter (%d) to auto (0).\n",
-				lpfc_sli_mode);
+				phba->cfg_sli_mode);
 			break;
 		}
 		mode = 2;
@@ -4681,8 +4681,8 @@ lpfc_sli_hba_setup(struct lpfc_hba *phba)
 		break;
 	default:
 		lpfc_printf_log(phba, KERN_ERR, LOG_INIT | LOG_VPORT,
-				"1819 Unrecognized lpfc_sli_mode "
-				"parameter: %d.\n", lpfc_sli_mode);
+				"1819 Unrecognized sli_mode parameter: %d.\n",
+				phba->cfg_sli_mode);
 
 		break;
 	}
@@ -4690,7 +4690,7 @@ lpfc_sli_hba_setup(struct lpfc_hba *phba)
 
 	rc = lpfc_sli_config_port(phba, mode);
 
-	if (rc && lpfc_sli_mode == 3)
+	if (rc && phba->cfg_sli_mode == 3)
 		lpfc_printf_log(phba, KERN_ERR, LOG_INIT | LOG_VPORT,
 				"1820 Unable to select SLI-3.  "
 				"Not supported by adapter.\n");
