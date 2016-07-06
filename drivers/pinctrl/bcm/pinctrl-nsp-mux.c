@@ -573,10 +573,8 @@ static int nsp_pinmux_probe(struct platform_device *pdev)
 
 	res = platform_get_resource(pdev, IORESOURCE_MEM, 0);
 	pinctrl->base0 = devm_ioremap_resource(&pdev->dev, res);
-	if (IS_ERR(pinctrl->base0)) {
-		dev_err(&pdev->dev, "unable to map I/O space\n");
+	if (IS_ERR(pinctrl->base0))
 		return PTR_ERR(pinctrl->base0);
-	}
 
 	res = platform_get_resource(pdev, IORESOURCE_MEM, 1);
 	pinctrl->base1 = devm_ioremap_nocache(&pdev->dev, res->start,
@@ -588,10 +586,8 @@ static int nsp_pinmux_probe(struct platform_device *pdev)
 
 	res = platform_get_resource(pdev, IORESOURCE_MEM, 2);
 	pinctrl->base2 = devm_ioremap_resource(&pdev->dev, res);
-	if (IS_ERR(pinctrl->base2)) {
-		dev_err(&pdev->dev, "unable to map I/O space\n");
+	if (IS_ERR(pinctrl->base2))
 		return PTR_ERR(pinctrl->base2);
-	}
 
 	ret = nsp_mux_log_init(pinctrl);
 	if (ret) {
