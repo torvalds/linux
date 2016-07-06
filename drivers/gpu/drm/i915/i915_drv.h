@@ -3998,7 +3998,10 @@ static inline bool __i915_request_irq_complete(struct drm_i915_gem_request *req)
 	 * is woken.
 	 */
 	if (engine->irq_seqno_barrier &&
+	    READ_ONCE(engine->breadcrumbs.tasklet) == current &&
 	    cmpxchg_relaxed(&engine->irq_posted, 1, 0)) {
+		struct task_struct *tsk;
+
 		/* The ordering of irq_posted versus applying the barrier
 		 * is crucial. The clearing of the current irq_posted must
 		 * be visible before we perform the barrier operation,
@@ -4012,6 +4015,25 @@ static inline bool __i915_request_irq_complete(struct drm_i915_gem_request *req)
 		 * seqno update.
 		 */
 		engine->irq_seqno_barrier(engine);
+
+		/* If we consume the irq, but we are no longer the bottom-half,
+		 * the real bottom-half may not have serialised their own
+		 * seqno check with the irq-barrier (i.e. may have inspected
+		 * the seqno before we believe it coherent since they see
+		 * irq_posted == false but we are still running).
+		 */
+		rcu_read_lock();
+		tsk = READ_ONCE(engine->breadcrumbs.tasklet);
+		if (tsk && tsk != current)
+			/* Note that if the bottom-half is changed as we
+			 * are sending the wake-up, the new bottom-half will
+			 * be woken by whomever made the change. We only have
+			 * to worry about when we steal the irq-posted for
+			 * ourself.
+			 */
+			wake_up_process(tsk);
+		rcu_read_unlock();
+
 		if (i915_gem_request_completed(req))
 			return true;
 	}
