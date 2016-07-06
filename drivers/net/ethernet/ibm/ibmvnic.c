@@ -1257,6 +1257,7 @@ static void release_sub_crqs(struct ibmvnic_adapter *adapter)
 			if (adapter->tx_scrq[i]) {
 				free_irq(adapter->tx_scrq[i]->irq,
 					 adapter->tx_scrq[i]);
+				irq_dispose_mapping(adapter->tx_scrq[i]->irq);
 				release_sub_crq_queue(adapter,
 						      adapter->tx_scrq[i]);
 			}
@@ -1268,6 +1269,7 @@ static void release_sub_crqs(struct ibmvnic_adapter *adapter)
 			if (adapter->rx_scrq[i]) {
 				free_irq(adapter->rx_scrq[i]->irq,
 					 adapter->rx_scrq[i]);
+				irq_dispose_mapping(adapter->rx_scrq[i]->irq);
 				release_sub_crq_queue(adapter,
 						      adapter->rx_scrq[i]);
 			}
