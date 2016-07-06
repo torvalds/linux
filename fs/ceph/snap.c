@@ -601,6 +601,8 @@ int __ceph_finish_cap_snap(struct ceph_inode_info *ci,
 		     capsnap->dirty_pages);
 		return 0;
 	}
+
+	ci->i_ceph_flags |= CEPH_I_FLUSH_SNAPS;
 	dout("finish_cap_snap %p cap_snap %p snapc %p %llu %s s=%llu\n",
 	     inode, capsnap, capsnap->context,
 	     capsnap->context->seq, ceph_cap_string(capsnap->dirty),

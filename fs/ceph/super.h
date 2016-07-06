@@ -469,6 +469,7 @@ static inline struct inode *ceph_find_inode(struct super_block *sb,
 #define CEPH_I_SEC_INITED	(1 << 7)  /* security initialized */
 #define CEPH_I_CAP_DROPPED	(1 << 8)  /* caps were forcibly dropped */
 #define CEPH_I_KICK_FLUSH	(1 << 9)  /* kick flushing caps */
+#define CEPH_I_FLUSH_SNAPS	(1 << 10) /* need flush snapss */
 
 static inline void __ceph_dir_set_complete(struct ceph_inode_info *ci,
 					   long long release_count,
