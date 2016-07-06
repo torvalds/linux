@@ -253,6 +253,7 @@ static unsigned int sas_ata_qc_issue(struct ata_queued_cmd *qc)
 		if (qc->scsicmd)
 			ASSIGN_SAS_TASK(qc->scsicmd, NULL);
 		sas_free_task(task);
+		qc->lldd_task = NULL;
 		ret = AC_ERR_SYSTEM;
 	}
 
