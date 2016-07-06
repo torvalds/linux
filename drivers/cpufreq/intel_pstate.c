@@ -1400,6 +1400,9 @@ static void intel_pstate_set_update_util_hook(unsigned int cpu_num)
 {
 	struct cpudata *cpu = all_cpu_data[cpu_num];
 
+	if (cpu->update_util_set)
+		return;
+
 	/* Prevent intel_pstate_update_util() from using stale data. */
 	cpu->sample.time = 0;
 	cpufreq_add_update_util_hook(cpu_num, &cpu->update_util,
@@ -1439,8 +1442,6 @@ static int intel_pstate_set_policy(struct cpufreq_policy *policy)
 
 	if (!policy->cpuinfo.max_freq)
 		return -ENODEV;
-
-	intel_pstate_clear_update_util_hook(policy->cpu);
 
 	pr_debug("set_policy cpuinfo.max %u policy->max %u\n",
 		 policy->cpuinfo.max_freq, policy->max);

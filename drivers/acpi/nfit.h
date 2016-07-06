@@ -53,12 +53,12 @@ enum nfit_uuids {
 };
 
 /*
- * Region format interface codes are stored as an array of bytes in the
- * NFIT DIMM Control Region structure
+ * Region format interface codes are stored with the interface as the
+ * LSB and the function as the MSB.
  */
-#define NFIT_FIC_BYTE cpu_to_be16(0x101) /* byte-addressable energy backed */
-#define NFIT_FIC_BLK cpu_to_be16(0x201) /* block-addressable non-energy backed */
-#define NFIT_FIC_BYTEN cpu_to_be16(0x301) /* byte-addressable non-energy backed */
+#define NFIT_FIC_BYTE cpu_to_le16(0x101) /* byte-addressable energy backed */
+#define NFIT_FIC_BLK cpu_to_le16(0x201) /* block-addressable non-energy backed */
+#define NFIT_FIC_BYTEN cpu_to_le16(0x301) /* byte-addressable non-energy backed */
 
 enum {
 	NFIT_BLK_READ_FLUSH = 1,

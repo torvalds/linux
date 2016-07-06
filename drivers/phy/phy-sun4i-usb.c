@@ -175,7 +175,7 @@ static void sun4i_usb_phy_write(struct sun4i_usb_phy *phy, u32 addr, u32 data,
 {
 	struct sun4i_usb_phy_data *phy_data = to_sun4i_usb_phy_data(phy);
 	u32 temp, usbc_bit = BIT(phy->index * 2);
-	void *phyctl = phy_data->base + phy_data->cfg->phyctl_offset;
+	void __iomem *phyctl = phy_data->base + phy_data->cfg->phyctl_offset;
 	int i;
 
 	mutex_lock(&phy_data->mutex);
@@ -514,9 +514,9 @@ static int sun4i_usb_phy_remove(struct platform_device *pdev)
 
 	if (data->vbus_power_nb_registered)
 		power_supply_unreg_notifier(&data->vbus_power_nb);
-	if (data->id_det_irq >= 0)
+	if (data->id_det_irq > 0)
 		devm_free_irq(dev, data->id_det_irq, data);
-	if (data->vbus_det_irq >= 0)
+	if (data->vbus_det_irq > 0)
 		devm_free_irq(dev, data->vbus_det_irq, data);
 
 	cancel_delayed_work_sync(&data->detect);
@@ -645,11 +645,11 @@ static int sun4i_usb_phy_probe(struct platform_device *pdev)
 
 	data->id_det_irq = gpiod_to_irq(data->id_det_gpio);
 	data->vbus_det_irq = gpiod_to_irq(data->vbus_det_gpio);
-	if ((data->id_det_gpio && data->id_det_irq < 0) ||
-	    (data->vbus_det_gpio && data->vbus_det_irq < 0))
+	if ((data->id_det_gpio && data->id_det_irq <= 0) ||
+	    (data->vbus_det_gpio && data->vbus_det_irq <= 0))
 		data->phy0_poll = true;
 
-	if (data->id_det_irq >= 0) {
+	if (data->id_det_irq > 0) {
 		ret = devm_request_irq(dev, data->id_det_irq,
 				sun4i_usb_phy0_id_vbus_det_irq,
 				IRQF_TRIGGER_RISING | IRQF_TRIGGER_FALLING,
@@ -660,7 +660,7 @@ static int sun4i_usb_phy_probe(struct platform_device *pdev)
 		}
 	}
 
-	if (data->vbus_det_irq >= 0) {
+	if (data->vbus_det_irq > 0) {
 		ret = devm_request_irq(dev, data->vbus_det_irq,
 				sun4i_usb_phy0_id_vbus_det_irq,
 				IRQF_TRIGGER_RISING | IRQF_TRIGGER_FALLING,

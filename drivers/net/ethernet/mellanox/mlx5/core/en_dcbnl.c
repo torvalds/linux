@@ -96,7 +96,7 @@ static void mlx5e_build_tc_tx_bw(struct ieee_ets *ets, u8 *tc_tx_bw,
 			tc_tx_bw[i] = MLX5E_MAX_BW_ALLOC;
 			break;
 		case IEEE_8021QAZ_TSA_ETS:
-			tc_tx_bw[i] = ets->tc_tx_bw[i] ?: MLX5E_MIN_BW_ALLOC;
+			tc_tx_bw[i] = ets->tc_tx_bw[i];
 			break;
 		}
 	}
@@ -140,8 +140,12 @@ static int mlx5e_dbcnl_validate_ets(struct ieee_ets *ets)
 
 	/* Validate Bandwidth Sum */
 	for (i = 0; i < IEEE_8021QAZ_MAX_TCS; i++) {
-		if (ets->tc_tsa[i] == IEEE_8021QAZ_TSA_ETS)
+		if (ets->tc_tsa[i] == IEEE_8021QAZ_TSA_ETS) {
+			if (!ets->tc_tx_bw[i])
+				return -EINVAL;
+
 			bw_sum += ets->tc_tx_bw[i];
+		}
 	}
 
 	if (bw_sum != 0 && bw_sum != 100)

@@ -57,6 +57,7 @@
 
 /* PHY CTRL bits */
 #define DP83867_PHYCR_FIFO_DEPTH_SHIFT		14
+#define DP83867_PHYCR_FIFO_DEPTH_MASK		(3 << 14)
 
 /* RGMIIDCTL bits */
 #define DP83867_RGMII_TX_CLK_DELAY_SHIFT	4
@@ -133,8 +134,8 @@ static int dp83867_of_init(struct phy_device *phydev)
 static int dp83867_config_init(struct phy_device *phydev)
 {
 	struct dp83867_private *dp83867;
-	int ret;
-	u16 val, delay;
+	int ret, val;
+	u16 delay;
 
 	if (!phydev->priv) {
 		dp83867 = devm_kzalloc(&phydev->mdio.dev, sizeof(*dp83867),
@@ -151,8 +152,12 @@ static int dp83867_config_init(struct phy_device *phydev)
 	}
 
 	if (phy_interface_is_rgmii(phydev)) {
-		ret = phy_write(phydev, MII_DP83867_PHYCTRL,
-			(dp83867->fifo_depth << DP83867_PHYCR_FIFO_DEPTH_SHIFT));
+		val = phy_read(phydev, MII_DP83867_PHYCTRL);
+		if (val < 0)
+			return val;
+		val &= ~DP83867_PHYCR_FIFO_DEPTH_MASK;
+		val |= (dp83867->fifo_depth << DP83867_PHYCR_FIFO_DEPTH_SHIFT);
+		ret = phy_write(phydev, MII_DP83867_PHYCTRL, val);
 		if (ret)
 			return ret;
 	}

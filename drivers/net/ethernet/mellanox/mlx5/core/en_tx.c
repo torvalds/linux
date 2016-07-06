@@ -110,8 +110,20 @@ u16 mlx5e_select_queue(struct net_device *dev, struct sk_buff *skb,
 {
 	struct mlx5e_priv *priv = netdev_priv(dev);
 	int channel_ix = fallback(dev, skb);
-	int up = (netdev_get_num_tc(dev) && skb_vlan_tag_present(skb)) ?
-		 skb->vlan_tci >> VLAN_PRIO_SHIFT : 0;
+	int up = 0;
+
+	if (!netdev_get_num_tc(dev))
+		return channel_ix;
+
+	if (skb_vlan_tag_present(skb))
+		up = skb->vlan_tci >> VLAN_PRIO_SHIFT;
+
+	/* channel_ix can be larger than num_channels since
+	 * dev->num_real_tx_queues = num_channels * num_tc
+	 */
+	if (channel_ix >= priv->params.num_channels)
+		channel_ix = reciprocal_scale(channel_ix,
+					      priv->params.num_channels);
 
 	return priv->channeltc_to_txq_map[channel_ix][up];
 }
@@ -123,7 +135,7 @@ static inline u16 mlx5e_get_inline_hdr_size(struct mlx5e_sq *sq,
 	 * headers and occur before the data gather.
 	 * Therefore these headers must be copied into the WQE
 	 */
-#define MLX5E_MIN_INLINE ETH_HLEN
+#define MLX5E_MIN_INLINE (ETH_HLEN + VLAN_HLEN)
 
 	if (bf) {
 		u16 ihs = skb_headlen(skb);
@@ -135,7 +147,7 @@ static inline u16 mlx5e_get_inline_hdr_size(struct mlx5e_sq *sq,
 			return skb_headlen(skb);
 	}
 
-	return MLX5E_MIN_INLINE;
+	return max(skb_network_offset(skb), MLX5E_MIN_INLINE);
 }
 
 static inline void mlx5e_tx_skb_pull_inline(unsigned char **skb_data,
@@ -341,6 +353,35 @@ netdev_tx_t mlx5e_xmit(struct sk_buff *skb, struct net_device *dev)
 	return mlx5e_sq_xmit(sq, skb);
 }
 
+void mlx5e_free_tx_descs(struct mlx5e_sq *sq)
+{
+	struct mlx5e_tx_wqe_info *wi;
+	struct sk_buff *skb;
+	u16 ci;
+	int i;
+
+	while (sq->cc != sq->pc) {
+		ci = sq->cc & sq->wq.sz_m1;
+		skb = sq->skb[ci];
+		wi = &sq->wqe_info[ci];
+
+		if (!skb) { /* nop */
+			sq->cc++;
+			continue;
+		}
+
+		for (i = 0; i < wi->num_dma; i++) {
+			struct mlx5e_sq_dma *dma =
+				mlx5e_dma_get(sq, sq->dma_fifo_cc++);
+
+			mlx5e_tx_dma_unmap(sq->pdev, dma);
+		}
+
+		dev_kfree_skb_any(skb);
+		sq->cc += wi->num_wqebbs;
+	}
+}
+
 bool mlx5e_poll_tx_cq(struct mlx5e_cq *cq, int napi_budget)
 {
 	struct mlx5e_sq *sq;
@@ -351,6 +392,9 @@ bool mlx5e_poll_tx_cq(struct mlx5e_cq *cq, int napi_budget)
 	int i;
 
 	sq = container_of(cq, struct mlx5e_sq, cq);
+
+	if (unlikely(test_bit(MLX5E_SQ_STATE_TX_TIMEOUT, &sq->state)))
+		return false;
 
 	npkts = 0;
 	nbytes = 0;
