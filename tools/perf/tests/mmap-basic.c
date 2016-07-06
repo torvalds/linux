@@ -1,3 +1,6 @@
+/* For the CLR_() macros */
+#include <pthread.h>
+
 #include "evlist.h"
 #include "evsel.h"
 #include "thread_map.h"

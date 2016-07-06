@@ -1,3 +1,6 @@
+/* For the CPU_* macros */
+#include <pthread.h>
+
 #include <api/fs/fs.h>
 #include <linux/err.h>
 #include "evsel.h"
