@@ -159,6 +159,12 @@
 		clocks = <&cru ACLK_VCODEC>, <&cru HCLK_VCODEC>;
 		clock-names = "aclk", "hclk";
 		iommus = <&vpu_mmu>;
+		/*
+		 * 3036's vpu could not run higher than 300M
+		 */
+		assigned-clocks = <&cru ACLK_VCODEC>;
+		assigned-clock-rates = <297000000>;
+		assigned-clock-parents = <&cru PLL_GPLL>;
 		status = "disabled";
 	};
 
