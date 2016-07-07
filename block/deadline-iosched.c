@@ -137,7 +137,7 @@ deadline_merge(struct request_queue *q, struct request **req, struct bio *bio)
 		if (__rq) {
 			BUG_ON(sector != blk_rq_pos(__rq));
 
-			if (elv_rq_merge_ok(__rq, bio)) {
+			if (elv_bio_merge_ok(__rq, bio)) {
 				ret = ELEVATOR_FRONT_MERGE;
 				goto out;
 			}
