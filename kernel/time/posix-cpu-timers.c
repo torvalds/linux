@@ -808,6 +808,7 @@ static void posix_cpu_timer_get(struct k_itimer *timer, struct itimerspec *itp)
 			timer->it.cpu.expires = 0;
 			sample_to_timespec(timer->it_clock, timer->it.cpu.expires,
 					   &itp->it_value);
+			return;
 		} else {
 			cpu_timer_sample_group(timer->it_clock, p, &now);
 			unlock_task_sighand(p, &flags);
