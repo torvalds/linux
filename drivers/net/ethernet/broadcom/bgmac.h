@@ -190,7 +190,6 @@
 #define  BGMAC_CMDCFG_HD_SHIFT			10
 #define  BGMAC_CMDCFG_SR_REV0			0x00000800	/* Set to reset mode, for core rev 0-3 */
 #define  BGMAC_CMDCFG_SR_REV4			0x00002000	/* Set to reset mode, for core rev >= 4 */
-#define  BGMAC_CMDCFG_SR(rev)  ((rev >= 4) ? BGMAC_CMDCFG_SR_REV4 : BGMAC_CMDCFG_SR_REV0)
 #define  BGMAC_CMDCFG_ML			0x00008000	/* Set to activate mac loopback mode */
 #define  BGMAC_CMDCFG_AE			0x00400000
 #define  BGMAC_CMDCFG_CFE			0x00800000
@@ -376,6 +375,24 @@
 
 #define ETHER_MAX_LEN   1518
 
+/* Feature Flags */
+#define BGMAC_FEAT_TX_MASK_SETUP	BIT(0)
+#define BGMAC_FEAT_RX_MASK_SETUP	BIT(1)
+#define BGMAC_FEAT_IOST_ATTACHED	BIT(2)
+#define BGMAC_FEAT_NO_RESET		BIT(3)
+#define BGMAC_FEAT_MISC_PLL_REQ		BIT(4)
+#define BGMAC_FEAT_SW_TYPE_PHY		BIT(5)
+#define BGMAC_FEAT_SW_TYPE_EPHYRMII	BIT(6)
+#define BGMAC_FEAT_SW_TYPE_RGMII	BIT(7)
+#define BGMAC_FEAT_CMN_PHY_CTL		BIT(8)
+#define BGMAC_FEAT_FLW_CTRL1		BIT(9)
+#define BGMAC_FEAT_FLW_CTRL2		BIT(10)
+#define BGMAC_FEAT_SET_RXQ_CLK		BIT(11)
+#define BGMAC_FEAT_CLKCTLST		BIT(12)
+#define BGMAC_FEAT_NO_CLR_MIB		BIT(13)
+#define BGMAC_FEAT_FORCE_SPEED_2500	BIT(14)
+#define BGMAC_FEAT_CMDCFG_SR_REV4	BIT(15)
+
 struct bgmac_slot_info {
 	union {
 		struct sk_buff *skb;
@@ -430,6 +447,8 @@ struct bgmac {
 
 	struct device *dev;
 	struct device *dma_dev;
+	u32 feature_flags;
+
 	struct net_device *net_dev;
 	struct napi_struct napi;
 	struct mii_bus *mii_bus;

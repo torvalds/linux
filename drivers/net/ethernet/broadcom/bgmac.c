@@ -109,7 +109,7 @@ static void bgmac_dma_tx_enable(struct bgmac *bgmac,
 	u32 ctl;
 
 	ctl = bgmac_read(bgmac, ring->mmio_base + BGMAC_DMA_TX_CTL);
-	if (bgmac->core->id.rev >= 4) {
+	if (bgmac->feature_flags & BGMAC_FEAT_TX_MASK_SETUP) {
 		ctl &= ~BGMAC_DMA_TX_BL_MASK;
 		ctl |= BGMAC_DMA_TX_BL_128 << BGMAC_DMA_TX_BL_SHIFT;
 
@@ -331,7 +331,7 @@ static void bgmac_dma_rx_enable(struct bgmac *bgmac,
 	u32 ctl;
 
 	ctl = bgmac_read(bgmac, ring->mmio_base + BGMAC_DMA_RX_CTL);
-	if (bgmac->core->id.rev >= 4) {
+	if (bgmac->feature_flags & BGMAC_FEAT_RX_MASK_SETUP) {
 		ctl &= ~BGMAC_DMA_RX_BL_MASK;
 		ctl |= BGMAC_DMA_RX_BL_128 << BGMAC_DMA_RX_BL_SHIFT;
 
@@ -769,14 +769,20 @@ static void bgmac_cmdcfg_maskset(struct bgmac *bgmac, u32 mask, u32 set,
 {
 	u32 cmdcfg = bgmac_read(bgmac, BGMAC_CMDCFG);
 	u32 new_val = (cmdcfg & mask) | set;
+	u32 cmdcfg_sr;
 
-	bgmac_set(bgmac, BGMAC_CMDCFG, BGMAC_CMDCFG_SR(bgmac->core->id.rev));
+	if (bgmac->feature_flags & BGMAC_FEAT_CMDCFG_SR_REV4)
+		cmdcfg_sr = BGMAC_CMDCFG_SR_REV4;
+	else
+		cmdcfg_sr = BGMAC_CMDCFG_SR_REV0;
+
+	bgmac_set(bgmac, BGMAC_CMDCFG, cmdcfg_sr);
 	udelay(2);
 
 	if (new_val != cmdcfg || force)
 		bgmac_write(bgmac, BGMAC_CMDCFG, new_val);
 
-	bgmac_mask(bgmac, BGMAC_CMDCFG, ~BGMAC_CMDCFG_SR(bgmac->core->id.rev));
+	bgmac_mask(bgmac, BGMAC_CMDCFG, ~cmdcfg_sr);
 	udelay(2);
 }
 
@@ -805,7 +811,7 @@ static void bgmac_chip_stats_update(struct bgmac *bgmac)
 {
 	int i;
 
-	if (bgmac->core->id.id != BCMA_CORE_4706_MAC_GBIT) {
+	if (!(bgmac->feature_flags & BGMAC_FEAT_NO_CLR_MIB)) {
 		for (i = 0; i < BGMAC_NUM_MIB_TX_REGS; i++)
 			bgmac->mib_tx_regs[i] =
 				bgmac_read(bgmac,
@@ -824,7 +830,7 @@ static void bgmac_clear_mib(struct bgmac *bgmac)
 {
 	int i;
 
-	if (bgmac->core->id.id == BCMA_CORE_4706_MAC_GBIT)
+	if (bgmac->feature_flags & BGMAC_FEAT_NO_CLR_MIB)
 		return;
 
 	bgmac_set(bgmac, BGMAC_DEV_CTL, BGMAC_DC_MROR);
@@ -867,9 +873,8 @@ static void bgmac_mac_speed(struct bgmac *bgmac)
 static void bgmac_miiconfig(struct bgmac *bgmac)
 {
 	struct bcma_device *core = bgmac->core;
-	u8 imode;
 
-	if (bgmac_is_bcm4707_family(bgmac)) {
+	if (bgmac->feature_flags & BGMAC_FEAT_FORCE_SPEED_2500) {
 		bcma_awrite32(core, BCMA_IOCTL,
 			      bcma_aread32(core, BCMA_IOCTL) | 0x40 |
 			      BGMAC_BCMA_IOCTL_SW_CLKEN);
@@ -877,6 +882,8 @@ static void bgmac_miiconfig(struct bgmac *bgmac)
 		bgmac->mac_duplex = DUPLEX_FULL;
 		bgmac_mac_speed(bgmac);
 	} else {
+		u8 imode;
+
 		imode = (bgmac_read(bgmac, BGMAC_DEV_STATUS) &
 			BGMAC_DS_MM_MASK) >> BGMAC_DS_MM_SHIFT;
 		if (imode == 0 || imode == 1) {
@@ -891,9 +898,7 @@ static void bgmac_miiconfig(struct bgmac *bgmac)
 static void bgmac_chip_reset(struct bgmac *bgmac)
 {
 	struct bcma_device *core = bgmac->core;
-	struct bcma_bus *bus = core->bus;
-	struct bcma_chipinfo *ci = &bus->chipinfo;
-	u32 flags;
+	u32 cmdcfg_sr;
 	u32 iost;
 	int i;
 
@@ -916,15 +921,12 @@ static void bgmac_chip_reset(struct bgmac *bgmac)
 	}
 
 	iost = bcma_aread32(core, BCMA_IOST);
-	if ((ci->id == BCMA_CHIP_ID_BCM5357 && ci->pkg == BCMA_PKG_ID_BCM47186) ||
-	    (ci->id == BCMA_CHIP_ID_BCM4749 && ci->pkg == 10) ||
-	    (ci->id == BCMA_CHIP_ID_BCM53572 && ci->pkg == BCMA_PKG_ID_BCM47188))
+	if (bgmac->feature_flags & BGMAC_FEAT_IOST_ATTACHED)
 		iost &= ~BGMAC_BCMA_IOST_ATTACHED;
 
 	/* 3GMAC: for BCM4707 & BCM47094, only do core reset at bgmac_probe() */
-	if (ci->id != BCMA_CHIP_ID_BCM4707 &&
-	    ci->id != BCMA_CHIP_ID_BCM47094) {
-		flags = 0;
+	if (!(bgmac->feature_flags & BGMAC_FEAT_NO_RESET)) {
+		u32 flags = 0;
 		if (iost & BGMAC_BCMA_IOST_ATTACHED) {
 			flags = BGMAC_BCMA_IOCTL_SW_CLKEN;
 			if (!bgmac->has_robosw)
@@ -934,7 +936,7 @@ static void bgmac_chip_reset(struct bgmac *bgmac)
 	}
 
 	/* Request Misc PLL for corerev > 2 */
-	if (core->id.rev > 2 && !bgmac_is_bcm4707_family(bgmac)) {
+	if (bgmac->feature_flags & BGMAC_FEAT_MISC_PLL_REQ) {
 		bgmac_set(bgmac, BCMA_CLKCTLST,
 			  BGMAC_BCMA_CLKCTLST_MISC_PLL_REQ);
 		bgmac_wait_value(bgmac->core, BCMA_CLKCTLST,
@@ -943,9 +945,7 @@ static void bgmac_chip_reset(struct bgmac *bgmac)
 				 1000);
 	}
 
-	if (ci->id == BCMA_CHIP_ID_BCM5357 ||
-	    ci->id == BCMA_CHIP_ID_BCM4749 ||
-	    ci->id == BCMA_CHIP_ID_BCM53572) {
+	if (bgmac->feature_flags & BGMAC_FEAT_SW_TYPE_PHY) {
 		struct bcma_drv_cc *cc = &bgmac->core->bus->drv_cc;
 		u8 et_swtype = 0;
 		u8 sw_type = BGMAC_CHIPCTL_1_SW_TYPE_EPHY |
@@ -959,11 +959,9 @@ static void bgmac_chip_reset(struct bgmac *bgmac)
 			et_swtype &= 0x0f;
 			et_swtype <<= 4;
 			sw_type = et_swtype;
-		} else if (ci->id == BCMA_CHIP_ID_BCM5357 && ci->pkg == BCMA_PKG_ID_BCM5358) {
+		} else if (bgmac->feature_flags & BGMAC_FEAT_SW_TYPE_EPHYRMII) {
 			sw_type = BGMAC_CHIPCTL_1_SW_TYPE_EPHYRMII;
-		} else if ((ci->id == BCMA_CHIP_ID_BCM5357 && ci->pkg == BCMA_PKG_ID_BCM47186) ||
-			   (ci->id == BCMA_CHIP_ID_BCM4749 && ci->pkg == 10) ||
-			   (ci->id == BCMA_CHIP_ID_BCM53572 && ci->pkg == BCMA_PKG_ID_BCM47188)) {
+		} else if (bgmac->feature_flags & BGMAC_FEAT_SW_TYPE_RGMII) {
 			sw_type = BGMAC_CHIPCTL_1_IF_TYPE_RGMII |
 				  BGMAC_CHIPCTL_1_SW_TYPE_RGMII;
 		}
@@ -983,6 +981,11 @@ static void bgmac_chip_reset(struct bgmac *bgmac)
 	 * BGMAC_CMDCFG is read _after_ putting chip in a reset. So it has to
 	 * be keps until taking MAC out of the reset.
 	 */
+	if (bgmac->feature_flags & BGMAC_FEAT_CMDCFG_SR_REV4)
+		cmdcfg_sr = BGMAC_CMDCFG_SR_REV4;
+	else
+		cmdcfg_sr = BGMAC_CMDCFG_SR_REV0;
+
 	bgmac_cmdcfg_maskset(bgmac,
 			     ~(BGMAC_CMDCFG_TE |
 			       BGMAC_CMDCFG_RE |
@@ -1000,13 +1003,13 @@ static void bgmac_chip_reset(struct bgmac *bgmac)
 			     BGMAC_CMDCFG_PROM |
 			     BGMAC_CMDCFG_NLC |
 			     BGMAC_CMDCFG_CFE |
-			     BGMAC_CMDCFG_SR(core->id.rev),
+			     cmdcfg_sr,
 			     false);
 	bgmac->mac_speed = SPEED_UNKNOWN;
 	bgmac->mac_duplex = DUPLEX_UNKNOWN;
 
 	bgmac_clear_mib(bgmac);
-	if (core->id.id == BCMA_CORE_4706_MAC_GBIT)
+	if (bgmac->feature_flags & BGMAC_FEAT_CMN_PHY_CTL)
 		bcma_maskset32(bgmac->cmn, BCMA_GMAC_CMN_PHY_CTL, ~0,
 			       BCMA_GMAC_CMN_PC_MTE);
 	else
@@ -1032,46 +1035,48 @@ static void bgmac_chip_intrs_off(struct bgmac *bgmac)
 /* http://bcm-v4.sipsolutions.net/mac-gbit/gmac/gmac_enable */
 static void bgmac_enable(struct bgmac *bgmac)
 {
-	struct bcma_chipinfo *ci = &bgmac->core->bus->chipinfo;
+	u32 cmdcfg_sr;
 	u32 cmdcfg;
 	u32 mode;
-	u32 rxq_ctl;
-	u32 fl_ctl;
-	u16 bp_clk;
-	u8 mdp;
+
+	if (bgmac->feature_flags & BGMAC_FEAT_CMDCFG_SR_REV4)
+		cmdcfg_sr = BGMAC_CMDCFG_SR_REV4;
+	else
+		cmdcfg_sr = BGMAC_CMDCFG_SR_REV0;
 
 	cmdcfg = bgmac_read(bgmac, BGMAC_CMDCFG);
 	bgmac_cmdcfg_maskset(bgmac, ~(BGMAC_CMDCFG_TE | BGMAC_CMDCFG_RE),
-			     BGMAC_CMDCFG_SR(bgmac->core->id.rev), true);
+			     cmdcfg_sr, true);
 	udelay(2);
 	cmdcfg |= BGMAC_CMDCFG_TE | BGMAC_CMDCFG_RE;
 	bgmac_write(bgmac, BGMAC_CMDCFG, cmdcfg);
 
 	mode = (bgmac_read(bgmac, BGMAC_DEV_STATUS) & BGMAC_DS_MM_MASK) >>
 		BGMAC_DS_MM_SHIFT;
-	if (ci->id != BCMA_CHIP_ID_BCM47162 || mode != 0)
+	if (bgmac->feature_flags & BGMAC_FEAT_CLKCTLST || mode != 0)
 		bgmac_set(bgmac, BCMA_CLKCTLST, BCMA_CLKCTLST_FORCEHT);
-	if (ci->id == BCMA_CHIP_ID_BCM47162 && mode == 2)
+	if (bgmac->feature_flags & BGMAC_FEAT_CLKCTLST && mode == 2)
 		bcma_chipco_chipctl_maskset(&bgmac->core->bus->drv_cc, 1, ~0,
 					    BGMAC_CHIPCTL_1_RXC_DLL_BYPASS);
 
-	switch (ci->id) {
-	case BCMA_CHIP_ID_BCM5357:
-	case BCMA_CHIP_ID_BCM4749:
-	case BCMA_CHIP_ID_BCM53572:
-	case BCMA_CHIP_ID_BCM4716:
-	case BCMA_CHIP_ID_BCM47162:
-		fl_ctl = 0x03cb04cb;
-		if (ci->id == BCMA_CHIP_ID_BCM5357 ||
-		    ci->id == BCMA_CHIP_ID_BCM4749 ||
-		    ci->id == BCMA_CHIP_ID_BCM53572)
+	if (bgmac->feature_flags & (BGMAC_FEAT_FLW_CTRL1 |
+				    BGMAC_FEAT_FLW_CTRL2)) {
+		u32 fl_ctl;
+
+		if (bgmac->feature_flags & BGMAC_FEAT_FLW_CTRL1)
 			fl_ctl = 0x2300e1;
+		else
+			fl_ctl = 0x03cb04cb;
+
 		bgmac_write(bgmac, BGMAC_FLOW_CTL_THRESH, fl_ctl);
 		bgmac_write(bgmac, BGMAC_PAUSE_CTL, 0x27fff);
-		break;
 	}
 
-	if (!bgmac_is_bcm4707_family(bgmac)) {
+	if (bgmac->feature_flags & BGMAC_FEAT_SET_RXQ_CLK) {
+		u32 rxq_ctl;
+		u16 bp_clk;
+		u8 mdp;
+
 		rxq_ctl = bgmac_read(bgmac, BGMAC_RXQ_CTL);
 		rxq_ctl &= ~BGMAC_RXQ_CTL_MDP_MASK;
 		bp_clk = bcma_pmu_get_bus_clock(&bgmac->core->bus->drv_cc) /
@@ -1586,6 +1591,74 @@ static int bgmac_probe(struct bcma_device *core)
 
 	if (core->bus->sprom.boardflags_lo & BGMAC_BFL_ENETADM)
 		dev_warn(bgmac->dev, "Support for ADMtek ethernet switch not implemented\n");
+
+	/* Feature Flags */
+	switch (core->bus->chipinfo.id) {
+	case BCMA_CHIP_ID_BCM5357:
+		bgmac->feature_flags |= BGMAC_FEAT_SET_RXQ_CLK;
+		bgmac->feature_flags |= BGMAC_FEAT_CLKCTLST;
+		bgmac->feature_flags |= BGMAC_FEAT_FLW_CTRL1;
+		bgmac->feature_flags |= BGMAC_FEAT_SW_TYPE_PHY;
+		if (core->bus->chipinfo.pkg == BCMA_PKG_ID_BCM47186) {
+			bgmac->feature_flags |= BGMAC_FEAT_IOST_ATTACHED;
+			bgmac->feature_flags |= BGMAC_FEAT_SW_TYPE_RGMII;
+		}
+		if (core->bus->chipinfo.pkg == BCMA_PKG_ID_BCM5358)
+			bgmac->feature_flags |= BGMAC_FEAT_SW_TYPE_EPHYRMII;
+		break;
+	case BCMA_CHIP_ID_BCM53572:
+		bgmac->feature_flags |= BGMAC_FEAT_SET_RXQ_CLK;
+		bgmac->feature_flags |= BGMAC_FEAT_CLKCTLST;
+		bgmac->feature_flags |= BGMAC_FEAT_FLW_CTRL1;
+		bgmac->feature_flags |= BGMAC_FEAT_SW_TYPE_PHY;
+		if (core->bus->chipinfo.pkg == BCMA_PKG_ID_BCM47188) {
+			bgmac->feature_flags |= BGMAC_FEAT_SW_TYPE_RGMII;
+			bgmac->feature_flags |= BGMAC_FEAT_IOST_ATTACHED;
+		}
+		break;
+	case BCMA_CHIP_ID_BCM4749:
+		bgmac->feature_flags |= BGMAC_FEAT_SET_RXQ_CLK;
+		bgmac->feature_flags |= BGMAC_FEAT_CLKCTLST;
+		bgmac->feature_flags |= BGMAC_FEAT_FLW_CTRL1;
+		bgmac->feature_flags |= BGMAC_FEAT_SW_TYPE_PHY;
+		if (core->bus->chipinfo.pkg == 10) {
+			bgmac->feature_flags |= BGMAC_FEAT_SW_TYPE_RGMII;
+			bgmac->feature_flags |= BGMAC_FEAT_IOST_ATTACHED;
+		}
+		break;
+	case BCMA_CHIP_ID_BCM4716:
+		bgmac->feature_flags |= BGMAC_FEAT_CLKCTLST;
+		/* fallthrough */
+	case BCMA_CHIP_ID_BCM47162:
+		bgmac->feature_flags |= BGMAC_FEAT_FLW_CTRL2;
+		bgmac->feature_flags |= BGMAC_FEAT_SET_RXQ_CLK;
+		break;
+	/* bcm4707_family */
+	case BCMA_CHIP_ID_BCM4707:
+	case BCMA_CHIP_ID_BCM47094:
+	case BCMA_CHIP_ID_BCM53018:
+		bgmac->feature_flags |= BGMAC_FEAT_CLKCTLST;
+		bgmac->feature_flags |= BGMAC_FEAT_NO_RESET;
+		bgmac->feature_flags |= BGMAC_FEAT_FORCE_SPEED_2500;
+		break;
+	default:
+		bgmac->feature_flags |= BGMAC_FEAT_CLKCTLST;
+		bgmac->feature_flags |= BGMAC_FEAT_SET_RXQ_CLK;
+	}
+
+	if (!bgmac_is_bcm4707_family(bgmac) && core->id.rev > 2)
+		bgmac->feature_flags |= BGMAC_FEAT_MISC_PLL_REQ;
+
+	if (core->id.id == BCMA_CORE_4706_MAC_GBIT) {
+		bgmac->feature_flags |= BGMAC_FEAT_CMN_PHY_CTL;
+		bgmac->feature_flags |= BGMAC_FEAT_NO_CLR_MIB;
+	}
+
+	if (core->id.rev >= 4) {
+		bgmac->feature_flags |= BGMAC_FEAT_CMDCFG_SR_REV4;
+		bgmac->feature_flags |= BGMAC_FEAT_TX_MASK_SETUP;
+		bgmac->feature_flags |= BGMAC_FEAT_RX_MASK_SETUP;
+	}
 
 	netif_napi_add(net_dev, &bgmac->napi, bgmac_poll, BGMAC_WEIGHT);
 
