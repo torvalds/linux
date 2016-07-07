@@ -2829,7 +2829,6 @@ static int rtl8152_set_speed(struct r8152 *tp, u8 autoneg, u16 speed, u8 duplex)
 	u16 bmcr, anar, gbcr;
 	int ret = 0;
 
-	cancel_delayed_work_sync(&tp->schedule);
 	anar = r8152_mdio_read(tp, MII_ADVERTISE);
 	anar &= ~(ADVERTISE_10HALF | ADVERTISE_10FULL |
 		  ADVERTISE_100HALF | ADVERTISE_100FULL);
