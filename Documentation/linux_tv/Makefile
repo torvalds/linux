@@ -2,7 +2,7 @@
 
 PARSER = ../sphinx/parse-headers.pl
 UAPI = ../../include/uapi/linux
-TARGETS = audio.h.rst ca.h.rst dmx.h.rst frontend.h.rst net.h.rst
+TARGETS = audio.h.rst ca.h.rst dmx.h.rst frontend.h.rst net.h.rst video.h.rst
 
 htmldocs: ${TARGETS}
 
@@ -20,6 +20,9 @@ frontend.h.rst: ${PARSER} ${UAPI}/dvb/frontend.h  frontend.h.rst.exceptions
 
 net.h.rst: ${PARSER} ${UAPI}/dvb/net.h  net.h.rst.exceptions
 	${PARSER} ${UAPI}/dvb/net.h $@ net.h.rst.exceptions
+
+video.h.rst: ${PARSER} ${UAPI}/dvb/video.h  video.h.rst.exceptions
+	${PARSER} ${UAPI}/dvb/video.h $@ video.h.rst.exceptions
 
 cleandocs:
 	-rm ${TARGETS}
