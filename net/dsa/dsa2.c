@@ -595,7 +595,7 @@ static int _dsa_register_switch(struct dsa_switch *ds, struct device_node *np)
 	struct device_node *ports = dsa_get_ports(ds, np);
 	struct dsa_switch_tree *dst;
 	u32 tree, index;
-	int err;
+	int i, err;
 
 	err = dsa_parse_member(np, &tree, &index);
 	if (err)
@@ -622,6 +622,11 @@ static int _dsa_register_switch(struct dsa_switch *ds, struct device_node *np)
 
 	ds->dst = dst;
 	ds->index = index;
+
+	/* Initialize the routing table */
+	for (i = 0; i < DSA_MAX_SWITCHES; ++i)
+		ds->rtable[i] = DSA_RTABLE_NONE;
+
 	dsa_dst_add_ds(dst, ds, index);
 
 	err = dsa_dst_complete(dst);

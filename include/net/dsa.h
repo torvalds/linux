@@ -32,6 +32,8 @@ enum dsa_tag_protocol {
 #define DSA_MAX_SWITCHES	4
 #define DSA_MAX_PORTS		12
 
+#define DSA_RTABLE_NONE		-1
+
 struct dsa_chip_data {
 	/*
 	 * How to access the switch configuration registers.

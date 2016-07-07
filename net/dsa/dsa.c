@@ -774,10 +774,16 @@ static int dsa_of_probe(struct device *dev)
 
 	chip_index = -1;
 	for_each_available_child_of_node(np, child) {
+		int i;
+
 		chip_index++;
 		cd = &pd->chip[chip_index];
 
 		cd->of_node = child;
+
+		/* Initialize the routing table */
+		for (i = 0; i < DSA_MAX_SWITCHES; ++i)
+			cd->rtable[i] = DSA_RTABLE_NONE;
 
 		/* When assigning the host device, increment its refcount */
 		cd->host_dev = get_device(&mdio_bus->dev);
