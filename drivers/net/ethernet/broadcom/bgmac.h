@@ -429,6 +429,7 @@ struct bgmac {
 	struct bcma_device *cmn; /* Reference to CMN core for BCM4706 */
 
 	struct device *dev;
+	struct device *dma_dev;
 	struct net_device *net_dev;
 	struct napi_struct napi;
 	struct mii_bus *mii_bus;

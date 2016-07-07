@@ -152,7 +152,7 @@ static netdev_tx_t bgmac_dma_tx_add(struct bgmac *bgmac,
 				    struct bgmac_dma_ring *ring,
 				    struct sk_buff *skb)
 {
-	struct device *dma_dev = bgmac->core->dma_dev;
+	struct device *dma_dev = bgmac->dma_dev;
 	struct net_device *net_dev = bgmac->net_dev;
 	int index = ring->end % BGMAC_TX_RING_SLOTS;
 	struct bgmac_slot_info *slot = &ring->slots[index];
@@ -254,7 +254,7 @@ err_drop:
 /* Free transmitted packets */
 static void bgmac_dma_tx_free(struct bgmac *bgmac, struct bgmac_dma_ring *ring)
 {
-	struct device *dma_dev = bgmac->core->dma_dev;
+	struct device *dma_dev = bgmac->dma_dev;
 	int empty_slot;
 	bool freed = false;
 	unsigned bytes_compl = 0, pkts_compl = 0;
@@ -352,7 +352,7 @@ static void bgmac_dma_rx_enable(struct bgmac *bgmac,
 static int bgmac_dma_rx_skb_for_slot(struct bgmac *bgmac,
 				     struct bgmac_slot_info *slot)
 {
-	struct device *dma_dev = bgmac->core->dma_dev;
+	struct device *dma_dev = bgmac->dma_dev;
 	dma_addr_t dma_addr;
 	struct bgmac_rx_header *rx;
 	void *buf;
@@ -441,7 +441,7 @@ static int bgmac_dma_rx_read(struct bgmac *bgmac, struct bgmac_dma_ring *ring,
 	end_slot /= sizeof(struct bgmac_dma_desc);
 
 	while (ring->start != end_slot) {
-		struct device *dma_dev = bgmac->core->dma_dev;
+		struct device *dma_dev = bgmac->dma_dev;
 		struct bgmac_slot_info *slot = &ring->slots[ring->start];
 		struct bgmac_rx_header *rx = slot->buf + BGMAC_RX_BUF_OFFSET;
 		struct sk_buff *skb;
@@ -544,7 +544,7 @@ static bool bgmac_dma_unaligned(struct bgmac *bgmac,
 static void bgmac_dma_tx_ring_free(struct bgmac *bgmac,
 				   struct bgmac_dma_ring *ring)
 {
-	struct device *dma_dev = bgmac->core->dma_dev;
+	struct device *dma_dev = bgmac->dma_dev;
 	struct bgmac_dma_desc *dma_desc = ring->cpu_base;
 	struct bgmac_slot_info *slot;
 	int i;
@@ -570,7 +570,7 @@ static void bgmac_dma_tx_ring_free(struct bgmac *bgmac,
 static void bgmac_dma_rx_ring_free(struct bgmac *bgmac,
 				   struct bgmac_dma_ring *ring)
 {
-	struct device *dma_dev = bgmac->core->dma_dev;
+	struct device *dma_dev = bgmac->dma_dev;
 	struct bgmac_slot_info *slot;
 	int i;
 
@@ -591,7 +591,7 @@ static void bgmac_dma_ring_desc_free(struct bgmac *bgmac,
 				     struct bgmac_dma_ring *ring,
 				     int num_slots)
 {
-	struct device *dma_dev = bgmac->core->dma_dev;
+	struct device *dma_dev = bgmac->dma_dev;
 	int size;
 
 	if (!ring->cpu_base)
@@ -629,7 +629,7 @@ static void bgmac_dma_free(struct bgmac *bgmac)
 
 static int bgmac_dma_alloc(struct bgmac *bgmac)
 {
-	struct device *dma_dev = bgmac->core->dma_dev;
+	struct device *dma_dev = bgmac->dma_dev;
 	struct bgmac_dma_ring *ring;
 	static const u16 ring_base[] = { BGMAC_DMA_BASE0, BGMAC_DMA_BASE1,
 					 BGMAC_DMA_BASE2, BGMAC_DMA_BASE3, };
@@ -1703,6 +1703,7 @@ static int bgmac_probe(struct bcma_device *core)
 	net_dev->ethtool_ops = &bgmac_ethtool_ops;
 	bgmac = netdev_priv(net_dev);
 	bgmac->dev = &core->dev;
+	bgmac->dma_dev = core->dma_dev;
 	bgmac->net_dev = net_dev;
 	bgmac->core = core;
 	bcma_set_drvdata(core, bgmac);
