@@ -920,8 +920,12 @@ static int iwl_mvm_tx_mpdu(struct iwl_mvm *mvm, struct sk_buff *skb,
 		tid = IWL_MAX_TID_COUNT;
 	}
 
-	if (iwl_mvm_is_dqa_supported(mvm))
+	if (iwl_mvm_is_dqa_supported(mvm)) {
 		txq_id = mvmsta->tid_data[tid].txq_id;
+
+		if (ieee80211_is_mgmt(fc))
+			tx_cmd->tid_tspec = IWL_TID_NON_QOS;
+	}
 
 	/* Copy MAC header from skb into command buffer */
 	memcpy(tx_cmd->hdr, hdr, hdrlen);
