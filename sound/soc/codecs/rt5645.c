@@ -741,6 +741,14 @@ static int rt5645_spk_put_volsw(struct snd_kcontrol *kcontrol,
 	return ret;
 }
 
+static const char * const rt5645_dac1_vol_ctrl_mode_text[] = {
+	"immediately", "zero crossing", "soft ramp"
+};
+
+static SOC_ENUM_SINGLE_DECL(
+	rt5645_dac1_vol_ctrl_mode, RT5645_PR_BASE,
+	RT5645_DA1_ZDET_SFT, rt5645_dac1_vol_ctrl_mode_text);
+
 static const struct snd_kcontrol_new rt5645_snd_controls[] = {
 	/* Speaker Output Volume */
 	SOC_DOUBLE("Speaker Channel Switch", RT5645_SPK_VOL,
@@ -807,6 +815,9 @@ static const struct snd_kcontrol_new rt5645_snd_controls[] = {
 	SOC_SINGLE("I2S2 Func Switch", RT5645_GPIO_CTRL1, RT5645_I2S2_SEL_SFT,
 		1, 1),
 	RT5645_HWEQ("Speaker HWEQ"),
+
+	/* Digital Soft Volume Control */
+	SOC_ENUM("DAC1 Digital Volume Control Func", rt5645_dac1_vol_ctrl_mode),
 };
 
 /**
