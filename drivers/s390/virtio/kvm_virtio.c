@@ -482,7 +482,7 @@ static int __init kvm_devices_init(void)
 }
 
 /* code for early console output with virtio_console */
-static __init int early_put_chars(u32 vtermno, const char *buf, int count)
+static int early_put_chars(u32 vtermno, const char *buf, int count)
 {
 	char scratch[17];
 	unsigned int len = count;
