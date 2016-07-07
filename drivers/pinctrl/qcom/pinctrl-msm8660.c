@@ -506,6 +506,7 @@ enum msm8660_functions {
 	MSM_MUX_usb_fs2_oe_n,
 	MSM_MUX_vfe,
 	MSM_MUX_vsens_alarm,
+	MSM_MUX_ebi2cs,
 	MSM_MUX_ebi2,
 	MSM_MUX__,
 };
@@ -697,13 +698,35 @@ static const char * const vfe_groups[] = {
 static const char * const vsens_alarm_groups[] = {
 	"gpio127"
 };
+static const char * const ebi2cs_groups[] = {
+	"gpio39", /* CS1A */
+	"gpio40", /* CS2A */
+	"gpio123", /* CS1B */
+	"gpio124", /* CS2B */
+	"gpio131", /* CS5 */
+	"gpio132", /* CS4 */
+	"gpio133", /* CS3 */
+	"gpio134", /* CS0 */
+};
 static const char * const ebi2_groups[] = {
-	"gpio39", "gpio40", "gpio123", "gpio124", "gpio125", "gpio126",
-	"gpio127", "gpio128", "gpio129", "gpio130", "gpio132", "gpio133",
-	"gpio134", "gpio135", "gpio136", "gpio137", "gpio138", "gpio139",
-	"gpio140", "gpio141", "gpio142", "gpio143", "gpio144", "gpio145",
-	"gpio146", "gpio147", "gpio148", "gpio149", "gpio150", "gpio151",
-	"gpio153", "gpio157"
+	/* ADDR9 & ADDR8 */
+	"gpio37", "gpio38",
+	/* ADDR7 - ADDR 0 */
+	"gpio123", "gpio124", "gpio125", "gpio126",
+	"gpio127", "gpio128", "gpio129", "gpio130",
+	/* (muxed address+data) AD15 - AD0 */
+	"gpio135", "gpio136", "gpio137", "gpio138", "gpio139",
+	"gpio140", "gpio141", "gpio142", "gpio143", "gpio144",
+	"gpio145", "gpio146", "gpio147", "gpio148", "gpio149",
+	"gpio150",
+	"gpio151", /* OE output enable */
+	"gpio152", /* clock */
+	"gpio153", /* ADV */
+	"gpio154", /* WAIT (input) */
+	"gpio155", /* UB Upper Byte Enable */
+	"gpio156", /* LB Lower Byte Enable */
+	"gpio157", /* WE Write Enable */
+	"gpio158", /* busy */
 };
 
 static const struct msm_function msm8660_functions[] = {
@@ -758,7 +781,8 @@ static const struct msm_function msm8660_functions[] = {
 	FUNCTION(usb_fs2_oe_n),
 	FUNCTION(vfe),
 	FUNCTION(vsens_alarm),
-	FUNCTION(ebi2),
+	FUNCTION(ebi2cs), /* for EBI2 chip selects */
+	FUNCTION(ebi2), /* for general EBI2 pins */
 };
 
 static const struct msm_pingroup msm8660_groups[] = {
@@ -799,10 +823,10 @@ static const struct msm_pingroup msm8660_groups[] = {
 	PINGROUP(34, gsbi1, _, _, _, _, _, _),
 	PINGROUP(35, gsbi1, _, _, _, _, _, _),
 	PINGROUP(36, gsbi1, _, _, _, _, _, _),
-	PINGROUP(37, gsbi2, _, _, _, _, _, _),
-	PINGROUP(38, gsbi2, _, _, _, _, _, _),
-	PINGROUP(39, gsbi2, ebi2, mdp_vsync, _, _, _, _),
-	PINGROUP(40, gsbi2, ebi2, _, _, _, _, _),
+	PINGROUP(37, gsbi2, ebi2, _, _, _, _, _),
+	PINGROUP(38, gsbi2, ebi2, _, _, _, _, _),
+	PINGROUP(39, gsbi2, ebi2cs, mdp_vsync, _, _, _, _),
+	PINGROUP(40, gsbi2, ebi2cs, _, _, _, _, _),
 	PINGROUP(41, gsbi3, mdp_vsync, _, _, _, _, _),
 	PINGROUP(42, gsbi3, vfe, _, _, _, _, _),
 	PINGROUP(43, gsbi3, _, _, _, _, _, _),
@@ -885,18 +909,18 @@ static const struct msm_pingroup msm8660_groups[] = {
 	PINGROUP(120, i2s, _, _, _, _, _, _),
 	PINGROUP(121, i2s, _, _, _, _, _, _),
 	PINGROUP(122, i2s, gp_clk_1b, _, _, _, _, _),
-	PINGROUP(123, ebi2, gsbi2_spi_cs1_n, _, _, _, _, _),
-	PINGROUP(124, ebi2, gsbi2_spi_cs2_n, _, _, _, _, _),
+	PINGROUP(123, ebi2, gsbi2_spi_cs1_n, ebi2cs, _, _, _, _),
+	PINGROUP(124, ebi2, gsbi2_spi_cs2_n, ebi2cs, _, _, _, _),
 	PINGROUP(125, ebi2, gsbi2_spi_cs3_n, _, _, _, _, _),
 	PINGROUP(126, ebi2, _, _, _, _, _, _),
 	PINGROUP(127, ebi2, vsens_alarm, _, _, _, _, _),
 	PINGROUP(128, ebi2, _, _, _, _, _, _),
 	PINGROUP(129, ebi2, _, _, _, _, _, _),
 	PINGROUP(130, ebi2, _, _, _, _, _, _),
-	PINGROUP(131, _, _, _, _, _, _, _),
-	PINGROUP(132, ebi2, _, _, _, _, _, _),
-	PINGROUP(133, ebi2, _, _, _, _, _, _),
-	PINGROUP(134, ebi2, _, _, _, _, _, _),
+	PINGROUP(131, ebi2cs, _, _, _, _, _, _),
+	PINGROUP(132, ebi2cs, _, _, _, _, _, _),
+	PINGROUP(133, ebi2cs, _, _, _, _, _, _),
+	PINGROUP(134, ebi2cs, _, _, _, _, _, _),
 	PINGROUP(135, ebi2, _, _, _, _, _, _),
 	PINGROUP(136, ebi2, _, _, _, _, _, _),
 	PINGROUP(137, ebi2, _, _, _, _, _, _),
@@ -914,13 +938,13 @@ static const struct msm_pingroup msm8660_groups[] = {
 	PINGROUP(149, ebi2, sdc2, _, _, _, _, _),
 	PINGROUP(150, ebi2, sdc2, _, _, _, _, _),
 	PINGROUP(151, ebi2, sdc2, _, _, _, _, _),
-	PINGROUP(152, _, sdc2, _, _, _, _, _),
+	PINGROUP(152, ebi2, sdc2, _, _, _, _, _),
 	PINGROUP(153, ebi2, _, _, _, _, _, _),
-	PINGROUP(154, _, _, _, _, _, _, _),
-	PINGROUP(155, _, _, _, _, _, _, _),
-	PINGROUP(156, _, _, _, _, _, _, _),
+	PINGROUP(154, ebi2, _, _, _, _, _, _),
+	PINGROUP(155, ebi2, _, _, _, _, _, _),
+	PINGROUP(156, ebi2, _, _, _, _, _, _),
 	PINGROUP(157, ebi2, _, _, _, _, _, _),
-	PINGROUP(158, _, _, _, _, _, _, _),
+	PINGROUP(158, ebi2, _, _, _, _, _, _),
 	PINGROUP(159, sdc1, _, _, _, _, _, _),
 	PINGROUP(160, sdc1, _, _, _, _, _, _),
 	PINGROUP(161, sdc1, _, _, _, _, _, _),
