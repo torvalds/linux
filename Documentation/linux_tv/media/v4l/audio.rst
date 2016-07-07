@@ -28,23 +28,23 @@ number, starting at zero, of one audio input or output.
 To learn about the number and attributes of the available inputs and
 outputs applications can enumerate them with the
 :ref:`VIDIOC_ENUMAUDIO` and
-:ref:`VIDIOC_ENUMAUDOUT <VIDIOC_ENUMAUDIOout>` ioctl, respectively.
+:ref:`VIDIOC_ENUMAUDOUT <VIDIOC_ENUMAUDOUT>` ioctl, respectively.
 The struct :ref:`v4l2_audio <v4l2-audio>` returned by the
 :ref:`VIDIOC_ENUMAUDIO` ioctl also contains signal
 :status information applicable when the current audio input is queried.
 
 The :ref:`VIDIOC_G_AUDIO <VIDIOC_G_AUDIO>` and
-:ref:`VIDIOC_G_AUDOUT <VIDIOC_G_AUDIOout>` ioctls report the current
+:ref:`VIDIOC_G_AUDOUT <VIDIOC_G_AUDOUT>` ioctls report the current
 audio input and output, respectively. Note that, unlike
 :ref:`VIDIOC_G_INPUT <VIDIOC_G_INPUT>` and
 :ref:`VIDIOC_G_OUTPUT <VIDIOC_G_OUTPUT>` these ioctls return a
 structure as :ref:`VIDIOC_ENUMAUDIO` and
-:ref:`VIDIOC_ENUMAUDOUT <VIDIOC_ENUMAUDIOout>` do, not just an index.
+:ref:`VIDIOC_ENUMAUDOUT <VIDIOC_ENUMAUDOUT>` do, not just an index.
 
 To select an audio input and change its properties applications call the
 :ref:`VIDIOC_S_AUDIO <VIDIOC_G_AUDIO>` ioctl. To select an audio
 output (which presently has no changeable properties) applications call
-the :ref:`VIDIOC_S_AUDOUT <VIDIOC_G_AUDIOout>` ioctl.
+the :ref:`VIDIOC_S_AUDOUT <VIDIOC_G_AUDOUT>` ioctl.
 
 Drivers must implement all audio input ioctls when the device has
 multiple selectable audio inputs, all audio output ioctls when the

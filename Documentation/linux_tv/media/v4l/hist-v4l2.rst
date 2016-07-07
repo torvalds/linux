@@ -727,8 +727,8 @@ V4L2 2003-06-19
    audio input.
 
    The same changes were made to
-   :ref:`VIDIOC_G_AUDOUT <VIDIOC_G_AUDIOout>` and
-   :ref:`VIDIOC_ENUMAUDOUT <VIDIOC_ENUMAUDIOout>`.
+   :ref:`VIDIOC_G_AUDOUT <VIDIOC_G_AUDOUT>` and
+   :ref:`VIDIOC_ENUMAUDOUT <VIDIOC_ENUMAUDOUT>`.
 
    Until further the "videodev" module will automatically translate
    between the old and new ioctls, but drivers and applications must be
