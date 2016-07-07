@@ -489,7 +489,9 @@ static ssize_t dlpar_store(struct class *class, struct class_attribute *attr,
 		goto dlpar_store_out;
 	}
 
-	rc = handle_dlpar_errorlog(hp_elog);
+	init_completion(&hotplug_done);
+	queue_hotplug_event(hp_elog, &hotplug_done, &rc);
+	wait_for_completion(&hotplug_done);
 
 dlpar_store_out:
 	kfree(hp_elog);
