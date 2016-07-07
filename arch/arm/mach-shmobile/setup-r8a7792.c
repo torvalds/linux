@@ -1,9 +1,8 @@
 /*
- * r8a7791 processor support
+ * r8a7792 processor support
  *
- * Copyright (C) 2013  Renesas Electronics Corporation
- * Copyright (C) 2013  Renesas Solutions Corp.
- * Copyright (C) 2013  Magnus Damm
+ * Copyright (C) 2014 Renesas Electronics Corporation
+ * Copyright (C) 2016 Cogent  Embedded, Inc.
  *
  * This program is free software; you can redistribute it and/or modify
  * it under the terms of the GNU General Public License as published by
@@ -15,25 +14,22 @@
  * GNU General Public License for more details.
  */
 
-#include <linux/init.h>
+#include <linux/of_platform.h>
 
 #include <asm/mach/arch.h>
 
 #include "common.h"
-#include "r8a7791.h"
 #include "rcar-gen2.h"
 
-static const char *const r8a7791_boards_compat_dt[] __initconst = {
-	"renesas,r8a7791",
+static const char * const r8a7792_boards_compat_dt[] __initconst = {
+	"renesas,r8a7792",
 	NULL,
 };
 
-DT_MACHINE_START(R8A7791_DT, "Generic R8A7791 (Flattened Device Tree)")
-	.smp_init	= shmobile_smp_init_fallback_ops,
-	.smp		= smp_ops(r8a7791_smp_ops),
+DT_MACHINE_START(R8A7792_DT, "Generic R8A7792 (Flattened Device Tree)")
 	.init_early	= shmobile_init_delay,
-	.init_time	= rcar_gen2_timer_init,
 	.init_late	= shmobile_init_late,
+	.init_time	= rcar_gen2_timer_init,
 	.reserve	= rcar_gen2_reserve,
-	.dt_compat	= r8a7791_boards_compat_dt,
+	.dt_compat	= r8a7792_boards_compat_dt,
 MACHINE_END
