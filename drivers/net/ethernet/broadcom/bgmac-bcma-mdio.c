@@ -245,6 +245,7 @@ err:
 	kfree(bcma_mdio);
 	return ERR_PTR(err);
 }
+EXPORT_SYMBOL_GPL(bcma_mdio_mii_register);
 
 void bcma_mdio_mii_unregister(struct mii_bus *mii_bus)
 {
@@ -259,6 +260,7 @@ void bcma_mdio_mii_unregister(struct mii_bus *mii_bus)
 	mdiobus_free(mii_bus);
 	kfree(bcma_mdio);
 }
+EXPORT_SYMBOL_GPL(bcma_mdio_mii_unregister);
 
 MODULE_AUTHOR("Rafał Miłecki");
 MODULE_LICENSE("GPL");

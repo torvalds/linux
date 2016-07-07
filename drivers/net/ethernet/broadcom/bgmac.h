@@ -1,8 +1,6 @@
 #ifndef _BGMAC_H
 #define _BGMAC_H
 
-#include <linux/bcma/bcma.h>
-#include <linux/brcmphy.h>
 #include <linux/netdevice.h>
 
 #define BGMAC_DEV_CTL				0x000
@@ -442,11 +440,21 @@ struct bgmac_rx_header {
 };
 
 struct bgmac {
-	struct bcma_device *core;
-	struct bcma_device *cmn; /* Reference to CMN core for BCM4706 */
+	union {
+		struct {
+			void *base;
+			void *idm_base;
+		} plat;
+		struct {
+			struct bcma_device *core;
+			/* Reference to CMN core for BCM4706 */
+			struct bcma_device *cmn;
+		} bcma;
+	};
 
 	struct device *dev;
 	struct device *dma_dev;
+	unsigned char mac_addr[ETH_ALEN];
 	u32 feature_flags;
 
 	struct net_device *net_dev;
@@ -463,6 +471,7 @@ struct bgmac {
 	u32 mib_rx_regs[BGMAC_NUM_MIB_RX_REGS];
 
 	/* Int */
+	int irq;
 	u32 int_mask;
 
 	/* Current MAC state */
@@ -473,19 +482,71 @@ struct bgmac {
 	bool has_robosw;
 
 	bool loopback;
+
+	u32 (*read)(struct bgmac *bgmac, u16 offset);
+	void (*write)(struct bgmac *bgmac, u16 offset, u32 value);
+	u32 (*idm_read)(struct bgmac *bgmac, u16 offset);
+	void (*idm_write)(struct bgmac *bgmac, u16 offset, u32 value);
+	bool (*clk_enabled)(struct bgmac *bgmac);
+	void (*clk_enable)(struct bgmac *bgmac, u32 flags);
+	void (*cco_ctl_maskset)(struct bgmac *bgmac, u32 offset, u32 mask,
+				u32 set);
+	u32 (*get_bus_clock)(struct bgmac *bgmac);
+	void (*cmn_maskset32)(struct bgmac *bgmac, u16 offset, u32 mask,
+			      u32 set);
 };
+
+int bgmac_enet_probe(struct bgmac *info);
+void bgmac_enet_remove(struct bgmac *bgmac);
 
 struct mii_bus *bcma_mdio_mii_register(struct bcma_device *core, u8 phyaddr);
 void bcma_mdio_mii_unregister(struct mii_bus *mii_bus);
 
 static inline u32 bgmac_read(struct bgmac *bgmac, u16 offset)
 {
-	return bcma_read32(bgmac->core, offset);
+	return bgmac->read(bgmac, offset);
 }
 
 static inline void bgmac_write(struct bgmac *bgmac, u16 offset, u32 value)
 {
-	bcma_write32(bgmac->core, offset, value);
+	bgmac->write(bgmac, offset, value);
+}
+
+static inline u32 bgmac_idm_read(struct bgmac *bgmac, u16 offset)
+{
+	return bgmac->idm_read(bgmac, offset);
+}
+
+static inline void bgmac_idm_write(struct bgmac *bgmac, u16 offset, u32 value)
+{
+	bgmac->idm_write(bgmac, offset, value);
+}
+
+static inline bool bgmac_clk_enabled(struct bgmac *bgmac)
+{
+	return bgmac->clk_enabled(bgmac);
+}
+
+static inline void bgmac_clk_enable(struct bgmac *bgmac, u32 flags)
+{
+	bgmac->clk_enable(bgmac, flags);
+}
+
+static inline void bgmac_cco_ctl_maskset(struct bgmac *bgmac, u32 offset,
+					 u32 mask, u32 set)
+{
+	bgmac->cco_ctl_maskset(bgmac, offset, mask, set);
+}
+
+static inline u32 bgmac_get_bus_clock(struct bgmac *bgmac)
+{
+	return bgmac->get_bus_clock(bgmac);
+}
+
+static inline void bgmac_cmn_maskset32(struct bgmac *bgmac, u16 offset,
+				       u32 mask, u32 set)
+{
+	bgmac->cmn_maskset32(bgmac, offset, mask, set);
 }
 
 static inline void bgmac_maskset(struct bgmac *bgmac, u16 offset, u32 mask,
