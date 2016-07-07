@@ -1,6 +1,8 @@
 #include <linux/kernel.h>
 #include "cache.h"
 #include "config.h"
+#include <stdlib.h>
+#include <stdio.h>
 #include "color.h"
 #include <math.h>
 #include <unistd.h>

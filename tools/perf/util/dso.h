@@ -4,6 +4,7 @@
 #include <linux/atomic.h>
 #include <linux/types.h>
 #include <linux/rbtree.h>
+#include <sys/types.h>
 #include <stdbool.h>
 #include <pthread.h>
 #include <linux/types.h>
