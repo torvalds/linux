@@ -188,12 +188,12 @@
 };
 
 &pfc {
-	scifa0_pins: serial0 {
+	scifa0_pins: scifa0 {
 		groups = "scifa0_data";
 		function = "scifa0";
 	};
 
-	mmc0_pins: mmc {
+	mmc0_pins: mmc0 {
 		groups = "mmc0_data8", "mmc0_ctrl";
 		function = "mmc0";
 	};

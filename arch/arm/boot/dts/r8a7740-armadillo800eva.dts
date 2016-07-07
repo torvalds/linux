@@ -20,12 +20,12 @@
 	compatible = "renesas,armadillo800eva", "renesas,r8a7740";
 
 	aliases {
-		serial1 = &scifa1;
+		serial0 = &scifa1;
 	};
 
 	chosen {
-		bootargs = "console=tty0 console=ttySC1,115200 earlyprintk=sh-sci.1,115200 ignore_loglevel root=/dev/nfs ip=dhcp rw";
-		stdout-path = &scifa1;
+		bootargs = "earlyprintk ignore_loglevel root=/dev/nfs ip=dhcp rw";
+		stdout-path = "serial0:115200n8";
 	};
 
 	memory@40000000 {
@@ -232,7 +232,7 @@
 		function = "gether";
 	};
 
-	scifa1_pins: serial1 {
+	scifa1_pins: scifa1 {
 		groups = "scifa1_data";
 		function = "scifa1";
 	};

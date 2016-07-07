@@ -22,7 +22,7 @@
 	compatible = "renesas,kzm9g", "renesas,sh73a0";
 
 	aliases {
-		serial4 = &scifa4;
+		serial0 = &scifa4;
 	};
 
 	cpus {
@@ -39,8 +39,8 @@
 	};
 
 	chosen {
-		bootargs = "console=tty0 console=ttySC4,115200 root=/dev/nfs ip=dhcp ignore_loglevel rw";
-		stdout-path = &scifa4;
+		bootargs = "root=/dev/nfs ip=dhcp ignore_loglevel rw";
+		stdout-path = "serial0:115200n8";
 	};
 
 	memory@40000000 {
@@ -352,7 +352,7 @@
 		};
 	};
 
-	scifa4_pins: serial4 {
+	scifa4_pins: scifa4 {
 		groups = "scifa4_data", "scifa4_ctrl";
 		function = "scifa4";
 	};
