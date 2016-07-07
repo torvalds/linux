@@ -3,6 +3,7 @@
 #include "config.h"
 #include "color.h"
 #include <math.h>
+#include <unistd.h>
 
 int perf_use_color_default = -1;
 
