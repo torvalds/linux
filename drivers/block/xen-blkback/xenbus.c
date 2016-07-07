@@ -379,7 +379,7 @@ static struct attribute *xen_vbdstat_attrs[] = {
 	NULL
 };
 
-static struct attribute_group xen_vbdstat_group = {
+static const struct attribute_group xen_vbdstat_group = {
 	.name = "statistics",
 	.attrs = xen_vbdstat_attrs,
 };
