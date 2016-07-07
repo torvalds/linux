@@ -13,6 +13,19 @@ config ARCH_ALPINE
 	  This enables support for the Annapurna Labs Alpine
 	  Soc family.
 
+config ARCH_BCM2835
+	bool "Broadcom BCM2835 family"
+	select ARCH_REQUIRE_GPIOLIB
+	select CLKSRC_OF
+	select PINCTRL
+	select PINCTRL_BCM2835
+	select ARM_AMBA
+	select ARM_TIMER_SP804
+	select HAVE_ARM_ARCH_TIMER
+	help
+	  This enables support for the Broadcom BCM2837 SoC.
+	  This SoC is used in the Raspberry Pi 3 device.
+
 config ARCH_BCM_IPROC
 	bool "Broadcom iProc SoC Family"
 	select COMMON_CLK_IPROC
