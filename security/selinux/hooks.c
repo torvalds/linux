@@ -4604,13 +4604,13 @@ static int selinux_socket_sock_rcv_skb(struct sock *sk, struct sk_buff *skb)
 		err = selinux_inet_sys_rcv_skb(sock_net(sk), skb->skb_iif,
 					       addrp, family, peer_sid, &ad);
 		if (err) {
-			selinux_netlbl_err(skb, err, 0);
+			selinux_netlbl_err(skb, family, err, 0);
 			return err;
 		}
 		err = avc_has_perm(sk_sid, peer_sid, SECCLASS_PEER,
 				   PEER__RECV, &ad);
 		if (err) {
-			selinux_netlbl_err(skb, err, 0);
+			selinux_netlbl_err(skb, family, err, 0);
 			return err;
 		}
 	}
@@ -4978,7 +4978,7 @@ static unsigned int selinux_ip_forward(struct sk_buff *skb,
 		err = selinux_inet_sys_rcv_skb(dev_net(indev), indev->ifindex,
 					       addrp, family, peer_sid, &ad);
 		if (err) {
-			selinux_netlbl_err(skb, err, 1);
+			selinux_netlbl_err(skb, family, err, 1);
 			return NF_DROP;
 		}
 	}
@@ -5063,6 +5063,15 @@ static unsigned int selinux_ipv4_output(void *priv,
 {
 	return selinux_ip_output(skb, PF_INET);
 }
+
+#if defined(CONFIG_IPV6) || defined(CONFIG_IPV6_MODULE)
+static unsigned int selinux_ipv6_output(void *priv,
+					struct sk_buff *skb,
+					const struct nf_hook_state *state)
+{
+	return selinux_ip_output(skb, PF_INET6);
+}
+#endif	/* IPV6 */
 
 static unsigned int selinux_ip_postroute_compat(struct sk_buff *skb,
 						int ifindex,
@@ -6296,6 +6305,12 @@ static struct nf_hook_ops selinux_nf_ops[] = {
 		.hook =		selinux_ipv6_forward,
 		.pf =		NFPROTO_IPV6,
 		.hooknum =	NF_INET_FORWARD,
+		.priority =	NF_IP6_PRI_SELINUX_FIRST,
+	},
+	{
+		.hook =		selinux_ipv6_output,
+		.pf =		NFPROTO_IPV6,
+		.hooknum =	NF_INET_LOCAL_OUT,
 		.priority =	NF_IP6_PRI_SELINUX_FIRST,
 	},
 #endif	/* IPV6 */
