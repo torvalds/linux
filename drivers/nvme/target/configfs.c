@@ -737,7 +737,7 @@ static struct config_group *nvmet_referral_make(
 
 	port = kzalloc(sizeof(*port), GFP_KERNEL);
 	if (!port)
-		return ERR_CAST(port);
+		return ERR_PTR(-ENOMEM);
 
 	INIT_LIST_HEAD(&port->entry);
 	config_group_init_type_name(&port->group, name, &nvmet_referral_type);
@@ -794,7 +794,7 @@ static struct config_group *nvmet_ports_make(struct config_group *group,
 
 	port = kzalloc(sizeof(*port), GFP_KERNEL);
 	if (!port)
-		return ERR_CAST(port);
+		return ERR_PTR(-ENOMEM);
 
 	INIT_LIST_HEAD(&port->entry);
 	INIT_LIST_HEAD(&port->subsystems);
