@@ -714,6 +714,7 @@ void clear_prefree_segments(struct f2fs_sb_info *sbi, struct cp_control *cpc)
 	unsigned long *prefree_map = dirty_i->dirty_segmap[PRE];
 	unsigned int start = 0, end = -1;
 	unsigned int secno, start_segno;
+	bool force = (cpc->reason == CP_DISCARD);
 
 	mutex_lock(&dirty_i->seglist_lock);
 
@@ -730,7 +731,7 @@ void clear_prefree_segments(struct f2fs_sb_info *sbi, struct cp_control *cpc)
 
 		dirty_i->nr_dirty[PRE] -= end - start;
 
-		if (!test_opt(sbi, DISCARD))
+		if (force || !test_opt(sbi, DISCARD))
 			continue;
 
 		if (!test_opt(sbi, LFS) || sbi->segs_per_sec == 1) {
@@ -754,7 +755,7 @@ next:
 
 	/* send small discards */
 	list_for_each_entry_safe(entry, this, head, list) {
-		if (cpc->reason == CP_DISCARD && entry->len < cpc->trim_minlen)
+		if (force && entry->len < cpc->trim_minlen)
 			goto skip;
 		f2fs_issue_discard(sbi, entry->blkaddr, entry->len);
 		cpc->trimmed += entry->len;
