@@ -2229,8 +2229,10 @@ static int rk_fb_set_win_buffer(struct fb_info *info,
 				    ion_import_dma_buf(rk_fb->ion_client,
 						       ion_fd);
 				if (IS_ERR(hdl)) {
-					pr_info("%s: Could not import handle:"
-						" %ld\n", __func__, (long)hdl);
+					pr_info("%s: win[%d]area[%d] can't import handle\n",
+						__func__, win_par->win_id, i);
+					pr_info("fd: %d, hdl: 0x%p, ion_client: 0x%p\n",
+						ion_fd, hdl, rk_fb->ion_client);
 					return -EINVAL;
 					break;
 				}
@@ -2650,6 +2652,7 @@ err_null_frame:
 	win_data->ret_fence_fd = -1;
 	pr_info("win num = %d,null frame\n", regs->win_num);
 err2:
+	rk_fb_config_debug(dev_drv, win_data, regs, 0);
 	kfree(regs);
 	mutex_unlock(&dev_drv->output_lock);
 
