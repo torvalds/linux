@@ -829,7 +829,7 @@ static void dwc3_prepare_one_trb(struct dwc3_ep *dep,
 	if (!req->request.no_interrupt && !chain)
 		trb->ctrl |= DWC3_TRB_CTRL_IOC | DWC3_TRB_CTRL_ISP_IMI;
 
-	if (last)
+	if (last && !usb_endpoint_xfer_isoc(dep->endpoint.desc))
 		trb->ctrl |= DWC3_TRB_CTRL_LST;
 
 	if (chain)
