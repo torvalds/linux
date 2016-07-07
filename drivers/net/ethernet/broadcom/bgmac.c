@@ -756,150 +756,6 @@ error:
 	return err;
 }
 
-/**************************************************
- * PHY ops
- **************************************************/
-
-static u16 bgmac_phy_read(struct bgmac *bgmac, u8 phyaddr, u8 reg)
-{
-	struct bcma_device *core;
-	u16 phy_access_addr;
-	u16 phy_ctl_addr;
-	u32 tmp;
-
-	BUILD_BUG_ON(BGMAC_PA_DATA_MASK != BCMA_GMAC_CMN_PA_DATA_MASK);
-	BUILD_BUG_ON(BGMAC_PA_ADDR_MASK != BCMA_GMAC_CMN_PA_ADDR_MASK);
-	BUILD_BUG_ON(BGMAC_PA_ADDR_SHIFT != BCMA_GMAC_CMN_PA_ADDR_SHIFT);
-	BUILD_BUG_ON(BGMAC_PA_REG_MASK != BCMA_GMAC_CMN_PA_REG_MASK);
-	BUILD_BUG_ON(BGMAC_PA_REG_SHIFT != BCMA_GMAC_CMN_PA_REG_SHIFT);
-	BUILD_BUG_ON(BGMAC_PA_WRITE != BCMA_GMAC_CMN_PA_WRITE);
-	BUILD_BUG_ON(BGMAC_PA_START != BCMA_GMAC_CMN_PA_START);
-	BUILD_BUG_ON(BGMAC_PC_EPA_MASK != BCMA_GMAC_CMN_PC_EPA_MASK);
-	BUILD_BUG_ON(BGMAC_PC_MCT_MASK != BCMA_GMAC_CMN_PC_MCT_MASK);
-	BUILD_BUG_ON(BGMAC_PC_MCT_SHIFT != BCMA_GMAC_CMN_PC_MCT_SHIFT);
-	BUILD_BUG_ON(BGMAC_PC_MTE != BCMA_GMAC_CMN_PC_MTE);
-
-	if (bgmac->core->id.id == BCMA_CORE_4706_MAC_GBIT) {
-		core = bgmac->core->bus->drv_gmac_cmn.core;
-		phy_access_addr = BCMA_GMAC_CMN_PHY_ACCESS;
-		phy_ctl_addr = BCMA_GMAC_CMN_PHY_CTL;
-	} else {
-		core = bgmac->core;
-		phy_access_addr = BGMAC_PHY_ACCESS;
-		phy_ctl_addr = BGMAC_PHY_CNTL;
-	}
-
-	tmp = bcma_read32(core, phy_ctl_addr);
-	tmp &= ~BGMAC_PC_EPA_MASK;
-	tmp |= phyaddr;
-	bcma_write32(core, phy_ctl_addr, tmp);
-
-	tmp = BGMAC_PA_START;
-	tmp |= phyaddr << BGMAC_PA_ADDR_SHIFT;
-	tmp |= reg << BGMAC_PA_REG_SHIFT;
-	bcma_write32(core, phy_access_addr, tmp);
-
-	if (!bgmac_wait_value(core, phy_access_addr, BGMAC_PA_START, 0, 1000)) {
-		dev_err(bgmac->dev, "Reading PHY %d register 0x%X failed\n",
-			phyaddr, reg);
-		return 0xffff;
-	}
-
-	return bcma_read32(core, phy_access_addr) & BGMAC_PA_DATA_MASK;
-}
-
-/* http://bcm-v4.sipsolutions.net/mac-gbit/gmac/chipphywr */
-static int bgmac_phy_write(struct bgmac *bgmac, u8 phyaddr, u8 reg, u16 value)
-{
-	struct bcma_device *core;
-	u16 phy_access_addr;
-	u16 phy_ctl_addr;
-	u32 tmp;
-
-	if (bgmac->core->id.id == BCMA_CORE_4706_MAC_GBIT) {
-		core = bgmac->core->bus->drv_gmac_cmn.core;
-		phy_access_addr = BCMA_GMAC_CMN_PHY_ACCESS;
-		phy_ctl_addr = BCMA_GMAC_CMN_PHY_CTL;
-	} else {
-		core = bgmac->core;
-		phy_access_addr = BGMAC_PHY_ACCESS;
-		phy_ctl_addr = BGMAC_PHY_CNTL;
-	}
-
-	tmp = bcma_read32(core, phy_ctl_addr);
-	tmp &= ~BGMAC_PC_EPA_MASK;
-	tmp |= phyaddr;
-	bcma_write32(core, phy_ctl_addr, tmp);
-
-	bgmac_write(bgmac, BGMAC_INT_STATUS, BGMAC_IS_MDIO);
-	if (bgmac_read(bgmac, BGMAC_INT_STATUS) & BGMAC_IS_MDIO)
-		dev_warn(bgmac->dev, "Error setting MDIO int\n");
-
-	tmp = BGMAC_PA_START;
-	tmp |= BGMAC_PA_WRITE;
-	tmp |= phyaddr << BGMAC_PA_ADDR_SHIFT;
-	tmp |= reg << BGMAC_PA_REG_SHIFT;
-	tmp |= value;
-	bcma_write32(core, phy_access_addr, tmp);
-
-	if (!bgmac_wait_value(core, phy_access_addr, BGMAC_PA_START, 0, 1000)) {
-		dev_err(bgmac->dev, "Writing to PHY %d register 0x%X failed\n",
-			phyaddr, reg);
-		return -ETIMEDOUT;
-	}
-
-	return 0;
-}
-
-/* http://bcm-v4.sipsolutions.net/mac-gbit/gmac/chipphyinit */
-static void bgmac_phy_init(struct bgmac *bgmac)
-{
-	struct bcma_chipinfo *ci = &bgmac->core->bus->chipinfo;
-	struct bcma_drv_cc *cc = &bgmac->core->bus->drv_cc;
-	u8 i;
-
-	if (ci->id == BCMA_CHIP_ID_BCM5356) {
-		for (i = 0; i < 5; i++) {
-			bgmac_phy_write(bgmac, i, 0x1f, 0x008b);
-			bgmac_phy_write(bgmac, i, 0x15, 0x0100);
-			bgmac_phy_write(bgmac, i, 0x1f, 0x000f);
-			bgmac_phy_write(bgmac, i, 0x12, 0x2aaa);
-			bgmac_phy_write(bgmac, i, 0x1f, 0x000b);
-		}
-	}
-	if ((ci->id == BCMA_CHIP_ID_BCM5357 && ci->pkg != 10) ||
-	    (ci->id == BCMA_CHIP_ID_BCM4749 && ci->pkg != 10) ||
-	    (ci->id == BCMA_CHIP_ID_BCM53572 && ci->pkg != 9)) {
-		bcma_chipco_chipctl_maskset(cc, 2, ~0xc0000000, 0);
-		bcma_chipco_chipctl_maskset(cc, 4, ~0x80000000, 0);
-		for (i = 0; i < 5; i++) {
-			bgmac_phy_write(bgmac, i, 0x1f, 0x000f);
-			bgmac_phy_write(bgmac, i, 0x16, 0x5284);
-			bgmac_phy_write(bgmac, i, 0x1f, 0x000b);
-			bgmac_phy_write(bgmac, i, 0x17, 0x0010);
-			bgmac_phy_write(bgmac, i, 0x1f, 0x000f);
-			bgmac_phy_write(bgmac, i, 0x16, 0x5296);
-			bgmac_phy_write(bgmac, i, 0x17, 0x1073);
-			bgmac_phy_write(bgmac, i, 0x17, 0x9073);
-			bgmac_phy_write(bgmac, i, 0x16, 0x52b6);
-			bgmac_phy_write(bgmac, i, 0x17, 0x9273);
-			bgmac_phy_write(bgmac, i, 0x1f, 0x000b);
-		}
-	}
-}
-
-/* http://bcm-v4.sipsolutions.net/mac-gbit/gmac/chipphyreset */
-static void bgmac_phy_reset(struct bgmac *bgmac)
-{
-	if (bgmac->phyaddr == BGMAC_PHY_NOREGS)
-		return;
-
-	bgmac_phy_write(bgmac, bgmac->phyaddr, MII_BMCR, BMCR_RESET);
-	udelay(100);
-	if (bgmac_phy_read(bgmac, bgmac->phyaddr, MII_BMCR) & BMCR_RESET)
-		dev_err(bgmac->dev, "PHY reset failed\n");
-	bgmac_phy_init(bgmac);
-}
 
 /**************************************************
  * Chip ops
@@ -1156,7 +1012,8 @@ static void bgmac_chip_reset(struct bgmac *bgmac)
 	else
 		bgmac_set(bgmac, BGMAC_PHY_CNTL, BGMAC_PC_MTE);
 	bgmac_miiconfig(bgmac);
-	bgmac_phy_init(bgmac);
+	if (bgmac->mii_bus)
+		bgmac->mii_bus->reset(bgmac->mii_bus);
 
 	netdev_reset_queue(bgmac->net_dev);
 }
@@ -1534,17 +1391,6 @@ static const struct ethtool_ops bgmac_ethtool_ops = {
  * MII
  **************************************************/
 
-static int bgmac_mii_read(struct mii_bus *bus, int mii_id, int regnum)
-{
-	return bgmac_phy_read(bus->priv, mii_id, regnum);
-}
-
-static int bgmac_mii_write(struct mii_bus *bus, int mii_id, int regnum,
-			   u16 value)
-{
-	return bgmac_phy_write(bus->priv, mii_id, regnum, value);
-}
-
 static void bgmac_adjust_link(struct net_device *net_dev)
 {
 	struct bgmac *bgmac = netdev_priv(net_dev);
@@ -1569,7 +1415,7 @@ static void bgmac_adjust_link(struct net_device *net_dev)
 	}
 }
 
-static int bgmac_fixed_phy_register(struct bgmac *bgmac)
+static int bgmac_phy_connect_direct(struct bgmac *bgmac)
 {
 	struct fixed_phy_status fphy_status = {
 		.link = 1,
@@ -1595,70 +1441,24 @@ static int bgmac_fixed_phy_register(struct bgmac *bgmac)
 	return err;
 }
 
-static int bgmac_mii_register(struct bgmac *bgmac)
+static int bgmac_phy_connect(struct bgmac *bgmac)
 {
-	struct mii_bus *mii_bus;
 	struct phy_device *phy_dev;
 	char bus_id[MII_BUS_ID_SIZE + 3];
-	int err = 0;
-
-	if (bgmac_is_bcm4707_family(bgmac))
-		return bgmac_fixed_phy_register(bgmac);
-
-	mii_bus = mdiobus_alloc();
-	if (!mii_bus)
-		return -ENOMEM;
-
-	mii_bus->name = "bgmac mii bus";
-	sprintf(mii_bus->id, "%s-%d-%d", "bgmac", bgmac->core->bus->num,
-		bgmac->core->core_unit);
-	mii_bus->priv = bgmac;
-	mii_bus->read = bgmac_mii_read;
-	mii_bus->write = bgmac_mii_write;
-	mii_bus->parent = &bgmac->core->dev;
-	mii_bus->phy_mask = ~(1 << bgmac->phyaddr);
-
-	err = mdiobus_register(mii_bus);
-	if (err) {
-		dev_err(bgmac->dev, "Registration of mii bus failed\n");
-		goto err_free_bus;
-	}
-
-	bgmac->mii_bus = mii_bus;
 
 	/* Connect to the PHY */
-	snprintf(bus_id, sizeof(bus_id), PHY_ID_FMT, mii_bus->id,
+	snprintf(bus_id, sizeof(bus_id), PHY_ID_FMT, bgmac->mii_bus->id,
 		 bgmac->phyaddr);
 	phy_dev = phy_connect(bgmac->net_dev, bus_id, &bgmac_adjust_link,
 			      PHY_INTERFACE_MODE_MII);
 	if (IS_ERR(phy_dev)) {
 		dev_err(bgmac->dev, "PHY connecton failed\n");
-		err = PTR_ERR(phy_dev);
-		goto err_unregister_bus;
+		return PTR_ERR(phy_dev);
 	}
 
-	return err;
-
-err_unregister_bus:
-	mdiobus_unregister(mii_bus);
-err_free_bus:
-	mdiobus_free(mii_bus);
-	return err;
+	return 0;
 }
 
-static void bgmac_mii_unregister(struct bgmac *bgmac)
-{
-	struct mii_bus *mii_bus = bgmac->mii_bus;
-
-	mdiobus_unregister(mii_bus);
-	mdiobus_free(mii_bus);
-}
-
-/**************************************************
- * BCMA bus ops
- **************************************************/
-
-/* http://bcm-v4.sipsolutions.net/mac-gbit/gmac/chipattach */
 static int bgmac_probe(struct bcma_device *core)
 {
 	struct net_device *net_dev;
@@ -1779,9 +1579,6 @@ static int bgmac_probe(struct bcma_device *core)
 	if (bcm47xx_nvram_getenv("et0_no_txint", NULL, 0) == 0)
 		bgmac->int_mask &= ~BGMAC_IS_TX_MASK;
 
-	/* TODO: reset the external phy. Specs are needed */
-	bgmac_phy_reset(bgmac);
-
 	bgmac->has_robosw = !!(core->bus->sprom.boardflags_lo &
 			       BGMAC_BFL_ENETROBO);
 	if (bgmac->has_robosw)
@@ -1792,10 +1589,25 @@ static int bgmac_probe(struct bcma_device *core)
 
 	netif_napi_add(net_dev, &bgmac->napi, bgmac_poll, BGMAC_WEIGHT);
 
-	err = bgmac_mii_register(bgmac);
+	if (!bgmac_is_bcm4707_family(bgmac)) {
+		struct mii_bus *mii_bus;
+
+		mii_bus = bcma_mdio_mii_register(core, bgmac->phyaddr);
+		if (!IS_ERR(mii_bus)) {
+			err = PTR_ERR(mii_bus);
+			goto err_dma_free;
+		}
+
+		bgmac->mii_bus = mii_bus;
+	}
+
+	if (!bgmac->mii_bus)
+		err = bgmac_phy_connect_direct(bgmac);
+	else
+		err = bgmac_phy_connect(bgmac);
 	if (err) {
 		dev_err(bgmac->dev, "Cannot connect to phy\n");
-		goto err_dma_free;
+		goto err_mii_unregister;
 	}
 
 	net_dev->features = NETIF_F_SG | NETIF_F_IP_CSUM | NETIF_F_IPV6_CSUM;
@@ -1805,18 +1617,19 @@ static int bgmac_probe(struct bcma_device *core)
 	err = register_netdev(bgmac->net_dev);
 	if (err) {
 		dev_err(bgmac->dev, "Cannot register net device\n");
-		goto err_mii_unregister;
+		goto err_phy_disconnect;
 	}
 
 	netif_carrier_off(net_dev);
 
 	return 0;
 
+err_phy_disconnect:
+	phy_disconnect(net_dev->phydev);
 err_mii_unregister:
-	bgmac_mii_unregister(bgmac);
+	bcma_mdio_mii_unregister(bgmac->mii_bus);
 err_dma_free:
 	bgmac_dma_free(bgmac);
-
 err_netdev_free:
 	bcma_set_drvdata(core, NULL);
 	free_netdev(net_dev);
@@ -1829,7 +1642,8 @@ static void bgmac_remove(struct bcma_device *core)
 	struct bgmac *bgmac = bcma_get_drvdata(core);
 
 	unregister_netdev(bgmac->net_dev);
-	bgmac_mii_unregister(bgmac);
+	phy_disconnect(bgmac->net_dev->phydev);
+	bcma_mdio_mii_unregister(bgmac->mii_bus);
 	netif_napi_del(&bgmac->napi);
 	bgmac_dma_free(bgmac);
 	bcma_set_drvdata(core, NULL);

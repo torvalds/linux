@@ -456,6 +456,9 @@ struct bgmac {
 	bool loopback;
 };
 
+struct mii_bus *bcma_mdio_mii_register(struct bcma_device *core, u8 phyaddr);
+void bcma_mdio_mii_unregister(struct mii_bus *mii_bus);
+
 static inline u32 bgmac_read(struct bgmac *bgmac, u16 offset)
 {
 	return bcma_read32(bgmac->core, offset);
