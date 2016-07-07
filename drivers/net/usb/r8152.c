@@ -3111,8 +3111,6 @@ static int rtl8152_open(struct net_device *netdev)
 	if (res)
 		goto out;
 
-	netif_carrier_off(netdev);
-
 	res = usb_autopm_get_interface(tp->intf);
 	if (res < 0) {
 		free_all_mem(tp);
