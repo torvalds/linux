@@ -393,6 +393,7 @@ static int nvt_hw_detect(struct nvt_dev *nvt)
 	/* Check if we're wired for the alternate EFER setup */
 	nvt->chip_major = nvt_cr_read(nvt, CR_CHIP_ID_HI);
 	if (nvt->chip_major == 0xff) {
+		nvt_efm_disable(nvt);
 		nvt->cr_efir = CR_EFIR2;
 		nvt->cr_efdr = CR_EFDR2;
 		nvt_efm_enable(nvt);
