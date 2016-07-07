@@ -2905,8 +2905,8 @@ static int polaris10_get_evv_voltages(struct pp_hwmgr *hwmgr)
 				continue;
 			}
 
-			/* need to make sure vddc is less than 2v or else, it could burn the ASIC.
-			 * real voltage level in unit of 0.01mv */
+			/* need to make sure vddc is less than 2V or else, it could burn the ASIC.
+			 * real voltage level in unit of 0.01mV */
 			PP_ASSERT_WITH_CODE((vddc < 200000 && vddc != 0),
 					"Invalid VDDC value", result = -EINVAL;);
 
