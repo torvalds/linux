@@ -772,6 +772,8 @@ netdev_tx_t qlcnic_xmit_frame(struct sk_buff *skb, struct net_device *netdev)
 	tx_ring->tx_stats.tx_bytes += skb->len;
 	tx_ring->tx_stats.xmit_called++;
 
+	/* Ensure writes are complete before HW fetches Tx descriptors */
+	wmb();
 	qlcnic_update_cmd_producer(tx_ring);
 
 	return NETDEV_TX_OK;
