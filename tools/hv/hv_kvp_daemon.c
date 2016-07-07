@@ -1433,7 +1433,7 @@ int main(int argc, char *argv[])
 	openlog("KVP", 0, LOG_USER);
 	syslog(LOG_INFO, "KVP starting; pid is:%d", getpid());
 
-	kvp_fd = open("/dev/vmbus/hv_kvp", O_RDWR);
+	kvp_fd = open("/dev/vmbus/hv_kvp", O_RDWR | O_CLOEXEC);
 
 	if (kvp_fd < 0) {
 		syslog(LOG_ERR, "open /dev/vmbus/hv_kvp failed; error: %d %s",
