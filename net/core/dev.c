@@ -4972,7 +4972,7 @@ bool sk_busy_loop(struct sock *sk, int nonblock)
 
 			if (test_bit(NAPI_STATE_SCHED, &napi->state)) {
 				rc = napi->poll(napi, BUSY_POLL_BUDGET);
-				trace_napi_poll(napi);
+				trace_napi_poll(napi, rc, BUSY_POLL_BUDGET);
 				if (rc == BUSY_POLL_BUDGET) {
 					napi_complete_done(napi, rc);
 					napi_schedule(napi);
@@ -5128,7 +5128,7 @@ static int napi_poll(struct napi_struct *n, struct list_head *repoll)
 	work = 0;
 	if (test_bit(NAPI_STATE_SCHED, &n->state)) {
 		work = n->poll(n, weight);
-		trace_napi_poll(n);
+		trace_napi_poll(n, work, weight);
 	}
 
 	WARN_ON_ONCE(work > weight);
