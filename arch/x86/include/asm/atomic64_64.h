@@ -158,6 +158,16 @@ static inline long atomic64_sub_return(long i, atomic64_t *v)
 	return atomic64_add_return(-i, v);
 }
 
+static inline long atomic64_fetch_add(long i, atomic64_t *v)
+{
+	return xadd(&v->counter, i);
+}
+
+static inline long atomic64_fetch_sub(long i, atomic64_t *v)
+{
+	return xadd(&v->counter, -i);
+}
+
 #define atomic64_inc_return(v)  (atomic64_add_return(1, (v)))
 #define atomic64_dec_return(v)  (atomic64_sub_return(1, (v)))
 
@@ -229,10 +239,29 @@ static inline void atomic64_##op(long i, atomic64_t *v)			\
 			: "memory");					\
 }
 
-ATOMIC64_OP(and)
-ATOMIC64_OP(or)
-ATOMIC64_OP(xor)
+#define ATOMIC64_FETCH_OP(op, c_op)					\
+static inline long atomic64_fetch_##op(long i, atomic64_t *v)		\
+{									\
+	long old, val = atomic64_read(v);				\
+	for (;;) {							\
+		old = atomic64_cmpxchg(v, val, val c_op i);		\
+		if (old == val)						\
+			break;						\
+		val = old;						\
+	}								\
+	return old;							\
+}
 
+#define ATOMIC64_OPS(op, c_op)						\
+	ATOMIC64_OP(op)							\
+	ATOMIC64_FETCH_OP(op, c_op)
+
+ATOMIC64_OPS(and, &)
+ATOMIC64_OPS(or, |)
+ATOMIC64_OPS(xor, ^)
+
+#undef ATOMIC64_OPS
+#undef ATOMIC64_FETCH_OP
 #undef ATOMIC64_OP
 
 #endif /* _ASM_X86_ATOMIC64_64_H */

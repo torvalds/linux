@@ -607,6 +607,28 @@ ENDPROC(___raw_atomic_add_asm)
 
 /*
  * r0 = ptr
+ * r1 = value
+ *
+ * ADD a signed value to a 32bit word and return the old value atomically.
+ * Clobbers: r3:0, p1:0
+ */
+ENTRY(___raw_atomic_xadd_asm)
+	p1 = r0;
+	r3 = r1;
+	[--sp] = rets;
+	call _get_core_lock;
+	r3 = [p1];
+	r2 = r3 + r2;
+	[p1] = r2;
+	r1 = p1;
+	call _put_core_lock;
+	r0 = r3;
+	rets = [sp++];
+	rts;
+ENDPROC(___raw_atomic_add_asm)
+
+/*
+ * r0 = ptr
  * r1 = mask
  *
  * AND the mask bits from a 32bit word and return the old 32bit value
@@ -618,10 +640,9 @@ ENTRY(___raw_atomic_and_asm)
 	r3 = r1;
 	[--sp] = rets;
 	call _get_core_lock;
-	r2 = [p1];
-	r3 = r2 & r3;
-	[p1] = r3;
-	r3 = r2;
+	r3 = [p1];
+	r2 = r2 & r3;
+	[p1] = r2;
 	r1 = p1;
 	call _put_core_lock;
 	r0 = r3;
@@ -642,10 +663,9 @@ ENTRY(___raw_atomic_or_asm)
 	r3 = r1;
 	[--sp] = rets;
 	call _get_core_lock;
-	r2 = [p1];
-	r3 = r2 | r3;
-	[p1] = r3;
-	r3 = r2;
+	r3 = [p1];
+	r2 = r2 | r3;
+	[p1] = r2;
 	r1 = p1;
 	call _put_core_lock;
 	r0 = r3;
@@ -666,10 +686,9 @@ ENTRY(___raw_atomic_xor_asm)
 	r3 = r1;
 	[--sp] = rets;
 	call _get_core_lock;
-	r2 = [p1];
-	r3 = r2 ^ r3;
-	[p1] = r3;
-	r3 = r2;
+	r3 = [p1];
+	r2 = r2 ^ r3;
+	[p1] = r2;
 	r1 = p1;
 	call _put_core_lock;
 	r0 = r3;

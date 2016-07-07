@@ -67,6 +67,33 @@ static inline int atomic_##op##_return(int i, atomic_t *v)		\
 	return val;							\
 }
 
+#define ATOMIC_FETCH_OP(op, c_op, asm_op)				\
+static inline int atomic_fetch_##op(int i, atomic_t *v)			\
+{									\
+	unsigned int val, orig;						\
+									\
+	/*								\
+	 * Explicit full memory barrier needed before/after as		\
+	 * LLOCK/SCOND thmeselves don't provide any such semantics	\
+	 */								\
+	smp_mb();							\
+									\
+	__asm__ __volatile__(						\
+	"1:	llock   %[orig], [%[ctr]]		\n"		\
+	"	" #asm_op " %[val], %[orig], %[i]	\n"		\
+	"	scond   %[val], [%[ctr]]		\n"		\
+	"						\n"		\
+	: [val]	"=&r"	(val),						\
+	  [orig] "=&r" (orig)						\
+	: [ctr]	"r"	(&v->counter),					\
+	  [i]	"ir"	(i)						\
+	: "cc");							\
+									\
+	smp_mb();							\
+									\
+	return orig;							\
+}
+
 #else	/* !CONFIG_ARC_HAS_LLSC */
 
 #ifndef CONFIG_SMP
@@ -129,25 +156,44 @@ static inline int atomic_##op##_return(int i, atomic_t *v)		\
 	return temp;							\
 }
 
+#define ATOMIC_FETCH_OP(op, c_op, asm_op)				\
+static inline int atomic_fetch_##op(int i, atomic_t *v)			\
+{									\
+	unsigned long flags;						\
+	unsigned long orig;						\
+									\
+	/*								\
+	 * spin lock/unlock provides the needed smp_mb() before/after	\
+	 */								\
+	atomic_ops_lock(flags);						\
+	orig = v->counter;						\
+	v->counter c_op i;						\
+	atomic_ops_unlock(flags);					\
+									\
+	return orig;							\
+}
+
 #endif /* !CONFIG_ARC_HAS_LLSC */
 
 #define ATOMIC_OPS(op, c_op, asm_op)					\
 	ATOMIC_OP(op, c_op, asm_op)					\
-	ATOMIC_OP_RETURN(op, c_op, asm_op)
+	ATOMIC_OP_RETURN(op, c_op, asm_op)				\
+	ATOMIC_FETCH_OP(op, c_op, asm_op)
 
 ATOMIC_OPS(add, +=, add)
 ATOMIC_OPS(sub, -=, sub)
 
 #define atomic_andnot atomic_andnot
 
-ATOMIC_OP(and, &=, and)
-ATOMIC_OP(andnot, &= ~, bic)
-ATOMIC_OP(or, |=, or)
-ATOMIC_OP(xor, ^=, xor)
+#undef ATOMIC_OPS
+#define ATOMIC_OPS(op, c_op, asm_op)					\
+	ATOMIC_OP(op, c_op, asm_op)					\
+	ATOMIC_FETCH_OP(op, c_op, asm_op)
 
-#undef SCOND_FAIL_RETRY_VAR_DEF
-#undef SCOND_FAIL_RETRY_ASM
-#undef SCOND_FAIL_RETRY_VARS
+ATOMIC_OPS(and, &=, and)
+ATOMIC_OPS(andnot, &= ~, bic)
+ATOMIC_OPS(or, |=, or)
+ATOMIC_OPS(xor, ^=, xor)
 
 #else /* CONFIG_ARC_PLAT_EZNPS */
 
@@ -208,22 +254,51 @@ static inline int atomic_##op##_return(int i, atomic_t *v)		\
 	return temp;							\
 }
 
+#define ATOMIC_FETCH_OP(op, c_op, asm_op)				\
+static inline int atomic_fetch_##op(int i, atomic_t *v)			\
+{									\
+	unsigned int temp = i;						\
+									\
+	/* Explicit full memory barrier needed before/after */		\
+	smp_mb();							\
+									\
+	__asm__ __volatile__(						\
+	"	mov r2, %0\n"						\
+	"	mov r3, %1\n"						\
+	"       .word %2\n"						\
+	"	mov %0, r2"						\
+	: "+r"(temp)							\
+	: "r"(&v->counter), "i"(asm_op)					\
+	: "r2", "r3", "memory");					\
+									\
+	smp_mb();							\
+									\
+	return temp;							\
+}
+
 #define ATOMIC_OPS(op, c_op, asm_op)					\
 	ATOMIC_OP(op, c_op, asm_op)					\
-	ATOMIC_OP_RETURN(op, c_op, asm_op)
+	ATOMIC_OP_RETURN(op, c_op, asm_op)				\
+	ATOMIC_FETCH_OP(op, c_op, asm_op)
 
 ATOMIC_OPS(add, +=, CTOP_INST_AADD_DI_R2_R2_R3)
 #define atomic_sub(i, v) atomic_add(-(i), (v))
 #define atomic_sub_return(i, v) atomic_add_return(-(i), (v))
 
-ATOMIC_OP(and, &=, CTOP_INST_AAND_DI_R2_R2_R3)
+#undef ATOMIC_OPS
+#define ATOMIC_OPS(op, c_op, asm_op)					\
+	ATOMIC_OP(op, c_op, asm_op)					\
+	ATOMIC_FETCH_OP(op, c_op, asm_op)
+
+ATOMIC_OPS(and, &=, CTOP_INST_AAND_DI_R2_R2_R3)
 #define atomic_andnot(mask, v) atomic_and(~(mask), (v))
-ATOMIC_OP(or, |=, CTOP_INST_AOR_DI_R2_R2_R3)
-ATOMIC_OP(xor, ^=, CTOP_INST_AXOR_DI_R2_R2_R3)
+ATOMIC_OPS(or, |=, CTOP_INST_AOR_DI_R2_R2_R3)
+ATOMIC_OPS(xor, ^=, CTOP_INST_AXOR_DI_R2_R2_R3)
 
 #endif /* CONFIG_ARC_PLAT_EZNPS */
 
 #undef ATOMIC_OPS
+#undef ATOMIC_FETCH_OP
 #undef ATOMIC_OP_RETURN
 #undef ATOMIC_OP
 
