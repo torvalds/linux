@@ -373,7 +373,9 @@ int __nvm_submit_ppa(struct nvm_dev *dev, struct nvm_rq *rqd, int opcode,
 	/* Prevent hang_check timer from firing at us during very long I/O */
 	hang_check = sysctl_hung_task_timeout_secs;
 	if (hang_check)
-		while (!wait_for_completion_io_timeout(&wait, hang_check * (HZ/2)));
+		while (!wait_for_completion_io_timeout(&wait,
+							hang_check * (HZ/2)))
+			;
 	else
 		wait_for_completion_io(&wait);
 
@@ -516,7 +518,8 @@ static int nvm_init_mlc_tbl(struct nvm_dev *dev, struct nvm_id_group *grp)
 	/* The lower page table encoding consists of a list of bytes, where each
 	 * has a lower and an upper half. The first half byte maintains the
 	 * increment value and every value after is an offset added to the
-	 * previous incrementation value */
+	 * previous incrementation value
+	 */
 	dev->lptbl[0] = mlc->pairs[0] & 0xF;
 	for (i = 1; i < dev->lps_per_blk; i++) {
 		p = mlc->pairs[i >> 1];
