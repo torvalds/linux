@@ -50,7 +50,7 @@ static bool bgmac_wait_value(struct bcma_device *core, u16 reg, u32 mask,
 			return true;
 		udelay(10);
 	}
-	pr_err("Timeout waiting for reg 0x%X\n", reg);
+	dev_err(&core->dev, "Timeout waiting for reg 0x%X\n", reg);
 	return false;
 }
 
@@ -84,8 +84,8 @@ static void bgmac_dma_tx_reset(struct bgmac *bgmac, struct bgmac_dma_ring *ring)
 		udelay(10);
 	}
 	if (i)
-		bgmac_err(bgmac, "Timeout suspending DMA TX ring 0x%X (BGMAC_DMA_TX_STAT: 0x%08X)\n",
-			  ring->mmio_base, val);
+		dev_err(bgmac->dev, "Timeout suspending DMA TX ring 0x%X (BGMAC_DMA_TX_STAT: 0x%08X)\n",
+			ring->mmio_base, val);
 
 	/* Remove SUSPEND bit */
 	bgmac_write(bgmac, ring->mmio_base + BGMAC_DMA_TX_CTL, 0);
@@ -93,13 +93,13 @@ static void bgmac_dma_tx_reset(struct bgmac *bgmac, struct bgmac_dma_ring *ring)
 			      ring->mmio_base + BGMAC_DMA_TX_STATUS,
 			      BGMAC_DMA_TX_STAT, BGMAC_DMA_TX_STAT_DISABLED,
 			      10000)) {
-		bgmac_warn(bgmac, "DMA TX ring 0x%X wasn't disabled on time, waiting additional 300us\n",
-			   ring->mmio_base);
+		dev_warn(bgmac->dev, "DMA TX ring 0x%X wasn't disabled on time, waiting additional 300us\n",
+			 ring->mmio_base);
 		udelay(300);
 		val = bgmac_read(bgmac, ring->mmio_base + BGMAC_DMA_TX_STATUS);
 		if ((val & BGMAC_DMA_TX_STAT) != BGMAC_DMA_TX_STAT_DISABLED)
-			bgmac_err(bgmac, "Reset of DMA TX ring 0x%X failed\n",
-				  ring->mmio_base);
+			dev_err(bgmac->dev, "Reset of DMA TX ring 0x%X failed\n",
+				ring->mmio_base);
 	}
 }
 
@@ -161,7 +161,7 @@ static netdev_tx_t bgmac_dma_tx_add(struct bgmac *bgmac,
 	int i;
 
 	if (skb->len > BGMAC_DESC_CTL1_LEN) {
-		bgmac_err(bgmac, "Too long skb (%d)\n", skb->len);
+		netdev_err(bgmac->net_dev, "Too long skb (%d)\n", skb->len);
 		goto err_drop;
 	}
 
@@ -174,7 +174,7 @@ static netdev_tx_t bgmac_dma_tx_add(struct bgmac *bgmac,
 	 * even when ring->end overflows
 	 */
 	if (ring->end - ring->start + nr_frags + 1 >= BGMAC_TX_RING_SLOTS) {
-		bgmac_err(bgmac, "TX ring is full, queue should be stopped!\n");
+		netdev_err(bgmac->net_dev, "TX ring is full, queue should be stopped!\n");
 		netif_stop_queue(net_dev);
 		return NETDEV_TX_BUSY;
 	}
@@ -241,8 +241,8 @@ err_dma:
 	}
 
 err_dma_head:
-	bgmac_err(bgmac, "Mapping error of skb on ring 0x%X\n",
-		  ring->mmio_base);
+	netdev_err(bgmac->net_dev, "Mapping error of skb on ring 0x%X\n",
+		   ring->mmio_base);
 
 err_drop:
 	dev_kfree_skb(skb);
@@ -321,8 +321,8 @@ static void bgmac_dma_rx_reset(struct bgmac *bgmac, struct bgmac_dma_ring *ring)
 			      ring->mmio_base + BGMAC_DMA_RX_STATUS,
 			      BGMAC_DMA_RX_STAT, BGMAC_DMA_RX_STAT_DISABLED,
 			      10000))
-		bgmac_err(bgmac, "Reset of ring 0x%X RX failed\n",
-			  ring->mmio_base);
+		dev_err(bgmac->dev, "Reset of ring 0x%X RX failed\n",
+			ring->mmio_base);
 }
 
 static void bgmac_dma_rx_enable(struct bgmac *bgmac,
@@ -371,7 +371,7 @@ static int bgmac_dma_rx_skb_for_slot(struct bgmac *bgmac,
 	dma_addr = dma_map_single(dma_dev, buf + BGMAC_RX_BUF_OFFSET,
 				  BGMAC_RX_BUF_SIZE, DMA_FROM_DEVICE);
 	if (dma_mapping_error(dma_dev, dma_addr)) {
-		bgmac_err(bgmac, "DMA mapping error\n");
+		netdev_err(bgmac->net_dev, "DMA mapping error\n");
 		put_page(virt_to_head_page(buf));
 		return -ENOMEM;
 	}
@@ -466,16 +466,16 @@ static int bgmac_dma_rx_read(struct bgmac *bgmac, struct bgmac_dma_ring *ring,
 
 			/* Check for poison and drop or pass the packet */
 			if (len == 0xdead && flags == 0xbeef) {
-				bgmac_err(bgmac, "Found poisoned packet at slot %d, DMA issue!\n",
-					  ring->start);
+				netdev_err(bgmac->net_dev, "Found poisoned packet at slot %d, DMA issue!\n",
+					   ring->start);
 				put_page(virt_to_head_page(buf));
 				bgmac->net_dev->stats.rx_errors++;
 				break;
 			}
 
 			if (len > BGMAC_RX_ALLOC_SIZE) {
-				bgmac_err(bgmac, "Found oversized packet at slot %d, DMA issue!\n",
-					  ring->start);
+				netdev_err(bgmac->net_dev, "Found oversized packet at slot %d, DMA issue!\n",
+					   ring->start);
 				put_page(virt_to_head_page(buf));
 				bgmac->net_dev->stats.rx_length_errors++;
 				bgmac->net_dev->stats.rx_errors++;
@@ -487,7 +487,7 @@ static int bgmac_dma_rx_read(struct bgmac *bgmac, struct bgmac_dma_ring *ring,
 
 			skb = build_skb(buf, BGMAC_RX_ALLOC_SIZE);
 			if (unlikely(!skb)) {
-				bgmac_err(bgmac, "build_skb failed\n");
+				netdev_err(bgmac->net_dev, "build_skb failed\n");
 				put_page(virt_to_head_page(buf));
 				bgmac->net_dev->stats.rx_errors++;
 				break;
@@ -641,7 +641,7 @@ static int bgmac_dma_alloc(struct bgmac *bgmac)
 	BUILD_BUG_ON(BGMAC_MAX_RX_RINGS > ARRAY_SIZE(ring_base));
 
 	if (!(bcma_aread32(bgmac->core, BCMA_IOST) & BCMA_IOST_DMA64)) {
-		bgmac_err(bgmac, "Core does not report 64-bit DMA\n");
+		dev_err(bgmac->dev, "Core does not report 64-bit DMA\n");
 		return -ENOTSUPP;
 	}
 
@@ -655,8 +655,8 @@ static int bgmac_dma_alloc(struct bgmac *bgmac)
 						     &ring->dma_base,
 						     GFP_KERNEL);
 		if (!ring->cpu_base) {
-			bgmac_err(bgmac, "Allocation of TX ring 0x%X failed\n",
-				  ring->mmio_base);
+			dev_err(bgmac->dev, "Allocation of TX ring 0x%X failed\n",
+				ring->mmio_base);
 			goto err_dma_free;
 		}
 
@@ -680,8 +680,8 @@ static int bgmac_dma_alloc(struct bgmac *bgmac)
 						     &ring->dma_base,
 						     GFP_KERNEL);
 		if (!ring->cpu_base) {
-			bgmac_err(bgmac, "Allocation of RX ring 0x%X failed\n",
-				  ring->mmio_base);
+			dev_err(bgmac->dev, "Allocation of RX ring 0x%X failed\n",
+				ring->mmio_base);
 			err = -ENOMEM;
 			goto err_dma_free;
 		}
@@ -800,8 +800,8 @@ static u16 bgmac_phy_read(struct bgmac *bgmac, u8 phyaddr, u8 reg)
 	bcma_write32(core, phy_access_addr, tmp);
 
 	if (!bgmac_wait_value(core, phy_access_addr, BGMAC_PA_START, 0, 1000)) {
-		bgmac_err(bgmac, "Reading PHY %d register 0x%X failed\n",
-			  phyaddr, reg);
+		dev_err(bgmac->dev, "Reading PHY %d register 0x%X failed\n",
+			phyaddr, reg);
 		return 0xffff;
 	}
 
@@ -833,7 +833,7 @@ static int bgmac_phy_write(struct bgmac *bgmac, u8 phyaddr, u8 reg, u16 value)
 
 	bgmac_write(bgmac, BGMAC_INT_STATUS, BGMAC_IS_MDIO);
 	if (bgmac_read(bgmac, BGMAC_INT_STATUS) & BGMAC_IS_MDIO)
-		bgmac_warn(bgmac, "Error setting MDIO int\n");
+		dev_warn(bgmac->dev, "Error setting MDIO int\n");
 
 	tmp = BGMAC_PA_START;
 	tmp |= BGMAC_PA_WRITE;
@@ -843,8 +843,8 @@ static int bgmac_phy_write(struct bgmac *bgmac, u8 phyaddr, u8 reg, u16 value)
 	bcma_write32(core, phy_access_addr, tmp);
 
 	if (!bgmac_wait_value(core, phy_access_addr, BGMAC_PA_START, 0, 1000)) {
-		bgmac_err(bgmac, "Writing to PHY %d register 0x%X failed\n",
-			  phyaddr, reg);
+		dev_err(bgmac->dev, "Writing to PHY %d register 0x%X failed\n",
+			phyaddr, reg);
 		return -ETIMEDOUT;
 	}
 
@@ -897,7 +897,7 @@ static void bgmac_phy_reset(struct bgmac *bgmac)
 	bgmac_phy_write(bgmac, bgmac->phyaddr, MII_BMCR, BMCR_RESET);
 	udelay(100);
 	if (bgmac_phy_read(bgmac, bgmac->phyaddr, MII_BMCR) & BMCR_RESET)
-		bgmac_err(bgmac, "PHY reset failed\n");
+		dev_err(bgmac->dev, "PHY reset failed\n");
 	bgmac_phy_init(bgmac);
 }
 
@@ -998,7 +998,8 @@ static void bgmac_mac_speed(struct bgmac *bgmac)
 		set |= BGMAC_CMDCFG_ES_2500;
 		break;
 	default:
-		bgmac_err(bgmac, "Unsupported speed: %d\n", bgmac->mac_speed);
+		dev_err(bgmac->dev, "Unsupported speed: %d\n",
+			bgmac->mac_speed);
 	}
 
 	if (bgmac->mac_duplex == DUPLEX_HALF)
@@ -1097,8 +1098,8 @@ static void bgmac_chip_reset(struct bgmac *bgmac)
 
 		if (bcm47xx_nvram_getenv("et_swtype", buf, sizeof(buf)) > 0) {
 			if (kstrtou8(buf, 0, &et_swtype))
-				bgmac_err(bgmac, "Failed to parse et_swtype (%s)\n",
-					  buf);
+				dev_err(bgmac->dev, "Failed to parse et_swtype (%s)\n",
+					buf);
 			et_swtype &= 0x0f;
 			et_swtype <<= 4;
 			sw_type = et_swtype;
@@ -1261,7 +1262,7 @@ static irqreturn_t bgmac_interrupt(int irq, void *dev_id)
 
 	int_status &= ~(BGMAC_IS_TX0 | BGMAC_IS_RX);
 	if (int_status)
-		bgmac_err(bgmac, "Unknown IRQs: 0x%08X\n", int_status);
+		dev_err(bgmac->dev, "Unknown IRQs: 0x%08X\n", int_status);
 
 	/* Disable new interrupts until handling existing ones */
 	bgmac_chip_intrs_off(bgmac);
@@ -1315,7 +1316,7 @@ static int bgmac_open(struct net_device *net_dev)
 	err = request_irq(bgmac->core->irq, bgmac_interrupt, IRQF_SHARED,
 			  KBUILD_MODNAME, net_dev);
 	if (err < 0) {
-		bgmac_err(bgmac, "IRQ request error: %d!\n", err);
+		dev_err(bgmac->dev, "IRQ request error: %d!\n", err);
 		bgmac_dma_cleanup(bgmac);
 		return err;
 	}
@@ -1580,14 +1581,14 @@ static int bgmac_fixed_phy_register(struct bgmac *bgmac)
 
 	phy_dev = fixed_phy_register(PHY_POLL, &fphy_status, -1, NULL);
 	if (!phy_dev || IS_ERR(phy_dev)) {
-		bgmac_err(bgmac, "Failed to register fixed PHY device\n");
+		dev_err(bgmac->dev, "Failed to register fixed PHY device\n");
 		return -ENODEV;
 	}
 
 	err = phy_connect_direct(bgmac->net_dev, phy_dev, bgmac_adjust_link,
 				 PHY_INTERFACE_MODE_MII);
 	if (err) {
-		bgmac_err(bgmac, "Connecting PHY failed\n");
+		dev_err(bgmac->dev, "Connecting PHY failed\n");
 		return err;
 	}
 
@@ -1619,7 +1620,7 @@ static int bgmac_mii_register(struct bgmac *bgmac)
 
 	err = mdiobus_register(mii_bus);
 	if (err) {
-		bgmac_err(bgmac, "Registration of mii bus failed\n");
+		dev_err(bgmac->dev, "Registration of mii bus failed\n");
 		goto err_free_bus;
 	}
 
@@ -1631,7 +1632,7 @@ static int bgmac_mii_register(struct bgmac *bgmac)
 	phy_dev = phy_connect(bgmac->net_dev, bus_id, &bgmac_adjust_link,
 			      PHY_INTERFACE_MODE_MII);
 	if (IS_ERR(phy_dev)) {
-		bgmac_err(bgmac, "PHY connection failed\n");
+		dev_err(bgmac->dev, "PHY connecton failed\n");
 		err = PTR_ERR(phy_dev);
 		goto err_unregister_bus;
 	}
@@ -1677,7 +1678,8 @@ static int bgmac_probe(struct bcma_device *core)
 		mac = sprom->et2mac;
 		break;
 	default:
-		pr_err("Unsupported core_unit %d\n", core->core_unit);
+		dev_err(&core->dev, "Unsupported core_unit %d\n",
+			core->core_unit);
 		return -ENOTSUPP;
 	}
 
@@ -1700,6 +1702,7 @@ static int bgmac_probe(struct bcma_device *core)
 	net_dev->irq = core->irq;
 	net_dev->ethtool_ops = &bgmac_ethtool_ops;
 	bgmac = netdev_priv(net_dev);
+	bgmac->dev = &core->dev;
 	bgmac->net_dev = net_dev;
 	bgmac->core = core;
 	bcma_set_drvdata(core, bgmac);
@@ -1711,7 +1714,7 @@ static int bgmac_probe(struct bcma_device *core)
 	/* On BCM4706 we need common core to access PHY */
 	if (core->id.id == BCMA_CORE_4706_MAC_GBIT &&
 	    !core->bus->drv_gmac_cmn.core) {
-		bgmac_err(bgmac, "GMAC CMN core not found (required for BCM4706)\n");
+		dev_err(bgmac->dev, "GMAC CMN core not found (required for BCM4706)\n");
 		err = -ENODEV;
 		goto err_netdev_free;
 	}
@@ -1730,15 +1733,15 @@ static int bgmac_probe(struct bcma_device *core)
 	}
 	bgmac->phyaddr &= BGMAC_PHY_MASK;
 	if (bgmac->phyaddr == BGMAC_PHY_MASK) {
-		bgmac_err(bgmac, "No PHY found\n");
+		dev_err(bgmac->dev, "No PHY found\n");
 		err = -ENODEV;
 		goto err_netdev_free;
 	}
-	bgmac_info(bgmac, "Found PHY addr: %d%s\n", bgmac->phyaddr,
-		   bgmac->phyaddr == BGMAC_PHY_NOREGS ? " (NOREGS)" : "");
+	dev_info(bgmac->dev, "Found PHY addr: %d%s\n", bgmac->phyaddr,
+		 bgmac->phyaddr == BGMAC_PHY_NOREGS ? " (NOREGS)" : "");
 
 	if (core->bus->hosttype == BCMA_HOSTTYPE_PCI) {
-		bgmac_err(bgmac, "PCI setup not implemented\n");
+		dev_err(bgmac->dev, "PCI setup not implemented\n");
 		err = -ENOTSUPP;
 		goto err_netdev_free;
 	}
@@ -1767,7 +1770,7 @@ static int bgmac_probe(struct bcma_device *core)
 
 	err = bgmac_dma_alloc(bgmac);
 	if (err) {
-		bgmac_err(bgmac, "Unable to alloc memory for DMA\n");
+		dev_err(bgmac->dev, "Unable to alloc memory for DMA\n");
 		goto err_netdev_free;
 	}
 
@@ -1781,16 +1784,16 @@ static int bgmac_probe(struct bcma_device *core)
 	bgmac->has_robosw = !!(core->bus->sprom.boardflags_lo &
 			       BGMAC_BFL_ENETROBO);
 	if (bgmac->has_robosw)
-		bgmac_warn(bgmac, "Support for Roboswitch not implemented\n");
+		dev_warn(bgmac->dev, "Support for Roboswitch not implemented\n");
 
 	if (core->bus->sprom.boardflags_lo & BGMAC_BFL_ENETADM)
-		bgmac_warn(bgmac, "Support for ADMtek ethernet switch not implemented\n");
+		dev_warn(bgmac->dev, "Support for ADMtek ethernet switch not implemented\n");
 
 	netif_napi_add(net_dev, &bgmac->napi, bgmac_poll, BGMAC_WEIGHT);
 
 	err = bgmac_mii_register(bgmac);
 	if (err) {
-		bgmac_err(bgmac, "Cannot register MDIO\n");
+		dev_err(bgmac->dev, "Cannot connect to phy\n");
 		goto err_dma_free;
 	}
 
@@ -1800,7 +1803,7 @@ static int bgmac_probe(struct bcma_device *core)
 
 	err = register_netdev(bgmac->net_dev);
 	if (err) {
-		bgmac_err(bgmac, "Cannot register net device\n");
+		dev_err(bgmac->dev, "Cannot register net device\n");
 		goto err_mii_unregister;
 	}
 

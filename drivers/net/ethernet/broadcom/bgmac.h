@@ -1,17 +1,6 @@
 #ifndef _BGMAC_H
 #define _BGMAC_H
 
-#define pr_fmt(fmt)		KBUILD_MODNAME ": " fmt
-
-#define bgmac_err(bgmac, fmt, ...) \
-	dev_err(&(bgmac)->core->dev, fmt, ##__VA_ARGS__)
-#define bgmac_warn(bgmac, fmt, ...) \
-	dev_warn(&(bgmac)->core->dev, fmt,  ##__VA_ARGS__)
-#define bgmac_info(bgmac, fmt, ...) \
-	dev_info(&(bgmac)->core->dev, fmt,  ##__VA_ARGS__)
-#define bgmac_dbg(bgmac, fmt, ...) \
-	dev_dbg(&(bgmac)->core->dev, fmt, ##__VA_ARGS__)
-
 #include <linux/bcma/bcma.h>
 #include <linux/brcmphy.h>
 #include <linux/netdevice.h>
@@ -438,6 +427,8 @@ struct bgmac_rx_header {
 struct bgmac {
 	struct bcma_device *core;
 	struct bcma_device *cmn; /* Reference to CMN core for BCM4706 */
+
+	struct device *dev;
 	struct net_device *net_dev;
 	struct napi_struct napi;
 	struct mii_bus *mii_bus;
@@ -489,5 +480,4 @@ static inline void bgmac_set(struct bgmac *bgmac, u16 offset, u32 set)
 {
 	bgmac_maskset(bgmac, offset, ~0, set);
 }
-
 #endif /* _BGMAC_H */
