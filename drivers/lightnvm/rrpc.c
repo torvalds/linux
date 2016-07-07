@@ -48,7 +48,7 @@ static void rrpc_page_invalidate(struct rrpc *rrpc, struct rrpc_addr *a)
 }
 
 static void rrpc_invalidate_range(struct rrpc *rrpc, sector_t slba,
-								unsigned len)
+							unsigned int len)
 {
 	sector_t i;
 
