@@ -25,6 +25,9 @@
 /* Memory sizes for the buffers sent to/from the ES2 controller */
 #define ES2_GBUF_MSG_SIZE_MAX	2048
 
+/* Memory sizes for the ARPC buffers */
+#define ARPC_IN_SIZE_MAX	128
+
 static const struct usb_device_id id_table[] = {
 	{ USB_DEVICE(0x18d1, 0x1eaf) },
 	{ },
@@ -35,6 +38,12 @@ MODULE_DEVICE_TABLE(usb, id_table);
 
 /* Number of bulk in and bulk out couple */
 #define NUM_BULKS		7
+
+/* Expected number of bulk out endpoints */
+#define NUM_BULKS_OUT		NUM_BULKS
+
+/* Expected number of bulk in endpoints (including ARPC endpoint) */
+#define NUM_BULKS_IN		(NUM_BULKS + 1)
 
 /*
  * Number of CPort IN urbs in flight at any point in time.
@@ -47,6 +56,11 @@ MODULE_DEVICE_TABLE(usb, id_table);
  * Adjust if we get messages saying we are out of urbs in the system log.
  */
 #define NUM_CPORT_OUT_URB	(8 * NUM_BULKS)
+
+/*
+ * Number of ARPC in urbs in flight at any point in time.
+ */
+#define NUM_ARPC_IN_URB		2
 
 /*
  * @endpoint: bulk in endpoint for CPort data
@@ -85,6 +99,9 @@ struct es2_cport_out {
  * @apb_log_dentry: file system entry for the log file interface
  * @apb_log_enable_dentry: file system entry for enabling logging
  * @apb_log_fifo: kernel FIFO to carry logged data
+ * @arpc_urb: array of urbs for the ARPC in messages
+ * @arpc_buffer: array of buffers for the @arpc_urb urbs
+ * @arpc_endpoint_in: bulk in endpoint for APBridgeA RPC
  */
 struct es2_ap_dev {
 	struct usb_device *usb_dev;
@@ -106,6 +123,10 @@ struct es2_ap_dev {
 	struct dentry *apb_log_dentry;
 	struct dentry *apb_log_enable_dentry;
 	DECLARE_KFIFO(apb_log_fifo, char, APB1_LOG_SIZE);
+
+	__u8 arpc_endpoint_in;
+	struct urb *arpc_urb[NUM_ARPC_IN_URB];
+	u8 *arpc_buffer[NUM_ARPC_IN_URB];
 };
 
 /**
@@ -340,6 +361,45 @@ static void es2_cport_in_disable(struct es2_ap_dev *es2,
 
 	for (i = 0; i < NUM_CPORT_IN_URB; ++i) {
 		urb = cport_in->urb[i];
+		usb_kill_urb(urb);
+	}
+}
+
+static int es2_arpc_in_enable(struct es2_ap_dev *es2)
+{
+	struct urb *urb;
+	int ret;
+	int i;
+
+	for (i = 0; i < NUM_ARPC_IN_URB; ++i) {
+		urb = es2->arpc_urb[i];
+
+		ret = usb_submit_urb(urb, GFP_KERNEL);
+		if (ret) {
+			dev_err(&es2->usb_dev->dev,
+				"failed to submit arpc in-urb: %d\n", ret);
+			goto err_kill_urbs;
+		}
+	}
+
+	return 0;
+
+err_kill_urbs:
+	for (--i; i >= 0; --i) {
+		urb = es2->arpc_urb[i];
+		usb_kill_urb(urb);
+	}
+
+	return ret;
+}
+
+static void es2_arpc_in_disable(struct es2_ap_dev *es2)
+{
+	struct urb *urb;
+	int i;
+
+	for (i = 0; i < NUM_ARPC_IN_URB; ++i) {
+		urb = es2->arpc_urb[i];
 		usb_kill_urb(urb);
 	}
 }
@@ -899,6 +959,16 @@ static void es2_destroy(struct es2_ap_dev *es2)
 		es2->cport_out_urb_busy[i] = false;	/* just to be anal */
 	}
 
+	for (i = 0; i < NUM_ARPC_IN_URB; ++i) {
+		struct urb *urb = es2->arpc_urb[i];
+
+		if (!urb)
+			break;
+		usb_free_urb(urb);
+		kfree(es2->arpc_buffer[i]);
+		es2->arpc_buffer[i] = NULL;
+	}
+
 	for (bulk_in = 0; bulk_in < NUM_BULKS; bulk_in++) {
 		struct es2_cport_in *cport_in = &es2->cport_in[bulk_in];
 
@@ -989,6 +1059,31 @@ static void cport_out_callback(struct urb *urb)
 	greybus_message_sent(hd, message, status);
 
 	free_urb(es2, urb);
+}
+
+static void arpc_in_callback(struct urb *urb)
+{
+	struct device *dev = &urb->dev->dev;
+	int status = check_urb_status(urb);
+	int retval;
+
+	if (status) {
+		if ((status == -EAGAIN) || (status == -EPROTO))
+			goto exit;
+
+		/* The urb is being unlinked */
+		if (status == -ENOENT || status == -ESHUTDOWN)
+			return;
+
+		dev_err(dev, "arpc in-urb error %d (dropped)\n", status);
+		return;
+	}
+
+exit:
+	/* put our urb back in the request pool */
+	retval = usb_submit_urb(urb, GFP_ATOMIC);
+	if (retval)
+		dev_err(dev, "failed to resubmit arpc in-urb: %d\n", retval);
 }
 
 #define APB1_LOG_MSG_SIZE	64
@@ -1225,8 +1320,13 @@ static int ap_probe(struct usb_interface *interface,
 		endpoint = &iface_desc->endpoint[i].desc;
 
 		if (usb_endpoint_is_bulk_in(endpoint)) {
-			es2->cport_in[bulk_in++].endpoint =
-				endpoint->bEndpointAddress;
+			if (bulk_in < NUM_BULKS)
+				es2->cport_in[bulk_in].endpoint =
+					endpoint->bEndpointAddress;
+			else
+				es2->arpc_endpoint_in =
+					endpoint->bEndpointAddress;
+			bulk_in++;
 		} else if (usb_endpoint_is_bulk_out(endpoint)) {
 			es2->cport_out[bulk_out++].endpoint =
 				endpoint->bEndpointAddress;
@@ -1236,7 +1336,7 @@ static int ap_probe(struct usb_interface *interface,
 				endpoint->bEndpointAddress);
 		}
 	}
-	if (bulk_in != NUM_BULKS || bulk_out != NUM_BULKS) {
+	if (bulk_in != NUM_BULKS_IN || bulk_out != NUM_BULKS_OUT) {
 		dev_err(&udev->dev, "Not enough endpoints found in device, aborting!\n");
 		retval = -ENODEV;
 		goto error;
@@ -1271,6 +1371,32 @@ static int ap_probe(struct usb_interface *interface,
 		}
 	}
 
+	/* Allocate buffers for ARPC in messages */
+	for (i = 0; i < NUM_ARPC_IN_URB; ++i) {
+		struct urb *urb;
+		u8 *buffer;
+
+		urb = usb_alloc_urb(0, GFP_KERNEL);
+		if (!urb) {
+			retval = -ENOMEM;
+			goto error;
+		}
+		buffer = kmalloc(ARPC_IN_SIZE_MAX, GFP_KERNEL);
+		if (!buffer) {
+			retval = -ENOMEM;
+			goto error;
+		}
+
+		usb_fill_bulk_urb(urb, udev,
+				  usb_rcvbulkpipe(udev,
+						  es2->arpc_endpoint_in),
+				  buffer, ARPC_IN_SIZE_MAX,
+				  arpc_in_callback, es2);
+
+		es2->arpc_urb[i] = urb;
+		es2->arpc_buffer[i] = buffer;
+	}
+
 	/* Allocate urbs for our CPort OUT messages */
 	for (i = 0; i < NUM_CPORT_OUT_URB; ++i) {
 		struct urb *urb;
@@ -1291,9 +1417,12 @@ static int ap_probe(struct usb_interface *interface,
 							gb_debugfs_get(), es2,
 							&apb_log_enable_fops);
 
+	if (es2_arpc_in_enable(es2))
+		goto error;
+
 	retval = gb_hd_add(hd);
 	if (retval)
-		goto error;
+		goto err_disable_arpc_in;
 
 	for (i = 0; i < NUM_BULKS; ++i) {
 		retval = es2_cport_in_enable(es2, &es2->cport_in[i]);
@@ -1307,6 +1436,8 @@ err_disable_cport_in:
 	for (--i; i >= 0; --i)
 		es2_cport_in_disable(es2, &es2->cport_in[i]);
 	gb_hd_del(hd);
+err_disable_arpc_in:
+	es2_arpc_in_disable(es2);
 error:
 	es2_destroy(es2);
 
@@ -1322,6 +1453,7 @@ static void ap_disconnect(struct usb_interface *interface)
 
 	for (i = 0; i < NUM_BULKS; ++i)
 		es2_cport_in_disable(es2, &es2->cport_in[i]);
+	es2_arpc_in_disable(es2);
 
 	es2_destroy(es2);
 }
