@@ -4422,13 +4422,6 @@ int tonga_reset_asic_tasks(struct pp_hwmgr *hwmgr)
 
 int tonga_hwmgr_backend_fini(struct pp_hwmgr *hwmgr)
 {
-	struct tonga_hwmgr *data = (struct tonga_hwmgr *)(hwmgr->backend);
-
-	if (data->soft_pp_table) {
-		kfree(data->soft_pp_table);
-		data->soft_pp_table = NULL;
-	}
-
 	return phm_hwmgr_backend_fini(hwmgr);
 }
 

@@ -2739,13 +2739,6 @@ int polaris10_reset_asic_tasks(struct pp_hwmgr *hwmgr)
 
 int polaris10_hwmgr_backend_fini(struct pp_hwmgr *hwmgr)
 {
-	struct polaris10_hwmgr *data = (struct polaris10_hwmgr *)(hwmgr->backend);
-
-	if (data->soft_pp_table) {
-		kfree(data->soft_pp_table);
-		data->soft_pp_table = NULL;
-	}
-
 	return phm_hwmgr_backend_fini(hwmgr);
 }
 

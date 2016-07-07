@@ -581,13 +581,6 @@ static int fiji_patch_boot_state(struct pp_hwmgr *hwmgr,
 
 static int fiji_hwmgr_backend_fini(struct pp_hwmgr *hwmgr)
 {
-	struct fiji_hwmgr *data = (struct fiji_hwmgr *)(hwmgr->backend);
-
-	if (data->soft_pp_table) {
-		kfree(data->soft_pp_table);
-		data->soft_pp_table = NULL;
-	}
-
 	return phm_hwmgr_backend_fini(hwmgr);
 }
 
