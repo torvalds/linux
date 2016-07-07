@@ -22,7 +22,7 @@ Frontend bandwidth
 
     -  .. row 2
 
-       -  .. _`BANDWIDTH-AUTO`:
+       -  .. _BANDWIDTH-AUTO:
 
 	  ``BANDWIDTH_AUTO``
 
@@ -30,7 +30,7 @@ Frontend bandwidth
 
     -  .. row 3
 
-       -  .. _`BANDWIDTH-1-712-MHZ`:
+       -  .. _BANDWIDTH-1-712-MHZ:
 
 	  ``BANDWIDTH_1_712_MHZ``
 
@@ -38,7 +38,7 @@ Frontend bandwidth
 
     -  .. row 4
 
-       -  .. _`BANDWIDTH-5-MHZ`:
+       -  .. _BANDWIDTH-5-MHZ:
 
 	  ``BANDWIDTH_5_MHZ``
 
@@ -46,7 +46,7 @@ Frontend bandwidth
 
     -  .. row 5
 
-       -  .. _`BANDWIDTH-6-MHZ`:
+       -  .. _BANDWIDTH-6-MHZ:
 
 	  ``BANDWIDTH_6_MHZ``
 
@@ -54,7 +54,7 @@ Frontend bandwidth
 
     -  .. row 6
 
-       -  .. _`BANDWIDTH-7-MHZ`:
+       -  .. _BANDWIDTH-7-MHZ:
 
 	  ``BANDWIDTH_7_MHZ``
 
@@ -62,7 +62,7 @@ Frontend bandwidth
 
     -  .. row 7
 
-       -  .. _`BANDWIDTH-8-MHZ`:
+       -  .. _BANDWIDTH-8-MHZ:
 
 	  ``BANDWIDTH_8_MHZ``
 
@@ -70,7 +70,7 @@ Frontend bandwidth
 
     -  .. row 8
 
-       -  .. _`BANDWIDTH-10-MHZ`:
+       -  .. _BANDWIDTH-10-MHZ:
 
 	  ``BANDWIDTH_10_MHZ``
 

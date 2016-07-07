@@ -21,7 +21,7 @@ Compressed Formats
 
        -  Details
 
-    -  .. _`V4L2-PIX-FMT-JPEG`:
+    -  .. _V4L2-PIX-FMT-JPEG:
 
        -  ``V4L2_PIX_FMT_JPEG``
 
@@ -30,7 +30,7 @@ Compressed Formats
        -  TBD. See also :ref:`VIDIOC_G_JPEGCOMP <VIDIOC_G_JPEGCOMP>`,
 	  :ref:`VIDIOC_S_JPEGCOMP <VIDIOC_G_JPEGCOMP>`.
 
-    -  .. _`V4L2-PIX-FMT-MPEG`:
+    -  .. _V4L2-PIX-FMT-MPEG:
 
        -  ``V4L2_PIX_FMT_MPEG``
 
@@ -40,7 +40,7 @@ Compressed Formats
 	  extended control ``V4L2_CID_MPEG_STREAM_TYPE``, see
 	  :ref:`mpeg-control-id`.
 
-    -  .. _`V4L2-PIX-FMT-H264`:
+    -  .. _V4L2-PIX-FMT-H264:
 
        -  ``V4L2_PIX_FMT_H264``
 
@@ -48,7 +48,7 @@ Compressed Formats
 
        -  H264 video elementary stream with start codes.
 
-    -  .. _`V4L2-PIX-FMT-H264-NO-SC`:
+    -  .. _V4L2-PIX-FMT-H264-NO-SC:
 
        -  ``V4L2_PIX_FMT_H264_NO_SC``
 
@@ -56,7 +56,7 @@ Compressed Formats
 
        -  H264 video elementary stream without start codes.
 
-    -  .. _`V4L2-PIX-FMT-H264-MVC`:
+    -  .. _V4L2-PIX-FMT-H264-MVC:
 
        -  ``V4L2_PIX_FMT_H264_MVC``
 
@@ -64,7 +64,7 @@ Compressed Formats
 
        -  H264 MVC video elementary stream.
 
-    -  .. _`V4L2-PIX-FMT-H263`:
+    -  .. _V4L2-PIX-FMT-H263:
 
        -  ``V4L2_PIX_FMT_H263``
 
@@ -72,7 +72,7 @@ Compressed Formats
 
        -  H263 video elementary stream.
 
-    -  .. _`V4L2-PIX-FMT-MPEG1`:
+    -  .. _V4L2-PIX-FMT-MPEG1:
 
        -  ``V4L2_PIX_FMT_MPEG1``
 
@@ -80,7 +80,7 @@ Compressed Formats
 
        -  MPEG1 video elementary stream.
 
-    -  .. _`V4L2-PIX-FMT-MPEG2`:
+    -  .. _V4L2-PIX-FMT-MPEG2:
 
        -  ``V4L2_PIX_FMT_MPEG2``
 
@@ -88,7 +88,7 @@ Compressed Formats
 
        -  MPEG2 video elementary stream.
 
-    -  .. _`V4L2-PIX-FMT-MPEG4`:
+    -  .. _V4L2-PIX-FMT-MPEG4:
 
        -  ``V4L2_PIX_FMT_MPEG4``
 
@@ -96,7 +96,7 @@ Compressed Formats
 
        -  MPEG4 video elementary stream.
 
-    -  .. _`V4L2-PIX-FMT-XVID`:
+    -  .. _V4L2-PIX-FMT-XVID:
 
        -  ``V4L2_PIX_FMT_XVID``
 
@@ -104,7 +104,7 @@ Compressed Formats
 
        -  Xvid video elementary stream.
 
-    -  .. _`V4L2-PIX-FMT-VC1-ANNEX-G`:
+    -  .. _V4L2-PIX-FMT-VC1-ANNEX-G:
 
        -  ``V4L2_PIX_FMT_VC1_ANNEX_G``
 
@@ -112,7 +112,7 @@ Compressed Formats
 
        -  VC1, SMPTE 421M Annex G compliant stream.
 
-    -  .. _`V4L2-PIX-FMT-VC1-ANNEX-L`:
+    -  .. _V4L2-PIX-FMT-VC1-ANNEX-L:
 
        -  ``V4L2_PIX_FMT_VC1_ANNEX_L``
 
@@ -120,7 +120,7 @@ Compressed Formats
 
        -  VC1, SMPTE 421M Annex L compliant stream.
 
-    -  .. _`V4L2-PIX-FMT-VP8`:
+    -  .. _V4L2-PIX-FMT-VP8:
 
        -  ``V4L2_PIX_FMT_VP8``
 

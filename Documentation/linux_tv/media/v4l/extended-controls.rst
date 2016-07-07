@@ -202,7 +202,7 @@ Codec Control IDs
     return a description of this control class. This description can be
     used as the caption of a Tab page in a GUI, for example.
 
-.. _`v4l2-mpeg-stream-type`:
+.. _v4l2-mpeg-stream-type:
 
 ``V4L2_CID_MPEG_STREAM_TYPE (enum v4l2_mpeg_stream_type)``
     The MPEG-1, -2 or -4 output stream type. One cannot assume anything
@@ -275,7 +275,7 @@ Codec Control IDs
 ``V4L2_CID_MPEG_STREAM_PES_ID_VIDEO (integer)``
     Video ID for MPEG PES
 
-.. _`v4l2-mpeg-stream-vbi-fmt`:
+.. _v4l2-mpeg-stream-vbi-fmt:
 
 ``V4L2_CID_MPEG_STREAM_VBI_FMT (enum v4l2_mpeg_stream_vbi_fmt)``
     Some cards can embed VBI data (e. g. Closed Caption, Teletext) into
@@ -307,7 +307,7 @@ Codec Control IDs
 
 
 
-.. _`v4l2-mpeg-audio-sampling-freq`:
+.. _v4l2-mpeg-audio-sampling-freq:
 
 ``V4L2_CID_MPEG_AUDIO_SAMPLING_FREQ (enum v4l2_mpeg_audio_sampling_freq)``
     MPEG Audio sampling frequency. Possible values are:
@@ -339,7 +339,7 @@ Codec Control IDs
 
 
 
-.. _`v4l2-mpeg-audio-encoding`:
+.. _v4l2-mpeg-audio-encoding:
 
 ``V4L2_CID_MPEG_AUDIO_ENCODING (enum v4l2_mpeg_audio_encoding)``
     MPEG Audio encoding. This control is specific to multiplexed MPEG
@@ -384,7 +384,7 @@ Codec Control IDs
 
 
 
-.. _`v4l2-mpeg-audio-l1-bitrate`:
+.. _v4l2-mpeg-audio-l1-bitrate:
 
 ``V4L2_CID_MPEG_AUDIO_L1_BITRATE (enum v4l2_mpeg_audio_l1_bitrate)``
     MPEG-1/2 Layer I bitrate. Possible values are:
@@ -482,7 +482,7 @@ Codec Control IDs
 
 
 
-.. _`v4l2-mpeg-audio-l2-bitrate`:
+.. _v4l2-mpeg-audio-l2-bitrate:
 
 ``V4L2_CID_MPEG_AUDIO_L2_BITRATE (enum v4l2_mpeg_audio_l2_bitrate)``
     MPEG-1/2 Layer II bitrate. Possible values are:
@@ -580,7 +580,7 @@ Codec Control IDs
 
 
 
-.. _`v4l2-mpeg-audio-l3-bitrate`:
+.. _v4l2-mpeg-audio-l3-bitrate:
 
 ``V4L2_CID_MPEG_AUDIO_L3_BITRATE (enum v4l2_mpeg_audio_l3_bitrate)``
     MPEG-1/2 Layer III bitrate. Possible values are:
@@ -681,7 +681,7 @@ Codec Control IDs
 ``V4L2_CID_MPEG_AUDIO_AAC_BITRATE (integer)``
     AAC bitrate in bits per second.
 
-.. _`v4l2-mpeg-audio-ac3-bitrate`:
+.. _v4l2-mpeg-audio-ac3-bitrate:
 
 ``V4L2_CID_MPEG_AUDIO_AC3_BITRATE (enum v4l2_mpeg_audio_ac3_bitrate)``
     AC-3 bitrate. Possible values are:
@@ -809,7 +809,7 @@ Codec Control IDs
 
 
 
-.. _`v4l2-mpeg-audio-mode`:
+.. _v4l2-mpeg-audio-mode:
 
 ``V4L2_CID_MPEG_AUDIO_MODE (enum v4l2_mpeg_audio_mode)``
     MPEG Audio mode. Possible values are:
@@ -847,7 +847,7 @@ Codec Control IDs
 
 
 
-.. _`v4l2-mpeg-audio-mode-extension`:
+.. _v4l2-mpeg-audio-mode-extension:
 
 ``V4L2_CID_MPEG_AUDIO_MODE_EXTENSION (enum v4l2_mpeg_audio_mode_extension)``
     Joint Stereo audio mode extension. In Layer I and II they indicate
@@ -887,7 +887,7 @@ Codec Control IDs
 
 
 
-.. _`v4l2-mpeg-audio-emphasis`:
+.. _v4l2-mpeg-audio-emphasis:
 
 ``V4L2_CID_MPEG_AUDIO_EMPHASIS (enum v4l2_mpeg_audio_emphasis)``
     Audio Emphasis. Possible values are:
@@ -919,7 +919,7 @@ Codec Control IDs
 
 
 
-.. _`v4l2-mpeg-audio-crc`:
+.. _v4l2-mpeg-audio-crc:
 
 ``V4L2_CID_MPEG_AUDIO_CRC (enum v4l2_mpeg_audio_crc)``
     CRC method. Possible values are:
@@ -951,7 +951,7 @@ Codec Control IDs
     itself, guaranteeing a fixed and reproducible audio bitstream. 0 =
     unmuted, 1 = muted.
 
-.. _`v4l2-mpeg-audio-dec-playback`:
+.. _v4l2-mpeg-audio-dec-playback:
 
 ``V4L2_CID_MPEG_AUDIO_DEC_PLAYBACK (enum v4l2_mpeg_audio_dec_playback)``
     Determines how monolingual audio should be played back. Possible
@@ -1002,12 +1002,12 @@ Codec Control IDs
 
 
 
-.. _`v4l2-mpeg-audio-dec-multilingual-playback`:
+.. _v4l2-mpeg-audio-dec-multilingual-playback:
 
 ``V4L2_CID_MPEG_AUDIO_DEC_MULTILINGUAL_PLAYBACK (enum v4l2_mpeg_audio_dec_playback)``
     Determines how multilingual audio should be played back.
 
-.. _`v4l2-mpeg-video-encoding`:
+.. _v4l2-mpeg-video-encoding:
 
 ``V4L2_CID_MPEG_VIDEO_ENCODING (enum v4l2_mpeg_video_encoding)``
     MPEG Video encoding method. This control is specific to multiplexed
@@ -1040,7 +1040,7 @@ Codec Control IDs
 
 
 
-.. _`v4l2-mpeg-video-aspect`:
+.. _v4l2-mpeg-video-aspect:
 
 ``V4L2_CID_MPEG_VIDEO_ASPECT (enum v4l2_mpeg_video_aspect)``
     Video aspect. Possible values are:
@@ -1082,7 +1082,7 @@ Codec Control IDs
 ``V4L2_CID_MPEG_VIDEO_PULLDOWN (boolean)``
     Enable 3:2 pulldown (default 0)
 
-.. _`v4l2-mpeg-video-bitrate-mode`:
+.. _v4l2-mpeg-video-bitrate-mode:
 
 ``V4L2_CID_MPEG_VIDEO_BITRATE_MODE (enum v4l2_mpeg_video_bitrate_mode)``
     Video bitrate mode. Possible values are:
@@ -1162,7 +1162,7 @@ Codec Control IDs
 
 
 
-.. _`v4l2-mpeg-video-dec-pts`:
+.. _v4l2-mpeg-video-dec-pts:
 
 ``V4L2_CID_MPEG_VIDEO_DEC_PTS (integer64)``
     This read-only control returns the 33-bit video Presentation Time
@@ -1170,7 +1170,7 @@ Codec Control IDs
     currently displayed frame. This is the same PTS as is used in
     :ref:`VIDIOC_DECODER_CMD`.
 
-.. _`v4l2-mpeg-video-dec-frame`:
+.. _v4l2-mpeg-video-dec-frame:
 
 ``V4L2_CID_MPEG_VIDEO_DEC_FRAME (integer64)``
     This read-only control returns the frame counter of the frame that
@@ -1186,7 +1186,7 @@ Codec Control IDs
     Enable writing sample aspect ratio in the Video Usability
     Information. Applicable to the H264 encoder.
 
-.. _`v4l2-mpeg-video-h264-vui-sar-idc`:
+.. _v4l2-mpeg-video-h264-vui-sar-idc:
 
 ``V4L2_CID_MPEG_VIDEO_H264_VUI_SAR_IDC (enum v4l2_mpeg_video_h264_vui_sar_idc)``
     VUI sample aspect ratio indicator for H.264 encoding. The value is
@@ -1318,7 +1318,7 @@ Codec Control IDs
     Extended sample aspect ratio height for H.264 VUI encoding.
     Applicable to the H264 encoder.
 
-.. _`v4l2-mpeg-video-h264-level`:
+.. _v4l2-mpeg-video-h264-level:
 
 ``V4L2_CID_MPEG_VIDEO_H264_LEVEL (enum v4l2_mpeg_video_h264_level)``
     The level information for the H264 video elementary stream.
@@ -1429,7 +1429,7 @@ Codec Control IDs
 
 
 
-.. _`v4l2-mpeg-video-mpeg4-level`:
+.. _v4l2-mpeg-video-mpeg4-level:
 
 ``V4L2_CID_MPEG_VIDEO_MPEG4_LEVEL (enum v4l2_mpeg_video_mpeg4_level)``
     The level information for the MPEG4 elementary stream. Applicable to
@@ -1492,7 +1492,7 @@ Codec Control IDs
 
 
 
-.. _`v4l2-mpeg-video-h264-profile`:
+.. _v4l2-mpeg-video-h264-profile:
 
 ``V4L2_CID_MPEG_VIDEO_H264_PROFILE (enum v4l2_mpeg_video_h264_profile)``
     The profile information for H264. Applicable to the H264 encoder.
@@ -1609,7 +1609,7 @@ Codec Control IDs
 
 
 
-.. _`v4l2-mpeg-video-mpeg4-profile`:
+.. _v4l2-mpeg-video-mpeg4-profile:
 
 ``V4L2_CID_MPEG_VIDEO_MPEG4_PROFILE (enum v4l2_mpeg_video_mpeg4_profile)``
     The profile information for MPEG4. Applicable to the MPEG4 encoder.
@@ -1658,7 +1658,7 @@ Codec Control IDs
     The maximum number of reference pictures used for encoding.
     Applicable to the encoder.
 
-.. _`v4l2-mpeg-video-multi-slice-mode`:
+.. _v4l2-mpeg-video-multi-slice-mode:
 
 ``V4L2_CID_MPEG_VIDEO_MULTI_SLICE_MODE (enum v4l2_mpeg_video_multi_slice_mode)``
     Determines how the encoder should handle division of frame into
@@ -1703,7 +1703,7 @@ Codec Control IDs
     ``V4L2_MPEG_VIDEO_MULTI_SLICE_MODE_MAX_BYTES``. Applicable to the
     encoder.
 
-.. _`v4l2-mpeg-video-h264-loop-filter-mode`:
+.. _v4l2-mpeg-video-h264-loop-filter-mode:
 
 ``V4L2_CID_MPEG_VIDEO_H264_LOOP_FILTER_MODE (enum v4l2_mpeg_video_h264_loop_filter_mode)``
     Loop filter mode for H264 encoder. Possible values are:
@@ -1743,7 +1743,7 @@ Codec Control IDs
     Loop filter beta coefficient, defined in the H264 standard.
     Applicable to the H264 encoder.
 
-.. _`v4l2-mpeg-video-h264-entropy-mode`:
+.. _v4l2-mpeg-video-h264-entropy-mode:
 
 ``V4L2_CID_MPEG_VIDEO_H264_ENTROPY_MODE (enum v4l2_mpeg_video_h264_entropy_mode)``
     Entropy coding mode for H264 - CABAC/CAVALC. Applicable to the H264
@@ -1861,12 +1861,12 @@ Codec Control IDs
     data rate that an encoder or editing process may produce.".
     Applicable to the MPEG1, MPEG2, MPEG4 encoders.
 
-.. _`v4l2-mpeg-video-vbv-delay`:
+.. _v4l2-mpeg-video-vbv-delay:
 
 ``V4L2_CID_MPEG_VIDEO_VBV_DELAY (integer)``
     Sets the initial delay in milliseconds for VBV buffer control.
 
-.. _`v4l2-mpeg-video-hor-search-range`:
+.. _v4l2-mpeg-video-hor-search-range:
 
 ``V4L2_CID_MPEG_VIDEO_MV_H_SEARCH_RANGE (integer)``
     Horizontal search range defines maximum horizontal search area in
@@ -1874,7 +1874,7 @@ Codec Control IDs
     reference picture. This V4L2 control macro is used to set horizontal
     search range for motion estimation module in video encoder.
 
-.. _`v4l2-mpeg-video-vert-search-range`:
+.. _v4l2-mpeg-video-vert-search-range:
 
 ``V4L2_CID_MPEG_VIDEO_MV_V_SEARCH_RANGE (integer)``
     Vertical search range defines maximum vertical search area in pixels
@@ -1882,7 +1882,7 @@ Codec Control IDs
     picture. This V4L2 control macro is used to set vertical search
     range for motion estimation module in video encoder.
 
-.. _`v4l2-mpeg-video-force-key-frame`:
+.. _v4l2-mpeg-video-force-key-frame:
 
 ``V4L2_CID_MPEG_VIDEO_FORCE_KEY_FRAME (button)``
     Force a key frame for the next queued buffer. Applicable to
@@ -1904,7 +1904,7 @@ Codec Control IDs
     the need to store or decode any previous frames. Applicable to the
     H264 encoder.
 
-.. _`v4l2-mpeg-video-header-mode`:
+.. _v4l2-mpeg-video-header-mode:
 
 ``V4L2_CID_MPEG_VIDEO_HEADER_MODE (enum v4l2_mpeg_video_header_mode)``
     Determines whether the header is returned as the first buffer or is
@@ -1960,7 +1960,7 @@ Codec Control IDs
     Sets current frame as frame0 in frame packing SEI. Applicable to the
     H264 encoder.
 
-.. _`v4l2-mpeg-video-h264-sei-fp-arrangement-type`:
+.. _v4l2-mpeg-video-h264-sei-fp-arrangement-type:
 
 ``V4L2_CID_MPEG_VIDEO_H264_SEI_FP_ARRANGEMENT_TYPE (enum v4l2_mpeg_video_h264_sei_fp_arrangement_type)``
     Frame packing arrangement type for H264 SEI. Applicable to the H264
@@ -2016,7 +2016,7 @@ Codec Control IDs
     a technique used for restructuring the ordering of macroblocks in
     pictures. Applicable to the H264 encoder.
 
-.. _`v4l2-mpeg-video-h264-fmo-map-type`:
+.. _v4l2-mpeg-video-h264-fmo-map-type:
 
 ``V4L2_CID_MPEG_VIDEO_H264_FMO_MAP_TYPE (enum v4l2_mpeg_video_h264_fmo_map_type)``
     When using FMO, the map type divides the image in different scan
@@ -2079,7 +2079,7 @@ Codec Control IDs
 ``V4L2_CID_MPEG_VIDEO_H264_FMO_SLICE_GROUP (integer)``
     Number of slice groups in FMO. Applicable to the H264 encoder.
 
-.. _`v4l2-mpeg-video-h264-fmo-change-direction`:
+.. _v4l2-mpeg-video-h264-fmo-change-direction:
 
 ``V4L2_CID_MPEG_VIDEO_H264_FMO_CHANGE_DIRECTION (enum v4l2_mpeg_video_h264_fmo_change_dir)``
     Specifies a direction of the slice group change for raster and wipe
@@ -2147,7 +2147,7 @@ Codec Control IDs
 ``V4L2_CID_MPEG_VIDEO_H264_HIERARCHICAL_CODING (boolean)``
     Enables H264 hierarchical coding. Applicable to the H264 encoder.
 
-.. _`v4l2-mpeg-video-h264-hierarchical-coding-type`:
+.. _v4l2-mpeg-video-h264-hierarchical-coding-type:
 
 ``V4L2_CID_MPEG_VIDEO_H264_HIERARCHICAL_CODING_TYPE (enum v4l2_mpeg_video_h264_hierarchical_coding_type)``
     Specifies the hierarchical coding type. Applicable to the H264
@@ -2314,7 +2314,7 @@ MFC 5.1 Control IDs
     (``V4L2_CID_MPEG_VIDEO_MB_RC_ENABLE``). Applicable to the H264
     encoder.
 
-.. _`v4l2-mpeg-mfc51-video-frame-skip-mode`:
+.. _v4l2-mpeg-mfc51-video-frame-skip-mode:
 
 ``V4L2_CID_MPEG_MFC51_VIDEO_FRAME_SKIP_MODE (enum v4l2_mpeg_mfc51_video_frame_skip_mode)``
     Indicates in what conditions the encoder should skip frames. If
@@ -2363,7 +2363,7 @@ MFC 5.1 Control IDs
     the other hand enabling this setting will ensure that the stream
     will meet tight bandwidth constraints. Applicable to encoders.
 
-.. _`v4l2-mpeg-mfc51-video-force-frame-type`:
+.. _v4l2-mpeg-mfc51-video-force-frame-type:
 
 ``V4L2_CID_MPEG_MFC51_VIDEO_FORCE_FRAME_TYPE (enum v4l2_mpeg_mfc51_video_force_frame_type)``
     Force a frame type for the next queued buffer. Applicable to
@@ -2409,7 +2409,7 @@ are specific to the Conexant CX23415 and CX23416 MPEG encoding chips.
 CX2341x Control IDs
 ^^^^^^^^^^^^^^^^^^^
 
-.. _`v4l2-mpeg-cx2341x-video-spatial-filter-mode`:
+.. _v4l2-mpeg-cx2341x-video-spatial-filter-mode:
 
 ``V4L2_CID_MPEG_CX2341X_VIDEO_SPATIAL_FILTER_MODE (enum v4l2_mpeg_cx2341x_video_spatial_filter_mode)``
     Sets the Spatial Filter mode (default ``MANUAL``). Possible values
@@ -2440,7 +2440,7 @@ CX2341x Control IDs
     The setting for the Spatial Filter. 0 = off, 15 = maximum. (Default
     is 0.)
 
-.. _`luma-spatial-filter-type`:
+.. _luma-spatial-filter-type:
 
 ``V4L2_CID_MPEG_CX2341X_VIDEO_LUMA_SPATIAL_FILTER_TYPE (enum v4l2_mpeg_cx2341x_video_luma_spatial_filter_type)``
     Select the algorithm to use for the Luma Spatial Filter (default
@@ -2485,7 +2485,7 @@ CX2341x Control IDs
 
 
 
-.. _`chroma-spatial-filter-type`:
+.. _chroma-spatial-filter-type:
 
 ``V4L2_CID_MPEG_CX2341X_VIDEO_CHROMA_SPATIAL_FILTER_TYPE (enum v4l2_mpeg_cx2341x_video_chroma_spatial_filter_type)``
     Select the algorithm for the Chroma Spatial Filter (default
@@ -2512,7 +2512,7 @@ CX2341x Control IDs
 
 
 
-.. _`v4l2-mpeg-cx2341x-video-temporal-filter-mode`:
+.. _v4l2-mpeg-cx2341x-video-temporal-filter-mode:
 
 ``V4L2_CID_MPEG_CX2341X_VIDEO_TEMPORAL_FILTER_MODE (enum v4l2_mpeg_cx2341x_video_temporal_filter_mode)``
     Sets the Temporal Filter mode (default ``MANUAL``). Possible values
@@ -2543,7 +2543,7 @@ CX2341x Control IDs
     The setting for the Temporal Filter. 0 = off, 31 = maximum. (Default
     is 8 for full-scale capturing and 0 for scaled capturing.)
 
-.. _`v4l2-mpeg-cx2341x-video-median-filter-type`:
+.. _v4l2-mpeg-cx2341x-video-median-filter-type:
 
 ``V4L2_CID_MPEG_CX2341X_VIDEO_MEDIAN_FILTER_TYPE (enum v4l2_mpeg_cx2341x_video_median_filter_type)``
     Median Filter Type (default ``OFF``). Possible values are:
@@ -2624,7 +2624,7 @@ codec.
 VPX Control IDs
 ^^^^^^^^^^^^^^^
 
-.. _`v4l2-vpx-num-partitions`:
+.. _v4l2-vpx-num-partitions:
 
 ``V4L2_CID_MPEG_VIDEO_VPX_NUM_PARTITIONS (enum v4l2_vp8_num_partitions)``
     The number of token partitions to use in VP8 encoder. Possible
@@ -2666,7 +2666,7 @@ VPX Control IDs
 ``V4L2_CID_MPEG_VIDEO_VPX_IMD_DISABLE_4X4 (boolean)``
     Setting this prevents intra 4x4 mode in the intra mode decision.
 
-.. _`v4l2-vpx-num-ref-frames`:
+.. _v4l2-vpx-num-ref-frames:
 
 ``V4L2_CID_MPEG_VIDEO_VPX_NUM_REF_FRAMES (enum v4l2_vp8_num_ref_frames)``
     The number of reference pictures for encoding P frames. Possible
@@ -2719,7 +2719,7 @@ VPX Control IDs
     frame refresh period is set as 4, the frames 0, 4, 8 etc will be
     taken as the golden frames as frame 0 is always a key frame.
 
-.. _`v4l2-vpx-golden-frame-sel`:
+.. _v4l2-vpx-golden-frame-sel:
 
 ``V4L2_CID_MPEG_VIDEO_VPX_GOLDEN_FRAME_SEL (enum v4l2_vp8_golden_frame_sel)``
     Selects the golden frame for encoding. Possible values are:
@@ -2784,7 +2784,7 @@ Camera Control IDs
     :ref:`VIDIOC_QUERYCTRL` for this control will
     return a description of this control class.
 
-.. _`v4l2-exposure-auto-type`:
+.. _v4l2-exposure-auto-type:
 
 ``V4L2_CID_EXPOSURE_AUTO (enum v4l2_exposure_auto_type)``
     Enables automatic adjustments of the exposure time and/or iris
@@ -2849,7 +2849,7 @@ Camera Control IDs
     light at the image sensor. The camera performs the exposure
     compensation by adjusting absolute exposure time and/or aperture.
 
-.. _`v4l2-exposure-metering`:
+.. _v4l2-exposure-metering:
 
 ``V4L2_CID_EXPOSURE_METERING (enum v4l2_exposure_metering)``
     Determines how the camera measures the amount of light available for
@@ -2954,7 +2954,7 @@ Camera Control IDs
     disabled, that is when ``V4L2_CID_FOCUS_AUTO`` control is set to
     ``FALSE`` (0).
 
-.. _`v4l2-auto-focus-status`:
+.. _v4l2-auto-focus-status:
 
 ``V4L2_CID_AUTO_FOCUS_STATUS (bitmask)``
     The automatic focus status. This is a read-only control.
@@ -2997,7 +2997,7 @@ Camera Control IDs
 
 
 
-.. _`v4l2-auto-focus-range`:
+.. _v4l2-auto-focus-range:
 
 ``V4L2_CID_AUTO_FOCUS_RANGE (enum v4l2_auto_focus_range)``
     Determines auto focus distance range for which lens may be adjusted.
@@ -3081,7 +3081,7 @@ Camera Control IDs
     its strength. Such band-stop filters can be used, for example, to
     filter out the fluorescent light component.
 
-.. _`v4l2-auto-n-preset-white-balance`:
+.. _v4l2-auto-n-preset-white-balance:
 
 ``V4L2_CID_AUTO_N_PRESET_WHITE_BALANCE (enum v4l2_auto_n_preset_white_balance)``
     Sets white balance to automatic, manual or a preset. The presets
@@ -3170,7 +3170,7 @@ Camera Control IDs
 
 
 
-.. _`v4l2-wide-dynamic-range`:
+.. _v4l2-wide-dynamic-range:
 
 ``V4L2_CID_WIDE_DYNAMIC_RANGE (boolean)``
     Enables or disables the camera's wide dynamic range feature. This
@@ -3180,7 +3180,7 @@ Camera Control IDs
     commonly realized in cameras by combining two subsequent frames with
     different exposure times.  [1]_
 
-.. _`v4l2-image-stabilization`:
+.. _v4l2-image-stabilization:
 
 ``V4L2_CID_IMAGE_STABILIZATION (boolean)``
     Enables or disables image stabilization.
@@ -3198,7 +3198,7 @@ Camera Control IDs
     than ``V4L2_CID_ISO_SENSITIVITY_MANUAL`` is undefined, drivers
     should ignore such requests.
 
-.. _`v4l2-iso-sensitivity-auto-type`:
+.. _v4l2-iso-sensitivity-auto-type:
 
 ``V4L2_CID_ISO_SENSITIVITY_AUTO (enum v4l2_iso_sensitivity_type)``
     Enables or disables automatic ISO sensitivity adjustments.
@@ -3224,7 +3224,7 @@ Camera Control IDs
 
 
 
-.. _`v4l2-scene-mode`:
+.. _v4l2-scene-mode:
 
 ``V4L2_CID_SCENE_MODE (enum v4l2_scene_mode)``
     This control allows to select scene programs as the camera automatic
@@ -3936,7 +3936,7 @@ JPEG Control IDs
     ``V4L2_CID_JPEG_RESTART_INTERVAL`` control is set to 0, DRI and RSTm
     markers will not be inserted.
 
-.. _`jpeg-quality-control`:
+.. _jpeg-quality-control:
 
 ``V4L2_CID_JPEG_COMPRESSION_QUALITY (integer)``
     ``V4L2_CID_JPEG_COMPRESSION_QUALITY`` control determines trade-off
@@ -3952,7 +3952,7 @@ JPEG Control IDs
     non-zero values are meaningful. The recommended range is 1 - 100,
     where larger values correspond to better image quality.
 
-.. _`jpeg-active-marker-control`:
+.. _jpeg-active-marker-control:
 
 ``V4L2_CID_JPEG_ACTIVE_MARKER (bitmask)``
     Specify which JPEG markers are included in compressed stream. This

@@ -172,7 +172,7 @@ supported only on some specific frontend types.
 
     -  .. row 2
 
-       -  .. _`FE-IS-STUPID`:
+       -  .. _FE-IS-STUPID:
 
 	  ``FE_IS_STUPID``
 
@@ -181,7 +181,7 @@ supported only on some specific frontend types.
 
     -  .. row 3
 
-       -  .. _`FE-CAN-INVERSION-AUTO`:
+       -  .. _FE-CAN-INVERSION-AUTO:
 
 	  ``FE_CAN_INVERSION_AUTO``
 
@@ -189,7 +189,7 @@ supported only on some specific frontend types.
 
     -  .. row 4
 
-       -  .. _`FE-CAN-FEC-1-2`:
+       -  .. _FE-CAN-FEC-1-2:
 
 	  ``FE_CAN_FEC_1_2``
 
@@ -197,7 +197,7 @@ supported only on some specific frontend types.
 
     -  .. row 5
 
-       -  .. _`FE-CAN-FEC-2-3`:
+       -  .. _FE-CAN-FEC-2-3:
 
 	  ``FE_CAN_FEC_2_3``
 
@@ -205,7 +205,7 @@ supported only on some specific frontend types.
 
     -  .. row 6
 
-       -  .. _`FE-CAN-FEC-3-4`:
+       -  .. _FE-CAN-FEC-3-4:
 
 	  ``FE_CAN_FEC_3_4``
 
@@ -213,7 +213,7 @@ supported only on some specific frontend types.
 
     -  .. row 7
 
-       -  .. _`FE-CAN-FEC-4-5`:
+       -  .. _FE-CAN-FEC-4-5:
 
 	  ``FE_CAN_FEC_4_5``
 
@@ -221,7 +221,7 @@ supported only on some specific frontend types.
 
     -  .. row 8
 
-       -  .. _`FE-CAN-FEC-5-6`:
+       -  .. _FE-CAN-FEC-5-6:
 
 	  ``FE_CAN_FEC_5_6``
 
@@ -229,7 +229,7 @@ supported only on some specific frontend types.
 
     -  .. row 9
 
-       -  .. _`FE-CAN-FEC-6-7`:
+       -  .. _FE-CAN-FEC-6-7:
 
 	  ``FE_CAN_FEC_6_7``
 
@@ -237,7 +237,7 @@ supported only on some specific frontend types.
 
     -  .. row 10
 
-       -  .. _`FE-CAN-FEC-7-8`:
+       -  .. _FE-CAN-FEC-7-8:
 
 	  ``FE_CAN_FEC_7_8``
 
@@ -245,7 +245,7 @@ supported only on some specific frontend types.
 
     -  .. row 11
 
-       -  .. _`FE-CAN-FEC-8-9`:
+       -  .. _FE-CAN-FEC-8-9:
 
 	  ``FE_CAN_FEC_8_9``
 
@@ -253,7 +253,7 @@ supported only on some specific frontend types.
 
     -  .. row 12
 
-       -  .. _`FE-CAN-FEC-AUTO`:
+       -  .. _FE-CAN-FEC-AUTO:
 
 	  ``FE_CAN_FEC_AUTO``
 
@@ -261,7 +261,7 @@ supported only on some specific frontend types.
 
     -  .. row 13
 
-       -  .. _`FE-CAN-QPSK`:
+       -  .. _FE-CAN-QPSK:
 
 	  ``FE_CAN_QPSK``
 
@@ -269,7 +269,7 @@ supported only on some specific frontend types.
 
     -  .. row 14
 
-       -  .. _`FE-CAN-QAM-16`:
+       -  .. _FE-CAN-QAM-16:
 
 	  ``FE_CAN_QAM_16``
 
@@ -277,7 +277,7 @@ supported only on some specific frontend types.
 
     -  .. row 15
 
-       -  .. _`FE-CAN-QAM-32`:
+       -  .. _FE-CAN-QAM-32:
 
 	  ``FE_CAN_QAM_32``
 
@@ -285,7 +285,7 @@ supported only on some specific frontend types.
 
     -  .. row 16
 
-       -  .. _`FE-CAN-QAM-64`:
+       -  .. _FE-CAN-QAM-64:
 
 	  ``FE_CAN_QAM_64``
 
@@ -293,7 +293,7 @@ supported only on some specific frontend types.
 
     -  .. row 17
 
-       -  .. _`FE-CAN-QAM-128`:
+       -  .. _FE-CAN-QAM-128:
 
 	  ``FE_CAN_QAM_128``
 
@@ -301,7 +301,7 @@ supported only on some specific frontend types.
 
     -  .. row 18
 
-       -  .. _`FE-CAN-QAM-256`:
+       -  .. _FE-CAN-QAM-256:
 
 	  ``FE_CAN_QAM_256``
 
@@ -309,7 +309,7 @@ supported only on some specific frontend types.
 
     -  .. row 19
 
-       -  .. _`FE-CAN-QAM-AUTO`:
+       -  .. _FE-CAN-QAM-AUTO:
 
 	  ``FE_CAN_QAM_AUTO``
 
@@ -317,7 +317,7 @@ supported only on some specific frontend types.
 
     -  .. row 20
 
-       -  .. _`FE-CAN-TRANSMISSION-MODE-AUTO`:
+       -  .. _FE-CAN-TRANSMISSION-MODE-AUTO:
 
 	  ``FE_CAN_TRANSMISSION_MODE_AUTO``
 
@@ -325,7 +325,7 @@ supported only on some specific frontend types.
 
     -  .. row 21
 
-       -  .. _`FE-CAN-BANDWIDTH-AUTO`:
+       -  .. _FE-CAN-BANDWIDTH-AUTO:
 
 	  ``FE_CAN_BANDWIDTH_AUTO``
 
@@ -333,7 +333,7 @@ supported only on some specific frontend types.
 
     -  .. row 22
 
-       -  .. _`FE-CAN-GUARD-INTERVAL-AUTO`:
+       -  .. _FE-CAN-GUARD-INTERVAL-AUTO:
 
 	  ``FE_CAN_GUARD_INTERVAL_AUTO``
 
@@ -341,7 +341,7 @@ supported only on some specific frontend types.
 
     -  .. row 23
 
-       -  .. _`FE-CAN-HIERARCHY-AUTO`:
+       -  .. _FE-CAN-HIERARCHY-AUTO:
 
 	  ``FE_CAN_HIERARCHY_AUTO``
 
@@ -349,7 +349,7 @@ supported only on some specific frontend types.
 
     -  .. row 24
 
-       -  .. _`FE-CAN-8VSB`:
+       -  .. _FE-CAN-8VSB:
 
 	  ``FE_CAN_8VSB``
 
@@ -357,7 +357,7 @@ supported only on some specific frontend types.
 
     -  .. row 25
 
-       -  .. _`FE-CAN-16VSB`:
+       -  .. _FE-CAN-16VSB:
 
 	  ``FE_CAN_16VSB``
 
@@ -365,7 +365,7 @@ supported only on some specific frontend types.
 
     -  .. row 26
 
-       -  .. _`FE-HAS-EXTENDED-CAPS`:
+       -  .. _FE-HAS-EXTENDED-CAPS:
 
 	  ``FE_HAS_EXTENDED_CAPS``
 
@@ -373,7 +373,7 @@ supported only on some specific frontend types.
 
     -  .. row 27
 
-       -  .. _`FE-CAN-MULTISTREAM`:
+       -  .. _FE-CAN-MULTISTREAM:
 
 	  ``FE_CAN_MULTISTREAM``
 
@@ -381,7 +381,7 @@ supported only on some specific frontend types.
 
     -  .. row 28
 
-       -  .. _`FE-CAN-TURBO-FEC`:
+       -  .. _FE-CAN-TURBO-FEC:
 
 	  ``FE_CAN_TURBO_FEC``
 
@@ -389,7 +389,7 @@ supported only on some specific frontend types.
 
     -  .. row 29
 
-       -  .. _`FE-CAN-2G-MODULATION`:
+       -  .. _FE-CAN-2G-MODULATION:
 
 	  ``FE_CAN_2G_MODULATION``
 
@@ -397,7 +397,7 @@ supported only on some specific frontend types.
 
     -  .. row 30
 
-       -  .. _`FE-NEEDS-BENDING`:
+       -  .. _FE-NEEDS-BENDING:
 
 	  ``FE_NEEDS_BENDING``
 
@@ -405,7 +405,7 @@ supported only on some specific frontend types.
 
     -  .. row 31
 
-       -  .. _`FE-CAN-RECOVER`:
+       -  .. _FE-CAN-RECOVER:
 
 	  ``FE_CAN_RECOVER``
 
@@ -413,7 +413,7 @@ supported only on some specific frontend types.
 
     -  .. row 32
 
-       -  .. _`FE-CAN-MUTE-TS`:
+       -  .. _FE-CAN-MUTE-TS:
 
 	  ``FE_CAN_MUTE_TS``
 

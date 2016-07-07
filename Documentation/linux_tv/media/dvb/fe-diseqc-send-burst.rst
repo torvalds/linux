@@ -61,7 +61,7 @@ enum fe_sec_mini_cmd
 
     -  .. row 2
 
-       -  .. _`SEC-MINI-A`:
+       -  .. _SEC-MINI-A:
 
 	  ``SEC_MINI_A``
 
@@ -69,7 +69,7 @@ enum fe_sec_mini_cmd
 
     -  .. row 3
 
-       -  .. _`SEC-MINI-B`:
+       -  .. _SEC-MINI-B:
 
 	  ``SEC_MINI_B``
 

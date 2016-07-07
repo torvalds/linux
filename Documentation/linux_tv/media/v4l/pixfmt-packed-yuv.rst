@@ -115,7 +115,7 @@ component of each pixel in one 16 or 32 bit word.
 
        -  0
 
-    -  .. _`V4L2-PIX-FMT-YUV444`:
+    -  .. _V4L2-PIX-FMT-YUV444:
 
        -  ``V4L2_PIX_FMT_YUV444``
 
@@ -155,7 +155,7 @@ component of each pixel in one 16 or 32 bit word.
 
        -  Y'\ :sub:`0`
 
-    -  .. _`V4L2-PIX-FMT-YUV555`:
+    -  .. _V4L2-PIX-FMT-YUV555:
 
        -  ``V4L2_PIX_FMT_YUV555``
 
@@ -195,7 +195,7 @@ component of each pixel in one 16 or 32 bit word.
 
        -  Cb\ :sub:`3`
 
-    -  .. _`V4L2-PIX-FMT-YUV565`:
+    -  .. _V4L2-PIX-FMT-YUV565:
 
        -  ``V4L2_PIX_FMT_YUV565``
 
@@ -235,7 +235,7 @@ component of each pixel in one 16 or 32 bit word.
 
        -  Cb\ :sub:`3`
 
-    -  .. _`V4L2-PIX-FMT-YUV32`:
+    -  .. _V4L2-PIX-FMT-YUV32:
 
        -  ``V4L2_PIX_FMT_YUV32``
 

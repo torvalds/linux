@@ -91,7 +91,7 @@ modulations are supported by a given standard.
 
     -  .. row 2
 
-       -  .. _`QPSK`:
+       -  .. _QPSK:
 
 	  ``QPSK``
 
@@ -99,7 +99,7 @@ modulations are supported by a given standard.
 
     -  .. row 3
 
-       -  .. _`QAM-16`:
+       -  .. _QAM-16:
 
 	  ``QAM_16``
 
@@ -107,7 +107,7 @@ modulations are supported by a given standard.
 
     -  .. row 4
 
-       -  .. _`QAM-32`:
+       -  .. _QAM-32:
 
 	  ``QAM_32``
 
@@ -115,7 +115,7 @@ modulations are supported by a given standard.
 
     -  .. row 5
 
-       -  .. _`QAM-64`:
+       -  .. _QAM-64:
 
 	  ``QAM_64``
 
@@ -123,7 +123,7 @@ modulations are supported by a given standard.
 
     -  .. row 6
 
-       -  .. _`QAM-128`:
+       -  .. _QAM-128:
 
 	  ``QAM_128``
 
@@ -131,7 +131,7 @@ modulations are supported by a given standard.
 
     -  .. row 7
 
-       -  .. _`QAM-256`:
+       -  .. _QAM-256:
 
 	  ``QAM_256``
 
@@ -139,7 +139,7 @@ modulations are supported by a given standard.
 
     -  .. row 8
 
-       -  .. _`QAM-AUTO`:
+       -  .. _QAM-AUTO:
 
 	  ``QAM_AUTO``
 
@@ -147,7 +147,7 @@ modulations are supported by a given standard.
 
     -  .. row 9
 
-       -  .. _`VSB-8`:
+       -  .. _VSB-8:
 
 	  ``VSB_8``
 
@@ -155,7 +155,7 @@ modulations are supported by a given standard.
 
     -  .. row 10
 
-       -  .. _`VSB-16`:
+       -  .. _VSB-16:
 
 	  ``VSB_16``
 
@@ -163,7 +163,7 @@ modulations are supported by a given standard.
 
     -  .. row 11
 
-       -  .. _`PSK-8`:
+       -  .. _PSK-8:
 
 	  ``PSK_8``
 
@@ -171,7 +171,7 @@ modulations are supported by a given standard.
 
     -  .. row 12
 
-       -  .. _`APSK-16`:
+       -  .. _APSK-16:
 
 	  ``APSK_16``
 
@@ -179,7 +179,7 @@ modulations are supported by a given standard.
 
     -  .. row 13
 
-       -  .. _`APSK-32`:
+       -  .. _APSK-32:
 
 	  ``APSK_32``
 
@@ -187,7 +187,7 @@ modulations are supported by a given standard.
 
     -  .. row 14
 
-       -  .. _`DQPSK`:
+       -  .. _DQPSK:
 
 	  ``DQPSK``
 
@@ -195,7 +195,7 @@ modulations are supported by a given standard.
 
     -  .. row 15
 
-       -  .. _`QAM-4-NR`:
+       -  .. _QAM-4-NR:
 
 	  ``QAM_4_NR``
 
@@ -267,7 +267,7 @@ inversion off. If it fails, it will try to enable inversion.
 
     -  .. row 2
 
-       -  .. _`INVERSION-OFF`:
+       -  .. _INVERSION-OFF:
 
 	  ``INVERSION_OFF``
 
@@ -275,7 +275,7 @@ inversion off. If it fails, it will try to enable inversion.
 
     -  .. row 3
 
-       -  .. _`INVERSION-ON`:
+       -  .. _INVERSION-ON:
 
 	  ``INVERSION_ON``
 
@@ -283,7 +283,7 @@ inversion off. If it fails, it will try to enable inversion.
 
     -  .. row 4
 
-       -  .. _`INVERSION-AUTO`:
+       -  .. _INVERSION-AUTO:
 
 	  ``INVERSION_AUTO``
 
@@ -337,7 +337,7 @@ enum fe_code_rate: type of the Forward Error Correction.
 
     -  .. row 2
 
-       -  .. _`FEC-NONE`:
+       -  .. _FEC-NONE:
 
 	  ``FEC_NONE``
 
@@ -345,7 +345,7 @@ enum fe_code_rate: type of the Forward Error Correction.
 
     -  .. row 3
 
-       -  .. _`FEC-AUTO`:
+       -  .. _FEC-AUTO:
 
 	  ``FEC_AUTO``
 
@@ -353,7 +353,7 @@ enum fe_code_rate: type of the Forward Error Correction.
 
     -  .. row 4
 
-       -  .. _`FEC-1-2`:
+       -  .. _FEC-1-2:
 
 	  ``FEC_1_2``
 
@@ -361,7 +361,7 @@ enum fe_code_rate: type of the Forward Error Correction.
 
     -  .. row 5
 
-       -  .. _`FEC-2-3`:
+       -  .. _FEC-2-3:
 
 	  ``FEC_2_3``
 
@@ -369,7 +369,7 @@ enum fe_code_rate: type of the Forward Error Correction.
 
     -  .. row 6
 
-       -  .. _`FEC-3-4`:
+       -  .. _FEC-3-4:
 
 	  ``FEC_3_4``
 
@@ -377,7 +377,7 @@ enum fe_code_rate: type of the Forward Error Correction.
 
     -  .. row 7
 
-       -  .. _`FEC-4-5`:
+       -  .. _FEC-4-5:
 
 	  ``FEC_4_5``
 
@@ -385,7 +385,7 @@ enum fe_code_rate: type of the Forward Error Correction.
 
     -  .. row 8
 
-       -  .. _`FEC-5-6`:
+       -  .. _FEC-5-6:
 
 	  ``FEC_5_6``
 
@@ -393,7 +393,7 @@ enum fe_code_rate: type of the Forward Error Correction.
 
     -  .. row 9
 
-       -  .. _`FEC-6-7`:
+       -  .. _FEC-6-7:
 
 	  ``FEC_6_7``
 
@@ -401,7 +401,7 @@ enum fe_code_rate: type of the Forward Error Correction.
 
     -  .. row 10
 
-       -  .. _`FEC-7-8`:
+       -  .. _FEC-7-8:
 
 	  ``FEC_7_8``
 
@@ -409,7 +409,7 @@ enum fe_code_rate: type of the Forward Error Correction.
 
     -  .. row 11
 
-       -  .. _`FEC-8-9`:
+       -  .. _FEC-8-9:
 
 	  ``FEC_8_9``
 
@@ -417,7 +417,7 @@ enum fe_code_rate: type of the Forward Error Correction.
 
     -  .. row 12
 
-       -  .. _`FEC-9-10`:
+       -  .. _FEC-9-10:
 
 	  ``FEC_9_10``
 
@@ -425,7 +425,7 @@ enum fe_code_rate: type of the Forward Error Correction.
 
     -  .. row 13
 
-       -  .. _`FEC-2-5`:
+       -  .. _FEC-2-5:
 
 	  ``FEC_2_5``
 
@@ -433,7 +433,7 @@ enum fe_code_rate: type of the Forward Error Correction.
 
     -  .. row 14
 
-       -  .. _`FEC-3-5`:
+       -  .. _FEC-3-5:
 
 	  ``FEC_3_5``
 
@@ -467,7 +467,7 @@ described in the DiSEqC spec.
 
     -  .. row 2
 
-       -  .. _`SEC-VOLTAGE-13`:
+       -  .. _SEC-VOLTAGE-13:
 
 	  ``SEC_VOLTAGE_13``
 
@@ -475,7 +475,7 @@ described in the DiSEqC spec.
 
     -  .. row 3
 
-       -  .. _`SEC-VOLTAGE-18`:
+       -  .. _SEC-VOLTAGE-18:
 
 	  ``SEC_VOLTAGE_18``
 
@@ -483,7 +483,7 @@ described in the DiSEqC spec.
 
     -  .. row 4
 
-       -  .. _`SEC-VOLTAGE-OFF`:
+       -  .. _SEC-VOLTAGE-OFF:
 
 	  ``SEC_VOLTAGE_OFF``
 
@@ -528,7 +528,7 @@ fe_pilot type
 
     -  .. row 2
 
-       -  .. _`PILOT-ON`:
+       -  .. _PILOT-ON:
 
 	  ``PILOT_ON``
 
@@ -536,7 +536,7 @@ fe_pilot type
 
     -  .. row 3
 
-       -  .. _`PILOT-OFF`:
+       -  .. _PILOT-OFF:
 
 	  ``PILOT_OFF``
 
@@ -544,7 +544,7 @@ fe_pilot type
 
     -  .. row 4
 
-       -  .. _`PILOT-AUTO`:
+       -  .. _PILOT-AUTO:
 
 	  ``PILOT_AUTO``
 
@@ -581,7 +581,7 @@ fe_rolloff type
 
     -  .. row 2
 
-       -  .. _`ROLLOFF-35`:
+       -  .. _ROLLOFF-35:
 
 	  ``ROLLOFF_35``
 
@@ -589,7 +589,7 @@ fe_rolloff type
 
     -  .. row 3
 
-       -  .. _`ROLLOFF-20`:
+       -  .. _ROLLOFF-20:
 
 	  ``ROLLOFF_20``
 
@@ -597,7 +597,7 @@ fe_rolloff type
 
     -  .. row 4
 
-       -  .. _`ROLLOFF-25`:
+       -  .. _ROLLOFF-25:
 
 	  ``ROLLOFF_25``
 
@@ -605,7 +605,7 @@ fe_rolloff type
 
     -  .. row 5
 
-       -  .. _`ROLLOFF-AUTO`:
+       -  .. _ROLLOFF-AUTO:
 
 	  ``ROLLOFF_AUTO``
 
@@ -668,7 +668,7 @@ Possible values:
 
     -  .. row 2
 
-       -  .. _`SYS-UNDEFINED`:
+       -  .. _SYS-UNDEFINED:
 
 	  ``SYS_UNDEFINED``
 
@@ -676,7 +676,7 @@ Possible values:
 
     -  .. row 3
 
-       -  .. _`SYS-DVBC-ANNEX-A`:
+       -  .. _SYS-DVBC-ANNEX-A:
 
 	  ``SYS_DVBC_ANNEX_A``
 
@@ -684,7 +684,7 @@ Possible values:
 
     -  .. row 4
 
-       -  .. _`SYS-DVBC-ANNEX-B`:
+       -  .. _SYS-DVBC-ANNEX-B:
 
 	  ``SYS_DVBC_ANNEX_B``
 
@@ -692,7 +692,7 @@ Possible values:
 
     -  .. row 5
 
-       -  .. _`SYS-DVBC-ANNEX-C`:
+       -  .. _SYS-DVBC-ANNEX-C:
 
 	  ``SYS_DVBC_ANNEX_C``
 
@@ -700,7 +700,7 @@ Possible values:
 
     -  .. row 6
 
-       -  .. _`SYS-ISDBC`:
+       -  .. _SYS-ISDBC:
 
 	  ``SYS_ISDBC``
 
@@ -708,7 +708,7 @@ Possible values:
 
     -  .. row 7
 
-       -  .. _`SYS-DVBT`:
+       -  .. _SYS-DVBT:
 
 	  ``SYS_DVBT``
 
@@ -716,7 +716,7 @@ Possible values:
 
     -  .. row 8
 
-       -  .. _`SYS-DVBT2`:
+       -  .. _SYS-DVBT2:
 
 	  ``SYS_DVBT2``
 
@@ -724,7 +724,7 @@ Possible values:
 
     -  .. row 9
 
-       -  .. _`SYS-ISDBT`:
+       -  .. _SYS-ISDBT:
 
 	  ``SYS_ISDBT``
 
@@ -732,7 +732,7 @@ Possible values:
 
     -  .. row 10
 
-       -  .. _`SYS-ATSC`:
+       -  .. _SYS-ATSC:
 
 	  ``SYS_ATSC``
 
@@ -740,7 +740,7 @@ Possible values:
 
     -  .. row 11
 
-       -  .. _`SYS-ATSCMH`:
+       -  .. _SYS-ATSCMH:
 
 	  ``SYS_ATSCMH``
 
@@ -748,7 +748,7 @@ Possible values:
 
     -  .. row 12
 
-       -  .. _`SYS-DTMB`:
+       -  .. _SYS-DTMB:
 
 	  ``SYS_DTMB``
 
@@ -756,7 +756,7 @@ Possible values:
 
     -  .. row 13
 
-       -  .. _`SYS-DVBS`:
+       -  .. _SYS-DVBS:
 
 	  ``SYS_DVBS``
 
@@ -764,7 +764,7 @@ Possible values:
 
     -  .. row 14
 
-       -  .. _`SYS-DVBS2`:
+       -  .. _SYS-DVBS2:
 
 	  ``SYS_DVBS2``
 
@@ -772,7 +772,7 @@ Possible values:
 
     -  .. row 15
 
-       -  .. _`SYS-TURBO`:
+       -  .. _SYS-TURBO:
 
 	  ``SYS_TURBO``
 
@@ -780,7 +780,7 @@ Possible values:
 
     -  .. row 16
 
-       -  .. _`SYS-ISDBS`:
+       -  .. _SYS-ISDBS:
 
 	  ``SYS_ISDBS``
 
@@ -788,7 +788,7 @@ Possible values:
 
     -  .. row 17
 
-       -  .. _`SYS-DAB`:
+       -  .. _SYS-DAB:
 
 	  ``SYS_DAB``
 
@@ -796,7 +796,7 @@ Possible values:
 
     -  .. row 18
 
-       -  .. _`SYS-DSS`:
+       -  .. _SYS-DSS:
 
 	  ``SYS_DSS``
 
@@ -804,7 +804,7 @@ Possible values:
 
     -  .. row 19
 
-       -  .. _`SYS-CMMB`:
+       -  .. _SYS-CMMB:
 
 	  ``SYS_CMMB``
 
@@ -812,7 +812,7 @@ Possible values:
 
     -  .. row 20
 
-       -  .. _`SYS-DVBH`:
+       -  .. _SYS-DVBH:
 
 	  ``SYS_DVBH``
 
@@ -1238,7 +1238,7 @@ Possible values are:
 
     -  .. row 2
 
-       -  .. _`ATSCMH-RSFRAME-PRI-ONLY`:
+       -  .. _ATSCMH-RSFRAME-PRI-ONLY:
 
 	  ``ATSCMH_RSFRAME_PRI_ONLY``
 
@@ -1247,7 +1247,7 @@ Possible values are:
 
     -  .. row 3
 
-       -  .. _`ATSCMH-RSFRAME-PRI-SEC`:
+       -  .. _ATSCMH-RSFRAME-PRI-SEC:
 
 	  ``ATSCMH_RSFRAME_PRI_SEC``
 
@@ -1282,7 +1282,7 @@ Possible values are:
 
     -  .. row 2
 
-       -  .. _`ATSCMH-RSFRAME-ENS-PRI`:
+       -  .. _ATSCMH-RSFRAME-ENS-PRI:
 
 	  ``ATSCMH_RSFRAME_ENS_PRI``
 
@@ -1290,7 +1290,7 @@ Possible values are:
 
     -  .. row 3
 
-       -  .. _`ATSCMH-RSFRAME-ENS-SEC`:
+       -  .. _ATSCMH-RSFRAME-ENS-SEC:
 
 	  ``AATSCMH_RSFRAME_PRI_SEC``
 
@@ -1298,7 +1298,7 @@ Possible values are:
 
     -  .. row 4
 
-       -  .. _`ATSCMH-RSFRAME-RES`:
+       -  .. _ATSCMH-RSFRAME-RES:
 
 	  ``AATSCMH_RSFRAME_RES``
 
@@ -1331,7 +1331,7 @@ Possible values are:
 
     -  .. row 2
 
-       -  .. _`ATSCMH-RSCODE-211-187`:
+       -  .. _ATSCMH-RSCODE-211-187:
 
 	  ``ATSCMH_RSCODE_211_187``
 
@@ -1339,7 +1339,7 @@ Possible values are:
 
     -  .. row 3
 
-       -  .. _`ATSCMH-RSCODE-223-187`:
+       -  .. _ATSCMH-RSCODE-223-187:
 
 	  ``ATSCMH_RSCODE_223_187``
 
@@ -1347,7 +1347,7 @@ Possible values are:
 
     -  .. row 4
 
-       -  .. _`ATSCMH-RSCODE-235-187`:
+       -  .. _ATSCMH-RSCODE-235-187:
 
 	  ``ATSCMH_RSCODE_235_187``
 
@@ -1355,7 +1355,7 @@ Possible values are:
 
     -  .. row 5
 
-       -  .. _`ATSCMH-RSCODE-RES`:
+       -  .. _ATSCMH-RSCODE-RES:
 
 	  ``ATSCMH_RSCODE_RES``
 
@@ -1399,7 +1399,7 @@ Possible values are:
 
     -  .. row 2
 
-       -  .. _`ATSCMH-SCCC-BLK-SEP`:
+       -  .. _ATSCMH-SCCC-BLK-SEP:
 
 	  ``ATSCMH_SCCC_BLK_SEP``
 
@@ -1408,7 +1408,7 @@ Possible values are:
 
     -  .. row 3
 
-       -  .. _`ATSCMH-SCCC-BLK-COMB`:
+       -  .. _ATSCMH-SCCC-BLK-COMB:
 
 	  ``ATSCMH_SCCC_BLK_COMB``
 
@@ -1417,7 +1417,7 @@ Possible values are:
 
     -  .. row 4
 
-       -  .. _`ATSCMH-SCCC-BLK-RES`:
+       -  .. _ATSCMH-SCCC-BLK-RES:
 
 	  ``ATSCMH_SCCC_BLK_RES``
 
@@ -1450,7 +1450,7 @@ Possible values are:
 
     -  .. row 2
 
-       -  .. _`ATSCMH-SCCC-CODE-HLF`:
+       -  .. _ATSCMH-SCCC-CODE-HLF:
 
 	  ``ATSCMH_SCCC_CODE_HLF``
 
@@ -1458,7 +1458,7 @@ Possible values are:
 
     -  .. row 3
 
-       -  .. _`ATSCMH-SCCC-CODE-QTR`:
+       -  .. _ATSCMH-SCCC-CODE-QTR:
 
 	  ``ATSCMH_SCCC_CODE_QTR``
 
@@ -1466,7 +1466,7 @@ Possible values are:
 
     -  .. row 4
 
-       -  .. _`ATSCMH-SCCC-CODE-RES`:
+       -  .. _ATSCMH-SCCC-CODE-RES:
 
 	  ``ATSCMH_SCCC_CODE_RES``
 
@@ -1562,7 +1562,7 @@ Modulation guard interval
 
     -  .. row 2
 
-       -  .. _`GUARD-INTERVAL-AUTO`:
+       -  .. _GUARD-INTERVAL-AUTO:
 
 	  ``GUARD_INTERVAL_AUTO``
 
@@ -1570,7 +1570,7 @@ Modulation guard interval
 
     -  .. row 3
 
-       -  .. _`GUARD-INTERVAL-1-128`:
+       -  .. _GUARD-INTERVAL-1-128:
 
 	  ``GUARD_INTERVAL_1_128``
 
@@ -1578,7 +1578,7 @@ Modulation guard interval
 
     -  .. row 4
 
-       -  .. _`GUARD-INTERVAL-1-32`:
+       -  .. _GUARD-INTERVAL-1-32:
 
 	  ``GUARD_INTERVAL_1_32``
 
@@ -1586,7 +1586,7 @@ Modulation guard interval
 
     -  .. row 5
 
-       -  .. _`GUARD-INTERVAL-1-16`:
+       -  .. _GUARD-INTERVAL-1-16:
 
 	  ``GUARD_INTERVAL_1_16``
 
@@ -1594,7 +1594,7 @@ Modulation guard interval
 
     -  .. row 6
 
-       -  .. _`GUARD-INTERVAL-1-8`:
+       -  .. _GUARD-INTERVAL-1-8:
 
 	  ``GUARD_INTERVAL_1_8``
 
@@ -1602,7 +1602,7 @@ Modulation guard interval
 
     -  .. row 7
 
-       -  .. _`GUARD-INTERVAL-1-4`:
+       -  .. _GUARD-INTERVAL-1-4:
 
 	  ``GUARD_INTERVAL_1_4``
 
@@ -1610,7 +1610,7 @@ Modulation guard interval
 
     -  .. row 8
 
-       -  .. _`GUARD-INTERVAL-19-128`:
+       -  .. _GUARD-INTERVAL-19-128:
 
 	  ``GUARD_INTERVAL_19_128``
 
@@ -1618,7 +1618,7 @@ Modulation guard interval
 
     -  .. row 9
 
-       -  .. _`GUARD-INTERVAL-19-256`:
+       -  .. _GUARD-INTERVAL-19-256:
 
 	  ``GUARD_INTERVAL_19_256``
 
@@ -1626,7 +1626,7 @@ Modulation guard interval
 
     -  .. row 10
 
-       -  .. _`GUARD-INTERVAL-PN420`:
+       -  .. _GUARD-INTERVAL-PN420:
 
 	  ``GUARD_INTERVAL_PN420``
 
@@ -1634,7 +1634,7 @@ Modulation guard interval
 
     -  .. row 11
 
-       -  .. _`GUARD-INTERVAL-PN595`:
+       -  .. _GUARD-INTERVAL-PN595:
 
 	  ``GUARD_INTERVAL_PN595``
 
@@ -1642,7 +1642,7 @@ Modulation guard interval
 
     -  .. row 12
 
-       -  .. _`GUARD-INTERVAL-PN945`:
+       -  .. _GUARD-INTERVAL-PN945:
 
 	  ``GUARD_INTERVAL_PN945``
 
@@ -1691,7 +1691,7 @@ enum fe_transmit_mode: Number of carriers per channel
 
     -  .. row 2
 
-       -  .. _`TRANSMISSION-MODE-AUTO`:
+       -  .. _TRANSMISSION-MODE-AUTO:
 
 	  ``TRANSMISSION_MODE_AUTO``
 
@@ -1700,7 +1700,7 @@ enum fe_transmit_mode: Number of carriers per channel
 
     -  .. row 3
 
-       -  .. _`TRANSMISSION-MODE-1K`:
+       -  .. _TRANSMISSION-MODE-1K:
 
 	  ``TRANSMISSION_MODE_1K``
 
@@ -1708,7 +1708,7 @@ enum fe_transmit_mode: Number of carriers per channel
 
     -  .. row 4
 
-       -  .. _`TRANSMISSION-MODE-2K`:
+       -  .. _TRANSMISSION-MODE-2K:
 
 	  ``TRANSMISSION_MODE_2K``
 
@@ -1716,7 +1716,7 @@ enum fe_transmit_mode: Number of carriers per channel
 
     -  .. row 5
 
-       -  .. _`TRANSMISSION-MODE-8K`:
+       -  .. _TRANSMISSION-MODE-8K:
 
 	  ``TRANSMISSION_MODE_8K``
 
@@ -1724,7 +1724,7 @@ enum fe_transmit_mode: Number of carriers per channel
 
     -  .. row 6
 
-       -  .. _`TRANSMISSION-MODE-4K`:
+       -  .. _TRANSMISSION-MODE-4K:
 
 	  ``TRANSMISSION_MODE_4K``
 
@@ -1732,7 +1732,7 @@ enum fe_transmit_mode: Number of carriers per channel
 
     -  .. row 7
 
-       -  .. _`TRANSMISSION-MODE-16K`:
+       -  .. _TRANSMISSION-MODE-16K:
 
 	  ``TRANSMISSION_MODE_16K``
 
@@ -1740,7 +1740,7 @@ enum fe_transmit_mode: Number of carriers per channel
 
     -  .. row 8
 
-       -  .. _`TRANSMISSION-MODE-32K`:
+       -  .. _TRANSMISSION-MODE-32K:
 
 	  ``TRANSMISSION_MODE_32K``
 
@@ -1748,7 +1748,7 @@ enum fe_transmit_mode: Number of carriers per channel
 
     -  .. row 9
 
-       -  .. _`TRANSMISSION-MODE-C1`:
+       -  .. _TRANSMISSION-MODE-C1:
 
 	  ``TRANSMISSION_MODE_C1``
 
@@ -1756,7 +1756,7 @@ enum fe_transmit_mode: Number of carriers per channel
 
     -  .. row 10
 
-       -  .. _`TRANSMISSION-MODE-C3780`:
+       -  .. _TRANSMISSION-MODE-C3780:
 
 	  ``TRANSMISSION_MODE_C3780``
 
@@ -1808,7 +1808,7 @@ Frontend hierarchy
 
     -  .. row 2
 
-       -  .. _`HIERARCHY-NONE`:
+       -  .. _HIERARCHY-NONE:
 
 	  ``HIERARCHY_NONE``
 
@@ -1816,7 +1816,7 @@ Frontend hierarchy
 
     -  .. row 3
 
-       -  .. _`HIERARCHY-AUTO`:
+       -  .. _HIERARCHY-AUTO:
 
 	  ``HIERARCHY_AUTO``
 
@@ -1824,7 +1824,7 @@ Frontend hierarchy
 
     -  .. row 4
 
-       -  .. _`HIERARCHY-1`:
+       -  .. _HIERARCHY-1:
 
 	  ``HIERARCHY_1``
 
@@ -1832,7 +1832,7 @@ Frontend hierarchy
 
     -  .. row 5
 
-       -  .. _`HIERARCHY-2`:
+       -  .. _HIERARCHY-2:
 
 	  ``HIERARCHY_2``
 
@@ -1840,7 +1840,7 @@ Frontend hierarchy
 
     -  .. row 6
 
-       -  .. _`HIERARCHY-4`:
+       -  .. _HIERARCHY-4:
 
 	  ``HIERARCHY_4``
 
@@ -1915,7 +1915,7 @@ Time interleaving to be used. Currently, used only on DTMB.
 
     -  .. row 2
 
-       -  .. _`INTERLEAVING-NONE`:
+       -  .. _INTERLEAVING-NONE:
 
 	  ``INTERLEAVING_NONE``
 
@@ -1923,7 +1923,7 @@ Time interleaving to be used. Currently, used only on DTMB.
 
     -  .. row 3
 
-       -  .. _`INTERLEAVING-AUTO`:
+       -  .. _INTERLEAVING-AUTO:
 
 	  ``INTERLEAVING_AUTO``
 
@@ -1931,7 +1931,7 @@ Time interleaving to be used. Currently, used only on DTMB.
 
     -  .. row 4
 
-       -  .. _`INTERLEAVING-240`:
+       -  .. _INTERLEAVING-240:
 
 	  ``INTERLEAVING_240``
 
@@ -1939,7 +1939,7 @@ Time interleaving to be used. Currently, used only on DTMB.
 
     -  .. row 5
 
-       -  .. _`INTERLEAVING-720`:
+       -  .. _INTERLEAVING-720:
 
 	  ``INTERLEAVING_720``
 

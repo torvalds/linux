@@ -67,7 +67,7 @@ enum fe_sec_tone_mode
 
     -  .. row 2
 
-       -  .. _`SEC-TONE-ON`:
+       -  .. _SEC-TONE-ON:
 
 	  ``SEC_TONE_ON``
 
@@ -75,7 +75,7 @@ enum fe_sec_tone_mode
 
     -  .. row 3
 
-       -  .. _`SEC-TONE-OFF`:
+       -  .. _SEC-TONE-OFF:
 
 	  ``SEC_TONE_OFF``
 

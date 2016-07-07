@@ -70,7 +70,7 @@ state changes of the frontend hardware. It is produced using the enum
 
     -  .. row 2
 
-       -  .. _`FE-HAS-SIGNAL`:
+       -  .. _FE-HAS-SIGNAL:
 
 	  ``FE_HAS_SIGNAL``
 
@@ -78,7 +78,7 @@ state changes of the frontend hardware. It is produced using the enum
 
     -  .. row 3
 
-       -  .. _`FE-HAS-CARRIER`:
+       -  .. _FE-HAS-CARRIER:
 
 	  ``FE_HAS_CARRIER``
 
@@ -86,7 +86,7 @@ state changes of the frontend hardware. It is produced using the enum
 
     -  .. row 4
 
-       -  .. _`FE-HAS-VITERBI`:
+       -  .. _FE-HAS-VITERBI:
 
 	  ``FE_HAS_VITERBI``
 
@@ -95,7 +95,7 @@ state changes of the frontend hardware. It is produced using the enum
 
     -  .. row 5
 
-       -  .. _`FE-HAS-SYNC`:
+       -  .. _FE-HAS-SYNC:
 
 	  ``FE_HAS_SYNC``
 
@@ -103,7 +103,7 @@ state changes of the frontend hardware. It is produced using the enum
 
     -  .. row 6
 
-       -  .. _`FE-HAS-LOCK`:
+       -  .. _FE-HAS-LOCK:
 
 	  ``FE_HAS_LOCK``
 
@@ -111,7 +111,7 @@ state changes of the frontend hardware. It is produced using the enum
 
     -  .. row 7
 
-       -  .. _`FE-TIMEDOUT`:
+       -  .. _FE-TIMEDOUT:
 
 	  ``FE_TIMEDOUT``
 
@@ -119,7 +119,7 @@ state changes of the frontend hardware. It is produced using the enum
 
     -  .. row 8
 
-       -  .. _`FE-REINIT`:
+       -  .. _FE-REINIT:
 
 	  ``FE_REINIT``
 

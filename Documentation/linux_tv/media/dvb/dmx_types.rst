@@ -28,7 +28,7 @@ Output for the demux
 
     -  .. row 2
 
-       -  .. _`DMX-OUT-DECODER`:
+       -  .. _DMX-OUT-DECODER:
 
 	  DMX_OUT_DECODER
 
@@ -36,7 +36,7 @@ Output for the demux
 
     -  .. row 3
 
-       -  .. _`DMX-OUT-TAP`:
+       -  .. _DMX-OUT-TAP:
 
 	  DMX_OUT_TAP
 
@@ -46,7 +46,7 @@ Output for the demux
 
     -  .. row 4
 
-       -  .. _`DMX-OUT-TS-TAP`:
+       -  .. _DMX-OUT-TS-TAP:
 
 	  DMX_OUT_TS_TAP
 
@@ -57,7 +57,7 @@ Output for the demux
 
     -  .. row 5
 
-       -  .. _`DMX-OUT-TSDEMUX-TAP`:
+       -  .. _DMX-OUT-TSDEMUX-TAP:
 
 	  DMX_OUT_TSDEMUX_TAP
 

@@ -33,7 +33,7 @@ please make a proposal on the linux-media mailing list.
 
        -  Details
 
-    -  .. _`V4L2-PIX-FMT-DV`:
+    -  .. _V4L2-PIX-FMT-DV:
 
        -  ``V4L2_PIX_FMT_DV``
 
@@ -41,7 +41,7 @@ please make a proposal on the linux-media mailing list.
 
        -  unknown
 
-    -  .. _`V4L2-PIX-FMT-ET61X251`:
+    -  .. _V4L2-PIX-FMT-ET61X251:
 
        -  ``V4L2_PIX_FMT_ET61X251``
 
@@ -49,7 +49,7 @@ please make a proposal on the linux-media mailing list.
 
        -  Compressed format of the ET61X251 driver.
 
-    -  .. _`V4L2-PIX-FMT-HI240`:
+    -  .. _V4L2-PIX-FMT-HI240:
 
        -  ``V4L2_PIX_FMT_HI240``
 
@@ -57,7 +57,7 @@ please make a proposal on the linux-media mailing list.
 
        -  8 bit RGB format used by the BTTV driver.
 
-    -  .. _`V4L2-PIX-FMT-HM12`:
+    -  .. _V4L2-PIX-FMT-HM12:
 
        -  ``V4L2_PIX_FMT_HM12``
 
@@ -69,7 +69,7 @@ please make a proposal on the linux-media mailing list.
 	  The format is documented in the kernel sources in the file
 	  ``Documentation/video4linux/cx2341x/README.hm12``
 
-    -  .. _`V4L2-PIX-FMT-CPIA1`:
+    -  .. _V4L2-PIX-FMT-CPIA1:
 
        -  ``V4L2_PIX_FMT_CPIA1``
 
@@ -77,7 +77,7 @@ please make a proposal on the linux-media mailing list.
 
        -  YUV format used by the gspca cpia1 driver.
 
-    -  .. _`V4L2-PIX-FMT-JPGL`:
+    -  .. _V4L2-PIX-FMT-JPGL:
 
        -  ``V4L2_PIX_FMT_JPGL``
 
@@ -86,7 +86,7 @@ please make a proposal on the linux-media mailing list.
        -  JPEG-Light format (Pegasus Lossless JPEG) used in Divio webcams NW
 	  80x.
 
-    -  .. _`V4L2-PIX-FMT-SPCA501`:
+    -  .. _V4L2-PIX-FMT-SPCA501:
 
        -  ``V4L2_PIX_FMT_SPCA501``
 
@@ -94,7 +94,7 @@ please make a proposal on the linux-media mailing list.
 
        -  YUYV per line used by the gspca driver.
 
-    -  .. _`V4L2-PIX-FMT-SPCA505`:
+    -  .. _V4L2-PIX-FMT-SPCA505:
 
        -  ``V4L2_PIX_FMT_SPCA505``
 
@@ -102,7 +102,7 @@ please make a proposal on the linux-media mailing list.
 
        -  YYUV per line used by the gspca driver.
 
-    -  .. _`V4L2-PIX-FMT-SPCA508`:
+    -  .. _V4L2-PIX-FMT-SPCA508:
 
        -  ``V4L2_PIX_FMT_SPCA508``
 
@@ -110,7 +110,7 @@ please make a proposal on the linux-media mailing list.
 
        -  YUVY per line used by the gspca driver.
 
-    -  .. _`V4L2-PIX-FMT-SPCA561`:
+    -  .. _V4L2-PIX-FMT-SPCA561:
 
        -  ``V4L2_PIX_FMT_SPCA561``
 
@@ -118,7 +118,7 @@ please make a proposal on the linux-media mailing list.
 
        -  Compressed GBRG Bayer format used by the gspca driver.
 
-    -  .. _`V4L2-PIX-FMT-PAC207`:
+    -  .. _V4L2-PIX-FMT-PAC207:
 
        -  ``V4L2_PIX_FMT_PAC207``
 
@@ -126,7 +126,7 @@ please make a proposal on the linux-media mailing list.
 
        -  Compressed BGGR Bayer format used by the gspca driver.
 
-    -  .. _`V4L2-PIX-FMT-MR97310A`:
+    -  .. _V4L2-PIX-FMT-MR97310A:
 
        -  ``V4L2_PIX_FMT_MR97310A``
 
@@ -134,7 +134,7 @@ please make a proposal on the linux-media mailing list.
 
        -  Compressed BGGR Bayer format used by the gspca driver.
 
-    -  .. _`V4L2-PIX-FMT-JL2005BCD`:
+    -  .. _V4L2-PIX-FMT-JL2005BCD:
 
        -  ``V4L2_PIX_FMT_JL2005BCD``
 
@@ -142,7 +142,7 @@ please make a proposal on the linux-media mailing list.
 
        -  JPEG compressed RGGB Bayer format used by the gspca driver.
 
-    -  .. _`V4L2-PIX-FMT-OV511`:
+    -  .. _V4L2-PIX-FMT-OV511:
 
        -  ``V4L2_PIX_FMT_OV511``
 
@@ -150,7 +150,7 @@ please make a proposal on the linux-media mailing list.
 
        -  OV511 JPEG format used by the gspca driver.
 
-    -  .. _`V4L2-PIX-FMT-OV518`:
+    -  .. _V4L2-PIX-FMT-OV518:
 
        -  ``V4L2_PIX_FMT_OV518``
 
@@ -158,7 +158,7 @@ please make a proposal on the linux-media mailing list.
 
        -  OV518 JPEG format used by the gspca driver.
 
-    -  .. _`V4L2-PIX-FMT-PJPG`:
+    -  .. _V4L2-PIX-FMT-PJPG:
 
        -  ``V4L2_PIX_FMT_PJPG``
 
@@ -166,7 +166,7 @@ please make a proposal on the linux-media mailing list.
 
        -  Pixart 73xx JPEG format used by the gspca driver.
 
-    -  .. _`V4L2-PIX-FMT-SE401`:
+    -  .. _V4L2-PIX-FMT-SE401:
 
        -  ``V4L2_PIX_FMT_SE401``
 
@@ -174,7 +174,7 @@ please make a proposal on the linux-media mailing list.
 
        -  Compressed RGB format used by the gspca se401 driver
 
-    -  .. _`V4L2-PIX-FMT-SQ905C`:
+    -  .. _V4L2-PIX-FMT-SQ905C:
 
        -  ``V4L2_PIX_FMT_SQ905C``
 
@@ -182,7 +182,7 @@ please make a proposal on the linux-media mailing list.
 
        -  Compressed RGGB bayer format used by the gspca driver.
 
-    -  .. _`V4L2-PIX-FMT-MJPEG`:
+    -  .. _V4L2-PIX-FMT-MJPEG:
 
        -  ``V4L2_PIX_FMT_MJPEG``
 
@@ -190,7 +190,7 @@ please make a proposal on the linux-media mailing list.
 
        -  Compressed format used by the Zoran driver
 
-    -  .. _`V4L2-PIX-FMT-PWC1`:
+    -  .. _V4L2-PIX-FMT-PWC1:
 
        -  ``V4L2_PIX_FMT_PWC1``
 
@@ -198,7 +198,7 @@ please make a proposal on the linux-media mailing list.
 
        -  Compressed format of the PWC driver.
 
-    -  .. _`V4L2-PIX-FMT-PWC2`:
+    -  .. _V4L2-PIX-FMT-PWC2:
 
        -  ``V4L2_PIX_FMT_PWC2``
 
@@ -206,7 +206,7 @@ please make a proposal on the linux-media mailing list.
 
        -  Compressed format of the PWC driver.
 
-    -  .. _`V4L2-PIX-FMT-SN9C10X`:
+    -  .. _V4L2-PIX-FMT-SN9C10X:
 
        -  ``V4L2_PIX_FMT_SN9C10X``
 
@@ -214,7 +214,7 @@ please make a proposal on the linux-media mailing list.
 
        -  Compressed format of the SN9C102 driver.
 
-    -  .. _`V4L2-PIX-FMT-SN9C20X-I420`:
+    -  .. _V4L2-PIX-FMT-SN9C20X-I420:
 
        -  ``V4L2_PIX_FMT_SN9C20X_I420``
 
@@ -222,7 +222,7 @@ please make a proposal on the linux-media mailing list.
 
        -  YUV 4:2:0 format of the gspca sn9c20x driver.
 
-    -  .. _`V4L2-PIX-FMT-SN9C2028`:
+    -  .. _V4L2-PIX-FMT-SN9C2028:
 
        -  ``V4L2_PIX_FMT_SN9C2028``
 
@@ -230,7 +230,7 @@ please make a proposal on the linux-media mailing list.
 
        -  Compressed GBRG bayer format of the gspca sn9c2028 driver.
 
-    -  .. _`V4L2-PIX-FMT-STV0680`:
+    -  .. _V4L2-PIX-FMT-STV0680:
 
        -  ``V4L2_PIX_FMT_STV0680``
 
@@ -238,7 +238,7 @@ please make a proposal on the linux-media mailing list.
 
        -  Bayer format of the gspca stv0680 driver.
 
-    -  .. _`V4L2-PIX-FMT-WNVA`:
+    -  .. _V4L2-PIX-FMT-WNVA:
 
        -  ``V4L2_PIX_FMT_WNVA``
 
@@ -247,7 +247,7 @@ please make a proposal on the linux-media mailing list.
        -  Used by the Winnov Videum driver,
 	  `http://www.thedirks.org/winnov/ <http://www.thedirks.org/winnov/>`__
 
-    -  .. _`V4L2-PIX-FMT-TM6000`:
+    -  .. _V4L2-PIX-FMT-TM6000:
 
        -  ``V4L2_PIX_FMT_TM6000``
 
@@ -255,7 +255,7 @@ please make a proposal on the linux-media mailing list.
 
        -  Used by Trident tm6000
 
-    -  .. _`V4L2-PIX-FMT-CIT-YYVYUY`:
+    -  .. _V4L2-PIX-FMT-CIT-YYVYUY:
 
        -  ``V4L2_PIX_FMT_CIT_YYVYUY``
 
@@ -265,7 +265,7 @@ please make a proposal on the linux-media mailing list.
 
 	  Uses one line of Y then 1 line of VYUY
 
-    -  .. _`V4L2-PIX-FMT-KONICA420`:
+    -  .. _V4L2-PIX-FMT-KONICA420:
 
        -  ``V4L2_PIX_FMT_KONICA420``
 
@@ -275,7 +275,7 @@ please make a proposal on the linux-media mailing list.
 
 	  YUV420 planar in blocks of 256 pixels.
 
-    -  .. _`V4L2-PIX-FMT-YYUV`:
+    -  .. _V4L2-PIX-FMT-YYUV:
 
        -  ``V4L2_PIX_FMT_YYUV``
 
@@ -283,7 +283,7 @@ please make a proposal on the linux-media mailing list.
 
        -  unknown
 
-    -  .. _`V4L2-PIX-FMT-Y4`:
+    -  .. _V4L2-PIX-FMT-Y4:
 
        -  ``V4L2_PIX_FMT_Y4``
 
@@ -292,7 +292,7 @@ please make a proposal on the linux-media mailing list.
        -  Old 4-bit greyscale format. Only the most significant 4 bits of
 	  each byte are used, the other bits are set to 0.
 
-    -  .. _`V4L2-PIX-FMT-Y6`:
+    -  .. _V4L2-PIX-FMT-Y6:
 
        -  ``V4L2_PIX_FMT_Y6``
 
@@ -301,7 +301,7 @@ please make a proposal on the linux-media mailing list.
        -  Old 6-bit greyscale format. Only the most significant 6 bits of
 	  each byte are used, the other bits are set to 0.
 
-    -  .. _`V4L2-PIX-FMT-S5C-UYVY-JPG`:
+    -  .. _V4L2-PIX-FMT-S5C-UYVY-JPG:
 
        -  ``V4L2_PIX_FMT_S5C_UYVY_JPG``
 

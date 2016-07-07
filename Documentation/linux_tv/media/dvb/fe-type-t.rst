@@ -30,7 +30,7 @@ fe_type_t type, defined as:
 
     -  .. row 2
 
-       -  .. _`FE-QPSK`:
+       -  .. _FE-QPSK:
 
 	  ``FE_QPSK``
 
@@ -40,7 +40,7 @@ fe_type_t type, defined as:
 
     -  .. row 3
 
-       -  .. _`FE-QAM`:
+       -  .. _FE-QAM:
 
 	  ``FE_QAM``
 
@@ -50,7 +50,7 @@ fe_type_t type, defined as:
 
     -  .. row 4
 
-       -  .. _`FE-OFDM`:
+       -  .. _FE-OFDM:
 
 	  ``FE_OFDM``
 
@@ -60,7 +60,7 @@ fe_type_t type, defined as:
 
     -  .. row 5
 
-       -  .. _`FE-ATSC`:
+       -  .. _FE-ATSC:
 
 	  ``FE_ATSC``
 

@@ -49,7 +49,7 @@ the palette, this must be done with ioctls of the Linux framebuffer API.
 
        -  0
 
-    -  .. _`V4L2-PIX-FMT-PAL8`:
+    -  .. _V4L2-PIX-FMT-PAL8:
 
        -  ``V4L2_PIX_FMT_PAL8``
 

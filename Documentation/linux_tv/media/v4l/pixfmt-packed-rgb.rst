@@ -115,7 +115,7 @@ next to each other in memory.
 
        -  0
 
-    -  .. _`V4L2-PIX-FMT-RGB332`:
+    -  .. _V4L2-PIX-FMT-RGB332:
 
        -  ``V4L2_PIX_FMT_RGB332``
 
@@ -138,7 +138,7 @@ next to each other in memory.
 
        -  b\ :sub:`0`
 
-    -  .. _`V4L2-PIX-FMT-ARGB444`:
+    -  .. _V4L2-PIX-FMT-ARGB444:
 
        -  ``V4L2_PIX_FMT_ARGB444``
 
@@ -178,7 +178,7 @@ next to each other in memory.
 
        -  r\ :sub:`0`
 
-    -  .. _`V4L2-PIX-FMT-XRGB444`:
+    -  .. _V4L2-PIX-FMT-XRGB444:
 
        -  ``V4L2_PIX_FMT_XRGB444``
 
@@ -218,7 +218,7 @@ next to each other in memory.
 
        -  r\ :sub:`0`
 
-    -  .. _`V4L2-PIX-FMT-ARGB555`:
+    -  .. _V4L2-PIX-FMT-ARGB555:
 
        -  ``V4L2_PIX_FMT_ARGB555``
 
@@ -258,7 +258,7 @@ next to each other in memory.
 
        -  g\ :sub:`3`
 
-    -  .. _`V4L2-PIX-FMT-XRGB555`:
+    -  .. _V4L2-PIX-FMT-XRGB555:
 
        -  ``V4L2_PIX_FMT_XRGB555``
 
@@ -298,7 +298,7 @@ next to each other in memory.
 
        -  g\ :sub:`3`
 
-    -  .. _`V4L2-PIX-FMT-RGB565`:
+    -  .. _V4L2-PIX-FMT-RGB565:
 
        -  ``V4L2_PIX_FMT_RGB565``
 
@@ -338,7 +338,7 @@ next to each other in memory.
 
        -  g\ :sub:`3`
 
-    -  .. _`V4L2-PIX-FMT-ARGB555X`:
+    -  .. _V4L2-PIX-FMT-ARGB555X:
 
        -  ``V4L2_PIX_FMT_ARGB555X``
 
@@ -378,7 +378,7 @@ next to each other in memory.
 
        -  b\ :sub:`0`
 
-    -  .. _`V4L2-PIX-FMT-XRGB555X`:
+    -  .. _V4L2-PIX-FMT-XRGB555X:
 
        -  ``V4L2_PIX_FMT_XRGB555X``
 
@@ -418,7 +418,7 @@ next to each other in memory.
 
        -  b\ :sub:`0`
 
-    -  .. _`V4L2-PIX-FMT-RGB565X`:
+    -  .. _V4L2-PIX-FMT-RGB565X:
 
        -  ``V4L2_PIX_FMT_RGB565X``
 
@@ -458,7 +458,7 @@ next to each other in memory.
 
        -  b\ :sub:`0`
 
-    -  .. _`V4L2-PIX-FMT-BGR24`:
+    -  .. _V4L2-PIX-FMT-BGR24:
 
        -  ``V4L2_PIX_FMT_BGR24``
 
@@ -515,7 +515,7 @@ next to each other in memory.
 
        -  r\ :sub:`0`
 
-    -  .. _`V4L2-PIX-FMT-RGB24`:
+    -  .. _V4L2-PIX-FMT-RGB24:
 
        -  ``V4L2_PIX_FMT_RGB24``
 
@@ -572,7 +572,7 @@ next to each other in memory.
 
        -  b\ :sub:`0`
 
-    -  .. _`V4L2-PIX-FMT-BGR666`:
+    -  .. _V4L2-PIX-FMT-BGR666:
 
        -  ``V4L2_PIX_FMT_BGR666``
 
@@ -646,7 +646,7 @@ next to each other in memory.
 
        -  -
 
-    -  .. _`V4L2-PIX-FMT-ABGR32`:
+    -  .. _V4L2-PIX-FMT-ABGR32:
 
        -  ``V4L2_PIX_FMT_ABGR32``
 
@@ -720,7 +720,7 @@ next to each other in memory.
 
        -  a\ :sub:`0`
 
-    -  .. _`V4L2-PIX-FMT-XBGR32`:
+    -  .. _V4L2-PIX-FMT-XBGR32:
 
        -  ``V4L2_PIX_FMT_XBGR32``
 
@@ -794,7 +794,7 @@ next to each other in memory.
 
        -  -
 
-    -  .. _`V4L2-PIX-FMT-ARGB32`:
+    -  .. _V4L2-PIX-FMT-ARGB32:
 
        -  ``V4L2_PIX_FMT_ARGB32``
 
@@ -868,7 +868,7 @@ next to each other in memory.
 
        -  b\ :sub:`0`
 
-    -  .. _`V4L2-PIX-FMT-XRGB32`:
+    -  .. _V4L2-PIX-FMT-XRGB32:
 
        -  ``V4L2_PIX_FMT_XRGB32``
 
@@ -1194,7 +1194,7 @@ either the corresponding ARGB or XRGB format, depending on the driver.
 
        -  0
 
-    -  .. _`V4L2-PIX-FMT-RGB444`:
+    -  .. _V4L2-PIX-FMT-RGB444:
 
        -  ``V4L2_PIX_FMT_RGB444``
 
@@ -1234,7 +1234,7 @@ either the corresponding ARGB or XRGB format, depending on the driver.
 
        -  r\ :sub:`0`
 
-    -  .. _`V4L2-PIX-FMT-RGB555`:
+    -  .. _V4L2-PIX-FMT-RGB555:
 
        -  ``V4L2_PIX_FMT_RGB555``
 
@@ -1274,7 +1274,7 @@ either the corresponding ARGB or XRGB format, depending on the driver.
 
        -  g\ :sub:`3`
 
-    -  .. _`V4L2-PIX-FMT-RGB555X`:
+    -  .. _V4L2-PIX-FMT-RGB555X:
 
        -  ``V4L2_PIX_FMT_RGB555X``
 
@@ -1314,7 +1314,7 @@ either the corresponding ARGB or XRGB format, depending on the driver.
 
        -  b\ :sub:`0`
 
-    -  .. _`V4L2-PIX-FMT-BGR32`:
+    -  .. _V4L2-PIX-FMT-BGR32:
 
        -  ``V4L2_PIX_FMT_BGR32``
 
@@ -1388,7 +1388,7 @@ either the corresponding ARGB or XRGB format, depending on the driver.
 
        -  a\ :sub:`0`
 
-    -  .. _`V4L2-PIX-FMT-RGB32`:
+    -  .. _V4L2-PIX-FMT-RGB32:
 
        -  ``V4L2_PIX_FMT_RGB32``
 

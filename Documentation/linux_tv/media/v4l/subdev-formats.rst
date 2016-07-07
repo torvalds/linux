@@ -240,7 +240,7 @@ The following tables list existing packed RGB formats.
 
        -  0
 
-    -  .. _`MEDIA-BUS-FMT-RGB444-1X12`:
+    -  .. _MEDIA-BUS-FMT-RGB444-1X12:
 
        -  MEDIA_BUS_FMT_RGB444_1X12
 
@@ -311,7 +311,7 @@ The following tables list existing packed RGB formats.
 
        -  b\ :sub:`0`
 
-    -  .. _`MEDIA-BUS-FMT-RGB444-2X8-PADHI-BE`:
+    -  .. _MEDIA-BUS-FMT-RGB444-2X8-PADHI-BE:
 
        -  MEDIA_BUS_FMT_RGB444_2X8_PADHI_BE
 
@@ -451,7 +451,7 @@ The following tables list existing packed RGB formats.
 
        -  b\ :sub:`0`
 
-    -  .. _`MEDIA-BUS-FMT-RGB444-2X8-PADHI-LE`:
+    -  .. _MEDIA-BUS-FMT-RGB444-2X8-PADHI-LE:
 
        -  MEDIA_BUS_FMT_RGB444_2X8_PADHI_LE
 
@@ -591,7 +591,7 @@ The following tables list existing packed RGB formats.
 
        -  r\ :sub:`0`
 
-    -  .. _`MEDIA-BUS-FMT-RGB555-2X8-PADHI-BE`:
+    -  .. _MEDIA-BUS-FMT-RGB555-2X8-PADHI-BE:
 
        -  MEDIA_BUS_FMT_RGB555_2X8_PADHI_BE
 
@@ -731,7 +731,7 @@ The following tables list existing packed RGB formats.
 
        -  b\ :sub:`0`
 
-    -  .. _`MEDIA-BUS-FMT-RGB555-2X8-PADHI-LE`:
+    -  .. _MEDIA-BUS-FMT-RGB555-2X8-PADHI-LE:
 
        -  MEDIA_BUS_FMT_RGB555_2X8_PADHI_LE
 
@@ -871,7 +871,7 @@ The following tables list existing packed RGB formats.
 
        -  g\ :sub:`3`
 
-    -  .. _`MEDIA-BUS-FMT-RGB565-1X16`:
+    -  .. _MEDIA-BUS-FMT-RGB565-1X16:
 
        -  MEDIA_BUS_FMT_RGB565_1X16
 
@@ -942,7 +942,7 @@ The following tables list existing packed RGB formats.
 
        -  b\ :sub:`0`
 
-    -  .. _`MEDIA-BUS-FMT-BGR565-2X8-BE`:
+    -  .. _MEDIA-BUS-FMT-BGR565-2X8-BE:
 
        -  MEDIA_BUS_FMT_BGR565_2X8_BE
 
@@ -1082,7 +1082,7 @@ The following tables list existing packed RGB formats.
 
        -  r\ :sub:`0`
 
-    -  .. _`MEDIA-BUS-FMT-BGR565-2X8-LE`:
+    -  .. _MEDIA-BUS-FMT-BGR565-2X8-LE:
 
        -  MEDIA_BUS_FMT_BGR565_2X8_LE
 
@@ -1222,7 +1222,7 @@ The following tables list existing packed RGB formats.
 
        -  g\ :sub:`3`
 
-    -  .. _`MEDIA-BUS-FMT-RGB565-2X8-BE`:
+    -  .. _MEDIA-BUS-FMT-RGB565-2X8-BE:
 
        -  MEDIA_BUS_FMT_RGB565_2X8_BE
 
@@ -1362,7 +1362,7 @@ The following tables list existing packed RGB formats.
 
        -  b\ :sub:`0`
 
-    -  .. _`MEDIA-BUS-FMT-RGB565-2X8-LE`:
+    -  .. _MEDIA-BUS-FMT-RGB565-2X8-LE:
 
        -  MEDIA_BUS_FMT_RGB565_2X8_LE
 
@@ -1502,7 +1502,7 @@ The following tables list existing packed RGB formats.
 
        -  g\ :sub:`3`
 
-    -  .. _`MEDIA-BUS-FMT-RGB666-1X18`:
+    -  .. _MEDIA-BUS-FMT-RGB666-1X18:
 
        -  MEDIA_BUS_FMT_RGB666_1X18
 
@@ -1573,7 +1573,7 @@ The following tables list existing packed RGB formats.
 
        -  b\ :sub:`0`
 
-    -  .. _`MEDIA-BUS-FMT-RBG888-1X24`:
+    -  .. _MEDIA-BUS-FMT-RBG888-1X24:
 
        -  MEDIA_BUS_FMT_RBG888_1X24
 
@@ -1644,7 +1644,7 @@ The following tables list existing packed RGB formats.
 
        -  g\ :sub:`0`
 
-    -  .. _`MEDIA-BUS-FMT-RGB666-1X24_CPADHI`:
+    -  .. _MEDIA-BUS-FMT-RGB666-1X24_CPADHI:
 
        -  MEDIA_BUS_FMT_RGB666_1X24_CPADHI
 
@@ -1715,7 +1715,7 @@ The following tables list existing packed RGB formats.
 
        -  b\ :sub:`0`
 
-    -  .. _`MEDIA-BUS-FMT-BGR888-1X24`:
+    -  .. _MEDIA-BUS-FMT-BGR888-1X24:
 
        -  MEDIA_BUS_FMT_BGR888_1X24
 
@@ -1786,7 +1786,7 @@ The following tables list existing packed RGB formats.
 
        -  r\ :sub:`0`
 
-    -  .. _`MEDIA-BUS-FMT-GBR888-1X24`:
+    -  .. _MEDIA-BUS-FMT-GBR888-1X24:
 
        -  MEDIA_BUS_FMT_GBR888_1X24
 
@@ -1857,7 +1857,7 @@ The following tables list existing packed RGB formats.
 
        -  r\ :sub:`0`
 
-    -  .. _`MEDIA-BUS-FMT-RGB888-1X24`:
+    -  .. _MEDIA-BUS-FMT-RGB888-1X24:
 
        -  MEDIA_BUS_FMT_RGB888_1X24
 
@@ -1928,7 +1928,7 @@ The following tables list existing packed RGB formats.
 
        -  b\ :sub:`0`
 
-    -  .. _`MEDIA-BUS-FMT-RGB888-2X12-BE`:
+    -  .. _MEDIA-BUS-FMT-RGB888-2X12-BE:
 
        -  MEDIA_BUS_FMT_RGB888_2X12_BE
 
@@ -2068,7 +2068,7 @@ The following tables list existing packed RGB formats.
 
        -  b\ :sub:`0`
 
-    -  .. _`MEDIA-BUS-FMT-RGB888-2X12-LE`:
+    -  .. _MEDIA-BUS-FMT-RGB888-2X12-LE:
 
        -  MEDIA_BUS_FMT_RGB888_2X12_LE
 
@@ -2208,7 +2208,7 @@ The following tables list existing packed RGB formats.
 
        -  g\ :sub:`4`
 
-    -  .. _`MEDIA-BUS-FMT-ARGB888-1X32`:
+    -  .. _MEDIA-BUS-FMT-ARGB888-1X32:
 
        -  MEDIA_BUS_FMT_ARGB888_1X32
 
@@ -2279,7 +2279,7 @@ The following tables list existing packed RGB formats.
 
        -  b\ :sub:`0`
 
-    -  .. _`MEDIA-BUS-FMT-RGB888-1X32-PADHI`:
+    -  .. _MEDIA-BUS-FMT-RGB888-1X32-PADHI:
 
        -  MEDIA_BUS_FMT_RGB888_1X32_PADHI
 
@@ -2393,7 +2393,7 @@ JEIDA defined bit mapping will be named
 
        -  0
 
-    -  .. _`MEDIA-BUS-FMT-RGB666-1X7X3-SPWG`:
+    -  .. _MEDIA-BUS-FMT-RGB666-1X7X3-SPWG:
 
        -  MEDIA_BUS_FMT_RGB666_1X7X3_SPWG
 
@@ -2500,7 +2500,7 @@ JEIDA defined bit mapping will be named
 
        -  r\ :sub:`0`
 
-    -  .. _`MEDIA-BUS-FMT-RGB888-1X7X4-SPWG`:
+    -  .. _MEDIA-BUS-FMT-RGB888-1X7X4-SPWG:
 
        -  MEDIA_BUS_FMT_RGB888_1X7X4_SPWG
 
@@ -2607,7 +2607,7 @@ JEIDA defined bit mapping will be named
 
        -  r\ :sub:`0`
 
-    -  .. _`MEDIA-BUS-FMT-RGB888-1X7X4-JEIDA`:
+    -  .. _MEDIA-BUS-FMT-RGB888-1X7X4-JEIDA:
 
        -  MEDIA_BUS_FMT_RGB888_1X7X4_JEIDA
 
@@ -2814,7 +2814,7 @@ organization is given as an example for the first pixel only.
 
        -  0
 
-    -  .. _`MEDIA-BUS-FMT-SBGGR8-1X8`:
+    -  .. _MEDIA-BUS-FMT-SBGGR8-1X8:
 
        -  MEDIA_BUS_FMT_SBGGR8_1X8
 
@@ -2845,7 +2845,7 @@ organization is given as an example for the first pixel only.
 
        -  b\ :sub:`0`
 
-    -  .. _`MEDIA-BUS-FMT-SGBRG8-1X8`:
+    -  .. _MEDIA-BUS-FMT-SGBRG8-1X8:
 
        -  MEDIA_BUS_FMT_SGBRG8_1X8
 
@@ -2876,7 +2876,7 @@ organization is given as an example for the first pixel only.
 
        -  g\ :sub:`0`
 
-    -  .. _`MEDIA-BUS-FMT-SGRBG8-1X8`:
+    -  .. _MEDIA-BUS-FMT-SGRBG8-1X8:
 
        -  MEDIA_BUS_FMT_SGRBG8_1X8
 
@@ -2907,7 +2907,7 @@ organization is given as an example for the first pixel only.
 
        -  g\ :sub:`0`
 
-    -  .. _`MEDIA-BUS-FMT-SRGGB8-1X8`:
+    -  .. _MEDIA-BUS-FMT-SRGGB8-1X8:
 
        -  MEDIA_BUS_FMT_SRGGB8_1X8
 
@@ -2938,7 +2938,7 @@ organization is given as an example for the first pixel only.
 
        -  r\ :sub:`0`
 
-    -  .. _`MEDIA-BUS-FMT-SBGGR10-ALAW8-1X8`:
+    -  .. _MEDIA-BUS-FMT-SBGGR10-ALAW8-1X8:
 
        -  MEDIA_BUS_FMT_SBGGR10_ALAW8_1X8
 
@@ -2969,7 +2969,7 @@ organization is given as an example for the first pixel only.
 
        -  b\ :sub:`0`
 
-    -  .. _`MEDIA-BUS-FMT-SGBRG10-ALAW8-1X8`:
+    -  .. _MEDIA-BUS-FMT-SGBRG10-ALAW8-1X8:
 
        -  MEDIA_BUS_FMT_SGBRG10_ALAW8_1X8
 
@@ -3000,7 +3000,7 @@ organization is given as an example for the first pixel only.
 
        -  g\ :sub:`0`
 
-    -  .. _`MEDIA-BUS-FMT-SGRBG10-ALAW8-1X8`:
+    -  .. _MEDIA-BUS-FMT-SGRBG10-ALAW8-1X8:
 
        -  MEDIA_BUS_FMT_SGRBG10_ALAW8_1X8
 
@@ -3031,7 +3031,7 @@ organization is given as an example for the first pixel only.
 
        -  g\ :sub:`0`
 
-    -  .. _`MEDIA-BUS-FMT-SRGGB10-ALAW8-1X8`:
+    -  .. _MEDIA-BUS-FMT-SRGGB10-ALAW8-1X8:
 
        -  MEDIA_BUS_FMT_SRGGB10_ALAW8_1X8
 
@@ -3062,7 +3062,7 @@ organization is given as an example for the first pixel only.
 
        -  r\ :sub:`0`
 
-    -  .. _`MEDIA-BUS-FMT-SBGGR10-DPCM8-1X8`:
+    -  .. _MEDIA-BUS-FMT-SBGGR10-DPCM8-1X8:
 
        -  MEDIA_BUS_FMT_SBGGR10_DPCM8_1X8
 
@@ -3093,7 +3093,7 @@ organization is given as an example for the first pixel only.
 
        -  b\ :sub:`0`
 
-    -  .. _`MEDIA-BUS-FMT-SGBRG10-DPCM8-1X8`:
+    -  .. _MEDIA-BUS-FMT-SGBRG10-DPCM8-1X8:
 
        -  MEDIA_BUS_FMT_SGBRG10_DPCM8_1X8
 
@@ -3124,7 +3124,7 @@ organization is given as an example for the first pixel only.
 
        -  g\ :sub:`0`
 
-    -  .. _`MEDIA-BUS-FMT-SGRBG10-DPCM8-1X8`:
+    -  .. _MEDIA-BUS-FMT-SGRBG10-DPCM8-1X8:
 
        -  MEDIA_BUS_FMT_SGRBG10_DPCM8_1X8
 
@@ -3155,7 +3155,7 @@ organization is given as an example for the first pixel only.
 
        -  g\ :sub:`0`
 
-    -  .. _`MEDIA-BUS-FMT-SRGGB10-DPCM8-1X8`:
+    -  .. _MEDIA-BUS-FMT-SRGGB10-DPCM8-1X8:
 
        -  MEDIA_BUS_FMT_SRGGB10_DPCM8_1X8
 
@@ -3186,7 +3186,7 @@ organization is given as an example for the first pixel only.
 
        -  r\ :sub:`0`
 
-    -  .. _`MEDIA-BUS-FMT-SBGGR10-2X8-PADHI-BE`:
+    -  .. _MEDIA-BUS-FMT-SBGGR10-2X8-PADHI-BE:
 
        -  MEDIA_BUS_FMT_SBGGR10_2X8_PADHI_BE
 
@@ -3246,7 +3246,7 @@ organization is given as an example for the first pixel only.
 
        -  b\ :sub:`0`
 
-    -  .. _`MEDIA-BUS-FMT-SBGGR10-2X8-PADHI-LE`:
+    -  .. _MEDIA-BUS-FMT-SBGGR10-2X8-PADHI-LE:
 
        -  MEDIA_BUS_FMT_SBGGR10_2X8_PADHI_LE
 
@@ -3306,7 +3306,7 @@ organization is given as an example for the first pixel only.
 
        -  b\ :sub:`8`
 
-    -  .. _`MEDIA-BUS-FMT-SBGGR10-2X8-PADLO-BE`:
+    -  .. _MEDIA-BUS-FMT-SBGGR10-2X8-PADLO-BE:
 
        -  MEDIA_BUS_FMT_SBGGR10_2X8_PADLO_BE
 
@@ -3366,7 +3366,7 @@ organization is given as an example for the first pixel only.
 
        -  0
 
-    -  .. _`MEDIA-BUS-FMT-SBGGR10-2X8-PADLO-LE`:
+    -  .. _MEDIA-BUS-FMT-SBGGR10-2X8-PADLO-LE:
 
        -  MEDIA_BUS_FMT_SBGGR10_2X8_PADLO_LE
 
@@ -3426,7 +3426,7 @@ organization is given as an example for the first pixel only.
 
        -  b\ :sub:`2`
 
-    -  .. _`MEDIA-BUS-FMT-SBGGR10-1X10`:
+    -  .. _MEDIA-BUS-FMT-SBGGR10-1X10:
 
        -  MEDIA_BUS_FMT_SBGGR10_1X10
 
@@ -3457,7 +3457,7 @@ organization is given as an example for the first pixel only.
 
        -  b\ :sub:`0`
 
-    -  .. _`MEDIA-BUS-FMT-SGBRG10-1X10`:
+    -  .. _MEDIA-BUS-FMT-SGBRG10-1X10:
 
        -  MEDIA_BUS_FMT_SGBRG10_1X10
 
@@ -3488,7 +3488,7 @@ organization is given as an example for the first pixel only.
 
        -  g\ :sub:`0`
 
-    -  .. _`MEDIA-BUS-FMT-SGRBG10-1X10`:
+    -  .. _MEDIA-BUS-FMT-SGRBG10-1X10:
 
        -  MEDIA_BUS_FMT_SGRBG10_1X10
 
@@ -3519,7 +3519,7 @@ organization is given as an example for the first pixel only.
 
        -  g\ :sub:`0`
 
-    -  .. _`MEDIA-BUS-FMT-SRGGB10-1X10`:
+    -  .. _MEDIA-BUS-FMT-SRGGB10-1X10:
 
        -  MEDIA_BUS_FMT_SRGGB10_1X10
 
@@ -3550,7 +3550,7 @@ organization is given as an example for the first pixel only.
 
        -  r\ :sub:`0`
 
-    -  .. _`MEDIA-BUS-FMT-SBGGR12-1X12`:
+    -  .. _MEDIA-BUS-FMT-SBGGR12-1X12:
 
        -  MEDIA_BUS_FMT_SBGGR12_1X12
 
@@ -3581,7 +3581,7 @@ organization is given as an example for the first pixel only.
 
        -  b\ :sub:`0`
 
-    -  .. _`MEDIA-BUS-FMT-SGBRG12-1X12`:
+    -  .. _MEDIA-BUS-FMT-SGBRG12-1X12:
 
        -  MEDIA_BUS_FMT_SGBRG12_1X12
 
@@ -3612,7 +3612,7 @@ organization is given as an example for the first pixel only.
 
        -  g\ :sub:`0`
 
-    -  .. _`MEDIA-BUS-FMT-SGRBG12-1X12`:
+    -  .. _MEDIA-BUS-FMT-SGRBG12-1X12:
 
        -  MEDIA_BUS_FMT_SGRBG12_1X12
 
@@ -3643,7 +3643,7 @@ organization is given as an example for the first pixel only.
 
        -  g\ :sub:`0`
 
-    -  .. _`MEDIA-BUS-FMT-SRGGB12-1X12`:
+    -  .. _MEDIA-BUS-FMT-SRGGB12-1X12:
 
        -  MEDIA_BUS_FMT_SRGGB12_1X12
 
@@ -3817,7 +3817,7 @@ the following codes.
 
        -  0
 
-    -  .. _`MEDIA-BUS-FMT-Y8-1X8`:
+    -  .. _MEDIA-BUS-FMT-Y8-1X8:
 
        -  MEDIA_BUS_FMT_Y8_1X8
 
@@ -3888,7 +3888,7 @@ the following codes.
 
        -  y\ :sub:`0`
 
-    -  .. _`MEDIA-BUS-FMT-UV8-1X8`:
+    -  .. _MEDIA-BUS-FMT-UV8-1X8:
 
        -  MEDIA_BUS_FMT_UV8_1X8
 
@@ -4028,7 +4028,7 @@ the following codes.
 
        -  v\ :sub:`0`
 
-    -  .. _`MEDIA-BUS-FMT-UYVY8-1_5X8`:
+    -  .. _MEDIA-BUS-FMT-UYVY8-1_5X8:
 
        -  MEDIA_BUS_FMT_UYVY8_1_5X8
 
@@ -4444,7 +4444,7 @@ the following codes.
 
        -  y\ :sub:`0`
 
-    -  .. _`MEDIA-BUS-FMT-VYUY8-1_5X8`:
+    -  .. _MEDIA-BUS-FMT-VYUY8-1_5X8:
 
        -  MEDIA_BUS_FMT_VYUY8_1_5X8
 
@@ -4860,7 +4860,7 @@ the following codes.
 
        -  y\ :sub:`0`
 
-    -  .. _`MEDIA-BUS-FMT-YUYV8-1_5X8`:
+    -  .. _MEDIA-BUS-FMT-YUYV8-1_5X8:
 
        -  MEDIA_BUS_FMT_YUYV8_1_5X8
 
@@ -5276,7 +5276,7 @@ the following codes.
 
        -  v\ :sub:`0`
 
-    -  .. _`MEDIA-BUS-FMT-YVYU8-1_5X8`:
+    -  .. _MEDIA-BUS-FMT-YVYU8-1_5X8:
 
        -  MEDIA_BUS_FMT_YVYU8_1_5X8
 
@@ -5692,7 +5692,7 @@ the following codes.
 
        -  u\ :sub:`0`
 
-    -  .. _`MEDIA-BUS-FMT-UYVY8-2X8`:
+    -  .. _MEDIA-BUS-FMT-UYVY8-2X8:
 
        -  MEDIA_BUS_FMT_UYVY8_2X8
 
@@ -5970,7 +5970,7 @@ the following codes.
 
        -  y\ :sub:`0`
 
-    -  .. _`MEDIA-BUS-FMT-VYUY8-2X8`:
+    -  .. _MEDIA-BUS-FMT-VYUY8-2X8:
 
        -  MEDIA_BUS_FMT_VYUY8_2X8
 
@@ -6248,7 +6248,7 @@ the following codes.
 
        -  y\ :sub:`0`
 
-    -  .. _`MEDIA-BUS-FMT-YUYV8-2X8`:
+    -  .. _MEDIA-BUS-FMT-YUYV8-2X8:
 
        -  MEDIA_BUS_FMT_YUYV8_2X8
 
@@ -6526,7 +6526,7 @@ the following codes.
 
        -  v\ :sub:`0`
 
-    -  .. _`MEDIA-BUS-FMT-YVYU8-2X8`:
+    -  .. _MEDIA-BUS-FMT-YVYU8-2X8:
 
        -  MEDIA_BUS_FMT_YVYU8_2X8
 
@@ -6804,7 +6804,7 @@ the following codes.
 
        -  u\ :sub:`0`
 
-    -  .. _`MEDIA-BUS-FMT-Y10-1X10`:
+    -  .. _MEDIA-BUS-FMT-Y10-1X10:
 
        -  MEDIA_BUS_FMT_Y10_1X10
 
@@ -6875,7 +6875,7 @@ the following codes.
 
        -  y\ :sub:`0`
 
-    -  .. _`MEDIA-BUS-FMT-UYVY10-2X10`:
+    -  .. _MEDIA-BUS-FMT-UYVY10-2X10:
 
        -  MEDIA_BUS_FMT_UYVY10_2X10
 
@@ -7153,7 +7153,7 @@ the following codes.
 
        -  y\ :sub:`0`
 
-    -  .. _`MEDIA-BUS-FMT-VYUY10-2X10`:
+    -  .. _MEDIA-BUS-FMT-VYUY10-2X10:
 
        -  MEDIA_BUS_FMT_VYUY10_2X10
 
@@ -7431,7 +7431,7 @@ the following codes.
 
        -  y\ :sub:`0`
 
-    -  .. _`MEDIA-BUS-FMT-YUYV10-2X10`:
+    -  .. _MEDIA-BUS-FMT-YUYV10-2X10:
 
        -  MEDIA_BUS_FMT_YUYV10_2X10
 
@@ -7709,7 +7709,7 @@ the following codes.
 
        -  v\ :sub:`0`
 
-    -  .. _`MEDIA-BUS-FMT-YVYU10-2X10`:
+    -  .. _MEDIA-BUS-FMT-YVYU10-2X10:
 
        -  MEDIA_BUS_FMT_YVYU10_2X10
 
@@ -7987,7 +7987,7 @@ the following codes.
 
        -  u\ :sub:`0`
 
-    -  .. _`MEDIA-BUS-FMT-Y12-1X12`:
+    -  .. _MEDIA-BUS-FMT-Y12-1X12:
 
        -  MEDIA_BUS_FMT_Y12_1X12
 
@@ -8058,7 +8058,7 @@ the following codes.
 
        -  y\ :sub:`0`
 
-    -  .. _`MEDIA-BUS-FMT-UYVY12-2X12`:
+    -  .. _MEDIA-BUS-FMT-UYVY12-2X12:
 
        -  MEDIA_BUS_FMT_UYVY12_2X12
 
@@ -8336,7 +8336,7 @@ the following codes.
 
        -  y\ :sub:`0`
 
-    -  .. _`MEDIA-BUS-FMT-VYUY12-2X12`:
+    -  .. _MEDIA-BUS-FMT-VYUY12-2X12:
 
        -  MEDIA_BUS_FMT_VYUY12_2X12
 
@@ -8614,7 +8614,7 @@ the following codes.
 
        -  y\ :sub:`0`
 
-    -  .. _`MEDIA-BUS-FMT-YUYV12-2X12`:
+    -  .. _MEDIA-BUS-FMT-YUYV12-2X12:
 
        -  MEDIA_BUS_FMT_YUYV12_2X12
 
@@ -8892,7 +8892,7 @@ the following codes.
 
        -  v\ :sub:`0`
 
-    -  .. _`MEDIA-BUS-FMT-YVYU12-2X12`:
+    -  .. _MEDIA-BUS-FMT-YVYU12-2X12:
 
        -  MEDIA_BUS_FMT_YVYU12_2X12
 
@@ -9170,7 +9170,7 @@ the following codes.
 
        -  u\ :sub:`0`
 
-    -  .. _`MEDIA-BUS-FMT-UYVY8-1X16`:
+    -  .. _MEDIA-BUS-FMT-UYVY8-1X16:
 
        -  MEDIA_BUS_FMT_UYVY8_1X16
 
@@ -9310,7 +9310,7 @@ the following codes.
 
        -  y\ :sub:`0`
 
-    -  .. _`MEDIA-BUS-FMT-VYUY8-1X16`:
+    -  .. _MEDIA-BUS-FMT-VYUY8-1X16:
 
        -  MEDIA_BUS_FMT_VYUY8_1X16
 
@@ -9450,7 +9450,7 @@ the following codes.
 
        -  y\ :sub:`0`
 
-    -  .. _`MEDIA-BUS-FMT-YUYV8-1X16`:
+    -  .. _MEDIA-BUS-FMT-YUYV8-1X16:
 
        -  MEDIA_BUS_FMT_YUYV8_1X16
 
@@ -9590,7 +9590,7 @@ the following codes.
 
        -  v\ :sub:`0`
 
-    -  .. _`MEDIA-BUS-FMT-YVYU8-1X16`:
+    -  .. _MEDIA-BUS-FMT-YVYU8-1X16:
 
        -  MEDIA_BUS_FMT_YVYU8_1X16
 
@@ -9730,7 +9730,7 @@ the following codes.
 
        -  u\ :sub:`0`
 
-    -  .. _`MEDIA-BUS-FMT-YDYUYDYV8-1X16`:
+    -  .. _MEDIA-BUS-FMT-YDYUYDYV8-1X16:
 
        -  MEDIA_BUS_FMT_YDYUYDYV8_1X16
 
@@ -10008,7 +10008,7 @@ the following codes.
 
        -  v\ :sub:`0`
 
-    -  .. _`MEDIA-BUS-FMT-UYVY10-1X20`:
+    -  .. _MEDIA-BUS-FMT-UYVY10-1X20:
 
        -  MEDIA_BUS_FMT_UYVY10_1X20
 
@@ -10148,7 +10148,7 @@ the following codes.
 
        -  y\ :sub:`0`
 
-    -  .. _`MEDIA-BUS-FMT-VYUY10-1X20`:
+    -  .. _MEDIA-BUS-FMT-VYUY10-1X20:
 
        -  MEDIA_BUS_FMT_VYUY10_1X20
 
@@ -10288,7 +10288,7 @@ the following codes.
 
        -  y\ :sub:`0`
 
-    -  .. _`MEDIA-BUS-FMT-YUYV10-1X20`:
+    -  .. _MEDIA-BUS-FMT-YUYV10-1X20:
 
        -  MEDIA_BUS_FMT_YUYV10_1X20
 
@@ -10428,7 +10428,7 @@ the following codes.
 
        -  v\ :sub:`0`
 
-    -  .. _`MEDIA-BUS-FMT-YVYU10-1X20`:
+    -  .. _MEDIA-BUS-FMT-YVYU10-1X20:
 
        -  MEDIA_BUS_FMT_YVYU10_1X20
 
@@ -10568,7 +10568,7 @@ the following codes.
 
        -  u\ :sub:`0`
 
-    -  .. _`MEDIA-BUS-FMT-VUY8-1X24`:
+    -  .. _MEDIA-BUS-FMT-VUY8-1X24:
 
        -  MEDIA_BUS_FMT_VUY8_1X24
 
@@ -10639,7 +10639,7 @@ the following codes.
 
        -  y\ :sub:`0`
 
-    -  .. _`MEDIA-BUS-FMT-YUV8-1X24`:
+    -  .. _MEDIA-BUS-FMT-YUV8-1X24:
 
        -  MEDIA_BUS_FMT_YUV8_1X24
 
@@ -10710,7 +10710,7 @@ the following codes.
 
        -  v\ :sub:`0`
 
-    -  .. _`MEDIA-BUS-FMT-UYVY12-1X24`:
+    -  .. _MEDIA-BUS-FMT-UYVY12-1X24:
 
        -  MEDIA_BUS_FMT_UYVY12_1X24
 
@@ -10850,7 +10850,7 @@ the following codes.
 
        -  y\ :sub:`0`
 
-    -  .. _`MEDIA-BUS-FMT-VYUY12-1X24`:
+    -  .. _MEDIA-BUS-FMT-VYUY12-1X24:
 
        -  MEDIA_BUS_FMT_VYUY12_1X24
 
@@ -10990,7 +10990,7 @@ the following codes.
 
        -  y\ :sub:`0`
 
-    -  .. _`MEDIA-BUS-FMT-YUYV12-1X24`:
+    -  .. _MEDIA-BUS-FMT-YUYV12-1X24:
 
        -  MEDIA_BUS_FMT_YUYV12_1X24
 
@@ -11130,7 +11130,7 @@ the following codes.
 
        -  v\ :sub:`0`
 
-    -  .. _`MEDIA-BUS-FMT-YVYU12-1X24`:
+    -  .. _MEDIA-BUS-FMT-YVYU12-1X24:
 
        -  MEDIA_BUS_FMT_YVYU12_1X24
 
@@ -11270,7 +11270,7 @@ the following codes.
 
        -  u\ :sub:`0`
 
-    -  .. _`MEDIA-BUS-FMT-YUV10-1X30`:
+    -  .. _MEDIA-BUS-FMT-YUV10-1X30:
 
        -  MEDIA_BUS_FMT_YUV10_1X30
 
@@ -11341,7 +11341,7 @@ the following codes.
 
        -  v\ :sub:`0`
 
-    -  .. _`MEDIA-BUS-FMT-AYUV8-1X32`:
+    -  .. _MEDIA-BUS-FMT-AYUV8-1X32:
 
        -  MEDIA_BUS_FMT_AYUV8_1X32
 
@@ -11534,7 +11534,7 @@ The following table lists existing HSV/HSL formats.
 
        -  0
 
-    -  .. _`MEDIA-BUS-FMT-AHSV8888-1X32`:
+    -  .. _MEDIA-BUS-FMT-AHSV8888-1X32:
 
        -  MEDIA_BUS_FMT_AHSV8888_1X32
 
@@ -11639,7 +11639,7 @@ The following table lists existing JPEG compressed formats.
 
        -  Remarks
 
-    -  .. _`MEDIA-BUS-FMT-JPEG-1X8`:
+    -  .. _MEDIA-BUS-FMT-JPEG-1X8:
 
        -  MEDIA_BUS_FMT_JPEG_1X8
 
@@ -11678,7 +11678,7 @@ formats.
 
        -  Comments
 
-    -  .. _`MEDIA-BUS-FMT-S5C-UYVY-JPEG-1X8`:
+    -  .. _MEDIA-BUS-FMT-S5C-UYVY-JPEG-1X8:
 
        -  MEDIA_BUS_FMT_S5C_UYVY_JPEG_1X8
 
