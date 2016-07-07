@@ -1672,6 +1672,11 @@ static __always_inline void vmcs_set_bits(unsigned long field, u32 mask)
 	__vmcs_writel(field, __vmcs_readl(field) | mask);
 }
 
+static inline void vm_entry_controls_reset_shadow(struct vcpu_vmx *vmx)
+{
+	vmx->vm_entry_controls_shadow = vmcs_read32(VM_ENTRY_CONTROLS);
+}
+
 static inline void vm_entry_controls_init(struct vcpu_vmx *vmx, u32 val)
 {
 	vmcs_write32(VM_ENTRY_CONTROLS, val);
@@ -1698,6 +1703,11 @@ static inline void vm_entry_controls_setbit(struct vcpu_vmx *vmx, u32 val)
 static inline void vm_entry_controls_clearbit(struct vcpu_vmx *vmx, u32 val)
 {
 	vm_entry_controls_set(vmx, vm_entry_controls_get(vmx) & ~val);
+}
+
+static inline void vm_exit_controls_reset_shadow(struct vcpu_vmx *vmx)
+{
+	vmx->vm_exit_controls_shadow = vmcs_read32(VM_EXIT_CONTROLS);
 }
 
 static inline void vm_exit_controls_init(struct vcpu_vmx *vmx, u32 val)
@@ -10722,8 +10732,8 @@ static void nested_vmx_vmexit(struct kvm_vcpu *vcpu, u32 exit_reason,
 				       vmcs12->vm_exit_intr_error_code,
 				       KVM_ISA_VMX);
 
-	vm_entry_controls_init(vmx, vmcs_read32(VM_ENTRY_CONTROLS));
-	vm_exit_controls_init(vmx, vmcs_read32(VM_EXIT_CONTROLS));
+	vm_entry_controls_reset_shadow(vmx);
+	vm_exit_controls_reset_shadow(vmx);
 	vmx_segment_cache_clear(vmx);
 
 	/* if no vmcs02 cache requested, remove the one we used */
