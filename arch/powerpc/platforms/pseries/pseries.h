@@ -56,6 +56,8 @@ extern int dlpar_detach_node(struct device_node *);
 extern int dlpar_acquire_drc(u32 drc_index);
 extern int dlpar_release_drc(u32 drc_index);
 
+void queue_hotplug_event(struct pseries_hp_errorlog *hp_errlog,
+			 struct completion *hotplug_done, int *rc);
 #ifdef CONFIG_MEMORY_HOTPLUG
 int dlpar_memory(struct pseries_hp_errorlog *hp_elog);
 #else
