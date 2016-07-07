@@ -110,7 +110,7 @@ static struct nvmm_type *nvm_find_mgr_type(const char *name)
 	return NULL;
 }
 
-struct nvmm_type *nvm_init_mgr(struct nvm_dev *dev)
+static struct nvmm_type *nvm_init_mgr(struct nvm_dev *dev)
 {
 	struct nvmm_type *mt;
 	int ret;
