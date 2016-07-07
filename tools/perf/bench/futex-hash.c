@@ -11,10 +11,14 @@
 /* For the CLR_() macros */
 #include <pthread.h>
 
-#include "../perf.h"
+#include <errno.h>
+#include <signal.h>
+#include <stdlib.h>
+#include <linux/kernel.h>
+#include <sys/time.h>
+
 #include "../util/stat.h"
 #include <subcmd/parse-options.h>
-#include "../util/header.h"
 #include "bench.h"
 #include "futex.h"
 

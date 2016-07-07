@@ -5,11 +5,11 @@
 /* For the CLR_() macros */
 #include <pthread.h>
 
-#include "../perf.h"
-#include "../util/util.h"
+#include <signal.h>
 #include "../util/stat.h"
 #include <subcmd/parse-options.h>
-#include "../util/header.h"
+#include <linux/kernel.h>
+#include <errno.h>
 #include "bench.h"
 #include "futex.h"
 
