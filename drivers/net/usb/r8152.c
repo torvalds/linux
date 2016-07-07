@@ -2450,27 +2450,6 @@ static void rtl8153_runtime_enable(struct r8152 *tp, bool enable)
 	}
 }
 
-static void rtl_phy_reset(struct r8152 *tp)
-{
-	u16 data;
-	int i;
-
-	data = r8152_mdio_read(tp, MII_BMCR);
-
-	/* don't reset again before the previous one complete */
-	if (data & BMCR_RESET)
-		return;
-
-	data |= BMCR_RESET;
-	r8152_mdio_write(tp, MII_BMCR, data);
-
-	for (i = 0; i < 50; i++) {
-		msleep(20);
-		if ((r8152_mdio_read(tp, MII_BMCR) & BMCR_RESET) == 0)
-			break;
-	}
-}
-
 static void r8153_teredo_off(struct r8152 *tp)
 {
 	u32 ocp_data;
@@ -3068,9 +3047,6 @@ static void rtl_work_func_t(struct work_struct *work)
 	if (test_and_clear_bit(SCHEDULE_NAPI, &tp->flags) &&
 	    netif_carrier_ok(tp->netdev))
 		napi_schedule(&tp->napi);
-
-	if (test_and_clear_bit(PHY_RESET, &tp->flags))
-		rtl_phy_reset(tp);
 
 	mutex_unlock(&tp->control);
 
