@@ -76,7 +76,9 @@ while (<IN>) {
 		next;
 	}
 	if ($ln =~ m/^\s*enum\s+([_\w][\w\d_]+)\s+\{/
-	    || $ln =~ m/^\s*enum\s+([_\w][\w\d_]+)$/) {
+	    || $ln =~ m/^\s*enum\s+([_\w][\w\d_]+)$/
+	    || $ln =~ m/^\s*typedef\s*enum\s+([_\w][\w\d_]+)\s+\{/
+	    || $ln =~ m/^\s*typedef\s*enum\s+([_\w][\w\d_]+)$/) {
 		my $s = $1;
 		my $n = $1;
 		$n =~ tr/A-Z/a-z/;
@@ -88,7 +90,10 @@ while (<IN>) {
 		next;
 	}
 	if ($ln =~ m/^\s*struct\s+([_\w][\w\d_]+)\s+\{/
-	    || $ln =~ m/^\s*struct\s+([[_\w][\w\d_]+)$/) {
+	    || $ln =~ m/^\s*struct\s+([[_\w][\w\d_]+)$/
+	    || $ln =~ m/^\s*typedef\s*struct\s+([_\w][\w\d_]+)\s+\{/
+	    || $ln =~ m/^\s*typedef\s*struct\s+([[_\w][\w\d_]+)$/
+	    ) {
 		my $s = $1;
 		my $n = $1;
 		$n =~ tr/A-Z/a-z/;
