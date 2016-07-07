@@ -473,15 +473,14 @@ static void gen_unregister(struct nvm_dev *dev)
 	module_put(THIS_MODULE);
 }
 
-static struct nvm_block *gen_get_blk_unlocked(struct nvm_dev *dev,
+static struct nvm_block *gen_get_blk(struct nvm_dev *dev,
 				struct nvm_lun *vlun, unsigned long flags)
 {
 	struct gen_lun *lun = container_of(vlun, struct gen_lun, vlun);
 	struct nvm_block *blk = NULL;
 	int is_gc = flags & NVM_IOTYPE_GC;
 
-	assert_spin_locked(&vlun->lock);
-
+	spin_lock(&vlun->lock);
 	if (list_empty(&lun->free_list)) {
 		pr_err_ratelimited("gen: lun %u have no free pages available",
 								lun->vlun.id);
@@ -496,29 +495,17 @@ static struct nvm_block *gen_get_blk_unlocked(struct nvm_dev *dev,
 	list_move_tail(&blk->list, &lun->used_list);
 	blk->state = NVM_BLK_ST_TGT;
 	lun->vlun.nr_free_blocks--;
-
 out:
-	return blk;
-}
-
-static struct nvm_block *gen_get_blk(struct nvm_dev *dev,
-				struct nvm_lun *vlun, unsigned long flags)
-{
-	struct nvm_block *blk;
-
-	spin_lock(&vlun->lock);
-	blk = gen_get_blk_unlocked(dev, vlun, flags);
 	spin_unlock(&vlun->lock);
 	return blk;
 }
 
-static void gen_put_blk_unlocked(struct nvm_dev *dev, struct nvm_block *blk)
+static void gen_put_blk(struct nvm_dev *dev, struct nvm_block *blk)
 {
 	struct nvm_lun *vlun = blk->lun;
 	struct gen_lun *lun = container_of(vlun, struct gen_lun, vlun);
 
-	assert_spin_locked(&vlun->lock);
-
+	spin_lock(&vlun->lock);
 	if (blk->state & NVM_BLK_ST_TGT) {
 		list_move_tail(&blk->list, &lun->free_list);
 		lun->vlun.nr_free_blocks++;
@@ -532,14 +519,6 @@ static void gen_put_blk_unlocked(struct nvm_dev *dev, struct nvm_block *blk)
 							blk->id, blk->state);
 		list_move_tail(&blk->list, &lun->bb_list);
 	}
-}
-
-static void gen_put_blk(struct nvm_dev *dev, struct nvm_block *blk)
-{
-	struct nvm_lun *vlun = blk->lun;
-
-	spin_lock(&vlun->lock);
-	gen_put_blk_unlocked(dev, blk);
 	spin_unlock(&vlun->lock);
 }
 
@@ -668,9 +647,6 @@ static struct nvmm_type gen = {
 
 	.create_tgt		= gen_create_tgt,
 	.remove_tgt		= gen_remove_tgt,
-
-	.get_blk_unlocked	= gen_get_blk_unlocked,
-	.put_blk_unlocked	= gen_put_blk_unlocked,
 
 	.get_blk		= gen_get_blk,
 	.put_blk		= gen_put_blk,

@@ -192,21 +192,16 @@ static void rrpc_set_lun_cur(struct rrpc_lun *rlun, struct rrpc_block *rblk)
 static struct rrpc_block *rrpc_get_blk(struct rrpc *rrpc, struct rrpc_lun *rlun,
 							unsigned long flags)
 {
-	struct nvm_lun *lun = rlun->parent;
 	struct nvm_block *blk;
 	struct rrpc_block *rblk;
 
-	spin_lock(&lun->lock);
-	blk = nvm_get_blk_unlocked(rrpc->dev, rlun->parent, flags);
+	blk = nvm_get_blk(rrpc->dev, rlun->parent, flags);
 	if (!blk) {
 		pr_err("nvm: rrpc: cannot get new block from media manager\n");
-		spin_unlock(&lun->lock);
 		return NULL;
 	}
 
 	rblk = rrpc_get_rblk(rlun, blk->id);
-	spin_unlock(&lun->lock);
-
 	blk->priv = rblk;
 	bitmap_zero(rblk->invalid_pages, rrpc->dev->sec_per_blk);
 	rblk->next_page = 0;
@@ -218,12 +213,7 @@ static struct rrpc_block *rrpc_get_blk(struct rrpc *rrpc, struct rrpc_lun *rlun,
 
 static void rrpc_put_blk(struct rrpc *rrpc, struct rrpc_block *rblk)
 {
-	struct rrpc_lun *rlun = rblk->rlun;
-	struct nvm_lun *lun = rlun->parent;
-
-	spin_lock(&lun->lock);
-	nvm_put_blk_unlocked(rrpc->dev, rblk->parent);
-	spin_unlock(&lun->lock);
+	nvm_put_blk(rrpc->dev, rblk->parent);
 }
 
 static void rrpc_put_blks(struct rrpc *rrpc)

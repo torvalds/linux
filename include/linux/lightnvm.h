@@ -491,8 +491,6 @@ struct nvmm_type {
 	nvmm_remove_tgt_fn *remove_tgt;
 
 	/* Block administration callbacks */
-	nvmm_get_blk_fn *get_blk_unlocked;
-	nvmm_put_blk_fn *put_blk_unlocked;
 	nvmm_get_blk_fn *get_blk;
 	nvmm_put_blk_fn *put_blk;
 	nvmm_open_blk_fn *open_blk;
@@ -521,10 +519,6 @@ struct nvmm_type {
 
 extern int nvm_register_mgr(struct nvmm_type *);
 extern void nvm_unregister_mgr(struct nvmm_type *);
-
-extern struct nvm_block *nvm_get_blk_unlocked(struct nvm_dev *,
-					struct nvm_lun *, unsigned long);
-extern void nvm_put_blk_unlocked(struct nvm_dev *, struct nvm_block *);
 
 extern struct nvm_block *nvm_get_blk(struct nvm_dev *, struct nvm_lun *,
 								unsigned long);
