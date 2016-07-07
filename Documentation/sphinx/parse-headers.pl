@@ -29,9 +29,12 @@ my %structs;
 my $is_enum = 0;
 open IN, $file_in or die "Can't open $file_in";
 while (<IN>) {
+	my $ln = $_;
+	$ln =~ s,/\*.*\*/,,;
+
 	$data .= $_;
 
-	if ($is_enum && m/^\s*([^\s\}\,\=]+)\s*[\,=]?/) {
+	if ($is_enum && $ln =~ m/^\s*([_A-Z][^\s\}\,\=]+)\s*[\,=]?/) {
 		my $s = $1;
 		my $n = $1;
 		$n =~ tr/A-Z/a-z/;
@@ -44,7 +47,7 @@ while (<IN>) {
 	}
 	$is_enum = 0 if ($is_enum && m/\}/);
 
-	if (m/^\s*#\s*define\s+([_A-Z]\S+)\s+_IO/) {
+	if ($ln =~ m/^\s*#\s*define\s+([_A-Z]\S+)\s+_IO/) {
 		my $s = $1;
 		my $n = $1;
 		$n =~ tr/A-Z/a-z/;
@@ -53,7 +56,7 @@ while (<IN>) {
 		next;
 	}
 
-	if (m/^\s*#\s*define\s+([_A-Z]\S+)\s+/) {
+	if ($ln =~ m/^\s*#\s*define\s+([_A-Z]\S+)\s+/) {
 		my $s = $1;
 		my $n = $1;
 		$n =~ tr/A-Z/a-z/;
@@ -63,7 +66,7 @@ while (<IN>) {
 		next;
 	}
 
-	if (m/^\s*typedef\s+.*\s+([_\w]\S+);/) {
+	if ($ln =~ m/^\s*typedef\s+.*\s+([_\w]\S+);/) {
 		my $s = $1;
 		my $n = $1;
 		$n =~ tr/A-Z/a-z/;
@@ -72,7 +75,8 @@ while (<IN>) {
 		$typedefs{$s} = $n;
 		next;
 	}
-	if (m/^\s*enum\s+(\S+)\s+\{/ || m/^\s*enum\s+(\S+)$/) {
+	if ($ln =~ m/^\s*enum\s+(\S+)\s+\{/
+	    || $ln =~ m/^\s*enum\s+(\S+)$/) {
 		my $s = $1;
 		my $n = $1;
 		$n =~ tr/A-Z/a-z/;
@@ -83,7 +87,8 @@ while (<IN>) {
 		$is_enum = $1;
 		next;
 	}
-	if (m/^\s*struct\s+([_A-Za-z_]\S+)\s+\{/ || m/^\s*struct\s+([A-Za-z_]\S+)$/) {
+	if ($ln =~ m/^\s*struct\s+([_A-Za-z_]\S+)\s+\{/
+	    || $ln =~ m/^\s*struct\s+([A-Za-z_]\S+)$/) {
 		my $s = $1;
 		my $n = $1;
 		$n =~ tr/A-Z/a-z/;
