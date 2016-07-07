@@ -41,6 +41,10 @@
  */
 
 static u64 __get_oldest_flush_tid(struct ceph_mds_client *mdsc);
+static void __kick_flushing_caps(struct ceph_mds_client *mdsc,
+				 struct ceph_mds_session *session,
+				 struct ceph_inode_info *ci,
+				 u64 oldest_flush_tid);
 
 /*
  * Generate readable cap strings for debugging output.
@@ -1563,11 +1567,6 @@ void ceph_check_caps(struct ceph_inode_info *ci, int flags,
 	if (ci->i_ceph_flags & CEPH_I_FLUSH)
 		flags |= CHECK_CAPS_FLUSH;
 
-	/* flush snaps first time around only */
-	if (ci->i_ceph_flags & CEPH_I_FLUSH_SNAPS) {
-		__ceph_flush_snaps(ci, &session);
-		ci->i_ceph_flags &= ~CEPH_I_FLUSH_SNAPS;
-	}
 	goto retry_locked;
 retry:
 	spin_lock(&ci->i_ceph_lock);
@@ -1688,10 +1687,15 @@ retry_locked:
 			}
 		}
 		/* flush anything dirty? */
-		if (cap == ci->i_auth_cap && (flags & CHECK_CAPS_FLUSH) &&
-		    ci->i_dirty_caps) {
-			dout("flushing dirty caps\n");
-			goto ack;
+		if (cap == ci->i_auth_cap) {
+			if ((flags & CHECK_CAPS_FLUSH) && ci->i_dirty_caps) {
+				dout("flushing dirty caps\n");
+				goto ack;
+			}
+			if (ci->i_ceph_flags & CEPH_I_FLUSH_SNAPS) {
+				dout("flushing snap caps\n");
+				goto ack;
+			}
 		}
 
 		/* completed revocation? going down and there are no caps? */
@@ -1750,6 +1754,27 @@ ack:
 				goto retry;
 			}
 		}
+
+		/* kick flushing and flush snaps before sending normal
+		 * cap message */
+		if (cap == ci->i_auth_cap &&
+		    (ci->i_ceph_flags &
+		     (CEPH_I_KICK_FLUSH | CEPH_I_FLUSH_SNAPS))) {
+			if (ci->i_ceph_flags & CEPH_I_KICK_FLUSH) {
+				spin_lock(&mdsc->cap_dirty_lock);
+				oldest_flush_tid = __get_oldest_flush_tid(mdsc);
+				spin_unlock(&mdsc->cap_dirty_lock);
+				__kick_flushing_caps(mdsc, session, ci,
+						     oldest_flush_tid);
+				ci->i_ceph_flags &= ~CEPH_I_KICK_FLUSH;
+			}
+			if (ci->i_ceph_flags & CEPH_I_FLUSH_SNAPS) {
+				__ceph_flush_snaps(ci, &session);
+				ci->i_ceph_flags &= ~CEPH_I_FLUSH_SNAPS;
+			}
+			goto retry_locked;
+		}
+
 		/* take snap_rwsem after session mutex */
 		if (!took_snap_rwsem) {
 			if (down_read_trylock(&mdsc->snap_rwsem) == 0) {
