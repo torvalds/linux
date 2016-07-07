@@ -206,7 +206,7 @@ err_out:
 	}
 }
 
-static void boot_core(unsigned core)
+static void boot_core(unsigned int core, unsigned int vpe_id)
 {
 	u32 access, stat, seq_state;
 	unsigned timeout;
@@ -233,8 +233,9 @@ static void boot_core(unsigned core)
 		mips_cpc_lock_other(core);
 
 		if (mips_cm_revision() >= CM_REV_CM3) {
-			/* Run VP0 following the reset */
-			write_cpc_co_vp_run(0x1);
+			/* Run only the requested VP following the reset */
+			write_cpc_co_vp_stop(0xf);
+			write_cpc_co_vp_run(1 << vpe_id);
 
 			/*
 			 * Ensure that the VP_RUN register is written before the
@@ -306,7 +307,7 @@ static void cps_boot_secondary(int cpu, struct task_struct *idle)
 
 	if (!test_bit(core, core_power)) {
 		/* Boot a VPE on a powered down core */
-		boot_core(core);
+		boot_core(core, vpe_id);
 		goto out;
 	}
 
