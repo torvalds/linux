@@ -56,7 +56,6 @@ struct rrpc_block {
 	struct nvm_block *parent;
 	struct rrpc_lun *rlun;
 	struct list_head prio;
-	struct list_head list;
 
 #define MAX_INVALID_PAGES_STORAGE 8
 	/* Bitmap for invalid page intries */
@@ -77,13 +76,6 @@ struct rrpc_lun {
 	struct rrpc_block *blocks;	/* Reference to block allocation */
 
 	struct list_head prio_list;	/* Blocks that may be GC'ed */
-	struct list_head open_list;	/* In-use open blocks. These are blocks
-					 * that can be both written to and read
-					 * from
-					 */
-	struct list_head closed_list;	/* In-use closed blocks. These are
-					 * blocks that can _only_ be read from
-					 */
 
 	struct work_struct ws_gc;
 

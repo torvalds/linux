@@ -205,7 +205,6 @@ static struct rrpc_block *rrpc_get_blk(struct rrpc *rrpc, struct rrpc_lun *rlun,
 	}
 
 	rblk = rrpc_get_rblk(rlun, blk->id);
-	list_add_tail(&rblk->list, &rlun->open_list);
 	spin_unlock(&lun->lock);
 
 	blk->priv = rblk;
@@ -224,7 +223,6 @@ static void rrpc_put_blk(struct rrpc *rrpc, struct rrpc_block *rblk)
 
 	spin_lock(&lun->lock);
 	nvm_put_blk_unlocked(rrpc->dev, rblk->parent);
-	list_del(&rblk->list);
 	spin_unlock(&lun->lock);
 }
 
@@ -511,15 +509,10 @@ static void rrpc_gc_queue(struct work_struct *work)
 	struct rrpc *rrpc = gcb->rrpc;
 	struct rrpc_block *rblk = gcb->rblk;
 	struct rrpc_lun *rlun = rblk->rlun;
-	struct nvm_lun *lun = rblk->parent->lun;
 
 	spin_lock(&rlun->lock);
 	list_add_tail(&rblk->prio, &rlun->prio_list);
 	spin_unlock(&rlun->lock);
-
-	spin_lock(&lun->lock);
-	list_move_tail(&rblk->list, &rlun->closed_list);
-	spin_unlock(&lun->lock);
 
 	mempool_free(gcb, rrpc->gcb_pool);
 	pr_debug("nvm: block '%lu' is full, allow GC (sched)\n",
@@ -1194,8 +1187,6 @@ static int rrpc_luns_init(struct rrpc *rrpc, int lun_begin, int lun_end)
 
 		rlun->rrpc = rrpc;
 		INIT_LIST_HEAD(&rlun->prio_list);
-		INIT_LIST_HEAD(&rlun->open_list);
-		INIT_LIST_HEAD(&rlun->closed_list);
 
 		INIT_WORK(&rlun->ws_gc, rrpc_lun_gc);
 		spin_lock_init(&rlun->lock);
