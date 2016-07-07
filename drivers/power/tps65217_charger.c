@@ -197,6 +197,7 @@ static int tps65217_charger_probe(struct platform_device *pdev)
 {
 	struct tps65217 *tps = dev_get_drvdata(pdev->dev.parent);
 	struct tps65217_charger *charger;
+	struct power_supply_config cfg = {};
 	int ret;
 
 	dev_dbg(&pdev->dev, "%s\n", __func__);
@@ -208,9 +209,12 @@ static int tps65217_charger_probe(struct platform_device *pdev)
 	charger->tps = tps;
 	charger->dev = &pdev->dev;
 
+	cfg.of_node = pdev->dev.of_node;
+	cfg.drv_data = charger;
+
 	charger->ac = devm_power_supply_register(&pdev->dev,
 						 &tps65217_charger_desc,
-						 NULL);
+						 &cfg);
 	if (IS_ERR(charger->ac)) {
 		dev_err(&pdev->dev, "failed: power supply register\n");
 		return PTR_ERR(charger->ac);

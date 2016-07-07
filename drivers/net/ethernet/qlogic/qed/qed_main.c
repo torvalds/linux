@@ -1085,6 +1085,7 @@ static int qed_get_port_type(u32 media_type)
 	case MEDIA_SFPP_10G_FIBER:
 	case MEDIA_SFP_1G_FIBER:
 	case MEDIA_XFP_FIBER:
+	case MEDIA_MODULE_FIBER:
 	case MEDIA_KR:
 		port_type = PORT_FIBRE;
 		break;

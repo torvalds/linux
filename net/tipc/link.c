@@ -704,7 +704,8 @@ static void link_profile_stats(struct tipc_link *l)
  */
 int tipc_link_timeout(struct tipc_link *l, struct sk_buff_head *xmitq)
 {
-	int mtyp, rc = 0;
+	int mtyp = 0;
+	int rc = 0;
 	bool state = false;
 	bool probe = false;
 	bool setup = false;

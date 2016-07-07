@@ -595,6 +595,10 @@ S:	Odd Fixes
 L:	linux-alpha@vger.kernel.org
 F:	arch/alpha/
 
+ALPS PS/2 TOUCHPAD DRIVER
+R:	Pali Rohár <pali.rohar@gmail.com>
+F:	drivers/input/mouse/alps.*
+
 ALTERA MAILBOX DRIVER
 M:	Ley Foon Tan <lftan@altera.com>
 L:	nios2-dev@lists.rocketboards.org (moderated for non-subscribers)
@@ -7420,7 +7424,7 @@ F:	drivers/scsi/megaraid.*
 F:	drivers/scsi/megaraid/
 
 MELLANOX ETHERNET DRIVER (mlx4_en)
-M: 	Eugenia Emantayev <eugenia@mellanox.com>
+M:	Tariq Toukan <tariqt@mellanox.com>
 L:	netdev@vger.kernel.org
 S:	Supported
 W:	http://www.mellanox.com
@@ -8959,6 +8963,7 @@ L:	linux-gpio@vger.kernel.org
 T:	git git://git.kernel.org/pub/scm/linux/kernel/git/linusw/linux-pinctrl.git
 S:	Maintained
 F:	Documentation/devicetree/bindings/pinctrl/
+F:	Documentation/pinctrl.txt
 F:	drivers/pinctrl/
 F:	include/linux/pinctrl/
 

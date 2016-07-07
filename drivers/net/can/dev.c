@@ -798,6 +798,9 @@ static int can_validate(struct nlattr *tb[], struct nlattr *data[])
 	 * - control mode with CAN_CTRLMODE_FD set
 	 */
 
+	if (!data)
+		return 0;
+
 	if (data[IFLA_CAN_CTRLMODE]) {
 		struct can_ctrlmode *cm = nla_data(data[IFLA_CAN_CTRLMODE]);
 
@@ -1008,6 +1011,11 @@ static int can_newlink(struct net *src_net, struct net_device *dev,
 	return -EOPNOTSUPP;
 }
 
+static void can_dellink(struct net_device *dev, struct list_head *head)
+{
+	return;
+}
+
 static struct rtnl_link_ops can_link_ops __read_mostly = {
 	.kind		= "can",
 	.maxtype	= IFLA_CAN_MAX,
@@ -1016,6 +1024,7 @@ static struct rtnl_link_ops can_link_ops __read_mostly = {
 	.validate	= can_validate,
 	.newlink	= can_newlink,
 	.changelink	= can_changelink,
+	.dellink	= can_dellink,
 	.get_size	= can_get_size,
 	.fill_info	= can_fill_info,
 	.get_xstats_size = can_get_xstats_size,

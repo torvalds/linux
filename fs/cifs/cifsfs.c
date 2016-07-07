@@ -87,6 +87,7 @@ extern mempool_t *cifs_req_poolp;
 extern mempool_t *cifs_mid_poolp;
 
 struct workqueue_struct	*cifsiod_wq;
+__u32 cifs_lock_secret;
 
 /*
  * Bumps refcount for cifs super block.
@@ -1265,6 +1266,8 @@ init_cifs(void)
 	spin_lock_init(&cifs_tcp_ses_lock);
 	spin_lock_init(&cifs_file_list_lock);
 	spin_lock_init(&GlobalMid_Lock);
+
+	get_random_bytes(&cifs_lock_secret, sizeof(cifs_lock_secret));
 
 	if (cifs_max_pending < 2) {
 		cifs_max_pending = 2;
