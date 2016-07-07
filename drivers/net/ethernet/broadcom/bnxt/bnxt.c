@@ -997,7 +997,7 @@ static struct sk_buff *bnxt_gro_func_5731x(struct bnxt_tpa_info *tpa_info,
 		 * correct protocol ID, it must be a loopback packet where
 		 * the offsets are off by 4.
 		 */
-		if (proto != htons(ETH_P_IP) && proto && htons(ETH_P_IPV6))
+		if (proto != htons(ETH_P_IP) && proto != htons(ETH_P_IPV6))
 			loopback = true;
 	}
 	if (loopback) {
